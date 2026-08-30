@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/api/v1/app/download_apk", "destination": "/app/static/downloads/PianoCommunity.apk" },
+    { "source": "/download/apk", "destination": "/app/static/downloads/PianoCommunity.apk" },
+    { "source": "/downloads/(.*)", "destination": "/app/static/downloads/$1" },
+    { "source": "/api/proxy", "destination": "/api/proxy.js" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)\\.apk",
+      "headers": [
+        { "key": "Content-Type", "value": "application/vnd.android.package-archive" },
+        { "key": "Content-Disposition", "value": "attachment; filename=\"PianoCommunity.apk\"" }
+      ]
+    }
+  ]
+}

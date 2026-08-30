@@ -303,8 +303,8 @@ async def proxy_download(url: str = Query(..., description="URL directa del arch
     )
 
 
-@app.get("/download/apk", tags=["Android App"], summary="Descargar APK de Beatstar para Android")
-@app.get("/api/v1/app/download_apk", tags=["Android App"], summary="Descargar APK de Beatstar para Android")
+@app.get("/download/apk", tags=["Android App"], summary="Descargar APK para Android")
+@app.get("/api/v1/app/download_apk", tags=["Android App"], summary="Descargar APK para Android")
 async def download_android_apk():
     """
     Descarga directamente el archivo .apk generado para instalar en dispositivos móviles Android.
@@ -312,7 +312,9 @@ async def download_android_apk():
     from fastapi.responses import FileResponse
 
     apk_paths = [
+        os.path.join(static_dir, "downloads", "PianoCommunity.apk"),
         os.path.join(static_dir, "downloads", "beatstar.apk"),
+        os.path.join(static_dir, "PianoCommunity.apk"),
         os.path.join(os.path.dirname(os.path.dirname(__file__)), "android", "app", "build", "outputs", "apk", "debug", "app-debug.apk")
     ]
 
@@ -320,10 +322,10 @@ async def download_android_apk():
         if os.path.exists(p):
             return FileResponse(
                 path=p,
-                filename="Beatstar.apk",
+                filename="PianoCommunity.apk",
                 media_type="application/vnd.android.package-archive",
                 headers={
-                    "Content-Disposition": 'attachment; filename="Beatstar.apk"',
+                    "Content-Disposition": 'attachment; filename="PianoCommunity.apk"',
                     "Cache-Control": "no-cache"
                 }
             )

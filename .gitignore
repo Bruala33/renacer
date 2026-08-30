@@ -17,7 +17,6 @@ htmlcov/
 # Caches & Storage
 gdrive_cache/
 downloads/
-app/static/downloads/
 .cache/
 
 # Archives & Compressed Files
@@ -57,10 +56,15 @@ android/.gradle/
 android/build/
 android/app/build/
 android/captures/
-*.apk
 *.aab
 *.keystore
 *.jks
+
+# Ignore build output APKs, but allow the public downloadable APK for Vercel / GitHub hosting
+*.apk
+!app/static/downloads/*.apk
+!app/static/*.apk
+!downloads/*.apk
 
 # Archivos específicos a ignorar
 cookies.txt
