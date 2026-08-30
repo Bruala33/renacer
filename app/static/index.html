@@ -2109,277 +2109,263 @@
       const results = [];
       const seenSetIds = new Set();
 
-      // 1. Catboy API v2 (osu! Mania mode 3) - DIRECT & ULTRA FAST
-      try {
-        const catboyUrl = `https://catboy.best/api/v2/search?q=${encodeURIComponent(query)}&m=3`;
-        const catboyData = await fetchWithCorsFallback(catboyUrl, {}, 5000);
-        const catboyItems = Array.isArray(catboyData) ? catboyData : (catboyData?.data || []);
+      const parseBeatmapItem = (item, defaultSetId) => {
+        try {
+          const setId = item.id || item.sid || item.beatmapset_id || defaultSetId;
+          if (!setId || seenSetIds.has(setId)) return null;
+          seenSetIds.add(setId);
 
-        for (const item of catboyItems.slice(0, 20)) {
-          try {
-            const setId = item.id;
-            if (!setId || seenSetIds.has(setId)) continue;
-            seenSetIds.add(setId);
+          const title = item.title || item.title_unicode || item.titleU || 'Sin título';
+          const artist = item.artist || item.artist_unicode || item.artistU || 'Desconocido';
+          const creator = item.creator || (item.user && item.user.username) || 'osu! Mapper';
+          const thumbnail = item.covers?.card || item.covers?.cover || `https://assets.ppy.sh/beatmaps/${setId}/covers/card.jpg`;
 
-            const title = item.title || 'Sin título';
-            const artist = item.artist || 'Desconocido';
-            const creator = item.creator || (item.user && item.user.username) || 'osu! Mapper';
-            const thumbnail = item.covers?.card || item.covers?.cover || `https://assets.ppy.sh/beatmaps/${setId}/covers/card.jpg`;
-
-            const beatmaps = item.beatmaps || [];
-            let diffs = beatmaps
-              .filter(b => b.mode === 3 || b.mode_int === 3 || String(b.mode) === 'mania' || beatmaps.length <= 2)
-              .map(b => {
-                const stars = Math.round(parseFloat(b.difficulty_rating || 0.0) * 10) / 10;
-                const name = b.version || `Key ${b.cs || 4}`;
-                return {
-                  id: String(b.id),
-                  name: name,
-                  stars: stars,
-                  keys: parseInt(b.cs || 4, 10),
-                  label: `${name} (${stars.toFixed(1)}★)`
-                };
-              });
-
-            if (diffs.length === 0 && beatmaps.length > 0) {
-              diffs = beatmaps.map(b => {
-                const stars = Math.round(parseFloat(b.difficulty_rating || 0.0) * 10) / 10;
-                const name = b.version || 'Normal';
-                return {
-                  id: String(b.id),
-                  name: name,
-                  stars: stars,
-                  keys: parseInt(b.cs || 4, 10),
-                  label: `${name} (${stars.toFixed(1)}★)`
-                };
-              });
-            }
-
-            diffs.sort((a, b) => a.stars - b.stars);
-
-            if (diffs.length > 0) {
-              results.push({
-                id: `osu_${setId}`,
-                source: 'osu',
-                source_name: 'osu!',
-                source_badge: '[osu!]',
-                source_color: '#ff007f',
-                title: title,
-                artist: artist,
-                creator: creator,
-                thumbnail: thumbnail,
-                download_url: `https://catboy.best/d/${setId}`,
-                direct_download_url: `https://catboy.best/d/${setId}`,
-                fallback_download_url: `https://api.nerinyan.moe/d/${setId}`,
-                bpm: item.bpm || 120,
-                difficulties: diffs
-              });
-            }
-          } catch (ex) {
-            console.debug('Error parsing catboy item:', ex);
-          }
-        }
-      } catch (catErr) {
-        console.warn('Catboy search warning:', catErr);
-      }
-
-      // 2. Sayobot Mirror API (Complementary results)
-      try {
-        const sayoUrl = `https://api.sayobot.cn/beatmaplist?0=20&1=0&2=4&m=3&cmd=search&keyword=${encodeURIComponent(query)}`;
-        const sayoData = await fetchWithCorsFallback(sayoUrl, {}, 5000);
-        const sayoItems = sayoData?.data || (Array.isArray(sayoData) ? sayoData : []);
-
-        for (const item of sayoItems.slice(0, 15)) {
-          try {
-            const setId = item.sid;
-            if (!setId || seenSetIds.has(setId)) continue;
-            seenSetIds.add(setId);
-
-            const title = item.title || item.titleU || 'Sin título';
-            const artist = item.artist || item.artistU || 'Desconocido';
-            const creator = item.creator || 'osu! Mapper';
-            const thumbnail = `https://assets.ppy.sh/beatmaps/${setId}/covers/card.jpg`;
-
-            const bidData = item.bid_data || [];
-            const diffs = bidData.map(b => {
-              const stars = Math.round(parseFloat(b.star || 0.0) * 10) / 10;
-              const name = b.version || `Key ${b.mode === 3 ? 4 : 4}`;
+          const beatmaps = item.beatmaps || item.bid_data || [];
+          let diffs = beatmaps
+            .filter(b => b.mode === 3 || b.mode_int === 3 || String(b.mode) === 'mania' || beatmaps.length <= 2)
+            .map(b => {
+              const stars = Math.round(parseFloat(b.difficulty_rating || b.star || 0.0) * 10) / 10;
+              const name = b.version || `Key ${b.cs || 4}`;
               return {
-                id: String(b.bid),
+                id: String(b.id || b.bid || `${setId}_${name}`),
                 name: name,
                 stars: stars,
-                keys: 4,
+                keys: parseInt(b.cs || 4, 10),
                 label: `${name} (${stars.toFixed(1)}★)`
               };
             });
 
-            diffs.sort((a, b) => a.stars - b.stars);
+          if (diffs.length === 0 && beatmaps.length > 0) {
+            diffs = beatmaps.map(b => {
+              const stars = Math.round(parseFloat(b.difficulty_rating || b.star || 0.0) * 10) / 10;
+              const name = b.version || 'Normal';
+              return {
+                id: String(b.id || b.bid || `${setId}_${name}`),
+                name: name,
+                stars: stars,
+                keys: parseInt(b.cs || 4, 10),
+                label: `${name} (${stars.toFixed(1)}★)`
+              };
+            });
+          }
 
-            if (diffs.length > 0) {
-              results.push({
-                id: `osu_${setId}`,
-                source: 'osu',
-                source_name: 'osu!',
-                source_badge: '[osu!]',
-                source_color: '#ff007f',
-                title: title,
-                artist: artist,
-                creator: creator,
-                thumbnail: thumbnail,
-                download_url: `https://catboy.best/d/${setId}`,
-                direct_download_url: `https://txy1.sayobot.cn/beatmaps/download/mini/${setId}`,
-                fallback_download_url: `https://catboy.best/d/${setId}`,
-                bpm: item.bpm || 120,
-                difficulties: diffs
-              });
-            }
-          } catch (ex) {
-            console.debug('Error parsing sayobot item:', ex);
+          diffs.sort((a, b) => a.stars - b.stars);
+
+          if (diffs.length > 0) {
+            return {
+              id: `osu_${setId}`,
+              source: 'osu',
+              source_name: 'osu!',
+              source_badge: '[osu!]',
+              source_color: '#ff007f',
+              title: title,
+              artist: artist,
+              creator: creator,
+              thumbnail: thumbnail,
+              download_url: `https://catboy.best/d/${setId}`,
+              direct_download_url: `https://api.nerinyan.moe/d/${setId}`,
+              fallback_download_url: `https://catboy.best/d/${setId}`,
+              bpm: item.bpm || 120,
+              difficulties: diffs
+            };
+          }
+        } catch (ex) {
+          console.debug('Error parsing osu item:', ex);
+        }
+        return null;
+      };
+
+      const sources = [
+        // 1. Nerinyan API (Direct osu! search)
+        async () => {
+          const url = `https://api.nerinyan.moe/search?q=${encodeURIComponent(query)}&m=3`;
+          const data = await fetchWithCorsFallback(url, {}, 5000);
+          const items = Array.isArray(data) ? data : (data?.data || []);
+          for (const it of items.slice(0, 25)) {
+            const r = parseBeatmapItem(it);
+            if (r) results.push(r);
+          }
+        },
+        // 2. Catboy API v2
+        async () => {
+          const url = `https://catboy.best/api/v2/search?q=${encodeURIComponent(query)}&m=3`;
+          const data = await fetchWithCorsFallback(url, {}, 5000);
+          const items = Array.isArray(data) ? data : (data?.data || []);
+          for (const it of items.slice(0, 25)) {
+            const r = parseBeatmapItem(it);
+            if (r) results.push(r);
+          }
+        },
+        // 3. Sayobot Mirror API
+        async () => {
+          const url = `https://api.sayobot.cn/beatmaplist?0=20&1=0&2=4&m=3&cmd=search&keyword=${encodeURIComponent(query)}`;
+          const data = await fetchWithCorsFallback(url, {}, 5000);
+          const items = data?.data || (Array.isArray(data) ? data : []);
+          for (const it of items.slice(0, 15)) {
+            const r = parseBeatmapItem(it, it.sid);
+            if (r) results.push(r);
           }
         }
-      } catch (sayoErr) {
-        console.debug('Sayobot search fallback:', sayoErr);
-      }
+      ];
 
+      await Promise.allSettled(sources.map(fn => fn()));
       console.log(`[Search] osu! Mania entregó ${results.length} resultados válidos.`);
       return results;
     }
 
     async function searchCloneHero(query) {
-      const candidates = [
-        () => {
-          const c = new AbortController();
-          const tid = setTimeout(() => c.abort(), 6000);
-          return fetch('https://api.enchor.us/search', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ search: query, page: 1, source: 'website' }),
-            signal: c.signal
-          }).then(r => { clearTimeout(tid); if (r.ok) return r.json(); throw new Error('HTTP ' + r.status); });
+      const results = [];
+      const seenChartIds = new Set();
+
+      const parseCloneHeroItems = (items) => {
+        for (const [idx, item] of items.slice(0, 25).entries()) {
+          try {
+            const chartId = item.chartId || item.songId || item.id || item.md5 || `ch_${idx}_${Date.now()}`;
+            if (seenChartIds.has(chartId)) continue;
+            seenChartIds.add(chartId);
+
+            const name = item.name || item.title || item.song_name || 'Sin título';
+            const artist = item.artist || item.artist_name || 'Desconocido';
+            const charter = item.charter || item.charterName || item.charter_name || 'Clone Hero Charter';
+            const bpm = item.bpm || 120;
+            const driveId = item.driveFileId || item.parentFolderId;
+
+            // Extraer URL de descarga directa
+            let directDl = item.download_url || item.directDownloadUrl || item.downloadUrl || item.sngDownloadUrl || item.sngUrl || '';
+
+            if (!directDl && driveId) {
+              directDl = `https://drive.usercontent.google.com/download?id=${driveId}&export=download&confirm=t`;
+            }
+
+            if (!directDl && item.md5) {
+              directDl = `https://api.enchor.us/download/${item.md5}`;
+            }
+
+            if (!directDl) continue;
+
+            // Extraer dificultades
+            const diffs = [];
+            if (item.diff_guitar !== undefined && item.diff_guitar !== null && item.diff_guitar >= 0) {
+              const starVal = parseFloat(item.diff_guitar) > 0 ? parseFloat(item.diff_guitar) : 4.5;
+              diffs.push({
+                id: 'ExpertSingle',
+                name: 'Expert Single',
+                stars: starVal,
+                keys: 5,
+                label: `Expert Single (${starVal.toFixed(1)}★)`
+              });
+            }
+
+            if (item.notesData && item.notesData.noteCounts && Array.isArray(item.notesData.noteCounts)) {
+              for (const nc of item.notesData.noteCounts) {
+                const dName = nc.difficulty || 'Expert';
+                const diffKey = `${dName.charAt(0).toUpperCase() + dName.slice(1)}Single`;
+                if (!diffs.some(d => d.id === diffKey || d.name.toLowerCase() === dName.toLowerCase())) {
+                  diffs.push({
+                    id: diffKey,
+                    name: `${dName.charAt(0).toUpperCase() + dName.slice(1)} Single`,
+                    stars: dName.toLowerCase().includes('hard') ? 3.5 : (dName.toLowerCase().includes('medium') ? 2.5 : (dName.toLowerCase().includes('easy') ? 1.5 : 4.5)),
+                    keys: 5,
+                    label: `${dName.charAt(0).toUpperCase() + dName.slice(1)}`
+                  });
+                }
+              }
+            }
+
+            if (diffs.length === 0) {
+              diffs.push({
+                id: 'ExpertSingle',
+                name: 'Expert Single',
+                stars: 4.5,
+                keys: 5,
+                label: 'Expert Single (4.5★)'
+              });
+              diffs.push({
+                id: 'HardSingle',
+                name: 'Hard Single',
+                stars: 3.5,
+                keys: 5,
+                label: 'Hard Single (3.5★)'
+              });
+            }
+
+            let thumbnail = GENERIC_THUMBNAIL;
+            if (item.albumArtMd5) {
+              thumbnail = `https://api.enchor.us/albumart/${item.albumArtMd5}`;
+            } else if (item.thumbnail) {
+              thumbnail = item.thumbnail;
+            }
+
+            const downloadEndpoint = directDl;
+
+            results.push({
+              id: `clonehero_${chartId}`,
+              source: 'clonehero',
+              source_name: 'Clone Hero',
+              source_badge: '[Clone Hero]',
+              source_color: '#b142ff',
+              title: name,
+              artist: artist,
+              creator: charter,
+              thumbnail: thumbnail,
+              download_url: downloadEndpoint,
+              direct_download_url: downloadEndpoint,
+              fallback_download_url: driveId ? `https://drive.google.com/uc?export=download&id=${driveId}&confirm=t` : directDl,
+              drive_id: driveId,
+              bpm: Math.round(bpm),
+              difficulties: diffs
+            });
+          } catch (ex) {
+            console.debug('Error parsing Clone Hero item:', ex);
+          }
+        }
+      };
+
+      const sources = [
+        // 1. Enchart API (Chorus Search)
+        async () => {
+          const url = `https://api.enchart.info/api/search?query=${encodeURIComponent(query)}`;
+          const data = await fetchWithCorsFallback(url, {}, 6000);
+          const items = data?.data || data?.songs || (Array.isArray(data) ? data : []);
+          parseCloneHeroItems(items);
         },
-        () => {
+        // 2. Enchor.us API POST
+        async () => {
           const c = new AbortController();
           const tid = setTimeout(() => c.abort(), 6000);
-          return fetch(`https://corsproxy.io/?url=${encodeURIComponent(`https://api.enchor.us/search`)}`, {
+          const r = await fetch('https://api.enchor.us/search', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ search: query, page: 1, source: 'website' }),
             signal: c.signal
-          }).then(r => { clearTimeout(tid); if (r.ok) return r.json(); throw new Error('HTTP ' + r.status); });
+          });
+          clearTimeout(tid);
+          if (r.ok) {
+            const data = await r.json();
+            const items = data?.data || data?.songs || (Array.isArray(data) ? data : []);
+            parseCloneHeroItems(items);
+          }
+        },
+        // 3. Enchor.us API through CORS proxy
+        async () => {
+          const c = new AbortController();
+          const tid = setTimeout(() => c.abort(), 6000);
+          const r = await fetch(`https://corsproxy.io/?url=${encodeURIComponent('https://api.enchor.us/search')}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ search: query, page: 1, source: 'website' }),
+            signal: c.signal
+          });
+          clearTimeout(tid);
+          if (r.ok) {
+            const data = await r.json();
+            const items = data?.data || data?.songs || (Array.isArray(data) ? data : []);
+            parseCloneHeroItems(items);
+          }
         }
       ];
 
-      let data = null;
-      try {
-        data = await Promise.any(candidates.map(fn => fn()));
-      } catch (err) {
-        console.warn('Clone Hero search candidates failed:', err);
-        console.log('[Search] Clone Hero entregó 0 resultados válidos.');
-        return [];
-      }
-
-      const items = data.data || data.songs || (Array.isArray(data) ? data : []);
-      const results = [];
-
-      for (const [idx, item] of items.slice(0, 20).entries()) {
-        try {
-          const chartId = item.chartId || item.songId || item.id || `ch_${idx}_${Date.now()}`;
-          const name = item.name || item.title || 'Sin título';
-          const artist = item.artist || 'Desconocido';
-          const charter = item.charter || item.charterName || 'Clone Hero Charter';
-          const bpm = item.bpm || 120;
-          const driveId = item.driveFileId || item.parentFolderId;
-
-          // Extraer URL de descarga directa
-          let directDl = item.download_url || item.directDownloadUrl || item.downloadUrl || item.sngDownloadUrl || item.sngUrl || '';
-
-          if (!directDl && driveId) {
-            directDl = `https://drive.google.com/uc?export=download&id=${driveId}&confirm=t`;
-          }
-
-          if (!directDl && item.md5) {
-            directDl = `https://api.enchor.us/download/${item.md5}`;
-          }
-
-          if (!directDl) continue;
-
-          // Extraer dificultades
-          const diffs = [];
-          if (item.diff_guitar !== undefined && item.diff_guitar !== null && item.diff_guitar >= 0) {
-            const starVal = parseFloat(item.diff_guitar) > 0 ? parseFloat(item.diff_guitar) : 4.5;
-            diffs.push({
-              id: 'ExpertSingle',
-              name: 'Expert Single',
-              stars: starVal,
-              keys: 5,
-              label: `Expert Single (${starVal.toFixed(1)}★)`
-            });
-          }
-
-          if (item.notesData && item.notesData.noteCounts && Array.isArray(item.notesData.noteCounts)) {
-            for (const nc of item.notesData.noteCounts) {
-              const dName = nc.difficulty || 'Expert';
-              const diffKey = `${dName.charAt(0).toUpperCase() + dName.slice(1)}Single`;
-              if (!diffs.some(d => d.id === diffKey || d.name.toLowerCase() === dName.toLowerCase())) {
-                diffs.push({
-                  id: diffKey,
-                  name: `${dName.charAt(0).toUpperCase() + dName.slice(1)} Single`,
-                  stars: dName.toLowerCase().includes('hard') ? 3.5 : (dName.toLowerCase().includes('medium') ? 2.5 : (dName.toLowerCase().includes('easy') ? 1.5 : 4.5)),
-                  keys: 5,
-                  label: `${dName.charAt(0).toUpperCase() + dName.slice(1)}`
-                });
-              }
-            }
-          }
-
-          if (diffs.length === 0) {
-            diffs.push({
-              id: 'ExpertSingle',
-              name: 'Expert Single',
-              stars: 4.5,
-              keys: 5,
-              label: 'Expert Single (4.5★)'
-            });
-            diffs.push({
-              id: 'HardSingle',
-              name: 'Hard Single',
-              stars: 3.5,
-              keys: 5,
-              label: 'Hard Single (3.5★)'
-            });
-          }
-
-          let thumbnail = GENERIC_THUMBNAIL;
-          if (item.albumArtMd5) {
-            thumbnail = `https://api.enchor.us/albumart/${item.albumArtMd5}`;
-          } else if (item.thumbnail) {
-            thumbnail = item.thumbnail;
-          }
-
-          const downloadEndpoint = driveId ? `/api/v1/download/gdrive/${driveId}` : directDl;
-
-          results.push({
-            id: `clonehero_${chartId}`,
-            source: 'clonehero',
-            source_name: 'Clone Hero',
-            source_badge: '[Clone Hero]',
-            source_color: '#b142ff',
-            title: name,
-            artist: artist,
-            creator: charter,
-            thumbnail: thumbnail,
-            download_url: downloadEndpoint,
-            direct_download_url: downloadEndpoint,
-            fallback_download_url: `/api/proxy?url=${encodeURIComponent(directDl)}`,
-            drive_id: driveId,
-            bpm: Math.round(bpm),
-            difficulties: diffs
-          });
-        } catch (ex) {
-          console.debug('Error parsing Clone Hero item:', ex);
-        }
-      }
-
+      await Promise.allSettled(sources.map(fn => fn()));
       console.log(`[Search] Clone Hero entregó ${results.length} resultados válidos.`);
       return results;
     }
@@ -2394,7 +2380,7 @@
         const btnVal = btn.getAttribute('data-diff');
         if (btnVal === String(val)) {
           btn.classList.add('bg-gradient-to-r', 'from-pink-500', 'to-purple-600', 'text-white', 'border-pink-400', 'shadow-md', 'shadow-pink-500/25');
-          btn.classList.remove('bg-white/10', 'bg-emerald-500/15', 'bg-cyan-500/15', 'bg-pink-500/15', 'bg-amber-500/15', 'bg-rose-500/15');
+          btn.classList.remove('bg-white/10', 'bg-emerald-500/15', 'bg-cyan-500/15', 'bg-pink-500/15', 'bg-amber-500/15', 'rose-500/15');
         } else {
           btn.classList.remove('bg-gradient-to-r', 'from-pink-500', 'to-purple-600', 'text-white', 'border-pink-400', 'shadow-md', 'shadow-pink-500/25');
         }
@@ -2431,7 +2417,7 @@
       });
     }
 
-    function withTimeout(promise, ms = 12000, name = 'Servicio') {
+    function withTimeout(promise, ms = 10000, name = 'Servicio') {
       return Promise.race([
         promise,
         new Promise((_, reject) => setTimeout(() => reject(new Error(`${name}: tiempo de espera agotado`)), ms))
@@ -2449,35 +2435,13 @@
       btnText.innerText = '...';
       spinner.classList.remove('hidden');
 
-      console.log(`[Search] Iniciando búsqueda para "${q}" (osu! Mania + Clone Hero)...`);
+      console.log(`[Search] Iniciando búsqueda 100% cliente para "${q}" (osu! Mania + Clone Hero)...`);
 
-      // 1. Intento principal: Búsqueda agregada ultrarrápida del backend
-      try {
-        const controller = new AbortController();
-        const tid = setTimeout(() => controller.abort(), 6000);
-        const backendResp = await fetch(`/api/v1/search?q=${encodeURIComponent(q)}`, { signal: controller.signal });
-        clearTimeout(tid);
-        if (backendResp.ok) {
-          const data = await backendResp.json();
-          if (Array.isArray(data) && data.length > 0) {
-            console.log(`[Search] Servidor backend entregó ${data.length} canciones.`);
-            searchResultsCache = data;
-            const sortedItems = sortItemsByTargetDifficulty(data, currentTargetDifficulty);
-            renderSearchResults(sortedItems, []);
-            btnText.innerText = 'Buscar';
-            spinner.classList.add('hidden');
-            return;
-          }
-        }
-      } catch (backendErr) {
-        console.debug('Backend search fallback to client APIs:', backendErr);
-      }
-
-      // 2. Fallback de cliente: Consulta en paralelo a osu! Mania y Clone Hero
+      // Búsqueda directa en paralelo a osu! Mania y Clone Hero (100% Client-Side)
       try {
         const [osuRes, chRes] = await Promise.allSettled([
-          withTimeout(searchOsuMania(q), 10000, 'osu! Mania'),
-          withTimeout(searchCloneHero(q), 12000, 'Clone Hero')
+          withTimeout(searchOsuMania(q), 8000, 'osu! Mania'),
+          withTimeout(searchCloneHero(q), 9000, 'Clone Hero')
         ]);
 
         const allItems = [];
@@ -2792,7 +2756,6 @@
 
         // ==========================================
         // 1. FLUJO ORIGINAL EXCLUSIVO PARA OSU! MANIA
-        // (Sin diagnóstico en pantalla, descarga directa pura y ultrarrápida)
         // ==========================================
         if (chartItem.source === 'osu') {
           const term = document.getElementById('diagnosticTerminal');
@@ -2802,14 +2765,18 @@
           const osuSetId = (chartItem.id || '').replace('osu_', '');
           const osuCandidates = [
             `https://catboy.best/d/${osuSetId}`,
-            `https://txy1.sayobot.cn/beatmaps/download/mini/${osuSetId}`,
             `https://api.nerinyan.moe/d/${osuSetId}`,
-            `https://osu.direct/d/${osuSetId}`
+            `https://txy1.sayobot.cn/beatmaps/download/mini/${osuSetId}`,
+            `https://osu.direct/d/${osuSetId}`,
+            `/api/proxy?url=${encodeURIComponent(`https://catboy.best/d/${osuSetId}`)}`,
+            `/api/proxy?url=${encodeURIComponent(`https://api.nerinyan.moe/d/${osuSetId}`)}`,
+            `https://corsproxy.io/?url=${encodeURIComponent(`https://catboy.best/d/${osuSetId}`)}`,
+            `https://corsproxy.io/?url=${encodeURIComponent(`https://api.nerinyan.moe/d/${osuSetId}`)}`
           ];
 
           const tryOsuFetch = async (url) => {
             const c = new AbortController();
-            const tid = setTimeout(() => c.abort(), 7000);
+            const tid = setTimeout(() => c.abort(), 12000);
             try {
               const r = await fetch(url, { signal: c.signal });
               clearTimeout(tid);
@@ -2850,13 +2817,12 @@
         }
 
         // ==========================================
-        // 2. FLUJO CLONE HERO (DIAGNÓSTICO VISUAL + EMPAQUETADOR GDRIVE)
+        // 2. FLUJO CLONE HERO (100% CLIENT-SIDE + CORS PROXIES)
         // ==========================================
         VisualLogger.init();
 
-        const backendBase = (window.location.origin.includes('androidplatform.net') || window.location.origin.startsWith('file:'))
-          ? 'https://prostores-pursue-planning-don.trycloudflare.com'
-          : '';
+        const customServer = localStorage.getItem('beatstar_api_server');
+        const backendBase = (customServer && customServer.trim()) ? customServer.trim().replace(/\/$/, '') : '';
 
         // [Paso 1] URL original obtenida
         let rawTargetUrl = chartItem.direct_download_url || chartItem.download_url || '';
@@ -2883,26 +2849,27 @@
         const downloadCandidates = [];
 
         if (driveId) {
-          VisualLogger.step(2, 'Google Drive File/Folder detectado', `ID: ${driveId} -> Empaquetado automático en backend`, 'info');
-          // 1. Endpoint dedicado de empaquetado backend
-          downloadCandidates.push(`${backendBase}/api/v1/download/gdrive/${driveId}`);
-          // 2. Proxy con URL de Google Drive
-          downloadCandidates.push(`${backendBase}/api/proxy?url=${encodeURIComponent(`https://drive.google.com/drive/folders/${driveId}`)}`);
-          // 3. Fallback directo si es archivo individual
+          VisualLogger.step(2, 'Google Drive File/Folder detectado', `ID: ${driveId}`, 'info');
           downloadCandidates.push(`https://drive.usercontent.google.com/download?id=${driveId}&export=download&confirm=t`);
+          downloadCandidates.push(`https://drive.google.com/uc?export=download&id=${driveId}&confirm=t`);
+          downloadCandidates.push(`/api/proxy?url=${encodeURIComponent(`https://drive.usercontent.google.com/download?id=${driveId}&export=download&confirm=t`)}`);
+          downloadCandidates.push(`https://corsproxy.io/?url=${encodeURIComponent(`https://drive.usercontent.google.com/download?id=${driveId}&export=download&confirm=t`)}`);
+          downloadCandidates.push(`https://api.allorigins.win/raw?url=${encodeURIComponent(`https://drive.usercontent.google.com/download?id=${driveId}&export=download&confirm=t`)}`);
+          if (backendBase) {
+            downloadCandidates.push(`${backendBase}/api/v1/download/gdrive/${driveId}`);
+          }
         } else {
-          const directTarget = rawTargetUrl.startsWith('/') ? `${backendBase}${rawTargetUrl}` : rawTargetUrl;
-          VisualLogger.step(2, 'Enlace directo de archivo detectado', directTarget, 'info');
-          downloadCandidates.push(directTarget);
-          if (directTarget.startsWith('http')) {
-            downloadCandidates.push(`${backendBase}/api/proxy?url=${encodeURIComponent(directTarget)}`);
-            downloadCandidates.push(`https://corsproxy.io/?url=${encodeURIComponent(directTarget)}`);
+          VisualLogger.step(2, 'Enlace directo de archivo detectado', rawTargetUrl, 'info');
+          downloadCandidates.push(rawTargetUrl);
+          if (rawTargetUrl.startsWith('http')) {
+            downloadCandidates.push(`/api/proxy?url=${encodeURIComponent(rawTargetUrl)}`);
+            downloadCandidates.push(`https://corsproxy.io/?url=${encodeURIComponent(rawTargetUrl)}`);
+            downloadCandidates.push(`https://api.allorigins.win/raw?url=${encodeURIComponent(rawTargetUrl)}`);
           }
         }
 
-        if (chartItem.fallback_download_url) {
-          const fb = chartItem.fallback_download_url.startsWith('/') ? `${backendBase}${chartItem.fallback_download_url}` : chartItem.fallback_download_url;
-          downloadCandidates.push(fb);
+        if (chartItem.fallback_download_url && !downloadCandidates.includes(chartItem.fallback_download_url)) {
+          downloadCandidates.push(chartItem.fallback_download_url);
         }
 
         loadStatus.innerText = 'Descargando paquete de canción...';
@@ -3404,9 +3371,17 @@
       resultsList.innerHTML = `<div class="p-8 text-center text-xs text-gray-400 glass-card">Cargando mapas populares de la comunidad...</div>`;
 
       try {
-        const resp = await fetch('https://api.nerinyan.moe/search?m=3&s=ranked&sort=plays&p=1');
-        if (!resp.ok) throw new Error('No se pudo conectar con el servidor de tendencias.');
-        const data = await resp.json();
+        let data = null;
+        try {
+          const resp = await fetch('https://catboy.best/api/v2/search?m=3&sort=plays');
+          if (resp.ok) data = await resp.json();
+        } catch (e) {}
+
+        if (!data || !Array.isArray(data)) {
+          const resp = await fetch('https://api.nerinyan.moe/search?m=3&s=ranked&sort=plays&p=1');
+          if (resp.ok) data = await resp.json();
+        }
+
         if (!Array.isArray(data) || data.length === 0) throw new Error('No se encontraron canciones.');
 
         const mapped = data.map(set => {
@@ -3419,7 +3394,7 @@
             source: 'osu_mania',
             source_name: 'osu! Mania (Popular)',
             thumbnail: `https://assets.ppy.sh/beatmaps/${set.id}/covers/card.jpg`,
-            download_url: `https://api.nerinyan.moe/d/${set.id}`,
+            download_url: `https://catboy.best/d/${set.id}`,
             direct_download_url: `https://api.nerinyan.moe/d/${set.id}`,
             fallback_download_url: `https://catboy.best/d/${set.id}`,
             difficulties: (maniaDiffs.length > 0 ? maniaDiffs : (set.beatmaps || [])).map(b => ({
@@ -3435,7 +3410,7 @@
         renderSearchResults(sortItemsByTargetDifficulty(mapped, currentTargetDifficulty), []);
         showSuccessToast('Mapas más jugados de la comunidad cargados.');
       } catch (err) {
-        console.warn('Nerinyan trending error, fallback to search:', err);
+        console.warn('Trending error, fallback to search:', err);
         executeSearch();
       } finally {
         if (btnText) btnText.innerText = 'Buscar';
