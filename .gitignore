@@ -1,0 +1,72 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment & Credentials
+.env
+.env.*
+!.env.example
+
+# Caches & Storage
+gdrive_cache/
+downloads/
+app/static/downloads/
+.cache/
+
+# Archives & Compressed Files
+*.zip
+*.7z
+*.rar
+*.tar
+*.gz
+*.osz
+*.sng
+
+# Audio & Media Dumps
+*.wav
+*.mp3
+*.webm
+*.m4a
+*.ogg
+*.flac
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Gemini & Agent internal directories
+.gemini/
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Android Build & Gradle Cache
+android/.gradle/
+android/build/
+android/app/build/
+android/captures/
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# Archivos específicos a ignorar
+cookies.txt
+cloudflared.exe
+*.exe
+scratch/
+love_man.bin
+*.bin
+
