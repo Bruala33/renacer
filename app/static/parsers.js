@@ -1163,10 +1163,9 @@ class PackageUnpacker {
           console.debug('Error reading song.ini:', iniErr);
         }
       }
-
-      // Buscar archivo de notas (.chart o .mid)
-      const chartPath = filePaths.find(p => p.toLowerCase().endsWith('.chart'));
-      const midiPath = filePaths.find(p => p.toLowerCase().endsWith('.mid') || p.toLowerCase().endsWith('.midi'));
+// Buscar archivo de notas (.chart o .mid) de forma flexible en cualquier subcarpeta
+      const chartPath = filePaths.find(p => p && p.toLowerCase().trim().includes('.chart'));
+      const midiPath = filePaths.find(p => p && (p.toLowerCase().trim().includes('.mid') || p.toLowerCase().trim().includes('.midi')));
 
       if (chartPath) {
         log(5, 'Archivo de notas .chart detectado', `Ruta: ${chartPath}`, 'info');
@@ -1179,9 +1178,10 @@ class PackageUnpacker {
         parsedBeatmap = MidiChartParser.parse(midiBuf, selectedDiffId || 'Expert');
         extractedDiffs = [{ id: 'Expert', name: 'Expert Single', stars: 4.5, label: 'Expert Single (4.5★)' }];
       } else {
-        log(5, 'Faltan notas en paquete 7z', 'No se encontró .chart ni .mid en el archivo', 'error');
+        log(5, 'Faltan notas en paquete 7z', `Archivos encontrados: ${filePaths.slice(0, 4).join(', ')}`, 'error');
         throw new Error('No se encontró archivo de notas (.chart o .mid) en el paquete .7z/.rar');
       }
+
 
       // Aplicar metadata de song.ini
       if (songIniMeta.name) parsedBeatmap.title = songIniMeta.name;
