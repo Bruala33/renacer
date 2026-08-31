@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Piano Community | Rhythm Game Arcade</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #090a0f;
+            --card-bg: rgba(255, 255, 255, 0.04);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --primary: #8b5cf6;
+            --primary-glow: rgba(139, 92, 246, 0.4);
+            --accent: #ec4899;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 50% 0%, rgba(139, 92, 246, 0.18) 0%, transparent 60%),
+                radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.12) 0%, transparent 50%);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            padding: 40px 20px 60px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            background: rgba(139, 92, 246, 0.15);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #c4b5fd;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        h1 {
+            font-size: clamp(2.4rem, 6vw, 3.8rem);
+            font-weight: 900;
+            line-height: 1.1;
+            letter-spacing: -0.03em;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #ffffff 40%, #c4b5fd 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: clamp(1rem, 2.5vw, 1.25rem);
+            color: var(--text-muted);
+            max-width: 580px;
+            line-height: 1.5;
+            margin-bottom: 36px;
+        }
+
+        /* Mockup de teléfono */
+        .phone-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 280px;
+            aspect-ratio: 9 / 19.5;
+            background: #11131a;
+            border-radius: 36px;
+            padding: 10px;
+            border: 2px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 25px 60px -15px var(--primary-glow), 0 0 0 1px rgba(255, 255, 255, 0.05);
+            margin-bottom: 40px;
+        }
+
+        .phone-screen {
+            width: 100%;
+            height: 100%;
+            border-radius: 26px;
+            overflow: hidden;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .phone-screen video, 
+        .phone-screen img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Botón de Descarga */
+        .btn-download {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            color: #ffffff;
+            font-size: 1.15rem;
+            font-weight: 800;
+            text-decoration: none;
+            padding: 18px 36px;
+            border-radius: 18px;
+            box-shadow: 0 10px 30px var(--primary-glow);
+            transition: all 0.25s ease;
+            width: 100%;
+            max-width: 360px;
+        }
+
+        .btn-download:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 40px rgba(236, 72, 153, 0.45);
+        }
+
+        .btn-download:active {
+            transform: translateY(1px);
+        }
+
+        .btn-download svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+
+        .file-info {
+            margin-top: 10px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* Grid de características */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            width: 100%;
+            margin-top: 50px;
+        }
+
+        .feature-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            padding: 24px 18px;
+            border-radius: 20px;
+            text-align: left;
+            backdrop-filter: blur(10px);
+        }
+
+        .feature-card h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #ffffff;
+        }
+
+        .feature-card p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* Pasos de instalación */
+        .install-guide {
+            margin-top: 50px;
+            width: 100%;
+            max-width: 500px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 24px;
+            text-align: left;
+        }
+
+        .install-guide h4 {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 14px;
+            color: #f8fafc;
+        }
+
+        .install-guide ol {
+            padding-left: 20px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        footer {
+            margin-top: auto;
+            padding: 20px;
+            font-size: 0.8rem;
+            color: #475569;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="badge">🔥 Versión Android 1.0</div>
+        
+        <h1>Piano Community</h1>
+        <p class="subtitle">Disfruta de mapas de osu! y Clone Hero en tu móvil con físicas arcade de alta precisión.</p>
+
+        <!-- Marco de móvil con vídeo/captura -->
+        <div class="phone-wrapper">
+            <div class="phone-screen">
+                <video autoplay loop muted playsinline poster="preview.png">
+                    <source src="preview.mp4" type="video/mp4">
+                </video>
+            </div>
+        </div>
+
+        <!-- Botón de descarga directa -->
+        <a href="https://github.com/Bruala33/renacer/releases/download/1/app-debug.apk" download="PianoCommunity.apk" class="btn-download">
+            <svg viewBox="0 0 24 24">
+                <path d="M12 16l-5-5h3V4h4v7h3l-5 5zm9-4v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7h2v7h14v-7h2z"/>
+            </svg>
+            Descargar APK para Android
+        </a>
+        <div class="file-info">Gratis • ~15 MB • Compatible con Android 7.0+</div>
+
+        <!-- Características -->
+        <div class="features-grid">
+            <div class="feature-card">
+                <h3>⚡ Motor Nativo</h3>
+                <p>Respuesta táctil instantánea y sincronización de audio precisa sin latencia.</p>
+            </div>
+            <div class="feature-card">
+                <h3>🎶 Canciones Ilimitadas</h3>
+                <p>Importa y reproduce charts de la comunidad de osu!mania y Clone Hero.</p>
+            </div>
+            <div class="feature-card">
+                <h3>📴 Modo Offline</h3>
+                <p>Juega en cualquier lugar sin necesidad de conexión constante a internet.</p>
+            </div>
+        </div>
+
+        <!-- Guía rápida -->
+        <div class="install-guide">
+            <h4>¿Cómo instalar en tu móvil?</h4>
+            <ol>
+                <li>Pulsa en <strong>Descargar APK</strong>.</li>
+                <li>Abre el archivo descargado desde tus notificaciones.</li>
+                <li>Si Android lo solicita, activa <em>«Permitir fuentes desconocidas»</em> y pulsa <strong>Instalar</strong>.</li>
+            </ol>
+        </div>
+    </div>
+
+    <footer>
+        Piano Community &copy; 2026 • Desarrollado para la comunidad de juegos de ritmo
+    </footer>
+
+</body>
+</html>
