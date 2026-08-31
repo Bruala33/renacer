@@ -3472,8 +3472,51 @@
     }
 
     // ==========================================
-    // YOUTUBE PLAYLIST IMPORT (CURATED DATABASE + FAIL-PROOF ENGINE)
+ // YOUTUBE PLAYLIST IMPORT (CURATED DATABASE + FAIL-PROOF ENGINE)
     // ==========================================
+
+    function saveUserWallet() {
+      try {
+        localStorage.setItem('userClefs', typeof userClefs !== 'undefined' ? userClefs.toString() : '0');
+        localStorage.setItem('userSilvers', typeof userSilvers !== 'undefined' ? userSilvers.toString() : '0');
+        localStorage.setItem('userGolds', typeof userGolds !== 'undefined' ? userGolds.toString() : '0');
+        localStorage.setItem('userPlatinums', typeof userPlatinums !== 'undefined' ? userPlatinums.toString() : '0');
+        
+        // Claves secundarias por compatibilidad
+        localStorage.setItem('game_claves_de_sol', typeof userClefs !== 'undefined' ? userClefs.toString() : '0');
+        localStorage.setItem('game_platas', typeof userSilvers !== 'undefined' ? userSilvers.toString() : '0');
+        localStorage.setItem('game_oros', typeof userGolds !== 'undefined' ? userGolds.toString() : '0');
+        localStorage.setItem('game_diamantes', typeof userPlatinums !== 'undefined' ? userPlatinums.toString() : '0');
+      } catch (e) {
+        console.warn('Error guardando cartera:', e);
+      }
+    }
+
+    function checkAndApplyCheat(inputStr) {
+      if (!inputStr) return false;
+      if (inputStr.trim().toLowerCase() === 'culomono3') {
+        userClefs = (typeof userClefs !== 'undefined' ? userClefs : 0) + 1000;
+        userSilvers = (typeof userSilvers !== 'undefined' ? userSilvers : 0) + 100;
+        userGolds = (typeof userGolds !== 'undefined' ? userGolds : 0) + 100;
+        userPlatinums = (typeof userPlatinums !== 'undefined' ? userPlatinums : 0) + 100;
+
+        saveUserWallet();
+
+        if (typeof updateUserWalletDisplay === 'function') updateUserWalletDisplay();
+        if (typeof updateCurrencyDisplay === 'function') updateCurrencyDisplay();
+        if (typeof closeYTMusicModal === 'function') closeYTMusicModal();
+
+        if (typeof showSuccessToast === 'function') {
+          showSuccessToast('🎁 ¡Código Dev "Culomono3" activado! (+1000 🎵 +100 🥈 +100 🥇 +100 💎)');
+        } else if (typeof showToast === 'function') {
+          showToast('🎁 ¡Código activado! +1000 Claves');
+        } else {
+          alert('🎁 ¡Código activado! +1000 Claves, +100 Platas, +100 Oros, +100 Diamantes');
+        }
+        return true;
+      }
+      return false;
+    }
 
     const CURATED_PLAYLIST_DATABASE = {
       'PLMC9KNkIncKtPzgY-5fP50P4GvB_b4_0d': {
@@ -3608,81 +3651,49 @@
         .replace(/'/g, '&#039;');
     }
 
+// ==========================================================
+    // BÚSQUEDA EXCLUSIVA DE PLAYLISTS REALES DE YOUTUBE
+    // ==========================================================
+
+    // ==========================================================
+    // IMPORTADOR DIRECTO (ENLACES YOUTUBE / ID + TRUCO CULOMONO3)
+    // ==========================================================
+
     window.executeDiscoverPlaylistSearch = async function() {
       const input = document.getElementById('discoverPlaylistSearchInput');
       const q = input ? input.value.trim() : '';
       if (!q) {
-        showErrorToast('Por favor escribe un término de búsqueda (ej. Rock, Phonk, Anime, Pop).');
+        showErrorToast('Pega un enlace de YouTube Music o escribe el código de desarrollador.');
         return;
       }
 
-      const btnText = document.getElementById('discoverSearchBtnText');
-      const spinner = document.getElementById('discoverSearchSpinner');
-      const container = document.getElementById('discoverSearchResultsContainer');
-      const grid = document.getElementById('discoverSearchResultsGrid');
-
-      if (btnText) btnText.innerText = '...';
-      if (spinner) spinner.classList.remove('hidden');
-
-      try {
-        const baseUrl = getApiBaseUrl();
-        const endpoint = baseUrl ? `${baseUrl}/api/v1/playlists/ytmusic/search?q=${encodeURIComponent(q)}` : `/api/v1/playlists/ytmusic/search?q=${encodeURIComponent(q)}`;
-        
-        const controller = new AbortController();
-        const tid = setTimeout(() => controller.abort(), 8000);
-        const res = await fetch(endpoint, { signal: controller.signal });
-        clearTimeout(tid);
-
-        if (!res.ok) throw new Error('No se pudo buscar playlists en el servidor.');
-        const items = await res.json();
-
-        if (!Array.isArray(items) || items.length === 0) {
-          if (container) container.classList.remove('hidden');
-          if (grid) {
-            grid.innerHTML = `
-              <div class="p-4 text-center text-xs text-gray-400 bg-white/5 rounded-xl border border-white/10">
-                No se encontraron playlists para "${escapeHtml(q)}". Prueba con otro término.
-              </div>
-            `;
-          }
-          return;
-        }
-
-        if (container) container.classList.remove('hidden');
-        if (grid) {
-          grid.innerHTML = items.map(pl => `
-            <div class="result-card p-3 flex-col items-stretch space-y-2.5 border-pink-500/30 hover:border-pink-500/60 bg-gradient-to-br from-black/80 to-purple-950/40">
-              <div class="flex items-center gap-3">
-                <img 
-                  src="${pl.thumbnail || 'https://i.ytimg.com/vi/' + (pl.id || '') + '/hqdefault.jpg'}" 
-                  class="w-14 h-14 rounded-xl object-cover border border-white/10 flex-shrink-0"
-                  onerror="this.src='https://i.ytimg.com/vi/hqdefault.jpg'"
-                  alt="Playlist"
-                >
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-1.5">
-                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-pink-500/20 text-pink-300 uppercase">YouTube Music</span>
-                    <span class="text-[8px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-gray-300">${escapeHtml(pl.item_count || 'Playlist')}</span>
-                  </div>
-                  <h3 class="text-xs font-black text-white truncate mt-0.5" title="${escapeHtml(pl.title)}">${escapeHtml(pl.title)}</h3>
-                  <p class="text-[10px] text-gray-400 truncate">${escapeHtml(pl.author || 'YouTube')}</p>
-                </div>
-              </div>
-              <button onclick="importCuratedPlaylist('${escapeHtml(pl.id)}', '${escapeHtml(pl.title.replace(/'/g, ''))}')" class="w-full py-2 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition active:scale-95 cursor-pointer">
-                <span>▶</span> Importar Playlist y Jugar
-              </button>
-            </div>
-          `).join('');
-        }
-
-      } catch (err) {
-        showErrorToast('Error buscando playlists: ' + err.message);
-      } finally {
-        if (btnText) btnText.innerText = 'Buscar';
-        if (spinner) spinner.classList.add('hidden');
+      // 1. Interceptar truco de desarrollador
+      if (typeof checkAndApplyCheat === 'function' && checkAndApplyCheat(q)) {
+        if (input) input.value = '';
+        return;
       }
-    };
 
+      // 2. Si es enlace o ID directo de playlist
+      if (q.includes('list=') || q.startsWith('PL') || q.startsWith('RD') || q.startsWith('OLAK') || q.includes('youtube.com') || q.includes('youtu.be')) {
+        if (input) input.value = '';
+        await window.importCuratedPlaylist(q, 'Playlist de YouTube');
+        return;
+      }
+
+      // 3. Comprobar si coincide con las playlists curadas locales
+      const localMatch = Object.entries(CURATED_PLAYLIST_DATABASE).find(
+        ([id, pl]) => pl.title.toLowerCase().includes(q.toLowerCase())
+      );
+
+      if (localMatch) {
+        if (input) input.value = '';
+        await window.importCuratedPlaylist(localMatch[0], localMatch[1].title);
+        return;
+      }
+
+      // 4. Mensaje claro si introducen texto genérico
+      showErrorToast('Para importar música personalizada, pega el enlace completo de la playlist de YouTube.');
+    };
     window.clearDiscoverSearchResults = function() {
       const container = document.getElementById('discoverSearchResultsContainer');
       const input = document.getElementById('discoverPlaylistSearchInput');
@@ -3691,128 +3702,118 @@
     };
 
     async function parseYouTubePlaylistClient(playlistInput, onProgress) {
-      if (onProgress) onProgress(10, 'Analizando enlace de playlist...');
+      if (checkAndApplyCheat(playlistInput)) {
+        throw new Error('Código Culomono3 activado con éxito.');
+      }
+
+      if (onProgress) onProgress(10, 'Analizando enlace...');
+      
+      let cleanId = playlistInput.trim();
       const listMatch = playlistInput.match(/[?&]list=([a-zA-Z0-9_-]+)/);
-      const cleanId = listMatch ? listMatch[1] : (playlistInput.startsWith('PL') || playlistInput.startsWith('RD') || playlistInput.startsWith('RDCLAK') ? playlistInput : playlistInput.trim());
+      if (listMatch) {
+        cleanId = listMatch[1];
+      }
 
-      if (!cleanId) throw new Error('ID de playlist de YouTube no válido.');
+      if (!cleanId || cleanId.length < 4) {
+        throw new Error('ID o enlace de playlist no válido.');
+      }
 
-      let playlistTitle = 'Playlist de YouTube';
+      // Base de datos instantánea
+      if (CURATED_PLAYLIST_DATABASE[cleanId]) {
+        const cur = CURATED_PLAYLIST_DATABASE[cleanId];
+        if (onProgress) onProgress(100, `Cargando playlist local: ${cur.title}`);
+        return { id: cleanId, title: cur.title, tracks: cur.tracks };
+      }
 
-      // Helper: normalize a track object from any source
       function normTrack(t, idx) {
         const id = t.videoId || t.id || '';
         return {
           id: id || `yt_${cleanId}_${idx}`,
           title: t.title || t.name || `Pista #${idx + 1}`,
-          artist: (Array.isArray(t.artists) ? (t.artists[0]?.name || t.artists[0]) : null) || t.artist || t.author || 'YouTube',
+          artist: (Array.isArray(t.artists) ? (t.artists[0]?.name || t.artists[0]) : null) || t.artist || t.author || t.uploaderName || 'YouTube',
           thumbnail: t.thumbnail || t.thumbnailUrl || (id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : ''),
-          duration_seconds: t.duration_seconds || t.lengthSeconds || 0
+          duration_seconds: t.duration_seconds || t.duration || t.lengthSeconds || 0
         };
       }
 
-      // ─── 1. Backend (ytmusicapi / yt-dlp) ───────────────────────────────────
+      // Intentar backend solo si responde muy rápido (1.5s timeout)
       try {
-        if (onProgress) onProgress(20, 'Consultando servidor backend...');
-        const baseUrl = getApiBaseUrl();
-        const endpoint = `${baseUrl}/api/v1/playlists/ytmusic/import_url`;
-        const ctrl = new AbortController();
-        const tid = setTimeout(() => ctrl.abort(), 12000);
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: `https://www.youtube.com/playlist?list=${cleanId}` }),
-          signal: ctrl.signal
-        });
-        clearTimeout(tid);
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.tracks?.length > 0) {
-            playlistTitle = data.title || playlistTitle;
-            const tracks = data.tracks.slice(0, 500).map(normTrack);
-            if (onProgress) onProgress(40, `Backend: ${tracks.length} pistas encontradas.`);
-            return { id: cleanId, title: playlistTitle, tracks };
-          }
-        }
-      } catch (e) { console.warn('[YT import] Backend failed:', e.message); }
-
-      // ─── 2. Cascade: Invidious / Piped public instances ──────────────────────
-      const INVIDIOUS_HOSTS = [
-        `https://yt.drgnz.club/api/v1/playlists/${cleanId}`,
-        `https://invidious.jing.rocks/api/v1/playlists/${cleanId}`,
-        `https://invidious.nerdvpn.de/api/v1/playlists/${cleanId}`,
-        `https://api.invidious.io/api/v1/playlists/${cleanId}`,
-        `https://vid.puffyan.us/api/v1/playlists/${cleanId}`
-      ];
-      const PIPED_ENDPOINT = `https://pipedapi.kavin.rocks/playlists/${cleanId}`;
-
-      for (let attempt = 0; attempt < INVIDIOUS_HOSTS.length; attempt++) {
-        const url = INVIDIOUS_HOSTS[attempt];
-        try {
-          if (onProgress) onProgress(30 + attempt * 5, `Intentando instancia pública ${attempt + 1}/${INVIDIOUS_HOSTS.length}...`);
+        if (typeof getApiBaseUrl === 'function' && getApiBaseUrl()) {
           const ctrl = new AbortController();
-          const tid = setTimeout(() => ctrl.abort(), 2500);
-          const res = await fetch(url, { signal: ctrl.signal });
+          const tid = setTimeout(() => ctrl.abort(), 1500);
+          const res = await fetch(`${getApiBaseUrl()}/api/v1/playlists/ytmusic/import_url`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: `https://www.youtube.com/playlist?list=${cleanId}` }),
+            signal: ctrl.signal
+          });
           clearTimeout(tid);
           if (res.ok) {
             const data = await res.json();
-            const rawVideos = data.videos || data.items || [];
-            if (rawVideos.length > 0) {
-              playlistTitle = data.title || playlistTitle;
-              const tracks = rawVideos.slice(0, 500).map((v, idx) => normTrack(v, idx));
-              if (onProgress) onProgress(55, `${tracks.length} pistas extraídas de instancia pública.`);
-              return { id: cleanId, title: playlistTitle, tracks };
+            if (data?.tracks?.length > 0) {
+              return { id: cleanId, title: data.title || 'Playlist de YouTube', tracks: data.tracks.slice(0, 500).map(normTrack) };
             }
           }
-        } catch (e) { console.warn(`[YT import] Invidious host ${attempt + 1} failed:`, e.message); }
+        }
+      } catch (e) {
+        // Continuar con proxies cliente
       }
 
-      // ─── 3. Piped fallback ───────────────────────────────────────────────────
-      try {
-        if (onProgress) onProgress(60, 'Intentando Piped API...');
-        const ctrl = new AbortController();
-        const tid = setTimeout(() => ctrl.abort(), 2500);
-        const res = await fetch(PIPED_ENDPOINT, { signal: ctrl.signal });
-        clearTimeout(tid);
-        if (res.ok) {
-          const data = await res.json();
-          const rawVideos = data.relatedStreams || data.videos || [];
-          if (rawVideos.length > 0) {
-            playlistTitle = data.name || playlistTitle;
-            const tracks = rawVideos.slice(0, 500).map((v, idx) => ({
-              id: (v.url || '').replace('/watch?v=', '') || `yt_${cleanId}_${idx}`,
-              title: v.title || `Pista #${idx + 1}`,
-              artist: v.uploaderName || 'YouTube',
-              thumbnail: v.thumbnail || '',
-              duration_seconds: v.duration || 0
-            }));
-            if (onProgress) onProgress(65, `Piped: ${tracks.length} pistas encontradas.`);
-            return { id: cleanId, title: playlistTitle, tracks };
+      // Instancias públicas resilientes con Proxy CORS
+      const endpoints = [
+        `https://invidious.jing.rocks/api/v1/playlists/${cleanId}`,
+        `https://yt.drgnz.club/api/v1/playlists/${cleanId}`,
+        `https://inv.nadeko.net/api/v1/playlists/${cleanId}`,
+        `https://pipedapi.kavin.rocks/playlists/${cleanId}`
+      ];
+
+      for (let i = 0; i < endpoints.length; i++) {
+        const targetUrl = endpoints[i];
+        if (onProgress) onProgress(20 + (i * 15), `Conectando con servidores (${i + 1}/${endpoints.length})...`);
+        
+        // Estrategia: 1º Directo, 2º Proxy allorigins
+        const urlsToTry = [
+          targetUrl,
+          `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+        ];
+
+        for (const u of urlsToTry) {
+          try {
+            const ctrl = new AbortController();
+            const tid = setTimeout(() => ctrl.abort(), 3500);
+            const res = await fetch(u, { signal: ctrl.signal });
+            clearTimeout(tid);
+
+            if (res.ok) {
+              const data = await res.json();
+              const rawTracks = data.videos || data.relatedStreams || data.items || data.tracks || [];
+              if (rawTracks.length > 0) {
+                const tracks = rawTracks.slice(0, 500).map((v, idx) => {
+                  const id = v.videoId || (v.url ? v.url.replace('/watch?v=', '') : '') || v.id || '';
+                  return {
+                    id: id || `yt_${cleanId}_${idx}`,
+                    title: v.title || `Pista #${idx + 1}`,
+                    artist: v.uploaderName || v.author || 'YouTube',
+                    thumbnail: v.thumbnail || (id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : ''),
+                    duration_seconds: v.duration || 0
+                  };
+                });
+                return { id: cleanId, title: data.title || data.name || 'Playlist de YouTube', tracks };
+              }
+            }
+          } catch (e) {
+            // Siguiente proxy
           }
         }
-      } catch (e) { console.warn('[YT import] Piped failed:', e.message); }
-
-      // ─── 4. Curated Database instant fallback ────────────────────────────────
-      if (CURATED_PLAYLIST_DATABASE[cleanId]) {
-        const item = CURATED_PLAYLIST_DATABASE[cleanId];
-        const tracks = item.tracks.map((t, idx) => ({
-          id: t.id || `yt_${cleanId}_${idx}`,
-          title: t.title,
-          artist: t.artist || 'Artista',
-          thumbnail: t.id ? `https://i.ytimg.com/vi/${t.id}/hqdefault.jpg` : '',
-          duration_seconds: 0
-        }));
-        if (onProgress) onProgress(40, `Base de datos curada: "${item.title}" (${tracks.length} canciones).`);
-        return { id: cleanId, title: item.title, tracks };
       }
 
-      throw new Error('No se pudo extraer la playlist. Asegúrate de que sea pública y el enlace sea correcto.');
+      throw new Error('No se pudo leer la playlist. Asegúrate de que no sea privada en YouTube.');
     }
 
     async function crossReferencePlaylistWithOsu(tracks, onProgress) {
       const BATCH_SIZE = 4;
       const enriched = [];
-      const total = Math.min(tracks.length, 30); // Cross-reference top 30 tracks with high speed
+      const total = Math.min(tracks.length, 30);
 
       for (let i = 0; i < total; i += BATCH_SIZE) {
         const chunk = tracks.slice(i, i + BATCH_SIZE);
@@ -3857,7 +3858,7 @@
               }
             }
           } catch (e) {
-            // Keep original track
+            // Conservar pista original si falla osu
           }
           return track;
         });
@@ -3866,7 +3867,7 @@
         enriched.push(...chunkRes);
         if (onProgress) {
           const pct = 50 + Math.round(((i + chunk.length) / total) * 45);
-          onProgress(pct, `Sincronizando canciones con ritmos (${i + chunk.length}/${total})...`);
+          onProgress(pct, `Sincronizando canciones (${i + chunk.length}/${total})...`);
         }
       }
 
@@ -3908,13 +3909,16 @@
           createdAt: Date.now()
         };
 
-        await IndexedDBStorage.savePlaylist(plRecord);
+        if (typeof IndexedDBStorage !== 'undefined' && IndexedDBStorage.savePlaylist) {
+          await IndexedDBStorage.savePlaylist(plRecord);
+        }
+        
         showSuccessToast(`Playlist "${plRecord.title}" importada (${plRecord.item_count} temas).`);
 
         if (prog) prog.classList.add('hidden');
-        switchMainTab('library');
-        switchLibrarySubtab('playlists');
-        openPlaylistDetailView(plRecord.id);
+        if (typeof switchMainTab === 'function') switchMainTab('library');
+        if (typeof switchLibrarySubtab === 'function') switchLibrarySubtab('playlists');
+        if (typeof openPlaylistDetailView === 'function') openPlaylistDetailView(plRecord.id);
 
       } catch (err) {
         if (prog) prog.classList.add('hidden');
@@ -3924,36 +3928,28 @@
 
     async function importDirectPlaylistUrl() {
       const input = document.getElementById('directPlaylistUrlInput');
-      const url = input.value.trim();
+      const url = input ? input.value.trim() : '';
       if (!url) {
         showErrorToast('Por favor pega la URL o ID de la playlist.');
         return;
       }
 
-      // 🔐 Secret developer code
-      if (url.toLowerCase() === 'culomono3') {
-        userClefs += 1000;
-        userSilvers += 100;
-        userGolds += 100;
-        userPlatinums += 100;
-        updateUserWalletDisplay();
-        input.value = '';
-        closeYTMusicModal();
-        showSuccessToast('¡Código de desarrollador activado! +1000 🎵 +100 🥈 +100 🥇 +100 💎');
+      if (checkAndApplyCheat(url)) {
+        if (input) input.value = '';
         return;
       }
 
       const btn = document.getElementById('btnImportDirectUrl');
-      btn.innerText = '...';
+      if (btn) btn.innerText = '...';
 
       try {
-        closeYTMusicModal();
-        await importCuratedPlaylist(url, 'Playlist de YouTube');
-        input.value = '';
+        if (typeof closeYTMusicModal === 'function') closeYTMusicModal();
+        await window.importCuratedPlaylist(url, 'Playlist de YouTube');
+        if (input) input.value = '';
       } catch (err) {
         showErrorToast(err.message);
       } finally {
-        btn.innerText = 'Importar';
+        if (btn) btn.innerText = 'Importar';
       }
     }
 
