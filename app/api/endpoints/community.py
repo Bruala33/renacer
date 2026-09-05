@@ -99,98 +99,10 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_song_scores_chart ON song_scores(chart_id, score DESC)
         """)
 
-        # Check if we should seed default charts
-        cursor.execute("SELECT COUNT(*) as cnt FROM community_charts")
-        count = cursor.fetchone()["cnt"]
-        if count == 0:
-            seed_initial_community_data(cursor)
+        # Eliminar cualquier pista falsa legacy
+        cursor.execute("DELETE FROM community_charts WHERE id LIKE 'comm_galaxy%' OR id LIKE 'comm_cyber%' OR id LIKE 'comm_moonlight%'")
+        cursor.execute("DELETE FROM creators WHERE id IN ('cr_master', 'cr_neon', 'cr_chopin')")
         conn.commit()
-
-
-def seed_initial_community_data(cursor):
-    now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-
-    creators = [
-        ("cr_master", "PianoMaster", 328, now),
-        ("cr_neon", "NeonCharter", 195, now),
-        ("cr_chopin", "ChopinGamer", 142, now),
-    ]
-    cursor.executemany(
-        "INSERT OR IGNORE INTO creators (id, name, followers_count, created_at) VALUES (?, ?, ?, ?)",
-        creators
-    )
-
-    charts = [
-        (
-            "comm_galaxy_anthem",
-            "Galaxy Anthem (Community 3K)",
-            "Kowalski",
-            "cr_master",
-            "PianoMaster",
-            128.0,
-            0,
-            "Media",
-            3.5,
-            1400,
-            140,
-            "galaxy_anthem.mp3",
-            "galaxy_anthem.json",
-            4.85,
-            42,
-            98.5,
-            42,
-            now
-        ),
-        (
-            "comm_cyber_frenzy",
-            "Cyber Frenzy",
-            "SynthRider",
-            "cr_neon",
-            "NeonCharter",
-            150.0,
-            -15,
-            "Difícil",
-            5.5,
-            1100,
-            210,
-            "cyber_frenzy.mp3",
-            "cyber_frenzy.json",
-            4.92,
-            64,
-            97.0,
-            64,
-            now
-        ),
-        (
-            "comm_moonlight_flow",
-            "Moonlight Groove",
-            "Aethel",
-            "cr_chopin",
-            "ChopinGamer",
-            108.0,
-            10,
-            "Fácil",
-            2.0,
-            1750,
-            88,
-            "moonlight_groove.mp3",
-            "moonlight_groove.json",
-            4.70,
-            28,
-            99.0,
-            28,
-            now
-        ),
-    ]
-
-    cursor.executemany("""
-        INSERT INTO community_charts (
-            id, title, artist, creator_id, creator_name, bpm, offset_ms,
-            difficulty_name, stars, scroll_duration_ms, notes_count,
-            audio_filename, chart_filename, rating_avg, votes_count,
-            sync_avg, sync_votes_count, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, charts)
 
 
 init_db()
@@ -653,73 +565,10 @@ async def get_featured_daily_chart():
             "source": "community"
         })
 
-    # Si hay menos de 3, rellenar con semillas estáticas de alta calidad
-    default_seeds = [
-        {
-            "id": "comm_galaxy_anthem",
-            "title": "Galaxy Anthem (Community 3K)",
-            "artist": "Kowalski",
-            "creator_id": "cr_master",
-            "creator_name": "PianoMaster",
-            "difficulty_name": "Media",
-            "stars": 3.5,
-            "bpm": 128,
-            "rating_avg": 4.9,
-            "votes_count": 42,
-            "sync_avg": 98.5,
-            "audio_url": "/api/v1/community/charts/comm_galaxy_anthem/audio",
-            "chart_url": "/api/v1/community/charts/comm_galaxy_anthem/chart",
-            "bonus_clefs_multiplier": 2,
-            "is_daily_featured": True,
-            "source": "community"
-        },
-        {
-            "id": "comm_cyber_frenzy",
-            "title": "Cyber Frenzy",
-            "artist": "SynthRider",
-            "creator_id": "cr_neon",
-            "creator_name": "NeonCharter",
-            "difficulty_name": "Difícil",
-            "stars": 5.5,
-            "bpm": 150,
-            "rating_avg": 4.9,
-            "votes_count": 64,
-            "sync_avg": 97.0,
-            "audio_url": "/api/v1/community/charts/comm_cyber_frenzy/audio",
-            "chart_url": "/api/v1/community/charts/comm_cyber_frenzy/chart",
-            "bonus_clefs_multiplier": 2,
-            "is_daily_featured": True,
-            "source": "community"
-        },
-        {
-            "id": "comm_moonlight_flow",
-            "title": "Moonlight Groove",
-            "artist": "Aethel",
-            "creator_id": "cr_chopin",
-            "creator_name": "ChopinGamer",
-            "difficulty_name": "Fácil",
-            "stars": 2.0,
-            "bpm": 108,
-            "rating_avg": 4.7,
-            "votes_count": 28,
-            "sync_avg": 99.0,
-            "audio_url": "/api/v1/community/charts/comm_moonlight_flow/audio",
-            "chart_url": "/api/v1/community/charts/comm_moonlight_flow/chart",
-            "bonus_clefs_multiplier": 2,
-            "is_daily_featured": True,
-            "source": "community"
-        }
-    ]
+    if not featured_list:
+        return {"featured": []}
 
-    existing_ids = {s["id"] for s in featured_list}
-    for seed in default_seeds:
-        if len(featured_list) >= 3:
-            break
-        if seed["id"] not in existing_ids:
-            featured_list.append(seed)
-            existing_ids.add(seed["id"])
-
-    primary = featured_list[0] if featured_list else default_seeds[0]
+    primary = featured_list[0]
     res_dict = dict(primary)
     res_dict["featured"] = featured_list
     return res_dict

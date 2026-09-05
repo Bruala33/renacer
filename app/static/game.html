@@ -232,7 +232,7 @@
       </div>
 
       <!-- TAB 1: Search / Explore View -->
-      <div id="tabSearchSection" class="space-y-2.5">
+      <div id="tabSearchSection" class="space-y-2.5" style="display: block;">
 
         <!-- Subpestañas de Exploración: Catálogo Global vs Comunidad -->
         <div class="flex items-center gap-1 p-1 bg-black/60 border border-white/10 rounded-xl">
@@ -378,7 +378,7 @@
       </div>
 
       <!-- TAB 2: Discover View -->
-      <div id="tabDiscoverSection" class="hidden space-y-3 pb-6">
+      <div id="tabDiscoverSection" class="hidden space-y-3 pb-6" style="display: none;">
 
         <!-- 3 Canciones Destacadas de Hoy (Desafíos Diarios con Bonus 𝄞 x2) -->
         <div class="p-3 bg-gradient-to-r from-amber-950/70 via-purple-950/70 to-pink-950/70 border border-amber-500/40 rounded-2xl shadow-xl space-y-2.5">
@@ -573,7 +573,7 @@
       </div>
 
       <!-- TAB 2: Library Section (With Sub-Tabs: Descargas, Favoritos, Mis Playlists) -->
-      <div id="tabLibrarySection" class="hidden space-y-3 pb-6">
+      <div id="tabLibrarySection" class="hidden space-y-3 pb-6" style="display: none;">
         
         <!-- Library Sub-Navigation Tabs -->
         <div class="subnav-tabs">
@@ -658,7 +658,7 @@
 
 
       <!-- TAB 4: Visual Chart Editor Screen -->
-<div id="tabEditorSection" class="hidden space-y-2.5 pb-8">
+<div id="tabEditorSection" class="hidden space-y-2.5 pb-8" style="display: none;">
   
   <!-- Editor Header & Control Bar -->
   <div class="p-3 bg-gradient-to-r from-purple-950/60 via-black/80 to-pink-950/60 border border-purple-500/30 rounded-2xl space-y-2.5 shadow-xl">
@@ -849,28 +849,6 @@
             <span>⚙️</span> Ajustes del Motor
           </h3>
           <button id="btnCloseSettings" class="text-gray-400 hover:text-white text-xs p-1 cursor-pointer">✕</button>
-        </div>
-
-        <!-- Servidor Online / Nube -->
-        <div class="p-2.5 bg-black/40 border border-white/10 rounded-xl space-y-1.5">
-          <div class="flex items-center justify-between text-xs">
-            <span class="font-bold text-white flex items-center gap-1">
-              <span>🌐</span> Servidor Online (Nube):
-            </span>
-            <span id="serverStatusBadge" class="text-[9px] font-bold text-gray-400">Modo Local</span>
-          </div>
-          <p class="text-[9px] text-gray-400">URL del servidor para compartir pistas con todos y clasificaciones online (ej. Render o Cloudflare).</p>
-          <div class="flex items-center gap-1.5">
-            <input 
-              id="settingsApiServerInput" 
-              type="url" 
-              placeholder="https://tu-servidor.onrender.com" 
-              class="flex-1 bg-black/70 border border-white/15 rounded-lg text-xs text-cyan-300 p-1.5 font-mono outline-none"
-            >
-            <button onclick="saveApiServerUrl()" class="px-2.5 py-1.5 bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-xs rounded-lg cursor-pointer transition active:scale-95 flex-shrink-0">
-              Guardar
-            </button>
-          </div>
         </div>
 
         <!-- 1. Velocidad de Caída de Notas -->
@@ -1317,6 +1295,36 @@
 
         <button onclick="closeLeaderboardModal()" class="w-full py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold text-white transition active:scale-95 cursor-pointer">
           Cerrar
+        </button>
+      </div>
+    </div>
+
+    <!-- Layer 18: Modal Valorar Canción (Manual desde Biblioteca) -->
+    <div id="rateSongModal" class="results-modal space-y-3.5 hidden" style="display: none;">
+      <div class="glass-card w-full max-w-[320px] p-4 rounded-2xl space-y-3 bg-black/95 border border-purple-500/40 shadow-2xl text-center">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-bold text-white flex items-center gap-1.5">
+            <span>⭐</span> Calificar Canción
+          </h3>
+          <button onclick="closeRateSongModal()" class="text-gray-400 hover:text-white text-xs p-1 cursor-pointer">✕</button>
+        </div>
+
+        <div class="p-2.5 bg-white/5 border border-white/10 rounded-xl text-left">
+          <h4 id="rateModalSongTitle" class="text-xs font-black text-white truncate">Canción</h4>
+          <p id="rateModalSongArtist" class="text-[10px] text-gray-400 truncate">Artista</p>
+        </div>
+
+        <div class="flex justify-center items-center gap-2 text-3xl py-1" id="rateModalStars">
+          <span class="cursor-pointer transition hover:scale-125 active:scale-95 select-none text-amber-400 p-1" onclick="setManualModalRating(1)">★</span>
+          <span class="cursor-pointer transition hover:scale-125 active:scale-95 select-none text-amber-400 p-1" onclick="setManualModalRating(2)">★</span>
+          <span class="cursor-pointer transition hover:scale-125 active:scale-95 select-none text-amber-400 p-1" onclick="setManualModalRating(3)">★</span>
+          <span class="cursor-pointer transition hover:scale-125 active:scale-95 select-none text-amber-400 p-1" onclick="setManualModalRating(4)">★</span>
+          <span class="cursor-pointer transition hover:scale-125 active:scale-95 select-none text-amber-400 p-1" onclick="setManualModalRating(5)">★</span>
+        </div>
+        <p id="rateModalRatingVal" class="text-xs font-bold text-amber-400">5 / 5 Estrellas</p>
+
+        <button onclick="saveManualModalRating()" class="w-full py-2.5 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 text-white text-xs font-black rounded-xl shadow-md cursor-pointer transition active:scale-95">
+          Confirmar Valoración
         </button>
       </div>
     </div>
@@ -2292,7 +2300,6 @@
       executeSearch();
       renderCurrentLibrarySubtab();
       loadDailyFeaturedSongs();
-      loadApiServerUI();
     });
 
 
@@ -2390,17 +2397,31 @@ function switchMainTab(tab) {
   const editorSection = document.getElementById('tabEditorSection');
 
   [searchTabBtn, discoverTabBtn, libraryTabBtn, editorTabBtn].forEach(b => b && b.classList.remove('active'));
-  [searchSection, discoverSection, librarySection, editorSection].forEach(s => s && s.classList.add('hidden'));
+  [searchSection, discoverSection, librarySection, editorSection].forEach(s => {
+    if (s) {
+      s.classList.add('hidden');
+      s.style.display = 'none';
+    }
+  });
 
   if (tab === 'search') {
     if (searchTabBtn) searchTabBtn.classList.add('active');
-    if (searchSection) searchSection.classList.remove('hidden');
+    if (searchSection) {
+      searchSection.classList.remove('hidden');
+      searchSection.style.display = 'block';
+    }
   } else if (tab === 'discover') {
     if (discoverTabBtn) discoverTabBtn.classList.add('active');
-    if (discoverSection) discoverSection.classList.remove('hidden');
+    if (discoverSection) {
+      discoverSection.classList.remove('hidden');
+      discoverSection.style.display = 'block';
+    }
   } else if (tab === 'library') {
     if (libraryTabBtn) libraryTabBtn.classList.add('active');
-    if (librarySection) librarySection.classList.remove('hidden');
+    if (librarySection) {
+      librarySection.classList.remove('hidden');
+      librarySection.style.display = 'block';
+    }
     renderCurrentLibrarySubtab();
   } else if (tab === 'editor') {
     if (editorTabBtn) editorTabBtn.classList.add('active');
@@ -3809,7 +3830,7 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
           medalTierBadge.innerText = '🥈 MAESTRÍA PLATA (92%+)';
           medalTierBadge.className = 'mt-1 inline-block px-3 py-1 rounded-xl text-xs font-black tracking-wider uppercase bg-slate-500/20 text-slate-200 border border-slate-300/50 shadow-lg';
           medalTierBadge.style.display = 'inline-block';
-        } else if (totalNotes > 0 && totalNotes < 100 && acc >= 92.0) {
+        } else if (totalNotes > 0 && totalNotes < 100 && displayScorePct >= 92.0) {
           medalTierBadge.innerText = 'ℹ️ MÍNIMO 100 NOTAS PARA MEDALLAS';
           medalTierBadge.className = 'mt-1 inline-block px-3 py-1 rounded-xl text-[10px] font-black tracking-wider uppercase bg-purple-500/20 text-purple-300 border border-purple-400/50 shadow-md';
           medalTierBadge.style.display = 'inline-block';
@@ -3853,6 +3874,7 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       const commRatingSec = document.getElementById('resCommunityRatingSection');
       if (commRatingSec) {
         commRatingSec.classList.remove('hidden');
+        commRatingSec.style.display = 'block';
         postGameCurrentRating = 5;
         postGameCurrentSync = 100;
         commRatingSec.innerHTML = `
@@ -3952,6 +3974,11 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
                   <p class="text-[10px] text-gray-400 truncate">${item.artist}</p>
                 </div>
               </div>
+
+              <!-- Rate Button -->
+              <button onclick="event.stopPropagation(); openRateSongModal('${item.id}', '${(item.title || 'Canción').replace(/'/g, "\\'")}', '${(item.artist || 'Artista').replace(/'/g, "\\'")}', '${item.metadata?.difficulty_name || 'Normal'}', ${item.metadata?.stars || 3.5}, ${!!(item.is_community || item.source === 'community')})" class="p-1.5 text-xs text-amber-400 hover:scale-125 transition cursor-pointer" title="Calificar canción">
+                ⭐
+              </button>
 
               <!-- Heart Button -->
               <button onclick="toggleFavoriteSong('${item.id}')" data-id="${item.id}" class="heart-btn ${isFav ? 'active' : ''} p-1.5 text-sm cursor-pointer" title="Favorito">
@@ -4969,8 +4996,14 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       // 1. Cargar todas las canciones calificadas localmente (sean comunitarias o no)
       try {
         const ratingsStore = JSON.parse(localStorage.getItem('beatstar_song_ratings') || '{}');
+        // Purgar semillas ficticias legacy
+        ['comm_galaxy_anthem', 'comm_cyber_frenzy', 'comm_moonlight_flow', 'comm_moonlight_drill'].forEach(k => {
+          if (ratingsStore[k]) delete ratingsStore[k];
+        });
+        localStorage.setItem('beatstar_song_ratings', JSON.stringify(ratingsStore));
+
         for (const [id, r] of Object.entries(ratingsStore)) {
-          if (r && r.count > 0) {
+          if (r && r.count > 0 && !id.startsWith('comm_galaxy') && !id.startsWith('comm_cyber') && !id.startsWith('comm_moonlight')) {
             candidateSongs.push({
               id: r.id || id,
               title: r.title || 'Canción',
@@ -4994,7 +5027,7 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
           if (res.ok) {
             const cloudData = await res.json();
             for (const cs of cloudData) {
-              if (cs && cs.votes_count > 0 && !candidateSongs.some(s => s.id === cs.id)) {
+              if (cs && cs.votes_count > 0 && !cs.id.startsWith('comm_galaxy') && !cs.id.startsWith('comm_cyber') && !candidateSongs.some(s => s.id === cs.id)) {
                 candidateSongs.push({
                   ...cs,
                   is_community: true
@@ -5007,8 +5040,8 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         console.warn('Conexión con servidor para destacados omitida:', err);
       }
 
-      // 3. Filtrar estrictamente solo aquellas canciones con votos y ordenar por mejor valoración
-      const ratedOnly = candidateSongs.filter(s => (s.votes_count > 0 || s.rating_avg > 0));
+      // 3. Filtrar estrictamente solo aquellas canciones con votos reales (> 0) y ordenar por mejor valoración
+      const ratedOnly = candidateSongs.filter(s => (s.votes_count > 0));
       ratedOnly.sort((a, b) => {
         if (b.rating_avg !== a.rating_avg) {
           return b.rating_avg - a.rating_avg; // Mejor media primero (ej: 5.0 > 4.8)
@@ -5526,7 +5559,8 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       });
     }
   </script>
-  <script src="./editor.js?v=1.0">
+  <script src="./editor.js?v=1.0"></script>
+  <script>
     // ==========================================
     // LEADERBOARD & SERVER SETTINGS
     // ==========================================
@@ -5694,36 +5728,100 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       container.innerHTML = html;
     }
 
-    function loadApiServerUI() {
-      const input = document.getElementById('settingsApiServerInput');
-      const badge = document.getElementById('serverStatusBadge');
-      const saved = localStorage.getItem('beatstar_api_server');
-      const active = (saved !== null && saved !== undefined && saved.trim() !== '') ? saved.trim() : DEFAULT_CLOUD_SERVER;
-      if (input) input.value = active;
-      if (badge) {
-        if (active) {
-          badge.innerText = '🟢 En línea (Render)';
-          badge.className = 'text-[9px] font-bold text-emerald-400';
-        } else {
-          badge.innerText = '⚪ Modo Local';
-          badge.className = 'text-[9px] font-bold text-gray-400';
-        }
+    // ==========================================
+    // MODAL DE CALIFICACIÓN MANUAL (BIBLIOTECA)
+    // ==========================================
+
+    let currentManualRatingSong = null;
+    let manualModalStars = 5;
+
+    function openRateSongModal(songId, songTitle = 'Canción', songArtist = 'Artista', diffName = 'Normal', stars = 3.5, isCommunity = false) {
+      currentManualRatingSong = { id: songId, title: songTitle, artist: songArtist, difficulty_name: diffName, stars: stars, is_community: isCommunity };
+      manualModalStars = 5;
+      const modal = document.getElementById('rateSongModal');
+      const titleEl = document.getElementById('rateModalSongTitle');
+      const artistEl = document.getElementById('rateModalSongArtist');
+      if (titleEl) titleEl.innerText = songTitle;
+      if (artistEl) artistEl.innerText = songArtist;
+      setManualModalRating(5);
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('open');
+        modal.style.display = 'flex';
       }
     }
 
-    function saveApiServerUrl() {
-      const input = document.getElementById('settingsApiServerInput');
-      if (!input) return;
-      const val = input.value.trim().replace(/\/$/, '');
-      if (val) {
-        localStorage.setItem('beatstar_api_server', val);
-        showSuccessToast('Servidor online guardado: ' + val);
-      } else {
-        localStorage.removeItem('beatstar_api_server');
-        showSuccessToast('Servidor restablecido a modo local');
+    function closeRateSongModal() {
+      const modal = document.getElementById('rateSongModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('open');
+        modal.style.display = 'none';
       }
-      loadApiServerUI();
-      loadDailyFeaturedSongs();
+    }
+
+    function setManualModalRating(val) {
+      manualModalStars = Math.max(1, Math.min(5, parseInt(val, 10) || 5));
+      const lbl = document.getElementById('rateModalRatingVal');
+      if (lbl) lbl.innerText = `${manualModalStars} / 5 Estrellas`;
+      const starsEls = document.querySelectorAll('#rateModalStars span');
+      starsEls.forEach((el, idx) => {
+        if (idx < manualModalStars) {
+          el.className = 'cursor-pointer transition hover:scale-125 active:scale-95 select-none text-amber-400 p-1';
+        } else {
+          el.className = 'cursor-pointer transition hover:scale-125 active:scale-95 select-none text-gray-600 p-1';
+        }
+      });
+    }
+
+    async function saveManualModalRating() {
+      if (!currentManualRatingSong) return;
+      const s = currentManualRatingSong;
+      try {
+        const ratingsStore = JSON.parse(localStorage.getItem('beatstar_song_ratings') || '{}');
+        const prev = ratingsStore[s.id] || {
+          id: s.id,
+          title: s.title,
+          artist: s.artist,
+          difficulty_name: s.difficulty_name,
+          stars: s.stars,
+          is_community: !!s.is_community,
+          count: 0,
+          totalStars: 0,
+          totalSync: 0
+        };
+        prev.count += 1;
+        prev.totalStars += manualModalStars;
+        prev.totalSync += 100;
+        prev.avgStars = parseFloat((prev.totalStars / prev.count).toFixed(1));
+        prev.avgSync = Math.round(prev.totalSync / prev.count);
+        prev.lastRated = Date.now();
+        prev.title = s.title;
+        prev.artist = s.artist;
+        prev.difficulty_name = s.difficulty_name;
+        prev.stars = s.stars;
+        prev.is_community = !!s.is_community;
+        ratingsStore[s.id] = prev;
+        localStorage.setItem('beatstar_song_ratings', JSON.stringify(ratingsStore));
+
+        // Enviar a la nube en segundo plano si el servidor está en línea
+        try {
+          const baseUrl = getApiBaseUrl();
+          if (baseUrl) {
+            fetch(`${baseUrl}/api/v1/community/charts/${encodeURIComponent(s.id)}/rate`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ rating: manualModalStars, sync_pct: 100, user_id: 'player' })
+            }).catch(() => {});
+          }
+        } catch (e) {}
+
+        showSuccessToast(`¡Calificación de ${manualModalStars}★ guardada!`);
+        closeRateSongModal();
+        loadDailyFeaturedSongs();
+      } catch (err) {
+        showErrorToast('Error al guardar calificación: ' + err.message);
+      }
     }
 
 </script>

@@ -36,6 +36,10 @@ svg {
   color: #9ca3af !important;
 }
 
+.hidden {
+  display: none !important;
+}
+
 :root {
   --primary-glow: #ff007f;
   --cyan-glow: #00f2fe;
