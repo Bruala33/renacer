@@ -1599,7 +1599,7 @@
         const baseUrl = getApiBaseUrl();
         if (baseUrl) {
           const playerName = localStorage.getItem('beatstar_player_nickname') || 'Jugador';
-          fetch(${baseUrl}/api/v1/community/charts//score, {
+          fetch(`${baseUrl}/api/v1/community/charts/${encodeURIComponent(songId)}/score`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
