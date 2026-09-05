@@ -182,6 +182,7 @@ class DirectAudioSync {
   loadAudioUrl(url) {
     this.isLoaded = false;
     this.isPlaying = false;
+    this.audioElement.loop = false;
     this.audioElement.src = url;
     this.audioElement.load();
     this.baseTimeMs = 0;
@@ -1021,7 +1022,7 @@ class BeatstarEngine {
   }
 
   computeMaxPossibleScore(notes) {
-    if (!notes || notes.length === 0) return 50000;
+    if (!notes || notes.length === 0) return 1;
     let simCombo = 0;
     let simScore = 0;
     for (const n of notes) {
@@ -1033,16 +1034,13 @@ class BeatstarEngine {
       else if (simCombo >= 10) mult = 2;
 
       let basePts = 450;
-      if (n.type === 'swipe') {
-        basePts = 500;
-      } else if (n.type === 'hold') {
-        const durationSec = Math.max(0.3, ((n.duration_ms || 600) / 1000));
-        const holdTicks = Math.max(1, Math.round(durationSec * 6));
-        basePts = 450 + holdTicks * 35;
+      if (n.type === 'hold') {
+        const durationSec = Math.max(0.15, ((n.duration_ms || 600) / 1000));
+        basePts = 450 + Math.round(260 * durationSec);
       }
       simScore += basePts * mult;
     }
-    return Math.max(10000, simScore);
+    return Math.max(1, simScore);
   }
 
   loadBeatmap(beatmapData, audioBlobOrUrl = null) {
@@ -1065,10 +1063,17 @@ class BeatstarEngine {
     }
 
     // Extract real BPM and Beat Grid Offset
-    this.bpm = beatmapData.metadata?.bpm || beatmapData.bpm || 120;
+    this.bpm = Number.isFinite(beatmapData.metadata?.bpm) ? beatmapData.metadata.bpm : (Number.isFinite(beatmapData.bpm) ? beatmapData.bpm : 120);
     const beatDurationMs = 60000 / (this.bpm || 120);
-    this.firstBeatOffsetMs = (beatmapData.notes && beatmapData.notes.length > 0) 
-      ? (((beatmapData.notes[0].timestamp_ms % beatDurationMs) + beatDurationMs) % beatDurationMs) 
+    const firstRawTime = (beatmapData.notes && beatmapData.notes.length > 0)
+      ? (Number.isFinite(beatmapData.notes[0].timestamp_ms)
+          ? beatmapData.notes[0].timestamp_ms
+          : (Number.isFinite(beatmapData.notes[0].timeMs)
+              ? beatmapData.notes[0].timeMs
+              : (Number.isFinite(beatmapData.notes[0].time) ? (beatmapData.notes[0].time > 100 ? beatmapData.notes[0].time : beatmapData.notes[0].time * 1000) : 0)))
+      : 0;
+    this.firstBeatOffsetMs = Number.isFinite(firstRawTime)
+      ? (((firstRawTime % beatDurationMs) + beatDurationMs) % beatDurationMs)
       : 0;
 
     // Explicitly reset all game state flags
@@ -1082,10 +1087,46 @@ class BeatstarEngine {
     this.lastMissTimePerf = 0;
     this.lastFailSongTimeSec = 0;
 
-    const diffStars = beatmapData.metadata?.stars || 3.0;
+    const diffStars = Number.isFinite(beatmapData.metadata?.stars) ? beatmapData.metadata.stars : 3.0;
 
     // Pass notes through LaneRemapper.sanitizeForTwoFingers to guarantee 2-finger compliance & density limit
-    const rawNotes = (beatmapData && beatmapData.notes) ? beatmapData.notes : [];
+    const rawNotes = (beatmapData && Array.isArray(beatmapData.notes)) ? beatmapData.notes.map((n, idx) => {
+      let rawT = Number.isFinite(n.timestamp_ms)
+        ? n.timestamp_ms
+        : (Number.isFinite(n.timeMs)
+            ? n.timeMs
+            : (Number.isFinite(n.timestamp) ? n.timestamp : (Number.isFinite(n.time) ? (n.time > 100 ? n.time : n.time * 1000) : idx * 500)));
+      if (!Number.isFinite(rawT)) rawT = idx * 500;
+      rawT = Math.round(rawT);
+
+      let rawDur = Number.isFinite(n.duration_ms)
+        ? n.duration_ms
+        : (Number.isFinite(n.holdDuration)
+            ? (n.holdDuration > 50 ? n.holdDuration : n.holdDuration * 1000)
+            : (Number.isFinite(n.duration) ? (n.duration > 50 ? n.duration : n.duration * 1000) : 0));
+      if (!Number.isFinite(rawDur) || rawDur < 0) rawDur = 0;
+      rawDur = Math.round(rawDur);
+
+      const laneVal = Math.max(0, Math.min(2, parseInt(n.lane ?? n.column ?? n.track ?? 0, 10) || 0));
+      const isHold = n.type === 'hold' || n.type === 'long' || rawDur > 0;
+      const typeStr = isHold ? 'hold' : ((n.type === 'swipe' || n.type === 'slide') ? 'swipe' : 'tap');
+
+      return {
+        ...n,
+        id: n.id !== undefined ? n.id : idx,
+        lane: laneVal,
+        column: laneVal,
+        track: laneVal,
+        type: typeStr,
+        time: rawT / 1000,
+        timeMs: rawT,
+        timestamp_ms: rawT,
+        duration_ms: rawDur,
+        holdDuration: rawDur / 1000,
+        end_timestamp_ms: isHold ? (rawT + Math.max(150, rawDur)) : null
+      };
+    }) : [];
+
     const densityMode = (typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_map_density') : null) || 'hard';
     const sanitizedNotes = (typeof LaneRemapper !== 'undefined' && LaneRemapper.sanitizeForTwoFingers)
       ? LaneRemapper.sanitizeForTwoFingers(rawNotes, this.bpm, diffStars, densityMode)
@@ -1094,22 +1135,37 @@ class BeatstarEngine {
     // Check earliest note time in sanitized notes
     let minNoteTime = Infinity;
     for (const n of sanitizedNotes) {
-      if (n.timestamp_ms < minNoteTime) minNoteTime = n.timestamp_ms;
+      const nt = Number.isFinite(n.timestamp_ms) ? n.timestamp_ms : 0;
+      if (nt < minNoteTime) minNoteTime = nt;
     }
     
     // Provide a comfortable 1600ms lead-in runway so players never get surprised or miss instantly
     const leadInMs = (minNoteTime < 1600 && minNoteTime !== Infinity) ? Math.round(1600 - minNoteTime) : 0;
     this.leadInDelayMs = leadInMs;
 
-    // Set dynamic scroll duration based on difficulty (slower, readable default)
-    this.scrollDurationMs = this.computeDynamicScrollDuration(diffStars, sanitizedNotes);
+    // Set dynamic scroll duration based on difficulty (slower, readable default, or explicit preset)
+    this.scrollDurationMs = (Number.isFinite(this.beatmapData.scrollDurationMs) && this.beatmapData.scrollDurationMs > 0)
+      ? this.beatmapData.scrollDurationMs
+      : this.computeDynamicScrollDuration(diffStars, sanitizedNotes);
 
-    this.notes = sanitizedNotes.map(n => {
-      const adjustedTime = n.timestamp_ms + leadInMs;
-      const adjustedEndTime = n.end_timestamp_ms ? (n.end_timestamp_ms + leadInMs) : null;
+    this.notes = sanitizedNotes.map((n, idx) => {
+      const rawT = Number.isFinite(n.timestamp_ms) ? n.timestamp_ms : idx * 500;
+      const adjustedTime = Math.round(rawT + leadInMs);
+      const rawDur = Number.isFinite(n.duration_ms) ? n.duration_ms : 0;
+      const adjustedEndTime = (n.type === 'hold' || rawDur > 0) ? (adjustedTime + Math.max(150, rawDur)) : null;
+      const laneVal = Math.max(0, Math.min(2, parseInt(n.lane ?? n.column ?? n.track ?? 0, 10) || 0));
       return {
         ...n,
+        id: n.id !== undefined ? n.id : idx,
+        lane: laneVal,
+        column: laneVal,
+        track: laneVal,
+        type: (n.type === 'hold' || rawDur > 0) ? 'hold' : (n.type === 'swipe' ? 'swipe' : 'tap'),
+        time: adjustedTime / 1000,
+        timeMs: adjustedTime,
         timestamp_ms: adjustedTime,
+        duration_ms: rawDur,
+        holdDuration: rawDur / 1000,
         end_timestamp_ms: adjustedEndTime,
         hit: false,
         holding: false,
@@ -1157,7 +1213,10 @@ class BeatstarEngine {
       this.isCountingDown = false;
       this.isPaused = false;
       this.invulnerableUntil = 2400; // 2.4s initial protection
-      this.sync.seekTo(0);
+      const startSec = (Number.isFinite(this.beatmapData.startMarkerMs) && this.beatmapData.startMarkerMs > 0)
+        ? (this.beatmapData.startMarkerMs / 1000)
+        : 0;
+      this.sync.seekTo(startSec);
 
       if (this.leadInDelayMs > 0) {
         this.startLoop();
@@ -1751,6 +1810,7 @@ class BeatstarEngine {
       text = customLabel ? `GOOD ${customLabel}` : 'GOOD';
       color = jc.good || '#ff8800';
       points = 75;
+      this.stats.good = (this.stats.good || 0) + 1;
       this.streakCount = 0;
     }
 
@@ -1778,28 +1838,42 @@ class BeatstarEngine {
 
   addScore(pts) {
     this.score += pts;
-    const maxScore = Math.max(1000, this.maxPossibleScore || 50000);
-    const pct = Math.min(100.0, (this.score / maxScore) * 100);
+    const maxScore = Math.max(1, this.maxPossibleScore || 1);
+    const scorePct = Math.min(100.0, (this.score / maxScore) * 100);
 
-    // Sistema de Medallas de Rendimiento:
-    // Plata: >= 94% | Oro: >= 96% | Platino: >= 98%
+    const totalNotes = (this.notes && this.notes.length) || 0;
+
+    // Asignación progresiva de estrellas (0 a 5) según la puntuación acumulada sobre maxPossibleScore:
+    // 1★: >= 20% | 2★: >= 40% | 3★: >= 60% | 4★: >= 75% | 5★: >= 90%
+    let stars = 0;
+    if (scorePct >= 90.0) stars = 5;
+    else if (scorePct >= 75.0) stars = 4;
+    else if (scorePct >= 60.0) stars = 3;
+    else if (scorePct >= 40.0) stars = 2;
+    else if (scorePct >= 20.0) stars = 1;
+    // Las estrellas nunca disminuyen durante la partida
+    this.stars = Math.max(this.stars, stars);
+
+    // Medallas en tiempo real: Requiere un mínimo de 100 notas en la pista
+    // Plata: >= 92% | Oro: >= 94% | Platino: >= 96%
     let medalTier = null;
-    if (pct >= 98.0) {
-      medalTier = 'platinum';
-      this.stars = 5;
-    } else if (pct >= 96.0) {
-      medalTier = 'gold';
-      this.stars = 5;
-    } else if (pct >= 94.0) {
-      medalTier = 'silver';
-      this.stars = 5;
-    } else {
-      // Progresión estándar de 1 a 5 estrellas hasta el 90%
-      this.stars = Math.min(5, Math.floor((pct / 90.0) * 5));
+    if (totalNotes >= 100) {
+      if (scorePct >= 96.0) medalTier = 'platinum';
+      else if (scorePct >= 94.0) medalTier = 'gold';
+      else if (scorePct >= 92.0) medalTier = 'silver';
     }
-
+    // La medalla alcanzada nunca disminuye durante la partida
+    if (this.currentMedalTier === 'platinum') medalTier = 'platinum';
+    else if (this.currentMedalTier === 'gold' && medalTier !== 'platinum') medalTier = 'gold';
+    else if (this.currentMedalTier === 'silver' && !medalTier) medalTier = 'silver';
     this.currentMedalTier = medalTier;
-    this.ui.onScoreUpdate(this.score, this.combo, this.stars, this.multiplier, medalTier, pct);
+
+    const totalJudged = (this.stats.perfectPlus || 0) + (this.stats.perfect || 0) + (this.stats.great || 0) + (this.stats.good || 0) + (this.stats.miss || 0);
+    const accuracyPct = totalJudged > 0
+      ? Math.min(100.0, Math.max(0.0, (((this.stats.perfectPlus * 100) + (this.stats.perfect * 80) + (this.stats.great * 50) + ((this.stats.good || 0) * 25)) / (totalJudged * 100)) * 100))
+      : 100.0;
+
+    this.ui.onScoreUpdate(this.score, this.combo, this.stars, this.multiplier, this.currentMedalTier, scorePct, accuracyPct);
   }
 
   handleMiss() {
@@ -1817,9 +1891,16 @@ class BeatstarEngine {
     this.multiplier = 1;
     this.stats.miss++;
     
-    const maxScore = Math.max(1000, this.maxPossibleScore || 50000);
-    const pct = Math.min(100.0, (this.score / maxScore) * 100);
-    this.ui.onScoreUpdate(this.score, this.combo, this.stars, this.multiplier, this.currentMedalTier, pct);
+    const maxScore = Math.max(1, this.maxPossibleScore || 1);
+    const scorePct = Math.min(100.0, (this.score / maxScore) * 100);
+
+    const totalJudged = (this.stats.perfectPlus || 0) + (this.stats.perfect || 0) + (this.stats.great || 0) + (this.stats.good || 0) + (this.stats.miss || 0);
+    const accuracyPct = totalJudged > 0
+      ? Math.min(100.0, Math.max(0.0, (((this.stats.perfectPlus * 100) + (this.stats.perfect * 80) + (this.stats.great * 50) + ((this.stats.good || 0) * 25)) / (totalJudged * 100)) * 100))
+      : 100.0;
+
+    // Al fallar, las estrellas y medallas alcanzadas no disminuyen
+    this.ui.onScoreUpdate(this.score, this.combo, this.stars, this.multiplier, this.currentMedalTier, scorePct, accuracyPct);
 
     if (!this.continueMode && !this.isCalibrating && this.beatmapData) {
       const penaltyCost = Math.pow(2, this.missCount);
@@ -1920,10 +2001,16 @@ class BeatstarEngine {
             this.streakCount = 0;
             this.stats.miss++;
 
-            const maxScore = Math.max(1000, this.maxPossibleScore || 50000);
-            const pct = Math.min(100.0, (this.score / maxScore) * 100);
+            const maxScore = Math.max(1, this.maxPossibleScore || 1);
+            const scorePct = Math.min(100.0, (this.score / maxScore) * 100);
+
+            const totalJudged = (this.stats.perfectPlus || 0) + (this.stats.perfect || 0) + (this.stats.great || 0) + (this.stats.good || 0) + (this.stats.miss || 0);
+            const accuracyPct = totalJudged > 0
+              ? Math.min(100.0, Math.max(0.0, (((this.stats.perfectPlus * 100) + (this.stats.perfect * 80) + (this.stats.great * 50) + ((this.stats.good || 0) * 25)) / (totalJudged * 100)) * 100))
+              : 100.0;
+
             if (this.ui && this.ui.onScoreUpdate) {
-              this.ui.onScoreUpdate(this.score, this.combo, this.stars, this.multiplier, this.currentMedalTier, pct);
+              this.ui.onScoreUpdate(this.score, this.combo, this.stars, this.multiplier, this.currentMedalTier, scorePct, accuracyPct);
             }
           }
         }
@@ -1959,10 +2046,18 @@ class BeatstarEngine {
 
     if (this.beatmapData && this.notes.length > 0 && !this.isGameOver) {
       const lastNoteTime = Math.max(...this.notes.map(n => n.end_timestamp_ms || n.timestamp_ms));
-      const isPastLastNote = currentTime > (lastNoteTime + 1400);
+      const hasExplicitEnd = Number.isFinite(this.beatmapData.endMarkerMs) && this.beatmapData.endMarkerMs > 0;
+      const endLimitMs = hasExplicitEnd
+        ? this.beatmapData.endMarkerMs
+        : (Number.isFinite(this.beatmapData.endTimestampMs) && this.beatmapData.endTimestampMs > 0
+            ? this.beatmapData.endTimestampMs
+            : (lastNoteTime + 1400));
+
+      const isPastEnd = currentTime >= endLimitMs;
+      const isPastLastNote = !hasExplicitEnd && (currentTime > (lastNoteTime + 1400));
       const isAudioFinished = this.sync.duration > 0 && (currentTime / 1000 >= this.sync.duration - 0.25);
 
-      if (isPastLastNote || isAudioFinished) {
+      if (isPastEnd || isPastLastNote || isAudioFinished) {
         this.triggerGameEnd();
       }
     }
@@ -1979,32 +2074,69 @@ class BeatstarEngine {
     }
     this.sync.pause();
 
-    const maxScore = Math.max(1000, this.maxPossibleScore || 50000);
-    const finalPct = Math.min(100.0, (this.score / maxScore) * 100);
+    const totalNotes = (this.notes && this.notes.length) || 0;
+    const maxScore = Math.max(1, this.maxPossibleScore || 1);
+    const scorePct = Math.min(100.0, Math.max(0.0, (this.score / maxScore) * 100));
+
+    // Precisión de impacto física:
+    const totalJudged = (this.stats.perfectPlus || 0) + (this.stats.perfect || 0) + (this.stats.great || 0) + (this.stats.good || 0) + (this.stats.miss || 0);
+    const accuracyPct = totalJudged > 0
+      ? Math.min(100.0, Math.max(0.0, (((this.stats.perfectPlus * 100) + (this.stats.perfect * 80) + (this.stats.great * 50) + ((this.stats.good || 0) * 25)) / (totalJudged * 100)) * 100))
+      : 100.0;
+
+    // La evaluación de estrellas y medallas se rige ESTRICTAMENTE por scorePct:
+    // 5★: >= 90% | 4★: >= 75% | 3★: >= 60% | 2★: >= 40% | 1★: >= 20%
+    let stars = 0;
+    if (scorePct >= 90.0) {
+      stars = 5;
+    } else if (scorePct >= 75.0) {
+      stars = 4;
+    } else if (scorePct >= 60.0) {
+      stars = 3;
+    } else if (scorePct >= 40.0) {
+      stars = 2;
+    } else if (scorePct >= 20.0) {
+      stars = 1;
+    }
+    this.stars = Math.max(this.stars, stars);
+
+    // Medallas: Requiere un mínimo de 100 notas en la pista
+    // Plata: >= 92% | Oro: >= 94% | Platino: >= 96%
     let finalMedal = null;
     const earnedMedals = { silver: 0, gold: 0, platinum: 0 };
-
-    // Plata: >= 94% | Oro: >= 96% | Platino: >= 98%
-    if (finalPct >= 98.0) {
-      finalMedal = 'platinum';
-      earnedMedals.platinum = 1;
-      earnedMedals.gold = 1;
-      earnedMedals.silver = 1;
-    } else if (finalPct >= 96.0) {
-      finalMedal = 'gold';
-      earnedMedals.gold = 1;
-      earnedMedals.silver = 1;
-    } else if (finalPct >= 94.0) {
-      finalMedal = 'silver';
-      earnedMedals.silver = 1;
+    if (totalNotes >= 100) {
+      if (scorePct >= 96.0) {
+        finalMedal = 'platinum';
+        earnedMedals.platinum = 1;
+        earnedMedals.gold = 1;
+        earnedMedals.silver = 1;
+      } else if (scorePct >= 94.0) {
+        finalMedal = 'gold';
+        earnedMedals.gold = 1;
+        earnedMedals.silver = 1;
+      } else if (scorePct >= 92.0) {
+        finalMedal = 'silver';
+        earnedMedals.silver = 1;
+      }
     }
+    this.currentMedalTier = finalMedal;
 
+    // Claves (Clefs) - Reducidas 10 VECES (1 a 5 claves base + bonos de 1 a 3):
     const diffStars = this.beatmapData.metadata?.stars || 3.0;
-    let diffMultiplier = diffStars < 2.5 ? 1 : (diffStars < 4.5 ? 2 : (diffStars < 6.5 ? 3 : 4));
-    const earnedClefs = (this.stars * diffMultiplier) + (earnedMedals.platinum * 50 + earnedMedals.gold * 30 + earnedMedals.silver * 15);
+    let diffMultiplier = diffStars < 3.0 ? 1 : (diffStars < 6.0 ? 1.2 : 1.5);
+
+    const scoreRatio = Math.min(1.0, Math.max(0.0, this.score / maxScore));
+    const performanceFactor = Math.pow(scoreRatio, 1.4) * (accuracyPct / 100);
+    // Escala base: 1 a 5 claves
+    const baseScoreClefs = Math.max(1, Math.round(5 * performanceFactor));
+    const scoreClefs = Math.max(1, Math.round(baseScoreClefs * diffMultiplier));
+
+    // Bonos de medallas reducidos 10 veces: Platino +3, Oro +2, Plata +1
+    const medalBonus = (earnedMedals.platinum * 3) + (earnedMedals.gold * 2) + (earnedMedals.silver * 1);
+    const earnedClefs = scoreClefs + medalBonus;
 
     if (this.ui && this.ui.onGameEnd) {
-      this.ui.onGameEnd(this.score, this.maxCombo, this.stars, this.stats, earnedClefs, finalMedal, finalPct, earnedMedals);
+      this.ui.onGameEnd(this.score, this.maxCombo, this.stars, this.stats, earnedClefs, finalMedal, scorePct, earnedMedals, totalNotes, accuracyPct);
     }
   }
 
@@ -2387,48 +2519,81 @@ class BeatstarEngine {
   renderNotes(currentTime) {
     const ctx = this.ctx;
     const len = this.notes.length;
+    const hitLine = Number.isFinite(this.hitLineY) ? this.hitLineY : 500;
+    const scrollDur = (Number.isFinite(this.scrollDurationMs) && this.scrollDurationMs > 0) ? this.scrollDurationMs : 1400;
+    const laneW = (Number.isFinite(this.laneWidth) && this.laneWidth > 0) ? this.laneWidth : (this.width / 3);
 
     for (let i = 0; i < len; i++) {
       const note = this.notes[i];
-      if (note.holdCompleted) continue;
+      if (!note || note.holdCompleted) continue;
       if (note.hit && note.type !== 'hold') continue;
       if (note.missed && !note.holding) continue;
       if (note.processed && !note.holding) continue;
 
-      const isBeingHeld = note.holding && !note.holdCompleted;
-      const timeUntilHit = note.timestamp_ms - currentTime;
-      const x = (note.lane + 0.5) * this.laneWidth;
-      const w = this.laneWidth * 0.78;
+      // Sanitización matemática estricta de carril y tiempo de la nota
+      const lane = Number.isFinite(note.lane)
+        ? Math.max(0, Math.min(2, Math.round(note.lane)))
+        : (Number.isFinite(note.column) ? Math.max(0, Math.min(2, Math.round(note.column))) : 0);
+
+      const noteT = Number.isFinite(note.timestamp_ms)
+        ? note.timestamp_ms
+        : (Number.isFinite(note.timeMs)
+            ? note.timeMs
+            : (Number.isFinite(note.time) ? (note.time > 100 ? note.time : note.time * 1000) : 0));
+
+      if (!Number.isFinite(noteT)) continue;
+
+      const isBeingHeld = Boolean(note.holding && !note.holdCompleted);
+      const timeUntilHit = noteT - currentTime;
+      if (!Number.isFinite(timeUntilHit)) continue;
+
+      const x = (lane + 0.5) * laneW;
+      const w = laneW * 0.78;
       const h = 28;
 
+      if (!Number.isFinite(x) || !Number.isFinite(w) || w <= 0) continue;
+
       if (note.type === 'hold') {
-        const holdDuration = note.duration_ms || 700;
-        const fullTailLength = (holdDuration / this.scrollDurationMs) * this.hitLineY;
-        const endT = note.end_timestamp_ms || (note.timestamp_ms + holdDuration);
+        const rawDur = Number.isFinite(note.duration_ms)
+          ? note.duration_ms
+          : (Number.isFinite(note.holdDuration)
+              ? (note.holdDuration > 50 ? note.holdDuration : note.holdDuration * 1000)
+              : (Number.isFinite(note.duration) ? (note.duration > 50 ? note.duration : note.duration * 1000) : 700));
+        const holdDuration = Math.max(150, Number.isFinite(rawDur) ? rawDur : 700);
+        const fullTailLength = (holdDuration / scrollDur) * hitLine;
+        const endT = Number.isFinite(note.end_timestamp_ms) ? note.end_timestamp_ms : (noteT + holdDuration);
         
-        let headY = this.hitLineY - (timeUntilHit / this.scrollDurationMs) * this.hitLineY;
+        let headY = hitLine - (timeUntilHit / scrollDur) * hitLine;
         let tailLength = fullTailLength;
 
         if (isBeingHeld) {
-          headY = this.hitLineY;
+          headY = hitLine;
           const remainingMs = Math.max(0, endT - currentTime);
-          tailLength = (remainingMs / this.scrollDurationMs) * this.hitLineY;
+          tailLength = (remainingMs / scrollDur) * hitLine;
         }
 
         const endY = headY - tailLength;
+        if (!Number.isFinite(headY) || !Number.isFinite(endY) || !Number.isFinite(tailLength)) continue;
         if (endY > this.height + 100 || headY < -300) continue;
 
         ctx.save();
-        const grad = ctx.createLinearGradient(0, endY, 0, headY);
-        if (isBeingHeld) {
-          grad.addColorStop(0, 'rgba(0, 255, 136, 0.25)');
-          grad.addColorStop(1, 'rgba(0, 255, 136, 0.95)');
-        } else {
-          grad.addColorStop(0, 'rgba(240, 147, 251, 0.2)');
-          grad.addColorStop(1, 'rgba(245, 87, 108, 0.85)');
+        let grad = null;
+        if (Number.isFinite(endY) && Number.isFinite(headY)) {
+          try {
+            grad = ctx.createLinearGradient(0, endY, 0, headY);
+            if (isBeingHeld) {
+              grad.addColorStop(0, 'rgba(0, 255, 136, 0.25)');
+              grad.addColorStop(1, 'rgba(0, 255, 136, 0.95)');
+            } else {
+              grad.addColorStop(0, 'rgba(240, 147, 251, 0.2)');
+              grad.addColorStop(1, 'rgba(245, 87, 108, 0.85)');
+            }
+          } catch (e) {
+            grad = null;
+          }
         }
 
-        ctx.fillStyle = grad;
+        ctx.fillStyle = grad || (isBeingHeld ? 'rgba(0, 255, 136, 0.85)' : 'rgba(245, 87, 108, 0.85)');
         ctx.fillRect(x - w * 0.4, endY, w * 0.8, tailLength);
         
         ctx.strokeStyle = isBeingHeld ? '#00ff88' : '#f5576c';
@@ -2440,16 +2605,19 @@ class BeatstarEngine {
 
         ctx.fillStyle = isBeingHeld ? '#00ff88' : '#ffffff';
         ctx.beginPath();
-        ctx.roundRect(x - w / 2, headY - h / 2, w, h, 12);
+        if (ctx.roundRect) {
+          ctx.roundRect(x - w / 2, headY - h / 2, w, h, 12);
+        } else {
+          ctx.rect(x - w / 2, headY - h / 2, w, h);
+        }
         ctx.fill();
         ctx.restore();
 
       } else if (note.type === 'swipe') {
-        const giantW = this.laneWidth * 0.92;
+        const giantW = laneW * 0.92;
         const giantH = 58;
-        const y = this.hitLineY - (timeUntilHit / this.scrollDurationMs) * this.hitLineY;
-        // Keep note fully rendered until it physically exits the bottom of the screen
-        if (y < -300 || y > this.height + 60) continue;
+        const y = hitLine - (timeUntilHit / scrollDur) * hitLine;
+        if (!Number.isFinite(y) || y < -300 || y > this.height + 60) continue;
 
         ctx.save();
         const dir = note.direction || 'up';
@@ -2465,13 +2633,26 @@ class BeatstarEngine {
           grad2 = '#00b4d8';
         }
         
-        const grad = ctx.createLinearGradient(x - giantW / 2, y, x + giantW / 2, y);
-        grad.addColorStop(0, grad1);
-        grad.addColorStop(1, grad2);
-        ctx.fillStyle = grad;
+        const x0 = x - giantW / 2;
+        const x1 = x + giantW / 2;
+        let grad = null;
+        if (Number.isFinite(x0) && Number.isFinite(x1) && Number.isFinite(y)) {
+          try {
+            grad = ctx.createLinearGradient(x0, y, x1, y);
+            grad.addColorStop(0, grad1);
+            grad.addColorStop(1, grad2);
+          } catch (e) {
+            grad = null;
+          }
+        }
+        ctx.fillStyle = grad || grad1;
 
         ctx.beginPath();
-        ctx.roundRect(x - giantW / 2, y - giantH / 2, giantW, giantH, 18);
+        if (ctx.roundRect) {
+          ctx.roundRect(x - giantW / 2, y - giantH / 2, giantW, giantH, 18);
+        } else {
+          ctx.rect(x - giantW / 2, y - giantH / 2, giantW, giantH);
+        }
         ctx.fill();
 
         ctx.strokeStyle = '#ffffff';
@@ -2482,18 +2663,30 @@ class BeatstarEngine {
         ctx.restore();
 
       } else {
-        const y = this.hitLineY - (timeUntilHit / this.scrollDurationMs) * this.hitLineY;
-        // Keep note fully rendered until it physically exits the bottom of the screen
-        if (y < -300 || y > this.height + 60) continue;
+        const y = hitLine - (timeUntilHit / scrollDur) * hitLine;
+        if (!Number.isFinite(y) || y < -300 || y > this.height + 60) continue;
 
         ctx.save();
-        const grad = ctx.createLinearGradient(x - w / 2, y, x + w / 2, y);
-        grad.addColorStop(0, '#00f2fe');
-        grad.addColorStop(1, '#4facfe');
-        ctx.fillStyle = grad;
+        const x0 = x - w / 2;
+        const x1 = x + w / 2;
+        let grad = null;
+        if (Number.isFinite(x0) && Number.isFinite(x1) && Number.isFinite(y)) {
+          try {
+            grad = ctx.createLinearGradient(x0, y, x1, y);
+            grad.addColorStop(0, '#00f2fe');
+            grad.addColorStop(1, '#4facfe');
+          } catch (e) {
+            grad = null;
+          }
+        }
+        ctx.fillStyle = grad || '#00f2fe';
 
         ctx.beginPath();
-        ctx.roundRect(x - w / 2, y - h / 2, w, h, 12);
+        if (ctx.roundRect) {
+          ctx.roundRect(x - w / 2, y - h / 2, w, h, 12);
+        } else {
+          ctx.rect(x - w / 2, y - h / 2, w, h);
+        }
         ctx.fill();
 
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
@@ -2502,7 +2695,11 @@ class BeatstarEngine {
 
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.roundRect(x - w / 4, y - h / 4, w / 2, h / 2, 6);
+        if (ctx.roundRect) {
+          ctx.roundRect(x - w / 4, y - h / 4, w / 2, h / 2, 6);
+        } else {
+          ctx.rect(x - w / 4, y - h / 4, w / 2, h / 2);
+        }
         ctx.fill();
         ctx.restore();
       }

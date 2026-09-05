@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.services.community_aggregator import CommunityAggregator
 from app.api.endpoints.playlists import router as playlists_router
+from app.api.endpoints.community import router as community_router
 
 # Setup logging
 logging.basicConfig(
@@ -29,6 +30,7 @@ app = FastAPI(
 )
 
 app.include_router(playlists_router, prefix="/api/v1/playlists", tags=["Playlists"])
+app.include_router(community_router, prefix="/api/v1/community", tags=["Community"])
 
 # CORS configuration
 app.add_middleware(

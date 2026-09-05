@@ -49,7 +49,9 @@ echo.
 echo [4/4] Copiando APK final...
 if not exist "app\static\downloads" mkdir "app\static\downloads"
 copy /Y "android\app\build\outputs\apk\debug\app-debug.apk" "app\static\downloads\beatstar.apk" >nul
+copy /Y "android\app\build\outputs\apk\debug\app-debug.apk" "app\static\downloads\PianoCommunity.apk" >nul
 copy /Y "android\app\build\outputs\apk\debug\app-debug.apk" "beatstar.apk" >nul
+copy /Y "android\app\build\outputs\apk\debug\app-debug.apk" "PianoCommunity.apk" >nul
 
 echo.
 echo ======================================================

@@ -73,4 +73,7 @@ cloudflared.exe
 scratch/
 love_man.bin
 *.bin
+app/data/
+app/uploads/
+
 

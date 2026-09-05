@@ -1,7 +1,10 @@
 package com.beatstar.renacer
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.VibrationEffect
@@ -14,6 +17,7 @@ import android.view.WindowManager
 import android.webkit.ConsoleMessage
 import android.webkit.JavascriptInterface
 import android.webkit.PermissionRequest
+import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -28,25 +32,29 @@ class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private lateinit var assetLoader: WebViewAssetLoader
 
+    // Callback para el selector de archivos nativo de Android
+    private var filePathCallback: ValueCallback<Array<Uri>>? = null
+    private val FILE_CHOOSER_REQUEST_CODE = 1001
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 1. Keep Screen On during intense rhythm sessions
+        // 1. Mantener pantalla encendida
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        // 2. Configure Edge-to-Edge Cutout Mode for modern notched/punch-hole screens
+        // 2. Modo pantalla completa Edge-to-Edge
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             window.attributes.layoutInDisplayCutoutMode =
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
 
-        // 3. Initialize Asset Loader to support both https://appassets.androidplatform.net and file:///android_asset/
+        // 3. Asset Loader
         assetLoader = WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
             .build()
 
-        // 4. Initialize and Configure WebView with Hardware Acceleration
+        // 4. Configuración de WebView
         webView = WebView(this).apply {
             setLayerType(View.LAYER_TYPE_HARDWARE, null)
             setBackgroundColor(0xFF06040A.toInt())
@@ -75,24 +83,42 @@ class MainActivity : AppCompatActivity() {
             settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
         }
 
-        // 5. JavaScript Native Interface for Haptics & Device features
+        // 5. JavaScript Native Interface
         webView.addJavascriptInterface(WebAppInterface(this), "AndroidNative")
 
-        // 6. Custom WebView Client with Asset Interceptor
+        // 6. Custom WebView Client
         webView.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(
                 view: WebView?,
                 request: WebResourceRequest?
             ): WebResourceResponse? {
                 request?.url?.let { uri ->
-                    val response = assetLoader.shouldInterceptRequest(uri)
-                    if (response != null) return response
+                    try {
+                        val response = assetLoader.shouldInterceptRequest(uri)
+                        if (response != null) return response
+                    } catch (e: Exception) {
+                        android.util.Log.e("BeatstarWeb", "AssetLoader intercept error: ${e.message}")
+                    }
                 }
                 return super.shouldInterceptRequest(view, request)
             }
+
+            override fun onReceivedError(
+                view: WebView?,
+                request: WebResourceRequest?,
+                error: android.webkit.WebResourceError?
+            ) {
+                super.onReceivedError(view, request, error)
+                if (request?.isForMainFrame == true) {
+                    android.util.Log.w("BeatstarWeb", "Error cargando URL principal, activando fallback local: ${error?.description}")
+                    view?.post {
+                        view.loadUrl("file:///android_asset/www/game.html")
+                    }
+                }
+            }
         }
 
-        // 7. WebChrome Client with Permission Granting
+        // 7. WebChrome Client con permisos, logs y Selector de Audio nativo
         webView.webChromeClient = object : WebChromeClient() {
             override fun onPermissionRequest(request: PermissionRequest?) {
                 request?.grant(request.resources)
@@ -104,14 +130,68 @@ class MainActivity : AppCompatActivity() {
                 }
                 return true
             }
+
+            // Habilita <input type="file"> para abrir el explorador de archivos
+            override fun onShowFileChooser(
+                webView: WebView?,
+                filePathCallback: ValueCallback<Array<Uri>>?,
+                fileChooserParams: FileChooserParams?
+            ): Boolean {
+                this@MainActivity.filePathCallback?.onReceiveValue(null)
+                this@MainActivity.filePathCallback = filePathCallback
+
+                val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = "audio/*"
+                }
+
+                @Suppress("DEPRECATION")
+                startActivityForResult(
+                    Intent.createChooser(intent, "Seleccionar Archivo de Audio"),
+                    FILE_CHOOSER_REQUEST_CODE
+                )
+                return true
+            }
         }
 
         setContentView(webView)
 
-        // 8. Load Local HTML5 Assets via secure https://appassets.androidplatform.net
-        webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html")
+        // 8. Carga inicial del juego
+        webView.loadUrl("https://appassets.androidplatform.net/assets/www/game.html")
 
         hideSystemUI()
+    }
+
+    // Manejador del archivo de audio seleccionado
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (requestCode == FILE_CHOOSER_REQUEST_CODE) {
+            if (filePathCallback == null) return
+
+            val results: Array<Uri>? = if (resultCode == Activity.RESULT_OK && data != null) {
+                val dataString = data.dataString
+                if (dataString != null) {
+                    arrayOf(Uri.parse(dataString))
+                } else if (data.clipData != null) {
+                    val count = data.clipData!!.itemCount
+                    val uris = mutableListOf<Uri>()
+                    for (i in 0 until count) {
+                        uris.add(data.clipData!!.getItemAt(i).uri)
+                    }
+                    uris.toTypedArray()
+                } else {
+                    null
+                }
+            } else {
+                null
+            }
+
+            filePathCallback?.onReceiveValue(results)
+            filePathCallback = null
+        } else {
+            @Suppress("DEPRECATION")
+            super.onActivityResult(requestCode, resultCode, data)
+        }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -144,7 +224,6 @@ class MainActivity : AppCompatActivity() {
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
-        // Send escape event to web app to toggle pause / exit cleanly
         webView.evaluateJavascript("if (typeof engine !== 'undefined' && engine && engine.isRunning) { if (engine.isPaused) { resumeGame(); } else { openPauseModal(); } } else if (typeof exitToSearch === 'function') { exitToSearch(); }", null)
     }
 

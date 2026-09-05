@@ -56,8 +56,13 @@ class LaneRemapper {
 
     // 1. Puntuación de importancia musical para cada nota
     const scoredNotes = rawNotes.map(n => {
-      const t = n.timestamp_ms;
-      const isHold = n.type === 'hold' || (n.duration_ms && n.duration_ms > 140);
+      const rawT = Number.isFinite(n.timestamp_ms)
+        ? n.timestamp_ms
+        : (Number.isFinite(n.timeMs)
+            ? n.timeMs
+            : (Number.isFinite(n.timestamp) ? n.timestamp : (Number.isFinite(n.time) ? (n.time > 100 ? n.time : n.time * 1000) : 0)));
+      const t = Math.round(Number.isFinite(rawT) ? rawT : 0);
+      const isHold = n.type === 'hold' || (n.duration_ms && n.duration_ms > 140) || (n.duration && n.duration > 0.14) || (n.holdDuration && n.holdDuration > 0.14);
 
       // Distancia al pulso entero más cercano
       const wholeRem = ((t % beatDurationMs) + beatDurationMs) % beatDurationMs;
@@ -89,7 +94,7 @@ class LaneRemapper {
       return {
         ...n,
         type: isHold ? 'hold' : (n.type || 'tap'),
-        timestamp_ms: Math.round(snapTime),
+        timestamp_ms: Math.round(Number.isFinite(snapTime) ? snapTime : t),
         original_timestamp: t,
         priority: score
       };
