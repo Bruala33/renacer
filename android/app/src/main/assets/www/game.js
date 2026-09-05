@@ -1127,8 +1127,29 @@ class BeatstarEngine {
       };
     }) : [];
 
+    rawNotes.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
+
+    // Bypass difficulty thinning & note-altering algorithms for all community / editor maps
+    const isCommunity = !!(
+      this.beatmapData.is_community || 
+      this.beatmapData.isCommunity ||
+      this.beatmapData.source === 'community' ||
+      this.beatmapData.source === 'custom' ||
+      this.beatmapData.source_name === 'Comunidad' || 
+      this.beatmapData.source_name === 'Mi Creación' ||
+      (this.beatmapData.metadata && (
+        this.beatmapData.metadata.is_community || 
+        this.beatmapData.metadata.isCommunity || 
+        this.beatmapData.metadata.source === 'community' ||
+        this.beatmapData.metadata.source === 'custom' ||
+        this.beatmapData.metadata.source_name === 'Comunidad' ||
+        this.beatmapData.metadata.source_name === 'Mi Creación'
+      )) ||
+      window.isPlaytestingFromEditor
+    );
+
     const densityMode = (typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_map_density') : null) || 'hard';
-    const sanitizedNotes = (typeof LaneRemapper !== 'undefined' && LaneRemapper.sanitizeForTwoFingers)
+    const sanitizedNotes = (!isCommunity && typeof LaneRemapper !== 'undefined' && LaneRemapper.sanitizeForTwoFingers)
       ? LaneRemapper.sanitizeForTwoFingers(rawNotes, this.bpm, diffStars, densityMode)
       : rawNotes;
 

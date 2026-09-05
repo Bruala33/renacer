@@ -1204,13 +1204,21 @@ const ChartEditor = {
     const chartId = 'custom_' + Date.now();
     return {
       id: chartId,
+      is_community: true,
+      isCommunity: true,
+      source: 'community',
+      source_name: 'Comunidad',
       metadata: {
         id: chartId,
         title: title || 'Pista Creada',
         artist: artist || 'Usuario',
         difficulty_name: this.difficultyPreset,
         bpm: Number(this.bpm) || 120,
-        stars: diffConfig.stars
+        stars: diffConfig.stars,
+        is_community: true,
+        isCommunity: true,
+        source: 'community',
+        source_name: 'Comunidad'
       },
       bpm: Number(this.bpm) || 120,
       offset: Number(this.firstBeatOffsetMs) || 0,
@@ -1260,8 +1268,10 @@ const ChartEditor = {
 
     const chartItem = {
       id: chartId,
-      source: 'custom',
+      source: 'community',
       source_name: 'Mi Creación',
+      is_community: true,
+      isCommunity: true,
       title: title,
       artist: artist,
       creator: localStorage.getItem('beatstar_player_nickname') || localStorage.getItem('beatstar_creator_name') || 'Tú',

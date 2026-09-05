@@ -96,7 +96,20 @@ def init_db():
             )
         """)
         cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_song_scores_chart ON song_scores(chart_id, score DESC)
+            CREATE TABLE IF NOT EXISTS creator_notifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                creator_id TEXT NOT NULL,
+                creator_name TEXT,
+                chart_id TEXT NOT NULL,
+                chart_title TEXT NOT NULL,
+                message TEXT NOT NULL,
+                reason TEXT DEFAULT 'low_rating',
+                is_read INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_creator_notifs ON creator_notifications(creator_id, is_read)
         """)
 
         # Eliminar cualquier pista falsa legacy
@@ -506,6 +519,53 @@ async def rate_community_chart(chart_id: str, req: RateChartRequest):
         new_rating_avg = round(float(agg["avg_rating"] or rating), 2)
         new_sync_avg = round(float(agg["avg_sync"] or sync_pct), 1)
 
+        # Regla: si una canción tiene 2 o más votos y su media es inferior a 2 estrellas,
+        # se elimina inmediatamente de la comunidad y se notifica al creador.
+        if new_votes >= 2 and new_rating_avg < 2.0:
+            cur.execute("SELECT * FROM community_charts WHERE id = ?", (chart_id,))
+            chart_info = cur.fetchone()
+            if chart_info:
+                creator_id = chart_info["creator_id"]
+                creator_name = chart_info["creator_name"]
+                song_title = chart_info["title"]
+                
+                notif_msg = (
+                    f"Tu pista '{song_title}' ha sido retirada de la comunidad automáticamente "
+                    f"debido a que su valoración media ({new_rating_avg}★) es inferior a 2 estrellas "
+                    f"tras recibir {new_votes} valoraciones."
+                )
+
+                cur.execute("""
+                    INSERT INTO creator_notifications (creator_id, creator_name, chart_id, chart_title, message, reason, created_at)
+                    VALUES (?, ?, ?, ?, ?, 'low_rating', ?)
+                """, (creator_id, creator_name, chart_id, song_title, notif_msg, now_str))
+
+                # Eliminar de la base de datos de la comunidad
+                cur.execute("DELETE FROM community_charts WHERE id = ?", (chart_id,))
+                cur.execute("DELETE FROM chart_ratings WHERE chart_id = ?", (chart_id,))
+                cur.execute("DELETE FROM song_scores WHERE chart_id = ?", (chart_id,))
+
+                # Limpieza de archivos de audio y notas
+                for fname in [chart_info["audio_filename"], chart_info["chart_filename"]]:
+                    if fname:
+                        fpath = os.path.join(COMMUNITY_UPLOAD_DIR, fname)
+                        if os.path.exists(fpath):
+                            try:
+                                os.remove(fpath)
+                            except Exception:
+                                pass
+
+                conn.commit()
+
+                return {
+                    "status": "deleted_low_rating",
+                    "chart_id": chart_id,
+                    "rating_avg": new_rating_avg,
+                    "votes_count": new_votes,
+                    "deleted": True,
+                    "message": f"La pista ha sido retirada de la comunidad por tener una media de {new_rating_avg}★ (inferior a 2★) tras {new_votes} votos."
+                }
+
         cur.execute("""
             UPDATE community_charts
             SET rating_avg = ?, votes_count = ?, sync_avg = ?, sync_votes_count = ?
@@ -519,8 +579,8 @@ async def rate_community_chart(chart_id: str, req: RateChartRequest):
         "chart_id": chart_id,
         "rating_avg": new_rating_avg,
         "votes_count": new_votes,
-        "sync_avg": new_sync_avg,
-        "message": f"¡Gracias por calificar la pista con {rating}★ y {new_sync_avg}% de sincronización!"
+        "deleted": False,
+        "message": f"¡Gracias por calificar la pista con {rating}★!"
     }
 
 
@@ -535,6 +595,7 @@ async def get_featured_daily_chart():
         cur = conn.cursor()
         cur.execute("""
             SELECT * FROM community_charts
+            WHERE votes_count > 0 AND rating_avg > 0
             ORDER BY rating_avg DESC, votes_count DESC
             LIMIT 3
         """)
@@ -731,4 +792,48 @@ async def get_global_leaderboard(limit: int = Query(25, ge=1, le=100)):
     return {
         "global_leaderboard": rows
     }
+
+
+@router.get("/notifications")
+async def get_creator_notifications(
+    creator_id: Optional[str] = Query(None, description="ID del creador"),
+    creator_name: Optional[str] = Query(None, description="Nombre o nickname del creador")
+):
+    """
+    Obtiene las notificaciones pendientes de un creador (p. ej., avisos de retirada por baja calificación).
+    """
+    with get_db() as conn:
+        cur = conn.cursor()
+        conditions = ["is_read = 0"]
+        params = []
+        if creator_id and creator_name:
+            conditions.append("(creator_id = ? OR creator_name = ?)")
+            params.extend([creator_id.strip(), creator_name.strip()])
+        elif creator_id:
+            conditions.append("creator_id = ?")
+            params.append(creator_id.strip())
+        elif creator_name:
+            conditions.append("creator_name = ?")
+            params.append(creator_name.strip())
+
+        query = f"SELECT * FROM creator_notifications WHERE {' AND '.join(conditions)} ORDER BY created_at DESC"
+        cur.execute(query, params)
+        rows = [dict(r) for r in cur.fetchall()]
+
+    return {
+        "notifications": rows
+    }
+
+
+@router.post("/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: int):
+    """
+    Marca una notificación de creador como leída.
+    """
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("UPDATE creator_notifications SET is_read = 1 WHERE id = ?", (notification_id,))
+        conn.commit()
+
+    return {"status": "success", "id": notification_id}
 

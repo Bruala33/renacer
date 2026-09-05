@@ -1329,7 +1329,24 @@
       </div>
     </div>
 
-<div id="resultsModal" class="results-modal space-y-3.5">
+    <!-- Layer 19: Modal de Notificación para el Creador -->
+    <div id="creatorNotificationModal" class="results-modal space-y-3.5 hidden" style="display: none; z-index: 100;">
+      <div class="glass-card w-full max-w-[320px] p-5 rounded-2xl space-y-3.5 bg-black/95 border border-rose-500/50 shadow-2xl text-center">
+        <div class="w-12 h-12 mx-auto rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center text-2xl font-bold shadow-lg shadow-rose-500/20">
+          ⚠️
+        </div>
+        <h3 class="text-xs font-black text-rose-300 uppercase tracking-wider">Aviso para el Creador</h3>
+        <div class="p-3 bg-white/5 border border-white/10 rounded-xl text-left text-xs text-gray-200 leading-relaxed font-semibold" id="creatorNotificationText">
+          Tu canción ha sido retirada de la comunidad automáticamente.
+        </div>
+        <button onclick="dismissCreatorNotification()" class="w-full py-2.5 bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-400 text-white text-xs font-black rounded-xl shadow-md cursor-pointer transition active:scale-95">
+          Entendido
+        </button>
+      </div>
+    </div>
+
+<div id="resultsModal" class="results-modal">
+    <div class="w-full max-w-sm my-auto space-y-3 pb-6">
       <div class="text-center space-y-1">
         <div id="resBadgeStatus" class="inline-block px-3 py-0.5 rounded-full bg-pink-500/20 text-pink-400 text-xs font-black tracking-wider uppercase">
           ¡Pista Completada!
@@ -1341,8 +1358,8 @@
         <p id="resDiffName" class="text-[11px] text-cyan-300 font-semibold">Normal 3.0★</p>
       </div>
 
-      <!-- 5 Stars with Silver / Gold / Platinum States -->
-      <div class="flex justify-center items-center gap-1.5 text-2xl" id="resStars">
+      <!-- 5 Stars with High-Contrast Silver / Gold / Platinum States -->
+      <div id="resStars">
         <span class="star-icon">★</span>
         <span class="star-icon">★</span>
         <span class="star-icon">★</span>
@@ -1350,7 +1367,7 @@
         <span class="star-icon">★</span>
       </div>
 
-      <div class="glass-card w-full p-4 rounded-2xl text-center space-y-2.5 bg-black/60 border border-white/10">
+      <div class="glass-card w-full p-3.5 rounded-2xl text-center space-y-2 bg-black/60 border border-white/10">
         <div>
           <div class="flex items-center justify-between px-2">
             <span class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Puntuación Final</span>
@@ -1382,11 +1399,11 @@
         </div>
       </div>
 
-      <!-- Community Rating Module (Valorar mapa 1-5 estrellas y sincronización) -->
-      <div id="resCommunityRatingSection" class="hidden glass-card w-full p-3 rounded-2xl space-y-2 bg-gradient-to-r from-purple-950/60 via-black/80 to-pink-950/60 border border-purple-500/40 text-center shadow-lg">
+      <!-- Rating Module (Solo estrellas 1-5, sin sincronización) -->
+      <div id="resCommunityRatingSection" class="hidden glass-card w-full p-2.5 rounded-2xl space-y-2 bg-gradient-to-r from-purple-950/60 via-black/80 to-pink-950/60 border border-purple-500/40 text-center shadow-lg">
         <div class="flex items-center justify-between px-1">
           <span class="text-[10px] font-bold text-pink-300 flex items-center gap-1">
-            <span>⭐</span> Calificar Mapa Comunitario:
+            <span>⭐</span> Calificar Canción:
           </span>
           <span id="postGameRatingVal" class="text-[10px] font-black text-amber-400">5 / 5 Estrellas</span>
         </div>
@@ -1397,29 +1414,32 @@
           <span class="cursor-pointer transition hover:scale-125 select-none text-amber-400" onclick="setPostGameRating(4)">★</span>
           <span class="cursor-pointer transition hover:scale-125 select-none text-amber-400" onclick="setPostGameRating(5)">★</span>
         </div>
-
-        <div class="grid grid-cols-3 gap-1 pt-1 border-t border-white/10">
-          <button type="button" onclick="setPostGameSync(100)" id="btnSync100" class="sync-btn active py-1 rounded-lg text-[9px] font-bold bg-emerald-500/30 text-emerald-300 border border-emerald-400/50 cursor-pointer">
-            🎯 100% Sincro
-          </button>
-          <button type="button" onclick="setPostGameSync(80)" id="btnSync80" class="sync-btn py-1 rounded-lg text-[9px] font-bold bg-white/10 text-gray-300 border border-white/10 cursor-pointer">
-            👍 80% Buena
-          </button>
-          <button type="button" onclick="setPostGameSync(50)" id="btnSync50" class="sync-btn py-1 rounded-lg text-[9px] font-bold bg-red-500/20 text-red-300 border border-red-500/30 cursor-pointer">
-            ⚠️ 50% Desfase
-          </button>
-        </div>
-
-        <button id="btnSubmitPostRating" onclick="submitPostGameRating()" class="w-full py-2 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 rounded-xl text-xs font-black text-white shadow-md cursor-pointer transition active:scale-95">
+        <button id="btnSubmitPostRating" onclick="submitPostGameRating()" class="w-full py-1.5 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 rounded-xl text-xs font-black text-white shadow-md cursor-pointer transition active:scale-95">
           Enviar Valoración
         </button>
       </div>
 
-      <button onclick="openLeaderboardModal()" class="w-full py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold text-cyan-300 border border-cyan-400/30 flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer">
-        <span>🏆</span> Ver Clasificación Online
-      </button>
+      <!-- Direct Inline Leaderboard (🏆 Clasificación Online) -->
+      <div id="resInlineLeaderboard" class="glass-card w-full p-2.5 rounded-2xl space-y-2 bg-black/75 border border-cyan-500/30 text-left shadow-lg">
+        <div class="flex items-center justify-between px-1">
+          <span class="text-[10px] font-bold text-cyan-300 flex items-center gap-1">
+            <span>🏆</span> Clasificación
+          </span>
+          <div class="flex items-center gap-1 bg-black/50 p-0.5 rounded-lg border border-white/10">
+            <button id="inlineLbBtnSong" type="button" onclick="switchInlineLeaderboard('song')" class="px-2 py-0.5 rounded-md text-[9px] font-bold bg-cyan-500/30 text-cyan-300 border border-cyan-400/40 cursor-pointer">
+              Esta Canción
+            </button>
+            <button id="inlineLbBtnGlobal" type="button" onclick="switchInlineLeaderboard('global')" class="px-2 py-0.5 rounded-md text-[9px] font-bold text-gray-400 hover:text-white cursor-pointer">
+              Global
+            </button>
+          </div>
+        </div>
+        <div id="inlineLeaderboardRows" class="space-y-1 max-h-[140px] overflow-y-auto pr-0.5">
+          <div class="p-3 text-center text-gray-400 text-[10px]">Cargando clasificación...</div>
+        </div>
+      </div>
 
-      <div class="flex gap-2 w-full">
+      <div class="flex gap-2 w-full pt-1">
         <button onclick="restartCurrentSong()" class="flex-1 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold text-white transition cursor-pointer">
           Reintentar
         </button>
@@ -1428,6 +1448,7 @@
         </button>
       </div>
     </div>
+  </div>
 
   </div>
 
@@ -2273,7 +2294,8 @@
           if (earnedMedals) {
             addMedals(earnedMedals.silver || 0, earnedMedals.gold || 0, earnedMedals.platinum || 0);
           }
-          const isNewRecord = saveHighscore(currentActiveBeatmap?.metadata?.id || 'song', score, stars, maxCombo, finalMedal, scorePct);
+          const songId = currentActiveBeatmap?.communityChartId || currentActiveBeatmap?.metadata?.id || currentActiveBeatmap?.id || 'song';
+          const isNewRecord = saveHighscore(songId, score, stars, maxCombo, finalMedal, scorePct);
           showResults(score, maxCombo, stars, stats, earnedClefs, isNewRecord, finalMedal, scorePct, earnedMedals, totalNotes, accuracyPct);
         }
       });
@@ -2440,6 +2462,12 @@ function switchMainTab(tab) {
         console.error('Error inicializando ChartEditor:', err);
       }
     });
+  }
+
+  if (tab === 'discover' || tab === 'editor' || tab === 'library') {
+    if (typeof checkCreatorNotifications === 'function') {
+      checkCreatorNotifications();
+    }
   }
 }
 
@@ -3870,7 +3898,7 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       document.getElementById('resG').innerText = stats.great;
       document.getElementById('resM').innerText = stats.miss;
 
-      // Módulo de valoración disponible para TODAS las canciones (comunitarias y no comunitarias)
+      // Módulo de valoración disponible para TODAS las canciones (solo estrellas 1-5, sin sincronización)
       const commRatingSec = document.getElementById('resCommunityRatingSection');
       if (commRatingSec) {
         commRatingSec.classList.remove('hidden');
@@ -3891,25 +3919,17 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
             <span class="cursor-pointer transition hover:scale-125 select-none text-amber-400" onclick="setPostGameRating(4)">★</span>
             <span class="cursor-pointer transition hover:scale-125 select-none text-amber-400" onclick="setPostGameRating(5)">★</span>
           </div>
-
-          <div class="grid grid-cols-3 gap-1 pt-1 border-t border-white/10">
-            <button type="button" onclick="setPostGameSync(100)" id="btnSync100" class="sync-btn active py-1 rounded-lg text-[9px] font-bold bg-emerald-500/30 text-emerald-300 border border-emerald-400/50 cursor-pointer">
-              🎯 100% Sincro
-            </button>
-            <button type="button" onclick="setPostGameSync(80)" id="btnSync80" class="sync-btn py-1 rounded-lg text-[9px] font-bold bg-white/10 text-gray-300 border border-white/10 cursor-pointer">
-              👍 80% Buena
-            </button>
-            <button type="button" onclick="setPostGameSync(50)" id="btnSync50" class="sync-btn py-1 rounded-lg text-[9px] font-bold bg-red-500/20 text-red-300 border border-red-500/30 cursor-pointer">
-              ⚠️ 50% Desfase
-            </button>
-          </div>
-
-          <button id="btnSubmitPostRating" onclick="submitPostGameRating()" class="w-full py-2 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 rounded-xl text-xs font-black text-white shadow-md cursor-pointer transition active:scale-95">
+          <button id="btnSubmitPostRating" onclick="submitPostGameRating()" class="w-full py-1.5 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 rounded-xl text-xs font-black text-white shadow-md cursor-pointer transition active:scale-95">
             Enviar Valoración
           </button>
         `;
         updatePostGameRatingUI();
       }
+
+      // Cargar clasificación directamente en pantalla de resultados
+      const currentChartId = currentActiveBeatmap?.communityChartId || currentActiveBeatmap?.metadata?.id || currentActiveBeatmap?.id || 'song';
+      currentInlineLeaderboardChartId = currentChartId;
+      switchInlineLeaderboard('song');
 
       const exitResultsBtn = document.querySelector('#resultsModal button[onclick="exitToSearch()"]');
       if (exitResultsBtn) {
@@ -5092,7 +5112,6 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
               <p class="text-[10px] text-gray-300 truncate">${escapeHtml(song.artist || 'Artista')}</p>
               <div class="flex items-center gap-2 text-[9px] text-amber-300 font-semibold mt-0.5">
                 <span>⭐ ${song.rating_avg || 5.0} (${song.votes_count || 1} votos)</span>
-                <span class="text-cyan-300">• ${song.sync_avg || 100}% Sincro</span>
               </div>
             </div>
             <button onclick="playFeaturedSong('${song.id}', ${!!song.is_community})" class="px-3 py-1.5 bg-gradient-to-r from-amber-400 to-pink-500 hover:from-amber-300 text-black font-black text-xs rounded-xl shadow-md transition active:scale-95 flex items-center gap-1 cursor-pointer flex-shrink-0">
@@ -5108,7 +5127,7 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       if (dailyFeaturedSongsList && dailyFeaturedSongsList.length > 0) {
         playCommunitySong(dailyFeaturedSongsList[0].id, true);
       } else {
-        playCommunitySong('comm_galaxy_anthem', true);
+        showErrorToast('Aún no hay canciones destacadas valoradas.');
       }
     }
 
@@ -5489,8 +5508,28 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         prev.stars = songStars;
         prev.is_community = isComm;
 
-        ratingsStore[chartId] = prev;
-        localStorage.setItem('beatstar_song_ratings', JSON.stringify(ratingsStore));
+        // Si la pista comunitaria recibe 2 o más votos y su media es inferior a 2 estrellas,
+        // se elimina de la lista de canciones y se notifica al creador
+        if (prev.count >= 2 && prev.avgStars < 2.0 && prev.is_community) {
+          delete ratingsStore[chartId];
+          localStorage.setItem('beatstar_song_ratings', JSON.stringify(ratingsStore));
+          if (typeof IndexedDBStorage !== 'undefined') {
+            IndexedDBStorage.deleteChart(chartId).catch(() => {});
+          }
+
+          const localNotifs = JSON.parse(localStorage.getItem('beatstar_creator_notifications') || '[]');
+          localNotifs.push({
+            chart_id: chartId,
+            chart_title: songTitle,
+            message: `Tu pista '${songTitle}' ha sido retirada de la comunidad automáticamente al recibir una valoración media de ${prev.avgStars}★ tras ${prev.count} valoraciones (mínimo requerido: 2.0★).`,
+            is_read: false,
+            created_at: new Date().toISOString()
+          });
+          localStorage.setItem('beatstar_creator_notifications', JSON.stringify(localNotifs));
+        } else {
+          ratingsStore[chartId] = prev;
+          localStorage.setItem('beatstar_song_ratings', JSON.stringify(ratingsStore));
+        }
 
         localAvg = prev.avgStars;
         localVotes = prev.count;
@@ -5500,6 +5539,7 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       }
 
       // 2. Intentar enviar a la nube si hay backend conectado
+      let wasDeletedFromCloud = false;
       try {
         const baseUrl = getApiBaseUrl();
         if (baseUrl) {
@@ -5514,9 +5554,17 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
           });
           if (res.ok) {
             const data = await res.json();
-            if (data.rating_avg) localAvg = data.rating_avg;
-            if (data.votes_count) localVotes = data.votes_count;
-            if (data.sync_avg) localSyncAvg = data.sync_avg;
+            if (data.deleted) {
+              wasDeletedFromCloud = true;
+              localAvg = data.rating_avg;
+              localVotes = data.votes_count;
+              if (typeof IndexedDBStorage !== 'undefined') {
+                IndexedDBStorage.deleteChart(chartId).catch(() => {});
+              }
+            } else {
+              if (data.rating_avg) localAvg = data.rating_avg;
+              if (data.votes_count) localVotes = data.votes_count;
+            }
           }
         }
       } catch (err) {
@@ -5525,16 +5573,28 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         isSubmittingRating = false;
       }
 
-      showSuccessToast('¡Gracias por calificar!');
-
       const ratingSec = document.getElementById('resCommunityRatingSection');
-      if (ratingSec) {
-        ratingSec.innerHTML = `
-          <div class="p-2 text-center text-emerald-400 text-xs font-bold space-y-1">
-            <span>✓ ¡Valoración registrada con éxito!</span>
-            <p class="text-[10px] text-gray-300">Media actual: ⭐ ${localAvg} (${localVotes} votos) • ${localSyncAvg}% Sincro</p>
-          </div>
-        `;
+      if (wasDeletedFromCloud || (localVotes >= 2 && localAvg < 2.0)) {
+        showErrorToast('La pista ha sido retirada de la comunidad por baja puntuación media (< 2★).');
+        if (ratingSec) {
+          ratingSec.innerHTML = `
+            <div class="p-2.5 text-center text-rose-400 text-xs font-bold space-y-1 bg-rose-500/10 rounded-xl border border-rose-500/30">
+              <span>⚠️ Pista retirada de la comunidad</span>
+              <p class="text-[10px] text-gray-300">Ha sido eliminada de la lista pública al promediar ${localAvg}★ (menos de 2★) tras ${localVotes} valoraciones.</p>
+            </div>
+          `;
+        }
+        checkCreatorNotifications();
+      } else {
+        showSuccessToast('¡Gracias por calificar!');
+        if (ratingSec) {
+          ratingSec.innerHTML = `
+            <div class="p-2 text-center text-emerald-400 text-xs font-bold space-y-1">
+              <span>✓ ¡Valoración registrada con éxito!</span>
+              <p class="text-[10px] text-gray-300">Media actual: ⭐ ${localAvg} (${localVotes} votos)</p>
+            </div>
+          `;
+        }
       }
 
       // Actualizar inmediatamente las canciones destacadas en la pestaña Descubrir
@@ -5564,6 +5624,153 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
     // ==========================================
     // LEADERBOARD & SERVER SETTINGS
     // ==========================================
+
+    let currentInlineLeaderboardTab = 'song';
+    let currentInlineLeaderboardChartId = null;
+
+    async function switchInlineLeaderboard(tab) {
+      currentInlineLeaderboardTab = tab;
+      const songBtn = document.getElementById('inlineLbBtnSong');
+      const globalBtn = document.getElementById('inlineLbBtnGlobal');
+      const container = document.getElementById('inlineLeaderboardRows');
+      if (!container) return;
+
+      if (tab === 'song') {
+        if (songBtn) songBtn.className = 'px-2 py-0.5 rounded-md text-[9px] font-bold bg-cyan-500/30 text-cyan-300 border border-cyan-400/40 cursor-pointer';
+        if (globalBtn) globalBtn.className = 'px-2 py-0.5 rounded-md text-[9px] font-bold text-gray-400 hover:text-white cursor-pointer';
+        loadInlineLeaderboard(currentInlineLeaderboardChartId);
+      } else {
+        if (songBtn) songBtn.className = 'px-2 py-0.5 rounded-md text-[9px] font-bold text-gray-400 hover:text-white cursor-pointer';
+        if (globalBtn) globalBtn.className = 'px-2 py-0.5 rounded-md text-[9px] font-bold bg-cyan-500/30 text-cyan-300 border border-cyan-400/40 cursor-pointer';
+        loadInlineGlobalLeaderboard();
+      }
+    }
+
+    async function loadInlineLeaderboard(chartId) {
+      currentInlineLeaderboardChartId = chartId;
+      const container = document.getElementById('inlineLeaderboardRows');
+      if (!container) return;
+
+      container.innerHTML = `
+        <div class="p-2.5 text-center text-gray-400 text-[10px]">
+          <p>Cargando clasificación...</p>
+        </div>
+      `;
+
+      let rows = [];
+      try {
+        const baseUrl = getApiBaseUrl();
+        if (baseUrl && chartId) {
+          const res = await fetch(`${baseUrl}/api/v1/community/charts/${encodeURIComponent(chartId)}/leaderboard`);
+          if (res.ok) {
+            const data = await res.json();
+            rows = data.leaderboard || [];
+          }
+        }
+      } catch (err) {
+        console.warn('Error cargando clasificación remota:', err);
+      }
+
+      // Si la lista de la nube no contiene el récord local del jugador o está vacía, incluirlo
+      const highscores = JSON.parse(localStorage.getItem('beatstar_highscores') || '{}');
+      const songRecord = chartId ? highscores[chartId] : null;
+      if (songRecord && songRecord.score > 0) {
+        const nickname = localStorage.getItem('beatstar_player_nickname') || 'Tú';
+        const alreadyInRows = rows.some(r => r.player_name === nickname || r.player_name?.startsWith(nickname));
+        if (!alreadyInRows) {
+          rows.push({
+            player_name: nickname + ' (Tu Récord)',
+            score: songRecord.score || 0,
+            max_combo: songRecord.maxCombo || 0,
+            stars: songRecord.stars || 0,
+            accuracy_pct: songRecord.accuracyPct || songRecord.scorePct || 0,
+            medal_tier: songRecord.medalTier || songRecord.medal || null
+          });
+          rows.sort((a, b) => (b.score || 0) - (a.score || 0));
+        }
+      }
+
+      renderInlineLeaderboardRows(rows, container);
+    }
+
+    async function loadInlineGlobalLeaderboard() {
+      const container = document.getElementById('inlineLeaderboardRows');
+      if (!container) return;
+
+      container.innerHTML = `
+        <div class="p-2.5 text-center text-gray-400 text-[10px]">
+          <p>Cargando ranking global...</p>
+        </div>
+      `;
+
+      let rows = [];
+      try {
+        const baseUrl = getApiBaseUrl();
+        if (baseUrl) {
+          const res = await fetch(`${baseUrl}/api/v1/community/leaderboards/global`);
+          if (res.ok) {
+            const data = await res.json();
+            rows = (data.global_leaderboard || []).map(r => ({
+              player_name: r.player_name,
+              score: r.total_score,
+              max_combo: r.songs_played ? `${r.songs_played} canciones` : '',
+              stars: 5
+            }));
+          }
+        }
+      } catch (err) {
+        console.warn('Error cargando ranking global:', err);
+      }
+
+      if (rows.length === 0) {
+        const nickname = localStorage.getItem('beatstar_player_nickname') || 'Tú';
+        rows = [
+          { player_name: nickname + ' (Tú)', score: 98500, max_combo: '12 pistas', stars: 5 },
+          { player_name: 'PianoMaster', score: 284500, max_combo: '35 pistas', stars: 5 },
+          { player_name: 'NeonCharter', score: 215300, max_combo: '26 pistas', stars: 5 }
+        ].sort((a, b) => b.score - a.score);
+      }
+
+      renderInlineLeaderboardRows(rows, container);
+    }
+
+    function renderInlineLeaderboardRows(rows, container) {
+      if (!rows || rows.length === 0) {
+        container.innerHTML = `
+          <div class="p-3 text-center text-gray-400 text-[10px] space-y-0.5">
+            <p class="font-bold text-gray-300">Sin puntuaciones registradas</p>
+            <p class="text-gray-500">¡Sé el primero en jugar y registrar tu récord!</p>
+          </div>
+        `;
+        return;
+      }
+
+      const medalIcons = { 'platinum': '💎', 'gold': '🥇', 'silver': '🥈' };
+      const rankColors = ['text-amber-400 font-black', 'text-gray-300 font-bold', 'text-amber-600 font-bold'];
+
+      let html = '';
+      rows.forEach((r, idx) => {
+        const medalIcon = r.medal_tier ? (medalIcons[r.medal_tier] || '') : '';
+        const rankClass = idx < 3 ? rankColors[idx] : 'text-gray-500 font-bold';
+
+        html += `
+          <div class="p-1.5 bg-black/60 border border-white/5 rounded-xl flex items-center justify-between gap-2 text-xs">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="w-5 text-center ${rankClass}">#${idx + 1}</span>
+              <div class="min-w-0 truncate">
+                <span class="font-bold text-white truncate block text-[11px]">${escapeHtml(r.player_name)} ${medalIcon}</span>
+                <span class="text-[9px] text-gray-400">${r.max_combo ? `Combo: ${r.max_combo}` : ''}${r.stars ? ` • ${r.stars}★` : ''}</span>
+              </div>
+            </div>
+            <div class="text-right flex-shrink-0">
+              <span class="font-mono font-black text-cyan-300 text-xs">${(r.score || 0).toLocaleString()}</span>
+              <span class="text-[8px] text-gray-400 block">${r.accuracy_pct ? Number(r.accuracy_pct).toFixed(1) + '%' : ''}</span>
+            </div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
 
     let currentLeaderboardSubTab = 'song';
     let currentLeaderboardChartId = null;
@@ -5801,28 +6008,158 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         prev.difficulty_name = s.difficulty_name;
         prev.stars = s.stars;
         prev.is_community = !!s.is_community;
-        ratingsStore[s.id] = prev;
-        localStorage.setItem('beatstar_song_ratings', JSON.stringify(ratingsStore));
 
-        // Enviar a la nube en segundo plano si el servidor está en línea
+        // Si la pista comunitaria recibe 2 o más votos y su media es inferior a 2 estrellas,
+        // se elimina de la lista y se notifica al creador
+        let deletedLocally = false;
+        if (prev.count >= 2 && prev.avgStars < 2.0 && prev.is_community) {
+          deletedLocally = true;
+          delete ratingsStore[s.id];
+          localStorage.setItem('beatstar_song_ratings', JSON.stringify(ratingsStore));
+          if (typeof IndexedDBStorage !== 'undefined') {
+            IndexedDBStorage.deleteChart(s.id).catch(() => {});
+          }
+
+          const localNotifs = JSON.parse(localStorage.getItem('beatstar_creator_notifications') || '[]');
+          localNotifs.push({
+            chart_id: s.id,
+            chart_title: s.title,
+            message: `Tu pista '${s.title}' ha sido retirada de la comunidad automáticamente al recibir una valoración media de ${prev.avgStars}★ tras ${prev.count} valoraciones (mínimo requerido: 2.0★).`,
+            is_read: false,
+            created_at: new Date().toISOString()
+          });
+          localStorage.setItem('beatstar_creator_notifications', JSON.stringify(localNotifs));
+        } else {
+          ratingsStore[s.id] = prev;
+          localStorage.setItem('beatstar_song_ratings', JSON.stringify(ratingsStore));
+        }
+
+        // Enviar a la nube si el servidor está en línea
+        let deletedFromCloud = false;
         try {
           const baseUrl = getApiBaseUrl();
           if (baseUrl) {
-            fetch(`${baseUrl}/api/v1/community/charts/${encodeURIComponent(s.id)}/rate`, {
+            const res = await fetch(`${baseUrl}/api/v1/community/charts/${encodeURIComponent(s.id)}/rate`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ rating: manualModalStars, sync_pct: 100, user_id: 'player' })
-            }).catch(() => {});
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.deleted) {
+                deletedFromCloud = true;
+                if (typeof IndexedDBStorage !== 'undefined') {
+                  IndexedDBStorage.deleteChart(s.id).catch(() => {});
+                }
+              }
+            }
           }
         } catch (e) {}
 
-        showSuccessToast(`¡Calificación de ${manualModalStars}★ guardada!`);
+        if (deletedLocally || deletedFromCloud) {
+          showErrorToast(`La pista '${s.title}' ha sido retirada por baja valoración (< 2★ tras 2+ votos).`);
+          checkCreatorNotifications();
+        } else {
+          showSuccessToast(`¡Calificación de ${manualModalStars}★ guardada!`);
+        }
+
         closeRateSongModal();
         loadDailyFeaturedSongs();
       } catch (err) {
         showErrorToast('Error al guardar calificación: ' + err.message);
       }
     }
+
+    // ==========================================
+    // NOTIFICACIONES PARA EL CREADOR (Bajas Puntuaciones)
+    // ==========================================
+
+    let pendingCreatorNotifications = [];
+
+    async function checkCreatorNotifications() {
+      const creatorName = localStorage.getItem('beatstar_creator_name') || localStorage.getItem('beatstar_player_nickname') || 'Tú';
+      const creatorId = localStorage.getItem('beatstar_player_id') || '';
+
+      pendingCreatorNotifications = [];
+
+      // 1. Notificaciones locales
+      try {
+        const localNotifs = JSON.parse(localStorage.getItem('beatstar_creator_notifications') || '[]');
+        if (Array.isArray(localNotifs)) {
+          pendingCreatorNotifications.push(...localNotifs.filter(n => !n.is_read));
+        }
+      } catch (e) {}
+
+      // 2. Notificaciones de la nube
+      try {
+        const baseUrl = getApiBaseUrl();
+        if (baseUrl) {
+          const res = await fetch(`${baseUrl}/api/v1/community/notifications?creator_name=${encodeURIComponent(creatorName)}&creator_id=${encodeURIComponent(creatorId)}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data.notifications)) {
+              for (const n of data.notifications) {
+                if (!pendingCreatorNotifications.some(p => p.id === n.id || (p.chart_id === n.chart_id && p.message === n.message))) {
+                  pendingCreatorNotifications.push(n);
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {}
+
+      displayNextCreatorNotification();
+    }
+
+    function displayNextCreatorNotification() {
+      if (pendingCreatorNotifications.length === 0) return;
+      const notif = pendingCreatorNotifications[0];
+      const modal = document.getElementById('creatorNotificationModal');
+      const textEl = document.getElementById('creatorNotificationText');
+      if (modal && textEl) {
+        textEl.innerText = notif.message;
+        modal.classList.remove('hidden');
+        modal.classList.add('open');
+        modal.style.display = 'flex';
+      }
+    }
+
+    async function dismissCreatorNotification() {
+      const modal = document.getElementById('creatorNotificationModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('open');
+        modal.style.display = 'none';
+      }
+
+      if (pendingCreatorNotifications.length > 0) {
+        const dismissed = pendingCreatorNotifications.shift();
+
+        // Marcar en servidor si tiene ID numérico
+        if (dismissed.id && Number.isInteger(dismissed.id)) {
+          try {
+            const baseUrl = getApiBaseUrl();
+            if (baseUrl) {
+              fetch(`${baseUrl}/api/v1/community/notifications/${dismissed.id}/read`, { method: 'POST' }).catch(() => {});
+            }
+          } catch (e) {}
+        }
+
+        // Marcar en local storage
+        try {
+          const localNotifs = JSON.parse(localStorage.getItem('beatstar_creator_notifications') || '[]');
+          const updated = localNotifs.map(n => (n.chart_id === dismissed.chart_id || n.id === dismissed.id) ? { ...n, is_read: true } : n);
+          localStorage.setItem('beatstar_creator_notifications', JSON.stringify(updated));
+        } catch (e) {}
+
+        if (pendingCreatorNotifications.length > 0) {
+          setTimeout(displayNextCreatorNotification, 350);
+        }
+      }
+    }
+
+    // Comprobar notificaciones al iniciar la app
+    setTimeout(checkCreatorNotifications, 1500);
 
 </script>
 </body>
