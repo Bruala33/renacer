@@ -152,6 +152,32 @@
             fill: currentColor;
         }
 
+        /* Botón jugar en web */
+        .btn-play-web {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.06);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            font-size: 0.95rem;
+            font-weight: 700;
+            text-decoration: none;
+            padding: 14px 28px;
+            border-radius: 16px;
+            margin-top: 14px;
+            transition: all 0.25s ease;
+            width: 100%;
+            max-width: 360px;
+        }
+
+        .btn-play-web:hover {
+            background: rgba(56, 189, 248, 0.15);
+            border-color: #38bdf8;
+            transform: translateY(-2px);
+        }
+
         .file-info {
             margin-top: 10px;
             font-size: 0.85rem;
@@ -241,13 +267,21 @@
         </div>
 
         <!-- Botón de descarga directa -->
-        <a href="https://github.com/Bruala33/renacer/releases/download/1/app-debug.apk" download="PianoCommunity.apk" class="btn-download">
+        <a href="/download/apk" download="PianoCommunity.apk" class="btn-download">
             <svg viewBox="0 0 24 24">
                 <path d="M12 16l-5-5h3V4h4v7h3l-5 5zm9-4v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7h2v7h14v-7h2z"/>
             </svg>
             Descargar APK para Android
         </a>
-        <div class="file-info">Gratis • ~15 MB • Compatible con Android 7.0+</div>
+        <div class="file-info">Gratis • ~14.4 MB • Compatible con Android 7.0+</div>
+
+        <!-- Botón para jugar online en navegador -->
+        <a href="/game.html" class="btn-play-web">
+            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/>
+            </svg>
+            Jugar en el Navegador Web
+        </a>
 
         <!-- Características -->
         <div class="features-grid">

@@ -16,7 +16,7 @@ htmlcov/
 
 # Caches & Storage
 gdrive_cache/
-downloads/
+/downloads/
 .cache/
 
 # Archives & Compressed Files
