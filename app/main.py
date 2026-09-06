@@ -8,7 +8,8 @@ from typing import Dict, Any, List
 
 from fastapi import FastAPI, HTTPException, status, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, Response
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, Response, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
@@ -32,7 +33,10 @@ app = FastAPI(
 app.include_router(playlists_router, prefix="/api/v1/playlists", tags=["Playlists"])
 app.include_router(community_router, prefix="/api/v1/community", tags=["Community"])
 
-# CORS configuration
+# 1. Compresión GZip automática (Ahorro de hasta 80% de ancho de banda)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# 2. CORS configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -41,10 +45,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 3. Servidor de estáticos con cabeceras de caché agresivas para navegadores (evita re-descargas)
+class CachedStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        if response.status_code == 200:
+            if path.endswith((".css", ".js", ".png", ".jpg", ".jpeg", ".svg", ".webp", ".ico", ".woff2")):
+                response.headers["Cache-Control"] = "public, max-age=604800, stale-while-revalidate=86400"
+            elif path.endswith((".html", ".htm")):
+                response.headers["Cache-Control"] = "public, max-age=3600, must-revalidate"
+        return response
+
 # Setup static directory
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(static_dir):
-    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    app.mount("/static", CachedStaticFiles(directory=static_dir), name="static")
 
 # SSL context for outbound proxy requests
 ssl_ctx = ssl.create_default_context()
@@ -64,7 +79,14 @@ async def serve_root_index():
     raise HTTPException(status_code=404, detail="index.html no encontrado.")
 
 
-@app.get("/ping", tags=["Health"])
+@app.get("/ping", tags=["Health"], include_in_schema=False)
+async def ping_keep_alive():
+    """
+    Endpoint ultraligero (2 bytes) para keep-alive automático con consumo de ancho de banda cero.
+    """
+    return Response(content="OK", media_type="text/plain", status_code=200)
+
+
 @app.get("/health", tags=["Health"])
 @app.get("/api/v1/health", tags=["Health"])
 async def health_check() -> Dict[str, Any]:
@@ -326,13 +348,18 @@ async def proxy_download(url: str = Query(..., description="URL directa del arch
 async def download_android_apk():
     """
     Descarga directamente el archivo .apk generado para instalar en dispositivos móviles Android.
+    Soporta redirección externa (APK_EXTERNAL_URL) para ahorrar 100% de ancho de banda en Render.
     """
-    from fastapi.responses import FileResponse
+    from fastapi.responses import FileResponse, RedirectResponse
+
+    external_url = os.environ.get("APK_EXTERNAL_URL", "").strip()
+    if external_url and (external_url.startswith("http://") or external_url.startswith("https://")):
+        return RedirectResponse(url=external_url, status_code=302)
 
     apk_paths = [
+        os.path.join(static_dir, "PianoCommunity.apk"),
         os.path.join(static_dir, "downloads", "PianoCommunity.apk"),
         os.path.join(static_dir, "downloads", "beatstar.apk"),
-        os.path.join(static_dir, "PianoCommunity.apk"),
         os.path.join(os.path.dirname(os.path.dirname(__file__)), "android", "app", "build", "outputs", "apk", "debug", "app-debug.apk")
     ]
 
@@ -344,7 +371,7 @@ async def download_android_apk():
                 media_type="application/vnd.android.package-archive",
                 headers={
                     "Content-Disposition": 'attachment; filename="PianoCommunity.apk"',
-                    "Cache-Control": "no-cache"
+                    "Cache-Control": "public, max-age=86400"
                 }
             )
 
@@ -354,8 +381,8 @@ async def download_android_apk():
     )
 
 
-# Mount static directory at /static and at root / so all relative paths (./style.css, ./game.js, etc.) work in browser and WebView
+# Mount static directory at /static and at root / with aggressive browser caching
 if os.path.exists(static_dir):
-    app.mount("/", StaticFiles(directory=static_dir, html=True), name="root_static")
+    app.mount("/", CachedStaticFiles(directory=static_dir, html=True), name="root_static")
 
 
