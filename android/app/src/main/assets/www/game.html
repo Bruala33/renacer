@@ -172,7 +172,7 @@
       <div class="flex items-center gap-1.5">
         <div class="clef-badge py-1 px-2">
           <span class="text-amber-400 font-bold text-xs">𝄞</span>
-          <span id="hudClefCount" class="text-[11px] font-black text-amber-300 font-mono">10,000</span>
+          <span id="hudClefCount" class="text-[11px] font-black text-amber-300 font-mono">0</span>
         </div>
         <button id="btnPauseGame" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-white transition cursor-pointer" title="Pausar Partida">
           <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
@@ -1055,6 +1055,30 @@
       </div>
     </div>
 
+    <!-- Modal de Actualización Disponible (In-App Updater) -->
+    <div id="appUpdateModal" class="modal-overlay">
+      <div class="glass-card w-full max-w-[340px] p-5 rounded-2xl space-y-3.5 text-center bg-gradient-to-b from-[#1a103c] via-[#0d0718] to-black border border-cyan-500/50 shadow-2xl">
+        <div class="w-12 h-12 mx-auto rounded-2xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-300 shadow-lg shadow-cyan-500/30">
+          <span class="text-2xl font-black">🚀</span>
+        </div>
+        <div>
+          <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">Nueva Versión</span>
+          <h3 id="appUpdateTitle" class="text-sm font-black text-white mt-1.5">Piano Community v1.1.0</h3>
+          <p id="appUpdateNotes" class="text-[11px] text-gray-300 mt-2 leading-relaxed text-left bg-black/50 p-2.5 rounded-xl border border-white/10">
+            Nuevas mejoras de audio, corrección de claves y sincronización comunitaria persistente.
+          </p>
+        </div>
+        <div class="space-y-2 pt-1">
+          <button id="btnConfirmAppUpdate" onclick="performAppUpdate()" class="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 text-white font-black text-xs rounded-xl shadow-lg shadow-cyan-500/30 transition cursor-pointer active:scale-95 flex items-center justify-center gap-2">
+            <span>📥</span> Actualizar Ahora
+          </button>
+          <button onclick="closeAppUpdateModal()" class="w-full py-2 text-gray-400 hover:text-white font-bold text-xs transition cursor-pointer">
+            Recordar más tarde
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal Publicar Pista en la Comunidad -->
     <div id="publishCommunityModal" class="modal-overlay">
       <div class="glass-card w-full max-w-[340px] p-4 rounded-2xl space-y-3 bg-gradient-to-b from-[#160b28] via-[#0d0718] to-black border border-purple-500/40 shadow-2xl">
@@ -1556,12 +1580,14 @@
 
     function updateUserWalletDisplay() {
       const mainClef = document.getElementById('mainClefCount');
+      const hudClef = document.getElementById('hudClefCount');
       const shopClef = document.getElementById('shopClefsDisplay');
       const shopSilv = document.getElementById('shopSilversDisplay');
       const shopGold = document.getElementById('shopGoldsDisplay');
       const shopPlat = document.getElementById('shopPlatinumsDisplay');
 
       if (mainClef) mainClef.innerText = userClefs.toLocaleString();
+      if (hudClef) hudClef.innerText = userClefs.toLocaleString();
       if (shopClef) shopClef.innerText = userClefs.toLocaleString();
       if (shopSilv) shopSilv.innerText = userSilvers.toLocaleString();
       if (shopGold) shopGold.innerText = userGolds.toLocaleString();
@@ -2145,10 +2171,72 @@
       return DEFAULT_CLOUD_SERVER;
     }
 
+    // Código de versión local: si es el APK anterior (sin getAppVersionCode) es versión 1
+    const CURRENT_APP_VERSION_CODE = (window.AndroidNative && typeof window.AndroidNative.getAppVersionCode === 'function')
+      ? window.AndroidNative.getAppVersionCode()
+      : (window.AndroidNative ? 1 : 2);
+    let appUpdateDownloadUrl = '/download/apk';
+
+    async function checkForAppUpdates() {
+      try {
+        const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
+        if (!baseUrl) return;
+        const res = await fetch(`${baseUrl}/api/v1/version`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        if (data && data.version_code) {
+          const remoteCode = parseInt(data.version_code, 10);
+          if (remoteCode > CURRENT_APP_VERSION_CODE) {
+            const dismissedVer = localStorage.getItem('dismissed_update_version');
+            if (dismissedVer === String(remoteCode)) return;
+
+            appUpdateDownloadUrl = data.download_url || '/download/apk';
+            const titleEl = document.getElementById('appUpdateTitle');
+            const notesEl = document.getElementById('appUpdateNotes');
+            if (titleEl) titleEl.innerText = `Piano Community v${data.version_name || data.version_code}`;
+            if (notesEl && data.release_notes) notesEl.innerText = data.release_notes;
+
+            const modal = document.getElementById('appUpdateModal');
+            if (modal) {
+              modal.classList.add('open');
+              modal.style.display = 'flex';
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Comprobación de versión omitida:', e);
+      }
+    }
+
+    function closeAppUpdateModal() {
+      const modal = document.getElementById('appUpdateModal');
+      if (modal) {
+        modal.classList.remove('open');
+        modal.style.display = 'none';
+      }
+    }
+
+    function performAppUpdate() {
+      const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
+      let targetUrl = appUpdateDownloadUrl;
+      if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+        targetUrl = baseUrl + (targetUrl.startsWith('/') ? targetUrl : '/' + targetUrl);
+      }
+
+      if (window.AndroidNative && typeof window.AndroidNative.openBrowser === 'function') {
+        window.AndroidNative.openBrowser(targetUrl);
+      } else {
+        window.open(targetUrl, '_blank');
+      }
+      closeAppUpdateModal();
+    }
+
     document.addEventListener('DOMContentLoaded', async () => {
       loadHighscores();
       await loadFavoritesSet();
       updateUserWalletDisplay();
+      checkForAppUpdates();
 
       // Inicialización y onboarding de Nickname
       const savedNickname = localStorage.getItem('beatstar_player_nickname') || '';
@@ -2206,6 +2294,7 @@
         onSongLoaded: (meta) => {
           document.getElementById('hudSongTitle').innerText = meta.title || 'Canción Desconocida';
           document.getElementById('pauseSongTitle').innerText = meta.title || 'Canción Desconocida';
+          updateUserWalletDisplay();
         },
         onTogglePause: () => {
           openPauseModal();
@@ -5207,6 +5296,45 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       loadCommunityCharts();
     }
 
+    async function autoSyncChartToServerIfMissing(ls) {
+      try {
+        const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
+        if (!baseUrl || !ls || !ls.id) return;
+        if (!window._syncingCharts) window._syncingCharts = {};
+        if (window._syncingCharts[ls.id]) return;
+        window._syncingCharts[ls.id] = true;
+
+        if (typeof IndexedDBStorage !== 'undefined') {
+          const stored = await IndexedDBStorage.getChart(ls.id);
+          if (stored && stored.unpackedData) {
+            const formData = new FormData();
+            formData.append('title', ls.title || 'Pista Comunitaria');
+            formData.append('artist', ls.artist || 'Comunidad');
+            formData.append('creator_name', ls.creator_name || 'Creador');
+            formData.append('creator_id', ls.creator_id || '');
+            formData.append('bpm', ls.bpm || 120);
+            formData.append('offset_ms', ls.offset_ms || 0);
+            formData.append('difficulty_name', ls.difficulty_name || 'Media');
+            formData.append('stars', ls.stars || 3.5);
+            formData.append('scroll_duration_ms', ls.scroll_duration_ms || 1400);
+            formData.append('chart_json', JSON.stringify(stored.unpackedData));
+            if (stored.audioBlob) {
+              formData.append('audio_file', stored.audioBlob, 'audio.mp3');
+            }
+            const res = await fetch(`${baseUrl}/api/v1/community/charts/publish`, {
+              method: 'POST',
+              body: formData
+            });
+            if (res.ok) {
+              console.log(`[AutoSync] Pista comunitaria ${ls.id} restaurada exitosamente en el servidor.`);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[AutoSync] Error restaurando pista en el servidor:', err);
+      }
+    }
+
     async function loadCommunityCharts() {
       const container = document.getElementById('communityResultsList');
       if (!container) return;
@@ -5250,6 +5378,8 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
                 songs.unshift(ls);
               }
             }
+            // Auto re-sincronizar al servidor en segundo plano si el backend se reinició
+            autoSyncChartToServerIfMissing(ls);
           }
         }
       } catch (e) {}

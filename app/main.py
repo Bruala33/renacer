@@ -80,6 +80,20 @@ async def health_check() -> Dict[str, Any]:
     }
 
 
+@app.get("/api/v1/version", tags=["App"], summary="Obtener versión actual de la aplicación")
+@app.get("/api/version", tags=["App"], summary="Obtener versión actual de la aplicación")
+async def get_app_version():
+    """
+    Retorna la versión oficial más reciente del juego y del APK para comprobación de actualizaciones in-app.
+    """
+    return {
+        "version_code": 2,
+        "version_name": "1.1.0",
+        "release_notes": "Mejoras de rendimiento, corrección de velocidad de audio sin distorsión de tono, contador de claves corregido y sincronización comunitaria persistente.",
+        "download_url": "/download/apk"
+    }
+
+
 @app.get("/api/search", tags=["Search"], summary="Búsqueda unificada comunitaria")
 @app.get("/api/v1/search", tags=["Search"], summary="Búsqueda unificada comunitaria")
 @app.get("/api/v1/search/community", tags=["Search"], summary="Búsqueda unificada en osu! Mania y Clone Hero")

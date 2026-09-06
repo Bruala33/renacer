@@ -73,7 +73,11 @@ cloudflared.exe
 scratch/
 love_man.bin
 *.bin
-app/data/
-app/uploads/
+
+# Permitir base de datos y uploads comunitarios en Git para persistencia en Render
+!app/data/
+!app/data/**
+!app/uploads/
+!app/uploads/**
 
 

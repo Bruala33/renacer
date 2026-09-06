@@ -40,7 +40,6 @@ call "%GRADLE_BIN%" assembleDebug --no-daemon
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] Fallo en la compilacion de Gradle.
     cd ..
-    pause
     exit /b %ERRORLEVEL%
 )
 cd ..
@@ -50,6 +49,7 @@ echo [4/4] Copiando APK final...
 if not exist "app\static\downloads" mkdir "app\static\downloads"
 copy /Y "android\app\build\outputs\apk\debug\app-debug.apk" "app\static\downloads\beatstar.apk" >nul
 copy /Y "android\app\build\outputs\apk\debug\app-debug.apk" "app\static\downloads\PianoCommunity.apk" >nul
+copy /Y "android\app\build\outputs\apk\debug\app-debug.apk" "app\static\PianoCommunity.apk" >nul
 copy /Y "android\app\build\outputs\apk\debug\app-debug.apk" "beatstar.apk" >nul
 copy /Y "android\app\build\outputs\apk\debug\app-debug.apk" "PianoCommunity.apk" >nul
 
@@ -58,4 +58,3 @@ echo ======================================================
 echo  [EXITO] APK Compilado (~15 MB) con el juego directo!
 echo  Ubicacion: beatstar.apk
 echo ======================================================
-pause

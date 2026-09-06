@@ -250,5 +250,37 @@ class MainActivity : AppCompatActivity() {
         fun isAndroidNative(): Boolean {
             return true
         }
+
+        @JavascriptInterface
+        fun getAppVersionCode(): Int {
+            return try {
+                val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    pInfo.longVersionCode.toInt()
+                } else {
+                    @Suppress("DEPRECATION")
+                    pInfo.versionCode
+                }
+            } catch (e: Exception) {
+                2
+            }
+        }
+
+        @JavascriptInterface
+        fun openBrowser(url: String) {
+            try {
+                val fullUrl = if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                    "https://renacer.onrender.com" + if (url.startsWith("/")) url else "/$url"
+                } else {
+                    url
+                }
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fullUrl)).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 }

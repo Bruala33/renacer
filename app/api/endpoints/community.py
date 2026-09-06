@@ -5,6 +5,7 @@ import math
 import sqlite3
 import shutil
 import logging
+import base64
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 
@@ -112,6 +113,14 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_creator_notifs ON creator_notifications(creator_id, is_read)
         """)
 
+        # Migración automática: Columnas de persistencia de datos (chart_json y audio_base64)
+        cursor.execute("PRAGMA table_info(community_charts)")
+        cols = [r[1] for r in cursor.fetchall()]
+        if "chart_json" not in cols:
+            cursor.execute("ALTER TABLE community_charts ADD COLUMN chart_json TEXT")
+        if "audio_base64" not in cols:
+            cursor.execute("ALTER TABLE community_charts ADD COLUMN audio_base64 TEXT")
+
         # Eliminar cualquier pista falsa legacy
         cursor.execute("DELETE FROM community_charts WHERE id LIKE 'comm_galaxy%' OR id LIKE 'comm_cyber%' OR id LIKE 'comm_moonlight%'")
         cursor.execute("DELETE FROM creators WHERE id IN ('cr_master', 'cr_neon', 'cr_chopin')")
@@ -172,12 +181,19 @@ async def publish_community_chart(
 
     # 1. Guardar archivo de audio
     audio_filename = "audio.mp3"
+    audio_b64 = ""
     if audio_file and audio_file.filename:
         ext = os.path.splitext(audio_file.filename)[1].lower() or ".mp3"
         audio_filename = f"audio{ext}"
         dest_audio = os.path.join(chart_dir, audio_filename)
+        audio_content = await audio_file.read()
         with open(dest_audio, "wb") as f:
-            shutil.copyfileobj(audio_file.file, f)
+            f.write(audio_content)
+        if len(audio_content) <= 12 * 1024 * 1024:
+            try:
+                audio_b64 = base64.b64encode(audio_content).decode("ascii")
+            except Exception:
+                audio_b64 = ""
     else:
         # Fallback si no subieron audio nuevo
         dest_audio = os.path.join(chart_dir, audio_filename)
@@ -188,17 +204,20 @@ async def publish_community_chart(
     notes_count = 0
     chart_filename = "chart.json"
     chart_data = None
+    chart_json_str = ""
 
     if chart_json and chart_json.strip():
         try:
             chart_data = json.loads(chart_json)
+            chart_json_str = chart_json.strip()
         except Exception:
             chart_data = None
 
     if not chart_data and chart_file and chart_file.filename:
         try:
             content = await chart_file.read()
-            chart_data = json.loads(content.decode("utf-8"))
+            chart_json_str = content.decode("utf-8")
+            chart_data = json.loads(chart_json_str)
         except Exception:
             chart_data = None
 
@@ -218,12 +237,13 @@ async def publish_community_chart(
                 id, title, artist, creator_id, creator_name, bpm, offset_ms,
                 difficulty_name, stars, scroll_duration_ms, notes_count,
                 audio_filename, chart_filename, rating_avg, votes_count,
-                sync_avg, sync_votes_count, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 5.0, 1, 100.0, 1, ?)
+                sync_avg, sync_votes_count, created_at, chart_json, audio_base64
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 5.0, 1, 100.0, 1, ?, ?, ?)
         """, (
             chart_id, title_clean, artist_clean, cid, creator_name_clean,
             float(bpm), int(offset_ms), str(difficulty_name), float(stars),
-            int(scroll_duration_ms), notes_count, audio_filename, chart_filename, now_str
+            int(scroll_duration_ms), notes_count, audio_filename, chart_filename, now_str,
+            chart_json_str, audio_b64
         ))
         # Registrar voto inicial del propio creador
         cur.execute("""
@@ -365,7 +385,7 @@ async def get_community_chart_details(chart_id: str):
 async def get_community_chart_audio(chart_id: str):
     with get_db() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT audio_filename FROM community_charts WHERE id = ?", (chart_id,))
+        cur.execute("SELECT audio_filename, audio_base64 FROM community_charts WHERE id = ?", (chart_id,))
         r = cur.fetchone()
         if not r:
             raise HTTPException(status_code=404, detail="Pista no encontrada.")
@@ -373,7 +393,16 @@ async def get_community_chart_audio(chart_id: str):
     audio_fn = r["audio_filename"] or "audio.mp3"
     file_path = os.path.join(COMMUNITY_UPLOADS_DIR, chart_id, audio_fn)
 
-    # Si no existe archivo propio, fallback al audio de muestra
+    # Si no existe archivo propio en disco pero está respaldado en base de datos, reconstruirlo
+    if (not os.path.exists(file_path) or os.path.getsize(file_path) == 0) and ("audio_base64" in r.keys() and r["audio_base64"]):
+        try:
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            with open(file_path, "wb") as f:
+                f.write(base64.b64decode(r["audio_base64"]))
+        except Exception as e:
+            logger.warning(f"Error reconstituting audio from DB for {chart_id}: {e}")
+
+    # Si aún no existe archivo propio, fallback al audio de muestra
     if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
         sample_paths = [
             os.path.join(BASE_DIR, "app", "static", "assets", "demo.mp3"),
@@ -422,6 +451,20 @@ async def get_community_chart_json(chart_id: str):
                 return JSONResponse(content=data, headers={"Access-Control-Allow-Origin": "*"})
         except Exception as e:
             logger.warning(f"Error reading chart json for {chart_id}: {e}")
+
+    # Si no existe en disco pero está en la columna chart_json de la DB:
+    if "chart_json" in r.keys() and r["chart_json"] and r["chart_json"].strip():
+        try:
+            parsed = json.loads(r["chart_json"])
+            try:
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(r["chart_json"])
+            except Exception:
+                pass
+            return JSONResponse(content=parsed, headers={"Access-Control-Allow-Origin": "*"})
+        except Exception:
+            pass
 
     # Estructura de chart sintetizada si es de los mapas semilla o fallback
     bpm = float(r["bpm"] or 120.0)

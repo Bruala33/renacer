@@ -10,6 +10,8 @@ const ChartEditor = {
   audioCtx: null,
   audioBuffer: null,
   audioBlob: null,
+  audioBlobUrl: null,
+  audioElement: null,
   audioSourceNode: null,
   isPlaying: false,
   isInitialized: false,
@@ -94,7 +96,27 @@ const ChartEditor = {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
 
+    this.pause();
+
+    if (this.audioBlobUrl) {
+      try { URL.revokeObjectURL(this.audioBlobUrl); } catch (err) {}
+    }
     this.audioBlob = file;
+    this.audioBlobUrl = URL.createObjectURL(file);
+
+    if (!this.audioElement) {
+      this.audioElement = new Audio();
+    }
+    this.audioElement.src = this.audioBlobUrl;
+    this.audioElement.preservesPitch = true;
+    this.audioElement.mozPreservesPitch = true;
+    this.audioElement.webkitPreservesPitch = true;
+    this.audioElement.playbackRate = this.playbackRate;
+    this.audioElement.onended = () => {
+      this.pause();
+      this.currentSongTime = this.duration;
+    };
+
     const btnText = document.getElementById('edAudioBtnText');
     if (btnText) btnText.innerText = `🎵 ${file.name.slice(0, 14)}...`;
 
@@ -121,11 +143,13 @@ const ChartEditor = {
 
   setPlaybackSpeed(speedVal) {
     this.playbackRate = parseFloat(speedVal) || 1.0;
-    if (this.isPlaying) {
-      this.pause();
-      this.play();
+    if (this.audioElement) {
+      this.audioElement.playbackRate = this.playbackRate;
+      this.audioElement.preservesPitch = true;
+      this.audioElement.mozPreservesPitch = true;
+      this.audioElement.webkitPreservesPitch = true;
     }
-    showSuccessToast(`Velocidad: ${this.playbackRate}x`);
+    showSuccessToast(`Velocidad: ${this.playbackRate}x (Tono original preservado)`);
   },
 
   setOffset(ms) {
@@ -827,6 +851,9 @@ const ChartEditor = {
 
   seek(targetSeconds) {
     this.currentSongTime = Math.max(0, Math.min(this.duration || 300, targetSeconds));
+    if (this.audioElement) {
+      this.audioElement.currentTime = this.currentSongTime;
+    }
     const scrubber = document.getElementById('edTimelineScrubber');
     if (scrubber && this.duration > 0) {
       scrubber.value = (this.currentSongTime / this.duration) * 100;
@@ -840,7 +867,7 @@ const ChartEditor = {
   },
 
   togglePlayback() {
-    if (!this.audioBuffer) {
+    if (!this.audioBuffer && !this.audioElement) {
       showErrorToast('Carga un archivo de audio primero.');
       return;
     }
@@ -849,22 +876,48 @@ const ChartEditor = {
   },
 
   play() {
-    if (this.isPlaying || !this.audioBuffer) return;
-    this.audioSourceNode = this.audioCtx.createBufferSource();
-    this.audioSourceNode.buffer = this.audioBuffer;
-    this.audioSourceNode.playbackRate.value = this.playbackRate;
-    this.audioSourceNode.connect(this.audioCtx.destination);
+    if (this.isPlaying || (!this.audioBuffer && !this.audioElement)) return;
+    
+    if (this.audioCtx && this.audioCtx.state === 'suspended') {
+      this.audioCtx.resume();
+    }
 
-    this.playbackStartTime = this.audioCtx.currentTime - (this.currentSongTime / this.playbackRate);
-    this.audioSourceNode.start(0, this.currentSongTime);
+    if (this.audioElement) {
+      this.audioElement.currentTime = Math.max(0, Math.min(this.duration || 300, this.currentSongTime));
+      this.audioElement.playbackRate = this.playbackRate;
+      this.audioElement.preservesPitch = true;
+      this.audioElement.mozPreservesPitch = true;
+      this.audioElement.webkitPreservesPitch = true;
+      this.audioElement.play().catch(err => {
+        console.warn('Fallo al reproducir con AudioElement, usando fallback:', err);
+        this.playFallbackWebAudio();
+      });
+    } else {
+      this.playFallbackWebAudio();
+    }
+
     this.isPlaying = true;
-
     const playBtn = document.getElementById('edBtnPlay');
     if (playBtn) playBtn.innerHTML = '<span>⏸</span>';
   },
 
+  playFallbackWebAudio() {
+    if (this.audioSourceNode) {
+      try { this.audioSourceNode.stop(); this.audioSourceNode.disconnect(); } catch (e) {}
+    }
+    this.audioSourceNode = this.audioCtx.createBufferSource();
+    this.audioSourceNode.buffer = this.audioBuffer;
+    this.audioSourceNode.playbackRate.value = this.playbackRate;
+    this.audioSourceNode.connect(this.audioCtx.destination);
+    this.playbackStartTime = this.audioCtx.currentTime - (this.currentSongTime / this.playbackRate);
+    this.audioSourceNode.start(0, this.currentSongTime);
+  },
+
   pause() {
     if (!this.isPlaying) return;
+    if (this.audioElement) {
+      try { this.audioElement.pause(); } catch (e) {}
+    }
     if (this.audioSourceNode) {
       try {
         this.audioSourceNode.stop();
@@ -878,8 +931,12 @@ const ChartEditor = {
   },
 
   renderLoop() {
-    if (this.isPlaying && this.audioCtx) {
-      this.currentSongTime = (this.audioCtx.currentTime - this.playbackStartTime) * this.playbackRate;
+    if (this.isPlaying) {
+      if (this.audioElement && !this.audioElement.paused) {
+        this.currentSongTime = this.audioElement.currentTime;
+      } else if (this.audioCtx && this.playbackStartTime) {
+        this.currentSongTime = (this.audioCtx.currentTime - this.playbackStartTime) * this.playbackRate;
+      }
       if (this.currentSongTime >= this.duration) {
         this.pause();
         this.currentSongTime = this.duration;
