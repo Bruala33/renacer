@@ -1495,6 +1495,7 @@ class IndexedDBStorage {
         diff_id: chartItem.diff_id || '',
         metadata: beatmapData.metadata,
         notes: beatmapData.notes,
+        chartData: beatmapData,
         audioBlob: audioBlob,
         savedAt: Date.now()
       };

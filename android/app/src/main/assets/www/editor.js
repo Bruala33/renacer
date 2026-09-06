@@ -1396,48 +1396,9 @@ const ChartEditor = {
 
     const unpackedData = this.createBeatmapPackage(title, artist);
     const diffConfig = DIFFICULTY_PRESETS[diff] || DIFFICULTY_PRESETS['Media'];
+    const tempChartId = unpackedData.id;
 
-    const chartId = unpackedData.id;
-    const chartItem = {
-      id: chartId,
-      source: 'community',
-      source_name: 'Comunidad',
-      title: title,
-      artist: artist,
-      creator: creator,
-      creator_name: creator,
-      difficulty_name: diff,
-      stars: diffConfig.stars,
-      bpm: this.bpm,
-      likes_count: 1,
-      rating_avg: 5.0,
-      sync_score_avg: 100,
-      play_count: 0,
-      created_at: new Date().toISOString(),
-      thumbnail: typeof GENERIC_THUMBNAIL !== 'undefined' ? GENERIC_THUMBNAIL : '',
-      notes: unpackedData.notes,
-      difficulties: unpackedData.difficulties
-    };
-
-    // 1. Guardar SIEMPRE en IndexedDB localmente para disponibilidad 100% offline
-    if (typeof IndexedDBStorage !== 'undefined') {
-      try {
-        await IndexedDBStorage.saveChart(chartItem, unpackedData, this.audioBlob);
-      } catch (err) {
-        console.warn('Error guardando en IndexedDB:', err);
-      }
-    }
-
-    // 2. Guardar en lista de mapas comunitarios locales
-    try {
-      const localCommunity = JSON.parse(localStorage.getItem('beatstar_community_local_charts') || '[]');
-      const idx = localCommunity.findIndex(c => c.id === chartId);
-      if (idx !== -1) localCommunity[idx] = chartItem;
-      else localCommunity.unshift(chartItem);
-      localStorage.setItem('beatstar_community_local_charts', JSON.stringify(localCommunity));
-    } catch (e) {}
-
-    // 3. Preparar subida a la nube si hay backend disponible
+    // 1. Preparar subida a la nube si hay backend disponible
     const formData = new FormData();
     formData.append('title', title);
     formData.append('artist', artist);
@@ -1459,6 +1420,7 @@ const ChartEditor = {
       publishBtn.innerText = 'Publicando...';
     }
 
+    let publishedChartId = null;
     let cloudOk = false;
     try {
       const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
@@ -1468,7 +1430,11 @@ const ChartEditor = {
           body: formData
         });
         if (response.ok) {
-          cloudOk = true;
+          const pubData = await response.json();
+          if (pubData && pubData.chart_id) {
+            publishedChartId = pubData.chart_id;
+            cloudOk = true;
+          }
         }
       }
     } catch (err) {
@@ -1479,6 +1445,58 @@ const ChartEditor = {
         publishBtn.innerText = '🚀 Publicar Ahora';
       }
     }
+
+    // Usar el ID oficial generado por el servidor si la subida fue exitosa; si no, usar el ID local temporal
+    const finalChartId = publishedChartId || tempChartId;
+
+    unpackedData.id = finalChartId;
+    if (unpackedData.metadata) unpackedData.metadata.id = finalChartId;
+    unpackedData.communityChartId = finalChartId;
+
+    const chartItem = {
+      id: finalChartId,
+      source: 'community',
+      source_name: 'Comunidad',
+      title: title,
+      artist: artist,
+      creator: creator,
+      creator_name: creator,
+      difficulty_name: diff,
+      stars: diffConfig.stars,
+      bpm: this.bpm,
+      likes_count: 1,
+      rating_avg: 5.0,
+      votes_count: 0,
+      play_count: 0,
+      created_at: new Date().toISOString(),
+      thumbnail: typeof GENERIC_THUMBNAIL !== 'undefined' ? GENERIC_THUMBNAIL : '',
+      notes: unpackedData.notes,
+      difficulties: unpackedData.difficulties,
+      chartData: unpackedData
+    };
+
+    // 2. Guardar en IndexedDB con el ID canónico definitivo y audio listo
+    if (typeof IndexedDBStorage !== 'undefined') {
+      try {
+        await IndexedDBStorage.saveChart(chartItem, unpackedData, this.audioBlob);
+        if (publishedChartId && publishedChartId !== tempChartId) {
+          IndexedDBStorage.deleteChart(tempChartId).catch(() => {});
+        }
+      } catch (err) {
+        console.warn('Error guardando en IndexedDB:', err);
+      }
+    }
+
+    // 3. Si la subida a la nube fue exitosa, NO guardarlo en beatstar_community_local_charts para evitar duplicados fantasma.
+    // Solo se almacena localmente si la conexión a la nube falló (modo offline).
+    try {
+      const localCommunity = JSON.parse(localStorage.getItem('beatstar_community_local_charts') || '[]');
+      const filtered = localCommunity.filter(c => c.id !== tempChartId && c.id !== finalChartId);
+      if (!cloudOk) {
+        filtered.unshift(chartItem);
+      }
+      localStorage.setItem('beatstar_community_local_charts', JSON.stringify(filtered));
+    } catch (e) {}
 
     this.closePublishModal();
     if (cloudOk) {
