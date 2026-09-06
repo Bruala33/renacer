@@ -109,9 +109,9 @@ async def get_app_version():
     Retorna la versión oficial más reciente del juego y del APK para comprobación de actualizaciones in-app.
     """
     return {
-        "version_code": 2,
-        "version_name": "1.1.0",
-        "release_notes": "Mejoras de rendimiento, corrección de velocidad de audio sin distorsión de tono, contador de claves corregido y sincronización comunitaria persistente.",
+        "version_code": 3,
+        "version_name": "1.2.0",
+        "release_notes": "Auto-descarga de canciones destacadas, sincronización global de valoraciones multi-dispositivo y leaderboards unificados.",
         "download_url": "/download/apk"
     }
 

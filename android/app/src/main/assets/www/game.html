@@ -2174,7 +2174,7 @@
     // Código de versión local: si es el APK anterior (sin getAppVersionCode) es versión 1
     const CURRENT_APP_VERSION_CODE = (window.AndroidNative && typeof window.AndroidNative.getAppVersionCode === 'function')
       ? window.AndroidNative.getAppVersionCode()
-      : (window.AndroidNative ? 1 : 2);
+      : (window.AndroidNative ? 1 : 3);
     let appUpdateDownloadUrl = '/download/apk';
 
     async function checkForAppUpdates() {
@@ -3576,6 +3576,19 @@ function switchMainTab(tab) {
           loadStatus.innerText = 'Parseando notas a 3 carriles...';
           const unpackedData = await PackageUnpacker.unpack(arrayBuffer, 'osz', diffId);
           currentActiveAudioBlob = unpackedData.audioBlob;
+          unpackedData.id = chartItem.id;
+          if (!unpackedData.metadata) unpackedData.metadata = {};
+          unpackedData.metadata.id = chartItem.id;
+          unpackedData.metadata.title = chartItem.title || unpackedData.metadata.title;
+          unpackedData.metadata.artist = chartItem.artist || unpackedData.metadata.artist;
+          unpackedData.metadata.difficulty_name = diffName || chartItem.difficulty_name || unpackedData.metadata.difficulty_name;
+          unpackedData.metadata.stars = chartItem.stars || (chartItem.difficulties && chartItem.difficulties[0]?.stars) || unpackedData.metadata.stars;
+          unpackedData.communityChartId = chartItem.id;
+          unpackedData.source = chartItem.source || 'osu';
+          unpackedData.source_name = chartItem.source_name || 'osu!';
+          unpackedData.download_url = chartItem.download_url || chartItem.direct_download_url || '';
+          unpackedData.diff_id = diffId || '';
+          if (chartItem.is_daily_featured) unpackedData.is_daily_featured = true;
 
           loadStatus.innerText = 'Guardando en biblioteca offline...';
           await IndexedDBStorage.saveChart(chartItem, unpackedData, unpackedData.audioBlob);
@@ -3719,6 +3732,20 @@ function switchMainTab(tab) {
         // [Paso 5] Parseo de notas y audio
         const unpackedData = await PackageUnpacker.unpack(arrayBuffer, fileExt, diffId, (step, t, d, s) => VisualLogger.step(step, t, d, s));
         currentActiveAudioBlob = unpackedData.audioBlob;
+        unpackedData.id = chartItem.id;
+        if (!unpackedData.metadata) unpackedData.metadata = {};
+        unpackedData.metadata.id = chartItem.id;
+        unpackedData.metadata.title = chartItem.title || unpackedData.metadata.title;
+        unpackedData.metadata.artist = chartItem.artist || unpackedData.metadata.artist;
+        unpackedData.metadata.difficulty_name = diffName || chartItem.difficulty_name || unpackedData.metadata.difficulty_name;
+        unpackedData.metadata.stars = chartItem.stars || (chartItem.difficulties && chartItem.difficulties[0]?.stars) || unpackedData.metadata.stars;
+        unpackedData.communityChartId = chartItem.id;
+        unpackedData.source = chartItem.source || 'clonehero';
+        unpackedData.source_name = chartItem.source_name || 'Clone Hero';
+        unpackedData.download_url = chartItem.download_url || chartItem.direct_download_url || '';
+        unpackedData.md5 = chartItem.md5 || '';
+        unpackedData.diff_id = diffId || '';
+        if (chartItem.is_daily_featured) unpackedData.is_daily_featured = true;
 
         VisualLogger.step(5, 'Parseo completado con éxito', `${unpackedData.notes.length} notas mapeadas a 3 carriles. Audio listo.`, 'success');
 
@@ -3834,6 +3861,11 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         is_daily_featured: !!beatmapData.is_daily_featured,
         is_community: !!beatmapData.is_community,
         communityChartId: beatmapData.communityChartId || beatmapData.id || (beatmapData.metadata && beatmapData.metadata.id) || null,
+        source: beatmapData.source || 'catalog',
+        source_name: beatmapData.source_name || 'Catálogo',
+        download_url: beatmapData.download_url || '',
+        md5: beatmapData.md5 || '',
+        diff_id: beatmapData.diff_id || '',
         notes: resolvedNotes,
         difficulties: [{
           id: 'diff_standard',
@@ -5076,27 +5108,63 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
     let postGameCurrentSync = 100;
     let isSubmittingRating = false;
 
-    function playFeaturedSong(songId, isCommunity = false) {
-      if (isCommunity) {
+    async function playFeaturedSong(songId, isCommunity = false) {
+      const song = (dailyFeaturedSongsList || []).find(s => s.id === songId) || null;
+      const isComm = isCommunity || (song && song.is_community);
+
+      if (isComm) {
         playCommunitySong(songId, true);
         return;
       }
 
-      // Si existe en descargas locales de IndexedDB, iniciarla directamente
+      // 1. Si existe en descargas locales de IndexedDB, iniciarla directamente
       if (typeof IndexedDBStorage !== 'undefined') {
-        IndexedDBStorage.getChart(songId).then(item => {
+        try {
+          const item = await IndexedDBStorage.getChart(songId);
           if (item && item.audioBlob) {
             item.is_daily_featured = true;
-            startGame(item, item.audioBlob, item.metadata?.difficulty_name);
-          } else {
-            playSavedLibraryChart(songId);
+            startGame(item, item.audioBlob, item.metadata?.difficulty_name || song?.difficulty_name || 'Normal');
+            return;
           }
-        }).catch(() => {
-          playSavedLibraryChart(songId);
-        });
-      } else {
-        playSavedLibraryChart(songId);
+        } catch (e) {}
       }
+
+      // 2. Si no está en almacenamiento local, AUTO-DESCARGAR de la fuente
+      const targetTitle = song?.title || 'Canción Destacada';
+      const targetArtist = song?.artist || 'Artista';
+      const targetSource = song?.source || (songId.startsWith('osu_') ? 'osu' : 'clonehero');
+      const targetDiffName = song?.difficulty_name || 'Normal';
+      const targetStars = song?.stars || 3.5;
+
+      const chartItem = {
+        id: songId,
+        title: targetTitle,
+        artist: targetArtist,
+        source: targetSource,
+        source_name: song?.source_name || (targetSource === 'osu' ? 'osu!' : 'Clone Hero'),
+        download_url: song?.download_url || (targetSource === 'osu' ? `https://catboy.best/d/${songId.replace('osu_', '')}` : ''),
+        md5: song?.md5 || '',
+        diff_id: song?.diff_id || 'diff_standard',
+        is_daily_featured: true,
+        difficulties: [{
+          id: song?.diff_id || 'diff_standard',
+          name: targetDiffName,
+          stars: targetStars,
+          keys: targetSource === 'osu' ? 4 : 5
+        }]
+      };
+
+      // Registrar en searchResultsCache para que downloadAndPlaySong disponga de los metadatos completos
+      if (!searchResultsCache) searchResultsCache = [];
+      const existingIdx = searchResultsCache.findIndex(c => c.id === songId);
+      if (existingIdx >= 0) {
+        searchResultsCache[existingIdx] = { ...searchResultsCache[existingIdx], ...chartItem };
+      } else {
+        searchResultsCache.push(chartItem);
+      }
+
+      // Lanzar el flujo blindado de descarga y ejecución
+      downloadAndPlaySong(songId, chartItem.difficulties[0].id, targetDiffName);
     }
 
     async function loadDailyFeaturedSongs() {
@@ -5122,7 +5190,12 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
               rating_avg: r.avgStars || 5.0,
               votes_count: r.count || 1,
               sync_avg: r.avgSync || 100,
-              is_community: !!r.is_community
+              is_community: !!r.is_community,
+              source: r.source || (r.is_community ? 'community' : (id.startsWith('osu_') ? 'osu' : 'catalog')),
+              source_name: r.source_name || (r.is_community ? 'Comunidad' : (id.startsWith('osu_') ? 'osu!' : 'Catálogo')),
+              download_url: r.download_url || '',
+              md5: r.md5 || '',
+              diff_id: r.diff_id || ''
             });
           }
         }
@@ -5132,15 +5205,40 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       try {
         const baseUrl = getApiBaseUrl();
         if (baseUrl) {
-          const res = await fetch(`${baseUrl}/api/v1/community/charts/search?sort=rating&limit=6`);
-          if (res.ok) {
-            const cloudData = await res.json();
+          let cloudData = null;
+          try {
+            const res = await fetch(`${baseUrl}/api/v1/community/featured`);
+            if (res.ok) {
+              const resJson = await res.json();
+              cloudData = Array.isArray(resJson) ? resJson : (resJson.featured || (resJson.id ? [resJson] : []));
+            }
+          } catch (_) {}
+
+          // Fallback a búsqueda por rating si /featured no respondiera
+          if (!cloudData || cloudData.length === 0) {
+            const fallbackRes = await fetch(`${baseUrl}/api/v1/community/charts/search?sort=rating&limit=6`);
+            if (fallbackRes.ok) {
+              cloudData = await fallbackRes.json();
+            }
+          }
+
+          if (Array.isArray(cloudData)) {
             for (const cs of cloudData) {
-              if (cs && cs.votes_count > 0 && !cs.id.startsWith('comm_galaxy') && !cs.id.startsWith('comm_cyber') && !candidateSongs.some(s => s.id === cs.id)) {
-                candidateSongs.push({
+              if (cs && cs.votes_count > 0 && !cs.id.startsWith('comm_galaxy') && !cs.id.startsWith('comm_cyber')) {
+                const existingIdx = candidateSongs.findIndex(s => s.id === cs.id);
+                const songObj = {
                   ...cs,
-                  is_community: true
-                });
+                  is_community: !!cs.is_community,
+                  source: cs.source || (cs.is_community ? 'community' : (cs.id.startsWith('osu_') ? 'osu' : 'catalog')),
+                  source_name: cs.source_name || (cs.is_community ? 'Comunidad' : (cs.id.startsWith('osu_') ? 'osu!' : 'Catálogo')),
+                  rating_avg: cs.rating_avg || 5.0,
+                  votes_count: cs.votes_count || 1
+                };
+                if (existingIdx >= 0) {
+                  candidateSongs[existingIdx] = { ...candidateSongs[existingIdx], ...songObj };
+                } else {
+                  candidateSongs.push(songObj);
+                }
               }
             }
           }
@@ -5214,7 +5312,8 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
 
     async function playDailyFeaturedSong() {
       if (dailyFeaturedSongsList && dailyFeaturedSongsList.length > 0) {
-        playCommunitySong(dailyFeaturedSongsList[0].id, true);
+        const topSong = dailyFeaturedSongsList[0];
+        playFeaturedSong(topSong.id, !!topSong.is_community);
       } else {
         showErrorToast('Aún no hay canciones destacadas valoradas.');
       }
@@ -5613,6 +5712,12 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       let localVotes = 1;
       let localSyncAvg = postGameCurrentSync;
       try {
+        const songSource = currentActiveBeatmap?.source || (isComm ? 'community' : (chartId.startsWith('osu_') ? 'osu' : 'catalog'));
+        const songSourceName = currentActiveBeatmap?.source_name || (isComm ? 'Comunidad' : (chartId.startsWith('osu_') ? 'osu!' : 'Catálogo'));
+        const songDlUrl = currentActiveBeatmap?.download_url || '';
+        const songMd5 = currentActiveBeatmap?.md5 || '';
+        const songDiffId = currentActiveBeatmap?.diff_id || '';
+
         const ratingsStore = JSON.parse(localStorage.getItem('beatstar_song_ratings') || '{}');
         const prev = ratingsStore[chartId] || {
           id: chartId,
@@ -5621,6 +5726,11 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
           difficulty_name: songDiff,
           stars: songStars,
           is_community: isComm,
+          source: songSource,
+          source_name: songSourceName,
+          download_url: songDlUrl,
+          md5: songMd5,
+          diff_id: songDiffId,
           count: 0,
           totalStars: 0,
           totalSync: 0
@@ -5637,6 +5747,11 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         prev.difficulty_name = songDiff;
         prev.stars = songStars;
         prev.is_community = isComm;
+        prev.source = songSource;
+        prev.source_name = songSourceName;
+        prev.download_url = songDlUrl;
+        prev.md5 = songMd5;
+        prev.diff_id = songDiffId;
 
         // Si la pista comunitaria recibe 2 o más votos y su media es inferior a 2 estrellas,
         // se elimina de la lista de canciones y se notifica al creador
@@ -5673,13 +5788,22 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       try {
         const baseUrl = getApiBaseUrl();
         if (baseUrl) {
-          const res = await fetch(`${baseUrl}/api/v1/community/charts/${chartId}/rate`, {
+          const res = await fetch(`${baseUrl}/api/v1/community/charts/${encodeURIComponent(chartId)}/rate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               rating: postGameCurrentRating,
               sync_pct: postGameCurrentSync,
-              user_id: userAnonId
+              user_id: userAnonId,
+              title: songTitle,
+              artist: songArtist,
+              difficulty_name: songDiff,
+              stars: songStars,
+              source: currentActiveBeatmap?.source || (isComm ? 'community' : (chartId.startsWith('osu_') ? 'osu' : 'catalog')),
+              source_name: currentActiveBeatmap?.source_name || (isComm ? 'Comunidad' : (chartId.startsWith('osu_') ? 'osu!' : 'Catálogo')),
+              download_url: currentActiveBeatmap?.download_url || '',
+              md5: currentActiveBeatmap?.md5 || '',
+              diff_id: currentActiveBeatmap?.diff_id || ''
             })
           });
           if (res.ok) {

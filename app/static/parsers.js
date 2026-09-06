@@ -1490,6 +1490,9 @@ class IndexedDBStorage {
         source_name: chartItem.source_name,
         thumbnail: chartItem.thumbnail,
         difficulties: chartItem.difficulties,
+        download_url: chartItem.download_url || chartItem.direct_download_url || '',
+        md5: chartItem.md5 || '',
+        diff_id: chartItem.diff_id || '',
         metadata: beatmapData.metadata,
         notes: beatmapData.notes,
         audioBlob: audioBlob,
@@ -1508,7 +1511,26 @@ class IndexedDBStorage {
       const tx = db.transaction(this.STORE_SAVED, 'readonly');
       const store = tx.objectStore(this.STORE_SAVED);
       const req = store.get(chartId);
-      req.onsuccess = () => resolve(req.result);
+      req.onsuccess = () => {
+        if (req.result) return resolve(req.result);
+        // Búsqueda tolerante por id de metadatos o por slug de título normalizado
+        const allReq = store.getAll();
+        allReq.onsuccess = () => {
+          const all = allReq.result || [];
+          const targetSlug = String(chartId || '').toLowerCase().replace(/[\s\-_]+/g, '');
+          const match = all.find(c => {
+            if (!c) return false;
+            if (c.id === chartId) return true;
+            if (c.metadata && c.metadata.id === chartId) return true;
+            const cSlug = String(c.title || '').toLowerCase().replace(/[\s\-_]+/g, '');
+            const idSlug = String(c.id || '').toLowerCase().replace(/[\s\-_]+/g, '');
+            return (cSlug && (cSlug === targetSlug || targetSlug.includes(cSlug))) ||
+                   (idSlug && (idSlug === targetSlug || targetSlug.includes(idSlug)));
+          });
+          resolve(match || null);
+        };
+        allReq.onerror = () => resolve(null);
+      };
       req.onerror = (e) => reject(e.target.error);
     });
   }

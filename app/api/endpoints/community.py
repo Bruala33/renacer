@@ -112,6 +112,24 @@ def init_db():
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_creator_notifs ON creator_notifications(creator_id, is_read)
         """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS catalog_charts (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                artist TEXT NOT NULL,
+                difficulty_name TEXT DEFAULT 'Normal',
+                stars REAL DEFAULT 3.5,
+                source TEXT DEFAULT 'catalog',
+                source_name TEXT DEFAULT 'Catálogo',
+                download_url TEXT,
+                md5 TEXT,
+                diff_id TEXT,
+                rating_avg REAL DEFAULT 0.0,
+                votes_count INTEGER DEFAULT 0,
+                sync_avg REAL DEFAULT 100.0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
 
         # Migración automática: Columnas de persistencia de datos (chart_json y audio_base64)
         cursor.execute("PRAGMA table_info(community_charts)")
@@ -134,6 +152,15 @@ class RateChartRequest(BaseModel):
     rating: int = Field(..., ge=1, le=5, description="Valoración de la pista de 1 a 5 estrellas")
     sync_pct: Optional[float] = Field(100.0, ge=0.0, le=100.0, description="Porcentaje o calidad de sincronización")
     user_id: Optional[str] = Field("anon_player", description="Identificador anónimo del jugador")
+    title: Optional[str] = Field(None, description="Título de la canción")
+    artist: Optional[str] = Field(None, description="Artista de la canción")
+    difficulty_name: Optional[str] = Field("Normal", description="Nombre de dificultad")
+    stars: Optional[float] = Field(3.5, description="Estrellas de dificultad")
+    source: Optional[str] = Field("catalog", description="Fuente de la canción (osu, clonehero, catalog, community)")
+    source_name: Optional[str] = Field("Catálogo", description="Nombre legible de la fuente")
+    download_url: Optional[str] = Field(None, description="URL de descarga")
+    md5: Optional[str] = Field(None, description="Hash MD5 para Clone Hero / Enchor")
+    diff_id: Optional[str] = Field(None, description="ID específico de la dificultad")
 
 
 class FollowCreatorRequest(BaseModel):
@@ -528,7 +555,7 @@ async def get_community_chart_json(chart_id: str):
 @router.post("/charts/{chart_id}/rate")
 async def rate_community_chart(chart_id: str, req: RateChartRequest):
     """
-    Envía una valoración de 1 a 5 estrellas y feedback de sincronización para un mapa comunitario.
+    Envía una valoración de 1 a 5 estrellas para cualquier mapa (comunitario o de catálogo).
     """
     user_id = req.user_id or f"user_{int(time.time())}"
     rating = max(1, min(5, req.rating))
@@ -539,114 +566,212 @@ async def rate_community_chart(chart_id: str, req: RateChartRequest):
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute("SELECT id FROM community_charts WHERE id = ?", (chart_id,))
-        if not cur.fetchone():
-            raise HTTPException(status_code=404, detail="La pista no existe.")
+        is_community = bool(cur.fetchone())
 
-        # Insertar o actualizar voto del usuario
-        cur.execute("""
-            INSERT OR REPLACE INTO chart_ratings (chart_id, user_id, rating, sync_pct, created_at)
-            VALUES (?, ?, ?, ?, ?)
-        """, (chart_id, user_id, rating, sync_pct, now_str))
+        if is_community:
+            # Insertar o actualizar voto del usuario
+            cur.execute("""
+                INSERT OR REPLACE INTO chart_ratings (chart_id, user_id, rating, sync_pct, created_at)
+                VALUES (?, ?, ?, ?, ?)
+            """, (chart_id, user_id, rating, sync_pct, now_str))
 
-        # Recalcular métricas agregadas
-        cur.execute("""
-            SELECT COUNT(*) as total_votes,
-                   AVG(rating) as avg_rating,
-                   AVG(sync_pct) as avg_sync
-            FROM chart_ratings
-            WHERE chart_id = ?
-        """, (chart_id,))
-        agg = cur.fetchone()
+            # Recalcular métricas agregadas
+            cur.execute("""
+                SELECT COUNT(*) as total_votes,
+                       AVG(rating) as avg_rating,
+                       AVG(sync_pct) as avg_sync
+                FROM chart_ratings
+                WHERE chart_id = ?
+            """, (chart_id,))
+            agg = cur.fetchone()
 
-        new_votes = agg["total_votes"]
-        new_rating_avg = round(float(agg["avg_rating"] or rating), 2)
-        new_sync_avg = round(float(agg["avg_sync"] or sync_pct), 1)
+            new_votes = agg["total_votes"]
+            new_rating_avg = round(float(agg["avg_rating"] or rating), 2)
+            new_sync_avg = round(float(agg["avg_sync"] or sync_pct), 1)
 
-        # Regla: si una canción tiene 2 o más votos y su media es inferior a 2 estrellas,
-        # se elimina inmediatamente de la comunidad y se notifica al creador.
-        if new_votes >= 2 and new_rating_avg < 2.0:
-            cur.execute("SELECT * FROM community_charts WHERE id = ?", (chart_id,))
-            chart_info = cur.fetchone()
-            if chart_info:
-                creator_id = chart_info["creator_id"]
-                creator_name = chart_info["creator_name"]
-                song_title = chart_info["title"]
-                
-                notif_msg = (
-                    f"Tu pista '{song_title}' ha sido retirada de la comunidad automáticamente "
-                    f"debido a que su valoración media ({new_rating_avg}★) es inferior a 2 estrellas "
-                    f"tras recibir {new_votes} valoraciones."
-                )
+            # Regla: si una canción tiene 2 o más votos y su media es inferior a 2 estrellas,
+            # se elimina inmediatamente de la comunidad y se notifica al creador.
+            if new_votes >= 2 and new_rating_avg < 2.0:
+                cur.execute("SELECT * FROM community_charts WHERE id = ?", (chart_id,))
+                chart_info = cur.fetchone()
+                if chart_info:
+                    creator_id = chart_info["creator_id"]
+                    creator_name = chart_info["creator_name"]
+                    song_title = chart_info["title"]
+                    
+                    notif_msg = (
+                        f"Tu pista '{song_title}' ha sido retirada de la comunidad automáticamente "
+                        f"debido a que su valoración media ({new_rating_avg}★) es inferior a 2 estrellas "
+                        f"tras recibir {new_votes} valoraciones."
+                    )
 
-                cur.execute("""
-                    INSERT INTO creator_notifications (creator_id, creator_name, chart_id, chart_title, message, reason, created_at)
-                    VALUES (?, ?, ?, ?, ?, 'low_rating', ?)
-                """, (creator_id, creator_name, chart_id, song_title, notif_msg, now_str))
+                    cur.execute("""
+                        INSERT INTO creator_notifications (creator_id, creator_name, chart_id, chart_title, message, reason, created_at)
+                        VALUES (?, ?, ?, ?, ?, 'low_rating', ?)
+                    """, (creator_id, creator_name, chart_id, song_title, notif_msg, now_str))
 
-                # Eliminar de la base de datos de la comunidad
-                cur.execute("DELETE FROM community_charts WHERE id = ?", (chart_id,))
+                    # Eliminar de la base de datos de la comunidad
+                    cur.execute("DELETE FROM community_charts WHERE id = ?", (chart_id,))
+                    cur.execute("DELETE FROM chart_ratings WHERE chart_id = ?", (chart_id,))
+                    cur.execute("DELETE FROM song_scores WHERE chart_id = ?", (chart_id,))
+
+                    # Limpieza de archivos de audio y notas
+                    for fname in [chart_info["audio_filename"], chart_info["chart_filename"]]:
+                        if fname:
+                            fpath = os.path.join(COMMUNITY_UPLOADS_DIR, chart_id, fname)
+                            if os.path.exists(fpath):
+                                try:
+                                    os.remove(fpath)
+                                except Exception:
+                                    pass
+
+                    conn.commit()
+
+                    return {
+                        "status": "deleted_low_rating",
+                        "chart_id": chart_id,
+                        "rating_avg": new_rating_avg,
+                        "votes_count": new_votes,
+                        "deleted": True,
+                        "is_community": True,
+                        "message": f"La pista ha sido retirada de la comunidad por tener una media de {new_rating_avg}★ (inferior a 2★) tras {new_votes} votos."
+                    }
+
+            cur.execute("""
+                UPDATE community_charts
+                SET rating_avg = ?, votes_count = ?, sync_avg = ?, sync_votes_count = ?
+                WHERE id = ?
+            """, (new_rating_avg, new_votes, new_sync_avg, new_votes, chart_id))
+
+            conn.commit()
+
+            return {
+                "status": "success",
+                "chart_id": chart_id,
+                "rating_avg": new_rating_avg,
+                "votes_count": new_votes,
+                "deleted": False,
+                "is_community": True,
+                "message": f"¡Gracias por calificar la pista con {rating}★!"
+            }
+
+        else:
+            # Canción del catálogo (osu! Mania / Clone Hero / Custom)
+            song_title = (req.title or chart_id).strip()
+            song_artist = (req.artist or "Artista").strip()
+            diff_name = (req.difficulty_name or "Normal").strip()
+            stars_val = float(req.stars or 3.5)
+            source_val = (req.source or ("osu" if chart_id.startswith("osu_") else "catalog")).strip()
+            source_name_val = (req.source_name or ("osu!" if chart_id.startswith("osu_") else "Catálogo")).strip()
+            dl_url = req.download_url or ""
+            md5_val = req.md5 or ""
+            diff_id_val = req.diff_id or ""
+
+            cur.execute("""
+                INSERT INTO catalog_charts (id, title, artist, difficulty_name, stars, source, source_name, download_url, md5, diff_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    title = COALESCE(NULLIF(excluded.title, ''), catalog_charts.title),
+                    artist = COALESCE(NULLIF(excluded.artist, ''), catalog_charts.artist),
+                    difficulty_name = COALESCE(NULLIF(excluded.difficulty_name, ''), catalog_charts.difficulty_name),
+                    stars = COALESCE(excluded.stars, catalog_charts.stars),
+                    source = COALESCE(NULLIF(excluded.source, ''), catalog_charts.source),
+                    source_name = COALESCE(NULLIF(excluded.source_name, ''), catalog_charts.source_name),
+                    download_url = COALESCE(NULLIF(excluded.download_url, ''), catalog_charts.download_url),
+                    md5 = COALESCE(NULLIF(excluded.md5, ''), catalog_charts.md5),
+                    diff_id = COALESCE(NULLIF(excluded.diff_id, ''), catalog_charts.diff_id)
+            """, (chart_id, song_title, song_artist, diff_name, stars_val, source_val, source_name_val, dl_url, md5_val, diff_id_val))
+
+            # Insertar o actualizar voto del usuario
+            cur.execute("""
+                INSERT OR REPLACE INTO chart_ratings (chart_id, user_id, rating, sync_pct, created_at)
+                VALUES (?, ?, ?, ?, ?)
+            """, (chart_id, user_id, rating, sync_pct, now_str))
+
+            # Recalcular métricas agregadas
+            cur.execute("""
+                SELECT COUNT(*) as total_votes,
+                       AVG(rating) as avg_rating,
+                       AVG(sync_pct) as avg_sync
+                FROM chart_ratings
+                WHERE chart_id = ?
+            """, (chart_id,))
+            agg = cur.fetchone()
+
+            new_votes = agg["total_votes"]
+            new_rating_avg = round(float(agg["avg_rating"] or rating), 2)
+            new_sync_avg = round(float(agg["avg_sync"] or sync_pct), 1)
+
+            # Si una pista de catálogo tiene 2 o más votos y promedio < 2.0, se retira de la lista destacada
+            if new_votes >= 2 and new_rating_avg < 2.0:
+                cur.execute("DELETE FROM catalog_charts WHERE id = ?", (chart_id,))
                 cur.execute("DELETE FROM chart_ratings WHERE chart_id = ?", (chart_id,))
-                cur.execute("DELETE FROM song_scores WHERE chart_id = ?", (chart_id,))
-
-                # Limpieza de archivos de audio y notas
-                for fname in [chart_info["audio_filename"], chart_info["chart_filename"]]:
-                    if fname:
-                        fpath = os.path.join(COMMUNITY_UPLOAD_DIR, fname)
-                        if os.path.exists(fpath):
-                            try:
-                                os.remove(fpath)
-                            except Exception:
-                                pass
-
                 conn.commit()
-
                 return {
                     "status": "deleted_low_rating",
                     "chart_id": chart_id,
                     "rating_avg": new_rating_avg,
                     "votes_count": new_votes,
                     "deleted": True,
-                    "message": f"La pista ha sido retirada de la comunidad por tener una media de {new_rating_avg}★ (inferior a 2★) tras {new_votes} votos."
+                    "is_community": False,
+                    "message": f"La pista ha sido retirada de destacados por tener una media de {new_rating_avg}★ tras {new_votes} votos."
                 }
 
-        cur.execute("""
-            UPDATE community_charts
-            SET rating_avg = ?, votes_count = ?, sync_avg = ?, sync_votes_count = ?
-            WHERE id = ?
-        """, (new_rating_avg, new_votes, new_sync_avg, new_votes, chart_id))
+            cur.execute("""
+                UPDATE catalog_charts
+                SET rating_avg = ?, votes_count = ?, sync_avg = ?
+                WHERE id = ?
+            """, (new_rating_avg, new_votes, new_sync_avg, chart_id))
 
-        conn.commit()
+            conn.commit()
 
-    return {
-        "status": "success",
-        "chart_id": chart_id,
-        "rating_avg": new_rating_avg,
-        "votes_count": new_votes,
-        "deleted": False,
-        "message": f"¡Gracias por calificar la pista con {rating}★!"
-    }
+            return {
+                "status": "success",
+                "chart_id": chart_id,
+                "rating_avg": new_rating_avg,
+                "votes_count": new_votes,
+                "deleted": False,
+                "is_community": False,
+                "message": f"¡Gracias por calificar la pista con {rating}★!"
+            }
 
 
+@router.get("/featured")
 @router.get("/featured-daily")
 async def get_featured_daily_chart():
     """
-    Calcula las 3 Canciones Destacadas de Hoy (Desafíos Diarios con 𝄞 x2 Claves):
-    - Selecciona las 3 pistas comunitarias con mayor valoración y votos.
-    - Fallback: 3 pistas de muestra de alta calidad con bonificación x2.
+    Calcula las Canciones Destacadas de Hoy (Desafíos Diarios con 𝄞 x2 Claves):
+    - Selecciona las pistas con mayor valoración y votos combinando comunidad y catálogo.
     """
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute("""
-            SELECT * FROM community_charts
+            SELECT id, title, artist, creator_id, creator_name, bpm, offset_ms,
+                   difficulty_name, stars, scroll_duration_ms, notes_count,
+                   rating_avg, votes_count, sync_avg,
+                   1 as is_community, 'community' as source, 'Comunidad' as source_name,
+                   '' as download_url, '' as md5, '' as diff_id
+            FROM community_charts
             WHERE votes_count > 0 AND rating_avg > 0
+
+            UNION ALL
+
+            SELECT id, title, artist, 'catalog' as creator_id, source_name as creator_name,
+                   120.0 as bpm, 0 as offset_ms, difficulty_name, stars, 1400 as scroll_duration_ms,
+                   100 as notes_count, rating_avg, votes_count, sync_avg,
+                   0 as is_community, source, source_name, download_url, md5, diff_id
+            FROM catalog_charts
+            WHERE votes_count > 0 AND rating_avg > 0
+
             ORDER BY rating_avg DESC, votes_count DESC
-            LIMIT 3
+            LIMIT 6
         """)
         rows = cur.fetchall()
 
     featured_list = []
     for r in rows:
         cid = r["id"]
+        is_comm = bool(r["is_community"])
         featured_list.append({
             "id": cid,
             "title": r["title"],
@@ -662,11 +787,16 @@ async def get_featured_daily_chart():
             "rating_avg": round(float(r["rating_avg"] or 0.0), 1),
             "votes_count": int(r["votes_count"] or 0),
             "sync_avg": round(float(r["sync_avg"] or 100.0), 1),
-            "audio_url": f"/api/v1/community/charts/{cid}/audio",
-            "chart_url": f"/api/v1/community/charts/{cid}/chart",
+            "audio_url": f"/api/v1/community/charts/{cid}/audio" if is_comm else "",
+            "chart_url": f"/api/v1/community/charts/{cid}/chart" if is_comm else "",
+            "download_url": r["download_url"],
+            "md5": r["md5"],
+            "diff_id": r["diff_id"],
             "bonus_clefs_multiplier": 2,
             "is_daily_featured": True,
-            "source": "community"
+            "is_community": is_comm,
+            "source": r["source"],
+            "source_name": r["source_name"]
         })
 
     if not featured_list:
