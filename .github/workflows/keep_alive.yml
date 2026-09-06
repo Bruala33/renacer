@@ -1,0 +1,15 @@
+﻿name: Keep Render Server Awake
+
+on:
+  schedule:
+    # Se ejecuta cada 12 minutos para evitar que Render entre en reposo (15 min inactividad)
+    - cron: '*/12 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Server
+        run: |
+          curl -s -f "https://renacer.onrender.com/ping" || curl -s "https://renacer.onrender.com/" || true

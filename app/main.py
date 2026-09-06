@@ -64,6 +64,8 @@ async def serve_root_index():
     raise HTTPException(status_code=404, detail="index.html no encontrado.")
 
 
+@app.get("/ping", tags=["Health"])
+@app.get("/health", tags=["Health"])
 @app.get("/api/v1/health", tags=["Health"])
 async def health_check() -> Dict[str, Any]:
     """
