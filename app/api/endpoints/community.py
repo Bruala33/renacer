@@ -20,6 +20,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 COMMUNITY_DATA_DIR = os.path.join(BASE_DIR, "data", "community")
 COMMUNITY_UPLOADS_DIR = os.path.join(BASE_DIR, "uploads", "community")
 DB_PATH = os.path.join(COMMUNITY_DATA_DIR, "community.db")
+COMMUNITY_BACKUP_FILE = os.path.join(COMMUNITY_DATA_DIR, "community_backup.json")
 
 os.makedirs(COMMUNITY_DATA_DIR, exist_ok=True)
 os.makedirs(COMMUNITY_UPLOADS_DIR, exist_ok=True)
@@ -29,6 +30,139 @@ def get_db():
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def save_community_backup():
+    """
+    Guarda una instantánea completa de la comunidad en JSON para persistencia
+    entre redespliegues o reinicios de contenedores efímeros (Render).
+    """
+    try:
+        with get_db() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM creators")
+            creators = [dict(r) for r in cur.fetchall()]
+
+            cur.execute("SELECT * FROM community_charts")
+            charts = [dict(r) for r in cur.fetchall()]
+
+            cur.execute("SELECT * FROM catalog_charts")
+            catalog = [dict(r) for r in cur.fetchall()]
+
+            cur.execute("SELECT * FROM chart_ratings")
+            ratings = [dict(r) for r in cur.fetchall()]
+
+            cur.execute("SELECT * FROM song_scores")
+            scores = [dict(r) for r in cur.fetchall()]
+
+            backup_data = {
+                "version": 1,
+                "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                "creators": creators,
+                "community_charts": charts,
+                "catalog_charts": catalog,
+                "chart_ratings": ratings,
+                "song_scores": scores
+            }
+
+            tmp_file = COMMUNITY_BACKUP_FILE + ".tmp"
+            with open(tmp_file, "w", encoding="utf-8") as f:
+                json.dump(backup_data, f, ensure_ascii=False, indent=2)
+            shutil.move(tmp_file, COMMUNITY_BACKUP_FILE)
+            logger.info(f"Respaldo de comunidad guardado exitosamente ({len(charts)} pistas).")
+    except Exception as e:
+        logger.warning(f"Error al guardar respaldo de comunidad: {e}")
+
+
+def restore_community_backup(conn):
+    """
+    Restaura las pistas, creadores y valoraciones desde community_backup.json si la base de datos está vacía.
+    """
+    if not os.path.exists(COMMUNITY_BACKUP_FILE):
+        return
+    try:
+        with open(COMMUNITY_BACKUP_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        cur = conn.cursor()
+
+        for c in data.get("creators", []):
+            cur.execute("""
+                INSERT OR IGNORE INTO creators (id, name, followers_count, created_at)
+                VALUES (?, ?, ?, ?)
+            """, (c.get("id"), c.get("name"), c.get("followers_count", 0), c.get("created_at")))
+
+        restored_count = 0
+        for ch in data.get("community_charts", []):
+            cur.execute("""
+                INSERT OR REPLACE INTO community_charts (
+                    id, title, artist, creator_id, creator_name, bpm, offset_ms,
+                    difficulty_name, stars, scroll_duration_ms, notes_count,
+                    audio_filename, chart_filename, rating_avg, votes_count,
+                    sync_avg, sync_votes_count, created_at, chart_json, audio_base64
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                ch.get("id"), ch.get("title"), ch.get("artist"), ch.get("creator_id"), ch.get("creator_name"),
+                float(ch.get("bpm") or 120.0), int(ch.get("offset_ms") or 0), str(ch.get("difficulty_name") or "Media"),
+                float(ch.get("stars") or 3.5), int(ch.get("scroll_duration_ms") or 1400), int(ch.get("notes_count") or 0),
+                ch.get("audio_filename") or "audio.mp3", ch.get("chart_filename") or "chart.json",
+                float(ch.get("rating_avg") or 5.0), int(ch.get("votes_count") or 1),
+                float(ch.get("sync_avg") or 100.0), int(ch.get("sync_votes_count") or 1),
+                ch.get("created_at"), ch.get("chart_json") or "", ch.get("audio_base64") or ""
+            ))
+            restored_count += 1
+
+            # Reconstruir ficheros en disco si es necesario
+            chart_id = ch.get("id")
+            if chart_id:
+                chart_dir = os.path.join(COMMUNITY_UPLOADS_DIR, chart_id)
+                os.makedirs(chart_dir, exist_ok=True)
+                if ch.get("chart_json"):
+                    dest_chart = os.path.join(chart_dir, ch.get("chart_filename") or "chart.json")
+                    if not os.path.exists(dest_chart) or os.path.getsize(dest_chart) == 0:
+                        try:
+                            with open(dest_chart, "w", encoding="utf-8") as cf:
+                                cf.write(ch["chart_json"])
+                        except Exception:
+                            pass
+                if ch.get("audio_base64"):
+                    dest_audio = os.path.join(chart_dir, ch.get("audio_filename") or "audio.mp3")
+                    if not os.path.exists(dest_audio) or os.path.getsize(dest_audio) == 0:
+                        try:
+                            with open(dest_audio, "wb") as af:
+                                af.write(base64.b64decode(ch["audio_base64"]))
+                        except Exception:
+                            pass
+
+        for cat in data.get("catalog_charts", []):
+            cur.execute("""
+                INSERT OR REPLACE INTO catalog_charts (
+                    id, title, artist, difficulty_name, stars, source, source_name,
+                    download_url, md5, diff_id, rating_avg, votes_count, sync_avg, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                cat.get("id"), cat.get("title"), cat.get("artist"), cat.get("difficulty_name"),
+                float(cat.get("stars") or 3.5), cat.get("source"), cat.get("source_name"),
+                cat.get("download_url"), cat.get("md5"), cat.get("diff_id"),
+                float(cat.get("rating_avg") or 0.0), int(cat.get("votes_count") or 0),
+                float(cat.get("sync_avg") or 100.0), cat.get("created_at")
+            ))
+
+        for r in data.get("chart_ratings", []):
+            cur.execute("""
+                INSERT OR REPLACE INTO chart_ratings (chart_id, user_id, rating, sync_pct, created_at)
+                VALUES (?, ?, ?, ?, ?)
+            """, (r.get("chart_id"), r.get("user_id"), int(r.get("rating") or 5), float(r.get("sync_pct") or 100.0), r.get("created_at")))
+
+        for s in data.get("song_scores", []):
+            cur.execute("""
+                INSERT OR REPLACE INTO song_scores (chart_id, player_name, score, max_combo, stars, accuracy_pct, medal_tier, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (s.get("chart_id"), s.get("player_name"), int(s.get("score") or 0), int(s.get("max_combo") or 0), int(s.get("stars") or 0), float(s.get("accuracy_pct") or 100.0), s.get("medal_tier"), s.get("created_at")))
+
+        conn.commit()
+        logger.info(f"Respaldo comunitario restaurado ({restored_count} pistas comunitarias recuperadas).")
+    except Exception as e:
+        logger.warning(f"Error restaurando respaldo comunitario: {e}")
 
 
 def init_db():
@@ -143,6 +277,11 @@ def init_db():
         cursor.execute("DELETE FROM community_charts WHERE id LIKE 'comm_galaxy%' OR id LIKE 'comm_cyber%' OR id LIKE 'comm_moonlight%'")
         cursor.execute("DELETE FROM creators WHERE id IN ('cr_master', 'cr_neon', 'cr_chopin')")
         conn.commit()
+
+        # Si la base de datos está vacía, intentar restaurar desde el respaldo JSON versionado
+        cursor.execute("SELECT COUNT(*) as c FROM community_charts")
+        if cursor.fetchone()["c"] == 0:
+            restore_community_backup(conn)
 
 
 init_db()
@@ -278,6 +417,8 @@ async def publish_community_chart(
             VALUES (?, ?, 5, 100.0, ?)
         """, (chart_id, cid, now_str))
         conn.commit()
+
+    save_community_backup()
 
     return {
         "status": "success",
@@ -626,6 +767,7 @@ async def rate_community_chart(chart_id: str, req: RateChartRequest):
                                     pass
 
                     conn.commit()
+                    save_community_backup()
 
                     return {
                         "status": "deleted_low_rating",
@@ -644,6 +786,7 @@ async def rate_community_chart(chart_id: str, req: RateChartRequest):
             """, (new_rating_avg, new_votes, new_sync_avg, new_votes, chart_id))
 
             conn.commit()
+            save_community_backup()
 
             return {
                 "status": "success",
@@ -707,6 +850,7 @@ async def rate_community_chart(chart_id: str, req: RateChartRequest):
                 cur.execute("DELETE FROM catalog_charts WHERE id = ?", (chart_id,))
                 cur.execute("DELETE FROM chart_ratings WHERE chart_id = ?", (chart_id,))
                 conn.commit()
+                save_community_backup()
                 return {
                     "status": "deleted_low_rating",
                     "chart_id": chart_id,
@@ -724,6 +868,7 @@ async def rate_community_chart(chart_id: str, req: RateChartRequest):
             """, (new_rating_avg, new_votes, new_sync_avg, chart_id))
 
             conn.commit()
+            save_community_backup()
 
             return {
                 "status": "success",
@@ -909,9 +1054,16 @@ async def submit_chart_score(chart_id: str, data: SubmitScoreRequest):
             VALUES (?, ?, ?, ?, ?, ?, ?)
         """, (chart_id, clean_name, data.score, data.max_combo, data.stars, data.accuracy_pct, data.medal_tier))
         conn.commit()
+        save_community_backup()
 
         cur.execute("""
-            SELECT COUNT(*) as rank FROM song_scores WHERE chart_id = ? AND score >= ?
+            WITH RankedScores AS (
+                SELECT player_name, MAX(score) as best_score
+                FROM song_scores
+                WHERE chart_id = ?
+                GROUP BY LOWER(TRIM(player_name))
+            )
+            SELECT COUNT(*) as rank FROM RankedScores WHERE best_score >= ?
         """, (chart_id, data.score))
         rank = cur.fetchone()["rank"]
 
@@ -928,14 +1080,24 @@ async def submit_chart_score(chart_id: str, data: SubmitScoreRequest):
 async def get_chart_leaderboard(chart_id: str, limit: int = Query(20, ge=1, le=100)):
     """
     Obtiene las mejores puntuaciones registradas para una pista específica.
+    Cada jugador aparece una única vez con su mejor resultado.
     """
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute("""
+            WITH RankedScores AS (
+                SELECT player_name, score, max_combo, stars, accuracy_pct, medal_tier, created_at,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY LOWER(TRIM(player_name))
+                           ORDER BY score DESC, accuracy_pct DESC, id DESC
+                       ) as rn
+                FROM song_scores
+                WHERE chart_id = ?
+            )
             SELECT player_name, score, max_combo, stars, accuracy_pct, medal_tier, created_at
-            FROM song_scores
-            WHERE chart_id = ?
-            ORDER BY score DESC
+            FROM RankedScores
+            WHERE rn = 1
+            ORDER BY score DESC, accuracy_pct DESC
             LIMIT ?
         """, (chart_id, limit))
         rows = [dict(r) for r in cur.fetchall()]

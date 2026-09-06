@@ -90,7 +90,7 @@
       </div>
 
       <!-- Visual Diagnostic Terminal (Real-time Step-by-Step Log) -->
-      <div id="diagnosticTerminal" class="w-full max-w-[340px] mx-auto bg-black/90 border border-white/20 rounded-2xl p-2.5 shadow-2xl backdrop-blur-md text-left font-mono text-[10px] space-y-1.5">
+      <div id="diagnosticTerminal" class="hidden w-full max-w-[340px] mx-auto bg-black/90 border border-white/20 rounded-2xl p-2.5 shadow-2xl backdrop-blur-md text-left font-mono text-[10px] space-y-1.5">
         <div class="flex items-center justify-between border-b border-white/10 pb-1">
           <div class="flex items-center gap-1.5">
             <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -1383,7 +1383,7 @@
       </div>
 
       <!-- 5 Stars with High-Contrast Silver / Gold / Platinum States -->
-      <div id="resStars">
+      <div id="resStars" class="relative z-30 flex justify-center items-center gap-2 my-2.5">
         <span class="star-icon">★</span>
         <span class="star-icon">★</span>
         <span class="star-icon">★</span>
@@ -3382,7 +3382,7 @@ function switchMainTab(tab) {
         const term = document.getElementById('diagnosticTerminal');
         const logsEl = document.getElementById('diagnosticLogs');
         const errBox = document.getElementById('diagnosticErrorBox');
-        if (term) term.classList.remove('hidden');
+        if (term) term.classList.add('hidden');
         if (logsEl) logsEl.innerHTML = '';
         if (errBox) errBox.classList.add('hidden');
         this.updateTimer();
@@ -3493,7 +3493,7 @@ function switchMainTab(tab) {
 
       loadTitle.innerText = chartItem.title;
       loadArtist.innerText = `${chartItem.artist} (${chartItem.source_name || 'Comunidad'})`;
-      loadStatus.innerText = 'Iniciando descarga y diagnóstico...';
+      loadStatus.innerText = 'Preparando canción...';
       overlay.classList.add('active');
 
       // Inicializar logger visual de diagnóstico
@@ -3991,7 +3991,7 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       // Stars rendering with silver / gold / platinum states
       const resStarsEl = document.getElementById('resStars');
       if (resStarsEl) {
-        resStarsEl.className = `flex justify-center items-center gap-1.5 text-2xl ${finalMedal || ''}`;
+        resStarsEl.className = `relative z-30 flex justify-center items-center gap-2 my-2.5 text-2xl ${finalMedal || ''}`;
         const starEls = resStarsEl.querySelectorAll('.star-icon');
         starEls.forEach((el, idx) => {
           el.className = 'star-icon';
@@ -5395,145 +5395,218 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       loadCommunityCharts();
     }
 
-    async function autoSyncChartToServerIfMissing(ls) {
-      try {
-        const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
-        if (!baseUrl || !ls || !ls.id) return;
-        if (!window._syncingCharts) window._syncingCharts = {};
-        if (window._syncingCharts[ls.id]) return;
-        window._syncingCharts[ls.id] = true;
-
-        if (typeof IndexedDBStorage !== 'undefined') {
-          const stored = await IndexedDBStorage.getChart(ls.id);
-          const cData = stored?.unpackedData || stored?.chartData;
-          if (stored && cData) {
-            const formData = new FormData();
-            formData.append('title', ls.title || 'Pista Comunitaria');
-            formData.append('artist', ls.artist || 'Comunidad');
-            formData.append('creator_name', ls.creator_name || 'Creador');
-            formData.append('creator_id', ls.creator_id || '');
-            formData.append('bpm', ls.bpm || 120);
-            formData.append('offset_ms', ls.offset_ms || 0);
-            formData.append('difficulty_name', ls.difficulty_name || 'Media');
-            formData.append('stars', ls.stars || 3.5);
-            formData.append('scroll_duration_ms', ls.scroll_duration_ms || 1400);
-            formData.append('chart_json', JSON.stringify(cData));
-            if (stored.audioBlob) {
-              formData.append('audio_file', stored.audioBlob, 'audio.mp3');
-            }
-            const res = await fetch(`${baseUrl}/api/v1/community/charts/publish`, {
-              method: 'POST',
-              body: formData
-            });
-            if (res.ok) {
-              const pubData = await res.json();
-              console.log(`[AutoSync] Pista comunitaria ${ls.id} restaurada exitosamente en el servidor como ${pubData.chart_id}.`);
-              try {
-                let localCommunity = JSON.parse(localStorage.getItem('beatstar_community_local_charts') || '[]');
-                localCommunity = localCommunity.filter(c => c.id !== ls.id);
-                localStorage.setItem('beatstar_community_local_charts', JSON.stringify(localCommunity));
-              } catch (e) {}
-
-              if (pubData && pubData.chart_id && pubData.chart_id !== ls.id) {
-                await IndexedDBStorage.deleteChart(ls.id).catch(() => {});
-                await IndexedDBStorage.saveChart({
-                  id: pubData.chart_id,
-                  title: ls.title,
-                  artist: ls.artist,
-                  unpackedData: cData,
-                  chartData: cData,
-                  audioBlob: stored.audioBlob
-                }).catch(() => {});
-              }
-              setTimeout(() => { if (typeof loadCommunityCharts === 'function') loadCommunityCharts(); }, 800);
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('[AutoSync] Error restaurando pista en el servidor:', err);
-      }
-    }
-
-    async function loadCommunityCharts() {
-      const container = document.getElementById('communityResultsList');
-      if (!container) return;
-
-      container.innerHTML = `
-        <div class="p-6 text-center text-gray-400 space-y-2">
-          <svg class="animate-spin w-6 h-6 mx-auto text-cyan-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-          <p class="text-xs">Buscando en la nube comunitaria...</p>
-        </div>
-      `;
-
-      const q = document.getElementById('communitySearchInput')?.value.trim() || '';
-      const followed = getFollowedCreators().join(',');
-
-      const params = new URLSearchParams();
-      if (q) params.set('q', q);
-      if (communityDiffFilter) params.set('difficulty', communityDiffFilter);
-      if (communitySort) params.set('sort', communitySort);
-      if (followed) params.set('followed_creators', followed);
-
-      let songs = [];
-      try {
-        const baseUrl = getApiBaseUrl();
-        if (baseUrl) {
-          const res = await fetch(`${baseUrl}/api/v1/community/charts/search?${params.toString()}`);
-          if (res.ok) {
-            songs = await res.json();
-          }
-        }
-      } catch (err) {
-        console.warn('Conexión con nube comunitaria no disponible:', err);
-      }
-
-      // Mezclar con canciones locales publicadas y limpiar duplicados que ya existan en la nube
-      try {
-        const localCommunity = JSON.parse(localStorage.getItem('beatstar_community_local_charts') || '[]');
-        let updatedLocalCommunity = [];
-        let hasLocalChanges = false;
-
-        for (const ls of localCommunity) {
-          // Comprobar si ya existe en la nube (por ID idéntico o por título y artista coincidentes)
-          const alreadyInCloud = songs.some(s => 
-            s.id === ls.id || 
-            (s.title && ls.title && s.title.trim().toLowerCase() === ls.title.trim().toLowerCase() &&
-             s.artist && ls.artist && s.artist.trim().toLowerCase() === ls.artist.trim().toLowerCase())
-          );
-
-          if (alreadyInCloud) {
-            // Ya está en el servidor: limpiar duplicado local fantasma para no mostrar 2 canciones
-            hasLocalChanges = true;
-            if (ls.id && ls.id.startsWith('custom_') && typeof IndexedDBStorage !== 'undefined') {
-              IndexedDBStorage.deleteChart(ls.id).catch(() => {});
-            }
-            continue;
-          }
-
-          if (!q || (ls.title && ls.title.toLowerCase().includes(q.toLowerCase())) || (ls.artist && ls.artist.toLowerCase().includes(q.toLowerCase()))) {
-            if (!communityDiffFilter || ls.difficulty_name === communityDiffFilter) {
-              songs.unshift(ls);
-            }
-          }
-          updatedLocalCommunity.push(ls);
-          // Auto re-sincronizar al servidor en segundo plano si el backend se reinició
-          autoSyncChartToServerIfMissing(ls);
-        }
-
-        if (hasLocalChanges) {
-          localStorage.setItem('beatstar_community_local_charts', JSON.stringify(updatedLocalCommunity));
-        }
-      } catch (e) {}
-
-      // Si no hay datos (offline o primer inicio), usar semillas por defecto
-      if (!songs || songs.length === 0) {
-        if (typeof getSeedCommunityCharts === 'function') {
-          songs = getSeedCommunityCharts();
-        }
-      }
-
-      renderCommunitySongs(songs);
-    }
+    async function autoSyncChartToServerIfMissing(ls) {
+      try {
+        const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
+        if (!baseUrl || !ls || !ls.id) return;
+        if (!window._syncingCharts) window._syncingCharts = {};
+        if (window._syncingCharts[ls.id]) return;
+        window._syncingCharts[ls.id] = true;
+
+        if (typeof IndexedDBStorage !== 'undefined') {
+          let stored = await IndexedDBStorage.getChart(ls.id);
+          if (!stored) {
+            const allSaved = await IndexedDBStorage.getAllCharts();
+            stored = (allSaved || []).find(c => c.id === ls.id || (c.title && ls.title && c.title.trim().toLowerCase() === ls.title.trim().toLowerCase() && c.artist && ls.artist && c.artist.trim().toLowerCase() === ls.artist.trim().toLowerCase()));
+          }
+          const cData = stored?.unpackedData || stored?.chartData || ls.chartData || ls.unpackedData;
+          const audioBlob = stored?.audioBlob || ls.audioBlob;
+          if (cData) {
+            const formData = new FormData();
+            formData.append('title', ls.title || 'Pista Comunitaria');
+            formData.append('artist', ls.artist || 'Comunidad');
+            formData.append('creator_name', ls.creator_name || ls.creator || 'Creador');
+            formData.append('creator_id', ls.creator_id || '');
+            formData.append('bpm', ls.bpm || 120);
+            formData.append('offset_ms', ls.offset_ms || 0);
+            formData.append('difficulty_name', ls.difficulty_name || 'Media');
+            formData.append('stars', ls.stars || 3.5);
+            formData.append('scroll_duration_ms', ls.scroll_duration_ms || 1400);
+            formData.append('chart_json', JSON.stringify(cData));
+            if (audioBlob) {
+              formData.append('audio_file', audioBlob, 'audio.mp3');
+            }
+            const res = await fetch(`${baseUrl}/api/v1/community/charts/publish`, {
+              method: 'POST',
+              body: formData
+            });
+            if (res.ok) {
+              const pubData = await res.json();
+              const newId = pubData?.chart_id;
+              console.log(`[AutoSync] Pista comunitaria ${ls.title} restaurada en servidor como ${newId}.`);
+
+              if (newId) {
+                try {
+                  let myVault = JSON.parse(localStorage.getItem('beatstar_my_published_charts') || '[]');
+                  myVault = myVault.map(v => (v.id === ls.id || (v.title === ls.title && v.artist === ls.artist)) ? { ...v, id: newId } : v);
+                  localStorage.setItem('beatstar_my_published_charts', JSON.stringify(myVault));
+                } catch (e) {}
+
+                try {
+                  let localCommunity = JSON.parse(localStorage.getItem('beatstar_community_local_charts') || '[]');
+                  localCommunity = localCommunity.filter(c => c.id !== ls.id && !(c.title === ls.title && c.artist === ls.artist));
+                  localStorage.setItem('beatstar_community_local_charts', JSON.stringify(localCommunity));
+                } catch (e) {}
+
+                if (newId !== ls.id) {
+                  await IndexedDBStorage.deleteChart(ls.id).catch(() => {});
+                  await IndexedDBStorage.saveChart({
+                    id: newId,
+                    title: ls.title,
+                    artist: ls.artist,
+                    creator: ls.creator_name || ls.creator,
+                    creator_name: ls.creator_name || ls.creator,
+                    difficulty_name: ls.difficulty_name,
+                    stars: ls.stars,
+                    bpm: ls.bpm,
+                    source: 'community',
+                    source_name: 'Comunidad',
+                    is_community: true,
+                    unpackedData: cData,
+                    chartData: cData,
+                    audioBlob: audioBlob
+                  }, cData, audioBlob).catch(() => {});
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[AutoSync] Error restaurando pista en el servidor:', err);
+      }
+    }
+
+    async function loadCommunityCharts() {
+      const container = document.getElementById('communityResultsList');
+      if (!container) return;
+
+      container.innerHTML = `
+        <div class="p-6 text-center text-gray-400 space-y-2">
+          <svg class="animate-spin w-6 h-6 mx-auto text-cyan-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+          <p class="text-xs">Buscando en la nube comunitaria...</p>
+        </div>
+      `;
+
+      const q = document.getElementById('communitySearchInput')?.value.trim() || '';
+      const followed = getFollowedCreators().join(',');
+
+      const params = new URLSearchParams();
+      if (q) params.set('q', q);
+      if (communityDiffFilter && communityDiffFilter !== 'Todas') params.set('difficulty', communityDiffFilter);
+      if (communitySort) params.set('sort', communitySort);
+      if (followed) params.set('followed_creators', followed);
+
+      let songs = [];
+      try {
+        const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
+        if (baseUrl) {
+          const res = await fetch(`${baseUrl}/api/v1/community/charts/search?${params.toString()}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data)) {
+              songs = data;
+              if (songs.length > 0 && !q && (!communityDiffFilter || communityDiffFilter === 'Todas')) {
+                try {
+                  localStorage.setItem('beatstar_community_cache', JSON.stringify(songs));
+                } catch (e) {}
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Conexión con nube comunitaria no disponible:', err);
+      }
+
+      // 1. Si el backend está en frío, reiniciando o sin conexión, usar caché comunitaria
+      if ((!songs || songs.length === 0) && !q && (!communityDiffFilter || communityDiffFilter === 'Todas')) {
+        try {
+          const cached = JSON.parse(localStorage.getItem('beatstar_community_cache') || '[]');
+          if (Array.isArray(cached) && cached.length > 0) {
+            songs = cached;
+          }
+        } catch (e) {}
+      }
+
+      // 2. Recopilar candidatos de canciones comunitarias creadas localmente por el usuario
+      const localCandidates = [];
+      try {
+        const myVault = JSON.parse(localStorage.getItem('beatstar_my_published_charts') || '[]');
+        if (Array.isArray(myVault)) {
+          for (const item of myVault) {
+            if (item && item.title) localCandidates.push(item);
+          }
+        }
+      } catch (e) {}
+
+      try {
+        const localComm = JSON.parse(localStorage.getItem('beatstar_community_local_charts') || '[]');
+        if (Array.isArray(localComm)) {
+          for (const item of localComm) {
+            if (item && item.title && !localCandidates.some(c => c.id === item.id || (c.title === item.title && c.artist === item.artist))) {
+              localCandidates.push(item);
+            }
+          }
+        }
+      } catch (e) {}
+
+      // Rescatar cualquier pista comunitaria del usuario almacenada en IndexedDB
+      if (typeof IndexedDBStorage !== 'undefined') {
+        try {
+          const dbCharts = await IndexedDBStorage.getAllCharts();
+          for (const item of (dbCharts || [])) {
+            if (item && (item.is_community || item.source === 'community' || (item.id && item.id.startsWith('comm_')))) {
+              if (!localCandidates.some(c => c.id === item.id || (c.title === item.title && c.artist === item.artist))) {
+                localCandidates.push(item);
+              }
+            }
+          }
+        } catch (e) {}
+      }
+
+      // 3. Comprobar pistas locales: si faltan en la nube, mostrarlas y sincronizarlas de inmediato
+      for (const lc of localCandidates) {
+        if (!lc || !lc.title) continue;
+        const alreadyInCloud = songs.some(s =>
+          s.id === lc.id ||
+          (s.title && lc.title && s.title.trim().toLowerCase() === lc.title.trim().toLowerCase() &&
+           s.artist && lc.artist && s.artist.trim().toLowerCase() === lc.artist.trim().toLowerCase())
+        );
+
+        if (alreadyInCloud) {
+          if (lc.id && lc.id.startsWith('custom_') && typeof IndexedDBStorage !== 'undefined') {
+            IndexedDBStorage.deleteChart(lc.id).catch(() => {});
+          }
+        } else {
+          const matchesQ = !q || (lc.title && lc.title.toLowerCase().includes(q.toLowerCase())) || (lc.artist && lc.artist.toLowerCase().includes(q.toLowerCase()));
+          const matchesDiff = !communityDiffFilter || communityDiffFilter === 'Todas' || lc.difficulty_name === communityDiffFilter;
+          if (matchesQ && matchesDiff) {
+            songs.unshift(lc);
+          }
+          autoSyncChartToServerIfMissing(lc);
+        }
+      }
+
+      // 4. Deduplicación estricta: NUNCA mostrar 2 canciones con el mismo título y artista
+      const uniqueMap = new Map();
+      for (const s of songs) {
+        if (!s || !s.title) continue;
+        const key = `${(s.title || '').trim().toLowerCase()}|${(s.artist || '').trim().toLowerCase()}`;
+        const existing = uniqueMap.get(key);
+        if (!existing) {
+          uniqueMap.set(key, s);
+        } else {
+          if (s.id && s.id.startsWith('comm_') && (!existing.id || !existing.id.startsWith('comm_'))) {
+            uniqueMap.set(key, s);
+          } else if ((s.votes_count || 0) > (existing.votes_count || 0)) {
+            uniqueMap.set(key, s);
+          }
+        }
+      }
+      songs = Array.from(uniqueMap.values());
+
+      renderCommunitySongs(songs);
+    }
+
     function renderCommunitySongs(songs) {
       const container = document.getElementById('communityResultsList');
       if (!container) return;
@@ -5645,314 +5718,589 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       }
     }
 
-    async function playCommunitySong(chartId, isDailyFeatured = false) {
-      const overlay = document.getElementById('globalLoadingOverlay');
-      const loadTitle = document.getElementById('loadingOverlayTitle');
-      const loadStatus = document.getElementById('loadingOverlayStatus');
-
-      if (overlay) overlay.classList.add('active');
-      if (loadTitle) loadTitle.innerText = 'Cargando Pista Comunitaria';
-      if (loadStatus) loadStatus.innerText = 'Obteniendo audio y notas desde la nube...';
-
-      try {
-        // 1. Si la canción existe localmente en IndexedDB, cargar al instante offline
-        if (typeof IndexedDBStorage !== 'undefined') {
-          try {
-            const localItem = await IndexedDBStorage.getChart(chartId);
-            if (localItem && localItem.audioBlob && (localItem.chartData || localItem.unpackedData)) {
-              const cData = localItem.chartData || localItem.unpackedData;
-              cData.is_community = true;
-              cData.is_daily_featured = isDailyFeatured;
-              cData.source = 'community';
-              cData.communityChartId = chartId;
-              if (overlay) overlay.classList.remove('active');
-              startGame(cData, localItem.audioBlob, cData.metadata?.difficulty_name || 'Normal');
-              return;
-            }
-          } catch (e) {}
-        }
-
-        const baseUrl = getApiBaseUrl();
-        // Descargar el JSON del chart y el Audio en paralelo
-        const [chartRes, audioRes] = await Promise.all([
-          fetch(`${baseUrl}/api/v1/community/charts/${chartId}/chart`),
-          fetch(`${baseUrl}/api/v1/community/charts/${chartId}/audio`)
-        ]);
-
-        if (!chartRes.ok) throw new Error(`No se pudo cargar el mapa (${chartRes.status})`);
-        if (!audioRes.ok) throw new Error(`No se pudo cargar el audio (${audioRes.status})`);
-
-        const chartData = await chartRes.json();
-        const audioBlob = await audioRes.blob();
-
-        chartData.is_community = true;
-        chartData.is_daily_featured = isDailyFeatured;
-        chartData.source = 'community';
-        chartData.communityChartId = chartId;
-
-        if (overlay) overlay.classList.remove('active');
-        startGame(chartData, audioBlob, chartData.metadata?.difficulty_name || 'Normal');
-      } catch (err) {
-        console.error('Error al iniciar pista comunitaria:', err);
-        if (overlay) overlay.classList.remove('active');
-        showErrorToast('Error cargando pista comunitaria: ' + err.message);
-      }
-    }
-    function setPostGameRating(stars) {
-      postGameCurrentRating = Math.max(1, Math.min(5, parseInt(stars, 10) || 5));
-      updatePostGameRatingUI();
-    }
-
-    function setPostGameSync(pct) {
-      postGameCurrentSync = parseFloat(pct) || 100;
-    }
-
-    function updatePostGameRatingUI() {
-      const chartId = currentActiveBeatmap?.communityChartId || currentActiveBeatmap?.metadata?.id || currentActiveBeatmap?.id || 'song';
-      const userRatings = JSON.parse(localStorage.getItem('beatstar_user_ratings_map') || '{}');
-      const existingVote = (userRatings[chartId] !== undefined && userRatings[chartId] !== null)
-        ? userRatings[chartId]
-        : (JSON.parse(localStorage.getItem('beatstar_song_ratings') || '{}')[chartId]?.my_vote ?? null);
-      const isEditingVote = (existingVote !== null && existingVote !== undefined);
-
-      const valDisplay = document.getElementById('postGameRatingVal');
-      if (valDisplay) valDisplay.innerText = `${postGameCurrentRating} / 5 Estrellas`;
-
-      const starEls = document.querySelectorAll('#communityRatingStars span');
-      starEls.forEach((el, idx) => {
-        if (idx < postGameCurrentRating) {
-          el.className = 'cursor-pointer transition hover:scale-125 select-none text-amber-400';
-        } else {
-          el.className = 'cursor-pointer transition hover:scale-125 select-none text-gray-600';
-        }
-      });
-
-      const btn = document.getElementById('btnSubmitPostRating');
-      if (btn && !isSubmittingRating) {
-        btn.innerText = isEditingVote ? 'Actualizar Valoración' : 'Enviar Valoración';
-      }
-    }
-
-    async function submitPostGameRating() {
-      if (isSubmittingRating) return;
-      const chartId = currentActiveBeatmap?.communityChartId || currentActiveBeatmap?.metadata?.id || currentActiveBeatmap?.id || ('song_' + Date.now());
-
-      const userRatings = JSON.parse(localStorage.getItem('beatstar_user_ratings_map') || '{}');
-      const oldRating = (userRatings[chartId] !== undefined && userRatings[chartId] !== null) ? Number(userRatings[chartId]) : null;
-      const isEditing = (oldRating !== null && !isNaN(oldRating));
-
-      const btn = document.getElementById('btnSubmitPostRating');
-      if (btn) {
-        btn.disabled = true;
-        btn.innerText = isEditing ? 'Actualizando...' : 'Enviando...';
-      }
-      isSubmittingRating = true;
-
-      const userAnonId = localStorage.getItem('beatstar_player_id') || ('user_' + Math.floor(Math.random() * 1000000));
-      localStorage.setItem('beatstar_player_id', userAnonId);
-
-      const songTitle = currentActiveBeatmap?.metadata?.title || currentActiveBeatmap?.title || 'Canción';
-      const songArtist = currentActiveBeatmap?.metadata?.artist || currentActiveBeatmap?.artist || 'Artista';
-      const songDiff = currentActiveBeatmap?.metadata?.difficulty_name || currentActiveBeatmap?.difficulty_name || 'Normal';
-      const songStars = currentActiveBeatmap?.metadata?.stars || currentActiveBeatmap?.stars || 3.5;
-      const isComm = !!(currentActiveBeatmap?.is_community || currentActiveBeatmap?.source === 'community');
-
-      // 1. Guardar SIEMPRE en base de datos local (permite valorar canciones comunitarias y no comunitarias)
-      let localAvg = postGameCurrentRating;
-      let localVotes = 1;
-      let localSyncAvg = postGameCurrentSync;
-      try {
-        const songSource = currentActiveBeatmap?.source || (isComm ? 'community' : (chartId.startsWith('osu_') ? 'osu' : 'catalog'));
-        const songSourceName = currentActiveBeatmap?.source_name || (isComm ? 'Comunidad' : (chartId.startsWith('osu_') ? 'osu!' : 'Catálogo'));
-        const songDlUrl = currentActiveBeatmap?.download_url || '';
-        const songMd5 = currentActiveBeatmap?.md5 || '';
-        const songDiffId = currentActiveBeatmap?.diff_id || '';
-
-        const ratingsStore = JSON.parse(localStorage.getItem('beatstar_song_ratings') || '{}');
-        const prev = ratingsStore[chartId] || {
-          id: chartId,
-          title: songTitle,
-          artist: songArtist,
-          difficulty_name: songDiff,
-          stars: songStars,
-          is_community: isComm,
-          source: songSource,
-          source_name: songSourceName,
-          download_url: songDlUrl,
-          md5: songMd5,
-          diff_id: songDiffId,
-          count: 0,
-          totalStars: 0,
-          totalSync: 0
-        };
-
-        if (isEditing) {
-          // Solo editar la valoración existente: no sumar otro voto a la cuenta total
-          prev.totalStars = Math.max(0, (prev.totalStars || 0) - oldRating + postGameCurrentRating);
-          if (!prev.count || prev.count < 1) prev.count = 1;
-        } else {
-          // Primer voto del usuario para esta canción
-          prev.count = (prev.count || 0) + 1;
-          prev.totalStars = (prev.totalStars || 0) + postGameCurrentRating;
-        }
-
-        prev.totalSync = (prev.totalSync || 0) + postGameCurrentSync;
-        prev.avgStars = parseFloat((prev.totalStars / prev.count).toFixed(1));
-        prev.avgSync = Math.round(prev.totalSync / prev.count);
-        prev.my_vote = postGameCurrentRating;
-        prev.lastRated = Date.now();
-        prev.title = songTitle;
-        prev.artist = songArtist;
-        prev.difficulty_name = songDiff;
-        prev.stars = songStars;
-        prev.is_community = isComm;
-        prev.source = songSource;
-        prev.source_name = songSourceName;
-        prev.download_url = songDlUrl;
-        prev.md5 = songMd5;
-        prev.diff_id = songDiffId;
-
-        // Registrar voto en mapa de usuario
-        userRatings[chartId] = postGameCurrentRating;
-        localStorage.setItem('beatstar_user_ratings_map', JSON.stringify(userRatings));
-
-        // Si la pista comunitaria recibe 2 o más votos y su media es inferior a 2 estrellas,
-        // se elimina de la lista de canciones y se notifica al creador
-        if (prev.count >= 2 && prev.avgStars < 2.0 && prev.is_community) {
-          delete ratingsStore[chartId];
-          localStorage.setItem('beatstar_song_ratings', JSON.stringify(ratingsStore));
-          if (typeof IndexedDBStorage !== 'undefined') {
-            IndexedDBStorage.deleteChart(chartId).catch(() => {});
-          }
-
-          const localNotifs = JSON.parse(localStorage.getItem('beatstar_creator_notifications') || '[]');
-          localNotifs.push({
-            chart_id: chartId,
-            chart_title: songTitle,
-            message: `Tu pista '${songTitle}' ha sido retirada de la comunidad automáticamente al recibir una valoración media de ${prev.avgStars}★ tras ${prev.count} valoraciones (mínimo requerido: 2.0★).`,
-            is_read: false,
-            created_at: new Date().toISOString()
-          });
-          localStorage.setItem('beatstar_creator_notifications', JSON.stringify(localNotifs));
-        } else {
-          ratingsStore[chartId] = prev;
-          localStorage.setItem('beatstar_song_ratings', JSON.stringify(ratingsStore));
-        }
-
-        localAvg = prev.avgStars;
-        localVotes = prev.count;
-        localSyncAvg = prev.avgSync;
-      } catch (e) {
-        console.warn('Error guardando rating local:', e);
-      }
-
-      // 2. Intentar enviar a la nube si hay backend conectado
-      let wasDeletedFromCloud = false;
-      try {
-        const baseUrl = getApiBaseUrl();
-        if (baseUrl) {
-          const res = await fetch(`${baseUrl}/api/v1/community/charts/${encodeURIComponent(chartId)}/rate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              rating: postGameCurrentRating,
-              sync_pct: postGameCurrentSync,
-              user_id: userAnonId,
-              title: songTitle,
-              artist: songArtist,
-              difficulty_name: songDiff,
-              stars: songStars,
-              source: currentActiveBeatmap?.source || (isComm ? 'community' : (chartId.startsWith('osu_') ? 'osu' : 'catalog')),
-              source_name: currentActiveBeatmap?.source_name || (isComm ? 'Comunidad' : (chartId.startsWith('osu_') ? 'osu!' : 'Catálogo')),
-              download_url: currentActiveBeatmap?.download_url || '',
-              md5: currentActiveBeatmap?.md5 || '',
-              diff_id: currentActiveBeatmap?.diff_id || ''
-            })
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.deleted) {
-              wasDeletedFromCloud = true;
-              localAvg = data.rating_avg;
-              localVotes = data.votes_count;
-              if (typeof IndexedDBStorage !== 'undefined') {
-                IndexedDBStorage.deleteChart(chartId).catch(() => {});
-              }
-            } else {
-              if (data.rating_avg) localAvg = data.rating_avg;
-              if (data.votes_count) localVotes = data.votes_count;
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('Subida cloud no disponible (calificación guardada en local):', err);
-      } finally {
-        isSubmittingRating = false;
-      }
-
-      const ratingSec = document.getElementById('resCommunityRatingSection');
-      if (wasDeletedFromCloud || (localVotes >= 2 && localAvg < 2.0)) {
-        showErrorToast('La pista ha sido retirada de la comunidad por baja puntuación media (< 2★).');
-        if (ratingSec) {
-          ratingSec.innerHTML = `
-            <div class="p-2.5 text-center text-rose-400 text-xs font-bold space-y-1 bg-rose-500/10 rounded-xl border border-rose-500/30">
-              <span>⚠️ Pista retirada de la comunidad</span>
-              <p class="text-[10px] text-gray-300">Ha sido eliminada de la lista pública al promediar ${localAvg}★ (menos de 2★) tras ${localVotes} valoraciones.</p>
-            </div>
-          `;
-        }
-        checkCreatorNotifications();
-      } else {
-        showSuccessToast(isEditing ? '¡Valoración actualizada con éxito!' : '¡Gracias por calificar!');
-        if (ratingSec) {
-          ratingSec.innerHTML = `
-            <div class="p-2 text-center text-emerald-400 text-xs font-bold space-y-1.5">
-              <div class="flex items-center justify-center gap-1">
-                <span>✓</span>
-                <span>${isEditing ? '¡Valoración actualizada con éxito!' : '¡Valoración registrada con éxito!'}</span>
-              </div>
-              <p class="text-[10px] text-gray-300">Tu voto: <span class="text-amber-400 font-black">⭐ ${postGameCurrentRating}/5</span> • Media: ⭐ ${localAvg} (${localVotes} ${localVotes === 1 ? 'voto' : 'votos'})</p>
-              <button onclick="window.reopenPostGameRating('${escapeHtml(chartId)}')" class="mt-1 px-3 py-1 rounded-lg text-[10px] font-bold text-cyan-300 bg-cyan-500/20 border border-cyan-400/40 hover:bg-cyan-500/30 transition cursor-pointer">
-                ✏️ Cambiar mi valoración
-              </button>
-            </div>
-          `;
-        }
-      }
-
-      // Actualizar inmediatamente las canciones destacadas en la pestaña Descubrir
-      loadDailyFeaturedSongs();
-    }
-
-    window.reopenPostGameRating = function(chartId) {
-      const commRatingSec = document.getElementById('resCommunityRatingSection');
-      if (!commRatingSec) return;
-      const userRatings = JSON.parse(localStorage.getItem('beatstar_user_ratings_map') || '{}');
-      const existingVote = (userRatings[chartId] !== undefined && userRatings[chartId] !== null)
-        ? Number(userRatings[chartId])
-        : (JSON.parse(localStorage.getItem('beatstar_song_ratings') || '{}')[chartId]?.my_vote ?? 5);
-
-      postGameCurrentRating = existingVote || 5;
-      commRatingSec.innerHTML = `
-        <div class="flex items-center justify-between px-1">
-          <span class="text-[10px] font-bold text-cyan-300 flex items-center gap-1">
-            <span>✏️</span> Tu Valoración (Editar):
-          </span>
-          <span id="postGameRatingVal" class="text-[10px] font-black text-amber-400">${postGameCurrentRating} / 5 Estrellas</span>
-        </div>
-        <div class="flex justify-center items-center gap-2 text-2xl py-0.5" id="communityRatingStars">
-          <span class="cursor-pointer transition hover:scale-125 select-none text-amber-400" onclick="setPostGameRating(1)">★</span>
-          <span class="cursor-pointer transition hover:scale-125 select-none text-amber-400" onclick="setPostGameRating(2)">★</span>
-          <span class="cursor-pointer transition hover:scale-125 select-none text-amber-400" onclick="setPostGameRating(3)">★</span>
-          <span class="cursor-pointer transition hover:scale-125 select-none text-amber-400" onclick="setPostGameRating(4)">★</span>
-          <span class="cursor-pointer transition hover:scale-125 select-none text-amber-400" onclick="setPostGameRating(5)">★</span>
-        </div>
-        <button id="btnSubmitPostRating" onclick="submitPostGameRating()" class="w-full py-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 rounded-xl text-xs font-black text-white shadow-md cursor-pointer transition active:scale-95">
-          Actualizar Valoración
-        </button>
-      `;
-      updatePostGameRatingUI();
-    };
+    async function playCommunitySong(chartId, isDailyFeatured = false) {
+      const overlay = document.getElementById('globalLoadingOverlay');
+      const loadTitle = document.getElementById('loadingOverlayTitle');
+      const loadStatus = document.getElementById('loadingOverlayStatus');
+
+      if (overlay) overlay.classList.add('active');
+      if (loadTitle) loadTitle.innerText = 'Cargando Pista Comunitaria';
+      if (loadStatus) loadStatus.innerText = 'Obteniendo audio y notas...';
+
+      try {
+        // 1. Si la canción existe localmente en IndexedDB, cargar al instante offline
+        if (typeof IndexedDBStorage !== 'undefined') {
+          try {
+            let localItem = await IndexedDBStorage.getChart(chartId);
+            if (!localItem) {
+              const allSaved = await IndexedDBStorage.getAllCharts();
+              localItem = (allSaved || []).find(c => c.id === chartId || c.communityChartId === chartId || (c.unpackedData && c.unpackedData.id === chartId));
+            }
+            if (localItem && localItem.audioBlob && (localItem.chartData || localItem.unpackedData)) {
+              const cData = localItem.chartData || localItem.unpackedData;
+              cData.is_community = true;
+              cData.is_daily_featured = isDailyFeatured;
+              cData.source = 'community';
+              cData.communityChartId = chartId;
+              if (overlay) overlay.classList.remove('active');
+              startGame(cData, localItem.audioBlob, cData.metadata?.difficulty_name || 'Normal');
+              return;
+            }
+          } catch (e) {}
+        }
+
+        const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
+        // Descargar el JSON del chart y el Audio en paralelo
+        const [chartRes, audioRes] = await Promise.all([
+          fetch(`${baseUrl}/api/v1/community/charts/${chartId}/chart`),
+          fetch(`${baseUrl}/api/v1/community/charts/${chartId}/audio`)
+        ]);
+
+        if (!chartRes.ok) throw new Error(`No se pudo cargar el mapa (${chartRes.status})`);
+        if (!audioRes.ok) throw new Error(`No se pudo cargar el audio (${audioRes.status})`);
+
+        const chartData = await chartRes.json();
+        const audioBlob = await audioRes.blob();
+
+        chartData.is_community = true;
+        chartData.is_daily_featured = isDailyFeatured;
+        chartData.source = 'community';
+        chartData.communityChartId = chartId;
+
+        // Guardar copia local en IndexedDB para disponibilidad offline y fluidez
+        if (typeof IndexedDBStorage !== 'undefined') {
+          IndexedDBStorage.saveChart({
+            id: chartId,
+            title: chartData.metadata?.title || 'Pista Comunitaria',
+            artist: chartData.metadata?.artist || 'Comunidad',
+            source: 'community',
+            source_name: 'Comunidad',
+            is_community: true,
+            chartData: chartData,
+            unpackedData: chartData,
+            audioBlob: audioBlob
+          }, chartData, audioBlob).catch(() => {});
+        }
+
+        if (overlay) overlay.classList.remove('active');
+        startGame(chartData, audioBlob, chartData.metadata?.difficulty_name || 'Normal');
+      } catch (err) {
+        console.error('Error al iniciar pista comunitaria:', err);
+        if (overlay) overlay.classList.remove('active');
+        showErrorToast('Error cargando pista comunitaria: ' + err.message);
+      }
+    }
+
+    function setPostGameRating(stars) {
+
+      postGameCurrentRating = Math.max(1, Math.min(5, parseInt(stars, 10) || 5));
+
+      updatePostGameRatingUI();
+
+    }
+
+
+
+    function setPostGameSync(pct) {
+
+      postGameCurrentSync = parseFloat(pct) || 100;
+
+    }
+
+
+
+    function updatePostGameRatingUI() {
+
+      const chartId = currentActiveBeatmap?.communityChartId || currentActiveBeatmap?.metadata?.id || currentActiveBeatmap?.id || 'song';
+
+      const userRatings = JSON.parse(localStorage.getItem('beatstar_user_ratings_map') || '{}');
+
+      const existingVote = (userRatings[chartId] !== undefined && userRatings[chartId] !== null)
+
+        ? userRatings[chartId]
+
+        : (JSON.parse(localStorage.getItem('beatstar_song_ratings') || '{}')[chartId]?.my_vote ?? null);
+
+      const isEditingVote = (existingVote !== null && existingVote !== undefined);
+
+
+
+      const valDisplay = document.getElementById('postGameRatingVal');
+
+      if (valDisplay) valDisplay.innerText = `${postGameCurrentRating} / 5 Estrellas`;
+
+
+
+      const starEls = document.querySelectorAll('#communityRatingStars span');
+
+      starEls.forEach((el, idx) => {
+
+        if (idx < postGameCurrentRating) {
+
+          el.className = 'cursor-pointer transition hover:scale-125 select-none text-amber-400';
+
+        } else {
+
+          el.className = 'cursor-pointer transition hover:scale-125 select-none text-gray-600';
+
+        }
+
+      });
+
+
+
+      const btn = document.getElementById('btnSubmitPostRating');
+
+      if (btn && !isSubmittingRating) {
+
+        btn.innerText = isEditingVote ? 'Actualizar Valoración' : 'Enviar Valoración';
+
+      }
+
+    }
+
+
+
+    async function submitPostGameRating() {
+
+      if (isSubmittingRating) return;
+
+      const chartId = currentActiveBeatmap?.communityChartId || currentActiveBeatmap?.metadata?.id || currentActiveBeatmap?.id || ('song_' + Date.now());
+
+
+
+      const userRatings = JSON.parse(localStorage.getItem('beatstar_user_ratings_map') || '{}');
+
+      const oldRating = (userRatings[chartId] !== undefined && userRatings[chartId] !== null) ? Number(userRatings[chartId]) : null;
+
+      const isEditing = (oldRating !== null && !isNaN(oldRating));
+
+
+
+      const btn = document.getElementById('btnSubmitPostRating');
+
+      if (btn) {
+
+        btn.disabled = true;
+
+        btn.innerText = isEditing ? 'Actualizando...' : 'Enviando...';
+
+      }
+
+      isSubmittingRating = true;
+
+
+
+      const userAnonId = localStorage.getItem('beatstar_player_id') || ('user_' + Math.floor(Math.random() * 1000000));
+
+      localStorage.setItem('beatstar_player_id', userAnonId);
+
+
+
+      const songTitle = currentActiveBeatmap?.metadata?.title || currentActiveBeatmap?.title || 'Canción';
+
+      const songArtist = currentActiveBeatmap?.metadata?.artist || currentActiveBeatmap?.artist || 'Artista';
+
+      const songDiff = currentActiveBeatmap?.metadata?.difficulty_name || currentActiveBeatmap?.difficulty_name || 'Normal';
+
+      const songStars = currentActiveBeatmap?.metadata?.stars || currentActiveBeatmap?.stars || 3.5;
+
+      const isComm = !!(currentActiveBeatmap?.is_community || currentActiveBeatmap?.source === 'community');
+
+
+
+      // 1. Guardar SIEMPRE en base de datos local (permite valorar canciones comunitarias y no comunitarias)
+
+      let localAvg = postGameCurrentRating;
+
+      let localVotes = 1;
+
+      let localSyncAvg = postGameCurrentSync;
+
+      try {
+
+        const songSource = currentActiveBeatmap?.source || (isComm ? 'community' : (chartId.startsWith('osu_') ? 'osu' : 'catalog'));
+
+        const songSourceName = currentActiveBeatmap?.source_name || (isComm ? 'Comunidad' : (chartId.startsWith('osu_') ? 'osu!' : 'Catálogo'));
+
+        const songDlUrl = currentActiveBeatmap?.download_url || '';
+
+        const songMd5 = currentActiveBeatmap?.md5 || '';
+
+        const songDiffId = currentActiveBeatmap?.diff_id || '';
+
+
+
+        const ratingsStore = JSON.parse(localStorage.getItem('beatstar_song_ratings') || '{}');
+
+        const prev = ratingsStore[chartId] || {
+
+          id: chartId,
+
+          title: songTitle,
+
+          artist: songArtist,
+
+          difficulty_name: songDiff,
+
+          stars: songStars,
+
+          is_community: isComm,
+
+          source: songSource,
+
+          source_name: songSourceName,
+
+          download_url: songDlUrl,
+
+          md5: songMd5,
+
+          diff_id: songDiffId,
+
+          count: 0,
+
+          totalStars: 0,
+
+          totalSync: 0
+
+        };
+
+
+
+        if (isEditing) {
+
+          // Solo editar la valoración existente: no sumar otro voto a la cuenta total
+
+          prev.totalStars = Math.max(0, (prev.totalStars || 0) - oldRating + postGameCurrentRating);
+
+          if (!prev.count || prev.count < 1) prev.count = 1;
+
+        } else {
+
+          // Primer voto del usuario para esta canción
+
+          prev.count = (prev.count || 0) + 1;
+
+          prev.totalStars = (prev.totalStars || 0) + postGameCurrentRating;
+
+        }
+
+
+
+        prev.totalSync = (prev.totalSync || 0) + postGameCurrentSync;
+
+        prev.avgStars = parseFloat((prev.totalStars / prev.count).toFixed(1));
+
+        prev.avgSync = Math.round(prev.totalSync / prev.count);
+
+        prev.my_vote = postGameCurrentRating;
+
+        prev.lastRated = Date.now();
+
+        prev.title = songTitle;
+
+        prev.artist = songArtist;
+
+        prev.difficulty_name = songDiff;
+
+        prev.stars = songStars;
+
+        prev.is_community = isComm;
+
+        prev.source = songSource;
+
+        prev.source_name = songSourceName;
+
+        prev.download_url = songDlUrl;
+
+        prev.md5 = songMd5;
+
+        prev.diff_id = songDiffId;
+
+
+
+        // Registrar voto en mapa de usuario
+
+        userRatings[chartId] = postGameCurrentRating;
+
+        localStorage.setItem('beatstar_user_ratings_map', JSON.stringify(userRatings));
+
+
+
+        // Si la pista comunitaria recibe 2 o más votos y su media es inferior a 2 estrellas,
+
+        // se elimina de la lista de canciones y se notifica al creador
+
+        if (prev.count >= 2 && prev.avgStars < 2.0 && prev.is_community) {
+
+          delete ratingsStore[chartId];
+
+          localStorage.setItem('beatstar_song_ratings', JSON.stringify(ratingsStore));
+
+          if (typeof IndexedDBStorage !== 'undefined') {
+
+            IndexedDBStorage.deleteChart(chartId).catch(() => {});
+
+          }
+
+
+
+          const localNotifs = JSON.parse(localStorage.getItem('beatstar_creator_notifications') || '[]');
+
+          localNotifs.push({
+
+            chart_id: chartId,
+
+            chart_title: songTitle,
+
+            message: `Tu pista '${songTitle}' ha sido retirada de la comunidad automáticamente al recibir una valoración media de ${prev.avgStars}★ tras ${prev.count} valoraciones (mínimo requerido: 2.0★).`,
+
+            is_read: false,
+
+            created_at: new Date().toISOString()
+
+          });
+
+          localStorage.setItem('beatstar_creator_notifications', JSON.stringify(localNotifs));
+
+        } else {
+
+          ratingsStore[chartId] = prev;
+
+          localStorage.setItem('beatstar_song_ratings', JSON.stringify(ratingsStore));
+
+        }
+
+
+
+        localAvg = prev.avgStars;
+
+        localVotes = prev.count;
+
+        localSyncAvg = prev.avgSync;
+
+      } catch (e) {
+
+        console.warn('Error guardando rating local:', e);
+
+      }
+
+
+
+      // 2. Intentar enviar a la nube si hay backend conectado
+
+      let wasDeletedFromCloud = false;
+
+      try {
+
+        const baseUrl = getApiBaseUrl();
+
+        if (baseUrl) {
+
+          const res = await fetch(`${baseUrl}/api/v1/community/charts/${encodeURIComponent(chartId)}/rate`, {
+
+            method: 'POST',
+
+            headers: { 'Content-Type': 'application/json' },
+
+            body: JSON.stringify({
+
+              rating: postGameCurrentRating,
+
+              sync_pct: postGameCurrentSync,
+
+              user_id: userAnonId,
+
+              title: songTitle,
+
+              artist: songArtist,
+
+              difficulty_name: songDiff,
+
+              stars: songStars,
+
+              source: currentActiveBeatmap?.source || (isComm ? 'community' : (chartId.startsWith('osu_') ? 'osu' : 'catalog')),
+
+              source_name: currentActiveBeatmap?.source_name || (isComm ? 'Comunidad' : (chartId.startsWith('osu_') ? 'osu!' : 'Catálogo')),
+
+              download_url: currentActiveBeatmap?.download_url || '',
+
+              md5: currentActiveBeatmap?.md5 || '',
+
+              diff_id: currentActiveBeatmap?.diff_id || ''
+
+            })
+
+          });
+
+          if (res.ok) {
+
+            const data = await res.json();
+
+            if (data.deleted) {
+
+              wasDeletedFromCloud = true;
+
+              localAvg = data.rating_avg;
+
+              localVotes = data.votes_count;
+
+              if (typeof IndexedDBStorage !== 'undefined') {
+
+                IndexedDBStorage.deleteChart(chartId).catch(() => {});
+
+              }
+
+            } else {
+
+              if (data.rating_avg) localAvg = data.rating_avg;
+
+              if (data.votes_count) localVotes = data.votes_count;
+
+            }
+
+          }
+
+        }
+
+      } catch (err) {
+
+        console.warn('Subida cloud no disponible (calificación guardada en local):', err);
+
+      } finally {
+
+        isSubmittingRating = false;
+
+      }
+
+
+
+      const ratingSec = document.getElementById('resCommunityRatingSection');
+
+      if (wasDeletedFromCloud || (localVotes >= 2 && localAvg < 2.0)) {
+
+        showErrorToast('La pista ha sido retirada de la comunidad por baja puntuación media (< 2★).');
+
+        if (ratingSec) {
+
+          ratingSec.innerHTML = `
+
+            <div class="p-2.5 text-center text-rose-400 text-xs font-bold space-y-1 bg-rose-500/10 rounded-xl border border-rose-500/30">
+
+              <span>⚠️ Pista retirada de la comunidad</span>
+
+              <p class="text-[10px] text-gray-300">Ha sido eliminada de la lista pública al promediar ${localAvg}★ (menos de 2★) tras ${localVotes} valoraciones.</p>
+
+            </div>
+
+          `;
+
+        }
+
+        checkCreatorNotifications();
+
+      } else {
+
+        showSuccessToast(isEditing ? '¡Valoración actualizada con éxito!' : '¡Gracias por calificar!');
+
+        if (ratingSec) {
+
+          ratingSec.innerHTML = `
+
+            <div class="p-2 text-center text-emerald-400 text-xs font-bold space-y-1.5">
+
+              <div class="flex items-center justify-center gap-1">
+
+                <span>✓</span>
+
+                <span>${isEditing ? '¡Valoración actualizada con éxito!' : '¡Valoración registrada con éxito!'}</span>
+
+              </div>
+
+              <p class="text-[10px] text-gray-300">Tu voto: <span class="text-amber-400 font-black">⭐ ${postGameCurrentRating}/5</span> • Media: ⭐ ${localAvg} (${localVotes} ${localVotes === 1 ? 'voto' : 'votos'})</p>
+
+              <button onclick="window.reopenPostGameRating('${escapeHtml(chartId)}')" class="mt-1 px-3 py-1 rounded-lg text-[10px] font-bold text-cyan-300 bg-cyan-500/20 border border-cyan-400/40 hover:bg-cyan-500/30 transition cursor-pointer">
+
+                ✏️ Cambiar mi valoración
+
+              </button>
+
+            </div>
+
+          `;
+
+        }
+
+      }
+
+
+
+      // Actualizar inmediatamente las canciones destacadas en la pestaña Descubrir
+
+      loadDailyFeaturedSongs();
+
+    }
+
+
+
+    window.reopenPostGameRating = function(chartId) {
+
+      const commRatingSec = document.getElementById('resCommunityRatingSection');
+
+      if (!commRatingSec) return;
+
+      const userRatings = JSON.parse(localStorage.getItem('beatstar_user_ratings_map') || '{}');
+
+      const existingVote = (userRatings[chartId] !== undefined && userRatings[chartId] !== null)
+
+        ? Number(userRatings[chartId])
+
+        : (JSON.parse(localStorage.getItem('beatstar_song_ratings') || '{}')[chartId]?.my_vote ?? 5);
+
+
+
+      postGameCurrentRating = existingVote || 5;
+
+      commRatingSec.innerHTML = `
+
+        <div class="flex items-center justify-between px-1">
+
+          <span class="text-[10px] font-bold text-cyan-300 flex items-center gap-1">
+
+            <span>✏️</span> Tu Valoración (Editar):
+
+          </span>
+
+          <span id="postGameRatingVal" class="text-[10px] font-black text-amber-400">${postGameCurrentRating} / 5 Estrellas</span>
+
+        </div>
+
+        <div class="flex justify-center items-center gap-2 text-2xl py-0.5" id="communityRatingStars">
+
+          <span class="cursor-pointer transition hover:scale-125 select-none text-amber-400" onclick="setPostGameRating(1)">★</span>
+
+          <span class="cursor-pointer transition hover:scale-125 select-none text-amber-400" onclick="setPostGameRating(2)">★</span>
+
+          <span class="cursor-pointer transition hover:scale-125 select-none text-amber-400" onclick="setPostGameRating(3)">★</span>
+
+          <span class="cursor-pointer transition hover:scale-125 select-none text-amber-400" onclick="setPostGameRating(4)">★</span>
+
+          <span class="cursor-pointer transition hover:scale-125 select-none text-amber-400" onclick="setPostGameRating(5)">★</span>
+
+        </div>
+
+        <button id="btnSubmitPostRating" onclick="submitPostGameRating()" class="w-full py-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 rounded-xl text-xs font-black text-white shadow-md cursor-pointer transition active:scale-95">
+
+          Actualizar Valoración
+
+        </button>
+
+      `;
+
+      updatePostGameRatingUI();
+
+    };
+
 
     function escapeHtml(str) {
       if (!str) return '';
@@ -6025,23 +6373,31 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       }
 
       // Si la lista de la nube no contiene el récord local del jugador o está vacía, incluirlo
+      // Si el jugador tiene récord local para esta pista, agregarlo como candidato
       const highscores = JSON.parse(localStorage.getItem('beatstar_highscores') || '{}');
       const songRecord = chartId ? highscores[chartId] : null;
       if (songRecord && songRecord.score > 0) {
         const nickname = localStorage.getItem('beatstar_player_nickname') || 'Tú';
-        const alreadyInRows = rows.some(r => r.player_name === nickname || r.player_name?.startsWith(nickname));
-        if (!alreadyInRows) {
-          rows.push({
-            player_name: nickname + ' (Tu Récord)',
-            score: songRecord.score || 0,
-            max_combo: songRecord.maxCombo || 0,
-            stars: songRecord.stars || 0,
-            accuracy_pct: songRecord.accuracyPct || songRecord.scorePct || 0,
-            medal_tier: songRecord.medalTier || songRecord.medal || null
-          });
-          rows.sort((a, b) => (b.score || 0) - (a.score || 0));
+        rows.push({
+          player_name: nickname + ' (Tu Récord)',
+          score: songRecord.score || 0,
+          max_combo: songRecord.maxCombo || 0,
+          stars: songRecord.stars || 0,
+          accuracy_pct: songRecord.accuracyPct || songRecord.scorePct || 0,
+          medal_tier: songRecord.medalTier || songRecord.medal || null
+        });
+      }
+
+      // 1 usuario solo puede aparecer una vez con su mejor resultado
+      const uniquePlayers = new Map();
+      for (const r of rows) {
+        const cleanKey = (r.player_name || '').replace(/\s*\((Tu Récord|Tú)\)/i, '').trim().toLowerCase();
+        const existing = uniquePlayers.get(cleanKey);
+        if (!existing || (r.score || 0) > (existing.score || 0)) {
+          uniquePlayers.set(cleanKey, r);
         }
       }
+      rows = Array.from(uniquePlayers.values()).sort((a, b) => (b.score || 0) - (a.score || 0));
 
       renderInlineLeaderboardRows(rows, container);
     }
@@ -6295,173 +6651,340 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
     let currentManualRatingSong = null;
     let manualModalStars = 5;
 
-    function openRateSongModal(songId, songTitle = 'Canción', songArtist = 'Artista', diffName = 'Normal', stars = 3.5, isCommunity = false) {
-      currentManualRatingSong = { id: songId, title: songTitle, artist: songArtist, difficulty_name: diffName, stars: stars, is_community: isCommunity };
-      
-      const userRatings = JSON.parse(localStorage.getItem('beatstar_user_ratings_map') || '{}');
-      const existingVote = (userRatings[songId] !== undefined && userRatings[songId] !== null)
-        ? Number(userRatings[songId])
-        : (JSON.parse(localStorage.getItem('beatstar_song_ratings') || '{}')[songId]?.my_vote ?? null);
-      const isEditing = (existingVote !== null && existingVote !== undefined && !isNaN(existingVote));
-
-      manualModalStars = isEditing ? existingVote : 5;
-      const modal = document.getElementById('rateSongModal');
-      const titleEl = document.getElementById('rateModalSongTitle');
-      const artistEl = document.getElementById('rateModalSongArtist');
-      if (titleEl) titleEl.innerText = songTitle;
-      if (artistEl) artistEl.innerText = songArtist;
-
-      const submitBtn = modal?.querySelector('button[onclick="saveManualModalRating()"]');
-      if (submitBtn) {
-        submitBtn.innerText = isEditing ? 'Actualizar Valoración' : 'Guardar Calificación';
-      }
-
-      setManualModalRating(manualModalStars);
-      if (modal) {
-        modal.classList.remove('hidden');
-        modal.classList.add('open');
-        modal.style.display = 'flex';
-      }
-    }
-
-    function closeRateSongModal() {
-      const modal = document.getElementById('rateSongModal');
-      if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('open');
-        modal.style.display = 'none';
-      }
-    }
-
-    function setManualModalRating(val) {
-      manualModalStars = Math.max(1, Math.min(5, parseInt(val, 10) || 5));
-      const lbl = document.getElementById('rateModalRatingVal');
-      if (lbl) lbl.innerText = `${manualModalStars} / 5 Estrellas`;
-      const starsEls = document.querySelectorAll('#rateModalStars span');
-      starsEls.forEach((el, idx) => {
-        if (idx < manualModalStars) {
-          el.className = 'cursor-pointer transition hover:scale-125 active:scale-95 select-none text-amber-400 p-1';
-        } else {
-          el.className = 'cursor-pointer transition hover:scale-125 active:scale-95 select-none text-gray-600 p-1';
-        }
-      });
-    }
-
-    async function saveManualModalRating() {
-      if (!currentManualRatingSong) return;
-      const s = currentManualRatingSong;
-      const songId = s.id;
-      const userRatings = JSON.parse(localStorage.getItem('beatstar_user_ratings_map') || '{}');
-      const oldRating = (userRatings[songId] !== undefined && userRatings[songId] !== null) ? Number(userRatings[songId]) : null;
-      const isEditing = (oldRating !== null && !isNaN(oldRating));
-
-      const userAnonId = localStorage.getItem('beatstar_player_id') || ('user_' + Math.floor(Math.random() * 1000000));
-      localStorage.setItem('beatstar_player_id', userAnonId);
-
-      try {
-        const ratingsStore = JSON.parse(localStorage.getItem('beatstar_song_ratings') || '{}');
-        const prev = ratingsStore[songId] || {
-          id: songId,
-          title: s.title,
-          artist: s.artist,
-          difficulty_name: s.difficulty_name,
-          stars: s.stars,
-          is_community: !!s.is_community,
-          count: 0,
-          totalStars: 0,
-          totalSync: 0
-        };
-
-        if (isEditing) {
-          prev.totalStars = Math.max(0, (prev.totalStars || 0) - oldRating + manualModalStars);
-          if (!prev.count || prev.count < 1) prev.count = 1;
-        } else {
-          prev.count = (prev.count || 0) + 1;
-          prev.totalStars = (prev.totalStars || 0) + manualModalStars;
-        }
-
-        prev.totalSync = (prev.totalSync || 0) + 100;
-        prev.avgStars = parseFloat((prev.totalStars / prev.count).toFixed(1));
-        prev.avgSync = Math.round(prev.totalSync / prev.count);
-        prev.my_vote = manualModalStars;
-        prev.lastRated = Date.now();
-        prev.title = s.title;
-        prev.artist = s.artist;
-        prev.difficulty_name = s.difficulty_name;
-        prev.stars = s.stars;
-        prev.is_community = !!s.is_community;
-
-        userRatings[songId] = manualModalStars;
-        localStorage.setItem('beatstar_user_ratings_map', JSON.stringify(userRatings));
-
-        // Si la pista comunitaria recibe 2 o más votos y su media es inferior a 2 estrellas,
-        // se elimina de la lista y se notifica al creador
-        let deletedLocally = false;
-        if (prev.count >= 2 && prev.avgStars < 2.0 && prev.is_community) {
-          deletedLocally = true;
-          delete ratingsStore[songId];
-          localStorage.setItem('beatstar_song_ratings', JSON.stringify(ratingsStore));
-          if (typeof IndexedDBStorage !== 'undefined') {
-            IndexedDBStorage.deleteChart(songId).catch(() => {});
-          }
-
-          const localNotifs = JSON.parse(localStorage.getItem('beatstar_creator_notifications') || '[]');
-          localNotifs.push({
-            chart_id: songId,
-            chart_title: s.title,
-            message: `Tu pista '${s.title}' ha sido retirada de la comunidad automáticamente al recibir una valoración media de ${prev.avgStars}★ tras ${prev.count} valoraciones (mínimo requerido: 2.0★).`,
-            is_read: false,
-            created_at: new Date().toISOString()
-          });
-          localStorage.setItem('beatstar_creator_notifications', JSON.stringify(localNotifs));
-        } else {
-          ratingsStore[songId] = prev;
-          localStorage.setItem('beatstar_song_ratings', JSON.stringify(ratingsStore));
-        }
-
-        // Enviar a la nube si el servidor está en línea
-        let deletedFromCloud = false;
-        try {
-          const baseUrl = getApiBaseUrl();
-          if (baseUrl) {
-            const res = await fetch(`${baseUrl}/api/v1/community/charts/${encodeURIComponent(songId)}/rate`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                rating: manualModalStars,
-                sync_pct: 100,
-                user_id: userAnonId,
-                title: s.title,
-                artist: s.artist,
-                difficulty_name: s.difficulty_name,
-                stars: s.stars
-              })
-            });
-            if (res.ok) {
-              const data = await res.json();
-              if (data.deleted) {
-                deletedFromCloud = true;
-                if (typeof IndexedDBStorage !== 'undefined') {
-                  IndexedDBStorage.deleteChart(songId).catch(() => {});
-                }
-              }
-            }
-          }
-        } catch (e) {}
-
-        if (deletedLocally || deletedFromCloud) {
-          showErrorToast(`La pista '${s.title}' ha sido retirada por baja valoración (< 2★ tras 2+ votos).`);
-          checkCreatorNotifications();
-        } else {
-          showSuccessToast(isEditing ? `¡Valoración de '${s.title}' actualizada!` : `¡Calificación de ${manualModalStars}★ guardada!`);
-        }
-
-        closeRateSongModal();
-        loadDailyFeaturedSongs();
-      } catch (err) {
-        showErrorToast('Error al guardar calificación: ' + err.message);
-      }
-    }
+    function openRateSongModal(songId, songTitle = 'Canción', songArtist = 'Artista', diffName = 'Normal', stars = 3.5, isCommunity = false) {
+
+      currentManualRatingSong = { id: songId, title: songTitle, artist: songArtist, difficulty_name: diffName, stars: stars, is_community: isCommunity };
+
+      
+
+      const userRatings = JSON.parse(localStorage.getItem('beatstar_user_ratings_map') || '{}');
+
+      const existingVote = (userRatings[songId] !== undefined && userRatings[songId] !== null)
+
+        ? Number(userRatings[songId])
+
+        : (JSON.parse(localStorage.getItem('beatstar_song_ratings') || '{}')[songId]?.my_vote ?? null);
+
+      const isEditing = (existingVote !== null && existingVote !== undefined && !isNaN(existingVote));
+
+
+
+      manualModalStars = isEditing ? existingVote : 5;
+
+      const modal = document.getElementById('rateSongModal');
+
+      const titleEl = document.getElementById('rateModalSongTitle');
+
+      const artistEl = document.getElementById('rateModalSongArtist');
+
+      if (titleEl) titleEl.innerText = songTitle;
+
+      if (artistEl) artistEl.innerText = songArtist;
+
+
+
+      const submitBtn = modal?.querySelector('button[onclick="saveManualModalRating()"]');
+
+      if (submitBtn) {
+
+        submitBtn.innerText = isEditing ? 'Actualizar Valoración' : 'Guardar Calificación';
+
+      }
+
+
+
+      setManualModalRating(manualModalStars);
+
+      if (modal) {
+
+        modal.classList.remove('hidden');
+
+        modal.classList.add('open');
+
+        modal.style.display = 'flex';
+
+      }
+
+    }
+
+
+
+    function closeRateSongModal() {
+
+      const modal = document.getElementById('rateSongModal');
+
+      if (modal) {
+
+        modal.classList.add('hidden');
+
+        modal.classList.remove('open');
+
+        modal.style.display = 'none';
+
+      }
+
+    }
+
+
+
+    function setManualModalRating(val) {
+
+      manualModalStars = Math.max(1, Math.min(5, parseInt(val, 10) || 5));
+
+      const lbl = document.getElementById('rateModalRatingVal');
+
+      if (lbl) lbl.innerText = `${manualModalStars} / 5 Estrellas`;
+
+      const starsEls = document.querySelectorAll('#rateModalStars span');
+
+      starsEls.forEach((el, idx) => {
+
+        if (idx < manualModalStars) {
+
+          el.className = 'cursor-pointer transition hover:scale-125 active:scale-95 select-none text-amber-400 p-1';
+
+        } else {
+
+          el.className = 'cursor-pointer transition hover:scale-125 active:scale-95 select-none text-gray-600 p-1';
+
+        }
+
+      });
+
+    }
+
+
+
+    async function saveManualModalRating() {
+
+      if (!currentManualRatingSong) return;
+
+      const s = currentManualRatingSong;
+
+      const songId = s.id;
+
+      const userRatings = JSON.parse(localStorage.getItem('beatstar_user_ratings_map') || '{}');
+
+      const oldRating = (userRatings[songId] !== undefined && userRatings[songId] !== null) ? Number(userRatings[songId]) : null;
+
+      const isEditing = (oldRating !== null && !isNaN(oldRating));
+
+
+
+      const userAnonId = localStorage.getItem('beatstar_player_id') || ('user_' + Math.floor(Math.random() * 1000000));
+
+      localStorage.setItem('beatstar_player_id', userAnonId);
+
+
+
+      try {
+
+        const ratingsStore = JSON.parse(localStorage.getItem('beatstar_song_ratings') || '{}');
+
+        const prev = ratingsStore[songId] || {
+
+          id: songId,
+
+          title: s.title,
+
+          artist: s.artist,
+
+          difficulty_name: s.difficulty_name,
+
+          stars: s.stars,
+
+          is_community: !!s.is_community,
+
+          count: 0,
+
+          totalStars: 0,
+
+          totalSync: 0
+
+        };
+
+
+
+        if (isEditing) {
+
+          prev.totalStars = Math.max(0, (prev.totalStars || 0) - oldRating + manualModalStars);
+
+          if (!prev.count || prev.count < 1) prev.count = 1;
+
+        } else {
+
+          prev.count = (prev.count || 0) + 1;
+
+          prev.totalStars = (prev.totalStars || 0) + manualModalStars;
+
+        }
+
+
+
+        prev.totalSync = (prev.totalSync || 0) + 100;
+
+        prev.avgStars = parseFloat((prev.totalStars / prev.count).toFixed(1));
+
+        prev.avgSync = Math.round(prev.totalSync / prev.count);
+
+        prev.my_vote = manualModalStars;
+
+        prev.lastRated = Date.now();
+
+        prev.title = s.title;
+
+        prev.artist = s.artist;
+
+        prev.difficulty_name = s.difficulty_name;
+
+        prev.stars = s.stars;
+
+        prev.is_community = !!s.is_community;
+
+
+
+        userRatings[songId] = manualModalStars;
+
+        localStorage.setItem('beatstar_user_ratings_map', JSON.stringify(userRatings));
+
+
+
+        // Si la pista comunitaria recibe 2 o más votos y su media es inferior a 2 estrellas,
+
+        // se elimina de la lista y se notifica al creador
+
+        let deletedLocally = false;
+
+        if (prev.count >= 2 && prev.avgStars < 2.0 && prev.is_community) {
+
+          deletedLocally = true;
+
+          delete ratingsStore[songId];
+
+          localStorage.setItem('beatstar_song_ratings', JSON.stringify(ratingsStore));
+
+          if (typeof IndexedDBStorage !== 'undefined') {
+
+            IndexedDBStorage.deleteChart(songId).catch(() => {});
+
+          }
+
+
+
+          const localNotifs = JSON.parse(localStorage.getItem('beatstar_creator_notifications') || '[]');
+
+          localNotifs.push({
+
+            chart_id: songId,
+
+            chart_title: s.title,
+
+            message: `Tu pista '${s.title}' ha sido retirada de la comunidad automáticamente al recibir una valoración media de ${prev.avgStars}★ tras ${prev.count} valoraciones (mínimo requerido: 2.0★).`,
+
+            is_read: false,
+
+            created_at: new Date().toISOString()
+
+          });
+
+          localStorage.setItem('beatstar_creator_notifications', JSON.stringify(localNotifs));
+
+        } else {
+
+          ratingsStore[songId] = prev;
+
+          localStorage.setItem('beatstar_song_ratings', JSON.stringify(ratingsStore));
+
+        }
+
+
+
+        // Enviar a la nube si el servidor está en línea
+
+        let deletedFromCloud = false;
+
+        try {
+
+          const baseUrl = getApiBaseUrl();
+
+          if (baseUrl) {
+
+            const res = await fetch(`${baseUrl}/api/v1/community/charts/${encodeURIComponent(songId)}/rate`, {
+
+              method: 'POST',
+
+              headers: { 'Content-Type': 'application/json' },
+
+              body: JSON.stringify({
+
+                rating: manualModalStars,
+
+                sync_pct: 100,
+
+                user_id: userAnonId,
+
+                title: s.title,
+
+                artist: s.artist,
+
+                difficulty_name: s.difficulty_name,
+
+                stars: s.stars
+
+              })
+
+            });
+
+            if (res.ok) {
+
+              const data = await res.json();
+
+              if (data.deleted) {
+
+                deletedFromCloud = true;
+
+                if (typeof IndexedDBStorage !== 'undefined') {
+
+                  IndexedDBStorage.deleteChart(songId).catch(() => {});
+
+                }
+
+              }
+
+            }
+
+          }
+
+        } catch (e) {}
+
+
+
+        if (deletedLocally || deletedFromCloud) {
+
+          showErrorToast(`La pista '${s.title}' ha sido retirada por baja valoración (< 2★ tras 2+ votos).`);
+
+          checkCreatorNotifications();
+
+        } else {
+
+          showSuccessToast(isEditing ? `¡Valoración de '${s.title}' actualizada!` : `¡Calificación de ${manualModalStars}★ guardada!`);
+
+        }
+
+
+
+        closeRateSongModal();
+
+        loadDailyFeaturedSongs();
+
+      } catch (err) {
+
+        showErrorToast('Error al guardar calificación: ' + err.message);
+
+      }
+
+    }
+
 
     // ==========================================
     // NOTIFICACIONES PARA EL CREADOR (Bajas Puntuaciones)

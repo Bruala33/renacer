@@ -1487,11 +1487,20 @@ const ChartEditor = {
       }
     }
 
-    // 3. Si la subida a la nube fue exitosa, NO guardarlo en beatstar_community_local_charts para evitar duplicados fantasma.
+    // 3. Guardar SIEMPRE una copia permanente en la bóveda de creaciones del usuario
+    // Esta bóveda nunca se purga y garantiza que el usuario jamás pierda sus pistas creadas
+    try {
+      const myVault = JSON.parse(localStorage.getItem('beatstar_my_published_charts') || '[]');
+      const cleanVault = myVault.filter(c => c.id !== tempChartId && c.id !== finalChartId && !(c.title?.toLowerCase() === title.toLowerCase() && c.artist?.toLowerCase() === artist.toLowerCase()));
+      cleanVault.unshift(chartItem);
+      localStorage.setItem('beatstar_my_published_charts', JSON.stringify(cleanVault));
+    } catch (e) {}
+
+    // 4. Si la subida a la nube fue exitosa, NO guardarlo en beatstar_community_local_charts para evitar duplicados fantasma.
     // Solo se almacena localmente si la conexión a la nube falló (modo offline).
     try {
       const localCommunity = JSON.parse(localStorage.getItem('beatstar_community_local_charts') || '[]');
-      const filtered = localCommunity.filter(c => c.id !== tempChartId && c.id !== finalChartId);
+      const filtered = localCommunity.filter(c => c.id !== tempChartId && c.id !== finalChartId && !(c.title?.toLowerCase() === title.toLowerCase() && c.artist?.toLowerCase() === artist.toLowerCase()));
       if (!cloudOk) {
         filtered.unshift(chartItem);
       }

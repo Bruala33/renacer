@@ -77,7 +77,12 @@ love_man.bin
 # Permitir base de datos y uploads comunitarios en Git para persistencia en Render
 !app/data/
 !app/data/**
+!app/data/community/community_backup.json
 !app/uploads/
 !app/uploads/**
+!app/uploads/community/**
+!app/uploads/community/**/*.mp3
+!app/uploads/community/**/*.ogg
+!app/uploads/community/**/*.wav
 
 

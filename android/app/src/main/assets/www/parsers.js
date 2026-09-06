@@ -1262,19 +1262,22 @@ class PackageUnpacker {
           for (const f of osuFiles) {
             const txt = await fileMap[f].text();
             const parsed = OsuManiaParser.parse(txt);
+            const nCnt = (parsed.notes && Array.isArray(parsed.notes)) ? parsed.notes.length : 0;
             extractedDiffs.push({
               file: f,
               id: f,
               name: parsed.difficultyName,
               stars: parsed.stars,
               keys: parsed.keys,
-              label: `${parsed.difficultyName} (${parsed.stars}★)`
+              notesCount: nCnt,
+              label: `${parsed.difficultyName} (${parsed.stars}★)`,
+              parsedData: parsed
             });
           }
-          let targetOsu = osuFiles[0];
-          if (selectedDiffId && fileMap[selectedDiffId]) targetOsu = selectedDiffId;
-          const osuText = await fileMap[targetOsu].text();
-          const parsedBeatmap = OsuManiaParser.parse(osuText);
+          const playable = extractedDiffs.filter(d => d.notesCount >= 10);
+          const pool = playable.length > 0 ? playable : extractedDiffs;
+          let targetDiff = pool.find(d => d.id === selectedDiffId || d.name === selectedDiffId) || pool[0];
+          const parsedBeatmap = targetDiff.parsedData;
           const audioName = parsedBeatmap.audioFilename.toLowerCase();
           const audioPath = filePaths.find(p => p.toLowerCase().endsWith(audioName) || p.toLowerCase().endsWith('.mp3') || p.toLowerCase().endsWith('.ogg'));
           if (!audioPath) throw new Error('Audio no encontrado en osu! pack');
@@ -1322,22 +1325,35 @@ class PackageUnpacker {
       const osuFiles = files.filter(f => f.toLowerCase().endsWith('.osu'));
       if (osuFiles.length === 0) throw new Error('No se encontraron archivos .osu en el paquete.');
 
-      log(5, 'Parseando dificultades osu! Mania', `${osuFiles.length} ficheros .osu encontrados`, 'info');
       for (const f of osuFiles) {
         const txt = await zip.file(f).async('text');
         const parsed = OsuManiaParser.parse(txt);
+        const noteCount = (parsed.notes && Array.isArray(parsed.notes)) ? parsed.notes.length : 0;
         extractedDiffs.push({
           file: f,
           id: f,
           name: parsed.difficultyName,
           stars: parsed.stars,
+          notesCount: noteCount,
           label: `${parsed.difficultyName} (${parsed.stars.toFixed(1)}★)`,
           parsedData: parsed
         });
       }
 
-      extractedDiffs.sort((a, b) => a.stars - b.stars);
-      let chosen = extractedDiffs.find(d => d.id === selectedDiffId || d.name === selectedDiffId) || extractedDiffs[0];
+      // Filtrar dificultades auxiliares/hitsounds/dummy con <= 2 notas si existen dificultades completas
+      const playableDiffs = extractedDiffs.filter(d => d.notesCount >= 10);
+      const candidates = playableDiffs.length > 0 ? playableDiffs : extractedDiffs.filter(d => d.notesCount > 0);
+      const finalPool = candidates.length > 0 ? candidates : extractedDiffs;
+
+      finalPool.sort((a, b) => a.stars - b.stars);
+      let chosen = finalPool.find(d => d.id === selectedDiffId || d.name === selectedDiffId);
+      if (!chosen && selectedDiffId) {
+        chosen = finalPool.find(d => d.name.toLowerCase().includes(String(selectedDiffId).toLowerCase()) || d.file.toLowerCase().includes(String(selectedDiffId).toLowerCase()));
+      }
+      if (!chosen) {
+        chosen = finalPool[Math.floor(finalPool.length / 2)] || finalPool[0];
+      }
+
       parsedBeatmap = chosen.parsedData;
       targetAudioName = parsedBeatmap.audioFilename;
 
