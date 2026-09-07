@@ -1082,17 +1082,14 @@ const ChartEditor = {
       }
     }
 
-    // Visualización en tiempo real de notas Hold o nuevas notas bajo dedos o teclas simultáneas
+    // Visualización en tiempo real de notas Hold estirándose bajo dedos o teclas simultáneas
     const activeHolds = [];
     for (const ptr of this.activePointers.values()) {
       if (ptr.type === 'new_note' && !ptr.dragged) {
         activeHolds.push({
           lane: ptr.lane,
           startTime: ptr.startTime,
-          startSongTimeMs: ptr.startSongTimeMs,
-          isAutoMode: ptr.isAutoMode ?? (this.activeTool === 'auto'),
-          tool: this.activeTool,
-          direction: ptr.direction || 'up'
+          startSongTimeMs: ptr.startSongTimeMs
         });
       }
     }
@@ -1100,10 +1097,7 @@ const ChartEditor = {
       activeHolds.push({
         lane: key.lane,
         startTime: key.startTime,
-        startSongTimeMs: key.startMs,
-        isAutoMode: true,
-        tool: this.activeTool,
-        direction: 'up'
+        startSongTimeMs: key.startMs
       });
     }
 
@@ -1112,19 +1106,12 @@ const ChartEditor = {
       const curLane = hold.lane;
       const noteX = curLane * laneWidth + 8;
       const noteW = laneWidth - 16;
+      const headY = hitLineY;
 
-      // En modo automático o con teclado la nota nace en la línea rosa (hitLineY).
-      // En modo manual (tap, hold, swipe) la nota nace en la posición temporal exacta donde se pulsó.
-      const headY = hold.isAutoMode
-        ? hitLineY
-        : (hitLineY - (hold.startSongTimeMs / 1000 - this.currentSongTime) * this.pixelsPerSecond);
-
-      const isHoldTool = hold.tool === 'hold' || (hold.isAutoMode && elapsedMs >= 160);
-
-      // Si es un Hold (o modo auto mantenido >= 160 ms), se visualiza el cuerpo del hold formándose en vivo
-      if (isHoldTool && elapsedMs >= 160) {
+      // Si se mantiene pulsado >= 160 ms, se visualiza el cuerpo del hold formándose en vivo
+      if (elapsedMs >= 160) {
         let liveDurMs = 0;
-        if (this.isPlaying && hold.isAutoMode) {
+        if (this.isPlaying) {
           const curSongMs = Math.round(this.getSnappedTime(this.currentSongTime) * 1000);
           liveDurMs = Math.max(150, curSongMs - hold.startSongTimeMs);
         } else {
@@ -1156,15 +1143,8 @@ const ChartEditor = {
         this.ctx.fillRect(noteX + 4, tailY - 3, noteW - 8, 6);
       }
 
-      // Cabeza de la nota pulsada
-      let noteColor = '#ffd700'; // tap default
-      if (hold.tool === 'swipe') {
-        noteColor = '#ff007f';
-      } else if (hold.tool === 'hold' || (hold.isAutoMode && elapsedMs >= 160)) {
-        noteColor = '#00f2fe';
-      }
-
-      this.ctx.fillStyle = noteColor;
+      // Cabeza de la nota pulsada sobre la línea rosa
+      this.ctx.fillStyle = elapsedMs >= 160 ? '#00f2fe' : '#ffd700';
       this.ctx.beginPath();
       if (this.ctx.roundRect) {
         this.ctx.roundRect(noteX, headY - 9, noteW, 18, 6);
@@ -1172,15 +1152,6 @@ const ChartEditor = {
         this.ctx.rect(noteX, headY - 9, noteW, 18);
       }
       this.ctx.fill();
-
-      // Flecha direccionada si es swipe
-      if (hold.tool === 'swipe') {
-        this.ctx.fillStyle = '#ffffff';
-        this.ctx.font = 'bold 12px sans-serif';
-        this.ctx.textAlign = 'center';
-        const arrow = hold.direction === 'left' ? '←' : (hold.direction === 'right' ? '→' : (hold.direction === 'down' ? '↓' : '↑'));
-        this.ctx.fillText(arrow, noteX + noteW / 2, headY + 4);
-      }
 
       // Efecto sutil de iluminación en el carril
       this.ctx.fillStyle = 'rgba(255, 0, 127, 0.18)';

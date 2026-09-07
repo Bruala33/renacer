@@ -278,8 +278,10 @@ def init_db():
         cursor.execute("DELETE FROM creators WHERE id IN ('cr_master', 'cr_neon', 'cr_chopin')")
         conn.commit()
 
-        # Restaurar siempre las pistas del respaldo versionado si no están en la BD
-        restore_community_backup(conn)
+        # Si la base de datos está vacía, intentar restaurar desde el respaldo JSON versionado
+        cursor.execute("SELECT COUNT(*) as c FROM community_charts")
+        if cursor.fetchone()["c"] == 0:
+            restore_community_backup(conn)
 
 
 init_db()
@@ -524,14 +526,6 @@ async def get_community_chart_details(chart_id: str):
         cur.execute("SELECT * FROM community_charts WHERE id = ?", (chart_id,))
         r = cur.fetchone()
         if not r:
-            restore_community_backup(conn)
-            cur.execute("SELECT * FROM community_charts WHERE id = ?", (chart_id,))
-            r = cur.fetchone()
-        if not r:
-            clean_id = chart_id.replace("comm_", "").replace("custom_", "")
-            cur.execute("SELECT * FROM community_charts WHERE id LIKE ? OR LOWER(TRIM(title)) = LOWER(TRIM(?))", (f"%{clean_id}%", chart_id))
-            r = cur.fetchone()
-        if not r:
             raise HTTPException(status_code=404, detail="Canción comunitaria no encontrada.")
         
         return {
@@ -549,8 +543,8 @@ async def get_community_chart_details(chart_id: str):
             "rating_avg": round(float(r["rating_avg"] or 0.0), 1),
             "votes_count": int(r["votes_count"] or 0),
             "sync_avg": round(float(r["sync_avg"] or 100.0), 1),
-            "audio_url": f"/api/v1/community/charts/{r['id']}/audio",
-            "chart_url": f"/api/v1/community/charts/{r['id']}/chart",
+            "audio_url": f"/api/v1/community/charts/{chart_id}/audio",
+            "chart_url": f"/api/v1/community/charts/{chart_id}/chart",
             "created_at": r["created_at"]
         }
 
@@ -559,50 +553,31 @@ async def get_community_chart_details(chart_id: str):
 async def get_community_chart_audio(chart_id: str):
     with get_db() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT * FROM community_charts WHERE id = ?", (chart_id,))
+        cur.execute("SELECT audio_filename, audio_base64 FROM community_charts WHERE id = ?", (chart_id,))
         r = cur.fetchone()
         if not r:
-            restore_community_backup(conn)
-            cur.execute("SELECT * FROM community_charts WHERE id = ?", (chart_id,))
-            r = cur.fetchone()
-        if not r:
-            clean_id = chart_id.replace("comm_", "").replace("custom_", "")
-            cur.execute("SELECT * FROM community_charts WHERE id LIKE ? OR LOWER(TRIM(title)) = LOWER(TRIM(?))", (f"%{clean_id}%", chart_id))
-            r = cur.fetchone()
+            raise HTTPException(status_code=404, detail="Pista no encontrada.")
 
-    real_id = r["id"] if r else chart_id
-    audio_fn = (r["audio_filename"] if r else None) or "audio.mp3"
-    file_path = os.path.join(COMMUNITY_UPLOADS_DIR, real_id, audio_fn)
+    audio_fn = r["audio_filename"] or "audio.mp3"
+    file_path = os.path.join(COMMUNITY_UPLOADS_DIR, chart_id, audio_fn)
 
     # Si no existe archivo propio en disco pero está respaldado en base de datos, reconstruirlo
-    if (not os.path.exists(file_path) or os.path.getsize(file_path) == 0) and (r and "audio_base64" in r.keys() and r["audio_base64"]):
+    if (not os.path.exists(file_path) or os.path.getsize(file_path) == 0) and ("audio_base64" in r.keys() and r["audio_base64"]):
         try:
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
             with open(file_path, "wb") as f:
                 f.write(base64.b64decode(r["audio_base64"]))
         except Exception as e:
-            logger.warning(f"Error reconstituting audio from DB for {real_id}: {e}")
+            logger.warning(f"Error reconstituting audio from DB for {chart_id}: {e}")
 
-    # Si aún no existe archivo propio, fallback al audio de muestra o a cualquier audio disponible
+    # Si aún no existe archivo propio, fallback al audio de muestra
     if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
         sample_paths = [
-            os.path.join(BASE_DIR, "static", "assets", "demo.mp3"),
-            os.path.join(BASE_DIR, "static", "assets", "sample.mp3"),
+            os.path.join(BASE_DIR, "app", "static", "assets", "demo.mp3"),
+            os.path.join(BASE_DIR, "app", "static", "assets", "sample.mp3"),
         ]
-        # Buscar en uploads comunitarios cualquier audio existente como fallback de emergencia
-        if os.path.exists(COMMUNITY_UPLOADS_DIR):
-            for root, _, files in os.walk(COMMUNITY_UPLOADS_DIR):
-                for f in files:
-                    if f.lower().endswith(('.mp3', '.ogg', '.wav')):
-                        candidate = os.path.join(root, f)
-                        if os.path.exists(candidate) and os.path.getsize(candidate) > 1000:
-                            sample_paths.append(candidate)
-                            break
-                if len(sample_paths) > 2:
-                    break
-
         for sp in sample_paths:
-            if os.path.exists(sp) and os.path.getsize(sp) > 0:
+            if os.path.exists(sp):
                 file_path = sp
                 break
 
@@ -632,17 +607,10 @@ async def get_community_chart_json(chart_id: str):
         cur.execute("SELECT * FROM community_charts WHERE id = ?", (chart_id,))
         r = cur.fetchone()
         if not r:
-            restore_community_backup(conn)
-            cur.execute("SELECT * FROM community_charts WHERE id = ?", (chart_id,))
-            r = cur.fetchone()
-        if not r:
-            clean_id = chart_id.replace("comm_", "").replace("custom_", "")
-            cur.execute("SELECT * FROM community_charts WHERE id LIKE ? OR LOWER(TRIM(title)) = LOWER(TRIM(?))", (f"%{clean_id}%", chart_id))
-            r = cur.fetchone()
+            raise HTTPException(status_code=404, detail="Pista no encontrada.")
 
-    real_id = r["id"] if r else chart_id
-    chart_fn = (r["chart_filename"] if r else None) or "chart.json"
-    file_path = os.path.join(COMMUNITY_UPLOADS_DIR, real_id, chart_fn)
+    chart_fn = r["chart_filename"] or "chart.json"
+    file_path = os.path.join(COMMUNITY_UPLOADS_DIR, chart_id, chart_fn)
 
     if os.path.exists(file_path):
         try:
@@ -650,10 +618,10 @@ async def get_community_chart_json(chart_id: str):
                 data = json.load(f)
                 return JSONResponse(content=data, headers={"Access-Control-Allow-Origin": "*"})
         except Exception as e:
-            logger.warning(f"Error reading chart json for {real_id}: {e}")
+            logger.warning(f"Error reading chart json for {chart_id}: {e}")
 
     # Si no existe en disco pero está en la columna chart_json de la DB:
-    if r and "chart_json" in r.keys() and r["chart_json"] and r["chart_json"].strip():
+    if "chart_json" in r.keys() and r["chart_json"] and r["chart_json"].strip():
         try:
             parsed = json.loads(r["chart_json"])
             try:
@@ -667,19 +635,15 @@ async def get_community_chart_json(chart_id: str):
             pass
 
     # Estructura de chart sintetizada si es de los mapas semilla o fallback
-    bpm = float((r["bpm"] if r else None) or 120.0)
-    stars = float((r["stars"] if r else None) or 3.5)
-    scroll_dur = int((r["scroll_duration_ms"] if r else None) or 1400)
-    diff_name = (r["difficulty_name"] if r else None) or "Media"
-    title_val = (r["title"] if r else None) or "Pista Comunitaria"
-    artist_val = (r["artist"] if r else None) or "Comunidad"
-    notes_cnt = int((r["notes_count"] if r else None) or 60)
-    offset_val = int((r["offset_ms"] if r else None) or 0)
+    bpm = float(r["bpm"] or 120.0)
+    stars = float(r["stars"] or 3.5)
+    scroll_dur = int(r["scroll_duration_ms"] or 1400)
+    diff_name = r["difficulty_name"] or "Media"
 
     # Generar notas rítmicas coherentes para prueba si el JSON físico no estaba
     sample_notes = []
     beat_ms = (60.0 / bpm) * 1000.0
-    for i in range(notes_cnt):
+    for i in range(r["notes_count"] or 60):
         t = round(1600 + i * beat_ms)
         lane = i % 3
         ntype = "tap"
@@ -705,17 +669,17 @@ async def get_community_chart_json(chart_id: str):
         })
 
     synthesized_package = {
-        "id": real_id,
+        "id": chart_id,
         "metadata": {
-            "id": real_id,
-            "title": title_val,
-            "artist": artist_val,
+            "id": chart_id,
+            "title": r["title"],
+            "artist": r["artist"],
             "difficulty_name": diff_name,
             "bpm": bpm,
             "stars": stars
         },
         "bpm": bpm,
-        "offset": offset_val,
+        "offset": r["offset_ms"] or 0,
         "scrollDurationMs": scroll_dur,
         "notes": sample_notes,
         "difficulties": [{

@@ -5728,33 +5728,13 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       if (loadStatus) loadStatus.innerText = 'Obteniendo audio y notas...';
 
       try {
-        // Encontrar metadatos conocidos de la pista
-        let knownInfo = (typeof songs !== 'undefined' ? songs : []).find(s => s && s.id === chartId);
-        if (!knownInfo) {
-          try {
-            const cached = JSON.parse(localStorage.getItem('beatstar_community_cache') || '[]');
-            knownInfo = cached.find(s => s && s.id === chartId);
-          } catch (e) {}
-        }
-        if (!knownInfo) {
-          try {
-            const myVault = JSON.parse(localStorage.getItem('beatstar_my_published_charts') || '[]');
-            knownInfo = myVault.find(s => s && (s.id === chartId || (s.title && chartId.includes(s.title))));
-          } catch (e) {}
-        }
-
         // 1. Si la canción existe localmente en IndexedDB, cargar al instante offline
         if (typeof IndexedDBStorage !== 'undefined') {
           try {
             let localItem = await IndexedDBStorage.getChart(chartId);
             if (!localItem) {
               const allSaved = await IndexedDBStorage.getAllCharts();
-              localItem = (allSaved || []).find(c =>
-                c && (c.id === chartId ||
-                c.communityChartId === chartId ||
-                (c.unpackedData && c.unpackedData.id === chartId) ||
-                (knownInfo && c.title && knownInfo.title && c.title.trim().toLowerCase() === knownInfo.title.trim().toLowerCase() && c.artist && knownInfo.artist && c.artist.trim().toLowerCase() === knownInfo.artist.trim().toLowerCase()))
-              );
+              localItem = (allSaved || []).find(c => c.id === chartId || c.communityChartId === chartId || (c.unpackedData && c.unpackedData.id === chartId));
             }
             if (localItem && localItem.audioBlob && (localItem.chartData || localItem.unpackedData)) {
               const cData = localItem.chartData || localItem.unpackedData;
@@ -5770,69 +5750,17 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         }
 
         const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
-        // Descargar el JSON del chart y el Audio en paralelo con tolerancia a fallos
-        let chartData = null;
-        let audioBlob = null;
+        // Descargar el JSON del chart y el Audio en paralelo
+        const [chartRes, audioRes] = await Promise.all([
+          fetch(`${baseUrl}/api/v1/community/charts/${chartId}/chart`),
+          fetch(`${baseUrl}/api/v1/community/charts/${chartId}/audio`)
+        ]);
 
-        try {
-          const [chartRes, audioRes] = await Promise.all([
-            fetch(`${baseUrl}/api/v1/community/charts/${chartId}/chart`),
-            fetch(`${baseUrl}/api/v1/community/charts/${chartId}/audio`)
-          ]);
+        if (!chartRes.ok) throw new Error(`No se pudo cargar el mapa (${chartRes.status})`);
+        if (!audioRes.ok) throw new Error(`No se pudo cargar el audio (${audioRes.status})`);
 
-          if (chartRes.ok) {
-            chartData = await chartRes.json();
-          }
-          if (audioRes.ok) {
-            audioBlob = await audioRes.blob();
-          }
-        } catch (netErr) {
-          console.warn('[playCommunitySong] Network fetch issue:', netErr);
-        }
-
-        // 2. Si el servidor dio 404 o falló, buscar fallback en almacén local (IndexedDB o localStorage)
-        if (!chartData || !audioBlob) {
-          if (typeof IndexedDBStorage !== 'undefined') {
-            try {
-              const allSaved = await IndexedDBStorage.getAllCharts();
-              const found = (allSaved || []).find(c =>
-                c && (c.id === chartId ||
-                c.communityChartId === chartId ||
-                (knownInfo && c.title && knownInfo.title && c.title.trim().toLowerCase() === knownInfo.title.trim().toLowerCase()))
-              );
-              if (found) {
-                if (!chartData) chartData = found.chartData || found.unpackedData;
-                if (!audioBlob) audioBlob = found.audioBlob;
-              }
-            } catch (e) {}
-          }
-
-          if (!chartData) {
-            try {
-              const myVault = JSON.parse(localStorage.getItem('beatstar_my_published_charts') || '[]');
-              const foundVault = myVault.find(v => v && (v.id === chartId || (knownInfo && v.title === knownInfo.title)));
-              if (foundVault) {
-                chartData = foundVault.chartData || foundVault.unpackedData || foundVault;
-              }
-            } catch (e) {}
-          }
-        }
-
-        if (!chartData) {
-          throw new Error('No se pudo cargar el mapa (404) ni se encontró en la memoria local.');
-        }
-
-        // Si faltaba el audio pero tenemos chart, intentar obtener audio de fallback
-        if (!audioBlob) {
-          try {
-            const fallbackAudioRes = await fetch(`${baseUrl}/api/v1/community/charts/${chartId}/audio`);
-            if (fallbackAudioRes.ok) audioBlob = await fallbackAudioRes.blob();
-          } catch (e) {}
-        }
-
-        if (!audioBlob) {
-          throw new Error('No se pudo cargar el archivo de audio de la pista.');
-        }
+        const chartData = await chartRes.json();
+        const audioBlob = await audioRes.blob();
 
         chartData.is_community = true;
         chartData.is_daily_featured = isDailyFeatured;
@@ -5843,8 +5771,8 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         if (typeof IndexedDBStorage !== 'undefined') {
           IndexedDBStorage.saveChart({
             id: chartId,
-            title: chartData.metadata?.title || knownInfo?.title || 'Pista Comunitaria',
-            artist: chartData.metadata?.artist || knownInfo?.artist || 'Comunidad',
+            title: chartData.metadata?.title || 'Pista Comunitaria',
+            artist: chartData.metadata?.artist || 'Comunidad',
             source: 'community',
             source_name: 'Comunidad',
             is_community: true,
