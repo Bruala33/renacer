@@ -113,6 +113,7 @@ class DirectAudioSync {
     this.isPlaying = false;
     this.isLoaded = false;
     this.duration = 0;
+    this.playbackRate = 1.0;
     
     // High-resolution clock anchor
     this.baseTimeMs = 0;
@@ -121,6 +122,9 @@ class DirectAudioSync {
     this.audioElement.addEventListener('canplaythrough', () => {
       this.isLoaded = true;
       this.duration = this.audioElement.duration || 0;
+      if (this.playbackRate !== 1.0) {
+        this.audioElement.playbackRate = this.playbackRate;
+      }
       if (this.onReady) this.onReady();
     });
 
@@ -169,6 +173,19 @@ class DirectAudioSync {
     });
   }
 
+  setPlaybackRate(rate) {
+    const r = Math.max(0.5, Math.min(2.0, parseFloat(rate) || 1.0));
+    this.playbackRate = r;
+    if (this.audioElement) {
+      this.audioElement.playbackRate = r;
+      if ('preservesPitch' in this.audioElement) {
+        this.audioElement.preservesPitch = true;
+      }
+    }
+    this.baseTimeMs = (this.audioElement.currentTime || 0) * 1000;
+    this.basePerfNow = performance.now();
+  }
+
   loadAudioBlob(blob) {
     if (!blob) return;
     if (typeof blob === 'string') {
@@ -184,6 +201,9 @@ class DirectAudioSync {
     this.isPlaying = false;
     this.audioElement.loop = false;
     this.audioElement.src = url;
+    if (this.playbackRate !== 1.0) {
+      this.audioElement.playbackRate = this.playbackRate;
+    }
     this.audioElement.load();
     this.baseTimeMs = 0;
     this.basePerfNow = performance.now();
@@ -192,6 +212,9 @@ class DirectAudioSync {
   play() {
     if (!this.audioElement.src) return Promise.resolve();
     try {
+      if (this.playbackRate !== 1.0) {
+        this.audioElement.playbackRate = this.playbackRate;
+      }
       const p = this.audioElement.play();
       if (p && typeof p.then === 'function') {
         return p.then(() => {
@@ -233,7 +256,8 @@ class DirectAudioSync {
     if (!this.isPlaying) {
       return (this.audioElement.currentTime || 0) * 1000;
     }
-    const elapsed = performance.now() - this.basePerfNow;
+    const rate = this.playbackRate || this.audioElement.playbackRate || 1.0;
+    const elapsed = (performance.now() - this.basePerfNow) * rate;
     return Math.max(0, this.baseTimeMs + elapsed);
   }
 }
@@ -798,7 +822,10 @@ class BeatstarEngine {
     this.numLanes = 3; // Fixed strictly to 3 vertical lanes
     this.laneWidth = 0;
     this.hitLineY = 0;
-    this.scrollDurationMs = 1200;
+    this.baseScrollDurationMs = 1200;
+    this.noteSpeedMultiplier = parseFloat(typeof localStorage !== 'undefined' ? (localStorage.getItem('beatstar_note_speed') || '1.0') : '1.0') || 1.0;
+    this.songPlaybackRate = 1.0;
+    this.scrollDurationMs = Math.round(this.baseScrollDurationMs / Math.max(0.5, Math.min(2.5, this.noteSpeedMultiplier)));
 
     this.notes = [];
     this.activeHolds = new Map();
@@ -896,9 +923,19 @@ class BeatstarEngine {
 
   setNoteSpeedMultiplier(multiplier) {
     this.noteSpeedMultiplier = parseFloat(multiplier) || 1.0;
-    localStorage.setItem('beatstar_note_speed', this.noteSpeedMultiplier.toString());
-    if (this.beatmapData) {
-      this.scrollDurationMs = this.computeDynamicScrollDuration(this.beatmapData.metadata?.stars, this.notes);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('beatstar_note_speed', this.noteSpeedMultiplier.toString());
+    }
+    const base = this.baseScrollDurationMs || 1200;
+    const mult = Math.max(0.5, Math.min(2.5, this.noteSpeedMultiplier));
+    this.scrollDurationMs = Math.round(base / mult);
+  }
+
+  setSongPlaybackSpeed(speed) {
+    const s = Math.max(0.5, Math.min(2.0, parseFloat(speed) || 1.0));
+    this.songPlaybackRate = s;
+    if (this.audioSync) {
+      this.audioSync.setPlaybackRate(s);
     }
   }
 
@@ -1015,10 +1052,7 @@ class BeatstarEngine {
       }
     }
 
-    const mult = Math.max(0.5, Math.min(2.5, this.noteSpeedMultiplier || 1.0));
-    duration = duration / mult;
-
-    return Math.round(Math.max(480, Math.min(2200, duration)));
+    return Math.round(Math.max(550, Math.min(2200, duration)));
   }
 
   computeMaxPossibleScore(notes) {
@@ -1164,10 +1198,19 @@ class BeatstarEngine {
     const leadInMs = (minNoteTime < 1600 && minNoteTime !== Infinity) ? Math.round(1600 - minNoteTime) : 0;
     this.leadInDelayMs = leadInMs;
 
-    // Set dynamic scroll duration based on difficulty (slower, readable default, or explicit preset)
-    this.scrollDurationMs = (Number.isFinite(this.beatmapData.scrollDurationMs) && this.beatmapData.scrollDurationMs > 0)
-      ? this.beatmapData.scrollDurationMs
+    // Set dynamic base scroll duration based on difficulty curve or explicit custom preset
+    const baseScroll = (Number.isFinite(this.beatmapData.baseScrollDurationMs) && this.beatmapData.baseScrollDurationMs > 0)
+      ? this.beatmapData.baseScrollDurationMs
       : this.computeDynamicScrollDuration(diffStars, sanitizedNotes);
+    this.baseScrollDurationMs = baseScroll;
+
+    // Apply the active note speed multiplier to the dynamic scroll duration
+    const speedMult = Math.max(0.5, Math.min(2.5, this.noteSpeedMultiplier || 1.0));
+    this.scrollDurationMs = Math.round(baseScroll / speedMult);
+
+    // Apply custom song playback rate if provided
+    const songRate = Math.max(0.5, Math.min(2.0, parseFloat(this.beatmapData.songPlaybackSpeed) || 1.0));
+    this.setSongPlaybackSpeed(songRate);
 
     this.notes = sanitizedNotes.map((n, idx) => {
       const rawT = Number.isFinite(n.timestamp_ms) ? n.timestamp_ms : idx * 500;
