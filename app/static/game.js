@@ -119,17 +119,28 @@ class DirectAudioSync {
     this.baseTimeMs = 0;
     this.basePerfNow = performance.now();
 
+    const enforceSpeedAndPitch = () => {
+      if (this.audioElement) {
+        try {
+          this.audioElement.defaultPlaybackRate = this.playbackRate;
+          this.audioElement.playbackRate = this.playbackRate;
+          this.audioElement.preservesPitch = true;
+          this.audioElement.mozPreservesPitch = true;
+          this.audioElement.webkitPreservesPitch = true;
+        } catch (e) {}
+      }
+    };
+
     this.audioElement.addEventListener('canplaythrough', () => {
       this.isLoaded = true;
       this.duration = this.audioElement.duration || 0;
-      if (this.playbackRate !== 1.0) {
-        this.audioElement.playbackRate = this.playbackRate;
-      }
+      enforceSpeedAndPitch();
       if (this.onReady) this.onReady();
     });
 
     this.audioElement.addEventListener('playing', () => {
       this.isPlaying = true;
+      enforceSpeedAndPitch();
       this.baseTimeMs = (this.audioElement.currentTime || 0) * 1000;
       this.basePerfNow = performance.now();
     });
@@ -141,11 +152,13 @@ class DirectAudioSync {
     });
 
     this.audioElement.addEventListener('seeking', () => {
+      enforceSpeedAndPitch();
       this.baseTimeMs = (this.audioElement.currentTime || 0) * 1000;
       this.basePerfNow = performance.now();
     });
 
     this.audioElement.addEventListener('seeked', () => {
+      enforceSpeedAndPitch();
       this.baseTimeMs = (this.audioElement.currentTime || 0) * 1000;
       this.basePerfNow = performance.now();
     });
@@ -177,10 +190,13 @@ class DirectAudioSync {
     const r = Math.max(0.5, Math.min(2.0, parseFloat(rate) || 1.0));
     this.playbackRate = r;
     if (this.audioElement) {
-      this.audioElement.playbackRate = r;
-      if ('preservesPitch' in this.audioElement) {
+      try {
+        this.audioElement.defaultPlaybackRate = r;
+        this.audioElement.playbackRate = r;
         this.audioElement.preservesPitch = true;
-      }
+        this.audioElement.mozPreservesPitch = true;
+        this.audioElement.webkitPreservesPitch = true;
+      } catch (e) {}
     }
     this.baseTimeMs = (this.audioElement.currentTime || 0) * 1000;
     this.basePerfNow = performance.now();
@@ -212,9 +228,13 @@ class DirectAudioSync {
   play() {
     if (!this.audioElement.src) return Promise.resolve();
     try {
-      if (this.playbackRate !== 1.0) {
+      try {
+        this.audioElement.defaultPlaybackRate = this.playbackRate;
         this.audioElement.playbackRate = this.playbackRate;
-      }
+        this.audioElement.preservesPitch = true;
+        this.audioElement.mozPreservesPitch = true;
+        this.audioElement.webkitPreservesPitch = true;
+      } catch (e) {}
       const p = this.audioElement.play();
       if (p && typeof p.then === 'function') {
         return p.then(() => {
@@ -874,6 +894,7 @@ class BeatstarEngine {
       () => this.onAudioEnded(),
       (msg) => this.onAudioError(msg)
     );
+    this.audioSync = this.sync;
 
     this.initCanvasSize();
     this.bindEvents();
@@ -934,7 +955,10 @@ class BeatstarEngine {
   setSongPlaybackSpeed(speed) {
     const s = Math.max(0.5, Math.min(2.0, parseFloat(speed) || 1.0));
     this.songPlaybackRate = s;
-    if (this.audioSync) {
+    if (this.sync) {
+      this.sync.setPlaybackRate(s);
+    }
+    if (this.audioSync && this.audioSync !== this.sync) {
       this.audioSync.setPlaybackRate(s);
     }
   }
@@ -1010,22 +1034,21 @@ class BeatstarEngine {
    * Adjusted to a slower, comfortable and readable speed curve.
    */
   computeDynamicScrollDuration(stars, rawNotes = []) {
-    const s = Math.max(1.0, Math.min(10.0, parseFloat(stars) || 3.0));
+    const s = Math.max(1.0, Math.min(10.0, parseFloat(stars) || 3.5));
     
-    // Comfortable, readable scroll duration curve (ms):
-    // 1★: 1750ms (Easy / Very Relaxed)
-    // 3★: 1450ms (Normal)
-    // 5★: 1200ms (Hard)
-    // 7★: 950ms  (Expert)
-    // 9★: 750ms  (Insane)
-    // 10★: 620ms (Master)
-    let duration = 1750 - (s - 1.0) * 150;
-    if (s >= 4.0) {
-      duration = 1300 - (s - 4.0) * 125;
-    }
-    if (s >= 7.0) {
-      duration = 925 - (s - 7.0) * 100;
-    }
+    // Curva de velocidad por estrellas altamente diferenciada (ms):
+    // Cuantas más estrellas tiene la canción, más rápido caen las notas (menor scroll duration).
+    // 1★:  2000ms (Muy lento / relajado, ideal para aprender)
+    // 2★:  1850ms (Fácil)
+    // 3★:  1650ms (Normal)
+    // 4★:  1450ms (Intermedio)
+    // 5★:  1250ms (Difícil)
+    // 6★:  1080ms (Desafío alto)
+    // 7★:  920ms  (Extrema)
+    // 8★:  790ms  (Experto)
+    // 9★:  680ms  (Insana)
+    // 10★: 580ms  (Máxima velocidad pro)
+    let duration = Math.round(2000 - (s - 1.0) * 157.8);
 
     if (rawNotes && rawNotes.length > 5) {
       const laneLastTime = [-Infinity, -Infinity, -Infinity];
@@ -1043,16 +1066,16 @@ class BeatstarEngine {
         laneLastTime[l] = n.timestamp_ms;
       }
 
-      if (minGapSameLane < 250 && minGapSameLane > 0) {
-        const hitY = this.hitLineY || 600;
-        const maxAllowedDuration = (minGapSameLane * hitY) / 38;
+      if (minGapSameLane < 220 && minGapSameLane > 0) {
+        const hitY = this.hitLineY || 550;
+        const maxAllowedDuration = (minGapSameLane * hitY) / 35;
         if (duration > maxAllowedDuration) {
           duration = maxAllowedDuration;
         }
       }
     }
 
-    return Math.round(Math.max(550, Math.min(2200, duration)));
+    return Math.round(Math.max(520, Math.min(2100, duration)));
   }
 
   computeMaxPossibleScore(notes) {
@@ -1121,7 +1144,29 @@ class BeatstarEngine {
     this.lastMissTimePerf = 0;
     this.lastFailSongTimeSec = 0;
 
-    const diffStars = Number.isFinite(beatmapData.metadata?.stars) ? beatmapData.metadata.stars : 3.0;
+    // Extracción robusta de estrellas de dificultad
+    let diffStars = 3.5;
+    if (Number.isFinite(beatmapData.metadata?.stars)) {
+      diffStars = beatmapData.metadata.stars;
+    } else if (Number.isFinite(beatmapData.stars)) {
+      diffStars = beatmapData.stars;
+    } else if (Number.isFinite(beatmapData.difficulties?.[0]?.stars)) {
+      diffStars = beatmapData.difficulties[0].stars;
+    } else {
+      // Inferencia automática por nombre de dificultad si no hay estrellas numéricas explícitas
+      const dName = ((beatmapData.metadata?.difficulty_name || beatmapData.difficulty_name || '') + '').toLowerCase();
+      if (dName.includes('fácil') || dName.includes('easy') || dName.includes('beginner')) {
+        diffStars = 1.5;
+      } else if (dName.includes('media') || dName.includes('medium') || dName.includes('normal')) {
+        diffStars = 3.5;
+      } else if (dName.includes('difícil') || dName.includes('hard')) {
+        diffStars = 5.5;
+      } else if (dName.includes('extrema') || dName.includes('extreme') || dName.includes('expert')) {
+        diffStars = 7.5;
+      } else if (dName.includes('insana') || dName.includes('insane') || dName.includes('master')) {
+        diffStars = 9.5;
+      }
+    }
 
     // Pass notes through LaneRemapper.sanitizeForTwoFingers to guarantee 2-finger compliance & density limit
     const rawNotes = (beatmapData && Array.isArray(beatmapData.notes)) ? beatmapData.notes.map((n, idx) => {

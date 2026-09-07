@@ -837,7 +837,8 @@ body {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 20px;
+  padding: 12px 8px;
+  overflow-y: auto;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.22s ease;
