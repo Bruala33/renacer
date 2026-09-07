@@ -1039,43 +1039,17 @@ class BeatstarEngine {
     // Curva de velocidad por estrellas altamente diferenciada (ms):
     // Cuantas más estrellas tiene la canción, más rápido caen las notas (menor scroll duration).
     // 1★:  2000ms (Muy lento / relajado, ideal para aprender)
-    // 2★:  1850ms (Fácil)
-    // 3★:  1650ms (Normal)
-    // 4★:  1450ms (Intermedio)
-    // 5★:  1250ms (Difícil)
-    // 6★:  1080ms (Desafío alto)
-    // 7★:  920ms  (Extrema)
-    // 8★:  790ms  (Experto)
-    // 9★:  680ms  (Insana)
+    // 2★:  1840ms (Fácil)
+    // 3★:  1680ms (Normal)
+    // 4★:  1520ms (Intermedio)
+    // 5★:  1360ms (Difícil)
+    // 6★:  1200ms (Desafío alto)
+    // 7★:  1040ms (Extrema)
+    // 8★:  880ms  (Experto)
+    // 9★:  720ms  (Insana)
     // 10★: 580ms  (Máxima velocidad pro)
-    let duration = Math.round(2000 - (s - 1.0) * 157.8);
-
-    if (rawNotes && rawNotes.length > 5) {
-      const laneLastTime = [-Infinity, -Infinity, -Infinity];
-      let minGapSameLane = Infinity;
-
-      for (const n of rawNotes) {
-        const l = Math.max(0, Math.min(2, n.lane ?? 1));
-        const prev = laneLastTime[l];
-        if (prev >= 0) {
-          const gap = n.timestamp_ms - prev;
-          if (gap > 15 && gap < minGapSameLane) {
-            minGapSameLane = gap;
-          }
-        }
-        laneLastTime[l] = n.timestamp_ms;
-      }
-
-      if (minGapSameLane < 220 && minGapSameLane > 0) {
-        const hitY = this.hitLineY || 550;
-        const maxAllowedDuration = (minGapSameLane * hitY) / 35;
-        if (duration > maxAllowedDuration) {
-          duration = maxAllowedDuration;
-        }
-      }
-    }
-
-    return Math.round(Math.max(520, Math.min(2100, duration)));
+    const duration = Math.round(2000 - (s - 1.0) * ((2000 - 580) / 9.0));
+    return Math.max(500, Math.min(2400, duration));
   }
 
   computeMaxPossibleScore(notes) {
@@ -1232,17 +1206,6 @@ class BeatstarEngine {
       ? LaneRemapper.sanitizeForTwoFingers(rawNotes, this.bpm, diffStars, densityMode)
       : rawNotes;
 
-    // Check earliest note time in sanitized notes
-    let minNoteTime = Infinity;
-    for (const n of sanitizedNotes) {
-      const nt = Number.isFinite(n.timestamp_ms) ? n.timestamp_ms : 0;
-      if (nt < minNoteTime) minNoteTime = nt;
-    }
-    
-    // Provide a comfortable 1600ms lead-in runway so players never get surprised or miss instantly
-    const leadInMs = (minNoteTime < 1600 && minNoteTime !== Infinity) ? Math.round(1600 - minNoteTime) : 0;
-    this.leadInDelayMs = leadInMs;
-
     // Set dynamic base scroll duration based on difficulty curve or explicit custom preset
     const baseScroll = (Number.isFinite(this.beatmapData.baseScrollDurationMs) && this.beatmapData.baseScrollDurationMs > 0)
       ? this.beatmapData.baseScrollDurationMs
@@ -1259,7 +1222,7 @@ class BeatstarEngine {
 
     this.notes = sanitizedNotes.map((n, idx) => {
       const rawT = Number.isFinite(n.timestamp_ms) ? n.timestamp_ms : idx * 500;
-      const adjustedTime = Math.round(rawT + leadInMs);
+      const adjustedTime = Math.round(rawT);
       const rawDur = Number.isFinite(n.duration_ms) ? n.duration_ms : 0;
       const adjustedEndTime = (n.type === 'hold' || rawDur > 0) ? (adjustedTime + Math.max(150, rawDur)) : null;
       const laneVal = Math.max(0, Math.min(2, parseInt(n.lane ?? n.column ?? n.track ?? 0, 10) || 0));
@@ -1317,7 +1280,7 @@ class BeatstarEngine {
     this.ui.onScoreUpdate(this.score, this.combo, this.stars, this.multiplier, null, 0);
     this.ui.onSongLoaded(beatmapData.metadata);
 
-    // Start fast 3-2-1 countdown, then start playback and rendering loop strictly at '¡YA!' with lead-in sync
+    // Start fast 3-2-1 countdown, then start playback and rendering loop strictly at '¡YA!'
     const startPlay = () => {
       this.isCountingDown = false;
       this.isPaused = false;
@@ -1326,18 +1289,8 @@ class BeatstarEngine {
         ? (this.beatmapData.startMarkerMs / 1000)
         : 0;
       this.sync.seekTo(startSec);
-
-      if (this.leadInDelayMs > 0) {
-        this.startLoop();
-        setTimeout(() => {
-          if (!this.isPaused && !this.isGameOver && this.isRunning) {
-            this.sync.play();
-          }
-        }, this.leadInDelayMs);
-      } else {
-        this.sync.play();
-        this.startLoop();
-      }
+      this.sync.play();
+      this.startLoop();
     };
 
     if (this.ui && this.ui.onStartCountdown) {
@@ -2037,6 +1990,15 @@ class BeatstarEngine {
 
   update(dt) {
     if (this.isPaused || this.isRewinding) return;
+
+    if (this.sync && this.sync.audioElement && this.sync.isPlaying) {
+      if (Math.abs(this.sync.audioElement.playbackRate - this.songPlaybackRate) > 0.01) {
+        try {
+          this.sync.audioElement.playbackRate = this.songPlaybackRate;
+          this.sync.audioElement.defaultPlaybackRate = this.songPlaybackRate;
+        } catch (e) {}
+      }
+    }
 
     if (this.isCalibrating) {
       const now = performance.now();

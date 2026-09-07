@@ -44,6 +44,54 @@
         diff_hard: 'Difícil',
         diff_extreme: 'Extrema',
         diff_insane: 'Insana',
+        diff_filter_2: '2★ Fácil',
+        diff_filter_3: '3★ Media',
+        diff_filter_4: '4★ Normal',
+        diff_filter_5: '5★ Difícil',
+        diff_filter_6: '6★+ Pro',
+        prioritize_diff: 'Priorizar Dificultad:',
+        target_diff_all: 'Todas (Relevancia)',
+        target_diff_closest: 'Más cercanas primero',
+        ed_header_title: 'Creador de Pistas',
+        ed_header_sub: '3 Carriles Táctiles',
+        ed_playtest: 'Probar',
+        ed_save: 'Guardar',
+        ed_publish: 'Publicar',
+        ed_song_title: 'Título...',
+        ed_artist: 'Artista...',
+        ed_file_label: '📁 Cargar Audio',
+        ed_bpm_label: 'BPM:',
+        ed_playback_speed: 'Velocidad:',
+        ed_offset_label: 'Desfase:',
+        ed_diff_label: 'Dificultad:',
+        ed_diff_easy: '1.5★ Fácil',
+        ed_diff_medium: '3.5★ Media',
+        ed_diff_hard: '5.5★ Difícil',
+        ed_diff_extreme: '7.5★ Extrema',
+        ed_diff_insane: '9.5★ Insana',
+        ed_start_label: '🏁 Inicio:',
+        ed_end_label: '🛑 Fin:',
+        ed_mark_here: 'Marcar Aquí',
+        ed_clear_marker: 'Quitar',
+        ed_mode_label: 'Modo:',
+        ed_mode_auto: '✨ AUTO GESTOS',
+        ed_snap_label: 'Rejilla Magnética (Snap):',
+        ed_snap_1_1: '1/1 (Compás)',
+        ed_snap_1_2: '1/2 (Blancas)',
+        ed_snap_1_4: '1/4 (Negras - Estándar)',
+        ed_snap_1_8: '1/8 (Corcheas)',
+        ed_snap_1_16: '1/16 (Rápido)',
+        ed_notes_count: 'Notas',
+        ed_clear_all: 'Limpiar',
+        ed_return: 'VOLVER AL EDITOR',
+        pub_modal_title: 'Publicar en la Comunidad',
+        pub_modal_sub: 'Comparte tu creación con todos los jugadores del mundo en la nube.',
+        pub_modal_song_title: 'Título de la Canción:',
+        pub_modal_artist: 'Artista Original:',
+        pub_modal_creator: 'Tu Nombre de Creador (Charter):',
+        pub_modal_diff: 'Dificultad de Juego:',
+        pub_modal_cancel: 'Cancelar',
+        pub_modal_confirm: '🚀 Publicar Ahora',
         daily_challenge: 'Desafío Diario',
         daily_desc: 'Compite por la mejor puntuación de hoy en el ranking global',
         daily_btn: 'Jugar Desafío Diario',
@@ -195,6 +243,54 @@
         diff_hard: 'Hard',
         diff_extreme: 'Extreme',
         diff_insane: 'Insane',
+        diff_filter_2: '2★ Easy',
+        diff_filter_3: '3★ Medium',
+        diff_filter_4: '4★ Normal',
+        diff_filter_5: '5★ Hard',
+        diff_filter_6: '6★+ Pro',
+        prioritize_diff: 'Prioritize Difficulty:',
+        target_diff_all: 'All (Relevance)',
+        target_diff_closest: 'Closest First',
+        ed_header_title: 'Track Creator',
+        ed_header_sub: '3 Touch Lanes',
+        ed_playtest: 'Playtest',
+        ed_save: 'Save',
+        ed_publish: 'Publish',
+        ed_song_title: 'Title...',
+        ed_artist: 'Artist...',
+        ed_file_label: '📁 Load Audio',
+        ed_bpm_label: 'BPM:',
+        ed_playback_speed: 'Speed:',
+        ed_offset_label: 'Offset:',
+        ed_diff_label: 'Difficulty:',
+        ed_diff_easy: '1.5★ Easy',
+        ed_diff_medium: '3.5★ Medium',
+        ed_diff_hard: '5.5★ Hard',
+        ed_diff_extreme: '7.5★ Extreme',
+        ed_diff_insane: '9.5★ Insane',
+        ed_start_label: '🏁 Start:',
+        ed_end_label: '🛑 End:',
+        ed_mark_here: 'Mark Here',
+        ed_clear_marker: 'Clear',
+        ed_mode_label: 'Mode:',
+        ed_mode_auto: '✨ AUTO GESTURES',
+        ed_snap_label: 'Snap Grid:',
+        ed_snap_1_1: '1/1 (Bar)',
+        ed_snap_1_2: '1/2 (Half)',
+        ed_snap_1_4: '1/4 (Quarter - Standard)',
+        ed_snap_1_8: '1/8 (Eighth)',
+        ed_snap_1_16: '1/16 (Fast)',
+        ed_notes_count: 'Notes',
+        ed_clear_all: 'Clear',
+        ed_return: 'RETURN TO EDITOR',
+        pub_modal_title: 'Publish to Community',
+        pub_modal_sub: 'Share your creation with players worldwide in the cloud.',
+        pub_modal_song_title: 'Song Title:',
+        pub_modal_artist: 'Original Artist:',
+        pub_modal_creator: 'Your Creator Name (Charter):',
+        pub_modal_diff: 'Game Difficulty:',
+        pub_modal_cancel: 'Cancel',
+        pub_modal_confirm: '🚀 Publish Now',
         daily_challenge: 'Daily Challenge',
         daily_desc: "Compete for today's best score on the global leaderboard",
         daily_btn: 'Play Daily Challenge',
@@ -407,6 +503,16 @@
 
       updateLanguageButtonsUI(selectedLang);
 
+      if (typeof setTargetDifficulty === 'function' && typeof currentTargetDifficulty !== 'undefined') {
+        setTargetDifficulty(currentTargetDifficulty);
+      }
+
+      const edBadge = document.getElementById('edDiffBadge');
+      if (edBadge && typeof ChartEditor !== 'undefined' && ChartEditor.difficultyPreset) {
+        const pKey = 'ed_diff_' + (ChartEditor.difficultyPreset === 'Fácil' ? 'easy' : (ChartEditor.difficultyPreset === 'Media' ? 'medium' : (ChartEditor.difficultyPreset === 'Difícil' ? 'hard' : (ChartEditor.difficultyPreset === 'Extrema' ? 'extreme' : 'insane'))));
+        edBadge.innerText = t(pKey, ChartEditor.difficultyPreset);
+      }
+
       if (showToast) {
         showSuccessToast(t('toast_lang_updated'));
       }
@@ -438,10 +544,14 @@
     }
 
     function getSongSpeed(songId) {
-      if (!songId) return 1.0;
-      const raw = localStorage.getItem(`beatstar_song_speed_${songId}`);
-      const val = parseFloat(raw);
-      return (Number.isFinite(val) && val >= 0.5 && val <= 2.0) ? val : 1.0;
+      if (songId) {
+        const raw = localStorage.getItem(`beatstar_song_speed_${songId}`);
+        const val = parseFloat(raw);
+        if (Number.isFinite(val) && val >= 0.5 && val <= 2.0) return val;
+      }
+      const active = parseFloat(localStorage.getItem('beatstar_active_song_speed'));
+      if (Number.isFinite(active) && active >= 0.5 && active <= 2.0) return active;
+      return 1.0;
     }
 
     function setSongSpeed(songId, speedVal) {
@@ -452,6 +562,7 @@
       } else {
         localStorage.setItem(`beatstar_song_speed_${songId}`, val.toFixed(2));
       }
+      localStorage.setItem('beatstar_active_song_speed', val.toFixed(2));
       const sId = safeSongId(songId);
       document.querySelectorAll(`.song-speed-badge-${sId}`).forEach(el => {
         el.innerText = `${val.toFixed(2)}x`;
@@ -463,11 +574,8 @@
       document.querySelectorAll(`.song-speed-slider-${sId}`).forEach(el => {
         el.value = val;
       });
-      if (engine && engine.setSongPlaybackSpeed && currentActiveBeatmap) {
-        const curId = currentActiveBeatmap.metadata?.id || currentActiveBeatmap.id;
-        if (curId === songId) {
-          engine.setSongPlaybackSpeed(val);
-        }
+      if (engine && engine.setSongPlaybackSpeed) {
+        engine.setSongPlaybackSpeed(val);
       }
     }
 
@@ -660,7 +768,7 @@
           <span class="text-amber-400 font-bold text-xs">𝄞</span>
           <span id="hudClefCount" class="text-[11px] font-black text-amber-300 font-mono">0</span>
         </div>
-        <button id="btnPauseGame" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-white transition cursor-pointer" title="Pausar Partida">
+        <button id="btnPauseGame" onclick="event.stopPropagation(); openPauseModal()" ontouchend="event.stopPropagation(); openPauseModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-white transition cursor-pointer" title="Pausar Partida">
           <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
         </button>
       </div>
@@ -762,29 +870,29 @@
           <div class="p-2 bg-black/40 border border-white/10 rounded-xl space-y-1.5">
             <div class="flex items-center justify-between text-[10px]">
               <span class="font-bold text-gray-300 flex items-center gap-1">
-                <span>🎯</span> Priorizar Dificultad:
+                <span>🎯</span> <span data-i18n="prioritize_diff">Priorizar Dificultad:</span>
               </span>
               <span id="targetDiffDisplay" class="font-mono font-black text-pink-400">Todas (Relevancia)</span>
             </div>
 
             <!-- Difficulty Selector Buttons -->
             <div class="grid grid-cols-6 gap-1" id="diffFilterButtons">
-              <button onclick="setTargetDifficulty('all')" data-diff="all" class="diff-filter-btn active py-1 rounded-lg text-[9px] font-bold border border-white/15 bg-white/10 text-white hover:bg-white/20 transition cursor-pointer">
+              <button onclick="setTargetDifficulty('all')" data-diff="all" data-i18n="diff_all" class="diff-filter-btn active py-1 rounded-lg text-[9px] font-bold border border-white/15 bg-white/10 text-white hover:bg-white/20 transition cursor-pointer">
                 Todas
               </button>
-              <button onclick="setTargetDifficulty(2)" data-diff="2" class="diff-filter-btn py-1 rounded-lg text-[9px] font-bold border border-emerald-500/30 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/30 transition cursor-pointer">
+              <button onclick="setTargetDifficulty(2)" data-diff="2" data-i18n="diff_filter_2" class="diff-filter-btn py-1 rounded-lg text-[9px] font-bold border border-emerald-500/30 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/30 transition cursor-pointer">
                 2★ Fácil
               </button>
-              <button onclick="setTargetDifficulty(3)" data-diff="3" class="diff-filter-btn py-1 rounded-lg text-[9px] font-bold border border-cyan-500/30 bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/30 transition cursor-pointer">
+              <button onclick="setTargetDifficulty(3)" data-diff="3" data-i18n="diff_filter_3" class="diff-filter-btn py-1 rounded-lg text-[9px] font-bold border border-cyan-500/30 bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/30 transition cursor-pointer">
                 3★ Media
               </button>
-              <button onclick="setTargetDifficulty(4)" data-diff="4" class="diff-filter-btn py-1 rounded-lg text-[9px] font-bold border border-pink-500/30 bg-pink-500/15 text-pink-300 hover:bg-pink-500/30 transition cursor-pointer">
+              <button onclick="setTargetDifficulty(4)" data-diff="4" data-i18n="diff_filter_4" class="diff-filter-btn py-1 rounded-lg text-[9px] font-bold border border-pink-500/30 bg-pink-500/15 text-pink-300 hover:bg-pink-500/30 transition cursor-pointer">
                 4★ Normal
               </button>
-              <button onclick="setTargetDifficulty(5)" data-diff="5" class="diff-filter-btn py-1 rounded-lg text-[9px] font-bold border border-amber-500/30 bg-amber-500/15 text-amber-300 hover:bg-amber-500/30 transition cursor-pointer">
+              <button onclick="setTargetDifficulty(5)" data-diff="5" data-i18n="diff_filter_5" class="diff-filter-btn py-1 rounded-lg text-[9px] font-bold border border-amber-500/30 bg-amber-500/15 text-amber-300 hover:bg-amber-500/30 transition cursor-pointer">
                 5★ Difícil
               </button>
-              <button onclick="setTargetDifficulty(6)" data-diff="6" class="diff-filter-btn py-1 rounded-lg text-[9px] font-bold border border-rose-500/30 bg-rose-500/15 text-rose-300 hover:bg-rose-500/30 transition cursor-pointer">
+              <button onclick="setTargetDifficulty(6)" data-diff="6" data-i18n="diff_filter_6" class="diff-filter-btn py-1 rounded-lg text-[9px] font-bold border border-rose-500/30 bg-rose-500/15 text-rose-300 hover:bg-rose-500/30 transition cursor-pointer">
                 6★+ Pro
               </button>
             </div>
@@ -1152,33 +1260,33 @@
   <div class="p-3 bg-gradient-to-r from-purple-950/60 via-black/80 to-pink-950/60 border border-purple-500/30 rounded-2xl space-y-2.5 shadow-xl">
     <div class="flex items-center justify-between gap-1.5 flex-wrap">
       <div>
-        <h2 class="text-xs font-black text-white">Creador de Pistas</h2>
-        <p class="text-[9px] text-gray-400">3 Carriles Táctiles</p>
+        <h2 data-i18n="ed_header_title" class="text-xs font-black text-white">Creador de Pistas</h2>
+        <p data-i18n="ed_header_sub" class="text-[9px] text-gray-400">3 Carriles Táctiles</p>
       </div>
       <div class="flex items-center gap-1">
         <button onclick="ChartEditor.playtest()" class="px-2 py-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 text-black font-black rounded-lg text-[11px] flex items-center gap-1 cursor-pointer transition active:scale-95 shadow-md">
-          <span>▶</span> Probar
+          <span>▶</span> <span data-i18n="ed_playtest">Probar</span>
         </button>
         <button onclick="ChartEditor.saveToLibrary()" class="px-2 py-1 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 text-white font-black rounded-lg text-[11px] flex items-center gap-1 cursor-pointer transition active:scale-95 shadow-md">
-          <span>💾</span> Guardar
+          <span>💾</span> <span data-i18n="ed_save">Guardar</span>
         </button>
         <button onclick="ChartEditor.openPublishModal()" class="px-2 py-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 text-white font-black rounded-lg text-[11px] flex items-center gap-1 cursor-pointer transition active:scale-95 shadow-md">
-          Publicar
+          <span data-i18n="ed_publish">Publicar</span>
         </button>
       </div>
     </div>
 
     <!-- Metadata Inputs -->
     <div class="grid grid-cols-2 gap-2 pt-1 border-t border-white/10">
-      <input id="edSongTitle" type="text" placeholder="Título..." class="px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-xl text-[11px] text-white focus:border-pink-500 outline-none">
-      <input id="edSongArtist" type="text" placeholder="Artista..." class="px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-xl text-[11px] text-white focus:border-pink-500 outline-none">
+      <input id="edSongTitle" type="text" data-i18n-placeholder="ed_song_title" placeholder="Título..." class="px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-xl text-[11px] text-white focus:border-pink-500 outline-none">
+      <input id="edSongArtist" type="text" data-i18n-placeholder="ed_artist" placeholder="Artista..." class="px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-xl text-[11px] text-white focus:border-pink-500 outline-none">
     </div>
 
     <!-- File Selector & Speed / BPM Controls -->
     <div class="grid grid-cols-12 gap-1.5 items-center">
       <div class="col-span-6 relative">
         <label for="edAudioFileInput" class="w-full py-1.5 px-2 bg-white/10 hover:bg-white/20 border border-cyan-400/40 rounded-xl text-[10px] font-bold text-cyan-300 text-center cursor-pointer transition active:scale-95 flex items-center justify-center truncate">
-          <span id="edAudioBtnText">📁 Cargar Audio</span>
+          <span id="edAudioBtnText" data-i18n="ed_file_label">📁 Cargar Audio</span>
         </label>
         <input 
           type="file" 
@@ -1189,7 +1297,7 @@
         >
       </div>
       <div class="col-span-3 flex items-center bg-black/60 border border-white/10 px-1.5 py-1 rounded-xl">
-        <span class="text-[8px] text-gray-400 font-bold mr-1">BPM:</span>
+        <span data-i18n="ed_bpm_label" class="text-[8px] text-gray-400 font-bold mr-1">BPM:</span>
         <input id="edBpmInput" type="number" value="120" min="40" max="320" class="w-full bg-transparent text-[10px] font-black text-pink-400 font-mono text-center outline-none" onchange="ChartEditor.setBpm(this.value)">
       </div>
       <div class="col-span-3 flex items-center bg-black/60 border border-white/10 px-1 py-1 rounded-xl">
@@ -1207,7 +1315,7 @@
     <div class="grid grid-cols-2 gap-2 pt-1 border-t border-white/10">
       <div class="bg-black/60 border border-white/10 p-1.5 rounded-xl space-y-1">
         <div class="flex items-center justify-between text-[9px]">
-          <span class="font-bold text-gray-300">Desfase:</span>
+          <span data-i18n="ed_offset_label" class="font-bold text-gray-300">Desfase:</span>
           <span id="edOffsetVal" class="font-mono font-black text-cyan-300">+0 ms</span>
         </div>
         <div class="flex items-center gap-1">
@@ -1219,15 +1327,15 @@
 
       <div class="bg-black/60 border border-white/10 p-1.5 rounded-xl space-y-0.5">
         <div class="flex items-center justify-between text-[9px]">
-          <span class="font-bold text-gray-300">Dificultad:</span>
+          <span data-i18n="ed_diff_label" class="font-bold text-gray-300">Dificultad:</span>
           <span id="edDiffBadge" class="text-[8px] font-bold text-pink-400">3.5★ Media</span>
         </div>
         <select id="edDiffPresetSelect" onchange="ChartEditor.setDifficulty(this.value)" class="w-full bg-black/80 text-pink-300 font-bold border border-white/15 rounded-lg text-[10px] py-0.5 px-1 outline-none cursor-pointer">
-          <option value="Fácil">1.5★ Fácil</option>
-          <option value="Media" selected>3.5★ Media</option>
-          <option value="Difícil">5.5★ Difícil</option>
-          <option value="Extrema">7.5★ Extrema</option>
-          <option value="Insana">9.5★ Insana</option>
+          <option value="Fácil" data-i18n="ed_diff_easy">1.5★ Fácil</option>
+          <option value="Media" data-i18n="ed_diff_medium" selected>3.5★ Media</option>
+          <option value="Difícil" data-i18n="ed_diff_hard">5.5★ Difícil</option>
+          <option value="Extrema" data-i18n="ed_diff_extreme">7.5★ Extrema</option>
+          <option value="Insana" data-i18n="ed_diff_insane">9.5★ Insana</option>
         </select>
       </div>
     </div>
@@ -1237,32 +1345,32 @@
       <!-- Control de Comienzo -->
       <div class="bg-black/60 border border-emerald-500/30 p-1.5 rounded-xl space-y-1">
         <div class="flex items-center justify-between text-[9px]">
-          <span class="font-bold text-emerald-300">🏁 Inicio:</span>
+          <span data-i18n="ed_start_label" class="font-bold text-emerald-300">🏁 Inicio:</span>
           <span id="edStartMarkerVal" class="font-mono font-black text-emerald-400">0.0s</span>
         </div>
         <div class="flex items-center gap-1">
           <button onclick="ChartEditor.adjustStartMarker(-1)" class="px-1.5 py-0.5 bg-white/10 hover:bg-white/20 rounded text-[9px] font-bold text-gray-200 cursor-pointer" title="-1s">-1s</button>
           <button onclick="ChartEditor.setStartMarker()" class="flex-1 py-1 bg-emerald-600/40 hover:bg-emerald-600/60 border border-emerald-400/50 text-emerald-200 font-bold text-[9px] rounded-lg text-center cursor-pointer active:scale-95">
-            Marcar Aquí
+            <span data-i18n="ed_mark_here">Marcar Aquí</span>
           </button>
           <button onclick="ChartEditor.adjustStartMarker(1)" class="px-1.5 py-0.5 bg-white/10 hover:bg-white/20 rounded text-[9px] font-bold text-gray-200 cursor-pointer" title="+1s">+1s</button>
-          <button onclick="ChartEditor.clearStartMarker()" class="px-1.5 py-0.5 bg-red-500/20 hover:bg-red-500/40 text-red-300 rounded text-[9px] font-bold cursor-pointer" title="Quitar inicio">✕</button>
+          <button onclick="ChartEditor.clearStartMarker()" class="px-1.5 py-0.5 bg-red-500/20 hover:bg-red-500/40 text-red-300 rounded text-[9px] font-bold cursor-pointer" data-i18n-title="ed_clear_marker" title="Quitar">✕</button>
         </div>
       </div>
 
       <!-- Control de Final -->
       <div class="bg-black/60 border border-rose-500/30 p-1.5 rounded-xl space-y-1">
         <div class="flex items-center justify-between text-[9px]">
-          <span class="font-bold text-rose-300">🛑 Fin:</span>
+          <span data-i18n="ed_end_label" class="font-bold text-rose-300">🛑 Fin:</span>
           <span id="edEndMarkerVal" class="font-mono font-black text-rose-400">Audio fin</span>
         </div>
         <div class="flex items-center gap-1">
           <button onclick="ChartEditor.adjustEndMarker(-1)" class="px-1.5 py-0.5 bg-white/10 hover:bg-white/20 rounded text-[9px] font-bold text-gray-200 cursor-pointer" title="-1s">-1s</button>
           <button onclick="ChartEditor.setEndMarker()" class="flex-1 py-1 bg-rose-600/40 hover:bg-rose-600/60 border border-rose-400/50 text-rose-200 font-bold text-[9px] rounded-lg text-center cursor-pointer active:scale-95">
-            Marcar Aquí
+            <span data-i18n="ed_mark_here">Marcar Aquí</span>
           </button>
           <button onclick="ChartEditor.adjustEndMarker(1)" class="px-1.5 py-0.5 bg-white/10 hover:bg-white/20 rounded text-[9px] font-bold text-gray-200 cursor-pointer" title="+1s">+1s</button>
-          <button onclick="ChartEditor.clearEndMarker()" class="px-1.5 py-0.5 bg-red-500/20 hover:bg-red-500/40 text-red-300 rounded text-[9px] font-bold cursor-pointer" title="Quitar fin">✕</button>
+          <button onclick="ChartEditor.clearEndMarker()" class="px-1.5 py-0.5 bg-red-500/20 hover:bg-red-500/40 text-red-300 rounded text-[9px] font-bold cursor-pointer" data-i18n-title="ed_clear_marker" title="Quitar">✕</button>
         </div>
       </div>
     </div>
@@ -1273,7 +1381,7 @@
     <!-- Modo de Creación -->
     <div class="p-2 bg-black/50 border border-white/10 rounded-xl space-y-1">
       <div class="flex items-center justify-between">
-        <span class="text-[9px] font-bold text-gray-400 uppercase">Modo:</span>
+        <span data-i18n="ed_mode_label" class="text-[9px] font-bold text-gray-400 uppercase">Modo:</span>
         <span id="edModeBadge" class="text-[9px] font-black text-emerald-400">✨ AUTO GESTOS</span>
       </div>
       <div class="grid grid-cols-4 gap-1" id="edToolSelector">
@@ -1286,13 +1394,13 @@
 
     <!-- Rejilla Magnética (Snap Grid) -->
     <div class="p-2 bg-black/50 border border-white/10 rounded-xl space-y-1">
-      <span class="text-[9px] font-bold text-gray-400 uppercase">Rejilla Magnética (Snap):</span>
+      <span data-i18n="ed_snap_label" class="text-[9px] font-bold text-gray-400 uppercase">Rejilla Magnética (Snap):</span>
       <select id="edSnapSelect" onchange="ChartEditor.setSnap(this.value)" class="w-full py-1 bg-black/80 border border-white/15 rounded-lg text-[10px] font-bold text-cyan-300 outline-none">
-        <option value="1">1/1 (Compás)</option>
-        <option value="2">1/2 (Blancas)</option>
-        <option value="4" selected>1/4 (Negras - Estándar)</option>
-        <option value="8">1/8 (Corcheas)</option>
-        <option value="16">1/16 (Rápido)</option>
+        <option value="1" data-i18n="ed_snap_1_1">1/1 (Compás)</option>
+        <option value="2" data-i18n="ed_snap_1_2">1/2 (Blancas)</option>
+        <option value="4" data-i18n="ed_snap_1_4" selected>1/4 (Negras - Estándar)</option>
+        <option value="8" data-i18n="ed_snap_1_8">1/8 (Corcheas)</option>
+        <option value="16" data-i18n="ed_snap_1_16">1/16 (Rápido)</option>
       </select>
     </div>
   </div>
@@ -1318,7 +1426,7 @@
       </button>
       <input id="edTimelineScrubber" type="range" min="0" max="100" value="0" step="0.1" class="flex-1 accent-pink-500 bg-white/20 h-2 rounded-lg cursor-pointer" oninput="ChartEditor.seekFraction(this.value)">
       <button onclick="ChartEditor.clearAllNotes()" class="px-2.5 py-1.5 rounded-xl bg-red-500/20 text-red-300 text-[10px] font-bold border border-red-500/30 hover:bg-red-500/40 cursor-pointer flex-shrink-0">
-        Limpiar
+        <span data-i18n="ed_clear_all">Limpiar</span>
       </button>
     </div>
   </div>
@@ -1599,44 +1707,44 @@
     <div id="publishCommunityModal" class="modal-overlay">
       <div class="glass-card w-full max-w-[340px] p-4 rounded-2xl space-y-3 bg-gradient-to-b from-[#160b28] via-[#0d0718] to-black border border-purple-500/40 shadow-2xl">
         <div class="flex items-center justify-between">
-          <h3 class="text-xs font-black text-white flex items-center gap-1.5">
+          <h3 data-i18n="pub_modal_title" class="text-xs font-black text-white flex items-center gap-1.5">
             <span>🌍</span> Publicar en la Comunidad
           </h3>
           <button onclick="ChartEditor.closePublishModal()" class="text-gray-400 hover:text-white text-xs p-1 cursor-pointer">✕</button>
         </div>
-        <p class="text-[10px] text-gray-400">Comparte tu creación con todos los jugadores del mundo en la nube.</p>
+        <p data-i18n="pub_modal_sub" class="text-[10px] text-gray-400">Comparte tu creación con todos los jugadores del mundo en la nube.</p>
         
         <div class="space-y-2 text-left">
           <div>
-            <label class="text-[9px] font-bold text-gray-400 uppercase">Título de la Canción:</label>
+            <label data-i18n="pub_modal_song_title" class="text-[9px] font-bold text-gray-400 uppercase">Título de la Canción:</label>
             <input id="pubModalTitle" type="text" class="w-full px-2.5 py-1.5 bg-black/70 border border-white/15 rounded-xl text-xs text-white focus:border-pink-500 outline-none">
           </div>
           <div>
-            <label class="text-[9px] font-bold text-gray-400 uppercase">Artista Original:</label>
+            <label data-i18n="pub_modal_artist" class="text-[9px] font-bold text-gray-400 uppercase">Artista Original:</label>
             <input id="pubModalArtist" type="text" class="w-full px-2.5 py-1.5 bg-black/70 border border-white/15 rounded-xl text-xs text-white focus:border-pink-500 outline-none">
           </div>
           <div>
-            <label class="text-[9px] font-bold text-gray-400 uppercase">Tu Nombre de Creador (Charter):</label>
+            <label data-i18n="pub_modal_creator" class="text-[9px] font-bold text-gray-400 uppercase">Tu Nombre de Creador (Charter):</label>
             <input id="pubModalCreator" type="text" placeholder="Ej. BeatMaster" class="w-full px-2.5 py-1.5 bg-black/70 border border-white/15 rounded-xl text-xs text-cyan-300 focus:border-cyan-400 outline-none">
           </div>
           <div>
-            <label class="text-[9px] font-bold text-gray-400 uppercase">Dificultad de Juego:</label>
+            <label data-i18n="pub_modal_diff" class="text-[9px] font-bold text-gray-400 uppercase">Dificultad de Juego:</label>
             <select id="pubModalDiff" class="w-full px-2.5 py-1.5 bg-black/80 border border-white/15 rounded-xl text-xs text-pink-400 font-bold outline-none cursor-pointer">
-              <option value="Fácil">1.5★ Fácil (Lento)</option>
-              <option value="Media" selected>3.5★ Media (Normal)</option>
-              <option value="Difícil">5.5★ Difícil (Rápido)</option>
-              <option value="Extrema">7.5★ Extrema (Experto)</option>
-              <option value="Insana">9.5★ Insana (Frenético)</option>
+              <option value="Fácil" data-i18n="ed_diff_easy">1.5★ Fácil</option>
+              <option value="Media" data-i18n="ed_diff_medium" selected>3.5★ Media</option>
+              <option value="Difícil" data-i18n="ed_diff_hard">5.5★ Difícil</option>
+              <option value="Extrema" data-i18n="ed_diff_extreme">7.5★ Extrema</option>
+              <option value="Insana" data-i18n="ed_diff_insane">9.5★ Insana</option>
             </select>
           </div>
         </div>
 
         <div class="flex gap-2 pt-1">
           <button onclick="ChartEditor.closePublishModal()" class="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold text-white transition cursor-pointer">
-            Cancelar
+            <span data-i18n="pub_modal_cancel">Cancelar</span>
           </button>
           <button id="btnConfirmPublish" onclick="ChartEditor.confirmPublish()" class="flex-1 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl text-xs font-black text-white shadow-lg shadow-cyan-500/30 transition active:scale-95 cursor-pointer">
-            🚀 Publicar Ahora
+            <span data-i18n="pub_modal_confirm">🚀 Publicar Ahora</span>
           </button>
         </div>
       </div>
@@ -1769,29 +1877,49 @@
         <p id="pauseSongTitle" class="text-xs text-gray-300 font-medium truncate max-w-[260px]">Título de canción</p>
       </div>
 
-      <div class="w-full max-w-[270px] bg-black/50 border border-white/10 p-3 rounded-xl space-y-2">
-        <div class="flex items-center justify-between text-xs pb-1 border-b border-white/10">
-          <span data-i18n="song_speed" class="text-gray-300 font-semibold">Velocidad Música:</span>
-          <span id="pauseSongSpeedVal" class="font-mono font-black text-cyan-400 text-xs">1.0x</span>
-        </div>
-        <div class="flex items-center justify-between text-xs">
-          <span class="text-gray-300 font-semibold">Ajustar Offset Audio:</span>
-          <div class="flex items-center gap-1">
-            <button onclick="nudgeOffset(-25)" class="px-1.5 py-0.5 bg-white/10 hover:bg-white/20 rounded font-mono font-bold text-[9px]">-25ms</button>
-            <span id="pauseOffsetVal" class="font-mono font-bold text-cyan-400 text-xs min-w-[50px] text-center">0 ms</span>
-            <button onclick="nudgeOffset(25)" class="px-1.5 py-0.5 bg-white/10 hover:bg-white/20 rounded font-mono font-bold text-[9px]">+25ms</button>
+      <div class="w-full max-w-[270px] bg-black/50 border border-white/10 p-3 rounded-xl space-y-2.5">
+        <!-- Control Deslizante de Velocidad de Música en Pausa (0.5x - 2.0x) -->
+        <div class="space-y-1 pb-2 border-b border-white/10">
+          <div class="flex items-center justify-between text-xs">
+            <span data-i18n="song_speed" class="text-gray-300 font-semibold">Velocidad Música:</span>
+            <span id="pauseSongSpeedVal" class="font-mono font-black text-cyan-400 text-xs">1.0x</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <input 
+              id="pauseSongSpeedSlider" 
+              type="range" 
+              min="0.5" 
+              max="2.0" 
+              step="0.05" 
+              value="1.0" 
+              class="flex-1 accent-cyan-400 bg-white/20 h-1.5 rounded-lg cursor-pointer"
+              oninput="onPauseSongSpeedChange(this.value)"
+            >
+            <button onclick="onPauseSongSpeedChange(1.0)" class="text-[9px] text-gray-400 hover:text-white px-1.5 py-0.5 rounded bg-white/10 border border-white/15 cursor-pointer">1.0x</button>
           </div>
         </div>
-        <input 
-          id="pauseOffsetSlider" 
-          type="range" 
-          min="-1000" 
-          max="1000" 
-          step="10" 
-          value="0" 
-          class="w-full h-1.5 accent-cyan-400 bg-white/20 rounded-lg cursor-pointer" 
-          oninput="updateOffset(this.value)"
-        >
+
+        <!-- Ajustar Offset Audio -->
+        <div class="space-y-1">
+          <div class="flex items-center justify-between text-xs">
+            <span data-i18n="pause_offset" class="text-gray-300 font-semibold">Ajustar Offset Audio:</span>
+            <div class="flex items-center gap-1">
+              <button onclick="nudgeOffset(-25)" class="px-1.5 py-0.5 bg-white/10 hover:bg-white/20 rounded font-mono font-bold text-[9px]">-25ms</button>
+              <span id="pauseOffsetVal" class="font-mono font-bold text-cyan-400 text-xs min-w-[50px] text-center">0 ms</span>
+              <button onclick="nudgeOffset(25)" class="px-1.5 py-0.5 bg-white/10 hover:bg-white/20 rounded font-mono font-bold text-[9px]">+25ms</button>
+            </div>
+          </div>
+          <input 
+            id="pauseOffsetSlider" 
+            type="range" 
+            min="-1000" 
+            max="1000" 
+            step="10" 
+            value="0" 
+            class="w-full h-1.5 accent-cyan-400 bg-white/20 rounded-lg cursor-pointer" 
+            oninput="updateOffset(this.value)"
+          >
+        </div>
       </div>
 
       <div class="space-y-2.5 w-full max-w-[270px]">
@@ -2522,17 +2650,20 @@
     };
 
     window.openPauseModal = function() {
-      if (!currentActiveBeatmap) return;
+      const activeMap = currentActiveBeatmap || (engine && engine.beatmapData);
+      if (!activeMap && !engine) return;
       if (engine) engine.pause();
 
       const pauseSongTitle = document.getElementById('pauseSongTitle');
-      if (pauseSongTitle && currentActiveBeatmap.metadata) {
-        pauseSongTitle.innerText = currentActiveBeatmap.metadata.title || 'Canción en Pausa';
+      if (pauseSongTitle) {
+        pauseSongTitle.innerText = activeMap?.metadata?.title || activeMap?.title || t('pause_title', 'Juego en Pausa');
       }
 
       const exitBtn = document.getElementById('btnExitGame');
       if (exitBtn) {
-        exitBtn.innerHTML = window.isPlaytestingFromEditor ? '✏️ VOLVER AL EDITOR' : '<svg width="16" height="16" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg> SALIR AL MENÚ';
+        exitBtn.innerHTML = window.isPlaytestingFromEditor 
+          ? '✏️ ' + t('ed_return', 'VOLVER AL EDITOR') 
+          : '<svg width="16" height="16" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg> ' + t('exit_menu', 'SALIR AL MENÚ');
       }
 
       const modal = document.getElementById('pauseModal');
@@ -2540,10 +2671,38 @@
         modal.style.display = 'flex';
         modal.classList.add('open');
       }
+
+      const currentRate = (engine && engine.songPlaybackRate) ? engine.songPlaybackRate : 1.0;
       const pSpeed = document.getElementById('pauseSongSpeedVal');
-      if (pSpeed && engine) {
-        pSpeed.innerText = `${(engine.songPlaybackRate || 1.0).toFixed(2)}x`;
+      if (pSpeed) pSpeed.innerText = `${currentRate.toFixed(2)}x`;
+      const pSlider = document.getElementById('pauseSongSpeedSlider');
+      if (pSlider) pSlider.value = currentRate;
+
+      const offsetVal = document.getElementById('pauseOffsetVal');
+      const offsetSlider = document.getElementById('pauseOffsetSlider');
+      const currentOffset = parseInt(localStorage.getItem('beatstar_offset') || '0', 10) || 0;
+      if (offsetVal) {
+        const sign = currentOffset > 0 ? '+' : '';
+        offsetVal.innerText = `${sign}${currentOffset} ms`;
       }
+      if (offsetSlider) offsetSlider.value = currentOffset;
+    };
+
+    window.onPauseSongSpeedChange = function(val) {
+      const s = Math.max(0.5, Math.min(2.0, Math.round(parseFloat(val) * 20) / 20));
+      const songId = currentActiveBeatmap?.metadata?.id || currentActiveBeatmap?.id;
+      if (songId) {
+        setSongSpeed(songId, s);
+      } else {
+        localStorage.setItem('beatstar_active_song_speed', s.toFixed(2));
+      }
+      if (engine) {
+        engine.setSongPlaybackSpeed(s);
+      }
+      const valEl = document.getElementById('pauseSongSpeedVal');
+      if (valEl) valEl.innerText = `${s.toFixed(2)}x`;
+      const sliderEl = document.getElementById('pauseSongSpeedSlider');
+      if (sliderEl) sliderEl.value = s;
     };
 
     window.resumeGame = function() {
@@ -3649,7 +3808,9 @@ function switchMainTab(tab) {
 
       const disp = document.getElementById('targetDiffDisplay');
       if (disp) {
-        disp.innerText = val === 'all' ? 'Todas (Relevancia)' : `${val}★ (Más cercanas primero)`;
+        disp.innerText = val === 'all' 
+          ? t('target_diff_all', 'Todas (Relevancia)') 
+          : `${val}★ (${t('target_diff_closest', 'Más cercanas primero')})`;
       }
 
       // Re-sort and render results immediately if cache exists
@@ -4113,7 +4274,11 @@ function switchMainTab(tab) {
           unpackedData.metadata.title = chartItem.title || unpackedData.metadata.title;
           unpackedData.metadata.artist = chartItem.artist || unpackedData.metadata.artist;
           unpackedData.metadata.difficulty_name = diffName || chartItem.difficulty_name || unpackedData.metadata.difficulty_name;
-          unpackedData.metadata.stars = chartItem.stars || (chartItem.difficulties && chartItem.difficulties[0]?.stars) || unpackedData.metadata.stars;
+          const targetDiff = (chartItem.difficulties || []).find(d => d.id === diffId || d.name === diffName);
+          const selectedStars = (targetDiff && Number.isFinite(targetDiff.stars))
+            ? targetDiff.stars
+            : (Number.isFinite(chartItem.stars) ? chartItem.stars : ((chartItem.difficulties && chartItem.difficulties[0]?.stars) || 3.5));
+          unpackedData.metadata.stars = selectedStars;
           unpackedData.communityChartId = chartItem.id;
           unpackedData.source = chartItem.source || 'osu';
           unpackedData.source_name = chartItem.source_name || 'osu!';
@@ -4269,7 +4434,11 @@ function switchMainTab(tab) {
         unpackedData.metadata.title = chartItem.title || unpackedData.metadata.title;
         unpackedData.metadata.artist = chartItem.artist || unpackedData.metadata.artist;
         unpackedData.metadata.difficulty_name = diffName || chartItem.difficulty_name || unpackedData.metadata.difficulty_name;
-        unpackedData.metadata.stars = chartItem.stars || (chartItem.difficulties && chartItem.difficulties[0]?.stars) || unpackedData.metadata.stars;
+        const targetDiff = (chartItem.difficulties || []).find(d => d.id === diffId || d.name === diffName);
+          const selectedStars = (targetDiff && Number.isFinite(targetDiff.stars))
+            ? targetDiff.stars
+            : (Number.isFinite(chartItem.stars) ? chartItem.stars : ((chartItem.difficulties && chartItem.difficulties[0]?.stars) || 3.5));
+          unpackedData.metadata.stars = selectedStars;
         unpackedData.communityChartId = chartItem.id;
         unpackedData.source = chartItem.source || 'clonehero';
         unpackedData.source_name = chartItem.source_name || 'Clone Hero';

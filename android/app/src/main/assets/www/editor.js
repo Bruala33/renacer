@@ -178,8 +178,13 @@ const ChartEditor = {
 
     const badge = document.getElementById('edDiffBadge');
     if (badge) {
-      const p = DIFFICULTY_PRESETS[this.difficultyPreset];
-      badge.innerText = p.label;
+      if (typeof t === 'function') {
+        const pKey = 'ed_diff_' + (this.difficultyPreset === 'Fácil' ? 'easy' : (this.difficultyPreset === 'Media' ? 'medium' : (this.difficultyPreset === 'Difícil' ? 'hard' : (this.difficultyPreset === 'Extrema' ? 'extreme' : 'insane'))));
+        badge.innerText = t(pKey, DIFFICULTY_PRESETS[this.difficultyPreset].label);
+      } else {
+        const p = DIFFICULTY_PRESETS[this.difficultyPreset];
+        badge.innerText = p.label;
+      }
     }
   },
 
@@ -304,7 +309,7 @@ const ChartEditor = {
     const badge = document.getElementById('edModeBadge');
     if (badge) {
       if (tool === 'auto') {
-        badge.innerText = '✨ AUTO GESTOS';
+        badge.innerText = (typeof t === 'function') ? t('ed_mode_auto', '✨ AUTO GESTOS') : '✨ AUTO GESTOS';
         badge.className = 'text-[9px] font-black text-emerald-400';
       } else {
         badge.innerText = `MANUAL (${tool.toUpperCase()})`;
