@@ -236,6 +236,10 @@ class DirectAudioSync {
     const elapsed = performance.now() - this.basePerfNow;
     return Math.max(0, this.baseTimeMs + elapsed);
   }
+
+  getDuration() {
+    return (this.audioElement && Number.isFinite(this.audioElement.duration)) ? this.audioElement.duration : 0;
+  }
 }
 
 // ==========================================
@@ -804,6 +808,9 @@ class BeatstarEngine {
     this.activeHolds = new Map();
     this.activeTouches = new Map();
     this.laneGlows = [0, 0, 0];
+    this.heldLanes = new Set();
+    this.isDesktop = typeof window !== 'undefined' ? (window.innerWidth >= 768 || !('ontouchstart' in window)) : true;
+    this.lastPlaytestUpdateMs = 0;
     this.fxRipples = [];
     this.bgBursts = [];
 
@@ -922,6 +929,59 @@ class BeatstarEngine {
       }
       this.ctx.scale(this.dpr, this.dpr);
     }
+    this.isDesktop = typeof window !== 'undefined' ? (window.innerWidth >= 768 || !('ontouchstart' in window)) : true;
+  }
+
+  handleDirectionInput(direction) {
+    if (this.isPaused || this.isRewinding || this.isCountingDown) return;
+    const currentTime = this.isCalibrating 
+      ? (performance.now() - this.calibrationStartTime) + this.latencyOffsetMs
+      : this.sync.getCurrentTimeMs() + this.latencyOffsetMs;
+    let targetLane = null;
+    let minDiff = Infinity;
+
+    // 1. Priorizar carril actualmente mantenido por el jugador (Hold + Swipe compuesto)
+    if (this.heldLanes && this.heldLanes.size > 0) {
+      for (const lane of this.heldLanes) {
+        for (const note of this.notes) {
+          if (note.lane === lane && !note.hit && !note.missed && !note.holdCompleted && note.type === 'swipe') {
+            const dir = note.direction || 'up';
+            if (dir === direction || !note.direction) {
+              const diff = Math.abs(note.timestamp_ms - currentTime);
+              if (diff < 320 && diff < minDiff) {
+                minDiff = diff;
+                targetLane = lane;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // 2. Si no coincide con un carril mantenido, escanear todos los carriles en busca del swipe próximo
+    if (targetLane === null) {
+      for (const note of this.notes) {
+        if (!note.hit && !note.missed && !note.holdCompleted && note.type === 'swipe') {
+          const dir = note.direction || 'up';
+          if (dir === direction || !note.direction) {
+            const diff = Math.abs(note.timestamp_ms - currentTime);
+            if (diff < 320 && diff < minDiff) {
+              minDiff = diff;
+              targetLane = note.lane;
+            }
+          }
+        }
+      }
+    }
+
+    // 3. Fallback a carril natural según la dirección si no hay nota próxima
+    if (targetLane === null) {
+      if (direction === 'left') targetLane = 0;
+      else if (direction === 'right') targetLane = 2;
+      else targetLane = 1;
+    }
+
+    this.triggerLaneInput(targetLane, 'swipe', direction, 'keyboard_swipe');
   }
 
   bindEvents() {
@@ -935,6 +995,34 @@ class BeatstarEngine {
     this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
     this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
     this.canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e));
+
+    // Soporte de Swipes con rueda del ratón en PC
+    this.canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      if (this.isPaused || this.isRewinding || this.isCountingDown) return;
+      const lane = this.getLaneFromX(e.clientX);
+      const dir = e.deltaY < 0 ? 'up' : 'down';
+      this.triggerLaneInput(lane, 'swipe', dir, 'mouse_wheel');
+    }, { passive: false });
+
+    // Mapeo exhaustivo y ergonómico de carriles para teclado de PC
+    // Permite layout D-F-J (estándar), A-S-D (mano izquierda) y 1-2-3 (fila numérica/numpad)
+    const LANE_KEY_MAP = {
+      'd': 0, 'D': 0, 'a': 0, 'A': 0, '1': 0, 'z': 0, 'Z': 0,
+      'f': 1, 'F': 1, 's': 1, 'S': 1, '2': 1, 'x': 1, 'X': 1, ' ': 1,
+      'j': 2, 'J': 2, 'k': 2, 'K': 2, 'l': 2, 'L': 2, '3': 2, 'c': 2, 'C': 2
+    };
+
+    const SWIPE_KEY_MAP = {
+      'ArrowLeft': 'left',
+      'ArrowRight': 'right',
+      'ArrowUp': 'up',
+      'ArrowDown': 'down',
+      'Numpad4': 'left',
+      'Numpad6': 'right',
+      'Numpad8': 'up',
+      'Numpad2': 'down'
+    };
 
     window.addEventListener('keydown', (e) => {
       if (e.repeat) return;
@@ -950,21 +1038,28 @@ class BeatstarEngine {
       }
       if (this.isPaused || this.isRewinding || this.isCountingDown) return;
 
-      if (e.key === 'a' || e.key === 'A' || e.key === '1') this.triggerLaneInput(0, 'tap');
-      if (e.key === 's' || e.key === 'S' || e.key === 'f' || e.key === 'F' || e.key === ' ' || e.key === '2') this.triggerLaneInput(1, 'tap');
-      if (e.key === 'd' || e.key === 'D' || e.key === 'j' || e.key === 'J' || e.key === 'k' || e.key === 'K' || e.key === '3') this.triggerLaneInput(2, 'tap');
+      // Detección prioritaria de flechas / swipes direccionales en PC
+      const swipeDir = SWIPE_KEY_MAP[e.key] || SWIPE_KEY_MAP[e.code];
+      if (swipeDir) {
+        this.handleDirectionInput(swipeDir);
+        return;
+      }
 
-      if (e.key === 'ArrowLeft') this.triggerLaneInput(0, 'swipe', 'left');
-      if (e.key === 'ArrowRight') this.triggerLaneInput(2, 'swipe', 'right');
-      if (e.key === 'ArrowUp') this.triggerLaneInput(1, 'swipe', 'up');
-      if (e.key === 'ArrowDown') this.triggerLaneInput(1, 'swipe', 'down');
+      // Teclas de activación de carril
+      if (LANE_KEY_MAP[e.key] !== undefined) {
+        const lane = LANE_KEY_MAP[e.key];
+        this.heldLanes.add(lane);
+        this.triggerLaneInput(lane, 'tap', null, 'keyboard');
+      }
     });
 
     window.addEventListener('keyup', (e) => {
       if (this.isPaused || this.isRewinding || this.isCountingDown) return;
-      if (e.key === 'a' || e.key === 'A' || e.key === '1') this.releaseLaneHold(0);
-      if (e.key === 's' || e.key === 'S' || e.key === 'f' || e.key === 'F' || e.key === ' ' || e.key === '2') this.releaseLaneHold(1);
-      if (e.key === 'd' || e.key === 'D' || e.key === 'j' || e.key === 'J' || e.key === 'k' || e.key === 'K' || e.key === '3') this.releaseLaneHold(2);
+      if (LANE_KEY_MAP[e.key] !== undefined) {
+        const lane = LANE_KEY_MAP[e.key];
+        this.heldLanes.delete(lane);
+        this.releaseLaneHold(lane, 'keyboard');
+      }
     });
   }
 
@@ -1480,6 +1575,38 @@ class BeatstarEngine {
     this.fxRipples = [];
   }
 
+  seekPlaytest(targetSec) {
+    if (!this.beatmapData) return;
+    targetSec = Math.max(0, parseFloat(targetSec) || 0);
+    const targetMs = targetSec * 1000;
+    this.sync.seekTo(targetSec);
+
+    // Reiniciar estado de las notas para playtest
+    for (const note of this.notes) {
+      const noteTime = note.timestamp_ms || 0;
+      if (noteTime < targetMs - 60) {
+        note.hit = true;
+        note.missed = false;
+        note.processed = true;
+        note.holding = false;
+        note.holdCompleted = true;
+      } else {
+        note.hit = false;
+        note.missed = false;
+        note.processed = false;
+        note.holding = false;
+        note.holdCompleted = false;
+      }
+    }
+
+    if (this.particles) this.particles.reset();
+    this.activeHolds.clear();
+    this.activeTouches.clear();
+    this.judgements = [];
+    this.fxRipples = [];
+    this.bgBursts = [];
+  }
+
   getLaneFromX(clientX) {
     const rect = this.canvas.getBoundingClientRect();
     const x = clientX - rect.left;
@@ -1574,7 +1701,7 @@ class BeatstarEngine {
     const dy = (e.clientY - rect.top) - this.mouseTouch.y0;
     const dist = Math.hypot(dx, dy);
 
-    if (dist > 20) {
+    if (dist > 15) {
       let direction = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
       this.mouseTouch.swiped = true;
       this.triggerLaneInput(this.mouseTouch.lane, 'swipe', direction, 'mouse');
@@ -2065,6 +2192,29 @@ class BeatstarEngine {
 
     this.updateVisualEffects(dt);
 
+    // Actualización de scrubber y reloj de tiempo en modo Playtest del Editor
+    if (window.isPlaytestingFromEditor && !window.isScrubbingPlaytest) {
+      const nowMs = performance.now();
+      if (nowMs - this.lastPlaytestUpdateMs > 100) {
+        this.lastPlaytestUpdateMs = nowMs;
+        const curSec = (this.sync.getCurrentTimeMs()) / 1000;
+        const totalSec = this.sync.getDuration() || (this.notes.length > 0 ? (this.notes[this.notes.length - 1].timestamp_ms / 1000 + 3) : 60);
+        const scrubber = document.getElementById('playtestScrubber');
+        if (scrubber) {
+          scrubber.max = totalSec.toFixed(1);
+          scrubber.value = curSec.toFixed(1);
+        }
+        const curSpan = document.getElementById('playtestCurTime');
+        if (curSpan && typeof window.formatTimeSec === 'function') {
+          curSpan.innerText = window.formatTimeSec(curSec);
+        }
+        const totalSpan = document.getElementById('playtestTotalTime');
+        if (totalSpan && typeof window.formatTimeSec === 'function') {
+          totalSpan.innerText = window.formatTimeSec(totalSec);
+        }
+      }
+    }
+
     if (this.beatmapData && this.notes.length > 0 && !this.isGameOver) {
       const lastNoteTime = Math.max(...this.notes.map(n => n.end_timestamp_ms || n.timestamp_ms));
       const hasExplicitEnd = Number.isFinite(this.beatmapData.endMarkerMs) && this.beatmapData.endMarkerMs > 0;
@@ -2490,6 +2640,45 @@ class BeatstarEngine {
         ctx.strokeStyle = '#00ff88';
         ctx.lineWidth = 3.5;
         ctx.stroke();
+      }
+
+      // Keycap Badge reactivo para PC Desktop
+      if (this.isDesktop) {
+        const keyLabels = ['D', 'F', 'J'];
+        const label = keyLabels[l];
+        const isHeldKey = this.heldLanes && this.heldLanes.has(l);
+        const isActive = isPressed || isHeldKey;
+        const badgeW = 34;
+        const badgeH = 24;
+        const badgeY = y + 46;
+
+        ctx.save();
+        ctx.font = '900 13px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // Fondo del Keycap
+        ctx.fillStyle = isActive ? 'rgba(0, 242, 254, 0.45)' : 'rgba(8, 6, 16, 0.85)';
+        ctx.strokeStyle = isActive ? '#00f2fe' : 'rgba(255, 255, 255, 0.35)';
+        ctx.lineWidth = isActive ? 2.5 : 1.5;
+        if (isActive) {
+          ctx.shadowColor = '#00f2fe';
+          ctx.shadowBlur = 12;
+        }
+        if (ctx.roundRect) {
+          ctx.beginPath();
+          ctx.roundRect(cx - badgeW / 2, badgeY - badgeH / 2, badgeW, badgeH, 6);
+          ctx.fill();
+          ctx.stroke();
+        } else {
+          ctx.fillRect(cx - badgeW / 2, badgeY - badgeH / 2, badgeW, badgeH);
+          ctx.strokeRect(cx - badgeW / 2, badgeY - badgeH / 2, badgeW, badgeH);
+        }
+
+        // Letra del Keycap
+        ctx.fillStyle = isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.85)';
+        ctx.fillText(label, cx, badgeY + 1);
+        ctx.restore();
       }
     }
     ctx.restore();

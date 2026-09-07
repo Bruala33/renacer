@@ -145,6 +145,99 @@
     <!-- Layer 6: 120 FPS High Performance Game Canvas (Strictly 3 Lanes) -->
     <canvas id="gameCanvas"></canvas>
 
+    <!-- Layer 6.5: Editor Playtest Transport Bar (Active when testing from ChartEditor) -->
+    <div id="editorPlaytestBar" class="editor-playtest-bar hidden">
+      <div class="flex items-center justify-between gap-2 px-3 py-1.5 bg-black/85 backdrop-blur-md border-b border-emerald-500/40 w-full shadow-lg">
+        <!-- Play/Pause Toggle -->
+        <button id="btnPlaytestTogglePause" onclick="togglePlaytestPause()" class="w-7 h-7 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 flex items-center justify-center font-bold text-xs transition active:scale-95 cursor-pointer flex-shrink-0" title="Reproducir / Pausar">
+          <span id="playtestPauseIcon">⏸</span>
+        </button>
+        
+        <!-- Scrubber Slider and Time -->
+        <div class="flex-1 flex items-center gap-1.5 min-w-0">
+          <span id="playtestCurTime" class="text-[10px] font-mono font-bold text-cyan-300 flex-shrink-0">00:00</span>
+          <input id="playtestScrubber" type="range" min="0" max="100" step="0.1" value="0" class="flex-1 accent-emerald-400 h-1.5 bg-white/20 rounded-lg cursor-pointer" oninput="onPlaytestScrub(this.value)" onchange="onPlaytestScrubEnd(this.value)">
+          <span id="playtestTotalTime" class="text-[10px] font-mono text-gray-400 flex-shrink-0">00:00</span>
+        </div>
+
+        <!-- Quick Back to Editor Button -->
+        <button onclick="exitToSearch()" class="px-2 py-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 text-black font-black text-[10px] rounded-lg flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-md flex-shrink-0" title="Volver al Editor">
+          <span>✏️ Editor</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Desktop Arcade Left Deck (Visible on PC >= 1024px during gameplay) -->
+    <div id="desktopLeftDeck" class="desktop-arcade-deck desktop-left-deck hidden">
+      <div class="deck-card flex flex-col items-center text-center p-4">
+        <div class="vinyl-container mb-3">
+          <div id="deskVinylDisc" class="vinyl-disc">
+            <img id="deskCoverImg" src="./app_logo.png" alt="Vinyl Cover" class="vinyl-cover">
+          </div>
+        </div>
+        <h3 id="deskSongTitle" class="deck-title text-sm font-black text-white truncate max-w-[200px]">Canción</h3>
+        <p id="deskSongArtist" class="deck-artist text-xs text-pink-400 font-medium truncate max-w-[200px]">Artista</p>
+        <div class="flex items-center gap-1.5 mt-2.5">
+          <span id="deskDiffBadge" class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-pink-500/20 text-pink-300 border border-pink-500/30">Normal</span>
+          <span id="deskBpmBadge" class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-white/10 text-gray-300 border border-white/15">120 BPM</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop Arcade Right Deck (Visible on PC >= 1024px during gameplay) -->
+    <div id="desktopRightDeck" class="desktop-arcade-deck desktop-right-deck hidden">
+      <!-- Live Stats Card -->
+      <div class="deck-card p-4 space-y-2">
+        <div class="text-[10px] font-bold tracking-widest text-gray-400 uppercase">PUNTUACIÓN</div>
+        <div id="deskScore" class="text-2xl font-black text-white code-font leading-tight">0</div>
+        <div class="flex items-center justify-between pt-2 border-t border-white/10">
+          <div>
+            <div class="text-[9px] font-bold text-gray-400 tracking-wider">COMBO</div>
+            <div id="deskCombo" class="text-base font-black text-pink-400">0</div>
+          </div>
+          <div class="text-right">
+            <div class="text-[9px] font-bold text-gray-400 tracking-wider">MULTIPLICADOR</div>
+            <div id="deskMultiplier" class="text-base font-black text-cyan-300 font-mono">1x</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PC Controls Legend Card -->
+      <div class="deck-card deck-controls-card p-4 space-y-2.5">
+        <div class="flex items-center gap-1.5 text-[11px] font-black tracking-wider text-cyan-300 uppercase">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+          GUÍA DE TECLAS PC
+        </div>
+        <div class="space-y-2 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-gray-300 font-medium text-[11px]">Carriles:</span>
+            <div class="flex gap-1">
+              <kbd class="desk-kbd">D</kbd>
+              <kbd class="desk-kbd">F</kbd>
+              <kbd class="desk-kbd">J</kbd>
+            </div>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-gray-300 font-medium text-[11px]">Swipes:</span>
+            <div class="flex gap-1">
+              <kbd class="desk-kbd">↑</kbd>
+              <kbd class="desk-kbd">↓</kbd>
+              <kbd class="desk-kbd">←</kbd>
+              <kbd class="desk-kbd">→</kbd>
+            </div>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-gray-300 font-medium text-[11px]">Ratón:</span>
+            <span class="text-[10px] text-gray-400 font-medium">Click + Arrastre / Rueda</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-gray-300 font-medium text-[11px]">Pausa:</span>
+            <kbd class="desk-kbd">ESC</kbd>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Layer 7: Fixed Top HUD Header (Beatstar Style) -->
     <div id="fixedTopHud" class="fixed-top-hud hidden">
       <!-- Left: Song Info & Stars -->
@@ -2093,6 +2186,39 @@
       }
     };
 
+    window.isScrubbingPlaytest = false;
+
+    window.formatTimeSec = function(seconds) {
+      const s = Math.max(0, Math.floor(seconds || 0));
+      const m = Math.floor(s / 60);
+      const remS = s % 60;
+      return `${m.toString().padStart(2, '0')}:${remS.toString().padStart(2, '0')}`;
+    };
+
+    window.togglePlaytestPause = function() {
+      if (!engine) return;
+      const icon = document.getElementById('playtestPauseIcon');
+      if (engine.isPaused) {
+        engine.resume();
+        if (icon) icon.innerText = '⏸';
+      } else {
+        engine.pause();
+        if (icon) icon.innerText = '▶';
+      }
+    };
+
+    window.onPlaytestScrub = function(valSec) {
+      window.isScrubbingPlaytest = true;
+      const curSpan = document.getElementById('playtestCurTime');
+      if (curSpan) curSpan.innerText = window.formatTimeSec(valSec);
+      if (engine) engine.seekPlaytest(parseFloat(valSec));
+    };
+
+    window.onPlaytestScrubEnd = function(valSec) {
+      window.isScrubbingPlaytest = false;
+      if (engine) engine.seekPlaytest(parseFloat(valSec));
+    };
+
     window.exitToSearch = function() {
       if (activeCountdownInterval) {
         clearInterval(activeCountdownInterval);
@@ -2128,7 +2254,19 @@
       }
       currentActiveBeatmap = null;
 
-      document.getElementById('fixedTopHud').classList.add('hidden');
+      // Restaurar estado de viewport PC y ocultar barra playtest / decks arcade
+      document.querySelector('.game-viewport')?.classList.remove('in-game');
+      const playtestBar = document.getElementById('editorPlaytestBar');
+      if (playtestBar) {
+        playtestBar.classList.add('hidden');
+        playtestBar.style.display = 'none';
+      }
+      const leftDeck = document.getElementById('desktopLeftDeck');
+      const rightDeck = document.getElementById('desktopRightDeck');
+      if (leftDeck) { leftDeck.classList.add('hidden'); leftDeck.style.display = 'none'; }
+      if (rightDeck) { rightDeck.classList.add('hidden'); rightDeck.style.display = 'none'; }
+      const fixedTopHud = document.getElementById('fixedTopHud');
+      if (fixedTopHud) { fixedTopHud.style.top = '0'; fixedTopHud.classList.add('hidden'); }
 
       // Restaurar SIEMPRE el contenedor principal searchScreen
       const searchScreen = document.getElementById('searchScreen');
@@ -2290,6 +2428,14 @@
               if (medalTier) el.classList.add(medalTier);
             }
           });
+
+          // Actualizar estadísticas del panel arcade PC
+          const deskScore = document.getElementById('deskScore');
+          if (deskScore) deskScore.innerText = score.toLocaleString();
+          const deskCombo = document.getElementById('deskCombo');
+          if (deskCombo) deskCombo.innerText = combo;
+          const deskMult = document.getElementById('deskMultiplier');
+          if (deskMult) deskMult.innerText = `${multiplier}x`;
         },
         onSongLoaded: (meta) => {
           document.getElementById('hudSongTitle').innerText = meta.title || 'Canción Desconocida';
@@ -3886,8 +4032,60 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         searchScreen.style.display = 'none';
       }
 
+      // Añadir clase in-game al viewport para PC Arcade
+      document.querySelector('.game-viewport')?.classList.add('in-game');
+
       const topHud = document.getElementById('fixedTopHud');
       if (topHud) topHud.classList.remove('hidden');
+
+      // Gestión de la Barra de Prueba del Editor
+      const playtestBar = document.getElementById('editorPlaytestBar');
+      if (playtestBar) {
+        if (window.isPlaytestingFromEditor) {
+          playtestBar.classList.remove('hidden');
+          playtestBar.style.display = 'block';
+          const pauseIcon = document.getElementById('playtestPauseIcon');
+          if (pauseIcon) pauseIcon.innerText = '⏸';
+          if (topHud) topHud.style.top = '40px';
+        } else {
+          playtestBar.classList.add('hidden');
+          playtestBar.style.display = 'none';
+          if (topHud) topHud.style.top = '0';
+        }
+      }
+
+      // Gestión de Decks Laterales para PC Desktop (Arcade Cabinet)
+      const isDesktop = window.innerWidth >= 1024;
+      const leftDeck = document.getElementById('desktopLeftDeck');
+      const rightDeck = document.getElementById('desktopRightDeck');
+      if (leftDeck && rightDeck) {
+        if (isDesktop && !window.isPlaytestingFromEditor) {
+          leftDeck.classList.remove('hidden');
+          leftDeck.style.display = 'flex';
+          rightDeck.classList.remove('hidden');
+          rightDeck.style.display = 'flex';
+
+          document.getElementById('deskSongTitle').innerText = finalBeatmap.metadata?.title || 'Canción';
+          document.getElementById('deskSongArtist').innerText = finalBeatmap.metadata?.artist || 'Artista';
+          document.getElementById('deskDiffBadge').innerText = finalBeatmap.metadata?.difficulty_name || 'Normal';
+          document.getElementById('deskBpmBadge').innerText = `${finalBeatmap.bpm || 120} BPM`;
+          const coverImg = document.getElementById('deskCoverImg');
+          if (coverImg) {
+            coverImg.src = finalBeatmap.thumbnail || (finalBeatmap.metadata && finalBeatmap.metadata.thumbnail) || './app_logo.png';
+          }
+          const deskScore = document.getElementById('deskScore');
+          if (deskScore) deskScore.innerText = '0';
+          const deskCombo = document.getElementById('deskCombo');
+          if (deskCombo) deskCombo.innerText = '0';
+          const deskMult = document.getElementById('deskMultiplier');
+          if (deskMult) deskMult.innerText = '1x';
+        } else {
+          leftDeck.classList.add('hidden');
+          leftDeck.style.display = 'none';
+          rightDeck.classList.add('hidden');
+          rightDeck.style.display = 'none';
+        }
+      }
 
       const curtain = document.getElementById('gameCurtain');
       if (curtain) curtain.classList.add('revealed');
