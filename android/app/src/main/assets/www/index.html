@@ -800,10 +800,10 @@
         <span id="edModeBadge" class="text-[9px] font-black text-emerald-400">✨ AUTO GESTOS</span>
       </div>
       <div class="grid grid-cols-4 gap-1" id="edToolSelector">
-        <button onclick="ChartEditor.setTool('auto')" data-tool="auto" class="ed-tool-btn active py-1 rounded-lg text-[9px] font-black bg-emerald-500 text-black">Auto</button>
-        <button onclick="ChartEditor.setTool('tap')" data-tool="tap" class="ed-tool-btn py-1 rounded-lg text-[9px] font-bold bg-white/10 text-gray-300">Tap</button>
-        <button onclick="ChartEditor.setTool('hold')" data-tool="hold" class="ed-tool-btn py-1 rounded-lg text-[9px] font-bold bg-white/10 text-gray-300">Hold</button>
-        <button onclick="ChartEditor.setTool('swipe')" data-tool="swipe" class="ed-tool-btn py-1 rounded-lg text-[9px] font-bold bg-white/10 text-gray-300">Swipe</button>
+        <button onclick="ChartEditor.setTool('auto')" data-tool="auto" class="ed-tool-btn active py-1 rounded-lg text-[9px] font-black bg-emerald-500 text-black" title="Modo Auto (Tecla A)">Auto (A)</button>
+        <button onclick="ChartEditor.setTool('tap')" data-tool="tap" class="ed-tool-btn py-1 rounded-lg text-[9px] font-bold bg-white/10 text-gray-300" title="Modo Tap (Tecla T)">Tap (T)</button>
+        <button onclick="ChartEditor.setTool('hold')" data-tool="hold" class="ed-tool-btn py-1 rounded-lg text-[9px] font-bold bg-white/10 text-gray-300" title="Modo Hold (Tecla H)">Hold (H)</button>
+        <button onclick="ChartEditor.setTool('swipe')" data-tool="swipe" class="ed-tool-btn py-1 rounded-lg text-[9px] font-bold bg-white/10 text-gray-300" title="Modo Swipe (Tecla S)">Swipe (S)</button>
       </div>
     </div>
 
@@ -820,10 +820,10 @@
     </div>
   </div>
 
-  <!-- Lienzo Alto de Edición (Timeline Ampliado: 490px) -->
-  <div class="relative w-full h-[650px] bg-[#0c0814] border border-white/15 rounded-2xl overflow-hidden shadow-2xl flex flex-col">
+  <!-- Lienzo de Edición (Adaptable y con barra siempre visible) -->
+  <div class="relative w-full h-[460px] sm:h-[540px] bg-[#0c0814] border border-white/15 rounded-2xl overflow-hidden shadow-2xl flex flex-col">
     <!-- Header del Canvas: Reloj y Contador de Notas sin solapamiento -->
-    <div class="flex items-center justify-between px-3 py-1.5 bg-black/90 border-b border-white/10 text-[11px] font-mono">
+    <div class="flex items-center justify-between px-3 py-1.5 bg-black/90 border-b border-white/10 text-[11px] font-mono flex-shrink-0">
       <div class="flex items-center gap-2">
         <span id="edCurrentTime" class="text-cyan-300 font-bold">00:00.000</span>
         <span id="edMarkerStatus" class="text-[9px] text-gray-400"></span>
@@ -832,10 +832,10 @@
     </div>
 
     <!-- Canvas Interactivo -->
-    <canvas id="editorCanvas" class="w-full flex-1 touch-none cursor-crosshair"></canvas>
+    <canvas id="editorCanvas" class="w-full flex-1 touch-none cursor-crosshair min-h-[300px]"></canvas>
 
-    <!-- Barra de Transporte & Desplazamiento -->
-    <div class="p-2 bg-black/90 border-t border-white/10 flex items-center justify-between gap-2">
+    <!-- Barra de Transporte & Desplazamiento (Sticky fija abajo) -->
+    <div class="p-2 bg-black/95 border-t border-white/15 flex items-center justify-between gap-2 sticky bottom-0 z-20 flex-shrink-0">
       <button id="edBtnPlay" onclick="ChartEditor.togglePlayback()" class="w-10 h-10 rounded-xl bg-pink-500 hover:bg-pink-400 text-white font-black flex items-center justify-center transition active:scale-95 shadow-md shadow-pink-500/30 flex-shrink-0">
         <span class="text-sm">▶</span>
       </button>
@@ -939,6 +939,11 @@
             </label>
           </div>
         </div>
+
+        <!-- Sincronizar y Respaldar en la Nube -->
+        <button onclick="closeSettingsModal(); syncAllLocalDataToCloud();" class="w-full py-2.5 bg-emerald-600/25 hover:bg-emerald-600/40 border border-emerald-500/40 text-emerald-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95">
+          <span>☁️</span> Sincronizar Canciones y Rankings con la Nube
+        </button>
 
         <!-- PC Controls Button in Settings (PC Web only) -->
         <button onclick="closeSettingsModal(); openPCControlsModal();" class="pc-web-only w-full py-2.5 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer">
@@ -1849,6 +1854,118 @@
       window.currentPCLayout = layout;
       localStorage.setItem('beatstar_pc_layout', layout);
       updatePCLayoutUI();
+      if (typeof showSuccessToast === 'function') {
+        showSuccessToast(layout === 'asd' ? 'Modo de teclas cambiado a: A - S - D' : 'Modo de teclas cambiado a: D - F - J');
+      }
+    };
+
+    // Scroll global para PC (permite scroll fuera de la pantalla del móvil)
+    window.addEventListener('wheel', (e) => {
+      if (window.isMobileOrNative) return;
+
+      const isOverInnerScroll = e.target && e.target.closest && (
+        e.target.closest('#editorCanvas') ||
+        e.target.closest('.overflow-y-auto') ||
+        e.target.closest('.overflow-x-auto')
+      );
+      if (isOverInnerScroll) return;
+
+      if (typeof currentActiveTab !== 'undefined' && currentActiveTab === 'editor') {
+        if (typeof ChartEditor !== 'undefined' && ChartEditor.bpm) {
+          const delta = Math.sign(e.deltaY) * (60 / ChartEditor.bpm) / 4;
+          ChartEditor.seek(ChartEditor.currentSongTime + delta);
+        }
+        return;
+      }
+
+      const openModal = document.querySelector('.modal-overlay.open .overflow-y-auto');
+      if (openModal) {
+        openModal.scrollTop += e.deltaY;
+        return;
+      }
+
+      const searchScreen = document.getElementById('searchScreen');
+      if (searchScreen) {
+        searchScreen.scrollTop += e.deltaY;
+      }
+    }, { passive: true });
+
+    window.syncAllLocalDataToCloud = async function() {
+      if (typeof showInfoToast === 'function') showInfoToast('Sincronizando canciones y rankings con la nube...');
+      const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
+      if (!baseUrl) {
+        if (typeof showErrorToast === 'function') showErrorToast('No hay conexión con el servidor de la nube.');
+        return;
+      }
+
+      let syncedCount = 0;
+      const candidates = [];
+      try {
+        const vault = JSON.parse(localStorage.getItem('beatstar_my_published_charts') || '[]');
+        candidates.push(...vault);
+      } catch (e) {}
+      try {
+        const loc = JSON.parse(localStorage.getItem('beatstar_community_local_charts') || '[]');
+        candidates.push(...loc);
+      } catch (e) {}
+      try {
+        const cac = JSON.parse(localStorage.getItem('beatstar_community_cache') || '[]');
+        candidates.push(...cac);
+      } catch (e) {}
+      if (typeof IndexedDBStorage !== 'undefined') {
+        try {
+          const dbCharts = await IndexedDBStorage.getAllCharts();
+          for (const c of (dbCharts || [])) {
+            if (c.is_community || c.source === 'community' || (c.id && c.id.startsWith('comm_'))) {
+              candidates.push(c);
+            }
+          }
+        } catch (e) {}
+      }
+
+      const unique = [];
+      const seen = new Set();
+      for (const c of candidates) {
+        if (!c || !c.title) continue;
+        const k = `${c.title.trim().toLowerCase()}|${(c.artist || '').trim().toLowerCase()}`;
+        if (!seen.has(k)) {
+          seen.add(k);
+          unique.push(c);
+        }
+      }
+
+      for (const c of unique) {
+        await autoSyncChartToServerIfMissing(c);
+        syncedCount++;
+      }
+
+      // Sincronizar todos los records de puntuación locales a la nube
+      try {
+        const highscores = JSON.parse(localStorage.getItem('beatstar_highscores') || '{}');
+        const pName = localStorage.getItem('beatstar_player_nickname') || 'Jugador';
+        for (const [sId, sData] of Object.entries(highscores)) {
+          if (sData && sData.score > 0) {
+            const cleanId = sId.replace('community_', '');
+            fetch(`${baseUrl}/api/v1/community/charts/${encodeURIComponent(cleanId)}/score`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                player_name: pName,
+                score: sData.score,
+                max_combo: sData.max_combo || sData.combo || 0,
+                stars: sData.stars || 3,
+                accuracy_pct: sData.accuracy_pct || sData.accuracy || 100.0,
+                medal_tier: sData.medal_tier || sData.tier || 'diamond'
+              })
+            }).catch(() => {});
+          }
+        }
+      } catch (e) {}
+
+      if (typeof showSuccessToast === 'function') {
+        showSuccessToast(`¡${syncedCount} canciones comunitarias sincronizadas con la nube!`);
+      }
+      loadCommunityCharts();
     };
 
     function updatePCLayoutUI() {
@@ -5679,6 +5796,10 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       if (followed) params.set('followed_creators', followed);
 
       let songs = [];
+      let serverRawCharts = [];
+      const serverChartIds = new Set();
+      const serverChartKeys = new Set();
+
       try {
         const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
         if (baseUrl) {
@@ -5686,7 +5807,14 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
           if (res.ok) {
             const data = await res.json();
             if (Array.isArray(data)) {
-              songs = data;
+              serverRawCharts = data;
+              for (const s of serverRawCharts) {
+                if (s && s.id) serverChartIds.add(s.id);
+                if (s && s.title && s.artist) {
+                  serverChartKeys.add(`${s.title.trim().toLowerCase()}|${s.artist.trim().toLowerCase()}`);
+                }
+              }
+              songs = [...serverRawCharts];
               if (songs.length > 0 && !q && (!communityDiffFilter || communityDiffFilter === 'Todas')) {
                 try {
                   localStorage.setItem('beatstar_community_cache', JSON.stringify(songs));
@@ -5699,14 +5827,12 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         console.warn('Conexión con nube comunitaria no disponible:', err);
       }
 
-      // 1. Si el backend está en frío, reiniciando o sin conexión, usar caché comunitaria
+      // 1. Si el servidor no devolvió canciones (por reinicio de Render o falta de red), cargar de la caché
+      const cached = JSON.parse(localStorage.getItem('beatstar_community_cache') || '[]');
       if ((!songs || songs.length === 0) && !q && (!communityDiffFilter || communityDiffFilter === 'Todas')) {
-        try {
-          const cached = JSON.parse(localStorage.getItem('beatstar_community_cache') || '[]');
-          if (Array.isArray(cached) && cached.length > 0) {
-            songs = cached;
-          }
-        } catch (e) {}
+        if (Array.isArray(cached) && cached.length > 0) {
+          songs = [...cached];
+        }
       }
 
       // 2. Recopilar candidatos de canciones comunitarias creadas localmente por el usuario
@@ -5745,25 +5871,31 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         } catch (e) {}
       }
 
-      // 3. Comprobar pistas locales: si faltan en la nube, mostrarlas y sincronizarlas de inmediato
+      // Incluir también pistas de la caché que no estén ya en candidatos
+      if (Array.isArray(cached)) {
+        for (const item of cached) {
+          if (item && item.title && !localCandidates.some(c => c.id === item.id || (c.title === item.title && c.artist === item.artist))) {
+            localCandidates.push(item);
+          }
+        }
+      }
+
+      // 3. Comprobar contra lo que REALMENTE está en el servidor (serverChartIds / serverChartKeys)
+      // Si falta en el servidor, mostrarla y subirla automáticamente para que nunca se pierda
       for (const lc of localCandidates) {
         if (!lc || !lc.title) continue;
-        const alreadyInCloud = songs.some(s =>
-          s.id === lc.id ||
-          (s.title && lc.title && s.title.trim().toLowerCase() === lc.title.trim().toLowerCase() &&
-           s.artist && lc.artist && s.artist.trim().toLowerCase() === lc.artist.trim().toLowerCase())
-        );
+        const key = `${(lc.title || '').trim().toLowerCase()}|${(lc.artist || '').trim().toLowerCase()}`;
+        const isInCloud = serverChartIds.has(lc.id) || serverChartKeys.has(key);
 
-        if (alreadyInCloud) {
-          if (lc.id && lc.id.startsWith('custom_') && typeof IndexedDBStorage !== 'undefined') {
-            IndexedDBStorage.deleteChart(lc.id).catch(() => {});
-          }
-        } else {
+        if (!isInCloud) {
           const matchesQ = !q || (lc.title && lc.title.toLowerCase().includes(q.toLowerCase())) || (lc.artist && lc.artist.toLowerCase().includes(q.toLowerCase()));
           const matchesDiff = !communityDiffFilter || communityDiffFilter === 'Todas' || lc.difficulty_name === communityDiffFilter;
           if (matchesQ && matchesDiff) {
-            songs.unshift(lc);
+            if (!songs.some(s => s.id === lc.id || `${(s.title||'').trim().toLowerCase()}|${(s.artist||'').trim().toLowerCase()}` === key)) {
+              songs.unshift(lc);
+            }
           }
+          // Subir a la nube automáticamente para que persista para todas las versiones
           autoSyncChartToServerIfMissing(lc);
         }
       }

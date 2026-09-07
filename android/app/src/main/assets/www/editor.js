@@ -463,11 +463,11 @@ const ChartEditor = {
 
       // 6. Nueva nota táctil (independiente por cada dedo / pointerId)
       const lane = Math.max(0, Math.min(2, Math.floor(x / laneWidth)));
-      const isAuto = this.activeTool === 'auto';
-      // En modo automático: cliquear donde sea en la pantalla crea la nota en la línea rosa imantada a la rejilla
-      const autoSec = this.getSnappedTime(this.currentSongTime);
-      const autoMs = Math.round(autoSec * 1000);
-      const startMs = isAuto ? autoMs : Math.round(this.getSnappedTime(noteTime) * 1000);
+      // Si la música está reproduciéndose en vivo y el modo es Auto, se coloca en la línea rosa de grabación
+      // Si está en pausa o modo manual, se coloca exactamente en el punto del cursor (x, y) donde se hace clic
+      const isLiveRecording = this.isPlaying && this.activeTool === 'auto';
+      const clickedSongTimeSec = isLiveRecording ? this.currentSongTime : noteTime;
+      const startMs = Math.round(this.getSnappedTime(clickedSongTimeSec) * 1000);
 
       this.activePointers.set(e.pointerId, {
         pointerId: e.pointerId,
@@ -479,7 +479,7 @@ const ChartEditor = {
         currentY: y,
         startTime: performance.now(),
         startSongTimeMs: startMs,
-        isAutoMode: isAuto,
+        isLiveRecording: isLiveRecording,
         dragged: false,
         direction: 'up'
       });
@@ -744,6 +744,30 @@ const ChartEditor = {
 
     window.addEventListener('keydown', (e) => {
       if (typeof currentActiveTab !== 'undefined' && currentActiveTab !== 'editor') return;
+
+      // Evitar atajos cuando se escribe en campos de texto
+      const activeEl = document.activeElement;
+      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT' || activeEl.tagName === 'TEXTAREA')) {
+        return;
+      }
+
+      // Atajos de teclado para herramientas del editor: A (Auto), T (Tap), H (Hold), S (Swipe)
+      if (e.key === 'a' || e.key === 'A') {
+        this.setTool('auto');
+        return;
+      }
+      if (e.key === 't' || e.key === 'T') {
+        this.setTool('tap');
+        return;
+      }
+      if (e.key === 'h' || e.key === 'H') {
+        this.setTool('hold');
+        return;
+      }
+      if (e.key === 's' || e.key === 'S') {
+        this.setTool('swipe');
+        return;
+      }
 
       if (e.code === 'Space') {
         e.preventDefault();
@@ -1106,8 +1130,9 @@ const ChartEditor = {
       const curLane = hold.lane;
       const noteX = curLane * laneWidth + 8;
       const noteW = laneWidth - 16;
-      const isAuto = hold.isAutoMode ?? (this.activeTool === 'auto');
-      const headY = isAuto ? hitLineY : (hitLineY - (hold.startSongTimeMs / 1000 - this.currentSongTime) * this.pixelsPerSecond);
+      const headY = (hold.startSongTimeMs !== undefined)
+        ? (hitLineY - (hold.startSongTimeMs / 1000 - this.currentSongTime) * this.pixelsPerSecond)
+        : hitLineY;
 
       // Si se mantiene pulsado >= 160 ms, se visualiza el cuerpo del hold formándose en vivo
       if (elapsedMs >= 160) {
