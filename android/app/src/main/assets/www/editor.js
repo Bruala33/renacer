@@ -53,9 +53,6 @@ const ChartEditor = {
   activePointers: new Map(),
   // Sistema de teclas activas para teclado
   activeKeys: new Map(),
-  // Previsualización de colocación en modo manual
-  hoverLane: null,
-  hoverTimeMs: null,
 
   init() {
     this.canvas = document.getElementById('editorCanvas');
@@ -524,22 +521,7 @@ const ChartEditor = {
 
       const ptr = this.activePointers.get(e.pointerId);
       if (!ptr) {
-        // Feedback y coordenadas de previsualización al pasar el ratón (hover)
-        if (!this.isPlaying && this.activeTool !== 'auto') {
-          const timeOffset = (hitLineY - y) / this.pixelsPerSecond;
-          const rawSec = this.currentSongTime + timeOffset;
-          if (rawSec >= 0) {
-            this.hoverLane = Math.max(0, Math.min(2, Math.floor(x / laneWidth)));
-            this.hoverTimeMs = Math.round(this.getSnappedTime(rawSec) * 1000);
-          } else {
-            this.hoverLane = null;
-            this.hoverTimeMs = null;
-          }
-        } else {
-          this.hoverLane = null;
-          this.hoverTimeMs = null;
-        }
-
+        // Feedback de cursor al pasar el ratón (hover)
         let cursor = 'crosshair';
         if (this.startMarkerMs !== null) {
           const mY = hitLineY - (this.startMarkerMs / 1000 - this.currentSongTime) * this.pixelsPerSecond;
@@ -752,16 +734,12 @@ const ChartEditor = {
 
     this.canvas.addEventListener('pointerup', handlePointerUp);
     this.canvas.addEventListener('pointercancel', handlePointerUp);
-    this.canvas.addEventListener('pointerleave', () => {
-      this.hoverLane = null;
-      this.hoverTimeMs = null;
-    });
 
     // --- TECLADO MULTI-TECLA CON SOPORTE DE HOLD ---
     const keyLaneMap = {
-      'Digit1': 0, 'KeyD': 0, 'KeyA': 0,
-      'Digit2': 1, 'KeyF': 1, 'KeyS': 1,
-      'Digit3': 2, 'KeyJ': 2, 'KeyK': 2, 'KeyL': 2
+      'Digit1': 0, 'KeyD': 0, 'KeyJ': 0,
+      'Digit2': 1, 'KeyF': 1, 'KeyK': 1,
+      'Digit3': 2, 'KeyG': 2, 'KeyL': 2
     };
 
     window.addEventListener('keydown', (e) => {
@@ -1104,29 +1082,6 @@ const ChartEditor = {
       }
     }
 
-    // Previsualización fantasma en modo manual sobre la cuadrícula al pasar el cursor
-    if (this.hoverLane !== null && this.hoverTimeMs !== null && !this.isPlaying && this.activeTool !== 'auto') {
-      const hx = this.hoverLane * laneWidth + 8;
-      const hy = hitLineY - (this.hoverTimeMs / 1000 - this.currentSongTime) * this.pixelsPerSecond;
-      const hw = laneWidth - 16;
-      if (hy >= -20 && hy <= h + 20) {
-        this.ctx.save();
-        this.ctx.strokeStyle = 'rgba(255, 215, 0, 0.55)';
-        this.ctx.fillStyle = 'rgba(255, 215, 0, 0.18)';
-        this.ctx.lineWidth = 1.5;
-        this.ctx.setLineDash([4, 4]);
-        this.ctx.beginPath();
-        if (this.ctx.roundRect) {
-          this.ctx.roundRect(hx, hy - 9, hw, 18, 6);
-        } else {
-          this.ctx.rect(hx, hy - 9, hw, 18);
-        }
-        this.ctx.fill();
-        this.ctx.stroke();
-        this.ctx.restore();
-      }
-    }
-
     // Visualización en tiempo real de notas Hold estirándose bajo dedos o teclas simultáneas
     const activeHolds = [];
     for (const ptr of this.activePointers.values()) {
@@ -1134,8 +1089,7 @@ const ChartEditor = {
         activeHolds.push({
           lane: ptr.lane,
           startTime: ptr.startTime,
-          startSongTimeMs: ptr.startSongTimeMs,
-          isAutoMode: ptr.isAutoMode
+          startSongTimeMs: ptr.startSongTimeMs
         });
       }
     }
@@ -1143,8 +1097,7 @@ const ChartEditor = {
       activeHolds.push({
         lane: key.lane,
         startTime: key.startTime,
-        startSongTimeMs: key.startMs,
-        isAutoMode: true
+        startSongTimeMs: key.startMs
       });
     }
 
@@ -1153,10 +1106,7 @@ const ChartEditor = {
       const curLane = hold.lane;
       const noteX = curLane * laneWidth + 8;
       const noteW = laneWidth - 16;
-      const isAuto = (hold.isAutoMode !== undefined) ? hold.isAutoMode : (this.activeTool === 'auto');
-      const headY = isAuto
-        ? hitLineY
-        : (hitLineY - (hold.startSongTimeMs / 1000 - this.currentSongTime) * this.pixelsPerSecond);
+      const headY = hitLineY;
 
       // Si se mantiene pulsado >= 160 ms, se visualiza el cuerpo del hold formándose en vivo
       if (elapsedMs >= 160) {
