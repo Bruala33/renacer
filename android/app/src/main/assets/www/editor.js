@@ -1106,7 +1106,8 @@ const ChartEditor = {
       const curLane = hold.lane;
       const noteX = curLane * laneWidth + 8;
       const noteW = laneWidth - 16;
-      const headY = hitLineY;
+      const isAuto = hold.isAutoMode ?? (this.activeTool === 'auto');
+      const headY = isAuto ? hitLineY : (hitLineY - (hold.startSongTimeMs / 1000 - this.currentSongTime) * this.pixelsPerSecond);
 
       // Si se mantiene pulsado >= 160 ms, se visualiza el cuerpo del hold formándose en vivo
       if (elapsedMs >= 160) {

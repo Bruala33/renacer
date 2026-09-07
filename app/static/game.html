@@ -170,6 +170,11 @@
 
       <!-- Right: Clefs In-Game + Pause -->
       <div class="flex items-center gap-1.5">
+        <!-- PC Web Key Guide Button ⌨️ -->
+        <button id="btnHudPCControls" onclick="openPCControlsModal()" class="pc-web-only h-8 px-2.5 rounded-xl bg-cyan-600/20 border border-cyan-500/30 hover:border-cyan-500/60 active:scale-95 text-cyan-300 flex items-center gap-1.5 transition cursor-pointer text-xs font-bold" title="Ver Teclas y Controles de PC">
+          <span>⌨️</span>
+          <span class="text-[10px] font-mono font-bold" id="hudPCKeyLabel">D-F-J</span>
+        </button>
         <div class="clef-badge py-1 px-2">
           <span class="text-amber-400 font-bold text-xs">𝄞</span>
           <span id="hudClefCount" class="text-[11px] font-black text-amber-300 font-mono">0</span>
@@ -197,6 +202,12 @@
 
         <!-- Action Buttons (Flex-shrink-0 to guarantee settings gear is always visible) -->
         <div class="flex items-center gap-1.5 flex-shrink-0">
+          <!-- PC Controls Button 💻 (Web PC only) -->
+          <button id="btnPCControls" onclick="openPCControlsModal()" class="pc-web-only h-8 px-2.5 rounded-xl bg-cyan-600/20 border border-cyan-500/30 hover:border-cyan-500/60 active:scale-95 text-cyan-300 flex items-center gap-1.5 transition cursor-pointer text-xs font-bold" title="Controles para PC / Teclado">
+            <span>💻</span>
+            <span class="text-[11px] font-bold">Modo PC</span>
+          </button>
+
           <!-- FX Shop Button 🎨 -->
           <button id="btnOpenFXShop" onclick="openFXShopModal()" class="w-8 h-8 rounded-xl bg-purple-600/20 border border-purple-500/30 hover:border-purple-500/60 active:scale-95 text-white flex items-center justify-center transition cursor-pointer text-xs" title="Tienda de Efectos de Tecla">
             <span>🎨</span>
@@ -929,6 +940,11 @@
           </div>
         </div>
 
+        <!-- PC Controls Button in Settings (PC Web only) -->
+        <button onclick="closeSettingsModal(); openPCControlsModal();" class="pc-web-only w-full py-2.5 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer">
+          <span>💻</span> Guía de Teclado y Modo PC
+        </button>
+
         <!-- 4. Open FX Shop Button -->
         <button onclick="closeSettingsModal(); openFXShopModal();" class="w-full py-2.5 bg-gradient-to-r from-purple-600/30 to-pink-600/30 border border-pink-500/40 text-pink-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer hover:bg-pink-500/20">
           <span>🎨</span> Tienda de Fondos y Efectos
@@ -959,6 +975,95 @@
         </div>
 
         </div>
+      </div>
+    </div>
+
+    <!-- Layer 9b: Modal Controles PC (💻) -->
+    <div id="pcControlsModal" class="modal-overlay">
+      <div class="glass-card w-full max-w-[370px] p-4 rounded-2xl space-y-3.5 max-h-[92vh] flex flex-col bg-[#06040a]/95 border border-cyan-500/30 shadow-2xl shadow-cyan-500/10">
+        <!-- Header -->
+        <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
+          <div class="flex items-center gap-2">
+            <span class="text-base">💻</span>
+            <div>
+              <h3 class="text-xs font-black text-white uppercase tracking-wider">Modo PC &amp; Teclado</h3>
+              <p class="text-[10px] text-cyan-400 font-medium">Controles para jugar en navegador</p>
+            </div>
+          </div>
+          <button onclick="closePCControlsModal()" class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white flex items-center justify-center text-xs cursor-pointer transition">✕</button>
+        </div>
+
+        <!-- Layout Selector Buttons -->
+        <div class="space-y-1.5">
+          <div class="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Distribución de Teclas</div>
+          <div class="grid grid-cols-2 gap-1.5">
+            <button id="pcLayoutBtnDFJ" onclick="setPCLayout('dfj')" class="py-2 px-2.5 rounded-xl border text-xs font-black flex flex-col items-center gap-0.5 transition cursor-pointer bg-cyan-500/20 border-cyan-400 text-cyan-200 shadow-lg shadow-cyan-500/20">
+              <span class="tracking-widest">D - F - J</span>
+              <span class="text-[9px] font-normal text-cyan-300/80">Recomendado</span>
+            </button>
+            <button id="pcLayoutBtnASD" onclick="setPCLayout('asd')" class="py-2 px-2.5 rounded-xl border text-xs font-black flex flex-col items-center gap-0.5 transition cursor-pointer bg-white/5 border-white/10 text-gray-400 hover:text-white">
+              <span class="tracking-widest">A - S - D</span>
+              <span class="text-[9px] font-normal text-gray-500">1 mano</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Controls Legend -->
+        <div class="space-y-2 text-xs">
+          <!-- 3 Lanes -->
+          <div class="p-2.5 bg-black/50 border border-white/10 rounded-xl space-y-1.5">
+            <div class="text-[10px] uppercase font-bold text-gray-400 flex items-center justify-between">
+              <span>🎯 Carriles Principales</span>
+              <span class="text-cyan-400 font-mono text-[9px]">3 Carriles</span>
+            </div>
+            <div class="grid grid-cols-3 gap-1 text-center font-mono">
+              <div class="p-1.5 bg-cyan-500/10 border border-cyan-500/20 rounded-lg">
+                <div class="text-cyan-400 font-black text-xs" id="pcLegendL0">D</div>
+                <div class="text-[9px] text-gray-400">Izquierda</div>
+              </div>
+              <div class="p-1.5 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+                <div class="text-purple-400 font-black text-xs" id="pcLegendL1">F</div>
+                <div class="text-[9px] text-gray-400">Centro</div>
+              </div>
+              <div class="p-1.5 bg-pink-500/10 border border-pink-500/20 rounded-lg">
+                <div class="text-pink-400 font-black text-xs" id="pcLegendL2">J</div>
+                <div class="text-[9px] text-gray-400">Derecha</div>
+              </div>
+            </div>
+            <p class="text-[9px] text-gray-400 text-center">También puedes usar <span class="text-white font-bold">1 - 2 - 3</span> o las <span class="text-white font-bold">Flechas ← ↓ →</span></p>
+          </div>
+
+          <!-- Swipes -->
+          <div class="p-2.5 bg-black/50 border border-white/10 rounded-xl space-y-1">
+            <div class="text-[10px] uppercase font-bold text-amber-400 flex items-center gap-1">
+              <span>⚡</span> Notas Deslizantes (Swipes)
+            </div>
+            <p class="text-[11px] text-gray-300 leading-snug">
+              Usa las <strong class="text-amber-300 font-mono">Flechas (↑ ↓ ← →)</strong>, arrastra con el ratón o gira la <strong class="text-amber-300">rueda del ratón</strong>. ¡O simplemente presiona la tecla del carril en el momento exacto!
+            </p>
+          </div>
+
+          <!-- Holds -->
+          <div class="p-2.5 bg-black/50 border border-white/10 rounded-xl space-y-1">
+            <div class="text-[10px] uppercase font-bold text-emerald-400 flex items-center gap-1">
+              <span>⏱️</span> Notas Largas (Holds)
+            </div>
+            <p class="text-[11px] text-gray-300 leading-snug">
+              <strong class="text-emerald-300">Mantén pulsada</strong> la tecla del carril y suéltala cuando termine la estela.
+            </p>
+          </div>
+
+          <!-- Pause -->
+          <div class="flex items-center justify-between px-2.5 py-1.5 bg-white/5 border border-white/5 rounded-xl text-[11px]">
+            <span class="text-gray-400">Pausar / Reanudar:</span>
+            <span><strong class="font-mono text-white bg-white/10 px-1.5 py-0.5 rounded">Escape</strong> o <strong class="font-mono text-white bg-white/10 px-1.5 py-0.5 rounded">P</strong></span>
+          </div>
+        </div>
+
+        <!-- Close Button -->
+        <button onclick="closePCControlsModal()" class="w-full py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-cyan-500/20 active:scale-95 transition cursor-pointer">
+          ¡Entendido, a Jugar!
+        </button>
       </div>
     </div>
 
@@ -1720,6 +1825,83 @@
         modal.style.display = 'none';
       }
     };
+
+    window.currentPCLayout = localStorage.getItem('beatstar_pc_layout') || 'dfj';
+
+    window.openPCControlsModal = function() {
+      updatePCLayoutUI();
+      const modal = document.getElementById('pcControlsModal');
+      if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.add('open');
+      }
+    };
+
+    window.closePCControlsModal = function() {
+      const modal = document.getElementById('pcControlsModal');
+      if (modal) {
+        modal.classList.remove('open');
+        modal.style.display = 'none';
+      }
+    };
+
+    window.setPCLayout = function(layout) {
+      window.currentPCLayout = layout;
+      localStorage.setItem('beatstar_pc_layout', layout);
+      updatePCLayoutUI();
+    };
+
+    function updatePCLayoutUI() {
+      const isDFJ = window.currentPCLayout !== 'asd';
+      const btnDFJ = document.getElementById('pcLayoutBtnDFJ');
+      const btnASD = document.getElementById('pcLayoutBtnASD');
+      const l0 = document.getElementById('pcLegendL0');
+      const l1 = document.getElementById('pcLegendL1');
+      const l2 = document.getElementById('pcLegendL2');
+      const hudLabel = document.getElementById('hudPCKeyLabel');
+
+      if (btnDFJ && btnASD) {
+        if (isDFJ) {
+          btnDFJ.className = "py-2 px-2.5 rounded-xl border text-xs font-black flex flex-col items-center gap-0.5 transition cursor-pointer bg-cyan-500/20 border-cyan-400 text-cyan-200 shadow-lg shadow-cyan-500/20";
+          btnASD.className = "py-2 px-2.5 rounded-xl border text-xs font-black flex flex-col items-center gap-0.5 transition cursor-pointer bg-white/5 border-white/10 text-gray-400 hover:text-white";
+        } else {
+          btnASD.className = "py-2 px-2.5 rounded-xl border text-xs font-black flex flex-col items-center gap-0.5 transition cursor-pointer bg-cyan-500/20 border-cyan-400 text-cyan-200 shadow-lg shadow-cyan-500/20";
+          btnDFJ.className = "py-2 px-2.5 rounded-xl border text-xs font-black flex flex-col items-center gap-0.5 transition cursor-pointer bg-white/5 border-white/10 text-gray-400 hover:text-white";
+        }
+      }
+      if (l0 && l1 && l2) {
+        l0.textContent = isDFJ ? 'D' : 'A';
+        l1.textContent = isDFJ ? 'F' : 'S';
+        l2.textContent = isDFJ ? 'J' : 'D';
+      }
+      if (hudLabel) {
+        hudLabel.textContent = isDFJ ? 'D-F-J' : 'A-S-D';
+      }
+    }
+
+    function initPCWebButton() {
+      const isMobileOrApp = !!(
+        window.AndroidNative ||
+        window.AndroidBridge ||
+        /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
+        (('ontouchstart' in window) && window.innerWidth < 768)
+      );
+      window.isMobileOrNative = isMobileOrApp;
+      if (isMobileOrApp) {
+        document.body.classList.add('is-mobile-app');
+        document.querySelectorAll('.pc-web-only').forEach(el => {
+          el.style.display = 'none';
+        });
+      } else {
+        document.body.classList.remove('is-mobile-app');
+        document.querySelectorAll('.pc-web-only').forEach(el => {
+          el.style.display = 'inline-flex';
+        });
+        updatePCLayoutUI();
+      }
+    }
+    window.addEventListener('DOMContentLoaded', initPCWebButton);
+    window.addEventListener('resize', initPCWebButton);
 
     window.openFXShopModal = function() {
       updateUserWalletDisplay();

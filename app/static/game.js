@@ -935,6 +935,17 @@ class BeatstarEngine {
     this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
     this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
     this.canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e));
+    this.canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      if (this.isPaused || this.isRewinding || this.isCountingDown) return;
+      let dir = 'up';
+      if (Math.abs(e.deltaY) >= Math.abs(e.deltaX)) {
+        dir = e.deltaY < 0 ? 'up' : 'down';
+      } else {
+        dir = e.deltaX < 0 ? 'left' : 'right';
+      }
+      this.handleDirectionInput(dir);
+    }, { passive: false });
 
     window.addEventListener('keydown', (e) => {
       if (e.repeat) return;
@@ -950,21 +961,68 @@ class BeatstarEngine {
       }
       if (this.isPaused || this.isRewinding || this.isCountingDown) return;
 
-      if (e.key === 'a' || e.key === 'A' || e.key === '1') this.triggerLaneInput(0, 'tap');
-      if (e.key === 's' || e.key === 'S' || e.key === 'f' || e.key === 'F' || e.key === ' ' || e.key === '2') this.triggerLaneInput(1, 'tap');
-      if (e.key === 'd' || e.key === 'D' || e.key === 'j' || e.key === 'J' || e.key === 'k' || e.key === 'K' || e.key === '3') this.triggerLaneInput(2, 'tap');
+      // Check directional arrow keys (swipes + lane matching)
+      if (e.key === 'ArrowUp') {
+        this.handleDirectionInput('up', 'ArrowUp');
+        return;
+      }
+      if (e.key === 'ArrowDown') {
+        this.handleDirectionInput('down', 'ArrowDown');
+        return;
+      }
+      if (e.key === 'ArrowLeft') {
+        this.handleDirectionInput('left', 'ArrowLeft');
+        return;
+      }
+      if (e.key === 'ArrowRight') {
+        this.handleDirectionInput('right', 'ArrowRight');
+        return;
+      }
 
-      if (e.key === 'ArrowLeft') this.triggerLaneInput(0, 'swipe', 'left');
-      if (e.key === 'ArrowRight') this.triggerLaneInput(2, 'swipe', 'right');
-      if (e.key === 'ArrowUp') this.triggerLaneInput(1, 'swipe', 'up');
-      if (e.key === 'ArrowDown') this.triggerLaneInput(1, 'swipe', 'down');
+      // Lane key mappings: Supports D-F-J (recommended) and A-S-D postures
+      const pcLayout = window.currentPCLayout || (typeof localStorage !== 'undefined' && localStorage.getItem('beatstar_pc_layout')) || 'dfj';
+      const isASD = pcLayout === 'asd';
+
+      let lane = -1;
+      if (isASD) {
+        if (e.key === 'a' || e.key === 'A' || e.key === '1' || e.key === 'z' || e.key === 'Z') lane = 0;
+        else if (e.key === 's' || e.key === 'S' || e.key === ' ' || e.key === '2' || e.key === 'x' || e.key === 'X') lane = 1;
+        else if (e.key === 'd' || e.key === 'D' || e.key === '3' || e.key === 'c' || e.key === 'C') lane = 2;
+      } else {
+        // D-F-J posture (Default):
+        // Lane 0 (Left): D, A, 1, Z
+        // Lane 1 (Center): F, S, Space, 2, X
+        // Lane 2 (Right): J, K, L, 3, C
+        if (e.key === 'd' || e.key === 'D' || e.key === 'a' || e.key === 'A' || e.key === '1' || e.key === 'z' || e.key === 'Z') lane = 0;
+        else if (e.key === 'f' || e.key === 'F' || e.key === 's' || e.key === 'S' || e.key === ' ' || e.key === '2' || e.key === 'x' || e.key === 'X') lane = 1;
+        else if (e.key === 'j' || e.key === 'J' || e.key === 'k' || e.key === 'K' || e.key === 'l' || e.key === 'L' || e.key === '3' || e.key === 'c' || e.key === 'C') lane = 2;
+      }
+
+      if (lane !== -1) {
+        this.triggerLaneInput(lane, 'tap');
+      }
     });
 
     window.addEventListener('keyup', (e) => {
       if (this.isPaused || this.isRewinding || this.isCountingDown) return;
-      if (e.key === 'a' || e.key === 'A' || e.key === '1') this.releaseLaneHold(0);
-      if (e.key === 's' || e.key === 'S' || e.key === 'f' || e.key === 'F' || e.key === ' ' || e.key === '2') this.releaseLaneHold(1);
-      if (e.key === 'd' || e.key === 'D' || e.key === 'j' || e.key === 'J' || e.key === 'k' || e.key === 'K' || e.key === '3') this.releaseLaneHold(2);
+      const pcLayout = window.currentPCLayout || (typeof localStorage !== 'undefined' && localStorage.getItem('beatstar_pc_layout')) || 'dfj';
+      const isASD = pcLayout === 'asd';
+
+      if (e.key === 'ArrowLeft') {
+        this.releaseLaneHold(0);
+      } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        this.releaseLaneHold(1);
+      } else if (e.key === 'ArrowRight') {
+        this.releaseLaneHold(2);
+      } else if (isASD) {
+        if (e.key === 'a' || e.key === 'A' || e.key === '1' || e.key === 'z' || e.key === 'Z') this.releaseLaneHold(0);
+        else if (e.key === 's' || e.key === 'S' || e.key === ' ' || e.key === '2' || e.key === 'x' || e.key === 'X') this.releaseLaneHold(1);
+        else if (e.key === 'd' || e.key === 'D' || e.key === '3' || e.key === 'c' || e.key === 'C') this.releaseLaneHold(2);
+      } else {
+        if (e.key === 'd' || e.key === 'D' || e.key === 'a' || e.key === 'A' || e.key === '1' || e.key === 'z' || e.key === 'Z') this.releaseLaneHold(0);
+        else if (e.key === 'f' || e.key === 'F' || e.key === 's' || e.key === 'S' || e.key === ' ' || e.key === '2' || e.key === 'x' || e.key === 'X') this.releaseLaneHold(1);
+        else if (e.key === 'j' || e.key === 'J' || e.key === 'k' || e.key === 'K' || e.key === 'l' || e.key === 'L' || e.key === '3' || e.key === 'c' || e.key === 'C') this.releaseLaneHold(2);
+      }
     });
   }
 
@@ -1567,6 +1625,85 @@ class BeatstarEngine {
     this.triggerLaneInput(lane, 'tap', null, 'mouse');
   }
 
+  handleDirectionInput(direction, keyName = null) {
+    if (this.isPaused || this.isRewinding || this.isCountingDown) return;
+
+    const currentTime = this.isCalibrating 
+      ? (performance.now() - this.calibrationStartTime) + this.latencyOffsetMs
+      : this.sync.getCurrentTimeMs() + this.latencyOffsetMs;
+
+    // 1. Priority: Find an upcoming unhit swipe note across all lanes matching direction
+    let bestSwipeNote = null;
+    let bestSwipeDiff = Infinity;
+
+    for (const note of this.notes) {
+      if (note.hit || note.missed || note.holdCompleted) continue;
+      if (note.type === 'swipe') {
+        const diff = Math.abs(note.timestamp_ms - currentTime);
+        if (diff < 260 && diff < bestSwipeDiff) {
+          const targetDir = note.direction || 'up';
+          if (targetDir === direction) {
+            bestSwipeDiff = diff;
+            bestSwipeNote = note;
+          }
+        }
+      }
+    }
+
+    if (bestSwipeNote) {
+      this.triggerLaneInput(bestSwipeNote.lane, 'swipe', direction);
+      return;
+    }
+
+    // 2. If no exact direction match, check if there's an unhit note on the lane corresponding to this key
+    let mappedLane = 1;
+    if (direction === 'left' || keyName === 'ArrowLeft') mappedLane = 0;
+    else if (direction === 'right' || keyName === 'ArrowRight') mappedLane = 2;
+    else mappedLane = 1; // 'up' or 'down'
+
+    let laneNote = null;
+    let laneDiff = Infinity;
+    for (const note of this.notes) {
+      if (note.hit || note.missed || note.holdCompleted || note.lane !== mappedLane) continue;
+      const diff = Math.abs(note.timestamp_ms - currentTime);
+      if (diff < 260 && diff < laneDiff) {
+        laneDiff = diff;
+        laneNote = note;
+      }
+    }
+
+    if (laneNote) {
+      if (laneNote.type === 'swipe') {
+        this.triggerLaneInput(mappedLane, 'swipe', laneNote.direction || direction);
+      } else {
+        this.triggerLaneInput(mappedLane, 'tap');
+      }
+      return;
+    }
+
+    // 3. Fallback: If any swipe note exists on any lane within 200ms, trigger it
+    let anySwipe = null;
+    let anySwipeDiff = Infinity;
+    for (const note of this.notes) {
+      if (note.hit || note.missed || note.holdCompleted) continue;
+      if (note.type === 'swipe') {
+        const diff = Math.abs(note.timestamp_ms - currentTime);
+        if (diff < 200 && diff < anySwipeDiff) {
+          anySwipeDiff = diff;
+          anySwipe = note;
+        }
+      }
+    }
+
+    if (anySwipe) {
+      this.triggerLaneInput(anySwipe.lane, 'swipe', anySwipe.direction || direction);
+      return;
+    }
+
+    // 4. Default to mapped lane input
+    this.triggerLaneInput(mappedLane, 'tap');
+  }
+
   handleMouseMove(e) {
     if (!this.mouseTouch || this.mouseTouch.swiped || this.isPaused || this.isRewinding || this.isCountingDown) return;
     const rect = this.canvas.getBoundingClientRect();
@@ -1574,10 +1711,10 @@ class BeatstarEngine {
     const dy = (e.clientY - rect.top) - this.mouseTouch.y0;
     const dist = Math.hypot(dx, dy);
 
-    if (dist > 20) {
+    if (dist > 14) {
       let direction = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
       this.mouseTouch.swiped = true;
-      this.triggerLaneInput(this.mouseTouch.lane, 'swipe', direction, 'mouse');
+      this.handleDirectionInput(direction);
     }
   }
 
@@ -1744,21 +1881,19 @@ class BeatstarEngine {
       return;
     }
 
-    if (closestNote.type === 'tap' && inputType === 'tap') {
+    if (closestNote.type === 'tap') {
       const j = this.judgeHit(closestNote, minDiff, hitX, hitY);
       closestNote.hit = true;
       this.emitKeyHit(hitX, hitY, j.color, 24);
     } 
-    else if (closestNote.type === 'swipe' && inputType === 'swipe') {
-      const targetDir = closestNote.direction || 'up';
-      if (swipeDirection === targetDir || !closestNote.direction) {
-        const j = this.judgeHit(closestNote, minDiff, hitX, hitY, 'SWIPE');
-        closestNote.hit = true;
-        this.emitKeyHit(hitX, hitY, j.color, 28);
-        this.particles.emitSwipeBurst(hitX, hitY, targetDir, j.color, 32);
-      }
+    else if (closestNote.type === 'swipe') {
+      const targetDir = closestNote.direction || swipeDirection || 'up';
+      const j = this.judgeHit(closestNote, minDiff, hitX, hitY, 'SWIPE');
+      closestNote.hit = true;
+      this.emitKeyHit(hitX, hitY, j.color, 28);
+      this.particles.emitSwipeBurst(hitX, hitY, targetDir, j.color, 32);
     } 
-    else if (closestNote.type === 'hold' && inputType === 'tap') {
+    else if (closestNote.type === 'hold') {
       const j = this.judgeHit(closestNote, minDiff, hitX, hitY);
       closestNote.holding = true;
       closestNote.missed = false;
@@ -2477,6 +2612,19 @@ class BeatstarEngine {
       ctx.strokeStyle = isHolding ? '#00ff88' : (isPressed ? '#00f2fe' : 'rgba(255, 255, 255, 0.3)');
       ctx.lineWidth = isHolding ? 4 : (isPressed ? 3 : 2);
       ctx.stroke();
+
+      // Subtle PC keyboard guides (only rendered on PC browser, hidden on mobile/app)
+      if (!this.isCalibrating && !window.isMobileOrNative && this.width >= 320) {
+        ctx.save();
+        const pcLayout = window.currentPCLayout || (typeof localStorage !== 'undefined' && localStorage.getItem('beatstar_pc_layout')) || 'dfj';
+        const labels = pcLayout === 'asd' ? ['A', 'S', 'D'] : ['D', 'F', 'J'];
+        ctx.fillStyle = isHolding ? '#00ff88' : (isPressed ? '#00f2fe' : 'rgba(255, 255, 255, 0.40)');
+        ctx.font = 'bold 12px Inter, system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(labels[l] || '', cx, y + 42);
+        ctx.restore();
+      }
 
       if (isHolding) {
         const active = this.activeHolds.get(l);
