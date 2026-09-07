@@ -170,11 +170,6 @@
 
       <!-- Right: Clefs In-Game + Pause -->
       <div class="flex items-center gap-1.5">
-        <!-- PC Web Key Guide Button ⌨️ -->
-        <button id="btnHudPCControls" onclick="openPCControlsModal()" class="pc-web-only h-8 px-2.5 rounded-xl bg-cyan-600/20 border border-cyan-500/30 hover:border-cyan-500/60 active:scale-95 text-cyan-300 flex items-center gap-1.5 transition cursor-pointer text-xs font-bold" title="Ver Teclas y Controles de PC">
-          <span>⌨️</span>
-          <span class="text-[10px] font-mono font-bold" id="hudPCKeyLabel">D-F-J</span>
-        </button>
         <div class="clef-badge py-1 px-2">
           <span class="text-amber-400 font-bold text-xs">𝄞</span>
           <span id="hudClefCount" class="text-[11px] font-black text-amber-300 font-mono">0</span>
@@ -202,12 +197,6 @@
 
         <!-- Action Buttons (Flex-shrink-0 to guarantee settings gear is always visible) -->
         <div class="flex items-center gap-1.5 flex-shrink-0">
-          <!-- PC Controls Button 💻 (Web PC only) -->
-          <button id="btnPCControls" onclick="openPCControlsModal()" class="pc-web-only h-8 px-2.5 rounded-xl bg-cyan-600/20 border border-cyan-500/30 hover:border-cyan-500/60 active:scale-95 text-cyan-300 flex items-center gap-1.5 transition cursor-pointer text-xs font-bold" title="Controles para PC / Teclado">
-            <span>💻</span>
-            <span class="text-[11px] font-bold">Modo PC</span>
-          </button>
-
           <!-- FX Shop Button 🎨 -->
           <button id="btnOpenFXShop" onclick="openFXShopModal()" class="w-8 h-8 rounded-xl bg-purple-600/20 border border-purple-500/30 hover:border-purple-500/60 active:scale-95 text-white flex items-center justify-center transition cursor-pointer text-xs" title="Tienda de Efectos de Tecla">
             <span>🎨</span>
@@ -800,10 +789,10 @@
         <span id="edModeBadge" class="text-[9px] font-black text-emerald-400">✨ AUTO GESTOS</span>
       </div>
       <div class="grid grid-cols-4 gap-1" id="edToolSelector">
-        <button onclick="ChartEditor.setTool('auto')" data-tool="auto" class="ed-tool-btn active py-1 rounded-lg text-[9px] font-black bg-emerald-500 text-black" title="Modo Auto (Tecla A)">Auto (A)</button>
-        <button onclick="ChartEditor.setTool('tap')" data-tool="tap" class="ed-tool-btn py-1 rounded-lg text-[9px] font-bold bg-white/10 text-gray-300" title="Modo Tap (Tecla T)">Tap (T)</button>
-        <button onclick="ChartEditor.setTool('hold')" data-tool="hold" class="ed-tool-btn py-1 rounded-lg text-[9px] font-bold bg-white/10 text-gray-300" title="Modo Hold (Tecla H)">Hold (H)</button>
-        <button onclick="ChartEditor.setTool('swipe')" data-tool="swipe" class="ed-tool-btn py-1 rounded-lg text-[9px] font-bold bg-white/10 text-gray-300" title="Modo Swipe (Tecla S)">Swipe (S)</button>
+        <button onclick="ChartEditor.setTool('auto')" data-tool="auto" class="ed-tool-btn active py-1 rounded-lg text-[9px] font-black bg-emerald-500 text-black">Auto</button>
+        <button onclick="ChartEditor.setTool('tap')" data-tool="tap" class="ed-tool-btn py-1 rounded-lg text-[9px] font-bold bg-white/10 text-gray-300">Tap</button>
+        <button onclick="ChartEditor.setTool('hold')" data-tool="hold" class="ed-tool-btn py-1 rounded-lg text-[9px] font-bold bg-white/10 text-gray-300">Hold</button>
+        <button onclick="ChartEditor.setTool('swipe')" data-tool="swipe" class="ed-tool-btn py-1 rounded-lg text-[9px] font-bold bg-white/10 text-gray-300">Swipe</button>
       </div>
     </div>
 
@@ -820,10 +809,10 @@
     </div>
   </div>
 
-  <!-- Lienzo de Edición (Adaptable y con barra siempre visible) -->
-  <div class="relative w-full h-[460px] sm:h-[540px] bg-[#0c0814] border border-white/15 rounded-2xl overflow-hidden shadow-2xl flex flex-col">
+  <!-- Lienzo Alto de Edición (Timeline Ampliado: 490px) -->
+  <div class="relative w-full h-[650px] bg-[#0c0814] border border-white/15 rounded-2xl overflow-hidden shadow-2xl flex flex-col">
     <!-- Header del Canvas: Reloj y Contador de Notas sin solapamiento -->
-    <div class="flex items-center justify-between px-3 py-1.5 bg-black/90 border-b border-white/10 text-[11px] font-mono flex-shrink-0">
+    <div class="flex items-center justify-between px-3 py-1.5 bg-black/90 border-b border-white/10 text-[11px] font-mono">
       <div class="flex items-center gap-2">
         <span id="edCurrentTime" class="text-cyan-300 font-bold">00:00.000</span>
         <span id="edMarkerStatus" class="text-[9px] text-gray-400"></span>
@@ -832,10 +821,10 @@
     </div>
 
     <!-- Canvas Interactivo -->
-    <canvas id="editorCanvas" class="w-full flex-1 touch-none cursor-crosshair min-h-[300px]"></canvas>
+    <canvas id="editorCanvas" class="w-full flex-1 touch-none cursor-crosshair"></canvas>
 
-    <!-- Barra de Transporte & Desplazamiento (Sticky fija abajo) -->
-    <div class="p-2 bg-black/95 border-t border-white/15 flex items-center justify-between gap-2 sticky bottom-0 z-20 flex-shrink-0">
+    <!-- Barra de Transporte & Desplazamiento -->
+    <div class="p-2 bg-black/90 border-t border-white/10 flex items-center justify-between gap-2">
       <button id="edBtnPlay" onclick="ChartEditor.togglePlayback()" class="w-10 h-10 rounded-xl bg-pink-500 hover:bg-pink-400 text-white font-black flex items-center justify-center transition active:scale-95 shadow-md shadow-pink-500/30 flex-shrink-0">
         <span class="text-sm">▶</span>
       </button>
@@ -940,16 +929,6 @@
           </div>
         </div>
 
-        <!-- Sincronizar y Respaldar en la Nube -->
-        <button onclick="closeSettingsModal(); syncAllLocalDataToCloud();" class="w-full py-2.5 bg-emerald-600/25 hover:bg-emerald-600/40 border border-emerald-500/40 text-emerald-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95">
-          <span>☁️</span> Sincronizar Canciones y Rankings con la Nube
-        </button>
-
-        <!-- PC Controls Button in Settings (PC Web only) -->
-        <button onclick="closeSettingsModal(); openPCControlsModal();" class="pc-web-only w-full py-2.5 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer">
-          <span>💻</span> Guía de Teclado y Modo PC
-        </button>
-
         <!-- 4. Open FX Shop Button -->
         <button onclick="closeSettingsModal(); openFXShopModal();" class="w-full py-2.5 bg-gradient-to-r from-purple-600/30 to-pink-600/30 border border-pink-500/40 text-pink-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer hover:bg-pink-500/20">
           <span>🎨</span> Tienda de Fondos y Efectos
@@ -980,95 +959,6 @@
         </div>
 
         </div>
-      </div>
-    </div>
-
-    <!-- Layer 9b: Modal Controles PC (💻) -->
-    <div id="pcControlsModal" class="modal-overlay">
-      <div class="glass-card w-full max-w-[370px] p-4 rounded-2xl space-y-3.5 max-h-[92vh] flex flex-col bg-[#06040a]/95 border border-cyan-500/30 shadow-2xl shadow-cyan-500/10">
-        <!-- Header -->
-        <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
-          <div class="flex items-center gap-2">
-            <span class="text-base">💻</span>
-            <div>
-              <h3 class="text-xs font-black text-white uppercase tracking-wider">Modo PC &amp; Teclado</h3>
-              <p class="text-[10px] text-cyan-400 font-medium">Controles para jugar en navegador</p>
-            </div>
-          </div>
-          <button onclick="closePCControlsModal()" class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white flex items-center justify-center text-xs cursor-pointer transition">✕</button>
-        </div>
-
-        <!-- Layout Selector Buttons -->
-        <div class="space-y-1.5">
-          <div class="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Distribución de Teclas</div>
-          <div class="grid grid-cols-2 gap-1.5">
-            <button id="pcLayoutBtnDFJ" onclick="setPCLayout('dfj')" class="py-2 px-2.5 rounded-xl border text-xs font-black flex flex-col items-center gap-0.5 transition cursor-pointer bg-cyan-500/20 border-cyan-400 text-cyan-200 shadow-lg shadow-cyan-500/20">
-              <span class="tracking-widest">D - F - J</span>
-              <span class="text-[9px] font-normal text-cyan-300/80">Recomendado</span>
-            </button>
-            <button id="pcLayoutBtnASD" onclick="setPCLayout('asd')" class="py-2 px-2.5 rounded-xl border text-xs font-black flex flex-col items-center gap-0.5 transition cursor-pointer bg-white/5 border-white/10 text-gray-400 hover:text-white">
-              <span class="tracking-widest">A - S - D</span>
-              <span class="text-[9px] font-normal text-gray-500">1 mano</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Controls Legend -->
-        <div class="space-y-2 text-xs">
-          <!-- 3 Lanes -->
-          <div class="p-2.5 bg-black/50 border border-white/10 rounded-xl space-y-1.5">
-            <div class="text-[10px] uppercase font-bold text-gray-400 flex items-center justify-between">
-              <span>🎯 Carriles Principales</span>
-              <span class="text-cyan-400 font-mono text-[9px]">3 Carriles</span>
-            </div>
-            <div class="grid grid-cols-3 gap-1 text-center font-mono">
-              <div class="p-1.5 bg-cyan-500/10 border border-cyan-500/20 rounded-lg">
-                <div class="text-cyan-400 font-black text-xs" id="pcLegendL0">D</div>
-                <div class="text-[9px] text-gray-400">Izquierda</div>
-              </div>
-              <div class="p-1.5 bg-purple-500/10 border border-purple-500/20 rounded-lg">
-                <div class="text-purple-400 font-black text-xs" id="pcLegendL1">F</div>
-                <div class="text-[9px] text-gray-400">Centro</div>
-              </div>
-              <div class="p-1.5 bg-pink-500/10 border border-pink-500/20 rounded-lg">
-                <div class="text-pink-400 font-black text-xs" id="pcLegendL2">J</div>
-                <div class="text-[9px] text-gray-400">Derecha</div>
-              </div>
-            </div>
-            <p class="text-[9px] text-gray-400 text-center">También puedes usar <span class="text-white font-bold">1 - 2 - 3</span> o las <span class="text-white font-bold">Flechas ← ↓ →</span></p>
-          </div>
-
-          <!-- Swipes -->
-          <div class="p-2.5 bg-black/50 border border-white/10 rounded-xl space-y-1">
-            <div class="text-[10px] uppercase font-bold text-amber-400 flex items-center gap-1">
-              <span>⚡</span> Notas Deslizantes (Swipes)
-            </div>
-            <p class="text-[11px] text-gray-300 leading-snug">
-              Usa las <strong class="text-amber-300 font-mono">Flechas (↑ ↓ ← →)</strong>, arrastra con el ratón o gira la <strong class="text-amber-300">rueda del ratón</strong>. ¡O simplemente presiona la tecla del carril en el momento exacto!
-            </p>
-          </div>
-
-          <!-- Holds -->
-          <div class="p-2.5 bg-black/50 border border-white/10 rounded-xl space-y-1">
-            <div class="text-[10px] uppercase font-bold text-emerald-400 flex items-center gap-1">
-              <span>⏱️</span> Notas Largas (Holds)
-            </div>
-            <p class="text-[11px] text-gray-300 leading-snug">
-              <strong class="text-emerald-300">Mantén pulsada</strong> la tecla del carril y suéltala cuando termine la estela.
-            </p>
-          </div>
-
-          <!-- Pause -->
-          <div class="flex items-center justify-between px-2.5 py-1.5 bg-white/5 border border-white/5 rounded-xl text-[11px]">
-            <span class="text-gray-400">Pausar / Reanudar:</span>
-            <span><strong class="font-mono text-white bg-white/10 px-1.5 py-0.5 rounded">Escape</strong> o <strong class="font-mono text-white bg-white/10 px-1.5 py-0.5 rounded">P</strong></span>
-          </div>
-        </div>
-
-        <!-- Close Button -->
-        <button onclick="closePCControlsModal()" class="w-full py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-cyan-500/20 active:scale-95 transition cursor-pointer">
-          ¡Entendido, a Jugar!
-        </button>
       </div>
     </div>
 
@@ -1830,195 +1720,6 @@
         modal.style.display = 'none';
       }
     };
-
-    window.currentPCLayout = localStorage.getItem('beatstar_pc_layout') || 'dfj';
-
-    window.openPCControlsModal = function() {
-      updatePCLayoutUI();
-      const modal = document.getElementById('pcControlsModal');
-      if (modal) {
-        modal.style.display = 'flex';
-        modal.classList.add('open');
-      }
-    };
-
-    window.closePCControlsModal = function() {
-      const modal = document.getElementById('pcControlsModal');
-      if (modal) {
-        modal.classList.remove('open');
-        modal.style.display = 'none';
-      }
-    };
-
-    window.setPCLayout = function(layout) {
-      window.currentPCLayout = layout;
-      localStorage.setItem('beatstar_pc_layout', layout);
-      updatePCLayoutUI();
-      if (typeof showSuccessToast === 'function') {
-        showSuccessToast(layout === 'asd' ? 'Modo de teclas cambiado a: A - S - D' : 'Modo de teclas cambiado a: D - F - J');
-      }
-    };
-
-    // Scroll global para PC (permite scroll fuera de la pantalla del móvil)
-    window.addEventListener('wheel', (e) => {
-      if (window.isMobileOrNative) return;
-
-      const isOverInnerScroll = e.target && e.target.closest && (
-        e.target.closest('#editorCanvas') ||
-        e.target.closest('.overflow-y-auto') ||
-        e.target.closest('.overflow-x-auto')
-      );
-      if (isOverInnerScroll) return;
-
-      if (typeof currentActiveTab !== 'undefined' && currentActiveTab === 'editor') {
-        if (typeof ChartEditor !== 'undefined' && ChartEditor.bpm) {
-          const delta = Math.sign(e.deltaY) * (60 / ChartEditor.bpm) / 4;
-          ChartEditor.seek(ChartEditor.currentSongTime + delta);
-        }
-        return;
-      }
-
-      const openModal = document.querySelector('.modal-overlay.open .overflow-y-auto');
-      if (openModal) {
-        openModal.scrollTop += e.deltaY;
-        return;
-      }
-
-      const searchScreen = document.getElementById('searchScreen');
-      if (searchScreen) {
-        searchScreen.scrollTop += e.deltaY;
-      }
-    }, { passive: true });
-
-    window.syncAllLocalDataToCloud = async function() {
-      if (typeof showInfoToast === 'function') showInfoToast('Sincronizando canciones y rankings con la nube...');
-      const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
-      if (!baseUrl) {
-        if (typeof showErrorToast === 'function') showErrorToast('No hay conexión con el servidor de la nube.');
-        return;
-      }
-
-      let syncedCount = 0;
-      const candidates = [];
-      try {
-        const vault = JSON.parse(localStorage.getItem('beatstar_my_published_charts') || '[]');
-        candidates.push(...vault);
-      } catch (e) {}
-      try {
-        const loc = JSON.parse(localStorage.getItem('beatstar_community_local_charts') || '[]');
-        candidates.push(...loc);
-      } catch (e) {}
-      try {
-        const cac = JSON.parse(localStorage.getItem('beatstar_community_cache') || '[]');
-        candidates.push(...cac);
-      } catch (e) {}
-      if (typeof IndexedDBStorage !== 'undefined') {
-        try {
-          const dbCharts = await IndexedDBStorage.getAllCharts();
-          for (const c of (dbCharts || [])) {
-            if (c.is_community || c.source === 'community' || (c.id && c.id.startsWith('comm_'))) {
-              candidates.push(c);
-            }
-          }
-        } catch (e) {}
-      }
-
-      const unique = [];
-      const seen = new Set();
-      for (const c of candidates) {
-        if (!c || !c.title) continue;
-        const k = `${c.title.trim().toLowerCase()}|${(c.artist || '').trim().toLowerCase()}`;
-        if (!seen.has(k)) {
-          seen.add(k);
-          unique.push(c);
-        }
-      }
-
-      for (const c of unique) {
-        await autoSyncChartToServerIfMissing(c);
-        syncedCount++;
-      }
-
-      // Sincronizar todos los records de puntuación locales a la nube
-      try {
-        const highscores = JSON.parse(localStorage.getItem('beatstar_highscores') || '{}');
-        const pName = localStorage.getItem('beatstar_player_nickname') || 'Jugador';
-        for (const [sId, sData] of Object.entries(highscores)) {
-          if (sData && sData.score > 0) {
-            const cleanId = sId.replace('community_', '');
-            fetch(`${baseUrl}/api/v1/community/charts/${encodeURIComponent(cleanId)}/score`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                player_name: pName,
-                score: sData.score,
-                max_combo: sData.max_combo || sData.combo || 0,
-                stars: sData.stars || 3,
-                accuracy_pct: sData.accuracy_pct || sData.accuracy || 100.0,
-                medal_tier: sData.medal_tier || sData.tier || 'diamond'
-              })
-            }).catch(() => {});
-          }
-        }
-      } catch (e) {}
-
-      if (typeof showSuccessToast === 'function') {
-        showSuccessToast(`¡${syncedCount} canciones comunitarias sincronizadas con la nube!`);
-      }
-      loadCommunityCharts();
-    };
-
-    function updatePCLayoutUI() {
-      const isDFJ = window.currentPCLayout !== 'asd';
-      const btnDFJ = document.getElementById('pcLayoutBtnDFJ');
-      const btnASD = document.getElementById('pcLayoutBtnASD');
-      const l0 = document.getElementById('pcLegendL0');
-      const l1 = document.getElementById('pcLegendL1');
-      const l2 = document.getElementById('pcLegendL2');
-      const hudLabel = document.getElementById('hudPCKeyLabel');
-
-      if (btnDFJ && btnASD) {
-        if (isDFJ) {
-          btnDFJ.className = "py-2 px-2.5 rounded-xl border text-xs font-black flex flex-col items-center gap-0.5 transition cursor-pointer bg-cyan-500/20 border-cyan-400 text-cyan-200 shadow-lg shadow-cyan-500/20";
-          btnASD.className = "py-2 px-2.5 rounded-xl border text-xs font-black flex flex-col items-center gap-0.5 transition cursor-pointer bg-white/5 border-white/10 text-gray-400 hover:text-white";
-        } else {
-          btnASD.className = "py-2 px-2.5 rounded-xl border text-xs font-black flex flex-col items-center gap-0.5 transition cursor-pointer bg-cyan-500/20 border-cyan-400 text-cyan-200 shadow-lg shadow-cyan-500/20";
-          btnDFJ.className = "py-2 px-2.5 rounded-xl border text-xs font-black flex flex-col items-center gap-0.5 transition cursor-pointer bg-white/5 border-white/10 text-gray-400 hover:text-white";
-        }
-      }
-      if (l0 && l1 && l2) {
-        l0.textContent = isDFJ ? 'D' : 'A';
-        l1.textContent = isDFJ ? 'F' : 'S';
-        l2.textContent = isDFJ ? 'J' : 'D';
-      }
-      if (hudLabel) {
-        hudLabel.textContent = isDFJ ? 'D-F-J' : 'A-S-D';
-      }
-    }
-
-    function initPCWebButton() {
-      const isMobileOrApp = !!(
-        window.AndroidNative ||
-        window.AndroidBridge ||
-        /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
-        (('ontouchstart' in window) && window.innerWidth < 768)
-      );
-      window.isMobileOrNative = isMobileOrApp;
-      if (isMobileOrApp) {
-        document.body.classList.add('is-mobile-app');
-        document.querySelectorAll('.pc-web-only').forEach(el => {
-          el.style.display = 'none';
-        });
-      } else {
-        document.body.classList.remove('is-mobile-app');
-        document.querySelectorAll('.pc-web-only').forEach(el => {
-          el.style.display = 'inline-flex';
-        });
-        updatePCLayoutUI();
-      }
-    }
-    window.addEventListener('DOMContentLoaded', initPCWebButton);
-    window.addEventListener('resize', initPCWebButton);
 
     window.openFXShopModal = function() {
       updateUserWalletDisplay();
@@ -5796,10 +5497,6 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       if (followed) params.set('followed_creators', followed);
 
       let songs = [];
-      let serverRawCharts = [];
-      const serverChartIds = new Set();
-      const serverChartKeys = new Set();
-
       try {
         const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
         if (baseUrl) {
@@ -5807,14 +5504,7 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
           if (res.ok) {
             const data = await res.json();
             if (Array.isArray(data)) {
-              serverRawCharts = data;
-              for (const s of serverRawCharts) {
-                if (s && s.id) serverChartIds.add(s.id);
-                if (s && s.title && s.artist) {
-                  serverChartKeys.add(`${s.title.trim().toLowerCase()}|${s.artist.trim().toLowerCase()}`);
-                }
-              }
-              songs = [...serverRawCharts];
+              songs = data;
               if (songs.length > 0 && !q && (!communityDiffFilter || communityDiffFilter === 'Todas')) {
                 try {
                   localStorage.setItem('beatstar_community_cache', JSON.stringify(songs));
@@ -5827,12 +5517,14 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         console.warn('Conexión con nube comunitaria no disponible:', err);
       }
 
-      // 1. Si el servidor no devolvió canciones (por reinicio de Render o falta de red), cargar de la caché
-      const cached = JSON.parse(localStorage.getItem('beatstar_community_cache') || '[]');
+      // 1. Si el backend está en frío, reiniciando o sin conexión, usar caché comunitaria
       if ((!songs || songs.length === 0) && !q && (!communityDiffFilter || communityDiffFilter === 'Todas')) {
-        if (Array.isArray(cached) && cached.length > 0) {
-          songs = [...cached];
-        }
+        try {
+          const cached = JSON.parse(localStorage.getItem('beatstar_community_cache') || '[]');
+          if (Array.isArray(cached) && cached.length > 0) {
+            songs = cached;
+          }
+        } catch (e) {}
       }
 
       // 2. Recopilar candidatos de canciones comunitarias creadas localmente por el usuario
@@ -5871,31 +5563,25 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         } catch (e) {}
       }
 
-      // Incluir también pistas de la caché que no estén ya en candidatos
-      if (Array.isArray(cached)) {
-        for (const item of cached) {
-          if (item && item.title && !localCandidates.some(c => c.id === item.id || (c.title === item.title && c.artist === item.artist))) {
-            localCandidates.push(item);
-          }
-        }
-      }
-
-      // 3. Comprobar contra lo que REALMENTE está en el servidor (serverChartIds / serverChartKeys)
-      // Si falta en el servidor, mostrarla y subirla automáticamente para que nunca se pierda
+      // 3. Comprobar pistas locales: si faltan en la nube, mostrarlas y sincronizarlas de inmediato
       for (const lc of localCandidates) {
         if (!lc || !lc.title) continue;
-        const key = `${(lc.title || '').trim().toLowerCase()}|${(lc.artist || '').trim().toLowerCase()}`;
-        const isInCloud = serverChartIds.has(lc.id) || serverChartKeys.has(key);
+        const alreadyInCloud = songs.some(s =>
+          s.id === lc.id ||
+          (s.title && lc.title && s.title.trim().toLowerCase() === lc.title.trim().toLowerCase() &&
+           s.artist && lc.artist && s.artist.trim().toLowerCase() === lc.artist.trim().toLowerCase())
+        );
 
-        if (!isInCloud) {
+        if (alreadyInCloud) {
+          if (lc.id && lc.id.startsWith('custom_') && typeof IndexedDBStorage !== 'undefined') {
+            IndexedDBStorage.deleteChart(lc.id).catch(() => {});
+          }
+        } else {
           const matchesQ = !q || (lc.title && lc.title.toLowerCase().includes(q.toLowerCase())) || (lc.artist && lc.artist.toLowerCase().includes(q.toLowerCase()));
           const matchesDiff = !communityDiffFilter || communityDiffFilter === 'Todas' || lc.difficulty_name === communityDiffFilter;
           if (matchesQ && matchesDiff) {
-            if (!songs.some(s => s.id === lc.id || `${(s.title||'').trim().toLowerCase()}|${(s.artist||'').trim().toLowerCase()}` === key)) {
-              songs.unshift(lc);
-            }
+            songs.unshift(lc);
           }
-          // Subir a la nube automáticamente para que persista para todas las versiones
           autoSyncChartToServerIfMissing(lc);
         }
       }
@@ -6042,13 +5728,33 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       if (loadStatus) loadStatus.innerText = 'Obteniendo audio y notas...';
 
       try {
+        // Encontrar metadatos conocidos de la pista
+        let knownInfo = (typeof songs !== 'undefined' ? songs : []).find(s => s && s.id === chartId);
+        if (!knownInfo) {
+          try {
+            const cached = JSON.parse(localStorage.getItem('beatstar_community_cache') || '[]');
+            knownInfo = cached.find(s => s && s.id === chartId);
+          } catch (e) {}
+        }
+        if (!knownInfo) {
+          try {
+            const myVault = JSON.parse(localStorage.getItem('beatstar_my_published_charts') || '[]');
+            knownInfo = myVault.find(s => s && (s.id === chartId || (s.title && chartId.includes(s.title))));
+          } catch (e) {}
+        }
+
         // 1. Si la canción existe localmente en IndexedDB, cargar al instante offline
         if (typeof IndexedDBStorage !== 'undefined') {
           try {
             let localItem = await IndexedDBStorage.getChart(chartId);
             if (!localItem) {
               const allSaved = await IndexedDBStorage.getAllCharts();
-              localItem = (allSaved || []).find(c => c.id === chartId || c.communityChartId === chartId || (c.unpackedData && c.unpackedData.id === chartId));
+              localItem = (allSaved || []).find(c =>
+                c && (c.id === chartId ||
+                c.communityChartId === chartId ||
+                (c.unpackedData && c.unpackedData.id === chartId) ||
+                (knownInfo && c.title && knownInfo.title && c.title.trim().toLowerCase() === knownInfo.title.trim().toLowerCase() && c.artist && knownInfo.artist && c.artist.trim().toLowerCase() === knownInfo.artist.trim().toLowerCase()))
+              );
             }
             if (localItem && localItem.audioBlob && (localItem.chartData || localItem.unpackedData)) {
               const cData = localItem.chartData || localItem.unpackedData;
@@ -6064,17 +5770,69 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         }
 
         const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
-        // Descargar el JSON del chart y el Audio en paralelo
-        const [chartRes, audioRes] = await Promise.all([
-          fetch(`${baseUrl}/api/v1/community/charts/${chartId}/chart`),
-          fetch(`${baseUrl}/api/v1/community/charts/${chartId}/audio`)
-        ]);
+        // Descargar el JSON del chart y el Audio en paralelo con tolerancia a fallos
+        let chartData = null;
+        let audioBlob = null;
 
-        if (!chartRes.ok) throw new Error(`No se pudo cargar el mapa (${chartRes.status})`);
-        if (!audioRes.ok) throw new Error(`No se pudo cargar el audio (${audioRes.status})`);
+        try {
+          const [chartRes, audioRes] = await Promise.all([
+            fetch(`${baseUrl}/api/v1/community/charts/${chartId}/chart`),
+            fetch(`${baseUrl}/api/v1/community/charts/${chartId}/audio`)
+          ]);
 
-        const chartData = await chartRes.json();
-        const audioBlob = await audioRes.blob();
+          if (chartRes.ok) {
+            chartData = await chartRes.json();
+          }
+          if (audioRes.ok) {
+            audioBlob = await audioRes.blob();
+          }
+        } catch (netErr) {
+          console.warn('[playCommunitySong] Network fetch issue:', netErr);
+        }
+
+        // 2. Si el servidor dio 404 o falló, buscar fallback en almacén local (IndexedDB o localStorage)
+        if (!chartData || !audioBlob) {
+          if (typeof IndexedDBStorage !== 'undefined') {
+            try {
+              const allSaved = await IndexedDBStorage.getAllCharts();
+              const found = (allSaved || []).find(c =>
+                c && (c.id === chartId ||
+                c.communityChartId === chartId ||
+                (knownInfo && c.title && knownInfo.title && c.title.trim().toLowerCase() === knownInfo.title.trim().toLowerCase()))
+              );
+              if (found) {
+                if (!chartData) chartData = found.chartData || found.unpackedData;
+                if (!audioBlob) audioBlob = found.audioBlob;
+              }
+            } catch (e) {}
+          }
+
+          if (!chartData) {
+            try {
+              const myVault = JSON.parse(localStorage.getItem('beatstar_my_published_charts') || '[]');
+              const foundVault = myVault.find(v => v && (v.id === chartId || (knownInfo && v.title === knownInfo.title)));
+              if (foundVault) {
+                chartData = foundVault.chartData || foundVault.unpackedData || foundVault;
+              }
+            } catch (e) {}
+          }
+        }
+
+        if (!chartData) {
+          throw new Error('No se pudo cargar el mapa (404) ni se encontró en la memoria local.');
+        }
+
+        // Si faltaba el audio pero tenemos chart, intentar obtener audio de fallback
+        if (!audioBlob) {
+          try {
+            const fallbackAudioRes = await fetch(`${baseUrl}/api/v1/community/charts/${chartId}/audio`);
+            if (fallbackAudioRes.ok) audioBlob = await fallbackAudioRes.blob();
+          } catch (e) {}
+        }
+
+        if (!audioBlob) {
+          throw new Error('No se pudo cargar el archivo de audio de la pista.');
+        }
 
         chartData.is_community = true;
         chartData.is_daily_featured = isDailyFeatured;
@@ -6085,8 +5843,8 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         if (typeof IndexedDBStorage !== 'undefined') {
           IndexedDBStorage.saveChart({
             id: chartId,
-            title: chartData.metadata?.title || 'Pista Comunitaria',
-            artist: chartData.metadata?.artist || 'Comunidad',
+            title: chartData.metadata?.title || knownInfo?.title || 'Pista Comunitaria',
+            artist: chartData.metadata?.artist || knownInfo?.artist || 'Comunidad',
             source: 'community',
             source_name: 'Comunidad',
             is_community: true,

@@ -806,9 +806,6 @@ class BeatstarEngine {
     this.laneGlows = [0, 0, 0];
     this.fxRipples = [];
     this.bgBursts = [];
-    this.heldLanes = new Set();
-    this.recentLanePresses = [];
-    this.recentArrowPresses = [];
 
     // Key FX Theme (default_neon, color_burst)
     this.activeEffect = (typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_active_effect') : null) || 'default_neon';
@@ -938,17 +935,6 @@ class BeatstarEngine {
     this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
     this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
     this.canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e));
-    this.canvas.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      if (this.isPaused || this.isRewinding || this.isCountingDown) return;
-      let dir = 'up';
-      if (Math.abs(e.deltaY) >= Math.abs(e.deltaX)) {
-        dir = e.deltaY < 0 ? 'up' : 'down';
-      } else {
-        dir = e.deltaX < 0 ? 'left' : 'right';
-      }
-      this.handleDirectionInput(dir);
-    }, { passive: false });
 
     window.addEventListener('keydown', (e) => {
       if (e.repeat) return;
@@ -964,83 +950,21 @@ class BeatstarEngine {
       }
       if (this.isPaused || this.isRewinding || this.isCountingDown) return;
 
-      // Las flechas del teclado son EXCLUSIVAMENTE para swipes (combinación tecla carril + flecha)
-      if (e.key === 'ArrowUp') {
-        this.handleDirectionInput('up', 'ArrowUp');
-        return;
-      }
-      if (e.key === 'ArrowDown') {
-        this.handleDirectionInput('down', 'ArrowDown');
-        return;
-      }
-      if (e.key === 'ArrowLeft') {
-        this.handleDirectionInput('left', 'ArrowLeft');
-        return;
-      }
-      if (e.key === 'ArrowRight') {
-        this.handleDirectionInput('right', 'ArrowRight');
-        return;
-      }
+      if (e.key === 'a' || e.key === 'A' || e.key === '1') this.triggerLaneInput(0, 'tap');
+      if (e.key === 's' || e.key === 'S' || e.key === 'f' || e.key === 'F' || e.key === ' ' || e.key === '2') this.triggerLaneInput(1, 'tap');
+      if (e.key === 'd' || e.key === 'D' || e.key === 'j' || e.key === 'J' || e.key === 'k' || e.key === 'K' || e.key === '3') this.triggerLaneInput(2, 'tap');
 
-      // Distribución estricta según modo seleccionado en PC (A-S-D vs D-F-J)
-      const pcLayout = window.currentPCLayout || (typeof localStorage !== 'undefined' && localStorage.getItem('beatstar_pc_layout')) || 'dfj';
-      const isASD = pcLayout === 'asd';
-
-      let lane = -1;
-      if (isASD) {
-        // Modo A-S-D: A = Carril 0, S = Carril 1, D = Carril 2
-        if (e.key === 'a' || e.key === 'A' || e.key === '1' || e.key === 'z' || e.key === 'Z') lane = 0;
-        else if (e.key === 's' || e.key === 'S' || e.key === ' ' || e.key === '2' || e.key === 'x' || e.key === 'X') lane = 1;
-        else if (e.key === 'd' || e.key === 'D' || e.key === '3' || e.key === 'c' || e.key === 'C') lane = 2;
-      } else {
-        // Modo D-F-J (Recomendado): D = Carril 0, F = Carril 1, J = Carril 2
-        if (e.key === 'd' || e.key === 'D' || e.key === '1' || e.key === 'z' || e.key === 'Z') lane = 0;
-        else if (e.key === 'f' || e.key === 'F' || e.key === ' ' || e.key === '2' || e.key === 'x' || e.key === 'X') lane = 1;
-        else if (e.key === 'j' || e.key === 'J' || e.key === 'k' || e.key === 'K' || e.key === '3' || e.key === 'c' || e.key === 'C') lane = 2;
-      }
-
-      if (lane !== -1) {
-        if (!this.heldLanes) this.heldLanes = new Set();
-        this.heldLanes.add(lane);
-
-        const now = performance.now();
-        if (!this.recentLanePresses) this.recentLanePresses = [];
-        this.recentLanePresses.push({ lane, time: now });
-        this.recentLanePresses = this.recentLanePresses.filter(l => (now - l.time) < 250);
-
-        // Si se pulsó una flecha direccional en los últimos 200ms, ejecutar combo swipe de inmediato
-        if (this.recentArrowPresses && this.recentArrowPresses.length > 0) {
-          const recentArrow = this.recentArrowPresses.slice().reverse().find(a => (now - a.time) < 200);
-          if (recentArrow) {
-            const didHit = this.handleComboSwipe(lane, recentArrow.direction);
-            if (didHit) return;
-          }
-        }
-
-        this.triggerLaneInput(lane, 'tap');
-      }
+      if (e.key === 'ArrowLeft') this.triggerLaneInput(0, 'swipe', 'left');
+      if (e.key === 'ArrowRight') this.triggerLaneInput(2, 'swipe', 'right');
+      if (e.key === 'ArrowUp') this.triggerLaneInput(1, 'swipe', 'up');
+      if (e.key === 'ArrowDown') this.triggerLaneInput(1, 'swipe', 'down');
     });
 
     window.addEventListener('keyup', (e) => {
       if (this.isPaused || this.isRewinding || this.isCountingDown) return;
-      const pcLayout = window.currentPCLayout || (typeof localStorage !== 'undefined' && localStorage.getItem('beatstar_pc_layout')) || 'dfj';
-      const isASD = pcLayout === 'asd';
-
-      let relLane = -1;
-      if (isASD) {
-        if (e.key === 'a' || e.key === 'A' || e.key === '1' || e.key === 'z' || e.key === 'Z') relLane = 0;
-        else if (e.key === 's' || e.key === 'S' || e.key === ' ' || e.key === '2' || e.key === 'x' || e.key === 'X') relLane = 1;
-        else if (e.key === 'd' || e.key === 'D' || e.key === '3' || e.key === 'c' || e.key === 'C') relLane = 2;
-      } else {
-        if (e.key === 'd' || e.key === 'D' || e.key === '1' || e.key === 'z' || e.key === 'Z') relLane = 0;
-        else if (e.key === 'f' || e.key === 'F' || e.key === ' ' || e.key === '2' || e.key === 'x' || e.key === 'X') relLane = 1;
-        else if (e.key === 'j' || e.key === 'J' || e.key === 'k' || e.key === 'K' || e.key === '3' || e.key === 'c' || e.key === 'C') relLane = 2;
-      }
-
-      if (relLane !== -1) {
-        if (this.heldLanes) this.heldLanes.delete(relLane);
-        this.releaseLaneHold(relLane);
-      }
+      if (e.key === 'a' || e.key === 'A' || e.key === '1') this.releaseLaneHold(0);
+      if (e.key === 's' || e.key === 'S' || e.key === 'f' || e.key === 'F' || e.key === ' ' || e.key === '2') this.releaseLaneHold(1);
+      if (e.key === 'd' || e.key === 'D' || e.key === 'j' || e.key === 'J' || e.key === 'k' || e.key === 'K' || e.key === '3') this.releaseLaneHold(2);
     });
   }
 
@@ -1127,9 +1051,6 @@ class BeatstarEngine {
     this.laneGlows = [0, 0, 0];
     this.fxRipples = [];
     this.bgBursts = [];
-    this.heldLanes = new Set();
-    this.recentLanePresses = [];
-    this.recentArrowPresses = [];
     this.initCanvasSize();
 
     if (this.animFrameId) {
@@ -1646,99 +1567,6 @@ class BeatstarEngine {
     this.triggerLaneInput(lane, 'tap', null, 'mouse');
   }
 
-  handleComboSwipe(lane, direction) {
-    if (this.isPaused || this.isRewinding || this.isCountingDown) return false;
-
-    const currentTime = this.isCalibrating 
-      ? (performance.now() - this.calibrationStartTime) + this.latencyOffsetMs
-      : this.sync.getCurrentTimeMs() + this.latencyOffsetMs;
-
-    const hitX = (lane + 0.5) * this.laneWidth;
-    const hitY = this.hitLineY;
-
-    // 1. Buscar nota swipe en el carril especificado (dentro de +-260ms)
-    let closestSwipe = null;
-    let minDiff = Infinity;
-
-    for (const note of this.notes) {
-      if (note.lane !== lane || note.hit || note.missed || note.holdCompleted) continue;
-      if (note.type === 'swipe') {
-        const diff = Math.abs(note.timestamp_ms - currentTime);
-        if (diff < 260 && diff < minDiff) {
-          minDiff = diff;
-          closestSwipe = note;
-        }
-      }
-    }
-
-    if (closestSwipe) {
-      const targetDir = closestSwipe.direction || direction || 'up';
-      if (direction === targetDir || !closestSwipe.direction) {
-        this.laneGlows[lane] = 1.0;
-        const j = this.judgeHit(closestSwipe, minDiff, hitX, hitY, 'SWIPE');
-        closestSwipe.hit = true;
-        this.emitKeyHit(hitX, hitY, j.color, 28);
-        this.particles.emitSwipeBurst(hitX, hitY, targetDir, j.color, 32);
-        return true;
-      }
-    }
-
-    // 2. Si no había en ese carril, comprobar si hay una nota swipe con esa dirección exacta en cualquier carril
-    let anyDirMatch = null;
-    let anyDiff = Infinity;
-    for (const note of this.notes) {
-      if (note.hit || note.missed || note.holdCompleted) continue;
-      if (note.type === 'swipe') {
-        const diff = Math.abs(note.timestamp_ms - currentTime);
-        if (diff < 220 && diff < anyDiff) {
-          const targetDir = note.direction || 'up';
-          if (targetDir === direction) {
-            anyDiff = diff;
-            anyDirMatch = note;
-          }
-        }
-      }
-    }
-
-    if (anyDirMatch) {
-      const l = anyDirMatch.lane;
-      const x = (l + 0.5) * this.laneWidth;
-      this.laneGlows[l] = 1.0;
-      const j = this.judgeHit(anyDirMatch, anyDiff, x, hitY, 'SWIPE');
-      anyDirMatch.hit = true;
-      this.emitKeyHit(x, hitY, j.color, 28);
-      this.particles.emitSwipeBurst(x, hitY, anyDirMatch.direction || direction, j.color, 32);
-      return true;
-    }
-
-    return false;
-  }
-
-  handleDirectionInput(direction, keyName = null) {
-    if (this.isPaused || this.isRewinding || this.isCountingDown) return;
-    const now = performance.now();
-
-    if (!this.recentArrowPresses) this.recentArrowPresses = [];
-    this.recentArrowPresses.push({ direction, time: now });
-    this.recentArrowPresses = this.recentArrowPresses.filter(a => (now - a.time) < 250);
-
-    // Determinar qué carril está pulsado o se pulsó en los últimos 220ms
-    let activeLane = -1;
-    if (this.heldLanes && this.heldLanes.size > 0) {
-      activeLane = Array.from(this.heldLanes)[this.heldLanes.size - 1];
-    } else if (this.recentLanePresses && this.recentLanePresses.length > 0) {
-      const recent = this.recentLanePresses.slice().reverse().find(l => (now - l.time) < 220);
-      if (recent) activeLane = recent.lane;
-    }
-
-    if (activeLane !== -1) {
-      this.handleComboSwipe(activeLane, direction);
-    } else {
-      // Swipe asistido si no hay tecla de carril pulsada pero hay un swipe inminente
-      this.handleComboSwipe(1, direction);
-    }
-  }
-
   handleMouseMove(e) {
     if (!this.mouseTouch || this.mouseTouch.swiped || this.isPaused || this.isRewinding || this.isCountingDown) return;
     const rect = this.canvas.getBoundingClientRect();
@@ -1746,10 +1574,10 @@ class BeatstarEngine {
     const dy = (e.clientY - rect.top) - this.mouseTouch.y0;
     const dist = Math.hypot(dx, dy);
 
-    if (dist > 14) {
+    if (dist > 20) {
       let direction = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
       this.mouseTouch.swiped = true;
-      this.handleDirectionInput(direction);
+      this.triggerLaneInput(this.mouseTouch.lane, 'swipe', direction, 'mouse');
     }
   }
 
@@ -1883,14 +1711,9 @@ class BeatstarEngine {
 
     let closestNote = null;
     let minDiff = Infinity;
-    const isPCOrDesktop = (typeof window !== 'undefined' && (window.isPCOnly || !window.isMobileOrNative)) || this.isDesktop;
 
     for (const note of this.notes) {
       if ((!this.isCalibrating && note.lane !== lane) || note.hit || note.missed || note.holdCompleted) continue;
-      // En PC, una pulsación normal de carril ('tap') no debe consumir notas swipe (los swipes requieren flechas direccionales)
-      if (isPCOrDesktop && inputType === 'tap' && note.type === 'swipe') continue;
-      if (inputType === 'swipe' && note.type !== 'swipe') continue;
-
       const diff = Math.abs(note.timestamp_ms - currentTime);
       if (diff < 260 && diff < minDiff) {
         minDiff = diff;
@@ -1906,14 +1729,6 @@ class BeatstarEngine {
       }
       
       const nowPerf = performance.now();
-      // Si en PC hay una nota swipe inminente en este carril, no marcar ghost tap miss porque el jugador está ejecutando el combo tecla+flecha
-      const hasUpcomingSwipeInLane = isPCOrDesktop && this.notes.some(n =>
-        n.lane === lane && n.type === 'swipe' && !n.hit && !n.missed && Math.abs(n.timestamp_ms - currentTime) < 320
-      );
-      if (hasUpcomingSwipeInLane) {
-        return;
-      }
-
       if (this.beatmapData && this.sync.isPlaying && currentTime > this.invulnerableUntil && !this.isProcessingMiss && (nowPerf - this.lastMissTimePerf >= 750)) {
         this.synth.playPunchyArcadeMiss();
         this.addJudgement('GHOST TAP', '#ff4d4d');
@@ -1929,19 +1744,21 @@ class BeatstarEngine {
       return;
     }
 
-    if (closestNote.type === 'tap') {
+    if (closestNote.type === 'tap' && inputType === 'tap') {
       const j = this.judgeHit(closestNote, minDiff, hitX, hitY);
       closestNote.hit = true;
       this.emitKeyHit(hitX, hitY, j.color, 24);
     } 
-    else if (closestNote.type === 'swipe') {
-      const targetDir = closestNote.direction || swipeDirection || 'up';
-      const j = this.judgeHit(closestNote, minDiff, hitX, hitY, 'SWIPE');
-      closestNote.hit = true;
-      this.emitKeyHit(hitX, hitY, j.color, 28);
-      this.particles.emitSwipeBurst(hitX, hitY, targetDir, j.color, 32);
+    else if (closestNote.type === 'swipe' && inputType === 'swipe') {
+      const targetDir = closestNote.direction || 'up';
+      if (swipeDirection === targetDir || !closestNote.direction) {
+        const j = this.judgeHit(closestNote, minDiff, hitX, hitY, 'SWIPE');
+        closestNote.hit = true;
+        this.emitKeyHit(hitX, hitY, j.color, 28);
+        this.particles.emitSwipeBurst(hitX, hitY, targetDir, j.color, 32);
+      }
     } 
-    else if (closestNote.type === 'hold') {
+    else if (closestNote.type === 'hold' && inputType === 'tap') {
       const j = this.judgeHit(closestNote, minDiff, hitX, hitY);
       closestNote.holding = true;
       closestNote.missed = false;
@@ -2660,19 +2477,6 @@ class BeatstarEngine {
       ctx.strokeStyle = isHolding ? '#00ff88' : (isPressed ? '#00f2fe' : 'rgba(255, 255, 255, 0.3)');
       ctx.lineWidth = isHolding ? 4 : (isPressed ? 3 : 2);
       ctx.stroke();
-
-      // Subtle PC keyboard guides (only rendered on PC browser, hidden on mobile/app)
-      if (!this.isCalibrating && !window.isMobileOrNative && this.width >= 320) {
-        ctx.save();
-        const pcLayout = window.currentPCLayout || (typeof localStorage !== 'undefined' && localStorage.getItem('beatstar_pc_layout')) || 'dfj';
-        const labels = pcLayout === 'asd' ? ['A', 'S', 'D'] : ['D', 'F', 'J'];
-        ctx.fillStyle = isHolding ? '#00ff88' : (isPressed ? '#00f2fe' : 'rgba(255, 255, 255, 0.40)');
-        ctx.font = 'bold 12px Inter, system-ui, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(labels[l] || '', cx, y + 42);
-        ctx.restore();
-      }
 
       if (isHolding) {
         const active = this.activeHolds.get(l);
