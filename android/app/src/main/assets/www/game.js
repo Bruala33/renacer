@@ -1118,17 +1118,33 @@ class BeatstarEngine {
     this.lastMissTimePerf = 0;
     this.lastFailSongTimeSec = 0;
 
-    // Extracción robusta de estrellas de dificultad
-    let diffStars = 3.5;
-    if (Number.isFinite(beatmapData.metadata?.stars)) {
-      diffStars = beatmapData.metadata.stars;
-    } else if (Number.isFinite(beatmapData.stars)) {
-      diffStars = beatmapData.stars;
-    } else if (Number.isFinite(beatmapData.difficulties?.[0]?.stars)) {
-      diffStars = beatmapData.difficulties[0].stars;
-    } else {
-      // Inferencia automática por nombre de dificultad si no hay estrellas numéricas explícitas
-      const dName = ((beatmapData.metadata?.difficulty_name || beatmapData.difficulty_name || '') + '').toLowerCase();
+    // Extracción robusta y priorizada de estrellas de dificultad
+    let diffStars = null;
+    const dNameRaw = ((beatmapData.metadata?.difficulty_name || beatmapData.difficulty_name || '') + '');
+    const starMatch = dNameRaw.match(/([0-9]+(?:\.[0-9]+)?)\s*★/);
+    if (starMatch) {
+      diffStars = parseFloat(starMatch[1]);
+    }
+
+    if (diffStars === null || !Number.isFinite(diffStars)) {
+      if (Number.isFinite(beatmapData.selectedStars)) {
+        diffStars = beatmapData.selectedStars;
+      } else if (Number.isFinite(beatmapData.metadata?.stars) && beatmapData.metadata.stars !== 3.5) {
+        diffStars = beatmapData.metadata.stars;
+      } else if (Number.isFinite(beatmapData.stars) && beatmapData.stars !== 3.5) {
+        diffStars = beatmapData.stars;
+      } else if (Number.isFinite(beatmapData.difficulties?.[0]?.stars)) {
+        diffStars = beatmapData.difficulties[0].stars;
+      } else if (Number.isFinite(beatmapData.metadata?.stars)) {
+        diffStars = beatmapData.metadata.stars;
+      } else if (Number.isFinite(beatmapData.stars)) {
+        diffStars = beatmapData.stars;
+      }
+    }
+
+    // Inferencia por palabra clave si aún es nulo o 3.5 por defecto
+    if (diffStars === null || diffStars === 3.5) {
+      const dName = dNameRaw.toLowerCase();
       if (dName.includes('fácil') || dName.includes('easy') || dName.includes('beginner')) {
         diffStars = 1.5;
       } else if (dName.includes('media') || dName.includes('medium') || dName.includes('normal')) {
@@ -1139,6 +1155,8 @@ class BeatstarEngine {
         diffStars = 7.5;
       } else if (dName.includes('insana') || dName.includes('insane') || dName.includes('master')) {
         diffStars = 9.5;
+      } else {
+        diffStars = diffStars || 3.5;
       }
     }
 
@@ -1215,6 +1233,7 @@ class BeatstarEngine {
     // Apply the active note speed multiplier to the dynamic scroll duration
     const speedMult = Math.max(0.5, Math.min(2.5, this.noteSpeedMultiplier || 1.0));
     this.scrollDurationMs = Math.round(baseScroll / speedMult);
+    console.log(`[BeatstarEngine] Diff: ${diffStars}★ ("${dNameRaw}") | BaseScroll: ${baseScroll}ms | Mult: ${speedMult}x -> Final: ${this.scrollDurationMs}ms`);
 
     // Apply custom song playback rate if provided
     const songRate = Math.max(0.5, Math.min(2.0, parseFloat(this.beatmapData.songPlaybackSpeed) || 1.0));
