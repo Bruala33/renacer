@@ -23,6 +23,7 @@ gdrive_cache/
 *.zip
 *.7z
 *.rar
+dist_itch/
 *.tar
 *.gz
 *.osz
