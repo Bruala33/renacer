@@ -278,10 +278,8 @@ def init_db():
         cursor.execute("DELETE FROM creators WHERE id IN ('cr_master', 'cr_neon', 'cr_chopin')")
         conn.commit()
 
-        # Si la base de datos está vacía, intentar restaurar desde el respaldo JSON versionado
-        cursor.execute("SELECT COUNT(*) as c FROM community_charts")
-        if cursor.fetchone()["c"] == 0:
-            restore_community_backup(conn)
+        # Sincronizar y asegurar todas las pistas desde el respaldo JSON versionado
+        restore_community_backup(conn)
 
 
 init_db()

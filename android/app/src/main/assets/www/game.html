@@ -2733,8 +2733,8 @@
       const onMove = (clientX, clientY) => {
         if (!isDragging) return;
         const rect = previewEl.getBoundingClientRect();
-        const deltaX = (startX - clientX) / (rect.width || 300);
-        const deltaY = (startY - clientY) / (rect.height || 180);
+        const deltaX = (startX - clientX) / (rect.width || 150);
+        const deltaY = (startY - clientY) / (rect.height || 260);
         const newX = Math.max(0, Math.min(1, startCropX + deltaX));
         const newY = Math.max(0, Math.min(1, startCropY + deltaY));
         window.updateGameBgCrop(newX, newY, undefined);
@@ -2755,10 +2755,12 @@
       }, { passive: true });
       window.addEventListener('touchmove', e => {
         if (isDragging && e.touches.length === 1) {
+          if (e.cancelable) e.preventDefault();
           onMove(e.touches[0].clientX, e.touches[0].clientY);
         }
-      }, { passive: true });
+      }, { passive: false });
       window.addEventListener('touchend', onEnd);
+      window.addEventListener('touchcancel', onEnd);
     };
 
     window.renderFXShopBackgroundPanel = function() {
@@ -2776,30 +2778,39 @@
       const isVideo = window.customBgMediaType === 'video' || (typeof mediaUrl === 'string' && (mediaUrl.includes('.mp4') || mediaUrl.includes('.webm') || mediaUrl.startsWith('data:video')));
 
       container.innerHTML = `
-        <!-- Vista previa interactiva del fondo (Imagen o Vídeo con recorte y arrastre) -->
-        <div id="shopBgPreviewFrame" class="relative w-full h-44 rounded-xl overflow-hidden border border-white/20 shadow-inner bg-black flex items-center justify-center select-none cursor-grab active:cursor-grabbing">
-          ${isVideo ? `
-            <video id="shopBgPreviewMedia" src="${mediaUrl}" autoplay muted loop playsinline class="absolute inset-0 w-full h-full transition-all duration-150" style="object-fit: ${currentFit}; object-position: ${Math.round(currentCropX * 100)}% ${Math.round(currentCropY * 100)}%; transform: scale(${currentZoom}); opacity: ${currentMode === 'black' ? 0.05 : (currentMode === 'reactive' ? 0.75 : currentOpacity)};"></video>
-          ` : `
-            <img id="shopBgPreviewMedia" src="${mediaUrl}" class="absolute inset-0 w-full h-full transition-all duration-150" style="object-fit: ${currentFit}; object-position: ${Math.round(currentCropX * 100)}% ${Math.round(currentCropY * 100)}%; transform: scale(${currentZoom}); opacity: ${currentMode === 'black' ? 0.05 : (currentMode === 'reactive' ? 0.75 : currentOpacity)};">
-          `}
-          <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 pointer-events-none"></div>
+        <!-- Vista previa interactiva del fondo (Encuadre exacto vertical 9:16 de pantalla de móvil) -->
+        <div class="flex flex-col items-center justify-center py-1">
+          <div id="shopBgPreviewFrame" class="relative w-36 max-w-[155px] rounded-2xl overflow-hidden border-2 border-white/25 shadow-2xl bg-black flex items-center justify-center select-none cursor-grab active:cursor-grabbing ring-4 ring-black/50" style="aspect-ratio: 9 / 16;">
+            ${isVideo ? `
+              <video id="shopBgPreviewMedia" src="${mediaUrl}" autoplay muted loop playsinline class="absolute inset-0 w-full h-full transition-all duration-75 pointer-events-none" style="object-fit: ${currentFit}; object-position: ${Math.round(currentCropX * 100)}% ${Math.round(currentCropY * 100)}%; transform: scale(${currentZoom}); opacity: ${currentMode === 'black' ? 0.05 : (currentMode === 'reactive' ? 0.75 : currentOpacity)};"></video>
+            ` : `
+              <img id="shopBgPreviewMedia" src="${mediaUrl}" class="absolute inset-0 w-full h-full transition-all duration-75 pointer-events-none" style="object-fit: ${currentFit}; object-position: ${Math.round(currentCropX * 100)}% ${Math.round(currentCropY * 100)}%; transform: scale(${currentZoom}); opacity: ${currentMode === 'black' ? 0.05 : (currentMode === 'reactive' ? 0.75 : currentOpacity)};">
+            `}
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 pointer-events-none"></div>
 
-          <!-- Guía sutil de carriles para encuadre del juego -->
-          <div class="absolute inset-x-8 inset-y-2 border border-white/10 rounded-lg pointer-events-none flex opacity-40">
-            <div class="flex-1 border-r border-dashed border-white/20"></div>
-            <div class="flex-1 border-r border-dashed border-white/20"></div>
-            <div class="flex-1"></div>
-          </div>
+            <!-- Notch de teléfono móvil superior -->
+            <div class="absolute top-1.5 w-8 h-1 bg-white/30 rounded-full pointer-events-none shadow-sm"></div>
 
-          <div class="relative z-10 text-center px-2 pointer-events-none">
-            <span class="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${currentMode === 'reactive' ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-400/50' : (currentMode === 'static' ? 'bg-purple-500/30 text-purple-300 border border-purple-400/50' : 'bg-gray-800 text-gray-300 border border-white/10')}">
-              ${currentMode === 'reactive' ? '💡 Iluminación Reactiva Activa' : (currentMode === 'static' ? '🖼️ Fondo Estático' : '⬛ Negro Clásico (Por Defecto)')}
-            </span>
-            <p class="text-[10px] text-gray-300 mt-1 font-semibold">
-              ${currentMode === 'reactive' ? 'El fondo se ilumina con cada tecla (más notas = más luz)' : (currentMode === 'static' ? 'Visible de forma continua con atenuación' : 'Fondo negro limpio y minimalista')}
-            </p>
+            <!-- Guía de 3 carriles rítmicos exactos del juego -->
+            <div class="absolute inset-x-2 top-4 bottom-8 border border-white/10 rounded-md pointer-events-none flex opacity-30">
+              <div class="flex-1 border-r border-dashed border-white/20"></div>
+              <div class="flex-1 border-r border-dashed border-white/20"></div>
+              <div class="flex-1"></div>
+            </div>
+
+            <!-- Línea de impacto perfecta abajo -->
+            <div class="absolute bottom-6 inset-x-2.5 h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent pointer-events-none opacity-80 shadow-sm shadow-cyan-400"></div>
+
+            <!-- Badge de modo activo -->
+            <div class="absolute bottom-1 inset-x-0 text-center px-1 pointer-events-none">
+              <span class="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${currentMode === 'reactive' ? 'bg-cyan-500/40 text-cyan-200 border border-cyan-400/50' : (currentMode === 'static' ? 'bg-purple-500/40 text-purple-200 border border-purple-400/50' : 'bg-gray-900/80 text-gray-300 border border-white/15')}">
+                ${currentMode === 'reactive' ? '💡 Reactivo' : (currentMode === 'static' ? '🖼️ Estático' : '⬛ Negro')}
+              </span>
+            </div>
           </div>
+          <p class="text-[9px] text-gray-400 font-semibold text-center mt-1.5 flex items-center justify-center gap-1">
+            <span>📱</span> Ratio 9:16 Pantalla • <span class="text-cyan-300">Arrastra para encuadrar</span>
+          </p>
         </div>
 
         <!-- Selector de Modo de Fondo -->
@@ -7003,8 +7014,9 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
 
       // Pistas históricas recuperadas de versiones anteriores y nube
       const HISTORICAL_COMMUNITY_FALLBACKS = [
+        { id: 'comm_impuestos', title: 'Impuestos', artist: 'Perro Sánxe', creator_id: 'cr_599315', creator_name: 'Rocky', bpm: 160, difficulty_name: 'Difícil', stars: 5.5, notes_count: 144, rating_avg: 5.0, votes_count: 1, sync_avg: 100.0, is_community: true, source: 'community' },
+        { id: 'comm_1789044857_213', title: 'Impuestos (Perreo Sanxe - El secreto de las ayudas)', artist: 'Perro Sánxe', creator_id: 'cr_599315', creator_name: 'Rocky', bpm: 160, difficulty_name: 'Difícil', stars: 5.5, notes_count: 144, rating_avg: 5.0, votes_count: 1, sync_avg: 100.0, is_community: true, source: 'community' },
         { id: 'comm_1788769406_7797', title: 'Pikete espacial', artist: 'cecilioge', creator_id: 'cr_191176', creator_name: 'Creador', bpm: 120, difficulty_name: 'Media', stars: 3.5, notes_count: 705, rating_avg: 5.0, votes_count: 1, sync_avg: 100.0, is_community: true, source: 'community' },
-        { id: 'comm_1789044857_213', title: 'Perreo Sanxe - El secreto de las ayudas', artist: 'Perro Sánxe', creator_id: 'cr_213', creator_name: 'Comunidad', bpm: 128, difficulty_name: 'Media', stars: 3.5, notes_count: 144, rating_avg: 5.0, votes_count: 1, sync_avg: 100.0, is_community: true, source: 'community' },
         { id: 'comm_1789044866_4266', title: 'Flight of the Bumblebee - Rimsky-Korsakov (arr. Rachmaninoff)', artist: 'Comunidad', creator_id: 'cr_4266', creator_name: 'Comunidad', bpm: 144, difficulty_name: 'Difícil', stars: 4.5, notes_count: 269, rating_avg: 5.0, votes_count: 1, sync_avg: 100.0, is_community: true, source: 'community' },
         { id: 'comm_galaxy_anthem', title: 'Galaxy Anthem (Community 3K)', artist: 'Kowalski', creator_id: 'cr_master', creator_name: 'PianoMaster', bpm: 128, difficulty_name: 'Difícil', stars: 4.5, notes_count: 320, rating_avg: 4.8, votes_count: 5, sync_avg: 100.0, is_community: true, source: 'community' },
         { id: 'comm_cyber_frenzy', title: 'Cyber Frenzy', artist: 'SynthRider', creator_id: 'cr_neon', creator_name: 'NeonCharter', bpm: 140, difficulty_name: 'Experto', stars: 6.0, notes_count: 450, rating_avg: 4.9, votes_count: 8, sync_avg: 100.0, is_community: true, source: 'community' },
