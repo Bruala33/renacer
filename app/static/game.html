@@ -127,6 +127,8 @@
         settings_nickname_sub: 'Creador & Social',
         settings_nickname_placeholder: 'Elige tu nombre en el juego...',
         settings_judge_colors: 'Colores de Juicio',
+        settings_pc_controls: '⌨️ Teclas de Carril (PC)',
+        settings_pc_hint: 'En PC los swipes se tocan con la tecla normal del carril sin deslizar.',
         settings_clear_storage: 'Eliminar todas las canciones descargadas',
         settings_offline_mem: 'Memoria Offline',
         onboarding_welcome: '¡Bienvenido a Piano Community!',
@@ -375,6 +377,8 @@
         settings_nickname_sub: 'Creator & Social',
         settings_nickname_placeholder: 'Choose your in-game name...',
         settings_judge_colors: 'Judgement Colors',
+        settings_pc_controls: '⌨️ Lane Keys (PC)',
+        settings_pc_hint: 'On PC, swipe notes can be tapped with the lane key without swiping.',
         settings_clear_storage: 'Delete all downloaded songs',
         settings_offline_mem: 'Offline Memory',
         onboarding_welcome: 'Welcome to Piano Community!',
@@ -1670,6 +1674,29 @@
             </div>
           </div>
 
+          <!-- Controles de Teclado (PC) -->
+          <div id="settingsPCControlsSection" class="p-2.5 bg-black/40 border border-white/10 rounded-xl space-y-2">
+            <div class="flex items-center justify-between">
+              <span data-i18n="settings_pc_controls" class="text-xs font-bold text-white flex items-center gap-1">⌨️ Teclas de Carril (PC)</span>
+              <button onclick="resetPCKeybinds()" class="text-[9px] text-gray-400 hover:text-white border border-white/10 rounded px-1.5 py-0.5 cursor-pointer transition">Reset</button>
+            </div>
+            <p data-i18n="settings_pc_hint" class="text-[10px] text-gray-400 leading-tight">En PC los swipes se juegan con la misma tecla del carril sin necesidad de arrastrar.</p>
+            <div class="grid grid-cols-3 gap-1.5 pt-1">
+              <div class="text-center">
+                <span class="text-[9px] text-gray-400 block mb-0.5">Carril 1</span>
+                <button id="btnKeybindLane0" onclick="startRebindKey(0)" class="w-full py-1.5 rounded-lg bg-black/70 border border-cyan-500/40 text-cyan-300 font-mono font-black text-xs hover:border-cyan-400 transition cursor-pointer">D</button>
+              </div>
+              <div class="text-center">
+                <span class="text-[9px] text-gray-400 block mb-0.5">Carril 2</span>
+                <button id="btnKeybindLane1" onclick="startRebindKey(1)" class="w-full py-1.5 rounded-lg bg-black/70 border border-cyan-500/40 text-cyan-300 font-mono font-black text-xs hover:border-cyan-400 transition cursor-pointer">F</button>
+              </div>
+              <div class="text-center">
+                <span class="text-[9px] text-gray-400 block mb-0.5">Carril 3</span>
+                <button id="btnKeybindLane2" onclick="startRebindKey(2)" class="w-full py-1.5 rounded-lg bg-black/70 border border-cyan-500/40 text-cyan-300 font-mono font-black text-xs hover:border-cyan-400 transition cursor-pointer">J</button>
+              </div>
+            </div>
+          </div>
+
           <!-- 4. Open FX Shop Button -->
           <button onclick="closeSettingsModal(); openFXShopModal();" class="w-full py-2.5 bg-gradient-to-r from-purple-600/30 to-pink-600/30 border border-pink-500/40 text-pink-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer hover:bg-pink-500/20">
             <span>🎨</span> <span data-i18n="settings_shop">Tienda de Fondos y Efectos</span>
@@ -2352,23 +2379,16 @@
         costSilver: 3,
         costGold: 2,
         costPlatinum: 1
-      },
-      {
-        id: 'spotlight_reveal',
-        name: 'Foco Reactivo: Fondo Revelado',
-        desc: 'El fondo permanece negro puro hasta que tocas una tecla: cada impacto proyecta una luz radial expansiva que ilumina y revela tu fondo personalizado.',
-        costClefs: 0,
-        costSilver: 0,
-        costGold: 0,
-        costPlatinum: 0
       }
     ];
 
-    let unlockedEffects = JSON.parse(localStorage.getItem('beatstar_unlocked_effects') || '["default_neon", "spotlight_reveal"]');
-    if (!unlockedEffects.includes('spotlight_reveal')) {
-      unlockedEffects.push('spotlight_reveal');
-    }
+    let unlockedEffects = JSON.parse(localStorage.getItem('beatstar_unlocked_effects') || '["default_neon"]');
+    unlockedEffects = unlockedEffects.filter(e => e !== 'spotlight_reveal');
     let activeEffectId = localStorage.getItem('beatstar_active_effect') || 'default_neon';
+    if (activeEffectId === 'spotlight_reveal') {
+      activeEffectId = 'default_neon';
+      localStorage.setItem('beatstar_active_effect', 'default_neon');
+    }
 
     // Player Currency & Medals State (defaults 0 for new users, persists for returning users)
     let userClefs = parseInt(localStorage.getItem('game_claves_de_sol') ?? localStorage.getItem('beatstar_clefs') ?? '0', 10);
@@ -2497,6 +2517,7 @@
       const pf = document.getElementById('colorPerfect');     if (pf) pf.value = colors.perfect;
       const gr = document.getElementById('colorGreat');       if (gr) gr.value = colors.great;
       const go = document.getElementById('colorGood');        if (go) go.value = colors.good;
+      if (typeof syncPCKeybindsUI === 'function') syncPCKeybindsUI();
     };
 
     window.applyJudgeColor = function(grade, hex) {
@@ -2650,29 +2671,33 @@
       const container = document.getElementById('customBgControlsContainer');
       if (!container) return;
 
-      const currentMode = localStorage.getItem('beatstar_bg_mode') || (activeEffectId === 'spotlight_reveal' ? 'spotlight' : 'spotlight');
-      const currentOpacity = parseFloat(localStorage.getItem('beatstar_bg_opacity') || '0.40') || 0.40;
-      const currentBgData = localStorage.getItem('beatstar_custom_bg_data') || './preview.png';
+    window.customBgMediaBlobUrl = null;
+    window.customBgMediaType = null;
 
-      const PRESET_BGS = [
-        { id: 'retro', name: 'Retro Grid Synth', path: './assets/skins/retro.jpg' },
-        { id: 'fire', name: 'Stage Inferno', path: './assets/skins/fire.jpg' },
-        { id: 'turbo', name: 'Turbo Cyber', path: './assets/skins/turbo.jpg' },
-        { id: 'shield', name: 'Shield Matrix', path: './assets/skins/shield.jpg' },
-        { id: 'preview', name: 'Beatstar Neon', path: './preview.png' }
-      ];
+    window.renderFXShopBackgroundPanel = function() {
+      const container = document.getElementById('customBgControlsContainer');
+      if (!container) return;
+
+      const currentMode = localStorage.getItem('beatstar_bg_mode') || 'black';
+      const currentOpacity = parseFloat(localStorage.getItem('beatstar_bg_opacity') || '0.40') || 0.40;
+      const mediaUrl = window.customBgMediaBlobUrl || localStorage.getItem('beatstar_custom_bg_data') || './preview.png';
+      const isVideo = window.customBgMediaType === 'video' || (typeof mediaUrl === 'string' && (mediaUrl.includes('.mp4') || mediaUrl.includes('.webm') || mediaUrl.startsWith('data:video')));
 
       container.innerHTML = `
-        <!-- Vista previa del fondo -->
-        <div class="relative w-full h-32 rounded-xl overflow-hidden border border-white/20 shadow-inner bg-black flex items-center justify-center">
-          <div id="shopBgPreviewImg" class="absolute inset-0 bg-cover bg-center transition-all duration-300" style="background-image: url('${currentBgData}'); opacity: ${currentMode === 'black' ? 0.05 : (currentMode === 'spotlight' ? 0.75 : currentOpacity)};"></div>
+        <!-- Vista previa del fondo (Imagen o Vídeo) -->
+        <div class="relative w-full h-36 rounded-xl overflow-hidden border border-white/20 shadow-inner bg-black flex items-center justify-center">
+          ${isVideo ? `
+            <video src="${mediaUrl}" autoplay muted loop playsinline class="absolute inset-0 w-full h-full object-cover transition-opacity duration-300" style="opacity: ${currentMode === 'black' ? 0.05 : (currentMode === 'reactive' ? 0.75 : currentOpacity)};"></video>
+          ` : `
+            <div id="shopBgPreviewImg" class="absolute inset-0 bg-cover bg-center transition-all duration-300" style="background-image: url('${mediaUrl}'); opacity: ${currentMode === 'black' ? 0.05 : (currentMode === 'reactive' ? 0.75 : currentOpacity)};"></div>
+          `}
           <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40"></div>
           <div class="relative z-10 text-center px-2">
-            <span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${currentMode === 'spotlight' ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-400/50' : (currentMode === 'static' ? 'bg-purple-500/30 text-purple-300 border border-purple-400/50' : 'bg-gray-800 text-gray-300 border border-white/10')}">
-              ${currentMode === 'spotlight' ? '💡 Iluminación Reactiva Activa' : (currentMode === 'static' ? '🖼️ Fondo Estático' : '⬛ Negro Clásico')}
+            <span class="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${currentMode === 'reactive' ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-400/50' : (currentMode === 'static' ? 'bg-purple-500/30 text-purple-300 border border-purple-400/50' : 'bg-gray-800 text-gray-300 border border-white/10')}">
+              ${currentMode === 'reactive' ? '💡 Iluminación Reactiva Activa' : (currentMode === 'static' ? '🖼️ Fondo Estático' : '⬛ Negro Clásico (Por Defecto)')}
             </span>
             <p class="text-[10px] text-gray-300 mt-1 font-semibold">
-              ${currentMode === 'spotlight' ? 'Se ilumina desde las teclas al pulsar' : (currentMode === 'static' ? 'Visible en todo momento con atenuación' : 'Fondo negro puro clásico')}
+              ${currentMode === 'reactive' ? 'El fondo se ilumina con cada tecla (más notas = más luz)' : (currentMode === 'static' ? 'Visible de forma continua con atenuación' : 'Fondo negro limpio y minimalista')}
             </p>
           </div>
         </div>
@@ -2680,20 +2705,20 @@
         <!-- Selector de Modo de Fondo -->
         <div class="space-y-1.5">
           <label class="text-[11px] font-bold text-gray-200 flex items-center gap-1">
-            <span>⚙️</span> Modo de Visualización:
+            <span>⚙️</span> Modo de Fondo:
           </label>
           <div class="grid grid-cols-3 gap-1.5">
-            <button onclick="setGameBgMode('spotlight')" class="p-2 rounded-xl border text-center transition cursor-pointer ${currentMode === 'spotlight' ? 'bg-cyan-500/25 border-cyan-400 text-cyan-200 shadow-sm shadow-cyan-500/20 font-bold' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}">
+            <button onclick="setGameBgMode('black')" class="p-2 rounded-xl border text-center transition cursor-pointer ${currentMode === 'black' ? 'bg-pink-500/25 border-pink-400 text-pink-200 shadow-sm shadow-pink-500/20 font-bold' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}">
+              <span class="block text-sm">⬛</span>
+              <span class="text-[9px] block leading-tight mt-0.5">Negro Clásico</span>
+            </button>
+            <button onclick="setGameBgMode('reactive')" class="p-2 rounded-xl border text-center transition cursor-pointer ${currentMode === 'reactive' ? 'bg-cyan-500/25 border-cyan-400 text-cyan-200 shadow-sm shadow-cyan-500/20 font-bold' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}">
               <span class="block text-sm">💡</span>
-              <span class="text-[9px] block leading-tight mt-0.5">Foco Reactivo</span>
+              <span class="text-[9px] block leading-tight mt-0.5">Fondo Reactivo</span>
             </button>
             <button onclick="setGameBgMode('static')" class="p-2 rounded-xl border text-center transition cursor-pointer ${currentMode === 'static' ? 'bg-purple-500/25 border-purple-400 text-purple-200 shadow-sm shadow-purple-500/20 font-bold' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}">
               <span class="block text-sm">🖼️</span>
-              <span class="text-[9px] block leading-tight mt-0.5">Estático</span>
-            </button>
-            <button onclick="setGameBgMode('black')" class="p-2 rounded-xl border text-center transition cursor-pointer ${currentMode === 'black' ? 'bg-pink-500/25 border-pink-400 text-pink-200 shadow-sm shadow-pink-500/20 font-bold' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}">
-              <span class="block text-sm">⬛</span>
-              <span class="text-[9px] block leading-tight mt-0.5">Negro Puro</span>
+              <span class="text-[9px] block leading-tight mt-0.5">Fondo Estático</span>
             </button>
           </div>
         </div>
@@ -2709,52 +2734,29 @@
         </div>
         ` : ''}
 
-        <!-- Botones de Acción de Imagen -->
-        <div class="space-y-2">
-          <input type="file" id="customBgFileInput" accept="image/*" onchange="handleCustomBgUpload(event)" class="hidden">
+        <!-- Botón de Carga de Imagen o Vídeo -->
+        <div class="space-y-2 pt-1">
+          <input type="file" id="customBgFileInput" accept="image/*,video/mp4,video/webm,video/*" onchange="handleCustomBgUpload(event)" class="hidden">
           
-          <div class="flex items-center gap-2">
-            <button onclick="document.getElementById('customBgFileInput').click()" class="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 text-white font-black text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-cyan-500/20">
-              <span>📁</span> Subir Tu Imagen
-            </button>
-            <button onclick="launchEffectDemo('spotlight_reveal')" class="py-2 px-3 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 text-white font-black text-xs transition cursor-pointer flex items-center justify-center gap-1 shadow-md shadow-pink-500/20">
-              <span>▶</span> Probar Foco
-            </button>
-          </div>
+          <button onclick="document.getElementById('customBgFileInput').click()" class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 text-white font-black text-xs transition cursor-pointer flex items-center justify-center gap-2 shadow-md shadow-cyan-500/20">
+            <span>📁</span> Subir Vídeo o Imagen Personalizada
+          </button>
         </div>
 
-        <!-- Fondos Preset Rápidos -->
-        <div class="space-y-1.5 pt-1 border-t border-white/10">
-          <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
-            O elige un fondo neón preset:
-          </label>
-          <div class="grid grid-cols-2 gap-1.5">
-            ${PRESET_BGS.map(p => `
-              <button onclick="selectPresetBg('${p.path}')" class="p-1.5 rounded-lg bg-black/60 hover:bg-white/10 border border-white/10 text-left flex items-center gap-2 transition cursor-pointer">
-                <div class="w-7 h-7 rounded bg-cover bg-center flex-shrink-0 border border-white/20" style="background-image: url('${p.path}');"></div>
-                <span class="text-[10px] text-gray-200 font-bold truncate">${p.name}</span>
-              </button>
-            `).join('')}
-          </div>
-        </div>
-
-        <!-- Botón Reset -->
-        <button onclick="resetCustomBgToDefault()" class="w-full py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white text-[10px] font-bold transition cursor-pointer text-center">
-          Restablecer Fondo por Defecto
+        <!-- Botón Restablecer -->
+        <button onclick="resetCustomBgToDefault()" class="w-full py-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white text-[10px] font-bold transition cursor-pointer text-center">
+          Restablecer a Negro Clásico
         </button>
       `;
     };
 
     window.setGameBgMode = function(mode) {
       localStorage.setItem('beatstar_bg_mode', mode);
-      if (mode === 'spotlight') {
-        equipKeyEffect('spotlight_reveal');
-      }
       if (engine) {
-        engine.setCustomBackground(undefined, mode, undefined);
+        engine.setCustomBackground(undefined, undefined, mode, undefined);
       }
       renderFXShopBackgroundPanel();
-      showSuccessToast(mode === 'spotlight' ? '¡Iluminación Reactiva activada!' : (mode === 'static' ? 'Fondo estático activado' : 'Fondo negro clásico activado'));
+      showSuccessToast(mode === 'reactive' ? '¡Fondo reactivo iluminado activado!' : (mode === 'static' ? 'Fondo estático activado' : 'Fondo negro clásico activado'));
     };
 
     window.setGameBgOpacity = function(val) {
@@ -2765,78 +2767,103 @@
       const prev = document.getElementById('shopBgPreviewImg');
       if (prev) prev.style.opacity = op;
       if (engine) {
-        engine.setCustomBackground(undefined, undefined, op);
+        engine.setCustomBackground(undefined, undefined, undefined, op);
       }
-    };
-
-    window.selectPresetBg = function(path) {
-      localStorage.setItem('beatstar_custom_bg_data', path);
-      if (engine) {
-        engine.setCustomBackground(path, undefined, undefined);
-      }
-      renderFXShopBackgroundPanel();
-      showSuccessToast('Fondo preset aplicado.');
     };
 
     window.resetCustomBgToDefault = function() {
       localStorage.removeItem('beatstar_custom_bg_data');
       localStorage.setItem('beatstar_bg_mode', 'black');
+      window.customBgMediaBlobUrl = null;
+      window.customBgMediaType = null;
+      if (typeof IndexedDBStorage !== 'undefined') {
+        IndexedDBStorage.deleteCustomMedia().catch(() => {});
+      }
       if (engine) {
-        engine.setCustomBackground('./preview.png', 'black', 0.40);
+        engine.setCustomBackground('none', 'image', 'black', 0.40);
       }
       renderFXShopBackgroundPanel();
-      showSuccessToast('Fondo restablecido.');
+      showSuccessToast('Fondo restablecido a negro clásico.');
     };
 
-    window.handleCustomBgUpload = function(event) {
+    window.handleCustomBgUpload = async function(event) {
       const file = event.target?.files?.[0];
       if (!file) return;
 
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const img = new Image();
-        img.onload = function() {
-          const maxDim = 1280;
-          let w = img.width;
-          let h = img.height;
-          if (w > maxDim || h > maxDim) {
-            if (w > h) {
-              h = Math.round(h * (maxDim / w));
-              w = maxDim;
-            } else {
-              w = Math.round(w * (maxDim / h));
-              h = maxDim;
-            }
-          }
-          const canvas = document.createElement('canvas');
-          canvas.width = w;
-          canvas.height = h;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, w, h);
-          const compressedData = canvas.toDataURL('image/jpeg', 0.85);
+      const isVideo = file.type.startsWith('video/');
+      const mediaType = isVideo ? 'video' : 'image';
 
-          try {
-            localStorage.setItem('beatstar_custom_bg_data', compressedData);
-          } catch(err) {
-            console.warn('Fondo guardado temporalmente en memoria:', err);
-          }
+      try {
+        if (typeof IndexedDBStorage !== 'undefined') {
+          await IndexedDBStorage.saveCustomMedia(file, mediaType);
+        }
+      } catch (idbErr) {
+        console.warn('Error guardando medio en IndexedDB:', idbErr);
+      }
 
-          if (engine) {
-            engine.setCustomBackground(compressedData, undefined, undefined);
-          }
+      const mediaUrl = URL.createObjectURL(file);
+      window.customBgMediaBlobUrl = mediaUrl;
+      window.customBgMediaType = mediaType;
 
-          const curMode = localStorage.getItem('beatstar_bg_mode') || 'spotlight';
-          if (curMode === 'black') {
-            setGameBgMode('spotlight');
-          } else {
-            renderFXShopBackgroundPanel();
-          }
+      const curMode = localStorage.getItem('beatstar_bg_mode') || 'black';
+      const nextMode = curMode === 'black' ? 'reactive' : curMode;
 
-          showSuccessToast('¡Imagen de fondo personalizada aplicada!');
-        };
-        img.src = e.target.result;
+      if (engine) {
+        engine.setCustomBackground(mediaUrl, mediaType, nextMode, undefined);
+      }
+      if (nextMode !== curMode) {
+        setGameBgMode(nextMode);
+      } else {
+        renderFXShopBackgroundPanel();
+      }
+
+      showSuccessToast(isVideo ? '¡Vídeo de fondo cargado exitosamente!' : '¡Imagen de fondo cargada exitosamente!');
+    };
+
+    window.syncPCKeybindsUI = function() {
+      const kb = (engine && engine.pcKeybinds) || JSON.parse(localStorage.getItem('beatstar_pc_keybinds') || '{"0":"d","1":"f","2":"j"}');
+      const b0 = document.getElementById('btnKeybindLane0'); if (b0) b0.innerText = (kb[0] || 'd').toUpperCase();
+      const b1 = document.getElementById('btnKeybindLane1'); if (b1) b1.innerText = (kb[1] || 'f').toUpperCase();
+      const b2 = document.getElementById('btnKeybindLane2'); if (b2) b2.innerText = (kb[2] || 'j').toUpperCase();
+    };
+
+    window.startRebindKey = function(lane) {
+      const btn = document.getElementById(`btnKeybindLane${lane}`);
+      if (btn) {
+        btn.innerText = '...';
+        btn.classList.add('animate-pulse', 'border-pink-500', 'text-pink-400');
+      }
+      const onKey = function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        window.removeEventListener('keydown', onKey, true);
+        if (btn) btn.classList.remove('animate-pulse', 'border-pink-500', 'text-pink-400');
+        if (e.key === 'Escape') {
+          syncPCKeybindsUI();
+          return;
+        }
+        const key = e.key.toLowerCase();
+        if (engine && engine.setPCKeybind) {
+          engine.setPCKeybind(lane, key);
+        } else {
+          const kb = JSON.parse(localStorage.getItem('beatstar_pc_keybinds') || '{"0":"d","1":"f","2":"j"}');
+          kb[lane] = key;
+          localStorage.setItem('beatstar_pc_keybinds', JSON.stringify(kb));
+        }
+        syncPCKeybindsUI();
+        showSuccessToast(`Carril ${lane + 1} asignado a tecla [ ${key.toUpperCase()} ]`);
       };
-      reader.readAsDataURL(file);
+      window.addEventListener('keydown', onKey, true);
+    };
+
+    window.resetPCKeybinds = function() {
+      const def = { 0: 'd', 1: 'f', 2: 'j' };
+      localStorage.setItem('beatstar_pc_keybinds', JSON.stringify(def));
+      if (engine) {
+        engine.pcKeybinds = def;
+      }
+      syncPCKeybindsUI();
+      showSuccessToast('Teclas de carril restablecidas a D, F, J.');
     };
 
     let previousEquippedEffectId = null;
@@ -3480,6 +3507,20 @@
 
       const savedOffset = localStorage.getItem('beatstar_offset') || '0';
       updateOffset(savedOffset);
+
+      // Recuperar medio de fondo personalizado guardado en IndexedDB (vídeo o imagen)
+      if (typeof IndexedDBStorage !== 'undefined') {
+        IndexedDBStorage.getCustomMedia().then(record => {
+          if (record && record.blob && engine) {
+            const url = URL.createObjectURL(record.blob);
+            window.customBgMediaBlobUrl = url;
+            window.customBgMediaType = record.mediaType || 'image';
+            const bgMode = localStorage.getItem('beatstar_bg_mode') || 'black';
+            const bgOpacity = parseFloat(localStorage.getItem('beatstar_bg_opacity') || '0.40') || 0.40;
+            engine.setCustomBackground(url, record.mediaType || 'image', bgMode, bgOpacity);
+          }
+        }).catch(err => console.warn('Error loading custom media from IndexedDB:', err));
+      }
 
       executeSearch();
       renderCurrentLibrarySubtab();
@@ -6771,6 +6812,28 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
             songs = cached;
           }
         } catch (e) {}
+      }
+
+      // Pistas históricas recuperadas de versiones anteriores y nube
+      const HISTORICAL_COMMUNITY_FALLBACKS = [
+        { id: 'comm_1788769406_7797', title: 'Pikete espacial', artist: 'cecilioge', creator_id: 'cr_191176', creator_name: 'Creador', bpm: 120, difficulty_name: 'Media', stars: 3.5, notes_count: 705, rating_avg: 5.0, votes_count: 1, sync_avg: 100.0, is_community: true, source: 'community' },
+        { id: 'comm_1789044857_213', title: 'Perreo Sanxe - El secreto de las ayudas', artist: 'Perro Sánxe', creator_id: 'cr_213', creator_name: 'Comunidad', bpm: 128, difficulty_name: 'Media', stars: 3.5, notes_count: 144, rating_avg: 5.0, votes_count: 1, sync_avg: 100.0, is_community: true, source: 'community' },
+        { id: 'comm_1789044866_4266', title: 'Flight of the Bumblebee - Rimsky-Korsakov (arr. Rachmaninoff)', artist: 'Comunidad', creator_id: 'cr_4266', creator_name: 'Comunidad', bpm: 144, difficulty_name: 'Difícil', stars: 4.5, notes_count: 269, rating_avg: 5.0, votes_count: 1, sync_avg: 100.0, is_community: true, source: 'community' },
+        { id: 'comm_galaxy_anthem', title: 'Galaxy Anthem (Community 3K)', artist: 'Kowalski', creator_id: 'cr_master', creator_name: 'PianoMaster', bpm: 128, difficulty_name: 'Difícil', stars: 4.5, notes_count: 320, rating_avg: 4.8, votes_count: 5, sync_avg: 100.0, is_community: true, source: 'community' },
+        { id: 'comm_cyber_frenzy', title: 'Cyber Frenzy', artist: 'SynthRider', creator_id: 'cr_neon', creator_name: 'NeonCharter', bpm: 140, difficulty_name: 'Experto', stars: 6.0, notes_count: 450, rating_avg: 4.9, votes_count: 8, sync_avg: 100.0, is_community: true, source: 'community' },
+        { id: 'comm_moonlight_flow', title: 'Moonlight Groove', artist: 'Aethel', creator_id: 'cr_chopin', creator_name: 'ChopinGamer', bpm: 115, difficulty_name: 'Normal', stars: 3.0, notes_count: 210, rating_avg: 4.7, votes_count: 4, sync_avg: 100.0, is_community: true, source: 'community' },
+        { id: 'comm_1788622108_2296', title: 'Unit Test Song', artist: 'Tester', creator_id: 'cr_573828', creator_name: 'TestCharter', bpm: 120, difficulty_name: 'Media', stars: 3.5, notes_count: 150, rating_avg: 5.0, votes_count: 1, sync_avg: 100.0, is_community: true, source: 'community' },
+        { id: 'comm_1789045500_1819', title: 'Test', artist: 'Test', creator_id: 'cr_1819', creator_name: 'Test', bpm: 120, difficulty_name: 'Media', stars: 3.5, notes_count: 4, rating_avg: 5.0, votes_count: 1, sync_avg: 100.0, is_community: true, source: 'community' }
+      ];
+
+      for (const fb of HISTORICAL_COMMUNITY_FALLBACKS) {
+        if (!songs.some(s => s.id === fb.id || (s.title && fb.title && s.title.toLowerCase() === fb.title.toLowerCase()))) {
+          const matchesQ = !q || fb.title.toLowerCase().includes(q.toLowerCase()) || fb.artist.toLowerCase().includes(q.toLowerCase());
+          const matchesDiff = !communityDiffFilter || communityDiffFilter === 'Todas' || fb.difficulty_name === communityDiffFilter;
+          if (matchesQ && matchesDiff) {
+            songs.push(fb);
+          }
+        }
       }
 
       // 2. Recopilar candidatos de canciones comunitarias creadas localmente por el usuario

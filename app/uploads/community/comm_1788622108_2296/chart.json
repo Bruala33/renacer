@@ -1,0 +1,19 @@
+{
+  "id": "test_chart_1",
+  "title": "Unit Test Song",
+  "artist": "Tester",
+  "notes": [
+    {
+      "time": 1000,
+      "lane": 0,
+      "type": "tap"
+    },
+    {
+      "time": 2000,
+      "lane": 1,
+      "type": "hold",
+      "duration": 800
+    }
+  ],
+  "bpm": 130
+}

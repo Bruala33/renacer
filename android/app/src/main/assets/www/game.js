@@ -858,12 +858,21 @@ class BeatstarEngine {
     this.activeEffect = (typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_active_effect') : null) || 'default_neon';
     this.latencyOffsetMs = parseInt(typeof localStorage !== 'undefined' ? (localStorage.getItem('beatstar_offset') || '0') : '0', 10) || 0;
 
-    // Custom Background & Spotlight Reveal System
+    // Custom Background & Reactive Illumination System
     this.customBgMode = (typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_bg_mode') : null) || 'black';
     this.customBgOpacity = parseFloat(typeof localStorage !== 'undefined' ? (localStorage.getItem('beatstar_bg_opacity') || '0.40') : '0.40') || 0.40;
-    this.customBgImage = null;
+    this.customBgMedia = null;
+    this.customBgMediaType = null; // 'image' or 'video'
+    this.customBgVideo = null;
+    this.reactiveLightBoost = 0;
+    this.lastHitColor = '#00f2fe';
     this.spotlightCanvas = null;
     this.spotlightCtx = null;
+
+    // PC Controls & Detection
+    this.isPCMode = (typeof window !== 'undefined') && (!('ontouchstart' in window) && (navigator.maxTouchPoints === 0 || (window.matchMedia && window.matchMedia('(pointer: fine)').matches)));
+    const savedKeybinds = (typeof localStorage !== 'undefined') ? localStorage.getItem('beatstar_pc_keybinds') : null;
+    this.pcKeybinds = savedKeybinds ? JSON.parse(savedKeybinds) : { 0: 'd', 1: 'f', 2: 'j' };
     this.initCustomBackground();
 
     // Scoring & Multiplier
@@ -939,24 +948,18 @@ class BeatstarEngine {
     try {
       const rawData = typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_custom_bg_data') : null;
       if (rawData) {
-        const img = new Image();
-        img.onload = () => {
-          this.customBgImage = img;
-        };
-        img.src = rawData;
-      } else {
-        const img = new Image();
-        img.onload = () => {
-          if (!this.customBgImage) this.customBgImage = img;
-        };
-        img.src = './preview.png';
+        if (rawData.startsWith('data:video') || rawData.endsWith('.mp4') || rawData.endsWith('.webm')) {
+          this.setCustomBackground(rawData, 'video', this.customBgMode, this.customBgOpacity);
+        } else {
+          this.setCustomBackground(rawData, 'image', this.customBgMode, this.customBgOpacity);
+        }
       }
     } catch (e) {
-      console.warn('Could not load custom background:', e);
+      console.warn('Could not load custom background from storage:', e);
     }
   }
 
-  setCustomBackground(dataUrl, mode, opacity) {
+  setCustomBackground(mediaSource, mediaType = 'image', mode = null, opacity = null) {
     if (mode !== undefined && mode !== null) {
       this.customBgMode = mode;
       localStorage.setItem('beatstar_bg_mode', mode);
@@ -965,35 +968,97 @@ class BeatstarEngine {
       this.customBgOpacity = parseFloat(opacity) || 0.40;
       localStorage.setItem('beatstar_bg_opacity', this.customBgOpacity.toString());
     }
-    if (dataUrl !== undefined && dataUrl !== null) {
-      if (dataUrl === '' || dataUrl === 'none') {
-        this.customBgImage = null;
-        localStorage.removeItem('beatstar_custom_bg_data');
-      } else {
-        const img = new Image();
-        img.onload = () => {
-          this.customBgImage = img;
-        };
-        img.src = dataUrl;
-        try {
-          localStorage.setItem('beatstar_custom_bg_data', dataUrl);
-        } catch (e) {
-          console.warn('LocalStorage limit exceeded when saving custom background:', e);
+
+    if (mediaSource !== undefined && mediaSource !== null) {
+      if (mediaSource === '' || mediaSource === 'none') {
+        if (this.customBgVideo) {
+          try { this.customBgVideo.pause(); } catch(e) {}
+          this.customBgVideo = null;
         }
+        this.customBgMedia = null;
+        this.customBgMediaType = null;
+        localStorage.removeItem('beatstar_custom_bg_data');
+      } else if (mediaType === 'video' || (typeof mediaSource === 'string' && (mediaSource.startsWith('data:video') || mediaSource.includes('.mp4') || mediaSource.includes('.webm') || mediaSource.startsWith('blob:')) && mediaType !== 'image')) {
+        // HTML5 Video Element
+        if (!this.customBgVideo) {
+          this.customBgVideo = document.createElement('video');
+          this.customBgVideo.muted = true;
+          this.customBgVideo.loop = true;
+          this.customBgVideo.playsInline = true;
+          this.customBgVideo.autoplay = true;
+          this.customBgVideo.crossOrigin = 'anonymous';
+        }
+        this.customBgVideo.src = mediaSource;
+        this.customBgVideo.play().catch(() => {});
+        this.customBgMedia = this.customBgVideo;
+        this.customBgMediaType = 'video';
+      } else {
+        // HTML Image Element
+        if (this.customBgVideo) {
+          try { this.customBgVideo.pause(); } catch(e) {}
+          this.customBgVideo = null;
+        }
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          this.customBgMedia = img;
+          this.customBgMediaType = 'image';
+        };
+        img.src = mediaSource;
+        this.customBgMedia = img;
+        this.customBgMediaType = 'image';
       }
     }
   }
 
-  drawCoverImage(ctx, img, targetW, targetH) {
-    if (!img || !img.naturalWidth || !img.naturalHeight) return;
-    const iw = img.naturalWidth;
-    const ih = img.naturalHeight;
-    const scale = Math.max(targetW / iw, targetH / ih);
-    const sw = iw * scale;
-    const sh = ih * scale;
+  drawCoverMedia(ctx, media, targetW, targetH) {
+    if (!media) return;
+    let mw = 0;
+    let mh = 0;
+    if (media instanceof HTMLVideoElement) {
+      mw = media.videoWidth;
+      mh = media.videoHeight;
+      if (media.paused && !media.ended) {
+        media.play().catch(() => {});
+      }
+    } else if (media instanceof HTMLImageElement) {
+      mw = media.naturalWidth || media.width;
+      mh = media.naturalHeight || media.height;
+    }
+    if (!mw || !mh) return;
+
+    const scale = Math.max(targetW / mw, targetH / mh);
+    const sw = mw * scale;
+    const sh = mh * scale;
     const dx = (targetW - sw) / 2;
     const dy = (targetH - sh) / 2;
-    ctx.drawImage(img, dx, dy, sw, sh);
+    ctx.drawImage(media, dx, dy, sw, sh);
+  }
+
+  setPCKeybind(lane, key) {
+    if (lane >= 0 && lane <= 2 && key) {
+      this.pcKeybinds[lane] = key.toLowerCase();
+      localStorage.setItem('beatstar_pc_keybinds', JSON.stringify(this.pcKeybinds));
+    }
+  }
+
+  addReactiveBurst(lane, x, y, color = '#00f2fe') {
+    const hitX = (x !== undefined && x !== null) ? x : (lane + 0.5) * this.laneWidth;
+    const hitY = (y !== undefined && y !== null) ? y : this.hitLineY;
+    this.bgBursts.push({
+      type: 'reactive_reveal',
+      lane,
+      x: hitX,
+      y: hitY,
+      radius: 40,
+      maxRadius: Math.max(this.width, this.height) * 0.75,
+      alpha: 1.0,
+      decay: 1.6,
+      color: color || '#00f2fe'
+    });
+    // Boost reactive ambient light: more hits = brighter scene!
+    this.reactiveLightBoost = Math.min(1.0, (this.reactiveLightBoost || 0) + 0.22);
+    this.lastHitColor = color || '#00f2fe';
   }
 
   setJudgeColors(colors) {
@@ -1080,9 +1145,12 @@ class BeatstarEngine {
       }
       if (this.isPaused || this.isRewinding || this.isCountingDown) return;
 
-      if (e.key === 'a' || e.key === 'A' || e.key === '1') this.triggerLaneInput(0, 'tap');
-      if (e.key === 's' || e.key === 'S' || e.key === 'f' || e.key === 'F' || e.key === ' ' || e.key === '2') this.triggerLaneInput(1, 'tap');
-      if (e.key === 'd' || e.key === 'D' || e.key === 'j' || e.key === 'J' || e.key === 'k' || e.key === 'K' || e.key === '3') this.triggerLaneInput(2, 'tap');
+      const k = (e.key || '').toLowerCase();
+      const kb = this.pcKeybinds || { 0: 'd', 1: 'f', 2: 'j' };
+
+      if (k === (kb[0] || 'd') || k === 'a' || k === '1') this.triggerLaneInput(0, 'tap');
+      else if (k === (kb[1] || 'f') || k === 's' || k === ' ' || k === '2') this.triggerLaneInput(1, 'tap');
+      else if (k === (kb[2] || 'j') || k === 'k' || k === '3') this.triggerLaneInput(2, 'tap');
 
       if (e.key === 'ArrowLeft') this.triggerLaneInput(0, 'swipe', 'left');
       if (e.key === 'ArrowRight') this.triggerLaneInput(2, 'swipe', 'right');
@@ -1092,9 +1160,12 @@ class BeatstarEngine {
 
     window.addEventListener('keyup', (e) => {
       if (this.isPaused || this.isRewinding || this.isCountingDown) return;
-      if (e.key === 'a' || e.key === 'A' || e.key === '1') this.releaseLaneHold(0);
-      if (e.key === 's' || e.key === 'S' || e.key === 'f' || e.key === 'F' || e.key === ' ' || e.key === '2') this.releaseLaneHold(1);
-      if (e.key === 'd' || e.key === 'D' || e.key === 'j' || e.key === 'J' || e.key === 'k' || e.key === 'K' || e.key === '3') this.releaseLaneHold(2);
+      const k = (e.key || '').toLowerCase();
+      const kb = this.pcKeybinds || { 0: 'd', 1: 'f', 2: 'j' };
+
+      if (k === (kb[0] || 'd') || k === 'a' || k === '1') this.releaseLaneHold(0);
+      else if (k === (kb[1] || 'f') || k === 's' || k === ' ' || k === '2') this.releaseLaneHold(1);
+      else if (k === (kb[2] || 'j') || k === 'k' || k === '3') this.releaseLaneHold(2);
     });
   }
 
@@ -1827,20 +1898,6 @@ class BeatstarEngine {
       });
     }
 
-    if (effect === 'spotlight_reveal' || this.customBgMode === 'spotlight') {
-      this.bgBursts.push({
-        type: 'spotlight_reveal',
-        lane,
-        x: hitX,
-        y: hitY,
-        radius: 35,
-        maxRadius: Math.max(this.width, this.height) * 0.70,
-        alpha: 1.0,
-        decay: 1.75,
-        color: p.c1
-      });
-    }
-
     this.fxRipples.push({
       lane,
       x: hitX,
@@ -1865,6 +1922,9 @@ class BeatstarEngine {
     }
 
     if (!closestNote) {
+      if (this.customBgMode === 'reactive') {
+        this.addReactiveBurst(lane, hitX, hitY, '#00f2fe');
+      }
       if (this.isCalibrating) {
         this.synth.playClick();
         this.emitKeyHit(hitX, hitY, this.judgeColors?.perfectPlus || '#00f2fe', 24);
@@ -1884,6 +1944,9 @@ class BeatstarEngine {
       const jCalib = this.judgeHit(closestNote, minDiff, hitX, hitY);
       closestNote.hit = true;
       this.emitKeyHit(hitX, hitY, jCalib.color, 28);
+      if (this.customBgMode === 'reactive') {
+        this.addReactiveBurst(lane, hitX, hitY, jCalib.color);
+      }
       return;
     }
 
@@ -1891,14 +1954,29 @@ class BeatstarEngine {
       const j = this.judgeHit(closestNote, minDiff, hitX, hitY);
       closestNote.hit = true;
       this.emitKeyHit(hitX, hitY, j.color, 24);
+      if (this.customBgMode === 'reactive') {
+        this.addReactiveBurst(lane, hitX, hitY, j.color);
+      }
     } 
-    else if (closestNote.type === 'swipe' && inputType === 'swipe') {
+    else if (closestNote.type === 'swipe') {
       const targetDir = closestNote.direction || 'up';
-      if (swipeDirection === targetDir || !closestNote.direction) {
+      if (inputType === 'swipe' && (swipeDirection === targetDir || !closestNote.direction)) {
         const j = this.judgeHit(closestNote, minDiff, hitX, hitY, 'SWIPE');
         closestNote.hit = true;
         this.emitKeyHit(hitX, hitY, j.color, 28);
         this.particles.emitSwipeBurst(hitX, hitY, targetDir, j.color, 32);
+        if (this.customBgMode === 'reactive') {
+          this.addReactiveBurst(lane, hitX, hitY, j.color);
+        }
+      } else if (this.isPCMode && inputType === 'tap') {
+        // EN PC: Las notas swipe se tocan con la tecla normal del carril sin deslizar
+        const j = this.judgeHit(closestNote, minDiff, hitX, hitY, 'SWIPE');
+        closestNote.hit = true;
+        this.emitKeyHit(hitX, hitY, j.color, 28);
+        this.particles.emitSwipeBurst(hitX, hitY, targetDir, j.color, 32);
+        if (this.customBgMode === 'reactive') {
+          this.addReactiveBurst(lane, hitX, hitY, j.color);
+        }
       }
     } 
     else if (closestNote.type === 'hold' && inputType === 'tap') {
@@ -1913,6 +1991,9 @@ class BeatstarEngine {
         color: j.color
       });
       this.emitKeyHit(hitX, hitY, j.color, 22);
+      if (this.customBgMode === 'reactive') {
+        this.addReactiveBurst(lane, hitX, hitY, j.color);
+      }
     }
   }
 
@@ -2350,6 +2431,10 @@ class BeatstarEngine {
       this.vignetteAlpha = Math.max(0, this.vignetteAlpha - dt * 3.2);
     }
 
+    if (this.reactiveLightBoost > 0.001) {
+      this.reactiveLightBoost = Math.max(0, this.reactiveLightBoost - dt * 1.5);
+    }
+
     this.particles.update(dt);
   }
 
@@ -2369,10 +2454,10 @@ class BeatstarEngine {
     ctx.fillRect(0, 0, w, h);
 
     // 1b. Fondo estático personalizado (si el usuario eligió modo estático)
-    if (this.customBgMode === 'static' && this.customBgImage && this.customBgImage.complete && this.customBgImage.naturalWidth > 0) {
+    if (this.customBgMode === 'static' && this.customBgMedia) {
       ctx.save();
       ctx.globalAlpha = Math.max(0.05, Math.min(0.9, this.customBgOpacity || 0.40));
-      this.drawCoverImage(ctx, this.customBgImage, w, h);
+      this.drawCoverMedia(ctx, this.customBgMedia, w, h);
       ctx.restore();
     }
 
@@ -2399,8 +2484,8 @@ class BeatstarEngine {
     }
 
     const effect = this.activeEffect || 'default_neon';
-    const isSpotlightActive = effect === 'spotlight_reveal' || this.customBgMode === 'spotlight';
-    if (!isSpotlightActive && (effect === 'default_neon' || this.bgBursts.length === 0)) {
+    const isReactiveActive = this.customBgMode === 'reactive' && !!this.customBgMedia;
+    if (!isReactiveActive && (effect === 'default_neon' || this.bgBursts.length === 0)) {
       return;
     }
 
@@ -2558,13 +2643,14 @@ class BeatstarEngine {
       }
 
       // ====================================================
-      // 4. FOCO REACTIVO: REVELADO DE FONDO PERSONALIZADO
+      // 4. FONDO REACTIVO: ILUMINACIÓN ADITIVA DINÁMICA (MÁS TECLAS = MÁS LUZ)
       // ====================================================
-      if (isSpotlightActive) {
-        const hasBursts = this.bgBursts.some(b => b.type === 'spotlight_reveal' && b.alpha > 0.01);
+      if (this.customBgMode === 'reactive' && this.customBgMedia) {
+        const hasBursts = this.bgBursts.some(b => b.type === 'reactive_reveal' && b.alpha > 0.01);
         const hasHolds = this.activeHolds.size > 0;
+        const hasBoost = (this.reactiveLightBoost || 0) > 0.01;
 
-        if ((hasBursts || hasHolds) && this.customBgImage && this.customBgImage.complete && this.customBgImage.naturalWidth > 0) {
+        if (hasBursts || hasHolds || hasBoost) {
           if (!this.spotlightCanvas || this.spotlightCanvas.width !== w || this.spotlightCanvas.height !== h) {
             this.spotlightCanvas = document.createElement('canvas');
             this.spotlightCanvas.width = w;
@@ -2574,20 +2660,30 @@ class BeatstarEngine {
           const sCtx = this.spotlightCtx;
           sCtx.clearRect(0, 0, w, h);
 
-          // A. Dibujar la imagen de fondo en el canvas auxiliar
-          this.drawCoverImage(sCtx, this.customBgImage, w, h);
-
-          // B. Aplicar máscara radial expansiva donde tocan las teclas
+          // PASO 1: Dibujar todas las fuentes de luz en la máscara usando 'lighter' (ADITIVO: más teclas = más luz, NUNCA se queda negro!)
           sCtx.save();
-          sCtx.globalCompositeOperation = 'destination-in';
+          sCtx.globalCompositeOperation = 'lighter';
 
+          // A. Resplandor ambiental reactivo acumulado por ráfagas de notas
+          if (hasBoost) {
+            const ambGrad = sCtx.createRadialGradient(w / 2, this.hitLineY, 20, w / 2, this.hitLineY, Math.max(w, h));
+            const boostA = Math.min(0.70, (this.reactiveLightBoost || 0) * 0.70);
+            ambGrad.addColorStop(0, `rgba(255, 255, 255, ${boostA.toFixed(3)})`);
+            ambGrad.addColorStop(0.5, `rgba(255, 255, 255, ${(boostA * 0.45).toFixed(3)})`);
+            ambGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            sCtx.fillStyle = ambGrad;
+            sCtx.fillRect(0, 0, w, h);
+          }
+
+          // B. Cada onda expansiva de cada tecla pulsada suma luz
           for (const b of this.bgBursts) {
-            if (b.type !== 'spotlight_reveal' || b.alpha <= 0.01) continue;
-            const rad = Math.max(10, b.radius);
+            if (b.type !== 'reactive_reveal' || b.alpha <= 0.01) continue;
+            const rad = Math.max(20, b.radius);
             const grad = sCtx.createRadialGradient(b.x, b.y, 0, b.x, b.y, rad);
-            grad.addColorStop(0, `rgba(255, 255, 255, ${Math.min(1, b.alpha * 1.05).toFixed(3)})`);
-            grad.addColorStop(0.35, `rgba(255, 255, 255, ${(b.alpha * 0.85).toFixed(3)})`);
-            grad.addColorStop(0.70, `rgba(255, 255, 255, ${(b.alpha * 0.35).toFixed(3)})`);
+            const a = Math.min(1.0, b.alpha);
+            grad.addColorStop(0, `rgba(255, 255, 255, ${a.toFixed(3)})`);
+            grad.addColorStop(0.35, `rgba(255, 255, 255, ${(a * 0.85).toFixed(3)})`);
+            grad.addColorStop(0.70, `rgba(255, 255, 255, ${(a * 0.40).toFixed(3)})`);
             grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
             sCtx.fillStyle = grad;
             sCtx.beginPath();
@@ -2595,7 +2691,7 @@ class BeatstarEngine {
             sCtx.fill();
           }
 
-          // Foco mantenido en notas sostenidas (holds)
+          // C. Cada nota mantenida (hold) añade un haz de luz continuo
           for (const [holdLane] of this.activeHolds.entries()) {
             const hx = (holdLane + 0.5) * this.laneWidth;
             const hy = this.hitLineY;
@@ -2611,18 +2707,25 @@ class BeatstarEngine {
           }
           sCtx.restore();
 
-          // C. Volcar la imagen iluminada sobre el fondo negro
+          // PASO 2: Recortar la imagen o vídeo con la máscara de luz sumada (source-in)
+          sCtx.save();
+          sCtx.globalCompositeOperation = 'source-in';
+          this.drawCoverMedia(sCtx, this.customBgMedia, w, h);
+          sCtx.restore();
+
+          // PASO 3: Dibujar la escena iluminada sobre el fondo negro base
           ctx.save();
           ctx.drawImage(this.spotlightCanvas, 0, 0);
 
-          // D. Halo perimetral neón reactivo
+          // PASO 4: Halo de onda expansiva perimetral con el color exacto del juicio (Perfect+, Perfect, Great, Good)
           ctx.globalCompositeOperation = 'screen';
           for (const b of this.bgBursts) {
-            if (b.type !== 'spotlight_reveal' || b.alpha <= 0.01) continue;
-            const rad = Math.max(10, b.radius);
-            const rim = ctx.createRadialGradient(b.x, b.y, Math.max(0, rad - 30), b.x, b.y, rad);
+            if (b.type !== 'reactive_reveal' || b.alpha <= 0.01) continue;
+            const rad = Math.max(15, b.radius);
+            const rimCol = b.color || '#00f2fe';
+            const rim = ctx.createRadialGradient(b.x, b.y, Math.max(0, rad - 35), b.x, b.y, rad);
             rim.addColorStop(0, 'rgba(0, 0, 0, 0)');
-            rim.addColorStop(0.65, hexToRgba(b.color || '#00f2fe', b.alpha * 0.38));
+            rim.addColorStop(0.65, hexToRgba(rimCol, b.alpha * 0.45));
             rim.addColorStop(1, 'rgba(0, 0, 0, 0)');
             ctx.fillStyle = rim;
             ctx.beginPath();
@@ -2728,6 +2831,20 @@ class BeatstarEngine {
         ctx.strokeStyle = '#00ff88';
         ctx.lineWidth = 3.5;
         ctx.stroke();
+      }
+
+      if (this.isPCMode) {
+        const kb = this.pcKeybinds || { 0: 'd', 1: 'f', 2: 'j' };
+        const keyChar = ((kb[l] || (l === 0 ? 'd' : (l === 1 ? 'f' : 'j'))).toUpperCase());
+        ctx.save();
+        ctx.font = '900 13px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = isPressed ? '#00f2fe' : 'rgba(255, 255, 255, 0.60)';
+        ctx.shadowColor = isPressed ? '#00f2fe' : 'transparent';
+        ctx.shadowBlur = isPressed ? 10 : 0;
+        ctx.fillText(`[ ${keyChar} ]`, cx, y + 44);
+        ctx.restore();
       }
     }
     ctx.restore();

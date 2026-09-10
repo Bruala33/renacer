@@ -1726,6 +1726,61 @@ class IndexedDBStorage {
       return false;
     }
   }
+
+  // --- Custom Background Media (Image or Video Blob) ---
+  static async saveCustomMedia(fileOrBlob, mediaType) {
+    try {
+      const db = await this.openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(this.STORE_SAVED, 'readwrite');
+        const store = tx.objectStore(this.STORE_SAVED);
+        const record = {
+          id: 'custom_bg_media_blob',
+          mediaType: mediaType,
+          blob: fileOrBlob,
+          updatedAt: Date.now()
+        };
+        const req = store.put(record);
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => reject(req.error);
+      });
+    } catch (e) {
+      console.warn('Error saving custom media to IndexedDB:', e);
+      return false;
+    }
+  }
+
+  static async getCustomMedia() {
+    try {
+      const db = await this.openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(this.STORE_SAVED, 'readonly');
+        const store = tx.objectStore(this.STORE_SAVED);
+        const req = store.get('custom_bg_media_blob');
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => reject(req.error);
+      });
+    } catch (e) {
+      console.warn('Error getting custom media from IndexedDB:', e);
+      return null;
+    }
+  }
+
+  static async deleteCustomMedia() {
+    try {
+      const db = await this.openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(this.STORE_SAVED, 'readwrite');
+        const store = tx.objectStore(this.STORE_SAVED);
+        const req = store.delete('custom_bg_media_blob');
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => reject(req.error);
+      });
+    } catch (e) {
+      console.warn('Error deleting custom media from IndexedDB:', e);
+      return false;
+    }
+  }
 }
 
 // Export to global window scope
