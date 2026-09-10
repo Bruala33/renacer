@@ -2297,8 +2297,8 @@
   </div>
 
 
-  <script src="./parsers.js?v=3.4"></script>
-  <script src="./game.js?v=3.4"></script>
+  <script src="./parsers.js?v=3.5"></script>
+  <script src="./game.js?v=3.5"></script>
   <script>
     let engine = null;
     let currentActiveBeatmap = null;
@@ -2670,25 +2670,129 @@
     window.customBgMediaBlobUrl = null;
     window.customBgMediaType = null;
 
+    window.setGameBgFit = function(fit) {
+      localStorage.setItem('beatstar_bg_fit', fit);
+      if (engine && engine.setCustomBgTransform) {
+        engine.setCustomBgTransform(
+          parseFloat(localStorage.getItem('beatstar_bg_crop_x') || '0.5'),
+          parseFloat(localStorage.getItem('beatstar_bg_crop_y') || '0.5'),
+          parseFloat(localStorage.getItem('beatstar_bg_crop_zoom') || '1.0'),
+          fit
+        );
+      }
+      renderFXShopBackgroundPanel();
+      showSuccessToast(fit === 'contain' ? 'Ajuste: Imagen/Vídeo completo' : 'Ajuste: Cubrir toda la pantalla');
+    };
+
+    window.updateGameBgCrop = function(cropX, cropY, zoom) {
+      const curFit = localStorage.getItem('beatstar_bg_fit') || 'cover';
+      const x = cropX !== undefined ? parseFloat(cropX) : parseFloat(localStorage.getItem('beatstar_bg_crop_x') || '0.5');
+      const y = cropY !== undefined ? parseFloat(cropY) : parseFloat(localStorage.getItem('beatstar_bg_crop_y') || '0.5');
+      const z = zoom !== undefined ? parseFloat(zoom) : parseFloat(localStorage.getItem('beatstar_bg_crop_zoom') || '1.0');
+
+      localStorage.setItem('beatstar_bg_crop_x', x.toString());
+      localStorage.setItem('beatstar_bg_crop_y', y.toString());
+      localStorage.setItem('beatstar_bg_crop_zoom', z.toString());
+
+      if (engine && engine.setCustomBgTransform) {
+        engine.setCustomBgTransform(x, y, z, curFit);
+      }
+
+      const zoomTxt = document.getElementById('bgZoomValueText');
+      if (zoomTxt) zoomTxt.innerText = Math.round(z * 100) + '%';
+      const prevMedia = document.getElementById('shopBgPreviewMedia');
+      if (prevMedia) {
+        prevMedia.style.objectPosition = `${Math.round(x * 100)}% ${Math.round(y * 100)}%`;
+        prevMedia.style.transform = `scale(${z})`;
+      }
+    };
+
+    window.resetGameBgCrop = function() {
+      window.updateGameBgCrop(0.5, 0.5, 1.0);
+      const slX = document.getElementById('bgCropXSlider'); if (slX) slX.value = 50;
+      const slY = document.getElementById('bgCropYSlider'); if (slY) slY.value = 50;
+      const slZ = document.getElementById('bgZoomSlider'); if (slZ) slZ.value = 100;
+      showSuccessToast('Encuadre centrado al 100%.');
+    };
+
+    window.initShopBgPreviewDrag = function(previewEl) {
+      if (!previewEl || previewEl._dragInitialized) return;
+      previewEl._dragInitialized = true;
+      let isDragging = false;
+      let startX = 0, startY = 0;
+      let startCropX = 0.5, startCropY = 0.5;
+
+      const onStart = (clientX, clientY) => {
+        isDragging = true;
+        startX = clientX;
+        startY = clientY;
+        startCropX = parseFloat(localStorage.getItem('beatstar_bg_crop_x') || '0.5');
+        startCropY = parseFloat(localStorage.getItem('beatstar_bg_crop_y') || '0.5');
+      };
+
+      const onMove = (clientX, clientY) => {
+        if (!isDragging) return;
+        const rect = previewEl.getBoundingClientRect();
+        const deltaX = (startX - clientX) / (rect.width || 300);
+        const deltaY = (startY - clientY) / (rect.height || 180);
+        const newX = Math.max(0, Math.min(1, startCropX + deltaX));
+        const newY = Math.max(0, Math.min(1, startCropY + deltaY));
+        window.updateGameBgCrop(newX, newY, undefined);
+        const slX = document.getElementById('bgCropXSlider'); if (slX) slX.value = Math.round(newX * 100);
+        const slY = document.getElementById('bgCropYSlider'); if (slY) slY.value = Math.round(newY * 100);
+      };
+
+      const onEnd = () => { isDragging = false; };
+
+      previewEl.addEventListener('mousedown', e => { e.preventDefault(); onStart(e.clientX, e.clientY); });
+      window.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
+      window.addEventListener('mouseup', onEnd);
+
+      previewEl.addEventListener('touchstart', e => {
+        if (e.touches.length === 1) {
+          onStart(e.touches[0].clientX, e.touches[0].clientY);
+        }
+      }, { passive: true });
+      window.addEventListener('touchmove', e => {
+        if (isDragging && e.touches.length === 1) {
+          onMove(e.touches[0].clientX, e.touches[0].clientY);
+        }
+      }, { passive: true });
+      window.addEventListener('touchend', onEnd);
+    };
+
     window.renderFXShopBackgroundPanel = function() {
       const container = document.getElementById('customBgControlsContainer');
       if (!container) return;
 
       const currentMode = localStorage.getItem('beatstar_bg_mode') || 'black';
       const currentOpacity = parseFloat(localStorage.getItem('beatstar_bg_opacity') || '0.40') || 0.40;
+      const currentFit = localStorage.getItem('beatstar_bg_fit') || 'cover';
+      const currentCropX = parseFloat(localStorage.getItem('beatstar_bg_crop_x') || '0.5');
+      const currentCropY = parseFloat(localStorage.getItem('beatstar_bg_crop_y') || '0.5');
+      const currentZoom = parseFloat(localStorage.getItem('beatstar_bg_crop_zoom') || '1.0');
+
       const mediaUrl = window.customBgMediaBlobUrl || localStorage.getItem('beatstar_custom_bg_data') || './preview.png';
       const isVideo = window.customBgMediaType === 'video' || (typeof mediaUrl === 'string' && (mediaUrl.includes('.mp4') || mediaUrl.includes('.webm') || mediaUrl.startsWith('data:video')));
 
       container.innerHTML = `
-        <!-- Vista previa del fondo (Imagen o Vídeo) -->
-        <div class="relative w-full h-36 rounded-xl overflow-hidden border border-white/20 shadow-inner bg-black flex items-center justify-center">
+        <!-- Vista previa interactiva del fondo (Imagen o Vídeo con recorte y arrastre) -->
+        <div id="shopBgPreviewFrame" class="relative w-full h-44 rounded-xl overflow-hidden border border-white/20 shadow-inner bg-black flex items-center justify-center select-none cursor-grab active:cursor-grabbing">
           ${isVideo ? `
-            <video src="${mediaUrl}" autoplay muted loop playsinline class="absolute inset-0 w-full h-full object-cover transition-opacity duration-300" style="opacity: ${currentMode === 'black' ? 0.05 : (currentMode === 'reactive' ? 0.75 : currentOpacity)};"></video>
+            <video id="shopBgPreviewMedia" src="${mediaUrl}" autoplay muted loop playsinline class="absolute inset-0 w-full h-full transition-all duration-150" style="object-fit: ${currentFit}; object-position: ${Math.round(currentCropX * 100)}% ${Math.round(currentCropY * 100)}%; transform: scale(${currentZoom}); opacity: ${currentMode === 'black' ? 0.05 : (currentMode === 'reactive' ? 0.75 : currentOpacity)};"></video>
           ` : `
-            <div id="shopBgPreviewImg" class="absolute inset-0 bg-cover bg-center transition-all duration-300" style="background-image: url('${mediaUrl}'); opacity: ${currentMode === 'black' ? 0.05 : (currentMode === 'reactive' ? 0.75 : currentOpacity)};"></div>
+            <img id="shopBgPreviewMedia" src="${mediaUrl}" class="absolute inset-0 w-full h-full transition-all duration-150" style="object-fit: ${currentFit}; object-position: ${Math.round(currentCropX * 100)}% ${Math.round(currentCropY * 100)}%; transform: scale(${currentZoom}); opacity: ${currentMode === 'black' ? 0.05 : (currentMode === 'reactive' ? 0.75 : currentOpacity)};">
           `}
-          <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40"></div>
-          <div class="relative z-10 text-center px-2">
+          <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 pointer-events-none"></div>
+
+          <!-- Guía sutil de carriles para encuadre del juego -->
+          <div class="absolute inset-x-8 inset-y-2 border border-white/10 rounded-lg pointer-events-none flex opacity-40">
+            <div class="flex-1 border-r border-dashed border-white/20"></div>
+            <div class="flex-1 border-r border-dashed border-white/20"></div>
+            <div class="flex-1"></div>
+          </div>
+
+          <div class="relative z-10 text-center px-2 pointer-events-none">
             <span class="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${currentMode === 'reactive' ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-400/50' : (currentMode === 'static' ? 'bg-purple-500/30 text-purple-300 border border-purple-400/50' : 'bg-gray-800 text-gray-300 border border-white/10')}">
               ${currentMode === 'reactive' ? '💡 Iluminación Reactiva Activa' : (currentMode === 'static' ? '🖼️ Fondo Estático' : '⬛ Negro Clásico (Por Defecto)')}
             </span>
@@ -2730,13 +2834,70 @@
         </div>
         ` : ''}
 
-        <!-- Botón de Carga de Imagen o Vídeo -->
+        <!-- Panel de Recorte, Encuadre y Zoom -->
+        <div class="p-3 bg-black/60 rounded-xl border border-white/10 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold text-gray-200 flex items-center gap-1.5">
+              <span>✂️</span> Recorte y Encuadre:
+            </span>
+            <div class="flex gap-1">
+              <button onclick="setGameBgFit('cover')" class="px-2 py-0.5 rounded text-[9px] font-bold border transition cursor-pointer ${currentFit === 'cover' ? 'bg-cyan-500/30 border-cyan-400 text-cyan-200' : 'bg-white/5 border-white/10 text-gray-400'}">
+                Cubrir
+              </button>
+              <button onclick="setGameBgFit('contain')" class="px-2 py-0.5 rounded text-[9px] font-bold border transition cursor-pointer ${currentFit === 'contain' ? 'bg-cyan-500/30 border-cyan-400 text-cyan-200' : 'bg-white/5 border-white/10 text-gray-400'}">
+                Completo
+              </button>
+            </div>
+          </div>
+
+          <!-- Slider Zoom -->
+          <div class="space-y-1">
+            <div class="flex items-center justify-between text-[10px] text-gray-300 font-semibold">
+              <span>🔍 Zoom / Escala:</span>
+              <span id="bgZoomValueText" class="text-cyan-300 font-mono">${Math.round(currentZoom * 100)}%</span>
+            </div>
+            <input type="range" id="bgZoomSlider" min="100" max="250" step="5" value="${Math.round(currentZoom * 100)}" oninput="updateGameBgCrop(undefined, undefined, this.value / 100)" class="w-full accent-cyan-400 cursor-pointer h-1.5 bg-gray-700 rounded-lg">
+          </div>
+
+          <!-- Slider Vertical (Pan Y) -->
+          <div class="space-y-1">
+            <div class="flex items-center justify-between text-[10px] text-gray-300 font-semibold">
+              <span>↕️ Posición Vertical:</span>
+              <span class="text-gray-400 text-[9px]">Arriba ↔ Abajo</span>
+            </div>
+            <input type="range" id="bgCropYSlider" min="0" max="100" step="1" value="${Math.round(currentCropY * 100)}" oninput="updateGameBgCrop(undefined, this.value / 100, undefined)" class="w-full accent-cyan-400 cursor-pointer h-1.5 bg-gray-700 rounded-lg">
+          </div>
+
+          <!-- Slider Horizontal (Pan X) -->
+          <div class="space-y-1">
+            <div class="flex items-center justify-between text-[10px] text-gray-300 font-semibold">
+              <span>↔️ Posición Horizontal:</span>
+              <span class="text-gray-400 text-[9px]">Izq ↔ Der</span>
+            </div>
+            <input type="range" id="bgCropXSlider" min="0" max="100" step="1" value="${Math.round(currentCropX * 100)}" oninput="updateGameBgCrop(this.value / 100, undefined, undefined)" class="w-full accent-cyan-400 cursor-pointer h-1.5 bg-gray-700 rounded-lg">
+          </div>
+
+          <div class="flex justify-between items-center pt-1 text-[9px] text-gray-400">
+            <span>Arrastra la vista previa para mover</span>
+            <button onclick="resetGameBgCrop()" class="px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 text-cyan-300 font-bold border border-cyan-400/30 transition cursor-pointer">
+              ↺ Centrar
+            </button>
+          </div>
+        </div>
+
+        <!-- Botones de Carga Dedicados (Foto / Vídeo) -->
         <div class="space-y-2 pt-1">
-          <input type="file" id="customBgFileInput" accept="image/*,video/mp4,video/webm,video/*" onchange="handleCustomBgUpload(event)" class="hidden">
-          
-          <button onclick="document.getElementById('customBgFileInput').click()" class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 text-white font-black text-xs transition cursor-pointer flex items-center justify-center gap-2 shadow-md shadow-cyan-500/20">
-            <span>📁</span> Subir Vídeo o Imagen Personalizada
-          </button>
+          <input type="file" id="customBgImgInput" accept="image/*" onchange="handleCustomBgUpload(event, 'image')" class="hidden">
+          <input type="file" id="customBgVidInput" accept="video/mp4,video/webm,video/*" onchange="handleCustomBgUpload(event, 'video')" class="hidden">
+
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="document.getElementById('customBgImgInput').click()" class="py-2.5 px-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 text-white font-black text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-cyan-500/20">
+              <span>🖼️</span> Subir Imagen
+            </button>
+            <button onclick="document.getElementById('customBgVidInput').click()" class="py-2.5 px-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-400 text-white font-black text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/20">
+              <span>🎬</span> Subir Vídeo
+            </button>
+          </div>
         </div>
 
         <!-- Botón Restablecer -->
@@ -2744,6 +2905,9 @@
           Restablecer a Negro Clásico
         </button>
       `;
+
+      const frameEl = document.getElementById('shopBgPreviewFrame');
+      if (frameEl) initShopBgPreviewDrag(frameEl);
     };
 
     window.setGameBgMode = function(mode) {
@@ -2760,7 +2924,7 @@
       localStorage.setItem('beatstar_bg_opacity', op.toString());
       const txt = document.getElementById('bgOpacityValueText');
       if (txt) txt.innerText = Math.round(op * 100) + '%';
-      const prev = document.getElementById('shopBgPreviewImg');
+      const prev = document.getElementById('shopBgPreviewMedia');
       if (prev) prev.style.opacity = op;
       if (engine) {
         engine.setCustomBackground(undefined, undefined, undefined, op);
@@ -2770,6 +2934,10 @@
     window.resetCustomBgToDefault = function() {
       localStorage.removeItem('beatstar_custom_bg_data');
       localStorage.setItem('beatstar_bg_mode', 'black');
+      localStorage.removeItem('beatstar_bg_crop_x');
+      localStorage.removeItem('beatstar_bg_crop_y');
+      localStorage.removeItem('beatstar_bg_crop_zoom');
+      localStorage.removeItem('beatstar_bg_fit');
       window.customBgMediaBlobUrl = null;
       window.customBgMediaType = null;
       if (typeof IndexedDBStorage !== 'undefined') {
@@ -2777,18 +2945,33 @@
       }
       if (engine) {
         engine.setCustomBackground('none', 'image', 'black', 0.40);
+        engine.setCustomBgTransform(0.5, 0.5, 1.0, 'cover');
       }
       renderFXShopBackgroundPanel();
       showSuccessToast('Fondo restablecido a negro clásico.');
     };
 
-    window.handleCustomBgUpload = async function(event) {
+    window.handleCustomBgUpload = async function(event, forcedType) {
       const file = event.target?.files?.[0];
       if (!file) return;
 
-      const isVideo = file.type.startsWith('video/');
+      const isVideo = (forcedType === 'video') || (file.type && file.type.startsWith('video/')) || /\.(mp4|webm|mkv|mov)$/i.test(file.name);
       const mediaType = isVideo ? 'video' : 'image';
 
+      // 1. Convertir imagen a dataUrl para fallback síncrono en localStorage
+      if (!isVideo && file.size < 4 * 1024 * 1024) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            localStorage.setItem('beatstar_custom_bg_data', e.target.result);
+          } catch (err) {
+            console.warn('Fondo temporal en memoria:', err);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+
+      // 2. Guardar en IndexedDB
       try {
         if (typeof IndexedDBStorage !== 'undefined') {
           await IndexedDBStorage.saveCustomMedia(file, mediaType);
@@ -3514,6 +3697,14 @@
             const bgMode = localStorage.getItem('beatstar_bg_mode') || 'black';
             const bgOpacity = parseFloat(localStorage.getItem('beatstar_bg_opacity') || '0.40') || 0.40;
             engine.setCustomBackground(url, record.mediaType || 'image', bgMode, bgOpacity);
+            const cropX = parseFloat(localStorage.getItem('beatstar_bg_crop_x') || '0.5');
+            const cropY = parseFloat(localStorage.getItem('beatstar_bg_crop_y') || '0.5');
+            const zoom = parseFloat(localStorage.getItem('beatstar_bg_crop_zoom') || '1.0');
+            const fit = localStorage.getItem('beatstar_bg_fit') || 'cover';
+            engine.setCustomBgTransform(cropX, cropY, zoom, fit);
+            if (typeof renderFXShopBackgroundPanel === 'function') {
+              renderFXShopBackgroundPanel();
+            }
           }
         }).catch(err => console.warn('Error loading custom media from IndexedDB:', err));
       }

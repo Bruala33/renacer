@@ -53,7 +53,7 @@ class CachedStaticFiles(StaticFiles):
             if path.endswith((".css", ".js", ".png", ".jpg", ".jpeg", ".svg", ".webp", ".ico", ".woff2")):
                 response.headers["Cache-Control"] = "public, max-age=604800, stale-while-revalidate=86400"
             elif path.endswith((".html", ".htm")):
-                response.headers["Cache-Control"] = "public, max-age=3600, must-revalidate"
+                response.headers["Cache-Control"] = "no-cache, must-revalidate"
         return response
 
 # Setup static directory

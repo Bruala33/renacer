@@ -861,6 +861,10 @@ class BeatstarEngine {
     // Custom Background & Reactive Illumination System
     this.customBgMode = (typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_bg_mode') : null) || 'black';
     this.customBgOpacity = parseFloat(typeof localStorage !== 'undefined' ? (localStorage.getItem('beatstar_bg_opacity') || '0.40') : '0.40') || 0.40;
+    this.customBgCropX = parseFloat(typeof localStorage !== 'undefined' ? (localStorage.getItem('beatstar_bg_crop_x') || '0.5') : '0.5');
+    this.customBgCropY = parseFloat(typeof localStorage !== 'undefined' ? (localStorage.getItem('beatstar_bg_crop_y') || '0.5') : '0.5');
+    this.customBgZoom = parseFloat(typeof localStorage !== 'undefined' ? (localStorage.getItem('beatstar_bg_crop_zoom') || '1.0') : '1.0');
+    this.customBgFit = (typeof localStorage !== 'undefined' ? (localStorage.getItem('beatstar_bg_fit') || 'cover') : 'cover');
     this.customBgMedia = null;
     this.customBgMediaType = null; // 'image' or 'video'
     this.customBgVideo = null;
@@ -978,18 +982,28 @@ class BeatstarEngine {
         this.customBgMedia = null;
         this.customBgMediaType = null;
         localStorage.removeItem('beatstar_custom_bg_data');
-      } else if (mediaType === 'video' || (typeof mediaSource === 'string' && (mediaSource.startsWith('data:video') || mediaSource.includes('.mp4') || mediaSource.includes('.webm') || mediaSource.startsWith('blob:')) && mediaType !== 'image')) {
+      } else if (mediaType === 'video' || (typeof mediaSource === 'string' && (mediaSource.startsWith('data:video') || mediaSource.includes('.mp4') || mediaSource.includes('.webm') || (mediaSource.startsWith('blob:') && mediaType !== 'image')))) {
         // HTML5 Video Element
         if (!this.customBgVideo) {
           this.customBgVideo = document.createElement('video');
           this.customBgVideo.muted = true;
+          this.customBgVideo.defaultMuted = true;
           this.customBgVideo.loop = true;
           this.customBgVideo.playsInline = true;
+          this.customBgVideo.setAttribute('muted', '');
+          this.customBgVideo.setAttribute('playsinline', '');
+          this.customBgVideo.setAttribute('webkit-playsinline', '');
           this.customBgVideo.autoplay = true;
+        }
+        if (typeof mediaSource === 'string' && (mediaSource.startsWith('http://') || mediaSource.startsWith('https://'))) {
           this.customBgVideo.crossOrigin = 'anonymous';
+        } else {
+          this.customBgVideo.removeAttribute('crossOrigin');
         }
         this.customBgVideo.src = mediaSource;
-        this.customBgVideo.play().catch(() => {});
+        this.customBgVideo.load();
+        const p = this.customBgVideo.play();
+        if (p && typeof p.catch === 'function') p.catch(() => {});
         this.customBgMedia = this.customBgVideo;
         this.customBgMediaType = 'video';
       } else {
@@ -999,7 +1013,9 @@ class BeatstarEngine {
           this.customBgVideo = null;
         }
         const img = new Image();
-        img.crossOrigin = 'anonymous';
+        if (typeof mediaSource === 'string' && (mediaSource.startsWith('http://') || mediaSource.startsWith('https://'))) {
+          img.crossOrigin = 'anonymous';
+        }
         img.onload = () => {
           this.customBgMedia = img;
           this.customBgMediaType = 'image';
@@ -1009,6 +1025,17 @@ class BeatstarEngine {
         this.customBgMediaType = 'image';
       }
     }
+  }
+
+  setCustomBgTransform(cropX = 0.5, cropY = 0.5, zoom = 1.0, fit = 'cover') {
+    this.customBgCropX = Math.max(0, Math.min(1, parseFloat(cropX) ?? 0.5));
+    this.customBgCropY = Math.max(0, Math.min(1, parseFloat(cropY) ?? 0.5));
+    this.customBgZoom = Math.max(0.5, Math.min(3.0, parseFloat(zoom) ?? 1.0));
+    this.customBgFit = fit || 'cover';
+    localStorage.setItem('beatstar_bg_crop_x', this.customBgCropX.toString());
+    localStorage.setItem('beatstar_bg_crop_y', this.customBgCropY.toString());
+    localStorage.setItem('beatstar_bg_crop_zoom', this.customBgZoom.toString());
+    localStorage.setItem('beatstar_bg_fit', this.customBgFit);
   }
 
   drawCoverMedia(ctx, media, targetW, targetH) {
@@ -1027,11 +1054,22 @@ class BeatstarEngine {
     }
     if (!mw || !mh) return;
 
-    const scale = Math.max(targetW / mw, targetH / mh);
+    const fit = this.customBgFit || 'cover';
+    const zoom = Math.max(0.5, Math.min(3.0, this.customBgZoom || 1.0));
+    const cropX = (this.customBgCropX !== undefined) ? this.customBgCropX : 0.5;
+    const cropY = (this.customBgCropY !== undefined) ? this.customBgCropY : 0.5;
+
+    let baseScale = (fit === 'contain') 
+      ? Math.min(targetW / mw, targetH / mh)
+      : Math.max(targetW / mw, targetH / mh);
+
+    const scale = baseScale * zoom;
     const sw = mw * scale;
     const sh = mh * scale;
-    const dx = (targetW - sw) / 2;
-    const dy = (targetH - sh) / 2;
+
+    const dx = (targetW - sw) * cropX;
+    const dy = (targetH - sh) * cropY;
+
     ctx.drawImage(media, dx, dy, sw, sh);
   }
 

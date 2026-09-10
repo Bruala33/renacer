@@ -140,14 +140,32 @@ class MainActivity : AppCompatActivity() {
                 this@MainActivity.filePathCallback?.onReceiveValue(null)
                 this@MainActivity.filePathCallback = filePathCallback
 
+                val acceptTypes = fileChooserParams?.acceptTypes
+                val mimeList = mutableListOf<String>()
+                if (acceptTypes != null && acceptTypes.isNotEmpty()) {
+                    for (t in acceptTypes) {
+                        for (sub in t.split(",")) {
+                            val trimmed = sub.trim()
+                            if (trimmed.isNotBlank()) mimeList.add(trimmed)
+                        }
+                    }
+                }
+
                 val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
                     addCategory(Intent.CATEGORY_OPENABLE)
-                    type = "audio/*"
+                    if (mimeList.size == 1 && !mimeList[0].contains("*/*")) {
+                        type = mimeList[0]
+                    } else if (mimeList.isNotEmpty()) {
+                        type = "*/*"
+                        putExtra(Intent.EXTRA_MIME_TYPES, mimeList.toTypedArray())
+                    } else {
+                        type = "*/*"
+                    }
                 }
 
                 @Suppress("DEPRECATION")
                 startActivityForResult(
-                    Intent.createChooser(intent, "Seleccionar Archivo de Audio"),
+                    Intent.createChooser(intent, "Seleccionar Archivo"),
                     FILE_CHOOSER_REQUEST_CODE
                 )
                 return true

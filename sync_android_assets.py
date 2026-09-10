@@ -1,7 +1,7 @@
 import os
 import shutil
 
-EXCLUDED_NAMES = {"downloads", "preview.mp4", "preview.png"}
+EXCLUDED_NAMES = {"downloads", "preview.mp4"}
 EXCLUDED_EXTS = {".apk", ".mp4", ".zip", ".osz", ".bin"}
 
 def sync_assets():

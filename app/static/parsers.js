@@ -1730,6 +1730,15 @@ class IndexedDBStorage {
   // --- Custom Background Media (Image or Video Blob) ---
   static async saveCustomMedia(fileOrBlob, mediaType) {
     try {
+      let cleanBlob = fileOrBlob;
+      if (fileOrBlob && typeof fileOrBlob.arrayBuffer === 'function') {
+        try {
+          const buf = await fileOrBlob.arrayBuffer();
+          cleanBlob = new Blob([buf], { type: fileOrBlob.type || (mediaType === 'video' ? 'video/mp4' : 'image/jpeg') });
+        } catch (bufErr) {
+          cleanBlob = fileOrBlob;
+        }
+      }
       const db = await this.openDB();
       return new Promise((resolve, reject) => {
         const tx = db.transaction(this.STORE_SAVED, 'readwrite');
@@ -1737,7 +1746,7 @@ class IndexedDBStorage {
         const record = {
           id: 'custom_bg_media_blob',
           mediaType: mediaType,
-          blob: fileOrBlob,
+          blob: cleanBlob,
           updatedAt: Date.now()
         };
         const req = store.put(record);
