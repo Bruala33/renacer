@@ -121,6 +121,8 @@
         settings_local_storage: 'Almacenamiento Local',
         settings_fx: 'Efectos de Tecla',
         settings_shop: 'Tienda de Fondos y Efectos',
+        shop_tab_effects: 'Efectos de Tecla',
+        shop_tab_background: 'Fondo Personalizado',
         settings_nickname: 'Tu Nickname:',
         settings_nickname_sub: 'Creador & Social',
         settings_nickname_placeholder: 'Elige tu nombre en el juego...',
@@ -367,6 +369,8 @@
         settings_local_storage: 'Local Storage',
         settings_fx: 'Key Effects',
         settings_shop: 'Shop & Visual Effects',
+        shop_tab_effects: 'Key Effects',
+        shop_tab_background: 'Custom Background',
         settings_nickname: 'Your Nickname:',
         settings_nickname_sub: 'Creator & Social',
         settings_nickname_placeholder: 'Choose your in-game name...',
@@ -1698,35 +1702,55 @@
       </div>
     </div>
 
-    <!-- Layer 10: Modal Tienda de Efectos de Tecla (🎨) -->
+    <!-- Layer 10: Modal Tienda de Efectos de Tecla y Fondos (🎨) -->
     <div id="fxShopModal" class="modal-overlay">
-      <div class="glass-card w-full max-w-[340px] p-4 rounded-2xl space-y-3 max-h-[90vh] flex flex-col bg-[#06040a]/95 border border-white/10">
+      <div class="glass-card w-full max-w-[350px] p-4 rounded-2xl space-y-3 max-h-[90vh] flex flex-col bg-[#06040a]/95 border border-white/10">
         <div class="flex items-center justify-between">
           <h3 class="text-xs font-black text-white flex items-center gap-1.5 uppercase tracking-wider">
-            <span>✨</span> Efectos de Tecla
+            <span>🎨</span> <span data-i18n="settings_shop">Tienda de Fondos y Efectos</span>
           </h3>
           <button onclick="closeFXShopModal()" class="text-gray-400 hover:text-white text-xs p-1 cursor-pointer">✕</button>
         </div>
 
-        <!-- Wallet Bar in Shop -->
-        <div class="flex items-center justify-between px-2.5 py-1.5 bg-black/80 rounded-xl border border-white/10 text-[10px]">
-          <div class="flex items-center gap-1 text-amber-300 font-bold font-mono">
-            <span>𝄞</span><span id="shopClefsDisplay">10,000</span>
+        <!-- Subtabs: Efectos de Tecla vs Fondo Personalizado -->
+        <div class="flex items-center gap-1.5 p-1 bg-white/5 rounded-xl border border-white/10 text-[11px] font-bold">
+          <button id="tabBtnShopEffects" onclick="switchFXShopSubtab('effects')" class="flex-1 py-1.5 rounded-lg transition text-center cursor-pointer bg-pink-500/30 text-pink-300 border border-pink-400/40">
+            <span>✨</span> <span data-i18n="shop_tab_effects">Efectos de Tecla</span>
+          </button>
+          <button id="tabBtnShopBackground" onclick="switchFXShopSubtab('background')" class="flex-1 py-1.5 rounded-lg transition text-center cursor-pointer text-gray-400 hover:text-white border border-transparent">
+            <span>🖼️</span> <span data-i18n="shop_tab_background">Fondo Personalizado</span>
+          </button>
+        </div>
+
+        <!-- Subtab 1: Efectos de Tecla -->
+        <div id="shopEffectsSubtabContent" class="space-y-3 flex-1 flex flex-col overflow-hidden">
+          <!-- Wallet Bar in Shop -->
+          <div class="flex items-center justify-between px-2.5 py-1.5 bg-black/80 rounded-xl border border-white/10 text-[10px]">
+            <div class="flex items-center gap-1 text-amber-300 font-bold font-mono">
+              <span>𝄞</span><span id="shopClefsDisplay">10,000</span>
+            </div>
+            <div class="flex items-center gap-1.5 font-bold font-mono">
+              <span class="text-gray-200">🥈 <span id="shopSilversDisplay">0</span></span>
+              <span class="text-amber-300">🥇 <span id="shopGoldsDisplay">0</span></span>
+              <span class="text-cyan-300">💎 <span id="shopPlatinumsDisplay">0</span></span>
+            </div>
           </div>
-          <div class="flex items-center gap-1.5 font-bold font-mono">
-            <span class="text-gray-200">🥈 <span id="shopSilversDisplay">0</span></span>
-            <span class="text-amber-300">🥇 <span id="shopGoldsDisplay">0</span></span>
-            <span class="text-cyan-300">💎 <span id="shopPlatinumsDisplay">0</span></span>
+
+          <p class="text-[10px] text-gray-400 leading-tight">
+            Personaliza los impactos de pulsación y luces sobre fondo negro. Mira la demo antes de comprar o equipar.
+          </p>
+
+          <!-- Effects List with Live Canvas Demos -->
+          <div id="fxShopCardsContainer" class="space-y-3 overflow-y-auto flex-1 pr-1">
+            <!-- Injected dynamically -->
           </div>
         </div>
 
-        <p class="text-[10px] text-gray-400 leading-tight">
-          Personaliza los impactos de pulsación y luces sobre fondo negro. Mira la demo antes de comprar o equipar.
-        </p>
-
-        <!-- Effects List with Live Canvas Demos -->
-        <div id="fxShopCardsContainer" class="space-y-3 overflow-y-auto flex-1 pr-1">
-          <!-- Injected dynamically -->
+        <!-- Subtab 2: Fondo Personalizado -->
+        <div id="shopBackgroundSubtabContent" class="space-y-3 flex-1 flex flex-col overflow-y-auto pr-1 hidden">
+          <div id="customBgControlsContainer" class="space-y-3 text-xs">
+            <!-- Injected dynamically -->
+          </div>
         </div>
       </div>
     </div>
@@ -2328,10 +2352,22 @@
         costSilver: 3,
         costGold: 2,
         costPlatinum: 1
+      },
+      {
+        id: 'spotlight_reveal',
+        name: 'Foco Reactivo: Fondo Revelado',
+        desc: 'El fondo permanece negro puro hasta que tocas una tecla: cada impacto proyecta una luz radial expansiva que ilumina y revela tu fondo personalizado.',
+        costClefs: 0,
+        costSilver: 0,
+        costGold: 0,
+        costPlatinum: 0
       }
     ];
 
-    let unlockedEffects = JSON.parse(localStorage.getItem('beatstar_unlocked_effects') || '["default_neon"]');
+    let unlockedEffects = JSON.parse(localStorage.getItem('beatstar_unlocked_effects') || '["default_neon", "spotlight_reveal"]');
+    if (!unlockedEffects.includes('spotlight_reveal')) {
+      unlockedEffects.push('spotlight_reveal');
+    }
     let activeEffectId = localStorage.getItem('beatstar_active_effect') || 'default_neon';
 
     // Player Currency & Medals State (defaults 0 for new users, persists for returning users)
@@ -2578,6 +2614,230 @@
         `;
       }).join('');
     }
+
+    window.switchFXShopSubtab = function(tab) {
+      const btnEffects = document.getElementById('tabBtnShopEffects');
+      const btnBg = document.getElementById('tabBtnShopBackground');
+      const contentEffects = document.getElementById('shopEffectsSubtabContent');
+      const contentBg = document.getElementById('shopBackgroundSubtabContent');
+
+      if (tab === 'background') {
+        if (btnEffects) {
+          btnEffects.className = 'flex-1 py-1.5 rounded-lg transition text-center cursor-pointer text-gray-400 hover:text-white border border-transparent';
+        }
+        if (btnBg) {
+          btnBg.className = 'flex-1 py-1.5 rounded-lg transition text-center cursor-pointer bg-pink-500/30 text-pink-300 border border-pink-400/40';
+        }
+        if (contentEffects) contentEffects.classList.add('hidden');
+        if (contentBg) {
+          contentBg.classList.remove('hidden');
+          renderFXShopBackgroundPanel();
+        }
+      } else {
+        if (btnEffects) {
+          btnEffects.className = 'flex-1 py-1.5 rounded-lg transition text-center cursor-pointer bg-pink-500/30 text-pink-300 border border-pink-400/40';
+        }
+        if (btnBg) {
+          btnBg.className = 'flex-1 py-1.5 rounded-lg transition text-center cursor-pointer text-gray-400 hover:text-white border border-transparent';
+        }
+        if (contentBg) contentBg.classList.add('hidden');
+        if (contentEffects) contentEffects.classList.remove('hidden');
+        renderFXShopItems();
+      }
+    };
+
+    window.renderFXShopBackgroundPanel = function() {
+      const container = document.getElementById('customBgControlsContainer');
+      if (!container) return;
+
+      const currentMode = localStorage.getItem('beatstar_bg_mode') || (activeEffectId === 'spotlight_reveal' ? 'spotlight' : 'spotlight');
+      const currentOpacity = parseFloat(localStorage.getItem('beatstar_bg_opacity') || '0.40') || 0.40;
+      const currentBgData = localStorage.getItem('beatstar_custom_bg_data') || './preview.png';
+
+      const PRESET_BGS = [
+        { id: 'retro', name: 'Retro Grid Synth', path: './assets/skins/retro.jpg' },
+        { id: 'fire', name: 'Stage Inferno', path: './assets/skins/fire.jpg' },
+        { id: 'turbo', name: 'Turbo Cyber', path: './assets/skins/turbo.jpg' },
+        { id: 'shield', name: 'Shield Matrix', path: './assets/skins/shield.jpg' },
+        { id: 'preview', name: 'Beatstar Neon', path: './preview.png' }
+      ];
+
+      container.innerHTML = `
+        <!-- Vista previa del fondo -->
+        <div class="relative w-full h-32 rounded-xl overflow-hidden border border-white/20 shadow-inner bg-black flex items-center justify-center">
+          <div id="shopBgPreviewImg" class="absolute inset-0 bg-cover bg-center transition-all duration-300" style="background-image: url('${currentBgData}'); opacity: ${currentMode === 'black' ? 0.05 : (currentMode === 'spotlight' ? 0.75 : currentOpacity)};"></div>
+          <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40"></div>
+          <div class="relative z-10 text-center px-2">
+            <span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${currentMode === 'spotlight' ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-400/50' : (currentMode === 'static' ? 'bg-purple-500/30 text-purple-300 border border-purple-400/50' : 'bg-gray-800 text-gray-300 border border-white/10')}">
+              ${currentMode === 'spotlight' ? '💡 Iluminación Reactiva Activa' : (currentMode === 'static' ? '🖼️ Fondo Estático' : '⬛ Negro Clásico')}
+            </span>
+            <p class="text-[10px] text-gray-300 mt-1 font-semibold">
+              ${currentMode === 'spotlight' ? 'Se ilumina desde las teclas al pulsar' : (currentMode === 'static' ? 'Visible en todo momento con atenuación' : 'Fondo negro puro clásico')}
+            </p>
+          </div>
+        </div>
+
+        <!-- Selector de Modo de Fondo -->
+        <div class="space-y-1.5">
+          <label class="text-[11px] font-bold text-gray-200 flex items-center gap-1">
+            <span>⚙️</span> Modo de Visualización:
+          </label>
+          <div class="grid grid-cols-3 gap-1.5">
+            <button onclick="setGameBgMode('spotlight')" class="p-2 rounded-xl border text-center transition cursor-pointer ${currentMode === 'spotlight' ? 'bg-cyan-500/25 border-cyan-400 text-cyan-200 shadow-sm shadow-cyan-500/20 font-bold' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}">
+              <span class="block text-sm">💡</span>
+              <span class="text-[9px] block leading-tight mt-0.5">Foco Reactivo</span>
+            </button>
+            <button onclick="setGameBgMode('static')" class="p-2 rounded-xl border text-center transition cursor-pointer ${currentMode === 'static' ? 'bg-purple-500/25 border-purple-400 text-purple-200 shadow-sm shadow-purple-500/20 font-bold' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}">
+              <span class="block text-sm">🖼️</span>
+              <span class="text-[9px] block leading-tight mt-0.5">Estático</span>
+            </button>
+            <button onclick="setGameBgMode('black')" class="p-2 rounded-xl border text-center transition cursor-pointer ${currentMode === 'black' ? 'bg-pink-500/25 border-pink-400 text-pink-200 shadow-sm shadow-pink-500/20 font-bold' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}">
+              <span class="block text-sm">⬛</span>
+              <span class="text-[9px] block leading-tight mt-0.5">Negro Puro</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Slider de Opacidad para Fondo Estático -->
+        ${currentMode === 'static' ? `
+        <div class="p-2.5 bg-black/60 rounded-xl border border-white/10 space-y-1.5">
+          <div class="flex items-center justify-between text-[10px] text-gray-300 font-semibold">
+            <span>Opacidad del fondo:</span>
+            <span id="bgOpacityValueText" class="text-cyan-300 font-mono">${Math.round(currentOpacity * 100)}%</span>
+          </div>
+          <input type="range" min="0.10" max="0.80" step="0.05" value="${currentOpacity}" oninput="setGameBgOpacity(this.value)" class="w-full accent-cyan-400 cursor-pointer h-1.5 bg-gray-700 rounded-lg">
+        </div>
+        ` : ''}
+
+        <!-- Botones de Acción de Imagen -->
+        <div class="space-y-2">
+          <input type="file" id="customBgFileInput" accept="image/*" onchange="handleCustomBgUpload(event)" class="hidden">
+          
+          <div class="flex items-center gap-2">
+            <button onclick="document.getElementById('customBgFileInput').click()" class="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 text-white font-black text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-cyan-500/20">
+              <span>📁</span> Subir Tu Imagen
+            </button>
+            <button onclick="launchEffectDemo('spotlight_reveal')" class="py-2 px-3 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 text-white font-black text-xs transition cursor-pointer flex items-center justify-center gap-1 shadow-md shadow-pink-500/20">
+              <span>▶</span> Probar Foco
+            </button>
+          </div>
+        </div>
+
+        <!-- Fondos Preset Rápidos -->
+        <div class="space-y-1.5 pt-1 border-t border-white/10">
+          <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+            O elige un fondo neón preset:
+          </label>
+          <div class="grid grid-cols-2 gap-1.5">
+            ${PRESET_BGS.map(p => `
+              <button onclick="selectPresetBg('${p.path}')" class="p-1.5 rounded-lg bg-black/60 hover:bg-white/10 border border-white/10 text-left flex items-center gap-2 transition cursor-pointer">
+                <div class="w-7 h-7 rounded bg-cover bg-center flex-shrink-0 border border-white/20" style="background-image: url('${p.path}');"></div>
+                <span class="text-[10px] text-gray-200 font-bold truncate">${p.name}</span>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- Botón Reset -->
+        <button onclick="resetCustomBgToDefault()" class="w-full py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white text-[10px] font-bold transition cursor-pointer text-center">
+          Restablecer Fondo por Defecto
+        </button>
+      `;
+    };
+
+    window.setGameBgMode = function(mode) {
+      localStorage.setItem('beatstar_bg_mode', mode);
+      if (mode === 'spotlight') {
+        equipKeyEffect('spotlight_reveal');
+      }
+      if (engine) {
+        engine.setCustomBackground(undefined, mode, undefined);
+      }
+      renderFXShopBackgroundPanel();
+      showSuccessToast(mode === 'spotlight' ? '¡Iluminación Reactiva activada!' : (mode === 'static' ? 'Fondo estático activado' : 'Fondo negro clásico activado'));
+    };
+
+    window.setGameBgOpacity = function(val) {
+      const op = parseFloat(val) || 0.40;
+      localStorage.setItem('beatstar_bg_opacity', op.toString());
+      const txt = document.getElementById('bgOpacityValueText');
+      if (txt) txt.innerText = Math.round(op * 100) + '%';
+      const prev = document.getElementById('shopBgPreviewImg');
+      if (prev) prev.style.opacity = op;
+      if (engine) {
+        engine.setCustomBackground(undefined, undefined, op);
+      }
+    };
+
+    window.selectPresetBg = function(path) {
+      localStorage.setItem('beatstar_custom_bg_data', path);
+      if (engine) {
+        engine.setCustomBackground(path, undefined, undefined);
+      }
+      renderFXShopBackgroundPanel();
+      showSuccessToast('Fondo preset aplicado.');
+    };
+
+    window.resetCustomBgToDefault = function() {
+      localStorage.removeItem('beatstar_custom_bg_data');
+      localStorage.setItem('beatstar_bg_mode', 'black');
+      if (engine) {
+        engine.setCustomBackground('./preview.png', 'black', 0.40);
+      }
+      renderFXShopBackgroundPanel();
+      showSuccessToast('Fondo restablecido.');
+    };
+
+    window.handleCustomBgUpload = function(event) {
+      const file = event.target?.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const maxDim = 1280;
+          let w = img.width;
+          let h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round(h * (maxDim / w));
+              w = maxDim;
+            } else {
+              w = Math.round(w * (maxDim / h));
+              h = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          const compressedData = canvas.toDataURL('image/jpeg', 0.85);
+
+          try {
+            localStorage.setItem('beatstar_custom_bg_data', compressedData);
+          } catch(err) {
+            console.warn('Fondo guardado temporalmente en memoria:', err);
+          }
+
+          if (engine) {
+            engine.setCustomBackground(compressedData, undefined, undefined);
+          }
+
+          const curMode = localStorage.getItem('beatstar_bg_mode') || 'spotlight';
+          if (curMode === 'black') {
+            setGameBgMode('spotlight');
+          } else {
+            renderFXShopBackgroundPanel();
+          }
+
+          showSuccessToast('¡Imagen de fondo personalizada aplicada!');
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    };
 
     let previousEquippedEffectId = null;
 
@@ -2966,11 +3226,16 @@
       if (custom !== null && custom !== undefined) {
         if (custom.trim().length > 0) return custom.trim().replace(/\/$/, '');
       }
-      if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
-        if (window.location.hostname !== 'appassets.androidplatform.net' && window.location.hostname.includes('.')) {
-          return window.location.origin;
-        }
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      const host = window.location.hostname || '';
+      const isStaticHost = host.includes('itch.io') ||
+                           host.includes('hwcdn.net') ||
+                           host.includes('github.io') ||
+                           host.includes('netlify.app') ||
+                           host.includes('vercel.app') ||
+                           host === 'appassets.androidplatform.net';
+
+      if (!isStaticHost) {
+        if (host === 'localhost' || host === '127.0.0.1' || host.includes('onrender.com')) {
           return window.location.origin;
         }
       }
@@ -6736,6 +7001,24 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
           } catch (e) {}
         }
 
+        // 1b. Si está en la bóveda de creaciones del usuario o pistas comunitarias locales
+        try {
+          const myVault = JSON.parse(localStorage.getItem('beatstar_my_published_charts') || '[]');
+          const localComm = JSON.parse(localStorage.getItem('beatstar_community_local_charts') || '[]');
+          const allLocalVault = [...myVault, ...localComm];
+          const found = allLocalVault.find(c => c && (c.id === chartId || c.communityChartId === chartId));
+          if (found && (found.chartData || found.unpackedData) && found.audioBlob) {
+            const cData = found.chartData || found.unpackedData;
+            cData.is_community = true;
+            cData.is_daily_featured = isDailyFeatured;
+            cData.source = 'community';
+            cData.communityChartId = chartId;
+            if (overlay) overlay.classList.remove('active');
+            startGame(cData, found.audioBlob, cData.metadata?.difficulty_name || 'Normal');
+            return;
+          }
+        } catch (e) {}
+
         const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
         // Descargar el JSON del chart y el Audio en paralelo
         const [chartRes, audioRes] = await Promise.all([
@@ -6774,7 +7057,12 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       } catch (err) {
         console.error('Error al iniciar pista comunitaria:', err);
         if (overlay) overlay.classList.remove('active');
-        showErrorToast('Error cargando pista comunitaria: ' + err.message);
+        const isNetworkErr = err.name === 'TypeError' || (err.message && err.message.toLowerCase().includes('fetch'));
+        if (isNetworkErr) {
+          showErrorToast('El servidor comunitario en la nube está iniciándose. Por favor reintenta en unos segundos.');
+        } else {
+          showErrorToast('Error cargando pista comunitaria: ' + err.message);
+        }
       }
     }
 

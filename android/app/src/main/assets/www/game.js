@@ -854,9 +854,17 @@ class BeatstarEngine {
     this.fxRipples = [];
     this.bgBursts = [];
 
-    // Key FX Theme (default_neon, color_burst)
+    // Key FX Theme (default_neon, color_burst, spotlight_reveal)
     this.activeEffect = (typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_active_effect') : null) || 'default_neon';
     this.latencyOffsetMs = parseInt(typeof localStorage !== 'undefined' ? (localStorage.getItem('beatstar_offset') || '0') : '0', 10) || 0;
+
+    // Custom Background & Spotlight Reveal System
+    this.customBgMode = (typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_bg_mode') : null) || 'black';
+    this.customBgOpacity = parseFloat(typeof localStorage !== 'undefined' ? (localStorage.getItem('beatstar_bg_opacity') || '0.40') : '0.40') || 0.40;
+    this.customBgImage = null;
+    this.spotlightCanvas = null;
+    this.spotlightCtx = null;
+    this.initCustomBackground();
 
     // Scoring & Multiplier
     this.score = 0;
@@ -925,6 +933,67 @@ class BeatstarEngine {
   setActiveEffect(effectId) {
     this.activeEffect = effectId || 'default_neon';
     localStorage.setItem('beatstar_active_effect', this.activeEffect);
+  }
+
+  initCustomBackground() {
+    try {
+      const rawData = typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_custom_bg_data') : null;
+      if (rawData) {
+        const img = new Image();
+        img.onload = () => {
+          this.customBgImage = img;
+        };
+        img.src = rawData;
+      } else {
+        const img = new Image();
+        img.onload = () => {
+          if (!this.customBgImage) this.customBgImage = img;
+        };
+        img.src = './preview.png';
+      }
+    } catch (e) {
+      console.warn('Could not load custom background:', e);
+    }
+  }
+
+  setCustomBackground(dataUrl, mode, opacity) {
+    if (mode !== undefined && mode !== null) {
+      this.customBgMode = mode;
+      localStorage.setItem('beatstar_bg_mode', mode);
+    }
+    if (opacity !== undefined && opacity !== null) {
+      this.customBgOpacity = parseFloat(opacity) || 0.40;
+      localStorage.setItem('beatstar_bg_opacity', this.customBgOpacity.toString());
+    }
+    if (dataUrl !== undefined && dataUrl !== null) {
+      if (dataUrl === '' || dataUrl === 'none') {
+        this.customBgImage = null;
+        localStorage.removeItem('beatstar_custom_bg_data');
+      } else {
+        const img = new Image();
+        img.onload = () => {
+          this.customBgImage = img;
+        };
+        img.src = dataUrl;
+        try {
+          localStorage.setItem('beatstar_custom_bg_data', dataUrl);
+        } catch (e) {
+          console.warn('LocalStorage limit exceeded when saving custom background:', e);
+        }
+      }
+    }
+  }
+
+  drawCoverImage(ctx, img, targetW, targetH) {
+    if (!img || !img.naturalWidth || !img.naturalHeight) return;
+    const iw = img.naturalWidth;
+    const ih = img.naturalHeight;
+    const scale = Math.max(targetW / iw, targetH / ih);
+    const sw = iw * scale;
+    const sh = ih * scale;
+    const dx = (targetW - sw) / 2;
+    const dy = (targetH - sh) / 2;
+    ctx.drawImage(img, dx, dy, sw, sh);
   }
 
   setJudgeColors(colors) {
@@ -1758,6 +1827,20 @@ class BeatstarEngine {
       });
     }
 
+    if (effect === 'spotlight_reveal' || this.customBgMode === 'spotlight') {
+      this.bgBursts.push({
+        type: 'spotlight_reveal',
+        lane,
+        x: hitX,
+        y: hitY,
+        radius: 35,
+        maxRadius: Math.max(this.width, this.height) * 0.70,
+        alpha: 1.0,
+        decay: 1.75,
+        color: p.c1
+      });
+    }
+
     this.fxRipples.push({
       lane,
       x: hitX,
@@ -2285,6 +2368,14 @@ class BeatstarEngine {
     ctx.fillStyle = '#06040a';
     ctx.fillRect(0, 0, w, h);
 
+    // 1b. Fondo estático personalizado (si el usuario eligió modo estático)
+    if (this.customBgMode === 'static' && this.customBgImage && this.customBgImage.complete && this.customBgImage.naturalWidth > 0) {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0.05, Math.min(0.9, this.customBgOpacity || 0.40));
+      this.drawCoverImage(ctx, this.customBgImage, w, h);
+      ctx.restore();
+    }
+
     const hexToRgba = (hex, alpha) => {
       const a = Math.max(0, Math.min(1, alpha));
       if (typeof hex === 'string' && hex.startsWith('#')) {
@@ -2308,7 +2399,8 @@ class BeatstarEngine {
     }
 
     const effect = this.activeEffect || 'default_neon';
-    if (effect === 'default_neon' || this.bgBursts.length === 0) {
+    const isSpotlightActive = effect === 'spotlight_reveal' || this.customBgMode === 'spotlight';
+    if (!isSpotlightActive && (effect === 'default_neon' || this.bgBursts.length === 0)) {
       return;
     }
 
@@ -2462,6 +2554,83 @@ class BeatstarEngine {
           }
         }
         ctx.restore();
+        return;
+      }
+
+      // ====================================================
+      // 4. FOCO REACTIVO: REVELADO DE FONDO PERSONALIZADO
+      // ====================================================
+      if (isSpotlightActive) {
+        const hasBursts = this.bgBursts.some(b => b.type === 'spotlight_reveal' && b.alpha > 0.01);
+        const hasHolds = this.activeHolds.size > 0;
+
+        if ((hasBursts || hasHolds) && this.customBgImage && this.customBgImage.complete && this.customBgImage.naturalWidth > 0) {
+          if (!this.spotlightCanvas || this.spotlightCanvas.width !== w || this.spotlightCanvas.height !== h) {
+            this.spotlightCanvas = document.createElement('canvas');
+            this.spotlightCanvas.width = w;
+            this.spotlightCanvas.height = h;
+            this.spotlightCtx = this.spotlightCanvas.getContext('2d');
+          }
+          const sCtx = this.spotlightCtx;
+          sCtx.clearRect(0, 0, w, h);
+
+          // A. Dibujar la imagen de fondo en el canvas auxiliar
+          this.drawCoverImage(sCtx, this.customBgImage, w, h);
+
+          // B. Aplicar máscara radial expansiva donde tocan las teclas
+          sCtx.save();
+          sCtx.globalCompositeOperation = 'destination-in';
+
+          for (const b of this.bgBursts) {
+            if (b.type !== 'spotlight_reveal' || b.alpha <= 0.01) continue;
+            const rad = Math.max(10, b.radius);
+            const grad = sCtx.createRadialGradient(b.x, b.y, 0, b.x, b.y, rad);
+            grad.addColorStop(0, `rgba(255, 255, 255, ${Math.min(1, b.alpha * 1.05).toFixed(3)})`);
+            grad.addColorStop(0.35, `rgba(255, 255, 255, ${(b.alpha * 0.85).toFixed(3)})`);
+            grad.addColorStop(0.70, `rgba(255, 255, 255, ${(b.alpha * 0.35).toFixed(3)})`);
+            grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            sCtx.fillStyle = grad;
+            sCtx.beginPath();
+            sCtx.arc(b.x, b.y, rad, 0, Math.PI * 2);
+            sCtx.fill();
+          }
+
+          // Foco mantenido en notas sostenidas (holds)
+          for (const [holdLane] of this.activeHolds.entries()) {
+            const hx = (holdLane + 0.5) * this.laneWidth;
+            const hy = this.hitLineY;
+            const hRad = this.laneWidth * 1.8;
+            const grad = sCtx.createRadialGradient(hx, hy, 0, hx, hy, hRad);
+            grad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+            grad.addColorStop(0.5, 'rgba(255, 255, 255, 0.60)');
+            grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            sCtx.fillStyle = grad;
+            sCtx.beginPath();
+            sCtx.arc(hx, hy, hRad, 0, Math.PI * 2);
+            sCtx.fill();
+          }
+          sCtx.restore();
+
+          // C. Volcar la imagen iluminada sobre el fondo negro
+          ctx.save();
+          ctx.drawImage(this.spotlightCanvas, 0, 0);
+
+          // D. Halo perimetral neón reactivo
+          ctx.globalCompositeOperation = 'screen';
+          for (const b of this.bgBursts) {
+            if (b.type !== 'spotlight_reveal' || b.alpha <= 0.01) continue;
+            const rad = Math.max(10, b.radius);
+            const rim = ctx.createRadialGradient(b.x, b.y, Math.max(0, rad - 30), b.x, b.y, rad);
+            rim.addColorStop(0, 'rgba(0, 0, 0, 0)');
+            rim.addColorStop(0.65, hexToRgba(b.color || '#00f2fe', b.alpha * 0.38));
+            rim.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = rim;
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, rad, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
         return;
       }
     } catch (fxErr) {
