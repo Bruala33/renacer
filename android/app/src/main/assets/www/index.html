@@ -1069,121 +1069,98 @@
       <!-- TAB 1: Search / Explore View -->
       <div id="tabSearchSection" class="space-y-2.5" style="display: block;">
 
-        <!-- Subpestañas de Exploración: Catálogo Global vs Comunidad -->
-        <div class="flex items-center gap-1 p-1 bg-black/60 border border-white/10 rounded-xl">
-          <button id="subTabGlobalBtn" onclick="switchExploreSubTab('global')" data-i18n="subtab_global" class="flex-1 py-1.5 rounded-lg text-xs font-bold transition bg-white/15 text-white flex items-center justify-center cursor-pointer">
-            Catálogo (osu! / CH)
-          </button>
-          <button id="subTabCommunityBtn" onclick="switchExploreSubTab('community')" data-i18n="subtab_community" class="flex-1 py-1.5 rounded-lg text-xs font-bold transition text-gray-400 hover:text-white flex items-center justify-center cursor-pointer">
-            Comunidad
+        <!-- Palanca de Registro Superior (.register-rail) -->
+        <div class="register-rail mb-2">
+          <div class="register-rail-switch">
+            <button id="subTabGlobalBtn" onclick="switchExploreSubTab('global')" class="register-rail-btn active" data-i18n="subtab_global">
+              Catálogo
+            </button>
+            <button id="subTabCommunityBtn" onclick="switchExploreSubTab('community')" class="register-rail-btn" data-i18n="subtab_community">
+              Comunidad
+            </button>
+          </div>
+          <button onclick="playFeaturedSongOfTheDay()" class="register-rail-featured" title="Canción Destacada de hoy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" class="text-amber-400"><path d="M12 2c1.1 0 2 .9 2 2 0 .74-.4 1.38-1 1.72v2.38c3.9 0 7 3.1 7 7 0 3.86-3.14 7-7 7s-7-3.14-7-7c0-2.38 1.19-4.47 3-5.74V4c0-1.1.9-2 2-2zm0 6c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5z"/></svg>
+            <span>Destacada</span>
           </button>
         </div>
 
-        <!-- CONTENIDO SUBPESTAÑA 1: Catálogo Global (osu! / Clone Hero) -->
+        <!-- CONTENIDO SUBPESTAÑA 1: Catálogo Global -->
         <div id="exploreGlobalContainer" class="space-y-2.5">
-          <!-- Search Box -->
-          <div class="relative">
-            <div class="flex items-center gap-2">
-              <div class="relative flex-1">
-                <input 
-                  id="searchInput" 
-                  type="text" 
-                  data-i18n-placeholder="search_placeholder"
-                  placeholder="Buscar canción o artista en osu! y Clone Hero..." 
-                  value="Galaxy"
-                  onkeydown="if(event.key==='Enter') executeSearch()"
-                  class="w-full pl-8 pr-3 py-2 bg-black/60 border border-white/15 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:border-pink-500 transition"
-                >
-                <svg width="14" height="14" class="search-icon-svg w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-3 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-              </div>
-              <button 
-                id="btnSearch" 
-                onclick="executeSearch()" 
-                class="px-3.5 py-2 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 font-bold rounded-xl text-xs text-white shadow-lg shadow-pink-500/25 transition active:scale-95 flex items-center gap-1 cursor-pointer flex-shrink-0"
-              >
-                <span id="searchBtnText" data-i18n="search_btn">Buscar</span>
-                <svg width="14" height="14" id="searchSpinner" class="hidden animate-spin w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- Target Difficulty Selector (Desplegable Compacto) -->
-          <div class="flex items-center justify-between gap-2 px-1 text-xs">
-            <span class="text-[11px] font-bold text-gray-300 flex items-center gap-1.5">
-              <span>🎯</span> <span data-i18n="prioritize_diff">Dificultad:</span>
-            </span>
-            <select id="targetDiffSelect" onchange="setTargetDifficulty(this.value)" class="bg-[#181124] text-amber-300 border border-amber-500/40 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:border-amber-400 cursor-pointer shadow-md shadow-black/60">
-              <option value="all">Todas (Relevancia)</option>
-              <option value="2">2★ Fácil</option>
-              <option value="3">3★ Media</option>
-              <option value="4">4★ Normal</option>
-              <option value="5">5★ Difícil</option>
-              <option value="6">6★+ Pro</option>
+          <!-- Buscador y Filtro Unificados en 1 sola fila -->
+          <div class="unified-search-bar">
+            <svg width="14" height="14" class="text-[#c5a059] flex-shrink-0 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <input 
+              id="searchInput" 
+              type="text" 
+              data-i18n-placeholder="search_placeholder"
+              placeholder="Buscar canción o artista..." 
+              value="Galaxy"
+              onkeydown="if(event.key==='Enter') executeSearch()"
+              class="unified-search-input"
+            >
+            <select id="targetDiffSelect" onchange="setTargetDifficulty(this.value)" class="unified-search-diff" title="Filtrar por dificultad">
+              <option value="all">Dificultad</option>
+              <option value="2">Fácil</option>
+              <option value="3">Media</option>
+              <option value="5">Difícil</option>
+              <option value="7">Experto</option>
             </select>
+            <button id="btnSearch" onclick="executeSearch()" class="unified-search-btn">
+              <span id="searchBtnText" data-i18n="search_btn">Buscar</span>
+              <svg width="12" height="12" id="searchSpinner" class="hidden animate-spin text-black" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+            </button>
           </div>
 
           <!-- Results Container -->
-          <div id="resultsList" class="space-y-2.5 flex-1 pb-6">
+          <div id="resultsList" class="flex-1 pb-6">
             <!-- Results injected dynamically -->
           </div>
         </div>
 
-        <!-- CONTENIDO SUBPESTAÑA 2: 🌍 Comunidad Cloud -->
+        <!-- CONTENIDO SUBPESTAÑA 2: Comunidad Cloud -->
         <div id="exploreCommunityContainer" class="hidden space-y-2.5 pb-6">
-          <!-- Community Search Bar -->
-          <div class="relative">
-            <div class="flex items-center gap-2">
-              <div class="relative flex-1">
-                <input 
-                  id="communitySearchInput" 
-                  type="text" 
-                  data-i18n-placeholder="comm_search_placeholder"
-                  placeholder="Buscar en canciones de la comunidad o por charter..." 
-                  onkeydown="if(event.key==='Enter') executeCommunitySearch()"
-                  class="w-full pl-8 pr-3 py-2 bg-black/60 border border-white/15 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400 transition"
-                >
-                <svg width="14" height="14" class="search-icon-svg w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-3 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-              </div>
-              <button 
-                onclick="executeCommunitySearch()" 
-                class="px-3.5 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 font-bold rounded-xl text-xs text-white shadow-lg shadow-cyan-500/25 transition active:scale-95 flex items-center gap-1 cursor-pointer flex-shrink-0"
-              >
-                <span data-i18n="search_btn">Buscar</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Filtros de Comunidad: Creadores & Desplegable de Dificultad -->
-          <div class="flex items-center justify-between gap-2 p-1.5 bg-black/50 border border-white/10 rounded-xl">
-            <!-- Botones de Filtro Social -->
-            <div class="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5" id="commSortButtons">
-              <button onclick="setCommunitySort('rating')" data-sort="rating" class="comm-sort-btn active px-2 py-1 rounded-lg text-[10px] font-bold border border-cyan-400/40 bg-cyan-500/20 text-cyan-300 cursor-pointer whitespace-nowrap">
-                <span data-i18n="comm_filter_rating">⭐ Valorados</span>
-              </button>
-              <button onclick="setCommunitySort('following')" data-sort="following" class="comm-sort-btn px-2 py-1 rounded-lg text-[10px] font-bold border border-white/10 bg-white/5 text-gray-300 hover:bg-white/10 cursor-pointer whitespace-nowrap">
-                👥 <span data-i18n="comm_filter_following">Siguiendo</span>
-              </button>
-              <button onclick="setCommunitySort('trending')" data-sort="trending" class="comm-sort-btn px-2 py-1 rounded-lg text-[10px] font-bold border border-white/10 bg-white/5 text-gray-300 hover:bg-white/10 cursor-pointer whitespace-nowrap">
-                🔥 <span data-i18n="comm_filter_trending">Populares</span>
-              </button>
-              <button onclick="setCommunitySort('newest')" data-sort="newest" class="comm-sort-btn px-2 py-1 rounded-lg text-[10px] font-bold border border-white/10 bg-white/5 text-gray-300 hover:bg-white/10 cursor-pointer whitespace-nowrap">
-                ✨ <span data-i18n="comm_filter_newest">Nuevos</span>
-              </button>
-            </div>
-
-            <!-- Desplegable de Dificultad Comunitaria -->
-            <select id="commDiffSelect" onchange="setCommunityDiff(this.value)" class="bg-[#141824] text-cyan-300 border border-cyan-500/40 rounded-lg px-2 py-1 text-[11px] font-bold focus:outline-none focus:border-cyan-400 cursor-pointer flex-shrink-0 shadow-sm">
-              <option value="" data-i18n="diff_all">Dificultad: Todas</option>
+          <!-- Community Search Bar Unificada -->
+          <div class="unified-search-bar">
+            <svg width="14" height="14" class="text-[#c5a059] flex-shrink-0 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <input 
+              id="communitySearchInput" 
+              type="text" 
+              data-i18n-placeholder="comm_search_placeholder"
+              placeholder="Buscar en comunidad o por charter..." 
+              onkeydown="if(event.key==='Enter') executeCommunitySearch()"
+              class="unified-search-input"
+            >
+            <select id="commDiffSelect" onchange="setCommunityDiff(this.value)" class="unified-search-diff">
+              <option value="" data-i18n="diff_all">Dificultad</option>
               <option value="Fácil" data-i18n="diff_easy">Fácil</option>
               <option value="Media" data-i18n="diff_medium">Media</option>
               <option value="Difícil" data-i18n="diff_hard">Difícil</option>
-              <option value="Extrema" data-i18n="diff_extreme">Extrema</option>
-              <option value="Insana" data-i18n="diff_insane">Insana</option>
+              <option value="Extrema" data-i18n="diff_extreme">Experto</option>
             </select>
+            <button onclick="executeCommunitySearch()" class="unified-search-btn">
+              <span data-i18n="search_btn">Buscar</span>
+            </button>
+          </div>
+
+          <!-- Filtros de Comunidad: Creadores limpios sin emojis -->
+          <div class="flex items-center justify-between gap-1 p-1 bg-black/40 border border-white/10 rounded-xl overflow-x-auto no-scrollbar" id="commSortButtons">
+            <button onclick="setCommunitySort('rating')" data-sort="rating" class="comm-sort-btn active px-2.5 py-1 rounded-lg text-[10.5px] font-bold border border-[#c5a059]/40 bg-[#c5a059]/15 text-[#e2b963] cursor-pointer whitespace-nowrap">
+              <span data-i18n="comm_filter_rating">Valorados</span>
+            </button>
+            <button onclick="setCommunitySort('following')" data-sort="following" class="comm-sort-btn px-2.5 py-1 rounded-lg text-[10.5px] font-bold border border-white/10 bg-white/5 text-gray-300 hover:bg-white/10 cursor-pointer whitespace-nowrap">
+              <span data-i18n="comm_filter_following">Siguiendo</span>
+            </button>
+            <button onclick="setCommunitySort('trending')" data-sort="trending" class="comm-sort-btn px-2.5 py-1 rounded-lg text-[10.5px] font-bold border border-white/10 bg-white/5 text-gray-300 hover:bg-white/10 cursor-pointer whitespace-nowrap">
+              <span data-i18n="comm_filter_trending">Populares</span>
+            </button>
+            <button onclick="setCommunitySort('newest')" data-sort="newest" class="comm-sort-btn px-2.5 py-1 rounded-lg text-[10.5px] font-bold border border-white/10 bg-white/5 text-gray-300 hover:bg-white/10 cursor-pointer whitespace-nowrap">
+              <span data-i18n="comm_filter_newest">Nuevos</span>
+            </button>
           </div>
 
           <!-- Contenedor de Resultados de Comunidad -->
-          <div id="communityResultsList" class="space-y-2.5">
+          <div id="communityResultsList" class="flex-1 pb-6">
             <!-- Community song cards injected dynamically -->
           </div>
         </div>
@@ -4981,70 +4958,78 @@ function switchMainTab(tab) {
                   : 'bg-rose-500/20 text-rose-300 border-rose-500/40'));
 
         return `
-          <div class="result-card piano-key-card flex items-center justify-between gap-2.5 p-2 rounded-l-sm rounded-r-md relative overflow-hidden transition select-none">
-            <!-- Piano Key Left Crimson Felt Accent -->
-            <div class="piano-key-lip-left"></div>
-
-            <!-- Inlaid Gold Medallion Artwork 32x32px -->
-            <div class="piano-key-thumb relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border-2 border-amber-600/70 shadow-sm flex items-center justify-center bg-stone-900">
-              <img src="${item.thumbnail || GENERIC_THUMBNAIL}" alt="" class="w-full h-full object-cover rounded-full" loading="lazy" onerror="this.onerror=null; this.src=GENERIC_THUMBNAIL;">
-            </div>
-
-            <!-- Track Metadata (Title, Artist, Diff Badge) -->
-            <div class="flex-1 min-w-0 flex flex-col justify-center">
-              <div class="flex items-center gap-1.5 truncate">
-                <span class="px-1 py-0.2 rounded text-[7.5px] font-black uppercase tracking-wider border flex-shrink-0 ${sourceBadgeClass}">
-                  ${badgeLabel}
-                </span>
-                <h3 class="piano-key-title text-xs font-black text-[#140e06] truncate font-serif leading-tight">${escapeHtml(item.title)}</h3>
-                ${hs ? `<span class="text-[8px] font-mono font-bold text-amber-700 flex-shrink-0">🏆 ${hs.score.toLocaleString()}</span>` : ''}
+          <div class="piano-key-row flex flex-col">
+            <div class="flex items-stretch">
+              <!-- White Ivory Key Body (Opens Accordion) -->
+              <div onclick="togglePianoAccordion('${sId}')" class="piano-white-key" title="Ver detalles y dificultades">
+                <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                  <!-- Round Inlaid Medallion -->
+                  <div class="piano-key-thumb relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-[#c5a059] shadow-sm flex items-center justify-center bg-stone-900">
+                    <img src="${item.thumbnail || GENERIC_THUMBNAIL}" alt="" class="w-full h-full object-cover rounded-full" loading="lazy" onerror="this.onerror=null; this.src=GENERIC_THUMBNAIL;">
+                  </div>
+                  <!-- Track Info -->
+                  <div class="min-w-0 flex-1 flex flex-col justify-center">
+                    <div class="flex items-center gap-1.5 truncate">
+                      <h3 class="text-xs font-black text-[#17131d] truncate font-serif leading-tight">${escapeHtml(item.title)}</h3>
+                      ${hs ? `<span class="text-[8px] font-mono font-bold text-amber-800 flex-shrink-0">🏆 ${hs.score.toLocaleString()}</span>` : ''}
+                    </div>
+                    <p class="text-[10px] text-[#5a422d] font-semibold truncate leading-tight mt-0.5">${escapeHtml(item.artist || 'Desconocido')}</p>
+                  </div>
+                </div>
+                <!-- Single Star Metric (eg ★ 3.5) -->
+                <div class="flex items-center gap-2 flex-shrink-0 ml-2">
+                  <span class="text-[11px] font-black text-[#9c7329] font-mono whitespace-nowrap">★ ${(primaryDiff.stars || 3.5).toFixed(1)}</span>
+                  <span id="accordionArrow_${sId}" class="text-[9px] text-[#8e755a] transition-transform duration-200">▼</span>
+                </div>
               </div>
-              <div class="flex items-center gap-1.5 text-[10px] text-[#5a422d] truncate mt-0.5 leading-tight">
-                <span class="px-1.5 py-0.2 rounded text-[8px] font-bold border ${primaryDiffClass}">${primaryStarsText} ${escapeHtml(primaryDiff.name)}</span>
-                <span class="truncate text-[#5a422d] font-semibold">${escapeHtml(item.artist || t('unknown_artist', 'Desconocido'))}</span>
-              </div>
-            </div>
 
-            <!-- Actions: Speed + Heart + Plus + Play Button + Diff Drawer Trigger -->
-            <div class="flex items-center gap-1.5 flex-shrink-0">
-              ${renderSongSpeedHtml(item.id).btn}
-              <button onclick="toggleFavoriteSong('${item.id}')" data-id="${item.id}" class="heart-btn ${isFav ? 'active' : ''} p-1 text-xs cursor-pointer hover:scale-110 transition" title="${t('add_fav')}">
-                ${isFav ? '❤️' : '🤍'}
-              </button>
-              <button onclick="openAddToPlaylistModal('${item.id}')" class="p-1 text-xs cursor-pointer hover:scale-110 transition text-[#5a422d] hover:text-[#140e06]" title="${t('add_playlist')}">
-                ➕
-              </button>
-              <button 
+              <!-- Fixed 3D Ebony Black Play Key (Direct Launch) -->
+              <div 
                 onclick="downloadAndPlaySong('${item.id}', '${primaryDiff.id}', '${primaryDiff.name.replace(/'/g, "\\'")}', ${idx})" 
-                class="piano-key-play-btn w-8 h-8 rounded-full bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-600 hover:from-amber-300 text-[#140e06] font-black text-xs flex items-center justify-center shadow-md active:scale-95 transition cursor-pointer"
+                class="piano-black-play-key" 
                 title="Jugar ${primaryDiff.name} (${primaryStarsText})"
               >
-                <span>▶</span>
-              </button>
-              ${hasMultipleDiffs ? `
-                <button 
-                  type="button" 
-                  onclick="event.stopPropagation(); toggleCardDiffDrawer('${sId}')" 
-                  class="key-diff-toggle-btn w-5 h-8 rounded-lg bg-black/5 hover:bg-black/15 border border-stone-400/40 text-[#44301f] text-[10px] flex items-center justify-center active:scale-95 transition cursor-pointer" 
-                  title="Más dificultades (${item.difficulties.length})"
-                >
-                  ▾
-                </button>
-              ` : ''}
+                <span class="play-arrow-gold">▶</span>
+              </div>
+            </div>
+
+            <!-- Soundboard Accordion ("Caja de Resonancia") -->
+            <div id="pianoAccordion_${sId}" class="piano-soundboard-accordion">
+              <div class="p-2.5 space-y-2">
+                <div>
+                  <span class="text-[9px] font-bold text-[#c5a059] uppercase tracking-wider block mb-1">Dificultades Disponibles</span>
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    ${diffChipsHtml}
+                  </div>
+                </div>
+
+                <div class="flex items-center justify-between gap-2 pt-1.5 border-t border-white/5 text-[11px]">
+                  <div class="flex items-center gap-2">
+                    <span class="text-[9.5px] text-gray-400 font-bold uppercase tracking-wider">Tempo:</span>
+                    ${renderSongSpeedHtml(item.id).btn}
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <button onclick="toggleFavoriteSong('${item.id}')" data-id="${item.id}" class="heart-btn ${isFav ? 'active' : ''} text-xs cursor-pointer hover:scale-110 transition" title="Favorito">
+                      ${isFav ? '❤️' : '🤍'}
+                    </button>
+                    <button onclick="openAddToPlaylistModal('${item.id}')" class="text-xs cursor-pointer hover:scale-110 transition text-gray-300" title="Añadir a playlist">
+                      ➕
+                    </button>
+                    <span class="text-[10px] text-emerald-400 font-mono font-bold">Sync: 100%</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-
-          <!-- Accordion Drawer for Multiple Difficulties -->
-          ${hasMultipleDiffs ? `
-            <div id="diffDrawer_${sId}" class="hidden -mt-1 mb-1 mx-2 p-2 bg-black/80 rounded-b-xl border-x border-b border-white/10 flex items-center gap-1.5 flex-wrap text-xs">
-              <span class="text-[9px] uppercase font-bold text-gray-400 mr-1">${t('diff_label_caps', 'DIFICULTADES:')}</span>
-              ${diffChipsHtml}
-            </div>
-          ` : ''}
         `;
       }).join('');
 
-      container.innerHTML = cardsHtml;
+      container.innerHTML = `
+        <div class="piano-keyboard-bed">
+          <div class="piano-felt-top-strip"></div>
+          ${cardsHtml}
+        </div>
+      `;
     }
 
     // ==========================================
@@ -5841,73 +5826,84 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
           return;
         }
 
-        container.innerHTML = savedCharts.map(item => {
+        const cardsHtml = savedCharts.map(item => {
           const hs = highscores[item.id];
           const isFav = favoriteIdsSet.has(item.id);
+          const sId = safeSongId(item.id);
 
-          let badgeText = t('badge_community', 'Comunidad');
-          let badgeColor = 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30';
-          if (item.source === 'osu' || item.source_name === 'osu!') {
-            badgeText = 'osu!';
-            badgeColor = 'bg-pink-500/20 text-pink-300 border-pink-500/30';
-          } else if (item.source === 'clonehero' || item.source_name === 'Clone Hero') {
-            badgeText = 'Clone Hero';
-            badgeColor = 'bg-purple-500/20 text-purple-300 border-purple-500/30';
-          } else if (item.source === 'custom' || item.id?.startsWith('custom_')) {
-            badgeText = t('badge_my_creation', 'Mi Creación');
-            badgeColor = 'bg-amber-500/20 text-amber-300 border-amber-500/30';
-          } else if (item.source === 'catalog') {
-            badgeText = t('badge_catalog', 'Catálogo');
-            badgeColor = 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30';
-          }
-
-          const diffName = item.metadata?.difficulty_name || item.difficulty_name || '';
-          const starsVal = Number.isFinite(item.metadata?.stars) ? item.metadata.stars : (Number.isFinite(item.stars) ? item.stars : null);
+          const diffName = item.metadata?.difficulty_name || item.difficulty_name || 'Normal';
+          const starsVal = Number.isFinite(item.metadata?.stars) ? item.metadata.stars : (Number.isFinite(item.stars) ? item.stars : 3.5);
           const safeTitle = (item.title || t('unknown_song', 'Canción')).replace(/'/g, "\\'");
           const safeArtist = (item.artist || t('unknown_artist', 'Artista')).replace(/'/g, "\\'");
 
           return `
-            <div class="result-card piano-key-card flex items-center justify-between gap-2.5 p-2 rounded-l-sm rounded-r-md relative overflow-hidden transition select-none">
-              <!-- Piano Key Left Crimson Felt Accent -->
-              <div class="piano-key-lip-left"></div>
+            <div class="piano-key-row flex flex-col">
+              <div class="flex items-stretch">
+                <!-- White Ivory Key Body (Opens Accordion) -->
+                <div onclick="togglePianoAccordion('${sId}')" class="piano-white-key" title="Ver opciones y tempo">
+                  <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                    <!-- Round Inlaid Medallion Artwork -->
+                    <div class="piano-key-thumb relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-[#c5a059] shadow-sm flex items-center justify-center bg-stone-900">
+                      <img src="${item.thumbnail || GENERIC_THUMBNAIL}" alt="" class="w-full h-full object-cover rounded-full" loading="lazy" onerror="this.onerror=null; this.src=GENERIC_THUMBNAIL;">
+                    </div>
+                    <!-- Track Metadata -->
+                    <div class="min-w-0 flex-1 flex flex-col justify-center">
+                      <div class="flex items-center gap-1.5 truncate">
+                        <h3 class="text-xs font-black text-[#17131d] truncate font-serif leading-tight">${escapeHtml(item.title || t('unknown_song', 'Canción'))}</h3>
+                        ${hs ? `<span class="text-[8px] font-mono font-bold text-amber-800 flex-shrink-0">🏆 ${hs.score.toLocaleString()}</span>` : ''}
+                      </div>
+                      <p class="text-[10px] text-[#5a422d] font-semibold truncate leading-tight mt-0.5">${escapeHtml(item.artist || t('unknown_artist', 'Artista'))} • <span class="text-[#2b1f13]">${diffName}</span></p>
+                    </div>
+                  </div>
+                  <!-- Single Star Metric -->
+                  <div class="flex items-center gap-2 flex-shrink-0 ml-2">
+                    <span class="text-[11px] font-black text-[#9c7329] font-mono whitespace-nowrap">★ ${starsVal.toFixed(1)}</span>
+                    <span id="accordionArrow_${sId}" class="text-[9px] text-[#8e755a] transition-transform duration-200">▼</span>
+                  </div>
+                </div>
 
-              <!-- Inlaid Gold Medallion Artwork 32x32px -->
-              <div onclick="playSavedLibraryChart('${item.id}')" class="piano-key-thumb relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border-2 border-amber-600/70 shadow-sm flex items-center justify-center bg-stone-900 cursor-pointer">
-                <img src="${item.thumbnail || GENERIC_THUMBNAIL}" alt="" class="w-full h-full object-cover rounded-full" loading="lazy" onerror="this.onerror=null; this.src=GENERIC_THUMBNAIL;">
+                <!-- Fixed 3D Ebony Black Play Key (Direct Launch) -->
+                <div 
+                  onclick="playSavedLibraryChart('${item.id}')" 
+                  class="piano-black-play-key" 
+                  title="${t('play')}"
+                >
+                  <span class="play-arrow-gold">▶</span>
+                </div>
               </div>
 
-              <!-- Track Metadata -->
-              <div onclick="playSavedLibraryChart('${item.id}')" class="flex-1 min-w-0 flex flex-col justify-center cursor-pointer">
-                <div class="flex items-center gap-1.5 truncate">
-                  <span class="text-[7.5px] font-black px-1 py-0.2 rounded border uppercase tracking-wider ${badgeColor}">${badgeText}</span>
-                  <h3 class="piano-key-title text-xs font-black text-[#140e06] truncate font-serif leading-tight">${escapeHtml(item.title || t('unknown_song', 'Canción'))}</h3>
-                  ${hs ? `<span class="text-[8px] font-mono font-bold text-amber-700 flex-shrink-0">🏆 ${hs.score.toLocaleString()}</span>` : ''}
+              <!-- Soundboard Accordion ("Caja de Resonancia") -->
+              <div id="pianoAccordion_${sId}" class="piano-soundboard-accordion">
+                <div class="p-2.5 space-y-2">
+                  <div class="flex items-center justify-between gap-2 pt-1 text-[11px]">
+                    <div class="flex items-center gap-2">
+                      <span class="text-[9.5px] text-gray-400 font-bold uppercase tracking-wider">Tempo:</span>
+                      ${renderSongSpeedHtml(item.id).btn}
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <button onclick="toggleFavoriteSong('${item.id}')" data-id="${item.id}" class="heart-btn ${isFav ? 'active' : ''} text-xs cursor-pointer hover:scale-110 transition" title="${t('add_fav')}">
+                        ${isFav ? '❤️' : '🤍'}
+                      </button>
+                      <button onclick="openRateSongModal('${item.id}', '${safeTitle}', '${safeArtist}', '${diffName}', ${starsVal}, ${!!(item.is_community || item.source === 'community')})" class="text-[10px] text-amber-400 hover:scale-105 transition font-bold" title="${t('rate_song', 'Calificar')}">
+                        ★ Calificar
+                      </button>
+                      <button onclick="deleteSavedLibraryChart('${item.id}')" class="text-[10px] text-rose-400 hover:text-rose-300 transition" title="${t('delete_offline', 'Eliminar')}">
+                        ✕ Borrar
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div class="flex items-center gap-1.5 text-[10px] text-[#5a422d] truncate mt-0.5 leading-tight">
-                  ${diffName ? `<span class="text-[8px] font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-900 font-mono">${diffName}${starsVal ? ` ${starsVal}★` : ''}</span>` : ''}
-                  <span class="truncate text-[#5a422d] font-semibold">${escapeHtml(item.artist || t('unknown_artist', 'Artista'))}</span>
-                </div>
-              </div>
-
-              <!-- Actions Row -->
-              <div class="flex items-center gap-1.5 flex-shrink-0">
-                ${renderSongSpeedHtml(item.id).btn}
-                <button onclick="toggleFavoriteSong('${item.id}')" data-id="${item.id}" class="heart-btn ${isFav ? 'active' : ''} p-1 text-xs cursor-pointer hover:scale-110 transition" title="${t('add_fav')}">
-                  ${isFav ? '❤️' : '🤍'}
-                </button>
-                <button onclick="event.stopPropagation(); openRateSongModal('${item.id}', '${safeTitle}', '${safeArtist}', '${diffName || 'Normal'}', ${starsVal || 3.5}, ${!!(item.is_community || item.source === 'community')})" class="p-1 text-xs text-amber-600 hover:scale-110 cursor-pointer transition" title="${t('rate_song', 'Calificar')}">
-                  ⭐
-                </button>
-                <button onclick="deleteSavedLibraryChart('${item.id}')" class="p-1 text-xs text-[#5a422d] hover:text-red-500 cursor-pointer transition" title="${t('delete_offline', 'Eliminar')}">
-                  ✕
-                </button>
-                <button onclick="playSavedLibraryChart('${item.id}')" class="piano-key-play-btn w-8 h-8 rounded-full bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-600 hover:from-amber-300 text-[#140e06] font-black text-xs flex items-center justify-center shadow-md active:scale-95 transition cursor-pointer" title="${t('play')}">
-                  ▶
-                </button>
               </div>
             </div>
           `;
         }).join('');
+
+        container.innerHTML = `
+          <div class="piano-keyboard-bed">
+            <div class="piano-felt-top-strip"></div>
+            ${cardsHtml}
+          </div>
+        `;
       } catch (e) {
         container.innerHTML = `<div class="p-4 text-xs text-red-400">Error: ${e.message}</div>`;
       }
@@ -5929,94 +5925,100 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
           return;
         }
 
-        container.innerHTML = favs.map(item => {
+        const cardsHtml = favs.map(item => {
           const hs = highscores[item.id];
           const hasDiffs = Array.isArray(item.difficulties) && item.difficulties.length > 0;
-
-          let badgeText = t('badge_community', 'Comunidad');
-          let badgeColor = 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30';
-          if (item.source === 'osu' || item.source_name === 'osu!') {
-            badgeText = 'osu!';
-            badgeColor = 'bg-pink-500/20 text-pink-300 border-pink-500/30';
-          } else if (item.source === 'clonehero' || item.source_name === 'Clone Hero') {
-            badgeText = 'Clone Hero';
-            badgeColor = 'bg-purple-500/20 text-purple-300 border-purple-500/30';
-          } else if (item.source === 'custom' || item.id?.startsWith('custom_')) {
-            badgeText = t('badge_my_creation', 'Mi Creación');
-            badgeColor = 'bg-amber-500/20 text-amber-300 border-amber-500/30';
-          } else if (item.source === 'catalog') {
-            badgeText = t('badge_catalog', 'Catálogo');
-            badgeColor = 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30';
-          }
+          const sId = safeSongId(item.id);
+          const primaryDiff = hasDiffs ? item.difficulties[0] : null;
+          const starsNum = primaryDiff?.stars || item.stars || 3.5;
 
           const defaultPlayAction = hasDiffs
             ? `downloadAndPlaySong('${item.id}', '${item.difficulties[0].id}', '${(item.difficulties[0].name || 'Normal').replace(/'/g, "\\'")}')`
             : `playSavedLibraryChart('${item.id}')`;
 
-          const sId = safeSongId(item.id);
-          const primaryDiff = hasDiffs ? item.difficulties[0] : null;
-          const primaryStarsText = primaryDiff && primaryDiff.stars ? `${primaryDiff.stars.toFixed(1)}★` : '';
+          const diffChipsHtml = hasDiffs ? item.difficulties.map(diff => {
+            const starsText = diff.stars ? `${diff.stars.toFixed(1)}★` : '';
+            return `
+              <button onclick="downloadAndPlaySong('${item.id}', '${diff.id}', '${diff.name.replace(/'/g, "\\'")}')" class="px-2.5 py-1 bg-white/10 hover:bg-amber-500/25 text-amber-300 border border-white/15 rounded-xl text-[9px] font-bold cursor-pointer transition active:scale-95 flex items-center gap-1 flex-shrink-0">
+                <span>${diff.name}</span>
+                ${starsText ? `<span class="font-mono opacity-80">${starsText}</span>` : ''}
+              </button>
+            `;
+          }).join('') : '';
 
           return `
-            <div class="result-card piano-key-card flex items-center justify-between gap-2.5 p-2 rounded-l-sm rounded-r-md relative overflow-hidden transition select-none">
-              <!-- Piano Key Left Crimson Felt Accent -->
-              <div class="piano-key-lip-left"></div>
+            <div class="piano-key-row flex flex-col">
+              <div class="flex items-stretch">
+                <!-- White Ivory Key Body (Opens Accordion) -->
+                <div onclick="togglePianoAccordion('${sId}')" class="piano-white-key" title="Ver opciones y dificultades">
+                  <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                    <!-- Round Inlaid Medallion -->
+                    <div class="piano-key-thumb relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-[#c5a059] shadow-sm flex items-center justify-center bg-stone-900">
+                      <img src="${item.thumbnail || GENERIC_THUMBNAIL}" alt="" class="w-full h-full object-cover rounded-full" loading="lazy" onerror="this.onerror=null; this.src=GENERIC_THUMBNAIL;">
+                    </div>
+                    <!-- Track Metadata -->
+                    <div class="min-w-0 flex-1 flex flex-col justify-center">
+                      <div class="flex items-center gap-1.5 truncate">
+                        <h3 class="text-xs font-black text-[#17131d] truncate font-serif leading-tight">${escapeHtml(item.title || t('unknown_song', 'Canción'))}</h3>
+                        ${hs ? `<span class="text-[8px] font-mono font-bold text-amber-800 flex-shrink-0">🏆 ${hs.score.toLocaleString()}</span>` : ''}
+                      </div>
+                      <p class="text-[10px] text-[#5a422d] font-semibold truncate leading-tight mt-0.5">${escapeHtml(item.artist || t('unknown_artist', 'Artista'))}</p>
+                    </div>
+                  </div>
+                  <!-- Single Star Metric -->
+                  <div class="flex items-center gap-2 flex-shrink-0 ml-2">
+                    <span class="text-[11px] font-black text-[#9c7329] font-mono whitespace-nowrap">★ ${starsNum.toFixed(1)}</span>
+                    <span id="accordionArrow_${sId}" class="text-[9px] text-[#8e755a] transition-transform duration-200">▼</span>
+                  </div>
+                </div>
 
-              <!-- Inlaid Gold Medallion Artwork 32x32px -->
-              <div onclick="${defaultPlayAction}" class="piano-key-thumb relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border-2 border-amber-600/70 shadow-sm flex items-center justify-center bg-stone-900 cursor-pointer">
-                <img src="${item.thumbnail || GENERIC_THUMBNAIL}" alt="" class="w-full h-full object-cover rounded-full" loading="lazy" onerror="this.onerror=null; this.src=GENERIC_THUMBNAIL;">
+                <!-- Fixed 3D Ebony Black Play Key (Direct Launch) -->
+                <div 
+                  onclick="${defaultPlayAction}" 
+                  class="piano-black-play-key" 
+                  title="${t('play')}"
+                >
+                  <span class="play-arrow-gold">▶</span>
+                </div>
               </div>
 
-              <!-- Track Metadata -->
-              <div onclick="${defaultPlayAction}" class="flex-1 min-w-0 flex flex-col justify-center cursor-pointer">
-                <div class="flex items-center gap-1.5 truncate">
-                  <span class="text-[7.5px] font-black px-1 py-0.2 rounded border uppercase tracking-wider ${badgeColor}">${badgeText}</span>
-                  <h3 class="piano-key-title text-xs font-black text-[#140e06] truncate font-serif leading-tight">${escapeHtml(item.title || t('unknown_song', 'Canción'))}</h3>
-                  ${hs ? `<span class="text-[8px] font-mono font-bold text-amber-700 flex-shrink-0">🏆 ${hs.score.toLocaleString()}</span>` : ''}
+              <!-- Soundboard Accordion ("Caja de Resonancia") -->
+              <div id="pianoAccordion_${sId}" class="piano-soundboard-accordion">
+                <div class="p-2.5 space-y-2">
+                  ${hasDiffs && item.difficulties.length > 1 ? `
+                    <div>
+                      <span class="text-[9px] font-bold text-[#c5a059] uppercase tracking-wider block mb-1">Dificultades Disponibles</span>
+                      <div class="flex items-center gap-1.5 flex-wrap">
+                        ${diffChipsHtml}
+                      </div>
+                    </div>
+                  ` : ''}
+                  <div class="flex items-center justify-between gap-2 pt-1 border-t border-white/5 text-[11px]">
+                    <div class="flex items-center gap-2">
+                      <span class="text-[9.5px] text-gray-400 font-bold uppercase tracking-wider">Tempo:</span>
+                      ${renderSongSpeedHtml(item.id).btn}
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <button onclick="toggleFavoriteSong('${item.id}')" data-id="${item.id}" class="heart-btn active text-xs cursor-pointer hover:scale-110 transition" title="${t('add_fav')}">
+                        ❤️
+                      </button>
+                      <button onclick="openAddToPlaylistModal('${item.id}')" class="text-xs cursor-pointer hover:scale-110 transition text-gray-300" title="${t('add_playlist')}">
+                        ➕
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div class="flex items-center gap-1.5 text-[10px] text-[#5a422d] truncate mt-0.5 leading-tight">
-                  ${primaryStarsText ? `<span class="text-[8px] font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-900 font-mono">${primaryStarsText}</span>` : ''}
-                  <span class="truncate text-[#5a422d] font-semibold">${escapeHtml(item.artist || t('unknown_artist', 'Artista'))}</span>
-                </div>
-              </div>
-
-              <!-- Actions Row -->
-              <div class="flex items-center gap-1.5 flex-shrink-0">
-                ${renderSongSpeedHtml(item.id).btn}
-                <button onclick="toggleFavoriteSong('${item.id}')" data-id="${item.id}" class="heart-btn active p-1 text-xs cursor-pointer hover:scale-110 transition" title="${t('add_fav')}">
-                  ❤️
-                </button>
-                <button onclick="openAddToPlaylistModal('${item.id}')" class="p-1 text-xs text-[#5a422d] hover:text-[#140e06] cursor-pointer transition" title="${t('add_playlist')}">
-                  ➕
-                </button>
-                <button onclick="${defaultPlayAction}" class="piano-key-play-btn w-8 h-8 rounded-full bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-600 hover:from-amber-300 text-[#140e06] font-black text-xs flex items-center justify-center shadow-md active:scale-95 transition cursor-pointer" title="${t('play')}">
-                  ▶
-                </button>
-                ${hasDiffs && item.difficulties.length > 1 ? `
-                  <button type="button" onclick="event.stopPropagation(); toggleCardDiffDrawer('${sId}')" class="key-diff-toggle-btn w-5 h-8 rounded-lg bg-black/5 hover:bg-black/15 border border-stone-400/40 text-[#44301f] text-[10px] flex items-center justify-center active:scale-95 transition cursor-pointer" title="Más dificultades">
-                    ▾
-                  </button>
-                ` : ''}
               </div>
             </div>
-
-            <!-- Accordion Drawer if Multiple Difficulties -->
-            ${hasDiffs && item.difficulties.length > 1 ? `
-              <div id="diffDrawer_${sId}" class="hidden -mt-1 mb-1 mx-2 p-2 bg-black/80 rounded-b-xl border-x border-b border-white/10 flex items-center gap-1.5 flex-wrap text-xs">
-                <span class="text-[9px] uppercase font-bold text-gray-400 mr-1">${t('diff_label_caps', 'DIFICULTADES:')}</span>
-                ${item.difficulties.map(diff => {
-                  const starsText = diff.stars ? `${diff.stars.toFixed(1)}★` : '';
-                  return `
-                    <button onclick="downloadAndPlaySong('${item.id}', '${diff.id}', '${diff.name.replace(/'/g, "\\'")}')" class="px-2.5 py-1 bg-white/10 hover:bg-amber-500/25 text-amber-300 border border-white/15 rounded-xl text-[9px] font-bold cursor-pointer transition active:scale-95 flex items-center gap-1 flex-shrink-0">
-                      <span>${diff.name}</span>
-                      ${starsText ? `<span class="font-mono opacity-80">${starsText}</span>` : ''}
-                    </button>
-                  `;
-                }).join('')}
-              </div>
-            ` : ''}
           `;
         }).join('');
+
+        container.innerHTML = `
+          <div class="piano-keyboard-bed">
+            <div class="piano-felt-top-strip"></div>
+            ${cardsHtml}
+          </div>
+        `;
       } catch (e) {
         container.innerHTML = `<div class="p-4 text-xs text-red-400">Error: ${e.message}</div>`;
       }
@@ -7155,6 +7157,28 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       }
     }
 
+    window.togglePianoAccordion = function(sId) {
+      const acc = document.getElementById(`pianoAccordion_${sId}`);
+      const arrow = document.getElementById(`accordionArrow_${sId}`);
+      if (!acc) return;
+      const isOpen = acc.classList.contains('open');
+      if (isOpen) {
+        acc.classList.remove('open');
+        if (arrow) arrow.style.transform = 'rotate(0deg)';
+      } else {
+        acc.classList.add('open');
+        if (arrow) arrow.style.transform = 'rotate(180deg)';
+      }
+    };
+
+    window.playFeaturedSongOfTheDay = function() {
+      const sInput = document.getElementById('searchInput');
+      if (sInput) sInput.value = 'Galaxy';
+      switchExploreSubTab('global');
+      executeSearch();
+      showSuccessToast('Cargando la Canción Destacada de hoy...');
+    };
+
     function switchExploreSubTab(subTab) {
       currentExploreSubTab = subTab;
       const globalBtn = document.getElementById('subTabGlobalBtn');
@@ -7163,14 +7187,14 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       const commCont = document.getElementById('exploreCommunityContainer');
 
       if (subTab === 'community') {
-        if (globalBtn) globalBtn.className = 'flex-1 py-1.5 rounded-lg text-xs font-bold transition text-gray-400 hover:text-white flex items-center justify-center gap-1.5 cursor-pointer';
-        if (commBtn) commBtn.className = 'flex-1 py-1.5 rounded-lg text-xs font-bold transition bg-cyan-500/25 text-cyan-300 border border-cyan-400/40 flex items-center justify-center gap-1.5 cursor-pointer shadow-md';
+        if (globalBtn) globalBtn.classList.remove('active');
+        if (commBtn) commBtn.classList.add('active');
         if (globalCont) globalCont.classList.add('hidden');
         if (commCont) commCont.classList.remove('hidden');
         loadCommunityCharts();
       } else {
-        if (globalBtn) globalBtn.className = 'flex-1 py-1.5 rounded-lg text-xs font-bold transition bg-white/15 text-white flex items-center justify-center gap-1.5 cursor-pointer';
-        if (commBtn) commBtn.className = 'flex-1 py-1.5 rounded-lg text-xs font-bold transition text-gray-400 hover:text-white flex items-center justify-center gap-1.5 cursor-pointer';
+        if (globalBtn) globalBtn.classList.add('active');
+        if (commBtn) commBtn.classList.remove('active');
         if (globalCont) globalCont.classList.remove('hidden');
         if (commCont) commCont.classList.add('hidden');
       }
@@ -7470,7 +7494,7 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       if (!songs || songs.length === 0) {
         container.innerHTML = `
           <div class="p-6 text-center bg-black/40 border border-white/10 rounded-2xl space-y-2">
-            <span class="text-2xl">🔍</span>
+            <svg class="w-8 h-8 mx-auto text-[#c5a059] opacity-70" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
             <p class="text-xs text-gray-300 font-bold">${t('comm_empty_title')}</p>
             <p class="text-[10px] text-gray-500">${t('comm_empty_desc')}</p>
           </div>
@@ -7480,9 +7504,10 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
 
       const followedList = getFollowedCreators();
 
-      let html = '';
+      let cardsHtml = '';
       for (const song of songs) {
         const isFollowed = followedList.includes(song.creator_id);
+        const sId = safeSongId(song.id);
         const diffBadgeColors = {
           'Fácil': 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300',
           'Media': 'border-cyan-500/40 bg-cyan-500/15 text-cyan-300',
@@ -7491,42 +7516,86 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
           'Insana': 'border-rose-500/40 bg-rose-500/15 text-rose-300'
         };
         const diffClass = diffBadgeColors[song.difficulty_name] || 'border-cyan-500/40 bg-cyan-500/15 text-cyan-300';
+        const starsNum = typeof song.stars === 'number' ? song.stars : (parseFloat(song.stars) || 3.5);
 
-        html += `
-          <div class="result-card piano-key-card flex items-center justify-between gap-2.5 p-2 rounded-l-sm rounded-r-md relative overflow-hidden transition select-none">
-            <!-- Piano Key Left Crimson Felt Accent -->
-            <div class="piano-key-lip-left"></div>
+        cardsHtml += `
+          <div class="piano-key-row flex flex-col">
+            <div class="flex items-stretch">
+              <!-- White Ivory Key Body (Opens Soundboard Accordion) -->
+              <div onclick="togglePianoAccordion('${sId}')" class="piano-white-key" title="Ver detalles del creador y opciones">
+                <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                  <!-- Round Inlaid Brass Medallion -->
+                  <div class="piano-key-thumb relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-[#c5a059] shadow-sm flex items-center justify-center bg-stone-900">
+                    <svg class="w-4 h-4 text-[#c5a059]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                  </div>
+                  <!-- Track Metadata -->
+                  <div class="min-w-0 flex-1 flex flex-col justify-center">
+                    <div class="flex items-center gap-1.5 truncate">
+                      <h3 class="text-xs font-black text-[#17131d] truncate font-serif leading-tight">${escapeHtml(song.title)}</h3>
+                    </div>
+                    <p class="text-[10px] text-[#5a422d] font-semibold truncate leading-tight mt-0.5">${escapeHtml(song.artist)} • <span class="text-[#2b1f13]">${escapeHtml(song.creator_name || 'Anónimo')}</span></p>
+                  </div>
+                </div>
+                <!-- Single Star Metric (eg ★ 4.5) -->
+                <div class="flex items-center gap-2 flex-shrink-0 ml-2">
+                  <span class="text-[11px] font-black text-[#9c7329] font-mono whitespace-nowrap">★ ${starsNum.toFixed(1)}</span>
+                  <span id="accordionArrow_${sId}" class="text-[9px] text-[#8e755a] transition-transform duration-200">▼</span>
+                </div>
+              </div>
 
-            <!-- Inlaid Gold Medallion Artwork 32x32px -->
-            <div class="piano-key-thumb relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border-2 border-amber-600/70 shadow-sm flex items-center justify-center font-bold text-amber-500 text-xs bg-stone-900">
-              <span>🎵</span>
+              <!-- Fixed 3D Ebony Black Play Key (Direct Launch) -->
+              <div 
+                onclick="playCommunitySong('${song.id}')" 
+                class="piano-black-play-key" 
+                title="${t('play')}"
+              >
+                <span class="play-arrow-gold">▶</span>
+              </div>
             </div>
 
-            <!-- Track Metadata -->
-            <div class="flex-1 min-w-0 flex flex-col justify-center">
-              <div class="flex items-center gap-1.5 truncate">
-                <h3 class="piano-key-title text-xs font-black text-[#140e06] truncate font-serif leading-tight">${escapeHtml(song.title)}</h3>
-                <span class="text-[9px] text-amber-700 font-bold flex-shrink-0">⭐ ${song.rating_avg || 5.0}</span>
-              </div>
-              <div class="flex items-center gap-1.5 text-[10px] text-[#5a422d] truncate mt-0.5 leading-tight">
-                <span class="px-1.5 py-0.2 rounded text-[8px] font-bold border ${diffClass}">
-                  ${song.difficulty_name || 'Normal'} ${song.stars || 3.5}★
-                </span>
-                <span class="truncate text-[#5a422d] font-semibold">${escapeHtml(song.artist)} • <span class="text-[#140e06] font-semibold">${escapeHtml(song.creator_name || 'Anónimo')}</span></span>
-              </div>
-            </div>
+            <!-- Soundboard Accordion ("Caja de Resonancia") -->
+            <div id="pianoAccordion_${sId}" class="piano-soundboard-accordion">
+              <div class="p-2.5 space-y-2">
+                <div class="flex items-center justify-between gap-2 flex-wrap">
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-[9px] font-bold text-[#c5a059] uppercase tracking-wider">Dificultad:</span>
+                    <span class="px-2 py-0.5 rounded text-[9px] font-bold border ${diffClass}">
+                      ${song.difficulty_name || 'Normal'} ${starsNum.toFixed(1)}★
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-[9px] text-gray-400">Creador:</span>
+                    <span class="text-[9.5px] text-amber-300 font-bold">${escapeHtml(song.creator_name || 'Anónimo')}</span>
+                    <button onclick="toggleFollowCreator('${song.creator_id}', this)" class="follow-btn px-2 py-0.5 rounded text-[8.5px] font-bold border transition ${isFollowed ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400/40' : 'bg-white/10 text-gray-300 border-white/15 hover:bg-white/20'}">
+                      ${isFollowed ? t('following') : t('follow')}
+                    </button>
+                  </div>
+                </div>
 
-            <!-- Actions Row -->
-            <div class="flex items-center gap-1.5 flex-shrink-0">
-              ${renderSongSpeedHtml(song.id).btn}
-              <button onclick="playCommunitySong('${song.id}')" class="piano-key-play-btn w-8 h-8 rounded-full bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-600 hover:from-amber-300 text-[#140e06] font-black text-xs flex items-center justify-center shadow-md active:scale-95 transition cursor-pointer" title="${t('play')}">
-                <span>▶</span>
-              </button>
+                <div class="flex items-center justify-between gap-2 pt-1.5 border-t border-white/5 text-[11px]">
+                  <div class="flex items-center gap-2">
+                    <span class="text-[9.5px] text-gray-400 font-bold uppercase tracking-wider">Tempo:</span>
+                    ${renderSongSpeedHtml(song.id).btn}
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <button onclick="openRateSongModal('${song.id}', '${escapeHtml(song.title).replace(/'/g, "\\'")}', '${escapeHtml(song.artist).replace(/'/g, "\\'")}', '${song.difficulty_name || 'Normal'}', ${starsNum}, true)" class="text-[10px] text-amber-400 hover:scale-105 transition flex items-center gap-1 cursor-pointer font-bold" title="Calificar">
+                      ★ Calificar
+                    </button>
+                    <span class="text-[10px] text-emerald-400 font-mono font-bold">Sync: 100%</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         `;
       }
-      container.innerHTML = html;
+
+      container.innerHTML = `
+        <div class="piano-keyboard-bed">
+          <div class="piano-felt-top-strip"></div>
+          ${cardsHtml}
+        </div>
+      `;
     }
 
     async function toggleFollowCreator(creatorId, btnEl) {

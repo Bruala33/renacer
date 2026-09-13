@@ -1075,6 +1075,10 @@ class BeatstarEngine {
     );
     this.audioSync = this.sync;
 
+    this.lanePressAnim = [0, 0, 0];
+    this.shakeDuration = 0;
+    this.shakeIntensity = 0;
+
     this.initCanvasSize();
     this.bindEvents();
   }
@@ -1277,6 +1281,11 @@ class BeatstarEngine {
     // Boost reactive ambient light: more hits = brighter scene!
     this.reactiveLightBoost = Math.min(1.0, (this.reactiveLightBoost || 0) + 0.22);
     this.lastHitColor = color || '#00f2fe';
+  }
+
+  triggerScreenShake(intensity = 2.0, durationMs = 50) {
+    this.shakeIntensity = intensity;
+    this.shakeDuration = durationMs / 1000;
   }
 
   setJudgeColors(colors) {
@@ -2005,6 +2014,7 @@ class BeatstarEngine {
 
   triggerLaneInput(lane, inputType = 'tap', swipeDirection = null, touchId = null) {
     this.laneGlows[lane] = 1.0;
+    if (this.lanePressAnim) this.lanePressAnim[lane] = performance.now();
     const currentTime = this.isCalibrating 
       ? (performance.now() - this.calibrationStartTime) + this.latencyOffsetMs
       : this.sync.getCurrentTimeMs() + this.latencyOffsetMs;
@@ -2424,13 +2434,14 @@ class BeatstarEngine {
    * Judgements rendered in upper screen area (below HUD) to prevent blocking incoming notes
    */
   addJudgement(text, color) {
+    const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
     this.judgements.push({
       text: text,
-      color: color,
-      y: this.height * 0.20,
+      color: color || '#ffe29a',
+      y: hitY - 46,
       alpha: 1.0,
-      scale: 1.25,
-      decay: 2.0
+      scale: 1.35,
+      decay: 2.2
     });
   }
 
@@ -2658,6 +2669,10 @@ class BeatstarEngine {
   }
 
   updateVisualEffects(dt) {
+    if (this.shakeDuration > 0) {
+      this.shakeDuration = Math.max(0, this.shakeDuration - dt);
+    }
+
     for (let l = 0; l < 3; l++) {
       this.laneGlows[l] = Math.max(0, (this.laneGlows[l] || 0) - dt * 4.0);
     }
@@ -2665,8 +2680,8 @@ class BeatstarEngine {
     for (let i = this.judgements.length - 1; i >= 0; i--) {
       const j = this.judgements[i];
       j.alpha -= j.decay * dt;
-      j.y -= 15 * dt;
-      j.scale = Math.max(1.0, j.scale - dt * 1.2);
+      j.y -= 12 * dt;
+      j.scale = Math.max(1.0, j.scale - (j.scale - 1.0) * Math.min(1.0, 16.0 * dt));
       if (j.alpha <= 0) this.judgements.splice(i, 1);
     }
 
@@ -3018,6 +3033,14 @@ class BeatstarEngine {
 
   render() {
     this.ctx.clearRect(0, 0, this.width, this.height);
+    const hasShake = (this.shakeDuration > 0);
+    if (hasShake) {
+      this.ctx.save();
+      const sx = (Math.random() - 0.5) * 2 * (this.shakeIntensity || 2);
+      const sy = (Math.random() - 0.5) * 2 * (this.shakeIntensity || 2);
+      this.ctx.translate(sx, sy);
+    }
+
     const currentTime = this.isCalibrating 
       ? (performance.now() - this.calibrationStartTime) + this.latencyOffsetMs
       : this.sync.getCurrentTimeMs() + this.latencyOffsetMs;
@@ -3029,6 +3052,10 @@ class BeatstarEngine {
     this.particles.render(this.ctx);
     this.renderMusicalNotes();
     this.renderJudgements();
+
+    if (hasShake) {
+      this.ctx.restore();
+    }
   }
 
   renderMusicalNotes() {
@@ -3072,8 +3099,8 @@ class BeatstarEngine {
     const horizonY = 12; // Top vanishing horizon margin
     const y = horizonY + (hitY - horizonY) * pCurved;
 
-    // Conical perspective: horizon is 40% narrower than bottom base (scale 0.60 at horizon -> 1.00 at hit line)
-    const scale = 0.60 + 0.40 * pCurved;
+    // Linear perspective scale from 0.48 at horizon to 1.00 at hit line
+    const scale = 0.48 + 0.52 * pCurved;
     const baseLaneW = this.width / 3;
     const laneW = baseLaneW * scale;
     const midX = this.width / 2;
@@ -3088,9 +3115,9 @@ class BeatstarEngine {
     const horizonY = 12;
     const midX = this.width / 2;
     const baseLaneW = this.width / 3;
-    const p = Math.max(0, (yTarget - horizonY) / (hitY - horizonY));
-    const pCurved = Math.pow(p, 1.0 / 1.7);
-    const scale = 0.60 + 0.40 * pCurved;
+    // Exact linear interpolation along the drawn track lines:
+    const t = (yTarget - horizonY) / (hitY - horizonY);
+    const scale = 0.48 + 0.52 * t;
     const laneW = baseLaneW * scale;
     return midX + (lineIdx - 1.5) * laneW;
   }
@@ -3644,7 +3671,7 @@ class BeatstarEngine {
       ctx.lineTo(W, railY);
       ctx.stroke();
 
-      // 3. Lane Hit Targets (Dianas de Marfil y Latón con Micro-Hundimiento)
+      // 3. Lane Hit Targets: Remate del teclado con latón pulido sobre fieltro rojo y Squash & Stretch
       for (let l = 0; l < 3; l++) {
         const coord = this.getPerspectiveCoord(l, 1.0);
         const cx = coord.x;
@@ -3652,7 +3679,12 @@ class BeatstarEngine {
         const glow = this.laneGlows[l] || 0;
         const isPressed = glow > 0.35 || isHolding;
 
-        const depressY = isPressed ? 3.5 : 0;
+        // Physical Squash & Stretch: 90ms elastic bounce curve
+        const elapsedPress = performance.now() - (this.lanePressAnim ? (this.lanePressAnim[l] || 0) : 0);
+        const isBouncing = elapsedPress >= 0 && elapsedPress < 90;
+        const bounceFactor = isBouncing ? Math.sin((elapsedPress / 90) * Math.PI) : 0;
+        const squashScaleX = 1.0 + (isBouncing ? 0.10 * bounceFactor : (isHolding ? 0.05 : 0));
+        const depressY = (isPressed ? 3.5 : 0) + (isBouncing ? 6.0 * bounceFactor : (isHolding ? 3.0 : 0));
         const cy = hitY + depressY;
 
         const targetH = isLarge ? 68 : 26;
@@ -3663,37 +3695,66 @@ class BeatstarEngine {
         const tx1Top = this.getLaneBoundaryX(l + 1, yT) - m;
         const tx0Bot = this.getLaneBoundaryX(l, yB) + m;
         const tx1Bot = this.getLaneBoundaryX(l + 1, yB) - m;
+
+        // Apply horizontal stretch:
+        const baseTargetW = tx1Bot - tx0Bot;
+        const targetW = baseTargetW * squashScaleX;
+        const wDelta = (targetW - baseTargetW) / 2;
+
+        const sx0Top = tx0Top - wDelta;
+        const sx1Top = tx1Top + wDelta;
+        const sx0Bot = tx0Bot - wDelta;
+        const sx1Bot = tx1Bot + wDelta;
         const tr = isLarge ? 10 : 6;
 
         const traceTargetQuad = (offY) => {
-          const cr = Math.min(tr, targetH * 0.35, (tx1Top - tx0Top) * 0.30);
+          const cr = Math.min(tr, targetH * 0.35, (sx1Top - sx0Top) * 0.30);
           ctx.beginPath();
-          ctx.moveTo((tx0Top + tx1Top) / 2, yT + offY);
-          ctx.arcTo(tx1Top, yT + offY, tx1Bot, yB + offY, cr);
-          ctx.arcTo(tx1Bot, yB + offY, tx0Bot, yB + offY, cr);
-          ctx.arcTo(tx0Bot, yB + offY, tx0Top, yT + offY, cr);
-          ctx.arcTo(tx0Top, yT + offY, tx1Top, yT + offY, cr);
+          ctx.moveTo((sx0Top + sx1Top) / 2, yT + offY);
+          ctx.arcTo(sx1Top, yT + offY, sx1Bot, yB + offY, cr);
+          ctx.arcTo(sx1Bot, yB + offY, sx0Bot, yB + offY, cr);
+          ctx.arcTo(sx0Bot, yB + offY, sx0Top, yT + offY, cr);
+          ctx.arcTo(sx0Top, yT + offY, sx1Top, yT + offY, cr);
           ctx.closePath();
         };
 
+        // Damper felt cavity shadow
         ctx.save();
-        ctx.fillStyle = 'rgba(15, 10, 14, 0.75)';
+        ctx.fillStyle = '#4a080d';
         traceTargetQuad(0);
         ctx.fill();
 
-        ctx.strokeStyle = isPressed ? '#ffdf9e' : 'rgba(197, 160, 89, 0.55)';
+        // Keyboard rim plate: polished brass on acoustic felt
+        const rimGrad = ctx.createLinearGradient(0, yT + depressY, 0, yB + depressY);
+        if (isPressed) {
+          rimGrad.addColorStop(0.0, '#fff4cc');
+          rimGrad.addColorStop(0.3, '#ffd27d');
+          rimGrad.addColorStop(0.7, '#d4af37');
+          rimGrad.addColorStop(1.0, '#5a3d0f');
+        } else {
+          rimGrad.addColorStop(0.0, '#2b1b11');
+          rimGrad.addColorStop(0.4, '#1b120c');
+          rimGrad.addColorStop(1.0, '#0f0a07');
+        }
+        ctx.fillStyle = rimGrad;
+        traceTargetQuad(depressY);
+        ctx.fill();
+
+        // Brass rim outline
+        ctx.strokeStyle = isPressed ? '#ffe5a3' : 'rgba(197, 160, 89, 0.65)';
         ctx.lineWidth = isPressed ? 2.8 : 1.5;
         traceTargetQuad(depressY);
         ctx.stroke();
 
+        // Reactive light flash (Additive glow)
         if (isPressed) {
           ctx.save();
           ctx.globalCompositeOperation = 'lighter';
-          const flashRad = targetW * 0.9;
+          const flashRad = targetW * 0.85;
           const flashGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, flashRad);
           const flashAlpha = isHolding ? 0.85 : Math.min(1.0, glow * 1.2);
           flashGrad.addColorStop(0.0, `rgba(255, 240, 190, ${flashAlpha})`);
-          flashGrad.addColorStop(0.3, `rgba(255, 223, 158, ${(flashAlpha * 0.8).toFixed(3)})`);
+          flashGrad.addColorStop(0.3, `rgba(255, 210, 125, ${(flashAlpha * 0.8).toFixed(3)})`);
           flashGrad.addColorStop(0.65, `rgba(212, 175, 55, ${(flashAlpha * 0.35).toFixed(3)})`);
           flashGrad.addColorStop(1.0, 'rgba(212, 175, 55, 0)');
 
@@ -3958,34 +4019,67 @@ class BeatstarEngine {
             const pStep = currentTailP + (currentHeadP - currentTailP) * frac;
             const ptCoord = this.getPerspectiveCoord(lane, pStep);
 
-            const standingEnvelope = Math.sin(Math.PI * frac);
-            const freq = isBeingHeld ? 0.035 : 0.015;
-            const wavenumber = 0.04;
-            const amplitude = (isBeingHeld ? 3.5 : 1.2) * ptCoord.scale;
-            const harmonicOffset = amplitude * standingEnvelope * Math.sin(freq * currentTime + wavenumber * ptCoord.y);
+          const standingEnvelope = Math.sin(Math.PI * frac);
+          const timeSec = currentTime / 1000;
+          const vibration = isBeingHeld 
+            ? (Math.sin(timeSec * 30.0 + ptCoord.y * 0.10) * (6.0 * standingEnvelope * ptCoord.scale))
+            : (Math.sin(timeSec * 6.0 + ptCoord.y * 0.05) * (1.2 * standingEnvelope * ptCoord.scale));
 
-            stringPoints.push({
-              x: ptCoord.x + harmonicOffset,
-              y: ptCoord.y,
-              scale: ptCoord.scale,
-              laneW: ptCoord.laneW
-            });
-          }
+          stringPoints.push({
+            x: ptCoord.x + vibration,
+            y: ptCoord.y,
+            scale: ptCoord.scale,
+            laneW: ptCoord.laneW
+          });
+        }
 
-          // Golden Aura / Resonant Glow
-          ctx.save();
-          ctx.globalCompositeOperation = 'lighter';
-          ctx.shadowColor = '#ffd700';
-          ctx.shadowBlur = isBeingHeld ? 18 : 8;
-          ctx.strokeStyle = isBeingHeld ? 'rgba(255, 223, 158, 0.65)' : 'rgba(212, 175, 55, 0.40)';
-          ctx.lineWidth = 10 * stringPoints[stringPoints.length - 1].scale;
-          ctx.beginPath();
-          for (let s = 0; s < stringPoints.length; s++) {
-            if (s === 0) ctx.moveTo(stringPoints[s].x, stringPoints[s].y);
-            else ctx.lineTo(stringPoints[s].x, stringPoints[s].y);
+        // 1. Warm Translucent Infinite Glow Trail
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        const trailGrad = ctx.createLinearGradient(0, stringPoints[0].y, 0, stringPoints[stringPoints.length - 1].y);
+        trailGrad.addColorStop(0.0, 'rgba(255, 210, 125, 0)');
+        trailGrad.addColorStop(0.5, isBeingHeld ? 'rgba(255, 210, 125, 0.15)' : 'rgba(255, 210, 125, 0.08)');
+        trailGrad.addColorStop(1.0, isBeingHeld ? 'rgba(255, 210, 125, 0.40)' : 'rgba(255, 210, 125, 0.22)');
+        
+        ctx.beginPath();
+        for (let s = 0; s < stringPoints.length; s++) {
+          const pt = stringPoints[s];
+          const halfW = pt.laneW * 0.38;
+          if (s === 0) ctx.moveTo(pt.x - halfW, pt.y);
+          else ctx.lineTo(pt.x - halfW, pt.y);
+        }
+        for (let s = stringPoints.length - 1; s >= 0; s--) {
+          const pt = stringPoints[s];
+          const halfW = pt.laneW * 0.38;
+          ctx.lineTo(pt.x + halfW, pt.y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = trailGrad;
+        ctx.fill();
+        ctx.restore();
+
+        // 2. Continuous Golden Contact Sparks when held
+        if (isBeingHeld && Math.random() < 0.70) {
+          const headPoint = stringPoints[stringPoints.length - 1];
+          if (this.particles && this.particles.emitHoldSpark) {
+            this.particles.emitHoldSpark(headPoint.x, hitY, '#ffd700');
           }
-          ctx.stroke();
-          ctx.restore();
+        }
+
+        // 3. Golden Aura / Resonant Glow
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.shadowColor = '#ffd700';
+        ctx.shadowBlur = isBeingHeld ? 22 : 10;
+        ctx.strokeStyle = isBeingHeld ? 'rgba(255, 223, 158, 0.75)' : 'rgba(212, 175, 55, 0.45)';
+        ctx.lineWidth = 12 * stringPoints[stringPoints.length - 1].scale;
+        ctx.beginPath();
+        for (let s = 0; s < stringPoints.length; s++) {
+          if (s === 0) ctx.moveTo(stringPoints[s].x, stringPoints[s].y);
+          else ctx.lineTo(stringPoints[s].x, stringPoints[s].y);
+        }
+        ctx.stroke();
+        ctx.restore();
 
           // Outer Brass Wound Wire Body
           ctx.save();

@@ -1998,6 +1998,234 @@ body {
 }
 
 /* ==========================================================================
+   CONCERT PIANO KEYBOARD BED & CONTINUOUS KEYS ARCHITECTURE
+   ========================================================================== */
+
+.piano-keyboard-bed {
+  background: #0b080e;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(197, 160, 89, 0.25);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+}
+
+/* 7px Crimson Damper Felt Top Strip */
+.piano-felt-top-strip {
+  height: 7px;
+  width: 100%;
+  background: linear-gradient(180deg, #aa1622 0%, #8e141e 50%, #580a11 100%);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 1px 3px rgba(0, 0, 0, 0.6);
+  border-bottom: 1px solid #380509;
+}
+
+/* Row containing White Key and Fixed Black Play Key */
+.piano-key-row {
+  display: flex;
+  align-items: stretch;
+  margin-bottom: 2px;
+  position: relative;
+  width: 100%;
+  background: #0b080e;
+}
+
+/* White Ivory Key Body */
+.piano-white-key {
+  flex: 1;
+  min-height: 52px;
+  background: linear-gradient(180deg, #ffffff 0%, #faf6ee 40%, #ede2d1 80%, #ded0bc 100%);
+  border-bottom: 3px solid #b8a68c;
+  border-right: 1px solid rgba(184, 166, 140, 0.6);
+  border-left: 6px solid #8e141e;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.1s ease, background 0.15s ease;
+  box-shadow: inset 0 1px 0 #ffffff, 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.piano-white-key:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #fefcf7 40%, #f4ede0 80%, #e6dccf 100%);
+}
+
+.piano-white-key:active {
+  transform: scaleY(0.985);
+  background: linear-gradient(180deg, #f0e6d6 0%, #e8dcce 100%);
+  box-shadow: inset 0 2px 4px rgba(100, 75, 50, 0.25);
+}
+
+/* Fixed 3D Ebony Black Play Key */
+.piano-black-play-key {
+  width: 48px;
+  min-height: 52px;
+  background: linear-gradient(180deg, #38303e 0%, #1e1824 50%, #0d0a12 100%);
+  border-left: 2px solid #08060a;
+  border-bottom: 4px solid #050307;
+  border-radius: 0 4px 4px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: -2px 3px 6px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.25);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  flex-shrink: 0;
+}
+
+.piano-black-play-key:hover {
+  background: linear-gradient(180deg, #463d4e 0%, #282030 50%, #130f1a 100%);
+  box-shadow: -2px 4px 8px rgba(0, 0, 0, 0.7), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+}
+
+.piano-black-play-key:active {
+  transform: translateY(2px) scale(0.96);
+  box-shadow: -1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.piano-black-play-key .play-arrow-gold {
+  color: #e2b963;
+  font-size: 13px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
+}
+
+/* Soundboard Accordion ("Caja de Resonancia") */
+.piano-soundboard-accordion {
+  width: 100%;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+  background: #110d18 repeating-linear-gradient(90deg, rgba(197, 160, 89, 0.06) 0px, rgba(197, 160, 89, 0.06) 1px, transparent 1px, transparent 16px);
+  border-left: 3px solid rgba(197, 160, 89, 0.4);
+  border-right: 1px solid rgba(197, 160, 89, 0.2);
+  border-bottom: 1px solid rgba(197, 160, 89, 0.3);
+  box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.7);
+}
+
+.piano-soundboard-accordion.open {
+  max-height: 300px;
+}
+
+/* Register Rail Toggle (.register-rail) */
+.register-rail {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px;
+  background: #140e1a;
+  border: 1px solid rgba(197, 160, 89, 0.35);
+  border-radius: 9999px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), inset 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.register-rail-switch {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: #09060d;
+  padding: 2px;
+  border-radius: 9999px;
+  border: 1px solid rgba(197, 160, 89, 0.2);
+}
+
+.register-rail-btn {
+  padding: 6px 16px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 800;
+  font-family: "Cinzel", "Outfit", serif;
+  letter-spacing: 0.04em;
+  color: #a89f91;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+}
+
+.register-rail-btn.active {
+  background: linear-gradient(135deg, #c5a059 0%, #9c7329 100%);
+  color: #120c06;
+  box-shadow: 0 2px 8px rgba(197, 160, 89, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.register-rail-featured {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #e2b963;
+  background: rgba(226, 185, 99, 0.12);
+  border: 1px solid rgba(226, 185, 99, 0.3);
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.register-rail-featured:hover {
+  background: rgba(226, 185, 99, 0.22);
+  transform: scale(1.03);
+}
+
+/* Compact 1-Row Unified Search Bar */
+.unified-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #110c18;
+  border: 1.5px solid rgba(197, 160, 89, 0.35);
+  border-radius: 12px;
+  padding: 3px 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
+.unified-search-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 12px;
+  padding: 6px 4px 6px 6px;
+  outline: none;
+}
+
+.unified-search-diff {
+  background: #191222;
+  color: #e2b963;
+  border: 1px solid rgba(197, 160, 89, 0.4);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  outline: none;
+  flex-shrink: 0;
+}
+
+.unified-search-btn {
+  background: linear-gradient(135deg, #c5a059 0%, #9c7329 100%);
+  color: #120c06;
+  font-weight: 800;
+  font-size: 11.5px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  flex-shrink: 0;
+  transition: transform 0.12s ease;
+}
+
+.unified-search-btn:active {
+  transform: scale(0.96);
+}
+
+/* ==========================================================================
    CLASSIC 2D FLAT NEON THEME (.theme-neon-2d)
    Preserves the original flat retro synthwave cyberpunk aesthetic
    ========================================================================== */
