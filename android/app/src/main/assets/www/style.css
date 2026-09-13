@@ -1,5 +1,5 @@
-/* Beatstar Mobile-First Cyberpunk Theme */
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&family=JetBrains+Mono:wght@500;700;800&display=swap');
+/* Acoustic Grand Piano Premium Aesthetic & Conical Perspective Theme */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,400&family=Outfit:wght@300;400;600;700;900&family=JetBrains+Mono:wght@500;700;800&display=swap');
 
 html, body {
   width: 100%;
@@ -41,20 +41,30 @@ svg {
 }
 
 :root {
-  --primary-glow: #ff007f;
-  --cyan-glow: #00f2fe;
-  --green-glow: #00ff88;
-  --purple-glow: #b142ff;
-  --gold-glow: #ffd700;
-  --lane-border: rgba(255, 255, 255, 0.12);
-  --glass-bg: rgba(14, 10, 24, 0.88);
-  --glass-border: rgba(255, 255, 255, 0.12);
+  --ebony-wood: #0d0b10;
+  --ebony-surface: #141019;
+  --ebony-plate: #17121d;
+  --brass-gold: #c5a059;
+  --brass-light: #f3d791;
+  --brass-dark: #6e5223;
+  --crimson-felt: #85141d;
+  --ivory-key: #fdfbf7;
+  --ivory-shadow: #e5dcce;
+  --gold-flash: #ffdf9e;
+  --primary-glow: #c5a059;
+  --cyan-glow: #f3d791;
+  --green-glow: #ffd700;
+  --purple-glow: #d4af37;
+  --gold-glow: #ffdf9e;
+  --lane-border: rgba(197, 160, 89, 0.25);
+  --glass-bg: rgba(13, 11, 16, 0.94);
+  --glass-border: rgba(197, 160, 89, 0.28);
 }
 
 body {
   font-family: 'Outfit', sans-serif;
-  background-color: #050308;
-  color: #ffffff;
+  background-color: #060408;
+  color: #fdfbf7;
   width: 100vw;
   height: 100vh;
   height: 100dvh;
@@ -77,9 +87,9 @@ body {
   max-width: 440px;
   max-height: 900px;
   aspect-ratio: 9 / 16;
-  background: #090610;
+  background: #0d0b10;
   overflow: hidden;
-  box-shadow: 0 0 50px rgba(177, 66, 255, 0.25), 0 0 100px rgba(0, 0, 0, 0.95);
+  box-shadow: 0 0 60px rgba(197, 160, 89, 0.15), 0 0 100px rgba(0, 0, 0, 0.98);
   display: flex;
   flex-direction: column;
 }
@@ -87,7 +97,7 @@ body {
 @media (min-width: 768px) {
   .game-viewport {
     border-radius: 36px;
-    border: 3px solid rgba(255, 255, 255, 0.15);
+    border: 2.5px solid rgba(197, 160, 89, 0.35);
   }
 }
 
@@ -307,38 +317,41 @@ body {
 }
 
 .glass-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--glass-border);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  background: linear-gradient(160deg, rgba(23, 18, 29, 0.95), rgba(13, 11, 16, 0.98));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(197, 160, 89, 0.30);
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(243, 215, 145, 0.15);
   border-radius: 20px;
 }
 
 /* Clefs Currency Badge (𝄞) */
 .clef-badge {
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 140, 0, 0.25));
-  border: 1px solid rgba(255, 215, 0, 0.45);
+  background: linear-gradient(135deg, rgba(197, 160, 89, 0.22), rgba(110, 82, 35, 0.35));
+  border: 1px solid rgba(243, 215, 145, 0.55);
   border-radius: 12px;
   padding: 3px 9px;
   display: flex;
   align-items: center;
   gap: 4px;
-  box-shadow: 0 0 14px rgba(255, 215, 0, 0.25);
+  box-shadow: 0 0 14px rgba(197, 160, 89, 0.25);
+  font-family: 'Cinzel', serif;
 }
 
 /* Highscore Badge on Song Cards */
 .highscore-badge {
-  background: rgba(255, 215, 0, 0.14);
-  border: 1px solid rgba(255, 215, 0, 0.4);
+  background: rgba(197, 160, 89, 0.15);
+  border: 1px solid rgba(197, 160, 89, 0.45);
   border-radius: 6px;
-  padding: 1px 5px;
+  padding: 1px 6px;
   font-size: 9px;
   font-weight: 800;
-  color: #ffd700;
+  font-family: 'Cinzel', serif;
+  color: #f3d791;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
+  box-shadow: 0 1px 6px rgba(197, 160, 89, 0.2);
 }
 
 /* Streak Multiplier Badge */
@@ -348,30 +361,31 @@ body {
   border-radius: 8px;
   font-size: 10px;
   font-weight: 900;
+  font-family: 'Cinzel', serif;
   color: #ffffff;
-  background: rgba(255, 0, 127, 0.3);
-  border: 1px solid rgba(255, 0, 127, 0.5);
+  background: rgba(133, 20, 29, 0.45);
+  border: 1px solid #85141d;
   transition: transform 0.15s, background 0.15s;
 }
 
 .multiplier-badge.x2 {
-  background: rgba(0, 242, 254, 0.3);
-  border-color: #00f2fe;
-  color: #00f2fe;
-  box-shadow: 0 0 10px rgba(0, 242, 254, 0.4);
+  background: rgba(197, 160, 89, 0.35);
+  border-color: #c5a059;
+  color: #f3d791;
+  box-shadow: 0 0 10px rgba(197, 160, 89, 0.4);
 }
 
 .multiplier-badge.x3 {
-  background: rgba(177, 66, 255, 0.3);
-  border-color: #b142ff;
-  color: #d896ff;
-  box-shadow: 0 0 12px rgba(177, 66, 255, 0.5);
+  background: rgba(212, 175, 55, 0.40);
+  border-color: #ffd700;
+  color: #ffdf9e;
+  box-shadow: 0 0 14px rgba(212, 175, 55, 0.5);
 }
 
 .multiplier-badge.x5 {
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.5), rgba(255, 0, 127, 0.5));
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.6), rgba(133, 20, 29, 0.6));
   border-color: #ffd700;
-  color: #ffffff;
+  color: #fff4d1;
   box-shadow: 0 0 18px rgba(255, 215, 0, 0.7);
   transform: scale(1.1);
 }
@@ -379,8 +393,8 @@ body {
 /* Main Navigation Tabs */
 .nav-tabs {
   display: flex;
-  background: rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(13, 11, 16, 0.75);
+  border: 1px solid rgba(197, 160, 89, 0.25);
   border-radius: 14px;
   padding: 3px;
   gap: 3px;
@@ -392,7 +406,8 @@ body {
   border-radius: 11px;
   font-size: 11px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.6);
+  font-family: 'Cinzel', serif;
+  color: rgba(243, 215, 145, 0.65);
   text-align: center;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
@@ -400,9 +415,18 @@ body {
 }
 
 .nav-tab.active {
-  background: linear-gradient(135deg, rgba(255, 0, 127, 0.8), rgba(177, 66, 255, 0.8));
-  color: #ffffff;
-  box-shadow: 0 4px 12px rgba(255, 0, 127, 0.3);
+  background: linear-gradient(135deg, rgba(197, 160, 89, 0.4), rgba(110, 82, 35, 0.55));
+  color: #fff4d1;
+  border: 1px solid rgba(243, 215, 145, 0.5);
+  box-shadow: 0 4px 14px rgba(197, 160, 89, 0.25);
+}
+
+#hudScore, .hud-score {
+  font-family: 'Cinzel', 'Playfair Display', serif !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.04em !important;
+  color: #ffdf9e !important;
+  text-shadow: 0 0 16px rgba(212, 175, 55, 0.45) !important;
 }
 
 /* Compact Minimalist Shuffle Button (🔀) */
@@ -459,24 +483,31 @@ body {
   -webkit-overflow-scrolling: touch !important;
 }
 
-/* Search Result Cards */
+/* Search Result Cards: Dark Ebony Plates with Beveled Brass Borders & Soft Depth Shadows */
 .result-card {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
+  padding: 9px 12px;
+  background: linear-gradient(145deg, #17121d 0%, #0d0b10 100%);
+  border: 1px solid rgba(197, 160, 89, 0.32);
+  border-radius: 18px;
   touch-action: pan-y !important;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(243, 215, 145, 0.20), inset 0 -1px 0 rgba(0, 0, 0, 0.85);
 }
 
 .result-card:hover, .result-card:active {
-  background: rgba(255, 0, 127, 0.12);
-  border-color: rgba(255, 0, 127, 0.35);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(255, 0, 127, 0.2);
+  background: linear-gradient(145deg, #221a2b 0%, #120e17 100%);
+  border-color: rgba(243, 215, 145, 0.65);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.9), 0 0 20px rgba(197, 160, 89, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.result-card h3 {
+  font-family: 'Cinzel', 'Playfair Display', serif;
+  letter-spacing: 0.02em;
+  color: #fdfbf7;
 }
 
 /* Action icon buttons on cards */
@@ -484,11 +515,12 @@ body {
   width: 32px;
   height: 32px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(197, 160, 89, 0.22);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(243, 215, 145, 0.8);
   transition: all 0.18s ease;
   cursor: pointer;
   flex-shrink: 0;
@@ -496,14 +528,16 @@ body {
 }
 
 .card-action-btn:hover, .card-action-btn:active {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(197, 160, 89, 0.25);
   color: #ffffff;
-  transform: scale(1.1);
+  border-color: rgba(243, 215, 145, 0.6);
+  transform: scale(1.08);
 }
 
 .card-action-btn.favorited {
-  background: rgba(255, 0, 127, 0.25);
-  color: #ff007f;
+  background: rgba(133, 20, 29, 0.45);
+  border-color: #85141d;
+  color: #ff858d;
 }
 
 /* Playlist Cards */
@@ -1181,5 +1215,591 @@ body {
   background: rgba(255, 255, 255, 0.07);
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
+
+/* ==========================================================================
+   PREMIUM 3D VINTAGE ACOUSTIC GRAND PIANO THEME OVERRIDES (.theme-vintage-3d)
+   Replaces all generic AI neon colors, rainbow gradients, and cyan/magenta
+   glow rings with authentic concert grand ebony, brass, and ivory luxury.
+   ========================================================================== */
+
+.theme-vintage-3d {
+  --bg-primary: #08060a;
+  --ebony-plate: #15111b;
+  --brass-gold: #c5a059;
+  --brass-light: #f3d791;
+  --brass-dark: #6e5223;
+  --crimson-felt: #85141d;
+  --ivory-key: #fdfbf7;
+}
+
+.theme-vintage-3d body,
+.theme-vintage-3d .game-viewport {
+  background: #08060a !important;
+  color: #fdfbf7 !important;
+}
+
+/* 3D Song Cards: Authentic Grand Piano Perspective Plates */
+.theme-vintage-3d .result-card {
+  perspective: 800px !important;
+  transform: perspective(800px) rotateX(1.8deg) translateY(0) !important;
+  transform-style: preserve-3d !important;
+  background: linear-gradient(155deg, #1c1622 0%, #120e17 55%, #09070c 100%) !important;
+  border: 1px solid rgba(197, 160, 89, 0.42) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 10px 26px -4px rgba(0, 0, 0, 0.88), 
+              0 2px 8px rgba(197, 160, 89, 0.14), 
+              inset 0 1px 1px rgba(243, 215, 145, 0.35), 
+              inset 0 -1px 2px rgba(0, 0, 0, 0.9) !important;
+  transition: all 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+}
+
+.theme-vintage-3d .result-card:hover,
+.theme-vintage-3d .result-card:active {
+  transform: perspective(800px) rotateX(0deg) translateY(-3px) scale(1.015) !important;
+  background: linear-gradient(155deg, #261e2f 0%, #17121d 55%, #0d0a12 100%) !important;
+  border-color: rgba(243, 215, 145, 0.75) !important;
+  box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.95), 
+              0 0 24px rgba(197, 160, 89, 0.32), 
+              inset 0 1px 1.5px rgba(255, 255, 255, 0.5) !important;
+}
+
+.theme-vintage-3d .result-card h3,
+.theme-vintage-3d .result-card p.font-bold {
+  font-family: 'Cinzel', 'Playfair Display', serif !important;
+  letter-spacing: 0.025em !important;
+  color: #fdfbf7 !important;
+}
+
+/* Override Neon Badges on Cards to Antique Brass & Ivory */
+.theme-vintage-3d .result-card .bg-pink-500\/20,
+.theme-vintage-3d .result-card .bg-purple-500\/20,
+.theme-vintage-3d .result-card .border-pink-500\/40,
+.theme-vintage-3d .result-card .border-purple-500\/40 {
+  background: rgba(197, 160, 89, 0.16) !important;
+  border-color: rgba(243, 215, 145, 0.45) !important;
+  color: #f3d791 !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+
+.theme-vintage-3d .highscore-badge {
+  background: linear-gradient(135deg, rgba(197, 160, 89, 0.35) 0%, rgba(110, 82, 35, 0.45) 100%) !important;
+  border: 1px solid rgba(243, 215, 145, 0.55) !important;
+  color: #fff4d1 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Card Action Buttons (Heart, Plus, etc.) */
+.theme-vintage-3d .card-action-btn,
+.theme-vintage-3d .heart-btn,
+.theme-vintage-3d .plus-btn {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(197, 160, 89, 0.3) !important;
+  color: #f3d791 !important;
+}
+
+.theme-vintage-3d .card-action-btn:hover,
+.theme-vintage-3d .heart-btn:hover,
+.theme-vintage-3d .plus-btn:hover {
+  background: rgba(197, 160, 89, 0.22) !important;
+  border-color: rgba(243, 215, 145, 0.7) !important;
+  transform: scale(1.08) !important;
+}
+
+/* Navigation Tabs in 3D: Concert Hall Gold Trim */
+.theme-vintage-3d .nav-tabs {
+  background: linear-gradient(180deg, #100c14 0%, #09070c 100%) !important;
+  border-bottom: 1.5px solid rgba(197, 160, 89, 0.25) !important;
+}
+
+.theme-vintage-3d .nav-tab {
+  font-family: 'Cinzel', 'Playfair Display', serif !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.03em !important;
+  color: #9c9180 !important;
+}
+
+.theme-vintage-3d .nav-tab.active {
+  color: #fdfbf7 !important;
+  border-bottom: 2.5px solid #c5a059 !important;
+  text-shadow: 0 0 12px rgba(243, 215, 145, 0.5) !important;
+}
+
+/* Primary Action Buttons: Pure Acoustic Brass & Gold Ingot (No generic pink/cyan) */
+.theme-vintage-3d #btnSearch,
+.theme-vintage-3d button.bg-gradient-to-r.from-pink-500,
+.theme-vintage-3d button.bg-gradient-to-r.from-pink-600 {
+  background: linear-gradient(135deg, #d4af37 0%, #b8860b 55%, #8c6812 100%) !important;
+  color: #0d0a10 !important;
+  font-weight: 900 !important;
+  border: 1px solid rgba(255, 240, 190, 0.5) !important;
+  box-shadow: 0 4px 16px rgba(197, 160, 89, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+}
+
+.theme-vintage-3d #btnSearch:hover,
+.theme-vintage-3d button.bg-gradient-to-r.from-pink-500:hover,
+.theme-vintage-3d button.bg-gradient-to-r.from-pink-600:hover {
+  background: linear-gradient(135deg, #f3d791 0%, #d4af37 55%, #a67c17 100%) !important;
+  box-shadow: 0 6px 20px rgba(197, 160, 89, 0.5), inset 0 1px 0 #ffffff !important;
+}
+
+/* Inputs & Search Bars in 3D Mode */
+.theme-vintage-3d input[type="text"] {
+  background: rgba(12, 9, 15, 0.85) !important;
+  border: 1.5px solid rgba(197, 160, 89, 0.35) !important;
+  color: #fdfbf7 !important;
+  border-radius: 14px !important;
+}
+
+.theme-vintage-3d input[type="text"]:focus {
+  border-color: #f3d791 !important;
+  box-shadow: 0 0 16px rgba(197, 160, 89, 0.35) !important;
+  outline: none !important;
+}
+
+/* Glass Cards & Modals: Polished Dark Ebony with Brass Trim */
+.theme-vintage-3d .glass-card,
+.theme-vintage-3d .modal-overlay > div {
+  background: linear-gradient(160deg, rgba(18, 14, 23, 0.98) 0%, rgba(9, 7, 12, 0.98) 100%) !important;
+  border: 1.5px solid rgba(197, 160, 89, 0.35) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.92), 0 0 30px rgba(197, 160, 89, 0.15) !important;
+}
+
+/* Top Header & Clefs Badge in 3D Mode */
+.theme-vintage-3d .clef-badge {
+  background: linear-gradient(135deg, rgba(28, 22, 34, 0.9) 0%, rgba(13, 10, 16, 0.9) 100%) !important;
+  border: 1px solid rgba(197, 160, 89, 0.45) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(243, 215, 145, 0.25) !important;
+}
+
+.theme-vintage-3d #btnOpenFXShop {
+  background: rgba(197, 160, 89, 0.15) !important;
+  border: 1px solid rgba(197, 160, 89, 0.45) !important;
+  color: #f3d791 !important;
+}
+
+.theme-vintage-3d #btnOpenFXShop:hover {
+  background: rgba(197, 160, 89, 0.3) !important;
+  border-color: rgba(243, 215, 145, 0.8) !important;
+}
+
+/* FX Shop Cards in 3D Mode */
+.theme-vintage-3d .fx-shop-card {
+  background: linear-gradient(150deg, #17121d 0%, #0d0a11 100%) !important;
+  border: 1px solid rgba(197, 160, 89, 0.28) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.7) !important;
+}
+
+.theme-vintage-3d .fx-shop-card.active-theme {
+  border-color: #f3d791 !important;
+  background: linear-gradient(150deg, #241a2c 0%, #130e18 100%) !important;
+  box-shadow: 0 0 25px rgba(197, 160, 89, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Target Difficulty Sorting Bar in 3D Mode */
+/* Target Difficulty Sorting Bar in 3D Mode */
+.theme-vintage-3d #diffFilterButtons .diff-filter-btn.active,
+.theme-vintage-3d #commDiffButtons .comm-diff-btn.active {
+  background: linear-gradient(145deg, #d4af37 0%, #996515 100%) !important;
+  border-color: #fff0aa !important;
+  color: #0d0a05 !important;
+  font-weight: 900 !important;
+  box-shadow: 0 0 16px rgba(243, 215, 145, 0.65), inset 0 1px 0 #ffffff !important;
+  transform: translateY(-1px) scale(1.03) !important;
+}
+
+/* Target closest difficulty ring on cards */
+.theme-vintage-3d .ring-pink-400 {
+  --tw-ring-color: #ffd700 !important;
+  border-color: #ffd700 !important;
+  box-shadow: 0 0 18px rgba(255, 215, 0, 0.7), inset 0 1px 0 #fff !important;
+}
+
+/* ==========================================================================
+   3D GRAND PIANO RETRO-FIT: ALL APP AREAS
+   ========================================================================== */
+
+/* 1. LOADING OVERLAY (Pantalla de Carga 3D) */
+.theme-vintage-3d .global-loading-overlay {
+  background: radial-gradient(circle at 50% 38%, #1c141e 0%, #0d0910 60%, #050306 100%) !important;
+  backdrop-filter: blur(25px) !important;
+  -webkit-backdrop-filter: blur(25px) !important;
+}
+
+.theme-vintage-3d .vinyl-disc {
+  background: radial-gradient(circle, #c5a059 14%, #281c10 15%, #150e08 26%, #3a2915 36%, #150e08 46%, #4a351b 56%, #150e08 66%, #352513 76%, #0f0a06 100%) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.95), 0 0 35px rgba(197, 160, 89, 0.45), inset 0 0 18px rgba(255, 235, 175, 0.4) !important;
+}
+
+.theme-vintage-3d .vinyl-center-hole {
+  background: #080503 !important;
+  border: 2.5px solid #f3d791 !important;
+  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.9) !important;
+}
+
+.theme-vintage-3d .eq-bar {
+  background: linear-gradient(to top, #7d5b1d, #c5a059, #fff2c4) !important;
+  box-shadow: 0 0 8px rgba(197, 160, 89, 0.5) !important;
+}
+
+.theme-vintage-3d .loading-progress-track {
+  background: rgba(22, 16, 26, 0.9) !important;
+  border: 1.5px solid rgba(197, 160, 89, 0.4) !important;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.9) !important;
+}
+
+.theme-vintage-3d .loading-progress-bar {
+  background: linear-gradient(90deg, #8a6519, #d4af37, #fff6d6, #d4af37, #8a6519) !important;
+  box-shadow: 0 0 16px rgba(212, 175, 55, 0.75) !important;
+}
+
+.theme-vintage-3d #globalLoadTitle {
+  font-family: 'Cinzel', 'Playfair Display', serif !important;
+  letter-spacing: 0.04em !important;
+  color: #fffaf0 !important;
+}
+
+.theme-vintage-3d #globalLoadStatus {
+  color: #f3d791 !important;
+  font-weight: 700 !important;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8) !important;
+}
+
+.theme-vintage-3d #diagnosticTerminal {
+  background: rgba(13, 10, 16, 0.95) !important;
+  border: 1.5px solid rgba(197, 160, 89, 0.35) !important;
+  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.92) !important;
+}
+
+/* 2. COLORES DE DIFICULTAD (Medallones de Esmalte y Latón 3D) */
+.theme-vintage-3d .diff-filter-btn,
+.theme-vintage-3d .comm-diff-btn {
+  border-radius: 10px !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.25), inset 0 -2px 0 rgba(0, 0, 0, 0.55) !important;
+  font-family: 'Cinzel', serif !important;
+  letter-spacing: 0.02em !important;
+  transition: all 0.15s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+}
+
+.theme-vintage-3d .diff-filter-btn:active,
+.theme-vintage-3d .comm-diff-btn:active {
+  transform: translateY(2px) scale(0.96) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.8), inset 0 1px 2px rgba(0, 0, 0, 0.7) !important;
+}
+
+/* 2★ Fácil - Esmalte Jade Imperial */
+.theme-vintage-3d .diff-filter-btn[data-diff="2"],
+.theme-vintage-3d .comm-diff-btn[data-cdiff="Fácil"],
+.theme-vintage-3d .result-card .bg-emerald-500\/20 {
+  background: linear-gradient(145deg, #184e36 0%, #0c2b1d 100%) !important;
+  border: 1.5px solid #48bb78 !important;
+  color: #9ae6b4 !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* 3★ Media - Esmalte Zafiro Acústico */
+.theme-vintage-3d .diff-filter-btn[data-diff="3"],
+.theme-vintage-3d .comm-diff-btn[data-cdiff="Media"],
+.theme-vintage-3d .result-card .bg-cyan-500\/20 {
+  background: linear-gradient(145deg, #1a4263 0%, #0d2539 100%) !important;
+  border: 1.5px solid #4299e1 !important;
+  color: #bee3f8 !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* 4★ Normal - Esmalte Amatista Real */
+.theme-vintage-3d .diff-filter-btn[data-diff="4"],
+.theme-vintage-3d .result-card .bg-pink-500\/20 {
+  background: linear-gradient(145deg, #44275a 0%, #251333 100%) !important;
+  border: 1.5px solid #9f7aea !important;
+  color: #e9d8fd !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* 5★ Difícil - Esmalte Ámbar y Latón Dorado */
+.theme-vintage-3d .diff-filter-btn[data-diff="5"],
+.theme-vintage-3d .comm-diff-btn[data-cdiff="Difícil"],
+.theme-vintage-3d .result-card .bg-amber-500\/20 {
+  background: linear-gradient(145deg, #6b4712 0%, #382408 100%) !important;
+  border: 1.5px solid #d4af37 !important;
+  color: #feebc8 !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* 6★+ Extrema / Insana - Esmalte Rubí Carmesí */
+.theme-vintage-3d .diff-filter-btn[data-diff="6"],
+.theme-vintage-3d .comm-diff-btn[data-cdiff="Extrema"],
+.theme-vintage-3d .comm-diff-btn[data-cdiff="Insana"],
+.theme-vintage-3d .result-card .bg-rose-500\/20 {
+  background: linear-gradient(145deg, #631726 0%, #360a13 100%) !important;
+  border: 1.5px solid #f56565 !important;
+  color: #fed7d7 !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Fichas de dificultad interactivas en tarjetas */
+.theme-vintage-3d .result-card button[onclick*="downloadAndPlaySong"] {
+  position: relative;
+  border-radius: 9px !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -2px 0 rgba(0, 0, 0, 0.45) !important;
+  transition: transform 0.12s ease, box-shadow 0.12s ease !important;
+}
+
+.theme-vintage-3d .result-card button[onclick*="downloadAndPlaySong"]:active {
+  transform: translateY(2px) scale(0.96) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.8), inset 0 1px 2px rgba(0, 0, 0, 0.6) !important;
+}
+
+.theme-vintage-3d #targetDiffDisplay,
+.theme-vintage-3d #commActiveFilterDisplay {
+  color: #f3d791 !important;
+  font-family: 'Cinzel', serif !important;
+}
+
+/* 3. EDITOR DE PISTAS (Consola de Estudio Acústico) */
+.theme-vintage-3d #tabEditorSection > div.p-3 {
+  background: linear-gradient(155deg, #1c1523 0%, #110d16 60%, #0a070c 100%) !important;
+  border: 1.5px solid rgba(197, 160, 89, 0.45) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.9), inset 0 1px 1px rgba(243, 215, 145, 0.3) !important;
+}
+
+.theme-vintage-3d #tabEditorSection h2,
+.theme-vintage-3d #tabEditorSection [data-i18n="ed_header_title"] {
+  font-family: 'Cinzel', 'Playfair Display', serif !important;
+  letter-spacing: 0.04em !important;
+  color: #fffaf0 !important;
+}
+
+.theme-vintage-3d button[onclick="ChartEditor.playtest()"] {
+  background: linear-gradient(145deg, #2b8257 0%, #134e32 100%) !important;
+  border: 1.5px solid #5ae29d !important;
+  color: #f0fff4 !important;
+  font-weight: 900 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -2px 0 rgba(0, 0, 0, 0.5) !important;
+}
+
+.theme-vintage-3d button[onclick="ChartEditor.saveToLibrary()"] {
+  background: linear-gradient(145deg, #d4af37 0%, #a67c17 60%, #7d5b0e 100%) !important;
+  border: 1.5px solid #ffe599 !important;
+  color: #0c0905 !important;
+  font-weight: 900 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 -2px 0 rgba(0, 0, 0, 0.5) !important;
+}
+
+.theme-vintage-3d button[onclick="ChartEditor.openPublishModal()"] {
+  background: linear-gradient(145deg, #2968a3 0%, #123b63 100%) !important;
+  border: 1.5px solid #63b3ed !important;
+  color: #ebf8ff !important;
+  font-weight: 900 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -2px 0 rgba(0, 0, 0, 0.5) !important;
+}
+
+.theme-vintage-3d label[for="edAudioFileInput"] {
+  background: linear-gradient(145deg, #251d2e, #14101a) !important;
+  border: 1.5px solid rgba(197, 160, 89, 0.45) !important;
+  color: #f3d791 !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.25), inset 0 -2px 0 rgba(0, 0, 0, 0.5) !important;
+}
+
+.theme-vintage-3d #tabEditorSection input,
+.theme-vintage-3d #tabEditorSection select {
+  background: rgba(14, 10, 18, 0.9) !important;
+  border: 1.5px solid rgba(197, 160, 89, 0.35) !important;
+  color: #fdfbf7 !important;
+  border-radius: 10px !important;
+}
+
+.theme-vintage-3d #tabEditorSection select option {
+  background: #120e17 !important;
+  color: #fdfbf7 !important;
+}
+
+.theme-vintage-3d #tabEditorSection .border-emerald-500\/30 {
+  border-color: rgba(72, 187, 120, 0.5) !important;
+  background: linear-gradient(150deg, rgba(16, 32, 24, 0.8) 0%, rgba(8, 18, 13, 0.9) 100%) !important;
+}
+
+.theme-vintage-3d #tabEditorSection .border-rose-500\/30 {
+  border-color: rgba(245, 101, 101, 0.5) !important;
+  background: linear-gradient(150deg, rgba(36, 14, 18, 0.8) 0%, rgba(18, 6, 9, 0.9) 100%) !important;
+}
+
+.theme-vintage-3d #edToolSelector .ed-tool-btn {
+  border-radius: 9px !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 -2px 0 rgba(0, 0, 0, 0.4) !important;
+}
+
+.theme-vintage-3d #edToolSelector .ed-tool-btn.active {
+  background: linear-gradient(145deg, #d4af37 0%, #996515 100%) !important;
+  color: #0d0a05 !important;
+  font-weight: 900 !important;
+  border: 1.5px solid #fff0aa !important;
+  box-shadow: 0 0 14px rgba(212, 175, 55, 0.55), inset 0 1px 0 #ffffff !important;
+}
+
+.theme-vintage-3d #tabEditorSection .relative.w-full.h-\[650px\] {
+  border: 2px solid rgba(197, 160, 89, 0.45) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.95), inset 0 0 25px rgba(0, 0, 0, 0.85) !important;
+}
+
+.theme-vintage-3d #edBtnPlay {
+  background: linear-gradient(145deg, #e6c66e 0%, #d4af37 40%, #b8860b 80%, #8c6812 100%) !important;
+  color: #0c0805 !important;
+  border: 1.5px solid #fff2ba !important;
+  box-shadow: 0 5px 16px rgba(197, 160, 89, 0.5), inset 0 1px 0 #fff, inset 0 -2px 0 rgba(0, 0, 0, 0.55) !important;
+}
+
+.theme-vintage-3d #edTimelineScrubber {
+  accent-color: #d4af37 !important;
+}
+
+/* 4. DISCOVER (Descubrir: Banners 3D y Playlists) */
+.theme-vintage-3d #tabDiscoverSection > div:first-child {
+  background: linear-gradient(150deg, #2c1f13 0%, #1a1208 55%, #0c0804 100%) !important;
+  border: 1.5px solid rgba(212, 175, 55, 0.55) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.92), inset 0 1px 1px rgba(255, 235, 175, 0.4) !important;
+}
+
+.theme-vintage-3d #tabDiscoverSection [data-i18n="disc_daily_title_caps"] {
+  font-family: 'Cinzel', 'Playfair Display', serif !important;
+  letter-spacing: 0.05em !important;
+  color: #fff9e6 !important;
+}
+
+.theme-vintage-3d #tabDiscoverSection [data-i18n="disc_x2_clefs"] {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.4) 0%, rgba(138, 101, 25, 0.65) 100%) !important;
+  border: 1.5px solid #ffd700 !important;
+  color: #fff7d6 !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+}
+
+.theme-vintage-3d #tabDiscoverSection > div:nth-child(2) {
+  background: linear-gradient(150deg, #241416 0%, #14090b 60%, #0a0405 100%) !important;
+  border: 1.5px solid rgba(197, 160, 89, 0.35) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.85) !important;
+}
+
+.theme-vintage-3d #btnDiscoverSearch {
+  background: linear-gradient(135deg, #e6c66e 0%, #d4af37 40%, #b8860b 80%, #8c6812 100%) !important;
+  color: #0c0805 !important;
+  font-weight: 900 !important;
+  border: 1.5px solid rgba(255, 245, 210, 0.7) !important;
+  box-shadow: 0 4px 16px rgba(197, 160, 89, 0.45), inset 0 1px 0 #fff, inset 0 -2px 0 rgba(0, 0, 0, 0.5) !important;
+}
+
+.theme-vintage-3d #dailyFeaturedListContainer > div {
+  background: linear-gradient(155deg, #1d1624 0%, #110d16 100%) !important;
+  border: 1px solid rgba(197, 160, 89, 0.35) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(243, 215, 145, 0.2) !important;
+}
+
+.theme-vintage-3d #dailyFeaturedListContainer button[onclick*="playFeaturedSong"] {
+  background: linear-gradient(135deg, #d4af37 0%, #b8860b 60%, #8c6812 100%) !important;
+  color: #0c0805 !important;
+  font-weight: 900 !important;
+  border: 1px solid #ffe8a3 !important;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.6), inset 0 1px 0 #fff, inset 0 -2px 0 rgba(0, 0, 0, 0.45) !important;
+}
+
+/* 5. BOTONES UNIVERSALES 3D (Profundidad Física, Bisel y Pulsación) */
+.theme-vintage-3d button,
+.theme-vintage-3d .btn-primary,
+.theme-vintage-3d [role="button"] {
+  position: relative;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.32), inset 0 -2px 0 rgba(0, 0, 0, 0.52);
+  transition: transform 0.12s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.12s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+}
+
+.theme-vintage-3d button:active,
+.theme-vintage-3d .btn-primary:active,
+.theme-vintage-3d [role="button"]:active {
+  transform: translateY(2px) scale(0.97) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.85), inset 0 1px 2px rgba(0, 0, 0, 0.7) !important;
+}
+
+/* Botones principales con lingote de latón/oro acústico */
+.theme-vintage-3d button.bg-gradient-to-r,
+.theme-vintage-3d .btn-gold {
+  background: linear-gradient(135deg, #e6c66e 0%, #d4af37 40%, #b8860b 80%, #8c6812 100%) !important;
+  color: #0c0805 !important;
+  font-weight: 900 !important;
+  border: 1px solid rgba(255, 245, 210, 0.7) !important;
+}
+
+/* Botones secundarios estilo tecla de ébano */
+.theme-vintage-3d button.bg-white\/10,
+.theme-vintage-3d button.bg-white\/5 {
+  background: linear-gradient(145deg, #241c2c, #130f18) !important;
+  border: 1px solid rgba(197, 160, 89, 0.38) !important;
+  color: #fdfbf7 !important;
+}
+
+.theme-vintage-3d button.bg-white\/10:hover,
+.theme-vintage-3d button.bg-white\/5:hover {
+  background: linear-gradient(145deg, #30253b, #191420) !important;
+  border-color: rgba(243, 215, 145, 0.65) !important;
+}
+
+/* Botones de acción peligrosa o cerrar (fieltro carmesí) */
+.theme-vintage-3d button.bg-red-500\/20,
+.theme-vintage-3d button.bg-rose-500\/20 {
+  background: linear-gradient(145deg, #59131d, #2d070d) !important;
+  border: 1px solid rgba(255, 100, 120, 0.5) !important;
+  color: #ffb8c3 !important;
+}
+
+/* Filtros sociales de comunidad */
+.theme-vintage-3d .comm-sort-btn {
+  border-radius: 9px !important;
+  background: linear-gradient(145deg, #201828, #110d16) !important;
+  border: 1px solid rgba(197, 160, 89, 0.28) !important;
+  color: #b5a995 !important;
+}
+
+.theme-vintage-3d .comm-sort-btn.active {
+  background: linear-gradient(145deg, #d4af37 0%, #996515 100%) !important;
+  color: #0d0a05 !important;
+  font-weight: 900 !important;
+  border: 1.5px solid #fff0aa !important;
+  box-shadow: 0 0 14px rgba(212, 175, 55, 0.5), inset 0 1px 0 #fff !important;
+}
+
+/* Marco de latón biselado en todas las portadas de álbumes de tarjetas */
+.theme-vintage-3d .result-card img {
+  border: 1.5px solid rgba(197, 160, 89, 0.42) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.7) !important;
+}
+
+/* ==========================================================================
+   CLASSIC 2D FLAT NEON THEME (.theme-neon-2d)
+   Preserves the original flat retro synthwave cyberpunk aesthetic
+   ========================================================================== */
+
+.theme-neon-2d .result-card {
+  perspective: none !important;
+  transform: none !important;
+  background: linear-gradient(135deg, rgba(20, 10, 35, 0.92) 0%, rgba(5, 5, 15, 0.96) 100%) !important;
+  border: 1px solid rgba(0, 242, 254, 0.35) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6), 0 0 10px rgba(0, 242, 254, 0.12) !important;
+}
+
+.theme-neon-2d .result-card:hover,
+.theme-neon-2d .result-card:active {
+  transform: translateY(-2px) !important;
+  border-color: #ff007f !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8), 0 0 20px rgba(255, 0, 127, 0.4) !important;
+}
+
+.theme-neon-2d .result-card h3,
+.theme-neon-2d .result-card p.font-bold {
+  font-family: 'Outfit', sans-serif !important;
+  color: #ffffff !important;
+}
+
 
 

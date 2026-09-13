@@ -965,22 +965,48 @@ const ChartEditor = {
     const h = this.canvas.clientHeight || 550;
     if (w === 0 || h === 0) return;
 
-    this.ctx.fillStyle = '#08050e';
-    this.ctx.fillRect(0, 0, w, h);
+    const is3D = (typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_visual_dimension') : null) !== '2d';
+
+    if (is3D) {
+      // 1. Fondo de ébano pulido de estudio acústico con sutil veteado
+      this.ctx.fillStyle = '#0a080d';
+      this.ctx.fillRect(0, 0, w, h);
+      const bgGrad = this.ctx.createLinearGradient(0, 0, 0, h);
+      bgGrad.addColorStop(0.0, 'rgba(25, 18, 29, 0.45)');
+      bgGrad.addColorStop(0.4, 'rgba(12, 9, 15, 0.2)');
+      bgGrad.addColorStop(0.85, 'rgba(6, 4, 8, 0.65)');
+      bgGrad.addColorStop(1.0, 'rgba(3, 2, 4, 0.95)');
+      this.ctx.fillStyle = bgGrad;
+      this.ctx.fillRect(0, 0, w, h);
+    } else {
+      this.ctx.fillStyle = '#08050e';
+      this.ctx.fillRect(0, 0, w, h);
+    }
 
     const laneWidth = w / 3;
     const hitLineY = h - 50;
 
     // Carriles
     for (let i = 0; i < 3; i++) {
-      this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
-      this.ctx.lineWidth = 1;
-      this.ctx.strokeRect(i * laneWidth, 0, laneWidth, h);
+      if (is3D) {
+        this.ctx.strokeStyle = 'rgba(197, 160, 89, 0.35)';
+        this.ctx.lineWidth = 1.5;
+        this.ctx.strokeRect(i * laneWidth, 0, laneWidth, h);
 
-      this.ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
-      this.ctx.font = 'bold 11px sans-serif';
-      this.ctx.textAlign = 'center';
-      this.ctx.fillText(`Carril ${i + 1}`, i * laneWidth + laneWidth / 2, h - 18);
+        this.ctx.fillStyle = 'rgba(243, 215, 145, 0.65)';
+        this.ctx.font = 'bold 11px "Cinzel", "Playfair Display", serif';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText(`Carril ${i + 1}`, i * laneWidth + laneWidth / 2, h - 18);
+      } else {
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(i * laneWidth, 0, laneWidth, h);
+
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+        this.ctx.font = 'bold 11px sans-serif';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText(`Carril ${i + 1}`, i * laneWidth + laneWidth / 2, h - 18);
+      }
     }
 
     // Rejilla de compases proyectada con firstBeatOffsetMs
@@ -1000,8 +1026,13 @@ const ChartEditor = {
       if (y < 0 || y > h) continue;
 
       const isFullBeat = (idx % (this.snap / 4)) === 0;
-      this.ctx.strokeStyle = isFullBeat ? 'rgba(255, 255, 255, 0.65)' : 'rgba(0, 242, 254, 0.3)';
-      this.ctx.lineWidth = isFullBeat ? 2 : 1;
+      if (is3D) {
+        this.ctx.strokeStyle = isFullBeat ? 'rgba(243, 215, 145, 0.6)' : 'rgba(197, 160, 89, 0.25)';
+        this.ctx.lineWidth = isFullBeat ? 2 : 1;
+      } else {
+        this.ctx.strokeStyle = isFullBeat ? 'rgba(255, 255, 255, 0.65)' : 'rgba(0, 242, 254, 0.3)';
+        this.ctx.lineWidth = isFullBeat ? 2 : 1;
+      }
 
       this.ctx.beginPath();
       this.ctx.moveTo(0, y);
@@ -1010,15 +1041,35 @@ const ChartEditor = {
     }
 
     // Línea de juicio
-    this.ctx.strokeStyle = '#ff007f';
-    this.ctx.lineWidth = 3.5;
-    this.ctx.shadowColor = '#ff007f';
-    this.ctx.shadowBlur = 12;
-    this.ctx.beginPath();
-    this.ctx.moveTo(0, hitLineY);
-    this.ctx.lineTo(w, hitLineY);
-    this.ctx.stroke();
-    this.ctx.shadowBlur = 0;
+    if (is3D) {
+      // Fieltro rojo carmesí de apagador de gran piano
+      const feltGrad = this.ctx.createLinearGradient(0, hitLineY - 6, 0, hitLineY + 12);
+      feltGrad.addColorStop(0.0, '#85141d');
+      feltGrad.addColorStop(1.0, '#3f080c');
+      this.ctx.fillStyle = feltGrad;
+      this.ctx.fillRect(0, hitLineY - 5, w, 14);
+
+      // Riel de latón dorado pulido
+      this.ctx.strokeStyle = '#d4af37';
+      this.ctx.lineWidth = 3.5;
+      this.ctx.shadowColor = 'rgba(212, 175, 55, 0.6)';
+      this.ctx.shadowBlur = 10;
+      this.ctx.beginPath();
+      this.ctx.moveTo(0, hitLineY);
+      this.ctx.lineTo(w, hitLineY);
+      this.ctx.stroke();
+      this.ctx.shadowBlur = 0;
+    } else {
+      this.ctx.strokeStyle = '#ff007f';
+      this.ctx.lineWidth = 3.5;
+      this.ctx.shadowColor = '#ff007f';
+      this.ctx.shadowBlur = 12;
+      this.ctx.beginPath();
+      this.ctx.moveTo(0, hitLineY);
+      this.ctx.lineTo(w, hitLineY);
+      this.ctx.stroke();
+      this.ctx.shadowBlur = 0;
+    }
 
     // Dibujar notas
     for (const note of this.notes) {
@@ -1042,43 +1093,113 @@ const ChartEditor = {
         const holdHeight = ((note.duration || 600) / 1000) * this.pixelsPerSecond;
         const tailY = y - holdHeight;
 
-        this.ctx.fillStyle = 'rgba(0, 242, 254, 0.45)';
-        this.ctx.fillRect(x + 6, tailY, noteW - 12, holdHeight);
+        if (is3D) {
+          // Cinta de resonancia acústica dorada
+          const holdGrad = this.ctx.createLinearGradient(0, tailY, 0, y);
+          holdGrad.addColorStop(0, 'rgba(212, 175, 55, 0.35)');
+          holdGrad.addColorStop(1, 'rgba(212, 175, 55, 0.65)');
+          this.ctx.fillStyle = holdGrad;
+          this.ctx.fillRect(x + 6, tailY, noteW - 12, holdHeight);
 
-        // Barra superior de la cola
-        this.ctx.fillStyle = 'rgba(0, 242, 254, 0.85)';
-        this.ctx.fillRect(x + 4, tailY - 3, noteW - 8, 6);
+          // Rieles de latón en los bordes
+          this.ctx.strokeStyle = 'rgba(243, 215, 145, 0.85)';
+          this.ctx.lineWidth = 1.5;
+          this.ctx.strokeRect(x + 6, tailY, noteW - 12, holdHeight);
 
-        // Manipulador circular interactivo (Handle) en la cola superior
-        const handleX = note.lane * laneWidth + laneWidth / 2;
-        this.ctx.fillStyle = '#00f2fe';
-        this.ctx.beginPath();
-        this.ctx.arc(handleX, tailY, 7, 0, Math.PI * 2);
-        this.ctx.fill();
-        this.ctx.strokeStyle = '#ffffff';
-        this.ctx.lineWidth = 2;
-        this.ctx.stroke();
+          // Barra superior de la cola
+          this.ctx.fillStyle = '#d4af37';
+          this.ctx.fillRect(x + 4, tailY - 3, noteW - 8, 6);
 
-        // Punto interior del handle
-        this.ctx.fillStyle = '#08050e';
-        this.ctx.beginPath();
-        this.ctx.arc(handleX, tailY, 2.5, 0, Math.PI * 2);
-        this.ctx.fill();
+          // Handle circular en latón
+          const handleX = note.lane * laneWidth + laneWidth / 2;
+          this.ctx.fillStyle = '#f3d791';
+          this.ctx.beginPath();
+          this.ctx.arc(handleX, tailY, 7, 0, Math.PI * 2);
+          this.ctx.fill();
+          this.ctx.strokeStyle = '#ffffff';
+          this.ctx.lineWidth = 2;
+          this.ctx.stroke();
+
+          this.ctx.fillStyle = '#08050e';
+          this.ctx.beginPath();
+          this.ctx.arc(handleX, tailY, 2.5, 0, Math.PI * 2);
+          this.ctx.fill();
+        } else {
+          this.ctx.fillStyle = 'rgba(0, 242, 254, 0.45)';
+          this.ctx.fillRect(x + 6, tailY, noteW - 12, holdHeight);
+
+          // Barra superior de la cola
+          this.ctx.fillStyle = 'rgba(0, 242, 254, 0.85)';
+          this.ctx.fillRect(x + 4, tailY - 3, noteW - 8, 6);
+
+          // Manipulador circular interactivo (Handle) en la cola superior
+          const handleX = note.lane * laneWidth + laneWidth / 2;
+          this.ctx.fillStyle = '#00f2fe';
+          this.ctx.beginPath();
+          this.ctx.arc(handleX, tailY, 7, 0, Math.PI * 2);
+          this.ctx.fill();
+          this.ctx.strokeStyle = '#ffffff';
+          this.ctx.lineWidth = 2;
+          this.ctx.stroke();
+
+          // Punto interior del handle
+          this.ctx.fillStyle = '#08050e';
+          this.ctx.beginPath();
+          this.ctx.arc(handleX, tailY, 2.5, 0, Math.PI * 2);
+          this.ctx.fill();
+        }
       }
 
       // Cabeza de la nota
-      this.ctx.fillStyle = isBeingDragged ? '#ffffff' : (note.type === 'swipe' ? '#ff007f' : (note.type === 'hold' ? '#00f2fe' : '#ffd700'));
-      this.ctx.beginPath();
-      if (this.ctx.roundRect) {
-        this.ctx.roundRect(x, y - 9, noteW, 18, 6);
+      if (is3D) {
+        if (note.type === 'swipe') {
+          // Tecla de esmalte carmesí con bisel rubí
+          const swipeGrad = this.ctx.createLinearGradient(0, y - 9, 0, y + 9);
+          swipeGrad.addColorStop(0, '#c5283d');
+          swipeGrad.addColorStop(1, '#6a0d18');
+          this.ctx.fillStyle = isBeingDragged ? '#ffffff' : swipeGrad;
+          this.ctx.beginPath();
+          if (this.ctx.roundRect) this.ctx.roundRect(x, y - 9, noteW, 18, 5);
+          else this.ctx.rect(x, y - 9, noteW, 18);
+          this.ctx.fill();
+
+          // Labio inferior
+          this.ctx.fillStyle = '#3f060d';
+          this.ctx.fillRect(x + 2, y + 6, noteW - 4, 3);
+        } else {
+          // Tecla de marfil acústico con bisel 3D
+          const ivoryGrad = this.ctx.createLinearGradient(0, y - 9, 0, y + 9);
+          ivoryGrad.addColorStop(0, '#ffffff');
+          ivoryGrad.addColorStop(0.3, '#fdfbf7');
+          ivoryGrad.addColorStop(1, '#e5dcc7');
+          this.ctx.fillStyle = isBeingDragged ? '#ffffff' : ivoryGrad;
+          this.ctx.beginPath();
+          if (this.ctx.roundRect) this.ctx.roundRect(x, y - 9, noteW, 18, 5);
+          else this.ctx.rect(x, y - 9, noteW, 18);
+          this.ctx.fill();
+
+          // Labio de sombra inferior (madera oscura)
+          this.ctx.fillStyle = '#9e8d75';
+          this.ctx.fillRect(x + 2, y + 6, noteW - 4, 3);
+
+          // Línea táctil de latón incrustado
+          this.ctx.fillStyle = (note.type === 'hold') ? 'rgba(212, 175, 55, 0.9)' : 'rgba(197, 160, 89, 0.75)';
+          this.ctx.fillRect(x + 10, y - 1, noteW - 20, 2);
+        }
       } else {
-        this.ctx.rect(x, y - 9, noteW, 18);
+        this.ctx.fillStyle = isBeingDragged ? '#ffffff' : (note.type === 'swipe' ? '#ff007f' : (note.type === 'hold' ? '#00f2fe' : '#ffd700'));
+        this.ctx.beginPath();
+        if (this.ctx.roundRect) {
+          this.ctx.roundRect(x, y - 9, noteW, 18, 6);
+        } else {
+          this.ctx.rect(x, y - 9, noteW, 18);
+        }
+        this.ctx.fill();
       }
-      this.ctx.fill();
 
       // Flecha direccionada de Swipe (←, →, ↑, ↓)
       if (note.type === 'swipe') {
-        this.ctx.fillStyle = '#ffffff';
+        this.ctx.fillStyle = is3D ? '#ffd700' : '#ffffff';
         this.ctx.font = 'bold 12px sans-serif';
         this.ctx.textAlign = 'center';
         const dir = note.direction || 'up';
@@ -1138,29 +1259,60 @@ const ChartEditor = {
 
         // Cola translúcida con degradado
         const grad = this.ctx.createLinearGradient(0, headY, 0, tailY);
-        grad.addColorStop(0, 'rgba(0, 242, 254, 0.7)');
-        grad.addColorStop(1, 'rgba(0, 242, 254, 0.25)');
-        this.ctx.fillStyle = grad;
-        this.ctx.fillRect(noteX + 6, tailY, noteW - 12, liveHeight);
+        if (is3D) {
+          grad.addColorStop(0, 'rgba(212, 175, 55, 0.7)');
+          grad.addColorStop(1, 'rgba(212, 175, 55, 0.25)');
+          this.ctx.fillStyle = grad;
+          this.ctx.fillRect(noteX + 6, tailY, noteW - 12, liveHeight);
 
-        // Barra superior de la cola
-        this.ctx.fillStyle = '#00f2fe';
-        this.ctx.fillRect(noteX + 4, tailY - 3, noteW - 8, 6);
+          // Barra superior de la cola
+          this.ctx.fillStyle = '#d4af37';
+          this.ctx.fillRect(noteX + 4, tailY - 3, noteW - 8, 6);
+        } else {
+          grad.addColorStop(0, 'rgba(0, 242, 254, 0.7)');
+          grad.addColorStop(1, 'rgba(0, 242, 254, 0.25)');
+          this.ctx.fillStyle = grad;
+          this.ctx.fillRect(noteX + 6, tailY, noteW - 12, liveHeight);
+
+          // Barra superior de la cola
+          this.ctx.fillStyle = '#00f2fe';
+          this.ctx.fillRect(noteX + 4, tailY - 3, noteW - 8, 6);
+        }
       }
 
-      // Cabeza de la nota pulsada sobre la línea rosa
-      this.ctx.fillStyle = elapsedMs >= 160 ? '#00f2fe' : '#ffd700';
-      this.ctx.beginPath();
-      if (this.ctx.roundRect) {
-        this.ctx.roundRect(noteX, headY - 9, noteW, 18, 6);
+      // Cabeza de la nota pulsada sobre la línea de juicio
+      if (is3D) {
+        const ivoryGrad = this.ctx.createLinearGradient(0, headY - 9, 0, headY + 9);
+        ivoryGrad.addColorStop(0, '#ffffff');
+        ivoryGrad.addColorStop(0.3, '#fdfbf7');
+        ivoryGrad.addColorStop(1, '#e5dcc7');
+        this.ctx.fillStyle = ivoryGrad;
+        this.ctx.beginPath();
+        if (this.ctx.roundRect) this.ctx.roundRect(noteX, headY - 9, noteW, 18, 5);
+        else this.ctx.rect(noteX, headY - 9, noteW, 18);
+        this.ctx.fill();
+
+        // Labio de sombra inferior
+        this.ctx.fillStyle = '#9e8d75';
+        this.ctx.fillRect(noteX + 2, headY + 6, noteW - 4, 3);
+
+        // Efecto sutil de iluminación en el carril
+        this.ctx.fillStyle = 'rgba(212, 175, 55, 0.16)';
+        this.ctx.fillRect(curLane * laneWidth, 0, laneWidth, h);
       } else {
-        this.ctx.rect(noteX, headY - 9, noteW, 18);
-      }
-      this.ctx.fill();
+        this.ctx.fillStyle = elapsedMs >= 160 ? '#00f2fe' : '#ffd700';
+        this.ctx.beginPath();
+        if (this.ctx.roundRect) {
+          this.ctx.roundRect(noteX, headY - 9, noteW, 18, 6);
+        } else {
+          this.ctx.rect(noteX, headY - 9, noteW, 18);
+        }
+        this.ctx.fill();
 
-      // Efecto sutil de iluminación en el carril
-      this.ctx.fillStyle = 'rgba(255, 0, 127, 0.18)';
-      this.ctx.fillRect(curLane * laneWidth, 0, laneWidth, h);
+        // Efecto sutil de iluminación en el carril
+        this.ctx.fillStyle = 'rgba(255, 0, 127, 0.18)';
+        this.ctx.fillRect(curLane * laneWidth, 0, laneWidth, h);
+      }
     }
 
     // Dibujar Marcador de Inicio (Comienzo) abarcando las 3 casillas

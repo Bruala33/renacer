@@ -55,10 +55,17 @@ def save_community_backup():
             cur.execute("SELECT * FROM song_scores")
             scores = [dict(r) for r in cur.fetchall()]
 
+            try:
+                cur.execute("SELECT * FROM players")
+                players = [dict(r) for r in cur.fetchall()]
+            except Exception:
+                players = []
+
             backup_data = {
                 "version": 1,
                 "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
                 "creators": creators,
+                "players": players,
                 "community_charts": charts,
                 "catalog_charts": catalog,
                 "chart_ratings": ratings,
@@ -159,6 +166,12 @@ def restore_community_backup(conn):
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (s.get("chart_id"), s.get("player_name"), int(s.get("score") or 0), int(s.get("max_combo") or 0), int(s.get("stars") or 0), float(s.get("accuracy_pct") or 100.0), s.get("medal_tier"), s.get("created_at")))
 
+        for p in data.get("players", []):
+            cur.execute("""
+                INSERT OR IGNORE INTO players (id, player_name, total_score, songs_played, best_score, created_at, last_seen)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (p.get("id") or f"pl_{int(time.time()*1000)}", p.get("player_name"), int(p.get("total_score") or 0), int(p.get("songs_played") or 0), int(p.get("best_score") or 0), p.get("created_at"), p.get("last_seen")))
+
         conn.commit()
         logger.info(f"Respaldo comunitario restaurado ({restored_count} pistas comunitarias recuperadas).")
     except Exception as e:
@@ -168,6 +181,17 @@ def restore_community_backup(conn):
 def init_db():
     with get_db() as conn:
         cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS players (
+                id TEXT PRIMARY KEY,
+                player_name TEXT UNIQUE NOT NULL,
+                total_score INTEGER DEFAULT 0,
+                songs_played INTEGER DEFAULT 0,
+                best_score INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS creators (
                 id TEXT PRIMARY KEY,
@@ -1047,6 +1071,13 @@ async def submit_chart_score(chart_id: str, data: SubmitScoreRequest):
     clean_name = data.player_name.strip() or "Jugador"
     with get_db() as conn:
         cur = conn.cursor()
+        # Registrar o actualizar jugador para que conste permanentemente
+        cur.execute("""
+            INSERT INTO players (id, player_name, created_at, last_seen)
+            VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT(player_name) DO UPDATE SET last_seen = CURRENT_TIMESTAMP
+        """, (f"pl_{int(time.time()*1000)}", clean_name))
+
         cur.execute("""
             INSERT INTO song_scores (chart_id, player_name, score, max_combo, stars, accuracy_pct, medal_tier)
             VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -1072,6 +1103,76 @@ async def submit_chart_score(chart_id: str, data: SubmitScoreRequest):
         "score": data.score,
         "rank": rank
     }
+
+
+class RegisterPlayerRequest(BaseModel):
+    player_name: str
+
+
+@router.post("/players/register")
+async def register_player(data: RegisterPlayerRequest):
+    """
+    Registra permanentemente a un jugador en la plataforma al iniciar el juego,
+    incluso si tiene 0 puntos.
+    """
+    clean_name = data.player_name.strip() or "Jugador"
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO players (id, player_name, created_at, last_seen)
+            VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT(player_name) DO UPDATE SET last_seen = CURRENT_TIMESTAMP
+        """, (f"pl_{int(time.time()*1000)}", clean_name))
+        conn.commit()
+        save_community_backup()
+    return {"status": "success", "player_name": clean_name}
+
+
+class SyncScoreItem(BaseModel):
+    chart_id: str
+    score: int
+    max_combo: int = 0
+    stars: int = 0
+    accuracy_pct: float = 100.0
+    medal_tier: Optional[str] = None
+
+
+class SyncScoresRequest(BaseModel):
+    player_name: str
+    scores: List[SyncScoreItem]
+
+
+@router.post("/sync_scores")
+async def sync_player_scores(data: SyncScoresRequest):
+    """
+    Sincroniza y consolida puntuaciones locales hacia la base de datos permanente en la nube.
+    """
+    clean_name = data.player_name.strip() or "Jugador"
+    inserted = 0
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO players (id, player_name, created_at, last_seen)
+            VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT(player_name) DO UPDATE SET last_seen = CURRENT_TIMESTAMP
+        """, (f"pl_{int(time.time()*1000)}", clean_name))
+
+        for sc in data.scores:
+            cur.execute("""
+                SELECT MAX(score) as best FROM song_scores 
+                WHERE chart_id = ? AND LOWER(TRIM(player_name)) = LOWER(TRIM(?))
+            """, (sc.chart_id, clean_name))
+            row = cur.fetchone()
+            if not row or row["best"] is None or sc.score > row["best"]:
+                cur.execute("""
+                    INSERT INTO song_scores (chart_id, player_name, score, max_combo, stars, accuracy_pct, medal_tier)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (sc.chart_id, clean_name, sc.score, sc.max_combo, sc.stars, sc.accuracy_pct, sc.medal_tier))
+                inserted += 1
+
+        conn.commit()
+        save_community_backup()
+    return {"status": "success", "synced": inserted, "player_name": clean_name}
 
 
 @router.get("/charts/{chart_id}/leaderboard")
@@ -1107,17 +1208,28 @@ async def get_chart_leaderboard(chart_id: str, limit: int = Query(20, ge=1, le=1
 
 
 @router.get("/leaderboards/global")
-async def get_global_leaderboard(limit: int = Query(25, ge=1, le=100)):
+async def get_global_leaderboard(limit: int = Query(50, ge=1, le=200)):
     """
-    Tabla de clasificación global de jugadores con mayor puntuación acumulada.
+    Tabla de clasificación global permanente de todos los jugadores que han iniciado el juego,
+    incluyendo aquellos con 0 puntos o sin partidas completadas.
     """
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute("""
-            SELECT player_name, SUM(score) as total_score, COUNT(*) as songs_played, MAX(score) as best_score
-            FROM song_scores
-            GROUP BY player_name
-            ORDER BY total_score DESC
+            WITH AllPlayers AS (
+                SELECT player_name FROM players
+                UNION
+                SELECT player_name FROM song_scores
+            )
+            SELECT 
+                ap.player_name, 
+                COALESCE(SUM(s.score), 0) as total_score, 
+                COUNT(s.id) as songs_played, 
+                COALESCE(MAX(s.score), 0) as best_score
+            FROM AllPlayers ap
+            LEFT JOIN song_scores s ON LOWER(TRIM(ap.player_name)) = LOWER(TRIM(s.player_name))
+            GROUP BY ap.player_name
+            ORDER BY total_score DESC, best_score DESC, ap.player_name ASC
             LIMIT ?
         """, (limit,))
         rows = [dict(r) for r in cur.fetchall()]

@@ -272,7 +272,37 @@
         votes: 'votos',
         lib_downloads_empty_title: 'Sin descargas offline',
         lib_downloads_empty_sub: 'Juega canciones en el buscador para guardarlas aquí automáticamente.',
-        diff_all_relevance: 'Todas (Relevancia)'
+        diff_all_relevance: 'Todas (Relevancia)',
+        leaderboard_global_title: 'Clasificación Global',
+        leaderboard_song_title: 'Clasificación Online',
+        leaderboard_tab_song: 'Esta Canción',
+        leaderboard_tab_global: 'Global',
+        shop_dimension_title: 'Dimensión Visual del Juego',
+        shop_dimension_desc: 'Elige entre la perspectiva pseudo-3D gran piano y el clásico neón 2D plano.',
+        shop_mode_3d: '3D Gran Piano',
+        shop_mode_3d_tag: '★ RECOMENDADO',
+        shop_mode_2d: '2D Neón Clásico',
+        shop_mode_2d_tag: 'VERSIÓN ANTERIOR',
+        shop_keystyle_title: 'Estilo de Teclas de Piano',
+        shop_keystyle_desc: 'Forma y tamaño de las teclas en pista (aplica en 2D y 3D).',
+        shop_keys_beatstar: 'Teclas Beatstar',
+        shop_keys_beatstar_tag: 'GRANDES & REALES',
+        shop_keys_compact: 'Teclas Compactas',
+        shop_keys_compact_tag: 'ORIGINALES',
+        shop_effects_header: 'Efectos de Impacto y Luces',
+        shop_exclusive_3d: '👑 EXCLUSIVO 3D',
+        toast_3d_mode: 'Modo 3D Gran Piano activado.',
+        toast_2d_mode: 'Modo 2D Neón Clásico activado.',
+        toast_keys_large: 'Teclas grandes tradicionales activadas.',
+        toast_keys_compact: 'Teclas compactas activadas.',
+        effect_royal_brass_name: 'Latón Real y Destello Áureo',
+        effect_royal_brass_desc: 'Chispas incandescentes de latón pulido y una majestuosa onda expansiva dorada.',
+        effect_acoustic_resonance_name: 'Resonancia Acústica Armónica',
+        effect_acoustic_resonance_desc: 'Doble halo acústico de ondas armónicas que resuenan como cuerdas de piano.',
+        effect_crimson_royale_name: 'Fieltro Carmesí Real',
+        effect_crimson_royale_desc: 'Brasas de fieltro rojo carmesí y oro ascendentes inspiradas en apagadores de concierto.',
+        effect_luminous_ivory_name: 'Marfil Luminoso y Cénit',
+        effect_luminous_ivory_desc: 'Destello de marfil puro pulido con estallido radial celestial al pulsar.'
       },
       en: {
         app_title: 'Piano Community',
@@ -522,7 +552,37 @@
         votes: 'votes',
         lib_downloads_empty_title: 'No offline downloads',
         lib_downloads_empty_sub: 'Play songs from the explore tab to save them here automatically.',
-        diff_all_relevance: 'All (Relevance)'
+        diff_all_relevance: 'All (Relevance)',
+        leaderboard_global_title: 'Global Leaderboard',
+        leaderboard_song_title: 'Online Leaderboard',
+        leaderboard_tab_song: 'This Song',
+        leaderboard_tab_global: 'Global',
+        shop_dimension_title: 'Game Visual Dimension',
+        shop_dimension_desc: 'Choose between pseudo-3D Grand Piano perspective and classic flat 2D neon.',
+        shop_mode_3d: '3D Grand Piano',
+        shop_mode_3d_tag: '★ RECOMMENDED',
+        shop_mode_2d: '2D Classic Neon',
+        shop_mode_2d_tag: 'PREVIOUS VERSION',
+        shop_keystyle_title: 'Piano Key Style',
+        shop_keystyle_desc: 'Shape and size of lane keys on the track (applies to both 2D and 3D).',
+        shop_keys_beatstar: 'Beatstar Keys',
+        shop_keys_beatstar_tag: 'LARGE & REALISTIC',
+        shop_keys_compact: 'Compact Keys',
+        shop_keys_compact_tag: 'ORIGINALS',
+        shop_effects_header: 'Hit & Lighting Effects',
+        shop_exclusive_3d: '👑 3D EXCLUSIVE',
+        toast_3d_mode: '3D Grand Piano mode activated.',
+        toast_2d_mode: '2D Classic Neon mode activated.',
+        toast_keys_large: 'Traditional large keys activated.',
+        toast_keys_compact: 'Compact keys activated.',
+        effect_royal_brass_name: 'Royal Brass & Golden Flare',
+        effect_royal_brass_desc: 'Incandescent sparks of polished brass and a majestic golden shockwave.',
+        effect_acoustic_resonance_name: 'Harmonic Acoustic Resonance',
+        effect_acoustic_resonance_desc: 'Dual acoustic halo of harmonic waves resonating like piano soundboard strings.',
+        effect_crimson_royale_name: 'Crimson Royale Damper',
+        effect_crimson_royale_desc: 'Rising embers of crimson damper felt and antique gold inspired by concert grands.',
+        effect_luminous_ivory_name: 'Luminous Ivory Zenith',
+        effect_luminous_ivory_desc: 'Polished pure ivory flash with a celestial radial burst at the tap zenith.'
       }
     };
 
@@ -766,7 +826,10 @@
       console.warn('[Libarchive] Inicialización de libarchive:', e);
     });
   </script>
-  <link rel="stylesheet" href="./style.css?v=3.4">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css?v=3.5">
 </head>
 <body>
 
@@ -920,6 +983,11 @@
 
         <!-- Action Buttons (Flex-shrink-0 to guarantee settings gear is always visible) -->
         <div class="flex items-center gap-1.5 flex-shrink-0">
+          <!-- Global Leaderboard Button 🏆 -->
+          <button id="btnOpenGlobalLeaderboard" onclick="openLeaderboardModal()" class="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-400/40 hover:border-amber-400/70 active:scale-95 text-amber-300 flex items-center justify-center transition cursor-pointer text-sm flex-shrink-0" title="Clasificación Global">
+            <span>🏆</span>
+          </button>
+
           <!-- FX Shop Button 🎨 -->
           <button id="btnOpenFXShop" onclick="openFXShopModal()" class="w-8 h-8 rounded-xl bg-purple-600/20 border border-purple-500/30 hover:border-purple-500/60 active:scale-95 text-white flex items-center justify-center transition cursor-pointer text-xs" title="Tienda de Efectos de Tecla">
             <span>🎨</span>
@@ -2118,19 +2186,19 @@
     
     <!-- Layer 17: Online Leaderboard Modal (🏆) -->
     <div id="leaderboardModal" class="results-modal space-y-3.5 hidden" style="display: none;">
-      <div class="glass-card w-full max-w-[340px] p-4 rounded-2xl space-y-3.5 bg-black/90 border border-cyan-500/30 shadow-2xl">
+      <div class="glass-card w-full max-w-[340px] p-4 rounded-2xl space-y-3.5 bg-black/90 border border-amber-500/30 shadow-2xl">
         <div class="flex items-center justify-between">
-          <h3 class="text-xs font-bold text-white flex items-center gap-1.5">
-            <span>🏆</span> Clasificación Online
+          <h3 class="text-xs font-bold text-white flex items-center gap-1.5 font-serif">
+            <span>🏆</span> <span id="lbModalTitleText">Clasificación Global</span>
           </h3>
           <button onclick="closeLeaderboardModal()" class="text-gray-400 hover:text-white text-xs p-1 cursor-pointer">✕</button>
         </div>
 
-        <div class="flex items-center gap-1 p-1 bg-black/60 border border-white/10 rounded-xl">
-          <button id="lbSubTabSongBtn" onclick="switchLeaderboardSubTab('song')" class="flex-1 py-1 rounded-lg text-[10px] font-bold bg-cyan-500/25 text-cyan-300 border border-cyan-400/40 cursor-pointer">
+        <div id="lbSubTabsContainer" class="flex items-center gap-1 p-1 bg-black/60 border border-white/10 rounded-xl">
+          <button id="lbSubTabSongBtn" onclick="switchLeaderboardSubTab('song')" class="flex-1 py-1 rounded-lg text-[10px] font-bold bg-amber-500/25 text-amber-300 border border-amber-400/40 cursor-pointer font-serif">
             Esta Canción
           </button>
-          <button id="lbSubTabGlobalBtn" onclick="switchLeaderboardSubTab('global')" class="flex-1 py-1 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white cursor-pointer">
+          <button id="lbSubTabGlobalBtn" onclick="switchLeaderboardSubTab('global')" class="flex-1 py-1 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white cursor-pointer font-serif">
             Global
           </button>
         </div>
@@ -2315,8 +2383,56 @@
 
     const GENERIC_THUMBNAIL = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 120' width='160' height='120'><defs><linearGradient id='bg' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='%23140628'/><stop offset='50%' stop-color='%232c0c4a'/><stop offset='100%' stop-color='%235c1782'/></linearGradient></defs><rect width='160' height='120' fill='url(%23bg)'/><circle cx='80' cy='60' r='32' fill='%23000' opacity='0.5'/><circle cx='80' cy='60' r='14' fill='%23ff007f' opacity='0.9'/><circle cx='80' cy='60' r='4' fill='%23fff'/><path d='M75 44v22.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V51h14V44h-12z' fill='%2300f2fe'/></svg>";
 
-    // Key FX Effects Catalog (Pure Black Screen + High Performance Visual FX)
+    // Key FX Effects Catalog (Acoustic 3D & Pure Black Visual FX)
     const KEY_EFFECTS = [
+      {
+        id: 'royal_brass',
+        name: 'Latón Real y Destello Áureo',
+        nameKey: 'effect_royal_brass_name',
+        desc: 'Chispas incandescentes de latón pulido y una majestuosa onda expansiva dorada.',
+        descKey: 'effect_royal_brass_desc',
+        costClefs: 0,
+        costSilver: 0,
+        costGold: 0,
+        costPlatinum: 0,
+        exclusive3D: true
+      },
+      {
+        id: 'acoustic_resonance',
+        name: 'Resonancia Acústica Armónica',
+        nameKey: 'effect_acoustic_resonance_name',
+        desc: 'Doble halo acústico de ondas armónicas que resuenan como cuerdas de piano.',
+        descKey: 'effect_acoustic_resonance_desc',
+        costClefs: 100,
+        costSilver: 2,
+        costGold: 1,
+        costPlatinum: 0,
+        exclusive3D: true
+      },
+      {
+        id: 'crimson_royale',
+        name: 'Fieltro Carmesí Real',
+        nameKey: 'effect_crimson_royale_name',
+        desc: 'Brasas de fieltro rojo carmesí y oro ascendentes inspiradas en apagadores de concierto.',
+        descKey: 'effect_crimson_royale_desc',
+        costClefs: 120,
+        costSilver: 3,
+        costGold: 2,
+        costPlatinum: 1,
+        exclusive3D: true
+      },
+      {
+        id: 'luminous_ivory',
+        name: 'Marfil Luminoso y Cénit',
+        nameKey: 'effect_luminous_ivory_name',
+        desc: 'Destello de marfil puro pulido con estallido radial celestial al pulsar.',
+        descKey: 'effect_luminous_ivory_desc',
+        costClefs: 150,
+        costSilver: 4,
+        costGold: 3,
+        costPlatinum: 2,
+        exclusive3D: true
+      },
       {
         id: 'default_neon',
         name: 'Estándar Minimal',
@@ -2382,12 +2498,13 @@
       }
     ];
 
-    let unlockedEffects = JSON.parse(localStorage.getItem('beatstar_unlocked_effects') || '["default_neon"]');
+    let unlockedEffects = JSON.parse(localStorage.getItem('beatstar_unlocked_effects') || '["default_neon", "royal_brass"]');
     unlockedEffects = unlockedEffects.filter(e => e !== 'spotlight_reveal');
-    let activeEffectId = localStorage.getItem('beatstar_active_effect') || 'default_neon';
+    if (!unlockedEffects.includes('royal_brass')) unlockedEffects.push('royal_brass');
+    let activeEffectId = localStorage.getItem('beatstar_active_effect') || 'royal_brass';
     if (activeEffectId === 'spotlight_reveal') {
-      activeEffectId = 'default_neon';
-      localStorage.setItem('beatstar_active_effect', 'default_neon');
+      activeEffectId = 'royal_brass';
+      localStorage.setItem('beatstar_active_effect', 'royal_brass');
     }
 
     // Player Currency & Medals State (defaults 0 for new users, persists for returning users)
@@ -2568,24 +2685,142 @@
       }
     };
 
+    window.applyVisualDimensionTheme = function(dim) {
+      const mode = dim || localStorage.getItem('beatstar_visual_dimension') || '3d';
+      localStorage.setItem('beatstar_visual_dimension', mode);
+      const is3D = (mode === '3d');
+      
+      const docEl = document.documentElement;
+      const bodyEl = document.body;
+
+      if (is3D) {
+        docEl.classList.add('theme-vintage-3d');
+        bodyEl.classList.add('theme-vintage-3d');
+        docEl.classList.remove('theme-neon-2d');
+        bodyEl.classList.remove('theme-neon-2d');
+      } else {
+        docEl.classList.add('theme-neon-2d');
+        bodyEl.classList.add('theme-neon-2d');
+        docEl.classList.remove('theme-vintage-3d');
+        bodyEl.classList.remove('theme-vintage-3d');
+      }
+
+      const activeEngine = (typeof engine !== 'undefined' && engine) || window.engine;
+      if (activeEngine && typeof activeEngine.setVisualDimension === 'function') {
+        activeEngine.setVisualDimension(mode);
+      }
+    };
+
+    window.setVisualDimensionMode = function(dim) {
+      localStorage.setItem('beatstar_visual_dimension', dim);
+      applyVisualDimensionTheme(dim);
+      const activeEngine = (typeof engine !== 'undefined' && engine) || window.engine;
+      if (activeEngine && typeof activeEngine.setVisualDimension === 'function') {
+        activeEngine.setVisualDimension(dim);
+      }
+      renderFXShopItems();
+      showSuccessToast(dim === '3d' ? t('toast_3d_mode', 'Modo 3D Gran Piano activado.') : t('toast_2d_mode', 'Modo 2D Neón Clásico activado.'));
+    };
+
+    window.setPianoKeyStyle = function(style) {
+      localStorage.setItem('beatstar_key_style', style);
+      const activeEngine = (typeof engine !== 'undefined' && engine) || window.engine;
+      if (activeEngine && typeof activeEngine.setKeyStyle === 'function') {
+        activeEngine.setKeyStyle(style);
+      }
+      renderFXShopItems();
+      showSuccessToast(style === 'beatstar_large' ? t('toast_keys_large', 'Teclas grandes tradicionales activadas.') : t('toast_keys_compact', 'Teclas compactas activadas.'));
+    };
+
     function renderFXShopItems() {
       const container = document.getElementById('fxShopCardsContainer');
       if (!container) return;
 
-      container.innerHTML = KEY_EFFECTS.map(effect => {
+      const currentDim = localStorage.getItem('beatstar_visual_dimension') || '3d';
+      const is3D = currentDim === '3d';
+      const currentKeyStyle = localStorage.getItem('beatstar_key_style') || 'beatstar_large';
+      const isLargeKeys = currentKeyStyle === 'beatstar_large';
+
+      // 1. Dimensión Visual (Primera opción de la tienda de efectos)
+      const dimensionCardHtml = `
+        <div class="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-[#18121f] to-amber-900/10 border border-amber-500/35 space-y-2.5 shadow-lg">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">✨</span>
+              <div>
+                <p class="text-xs font-black text-amber-200 uppercase tracking-wide font-serif">${t('shop_dimension_title', 'Dimensión Visual del Juego')}</p>
+                <p class="text-[10px] text-gray-300 leading-tight mt-0.5">${t('shop_dimension_desc', 'Elige entre la perspectiva pseudo-3D gran piano y el clásico neón 2D plano.')}</p>
+              </div>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2 pt-0.5">
+            <button onclick="setVisualDimensionMode('3d')" class="py-2.5 px-2 rounded-xl text-xs font-black transition flex flex-col items-center gap-1 cursor-pointer border ${is3D ? 'bg-amber-500/25 text-amber-300 border-amber-400 shadow-lg shadow-amber-500/25' : 'bg-white/5 text-gray-400 border-white/10 hover:border-white/20'}">
+              <span class="text-base">🎹</span>
+              <span class="font-serif font-bold text-center">${t('shop_mode_3d', '3D Gran Piano')}</span>
+              <span class="text-[8px] font-black text-amber-400/90 tracking-tight">${t('shop_mode_3d_tag', '★ RECOMENDADO')}</span>
+            </button>
+            <button onclick="setVisualDimensionMode('2d')" class="py-2.5 px-2 rounded-xl text-xs font-black transition flex flex-col items-center gap-1 cursor-pointer border ${!is3D ? 'bg-cyan-500/25 text-cyan-300 border-cyan-400 shadow-lg shadow-cyan-500/25' : 'bg-white/5 text-gray-400 border-white/10 hover:border-white/20'}">
+              <span class="text-base">⚡</span>
+              <span class="font-bold text-center">${t('shop_mode_2d', '2D Neón Clásico')}</span>
+              <span class="text-[8px] font-black text-cyan-400/90 tracking-tight">${t('shop_mode_2d_tag', 'VERSIÓN ANTERIOR')}</span>
+            </button>
+          </div>
+        </div>
+      `;
+
+      // 2. Estilo de Teclas de Piano (Beatstar Grandes vs Compactas)
+      const keyStyleCardHtml = `
+        <div class="p-3.5 rounded-2xl bg-gradient-to-r from-purple-500/10 via-[#140f1a] to-white/5 border border-white/15 space-y-2.5 shadow-md">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">🎹</span>
+              <div>
+                <p class="text-xs font-black text-white uppercase tracking-wide">${t('shop_keystyle_title', 'Estilo de Teclas de Piano')}</p>
+                <p class="text-[10px] text-gray-300 leading-tight mt-0.5">${t('shop_keystyle_desc', 'Forma y tamaño de las teclas en pista (aplica en 2D y 3D).')}</p>
+              </div>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2 pt-0.5">
+            <button onclick="setPianoKeyStyle('beatstar_large')" class="py-2.5 px-2 rounded-xl text-xs font-black transition flex flex-col items-center gap-1 cursor-pointer border ${isLargeKeys ? 'bg-amber-500/25 text-amber-300 border-amber-400 shadow-lg shadow-amber-500/25' : 'bg-white/5 text-gray-400 border-white/10 hover:border-white/20'}">
+              <span class="text-base">🎼</span>
+              <span class="font-serif font-bold text-center">${t('shop_keys_beatstar', 'Teclas Beatstar')}</span>
+              <span class="text-[8px] font-black text-amber-400/90 tracking-tight">${t('shop_keys_beatstar_tag', 'GRANDES & REALES')}</span>
+            </button>
+            <button onclick="setPianoKeyStyle('compact')" class="py-2.5 px-2 rounded-xl text-xs font-black transition flex flex-col items-center gap-1 cursor-pointer border ${!isLargeKeys ? 'bg-purple-500/25 text-purple-300 border-purple-400 shadow-lg shadow-purple-500/25' : 'bg-white/5 text-gray-400 border-white/10 hover:border-white/20'}">
+              <span class="text-base">🎹</span>
+              <span class="font-bold text-center">${t('shop_keys_compact', 'Teclas Compactas')}</span>
+              <span class="text-[8px] font-black text-gray-400 tracking-tight">${t('shop_keys_compact_tag', 'ORIGINALES')}</span>
+            </button>
+          </div>
+        </div>
+      `;
+
+      // 3. Catálogo de Efectos de Impacto
+      const effectsHeaderHtml = `
+        <div class="pt-2 flex items-center justify-between">
+          <p class="text-[11px] font-black text-gray-300 uppercase tracking-wider flex items-center gap-1.5 font-serif">
+            <span>✨</span> ${t('shop_effects_header', 'Efectos de Impacto y Luces')}
+          </p>
+          <span class="text-[9px] text-gray-400 font-mono">${KEY_EFFECTS.length} estilos</span>
+        </div>
+      `;
+
+      const effectsCardsHtml = KEY_EFFECTS.map(effect => {
         const isUnlocked = unlockedEffects.includes(effect.id);
         const isActive = activeEffectId === effect.id;
+        const effectName = effect.nameKey ? t(effect.nameKey, effect.name) : effect.name;
+        const effectDesc = effect.descKey ? t(effect.descKey, effect.desc) : effect.desc;
 
         let actionBtnHtml = '';
         if (isActive) {
           actionBtnHtml = `
-            <button disabled class="px-3 py-1.5 rounded-xl bg-pink-500/20 text-pink-300 font-bold text-xs border border-pink-500/40 opacity-90 cursor-default flex items-center gap-1">
+            <button disabled class="px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 font-bold text-xs border border-amber-500/40 opacity-90 cursor-default flex items-center gap-1">
               <span>✓</span> Equipado
             </button>
           `;
         } else if (isUnlocked) {
           actionBtnHtml = `
-            <button onclick="equipKeyEffect('${effect.id}')" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 text-white font-bold text-xs transition active:scale-95 cursor-pointer shadow-md shadow-pink-500/20">
+            <button onclick="equipKeyEffect('${effect.id}')" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 text-black font-black text-xs transition active:scale-95 cursor-pointer shadow-md shadow-amber-500/25">
               Equipar
             </button>
           `;
@@ -2606,17 +2841,24 @@
           </div>
         ` : (isUnlocked ? '<span class="text-[9px] font-bold text-emerald-400">✓ Desbloqueado</span>' : '<span class="text-[9px] font-bold text-gray-400">Gratuito</span>');
 
+        const exclusiveTagHtml = effect.exclusive3D ? `
+          <span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-400/35 text-[8px] font-black tracking-wider uppercase">${t('shop_exclusive_3d', '👑 EXCLUSIVO 3D')}</span>
+        ` : '';
+
         return `
           <div class="fx-shop-card ${isActive ? 'active-theme' : ''}">
             <div class="space-y-2">
               <div>
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between gap-1 flex-wrap">
                   <p class="text-xs font-black text-white flex items-center gap-1.5">
-                    <span>✨</span> ${effect.name}
+                    <span>✨</span> ${effectName}
                   </p>
-                  ${isActive ? '<span class="px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 text-[9px] font-black border border-pink-400/40">EQUIPADO</span>' : ''}
+                  <div class="flex items-center gap-1">
+                    ${exclusiveTagHtml}
+                    ${isActive ? '<span class="px-2 py-0.5 rounded-full bg-amber-500/25 text-amber-300 text-[9px] font-black border border-amber-400/40">EQUIPADO</span>' : ''}
+                  </div>
                 </div>
-                <p class="text-[10px] text-gray-300 leading-tight mt-1">${effect.desc}</p>
+                <p class="text-[10px] text-gray-300 leading-tight mt-1">${effectDesc}</p>
               </div>
               
               <div class="flex items-center justify-between pt-1.5 border-t border-white/10 gap-2">
@@ -2634,6 +2876,8 @@
           </div>
         `;
       }).join('');
+
+      container.innerHTML = dimensionCardHtml + keyStyleCardHtml + effectsHeaderHtml + effectsCardsHtml;
     }
 
     window.switchFXShopSubtab = function(tab) {
@@ -3523,7 +3767,11 @@
     document.addEventListener('DOMContentLoaded', async () => {
       const activeLang = getLanguage();
       setLanguage(activeLang, false);
+      applyVisualDimensionTheme();
       loadHighscores();
+      if (typeof syncPlayerAndScoresWithServer === 'function') {
+        syncPlayerAndScoresWithServer();
+      }
       await loadFavoritesSet();
       updateUserWalletDisplay();
       checkForAppUpdates();
@@ -3678,6 +3926,7 @@
           showResults(score, maxCombo, stars, stats, earnedClefs, isNewRecord, finalMedal, scorePct, earnedMedals, totalNotes, accuracyPct);
         }
       });
+      window.engine = engine;
 
       function bindBtn(id, fn) {
         const el = document.getElementById(id);
@@ -6568,12 +6817,18 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         nickModal.style.display = 'none';
       }
       showSuccessToast(`¡Bienvenido/a, ${val}!`);
+      if (typeof syncPlayerAndScoresWithServer === 'function') {
+        syncPlayerAndScoresWithServer();
+      }
     }
 
     function updatePlayerNickname(val) {
       const trimmed = (val || '').trim();
       if (!trimmed) return;
       localStorage.setItem('beatstar_player_nickname', trimmed);
+      if (typeof syncPlayerAndScoresWithServer === 'function') {
+        syncPlayerAndScoresWithServer();
+      }
     }
 
     // ==========================================
@@ -8021,15 +8276,73 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
     let currentLeaderboardSubTab = 'song';
     let currentLeaderboardChartId = null;
 
+    async function syncPlayerAndScoresWithServer() {
+      try {
+        const baseUrl = getApiBaseUrl();
+        if (!baseUrl) return;
+        const playerName = localStorage.getItem('beatstar_player_nickname') || 'Jugador';
+
+        // 1. Registrar permanentemente al jugador en el leaderboard global (incluso con 0 puntos)
+        fetch(`${baseUrl}/api/v1/community/players/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ player_name: playerName })
+        }).catch(() => {});
+
+        // 2. Sincronizar puntuaciones locales
+        const highscores = JSON.parse(localStorage.getItem('beatstar_highscores') || '{}');
+        const scoreItems = [];
+        for (const [chartId, data] of Object.entries(highscores)) {
+          if (data && typeof data.score === 'number' && data.score > 0) {
+            scoreItems.push({
+              chart_id: chartId,
+              score: data.score,
+              max_combo: data.maxCombo || 0,
+              stars: data.stars || 0,
+              accuracy_pct: data.accuracyPct || 100.0,
+              medal_tier: data.medalTier || null
+            });
+          }
+        }
+        if (scoreItems.length > 0) {
+          fetch(`${baseUrl}/api/v1/community/sync_scores`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              player_name: playerName,
+              scores: scoreItems
+            })
+          }).catch(() => {});
+        }
+      } catch (e) {
+        console.warn('Sync with server error:', e);
+      }
+    }
+
     async function openLeaderboardModal(chartId = null) {
-      currentLeaderboardChartId = chartId || currentActiveBeatmap?.communityChartId || currentActiveBeatmap?.metadata?.id || currentActiveBeatmap?.id;
       const modal = document.getElementById('leaderboardModal');
       if (modal) {
         modal.classList.remove('hidden');
         modal.classList.add('open');
         modal.style.display = 'flex';
       }
-      switchLeaderboardSubTab('song');
+
+      const tabsContainer = document.getElementById('lbSubTabsContainer');
+      const titleText = document.getElementById('lbModalTitleText');
+
+      if (!chartId) {
+        // Abierto desde la cabecera: mostrar ÚNICAMENTE la clasificación global
+        currentLeaderboardChartId = null;
+        if (tabsContainer) tabsContainer.style.display = 'none';
+        if (titleText) titleText.innerText = t('leaderboard_global_title', 'Clasificación Global');
+        switchLeaderboardSubTab('global');
+      } else {
+        // Abierto para una canción específica al finalizar
+        currentLeaderboardChartId = chartId;
+        if (tabsContainer) tabsContainer.style.display = 'flex';
+        if (titleText) titleText.innerText = t('leaderboard_song_title', 'Clasificación Online');
+        switchLeaderboardSubTab('song');
+      }
     }
 
     function closeLeaderboardModal() {
@@ -8049,12 +8362,12 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       if (!container) return;
 
       if (tab === 'song') {
-        if (songBtn) songBtn.className = 'flex-1 py-1 rounded-lg text-[10px] font-bold bg-cyan-500/25 text-cyan-300 border border-cyan-400/40 cursor-pointer';
-        if (globalBtn) globalBtn.className = 'flex-1 py-1 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white cursor-pointer';
+        if (songBtn) songBtn.className = 'flex-1 py-1 rounded-lg text-[10px] font-bold bg-amber-500/25 text-amber-300 border border-amber-400/40 cursor-pointer font-serif';
+        if (globalBtn) globalBtn.className = 'flex-1 py-1 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white cursor-pointer font-serif';
         loadSongLeaderboard(currentLeaderboardChartId);
       } else {
-        if (songBtn) songBtn.className = 'flex-1 py-1 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white cursor-pointer';
-        if (globalBtn) globalBtn.className = 'flex-1 py-1 rounded-lg text-[10px] font-bold bg-cyan-500/25 text-cyan-300 border border-cyan-400/40 cursor-pointer';
+        if (songBtn) songBtn.className = 'flex-1 py-1 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white cursor-pointer font-serif';
+        if (globalBtn) globalBtn.className = 'flex-1 py-1 rounded-lg text-[10px] font-bold bg-amber-500/25 text-amber-300 border border-amber-400/40 cursor-pointer font-serif';
         loadGlobalLeaderboard();
       }
     }
@@ -8064,7 +8377,7 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       if (!container) return;
 
       container.innerHTML = `
-        <div class="p-4 text-center text-gray-400 text-xs">
+        <div class="p-4 text-center text-gray-400 text-xs font-serif">
           <p>Cargando clasificaciones...</p>
         </div>
       `;
@@ -8108,10 +8421,13 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       if (!container) return;
 
       container.innerHTML = `
-        <div class="p-4 text-center text-gray-400 text-xs">
+        <div class="p-4 text-center text-gray-400 text-xs font-serif">
           <p>Cargando ranking global...</p>
         </div>
       `;
+
+      // Sincronizar jugador y puntuaciones antes de consultar
+      await syncPlayerAndScoresWithServer();
 
       let rows = [];
       try {
@@ -8122,8 +8438,8 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
             const data = await res.json();
             rows = (data.global_leaderboard || []).map(r => ({
               player_name: r.player_name,
-              score: r.total_score,
-              max_combo: r.songs_played ? `${r.songs_played} pistas` : '',
+              score: r.total_score || 0,
+              max_combo: r.songs_played ? `${r.songs_played} pistas` : '0 pistas',
               stars: 5
             }));
           }
@@ -8134,11 +8450,18 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
 
       if (rows.length === 0) {
         const nickname = localStorage.getItem('beatstar_player_nickname') || 'Tú';
+        const highscores = JSON.parse(localStorage.getItem('beatstar_highscores') || '{}');
+        let totalLocal = 0;
+        let countLocal = 0;
+        for (const k in highscores) {
+          if (highscores[k] && highscores[k].score) {
+            totalLocal += highscores[k].score;
+            countLocal++;
+          }
+        }
         rows = [
-          { player_name: nickname + ' (Local)', score: 98500, max_combo: '12 pistas', stars: 5 },
-          { player_name: 'PianoMaster', score: 284500, max_combo: '35 pistas', stars: 5 },
-          { player_name: 'NeonCharter', score: 215300, max_combo: '26 pistas', stars: 5 }
-        ].sort((a, b) => b.score - a.score);
+          { player_name: nickname, score: totalLocal, max_combo: `${countLocal} pistas`, stars: 5 }
+        ];
       }
 
       renderLeaderboardRows(rows, container);

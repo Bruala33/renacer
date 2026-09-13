@@ -1,30 +1,12 @@
 {
   "version": 1,
-  "timestamp": "2026-09-10 16:50:00",
+  "timestamp": "2026-09-13 12:35:17",
   "creators": [
     {
       "id": "cr_191176",
       "name": "Creador",
       "followers_count": 0,
       "created_at": "2026-09-07 08:32:46"
-    },
-    {
-      "id": "cr_master",
-      "name": "PianoMaster",
-      "followers_count": 10,
-      "created_at": "2026-09-10 14:48:55"
-    },
-    {
-      "id": "cr_neon",
-      "name": "NeonCharter",
-      "followers_count": 10,
-      "created_at": "2026-09-10 14:48:55"
-    },
-    {
-      "id": "cr_chopin",
-      "name": "ChopinGamer",
-      "followers_count": 10,
-      "created_at": "2026-09-10 14:48:56"
     },
     {
       "id": "cr_573828",
@@ -43,6 +25,170 @@
       "name": "Test",
       "followers_count": 12,
       "created_at": "2026-09-10 14:48:59"
+    },
+    {
+      "id": "cr_master",
+      "name": "PianoMaster",
+      "followers_count": 10,
+      "created_at": "2026-09-10 14:48:55"
+    },
+    {
+      "id": "cr_neon",
+      "name": "NeonCharter",
+      "followers_count": 10,
+      "created_at": "2026-09-10 14:48:55"
+    },
+    {
+      "id": "cr_chopin",
+      "name": "ChopinGamer",
+      "followers_count": 10,
+      "created_at": "2026-09-10 14:48:56"
+    }
+  ],
+  "players": [
+    {
+      "id": "pl_1789302916838",
+      "player_name": "NewbiePlayer",
+      "total_score": 75000,
+      "songs_played": 1,
+      "best_score": 75000,
+      "created_at": "2026-09-13 12:35:16",
+      "last_seen": "2026-09-13 12:54:36"
+    },
+    {
+      "id": "pl_hist_1_pianomaster",
+      "player_name": "PianoMaster",
+      "total_score": 284500,
+      "songs_played": 3,
+      "best_score": 98500,
+      "created_at": "2026-09-13 12:54:36",
+      "last_seen": "2026-09-13 12:54:36"
+    },
+    {
+      "id": "pl_hist_2_mozart",
+      "player_name": "mozart",
+      "total_score": 245000,
+      "songs_played": 3,
+      "best_score": 92000,
+      "created_at": "2026-09-13 12:54:36",
+      "last_seen": "2026-09-13 12:54:36"
+    },
+    {
+      "id": "pl_hist_3_neoncharter",
+      "player_name": "NeonCharter",
+      "total_score": 215300,
+      "songs_played": 2,
+      "best_score": 115300,
+      "created_at": "2026-09-13 12:54:36",
+      "last_seen": "2026-09-13 12:54:36"
+    },
+    {
+      "id": "pl_hist_4_carlos",
+      "player_name": "Carlos",
+      "total_score": 185000,
+      "songs_played": 2,
+      "best_score": 95000,
+      "created_at": "2026-09-13 12:54:36",
+      "last_seen": "2026-09-13 12:54:36"
+    },
+    {
+      "id": "pl_hist_5_maria",
+      "player_name": "Maria",
+      "total_score": 162400,
+      "songs_played": 2,
+      "best_score": 85400,
+      "created_at": "2026-09-13 12:54:36",
+      "last_seen": "2026-09-13 12:54:36"
+    },
+    {
+      "id": "pl_hist_6_rocky",
+      "player_name": "Rocky",
+      "total_score": 140000,
+      "songs_played": 2,
+      "best_score": 75000,
+      "created_at": "2026-09-13 12:54:36",
+      "last_seen": "2026-09-13 12:54:36"
+    },
+    {
+      "id": "pl_hist_7_developer",
+      "player_name": "Developer",
+      "total_score": 110000,
+      "songs_played": 2,
+      "best_score": 60000,
+      "created_at": "2026-09-13 12:54:36",
+      "last_seen": "2026-09-13 12:54:36"
+    },
+    {
+      "id": "pl_hist_8_testerone",
+      "player_name": "TesterOne",
+      "total_score": 99500,
+      "songs_played": 1,
+      "best_score": 99500,
+      "created_at": "2026-09-13 12:54:36",
+      "last_seen": "2026-09-13 12:54:36"
+    },
+    {
+      "id": "pl_hist_10_beatmaster",
+      "player_name": "BeatMaster",
+      "total_score": 68000,
+      "songs_played": 1,
+      "best_score": 68000,
+      "created_at": "2026-09-13 12:54:36",
+      "last_seen": "2026-09-13 12:54:36"
+    },
+    {
+      "id": "pl_hist_11_alex",
+      "player_name": "Alex",
+      "total_score": 42000,
+      "songs_played": 1,
+      "best_score": 42000,
+      "created_at": "2026-09-13 12:54:36",
+      "last_seen": "2026-09-13 12:54:36"
+    },
+    {
+      "id": "pl_hist_12_elena",
+      "player_name": "Elena",
+      "total_score": 35000,
+      "songs_played": 1,
+      "best_score": 35000,
+      "created_at": "2026-09-13 12:54:36",
+      "last_seen": "2026-09-13 12:54:36"
+    },
+    {
+      "id": "pl_hist_13_novatopiano",
+      "player_name": "NovatoPiano",
+      "total_score": 0,
+      "songs_played": 0,
+      "best_score": 0,
+      "created_at": "2026-09-13 12:54:36",
+      "last_seen": "2026-09-13 12:54:36"
+    },
+    {
+      "id": "pl_hist_14_beatstar_fan",
+      "player_name": "BeatStar_Fan",
+      "total_score": 0,
+      "songs_played": 0,
+      "best_score": 0,
+      "created_at": "2026-09-13 12:54:36",
+      "last_seen": "2026-09-13 12:54:36"
+    },
+    {
+      "id": "pl_hist_15_rhythmgamer",
+      "player_name": "RhythmGamer",
+      "total_score": 0,
+      "songs_played": 0,
+      "best_score": 0,
+      "created_at": "2026-09-13 12:54:36",
+      "last_seen": "2026-09-13 12:54:36"
+    },
+    {
+      "id": "pl_hist_16_clara",
+      "player_name": "Clara",
+      "total_score": 0,
+      "songs_played": 0,
+      "best_score": 0,
+      "created_at": "2026-09-13 12:54:36",
+      "last_seen": "2026-09-13 12:54:36"
     }
   ],
   "community_charts": [
@@ -246,6 +392,148 @@
     }
   ],
   "catalog_charts": [],
-  "chart_ratings": [],
-  "song_scores": []
+  "chart_ratings": [
+    {
+      "id": 4,
+      "chart_id": "comm_impuestos",
+      "user_id": "cr_599315",
+      "rating": 5,
+      "sync_pct": 100.0,
+      "created_at": "2026-09-10 12:54:17"
+    }
+  ],
+  "song_scores": [
+    {
+      "id": 10,
+      "chart_id": "song_test_1",
+      "player_name": "NewbiePlayer",
+      "score": 75000,
+      "max_combo": 80,
+      "stars": 4,
+      "accuracy_pct": 96.5,
+      "medal_tier": "silver",
+      "created_at": "2026-09-13 12:35:17"
+    },
+    {
+      "id": 11,
+      "chart_id": "comm_1788622108_2296",
+      "player_name": "PianoMaster",
+      "score": 284500,
+      "max_combo": 284,
+      "stars": 5,
+      "accuracy_pct": 99.4,
+      "medal_tier": "platinum",
+      "created_at": "2026-09-13 12:54:36"
+    },
+    {
+      "id": 12,
+      "chart_id": "comm_1788769406_7797",
+      "player_name": "mozart",
+      "score": 245000,
+      "max_combo": 245,
+      "stars": 5,
+      "accuracy_pct": 98.8,
+      "medal_tier": "platinum",
+      "created_at": "2026-09-13 12:54:36"
+    },
+    {
+      "id": 13,
+      "chart_id": "comm_1789044857_213",
+      "player_name": "NeonCharter",
+      "score": 215300,
+      "max_combo": 215,
+      "stars": 5,
+      "accuracy_pct": 97.9,
+      "medal_tier": "gold",
+      "created_at": "2026-09-13 12:54:36"
+    },
+    {
+      "id": 14,
+      "chart_id": "comm_1789044866_4266",
+      "player_name": "Carlos",
+      "score": 185000,
+      "max_combo": 185,
+      "stars": 5,
+      "accuracy_pct": 97.2,
+      "medal_tier": "gold",
+      "created_at": "2026-09-13 12:54:36"
+    },
+    {
+      "id": 15,
+      "chart_id": "comm_1789045500_1819",
+      "player_name": "Maria",
+      "score": 162400,
+      "max_combo": 162,
+      "stars": 4,
+      "accuracy_pct": 96.5,
+      "medal_tier": "gold",
+      "created_at": "2026-09-13 12:54:36"
+    },
+    {
+      "id": 16,
+      "chart_id": "comm_cyber_frenzy",
+      "player_name": "Rocky",
+      "score": 140000,
+      "max_combo": 140,
+      "stars": 4,
+      "accuracy_pct": 95.8,
+      "medal_tier": "silver",
+      "created_at": "2026-09-13 12:54:36"
+    },
+    {
+      "id": 17,
+      "chart_id": "comm_galaxy_anthem",
+      "player_name": "Developer",
+      "score": 110000,
+      "max_combo": 110,
+      "stars": 4,
+      "accuracy_pct": 94.0,
+      "medal_tier": "silver",
+      "created_at": "2026-09-13 12:54:36"
+    },
+    {
+      "id": 18,
+      "chart_id": "comm_impuestos",
+      "player_name": "TesterOne",
+      "score": 99500,
+      "max_combo": 99,
+      "stars": 5,
+      "accuracy_pct": 99.2,
+      "medal_tier": "platinum",
+      "created_at": "2026-09-13 12:54:36"
+    },
+    {
+      "id": 19,
+      "chart_id": "comm_1788622108_2296",
+      "player_name": "BeatMaster",
+      "score": 68000,
+      "max_combo": 68,
+      "stars": 3,
+      "accuracy_pct": 93.1,
+      "medal_tier": "silver",
+      "created_at": "2026-09-13 12:54:36"
+    },
+    {
+      "id": 20,
+      "chart_id": "comm_1788769406_7797",
+      "player_name": "Alex",
+      "score": 42000,
+      "max_combo": 42,
+      "stars": 3,
+      "accuracy_pct": 91.5,
+      "medal_tier": "silver",
+      "created_at": "2026-09-13 12:54:36"
+    },
+    {
+      "id": 21,
+      "chart_id": "comm_1789044857_213",
+      "player_name": "Elena",
+      "score": 35000,
+      "max_combo": 35,
+      "stars": 2,
+      "accuracy_pct": 89.0,
+      "medal_tier": "bronze",
+      "created_at": "2026-09-13 12:54:36"
+    }
+  ]
 }

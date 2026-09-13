@@ -379,25 +379,26 @@ class ParticleSystem {
     return null;
   }
 
-  // 1. Standard Minimal / Neon Sparks
-  emitHit(x, y, color = '#00f2fe', count = 20) {
+  // 1. Acoustic Grand Piano Warm Golden Flash & Radiant Sparks
+  emitHit(x, y, color = '#ffdf9e', count = 22) {
+    const goldPalette = ['#ffdf9e', '#ffd700', '#fff4d1', '#f5cb6c', '#ffffff'];
     for (let i = 0; i < count; i++) {
       const p = this.spawnParticle();
       if (!p) break;
 
       const angle = Math.random() * Math.PI * 2;
-      const speed = 70 + Math.random() * 200;
+      const speed = 75 + Math.random() * 210;
 
       p.x = x;
       p.y = y;
       p.vx = Math.cos(angle) * speed;
-      p.vy = Math.sin(angle) * speed - 30;
-      p.gravity = 0;
-      p.drag = 0.96;
-      p.radius = 1.8 + Math.random() * 3.0;
-      p.color = color;
+      p.vy = Math.sin(angle) * speed - 25;
+      p.gravity = 35;
+      p.drag = 0.95;
+      p.radius = 1.6 + Math.random() * 2.8;
+      p.color = (color === '#00f2fe' || !color) ? goldPalette[Math.floor(Math.random() * goldPalette.length)] : color;
       p.alpha = 1.0;
-      p.decay = 2.0 + Math.random() * 1.5;
+      p.decay = 2.2 + Math.random() * 1.5;
       p.type = 'spark';
       p.rotation = 0;
       p.rotSpeed = 0;
@@ -410,12 +411,12 @@ class ParticleSystem {
       sw.x = x;
       sw.y = y;
       sw.radius = 8;
-      sw.maxRadius = 60;
-      sw.growth = 12.0;
-      sw.color = color;
-      sw.alpha = 0.85;
-      sw.decay = 3.5;
-      sw.lineWidth = 2.0;
+      sw.maxRadius = 65;
+      sw.growth = 14.0;
+      sw.color = (color === '#00f2fe' || !color) ? '#ffdf9e' : color;
+      sw.alpha = 0.95;
+      sw.decay = 3.6;
+      sw.lineWidth = 2.5;
     }
   }
 
@@ -716,6 +717,158 @@ class ParticleSystem {
     }
   }
 
+  // 1. EXCLUSIVO 3D: CHISPAS DE LATÓN REAL (Royal Brass Sparks & Embers)
+  emitRoyalBrass(x, y, count = 28) {
+    const brassPalette = ['#fff3cf', '#ffd700', '#c5a059', '#e6af34', '#ffffff', '#f59e0b'];
+    for (let i = 0; i < count; i++) {
+      const p = this.spawnParticle();
+      if (!p) break;
+      const angle = (Math.random() - 0.5) * Math.PI * 1.5 - Math.PI / 2;
+      const speed = 90 + Math.random() * 240;
+      p.x = x + (Math.random() - 0.5) * 12;
+      p.y = y + (Math.random() - 0.5) * 6;
+      p.vx = Math.cos(angle) * speed;
+      p.vy = Math.sin(angle) * speed;
+      p.gravity = 180;
+      p.drag = 0.94;
+      p.radius = 1.8 + Math.random() * 3.2;
+      p.color = brassPalette[Math.floor(Math.random() * brassPalette.length)];
+      p.alpha = 1.0;
+      p.decay = 2.4 + Math.random() * 1.6;
+      p.type = 'spark';
+      p.rotation = Math.random() * Math.PI * 2;
+      p.rotSpeed = (Math.random() - 0.5) * 12;
+      p.scaleX = 1;
+      p.scaleY = 1;
+    }
+    const sw = this.spawnShockwave();
+    if (sw) {
+      sw.x = x;
+      sw.y = y;
+      sw.radius = 10;
+      sw.maxRadius = 75;
+      sw.growth = 16.0;
+      sw.color = '#ffd700';
+      sw.alpha = 1.0;
+      sw.decay = 3.5;
+      sw.lineWidth = 3.2;
+    }
+  }
+
+  // 2. EXCLUSIVO 3D: RESONANCIA ARMÓNICA (Acoustic Standing Waves)
+  emitAcousticResonance(x, y) {
+    const sw1 = this.spawnShockwave();
+    if (sw1) {
+      sw1.x = x;
+      sw1.y = y;
+      sw1.radius = 6;
+      sw1.maxRadius = 90;
+      sw1.growth = 18.0;
+      sw1.color = '#ffe082';
+      sw1.alpha = 1.0;
+      sw1.decay = 3.2;
+      sw1.lineWidth = 3.5;
+    }
+    const sw2 = this.spawnShockwave();
+    if (sw2) {
+      sw2.x = x;
+      sw2.y = y;
+      sw2.radius = 2;
+      sw2.maxRadius = 130;
+      sw2.growth = 12.0;
+      sw2.color = '#c5a059';
+      sw2.alpha = 0.8;
+      sw2.decay = 2.0;
+      sw2.lineWidth = 2.0;
+    }
+    const goldTones = ['#fff8db', '#f3d791', '#d4af37', '#ffffff'];
+    for (let i = 0; i < 16; i++) {
+      const p = this.spawnParticle();
+      if (!p) break;
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 35 + Math.random() * 110;
+      p.x = x;
+      p.y = y;
+      p.vx = Math.cos(angle) * speed;
+      p.vy = Math.sin(angle) * speed - 15;
+      p.gravity = -20;
+      p.drag = 0.96;
+      p.radius = 1.4 + Math.random() * 2.2;
+      p.color = goldTones[Math.floor(Math.random() * goldTones.length)];
+      p.alpha = 0.95;
+      p.decay = 1.8 + Math.random() * 1.2;
+      p.type = 'spark';
+    }
+  }
+
+  // 3. EXCLUSIVO 3D: FUEGO CARMESÍ & TERCIOPELO (Crimson Damper Royale)
+  emitCrimsonRoyale(x, y, count = 26) {
+    const crimsonPalette = ['#85141d', '#b91c1c', '#dc2626', '#ffd700', '#fff3cf', '#f87171'];
+    for (let i = 0; i < count; i++) {
+      const p = this.spawnParticle();
+      if (!p) break;
+      const angle = (Math.random() - 0.5) * Math.PI * 1.6 - Math.PI / 2;
+      const speed = 70 + Math.random() * 180;
+      p.x = x + (Math.random() - 0.5) * 14;
+      p.y = y;
+      p.vx = Math.cos(angle) * speed;
+      p.vy = Math.sin(angle) * speed;
+      p.gravity = 60;
+      p.drag = 0.95;
+      p.radius = 2.0 + Math.random() * 3.5;
+      p.color = crimsonPalette[Math.floor(Math.random() * crimsonPalette.length)];
+      p.alpha = 1.0;
+      p.decay = 2.0 + Math.random() * 1.4;
+      p.type = 'spark';
+    }
+    const sw = this.spawnShockwave();
+    if (sw) {
+      sw.x = x;
+      sw.y = y;
+      sw.radius = 8;
+      sw.maxRadius = 80;
+      sw.growth = 15.0;
+      sw.color = '#e11d48';
+      sw.alpha = 0.9;
+      sw.decay = 3.0;
+      sw.lineWidth = 3.0;
+    }
+  }
+
+  // 4. EXCLUSIVO 3D: MARFIL CENITAL (Luminous Zenith Ivory)
+  emitLuminousIvory(x, y, count = 25) {
+    const ivoryPalette = ['#ffffff', '#fdfbf7', '#fff8e7', '#fef3c7', '#ffd700', '#f5e6d3'];
+    for (let i = 0; i < count; i++) {
+      const p = this.spawnParticle();
+      if (!p) break;
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 60 + Math.random() * 200;
+      p.x = x;
+      p.y = y;
+      p.vx = Math.cos(angle) * speed;
+      p.vy = Math.sin(angle) * speed - 20;
+      p.gravity = 25;
+      p.drag = 0.94;
+      p.radius = 2.0 + Math.random() * 3.0;
+      p.color = ivoryPalette[Math.floor(Math.random() * ivoryPalette.length)];
+      p.alpha = 1.0;
+      p.decay = 2.2 + Math.random() * 1.5;
+      p.type = 'spark';
+    }
+    const sw = this.spawnShockwave();
+    if (sw) {
+      sw.x = x;
+      sw.y = y;
+      sw.radius = 12;
+      sw.maxRadius = 85;
+      sw.growth = 17.0;
+      sw.color = '#ffffff';
+      sw.alpha = 1.0;
+      sw.decay = 3.8;
+      sw.lineWidth = 3.5;
+    }
+  }
+
   update(dt) {
     if (!this.particles || !this.shockwaves) return;
     for (let i = 0; i < this.maxParticles; i++) {
@@ -761,6 +914,7 @@ class ParticleSystem {
   render(ctx) {
     if (!this.particles || !this.shockwaves || !ctx) return;
     ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
     for (let i = 0; i < this.maxParticles; i++) {
       const p = this.particles[i];
       if (!p || !p.active || p.alpha <= 0.01) continue;
@@ -906,6 +1060,9 @@ class BeatstarEngine {
       good:        '#ff8800'
     }, _savedJudgeColors || {});
 
+    this.visualDimension = (typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_visual_dimension') : null) || '3d';
+    this.keyStyle = (typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_key_style') : null) || 'beatstar_large';
+
     this.nextCalibNoteTime = 0;
     this.synth = new HighFidelityAudioPlayer();
 
@@ -921,8 +1078,30 @@ class BeatstarEngine {
     this.bindEvents();
   }
 
-  emitKeyHit(x, y, color = '#00f2fe', count = 22) {
-    if (this.activeEffect === 'paint_splash') {
+  setVisualDimension(dim) {
+    this.visualDimension = (dim === '2d') ? '2d' : '3d';
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('beatstar_visual_dimension', this.visualDimension);
+    }
+  }
+
+  setKeyStyle(style) {
+    this.keyStyle = (style === 'compact') ? 'compact' : 'beatstar_large';
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('beatstar_key_style', this.keyStyle);
+    }
+  }
+
+  emitKeyHit(x, y, color = '#ffdf9e', count = 22) {
+    if (this.activeEffect === 'royal_brass') {
+      this.particles.emitRoyalBrass(x, y);
+    } else if (this.activeEffect === 'acoustic_resonance') {
+      this.particles.emitAcousticResonance(x, y);
+    } else if (this.activeEffect === 'crimson_royale') {
+      this.particles.emitCrimsonRoyale(x, y);
+    } else if (this.activeEffect === 'luminous_ivory') {
+      this.particles.emitLuminousIvory(x, y);
+    } else if (this.activeEffect === 'paint_splash') {
       this.particles.emitPaintSplash(x, y, 30);
     } else if (this.activeEffect === 'fire_inferno') {
       this.particles.emitFireInferno(x, y, 32);
@@ -1253,6 +1432,8 @@ class BeatstarEngine {
   }
 
   loadBeatmap(beatmapData, audioBlobOrUrl = null) {
+    this.visualDimension = (typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_visual_dimension') : null) || '3d';
+    this.keyStyle = (typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_key_style') : null) || 'beatstar_large';
     this.isCalibrating = false;
     this.beatmapData = beatmapData;
     this.currentAudioSource = audioBlobOrUrl || (beatmapData && beatmapData.audio_blob_url) || null;
@@ -1500,6 +1681,8 @@ class BeatstarEngine {
   }
 
   startNativeCalibration() {
+    this.visualDimension = (typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_visual_dimension') : null) || '3d';
+    this.keyStyle = (typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_key_style') : null) || 'beatstar_large';
     this.isCalibrating = true;
     this.calibrationIntervalMs = 1200; // Intervalo de nota cada 1.2s en bucle infinito
     this.scrollDurationMs = 1200;
@@ -2787,108 +2970,542 @@ class BeatstarEngine {
 
     this.renderBackgroundFX(currentTime);
     this.renderLanes();
+    this.renderHitLine();
     this.renderNotes(currentTime);
     this.particles.render(this.ctx);
-    this.renderHitLine();
     this.renderJudgements();
+  }
+
+  // =========================================================================
+  // 🎹 ACOUSTIC GRAND PIANO & PSEUDO-3D CONICAL ENGINE (BEATSTAR PERSPECTIVE)
+  // =========================================================================
+
+  getPerspectiveCoord(lane, p) {
+    // p: 0.0 at horizon, 1.0 at hit line (y = hitLineY)
+    const pClamped = Math.max(-0.25, Math.min(1.4, p));
+    const pCurved = pClamped >= 0 ? Math.pow(pClamped, 1.7) : -Math.pow(-pClamped, 1.7);
+    const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
+    const horizonY = 12; // Top vanishing horizon margin
+    const y = horizonY + (hitY - horizonY) * pCurved;
+
+    // Conical perspective: horizon is 40% narrower than bottom base (scale 0.60 at horizon -> 1.00 at hit line)
+    const scale = 0.60 + 0.40 * pCurved;
+    const baseLaneW = this.width / 3;
+    const laneW = baseLaneW * scale;
+    const midX = this.width / 2;
+    // Lane 0: left (midX - laneW), Lane 1: center (midX), Lane 2: right (midX + laneW)
+    const x = midX + (lane - 1) * laneW;
+
+    return { x, y, scale, laneW, pCurved };
+  }
+
+  drawIvoryKey(ctx, cx, cy, w, h, scale = 1.0, isPressed = false, isLarge = true) {
+    ctx.save();
+
+    // Micro-depression: key sinks into the felt bed when struck or held
+    const depressOffset = isPressed ? (4.5 * scale) : 0;
+    const y = cy + depressOffset;
+    const x0 = cx - w / 2;
+    const y0 = y - h / 2;
+    const r = isLarge ? Math.max(4, 9 * scale) : Math.max(3, 5 * scale);
+
+    // 1. Soft Ambient Depth Shadow onto the grand piano bed
+    ctx.fillStyle = isLarge ? 'rgba(0, 0, 0, 0.75)' : 'rgba(0, 0, 0, 0.55)';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x0, y0 + (isLarge ? 6 : 3.5) * scale, w, h, r);
+    else ctx.rect(x0, y0 + (isLarge ? 6 : 3.5) * scale, w, h);
+    ctx.fill();
+
+    // 2. 3D Bevel Bottom Rim (Dark Rosewood / Damper Felt Underside)
+    const bevelH = isLarge ? Math.max(5, 9.5 * scale) : Math.max(2.5, 4.5 * scale);
+    const bevelGrad = ctx.createLinearGradient(0, y0 + h - bevelH, 0, y0 + h);
+    bevelGrad.addColorStop(0.0, '#9a8a77');
+    bevelGrad.addColorStop(0.4, '#5c4e3e');
+    bevelGrad.addColorStop(1.0, '#30261c');
+    ctx.fillStyle = bevelGrad;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x0, y0 + h - bevelH, w, bevelH, [0, 0, r, r]);
+    else ctx.rect(x0, y0 + h - bevelH, w, bevelH);
+    ctx.fill();
+
+    // 3. Polished Ivory Piano Key Body with Zenith Lighting
+    const ivoryGrad = ctx.createLinearGradient(0, y0, 0, y0 + h - bevelH);
+    if (isPressed) {
+      ivoryGrad.addColorStop(0.0, '#fffdfa');
+      ivoryGrad.addColorStop(0.2, '#f8f2e8');
+      ivoryGrad.addColorStop(0.7, '#e8ddcf');
+      ivoryGrad.addColorStop(1.0, '#d8c8b4');
+    } else {
+      ivoryGrad.addColorStop(0.0, '#ffffff'); // Zenith specular highlight
+      ivoryGrad.addColorStop(0.08, '#fefdfb'); // Pure polished ivory
+      ivoryGrad.addColorStop(0.50, '#f6f0e6'); // Rich ivory body
+      ivoryGrad.addColorStop(0.85, '#ede3d3'); // Base ivory tone
+      ivoryGrad.addColorStop(1.0, '#dfd2be'); // Chamfer shadow
+    }
+
+    ctx.fillStyle = ivoryGrad;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x0, y0, w, h - bevelH * 0.6, [r, r, 0, 0]);
+    else ctx.rect(x0, y0, w, h - bevelH * 0.6);
+    ctx.fill();
+
+    // 4. Inlaid Aged Brass Peripheral Rim
+    ctx.strokeStyle = isPressed ? '#ffe5a3' : 'rgba(197, 160, 89, 0.55)';
+    ctx.lineWidth = Math.max(1.0, (isLarge ? 2.0 : 1.2) * scale);
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x0, y0, w, h, r);
+    else ctx.rect(x0, y0, w, h);
+    ctx.stroke();
+
+    // 5. Specular Zenith Lighting Glint (Zenith rim reflection)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+    ctx.lineWidth = Math.max(0.8, (isLarge ? 1.6 : 1.0) * scale);
+    ctx.beginPath();
+    ctx.moveTo(x0 + r, y0 + 0.5);
+    ctx.lineTo(x0 + w - r, y0 + 0.5);
+    ctx.stroke();
+
+    // 6. Tactile Inlay / Center Key Accent for Grand Piano Authenticity
+    if (isLarge) {
+      const grooveW = w * 0.58;
+      const grooveH = Math.max(3, 5 * scale);
+      const grooveY = y0 + (h - bevelH) * 0.44;
+      const grooveGrad = ctx.createLinearGradient(0, grooveY, 0, grooveY + grooveH);
+      grooveGrad.addColorStop(0.0, 'rgba(197, 160, 89, 0.35)');
+      grooveGrad.addColorStop(0.5, 'rgba(255, 248, 220, 0.85)');
+      grooveGrad.addColorStop(1.0, 'rgba(197, 160, 89, 0.35)');
+      ctx.fillStyle = grooveGrad;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(cx - grooveW / 2, grooveY - grooveH / 2, grooveW, grooveH, 2);
+      else ctx.rect(cx - grooveW / 2, grooveY - grooveH / 2, grooveW, grooveH);
+      ctx.fill();
+
+      // Front Piano Key Separation Lip
+      ctx.strokeStyle = 'rgba(110, 82, 35, 0.35)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(x0 + 4, y0 + h - bevelH);
+      ctx.lineTo(x0 + w - 4, y0 + h - bevelH);
+      ctx.stroke();
+    } else {
+      const grooveW = w * 0.40;
+      const grooveH = Math.max(1.5, 2.5 * scale);
+      const grooveY = y0 + (h - bevelH) * 0.5;
+      ctx.fillStyle = 'rgba(197, 160, 89, 0.25)';
+      ctx.fillRect(cx - grooveW / 2, grooveY - grooveH / 2, grooveW, grooveH);
+    }
+
+    ctx.restore();
+  }
+
+  // Tecla Neón 2D Clásica (para modo 2D Neón)
+  draw2DNeonKey(ctx, cx, cy, w, h, isPressed = false, isLarge = true) {
+    ctx.save();
+    const x0 = cx - w / 2;
+    const y0 = cy - h / 2;
+    const r = isLarge ? 8 : 5;
+
+    ctx.shadowColor = isPressed ? '#ff007f' : '#00f2fe';
+    ctx.shadowBlur = isPressed ? (isLarge ? 24 : 16) : (isLarge ? 18 : 10);
+
+    const grad = ctx.createLinearGradient(0, y0, 0, y0 + h);
+    if (isPressed) {
+      grad.addColorStop(0.0, '#ffffff');
+      grad.addColorStop(0.3, '#ff007f');
+      grad.addColorStop(0.8, '#aa0055');
+      grad.addColorStop(1.0, '#550022');
+    } else {
+      grad.addColorStop(0.0, '#ffffff');
+      grad.addColorStop(0.15, '#e0fcff');
+      grad.addColorStop(0.5, '#00d2fe');
+      grad.addColorStop(0.85, '#005588');
+      grad.addColorStop(1.0, '#002244');
+    }
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x0, y0, w, h, r);
+    else ctx.rect(x0, y0, w, h);
+    ctx.fill();
+
+    ctx.strokeStyle = isPressed ? '#ffffff' : 'rgba(255, 255, 255, 0.9)';
+    ctx.lineWidth = isLarge ? 2.2 : 1.4;
+    ctx.stroke();
+
+    // Línea de energía central para teclas grandes en 2D
+    if (isLarge) {
+      ctx.fillStyle = isPressed ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 242, 254, 0.85)';
+      ctx.fillRect(cx - (w * 0.48) / 2, cy - 1.5, w * 0.48, 3);
+    }
+
+    ctx.restore();
   }
 
   renderLanes() {
     const ctx = this.ctx;
+    const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
+    const horizonY = 12;
+    const bottomY = this.height + 30;
+    const midX = this.width / 2;
+    const baseLaneW = this.width / 3;
+    const is3D = (this.visualDimension !== '2d');
+    const hasCustomBg = Boolean(this.customBgMedia || this.customBgVideo || (this.customBgMode && this.customBgMode !== 'black'));
 
-    for (let l = 0; l < 3; l++) {
-      const x0 = l * this.laneWidth;
+    ctx.save();
 
-      const isHolding = this.activeHolds.has(l);
-      if (isHolding) {
+    if (is3D) {
+      // Perspective conical bounds calculation
+      const getBoundaryX = (lineIdx, yTarget) => {
+        const p = Math.max(0, (yTarget - horizonY) / (hitY - horizonY));
+        const pCurved = Math.pow(p, 1.0 / 1.7);
+        const scale = 0.60 + 0.40 * pCurved;
+        const laneW = baseLaneW * scale;
+        return midX + (lineIdx - 1.5) * laneW;
+      };
+
+      // 1. Acoustic Grand Piano Bed: Polished Ebony Wood
+      // CRITICAL FIX: If custom background exists, render smoked glass ebony so background/video shines cleanly through!
+      const ebonyGrad = ctx.createLinearGradient(midX, horizonY, midX, bottomY);
+      if (hasCustomBg) {
+        ebonyGrad.addColorStop(0.0, 'rgba(7, 5, 9, 0.16)');
+        ebonyGrad.addColorStop(0.35, 'rgba(13, 11, 16, 0.25)');
+        ebonyGrad.addColorStop(0.75, 'rgba(21, 17, 27, 0.32)');
+        ebonyGrad.addColorStop(1.0, 'rgba(12, 10, 15, 0.38)');
+      } else {
+        ebonyGrad.addColorStop(0.0, 'rgba(7, 5, 9, 0.88)');
+        ebonyGrad.addColorStop(0.25, 'rgba(13, 11, 16, 0.92)');
+        ebonyGrad.addColorStop(0.75, 'rgba(21, 17, 27, 0.94)');
+        ebonyGrad.addColorStop(1.0, 'rgba(12, 10, 15, 0.95)');
+      }
+
+      const tL_top = getBoundaryX(0, horizonY);
+      const tR_top = getBoundaryX(3, horizonY);
+      const tR_bot = getBoundaryX(3, bottomY);
+      const tL_bot = getBoundaryX(0, bottomY);
+
+      ctx.beginPath();
+      ctx.moveTo(tL_top, horizonY);
+      ctx.lineTo(tR_top, horizonY);
+      ctx.lineTo(tR_bot, bottomY);
+      ctx.lineTo(tL_bot, bottomY);
+      ctx.closePath();
+      ctx.fillStyle = ebonyGrad;
+      ctx.fill();
+
+      // Acoustic Cavity Depth Ambient Vignette
+      const cavityGlow = ctx.createRadialGradient(midX, hitY * 0.55, 30, midX, hitY * 0.55, this.width * 0.85);
+      if (hasCustomBg) {
+        cavityGlow.addColorStop(0.0, 'rgba(197, 160, 89, 0.03)');
+        cavityGlow.addColorStop(0.55, 'rgba(13, 11, 16, 0.12)');
+        cavityGlow.addColorStop(1.0, 'rgba(0, 0, 0, 0.22)');
+      } else {
+        cavityGlow.addColorStop(0.0, 'rgba(197, 160, 89, 0.06)');
+        cavityGlow.addColorStop(0.55, 'rgba(13, 11, 16, 0.25)');
+        cavityGlow.addColorStop(1.0, 'rgba(0, 0, 0, 0.65)');
+      }
+      ctx.fillStyle = cavityGlow;
+      ctx.fill();
+
+      // 2. Dynamic Lane Illumination (Held / Glow) with Warm Gold & Additive Blending
+      for (let l = 0; l < 3; l++) {
+        const isHolding = this.activeHolds.has(l);
+        const glow = this.laneGlows[l] || 0;
+        if (isHolding || glow > 0.01) {
+          const pL_top = getBoundaryX(l, horizonY);
+          const pR_top = getBoundaryX(l + 1, horizonY);
+          const pR_bot = getBoundaryX(l + 1, hitY + 24);
+          const pL_bot = getBoundaryX(l, hitY + 24);
+
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          const goldBeam = ctx.createLinearGradient(0, hitY, 0, horizonY);
+          const alpha = isHolding ? 0.35 : Math.min(0.40, glow * 0.40);
+          goldBeam.addColorStop(0.0, `rgba(255, 223, 158, ${alpha})`);
+          goldBeam.addColorStop(0.35, `rgba(212, 175, 55, ${(alpha * 0.6).toFixed(3)})`);
+          goldBeam.addColorStop(0.70, `rgba(197, 160, 89, ${(alpha * 0.2).toFixed(3)})`);
+          goldBeam.addColorStop(1.0, 'rgba(197, 160, 89, 0)');
+
+          ctx.beginPath();
+          ctx.moveTo(pL_top, horizonY);
+          ctx.lineTo(pR_top, horizonY);
+          ctx.lineTo(pR_bot, hitY + 24);
+          ctx.lineTo(pL_bot, hitY + 24);
+          ctx.closePath();
+          ctx.fillStyle = goldBeam;
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      // 3. Polished Brass Rails & Inlaid String Separators (#c5a059)
+      for (let lineIdx = 0; lineIdx <= 3; lineIdx++) {
+        const xTop = getBoundaryX(lineIdx, horizonY);
+        const xBot = getBoundaryX(lineIdx, bottomY);
+        const isOuter = (lineIdx === 0 || lineIdx === 3);
+
         ctx.save();
-        ctx.fillStyle = 'rgba(0, 255, 136, 0.22)';
-        ctx.fillRect(x0, 0, this.laneWidth, this.height);
-        ctx.restore();
-      } else if (this.laneGlows[l] > 0) {
-        ctx.save();
-        ctx.fillStyle = `#00f2fe${Math.round(this.laneGlows[l] * 50).toString(16).padStart(2, '0')}`;
-        ctx.fillRect(x0, 0, this.laneWidth, this.height);
+        const brassGrad = ctx.createLinearGradient(0, horizonY, 0, bottomY);
+        brassGrad.addColorStop(0.0, 'rgba(140, 109, 35, 0.20)');
+        brassGrad.addColorStop(0.4, 'rgba(197, 160, 89, 0.55)');
+        brassGrad.addColorStop(0.7, 'rgba(243, 215, 145, 0.85)');
+        brassGrad.addColorStop(1.0, 'rgba(140, 109, 35, 0.35)');
+
+        ctx.strokeStyle = brassGrad;
+        ctx.lineWidth = isOuter ? 2.5 : 1.5;
+        ctx.beginPath();
+        ctx.moveTo(xTop, horizonY);
+        ctx.lineTo(xBot, bottomY);
+        ctx.stroke();
+
+        if (!isOuter) {
+          ctx.strokeStyle = 'rgba(255, 248, 220, 0.35)';
+          ctx.lineWidth = 0.8;
+          ctx.beginPath();
+          ctx.moveTo(xTop + 0.5, horizonY);
+          ctx.lineTo(xBot + 0.5, bottomY);
+          ctx.stroke();
+        }
         ctx.restore();
       }
 
-      if (l > 0) {
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+    } else {
+      // ==========================================
+      // 2D NEÓN CLÁSICO (Modo Plano)
+      // ==========================================
+      const laneW = baseLaneW;
+
+      ctx.fillStyle = hasCustomBg ? 'rgba(8, 6, 14, 0.38)' : 'rgba(8, 6, 14, 0.88)';
+      ctx.fillRect(0, 0, this.width, this.height);
+
+      for (let l = 1; l <= 2; l++) {
+        const lx = l * laneW;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(0, 242, 254, 0.35)';
         ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.moveTo(x0, 0);
-        ctx.lineTo(x0, this.height);
+        ctx.moveTo(lx, 0);
+        ctx.lineTo(lx, this.height);
         ctx.stroke();
+        ctx.restore();
+      }
+
+      for (let l = 0; l < 3; l++) {
+        const isHolding = this.activeHolds.has(l);
+        const glow = this.laneGlows[l] || 0;
+        if (isHolding || glow > 0.01) {
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          const neonGrad = ctx.createLinearGradient(0, hitY, 0, 0);
+          const alpha = isHolding ? 0.35 : Math.min(0.45, glow * 0.45);
+          neonGrad.addColorStop(0.0, `rgba(0, 242, 254, ${alpha})`);
+          neonGrad.addColorStop(0.6, `rgba(255, 0, 127, ${(alpha * 0.3).toFixed(3)})`);
+          neonGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+          ctx.fillStyle = neonGrad;
+          ctx.fillRect(l * laneW, 0, laneW, hitY + 20);
+          ctx.restore();
+        }
       }
     }
+
+    ctx.restore();
   }
 
   renderHitLine() {
     const ctx = this.ctx;
-    const y = this.hitLineY;
+    const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
+    const W = this.width;
+    const is3D = (this.visualDimension !== '2d');
+    const isLarge = (this.keyStyle !== 'compact');
 
     ctx.save();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
-    ctx.shadowColor = '#00f2fe';
-    ctx.shadowBlur = 16;
-    ctx.lineWidth = 3.5;
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(this.width, y);
-    ctx.stroke();
 
-    const baseRadius = 28;
-    const pressedRadius = 33;
-    const holdingRadius = 36;
-    const ringRadius = 42;
+    if (is3D) {
+      // 1. Crimson Red Piano Felt Strip (#85141d) with acoustic texture
+      const feltH = 26;
+      const feltGrad = ctx.createLinearGradient(0, hitY, 0, hitY + feltH);
+      feltGrad.addColorStop(0.0, '#85141d');
+      feltGrad.addColorStop(0.2, '#9a1923');
+      feltGrad.addColorStop(0.7, '#670d14');
+      feltGrad.addColorStop(1.0, '#3f080c');
 
-    for (let l = 0; l < 3; l++) {
-      const cx = (l + 0.5) * this.laneWidth;
-      const isHolding = this.activeHolds.has(l);
-      const isPressed = this.laneGlows[l] > 0.4 || isHolding;
+      ctx.fillStyle = feltGrad;
+      ctx.fillRect(0, hitY, W, feltH);
 
+      // Subtle felt weave and damper stitch line
+      ctx.strokeStyle = 'rgba(255, 180, 180, 0.18)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
       ctx.beginPath();
-      ctx.arc(cx, y, isHolding ? holdingRadius : (isPressed ? pressedRadius : baseRadius), 0, Math.PI * 2);
-      ctx.fillStyle = isHolding 
-        ? 'rgba(0, 255, 136, 0.45)' 
-        : (isPressed ? 'rgba(0, 242, 254, 0.35)' : 'rgba(255, 255, 255, 0.08)');
-      ctx.fill();
-      ctx.strokeStyle = isHolding ? '#00ff88' : (isPressed ? '#00f2fe' : 'rgba(255, 255, 255, 0.3)');
-      ctx.lineWidth = isHolding ? 4 : (isPressed ? 3 : 2);
+      ctx.moveTo(0, hitY + feltH * 0.5);
+      ctx.lineTo(W, hitY + feltH * 0.5);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // 2. Crowned Polished Brass Rail (Riel de Latón Pulido)
+      const railH = 7;
+      const railY = hitY - 3.5;
+      const brassRail = ctx.createLinearGradient(0, railY, 0, railY + railH);
+      brassRail.addColorStop(0.0, '#3e2808');
+      brassRail.addColorStop(0.25, '#c5a059');
+      brassRail.addColorStop(0.50, '#fff3cf'); // Specular zenith glint
+      brassRail.addColorStop(0.75, '#d4af37');
+      brassRail.addColorStop(1.0, '#4a3512');
+
+      // Rail shadow cast onto the crimson felt
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+      ctx.fillRect(0, railY + railH, W, 3);
+
+      // Brass bar
+      ctx.fillStyle = brassRail;
+      ctx.fillRect(0, railY, W, railH);
+
+      // Rail upper specular highlight
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, railY);
+      ctx.lineTo(W, railY);
       ctx.stroke();
 
-      if (isHolding) {
-        const active = this.activeHolds.get(l);
-        const startT = active.startTime;
-        const endT = active.note.end_timestamp_ms || (startT + (active.note.duration_ms || 700));
-        const currT = this.sync.getCurrentTimeMs() + this.latencyOffsetMs;
-        const progress = Math.min(1.0, Math.max(0, (currT - startT) / (endT - startT)));
+      // 3. Lane Hit Targets (Dianas de Marfil y Latón con Micro-Hundimiento)
+      for (let l = 0; l < 3; l++) {
+        const coord = this.getPerspectiveCoord(l, 1.0);
+        const cx = coord.x;
+        const isHolding = this.activeHolds.has(l);
+        const glow = this.laneGlows[l] || 0;
+        const isPressed = glow > 0.35 || isHolding;
 
+        const depressY = isPressed ? 3.5 : 0;
+        const cy = hitY + depressY;
+
+        const targetW = coord.laneW * (isLarge ? 0.95 : 0.78);
+        const targetH = isLarge ? 46 : 22;
+
+        ctx.save();
+        ctx.fillStyle = 'rgba(15, 10, 14, 0.75)';
         ctx.beginPath();
-        ctx.arc(cx, y, ringRadius, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
-        ctx.strokeStyle = '#00ff88';
-        ctx.lineWidth = 3.5;
+        if (ctx.roundRect) ctx.roundRect(cx - targetW / 2, hitY - targetH / 2, targetW, targetH, isLarge ? 10 : 6);
+        else ctx.rect(cx - targetW / 2, hitY - targetH / 2, targetW, targetH);
+        ctx.fill();
+
+        ctx.strokeStyle = isPressed ? '#ffdf9e' : 'rgba(197, 160, 89, 0.55)';
+        ctx.lineWidth = isPressed ? 2.8 : 1.5;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(cx - targetW / 2, cy - targetH / 2, targetW, targetH, isLarge ? 10 : 6);
+        else ctx.rect(cx - targetW / 2, cy - targetH / 2, targetW, targetH);
         ctx.stroke();
+
+        if (isPressed) {
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          const flashRad = targetW * 0.9;
+          const flashGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, flashRad);
+          const flashAlpha = isHolding ? 0.85 : Math.min(1.0, glow * 1.2);
+          flashGrad.addColorStop(0.0, `rgba(255, 240, 190, ${flashAlpha})`);
+          flashGrad.addColorStop(0.3, `rgba(255, 223, 158, ${(flashAlpha * 0.8).toFixed(3)})`);
+          flashGrad.addColorStop(0.65, `rgba(212, 175, 55, ${(flashAlpha * 0.35).toFixed(3)})`);
+          flashGrad.addColorStop(1.0, 'rgba(212, 175, 55, 0)');
+
+          ctx.fillStyle = flashGrad;
+          ctx.beginPath();
+          ctx.arc(cx, cy, flashRad, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        if (isHolding) {
+          const active = this.activeHolds.get(l);
+          const startT = active.startTime;
+          const endT = active.note.end_timestamp_ms || (startT + (active.note.duration_ms || 700));
+          const currT = this.sync.getCurrentTimeMs() + this.latencyOffsetMs;
+          const progress = Math.min(1.0, Math.max(0, (currT - startT) / (endT - startT)));
+
+          ctx.save();
+          ctx.strokeStyle = '#ffdf9e';
+          ctx.lineWidth = 3.5;
+          ctx.shadowColor = '#d4af37';
+          ctx.shadowBlur = 10;
+          ctx.beginPath();
+          ctx.arc(cx, cy, targetH * 0.8, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        if (this.isPCMode) {
+          const kb = this.pcKeybinds || { 0: 'd', 1: 'f', 2: 'j' };
+          const keyChar = ((kb[l] || (l === 0 ? 'd' : (l === 1 ? 'f' : 'j'))).toUpperCase());
+          ctx.save();
+          ctx.font = '700 12px "Cinzel", "Playfair Display", serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = isPressed ? '#ffffff' : 'rgba(243, 215, 145, 0.75)';
+          if (isPressed) {
+            ctx.shadowColor = '#ffd700';
+            ctx.shadowBlur = 8;
+          }
+          ctx.fillText(`[ ${keyChar} ]`, cx, hitY + (isLarge ? 48 : 38));
+          ctx.restore();
+        }
+
+        ctx.restore();
       }
 
-      if (this.isPCMode) {
-        const kb = this.pcKeybinds || { 0: 'd', 1: 'f', 2: 'j' };
-        const keyChar = ((kb[l] || (l === 0 ? 'd' : (l === 1 ? 'f' : 'j'))).toUpperCase());
+    } else {
+      // ==========================================
+      // 2D NEÓN HIT LINE (Modo Plano)
+      // ==========================================
+      const laneW = this.width / 3;
+
+      ctx.save();
+      ctx.strokeStyle = '#00f2fe';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = '#00f2fe';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.moveTo(0, hitY);
+      ctx.lineTo(W, hitY);
+      ctx.stroke();
+      ctx.restore();
+
+      for (let l = 0; l < 3; l++) {
+        const cx = (l + 0.5) * laneW;
+        const isHolding = this.activeHolds.has(l);
+        const glow = this.laneGlows[l] || 0;
+        const isPressed = glow > 0.35 || isHolding;
+
+        const targetW = laneW * (isLarge ? 0.95 : 0.78);
+        const targetH = isLarge ? 44 : 20;
+
         ctx.save();
-        ctx.font = '900 13px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = isPressed ? '#00f2fe' : 'rgba(255, 255, 255, 0.60)';
-        ctx.shadowColor = isPressed ? '#00f2fe' : 'transparent';
-        ctx.shadowBlur = isPressed ? 10 : 0;
-        ctx.fillText(`[ ${keyChar} ]`, cx, y + 44);
+        ctx.fillStyle = isPressed ? 'rgba(0, 242, 254, 0.25)' : 'rgba(0, 0, 0, 0.6)';
+        ctx.strokeStyle = isPressed ? '#ff007f' : 'rgba(0, 242, 254, 0.6)';
+        ctx.lineWidth = isPressed ? 2.5 : 1.5;
+        if (isPressed) {
+          ctx.shadowColor = '#ff007f';
+          ctx.shadowBlur = 10;
+        }
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(cx - targetW / 2, hitY - targetH / 2, targetW, targetH, isLarge ? 8 : 4);
+        else ctx.rect(cx - targetW / 2, hitY - targetH / 2, targetW, targetH);
+        ctx.fill();
+        ctx.stroke();
+
+        if (this.isPCMode) {
+          const kb = this.pcKeybinds || { 0: 'd', 1: 'f', 2: 'j' };
+          const keyChar = ((kb[l] || (l === 0 ? 'd' : (l === 1 ? 'f' : 'j'))).toUpperCase());
+          ctx.font = '700 12px "Outfit", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = isPressed ? '#00f2fe' : '#ffffff';
+          ctx.fillText(`[ ${keyChar} ]`, cx, hitY + (isLarge ? 46 : 34));
+        }
         ctx.restore();
       }
     }
+
     ctx.restore();
   }
 
-  renderVectorChevron(ctx, x, y, direction, size = 32, strokeColor = '#ffffff') {
+  renderVectorChevron(ctx, x, y, direction, size = 32, strokeColor = '#c5a059') {
     ctx.save();
     ctx.translate(x, y);
 
@@ -2903,6 +3520,10 @@ class BeatstarEngine {
     const h = size * 0.70;
     const thickness = size * 0.38;
 
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+    ctx.shadowBlur = 4;
+    ctx.shadowOffsetY = 2;
+
     ctx.beginPath();
     ctx.moveTo(0, -h);
     ctx.lineTo(w, 0);
@@ -2912,20 +3533,17 @@ class BeatstarEngine {
     ctx.lineTo(-w, 0);
     ctx.closePath();
 
-    ctx.fillStyle = strokeColor;
+    const chevronGrad = ctx.createLinearGradient(0, -h, 0, thickness);
+    chevronGrad.addColorStop(0.0, '#fff3cf');
+    chevronGrad.addColorStop(0.5, '#d4af37');
+    chevronGrad.addColorStop(1.0, '#8c6d23');
+
+    ctx.fillStyle = chevronGrad;
     ctx.fill();
 
-    ctx.beginPath();
-    ctx.moveTo(0, -h + thickness * 1.3);
-    ctx.lineTo(w * 0.75, thickness * 1.3);
-    ctx.lineTo(w * 0.75, thickness * 1.9);
-    ctx.lineTo(0, -h + thickness * 1.9);
-    ctx.lineTo(-w * 0.75, thickness * 1.9);
-    ctx.lineTo(-w * 0.75, thickness * 1.3);
-    ctx.closePath();
-
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
 
     ctx.restore();
   }
@@ -2933,9 +3551,11 @@ class BeatstarEngine {
   renderNotes(currentTime) {
     const ctx = this.ctx;
     const len = this.notes.length;
-    const hitLine = Number.isFinite(this.hitLineY) ? this.hitLineY : 500;
     const scrollDur = (Number.isFinite(this.scrollDurationMs) && this.scrollDurationMs > 0) ? this.scrollDurationMs : 1400;
-    const laneW = (Number.isFinite(this.laneWidth) && this.laneWidth > 0) ? this.laneWidth : (this.width / 3);
+    const is3D = (this.visualDimension !== '2d');
+    const isLarge = (this.keyStyle !== 'compact');
+    const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
+    const laneW = this.width / 3;
 
     for (let i = 0; i < len; i++) {
       const note = this.notes[i];
@@ -2944,7 +3564,6 @@ class BeatstarEngine {
       if (note.missed && !note.holding) continue;
       if (note.processed && !note.holding) continue;
 
-      // Sanitización matemática estricta de carril y tiempo de la nota
       const lane = Number.isFinite(note.lane)
         ? Math.max(0, Math.min(2, Math.round(note.lane)))
         : (Number.isFinite(note.column) ? Math.max(0, Math.min(2, Math.round(note.column))) : 0);
@@ -2961,161 +3580,187 @@ class BeatstarEngine {
       const timeUntilHit = noteT - currentTime;
       if (!Number.isFinite(timeUntilHit)) continue;
 
-      const x = (lane + 0.5) * laneW;
-      const w = laneW * 0.78;
-      const h = 28;
+      const pHead = 1.0 - timeUntilHit / scrollDur;
+      if (pHead < -0.15 || (!isBeingHeld && pHead > 1.25)) continue;
 
-      if (!Number.isFinite(x) || !Number.isFinite(w) || w <= 0) continue;
+      if (is3D) {
+        // =========================================================================
+        // 3D VINTAGE ACOUSTIC GRAND PIANO (CONICAL PERSPECTIVE)
+        // =========================================================================
+        if (note.type === 'hold') {
+          const rawDur = Number.isFinite(note.duration_ms)
+            ? note.duration_ms
+            : (Number.isFinite(note.holdDuration)
+                ? (note.holdDuration > 50 ? note.holdDuration : note.holdDuration * 1000)
+                : (Number.isFinite(note.duration) ? (note.duration > 50 ? note.duration : note.duration * 1000) : 700));
+          const holdDuration = Math.max(150, Number.isFinite(rawDur) ? rawDur : 700);
+          const endT = Number.isFinite(note.end_timestamp_ms) ? note.end_timestamp_ms : (noteT + holdDuration);
 
-      if (note.type === 'hold') {
-        const rawDur = Number.isFinite(note.duration_ms)
-          ? note.duration_ms
-          : (Number.isFinite(note.holdDuration)
-              ? (note.holdDuration > 50 ? note.holdDuration : note.holdDuration * 1000)
-              : (Number.isFinite(note.duration) ? (note.duration > 50 ? note.duration : note.duration * 1000) : 700));
-        const holdDuration = Math.max(150, Number.isFinite(rawDur) ? rawDur : 700);
-        const fullTailLength = (holdDuration / scrollDur) * hitLine;
-        const endT = Number.isFinite(note.end_timestamp_ms) ? note.end_timestamp_ms : (noteT + holdDuration);
-        
-        let headY = hitLine - (timeUntilHit / scrollDur) * hitLine;
-        let tailLength = fullTailLength;
+          let currentHeadP = isBeingHeld ? 1.0 : pHead;
+          let currentTailP = 1.0 - (endT - currentTime) / scrollDur;
 
-        if (isBeingHeld) {
-          headY = hitLine;
-          const remainingMs = Math.max(0, endT - currentTime);
-          tailLength = (remainingMs / scrollDur) * hitLine;
-        }
+          if (currentTailP > 1.25 || currentHeadP < -0.2) continue;
 
-        const endY = headY - tailLength;
-        if (!Number.isFinite(headY) || !Number.isFinite(endY) || !Number.isFinite(tailLength)) continue;
-        if (endY > this.height + 100 || headY < -300) continue;
+          ctx.save();
 
-        ctx.save();
-        let grad = null;
-        if (Number.isFinite(endY) && Number.isFinite(headY)) {
-          try {
-            grad = ctx.createLinearGradient(0, endY, 0, headY);
-            if (isBeingHeld) {
-              grad.addColorStop(0, 'rgba(0, 255, 136, 0.25)');
-              grad.addColorStop(1, 'rgba(0, 255, 136, 0.95)');
-            } else {
-              grad.addColorStop(0, 'rgba(240, 147, 251, 0.2)');
-              grad.addColorStop(1, 'rgba(245, 87, 108, 0.85)');
-            }
-          } catch (e) {
-            grad = null;
+          const segments = 16;
+          const stringPoints = [];
+          for (let s = 0; s <= segments; s++) {
+            const frac = s / segments;
+            const pStep = currentTailP + (currentHeadP - currentTailP) * frac;
+            const coord = this.getPerspectiveCoord(lane, pStep);
+
+            const standingEnvelope = Math.sin(Math.PI * frac);
+            const freq = isBeingHeld ? 0.035 : 0.015;
+            const wavenumber = 0.04;
+            const amplitude = (isBeingHeld ? 3.5 : 1.2) * coord.scale;
+            const harmonicOffset = amplitude * standingEnvelope * Math.sin(freq * currentTime + wavenumber * coord.y);
+
+            stringPoints.push({
+              x: coord.x + harmonicOffset,
+              y: coord.y,
+              scale: coord.scale,
+              laneW: coord.laneW
+            });
           }
-        }
 
-        ctx.fillStyle = grad || (isBeingHeld ? 'rgba(0, 255, 136, 0.85)' : 'rgba(245, 87, 108, 0.85)');
-        ctx.fillRect(x - w * 0.4, endY, w * 0.8, tailLength);
-        
-        ctx.strokeStyle = isBeingHeld ? '#00ff88' : '#f5576c';
-        ctx.lineWidth = isBeingHeld ? 3.5 : 2.5;
-        ctx.strokeRect(x - w * 0.4, endY, w * 0.8, tailLength);
-
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(x - w * 0.45, endY - 4, w * 0.9, 8);
-
-        ctx.fillStyle = isBeingHeld ? '#00ff88' : '#ffffff';
-        ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(x - w / 2, headY - h / 2, w, h, 12);
-        } else {
-          ctx.rect(x - w / 2, headY - h / 2, w, h);
-        }
-        ctx.fill();
-        ctx.restore();
-
-      } else if (note.type === 'swipe') {
-        const giantW = laneW * 0.92;
-        const giantH = 58;
-        const y = hitLine - (timeUntilHit / scrollDur) * hitLine;
-        if (!Number.isFinite(y) || y < -300 || y > this.height + 60) continue;
-
-        ctx.save();
-        const dir = note.direction || 'up';
-        
-        let grad1 = '#00f2fe';
-        let grad2 = '#0066ff';
-
-        if (dir === 'up') {
-          grad1 = '#ffd700';
-          grad2 = '#ff007f';
-        } else if (dir === 'down') {
-          grad1 = '#00ff88';
-          grad2 = '#00b4d8';
-        }
-        
-        const x0 = x - giantW / 2;
-        const x1 = x + giantW / 2;
-        let grad = null;
-        if (Number.isFinite(x0) && Number.isFinite(x1) && Number.isFinite(y)) {
-          try {
-            grad = ctx.createLinearGradient(x0, y, x1, y);
-            grad.addColorStop(0, grad1);
-            grad.addColorStop(1, grad2);
-          } catch (e) {
-            grad = null;
+          // Golden Aura / Resonant Glow
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.shadowColor = '#ffd700';
+          ctx.shadowBlur = isBeingHeld ? 18 : 8;
+          ctx.strokeStyle = isBeingHeld ? 'rgba(255, 223, 158, 0.65)' : 'rgba(212, 175, 55, 0.40)';
+          ctx.lineWidth = 10 * stringPoints[stringPoints.length - 1].scale;
+          ctx.beginPath();
+          for (let s = 0; s < stringPoints.length; s++) {
+            if (s === 0) ctx.moveTo(stringPoints[s].x, stringPoints[s].y);
+            else ctx.lineTo(stringPoints[s].x, stringPoints[s].y);
           }
-        }
-        ctx.fillStyle = grad || grad1;
+          ctx.stroke();
+          ctx.restore();
 
-        ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(x - giantW / 2, y - giantH / 2, giantW, giantH, 18);
+          // Outer Brass Wound Wire Body
+          ctx.save();
+          ctx.strokeStyle = '#8c6d23';
+          ctx.lineWidth = 6.5 * stringPoints[stringPoints.length - 1].scale;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          for (let s = 0; s < stringPoints.length; s++) {
+            if (s === 0) ctx.moveTo(stringPoints[s].x, stringPoints[s].y);
+            else ctx.lineTo(stringPoints[s].x, stringPoints[s].y);
+          }
+          ctx.stroke();
+
+          // Core Taut Golden String
+          const goldStringGrad = ctx.createLinearGradient(0, stringPoints[0].y, 0, stringPoints[stringPoints.length - 1].y);
+          goldStringGrad.addColorStop(0.0, '#a37a1e');
+          goldStringGrad.addColorStop(0.5, '#ffd700');
+          goldStringGrad.addColorStop(1.0, '#ffe082');
+
+          ctx.strokeStyle = goldStringGrad;
+          ctx.lineWidth = 3.2 * stringPoints[stringPoints.length - 1].scale;
+          ctx.stroke();
+
+          // Incandescent Core Wire
+          ctx.strokeStyle = '#fff8db';
+          ctx.lineWidth = 1.2 * stringPoints[stringPoints.length - 1].scale;
+          ctx.stroke();
+          ctx.restore();
+
+          // Tail String Damper Pin
+          const tailPt = stringPoints[0];
+          ctx.save();
+          const pinRad = 5 * tailPt.scale;
+          ctx.fillStyle = '#c5a059';
+          ctx.strokeStyle = '#fff3cf';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(tailPt.x, tailPt.y, pinRad, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+
+          // Head Ivory Piano Key
+          const headPt = stringPoints[stringPoints.length - 1];
+          const headW = headPt.laneW * (isLarge ? 0.95 : 0.78);
+          const headH = (isLarge ? 64 : 22) * headPt.scale;
+          this.drawIvoryKey(ctx, headPt.x, headPt.y, headW, headH, headPt.scale, isBeingHeld, isLarge);
+
+          ctx.restore();
+
+        } else if (note.type === 'swipe') {
+          const coord = this.getPerspectiveCoord(lane, pHead);
+          const w = coord.laneW * (isLarge ? 0.95 : 0.78);
+          const h = (isLarge ? 76 : 32) * coord.scale;
+          const dir = note.direction || 'up';
+
+          ctx.save();
+          this.drawIvoryKey(ctx, coord.x, coord.y, w, h, coord.scale, false, isLarge);
+          this.renderVectorChevron(ctx, coord.x, coord.y, dir, (isLarge ? 36 : 20) * coord.scale, '#c5a059');
+          ctx.restore();
+
         } else {
-          ctx.rect(x - giantW / 2, y - giantH / 2, giantW, giantH);
+          // Tap Note
+          const coord = this.getPerspectiveCoord(lane, pHead);
+          const w = coord.laneW * (isLarge ? 0.95 : 0.78);
+          const h = (isLarge ? 64 : 22) * coord.scale;
+
+          ctx.save();
+          this.drawIvoryKey(ctx, coord.x, coord.y, w, h, coord.scale, false, isLarge);
+          ctx.restore();
         }
-        ctx.fill();
-
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 3.0;
-        ctx.stroke();
-
-        this.renderVectorChevron(ctx, x, y, dir, 28, '#ffffff');
-        ctx.restore();
 
       } else {
-        const y = hitLine - (timeUntilHit / scrollDur) * hitLine;
-        if (!Number.isFinite(y) || y < -300 || y > this.height + 60) continue;
+        // ==========================================
+        // 2D NEÓN CLÁSICO (Modo Plano)
+        // ==========================================
+        const cx = (lane + 0.5) * laneW;
+        const w = laneW * (isLarge ? 0.95 : 0.78);
 
-        ctx.save();
-        const x0 = x - w / 2;
-        const x1 = x + w / 2;
-        let grad = null;
-        if (Number.isFinite(x0) && Number.isFinite(x1) && Number.isFinite(y)) {
-          try {
-            grad = ctx.createLinearGradient(x0, y, x1, y);
-            grad.addColorStop(0, '#00f2fe');
-            grad.addColorStop(1, '#4facfe');
-          } catch (e) {
-            grad = null;
-          }
-        }
-        ctx.fillStyle = grad || '#00f2fe';
+        if (note.type === 'hold') {
+          const rawDur = Number.isFinite(note.duration_ms)
+            ? note.duration_ms
+            : (Number.isFinite(note.holdDuration)
+                ? (note.holdDuration > 50 ? note.holdDuration : note.holdDuration * 1000)
+                : (Number.isFinite(note.duration) ? (note.duration > 50 ? note.duration : note.duration * 1000) : 700));
+          const holdDuration = Math.max(150, Number.isFinite(rawDur) ? rawDur : 700);
+          const endT = Number.isFinite(note.end_timestamp_ms) ? note.end_timestamp_ms : (noteT + holdDuration);
 
-        ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(x - w / 2, y - h / 2, w, h, 12);
+          const currentHeadY = isBeingHeld ? hitY : (hitY * pHead);
+          const currentTailY = hitY * (1.0 - (endT - currentTime) / scrollDur);
+
+          if (currentTailY > hitY + 30 || currentHeadY < -20) continue;
+
+          // Vertical Neon Ribbon
+          ctx.save();
+          const ribbonGrad = ctx.createLinearGradient(0, currentTailY, 0, currentHeadY);
+          ribbonGrad.addColorStop(0.0, 'rgba(0, 242, 254, 0.3)');
+          ribbonGrad.addColorStop(0.5, 'rgba(0, 242, 254, 0.6)');
+          ribbonGrad.addColorStop(1.0, '#00f2fe');
+
+          ctx.fillStyle = ribbonGrad;
+          const ribbonW = w * 0.45;
+          ctx.fillRect(cx - ribbonW / 2, currentTailY, ribbonW, Math.max(4, currentHeadY - currentTailY));
+
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(cx - ribbonW / 2, currentTailY, ribbonW, Math.max(4, currentHeadY - currentTailY));
+          ctx.restore();
+
+          const h = isLarge ? 58 : 22;
+          this.draw2DNeonKey(ctx, cx, currentHeadY, w, h, isBeingHeld, isLarge);
+
+        } else if (note.type === 'swipe') {
+          const cy = hitY * pHead;
+          const h = isLarge ? 70 : 32;
+          this.draw2DNeonKey(ctx, cx, cy, w, h, false, isLarge);
+          this.renderVectorChevron(ctx, cx, cy, note.direction || 'up', isLarge ? 32 : 18, '#ffffff');
+
         } else {
-          ctx.rect(x - w / 2, y - h / 2, w, h);
+          const cy = hitY * pHead;
+          const h = isLarge ? 58 : 22;
+          this.draw2DNeonKey(ctx, cx, cy, w, h, false, isLarge);
         }
-        ctx.fill();
-
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(x - w / 4, y - h / 4, w / 2, h / 2, 6);
-        } else {
-          ctx.rect(x - w / 4, y - h / 4, w / 2, h / 2);
-        }
-        ctx.fill();
-        ctx.restore();
       }
     }
   }
@@ -3129,15 +3774,24 @@ class BeatstarEngine {
     const len = this.judgements.length;
     for (let i = 0; i < len; i++) {
       const j = this.judgements[i];
-      ctx.globalAlpha = Math.max(0, j.alpha);
-      ctx.font = `900 ${23 * j.scale}px Outfit, sans-serif`;
+      if (!j || j.alpha <= 0.01) continue;
+      ctx.globalAlpha = Math.max(0, Math.min(1, j.alpha));
+      ctx.font = `900 ${Math.round(24 * j.scale)}px "Cinzel", "Playfair Display", serif`;
       
-      // High-contrast clean text outline
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+      // Ebony shadow outline
+      ctx.strokeStyle = '#0d0b10';
       ctx.lineWidth = 4;
       ctx.strokeText(j.text, this.width / 2, j.y);
 
-      ctx.fillStyle = j.color;
+      // Warm royal golden tones
+      let textColor = j.color;
+      if (j.text === 'PERFECT+') textColor = '#ffdf9e';
+      else if (j.text === 'PERFECT') textColor = '#d4af37';
+      else if (j.text === 'GREAT') textColor = '#c5a059';
+      else if (j.text === 'GOOD') textColor = '#9e8046';
+      else if (j.text === 'MISS') textColor = '#85141d';
+
+      ctx.fillStyle = textColor;
       ctx.fillText(j.text, this.width / 2, j.y);
     }
     ctx.restore();
