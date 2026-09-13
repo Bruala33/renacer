@@ -34,9 +34,9 @@ del /q "android\app\src\main\assets\www\*.mp4" >nul 2>nul
 if exist "android\app\src\main\assets\www\downloads" rmdir /s /q "android\app\src\main\assets\www\downloads"
 
 echo.
-echo [3/4] Compilando APK limpio con Gradle...
+echo [3/4] Compilando APK Release y Debug con Gradle...
 cd android
-call "%GRADLE_BIN%" assembleDebug --no-daemon
+call "%GRADLE_BIN%" assembleRelease assembleDebug --no-daemon
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] Fallo en la compilacion de Gradle.
     cd ..
@@ -47,11 +47,18 @@ cd ..
 echo.
 echo [4/4] Copiando APK final...
 if not exist "app\static\downloads" mkdir "app\static\downloads"
-copy /Y "android\app\build\outputs\apk\debug\app-debug.apk" "app\static\downloads\beatstar.apk" >nul
-copy /Y "android\app\build\outputs\apk\debug\app-debug.apk" "app\static\downloads\PianoCommunity.apk" >nul
-copy /Y "android\app\build\outputs\apk\debug\app-debug.apk" "app\static\PianoCommunity.apk" >nul
-copy /Y "android\app\build\outputs\apk\debug\app-debug.apk" "beatstar.apk" >nul
-copy /Y "android\app\build\outputs\apk\debug\app-debug.apk" "PianoCommunity.apk" >nul
+
+set "APK_SOURCE=android\app\build\outputs\apk\release\app-release.apk"
+if not exist "!APK_SOURCE!" (
+    set "APK_SOURCE=android\app\build\outputs\apk\debug\app-debug.apk"
+)
+
+echo Usando APK fuente: !APK_SOURCE!
+copy /Y "!APK_SOURCE!" "app\static\downloads\beatstar.apk" >nul
+copy /Y "!APK_SOURCE!" "app\static\downloads\PianoCommunity.apk" >nul
+copy /Y "!APK_SOURCE!" "app\static\PianoCommunity.apk" >nul
+copy /Y "!APK_SOURCE!" "beatstar.apk" >nul
+copy /Y "!APK_SOURCE!" "PianoCommunity.apk" >nul
 
 echo.
 echo ======================================================

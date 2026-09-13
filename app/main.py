@@ -45,15 +45,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 3. Servidor de estáticos con cabeceras de caché agresivas para navegadores (evita re-descargas)
+# 3. Servidor de estáticos sin caché en assets dinámicos para garantizar actualizaciones inmediatas
 class CachedStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
         response = await super().get_response(path, scope)
         if response.status_code == 200:
-            if path.endswith((".css", ".js", ".png", ".jpg", ".jpeg", ".svg", ".webp", ".ico", ".woff2")):
-                response.headers["Cache-Control"] = "public, max-age=604800, stale-while-revalidate=86400"
-            elif path.endswith((".html", ".htm")):
-                response.headers["Cache-Control"] = "no-cache, must-revalidate"
+            if path.endswith((".css", ".js", ".html", ".htm")):
+                response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+                response.headers["Pragma"] = "no-cache"
+                response.headers["Expires"] = "0"
+            elif path.endswith((".png", ".jpg", ".jpeg", ".svg", ".webp", ".ico", ".woff2")):
+                response.headers["Cache-Control"] = "public, max-age=3600"
         return response
 
 # Setup static directory
@@ -70,13 +72,25 @@ ssl_ctx.verify_mode = ssl.CERT_NONE
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def serve_root_index():
     """
-    Sirve directamente la aplicación web index.html en la raíz con cero latencia y sin caché.
+    Sirve directamente la aplicación web game.html en la raíz con cero latencia y sin caché.
     """
-    index_path = os.path.join(static_dir, "index.html")
-    if os.path.exists(index_path):
-        with open(index_path, "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read(), status_code=200, headers={"Cache-Control": "no-cache"})
-    raise HTTPException(status_code=404, detail="index.html no encontrado.")
+    candidate_paths = [
+        os.path.join(static_dir, "game.html"),
+        os.path.join(static_dir, "index.html")
+    ]
+    for p in candidate_paths:
+        if os.path.exists(p):
+            with open(p, "r", encoding="utf-8") as f:
+                return HTMLResponse(
+                    content=f.read(),
+                    status_code=200,
+                    headers={
+                        "Cache-Control": "no-cache, no-store, must-revalidate",
+                        "Pragma": "no-cache",
+                        "Expires": "0"
+                    }
+                )
+    raise HTTPException(status_code=404, detail="game.html no encontrado.")
 
 
 @app.get("/ping", tags=["Health"], include_in_schema=False)
@@ -356,24 +370,33 @@ async def download_android_apk():
     if external_url and (external_url.startswith("http://") or external_url.startswith("https://")):
         return RedirectResponse(url=external_url, status_code=302)
 
-    apk_paths = [
+    apk_candidates = [
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "android", "app", "build", "outputs", "apk", "release", "app-release.apk"),
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "android", "app", "build", "outputs", "apk", "debug", "app-debug.apk"),
         os.path.join(static_dir, "PianoCommunity.apk"),
         os.path.join(static_dir, "downloads", "PianoCommunity.apk"),
         os.path.join(static_dir, "downloads", "beatstar.apk"),
-        os.path.join(os.path.dirname(os.path.dirname(__file__)), "android", "app", "build", "outputs", "apk", "debug", "app-debug.apk")
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "PianoCommunity.apk"),
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "beatstar.apk")
     ]
 
-    for p in apk_paths:
-        if os.path.exists(p):
-            return FileResponse(
-                path=p,
-                filename="PianoCommunity.apk",
-                media_type="application/vnd.android.package-archive",
-                headers={
-                    "Content-Disposition": 'attachment; filename="PianoCommunity.apk"',
-                    "Cache-Control": "public, max-age=86400"
-                }
-            )
+    existing_apks = [p for p in apk_candidates if os.path.isfile(p)]
+    if existing_apks:
+        # Always pick the freshest / newest compiled APK
+        best_apk = max(existing_apks, key=lambda p: os.path.getmtime(p))
+        mtime_str = str(int(os.path.getmtime(best_apk)))
+        return FileResponse(
+            path=best_apk,
+            filename="PianoCommunity.apk",
+            media_type="application/vnd.android.package-archive",
+            headers={
+                "Content-Disposition": 'attachment; filename="PianoCommunity.apk"',
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+                "ETag": f'"{mtime_str}"'
+            }
+        )
 
     raise HTTPException(
         status_code=404,

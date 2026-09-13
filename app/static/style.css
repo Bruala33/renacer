@@ -1779,26 +1779,349 @@ body {
    Preserves the original flat retro synthwave cyberpunk aesthetic
    ========================================================================== */
 
-.theme-neon-2d .result-card {
+/* ==========================================================================
+   PIANO KEY 3D CARDS (.piano-key-card)
+   Authentic concert grand piano ebony/ivory key plate styling
+   ========================================================================== */
+
+.piano-keyboard-bed {
+  background: #0d0806 !important;
+  padding: 4px !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(80, 55, 35, 0.4) !important;
+  box-shadow: inset 0 3px 10px rgba(0, 0, 0, 0.9) !important;
+}
+
+.piano-key-card {
+  position: relative;
+  min-height: 48px;
+  background: linear-gradient(180deg, #ffffff 0%, #fdfbf7 25%, #f5eee0 70%, #eae0ce 100%) !important;
+  border: 1px solid rgba(195, 175, 150, 0.8) !important;
+  border-bottom: 2.5px solid rgba(145, 125, 100, 0.95) !important;
+  border-right: 5px solid rgba(185, 165, 135, 0.9) !important; /* Authentic key front overhang lip */
+  border-left: 8px solid #991b1b !important; /* Thick Crimson Damper Felt Lining */
+  border-radius: 4px 8px 8px 4px !important;
+  margin-bottom: 3px !important;
+  box-shadow: 0 3px 8px -2px rgba(0, 0, 0, 0.45), 
+              0 1px 2px rgba(0, 0, 0, 0.15),
+              inset 0 1px 0 #ffffff,
+              inset 0 -2px 3px rgba(185, 165, 135, 0.40) !important;
+  transition: transform 0.12s ease, box-shadow 0.12s ease !important;
+}
+
+.piano-key-card:hover {
+  border-color: rgba(212, 175, 55, 0.9) !important;
+  border-left-color: #b91c1c !important;
+  border-bottom-color: rgba(180, 140, 40, 1) !important;
+  box-shadow: 0 5px 14px -2px rgba(0, 0, 0, 0.5), 
+              0 2px 6px rgba(197, 160, 89, 0.25),
+              inset 0 1px 0 #ffffff !important;
+  transform: translateY(-1px);
+}
+
+.piano-key-card:active {
+  transform: translateY(2px) scale(0.996) !important;
+  border-bottom-width: 1px !important;
+  border-left-color: #7f1d1d !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4),
+              inset 0 3px 6px rgba(140, 110, 80, 0.5) !important;
+}
+
+/* Authentic Crimson Velvet / Damper Felt Left Border Accent */
+.piano-key-lip-left {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 7px;
+  background: linear-gradient(180deg, #dc2626 0%, #991b1b 50%, #680d16 100%) !important;
+  border-radius: 3px 0 0 3px;
+  pointer-events: none;
+  box-shadow: inset 1px 0 1px rgba(255, 255, 255, 0.3), 1px 0 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Inlaid Gold Medallion Artwork on Ivory Piano Key */
+.piano-key-card .piano-key-thumb {
+  border-radius: 9999px !important;
+  border: 2px solid #b45309 !important;
+  background-color: #140e06 !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4), inset 0 1px 2px rgba(0,0,0,0.6) !important;
+}
+
+.piano-key-card .piano-key-thumb img {
+  border-radius: 9999px !important;
+}
+
+/* Concert Ebony Typography on Ivory Piano Keys */
+.piano-key-card h3,
+.piano-key-card .piano-key-title {
+  color: #140e06 !important;
+  font-family: "Cinzel", "Playfair Display", Georgia, serif !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.01em !important;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.piano-key-card .text-white {
+  color: #140e06 !important;
+}
+
+.piano-key-card .text-gray-400,
+.piano-key-card .text-gray-300,
+.piano-key-card .piano-key-sub {
+  color: #5a422d !important;
+  font-weight: 600 !important;
+}
+
+.piano-key-card .text-amber-300 {
+  color: #92400e !important;
+  font-weight: 800 !important;
+}
+
+/* Brass Gold Tuning Pin Play Button */
+.piano-key-card .piano-key-play-btn {
+  border-radius: 9999px !important;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 55%, #b45309 100%) !important;
+  color: #140e06 !important;
+  border: 1.5px solid #fde68a !important;
+  box-shadow: 0 2px 6px rgba(180, 83, 9, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+}
+
+.piano-key-card .piano-key-play-btn:hover {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 55%, #d97706 100%) !important;
+  box-shadow: 0 3px 10px rgba(180, 83, 9, 0.6), inset 0 1px 0 #ffffff !important;
+}
+
+/* Subtle button tuning for ivory background */
+.piano-key-card button.text-gray-400 {
+  color: #5a422d !important;
+}
+
+.piano-key-card button.text-gray-400:hover {
+  color: #140e06 !important;
+}
+
+.piano-key-card .key-tempo-pill {
+  background: rgba(212, 175, 55, 0.22) !important;
+  border: 1px solid rgba(180, 140, 60, 0.55) !important;
+  color: #78350f !important;
+  font-weight: 800 !important;
+}
+
+.piano-key-card .key-diff-toggle-btn,
+.piano-key-card button[onclick*="toggleCardDiffDrawer"] {
+  background: rgba(0, 0, 0, 0.08) !important;
+  border: 1px solid rgba(160, 140, 115, 0.50) !important;
+  color: #44301f !important;
+}
+
+.piano-key-card .key-diff-toggle-btn:hover,
+.piano-key-card button[onclick*="toggleCardDiffDrawer"]:hover {
+  background: rgba(0, 0, 0, 0.16) !important;
+  color: #140e06 !important;
+}
+
+/* Piano Bed Drawer for Multiple Difficulties */
+[id^="diffDrawer_"] {
+  background: linear-gradient(180deg, #ede4d4 0%, #dfd3be 100%) !important;
+  border: 1px solid rgba(180, 160, 130, 0.7) !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15), 0 3px 8px rgba(0, 0, 0, 0.25);
+  color: #44301f !important;
+}
+
+[id^="diffDrawer_"] span {
+  color: #6e4f30 !important;
+}
+
+.theme-neon-2d [id^="diffDrawer_"] {
+  background: rgba(10, 8, 20, 0.95) !important;
+  border-color: rgba(0, 242, 254, 0.3) !important;
+  color: #ffffff !important;
+}
+
+/* 3D Vinyl Record Miniature */
+.vinyl-art {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.85), inset 0 0 0 2px rgba(197, 160, 89, 0.4);
+  position: relative;
+}
+
+.vinyl-art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: radial-gradient(circle, transparent 40%, rgba(255, 255, 255, 0.12) 48%, transparent 56%, rgba(255, 255, 255, 0.08) 75%, transparent 85%);
+  pointer-events: none;
+}
+
+.vinyl-center-hole {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #08060a;
+  border: 1.5px solid #c5a059;
+  border-radius: 9999px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: inset 0 0 3px #000;
+  pointer-events: none;
+}
+
+/* Sleek Tempo Pill */
+.key-tempo-pill {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 2px 5px rgba(0, 0, 0, 0.5);
+  transition: all 0.18s ease;
+}
+
+.key-tempo-pill:hover {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 3px 8px rgba(0, 0, 0, 0.7);
+  transform: scale(1.04);
+}
+
+.key-tempo-pill:active {
+  transform: scale(0.92);
+}
+
+/* Primary Play Button */
+.key-play-primary {
+  box-shadow: 0 4px 14px rgba(197, 160, 89, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 240, 190, 0.6);
+}
+
+.key-play-primary:hover {
+  box-shadow: 0 6px 18px rgba(197, 160, 89, 0.45), inset 0 1px 0 #ffffff;
+}
+
+.key-diff-toggle-btn {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+/* ==========================================================================
+   CLASSIC 2D FLAT NEON THEME (.theme-neon-2d)
+   Preserves the original flat retro synthwave cyberpunk aesthetic
+   ========================================================================== */
+
+.theme-neon-2d {
+  --bg-primary: #06040c;
+  --accent-cyan: #00f2fe;
+  --accent-pink: #ff007f;
+}
+
+.theme-neon-2d body,
+.theme-neon-2d .game-viewport {
+  background: #06040c !important;
+  color: #ffffff !important;
+}
+
+/* Nav Tabs in 2D Mode: Electric Cyan / Pink Underline */
+.theme-neon-2d .nav-tabs {
+  background: linear-gradient(180deg, #100a1d 0%, #06040c 100%) !important;
+  border-bottom: 2px solid rgba(0, 242, 254, 0.35) !important;
+  box-shadow: 0 4px 15px rgba(0, 242, 254, 0.12) !important;
+}
+
+.theme-neon-2d .nav-tab {
+  font-family: 'Outfit', sans-serif !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.04em !important;
+  color: #6b668f !important;
+  border-bottom: 2.5px solid transparent !important;
+}
+
+.theme-neon-2d .nav-tab:hover {
+  color: #00f2fe !important;
+}
+
+.theme-neon-2d .nav-tab.active {
+  color: #00f2fe !important;
+  border-bottom: 3px solid #00f2fe !important;
+  text-shadow: 0 0 10px rgba(0, 242, 254, 0.8), 0 0 20px rgba(255, 0, 127, 0.4) !important;
+}
+
+/* Primary Action Buttons in 2D: Electric Magenta & Pink */
+.theme-neon-2d #btnSearch,
+.theme-neon-2d #btnDiscoverSearch,
+.theme-neon-2d button.bg-gradient-to-r.from-pink-500,
+.theme-neon-2d button.bg-gradient-to-r.from-pink-600,
+.theme-neon-2d .key-play-primary {
+  background: linear-gradient(135deg, #ff007f 0%, #d4006f 55%, #790044 100%) !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  border: 1px solid rgba(255, 0, 127, 0.6) !important;
+  box-shadow: 0 4px 16px rgba(255, 0, 127, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+}
+
+.theme-neon-2d #btnSearch:hover,
+.theme-neon-2d #btnDiscoverSearch:hover,
+.theme-neon-2d button.bg-gradient-to-r.from-pink-500:hover,
+.theme-neon-2d button.bg-gradient-to-r.from-pink-600:hover,
+.theme-neon-2d .key-play-primary:hover {
+  background: linear-gradient(135deg, #ff3399 0%, #ff007f 55%, #aa0055 100%) !important;
+  box-shadow: 0 6px 22px rgba(255, 0, 127, 0.55), inset 0 1px 0 #ffffff !important;
+}
+
+/* Inputs in 2D Mode */
+.theme-neon-2d input[type="text"] {
+  background: rgba(16, 10, 28, 0.85) !important;
+  border: 1.5px solid rgba(0, 242, 254, 0.4) !important;
+  color: #ffffff !important;
+  border-radius: 14px !important;
+}
+
+.theme-neon-2d input[type="text"]:focus {
+  border-color: #00f2fe !important;
+  box-shadow: 0 0 16px rgba(0, 242, 254, 0.45) !important;
+  outline: none !important;
+}
+
+/* Cards in 2D Mode */
+.theme-neon-2d .result-card,
+.theme-neon-2d .piano-key-card {
   perspective: none !important;
-  transform: none !important;
-  background: linear-gradient(135deg, rgba(20, 10, 35, 0.92) 0%, rgba(5, 5, 15, 0.96) 100%) !important;
+  min-height: 48px !important;
+  background: linear-gradient(90deg, rgba(20, 10, 35, 0.95) 0%, rgba(8, 8, 18, 0.98) 100%) !important;
   border: 1px solid rgba(0, 242, 254, 0.35) !important;
-  border-radius: 16px !important;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6), 0 0 10px rgba(0, 242, 254, 0.12) !important;
+  border-left: 4px solid #00f2fe !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7), 0 0 10px rgba(0, 242, 254, 0.15) !important;
 }
 
 .theme-neon-2d .result-card:hover,
-.theme-neon-2d .result-card:active {
-  transform: translateY(-2px) !important;
+.theme-neon-2d .piano-key-card:hover {
+  transform: translateY(-1.5px) !important;
   border-color: #ff007f !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8), 0 0 20px rgba(255, 0, 127, 0.4) !important;
+  border-left-color: #ff007f !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.85), 0 0 18px rgba(255, 0, 127, 0.35) !important;
+}
+
+.theme-neon-2d .piano-key-lip-left {
+  background: linear-gradient(180deg, #00f2fe 0%, #ff007f 100%) !important;
+}
+
+.theme-neon-2d .vinyl-art {
+  border-color: rgba(0, 242, 254, 0.5) !important;
+}
+
+.theme-neon-2d .vinyl-center-hole {
+  border-color: #00f2fe !important;
 }
 
 .theme-neon-2d .result-card h3,
+.theme-neon-2d .piano-key-card h3,
 .theme-neon-2d .result-card p.font-bold {
   font-family: 'Outfit', sans-serif !important;
   color: #ffffff !important;
+  text-shadow: 0 0 8px rgba(0, 242, 254, 0.5) !important;
+}
+
+.theme-neon-2d .piano-key-card .text-gray-400,
+.theme-neon-2d .piano-key-card .text-gray-300 {
+  color: #94a3b8 !important;
+}
+
+.theme-neon-2d .piano-key-card .text-amber-300 {
+  color: #fde047 !important;
 }
 
 

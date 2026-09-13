@@ -1007,6 +1007,7 @@ class BeatstarEngine {
     this.laneGlows = [0, 0, 0];
     this.fxRipples = [];
     this.bgBursts = [];
+    this.musicalNotes = [];
 
     // Key FX Theme (default_neon, color_burst, spotlight_reveal)
     this.activeEffect = (typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_active_effect') : null) || 'default_neon';
@@ -1388,25 +1389,17 @@ class BeatstarEngine {
 
   /**
    * Calculates optimal scroll duration (ms) based on difficulty stars and note density.
-   * Adjusted to a slower, comfortable and readable speed curve.
+   * Tailored for realistic rhythm gameplay: higher difficulty provides faster scroll & wider note separation.
+   */
+  /**
+   * Calculates optimal scroll duration (ms) based on difficulty stars.
+   * Balanced and comfortable rhythm reading speed:
+   * 1★: ~1420ms | 3.5★: ~1365ms | 5★: ~1332ms | 7★: ~1288ms | 10★: ~1222ms
    */
   computeDynamicScrollDuration(stars, rawNotes = []) {
     const s = Math.max(1.0, Math.min(10.0, parseFloat(stars) || 3.5));
-    
-    // Curva de velocidad por estrellas altamente diferenciada (ms):
-    // Cuantas más estrellas tiene la canción, más rápido caen las notas (menor scroll duration).
-    // 1★:  2000ms (Muy lento / relajado, ideal para aprender)
-    // 2★:  1840ms (Fácil)
-    // 3★:  1680ms (Normal)
-    // 4★:  1520ms (Intermedio)
-    // 5★:  1360ms (Difícil)
-    // 6★:  1200ms (Desafío alto)
-    // 7★:  1040ms (Extrema)
-    // 8★:  880ms  (Experto)
-    // 9★:  720ms  (Insana)
-    // 10★: 580ms  (Máxima velocidad pro)
-    const duration = Math.round(2000 - (s - 1.0) * ((2000 - 580) / 9.0));
-    return Math.max(500, Math.min(2400, duration));
+    const duration = Math.round(1420 - (s - 1.0) * 22);
+    return Math.max(900, Math.min(1600, duration));
   }
 
   computeMaxPossibleScore(notes) {
@@ -1441,6 +1434,7 @@ class BeatstarEngine {
     this.laneGlows = [0, 0, 0];
     this.fxRipples = [];
     this.bgBursts = [];
+    this.musicalNotes = [];
     this.initCanvasSize();
 
     if (this.animFrameId) {
@@ -2280,10 +2274,11 @@ class BeatstarEngine {
       this.streakCount = 0;
     }
 
+    const prevMult = this.multiplier || 1;
     this.combo++;
     if (this.combo > this.maxCombo) this.maxCombo = this.combo;
 
-    // Nuevos Umbrales de Multiplicador Beatstar:
+    // Umbrales de Multiplicador:
     // x2 -> Combo 10 | x3 -> Combo 25 | x4 -> Combo 50 | x5 -> Combo 100
     if (this.combo >= 100) {
       this.multiplier = 5;
@@ -2296,10 +2291,57 @@ class BeatstarEngine {
     } else {
       this.multiplier = 1;
     }
+
+    if (this.multiplier > prevMult) {
+      const midX = this.width / 2;
+      const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
+      this.addRipple(midX, hitY, '#ffd700', 320);
+      if (this.particles) this.particles.emitBurst(midX, hitY, '#ffe082', 40);
+    }
+
+    this.checkComboMilestone(this.combo);
+
+    if (diffMs <= 90) {
+      this.spawnMusicalNotes(x, y, color, diffMs <= 45 ? 4 : 2);
+    }
     
     this.addScore(points * this.multiplier);
     this.addJudgement(text, color);
     return { text, color, points };
+  }
+
+  checkComboMilestone(c) {
+    const milestones = [10, 25, 50, 100, 150, 200, 300, 400, 500, 750, 1000];
+    if (milestones.includes(c)) {
+      const midX = this.width / 2;
+      const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
+      this.addRipple(midX, hitY, '#ffd700', 280);
+      if (this.particles) this.particles.emitBurst(midX, hitY - 30, '#ffd700', 36);
+      this.addJudgement(`★ ${c} COMBO! ★`, '#ffd700');
+    }
+  }
+
+  spawnMusicalNotes(x, y, color = '#ffd700', count = 3) {
+    const symbols = ['𝄞', '𝅘𝅥𝅯', '♬', '♩', '✨', '𝅘𝅥𝅮'];
+    for (let i = 0; i < count; i++) {
+      const sym = symbols[Math.floor(Math.random() * symbols.length)];
+      const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.3;
+      const speed = 75 + Math.random() * 95;
+      this.musicalNotes.push({
+        symbol: sym,
+        x: x + (Math.random() - 0.5) * 36,
+        y: y - 12 + (Math.random() - 0.5) * 16,
+        vx: Math.cos(angle) * speed * 0.45,
+        vy: Math.sin(angle) * speed,
+        alpha: 1.0,
+        decay: 1.1 + Math.random() * 0.8,
+        color: color,
+        scale: 0.8 + Math.random() * 0.6,
+        rot: (Math.random() - 0.5) * 0.4,
+        rotSpeed: (Math.random() - 0.5) * 2.2,
+        wobble: Math.random() * Math.PI * 2
+      });
+    }
   }
 
   addScore(pts) {
@@ -2656,6 +2698,18 @@ class BeatstarEngine {
       this.reactiveLightBoost = Math.max(0, this.reactiveLightBoost - dt * 1.5);
     }
 
+    for (let i = this.musicalNotes.length - 1; i >= 0; i--) {
+      const mn = this.musicalNotes[i];
+      mn.wobble += dt * 5.0;
+      mn.x += (mn.vx + Math.sin(mn.wobble) * 22) * dt;
+      mn.y += mn.vy * dt;
+      mn.vy += 30 * dt;
+      mn.rot += mn.rotSpeed * dt;
+      mn.alpha -= mn.decay * dt;
+      mn.scale += dt * 0.15;
+      if (mn.alpha <= 0) this.musicalNotes.splice(i, 1);
+    }
+
     this.particles.update(dt);
   }
 
@@ -2973,7 +3027,37 @@ class BeatstarEngine {
     this.renderHitLine();
     this.renderNotes(currentTime);
     this.particles.render(this.ctx);
+    this.renderMusicalNotes();
     this.renderJudgements();
+  }
+
+  renderMusicalNotes() {
+    if (!this.musicalNotes || this.musicalNotes.length === 0) return;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i < this.musicalNotes.length; i++) {
+      const mn = this.musicalNotes[i];
+      if (!mn || mn.alpha <= 0.01) continue;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, mn.alpha));
+      ctx.translate(mn.x, mn.y);
+      ctx.rotate(mn.rot);
+      ctx.scale(mn.scale, mn.scale);
+
+      ctx.font = 'bold 22px "Cinzel", serif';
+      ctx.shadowColor = mn.color || '#ffd700';
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = mn.color || '#ffd700';
+      ctx.fillText(mn.symbol, 0, 0);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 18px "Cinzel", serif';
+      ctx.fillText(mn.symbol, 0, 0);
+      ctx.restore();
+    }
+    ctx.restore();
   }
 
   // =========================================================================
@@ -2999,103 +3083,217 @@ class BeatstarEngine {
     return { x, y, scale, laneW, pCurved };
   }
 
-  drawIvoryKey(ctx, cx, cy, w, h, scale = 1.0, isPressed = false, isLarge = true) {
+  getLaneBoundaryX(lineIdx, yTarget) {
+    const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
+    const horizonY = 12;
+    const midX = this.width / 2;
+    const baseLaneW = this.width / 3;
+    const p = Math.max(0, (yTarget - horizonY) / (hitY - horizonY));
+    const pCurved = Math.pow(p, 1.0 / 1.7);
+    const scale = 0.60 + 0.40 * pCurved;
+    const laneW = baseLaneW * scale;
+    return midX + (lineIdx - 1.5) * laneW;
+  }
+
+  drawIvoryKey(ctx, laneOrCx, cy, h, scale = 1.0, isPressed = false, isLarge = true, isSwipe = false) {
     ctx.save();
 
-    // Micro-depression: key sinks into the felt bed when struck or held
-    const depressOffset = isPressed ? (4.5 * scale) : 0;
+    // Determine lane index (0, 1, or 2)
+    let lane = 0;
+    if (typeof laneOrCx === 'number') {
+      if (laneOrCx <= 2) {
+        lane = Math.max(0, Math.min(2, Math.round(laneOrCx)));
+      } else {
+        const laneW = this.width / 3;
+        lane = Math.max(0, Math.min(2, Math.floor(laneOrCx / laneW)));
+      }
+    }
+
+    // Micro-depression: key physically sinks into the damper bed when struck or held
+    const depressOffset = isPressed ? (4.0 * scale) : 0;
     const y = cy + depressOffset;
-    const x0 = cx - w / 2;
     const y0 = y - h / 2;
-    const r = isLarge ? Math.max(4, 9 * scale) : Math.max(3, 5 * scale);
+    const y1 = y0 + h;
+
+    // Precision conical margin: provides a clean gap from the lane dividers so notes never collide
+    const margin = Math.max(3.5, (isLarge ? 5.5 : 3.5) * scale);
+
+    // True mathematical perspective projection of the lane boundaries:
+    const x0Top = this.getLaneBoundaryX(lane, y0) + margin;
+    const x1Top = this.getLaneBoundaryX(lane + 1, y0) - margin;
+    const x0Bot = this.getLaneBoundaryX(lane, y1) + margin;
+    const x1Bot = this.getLaneBoundaryX(lane + 1, y1) - margin;
+
+    // Radius for smooth rounded key corners
+    const r = Math.max(4, (isLarge ? 9 : 5) * scale);
+
+    // Flawless perspective quadrilateral path with tangent rounded corners
+    const tracePerspectiveQuad = (x0T, x1T, x0B, x1B, topY, botY, rad) => {
+      const cr = Math.min(rad, (botY - topY) * 0.35, (x1T - x0T) * 0.30);
+      ctx.beginPath();
+      ctx.moveTo((x0T + x1T) / 2, topY);
+      ctx.arcTo(x1T, topY, x1B, botY, cr);
+      ctx.arcTo(x1B, botY, x0B, botY, cr);
+      ctx.arcTo(x0B, botY, x0T, topY, cr);
+      ctx.arcTo(x0T, topY, x1T, topY, cr);
+      ctx.closePath();
+    };
 
     // 1. Soft Ambient Depth Shadow onto the grand piano bed
-    ctx.fillStyle = isLarge ? 'rgba(0, 0, 0, 0.75)' : 'rgba(0, 0, 0, 0.55)';
-    ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(x0, y0 + (isLarge ? 6 : 3.5) * scale, w, h, r);
-    else ctx.rect(x0, y0 + (isLarge ? 6 : 3.5) * scale, w, h);
+    ctx.fillStyle = isPressed ? 'rgba(0, 0, 0, 0.40)' : 'rgba(0, 0, 0, 0.70)';
+    const shadowOff = (isLarge ? 6.5 : 3.5) * scale;
+    tracePerspectiveQuad(x0Top, x1Top, x0Bot, x1Bot, y0 + shadowOff, y1 + shadowOff, r);
     ctx.fill();
 
-    // 2. 3D Bevel Bottom Rim (Dark Rosewood / Damper Felt Underside)
-    const bevelH = isLarge ? Math.max(5, 9.5 * scale) : Math.max(2.5, 4.5 * scale);
-    const bevelGrad = ctx.createLinearGradient(0, y0 + h - bevelH, 0, y0 + h);
-    bevelGrad.addColorStop(0.0, '#9a8a77');
-    bevelGrad.addColorStop(0.4, '#5c4e3e');
-    bevelGrad.addColorStop(1.0, '#30261c');
+    // 2. 3D Key Front Lip / Bevel (Dark Rosewood / Damper Felt Underside)
+    const bevelH = Math.max(3, (isLarge ? 12 : 5) * scale);
+    const yBevelTop = y1 - bevelH;
+    const x0Bev = this.getLaneBoundaryX(lane, yBevelTop) + margin;
+    const x1Bev = this.getLaneBoundaryX(lane + 1, yBevelTop) - margin;
+
+    const bevelGrad = ctx.createLinearGradient(0, yBevelTop, 0, y1);
+    if (isPressed) {
+      bevelGrad.addColorStop(0.0, '#b8860b');
+      bevelGrad.addColorStop(0.5, '#785412');
+      bevelGrad.addColorStop(1.0, '#382404');
+    } else {
+      bevelGrad.addColorStop(0.0, '#9c8b78');
+      bevelGrad.addColorStop(0.35, '#5c4e3e');
+      bevelGrad.addColorStop(0.8, '#30261c');
+      bevelGrad.addColorStop(1.0, '#1a130c');
+    }
     ctx.fillStyle = bevelGrad;
-    ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(x0, y0 + h - bevelH, w, bevelH, [0, 0, r, r]);
-    else ctx.rect(x0, y0 + h - bevelH, w, bevelH);
+    tracePerspectiveQuad(x0Bev, x1Bev, x0Bot, x1Bot, yBevelTop, y1, r);
     ctx.fill();
 
     // 3. Polished Ivory Piano Key Body with Zenith Lighting
-    const ivoryGrad = ctx.createLinearGradient(0, y0, 0, y0 + h - bevelH);
+    const ivoryGrad = ctx.createLinearGradient(0, y0, 0, yBevelTop);
     if (isPressed) {
       ivoryGrad.addColorStop(0.0, '#fffdfa');
-      ivoryGrad.addColorStop(0.2, '#f8f2e8');
-      ivoryGrad.addColorStop(0.7, '#e8ddcf');
-      ivoryGrad.addColorStop(1.0, '#d8c8b4');
+      ivoryGrad.addColorStop(0.25, '#fef0d2');
+      ivoryGrad.addColorStop(0.75, '#f2d38d');
+      ivoryGrad.addColorStop(1.0, '#e2b963');
     } else {
       ivoryGrad.addColorStop(0.0, '#ffffff'); // Zenith specular highlight
-      ivoryGrad.addColorStop(0.08, '#fefdfb'); // Pure polished ivory
-      ivoryGrad.addColorStop(0.50, '#f6f0e6'); // Rich ivory body
-      ivoryGrad.addColorStop(0.85, '#ede3d3'); // Base ivory tone
-      ivoryGrad.addColorStop(1.0, '#dfd2be'); // Chamfer shadow
+      ivoryGrad.addColorStop(0.08, '#fefdfc'); // Pure polished ivory
+      ivoryGrad.addColorStop(0.50, '#f7f2e8'); // Rich creamy ivory
+      ivoryGrad.addColorStop(0.88, '#ede3d2'); // Warm ivory base
+      ivoryGrad.addColorStop(1.0, '#ded1bc'); // Front chamfer edge
     }
 
     ctx.fillStyle = ivoryGrad;
-    ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(x0, y0, w, h - bevelH * 0.6, [r, r, 0, 0]);
-    else ctx.rect(x0, y0, w, h - bevelH * 0.6);
+    tracePerspectiveQuad(x0Top, x1Top, x0Bev, x1Bev, y0, yBevelTop, r);
     ctx.fill();
 
-    // 4. Inlaid Aged Brass Peripheral Rim
-    ctx.strokeStyle = isPressed ? '#ffe5a3' : 'rgba(197, 160, 89, 0.55)';
-    ctx.lineWidth = Math.max(1.0, (isLarge ? 2.0 : 1.2) * scale);
+    // 4. Delicate Front Lip Dividing Line (Inlaid Brass / Chamfer Stroke)
+    ctx.strokeStyle = isPressed ? '#ffe5a3' : 'rgba(120, 95, 55, 0.45)';
+    ctx.lineWidth = Math.max(1, 1.4 * scale);
     ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(x0, y0, w, h, r);
-    else ctx.rect(x0, y0, w, h);
+    ctx.moveTo(x0Bev + r * 0.6, yBevelTop);
+    ctx.lineTo(x1Bev - r * 0.6, yBevelTop);
     ctx.stroke();
 
-    // 5. Specular Zenith Lighting Glint (Zenith rim reflection)
+    // 5. Inlaid Aged Brass Peripheral Rim (Aligned to the lane perspective)
+    ctx.strokeStyle = isPressed ? '#ffe5a3' : 'rgba(197, 160, 89, 0.65)';
+    ctx.lineWidth = Math.max(1.2, (isLarge ? 2.4 : 1.3) * scale);
+    tracePerspectiveQuad(x0Top, x1Top, x0Bot, x1Bot, y0, y1, r);
+    ctx.stroke();
+
+    // 6. Specular Zenith Lighting Glint along top ivory edge
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
-    ctx.lineWidth = Math.max(0.8, (isLarge ? 1.6 : 1.0) * scale);
+    ctx.lineWidth = Math.max(1.0, (isLarge ? 2.0 : 1.1) * scale);
     ctx.beginPath();
-    ctx.moveTo(x0 + r, y0 + 0.5);
-    ctx.lineTo(x0 + w - r, y0 + 0.5);
+    ctx.moveTo(x0Top + r, y0 + 0.6);
+    ctx.lineTo(x1Top - r, y0 + 0.6);
     ctx.stroke();
 
-    // 6. Tactile Inlay / Center Key Accent for Grand Piano Authenticity
-    if (isLarge) {
-      const grooveW = w * 0.58;
-      const grooveH = Math.max(3, 5 * scale);
-      const grooveY = y0 + (h - bevelH) * 0.44;
-      const grooveGrad = ctx.createLinearGradient(0, grooveY, 0, grooveY + grooveH);
-      grooveGrad.addColorStop(0.0, 'rgba(197, 160, 89, 0.35)');
-      grooveGrad.addColorStop(0.5, 'rgba(255, 248, 220, 0.85)');
-      grooveGrad.addColorStop(1.0, 'rgba(197, 160, 89, 0.35)');
-      ctx.fillStyle = grooveGrad;
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(cx - grooveW / 2, grooveY - grooveH / 2, grooveW, grooveH, 2);
-      else ctx.rect(cx - grooveW / 2, grooveY - grooveH / 2, grooveW, grooveH);
-      ctx.fill();
+    // Centroid of the ivory upper face:
+    const cx = (x0Top + x1Top + x0Bev + x1Bev) / 4;
+    const cyMid = (y0 + yBevelTop) / 2;
+    const keyW = (x1Top - x0Top + x1Bev - x0Bev) / 2;
 
-      // Front Piano Key Separation Lip
-      ctx.strokeStyle = 'rgba(110, 82, 35, 0.35)';
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      ctx.moveTo(x0 + 4, y0 + h - bevelH);
-      ctx.lineTo(x0 + w - 4, y0 + h - bevelH);
-      ctx.stroke();
-    } else {
-      const grooveW = w * 0.40;
-      const grooveH = Math.max(1.5, 2.5 * scale);
-      const grooveY = y0 + (h - bevelH) * 0.5;
-      ctx.fillStyle = 'rgba(197, 160, 89, 0.25)';
-      ctx.fillRect(cx - grooveW / 2, grooveY - grooveH / 2, grooveW, grooveH);
+    // 7. Tactile Inlay / High-Contrast Center Bullseye for Normal Tap Notes
+    if (!isSwipe) {
+      if (isLarge) {
+        // High-contrast tactile brass center striker plate
+        const plateW = keyW * 0.46;
+        const plateH = Math.max(13, 18 * scale);
+
+        // Dark background cutout for unmistakable contrast against ivory
+        ctx.fillStyle = '#120c04';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(cx - plateW / 2 - 1.2, cyMid - plateH / 2 - 1.2, plateW + 2.4, plateH + 2.4, 4);
+        else ctx.rect(cx - plateW / 2 - 1.2, cyMid - plateH / 2 - 1.2, plateW + 2.4, plateH + 2.4);
+        ctx.fill();
+
+        // Inlaid brushed brass acoustic plate
+        const plateGrad = ctx.createLinearGradient(0, cyMid - plateH / 2, 0, cyMid + plateH / 2);
+        plateGrad.addColorStop(0.0, '#fff5d6');
+        plateGrad.addColorStop(0.3, '#d4af37');
+        plateGrad.addColorStop(0.7, '#a67c1e');
+        plateGrad.addColorStop(1.0, '#664a10');
+        ctx.fillStyle = plateGrad;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(cx - plateW / 2, cyMid - plateH / 2, plateW, plateH, 3.5);
+        else ctx.rect(cx - plateW / 2, cyMid - plateH / 2, plateW, plateH);
+        ctx.fill();
+
+        // Tactile acoustic ridges [ | |   | | ]
+        ctx.strokeStyle = 'rgba(60, 42, 10, 0.65)';
+        ctx.lineWidth = 1.2;
+        const ridgeSpacing = 7 * scale;
+        for (let off = -2; off <= 2; off++) {
+          if (off === 0) continue;
+          const rx = cx + off * ridgeSpacing;
+          ctx.beginPath();
+          ctx.moveTo(rx, cyMid - plateH * 0.30);
+          ctx.lineTo(rx, cyMid + plateH * 0.30);
+          ctx.stroke();
+        }
+
+        // Prominent Ivory/Brass Center Jewel Bullseye
+        const jewelRad = Math.max(5, 7.5 * scale);
+        // Outer dark ring
+        ctx.beginPath();
+        ctx.arc(cx, cyMid, jewelRad + 1.2, 0, Math.PI * 2);
+        ctx.fillStyle = '#0f0902';
+        ctx.fill();
+
+        // Inner jewel
+        ctx.beginPath();
+        ctx.arc(cx, cyMid, jewelRad, 0, Math.PI * 2);
+        const jewelGrad = ctx.createRadialGradient(cx - jewelRad * 0.3, cyMid - jewelRad * 0.3, 1, cx, cyMid, jewelRad);
+        if (isPressed) {
+          jewelGrad.addColorStop(0.0, '#ffffff');
+          jewelGrad.addColorStop(0.5, '#ffe599');
+          jewelGrad.addColorStop(1.0, '#d4af37');
+        } else {
+          jewelGrad.addColorStop(0.0, '#ffffff');
+          jewelGrad.addColorStop(0.35, '#fbf7ee');
+          jewelGrad.addColorStop(0.85, '#d4af37');
+          jewelGrad.addColorStop(1.0, '#8c6d23');
+        }
+        ctx.fillStyle = jewelGrad;
+        ctx.fill();
+        ctx.strokeStyle = '#3e2808';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Center micro-dot
+        ctx.beginPath();
+        ctx.arc(cx, cyMid, Math.max(1.8, 2.5 * scale), 0, Math.PI * 2);
+        ctx.fillStyle = isPressed ? '#ff9900' : '#241603';
+        ctx.fill();
+      } else {
+        const grooveW = keyW * 0.36;
+        const grooveH = Math.max(2, 3.0 * scale);
+        ctx.fillStyle = 'rgba(197, 160, 89, 0.55)';
+        ctx.fillRect(cx - grooveW / 2, cyMid - grooveH / 2, grooveW, grooveH);
+      }
     }
 
     ctx.restore();
+    return { cx, cy: cyMid };
   }
 
   // Tecla Neón 2D Clásica (para modo 2D Neón)
@@ -3154,13 +3352,7 @@ class BeatstarEngine {
 
     if (is3D) {
       // Perspective conical bounds calculation
-      const getBoundaryX = (lineIdx, yTarget) => {
-        const p = Math.max(0, (yTarget - horizonY) / (hitY - horizonY));
-        const pCurved = Math.pow(p, 1.0 / 1.7);
-        const scale = 0.60 + 0.40 * pCurved;
-        const laneW = baseLaneW * scale;
-        return midX + (lineIdx - 1.5) * laneW;
-      };
+      const getBoundaryX = (lineIdx, yTarget) => this.getLaneBoundaryX(lineIdx, yTarget);
 
       // 1. Acoustic Grand Piano Bed: Polished Ebony Wood
       // CRITICAL FIX: If custom background exists, render smoked glass ebony so background/video shines cleanly through!
@@ -3266,6 +3458,92 @@ class BeatstarEngine {
         }
         ctx.restore();
       }
+
+      // 4. Harmonic Acoustic Soundwave Ribbons on Outer 3D Perspective Rails
+      const audioSec = (this.sync ? this.sync.getCurrentTimeMs() : performance.now()) / 1000;
+      const comboBoost = Math.min(1.0, (this.combo || 0) / 40) * 0.5;
+      const waveSteps = 38;
+
+      ctx.save();
+      for (const side of [-1, 1]) {
+        const railIdx = side === -1 ? 0 : 3;
+
+        // Path for the continuous acoustic oscilloscope curve
+        const wavePts = [];
+        for (let s = 0; s <= waveSteps; s++) {
+          const frac = s / waveSteps;
+          const pNorm = 0.05 + frac * 0.95;
+          const scale = 0.45 + 0.55 * Math.pow(pNorm, 1.0 / 1.7);
+          const yPos = horizonY + (hitY - horizonY) * Math.pow(pNorm, 1.7);
+          const railX = getBoundaryX(railIdx, yPos);
+
+          // Musical dual-harmonic displacement
+          const h1 = Math.sin(audioSec * 7.0 + pNorm * 14.0);
+          const h2 = Math.cos(audioSec * 14.0 - pNorm * 26.0) * 0.5;
+          const h3 = Math.sin(audioSec * 3.5 + pNorm * 6.0) * 0.35;
+          const totalWave = (h1 + h2 + h3) / 1.85;
+
+          const amp = (6 + 16 * Math.abs(totalWave) * (1 + comboBoost)) * scale;
+          const waveX = railX + side * amp;
+
+          wavePts.push({ x: waveX, y: yPos, railX, scale, amp });
+        }
+
+        // A. Transverse acoustic resonance harp lines connecting rail to wave
+        for (let s = 2; s < wavePts.length; s += 2) {
+          const pt = wavePts[s];
+          const harpAlpha = (0.18 + (pt.amp / (22 * pt.scale)) * 0.35) * pt.scale;
+          ctx.strokeStyle = `rgba(255, 215, 0, ${harpAlpha.toFixed(3)})`;
+          ctx.lineWidth = Math.max(0.7, 1.2 * pt.scale);
+          ctx.beginPath();
+          ctx.moveTo(pt.railX, pt.y);
+          ctx.lineTo(pt.x, pt.y);
+          ctx.stroke();
+
+          // Resonant node bead at crest
+          ctx.fillStyle = `rgba(255, 255, 255, ${(harpAlpha * 1.5).toFixed(3)})`;
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, Math.max(1, 2 * pt.scale), 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // B. Luminous Golden Harmonic Ribbon
+        ctx.save();
+        ctx.shadowColor = '#ffd700';
+        ctx.shadowBlur = 10 + comboBoost * 12;
+        ctx.strokeStyle = 'rgba(255, 215, 0, 0.75)';
+        ctx.lineWidth = Math.max(1.5, 2.8 * wavePts[wavePts.length - 1].scale);
+        ctx.beginPath();
+        for (let s = 0; s < wavePts.length; s++) {
+          if (s === 0) ctx.moveTo(wavePts[s].x, wavePts[s].y);
+          else {
+            const prev = wavePts[s - 1];
+            const curr = wavePts[s];
+            const mx = (prev.x + curr.x) / 2;
+            const my = (prev.y + curr.y) / 2;
+            ctx.quadraticCurveTo(prev.x, prev.y, mx, my);
+          }
+        }
+        ctx.stroke();
+        ctx.restore();
+
+        // C. Core Specular Incandescent Line
+        ctx.strokeStyle = 'rgba(255, 255, 240, 0.90)';
+        ctx.lineWidth = Math.max(0.8, 1.3 * wavePts[wavePts.length - 1].scale);
+        ctx.beginPath();
+        for (let s = 0; s < wavePts.length; s++) {
+          if (s === 0) ctx.moveTo(wavePts[s].x, wavePts[s].y);
+          else {
+            const prev = wavePts[s - 1];
+            const curr = wavePts[s];
+            const mx = (prev.x + curr.x) / 2;
+            const my = (prev.y + curr.y) / 2;
+            ctx.quadraticCurveTo(prev.x, prev.y, mx, my);
+          }
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
 
     } else {
       // ==========================================
@@ -3377,21 +3655,35 @@ class BeatstarEngine {
         const depressY = isPressed ? 3.5 : 0;
         const cy = hitY + depressY;
 
-        const targetW = coord.laneW * (isLarge ? 0.95 : 0.78);
-        const targetH = isLarge ? 46 : 22;
+        const targetH = isLarge ? 68 : 26;
+        const yT = hitY - targetH / 2;
+        const yB = hitY + targetH / 2;
+        const m = Math.max(3.5, isLarge ? 5.5 : 3.5);
+        const tx0Top = this.getLaneBoundaryX(l, yT) + m;
+        const tx1Top = this.getLaneBoundaryX(l + 1, yT) - m;
+        const tx0Bot = this.getLaneBoundaryX(l, yB) + m;
+        const tx1Bot = this.getLaneBoundaryX(l + 1, yB) - m;
+        const tr = isLarge ? 10 : 6;
+
+        const traceTargetQuad = (offY) => {
+          const cr = Math.min(tr, targetH * 0.35, (tx1Top - tx0Top) * 0.30);
+          ctx.beginPath();
+          ctx.moveTo((tx0Top + tx1Top) / 2, yT + offY);
+          ctx.arcTo(tx1Top, yT + offY, tx1Bot, yB + offY, cr);
+          ctx.arcTo(tx1Bot, yB + offY, tx0Bot, yB + offY, cr);
+          ctx.arcTo(tx0Bot, yB + offY, tx0Top, yT + offY, cr);
+          ctx.arcTo(tx0Top, yT + offY, tx1Top, yT + offY, cr);
+          ctx.closePath();
+        };
 
         ctx.save();
         ctx.fillStyle = 'rgba(15, 10, 14, 0.75)';
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(cx - targetW / 2, hitY - targetH / 2, targetW, targetH, isLarge ? 10 : 6);
-        else ctx.rect(cx - targetW / 2, hitY - targetH / 2, targetW, targetH);
+        traceTargetQuad(0);
         ctx.fill();
 
         ctx.strokeStyle = isPressed ? '#ffdf9e' : 'rgba(197, 160, 89, 0.55)';
         ctx.lineWidth = isPressed ? 2.8 : 1.5;
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(cx - targetW / 2, cy - targetH / 2, targetW, targetH, isLarge ? 10 : 6);
-        else ctx.rect(cx - targetW / 2, cy - targetH / 2, targetW, targetH);
+        traceTargetQuad(depressY);
         ctx.stroke();
 
         if (isPressed) {
@@ -3472,8 +3764,8 @@ class BeatstarEngine {
         const glow = this.laneGlows[l] || 0;
         const isPressed = glow > 0.35 || isHolding;
 
-        const targetW = laneW * (isLarge ? 0.95 : 0.78);
-        const targetH = isLarge ? 44 : 20;
+        const targetW = laneW * (isLarge ? 0.98 : 0.80);
+        const targetH = isLarge ? 64 : 24;
 
         ctx.save();
         ctx.fillStyle = isPressed ? 'rgba(0, 242, 254, 0.25)' : 'rgba(0, 0, 0, 0.6)';
@@ -3505,7 +3797,7 @@ class BeatstarEngine {
     ctx.restore();
   }
 
-  renderVectorChevron(ctx, x, y, direction, size = 32, strokeColor = '#c5a059') {
+  renderVectorChevron(ctx, x, y, direction, size = 44, strokeColor = '#c5a059') {
     ctx.save();
     ctx.translate(x, y);
 
@@ -3516,34 +3808,68 @@ class BeatstarEngine {
 
     ctx.rotate(angle);
 
-    const w = size * 1.35;
+    const w = size * 1.30;
     const h = size * 0.70;
-    const thickness = size * 0.38;
+    const thickness = size * 0.40;
 
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-    ctx.shadowBlur = 4;
-    ctx.shadowOffsetY = 2;
+    // Helper to draw a single chevron polygon
+    const drawChevron = (offsetY, chW, chH, chThick) => {
+      ctx.beginPath();
+      ctx.moveTo(0, -chH + offsetY);
+      ctx.lineTo(chW, offsetY);
+      ctx.lineTo(chW, chThick + offsetY);
+      ctx.lineTo(0, -chH + chThick + offsetY);
+      ctx.lineTo(-chW, chThick + offsetY);
+      ctx.lineTo(-chW, offsetY);
+      ctx.closePath();
+    };
 
-    ctx.beginPath();
-    ctx.moveTo(0, -h);
-    ctx.lineTo(w, 0);
-    ctx.lineTo(w, thickness);
-    ctx.lineTo(0, -h + thickness);
-    ctx.lineTo(-w, thickness);
-    ctx.lineTo(-w, 0);
-    ctx.closePath();
+    // 1. Lead Chevron: Ultra-crisp black contrast outline
+    ctx.lineJoin = 'miter';
+    ctx.miterLimit = 3;
+    ctx.lineWidth = 7.5;
+    ctx.strokeStyle = '#050403';
+    drawChevron(0, w, h, thickness);
+    ctx.stroke();
 
+    // 2. Radiant Luminous Gold Core Gradient
     const chevronGrad = ctx.createLinearGradient(0, -h, 0, thickness);
-    chevronGrad.addColorStop(0.0, '#fff3cf');
-    chevronGrad.addColorStop(0.5, '#d4af37');
-    chevronGrad.addColorStop(1.0, '#8c6d23');
-
+    chevronGrad.addColorStop(0.0, '#ffffff');
+    chevronGrad.addColorStop(0.20, '#fff3cf');
+    chevronGrad.addColorStop(0.65, '#ffd700');
+    chevronGrad.addColorStop(1.0, '#b8860b');
     ctx.fillStyle = chevronGrad;
     ctx.fill();
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.lineWidth = 1;
+    // 3. Inner Specular Highlight
+    ctx.lineWidth = 1.8;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+    ctx.beginPath();
+    ctx.moveTo(0, -h + 2.5);
+    ctx.lineTo(w - 3, thickness * 0.3);
     ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, -h + 2.5);
+    ctx.lineTo(-w + 3, thickness * 0.3);
+    ctx.stroke();
+
+    // 4. Secondary Trailing Echo Chevron for Unmistakable Swipe Prominence
+    const echoOffsetY = thickness + 3.5;
+    const echoW = w * 0.75;
+    const echoH = h * 0.75;
+    const echoThick = thickness * 0.75;
+
+    ctx.lineWidth = 4.5;
+    ctx.strokeStyle = '#050403';
+    drawChevron(echoOffsetY, echoW, echoH, echoThick);
+    ctx.stroke();
+
+    const echoGrad = ctx.createLinearGradient(0, -echoH + echoOffsetY, 0, echoThick + echoOffsetY);
+    echoGrad.addColorStop(0.0, '#fffbe6');
+    echoGrad.addColorStop(0.5, '#ffd700');
+    echoGrad.addColorStop(1.0, '#b8860b');
+    ctx.fillStyle = echoGrad;
+    ctx.fill();
 
     ctx.restore();
   }
@@ -3556,6 +3882,7 @@ class BeatstarEngine {
     const isLarge = (this.keyStyle !== 'compact');
     const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
     const laneW = this.width / 3;
+    const horizonY = 12;
 
     for (let i = 0; i < len; i++) {
       const note = this.notes[i];
@@ -3583,10 +3910,31 @@ class BeatstarEngine {
       const pHead = 1.0 - timeUntilHit / scrollDur;
       if (pHead < -0.15 || (!isBeingHeld && pHead > 1.25)) continue;
 
+      // Mathematical zero-overlap clamp with next note in same lane
+      let nextSameLaneDiffMs = Infinity;
+      for (let j = i + 1; j < len; j++) {
+        const nextN = this.notes[j];
+        if (!nextN || nextN.holdCompleted) continue;
+        if (nextN.hit && nextN.type !== 'hold') continue;
+        const nextLane = Number.isFinite(nextN.lane) ? Math.round(nextN.lane) : (Number.isFinite(nextN.column) ? Math.round(nextN.column) : 0);
+        if (nextLane === lane) {
+          const nextT = Number.isFinite(nextN.timestamp_ms) ? nextN.timestamp_ms : (Number.isFinite(nextN.timeMs) ? nextN.timeMs : (nextN.time * 1000));
+          if (nextT > noteT) {
+            nextSameLaneDiffMs = nextT - noteT;
+            break;
+          }
+        }
+      }
+
       if (is3D) {
         // =========================================================================
         // 3D VINTAGE ACOUSTIC GRAND PIANO (CONICAL PERSPECTIVE)
         // =========================================================================
+        const coord = this.getPerspectiveCoord(lane, pHead);
+        const maxH3D = nextSameLaneDiffMs < scrollDur
+          ? Math.max(26, ((nextSameLaneDiffMs / scrollDur) * (hitY - horizonY) * coord.scale) - 8)
+          : Infinity;
+
         if (note.type === 'hold') {
           const rawDur = Number.isFinite(note.duration_ms)
             ? note.duration_ms
@@ -3608,19 +3956,19 @@ class BeatstarEngine {
           for (let s = 0; s <= segments; s++) {
             const frac = s / segments;
             const pStep = currentTailP + (currentHeadP - currentTailP) * frac;
-            const coord = this.getPerspectiveCoord(lane, pStep);
+            const ptCoord = this.getPerspectiveCoord(lane, pStep);
 
             const standingEnvelope = Math.sin(Math.PI * frac);
             const freq = isBeingHeld ? 0.035 : 0.015;
             const wavenumber = 0.04;
-            const amplitude = (isBeingHeld ? 3.5 : 1.2) * coord.scale;
-            const harmonicOffset = amplitude * standingEnvelope * Math.sin(freq * currentTime + wavenumber * coord.y);
+            const amplitude = (isBeingHeld ? 3.5 : 1.2) * ptCoord.scale;
+            const harmonicOffset = amplitude * standingEnvelope * Math.sin(freq * currentTime + wavenumber * ptCoord.y);
 
             stringPoints.push({
-              x: coord.x + harmonicOffset,
-              y: coord.y,
-              scale: coord.scale,
-              laneW: coord.laneW
+              x: ptCoord.x + harmonicOffset,
+              y: ptCoord.y,
+              scale: ptCoord.scale,
+              laneW: ptCoord.laneW
             });
           }
 
@@ -3682,31 +4030,26 @@ class BeatstarEngine {
 
           // Head Ivory Piano Key
           const headPt = stringPoints[stringPoints.length - 1];
-          const headW = headPt.laneW * (isLarge ? 0.95 : 0.78);
-          const headH = (isLarge ? 64 : 22) * headPt.scale;
-          this.drawIvoryKey(ctx, headPt.x, headPt.y, headW, headH, headPt.scale, isBeingHeld, isLarge);
+          const headH = Math.min((isLarge ? 80 : 30) * headPt.scale, maxH3D);
+          this.drawIvoryKey(ctx, lane, headPt.y, headH, headPt.scale, isBeingHeld, isLarge, false);
 
           ctx.restore();
 
         } else if (note.type === 'swipe') {
-          const coord = this.getPerspectiveCoord(lane, pHead);
-          const w = coord.laneW * (isLarge ? 0.95 : 0.78);
-          const h = (isLarge ? 76 : 32) * coord.scale;
+          const h = Math.min((isLarge ? 84 : 32) * coord.scale, maxH3D);
           const dir = note.direction || 'up';
 
           ctx.save();
-          this.drawIvoryKey(ctx, coord.x, coord.y, w, h, coord.scale, false, isLarge);
-          this.renderVectorChevron(ctx, coord.x, coord.y, dir, (isLarge ? 36 : 20) * coord.scale, '#c5a059');
+          const swipeKey = this.drawIvoryKey(ctx, lane, coord.y, h, coord.scale, false, isLarge, true);
+          this.renderVectorChevron(ctx, swipeKey.cx, swipeKey.cy, dir, (isLarge ? 44 : 24) * coord.scale, '#c5a059');
           ctx.restore();
 
         } else {
           // Tap Note
-          const coord = this.getPerspectiveCoord(lane, pHead);
-          const w = coord.laneW * (isLarge ? 0.95 : 0.78);
-          const h = (isLarge ? 64 : 22) * coord.scale;
+          const h = Math.min((isLarge ? 80 : 30) * coord.scale, maxH3D);
 
           ctx.save();
-          this.drawIvoryKey(ctx, coord.x, coord.y, w, h, coord.scale, false, isLarge);
+          this.drawIvoryKey(ctx, lane, coord.y, h, coord.scale, false, isLarge, false);
           ctx.restore();
         }
 
@@ -3715,7 +4058,10 @@ class BeatstarEngine {
         // 2D NEÓN CLÁSICO (Modo Plano)
         // ==========================================
         const cx = (lane + 0.5) * laneW;
-        const w = laneW * (isLarge ? 0.95 : 0.78);
+        const w = laneW * (isLarge ? 0.98 : 0.80);
+        const maxH2D = nextSameLaneDiffMs < scrollDur
+          ? Math.max(24, ((nextSameLaneDiffMs / scrollDur) * hitY) - 8)
+          : Infinity;
 
         if (note.type === 'hold') {
           const rawDur = Number.isFinite(note.duration_ms)
@@ -3747,18 +4093,18 @@ class BeatstarEngine {
           ctx.strokeRect(cx - ribbonW / 2, currentTailY, ribbonW, Math.max(4, currentHeadY - currentTailY));
           ctx.restore();
 
-          const h = isLarge ? 58 : 22;
+          const h = Math.min(isLarge ? 80 : 28, maxH2D);
           this.draw2DNeonKey(ctx, cx, currentHeadY, w, h, isBeingHeld, isLarge);
 
         } else if (note.type === 'swipe') {
           const cy = hitY * pHead;
-          const h = isLarge ? 70 : 32;
+          const h = Math.min(isLarge ? 98 : 36, maxH2D);
           this.draw2DNeonKey(ctx, cx, cy, w, h, false, isLarge);
-          this.renderVectorChevron(ctx, cx, cy, note.direction || 'up', isLarge ? 32 : 18, '#ffffff');
+          this.renderVectorChevron(ctx, cx, cy, note.direction || 'up', isLarge ? 36 : 20, '#ffffff');
 
         } else {
           const cy = hitY * pHead;
-          const h = isLarge ? 58 : 22;
+          const h = Math.min(isLarge ? 80 : 28, maxH2D);
           this.draw2DNeonKey(ctx, cx, cy, w, h, false, isLarge);
         }
       }
@@ -3776,20 +4122,16 @@ class BeatstarEngine {
       const j = this.judgements[i];
       if (!j || j.alpha <= 0.01) continue;
       ctx.globalAlpha = Math.max(0, Math.min(1, j.alpha));
-      ctx.font = `900 ${Math.round(24 * j.scale)}px "Cinzel", "Playfair Display", serif`;
-      
-      // Ebony shadow outline
-      ctx.strokeStyle = '#0d0b10';
-      ctx.lineWidth = 4;
-      ctx.strokeText(j.text, this.width / 2, j.y);
+      ctx.font = `900 ${Math.round(26 * j.scale)}px "Cinzel", "Playfair Display", "Outfit", serif`;
 
-      // Warm royal golden tones
-      let textColor = j.color;
-      if (j.text === 'PERFECT+') textColor = '#ffdf9e';
-      else if (j.text === 'PERFECT') textColor = '#d4af37';
-      else if (j.text === 'GREAT') textColor = '#c5a059';
-      else if (j.text === 'GOOD') textColor = '#9e8046';
-      else if (j.text === 'MISS') textColor = '#85141d';
+      const textColor = j.color || '#ffdf9e';
+
+      // Glowing shadow aura matching the judgment color
+      ctx.shadowColor = textColor;
+      ctx.shadowBlur = 14 * j.scale;
+      ctx.strokeStyle = '#0d0b10';
+      ctx.lineWidth = 4.5;
+      ctx.strokeText(j.text, this.width / 2, j.y);
 
       ctx.fillStyle = textColor;
       ctx.fillText(j.text, this.width / 2, j.y);

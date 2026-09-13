@@ -75,8 +75,8 @@ class MainActivity : AppCompatActivity() {
         @Suppress("DEPRECATION")
         settings.allowUniversalAccessFromFileURLs = true
         settings.loadWithOverviewMode = true
-        settings.useWideViewPort = true
-        settings.cacheMode = WebSettings.LOAD_DEFAULT
+        settings.cacheMode = WebSettings.LOAD_NO_CACHE
+        webView.clearCache(true)
         settings.javaScriptCanOpenWindowsAutomatically = true
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
