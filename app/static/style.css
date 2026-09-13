@@ -164,6 +164,7 @@ body {
 }
 
 /* 120 FPS High Performance Game Canvas */
+/* 120 FPS High Performance Game Canvas */
 #gameCanvas {
   position: absolute;
   top: 0;
@@ -172,6 +173,9 @@ body {
   height: 100%;
   z-index: 5;
   touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
   pointer-events: auto;
 }
 
@@ -187,12 +191,12 @@ body {
   opacity: 0 !important;
 }
 
-/* Start Countdown 3-2-1 Semi-Transparent Overlay (z-index 85) */
+/* Start Countdown 3-2-1 Concert / Classical Gala Style (z-index 85) */
 .start-countdown-overlay {
   position: absolute;
   inset: 0;
   z-index: 85;
-  background: rgba(6, 4, 10, 0.45);
+  background: rgba(8, 6, 12, 0.4);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -200,8 +204,8 @@ body {
   pointer-events: none;
   opacity: 0;
   visibility: hidden;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
   transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), backdrop-filter 0.25s ease, visibility 0.25s;
 }
 
@@ -218,18 +222,24 @@ body {
 }
 
 .start-countdown-number {
-  font-size: 80px;
-  font-weight: 900;
-  color: #ffffff;
-  text-shadow: 0 0 50px #00f2fe, 0 0 25px #ff007f;
-  animation: countdownPopNumber 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  font-family: 'Cinzel', 'Playfair Display', 'Georgia', serif;
+  font-size: 92px;
+  font-weight: 800;
+  color: #e5b869;
+  letter-spacing: 0.05em;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.95), 0 0 35px rgba(229, 184, 105, 0.5);
+  filter: drop-shadow(0 0 16px rgba(197, 160, 89, 0.35));
+  animation: countdownConcertPop 0.66s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-@keyframes countdownPopNumber {
-  0% { transform: scale(0.4); opacity: 0; }
-  40% { transform: scale(1.2); opacity: 1; }
-  85% { transform: scale(1.0); opacity: 1; }
-  100% { transform: scale(0.9); opacity: 0.2; }
+.start-countdown-number.countdown-pulse {
+  animation: countdownConcertPop 0.66s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes countdownConcertPop {
+  0% { transform: scale(1.4); opacity: 0.25; }
+  35% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1.0); opacity: 0.92; }
 }
 
 /* Stylized Rewind Badge Overlay (⏪ -1.0s) (z-index 62) */
@@ -249,9 +259,9 @@ body {
 
 .rewind-badge {
   padding: 10px 24px;
-  background: rgba(14, 6, 26, 0.94);
-  border: 2px solid #00f2fe;
-  box-shadow: 0 0 35px rgba(0, 242, 254, 0.7), inset 0 0 15px rgba(0, 242, 254, 0.25);
+  background: rgba(14, 11, 20, 0.95);
+  border: 1.5px solid #c5a059;
+  box-shadow: 0 0 25px rgba(197, 160, 89, 0.35), inset 0 0 12px rgba(197, 160, 89, 0.2);
   border-radius: 20px;
   display: flex;
   align-items: center;
@@ -283,9 +293,9 @@ body {
 
 .countdown-pill {
   padding: 12px 28px;
-  background: rgba(8, 4, 16, 0.90);
-  border: 2px solid #00f2fe;
-  box-shadow: 0 0 35px rgba(0, 242, 254, 0.8), inset 0 0 15px rgba(0, 242, 254, 0.3);
+  background: rgba(14, 11, 20, 0.92);
+  border: 1.5px solid #c5a059;
+  box-shadow: 0 0 30px rgba(197, 160, 89, 0.4), inset 0 0 15px rgba(197, 160, 89, 0.2);
   border-radius: 24px;
   font-size: 18px;
   font-weight: 900;
@@ -556,62 +566,51 @@ body {
 }
 
 .playlist-pill.active {
-  background: rgba(0, 242, 254, 0.2);
-  border-color: rgba(0, 242, 254, 0.5);
-  color: #00f2fe;
+  background: rgba(197, 160, 89, 0.2);
+  border-color: rgba(197, 160, 89, 0.6);
+  color: #e5b869;
 }
 
-/* Fixed Top HUD (Beatstar Reactive Style, z-index 20) */
+/* Full-Width Top HUD (100% width, Top 0) */
 .fixed-top-hud {
   position: absolute;
-  top: 8px;
-  left: 8px;
-  right: 8px;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
   z-index: 20;
-  background: linear-gradient(180deg, rgba(16, 12, 22, 0.94) 0%, rgba(8, 6, 14, 0.97) 100%);
+  background: linear-gradient(180deg, rgba(14, 10, 20, 0.96) 0%, rgba(8, 6, 14, 0.94) 80%, rgba(8, 6, 14, 0.8) 100%);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(197, 160, 89, 0.35);
-  border-radius: 18px;
-  padding: 8px 12px;
+  border: none;
+  border-bottom: 1px solid rgba(197, 160, 89, 0.25);
+  border-radius: 0;
+  padding: 0;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8), 0 0 1px rgba(197, 160, 89, 0.4);
+  flex-direction: column;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.75);
   pointer-events: auto !important;
 }
 
-/* Number Ticker Display */
-.hud-score-ticker {
-  font-size: 19px;
-  font-weight: 900;
-  letter-spacing: 0.5px;
-  font-family: 'SF Pro Display', -apple-system, monospace;
-  color: #ffffff;
-  text-shadow: 0 0 10px rgba(229, 184, 105, 0.45);
-}
-
-/* Segmented Progress Track & Liquid Fill */
-.hud-progress-wrapper {
+/* 6px Segmented Progress Track Across 100% Width */
+.hud-top-progress-bar-container {
   width: 100%;
   position: relative;
-  padding: 4px 0;
+  height: 6px;
 }
 
-.hud-progress-track {
+.hud-top-progress-track {
   width: 100%;
-  height: 7px;
-  background: rgba(22, 18, 30, 0.9);
-  border: 1px solid rgba(197, 160, 89, 0.35);
-  border-radius: 6px;
+  height: 6px;
+  background: #1a140e;
   position: relative;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.85);
+  overflow: visible;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.9);
 }
 
 .hud-progress-fill {
   height: 100%;
-  border-radius: 5px;
-  background: linear-gradient(90deg, #c5a059 0%, #e5b869 85%, #fff0c2 100%);
+  background: linear-gradient(90deg, #c5a059 0%, #e5b869 75%, #fff0c2 100%);
   box-shadow: 0 0 10px rgba(229, 184, 105, 0.75);
   transition: width 0.12s linear;
 }
@@ -622,17 +621,29 @@ body {
   box-shadow: 0 0 14px rgba(255, 255, 255, 0.95), 0 0 22px rgba(56, 189, 248, 0.75);
 }
 
-/* Metallic Relief Star Nodes at 20%, 40%, 60%, 75%, 90% */
+/* Segment Dividers */
+.hud-segment-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(197, 160, 89, 0.7);
+  z-index: 4;
+  transform: translateX(-50%);
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.9);
+}
+
+/* Star Nodes Placed Over Dividers */
 .star-node {
   position: absolute;
-  top: 50%;
+  top: 3px;
   transform: translate(-50%, -50%);
   width: 14px;
   height: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 5;
+  z-index: 6;
   pointer-events: none;
 }
 
@@ -640,14 +651,14 @@ body {
   width: 13px;
   height: 13px;
   fill: #161220;
-  stroke: #6b5c3e;
-  stroke-width: 2;
+  stroke: #c5a059;
+  stroke-width: 1.8;
   transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 @keyframes starNodePop {
   0% { transform: translate(-50%, -50%) scale(1.0); }
-  40% { transform: translate(-50%, -50%) scale(1.38); }
+  40% { transform: translate(-50%, -50%) scale(1.4); }
   75% { transform: translate(-50%, -50%) scale(0.92); }
   100% { transform: translate(-50%, -50%) scale(1.0); }
 }
@@ -661,6 +672,82 @@ body {
   stroke: #fff0c2 !important;
   stroke-width: 1.5;
   filter: drop-shadow(0 0 6px rgba(229, 184, 105, 0.95)) drop-shadow(0 0 12px rgba(255, 240, 194, 0.75));
+}
+
+/* Sub-Bar Metrics Row (3 columns) */
+.hud-metrics-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px 8px 12px;
+  width: 100%;
+}
+
+.hud-left-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  max-width: 32%;
+}
+
+.hud-song-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f5eedc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.02em;
+}
+
+.hud-center-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  max-width: 40%;
+}
+
+.hud-score-ticker {
+  font-size: 22px;
+  font-weight: 800;
+  font-family: 'Cinzel', 'SF Pro Display', -apple-system, serif, monospace;
+  color: #f5eedc;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8), 0 0 14px rgba(229, 184, 105, 0.45);
+  line-height: 1.1;
+  letter-spacing: 0.04em;
+}
+
+.hud-right-col {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.hud-pause-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(28, 23, 36, 0.85);
+  border: 1px solid rgba(197, 160, 89, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #e5b869;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.hud-pause-btn:hover {
+  background: rgba(45, 36, 56, 0.95);
+  border-color: #e5b869;
+  box-shadow: 0 0 10px rgba(197, 160, 89, 0.35);
+}
+
+.hud-pause-btn:active {
+  transform: scale(0.92);
 }
 
 @keyframes starShockwave {

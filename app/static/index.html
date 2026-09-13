@@ -127,7 +127,7 @@
         settings_nickname_sub: 'Creador & Social',
         settings_nickname_placeholder: 'Elige tu nombre en el juego...',
         settings_judge_colors: 'Colores de Juicio',
-        settings_pc_controls: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline text-cyan-300"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/></svg> Teclas de Carril (PC)',
+        settings_pc_controls: 'Teclas de Carril (PC)',
         settings_pc_hint: 'En PC los swipes se tocan con la tecla normal del carril sin deslizar.',
         settings_clear_storage: 'Eliminar todas las canciones descargadas',
         settings_offline_mem: 'Memoria Offline',
@@ -407,7 +407,7 @@
         settings_nickname_sub: 'Creator & Social',
         settings_nickname_placeholder: 'Choose your in-game name...',
         settings_judge_colors: 'Judgement Colors',
-        settings_pc_controls: '⌨️ Lane Keys (PC)',
+        settings_pc_controls: 'Lane Keys (PC)',
         settings_pc_hint: 'On PC, swipe notes can be tapped with the lane key without swiping.',
         settings_clear_storage: 'Delete all downloaded songs',
         settings_offline_mem: 'Offline Memory',
@@ -977,64 +977,68 @@
 
     <!-- Layer 7: Fixed Top HUD Header (Beatstar Reactive Style) -->
     <div id="fixedTopHud" class="fixed-top-hud hidden">
-      <!-- Left Column: Song Title & Live Medal Pill -->
-      <div class="flex flex-col justify-center min-w-0 max-w-[105px]">
-        <span id="hudSongTitle" class="text-[11px] font-bold text-gray-200 truncate leading-tight">Cargando...</span>
-        <div id="hudMedalPill" class="hud-medal-pill hidden mt-1">
-          <span id="hudMedalName">ORO</span>
+      <!-- Top: Full-width 6px Segmented Star Progress Bar -->
+      <div class="hud-top-progress-bar-container">
+        <div id="hudProgressFill" class="hud-progress-fill" style="width: 0%;"></div>
+        <!-- Segment dividers -->
+        <div class="hud-segment-divider" style="left: 20%;"></div>
+        <div class="hud-segment-divider" style="left: 40%;"></div>
+        <div class="hud-segment-divider" style="left: 60%;"></div>
+        <div class="hud-segment-divider" style="left: 75%;"></div>
+        <div class="hud-segment-divider" style="left: 90%;"></div>
+        <!-- Metallic Relief Star Nodes -->
+        <div class="star-node" data-star="1" style="left: 20%;">
+          <svg viewBox="0 0 24 24" class="star-svg"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </div>
+        <div class="star-node" data-star="2" style="left: 40%;">
+          <svg viewBox="0 0 24 24" class="star-svg"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </div>
+        <div class="star-node" data-star="3" style="left: 60%;">
+          <svg viewBox="0 0 24 24" class="star-svg"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </div>
+        <div class="star-node" data-star="4" style="left: 75%;">
+          <svg viewBox="0 0 24 24" class="star-svg"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </div>
+        <div class="star-node" data-star="5" style="left: 90%;">
+          <svg viewBox="0 0 24 24" class="star-svg"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </div>
+        <!-- Platinum Node at 100% -->
+        <div id="hudPlatinumNode" class="hud-platinum-node hidden" style="left: 100%;">
+          <svg viewBox="0 0 24 24" class="plat-medal-svg"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" fill="none"/><polygon points="12 5 14 9.5 19 10 15 14 16.5 19 12 16 7.5 19 9 14 5 10 10 9.5 12 5" fill="currentColor"/></svg>
         </div>
       </div>
 
-      <!-- Center Column: Continuous Number Ticker & Segmented Star Progress Bar & Beat Pulse Combo -->
-      <div class="flex flex-col items-center flex-1 max-w-[210px] mx-1.5">
-        <!-- Continuous Liquid Score Ticker -->
-        <div id="hudScore" class="hud-score-ticker font-black text-white leading-none">0</div>
-
-        <!-- 5-Star Segmented Progress Bar (Cuts at 20%, 40%, 60%, 75%, 90%) -->
-        <div class="hud-progress-wrapper">
-          <div id="hudProgressBar" class="hud-progress-track">
-            <div id="hudProgressFill" class="hud-progress-fill" style="width: 0%;"></div>
-            <!-- Metallic Relief Star Nodes -->
-            <div class="star-node" data-star="1" style="left: 20%;">
-              <svg viewBox="0 0 24 24" class="star-svg"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            </div>
-            <div class="star-node" data-star="2" style="left: 40%;">
-              <svg viewBox="0 0 24 24" class="star-svg"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            </div>
-            <div class="star-node" data-star="3" style="left: 60%;">
-              <svg viewBox="0 0 24 24" class="star-svg"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            </div>
-            <div class="star-node" data-star="4" style="left: 75%;">
-              <svg viewBox="0 0 24 24" class="star-svg"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            </div>
-            <div class="star-node" data-star="5" style="left: 90%;">
-              <svg viewBox="0 0 24 24" class="star-svg"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            </div>
-            <!-- Platinum Node at 100% -->
-            <div id="hudPlatinumNode" class="hud-platinum-node hidden" style="left: 100%;">
-              <svg viewBox="0 0 24 24" class="plat-medal-svg"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" fill="none"/><polygon points="12 5 14 9.5 19 10 15 14 16.5 19 12 16 7.5 19 9 14 5 10 10 9.5 12 5" fill="currentColor"/></svg>
-            </div>
+      <!-- Bottom: 3-column Metrics Row -->
+      <div class="hud-metrics-row">
+        <!-- Left Column: Song Title & Live Medal Pill -->
+        <div class="hud-left-col">
+          <span id="hudSongTitle" class="hud-song-title">Cargando...</span>
+          <div id="hudMedalPill" class="hud-medal-pill hidden mt-0.5">
+            <span id="hudMedalName">ORO</span>
           </div>
         </div>
 
-        <!-- Dynamic Combo Box with Beat Pulse & Streak Flare -->
-        <div class="flex items-center justify-center gap-1.5 mt-0.5">
-          <div id="hudComboContainer" class="hud-combo-box">
-            <span id="hudCombo" class="hud-combo-text">COMBO 0</span>
+        <!-- Center Column: Score Ticker + Combo -->
+        <div class="hud-center-col">
+          <div id="hudScore" class="hud-score-ticker">0</div>
+          <div class="flex items-center justify-center gap-1.5 mt-0.5">
+            <div id="hudComboContainer" class="hud-combo-box">
+              <span id="hudCombo" class="hud-combo-text">COMBO 0</span>
+            </div>
+            <span id="hudMultiplier" class="multiplier-badge">1x</span>
           </div>
-          <span id="hudMultiplier" class="multiplier-badge">1x</span>
         </div>
-      </div>
 
-      <!-- Right Column: In-Game Clefs + Pause Button -->
-      <div class="flex items-center gap-1.5 flex-shrink-0">
-        <div class="clef-badge py-1 px-2 flex items-center gap-1">
-          <span class="text-amber-400 font-bold text-xs">𝄞</span>
-          <span id="hudClefCount" class="text-[11px] font-black text-amber-300 font-mono">0</span>
+        <!-- Right Column: Clef Coins + Pause Button -->
+        <div class="hud-right-col">
+          <div class="clef-badge py-1 px-2 flex items-center gap-1">
+            <span class="text-amber-400 font-bold text-xs">&#119070;</span>
+            <span id="hudClefCount" class="text-[11px] font-black text-amber-300 font-mono">0</span>
+          </div>
+          <button id="btnPauseGame" onclick="event.stopPropagation(); openPauseModal()" ontouchend="event.stopPropagation(); openPauseModal()" class="hud-pause-btn" title="Pausar Partida">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+          </button>
         </div>
-        <button id="btnPauseGame" onclick="event.stopPropagation(); openPauseModal()" ontouchend="event.stopPropagation(); openPauseModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-white transition cursor-pointer" title="Pausar Partida">
-          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-        </button>
       </div>
     </div>
 
@@ -1047,7 +1051,7 @@
         <div class="flex items-center gap-2 min-w-0 flex-shrink">
           <img src="./app_logo.png" alt="Piano Community" class="h-[38px] max-h-[38px] w-auto object-contain rounded-lg shadow-md shadow-pink-500/20 border border-white/10 flex-shrink-0" style="height: 38px; width: auto; object-fit: contain;">
           <div class="min-w-0 flex flex-col justify-center">
-            <h1 class="text-xs font-black text-white tracking-wider uppercase truncate leading-tight">
+            <h1 class="text-xs font-black text-white tracking-wider uppercase whitespace-nowrap leading-tight">
               PIANO COMMUNITY
             </h1>
           </div>
@@ -1738,7 +1742,7 @@
               <span data-i18n="settings_lang" class="font-bold text-white">Idioma / Language:</span>
             </div>
             <div class="grid grid-cols-2 gap-1.5">
-              <button type="button" onclick="setLanguage('es')" id="settingsLangEs" class="py-1.5 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer border bg-cyan-500/30 text-cyan-300 border-cyan-500/50">
+              <button type="button" onclick="setLanguage('es')" id="settingsLangEs" class="py-1.5 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer border bg-[#c5a059]/20 text-[#f5eedc] border-[#c5a059]/60">
                 <span class="px-1 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[9px] font-mono">ES</span> Español
               </button>
               <button type="button" onclick="setLanguage('en')" id="settingsLangEn" class="py-1.5 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer border bg-black/50 text-gray-400 border-white/10 hover:text-white">
@@ -1837,15 +1841,15 @@
             <div class="grid grid-cols-3 gap-1.5 pt-1">
               <div class="text-center">
                 <span class="text-[9px] text-gray-400 block mb-0.5">Carril 1</span>
-                <button id="btnKeybindLane0" onclick="startRebindKey(0)" class="w-full py-1.5 rounded-lg bg-black/70 border border-cyan-500/40 text-cyan-300 font-mono font-black text-xs hover:border-cyan-400 transition cursor-pointer">D</button>
+                <button id="btnKeybindLane0" onclick="startRebindKey(0)" class="w-full py-1.5 rounded-lg bg-black/70 border border-[#c5a059]/50 text-[#e5b869] font-mono font-black text-xs hover:border-[#e5b869] transition cursor-pointer">D</button>
               </div>
               <div class="text-center">
                 <span class="text-[9px] text-gray-400 block mb-0.5">Carril 2</span>
-                <button id="btnKeybindLane1" onclick="startRebindKey(1)" class="w-full py-1.5 rounded-lg bg-black/70 border border-cyan-500/40 text-cyan-300 font-mono font-black text-xs hover:border-cyan-400 transition cursor-pointer">F</button>
+                <button id="btnKeybindLane1" onclick="startRebindKey(1)" class="w-full py-1.5 rounded-lg bg-black/70 border border-[#c5a059]/50 text-[#e5b869] font-mono font-black text-xs hover:border-[#e5b869] transition cursor-pointer">F</button>
               </div>
               <div class="text-center">
                 <span class="text-[9px] text-gray-400 block mb-0.5">Carril 3</span>
-                <button id="btnKeybindLane2" onclick="startRebindKey(2)" class="w-full py-1.5 rounded-lg bg-black/70 border border-cyan-500/40 text-cyan-300 font-mono font-black text-xs hover:border-cyan-400 transition cursor-pointer">J</button>
+                <button id="btnKeybindLane2" onclick="startRebindKey(2)" class="w-full py-1.5 rounded-lg bg-black/70 border border-[#c5a059]/50 text-[#e5b869] font-mono font-black text-xs hover:border-[#e5b869] transition cursor-pointer">J</button>
               </div>
             </div>
           </div>
@@ -1856,7 +1860,7 @@
           </button>
 
           <!-- 4. Calibration Action Button -->
-          <button id="btnSettingsOpenCalib" class="w-full py-2.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer">
+          <button id="btnSettingsOpenCalib" class="w-full py-2.5 bg-[#c5a059]/10 hover:bg-[#c5a059]/20 text-[#e5b869] border border-[#c5a059]/40 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer">
             <svg width="14" height="14" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
             <span data-i18n="settings_calibration">Calibración de Latencia (Audio & Visual)</span>
           </button>
@@ -4086,7 +4090,7 @@
             }, 600);
           }
         },
-        onStartCountdown: (onComplete) => {
+        onStartCountdown: (durationMs) => {
           if (activeCountdownInterval) {
             clearInterval(activeCountdownInterval);
             activeCountdownInterval = null;
@@ -4097,44 +4101,39 @@
           const curtain = document.getElementById('gameCurtain');
           if (curtain) curtain.classList.add('revealed');
 
-          if (!overlay || !numEl) {
-            if (onComplete) onComplete();
-            return;
-          }
+          if (!overlay || !numEl) return;
 
           overlay.classList.remove('fading');
           overlay.classList.add('show');
+          const stepMs = (durationMs || 2000) / 3;
           let count = 3;
           numEl.innerText = count;
           numEl.style.animation = 'none';
-          numEl.offsetHeight;
+          void numEl.offsetHeight;
           numEl.style.animation = null;
 
-          // Rapid, responsive countdown (350ms per step)
           activeCountdownInterval = setInterval(() => {
             count--;
             if (count > 0) {
               numEl.innerText = count;
               numEl.style.animation = 'none';
-              numEl.offsetHeight;
+              void numEl.offsetHeight;
               numEl.style.animation = null;
             } else if (count === 0) {
-              numEl.innerText = '¡YA!';
+              numEl.innerText = '\u00a1YA!';
               numEl.style.animation = 'none';
-              numEl.offsetHeight;
+              void numEl.offsetHeight;
               numEl.style.animation = null;
-              if (curtain) curtain.classList.add('revealed');
-              if (onComplete) onComplete();
-            } else {
               clearInterval(activeCountdownInterval);
               activeCountdownInterval = null;
-              overlay.classList.remove('show');
-              overlay.classList.add('fading');
+              // Fade out the overlay after a short moment
               setTimeout(() => {
-                overlay.classList.remove('fading');
-              }, 200);
+                overlay.classList.remove('show');
+                overlay.classList.add('fading');
+                setTimeout(() => overlay.classList.remove('fading'), 250);
+              }, stepMs * 0.7);
             }
-          }, 350);
+          }, stepMs);
         },
         onMissPenalty: (penaltyCost, missCount) => {
           currentPenaltyCost = penaltyCost;
