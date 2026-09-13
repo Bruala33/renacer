@@ -2634,5 +2634,22 @@ body {
   color: #fde047 !important;
 }
 
+/* ======================================================
+   APK DOWNLOAD BUTTON & BROWSER AUDIO UNLOCK STYLES
+   ====================================================== */
+.is-android-apk .apk-only-web,
+.is-android-apk #btnDownloadApk,
+.is-android-apk #settingsDownloadApkCard {
+  display: none !important;
+}
 
+#audioUnlockToast {
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateX(-50%) translateY(10px) scale(0.95);
+}
 
+#audioUnlockToast.show {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  transform: translateX(-50%) translateY(0) scale(1) !important;
+}

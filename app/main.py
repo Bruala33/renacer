@@ -9,7 +9,7 @@ from typing import Dict, Any, List
 from fastapi import FastAPI, HTTPException, status, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, Response, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, Response, RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
@@ -67,6 +67,64 @@ if os.path.exists(static_dir):
 ssl_ctx = ssl.create_default_context()
 ssl_ctx.check_hostname = False
 ssl_ctx.verify_mode = ssl.CERT_NONE
+
+
+@app.get("/songs/{file_path:path}", tags=["Songs"], summary="Servidor de pistas de canciones")
+async def serve_song_file(file_path: str):
+    """
+    Sirve archivos de canciones (audio.mp3, chart.json) con soporte para peticiones parciales (HTTP 206)
+    y fallback automático a las pistas de la comunidad o la base de datos si el archivo estático no existe en disco.
+    """
+    # 1. Comprobar en static/songs
+    direct_path = os.path.join(static_dir, "songs", file_path)
+    if os.path.isfile(direct_path):
+        media_type = "audio/mpeg" if direct_path.endswith(".mp3") else "application/json"
+        return FileResponse(
+            direct_path,
+            media_type=media_type,
+            headers={"Accept-Ranges": "bytes", "Cache-Control": "public, max-age=86400"}
+        )
+
+    # 2. Comprobar en uploads/community
+    parts = file_path.replace("\\", "/").split("/")
+    song_folder = parts[0]
+    filename = parts[-1] if len(parts) > 1 else "audio.mp3"
+
+    comm_candidates = [
+        os.path.join(os.path.dirname(__file__), "uploads", "community", f"comm_{song_folder}", filename),
+        os.path.join(os.path.dirname(__file__), "uploads", "community", song_folder, filename),
+        os.path.join(os.path.dirname(__file__), "uploads", "community", "comm_renacer", filename)
+    ]
+    for cp in comm_candidates:
+        if os.path.isfile(cp):
+            media_type = "audio/mpeg" if cp.endswith(".mp3") else "application/json"
+            return FileResponse(
+                cp,
+                media_type=media_type,
+                headers={"Accept-Ranges": "bytes", "Cache-Control": "public, max-age=86400"}
+            )
+
+    # 3. Fallback a la base de datos comunitaria para reconstruir el archivo
+    if "renacer" in song_folder.lower() or "renacer" in file_path.lower():
+        import sqlite3, base64
+        db_path = os.path.join(os.path.dirname(__file__), "data", "community", "community.db")
+        if os.path.isfile(db_path):
+            try:
+                conn = sqlite3.connect(db_path)
+                cur = conn.cursor()
+                cur.execute("SELECT chart_json, audio_base64 FROM community_charts WHERE id = 'comm_renacer'")
+                row = cur.fetchone()
+                if row:
+                    chart_json_str, audio_b64 = row
+                    if filename.endswith(".json") and chart_json_str:
+                        return Response(content=chart_json_str, media_type="application/json")
+                    elif filename.endswith(".mp3") and audio_b64:
+                        audio_bytes = base64.b64decode(audio_b64)
+                        return Response(content=audio_bytes, media_type="audio/mpeg", headers={"Accept-Ranges": "bytes"})
+            except Exception as e:
+                logger.warning(f"Error extrayendo renacer desde DB: {e}")
+
+    raise HTTPException(status_code=404, detail=f"Pista '{file_path}' no encontrada.")
 
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)

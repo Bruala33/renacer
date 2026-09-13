@@ -1055,6 +1055,13 @@
 
         <!-- Action Buttons (Flex-shrink-0 to guarantee settings gear is always visible) -->
         <div class="flex items-center gap-1.5 flex-shrink-0">
+          <!-- Botón Descargar APK Android (Solo visible en versión Web) -->
+          <a id="btnDownloadApk" href="/download/apk" download="PianoCommunity.apk" class="apk-only-web px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/25 to-yellow-600/25 border border-amber-400/50 hover:border-amber-400/90 active:scale-95 text-amber-300 flex items-center gap-1.5 transition cursor-pointer text-xs font-bold flex-shrink-0 shadow-[0_0_12px_rgba(229,184,105,0.25)]" title="Descargar APK para Android">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span class="hidden sm:inline text-[11px] font-black tracking-wide uppercase">Descargar APK</span>
+            <span class="sm:hidden text-[10px] font-black tracking-wide uppercase">APK</span>
+          </a>
+
           <!-- Global Leaderboard Button (Trophy SVG) -->
           <button id="btnOpenGlobalLeaderboard" onclick="openLeaderboardModal()" class="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-400/40 hover:border-amber-400/70 active:scale-95 text-amber-300 flex items-center justify-center transition cursor-pointer text-sm flex-shrink-0" title="Clasificación Global">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-400"><path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2"/><path d="M6 9a6 6 0 0 0 12 0"/><path d="M12 15v5"/><path d="M8 20h8"/></svg>
@@ -1671,6 +1678,26 @@
 
         <!-- Scrollable Settings Body -->
         <div class="p-3.5 space-y-3 overflow-y-auto flex-1 overscroll-contain">
+          <!-- Descargar APK para Android (Solo visible en versión Web) -->
+          <div id="settingsDownloadApkCard" class="apk-only-web p-2.5 bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-transparent border border-amber-400/40 rounded-xl space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-white flex items-center gap-1.5">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-amber-400">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                <span class="text-amber-300 font-bold">App Oficial Android (APK):</span>
+              </span>
+              <span class="text-[10px] font-mono text-amber-400/80 bg-amber-400/10 px-1.5 py-0.5 rounded">v1.2</span>
+            </div>
+            <p class="text-[10px] text-gray-300 leading-tight">
+              Instala la app oficial en tu móvil para jugar a pantalla completa, vibración háptica y con disponibilidad 100% offline.
+            </p>
+            <a href="/download/apk" download="PianoCommunity.apk" class="w-full py-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 text-black font-black rounded-lg text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition active:scale-95 cursor-pointer">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              DESCARGAR APK ANDROID
+            </a>
+          </div>
+
           <!-- Volumen Maestro y Silencio -->
           <div class="p-2.5 bg-black/40 border border-amber-500/30 rounded-xl space-y-2">
             <div class="flex items-center justify-between text-xs">
@@ -5375,6 +5402,9 @@ function switchMainTab(tab) {
     }
 
     async function downloadAndPlaySong(chartId, diffId, diffName, itemIndex = null) {
+      if (engine && engine.sync) {
+        engine.sync.unlockAudio();
+      }
       if (chartId === 'comm_renacer') {
         playCommunitySong('comm_renacer');
         return;
@@ -7430,6 +7460,9 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
     };
 
     window.playFeaturedSongOfTheDay = function() {
+      if (engine && engine.sync) {
+        engine.sync.unlockAudio();
+      }
       showSuccessToast('Cargando "Renacer" - Canción Oficial...');
       playCommunitySong('comm_renacer', true);
     };
@@ -7902,15 +7935,57 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       if (loadStatus) loadStatus.innerText = 'Obteniendo audio y notas...';
 
       try {
+        if (engine && engine.sync) {
+          engine.sync.unlockAudio();
+        }
+
         if (chartId === 'comm_renacer') {
           try {
-            const [chartRes, audioRes] = await Promise.all([
-              fetch('./songs/renacer/chart.json'),
-              fetch('./songs/renacer/audio.mp3')
-            ]);
-            if (chartRes.ok && audioRes.ok) {
-              const cData = await chartRes.json();
-              const aBlob = await audioRes.blob();
+            let cData = null;
+            let aBlob = null;
+            const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
+
+            // Intentar cargar mapa desde múltiples rutas candidatas
+            const chartCandidates = [
+              './songs/renacer/chart.json',
+              '/songs/renacer/chart.json',
+              '/static/songs/renacer/chart.json',
+              `${baseUrl}/api/v1/community/charts/comm_renacer/chart`
+            ];
+            for (const cUrl of chartCandidates) {
+              try {
+                const res = await fetch(cUrl);
+                if (res.ok) {
+                  const data = await res.json();
+                  if (data && (data.notes || data.difficulties)) {
+                    cData = data;
+                    break;
+                  }
+                }
+              } catch (_) {}
+            }
+
+            // Intentar cargar audio desde múltiples rutas candidatas
+            const audioCandidates = [
+              './songs/renacer/audio.mp3',
+              '/songs/renacer/audio.mp3',
+              '/static/songs/renacer/audio.mp3',
+              `${baseUrl}/api/v1/community/charts/comm_renacer/audio`
+            ];
+            for (const aUrl of audioCandidates) {
+              try {
+                const aRes = await fetch(aUrl);
+                if (aRes.ok) {
+                  const b = await aRes.blob();
+                  if (b && b.size > 20000) {
+                    aBlob = b;
+                    break;
+                  }
+                }
+              } catch (_) {}
+            }
+
+            if (cData && aBlob) {
               cData.is_community = true;
               cData.is_daily_featured = isDailyFeatured;
               cData.source = 'community';
@@ -7921,7 +7996,7 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
               return;
             }
           } catch (offlineErr) {
-            console.warn('[Renacer] Error cargando ruta estática directa:', offlineErr);
+            console.warn('[Renacer] Error cargando ruta multi-candidata:', offlineErr);
           }
         }
 
@@ -9365,6 +9440,29 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
     // Comprobar notificaciones al iniciar la app
     setTimeout(checkCreatorNotifications, 1500);
 
+    // Detección y exclusión del botón de APK en caso de ejecutarse dentro del APK nativo
+    function checkAndHideApkDownloadButton() {
+      const isApk = (typeof window.AndroidNative !== 'undefined') ||
+                    (window.location.hostname === 'appassets.androidplatform.net') ||
+                    (window.location.protocol === 'file:' && /Android/i.test(navigator.userAgent)) ||
+                    (typeof window.AndroidNative?.isAndroidNative === 'function' && window.AndroidNative.isAndroidNative());
+      if (isApk) {
+        document.querySelectorAll('.apk-only-web, #btnDownloadApk, #settingsDownloadApkCard').forEach(el => {
+          el.remove();
+        });
+        document.documentElement.classList.add('is-android-apk');
+      }
+    }
+
+    checkAndHideApkDownloadButton();
+    window.addEventListener('DOMContentLoaded', checkAndHideApkDownloadButton);
+
 </script>
+
+<!-- Toast de desbloqueo de audio por políticas del navegador -->
+<div id="audioUnlockToast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] px-4 py-2.5 bg-black/95 border border-amber-400/60 rounded-full shadow-2xl text-amber-300 text-xs font-bold flex items-center gap-2 cursor-pointer transition-all duration-300 opacity-0 pointer-events-none scale-95" onclick="if(engine && engine.sync) engine.sync.play(); this.classList.remove('show');">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="animate-pulse text-amber-400"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+  <span>Toca aquí para activar el audio</span>
+</div>
 </body>
 </html>

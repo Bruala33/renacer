@@ -85,5 +85,10 @@ love_man.bin
 !app/uploads/community/**/*.mp3
 !app/uploads/community/**/*.ogg
 !app/uploads/community/**/*.wav
+!app/static/songs/
+!app/static/songs/**
+!app/static/songs/**/*.mp3
+!app/static/songs/**/*.json
+
 
 

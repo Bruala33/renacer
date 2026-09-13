@@ -132,9 +132,11 @@ class DirectAudioSync {
     
     const savedVol = parseFloat(localStorage.getItem('beatstar_master_volume') ?? '1.0');
     const savedMuted = localStorage.getItem('beatstar_master_muted') === 'true';
-    this.volume = isNaN(savedVol) ? 1.0 : Math.max(0, Math.min(1, savedVol));
+    this.volume = (isNaN(savedVol) || savedVol === null) ? 1.0 : Math.max(0, Math.min(1, savedVol));
     this.muted = savedMuted;
+    this.audioElement.muted = this.muted;
     this.audioElement.volume = this.muted ? 0 : this.volume;
+    this._blobUrl = null;
     
     this.onReady = onReady;
     this.onEnded = onEnded;
@@ -173,6 +175,8 @@ class DirectAudioSync {
       enforceSpeedAndPitch();
       this.baseTimeMs = (this.audioElement.currentTime || 0) * 1000;
       this.basePerfNow = performance.now();
+      const toast = document.getElementById('audioUnlockToast');
+      if (toast) toast.classList.remove('show');
     });
 
     this.audioElement.addEventListener('pause', () => {
@@ -216,6 +220,41 @@ class DirectAudioSync {
     });
   }
 
+  unlockAudio() {
+    if (this.audioElement) {
+      const prevMuted = this.audioElement.muted;
+      this.audioElement.muted = true;
+      try {
+        const p = this.audioElement.play();
+        if (p && typeof p.then === 'function') {
+          p.then(() => {
+            if (!this.isPlaying) {
+              this.audioElement.pause();
+            }
+            this.audioElement.muted = this.muted;
+            this.audioElement.volume = this.muted ? 0 : this.volume;
+          }).catch(() => {
+            this.audioElement.muted = this.muted;
+            this.audioElement.volume = this.muted ? 0 : this.volume;
+          });
+        } else {
+          this.audioElement.muted = this.muted;
+          this.audioElement.volume = this.muted ? 0 : this.volume;
+        }
+      } catch (e) {
+        this.audioElement.muted = this.muted;
+        this.audioElement.volume = this.muted ? 0 : this.volume;
+      }
+    }
+  }
+
+  showUnlockPrompt() {
+    const toast = document.getElementById('audioUnlockToast');
+    if (toast) {
+      toast.classList.add('show');
+    }
+  }
+
   setPlaybackRate(rate) {
     const r = Math.max(0.5, Math.min(2.0, parseFloat(rate) || 1.0));
     this.playbackRate = r;
@@ -233,9 +272,10 @@ class DirectAudioSync {
   }
 
   setVolume(vol, muted = false) {
-    this.volume = Math.max(0, Math.min(1, vol));
+    this.volume = isNaN(vol) ? 1.0 : Math.max(0, Math.min(1, vol));
     this.muted = !!muted;
     if (this.audioElement) {
+      this.audioElement.muted = this.muted;
       this.audioElement.volume = this.muted ? 0 : this.volume;
     }
   }
@@ -246,8 +286,11 @@ class DirectAudioSync {
       this.loadAudioUrl(blob);
       return;
     }
-    const url = URL.createObjectURL(blob);
-    this.loadAudioUrl(url);
+    if (this._blobUrl) {
+      try { URL.revokeObjectURL(this._blobUrl); } catch (e) {}
+    }
+    this._blobUrl = URL.createObjectURL(blob);
+    this.loadAudioUrl(this._blobUrl);
   }
 
   loadAudioUrl(url) {
@@ -273,15 +316,24 @@ class DirectAudioSync {
         this.audioElement.mozPreservesPitch = true;
         this.audioElement.webkitPreservesPitch = true;
       } catch (e) {}
+
+      this.audioElement.muted = this.muted;
+      this.audioElement.volume = this.muted ? 0 : this.volume;
+
       const p = this.audioElement.play();
       if (p && typeof p.then === 'function') {
         return p.then(() => {
           this.isPlaying = true;
           this.baseTimeMs = (this.audioElement.currentTime || 0) * 1000;
           this.basePerfNow = performance.now();
+          const toast = document.getElementById('audioUnlockToast');
+          if (toast) toast.classList.remove('show');
         }).catch(err => {
           if (err.name !== 'AbortError') {
-            console.warn('Audio play request catch:', err);
+            console.warn('[DirectAudioSync] Audio play request catch:', err);
+            if (err.name === 'NotAllowedError') {
+              this.showUnlockPrompt();
+            }
           }
         });
       }
@@ -304,7 +356,15 @@ class DirectAudioSync {
   seekTo(seconds) {
     const sec = Math.max(0, parseFloat(seconds) || 0);
     try {
-      this.audioElement.currentTime = sec;
+      if (this.audioElement.readyState >= 1) {
+        this.audioElement.currentTime = sec;
+      } else {
+        const onMeta = () => {
+          try { this.audioElement.currentTime = sec; } catch (e) {}
+          this.audioElement.removeEventListener('loadedmetadata', onMeta);
+        };
+        this.audioElement.addEventListener('loadedmetadata', onMeta, { once: true });
+      }
     } catch (e) {}
     this.baseTimeMs = sec * 1000;
     this.basePerfNow = performance.now();
@@ -1226,6 +1286,30 @@ class BeatstarEngine {
     }
   }
 
+  unlockAudio() {
+    if (this.sync && this.sync.unlockAudio) {
+      this.sync.unlockAudio();
+    }
+    if (this.synth && this.synth.ensureContext) {
+      this.synth.ensureContext();
+    }
+  }
+
+  onAudioReady() {
+    console.log('[BeatstarEngine] Audio track ready and buffered.');
+  }
+
+  onAudioEnded() {
+    console.log('[BeatstarEngine] Audio reached end of stream.');
+    if (this.isRunning && !this.isGameOver) {
+      this.triggerGameOver();
+    }
+  }
+
+  onAudioError(msg) {
+    console.warn('[BeatstarEngine] Audio warning/error:', msg);
+  }
+
   getScoreColor(type) {
     const jc = this.judgeColors || {};
     switch (type) {
@@ -1515,16 +1599,30 @@ class BeatstarEngine {
   bindEvents() {
     window.addEventListener('resize', () => this.initCanvasSize());
 
-    this.canvas.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: false });
+    const wakeAudioOnGesture = () => {
+      this.unlockAudio();
+      if (this.isRunning && !this.isPaused && !this.isCountingDown && this.sync && this.sync.audioElement && this.sync.audioElement.paused) {
+        this.sync.play();
+      }
+    };
+
+    this.canvas.addEventListener('touchstart', (e) => {
+      wakeAudioOnGesture();
+      this.handleTouchStart(e);
+    }, { passive: false });
     this.canvas.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: false });
     this.canvas.addEventListener('touchend', (e) => this.handleTouchEnd(e), { passive: false });
     this.canvas.addEventListener('touchcancel', (e) => this.handleTouchEnd(e), { passive: false });
 
-    this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
+    this.canvas.addEventListener('mousedown', (e) => {
+      wakeAudioOnGesture();
+      this.handleMouseDown(e);
+    });
     this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
     this.canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e));
 
     window.addEventListener('keydown', (e) => {
+      wakeAudioOnGesture();
       if (e.repeat) return;
       if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
         if (!this.isCalibrating && this.beatmapData) {
