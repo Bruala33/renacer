@@ -597,6 +597,7 @@ body {
   width: 100%;
   position: relative;
   height: 6px;
+  margin-top: 12px;
 }
 
 .hud-top-progress-track {
@@ -2739,4 +2740,167 @@ body {
   opacity: 1 !important;
   pointer-events: auto !important;
   transform: translateX(-50%) translateY(0) scale(1) !important;
+}
+
+/* ======================================================
+   💎 BEATSTAR ART DIRECTION & STAGE VISUALS (BLOCKS 1-6)
+   ====================================================== */
+
+/* 1. Header Branding in 2 Lines & Brass Frame */
+.brand-title {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1.05;
+}
+.brand-top {
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  color: #fff8db;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8), 0 0 10px rgba(197, 160, 89, 0.4);
+}
+.brand-sub {
+  font-family: 'Cinzel', serif;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  color: #c5a059;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+.brand-logo-frame {
+  border: 1.5px solid #c5a059 !important;
+  box-shadow: 0 0 10px rgba(197, 160, 89, 0.35), inset 0 0 4px rgba(197, 160, 89, 0.20) !important;
+  border-radius: 9px !important;
+}
+
+/* 2. Central Artist Portal Medallion */
+.hud-artist-portal {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.portal-brass-ring {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid #c5a059;
+  box-shadow: 0 0 8px rgba(197, 160, 89, 0.45);
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #08060c;
+}
+.portal-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.portal-vu-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 1.5px;
+  height: 14px;
+}
+.vu-bar {
+  width: 2px;
+  background: #c5a059;
+  border-radius: 1px;
+  animation: vuBounce 0.6s ease-in-out infinite alternate;
+}
+.vu-bar.bar-1 { height: 40%; animation-delay: 0s; }
+.vu-bar.bar-2 { height: 85%; animation-delay: 0.2s; }
+.vu-bar.bar-3 { height: 60%; animation-delay: 0.4s; }
+@keyframes vuBounce {
+  0% { height: 25%; opacity: 0.6; }
+  100% { height: 100%; opacity: 1; }
+}
+
+/* 3. Mechanical Roller Odometer Scoreboard */
+.hud-odometer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #0d0a14 0%, #1a1524 50%, #0d0a14 100%);
+  border: 1.2px solid #c5a059;
+  border-radius: 6px;
+  padding: 1px 4px;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.95), 0 0 10px rgba(197, 160, 89, 0.25);
+  height: 28px;
+  overflow: hidden;
+  position: relative;
+}
+.hud-odometer-drum {
+  width: 14px;
+  height: 24px;
+  overflow: hidden;
+  position: relative;
+  font-family: 'Cinzel', monospace, serif;
+  font-size: 16px;
+  font-weight: 900;
+  color: #fcfbfa;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+}
+.roller-strip {
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.35s cubic-bezier(0.15, 0.9, 0.2, 1.05);
+  will-change: transform;
+}
+.roller-strip span {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 24px;
+}
+
+/* 4. Floating Beat-Pulsing Combo Counter */
+.combo-beat-pulse {
+  animation: comboPulseAnim 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+@keyframes comboPulseAnim {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.18); filter: brightness(1.3); }
+  100% { transform: scale(1); }
+}
+
+/* 5. Luxury Brass Volume Track & Ivory Thumb */
+#settingsVolumeSlider,
+.brass-volume-slider {
+  -webkit-appearance: none;
+  background: linear-gradient(90deg, #1c1409 0%, #30220f 50%, #1c1409 100%) !important;
+  border: 1px solid rgba(197, 160, 89, 0.5) !important;
+  height: 7px !important;
+  border-radius: 4px !important;
+  outline: none !important;
+}
+#settingsVolumeSlider::-webkit-slider-thumb,
+.brass-volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ffffff 0%, #f7f1e6 45%, #c5a059 100%);
+  border: 1.5px solid #8c6d23;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.75);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+#settingsVolumeSlider::-webkit-slider-thumb:hover,
+.brass-volume-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+/* 6. Centering for songSpeedModal */
+#songSpeedModal {
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+#songSpeedModal.open {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }

@@ -112,6 +112,11 @@
         speed_btn: 'Velocidad',
         reset: '1.0x',
         settings_title: 'Ajustes del Motor',
+        settings_volume: 'Volumen del menú:',
+        apk_download_btn: 'Descargar APK',
+        apk_card_title: 'App Oficial Android (APK):',
+        apk_card_desc: 'Instala la app oficial en tu móvil para jugar a pantalla completa, vibración háptica y con disponibilidad 100% offline.',
+        apk_card_btn: 'DESCARGAR APK ANDROID',
         settings_lang: 'Idioma / Language:',
         settings_note_speed: 'Velocidad de Notas:',
         settings_density: 'Densidad / Dificultad:',
@@ -392,6 +397,11 @@
         speed_btn: 'Speed',
         reset: '1.0x',
         settings_title: 'Engine Settings',
+        settings_volume: 'Menu Volume:',
+        apk_download_btn: 'Download APK',
+        apk_card_title: 'Official Android App (APK):',
+        apk_card_desc: 'Install the official app on your mobile device for full-screen gameplay, haptic feedback, and 100% offline availability.',
+        apk_card_btn: 'DOWNLOAD ANDROID APK',
         settings_lang: 'Language / Idioma:',
         settings_note_speed: 'Note Fall Speed:',
         settings_density: 'Map Density / Difficulty:',
@@ -1010,17 +1020,39 @@
 
       <!-- Bottom: 3-column Metrics Row -->
       <div class="hud-metrics-row">
-        <!-- Left Column: Song Title & Live Medal Pill -->
+        <!-- Left Column: Artist Portal Medallion & Song Title -->
         <div class="hud-left-col">
-          <span id="hudSongTitle" class="hud-song-title">Cargando...</span>
-          <div id="hudMedalPill" class="hud-medal-pill hidden mt-0.5">
-            <span id="hudMedalName">ORO</span>
+          <div class="flex items-center gap-1.5 min-w-0">
+            <div id="hudArtistPortal" class="hud-artist-portal">
+              <div class="portal-brass-ring">
+                <img id="hudPortalCover" src="./app_logo.png" alt="Cover" class="portal-cover-img" />
+              </div>
+              <div class="portal-vu-bars">
+                <div class="vu-bar bar-1"></div>
+                <div class="vu-bar bar-2"></div>
+                <div class="vu-bar bar-3"></div>
+              </div>
+            </div>
+            <div class="min-w-0 flex-1 flex flex-col justify-center">
+              <span id="hudSongTitle" class="hud-song-title">Cargando...</span>
+              <div id="hudMedalPill" class="hud-medal-pill hidden mt-0.5">
+                <span id="hudMedalName">ORO</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- Center Column: Score Ticker + Combo -->
+        <!-- Center Column: Mechanical Odometer Scoreboard + Combo -->
         <div class="hud-center-col">
-          <div id="hudScore" class="hud-score-ticker">0</div>
+          <div id="hudScoreRollers" class="hud-odometer" aria-label="Puntuación">
+            <div class="hud-odometer-drum"><div class="roller-strip" id="rollerDigit5"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div></div>
+            <div class="hud-odometer-drum"><div class="roller-strip" id="rollerDigit4"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div></div>
+            <div class="hud-odometer-drum"><div class="roller-strip" id="rollerDigit3"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div></div>
+            <div class="hud-odometer-drum"><div class="roller-strip" id="rollerDigit2"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div></div>
+            <div class="hud-odometer-drum"><div class="roller-strip" id="rollerDigit1"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div></div>
+            <div class="hud-odometer-drum"><div class="roller-strip" id="rollerDigit0"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div></div>
+          </div>
+          <div id="hudScore" class="hidden">0</div>
           <div class="flex items-center justify-center gap-1.5 mt-0.5">
             <div id="hudComboContainer" class="hud-combo-box">
               <span id="hudCombo" class="hud-combo-text">COMBO 0</span>
@@ -1049,11 +1081,10 @@
       <!-- Top Header: Brand + Clefs + FX Shop + Settings (Mobile Clean & Compact) -->
       <div class="flex items-center justify-between pt-1 gap-2">
         <div class="flex items-center gap-2 min-w-0 flex-shrink">
-          <img src="./app_logo.png" alt="Piano Community" class="h-[38px] max-h-[38px] w-auto object-contain rounded-lg shadow-md shadow-pink-500/20 border border-white/10 flex-shrink-0" style="height: 38px; width: auto; object-fit: contain;">
-          <div class="min-w-0 flex flex-col justify-center">
-            <h1 class="text-xs font-black text-white tracking-wider uppercase whitespace-nowrap leading-tight">
-              PIANO COMMUNITY
-            </h1>
+          <img src="./app_logo.png" alt="Piano Community" class="h-[38px] max-h-[38px] w-auto object-contain brand-logo-frame flex-shrink-0" style="height: 38px; width: auto; object-fit: contain;">
+          <div class="brand-title min-w-0 flex-shrink">
+            <span class="brand-top">PIANO</span>
+            <span class="brand-sub">COMMUNITY</span>
           </div>
         </div>
 
@@ -1062,7 +1093,7 @@
           <!-- Botón Descargar APK Android (Solo visible en versión Web) -->
           <a id="btnDownloadApk" href="/download/apk" download="PianoCommunity.apk" class="apk-only-web px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/25 to-yellow-600/25 border border-amber-400/50 hover:border-amber-400/90 active:scale-95 text-amber-300 flex items-center gap-1.5 transition cursor-pointer text-xs font-bold flex-shrink-0 shadow-[0_0_12px_rgba(229,184,105,0.25)]" title="Descargar APK para Android">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span class="hidden sm:inline text-[11px] font-black tracking-wide uppercase">Descargar APK</span>
+            <span class="hidden sm:inline text-[11px] font-black tracking-wide uppercase" data-i18n="apk_download_btn">Descargar APK</span>
             <span class="sm:hidden text-[10px] font-black tracking-wide uppercase">APK</span>
           </a>
 
@@ -1116,7 +1147,7 @@
               type="text" 
               data-i18n-placeholder="search_placeholder"
               placeholder="Buscar canción o artista..." 
-              value="Galaxy"
+              value=""
               onkeydown="if(event.key==='Enter') executeSearch()"
               class="unified-search-input"
             >
@@ -1689,16 +1720,16 @@
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-amber-400">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
                 </svg>
-                <span class="text-amber-300 font-bold">App Oficial Android (APK):</span>
+                <span class="text-amber-300 font-bold" data-i18n="apk_card_title">App Oficial Android (APK):</span>
               </span>
               <span class="text-[10px] font-mono text-amber-400/80 bg-amber-400/10 px-1.5 py-0.5 rounded">v1.2</span>
             </div>
-            <p class="text-[10px] text-gray-300 leading-tight">
+            <p class="text-[10px] text-gray-300 leading-tight" data-i18n="apk_card_desc">
               Instala la app oficial en tu móvil para jugar a pantalla completa, vibración háptica y con disponibilidad 100% offline.
             </p>
             <a href="/download/apk" download="PianoCommunity.apk" class="w-full py-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 text-black font-black rounded-lg text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition active:scale-95 cursor-pointer">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              DESCARGAR APK ANDROID
+              <span data-i18n="apk_card_btn">DESCARGAR APK ANDROID</span>
             </a>
           </div>
 
@@ -1710,7 +1741,7 @@
                   <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
                   <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
                 </svg>
-                <span data-i18n="settings_volume">Volumen Maestro:</span>
+                <span data-i18n="settings_volume">Volumen del menú:</span>
               </span>
               <span id="settingsVolumeVal" class="font-mono font-bold text-amber-300">100%</span>
             </div>
@@ -2801,23 +2832,23 @@
     window.setGameMasterVolume = function(val) {
       const v = Math.max(0, Math.min(1, parseFloat(val) || 0));
       const isMuted = localStorage.getItem('beatstar_master_muted') === 'true';
+      localStorage.setItem('beatstar_master_volume', v.toString());
       if (engine && engine.setMasterVolume) {
         engine.setMasterVolume(v, isMuted);
-      } else {
-        localStorage.setItem('beatstar_master_volume', v.toString());
       }
+      if (typeof updateMenuAudioVolume === 'function') updateMenuAudioVolume();
       syncVolumeUI();
     };
 
     window.toggleGameMasterMute = function() {
       const currentMuted = localStorage.getItem('beatstar_master_muted') === 'true';
       const newMuted = !currentMuted;
+      localStorage.setItem('beatstar_master_muted', newMuted.toString());
       const currentVol = parseFloat(localStorage.getItem('beatstar_master_volume') ?? '1.0');
       if (engine && engine.setMasterVolume) {
         engine.setMasterVolume(currentVol, newMuted);
-      } else {
-        localStorage.setItem('beatstar_master_muted', newMuted.toString());
       }
+      if (typeof updateMenuAudioVolume === 'function') updateMenuAudioVolume();
       syncVolumeUI();
       if (newMuted) {
         showSuccessToast('Audio del juego silenciado');
@@ -3623,6 +3654,7 @@
     };
 
     window.openNativeCalibration = function() {
+      if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
       closeSettingsModal();
       document.getElementById('searchScreen').classList.add('hidden');
       document.getElementById('fixedTopHud').classList.add('hidden');
@@ -3663,6 +3695,7 @@
         searchScreen.style.display = 'flex';
       }
       showSuccessToast('Offset de latencia guardado.');
+      if (typeof resumeMenuAmbientMusic === 'function') resumeMenuAmbientMusic();
     };
 
     window.openYTMusicModal = function() {
@@ -3683,6 +3716,7 @@
     };
 
     window.openPauseModal = function() {
+      if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
       const activeMap = currentActiveBeatmap || (engine && engine.beatmapData);
       if (!activeMap && !engine) return;
       if (engine) engine.pause();
@@ -3868,6 +3902,7 @@
       }
 
       renderCurrentLibrarySubtab();
+      if (typeof resumeMenuAmbientMusic === 'function') resumeMenuAmbientMusic();
     };
 
     const DEFAULT_CLOUD_SERVER = 'https://renacer.onrender.com';
@@ -4037,13 +4072,32 @@
             }
           }
 
-          const comboEl = document.getElementById('hudCombo');
+          // Animacion fisica del marcador mecanico de rodillos (6 digitos)
+          const scoreStr = String(Math.min(999999, Math.max(0, Math.floor(score)))).padStart(6, "0");
+          for (let d = 0; d < 6; d++) {
+            const strip = document.getElementById(`rollerDigit${5 - d}`);
+            if (strip) {
+              const digitVal = parseInt(scoreStr[d], 10) || 0;
+              strip.style.transform = `translateY(-${digitVal * 24}px)`;
+            }
+          }
+          const scoreEl = document.getElementById("hudScore");
+          if (scoreEl) scoreEl.innerText = Math.floor(score).toLocaleString();
+
+          const comboEl = document.getElementById("hudCombo");
           if (comboEl) comboEl.innerText = `COMBO ${combo}`;
-          
-          const multEl = document.getElementById('hudMultiplier');
+
+          const comboContainer = document.getElementById("hudComboContainer");
+          if (comboContainer && combo > 0) {
+            comboContainer.classList.remove("combo-beat-pulse");
+            void comboContainer.offsetWidth;
+            comboContainer.classList.add("combo-beat-pulse");
+          }
+
+          const multEl = document.getElementById("hudMultiplier");
           if (multEl) {
             multEl.innerText = `${multiplier}x`;
-            multEl.className = `multiplier-badge ${multiplier >= 2 ? 'x' + multiplier : ''}`;
+            multEl.className = `multiplier-badge ${multiplier >= 2 ? "x" + multiplier : ""}`;
           }
         },
         onStarUnlocked: (starNum, isPlatinum) => {
@@ -4070,9 +4124,14 @@
             else if (combo >= 25) box.classList.add('streak-25');
           }
         },
-        onSongLoaded: (meta) => {
+        onSongLoaded: (meta, palette) => {
           document.getElementById('hudSongTitle').innerText = meta.title || 'Canción Desconocida';
           document.getElementById('pauseSongTitle').innerText = meta.title || 'Canción Desconocida';
+          const coverEl = document.getElementById('hudPortalCover');
+          if (coverEl) {
+            coverEl.src = meta.cover_url || meta.cover || meta.album_art || meta.image || './app_logo.png';
+          }
+          pauseMenuAmbientMusic();
           updateUserWalletDisplay();
         },
         onTogglePause: () => {
@@ -4105,7 +4164,7 @@
 
           overlay.classList.remove('fading');
           overlay.classList.add('show');
-          const stepMs = (durationMs || 2000) / 3;
+          const stepMs = (durationMs || 1200) / 3;
           let count = 3;
           numEl.innerText = count;
           numEl.style.animation = 'none';
@@ -4136,6 +4195,7 @@
           }, stepMs);
         },
         onMissPenalty: (penaltyCost, missCount) => {
+          if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
           currentPenaltyCost = penaltyCost;
           document.getElementById('reviveCostVal').innerText = penaltyCost;
           document.getElementById('btnPayReviveCost').innerText = penaltyCost;
@@ -4153,6 +4213,7 @@
           }
         },
         onGameEnd: (score, maxCombo, stars, stats, earnedClefs, finalMedal, scorePct, earnedMedals, totalNotes = 0, accuracyPct = 100.0) => {
+          if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
           addClefs(earnedClefs);
           if (earnedMedals) {
             addMedals(earnedMedals.silver || 0, earnedMedals.gold || 0, earnedMedals.platinum || 0);
@@ -4992,10 +5053,209 @@ function switchMainTab(tab) {
       ]);
     }
 
+    
+    // ==========================================
+    //  MENU BACKGROUND MUSIC (AUTHENTIC USER AUDIO FILE)
+    // ==========================================
+    let menuBgmAudio = null;
+    let menuBgmUnlocked = false;
+
+    function getMenuBgmAudio() {
+      if (!menuBgmAudio) {
+        menuBgmAudio = new Audio('./songs/renacer/audio.mp3');
+        menuBgmAudio.loop = true;
+        menuBgmAudio.preload = 'auto';
+      }
+      return menuBgmAudio;
+    }
+
+    function updateMenuAudioVolume() {
+      if (!menuBgmAudio) return;
+      const isMuted = localStorage.getItem('beatstar_master_muted') === 'true';
+      const savedVol = parseFloat(localStorage.getItem('beatstar_master_volume') ?? '1.0');
+      menuBgmAudio.volume = isMuted ? 0 : Math.max(0, Math.min(1, savedVol * 0.35));
+    }
+
+    function playMenuAmbientMusic() {
+      const audio = getMenuBgmAudio();
+      updateMenuAudioVolume();
+      const p = audio.play();
+      if (p !== undefined) {
+        p.catch(() => {});
+      }
+    }
+
+    function pauseMenuAmbientMusic() {
+      if (menuBgmAudio) {
+        menuBgmAudio.pause();
+      }
+    }
+
+    function resumeMenuAmbientMusic() {
+      // Si estamos en pantalla de juego o en modales activos de juego, NO reproducir
+      const playScreen = document.getElementById('playScreen');
+      if (playScreen && !playScreen.classList.contains('hidden') && playScreen.style.display !== 'none') {
+        return;
+      }
+      const pauseModal = document.getElementById('pauseModal');
+      if (pauseModal && (pauseModal.classList.contains('open') || pauseModal.style.display === 'flex' || pauseModal.style.display === 'block')) {
+        return;
+      }
+      const reviveModal = document.getElementById('reviveModal');
+      if (reviveModal && (reviveModal.classList.contains('open') || reviveModal.style.display === 'flex' || reviveModal.style.display === 'block')) {
+        return;
+      }
+      const resultsModal = document.getElementById('resultsModal');
+      if (resultsModal && (resultsModal.classList.contains('open') || resultsModal.style.display === 'flex' || resultsModal.style.display === 'block')) {
+        return;
+      }
+      playMenuAmbientMusic();
+    }
+
+    function initMenuAmbientMusic() {
+      const audio = getMenuBgmAudio();
+      updateMenuAudioVolume();
+      playMenuAmbientMusic();
+    }
+
+    // Inicializar al primer gesto del usuario en la pantalla
+    const onFirstUserGesture = () => {
+      if (!menuBgmUnlocked) {
+        menuBgmUnlocked = true;
+        initMenuAmbientMusic();
+      }
+      document.removeEventListener('pointerdown', onFirstUserGesture);
+      document.removeEventListener('keydown', onFirstUserGesture);
+    };
+    document.addEventListener('pointerdown', onFirstUserGesture, { once: true });
+    document.addEventListener('keydown', onFirstUserGesture, { once: true });
+
+
+    // ==========================================
+    //  PIISTAS HISTÓRICAS COMUNITARIAS (100% REALES Y JUGABLES)
+    // ==========================================
+    const GLOBAL_COMMUNITY_FALLBACKS = [
+      { id: 'comm_renacer', title: 'Renacer', artist: 'Piano Community', creator_id: 'creator_piano_comm', creator_name: 'Piano Community', bpm: 100, difficulty_name: 'Normal', stars: 3.5, notes_count: 203, rating_avg: 5.0, votes_count: 184, sync_avg: 100.0, is_community: true, source: 'community', source_name: 'Piano Community', thumbnail: './app_logo.png' },
+      { id: 'comm_galaxy_anthem', title: 'Galaxy Anthem (Community 3K)', artist: 'Kowalski', creator_id: 'cr_master', creator_name: 'PianoMaster', bpm: 128, difficulty_name: 'Difícil', stars: 4.5, notes_count: 320, rating_avg: 4.8, votes_count: 5, sync_avg: 100.0, is_community: true, source: 'community', thumbnail: './app_logo.png' },
+      { id: 'comm_cyber_frenzy', title: 'Cyber Frenzy', artist: 'SynthRider', creator_id: 'cr_neon', creator_name: 'NeonCharter', bpm: 140, difficulty_name: 'Experto', stars: 6.0, notes_count: 450, rating_avg: 4.9, votes_count: 8, sync_avg: 100.0, is_community: true, source: 'community', thumbnail: './app_logo.png' },
+      { id: 'comm_moonlight_flow', title: 'Moonlight Groove', artist: 'Aethel', creator_id: 'cr_chopin', creator_name: 'ChopinGamer', bpm: 115, difficulty_name: 'Normal', stars: 3.0, notes_count: 210, rating_avg: 4.7, votes_count: 4, sync_avg: 100.0, is_community: true, source: 'community', thumbnail: './app_logo.png' },
+      { id: 'comm_impuestos', title: 'Impuestos', artist: 'Perro Sánxe', creator_id: 'cr_599315', creator_name: 'Rocky', bpm: 160, difficulty_name: 'Difícil', stars: 5.5, notes_count: 144, rating_avg: 5.0, votes_count: 1, sync_avg: 100.0, is_community: true, source: 'community', thumbnail: './app_logo.png' },
+      { id: 'comm_1788769406_7797', title: 'Pikete espacial', artist: 'cecilioge', creator_id: 'cr_191176', creator_name: 'Creador', bpm: 120, difficulty_name: 'Media', stars: 3.5, notes_count: 705, rating_avg: 5.0, votes_count: 1, sync_avg: 100.0, is_community: true, source: 'community', thumbnail: './app_logo.png' },
+      { id: 'comm_1789044866_4266', title: 'Flight of the Bumblebee - Rimsky-Korsakov (arr. Rachmaninoff)', artist: 'Comunidad', creator_id: 'cr_4266', creator_name: 'Comunidad', bpm: 144, difficulty_name: 'Difícil', stars: 4.5, notes_count: 269, rating_avg: 5.0, votes_count: 1, sync_avg: 100.0, is_community: true, source: 'community', thumbnail: './app_logo.png' },
+      { id: 'comm_1789044857_213', title: 'Impuestos (Perreo Sanxe - El secreto de las ayudas)', artist: 'Perro Sánxe', creator_id: 'cr_599315', creator_name: 'Rocky', bpm: 160, difficulty_name: 'Difícil', stars: 5.5, notes_count: 144, rating_avg: 5.0, votes_count: 1, sync_avg: 100.0, is_community: true, source: 'community', thumbnail: './app_logo.png' },
+      { id: 'comm_1788622108_2296', title: 'Unit Test Song', artist: 'Tester', creator_id: 'cr_573828', creator_name: 'TestCharter', bpm: 120, difficulty_name: 'Media', stars: 3.5, notes_count: 150, rating_avg: 5.0, votes_count: 1, sync_avg: 100.0, is_community: true, source: 'community', thumbnail: './app_logo.png' }
+    ];
+
+    function fisherYatesShuffle(array) {
+      const arr = array.slice();
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    async function loadInitialShuffledCatalog() {
+      const container = document.getElementById('resultsList');
+      if (!container) return;
+
+      container.innerHTML = `<div class="p-6 text-center text-xs text-amber-300/80 glass-card animate-pulse">Cargando catálogo musical comunitario...</div>`;
+
+      let allSongs = [];
+      const seenIds = new Set();
+
+      // 1. Intentar consultar canciones comunitarias del backend si está en línea
+      try {
+        const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), 3500);
+        const res = await fetch(`${baseUrl}/api/v1/community/charts/search`, { signal: controller.signal });
+        clearTimeout(tid);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            for (const s of data) {
+              if (s && s.id && !seenIds.has(s.id)) {
+                seenIds.add(s.id);
+                allSongs.push(s);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.debug('Backend community fetch notice:', e);
+      }
+
+      // 2. Incorporar pistas históricas comunitarias de respaldo
+      for (const fb of GLOBAL_COMMUNITY_FALLBACKS) {
+        if (fb && fb.id && !seenIds.has(fb.id)) {
+          seenIds.add(fb.id);
+          allSongs.push(fb);
+        }
+      }
+
+      // 3. Incorporar caché comunitario en localStorage
+      try {
+        const cached = JSON.parse(localStorage.getItem('beatstar_community_cache') || '[]');
+        if (Array.isArray(cached)) {
+          for (const s of cached) {
+            if (s && s.id && !seenIds.has(s.id)) {
+              seenIds.add(s.id);
+              allSongs.push(s);
+            }
+          }
+        }
+      } catch (e) {}
+
+      // 4. Incorporar pistas comunitarias / guardadas en IndexedDB
+      if (typeof IndexedDBStorage !== 'undefined' && IndexedDBStorage.getAllCharts) {
+        try {
+          const localCharts = await IndexedDBStorage.getAllCharts();
+          if (Array.isArray(localCharts)) {
+            for (const ch of localCharts) {
+              const chId = ch.id || ch.song_id;
+              if (chId && !seenIds.has(chId)) {
+                seenIds.add(chId);
+                allSongs.push({
+                  id: chId,
+                  title: ch.title || ch.metadata?.title || 'Canción Local',
+                  artist: ch.artist || ch.metadata?.artist || 'Artista',
+                  stars: ch.stars || ch.metadata?.stars || 3.5,
+                  difficulties: ch.difficulties || [{ id: 'saved', name: 'Guardada', stars: 3.5 }],
+                  is_community: Boolean(ch.is_community || ch.source === 'community'),
+                  source: ch.source || 'community'
+                });
+              }
+            }
+          }
+        } catch (e) {}
+      }
+
+      // 5. Aplicar algoritmo Fisher-Yates (aleatorización balanceada)
+      const shuffledSongs = fisherYatesShuffle(allSongs);
+      searchResultsCache = shuffledSongs;
+
+      // 6. Renderizar con el diseño genuino de teclas de piano de Piano Community
+      renderSearchResults(shuffledSongs, []);
+    }
+
+    // Delegador seguro para compatibilidad
+    window.playSong = function(chartId, diffId = null) {
+      pauseMenuAmbientMusic();
+      if (typeof playCommunitySong === 'function' && (chartId.startsWith('comm_') || chartId.startsWith('custom_'))) {
+        playCommunitySong(chartId);
+      } else if (typeof downloadAndPlaySong === 'function') {
+        downloadAndPlaySong(chartId, diffId || 'default', 'Normal');
+      }
+    };
+
     async function executeSearch() {
       const q = document.getElementById('searchInput').value.trim();
       const isCommunityOnly = Boolean(document.getElementById('filterOnlyCommunity')?.checked);
-      if (!q && !isCommunityOnly) return;
+      if (!q && !isCommunityOnly) {
+        await loadInitialShuffledCatalog();
+        return;
+      }
 
       const btnText = document.getElementById('searchBtnText');
       const spinner = document.getElementById('searchSpinner');
@@ -5401,6 +5661,7 @@ function switchMainTab(tab) {
     }
 
     async function downloadAndPlaySong(chartId, diffId, diffName, itemIndex = null) {
+      if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
       if (engine && engine.sync) {
         engine.sync.unlockAudio();
       }
@@ -7673,17 +7934,8 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       }
 
       // Pistas históricas recuperadas de versiones anteriores y nube
-      const HISTORICAL_COMMUNITY_FALLBACKS = [
-        { id: 'comm_renacer', title: 'Renacer', artist: 'Piano Community', creator_id: 'creator_piano_comm', creator_name: 'Piano Community', bpm: 100, difficulty_name: 'Normal', stars: 3.5, notes_count: 203, rating_avg: 5.0, votes_count: 184, sync_avg: 100.0, is_community: true, source: 'community', source_name: 'Piano Community' },
-        { id: 'comm_impuestos', title: 'Impuestos', artist: 'Perro Sánxe', creator_id: 'cr_599315', creator_name: 'Rocky', bpm: 160, difficulty_name: 'Difícil', stars: 5.5, notes_count: 144, rating_avg: 5.0, votes_count: 1, sync_avg: 100.0, is_community: true, source: 'community' },
-        { id: 'comm_1789044857_213', title: 'Impuestos (Perreo Sanxe - El secreto de las ayudas)', artist: 'Perro Sánxe', creator_id: 'cr_599315', creator_name: 'Rocky', bpm: 160, difficulty_name: 'Difícil', stars: 5.5, notes_count: 144, rating_avg: 5.0, votes_count: 1, sync_avg: 100.0, is_community: true, source: 'community' },
-        { id: 'comm_1788769406_7797', title: 'Pikete espacial', artist: 'cecilioge', creator_id: 'cr_191176', creator_name: 'Creador', bpm: 120, difficulty_name: 'Media', stars: 3.5, notes_count: 705, rating_avg: 5.0, votes_count: 1, sync_avg: 100.0, is_community: true, source: 'community' },
-        { id: 'comm_1789044866_4266', title: 'Flight of the Bumblebee - Rimsky-Korsakov (arr. Rachmaninoff)', artist: 'Comunidad', creator_id: 'cr_4266', creator_name: 'Comunidad', bpm: 144, difficulty_name: 'Difícil', stars: 4.5, notes_count: 269, rating_avg: 5.0, votes_count: 1, sync_avg: 100.0, is_community: true, source: 'community' },
-        { id: 'comm_galaxy_anthem', title: 'Galaxy Anthem (Community 3K)', artist: 'Kowalski', creator_id: 'cr_master', creator_name: 'PianoMaster', bpm: 128, difficulty_name: 'Difícil', stars: 4.5, notes_count: 320, rating_avg: 4.8, votes_count: 5, sync_avg: 100.0, is_community: true, source: 'community' },
-        { id: 'comm_cyber_frenzy', title: 'Cyber Frenzy', artist: 'SynthRider', creator_id: 'cr_neon', creator_name: 'NeonCharter', bpm: 140, difficulty_name: 'Experto', stars: 6.0, notes_count: 450, rating_avg: 4.9, votes_count: 8, sync_avg: 100.0, is_community: true, source: 'community' },
-        { id: 'comm_moonlight_flow', title: 'Moonlight Groove', artist: 'Aethel', creator_id: 'cr_chopin', creator_name: 'ChopinGamer', bpm: 115, difficulty_name: 'Normal', stars: 3.0, notes_count: 210, rating_avg: 4.7, votes_count: 4, sync_avg: 100.0, is_community: true, source: 'community' },
-        { id: 'comm_1788622108_2296', title: 'Unit Test Song', artist: 'Tester', creator_id: 'cr_573828', creator_name: 'TestCharter', bpm: 120, difficulty_name: 'Media', stars: 3.5, notes_count: 150, rating_avg: 5.0, votes_count: 1, sync_avg: 100.0, is_community: true, source: 'community' },
-        { id: 'comm_1789045500_1819', title: 'Test', artist: 'Test', creator_id: 'cr_1819', creator_name: 'Test', bpm: 120, difficulty_name: 'Media', stars: 3.5, notes_count: 4, rating_avg: 5.0, votes_count: 1, sync_avg: 100.0, is_community: true, source: 'community' }
+      const HISTORICAL_COMMUNITY_FALLBACKS = typeof GLOBAL_COMMUNITY_FALLBACKS !== 'undefined' ? GLOBAL_COMMUNITY_FALLBACKS : [
+        { id: 'comm_renacer', title: 'Renacer', artist: 'Piano Community', creator_id: 'creator_piano_comm', creator_name: 'Piano Community', bpm: 100, difficulty_name: 'Normal', stars: 3.5, notes_count: 203, rating_avg: 5.0, votes_count: 184, sync_avg: 100.0, is_community: true, source: 'community', source_name: 'Piano Community', thumbnail: './app_logo.png' }
       ];
 
       for (const fb of HISTORICAL_COMMUNITY_FALLBACKS) {
@@ -7925,6 +8177,7 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
     }
 
     async function playCommunitySong(chartId, isDailyFeatured = false) {
+      if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
       const overlay = document.getElementById('globalLoadingOverlay');
       const loadTitle = document.getElementById('loadingOverlayTitle');
       const loadStatus = document.getElementById('loadingOverlayStatus');
