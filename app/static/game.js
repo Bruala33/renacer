@@ -1996,32 +1996,59 @@ class BeatstarEngine {
     const songRate = Math.max(0.5, Math.min(2.0, parseFloat(this.beatmapData.songPlaybackSpeed) || 1.0));
     this.setSongPlaybackSpeed(songRate);
 
-    this.notes = sanitizedNotes.map((n, idx) => {
-      const rawT = Number.isFinite(n.timestamp_ms) ? n.timestamp_ms : idx * 500;
+    // Sanitización y de-duplicación estricta cronológica para evitar notas solapadas en el mismo carril
+    const sortedCandidateNotes = [...sanitizedNotes].sort((a, b) => {
+      const tA = Number.isFinite(a.timestamp_ms) ? a.timestamp_ms : (a.timeMs || (a.time * 1000) || 0);
+      const tB = Number.isFinite(b.timestamp_ms) ? b.timestamp_ms : (b.timeMs || (b.time * 1000) || 0);
+      return tA - tB;
+    });
+
+    const cleanedNotes = [];
+    const lastLaneHitTime = [-Infinity, -Infinity, -Infinity];
+
+    for (const n of sortedCandidateNotes) {
+      const rawT = Number.isFinite(n.timestamp_ms) ? n.timestamp_ms : (n.timeMs || (n.time * 1000) || 0);
       const adjustedTime = Math.round(rawT);
-      const rawDur = Number.isFinite(n.duration_ms) ? n.duration_ms : 0;
-      const adjustedEndTime = (n.type === 'hold' || rawDur > 0) ? (adjustedTime + Math.max(150, rawDur)) : null;
       const laneVal = Math.max(0, Math.min(2, parseInt(n.lane ?? n.column ?? n.track ?? 0, 10) || 0));
-      return {
+
+      // Si hay dos notas en el mismo carril separadas por menos de 105ms, es un solapamiento visual que requiere 2 toques -> omitir nota fantasma
+      if (adjustedTime - lastLaneHitTime[laneVal] < 105) {
+        continue;
+      }
+      lastLaneHitTime[laneVal] = adjustedTime;
+
+      let rawDur = Number.isFinite(n.duration_ms) ? n.duration_ms : (n.holdDuration ? n.holdDuration * 1000 : 0);
+      if (!Number.isFinite(rawDur) || rawDur < 0) rawDur = 0;
+      rawDur = Math.round(rawDur);
+
+      // Micro-holds menores a 220ms se convierten en tap directo (en móvil un hold de 100ms es físicamente un tap)
+      const isRealHold = (n.type === 'hold' || rawDur > 220) && rawDur > 220;
+      const noteType = isRealHold ? 'hold' : (n.type === 'swipe' ? 'swipe' : 'tap');
+      const finalDur = isRealHold ? Math.max(220, rawDur) : 0;
+      const adjustedEndTime = isRealHold ? (adjustedTime + finalDur) : null;
+
+      cleanedNotes.push({
         ...n,
-        id: n.id !== undefined ? n.id : idx,
+        id: n.id !== undefined ? n.id : cleanedNotes.length,
         lane: laneVal,
         column: laneVal,
         track: laneVal,
-        type: (n.type === 'hold' || rawDur > 0) ? 'hold' : (n.type === 'swipe' ? 'swipe' : 'tap'),
+        type: noteType,
         time: adjustedTime / 1000,
         timeMs: adjustedTime,
         timestamp_ms: adjustedTime,
-        duration_ms: rawDur,
-        holdDuration: rawDur / 1000,
+        duration_ms: finalDur,
+        holdDuration: finalDur / 1000,
         end_timestamp_ms: adjustedEndTime,
         hit: false,
         holding: false,
         holdCompleted: false,
         missed: false,
         processed: false
-      };
-    });
+      });
+    }
+
+    this.notes = cleanedNotes;
 
     this.activeHolds.clear();
     this.activeTouches.clear();
@@ -2542,16 +2569,27 @@ class BeatstarEngine {
       color: p.c1
     });
 
+    // Búsqueda cronológica estricta: seleccionar la nota más antigua no procesada dentro de la ventana de impacto
+    const HIT_WINDOW_EARLY = 270; // Anticipación máxima permitida (ms)
+    const HIT_WINDOW_LATE = 250;  // Retraso máximo permitido (ms)
+
     let closestNote = null;
     let minDiff = Infinity;
 
+    const candidateNotes = [];
     for (const note of this.notes) {
-      if ((!this.isCalibrating && note.lane !== lane) || note.hit || note.missed || note.holdCompleted) continue;
-      const diff = Math.abs(note.timestamp_ms - currentTime);
-      if (diff < 260 && diff < minDiff) {
-        minDiff = diff;
-        closestNote = note;
+      if ((!this.isCalibrating && note.lane !== lane) || note.hit || note.missed || note.holdCompleted || note.holding) continue;
+      const diffFromNote = currentTime - note.timestamp_ms;
+      if (diffFromNote >= -HIT_WINDOW_EARLY && diffFromNote <= HIT_WINDOW_LATE) {
+        candidateNotes.push(note);
       }
+    }
+
+    if (candidateNotes.length > 0) {
+      // SIEMPRE priorizar la nota cronológicamente anterior para que nunca quede colgada en pantalla
+      candidateNotes.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
+      closestNote = candidateNotes[0];
+      minDiff = Math.abs(closestNote.timestamp_ms - currentTime);
     }
 
     if (!closestNote) {
@@ -2593,39 +2631,42 @@ class BeatstarEngine {
     } 
     else if (closestNote.type === 'swipe') {
       const targetDir = closestNote.direction || 'up';
-      if (inputType === 'swipe' && (swipeDirection === targetDir || !closestNote.direction)) {
-        const j = this.judgeHit(closestNote, minDiff, hitX, hitY, 'SWIPE');
-        closestNote.hit = true;
-        this.emitKeyHit(hitX, hitY, j.color, 28);
-        this.particles.emitSwipeBurst(hitX, hitY, targetDir, j.color, 32);
-        if (this.customBgMode === 'reactive') {
-          this.addReactiveBurst(lane, hitX, hitY, j.color);
-        }
-      } else if (this.isPCMode && inputType === 'tap') {
-        // EN PC: Las notas swipe se tocan con la tecla normal del carril sin deslizar
-        const j = this.judgeHit(closestNote, minDiff, hitX, hitY, 'SWIPE');
-        closestNote.hit = true;
-        this.emitKeyHit(hitX, hitY, j.color, 28);
-        this.particles.emitSwipeBurst(hitX, hitY, targetDir, j.color, 32);
-        if (this.customBgMode === 'reactive') {
-          this.addReactiveBurst(lane, hitX, hitY, j.color);
-        }
-      }
-    } 
-    else if (closestNote.type === 'hold' && inputType === 'tap') {
-      const j = this.judgeHit(closestNote, minDiff, hitX, hitY);
-      closestNote.holding = true;
-      closestNote.missed = false;
-      this.activeHolds.set(lane, {
-        note: closestNote,
-        touchId: touchId,
-        startTime: currentTime,
-        initialTime: closestNote.timestamp_ms,
-        color: j.color
-      });
-      this.emitKeyHit(hitX, hitY, j.color, 22);
+      const isExactSwipe = (inputType === 'swipe' && (swipeDirection === targetDir || !closestNote.direction));
+      // Tolerancia: si el jugador pulsa la tecla directamente (tap), se valida siempre el acierto
+      const j = this.judgeHit(closestNote, minDiff, hitX, hitY, isExactSwipe ? 'SWIPE' : null);
+      closestNote.hit = true;
+      this.emitKeyHit(hitX, hitY, j.color, 28);
+      this.particles.emitSwipeBurst(hitX, hitY, targetDir, j.color, 32);
       if (this.customBgMode === 'reactive') {
         this.addReactiveBurst(lane, hitX, hitY, j.color);
+      }
+    } 
+    else if (closestNote.type === 'hold') {
+      const rawDur = closestNote.duration_ms || 0;
+      if (rawDur <= 220) {
+        // Micro-hold se completa inmediatamente como tap seguro
+        const j = this.judgeHit(closestNote, minDiff, hitX, hitY);
+        closestNote.hit = true;
+        closestNote.holdCompleted = true;
+        this.emitKeyHit(hitX, hitY, j.color, 24);
+        if (this.customBgMode === 'reactive') {
+          this.addReactiveBurst(lane, hitX, hitY, j.color);
+        }
+      } else {
+        const j = this.judgeHit(closestNote, minDiff, hitX, hitY);
+        closestNote.holding = true;
+        closestNote.missed = false;
+        this.activeHolds.set(lane, {
+          note: closestNote,
+          touchId: touchId,
+          startTime: currentTime,
+          initialTime: closestNote.timestamp_ms,
+          color: j.color
+        });
+        this.emitKeyHit(hitX, hitY, j.color, 22);
+        if (this.customBgMode === 'reactive') {
+          this.addReactiveBurst(lane, hitX, hitY, j.color);
+        }
       }
     }
   }
@@ -2633,13 +2674,16 @@ class BeatstarEngine {
   releaseLaneHold(lane, touchId = null) {
     const active = this.activeHolds.get(lane);
     if (!active) return;
-    if (touchId !== null && active.touchId !== touchId) return;
+    if (touchId !== null && active.touchId !== null && active.touchId !== touchId) return;
 
     const currentTime = this.getCurrentGameTimeMs();
     const note = active.note;
     const endT = note.end_timestamp_ms || (note.timestamp_ms + (note.duration_ms || 700));
+    const heldDuration = currentTime - active.startTime;
+    const totalDuration = endT - active.startTime;
 
-    if (currentTime >= endT - 160) {
+    // Acierto completado si se mantuvo al menos el 60% o hasta 180ms del final
+    if (currentTime >= endT - 180 || (totalDuration > 0 && (heldDuration / totalDuration) >= 0.60)) {
       note.holdCompleted = true;
       note.hit = true;
       note.holding = false;
@@ -3783,7 +3827,7 @@ class BeatstarEngine {
     const x0Bot = this.getLaneBoundaryX(lane, y1) + margin;
     const x1Bot = this.getLaneBoundaryX(lane + 1, y1) - margin;
 
-    const r = Math.max(4, (isLarge ? 9 : 5) * scale);
+    const r = Math.max(4, (isLarge ? 10 : 6) * scale);
 
     const tracePerspectiveQuad = (x0T, x1T, x0B, x1B, topY, botY, rad) => {
       const cr = Math.min(rad, (botY - topY) * 0.35, (x1T - x0T) * 0.30);
@@ -3795,6 +3839,36 @@ class BeatstarEngine {
       ctx.arcTo(x0T, topY, x1T, topY, cr);
       ctx.closePath();
     };
+
+    // Paleta y color neón de la nota
+    const palette = this.activeSongPalette || (typeof SONG_COLOR_PALETTES !== 'undefined' ? SONG_COLOR_PALETTES.classic : { primary: '#ff00aa', secondary: '#ffffff', glow: '#ff00aa' });
+    const glowColor = palette ? (palette.glow || palette.primary) : '#ff00aa';
+
+    const cx = (x0Top + x1Top + x0Bot + x1Bot) / 4;
+    const cyMid = (y0 + y1) / 2;
+    const keyW = x1Bot - x0Bot;
+    const keyH = y1 - y0;
+
+    // 0. HALO AMBIENTAL NEÓN EXTERIOR (Estilo Beatstar auténtico: resplandor vibrante proyectado en la pista)
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const haloMargin = (isLarge ? 12 : 8) * scale;
+    const hx0T = x0Top - haloMargin;
+    const hx1T = x1Top + haloMargin;
+    const hx0B = x0Bot - haloMargin;
+    const hx1B = x1Bot + haloMargin;
+    const hy0 = y0 - haloMargin * 0.7;
+    const hy1 = y1 + haloMargin * 0.9;
+    const haloRad = r + 6;
+
+    const outerGlowGrad = ctx.createRadialGradient(cx, cyMid, 4 * scale, cx, cyMid, Math.max(keyW, keyH) * 0.82);
+    outerGlowGrad.addColorStop(0.0, hexToRgba(glowColor, isPressed ? 0.65 : 0.38));
+    outerGlowGrad.addColorStop(0.40, hexToRgba(glowColor, isPressed ? 0.35 : 0.18));
+    outerGlowGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = outerGlowGrad;
+    tracePerspectiveQuad(hx0T, hx1T, hx0B, hx1B, hy0, hy1, haloRad);
+    ctx.fill();
+    ctx.restore();
 
     // 1. Sombra de contacto profunda bajo la nota en la pista
     ctx.fillStyle = isPressed ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.75)';
@@ -3809,8 +3883,8 @@ class BeatstarEngine {
     const x1Bev = this.getLaneBoundaryX(lane + 1, yBevelTop) - margin;
 
     const bevelGrad = ctx.createLinearGradient(0, yBevelTop, 0, y1);
-    bevelGrad.addColorStop(0.0, isPressed ? '#1f1a29' : '#14101c');
-    bevelGrad.addColorStop(1.0, isPressed ? '#0e0b14' : '#07050a');
+    bevelGrad.addColorStop(0.0, isPressed ? '#231c30' : '#14101c');
+    bevelGrad.addColorStop(1.0, isPressed ? '#0e0b14' : '#050308');
     ctx.fillStyle = bevelGrad;
     tracePerspectiveQuad(x0Bev, x1Bev, x0Bot, x1Bot, yBevelTop, y1, r);
     ctx.fill();
@@ -3819,45 +3893,45 @@ class BeatstarEngine {
     const topGrad = ctx.createLinearGradient(0, y0, 0, yBevelTop);
     if (isPressed) {
       topGrad.addColorStop(0.0, '#ffffff');
-      topGrad.addColorStop(0.35, '#ffccdd');
-      topGrad.addColorStop(1.0, '#3a1a2a');
+      topGrad.addColorStop(0.25, hexToRgba(glowColor, 0.85));
+      topGrad.addColorStop(1.0, '#2b1426');
     } else {
-      topGrad.addColorStop(0.0, '#2d253b'); // Reflejo cenital
-      topGrad.addColorStop(0.18, '#1e1929'); // Obsidiana superior
-      topGrad.addColorStop(0.70, '#13101b'); // Grafito profundo
-      topGrad.addColorStop(1.0, '#0c0a12'); // Bisel oscuro
+      topGrad.addColorStop(0.0, '#362c46'); // Reflejo cenital cristalino
+      topGrad.addColorStop(0.18, '#221c2e'); // Obsidiana superior
+      topGrad.addColorStop(0.70, '#130f1c'); // Grafito profundo
+      topGrad.addColorStop(1.0, '#090710'); // Bisel oscuro
     }
 
     ctx.fillStyle = topGrad;
     tracePerspectiveQuad(x0Top, x1Top, x0Bev, x1Bev, y0, yBevelTop, r);
     ctx.fill();
 
-    // 4. Borde fino perimetral con brillo metálico
-    ctx.strokeStyle = isPressed ? '#ffffff' : 'rgba(255, 255, 255, 0.22)';
-    ctx.lineWidth = Math.max(1, 1.2 * scale);
+    // 4. Borde fino perimetral con brillo metálico neón (Beatstar Contour)
+    ctx.save();
+    ctx.strokeStyle = isPressed ? '#ffffff' : hexToRgba(glowColor, 0.70);
+    ctx.lineWidth = Math.max(1.2, (isPressed ? 2.2 : 1.6) * scale);
     tracePerspectiveQuad(x0Top, x1Top, x0Bot, x1Bot, y0, y1, r);
     ctx.stroke();
 
+    // Borde blanco interior fino para acabado de cristal líquido
+    ctx.strokeStyle = isPressed ? '#ffffff' : 'rgba(255, 255, 255, 0.40)';
+    ctx.lineWidth = Math.max(0.7, 0.9 * scale);
+    tracePerspectiveQuad(x0Top + 1, x1Top - 1, x0Bot + 1, x1Bot - 1, y0 + 1, y1 - 1, Math.max(2, r - 1));
+    ctx.stroke();
+    ctx.restore();
+
     // 5. Destello especular en el borde superior
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.92)';
     ctx.lineWidth = Math.max(1.2, 1.8 * scale);
     ctx.beginPath();
     ctx.moveTo(x0Top + r, y0 + 0.8);
     ctx.lineTo(x1Top - r, y0 + 0.8);
     ctx.stroke();
 
-    const cx = (x0Top + x1Top + x0Bev + x1Bev) / 4;
-    const cyMid = (y0 + yBevelTop) / 2;
-    const keyW = x1Bev - x0Bev;
-    const keyH = yBevelTop - y0;
-
-    const palette = this.activeSongPalette || (typeof SONG_COLOR_PALETTES !== 'undefined' ? SONG_COLOR_PALETTES.classic : { primary: '#ff00aa', secondary: '#ffffff', glow: '#ff00aa' });
-    const glowColor = palette ? (palette.glow || palette.primary) : '#ff00aa';
-
     // 6. Cápsula central de neón incandescente (exacta a Beatstar original en notas tap)
     if (!isSwipe) {
-      const slitW = keyW * 0.62;
-      const slitH = Math.max(4, 7.0 * scale);
+      const slitW = keyW * 0.65;
+      const slitH = Math.max(4.5, 7.5 * scale);
       const slitX = cx - slitW / 2;
       const slitY = cyMid - slitH / 2;
 
@@ -3871,11 +3945,11 @@ class BeatstarEngine {
       // Halo exterior aditivo de neón
       ctx.globalCompositeOperation = 'lighter';
       const haloGrad = ctx.createLinearGradient(slitX, 0, slitX + slitW, 0);
-      haloGrad.addColorStop(0.0, 'rgba(255, 255, 255, 0.05)');
-      haloGrad.addColorStop(0.25, hexToRgba(glowColor, isPressed ? 1.0 : 0.80));
+      haloGrad.addColorStop(0.0, 'rgba(255, 255, 255, 0.1)');
+      haloGrad.addColorStop(0.20, hexToRgba(glowColor, isPressed ? 1.0 : 0.92));
       haloGrad.addColorStop(0.50, '#ffffff');
-      haloGrad.addColorStop(0.75, hexToRgba(glowColor, isPressed ? 1.0 : 0.80));
-      haloGrad.addColorStop(1.0, 'rgba(255, 255, 255, 0.05)');
+      haloGrad.addColorStop(0.80, hexToRgba(glowColor, isPressed ? 1.0 : 0.92));
+      haloGrad.addColorStop(1.0, 'rgba(255, 255, 255, 0.1)');
       ctx.fillStyle = haloGrad;
       if (ctx.roundRect) ctx.roundRect(slitX, slitY, slitW, slitH, slitH / 2);
       else ctx.rect(slitX, slitY, slitW, slitH);
@@ -3883,8 +3957,8 @@ class BeatstarEngine {
 
       // Núcleo blanco incandescente de alta energía
       ctx.fillStyle = '#ffffff';
-      const coreW = slitW * 0.45;
-      const coreH = Math.max(2, slitH * 0.40);
+      const coreW = slitW * 0.52;
+      const coreH = Math.max(2.2, slitH * 0.45);
       if (ctx.roundRect) ctx.roundRect(cx - coreW / 2, cyMid - coreH / 2, coreW, coreH, coreH / 2);
       else ctx.rect(cx - coreW / 2, cyMid - coreH / 2, coreW, coreH);
       ctx.fill();
@@ -3996,7 +4070,31 @@ class BeatstarEngine {
       ctx.fillStyle = cavityGlow;
       ctx.fill();
 
-      // 2. Columna de Luz de Carril (Lane Flash): Degradado vertical aditivo de 110ms con ease-out
+      // Subtle Highway Glass Bed Tints per Lane (Beatstar Atmospheric Tints)
+      const laneTints = ['rgba(0, 200, 255, 0.04)', 'rgba(255, 255, 255, 0.02)', 'rgba(255, 0, 180, 0.04)'];
+      for (let l = 0; l < 3; l++) {
+        const pL_t = getBoundaryX(l, horizonY);
+        const pR_t = getBoundaryX(l + 1, horizonY);
+        const pL_b = getBoundaryX(l, bottomY);
+        const pR_b = getBoundaryX(l + 1, bottomY);
+
+        ctx.save();
+        const laneGrad = ctx.createLinearGradient(0, horizonY, 0, bottomY);
+        laneGrad.addColorStop(0.0, 'rgba(0, 0, 0, 0)');
+        laneGrad.addColorStop(0.7, laneTints[l]);
+        laneGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0.15)');
+        ctx.fillStyle = laneGrad;
+        ctx.beginPath();
+        ctx.moveTo(pL_t, horizonY);
+        ctx.lineTo(pR_t, horizonY);
+        ctx.lineTo(pR_b, bottomY);
+        ctx.lineTo(pL_b, bottomY);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // 2. Columna de Luz de Carril (Lane Flash): Degradado vertical aditivo con impacto estroboscópico
       for (let l = 0; l < 3; l++) {
         const flashTimer = (Array.isArray(this.laneFlashTimers) && this.laneFlashTimers[l]) || 0;
         const isHolding = this.activeHolds.has(l);
@@ -4008,31 +4106,31 @@ class BeatstarEngine {
           ctx.globalCompositeOperation = 'lighter';
           const pL_top = getBoundaryX(l, horizonY);
           const pR_top = getBoundaryX(l + 1, horizonY);
-          const pL_bot = getBoundaryX(l, hitY + 24);
-          const pR_bot = getBoundaryX(l + 1, hitY + 24);
+          const pL_bot = getBoundaryX(l, hitY + 28);
+          const pR_bot = getBoundaryX(l + 1, hitY + 28);
 
-          const goldBeam = ctx.createLinearGradient(0, hitY + 24, 0, horizonY);
+          const goldBeam = ctx.createLinearGradient(0, hitY + 28, 0, horizonY);
           let alpha = 0.0;
           if (flashTimer > 0) {
             const p = flashTimer / 0.11;
-            alpha = 0.35 * Math.sin(Math.min(1, Math.max(0, p)) * Math.PI * 0.5);
+            alpha = 0.42 * Math.sin(Math.min(1, Math.max(0, p)) * Math.PI * 0.5);
           } else {
-            alpha = Math.min(0.35, glow * 0.35);
+            alpha = Math.min(0.40, glow * 0.40);
           }
 
           const flashCol = (Array.isArray(this.laneFlashColors) && this.laneFlashColors[l]) || '#00f2fe';
           const rgb = hexToRgb(flashCol);
           const baseA = alpha.toFixed(3);
-          const midA = (alpha * 0.5).toFixed(3);
+          const midA = (alpha * 0.55).toFixed(3);
           goldBeam.addColorStop(0.0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${baseA})`);
-          goldBeam.addColorStop(0.45, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${midA})`);
+          goldBeam.addColorStop(0.40, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${midA})`);
           goldBeam.addColorStop(1.0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
 
           ctx.beginPath();
           ctx.moveTo(pL_top, horizonY);
           ctx.lineTo(pR_top, horizonY);
-          ctx.lineTo(pR_bot, hitY + 24);
-          ctx.lineTo(pL_bot, hitY + 24);
+          ctx.lineTo(pR_bot, hitY + 28);
+          ctx.lineTo(pL_bot, hitY + 28);
           ctx.closePath();
           ctx.fillStyle = goldBeam;
           ctx.fill();
@@ -4040,27 +4138,26 @@ class BeatstarEngine {
         }
       }
 
-      // 3. Rieles Laterales Estriados Iluminados Estilo Beatstar (Dense Perspective Illuminated Curbs)
-      const slatCount = 42;
+      // 3. Rieles Laterales Iluminados Estilo Beatstar: Ecualizador Dinámico LED VU-Meter
+      const slatCount = 40;
       const mult = this.multiplier || 1;
       const palette = this.activeSongPalette || (typeof SONG_COLOR_PALETTES !== 'undefined' ? SONG_COLOR_PALETTES.classic : null);
-      const wavePos = (cTime * 0.0032 * Math.max(1, mult)) % slatCount;
       const neonColor = palette ? (palette.glow || palette.primary) : '#ff00aa';
-      const accentColor = palette ? (palette.primary || palette.ribs) : '#ff33aa';
+      const accentColor = palette ? (palette.primary || palette.ribs) : '#00f2fe';
 
       const xL_topIn = getBoundaryX(0, horizonY);
       const xL_botIn = getBoundaryX(0, bottomY);
-      const xL_topOut = xL_topIn - 10;
-      const xL_botOut = xL_botIn - 26;
+      const xL_topOut = xL_topIn - 12;
+      const xL_botOut = xL_botIn - 28;
 
       const xR_topIn = getBoundaryX(3, horizonY);
       const xR_botIn = getBoundaryX(3, bottomY);
-      const xR_topOut = xR_topIn + 10;
-      const xR_botOut = xR_botIn + 26;
+      const xR_topOut = xR_topIn + 12;
+      const xR_botOut = xR_botIn + 28;
 
-      // Base oscura semitransparente bajo las rayas laterales
+      // Base oscura obsidiana bajo los rieles laterales
       ctx.save();
-      ctx.fillStyle = 'rgba(10, 7, 16, 0.85)';
+      ctx.fillStyle = 'rgba(8, 5, 14, 0.90)';
       ctx.beginPath();
       ctx.moveTo(xL_topIn, horizonY);
       ctx.lineTo(xL_topOut, horizonY);
@@ -4077,55 +4174,79 @@ class BeatstarEngine {
       ctx.closePath();
       ctx.fill();
 
-      // Rayas densas horizontales iluminadas (Slats / Rejilla Beatstar)
+      // Ecualizador LED en tiempo real: cálculo de energía espectral reactiva
+      const timeSec = cTime / 1000;
+      const beatPulse = (cTime % 500) / 500; // Simulación de tempo pulsante
+      const eqBaseAmp = 0.45 + 0.15 * Math.sin(timeSec * 6.28);
+
       for (let s = 0; s < slatCount; s++) {
         const pNorm = s / (slatCount - 1);
-        const p = Math.pow(pNorm, 1.55);
+        const p = Math.pow(pNorm, 1.5);
         const y = horizonY + (bottomY - horizonY) * p;
         const scale = 0.48 + 0.52 * p;
-        const slatW = (9 + 16 * p);
+        const slatW = (10 + 16 * p);
 
-        const distFromWave = Math.abs(s - wavePos);
-        const isPulsing = (mult >= 2) && (distFromWave < 2.5);
-        const pulseA = isPulsing ? Math.max(0, 1 - distFromWave / 2.5) : 0;
+        // Nivel VU-meter de este segmento en el ecualizador
+        const sPhase = s * 0.28;
+        const waveL = 0.5 + 0.5 * Math.sin(timeSec * 7.5 + sPhase);
+        const waveR = 0.5 + 0.5 * Math.sin(timeSec * 7.5 - sPhase + 1.2);
+        const thresholdL = 1.0 - (eqBaseAmp * 0.75 + waveL * 0.35 * Math.min(1.5, mult * 0.8));
+        const thresholdR = 1.0 - (eqBaseAmp * 0.75 + waveR * 0.35 * Math.min(1.5, mult * 0.8));
+
+        const isLitL = p >= thresholdL || (p > 0.85);
+        const isLitR = p >= thresholdR || (p > 0.85);
 
         const xL_in = getBoundaryX(0, y);
         const xL_out = xL_in - slatW;
-
         const xR_in = getBoundaryX(3, y);
         const xR_out = xR_in + slatW;
 
+        // Dibujar barra izquierda
         ctx.save();
-        if (isPulsing) {
+        if (isLitL) {
           ctx.globalCompositeOperation = 'lighter';
-          ctx.strokeStyle = '#ffffff';
+          const ledGradL = ctx.createLinearGradient(xL_out, 0, xL_in, 0);
+          ledGradL.addColorStop(0.0, '#ffffff'); // Punta blanca caliente
+          ledGradL.addColorStop(0.4, hexToRgba(neonColor, 0.95));
+          ledGradL.addColorStop(1.0, hexToRgba(accentColor, 0.70));
+          ctx.strokeStyle = ledGradL;
           ctx.lineWidth = Math.max(1.8, 3.2 * scale);
         } else {
-          const baseAlpha = 0.35 + 0.40 * p;
-          ctx.strokeStyle = `rgba(255, 255, 255, ${baseAlpha.toFixed(2)})`;
-          ctx.lineWidth = Math.max(1.1, 1.9 * scale);
+          ctx.strokeStyle = `rgba(255, 255, 255, ${(0.12 + 0.18 * p).toFixed(2)})`;
+          ctx.lineWidth = Math.max(1.0, 1.6 * scale);
         }
-
-        // Rayas lado izquierdo
         ctx.beginPath();
         ctx.moveTo(xL_out + 1.5, y);
         ctx.lineTo(xL_in - 1, y);
         ctx.stroke();
+        ctx.restore();
 
-        // Rayas lado derecho
+        // Dibujar barra derecha
+        ctx.save();
+        if (isLitR) {
+          ctx.globalCompositeOperation = 'lighter';
+          const ledGradR = ctx.createLinearGradient(xR_in, 0, xR_out, 0);
+          ledGradR.addColorStop(0.0, hexToRgba(accentColor, 0.70));
+          ledGradR.addColorStop(0.6, hexToRgba(neonColor, 0.95));
+          ledGradR.addColorStop(1.0, '#ffffff'); // Punta blanca caliente
+          ctx.strokeStyle = ledGradR;
+          ctx.lineWidth = Math.max(1.8, 3.2 * scale);
+        } else {
+          ctx.strokeStyle = `rgba(255, 255, 255, ${(0.12 + 0.18 * p).toFixed(2)})`;
+          ctx.lineWidth = Math.max(1.0, 1.6 * scale);
+        }
         ctx.beginPath();
         ctx.moveTo(xR_in + 1, y);
         ctx.lineTo(xR_out - 1.5, y);
         ctx.stroke();
-
         ctx.restore();
       }
 
-      // Contornos exteriores de neón brillante continuo (Guía exterior Beatstar)
+      // Contornos exteriores de neón continuo (Rieles Guía Beatstar)
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.strokeStyle = hexToRgba(neonColor, 0.90);
-      ctx.lineWidth = 2.4;
+      ctx.strokeStyle = hexToRgba(neonColor, 0.95);
+      ctx.lineWidth = 2.6;
       ctx.beginPath();
       ctx.moveTo(xL_topOut, horizonY);
       ctx.lineTo(xL_botOut, bottomY);
@@ -4137,8 +4258,8 @@ class BeatstarEngine {
       ctx.stroke();
 
       // Riel interior de separación de la pista
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-      ctx.lineWidth = 1.4;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+      ctx.lineWidth = 1.6;
       ctx.beginPath();
       ctx.moveTo(xL_topIn, horizonY);
       ctx.lineTo(xL_botIn, bottomY);
@@ -4151,7 +4272,7 @@ class BeatstarEngine {
       ctx.restore();
       ctx.restore();
 
-      // Separadores de carril interiores (estilo Beatstar: sutiles lineas de perspectiva luminosa)
+      // Separadores de carril interiores (Lineas de perspectiva luminosa láser)
       const divPalette = this.activeSongPalette || (typeof SONG_COLOR_PALETTES !== 'undefined' ? SONG_COLOR_PALETTES.classic : null);
       const divAccent = divPalette ? (divPalette.primary || '#00f2fe') : '#00f2fe';
       for (let lineIdx = 1; lineIdx <= 2; lineIdx++) {
@@ -4159,19 +4280,19 @@ class BeatstarEngine {
         const xBot = getBoundaryX(lineIdx, bottomY);
         ctx.save();
         const lineGrad = ctx.createLinearGradient(0, horizonY, 0, bottomY);
-        lineGrad.addColorStop(0.0, 'rgba(255, 255, 255, 0.05)');
-        lineGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.18)');
-        lineGrad.addColorStop(0.85, hexToRgba(divAccent, 0.35));
-        lineGrad.addColorStop(1.0, hexToRgba(divAccent, 0.55));
+        lineGrad.addColorStop(0.0, 'rgba(255, 255, 255, 0.04)');
+        lineGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.20)');
+        lineGrad.addColorStop(0.85, hexToRgba(divAccent, 0.45));
+        lineGrad.addColorStop(1.0, hexToRgba(divAccent, 0.70));
         ctx.strokeStyle = lineGrad;
-        ctx.lineWidth = 1.6;
+        ctx.lineWidth = 1.8;
         ctx.beginPath();
         ctx.moveTo(xTop, horizonY);
         ctx.lineTo(xBot, bottomY);
         ctx.stroke();
 
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-        ctx.lineWidth = 0.8;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.lineWidth = 0.9;
         ctx.beginPath();
         ctx.moveTo(xTop, horizonY);
         ctx.lineTo(xBot, bottomY);
@@ -4353,45 +4474,69 @@ class BeatstarEngine {
           ctx.restore();
         }
 
-        // Keybinds en PC
+        // Keybinds en PC (Insignias Minimalistas Tipo Pastilla Hi-Fi)
         if (this.isPCMode) {
           const kb = this.pcKeybinds || { 0: 'd', 1: 'f', 2: 'j' };
           const keyChar = ((kb[l] || (l === 0 ? 'd' : (l === 1 ? 'f' : 'j'))).toUpperCase());
+          const pillW = 26;
+          const pillH = 17;
+          const pillY = hitY + (isLarge ? 48 : 28);
           ctx.save();
-          ctx.font = '700 13px system-ui, -apple-system, sans-serif';
+          ctx.fillStyle = isPressed ? 'rgba(255, 255, 255, 0.28)' : 'rgba(12, 9, 20, 0.70)';
+          ctx.strokeStyle = isPressed ? '#ffffff' : 'rgba(255, 255, 255, 0.25)';
+          ctx.lineWidth = 1.1;
+          if (ctx.roundRect) ctx.roundRect(cx - pillW / 2, pillY - pillH / 2, pillW, pillH, 4.5);
+          else ctx.rect(cx - pillW / 2, pillY - pillH / 2, pillW, pillH);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.font = '800 11px "Outfit", system-ui, -apple-system, sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillStyle = isPressed ? '#ffffff' : 'rgba(255, 255, 255, 0.70)';
-          ctx.fillText(`[ ${keyChar} ]`, cx, hitY + (isLarge ? 44 : 26));
+          ctx.fillStyle = isPressed ? '#ffffff' : 'rgba(255, 255, 255, 0.90)';
+          ctx.fillText(keyChar, cx, pillY);
           ctx.restore();
         }
 
         ctx.restore();
       }
 
-      // 2. LINEA DE IMPACTO LASER HORIZONTAL (Beatstar Signature Laser Beam)
-      const xBeamLeft = this.getLaneBoundaryX(0, hitY) - 6;
-      const xBeamRight = this.getLaneBoundaryX(3, hitY) + 6;
+      // 2. LINEA DE IMPACTO LASER HORIZONTAL (Beatstar Signature Anamorphic Laser Beam)
+      const xBeamLeft = this.getLaneBoundaryX(0, hitY) - 8;
+      const xBeamRight = this.getLaneBoundaryX(3, hitY) + 8;
+      const beamW = xBeamRight - xBeamLeft;
+      const midBeamX = (xBeamLeft + xBeamRight) / 2;
 
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      // Halo exterior ancho
-      ctx.strokeStyle = hexToRgba(laserCol, 0.75);
-      ctx.lineWidth = 6;
+
+      // A. Resplandor Anamórfico Horizontal Extendido (Signature Beatstar Laser Flare)
+      const flareGrad = ctx.createLinearGradient(xBeamLeft, 0, xBeamRight, 0);
+      flareGrad.addColorStop(0.0, 'rgba(0, 0, 0, 0)');
+      flareGrad.addColorStop(0.18, hexToRgba(laserCol, 0.28));
+      flareGrad.addColorStop(0.50, hexToRgba(laserCol, 0.65));
+      flareGrad.addColorStop(0.82, hexToRgba(laserCol, 0.28));
+      flareGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = flareGrad;
+      ctx.fillRect(xBeamLeft, hitY - 9, beamW, 18);
+
+      // B. Halo exterior ancho
+      ctx.strokeStyle = hexToRgba(laserCol, 0.85);
+      ctx.lineWidth = 6.5;
       ctx.beginPath();
       ctx.moveTo(xBeamLeft, hitY);
       ctx.lineTo(xBeamRight, hitY);
       ctx.stroke();
 
-      // Laser medio de color acento
+      // C. Láser medio de color acento neón
       ctx.strokeStyle = laserCol;
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 3.2;
       ctx.beginPath();
       ctx.moveTo(xBeamLeft, hitY);
       ctx.lineTo(xBeamRight, hitY);
       ctx.stroke();
 
-      // Nucleo blanco de ultra alta energia
+      // D. Núcleo blanco de ultra alta energía
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
@@ -4399,11 +4544,16 @@ class BeatstarEngine {
       ctx.lineTo(xBeamRight, hitY);
       ctx.stroke();
 
-      // Pips terminales en los extremos de la barra laser
+      // E. Destello de diamante centrado
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(xBeamLeft, hitY, 3, 0, Math.PI * 2);
-      ctx.arc(xBeamRight, hitY, 3, 0, Math.PI * 2);
+      ctx.arc(midBeamX, hitY, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Pips terminales en los extremos de la barra láser
+      ctx.beginPath();
+      ctx.arc(xBeamLeft, hitY, 3.5, 0, Math.PI * 2);
+      ctx.arc(xBeamRight, hitY, 3.5, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     } else {
@@ -4805,27 +4955,89 @@ class BeatstarEngine {
     for (let i = 0; i < len; i++) {
       const j = this.judgements[i];
       if (!j || j.alpha <= 0.01) continue;
-      ctx.globalAlpha = Math.max(0, Math.min(1, j.alpha));
-      ctx.font = `900 ${Math.round(24 * j.scale)}px "Cinzel", "Playfair Display", "Outfit", serif`;
+
+      const alpha = Math.max(0, Math.min(1, j.alpha));
+      ctx.globalAlpha = alpha;
 
       const isPerfectPlus = j.text.includes('PERFECT+');
       const isPerfect = j.text === 'PERFECT';
-      let textColor = j.color || '#00ff88';
+      const isGreat = j.text.includes('GREAT');
+      const isGood = j.text.includes('GOOD');
+      const isMiss = j.text.includes('MISS');
+
+      let textColor = j.color || '#00f5a0';
+      let coreColor = '#ffffff';
+
       if (isPerfectPlus) {
-        textColor = '#00ff88'; // Verde menta incandescente Beatstar
+        textColor = '#00f5a0'; // Verde menta eléctrico incandescente Beatstar
+        coreColor = '#ffffff';
       } else if (isPerfect) {
-        textColor = '#ffe600'; // Amarillo dorado brillante Beatstar
+        textColor = '#ffb800'; // Amarillo dorado radiante Beatstar
+        coreColor = '#fff6d6';
+      } else if (isGreat) {
+        textColor = '#00d2fe'; // Azul cian eléctrico
+        coreColor = '#e0faff';
+      } else if (isGood) {
+        textColor = '#c084fc'; // Violeta neón suave
+        coreColor = '#f3e8ff';
+      } else if (isMiss) {
+        textColor = '#ff3366'; // Rojo carmesí neón
+        coreColor = '#ffe4ea';
       }
 
       const drawX = (typeof j.x === 'number') ? j.x : (this.width / 2);
+      const fontSize = Math.round((isPerfectPlus ? 24 : 22) * j.scale);
+      ctx.font = `900 ${fontSize}px "Outfit", "Montserrat", system-ui, -apple-system, sans-serif`;
 
-      ctx.shadowBlur = 0;
-      ctx.strokeStyle = '#050308';
-      ctx.lineWidth = 5.0;
+      // 1. Haz de Luz Anamórfico Horizontal (Signature Beatstar dopamine burst en PERFECT+)
+      if (isPerfectPlus && alpha > 0.2) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        const flareW = Math.min(180, 120 * j.scale);
+        const flareH = Math.max(6, 12 * j.scale);
+        const flareGrad = ctx.createLinearGradient(drawX - flareW, j.y, drawX + flareW, j.y);
+        flareGrad.addColorStop(0.0, 'rgba(0, 245, 160, 0)');
+        flareGrad.addColorStop(0.35, hexToRgba('#00f5a0', alpha * 0.45));
+        flareGrad.addColorStop(0.50, hexToRgba('#ffffff', alpha * 0.85));
+        flareGrad.addColorStop(0.65, hexToRgba('#00f5a0', alpha * 0.45));
+        flareGrad.addColorStop(1.0, 'rgba(0, 245, 160, 0)');
+        ctx.fillStyle = flareGrad;
+        ctx.fillRect(drawX - flareW, j.y - flareH / 2, flareW * 2, flareH);
+
+        // Núcleo blanco fino de ultra energía
+        ctx.strokeStyle = `rgba(255, 255, 255, ${(alpha * 0.9).toFixed(2)})`;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(drawX - flareW * 0.6, j.y);
+        ctx.lineTo(drawX + flareW * 0.6, j.y);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 2. Halo difuso exterior para legibilidad y energía
+      ctx.save();
+      ctx.shadowColor = textColor;
+      ctx.shadowBlur = isPerfectPlus ? 14 : 8;
+
+      // 3. Contorno grueso obsidiana ultra nítido
+      ctx.strokeStyle = '#040207';
+      ctx.lineWidth = 5.5;
       ctx.strokeText(j.text, drawX, j.y);
 
+      // 4. Relleno con el color de juicio vibrante
       ctx.fillStyle = textColor;
       ctx.fillText(j.text, drawX, j.y);
+      ctx.restore();
+
+      // 5. Núcleo interior brillante fino para notas críticas (PERFECT+ / PERFECT)
+      if (isPerfectPlus || isPerfect) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.font = `900 ${Math.round(fontSize * 0.94)}px "Outfit", "Montserrat", system-ui, -apple-system, sans-serif`;
+        ctx.fillStyle = coreColor;
+        ctx.fillText(j.text, drawX, j.y);
+        ctx.restore();
+      }
     }
     ctx.restore();
   }

@@ -1022,8 +1022,11 @@
       <div class="hud-metrics-row">
         <!-- Left Column: Artist Portal Medallion & Song Title -->
         <div class="hud-left-col">
-          <div class="flex items-center gap-1.5 min-w-0">
-            <div id="hudArtistPortal" class="hud-artist-portal">
+          <div class="flex items-center gap-2 min-w-0">
+            <div id="hudArtistPortal" class="hud-artist-portal relative flex-shrink-0">
+              <!-- Anillos de onda expansiva concéntricos reactivos al BPM (Beatstar Soundwave Echo) -->
+              <div class="portal-pulse-ring ring-1"></div>
+              <div class="portal-pulse-ring ring-2"></div>
               <div class="portal-brass-ring">
                 <img id="hudPortalCover" src="./app_logo.png" alt="Cover" class="portal-cover-img" />
               </div>
@@ -1035,8 +1038,14 @@
             </div>
             <div class="min-w-0 flex-1 flex flex-col justify-center">
               <span id="hudSongTitle" class="hud-song-title">Cargando...</span>
-              <div id="hudMedalPill" class="hud-medal-pill hidden mt-0.5">
-                <span id="hudMedalName">ORO</span>
+              <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                <div id="hudDifficultyBadge" class="hud-diff-badge diff-normal">
+                  <span class="badge-icon">⚡</span>
+                  <span id="hudDiffLabel" class="badge-text">NORMAL</span>
+                </div>
+                <div id="hudMedalPill" class="hud-medal-pill hidden">
+                  <span id="hudMedalName">ORO</span>
+                </div>
               </div>
             </div>
           </div>
@@ -4131,6 +4140,29 @@
           if (coverEl) {
             coverEl.src = meta.cover_url || meta.cover || meta.album_art || meta.image || './app_logo.png';
           }
+          // Actualizar insignia de dificultad estilo Beatstar (NORMAL / DIFÍCIL / EXTREMA)
+          const diffBadge = document.getElementById('hudDifficultyBadge');
+          const diffLabel = document.getElementById('hudDiffLabel');
+          if (diffBadge && diffLabel) {
+            const rawStars = meta.stars || meta.difficulty_rating || 3.5;
+            const stars = typeof rawStars === 'number' ? rawStars : parseFloat(rawStars) || 3.5;
+            let diffTier = 'NORMAL';
+            let diffClass = 'diff-normal';
+            let diffIcon = '⚡';
+            if (stars >= 5.5) {
+              diffTier = 'EXTREMA';
+              diffClass = 'diff-extreme';
+              diffIcon = '🔥';
+            } else if (stars >= 3.8) {
+              diffTier = 'DIFÍCIL';
+              diffClass = 'diff-hard';
+              diffIcon = '⚔️';
+            }
+            diffLabel.innerText = `${diffTier} • ${stars.toFixed(1)}★`;
+            diffBadge.className = `hud-diff-badge ${diffClass}`;
+            const iconSpan = diffBadge.querySelector('.badge-icon');
+            if (iconSpan) iconSpan.innerText = diffIcon;
+          }
           pauseMenuAmbientMusic();
           updateUserWalletDisplay();
         },
@@ -5155,88 +5187,229 @@ function switchMainTab(tab) {
       return arr;
     }
 
-    async function loadInitialShuffledCatalog() {
+    let catalogPage = 0;
+    let catalogRandomOffset = Math.floor(Math.random() * 80);
+    const catalogSeenIds = new Set();
+    let catalogIsLoading = false;
+    let catalogHasEnded = false;
+    let infiniteScrollInitialized = false;
+
+    async function loadInfiniteRandomCatalog(isAppend = false) {
+      if (catalogIsLoading || (isAppend && catalogHasEnded)) return;
+      catalogIsLoading = true;
+
       const container = document.getElementById('resultsList');
-      if (!container) return;
 
-      container.innerHTML = `<div class="p-6 text-center text-xs text-amber-300/80 glass-card animate-pulse">Cargando catálogo musical comunitario...</div>`;
-
-      let allSongs = [];
-      const seenIds = new Set();
-
-      // 1. Intentar consultar canciones comunitarias del backend si está en línea
-      try {
-        const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
-        const controller = new AbortController();
-        const tid = setTimeout(() => controller.abort(), 3500);
-        const res = await fetch(`${baseUrl}/api/v1/community/charts/search`, { signal: controller.signal });
-        clearTimeout(tid);
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            for (const s of data) {
-              if (s && s.id && !seenIds.has(s.id)) {
-                seenIds.add(s.id);
-                allSongs.push(s);
-              }
-            }
-          }
+      if (!isAppend) {
+        catalogPage = 0;
+        catalogRandomOffset = Math.floor(Math.random() * 80);
+        catalogSeenIds.clear();
+        catalogHasEnded = false;
+        if (container) {
+          container.innerHTML = `
+            <div class="p-8 text-center text-xs text-amber-300/80 glass-card animate-pulse flex flex-col items-center justify-center gap-2.5">
+              <svg class="animate-spin h-5 w-5 text-amber-400" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+              <span>Explorando canciones aleatorias de la comunidad global...</span>
+            </div>
+          `;
         }
-      } catch (e) {
-        console.debug('Backend community fetch notice:', e);
+      } else {
+        const loaderEl = document.getElementById('infiniteScrollLoader');
+        if (loaderEl) loaderEl.classList.remove('hidden');
       }
 
-      // 2. Incorporar pistas históricas comunitarias de respaldo
-      for (const fb of GLOBAL_COMMUNITY_FALLBACKS) {
-        if (fb && fb.id && !seenIds.has(fb.id)) {
-          seenIds.add(fb.id);
-          allSongs.push(fb);
-        }
-      }
+      let fetchedSongs = [];
+      const myWorker = (u) => `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(u)}`;
 
-      // 3. Incorporar caché comunitario en localStorage
+      // 1. Consulta al catálogo masivo global de osu! Mania (Catboy v2 con offset aleatorio)
       try {
-        const cached = JSON.parse(localStorage.getItem('beatstar_community_cache') || '[]');
-        if (Array.isArray(cached)) {
-          for (const s of cached) {
-            if (s && s.id && !seenIds.has(s.id)) {
-              seenIds.add(s.id);
-              allSongs.push(s);
-            }
-          }
-        }
-      } catch (e) {}
+        const currentOffset = catalogRandomOffset + (catalogPage * 25);
+        const catboyUrl = `https://catboy.best/api/v2/search?m=3&s=1&offset=${currentOffset}`;
+        let catboyData = null;
 
-      // 4. Incorporar pistas comunitarias / guardadas en IndexedDB
-      if (typeof IndexedDBStorage !== 'undefined' && IndexedDBStorage.getAllCharts) {
         try {
-          const localCharts = await IndexedDBStorage.getAllCharts();
-          if (Array.isArray(localCharts)) {
-            for (const ch of localCharts) {
-              const chId = ch.id || ch.song_id;
-              if (chId && !seenIds.has(chId)) {
-                seenIds.add(chId);
-                allSongs.push({
-                  id: chId,
-                  title: ch.title || ch.metadata?.title || 'Canción Local',
-                  artist: ch.artist || ch.metadata?.artist || 'Artista',
-                  stars: ch.stars || ch.metadata?.stars || 3.5,
-                  difficulties: ch.difficulties || [{ id: 'saved', name: 'Guardada', stars: 3.5 }],
-                  is_community: Boolean(ch.is_community || ch.source === 'community'),
-                  source: ch.source || 'community'
-                });
+          const ctrl = new AbortController();
+          const tid = setTimeout(() => ctrl.abort(), 4500);
+          const r = await fetch(catboyUrl, { signal: ctrl.signal });
+          clearTimeout(tid);
+          if (r.ok) catboyData = await r.json();
+        } catch (e) {}
+
+        if (!catboyData) {
+          try {
+            const ctrl2 = new AbortController();
+            const tid2 = setTimeout(() => ctrl2.abort(), 6000);
+            const r2 = await fetch(myWorker(catboyUrl), { signal: ctrl2.signal });
+            clearTimeout(tid2);
+            if (r2.ok) catboyData = await r2.json();
+          } catch (e) {}
+        }
+
+        const items = Array.isArray(catboyData) ? catboyData : (catboyData?.data || []);
+        if (Array.isArray(items) && items.length > 0) {
+          for (const item of items.slice(0, 25)) {
+            const setId = item.id;
+            if (!setId) continue;
+            const songId = `osu_${setId}`;
+            if (catalogSeenIds.has(songId)) continue;
+            catalogSeenIds.add(songId);
+
+            const title = item.title || 'Sin título';
+            const artist = item.artist || 'Desconocido';
+            const creator = item.creator || (item.user && item.user.username) || 'osu! Mapper';
+            const thumbnail = item.covers?.card || item.covers?.cover || `https://assets.ppy.sh/beatmaps/${setId}/covers/card.jpg`;
+
+            const beatmaps = item.beatmaps || [];
+            let diffs = beatmaps
+              .filter(b => b.mode === 3 || b.mode_int === 3 || String(b.mode) === 'mania' || beatmaps.length <= 2)
+              .map(b => {
+                const stars = Math.round(parseFloat(b.difficulty_rating || 0.0) * 10) / 10;
+                const name = b.version || `Key ${b.cs || 4}`;
+                return {
+                  id: String(b.id),
+                  name: name,
+                  stars: stars,
+                  keys: parseInt(b.cs || 4, 10),
+                  label: `${name} (${stars.toFixed(1)}★)`
+                };
+              });
+
+            if (diffs.length === 0 && beatmaps.length > 0) {
+              diffs = beatmaps.map(b => {
+                const stars = Math.round(parseFloat(b.difficulty_rating || 0.0) * 10) / 10;
+                const name = b.version || 'Normal';
+                return {
+                  id: String(b.id),
+                  name: name,
+                  stars: stars,
+                  keys: parseInt(b.cs || 4, 10),
+                  label: `${name} (${stars.toFixed(1)}★)`
+                };
+              });
+            }
+
+            diffs.sort((a, b) => a.stars - b.stars);
+
+            if (diffs.length > 0) {
+              fetchedSongs.push({
+                id: songId,
+                source: 'osu',
+                source_name: 'osu!',
+                source_badge: '[osu!]',
+                source_color: '#ff007f',
+                title: title,
+                artist: artist,
+                creator: creator,
+                thumbnail: thumbnail,
+                download_url: myWorker(`https://catboy.best/d/${setId}`),
+                direct_download_url: myWorker(`https://catboy.best/d/${setId}`),
+                fallback_download_url: myWorker(`https://txy1.sayobot.cn/beatmaps/download/mini/${setId}`),
+                bpm: item.bpm || 120,
+                difficulties: diffs
+              });
+            }
+          }
+        }
+      } catch (catErr) {
+        console.warn('Infinite catalog Catboy notice:', catErr);
+      }
+
+      // 2. En la primera carga (!isAppend), si falló la red o para poblar de inmediato, combinar canciones locales y comunitarias
+      if (!isAppend && fetchedSongs.length === 0) {
+        for (const fb of GLOBAL_COMMUNITY_FALLBACKS) {
+          if (fb && fb.id && !catalogSeenIds.has(fb.id)) {
+            catalogSeenIds.add(fb.id);
+            fetchedSongs.push(fb);
+          }
+        }
+
+        try {
+          const cached = JSON.parse(localStorage.getItem('beatstar_community_cache') || '[]');
+          if (Array.isArray(cached)) {
+            for (const s of cached) {
+              if (s && s.id && !catalogSeenIds.has(s.id)) {
+                catalogSeenIds.add(s.id);
+                fetchedSongs.push(s);
               }
             }
           }
         } catch (e) {}
+
+        if (typeof IndexedDBStorage !== 'undefined' && IndexedDBStorage.getAllCharts) {
+          try {
+            const localCharts = await IndexedDBStorage.getAllCharts();
+            if (Array.isArray(localCharts)) {
+              for (const ch of localCharts) {
+                const chId = ch.id || ch.song_id;
+                if (chId && !catalogSeenIds.has(chId)) {
+                  catalogSeenIds.add(chId);
+                  fetchedSongs.push({
+                    id: chId,
+                    title: ch.title || ch.metadata?.title || 'Canción Local',
+                    artist: ch.artist || ch.metadata?.artist || 'Artista',
+                    stars: ch.stars || ch.metadata?.stars || 3.5,
+                    difficulties: ch.difficulties || [{ id: 'saved', name: 'Guardada', stars: 3.5 }],
+                    is_community: Boolean(ch.is_community || ch.source === 'community'),
+                    source: ch.source || 'community'
+                  });
+                }
+              }
+            }
+          } catch (e) {}
+        }
       }
 
-      // 5. Aplicar algoritmo Fisher-Yates (aleatorización balanceada)
-      const shuffledSongs = fisherYatesShuffle(allSongs);
-      searchResultsCache = shuffledSongs;
+      // Aleatorizar el lote obtenido con Fisher-Yates
+      const shuffledBatch = fisherYatesShuffle(fetchedSongs);
 
-      // 6. Renderizar con el diseño genuino de teclas de piano de Piano Community
-      renderSearchResults(shuffledSongs, []);
+      if (!isAppend) {
+        searchResultsCache = shuffledBatch;
+        renderSearchResults(shuffledBatch, []);
+      } else {
+        if (shuffledBatch.length > 0) {
+          searchResultsCache.push(...shuffledBatch);
+          appendSearchResults(shuffledBatch);
+        } else {
+          catalogHasEnded = true;
+          const loaderEl = document.getElementById('infiniteScrollLoader');
+          if (loaderEl) loaderEl.innerHTML = `<span class="text-[10px] text-gray-500">Has llegado al final del catálogo</span>`;
+        }
+      }
+
+      const loaderEl = document.getElementById('infiniteScrollLoader');
+      if (loaderEl && !catalogHasEnded) loaderEl.classList.add('hidden');
+
+      catalogPage++;
+      catalogIsLoading = false;
+
+      // Iniciar listener de scroll infinito si no está registrado aún
+      if (!infiniteScrollInitialized) {
+        initInfiniteScroll();
+      }
+    }
+
+    function initInfiniteScroll() {
+      const screen = document.getElementById('searchScreen');
+      if (!screen || infiniteScrollInitialized) return;
+      infiniteScrollInitialized = true;
+
+      screen.addEventListener('scroll', () => {
+        const q = (document.getElementById('searchInput')?.value || '').trim();
+        const isComm = Boolean(document.getElementById('filterOnlyCommunity')?.checked);
+        // Solo activar scroll infinito si estamos en el modo explorar por defecto (sin búsqueda activa de texto)
+        if (q || isComm) return;
+
+        const scrollPos = screen.scrollTop + screen.clientHeight;
+        const scrollThreshold = screen.scrollHeight - 350;
+        if (scrollPos >= scrollThreshold && !catalogIsLoading && !catalogHasEnded) {
+          loadInfiniteRandomCatalog(true);
+        }
+      }, { passive: true });
+    }
+
+    // Compatibilidad retroactiva
+    async function loadInitialShuffledCatalog() {
+      await loadInfiniteRandomCatalog(false);
     }
 
     // Delegador seguro para compatibilidad
@@ -5364,6 +5537,161 @@ function switchMainTab(tab) {
       }
     }
 
+    function buildSongCardHtml(item, idx, targetNum = null) {
+      const hs = highscores[item.id];
+      const isFav = favoriteIdsSet.has(item.id);
+      const sId = safeSongId(item.id);
+      const isComm = Boolean(item.is_community || item.source === 'community' || item.creator_id);
+      const cStars = typeof item.stars === 'number' ? item.stars : (parseFloat(item.stars) || 3.5);
+
+      // Find primary difficulty (closest to target filter or balanced 3.5★)
+      let primaryDiff = null;
+      if (isComm) {
+        primaryDiff = { id: 'community', name: item.difficulty_name || 'Normal', stars: cStars };
+      } else if (item.difficulties && item.difficulties.length > 0) {
+        if (targetNum !== null) {
+          let minDiff = Infinity;
+          for (const d of item.difficulties) {
+            const dist = Math.abs((d.stars || 3.0) - targetNum);
+            if (dist < minDiff) {
+              minDiff = dist;
+              primaryDiff = d;
+            }
+          }
+        } else {
+          let minDiff = Infinity;
+          for (const d of item.difficulties) {
+            const dist = Math.abs((d.stars || 3.5) - 3.5);
+            if (dist < minDiff) {
+              minDiff = dist;
+              primaryDiff = d;
+            }
+          }
+        }
+        if (!primaryDiff) primaryDiff = item.difficulties[0];
+      } else {
+        primaryDiff = { id: 'default', name: 'Normal', stars: 3.5 };
+      }
+
+      const primaryStarsText = primaryDiff.stars ? `${primaryDiff.stars.toFixed(1)}★` : '';
+      const hasMultipleDiffs = Array.isArray(item.difficulties) && item.difficulties.length > 1;
+
+      const diffChipsHtml = (item.difficulties || []).map(diff => {
+        const cleanName = (diff.name || 'Normal').replace(/\[\d+K\]\s*/gi, '').replace(/^\[[^\]]+\]\s*/, '').trim() || 'Normal';
+        const starsText = diff.stars ? `${diff.stars.toFixed(1)}★` : '';
+        const isPrimary = diff.id === primaryDiff.id;
+        const chipClass = isPrimary ? 'piano-diff-chip active' : 'piano-diff-chip';
+
+        return `
+          <button 
+            onclick="downloadAndPlaySong('${item.id}', '${diff.id}', '${cleanName.replace(/'/g, "\\'")}', ${idx})" 
+            class="${chipClass}" 
+            title="Jugar dificultad ${cleanName}"
+          >
+            <span>${cleanName}</span>
+            ${starsText ? `<span class="font-mono text-[9.5px] opacity-90">${starsText}</span>` : ''}
+          </button>
+        `;
+      }).join('');
+
+      return `
+        <div class="piano-key-row flex flex-col">
+          <div class="flex items-stretch w-full max-w-full overflow-hidden">
+            <!-- White Ivory Key Body (Opens Accordion) -->
+            <div onclick="togglePianoAccordion('${sId}')" class="piano-white-key flex-1 min-w-0 overflow-hidden" title="Ver opciones y tempo">
+              <div class="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
+                <!-- Round Inlaid Medallion Artwork -->
+                <div class="piano-key-thumb relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-[#c5a059] shadow-sm flex items-center justify-center bg-stone-900">
+                  <img src="${item.thumbnail || GENERIC_THUMBNAIL}" alt="" class="w-full h-full object-cover rounded-full" loading="lazy" onerror="this.onerror=null; this.src=GENERIC_THUMBNAIL;">
+                </div>
+                <!-- Track Metadata -->
+                <div class="min-w-0 flex-1 flex flex-col justify-center overflow-hidden">
+                  <div class="flex items-center gap-1.5 truncate">
+                    <h3 class="text-xs font-black text-[#17131d] truncate font-serif leading-tight">${escapeHtml(item.title || t('unknown_song', 'Canción'))}</h3>
+                    ${hs ? `<span class="text-[8px] font-mono font-bold text-amber-800 flex-shrink-0 flex items-center gap-0.5"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="text-amber-700 inline"><path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2"/><path d="M6 9a6 6 0 0 0 12 0"/><path d="M12 15v5"/><path d="M8 20h8"/></svg> ${hs.score.toLocaleString()}</span>` : ''}
+                  </div>
+                  <p class="text-[10px] text-[#5a422d] font-semibold truncate leading-tight mt-0.5">${escapeHtml(item.artist || t('unknown_artist', 'Artista'))}${isComm ? ` • <span class="text-[#2b1f13]">${escapeHtml(item.creator_name || 'Comunidad')}</span>` : ''}</p>
+                </div>
+              </div>
+              <!-- Single Star Metric -->
+              <div class="flex items-center gap-1.5 flex-shrink-0 ml-1.5">
+                <span class="text-[11px] font-black text-[#9c7329] font-mono whitespace-nowrap">★ ${(primaryDiff.stars || 3.5).toFixed(1)}</span>
+                <span id="accordionArrow_${sId}" class="text-[9px] text-[#8e755a] transition-transform duration-200">▼</span>
+              </div>
+            </div>
+
+            <!-- Fixed 3D Ebony Black Play Key (INDESTRUCTIBLE & ALWAYS VISIBLE) -->
+            <div 
+              onclick="${isComm ? `playCommunitySong('${item.id}')` : `downloadAndPlaySong('${item.id}', '${primaryDiff.id}', '${primaryDiff.name.replace(/'/g, "\\'")}', ${idx})`}" 
+              class="piano-black-play-key flex-shrink-0 w-12 min-w-[48px]" 
+              title="${isComm ? t('play') : `Jugar ${primaryDiff.name} (${primaryStarsText})`}"
+            >
+              <span class="play-arrow-gold">▶</span>
+            </div>
+          </div>
+
+          <!-- Soundboard Accordion ("Caja de Resonancia") -->
+          <div id="pianoAccordion_${sId}" class="piano-soundboard-accordion">
+            <div class="p-2.5 space-y-2">
+              ${isComm ? `
+                <div class="flex items-center justify-between gap-2 flex-wrap">
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-[9px] font-bold text-[#c5a059] uppercase tracking-wider">Creador:</span>
+                    <span class="text-[9.5px] text-amber-300 font-bold">${escapeHtml(item.creator_name || 'Comunidad')}</span>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-[9px] font-bold text-[#c5a059] uppercase tracking-wider">Dificultad:</span>
+                    <span class="piano-diff-chip active">${item.difficulty_name || 'Normal'} ${cStars.toFixed(1)}★</span>
+                  </div>
+                </div>
+              ` : `
+                <div>
+                  <span class="text-[9px] font-bold text-[#c5a059] uppercase tracking-wider block mb-1">Dificultades Disponibles</span>
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    ${diffChipsHtml}
+                  </div>
+                </div>
+              `}
+
+              <div class="flex items-center justify-between gap-2 pt-1.5 border-t border-white/5 text-[11px]">
+                <div class="flex items-center gap-2">
+                  <span class="text-[9.5px] text-gray-400 font-bold uppercase tracking-wider">Tempo:</span>
+                  ${renderSongSpeedHtml(item.id).btn}
+                </div>
+                <div class="flex items-center gap-2">
+                  ${isComm ? `
+                    <button onclick="openRateSongModal('${item.id}', '${escapeHtml(item.title).replace(/'/g, "\\'")}', '${escapeHtml(item.artist).replace(/'/g, "\\'")}', '${item.difficulty_name || 'Normal'}', ${cStars}, true)" class="text-[10px] text-amber-400 hover:scale-105 transition flex items-center gap-1 cursor-pointer font-bold" title="Calificar">
+                      ★ Calificar
+                    </button>
+                  ` : ''}
+                  <button onclick="toggleFavoriteSong('${item.id}')" data-id="${item.id}" class="piano-card-action-btn heart-btn ${isFav ? 'active' : ''}" title="Favorito">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="${isFav ? '#e5b869' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                  </button>
+                  <button onclick="openAddToPlaylistModal('${item.id}')" class="piano-card-action-btn" title="Añadir a playlist">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function appendSearchResults(newItems) {
+      const container = document.getElementById('resultsList');
+      if (!container) return;
+      const bed = container.querySelector('.piano-keyboard-bed');
+      if (!bed) {
+        renderSearchResults(searchResultsCache, []);
+        return;
+      }
+      const targetNum = currentTargetDifficulty !== 'all' ? parseFloat(currentTargetDifficulty) : null;
+      const startIndex = searchResultsCache.length - newItems.length;
+      const newHtml = newItems.map((item, idx) => buildSongCardHtml(item, startIndex + idx, targetNum)).join('');
+      bed.insertAdjacentHTML('beforeend', newHtml);
+    }
+
     function renderSearchResults(items, failedApis = []) {
       const container = document.getElementById('resultsList');
 
@@ -5412,153 +5740,18 @@ function switchMainTab(tab) {
       }
 
       const targetNum = currentTargetDifficulty !== 'all' ? parseFloat(currentTargetDifficulty) : null;
-
-      const cardsHtml = items.map((item, idx) => {
-        const hs = highscores[item.id];
-        const isFav = favoriteIdsSet.has(item.id);
-        const sId = safeSongId(item.id);
-        const isComm = Boolean(item.is_community || item.source === 'community' || item.creator_id);
-        const cStars = typeof item.stars === 'number' ? item.stars : (parseFloat(item.stars) || 3.5);
-
-        // Find primary difficulty (closest to target filter or balanced 3.5★)
-        let primaryDiff = null;
-        if (isComm) {
-          primaryDiff = { id: 'community', name: item.difficulty_name || 'Normal', stars: cStars };
-        } else if (item.difficulties && item.difficulties.length > 0) {
-          if (targetNum !== null) {
-            let minDiff = Infinity;
-            for (const d of item.difficulties) {
-              const dist = Math.abs((d.stars || 3.0) - targetNum);
-              if (dist < minDiff) {
-                minDiff = dist;
-                primaryDiff = d;
-              }
-            }
-          } else {
-            // Default to medium/normal (closest to 3.5★)
-            let minDiff = Infinity;
-            for (const d of item.difficulties) {
-              const dist = Math.abs((d.stars || 3.5) - 3.5);
-              if (dist < minDiff) {
-                minDiff = dist;
-                primaryDiff = d;
-              }
-            }
-          }
-          if (!primaryDiff) primaryDiff = item.difficulties[0];
-        } else {
-          primaryDiff = { id: 'default', name: 'Normal', stars: 3.5 };
-        }
-
-        const primaryStarsText = primaryDiff.stars ? `${primaryDiff.stars.toFixed(1)}★` : '';
-        const hasMultipleDiffs = Array.isArray(item.difficulties) && item.difficulties.length > 1;
-
-        const diffChipsHtml = (item.difficulties || []).map(diff => {
-          const cleanName = (diff.name || 'Normal').replace(/\[\d+K\]\s*/gi, '').replace(/^\[[^\]]+\]\s*/, '').trim() || 'Normal';
-          const starsText = diff.stars ? `${diff.stars.toFixed(1)}★` : '';
-          const isPrimary = diff.id === primaryDiff.id;
-          const chipClass = isPrimary ? 'piano-diff-chip active' : 'piano-diff-chip';
-
-          return `
-            <button 
-              onclick="downloadAndPlaySong('${item.id}', '${diff.id}', '${cleanName.replace(/'/g, "\\'")}', ${idx})" 
-              class="${chipClass}" 
-              title="Jugar dificultad ${cleanName}"
-            >
-              <span>${cleanName}</span>
-              ${starsText ? `<span class="font-mono text-[9.5px] opacity-90">${starsText}</span>` : ''}
-            </button>
-          `;
-        }).join('');
-
-        return `
-          <div class="piano-key-row flex flex-col">
-            <div class="flex items-stretch w-full max-w-full overflow-hidden">
-              <!-- White Ivory Key Body (Opens Accordion) -->
-              <div onclick="togglePianoAccordion('${sId}')" class="piano-white-key flex-1 min-w-0 overflow-hidden" title="Ver opciones y tempo">
-                <div class="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
-                  <!-- Round Inlaid Medallion Artwork -->
-                  <div class="piano-key-thumb relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-[#c5a059] shadow-sm flex items-center justify-center bg-stone-900">
-                    <img src="${item.thumbnail || GENERIC_THUMBNAIL}" alt="" class="w-full h-full object-cover rounded-full" loading="lazy" onerror="this.onerror=null; this.src=GENERIC_THUMBNAIL;">
-                  </div>
-                  <!-- Track Metadata -->
-                  <div class="min-w-0 flex-1 flex flex-col justify-center overflow-hidden">
-                    <div class="flex items-center gap-1.5 truncate">
-                      <h3 class="text-xs font-black text-[#17131d] truncate font-serif leading-tight">${escapeHtml(item.title || t('unknown_song', 'Canción'))}</h3>
-                      ${hs ? `<span class="text-[8px] font-mono font-bold text-amber-800 flex-shrink-0 flex items-center gap-0.5"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="text-amber-700 inline"><path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2"/><path d="M6 9a6 6 0 0 0 12 0"/><path d="M12 15v5"/><path d="M8 20h8"/></svg> ${hs.score.toLocaleString()}</span>` : ''}
-                    </div>
-                    <p class="text-[10px] text-[#5a422d] font-semibold truncate leading-tight mt-0.5">${escapeHtml(item.artist || t('unknown_artist', 'Artista'))}${isComm ? ` • <span class="text-[#2b1f13]">${escapeHtml(item.creator_name || 'Comunidad')}</span>` : ''}</p>
-                  </div>
-                </div>
-                <!-- Single Star Metric -->
-                <div class="flex items-center gap-1.5 flex-shrink-0 ml-1.5">
-                  <span class="text-[11px] font-black text-[#9c7329] font-mono whitespace-nowrap">★ ${(primaryDiff.stars || 3.5).toFixed(1)}</span>
-                  <span id="accordionArrow_${sId}" class="text-[9px] text-[#8e755a] transition-transform duration-200">▼</span>
-                </div>
-              </div>
-
-              <!-- Fixed 3D Ebony Black Play Key (INDESTRUCTIBLE & ALWAYS VISIBLE) -->
-              <div 
-                onclick="${isComm ? `playCommunitySong('${item.id}')` : `downloadAndPlaySong('${item.id}', '${primaryDiff.id}', '${primaryDiff.name.replace(/'/g, "\\'")}', ${idx})`}" 
-                class="piano-black-play-key flex-shrink-0 w-12 min-w-[48px]" 
-                title="${isComm ? t('play') : `Jugar ${primaryDiff.name} (${primaryStarsText})`}"
-              >
-                <span class="play-arrow-gold">▶</span>
-              </div>
-            </div>
-
-            <!-- Soundboard Accordion ("Caja de Resonancia") -->
-            <div id="pianoAccordion_${sId}" class="piano-soundboard-accordion">
-              <div class="p-2.5 space-y-2">
-                ${isComm ? `
-                  <div class="flex items-center justify-between gap-2 flex-wrap">
-                    <div class="flex items-center gap-1.5">
-                      <span class="text-[9px] font-bold text-[#c5a059] uppercase tracking-wider">Creador:</span>
-                      <span class="text-[9.5px] text-amber-300 font-bold">${escapeHtml(item.creator_name || 'Comunidad')}</span>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                      <span class="text-[9px] font-bold text-[#c5a059] uppercase tracking-wider">Dificultad:</span>
-                      <span class="piano-diff-chip active">${item.difficulty_name || 'Normal'} ${cStars.toFixed(1)}★</span>
-                    </div>
-                  </div>
-                ` : `
-                  <div>
-                    <span class="text-[9px] font-bold text-[#c5a059] uppercase tracking-wider block mb-1">Dificultades Disponibles</span>
-                    <div class="flex items-center gap-1.5 flex-wrap">
-                      ${diffChipsHtml}
-                    </div>
-                  </div>
-                `}
-
-                <div class="flex items-center justify-between gap-2 pt-1.5 border-t border-white/5 text-[11px]">
-                  <div class="flex items-center gap-2">
-                    <span class="text-[9.5px] text-gray-400 font-bold uppercase tracking-wider">Tempo:</span>
-                    ${renderSongSpeedHtml(item.id).btn}
-                  </div>
-                  <div class="flex items-center gap-2">
-                    ${isComm ? `
-                      <button onclick="openRateSongModal('${item.id}', '${escapeHtml(item.title).replace(/'/g, "\\'")}', '${escapeHtml(item.artist).replace(/'/g, "\\'")}', '${item.difficulty_name || 'Normal'}', ${cStars}, true)" class="text-[10px] text-amber-400 hover:scale-105 transition flex items-center gap-1 cursor-pointer font-bold" title="Calificar">
-                        ★ Calificar
-                      </button>
-                    ` : ''}
-                    <button onclick="toggleFavoriteSong('${item.id}')" data-id="${item.id}" class="piano-card-action-btn heart-btn ${isFav ? 'active' : ''}" title="Favorito">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="${isFav ? '#e5b869' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-                    </button>
-                    <button onclick="openAddToPlaylistModal('${item.id}')" class="piano-card-action-btn" title="Añadir a playlist">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('');
+      const cardsHtml = items.map((item, idx) => buildSongCardHtml(item, idx, targetNum)).join('');
 
       container.innerHTML = `
         <div class="piano-keyboard-bed">
           <div class="piano-felt-top-strip"></div>
           ${cardsHtml}
+        </div>
+        <div id="infiniteScrollLoader" class="hidden py-4 text-center">
+          <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/60 border border-[#c5a059]/40 text-[#e2b963] text-xs font-bold animate-pulse">
+            <svg class="animate-spin h-3.5 w-3.5 text-[#e2b963]" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+            <span>Cargando más canciones...</span>
+          </div>
         </div>
       `;
     }
