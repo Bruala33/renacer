@@ -2354,6 +2354,7 @@ class BeatstarEngine {
     e.preventDefault();
     if (this.isPaused || this.isRewinding) return;
 
+    this.lastTouchTime = performance.now();
     const rect = this.canvas.getBoundingClientRect();
     const now = performance.now();
 
@@ -2433,6 +2434,8 @@ class BeatstarEngine {
 
   handleMouseDown(e) {
     if (this.isPaused || this.isRewinding) return;
+    // Evitar eventos de ratón sintéticos duplicados en dispositivos táctiles
+    if (performance.now() - (this.lastTouchTime || 0) < 500) return;
     const lane = this.getLaneFromX(e.clientX, e.clientY);
     const rect = this.canvas.getBoundingClientRect();
     this.mouseTouch = {
@@ -2586,8 +2589,8 @@ class BeatstarEngine {
       color: p.c1
     });
 
-    // Ventana de colisión inmediata (±160 ms): búsqueda localizada sin bucles en toda la canción
-    const HIT_WINDOW = 160;
+    // Ventana de colisión fluida (±240 ms): cubre Perfect+, Perfect, Great y Good sin ignorar toques
+    const HIT_WINDOW = 240;
     let closestNote = null;
     let minDiff = Infinity;
 
@@ -2597,12 +2600,15 @@ class BeatstarEngine {
       if (!this.isCalibrating && note.lane !== lane) continue;
 
       const diffFromNote = currentTime - note.timestamp_ms;
-      if (diffFromNote < -HIT_WINDOW) break; // Notas futuras: salir de inmediato
-      if (diffFromNote > HIT_WINDOW) continue; // Nota pasada: seguir buscando
+      // Salir si las notas están más de 320ms en el futuro (búsqueda acotada y rápida)
+      if (diffFromNote < -320) break;
+      if (diffFromNote > HIT_WINDOW) continue; // Nota ya pasada: seguir buscando candidata
 
-      closestNote = note;
-      minDiff = Math.abs(diffFromNote);
-      break; // Primera nota cronológica válida encontrada
+      const absDiff = Math.abs(diffFromNote);
+      if (absDiff <= HIT_WINDOW && absDiff < minDiff) {
+        minDiff = absDiff;
+        closestNote = note;
+      }
     }
 
     if (!closestNote) {
@@ -2615,12 +2621,8 @@ class BeatstarEngine {
         return;
       }
       
-      const nowPerf = performance.now();
-      if (this.beatmapData && this.sync.isPlaying && currentTime > this.invulnerableUntil && !this.isProcessingMiss && (nowPerf - this.lastMissTimePerf >= 750)) {
-        this.synth.playPunchyArcadeMiss();
-        this.addJudgement('GHOST TAP', '#ff4d4d');
-        this.handleMiss();
-      }
+      // En Beatstar original, pulsar en vacío no castiga ni rompe el combo. Solo notas caídas penalizan.
+      this.synth.playClick();
       return;
     }
 
@@ -2634,7 +2636,8 @@ class BeatstarEngine {
       return;
     }
 
-    if (closestNote.type === 'tap' && inputType === 'tap') {
+    // Nota tap o notas estándar (cualquier toque o gesto sobre la nota la valida inmediatamente)
+    if (closestNote.type === 'tap' || (!closestNote.type || closestNote.type === 'single' || closestNote.type === 'normal')) {
       const j = this.judgeHit(closestNote, minDiff, hitX, hitY);
       closestNote.hit = true;
       this.emitKeyHit(hitX, hitY, j.color, 24);
@@ -4688,19 +4691,19 @@ class BeatstarEngine {
       const pHead = 1.0 - timeUntilHit / scrollDur;
       if (pHead < -0.15 || (!isBeingHeld && pHead > 1.25)) continue;
 
-      // Mathematical zero-overlap clamp with next note in same lane
+      // Mathematical zero-overlap clamp with next note in same lane (acotado y break temprano)
       let nextSameLaneDiffMs = Infinity;
-      for (let j = i + 1; j < len; j++) {
+      const maxSearchJ = Math.min(len, i + 35);
+      for (let j = i + 1; j < maxSearchJ; j++) {
         const nextN = this.notes[j];
         if (!nextN || nextN.holdCompleted) continue;
         if (nextN.hit && nextN.type !== 'hold') continue;
         const nextLane = Number.isFinite(nextN.lane) ? Math.round(nextN.lane) : (Number.isFinite(nextN.column) ? Math.round(nextN.column) : 0);
-        if (nextLane === lane) {
-          const nextT = Number.isFinite(nextN.timestamp_ms) ? nextN.timestamp_ms : (Number.isFinite(nextN.timeMs) ? nextN.timeMs : (nextN.time * 1000));
-          if (nextT > noteT) {
-            nextSameLaneDiffMs = nextT - noteT;
-            break;
-          }
+        const nextT = Number.isFinite(nextN.timestamp_ms) ? nextN.timestamp_ms : (Number.isFinite(nextN.timeMs) ? nextN.timeMs : (nextN.time * 1000));
+        if (nextT - noteT > scrollDur) break;
+        if (nextLane === lane && nextT > noteT) {
+          nextSameLaneDiffMs = nextT - noteT;
+          break;
         }
       }
 

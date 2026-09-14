@@ -1701,11 +1701,8 @@
     </div>
   </div>
 
-</div>
-
-
-
-
+</div> <!-- End of tabEditorSection -->
+</div> <!-- End of Layer 8: searchScreen -->
 
     <!-- Layer 9: Settings Panel Modal -->
     <div id="settingsModal" class="settings-modal">
@@ -2184,16 +2181,10 @@
           </button>
           <button id="btnConfirmPublish" onclick="ChartEditor.confirmPublish()" class="flex-1 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl text-xs font-black text-white shadow-lg shadow-cyan-500/30 transition active:scale-95 cursor-pointer">
             <span class="inline-flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg> <span data-i18n="pub_modal_confirm">Publicar Ahora</span></span>
+          </button>
         </div>
       </div>
     </div> <!-- End of publishCommunityModal -->
-
-    <!-- Floating Quick Speed Button: Accessible at any scroll depth in searchScreen -->
-    <button id="floatingQuickSpeedBtn" type="button" onclick="openSongSpeedModal(activeSpeedModalSongId || 'global')" class="fixed bottom-6 right-5 z-40 px-3 py-2 rounded-full bg-[#160f22]/95 border border-amber-400/50 text-amber-300 text-xs font-black shadow-[0_8px_25px_rgba(0,0,0,0.85)] flex items-center gap-1.5 backdrop-blur-md active:scale-95 transition cursor-pointer hover:border-amber-400" title="Ajustar velocidad de notas (Pop-up)">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-amber-400 inline"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-      <span class="text-[10px] uppercase text-gray-400 font-bold">Velocidad</span>
-      <span id="floatingSpeedValue" class="font-mono text-amber-300 font-black">1.00x</span>
-    </button>
 
     <!-- Layer 12: Arcade Revive Penalty Modal ($2^n$ 𝄞) -->
     <div id="reviveModal" class="revive-modal space-y-4">
@@ -2566,7 +2557,7 @@
       </div>
     </div>
   </div>
-
+  </div> <!-- End of game-viewport -->
 
   <script src="./parsers.js?v=3.5"></script>
   <script src="./game.js?v=3.5"></script>
@@ -2834,6 +2825,7 @@
       const pp = document.getElementById('colorPerfectPlus'); if (pp) pp.value = colors.perfectPlus;
       const pf = document.getElementById('colorPerfect');     if (pf) pf.value = colors.perfect;
       const gr = document.getElementById('colorGreat');       if (gr) gr.value = colors.great;
+      const go = document.getElementById('colorGood');        if (go) go.value = colors.good;
       if (typeof syncPCKeybindsUI === 'function') syncPCKeybindsUI();
 
       // Sync Continue Mode
@@ -5648,13 +5640,9 @@ function switchMainTab(tab) {
                   <p class="text-[10px] text-[#5a422d] font-semibold truncate leading-tight mt-0.5">${escapeHtml(item.artist || t('unknown_artist', 'Artista'))}${isComm ? ` • <span class="text-[#2b1f13]">${escapeHtml(item.creator_name || 'Comunidad')}</span>` : ''}</p>
                 </div>
               </div>
-              <!-- Single Star Metric & Instant Speed Pop-up Pill -->
+              <!-- Single Star Metric & Accordion Arrow -->
               <div class="flex items-center gap-1.5 flex-shrink-0 ml-1.5">
                 <span class="text-[11px] font-black text-[#9c7329] font-mono whitespace-nowrap">★ ${(primaryDiff.stars || 3.5).toFixed(1)}</span>
-                <button type="button" onclick="event.stopPropagation(); openSongSpeedModal('${item.id}')" class="song-card-speed-pill px-1.5 py-0.5 rounded-lg bg-black/40 hover:bg-black/65 border border-[#c5a059]/40 text-amber-300 transition active:scale-95 flex items-center gap-0.5 cursor-pointer" title="Ajustar velocidad (Pop-up)">
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-amber-400 inline"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                  <span class="song-speed-badge-${sId} text-[9.5px] font-mono font-bold">${(getSongSpeed(item.id) || 1.0).toFixed(2)}x</span>
-                </button>
                 <span id="accordionArrow_${sId}" class="text-[9px] text-[#8e755a] transition-transform duration-200">▼</span>
               </div>
             </div>
