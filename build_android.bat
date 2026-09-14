@@ -14,6 +14,8 @@ echo.
 echo [1/4] Sincronizando assets base...
 if exist ".venv\Scripts\python.exe" (
     call .venv\Scripts\python.exe sync_android_assets.py
+) else (
+    call python sync_android_assets.py
 )
 
 echo.

@@ -773,6 +773,8 @@
       document.querySelectorAll(`.song-speed-slider-${sId}`).forEach(el => {
         el.value = val;
       });
+      const floatVal = document.getElementById('floatingSpeedValue');
+      if (floatVal) floatVal.innerText = `${val.toFixed(2)}x`;
       if (engine && engine.setSongPlaybackSpeed) {
         engine.setSongPlaybackSpeed(val);
       }
@@ -1040,7 +1042,7 @@
               <span id="hudSongTitle" class="hud-song-title">Cargando...</span>
               <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
                 <div id="hudDifficultyBadge" class="hud-diff-badge diff-normal">
-                  <span class="badge-icon">⚡</span>
+                  <span class="badge-icon">★</span>
                   <span id="hudDiffLabel" class="badge-text">NORMAL</span>
                 </div>
                 <div id="hudMedalPill" class="hud-medal-pill hidden">
@@ -1090,11 +1092,7 @@
       <!-- Top Header: Brand + Clefs + FX Shop + Settings (Mobile Clean & Compact) -->
       <div class="flex items-center justify-between pt-1 gap-2">
         <div class="flex items-center gap-2 min-w-0 flex-shrink">
-          <img src="./app_logo.png" alt="Piano Community" class="h-[38px] max-h-[38px] w-auto object-contain brand-logo-frame flex-shrink-0" style="height: 38px; width: auto; object-fit: contain;">
-          <div class="brand-title min-w-0 flex-shrink">
-            <span class="brand-top">PIANO</span>
-            <span class="brand-sub">COMMUNITY</span>
-          </div>
+          <img src="./piano_community_banner.png" alt="Piano Community" class="h-[36px] max-h-[36px] w-auto object-contain flex-shrink-0" style="height: 36px; width: auto; object-fit: contain;">
         </div>
 
         <!-- Action Buttons (Flex-shrink-0 to guarantee settings gear is always visible) -->
@@ -1819,6 +1817,22 @@
             </select>
           </div>
 
+          <!-- Modo al Fallar Notas (Continuar vs Arcade) -->
+          <div class="p-2.5 bg-black/40 border border-white/10 rounded-xl space-y-1.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-white flex items-center gap-1.5">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-amber-400"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Modo al Fallar:
+              </span>
+              <span id="settingsContinueModeVal" class="font-mono font-bold text-emerald-400">Continuar (Beatstar)</span>
+            </div>
+            <select id="settingsContinueModeSelect" onchange="toggleContinueMode(this.value === 'true')" class="w-full bg-black/70 border border-white/15 rounded-lg text-xs text-white p-1.5 cursor-pointer">
+              <option value="true" selected>Continuar Jugando (Estándar Beatstar)</option>
+              <option value="false">Muerte Súbita / Revivir (Pausar y pagar Claves)</option>
+            </select>
+            <p class="text-[9px] text-gray-400">En 'Continuar', los fallos rompen el combo pero la canción nunca se detiene bruscamente.</p>
+          </div>
+
           <!-- Nickname del Jugador / Creador -->
           <div class="p-2.5 bg-black/40 border border-white/10 rounded-xl space-y-1.5">
             <div class="flex items-center justify-between text-xs">
@@ -2170,11 +2184,16 @@
           </button>
           <button id="btnConfirmPublish" onclick="ChartEditor.confirmPublish()" class="flex-1 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl text-xs font-black text-white shadow-lg shadow-cyan-500/30 transition active:scale-95 cursor-pointer">
             <span class="inline-flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg> <span data-i18n="pub_modal_confirm">Publicar Ahora</span></span>
-          </button>
         </div>
       </div>
-    </div>
-    </div> <!-- End of Layer 8: searchScreen -->
+    </div> <!-- End of publishCommunityModal -->
+
+    <!-- Floating Quick Speed Button: Accessible at any scroll depth in searchScreen -->
+    <button id="floatingQuickSpeedBtn" type="button" onclick="openSongSpeedModal(activeSpeedModalSongId || 'global')" class="fixed bottom-6 right-5 z-40 px-3 py-2 rounded-full bg-[#160f22]/95 border border-amber-400/50 text-amber-300 text-xs font-black shadow-[0_8px_25px_rgba(0,0,0,0.85)] flex items-center gap-1.5 backdrop-blur-md active:scale-95 transition cursor-pointer hover:border-amber-400" title="Ajustar velocidad de notas (Pop-up)">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-amber-400 inline"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      <span class="text-[10px] uppercase text-gray-400 font-bold">Velocidad</span>
+      <span id="floatingSpeedValue" class="font-mono text-amber-300 font-black">1.00x</span>
+    </button>
 
     <!-- Layer 12: Arcade Revive Penalty Modal ($2^n$ 𝄞) -->
     <div id="reviveModal" class="revive-modal space-y-4">
@@ -2815,8 +2834,18 @@
       const pp = document.getElementById('colorPerfectPlus'); if (pp) pp.value = colors.perfectPlus;
       const pf = document.getElementById('colorPerfect');     if (pf) pf.value = colors.perfect;
       const gr = document.getElementById('colorGreat');       if (gr) gr.value = colors.great;
-      const go = document.getElementById('colorGood');        if (go) go.value = colors.good;
       if (typeof syncPCKeybindsUI === 'function') syncPCKeybindsUI();
+
+      // Sync Continue Mode
+      const contSelect = document.getElementById('settingsContinueModeSelect');
+      const savedCont = localStorage.getItem('beatstar_continue_mode');
+      const isCont = savedCont !== 'false';
+      if (contSelect) contSelect.value = isCont ? 'true' : 'false';
+      const contValEl = document.getElementById('settingsContinueModeVal');
+      if (contValEl) {
+        contValEl.innerText = isCont ? 'Continuar (Beatstar)' : 'Muerte Súbita';
+        contValEl.className = `font-mono font-bold ${isCont ? 'text-emerald-400' : 'text-amber-400'}`;
+      }
     };
 
     window.syncVolumeUI = function() {
@@ -3649,8 +3678,14 @@
     };
 
     window.toggleContinueMode = function(checked) {
+      localStorage.setItem('beatstar_continue_mode', checked ? 'true' : 'false');
       if (engine) engine.setContinueMode(checked);
-      showSuccessToast(`Modo Continuar ${checked ? 'activado' : 'desactivado'}.`);
+      const valEl = document.getElementById('settingsContinueModeVal');
+      if (valEl) {
+        valEl.innerText = checked ? 'Continuar (Beatstar)' : 'Muerte Súbita';
+        valEl.className = `font-mono font-bold ${checked ? 'text-emerald-400' : 'text-amber-400'}`;
+      }
+      showSuccessToast(`Modo al fallar: ${checked ? 'Continuar (Sin pausa)' : 'Muerte Súbita (Revivir)'}`);
     };
 
     window.updateNoteSpeed = function(val) {
@@ -4125,8 +4160,9 @@
           const box = document.getElementById('hudComboContainer');
           if (box) {
             box.classList.remove('beat-pulse');
-            void box.offsetWidth;
-            box.classList.add('beat-pulse');
+            requestAnimationFrame(() => {
+              box.classList.add('beat-pulse');
+            });
             box.classList.remove('streak-25', 'streak-50', 'streak-100');
             if (combo >= 100) box.classList.add('streak-100');
             else if (combo >= 50) box.classList.add('streak-50');
@@ -4140,7 +4176,7 @@
           if (coverEl) {
             coverEl.src = meta.cover_url || meta.cover || meta.album_art || meta.image || './app_logo.png';
           }
-          // Actualizar insignia de dificultad estilo Beatstar (NORMAL / DIFÍCIL / EXTREMA)
+          // Actualizar insignia de dificultad estilo Beatstar sin emojis
           const diffBadge = document.getElementById('hudDifficultyBadge');
           const diffLabel = document.getElementById('hudDiffLabel');
           if (diffBadge && diffLabel) {
@@ -4148,20 +4184,17 @@
             const stars = typeof rawStars === 'number' ? rawStars : parseFloat(rawStars) || 3.5;
             let diffTier = 'NORMAL';
             let diffClass = 'diff-normal';
-            let diffIcon = '⚡';
             if (stars >= 5.5) {
               diffTier = 'EXTREMA';
               diffClass = 'diff-extreme';
-              diffIcon = '🔥';
             } else if (stars >= 3.8) {
-              diffTier = 'DIFÍCIL';
+              diffTier = 'DIFICIL';
               diffClass = 'diff-hard';
-              diffIcon = '⚔️';
             }
             diffLabel.innerText = `${diffTier} • ${stars.toFixed(1)}★`;
             diffBadge.className = `hud-diff-badge ${diffClass}`;
             const iconSpan = diffBadge.querySelector('.badge-icon');
-            if (iconSpan) iconSpan.innerText = diffIcon;
+            if (iconSpan) iconSpan.innerText = '★';
           }
           pauseMenuAmbientMusic();
           updateUserWalletDisplay();
@@ -4229,8 +4262,10 @@
         onMissPenalty: (penaltyCost, missCount) => {
           if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
           currentPenaltyCost = penaltyCost;
-          document.getElementById('reviveCostVal').innerText = penaltyCost;
-          document.getElementById('btnPayReviveCost').innerText = penaltyCost;
+          const costVal = document.getElementById('reviveCostVal');
+          if (costVal) costVal.innerText = penaltyCost;
+          const btnCost = document.getElementById('btnPayReviveCost');
+          if (btnCost) btnCost.innerText = penaltyCost;
           const reviveModal = document.getElementById('reviveModal');
           if (reviveModal) {
             reviveModal.style.display = 'flex';
@@ -5613,9 +5648,13 @@ function switchMainTab(tab) {
                   <p class="text-[10px] text-[#5a422d] font-semibold truncate leading-tight mt-0.5">${escapeHtml(item.artist || t('unknown_artist', 'Artista'))}${isComm ? ` • <span class="text-[#2b1f13]">${escapeHtml(item.creator_name || 'Comunidad')}</span>` : ''}</p>
                 </div>
               </div>
-              <!-- Single Star Metric -->
+              <!-- Single Star Metric & Instant Speed Pop-up Pill -->
               <div class="flex items-center gap-1.5 flex-shrink-0 ml-1.5">
                 <span class="text-[11px] font-black text-[#9c7329] font-mono whitespace-nowrap">★ ${(primaryDiff.stars || 3.5).toFixed(1)}</span>
+                <button type="button" onclick="event.stopPropagation(); openSongSpeedModal('${item.id}')" class="song-card-speed-pill px-1.5 py-0.5 rounded-lg bg-black/40 hover:bg-black/65 border border-[#c5a059]/40 text-amber-300 transition active:scale-95 flex items-center gap-0.5 cursor-pointer" title="Ajustar velocidad (Pop-up)">
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-amber-400 inline"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                  <span class="song-speed-badge-${sId} text-[9.5px] font-mono font-bold">${(getSongSpeed(item.id) || 1.0).toFixed(2)}x</span>
+                </button>
                 <span id="accordionArrow_${sId}" class="text-[9px] text-[#8e755a] transition-transform duration-200">▼</span>
               </div>
             </div>
