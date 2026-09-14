@@ -1,0 +1,18 @@
+{
+  "name": "piano-community",
+  "version": "1.3.2",
+  "description": "Piano Community - Rhythm game supporting osu! Mania and Clone Hero beatmaps",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "node -e \"console.log('Build successful')\"",
+    "lint": "node -c server.js",
+    "sync:github": "node sync_github.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  }
+}

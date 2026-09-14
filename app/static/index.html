@@ -1091,8 +1091,9 @@
       
       <!-- Top Header: Brand + Clefs + FX Shop + Settings (Mobile Clean & Compact) -->
       <div class="flex items-center justify-between pt-1 gap-2">
-        <div class="flex items-center gap-2 min-w-0 flex-shrink">
-          <img src="./piano_community_banner.png" alt="Piano Community" class="h-[36px] max-h-[36px] w-auto object-contain flex-shrink-0" style="height: 36px; width: auto; object-fit: contain;">
+        <div class="flex items-center gap-2.5 min-w-0 flex-shrink">
+          <img src="./app_logo.png" alt="Piano Community" class="h-9 w-9 rounded-xl object-cover flex-shrink-0 shadow-[0_0_12px_rgba(229,184,105,0.35)] border border-amber-500/40">
+          <span class="text-sm font-black text-white tracking-wide truncate">Piano Community</span>
         </div>
 
         <!-- Action Buttons (Flex-shrink-0 to guarantee settings gear is always visible) -->
@@ -2194,6 +2195,12 @@
         </div>
         <h2 class="text-lg font-black text-white tracking-wider">¡NOTA FALLADA!</h2>
         <p class="text-xs text-gray-400 font-medium">Paga la penalización en Claves de Sol para continuar:</p>
+      </div>
+
+      <!-- Puntaje Obtenido -->
+      <div class="p-3 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center justify-center">
+        <span class="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Puntuación alcanzada</span>
+        <span id="reviveScoreVal" class="text-2xl font-black text-white font-mono tracking-tight">0</span>
       </div>
 
       <!-- Cost Display -->
@@ -3910,6 +3917,32 @@
         curtain.classList.add('revealed');
       }
 
+      // Guardar puntuación alcanzada al salir (como si se hubiera terminado la canción)
+      if (engine && currentActiveBeatmap && (engine.score > 0 || (engine.stats && (engine.stats.perfectPlus || engine.stats.perfect || engine.stats.great || engine.stats.good)))) {
+        try {
+          const songId = currentActiveBeatmap?.communityChartId || currentActiveBeatmap?.metadata?.id || currentActiveBeatmap?.id || 'song';
+          const maxScore = Math.max(1, engine.maxPossibleScore || 1);
+          const scorePct = Math.min(100.0, (engine.score / maxScore) * 100);
+          const totalJudged = (engine.stats?.perfectPlus || 0) + (engine.stats?.perfect || 0) + (engine.stats?.great || 0) + (engine.stats?.good || 0) + (engine.stats?.miss || 0);
+          const accuracyPct = totalJudged > 0
+            ? Math.min(100.0, Math.max(0.0, (((engine.stats.perfectPlus * 100) + (engine.stats.perfect * 80) + (engine.stats.great * 50) + ((engine.stats.good || 0) * 25)) / (totalJudged * 100)) * 100))
+            : 100.0;
+          
+          const isNewRecord = saveHighscore(songId, engine.score, engine.stars || 0, engine.maxCombo || 0, engine.currentMedalTier || null, scorePct);
+
+          // Otorgar claves de sol por estrellas conseguidas hasta ese momento
+          const earnedClefs = Math.min(15, (engine.stars || 0) * 3);
+          if (earnedClefs > 0 && typeof addClefs === 'function') {
+            addClefs(earnedClefs);
+          }
+          if (isNewRecord && typeof showSuccessToast === 'function') {
+            showSuccessToast(`¡Puntuación guardada: ${engine.score.toLocaleString()} pts!`);
+          }
+        } catch (saveErr) {
+          console.error('Error guardando puntuación al salir:', saveErr);
+        }
+      }
+
       if (engine) {
         try { engine.stop(); } catch (e) { console.error('Error stopping engine:', e); }
       }
@@ -4126,8 +4159,9 @@
           const comboContainer = document.getElementById("hudComboContainer");
           if (comboContainer && combo > 0) {
             comboContainer.classList.remove("combo-beat-pulse");
-            void comboContainer.offsetWidth;
-            comboContainer.classList.add("combo-beat-pulse");
+            requestAnimationFrame(() => {
+              comboContainer.classList.add("combo-beat-pulse");
+            });
           }
 
           const multEl = document.getElementById("hudMultiplier");
@@ -4251,13 +4285,15 @@
             }
           }, stepMs);
         },
-        onMissPenalty: (penaltyCost, missCount) => {
+        onMissPenalty: (penaltyCost, missCount, score) => {
           if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
           currentPenaltyCost = penaltyCost;
           const costVal = document.getElementById('reviveCostVal');
           if (costVal) costVal.innerText = penaltyCost;
           const btnCost = document.getElementById('btnPayReviveCost');
           if (btnCost) btnCost.innerText = penaltyCost;
+          const scoreVal = document.getElementById('reviveScoreVal');
+          if (scoreVal) scoreVal.innerText = (score !== undefined ? score : (window.engine ? window.engine.score : 0)).toLocaleString();
           const reviveModal = document.getElementById('reviveModal');
           if (reviveModal) {
             reviveModal.style.display = 'flex';

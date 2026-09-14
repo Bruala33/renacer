@@ -1,0 +1,767 @@
+import express from 'express';
+import cors from 'cors';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+const HOST = process.env.HOST || '0.0.0.0';
+
+app.use(cors());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+const STATIC_DIR = path.join(__dirname, 'app', 'static');
+const COMMUNITY_DIR = path.join(__dirname, 'app', 'uploads', 'community');
+const SONGS_DIR = path.join(STATIC_DIR, 'songs');
+
+// In-memory data store for community charts, ratings, and leaderboards
+const communityCharts = new Map();
+const chartScores = new Map();
+const chartRatings = new Map();
+const followedCreators = new Set();
+const players = new Map();
+
+// Helper to seed community charts from disk
+function seedCommunityCharts() {
+  const seedItems = [
+    {
+      id: 'comm_renacer',
+      folder: 'comm_renacer',
+      title: 'Renacer',
+      artist: 'Piano Community',
+      creator_id: 'creator_piano',
+      creator_name: 'Piano Community',
+      bpm: 100.0,
+      offset_ms: 0,
+      difficulty_name: 'Media',
+      stars: 3.5,
+      scroll_duration_ms: 1600,
+      notes_count: 130,
+      rating_avg: 5.0,
+      votes_count: 48,
+      sync_avg: 100.0,
+      sync_votes_count: 48,
+      created_at: '2026-01-01 12:00:00',
+    },
+    {
+      id: 'comm_impuestos',
+      folder: 'comm_impuestos',
+      title: 'Impuestos',
+      artist: 'Perro Sánxe',
+      creator_id: 'creator_sanxe',
+      creator_name: 'Perro Sánxe',
+      bpm: 160.0,
+      offset_ms: 0,
+      difficulty_name: 'Difícil',
+      stars: 5.5,
+      scroll_duration_ms: 1300,
+      notes_count: 250,
+      rating_avg: 4.9,
+      votes_count: 35,
+      sync_avg: 98.0,
+      sync_votes_count: 35,
+      created_at: '2026-01-05 15:30:00',
+    },
+    {
+      id: 'comm_cyber_frenzy',
+      folder: 'comm_cyber_frenzy',
+      title: 'Cyber Frenzy',
+      artist: 'SynthRider',
+      creator_id: 'creator_synth',
+      creator_name: 'SynthRider',
+      bpm: 140.0,
+      offset_ms: 0,
+      difficulty_name: 'Experto',
+      stars: 6.0,
+      scroll_duration_ms: 1200,
+      notes_count: 120,
+      rating_avg: 4.8,
+      votes_count: 28,
+      sync_avg: 99.0,
+      sync_votes_count: 28,
+      created_at: '2026-01-10 18:00:00',
+    },
+    {
+      id: 'comm_galaxy_anthem',
+      folder: 'comm_galaxy_anthem',
+      title: 'Galaxy Anthem',
+      artist: 'Kowalski',
+      creator_id: 'creator_kowalski',
+      creator_name: 'Kowalski',
+      bpm: 128.0,
+      offset_ms: 0,
+      difficulty_name: 'Difícil',
+      stars: 4.5,
+      scroll_duration_ms: 1400,
+      notes_count: 120,
+      rating_avg: 4.7,
+      votes_count: 22,
+      sync_avg: 97.0,
+      sync_votes_count: 22,
+      created_at: '2026-01-12 20:00:00',
+    },
+    {
+      id: 'comm_moonlight_flow',
+      folder: 'comm_moonlight_flow',
+      title: 'Moonlight Flow',
+      artist: 'Nocturne',
+      creator_id: 'creator_nocturne',
+      creator_name: 'Nocturne',
+      bpm: 110.0,
+      offset_ms: 0,
+      difficulty_name: 'Fácil',
+      stars: 2.5,
+      scroll_duration_ms: 1600,
+      notes_count: 95,
+      rating_avg: 4.8,
+      votes_count: 18,
+      sync_avg: 99.0,
+      sync_votes_count: 18,
+      created_at: '2026-01-15 10:00:00',
+    },
+  ];
+
+  for (const item of seedItems) {
+    const chartData = {
+      ...item,
+      source: 'community',
+      source_name: '🌍 Comunidad',
+      audio_url: `/api/v1/community/charts/${item.id}/audio`,
+      chart_url: `/api/v1/community/charts/${item.id}/chart`,
+      audio_filename: 'audio.mp3',
+      chart_filename: 'chart.json',
+    };
+    communityCharts.set(item.id, chartData);
+
+    // Initial sample leaderboard
+    chartScores.set(item.id, [
+      {
+        rank: 1,
+        player_name: 'MasterPianist',
+        score: 100000,
+        max_combo: item.notes_count,
+        stars: item.stars,
+        accuracy_pct: 99.8,
+        medal_tier: 'diamond',
+        created_at: '2026-02-01 10:00:00',
+      },
+      {
+        rank: 2,
+        player_name: 'RhythmHero',
+        score: 95400,
+        max_combo: Math.floor(item.notes_count * 0.9),
+        stars: item.stars,
+        accuracy_pct: 98.2,
+        medal_tier: 'platinum',
+        created_at: '2026-02-02 11:30:00',
+      },
+      {
+        rank: 3,
+        player_name: 'BeatMaster',
+        score: 91200,
+        max_combo: Math.floor(item.notes_count * 0.85),
+        stars: item.stars,
+        accuracy_pct: 96.5,
+        medal_tier: 'gold',
+        created_at: '2026-02-03 14:00:00',
+      },
+    ]);
+  }
+
+  // Also scan community directory for any user-uploaded songs
+  try {
+    if (fs.existsSync(COMMUNITY_DIR)) {
+      const folders = fs.readdirSync(COMMUNITY_DIR);
+      for (const folder of folders) {
+        if (folder.startsWith('.') || communityCharts.has(folder)) continue;
+        const chartJsonPath = path.join(COMMUNITY_DIR, folder, 'chart.json');
+        if (fs.existsSync(chartJsonPath)) {
+          try {
+            const raw = fs.readFileSync(chartJsonPath, 'utf-8');
+            const data = JSON.parse(raw);
+            const title = data.title || data.metadata?.title || folder.replace(/^comm_/, '');
+            const artist = data.artist || data.metadata?.artist || 'Comunidad';
+            const bpm = parseFloat(data.bpm || data.metadata?.bpm || 120);
+            const stars = parseFloat(data.stars || data.metadata?.stars || 3.5);
+            const difficulty_name = data.difficulty_name || data.metadata?.difficulty || 'Normal';
+
+            communityCharts.set(folder, {
+              id: folder,
+              title,
+              artist,
+              creator_id: 'creator_community',
+              creator_name: 'Comunidad',
+              bpm,
+              offset_ms: data.offset || 0,
+              difficulty_name,
+              stars,
+              scroll_duration_ms: data.scrollDurationMs || 1400,
+              notes_count: data.notes?.length || 100,
+              rating_avg: 5.0,
+              votes_count: 5,
+              sync_avg: 100.0,
+              sync_votes_count: 5,
+              created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+              source: 'community',
+              source_name: '🌍 Comunidad',
+              audio_url: `/api/v1/community/charts/${folder}/audio`,
+              chart_url: `/api/v1/community/charts/${folder}/chart`,
+              audio_filename: 'audio.mp3',
+              chart_filename: 'chart.json',
+            });
+          } catch (e) {
+            // ignore malformed charts
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Could not scan community directory:', err);
+  }
+}
+
+seedCommunityCharts();
+
+// ==========================================
+// 1. Health & Status Endpoints
+// ==========================================
+app.get('/ping', (req, res) => {
+  res.type('text/plain').send('OK');
+});
+
+app.get(['/health', '/api/v1/health'], (req, res) => {
+  res.json({
+    status: 'healthy',
+    service: 'Piano Community Rhythm Engine',
+    version: '3.0.0',
+    num_lanes: 3,
+    sources: ['osu! Mania', 'Clone Hero'],
+  });
+});
+
+app.get(['/api/version', '/api/v1/version'], (req, res) => {
+  res.json({
+    version_code: 6,
+    version_name: '1.3.2',
+    release_notes: 'Piano Community Web & Offline Player. Sincronización comunitaria y soporte osu! Mania / Clone Hero.',
+    download_url: '/download/apk',
+  });
+});
+
+app.get(['/download/apk', '/api/v1/app/download_apk'], (req, res) => {
+  const apkPath = path.join(STATIC_DIR, 'PianoCommunity.apk');
+  if (fs.existsSync(apkPath)) {
+    return res.download(apkPath, 'PianoCommunity.apk');
+  }
+  res.status(404).json({
+    error: 'APK no disponible para descarga directa en esta instancia.',
+    info: 'Juega directamente en la web con todas las funciones habilitadas.'
+  });
+});
+
+// ==========================================
+// 2. High-Performance CORS Download Proxy
+// ==========================================
+app.all(['/api/proxy', '/api/v1/download/proxy'], async (req, res) => {
+  const targetUrl = req.query.url || req.body?.url;
+  if (!targetUrl || typeof targetUrl !== 'string' || !targetUrl.startsWith('http')) {
+    return res.status(400).json({ error: 'URL de descarga inválida o faltante.' });
+  }
+
+  try {
+    const decodedUrl = decodeURIComponent(targetUrl);
+    const method = req.method === 'POST' ? 'POST' : 'GET';
+    const forwardHeaders = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Accept': '*/*',
+    };
+
+    if (req.headers['content-type']) {
+      forwardHeaders['Content-Type'] = req.headers['content-type'];
+    }
+
+    const fetchOptions = {
+      method,
+      headers: forwardHeaders,
+      redirect: 'follow',
+    };
+
+    if (method === 'POST' && req.body) {
+      fetchOptions.body = JSON.stringify(req.body);
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    fetchOptions.signal = controller.signal;
+
+    const response = await fetch(decodedUrl, fetchOptions);
+    clearTimeout(timeout);
+
+    const contentType = response.headers.get('content-type') || 'application/octet-stream';
+    const contentDisposition = response.headers.get('content-disposition');
+
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', '*');
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    if (contentDisposition) {
+      res.setHeader('Content-Disposition', contentDisposition);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    return res.status(response.status).send(Buffer.from(arrayBuffer));
+  } catch (err) {
+    return res.status(502).json({ error: `Proxy falló: ${err.message}` });
+  }
+});
+
+// ==========================================
+// 3. Community Endpoints
+// ==========================================
+// Featured daily tracks
+app.get('/api/v1/community/featured', (req, res) => {
+  const charts = Array.from(communityCharts.values())
+    .sort((a, b) => b.rating_avg - a.rating_avg || b.votes_count - a.votes_count)
+    .slice(0, 6);
+  res.json(charts);
+});
+
+// Search community tracks
+app.get('/api/v1/community/charts/search', (req, res) => {
+  const q = (req.query.q || '').toString().toLowerCase().trim();
+  const difficulty = (req.query.difficulty || '').toString().toLowerCase().trim();
+  const sort = (req.query.sort || 'rating').toString().toLowerCase().trim();
+  const creator_id = (req.query.creator_id || '').toString().trim();
+
+  let results = Array.from(communityCharts.values());
+
+  if (q) {
+    results = results.filter(
+      (c) =>
+        c.title?.toLowerCase().includes(q) ||
+        c.artist?.toLowerCase().includes(q) ||
+        c.creator_name?.toLowerCase().includes(q)
+    );
+  }
+
+  if (difficulty && difficulty !== 'todas') {
+    results = results.filter((c) => c.difficulty_name?.toLowerCase() === difficulty);
+  }
+
+  if (creator_id) {
+    results = results.filter((c) => c.creator_id === creator_id);
+  }
+
+  if (sort === 'newest') {
+    results.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  } else if (sort === 'trending') {
+    results.sort((a, b) => b.votes_count - a.votes_count || b.rating_avg - a.rating_avg);
+  } else {
+    results.sort((a, b) => b.rating_avg - a.rating_avg || b.votes_count - a.votes_count);
+  }
+
+  res.json(results);
+});
+
+// Publish track
+app.post('/api/v1/community/charts/publish', (req, res) => {
+  try {
+    const { title, artist, bpm, stars, difficulty, creator_name, chart_data, audio_data } = req.body;
+    const newId = `comm_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+
+    const folderPath = path.join(COMMUNITY_DIR, newId);
+    fs.mkdirSync(folderPath, { recursive: true });
+
+    if (chart_data) {
+      const content = typeof chart_data === 'string' ? chart_data : JSON.stringify(chart_data, null, 2);
+      fs.writeFileSync(path.join(folderPath, 'chart.json'), content, 'utf-8');
+    }
+
+    if (audio_data && typeof audio_data === 'string') {
+      const base64Data = audio_data.replace(/^data:audio\/\w+;base64,/, '');
+      fs.writeFileSync(path.join(folderPath, 'audio.mp3'), Buffer.from(base64Data, 'base64'));
+    }
+
+    const newChart = {
+      id: newId,
+      title: title || 'Nueva Pista',
+      artist: artist || 'Comunidad',
+      creator_id: `creator_${Date.now()}`,
+      creator_name: creator_name || 'Charter',
+      bpm: parseFloat(bpm) || 120.0,
+      offset_ms: 0,
+      difficulty_name: difficulty || 'Media',
+      stars: parseFloat(stars) || 3.5,
+      scroll_duration_ms: 1400,
+      notes_count: 100,
+      rating_avg: 5.0,
+      votes_count: 1,
+      sync_avg: 100.0,
+      sync_votes_count: 1,
+      created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      source: 'community',
+      source_name: '🌍 Comunidad',
+      audio_url: `/api/v1/community/charts/${newId}/audio`,
+      chart_url: `/api/v1/community/charts/${newId}/chart`,
+      audio_filename: 'audio.mp3',
+      chart_filename: 'chart.json',
+    };
+
+    communityCharts.set(newId, newChart);
+    res.json({ success: true, chart_id: newId, chart: newChart });
+  } catch (err) {
+    res.status(500).json({ error: `Error publicando pista: ${err.message}` });
+  }
+});
+
+// Chart details
+app.get('/api/v1/community/charts/:id/details', (req, res) => {
+  const id = req.params.id;
+  const chart = communityCharts.get(id);
+  if (chart) {
+    return res.json(chart);
+  }
+  res.status(404).json({ error: 'Pista no encontrada' });
+});
+
+// Serve Chart JSON
+app.get('/api/v1/community/charts/:id/chart', (req, res) => {
+  const id = req.params.id;
+  const candidates = [
+    path.join(COMMUNITY_DIR, id, 'chart.json'),
+    path.join(COMMUNITY_DIR, `comm_${id}`, 'chart.json'),
+    path.join(SONGS_DIR, id, 'chart.json'),
+    path.join(SONGS_DIR, id.replace(/^comm_/, ''), 'chart.json'),
+    path.join(SONGS_DIR, 'renacer', 'chart.json'),
+  ];
+
+  for (const p of candidates) {
+    if (fs.existsSync(p) && fs.statSync(p).isFile()) {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      return res.sendFile(p);
+    }
+  }
+
+  res.status(404).json({ error: 'Archivo chart.json no encontrado' });
+});
+
+// Serve Audio with Range Support
+app.get('/api/v1/community/charts/:id/audio', (req, res) => {
+  const id = req.params.id;
+  const candidates = [
+    path.join(COMMUNITY_DIR, id, 'audio.mp3'),
+    path.join(COMMUNITY_DIR, `comm_${id}`, 'audio.mp3'),
+    path.join(SONGS_DIR, id, 'audio.mp3'),
+    path.join(SONGS_DIR, id.replace(/^comm_/, ''), 'audio.mp3'),
+    path.join(SONGS_DIR, 'renacer', 'audio.mp3'),
+  ];
+
+  for (const p of candidates) {
+    if (fs.existsSync(p) && fs.statSync(p).isFile()) {
+      res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Content-Type', 'audio/mpeg');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      return res.sendFile(p);
+    }
+  }
+
+  res.status(404).json({ error: 'Archivo audio.mp3 no encontrado' });
+});
+
+// Rate track
+app.post('/api/v1/community/charts/:id/rate', (req, res) => {
+  const id = req.params.id;
+  const { rating, sync_pct, comment } = req.body;
+  const numRating = Math.max(1, Math.min(5, parseInt(rating, 10) || 5));
+  const numSync = Math.max(0, Math.min(100, parseFloat(sync_pct) || 100));
+
+  const chart = communityCharts.get(id);
+  if (chart) {
+    const currentVotes = chart.votes_count || 0;
+    const currentRatingTotal = (chart.rating_avg || 5.0) * currentVotes;
+    const newVotes = currentVotes + 1;
+    chart.rating_avg = Math.round(((currentRatingTotal + numRating) / newVotes) * 10) / 10;
+    chart.votes_count = newVotes;
+
+    const currentSyncVotes = chart.sync_votes_count || 0;
+    const currentSyncTotal = (chart.sync_avg || 100.0) * currentSyncVotes;
+    const newSyncVotes = currentSyncVotes + 1;
+    chart.sync_avg = Math.round(((currentSyncTotal + numSync) / newSyncVotes) * 10) / 10;
+    chart.sync_votes_count = newSyncVotes;
+
+    communityCharts.set(id, chart);
+    return res.json({
+      success: true,
+      new_rating_avg: chart.rating_avg,
+      votes_count: chart.votes_count,
+      sync_avg: chart.sync_avg,
+    });
+  }
+
+  res.json({ success: true, message: 'Calificación registrada' });
+});
+
+// Submit score
+app.post('/api/v1/community/charts/:id/score', (req, res) => {
+  const id = req.params.id;
+  const { score, max_combo, stars, accuracy_pct, medal_tier, player_name } = req.body;
+
+  const currentScores = chartScores.get(id) || [];
+  const newEntry = {
+    rank: 1,
+    player_name: player_name || 'Jugador Anónimo',
+    score: parseInt(score, 10) || 0,
+    max_combo: parseInt(max_combo, 10) || 0,
+    stars: parseFloat(stars) || 3.5,
+    accuracy_pct: parseFloat(accuracy_pct) || 100.0,
+    medal_tier: medal_tier || 'gold',
+    created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+  };
+
+  currentScores.push(newEntry);
+  currentScores.sort((a, b) => b.score - a.score);
+  currentScores.forEach((s, idx) => (s.rank = idx + 1));
+
+  chartScores.set(id, currentScores.slice(0, 50));
+
+  res.json({
+    success: true,
+    rank: newEntry.rank,
+    is_new_record: newEntry.rank === 1,
+    total_players: currentScores.length,
+  });
+});
+
+// Chart Leaderboard
+app.get('/api/v1/community/charts/:id/leaderboard', (req, res) => {
+  const id = req.params.id;
+  const scores = chartScores.get(id) || [];
+  res.json(scores);
+});
+
+// Global Leaderboard
+app.get('/api/v1/community/leaderboard/global', (req, res) => {
+  const allScores = [];
+  chartScores.forEach((scores) => {
+    allScores.push(...scores);
+  });
+  allScores.sort((a, b) => b.score - a.score);
+  allScores.forEach((s, idx) => (s.rank = idx + 1));
+  res.json(allScores.slice(0, 50));
+});
+
+// Creator profile & follow
+app.get('/api/v1/community/creators/:id', (req, res) => {
+  const creator_id = req.params.id;
+  const charts = Array.from(communityCharts.values()).filter((c) => c.creator_id === creator_id);
+  const name = charts[0]?.creator_name || 'Creador de la Comunidad';
+  const is_following = followedCreators.has(creator_id);
+
+  res.json({
+    id: creator_id,
+    name,
+    followers_count: is_following ? 12 : 11,
+    is_following,
+    charts,
+  });
+});
+
+app.post('/api/v1/community/creators/:id/follow', (req, res) => {
+  const creator_id = req.params.id;
+  let is_following = false;
+  if (followedCreators.has(creator_id)) {
+    followedCreators.delete(creator_id);
+    is_following = false;
+  } else {
+    followedCreators.add(creator_id);
+    is_following = true;
+  }
+  res.json({
+    success: true,
+    is_following,
+    followers_count: is_following ? 12 : 11,
+  });
+});
+
+// Player profile
+app.post('/api/v1/community/players/register', (req, res) => {
+  const { player_name } = req.body;
+  const id = `pl_${Date.now()}`;
+  players.set(id, { id, player_name, total_score: 0, songs_played: 0 });
+  res.json({ success: true, id, player_name });
+});
+
+app.post('/api/v1/community/players/sync', (req, res) => {
+  res.json({ success: true, message: 'Sincronización completada' });
+});
+
+// ==========================================
+// 4. Unified Community Search (osu! & Clone Hero)
+// ==========================================
+app.get(['/api/search', '/api/v1/search', '/api/v1/search/community'], async (req, res) => {
+  const q = (req.query.q || '').toString().trim();
+  if (!q) return res.json([]);
+
+  const results = [];
+  const qLower = q.toLowerCase();
+
+  // 1. Search local community charts
+  for (const c of communityCharts.values()) {
+    if (
+      c.title?.toLowerCase().includes(qLower) ||
+      c.artist?.toLowerCase().includes(qLower) ||
+      c.creator_name?.toLowerCase().includes(qLower)
+    ) {
+      results.push(c);
+    }
+  }
+
+  // 2. Query osu! Mania (Catboy)
+  try {
+    const encoded = encodeURIComponent(q);
+    const catboyResp = await fetch(`https://catboy.best/api/v2/search?q=${encoded}&m=3`, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(4000),
+    });
+
+    if (catboyResp.ok) {
+      const data = await catboyResp.json();
+      const items = Array.isArray(data) ? data : data?.data || [];
+      for (const item of items.slice(0, 10)) {
+        const setId = item.id;
+        if (!setId) continue;
+
+        const title = item.title || 'Sin título';
+        const artist = item.artist || 'Desconocido';
+        const creator = item.creator || item.user?.username || 'osu! Mapper';
+        const covers = item.covers || {};
+        const thumbnail = covers.card || covers.cover || `https://assets.ppy.sh/beatmaps/${setId}/covers/card.jpg`;
+
+        const diffs = (item.beatmaps || []).map((b) => ({
+          id: b.id,
+          name: b.version || 'Mania',
+          stars: Math.round((b.difficulty_rating || 3.5) * 10) / 10,
+          notes_count: (b.count_circles || 0) + (b.count_sliders || 0) || 100,
+          bpm: b.bpm || item.bpm || 120,
+        }));
+
+        results.push({
+          id: `osu_${setId}`,
+          title,
+          artist,
+          creator_id: `creator_${creator}`,
+          creator_name: creator,
+          bpm: item.bpm || 120,
+          difficulty_name: diffs[0]?.name || 'Normal',
+          stars: diffs[0]?.stars || 3.5,
+          notes_count: diffs[0]?.notes_count || 100,
+          thumbnail,
+          source: 'catboy',
+          source_name: 'osu! Mania',
+          download_url: `https://catboy.best/d/${setId}`,
+          difficulties: diffs,
+        });
+      }
+    }
+  } catch (err) {
+    // Non-blocking fallback
+  }
+
+  res.json(results);
+});
+
+// ==========================================
+// 5. Song Files Serving (Audio & Chart)
+// ==========================================
+app.get('/songs/:folder/:file(*)', (req, res) => {
+  const { folder, file } = req.params;
+  const candidates = [
+    path.join(SONGS_DIR, folder, file),
+    path.join(COMMUNITY_DIR, folder, file),
+    path.join(COMMUNITY_DIR, `comm_${folder}`, file),
+    path.join(SONGS_DIR, 'renacer', file),
+    path.join(COMMUNITY_DIR, 'comm_renacer', file),
+  ];
+
+  for (const p of candidates) {
+    if (fs.existsSync(p) && fs.statSync(p).isFile()) {
+      if (file.endsWith('.mp3')) {
+        res.setHeader('Accept-Ranges', 'bytes');
+        res.setHeader('Content-Type', 'audio/mpeg');
+      } else if (file.endsWith('.json')) {
+        res.setHeader('Content-Type', 'application/json');
+      }
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      return res.sendFile(p);
+    }
+  }
+
+  res.status(404).json({ error: `Pista ${folder}/${file} no encontrada` });
+});
+
+// ==========================================
+// 6. Static HTML and Web Game Entry Points
+// ==========================================
+// Serve / and /game.html directly with no-cache headers
+app.get(['/', '/game.html', '/index.html'], (req, res) => {
+  const indexPath = path.join(STATIC_DIR, 'game.html');
+  const fallbackPath = path.join(STATIC_DIR, 'index.html');
+  const fileToServe = fs.existsSync(indexPath) ? indexPath : fallbackPath;
+
+  if (fs.existsSync(fileToServe)) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    return res.sendFile(fileToServe);
+  }
+  res.status(404).send('game.html no encontrado.');
+});
+
+// Static assets mounted at /static
+app.use(
+  '/static',
+  express.static(STATIC_DIR, {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.css') || filePath.endsWith('.js') || filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      } else {
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+      }
+    },
+  })
+);
+
+// Root fallback static file serving (for /style.css, /game.js, /favicon.ico, etc.)
+app.use(
+  express.static(STATIC_DIR, {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.css') || filePath.endsWith('.js') || filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      } else {
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+      }
+    },
+  })
+);
+
+// 404 fallback to game.html for client-side routing
+app.use((req, res) => {
+  const indexPath = path.join(STATIC_DIR, 'game.html');
+  if (fs.existsSync(indexPath)) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    return res.sendFile(indexPath);
+  }
+  res.status(404).send('Not Found');
+});
+
+// Start Server
+app.listen(PORT, HOST, () => {
+  console.log(`Piano Community Rhythm Engine server running at http://${HOST}:${PORT}`);
+});

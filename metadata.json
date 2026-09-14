@@ -1,0 +1,6 @@
+{
+  "name": "Piano Community",
+  "description": "Rhythm game supporting osu! Mania and Clone Hero beatmaps with custom editor and community tracks",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

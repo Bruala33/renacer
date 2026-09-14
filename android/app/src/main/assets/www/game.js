@@ -41,6 +41,39 @@ function hexToRgba(hex, alpha) {
 // DYNAMIC SONG COLOR PALETTE REGISTRY (BEATSTAR PRESETS & ADAPTIVE SYSTEM)
 // ==========================================
 const SONG_COLOR_PALETTES = {
+  extreme_magenta: {
+    id: 'extreme_magenta',
+    name: 'Extremo / Magenta Neón',
+    primary: '#ff007f',
+    secondary: '#d946ef',
+    glow: '#ff007f',
+    ribs: '#f43f5e',
+    spotlight1: '#ff007f',
+    spotlight2: '#a855f7',
+    spark: '#ff70c5'
+  },
+  cyber_cyan: {
+    id: 'cyber_cyan',
+    name: 'Cyber / Cian Eléctrico',
+    primary: '#00f2fe',
+    secondary: '#00c6ff',
+    glow: '#00f2fe',
+    ribs: '#00f5d4',
+    spotlight1: '#00f2fe',
+    spotlight2: '#3b82f6',
+    spark: '#a5f3fc'
+  },
+  fever_gold: {
+    id: 'fever_gold',
+    name: 'Fiebre / Oro Radiante',
+    primary: '#ffd700',
+    secondary: '#ffb703',
+    glow: '#ffaa00',
+    ribs: '#ffe082',
+    spotlight1: '#ffd700',
+    spotlight2: '#fb8500',
+    spark: '#fff8db'
+  },
   amethyst: {
     id: 'amethyst',
     name: 'Amatista / Electrónica',
@@ -66,11 +99,11 @@ const SONG_COLOR_PALETTES = {
   emerald: {
     id: 'emerald',
     name: 'Esmeralda / Chill',
-    primary: '#27ae60',
+    primary: '#00f5a0',
     secondary: '#6fcf97',
-    glow: '#27ae60',
+    glow: '#00f5a0',
     ribs: '#2ec4b6',
-    spotlight1: '#27ae60',
+    spotlight1: '#00f5a0',
     spotlight2: '#06d6a0',
     spark: '#a7f3d0'
   },
@@ -79,7 +112,7 @@ const SONG_COLOR_PALETTES = {
     name: 'Clásico / Concierto',
     primary: '#e5b869',
     secondary: '#ffffff',
-    glow: '#c5a059',
+    glow: '#e5b869',
     ribs: '#f3d791',
     spotlight1: '#e5b869',
     spotlight2: '#d4af37',
@@ -106,11 +139,14 @@ function getSongColorPalette(meta = {}) {
   }
 
   const text = `${meta.title || ''} ${meta.artist || ''} ${meta.genre || ''} ${meta.difficulty_name || ''}`.toLowerCase();
-  if (text.includes('fire') || text.includes('fuego') || text.includes('rock') || text.includes('metal') || text.includes('dragon') || text.includes('impuestos') || text.includes('sanxe') || text.includes('pikete') || text.includes('hard') || text.includes('experto')) {
-    return SONG_COLOR_PALETTES.fire;
+  if (text.includes('extreme') || text.includes('extremo') || text.includes('experto') || text.includes('frenzy') || text.includes('hard') || text.includes('difícil')) {
+    return SONG_COLOR_PALETTES.extreme_magenta;
   }
-  if (text.includes('cyber') || text.includes('synth') || text.includes('electronic') || text.includes('electro') || text.includes('galaxy') || text.includes('neon') || text.includes('future') || text.includes('remix') || text.includes('kurokotei')) {
-    return SONG_COLOR_PALETTES.amethyst;
+  if (text.includes('cyber') || text.includes('synth') || text.includes('electronic') || text.includes('electro') || text.includes('galaxy') || text.includes('neon') || text.includes('future') || text.includes('remix')) {
+    return SONG_COLOR_PALETTES.cyber_cyan;
+  }
+  if (text.includes('fire') || text.includes('fuego') || text.includes('rock') || text.includes('metal') || text.includes('dragon') || text.includes('impuestos') || text.includes('sanxe') || text.includes('pikete')) {
+    return SONG_COLOR_PALETTES.fire;
   }
   if (text.includes('chill') || text.includes('groove') || text.includes('moonlight') || text.includes('flow') || text.includes('nature') || text.includes('rain') || text.includes('breeze') || text.includes('summer') || text.includes('fácil') || text.includes('easy')) {
     return SONG_COLOR_PALETTES.emerald;
@@ -123,7 +159,7 @@ function getSongColorPalette(meta = {}) {
   const str = (meta.title || '') + (meta.id || 'default');
   let hash = 0;
   for (let i = 0; i < str.length; i++) hash = (hash * 31 + str.charCodeAt(i)) >>> 0;
-  const keys = ['classic', 'amethyst', 'fire', 'emerald'];
+  const keys = ['extreme_magenta', 'cyber_cyan', 'fever_gold', 'amethyst', 'fire', 'emerald'];
   return SONG_COLOR_PALETTES[keys[hash % keys.length]];
 }
 
@@ -954,6 +990,10 @@ class ParticleSystem {
     }
   }
 
+  emitBurst(x, y, color = '#ffe082', count = 20) {
+    this.emitHit(x, y, color, Math.min(count, 18));
+  }
+
   emitSwipeBurst(x, y, direction = 'up', color = '#ffd700', count = 28) {
     for (let i = 0; i < count; i++) {
       const p = this.spawnParticle();
@@ -1315,6 +1355,8 @@ class BeatstarEngine {
     this.fxRipples = [];
     this.bgBursts = [];
     this.musicalNotes = [];
+    this.topComboToast = null;
+    this.speedStreaks = [];
 
     // Key FX Theme (default_neon, color_burst, spotlight_reveal)
     this.activeEffect = (typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_active_effect') : null) || 'default_neon';
@@ -1359,7 +1401,7 @@ class BeatstarEngine {
     this.isRewinding = false;
     this.isCountingDown = false;
     const savedContinueMode = typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_continue_mode') : null;
-    this.continueMode = (savedContinueMode === null || savedContinueMode === 'true' || savedContinueMode === true);
+    this.continueMode = (savedContinueMode === 'true' || savedContinueMode === true);
     this.judgements = [];
     this.stats = { perfectPlus: 0, perfect: 0, great: 0, miss: 0 };
     this.vignetteAlpha = 0;
@@ -1443,7 +1485,7 @@ class BeatstarEngine {
   onAudioEnded() {
     console.log('[BeatstarEngine] Audio reached end of stream.');
     if (this.isRunning && !this.isGameOver) {
-      this.triggerGameOver();
+      this.triggerGameEnd();
     }
   }
 
@@ -1774,10 +1816,39 @@ class BeatstarEngine {
       else if (k === (kb[1] || 'f') || k === 's' || k === ' ' || k === '2') this.triggerLaneInput(1, 'tap');
       else if (k === (kb[2] || 'j') || k === 'k' || k === '3') this.triggerLaneInput(2, 'tap');
 
-      if (e.key === 'ArrowLeft') this.triggerLaneInput(0, 'swipe', 'left');
-      if (e.key === 'ArrowRight') this.triggerLaneInput(2, 'swipe', 'right');
-      if (e.key === 'ArrowUp') this.triggerLaneInput(1, 'swipe', 'up');
-      if (e.key === 'ArrowDown') this.triggerLaneInput(1, 'swipe', 'down');
+      const handleArrowSwipe = (dir) => {
+        const currentTime = this.getCurrentGameTimeMs();
+        let targetLane = -1;
+        let bestDiff = Infinity;
+        if (Array.isArray(this.notes)) {
+          for (let i = 0; i < this.notes.length; i++) {
+            const n = this.notes[i];
+            if (n.hit || n.missed || n.holdCompleted || n.holding) continue;
+            const diff = currentTime - n.timestamp_ms;
+            const absDiff = Math.abs(diff);
+            if (absDiff <= 340 && n.type === 'swipe' && (!n.direction || n.direction === dir)) {
+              if (absDiff < bestDiff) {
+                bestDiff = absDiff;
+                targetLane = n.lane;
+              }
+            }
+          }
+        }
+        if (targetLane === -1) {
+          targetLane = (dir === 'left' ? 0 : dir === 'right' ? 2 : 1);
+        }
+        this.triggerLaneInput(targetLane, 'swipe', dir);
+      };
+
+      if (e.key === 'ArrowLeft') {
+        handleArrowSwipe('left');
+      } else if (e.key === 'ArrowRight') {
+        handleArrowSwipe('right');
+      } else if (e.key === 'ArrowUp') {
+        handleArrowSwipe('up');
+      } else if (e.key === 'ArrowDown') {
+        handleArrowSwipe('down');
+      }
     });
 
     window.addEventListener('keyup', (e) => {
@@ -2015,10 +2086,7 @@ class BeatstarEngine {
       const adjustedTime = Math.round(rawT);
       const laneVal = Math.max(0, Math.min(2, parseInt(n.lane ?? n.column ?? n.track ?? 0, 10) || 0));
 
-      // Si hay dos notas en el mismo carril separadas por menos de 105ms, es un solapamiento visual que requiere 2 toques -> omitir nota fantasma
-      if (adjustedTime - lastLaneHitTime[laneVal] < 105) {
-        continue;
-      }
+      // Mantener todas las notas del beatmap sin descartar ninguna
       lastLaneHitTime[laneVal] = adjustedTime;
 
       let rawDur = Number.isFinite(n.duration_ms) ? n.duration_ms : (n.holdDuration ? n.holdDuration * 1000 : 0);
@@ -2487,23 +2555,25 @@ class BeatstarEngine {
 
     const effect = this.activeEffect || 'default_neon';
 
-    // Spawn rich, creative full-screen phenomena strictly on key tap
+    // Spawn rich, creative full-screen phenomena strictly on key tap (capped to avoid GC/frame drops)
+    if (this.bgBursts.length >= 4) this.bgBursts.shift();
+    if (this.fxRipples.length >= 5) this.fxRipples.shift();
+
     if (effect === 'paint_splash') {
       const blotches = [];
       const blotchColors = ['#ff007f', '#00f2fe', '#ffe600', '#39ff14', '#b142ff', '#ff3366'];
-      const numBlotches = 8;
+      const numBlotches = 4;
       for (let i = 0; i < numBlotches; i++) {
         const ang = (Math.random() - 0.5) * Math.PI * 1.7 - Math.PI / 2;
-        const dist = 50 + Math.random() * (this.height * 0.65);
+        const dist = 50 + Math.random() * (this.height * 0.55);
         blotches.push({
           angle: ang,
           dist: dist,
-          maxDist: dist * (1.2 + Math.random() * 0.3),
-          radius: 12 + Math.random() * 26,
+          maxDist: dist * (1.1 + Math.random() * 0.2),
+          radius: 10 + Math.random() * 18,
           color: blotchColors[i % blotchColors.length],
           subDrops: [
-            { dx: (Math.random() - 0.5) * 35, dy: (Math.random() - 0.5) * 35, r: 3 + Math.random() * 6 },
-            { dx: (Math.random() - 0.5) * 45, dy: (Math.random() - 0.5) * 45, r: 2.5 + Math.random() * 5 }
+            { dx: (Math.random() - 0.5) * 25, dy: (Math.random() - 0.5) * 25, r: 2 + Math.random() * 4 }
           ]
         });
       }
@@ -2513,24 +2583,24 @@ class BeatstarEngine {
         lane,
         x: hitX,
         y: hitY,
-        radius: 35,
-        maxRadius: Math.max(this.width, this.height) * 1.1,
-        alpha: 0.9,
-        decay: 2.2,
+        radius: 30,
+        maxRadius: Math.max(this.width, this.height) * 0.9,
+        alpha: 0.85,
+        decay: 2.5,
         color1: p.c1,
         color2: p.c2,
         blotches: blotches
       });
     } else if (effect === 'fire_inferno') {
       const flames = [];
-      const numFlames = 4;
+      const numFlames = 3;
       for (let i = 0; i < numFlames; i++) {
         flames.push({
-          targetX: (this.width * 0.1) + Math.random() * (this.width * 0.8),
-          curveOffsetX: (Math.random() - 0.5) * 140,
-          speed: 1.1 + Math.random() * 0.8,
+          targetX: (this.width * 0.15) + Math.random() * (this.width * 0.7),
+          curveOffsetX: (Math.random() - 0.5) * 90,
+          speed: 1.2 + Math.random() * 0.7,
           phase: Math.random() * Math.PI * 2,
-          width: 22 + Math.random() * 30,
+          width: 18 + Math.random() * 20,
           color: i % 2 === 0 ? '#ffea00' : '#ff3300'
         });
       }
@@ -2541,22 +2611,22 @@ class BeatstarEngine {
         x: hitX,
         y: hitY,
         progress: 0,
-        radius: 25,
-        maxRadius: Math.max(this.width, this.height),
-        alpha: 0.95,
-        decay: 2.1,
+        radius: 20,
+        maxRadius: Math.max(this.width, this.height) * 0.9,
+        alpha: 0.9,
+        decay: 2.3,
         color1: '#ff8800',
         color2: '#ff2200',
         flames: flames
       });
     } else if (effect === 'color_burst') {
       const rays = [];
-      const numRays = 10;
+      const numRays = 6;
       for (let i = 0; i < numRays; i++) {
         rays.push({
           angle: (i / numRays) * Math.PI * 2 + (Math.random() - 0.5) * 0.2,
-          len: 100 + Math.random() * (this.height * 0.7),
-          width: 8 + Math.random() * 16,
+          len: 80 + Math.random() * (this.height * 0.5),
+          width: 6 + Math.random() * 10,
           color: i % 2 === 0 ? p.c1 : p.c2
         });
       }
@@ -2567,11 +2637,11 @@ class BeatstarEngine {
         x: hitX,
         y: hitY,
         rotation: Math.random() * Math.PI * 2,
-        rotSpeed: (Math.random() - 0.5) * 2.5,
-        radius: 25,
-        maxRadius: Math.max(this.width, this.height) * 1.2,
-        alpha: 0.9,
-        decay: 2.0,
+        rotSpeed: (Math.random() - 0.5) * 2.0,
+        radius: 20,
+        maxRadius: Math.max(this.width, this.height) * 0.95,
+        alpha: 0.85,
+        decay: 2.2,
         color1: p.c1,
         color2: p.c2,
         rays: rays
@@ -2589,8 +2659,8 @@ class BeatstarEngine {
       color: p.c1
     });
 
-    // Ventana de colisión fluida (±240 ms): cubre Perfect+, Perfect, Great y Good sin ignorar toques
-    const HIT_WINDOW = 240;
+    // Ventana de colisión fluida (±320 ms): cubre Perfect+, Perfect, Great y Good sin ignorar toques
+    const HIT_WINDOW = 320;
     let closestNote = null;
     let minDiff = Infinity;
 
@@ -2600,10 +2670,6 @@ class BeatstarEngine {
       if (!this.isCalibrating && note.lane !== lane) continue;
 
       const diffFromNote = currentTime - note.timestamp_ms;
-      // Salir si las notas están más de 320ms en el futuro (búsqueda acotada y rápida)
-      if (diffFromNote < -320) break;
-      if (diffFromNote > HIT_WINDOW) continue; // Nota ya pasada: seguir buscando candidata
-
       const absDiff = Math.abs(diffFromNote);
       if (absDiff <= HIT_WINDOW && absDiff < minDiff) {
         minDiff = absDiff;
@@ -2627,32 +2693,45 @@ class BeatstarEngine {
     }
 
     if (this.isCalibrating) {
-      const jCalib = this.judgeHit(closestNote, minDiff, hitX, hitY);
       closestNote.hit = true;
-      this.emitKeyHit(hitX, hitY, jCalib.color, 28);
+      const jCalib = this.judgeHit(closestNote, minDiff, hitX, hitY);
+      this.emitKeyHit(hitX, hitY, jCalib.color, 24);
       if (this.customBgMode === 'reactive') {
         this.addReactiveBurst(lane, hitX, hitY, jCalib.color);
       }
       return;
     }
 
-    // Nota tap o notas estándar (cualquier toque o gesto sobre la nota la valida inmediatamente)
+    // Nota tap o notas estándar (cualquier toque o tecla sobre la nota la valida inmediatamente)
     if (closestNote.type === 'tap' || (!closestNote.type || closestNote.type === 'single' || closestNote.type === 'normal')) {
-      const j = this.judgeHit(closestNote, minDiff, hitX, hitY);
       closestNote.hit = true;
-      this.emitKeyHit(hitX, hitY, j.color, 24);
+      let j;
+      try {
+        j = this.judgeHit(closestNote, minDiff, hitX, hitY);
+      } catch (eTap) {
+        console.error('[Engine] Error en judgeHit tap:', eTap);
+        j = { text: 'PERFECT', color: '#ffd700', points: 80 };
+      }
+      this.emitKeyHit(hitX, hitY, j.color, 22);
       if (this.customBgMode === 'reactive') {
         this.addReactiveBurst(lane, hitX, hitY, j.color);
       }
     } 
     else if (closestNote.type === 'swipe') {
+      closestNote.hit = true;
       const targetDir = closestNote.direction || 'up';
       const isExactSwipe = (inputType === 'swipe' && (swipeDirection === targetDir || !closestNote.direction));
-      // Tolerancia: si el jugador pulsa la tecla directamente (tap), se valida siempre el acierto
-      const j = this.judgeHit(closestNote, minDiff, hitX, hitY, isExactSwipe ? 'SWIPE' : null);
-      closestNote.hit = true;
-      this.emitKeyHit(hitX, hitY, j.color, 28);
-      this.particles.emitSwipeBurst(hitX, hitY, targetDir, j.color, 32);
+      let j;
+      try {
+        j = this.judgeHit(closestNote, minDiff, hitX, hitY, isExactSwipe ? 'SWIPE' : null);
+      } catch (eSwipe) {
+        console.error('[Engine] Error en judgeHit swipe:', eSwipe);
+        j = { text: 'SWIPE', color: '#ffd700', points: 100 };
+      }
+      this.emitKeyHit(hitX, hitY, j.color, 24);
+      if (this.particles && typeof this.particles.emitSwipeBurst === 'function') {
+        this.particles.emitSwipeBurst(hitX, hitY, targetDir, j.color, 24);
+      }
       if (this.customBgMode === 'reactive') {
         this.addReactiveBurst(lane, hitX, hitY, j.color);
       }
@@ -2661,17 +2740,27 @@ class BeatstarEngine {
       const rawDur = closestNote.duration_ms || 0;
       if (rawDur <= 220) {
         // Micro-hold se completa inmediatamente como tap seguro
-        const j = this.judgeHit(closestNote, minDiff, hitX, hitY);
         closestNote.hit = true;
         closestNote.holdCompleted = true;
-        this.emitKeyHit(hitX, hitY, j.color, 24);
+        let j;
+        try {
+          j = this.judgeHit(closestNote, minDiff, hitX, hitY);
+        } catch (eHold) {
+          j = { text: 'PERFECT', color: '#ffd700', points: 80 };
+        }
+        this.emitKeyHit(hitX, hitY, j.color, 22);
         if (this.customBgMode === 'reactive') {
           this.addReactiveBurst(lane, hitX, hitY, j.color);
         }
       } else {
-        const j = this.judgeHit(closestNote, minDiff, hitX, hitY);
         closestNote.holding = true;
         closestNote.missed = false;
+        let j;
+        try {
+          j = this.judgeHit(closestNote, minDiff, hitX, hitY);
+        } catch (eHold2) {
+          j = { text: 'PERFECT', color: '#ffd700', points: 80 };
+        }
         this.activeHolds.set(lane, {
           note: closestNote,
           touchId: touchId,
@@ -2679,11 +2768,20 @@ class BeatstarEngine {
           initialTime: closestNote.timestamp_ms,
           color: j.color
         });
-        this.emitKeyHit(hitX, hitY, j.color, 22);
+        this.emitKeyHit(hitX, hitY, j.color, 20);
         if (this.customBgMode === 'reactive') {
           this.addReactiveBurst(lane, hitX, hitY, j.color);
         }
       }
+    } else {
+      closestNote.hit = true;
+      let j;
+      try {
+        j = this.judgeHit(closestNote, minDiff, hitX, hitY);
+      } catch (eDef) {
+        j = { text: 'GOOD', color: '#9e7b66', points: 25 };
+      }
+      this.emitKeyHit(hitX, hitY, j.color, 20);
     }
   }
 
@@ -2794,14 +2892,27 @@ class BeatstarEngine {
     if (this.multiplier > prevMult) {
       const midX = this.width / 2;
       const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
-      this.addRipple(midX, hitY, '#ffd700', 320);
-      if (this.particles) this.particles.emitBurst(midX, hitY, '#ffe082', 40);
+      this.addRipple(midX, hitY, '#ffd700', 280);
+      if (this.particles && typeof this.particles.emitBurst === 'function') {
+        this.particles.emitBurst(midX, hitY - 30, '#ffe082', 20);
+      }
+
+      // Banner superior para subida de multiplicador
+      if (this.multiplier === 2) {
+        this.showTopMilestone('¡2X MULTIPLICADOR!', `${this.combo} COMBO`, '#ffd700', 1.4);
+      } else if (this.multiplier === 3) {
+        this.showTopMilestone('⚡ ¡3X FIEBRE RÍTMICA! ⚡', `${this.combo} COMBO`, '#ff007f', 1.5);
+      } else if (this.multiplier === 4) {
+        this.showTopMilestone('🚀 ¡4X HIPER VELOCIDAD! 🚀', `${this.combo} COMBO`, '#00f2fe', 1.6);
+      } else if (this.multiplier >= 5) {
+        this.showTopMilestone('👑 ¡5X DIAMANTE FEVER MÁXIMA! 👑', `${this.combo} COMBO`, '#ffffff', 2.0);
+      }
+    } else {
+      this.checkComboMilestone(this.combo);
     }
 
-    this.checkComboMilestone(this.combo);
-
     if (diffMs <= 90) {
-      this.spawnMusicalNotes(x, y, color, diffMs <= 45 ? 4 : 2);
+      this.spawnMusicalNotes(x, y, color, diffMs <= 45 ? 2 : 1);
     }
     
     this.addScore(points * this.multiplier);
@@ -2809,20 +2920,61 @@ class BeatstarEngine {
     return { text, color, points };
   }
 
-  checkComboMilestone(c) {
-    const milestones = [10, 25, 50, 100, 150, 200, 300, 400, 500, 750, 1000];
-    if (milestones.includes(c)) {
-      const midX = this.width / 2;
-      const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
-      this.addRipple(midX, hitY, '#ffd700', 280);
-      if (this.particles) this.particles.emitBurst(midX, hitY - 30, '#ffd700', 36);
-      this.addJudgement(`${c} COMBO!`, '#ffd700');
+  showTopMilestone(title, subtext = '', color = '#ffd700', duration = 1.4) {
+    this.topComboToast = {
+      title,
+      subtext,
+      color: color || '#ffd700',
+      age: 0,
+      duration: duration || 1.4,
+      alpha: 1.0,
+      scale: 1.5
+    };
+    if (this.ui && typeof this.ui.onComboMilestone === 'function') {
+      this.ui.onComboMilestone(title, subtext, color);
     }
   }
 
-  spawnMusicalNotes(x, y, color = '#ffd700', count = 3) {
+  checkComboMilestone(c) {
+    const milestones = [10, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
+    if (milestones.includes(c)) {
+      const midX = this.width / 2;
+      const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
+      this.addRipple(midX, hitY, '#ffd700', 240);
+      if (this.particles && typeof this.particles.emitBurst === 'function') {
+        this.particles.emitBurst(midX, hitY - 30, '#ffd700', 16);
+      }
+      this.showTopMilestone(`¡${c} COMBO!`, '¡RITMO IMPARABLE!', '#ffd700', 1.3);
+    }
+  }
+
+  addRipple(x, y, color = '#ffd700', maxRadius = 240) {
+    const w = this.width || 360;
+    const lane = Math.max(0, Math.min(2, Math.floor((x / Math.max(1, w)) * 3)));
+    if (this.fxRipples.length >= 6) this.fxRipples.shift();
+    this.fxRipples.push({
+      lane,
+      x: x,
+      y: y,
+      radius: 14,
+      maxRadius: maxRadius,
+      alpha: 0.90,
+      decay: 2.2,
+      color: color || '#ffd700'
+    });
+  }
+
+  triggerGameOver() {
+    this.triggerGameEnd();
+  }
+
+  spawnMusicalNotes(x, y, color = '#ffd700', count = 2) {
+    if (this.musicalNotes.length > 8) {
+      this.musicalNotes.splice(0, this.musicalNotes.length - 8);
+    }
     const symbols = ['𝄞', '𝅘𝅥𝅯', '♬', '♩', '𝅘𝅥𝅮', '♪'];
-    for (let i = 0; i < count; i++) {
+    const safeCount = Math.min(count, 2);
+    for (let i = 0; i < safeCount; i++) {
       const sym = symbols[Math.floor(Math.random() * symbols.length)];
       const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.3;
       const speed = 75 + Math.random() * 95;
@@ -2936,16 +3088,14 @@ class BeatstarEngine {
       this.ui.onScoreUpdate(this.score, this.combo, this.stars, this.multiplier, this.currentMedalTier, scorePct, accuracyPct);
     }
 
-    if (!this.continueMode && !this.isCalibrating && this.beatmapData) {
+    if (!this.isCalibrating && this.beatmapData) {
       const penaltyCost = Math.pow(2, this.missCount);
       this.missCount++;
       this.pause();
       if (this.ui && typeof this.ui.onMissPenalty === 'function') {
-        this.ui.onMissPenalty(penaltyCost, this.missCount);
+        this.ui.onMissPenalty(penaltyCost, this.missCount, this.score);
       }
     } else {
-      // Modo Continuar (Estándar Beatstar): La canción continúa de forma ininterrumpida
-      // Se libera el cerrojo de miss tras 750ms de enfriamiento
       setTimeout(() => {
         this.isProcessingMiss = false;
       }, 750);
@@ -3072,10 +3222,8 @@ class BeatstarEngine {
       }
     }
 
-    // Calculate exact time offset when notes physically exit the bottom of the canvas:
-    // y = hitLineY + ((currentTime - note.timestamp_ms) / scrollDurationMs) * hitLineY
-    // When y >= height + 40 -> note has fallen off the bottom of the screen!
-    const exitScreenOffsetMs = Math.max(220, (((this.height - this.hitLineY) + 40) / Math.max(1, this.hitLineY)) * this.scrollDurationMs);
+    // Once a note has passed the hit window (+240ms), it can no longer be hit and is judged MISS
+    const exitScreenOffsetMs = 240;
 
     for (const note of this.notes) {
       if (!note.hit && !note.missed && !note.holding && !note.processed && !note.holdCompleted) {
@@ -3252,6 +3400,23 @@ class BeatstarEngine {
       }
     }
 
+    if (this.topComboToast) {
+      const t = this.topComboToast;
+      t.age += dt;
+      if (t.age < 0.12) {
+        const p = t.age / 0.12;
+        t.scale = 1.5 - 0.5 * Math.sin(p * Math.PI * 0.5);
+      } else {
+        t.scale = 1.0;
+      }
+      if (t.age > t.duration - 0.35) {
+        t.alpha = Math.max(0, (t.duration - t.age) / 0.35);
+      }
+      if (t.age >= t.duration) {
+        this.topComboToast = null;
+      }
+    }
+
     for (let l = 0; l < 3; l++) {
       this.laneGlows[l] = Math.max(0, (this.laneGlows[l] || 0) - dt * 4.0);
       if (this.laneFlashTimers[l] > 0) {
@@ -3319,9 +3484,9 @@ class BeatstarEngine {
   }
 
   /**
-   * Canvas Background & Key FX:
-   * Fondo negro absoluto sin parpadeos pasivos.
-   * Efectos visuales divertidos, originales y que inundan toda la pantalla ÚNICAMENTE al pulsar teclas.
+   * Canvas Background & Concert Atmosphere:
+   * Fondos atmosféricos dinámicos de estadio con iluminación volumétrica,
+   * focos móviles, estelas de velocidad en perspectiva y apoteosis reactiva al BPM y multiplicador.
    */
   renderBackgroundFX(currentTime) {
     const ctx = this.ctx;
@@ -3331,21 +3496,12 @@ class BeatstarEngine {
 
     const palette = this.activeSongPalette || (typeof SONG_COLOR_PALETTES !== 'undefined' ? SONG_COLOR_PALETTES.classic : { primary: '#c5a059', secondary: '#ede5d8', glow: '#c5a059', ribs: '#e5b869', spotlight1: '#c5a059', spotlight2: '#8c6d23', spark: '#fff3cf' });
 
-    // 1. Escenario vivo de concierto con gradiente atmosférico vertical profundo
-    const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
-    bgGrad.addColorStop(0.0, '#040207');
-    bgGrad.addColorStop(0.5, '#090611');
-    bgGrad.addColorStop(1.0, '#100b1a');
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, w, h);
-
-    // 1b. Fondo estático personalizado (si el usuario eligió modo estático)
-    if (this.customBgMode === 'static' && this.customBgMedia) {
-      ctx.save();
-      ctx.globalAlpha = Math.max(0.05, Math.min(0.9, this.customBgOpacity || 0.40));
-      this.drawCoverMedia(ctx, this.customBgMedia, w, h);
-      ctx.restore();
-    }
+    const mult = this.multiplier || 1;
+    const bpm = (this.beatmapData && this.beatmapData.bpm) ? Math.max(40, this.beatmapData.bpm) : (this.bpm || 120);
+    const beatInterval = 60 / bpm;
+    const audioTime = Math.max(0, currentTime) / 1000;
+    const beatFraction = ((audioTime % beatInterval) + beatInterval) % beatInterval / beatInterval;
+    const beatPulse = Math.pow(Math.max(0, 1 - beatFraction), 2.8);
 
     const hexToRgba = (hex, alpha) => {
       const a = Math.max(0, Math.min(1, alpha));
@@ -3359,110 +3515,255 @@ class BeatstarEngine {
       return `rgba(197, 160, 89, ${a.toFixed(3)})`;
     };
 
-    // Progresión escénica gobernada por el multiplicador de combo (1x base, 2x buildup, 3x alta energía, 4x+ apoteosis)
-    const mult = this.multiplier || 1;
-    let stageIntensity = 0.50;
-    let swingFreq = 0.0009;
-    if (mult === 2) {
-      stageIntensity = 0.75;
-      swingFreq = 0.0013;
+    // 1. GRADIENTE ATMOSFÉRICO DE ESTADIO SEGÚN MULTIPLICADOR (Transición de atmósfera espectacular)
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+    if (mult >= 5) {
+      // 5x FEVER DIAMANTE: Apoteosis Prismática / Púrpura Real y Dorado
+      bgGrad.addColorStop(0.0, '#0a0216');
+      bgGrad.addColorStop(0.40, '#220638');
+      bgGrad.addColorStop(0.80, '#3f0d5e');
+      bgGrad.addColorStop(1.0, '#1c052c');
+    } else if (mult === 4) {
+      // 4x HIPER VELOCIDAD: Cian Eléctrico y Azul Cobalto Cyber
+      bgGrad.addColorStop(0.0, '#020b18');
+      bgGrad.addColorStop(0.45, '#05223c');
+      bgGrad.addColorStop(0.85, '#08385e');
+      bgGrad.addColorStop(1.0, '#04172a');
     } else if (mult === 3) {
-      stageIntensity = 0.95;
-      swingFreq = 0.0016;
-    } else if (mult >= 4) {
-      stageIntensity = 1.15;
-      swingFreq = 0.0021;
+      // 3x FIEBRE RÍTMICA: Magenta Neón y Violeta Profundo
+      bgGrad.addColorStop(0.0, '#0c0218');
+      bgGrad.addColorStop(0.45, '#26042f');
+      bgGrad.addColorStop(0.85, '#42074e');
+      bgGrad.addColorStop(1.0, '#1c0226');
+    } else if (mult === 2) {
+      // 2x BUILDUP: Ámbar Dorado y Bronce
+      bgGrad.addColorStop(0.0, '#07030e');
+      bgGrad.addColorStop(0.45, '#180e05');
+      bgGrad.addColorStop(0.85, '#2a1608');
+      bgGrad.addColorStop(1.0, '#120904');
+    } else {
+      // 1x BASE: Escenario Índigo / Medianoche Profundo
+      bgGrad.addColorStop(0.0, '#04020a');
+      bgGrad.addColorStop(0.50, '#0a0618');
+      bgGrad.addColorStop(1.0, '#120b24');
+    }
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, w, h);
+
+    // Strobe estroboscópico de estadio al compás del bombo en modo Fiebre (5x)
+    if (mult >= 5 && beatPulse > 0.45) {
+      ctx.save();
+      ctx.fillStyle = `rgba(255, 255, 255, ${(beatPulse * 0.14).toFixed(3)})`;
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
     }
 
-    // Pulsación rítmica con BPM
-    const bpm = this.bpm || 120;
-    const beatPhase = (currentTime / (60000 / bpm)) * Math.PI * 2;
-    const bpmPulse = 0.85 + 0.15 * Math.sin(beatPhase);
+    // 1b. Fondo personalizado si está activo
+    if (this.customBgMode === 'static' && this.customBgMedia) {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0.05, Math.min(0.9, this.customBgOpacity || 0.40));
+      this.drawCoverMedia(ctx, this.customBgMedia, w, h);
+      ctx.restore();
+    }
 
-    // 2. DOS FOCOS ZENITALES RÍTMICOS CRUZÁNDOSE (Swinging Zenith Spotlights)
+    // Intensidades y velocidad según multiplicador
+    let stageIntensity = 0.65;
+    let swingFreq = 0.0011;
+    let beamColor1 = palette.spotlight1 || '#9b51e0';
+    let beamColor2 = palette.spotlight2 || '#ff5964';
+
+    if (mult === 2) {
+      stageIntensity = 0.90;
+      swingFreq = 0.0015;
+      beamColor1 = '#ffd700';
+      beamColor2 = '#ff9900';
+    } else if (mult === 3) {
+      stageIntensity = 1.15;
+      swingFreq = 0.0020;
+      beamColor1 = '#ff007f';
+      beamColor2 = '#d946ef';
+    } else if (mult === 4) {
+      stageIntensity = 1.40;
+      swingFreq = 0.0026;
+      beamColor1 = '#00f2fe';
+      beamColor2 = '#38bdf8';
+    } else if (mult >= 5) {
+      stageIntensity = 1.70;
+      swingFreq = 0.0032;
+      beamColor1 = '#ffffff';
+      beamColor2 = '#ffd700';
+    }
+
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
 
-    const spot1BaseX = w * 0.15;
-    const spot1Swing = Math.sin(currentTime * swingFreq) * (w * 0.38);
-    const spot1TargetX = (w * 0.50) + spot1Swing;
-    const spot1TargetY = h * 0.88;
+    // 2. RESPLANDOR RADIAL DE HORIZONTE REACTIVO AL BPM (Horizon Stage Aura)
+    const horizY = Math.max(12, h * 0.02);
+    const auraRad = Math.max(w * 0.55, 200);
+    const auraGrad = ctx.createRadialGradient(w / 2, horizY, 8, w / 2, horizY, auraRad);
+    const auraAlpha = Math.min(0.65, (0.20 + beatPulse * 0.35) * stageIntensity);
+    auraGrad.addColorStop(0.0, hexToRgba(beamColor1, auraAlpha));
+    auraGrad.addColorStop(0.40, hexToRgba(beamColor2, auraAlpha * 0.45));
+    auraGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = auraGrad;
+    ctx.fillRect(0, 0, w, h * 0.55);
 
-    const grad1 = ctx.createRadialGradient(spot1BaseX, -20, 10, spot1TargetX, spot1TargetY, w * 0.65);
-    grad1.addColorStop(0, hexToRgba(palette.spotlight1 || '#9b51e0', 0.18 * stageIntensity * bpmPulse));
-    grad1.addColorStop(0.45, hexToRgba(palette.spotlight1 || '#9b51e0', 0.06 * stageIntensity));
+    // 3. FOCOS ZENITALES MÓVILES VOLUMÉTRICOS (Conos de luz de concierto)
+    // Foco Izquierdo
+    const spot1BaseX = w * 0.15;
+    const spot1Swing = Math.sin(currentTime * swingFreq) * (w * 0.45);
+    const spot1TargetX = (w * 0.50) + spot1Swing;
+    const spot1TargetY = h * 0.90;
+
+    const grad1 = ctx.createRadialGradient(spot1BaseX, -10, 5, spot1TargetX, spot1TargetY, w * 0.75);
+    grad1.addColorStop(0, hexToRgba(beamColor1, 0.28 * stageIntensity));
+    grad1.addColorStop(0.45, hexToRgba(beamColor1, 0.08 * stageIntensity));
     grad1.addColorStop(1, 'rgba(0,0,0,0)');
 
     ctx.fillStyle = grad1;
     ctx.beginPath();
-    ctx.moveTo(spot1BaseX - 30, -20);
-    ctx.lineTo(spot1BaseX + 30, -20);
-    ctx.lineTo(spot1TargetX + (w * 0.22 * bpmPulse), spot1TargetY);
-    ctx.lineTo(spot1TargetX - (w * 0.22 * bpmPulse), spot1TargetY);
+    ctx.moveTo(spot1BaseX - 30, -10);
+    ctx.lineTo(spot1BaseX + 30, -10);
+    ctx.lineTo(spot1TargetX + (w * 0.22 * (1 + beatPulse * 0.2)), spot1TargetY);
+    ctx.lineTo(spot1TargetX - (w * 0.22 * (1 + beatPulse * 0.2)), spot1TargetY);
     ctx.closePath();
     ctx.fill();
 
+    // Foco Derecho
     const spot2BaseX = w * 0.85;
-    const spot2Swing = Math.sin(currentTime * swingFreq + 1.2) * (w * 0.38);
+    const spot2Swing = Math.sin(currentTime * swingFreq + 1.4) * (w * 0.45);
     const spot2TargetX = (w * 0.50) - spot2Swing;
-    const spot2TargetY = h * 0.88;
+    const spot2TargetY = h * 0.90;
 
-    const grad2 = ctx.createRadialGradient(spot2BaseX, -20, 10, spot2TargetX, spot2TargetY, w * 0.65);
-    grad2.addColorStop(0, hexToRgba(palette.spotlight2 || '#ff5964', 0.18 * stageIntensity * bpmPulse));
-    grad2.addColorStop(0.45, hexToRgba(palette.spotlight2 || '#ff5964', 0.06 * stageIntensity));
+    const grad2 = ctx.createRadialGradient(spot2BaseX, -10, 5, spot2TargetX, spot2TargetY, w * 0.75);
+    grad2.addColorStop(0, hexToRgba(beamColor2, 0.28 * stageIntensity));
+    grad2.addColorStop(0.45, hexToRgba(beamColor2, 0.08 * stageIntensity));
     grad2.addColorStop(1, 'rgba(0,0,0,0)');
 
     ctx.fillStyle = grad2;
     ctx.beginPath();
-    ctx.moveTo(spot2BaseX - 30, -20);
-    ctx.lineTo(spot2BaseX + 30, -20);
-    ctx.lineTo(spot2TargetX + (w * 0.22 * bpmPulse), spot2TargetY);
-    ctx.lineTo(spot2TargetX - (w * 0.22 * bpmPulse), spot2TargetY);
+    ctx.moveTo(spot2BaseX - 30, -10);
+    ctx.lineTo(spot2BaseX + 30, -10);
+    ctx.lineTo(spot2TargetX + (w * 0.22 * (1 + beatPulse * 0.2)), spot2TargetY);
+    ctx.lineTo(spot2TargetX - (w * 0.22 * (1 + beatPulse * 0.2)), spot2TargetY);
     ctx.closePath();
     ctx.fill();
 
-    // 3. MOTAS DE POLVO ESCÉNICO FLOTANTES (Floating Stage Dust Motes)
+    // Focos adicionales en combo alto (3x, 4x, 5x)
+    if (mult >= 3) {
+      const spot3BaseX = w * 0.50;
+      const spot3Swing = Math.cos(currentTime * swingFreq * 1.3) * (w * 0.40);
+      const spot3TargetX = (w * 0.50) + spot3Swing;
+      const spot3TargetY = h * 0.92;
+
+      const grad3 = ctx.createRadialGradient(spot3BaseX, -10, 5, spot3TargetX, spot3TargetY, w * 0.65);
+      grad3.addColorStop(0, hexToRgba('#ffffff', 0.22 * stageIntensity));
+      grad3.addColorStop(0.5, hexToRgba(beamColor1, 0.06 * stageIntensity));
+      grad3.addColorStop(1, 'rgba(0,0,0,0)');
+
+      ctx.fillStyle = grad3;
+      ctx.beginPath();
+      ctx.moveTo(spot3BaseX - 20, -10);
+      ctx.lineTo(spot3BaseX + 20, -10);
+      ctx.lineTo(spot3TargetX + (w * 0.16), spot3TargetY);
+      ctx.lineTo(spot3TargetX - (w * 0.16), spot3TargetY);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // 4. ESTELAS DE VELOCIDAD EN PERSPECTIVA (Speed Warp Streaks en 3x, 4x, 5x)
+    if (mult >= 3) {
+      if (!this.speedStreaks || this.speedStreaks.length === 0) {
+        this.speedStreaks = [];
+        for (let i = 0; i < 18; i++) {
+          this.speedStreaks.push({
+            angle: -0.85 + Math.random() * 1.70, // Ángulo radial desde el horizonte
+            speed: 0.8 + Math.random() * 1.4,
+            progress: Math.random(),
+            len: 0.15 + Math.random() * 0.25,
+            side: Math.random() > 0.5 ? 1 : -1
+          });
+        }
+      }
+
+      ctx.lineWidth = 1.6;
+      for (let i = 0; i < this.speedStreaks.length; i++) {
+        const s = this.speedStreaks[i];
+        s.progress += 0.012 * s.speed * (mult >= 4 ? 1.6 : 1.0);
+        if (s.progress > 1.0) {
+          s.progress = 0;
+          s.angle = -0.85 + Math.random() * 1.70;
+          s.side = Math.random() > 0.5 ? 1 : -1;
+        }
+
+        const p1 = s.progress;
+        const p2 = Math.min(1.0, p1 + s.len);
+        const startRad = 30 + p1 * (w * 0.85);
+        const endRad = 30 + p2 * (w * 0.85);
+
+        const xCenter = w / 2;
+        const yCenter = horizY;
+
+        const x1 = xCenter + s.side * (w * 0.38 + startRad * 0.7) * (0.4 + 0.6 * p1);
+        const y1 = yCenter + p1 * h * 0.95;
+        const x2 = xCenter + s.side * (w * 0.38 + endRad * 0.7) * (0.4 + 0.6 * p2);
+        const y2 = yCenter + p2 * h * 0.95;
+
+        const streakAlpha = Math.sin(p1 * Math.PI) * (0.25 * stageIntensity);
+        ctx.strokeStyle = hexToRgba(beamColor1, streakAlpha);
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      }
+    }
+
+    // 5. MOTAS DE POLVO ESCÉNICO Y DESTELLOS FLOTANTES
     if (!this.stageDustMotes || this.stageDustMotes.length === 0) {
       this.stageDustMotes = [];
-      for (let i = 0; i < 18; i++) {
+      for (let i = 0; i < 28; i++) {
         this.stageDustMotes.push({
           x: Math.random() * w,
           y: Math.random() * h,
-          r: 1.0 + Math.random() * 1.8,
-          speed: 0.25 + Math.random() * 0.45,
+          r: 1.0 + Math.random() * 2.4,
+          speed: 0.35 + Math.random() * 0.65,
           phase: Math.random() * Math.PI * 2,
-          alpha: 0.12 + Math.random() * 0.22
+          alpha: 0.15 + Math.random() * 0.35
         });
       }
     }
 
-    ctx.fillStyle = hexToRgba(palette.secondary || '#e0aaff', 0.22);
     for (let i = 0; i < this.stageDustMotes.length; i++) {
       const m = this.stageDustMotes[i];
-      m.y -= m.speed;
-      m.x += Math.sin(m.phase + currentTime * 0.0012) * 0.35;
+      m.y -= m.speed * (mult >= 3 ? 1.5 : 1.0);
+      m.x += Math.sin(m.phase + currentTime * 0.0016) * 0.5;
       if (m.y < -10) {
         m.y = h + 10;
         m.x = Math.random() * w;
       }
+      ctx.fillStyle = hexToRgba(beamColor1, m.alpha * (0.5 + 0.5 * beatPulse));
       ctx.beginPath();
       ctx.arc(m.x, m.y, m.r, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // 4. REFLEJOS ESPECULARES EN EL SUELO BAJO LAS NOTAS (Ground Specular Reflections)
+    // 6. REFLEJOS ESPECULARES EN EL SUELO BAJO LAS NOTAS
     const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (h * 0.84);
     if (Array.isArray(this.notes)) {
+      let drawnReflections = 0;
       for (let i = 0; i < this.notes.length; i++) {
         const n = this.notes[i];
-        if (n.consumed) continue;
-        const diff = n.timeMs - currentTime;
-        if (diff >= -50 && diff <= 500) {
+        if (n.consumed || n.hit || n.missed) continue;
+        const noteTime = n.timeMs || n.timestamp_ms || 0;
+        const diff = noteTime - currentTime;
+        if (diff > 500) break;
+        if (diff >= -50 && diff <= 500 && drawnReflections < 3) {
           const laneCoord = this.getPerspectiveCoord(n.lane, 1.0 - (diff / (this.scrollDurationMs || 1000)));
           if (laneCoord && laneCoord.y > hitY * 0.4) {
-            const refAlpha = Math.max(0, Math.min(0.20, (1 - diff / 500) * 0.20));
+            drawnReflections++;
+            const refAlpha = Math.max(0, Math.min(0.22, (1 - diff / 500) * 0.22));
             const refGrad = ctx.createRadialGradient(laneCoord.x, hitY + 12, 5, laneCoord.x, hitY + 12, laneCoord.laneW * 0.65);
-            refGrad.addColorStop(0, hexToRgba(palette.glow || '#9b51e0', refAlpha));
+            refGrad.addColorStop(0, hexToRgba(beamColor1, refAlpha));
             refGrad.addColorStop(1, 'rgba(0,0,0,0)');
             ctx.fillStyle = refGrad;
             ctx.beginPath();
@@ -3475,12 +3776,12 @@ class BeatstarEngine {
 
     ctx.restore();
 
-    // 2. Full Focus Vignette Ambient Flash
+    // 7. Full Focus Vignette Ambient Flash
     if (this.vignetteAlpha > 0.01) {
       const vGrad = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.28, w / 2, h / 2, Math.max(w, h) * 0.82);
       vGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-      vGrad.addColorStop(0.60, hexToRgba(this.vignetteColor || palette.glow, this.vignetteAlpha * 0.35));
-      vGrad.addColorStop(1, hexToRgba(this.vignetteColor || palette.glow, this.vignetteAlpha * 0.72));
+      vGrad.addColorStop(0.60, hexToRgba(this.vignetteColor || beamColor1, this.vignetteAlpha * 0.35));
+      vGrad.addColorStop(1, hexToRgba(this.vignetteColor || beamColor1, this.vignetteAlpha * 0.72));
       ctx.fillStyle = vGrad;
       ctx.fillRect(0, 0, w, h);
     }
@@ -3653,17 +3954,21 @@ class BeatstarEngine {
         const hasBoost = (this.reactiveLightBoost || 0) > 0.01;
 
         if (hasBursts || hasHolds || hasBoost) {
-          if (!this.spotlightCanvas || this.spotlightCanvas.width !== w || this.spotlightCanvas.height !== h) {
+          const spotScale = 0.5;
+          const spotW = Math.max(160, Math.round(w * spotScale));
+          const spotH = Math.max(160, Math.round(h * spotScale));
+          if (!this.spotlightCanvas || this.spotlightCanvas.width !== spotW || this.spotlightCanvas.height !== spotH) {
             this.spotlightCanvas = document.createElement('canvas');
-            this.spotlightCanvas.width = w;
-            this.spotlightCanvas.height = h;
+            this.spotlightCanvas.width = spotW;
+            this.spotlightCanvas.height = spotH;
             this.spotlightCtx = this.spotlightCanvas.getContext('2d');
           }
           const sCtx = this.spotlightCtx;
-          sCtx.clearRect(0, 0, w, h);
+          sCtx.clearRect(0, 0, spotW, spotH);
 
           // PASO 1: Dibujar todas las fuentes de luz en la máscara usando 'lighter' (ADITIVO: más teclas = más luz, NUNCA se queda negro!)
           sCtx.save();
+          sCtx.scale(spotScale, spotScale);
           sCtx.globalCompositeOperation = 'lighter';
 
           // A. Resplandor ambiental reactivo acumulado por ráfagas de notas
@@ -3712,12 +4017,13 @@ class BeatstarEngine {
           // PASO 2: Recortar la imagen o vídeo con la máscara de luz sumada (source-in)
           sCtx.save();
           sCtx.globalCompositeOperation = 'source-in';
+          sCtx.scale(spotScale, spotScale);
           this.drawCoverMedia(sCtx, this.customBgMedia, w, h);
           sCtx.restore();
 
           // PASO 3: Dibujar la escena iluminada sobre el fondo negro base
           ctx.save();
-          ctx.drawImage(this.spotlightCanvas, 0, 0);
+          ctx.drawImage(this.spotlightCanvas, 0, 0, w, h);
 
           // PASO 4: Halo de onda expansiva perimetral con el color exacto del juicio (Perfect+, Perfect, Great, Good)
           ctx.globalCompositeOperation = 'screen';
@@ -3758,14 +4064,132 @@ class BeatstarEngine {
     this.renderBackgroundFX(currentTime);
     this.renderLanes(currentTime);
     this.renderHitLine();
+    this.renderRipples(this.ctx);
     this.renderNotes(currentTime);
     this.particles.render(this.ctx);
     this.renderMusicalNotes();
     this.renderJudgements();
+    this.renderTopMilestone(this.ctx);
 
     if (hasShake) {
       this.ctx.restore();
     }
+  }
+
+  renderTopMilestone(ctx) {
+    if (!this.topComboToast || !ctx) return;
+    const t = this.topComboToast;
+    const w = this.width;
+    const midX = w / 2;
+    const topY = Math.max(90, Math.min(150, this.height * 0.15));
+
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(1, t.alpha));
+
+    ctx.translate(midX, topY);
+    ctx.scale(t.scale, t.scale);
+
+    // 1. Destello radial starburst al aparecer
+    if (t.age < 0.40) {
+      const flareProgress = t.age / 0.40;
+      const flareAlpha = (1 - flareProgress) * 0.85;
+      const flareRad = Math.max(40, 190 * flareProgress);
+      const flareGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, flareRad);
+      flareGrad.addColorStop(0.0, 'rgba(255, 255, 255, ' + flareAlpha.toFixed(3) + ')');
+      flareGrad.addColorStop(0.35, hexToRgba(t.color || '#ffd700', flareAlpha * 0.85));
+      flareGrad.addColorStop(1.0, 'rgba(0,0,0,0)');
+      ctx.fillStyle = flareGrad;
+      ctx.beginPath();
+      ctx.arc(0, 0, flareRad, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 2. Banner de cristal y neón de alta calidad
+    const pillW = Math.min(w * 0.86, 264);
+    const pillH = t.subtext ? 46 : 38;
+    const pillX = -pillW / 2;
+    const pillY = -pillH / 2;
+    const radius = pillH / 2;
+
+    const bgGrad = ctx.createLinearGradient(0, pillY, 0, pillY + pillH);
+    bgGrad.addColorStop(0.0, 'rgba(26, 16, 40, 0.94)');
+    bgGrad.addColorStop(1.0, 'rgba(10, 6, 18, 0.98)');
+    ctx.fillStyle = bgGrad;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(pillX, pillY, pillW, pillH, radius);
+    else ctx.rect(pillX, pillY, pillW, pillH);
+    ctx.fill();
+
+    // Borde de neón resplandeciente
+    ctx.shadowColor = t.color || '#ffd700';
+    ctx.shadowBlur = 14;
+    ctx.strokeStyle = t.color || '#ffd700';
+    ctx.lineWidth = 2.2;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Brillo superior satinado
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(pillX + 8, pillY + 3, pillW - 16, (pillH / 2) - 3, (pillH - 6) / 4);
+    ctx.fill();
+
+    // 3. Tipografía estilizada de alto impacto
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    if (t.subtext) {
+      ctx.font = '900 15px "Plus Jakarta Sans", system-ui, -apple-system, sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = t.color || '#ffd700';
+      ctx.shadowBlur = 10;
+      ctx.fillText(t.title, 0, -7);
+
+      ctx.shadowBlur = 0;
+      ctx.font = '800 10px "Plus Jakarta Sans", system-ui, -apple-system, sans-serif';
+      ctx.fillStyle = t.color || '#ffd700';
+      ctx.fillText(t.subtext, 0, 11);
+    } else {
+      ctx.font = '900 16px "Plus Jakarta Sans", system-ui, -apple-system, sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = t.color || '#ffd700';
+      ctx.shadowBlur = 10;
+      ctx.fillText(t.title, 0, 0);
+    }
+
+    ctx.restore();
+  }
+
+  renderRipples(ctx) {
+    if (!this.fxRipples || this.fxRipples.length === 0 || !ctx) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const len = this.fxRipples.length;
+    for (let i = 0; i < len; i++) {
+      const r = this.fxRipples[i];
+      if (!r || r.alpha <= 0.01) continue;
+      const alpha = Math.max(0, Math.min(1, r.alpha));
+      const col = r.color || '#00f2fe';
+      const rad = Math.max(1, r.radius);
+      const maxR = Math.max(10, r.maxRadius || 200);
+      const progress = Math.min(1, rad / maxR);
+      const widthFactor = 1 - progress;
+
+      // Halo de energía exterior
+      ctx.strokeStyle = hexToRgba(col, alpha * 0.75);
+      ctx.lineWidth = Math.max(2.0, 6.0 * widthFactor);
+      ctx.beginPath();
+      ctx.arc(r.x, r.y, rad, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Núcleo blanco incandescente de alta intensidad
+      ctx.strokeStyle = `rgba(255, 255, 255, ${(alpha * 0.95).toFixed(3)})`;
+      ctx.lineWidth = Math.max(1.0, 2.5 * widthFactor);
+      ctx.beginPath();
+      ctx.arc(r.x, r.y, Math.max(1, rad - 1.5), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   renderMusicalNotes() {
@@ -4045,12 +4469,32 @@ class BeatstarEngine {
     const beatInterval = 60 / songBpm;
     const audioTime = Math.max(0, cTime) / 1000;
     const beatFraction = ((audioTime % beatInterval) + beatInterval) % beatInterval / beatInterval;
-    const beatPulse = Math.pow(1 - beatFraction, 3); // Pico explosivo en el bombo
+    const beatPulse = Math.pow(Math.max(0, 1 - beatFraction), 2.8); // Pico explosivo en el bombo
 
-    // Actualizar físicamente a escala el portal del artista al ritmo exacto del BPM
+    // Multiplicador activo y color temático
+    const mult = this.multiplier || 1;
+    const palette = this.activeSongPalette || (typeof SONG_COLOR_PALETTES !== 'undefined' ? SONG_COLOR_PALETTES.classic : null);
+    let railLaserCol = palette ? (palette.primary || '#00f5a0') : '#00f5a0';
+    let railGlowCol = palette ? (palette.glow || '#00f5a0') : '#00f5a0';
+
+    if (mult === 2) {
+      railLaserCol = '#ffd700'; // Dorado 2x
+      railGlowCol = '#ffaa00';
+    } else if (mult === 3) {
+      railLaserCol = '#ff007f'; // Magenta Neón 3x
+      railGlowCol = '#d946ef';
+    } else if (mult === 4) {
+      railLaserCol = '#00f2fe'; // Cian Eléctrico 4x
+      railGlowCol = '#38bdf8';
+    } else if (mult >= 5) {
+      railLaserCol = '#ffffff'; // Fiebre Diamante 5x
+      railGlowCol = '#ffd700';
+    }
+
+    // Actualizar portal del artista al compás del BPM
     if (!this.hudArtistPortalEl) this.hudArtistPortalEl = document.getElementById('hudArtistPortal');
     if (this.hudArtistPortalEl) {
-      this.hudArtistPortalEl.style.transform = `scale(${(1 + beatPulse * 0.1).toFixed(3)})`;
+      this.hudArtistPortalEl.style.transform = `scale(${(1 + beatPulse * 0.12).toFixed(3)})`;
     }
 
     ctx.save();
@@ -4058,12 +4502,12 @@ class BeatstarEngine {
     if (is3D) {
       const getBoundaryX = (lineIdx, yTarget) => this.getLaneBoundaryX(lineIdx, yTarget);
 
-      // 1. PISTA CLARA RETROILUMINADA (Acrílico/cristal satinado de escenario #8ea8a2 a #e4f2ee en la base)
+      // 1. PISTA CLARA RETROILUMINADA (Acrílico satinado de escenario Beatstar)
       const trackGrad = ctx.createLinearGradient(midX, horizonY, midX, bottomY);
-      trackGrad.addColorStop(0.0, '#8ea8a2'); // Horizon satin acrylic
-      trackGrad.addColorStop(0.32, '#a5c0b9');
-      trackGrad.addColorStop(0.68, '#cce0db');
-      trackGrad.addColorStop(1.0, '#e4f2ee'); // Base reflectante clara Beatstar
+      trackGrad.addColorStop(0.0, '#7e9690');
+      trackGrad.addColorStop(0.28, '#9cb8b1');
+      trackGrad.addColorStop(0.65, '#c5ddd8');
+      trackGrad.addColorStop(1.0, '#eaf5f2'); // Base reflectante ultra clara
 
       const tL_top = getBoundaryX(0, horizonY);
       const tR_top = getBoundaryX(3, horizonY);
@@ -4082,9 +4526,9 @@ class BeatstarEngine {
       // Reflejo especular satinado central (escenario Beatstar de cristal)
       ctx.save();
       ctx.globalCompositeOperation = 'overlay';
-      const glossGrad = ctx.createLinearGradient(midX - 120, 0, midX + 120, 0);
+      const glossGrad = ctx.createLinearGradient(midX - 140, 0, midX + 140, 0);
       glossGrad.addColorStop(0.0, 'rgba(255, 255, 255, 0)');
-      glossGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.28)');
+      glossGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.35)');
       glossGrad.addColorStop(1.0, 'rgba(255, 255, 255, 0)');
       ctx.fillStyle = glossGrad;
       ctx.fillRect(tL_top, horizonY, tR_bot - tL_bot, bottomY - horizonY);
@@ -4096,9 +4540,9 @@ class BeatstarEngine {
         const xB = getBoundaryX(l, bottomY);
         ctx.save();
         const divGrad = ctx.createLinearGradient(0, horizonY, 0, bottomY);
-        divGrad.addColorStop(0.0, 'rgba(90, 110, 115, 0.4)');
-        divGrad.addColorStop(0.6, 'rgba(70, 88, 94, 0.7)');
-        divGrad.addColorStop(1.0, 'rgba(55, 72, 78, 0.85)');
+        divGrad.addColorStop(0.0, 'rgba(90, 110, 115, 0.35)');
+        divGrad.addColorStop(0.6, 'rgba(70, 88, 94, 0.65)');
+        divGrad.addColorStop(1.0, 'rgba(50, 68, 75, 0.85)');
         ctx.strokeStyle = divGrad;
         ctx.lineWidth = 1.8;
         ctx.beginPath();
@@ -4124,7 +4568,7 @@ class BeatstarEngine {
 
           const goldBeam = ctx.createLinearGradient(0, hitY + 28, 0, horizonY);
           let alpha = flashTimer > 0 ? (0.45 * (flashTimer / 0.11)) : Math.min(0.40, glow * 0.40);
-          const flashCol = (Array.isArray(this.laneFlashColors) && this.laneFlashColors[l]) || '#00f2fe';
+          const flashCol = (Array.isArray(this.laneFlashColors) && this.laneFlashColors[l]) || railLaserCol;
           const rgb = hexToRgb(flashCol);
           goldBeam.addColorStop(0.0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha.toFixed(3)})`);
           goldBeam.addColorStop(0.5, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(alpha * 0.45).toFixed(3)})`);
@@ -4142,137 +4586,131 @@ class BeatstarEngine {
         }
       }
 
-      // 3. BORDES DE ALTAVOZ / COSTILLAS REACTIVAS AL BPM (ESTILO BEATSTAR AUTÉNTICO)
-      // Chevrons angulados y gorditos que bombean hacia fuera y disparan ráfagas de luz
-      const ribCount = 18;
+      // 3. CHASIS METÁLICO CONTINUO Y ALAS LATERALES (Estilo Beatstar Cyber-Metallic Chassis)
+      const wingMaxWidth = this.width * 0.16;
 
-      for (let s = 0; s < ribCount; s++) {
-        const pNorm = s / (ribCount - 1);
-        const p = Math.pow(pNorm, 1.45);
+      // Alas sólidas laterales en degradado titanio/obsidiana satinado
+      ctx.save();
+      const leftWingGrad = ctx.createLinearGradient(Math.max(0, tL_bot - wingMaxWidth), 0, tL_bot, 0);
+      leftWingGrad.addColorStop(0.0, '#0a0d14');
+      leftWingGrad.addColorStop(0.5, '#151c27');
+      leftWingGrad.addColorStop(1.0, '#222d3d');
+
+      ctx.fillStyle = leftWingGrad;
+      ctx.beginPath();
+      ctx.moveTo(tL_top, horizonY);
+      ctx.lineTo(Math.max(0, tL_top - 14), horizonY);
+      ctx.lineTo(Math.max(0, tL_bot - wingMaxWidth), bottomY);
+      ctx.lineTo(tL_bot, bottomY);
+      ctx.closePath();
+      ctx.fill();
+
+      // Borde exterior biselado de cromo (Ala Izquierda)
+      ctx.strokeStyle = 'rgba(110, 136, 160, 0.45)';
+      ctx.lineWidth = 2.0;
+      ctx.beginPath();
+      ctx.moveTo(Math.max(0, tL_top - 14), horizonY);
+      ctx.lineTo(Math.max(0, tL_bot - wingMaxWidth), bottomY);
+      ctx.stroke();
+
+      const rightWingGrad = ctx.createLinearGradient(tR_bot, 0, Math.min(this.width, tR_bot + wingMaxWidth), 0);
+      rightWingGrad.addColorStop(0.0, '#222d3d');
+      rightWingGrad.addColorStop(0.5, '#151c27');
+      rightWingGrad.addColorStop(1.0, '#0a0d14');
+
+      ctx.fillStyle = rightWingGrad;
+      ctx.beginPath();
+      ctx.moveTo(tR_top, horizonY);
+      ctx.lineTo(Math.min(this.width, tR_top + 14), horizonY);
+      ctx.lineTo(Math.min(this.width, tR_bot + wingMaxWidth), bottomY);
+      ctx.lineTo(tR_bot, bottomY);
+      ctx.closePath();
+      ctx.fill();
+
+      // Borde exterior biselado de cromo (Ala Derecha)
+      ctx.strokeStyle = 'rgba(110, 136, 160, 0.45)';
+      ctx.lineWidth = 2.0;
+      ctx.beginPath();
+      ctx.moveTo(Math.min(this.width, tR_top + 14), horizonY);
+      ctx.lineTo(Math.min(this.width, tR_bot + wingMaxWidth), bottomY);
+      ctx.stroke();
+      ctx.restore();
+
+      // 4. NODOS DE ENERGÍA Y CHEVRONS FLUIDOS EMBEBIDOS EN EL CHASIS (Reactivos al BPM sin líneas grises)
+      const nodeCount = 14;
+      for (let s = 0; s < nodeCount; s++) {
+        const pNorm = s / (nodeCount - 1);
+        const p = Math.pow(pNorm, 1.35);
         const yCenter = horizonY + (bottomY - horizonY) * p;
-        const scale = 0.48 + 0.52 * p;
+        const scale = 0.50 + 0.50 * p;
 
-        // Grosor y relieve 3D de cada costilla ("gorditas" y no monótonas)
-        const ribH = (14 + 16 * p);
-        const yTop = yCenter - ribH / 2;
-        const yBot = yCenter + ribH / 2;
+        // Onda de luz continua descendente por el chasis
+        const wavePhase = ((audioTime * (songBpm / 60) * 1.5 - s * 0.16) % 1.0 + 1.0) % 1.0;
+        const waveLight = Math.pow(Math.max(0, 1.0 - wavePhase), 3.0);
+        const combinedAlpha = Math.min(1.0, 0.15 + (beatPulse * 0.55) + (waveLight * 0.45));
 
-        // Bombeo hacia fuera en el pico del bombo
-        const bump = beatPulse * (8 + 14 * scale);
-        const ribBaseW = (16 + 24 * p) + bump;
+        const nodeW = 12 * scale;
+        const nodeH = 4 * scale;
 
-        // Ráfaga de luz reactiva al bombo
-        const lightAlpha = Math.min(1.0, 0.15 + beatPulse * 0.85);
+        // Nodo Izquierdo integrado
+        const xL_in = getBoundaryX(0, yCenter);
+        const xL_node = xL_in - 8 * scale;
 
-        // --- COSTILLA IZQUIERDA ---
-        const xL_inTop = getBoundaryX(0, yTop);
-        const xL_inBot = getBoundaryX(0, yBot);
-        // Angulación chevron hacia arriba/afuera estilo Beatstar
-        const xL_outTop = xL_inTop - ribBaseW * 0.88;
-        const xL_outBot = xL_inBot - ribBaseW;
-
-        // Cuerpo sólido oscuro 3D de altavoz
         ctx.save();
-        const ribGradL = ctx.createLinearGradient(xL_outBot, 0, xL_inBot, 0);
-        ribGradL.addColorStop(0.0, '#10151c');
-        ribGradL.addColorStop(0.5, '#1e2630');
-        ribGradL.addColorStop(1.0, '#2b3644');
-        ctx.fillStyle = ribGradL;
-
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = hexToRgba(railLaserCol, combinedAlpha * 0.85);
         ctx.beginPath();
-        ctx.moveTo(xL_inTop, yTop);
-        ctx.lineTo(xL_outTop, yTop - 3 * scale);
-        ctx.lineTo(xL_outBot, yBot - 1 * scale);
-        ctx.lineTo(xL_inBot, yBot);
-        ctx.closePath();
+        if (ctx.roundRect) ctx.roundRect(xL_node - nodeW, yCenter - nodeH / 2, nodeW, nodeH, nodeH / 2);
+        else ctx.rect(xL_node - nodeW, yCenter - nodeH / 2, nodeW, nodeH);
         ctx.fill();
 
-        // Borde metálico biselado
-        ctx.strokeStyle = '#3d4d5e';
-        ctx.lineWidth = Math.max(1.0, 1.6 * scale);
-        ctx.stroke();
-
-        // Hendidura de luz / ráfaga al compás del bombo (rgba(255, 70, 100, alpha))
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.strokeStyle = `rgba(255, 70, 100, ${lightAlpha.toFixed(3)})`;
-        ctx.lineWidth = Math.max(2.0, 3.8 * scale);
-        ctx.beginPath();
-        ctx.moveTo(xL_outTop + 3, yTop);
-        ctx.lineTo(xL_outBot + 3, yBot);
-        ctx.stroke();
-
-        // Destello de ráfaga exterior en el pico explosivo del bombo
+        // Destello central en el bombo
         if (beatPulse > 0.45) {
-          ctx.fillStyle = `rgba(255, 70, 100, ${(beatPulse * 0.45).toFixed(3)})`;
+          ctx.fillStyle = hexToRgba('#ffffff', beatPulse * 0.50);
           ctx.beginPath();
-          const rxL = Math.max(0.1, 14 * scale);
-          const ryL = Math.max(0.1, 6 * scale);
-          if (typeof ctx.ellipse === 'function') {
-            ctx.ellipse(xL_outBot, yCenter, rxL, ryL, 0, 0, Math.PI * 2);
-          } else {
-            ctx.arc(xL_outBot, yCenter, rxL, 0, Math.PI * 2);
-          }
+          ctx.arc(xL_node - nodeW / 2, yCenter, Math.max(1, 3.5 * scale), 0, Math.PI * 2);
           ctx.fill();
         }
-        ctx.restore();
 
-        // --- COSTILLA DERECHA ---
-        const xR_inTop = getBoundaryX(3, yTop);
-        const xR_inBot = getBoundaryX(3, yBot);
-        const xR_outTop = xR_inTop + ribBaseW * 0.88;
-        const xR_outBot = xR_inBot + ribBaseW;
+        // Nodo Derecho integrado
+        const xR_in = getBoundaryX(3, yCenter);
+        const xR_node = xR_in + 8 * scale;
 
-        ctx.save();
-        const ribGradR = ctx.createLinearGradient(xR_inBot, 0, xR_outBot, 0);
-        ribGradR.addColorStop(0.0, '#2b3644');
-        ribGradR.addColorStop(0.5, '#1e2630');
-        ribGradR.addColorStop(1.0, '#10151c');
-        ctx.fillStyle = ribGradR;
-
+        ctx.fillStyle = hexToRgba(railLaserCol, combinedAlpha * 0.85);
         ctx.beginPath();
-        ctx.moveTo(xR_inTop, yTop);
-        ctx.lineTo(xR_outTop, yTop - 3 * scale);
-        ctx.lineTo(xR_outBot, yBot - 1 * scale);
-        ctx.lineTo(xR_inBot, yBot);
-        ctx.closePath();
+        if (ctx.roundRect) ctx.roundRect(xR_node, yCenter - nodeH / 2, nodeW, nodeH, nodeH / 2);
+        else ctx.rect(xR_node, yCenter - nodeH / 2, nodeW, nodeH);
         ctx.fill();
 
-        ctx.strokeStyle = '#3d4d5e';
-        ctx.lineWidth = Math.max(1.0, 1.6 * scale);
-        ctx.stroke();
-
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.strokeStyle = `rgba(255, 70, 100, ${lightAlpha.toFixed(3)})`;
-        ctx.lineWidth = Math.max(2.0, 3.8 * scale);
-        ctx.beginPath();
-        ctx.moveTo(xR_outTop - 3, yTop);
-        ctx.lineTo(xR_outBot - 3, yBot);
-        ctx.stroke();
-
         if (beatPulse > 0.45) {
-          ctx.fillStyle = `rgba(255, 70, 100, ${(beatPulse * 0.45).toFixed(3)})`;
+          ctx.fillStyle = hexToRgba('#ffffff', beatPulse * 0.50);
           ctx.beginPath();
-          const rxR = Math.max(0.1, 14 * scale);
-          const ryR = Math.max(0.1, 6 * scale);
-          if (typeof ctx.ellipse === 'function') {
-            ctx.ellipse(xR_outBot, yCenter, rxR, ryR, 0, 0, Math.PI * 2);
-          } else {
-            ctx.arc(xR_outBot, yCenter, rxR, 0, Math.PI * 2);
-          }
+          ctx.arc(xR_node + nodeW / 2, yCenter, Math.max(1, 3.5 * scale), 0, Math.PI * 2);
           ctx.fill();
         }
         ctx.restore();
       }
 
-      // Rieles de contorno cromados exteriores
+      // 5. GUÍAS LÁSER DE NEÓN CONTINUAS DE ALTA INTENSIDAD (Estilo Beatstar Pure Laser Guides)
       ctx.save();
-      ctx.strokeStyle = '#7c94a0';
-      ctx.lineWidth = 2.4;
+      ctx.globalCompositeOperation = 'lighter';
+
+      // Resplandor difuso exterior
+      ctx.strokeStyle = hexToRgba(railLaserCol, 0.55 + beatPulse * 0.35);
+      ctx.lineWidth = 6.5;
       ctx.beginPath();
       ctx.moveTo(tL_top, horizonY);
       ctx.lineTo(tL_bot, bottomY);
+      ctx.moveTo(tR_top, horizonY);
+      ctx.lineTo(tR_bot, bottomY);
       ctx.stroke();
+
+      // Núcleo blanco incandescente
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.2;
       ctx.beginPath();
+      ctx.moveTo(tL_top, horizonY);
+      ctx.lineTo(tL_bot, bottomY);
       ctx.moveTo(tR_top, horizonY);
       ctx.lineTo(tR_bot, bottomY);
       ctx.stroke();
@@ -4282,9 +4720,9 @@ class BeatstarEngine {
       // ==========================================
       // 2D NEÓN CLÁSICO (Modo Plano)
       // ==========================================
-      const laneW = baseLaneW;
+      const laneW = this.width / 3;
 
-      ctx.fillStyle = hasCustomBg ? 'rgba(8, 6, 14, 0.38)' : 'rgba(8, 6, 14, 0.88)';
+      ctx.fillStyle = 'rgba(8, 6, 14, 0.88)';
       ctx.fillRect(0, 0, this.width, this.height);
 
       for (let l = 1; l <= 2; l++) {
