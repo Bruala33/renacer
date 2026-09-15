@@ -1441,6 +1441,30 @@ class ParticleSystem {
 // 3-LANE FIXED BEATSTAR ENGINE
 // ==========================================
 
+const GLOBAL_SYNTH_PALETTES = [
+  ['#7c3aed', '#8b5cf6', '#3b82f6', '#00f2fe', '#10b981', '#39ff14', '#ff007f', '#ff2040'],
+  ['#4c1d95', '#c026d3', '#ec4899', '#f43f5e', '#fb923c', '#fbbf24', '#fde047', '#ffffff'],
+  ['#1e3a8a', '#0284c7', '#06b6d4', '#10b981', '#34d399', '#39ff14', '#a3e635', '#fef08a'],
+  ['#312e81', '#6366f1', '#818cf8', '#38bdf8', '#2dd4bf', '#f472b6', '#fb7185', '#fed7aa'],
+  ['#881337', '#be123c', '#e11d48', '#f97316', '#f59e0b', '#facc15', '#fef08a', '#ffffff']
+];
+
+const GLOBAL_BEAM_PALETTE = [
+  { r: 0,   g: 242, b: 254 }, // Cian Neón
+  { r: 255, g: 0,   b: 127 }, // Magenta Metálico
+  { r: 251, g: 191, b: 36  }, // Oro Radiante
+  { r: 168, g: 85,  b: 247 }, // Violeta Eléctrico
+  { r: 57,  g: 255, b: 20  }, // Lima Flúor
+  { r: 56,  g: 189, b: 248 }  // Azul Turquesa
+];
+
+const GLOBAL_DISCO_SPOTLIGHTS = [
+  { x: -0.65, y: -0.55, z: 0.52, rgb: { r: 255, g: 255, b: 255 }, weight: 1.1 },
+  { x: 0.70, y: -0.45, z: 0.55, rgb: { r: 0, g: 242, b: 254 }, weight: 0.95 },
+  { x: -0.25, y: -0.75, z: 0.60, rgb: { r: 255, g: 0, b: 127 }, weight: 1.0 },
+  { x: 0.40, y: -0.60, z: 0.70, rgb: { r: 251, g: 191, b: 36 }, weight: 0.9 }
+];
+
 class BeatstarEngine {
   constructor(canvas, uiCallbacks) {
     this.canvas = canvas;
@@ -3978,23 +4002,9 @@ class BeatstarEngine {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
 
-    // 5 Paletas de sintetizador ricas y variadas que rotan según el multiplicador y tiempo
-    const synthPalettes = [
-      // 0: Cyberpunk Neón (Cian, Magenta, Violeta, Esmeralda)
-      ['#7c3aed', '#8b5cf6', '#3b82f6', '#00f2fe', '#10b981', '#39ff14', '#ff007f', '#ff2040'],
-      // 1: Solar Flare & Retro Synth (Púrpura, Fucsia, Coral, Oro, Ámbar)
-      ['#4c1d95', '#c026d3', '#ec4899', '#f43f5e', '#fb923c', '#fbbf24', '#fde047', '#ffffff'],
-      // 2: Electric Acid & Matrix Wave (Azul Cobalto, Cian, Menta, Lima, Amarillo Flúor)
-      ['#1e3a8a', '#0284c7', '#06b6d4', '#10b981', '#34d399', '#39ff14', '#a3e635', '#fef08a'],
-      // 3: Vaporwave & Prism (Índigo, Lavanda, Turquesa, Rosa Neón, Oro Pálido)
-      ['#312e81', '#6366f1', '#818cf8', '#38bdf8', '#2dd4bf', '#f472b6', '#fb7185', '#fed7aa'],
-      // 4: Laser Crimson & Ultra Gold (Rojo Rubí, Fresa, Naranja Láser, Dorado, Blanco)
-      ['#881337', '#be123c', '#e11d48', '#f97316', '#f59e0b', '#facc15', '#fef08a', '#ffffff']
-    ];
-
     const timeSec = (currentTime || performance.now()) * 0.001;
-    const palIdx = Math.floor((timeSec * 0.10 + (mult - 1)) % synthPalettes.length);
-    const blockPalette = synthPalettes[Math.max(0, Math.min(synthPalettes.length - 1, palIdx))];
+    const palIdx = Math.floor((timeSec * 0.10 + (mult - 1)) % GLOBAL_SYNTH_PALETTES.length);
+    const blockPalette = GLOBAL_SYNTH_PALETTES[Math.max(0, Math.min(GLOBAL_SYNTH_PALETTES.length - 1, palIdx))];
     const palLen = blockPalette.length;
 
     // Cuadrados grandes con separación muy pequeña
@@ -4688,9 +4698,7 @@ class BeatstarEngine {
     const currentTime = this.getCurrentGameTimeMs();
 
     this.renderBackgroundFX(currentTime);
-    this.renderDiscoLighting(this.ctx, currentTime);
     this.renderLanes(currentTime);
-    // (renderDiscoTrackLightBeams eliminado para evitar cualquier sombra o elipse en la pista)
     this.renderHitLine();
     this.renderRipples(this.ctx);
     this.renderNotes(currentTime);
@@ -4698,6 +4706,7 @@ class BeatstarEngine {
     this.particles.render(this.ctx);
     this.renderMusicalNotes();
     this.renderJudgements();
+    this.renderDiscoLighting(this.ctx, currentTime);
     this.renderDiscoBall(this.ctx, currentTime);
     this.render3DComboExplosion(this.ctx);
 
@@ -4954,33 +4963,25 @@ class BeatstarEngine {
     ctx.globalCompositeOperation = 'lighter';
     ctx.globalAlpha = visAlpha;
 
-    const beamPalette = [
-      { r: 0,   g: 242, b: 254 }, // Cian Neón
-      { r: 255, g: 0,   b: 127 }, // Magenta Metálico
-      { r: 251, g: 191, b: 36  }, // Oro Radiante
-      { r: 168, g: 85,  b: 247 }, // Violeta Eléctrico
-      { r: 57,  g: 255, b: 20  }, // Lima Flúor
-      { r: 56,  g: 189, b: 248 }  // Azul Turquesa
-    ];
-
-    // 1. HACES DE LUZ VOLUMÉTRICOS GIRATORIOS CON EFECTO GLOW DIFUMINADO
     const numBeams = 8;
-    const beamLength = Math.max(w, h) * 1.25;
+    const beamLength = Math.max(w, h) * 1.30;
+    const beamPalette = GLOBAL_BEAM_PALETTE;
 
+    // 1. HACES DE LUZ VOLUMÉTRICOS GIRATORIOS VISIBLES Y BRILLANTES CON EFECTO GLOW
     for (let b = 0; b < numBeams; b++) {
       const angle = rot * 0.90 + (b * (Math.PI * 2 / numBeams));
       const rgb = beamPalette[b % beamPalette.length];
-      const beamSpread = 0.065;
-      const beamIntensity = (0.024 + 0.016 * beatPulse);
+      const beamSpread = 0.080;
+      const beamIntensity = (0.35 + 0.18 * beatPulse);
 
       ctx.save();
       ctx.translate(ballX, ballY);
       ctx.rotate(angle);
 
       const bGrad = ctx.createLinearGradient(0, 0, beamLength, 0);
-      bGrad.addColorStop(0.0, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + (beamIntensity * 1.1).toFixed(3) + ')');
+      bGrad.addColorStop(0.0, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + (beamIntensity * 0.95).toFixed(3) + ')');
       bGrad.addColorStop(0.35, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + (beamIntensity * 0.45).toFixed(3) + ')');
-      bGrad.addColorStop(0.75, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + (beamIntensity * 0.12).toFixed(3) + ')');
+      bGrad.addColorStop(0.75, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + (beamIntensity * 0.16).toFixed(3) + ')');
       bGrad.addColorStop(1.0, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', 0)');
 
       ctx.fillStyle = bGrad;
@@ -4993,26 +4994,25 @@ class BeatstarEngine {
       ctx.restore();
     }
 
-    // 2. RESPLANDOR DIFUMINADO DE LUCES DE COLORES (GLOW POOLS) PROYECTADAS
-    // Sin clipping en la pista, radio exacto al degradado para evitar cualquier artefacto negro
+    // 2. RESPLANDOR DIFUMINADO DE LUCES DE COLORES (GLOW POOLS)
     const numGlowSpots = 8;
     for (let s = 0; s < numGlowSpots; s++) {
       const spotAngle = rot * 1.1 + (s * (Math.PI * 2 / numGlowSpots));
       const sinA = Math.sin(spotAngle);
       const cosA = Math.cos(spotAngle);
-      if (cosA <= -0.2) continue; // Solo hacia abajo/escenario
+      if (cosA <= -0.2) continue; // Hacia abajo/escenario
 
       const progress = 0.25 + 0.65 * ((sinA + 1) * 0.5);
       const spotY = (h * 0.20) + (h * 0.65) * progress;
-      const spotX = (w * 0.5) + (w * 0.42) * sinA;
-      const spotRad = (18 + 28 * progress) * (1.0 + beatPulse * 0.2);
+      const spotX = (w * 0.5) + (w * 0.44) * sinA;
+      const spotRad = (22 + 34 * progress) * (1.0 + beatPulse * 0.25);
       const rgb = beamPalette[(s + 1) % beamPalette.length];
-      const spotAlpha = (0.12 + 0.08 * Math.sin(nowSec * 3.5 + s * 1.7)) * (1.0 + beatPulse * 0.35);
+      const spotAlpha = (0.28 + 0.15 * Math.sin(nowSec * 3.5 + s * 1.7)) * (1.0 + beatPulse * 0.35);
 
       const spotGrad = ctx.createRadialGradient(spotX, spotY, 0, spotX, spotY, spotRad);
       spotGrad.addColorStop(0.0, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + (spotAlpha * 1.0).toFixed(3) + ')');
-      spotGrad.addColorStop(0.40, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + (spotAlpha * 0.50).toFixed(3) + ')');
-      spotGrad.addColorStop(0.80, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + (spotAlpha * 0.12).toFixed(3) + ')');
+      spotGrad.addColorStop(0.40, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + (spotAlpha * 0.55).toFixed(3) + ')');
+      spotGrad.addColorStop(0.80, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + (spotAlpha * 0.15).toFixed(3) + ')');
       spotGrad.addColorStop(1.0, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', 0)');
 
       ctx.fillStyle = spotGrad;
@@ -5021,7 +5021,7 @@ class BeatstarEngine {
       ctx.fill();
     }
 
-    // 3. MOTAS BRILLANTES DE ESPEJO DANZANDO POR EL AIRE
+    // 3. MOTAS BRILLANTES DE ESPEJO
     if (this.discoBall.specks && this.discoBall.specks.length > 0) {
       const speckCount = Math.min(16, this.discoBall.specks.length);
       for (let i = 0; i < speckCount; i++) {
@@ -5038,7 +5038,7 @@ class BeatstarEngine {
         const rgb = beamPalette[sp.colorIdx % beamPalette.length];
         const shimmer = 0.6 + 0.4 * Math.sin(nowSec * sp.shimmerSpeed + sp.shimmerPhase);
         const rad = (sp.size * 0.65) * (1.0 + beatPulse * 0.2);
-        const alpha = Math.min(0.35, sp.brightness * shimmer * (0.18 + beatPulse * 0.15));
+        const alpha = Math.min(0.40, sp.brightness * shimmer * (0.22 + beatPulse * 0.18));
 
         ctx.fillStyle = 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + alpha.toFixed(3) + ')';
         ctx.beginPath();

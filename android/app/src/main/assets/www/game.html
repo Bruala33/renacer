@@ -5920,6 +5920,84 @@ function switchMainTab(tab) {
     window.playMenuAmbientMusic = playMenuAmbientMusic;
     window.isGameCurrentlyActive = isGameCurrentlyActive;
 
+    // ==========================================
+    //  GLOBAL APP & AUDIO LIFECYCLE MANAGEMENT
+    // ==========================================
+    function handleAppBackground() {
+      // 1. Pausar inmediatamente la música de fondo de menú
+      if (menuBgmAudio) {
+        try {
+          menuBgmAudio.pause();
+        } catch (_) {}
+      }
+
+      // 2. Si hay partida en curso, pausarla para no perder ni que siga sonando el audio del juego
+      if (window.engine) {
+        if (window.engine.isRunning && !window.engine.isPaused && !window.engine.isGameOver && !window.engine.isProcessingMiss) {
+          if (typeof window.openPauseModal === 'function') {
+            try { window.openPauseModal(); } catch (_) {}
+          } else if (window.engine.sync) {
+            try { window.engine.sync.pause(); } catch (_) {}
+          }
+        } else if (window.engine.sync) {
+          try { window.engine.sync.pause(); } catch (_) {}
+        }
+
+        // 3. Suspender sintetizador WebAudio del juego si estuviera sonando
+        if (window.engine.synth && window.engine.synth.audioCtx && window.engine.synth.audioCtx.state === 'running') {
+          try { window.engine.synth.audioCtx.suspend(); } catch (_) {}
+        }
+      }
+
+      // 4. Suspender audio typewriter si estuviera activo
+      if (window.typewriterAudioCtx && window.typewriterAudioCtx.state === 'running') {
+        try { window.typewriterAudioCtx.suspend(); } catch (_) {}
+      }
+    }
+
+    function handleAppForeground() {
+      // 1. Reanudar sintetizador WebAudio si estaba suspendido y el juego está activo
+      if (window.engine && window.engine.synth && window.engine.synth.audioCtx && window.engine.synth.audioCtx.state === 'suspended') {
+        try { window.engine.synth.audioCtx.resume(); } catch (_) {}
+      }
+
+      // 2. Reanudar música ambiental SOLO si estamos en el menú principal y ninguna partida/modal está activa
+      if (!document.hidden && menuBgmUnlocked) {
+        if (!isGameCurrentlyActive()) {
+          const pauseModal = document.getElementById('pauseModal');
+          const reviveModal = document.getElementById('reviveModal');
+          const resultsModal = document.getElementById('resultsModal');
+          const isModalOpen = (m) => m && (m.classList.contains('open') || m.style.display === 'flex' || m.style.display === 'block');
+          if (!isModalOpen(pauseModal) && !isModalOpen(reviveModal) && !isModalOpen(resultsModal)) {
+            playMenuAmbientMusic();
+          }
+        }
+      }
+    }
+
+    window.onAppBackground = handleAppBackground;
+    window.onAppForeground = handleAppForeground;
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        handleAppBackground();
+      } else {
+        handleAppForeground();
+      }
+    });
+
+    window.addEventListener('pagehide', handleAppBackground);
+    window.addEventListener('blur', () => {
+      if (document.hidden) {
+        handleAppBackground();
+      }
+    });
+    window.addEventListener('focus', () => {
+      if (!document.hidden) {
+        handleAppForeground();
+      }
+    });
+
     // Inicializar al primer gesto del usuario en la pantalla
     const onFirstUserGesture = () => {
       if (!menuBgmUnlocked) {
