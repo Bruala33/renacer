@@ -1,0 +1,7 @@
+# Este repositorio es un proyecto web Node.js (servidor Express en server.js).
+# Si tu servicio en Render está configurado como entorno Python, este archivo previene
+# que el comando por defecto 'pip install -r requirements.txt' falle con error 2.
+# En la configuración de tu servicio en Render (Settings):
+# 1. Cambia 'Runtime' a 'Node'
+# 2. Build Command: 'npm install'
+# 3. Start Command: 'node server.js'
