@@ -280,6 +280,25 @@ class HighFidelityAudioPlayer {
       osc.stop(t + 0.05);
     } catch (e) {}
   }
+
+  playMiss(scheduledTime = null) {
+    try {
+      const ctx = this.ensureContext();
+      if (!ctx) return;
+      const t = scheduledTime !== null ? scheduledTime : ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(150, t);
+      osc.frequency.exponentialRampToValueAtTime(50, t + 0.22);
+      gain.gain.setValueAtTime(0.35, t);
+      gain.gain.exponentialRampToValueAtTime(0.005, t + 0.22);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.22);
+    } catch (e) {}
+  }
 }
 
 // ==========================================
@@ -2830,7 +2849,15 @@ class BeatstarEngine {
         this.emitKeyHit(hitX, hitY, this.getScoreColor('perfectPlus'), 24);
         return;
       }
-      // Pulsar en vacío no penaliza
+      // Tocar sin nota = fallo y derrota inmediata
+      if (this.isPlaying && this.beatmapData && !this.isPaused) {
+        this.addJudgement('MISS', this.getScoreColor('miss'), lane);
+        this.synth.playMiss();
+        this.laneFlashColors[lane] = '#ff2040';
+        this.laneFlashTimers[lane] = 0.35;
+        this.handleMiss();
+        return;
+      }
       this.synth.playClick();
       return;
     }
@@ -2843,7 +2870,14 @@ class BeatstarEngine {
       // REGLA FUNDAMENTAL: Si la nota frontal es un SWIPE, un toque normal es absorbido por el gesto
       // y NUNCA puede saltarse el swipe para consumir la nota tap que viene arriba.
       if (frontNote.type === 'swipe') {
-        return; // El swipe requiere gesto de deslizamiento
+        if (this.isPlaying && this.beatmapData && !this.isPaused) {
+          this.addJudgement('MISS', this.getScoreColor('miss'), lane);
+          this.synth.playMiss();
+          this.laneFlashColors[lane] = '#ff2040';
+          this.laneFlashTimers[lane] = 0.35;
+          this.handleMiss();
+        }
+        return;
       }
       // La nota frontal es un tap normal o un hold
       closestNote = frontNote;
@@ -2857,16 +2891,37 @@ class BeatstarEngine {
           closestNote = frontNote;
           minDiff = frontEntry.absDiff;
         } else {
-          // Dirección de swipe incorrecta: no valida
+          // Dirección de swipe incorrecta = fallo
+          if (this.isPlaying && this.beatmapData && !this.isPaused) {
+            this.addJudgement('MISS', this.getScoreColor('miss'), lane);
+            this.synth.playMiss();
+            this.laneFlashColors[lane] = '#ff2040';
+            this.laneFlashTimers[lane] = 0.35;
+            this.handleMiss();
+          }
           return;
         }
       } else {
-        // La nota frontal no es un swipe; el gesto de deslizamiento se ignora para notas normales
+        // La nota frontal no es un swipe; el gesto de deslizamiento en nota normal cuenta como fallo
+        if (this.isPlaying && this.beatmapData && !this.isPaused) {
+          this.addJudgement('MISS', this.getScoreColor('miss'), lane);
+          this.synth.playMiss();
+          this.laneFlashColors[lane] = '#ff2040';
+          this.laneFlashTimers[lane] = 0.35;
+          this.handleMiss();
+        }
         return;
       }
     }
 
     if (!closestNote) {
+      if (this.isPlaying && this.beatmapData && !this.isPaused && !this.isCalibrating) {
+        this.addJudgement('MISS', this.getScoreColor('miss'), lane);
+        this.synth.playMiss();
+        this.laneFlashColors[lane] = '#ff2040';
+        this.laneFlashTimers[lane] = 0.35;
+        this.handleMiss();
+      }
       return;
     }
 
