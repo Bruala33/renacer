@@ -3978,17 +3978,23 @@ class BeatstarEngine {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
 
-    // Paleta de sintetizador analógico con colores neón de alto contraste
-    const blockPalette = [
-      '#7c3aed', '#8b5cf6', // Base exterior (Púrpura / Violeta Neón)
-      '#3b82f6', '#2563eb', // Medios-bajos (Azul Eléctrico)
-      '#00f2fe', '#06b6d4', // Medios (Cian Radiante / Turquesa)
-      '#10b981', '#059669', // Medios-altos (Esmeralda Neón)
-      '#39ff14', '#84cc16', // Altos (Lima Flúor)
-      '#fde047', '#fbbf24', // Agudos (Oro / Ámbar Brillante)
-      '#ff007f', '#ec4899', // Clímax (Magenta / Rosa Neón)
-      '#ff2040', '#ef4444'  // Extremo (Carmesí Láser)
+    // 5 Paletas de sintetizador ricas y variadas que rotan según el multiplicador y tiempo
+    const synthPalettes = [
+      // 0: Cyberpunk Neón (Cian, Magenta, Violeta, Esmeralda)
+      ['#7c3aed', '#8b5cf6', '#3b82f6', '#00f2fe', '#10b981', '#39ff14', '#ff007f', '#ff2040'],
+      // 1: Solar Flare & Retro Synth (Púrpura, Fucsia, Coral, Oro, Ámbar)
+      ['#4c1d95', '#c026d3', '#ec4899', '#f43f5e', '#fb923c', '#fbbf24', '#fde047', '#ffffff'],
+      // 2: Electric Acid & Matrix Wave (Azul Cobalto, Cian, Menta, Lima, Amarillo Flúor)
+      ['#1e3a8a', '#0284c7', '#06b6d4', '#10b981', '#34d399', '#39ff14', '#a3e635', '#fef08a'],
+      // 3: Vaporwave & Prism (Índigo, Lavanda, Turquesa, Rosa Neón, Oro Pálido)
+      ['#312e81', '#6366f1', '#818cf8', '#38bdf8', '#2dd4bf', '#f472b6', '#fb7185', '#fed7aa'],
+      // 4: Laser Crimson & Ultra Gold (Rojo Rubí, Fresa, Naranja Láser, Dorado, Blanco)
+      ['#881337', '#be123c', '#e11d48', '#f97316', '#f59e0b', '#facc15', '#fef08a', '#ffffff']
     ];
+
+    const timeSec = (currentTime || performance.now()) * 0.001;
+    const palIdx = Math.floor((timeSec * 0.10 + (mult - 1)) % synthPalettes.length);
+    const blockPalette = synthPalettes[Math.max(0, Math.min(synthPalettes.length - 1, palIdx))];
     const palLen = blockPalette.length;
 
     // Cuadrados grandes con separación muy pequeña
@@ -3996,23 +4002,27 @@ class BeatstarEngine {
     const blockH = 8.0;
     const blockGap = 1.2;
 
-    // 1. LATERAL IZQUIERDO: Solo en la parte alta de la pantalla (4% a 36% de altura)
+    // Patrón dinámico de ondas de sintetizador que evoluciona en el tiempo
+    const waveT = timeSec * 1.5;
+
+    // 1. LATERAL IZQUIERDO: Solo en la parte alta (4% a 36% de altura) con patrón cambiante
     for (let i = 0; i < numBars; i++) {
       const frac = i / (numBars - 1);
-      // Solo en la zona superior (y de 0.04 a 0.36)
       const y = h * (0.04 + frac * 0.32);
       const trackLeftX = this.getLaneBoundaryX(0, y) - 6;
       const startX = 3;
       const availW = Math.max(12, trackLeftX - startX);
       const totalPossibleBlocks = Math.max(2, Math.floor((availW + blockGap) / (blockW + blockGap)));
 
-      // Más largos arriba, más cortos abajo, con variación pseudo-aleatoria orgánica por fila
-      const organicRand = 0.72 + 0.32 * Math.sin(i * 3.8 + 1.2) + 0.16 * Math.cos(i * 7.1 + 0.5);
-      const slopeFactor = 1.0 - (frac * 0.40);
-      const rowMaxBlocks = Math.max(2, Math.round(totalPossibleBlocks * Math.max(0.35, Math.min(1.0, slopeFactor * organicRand))));
+      // Patrón orgánico que varía dinámicamente con el tiempo y el compás
+      const organicRand = 0.60 
+        + 0.28 * Math.sin(i * 3.4 + waveT) 
+        + 0.18 * Math.cos(i * 6.1 - waveT * 0.7) 
+        + 0.14 * Math.sin((i + mult) * 2.2 + waveT * 1.3);
+      const slopeFactor = 1.0 - (frac * 0.38);
+      const rowMaxBlocks = Math.max(2, Math.round(totalPossibleBlocks * Math.max(0.30, Math.min(1.0, slopeFactor * organicRand))));
 
       const surge = this.borderEqLeftSurges[i] || 0;
-      // Pequeñas en reposo (1 cuadrito tenue), se alargan totalmente al tocar tecla
       const activeBlocks = surge > 0.01 
         ? Math.max(1, Math.min(rowMaxBlocks, Math.round(1 + surge * (rowMaxBlocks - 1))))
         : 1;
@@ -4036,7 +4046,7 @@ class BeatstarEngine {
       }
     }
 
-    // 2. LATERAL DERECHO: Solo en la parte alta de la pantalla (4% a 36% de altura)
+    // 2. LATERAL DERECHO: Solo en la parte alta (4% a 36% de altura) con desfase dinámico
     for (let i = 0; i < numBars; i++) {
       const frac = i / (numBars - 1);
       const y = h * (0.04 + frac * 0.32);
@@ -4045,10 +4055,13 @@ class BeatstarEngine {
       const availW = Math.max(12, endX - trackRightX);
       const totalPossibleBlocks = Math.max(2, Math.floor((availW + blockGap) / (blockW + blockGap)));
 
-      // Variación pseudo-aleatoria orgánica por fila
-      const organicRand = 0.72 + 0.32 * Math.sin(i * 3.8 + 2.5) + 0.16 * Math.cos(i * 7.1 + 1.8);
-      const slopeFactor = 1.0 - (frac * 0.40);
-      const rowMaxBlocks = Math.max(2, Math.round(totalPossibleBlocks * Math.max(0.35, Math.min(1.0, slopeFactor * organicRand))));
+      // Patrón orgánico con desfase propio
+      const organicRand = 0.60 
+        + 0.28 * Math.sin(i * 3.4 + waveT + 1.8) 
+        + 0.18 * Math.cos(i * 6.1 - waveT * 0.7 + 2.4) 
+        + 0.14 * Math.sin((i + mult) * 2.2 + waveT * 1.3 + 0.9);
+      const slopeFactor = 1.0 - (frac * 0.38);
+      const rowMaxBlocks = Math.max(2, Math.round(totalPossibleBlocks * Math.max(0.30, Math.min(1.0, slopeFactor * organicRand))));
 
       const surge = this.borderEqRightSurges[i] || 0;
       const activeBlocks = surge > 0.01 
@@ -4941,31 +4954,33 @@ class BeatstarEngine {
     ctx.globalCompositeOperation = 'lighter';
     ctx.globalAlpha = visAlpha;
 
-    // 6 Rayos de luz volumétricos de colores metálicos y neón
-    const numBeams = 6;
-    const beamLength = Math.max(w, h) * 1.15;
     const beamPalette = [
-      { r: 0, g: 242, b: 254 },   // Cian Neón
-      { r: 255, g: 0, b: 127 },   // Magenta Metálico
-      { r: 251, g: 191, b: 36 },  // Oro Brillante
-      { r: 168, g: 85, b: 247 },  // Violeta Eléctrico
-      { r: 57, g: 255, b: 20 },   // Lima Flúor
-      { r: 56, g: 189, b: 248 }   // Azul Turquesa
+      { r: 0,   g: 242, b: 254 }, // Cian Neón
+      { r: 255, g: 0,   b: 127 }, // Magenta Metálico
+      { r: 251, g: 191, b: 36  }, // Oro Radiante
+      { r: 168, g: 85,  b: 247 }, // Violeta Eléctrico
+      { r: 57,  g: 255, b: 20  }, // Lima Flúor
+      { r: 56,  g: 189, b: 248 }  // Azul Turquesa
     ];
 
+    // 1. HACES DE LUZ VOLUMÉTRICOS GIRATORIOS CON EFECTO GLOW DIFUMINADO
+    const numBeams = 8;
+    const beamLength = Math.max(w, h) * 1.25;
+
     for (let b = 0; b < numBeams; b++) {
-      const angle = rot * 0.95 + (b * (Math.PI * 2 / numBeams));
+      const angle = rot * 0.90 + (b * (Math.PI * 2 / numBeams));
       const rgb = beamPalette[b % beamPalette.length];
-      const beamSpread = 0.055;
-      const beamIntensity = (0.020 + 0.012 * beatPulse);
+      const beamSpread = 0.065;
+      const beamIntensity = (0.024 + 0.016 * beatPulse);
 
       ctx.save();
       ctx.translate(ballX, ballY);
       ctx.rotate(angle);
 
       const bGrad = ctx.createLinearGradient(0, 0, beamLength, 0);
-      bGrad.addColorStop(0.0, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + (beamIntensity * 0.95).toFixed(3) + ')');
-      bGrad.addColorStop(0.40, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + (beamIntensity * 0.35).toFixed(3) + ')');
+      bGrad.addColorStop(0.0, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + (beamIntensity * 1.1).toFixed(3) + ')');
+      bGrad.addColorStop(0.35, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + (beamIntensity * 0.45).toFixed(3) + ')');
+      bGrad.addColorStop(0.75, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + (beamIntensity * 0.12).toFixed(3) + ')');
       bGrad.addColorStop(1.0, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', 0)');
 
       ctx.fillStyle = bGrad;
@@ -4978,7 +4993,35 @@ class BeatstarEngine {
       ctx.restore();
     }
 
-    // Motas brillantes de espejo flotando en el aire
+    // 2. RESPLANDOR DIFUMINADO DE LUCES DE COLORES (GLOW POOLS) PROYECTADAS
+    // Sin clipping en la pista, radio exacto al degradado para evitar cualquier artefacto negro
+    const numGlowSpots = 8;
+    for (let s = 0; s < numGlowSpots; s++) {
+      const spotAngle = rot * 1.1 + (s * (Math.PI * 2 / numGlowSpots));
+      const sinA = Math.sin(spotAngle);
+      const cosA = Math.cos(spotAngle);
+      if (cosA <= -0.2) continue; // Solo hacia abajo/escenario
+
+      const progress = 0.25 + 0.65 * ((sinA + 1) * 0.5);
+      const spotY = (h * 0.20) + (h * 0.65) * progress;
+      const spotX = (w * 0.5) + (w * 0.42) * sinA;
+      const spotRad = (18 + 28 * progress) * (1.0 + beatPulse * 0.2);
+      const rgb = beamPalette[(s + 1) % beamPalette.length];
+      const spotAlpha = (0.12 + 0.08 * Math.sin(nowSec * 3.5 + s * 1.7)) * (1.0 + beatPulse * 0.35);
+
+      const spotGrad = ctx.createRadialGradient(spotX, spotY, 0, spotX, spotY, spotRad);
+      spotGrad.addColorStop(0.0, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + (spotAlpha * 1.0).toFixed(3) + ')');
+      spotGrad.addColorStop(0.40, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + (spotAlpha * 0.50).toFixed(3) + ')');
+      spotGrad.addColorStop(0.80, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + (spotAlpha * 0.12).toFixed(3) + ')');
+      spotGrad.addColorStop(1.0, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', 0)');
+
+      ctx.fillStyle = spotGrad;
+      ctx.beginPath();
+      ctx.arc(spotX, spotY, spotRad, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 3. MOTAS BRILLANTES DE ESPEJO DANZANDO POR EL AIRE
     if (this.discoBall.specks && this.discoBall.specks.length > 0) {
       const speckCount = Math.min(16, this.discoBall.specks.length);
       for (let i = 0; i < speckCount; i++) {
@@ -4994,7 +5037,7 @@ class BeatstarEngine {
 
         const rgb = beamPalette[sp.colorIdx % beamPalette.length];
         const shimmer = 0.6 + 0.4 * Math.sin(nowSec * sp.shimmerSpeed + sp.shimmerPhase);
-        const rad = (sp.size * 0.6) * (1.0 + beatPulse * 0.2);
+        const rad = (sp.size * 0.65) * (1.0 + beatPulse * 0.2);
         const alpha = Math.min(0.35, sp.brightness * shimmer * (0.18 + beatPulse * 0.15));
 
         ctx.fillStyle = 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + alpha.toFixed(3) + ')';
