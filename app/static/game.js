@@ -3183,40 +3183,40 @@ class BeatstarEngine {
     this.targetAtmosphereColor = color || targetAtmosphereColor;
     this.atmosphereShiftProgress = 0.0;
 
-    // Crear partículas en perspectiva 3D
+    // Crear partículas en perspectiva 3D (optimizado para 120 FPS móviles)
     const sparks = [];
-    const sparkCount = Math.round(38 * Math.min(2.0, intensity));
+    const sparkCount = Math.min(12, Math.round(10 * Math.min(1.5, intensity)));
     const pal = [color, '#ffffff', '#fff5cc', '#ffe082', '#00f2fe', '#ff007f'];
 
     for (let i = 0; i < sparkCount; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const speed = (90 + Math.random() * 260) * intensity;
-      const zSpeed = (-150 + Math.random() * 380) * intensity;
+      const speed = (90 + Math.random() * 240) * intensity;
+      const zSpeed = (-120 + Math.random() * 320) * intensity;
       sparks.push({
-        x: midX + (Math.random() - 0.5) * 40,
-        y: midY + (Math.random() - 0.5) * 30,
+        x: midX + (Math.random() - 0.5) * 36,
+        y: midY + (Math.random() - 0.5) * 26,
         z: 0,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
         vz: zSpeed,
-        radius: (2.0 + Math.random() * 3.5) * intensity,
+        radius: (2.0 + Math.random() * 3.0) * intensity,
         color: pal[Math.floor(Math.random() * pal.length)],
         alpha: 1.0,
         decay: 1.8 + Math.random() * 1.4,
         rot: Math.random() * Math.PI * 2,
-        rotSpeed: (Math.random() - 0.5) * 10
+        rotSpeed: (Math.random() - 0.5) * 8
       });
     }
 
-    // Rayos de luz volumétricos rotatorios
+    // Rayos de luz volumétricos rotatorios (optimizado: 6 rayos suaves)
     const rays = [];
-    const rayCount = 14;
+    const rayCount = 6;
     for (let i = 0; i < rayCount; i++) {
       const baseAngle = (i / rayCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.2;
       rays.push({
         angle: baseAngle,
-        length: Math.hypot(w, h) * (0.8 + Math.random() * 0.5),
-        width: 18 + Math.random() * 28,
+        length: Math.hypot(w, h) * (0.75 + Math.random() * 0.4),
+        width: 16 + Math.random() * 20,
         color: i % 2 === 0 ? color : '#ffffff'
       });
     }
@@ -3970,18 +3970,14 @@ class BeatstarEngine {
       ctx.restore();
     }
 
-    // Ondas expansivas de fondo de la explosión 3D (Shockwave Background Wash)
+    // Ondas expansivas de fondo de la explosión 3D (Shockwave Background Wash - Optimizado GPU)
     if (this.combo3DExplosions && this.combo3DExplosions.length > 0) {
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       for (const exp of this.combo3DExplosions) {
         if (exp.radius < 10) continue;
-        const washGrad = ctx.createRadialGradient(exp.originX, exp.originY, Math.max(0, exp.radius * 0.2), exp.originX, exp.originY, exp.radius);
-        const expAlpha = exp.alpha * 0.55;
-        washGrad.addColorStop(0.0, hexToRgba(exp.color || '#ffd700', expAlpha * 0.6));
-        washGrad.addColorStop(0.65, hexToRgba(exp.color || '#ffd700', expAlpha * 0.3));
-        washGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-        ctx.fillStyle = washGrad;
+        const expAlpha = exp.alpha * 0.18;
+        ctx.fillStyle = hexToRgba(exp.color || '#ffd700', expAlpha);
         ctx.beginPath();
         ctx.arc(exp.originX, exp.originY, exp.radius, 0, Math.PI * 2);
         ctx.fill();
@@ -4686,7 +4682,7 @@ class BeatstarEngine {
       ctx.fill();
       ctx.restore();
 
-      // 2. RAYOS ETÉREOS DE LUZ SUAVE Y DIFUMINADA (Feathered Volumetric Aurora Beams)
+      // 2. RAYOS ETÉREOS DE LUZ SUAVE Y DIFUMINADA (Optimizado GPU: Polígonos en modo lighter)
       if (exp.rays && exp.age < exp.duration * 0.85) {
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
@@ -4698,17 +4694,12 @@ class BeatstarEngine {
         for (const ray of exp.rays) {
           ctx.save();
           ctx.rotate(ray.angle);
-          const rGrad = ctx.createLinearGradient(0, 0, ray.length * 0.85, 0);
           const rayRgb = hexToRgb(ray.color || col);
-          rGrad.addColorStop(0.0, `rgba(${rayRgb.r}, ${rayRgb.g}, ${rayRgb.b}, ${rayAlpha.toFixed(3)})`);
-          rGrad.addColorStop(0.35, `rgba(${rayRgb.r}, ${rayRgb.g}, ${rayRgb.b}, ${(rayAlpha * 0.40).toFixed(3)})`);
-          rGrad.addColorStop(0.70, `rgba(${rayRgb.r}, ${rayRgb.g}, ${rayRgb.b}, ${(rayAlpha * 0.10).toFixed(3)})`);
-          rGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-          ctx.fillStyle = rGrad;
+          ctx.fillStyle = `rgba(${rayRgb.r}, ${rayRgb.g}, ${rayRgb.b}, ${rayAlpha.toFixed(3)})`;
           ctx.beginPath();
-          ctx.moveTo(0, -ray.width * 0.7);
+          ctx.moveTo(0, -ray.width * 0.5);
           ctx.lineTo(ray.length * 0.85, 0);
-          ctx.lineTo(0, ray.width * 0.7);
+          ctx.lineTo(0, ray.width * 0.5);
           ctx.closePath();
           ctx.fill();
           ctx.restore();
@@ -4716,40 +4707,32 @@ class BeatstarEngine {
         ctx.restore();
       }
 
-      // 3. ONDAS DE CHOQUE SUAVEMENTE DIFUMINADAS (Feathered Halo Shockwave)
+      // 3. ONDAS DE CHOQUE SUAVEMENTE DIFUMINADAS (Halo Shockwave - Optimizado GPU)
       if (exp.radius > 5) {
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
         const shockRad = exp.radius;
-        const shockGrad = ctx.createRadialGradient(midX, topY + 15, Math.max(0, shockRad - 35), midX, topY + 15, shockRad + 20);
-        const shockAlpha = (1 - (exp.radius / exp.maxRadius)) * 0.35 * expAlpha;
-        shockGrad.addColorStop(0.0, 'rgba(0, 0, 0, 0)');
-        shockGrad.addColorStop(0.50, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${shockAlpha.toFixed(3)})`);
-        shockGrad.addColorStop(0.75, `rgba(255, 255, 255, ${(shockAlpha * 0.55).toFixed(3)})`);
-        shockGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-        ctx.fillStyle = shockGrad;
+        const shockAlpha = (1 - (exp.radius / exp.maxRadius)) * 0.40 * expAlpha;
+        ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${shockAlpha.toFixed(3)})`;
+        ctx.lineWidth = Math.max(1.5, 6.0 * (1 - (exp.radius / exp.maxRadius)));
         ctx.beginPath();
-        ctx.arc(midX, topY + 15, shockRad + 20, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.arc(midX, topY + 15, shockRad, 0, Math.PI * 2);
+        ctx.stroke();
         ctx.restore();
       }
 
-      // 4. POLVO DE CHISPAS BOKEH Y PARTÍCULAS DIFUMINADAS (Soft Glowing Bokeh Orbs)
+      // 4. POLVO DE CHISPAS BOKEH Y PARTÍCULAS (Soft Glowing Bokeh - Optimizado GPU)
       if (exp.sparks && exp.sparks.length > 0) {
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
         for (const sp of exp.sparks) {
           if (sp.alpha <= 0.01) continue;
           const zScale = Math.max(0.3, 1.0 + (sp.z / 260));
-          const pRad = Math.max(1.5, sp.radius * zScale * 1.8);
-          const pAlpha = Math.max(0, Math.min(1, sp.alpha * expAlpha * 0.65));
+          const pRad = Math.max(1.5, sp.radius * zScale * 1.5);
+          const pAlpha = Math.max(0, Math.min(1, sp.alpha * expAlpha * 0.70));
           const spRgb = hexToRgb(sp.color || col);
 
-          const sparkGrad = ctx.createRadialGradient(sp.x, sp.y, 0, sp.x, sp.y, pRad);
-          sparkGrad.addColorStop(0.0, `rgba(255, 255, 255, ${pAlpha.toFixed(3)})`);
-          sparkGrad.addColorStop(0.40, `rgba(${spRgb.r}, ${spRgb.g}, ${spRgb.b}, ${(pAlpha * 0.70).toFixed(3)})`);
-          sparkGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-          ctx.fillStyle = sparkGrad;
+          ctx.fillStyle = `rgba(${spRgb.r}, ${spRgb.g}, ${spRgb.b}, ${pAlpha.toFixed(3)})`;
           ctx.beginPath();
           ctx.arc(sp.x, sp.y, pRad, 0, Math.PI * 2);
           ctx.fill();

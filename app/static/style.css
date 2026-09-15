@@ -204,8 +204,8 @@ body {
   pointer-events: none;
   opacity: 0;
   visibility: hidden;
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), backdrop-filter 0.25s ease, visibility 0.25s;
 }
 
@@ -216,8 +216,8 @@ body {
 
 .start-countdown-overlay.fading {
   opacity: 0 !important;
-  backdrop-filter: blur(0px) !important;
-  -webkit-backdrop-filter: blur(0px) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   visibility: hidden !important;
 }
 
@@ -328,8 +328,8 @@ body {
 
 .glass-card {
   background: linear-gradient(160deg, rgba(23, 18, 29, 0.95), rgba(13, 11, 16, 0.98));
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   border: 1px solid rgba(197, 160, 89, 0.30);
   box-shadow: 0 10px 36px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(243, 215, 145, 0.15);
   border-radius: 20px;
@@ -469,8 +469,8 @@ body {
   inset: 0;
   z-index: 25;
   background: rgba(9, 6, 16, 0.96);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   display: flex;
   flex-direction: column;
   padding: 14px;
@@ -820,8 +820,8 @@ body {
   cursor: pointer;
   pointer-events: auto !important;
   transition: all 0.2s ease;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 .hud-pause-btn:hover {
@@ -1165,8 +1165,8 @@ body {
 /* Minimalist Bottom Offset Card */
 .bottom-offset-card {
   background: rgba(12, 8, 20, 0.94);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 14px;
   padding: 6px 12px;
@@ -1199,8 +1199,8 @@ body {
   inset: 0 !important;
   z-index: 9999 !important;
   background: rgba(5, 3, 10, 0.90);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   display: none;
   flex-direction: column;
   justify-content: center;
@@ -1223,8 +1223,8 @@ body {
   inset: 0;
   z-index: 68;
   background: rgba(6, 3, 12, 0.95);
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   display: none;
   flex-direction: column;
   justify-content: center;
@@ -1248,8 +1248,8 @@ body {
   inset: 0 !important;
   z-index: 9999 !important;
   background: rgba(5, 3, 10, 0.96);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   display: none;
   flex-direction: column;
   justify-content: center;
@@ -1274,7 +1274,7 @@ body {
   inset: 0 !important;
   z-index: 9999 !important;
   background: rgba(8, 2, 12, 0.96);
-  backdrop-filter: blur(24px);
+  backdrop-filter: none !important;
   display: none;
   flex-direction: column;
   justify-content: center;
@@ -1297,8 +1297,8 @@ body {
   inset: 0 !important;
   z-index: 9998 !important;
   background: rgba(6, 3, 12, 0.96);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   display: none;
   flex-direction: column;
   justify-content: flex-start;
@@ -1323,8 +1323,8 @@ body {
   inset: 0;
   z-index: 9999;
   background: rgba(5, 2, 10, 0.98);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   display: none;
   flex-direction: column;
   justify-content: center;
@@ -1428,8 +1428,8 @@ body {
   width: auto;
   z-index: 120;
   background: rgba(18, 14, 22, 0.92) !important;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   border: 1px solid rgba(197, 160, 89, 0.45) !important;
   border-radius: 9999px !important;
   padding: 8px 20px !important;
@@ -1786,8 +1786,8 @@ body {
 /* 1. LOADING OVERLAY (Pantalla de Carga 3D) */
 .theme-vintage-3d .global-loading-overlay {
   background: radial-gradient(circle at 50% 38%, #1c141e 0%, #0d0910 60%, #050306 100%) !important;
-  backdrop-filter: blur(25px) !important;
-  -webkit-backdrop-filter: blur(25px) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 .theme-vintage-3d .vinyl-disc {
@@ -2637,8 +2637,8 @@ body {
   right: 0;
   z-index: 100;
   background: rgba(18, 14, 24, 0.98);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   border: 1px solid rgba(197, 160, 89, 0.45);
   border-radius: 12px;
   padding: 10px;
@@ -3089,8 +3089,8 @@ body {
   inset: 0 !important;
   z-index: 9999 !important;
   background: rgba(5, 2, 12, 0.88);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   display: none;
   justify-content: center;
   align-items: center;
