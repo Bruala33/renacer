@@ -884,10 +884,20 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Special+Elite&family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Outfit:wght@400;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./style.css?v=3.5">
 </head>
 <body>
+
+  <!-- SVG Filter para Tinta Sangrada (Vintage Typewriter Ink Bleed) -->
+  <svg style="position: absolute; width: 0; height: 0; pointer-events: none;" aria-hidden="true">
+    <defs>
+      <filter id="ink-bleed">
+        <feTurbulence type="fractalNoise" baseFrequency="0.68" numOctaves="3" result="noise" />
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.5" xChannelSelector="R" yChannelSelector="G" />
+      </filter>
+    </defs>
+  </svg>
 
   <!-- 9:16 Mobile Viewport Frame -->
   <div class="game-viewport">
@@ -1061,7 +1071,7 @@
         <!-- Action Buttons (Flex-shrink-0 to guarantee settings gear is always visible) -->
         <div class="flex items-center gap-1.5 flex-shrink-0">
           <!-- Botón Descargar APK Android (Solo visible en versión Web) -->
-          <a id="btnDownloadApk" href="/download/apk" download="PianoCommunity.apk" class="apk-only-web px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/25 to-yellow-600/25 border border-amber-400/50 hover:border-amber-400/90 active:scale-95 text-amber-300 flex items-center gap-1.5 transition cursor-pointer text-xs font-bold flex-shrink-0 shadow-[0_0_12px_rgba(229,184,105,0.25)]" title="Descargar APK para Android">
+          <a id="btnDownloadApk" href="/download/apk" onclick="handleApkDownloadClick(event)" class="apk-only-web px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/25 to-yellow-600/25 border border-amber-400/50 hover:border-amber-400/90 active:scale-95 text-amber-300 flex items-center gap-1.5 transition cursor-pointer text-xs font-bold flex-shrink-0 shadow-[0_0_12px_rgba(229,184,105,0.25)]" title="Descargar APK para Android">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             <span class="hidden sm:inline text-[11px] font-black tracking-wide uppercase" data-i18n="apk_download_btn">Descargar APK</span>
             <span class="sm:hidden text-[10px] font-black tracking-wide uppercase">APK</span>
@@ -1694,7 +1704,7 @@
             <p class="text-[10px] text-gray-300 leading-tight" data-i18n="apk_card_desc">
               Instala la app oficial en tu móvil para jugar a pantalla completa, vibración háptica y con disponibilidad 100% offline.
             </p>
-            <a href="/download/apk" download="PianoCommunity.apk" class="w-full py-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 text-black font-black rounded-lg text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition active:scale-95 cursor-pointer">
+            <a href="/download/apk" onclick="handleApkDownloadClick(event)" class="w-full py-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 text-black font-black rounded-lg text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition active:scale-95 cursor-pointer">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               <span data-i18n="apk_card_btn">DESCARGAR APK ANDROID</span>
             </a>
@@ -1775,22 +1785,6 @@
               <option value="medium">Medio</option>
               <option value="hard" selected>Difícil</option>
             </select>
-          </div>
-
-          <!-- Modo al Fallar Notas (Continuar vs Arcade) -->
-          <div class="p-2.5 bg-black/40 border border-white/10 rounded-xl space-y-1.5">
-            <div class="flex items-center justify-between text-xs">
-              <span class="font-bold text-white flex items-center gap-1.5">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-amber-400"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                Modo al Fallar:
-              </span>
-              <span id="settingsContinueModeVal" class="font-mono font-bold text-emerald-400">Continuar (Beatstar)</span>
-            </div>
-            <select id="settingsContinueModeSelect" onchange="toggleContinueMode(this.value === 'true')" class="w-full bg-black/70 border border-white/15 rounded-lg text-xs text-white p-1.5 cursor-pointer">
-              <option value="true" selected>Continuar Jugando (Estándar Beatstar)</option>
-              <option value="false">Muerte Súbita / Revivir (Pausar y pagar Claves)</option>
-            </select>
-            <p class="text-[9px] text-gray-400">En 'Continuar', los fallos rompen el combo pero la canción nunca se detiene bruscamente.</p>
           </div>
 
           <!-- Nickname del Jugador / Creador -->
@@ -2149,45 +2143,126 @@
       </div>
     </div> <!-- End of publishCommunityModal -->
 
-    <!-- Layer 12: Arcade Revive Penalty Modal ($2^n$ 𝄞) -->
-    <div id="reviveModal" class="revive-modal space-y-4">
-      <div class="text-center space-y-1">
-        <div class="w-12 h-12 mx-auto rounded-2xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400 mb-1 shadow-lg shadow-red-500/30 animate-pulse">
-          <span class="text-2xl font-black">✕</span>
-        </div>
-        <h2 class="text-lg font-black text-white tracking-wider">¡NOTA FALLADA!</h2>
-        <p class="text-xs text-gray-400 font-medium">Paga la penalización en Claves de Sol para continuar:</p>
-      </div>
+    <!-- Layer 12: Arcade Revive Penalty Modal - Máquina de Escribir Vintage (Chopin & Co. 1928) -->
+    <div id="reviveModal" class="revive-modal">
+      <!-- Elementos de compatibilidad DOM -->
+      <span id="reviveScoreVal" class="hidden">0</span>
+      <span id="reviveCostVal" class="hidden">1</span>
+      <span id="btnPayReviveCost" class="hidden">1</span>
 
-      <!-- Puntaje Obtenido -->
-      <div class="p-3 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center justify-center">
-        <span class="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Puntuación alcanzada</span>
-        <span id="reviveScoreVal" class="text-2xl font-black text-white font-mono tracking-tight">0</span>
-      </div>
+      <main class="vintage-viewport" id="deathViewport">
+        <header class="top-brass-bar">
+          <div class="vintage-model-tag">OPUS Nº 1928</div>
+          <div class="balance-pill">
+            <span class="balance-label">SALDO:</span>
+            <span class="balance-val"><span id="deathUserBalance">0</span> <span class="clef-symbol">𝄞</span></span>
+          </div>
+        </header>
 
-      <!-- Cost Display -->
-      <div class="p-3 bg-black/60 border border-amber-500/40 rounded-2xl flex items-center justify-center gap-2">
-        <span class="text-2xl text-amber-400 font-bold leading-none">𝄞</span>
-        <span id="reviveCostVal" class="text-3xl font-black text-amber-300 font-mono">1</span>
-        <span class="text-xs text-gray-400 font-semibold self-end pb-1">Claves de Sol</span>
-      </div>
+        <section class="typewriter-apparatus">
+          <!-- Palanca física de retorno de carro -->
+          <div class="carriage-arm" id="deathCarriageArm" title="Palanca de retorno"></div>
 
-      <div class="space-y-2 w-full max-w-[260px]">
-        <!-- Pay and Resume -->
-        <button type="button" onclick="payReviveAndResume(event)" id="btnPayRevive" class="w-full py-3 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 font-black rounded-xl text-xs text-black shadow-lg shadow-amber-500/30 transition transform active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
-          CONTINUAR (Pagar <span id="btnPayReviveCost">1</span> 𝄞)
-        </button>
+          <!-- Rodillo de caucho y pisapapeles -->
+          <div class="platen-roller-assembly">
+            <div class="knurled-knob" id="deathKnobLeft"></div>
+            <div class="rubber-platen">
+              <div class="nickel-scale"></div>
+              <div class="paper-bail-rod">
+                <div class="bail-rubber-wheel"></div>
+                <div class="bail-rubber-wheel"></div>
+              </div>
+            </div>
+            <div class="knurled-knob" id="deathKnobRight"></div>
+          </div>
 
-        <!-- Exit -->
-        <button onclick="exitToSearch()" class="w-full py-2.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold rounded-xl text-xs transition border border-red-500/30 cursor-pointer">
-          Salir al Menú
-        </button>
+          <!-- Folio de pergamino saliendo del carro con tinta viva -->
+          <div class="sheet-carrier">
+            <article class="vintage-parchment" id="deathParchmentSheet">
+              <div class="ink-blot-stain"></div>
 
-        <!-- Restart -->
-        <button onclick="restartFromPenalty()" class="w-full py-2 bg-white/10 hover:bg-white/20 font-bold rounded-xl text-xs text-gray-300 transition cursor-pointer border border-white/10">
-          Reiniciar Canción
-        </button>
-      </div>
+              <div class="vintage-rubber-stamp">
+                <span>PIANO</span>
+                <span>FIN</span>
+              </div>
+
+              <div class="paper-score-caption" id="deathCaptionContainer">• PUNTUACIÓN</div>
+
+              <div class="score-display-box">
+                <div id="deathScoreLetters" style="display:inline-flex; align-items:baseline;"></div>
+                <span class="type-caret caret-black" id="deathScoreCursor"></span>
+              </div>
+
+              <div class="typewritten-separator"></div>
+
+              <!-- Coste en claves de sol tecleado con cinta roja -->
+              <div class="revive-cost-container">
+                <span class="revive-label-text" id="deathCostLabelText">CONTINUAR:</span>
+                <div class="cost-value-block">
+                  <div id="deathCostLetters" style="display:inline-flex; align-items:baseline;"></div>
+                  <span class="type-caret caret-red" id="deathCostCursor" style="display:none;"></span>
+                </div>
+              </div>
+
+              <div class="stamp-overlay-approved" id="deathStampApproved">REANUDADO</div>
+            </article>
+          </div>
+
+          <!-- Chasis esmaltado con horquilla alza-cinta y bobinas -->
+          <div class="chassis-metal-body">
+            <!-- Selector mecánico de cinta bicolor -->
+            <div class="ribbon-color-switch">
+              <span class="switch-label-txt">CINTA</span>
+              <div class="switch-indicator-dot" id="deathRibbonDot"></div>
+            </div>
+
+            <div class="ribbon-vibrator-fork" id="deathRibbonFork">
+              <div class="typebar-slug"></div>
+            </div>
+
+            <div class="spools-bay">
+              <div class="spool-drum">
+                <div class="spool-center-nut"></div>
+                <div class="spool-ribbon-feed"></div>
+              </div>
+
+              <div class="vintage-brass-plaque">
+                <div class="plaque-screw tl"></div>
+                <div class="plaque-screw tr"></div>
+                <div class="plaque-screw bl"></div>
+                <div class="plaque-screw br"></div>
+                <span class="plaque-legend">CHOPIN &amp; CO. • 1928</span>
+              </div>
+
+              <div class="spool-drum">
+                <div class="spool-center-nut"></div>
+                <div class="spool-ribbon-feed"></div>
+              </div>
+            </div>
+
+            <div class="radial-typebasket"></div>
+          </div>
+        </section>
+
+        <!-- Botones elevados con altura táctil accesible (56px y 50px) -->
+        <footer class="typewriter-keyboard-tier">
+          <button class="btn-brass-primary" id="btnDeathRevive" onclick="handleVintageReviveClick(event)">
+            <span>REANUDAR PARTIDA</span>
+            <span class="key-clef-badge"><span id="deathReviveBadgeCost">1</span> <span class="clef-symbol" style="font-size:16px; text-shadow:none;">𝄞</span></span>
+          </button>
+
+          <div class="round-keys-row">
+            <button class="tw-chrome-key" id="btnDeathRetry" onclick="restartFromPenalty()">
+              <span>↺ REINTENTAR</span>
+            </button>
+            <button class="tw-chrome-key" id="btnDeathMenu" onclick="exitToSearch()">
+              <span>☵ CATÁLOGO</span>
+            </button>
+          </div>
+        </footer>
+
+        <div class="toast-capsule" id="deathToastNotice"></div>
+      </main>
     </div>
 
     <!-- Layer 13: Visual Calibration Screen Overlay -->
@@ -2422,110 +2497,265 @@
       </div>
     </div>
 
-<div id="resultsModal" class="results-modal">
-    <div class="w-full max-w-sm my-auto space-y-3 pb-6">
-      <div class="text-center space-y-1">
-        <div id="resBadgeStatus" class="inline-block px-3 py-0.5 rounded-full bg-pink-500/20 text-pink-400 text-xs font-black tracking-wider uppercase">
-          ¡Pista Completada!
+    <!-- Modal Informativo de Instalación APK / PWA -->
+    <div id="apkInstallModal" class="results-modal space-y-3.5 hidden" style="display: none; z-index: 120;">
+      <div class="glass-card w-full max-w-[380px] p-5 rounded-2xl space-y-4 bg-black/95 border border-amber-500/40 shadow-2xl text-left">
+        <div class="flex items-center justify-between border-b border-white/10 pb-3">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-300 flex items-center justify-center border border-amber-400/40">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </div>
+            <div>
+              <h3 class="text-xs font-black text-amber-300 uppercase tracking-wider">App Android & Instalación</h3>
+              <p class="text-[10px] text-gray-400">Juega a pantalla completa y sin barras</p>
+            </div>
+          </div>
+          <button onclick="closeApkInstallModal()" class="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white flex items-center justify-center transition cursor-pointer">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
-        <div id="resMedalTierBadge" class="hidden mt-1 inline-block px-3 py-1 rounded-xl text-xs font-black tracking-wider uppercase">
-          <!-- Medal Tier Badge Injected -->
+
+        <!-- Opción 1: Instalar PWA Directamente -->
+        <div class="p-3 bg-white/5 border border-amber-400/30 rounded-xl space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-amber-200">1. Instalación Directa (PWA Móvil)</span>
+            <span class="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">Recomendado</span>
+          </div>
+          <p class="text-[10px] text-gray-300 leading-tight">
+            Instala la aplicación en tu pantalla de inicio al instante, sin descargas pesadas ni permisos desconocidos.
+          </p>
+          <button id="btnInstallPwaDirect" onclick="triggerDirectPwaInstall()" class="w-full py-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 text-black font-black rounded-lg text-xs flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/20 transition active:scale-95 cursor-pointer">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+            <span>INSTALAR EN ESTE DISPOSITIVO</span>
+          </button>
+          <div id="pwaManualTip" class="text-[9px] text-gray-400 bg-black/40 p-2 rounded border border-white/5 space-y-1">
+            <p><strong>Si no ves el aviso:</strong> En Chrome/Brave pulsa <strong class="text-white">⋮ (Menú)</strong> y elige <strong class="text-amber-300">"Instalar aplicación"</strong> o "Añadir a pantalla de inicio".</p>
+          </div>
         </div>
-        <h2 id="resSongTitle" class="text-sm font-black text-white truncate max-w-[260px] mx-auto">Título de Canción</h2>
-        <p id="resDiffName" class="text-[11px] text-cyan-300 font-semibold">Normal 3.0★</p>
+
+        <!-- Opción 2: Descargar APK compilado desde GitHub Releases -->
+        <div class="p-3 bg-white/5 border border-white/10 rounded-xl space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-gray-200">2. Descargar Paquete APK Oficial</span>
+            <span class="text-[9px] font-mono text-gray-400 bg-white/5 px-1.5 py-0.5 rounded">GitHub</span>
+          </div>
+          <p class="text-[10px] text-gray-400 leading-tight">
+            Descarga el archivo APK generado desde las versiones oficiales del repositorio de GitHub o prueba la descarga directa.
+          </p>
+          <div class="grid grid-cols-2 gap-2 pt-1">
+            <a href="https://github.com/Bruala33/renacer/releases" target="_blank" rel="noopener noreferrer" class="py-2 px-2 bg-white/10 hover:bg-white/15 text-white font-bold rounded-lg text-[10px] flex items-center justify-center gap-1 text-center transition cursor-pointer border border-white/10">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+              <span>GitHub Releases</span>
+            </a>
+            <a href="/download/apk" target="_blank" class="py-2 px-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold rounded-lg text-[10px] flex items-center justify-center gap-1 text-center transition cursor-pointer border border-amber-400/40">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>Descarga Servidor</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layer 14: Pantalla Final de Canción - Máquina de Escribir Vintage (Chopin & Co. 1928) -->
+    <div id="resultsModal" class="results-modal">
+      <!-- Elementos de compatibilidad DOM para scripts existentes -->
+      <div class="hidden">
+        <span id="resBadgeStatus"></span>
+        <span id="resMedalTierBadge"></span>
+        <span id="resSongTitle"></span>
+        <span id="resDiffName"></span>
+        <span id="resFinalScore"></span>
+        <span id="resMaxCombo"></span>
+        <span id="resAccuracyPct"></span>
+        <span id="resEarnedClefs"></span>
+        <div id="resEarnedMedalsBadges"></div>
+        <div id="resStars"></div>
+        <span id="resPPlus"></span>
+        <span id="resP"></span>
+        <span id="resG"></span>
+        <span id="resM"></span>
       </div>
 
-      <!-- 5 Stars with High-Contrast Silver / Gold / Platinum States -->
-      <div id="resStars" class="relative z-30 flex justify-center items-center gap-2 my-2.5">
-        <span class="star-icon">★</span>
-        <span class="star-icon">★</span>
-        <span class="star-icon">★</span>
-        <span class="star-icon">★</span>
-        <span class="star-icon">★</span>
-      </div>
-
-      <div class="glass-card w-full p-3.5 rounded-2xl text-center space-y-2 bg-black/60 border border-white/10">
-        <div>
-          <div class="flex items-center justify-between px-2">
-            <span class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Puntuación Final</span>
-            <span id="resAccuracyPct" class="text-[11px] font-black text-cyan-300 font-mono">0.0%</span>
+      <main class="vintage-viewport" id="resultsViewport">
+        <header class="top-brass-bar">
+          <div class="vintage-model-tag" id="resModelTag">OPUS Nº 1928</div>
+          <div class="balance-pill">
+            <span class="balance-label">SALDO:</span>
+            <span class="balance-val"><span id="resUserBalance">0</span> <span class="clef-symbol">𝄞</span></span>
           </div>
-          <p id="resFinalScore" class="text-3xl font-black text-white code-font mt-0.5">0</p>
-        </div>
+        </header>
 
-        <!-- Earned Medals & Clefs Reward -->
-        <div class="grid grid-cols-2 gap-2 text-left pt-2 border-t border-white/5">
-          <div class="bg-black/40 p-2 rounded-xl border border-white/5">
-            <span class="text-[9px] text-gray-400 font-bold uppercase block">Combo Máximo</span>
-            <p id="resMaxCombo" class="text-base font-black text-pink-400">0</p>
+        <section class="typewriter-apparatus">
+          <!-- Palanca física de retorno de carro -->
+          <div class="carriage-arm" id="resCarriageArm" title="Palanca de retorno"></div>
+
+          <!-- Rodillo de caucho y pisapapeles -->
+          <div class="platen-roller-assembly">
+            <div class="knurled-knob" id="resKnobLeft"></div>
+            <div class="rubber-platen">
+              <div class="nickel-scale"></div>
+              <div class="paper-bail-rod">
+                <div class="bail-rubber-wheel"></div>
+                <div class="bail-rubber-wheel"></div>
+              </div>
+            </div>
+            <div class="knurled-knob" id="resKnobRight"></div>
           </div>
-          <div class="bg-black/40 p-2 rounded-xl border border-white/5">
-            <span class="text-[9px] text-gray-400 font-bold uppercase block">Recompensas</span>
-            <div class="flex items-center gap-1.5 mt-0.5">
-              <span class="text-xs font-black text-amber-400 font-mono">+<span id="resEarnedClefs">0</span> 𝄞</span>
-              <div id="resEarnedMedalsBadges" class="flex items-center gap-1"></div>
+
+          <!-- Folio de pergamino saliendo del carro con tinta viva -->
+          <div class="sheet-carrier">
+            <article class="vintage-parchment" id="resParchmentSheet">
+              <div class="ink-blot-stain"></div>
+
+              <div class="vintage-rubber-stamp" id="resRubberStamp">
+                <span>PIANO</span>
+                <span id="resStampBadge">FIN</span>
+              </div>
+
+              <div class="paper-score-caption" id="resSongInfoCaption">• OPUS: PIEZA</div>
+
+              <div class="score-display-box">
+                <div id="resScoreLetters" style="display:inline-flex; align-items:baseline;"></div>
+                <span class="type-caret caret-black" id="resScoreCursor"></span>
+              </div>
+
+              <div class="typewritten-separator"></div>
+
+              <!-- Estadísticas mecanografiadas (Precisión, Combo, Juicios) -->
+              <div class="space-y-1 font-mono text-[11px] text-[#4a3928]">
+                <div class="flex items-center justify-between font-bold px-0.5">
+                  <span>PRECISIÓN: <strong id="resParchmentAccuracy" class="text-[#141018]">0.0%</strong></span>
+                  <span>COMBO: <strong id="resParchmentCombo" class="text-[#141018]">0</strong></span>
+                </div>
+
+                <!-- Estrellas / Maestría en pergamino -->
+                <div id="resParchmentStars" class="flex items-center justify-center gap-1.5 text-base py-0.5 text-[#b08836]">
+                  <span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
+                </div>
+
+                <div class="text-[9.5px] text-center tracking-wide text-[#5a4835]">
+                  P+: <span id="resParchmentPPlus" class="font-bold text-[#141018]">0</span> |
+                  P: <span id="resParchmentP" class="font-bold text-[#141018]">0</span> |
+                  G: <span id="resParchmentG" class="font-bold text-[#141018]">0</span> |
+                  M: <span id="resParchmentM" class="font-bold text-[#141018]">0</span>
+                </div>
+              </div>
+
+              <div class="typewritten-separator"></div>
+
+              <!-- Recompensas tecleadas con cinta roja -->
+              <div class="revive-cost-container">
+                <span class="revive-label-text">RECOMPENSA:</span>
+                <div class="cost-value-block">
+                  <div id="resRewardLetters" style="display:inline-flex; align-items:baseline;"></div>
+                  <span class="type-caret caret-red" id="resRewardCursor" style="display:none;"></span>
+                </div>
+              </div>
+
+              <!-- Sello diagonal "COMPLETADO" o "NUEVO RÉCORD" -->
+              <div class="stamp-overlay-approved" id="resStampApproved">¡COMPLETADO!</div>
+            </article>
+          </div>
+
+          <!-- Chasis esmaltado con horquilla alza-cinta y bobinas -->
+          <div class="chassis-metal-body">
+            <!-- Selector mecánico de cinta bicolor -->
+            <div class="ribbon-color-switch">
+              <span class="switch-label-txt">CINTA</span>
+              <div class="switch-indicator-dot" id="resRibbonDot"></div>
+            </div>
+
+            <div class="ribbon-vibrator-fork" id="resRibbonFork">
+              <div class="typebar-slug"></div>
+            </div>
+
+            <div class="spools-bay">
+              <div class="spool-drum">
+                <div class="spool-center-nut"></div>
+                <div class="spool-ribbon-feed"></div>
+              </div>
+
+              <div class="vintage-brass-plaque">
+                <div class="plaque-screw tl"></div>
+                <div class="plaque-screw tr"></div>
+                <div class="plaque-screw bl"></div>
+                <div class="plaque-screw br"></div>
+                <span class="plaque-legend">CHOPIN &amp; CO. • 1928</span>
+              </div>
+
+              <div class="spool-drum">
+                <div class="spool-center-nut"></div>
+                <div class="spool-ribbon-feed"></div>
+              </div>
+            </div>
+
+            <div class="radial-typebasket"></div>
+          </div>
+        </section>
+
+        <!-- Botones elevados accesibles -->
+        <footer class="typewriter-keyboard-tier">
+          <button class="btn-brass-primary" id="btnResPrimary" onclick="exitToSearch()">
+            <span id="btnResPrimaryLabel">EXPLORAR CATÁLOGO</span>
+            <span class="key-clef-badge">☵</span>
+          </button>
+
+          <div class="round-keys-row">
+            <button class="tw-chrome-key" onclick="restartCurrentSong()">
+              <span>↺ REINTENTAR</span>
+            </button>
+            <button class="tw-chrome-key" id="btnToggleExtraResults" onclick="toggleResultsExtraDrawer()">
+              <span id="btnToggleExtraResultsLabel">★ RATING / TOP</span>
+            </button>
+          </div>
+        </footer>
+
+        <!-- Gaveta opcional expandible para Calificación y Clasificación Online -->
+        <div id="resultsExtraDrawer" class="hidden w-full space-y-2 mt-2">
+          <!-- Rating Module (Solo estrellas 1-5) -->
+          <div id="resCommunityRatingSection" class="glass-card w-full p-2.5 rounded-2xl space-y-2 bg-gradient-to-r from-purple-950/60 via-black/80 to-pink-950/60 border border-purple-500/40 text-center shadow-lg">
+            <div class="flex items-center justify-between px-1">
+              <span class="text-[10px] font-bold text-pink-300 flex items-center gap-1">
+                <span>★</span> Calificar Canción:
+              </span>
+              <span id="postGameRatingVal" class="text-[10px] font-black text-amber-400">5 / 5 Estrellas</span>
+            </div>
+            <div class="flex justify-center items-center gap-2 text-2xl py-0.5" id="communityRatingStars">
+              <span class="cursor-pointer transition hover:scale-125 select-none text-amber-400" onclick="setPostGameRating(1)">★</span>
+              <span class="cursor-pointer transition hover:scale-125 select-none text-amber-400" onclick="setPostGameRating(2)">★</span>
+              <span class="cursor-pointer transition hover:scale-125 select-none text-amber-400" onclick="setPostGameRating(3)">★</span>
+              <span class="cursor-pointer transition hover:scale-125 select-none text-amber-400" onclick="setPostGameRating(4)">★</span>
+              <span class="cursor-pointer transition hover:scale-125 select-none text-amber-400" onclick="setPostGameRating(5)">★</span>
+            </div>
+            <button id="btnSubmitPostRating" onclick="submitPostGameRating()" class="w-full py-1.5 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 rounded-xl text-xs font-black text-white shadow-md cursor-pointer transition active:scale-95">
+              Enviar Valoración
+            </button>
+          </div>
+
+          <!-- Direct Inline Leaderboard (Clasificación Online) -->
+          <div id="resInlineLeaderboard" class="glass-card w-full p-2.5 rounded-2xl space-y-2 bg-black/75 border border-cyan-500/30 text-left shadow-lg">
+            <div class="flex items-center justify-between px-1">
+              <span class="text-[10px] font-bold text-cyan-300 flex items-center gap-1">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline text-cyan-300"><path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2"/><path d="M6 9a6 6 0 0 0 12 0"/><path d="M12 15v5"/><path d="M8 20h8"/></svg> Clasificación
+              </span>
+              <div class="flex items-center gap-1 bg-black/50 p-0.5 rounded-lg border border-white/10">
+                <button id="inlineLbBtnSong" type="button" onclick="switchInlineLeaderboard('song')" class="px-2 py-0.5 rounded-md text-[9px] font-bold bg-cyan-500/30 text-cyan-300 border border-cyan-400/40 cursor-pointer">
+                  Esta Canción
+                </button>
+                <button id="inlineLbBtnGlobal" type="button" onclick="switchInlineLeaderboard('global')" class="px-2 py-0.5 rounded-md text-[9px] font-bold text-gray-400 hover:text-white cursor-pointer">
+                  Global
+                </button>
+              </div>
+            </div>
+            <div id="inlineLeaderboardRows" class="space-y-1 max-h-[140px] overflow-y-auto pr-0.5">
+              <div class="p-3 text-center text-gray-400 text-[10px]">Cargando clasificación...</div>
             </div>
           </div>
         </div>
 
-        <div class="grid grid-cols-4 gap-1 text-[10px] font-semibold pt-1">
-          <div class="text-cyan-300">P+ <span id="resPPlus" class="block text-white font-bold">0</span></div>
-          <div class="text-emerald-400">P <span id="resP" class="block text-white font-bold">0</span></div>
-          <div class="text-amber-400">G <span id="resG" class="block text-white font-bold">0</span></div>
-          <div class="text-red-400">M <span id="resM" class="block text-white font-bold">0</span></div>
-        </div>
-      </div>
-
-      <!-- Rating Module (Solo estrellas 1-5, sin sincronización) -->
-      <div id="resCommunityRatingSection" class="hidden glass-card w-full p-2.5 rounded-2xl space-y-2 bg-gradient-to-r from-purple-950/60 via-black/80 to-pink-950/60 border border-purple-500/40 text-center shadow-lg">
-        <div class="flex items-center justify-between px-1">
-          <span class="text-[10px] font-bold text-pink-300 flex items-center gap-1">
-            <span>★</span> Calificar Canción:
-          </span>
-          <span id="postGameRatingVal" class="text-[10px] font-black text-amber-400">5 / 5 Estrellas</span>
-        </div>
-        <div class="flex justify-center items-center gap-2 text-2xl py-0.5" id="communityRatingStars">
-          <span class="cursor-pointer transition hover:scale-125 select-none text-amber-400" onclick="setPostGameRating(1)">★</span>
-          <span class="cursor-pointer transition hover:scale-125 select-none text-amber-400" onclick="setPostGameRating(2)">★</span>
-          <span class="cursor-pointer transition hover:scale-125 select-none text-amber-400" onclick="setPostGameRating(3)">★</span>
-          <span class="cursor-pointer transition hover:scale-125 select-none text-amber-400" onclick="setPostGameRating(4)">★</span>
-          <span class="cursor-pointer transition hover:scale-125 select-none text-amber-400" onclick="setPostGameRating(5)">★</span>
-        </div>
-        <button id="btnSubmitPostRating" onclick="submitPostGameRating()" class="w-full py-1.5 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 rounded-xl text-xs font-black text-white shadow-md cursor-pointer transition active:scale-95">
-          Enviar Valoración
-        </button>
-      </div>
-
-      <!-- Direct Inline Leaderboard (Clasificación Online) -->
-      <div id="resInlineLeaderboard" class="glass-card w-full p-2.5 rounded-2xl space-y-2 bg-black/75 border border-cyan-500/30 text-left shadow-lg">
-        <div class="flex items-center justify-between px-1">
-          <span class="text-[10px] font-bold text-cyan-300 flex items-center gap-1">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline text-cyan-300"><path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2"/><path d="M6 9a6 6 0 0 0 12 0"/><path d="M12 15v5"/><path d="M8 20h8"/></svg> Clasificación
-          </span>
-          <div class="flex items-center gap-1 bg-black/50 p-0.5 rounded-lg border border-white/10">
-            <button id="inlineLbBtnSong" type="button" onclick="switchInlineLeaderboard('song')" class="px-2 py-0.5 rounded-md text-[9px] font-bold bg-cyan-500/30 text-cyan-300 border border-cyan-400/40 cursor-pointer">
-              Esta Canción
-            </button>
-            <button id="inlineLbBtnGlobal" type="button" onclick="switchInlineLeaderboard('global')" class="px-2 py-0.5 rounded-md text-[9px] font-bold text-gray-400 hover:text-white cursor-pointer">
-              Global
-            </button>
-          </div>
-        </div>
-        <div id="inlineLeaderboardRows" class="space-y-1 max-h-[140px] overflow-y-auto pr-0.5">
-          <div class="p-3 text-center text-gray-400 text-[10px]">Cargando clasificación...</div>
-        </div>
-      </div>
-
-      <div class="flex gap-2 w-full pt-1">
-        <button onclick="restartCurrentSong()" class="flex-1 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold text-white transition cursor-pointer">
-          Reintentar
-        </button>
-        <button onclick="exitToSearch()" class="flex-1 py-2.5 bg-gradient-to-r from-pink-500 to-purple-600 rounded-xl text-xs font-bold text-white shadow-lg shadow-pink-500/30 transition cursor-pointer">
-          Explorar Más
-        </button>
-      </div>
+        <div class="toast-capsule" id="resToastNotice"></div>
+      </main>
     </div>
-  </div>
   </div> <!-- End of game-viewport -->
 
   <script src="./parsers.js?v=3.5"></script>
@@ -2796,17 +3026,6 @@
       const gr = document.getElementById('colorGreat');       if (gr) gr.value = colors.great;
       const go = document.getElementById('colorGood');        if (go) go.value = colors.good;
       if (typeof syncPCKeybindsUI === 'function') syncPCKeybindsUI();
-
-      // Sync Continue Mode
-      const contSelect = document.getElementById('settingsContinueModeSelect');
-      const savedCont = localStorage.getItem('beatstar_continue_mode');
-      const isCont = savedCont !== 'false';
-      if (contSelect) contSelect.value = isCont ? 'true' : 'false';
-      const contValEl = document.getElementById('settingsContinueModeVal');
-      if (contValEl) {
-        contValEl.innerText = isCont ? 'Continuar (Beatstar)' : 'Muerte Súbita';
-        contValEl.className = `font-mono font-bold ${isCont ? 'text-emerald-400' : 'text-amber-400'}`;
-      }
     };
 
     window.syncVolumeUI = function() {
@@ -3630,17 +3849,6 @@
       showSuccessToast(`Dificultad de mapa: ${mode === 'easy' ? 'Fácil (Principiante)' : (mode === 'medium' ? 'Medio (Intermedio)' : 'Difícil (Actual)')}`);
     };
 
-    window.toggleContinueMode = function(checked) {
-      localStorage.setItem('beatstar_continue_mode', checked ? 'true' : 'false');
-      if (engine) engine.setContinueMode(checked);
-      const valEl = document.getElementById('settingsContinueModeVal');
-      if (valEl) {
-        valEl.innerText = checked ? 'Continuar (Beatstar)' : 'Muerte Súbita';
-        valEl.className = `font-mono font-bold ${checked ? 'text-emerald-400' : 'text-amber-400'}`;
-      }
-      showSuccessToast(`Modo al fallar: ${checked ? 'Continuar (Sin pausa)' : 'Muerte Súbita (Revivir)'}`);
-    };
-
     window.updateNoteSpeed = function(val) {
       const mult = parseFloat(val) || 1.0;
       localStorage.setItem('beatstar_note_speed', mult.toString());
@@ -3813,6 +4021,7 @@
         reviveModal.classList.remove('open');
         reviveModal.style.display = 'none';
       }
+      clearDeathTypewriterSequences();
       const countdownOverlay = document.getElementById('startCountdownOverlay');
       if (countdownOverlay) {
         countdownOverlay.classList.remove('show', 'fading');
@@ -3823,25 +4032,622 @@
       if (engine) engine.restart();
     };
 
-    window.payReviveAndResume = function(event) {
+    // =========================================================================
+    // MÁQUINA DE ESCRIBIR VINTAGE (CHOPIN & CO. 1928) - SINTETIZADOR Y SECUENCIADOR
+    // =========================================================================
+    let typewriterAudioCtx = null;
+    function getTypewriterAudioContext() {
+      if (!typewriterAudioCtx) {
+        const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtxClass) {
+          typewriterAudioCtx = new AudioCtxClass({ latencyHint: 'interactive' });
+        }
+      }
+      if (typewriterAudioCtx && typewriterAudioCtx.state === 'suspended') {
+        typewriterAudioCtx.resume().catch(() => {});
+      }
+      return typewriterAudioCtx;
+    }
+
+    function playTypewriterKeyStrike(isSpace = false) {
+      try {
+        const ctx = getTypewriterAudioContext();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+
+        // 1. Martilleo metálico afinado
+        const osc = ctx.createOscillator();
+        const oscGain = ctx.createGain();
+        osc.type = isSpace ? 'triangle' : 'sine';
+        osc.frequency.setValueAtTime(isSpace ? 180 : 380 + Math.random() * 140, now);
+        osc.frequency.exponentialRampToValueAtTime(70, now + 0.045);
+        oscGain.gain.setValueAtTime(0.35, now);
+        oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+        osc.connect(oscGain);
+        oscGain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.05);
+
+        // 2. Ruido filtrado de impacto de cinta y caucho
+        const bufferSize = Math.floor(ctx.sampleRate * 0.035);
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(isSpace ? 850 : 2100 + (Math.random() * 400 - 200), now);
+        filter.Q.setValueAtTime(3.2, now);
+
+        const noiseGain = ctx.createGain();
+        noiseGain.gain.setValueAtTime(isSpace ? 0.22 : 0.42, now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+
+        noise.connect(filter);
+        filter.connect(noiseGain);
+        noiseGain.connect(ctx.destination);
+        noise.start(now);
+
+        // 3. Clic mecánico del trinquete de escape
+        const clickOsc = ctx.createOscillator();
+        const clickGain = ctx.createGain();
+        clickOsc.type = 'sawtooth';
+        clickOsc.frequency.setValueAtTime(1400, now + 0.006);
+        clickGain.gain.setValueAtTime(0.12, now + 0.006);
+        clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.016);
+        clickOsc.connect(clickGain);
+        clickGain.connect(ctx.destination);
+        clickOsc.start(now + 0.006);
+        clickOsc.stop(now + 0.02);
+      } catch (err) {
+        // Fallback silencioso si audio no disponible
+      }
+    }
+
+    function playPaperFeedSound() {
+      try {
+        const ctx = getTypewriterAudioContext();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        for (let i = 0; i < 6; i++) {
+          const t = now + i * 0.045;
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(260 + (i % 2) * 60, t);
+          g.gain.setValueAtTime(0.09, t);
+          g.gain.exponentialRampToValueAtTime(0.001, t + 0.022);
+          osc.connect(g);
+          g.connect(ctx.destination);
+          osc.start(t);
+          osc.stop(t + 0.025);
+        }
+      } catch (e) {}
+    }
+
+    function playCarriageBellChime() {
+      try {
+        const ctx = getTypewriterAudioContext();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc1.type = 'sine';
+        osc2.type = 'sine';
+        osc1.frequency.setValueAtTime(2240, now);
+        osc2.frequency.setValueAtTime(4480, now);
+        gain.gain.setValueAtTime(0.32, now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.75);
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(ctx.destination);
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + 0.8);
+        osc2.stop(now + 0.8);
+      } catch (e) {}
+    }
+
+    function playCarriageReturnSound() {
+      try {
+        const ctx = getTypewriterAudioContext();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        const bufferSize = Math.floor(ctx.sampleRate * 0.16);
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+        }
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(1200, now);
+        filter.frequency.linearRampToValueAtTime(400, now + 0.16);
+        filter.Q.setValueAtTime(1.8, now);
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+        noise.start(now);
+      } catch (e) {}
+    }
+
+    function playStampThud() {
+      try {
+        const ctx = getTypewriterAudioContext();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(120, now);
+        osc.frequency.exponentialRampToValueAtTime(35, now + 0.14);
+        gain.gain.setValueAtTime(0.7, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.16);
+      } catch (e) {}
+    }
+
+    // Secuencias animadas para Pantalla de Muerte
+    let activeTypewriterDeathTimeouts = [];
+    function clearDeathTypewriterSequences() {
+      activeTypewriterDeathTimeouts.forEach(t => clearTimeout(t));
+      activeTypewriterDeathTimeouts = [];
+    }
+
+    window.triggerVintageDeathScreen = function(score, penaltyCost) {
+      clearDeathTypewriterSequences();
+      getTypewriterAudioContext();
+
+      const deathUserBalance = document.getElementById('deathUserBalance');
+      if (deathUserBalance) deathUserBalance.innerText = userClefs || 0;
+
+      const deathReviveBadgeCost = document.getElementById('deathReviveBadgeCost');
+      if (deathReviveBadgeCost) deathReviveBadgeCost.innerText = penaltyCost;
+
+      const scoreLetters = document.getElementById('deathScoreLetters');
+      if (scoreLetters) scoreLetters.innerHTML = '';
+      const costLetters = document.getElementById('deathCostLetters');
+      if (costLetters) costLetters.innerHTML = '';
+
+      const scoreCursor = document.getElementById('deathScoreCursor');
+      if (scoreCursor) scoreCursor.style.display = 'inline-block';
+      const costCursor = document.getElementById('deathCostCursor');
+      if (costCursor) costCursor.style.display = 'none';
+
+      const ribbonDot = document.getElementById('deathRibbonDot');
+      if (ribbonDot) ribbonDot.classList.remove('red-active');
+
+      const stampApproved = document.getElementById('deathStampApproved');
+      if (stampApproved) stampApproved.classList.remove('stamped');
+
+      const parchment = document.getElementById('deathParchmentSheet');
+      if (parchment) parchment.classList.remove('ejected');
+
+      const knobL = document.getElementById('deathKnobLeft');
+      const knobR = document.getElementById('deathKnobRight');
+      if (knobL) knobL.classList.remove('rolling');
+      if (knobR) knobR.classList.remove('rolling');
+
+      const btnRevive = document.getElementById('btnDeathRevive');
+      if (btnRevive) {
+        btnRevive.disabled = false;
+        btnRevive.style.opacity = '1';
+      }
+
+      // 1. Iniciar giro de rodillo y alimentación de papel
+      activeTypewriterDeathTimeouts.push(setTimeout(() => {
+        if (knobL) knobL.classList.add('rolling');
+        if (knobR) knobR.classList.add('rolling');
+        playPaperFeedSound();
+        if (parchment) parchment.classList.add('ejected');
+      }, 100));
+
+      // 2. Mecanografiar puntuación alcanzada
+      const scoreStr = Number(score || 0).toLocaleString();
+      let delay = 1050;
+
+      for (let i = 0; i < scoreStr.length; i++) {
+        const char = scoreStr[i];
+        activeTypewriterDeathTimeouts.push(setTimeout(() => {
+          const fork = document.getElementById('deathRibbonFork');
+          if (fork) {
+            fork.classList.add('kick');
+            setTimeout(() => fork.classList.remove('kick'), 50);
+          }
+          playTypewriterKeyStrike(char === ' ' || char === ',');
+          if (scoreLetters) {
+            const span = document.createElement('span');
+            span.className = 'typed-letter';
+            span.innerText = char;
+            const slightAngle = (Math.random() * 1.6 - 0.8).toFixed(2);
+            const slightY = (Math.random() * 1.2 - 0.6).toFixed(2);
+            span.style.transform = `rotate(${slightAngle}deg) translateY(${slightY}px)`;
+            scoreLetters.appendChild(span);
+          }
+        }, delay));
+        delay += 95 + Math.floor(Math.random() * 45);
+      }
+
+      // 3. Campana de final de línea y retorno de carro
+      delay += 140;
+      activeTypewriterDeathTimeouts.push(setTimeout(() => {
+        playCarriageBellChime();
+        const arm = document.getElementById('deathCarriageArm');
+        if (arm) {
+          arm.classList.add('pulled');
+          setTimeout(() => {
+            arm.classList.remove('pulled');
+            playCarriageReturnSound();
+          }, 260);
+        }
+        if (scoreCursor) scoreCursor.style.display = 'none';
+      }, delay));
+
+      // 4. Cambiar selector a cinta roja
+      delay += 380;
+      activeTypewriterDeathTimeouts.push(setTimeout(() => {
+        if (ribbonDot) ribbonDot.classList.add('red-active');
+        playTypewriterKeyStrike(true);
+        if (costCursor) costCursor.style.display = 'inline-block';
+      }, delay));
+
+      // 5. Teclear coste de penalización en rojo
+      delay += 240;
+      const costStr = String(penaltyCost);
+      for (let i = 0; i < costStr.length; i++) {
+        const c = costStr[i];
+        activeTypewriterDeathTimeouts.push(setTimeout(() => {
+          const fork = document.getElementById('deathRibbonFork');
+          if (fork) {
+            fork.classList.add('kick');
+            setTimeout(() => fork.classList.remove('kick'), 50);
+          }
+          playTypewriterKeyStrike(false);
+          if (costLetters) {
+            const span = document.createElement('span');
+            span.className = 'cost-typed-char';
+            span.innerText = c;
+            costLetters.appendChild(span);
+          }
+        }, delay));
+        delay += 100;
+      }
+
+      // Clave de sol mecanografiada
+      delay += 100;
+      activeTypewriterDeathTimeouts.push(setTimeout(() => {
+        playTypewriterKeyStrike(false);
+        if (costLetters) {
+          const clefSpan = document.createElement('span');
+          clefSpan.className = 'cost-clef-char';
+          clefSpan.innerText = '𝄞';
+          costLetters.appendChild(clefSpan);
+        }
+      }, delay));
+    };
+
+    window.handleVintageReviveClick = function(event) {
       if (event) {
         if (typeof event.preventDefault === 'function') event.preventDefault();
         if (typeof event.stopPropagation === 'function') event.stopPropagation();
       }
+      const btn = document.getElementById('btnDeathRevive');
+      if (btn) btn.disabled = true;
+
       if (deductClefs(currentPenaltyCost)) {
-        const reviveModal = document.getElementById('reviveModal');
-        if (reviveModal) {
-          reviveModal.classList.remove('open');
-          reviveModal.style.display = 'none';
-        }
-        showSuccessToast(`¡Reanudando! (-${currentPenaltyCost} 𝄞)`);
-        if (engine) engine.reviveAndResume();
+        playStampThud();
+        setTimeout(() => playCarriageBellChime(), 90);
+        const stamp = document.getElementById('deathStampApproved');
+        if (stamp) stamp.classList.add('stamped');
+
+        setTimeout(() => {
+          clearDeathTypewriterSequences();
+          const reviveModal = document.getElementById('reviveModal');
+          if (reviveModal) {
+            reviveModal.classList.remove('open');
+            reviveModal.style.display = 'none';
+          }
+          showSuccessToast(`¡Reanudando! (-${currentPenaltyCost} 𝄞)`);
+          if (engine) engine.reviveAndResume();
+        }, 450);
       } else {
-        showErrorToast('No tienes suficientes Claves de Sol (𝄞).');
+        const toast = document.getElementById('deathToastNotice');
+        if (toast) {
+          toast.innerText = '¡Saldo insuficiente de Claves de Sol (𝄞)!';
+          toast.classList.add('active');
+          playTypewriterKeyStrike(true);
+          setTimeout(() => toast.classList.remove('active'), 2600);
+        } else {
+          showErrorToast('No tienes suficientes Claves de Sol (𝄞).');
+        }
+        if (btn) btn.disabled = false;
       }
     };
 
+    // Secuencias animadas para Pantalla de Resultados
+    let activeTypewriterResultsTimeouts = [];
+    function clearResultsTypewriterSequences() {
+      activeTypewriterResultsTimeouts.forEach(t => clearTimeout(t));
+      activeTypewriterResultsTimeouts = [];
+    }
+
+    window.triggerVintageResultsScreen = function(score, maxCombo, stars, stats, earnedClefs, isNewRecord, finalMedal, scorePct) {
+      clearResultsTypewriterSequences();
+      getTypewriterAudioContext();
+
+      const resUserBalance = document.getElementById('resUserBalance');
+      if (resUserBalance) resUserBalance.innerText = userClefs || 0;
+
+      const scoreLetters = document.getElementById('resScoreLetters');
+      if (scoreLetters) scoreLetters.innerHTML = '';
+      const rewardLetters = document.getElementById('resRewardLetters');
+      if (rewardLetters) rewardLetters.innerHTML = '';
+
+      const scoreCursor = document.getElementById('resScoreCursor');
+      if (scoreCursor) scoreCursor.style.display = 'inline-block';
+      const rewardCursor = document.getElementById('resRewardCursor');
+      if (rewardCursor) rewardCursor.style.display = 'none';
+
+      const ribbonDot = document.getElementById('resRibbonDot');
+      if (ribbonDot) ribbonDot.classList.remove('red-active');
+
+      const stampApproved = document.getElementById('resStampApproved');
+      if (stampApproved) {
+        stampApproved.classList.remove('stamped');
+        stampApproved.innerText = isNewRecord ? '¡NUEVO RÉCORD!' : '¡COMPLETADO!';
+      }
+
+      const stampBadge = document.getElementById('resStampBadge');
+      if (stampBadge) stampBadge.innerText = isNewRecord ? 'RÉCORD' : 'FIN';
+
+      const parchment = document.getElementById('resParchmentSheet');
+      if (parchment) parchment.classList.remove('ejected');
+
+      const songCaption = document.getElementById('resSongInfoCaption');
+      if (songCaption) {
+        const title = currentActiveBeatmap?.metadata?.title || 'PIEZA';
+        songCaption.innerText = `• OPUS: ${title.toUpperCase().slice(0, 24)}`;
+      }
+
+      const displayScorePct = Math.min(100.0, Math.max(0.0, scorePct));
+      const accEl = document.getElementById('resParchmentAccuracy');
+      if (accEl) accEl.innerText = `${displayScorePct.toFixed(1)}%`;
+
+      const comboEl = document.getElementById('resParchmentCombo');
+      if (comboEl) comboEl.innerText = maxCombo;
+
+      const ppEl = document.getElementById('resParchmentPPlus');
+      if (ppEl) ppEl.innerText = stats?.perfectPlus ?? 0;
+      const pEl = document.getElementById('resParchmentP');
+      if (pEl) pEl.innerText = stats?.perfect ?? 0;
+      const gEl = document.getElementById('resParchmentG');
+      if (gEl) gEl.innerText = stats?.great ?? 0;
+      const mEl = document.getElementById('resParchmentM');
+      if (mEl) mEl.innerText = stats?.miss ?? 0;
+
+      const starsContainer = document.getElementById('resParchmentStars');
+      if (starsContainer) {
+        let starsHtml = '';
+        for (let i = 0; i < 5; i++) {
+          if (i < stars) {
+            starsHtml += `<span style="color:#b8860b; text-shadow:0 0 1px #5a3d00; transform:scale(1.15);">★</span>`;
+          } else {
+            starsHtml += `<span style="color:rgba(90, 72, 53, 0.28);">★</span>`;
+          }
+        }
+        starsContainer.innerHTML = starsHtml;
+      }
+
+      const knobL = document.getElementById('resKnobLeft');
+      const knobR = document.getElementById('resKnobRight');
+      if (knobL) knobL.classList.remove('rolling');
+      if (knobR) knobR.classList.remove('rolling');
+
+      // 1. Rodillo y sonido de alimentación
+      activeTypewriterResultsTimeouts.push(setTimeout(() => {
+        if (knobL) knobL.classList.add('rolling');
+        if (knobR) knobR.classList.add('rolling');
+        playPaperFeedSound();
+        if (parchment) parchment.classList.add('ejected');
+      }, 100));
+
+      // 2. Tecleo de puntuación
+      const scoreStr = Number(score || 0).toLocaleString();
+      let delay = 1000;
+
+      for (let i = 0; i < scoreStr.length; i++) {
+        const char = scoreStr[i];
+        activeTypewriterResultsTimeouts.push(setTimeout(() => {
+          const fork = document.getElementById('resRibbonFork');
+          if (fork) {
+            fork.classList.add('kick');
+            setTimeout(() => fork.classList.remove('kick'), 50);
+          }
+          playTypewriterKeyStrike(char === ' ' || char === ',');
+          if (scoreLetters) {
+            const span = document.createElement('span');
+            span.className = 'typed-letter';
+            span.innerText = char;
+            const slightAngle = (Math.random() * 1.6 - 0.8).toFixed(2);
+            const slightY = (Math.random() * 1.2 - 0.6).toFixed(2);
+            span.style.transform = `rotate(${slightAngle}deg) translateY(${slightY}px)`;
+            scoreLetters.appendChild(span);
+          }
+        }, delay));
+        delay += 90 + Math.floor(Math.random() * 40);
+      }
+
+      // 3. Campana y palanca
+      delay += 140;
+      activeTypewriterResultsTimeouts.push(setTimeout(() => {
+        playCarriageBellChime();
+        const arm = document.getElementById('resCarriageArm');
+        if (arm) {
+          arm.classList.add('pulled');
+          setTimeout(() => {
+            arm.classList.remove('pulled');
+            playCarriageReturnSound();
+          }, 260);
+        }
+        if (scoreCursor) scoreCursor.style.display = 'none';
+      }, delay));
+
+      // 4. Cinta roja
+      delay += 380;
+      activeTypewriterResultsTimeouts.push(setTimeout(() => {
+        if (ribbonDot) ribbonDot.classList.add('red-active');
+        playTypewriterKeyStrike(true);
+        if (rewardCursor) rewardCursor.style.display = 'inline-block';
+      }, delay));
+
+      // 5. Recompensa en rojo
+      delay += 240;
+      const rewardStr = `+${earnedClefs}`;
+      for (let i = 0; i < rewardStr.length; i++) {
+        const c = rewardStr[i];
+        activeTypewriterResultsTimeouts.push(setTimeout(() => {
+          const fork = document.getElementById('resRibbonFork');
+          if (fork) {
+            fork.classList.add('kick');
+            setTimeout(() => fork.classList.remove('kick'), 50);
+          }
+          playTypewriterKeyStrike(false);
+          if (rewardLetters) {
+            const span = document.createElement('span');
+            span.className = 'cost-typed-char';
+            span.innerText = c;
+            rewardLetters.appendChild(span);
+          }
+        }, delay));
+        delay += 95;
+      }
+
+      // Clave de sol
+      delay += 100;
+      activeTypewriterResultsTimeouts.push(setTimeout(() => {
+        playTypewriterKeyStrike(false);
+        if (rewardLetters) {
+          const clefSpan = document.createElement('span');
+          clefSpan.className = 'cost-clef-char';
+          clefSpan.innerText = '𝄞';
+          rewardLetters.appendChild(clefSpan);
+        }
+      }, delay));
+
+      // 6. Sello final con golpe
+      delay += 340;
+      activeTypewriterResultsTimeouts.push(setTimeout(() => {
+        playStampThud();
+        if (stampApproved) stampApproved.classList.add('stamped');
+      }, delay));
+    };
+
+    window.toggleResultsExtraDrawer = function() {
+      const drawer = document.getElementById('resultsExtraDrawer');
+      const btnLabel = document.getElementById('btnToggleExtraResultsLabel');
+      if (!drawer) return;
+      const isHidden = drawer.classList.contains('hidden');
+      if (isHidden) {
+        drawer.classList.remove('hidden');
+        if (btnLabel) btnLabel.innerText = '▲ OCULTAR EXTRA';
+      } else {
+        drawer.classList.add('hidden');
+        if (btnLabel) btnLabel.innerText = '★ RATING / TOP';
+      }
+    };
+
+    // ==========================================
+    // INSTALACIÓN APK Y PWA ANDROID
+    // ==========================================
+    let deferredPwaPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPwaPrompt = e;
+      const tip = document.getElementById('pwaManualTip');
+      if (tip) tip.style.display = 'none';
+    });
+
+    window.openApkInstallModal = function() {
+      const modal = document.getElementById('apkInstallModal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('open');
+        modal.style.display = 'flex';
+      }
+    };
+
+    window.closeApkInstallModal = function() {
+      const modal = document.getElementById('apkInstallModal');
+      if (modal) {
+        modal.classList.remove('open');
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+      }
+    };
+
+    window.triggerDirectPwaInstall = async function() {
+      if (deferredPwaPrompt) {
+        deferredPwaPrompt.prompt();
+        const { outcome } = await deferredPwaPrompt.userChoice;
+        if (outcome === 'accepted') {
+          showSuccessToast('¡Gracias por instalar Piano Community!');
+          closeApkInstallModal();
+        }
+        deferredPwaPrompt = null;
+      } else {
+        const tip = document.getElementById('pwaManualTip');
+        if (tip) tip.classList.add('animate-pulse');
+        showSuccessToast('Para instalar: pulsa Menú (⋮) en tu navegador y selecciona "Instalar aplicación"');
+      }
+    };
+
+    window.handleApkDownloadClick = async function(event) {
+      if (event) {
+        if (typeof event.preventDefault === 'function') event.preventDefault();
+        if (typeof event.stopPropagation === 'function') event.stopPropagation();
+      }
+      try {
+        const res = await fetch('/download/apk', { method: 'HEAD' });
+        const cType = res.headers.get('content-type') || '';
+        const cLen = parseInt(res.headers.get('content-length') || '0', 10);
+        if (res.ok && (cType.includes('vnd.android.package-archive') || cType.includes('octet-stream')) && cLen > 500000) {
+          // APK compilado real disponible
+          const a = document.createElement('a');
+          a.href = '/download/apk';
+          a.setAttribute('download', 'PianoCommunity.apk');
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          return;
+        }
+      } catch (err) {
+        console.warn('[APK] Verificación de archivo:', err);
+      }
+      // Mostrar modal instructivo con opciones claras
+      openApkInstallModal();
+    };
+
+    window.payReviveAndResume = function(event) {
+      handleVintageReviveClick(event);
+    };
+
     window.exitToSearch = function() {
+      clearDeathTypewriterSequences();
+      clearResultsTypewriterSequences();
+      closeApkInstallModal();
       if (activeCountdownInterval) {
         clearInterval(activeCountdownInterval);
         activeCountdownInterval = null;
@@ -3851,7 +4657,7 @@
         countdownOverlay.classList.remove('show', 'fading');
       }
 
-      const modals = ['pauseModal', 'reviveModal', 'resultsModal', 'calibrationScreen', 'settingsModal', 'ytMusicModal', 'addToPlaylistModal', 'fxShopModal', 'leaderboardModal'];
+      const modals = ['pauseModal', 'reviveModal', 'resultsModal', 'calibrationScreen', 'settingsModal', 'ytMusicModal', 'addToPlaylistModal', 'fxShopModal', 'leaderboardModal', 'apkInstallModal'];
       modals.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -4225,17 +5031,21 @@
         onMissPenalty: (penaltyCost, missCount, score) => {
           if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
           currentPenaltyCost = penaltyCost;
+          const currentScore = score !== undefined ? score : (window.engine ? window.engine.score : 0);
           const costVal = document.getElementById('reviveCostVal');
           if (costVal) costVal.innerText = penaltyCost;
           const btnCost = document.getElementById('btnPayReviveCost');
           if (btnCost) btnCost.innerText = penaltyCost;
           const scoreVal = document.getElementById('reviveScoreVal');
-          if (scoreVal) scoreVal.innerText = (score !== undefined ? score : (window.engine ? window.engine.score : 0)).toLocaleString();
+          if (scoreVal) scoreVal.innerText = currentScore.toLocaleString();
           const reviveModal = document.getElementById('reviveModal');
           if (reviveModal) {
             reviveModal.style.display = 'flex';
             reviveModal.classList.add('open');
           }
+
+          // Desencadenar animación analógica y sonido de máquina de escribir vintage
+          triggerVintageDeathScreen(currentScore, penaltyCost);
         },
         onMetronomeBeat: () => {
           const el = document.getElementById('metronomeIndicator');
@@ -6580,15 +7390,23 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       if (exitResultsBtn) {
         exitResultsBtn.innerText = window.isPlaytestingFromEditor ? 'Volver al Editor' : 'Explorar Más';
       }
+      const btnResPrimaryLabel = document.getElementById('btnResPrimaryLabel');
+      if (btnResPrimaryLabel) {
+        btnResPrimaryLabel.innerText = window.isPlaytestingFromEditor ? 'VOLVER AL EDITOR' : 'EXPLORAR CATÁLOGO';
+      }
 
       const modal = document.getElementById('resultsModal');
       if (modal) {
         modal.style.display = 'flex';
         modal.classList.add('open');
       }
+
+      // Desencadenar animación analógica y sonido de máquina de escribir vintage
+      triggerVintageResultsScreen(score, maxCombo, stars, stats, finalEarnedClefs, isNewRecord, finalMedal, scorePct);
     }
 
     function restartCurrentSong() {
+      clearResultsTypewriterSequences();
       const modal = document.getElementById('resultsModal');
       if (modal) {
         modal.classList.remove('open');

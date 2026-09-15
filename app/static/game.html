@@ -1787,22 +1787,6 @@
             </select>
           </div>
 
-          <!-- Modo al Fallar Notas (Continuar vs Arcade) -->
-          <div class="p-2.5 bg-black/40 border border-white/10 rounded-xl space-y-1.5">
-            <div class="flex items-center justify-between text-xs">
-              <span class="font-bold text-white flex items-center gap-1.5">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-amber-400"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                Modo al Fallar:
-              </span>
-              <span id="settingsContinueModeVal" class="font-mono font-bold text-emerald-400">Continuar (Beatstar)</span>
-            </div>
-            <select id="settingsContinueModeSelect" onchange="toggleContinueMode(this.value === 'true')" class="w-full bg-black/70 border border-white/15 rounded-lg text-xs text-white p-1.5 cursor-pointer">
-              <option value="true" selected>Continuar Jugando (Estándar Beatstar)</option>
-              <option value="false">Muerte Súbita / Revivir (Pausar y pagar Claves)</option>
-            </select>
-            <p class="text-[9px] text-gray-400">En 'Continuar', los fallos rompen el combo pero la canción nunca se detiene bruscamente.</p>
-          </div>
-
           <!-- Nickname del Jugador / Creador -->
           <div class="p-2.5 bg-black/40 border border-white/10 rounded-xl space-y-1.5">
             <div class="flex items-center justify-between text-xs">
@@ -3042,17 +3026,6 @@
       const gr = document.getElementById('colorGreat');       if (gr) gr.value = colors.great;
       const go = document.getElementById('colorGood');        if (go) go.value = colors.good;
       if (typeof syncPCKeybindsUI === 'function') syncPCKeybindsUI();
-
-      // Sync Continue Mode
-      const contSelect = document.getElementById('settingsContinueModeSelect');
-      const savedCont = localStorage.getItem('beatstar_continue_mode');
-      const isCont = savedCont !== 'false';
-      if (contSelect) contSelect.value = isCont ? 'true' : 'false';
-      const contValEl = document.getElementById('settingsContinueModeVal');
-      if (contValEl) {
-        contValEl.innerText = isCont ? 'Continuar (Beatstar)' : 'Muerte Súbita';
-        contValEl.className = `font-mono font-bold ${isCont ? 'text-emerald-400' : 'text-amber-400'}`;
-      }
     };
 
     window.syncVolumeUI = function() {
@@ -3874,17 +3847,6 @@
       const selectEl = document.getElementById('settingsMapDensitySelect');
       if (selectEl) selectEl.value = mode;
       showSuccessToast(`Dificultad de mapa: ${mode === 'easy' ? 'Fácil (Principiante)' : (mode === 'medium' ? 'Medio (Intermedio)' : 'Difícil (Actual)')}`);
-    };
-
-    window.toggleContinueMode = function(checked) {
-      localStorage.setItem('beatstar_continue_mode', checked ? 'true' : 'false');
-      if (engine) engine.setContinueMode(checked);
-      const valEl = document.getElementById('settingsContinueModeVal');
-      if (valEl) {
-        valEl.innerText = checked ? 'Continuar (Beatstar)' : 'Muerte Súbita';
-        valEl.className = `font-mono font-bold ${checked ? 'text-emerald-400' : 'text-amber-400'}`;
-      }
-      showSuccessToast(`Modo al fallar: ${checked ? 'Continuar (Sin pausa)' : 'Muerte Súbita (Revivir)'}`);
     };
 
     window.updateNoteSpeed = function(val) {

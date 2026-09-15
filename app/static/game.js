@@ -2840,6 +2840,8 @@ class BeatstarEngine {
     // Ordenar cronológicamente (la nota que llega primero en el tiempo va primero)
     laneNotes.sort((a, b) => a.time - b.time);
 
+    const isActivelyPlaying = (this.isRunning || (this.sync && this.sync.isPlaying)) && !this.isPaused && !this.isGameOver && !this.isCountingDown && !this.isCalibrating && !!this.beatmapData;
+
     if (laneNotes.length === 0) {
       if (this.customBgMode === 'reactive') {
         this.addReactiveBurst(lane, hitX, hitY, this.getScoreColor('perfectPlus'));
@@ -2849,8 +2851,8 @@ class BeatstarEngine {
         this.emitKeyHit(hitX, hitY, this.getScoreColor('perfectPlus'), 24);
         return;
       }
-      // Tocar sin nota = fallo y derrota inmediata
-      if (this.isPlaying && this.beatmapData && !this.isPaused) {
+      // Tocar sin nota = fallo y derrota inmediata SIEMPRE
+      if (isActivelyPlaying) {
         this.addJudgement('MISS', this.getScoreColor('miss'), lane);
         this.synth.playMiss();
         this.laneFlashColors[lane] = '#ff2040';
@@ -2870,7 +2872,7 @@ class BeatstarEngine {
       // REGLA FUNDAMENTAL: Si la nota frontal es un SWIPE, un toque normal es absorbido por el gesto
       // y NUNCA puede saltarse el swipe para consumir la nota tap que viene arriba.
       if (frontNote.type === 'swipe') {
-        if (this.isPlaying && this.beatmapData && !this.isPaused) {
+        if (isActivelyPlaying) {
           this.addJudgement('MISS', this.getScoreColor('miss'), lane);
           this.synth.playMiss();
           this.laneFlashColors[lane] = '#ff2040';
@@ -2892,7 +2894,7 @@ class BeatstarEngine {
           minDiff = frontEntry.absDiff;
         } else {
           // Dirección de swipe incorrecta = fallo
-          if (this.isPlaying && this.beatmapData && !this.isPaused) {
+          if (isActivelyPlaying) {
             this.addJudgement('MISS', this.getScoreColor('miss'), lane);
             this.synth.playMiss();
             this.laneFlashColors[lane] = '#ff2040';
@@ -2903,7 +2905,7 @@ class BeatstarEngine {
         }
       } else {
         // La nota frontal no es un swipe; el gesto de deslizamiento en nota normal cuenta como fallo
-        if (this.isPlaying && this.beatmapData && !this.isPaused) {
+        if (isActivelyPlaying) {
           this.addJudgement('MISS', this.getScoreColor('miss'), lane);
           this.synth.playMiss();
           this.laneFlashColors[lane] = '#ff2040';
@@ -2915,7 +2917,7 @@ class BeatstarEngine {
     }
 
     if (!closestNote) {
-      if (this.isPlaying && this.beatmapData && !this.isPaused && !this.isCalibrating) {
+      if (isActivelyPlaying) {
         this.addJudgement('MISS', this.getScoreColor('miss'), lane);
         this.synth.playMiss();
         this.laneFlashColors[lane] = '#ff2040';
@@ -3587,29 +3589,11 @@ class BeatstarEngine {
           note.missed = true;
           note.processed = true;
 
-          if (currentTime > this.invulnerableUntil && canTriggerMiss) {
+          if (canTriggerMiss) {
             this.synth.playPunchyArcadeMiss();
-            this.addJudgement('MISS', '#ff4d4d');
+            this.addJudgement('MISS', '#ff4d4d', note.lane);
             this.handleMiss();
             break;
-          } else {
-            // Still reset combo and record stats if in continue mode or cooldown
-            this.combo = 0;
-            this.multiplier = 1;
-            this.streakCount = 0;
-            this.stats.miss++;
-
-            const maxScore = Math.max(1, this.maxPossibleScore || 1);
-            const scorePct = Math.min(100.0, (this.score / maxScore) * 100);
-
-            const totalJudged = (this.stats.perfectPlus || 0) + (this.stats.perfect || 0) + (this.stats.great || 0) + (this.stats.good || 0) + (this.stats.miss || 0);
-            const accuracyPct = totalJudged > 0
-              ? Math.min(100.0, Math.max(0.0, (((this.stats.perfectPlus * 100) + (this.stats.perfect * 80) + (this.stats.great * 50) + ((this.stats.good || 0) * 25)) / (totalJudged * 100)) * 100))
-              : 100.0;
-
-            if (this.ui && this.ui.onScoreUpdate) {
-              this.ui.onScoreUpdate(this.score, this.combo, this.stars, this.multiplier, this.currentMedalTier, scorePct, accuracyPct);
-            }
           }
         }
       }
