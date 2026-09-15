@@ -1494,35 +1494,29 @@ class BeatstarEngine {
     this.activeSwipeDrags = new Map();
     this.hudArtistPortalEl = null;
 
-    // Bola de Discoteca Plateada Hiperrealista y Sistema de Iluminación Volumétrica (Combo >= 200)
+    // Bola de Discoteca Ultra-Optimizada (120 FPS, 0 Lag, Luces de Colores Glow)
     this.discoBall = {
       active: false,
-      descendY: -120,      // Oculta en el techo por defecto
-      targetY: -120,       // Solo desciende a 86px al alcanzar combo 200
-      radius: 27,          // Radio de la esfera en píxeles
-      rotation: 0,         // Rotación sobre el eje vertical
-      rotSpeed: 0.85,      // Velocidad base de giro (rad/s)
-      latBands: 13,        // Bandas de latitud de azulejos de espejo
-      lonSegments: 26,     // Segmentos de longitud
-      specks: [],          // Reflejos difuminados de espejos flotando por toda la pantalla
-      spotlights: [
-        { x: -0.65, y: -0.55, z: 0.52, color: '#ffffff', rgb: { r: 255, g: 255, b: 255 }, power: 1.1 },
-        { x: 0.70, y: -0.45, z: 0.55, color: '#00f2fe', rgb: { r: 0, g: 242, b: 254 }, power: 0.95 },
-        { x: -0.25, y: -0.75, z: 0.60, color: '#ff007f', rgb: { r: 255, g: 0, b: 127 }, power: 1.0 },
-        { x: 0.40, y: -0.60, z: 0.70, color: '#fbbf24', rgb: { r: 251, g: 191, b: 36 }, power: 0.9 }
-      ]
+      descendY: -120,
+      targetY: -120,
+      radius: 27,
+      rotation: 0,
+      rotSpeed: 0.85,
+      latBands: 7,
+      lonSegments: 14,
+      specks: []
     };
-    for (let i = 0; i < 90; i++) {
+    for (let i = 0; i < 14; i++) {
       this.discoBall.specks.push({
         theta: Math.random() * Math.PI * 2,
         phi: (Math.random() - 0.5) * Math.PI * 0.88,
-        dist: 0.12 + Math.random() * 0.90,
-        size: 3.5 + Math.random() * 8.0,
-        speed: 0.35 + Math.random() * 0.95,
-        colorIdx: Math.floor(Math.random() * 6),
-        brightness: 0.45 + Math.random() * 0.55,
+        dist: 0.15 + Math.random() * 0.80,
+        size: 4.0 + Math.random() * 5.0,
+        speed: 0.35 + Math.random() * 0.85,
+        colorIdx: i % 6,
+        brightness: 0.60 + Math.random() * 0.40,
         shimmerPhase: Math.random() * Math.PI * 2,
-        shimmerSpeed: 4.0 + Math.random() * 8.0
+        shimmerSpeed: 3.0 + Math.random() * 5.0
       });
     }
 
@@ -2332,6 +2326,14 @@ class BeatstarEngine {
       this.discoBall.targetY = -120;
       this.discoBall.rotation = 0;
     }
+    // Precalentamiento de audio synth y búferes para eliminar cualquier micro-lag en la primera tecla
+    if (this.synth && typeof this.synth.ensureContext === 'function') {
+      try { this.synth.ensureContext(); } catch (_) {}
+    }
+    if (!this.borderEqLeftSurges) this.borderEqLeftSurges = new Float32Array(16);
+    if (!this.borderEqRightSurges) this.borderEqRightSurges = new Float32Array(16);
+    this.borderEqLeftSurges.fill(0);
+    this.borderEqRightSurges.fill(0);
 
     // Cálculo preciso de la puntuación máxima teórica (100% Perfect+ con multiplicadores)
     this.maxPossibleScore = this.computeMaxPossibleScore(this.notes);
@@ -4929,45 +4931,42 @@ class BeatstarEngine {
     const bobY = Math.sin(nowSec * 2.4) * 1.5;
     const ballX = midX + swayX;
     const ballY = this.discoBall.descendY + bobY;
-    if (ballY < -40) return; // Fuera de la parte visible
+    if (ballY < -40) return;
 
     const beatPulse = (typeof this.getBeatPulse === 'function') ? this.getBeatPulse() : 0;
     const rot = this.discoBall.rotation;
-    // Visibilidad suave en base a la altura
     const visAlpha = Math.max(0, Math.min(1, (ballY + 40) / 100));
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     ctx.globalAlpha = visAlpha;
 
-    // 1. RAYOS VOLUMÉTRICOS GIRATORIOS SUTILES (Subtle Rotating 3D Laser & Club Beams)
-    const numBeams = 12;
-    const beamLength = Math.max(w, h) * 1.2;
+    // 1. 6 RAYOS DE LUZ GIRATORIOS SUAVES Y DE COLORES (Ultra-optimizado 120 FPS)
+    const numBeams = 6;
+    const beamLength = Math.max(w, h) * 1.1;
     const beamPalette = [
-      { r: 255, g: 255, b: 255 }, // White
-      { r: 0, g: 242, b: 254 },   // Cyan
-      { r: 255, g: 0, b: 127 },   // Magenta
-      { r: 251, g: 191, b: 36 },  // Golden Amber
-      { r: 168, g: 85, b: 247 },  // Electric Violet
-      { r: 52, g: 211, b: 153 }   // Emerald Laser
+      { r: 0, g: 242, b: 254 },   // Cian Neón
+      { r: 255, g: 0, b: 127 },   // Magenta Neón
+      { r: 251, g: 191, b: 36 },  // Ámbar Radiante
+      { r: 168, g: 85, b: 247 },  // Violeta Eléctrico
+      { r: 57, g: 255, b: 20 },   // Lima Flúor
+      { r: 56, g: 189, b: 248 }   // Azul Turquesa
     ];
 
     for (let b = 0; b < numBeams; b++) {
-      const harmonicSweep = Math.sin(nowSec * 1.5 + b * 0.7) * 0.06;
-      const angle = rot * (0.9 + (b % 3) * 0.1) + (b * (Math.PI * 2 / numBeams)) + harmonicSweep;
+      const angle = rot * 0.95 + (b * (Math.PI * 2 / numBeams));
       const rgb = beamPalette[b % beamPalette.length];
-      const beamSpread = 0.06 + 0.018 * Math.sin(nowSec * 3.0 + b);
-      const beamIntensity = (0.016 + 0.014 * (1.0 + beatPulse * 0.4));
+      const beamSpread = 0.055;
+      const beamIntensity = (0.018 + 0.012 * beatPulse);
 
       ctx.save();
       ctx.translate(ballX, ballY);
       ctx.rotate(angle);
 
       const bGrad = ctx.createLinearGradient(0, 0, beamLength, 0);
-      bGrad.addColorStop(0.0, `rgba(255, 255, 255, ${(beamIntensity * 1.2).toFixed(3)})`);
-      bGrad.addColorStop(0.20, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(beamIntensity * 0.7).toFixed(3)})`);
-      bGrad.addColorStop(0.60, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(beamIntensity * 0.2).toFixed(3)})`);
-      bGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+      bGrad.addColorStop(0.0, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + (beamIntensity * 0.9).toFixed(3) + ')');
+      bGrad.addColorStop(0.45, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + (beamIntensity * 0.3).toFixed(3) + ')');
+      bGrad.addColorStop(1.0, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', 0)');
 
       ctx.fillStyle = bGrad;
       ctx.beginPath();
@@ -4979,49 +4978,29 @@ class BeatstarEngine {
       ctx.restore();
     }
 
-    // 3. DESTELLOS Y REFLEJOS DANZANTES SUTILES POR EL ESCENARIO (Soft Dancing Mirror Flecks)
+    // 2. Destellos flotantes sutiles en el aire (14 motas optimizadas)
     if (this.discoBall.specks && this.discoBall.specks.length > 0) {
-      for (const sp of this.discoBall.specks) {
+      const speckCount = Math.min(14, this.discoBall.specks.length);
+      for (let i = 0; i < speckCount; i++) {
+        const sp = this.discoBall.specks[i];
         const curAngle = sp.theta + rot * sp.speed;
         const distRatio = sp.dist;
-        const spreadX = (w * 1.05) * distRatio;
-        const spreadY = (h * 0.80) * distRatio;
+        const spreadX = (w * 0.9) * distRatio;
+        const spreadY = (h * 0.7) * distRatio;
         const sx = ballX + Math.cos(curAngle) * spreadX;
-        const sy = ballY + Math.sin(curAngle) * spreadY + (sp.phi * h * 0.40);
+        const sy = ballY + Math.sin(curAngle) * spreadY + (sp.phi * h * 0.35);
 
-        if (sx < -40 || sx > w + 40 || sy < -40 || sy > h + 40) continue;
+        if (sx < 0 || sx > w || sy < 0 || sy > h) continue;
 
         const rgb = beamPalette[sp.colorIdx % beamPalette.length];
-        const shimmer = 0.55 + 0.45 * Math.sin(nowSec * sp.shimmerSpeed + sp.shimmerPhase);
-        const rad = (sp.size * 0.75) * (1.0 + beatPulse * 0.3) * (0.85 + shimmer * 0.30);
-        const alpha = Math.min(0.35, sp.brightness * shimmer * (0.16 + beatPulse * 0.18));
+        const shimmer = 0.6 + 0.4 * Math.sin(nowSec * sp.shimmerSpeed + sp.shimmerPhase);
+        const rad = (sp.size * 0.6) * (1.0 + beatPulse * 0.2);
+        const alpha = Math.min(0.30, sp.brightness * shimmer * (0.15 + beatPulse * 0.15));
 
-        // Reflejo con forma romboidal suave
-        ctx.save();
-        ctx.translate(sx, sy);
-        ctx.rotate(curAngle * 0.5);
-
-        const sGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, rad * 1.3);
-        sGrad.addColorStop(0.0, `rgba(255, 255, 255, ${alpha.toFixed(3)})`);
-        sGrad.addColorStop(0.35, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(alpha * 0.65).toFixed(3)})`);
-        sGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-
-        ctx.fillStyle = sGrad;
+        ctx.fillStyle = 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + alpha.toFixed(3) + ')';
         ctx.beginPath();
-        ctx.moveTo(0, -rad);
-        ctx.lineTo(rad * 1.1, 0);
-        ctx.lineTo(0, rad);
-        ctx.lineTo(-rad * 1.1, 0);
-        ctx.closePath();
+        ctx.arc(sx, sy, rad, 0, Math.PI * 2);
         ctx.fill();
-
-        // Núcleo suave
-        ctx.fillStyle = `rgba(255, 255, 255, ${(alpha * 0.7).toFixed(3)})`;
-        ctx.beginPath();
-        ctx.arc(0, 0, rad * 0.3, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.restore();
       }
     }
 
@@ -5053,7 +5032,7 @@ class BeatstarEngine {
     const visAlpha = Math.max(0, Math.min(1, (ballY + 40) / 100));
 
     ctx.save();
-    // Clip a la superficie de la pista blanca (Highway perspective)
+    // Clip seguro a la superficie de la pista en perspectiva
     ctx.beginPath();
     ctx.moveTo(tL_top, horizonY);
     ctx.lineTo(tR_top, horizonY);
@@ -5065,86 +5044,42 @@ class BeatstarEngine {
     ctx.globalCompositeOperation = 'lighter';
     ctx.globalAlpha = visAlpha;
 
-    // Paleta de reflejos de discoteca auténtica y sutil
-    const beamPalette = [
-      { r: 255, g: 255, b: 255 }, // Diamante blanco
-      { r: 224, g: 242, b: 254 }, // Cian ártico muy claro
-      { r: 254, g: 243, b: 199 }, // Champagne dorado suave
-      { r: 243, g: 232, b: 255 }, // Lavanda neón sutil
-      { r: 209, g: 250, b: 229 }, // Menta tenue
-      { r: 255, g: 228, b: 230 }  // Rosa pétalo tenue
+    // Paleta de colores vivos y saturados (Neón puro con glow suave, sin sombras negras)
+    const coloredGlowPalette = [
+      { r: 255, g: 0,   b: 127 }, // Magenta Neón
+      { r: 0,   g: 242, b: 254 }, // Cian Eléctrico
+      { r: 251, g: 191, b: 36  }, // Ámbar Dorado
+      { r: 168, g: 85,  b: 247 }, // Violeta Neón
+      { r: 57,  g: 255, b: 20  }, // Lima Radiante
+      { r: 56,  g: 189, b: 248 }  // Azul Celestial
     ];
 
-    // 1. Haces de luz que bajan de la bola e impactan sutilmente sobre la pista blanca
-    const numTrackBeams = 8;
-    for (let i = 0; i < numTrackBeams; i++) {
-      const harmonic = Math.sin(nowSec * 1.8 + i * 1.1) * 0.08;
-      const angle = rot * 1.15 + (i * (Math.PI * 2 / numTrackBeams)) + harmonic;
-      
-      const sinA = Math.sin(angle);
-      const cosA = Math.cos(angle);
-      if (cosA <= -0.15) continue; // Solo rayos que proyectan hacia abajo
-
-      const trackProgress = 0.20 + 0.70 * ((sinA + 1) * 0.5);
-      const projY = horizonY + (hitY - horizonY) * trackProgress;
-      const leftAtY = this.getLaneBoundaryX(0, projY);
-      const rightAtY = this.getLaneBoundaryX(3, projY);
-      const projX = leftAtY + (rightAtY - leftAtY) * (0.5 + sinA * 0.44);
-
-      const rgb = beamPalette[i % beamPalette.length];
-      const intensity = (0.035 + 0.025 * Math.sin(nowSec * 3.2 + i * 1.7)) * (1.0 + beatPulse * 0.35);
-
-      // Haz volumétrico fino que baña el carril
-      const bGrad = ctx.createLinearGradient(ballX, ballY, projX, projY);
-      bGrad.addColorStop(0.0, `rgba(255, 255, 255, ${(intensity * 0.7).toFixed(3)})`);
-      bGrad.addColorStop(0.40, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(intensity * 0.35).toFixed(3)})`);
-      bGrad.addColorStop(1.0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(intensity * 0.85).toFixed(3)})`);
-
-      const beamHalfW = Math.max(10, 24 * trackProgress);
-      ctx.fillStyle = bGrad;
-      ctx.beginPath();
-      ctx.moveTo(ballX - 3, ballY);
-      ctx.lineTo(projX - beamHalfW, projY);
-      ctx.lineTo(projX + beamHalfW, projY);
-      ctx.lineTo(ballX + 3, ballY);
-      ctx.closePath();
-      ctx.fill();
-
-      // Punto de contacto elíptico en perspectiva sobre la pista blanca
-      const spotGrad = ctx.createRadialGradient(projX, projY, 2, projX, projY, beamHalfW * 1.3);
-      spotGrad.addColorStop(0.0, `rgba(255, 255, 255, ${(intensity * 1.4).toFixed(3)})`);
-      spotGrad.addColorStop(0.45, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(intensity * 0.75).toFixed(3)})`);
-      spotGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = spotGrad;
-      ctx.beginPath();
-      ctx.ellipse(projX, projY, beamHalfW * 1.3, beamHalfW * 0.60, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // 2. Destellos sutiles de espejitos en perspectiva danzando sobre el marfil de los carriles
-    const numSpots = 16;
+    // Destellos difuminados con efecto glow danzando sobre la pista en perspectiva
+    const numSpots = 10;
     for (let s = 0; s < numSpots; s++) {
-      const sweepPhase = (rot * 0.90 + s * (Math.PI * 2 / numSpots)) % (Math.PI * 2);
-      const sweepXRatio = 0.5 + 0.45 * Math.sin(sweepPhase);
-      const depthRatio = 0.12 + 0.84 * ((Math.cos(sweepPhase * 1.3 + s) + 1) * 0.5);
+      const sweepPhase = (rot * 0.85 + s * (Math.PI * 2 / numSpots)) % (Math.PI * 2);
+      const sweepXRatio = 0.5 + 0.44 * Math.sin(sweepPhase);
+      const depthRatio = 0.10 + 0.86 * ((Math.cos(sweepPhase * 1.2 + s * 0.9) + 1) * 0.5);
 
       const sy = horizonY + (hitY - horizonY) * depthRatio;
       const xL = this.getLaneBoundaryX(0, sy);
       const xR = this.getLaneBoundaryX(3, sy);
       const sx = xL + (xR - xL) * sweepXRatio;
 
-      const spotR = (5.0 + 9.0 * depthRatio) * (1.0 + beatPulse * 0.25);
-      const rgb = beamPalette[(s + 2) % beamPalette.length];
-      const spotAlpha = (0.045 + 0.040 * Math.sin(nowSec * 3.8 + s * 2.3)) * (1.0 + beatPulse * 0.35);
+      const spotR = (14.0 + 26.0 * depthRatio) * (1.0 + beatPulse * 0.2);
+      const col = coloredGlowPalette[s % coloredGlowPalette.length];
+      const spotAlpha = (0.16 + 0.10 * Math.sin(nowSec * 3.5 + s * 1.7)) * (1.0 + beatPulse * 0.30);
 
-      const fGrad = ctx.createRadialGradient(sx, sy, 1, sx, sy, spotR * 1.4);
-      fGrad.addColorStop(0.0, `rgba(255, 255, 255, ${(spotAlpha * 1.6).toFixed(3)})`);
-      fGrad.addColorStop(0.35, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(spotAlpha * 0.8).toFixed(3)})`);
-      fGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+      // Resplandor difuminado suave (Glow elíptico en perspectiva, 100% aditivo, sin sombras)
+      const glowGrad = ctx.createRadialGradient(sx, sy, 0, sx, sy, spotR);
+      glowGrad.addColorStop(0.0, 'rgba(' + col.r + ', ' + col.g + ', ' + col.b + ', ' + (spotAlpha * 1.0).toFixed(3) + ')');
+      glowGrad.addColorStop(0.40, 'rgba(' + col.r + ', ' + col.g + ', ' + col.b + ', ' + (spotAlpha * 0.60).toFixed(3) + ')');
+      glowGrad.addColorStop(0.80, 'rgba(' + col.r + ', ' + col.g + ', ' + col.b + ', ' + (spotAlpha * 0.18).toFixed(3) + ')');
+      glowGrad.addColorStop(1.0, 'rgba(' + col.r + ', ' + col.g + ', ' + col.b + ', 0)');
 
-      ctx.fillStyle = fGrad;
+      ctx.fillStyle = glowGrad;
       ctx.beginPath();
-      ctx.ellipse(sx, sy, spotR * 1.3, spotR * 0.50, rot * 0.25, 0, Math.PI * 2);
+      ctx.ellipse(sx, sy, spotR * 1.35, spotR * 0.48, rot * 0.2, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -5160,7 +5095,7 @@ class BeatstarEngine {
     const bobY = Math.sin(nowSec * 2.4) * 1.5;
     const ballX = midX + swayX;
     const ballY = this.discoBall.descendY + bobY;
-    if (ballY < -50) return; // Fuera de pantalla
+    if (ballY < -50) return;
 
     const radius = this.discoBall.radius || 27;
     const rot = this.discoBall.rotation;
@@ -5170,53 +5105,32 @@ class BeatstarEngine {
     ctx.save();
     ctx.globalAlpha = visAlpha;
 
-    // 1. CUERDECILLA METÁLICA CROMADA DE SUSPENSIÓN (Braided Silver Steel Cord)
-    ctx.save();
-    ctx.strokeStyle = '#f8fafc';
-    ctx.lineWidth = 1.4;
+    // 1. Cuerda plateada fina
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 1.2;
     ctx.beginPath();
     ctx.moveTo(midX, 0);
     ctx.lineTo(ballX, ballY - radius - 3);
     ctx.stroke();
 
-    // Detalle de eslabones de cadena reflectantes
-    ctx.strokeStyle = '#cbd5e1';
-    ctx.lineWidth = 0.8;
+    // 2. Enganche superior
+    ctx.fillStyle = '#cbd5e1';
     ctx.beginPath();
-    ctx.moveTo(midX, 0);
-    ctx.lineTo(ballX, ballY - radius - 3);
-    ctx.stroke();
-    ctx.restore();
-
-    // 2. ENGANCHE Y MOTOR ROTATORIO CROMADO SUPERIOR
-    ctx.save();
-    const capGrad = ctx.createLinearGradient(ballX - 7, ballY - radius - 8, ballX + 7, ballY - radius);
-    capGrad.addColorStop(0.0, '#ffffff');
-    capGrad.addColorStop(0.40, '#cbd5e1');
-    capGrad.addColorStop(1.0, '#64748b');
-    ctx.fillStyle = capGrad;
-    ctx.beginPath();
-    ctx.arc(ballX, ballY - radius - 3, 4.5, 0, Math.PI * 2);
+    ctx.arc(ballX, ballY - radius - 3, 3.5, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-    ctx.lineWidth = 0.8;
-    ctx.stroke();
-    ctx.restore();
 
-    // 3. BASE DE LA ESFERA DE ESPEJO CROMADA (3D Chrome Sphere Gradient Base)
-    ctx.save();
+    // 3. Base esférica cromada
     const sphereGrad = ctx.createRadialGradient(
-      ballX - radius * 0.40,
-      ballY - radius * 0.40,
+      ballX - radius * 0.35,
+      ballY - radius * 0.35,
       1,
       ballX,
       ballY,
       radius
     );
     sphereGrad.addColorStop(0.0, '#ffffff');
-    sphereGrad.addColorStop(0.20, '#f8fafc');
-    sphereGrad.addColorStop(0.55, '#e2e8f0');
-    sphereGrad.addColorStop(0.85, '#94a3b8');
+    sphereGrad.addColorStop(0.25, '#f1f5f9');
+    sphereGrad.addColorStop(0.65, '#cbd5e1');
     sphereGrad.addColorStop(1.0, '#64748b');
     ctx.fillStyle = sphereGrad;
     ctx.beginPath();
@@ -5224,97 +5138,49 @@ class BeatstarEngine {
     ctx.fill();
 
     // Clip circular para facetas de espejo
+    ctx.save();
     ctx.beginPath();
     ctx.arc(ballX, ballY, radius, 0, Math.PI * 2);
     ctx.clip();
 
-    // 4. MALLA 3D HIPERREALISTA DE AZULEJOS DE ESPEJO (High-Precision 3D Mirror Tiles)
-    const latBands = this.discoBall.latBands || 13;
-    const lonSegments = this.discoBall.lonSegments || 26;
-    const spotlights = this.discoBall.spotlights || [
-      { x: -0.65, y: -0.55, z: 0.52, color: '#ffffff', rgb: { r: 255, g: 255, b: 255 }, power: 1.1 },
-      { x: 0.70, y: -0.45, z: 0.55, color: '#00f2fe', rgb: { r: 0, g: 242, b: 254 }, power: 0.95 },
-      { x: -0.25, y: -0.75, z: 0.60, color: '#ff007f', rgb: { r: 255, g: 0, b: 127 }, power: 1.0 },
-      { x: 0.40, y: -0.60, z: 0.70, color: '#fbbf24', rgb: { r: 251, g: 191, b: 36 }, power: 0.9 }
-    ];
-
-    const starburstFlares = [];
+    // 4. Malla 3D ultra-optimizada de azulejos (7 bandas x 14 segmentos = 98 tiles vs 338 anteriores)
+    const latBands = 7;
+    const lonSegments = 14;
 
     for (let i = 0; i < latBands; i++) {
-      const lat0 = -Math.PI * 0.44 + (i / latBands) * (Math.PI * 0.88);
-      const lat1 = -Math.PI * 0.44 + ((i + 1) / latBands) * (Math.PI * 0.88);
-
+      const lat0 = -Math.PI * 0.42 + (i / latBands) * (Math.PI * 0.84);
+      const lat1 = -Math.PI * 0.42 + ((i + 1) / latBands) * (Math.PI * 0.84);
       const cosLat0 = Math.cos(lat0), sinLat0 = Math.sin(lat0);
       const cosLat1 = Math.cos(lat1), sinLat1 = Math.sin(lat1);
 
       for (let j = 0; j < lonSegments; j++) {
         const lon0 = rot + (j / lonSegments) * Math.PI * 2;
         const lon1 = rot + ((j + 1) / lonSegments) * Math.PI * 2;
-
         const cosLon0 = Math.cos(lon0), sinLon0 = Math.sin(lon0);
         const cosLon1 = Math.cos(lon1), sinLon1 = Math.sin(lon1);
 
-        // Vértices 3D
+        const z00 = radius * cosLat0 * cosLon0;
+        const z10 = radius * cosLat0 * cosLon1;
+        const z11 = radius * cosLat1 * cosLon1;
+        const z01 = radius * cosLat1 * sinLon0;
+        const avgZ = (z00 + z10 + z11 + z01) * 0.25;
+        if (avgZ <= -0.2) continue; // Descartar cara oculta trasera
+
         const x00 = radius * cosLat0 * sinLon0;
         const y00 = -radius * sinLat0;
-        const z00 = radius * cosLat0 * cosLon0;
-
         const x10 = radius * cosLat0 * sinLon1;
         const y10 = -radius * sinLat0;
-        const z10 = radius * cosLat0 * cosLon1;
-
         const x11 = radius * cosLat1 * sinLon1;
         const y11 = -radius * sinLat1;
-        const z11 = radius * cosLat1 * cosLon1;
-
         const x01 = radius * cosLat1 * sinLon0;
         const y01 = -radius * sinLat1;
-        const z01 = radius * cosLat1 * cosLon0;
 
-        const avgZ = (z00 + z10 + z11 + z01) * 0.25;
-        if (avgZ <= -0.5) continue; // Ocultar cara trasera
+        // Tonalidad cromada según ángulo
+        const nz = Math.max(0, avgZ / radius);
+        const spec = Math.pow(nz, 4);
+        const val = Math.min(255, Math.floor(130 + nz * 80 + spec * 45));
 
-        const avgX = (x00 + x10 + x11 + x01) * 0.25;
-        const avgY = (y00 + y10 + y11 + y01) * 0.25;
-
-        // Vector normal
-        const normLen = Math.hypot(avgX, avgY, avgZ) || 1;
-        const nx = avgX / normLen;
-        const ny = avgY / normLen;
-        const nz = avgZ / normLen;
-
-        // Calcular iluminación combinada de los 4 focos
-        let totalR = 75 + nz * 40;
-        let totalG = 75 + nz * 40;
-        let totalB = 90 + nz * 45;
-        let maxFacetSpecular = 0;
-        let dominantColor = { r: 255, g: 255, b: 255 };
-
-        for (const spot of spotlights) {
-          const dot = nx * spot.x + ny * spot.y + nz * spot.z;
-          if (dot > 0) {
-            const spec = Math.pow(dot, 14) * spot.power;
-            const diff = dot * 0.45;
-            totalR += (spot.rgb.r * diff * 0.35) + (spot.rgb.r * spec * 0.85);
-            totalG += (spot.rgb.g * diff * 0.35) + (spot.rgb.g * spec * 0.85);
-            totalB += (spot.rgb.b * diff * 0.35) + (spot.rgb.b * spec * 0.85);
-
-            if (spec > maxFacetSpecular) {
-              maxFacetSpecular = spec;
-              dominantColor = spot.rgb;
-            }
-          }
-        }
-
-        totalR = Math.min(255, Math.floor(totalR));
-        totalG = Math.min(255, Math.floor(totalG));
-        totalB = Math.min(255, Math.floor(totalB));
-
-        // Dibujar azulejo de espejo con bordes limpios sin sombras
-        ctx.fillStyle = `rgb(${totalR}, ${totalG}, ${totalB})`;
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
-        ctx.lineWidth = 0.5;
-
+        ctx.fillStyle = 'rgb(' + val + ', ' + val + ', ' + Math.min(255, val + 10) + ')';
         ctx.beginPath();
         ctx.moveTo(ballX + x00, ballY + y00);
         ctx.lineTo(ballX + x10, ballY + y10);
@@ -5322,91 +5188,33 @@ class BeatstarEngine {
         ctx.lineTo(ballX + x01, ballY + y01);
         ctx.closePath();
         ctx.fill();
-        ctx.stroke();
-
-        // Destello especular sutil en azulejos alineados
-        if (maxFacetSpecular > 0.55) {
-          const specAlpha = Math.min(0.40, (maxFacetSpecular - 0.55) * 0.9);
-          ctx.fillStyle = `rgba(255, 255, 255, ${specAlpha.toFixed(2)})`;
-          ctx.beginPath();
-          ctx.moveTo(ballX + x00, ballY + y00);
-          ctx.lineTo(ballX + x10, ballY + y10);
-          ctx.lineTo(ballX + x11, ballY + y11);
-          ctx.lineTo(ballX + x01, ballY + y01);
-          ctx.closePath();
-          ctx.fill();
-
-          if (maxFacetSpecular > 0.78 && starburstFlares.length < 2) {
-            starburstFlares.push({
-              x: ballX + avgX,
-              y: ballY + avgY,
-              intensity: maxFacetSpecular,
-              rgb: dominantColor
-            });
-          }
-        }
       }
     }
+    ctx.restore(); // Deshacer clip
 
-    ctx.restore(); // Quita el clip
-
-    // 5. RESPLANDOR PERIMETRAL Y BISEL METÁLICO SUTIL (Subtle Rim Lighting)
+    // 5. Halo perimetral suave
     ctx.save();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-    ctx.lineWidth = 1.0;
-    ctx.beginPath();
-    ctx.arc(ballX, ballY, radius, 0, Math.PI * 2);
-    ctx.stroke();
-
-    const rimGlow = ctx.createRadialGradient(ballX, ballY, radius * 0.90, ballX, ballY, radius * 1.18);
-    rimGlow.addColorStop(0.0, 'rgba(255, 255, 255, 0.16)');
-    rimGlow.addColorStop(0.4, 'rgba(0, 242, 254, 0.06)');
+    ctx.globalCompositeOperation = 'lighter';
+    const rimGlow = ctx.createRadialGradient(ballX, ballY, radius * 0.85, ballX, ballY, radius * 1.22);
+    rimGlow.addColorStop(0.0, 'rgba(255, 255, 255, 0.22)');
+    rimGlow.addColorStop(0.5, 'rgba(0, 242, 254, 0.10)');
     rimGlow.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
     ctx.fillStyle = rimGlow;
     ctx.beginPath();
-    ctx.arc(ballX, ballY, radius * 1.18, 0, Math.PI * 2);
+    ctx.arc(ballX, ballY, radius * 1.22, 0, Math.PI * 2);
     ctx.fill();
+
+    // 6. Destello estelar óptico suave
+    const flareSize = 12 * (1.0 + beatPulse * 0.3);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.40)';
+    ctx.beginPath();
+    ctx.ellipse(ballX - radius * 0.3, ballY - radius * 0.3, flareSize, flareSize * 0.15, nowSec * 1.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(ballX - radius * 0.3, ballY - radius * 0.3, flareSize * 0.15, flareSize, nowSec * 1.2, 0, Math.PI * 2);
+    ctx.fill();
+
     ctx.restore();
-
-    // 6. MICRO-DESTELLOS ÓPTICOS ESTELARES SUTILES (Subtle Micro Starburst Glints)
-    if (starburstFlares.length > 0) {
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      for (const flare of starburstFlares) {
-        const flareSize = (6 + 6 * flare.intensity) * (1.0 + beatPulse * 0.2);
-        const flareAlpha = Math.min(0.28, flare.intensity * 0.32);
-        const rgb = flare.rgb;
-
-        ctx.save();
-        ctx.translate(flare.x, flare.y);
-        ctx.rotate(nowSec * 1.2 + flare.intensity);
-
-        // Estrella prismática de 4 puntas suave
-        ctx.fillStyle = `rgba(255, 255, 255, ${flareAlpha.toFixed(2)})`;
-        for (let arm = 0; arm < 2; arm++) {
-          ctx.save();
-          ctx.rotate((arm * Math.PI) / 2);
-          ctx.beginPath();
-          ctx.ellipse(0, 0, flareSize, flareSize * 0.12, 0, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
-        }
-
-        // Micro halo suave
-        const cGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, flareSize * 0.4);
-        cGrad.addColorStop(0.0, `rgba(255, 255, 255, ${flareAlpha.toFixed(2)})`);
-        cGrad.addColorStop(0.5, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(flareAlpha * 0.5).toFixed(2)})`);
-        cGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-        ctx.fillStyle = cGrad;
-        ctx.beginPath();
-        ctx.arc(0, 0, flareSize * 0.4, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.restore();
-      }
-      ctx.restore();
-    }
-
     ctx.restore();
   }
 
@@ -6002,15 +5810,7 @@ class BeatstarEngine {
       ctx.lineTo(tR_bot, bottomY);
       ctx.stroke();
 
-      // 6. EFECTO BLOW LATERAL EXPANSIVO SUTIL (Optimizado GPU: 0 allocs)
-      const comboBlow = Math.min(1.2, (this.combo || 0) / 60);
-      if (comboBlow > 0.1) {
-        ctx.fillStyle = hexToRgba(railLaserCol, 0.15 * comboBlow);
-        ctx.beginPath();
-        ctx.arc(tL_bot, hitY, 80 * comboBlow, 0, Math.PI * 2);
-        ctx.arc(tR_bot, hitY, 80 * comboBlow, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      // (Círculos laterales eliminados por completo a petición del usuario)
 
       ctx.restore();
 
