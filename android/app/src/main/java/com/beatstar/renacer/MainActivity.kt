@@ -96,9 +96,8 @@ class MainActivity : AppCompatActivity() {
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
             .build()
 
-        // 4. Configuración de WebView
+        // 4. Configuración de WebView con aceleración directa por GPU
         webView = WebView(this).apply {
-            setLayerType(View.LAYER_TYPE_HARDWARE, null)
             setBackgroundColor(0xFF06040A.toInt())
             isFocusable = true
             isFocusableInTouchMode = true

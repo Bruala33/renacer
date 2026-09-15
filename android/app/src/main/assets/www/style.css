@@ -678,19 +678,32 @@ body {
   width: 100%;
 }
 
-/* Compact Gas Station Mechanical Odometer Scoreboard (No full-width bar, compact centered widget) */
+/* Mechanical Gas Station & Slot Machine Odometer Scoreboard + Combo Badge */
+.hud-minimal-row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  position: relative !important;
+  padding: 4px 12px !important;
+  box-sizing: border-box !important;
+}
+
 .hud-gas-odometer {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(180deg, #181424 0%, #0d0918 50%, #181424 100%);
-  border: 1.5px solid #d4af37;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-wrap: nowrap !important;
+  background: linear-gradient(180deg, #1c182a 0%, #0c0816 50%, #1c182a 100%);
+  border: 1.5px solid #e5b869;
   border-radius: 6px;
   padding: 2px 4px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.9), inset 0 2px 4px rgba(0, 0, 0, 0.95), 0 0 10px rgba(212, 175, 55, 0.35);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.9), inset 0 2px 4px rgba(0, 0, 0, 0.95), 0 0 10px rgba(229, 184, 105, 0.35);
   height: 28px;
   width: auto;
-  min-width: 104px;
+  min-width: 118px;
   gap: 1.5px;
   position: relative;
   pointer-events: none;
@@ -705,6 +718,7 @@ body {
   border-radius: 3px;
   box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.9), inset 0 -2px 3px rgba(0, 0, 0, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
 }
 
 .roller-strip {
@@ -721,9 +735,64 @@ body {
   justify-content: center;
   font-family: 'Cinzel', 'Courier New', monospace;
   font-weight: 900;
-  font-size: 15px;
+  font-size: 14.5px;
   color: #ffffff;
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95);
+}
+
+/* Slot Machine / Gas Station Combo Multiplier Badge ("x3") */
+.hud-gas-combo-badge {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: linear-gradient(180deg, #221a36 0%, #100b1e 50%, #221a36 100%);
+  border: 1.5px solid #e5b869;
+  border-radius: 6px;
+  height: 28px;
+  min-width: 32px;
+  padding: 0 5px;
+  gap: 1px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.9), inset 0 2px 4px rgba(0, 0, 0, 0.95), 0 0 10px rgba(229, 184, 105, 0.30);
+  font-family: 'Cinzel', 'Outfit', monospace;
+  font-weight: 900;
+  color: #e5b869;
+  font-size: 14px;
+  line-height: 1;
+  pointer-events: none;
+  transition: all 0.2s ease;
+}
+
+.hud-gas-combo-badge .slot-prefix {
+  font-size: 11px;
+  opacity: 0.85;
+  color: #e5b869;
+  font-weight: 800;
+}
+
+.hud-gas-combo-badge.med-mult {
+  border-color: #ffd700;
+  color: #ffd700;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.45);
+}
+
+.hud-gas-combo-badge.high-mult {
+  border-color: #ff007f;
+  color: #ff5eb4;
+  box-shadow: 0 0 14px rgba(255, 0, 127, 0.55);
+}
+
+.hud-gas-combo-badge.max-mult {
+  border-color: #00f2fe;
+  color: #ffffff;
+  background: linear-gradient(180deg, #0d3846 0%, #061c24 50%, #0d3846 100%);
+  box-shadow: 0 0 16px rgba(0, 242, 254, 0.70);
+  animation: pulseSlot 1.2s infinite alternate;
+}
+
+@keyframes pulseSlot {
+  0% { transform: scale(1.0); }
+  100% { transform: scale(1.06); }
 }
 
 .hud-clean-score {

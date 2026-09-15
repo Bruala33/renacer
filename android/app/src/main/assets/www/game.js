@@ -2242,7 +2242,11 @@ class BeatstarEngine {
 
       // Micro-holds menores a 220ms se convierten en tap directo (en móvil un hold de 100ms es físicamente un tap)
       const isRealHold = (n.type === 'hold' || rawDur > 220) && rawDur > 220;
-      const noteType = isRealHold ? 'hold' : (n.type === 'swipe' ? 'swipe' : 'tap');
+      let noteType = isRealHold ? 'hold' : (n.type === 'swipe' ? 'swipe' : 'tap');
+      // Si se detecta que el jugador está en PC (teclado/ratón), convertir automáticamente swipes a notas normales de tap
+      if (this.isPCMode && noteType === 'swipe') {
+        noteType = 'tap';
+      }
       const finalDur = isRealHold ? Math.max(220, rawDur) : 0;
       const adjustedEndTime = isRealHold ? (adjustedTime + finalDur) : null;
 
@@ -4043,16 +4047,16 @@ class BeatstarEngine {
     ctx.fillStyle = auraGrad;
     ctx.fillRect(0, 0, w, h * 0.55);
 
-    // 3. FOCOS ZENITALES MÓVILES VOLUMÉTRICOS (Conos de luz de concierto)
+    // 3. FOCOS ZENITALES MÓVILES VOLUMÉTRICOS (Conos de luz de concierto acelerados)
     // Foco Izquierdo
     const spot1BaseX = w * 0.15;
     const spot1Swing = Math.sin(currentTime * swingFreq) * (w * 0.45);
     const spot1TargetX = (w * 0.50) + spot1Swing;
     const spot1TargetY = h * 0.90;
 
-    const grad1 = ctx.createRadialGradient(spot1BaseX, -10, 5, spot1TargetX, spot1TargetY, w * 0.75);
-    grad1.addColorStop(0, hexToRgba(beamColor1, 0.28 * stageIntensity));
-    grad1.addColorStop(0.45, hexToRgba(beamColor1, 0.08 * stageIntensity));
+    const grad1 = ctx.createLinearGradient(0, -10, 0, spot1TargetY);
+    grad1.addColorStop(0, hexToRgba(beamColor1, 0.24 * stageIntensity));
+    grad1.addColorStop(0.5, hexToRgba(beamColor1, 0.06 * stageIntensity));
     grad1.addColorStop(1, 'rgba(0,0,0,0)');
 
     ctx.fillStyle = grad1;
@@ -4070,9 +4074,9 @@ class BeatstarEngine {
     const spot2TargetX = (w * 0.50) - spot2Swing;
     const spot2TargetY = h * 0.90;
 
-    const grad2 = ctx.createRadialGradient(spot2BaseX, -10, 5, spot2TargetX, spot2TargetY, w * 0.75);
-    grad2.addColorStop(0, hexToRgba(beamColor2, 0.28 * stageIntensity));
-    grad2.addColorStop(0.45, hexToRgba(beamColor2, 0.08 * stageIntensity));
+    const grad2 = ctx.createLinearGradient(0, -10, 0, spot2TargetY);
+    grad2.addColorStop(0, hexToRgba(beamColor2, 0.24 * stageIntensity));
+    grad2.addColorStop(0.5, hexToRgba(beamColor2, 0.06 * stageIntensity));
     grad2.addColorStop(1, 'rgba(0,0,0,0)');
 
     ctx.fillStyle = grad2;
@@ -4091,9 +4095,9 @@ class BeatstarEngine {
       const spot3TargetX = (w * 0.50) + spot3Swing;
       const spot3TargetY = h * 0.92;
 
-      const grad3 = ctx.createRadialGradient(spot3BaseX, -10, 5, spot3TargetX, spot3TargetY, w * 0.65);
-      grad3.addColorStop(0, hexToRgba('#ffffff', 0.22 * stageIntensity));
-      grad3.addColorStop(0.5, hexToRgba(beamColor1, 0.06 * stageIntensity));
+      const grad3 = ctx.createLinearGradient(0, -10, 0, spot3TargetY);
+      grad3.addColorStop(0, hexToRgba('#ffffff', 0.18 * stageIntensity));
+      grad3.addColorStop(0.5, hexToRgba(beamColor1, 0.05 * stageIntensity));
       grad3.addColorStop(1, 'rgba(0,0,0,0)');
 
       ctx.fillStyle = grad3;
@@ -4106,11 +4110,11 @@ class BeatstarEngine {
       ctx.fill();
     }
 
-    // 4. ONDAS DE SONIDO SINUSOIDALES ELÉCTRICAS DE ESTADIO (Sincronizadas al BPM y Combo)
+    // 4. ONDAS DE SONIDO SINUSOIDALES ELÉCTRICAS DE ESTADIO (Optimizado: 16 pasos)
     if (mult >= 2) {
       const activeBpm = this.currentBpm || (this.beatmapData && this.beatmapData.metadata ? this.beatmapData.metadata.bpm : 128) || 128;
       const bpmPhase = (currentTime * activeBpm / 60000) * Math.PI * 2;
-      const waveCount = mult >= 4 ? 4 : 2;
+      const waveCount = mult >= 4 ? 3 : 2;
 
       for (let wIdx = 0; wIdx < waveCount; wIdx++) {
         const waveProgress = ((currentTime * 0.0014 + (wIdx / waveCount)) % 1.0);
@@ -4118,9 +4122,9 @@ class BeatstarEngine {
         const waveAlpha = (1.0 - waveProgress) * (0.08 + mult * 0.06 + beatPulse * 0.12) * stageIntensity;
         const waveCol = (wIdx % 2 === 0) ? beamColor1 : beamColor2;
 
-        const waveSteps = 44;
-        const waveFreq = 6 + mult * 2.5; // Más picos eléctricos a mayor combo
-        const waveAmp = (3.5 + mult * 2.2) * (0.5 + 0.5 * Math.sin(bpmPhase + wIdx)) * (0.6 + 0.4 * beatPulse);
+        const waveSteps = 16;
+        const waveFreq = 6 + mult * 2.0;
+        const waveAmp = (3.5 + mult * 2.0) * (0.5 + 0.5 * Math.sin(bpmPhase + wIdx)) * (0.6 + 0.4 * beatPulse);
 
         ctx.strokeStyle = hexToRgba(waveCol, waveAlpha);
         ctx.lineWidth = Math.max(1.2, (1.6 + mult * 0.4) * (1.0 - waveProgress * 0.5));
@@ -4139,9 +4143,9 @@ class BeatstarEngine {
       }
     }
 
-    // 5. ESTELAS DE VELOCIDAD HIPERSÓNICAS (Short Warp Dashes - Gran multitud de líneas cortas y ultrarrápidas)
+    // 5. ESTELAS DE VELOCIDAD HIPERSÓNICAS (Cap a 18 estelas para máximo rendimiento)
     if (mult >= 2) {
-      const targetCount = Math.min(120, 28 + mult * 20);
+      const targetCount = Math.min(18, 10 + mult * 2);
       if (!this.speedStreaks) this.speedStreaks = [];
       while (this.speedStreaks.length < targetCount) {
         this.speedStreaks.push({
@@ -5307,10 +5311,6 @@ class BeatstarEngine {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     const len = this.fxRipples.length;
-    const mult = Math.max(1, Math.min(5, this.comboMultiplier || 1));
-    const now = performance.now();
-    const activeBpm = this.currentBpm || (this.beatmapData && this.beatmapData.metadata ? this.beatmapData.metadata.bpm : 128) || 128;
-    const bpmFreq = (now * activeBpm / 60000) * Math.PI * 2;
 
     for (let i = 0; i < len; i++) {
       const r = this.fxRipples[i];
@@ -5322,41 +5322,27 @@ class BeatstarEngine {
       const progress = Math.min(1, rad / maxR);
       const widthFactor = 1 - progress;
 
-      // Geometría sinusoidal eléctrica (borde eléctrico con ondulación según BPM y combo)
-      const steps = 38;
-      const waveFreq = 6 + mult * 2.2;
-      const waveAmp = (3.0 + mult * 2.0) * Math.sin(progress * Math.PI) * (0.65 + 0.35 * Math.sin(bpmFreq));
-
-      // 1. Halo de energía exterior sinusoidal eléctrico
+      // 1. Halo de onda luminosa en perspectiva acelerado por GPU
       ctx.strokeStyle = hexToRgba(col, alpha * 0.85);
-      ctx.lineWidth = Math.max(2.0, 5.5 * widthFactor);
+      ctx.lineWidth = Math.max(1.6, 4.8 * widthFactor);
       ctx.beginPath();
-      for (let s = 0; s <= steps; s++) {
-        const theta = (s / steps) * Math.PI * 2;
-        const offset = Math.sin(theta * waveFreq + now * 0.016) * waveAmp;
-        const curR = Math.max(1, rad + offset);
-        const px = r.x + Math.cos(theta) * curR;
-        const py = r.y + Math.sin(theta) * curR * 0.75;
-        if (s === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
+      if (ctx.ellipse) {
+        ctx.ellipse(r.x, r.y, rad, rad * 0.72, 0, 0, Math.PI * 2);
+      } else {
+        ctx.arc(r.x, r.y, rad, 0, Math.PI * 2);
       }
-      ctx.closePath();
       ctx.stroke();
 
-      // 2. Núcleo blanco incandescente de alta intensidad
-      ctx.strokeStyle = `rgba(255, 255, 255, ${(alpha * 0.95).toFixed(3)})`;
-      ctx.lineWidth = Math.max(1.0, 2.2 * widthFactor);
+      // 2. Núcleo blanco brillante central
+      ctx.strokeStyle = `rgba(255, 255, 255, ${(alpha * 0.90).toFixed(3)})`;
+      ctx.lineWidth = Math.max(0.8, 1.8 * widthFactor);
       ctx.beginPath();
-      for (let s = 0; s <= steps; s++) {
-        const theta = (s / steps) * Math.PI * 2;
-        const offset = Math.sin(theta * waveFreq + now * 0.016 + 0.4) * (waveAmp * 0.7);
-        const curR = Math.max(1, rad - 1.2 + offset);
-        const px = r.x + Math.cos(theta) * curR;
-        const py = r.y + Math.sin(theta) * curR * 0.75;
-        if (s === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
+      const innerRad = Math.max(1, rad - 1.5);
+      if (ctx.ellipse) {
+        ctx.ellipse(r.x, r.y, innerRad, innerRad * 0.72, 0, 0, Math.PI * 2);
+      } else {
+        ctx.arc(r.x, r.y, innerRad, 0, Math.PI * 2);
       }
-      ctx.closePath();
       ctx.stroke();
     }
     ctx.restore();
