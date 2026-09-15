@@ -2267,6 +2267,23 @@ class BeatstarEngine {
       });
     }
 
+    // Precalcular nextSameLaneDiffMs una sola vez para evitar loops anidados en cada frame de renderizado
+    const cLen = cleanedNotes.length;
+    for (let i = 0; i < cLen; i++) {
+      const curN = cleanedNotes[i];
+      let diff = Infinity;
+      const maxJ = Math.min(cLen, i + 40);
+      for (let j = i + 1; j < maxJ; j++) {
+        const nextN = cleanedNotes[j];
+        if (nextN.timestamp_ms - curN.timestamp_ms > 3000) break;
+        if (nextN.lane === curN.lane && nextN.timestamp_ms > curN.timestamp_ms) {
+          diff = nextN.timestamp_ms - curN.timestamp_ms;
+          break;
+        }
+      }
+      curN.nextSameLaneDiffMs = diff;
+    }
+
     this.notes = cleanedNotes;
 
     this.activeHolds.clear();
@@ -3036,8 +3053,7 @@ class BeatstarEngine {
     } else {
       note.missed = true;
       note.holding = false;
-      const nowPerf = performance.now();
-      if (!this.isProcessingMiss && (nowPerf - this.lastMissTimePerf >= 750)) {
+      if (!this.isProcessingMiss && !this.isGameOver && !this.isPaused) {
         this.synth.playPunchyArcadeMiss();
         this.addJudgement('HOLD DROP', '#a81b26');
         this.handleMiss();
@@ -3375,13 +3391,12 @@ class BeatstarEngine {
   }
 
   handleMiss() {
-    const nowPerf = performance.now();
-    if (this.isProcessingMiss || (nowPerf - this.lastMissTimePerf < 750)) {
+    if (this.isProcessingMiss || this.isGameOver || this.isPaused) {
       return;
     }
 
     this.isProcessingMiss = true;
-    this.lastMissTimePerf = nowPerf;
+    this.lastMissTimePerf = performance.now();
     this.lastFailSongTimeSec = (this.sync.getCurrentTimeMs() || 0) / 1000;
 
     this.combo = 0;
@@ -3553,7 +3568,7 @@ class BeatstarEngine {
           note.missed = true;
           note.processed = true;
 
-          if (canTriggerMiss) {
+          if (!this.isProcessingMiss && !this.isGameOver && !this.isPaused) {
             this.synth.playPunchyArcadeMiss();
             this.addJudgement('MISS', '#ff4d4d', note.lane);
             this.handleMiss();
@@ -4613,13 +4628,21 @@ class BeatstarEngine {
       ctx.fillStyle = keyGrad;
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2.4;
-      ctx.shadowColor = launch.color;
-      ctx.shadowBlur = 20 * (1 - progress);
 
       if (ctx.roundRect) ctx.roundRect(-keyW / 2, -keyH / 2, keyW, keyH, 8);
       else ctx.rect(-keyW / 2, -keyH / 2, keyW, keyH);
       ctx.fill();
       ctx.stroke();
+
+      // Halo de propulsión luminoso en hardware puro
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = hexToRgba(launch.color, (1 - progress) * 0.85);
+      ctx.lineWidth = 4.0;
+      if (ctx.roundRect) ctx.roundRect(-keyW / 2, -keyH / 2, keyW, keyH, 8);
+      else ctx.rect(-keyW / 2, -keyH / 2, keyW, keyH);
+      ctx.stroke();
+      ctx.restore();
 
       // 3. Chevrón vectorial brillante de la dirección
       this.renderVectorChevron(ctx, 0, 0, launch.dir, keyW, keyH);
@@ -4740,21 +4763,16 @@ class BeatstarEngine {
       const titleText = String(exp.title || '').toUpperCase();
       const subText = String(exp.subtext || '').toUpperCase();
 
-      // Resplandor difuso exterior (Multi-layer soft bloom)
+      // Título nítido de alta fidelidad sin shadowBlur
       ctx.font = '900 22px "Plus Jakarta Sans", "Outfit", system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
       ctx.save();
-      ctx.shadowColor = col;
-      ctx.shadowBlur = 28;
-      ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.85)`;
-      ctx.fillText(titleText, 0, 0);
-      ctx.restore();
+      ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.90)`;
+      ctx.lineWidth = 4.5;
+      ctx.strokeText(titleText, 0, 0);
 
-      ctx.save();
-      ctx.shadowColor = '#ffffff';
-      ctx.shadowBlur = 12;
       ctx.fillStyle = '#ffffff';
       ctx.fillText(titleText, 0, 0);
       ctx.restore();
@@ -4782,8 +4800,6 @@ class BeatstarEngine {
 
         // Texto suave
         ctx.fillStyle = '#ffffff';
-        ctx.shadowColor = col;
-        ctx.shadowBlur = 8;
         ctx.fillText(subText, 0, subY);
       }
 
@@ -5458,26 +5474,23 @@ class BeatstarEngine {
     const keyW = x1Bot - x0Bot;
     const keyH = y1 - y0;
 
-    // 0. HALO AMBIENTAL NEÓN EXTERIOR (Estilo Beatstar auténtico: resplandor vibrante proyectado en la pista)
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    const haloMargin = (isLarge ? 12 : 8) * scale;
-    const hx0T = x0Top - haloMargin;
-    const hx1T = x1Top + haloMargin;
-    const hx0B = x0Bot - haloMargin;
-    const hx1B = x1Bot + haloMargin;
-    const hy0 = y0 - haloMargin * 0.7;
-    const hy1 = y1 + haloMargin * 0.9;
-    const haloRad = r + 6;
-
-    const outerGlowGrad = ctx.createRadialGradient(cx, cyMid, 4 * scale, cx, cyMid, Math.max(keyW, keyH) * 0.82);
-    outerGlowGrad.addColorStop(0.0, hexToRgba(glowColor, isPressed ? 0.65 : 0.38));
-    outerGlowGrad.addColorStop(0.40, hexToRgba(glowColor, isPressed ? 0.35 : 0.18));
-    outerGlowGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-    ctx.fillStyle = outerGlowGrad;
-    tracePerspectiveQuad(hx0T, hx1T, hx0B, hx1B, hy0, hy1, haloRad);
-    ctx.fill();
-    ctx.restore();
+    // 0. HALO AMBIENTAL NEÓN EXTERIOR (Acelerado por GPU pura con 'lighter' sin allocar RadialGradients)
+    if (scale > 0.42) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const haloMargin = (isLarge ? 9 : 6) * scale;
+      const hx0T = x0Top - haloMargin;
+      const hx1T = x1Top + haloMargin;
+      const hx0B = x0Bot - haloMargin;
+      const hx1B = x1Bot + haloMargin;
+      const hy0 = y0 - haloMargin * 0.6;
+      const hy1 = y1 + haloMargin * 0.8;
+      const haloRad = r + 4;
+      ctx.fillStyle = hexToRgba(glowColor, isPressed ? 0.32 : 0.16);
+      tracePerspectiveQuad(hx0T, hx1T, hx0B, hx1B, hy0, hy1, haloRad);
+      ctx.fill();
+      ctx.restore();
+    }
 
     // 1. Sombra de contacto suave proyectada sobre la pista clara de escenario
     ctx.fillStyle = isPressed ? 'rgba(0, 0, 0, 0.25)' : 'rgba(0, 0, 0, 0.42)';
@@ -5491,10 +5504,7 @@ class BeatstarEngine {
     const x0Bev = this.getLaneBoundaryX(lane, yBevelTop) + margin;
     const x1Bev = this.getLaneBoundaryX(lane + 1, yBevelTop) - margin;
 
-    const bevelGrad = ctx.createLinearGradient(0, yBevelTop, 0, y1);
-    bevelGrad.addColorStop(0.0, isPressed ? '#22222a' : '#181820');
-    bevelGrad.addColorStop(1.0, isPressed ? '#141419' : '#141419');
-    ctx.fillStyle = bevelGrad;
+    ctx.fillStyle = isPressed ? '#22222a' : '#141419';
     tracePerspectiveQuad(x0Bev, x1Bev, x0Bot, x1Bot, yBevelTop, y1, r);
     ctx.fill();
 
@@ -5506,8 +5516,6 @@ class BeatstarEngine {
       topGrad.addColorStop(1.0, '#121218');
     } else {
       topGrad.addColorStop(0.0, '#363645'); // Borde cenital reflectante
-      topGrad.addColorStop(0.25, '#22222d');
-      topGrad.addColorStop(0.65, '#16161e');
       topGrad.addColorStop(1.0, '#0e0e13'); // Negro obsidiana pulido profundo
     }
 
@@ -5531,30 +5539,35 @@ class BeatstarEngine {
     ctx.stroke();
     ctx.restore();
 
-    // 5. Hendidura de Luz Central: Cápsula biselada con luz blanca/fucsia incandescente (#ffffff con shadowBlur: 12)
+    // 5. Hendidura de Luz Central incandescente ultra fluida (sin shadowBlur)
     if (!isSwipe) {
       const slitW = keyW * 0.62;
       const slitH = Math.max(4.5, 7.0 * scale);
       const slitX = cx - slitW / 2;
       const slitY = cyMid - slitH / 2;
 
-      // Base biselada hundida en negro
       ctx.save();
+      // Base biselada hundida en negro
       ctx.fillStyle = '#000000';
       if (ctx.roundRect) ctx.roundRect(slitX - 1, slitY - 1, slitW + 2, slitH + 2, slitH / 2);
       else ctx.rect(slitX - 1, slitY - 1, slitW + 2, slitH + 2);
       ctx.fill();
 
-      // Luz incandescente blanca con shadowBlur: 12
-      ctx.shadowColor = '#ffffff';
-      ctx.shadowBlur = 12 * scale;
+      // Resplandor neón difuso con aceleración por hardware
+      ctx.globalCompositeOperation = 'lighter';
+      const haloSpread = Math.max(2, 3.5 * scale);
+      ctx.fillStyle = hexToRgba(glowColor, 0.40);
+      if (ctx.roundRect) ctx.roundRect(slitX - haloSpread, slitY - haloSpread, slitW + haloSpread * 2, slitH + haloSpread * 2, (slitH + haloSpread * 2) / 2);
+      else ctx.rect(slitX - haloSpread, slitY - haloSpread, slitW + haloSpread * 2, slitH + haloSpread * 2);
+      ctx.fill();
+
+      // Luz incandescente blanca pura
       ctx.fillStyle = '#ffffff';
       if (ctx.roundRect) ctx.roundRect(slitX, slitY, slitW, slitH, slitH / 2);
       else ctx.rect(slitX, slitY, slitW, slitH);
       ctx.fill();
 
       // Núcleo central de alta energía
-      ctx.globalCompositeOperation = 'lighter';
       ctx.fillStyle = glowColor;
       const coreW = slitW * 0.45;
       const coreH = Math.max(2.0, slitH * 0.45);
@@ -6525,24 +6538,18 @@ class BeatstarEngine {
       const timeUntilHit = noteT - currentTime;
       if (!Number.isFinite(timeUntilHit)) continue;
 
+      // Early break ultrarrápido: dado que this.notes está estrictamente ordenado cronológicamente,
+      // si una nota futura aún no ha alcanzado la pista (tiempo hasta el hit > scrollDur * 1.25),
+      // ninguna de las siguientes notas será visible. Cortamos el loop inmediatamente.
+      if (timeUntilHit > scrollDur * 1.25) {
+        break;
+      }
+
       const pHead = 1.0 - timeUntilHit / scrollDur;
       if (pHead < -0.15 || (!isBeingHeld && pHead > 1.25)) continue;
 
-      // Mathematical zero-overlap clamp with next note in same lane (acotado y break temprano)
-      let nextSameLaneDiffMs = Infinity;
-      const maxSearchJ = Math.min(len, i + 35);
-      for (let j = i + 1; j < maxSearchJ; j++) {
-        const nextN = this.notes[j];
-        if (!nextN || nextN.holdCompleted) continue;
-        if (nextN.hit && nextN.type !== 'hold') continue;
-        const nextLane = Number.isFinite(nextN.lane) ? Math.round(nextN.lane) : (Number.isFinite(nextN.column) ? Math.round(nextN.column) : 0);
-        const nextT = Number.isFinite(nextN.timestamp_ms) ? nextN.timestamp_ms : (Number.isFinite(nextN.timeMs) ? nextN.timeMs : (nextN.time * 1000));
-        if (nextT - noteT > scrollDur) break;
-        if (nextLane === lane && nextT > noteT) {
-          nextSameLaneDiffMs = nextT - noteT;
-          break;
-        }
-      }
+      // Clamping de solapamiento O(1) precalculado al cargar la canción
+      const nextSameLaneDiffMs = (note.nextSameLaneDiffMs !== undefined) ? note.nextSameLaneDiffMs : Infinity;
 
       if (is3D) {
         // =========================================================================
@@ -6569,26 +6576,30 @@ class BeatstarEngine {
 
           ctx.save();
 
-          const segments = 16;
+          const segments = 10;
           const stringPoints = [];
+          const timeSec = currentTime / 1000;
           for (let s = 0; s <= segments; s++) {
             const frac = s / segments;
             const pStep = currentTailP + (currentHeadP - currentTailP) * frac;
             const ptCoord = this.getPerspectiveCoord(lane, pStep);
 
-          const standingEnvelope = Math.sin(Math.PI * frac);
-          const timeSec = currentTime / 1000;
-          const vibration = isBeingHeld 
-            ? (Math.sin(timeSec * 30.0 + ptCoord.y * 0.10) * (6.0 * standingEnvelope * ptCoord.scale))
-            : (Math.sin(timeSec * 6.0 + ptCoord.y * 0.05) * (1.2 * standingEnvelope * ptCoord.scale));
+            const standingEnvelope = Math.sin(Math.PI * frac);
+            const vibration = isBeingHeld 
+              ? (Math.sin(timeSec * 30.0 + ptCoord.y * 0.10) * (6.0 * standingEnvelope * ptCoord.scale))
+              : (Math.sin(timeSec * 6.0 + ptCoord.y * 0.05) * (1.2 * standingEnvelope * ptCoord.scale));
 
-          stringPoints.push({
-            x: ptCoord.x + vibration,
-            y: ptCoord.y,
-            scale: ptCoord.scale,
-            laneW: ptCoord.laneW
-          });
-        }
+            const wave = Math.sin((ptCoord.y * 0.04) - (currentTime * 0.008)) * (2.4 * ptCoord.scale);
+            const halfW = Math.max(4, (ptCoord.laneW * 0.40) + wave);
+
+            stringPoints.push({
+              x: ptCoord.x + vibration,
+              y: ptCoord.y,
+              scale: ptCoord.scale,
+              laneW: ptCoord.laneW,
+              halfW: halfW
+            });
+          }
 
         // 1. Beatstar Neon Translucent Energy Ribbon (Colores Vívidos e Hiper-Exagerados)
         const palette = this.activeSongPalette || (typeof SONG_COLOR_PALETTES !== 'undefined' ? SONG_COLOR_PALETTES.classic : null);
@@ -6608,16 +6619,12 @@ class BeatstarEngine {
         ctx.beginPath();
         for (let s = 0; s < stringPoints.length; s++) {
           const pt = stringPoints[s];
-          const wave = Math.sin((pt.y * 0.04) - (currentTime * 0.008)) * (2.4 * pt.scale);
-          const halfW = Math.max(4, (pt.laneW * 0.40) + wave);
-          if (s === 0) ctx.moveTo(pt.x - halfW, pt.y);
-          else ctx.lineTo(pt.x - halfW, pt.y);
+          if (s === 0) ctx.moveTo(pt.x - pt.halfW, pt.y);
+          else ctx.lineTo(pt.x - pt.halfW, pt.y);
         }
         for (let s = stringPoints.length - 1; s >= 0; s--) {
           const pt = stringPoints[s];
-          const wave = Math.sin((pt.y * 0.04) - (currentTime * 0.008)) * (2.4 * pt.scale);
-          const halfW = Math.max(4, (pt.laneW * 0.40) + wave);
-          ctx.lineTo(pt.x + halfW, pt.y);
+          ctx.lineTo(pt.x + pt.halfW, pt.y);
         }
         ctx.closePath();
         ctx.fillStyle = trailGrad;
@@ -6658,20 +6665,13 @@ class BeatstarEngine {
         ctx.beginPath();
         for (let s = 0; s < stringPoints.length; s++) {
           const pt = stringPoints[s];
-          const wave = Math.sin((pt.y * 0.04) - (currentTime * 0.008)) * (2.4 * pt.scale);
-          const halfW = Math.max(4, (pt.laneW * 0.40) + wave);
-          if (s === 0) ctx.moveTo(pt.x - halfW, pt.y);
-          else ctx.lineTo(pt.x - halfW, pt.y);
+          if (s === 0) ctx.moveTo(pt.x - pt.halfW, pt.y);
+          else ctx.lineTo(pt.x - pt.halfW, pt.y);
         }
-        ctx.stroke();
-
-        ctx.beginPath();
         for (let s = 0; s < stringPoints.length; s++) {
           const pt = stringPoints[s];
-          const wave = Math.sin((pt.y * 0.04) - (currentTime * 0.008)) * (2.4 * pt.scale);
-          const halfW = Math.max(4, (pt.laneW * 0.40) + wave);
-          if (s === 0) ctx.moveTo(pt.x + halfW, pt.y);
-          else ctx.lineTo(pt.x + halfW, pt.y);
+          if (s === 0) ctx.moveTo(pt.x + pt.halfW, pt.y);
+          else ctx.lineTo(pt.x + pt.halfW, pt.y);
         }
         ctx.stroke();
 
@@ -6922,17 +6922,13 @@ class BeatstarEngine {
         ctx.restore();
       }
 
-      // 2. Halo difuso exterior para legibilidad y energía
+      // 2. Contorno grueso obsidiana ultra nítido
       ctx.save();
-      ctx.shadowColor = textColor;
-      ctx.shadowBlur = isPerfectPlus ? 14 : 8;
-
-      // 3. Contorno grueso obsidiana ultra nítido
       ctx.strokeStyle = '#040207';
       ctx.lineWidth = 5.5;
       ctx.strokeText(j.text, drawX, j.y);
 
-      // 4. Relleno con el color de juicio vibrante
+      // 3. Relleno con el color de juicio vibrante
       ctx.fillStyle = textColor;
       ctx.fillText(j.text, drawX, j.y);
       ctx.restore();

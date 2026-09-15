@@ -3980,14 +3980,18 @@
     // =========================================================================
     let typewriterAudioCtx = null;
     function getTypewriterAudioContext() {
-      if (!typewriterAudioCtx) {
-        const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
-        if (AudioCtxClass) {
-          typewriterAudioCtx = new AudioCtxClass({ latencyHint: 'interactive' });
+      try {
+        if (!typewriterAudioCtx) {
+          const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtxClass) {
+            typewriterAudioCtx = new AudioCtxClass({ latencyHint: 'interactive' });
+          }
         }
-      }
-      if (typewriterAudioCtx && typewriterAudioCtx.state === 'suspended') {
-        typewriterAudioCtx.resume().catch(() => {});
+        if (typewriterAudioCtx && typewriterAudioCtx.state === 'suspended') {
+          typewriterAudioCtx.resume().catch(() => {});
+        }
+      } catch (e) {
+        console.warn('Typewriter audio context warning:', e);
       }
       return typewriterAudioCtx;
     }

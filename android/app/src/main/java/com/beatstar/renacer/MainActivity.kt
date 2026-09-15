@@ -43,7 +43,49 @@ class MainActivity : AppCompatActivity() {
         // 1. Mantener pantalla encendida
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        // 2. Modo pantalla completa Edge-to-Edge
+        // 2. Desbloquear modo de alta tasa de refresco (120Hz / 90Hz) para máxima fluidez
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val display = this.display
+                if (display != null) {
+                    val modes = display.supportedModes
+                    var maxMode = display.mode
+                    var maxRate = maxMode.refreshRate
+                    for (mode in modes) {
+                        if (mode.refreshRate > maxRate) {
+                            maxRate = mode.refreshRate
+                            maxMode = mode
+                        }
+                    }
+                    val params = window.attributes
+                    params.preferredDisplayModeId = maxMode.modeId
+                    window.attributes = params
+                }
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                @Suppress("DEPRECATION")
+                val windowManager = getSystemService(Context.WINDOW_SERVICE) as? WindowManager
+                @Suppress("DEPRECATION")
+                val display = windowManager?.defaultDisplay
+                if (display != null) {
+                    val modes = display.supportedModes
+                    var maxMode = display.mode
+                    var maxRate = maxMode.refreshRate
+                    for (mode in modes) {
+                        if (mode.refreshRate > maxRate) {
+                            maxRate = mode.refreshRate
+                            maxMode = mode
+                        }
+                    }
+                    val params = window.attributes
+                    params.preferredDisplayModeId = maxMode.modeId
+                    window.attributes = params
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("BeatstarApp", "No se pudo configurar 120Hz: ${e.message}")
+        }
+
+        // 3. Modo pantalla completa Edge-to-Edge
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             window.attributes.layoutInDisplayCutoutMode =
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
