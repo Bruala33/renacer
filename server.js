@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+const PORT = 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
 app.use(cors());
@@ -436,10 +436,17 @@ app.get('/api/v1/community/charts/:id/chart', (req, res) => {
   const candidates = [
     path.join(COMMUNITY_DIR, id, 'chart.json'),
     path.join(COMMUNITY_DIR, `comm_${id}`, 'chart.json'),
+    path.join(COMMUNITY_DIR, id.replace(/^comm_/, ''), 'chart.json'),
+    path.join(STATIC_DIR, 'uploads', 'community', id, 'chart.json'),
     path.join(SONGS_DIR, id, 'chart.json'),
     path.join(SONGS_DIR, id.replace(/^comm_/, ''), 'chart.json'),
-    path.join(SONGS_DIR, 'renacer', 'chart.json'),
   ];
+  if (id === 'comm_renacer' || id === 'renacer') {
+    candidates.push(
+      path.join(SONGS_DIR, 'renacer', 'chart.json'),
+      path.join(COMMUNITY_DIR, 'comm_renacer', 'chart.json')
+    );
+  }
 
   for (const p of candidates) {
     if (fs.existsSync(p) && fs.statSync(p).isFile()) {
@@ -447,6 +454,28 @@ app.get('/api/v1/community/charts/:id/chart', (req, res) => {
       res.setHeader('Cache-Control', 'public, max-age=86400');
       return res.sendFile(p);
     }
+  }
+
+  // Fallback: If chart metadata is in communityCharts, generate valid chart JSON
+  const chartMeta = communityCharts.get(id) || communityCharts.get(`comm_${id}`);
+  if (chartMeta) {
+    const fallbackChart = {
+      version: '3.0.0',
+      metadata: {
+        title: chartMeta.title || 'Pista Comunitaria',
+        artist: chartMeta.artist || 'Comunidad',
+        creator: chartMeta.creator_name || 'Comunidad',
+        bpm: chartMeta.bpm || 120,
+        difficulty: chartMeta.difficulty_name || 'Normal',
+        stars: chartMeta.stars || 3.5,
+      },
+      bpm: chartMeta.bpm || 120,
+      offset: chartMeta.offset_ms || 0,
+      scrollDurationMs: chartMeta.scroll_duration_ms || 1400,
+      notes: []
+    };
+    res.setHeader('Content-Type', 'application/json');
+    return res.json(fallbackChart);
   }
 
   res.status(404).json({ error: 'Archivo chart.json no encontrado' });
@@ -458,10 +487,17 @@ app.get('/api/v1/community/charts/:id/audio', (req, res) => {
   const candidates = [
     path.join(COMMUNITY_DIR, id, 'audio.mp3'),
     path.join(COMMUNITY_DIR, `comm_${id}`, 'audio.mp3'),
+    path.join(COMMUNITY_DIR, id.replace(/^comm_/, ''), 'audio.mp3'),
+    path.join(STATIC_DIR, 'uploads', 'community', id, 'audio.mp3'),
     path.join(SONGS_DIR, id, 'audio.mp3'),
     path.join(SONGS_DIR, id.replace(/^comm_/, ''), 'audio.mp3'),
-    path.join(SONGS_DIR, 'renacer', 'audio.mp3'),
   ];
+  if (id === 'comm_renacer' || id === 'renacer') {
+    candidates.push(
+      path.join(SONGS_DIR, 'renacer', 'audio.mp3'),
+      path.join(COMMUNITY_DIR, 'comm_renacer', 'audio.mp3')
+    );
+  }
 
   for (const p of candidates) {
     if (fs.existsSync(p) && fs.statSync(p).isFile()) {
@@ -473,6 +509,90 @@ app.get('/api/v1/community/charts/:id/audio', (req, res) => {
   }
 
   res.status(404).json({ error: 'Archivo audio.mp3 no encontrado' });
+});
+
+// ==========================================
+// 4b. Proxies de Descarga Robusta (osu! y Clone Hero)
+// ==========================================
+app.get(['/api/v1/download/osu/:setId', '/api/v1/osu/download/:setId'], async (req, res) => {
+  const rawId = (req.params.setId || '').toString().replace(/^osu_/, '').trim();
+  if (!rawId || !/^\d+$/.test(rawId)) {
+    return res.status(400).json({ error: 'ID de beatmap de osu! inválido' });
+  }
+
+  const mirrors = [
+    `https://api.nerinyan.moe/d/${rawId}?noVideo=true`,
+    `https://dl.nerinyan.moe/v2/d/${rawId}?noVideo=true`,
+    `https://txy1.sayobot.cn/beatmaps/download/mini/${rawId}`,
+    `https://dl.sayobot.cn/beatmaps/download/mini/${rawId}`
+  ];
+
+  for (const mirrorUrl of mirrors) {
+    try {
+      const resp = await fetch(mirrorUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': '*/*'
+        },
+        redirect: 'follow',
+        signal: AbortSignal.timeout(22000)
+      });
+
+      if (resp.ok) {
+        const ct = resp.headers.get('content-type') || 'application/x-osu-beatmap-archive';
+        const cl = resp.headers.get('content-length');
+        res.setHeader('Content-Type', ct);
+        if (cl) res.setHeader('Content-Length', cl);
+        res.setHeader('Content-Disposition', `attachment; filename="${rawId}.osz"`);
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+
+        const { Readable } = await import('stream');
+        Readable.fromWeb(resp.body).pipe(res);
+        return;
+      }
+    } catch (err) {
+      console.warn(`[Proxy Download] Mirror ${mirrorUrl} falló:`, err.message);
+    }
+  }
+
+  res.status(502).json({ error: 'No se pudo descargar el paquete desde ningún mirror de osu!' });
+});
+
+app.get(['/api/v1/download/clonehero/:md5', '/api/v1/clonehero/download/:md5'], async (req, res) => {
+  const md5 = (req.params.md5 || '').toString().trim();
+  if (!md5 || !/^[a-fA-F0-9]{32}$/.test(md5)) {
+    return res.status(400).json({ error: 'MD5 de Clone Hero inválido' });
+  }
+
+  const enchorUrl = `https://files.enchor.us/${md5}.sng`;
+  try {
+    const resp = await fetch(enchorUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+        'Accept': '*/*'
+      },
+      signal: AbortSignal.timeout(25000)
+    });
+
+    if (resp.ok) {
+      const ct = resp.headers.get('content-type') || 'application/octet-stream';
+      const cl = resp.headers.get('content-length');
+      res.setHeader('Content-Type', ct);
+      if (cl) res.setHeader('Content-Length', cl);
+      res.setHeader('Content-Disposition', `attachment; filename="${md5}.sng"`);
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+
+      const { Readable } = await import('stream');
+      Readable.fromWeb(resp.body).pipe(res);
+      return;
+    }
+  } catch (err) {
+    console.warn(`[Proxy Download] Enchor SNG ${md5} falló:`, err.message);
+  }
+
+  res.status(502).json({ error: 'No se pudo descargar la canción de Clone Hero' });
 });
 
 // Rate track
@@ -656,16 +776,17 @@ app.get(['/api/search', '/api/v1/search', '/api/v1/search/community'], async (re
           id: `osu_${setId}`,
           title,
           artist,
-          creator_id: `creator_${creator}`,
           creator_name: creator,
           bpm: item.bpm || 120,
           difficulty_name: diffs[0]?.name || 'Normal',
           stars: diffs[0]?.stars || 3.5,
           notes_count: diffs[0]?.notes_count || 100,
           thumbnail,
-          source: 'catboy',
+          source: 'osu',
           source_name: 'osu! Mania',
-          download_url: `https://catboy.best/d/${setId}`,
+          download_url: `/api/v1/download/osu/${setId}`,
+          direct_download_url: `https://api.nerinyan.moe/d/${setId}?noVideo=true`,
+          fallback_download_url: `https://dl.nerinyan.moe/v2/d/${setId}?noVideo=true`,
           difficulties: diffs,
         });
       }
@@ -686,9 +807,13 @@ app.get('/songs/:folder/:file(*)', (req, res) => {
     path.join(SONGS_DIR, folder, file),
     path.join(COMMUNITY_DIR, folder, file),
     path.join(COMMUNITY_DIR, `comm_${folder}`, file),
-    path.join(SONGS_DIR, 'renacer', file),
-    path.join(COMMUNITY_DIR, 'comm_renacer', file),
   ];
+  if (folder === 'renacer' || folder === 'comm_renacer') {
+    candidates.push(
+      path.join(SONGS_DIR, 'renacer', file),
+      path.join(COMMUNITY_DIR, 'comm_renacer', file)
+    );
+  }
 
   for (const p of candidates) {
     if (fs.existsSync(p) && fs.statSync(p).isFile()) {

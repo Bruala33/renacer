@@ -571,7 +571,7 @@ body {
   color: #e5b869;
 }
 
-/* Full-Width Top HUD (100% width, Top 0) */
+/* Minimalist Floating Top HUD (No bounding box, no heavy card) */
 .fixed-top-hud {
   position: absolute;
   top: 0;
@@ -579,40 +579,34 @@ body {
   right: 0;
   width: 100%;
   z-index: 20;
-  background: linear-gradient(180deg, rgba(14, 10, 20, 0.96) 0%, rgba(8, 6, 14, 0.94) 80%, rgba(8, 6, 14, 0.8) 100%);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: none;
-  border-bottom: 1px solid rgba(197, 160, 89, 0.25);
-  border-radius: 0;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: none !important;
+  box-shadow: none !important;
   padding: 0;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.75);
-  pointer-events: auto !important;
+  pointer-events: none;
 }
 
 /* 6px Segmented Progress Track Across 92% Width (Beatstar Spec) */
 .hud-top-progress-bar-container {
-  width: 92% !important;
-  margin: 12px auto 0 auto !important;
+  width: 90% !important;
+  margin: 10px auto 0 auto !important;
   position: relative;
-  height: 6px;
-}
-
-.hud-top-progress-track {
-  width: 100%;
-  height: 6px;
-  background: #1a140e;
-  position: relative;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
   overflow: visible;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.9);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 
 .hud-progress-fill {
   height: 100%;
+  border-radius: 4px;
   background: linear-gradient(90deg, #c5a059 0%, #e5b869 75%, #fff0c2 100%);
-  box-shadow: 0 0 10px rgba(229, 184, 105, 0.75);
+  box-shadow: 0 0 12px rgba(229, 184, 105, 0.85);
   transition: width 0.12s linear;
 }
 
@@ -628,7 +622,7 @@ body {
   top: 0;
   bottom: 0;
   width: 2px;
-  background: rgba(197, 160, 89, 0.7);
+  background: rgba(255, 255, 255, 0.35);
   z-index: 4;
   transform: translateX(-50%);
   box-shadow: 0 0 3px rgba(0, 0, 0, 0.9);
@@ -637,10 +631,10 @@ body {
 /* Star Nodes Placed Over Dividers */
 .star-node {
   position: absolute;
-  top: 3px;
+  top: 2.5px;
   transform: translate(-50%, -50%);
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -649,8 +643,8 @@ body {
 }
 
 .star-node .star-svg {
-  width: 13px;
-  height: 13px;
+  width: 14px;
+  height: 14px;
   fill: #161220;
   stroke: #c5a059;
   stroke-width: 1.8;
@@ -675,76 +669,97 @@ body {
   filter: drop-shadow(0 0 6px rgba(229, 184, 105, 0.95)) drop-shadow(0 0 12px rgba(255, 240, 194, 0.75));
 }
 
-/* Sub-Bar Metrics Row (3 columns) */
-.hud-metrics-row {
+/* Minimalist Score & Pause Row */
+.hud-minimal-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 12px 8px 12px;
+  padding: 5px 14px 0 14px;
   width: 100%;
 }
 
-.hud-left-col {
-  display: flex;
-  flex-direction: column;
+/* Compact Gas Station Mechanical Odometer Scoreboard (No full-width bar, compact centered widget) */
+.hud-gas-odometer {
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
-  min-width: 0;
-  max-width: 32%;
+  background: linear-gradient(180deg, #181424 0%, #0d0918 50%, #181424 100%);
+  border: 1.5px solid #d4af37;
+  border-radius: 6px;
+  padding: 2px 4px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.9), inset 0 2px 4px rgba(0, 0, 0, 0.95), 0 0 10px rgba(212, 175, 55, 0.35);
+  height: 28px;
+  width: auto;
+  min-width: 104px;
+  gap: 1.5px;
+  position: relative;
+  pointer-events: none;
 }
 
-.hud-song-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #f5eedc;
-  white-space: nowrap;
+.hud-odometer-drum {
+  width: 15px;
+  height: 24px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  letter-spacing: 0.02em;
+  position: relative;
+  background: #08060c;
+  border-radius: 3px;
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.9), inset 0 -2px 3px rgba(0, 0, 0, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.hud-center-col {
+.roller-strip {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  flex: 1;
-  max-width: 40%;
+  transition: transform 0.22s cubic-bezier(0.18, 0.89, 0.32, 1.25);
 }
 
-.hud-score-ticker {
-  font-size: 22px;
-  font-weight: 800;
-  font-family: 'Cinzel', 'SF Pro Display', -apple-system, serif, monospace;
-  color: #f5eedc;
-  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8), 0 0 14px rgba(229, 184, 105, 0.45);
-  line-height: 1.1;
-  letter-spacing: 0.04em;
-}
-
-.hud-right-col {
+.roller-strip span {
+  height: 24px;
+  line-height: 24px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
+  justify-content: center;
+  font-family: 'Cinzel', 'Courier New', monospace;
+  font-weight: 900;
+  font-size: 15px;
+  color: #ffffff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95);
+}
+
+.hud-clean-score {
+  font-size: 26px;
+  font-weight: 900;
+  font-family: 'Cinzel', 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: #ffffff;
+  letter-spacing: 0.05em;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9), 0 0 14px rgba(229, 184, 105, 0.5);
+  line-height: 1.1;
+  pointer-events: none;
+  transition: transform 0.08s ease;
 }
 
 .hud-pause-btn {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: rgba(28, 23, 36, 0.85);
-  border: 1px solid rgba(197, 160, 89, 0.5);
+  background: rgba(18, 14, 26, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #e5b869;
+  color: #ffffff;
   cursor: pointer;
+  pointer-events: auto !important;
   transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .hud-pause-btn:hover {
-  background: rgba(45, 36, 56, 0.95);
-  border-color: #e5b869;
-  box-shadow: 0 0 10px rgba(197, 160, 89, 0.35);
+  background: rgba(35, 28, 50, 0.85);
+  border-color: #ffd700;
+  color: #ffd700;
+  transform: scale(1.06);
 }
 
 .hud-pause-btn:active {

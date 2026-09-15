@@ -987,8 +987,8 @@
     <!-- Layer 6: 120 FPS High Performance Game Canvas (Strictly 3 Lanes) -->
     <canvas id="gameCanvas"></canvas>
 
-    <!-- Layer 7: Fixed Top HUD Header (Beatstar Reactive Style) -->
-    <div id="fixedTopHud" class="fixed-top-hud hidden">
+    <!-- Layer 7: Fixed Top HUD Header (Minimalist Clean Floating Style - No Box) -->
+    <div id="fixedTopHud" class="fixed-top-hud hidden pointer-events-none">
       <!-- Top: Full-width 6px Segmented Star Progress Bar -->
       <div class="hud-top-progress-bar-container">
         <div id="hudProgressFill" class="hud-progress-fill" style="width: 0%;"></div>
@@ -1020,42 +1020,14 @@
         </div>
       </div>
 
-      <!-- Bottom: 3-column Metrics Row -->
-      <div class="hud-metrics-row">
-        <!-- Left Column: Artist Portal Medallion & Song Title -->
-        <div class="hud-left-col">
-          <div class="flex items-center gap-2 min-w-0">
-            <div id="hudArtistPortal" class="hud-artist-portal relative flex-shrink-0">
-              <!-- Anillos de onda expansiva concéntricos reactivos al BPM (Beatstar Soundwave Echo) -->
-              <div class="portal-pulse-ring ring-1"></div>
-              <div class="portal-pulse-ring ring-2"></div>
-              <div class="portal-brass-ring">
-                <img id="hudPortalCover" src="./app_logo.png" alt="Cover" class="portal-cover-img" />
-              </div>
-              <div class="portal-vu-bars">
-                <div class="vu-bar bar-1"></div>
-                <div class="vu-bar bar-2"></div>
-                <div class="vu-bar bar-3"></div>
-              </div>
-            </div>
-            <div class="min-w-0 flex-1 flex flex-col justify-center">
-              <span id="hudSongTitle" class="hud-song-title">Cargando...</span>
-              <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                <div id="hudDifficultyBadge" class="hud-diff-badge diff-normal">
-                  <span class="badge-icon">★</span>
-                  <span id="hudDiffLabel" class="badge-text">NORMAL</span>
-                </div>
-                <div id="hudMedalPill" class="hud-medal-pill hidden">
-                  <span id="hudMedalName">ORO</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+      <!-- Center Score & Top-Right Pause Button Row (Floating Clean HUD) -->
+      <div class="hud-minimal-row">
+        <!-- Spacer Left to keep score perfectly centered -->
+        <div class="w-8 flex-shrink-0"></div>
 
-        <!-- Center Column: Mechanical Odometer Scoreboard + Combo -->
-        <div class="hud-center-col">
-          <div id="hudScoreRollers" class="hud-odometer" aria-label="Puntuación">
+        <!-- Center: Gas Station Mechanical Odometer Scoreboard (Compact, centered, no full-width bar) -->
+        <div class="flex-1 flex flex-col items-center justify-center">
+          <div id="hudScoreRollers" class="hud-gas-odometer" aria-label="Puntuación">
             <div class="hud-odometer-drum"><div class="roller-strip" id="rollerDigit5"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div></div>
             <div class="hud-odometer-drum"><div class="roller-strip" id="rollerDigit4"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div></div>
             <div class="hud-odometer-drum"><div class="roller-strip" id="rollerDigit3"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div></div>
@@ -1063,22 +1035,12 @@
             <div class="hud-odometer-drum"><div class="roller-strip" id="rollerDigit1"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div></div>
             <div class="hud-odometer-drum"><div class="roller-strip" id="rollerDigit0"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div></div>
           </div>
-          <div id="hudScore" class="hidden">0</div>
-          <div class="flex items-center justify-center gap-1.5 mt-0.5">
-            <div id="hudComboContainer" class="hud-combo-box">
-              <span id="hudCombo" class="hud-combo-text">COMBO 0</span>
-            </div>
-            <span id="hudMultiplier" class="multiplier-badge">1x</span>
-          </div>
+          <span id="hudScore" class="hidden">0</span>
         </div>
 
-        <!-- Right Column: Clef Coins + Pause Button -->
-        <div class="hud-right-col">
-          <div class="clef-badge py-1 px-2 flex items-center gap-1">
-            <span class="text-amber-400 font-bold text-xs">&#119070;</span>
-            <span id="hudClefCount" class="text-[11px] font-black text-amber-300 font-mono">0</span>
-          </div>
-          <button id="btnPauseGame" onclick="event.stopPropagation(); openPauseModal()" ontouchend="event.stopPropagation(); openPauseModal()" class="hud-pause-btn" title="Pausar Partida">
+        <!-- Right: Pause Button -->
+        <div class="w-8 flex-shrink-0 flex justify-end">
+          <button id="btnPauseGame" onclick="event.stopPropagation(); openPauseModal()" ontouchend="event.stopPropagation(); openPauseModal()" class="hud-pause-btn pointer-events-auto" title="Pausar Partida">
             <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
           </button>
         </div>
@@ -2470,7 +2432,7 @@
           <!-- Medal Tier Badge Injected -->
         </div>
         <h2 id="resSongTitle" class="text-sm font-black text-white truncate max-w-[260px] mx-auto">Título de Canción</h2>
-        <p id="resDiffName" class="text-[11px] text-cyan-300 font-semibold">Normal 3.0★</p>
+        <p id="resDiffName" class="hidden"></p>
       </div>
 
       <!-- 5 Stars with High-Contrast Silver / Gold / Platinum States -->
@@ -2868,11 +2830,7 @@
 
     window.setGameMasterVolume = function(val) {
       const v = Math.max(0, Math.min(1, parseFloat(val) || 0));
-      const isMuted = localStorage.getItem('beatstar_master_muted') === 'true';
       localStorage.setItem('beatstar_master_volume', v.toString());
-      if (engine && engine.setMasterVolume) {
-        engine.setMasterVolume(v, isMuted);
-      }
       if (typeof updateMenuAudioVolume === 'function') updateMenuAudioVolume();
       syncVolumeUI();
     };
@@ -2881,16 +2839,12 @@
       const currentMuted = localStorage.getItem('beatstar_master_muted') === 'true';
       const newMuted = !currentMuted;
       localStorage.setItem('beatstar_master_muted', newMuted.toString());
-      const currentVol = parseFloat(localStorage.getItem('beatstar_master_volume') ?? '1.0');
-      if (engine && engine.setMasterVolume) {
-        engine.setMasterVolume(currentVol, newMuted);
-      }
       if (typeof updateMenuAudioVolume === 'function') updateMenuAudioVolume();
       syncVolumeUI();
       if (newMuted) {
-        showSuccessToast('Audio del juego silenciado');
+        showSuccessToast('Música del menú silenciada');
       } else {
-        showSuccessToast('Sonido activado');
+        showSuccessToast('Música del menú activada');
       }
     };
 
@@ -3987,12 +3941,11 @@
                            host.includes('github.io') ||
                            host.includes('netlify.app') ||
                            host.includes('vercel.app') ||
-                           host === 'appassets.androidplatform.net';
+                           host === 'appassets.androidplatform.net' ||
+                           window.location.protocol === 'file:';
 
-      if (!isStaticHost) {
-        if (host === 'localhost' || host === '127.0.0.1' || host.includes('onrender.com')) {
-          return window.location.origin;
-        }
+      if (!isStaticHost && host.length > 0 && typeof window.location.origin === 'string' && window.location.origin.startsWith('http')) {
+        return window.location.origin;
       }
       return DEFAULT_CLOUD_SERVER;
     }
@@ -4196,34 +4149,16 @@
           }
         },
         onSongLoaded: (meta, palette) => {
-          document.getElementById('hudSongTitle').innerText = meta.title || 'Canción Desconocida';
-          document.getElementById('pauseSongTitle').innerText = meta.title || 'Canción Desconocida';
+          const hudSongTitleEl = document.getElementById('hudSongTitle');
+          if (hudSongTitleEl) hudSongTitleEl.innerText = meta.title || 'Canción Desconocida';
+          const pauseSongTitleEl = document.getElementById('pauseSongTitle');
+          if (pauseSongTitleEl) pauseSongTitleEl.innerText = meta.title || 'Canción Desconocida';
           const coverEl = document.getElementById('hudPortalCover');
           if (coverEl) {
             coverEl.src = meta.cover_url || meta.cover || meta.album_art || meta.image || './app_logo.png';
           }
-          // Actualizar insignia de dificultad estilo Beatstar sin emojis
-          const diffBadge = document.getElementById('hudDifficultyBadge');
-          const diffLabel = document.getElementById('hudDiffLabel');
-          if (diffBadge && diffLabel) {
-            const rawStars = meta.stars || meta.difficulty_rating || 3.5;
-            const stars = typeof rawStars === 'number' ? rawStars : parseFloat(rawStars) || 3.5;
-            let diffTier = 'NORMAL';
-            let diffClass = 'diff-normal';
-            if (stars >= 5.5) {
-              diffTier = 'EXTREMA';
-              diffClass = 'diff-extreme';
-            } else if (stars >= 3.8) {
-              diffTier = 'DIFICIL';
-              diffClass = 'diff-hard';
-            }
-            diffLabel.innerText = `${diffTier} • ${stars.toFixed(1)}★`;
-            diffBadge.className = `hud-diff-badge ${diffClass}`;
-            const iconSpan = diffBadge.querySelector('.badge-icon');
-            if (iconSpan) iconSpan.innerText = '★';
-          }
-          pauseMenuAmbientMusic();
-          updateUserWalletDisplay();
+          if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
+          if (typeof updateUserWalletDisplay === 'function') updateUserWalletDisplay();
         },
         onTogglePause: () => {
           openPauseModal();
@@ -4785,9 +4720,9 @@ function switchMainTab(tab) {
                 artist: artist,
                 creator: creator,
                 thumbnail: thumbnail,
-                download_url: myWorker(`https://catboy.best/d/${setId}`),
-                direct_download_url: myWorker(`https://catboy.best/d/${setId}`),
-                fallback_download_url: myWorker(`https://txy1.sayobot.cn/beatmaps/download/mini/${setId}`),
+                download_url: `/api/v1/download/osu/${setId}`,
+                direct_download_url: `https://api.nerinyan.moe/d/${setId}?noVideo=true`,
+                fallback_download_url: `https://dl.nerinyan.moe/v2/d/${setId}?noVideo=true`,
                 bpm: item.bpm || 120,
                 difficulties: diffs
               });
@@ -4843,9 +4778,9 @@ function switchMainTab(tab) {
                 artist: artist,
                 creator: creator,
                 thumbnail: thumbnail,
-                download_url: myWorker(`https://catboy.best/d/${setId}`),
-                direct_download_url: myWorker(`https://catboy.best/d/${setId}`),
-                fallback_download_url: myWorker(`https://txy1.sayobot.cn/beatmaps/download/mini/${setId}`),
+                download_url: `/api/v1/download/osu/${setId}`,
+                direct_download_url: `https://api.nerinyan.moe/d/${setId}?noVideo=true`,
+                fallback_download_url: `https://dl.nerinyan.moe/v2/d/${setId}?noVideo=true`,
                 bpm: item.bpm || 120,
                 difficulties: diffs
               });
@@ -4902,9 +4837,9 @@ function switchMainTab(tab) {
                   artist: artist,
                   creator: creator,
                   thumbnail: thumbnail,
-                  download_url: myWorker(`https://catboy.best/d/${setId}`),
-                  direct_download_url: myWorker(`https://catboy.best/d/${setId}`),
-                  fallback_download_url: myWorker(`https://txy1.sayobot.cn/beatmaps/download/mini/${setId}`),
+                  download_url: `/api/v1/download/osu/${setId}`,
+                  direct_download_url: `https://api.nerinyan.moe/d/${setId}?noVideo=true`,
+                  fallback_download_url: `https://dl.nerinyan.moe/v2/d/${setId}?noVideo=true`,
                   bpm: item.bpm || item.BPM || 120,
                   difficulties: diffs
                 });
@@ -5168,10 +5103,19 @@ function switchMainTab(tab) {
       if (!menuBgmAudio) return;
       const isMuted = localStorage.getItem('beatstar_master_muted') === 'true';
       const savedVol = parseFloat(localStorage.getItem('beatstar_master_volume') ?? '1.0');
-      menuBgmAudio.volume = isMuted ? 0 : Math.max(0, Math.min(1, savedVol * 0.35));
+      menuBgmAudio.volume = isMuted ? 0 : Math.max(0, Math.min(1, savedVol));
     }
 
     function playMenuAmbientMusic() {
+      // Si el juego está activo, en carga o en progreso, NUNCA reproducir la música ambiental de menú
+      const searchScreen = document.getElementById('searchScreen');
+      const isGameActive = (window.engine && window.engine.isRunning) ||
+                           (searchScreen && (searchScreen.classList.contains('hidden') || searchScreen.style.display === 'none')) ||
+                           (typeof currentActiveBeatmap !== 'undefined' && currentActiveBeatmap !== null);
+      if (isGameActive) {
+        pauseMenuAmbientMusic();
+        return;
+      }
       const audio = getMenuBgmAudio();
       updateMenuAudioVolume();
       const p = audio.play();
@@ -5182,7 +5126,9 @@ function switchMainTab(tab) {
 
     function pauseMenuAmbientMusic() {
       if (menuBgmAudio) {
-        menuBgmAudio.pause();
+        try {
+          menuBgmAudio.pause();
+        } catch (_) {}
       }
     }
 
@@ -5364,9 +5310,9 @@ function switchMainTab(tab) {
                 artist: artist,
                 creator: creator,
                 thumbnail: thumbnail,
-                download_url: myWorker(`https://catboy.best/d/${setId}`),
-                direct_download_url: myWorker(`https://catboy.best/d/${setId}`),
-                fallback_download_url: myWorker(`https://txy1.sayobot.cn/beatmaps/download/mini/${setId}`),
+                download_url: `/api/v1/download/osu/${setId}`,
+                direct_download_url: `https://api.nerinyan.moe/d/${setId}?noVideo=true`,
+                fallback_download_url: `https://dl.nerinyan.moe/v2/d/${setId}?noVideo=true`,
                 bpm: item.bpm || 120,
                 difficulties: diffs
               });
@@ -5552,8 +5498,8 @@ function switchMainTab(tab) {
           const data = await backendResp.json();
           if (Array.isArray(data) && data.length > 0) {
             console.log(`[Search] Servidor backend entregó ${data.length} canciones.`);
-            searchResultsCache = data;
             const sortedItems = sortItemsByTargetDifficulty(data, currentTargetDifficulty);
+            searchResultsCache = sortedItems;
             renderSearchResults(sortedItems, []);
             if (btnText) btnText.innerText = 'Buscar';
             if (spinner) spinner.classList.add('hidden');
@@ -5588,8 +5534,8 @@ function switchMainTab(tab) {
 
         console.log(`[Search] Total unificado: ${allItems.length} canciones encontradas.`);
 
-        searchResultsCache = allItems;
         const sortedItems = sortItemsByTargetDifficulty(allItems, currentTargetDifficulty);
+        searchResultsCache = sortedItems;
         renderSearchResults(sortedItems, failedApis);
 
       } catch (err) {
@@ -5604,7 +5550,7 @@ function switchMainTab(tab) {
       const hs = highscores[item.id];
       const isFav = favoriteIdsSet.has(item.id);
       const sId = safeSongId(item.id);
-      const isComm = Boolean(item.is_community || item.source === 'community' || item.creator_id);
+      const isComm = Boolean((item.is_community || item.source === 'community') && item.source !== 'osu' && item.source !== 'clonehero' && item.source !== 'catboy' && !String(item.id).startsWith('osu_') && !item.sng_url && !item.download_url);
       const cStars = typeof item.stars === 'number' ? item.stars : (parseFloat(item.stars) || 3.5);
 
       // Find primary difficulty (closest to target filter or balanced 3.5★)
@@ -5926,10 +5872,11 @@ function switchMainTab(tab) {
         return;
       }
       let chartItem = null;
-      if (itemIndex !== null && searchResultsCache && searchResultsCache[itemIndex]) {
+      if (searchResultsCache && chartId) {
+        chartItem = searchResultsCache.find(c => String(c.id) === String(chartId));
+      }
+      if (!chartItem && itemIndex !== null && searchResultsCache && searchResultsCache[itemIndex]) {
         chartItem = searchResultsCache[itemIndex];
-      } else if (searchResultsCache) {
-        chartItem = searchResultsCache.find(c => c.id === chartId);
       }
 
       if (!chartItem) {
@@ -5996,7 +5943,8 @@ function switchMainTab(tab) {
         // ==========================================
         // 1. FLUJO BLINDADO PARA OSU! MANIA (CANALIZADO VIA CLOUDFLARE WORKER)
         // ==========================================
-        if (chartItem.source === 'osu') {
+        const isOsuTrack = chartItem.source === 'osu' || chartItem.source === 'catboy' || (chartItem.id && String(chartItem.id).startsWith('osu_'));
+        if (isOsuTrack) {
           const term = document.getElementById('diagnosticTerminal');
           if (term) term.classList.add('hidden');
           loadStatus.innerText = 'Descargando beatmap de osu!...';
@@ -6004,15 +5952,19 @@ function switchMainTab(tab) {
           const osuSetId = (chartItem.id || '').replace('osu_', '');
           const myWorker = (u) => `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(u)}`;
 
-          // 1º Intento: Catboy vía Worker
-          // 2º Intento: Sayobot mini vía Worker
-          // 3º Intento: Catboy directo
-          // 4º Intento: Sayobot directo
+          // 1º Intento: Proxy del servidor local (Rápido y sin CORS)
+          // 2º Intento: Nerinyan directo
+          // 3º Intento: Nerinyan v2 directo
+          // 4º Intento: Nerinyan vía Worker
+          // 5º Intento: Sayobot mini
+          // 6º Intento: Sayobot dl
           const osuCandidates = [
-            myWorker(`https://catboy.best/d/${osuSetId}`),
-            myWorker(`https://txy1.sayobot.cn/beatmaps/download/mini/${osuSetId}`),
-            `https://catboy.best/d/${osuSetId}`,
-            `https://txy1.sayobot.cn/beatmaps/download/mini/${osuSetId}`
+            `/api/v1/download/osu/${osuSetId}`,
+            `https://api.nerinyan.moe/d/${osuSetId}?noVideo=true`,
+            `https://dl.nerinyan.moe/v2/d/${osuSetId}?noVideo=true`,
+            myWorker(`https://api.nerinyan.moe/d/${osuSetId}?noVideo=true`),
+            `https://txy1.sayobot.cn/beatmaps/download/mini/${osuSetId}`,
+            `https://dl.sayobot.cn/beatmaps/download/mini/${osuSetId}`
           ];
 
           const tryOsuFetch = async (url) => {
@@ -6116,7 +6068,8 @@ function switchMainTab(tab) {
 
         // Prioridad 1 (Infalible): Si el tema dispone de hash md5, descargar el .sng directamente de files.enchor.us (CORS nativo)
         if (chartItem.md5) {
-          VisualLogger.step(2, 'MD5 Enchor Detectado', `Hash: ${chartItem.md5} -> Prioridad 1 CDN Enchor`, 'info');
+          VisualLogger.step(2, 'MD5 Enchor Detectado', `Hash: ${chartItem.md5} -> Prioridad 1 CDN / Proxy Local`, 'info');
+          downloadCandidates.push(`/api/v1/download/clonehero/${chartItem.md5}`);
           downloadCandidates.push(`https://files.enchor.us/${chartItem.md5}.sng`);
           downloadCandidates.push(myWorker(`https://files.enchor.us/${chartItem.md5}.sng`));
           downloadCandidates.push(myWorker(`https://files.enchor.us/${chartItem.md5}`));
@@ -6249,7 +6202,7 @@ function switchMainTab(tab) {
         }, 150);
 
       } catch (err) {
-        if (chartItem.source === 'osu') {
+        if (isOsuTrack) {
           overlay.classList.remove('active');
           if (curtain) curtain.classList.add('revealed');
           showErrorToast(`Error al cargar osu!: ${err.message}`);
@@ -6262,6 +6215,7 @@ function switchMainTab(tab) {
       }
     }
 function startGame(beatmapData, audioBlob, diffLabel = '') {
+      if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
       if (!beatmapData) {
         showErrorToast('Error: Datos de canción no válidos.');
         return;
@@ -6457,6 +6411,10 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
 
       // 5. Cargar en el motor de juego de forma segura
       try {
+        if (engine && engine.sync) {
+          engine.sync.unlockAudio();
+          engine.sync.setVolume(1.0, false);
+        }
         engine.loadBeatmap(finalBeatmap, resolvedAudioBlob);
       } catch (e) {
         console.error("Error al cargar beatmap en engine:", e);
@@ -6465,25 +6423,31 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
     }
    
     function showResults(score, maxCombo, stars, stats, earnedClefs = 0, isNewRecord = false, finalMedal = null, scorePct = 0, earnedMedals = null, totalNotes = 0, accuracyPct = 100.0) {
-      document.getElementById('resSongTitle').innerText = currentActiveBeatmap?.metadata?.title || 'Canción';
-      document.getElementById('resDiffName').innerText = currentActiveBeatmap?.metadata?.difficulty_name || 'Dificultad';
-      document.getElementById('resFinalScore').innerText = score.toLocaleString();
-      document.getElementById('resMaxCombo').innerText = maxCombo;
+      const resSongTitleEl = document.getElementById('resSongTitle');
+      if (resSongTitleEl) resSongTitleEl.innerText = currentActiveBeatmap?.metadata?.title || 'Canción';
+      const resDiffNameEl = document.getElementById('resDiffName');
+      if (resDiffNameEl) resDiffNameEl.innerText = currentActiveBeatmap?.metadata?.difficulty_name || 'Dificultad';
+      const resFinalScoreEl = document.getElementById('resFinalScore');
+      if (resFinalScoreEl) resFinalScoreEl.innerText = score.toLocaleString();
+      const resMaxComboEl = document.getElementById('resMaxCombo');
+      if (resMaxComboEl) resMaxComboEl.innerText = maxCombo;
       
       // Recompensas de Claves de Sol (con multiplicador x2 si es Canción Destacada Diaria)
       let finalEarnedClefs = earnedClefs;
+      const resEarnedClefsEl = document.getElementById('resEarnedClefs');
       if (currentActiveBeatmap?.is_daily_featured) {
         finalEarnedClefs = earnedClefs * 2;
-        document.getElementById('resEarnedClefs').innerText = `${finalEarnedClefs} (¡x2 Diario!)`;
+        if (resEarnedClefsEl) resEarnedClefsEl.innerText = `${finalEarnedClefs} (¡x2 Diario!)`;
       } else {
-        document.getElementById('resEarnedClefs').innerText = finalEarnedClefs;
+        if (resEarnedClefsEl) resEarnedClefsEl.innerText = finalEarnedClefs;
       }
       userClefs += (finalEarnedClefs - earnedClefs); // Sumar el bonus extra si aplica
       updateUserWalletDisplay();
 
       // Porcentaje de puntuación real alcanzado sobre la máxima teórica (rige estrellas y medallas):
       const displayScorePct = Math.min(100.0, Math.max(0.0, scorePct));
-      document.getElementById('resAccuracyPct').innerText = `${displayScorePct.toFixed(1)}%`;
+      const resAccuracyPctEl = document.getElementById('resAccuracyPct');
+      if (resAccuracyPctEl) resAccuracyPctEl.innerText = `${displayScorePct.toFixed(1)}%`;
 
       const badgeStatus = document.getElementById('resBadgeStatus');
       if (badgeStatus) {
@@ -6546,10 +6510,14 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         earnedMedalsEl.innerHTML = badgesHtml;
       }
 
-      document.getElementById('resPPlus').innerText = stats.perfectPlus;
-      document.getElementById('resP').innerText = stats.perfect;
-      document.getElementById('resG').innerText = stats.great;
-      document.getElementById('resM').innerText = stats.miss;
+      const resPPlusEl = document.getElementById('resPPlus');
+      if (resPPlusEl) resPPlusEl.innerText = stats.perfectPlus;
+      const resPEl = document.getElementById('resP');
+      if (resPEl) resPEl.innerText = stats.perfect;
+      const resGEl = document.getElementById('resG');
+      if (resGEl) resGEl.innerText = stats.great;
+      const resMEl = document.getElementById('resM');
+      if (resMEl) resMEl.innerText = stats.miss;
 
       // Módulo de valoración disponible para TODAS las canciones (solo estrellas 1-5, sin sincronización)
       const commRatingSec = document.getElementById('resCommunityRatingSection');
@@ -7025,9 +6993,9 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
             source: 'osu_mania',
             source_name: 'osu! Mania (Popular)',
             thumbnail: `https://assets.ppy.sh/beatmaps/${set.id}/covers/card.jpg`,
-            download_url: `https://api.nerinyan.moe/d/${set.id}`,
-            direct_download_url: `https://api.nerinyan.moe/d/${set.id}`,
-            fallback_download_url: `https://catboy.best/d/${set.id}`,
+            download_url: `/api/v1/download/osu/${set.id}`,
+            direct_download_url: `https://api.nerinyan.moe/d/${set.id}?noVideo=true`,
+            fallback_download_url: `/api/v1/download/osu/${set.id}`,
             difficulties: (maniaDiffs.length > 0 ? maniaDiffs : (set.beatmaps || [])).map(b => ({
               id: b.id.toString(),
               name: b.version || 'Mania',
@@ -7784,7 +7752,7 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         artist: targetArtist,
         source: targetSource,
         source_name: song?.source_name || (targetSource === 'osu' ? 'osu!' : 'Clone Hero'),
-        download_url: song?.download_url || (targetSource === 'osu' ? `https://catboy.best/d/${songId.replace('osu_', '')}` : ''),
+        download_url: song?.download_url || (targetSource === 'osu' ? `/api/v1/download/osu/${songId.replace('osu_', '')}` : ''),
         md5: song?.md5 || '',
         diff_id: song?.diff_id || 'diff_standard',
         is_daily_featured: true,
@@ -8548,17 +8516,43 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         } catch (e) {}
 
         const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
-        // Descargar el JSON del chart y el Audio en paralelo
-        const [chartRes, audioRes] = await Promise.all([
-          fetch(`${baseUrl}/api/v1/community/charts/${chartId}/chart`),
-          fetch(`${baseUrl}/api/v1/community/charts/${chartId}/audio`)
+        
+        // Función de descarga con fallback multinivel (Origen local -> Servidor en la nube -> Rutas estáticas)
+        async function fetchEndpointWithFallback(endpointPath, isBlob = false) {
+          const candidateUrls = [];
+          if (baseUrl) candidateUrls.push(`${baseUrl}${endpointPath}`);
+          if (typeof window.location.origin === 'string' && window.location.origin.startsWith('http')) {
+            const localUrl = `${window.location.origin}${endpointPath}`;
+            if (!candidateUrls.includes(localUrl)) candidateUrls.push(localUrl);
+          }
+          if (baseUrl !== DEFAULT_CLOUD_SERVER && DEFAULT_CLOUD_SERVER) {
+            const cloudUrl = `${DEFAULT_CLOUD_SERVER}${endpointPath}`;
+            if (!candidateUrls.includes(cloudUrl)) candidateUrls.push(cloudUrl);
+          }
+          if (!candidateUrls.includes(endpointPath)) candidateUrls.push(endpointPath);
+
+          let lastRes = null;
+          let lastErr = null;
+          for (const url of candidateUrls) {
+            try {
+              const res = await fetch(url);
+              if (res.ok) {
+                return isBlob ? await res.blob() : await res.json();
+              }
+              lastRes = res;
+            } catch (e) {
+              lastErr = e;
+            }
+          }
+          const status = lastRes ? lastRes.status : 'desconectado';
+          throw new Error(`No se pudo cargar el ${isBlob ? 'audio' : 'mapa'} (${status})`);
+        }
+
+        // Descargar el JSON del chart y el Audio en paralelo con respaldo automático
+        const [chartData, audioBlob] = await Promise.all([
+          fetchEndpointWithFallback(`/api/v1/community/charts/${encodeURIComponent(chartId)}/chart`, false),
+          fetchEndpointWithFallback(`/api/v1/community/charts/${encodeURIComponent(chartId)}/audio`, true)
         ]);
-
-        if (!chartRes.ok) throw new Error(`No se pudo cargar el mapa (${chartRes.status})`);
-        if (!audioRes.ok) throw new Error(`No se pudo cargar el audio (${audioRes.status})`);
-
-        const chartData = await chartRes.json();
-        const audioBlob = await audioRes.blob();
 
         chartData.is_community = true;
         chartData.is_daily_featured = isDailyFeatured;
