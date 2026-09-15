@@ -4153,20 +4153,27 @@
       activeTypewriterDeathTimeouts = [];
     }
 
-    window.triggerVintageDeathScreen = function(score, penaltyCost) {
+    window.triggerVintageDeathScreen = triggerVintageDeathScreen;
+    function triggerVintageDeathScreen(score, penaltyCost) {
       clearDeathTypewriterSequences();
-      getTypewriterAudioContext();
+      try { getTypewriterAudioContext(); } catch(_) {}
 
       const deathUserBalance = document.getElementById('deathUserBalance');
-      if (deathUserBalance) deathUserBalance.innerText = userClefs || 0;
+      if (deathUserBalance) deathUserBalance.innerText = (typeof userClefs !== 'undefined' ? userClefs : 0);
 
       const deathReviveBadgeCost = document.getElementById('deathReviveBadgeCost');
       if (deathReviveBadgeCost) deathReviveBadgeCost.innerText = penaltyCost;
 
+      const scoreStr = Number(score || 0).toLocaleString();
       const scoreLetters = document.getElementById('deathScoreLetters');
-      if (scoreLetters) scoreLetters.innerHTML = '';
+      if (scoreLetters) {
+        scoreLetters.innerHTML = '';
+      }
+
       const costLetters = document.getElementById('deathCostLetters');
-      if (costLetters) costLetters.innerHTML = '';
+      if (costLetters) {
+        costLetters.innerHTML = '';
+      }
 
       const scoreCursor = document.getElementById('deathScoreCursor');
       if (scoreCursor) scoreCursor.style.display = 'inline-block';
@@ -4174,13 +4181,13 @@
       if (costCursor) costCursor.style.display = 'none';
 
       const ribbonDot = document.getElementById('deathRibbonDot');
-      if (ribbonDot) ribbonDot.classList.remove('red-active');
+      if (ribbonDot) ribbonDot.classList.add('red-active');
 
       const stampApproved = document.getElementById('deathStampApproved');
       if (stampApproved) stampApproved.classList.remove('stamped');
 
       const parchment = document.getElementById('deathParchmentSheet');
-      if (parchment) parchment.classList.remove('ejected');
+      if (parchment) parchment.classList.add('ejected');
 
       const knobL = document.getElementById('deathKnobLeft');
       const knobR = document.getElementById('deathKnobRight');
@@ -4191,18 +4198,16 @@
       if (btnRevive) {
         btnRevive.disabled = false;
         btnRevive.style.opacity = '1';
+        btnRevive.style.pointerEvents = 'auto';
       }
 
-      // 1. Iniciar giro de rodillo y alimentación de papel
+      // Iniciar sonido analógico
+      try { playPaperFeedSound(); } catch(_) {}
       activeTypewriterDeathTimeouts.push(setTimeout(() => {
-        if (knobL) knobL.classList.add('rolling');
-        if (knobR) knobR.classList.add('rolling');
-        playPaperFeedSound();
-        if (parchment) parchment.classList.add('ejected');
-      }, 100));
+        try { playTypewriterKeyStrike(false); } catch(_) {}
+      }, 120));
 
       // 2. Mecanografiar puntuación alcanzada
-      const scoreStr = Number(score || 0).toLocaleString();
       let delay = 1050;
 
       for (let i = 0; i < scoreStr.length; i++) {
@@ -4213,7 +4218,7 @@
             fork.classList.add('kick');
             setTimeout(() => fork.classList.remove('kick'), 50);
           }
-          playTypewriterKeyStrike(char === ' ' || char === ',');
+          try { playTypewriterKeyStrike(char === ' ' || char === ','); } catch(_) {}
           if (scoreLetters) {
             const span = document.createElement('span');
             span.className = 'typed-letter';
@@ -4230,13 +4235,13 @@
       // 3. Campana de final de línea y retorno de carro
       delay += 140;
       activeTypewriterDeathTimeouts.push(setTimeout(() => {
-        playCarriageBellChime();
+        try { playCarriageBellChime(); } catch(_) {}
         const arm = document.getElementById('deathCarriageArm');
         if (arm) {
           arm.classList.add('pulled');
           setTimeout(() => {
             arm.classList.remove('pulled');
-            playCarriageReturnSound();
+            try { playCarriageReturnSound(); } catch(_) {}
           }, 260);
         }
         if (scoreCursor) scoreCursor.style.display = 'none';
@@ -4246,7 +4251,7 @@
       delay += 380;
       activeTypewriterDeathTimeouts.push(setTimeout(() => {
         if (ribbonDot) ribbonDot.classList.add('red-active');
-        playTypewriterKeyStrike(true);
+        try { playTypewriterKeyStrike(true); } catch(_) {}
         if (costCursor) costCursor.style.display = 'inline-block';
       }, delay));
 
@@ -4261,7 +4266,7 @@
             fork.classList.add('kick');
             setTimeout(() => fork.classList.remove('kick'), 50);
           }
-          playTypewriterKeyStrike(false);
+          try { playTypewriterKeyStrike(false); } catch(_) {}
           if (costLetters) {
             const span = document.createElement('span');
             span.className = 'cost-typed-char';
@@ -4275,13 +4280,14 @@
       // Clave de sol mecanografiada
       delay += 100;
       activeTypewriterDeathTimeouts.push(setTimeout(() => {
-        playTypewriterKeyStrike(false);
+        try { playTypewriterKeyStrike(false); } catch(_) {}
         if (costLetters) {
           const clefSpan = document.createElement('span');
           clefSpan.className = 'cost-clef-char';
           clefSpan.innerText = '𝄞';
           costLetters.appendChild(clefSpan);
         }
+        if (costCursor) costCursor.style.display = 'none';
       }, delay));
     };
 
@@ -4330,17 +4336,24 @@
       activeTypewriterResultsTimeouts = [];
     }
 
-    window.triggerVintageResultsScreen = function(score, maxCombo, stars, stats, earnedClefs, isNewRecord, finalMedal, scorePct) {
+    window.triggerVintageResultsScreen = triggerVintageResultsScreen;
+    function triggerVintageResultsScreen(score, maxCombo, stars, stats, earnedClefs, isNewRecord, finalMedal, scorePct) {
       clearResultsTypewriterSequences();
-      getTypewriterAudioContext();
+      try { getTypewriterAudioContext(); } catch(_) {}
 
       const resUserBalance = document.getElementById('resUserBalance');
-      if (resUserBalance) resUserBalance.innerText = userClefs || 0;
+      if (resUserBalance) resUserBalance.innerText = (typeof userClefs !== 'undefined' ? userClefs : 0);
 
       const scoreLetters = document.getElementById('resScoreLetters');
-      if (scoreLetters) scoreLetters.innerHTML = '';
+      const scoreStr = Number(score || 0).toLocaleString();
+      if (scoreLetters) {
+        scoreLetters.innerHTML = '';
+      }
+
       const rewardLetters = document.getElementById('resRewardLetters');
-      if (rewardLetters) rewardLetters.innerHTML = '';
+      if (rewardLetters) {
+        rewardLetters.innerHTML = '';
+      }
 
       const scoreCursor = document.getElementById('resScoreCursor');
       if (scoreCursor) scoreCursor.style.display = 'inline-block';
@@ -4348,11 +4361,11 @@
       if (rewardCursor) rewardCursor.style.display = 'none';
 
       const ribbonDot = document.getElementById('resRibbonDot');
-      if (ribbonDot) ribbonDot.classList.remove('red-active');
+      if (ribbonDot) ribbonDot.classList.add('red-active');
 
       const stampApproved = document.getElementById('resStampApproved');
       if (stampApproved) {
-        stampApproved.classList.remove('stamped');
+        stampApproved.classList.add('stamped');
         stampApproved.innerText = isNewRecord ? '¡NUEVO RÉCORD!' : '¡COMPLETADO!';
       }
 
@@ -4360,7 +4373,7 @@
       if (stampBadge) stampBadge.innerText = isNewRecord ? 'RÉCORD' : 'FIN';
 
       const parchment = document.getElementById('resParchmentSheet');
-      if (parchment) parchment.classList.remove('ejected');
+      if (parchment) parchment.classList.add('ejected');
 
       const songCaption = document.getElementById('resSongInfoCaption');
       if (songCaption) {
@@ -4411,7 +4424,6 @@
       }, 100));
 
       // 2. Tecleo de puntuación
-      const scoreStr = Number(score || 0).toLocaleString();
       let delay = 1000;
 
       for (let i = 0; i < scoreStr.length; i++) {

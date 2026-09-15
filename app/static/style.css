@@ -1046,19 +1046,19 @@ body {
 }
 
 @keyframes starPulseSilver {
-  from { filter: drop-shadow(0 0 5px rgba(226, 232, 240, 0.8)); }
-  to { filter: drop-shadow(0 0 14px rgba(255, 255, 255, 1)); }
+  from { transform: scale(1.2); opacity: 0.85; }
+  to { transform: scale(1.35); opacity: 1; }
 }
 
 @keyframes starPulseGold {
-  from { filter: drop-shadow(0 0 7px rgba(251, 191, 36, 0.8)); }
-  to { filter: drop-shadow(0 0 18px rgba(245, 158, 11, 1)); }
+  from { transform: scale(1.2); opacity: 0.85; }
+  to { transform: scale(1.35); opacity: 1; }
 }
 
 @keyframes starPulsePlatinum {
-  0% { filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.9)) drop-shadow(0 0 15px rgba(255, 255, 255, 0.7)); }
-  50% { filter: drop-shadow(0 0 15px rgba(168, 85, 247, 0.95)) drop-shadow(0 0 22px rgba(56, 189, 248, 1)); }
-  100% { filter: drop-shadow(0 0 10px rgba(56, 189, 248, 1)) drop-shadow(0 0 20px rgba(255, 255, 255, 1)); }
+  0% { transform: scale(1.2); opacity: 0.85; }
+  50% { transform: scale(1.4); opacity: 1; }
+  100% { transform: scale(1.3); opacity: 0.95; }
 }
 
 /* Multiplier Badges */
@@ -2946,7 +2946,7 @@ body {
 }
 @keyframes comboPulseAnim {
   0% { transform: scale(1); }
-  50% { transform: scale(1.18); filter: brightness(1.3); }
+  50% { transform: scale(1.15); }
   100% { transform: scale(1); }
 }
 
@@ -3342,13 +3342,13 @@ body {
     inset 0 3px 6px rgba(255,255,255,0.7),
     inset 0 -12px 20px rgba(160, 120, 60, 0.25);
   cursor: pointer;
-  transform: translateY(110%);
-  opacity: 0.1;
-  transition: transform 1.1s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s ease-out;
+  transform: translateY(100%);
+  opacity: 0.2;
+  transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.2s ease-out;
 }
 .vintage-parchment.ejected {
-  transform: translateY(0);
-  opacity: 1;
+  transform: translateY(0) !important;
+  opacity: 1 !important;
 }
 
 .vintage-parchment::after {
