@@ -4677,7 +4677,7 @@ class BeatstarEngine {
     this.renderBackgroundFX(currentTime);
     this.renderDiscoLighting(this.ctx, currentTime);
     this.renderLanes(currentTime);
-    this.renderDiscoTrackLightBeams(this.ctx, currentTime);
+    // (renderDiscoTrackLightBeams eliminado para evitar cualquier sombra o elipse en la pista)
     this.renderHitLine();
     this.renderRipples(this.ctx);
     this.renderNotes(currentTime);
@@ -4941,13 +4941,13 @@ class BeatstarEngine {
     ctx.globalCompositeOperation = 'lighter';
     ctx.globalAlpha = visAlpha;
 
-    // 1. 6 RAYOS DE LUZ GIRATORIOS SUAVES Y DE COLORES (Ultra-optimizado 120 FPS)
+    // 6 Rayos de luz volumétricos de colores metálicos y neón
     const numBeams = 6;
-    const beamLength = Math.max(w, h) * 1.1;
+    const beamLength = Math.max(w, h) * 1.15;
     const beamPalette = [
       { r: 0, g: 242, b: 254 },   // Cian Neón
-      { r: 255, g: 0, b: 127 },   // Magenta Neón
-      { r: 251, g: 191, b: 36 },  // Ámbar Radiante
+      { r: 255, g: 0, b: 127 },   // Magenta Metálico
+      { r: 251, g: 191, b: 36 },  // Oro Brillante
       { r: 168, g: 85, b: 247 },  // Violeta Eléctrico
       { r: 57, g: 255, b: 20 },   // Lima Flúor
       { r: 56, g: 189, b: 248 }   // Azul Turquesa
@@ -4957,15 +4957,15 @@ class BeatstarEngine {
       const angle = rot * 0.95 + (b * (Math.PI * 2 / numBeams));
       const rgb = beamPalette[b % beamPalette.length];
       const beamSpread = 0.055;
-      const beamIntensity = (0.018 + 0.012 * beatPulse);
+      const beamIntensity = (0.020 + 0.012 * beatPulse);
 
       ctx.save();
       ctx.translate(ballX, ballY);
       ctx.rotate(angle);
 
       const bGrad = ctx.createLinearGradient(0, 0, beamLength, 0);
-      bGrad.addColorStop(0.0, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + (beamIntensity * 0.9).toFixed(3) + ')');
-      bGrad.addColorStop(0.45, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + (beamIntensity * 0.3).toFixed(3) + ')');
+      bGrad.addColorStop(0.0, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + (beamIntensity * 0.95).toFixed(3) + ')');
+      bGrad.addColorStop(0.40, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + (beamIntensity * 0.35).toFixed(3) + ')');
       bGrad.addColorStop(1.0, 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', 0)');
 
       ctx.fillStyle = bGrad;
@@ -4978,15 +4978,15 @@ class BeatstarEngine {
       ctx.restore();
     }
 
-    // 2. Destellos flotantes sutiles en el aire (14 motas optimizadas)
+    // Motas brillantes de espejo flotando en el aire
     if (this.discoBall.specks && this.discoBall.specks.length > 0) {
-      const speckCount = Math.min(14, this.discoBall.specks.length);
+      const speckCount = Math.min(16, this.discoBall.specks.length);
       for (let i = 0; i < speckCount; i++) {
         const sp = this.discoBall.specks[i];
         const curAngle = sp.theta + rot * sp.speed;
         const distRatio = sp.dist;
-        const spreadX = (w * 0.9) * distRatio;
-        const spreadY = (h * 0.7) * distRatio;
+        const spreadX = (w * 0.95) * distRatio;
+        const spreadY = (h * 0.75) * distRatio;
         const sx = ballX + Math.cos(curAngle) * spreadX;
         const sy = ballY + Math.sin(curAngle) * spreadY + (sp.phi * h * 0.35);
 
@@ -4995,7 +4995,7 @@ class BeatstarEngine {
         const rgb = beamPalette[sp.colorIdx % beamPalette.length];
         const shimmer = 0.6 + 0.4 * Math.sin(nowSec * sp.shimmerSpeed + sp.shimmerPhase);
         const rad = (sp.size * 0.6) * (1.0 + beatPulse * 0.2);
-        const alpha = Math.min(0.30, sp.brightness * shimmer * (0.15 + beatPulse * 0.15));
+        const alpha = Math.min(0.35, sp.brightness * shimmer * (0.18 + beatPulse * 0.15));
 
         ctx.fillStyle = 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + alpha.toFixed(3) + ')';
         ctx.beginPath();
@@ -5008,82 +5008,7 @@ class BeatstarEngine {
   }
 
   renderDiscoTrackLightBeams(ctx, currentTime) {
-    if (!this.discoBall || (!this.discoBall.active && this.discoBall.descendY <= -80)) return;
-    const w = this.width, h = this.height;
-    const midX = w / 2;
-    const nowSec = performance.now() / 1000;
-    const swayX = Math.sin(nowSec * 1.3) * 3.0;
-    const bobY = Math.sin(nowSec * 2.4) * 1.5;
-    const ballX = midX + swayX;
-    const ballY = this.discoBall.descendY + bobY;
-    if (ballY < -50) return;
-
-    const horizonY = Number.isFinite(this.horizonY) ? this.horizonY : (h * 0.22);
-    const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (h * 0.84);
-    const bottomY = h;
-
-    const tL_top = this.getLaneBoundaryX(0, horizonY);
-    const tR_top = this.getLaneBoundaryX(3, horizonY);
-    const tL_bot = this.getLaneBoundaryX(0, bottomY);
-    const tR_bot = this.getLaneBoundaryX(3, bottomY);
-
-    const rot = this.discoBall.rotation || 0;
-    const beatPulse = (typeof this.getBeatPulse === 'function') ? this.getBeatPulse() : 0;
-    const visAlpha = Math.max(0, Math.min(1, (ballY + 40) / 100));
-
-    ctx.save();
-    // Clip seguro a la superficie de la pista en perspectiva
-    ctx.beginPath();
-    ctx.moveTo(tL_top, horizonY);
-    ctx.lineTo(tR_top, horizonY);
-    ctx.lineTo(tR_bot, bottomY);
-    ctx.lineTo(tL_bot, bottomY);
-    ctx.closePath();
-    ctx.clip();
-
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = visAlpha;
-
-    // Paleta de colores vivos y saturados (Neón puro con glow suave, sin sombras negras)
-    const coloredGlowPalette = [
-      { r: 255, g: 0,   b: 127 }, // Magenta Neón
-      { r: 0,   g: 242, b: 254 }, // Cian Eléctrico
-      { r: 251, g: 191, b: 36  }, // Ámbar Dorado
-      { r: 168, g: 85,  b: 247 }, // Violeta Neón
-      { r: 57,  g: 255, b: 20  }, // Lima Radiante
-      { r: 56,  g: 189, b: 248 }  // Azul Celestial
-    ];
-
-    // Destellos difuminados con efecto glow danzando sobre la pista en perspectiva
-    const numSpots = 10;
-    for (let s = 0; s < numSpots; s++) {
-      const sweepPhase = (rot * 0.85 + s * (Math.PI * 2 / numSpots)) % (Math.PI * 2);
-      const sweepXRatio = 0.5 + 0.44 * Math.sin(sweepPhase);
-      const depthRatio = 0.10 + 0.86 * ((Math.cos(sweepPhase * 1.2 + s * 0.9) + 1) * 0.5);
-
-      const sy = horizonY + (hitY - horizonY) * depthRatio;
-      const xL = this.getLaneBoundaryX(0, sy);
-      const xR = this.getLaneBoundaryX(3, sy);
-      const sx = xL + (xR - xL) * sweepXRatio;
-
-      const spotR = (14.0 + 26.0 * depthRatio) * (1.0 + beatPulse * 0.2);
-      const col = coloredGlowPalette[s % coloredGlowPalette.length];
-      const spotAlpha = (0.16 + 0.10 * Math.sin(nowSec * 3.5 + s * 1.7)) * (1.0 + beatPulse * 0.30);
-
-      // Resplandor difuminado suave (Glow elíptico en perspectiva, 100% aditivo, sin sombras)
-      const glowGrad = ctx.createRadialGradient(sx, sy, 0, sx, sy, spotR);
-      glowGrad.addColorStop(0.0, 'rgba(' + col.r + ', ' + col.g + ', ' + col.b + ', ' + (spotAlpha * 1.0).toFixed(3) + ')');
-      glowGrad.addColorStop(0.40, 'rgba(' + col.r + ', ' + col.g + ', ' + col.b + ', ' + (spotAlpha * 0.60).toFixed(3) + ')');
-      glowGrad.addColorStop(0.80, 'rgba(' + col.r + ', ' + col.g + ', ' + col.b + ', ' + (spotAlpha * 0.18).toFixed(3) + ')');
-      glowGrad.addColorStop(1.0, 'rgba(' + col.r + ', ' + col.g + ', ' + col.b + ', 0)');
-
-      ctx.fillStyle = glowGrad;
-      ctx.beginPath();
-      ctx.ellipse(sx, sy, spotR * 1.35, spotR * 0.48, rot * 0.2, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    ctx.restore();
+    // Función anulada: sin elipses ni sombras en la pista
   }
 
   renderDiscoBall(ctx, currentTime) {
@@ -5105,51 +5030,64 @@ class BeatstarEngine {
     ctx.save();
     ctx.globalAlpha = visAlpha;
 
-    // 1. Cuerda plateada fina
+    // 1. Cuerda metálica plateada
     ctx.strokeStyle = '#e2e8f0';
-    ctx.lineWidth = 1.2;
+    ctx.lineWidth = 1.4;
     ctx.beginPath();
     ctx.moveTo(midX, 0);
     ctx.lineTo(ballX, ballY - radius - 3);
     ctx.stroke();
 
-    // 2. Enganche superior
-    ctx.fillStyle = '#cbd5e1';
+    // 2. Enganche superior cromado
+    const capGrad = ctx.createLinearGradient(ballX - 6, ballY - radius - 7, ballX + 6, ballY - radius);
+    capGrad.addColorStop(0.0, '#ffffff');
+    capGrad.addColorStop(0.50, '#cbd5e1');
+    capGrad.addColorStop(1.0, '#64748b');
+    ctx.fillStyle = capGrad;
     ctx.beginPath();
-    ctx.arc(ballX, ballY - radius - 3, 3.5, 0, Math.PI * 2);
+    ctx.arc(ballX, ballY - radius - 3, 4.0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 3. Base esférica cromada
+    // 3. Base esférica cromada hiperrealista
     const sphereGrad = ctx.createRadialGradient(
-      ballX - radius * 0.35,
-      ballY - radius * 0.35,
+      ballX - radius * 0.40,
+      ballY - radius * 0.40,
       1,
       ballX,
       ballY,
       radius
     );
     sphereGrad.addColorStop(0.0, '#ffffff');
-    sphereGrad.addColorStop(0.25, '#f1f5f9');
-    sphereGrad.addColorStop(0.65, '#cbd5e1');
-    sphereGrad.addColorStop(1.0, '#64748b');
+    sphereGrad.addColorStop(0.20, '#f8fafc');
+    sphereGrad.addColorStop(0.55, '#cbd5e1');
+    sphereGrad.addColorStop(0.85, '#94a3b8');
+    sphereGrad.addColorStop(1.0, '#475569');
     ctx.fillStyle = sphereGrad;
     ctx.beginPath();
     ctx.arc(ballX, ballY, radius, 0, Math.PI * 2);
     ctx.fill();
 
-    // Clip circular para facetas de espejo
+    // Clip circular para azulejos de espejo
     ctx.save();
     ctx.beginPath();
     ctx.arc(ballX, ballY, radius, 0, Math.PI * 2);
     ctx.clip();
 
-    // 4. Malla 3D ultra-optimizada de azulejos (7 bandas x 14 segmentos = 98 tiles vs 338 anteriores)
-    const latBands = 7;
-    const lonSegments = 14;
+    // 4. Malla 3D de facetas de espejo con reflejos metálicos de colores
+    const latBands = 10;
+    const lonSegments = 20;
+    const spotlights = [
+      { x: -0.65, y: -0.55, z: 0.52, rgb: { r: 255, g: 255, b: 255 }, weight: 1.1 }, // Blanco cromo
+      { x: 0.70, y: -0.45, z: 0.55, rgb: { r: 0, g: 242, b: 254 }, weight: 0.95 },   // Cian metálico
+      { x: -0.25, y: -0.75, z: 0.60, rgb: { r: 255, g: 0, b: 127 }, weight: 1.0 },   // Magenta metálico
+      { x: 0.40, y: -0.60, z: 0.70, rgb: { r: 251, g: 191, b: 36 }, weight: 0.9 }    // Oro metálico
+    ];
+
+    const starburstFlares = [];
 
     for (let i = 0; i < latBands; i++) {
-      const lat0 = -Math.PI * 0.42 + (i / latBands) * (Math.PI * 0.84);
-      const lat1 = -Math.PI * 0.42 + ((i + 1) / latBands) * (Math.PI * 0.84);
+      const lat0 = -Math.PI * 0.44 + (i / latBands) * (Math.PI * 0.88);
+      const lat1 = -Math.PI * 0.44 + ((i + 1) / latBands) * (Math.PI * 0.88);
       const cosLat0 = Math.cos(lat0), sinLat0 = Math.sin(lat0);
       const cosLat1 = Math.cos(lat1), sinLat1 = Math.sin(lat1);
 
@@ -5164,7 +5102,7 @@ class BeatstarEngine {
         const z11 = radius * cosLat1 * cosLon1;
         const z01 = radius * cosLat1 * sinLon0;
         const avgZ = (z00 + z10 + z11 + z01) * 0.25;
-        if (avgZ <= -0.2) continue; // Descartar cara oculta trasera
+        if (avgZ <= -0.2) continue; // Descartar cara trasera
 
         const x00 = radius * cosLat0 * sinLon0;
         const y00 = -radius * sinLat0;
@@ -5175,12 +5113,42 @@ class BeatstarEngine {
         const x01 = radius * cosLat1 * sinLon0;
         const y01 = -radius * sinLat1;
 
-        // Tonalidad cromada según ángulo
-        const nz = Math.max(0, avgZ / radius);
-        const spec = Math.pow(nz, 4);
-        const val = Math.min(255, Math.floor(130 + nz * 80 + spec * 45));
+        const avgX = (x00 + x10 + x11 + x01) * 0.25;
+        const avgY = (y00 + y10 + y11 + y01) * 0.25;
+        const normLen = Math.hypot(avgX, avgY, avgZ) || 1;
+        const nx = avgX / normLen;
+        const ny = avgY / normLen;
+        const nz = avgZ / normLen;
 
-        ctx.fillStyle = 'rgb(' + val + ', ' + val + ', ' + Math.min(255, val + 10) + ')';
+        let totalR = 75 + nz * 40;
+        let totalG = 75 + nz * 40;
+        let totalB = 90 + nz * 45;
+        let maxSpecular = 0;
+        let dominantColor = spotlights[0].rgb;
+
+        for (const spot of spotlights) {
+          const dot = nx * spot.x + ny * spot.y + nz * spot.z;
+          if (dot > 0) {
+            const spec = (dot * dot * dot * dot) * spot.weight;
+            const diff = dot * 0.4;
+            totalR += (spot.rgb.r * diff * 0.35) + (spot.rgb.r * spec * 0.85);
+            totalG += (spot.rgb.g * diff * 0.35) + (spot.rgb.g * spec * 0.85);
+            totalB += (spot.rgb.b * diff * 0.35) + (spot.rgb.b * spec * 0.85);
+            if (spec > maxSpecular) {
+              maxSpecular = spec;
+              dominantColor = spot.rgb;
+            }
+          }
+        }
+
+        totalR = Math.min(255, Math.floor(totalR));
+        totalG = Math.min(255, Math.floor(totalG));
+        totalB = Math.min(255, Math.floor(totalB));
+
+        ctx.fillStyle = 'rgb(' + totalR + ',' + totalG + ',' + totalB + ')';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.lineWidth = 0.5;
+
         ctx.beginPath();
         ctx.moveTo(ballX + x00, ballY + y00);
         ctx.lineTo(ballX + x10, ballY + y10);
@@ -5188,31 +5156,52 @@ class BeatstarEngine {
         ctx.lineTo(ballX + x01, ballY + y01);
         ctx.closePath();
         ctx.fill();
+        ctx.stroke();
+
+        // Destellos especulares metálicos en facetas alineadas
+        if (maxSpecular > 0.65 && starburstFlares.length < 2) {
+          starburstFlares.push({
+            x: ballX + avgX,
+            y: ballY + avgY,
+            intensity: maxSpecular,
+            rgb: dominantColor
+          });
+        }
       }
     }
-    ctx.restore(); // Deshacer clip
+    ctx.restore(); // Quitar clip
 
-    // 5. Halo perimetral suave
+    // 5. Resplandor perimetral y halo metálico
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    const rimGlow = ctx.createRadialGradient(ballX, ballY, radius * 0.85, ballX, ballY, radius * 1.22);
-    rimGlow.addColorStop(0.0, 'rgba(255, 255, 255, 0.22)');
-    rimGlow.addColorStop(0.5, 'rgba(0, 242, 254, 0.10)');
+    const rimGlow = ctx.createRadialGradient(ballX, ballY, radius * 0.88, ballX, ballY, radius * 1.25);
+    rimGlow.addColorStop(0.0, 'rgba(255, 255, 255, 0.25)');
+    rimGlow.addColorStop(0.45, 'rgba(0, 242, 254, 0.12)');
     rimGlow.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
     ctx.fillStyle = rimGlow;
     ctx.beginPath();
-    ctx.arc(ballX, ballY, radius * 1.22, 0, Math.PI * 2);
+    ctx.arc(ballX, ballY, radius * 1.25, 0, Math.PI * 2);
     ctx.fill();
 
-    // 6. Destello estelar óptico suave
-    const flareSize = 12 * (1.0 + beatPulse * 0.3);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.40)';
-    ctx.beginPath();
-    ctx.ellipse(ballX - radius * 0.3, ballY - radius * 0.3, flareSize, flareSize * 0.15, nowSec * 1.2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(ballX - radius * 0.3, ballY - radius * 0.3, flareSize * 0.15, flareSize, nowSec * 1.2, 0, Math.PI * 2);
-    ctx.fill();
+    // 6. Destellos ópticos estelares en los puntos más brillantes
+    for (const flare of starburstFlares) {
+      const flareSize = (8 + 6 * flare.intensity) * (1.0 + beatPulse * 0.25);
+      const flareAlpha = Math.min(0.35, flare.intensity * 0.40);
+      const rgb = flare.rgb;
+
+      ctx.save();
+      ctx.translate(flare.x, flare.y);
+      ctx.rotate(nowSec * 1.5);
+
+      ctx.fillStyle = 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + flareAlpha.toFixed(2) + ')';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, flareSize, flareSize * 0.14, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(0, 0, flareSize * 0.14, flareSize, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
 
     ctx.restore();
     ctx.restore();

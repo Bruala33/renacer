@@ -4776,84 +4776,93 @@
       const canvas = document.getElementById('gameCanvas');
       engine = new BeatstarEngine(canvas, {
         onScoreUpdate: (score, combo, stars, multiplier, medalTier, pct) => {
-          // Number ticker is updated continuously in requestAnimationFrame inside engine,
-          // but ensure target score reflects accurately
-          const fillEl = document.getElementById('hudProgressFill');
-          if (fillEl) {
+          if (!window._cachedHud) {
+            window._cachedHud = {
+              fillEl: document.getElementById('hudProgressFill'),
+              platNode: document.getElementById('hudPlatinumNode'),
+              starNodes: Array.from(document.querySelectorAll('.star-node')),
+              pill: document.getElementById('hudMedalPill'),
+              medalName: document.getElementById('hudMedalName'),
+              rollerDigits: [0,1,2,3,4,5,6].map(d => document.getElementById('rollerDigit' + (6 - d))),
+              scoreEl: document.getElementById('hudScore'),
+              gasMultVal: document.getElementById('hudGasMultiplierVal'),
+              gasBadge: document.getElementById('hudSlotComboBadge'),
+              comboEl: document.getElementById('hudCombo'),
+              comboContainer: document.getElementById('hudComboContainer'),
+              multEl: document.getElementById('hudMultiplier'),
+              lastStars: -1,
+              lastMultiplier: -1,
+              lastMedalTier: '',
+              lastScoreFloor: -1,
+              lastDigits: ['', '', '', '', '', '', '']
+            };
+          }
+          const hud = window._cachedHud;
+
+          if (hud.fillEl) {
             const clampedPct = Math.min(100, Math.max(0, pct || 0));
-            fillEl.style.width = clampedPct + '%';
+            hud.fillEl.style.width = clampedPct + '%';
             if (clampedPct >= 90.0 || stars >= 5) {
-              fillEl.classList.add('platinum-phase');
-              const platNode = document.getElementById('hudPlatinumNode');
-              if (platNode) platNode.classList.remove('hidden');
+              hud.fillEl.classList.add('platinum-phase');
+              if (hud.platNode) hud.platNode.classList.remove('hidden');
             } else {
-              fillEl.classList.remove('platinum-phase');
-              const platNode = document.getElementById('hudPlatinumNode');
-              if (platNode) platNode.classList.add('hidden');
+              hud.fillEl.classList.remove('platinum-phase');
+              if (hud.platNode) hud.platNode.classList.add('hidden');
             }
           }
 
-          // Update metallic star nodes (1-5)
-          document.querySelectorAll('.star-node').forEach(node => {
-            const sNum = parseInt(node.dataset.star, 10);
-            if (sNum <= stars) {
-              node.classList.add('unlocked');
-            } else {
-              node.classList.remove('unlocked');
-            }
-          });
-
-          // Live Medal Pill
-          const pill = document.getElementById('hudMedalPill');
-          const medalName = document.getElementById('hudMedalName');
-          if (pill && medalName) {
-            if (pct >= 90.0 || stars >= 5 || medalTier === 'platinum') {
-              pill.className = 'hud-medal-pill platinum mt-1';
-              medalName.innerText = 'PLATINO';
-            } else if (pct >= 75.0 || stars >= 4 || medalTier === 'gold') {
-              pill.className = 'hud-medal-pill gold mt-1';
-              medalName.innerText = 'ORO';
-            } else {
-              pill.className = 'hud-medal-pill hidden mt-1';
-            }
-          }
-
-          // Animacion fisica del marcador mecanico de rodillos (7 digitos, hasta 9,999,999)
-          const scoreStr = String(Math.min(9999999, Math.max(0, Math.floor(score)))).padStart(7, "0");
-          for (let d = 0; d < 7; d++) {
-            const strip = document.getElementById(`rollerDigit${6 - d}`);
-            if (strip) {
-              const digitVal = parseInt(scoreStr[d], 10) || 0;
-              strip.style.transform = `translateY(-${digitVal * 24}px)`;
-            }
-          }
-          const scoreEl = document.getElementById("hudScore");
-          if (scoreEl) scoreEl.innerText = Math.floor(score).toLocaleString();
-
-          // Marcador de multiplicador / combo tipo tragaperras
-          const gasMultVal = document.getElementById("hudGasMultiplierVal");
-          if (gasMultVal) gasMultVal.innerText = multiplier || 1;
-          const gasBadge = document.getElementById("hudSlotComboBadge");
-          if (gasBadge) {
-            gasBadge.className = `hud-gas-combo-badge ${multiplier >= 4 ? 'max-mult' : (multiplier >= 3 ? 'high-mult' : (multiplier >= 2 ? 'med-mult' : ''))}`;
-          }
-
-          const comboEl = document.getElementById("hudCombo");
-          if (comboEl) comboEl.innerText = `COMBO ${combo}`;
-
-          const comboContainer = document.getElementById("hudComboContainer");
-          if (comboContainer && combo > 0) {
-            comboContainer.classList.remove("combo-beat-pulse");
-            requestAnimationFrame(() => {
-              comboContainer.classList.add("combo-beat-pulse");
+          if (hud.lastStars !== stars) {
+            hud.lastStars = stars;
+            hud.starNodes.forEach(node => {
+              const sNum = parseInt(node.dataset.star, 10);
+              if (sNum <= stars) node.classList.add('unlocked');
+              else node.classList.remove('unlocked');
             });
           }
 
-          const multEl = document.getElementById("hudMultiplier");
-          if (multEl) {
-            multEl.innerText = `${multiplier}x`;
-            multEl.className = `multiplier-badge ${multiplier >= 2 ? "x" + multiplier : ""}`;
+          if (hud.pill && hud.medalName && hud.lastMedalTier !== medalTier) {
+            hud.lastMedalTier = medalTier;
+            if (pct >= 90.0 || stars >= 5 || medalTier === 'platinum') {
+              hud.pill.className = 'hud-medal-pill platinum mt-1';
+              hud.medalName.innerText = 'PLATINO';
+            } else if (pct >= 75.0 || stars >= 4 || medalTier === 'gold') {
+              hud.pill.className = 'hud-medal-pill gold mt-1';
+              hud.medalName.innerText = 'ORO';
+            } else {
+              hud.pill.className = 'hud-medal-pill hidden mt-1';
+            }
           }
+
+          const scoreInt = Math.floor(score);
+          if (hud.lastScoreFloor !== scoreInt) {
+            hud.lastScoreFloor = scoreInt;
+            const scoreStr = String(Math.min(9999999, Math.max(0, scoreInt))).padStart(7, '0');
+            for (let d = 0; d < 7; d++) {
+              if (hud.lastDigits[d] !== scoreStr[d]) {
+                hud.lastDigits[d] = scoreStr[d];
+                const strip = hud.rollerDigits[d];
+                if (strip) {
+                  const digitVal = parseInt(scoreStr[d], 10) || 0;
+                  strip.style.transform = 'translateY(-' + (digitVal * 24) + 'px)';
+                }
+              }
+            }
+            if (hud.scoreEl) hud.scoreEl.innerText = scoreInt.toLocaleString();
+          }
+
+          if (hud.lastMultiplier !== multiplier) {
+            hud.lastMultiplier = multiplier;
+            if (hud.gasMultVal) hud.gasMultVal.innerText = multiplier || 1;
+            if (hud.gasBadge) {
+              hud.gasBadge.className = 'hud-gas-combo-badge ' + (multiplier >= 4 ? 'max-mult' : (multiplier >= 3 ? 'high-mult' : (multiplier >= 2 ? 'med-mult' : '')));
+            }
+            if (hud.multEl) {
+              hud.multEl.innerText = multiplier + 'x';
+              hud.multEl.className = 'multiplier-badge ' + (multiplier >= 2 ? ('x' + multiplier) : '');
+            }
+          }
+
+          if (hud.comboEl) hud.comboEl.innerText = 'COMBO ' + combo;
         },
         onStarUnlocked: (starNum, isPlatinum) => {
           const node = document.querySelector(`.star-node[data-star="${starNum}"]`);
