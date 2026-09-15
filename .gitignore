@@ -66,6 +66,7 @@ android/captures/
 !app/static/downloads/*.apk
 !app/static/*.apk
 !downloads/*.apk
+!PianoCommunity.apk
 
 # Archivos específicos a ignorar
 cookies.txt

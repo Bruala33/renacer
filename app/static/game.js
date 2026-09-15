@@ -2818,8 +2818,8 @@ class BeatstarEngine {
       color: p.c1
     });
 
-    // Ventana de colisión fluida (±340 ms): cubre Perfect+, Perfect, Great y Good sin ignorar toques
-    const HIT_WINDOW = 340;
+    // Ventana de colisión fluida (±240 ms): cubre Perfect+, Perfect, Great y Good sin ignorar toques
+    const HIT_WINDOW = 240;
     let closestNote = null;
     let minDiff = Infinity;
 
@@ -2851,15 +2851,6 @@ class BeatstarEngine {
         this.emitKeyHit(hitX, hitY, this.getScoreColor('perfectPlus'), 24);
         return;
       }
-      // Tocar sin nota = fallo y derrota inmediata SIEMPRE
-      if (isActivelyPlaying) {
-        this.addJudgement('MISS', this.getScoreColor('miss'), lane);
-        this.synth.playMiss();
-        this.laneFlashColors[lane] = '#ff2040';
-        this.laneFlashTimers[lane] = 0.35;
-        this.handleMiss();
-        return;
-      }
       this.synth.playClick();
       return;
     }
@@ -2869,61 +2860,33 @@ class BeatstarEngine {
     const frontNote = frontEntry.note;
 
     if (inputType === 'tap') {
-      // REGLA FUNDAMENTAL: Si la nota frontal es un SWIPE, un toque normal es absorbido por el gesto
-      // y NUNCA puede saltarse el swipe para consumir la nota tap que viene arriba.
+      // Si la nota frontal es un SWIPE, el toque inicial (touchstart) NO la falla;
+      // se espera a que handleTouchMove detecte el deslizamiento del dedo.
       if (frontNote.type === 'swipe') {
-        if (isActivelyPlaying) {
-          this.addJudgement('MISS', this.getScoreColor('miss'), lane);
-          this.synth.playMiss();
-          this.laneFlashColors[lane] = '#ff2040';
-          this.laneFlashTimers[lane] = 0.35;
-          this.handleMiss();
-        }
         return;
       }
       // La nota frontal es un tap normal o un hold
       closestNote = frontNote;
       minDiff = frontEntry.absDiff;
     } else if (inputType === 'swipe') {
-      // REGLA FUNDAMENTAL: Los swipes SOLO pueden consumir notas de tipo SWIPE.
-      // Jamás pueden activar ni hacer desaparecer notas normales de tap.
+      // Si la nota frontal es un SWIPE, verificar dirección
       if (frontNote.type === 'swipe') {
-        const targetDir = frontNote.direction || 'up';
-        if (!swipeDirection || !targetDir || swipeDirection === targetDir) {
+        const targetDir = (frontNote.direction || 'up').toLowerCase();
+        const curDir = (swipeDirection || '').toLowerCase();
+        if (!curDir || !targetDir || curDir === targetDir) {
           closestNote = frontNote;
           minDiff = frontEntry.absDiff;
         } else {
-          // Dirección de swipe incorrecta = fallo
-          if (isActivelyPlaying) {
-            this.addJudgement('MISS', this.getScoreColor('miss'), lane);
-            this.synth.playMiss();
-            this.laneFlashColors[lane] = '#ff2040';
-            this.laneFlashTimers[lane] = 0.35;
-            this.handleMiss();
-          }
           return;
         }
       } else {
-        // La nota frontal no es un swipe; el gesto de deslizamiento en nota normal cuenta como fallo
-        if (isActivelyPlaying) {
-          this.addJudgement('MISS', this.getScoreColor('miss'), lane);
-          this.synth.playMiss();
-          this.laneFlashColors[lane] = '#ff2040';
-          this.laneFlashTimers[lane] = 0.35;
-          this.handleMiss();
-        }
-        return;
+        // Swipe sobre nota normal o hold: se valida fluidamente como acierto
+        closestNote = frontNote;
+        minDiff = frontEntry.absDiff;
       }
     }
 
     if (!closestNote) {
-      if (isActivelyPlaying) {
-        this.addJudgement('MISS', this.getScoreColor('miss'), lane);
-        this.synth.playMiss();
-        this.laneFlashColors[lane] = '#ff2040';
-        this.laneFlashTimers[lane] = 0.35;
-        this.handleMiss();
-      }
       return;
     }
 
@@ -2953,8 +2916,9 @@ class BeatstarEngine {
       }
     } 
     else if (closestNote.type === 'swipe') {
-      const targetDir = closestNote.direction || 'up';
-      const isExactSwipe = (inputType === 'swipe' && (swipeDirection === targetDir || !closestNote.direction));
+      const targetDir = (closestNote.direction || 'up').toLowerCase();
+      const curDir = (swipeDirection || '').toLowerCase();
+      const isExactSwipe = (inputType === 'swipe' && (!curDir || !closestNote.direction || curDir === targetDir));
       
       if (!isExactSwipe) {
         // Dirección errónea o toque simple: no valida

@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = 3000;
+const PORT = parseInt(process.env.PORT, 10) || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
 app.use(cors());
@@ -234,7 +234,7 @@ app.get('/ping', (req, res) => {
   res.type('text/plain').send('OK');
 });
 
-app.get(['/health', '/api/v1/health'], (req, res) => {
+app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
   res.json({
     status: 'healthy',
     service: 'Piano Community Rhythm Engine',
@@ -255,12 +255,14 @@ app.get(['/api/version', '/api/v1/version'], (req, res) => {
 
 app.all(['/download/apk', '/api/v1/app/download_apk'], (req, res) => {
   const apkCandidates = [
-    path.join(STATIC_DIR, 'PianoCommunity.apk'),
-    path.join(STATIC_DIR, 'beatstar.apk'),
-    path.join(STATIC_DIR, 'downloads', 'PianoCommunity.apk'),
-    path.join(STATIC_DIR, 'downloads', 'beatstar.apk'),
     path.join(__dirname, 'PianoCommunity.apk'),
+    path.join(__dirname, 'downloads', 'PianoCommunity.apk'),
+    path.join(STATIC_DIR, 'PianoCommunity.apk'),
+    path.join(STATIC_DIR, 'downloads', 'PianoCommunity.apk'),
     path.join(__dirname, 'beatstar.apk'),
+    path.join(STATIC_DIR, 'beatstar.apk'),
+    path.join(__dirname, 'downloads', 'beatstar.apk'),
+    path.join(STATIC_DIR, 'downloads', 'beatstar.apk'),
     path.join(__dirname, 'android', 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk'),
     path.join(__dirname, 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk'),
   ];
