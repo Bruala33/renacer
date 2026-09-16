@@ -3833,10 +3833,10 @@ class BeatstarEngine {
       if (Math.abs(this.displayScore - this.score) < 0.5) {
         this.displayScore = this.score;
       }
-      const sVal = Math.min(999999, Math.max(0, Math.floor(this.displayScore)));
-      const scoreStr = String(sVal).padStart(6, "0");
-      for (let d = 0; d < 6; d++) {
-        const strip = document.getElementById(`rollerDigit${5 - d}`);
+      const sVal = Math.min(9999999, Math.max(0, Math.floor(this.displayScore)));
+      const scoreStr = String(sVal).padStart(7, "0");
+      for (let d = 0; d < 7; d++) {
+        const strip = document.getElementById(`rollerDigit${6 - d}`);
         if (strip) {
           const digitVal = parseInt(scoreStr[d], 10) || 0;
           strip.style.transform = `translateY(-${digitVal * 24}px)`;
@@ -6577,7 +6577,7 @@ class BeatstarEngine {
 
         // C. Lluvia continua de brillantitos y estrellas diamante al mantener pulsado
         if (isBeingHeld) {
-          const headPoint = stringPoints[stringPoints.length - 1];
+          const headPoint = stringPoints[segments];
           if (this.particles && this.particles.emitHoldSpark) {
             this.particles.emitHoldSpark(headPoint.x, hitY, holdCol);
           }
@@ -6585,7 +6585,7 @@ class BeatstarEngine {
 
         // D. Raíles laterales de neón en los bordes de la cinta
         ctx.strokeStyle = isBeingHeld ? hexToRgba(holdGlow, 1.0) : hexToRgba(holdGlow, 0.75);
-        ctx.lineWidth = 4.2 * stringPoints[stringPoints.length - 1].scale;
+        ctx.lineWidth = 4.2 * stringPoints[segments].scale;
         ctx.beginPath();
         for (let s = 0; s <= segments; s++) {
           const pt = stringPoints[s];
@@ -6601,7 +6601,7 @@ class BeatstarEngine {
 
         // E. Espina dorsal de láser central de alta tensión
         ctx.strokeStyle = hexToRgba(holdCol, 1.0);
-        ctx.lineWidth = 5.2 * stringPoints[stringPoints.length - 1].scale;
+        ctx.lineWidth = 5.2 * stringPoints[segments].scale;
         ctx.beginPath();
         for (let s = 0; s <= segments; s++) {
           if (s === 0) ctx.moveTo(stringPoints[s].x, stringPoints[s].y);
@@ -6611,7 +6611,7 @@ class BeatstarEngine {
 
         // Núcleo blanco incandescente de plasma
         ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2.4 * stringPoints[stringPoints.length - 1].scale;
+        ctx.lineWidth = 2.4 * stringPoints[segments].scale;
         ctx.stroke();
         ctx.restore();
 
@@ -6673,7 +6673,7 @@ class BeatstarEngine {
         ctx.restore();
 
           // Head Ivory Piano Key
-          const headPt = stringPoints[stringPoints.length - 1];
+          const headPt = stringPoints[segments];
           const headH = Math.min((isLarge ? 80 : 30) * headPt.scale, maxH3D);
           this.drawIvoryKey(ctx, lane, headPt.y, headH, headPt.scale, isBeingHeld, isLarge, false);
 

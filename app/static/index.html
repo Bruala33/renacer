@@ -2726,22 +2726,26 @@
           </div>
         </section>
 
-        <!-- Botones elevados accesibles -->
-        <footer class="typewriter-keyboard-tier" id="resultsKeyboardTier">
+        <!-- Botones elevados accesibles siempre visibles al finalizar -->
+        <footer class="typewriter-keyboard-tier keyboard-revealed" id="resultsKeyboardTier" style="opacity: 1 !important; pointer-events: auto !important; transform: none !important; display: flex !important;">
           <button class="btn-brass-primary" id="btnResRestart" onclick="restartCurrentSong()">
             <span class="text-base">▶</span>
             <span id="btnResRestartLabel" data-i18n="results_btn_replay">JUGAR DE NUEVO</span>
             <span class="key-clef-badge">↺</span>
           </button>
 
-          <div class="round-keys-row">
+          <div class="round-keys-row" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
             <button class="tw-chrome-key" id="btnResExit" onclick="exitToSearch()">
               <span class="text-sm">⌂</span>
-              <span data-i18n="results_btn_exit">SALIR AL MENÚ</span>
+              <span data-i18n="results_btn_exit">MENÚ</span>
             </button>
-            <button class="tw-chrome-key" id="btnToggleExtraResults" onclick="toggleResultsExtraDrawer()">
-              <span class="text-sm">★</span>
-              <span id="btnToggleExtraResultsLabel">RATING / TOP</span>
+            <button class="tw-chrome-key" id="btnResRate" onclick="openResultsRatingModal()">
+              <span class="text-sm text-amber-400">★</span>
+              <span>VALORAR</span>
+            </button>
+            <button class="tw-chrome-key" id="btnResLeaderboard" onclick="openResultsLeaderboardModal()">
+              <span class="text-sm text-yellow-300">🏆</span>
+              <span>RANKING</span>
             </button>
           </div>
         </footer>
@@ -2800,13 +2804,9 @@
 
       <!-- Barra superior flotante de controles / Cerrar / Notificacion de juego listo -->
       <div class="w-full max-w-[420px] flex flex-wrap justify-between items-center gap-1.5 px-2 mb-2 z-30">
-        <div class="flex items-center gap-1 bg-black/70 p-1 rounded-xl border border-amber-500/50 shadow flex-shrink-0">
-          <button id="slotTabBetBtn" onclick="setSlotMode('bet')" class="btn-vegas-led btn-vegas-led-active px-2.5 py-1 text-[10px]">
-            <span>🎰</span> <span data-i18n="slot_btn_bet">Apostar</span>
-          </button>
-          <button id="slotTabFeaturedBtn" onclick="setSlotMode('featured')" class="btn-vegas-led opacity-75 px-2.5 py-1 text-[10px]">
-            <span>★</span> <span data-i18n="slot_btn_featured">Canciones Destacadas</span>
-          </button>
+        <!-- Título discreto de modo -->
+        <div class="flex items-center gap-2 px-3 py-1 bg-black/60 rounded-full border border-amber-500/40 shadow text-[10px] font-bold text-amber-300">
+          <span id="slotModePillText">🎰 GRAN FORTUNA 1977</span>
         </div>
 
         <button id="btnSlotReadyNotification" onclick="proceedToGameFromSlot()" class="hidden px-3 py-1.5 bg-gradient-to-r from-emerald-400 to-green-500 text-black font-black text-xs rounded-full shadow-[0_0_15px_#10b981] animate-bounce cursor-pointer items-center gap-1.5 flex-shrink-0">
@@ -4797,13 +4797,29 @@
         if (rewardCursor) rewardCursor.style.display = 'inline-block';
       }, delay));
 
-      // 5. Recompensa en rojo: desglose mecanografiado exacto (puntuación * 0.00001 * dificultad)
+      // Asegurar que la botonera de resultados esté completamente visible e interactiva
+      const resKeyboard = document.getElementById('resultsKeyboardTier');
+      if (resKeyboard) {
+        resKeyboard.classList.add('keyboard-revealed');
+        resKeyboard.style.opacity = '1';
+        resKeyboard.style.pointerEvents = 'auto';
+        resKeyboard.style.transform = 'none';
+        resKeyboard.style.display = 'flex';
+      }
+
+      // 5. Recompensa en rojo: desglose mecanografiado exacto (puntuación * 0.00001 * dificultad) con multiplicador X2 si es destacada
       delay += 240;
+      const isFeatured2X = !!window.currentFeaturedSongX2;
       const rawStars = Number(currentActiveBeatmap?.metadata?.stars || currentActiveBeatmap?.stars || stars || 3.0);
       const diffStarsClamped = Math.min(7, Math.max(1, Math.round(rawStars * 10) / 10));
       const baseScoreClefs = Math.floor((score || 0) * 0.00001);
-      const totalCalculatedClefs = Math.max(1, Math.round(baseScoreClefs * diffStarsClamped));
-      const rewardStr = `${baseScoreClefs} × ${diffStarsClamped}★ = +${totalCalculatedClefs}`;
+      let totalCalculatedClefs = Math.max(1, Math.round(baseScoreClefs * diffStarsClamped));
+      if (isFeatured2X) {
+        totalCalculatedClefs = totalCalculatedClefs * 2;
+      }
+      const rewardStr = isFeatured2X 
+        ? `${baseScoreClefs} × ${diffStarsClamped}★ × 2X = +${totalCalculatedClefs}`
+        : `${baseScoreClefs} × ${diffStarsClamped}★ = +${totalCalculatedClefs}`;
 
       for (let i = 0; i < rewardStr.length; i++) {
         const c = rewardStr[i];
@@ -4843,6 +4859,27 @@
         playStampThud();
         if (stampApproved) stampApproved.classList.add('stamped');
       }, delay));
+    };
+
+    window.openResultsRatingModal = function() {
+      const currentChartId = currentActiveBeatmap?.communityChartId || currentActiveBeatmap?.metadata?.id || currentActiveBeatmap?.id || 'song';
+      const title = currentActiveBeatmap?.metadata?.title || 'Canción';
+      const artist = currentActiveBeatmap?.metadata?.artist || 'Artista';
+      const rateModal = document.getElementById('rateSongModal');
+      const rateTitle = document.getElementById('rateModalSongTitle');
+      const rateArtist = document.getElementById('rateModalSongArtist');
+      if (rateTitle) rateTitle.innerText = title;
+      if (rateArtist) rateArtist.innerText = artist;
+      window.currentRatingChartId = currentChartId;
+      if (rateModal) {
+        rateModal.classList.remove('hidden');
+        rateModal.style.display = 'flex';
+      }
+    };
+
+    window.openResultsLeaderboardModal = function() {
+      const currentChartId = currentActiveBeatmap?.communityChartId || currentActiveBeatmap?.metadata?.id || currentActiveBeatmap?.id || null;
+      openLeaderboardModal(currentChartId, 'song');
     };
 
     window.toggleResultsExtraDrawer = function() {
@@ -7121,9 +7158,13 @@ function switchMainTab(tab) {
       loadStatus.innerText = 'Preparando canción...';
       overlay.classList.add('active');
 
-      // Abrir la Gran Fortuna automáticamente en segundo plano para amenizar la descarga/carga
-      if (typeof openGranFortuna === 'function') {
-        openGranFortuna('bet', true);
+      // La Gran Fortuna solo se abre si el usuario pulsa explícitamente el botón "Apostar mientras carga"
+      window.isSlotActiveDuringLoad = false;
+      window.pendingGameToStart = null;
+      const slotBtnReady = document.getElementById('btnSlotReadyNotification');
+      if (slotBtnReady) {
+        slotBtnReady.classList.add('hidden');
+        slotBtnReady.style.display = 'none';
       }
 
       // Inicializar logger visual de diagnóstico
