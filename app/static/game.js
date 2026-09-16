@@ -6799,6 +6799,8 @@ class BeatstarEngine {
         else textColor = '#ffffff';
       }
 
+      let coreColor = isPerfectPlus ? '#ffffff' : (isPerfect ? '#fff6d6' : (isGreat ? '#e0faff' : '#ffffff'));
+
       const drawX = (typeof j.x === 'number') ? j.x : (this.width / 2);
       const fontSize = Math.round((isPerfectPlus ? 24 : 22) * j.scale);
       ctx.font = `900 ${fontSize}px "Outfit", "Montserrat", system-ui, -apple-system, sans-serif`;

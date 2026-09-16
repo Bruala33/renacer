@@ -159,10 +159,10 @@
     let mult = typeof multOrIsJackpot === 'number' ? multOrIsJackpot : (multOrIsJackpot ? 25 : 5);
     let tier = 1;
     if (mult >= 25) tier = 5;      // Mega Jackpot 777 (11.59s)
-    else if (mult >= 10) tier = 4; // Big Win (3.09s)
-    else if (mult >= 6) tier = 3;  // Good Win (2.96s)
-    else if (mult >= 3) tier = 2;  // Medium Win (2.47s)
-    else tier = 1;                 // Small Win (1.71s)
+    else if (mult >= 15) tier = 4; // 3x Diamante (3.09s)
+    else if (mult >= 10) tier = 3; // 3x Campana (2.96s)
+    else if (mult >= 5) tier = 2;  // 3x BAR (2.47s)
+    else tier = 1;                 // Premios pequeños (1x, 2x, 3x cereza/limón/naranja/uvas) (1.71s)
 
     try {
       const src = `assets/slot_win_${tier}.mp3`;
@@ -739,8 +739,42 @@
     { id: 'custom_the_pretender', title: 'The Pretender', artist: 'Foo Fighters', stars: 5.5, difficulty_name: 'Difícil', is_community: false },
     { id: 'custom_swan_lake', title: 'Swan Lake Theme', artist: 'Tchaikovsky', stars: 3.0, difficulty_name: 'Fácil', is_community: false }
   ];
-  const TOTAL_SONG_SLOTS = 8;
+  const TOTAL_SONG_SLOTS = 6;
   const SONG_STEP = (Math.PI * 2) / TOTAL_SONG_SLOTS;
+
+  const songCoverCache = {};
+  function getSongCoverImage(src) {
+    if (!src) return null;
+    if (!songCoverCache[src]) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = src;
+      img.onload = () => {
+        if (slotMachineMode === 'featured') drawCylindricalReels();
+      };
+      songCoverCache[src] = img;
+    }
+    return songCoverCache[src];
+  }
+
+  function wrapSongTitle(text, maxChars = 13, maxLines = 3) {
+    if (!text) return ['Canción'];
+    const words = String(text).trim().split(/\s+/);
+    const lines = [];
+    let cur = '';
+    for (const w of words) {
+      if ((cur + (cur ? ' ' : '') + w).length <= maxChars) {
+        cur += (cur ? ' ' : '') + w;
+      } else {
+        if (cur) lines.push(cur);
+        cur = w;
+        if (lines.length >= maxLines - 1) break;
+      }
+    }
+    if (cur && lines.length < maxLines) lines.push(cur);
+    if (lines.length === 0) lines.push(String(text).slice(0, maxChars));
+    return lines;
+  }
 
   async function refreshFeaturedSongsPool() {
     try {
@@ -825,97 +859,126 @@
           if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
           if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
 
-          if (Math.abs(angleDiff) > Math.PI / 2.1) continue;
+          if (Math.abs(angleDiff) > Math.PI / 2.05) continue;
 
           const yPos = centerY + Math.sin(angleDiff) * radius;
-          const scaleY = Math.max(0.12, Math.cos(angleDiff));
-          const scaleX = 0.88 * Math.cos(angleDiff * 0.4);
+          const scaleY = Math.max(0.15, Math.cos(angleDiff));
+          const scaleX = 0.94 * Math.cos(angleDiff * 0.35);
 
-          const cardW = reelWidth * 0.88 * scaleX;
-          const cardH = 64 * scaleY;
-          const isCentered = Math.abs(angleDiff) < 0.18 && !reel.isSpinning;
+          const cardW = reelWidth * 0.94 * scaleX;
+          const cardH = 138 * scaleY;
+          const isCentered = Math.abs(angleDiff) < 0.22 && !reel.isSpinning;
 
           ctxReels.save();
           ctxReels.translate(centerX, yPos);
 
           // Sombra de tarjeta
-          ctxReels.fillStyle = 'rgba(0, 0, 0, 0.35)';
-          if (ctxReels.roundRect) ctxReels.roundRect(-cardW / 2 + 2, -cardH / 2 + 2, cardW, cardH, 6 * scaleY);
+          ctxReels.fillStyle = 'rgba(0, 0, 0, 0.40)';
+          if (ctxReels.roundRect) ctxReels.roundRect(-cardW / 2 + 2, -cardH / 2 + 2, cardW, cardH, 8 * scaleY);
           else ctxReels.rect(-cardW / 2 + 2, -cardH / 2 + 2, cardW, cardH);
           ctxReels.fill();
 
-          // Fondo de tarjeta de canción sobre el rodillo
+          // Fondo pergamino dorado / marfil de la tarjeta
           const cardGrad = ctxReels.createLinearGradient(0, -cardH / 2, 0, cardH / 2);
           if (isCentered) {
-            cardGrad.addColorStop(0.0, '#fffcf0');
-            cardGrad.addColorStop(0.5, '#fef5d2');
-            cardGrad.addColorStop(1.0, '#fde699');
+            cardGrad.addColorStop(0.0, '#fffef5');
+            cardGrad.addColorStop(0.5, '#fef6d8');
+            cardGrad.addColorStop(1.0, '#fae19c');
           } else {
-            cardGrad.addColorStop(0.0, '#f5efe4');
-            cardGrad.addColorStop(1.0, '#ded0bc');
+            cardGrad.addColorStop(0.0, '#f7f2e8');
+            cardGrad.addColorStop(1.0, '#dfd2be');
           }
           ctxReels.fillStyle = cardGrad;
-          if (ctxReels.roundRect) ctxReels.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, 6 * scaleY);
+          if (ctxReels.roundRect) ctxReels.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, 8 * scaleY);
           else ctxReels.rect(-cardW / 2, -cardH / 2, cardW, cardH);
           ctxReels.fill();
 
-          // Borde dorado si está centrada
-          ctxReels.strokeStyle = isCentered ? '#d4af37' : 'rgba(90, 65, 35, 0.4)';
-          ctxReels.lineWidth = isCentered ? 2.5 : 1;
-          if (ctxReels.roundRect) ctxReels.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, 6 * scaleY);
+          // Borde metálico biselado
+          ctxReels.strokeStyle = isCentered ? '#d4af37' : 'rgba(120, 90, 50, 0.45)';
+          ctxReels.lineWidth = isCentered ? 2.5 : 1.2;
+          if (ctxReels.roundRect) ctxReels.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, 8 * scaleY);
           else ctxReels.rect(-cardW / 2, -cardH / 2, cardW, cardH);
           ctxReels.stroke();
 
-          // Disco de vinilo decorativo en el lateral izquierdo
-          const vinylR = Math.min(cardH * 0.38, 16 * scaleY);
-          const vinylX = -cardW / 2 + vinylR + 4 * scaleX;
-          ctxReels.fillStyle = '#141414';
-          ctxReels.beginPath();
-          ctxReels.arc(vinylX, -2 * scaleY, vinylR, 0, Math.PI * 2);
-          ctxReels.fill();
-          ctxReels.strokeStyle = '#c5a059';
-          ctxReels.lineWidth = 1;
-          ctxReels.stroke();
+          // 1. MINIATURA DE PORTADA O VINILO (Parte Superior)
+          const thumbSize = Math.min(cardW * 0.44, 40 * scaleY);
+          const thumbY = -cardH / 2 + 8 * scaleY + thumbSize / 2;
+          const coverSrc = song.cover_url || song.cover || song.album_art || song.image || './app_logo.png';
+          const coverImg = getSongCoverImage(coverSrc);
 
-          // Nota musical o clave de sol central en el vinilo
-          ctxReels.fillStyle = '#ffd700';
-          ctxReels.font = `bold ${Math.max(6, Math.round(9 * scaleY))}px sans-serif`;
-          ctxReels.textAlign = 'center';
-          ctxReels.textBaseline = 'middle';
-          ctxReels.fillText('𝄞', vinylX, -2 * scaleY);
+          if (coverImg && coverImg.complete && coverImg.naturalWidth > 0) {
+            ctxReels.save();
+            ctxReels.beginPath();
+            if (ctxReels.roundRect) ctxReels.roundRect(-thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize, 6 * scaleY);
+            else ctxReels.rect(-thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize);
+            ctxReels.clip();
+            ctxReels.drawImage(coverImg, -thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize);
+            ctxReels.restore();
 
-          // Texto del título de canción
-          const textX = vinylX + vinylR + 4 * scaleX;
-          const maxTextW = cardW - (textX - (-cardW / 2)) - 4;
-          ctxReels.textAlign = 'left';
-          ctxReels.fillStyle = '#1c1307';
-          ctxReels.font = `900 ${Math.max(7, Math.round(9.5 * scaleY))}px "Montserrat", sans-serif`;
-          const titleStr = (song.title || 'Canción').slice(0, 14);
-          ctxReels.fillText(titleStr, textX, -10 * scaleY, maxTextW);
+            ctxReels.strokeStyle = '#d4af37';
+            ctxReels.lineWidth = 1.2;
+            if (ctxReels.roundRect) ctxReels.roundRect(-thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize, 6 * scaleY);
+            else ctxReels.rect(-thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize);
+            ctxReels.stroke();
+          } else {
+            // Vinilo arcade con clave de sol dorada
+            const vinylR = thumbSize / 2;
+            ctxReels.fillStyle = '#111111';
+            ctxReels.beginPath();
+            ctxReels.arc(0, thumbY, vinylR, 0, Math.PI * 2);
+            ctxReels.fill();
 
-          // Artista y estrellas
-          ctxReels.fillStyle = '#6b4e28';
-          ctxReels.font = `bold ${Math.max(6, Math.round(7.5 * scaleY))}px "Montserrat", sans-serif`;
-          const artistStr = (song.artist || 'Artista').slice(0, 15);
-          ctxReels.fillText(artistStr, textX, 0, maxTextW);
+            ctxReels.strokeStyle = '#d4af37';
+            ctxReels.lineWidth = 1;
+            ctxReels.stroke();
 
+            ctxReels.fillStyle = '#ffd700';
+            ctxReels.font = `bold ${Math.max(6, Math.round(11 * scaleY))}px sans-serif`;
+            ctxReels.textAlign = 'center';
+            ctxReels.textBaseline = 'middle';
+            ctxReels.fillText('𝄞', 0, thumbY);
+          }
+
+          // Badge de Estrellas
           const starsVal = Number(song.stars || 3.5).toFixed(1);
+          const starsY = thumbY + thumbSize / 2 + 7 * scaleY;
           ctxReels.fillStyle = '#b8860b';
-          ctxReels.fillText(`★ ${starsVal}`, textX, 10 * scaleY);
+          ctxReels.font = `bold ${Math.max(6, Math.round(7.5 * scaleY))}px "Montserrat", sans-serif`;
+          ctxReels.textAlign = 'center';
+          ctxReels.fillText(`★ ${starsVal}`, 0, starsY);
 
-          // BOTÓN DIRECTO [ ▶ JUGAR ] EN LA TARJETA CENTRADA DEL CILINDRO
-          if (isCentered) {
-            const btnW = Math.min(cardW * 0.75, 76 * scaleX);
-            const btnH = 16 * scaleY;
-            const btnY = cardH / 2 - btnH / 2 - 2;
+          // 2. TÍTULO MULTILÍNEA (Hasta 3 líneas legibles sin encogerse)
+          const titleLines = wrapSongTitle(song.title, 13, 3);
+          const lineH = Math.max(7, Math.round(9.5 * scaleY));
+          let textY = starsY + 9 * scaleY;
+
+          ctxReels.fillStyle = '#1a1005';
+          ctxReels.font = `900 ${Math.max(6.5, Math.round(8.5 * scaleY))}px "Montserrat", sans-serif`;
+          ctxReels.textAlign = 'center';
+          for (let l = 0; l < titleLines.length; l++) {
+            ctxReels.fillText(titleLines[l], 0, textY);
+            textY += lineH;
+          }
+
+          // 3. ARTISTA (1 Línea sutil)
+          ctxReels.fillStyle = '#6e4f2b';
+          ctxReels.font = `bold ${Math.max(5.5, Math.round(7 * scaleY))}px "Montserrat", sans-serif`;
+          const artistStr = (song.artist || 'Artista').slice(0, 14);
+          ctxReels.fillText(artistStr, 0, textY + 1 * scaleY);
+
+          // 4. BOTÓN DIRECTO [ ▶ JUGAR ] VISIBLE EN LA TARJETA
+          if (isCentered || !reel.isSpinning) {
+            const btnW = Math.min(cardW * 0.88, 76 * scaleX);
+            const btnH = Math.max(14, 20 * scaleY);
+            const btnY = cardH / 2 - btnH / 2 - 4 * scaleY;
 
             const btnGrad = ctxReels.createLinearGradient(0, btnY - btnH / 2, 0, btnY + btnH / 2);
-            btnGrad.addColorStop(0.0, '#ffe57f');
-            btnGrad.addColorStop(0.5, '#f59e0b');
-            btnGrad.addColorStop(1.0, '#b45309');
+            btnGrad.addColorStop(0.0, '#34d399');
+            btnGrad.addColorStop(0.5, '#10b981');
+            btnGrad.addColorStop(1.0, '#047857');
             ctxReels.fillStyle = btnGrad;
 
-            if (ctxReels.roundRect) ctxReels.roundRect(-btnW / 2, btnY - btnH / 2, btnW, btnH, 8 * scaleY);
+            if (ctxReels.roundRect) ctxReels.roundRect(-btnW / 2, btnY - btnH / 2, btnW, btnH, 6 * scaleY);
             else ctxReels.rect(-btnW / 2, btnY - btnH / 2, btnW, btnH);
             ctxReels.fill();
 
@@ -923,7 +986,7 @@
             ctxReels.lineWidth = 1;
             ctxReels.stroke();
 
-            ctxReels.fillStyle = '#0f0802';
+            ctxReels.fillStyle = '#ffffff';
             ctxReels.textAlign = 'center';
             ctxReels.font = `900 ${Math.max(6, Math.round(8.5 * scaleY))}px "Montserrat", sans-serif`;
             ctxReels.fillText('▶ JUGAR', 0, btnY + 1 * scaleY);
@@ -1307,6 +1370,37 @@
     coinCanvas.height = window.innerHeight;
   }
 
+  let clefSpriteCanvas = null;
+  function getClefSprite() {
+    if (clefSpriteCanvas) return clefSpriteCanvas;
+    clefSpriteCanvas = document.createElement('canvas');
+    clefSpriteCanvas.width = 64;
+    clefSpriteCanvas.height = 64;
+    const sCtx = clefSpriteCanvas.getContext('2d');
+    sCtx.textAlign = 'center';
+    sCtx.textBaseline = 'middle';
+
+    sCtx.shadowColor = 'rgba(0, 0, 0, 0.65)';
+    sCtx.shadowBlur = 4;
+    sCtx.shadowOffsetY = 2;
+
+    const goldGrad = sCtx.createLinearGradient(16, 8, 48, 56);
+    goldGrad.addColorStop(0.0, '#fff9cc');
+    goldGrad.addColorStop(0.3, '#ffd700');
+    goldGrad.addColorStop(0.7, '#d4af37');
+    goldGrad.addColorStop(1.0, '#7a5200');
+
+    sCtx.font = 'bold 44px "Outfit", "Montserrat", serif, sans-serif';
+    sCtx.fillStyle = goldGrad;
+    sCtx.fillText('𝄞', 32, 32);
+
+    sCtx.shadowColor = 'transparent';
+    sCtx.strokeStyle = '#fff0a6';
+    sCtx.lineWidth = 1.0;
+    sCtx.strokeText('𝄞', 32, 32);
+    return clefSpriteCanvas;
+  }
+
   class BallisticClef {
     constructor(startX, startY) {
       this.x = startX;
@@ -1349,34 +1443,13 @@
 
     draw() {
       if (!ctxCoins) return;
+      const sprite = getClefSprite();
       ctxCoins.save();
       ctxCoins.translate(this.x, this.y);
       ctxCoins.rotate(this.rotation * 0.25);
-      ctxCoins.scale(Math.abs(this.scaleX) * 0.9 + 0.1, 1);
-
-      // Sombra
-      ctxCoins.shadowColor = 'rgba(0, 0, 0, 0.65)';
-      ctxCoins.shadowBlur = 6;
-      ctxCoins.shadowOffsetY = 3;
-
-      // Clave de Sol dorada 𝄞
-      ctxCoins.font = `bold ${Math.round(this.size)}px "Special Elite", serif, sans-serif`;
-      ctxCoins.textAlign = 'center';
-      ctxCoins.textBaseline = 'middle';
-
-      const goldGrad = ctxCoins.createLinearGradient(-10, -this.size / 2, 10, this.size / 2);
-      goldGrad.addColorStop(0.0, '#fff9cc');
-      goldGrad.addColorStop(0.3, '#ffd700');
-      goldGrad.addColorStop(0.7, '#d4af37');
-      goldGrad.addColorStop(1.0, '#7a5200');
-
-      ctxCoins.fillStyle = goldGrad;
-      ctxCoins.fillText('𝄞', 0, 0);
-
-      ctxCoins.strokeStyle = '#fff0a6';
-      ctxCoins.lineWidth = 0.8;
-      ctxCoins.strokeText('𝄞', 0, 0);
-
+      ctxCoins.scale(Math.abs(this.scaleX) * 0.85 + 0.15, 1);
+      const s = this.size;
+      ctxCoins.drawImage(sprite, -s / 2, -s / 2, s, s);
       ctxCoins.restore();
     }
   }
@@ -1388,8 +1461,9 @@
     const originX = rect.left + rect.width / 2;
     const originY = rect.top + rect.height / 2;
 
-    const actualCount = Math.max(12, Math.min(120, parseInt(prizeCount) || 20));
-    const delayStep = Math.max(15, Math.min(45, 1200 / actualCount));
+    // Conteo optimizado a 24-28 partículas de alto impacto a 120 FPS sin ralentizaciones
+    const actualCount = Math.max(10, Math.min(26, parseInt(prizeCount) || 16));
+    const delayStep = Math.max(18, Math.min(45, 650 / actualCount));
 
     for (let i = 0; i < actualCount; i++) {
       setTimeout(() => {
@@ -1502,7 +1576,24 @@
   }
 
   function proceedToGameFromSlot() {
+    const overlay = document.getElementById('globalLoadingOverlay');
+    if (overlay) overlay.classList.remove('active');
     closeGranFortuna();
+  }
+
+  function togglePaperFeed() {
+    const feed = document.getElementById('printedPaperFeed');
+    if (!feed) return;
+    initSlotAudio();
+    soundPrinterFeed();
+    isPaperOut = !isPaperOut;
+    if (isPaperOut) {
+      feed.classList.add('feed-out');
+      const statusMsg = document.getElementById('statusMsg');
+      if (statusMsg) statusMsg.textContent = 'TABLA DE PAGOS E INSTRUCCIONES';
+    } else {
+      feed.classList.remove('feed-out');
+    }
   }
 
   function notifySongReadyInSlot() {
@@ -1546,6 +1637,12 @@
     const crankBase = document.getElementById('crankBase');
     if (crankBase) {
       crankBase.addEventListener('click', turnCrank360);
+    }
+
+    // Botón eyector de papel / instrucciones
+    const paperBtn = document.getElementById('paperEjectButton');
+    if (paperBtn) {
+      paperBtn.addEventListener('click', togglePaperFeed);
     }
 
     // Clic directo en el tambor interactivo (Modo Canciones Destacadas)

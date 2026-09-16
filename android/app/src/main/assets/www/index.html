@@ -1156,9 +1156,8 @@
           </a>
 
           <!-- Global Leaderboard Button (Trophy SVG) -->
-          <button id="btnOpenGlobalLeaderboard" onclick="openLeaderboardModal()" class="px-2.5 py-1 rounded-xl bg-gradient-to-r from-amber-500/30 to-yellow-600/30 border border-amber-400/60 hover:border-amber-400/90 active:scale-95 text-amber-300 flex items-center gap-1.5 cursor-pointer shadow-lg flex-shrink-0" title="Torneo Semanal y Clasificación">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" class="text-amber-400"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/></svg>
-            <span class="text-[10px] font-black uppercase tracking-wider text-amber-200">TORNEO</span>
+          <button id="btnOpenGlobalLeaderboard" onclick="openLeaderboardModal(null, 'weekly')" class="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-400/50 hover:border-amber-400/80 active:scale-95 text-amber-400 flex items-center justify-center transition cursor-pointer flex-shrink-0" title="Clasificación y Torneo Semanal">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="text-amber-400"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/></svg>
           </button>
 
           <!-- FX Shop Button (Palette SVG) -->
@@ -1312,15 +1311,7 @@
           </div>
         </div>
 
-        <!-- Gran Fortuna 1977 Direct Access & Action -->
-        <div class="p-4 bg-gradient-to-b from-amber-950/90 via-black to-purple-950/80 border-2 border-amber-400/60 rounded-2xl shadow-2xl text-center space-y-3">
-          <div class="text-3xl animate-pulse">🎰</div>
-          <h2 class="text-base font-black text-amber-300 font-serif tracking-widest uppercase">GRAN FORTUNA 1977</h2>
-          <p class="text-xs text-amber-100/80">Disfruta del casino mecánico de Las Vegas. Apuesta tus claves de sol o gira canciones destacadas directamente en los rodillos.</p>
-          <button onclick="openGranFortuna('bet')" class="w-full py-3 bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 hover:from-amber-300 text-black font-black text-sm rounded-xl shadow-lg shadow-amber-500/30 transition active:scale-95 cursor-pointer">
-            🎰 ENTRAR AL CASINO
-          </button>
-        </div>
+
 
         <div class="p-3 bg-gradient-to-r from-red-950/40 via-purple-950/40 to-black/60 border border-red-500/30 rounded-2xl space-y-2">
           <div class="flex items-center justify-between">
@@ -5513,10 +5504,6 @@ function switchMainTab(tab) {
       discoverSection.classList.remove('hidden');
       discoverSection.style.display = 'block';
     }
-    // Entrar directamente a la Gran Fortuna 1977 con la música de casino
-    if (typeof openGranFortuna === 'function') {
-      openGranFortuna('bet');
-    }
   } else if (tab === 'library') {
     if (libraryTabBtn) libraryTabBtn.classList.add('active');
     if (librarySection) {
@@ -5557,7 +5544,7 @@ function switchMainTab(tab) {
   }
 
   // Silenciar música de menú inmediatamente al entrar al editor o casino y reanudar al salir
-  if (tab === 'editor' || tab === 'discover' || window.isCasinoActive) {
+  if (tab === 'editor' || window.isCasinoActive) {
     if (typeof pauseMenuAmbientMusic === 'function') {
       pauseMenuAmbientMusic();
     }
@@ -10575,7 +10562,7 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       }
     }
 
-    async function openLeaderboardModal(chartId = null) {
+    async function openLeaderboardModal(chartId = null, preferredTab = null) {
       const modal = document.getElementById('leaderboardModal');
       if (modal) {
         modal.classList.remove('hidden');
@@ -10584,18 +10571,21 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       }
 
       const tabsContainer = document.getElementById('lbSubTabsContainer');
+      const songBtn = document.getElementById('lbSubTabSongBtn');
       const titleText = document.getElementById('lbModalTitleText');
 
+      if (tabsContainer) tabsContainer.style.display = 'flex';
+
       if (!chartId) {
-        // Abierto desde la cabecera: mostrar ÚNICAMENTE la clasificación global
+        // Abierto desde la cabecera: mostrar Torneo Semanal con recompensas y Global
         currentLeaderboardChartId = null;
-        if (tabsContainer) tabsContainer.style.display = 'none';
-        if (titleText) titleText.innerText = t('leaderboard_global_title', 'Clasificación Global');
-        switchLeaderboardSubTab('global');
+        if (songBtn) songBtn.style.display = 'none';
+        if (titleText) titleText.innerText = t('leaderboard_weekly_title', '🏆 Torneo Semanal');
+        switchLeaderboardSubTab(preferredTab || 'weekly');
       } else {
         // Abierto para una canción específica al finalizar
         currentLeaderboardChartId = chartId;
-        if (tabsContainer) tabsContainer.style.display = 'flex';
+        if (songBtn) songBtn.style.display = 'block';
         if (titleText) titleText.innerText = t('leaderboard_song_title', 'Clasificación Online');
         switchLeaderboardSubTab('song');
       }
@@ -10769,16 +10759,18 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       }
 
       const headerBanner = `
-        <div class="p-2 mb-2 bg-gradient-to-r from-amber-950/80 to-black border border-amber-500/40 rounded-xl space-y-1 text-center">
-          <div class="flex items-center justify-between text-[10px] font-bold text-amber-300">
-            <span>🏆 Torneo Semanal</span>
-            <span class="font-mono text-cyan-300">${timeRemainingText || 'Lunes a Domingo'}</span>
+        <div class="p-2.5 mb-2.5 bg-gradient-to-r from-amber-950/90 via-stone-950 to-black border border-amber-500/40 rounded-xl space-y-2 text-center shadow-lg">
+          <div class="flex items-center justify-between text-[11px] font-bold text-amber-300">
+            <span class="flex items-center gap-1">🏆 Torneo Semanal</span>
+            <span class="font-mono text-cyan-300 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-500/30 text-[10px]">${timeRemainingText || 'Lunes a Domingo 23:59 UTC'}</span>
           </div>
-          <div class="text-[8.5px] text-gray-300 flex justify-around border-t border-amber-500/20 pt-1">
-            <span>Top 1: <strong class="text-amber-400">1.000𝄞</strong></span>
-            <span>Top 2: <strong class="text-gray-300">500𝄞</strong></span>
-            <span>Top 3: <strong class="text-amber-600">250𝄞</strong></span>
-            <span>Top 10%: <strong class="text-cyan-300">100𝄞</strong></span>
+          <div class="text-[9.5px] text-gray-200 grid grid-cols-3 gap-1 border-t border-amber-500/30 pt-1.5 font-mono">
+            <span class="bg-amber-500/15 py-1 px-1 rounded border border-amber-500/30">Top 1: <strong class="text-amber-400">1.000 𝄞</strong></span>
+            <span class="bg-stone-500/15 py-1 px-1 rounded border border-stone-400/30">Top 2: <strong class="text-gray-200">500 𝄞</strong></span>
+            <span class="bg-amber-700/15 py-1 px-1 rounded border border-amber-600/30">Top 3: <strong class="text-amber-500">250 𝄞</strong></span>
+            <span class="bg-cyan-500/15 py-1 px-1 rounded border border-cyan-400/30">Top 10%: <strong class="text-cyan-300">100 𝄞</strong></span>
+            <span class="bg-purple-500/15 py-1 px-1 rounded border border-purple-400/30">Top 20%: <strong class="text-purple-300">50 𝄞</strong></span>
+            <span class="bg-emerald-500/15 py-1 px-1 rounded border border-emerald-400/30">Top 50%: <strong class="text-emerald-300">20 𝄞</strong></span>
           </div>
         </div>
       `;
