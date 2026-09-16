@@ -1578,15 +1578,8 @@ class BeatstarEngine {
     this.masterVolume = isNaN(savedMasterVol) ? 1.0 : Math.max(0, Math.min(1, savedMasterVol));
     this.masterMuted = savedMasterMuted;
 
-    // Custom judgment colors: Paleta metálica noble de concierto
-    // PERFECT+ blanco (#ffffff con halo #fff0c2) | PERFECT oro (#e5b869) | GREAT ámbar (#e08238) | GOOD bronce (#9e7b66) | MISS carmesí (#a81b26)
+    // Custom judgment colors: Paleta personalizada según Ajustes
     const _savedJudgeColors = (() => { try { return JSON.parse(localStorage.getItem('beatstar_judge_colors') || 'null'); } catch(e) { return null; } })();
-    if (_savedJudgeColors) {
-      if (_savedJudgeColors.perfectPlus === '#00f2fe' || _savedJudgeColors.perfectPlus === '#ffe082') _savedJudgeColors.perfectPlus = '#ffffff';
-      if (_savedJudgeColors.perfect === '#00ff88' || _savedJudgeColors.perfect === '#ffd27d') _savedJudgeColors.perfect = '#e5b869';
-      if (_savedJudgeColors.great === '#ffd700') _savedJudgeColors.great = '#e08238';
-      if (_savedJudgeColors.good === '#ff8800') _savedJudgeColors.good = '#9e7b66';
-    }
     this.judgeColors = Object.assign({
       perfectPlus: '#ffffff',
       perfect:     '#e5b869',
@@ -1663,16 +1656,16 @@ class BeatstarEngine {
     switch (type) {
       case 'perfectPlus':
       case 'PERFECT+':
-        return (jc.perfectPlus && jc.perfectPlus !== '#00f2fe' && jc.perfectPlus !== '#ffe082') ? jc.perfectPlus : '#ffffff';
+        return jc.perfectPlus || '#ffffff';
       case 'perfect':
       case 'PERFECT':
-        return (jc.perfect && jc.perfect !== '#00ff88' && jc.perfect !== '#ffd27d') ? jc.perfect : '#e5b869';
+        return jc.perfect || '#e5b869';
       case 'great':
       case 'GREAT':
-        return (jc.great && jc.great !== '#ffd700') ? jc.great : '#e08238';
+        return jc.great || '#e08238';
       case 'good':
       case 'GOOD':
-        return (jc.good && jc.good !== '#ff8800') ? jc.good : '#9e7b66';
+        return jc.good || '#9e7b66';
       case 'miss':
       case 'MISS':
         return '#a81b26';
@@ -2033,13 +2026,13 @@ class BeatstarEngine {
    */
   /**
    * Calculates optimal scroll duration (ms) based on difficulty stars.
-   * Balanced and comfortable rhythm reading speed:
-   * 1★: ~1420ms | 3.5★: ~1365ms | 5★: ~1332ms | 7★: ~1288ms | 10★: ~1222ms
+   * Proporciona una variación tangible y palpable de velocidad según dificultad:
+   * 1★: ~1700ms | 2.5★: ~1500ms | 3.5★: ~1360ms | 5★: ~1160ms | 7★+: ~890ms
    */
   computeDynamicScrollDuration(stars, rawNotes = []) {
     const s = Math.max(1.0, Math.min(10.0, parseFloat(stars) || 3.5));
-    const duration = Math.round(1420 - (s - 1.0) * 22);
-    return Math.max(900, Math.min(1600, duration));
+    const duration = Math.round(1700 - (s - 1.0) * 135);
+    return Math.max(800, Math.min(1800, duration));
   }
 
   computeMaxPossibleScore(notes) {
@@ -2112,6 +2105,7 @@ class BeatstarEngine {
     this.isInitialLaunch = true;
     this.isRewinding = false;
     this.isProcessingMiss = false;
+    this.missHighlight = null;
     this.lastMissTimePerf = 0;
     this.lastFailSongTimeSec = 0;
 
@@ -2221,10 +2215,8 @@ class BeatstarEngine {
       ? LaneRemapper.sanitizeForTwoFingers(rawNotes, this.bpm, diffStars, densityMode)
       : rawNotes;
 
-    // Set dynamic base scroll duration based on difficulty curve or explicit custom preset
-    const baseScroll = (Number.isFinite(this.beatmapData.baseScrollDurationMs) && this.beatmapData.baseScrollDurationMs > 0)
-      ? this.beatmapData.baseScrollDurationMs
-      : this.computeDynamicScrollDuration(diffStars, sanitizedNotes);
+    // Set dynamic base scroll duration based on difficulty stars curve
+    const baseScroll = this.computeDynamicScrollDuration(diffStars, sanitizedNotes);
     this.baseScrollDurationMs = baseScroll;
 
     // Apply the active note speed multiplier to the dynamic scroll duration
@@ -2450,6 +2442,7 @@ class BeatstarEngine {
     this.isRewinding = false;
     this.isProcessingMiss = false;
     this.isCountingDown = false;
+    this.missHighlight = null;
     this.lastMissTimePerf = performance.now();
     this.initCanvasSize();
     this.sync.play();
@@ -2579,6 +2572,7 @@ class BeatstarEngine {
     this.bgBursts = [];
 
     this.isProcessingMiss = false;
+    this.missHighlight = null;
     this.lastMissTimePerf = performance.now();
     // 2.5s invulnerability grace period
     this.invulnerableUntil = failTimeMs + this.latencyOffsetMs + 2500;
@@ -2612,6 +2606,7 @@ class BeatstarEngine {
     this.isRewinding = false;
     this.isProcessingMiss = false;
     this.isCountingDown = false;
+    this.missHighlight = null;
     if (this.animFrameId) {
       cancelAnimationFrame(this.animFrameId);
       this.animFrameId = null;
@@ -2938,6 +2933,13 @@ class BeatstarEngine {
       if (isActivelyPlaying && !this.isProcessingMiss) {
         this.synth.playPunchyArcadeMiss();
         this.addJudgement('MISS', '#a81b26', lane);
+        this.missHighlight = {
+          type: 'empty_tap',
+          lane: lane,
+          x: hitX,
+          y: hitY,
+          time: performance.now()
+        };
         this.handleMiss();
         return;
       }
@@ -3128,7 +3130,13 @@ class BeatstarEngine {
       note.holding = false;
       if (!this.isProcessingMiss && !this.isGameOver && !this.isPaused) {
         this.synth.playPunchyArcadeMiss();
-        this.addJudgement('HOLD DROP', '#a81b26');
+        this.addJudgement('HOLD DROP', '#a81b26', lane);
+        this.missHighlight = {
+          type: 'hold_dropped',
+          lane: lane,
+          note: note,
+          time: performance.now()
+        };
         this.handleMiss();
       }
     }
@@ -3145,7 +3153,7 @@ class BeatstarEngine {
     if (diffMs <= 45) {
       text = customLabel ? `PERFECT+ ${customLabel}` : 'PERFECT+';
       color = this.getScoreColor('perfectPlus');
-      flashColor = '#00ffc8'; // Verde Esmeralda / Cian Eléctrico Ultra Brillante
+      flashColor = color;
       flashDuration = 0.22;
       points = 450;
       this.stats.perfectPlus++;
@@ -3153,7 +3161,7 @@ class BeatstarEngine {
     } else if (diffMs <= 90) {
       text = customLabel ? `PERFECT ${customLabel}` : 'PERFECT';
       color = this.getScoreColor('perfect');
-      flashColor = '#00f2fe'; // Cian Neón
+      flashColor = color;
       flashDuration = 0.20;
       points = 300;
       this.stats.perfect++;
@@ -3161,7 +3169,7 @@ class BeatstarEngine {
     } else if (diffMs <= 170) {
       text = customLabel ? `GREAT ${customLabel}` : 'GREAT';
       color = this.getScoreColor('great');
-      flashColor = '#ffd700'; // Oro Brillante
+      flashColor = color;
       flashDuration = 0.17;
       points = 150;
       this.stats.great++;
@@ -3169,7 +3177,7 @@ class BeatstarEngine {
     } else {
       text = customLabel ? `GOOD ${customLabel}` : 'GOOD';
       color = this.getScoreColor('good');
-      flashColor = '#ff8800'; // Ámbar / Bronce
+      flashColor = color;
       flashDuration = 0.15;
       points = 75;
       this.stats.good = (this.stats.good || 0) + 1;
@@ -3487,9 +3495,15 @@ class BeatstarEngine {
       : 100.0;
 
     // Haptic & visual feedback on miss
-    this.triggerScreenShake(3.5, 70);
-    this.vignetteAlpha = 0.45;
-    this.vignetteColor = '#ff2040';
+    this.triggerScreenShake(4.5, 80);
+    this.vignetteAlpha = 0.55;
+    this.vignetteColor = '#ff1133';
+
+    // Iluminar el carril de fallo en rojo intenso durante el segundo de gracia
+    const failLane = (this.missHighlight && typeof this.missHighlight.lane === 'number') ? this.missHighlight.lane : 1;
+    this.laneFlashColors[failLane] = '#ff0033';
+    this.laneFlashTimers[failLane] = 1.1;
+    this.laneGlows[failLane] = 1.0;
 
     // Al fallar, las estrellas y medallas alcanzadas no disminuyen
     if (this.ui && typeof this.ui.onScoreUpdate === 'function') {
@@ -3497,25 +3511,33 @@ class BeatstarEngine {
     }
 
     // SIEMPRE pausar y mostrar pantalla de muerte si hay notas cargadas
-    // (antes se bloqueaba si isCalibrating era true o beatmapData era falsy)
     const hasActiveGame = this.notes && this.notes.length > 0;
     if (hasActiveGame) {
       const penaltyCost = Math.pow(2, this.missCount);
       this.missCount++;
-      console.log('[MISS] Triggering death screen. penaltyCost=' + penaltyCost + ' missCount=' + this.missCount + ' score=' + this.score);
-      this.pause();
-      try {
-        if (this.ui && typeof this.ui.onMissPenalty === 'function') {
-          this.ui.onMissPenalty(penaltyCost, this.missCount, this.score);
-          console.log('[MISS] onMissPenalty callback executed successfully');
-        } else {
-          console.error('[MISS] onMissPenalty callback NOT available! ui=' + !!this.ui);
+      console.log('[MISS] Delaying death screen 1s to display miss reason. penaltyCost=' + penaltyCost + ' missCount=' + this.missCount + ' score=' + this.score);
+      
+      // Detener audio inmediatamente para congelar la música
+      if (this.sync && this.sync.pause) {
+        try { this.sync.pause(); } catch(e) {}
+      }
+
+      // Dejar exactamente 1.0s (1000ms) para que el jugador vea en la pista DÓNDE ha fallado
+      setTimeout(() => {
+        this.pause();
+        try {
+          if (this.ui && typeof this.ui.onMissPenalty === 'function') {
+            this.ui.onMissPenalty(penaltyCost, this.missCount, this.score);
+            console.log('[MISS] onMissPenalty callback executed successfully');
+          } else {
+            console.error('[MISS] onMissPenalty callback NOT available! ui=' + !!this.ui);
+            this.isProcessingMiss = false;
+          }
+        } catch (err) {
+          console.error('[MISS] Error in onMissPenalty:', err);
           this.isProcessingMiss = false;
         }
-      } catch (err) {
-        console.error('[MISS] Error in onMissPenalty:', err);
-        this.isProcessingMiss = false;
-      }
+      }, 1000);
     } else {
       console.warn('[MISS] No active game, resetting after 750ms');
       setTimeout(() => {
@@ -3662,6 +3684,13 @@ class BeatstarEngine {
       if (currentTime >= 0 && (currentTime - noteTime >= exitScreenOffsetMs)) {
         note.missed = true;
         note.processed = true;
+        note.missHighlight = true;
+        this.missHighlight = {
+          type: 'note_dropped',
+          lane: note.lane,
+          note: note,
+          time: performance.now()
+        };
 
         this.synth.playPunchyArcadeMiss();
         this.addJudgement('MISS', '#ff4d4d', note.lane);
@@ -3774,19 +3803,11 @@ class BeatstarEngine {
     }
     this.currentMedalTier = finalMedal;
 
-    // Claves (Clefs) - Reducidas 10 VECES (1 a 5 claves base + bonos de 1 a 3):
-    const diffStars = this.beatmapData.metadata?.stars || 3.0;
-    let diffMultiplier = diffStars < 3.0 ? 1 : (diffStars < 6.0 ? 1.2 : 1.5);
-
-    const scoreRatio = Math.min(1.0, Math.max(0.0, this.score / maxScore));
-    const performanceFactor = Math.pow(scoreRatio, 1.4) * (accuracyPct / 100);
-    // Escala base: 1 a 5 claves
-    const baseScoreClefs = Math.max(1, Math.round(5 * performanceFactor));
-    const scoreClefs = Math.max(1, Math.round(baseScoreClefs * diffMultiplier));
-
-    // Bonos de medallas reducidos 10 veces: Platino +3, Oro +2, Plata +1
-    const medalBonus = (earnedMedals.platinum * 3) + (earnedMedals.gold * 2) + (earnedMedals.silver * 1);
-    const earnedClefs = scoreClefs + medalBonus;
+    // Claves (Clefs) según fórmula solicitada: puntuación * 0.00001 * dificultad (estrellas, máximo x7)
+    const rawDiffStars = Number(this.beatmapData?.metadata?.stars || this.beatmapData?.stars || this.stars || 3.0);
+    const diffMultiplier = Math.min(7, Math.max(1, Math.round(rawDiffStars * 10) / 10));
+    const baseScoreClefs = Math.floor((this.score || 0) * 0.00001);
+    const earnedClefs = Math.max(1, Math.round(baseScoreClefs * diffMultiplier));
 
     if (this.ui && this.ui.onGameEnd) {
       this.ui.onGameEnd(this.score, this.maxCombo, this.stars, this.stats, earnedClefs, finalMedal, scorePct, earnedMedals, totalNotes, accuracyPct);
@@ -4709,6 +4730,7 @@ class BeatstarEngine {
     this.renderDiscoLighting(this.ctx, currentTime);
     this.renderDiscoBall(this.ctx, currentTime);
     this.render3DComboExplosion(this.ctx);
+    this.renderMissFailureFeedback(this.ctx, currentTime);
 
     if (hasShake) {
       this.ctx.restore();
@@ -4942,6 +4964,81 @@ class BeatstarEngine {
       ctx.restore();
       ctx.restore();
     }
+  }
+
+  renderMissFailureFeedback(ctx, currentTime) {
+    if (!this.missHighlight) return;
+    const now = performance.now();
+    const elapsed = now - (this.missHighlight.time || now);
+    if (elapsed > 1100) return;
+    const alpha = Math.max(0, 1.0 - (elapsed / 1100));
+
+    ctx.save();
+    if (this.missHighlight.type === 'empty_tap') {
+      const x = this.missHighlight.x || (this.width / 2);
+      const y = this.missHighlight.y || (this.hitLineY || this.height * 0.84);
+
+      // Neon red shockwaves
+      const radius = 22 + (elapsed * 0.12);
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255, 23, 68, ${(alpha * 0.9).toFixed(3)})`;
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(x, y, radius * 1.45, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255, 0, 51, ${(alpha * 0.5).toFixed(3)})`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Glowing red warning cross
+      const crossSize = 16;
+      ctx.beginPath();
+      ctx.moveTo(x - crossSize, y - crossSize);
+      ctx.lineTo(x + crossSize, y + crossSize);
+      ctx.moveTo(x + crossSize, y - crossSize);
+      ctx.lineTo(x - crossSize, y + crossSize);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${alpha.toFixed(3)})`;
+      ctx.lineWidth = 4.5;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(x - crossSize, y - crossSize);
+      ctx.lineTo(x + crossSize, y + crossSize);
+      ctx.moveTo(x + crossSize, y - crossSize);
+      ctx.lineTo(x - crossSize, y + crossSize);
+      ctx.strokeStyle = `rgba(255, 0, 51, ${(alpha * 0.95).toFixed(3)})`;
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+    } else if (this.missHighlight.type === 'note_dropped') {
+      const note = this.missHighlight.note;
+      const lane = (note && typeof note.lane === 'number') ? note.lane : (this.missHighlight.lane || 1);
+      const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
+      let noteX = this.width / 2;
+      if (this.visualDimension !== '2d') {
+        const xL = this.getLaneBoundaryX(lane, hitY);
+        const xR = this.getLaneBoundaryX(lane + 1, hitY);
+        noteX = (xL + xR) / 2;
+      } else {
+        noteX = (lane + 0.5) * (this.width / 3);
+      }
+
+      // Glowing red warning aura around dropped note at hitline
+      ctx.beginPath();
+      ctx.arc(noteX, hitY, 48 + Math.sin(now * 0.015) * 6, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 0, 51, ${(alpha * 0.45).toFixed(3)})`;
+      ctx.fill();
+
+      // Warning text
+      ctx.font = '900 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillStyle = `rgba(255, 255, 255, ${alpha.toFixed(3)})`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('▼ PERDIDA ▼', noteX, hitY - 32);
+    }
+    ctx.restore();
   }
 
   renderDiscoLighting(ctx, currentTime) {
@@ -5682,8 +5779,13 @@ class BeatstarEngine {
           const rgb = hexToRgb(flashCol);
           let baseAlpha = isHolding ? 0.72 : (flashTimer > 0 ? (0.75 * Math.min(1.0, flashTimer / 0.16)) : Math.min(0.60, glow * 0.60));
 
-          // A. Trapezoidal Flood de suelo completo (Optimizado GPU: 0 allocs)
-          ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(baseAlpha * 0.40).toFixed(3)})`;
+          // A. Trapezoidal Flood de suelo que se diluye progresivamente hacia el horizonte
+          const floodGrad = ctx.createLinearGradient(0, hitY + 32, 0, horizonY);
+          floodGrad.addColorStop(0.0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(baseAlpha * 0.48).toFixed(3)})`);
+          floodGrad.addColorStop(0.35, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(baseAlpha * 0.20).toFixed(3)})`);
+          floodGrad.addColorStop(0.65, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(baseAlpha * 0.04).toFixed(3)})`);
+          floodGrad.addColorStop(1.0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
+          ctx.fillStyle = floodGrad;
           ctx.beginPath();
           ctx.moveTo(pL_top, horizonY);
           ctx.lineTo(pR_top, horizonY);
@@ -5692,11 +5794,15 @@ class BeatstarEngine {
           ctx.closePath();
           ctx.fill();
 
-          // B. Haz central incandescente (Optimizado GPU: 0 allocs)
+          // B. Haz central incandescente atenuado que se disuelve hacia arriba
           const coreW_top = Math.max(4, (pR_top - pL_top) * 0.25);
           const coreW_bot = Math.max(12, (pR_bot - pL_bot) * 0.35);
 
-          ctx.fillStyle = `rgba(255, 255, 255, ${(baseAlpha * 0.55).toFixed(3)})`;
+          const coreGrad = ctx.createLinearGradient(0, hitY + 32, 0, horizonY);
+          coreGrad.addColorStop(0.0, `rgba(255, 255, 255, ${(baseAlpha * 0.65).toFixed(3)})`);
+          coreGrad.addColorStop(0.30, `rgba(255, 255, 255, ${(baseAlpha * 0.22).toFixed(3)})`);
+          coreGrad.addColorStop(0.60, `rgba(255, 255, 255, 0)`);
+          ctx.fillStyle = coreGrad;
           ctx.beginPath();
           ctx.moveTo(midTopX - coreW_top / 2, horizonY);
           ctx.lineTo(midTopX + coreW_top / 2, horizonY);
@@ -6402,9 +6508,25 @@ class BeatstarEngine {
         const holdGlow = palette ? (palette.glow || '#ff00aa') : '#ff00aa';
 
         ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
+        // A. Base opaca y saturada con ribete de contraste oscuro (100% visible sobre pistas claras/blancas)
+        ctx.globalCompositeOperation = 'source-over';
 
-        // A. Fondo de halo translúcido (Optimizado GPU: 0 allocs)
+        // 1. Ribete exterior de contraste oscuro
+        ctx.beginPath();
+        for (let s = 0; s < stringPoints.length; s++) {
+          const pt = stringPoints[s];
+          if (s === 0) ctx.moveTo(pt.x - pt.halfW - 2.5, pt.y);
+          else ctx.lineTo(pt.x - pt.halfW - 2.5, pt.y);
+        }
+        for (let s = stringPoints.length - 1; s >= 0; s--) {
+          const pt = stringPoints[s];
+          ctx.lineTo(pt.x + pt.halfW + 2.5, pt.y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(10, 4, 18, 0.72)';
+        ctx.fill();
+
+        // 2. Relleno vibrante y fuertemente saturado
         ctx.beginPath();
         for (let s = 0; s < stringPoints.length; s++) {
           const pt = stringPoints[s];
@@ -6416,8 +6538,11 @@ class BeatstarEngine {
           ctx.lineTo(pt.x + pt.halfW, pt.y);
         }
         ctx.closePath();
-        ctx.fillStyle = hexToRgba(holdCol, isBeingHeld ? 0.65 : 0.40);
+        ctx.fillStyle = hexToRgba(holdCol, isBeingHeld ? 0.95 : 0.88);
         ctx.fill();
+
+        // Efectos incandescentes en modo lighter
+        ctx.globalCompositeOperation = 'lighter';
 
         // B. Pulsos de energía diamantinos viajando a lo largo del listón (Traveling Energy Nodes)
         const pulseCycle = (currentTime * 0.003) % 1.0;

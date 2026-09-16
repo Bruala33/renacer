@@ -628,45 +628,67 @@ body {
   box-shadow: 0 0 3px rgba(0, 0, 0, 0.9);
 }
 
-/* Star Nodes Placed Over Dividers */
+/* Star Nodes Placed Over Dividers - 3D Metallic Relief Upgrade */
 .star-node {
   position: absolute;
   top: 2.5px;
   transform: translate(-50%, -50%);
-  width: 15px;
-  height: 15px;
+  width: 22px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 6;
+  z-index: 8;
   pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
 }
 
-.star-node .star-svg {
-  width: 14px;
-  height: 14px;
-  fill: #161220;
-  stroke: #c5a059;
-  stroke-width: 1.8;
+.star-node .star-svg,
+.star-node .gold-medal-svg,
+.star-node .silver-medal-svg,
+.star-node .plat-medal-svg {
+  width: 20px;
+  height: 20px;
   transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  opacity: 0.35;
+  filter: grayscale(85%) brightness(0.6);
 }
 
 @keyframes starNodePop {
-  0% { transform: translate(-50%, -50%) scale(1.0); }
-  40% { transform: translate(-50%, -50%) scale(1.4); }
-  75% { transform: translate(-50%, -50%) scale(0.92); }
+  0% { transform: translate(-50%, -50%) scale(0.9); }
+  40% { transform: translate(-50%, -50%) scale(1.45); filter: drop-shadow(0 0 12px #ffd700); }
+  75% { transform: translate(-50%, -50%) scale(0.95); }
   100% { transform: translate(-50%, -50%) scale(1.0); }
 }
 
 .star-node.unlocked {
-  animation: starNodePop 400ms cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  animation: starNodePop 450ms cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
-.star-node.unlocked .star-svg {
-  fill: #e5b869 !important;
-  stroke: #fff0c2 !important;
-  stroke-width: 1.5;
-  filter: drop-shadow(0 0 6px rgba(229, 184, 105, 0.95)) drop-shadow(0 0 12px rgba(255, 240, 194, 0.75));
+.star-node.unlocked .star-svg,
+.star-node.unlocked .gold-medal-svg,
+.star-node.unlocked .silver-medal-svg,
+.star-node.unlocked .plat-medal-svg {
+  opacity: 1.0;
+  filter: grayscale(0%) brightness(1.1) drop-shadow(0 0 6px rgba(255, 215, 0, 0.9)) drop-shadow(0 0 14px rgba(255, 235, 120, 0.7));
+}
+
+.hud-platinum-node {
+  position: absolute;
+  top: 2.5px;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9;
+  pointer-events: none;
+  filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.95));
+}
+.hud-platinum-node .plat-medal-svg {
+  width: 22px;
+  height: 22px;
 }
 
 /* Minimalist Score & Pause Row */
@@ -3836,5 +3858,369 @@ body {
 .toast-capsule.active {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+}
+
+/* ==========================================================================
+   DEATH SCREEN DELAYED INTERACTION
+   ========================================================================== */
+.typewriter-keyboard-tier {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(20px);
+  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.typewriter-keyboard-tier.keyboard-revealed {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+/* ==========================================================================
+   VEGAS LED BUTTONS (APOSTAR & CANCIONES DESTACADAS)
+   ========================================================================== */
+.btn-vegas-led {
+  background: linear-gradient(180deg, #2b1105 0%, #150702 100%);
+  border: 2px solid #e5b869;
+  border-radius: 14px;
+  padding: 10px 16px;
+  color: #fff4d0;
+  font-family: 'Cinzel', 'Outfit', serif;
+  font-weight: 900;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,230,150,0.5), 0 0 10px rgba(229,184,105,0.3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.btn-vegas-led:hover {
+  border-color: #ffd700;
+  box-shadow: 0 4px 18px rgba(255,215,0,0.5), inset 0 1px 3px rgba(255,255,255,0.7), 0 0 15px rgba(255,215,0,0.5);
+  transform: translateY(-1px);
+}
+.btn-vegas-led:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.9);
+}
+.btn-vegas-led-active {
+  background: linear-gradient(180deg, #ffd700 0%, #b8860b 100%) !important;
+  color: #1a0b02 !important;
+  border-color: #fff4b8 !important;
+  box-shadow: 0 0 16px rgba(255, 215, 0, 0.9) !important;
+}
+
+/* ==========================================================================
+   GRAN FORTUNA 1977 - VINTAGE MECHANICAL SLOT MACHINE STYLES
+   ========================================================================== */
+.gran-fortuna-modal {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at 50% 30%, rgba(30, 11, 31, 0.96) 0%, rgba(12, 4, 14, 0.98) 60%, rgba(3, 1, 5, 0.99) 100%);
+  z-index: 850;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 12px 10px;
+  overflow-y: auto;
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: 'Montserrat', system-ui, sans-serif;
+}
+
+.slot-cabinet {
+  width: 340px;
+  max-width: 95vw;
+  border-radius: 170px 170px 24px 24px;
+  background: linear-gradient(180deg, #d4af37 0%, #855f1a 3%, #3c1e08 10%, #1a0b03 40%, #0d0501 100%);
+  box-shadow: 
+    0 25px 60px rgba(0, 0, 0, 0.95),
+    inset 0 3px 6px rgba(255, 255, 255, 0.6),
+    inset 0 0 40px rgba(0,0,0,0.85),
+    0 0 0 4px #a87922,
+    0 0 0 8px #2e1706;
+  position: relative;
+  margin-top: 18px;
+  margin-bottom: 24px;
+}
+
+@media (min-width: 480px) {
+  .slot-cabinet {
+    width: 380px;
+    border-radius: 190px 190px 28px 28px;
+  }
+}
+
+.siren-beacon-mount {
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 40;
+}
+
+.siren-glass-dome {
+  width: 34px;
+  height: 26px;
+  border-radius: 17px 17px 6px 6px;
+  background: radial-gradient(circle at 50% 30%, #ff8080 0%, #d50000 60%, #5f0000 100%);
+  border: 1.5px solid #ffa4a4;
+  box-shadow: 0 0 16px 4px rgba(255, 20, 20, 0.6), inset 0 2px 4px rgba(255,255,255,0.8);
+  position: relative;
+  overflow: hidden;
+}
+
+.siren-revolving-beam {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 14px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.95) 50%, transparent 100%);
+  animation: sweepBeacon 1.2s infinite linear;
+  filter: blur(1px);
+}
+
+@keyframes sweepBeacon {
+  0% { left: -14px; opacity: 0.2; }
+  50% { left: 10px; opacity: 1; transform: scaleX(1.4); }
+  100% { left: 34px; opacity: 0.2; }
+}
+
+.siren-brass-collar {
+  width: 44px;
+  height: 8px;
+  background: linear-gradient(180deg, #ffe082 0%, #ffb300 50%, #795548 100%);
+  border-radius: 3px;
+  border: 1px solid #ffe57f;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.8);
+}
+
+.arched-header {
+  width: 100%;
+  height: 165px;
+  border-radius: 170px 170px 0 0;
+  background: radial-gradient(ellipse at 50% 88%, #ad1414 0%, #6e0808 55%, #380202 100%);
+  box-shadow: 
+    inset 0 5px 12px rgba(255, 220, 120, 0.75),
+    inset 0 -4px 12px rgba(0, 0, 0, 0.8),
+    0 6px 16px rgba(0, 0, 0, 0.75);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 10px;
+  border-bottom: 3.5px solid #b8860b;
+  position: relative;
+  overflow: hidden;
+}
+
+.sunburst-overlay {
+  position: absolute;
+  inset: 0;
+  background: repeating-conic-gradient(
+    from 0deg at 50% 120%,
+    rgba(255, 215, 0, 0.16) 0deg 15deg,
+    transparent 15deg 30deg
+  );
+  pointer-events: none;
+}
+
+.led-matrix-box {
+  background: #080303;
+  border: 2px solid #ffb300;
+  box-shadow: 
+    0 4px 10px rgba(0,0,0,0.9),
+    inset 0 2px 6px rgba(0,0,0,0.95),
+    0 0 14px rgba(255, 179, 0, 0.35);
+  border-radius: 8px;
+  padding: 4px 12px;
+  position: relative;
+}
+
+.vintage-marquee-title {
+  font-family: 'Playfair Display', 'Cinzel', serif;
+  font-style: italic;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, #ffffff 0%, #fff0a6 30%, #ffd700 60%, #b8860b 85%, #664606 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 0 #3b1802) drop-shadow(0 3px 6px rgba(0,0,0,0.9));
+  position: relative;
+}
+
+.vintage-ribbon-sub {
+  font-family: 'Cinzel', serif;
+  font-size: 7.5px;
+  letter-spacing: 4px;
+  color: #ffecb3;
+  text-shadow: 0 1px 3px #000;
+}
+
+.perimeter-bulb {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #251b12;
+  border: 1px solid #110b06;
+  transition: background 0.12s ease, box-shadow 0.12s ease;
+}
+.perimeter-bulb.glow-amber {
+  background: radial-gradient(circle at 35% 35%, #ffffff, #ffb300);
+  box-shadow: 0 0 9px 3px #ffb300;
+}
+.perimeter-bulb.glow-red {
+  background: radial-gradient(circle at 35% 35%, #ffffff, #ff2626);
+  box-shadow: 0 0 9px 3px #ff2626;
+}
+.perimeter-bulb.glow-cyan {
+  background: radial-gradient(circle at 35% 35%, #ffffff, #00e5ff);
+  box-shadow: 0 0 9px 3px #00e5ff;
+}
+
+.retro-counter {
+  font-family: 'Share Tech Mono', monospace;
+  background: #080809;
+  letter-spacing: 2px;
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.95);
+  border: 1px solid #2d241c;
+}
+
+.crank-base {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #555 0%, #202020 60%, #080808 100%);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.85), inset 0 2px 3px rgba(255,255,255,0.35), 0 0 0 3px #9c7832;
+  cursor: pointer;
+  position: relative;
+}
+.crank-arm-group {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  transform-origin: 50% 50%;
+}
+.crank-shaft {
+  width: 9px;
+  height: 38px;
+  background: linear-gradient(90deg, #d6d6d6 0%, #ffffff 40%, #888 80%, #444 100%);
+  border-radius: 4px;
+  position: absolute;
+  top: -22px;
+  left: calc(50% - 4.5px);
+  box-shadow: 2px 3px 6px rgba(0,0,0,0.7);
+}
+.crank-knob {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ff4d4d 0%, #b80000 65%, #4a0000 100%);
+  border: 1.5px solid #ff9999;
+  position: absolute;
+  top: -36px;
+  left: calc(50% - 12px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.85), inset 0 2px 4px rgba(255,255,255,0.7);
+}
+
+.brass-eject-stud {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff2b2 0%, #d4af37 45%, #7a5711 85%, #3d2b06 100%);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.8), inset 0 2px 3px rgba(255,255,255,0.8);
+  border: 2px solid #e5c358;
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+.brass-eject-stud:active {
+  transform: translateY(2px) scale(0.96);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.9), inset 0 2px 4px rgba(0,0,0,0.8);
+}
+.brass-eject-stud::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  border: 1px dashed rgba(60, 40, 10, 0.45);
+}
+
+.printer-slit-bezel {
+  width: 100%;
+  height: 14px;
+  background: linear-gradient(180deg, #1f1b18 0%, #0a0807 50%, #29231f 100%);
+  border: 1px solid #4a3e35;
+  border-radius: 4px;
+  box-shadow: inset 0 3px 6px #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: visible;
+}
+.printer-mouth {
+  width: 90%;
+  height: 4px;
+  background: #000000;
+  border-radius: 2px;
+  box-shadow: inset 0 2px 4px #000;
+}
+
+#printedPaperFeed {
+  position: absolute;
+  top: 9px;
+  left: 4%;
+  right: 4%;
+  background: #fdfbf5;
+  background-image: repeating-linear-gradient(0deg, transparent, transparent 18px, rgba(160, 190, 160, 0.15) 19px, rgba(160, 190, 160, 0.15) 20px);
+  font-family: 'Courier Prime', monospace;
+  color: #1a1917;
+  box-shadow: 0 16px 30px rgba(0,0,0,0.9), 0 2px 4px rgba(0,0,0,0.5);
+  border-left: 5px dotted #a3957a;
+  border-right: 5px dotted #a3957a;
+  transform-origin: top center;
+  transition: max-height 0.65s cubic-bezier(0.2, 0.8, 0.25, 1), opacity 0.25s ease;
+  max-height: 0px;
+  opacity: 0;
+  overflow: hidden;
+  z-index: 50;
+  border-radius: 0 0 4px 4px;
+}
+#printedPaperFeed.feed-out {
+  max-height: 420px;
+  opacity: 1;
+}
+
+.coin-hopper-chute {
+  width: 70px;
+  height: 14px;
+  background: #040404;
+  border-radius: 7px 7px 3px 3px;
+  border-top: 2px solid #332d28;
+  box-shadow: inset 0 4px 8px #000;
+  position: relative;
+}
+
+#coinCanvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 999;
 }
 

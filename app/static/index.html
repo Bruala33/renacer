@@ -309,7 +309,25 @@
         effect_crimson_royale_name: 'Fieltro Carmesí Real',
         effect_crimson_royale_desc: 'Brasas de fieltro rojo carmesí y oro ascendentes inspiradas en apagadores de concierto.',
         effect_luminous_ivory_name: 'Marfil Luminoso y Cénit',
-        effect_luminous_ivory_desc: 'Destello de marfil puro pulido con estallido radial celestial al pulsar.'
+        effect_luminous_ivory_desc: 'Destello de marfil puro pulido con estallido radial celestial al pulsar.',
+        slot_btn_bet: 'Apostar',
+        slot_btn_featured: 'Canciones Destacadas',
+        slot_title: 'GRAN FORTUNA',
+        slot_sub: 'LAS VEGAS 1977',
+        slot_credits: 'CRÉDITOS',
+        slot_bet: 'APUESTA',
+        slot_win: 'PREMIO',
+        slot_spin: 'GIRAR',
+        slot_max: 'MÁX',
+        slot_loading_btn: '🎰 Apostar mientras carga',
+        slot_ready_btn: '✨ ¡Canción lista! Continuar al juego',
+        slot_featured_printed_header: '3 CANCIONES DESTACADAS',
+        slot_payout_paper_header: 'TABLA DE PAGOS OFICIAL',
+        slot_close: 'Cerrar Casino',
+        lb_tab_weekly: 'Semanal',
+        lb_weekly_tournament: 'Torneo Semanal',
+        lb_weekly_ends_in: 'Termina en:',
+        lb_weekly_rewards_claimed: '¡Boletín de Premios Semanales!'
       },
       en: {
         app_title: 'Piano Community',
@@ -594,7 +612,25 @@
         effect_crimson_royale_name: 'Crimson Royale Damper',
         effect_crimson_royale_desc: 'Rising embers of crimson damper felt and antique gold inspired by concert grands.',
         effect_luminous_ivory_name: 'Luminous Ivory Zenith',
-        effect_luminous_ivory_desc: 'Polished pure ivory flash with a celestial radial burst at the tap zenith.'
+        effect_luminous_ivory_desc: 'Polished pure ivory flash with a celestial radial burst at the tap zenith.',
+        slot_btn_bet: 'Bet',
+        slot_btn_featured: 'Featured Songs',
+        slot_title: 'GREAT FORTUNE',
+        slot_sub: 'LAS VEGAS 1977',
+        slot_credits: 'CREDITS',
+        slot_bet: 'BET',
+        slot_win: 'WIN',
+        slot_spin: 'SPIN',
+        slot_max: 'MAX',
+        slot_loading_btn: '🎰 Bet while loading',
+        slot_ready_btn: '✨ Song ready! Continue to game',
+        slot_featured_printed_header: '3 FEATURED SONGS',
+        slot_payout_paper_header: 'OFFICIAL PAYOUT TABLE',
+        slot_close: 'Exit Casino',
+        lb_tab_weekly: 'Weekly',
+        lb_weekly_tournament: 'Weekly Tournament',
+        lb_weekly_ends_in: 'Ends in:',
+        lb_weekly_rewards_claimed: 'Weekly Tournament Bulletin!'
       }
     };
 
@@ -928,6 +964,11 @@
 
       <div class="text-center">
         <p id="globalLoadStatus" class="text-xs font-bold text-pink-400">Iniciando descarga y parseo...</p>
+        <div class="pt-2">
+          <button id="btnOpenLoadingSlot" onclick="openGranFortuna('bet', true)" class="btn-vegas-led">
+            🎰 <span data-i18n="slot_loading_btn">Apostar mientras carga</span>
+          </button>
+        </div>
       </div>
 
       <!-- Visual Diagnostic Terminal (Real-time Step-by-Step Log) -->
@@ -999,23 +1040,61 @@
         <div class="hud-segment-divider" style="left: 90%;"></div>
         <!-- Metallic Relief Star Nodes -->
         <div class="star-node" data-star="1" style="left: 20%;">
-          <svg viewBox="0 0 24 24" class="star-svg"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <svg viewBox="0 0 28 28" class="star-svg" width="22" height="22">
+            <defs>
+              <linearGradient id="goldStarGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#fffbe6"/>
+                <stop offset="35%" stop-color="#ffd700"/>
+                <stop offset="70%" stop-color="#d4af37"/>
+                <stop offset="100%" stop-color="#7a4f08"/>
+              </linearGradient>
+            </defs>
+            <polygon points="14,2 17.5,9.5 25.5,10.5 19.5,15.8 21.5,23.8 14,19.8 6.5,23.8 8.5,15.8 2.5,10.5 10.5,9.5" fill="url(#goldStarGrad)" stroke="#ffe57f" stroke-width="1.2"/>
+            <polygon points="14,2 14,19.8 6.5,23.8 8.5,15.8 2.5,10.5 10.5,9.5" fill="rgba(0,0,0,0.18)"/>
+            <polygon points="14,2 17.5,9.5 14,19.8" fill="rgba(255,255,255,0.45)"/>
+          </svg>
         </div>
         <div class="star-node" data-star="2" style="left: 40%;">
-          <svg viewBox="0 0 24 24" class="star-svg"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <svg viewBox="0 0 28 28" class="star-svg" width="22" height="22">
+            <polygon points="14,2 17.5,9.5 25.5,10.5 19.5,15.8 21.5,23.8 14,19.8 6.5,23.8 8.5,15.8 2.5,10.5 10.5,9.5" fill="url(#goldStarGrad)" stroke="#ffe57f" stroke-width="1.2"/>
+            <polygon points="14,2 14,19.8 6.5,23.8 8.5,15.8 2.5,10.5 10.5,9.5" fill="rgba(0,0,0,0.18)"/>
+            <polygon points="14,2 17.5,9.5 14,19.8" fill="rgba(255,255,255,0.45)"/>
+          </svg>
         </div>
         <div class="star-node" data-star="3" style="left: 60%;">
-          <svg viewBox="0 0 24 24" class="star-svg"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <svg viewBox="0 0 28 28" class="star-svg" width="22" height="22">
+            <polygon points="14,2 17.5,9.5 25.5,10.5 19.5,15.8 21.5,23.8 14,19.8 6.5,23.8 8.5,15.8 2.5,10.5 10.5,9.5" fill="url(#goldStarGrad)" stroke="#ffe57f" stroke-width="1.2"/>
+            <polygon points="14,2 14,19.8 6.5,23.8 8.5,15.8 2.5,10.5 10.5,9.5" fill="rgba(0,0,0,0.18)"/>
+            <polygon points="14,2 17.5,9.5 14,19.8" fill="rgba(255,255,255,0.45)"/>
+          </svg>
         </div>
         <div class="star-node" data-star="4" style="left: 75%;">
-          <svg viewBox="0 0 24 24" class="star-svg"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <svg viewBox="0 0 28 28" class="star-svg" width="22" height="22">
+            <polygon points="14,2 17.5,9.5 25.5,10.5 19.5,15.8 21.5,23.8 14,19.8 6.5,23.8 8.5,15.8 2.5,10.5 10.5,9.5" fill="url(#goldStarGrad)" stroke="#ffe57f" stroke-width="1.2"/>
+            <polygon points="14,2 14,19.8 6.5,23.8 8.5,15.8 2.5,10.5 10.5,9.5" fill="rgba(0,0,0,0.18)"/>
+            <polygon points="14,2 17.5,9.5 14,19.8" fill="rgba(255,255,255,0.45)"/>
+          </svg>
         </div>
         <div class="star-node" data-star="5" style="left: 90%;">
-          <svg viewBox="0 0 24 24" class="star-svg"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <svg viewBox="0 0 28 28" class="star-svg" width="22" height="22">
+            <polygon points="14,2 17.5,9.5 25.5,10.5 19.5,15.8 21.5,23.8 14,19.8 6.5,23.8 8.5,15.8 2.5,10.5 10.5,9.5" fill="url(#goldStarGrad)" stroke="#ffe57f" stroke-width="1.2"/>
+            <polygon points="14,2 14,19.8 6.5,23.8 8.5,15.8 2.5,10.5 10.5,9.5" fill="rgba(0,0,0,0.18)"/>
+            <polygon points="14,2 17.5,9.5 14,19.8" fill="rgba(255,255,255,0.45)"/>
+          </svg>
         </div>
         <!-- Platinum Node at 100% -->
         <div id="hudPlatinumNode" class="hud-platinum-node hidden" style="left: 100%;">
-          <svg viewBox="0 0 24 24" class="plat-medal-svg"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" fill="none"/><polygon points="12 5 14 9.5 19 10 15 14 16.5 19 12 16 7.5 19 9 14 5 10 10 9.5 12 5" fill="currentColor"/></svg>
+          <svg viewBox="0 0 28 28" class="plat-medal-svg" width="24" height="24">
+            <defs>
+              <linearGradient id="hudPlatGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#ffffff"/>
+                <stop offset="40%" stop-color="#38bdf8"/>
+                <stop offset="100%" stop-color="#0369a1"/>
+              </linearGradient>
+            </defs>
+            <circle cx="14" cy="14" r="12" fill="url(#hudPlatGrad)" stroke="#bae6fd" stroke-width="1.5"/>
+            <polygon points="14,4 16.5,10 22.5,10.8 18,15 19.5,21.5 14,18 8.5,21.5 10,15 5.5,10.8 11.5,10" fill="#ffffff"/>
+          </svg>
         </div>
       </div>
 
@@ -1204,6 +1283,33 @@
 
       <!-- TAB 2: Discover View -->
       <div id="tabDiscoverSection" class="hidden space-y-3 pb-6" style="display: none;">
+
+        <!-- Gran Fortuna 1977 Vegas LED Controls -->
+        <div class="p-3 bg-gradient-to-r from-amber-950/80 via-yellow-950/60 to-black/80 border-2 border-amber-400/50 rounded-2xl shadow-2xl space-y-2.5">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">🎰</span>
+              <div>
+                <h3 class="text-xs font-black text-amber-300 uppercase tracking-wider" data-i18n="slot_title">Gran Fortuna 1977</h3>
+                <p class="text-[9px] text-amber-200/70 font-semibold tracking-wider" data-i18n="slot_sub">Las Vegas Mechanical Casino</p>
+              </div>
+            </div>
+            <span class="px-2.5 py-0.5 rounded-full bg-amber-500/30 text-amber-200 border border-amber-400/60 text-[10px] font-black tracking-wider shadow-sm">
+              777 VIP
+            </span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 pt-1">
+            <button id="btnSlotBet" onclick="openGranFortuna('bet')" class="btn-vegas-led py-2.5 text-xs font-black flex items-center justify-center gap-2 cursor-pointer">
+              <span>🎰</span>
+              <span data-i18n="slot_btn_bet">Apostar</span>
+            </button>
+            <button id="btnSlotFeatured" onclick="openGranFortuna('featured')" class="btn-vegas-led py-2.5 text-xs font-black flex items-center justify-center gap-2 cursor-pointer">
+              <span>★</span>
+              <span data-i18n="slot_btn_featured">Canciones Destacadas</span>
+            </button>
+          </div>
+        </div>
 
         <!-- 3 Canciones Destacadas de Hoy (Desafíos Diarios con Bonus 𝄞 x2) -->
         <div class="p-3 bg-gradient-to-r from-amber-950/70 via-purple-950/70 to-pink-950/70 border border-amber-500/40 rounded-2xl shadow-xl space-y-2.5">
@@ -2244,7 +2350,7 @@
         </section>
 
         <!-- Botones elevados con altura táctil accesible (56px y 50px) -->
-        <footer class="typewriter-keyboard-tier">
+        <footer class="typewriter-keyboard-tier" id="deathKeyboardTier">
           <button class="btn-brass-primary" id="btnDeathRevive" onclick="handleVintageReviveClick(event)">
             <span>REANUDAR PARTIDA</span>
             <span class="key-clef-badge"><span id="deathReviveBadgeCost">1</span> <span class="clef-symbol" style="font-size:16px; text-shadow:none;">𝄞</span></span>
@@ -2437,6 +2543,9 @@
           </button>
           <button id="lbSubTabGlobalBtn" onclick="switchLeaderboardSubTab('global')" class="flex-1 py-1 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white cursor-pointer font-serif">
             Global
+          </button>
+          <button id="lbSubTabWeeklyBtn" onclick="switchLeaderboardSubTab('weekly')" class="flex-1 py-1 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white cursor-pointer font-serif">
+            🏆 Semanal
           </button>
         </div>
 
@@ -2698,10 +2807,208 @@
         <div class="toast-capsule" id="resToastNotice"></div>
       </main>
     </div>
+  
+    <!-- MODAL VINTAGE SLOT MACHINE "GRAN FORTUNA 1977" -->
+    <div id="granFortunaModal" class="gran-fortuna-modal hidden" style="display: none;">
+      <!-- Lienzo balistico de monedas -->
+      <canvas id="coinCanvas"></canvas>
+
+      <!-- Barra superior flotante de controles / Cerrar / Notificacion de juego listo -->
+      <div class="w-full max-w-[420px] flex justify-between items-center px-1 mb-1.5 z-30">
+        <div class="flex items-center gap-1 bg-black/60 p-1 rounded-xl border border-amber-500/40 shadow">
+          <button id="slotTabBetBtn" onclick="setSlotMode('bet')" class="btn-vegas-led btn-vegas-led-active px-2.5 py-1 text-[10px]">
+            <span>🎰</span> <span data-i18n="slot_btn_bet">Apostar</span>
+          </button>
+          <button id="slotTabFeaturedBtn" onclick="setSlotMode('featured')" class="btn-vegas-led opacity-75 px-2.5 py-1 text-[10px]">
+            <span>★</span> <span data-i18n="slot_btn_featured">Canciones Destacadas</span>
+          </button>
+        </div>
+
+        <button id="btnSlotReadyNotification" onclick="proceedToGameFromSlot()" class="hidden px-3 py-1 bg-gradient-to-r from-emerald-400 to-green-500 text-black font-black text-xs rounded-full shadow-[0_0_15px_#10b981] animate-bounce cursor-pointer items-center gap-1">
+          <span data-i18n="slot_ready_btn">✨ ¡Canción lista! Continuar al juego</span>
+        </button>
+
+        <button onclick="closeGranFortuna()" class="px-3 py-1.5 rounded-full bg-red-950/80 hover:bg-red-800 border border-red-500/50 text-white font-bold text-xs tracking-wider shadow-lg cursor-pointer transition active:scale-95 flex items-center gap-1">
+          <span>✕</span> <span data-i18n="slot_close">Cerrar Casino</span>
+        </button>
+      </div>
+
+      <!-- MAQUINA TRAGAPERRAS CON SILUETA EN ARCO ESTILO EMOJI 🎰 -->
+      <div class="slot-cabinet flex flex-col items-center p-3 sm:p-4">
+        
+        <!-- SIRENA / BALIZA EN LA CUPULA SUPERIOR -->
+        <div class="siren-beacon-mount">
+          <div class="siren-glass-dome">
+            <div class="siren-revolving-beam"></div>
+          </div>
+          <div class="siren-brass-collar"></div>
+        </div>
+
+        <!-- CUPULA SUPERIOR CON 777 DE BOMBILLAS LED Y TITULO VINTAGE -->
+        <div class="arched-header">
+          <div class="sunburst-overlay"></div>
+
+          <!-- Placa de 777 formada por matriz de bombillas LED -->
+          <div class="z-20 flex flex-col items-center mb-1">
+            <div class="led-matrix-box mb-1.5">
+              <svg id="led777Svg" width="168" height="38" viewBox="0 0 168 38" class="block"></svg>
+            </div>
+            
+            <!-- Tipografia Vintage autentica "GRAN FORTUNA" -->
+            <h1 class="vintage-marquee-title text-center leading-none" data-i18n="slot_title">GRAN FORTUNA</h1>
+            <div class="vintage-ribbon-sub mt-1 flex items-center gap-2">
+              <span>◆</span>
+              <span id="slotRibbonText" data-i18n="slot_sub">LAS VEGAS 1977</span>
+              <span>◆</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANTALLA DE RODILLOS CON PERIMETRO DE BOMBILLAS -->
+        <div class="w-full bg-gradient-to-b from-[#eac56a] via-[#be9430] to-[#593d0f] p-2 rounded-2xl shadow-2xl my-3 border-2 border-amber-300/80">
+          <div class="bg-[#0f0c0a] rounded-xl p-1.5 border border-[#2b2118] relative">
+            
+            <!-- BOMBILLAS SUPERIORES -->
+            <div id="lightsTop" class="flex justify-between w-full px-1 mb-1"></div>
+
+            <div class="flex items-center">
+              <!-- BOMBILLAS IZQUIERDA -->
+              <div id="lightsLeft" class="flex flex-col justify-between h-[215px] py-1 mr-1"></div>
+
+              <!-- VISOR DE TAMBORES EN PERSPECTIVA CILINDRICA -->
+              <div id="reelFrameContainer" class="relative flex-1 rounded-lg border-4 border-[#1c1612] bg-[#faf6ed] overflow-hidden shadow-inner h-[215px]">
+                <canvas id="reelsCanvas" class="w-full h-full block"></canvas>
+
+                <!-- Sombreado de curvatura y reflejo de cristal -->
+                <div class="absolute inset-0 pointer-events-none bg-gradient-to-b from-black/65 via-transparent to-black/75 z-10"></div>
+                
+                <!-- Linea de pago roja central fija -->
+                <div class="absolute top-1/2 left-0 right-0 h-[2.5px] bg-red-600 -translate-y-1/2 pointer-events-none shadow-[0_0_10px_#ff0000] z-20 flex justify-between items-center px-1">
+                  <span class="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_#f00]"></span>
+                  <span class="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_#f00]"></span>
+                </div>
+              </div>
+
+              <!-- BOMBILLAS DERECHA -->
+              <div id="lightsRight" class="flex flex-col justify-between h-[215px] py-1 ml-1"></div>
+            </div>
+
+            <!-- BOMBILLAS INFERIORES -->
+            <div id="lightsBottom" class="flex justify-between w-full px-1 mt-1"></div>
+
+          </div>
+        </div>
+
+        <!-- MARCADORES DIGITALES MECANICOS LIMPIOS -->
+        <div class="w-full grid grid-cols-3 gap-2 mb-3">
+          <div class="flex flex-col items-center bg-[#0d0908] p-1.5 rounded-lg border border-amber-950">
+            <span class="text-[9px] text-amber-400 font-bold uppercase tracking-wider mb-0.5" data-i18n="slot_credits">CRÉDITOS</span>
+            <div id="creditsDisplay" class="retro-counter text-red-500 text-lg px-2 py-0.5 w-full text-center rounded font-bold">
+              0100
+            </div>
+          </div>
+
+          <div class="flex flex-col items-center bg-[#0d0908] p-1.5 rounded-lg border border-amber-950">
+            <span class="text-[9px] text-amber-400 font-bold uppercase tracking-wider mb-0.5" data-i18n="slot_bet">APUESTA</span>
+            <div id="betDisplay" class="retro-counter text-yellow-400 text-lg px-2 py-0.5 w-full text-center rounded font-bold">
+              0005
+            </div>
+          </div>
+
+          <div class="flex flex-col items-center bg-[#0d0908] p-1.5 rounded-lg border border-amber-950">
+            <span class="text-[9px] text-green-400 font-bold uppercase tracking-wider mb-0.5" data-i18n="slot_win">PREMIO</span>
+            <div id="winDisplay" class="retro-counter text-emerald-400 text-lg px-2 py-0.5 w-full text-center rounded font-bold shadow-[0_0_8px_rgba(52,211,153,0.3)]">
+              0000
+            </div>
+          </div>
+        </div>
+
+        <!-- BOTONERA DE CONTROL Y MANIVELA 360° -->
+        <div class="w-full bg-gradient-to-b from-[#221309] to-[#100703] p-2 rounded-xl border border-[#4d2a0e] shadow-xl flex items-center justify-between gap-2 mb-2.5">
+          
+          <!-- Selector de Apuesta -->
+          <div id="slotBetControlsGroup" class="flex items-center gap-1 bg-[#130904] p-1 rounded-lg border border-amber-950">
+            <button id="betDownBtn" class="bg-stone-700 hover:bg-stone-600 text-white font-bold w-7 h-7 rounded flex items-center justify-center text-xs active:translate-y-0.5 cursor-pointer">-</button>
+            <span class="text-[10px] font-black text-amber-200 px-1.5" data-i18n="slot_bet">APUESTA</span>
+            <button id="betUpBtn" class="bg-stone-700 hover:bg-stone-600 text-white font-bold w-7 h-7 rounded flex items-center justify-center text-xs active:translate-y-0.5 cursor-pointer">+</button>
+          </div>
+
+          <!-- Apuesta Maxima -->
+          <button id="maxBetBtn" class="bg-gradient-to-b from-blue-700 to-indigo-900 hover:from-blue-600 text-white font-black text-xs px-3 py-2 rounded-lg border border-blue-400 shadow active:translate-y-0.5 cursor-pointer" data-i18n="slot_max">
+            MAX
+          </button>
+
+          <!-- PALANCA GIRATORIA 360° -->
+          <div id="crankBase" class="crank-base flex items-center justify-center flex-shrink-0 cursor-pointer" title="Girar manivela">
+            <div id="crankArmGroup" class="crank-arm-group">
+              <div class="crank-shaft"></div>
+              <div class="crank-knob"></div>
+            </div>
+            <div class="w-5 h-5 rounded-full bg-gradient-to-b from-amber-300 to-amber-700 border border-amber-200 shadow z-10"></div>
+          </div>
+
+        </div>
+
+        <!-- RANURA IMPRESORA MATRICIAL CON BOTON MISTERIOSO DE LATON -->
+        <div class="w-full bg-[#140c07] border-t border-[#3b200b] p-2 rounded-xl flex items-center gap-3 relative mb-2">
+          
+          <!-- BOTON MISTERIOSO DE LATON -->
+          <button id="paperEjectButton" class="brass-eject-stud flex-shrink-0 cursor-pointer" title="Imprimir ticket"></button>
+
+          <!-- RENDIJA METALICA DE DONDE EXPULSA FISICAMENTE EL PAPEL -->
+          <div class="flex-1 relative">
+            <div class="printer-slit-bezel">
+              <div class="printer-mouth"></div>
+            </div>
+
+            <!-- PAPEL TIPO TICKER / MATRICIAL CONTINUO QUE SALE FISICAMENTE -->
+            <div id="printedPaperFeed" class="p-3">
+              <div class="border-b border-dashed border-stone-400 pb-1 mb-2 flex justify-between items-center text-[10px] text-purple-900 font-bold">
+                <span>GRAN FORTUNA 1977</span>
+                <span>OFICIAL</span>
+              </div>
+
+              <div class="space-y-1 text-[11px] font-mono leading-tight">
+                <div class="flex justify-between font-bold text-red-700"><span>3x SIETE ORO/RUBI</span><span>x25</span></div>
+                <div class="flex justify-between font-bold text-cyan-800"><span>3x DIAMANTE AZUL</span><span>x15</span></div>
+                <div class="flex justify-between font-bold text-amber-900"><span>3x CAMPANA LATON</span><span>x10</span></div>
+                <div class="flex justify-between font-bold text-stone-900"><span>3x LINGOTE BAR</span><span>x6</span></div>
+                <div class="flex justify-between font-bold text-rose-800"><span>3x CEREZAS RUBI</span><span>x4</span></div>
+                <div class="flex justify-between"><span>3x UVAS / NARANJA / LIMON</span><span>x3</span></div>
+                <div class="border-t border-dashed border-stone-400 pt-1 text-[10px] text-stone-600">
+                  <div class="flex justify-between"><span>2x Frutas</span><span>x2</span></div>
+                  <div class="flex justify-between"><span>1x Cereza solitaria</span><span>x1</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- BANDEJA METALICA CON TOLVA DE MONEDAS REAL -->
+        <div class="w-full bg-gradient-to-b from-[#181818] to-[#252525] rounded-b-2xl border-t-2 border-[#0a0807] p-2.5 flex flex-col items-center shadow-inner relative">
+          <div id="coinHopperChute" class="coin-hopper-chute"></div>
+          <div class="text-[9px] tracking-widest text-stone-500 font-mono uppercase mt-1">
+            DEPÓSITO
+          </div>
+        </div>
+
+        <!-- Sonido y aviso minimo -->
+        <div class="w-full mt-2 flex justify-between items-center text-[10px] text-amber-200/70 px-1">
+          <button id="soundToggleBtn" class="hover:text-amber-100 flex items-center gap-1 bg-[#1a0e07] px-2 py-0.5 rounded border border-[#3d200d] cursor-pointer">
+            <span id="slotSoundIcon">🔊</span>
+          </button>
+          <span id="statusMsg" class="font-mono text-amber-300">0000</span>
+        </div>
+
+      </div>
+    </div>
+
   </div> <!-- End of game-viewport -->
 
   <script src="./parsers.js?v=3.5"></script>
   <script src="./game.js?v=3.5"></script>
+  <script src="./slot_machine.js?v=1.0"></script>
   <script>
     let engine = null;
     let currentActiveBeatmap = null;
@@ -2842,9 +3149,19 @@
       localStorage.setItem('beatstar_active_effect', 'royal_brass');
     }
 
-    // Player Currency & Medals State (defaults 0 for new users, persists for returning users)
-    let userClefs = parseInt(localStorage.getItem('game_claves_de_sol') ?? localStorage.getItem('beatstar_clefs') ?? '0', 10);
-    if (isNaN(userClefs)) userClefs = 0;
+    // Player Currency & Medals State (100 claves de bienvenida para nuevos jugadores)
+    let hasAwardedInitialKeys = localStorage.getItem('beatstar_initial_keys_awarded');
+    let userClefs = parseInt(localStorage.getItem('game_claves_de_sol') ?? localStorage.getItem('beatstar_clefs') ?? '-1', 10);
+    if (!hasAwardedInitialKeys || isNaN(userClefs) || userClefs < 0) {
+      if (isNaN(userClefs) || userClefs <= 0) {
+        userClefs = 100;
+      } else {
+        userClefs = Math.max(100, userClefs);
+      }
+      localStorage.setItem('beatstar_initial_keys_awarded', 'true');
+      localStorage.setItem('game_claves_de_sol', userClefs.toString());
+      localStorage.setItem('beatstar_clefs', userClefs.toString());
+    }
 
     let userSilvers = parseInt(localStorage.getItem('game_platas') ?? localStorage.getItem('beatstar_silvers') ?? '0', 10);
     if (isNaN(userSilvers)) userSilvers = 0;
@@ -4158,6 +4475,20 @@
       clearDeathTypewriterSequences();
       try { getTypewriterAudioContext(); } catch(_) {}
 
+      const deathKeyboard = document.getElementById('deathKeyboardTier');
+      if (deathKeyboard) {
+        deathKeyboard.classList.remove('keyboard-revealed');
+        deathKeyboard.style.opacity = '0';
+        deathKeyboard.style.pointerEvents = 'none';
+        deathKeyboard.style.transform = 'translateY(20px)';
+        activeTypewriterDeathTimeouts.push(setTimeout(() => {
+          deathKeyboard.classList.add('keyboard-revealed');
+          deathKeyboard.style.opacity = '1';
+          deathKeyboard.style.pointerEvents = 'auto';
+          deathKeyboard.style.transform = 'translateY(0)';
+        }, 1000));
+      }
+
       const deathUserBalance = document.getElementById('deathUserBalance');
       if (deathUserBalance) deathUserBalance.innerText = (typeof userClefs !== 'undefined' ? userClefs : 0);
 
@@ -4402,9 +4733,19 @@
         let starsHtml = '';
         for (let i = 0; i < 5; i++) {
           if (i < stars) {
-            starsHtml += `<span style="color:#b8860b; text-shadow:0 0 1px #5a3d00; transform:scale(1.15);">★</span>`;
+            starsHtml += `
+              <svg viewBox="0 0 28 28" width="22" height="22" style="filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6));">
+                <polygon points="14,2 17.5,9.5 25.5,10.5 19.5,15.8 21.5,23.8 14,19.8 6.5,23.8 8.5,15.8 2.5,10.5 10.5,9.5" fill="url(#goldStarGrad)" stroke="#ffe57f" stroke-width="1.2"/>
+                <polygon points="14,2 14,19.8 6.5,23.8 8.5,15.8 2.5,10.5 10.5,9.5" fill="rgba(0,0,0,0.18)"/>
+                <polygon points="14,2 17.5,9.5 14,19.8" fill="rgba(255,255,255,0.45)"/>
+              </svg>
+            `;
           } else {
-            starsHtml += `<span style="color:rgba(90, 72, 53, 0.28);">★</span>`;
+            starsHtml += `
+              <svg viewBox="0 0 28 28" width="22" height="22" opacity="0.25">
+                <polygon points="14,2 17.5,9.5 25.5,10.5 19.5,15.8 21.5,23.8 14,19.8 6.5,23.8 8.5,15.8 2.5,10.5 10.5,9.5" fill="#5a4835" stroke="#3d2e1f" stroke-width="1"/>
+              </svg>
+            `;
           }
         }
         starsContainer.innerHTML = starsHtml;
@@ -4471,9 +4812,14 @@
         if (rewardCursor) rewardCursor.style.display = 'inline-block';
       }, delay));
 
-      // 5. Recompensa en rojo
+      // 5. Recompensa en rojo: desglose mecanografiado exacto (puntuación * 0.00001 * dificultad)
       delay += 240;
-      const rewardStr = `+${earnedClefs}`;
+      const rawStars = Number(currentActiveBeatmap?.metadata?.stars || currentActiveBeatmap?.stars || stars || 3.0);
+      const diffStarsClamped = Math.min(7, Math.max(1, Math.round(rawStars * 10) / 10));
+      const baseScoreClefs = Math.floor((score || 0) * 0.00001);
+      const totalCalculatedClefs = Math.max(1, Math.round(baseScoreClefs * diffStarsClamped));
+      const rewardStr = `${baseScoreClefs} × ${diffStarsClamped}★ = +${totalCalculatedClefs}`;
+
       for (let i = 0; i < rewardStr.length; i++) {
         const c = rewardStr[i];
         activeTypewriterResultsTimeouts.push(setTimeout(() => {
@@ -4490,7 +4836,7 @@
             rewardLetters.appendChild(span);
           }
         }, delay));
-        delay += 95;
+        delay += 85;
       }
 
       // Clave de sol
@@ -4500,9 +4846,10 @@
         if (rewardLetters) {
           const clefSpan = document.createElement('span');
           clefSpan.className = 'cost-clef-char';
-          clefSpan.innerText = '𝄞';
+          clefSpan.innerText = ' 𝄞';
           rewardLetters.appendChild(clefSpan);
         }
+        if (resUserBalance) resUserBalance.innerText = (typeof userClefs !== 'undefined' ? userClefs.toLocaleString() : '0');
       }, delay));
 
       // 6. Sello final con golpe
@@ -4627,6 +4974,17 @@
       currentActiveBeatmap = null;
 
       document.getElementById('fixedTopHud').classList.add('hidden');
+
+      // Limpiar y ocultar el canvas de juego para que no quede visible detrás del menú
+      const gameCanvas = document.getElementById('gameCanvas');
+      if (gameCanvas) {
+        gameCanvas.style.display = 'none';
+        gameCanvas.classList.add('hidden');
+        try {
+          const gCtx = gameCanvas.getContext('2d');
+          if (gCtx) gCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+        } catch (e) {}
+      }
 
       // Restaurar SIEMPRE el contenedor principal searchScreen
       const searchScreen = document.getElementById('searchScreen');
@@ -5044,6 +5402,7 @@
       executeSearch();
       renderCurrentLibrarySubtab();
       loadDailyFeaturedSongs();
+      checkWeeklyTournamentRewards();
     });
 
 
@@ -5189,6 +5548,17 @@ function switchMainTab(tab) {
   if (tab === 'discover' || tab === 'editor' || tab === 'library') {
     if (typeof checkCreatorNotifications === 'function') {
       checkCreatorNotifications();
+    }
+  }
+
+  // Silenciar música de menú inmediatamente al entrar al editor de pistas y reanudar al salir
+  if (tab === 'editor') {
+    if (typeof pauseMenuAmbientMusic === 'function') {
+      pauseMenuAmbientMusic();
+    }
+  } else if (!window.isGameLoadingOrActive && !window.isInCasinoMode) {
+    if (typeof resumeMenuAmbientMusic === 'function') {
+      resumeMenuAmbientMusic();
     }
   }
 }
@@ -5987,11 +6357,8 @@ function switchMainTab(tab) {
     });
 
     window.addEventListener('pagehide', handleAppBackground);
-    window.addEventListener('blur', () => {
-      if (document.hidden) {
-        handleAppBackground();
-      }
-    });
+    window.addEventListener('beforeunload', handleAppBackground);
+    window.addEventListener('blur', handleAppBackground);
     window.addEventListener('focus', () => {
       if (!document.hidden) {
         handleAppForeground();
@@ -6793,25 +7160,23 @@ function switchMainTab(tab) {
 
           const osuSetId = (chartItem.id || '').replace('osu_', '');
           const myWorker = (u) => `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(u)}`;
+          const apiBase = (typeof getApiBaseUrl === 'function') ? getApiBaseUrl() : '';
 
-          // 1º Intento: Proxy del servidor local (Rápido y sin CORS)
-          // 2º Intento: Nerinyan directo
-          // 3º Intento: Nerinyan v2 directo
-          // 4º Intento: Nerinyan vía Worker
-          // 5º Intento: Sayobot mini
-          // 6º Intento: Sayobot dl
+          // Espejos ordenados por velocidad y compatibilidad CORS:
           const osuCandidates = [
-            `/api/v1/download/osu/${osuSetId}`,
-            `https://api.nerinyan.moe/d/${osuSetId}?noVideo=true`,
-            `https://dl.nerinyan.moe/v2/d/${osuSetId}?noVideo=true`,
+            `${apiBase}/api/v1/download/osu/${osuSetId}`,
             myWorker(`https://api.nerinyan.moe/d/${osuSetId}?noVideo=true`),
+            `https://api.nerinyan.moe/d/${osuSetId}?noVideo=true`,
+            myWorker(`https://dl.nerinyan.moe/v2/d/${osuSetId}?noVideo=true`),
+            `https://dl.nerinyan.moe/v2/d/${osuSetId}?noVideo=true`,
+            myWorker(`https://txy1.sayobot.cn/beatmaps/download/mini/${osuSetId}`),
             `https://txy1.sayobot.cn/beatmaps/download/mini/${osuSetId}`,
             `https://dl.sayobot.cn/beatmaps/download/mini/${osuSetId}`
           ];
 
           const tryOsuFetch = async (url) => {
             const c = new AbortController();
-            const tid = setTimeout(() => c.abort(), 14000);
+            const tid = setTimeout(() => c.abort(), 4500);
             try {
               const r = await fetch(url, { signal: c.signal });
               clearTimeout(tid);
@@ -7059,6 +7424,13 @@ function switchMainTab(tab) {
     }
 function startGame(beatmapData, audioBlob, diffLabel = '') {
       if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
+      if (window.isSlotActiveDuringLoad) {
+        window.pendingGameToStart = { beatmapData, audioBlob, diffLabel };
+        if (typeof notifySongReadyInSlot === 'function') {
+          notifySongReadyInSlot();
+        }
+        return;
+      }
       if (!beatmapData) {
         showErrorToast('Error: Datos de canción no válidos.');
         return;
@@ -7209,6 +7581,12 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         searchScreen.style.display = 'none';
       }
 
+      const gameCanvas = document.getElementById('gameCanvas');
+      if (gameCanvas) {
+        gameCanvas.style.display = 'block';
+        gameCanvas.classList.remove('hidden');
+      }
+
       const topHud = document.getElementById('fixedTopHud');
       if (topHud) topHud.classList.remove('hidden');
 
@@ -7348,9 +7726,9 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       if (earnedMedalsEl) {
         let badgesHtml = '';
         if (earnedMedals) {
-          if (earnedMedals.platinum) badgesHtml += '<span class="medal-badge medal-badge-platinum inline-flex items-center gap-1"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="6 3 18 3 22 9 12 22 2 9 6 3"/></svg> +1</span>';
-          if (earnedMedals.gold) badgesHtml += '<span class="medal-badge medal-badge-gold inline-flex items-center gap-1"><svg width="10" height="10" viewBox="0 0 24 24" fill="#fcd34d" stroke="#fcd34d" stroke-width="1.5"><circle cx="12" cy="12" r="7"/></svg> +1</span>';
-          if (earnedMedals.silver) badgesHtml += '<span class="medal-badge medal-badge-silver inline-flex items-center gap-1"><svg width="10" height="10" viewBox="0 0 24 24" fill="#cbd5e1" stroke="#cbd5e1" stroke-width="1.5"><circle cx="12" cy="12" r="7"/></svg> +1</span>';
+          if (earnedMedals.platinum) badgesHtml += '<span class="medal-badge medal-badge-platinum inline-flex items-center gap-1.5"><svg viewBox="0 0 28 28" width="16" height="16" class="inline"><circle cx="14" cy="14" r="12" fill="url(#hudPlatGrad)" stroke="#bae6fd" stroke-width="1.5"/><polygon points="14,4 16.5,10 22.5,10.8 18,15 19.5,21.5 14,18 8.5,21.5 10,15 5.5,10.8 11.5,10" fill="#ffffff"/></svg> +1 PLATINO</span>';
+          if (earnedMedals.gold) badgesHtml += '<span class="medal-badge medal-badge-gold inline-flex items-center gap-1.5"><svg viewBox="0 0 28 28" width="16" height="16" class="inline"><polygon points="14,2 17.5,9.5 25.5,10.5 19.5,15.8 21.5,23.8 14,19.8 6.5,23.8 8.5,15.8 2.5,10.5 10.5,9.5" fill="url(#goldStarGrad)" stroke="#ffe57f" stroke-width="1.2"/><polygon points="14,2 14,19.8 6.5,23.8 8.5,15.8 2.5,10.5 10.5,9.5" fill="rgba(0,0,0,0.18)"/><polygon points="14,2 17.5,9.5 14,19.8" fill="rgba(255,255,255,0.45)"/></svg> +1 ORO</span>';
+          if (earnedMedals.silver) badgesHtml += '<span class="medal-badge medal-badge-silver inline-flex items-center gap-1.5"><svg viewBox="0 0 28 28" width="16" height="16" class="inline"><defs><linearGradient id="silverStarGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="45%" stop-color="#cbd5e1"/><stop offset="100%" stop-color="#475569"/></linearGradient></defs><polygon points="14,2 17.5,9.5 25.5,10.5 19.5,15.8 21.5,23.8 14,19.8 6.5,23.8 8.5,15.8 2.5,10.5 10.5,9.5" fill="url(#silverStarGrad)" stroke="#ffffff" stroke-width="1.2"/><polygon points="14,2 14,19.8 6.5,23.8 8.5,15.8 2.5,10.5 10.5,9.5" fill="rgba(0,0,0,0.2)"/><polygon points="14,2 17.5,9.5 14,19.8" fill="rgba(255,255,255,0.55)"/></svg> +1 PLATA</span>';
         }
         earnedMedalsEl.innerHTML = badgesHtml;
       }
@@ -10207,15 +10585,21 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       currentLeaderboardSubTab = tab;
       const songBtn = document.getElementById('lbSubTabSongBtn');
       const globalBtn = document.getElementById('lbSubTabGlobalBtn');
+      const weeklyBtn = document.getElementById('lbSubTabWeeklyBtn');
       const container = document.getElementById('leaderboardRowsContainer');
       if (!container) return;
 
+      [songBtn, globalBtn, weeklyBtn].forEach(b => {
+        if (b) b.className = 'flex-1 py-1 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white cursor-pointer font-serif';
+      });
+
       if (tab === 'song') {
         if (songBtn) songBtn.className = 'flex-1 py-1 rounded-lg text-[10px] font-bold bg-amber-500/25 text-amber-300 border border-amber-400/40 cursor-pointer font-serif';
-        if (globalBtn) globalBtn.className = 'flex-1 py-1 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white cursor-pointer font-serif';
         loadSongLeaderboard(currentLeaderboardChartId);
+      } else if (tab === 'weekly') {
+        if (weeklyBtn) weeklyBtn.className = 'flex-1 py-1 rounded-lg text-[10px] font-bold bg-amber-500/25 text-amber-300 border border-amber-400/40 cursor-pointer font-serif';
+        loadWeeklyLeaderboard();
       } else {
-        if (songBtn) songBtn.className = 'flex-1 py-1 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white cursor-pointer font-serif';
         if (globalBtn) globalBtn.className = 'flex-1 py-1 rounded-lg text-[10px] font-bold bg-amber-500/25 text-amber-300 border border-amber-400/40 cursor-pointer font-serif';
         loadGlobalLeaderboard();
       }
@@ -10285,11 +10669,13 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
           const res = await fetch(`${baseUrl}/api/v1/community/leaderboards/global`);
           if (res.ok) {
             const data = await res.json();
-            rows = (data.global_leaderboard || []).map(r => ({
-              player_name: r.player_name,
-              score: r.total_score || 0,
-              max_combo: r.songs_played ? `${r.songs_played} pistas` : '0 pistas',
-              stars: 5
+            rows = (data.global_leaderboard || data.leaderboard || []).map(r => ({
+              player_name: r.player_name || 'Jugador',
+              score: r.score || r.total_score || 0,
+              max_combo: r.max_combo || (r.songs_played ? `${r.songs_played} pistas` : '0'),
+              stars: r.stars || 5,
+              accuracy_pct: r.accuracy_pct,
+              medal_tier: r.medal_tier
             }));
           }
         }
@@ -10314,6 +10700,117 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       }
 
       renderLeaderboardRows(rows, container);
+    }
+
+    async function loadWeeklyLeaderboard() {
+      const container = document.getElementById('leaderboardRowsContainer');
+      if (!container) return;
+
+      container.innerHTML = `
+        <div class="p-4 text-center text-gray-400 text-xs font-serif">
+          <p>Cargando torneo semanal (Lunes a Domingo 23:59 UTC)...</p>
+        </div>
+      `;
+
+      let rows = [];
+      let timeRemainingText = '';
+      try {
+        const baseUrl = getApiBaseUrl();
+        if (baseUrl) {
+          const res = await fetch(`${baseUrl}/api/v1/community/leaderboards/weekly`);
+          if (res.ok) {
+            const data = await res.json();
+            rows = (data.weekly_leaderboard || data.leaderboard || []).map(r => ({
+              player_name: r.player_name || 'Jugador',
+              score: r.score || 0,
+              max_combo: r.max_combo || 0,
+              stars: r.stars || 3.5,
+              accuracy_pct: r.accuracy_pct,
+              medal_tier: r.medal_tier
+            }));
+            if (data.time_remaining_ms) {
+              const hours = Math.floor(data.time_remaining_ms / (1000 * 60 * 60));
+              const mins = Math.floor((data.time_remaining_ms % (1000 * 60 * 60)) / (1000 * 60));
+              timeRemainingText = `⏱️ ${hours}h ${mins}m restantes`;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Error cargando ranking semanal:', err);
+      }
+
+      const headerBanner = `
+        <div class="p-2 mb-2 bg-gradient-to-r from-amber-950/80 to-black border border-amber-500/40 rounded-xl space-y-1 text-center">
+          <div class="flex items-center justify-between text-[10px] font-bold text-amber-300">
+            <span>🏆 Torneo Semanal</span>
+            <span class="font-mono text-cyan-300">${timeRemainingText || 'Lunes a Domingo'}</span>
+          </div>
+          <div class="text-[8.5px] text-gray-300 flex justify-around border-t border-amber-500/20 pt-1">
+            <span>Top 1: <strong class="text-amber-400">1.000𝄞</strong></span>
+            <span>Top 2: <strong class="text-gray-300">500𝄞</strong></span>
+            <span>Top 3: <strong class="text-amber-600">250𝄞</strong></span>
+            <span>Top 10%: <strong class="text-cyan-300">100𝄞</strong></span>
+          </div>
+        </div>
+      `;
+
+      container.innerHTML = headerBanner;
+      const listDiv = document.createElement('div');
+      listDiv.className = 'space-y-1.5';
+      container.appendChild(listDiv);
+
+      renderLeaderboardRows(rows, listDiv);
+    }
+
+    function getCurrentUtcWeekId() {
+      const now = new Date();
+      const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+      const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+      const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+      return `${d.getUTCFullYear()}_W${weekNo}`;
+    }
+
+    async function checkWeeklyTournamentRewards() {
+      const currentWeek = getCurrentUtcWeekId();
+      const lastClaimedWeek = localStorage.getItem('beatstar_last_claimed_week');
+      if (!lastClaimedWeek) {
+        localStorage.setItem('beatstar_last_claimed_week', currentWeek);
+        return;
+      }
+      if (lastClaimedWeek !== currentWeek) {
+        try {
+          const baseUrl = getApiBaseUrl();
+          if (baseUrl) {
+            const res = await fetch(`${baseUrl}/api/v1/community/leaderboards/weekly`);
+            if (res.ok) {
+              const data = await res.json();
+              const nickname = localStorage.getItem('beatstar_player_nickname') || 'Tú';
+              const weeklyList = data.weekly_leaderboard || [];
+              const myEntry = weeklyList.find(e => e.player_name === nickname);
+              if (myEntry) {
+                const rank = myEntry.rank || (weeklyList.indexOf(myEntry) + 1);
+                const total = Math.max(1, weeklyList.length);
+                let rewardClefs = 0;
+                if (rank === 1) rewardClefs = 1000;
+                else if (rank === 2) rewardClefs = 500;
+                else if (rank === 3) rewardClefs = 250;
+                else if (rank <= Math.ceil(total * 0.10)) rewardClefs = 100;
+                else if (rank <= Math.ceil(total * 0.20)) rewardClefs = 50;
+                else if (rank <= Math.ceil(total * 0.50)) rewardClefs = 20;
+
+                if (rewardClefs > 0) {
+                  addClefs(rewardClefs);
+                  showSuccessToast(`🏆 ¡Premio de Torneo Semanal: +${rewardClefs} 𝄞 por alcanzar el puesto #${rank}!`);
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Error verificando recompensas semanales:', e);
+        }
+        localStorage.setItem('beatstar_last_claimed_week', currentWeek);
+      }
     }
 
     function renderLeaderboardRows(rows, container) {

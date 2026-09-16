@@ -18,6 +18,8 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 const STATIC_DIR = path.join(__dirname, 'app', 'static');
 const COMMUNITY_DIR = path.join(__dirname, 'app', 'uploads', 'community');
 const SONGS_DIR = path.join(STATIC_DIR, 'songs');
+const SCORES_FILE = path.join(__dirname, 'app', 'uploads', 'leaderboard_scores.json');
+const RATINGS_FILE = path.join(__dirname, 'app', 'uploads', 'chart_ratings.json');
 
 // In-memory data store for community charts, ratings, and leaderboards
 const communityCharts = new Map();
@@ -25,6 +27,62 @@ const chartScores = new Map();
 const chartRatings = new Map();
 const followedCreators = new Set();
 const players = new Map();
+
+function saveScoresToDisk() {
+  try {
+    fs.mkdirSync(path.dirname(SCORES_FILE), { recursive: true });
+    const obj = {};
+    for (const [id, scores] of chartScores.entries()) {
+      obj[id] = scores;
+    }
+    fs.writeFileSync(SCORES_FILE, JSON.stringify(obj, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('[Server] Could not save scores to disk:', err.message);
+  }
+}
+
+function loadScoresFromDisk() {
+  try {
+    if (fs.existsSync(SCORES_FILE)) {
+      const raw = fs.readFileSync(SCORES_FILE, 'utf-8');
+      const obj = JSON.parse(raw);
+      for (const [id, scores] of Object.entries(obj)) {
+        chartScores.set(id, scores);
+      }
+      console.log(`[Server] Loaded persistent scores for ${chartScores.size} charts.`);
+    }
+  } catch (err) {
+    console.warn('[Server] Could not load scores from disk:', err.message);
+  }
+}
+
+function saveRatingsToDisk() {
+  try {
+    fs.mkdirSync(path.dirname(RATINGS_FILE), { recursive: true });
+    const obj = {};
+    for (const [id, ratings] of chartRatings.entries()) {
+      obj[id] = ratings;
+    }
+    fs.writeFileSync(RATINGS_FILE, JSON.stringify(obj, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('[Server] Could not save ratings to disk:', err.message);
+  }
+}
+
+function loadRatingsFromDisk() {
+  try {
+    if (fs.existsSync(RATINGS_FILE)) {
+      const raw = fs.readFileSync(RATINGS_FILE, 'utf-8');
+      const obj = JSON.parse(raw);
+      for (const [id, ratings] of Object.entries(obj)) {
+        chartRatings.set(id, ratings);
+      }
+      console.log(`[Server] Loaded persistent ratings for ${chartRatings.size} charts.`);
+    }
+  } catch (err) {
+    console.warn('[Server] Could not load ratings from disk:', err.message);
+  }
+}
 
 // Helper to seed community charts from disk
 function seedCommunityCharts() {
@@ -226,6 +284,8 @@ function seedCommunityCharts() {
 }
 
 seedCommunityCharts();
+loadScoresFromDisk();
+loadRatingsFromDisk();
 
 // ==========================================
 // 1. Health & Status Endpoints
@@ -381,12 +441,39 @@ app.all(['/api/proxy', '/api/v1/download/proxy'], async (req, res) => {
 // ==========================================
 // 3. Community Endpoints
 // ==========================================
-// Featured daily tracks
+// Featured daily tracks - Filtradas por valoraciones de las últimas 48h
 app.get('/api/v1/community/featured', (req, res) => {
-  const charts = Array.from(communityCharts.values())
-    .sort((a, b) => b.rating_avg - a.rating_avg || b.votes_count - a.votes_count)
-    .slice(0, 6);
-  res.json(charts);
+  const FORTY_EIGHT_HOURS_MS = 48 * 60 * 60 * 1000;
+  const now = Date.now();
+
+  const chartsWithRecentStats = Array.from(communityCharts.values()).map(chart => {
+    const ratings = chartRatings.get(chart.id) || [];
+    const recentRatings = ratings.filter(r => (now - (r.timestamp || 0)) <= FORTY_EIGHT_HOURS_MS);
+
+    if (recentRatings.length > 0) {
+      const totalStars = recentRatings.reduce((sum, r) => sum + (r.rating || 5), 0);
+      const avgStars = Math.round((totalStars / recentRatings.length) * 10) / 10;
+      return {
+        ...chart,
+        rating_avg: avgStars,
+        votes_count: recentRatings.length,
+        has_recent_votes: true
+      };
+    }
+    return {
+      ...chart,
+      has_recent_votes: false
+    };
+  });
+
+  // Priorizar pistas con votos en las últimas 48h; si hay pocas, complementar con las de mejor promedio
+  chartsWithRecentStats.sort((a, b) => {
+    if (a.has_recent_votes && !b.has_recent_votes) return -1;
+    if (!a.has_recent_votes && b.has_recent_votes) return 1;
+    return b.rating_avg - a.rating_avg || b.votes_count - a.votes_count;
+  });
+
+  res.json(chartsWithRecentStats.slice(0, 6));
 });
 
 // Search community tracks
@@ -674,6 +761,19 @@ app.post('/api/v1/community/charts/:id/rate', (req, res) => {
     chart.sync_votes_count = newSyncVotes;
 
     communityCharts.set(id, chart);
+
+    // Guardar en el histórico detallado con timestamp para la ventana de 48h
+    const existingRatings = chartRatings.get(id) || [];
+    existingRatings.push({
+      rating: numRating,
+      sync_pct: numSync,
+      comment: comment || '',
+      timestamp: Date.now(),
+      created_at: new Date().toISOString()
+    });
+    chartRatings.set(id, existingRatings);
+    saveRatingsToDisk();
+
     return res.json({
       success: true,
       new_rating_avg: chart.rating_avg,
@@ -691,14 +791,17 @@ app.post('/api/v1/community/charts/:id/score', (req, res) => {
   const { score, max_combo, stars, accuracy_pct, medal_tier, player_name } = req.body;
 
   const currentScores = chartScores.get(id) || [];
+  const now = Date.now();
   const newEntry = {
     rank: 1,
+    chart_id: id,
     player_name: player_name || 'Jugador Anónimo',
     score: parseInt(score, 10) || 0,
     max_combo: parseInt(max_combo, 10) || 0,
     stars: parseFloat(stars) || 3.5,
     accuracy_pct: parseFloat(accuracy_pct) || 100.0,
     medal_tier: medal_tier || 'gold',
+    timestamp: now,
     created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
   };
 
@@ -707,31 +810,87 @@ app.post('/api/v1/community/charts/:id/score', (req, res) => {
   currentScores.forEach((s, idx) => (s.rank = idx + 1));
 
   chartScores.set(id, currentScores.slice(0, 50));
+  saveScoresToDisk();
 
   res.json({
     success: true,
     rank: newEntry.rank,
     is_new_record: newEntry.rank === 1,
     total_players: currentScores.length,
+    entry: newEntry
   });
 });
 
-// Chart Leaderboard
-app.get('/api/v1/community/charts/:id/leaderboard', (req, res) => {
+// Chart Leaderboard (Compatible tanto con .leaderboard como array directo)
+app.get(['/api/v1/community/charts/:id/leaderboard', '/api/v1/community/charts/:id/leaderboards'], (req, res) => {
   const id = req.params.id;
   const scores = chartScores.get(id) || [];
-  res.json(scores);
+  res.json({
+    success: true,
+    leaderboard: scores,
+    scores: scores,
+    total: scores.length
+  });
 });
 
-// Global Leaderboard
-app.get('/api/v1/community/leaderboard/global', (req, res) => {
+// Global Leaderboard (Compatible con /leaderboard/global y /leaderboards/global)
+app.get(['/api/v1/community/leaderboard/global', '/api/v1/community/leaderboards/global'], (req, res) => {
   const allScores = [];
   chartScores.forEach((scores) => {
     allScores.push(...scores);
   });
   allScores.sort((a, b) => b.score - a.score);
   allScores.forEach((s, idx) => (s.rank = idx + 1));
-  res.json(allScores.slice(0, 50));
+  const topScores = allScores.slice(0, 50);
+
+  res.json({
+    success: true,
+    global_leaderboard: topScores,
+    leaderboard: topScores,
+    total: allScores.length
+  });
+});
+
+// Weekly Leaderboard (Torneo Semanal: Lunes 00:00:00 a Domingo 23:59:59 UTC)
+app.get(['/api/v1/community/leaderboard/weekly', '/api/v1/community/leaderboards/weekly'], (req, res) => {
+  const now = new Date();
+  const day = now.getUTCDay(); // 0 es Domingo, 1 es Lunes
+  const diffToMonday = (day === 0 ? -6 : 1) - day;
+  const monday = new Date(now);
+  monday.setUTCDate(now.getUTCDate() + diffToMonday);
+  monday.setUTCHours(0, 0, 0, 0);
+
+  const sundayEnd = new Date(monday);
+  sundayEnd.setUTCDate(monday.getUTCDate() + 6);
+  sundayEnd.setUTCHours(23, 59, 59, 999);
+
+  const mondayMs = monday.getTime();
+  const sundayMs = sundayEnd.getTime();
+
+  const weeklyScores = [];
+  chartScores.forEach((scores, cId) => {
+    scores.forEach(s => {
+      const sTime = s.timestamp || (s.created_at ? new Date(s.created_at).getTime() : 0);
+      if (sTime >= mondayMs && sTime <= sundayMs) {
+        weeklyScores.push({ ...s, chart_id: s.chart_id || cId });
+      }
+    });
+  });
+
+  weeklyScores.sort((a, b) => b.score - a.score);
+  weeklyScores.forEach((s, idx) => (s.rank = idx + 1));
+  const topWeekly = weeklyScores.slice(0, 50);
+
+  res.json({
+    success: true,
+    weekly_leaderboard: topWeekly,
+    leaderboard: topWeekly,
+    week_start: monday.toISOString(),
+    week_end: sundayEnd.toISOString(),
+    current_time: now.toISOString(),
+    time_remaining_ms: Math.max(0, sundayMs - now.getTime()),
+    total_participants: weeklyScores.length
+  });
 });
 
 // Creator profile & follow
