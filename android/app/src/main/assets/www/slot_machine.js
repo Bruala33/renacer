@@ -2,12 +2,12 @@
  * GRAN FORTUNA 1977 - Mechanical Arcade Slot Machine
  * Recreacion mecanica ultra-fiel de la Gran Fortuna 1977
  * Incluye:
- * - Modo "Apostar" (Claves reales del usuario, pagos de casino 1977)
- * - Modo "Canciones Destacadas" (Tirada gratis, impresion matricial de 3 canciones con boton directo de jugar)
- * - Sonidos mecanicos sintetizados con WebAudio nativo (100% offline, cero dependencias)
- * - Musica de casino ambiental
- * - Integracion con pantalla de carga de cancion (pausa y reanudacion)
- * - Soporte bilingue ES / EN
+ * - Modo "Apostar" (Claves reales del usuario, pagos de casino 1977, lluvia balistica de Claves de Sol 𝄞 segun premio)
+ * - Modo "Canciones Destacadas" (Tirada gratis, 3 rodillos cilindricos girando canciones con boton interactivo [ ▶ JUGAR ] directo en el tambor)
+ * - Sonidos reales MP3 por nivel de premio (slot_win_1.mp3 a slot_win_5.mp3)
+ * - Musica de casino ambiental con ciclo de vida blindado (sin solapamiento con menu al loopear o minimizar)
+ * - Simbolos arcade 1977 hiperrealistas (Siete 7 rubi profundo con relieve oro cromo)
+ * - Integracion con pantalla de carga de cancion (apertura automatica y aviso de lista)
  */
 
 (function () {
@@ -126,7 +126,7 @@
     } catch (_) {}
   }
 
-  function soundWin(isJackpot) {
+  function playSyntheticWinSound(isJackpot) {
     if (isSoundMuted || !slotAudioCtx) return;
     try {
       const notes = isJackpot
@@ -150,17 +150,56 @@
   }
 
   // ============================================================
-  // 2. CASINO BACKGROUND MUSIC MANAGER
+  // 2. CASINO MP3 WIN SOUNDS (TIERS 1 - 5) & CASINO BGM
   // ============================================================
+  const winAudioCache = {};
+
+  function soundWin(multOrIsJackpot) {
+    if (isSoundMuted) return;
+    let mult = typeof multOrIsJackpot === 'number' ? multOrIsJackpot : (multOrIsJackpot ? 25 : 5);
+    let tier = 1;
+    if (mult >= 25) tier = 5;      // Mega Jackpot 777 (11.59s)
+    else if (mult >= 10) tier = 4; // Big Win (3.09s)
+    else if (mult >= 6) tier = 3;  // Good Win (2.96s)
+    else if (mult >= 3) tier = 2;  // Medium Win (2.47s)
+    else tier = 1;                 // Small Win (1.71s)
+
+    try {
+      const src = `assets/slot_win_${tier}.mp3`;
+      if (!winAudioCache[src]) {
+        winAudioCache[src] = new Audio(src);
+      }
+      const audio = winAudioCache[src];
+      audio.currentTime = 0;
+      audio.volume = 0.90;
+      const p = audio.play();
+      if (p !== undefined) {
+        p.catch(() => {
+          playSyntheticWinSound(tier >= 4);
+        });
+      }
+    } catch (_) {
+      playSyntheticWinSound(tier >= 4);
+    }
+  }
+
   let casinoBgmAudio = null;
 
   function playCasinoMusic() {
+    window.isCasinoActive = true;
     if (typeof window.pauseMenuAmbientMusic === 'function') {
       window.pauseMenuAmbientMusic();
     }
     if (!casinoBgmAudio) {
       casinoBgmAudio = new Audio('assets/casino_music.mp3');
       casinoBgmAudio.loop = true;
+      // Prevenir estrictamente que el término o loop del track dispare la música de menú
+      casinoBgmAudio.addEventListener('ended', () => {
+        if (window.isCasinoActive) {
+          casinoBgmAudio.currentTime = 0;
+          casinoBgmAudio.play().catch(() => {});
+        }
+      });
     }
     casinoBgmAudio.volume = 0.55;
     try {
@@ -169,7 +208,25 @@
     } catch (_) {}
   }
 
+  function pauseCasinoMusic() {
+    if (casinoBgmAudio) {
+      try {
+        casinoBgmAudio.pause();
+      } catch (_) {}
+    }
+  }
+
+  function resumeCasinoMusic() {
+    if (window.isCasinoActive && casinoBgmAudio) {
+      try {
+        const p = casinoBgmAudio.play();
+        if (p !== undefined) p.catch(() => {});
+      } catch (_) {}
+    }
+  }
+
   function stopCasinoMusic() {
+    window.isCasinoActive = false;
     if (casinoBgmAudio) {
       try {
         casinoBgmAudio.pause();
@@ -182,6 +239,11 @@
       }
     }
   }
+
+  window.playCasinoMusic = playCasinoMusic;
+  window.pauseCasinoMusic = pauseCasinoMusic;
+  window.resumeCasinoMusic = resumeCasinoMusic;
+  window.stopCasinoMusic = stopCasinoMusic;
 
   // ============================================================
   // 3. VECTOR SYMBOLS DRAWING (CANVAS 200x200 CACHED)
@@ -198,44 +260,77 @@
     ctx.save();
     ctx.translate(100, 100);
 
-    // Sombra
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    // 1. Sombra pesada de relieve profundo 3D
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
     ctx.beginPath();
-    ctx.moveTo(-32, -46); ctx.lineTo(38, -46); ctx.lineTo(38, -28);
-    ctx.lineTo(2, 52); ctx.lineTo(-24, 52); ctx.lineTo(12, -28); ctx.lineTo(-32, -28);
+    ctx.moveTo(-36, -42);
+    ctx.lineTo(44, -42);
+    ctx.lineTo(44, -22);
+    ctx.lineTo(8, 62);
+    ctx.lineTo(-20, 62);
+    ctx.lineTo(16, -22);
+    ctx.lineTo(-36, -22);
     ctx.closePath();
     ctx.fill();
 
-    // Borde oro
-    ctx.lineWidth = 10;
-    ctx.lineJoin = 'round';
-    const goldGrad = ctx.createLinearGradient(-35, -50, 35, 50);
-    goldGrad.addColorStop(0, '#fff4b8');
-    goldGrad.addColorStop(0.3, '#d4af37');
-    goldGrad.addColorStop(0.7, '#805912');
-    goldGrad.addColorStop(1, '#ffd700');
-    ctx.strokeStyle = goldGrad;
+    // 2. Marco exterior de bisel oro pulido (Cromo dorado 1977 Las Vegas)
+    const goldGradOuter = ctx.createLinearGradient(-40, -50, 40, 50);
+    goldGradOuter.addColorStop(0.0, '#fff4b8');
+    goldGradOuter.addColorStop(0.22, '#ffd700');
+    goldGradOuter.addColorStop(0.50, '#d4af37');
+    goldGradOuter.addColorStop(0.78, '#855f1a');
+    goldGradOuter.addColorStop(1.0, '#ffd700');
+
+    ctx.lineWidth = 14;
+    ctx.lineJoin = 'miter';
+    ctx.miterLimit = 3;
+    ctx.strokeStyle = goldGradOuter;
 
     ctx.beginPath();
-    ctx.moveTo(-35, -50); ctx.lineTo(35, -50); ctx.lineTo(35, -30);
-    ctx.lineTo(0, 48); ctx.lineTo(-24, 48); ctx.lineTo(10, -30); ctx.lineTo(-35, -30);
+    ctx.moveTo(-38, -48);
+    ctx.lineTo(40, -48);
+    ctx.lineTo(40, -26);
+    ctx.lineTo(4, 54);
+    ctx.lineTo(-24, 54);
+    ctx.lineTo(12, -26);
+    ctx.lineTo(-38, -26);
     ctx.closePath();
     ctx.stroke();
 
-    // Rubi
-    const rubyGrad = ctx.createLinearGradient(-20, -40, 20, 40);
-    rubyGrad.addColorStop(0, '#ff3b3b');
-    rubyGrad.addColorStop(0.4, '#c61111');
-    rubyGrad.addColorStop(0.8, '#820505');
-    rubyGrad.addColorStop(1, '#4a0000');
+    // 3. Bisel interior dorado brillante fino
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#fff8d6';
+    ctx.stroke();
+
+    // 4. Núcleo de esmalte Rubí Profundo con multicapa de degradados (Auténtico 7 de casino 1977)
+    const rubyGrad = ctx.createLinearGradient(-25, -45, 25, 45);
+    rubyGrad.addColorStop(0.0, '#ff4d4d');
+    rubyGrad.addColorStop(0.20, '#d61111');
+    rubyGrad.addColorStop(0.55, '#8c0303');
+    rubyGrad.addColorStop(0.85, '#4f0000');
+    rubyGrad.addColorStop(1.0, '#220000');
+
     ctx.fillStyle = rubyGrad;
     ctx.fill();
 
-    // Brillo
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
-    ctx.lineWidth = 3;
+    // 5. Reflejo especular superior brillante (cristal biselado)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.88)';
+    ctx.lineWidth = 3.5;
     ctx.beginPath();
-    ctx.moveTo(-26, -44); ctx.lineTo(26, -44);
+    ctx.moveTo(-32, -42);
+    ctx.lineTo(32, -42);
+    ctx.stroke();
+
+    // 6. Resplandor secundario a lo largo de la pata diagonal del 7
+    const diagGrad = ctx.createLinearGradient(12, -24, -10, 48);
+    diagGrad.addColorStop(0.0, 'rgba(255, 255, 255, 0.8)');
+    diagGrad.addColorStop(0.5, 'rgba(255, 140, 140, 0.45)');
+    diagGrad.addColorStop(1.0, 'rgba(255, 255, 255, 0)');
+    ctx.strokeStyle = diagGrad;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(30, -22);
+    ctx.lineTo(-6, 48);
     ctx.stroke();
 
     ctx.restore();
@@ -246,12 +341,12 @@
     ctx.translate(100, 100);
 
     // Sombra
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.beginPath();
     ctx.moveTo(3, -47); ctx.lineTo(47, 3); ctx.lineTo(3, 53); ctx.lineTo(-41, 3);
     ctx.closePath(); ctx.fill();
 
-    // Borde oro blanco / platino
+    // Borde platino
     ctx.lineWidth = 8;
     ctx.lineJoin = 'round';
     const borderGrad = ctx.createLinearGradient(-45, -45, 45, 45);
@@ -273,7 +368,7 @@
     ctx.fillStyle = diaGrad; ctx.fill();
 
     // Facetas talladas
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(0, -45); ctx.lineTo(0, 50);
@@ -290,7 +385,7 @@
     ctx.translate(100, 95);
 
     // Sombra
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
     ctx.beginPath();
     ctx.arc(3, 40, 14, 0, Math.PI * 2);
     ctx.fill();
@@ -333,7 +428,7 @@
     ctx.stroke();
 
     // Brillo curvo
-    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.bezierCurveTo(-10, -25, -22, -5, -24, 15);
@@ -347,31 +442,34 @@
     ctx.translate(100, 100);
 
     // Sombra
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.beginPath();
-    ctx.roundRect(-52, -26, 110, 58, 8);
+    if (ctx.roundRect) ctx.roundRect(-52, -26, 110, 58, 8);
+    else ctx.rect(-52, -26, 110, 58);
     ctx.fill();
 
-    // Borde cromo
+    // Borde cromo 3D
     const barBorder = ctx.createLinearGradient(-55, -30, 55, 30);
     barBorder.addColorStop(0, '#ffffff');
-    barBorder.addColorStop(0.5, '#7a7a7a');
-    barBorder.addColorStop(1, '#242424');
+    barBorder.addColorStop(0.3, '#d4d4d4');
+    barBorder.addColorStop(0.7, '#6e6e6e');
+    barBorder.addColorStop(1, '#1e1e1e');
     ctx.strokeStyle = barBorder;
     ctx.lineWidth = 7;
     ctx.beginPath();
-    ctx.roundRect(-55, -30, 110, 60, 8);
+    if (ctx.roundRect) ctx.roundRect(-55, -30, 110, 60, 8);
+    else ctx.rect(-55, -30, 110, 60);
     ctx.stroke();
 
     // Fondo oscuro esmaltado
     const barBg = ctx.createLinearGradient(0, -28, 0, 28);
-    barBg.addColorStop(0, '#1c1c1c');
-    barBg.addColorStop(0.5, '#0a0a0a');
-    barBg.addColorStop(1, '#242424');
+    barBg.addColorStop(0, '#222222');
+    barBg.addColorStop(0.5, '#0c0c0c');
+    barBg.addColorStop(1, '#2a2a2a');
     ctx.fillStyle = barBg;
     ctx.fill();
 
-    // Texto BAR en relieve
+    // Texto BAR en relieve dorado
     ctx.font = '900 28px "Montserrat", "Arial Black", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -423,7 +521,7 @@
     ctx.strokeStyle = '#290000'; ctx.lineWidth = 2; ctx.stroke();
 
     // Brillo Cereza 1
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
     ctx.beginPath(); ctx.arc(-28, 11, 4, 0, Math.PI * 2); ctx.fill();
 
     // Cereza Derecha
@@ -437,7 +535,7 @@
     ctx.strokeStyle = '#290000'; ctx.lineWidth = 2; ctx.stroke();
 
     // Brillo Cereza 2
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
     ctx.beginPath(); ctx.arc(16, 13, 4, 0, Math.PI * 2); ctx.fill();
 
     ctx.restore();
@@ -447,28 +545,32 @@
     ctx.save();
     ctx.translate(100, 100);
 
-    // Tallo y hoja
-    ctx.strokeStyle = '#3d6313'; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.moveTo(0, -38); ctx.lineTo(0, -28); ctx.stroke();
-    ctx.fillStyle = '#4c8213';
-    ctx.beginPath();
-    ctx.moveTo(0, -35); ctx.quadraticCurveTo(16, -42, 20, -30);
-    ctx.quadraticCurveTo(8, -26, 0, -35);
-    ctx.fill();
+    // Sombra
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath(); ctx.arc(3, 5, 38, 0, Math.PI * 2); ctx.fill();
 
-    // Cuerpo naranja
-    const oGrad = ctx.createRadialGradient(-10, -10, 5, 0, 0, 36);
-    oGrad.addColorStop(0, '#ffe17d');
-    oGrad.addColorStop(0.3, '#ff9900');
-    oGrad.addColorStop(0.8, '#d45d00');
-    oGrad.addColorStop(1, '#662600');
+    // Naranja
+    const oGrad = ctx.createRadialGradient(-12, -12, 5, 0, 0, 42);
+    oGrad.addColorStop(0, '#ffc04d');
+    oGrad.addColorStop(0.4, '#ff8c00');
+    oGrad.addColorStop(0.8, '#d95300');
+    oGrad.addColorStop(1, '#802600');
     ctx.fillStyle = oGrad;
-    ctx.beginPath(); ctx.arc(0, 4, 35, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#471c03'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, 36, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#662200'; ctx.lineWidth = 2.5; ctx.stroke();
 
-    // Brillo
-    ctx.fillStyle = 'rgba(255,255,255,0.55)';
-    ctx.beginPath(); ctx.arc(-12, -8, 6, 0, Math.PI * 2); ctx.fill();
+    // Textura de poros
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.beginPath(); ctx.arc(-10, -10, 8, 0, Math.PI * 2); ctx.fill();
+
+    // Tallo y hoja
+    ctx.strokeStyle = '#4d3319'; ctx.lineWidth = 3.5;
+    ctx.beginPath(); ctx.moveTo(0, -36); ctx.lineTo(4, -45); ctx.stroke();
+
+    ctx.fillStyle = '#408010';
+    ctx.beginPath();
+    ctx.moveTo(2, -40); ctx.quadraticCurveTo(18, -46, 22, -36); ctx.quadraticCurveTo(10, -33, 2, -40);
+    ctx.fill();
 
     ctx.restore();
   }
@@ -476,69 +578,75 @@
   function drawLemon(ctx) {
     ctx.save();
     ctx.translate(100, 100);
+    ctx.rotate(-0.35);
 
-    ctx.rotate(0.35);
+    // Sombra
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(3, 4, 44, 30, 0, 0, Math.PI * 2); ctx.fill();
 
-    const lGrad = ctx.createRadialGradient(-10, -10, 5, 0, 0, 38);
-    lGrad.addColorStop(0, '#ffffcc');
-    lGrad.addColorStop(0.3, '#ffee33');
-    lGrad.addColorStop(0.7, '#ccaa00');
-    lGrad.addColorStop(1, '#5e4e00');
+    // Limon eliptico
+    const lGrad = ctx.createRadialGradient(-10, -10, 6, 0, 0, 46);
+    lGrad.addColorStop(0, '#ffff80');
+    lGrad.addColorStop(0.4, '#ffd900');
+    lGrad.addColorStop(0.8, '#cca300');
+    lGrad.addColorStop(1, '#806600');
+    ctx.fillStyle = lGrad;
 
     ctx.beginPath();
-    ctx.moveTo(-38, 4);
-    ctx.quadraticCurveTo(-26, -28, 0, -28);
-    ctx.quadraticCurveTo(26, -28, 38, 4);
-    ctx.quadraticCurveTo(26, 34, 0, 34);
-    ctx.quadraticCurveTo(-26, 34, -38, 4);
-    ctx.closePath();
-    ctx.fillStyle = lGrad;
-    ctx.fill();
-    ctx.strokeStyle = '#362600';
-    ctx.lineWidth = 2.5;
-    ctx.stroke();
+    ctx.ellipse(0, 0, 42, 28, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#665200'; ctx.lineWidth = 2.5; ctx.stroke();
+
+    // Extremos puntiagudos del limon
+    ctx.beginPath(); ctx.arc(-42, 0, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(42, 0, 3, 0, Math.PI * 2); ctx.fill();
+
+    // Brillo
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.beginPath(); ctx.ellipse(-12, -8, 12, 5, -0.2, 0, Math.PI * 2); ctx.fill();
 
     ctx.restore();
   }
 
   function drawGrapes(ctx) {
     ctx.save();
-    ctx.translate(100, 100);
+    ctx.translate(100, 95);
 
-    ctx.strokeStyle = '#553612'; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.moveTo(0, -42); ctx.lineTo(0, -20); ctx.stroke();
-    ctx.fillStyle = '#437c17';
-    ctx.beginPath();
-    ctx.moveTo(0, -32); ctx.quadraticCurveTo(-18, -36, -20, -24);
-    ctx.quadraticCurveTo(-8, -20, 0, -32); ctx.fill();
+    // Tallo
+    ctx.strokeStyle = '#593817'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(0, -34); ctx.quadraticCurveTo(6, -44, 16, -42); ctx.stroke();
 
+    // Uvas individuales en racimo piramidal
     const grapeCoords = [
-      [-18, -12], [0, -14], [18, -12],
-      [-22, 6], [-8, 6], [8, 6], [22, 6],
-      [-12, 24], [4, 24],
-      [-4, 40]
+      [-16, -18], [0, -20], [16, -18],
+      [-22, -4], [-8, -6], [8, -6], [22, -4],
+      [-14, 8], [0, 8], [14, 8],
+      [-7, 22], [7, 22],
+      [0, 34]
     ];
 
     grapeCoords.forEach(([gx, gy]) => {
+      ctx.save();
       const gGrad = ctx.createRadialGradient(gx - 3, gy - 3, 2, gx, gy, 12);
-      gGrad.addColorStop(0, '#d1a3ff');
-      gGrad.addColorStop(0.3, '#8e35e6');
-      gGrad.addColorStop(0.8, '#460882');
-      gGrad.addColorStop(1, '#1b0036');
+      gGrad.addColorStop(0, '#c77dff');
+      gGrad.addColorStop(0.4, '#7b2cbf');
+      gGrad.addColorStop(0.8, '#3c096c');
+      gGrad.addColorStop(1, '#10002b');
       ctx.fillStyle = gGrad;
-      ctx.beginPath(); ctx.arc(gx, gy, 11, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#18002e'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.beginPath(); ctx.arc(gx, gy, 10, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#1a052e'; ctx.lineWidth = 1.2; ctx.stroke();
 
+      // Brillo en uva
       ctx.fillStyle = 'rgba(255,255,255,0.6)';
-      ctx.beginPath(); ctx.arc(gx - 3, gy - 3, 2.5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(gx - 3, gy - 3, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
     });
 
     ctx.restore();
   }
 
   function initSymbolArt() {
-    const distinct = ['seven', 'diamond', 'bell', 'bar', 'cherry', 'orange', 'lemon', 'grapes'];
-    const drawer = {
+    const symbols = {
       seven: drawSeven,
       diamond: drawDiamond,
       bell: drawBell,
@@ -549,23 +657,24 @@
       grapes: drawGrapes
     };
 
-    distinct.forEach(id => {
-      const can = document.createElement('canvas');
-      can.width = 200;
-      can.height = 200;
-      drawer[id](can.getContext('2d'));
-      symbolCanvases[id] = can;
+    Object.entries(symbols).forEach(([id, drawFn]) => {
+      const c = document.createElement('canvas');
+      c.width = 200;
+      c.height = 200;
+      const ctx = c.getContext('2d');
+      drawFn(ctx);
+      symbolCanvases[id] = c;
     });
   }
 
   // ============================================================
-  // 4. LED 777 MATRIX RENDERER
+  // 4. LED 777 MATRIX & MARQUEE HEADER
   // ============================================================
   function render777LedMatrix() {
     const svg = document.getElementById('led777Svg');
-    if (!svg || svg.children.length > 0) return;
+    if (!svg) return;
 
-    const sevenPattern = [
+    const matrix7 = [
       [1, 1, 1, 1, 1],
       [0, 0, 0, 0, 1],
       [0, 0, 0, 1, 0],
@@ -574,52 +683,39 @@
       [0, 1, 0, 0, 0],
       [0, 1, 0, 0, 0]
     ];
-    const digitOffsets = [10, 60, 110];
 
-    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-    defs.innerHTML = `
-      <radialGradient id="bulbOnGrad" cx="35%" cy="35%">
-        <stop offset="0%" stop-color="#ffffff"/>
-        <stop offset="30%" stop-color="#fff59d"/>
-        <stop offset="65%" stop-color="#ffb300"/>
-        <stop offset="100%" stop-color="#e65100"/>
-      </radialGradient>
-      <radialGradient id="bulbOffGrad" cx="40%" cy="40%">
-        <stop offset="0%" stop-color="#2c1d12"/>
-        <stop offset="80%" stop-color="#120c08"/>
-        <stop offset="100%" stop-color="#050302"/>
-      </radialGradient>
-      <filter id="glowGlow" x="-50%" y="-50%" width="200%" height="200%">
-        <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="blur" />
-        <feMerge>
-          <feMergeNode in="blur" />
-          <feMergeNode in="SourceGraphic" />
-        </feMerge>
-      </filter>
-    `;
-    svg.appendChild(defs);
+    let dots = '';
+    const offsetX = [12, 64, 116];
 
-    digitOffsets.forEach((startX) => {
-      for (let row = 0; row < 7; row++) {
-        for (let col = 0; col < 5; col++) {
-          const cx = startX + col * 9 + 4;
-          const cy = row * 5.2 + 3.5;
-          const isOn = sevenPattern[row][col] === 1;
-
-          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-          circle.setAttribute('cx', cx);
-          circle.setAttribute('cy', cy);
-          circle.setAttribute('r', isOn ? '3.6' : '2.8');
-          circle.setAttribute('fill', isOn ? 'url(#bulbOnGrad)' : 'url(#bulbOffGrad)');
-          if (isOn) circle.setAttribute('filter', 'url(#glowGlow)');
-          svg.appendChild(circle);
+    offsetX.forEach(ox => {
+      for (let r = 0; r < 7; r++) {
+        for (let c = 0; c < 5; c++) {
+          const isLit = matrix7[r][c] === 1;
+          const x = ox + c * 8;
+          const y = 5 + r * 4.5;
+          const color = isLit ? '#ffd700' : '#2b2100';
+          const glow = isLit ? 'filter="url(#glowFilter)"' : '';
+          dots += `<circle cx="${x}" cy="${y}" r="2.2" fill="${color}" ${glow} />`;
         }
       }
     });
+
+    svg.innerHTML = `
+      <defs>
+        <filter id="glowFilter" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+          <feMerge>
+            <feMergeNode in="coloredBlur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      </defs>
+      ${dots}
+    `;
   }
 
   // ============================================================
-  // 5. REEL CANVAS & CYLINDRICAL PERSPECTIVE PHYSICS
+  // 5. CYLINDRICAL REELS RENDERING & PHYSICS ENGINE
   // ============================================================
   let reelsCanvas = null;
   let ctxReels = null;
@@ -631,6 +727,34 @@
     { angle: 0, startAngle: 0, targetAngle: 0, startTime: 0, duration: 0, isSpinning: false, lastSlot: 0, lastTickTime: 0 },
     { angle: 0, startAngle: 0, targetAngle: 0, startTime: 0, duration: 0, isSpinning: false, lastSlot: 0, lastTickTime: 0 }
   ];
+
+  // Pool de canciones para los rodillos cilíndricos en Modo "Canciones Destacadas"
+  let featuredSongsReelPool = [
+    { id: 'comm_renacer', title: 'Renacer', artist: 'Beatstar Official', stars: 5.0, difficulty_name: 'Difícil', is_community: true },
+    { id: 'custom_fur_elise', title: 'Für Elise (Arcade Mix)', artist: 'Beethoven', stars: 3.5, difficulty_name: 'Media', is_community: false },
+    { id: 'custom_canon_d', title: 'Canon in D Rock', artist: 'Pachelbel', stars: 4.5, difficulty_name: 'Normal', is_community: false },
+    { id: 'custom_moonlight', title: 'Moonlight Sonata', artist: 'Beethoven', stars: 6.0, difficulty_name: 'Extrema', is_community: false },
+    { id: 'custom_turkish', title: 'Rondo Alla Turca', artist: 'Mozart', stars: 4.0, difficulty_name: 'Normal', is_community: false },
+    { id: 'comm_sara_perche', title: 'Sarà Perché Ti Amo', artist: 'Tommy Johansson', stars: 3.5, difficulty_name: 'Hard', is_community: true },
+    { id: 'custom_the_pretender', title: 'The Pretender', artist: 'Foo Fighters', stars: 5.5, difficulty_name: 'Difícil', is_community: false },
+    { id: 'custom_swan_lake', title: 'Swan Lake Theme', artist: 'Tchaikovsky', stars: 3.0, difficulty_name: 'Fácil', is_community: false }
+  ];
+  const TOTAL_SONG_SLOTS = 8;
+  const SONG_STEP = (Math.PI * 2) / TOTAL_SONG_SLOTS;
+
+  async function refreshFeaturedSongsPool() {
+    try {
+      let pool = [];
+      if (Array.isArray(window.dailyFeaturedSongsList) && window.dailyFeaturedSongsList.length > 0) {
+        pool = [...window.dailyFeaturedSongsList];
+      } else if (Array.isArray(window.searchResultsCache) && window.searchResultsCache.length > 0) {
+        pool = window.searchResultsCache.slice(0, 12);
+      }
+      if (pool.length >= 3) {
+        featuredSongsReelPool = pool;
+      }
+    } catch (_) {}
+  }
 
   function resizeReelsCanvas() {
     if (!reelsCanvas) reelsCanvas = document.getElementById('reelsCanvas');
@@ -669,7 +793,7 @@
       ctxReels.rect(leftX, 0, reelWidth, canvasH);
       ctxReels.clip();
 
-      // Fondo marfil
+      // Fondo de tambor marfil vintage
       const baseGrad = ctxReels.createLinearGradient(leftX, 0, leftX + reelWidth, 0);
       baseGrad.addColorStop(0, '#e5dcc7');
       baseGrad.addColorStop(0.12, '#faf7ee');
@@ -678,41 +802,167 @@
       ctxReels.fillStyle = baseGrad;
       ctxReels.fillRect(leftX, 0, reelWidth, canvasH);
 
-      // Curvatura cilindrica sombreada
+      // Curvatura cilíndrica sombreada
       const cylinderGrad = ctxReels.createLinearGradient(0, 0, 0, canvasH);
-      cylinderGrad.addColorStop(0, 'rgba(0, 0, 0, 0.78)');
-      cylinderGrad.addColorStop(0.25, 'rgba(0, 0, 0, 0.15)');
+      cylinderGrad.addColorStop(0, 'rgba(0, 0, 0, 0.75)');
+      cylinderGrad.addColorStop(0.25, 'rgba(0, 0, 0, 0.12)');
       cylinderGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.1)');
-      cylinderGrad.addColorStop(0.75, 'rgba(0, 0, 0, 0.2)');
-      cylinderGrad.addColorStop(1, 'rgba(0, 0, 0, 0.82)');
+      cylinderGrad.addColorStop(0.75, 'rgba(0, 0, 0, 0.15)');
+      cylinderGrad.addColorStop(1, 'rgba(0, 0, 0, 0.80)');
 
-      // Dibujar simbolos
-      for (let s = 0; s < TOTAL_SYMBOLS; s++) {
-        const symId = SYMBOL_LIST[s];
-        const art = symbolCanvases[symId];
-        if (!art) continue;
+      // DIBUJAR CONTENIDO DE RODILLO SEGÚN MODO
+      if (slotMachineMode === 'featured') {
+        // ==========================================
+        // MODO CANCIONES DESTACADAS (RODILLOS GIRAN CANCIONES)
+        // ==========================================
+        const poolLen = featuredSongsReelPool.length;
 
-        let angleDiff = (s * SLOT_STEP - reel.angle) % (Math.PI * 2);
-        if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-        if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        for (let s = 0; s < TOTAL_SONG_SLOTS; s++) {
+          const songIdx = ((s + i * 3) % poolLen + poolLen) % poolLen;
+          const song = featuredSongsReelPool[songIdx] || { title: 'Canción', artist: 'Artista', stars: 3.5 };
 
-        if (Math.abs(angleDiff) > Math.PI / 2.1) continue;
+          let angleDiff = (s * SONG_STEP - reel.angle) % (Math.PI * 2);
+          if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+          if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
 
-        const yPos = centerY + Math.sin(angleDiff) * radius;
-        const scaleY = Math.max(0.1, Math.cos(angleDiff));
-        const scaleX = 0.82 * Math.cos(angleDiff * 0.4);
+          if (Math.abs(angleDiff) > Math.PI / 2.1) continue;
 
-        const targetW = reelWidth * 0.76 * scaleX;
-        const targetH = 68 * scaleY;
+          const yPos = centerY + Math.sin(angleDiff) * radius;
+          const scaleY = Math.max(0.12, Math.cos(angleDiff));
+          const scaleX = 0.88 * Math.cos(angleDiff * 0.4);
 
-        ctxReels.drawImage(art, centerX - targetW / 2, yPos - targetH / 2, targetW, targetH);
+          const cardW = reelWidth * 0.88 * scaleX;
+          const cardH = 64 * scaleY;
+          const isCentered = Math.abs(angleDiff) < 0.18 && !reel.isSpinning;
+
+          ctxReels.save();
+          ctxReels.translate(centerX, yPos);
+
+          // Sombra de tarjeta
+          ctxReels.fillStyle = 'rgba(0, 0, 0, 0.35)';
+          if (ctxReels.roundRect) ctxReels.roundRect(-cardW / 2 + 2, -cardH / 2 + 2, cardW, cardH, 6 * scaleY);
+          else ctxReels.rect(-cardW / 2 + 2, -cardH / 2 + 2, cardW, cardH);
+          ctxReels.fill();
+
+          // Fondo de tarjeta de canción sobre el rodillo
+          const cardGrad = ctxReels.createLinearGradient(0, -cardH / 2, 0, cardH / 2);
+          if (isCentered) {
+            cardGrad.addColorStop(0.0, '#fffcf0');
+            cardGrad.addColorStop(0.5, '#fef5d2');
+            cardGrad.addColorStop(1.0, '#fde699');
+          } else {
+            cardGrad.addColorStop(0.0, '#f5efe4');
+            cardGrad.addColorStop(1.0, '#ded0bc');
+          }
+          ctxReels.fillStyle = cardGrad;
+          if (ctxReels.roundRect) ctxReels.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, 6 * scaleY);
+          else ctxReels.rect(-cardW / 2, -cardH / 2, cardW, cardH);
+          ctxReels.fill();
+
+          // Borde dorado si está centrada
+          ctxReels.strokeStyle = isCentered ? '#d4af37' : 'rgba(90, 65, 35, 0.4)';
+          ctxReels.lineWidth = isCentered ? 2.5 : 1;
+          if (ctxReels.roundRect) ctxReels.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, 6 * scaleY);
+          else ctxReels.rect(-cardW / 2, -cardH / 2, cardW, cardH);
+          ctxReels.stroke();
+
+          // Disco de vinilo decorativo en el lateral izquierdo
+          const vinylR = Math.min(cardH * 0.38, 16 * scaleY);
+          const vinylX = -cardW / 2 + vinylR + 4 * scaleX;
+          ctxReels.fillStyle = '#141414';
+          ctxReels.beginPath();
+          ctxReels.arc(vinylX, -2 * scaleY, vinylR, 0, Math.PI * 2);
+          ctxReels.fill();
+          ctxReels.strokeStyle = '#c5a059';
+          ctxReels.lineWidth = 1;
+          ctxReels.stroke();
+
+          // Nota musical o clave de sol central en el vinilo
+          ctxReels.fillStyle = '#ffd700';
+          ctxReels.font = `bold ${Math.max(6, Math.round(9 * scaleY))}px sans-serif`;
+          ctxReels.textAlign = 'center';
+          ctxReels.textBaseline = 'middle';
+          ctxReels.fillText('𝄞', vinylX, -2 * scaleY);
+
+          // Texto del título de canción
+          const textX = vinylX + vinylR + 4 * scaleX;
+          const maxTextW = cardW - (textX - (-cardW / 2)) - 4;
+          ctxReels.textAlign = 'left';
+          ctxReels.fillStyle = '#1c1307';
+          ctxReels.font = `900 ${Math.max(7, Math.round(9.5 * scaleY))}px "Montserrat", sans-serif`;
+          const titleStr = (song.title || 'Canción').slice(0, 14);
+          ctxReels.fillText(titleStr, textX, -10 * scaleY, maxTextW);
+
+          // Artista y estrellas
+          ctxReels.fillStyle = '#6b4e28';
+          ctxReels.font = `bold ${Math.max(6, Math.round(7.5 * scaleY))}px "Montserrat", sans-serif`;
+          const artistStr = (song.artist || 'Artista').slice(0, 15);
+          ctxReels.fillText(artistStr, textX, 0, maxTextW);
+
+          const starsVal = Number(song.stars || 3.5).toFixed(1);
+          ctxReels.fillStyle = '#b8860b';
+          ctxReels.fillText(`★ ${starsVal}`, textX, 10 * scaleY);
+
+          // BOTÓN DIRECTO [ ▶ JUGAR ] EN LA TARJETA CENTRADA DEL CILINDRO
+          if (isCentered) {
+            const btnW = Math.min(cardW * 0.75, 76 * scaleX);
+            const btnH = 16 * scaleY;
+            const btnY = cardH / 2 - btnH / 2 - 2;
+
+            const btnGrad = ctxReels.createLinearGradient(0, btnY - btnH / 2, 0, btnY + btnH / 2);
+            btnGrad.addColorStop(0.0, '#ffe57f');
+            btnGrad.addColorStop(0.5, '#f59e0b');
+            btnGrad.addColorStop(1.0, '#b45309');
+            ctxReels.fillStyle = btnGrad;
+
+            if (ctxReels.roundRect) ctxReels.roundRect(-btnW / 2, btnY - btnH / 2, btnW, btnH, 8 * scaleY);
+            else ctxReels.rect(-btnW / 2, btnY - btnH / 2, btnW, btnH);
+            ctxReels.fill();
+
+            ctxReels.strokeStyle = '#ffffff';
+            ctxReels.lineWidth = 1;
+            ctxReels.stroke();
+
+            ctxReels.fillStyle = '#0f0802';
+            ctxReels.textAlign = 'center';
+            ctxReels.font = `900 ${Math.max(6, Math.round(8.5 * scaleY))}px "Montserrat", sans-serif`;
+            ctxReels.fillText('▶ JUGAR', 0, btnY + 1 * scaleY);
+          }
+
+          ctxReels.restore();
+        }
+
+      } else {
+        // ==========================================
+        // MODO APOSTAR (RODILLOS GIRAN SÍMBOLOS CLÁSICOS)
+        // ==========================================
+        for (let s = 0; s < TOTAL_SYMBOLS; s++) {
+          const symId = SYMBOL_LIST[s];
+          const art = symbolCanvases[symId];
+          if (!art) continue;
+
+          let angleDiff = (s * SLOT_STEP - reel.angle) % (Math.PI * 2);
+          if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+          if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+
+          if (Math.abs(angleDiff) > Math.PI / 2.1) continue;
+
+          const yPos = centerY + Math.sin(angleDiff) * radius;
+          const scaleY = Math.max(0.1, Math.cos(angleDiff));
+          const scaleX = 0.82 * Math.cos(angleDiff * 0.4);
+
+          const targetW = reelWidth * 0.76 * scaleX;
+          const targetH = 68 * scaleY;
+
+          ctxReels.drawImage(art, centerX - targetW / 2, yPos - targetH / 2, targetW, targetH);
+        }
       }
 
       ctxReels.fillStyle = cylinderGrad;
       ctxReels.fillRect(leftX, 0, reelWidth, canvasH);
 
-      // Separador cromado
-      ctxReels.strokeStyle = 'rgba(60, 45, 30, 0.6)';
+      // Separador cromado entre tambores
+      ctxReels.strokeStyle = 'rgba(60, 45, 30, 0.65)';
       ctxReels.lineWidth = 2;
       ctxReels.strokeRect(leftX, 0, reelWidth, canvasH);
 
@@ -746,7 +996,8 @@
             const eased = easeOutCubic(progress);
             reel.angle = reel.startAngle + (reel.targetAngle - reel.startAngle) * eased;
 
-            const currentSlot = Math.floor(reel.angle / SLOT_STEP);
+            const stepAngle = slotMachineMode === 'featured' ? SONG_STEP : SLOT_STEP;
+            const currentSlot = Math.floor(reel.angle / stepAngle);
             if (currentSlot !== reel.lastSlot && currentNow - reel.lastTickTime > 40) {
               soundReelTick();
               reel.lastSlot = currentSlot;
@@ -769,34 +1020,30 @@
   let isMachineActive = false;
   let isPaperOut = false;
 
-  function t(key, fallback) {
-    if (typeof window.t === 'function') return window.t(key, fallback);
-    return fallback;
+  function t(key, def) {
+    if (typeof window.t === 'function') {
+      const val = window.t(key);
+      if (val && val !== key) return val;
+    }
+    return def;
   }
 
   function getPlayerClefs() {
-    if (typeof window.userClefs !== 'undefined' && !isNaN(window.userClefs)) {
+    if (typeof window.userClefs !== 'undefined' && Number.isFinite(window.userClefs)) {
       return window.userClefs;
     }
-    const val = parseInt(localStorage.getItem('game_claves_de_sol') || localStorage.getItem('beatstar_clefs') || '100', 10);
-    return isNaN(val) ? 100 : val;
+    return parseInt(localStorage.getItem('beatstar_clefs') || '100', 10);
   }
 
   function updateScoreboards() {
-    const creditsEl = document.getElementById('creditsDisplay');
+    const credEl = document.getElementById('creditsDisplay');
     const betEl = document.getElementById('betDisplay');
     const winEl = document.getElementById('winDisplay');
-    const playerClefs = getPlayerClefs();
 
-    if (creditsEl) {
-      creditsEl.textContent = String(playerClefs).padStart(4, '0');
-    }
-    if (betEl) {
-      betEl.textContent = slotMachineMode === 'featured' ? 'FREE' : String(currentBet).padStart(4, '0');
-    }
-    if (winEl) {
-      winEl.textContent = String(lastWin).padStart(4, '0');
-    }
+    const clefs = getPlayerClefs();
+    if (credEl) credEl.textContent = String(clefs).padStart(4, '0');
+    if (betEl) betEl.textContent = String(currentBet).padStart(4, '0');
+    if (winEl) winEl.textContent = String(lastWin).padStart(4, '0');
   }
 
   function calculateOutcome() {
@@ -805,26 +1052,26 @@
 
     if (isWin) {
       const roll = Math.random();
-      if (roll < 0.003) {
+      if (roll < 0.004) {
         const idx = SYMBOL_LIST.indexOf('seven');
-        return { indices: [idx, idx, idx], mult: 25, label: '3x SIETE ORO' };
-      } else if (roll < 0.015) {
+        return { indices: [idx, idx, idx], mult: 25, label: '3x SIETE ORO (JACKPOT)' };
+      } else if (roll < 0.02) {
         const idx = SYMBOL_LIST.indexOf('diamond');
         return { indices: [idx, idx, idx], mult: 15, label: '3x DIAMANTE' };
-      } else if (roll < 0.04) {
+      } else if (roll < 0.06) {
         const idx = SYMBOL_LIST.indexOf('bell');
         return { indices: [idx, idx, idx], mult: 10, label: '3x CAMPANA' };
-      } else if (roll < 0.09) {
+      } else if (roll < 0.12) {
         const idx = SYMBOL_LIST.indexOf('bar');
         return { indices: [idx, idx, idx], mult: 6, label: '3x BAR' };
-      } else if (roll < 0.16) {
+      } else if (roll < 0.22) {
         const idx = SYMBOL_LIST.indexOf('cherry');
         return { indices: [idx, idx, idx], mult: 4, label: '3x CEREZAS' };
-      } else if (roll < 0.28) {
+      } else if (roll < 0.38) {
         const fruit = ['grapes', 'orange', 'lemon'][Math.floor(Math.random() * 3)];
         const idx = SYMBOL_LIST.indexOf(fruit);
         return { indices: [idx, idx, idx], mult: 3, label: `3x ${fruit.toUpperCase()}` };
-      } else if (roll < 0.48) {
+      } else if (roll < 0.58) {
         const fruit = ['orange', 'lemon', 'grapes'][Math.floor(Math.random() * 3)];
         const fIdx = SYMBOL_LIST.indexOf(fruit);
         const other = SYMBOL_LIST.indexOf('bell');
@@ -858,139 +1105,22 @@
   }
 
   // ============================================================
-  // 7. FEATURED SONGS FOR SLOT MACHINE
-  // ============================================================
-  async function getFeaturedSongsForSlot() {
-    let list = [];
-    if (Array.isArray(window.dailyFeaturedSongsList) && window.dailyFeaturedSongsList.length > 0) {
-      list = [...window.dailyFeaturedSongsList];
-    }
-
-    if (list.length < 3) {
-      try {
-        const baseUrl = typeof window.getApiBaseUrl === 'function' ? window.getApiBaseUrl() : '';
-        if (baseUrl) {
-          const res = await fetch(`${baseUrl}/api/v1/community/featured`);
-          if (res.ok) {
-            const data = await res.json();
-            const arr = Array.isArray(data) ? data : (data.featured || []);
-            if (arr.length > 0) list = arr;
-          }
-        }
-      } catch (_) {}
-    }
-
-    // Fallbacks locales de alta calidad si no hay red
-    if (list.length === 0) {
-      list = [
-        { id: 'comm_renacer', title: 'Renacer', artist: 'Beatstar Official', stars: 5.0, difficulty_name: 'Dificil', is_community: true },
-        { id: 'custom_fur_elise', title: 'Fur Elise (Arcade Mix)', artist: 'Beethoven', stars: 3.5, difficulty_name: 'Media', is_community: false },
-        { id: 'custom_canon_d', title: 'Canon in D Rock', artist: 'Pachelbel', stars: 4.5, difficulty_name: 'Normal', is_community: false }
-      ];
-    }
-
-    // Barajar y tomar 3
-    const shuffled = [...list].sort(() => 0.5 - Math.random());
-    return shuffled.slice(0, 3);
-  }
-
-  function printFeaturedSongsToPaper(songs) {
-    const feed = document.getElementById('printedPaperFeed');
-    if (!feed) return;
-
-    let itemsHtml = '';
-    songs.forEach((s, idx) => {
-      const diffStars = Number(s.stars) || 3.5;
-      const titleEsc = escapeHtml(s.title || 'Cancion');
-      const artistEsc = escapeHtml(s.artist || 'Artista');
-      const diffLabel = escapeHtml(s.difficulty_name || 'Normal');
-      itemsHtml += `
-        <div class="p-1.5 bg-stone-100 border border-stone-300 rounded shadow-sm">
-          <div class="flex items-center justify-between">
-            <span class="font-bold text-red-800">#${idx + 1} ${titleEsc}</span>
-            <span class="text-[9px] text-amber-700 font-bold">${diffStars.toFixed(1)}★</span>
-          </div>
-          <p class="text-[9px] text-stone-600 truncate">${artistEsc} (${diffLabel})</p>
-          <button onclick="window.launchSongFromSlot('${s.id}', ${!!s.is_community})" class="mt-1 w-full py-1 bg-gradient-to-r from-amber-500 to-red-600 hover:from-amber-400 text-white font-bold text-[10px] rounded shadow active:scale-95 flex items-center justify-center gap-1 cursor-pointer">
-            <span>▶</span> <span data-i18n="play">${t('play', 'Jugar')}</span>
-          </button>
-        </div>
-      `;
-    });
-
-    feed.innerHTML = `
-      <div class="border-b-2 border-dashed border-stone-400 pb-1.5 mb-2 flex justify-between items-center text-[10px] text-purple-950 font-bold font-mono">
-        <span>★ GRAN FORTUNA 1977 ★</span>
-        <span>OFICIAL</span>
-      </div>
-      <div class="text-[10px] font-mono text-center font-bold text-amber-900 bg-amber-200/70 rounded py-0.5 mb-2 border border-amber-400">
-        ${t('slot_featured_printed_header', '3 CANCIONES DESTACADAS')}
-      </div>
-      <div class="space-y-1.5 text-[11px] font-mono leading-tight">
-        ${itemsHtml}
-      </div>
-    `;
-
-    feed.classList.add('feed-out');
-    isPaperOut = true;
-    soundPrinterFeed();
-  }
-
-  function printPayoutTableToPaper() {
-    const feed = document.getElementById('printedPaperFeed');
-    if (!feed) return;
-
-    feed.innerHTML = `
-      <div class="border-b border-dashed border-stone-400 pb-1 mb-2 flex justify-between items-center text-[10px] text-purple-900 font-bold">
-        <span>GRAN FORTUNA 1977</span>
-        <span>OFICIAL</span>
-      </div>
-      <div class="text-[10px] font-mono text-center font-bold text-stone-800 bg-amber-100 rounded py-0.5 mb-1.5 border border-amber-300">
-        ${t('slot_payout_paper_header', 'TABLA DE PAGOS OFICIAL')}
-      </div>
-      <div class="space-y-1 text-[11px] font-mono leading-tight">
-        <div class="flex justify-between font-bold text-red-700"><span>3x SIETE ORO/RUBI</span><span>x25</span></div>
-        <div class="flex justify-between font-bold text-cyan-800"><span>3x DIAMANTE AZUL</span><span>x15</span></div>
-        <div class="flex justify-between font-bold text-amber-900"><span>3x CAMPANA LATON</span><span>x10</span></div>
-        <div class="flex justify-between font-bold text-stone-900"><span>3x LINGOTE BAR</span><span>x6</span></div>
-        <div class="flex justify-between font-bold text-rose-800"><span>3x CEREZAS RUBI</span><span>x4</span></div>
-        <div class="flex justify-between"><span>3x UVAS / NARANJA / LIMON</span><span>x3</span></div>
-        <div class="border-t border-dashed border-stone-400 pt-1 text-[10px] text-stone-600">
-          <div class="flex justify-between"><span>2x Frutas</span><span>x2</span></div>
-          <div class="flex justify-between"><span>1x Cereza solitaria</span><span>x1</span></div>
-        </div>
-      </div>
-    `;
-    feed.classList.add('feed-out');
-    isPaperOut = true;
-    soundPrinterFeed();
-  }
-
-  function escapeHtml(str) {
-    if (!str) return '';
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
-
-  // ============================================================
-  // 8. SPIN TRIGGER & CRANK 360 INTERACTION
+  // 7. SPIN TRIGGER & EXECUTION
   // ============================================================
   async function triggerSpin() {
     if (isMachineActive) return;
+    initSlotAudio();
 
     const statusMsg = document.getElementById('statusMsg');
-    const playerClefs = getPlayerClefs();
 
     if (slotMachineMode === 'bet') {
-      if (playerClefs < currentBet) {
-        if (statusMsg) statusMsg.textContent = '¡SIN CLAVES!';
+      const clefs = getPlayerClefs();
+      if (clefs < currentBet) {
+        if (statusMsg) statusMsg.textContent = t('slot_no_clefs', '¡SIN CLAVES SUFICIENTES!');
         return;
       }
-      if (typeof window.deductClefs === 'function') {
-        window.deductClefs(currentBet);
+      if (typeof window.addClefs === 'function') {
+        window.addClefs(-currentBet);
       }
     }
 
@@ -1007,16 +1137,14 @@
     }
 
     let outcome;
-    let featuredSongs = [];
 
     if (slotMachineMode === 'featured') {
-      featuredSongs = await getFeaturedSongsForSlot();
-      // En modo destacado, se detienen en una combinacion llamativa
+      await refreshFeaturedSongsPool();
       outcome = {
         indices: [
-          SYMBOL_LIST.indexOf('seven'),
-          SYMBOL_LIST.indexOf('diamond'),
-          SYMBOL_LIST.indexOf('bell')
+          Math.floor(Math.random() * TOTAL_SONG_SLOTS),
+          Math.floor(Math.random() * TOTAL_SONG_SLOTS),
+          Math.floor(Math.random() * TOTAL_SONG_SLOTS)
         ],
         mult: 0,
         label: 'CANCIONES DESTACADAS'
@@ -1028,11 +1156,12 @@
     const now = performance.now();
     const durations = [1800, 2300, 2900];
     const fullSpins = [5, 7, 9];
+    const stepAngle = slotMachineMode === 'featured' ? SONG_STEP : SLOT_STEP;
 
     for (let i = 0; i < 3; i++) {
       const reel = reels[i];
       const symTargetIndex = outcome.indices[i];
-      const targetExactAngle = symTargetIndex * SLOT_STEP;
+      const targetExactAngle = symTargetIndex * stepAngle;
 
       reel.startTime = now;
       reel.duration = durations[i];
@@ -1047,9 +1176,8 @@
       isMachineActive = false;
 
       if (slotMachineMode === 'featured') {
-        if (statusMsg) statusMsg.textContent = '★ ¡3 RECOMENDACIONES LISTAS! ★';
-        soundWin(true);
-        printFeaturedSongsToPaper(featuredSongs);
+        if (statusMsg) statusMsg.textContent = '★ ¡TOCA UNA CANCIÓN EN EL RODILLO PARA JUGAR! ★';
+        soundWin(5); // Tier 2 win melody
       } else {
         const prize = currentBet * outcome.mult;
         if (prize > 0) {
@@ -1059,16 +1187,18 @@
           lastWin = prize;
           updateScoreboards();
           if (statusMsg) statusMsg.textContent = `+${prize} (${outcome.label})`;
-          const isJackpot = outcome.mult >= 15;
-          soundWin(isJackpot);
-          spawnChuteCoins(isJackpot ? 45 : 18);
+          soundWin(outcome.mult);
+          spawnChuteCoins(prize);
         } else {
           if (statusMsg) statusMsg.textContent = '0000';
         }
       }
-    }, 3000);
+    }, durations[2] + 80);
   }
 
+  // ============================================================
+  // 8. 360° ROTATING CRANK LEVER
+  // ============================================================
   let isCrankRotating = false;
   function turnCrank360() {
     if (isMachineActive || isCrankRotating) return;
@@ -1162,7 +1292,7 @@
   }
 
   // ============================================================
-  // 10. COIN SHOWER CANVAS PHYSICS
+  // 10. CLAVES DE SOL (𝄞) BALLISTIC SHOWER PHYSICS
   // ============================================================
   let coinCanvas = null;
   let ctxCoins = null;
@@ -1177,18 +1307,20 @@
     coinCanvas.height = window.innerHeight;
   }
 
-  class BallisticCoin {
+  class BallisticClef {
     constructor(startX, startY) {
       this.x = startX;
       this.y = startY;
-      const angle = -Math.PI / 2 + (Math.random() * 1.2 - 0.6);
-      const speed = Math.random() * 12 + 8;
+      const angle = -Math.PI / 2 + (Math.random() * 1.3 - 0.65);
+      const speed = Math.random() * 14 + 9;
       this.vx = Math.cos(angle) * speed;
       this.vy = Math.sin(angle) * speed;
-      this.gravity = 0.58;
-      this.radius = Math.random() * 5 + 7;
+      this.gravity = 0.60;
+      this.size = Math.random() * 8 + 22; // 22px to 30px
       this.rotation = Math.random() * Math.PI * 2;
-      this.rotSpeed = (Math.random() - 0.5) * 0.45;
+      this.rotSpeed = (Math.random() - 0.5) * 0.35;
+      this.scaleX = 1.0;
+      this.flipSpeed = Math.random() * 0.15 + 0.08;
       this.bounces = 0;
       this.maxBounces = 3;
       this.clinkPlayed = false;
@@ -1199,65 +1331,74 @@
       this.x += this.vx;
       this.y += this.vy;
       this.rotation += this.rotSpeed;
+      this.scaleX = Math.cos(performance.now() * 0.005 * this.flipSpeed);
 
-      const bottom = window.innerHeight - 20;
-      if (this.y + this.radius > bottom) {
-        this.y = bottom - this.radius;
-        this.vy = -this.vy * 0.52;
-        this.vx *= 0.72;
+      const bottom = window.innerHeight - 25;
+      if (this.y + this.size / 2 > bottom) {
+        this.y = bottom - this.size / 2;
+        this.vy = -this.vy * 0.54;
+        this.vx *= 0.75;
         this.bounces++;
         if (!this.clinkPlayed) {
           soundCoinClink();
           this.clinkPlayed = true;
         }
       }
-      return this.bounces < this.maxBounces && this.x > -50 && this.x < window.innerWidth + 50;
+      return this.bounces < this.maxBounces && this.x > -60 && this.x < window.innerWidth + 60;
     }
 
     draw() {
       if (!ctxCoins) return;
       ctxCoins.save();
       ctxCoins.translate(this.x, this.y);
-      ctxCoins.scale(1, Math.abs(Math.cos(this.rotation)) + 0.15);
+      ctxCoins.rotate(this.rotation * 0.25);
+      ctxCoins.scale(Math.abs(this.scaleX) * 0.9 + 0.1, 1);
 
-      const grad = ctxCoins.createLinearGradient(-this.radius, -this.radius, this.radius, this.radius);
-      grad.addColorStop(0, '#fff4a3');
-      grad.addColorStop(0.4, '#ffd700');
-      grad.addColorStop(0.8, '#b8860b');
-      grad.addColorStop(1, '#523d00');
+      // Sombra
+      ctxCoins.shadowColor = 'rgba(0, 0, 0, 0.65)';
+      ctxCoins.shadowBlur = 6;
+      ctxCoins.shadowOffsetY = 3;
 
-      ctxCoins.beginPath();
-      ctxCoins.arc(0, 0, this.radius, 0, Math.PI * 2);
-      ctxCoins.fillStyle = grad;
-      ctxCoins.shadowColor = 'rgba(0,0,0,0.5)';
-      ctxCoins.shadowBlur = 4;
-      ctxCoins.fill();
+      // Clave de Sol dorada 𝄞
+      ctxCoins.font = `bold ${Math.round(this.size)}px "Special Elite", serif, sans-serif`;
+      ctxCoins.textAlign = 'center';
+      ctxCoins.textBaseline = 'middle';
 
-      ctxCoins.beginPath();
-      ctxCoins.arc(0, 0, this.radius * 0.75, 0, Math.PI * 2);
-      ctxCoins.strokeStyle = 'rgba(0,0,0,0.3)';
-      ctxCoins.lineWidth = 1.2;
-      ctxCoins.stroke();
+      const goldGrad = ctxCoins.createLinearGradient(-10, -this.size / 2, 10, this.size / 2);
+      goldGrad.addColorStop(0.0, '#fff9cc');
+      goldGrad.addColorStop(0.3, '#ffd700');
+      goldGrad.addColorStop(0.7, '#d4af37');
+      goldGrad.addColorStop(1.0, '#7a5200');
+
+      ctxCoins.fillStyle = goldGrad;
+      ctxCoins.fillText('𝄞', 0, 0);
+
+      ctxCoins.strokeStyle = '#fff0a6';
+      ctxCoins.lineWidth = 0.8;
+      ctxCoins.strokeText('𝄞', 0, 0);
 
       ctxCoins.restore();
     }
   }
 
-  function spawnChuteCoins(count) {
+  function spawnChuteCoins(prizeCount) {
     const chute = document.getElementById('coinHopperChute');
     if (!chute) return;
     const rect = chute.getBoundingClientRect();
     const originX = rect.left + rect.width / 2;
     const originY = rect.top + rect.height / 2;
 
-    for (let i = 0; i < count; i++) {
+    const actualCount = Math.max(12, Math.min(120, parseInt(prizeCount) || 20));
+    const delayStep = Math.max(15, Math.min(45, 1200 / actualCount));
+
+    for (let i = 0; i < actualCount; i++) {
       setTimeout(() => {
-        coins.push(new BallisticCoin(originX + (Math.random() * 20 - 10), originY));
+        coins.push(new BallisticClef(originX + (Math.random() * 24 - 12), originY));
         if (!isCoinLoopRunning) {
           isCoinLoopRunning = true;
           requestAnimationFrame(renderCoinLoop);
         }
-      }, i * 45);
+      }, i * delayStep);
     }
   }
 
@@ -1289,14 +1430,16 @@
 
     if (slotMachineMode === 'featured') {
       if (modalRibbon) modalRibbon.textContent = t('slot_btn_featured', 'CANCIONES DESTACADAS');
-      if (tabBetBtn) tabBetBtn.className = 'btn-vegas-led opacity-75';
-      if (tabFeatBtn) tabFeatBtn.className = 'btn-vegas-led btn-vegas-led-active';
-      if (betControls) betControls.style.opacity = '0.4';
+      if (tabBetBtn) tabBetBtn.className = 'btn-vegas-led opacity-75 px-2.5 py-1 text-[10px]';
+      if (tabFeatBtn) tabFeatBtn.className = 'btn-vegas-led btn-vegas-led-active px-2.5 py-1 text-[10px]';
+      if (betControls) betControls.style.opacity = '0.35';
+      refreshFeaturedSongsPool().then(() => drawCylindricalReels());
     } else {
       if (modalRibbon) modalRibbon.textContent = 'LAS VEGAS 1977';
-      if (tabBetBtn) tabBetBtn.className = 'btn-vegas-led btn-vegas-led-active';
-      if (tabFeatBtn) tabFeatBtn.className = 'btn-vegas-led opacity-75';
+      if (tabBetBtn) tabBetBtn.className = 'btn-vegas-led btn-vegas-led-active px-2.5 py-1 text-[10px]';
+      if (tabFeatBtn) tabFeatBtn.className = 'btn-vegas-led opacity-75 px-2.5 py-1 text-[10px]';
       if (betControls) betControls.style.opacity = '1';
+      drawCylindricalReels();
     }
     updateScoreboards();
   }
@@ -1338,6 +1481,13 @@
     // Detener musica de casino y restaurar menu
     stopCasinoMusic();
 
+    // Si estabamos en la pestaña discover, volver a search
+    if (typeof window.currentActiveTab !== 'undefined' && window.currentActiveTab === 'discover') {
+      if (typeof window.switchMainTab === 'function') {
+        window.switchMainTab('search');
+      }
+    }
+
     // Si habia una cancion cargada en espera, continuar directamente al juego
     if (window.pendingGameToStart) {
       const pending = window.pendingGameToStart;
@@ -1363,7 +1513,7 @@
     }
     const statusMsg = document.getElementById('statusMsg');
     if (statusMsg) {
-      statusMsg.textContent = t('slot_ready_btn', '✨ ¡Canción lista! Continuar al juego');
+      statusMsg.textContent = t('slot_ready_btn', '✨ ¡Canción lista! Jugar ahora');
     }
   }
 
@@ -1392,10 +1542,40 @@
 
     updateScoreboards();
 
-    // Palanca
+    // Palanca 360°
     const crankBase = document.getElementById('crankBase');
     if (crankBase) {
       crankBase.addEventListener('click', turnCrank360);
+    }
+
+    // Clic directo en el tambor interactivo (Modo Canciones Destacadas)
+    if (reelsCanvas) {
+      reelsCanvas.addEventListener('click', (e) => {
+        if (slotMachineMode !== 'featured' || isMachineActive) return;
+        const rect = reelsCanvas.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const reelW = rect.width / 3;
+        const reelIdx = Math.max(0, Math.min(2, Math.floor(clickX / reelW)));
+
+        const reel = reels[reelIdx];
+        const poolLen = featuredSongsReelPool.length;
+        const currentSlot = Math.round(reel.angle / SONG_STEP);
+        const songIdx = ((currentSlot + reelIdx * 3) % poolLen + poolLen) % poolLen;
+        const song = featuredSongsReelPool[songIdx];
+
+        if (song && song.id) {
+          soundCoinClink();
+          launchSongFromSlot(song.id, !!song.is_community);
+        }
+      });
+
+      reelsCanvas.addEventListener('mousemove', () => {
+        if (slotMachineMode === 'featured' && !isMachineActive) {
+          reelsCanvas.style.cursor = 'pointer';
+        } else {
+          reelsCanvas.style.cursor = 'default';
+        }
+      });
     }
 
     // Botones de apuesta
@@ -1430,53 +1610,27 @@
       maxBetBtn.addEventListener('click', () => {
         initSlotAudio();
         if (isMachineActive) return;
-        const playerClefs = getPlayerClefs();
-        currentBet = Math.min(50, Math.max(1, playerClefs));
-        soundCoinClink();
+        const clefs = getPlayerClefs();
+        currentBet = Math.min(50, Math.max(1, clefs));
+        soundReelTick();
         updateScoreboards();
       });
     }
 
-    // Boton de expulsar papel / ticket oficial
-    const paperEjectButton = document.getElementById('paperEjectButton');
-    if (paperEjectButton) {
-      paperEjectButton.addEventListener('click', () => {
-        initSlotAudio();
-        if (isPaperOut) {
-          const feed = document.getElementById('printedPaperFeed');
-          if (feed) feed.classList.remove('feed-out');
-          isPaperOut = false;
-        } else {
-          if (slotMachineMode === 'featured') {
-            getFeaturedSongsForSlot().then(songs => printFeaturedSongsToPaper(songs));
-          } else {
-            printPayoutTableToPaper();
-          }
-        }
-      });
-    }
-
-    // Boton de sonido
-    const soundToggleBtn = document.getElementById('soundToggleBtn');
-    if (soundToggleBtn) {
-      soundToggleBtn.addEventListener('click', () => {
+    // Boton de sonido mute
+    const soundBtn = document.getElementById('soundToggleBtn');
+    if (soundBtn) {
+      soundBtn.addEventListener('click', () => {
         isSoundMuted = !isSoundMuted;
         const icon = document.getElementById('slotSoundIcon');
-        if (icon) icon.textContent = isSoundMuted ? '🔇' : '🔊';
+        if (icon) {
+          icon.textContent = isSoundMuted ? '🔇' : '🔊';
+        }
         if (casinoBgmAudio) {
           casinoBgmAudio.muted = isSoundMuted;
         }
       });
     }
-
-    // Desbloqueo de audio seguro
-    const unlock = () => {
-      initSlotAudio();
-      window.removeEventListener('click', unlock);
-      window.removeEventListener('touchstart', unlock);
-    };
-    window.addEventListener('click', unlock);
-    window.addEventListener('touchstart', unlock);
 
     window.addEventListener('resize', () => {
       resizeReelsCanvas();
@@ -1484,20 +1638,19 @@
     });
   }
 
-  // Exponer API global
+  // Exportar metodos globales
   window.openGranFortuna = openGranFortuna;
   window.closeGranFortuna = closeGranFortuna;
   window.setSlotMode = setSlotMode;
+  window.turnCrank360 = turnCrank360;
   window.proceedToGameFromSlot = proceedToGameFromSlot;
   window.notifySongReadyInSlot = notifySongReadyInSlot;
   window.launchSongFromSlot = launchSongFromSlot;
-  window.turnCrank360 = turnCrank360;
-  window.playCasinoMusic = playCasinoMusic;
-  window.stopCasinoMusic = stopCasinoMusic;
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initGranFortuna);
   } else {
     initGranFortuna();
   }
+
 })();

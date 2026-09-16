@@ -1156,8 +1156,9 @@
           </a>
 
           <!-- Global Leaderboard Button (Trophy SVG) -->
-          <button id="btnOpenGlobalLeaderboard" onclick="openLeaderboardModal()" class="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-400/40 hover:border-amber-400/70 active:scale-95 text-amber-300 flex items-center justify-center transition cursor-pointer text-sm flex-shrink-0" title="Clasificación Global">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-400"><path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2"/><path d="M6 9a6 6 0 0 0 12 0"/><path d="M12 15v5"/><path d="M8 20h8"/></svg>
+          <button id="btnOpenGlobalLeaderboard" onclick="openLeaderboardModal()" class="px-2.5 py-1 rounded-xl bg-gradient-to-r from-amber-500/30 to-yellow-600/30 border border-amber-400/60 hover:border-amber-400/90 active:scale-95 text-amber-300 flex items-center gap-1.5 cursor-pointer shadow-lg flex-shrink-0" title="Torneo Semanal y Clasificación">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" class="text-amber-400"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/></svg>
+            <span class="text-[10px] font-black uppercase tracking-wider text-amber-200">TORNEO</span>
           </button>
 
           <!-- FX Shop Button (Palette SVG) -->
@@ -1311,24 +1312,14 @@
           </div>
         </div>
 
-        <!-- 3 Canciones Destacadas de Hoy (Desafíos Diarios con Bonus 𝄞 x2) -->
-        <div class="p-3 bg-gradient-to-r from-amber-950/70 via-purple-950/70 to-pink-950/70 border border-amber-500/40 rounded-2xl shadow-xl space-y-2.5">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-1.5">
-              <span class="text-xs font-black text-amber-300 uppercase tracking-wider" data-i18n="disc_daily_title_caps">Desafíos Diarios</span>
-            </div>
-            <span class="px-2.5 py-0.5 rounded-full bg-amber-500/30 text-amber-200 border border-amber-400/60 text-[10px] font-black tracking-wider shadow-sm" data-i18n="disc_x2_clefs">
-              𝄞 x2 Claves
-            </span>
-          </div>
-
-          <!-- Listado de las Canciones Mejor Valoradas -->
-          <div id="dailyFeaturedListContainer" class="space-y-2">
-            <div class="p-4 text-center text-gray-400 bg-black/40 border border-white/5 rounded-xl space-y-1">
-              <p class="text-xs font-bold text-gray-300">★ <span data-i18n="disc_no_featured_title">Sin canciones destacadas aún</span></p>
-              <p class="text-[10px] text-gray-500" data-i18n="disc_no_featured_sub">Juega y califica canciones al terminar la partida para que aparezcan aquí como las mejor valoradas.</p>
-            </div>
-          </div>
+        <!-- Gran Fortuna 1977 Direct Access & Action -->
+        <div class="p-4 bg-gradient-to-b from-amber-950/90 via-black to-purple-950/80 border-2 border-amber-400/60 rounded-2xl shadow-2xl text-center space-y-3">
+          <div class="text-3xl animate-pulse">🎰</div>
+          <h2 class="text-base font-black text-amber-300 font-serif tracking-widest uppercase">GRAN FORTUNA 1977</h2>
+          <p class="text-xs text-amber-100/80">Disfruta del casino mecánico de Las Vegas. Apuesta tus claves de sol o gira canciones destacadas directamente en los rodillos.</p>
+          <button onclick="openGranFortuna('bet')" class="w-full py-3 bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 hover:from-amber-300 text-black font-black text-sm rounded-xl shadow-lg shadow-amber-500/30 transition active:scale-95 cursor-pointer">
+            🎰 ENTRAR AL CASINO
+          </button>
         </div>
 
         <div class="p-3 bg-gradient-to-r from-red-950/40 via-purple-950/40 to-black/60 border border-red-500/30 rounded-2xl space-y-2">
@@ -2745,18 +2736,21 @@
         </section>
 
         <!-- Botones elevados accesibles -->
-        <footer class="typewriter-keyboard-tier">
-          <button class="btn-brass-primary" id="btnResPrimary" onclick="exitToSearch()">
-            <span id="btnResPrimaryLabel">EXPLORAR CATÁLOGO</span>
-            <span class="key-clef-badge">☵</span>
+        <footer class="typewriter-keyboard-tier" id="resultsKeyboardTier">
+          <button class="btn-brass-primary" id="btnResRestart" onclick="restartCurrentSong()">
+            <span class="text-base">▶</span>
+            <span id="btnResRestartLabel" data-i18n="results_btn_replay">JUGAR DE NUEVO</span>
+            <span class="key-clef-badge">↺</span>
           </button>
 
           <div class="round-keys-row">
-            <button class="tw-chrome-key" onclick="restartCurrentSong()">
-              <span>↺ REINTENTAR</span>
+            <button class="tw-chrome-key" id="btnResExit" onclick="exitToSearch()">
+              <span class="text-sm">⌂</span>
+              <span data-i18n="results_btn_exit">SALIR AL MENÚ</span>
             </button>
             <button class="tw-chrome-key" id="btnToggleExtraResults" onclick="toggleResultsExtraDrawer()">
-              <span id="btnToggleExtraResultsLabel">★ RATING / TOP</span>
+              <span class="text-sm">★</span>
+              <span id="btnToggleExtraResultsLabel">RATING / TOP</span>
             </button>
           </div>
         </footer>
@@ -2814,8 +2808,8 @@
       <canvas id="coinCanvas"></canvas>
 
       <!-- Barra superior flotante de controles / Cerrar / Notificacion de juego listo -->
-      <div class="w-full max-w-[420px] flex justify-between items-center px-1 mb-1.5 z-30">
-        <div class="flex items-center gap-1 bg-black/60 p-1 rounded-xl border border-amber-500/40 shadow">
+      <div class="w-full max-w-[420px] flex flex-wrap justify-between items-center gap-1.5 px-2 mb-2 z-30">
+        <div class="flex items-center gap-1 bg-black/70 p-1 rounded-xl border border-amber-500/50 shadow flex-shrink-0">
           <button id="slotTabBetBtn" onclick="setSlotMode('bet')" class="btn-vegas-led btn-vegas-led-active px-2.5 py-1 text-[10px]">
             <span>🎰</span> <span data-i18n="slot_btn_bet">Apostar</span>
           </button>
@@ -2824,11 +2818,11 @@
           </button>
         </div>
 
-        <button id="btnSlotReadyNotification" onclick="proceedToGameFromSlot()" class="hidden px-3 py-1 bg-gradient-to-r from-emerald-400 to-green-500 text-black font-black text-xs rounded-full shadow-[0_0_15px_#10b981] animate-bounce cursor-pointer items-center gap-1">
-          <span data-i18n="slot_ready_btn">✨ ¡Canción lista! Continuar al juego</span>
+        <button id="btnSlotReadyNotification" onclick="proceedToGameFromSlot()" class="hidden px-3 py-1.5 bg-gradient-to-r from-emerald-400 to-green-500 text-black font-black text-xs rounded-full shadow-[0_0_15px_#10b981] animate-bounce cursor-pointer items-center gap-1.5 flex-shrink-0">
+          <span data-i18n="slot_ready_btn">✨ ¡Canción lista! Jugar ahora</span>
         </button>
 
-        <button onclick="closeGranFortuna()" class="px-3 py-1.5 rounded-full bg-red-950/80 hover:bg-red-800 border border-red-500/50 text-white font-bold text-xs tracking-wider shadow-lg cursor-pointer transition active:scale-95 flex items-center gap-1">
+        <button onclick="closeGranFortuna()" class="px-3 py-1.5 rounded-full bg-red-950/90 hover:bg-red-800 border border-red-500/60 text-white font-bold text-[11px] tracking-wider shadow-lg cursor-pointer transition active:scale-95 flex items-center gap-1 flex-shrink-0">
           <span>✕</span> <span data-i18n="slot_close">Cerrar Casino</span>
         </button>
       </div>
@@ -5519,6 +5513,10 @@ function switchMainTab(tab) {
       discoverSection.classList.remove('hidden');
       discoverSection.style.display = 'block';
     }
+    // Entrar directamente a la Gran Fortuna 1977 con la música de casino
+    if (typeof openGranFortuna === 'function') {
+      openGranFortuna('bet');
+    }
   } else if (tab === 'library') {
     if (libraryTabBtn) libraryTabBtn.classList.add('active');
     if (librarySection) {
@@ -5551,12 +5549,19 @@ function switchMainTab(tab) {
     }
   }
 
-  // Silenciar música de menú inmediatamente al entrar al editor de pistas y reanudar al salir
-  if (tab === 'editor') {
+  // Si salimos de la pestaña Descubrir, cerrar la máquina y silenciar música de casino
+  if (tab !== 'discover' && window.isCasinoActive) {
+    if (typeof closeGranFortuna === 'function') {
+      closeGranFortuna();
+    }
+  }
+
+  // Silenciar música de menú inmediatamente al entrar al editor o casino y reanudar al salir
+  if (tab === 'editor' || tab === 'discover' || window.isCasinoActive) {
     if (typeof pauseMenuAmbientMusic === 'function') {
       pauseMenuAmbientMusic();
     }
-  } else if (!window.isGameLoadingOrActive && !window.isInCasinoMode) {
+  } else if (!window.isGameLoadingOrActive && !window.isInCasinoMode && !window.isCasinoActive) {
     if (typeof resumeMenuAmbientMusic === 'function') {
       resumeMenuAmbientMusic();
     }
@@ -6235,6 +6240,8 @@ function switchMainTab(tab) {
     }
 
     function playMenuAmbientMusic() {
+      // Si el casino o tragaperras está activo, NUNCA reproducir la música de menú
+      if (window.isCasinoActive) return;
       // Si el juego está activo, en carga o en progreso, NUNCA reproducir la música ambiental de menú
       if (isGameCurrentlyActive()) {
         pauseMenuAmbientMusic();
@@ -6258,6 +6265,12 @@ function switchMainTab(tab) {
     }
 
     function resumeMenuAmbientMusic() {
+      // Si el casino o la pestaña descubrir están activos, NUNCA reanudar música de menú
+      if (window.isCasinoActive) return;
+      const granFortunaModal = document.getElementById('granFortunaModal');
+      if (granFortunaModal && (!granFortunaModal.classList.contains('hidden') && granFortunaModal.style.display !== 'none')) {
+        return;
+      }
       // Si el juego o la pantalla de juego están activos, NUNCA reanudar música de menú
       if (isGameCurrentlyActive()) {
         pauseMenuAmbientMusic();
@@ -6294,11 +6307,14 @@ function switchMainTab(tab) {
     //  GLOBAL APP & AUDIO LIFECYCLE MANAGEMENT
     // ==========================================
     function handleAppBackground() {
-      // 1. Pausar inmediatamente la música de fondo de menú
+      // 1. Pausar inmediatamente la música de fondo de menú y de casino
       if (menuBgmAudio) {
         try {
           menuBgmAudio.pause();
         } catch (_) {}
+      }
+      if (window.pauseCasinoMusic) {
+        try { window.pauseCasinoMusic(); } catch (_) {}
       }
 
       // 2. Si hay partida en curso, pausarla para no perder ni que siga sonando el audio del juego
@@ -6331,7 +6347,15 @@ function switchMainTab(tab) {
         try { window.engine.synth.audioCtx.resume(); } catch (_) {}
       }
 
-      // 2. Reanudar música ambiental SOLO si estamos en el menú principal y ninguna partida/modal está activa
+      // 2. Si el casino está activo, reanudar solo la música de casino
+      if (window.isCasinoActive) {
+        if (window.resumeCasinoMusic) {
+          try { window.resumeCasinoMusic(); } catch (_) {}
+        }
+        return;
+      }
+
+      // 3. Reanudar música ambiental SOLO si estamos en el menú principal y ninguna partida/modal está activa
       if (!document.hidden && menuBgmUnlocked) {
         if (!isGameCurrentlyActive()) {
           const pauseModal = document.getElementById('pauseModal');
@@ -7110,6 +7134,11 @@ function switchMainTab(tab) {
       loadStatus.innerText = 'Preparando canción...';
       overlay.classList.add('active');
 
+      // Abrir la Gran Fortuna automáticamente en segundo plano para amenizar la descarga/carga
+      if (typeof openGranFortuna === 'function') {
+        openGranFortuna('bet', true);
+      }
+
       // Inicializar logger visual de diagnóstico
       VisualLogger.init();
 
@@ -7775,13 +7804,13 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       currentInlineLeaderboardChartId = currentChartId;
       switchInlineLeaderboard('song');
 
-      const exitResultsBtn = document.querySelector('#resultsModal button[onclick="exitToSearch()"]');
+      const exitResultsBtn = document.getElementById('btnResExit');
       if (exitResultsBtn) {
-        exitResultsBtn.innerText = window.isPlaytestingFromEditor ? 'Volver al Editor' : 'Explorar Más';
+        exitResultsBtn.innerHTML = window.isPlaytestingFromEditor ? '<span>⌂</span> Volver al Editor' : '<span>⌂</span> Salir al Menú';
       }
-      const btnResPrimaryLabel = document.getElementById('btnResPrimaryLabel');
-      if (btnResPrimaryLabel) {
-        btnResPrimaryLabel.innerText = window.isPlaytestingFromEditor ? 'VOLVER AL EDITOR' : 'EXPLORAR CATÁLOGO';
+      const btnResRestartLabel = document.getElementById('btnResRestartLabel');
+      if (btnResRestartLabel) {
+        btnResRestartLabel.innerText = window.isPlaytestingFromEditor ? 'REINTENTAR PRUEBA' : 'JUGAR DE NUEVO';
       }
 
       const modal = document.getElementById('resultsModal');

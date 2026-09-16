@@ -1607,6 +1607,7 @@ class BeatstarEngine {
     this.lastHitTimePerf = 0;
     this.shakeDuration = 0;
     this.shakeIntensity = 0;
+    this._holdPointsBuffer = Array.from({ length: 16 }, () => ({ x: 0, y: 0, scale: 1, laneW: 50, halfW: 20 }));
 
     this.initCanvasSize();
     this.bindEvents();
@@ -1899,8 +1900,8 @@ class BeatstarEngine {
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem('beatstar_note_speed', this.noteSpeedMultiplier.toString());
     }
-    const base = this.baseScrollDurationMs || 1200;
-    const mult = Math.max(0.5, Math.min(2.5, this.noteSpeedMultiplier));
+    const base = this.baseScrollDurationMs || 1400;
+    const mult = Math.max(0.7, Math.min(2.0, this.noteSpeedMultiplier || 1.0));
     this.scrollDurationMs = Math.round(base / mult);
   }
 
@@ -2030,9 +2031,10 @@ class BeatstarEngine {
    * 1★: ~1700ms | 2.5★: ~1500ms | 3.5★: ~1360ms | 5★: ~1160ms | 7★+: ~890ms
    */
   computeDynamicScrollDuration(stars, rawNotes = []) {
+    // Curva equilibrada optimizada para 120 FPS ultra fluidos sin tirones ni pixel skipping
     const s = Math.max(1.0, Math.min(10.0, parseFloat(stars) || 3.5));
-    const duration = Math.round(1700 - (s - 1.0) * 135);
-    return Math.max(800, Math.min(1800, duration));
+    const duration = Math.round(1550 - (s - 1.0) * 45);
+    return Math.max(1150, Math.min(1650, duration));
   }
 
   computeMaxPossibleScore(notes) {
@@ -2319,6 +2321,9 @@ class BeatstarEngine {
     }
 
     this.notes = cleanedNotes;
+    this.lastNoteTime = this.notes && this.notes.length > 0
+      ? this.notes.reduce((max, n) => Math.max(max, n.end_timestamp_ms || n.timestamp_ms || 0), 0)
+      : 0;
 
     this.activeHolds.clear();
     this.activeTouches.clear();
@@ -2777,6 +2782,8 @@ class BeatstarEngine {
       }
     }
     this.laneGlows[lane] = 1.0;
+    if (this.laneFlashTimers) this.laneFlashTimers[lane] = 0.22;
+    if (this.laneFlashColors) this.laneFlashColors[lane] = this.getScoreColor('perfectPlus') || '#ffd700';
     if (this.lanePressAnim) this.lanePressAnim[lane] = performance.now();
     const currentTime = this.getCurrentGameTimeMs();
 
@@ -3727,7 +3734,7 @@ class BeatstarEngine {
     this.updateVisualEffects(dt);
 
     if (this.beatmapData && this.notes.length > 0 && !this.isGameOver) {
-      const lastNoteTime = Math.max(...this.notes.map(n => n.end_timestamp_ms || n.timestamp_ms));
+      const lastNoteTime = this.lastNoteTime || 0;
       const hasExplicitEnd = Number.isFinite(this.beatmapData.endMarkerMs) && this.beatmapData.endMarkerMs > 0;
       const endLimitMs = hasExplicitEnd
         ? this.beatmapData.endMarkerMs
@@ -5777,13 +5784,13 @@ class BeatstarEngine {
 
           const flashCol = (Array.isArray(this.laneFlashColors) && this.laneFlashColors[l]) || railLaserCol;
           const rgb = hexToRgb(flashCol);
-          let baseAlpha = isHolding ? 0.72 : (flashTimer > 0 ? (0.75 * Math.min(1.0, flashTimer / 0.16)) : Math.min(0.60, glow * 0.60));
+          let baseAlpha = isHolding ? 0.92 : (flashTimer > 0 ? (0.90 * Math.min(1.0, flashTimer / 0.16)) : Math.min(0.85, glow * 0.85));
 
-          // A. Trapezoidal Flood de suelo que se diluye progresivamente hacia el horizonte
+          // A. Columna de luz volumétrica y luminosa con los colores configurados en Ajustes
           const floodGrad = ctx.createLinearGradient(0, hitY + 32, 0, horizonY);
-          floodGrad.addColorStop(0.0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(baseAlpha * 0.48).toFixed(3)})`);
-          floodGrad.addColorStop(0.35, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(baseAlpha * 0.20).toFixed(3)})`);
-          floodGrad.addColorStop(0.65, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(baseAlpha * 0.04).toFixed(3)})`);
+          floodGrad.addColorStop(0.0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(baseAlpha * 0.90).toFixed(3)})`);
+          floodGrad.addColorStop(0.35, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(baseAlpha * 0.55).toFixed(3)})`);
+          floodGrad.addColorStop(0.70, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(baseAlpha * 0.18).toFixed(3)})`);
           floodGrad.addColorStop(1.0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
           ctx.fillStyle = floodGrad;
           ctx.beginPath();
@@ -5794,14 +5801,14 @@ class BeatstarEngine {
           ctx.closePath();
           ctx.fill();
 
-          // B. Haz central incandescente atenuado que se disuelve hacia arriba
+          // B. Haz central incandescente que viaja hacia arriba
           const coreW_top = Math.max(4, (pR_top - pL_top) * 0.25);
           const coreW_bot = Math.max(12, (pR_bot - pL_bot) * 0.35);
 
           const coreGrad = ctx.createLinearGradient(0, hitY + 32, 0, horizonY);
-          coreGrad.addColorStop(0.0, `rgba(255, 255, 255, ${(baseAlpha * 0.65).toFixed(3)})`);
-          coreGrad.addColorStop(0.30, `rgba(255, 255, 255, ${(baseAlpha * 0.22).toFixed(3)})`);
-          coreGrad.addColorStop(0.60, `rgba(255, 255, 255, 0)`);
+          coreGrad.addColorStop(0.0, `rgba(255, 255, 255, ${(baseAlpha * 0.88).toFixed(3)})`);
+          coreGrad.addColorStop(0.30, `rgba(255, 255, 255, ${(baseAlpha * 0.45).toFixed(3)})`);
+          coreGrad.addColorStop(0.65, `rgba(255, 255, 255, 0)`);
           ctx.fillStyle = coreGrad;
           ctx.beginPath();
           ctx.moveTo(midTopX - coreW_top / 2, horizonY);
@@ -5983,17 +5990,17 @@ class BeatstarEngine {
           const neonGrad = ctx.createLinearGradient(0, hitY, 0, 0);
           let alpha = 0;
           if (isHolding) {
-            alpha = 0.35;
+            alpha = 0.85;
           } else if (flashTimer > 0) {
-            const p = flashTimer / 0.11;
-            alpha = 0.35 * Math.sin(Math.min(1, Math.max(0, p)) * Math.PI * 0.5);
+            const p = flashTimer / 0.15;
+            alpha = 0.85 * Math.sin(Math.min(1, Math.max(0, p)) * Math.PI * 0.5);
           } else {
-            alpha = Math.min(0.35, glow * 0.35);
+            alpha = Math.min(0.80, glow * 0.80);
           }
           const flashCol = (Array.isArray(this.laneFlashColors) && this.laneFlashColors[l]) || '#00f2fe';
           const rgb = hexToRgb(flashCol);
           neonGrad.addColorStop(0.0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha.toFixed(3)})`);
-          neonGrad.addColorStop(0.6, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(alpha * 0.35).toFixed(3)})`);
+          neonGrad.addColorStop(0.5, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(alpha * 0.45).toFixed(3)})`);
           neonGrad.addColorStop(1.0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
           ctx.fillStyle = neonGrad;
           ctx.fillRect(l * laneW, 0, laneW, hitY + 20);
@@ -6478,7 +6485,7 @@ class BeatstarEngine {
           ctx.save();
 
           const segments = 10;
-          const stringPoints = [];
+          const stringPoints = this._holdPointsBuffer || [];
           const timeSec = currentTime / 1000;
           for (let s = 0; s <= segments; s++) {
             const frac = s / segments;
@@ -6493,13 +6500,16 @@ class BeatstarEngine {
             const wave = Math.sin((ptCoord.y * 0.04) - (currentTime * 0.008)) * (2.4 * ptCoord.scale);
             const halfW = Math.max(4, (ptCoord.laneW * 0.40) + wave);
 
-            stringPoints.push({
-              x: ptCoord.x + vibration,
-              y: ptCoord.y,
-              scale: ptCoord.scale,
-              laneW: ptCoord.laneW,
-              halfW: halfW
-            });
+            let pt = stringPoints[s];
+            if (!pt) {
+              pt = { x: 0, y: 0, scale: 1, laneW: 50, halfW: 20 };
+              stringPoints[s] = pt;
+            }
+            pt.x = ptCoord.x + vibration;
+            pt.y = ptCoord.y;
+            pt.scale = ptCoord.scale;
+            pt.laneW = ptCoord.laneW;
+            pt.halfW = halfW;
           }
 
         // 1. Beatstar Neon Translucent Energy Ribbon (Colores Vívidos e Hiper-Exagerados)
@@ -6513,12 +6523,12 @@ class BeatstarEngine {
 
         // 1. Ribete exterior de contraste oscuro
         ctx.beginPath();
-        for (let s = 0; s < stringPoints.length; s++) {
+        for (let s = 0; s <= segments; s++) {
           const pt = stringPoints[s];
           if (s === 0) ctx.moveTo(pt.x - pt.halfW - 2.5, pt.y);
           else ctx.lineTo(pt.x - pt.halfW - 2.5, pt.y);
         }
-        for (let s = stringPoints.length - 1; s >= 0; s--) {
+        for (let s = segments; s >= 0; s--) {
           const pt = stringPoints[s];
           ctx.lineTo(pt.x + pt.halfW + 2.5, pt.y);
         }
@@ -6528,12 +6538,12 @@ class BeatstarEngine {
 
         // 2. Relleno vibrante y fuertemente saturado
         ctx.beginPath();
-        for (let s = 0; s < stringPoints.length; s++) {
+        for (let s = 0; s <= segments; s++) {
           const pt = stringPoints[s];
           if (s === 0) ctx.moveTo(pt.x - pt.halfW, pt.y);
           else ctx.lineTo(pt.x - pt.halfW, pt.y);
         }
-        for (let s = stringPoints.length - 1; s >= 0; s--) {
+        for (let s = segments; s >= 0; s--) {
           const pt = stringPoints[s];
           ctx.lineTo(pt.x + pt.halfW, pt.y);
         }
@@ -6577,12 +6587,12 @@ class BeatstarEngine {
         ctx.strokeStyle = isBeingHeld ? hexToRgba(holdGlow, 1.0) : hexToRgba(holdGlow, 0.75);
         ctx.lineWidth = 4.2 * stringPoints[stringPoints.length - 1].scale;
         ctx.beginPath();
-        for (let s = 0; s < stringPoints.length; s++) {
+        for (let s = 0; s <= segments; s++) {
           const pt = stringPoints[s];
           if (s === 0) ctx.moveTo(pt.x - pt.halfW, pt.y);
           else ctx.lineTo(pt.x - pt.halfW, pt.y);
         }
-        for (let s = 0; s < stringPoints.length; s++) {
+        for (let s = 0; s <= segments; s++) {
           const pt = stringPoints[s];
           if (s === 0) ctx.moveTo(pt.x + pt.halfW, pt.y);
           else ctx.lineTo(pt.x + pt.halfW, pt.y);
@@ -6593,7 +6603,7 @@ class BeatstarEngine {
         ctx.strokeStyle = hexToRgba(holdCol, 1.0);
         ctx.lineWidth = 5.2 * stringPoints[stringPoints.length - 1].scale;
         ctx.beginPath();
-        for (let s = 0; s < stringPoints.length; s++) {
+        for (let s = 0; s <= segments; s++) {
           if (s === 0) ctx.moveTo(stringPoints[s].x, stringPoints[s].y);
           else ctx.lineTo(stringPoints[s].x, stringPoints[s].y);
         }
@@ -6778,24 +6788,15 @@ class BeatstarEngine {
       const isGood = j.text.includes('GOOD');
       const isMiss = j.text.includes('MISS');
 
-      let textColor = j.color || '#00f5a0';
-      let coreColor = '#ffffff';
-
-      if (isPerfectPlus) {
-        textColor = '#00f5a0'; // Verde menta eléctrico incandescente Beatstar
-        coreColor = '#ffffff';
-      } else if (isPerfect) {
-        textColor = '#ffb800'; // Amarillo dorado radiante Beatstar
-        coreColor = '#fff6d6';
-      } else if (isGreat) {
-        textColor = '#00d2fe'; // Azul cian eléctrico
-        coreColor = '#e0faff';
-      } else if (isGood) {
-        textColor = '#c084fc'; // Violeta neón suave
-        coreColor = '#f3e8ff';
-      } else if (isMiss) {
-        textColor = '#ff3366'; // Rojo carmesí neón
-        coreColor = '#ffe4ea';
+      // Respetar estrictamente los colores configurados por el usuario en Ajustes
+      let textColor = j.color;
+      if (!textColor) {
+        if (isPerfectPlus) textColor = this.getScoreColor('perfectPlus');
+        else if (isPerfect) textColor = this.getScoreColor('perfect');
+        else if (isGreat) textColor = this.getScoreColor('great');
+        else if (isGood) textColor = this.getScoreColor('good');
+        else if (isMiss) textColor = this.getScoreColor('miss');
+        else textColor = '#ffffff';
       }
 
       const drawX = (typeof j.x === 'number') ? j.x : (this.width / 2);
@@ -6809,11 +6810,11 @@ class BeatstarEngine {
         const flareW = Math.min(180, 120 * j.scale);
         const flareH = Math.max(6, 12 * j.scale);
         const flareGrad = ctx.createLinearGradient(drawX - flareW, j.y, drawX + flareW, j.y);
-        flareGrad.addColorStop(0.0, 'rgba(0, 245, 160, 0)');
-        flareGrad.addColorStop(0.35, hexToRgba('#00f5a0', alpha * 0.45));
-        flareGrad.addColorStop(0.50, hexToRgba('#ffffff', alpha * 0.85));
-        flareGrad.addColorStop(0.65, hexToRgba('#00f5a0', alpha * 0.45));
-        flareGrad.addColorStop(1.0, 'rgba(0, 245, 160, 0)');
+        flareGrad.addColorStop(0.0, 'rgba(0, 0, 0, 0)');
+        flareGrad.addColorStop(0.35, hexToRgba(textColor, alpha * 0.55));
+        flareGrad.addColorStop(0.50, hexToRgba('#ffffff', alpha * 0.95));
+        flareGrad.addColorStop(0.65, hexToRgba(textColor, alpha * 0.55));
+        flareGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
         ctx.fillStyle = flareGrad;
         ctx.fillRect(drawX - flareW, j.y - flareH / 2, flareW * 2, flareH);
 
