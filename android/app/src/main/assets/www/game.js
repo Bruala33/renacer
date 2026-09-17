@@ -4157,6 +4157,30 @@ class BeatstarEngine {
       return `rgba(197, 160, 89, ${a.toFixed(3)})`;
     };
 
+    // 0. IMAGEN DE FONDO PERSONALIZADA DE LA CANCIÓN
+    const customBgSrc = this.beatmapData && (this.beatmapData.background_image || this.beatmapData.bg_image || (this.beatmapData.metadata && (this.beatmapData.metadata.background_image || this.beatmapData.metadata.bg_image)));
+    if (customBgSrc) {
+      if (!this.cachedCustomBgImg || this.cachedCustomBgSrc !== customBgSrc) {
+        this.cachedCustomBgSrc = customBgSrc;
+        this.cachedCustomBgImg = new Image();
+        this.cachedCustomBgImg.crossOrigin = 'anonymous';
+        this.cachedCustomBgImg.src = customBgSrc;
+      }
+      if (this.cachedCustomBgImg && this.cachedCustomBgImg.complete && this.cachedCustomBgImg.naturalWidth > 0) {
+        ctx.save();
+        ctx.globalAlpha = 0.40;
+        const imgW = this.cachedCustomBgImg.naturalWidth;
+        const imgH = this.cachedCustomBgImg.naturalHeight;
+        const s = Math.max(w / imgW, h / imgH);
+        const dw = imgW * s;
+        const dh = imgH * s;
+        const dx = (w - dw) / 2;
+        const dy = (h - dh) / 2;
+        ctx.drawImage(this.cachedCustomBgImg, dx, dy, dw, dh);
+        ctx.restore();
+      }
+    }
+
     // 1. GRADIENTE ATMOSFÉRICO DE ESTADIO SEGÚN MULTIPLICADOR
     const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
     if (mult >= 5) {

@@ -30,6 +30,9 @@ const ChartEditor = {
   endMarkerMs: null,   // Marcador de fin de la pista (abarca 3 carriles)
   canvas: null,
   ctx: null,
+  backgroundImage: null,
+  backgroundImageDataUrl: null,
+  bgImageElement: null,
 
   // Estados de interacción táctil avanzada
   isDraggingGrid: false,
@@ -55,6 +58,10 @@ const ChartEditor = {
   activeKeys: new Map(),
 
   init() {
+    window.isEditorActive = true;
+    if (typeof window.pauseMenuAmbientMusic === 'function') {
+      try { window.pauseMenuAmbientMusic(); } catch (_) {}
+    }
     this.canvas = document.getElementById('editorCanvas');
     if (!this.canvas) return;
     this.ctx = this.canvas.getContext('2d');
@@ -95,6 +102,11 @@ const ChartEditor = {
   async loadAudioFile(e) {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
+
+    window.isEditorActive = true;
+    if (typeof window.pauseMenuAmbientMusic === 'function') {
+      try { window.pauseMenuAmbientMusic(); } catch (_) {}
+    }
 
     this.pause();
 
@@ -139,6 +151,32 @@ const ChartEditor = {
     }
 
     showSuccessToast(`Audio cargado: ${this.duration.toFixed(1)}s`);
+  },
+
+  async loadBgImage(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target.result;
+      this.backgroundImageDataUrl = dataUrl;
+      const img = new Image();
+      img.onload = () => {
+        this.bgImageElement = img;
+        this.backgroundImage = img;
+        this.draw();
+        const btnText = document.getElementById('edBgBtnText');
+        if (btnText) {
+          btnText.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> ${file.name.slice(0, 11)}...`;
+        }
+        if (typeof showSuccessToast === 'function') {
+          showSuccessToast(`Imagen de fondo cargada: ${file.name.slice(0, 15)}`);
+        }
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
   },
 
   setPlaybackSpeed(speedVal) {
@@ -967,19 +1005,32 @@ const ChartEditor = {
 
     const is3D = (typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_visual_dimension') : null) !== '2d';
 
+    // 1. Fondo base
+    this.ctx.fillStyle = is3D ? '#0a080d' : '#08050e';
+    this.ctx.fillRect(0, 0, w, h);
+
+    // Si el usuario cargó una imagen de fondo, dibujarla adaptada (cover fit) con opacidad calibrada
+    if (this.bgImageElement && this.bgImageElement.complete && this.bgImageElement.naturalWidth > 0) {
+      this.ctx.save();
+      this.ctx.globalAlpha = 0.30;
+      const imgW = this.bgImageElement.naturalWidth;
+      const imgH = this.bgImageElement.naturalHeight;
+      const s = Math.max(w / imgW, h / imgH);
+      const dw = imgW * s;
+      const dh = imgH * s;
+      const dx = (w - dw) / 2;
+      const dy = (h - dh) / 2;
+      this.ctx.drawImage(this.bgImageElement, dx, dy, dw, dh);
+      this.ctx.restore();
+    }
+
     if (is3D) {
-      // 1. Fondo de ébano pulido de estudio acústico con sutil veteado
-      this.ctx.fillStyle = '#0a080d';
-      this.ctx.fillRect(0, 0, w, h);
       const bgGrad = this.ctx.createLinearGradient(0, 0, 0, h);
-      bgGrad.addColorStop(0.0, 'rgba(25, 18, 29, 0.45)');
-      bgGrad.addColorStop(0.4, 'rgba(12, 9, 15, 0.2)');
+      bgGrad.addColorStop(0.0, 'rgba(25, 18, 29, 0.40)');
+      bgGrad.addColorStop(0.4, 'rgba(12, 9, 15, 0.15)');
       bgGrad.addColorStop(0.85, 'rgba(6, 4, 8, 0.65)');
       bgGrad.addColorStop(1.0, 'rgba(3, 2, 4, 0.95)');
       this.ctx.fillStyle = bgGrad;
-      this.ctx.fillRect(0, 0, w, h);
-    } else {
-      this.ctx.fillStyle = '#08050e';
       this.ctx.fillRect(0, 0, w, h);
     }
 
@@ -1429,11 +1480,17 @@ const ChartEditor = {
         difficulty_name: this.difficultyPreset,
         bpm: Number(this.bpm) || 120,
         stars: diffConfig.stars,
+        background_image: this.backgroundImageDataUrl || null,
+        bg_image: this.backgroundImageDataUrl || null,
+        cover_url: this.backgroundImageDataUrl || null,
         is_community: true,
         isCommunity: true,
         source: 'community',
         source_name: 'Comunidad'
       },
+      background_image: this.backgroundImageDataUrl || null,
+      bg_image: this.backgroundImageDataUrl || null,
+      cover_url: this.backgroundImageDataUrl || null,
       bpm: Number(this.bpm) || 120,
       offset: Number(this.firstBeatOffsetMs) || 0,
       firstBeatOffsetMs: Number(this.firstBeatOffsetMs) || 0,
@@ -1489,7 +1546,9 @@ const ChartEditor = {
       title: title,
       artist: artist,
       creator: localStorage.getItem('beatstar_player_nickname') || localStorage.getItem('beatstar_creator_name') || 'Tú',
-      thumbnail: typeof GENERIC_THUMBNAIL !== 'undefined' ? GENERIC_THUMBNAIL : '',
+      thumbnail: this.backgroundImageDataUrl || (typeof GENERIC_THUMBNAIL !== 'undefined' ? GENERIC_THUMBNAIL : ''),
+      background_image: this.backgroundImageDataUrl || null,
+      bg_image: this.backgroundImageDataUrl || null,
       bpm: this.bpm,
       notes: unpackedData.notes,
       difficulties: unpackedData.difficulties

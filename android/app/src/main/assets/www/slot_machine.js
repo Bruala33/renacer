@@ -971,11 +971,9 @@
         // ==========================================
         const poolLen = featuredSongsReelPool.length;
 
-        for (let s = 0; s < TOTAL_SONG_SLOTS; s++) {
-          // El rodillo 'i' muestra principalmente la canción 'i' cuando está centrado (s=0)
-          const songIdx = (s === 0) ? (i % poolLen) : ((s + i) % poolLen);
-          const song = featuredSongsReelPool[songIdx] || { title: 'Canción', artist: 'Artista', stars: 3.5 };
+        const isSpinAvailable = isFeaturedDailySpinAvailable();
 
+        for (let s = 0; s < TOTAL_SONG_SLOTS; s++) {
           let angleDiff = (s * SONG_STEP - reel.angle) % (Math.PI * 2);
           if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
           if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
@@ -987,7 +985,7 @@
           const scaleX = 0.95 * Math.cos(angleDiff * 0.35);
 
           const cardW = reelWidth * 0.94 * scaleX;
-          const cardH = 152 * scaleY;
+          const cardH = 144 * scaleY;
           const isCentered = Math.abs(angleDiff) < 0.22 && !reel.isSpinning;
 
           ctxReels.save();
@@ -995,6 +993,7 @@
 
           // Sombra de tarjeta
           ctxReels.fillStyle = 'rgba(0, 0, 0, 0.45)';
+          ctxReels.beginPath();
           if (ctxReels.roundRect) ctxReels.roundRect(-cardW / 2 + 2, -cardH / 2 + 2, cardW, cardH, 8 * scaleY);
           else ctxReels.rect(-cardW / 2 + 2, -cardH / 2 + 2, cardW, cardH);
           ctxReels.fill();
@@ -1005,6 +1004,7 @@
           cardGrad.addColorStop(0.35, '#fef6de');
           cardGrad.addColorStop(1.0, '#f9df94');
           ctxReels.fillStyle = cardGrad;
+          ctxReels.beginPath();
           if (ctxReels.roundRect) ctxReels.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, 8 * scaleY);
           else ctxReels.rect(-cardW / 2, -cardH / 2, cardW, cardH);
           ctxReels.fill();
@@ -1012,109 +1012,170 @@
           // Borde metálico biselado
           ctxReels.strokeStyle = isCentered ? '#d4af37' : 'rgba(120, 90, 50, 0.45)';
           ctxReels.lineWidth = isCentered ? 2.5 : 1.2;
-          if (ctxReels.roundRect) ctxReels.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, 8 * scaleY);
-          else ctxReels.rect(-cardW / 2, -cardH / 2, cardW, cardH);
           ctxReels.stroke();
 
-          // 1. MINIATURA CUADRADA CON ESQUINAS REDONDEADAS
-          const thumbSize = Math.min(cardW * 0.52, 38 * scaleY);
-          const thumbY = -cardH / 2 + 8 * scaleY + thumbSize / 2;
-          const coverSrc = song.cover_url || song.cover || song.album_art || song.image || './app_logo.png';
-          const coverImg = getSongCoverImage(coverSrc);
+          if (isSpinAvailable) {
+            // ==========================================
+            // TARJETA MISTERIOSA CON INTERROGANTE DE TINTA (ANTES DE GIRAR)
+            // ==========================================
+            // Borde interior de sello mecanográfico
+            ctxReels.strokeStyle = 'rgba(74, 38, 14, 0.4)';
+            ctxReels.lineWidth = 1;
+            ctxReels.beginPath();
+            if (ctxReels.roundRect) ctxReels.roundRect(-cardW / 2 + 4 * scaleX, -cardH / 2 + 4 * scaleY, cardW - 8 * scaleX, cardH - 8 * scaleY, 5 * scaleY);
+            else ctxReels.rect(-cardW / 2 + 4 * scaleX, -cardH / 2 + 4 * scaleY, cardW - 8 * scaleX, cardH - 8 * scaleY);
+            ctxReels.stroke();
 
-          ctxReels.save();
-          ctxReels.beginPath();
-          if (ctxReels.roundRect) ctxReels.roundRect(-thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize, 6 * scaleY);
-          else ctxReels.rect(-thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize);
-          ctxReels.clip();
-
-          if (coverImg && coverImg.complete && coverImg.naturalWidth > 0) {
-            ctxReels.drawImage(coverImg, -thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize);
-          } else {
-            const discGrad = ctxReels.createLinearGradient(-thumbSize / 2, thumbY - thumbSize / 2, thumbSize / 2, thumbY + thumbSize / 2);
-            discGrad.addColorStop(0.0, '#2d1f12');
-            discGrad.addColorStop(0.5, '#18120b');
-            discGrad.addColorStop(1.0, '#0a0806');
-            ctxReels.fillStyle = discGrad;
-            ctxReels.fillRect(-thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize);
-
-            ctxReels.fillStyle = '#fbbf24';
-            ctxReels.font = `bold ${Math.max(12, Math.round(16 * scaleY))}px sans-serif`;
+            // Texto superior con sello de tinta
+            ctxReels.fillStyle = '#78350f';
+            ctxReels.font = `900 ${Math.max(7, Math.round(8.5 * scaleY))}px "Georgia", serif`;
             ctxReels.textAlign = 'center';
             ctxReels.textBaseline = 'middle';
-            ctxReels.fillText('♫', 0, thumbY);
+            ctxReels.fillText('★ ¿DESTACADA? ★', 0, -cardH / 2 + 16 * scaleY);
+
+            // Sello circular de tinta de agua
+            const sealR = Math.min(cardW * 0.36, 32 * scaleY);
+            ctxReels.strokeStyle = 'rgba(120, 53, 15, 0.35)';
+            ctxReels.lineWidth = 1.5;
+            ctxReels.beginPath();
+            ctxReels.arc(0, 0, sealR, 0, Math.PI * 2);
+            ctxReels.stroke();
+
+            // GRAN SIGNO DE INTERROGACIÓN ESCRITO CON TINTA VINTAGE
+            ctxReels.save();
+            ctxReels.fillStyle = '#1c0f08';
+            ctxReels.shadowColor = 'rgba(0, 0, 0, 0.3)';
+            ctxReels.shadowBlur = 3;
+            ctxReels.font = `bold ${Math.max(28, Math.round(52 * scaleY))}px "Georgia", "Times New Roman", serif`;
+            ctxReels.textAlign = 'center';
+            ctxReels.textBaseline = 'middle';
+            ctxReels.fillText('?', 0, 1 * scaleY);
+            ctxReels.restore();
+
+            // Texto inferior con sello de recompensa
+            ctxReels.fillStyle = '#b45309';
+            ctxReels.font = `bold ${Math.max(7, Math.round(8.5 * scaleY))}px "Georgia", serif`;
+            ctxReels.textAlign = 'center';
+            ctxReels.textBaseline = 'middle';
+            ctxReels.fillText('★ 2X CLAVES ★', 0, cardH / 2 - 16 * scaleY);
+
+          } else {
+            // ==========================================
+            // TARJETA REVELADA (CANCIÓN DESTACADA CON BOTÓN [ ▶ JUGAR ])
+            // ==========================================
+            const songIdx = (s === 0) ? (i % poolLen) : ((s + i) % poolLen);
+            const song = featuredSongsReelPool[songIdx] || { title: 'Canción', artist: 'Artista', stars: 3.5 };
+
+            // 1. MINIATURA CUADRADA CON ESQUINAS REDONDEADAS
+            const thumbSize = Math.min(cardW * 0.48, 34 * scaleY);
+            const thumbY = -cardH / 2 + 7 * scaleY + thumbSize / 2;
+            const coverSrc = song.cover_url || song.cover || song.album_art || song.image || './app_logo.png';
+            const coverImg = getSongCoverImage(coverSrc);
+
+            ctxReels.save();
+            ctxReels.beginPath();
+            if (ctxReels.roundRect) ctxReels.roundRect(-thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize, 6 * scaleY);
+            else ctxReels.rect(-thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize);
+            ctxReels.clip();
+
+            if (coverImg && coverImg.complete && coverImg.naturalWidth > 0) {
+              ctxReels.drawImage(coverImg, -thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize);
+            } else {
+              const discGrad = ctxReels.createLinearGradient(-thumbSize / 2, thumbY - thumbSize / 2, thumbSize / 2, thumbY + thumbSize / 2);
+              discGrad.addColorStop(0.0, '#2d1f12');
+              discGrad.addColorStop(0.5, '#18120b');
+              discGrad.addColorStop(1.0, '#0a0806');
+              ctxReels.fillStyle = discGrad;
+              ctxReels.fillRect(-thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize);
+
+              ctxReels.fillStyle = '#fbbf24';
+              ctxReels.font = `bold ${Math.max(12, Math.round(15 * scaleY))}px sans-serif`;
+              ctxReels.textAlign = 'center';
+              ctxReels.textBaseline = 'middle';
+              ctxReels.fillText('♫', 0, thumbY);
+            }
+            ctxReels.restore();
+
+            // Marco dorado de la miniatura
+            ctxReels.strokeStyle = '#d4af37';
+            ctxReels.lineWidth = 1.4;
+            ctxReels.beginPath();
+            if (ctxReels.roundRect) ctxReels.roundRect(-thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize, 6 * scaleY);
+            else ctxReels.rect(-thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize);
+            ctxReels.stroke();
+
+            // 2. INDICADOR DE ESTRELLAS Y RECOMPENSA (debajo de la miniatura)
+            const starsVal = Number(song.stars || 3.5).toFixed(1);
+            const starsTop = thumbY + thumbSize / 2 + 4 * scaleY;
+            ctxReels.fillStyle = '#b45309';
+            ctxReels.font = `bold ${Math.max(7, Math.round(8 * scaleY))}px sans-serif`;
+            ctxReels.textAlign = 'center';
+            ctxReels.textBaseline = 'top';
+            ctxReels.fillText(`★ ${starsVal} • 2X CLAVES`, 0, starsTop);
+
+            // 3. TÍTULO MULTILÍNEA
+            const titleLines = wrapSongTitle(song.title, 13, 2);
+            const titleLineH = Math.max(8.5, Math.round(10 * scaleY));
+            const titleTop = starsTop + 10 * scaleY;
+
+            ctxReels.fillStyle = '#140c04';
+            ctxReels.font = `bold ${Math.max(7.5, Math.round(9 * scaleY))}px sans-serif`;
+            ctxReels.textAlign = 'center';
+            ctxReels.textBaseline = 'top';
+            for (let l = 0; l < titleLines.length; l++) {
+              ctxReels.fillText(titleLines[l], 0, titleTop + l * titleLineH);
+            }
+
+            // 4. ARTISTA
+            const artistTop = titleTop + (titleLines.length * titleLineH) + 1.5 * scaleY;
+            ctxReels.fillStyle = '#78552a';
+            ctxReels.font = `normal ${Math.max(6, Math.round(7.5 * scaleY))}px sans-serif`;
+            ctxReels.textAlign = 'center';
+            ctxReels.textBaseline = 'top';
+            const artistStr = (song.artist || 'Artista').slice(0, 15);
+            ctxReels.fillText(artistStr, 0, artistTop);
+
+            // 5. BOTÓN DIRECTO [ ▶ JUGAR ] ULTRA LUMINOSO, VERDE VIBRANTE Y 100% VISIBLE
+            const btnW = Math.min(cardW * 0.88, 80 * scaleX);
+            const btnH = Math.max(22, Math.round(24 * scaleY));
+            const btnY = cardH / 2 - btnH / 2 - 8 * scaleY;
+
+            ctxReels.save();
+            const btnGrad = ctxReels.createLinearGradient(0, btnY - btnH / 2, 0, btnY + btnH / 2);
+            btnGrad.addColorStop(0.0, '#22c55e');
+            btnGrad.addColorStop(1.0, '#15803d');
+            ctxReels.fillStyle = btnGrad;
+            ctxReels.beginPath();
+            if (ctxReels.roundRect) ctxReels.roundRect(-btnW / 2, btnY - btnH / 2, btnW, btnH, 6 * scaleY);
+            else ctxReels.rect(-btnW / 2, btnY - btnH / 2, btnW, btnH);
+            ctxReels.fill();
+
+            // Borde blanco nítido
+            ctxReels.strokeStyle = '#ffffff';
+            ctxReels.lineWidth = 1.8;
+            ctxReels.stroke();
+
+            // Triángulo de Play blanco dibujado por código vectorial (nunca falla ni se borra)
+            const triSize = Math.max(6, Math.round(7.5 * scaleY));
+            const triX = -btnW / 2 + 15 * scaleX;
+            ctxReels.fillStyle = '#ffffff';
+            ctxReels.beginPath();
+            ctxReels.moveTo(triX - triSize * 0.45, btnY - triSize * 0.55);
+            ctxReels.lineTo(triX + triSize * 0.65, btnY);
+            ctxReels.lineTo(triX - triSize * 0.45, btnY + triSize * 0.55);
+            ctxReels.closePath();
+            ctxReels.fill();
+
+            // Texto blanco JUGAR con sombra negra
+            ctxReels.fillStyle = '#ffffff';
+            ctxReels.shadowColor = 'rgba(0, 0, 0, 0.85)';
+            ctxReels.shadowBlur = 3;
+            ctxReels.textAlign = 'center';
+            ctxReels.textBaseline = 'middle';
+            ctxReels.font = `bold ${Math.max(9.5, Math.round(11 * scaleY))}px sans-serif`;
+            ctxReels.fillText('JUGAR', 5 * scaleX, btnY);
+            ctxReels.restore();
           }
-          ctxReels.restore();
-
-          // Marco dorado de la miniatura
-          ctxReels.strokeStyle = '#d4af37';
-          ctxReels.lineWidth = 1.4;
-          ctxReels.beginPath();
-          if (ctxReels.roundRect) ctxReels.roundRect(-thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize, 6 * scaleY);
-          else ctxReels.rect(-thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize);
-          ctxReels.stroke();
-
-          // 2. INDICADOR DE ESTRELLAS Y RECOMPENSA (debajo de la miniatura, sin solaparse)
-          const starsVal = Number(song.stars || 3.5).toFixed(1);
-          const starsTop = thumbY + thumbSize / 2 + 5 * scaleY;
-          ctxReels.fillStyle = '#b45309';
-          ctxReels.font = `bold ${Math.max(7, Math.round(8 * scaleY))}px sans-serif`;
-          ctxReels.textAlign = 'center';
-          ctxReels.textBaseline = 'top';
-          ctxReels.fillText(`★ ${starsVal} • 2X CLAVES`, 0, starsTop);
-
-          // 3. TÍTULO MULTILÍNEA (posicionado limpiamente abajo de las estrellas con textBaseline top)
-          const titleLines = wrapSongTitle(song.title, 13, 2);
-          const titleLineH = Math.max(9, Math.round(10.5 * scaleY));
-          const titleTop = starsTop + 11 * scaleY;
-
-          ctxReels.fillStyle = '#140c04';
-          ctxReels.font = `bold ${Math.max(7.5, Math.round(9 * scaleY))}px sans-serif`;
-          ctxReels.textAlign = 'center';
-          ctxReels.textBaseline = 'top';
-          for (let l = 0; l < titleLines.length; l++) {
-            ctxReels.fillText(titleLines[l], 0, titleTop + l * titleLineH);
-          }
-
-          // 4. ARTISTA (debajo del título sin solaparse)
-          const artistTop = titleTop + (titleLines.length * titleLineH) + 2 * scaleY;
-          ctxReels.fillStyle = '#78552a';
-          ctxReels.font = `normal ${Math.max(6, Math.round(7.5 * scaleY))}px sans-serif`;
-          ctxReels.textAlign = 'center';
-          ctxReels.textBaseline = 'top';
-          const artistStr = (song.artist || 'Artista').slice(0, 15);
-          ctxReels.fillText(artistStr, 0, artistTop);
-
-          // 5. BOTÓN DIRECTO [ ▶ JUGAR ] ULTRA LUMINOSO, VERDE VIBRANTE Y 100% VISIBLE
-          const btnW = Math.min(cardW * 0.88, 82 * scaleX);
-          const btnH = Math.max(22, Math.round(25 * scaleY));
-          const btnY = cardH / 2 - btnH / 2 - 8 * scaleY;
-
-          ctxReels.save();
-          // Gradiente verde neón esmeralda
-          const btnGrad = ctxReels.createLinearGradient(0, btnY - btnH / 2, 0, btnY + btnH / 2);
-          btnGrad.addColorStop(0.0, '#22c55e');
-          btnGrad.addColorStop(1.0, '#15803d');
-          ctxReels.fillStyle = btnGrad;
-          ctxReels.beginPath();
-          if (ctxReels.roundRect) ctxReels.roundRect(-btnW / 2, btnY - btnH / 2, btnW, btnH, 6 * scaleY);
-          else ctxReels.rect(-btnW / 2, btnY - btnH / 2, btnW, btnH);
-          ctxReels.fill();
-
-          // Borde blanco nítido
-          ctxReels.strokeStyle = '#ffffff';
-          ctxReels.lineWidth = 1.8;
-          ctxReels.stroke();
-
-          // Texto blanco con sombra negra para máxima legibilidad
-          ctxReels.fillStyle = '#ffffff';
-          ctxReels.shadowColor = 'rgba(0, 0, 0, 0.8)';
-          ctxReels.shadowBlur = 4;
-          ctxReels.textAlign = 'center';
-          ctxReels.textBaseline = 'middle';
-          ctxReels.font = `bold ${Math.max(10, Math.round(12 * scaleY))}px sans-serif`;
-          ctxReels.fillText('▶ JUGAR', 0, btnY);
-          ctxReels.restore();
 
           ctxReels.restore();
         }
@@ -1495,6 +1556,8 @@
       if (slotMachineMode === 'featured') {
         if (statusMsg) statusMsg.textContent = '★ ¡TOCA UNA CANCIÓN EN EL RODILLO PARA JUGAR! ★';
         soundWin(5); // Tier 2 win melody
+        drawCylindricalReels();
+        updateScoreboards();
       } else {
         const prize = currentBet * outcome.mult;
         if (prize > 0) {
@@ -2016,6 +2079,14 @@
     if (reelsCanvas) {
       reelsCanvas.addEventListener('click', (e) => {
         if (slotMachineMode !== 'featured' || isMachineActive) return;
+
+        // Si la tirada del día aún no se ha realizado, pulsar en los tambores misteriosos inicia la tirada
+        if (isFeaturedDailySpinAvailable()) {
+          unlockAllSlotAudio();
+          triggerSpin();
+          return;
+        }
+
         const rect = reelsCanvas.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
         const reelW = rect.width / 3;

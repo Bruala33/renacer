@@ -1612,10 +1612,10 @@
       <input id="edSongArtist" type="text" data-i18n-placeholder="ed_artist" placeholder="Artista..." class="px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-xl text-[11px] text-white focus:border-pink-500 outline-none">
     </div>
 
-    <!-- File Selector & Speed / BPM Controls -->
-    <div class="grid grid-cols-12 gap-1.5 items-center">
-      <div class="col-span-6 relative">
-        <label for="edAudioFileInput" class="w-full py-1.5 px-2 bg-white/10 hover:bg-white/20 border border-cyan-400/40 rounded-xl text-[10px] font-bold text-cyan-300 text-center cursor-pointer transition active:scale-95 flex items-center justify-center truncate">
+    <!-- File Selectors (Audio e Imagen de Fondo) -->
+    <div class="grid grid-cols-2 gap-1.5 items-center">
+      <div class="relative">
+        <label for="edAudioFileInput" class="w-full py-1.5 px-2 bg-white/10 hover:bg-white/20 border border-cyan-400/40 rounded-xl text-[10px] font-bold text-cyan-300 text-center cursor-pointer transition active:scale-95 flex items-center justify-center truncate shadow-sm">
           <span id="edAudioBtnText" class="flex items-center gap-1" data-i18n="ed_file_label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> Cargar Audio</span>
         </label>
         <input 
@@ -1626,11 +1626,29 @@
           onchange="ChartEditor.loadAudioFile(event)"
         >
       </div>
-      <div class="col-span-3 flex items-center bg-black/60 border border-white/10 px-1.5 py-1 rounded-xl">
-        <span data-i18n="ed_bpm_label" class="text-[8px] text-gray-400 font-bold mr-1">BPM:</span>
+
+      <div class="relative">
+        <label for="edBgFileInput" class="w-full py-1.5 px-2 bg-white/10 hover:bg-white/20 border border-purple-400/40 rounded-xl text-[10px] font-bold text-purple-300 text-center cursor-pointer transition active:scale-95 flex items-center justify-center truncate shadow-sm">
+          <span id="edBgBtnText" class="flex items-center gap-1"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> Cargar Fondo</span>
+        </label>
+        <input 
+          type="file" 
+          id="edBgFileInput" 
+          accept="image/*, .jpg, .jpeg, .png, .webp" 
+          class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+          onchange="ChartEditor.loadBgImage(event)"
+        >
+      </div>
+    </div>
+
+    <!-- Speed & BPM Controls -->
+    <div class="grid grid-cols-2 gap-1.5 items-center">
+      <div class="flex items-center bg-black/60 border border-white/10 px-2 py-1 rounded-xl">
+        <span data-i18n="ed_bpm_label" class="text-[9px] text-gray-400 font-bold mr-1">BPM:</span>
         <input id="edBpmInput" type="number" value="120" min="40" max="320" class="w-full bg-transparent text-[10px] font-black text-pink-400 font-mono text-center outline-none" onchange="ChartEditor.setBpm(this.value)">
       </div>
-      <div class="col-span-3 flex items-center bg-black/60 border border-white/10 px-1 py-1 rounded-xl">
+      <div class="flex items-center bg-black/60 border border-white/10 px-2 py-1 rounded-xl">
+        <span class="text-[9px] text-gray-400 font-bold mr-1">Vel:</span>
         <select id="edPlaybackSpeed" onchange="ChartEditor.setPlaybackSpeed(this.value)" class="w-full bg-transparent text-[10px] font-black text-amber-300 font-mono outline-none text-center cursor-pointer">
           <option value="0.5">0.5x</option>
           <option value="0.75">0.75x</option>
@@ -3019,7 +3037,7 @@
 
   <script src="./parsers.js?v=3.5"></script>
   <script src="./game.js?v=3.5"></script>
-  <script src="./slot_machine.js?v=1789637561"></script>
+  <script src="./slot_machine.js?v=1789652777"></script>
   <script>
     let engine = null;
     let currentActiveBeatmap = null;
@@ -5605,10 +5623,12 @@ function switchMainTab(tab) {
 
   // Silenciar música de menú inmediatamente al entrar al editor o casino y reanudar al salir
   if (tab === 'editor' || window.isCasinoActive) {
+    window.isEditorActive = (tab === 'editor');
     if (typeof pauseMenuAmbientMusic === 'function') {
       pauseMenuAmbientMusic();
     }
   } else if (!window.isGameLoadingOrActive && !window.isInCasinoMode && !window.isCasinoActive) {
+    window.isEditorActive = false;
     if (typeof resumeMenuAmbientMusic === 'function') {
       resumeMenuAmbientMusic();
     }
@@ -6286,7 +6306,21 @@ function switchMainTab(tab) {
       return false;
     }
 
+    function isEditorActive() {
+      if (window.isEditorActive) return true;
+      if (typeof currentActiveTab !== 'undefined' && currentActiveTab === 'editor') return true;
+      const editorSec = document.getElementById('tabEditorSection');
+      if (editorSec && !editorSec.classList.contains('hidden') && editorSec.style.display !== 'none') return true;
+      return false;
+    }
+    window.isEditorActive = isEditorActive;
+
     function playMenuAmbientMusic() {
+      // En el editor de canciones NUNCA puede sonar la música de menú
+      if (isEditorActive()) {
+        pauseMenuAmbientMusic();
+        return;
+      }
       // Si el casino o tragaperras está activo, NUNCA reproducir la música de menú
       if (window.isCasinoActive) return;
       // Si el juego está activo, en carga o en progreso, NUNCA reproducir la música ambiental de menú
@@ -6312,6 +6346,8 @@ function switchMainTab(tab) {
     }
 
     function resumeMenuAmbientMusic() {
+      // En el editor de canciones NUNCA puede sonar la música de menú
+      if (isEditorActive()) return;
       // Si el casino o la pestaña descubrir están activos, NUNCA reanudar música de menú
       if (window.isCasinoActive) return;
       const granFortunaModal = document.getElementById('granFortunaModal');
@@ -6339,6 +6375,7 @@ function switchMainTab(tab) {
     }
 
     function initMenuAmbientMusic() {
+      if (typeof isEditorActive === 'function' && isEditorActive()) return;
       if (isGameCurrentlyActive()) return;
       const audio = getMenuBgmAudio();
       updateMenuAudioVolume();
@@ -6402,8 +6439,9 @@ function switchMainTab(tab) {
         return;
       }
 
-      // 3. Reanudar música ambiental SOLO si estamos en el menú principal y ninguna partida/modal está activa
+      // 3. Reanudar música ambiental SOLO si estamos en el menú principal y ninguna partida/modal/editor está activa
       if (!document.hidden && menuBgmUnlocked) {
+        if (typeof isEditorActive === 'function' && isEditorActive()) return;
         if (!isGameCurrentlyActive()) {
           const pauseModal = document.getElementById('pauseModal');
           const reviveModal = document.getElementById('reviveModal');
