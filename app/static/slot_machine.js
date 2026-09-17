@@ -22,11 +22,15 @@
   function initSlotAudio() {
     try {
       if (!slotAudioCtx) {
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (AudioCtx) slotAudioCtx = new AudioCtx();
+        if (window.gameInstance && window.gameInstance.synth && window.gameInstance.synth.audioCtx) {
+          slotAudioCtx = window.gameInstance.synth.audioCtx;
+        } else {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) slotAudioCtx = new AudioCtx();
+        }
       }
       if (slotAudioCtx && slotAudioCtx.state === 'suspended') {
-        slotAudioCtx.resume();
+        slotAudioCtx.resume().catch(() => {});
       }
     } catch (_) {}
   }
@@ -154,6 +158,51 @@
   // ============================================================
   const winAudioCache = {};
 
+  function playSyntheticWinSound(isBig) {
+    if (isSoundMuted) return;
+    initSlotAudio();
+    if (!slotAudioCtx) return;
+    try {
+      const now = slotAudioCtx.currentTime;
+      const notes = isBig 
+        ? [523.25, 659.25, 783.99, 1046.50, 1318.51] 
+        : [523.25, 659.25, 783.99, 1046.50];
+      notes.forEach((freq, idx) => {
+        const osc = slotAudioCtx.createOscillator();
+        const gain = slotAudioCtx.createGain();
+        osc.type = isBig ? 'sawtooth' : 'triangle';
+        osc.frequency.value = freq;
+        const t = now + idx * 0.08;
+        gain.gain.setValueAtTime(0.20, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + (isBig ? 0.35 : 0.22));
+        osc.connect(gain);
+        gain.connect(slotAudioCtx.destination);
+        osc.start(t);
+        osc.stop(t + (isBig ? 0.35 : 0.22));
+      });
+      setTimeout(() => soundCoinClink(), 100);
+    } catch (_) {}
+  }
+
+  function unlockAllSlotAudio() {
+    initSlotAudio();
+    try {
+      [1, 2, 3, 4, 5].forEach(tier => {
+        const src = `./assets/slot_win_${tier}.mp3`;
+        if (!winAudioCache[src]) {
+          const a = new Audio(src);
+          a.load();
+          winAudioCache[src] = a;
+        }
+      });
+      if (!casinoBgmAudio) {
+        casinoBgmAudio = new Audio('./assets/casino_music.mp3');
+        casinoBgmAudio.loop = true;
+        casinoBgmAudio.load();
+      }
+    } catch (_) {}
+  }
+
   function playSingleCherryChime() {
     if (isSoundMuted) return;
     initSlotAudio();
@@ -224,7 +273,7 @@
     else tier = 1;                 // 3x Frutas (limón, naranja, uvas, cerezas) (1.71s)
 
     try {
-      const src = `assets/slot_win_${tier}.mp3`;
+      const src = `./assets/slot_win_${tier}.mp3`;
       if (!winAudioCache[src]) {
         winAudioCache[src] = new Audio(src);
       }
@@ -232,7 +281,7 @@
       audio.currentTime = 0;
       audio.volume = 0.90;
       const p = audio.play();
-      if (p !== undefined) {
+      if (p !== undefined && typeof p.catch === 'function') {
         p.catch(() => {
           playSyntheticWinSound(tier >= 4);
         });
@@ -249,12 +298,12 @@
     if (typeof window.pauseMenuAmbientMusic === 'function') {
       window.pauseMenuAmbientMusic();
     }
+    initSlotAudio();
     if (!casinoBgmAudio) {
-      casinoBgmAudio = new Audio('assets/casino_music.mp3');
+      casinoBgmAudio = new Audio('./assets/casino_music.mp3');
       casinoBgmAudio.loop = true;
-      // Prevenir estrictamente que el término o loop del track dispare la música de menú
       casinoBgmAudio.addEventListener('ended', () => {
-        if (window.isCasinoActive) {
+        if (window.isCasinoActive && casinoBgmAudio) {
           casinoBgmAudio.currentTime = 0;
           casinoBgmAudio.play().catch(() => {});
         }
@@ -263,7 +312,23 @@
     casinoBgmAudio.volume = 0.55;
     try {
       const p = casinoBgmAudio.play();
-      if (p !== undefined) p.catch(() => {});
+      if (p !== undefined && typeof p.catch === 'function') {
+        p.catch((err) => {
+          console.warn('[Casino Audio] Autoplay bloqueado inicialmente, esperando interacción:', err);
+          const modal = document.getElementById('granFortunaModal');
+          if (modal) {
+            const unlockHandler = () => {
+              if (window.isCasinoActive && casinoBgmAudio) {
+                casinoBgmAudio.play().catch(() => {});
+              }
+              modal.removeEventListener('click', unlockHandler);
+              modal.removeEventListener('touchstart', unlockHandler);
+            };
+            modal.addEventListener('click', unlockHandler, { once: true });
+            modal.addEventListener('touchstart', unlockHandler, { once: true });
+          }
+        });
+      }
     } catch (_) {}
   }
 
@@ -790,13 +855,8 @@
   // Pool de canciones para los rodillos cilíndricos en Modo "Canciones Destacadas"
   let featuredSongsReelPool = [
     { id: 'comm_renacer', title: 'Renacer', artist: 'Beatstar Official', stars: 5.0, difficulty_name: 'Difícil', is_community: true },
-    { id: 'custom_fur_elise', title: 'Für Elise (Arcade Mix)', artist: 'Beethoven', stars: 3.5, difficulty_name: 'Media', is_community: false },
-    { id: 'custom_canon_d', title: 'Canon in D Rock', artist: 'Pachelbel', stars: 4.5, difficulty_name: 'Normal', is_community: false },
-    { id: 'custom_moonlight', title: 'Moonlight Sonata', artist: 'Beethoven', stars: 6.0, difficulty_name: 'Extrema', is_community: false },
-    { id: 'custom_turkish', title: 'Rondo Alla Turca', artist: 'Mozart', stars: 4.0, difficulty_name: 'Normal', is_community: false },
-    { id: 'comm_sara_perche', title: 'Sarà Perché Ti Amo', artist: 'Tommy Johansson', stars: 3.5, difficulty_name: 'Hard', is_community: true },
-    { id: 'custom_the_pretender', title: 'The Pretender', artist: 'Foo Fighters', stars: 5.5, difficulty_name: 'Difícil', is_community: false },
-    { id: 'custom_swan_lake', title: 'Swan Lake Theme', artist: 'Tchaikovsky', stars: 3.0, difficulty_name: 'Fácil', is_community: false }
+    { id: 'comm_1788769406_7797', title: 'Pikete espacial', artist: 'cecilioge', stars: 5.0, difficulty_name: 'Media', is_community: true },
+    { id: 'comm_impuestos', title: 'Impuestos', artist: 'Perro Sánxe', stars: 5.0, difficulty_name: 'Difícil', is_community: true }
   ];
   const TOTAL_SONG_SLOTS = 6;
   const SONG_STEP = (Math.PI * 2) / TOTAL_SONG_SLOTS;
@@ -837,21 +897,15 @@
 
   async function refreshFeaturedSongsPool() {
     try {
-      if (typeof window.loadDailyFeaturedSongs === 'function' && (!window.dailyFeaturedSongsList || window.dailyFeaturedSongsList.length === 0)) {
-        await window.loadDailyFeaturedSongs();
+      let songs = [];
+      if (typeof window.loadDailyFeaturedSongs === 'function') {
+        songs = await window.loadDailyFeaturedSongs();
       }
-      let pool = [];
-      if (Array.isArray(window.dailyFeaturedSongsList) && window.dailyFeaturedSongsList.length > 0) {
-        pool = window.dailyFeaturedSongsList.slice(0, 3);
-      } else if (Array.isArray(window.searchResultsCache) && window.searchResultsCache.length > 0) {
-        pool = window.searchResultsCache.slice(0, 3);
+      if (!Array.isArray(songs) || songs.length === 0) {
+        songs = window.dailyFeaturedSongsList || [];
       }
-      if (pool.length > 0) {
-        // Asegurar que haya al menos 3 canciones
-        while (pool.length < 3) {
-          pool.push(featuredSongsReelPool[pool.length % featuredSongsReelPool.length]);
-        }
-        featuredSongsReelPool = pool.slice(0, 3);
+      if (Array.isArray(songs) && songs.length > 0) {
+        featuredSongsReelPool = songs.slice(0, 3);
       }
     } catch (_) {}
   }
@@ -962,116 +1016,105 @@
           else ctxReels.rect(-cardW / 2, -cardH / 2, cardW, cardH);
           ctxReels.stroke();
 
-          // 1. MINIATURA DE PORTADA / VINILO
-          const thumbSize = Math.min(cardW * 0.48, 44 * scaleY);
+          // 1. MINIATURA CUADRADA CON ESQUINAS REDONDEADAS
+          const thumbSize = Math.min(cardW * 0.52, 38 * scaleY);
           const thumbY = -cardH / 2 + 8 * scaleY + thumbSize / 2;
           const coverSrc = song.cover_url || song.cover || song.album_art || song.image || './app_logo.png';
           const coverImg = getSongCoverImage(coverSrc);
 
+          ctxReels.save();
+          ctxReels.beginPath();
+          if (ctxReels.roundRect) ctxReels.roundRect(-thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize, 6 * scaleY);
+          else ctxReels.rect(-thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize);
+          ctxReels.clip();
+
           if (coverImg && coverImg.complete && coverImg.naturalWidth > 0) {
-            ctxReels.save();
-            ctxReels.beginPath();
-            if (ctxReels.roundRect) ctxReels.roundRect(-thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize, 6 * scaleY);
-            else ctxReels.rect(-thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize);
-            ctxReels.clip();
             ctxReels.drawImage(coverImg, -thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize);
-            ctxReels.restore();
-
-            ctxReels.strokeStyle = '#d4af37';
-            ctxReels.lineWidth = 1.5;
-            if (ctxReels.roundRect) ctxReels.roundRect(-thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize, 6 * scaleY);
-            else ctxReels.rect(-thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize);
-            ctxReels.stroke();
           } else {
-            // Vinilo arcade con clave de sol dorada
-            const vinylR = thumbSize / 2;
-            const vinylGrad = ctxReels.createRadialGradient(0, thumbY, 2, 0, thumbY, vinylR);
-            vinylGrad.addColorStop(0, '#333333');
-            vinylGrad.addColorStop(0.65, '#111111');
-            vinylGrad.addColorStop(1, '#050505');
-            ctxReels.fillStyle = vinylGrad;
-            ctxReels.beginPath();
-            ctxReels.arc(0, thumbY, vinylR, 0, Math.PI * 2);
-            ctxReels.fill();
+            const discGrad = ctxReels.createLinearGradient(-thumbSize / 2, thumbY - thumbSize / 2, thumbSize / 2, thumbY + thumbSize / 2);
+            discGrad.addColorStop(0.0, '#2d1f12');
+            discGrad.addColorStop(0.5, '#18120b');
+            discGrad.addColorStop(1.0, '#0a0806');
+            ctxReels.fillStyle = discGrad;
+            ctxReels.fillRect(-thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize);
 
-            ctxReels.strokeStyle = '#d4af37';
-            ctxReels.lineWidth = 1.2;
-            ctxReels.stroke();
-
-            ctxReels.fillStyle = '#ffd700';
-            ctxReels.font = `bold ${Math.max(6, Math.round(12 * scaleY))}px sans-serif`;
+            ctxReels.fillStyle = '#fbbf24';
+            ctxReels.font = `bold ${Math.max(12, Math.round(16 * scaleY))}px sans-serif`;
             ctxReels.textAlign = 'center';
             ctxReels.textBaseline = 'middle';
-            ctxReels.fillText('𝄞', 0, thumbY);
+            ctxReels.fillText('♫', 0, thumbY);
           }
+          ctxReels.restore();
 
-          // Badge: Estrellas y CLAVES X2
-          const starsVal = Number(song.stars || 3.5).toFixed(1);
-          const starsY = thumbY + thumbSize / 2 + 7 * scaleY;
-          const badgeW = Math.min(cardW * 0.88, 78 * scaleX);
-          const badgeH = 13 * scaleY;
-
-          ctxReels.fillStyle = 'rgba(180, 83, 9, 0.20)';
-          if (ctxReels.roundRect) ctxReels.roundRect(-badgeW / 2, starsY - badgeH / 2, badgeW, badgeH, 4 * scaleY);
-          else ctxReels.rect(-badgeW / 2, starsY - badgeH / 2, badgeW, badgeH);
-          ctxReels.fill();
-
-          ctxReels.strokeStyle = '#d97706';
-          ctxReels.lineWidth = 0.8;
-          if (ctxReels.roundRect) ctxReels.roundRect(-badgeW / 2, starsY - badgeH / 2, badgeW, badgeH, 4 * scaleY);
-          else ctxReels.rect(-badgeW / 2, starsY - badgeH / 2, badgeW, badgeH);
+          // Marco dorado de la miniatura
+          ctxReels.strokeStyle = '#d4af37';
+          ctxReels.lineWidth = 1.4;
+          ctxReels.beginPath();
+          if (ctxReels.roundRect) ctxReels.roundRect(-thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize, 6 * scaleY);
+          else ctxReels.rect(-thumbSize / 2, thumbY - thumbSize / 2, thumbSize, thumbSize);
           ctxReels.stroke();
 
-          ctxReels.fillStyle = '#92400e';
-          ctxReels.font = `900 ${Math.max(6, Math.round(7.5 * scaleY))}px "Montserrat", sans-serif`;
+          // 2. INDICADOR DE ESTRELLAS Y RECOMPENSA (debajo de la miniatura, sin solaparse)
+          const starsVal = Number(song.stars || 3.5).toFixed(1);
+          const starsTop = thumbY + thumbSize / 2 + 5 * scaleY;
+          ctxReels.fillStyle = '#b45309';
+          ctxReels.font = `bold ${Math.max(7, Math.round(8 * scaleY))}px sans-serif`;
           ctxReels.textAlign = 'center';
-          ctxReels.textBaseline = 'middle';
-          ctxReels.fillText(`★ ${starsVal} • 2X CLAVES`, 0, starsY);
+          ctxReels.textBaseline = 'top';
+          ctxReels.fillText(`★ ${starsVal} • 2X CLAVES`, 0, starsTop);
 
-          // 2. TÍTULO MULTILÍNEA (Hasta 3 líneas legibles)
-          const titleLines = wrapSongTitle(song.title, 12, 3);
-          const lineH = Math.max(7.5, Math.round(9.5 * scaleY));
-          let textY = starsY + 9 * scaleY;
+          // 3. TÍTULO MULTILÍNEA (posicionado limpiamente abajo de las estrellas con textBaseline top)
+          const titleLines = wrapSongTitle(song.title, 13, 2);
+          const titleLineH = Math.max(9, Math.round(10.5 * scaleY));
+          const titleTop = starsTop + 11 * scaleY;
 
           ctxReels.fillStyle = '#140c04';
-          ctxReels.font = `900 ${Math.max(6.5, Math.round(8.5 * scaleY))}px "Montserrat", sans-serif`;
+          ctxReels.font = `bold ${Math.max(7.5, Math.round(9 * scaleY))}px sans-serif`;
           ctxReels.textAlign = 'center';
-          ctxReels.textBaseline = 'alphabetic';
+          ctxReels.textBaseline = 'top';
           for (let l = 0; l < titleLines.length; l++) {
-            ctxReels.fillText(titleLines[l], 0, textY);
-            textY += lineH;
+            ctxReels.fillText(titleLines[l], 0, titleTop + l * titleLineH);
           }
 
-          // 3. ARTISTA (1 Línea)
-          ctxReels.fillStyle = '#6b4e28';
-          ctxReels.font = `bold ${Math.max(5.5, Math.round(7 * scaleY))}px "Montserrat", sans-serif`;
-          const artistStr = (song.artist || 'Artista').slice(0, 14);
-          ctxReels.fillText(artistStr, 0, textY + 1 * scaleY);
+          // 4. ARTISTA (debajo del título sin solaparse)
+          const artistTop = titleTop + (titleLines.length * titleLineH) + 2 * scaleY;
+          ctxReels.fillStyle = '#78552a';
+          ctxReels.font = `normal ${Math.max(6, Math.round(7.5 * scaleY))}px sans-serif`;
+          ctxReels.textAlign = 'center';
+          ctxReels.textBaseline = 'top';
+          const artistStr = (song.artist || 'Artista').slice(0, 15);
+          ctxReels.fillText(artistStr, 0, artistTop);
 
-          // 4. BOTÓN DIRECTO [ ▶ JUGAR ] VISIBLE Y DESTACADO
-          const btnW = Math.min(cardW * 0.88, 76 * scaleX);
-          const btnH = Math.max(16, 22 * scaleY);
-          const btnY = cardH / 2 - btnH / 2 - 5 * scaleY;
+          // 5. BOTÓN DIRECTO [ ▶ JUGAR ] ULTRA LUMINOSO, VERDE VIBRANTE Y 100% VISIBLE
+          const btnW = Math.min(cardW * 0.88, 82 * scaleX);
+          const btnH = Math.max(22, Math.round(25 * scaleY));
+          const btnY = cardH / 2 - btnH / 2 - 8 * scaleY;
 
+          ctxReels.save();
+          // Gradiente verde neón esmeralda
           const btnGrad = ctxReels.createLinearGradient(0, btnY - btnH / 2, 0, btnY + btnH / 2);
-          btnGrad.addColorStop(0.0, '#34d399');
-          btnGrad.addColorStop(0.5, '#10b981');
-          btnGrad.addColorStop(1.0, '#047857');
+          btnGrad.addColorStop(0.0, '#22c55e');
+          btnGrad.addColorStop(1.0, '#15803d');
           ctxReels.fillStyle = btnGrad;
-
+          ctxReels.beginPath();
           if (ctxReels.roundRect) ctxReels.roundRect(-btnW / 2, btnY - btnH / 2, btnW, btnH, 6 * scaleY);
           else ctxReels.rect(-btnW / 2, btnY - btnH / 2, btnW, btnH);
           ctxReels.fill();
 
+          // Borde blanco nítido
           ctxReels.strokeStyle = '#ffffff';
-          ctxReels.lineWidth = 1.2;
+          ctxReels.lineWidth = 1.8;
           ctxReels.stroke();
 
+          // Texto blanco con sombra negra para máxima legibilidad
           ctxReels.fillStyle = '#ffffff';
+          ctxReels.shadowColor = 'rgba(0, 0, 0, 0.8)';
+          ctxReels.shadowBlur = 4;
           ctxReels.textAlign = 'center';
           ctxReels.textBaseline = 'middle';
-          ctxReels.font = `900 ${Math.max(6, Math.round(9 * scaleY))}px "Montserrat", sans-serif`;
+          ctxReels.font = `bold ${Math.max(10, Math.round(12 * scaleY))}px sans-serif`;
           ctxReels.fillText('▶ JUGAR', 0, btnY);
+          ctxReels.restore();
 
           ctxReels.restore();
         }
@@ -1102,8 +1145,12 @@
         }
       }
 
-      ctxReels.fillStyle = cylinderGrad;
-      ctxReels.fillRect(leftX, 0, reelWidth, canvasH);
+      if (slotMachineMode === 'featured') {
+        // En modo canciones destacadas CERO sombras oscuras para que el botón ▶ JUGAR brille con total claridad
+      } else {
+        ctxReels.fillStyle = cylinderGrad;
+        ctxReels.fillRect(leftX, 0, reelWidth, canvasH);
+      }
 
       // Separador cromado entre tambores
       ctxReels.strokeStyle = 'rgba(60, 45, 30, 0.65)';
@@ -1179,72 +1226,180 @@
     return parseInt(localStorage.getItem('beatstar_clefs') || '100', 10);
   }
 
+  function isFeaturedDailySpinAvailable() {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const lastSpin = localStorage.getItem('beatstar_last_featured_spin_date');
+    return lastSpin !== todayStr;
+  }
+  function isFeaturedFreeSpinAvailable() {
+    return isFeaturedDailySpinAvailable();
+  }
+
+  function getTimeUntilNextFreeSpin() {
+    const now = new Date();
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0);
+    const diffMs = Math.max(0, tomorrow.getTime() - now.getTime());
+    const h = Math.floor(diffMs / 3600000);
+    const m = Math.floor((diffMs % 3600000) / 60000);
+    const s = Math.floor((diffMs % 60000) / 1000);
+    return `${h}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
+  }
+
   function updateScoreboards() {
     const credEl = document.getElementById('creditsDisplay');
     const betEl = document.getElementById('betDisplay');
     const winEl = document.getElementById('winDisplay');
+    const featCredEl = document.getElementById('featuredCreditsDisplay');
+    const featCostEl = document.getElementById('featuredSpinCostDisplay');
+    const featBtn = document.getElementById('featuredSpinBtn');
+    const neonMain = document.getElementById('featuredNeonMainText');
+    const neonSub = document.getElementById('featuredNeonSubText');
 
     const clefs = getPlayerClefs();
     if (credEl) credEl.textContent = String(clefs).padStart(4, '0');
     if (betEl) betEl.textContent = String(currentBet).padStart(4, '0');
     if (winEl) winEl.textContent = String(lastWin).padStart(4, '0');
+
+    if (featCredEl) featCredEl.textContent = `${clefs.toLocaleString()} 𝄞`;
+    const isSpinAvailable = isFeaturedDailySpinAvailable();
+    if (featCostEl) featCostEl.textContent = isSpinAvailable ? 'GRATIS' : 'AGOTADA';
+
+    if (isSpinAvailable) {
+      if (neonMain) {
+        neonMain.className = 'text-xs font-black uppercase tracking-widest text-emerald-300 animate-pulse drop-shadow-[0_0_10px_rgba(52,211,153,0.9)]';
+        neonMain.textContent = '✨ ¡TIRADA DIARIA DISPONIBLE! ✨';
+      }
+      if (neonSub) {
+        neonSub.innerHTML = '<span>Gira la máquina para descubrir las 3 canciones de hoy (2X Claves)</span>';
+      }
+      if (featBtn) {
+        featBtn.textContent = '🎰 GIRAR TRAGAPERRAS (1 AL DÍA)';
+        featBtn.disabled = false;
+        featBtn.style.opacity = '1';
+        featBtn.style.pointerEvents = 'auto';
+        featBtn.className = 'flex-1 py-2.5 px-3 bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 hover:brightness-110 text-white font-black text-xs rounded-xl shadow-lg border border-emerald-300 active:scale-95 cursor-pointer text-center font-sans tracking-wide';
+      }
+    } else {
+      const countdownStr = getTimeUntilNextFreeSpin();
+      if (neonMain) {
+        neonMain.className = 'text-xs font-black uppercase tracking-widest text-cyan-300 drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]';
+        neonMain.textContent = '✨ TIRADA DIARIA COMPLETADA ✨';
+      }
+      if (neonSub) {
+        neonSub.innerHTML = `<span>⏱️ Próxima tirada en: <strong class="font-mono text-amber-300">${countdownStr}</strong></span>`;
+      }
+      if (featBtn) {
+        featBtn.textContent = `⏱️ VUELVE EN ${countdownStr}`;
+        featBtn.disabled = true;
+        featBtn.style.opacity = '0.6';
+        featBtn.style.pointerEvents = 'none';
+        featBtn.className = 'flex-1 py-2.5 px-3 bg-stone-800 text-stone-400 font-bold text-xs rounded-xl shadow border border-stone-600 text-center font-sans tracking-wide cursor-not-allowed';
+      }
+    }
+  }
+
+  function getSymbolIndices(symName) {
+    const list = [];
+    for (let i = 0; i < SYMBOL_LIST.length; i++) {
+      if (SYMBOL_LIST[i] === symName) list.push(i);
+    }
+    return list;
+  }
+
+  function evaluateSymbols(s1, s2, s3) {
+    if (s1 === 'seven' && s2 === 'seven' && s3 === 'seven') return { mult: 25, label: '3x SIETE ORO (JACKPOT)' };
+    if (s1 === 'diamond' && s2 === 'diamond' && s3 === 'diamond') return { mult: 15, label: '3x DIAMANTE' };
+    if (s1 === 'bell' && s2 === 'bell' && s3 === 'bell') return { mult: 10, label: '3x CAMPANA' };
+    if (s1 === 'bar' && s2 === 'bar' && s3 === 'bar') return { mult: 6, label: '3x BAR' };
+    if (s1 === 'cherry' && s2 === 'cherry' && s3 === 'cherry') return { mult: 4, label: '3x CEREZAS' };
+    if (s1 === s2 && s2 === s3 && ['lemon', 'orange', 'grapes'].includes(s1)) return { mult: 3, label: `3x ${s1.toUpperCase()}` };
+    const fruits = ['lemon', 'orange', 'grapes'];
+    if ((s1 === s2 && fruits.includes(s1)) || (s2 === s3 && fruits.includes(s2)) || (s1 === s3 && fruits.includes(s1))) {
+      return { mult: 2, label: '2x FRUTAS' };
+    }
+    if (s1 === 'cherry' || s2 === 'cherry' || s3 === 'cherry') return { mult: 1, label: '1x CEREZA' };
+    return { mult: 0, label: '' };
   }
 
   function calculateOutcome() {
-    // 50% probabilidad de tirada premiada en modo apuesta
-    const isWin = Math.random() < 0.50;
+    // RTP Matemático EXACTO 100.0000% y alta frecuencia de aciertos (44.70% hit rate):
+    // 0.004 * 25 = 0.1000 (3x 777 Jackpot)
+    // 0.008 * 15 = 0.1200 (3x Diamante)
+    // 0.010 * 10 = 0.1000 (3x Campana)
+    // 0.015 * 6  = 0.0900 (3x BAR)
+    // 0.020 * 4  = 0.0800 (3x Cerezas)
+    // 0.030 * 3  = 0.0900 (3x Frutas: limón/naranja/uvas)
+    // 0.060 * 2  = 0.1200 (2x Frutas)
+    // 0.300 * 1  = 0.3000 (1x Cereza solitaria)
+    // 0.553 * 0  = 0.0000 (Pérdida orgánica)
+    // EV Total = 1.000000 (100.0000% exacto). P(Acierto) = 44.70%, P(Pérdida) = 55.30%
+    const roll = Math.random();
+    const pickRandom = arr => arr[Math.floor(Math.random() * arr.length)];
 
-    if (isWin) {
-      const roll = Math.random();
-      if (roll < 0.004) {
-        const idx = SYMBOL_LIST.indexOf('seven');
-        return { indices: [idx, idx, idx], mult: 25, label: '3x SIETE ORO (JACKPOT)' };
-      } else if (roll < 0.02) {
-        const idx = SYMBOL_LIST.indexOf('diamond');
-        return { indices: [idx, idx, idx], mult: 15, label: '3x DIAMANTE' };
-      } else if (roll < 0.06) {
-        const idx = SYMBOL_LIST.indexOf('bell');
-        return { indices: [idx, idx, idx], mult: 10, label: '3x CAMPANA' };
-      } else if (roll < 0.12) {
-        const idx = SYMBOL_LIST.indexOf('bar');
-        return { indices: [idx, idx, idx], mult: 6, label: '3x BAR' };
-      } else if (roll < 0.22) {
-        const idx = SYMBOL_LIST.indexOf('cherry');
-        return { indices: [idx, idx, idx], mult: 4, label: '3x CEREZAS' };
-      } else if (roll < 0.38) {
-        const fruit = ['grapes', 'orange', 'lemon'][Math.floor(Math.random() * 3)];
-        const idx = SYMBOL_LIST.indexOf(fruit);
-        return { indices: [idx, idx, idx], mult: 3, label: `3x ${fruit.toUpperCase()}` };
-      } else if (roll < 0.58) {
-        const fruit = ['orange', 'lemon', 'grapes'][Math.floor(Math.random() * 3)];
-        const fIdx = SYMBOL_LIST.indexOf(fruit);
-        const other = SYMBOL_LIST.indexOf('bell');
-        return { indices: [fIdx, fIdx, other], mult: 2, label: `2x ${fruit.toUpperCase()}` };
-      } else {
-        const cIdx = SYMBOL_LIST.indexOf('cherry');
-        const o1 = SYMBOL_LIST.indexOf('lemon');
-        const o2 = SYMBOL_LIST.indexOf('grapes');
-        return { indices: [cIdx, o1, o2], mult: 1, label: '1x CEREZA' };
+    if (roll < 0.004) {
+      const idxs = getSymbolIndices('seven');
+      return { indices: [pickRandom(idxs), pickRandom(idxs), pickRandom(idxs)], mult: 25, label: '3x SIETE ORO (JACKPOT)' };
+    } else if (roll < 0.012) {
+      const idxs = getSymbolIndices('diamond');
+      return { indices: [pickRandom(idxs), pickRandom(idxs), pickRandom(idxs)], mult: 15, label: '3x DIAMANTE' };
+    } else if (roll < 0.022) {
+      const idxs = getSymbolIndices('bell');
+      return { indices: [pickRandom(idxs), pickRandom(idxs), pickRandom(idxs)], mult: 10, label: '3x CAMPANA' };
+    } else if (roll < 0.037) {
+      const idxs = getSymbolIndices('bar');
+      return { indices: [pickRandom(idxs), pickRandom(idxs), pickRandom(idxs)], mult: 6, label: '3x BAR' };
+    } else if (roll < 0.057) {
+      const idxs = getSymbolIndices('cherry');
+      return { indices: [pickRandom(idxs), pickRandom(idxs), pickRandom(idxs)], mult: 4, label: '3x CEREZAS' };
+    } else if (roll < 0.087) {
+      const fruit = pickRandom(['lemon', 'orange', 'grapes']);
+      const idxs = getSymbolIndices(fruit);
+      return { indices: [pickRandom(idxs), pickRandom(idxs), pickRandom(idxs)], mult: 3, label: `3x ${fruit.toUpperCase()}` };
+    } else if (roll < 0.147) {
+      // 2x Frutas: posición de par y tercer símbolo completamente aleatorios
+      const fruit = pickRandom(['lemon', 'orange', 'grapes']);
+      const fIdxs = getSymbolIndices(fruit);
+      const otherSyms = ['bar', 'bell', 'diamond', 'seven', ...['lemon', 'orange', 'grapes'].filter(f => f !== fruit)];
+      const otherIdxs = getSymbolIndices(pickRandom(otherSyms));
+      const pairPositions = pickRandom([[0, 1, 2], [1, 2, 0], [0, 2, 1]]);
+      const res = [0, 0, 0];
+      res[pairPositions[0]] = pickRandom(fIdxs);
+      res[pairPositions[1]] = pickRandom(fIdxs);
+      res[pairPositions[2]] = pickRandom(otherIdxs);
+      return { indices: res, mult: 2, label: `2x ${fruit.toUpperCase()}` };
+    } else if (roll < 0.447) {
+      // 1x Cereza: posición aleatoria (rodillo 0, 1 o 2) y acompañantes orgánicos sin patrones fijos
+      const cIdxs = getSymbolIndices('cherry');
+      const cherryPos = Math.floor(Math.random() * 3);
+      const otherPositions = [0, 1, 2].filter(p => p !== cherryPos);
+      const res = [0, 0, 0];
+      res[cherryPos] = pickRandom(cIdxs);
+
+      let attempts = 0;
+      while (attempts++ < 50) {
+        const nonC1 = pickRandom(SYMBOL_LIST.filter(s => s !== 'cherry'));
+        const nonC2 = pickRandom(SYMBOL_LIST.filter(s => s !== 'cherry'));
+        const isFruitPair = (nonC1 === nonC2) && ['lemon', 'orange', 'grapes'].includes(nonC1);
+        if (!isFruitPair) {
+          res[otherPositions[0]] = pickRandom(getSymbolIndices(nonC1));
+          res[otherPositions[1]] = pickRandom(getSymbolIndices(nonC2));
+          break;
+        }
       }
+      return { indices: res, mult: 1, label: '1x CEREZA' };
     } else {
-      const nonWins = [
-        ['bar', 'lemon', 'orange'],
-        ['lemon', 'grapes', 'diamond'],
-        ['orange', 'bell', 'lemon'],
-        ['grapes', 'bar', 'seven'],
-        ['bell', 'orange', 'lemon'],
-        ['diamond', 'orange', 'bar']
-      ];
-      const chosen = nonWins[Math.floor(Math.random() * nonWins.length)];
-      return {
-        indices: [
-          Math.max(0, SYMBOL_LIST.indexOf(chosen[0])),
-          Math.max(0, SYMBOL_LIST.indexOf(chosen[1])),
-          Math.max(0, SYMBOL_LIST.indexOf(chosen[2]))
-        ],
-        mult: 0,
-        label: ''
-      };
+      // Pérdida orgánica (55.3%): seleccionada dinámicamente de entre 1.452 combinaciones reales sin patrones fijos
+      let attempts = 0;
+      while (attempts++ < 100) {
+        const i = Math.floor(Math.random() * SYMBOL_LIST.length);
+        const j = Math.floor(Math.random() * SYMBOL_LIST.length);
+        const k = Math.floor(Math.random() * SYMBOL_LIST.length);
+        const evalRes = evaluateSymbols(SYMBOL_LIST[i], SYMBOL_LIST[j], SYMBOL_LIST[k]);
+        if (evalRes.mult === 0) {
+          return { indices: [i, j, k], mult: 0, label: '' };
+        }
+      }
+      return { indices: [0, 1, 2], mult: 0, label: '' };
     }
   }
 
@@ -1266,6 +1421,21 @@
       if (typeof window.addClefs === 'function') {
         window.addClefs(-currentBet);
       }
+    } else if (slotMachineMode === 'featured') {
+      const isFree = isFeaturedFreeSpinAvailable();
+      if (isFree) {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        localStorage.setItem('beatstar_last_featured_free_spin', todayStr);
+      } else {
+        const clefs = getPlayerClefs();
+        if (clefs < 3) {
+          if (statusMsg) statusMsg.textContent = '¡NECESITAS 3 CLAVES PARA GIRAR!';
+          return;
+        }
+        if (typeof window.addClefs === 'function') {
+          window.addClefs(-3);
+        }
+      }
     }
 
     isMachineActive = true;
@@ -1283,13 +1453,16 @@
     let outcome;
 
     if (slotMachineMode === 'featured') {
+      if (!isFeaturedDailySpinAvailable()) {
+        const countdownStr = getTimeUntilNextFreeSpin();
+        if (statusMsg) statusMsg.textContent = `⏱️ ¡YA HAS TIRADO HOY! VUELVE EN ${countdownStr}`;
+        return;
+      }
+      const todayStr = new Date().toISOString().slice(0, 10);
+      localStorage.setItem('beatstar_last_featured_spin_date', todayStr);
       await refreshFeaturedSongsPool();
       outcome = {
-        indices: [
-          Math.floor(Math.random() * TOTAL_SONG_SLOTS),
-          Math.floor(Math.random() * TOTAL_SONG_SLOTS),
-          Math.floor(Math.random() * TOTAL_SONG_SLOTS)
-        ],
+        indices: [0, 0, 0],
         mult: 0,
         label: 'CANCIONES DESTACADAS'
       };
@@ -1347,6 +1520,15 @@
   function turnCrank360() {
     if (isMachineActive || isCrankRotating) return;
     initSlotAudio();
+
+    if (slotMachineMode === 'featured') {
+      if (!isFeaturedDailySpinAvailable()) {
+        const statusMsg = document.getElementById('statusMsg');
+        if (statusMsg) statusMsg.textContent = `⏱️ ¡VUELVE MAÑANA! (${getTimeUntilNextFreeSpin()})`;
+        soundReelTick();
+        return;
+      }
+    }
 
     if (slotMachineMode === 'bet' && getPlayerClefs() < currentBet) {
       const statusMsg = document.getElementById('statusMsg');
@@ -1581,32 +1763,51 @@
     const modalRibbon = document.getElementById('slotRibbonText');
     const modePillText = document.getElementById('slotModePillText');
     const betControls = document.getElementById('slotBetControlsGroup');
+    const maxBtn = document.getElementById('maxBetBtn');
+    const featBtn = document.getElementById('featuredSpinBtn');
+    const betMeters = document.getElementById('slotBetMetersRow');
+    const featMeters = document.getElementById('slotFeaturedMetersRow');
+
+    const glassOverlay = document.getElementById('slotGlassOverlay');
+    const centerPayline = document.getElementById('slotCenterPayline');
 
     if (slotMachineMode === 'featured') {
       if (modalRibbon) modalRibbon.textContent = 'CANCIONES DESTACADAS (CLAVES X2)';
       if (modePillText) modePillText.textContent = '★ CANCIONES DESTACADAS (CLAVES X2)';
-      if (betControls) betControls.style.opacity = '0.25';
-      
+      if (betControls) betControls.style.display = 'none';
+      if (maxBtn) maxBtn.style.display = 'none';
+      if (featBtn) featBtn.style.display = 'block';
+      if (betMeters) betMeters.style.display = 'none';
+      if (featMeters) featMeters.style.display = 'grid';
+
+      // EN MODO CANCIONES DESTACADAS: Ocultar línea roja de pago y sombreado negro de cristal
+      if (glassOverlay) glassOverlay.style.display = 'none';
+      if (centerPayline) centerPayline.style.display = 'none';
+
       refreshFeaturedSongsPool().then(() => {
-        // En modo Canciones Destacadas, solo se puede tirar una vez al día
-        const todayStr = new Date().toISOString().slice(0, 10);
-        const lastSpun = localStorage.getItem('beatstar_last_featured_spin');
-        
-        if (lastSpun !== todayStr && !isMachineActive) {
-          // Tirada automática única del día
-          triggerFeaturedDailySpin();
+        reels.forEach(r => { r.angle = 0; r.isSpinning = false; });
+        const statusMsg = document.getElementById('statusMsg');
+        if (isFeaturedDailySpinAvailable()) {
+          if (statusMsg) statusMsg.textContent = '★ ¡TIRA DE LA PALANCA O PULSA EL BOTÓN PARA REVELAR! ★';
         } else {
-          // Ya se ha tirado hoy: bloquear los rodillos en las 3 canciones
-          reels.forEach(r => { r.angle = 0; r.isSpinning = false; });
-          const statusMsg = document.getElementById('statusMsg');
-          if (statusMsg) statusMsg.textContent = '★ ¡TOCA UNA CANCIÓN PARA JUGAR CON CLAVES X2! ★';
-          drawCylindricalReels();
+          if (statusMsg) statusMsg.textContent = '★ ¡TOCA UNA CANCIÓN EN EL RODILLO PARA JUGAR! ★';
         }
+        drawCylindricalReels();
+        updateScoreboards();
       });
     } else {
       if (modalRibbon) modalRibbon.textContent = 'LAS VEGAS 1977';
       if (modePillText) modePillText.textContent = '🎰 GRAN FORTUNA 1977';
-      if (betControls) betControls.style.opacity = '1';
+      if (betControls) betControls.style.display = 'flex';
+      if (maxBtn) maxBtn.style.display = 'block';
+      if (featBtn) featBtn.style.display = 'none';
+      if (betMeters) betMeters.style.display = 'grid';
+      if (featMeters) featMeters.style.display = 'none';
+
+      // EN MODO APOSTAR: Mostrar línea roja de pago y reflejo de cristal
+      if (glassOverlay) glassOverlay.style.display = 'block';
+      if (centerPayline) centerPayline.style.display = 'flex';
+
       drawCylindricalReels();
     }
     updateScoreboards();
@@ -1645,8 +1846,10 @@
     }, 2850);
   }
 
+  let slotCountdownTimerInterval = null;
+
   function openGranFortuna(mode = 'bet', fromLoading = false) {
-    initSlotAudio();
+    unlockAllSlotAudio();
     window.isSlotActiveDuringLoad = !!fromLoading;
 
     const btnReady = document.getElementById('btnSlotReadyNotification');
@@ -1674,6 +1877,14 @@
       requestAnimationFrame(loopReelPhysics);
     }
 
+    if (!slotCountdownTimerInterval) {
+      slotCountdownTimerInterval = setInterval(() => {
+        if (slotMachineMode === 'featured' && modal && !modal.classList.contains('hidden')) {
+          updateScoreboards();
+        }
+      }, 1000);
+    }
+
     setTimeout(() => {
       resizeReelsCanvas();
       resizeCoinCanvas();
@@ -1682,6 +1893,11 @@
   }
 
   function closeGranFortuna() {
+    if (slotCountdownTimerInterval) {
+      clearInterval(slotCountdownTimerInterval);
+      slotCountdownTimerInterval = null;
+    }
+
     const modal = document.getElementById('granFortunaModal');
     if (modal) {
       modal.classList.add('hidden');
@@ -1787,6 +2003,15 @@
       paperBtn.addEventListener('click', togglePaperFeed);
     }
 
+    // Botón de tirada en modo canciones destacadas
+    const featSpinBtn = document.getElementById('featuredSpinBtn');
+    if (featSpinBtn) {
+      featSpinBtn.addEventListener('click', () => {
+        unlockAllSlotAudio();
+        triggerSpin();
+      });
+    }
+
     // Clic directo en el tambor interactivo (Modo Canciones Destacadas)
     if (reelsCanvas) {
       reelsCanvas.addEventListener('click', (e) => {
@@ -1796,10 +2021,8 @@
         const reelW = rect.width / 3;
         const reelIdx = Math.max(0, Math.min(2, Math.floor(clickX / reelW)));
 
-        const reel = reels[reelIdx];
         const poolLen = featuredSongsReelPool.length;
-        const currentSlot = Math.round(reel.angle / SONG_STEP);
-        const songIdx = ((currentSlot + reelIdx * 3) % poolLen + poolLen) % poolLen;
+        const songIdx = reelIdx % poolLen;
         const song = featuredSongsReelPool[songIdx];
 
         if (song && song.id) {
@@ -1871,6 +2094,15 @@
         }
       });
     }
+
+    ['click', 'touchstart', 'keydown'].forEach(evt => {
+      document.addEventListener(evt, () => {
+        initSlotAudio();
+        if (window.isCasinoActive && casinoBgmAudio && casinoBgmAudio.paused && !isSoundMuted) {
+          casinoBgmAudio.play().catch(() => {});
+        }
+      }, { passive: true });
+    });
 
     window.addEventListener('resize', () => {
       resizeReelsCanvas();

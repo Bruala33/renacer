@@ -1339,6 +1339,13 @@ body {
   pointer-events: auto !important;
 }
 
+/* Modales emergentes sobre la pantalla de resultados final (z-index superior a 9999) */
+#leaderboardModal,
+#rateSongModal,
+#creatorNotificationModal {
+  z-index: 10020 !important;
+}
+
 /* Global Fullscreen Professional Loading Overlay (z-index: 9999) */
 .global-loading-overlay {
   position: fixed;

@@ -1556,20 +1556,29 @@ const ChartEditor = {
     const tempChartId = unpackedData.id;
 
     // 1. Preparar subida a la nube si hay backend disponible
-    const formData = new FormData();
-    formData.append('title', title);
-    formData.append('artist', artist);
-    formData.append('creator_name', creator);
-    formData.append('bpm', this.bpm);
-    formData.append('offset_ms', this.firstBeatOffsetMs);
-    formData.append('difficulty_name', diff);
-    formData.append('stars', diffConfig.stars);
-    formData.append('scroll_duration_ms', diffConfig.scrollDurationMs);
-    formData.append('chart_json', JSON.stringify(unpackedData));
-
+    let audioDataUrl = null;
     if (this.audioBlob) {
-      formData.append('audio_file', this.audioBlob, 'audio.mp3');
+      audioDataUrl = await new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(this.audioBlob);
+      });
     }
+
+    const payload = {
+      title: title,
+      artist: artist,
+      creator_name: creator,
+      bpm: this.bpm,
+      offset_ms: this.firstBeatOffsetMs,
+      difficulty: diff,
+      difficulty_name: diff,
+      stars: diffConfig.stars,
+      scroll_duration_ms: diffConfig.scrollDurationMs,
+      chart_data: unpackedData,
+      audio_data: audioDataUrl
+    };
 
     const publishBtn = document.getElementById('btnConfirmPublish');
     if (publishBtn) {
@@ -1584,7 +1593,8 @@ const ChartEditor = {
       if (baseUrl) {
         const response = await fetch(`${baseUrl}/api/v1/community/charts/publish`, {
           method: 'POST',
-          body: formData
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
         });
         if (response.ok) {
           const pubData = await response.json();

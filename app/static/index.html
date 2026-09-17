@@ -2510,7 +2510,7 @@
     <!-- Layer 16: Results Screen Modal with Highscores -->
     
     <!-- Layer 17: Online Leaderboard Modal -->
-    <div id="leaderboardModal" class="results-modal space-y-3.5 hidden" style="display: none;">
+    <div id="leaderboardModal" class="results-modal space-y-3.5 hidden" style="display: none; z-index: 10020 !important;">
       <div class="glass-card w-full max-w-[340px] p-4 rounded-2xl space-y-3.5 bg-black/90 border border-amber-500/30 shadow-2xl">
         <div class="flex items-center justify-between">
           <h3 class="text-xs font-bold text-white flex items-center gap-1.5 font-serif">
@@ -2542,7 +2542,7 @@
     </div>
 
     <!-- Layer 18: Modal Valorar Canción (Manual desde Biblioteca) -->
-    <div id="rateSongModal" class="results-modal space-y-3.5 hidden" style="display: none;">
+    <div id="rateSongModal" class="results-modal space-y-3.5 hidden" style="display: none; z-index: 10020 !important;">
       <div class="glass-card w-full max-w-[320px] p-4 rounded-2xl space-y-3 bg-black/95 border border-purple-500/40 shadow-2xl text-center">
         <div class="flex items-center justify-between">
           <h3 class="text-xs font-bold text-white flex items-center gap-1.5">
@@ -2865,10 +2865,10 @@
                 <canvas id="reelsCanvas" class="w-full h-full block"></canvas>
 
                 <!-- Sombreado de curvatura y reflejo de cristal -->
-                <div class="absolute inset-0 pointer-events-none bg-gradient-to-b from-black/65 via-transparent to-black/75 z-10"></div>
+                <div id="slotGlassOverlay" class="absolute inset-0 pointer-events-none bg-gradient-to-b from-black/65 via-transparent to-black/75 z-10"></div>
                 
                 <!-- Linea de pago roja central fija -->
-                <div class="absolute top-1/2 left-0 right-0 h-[2.5px] bg-red-600 -translate-y-1/2 pointer-events-none shadow-[0_0_10px_#ff0000] z-20 flex justify-between items-center px-1">
+                <div id="slotCenterPayline" class="absolute top-1/2 left-0 right-0 h-[2.5px] bg-red-600 -translate-y-1/2 pointer-events-none shadow-[0_0_10px_#ff0000] z-20 flex justify-between items-center px-1">
                   <span class="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_#f00]"></span>
                   <span class="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_#f00]"></span>
                 </div>
@@ -2884,8 +2884,8 @@
           </div>
         </div>
 
-        <!-- MARCADORES DIGITALES MECANICOS LIMPIOS -->
-        <div class="w-full grid grid-cols-3 gap-2 mb-3">
+        <!-- MARCADORES DIGITALES MECANICOS LIMPIOS (MODO APOSTAR) -->
+        <div id="slotBetMetersRow" class="w-full grid grid-cols-3 gap-2 mb-3">
           <div class="flex flex-col items-center bg-[#0d0908] p-1.5 rounded-lg border border-amber-950">
             <span class="text-[9px] text-amber-400 font-bold uppercase tracking-wider mb-0.5" data-i18n="slot_credits">CRÉDITOS</span>
             <div id="creditsDisplay" class="retro-counter text-red-500 text-lg px-2 py-0.5 w-full text-center rounded font-bold">
@@ -2908,6 +2908,27 @@
           </div>
         </div>
 
+        <!-- MARCADORES DIGITALES Y PANEL NEON (MODO CANCIONES DESTACADAS) -->
+        <div id="slotFeaturedMetersRow" class="w-full space-y-2 mb-3" style="display: none;">
+          <!-- Barra superior: Saldo de claves prominente -->
+          <div class="flex items-center justify-between bg-black/90 border border-amber-500/50 px-3 py-1.5 rounded-xl shadow-[0_0_12px_rgba(245,158,11,0.25)]">
+            <span class="text-[10px] font-black uppercase tracking-wider text-amber-300 font-mono flex items-center gap-1.5">
+              <span>𝄞</span> TUS CLAVES:
+            </span>
+            <span id="featuredCreditsDisplay" class="font-mono font-black text-amber-400 text-sm tracking-wide">0 𝄞</span>
+          </div>
+
+          <!-- Banner central de Neón Vegas -->
+          <div id="featuredNeonBanner" class="p-2.5 rounded-xl border text-center flex flex-col items-center justify-center gap-1 shadow-lg transition-all duration-300 bg-gradient-to-r from-amber-950/80 via-black to-amber-950/80 border-amber-400/60 shadow-[0_0_15px_rgba(245,158,11,0.35)]">
+            <div id="featuredNeonMainText" class="text-xs font-black uppercase tracking-widest text-emerald-300 animate-pulse drop-shadow-[0_0_10px_rgba(52,211,153,0.9)]">
+              ✨ ¡TIRADA DIARIA GRATUITA! ✨
+            </div>
+            <div id="featuredNeonSubText" class="text-[9.5px] font-mono font-bold text-amber-200/90 flex items-center justify-center gap-2">
+              <span>Gira para descubrir 3 canciones con 2X Claves</span>
+            </div>
+          </div>
+        </div>
+
         <!-- BOTONERA DE CONTROL Y MANIVELA 360° -->
         <div class="w-full bg-gradient-to-b from-[#221309] to-[#100703] p-2 rounded-xl border border-[#4d2a0e] shadow-xl flex items-center justify-between gap-2 mb-2.5">
           
@@ -2921,6 +2942,11 @@
           <!-- Apuesta Maxima -->
           <button id="maxBetBtn" class="bg-gradient-to-b from-blue-700 to-indigo-900 hover:from-blue-600 text-white font-black text-xs px-3 py-2 rounded-lg border border-blue-400 shadow active:translate-y-0.5 cursor-pointer" data-i18n="slot_max">
             MAX
+          </button>
+
+          <!-- Boton de Tirada en Modo Canciones Destacadas -->
+          <button id="featuredSpinBtn" class="hidden flex-1 py-2 px-3 bg-gradient-to-r from-amber-600 via-amber-500 to-yellow-500 hover:brightness-110 text-stone-950 font-black text-xs rounded-xl shadow-lg border border-amber-300 active:scale-95 cursor-pointer text-center font-sans tracking-wide" style="display: none;">
+            🎁 1ª TIRADA GRATIS DEL DÍA
           </button>
 
           <!-- PALANCA GIRATORIA 360° -->
@@ -2993,7 +3019,7 @@
 
   <script src="./parsers.js?v=3.5"></script>
   <script src="./game.js?v=3.5"></script>
-  <script src="./slot_machine.js?v=1.0"></script>
+  <script src="./slot_machine.js?v=1789637561"></script>
   <script>
     let engine = null;
     let currentActiveBeatmap = null;
@@ -4810,6 +4836,7 @@
       // 5. Recompensa en rojo: desglose mecanografiado exacto (puntuación * 0.00001 * dificultad) con multiplicador X2 si es destacada
       delay += 240;
       const isFeatured2X = !!window.currentFeaturedSongX2;
+      window.currentFeaturedSongX2 = false; // Consumir de inmediato para que NUNCA afecte a siguientes partidas
       const rawStars = Number(currentActiveBeatmap?.metadata?.stars || currentActiveBeatmap?.stars || stars || 3.0);
       const diffStarsClamped = Math.min(7, Math.max(1, Math.round(rawStars * 10) / 10));
       const baseScoreClefs = Math.floor((score || 0) * 0.00001);
@@ -4865,15 +4892,11 @@
       const currentChartId = currentActiveBeatmap?.communityChartId || currentActiveBeatmap?.metadata?.id || currentActiveBeatmap?.id || 'song';
       const title = currentActiveBeatmap?.metadata?.title || 'Canción';
       const artist = currentActiveBeatmap?.metadata?.artist || 'Artista';
-      const rateModal = document.getElementById('rateSongModal');
-      const rateTitle = document.getElementById('rateModalSongTitle');
-      const rateArtist = document.getElementById('rateModalSongArtist');
-      if (rateTitle) rateTitle.innerText = title;
-      if (rateArtist) rateArtist.innerText = artist;
-      window.currentRatingChartId = currentChartId;
-      if (rateModal) {
-        rateModal.classList.remove('hidden');
-        rateModal.style.display = 'flex';
+      const diffName = currentActiveBeatmap?.metadata?.difficulty || 'Media';
+      const stars = Number(currentActiveBeatmap?.metadata?.stars || 3.5);
+      const isCommunity = !!(currentActiveBeatmap?.communityChartId || currentActiveBeatmap?.source === 'community');
+      if (typeof openRateSongModal === 'function') {
+        openRateSongModal(currentChartId, title, artist, diffName, stars, isCommunity);
       }
     };
 
@@ -7291,7 +7314,6 @@ function switchMainTab(tab) {
           unpackedData.source_name = chartItem.source_name || 'osu!';
           unpackedData.download_url = chartItem.download_url || chartItem.direct_download_url || '';
           unpackedData.diff_id = diffId || '';
-          if (chartItem.is_daily_featured) unpackedData.is_daily_featured = true;
 
           loadStatus.innerText = 'Guardando en biblioteca offline...';
           await IndexedDBStorage.saveChart(chartItem, unpackedData, unpackedData.audioBlob);
@@ -7608,7 +7630,7 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         endMarkerMs: (Number.isFinite(beatmapData.endMarkerMs) && beatmapData.endMarkerMs > 0) ? beatmapData.endMarkerMs : ((beatmapData.metadata && Number.isFinite(beatmapData.metadata.endMarkerMs) && beatmapData.metadata.endMarkerMs > 0) ? beatmapData.metadata.endMarkerMs : null),
         endTimestampMs: (Number.isFinite(beatmapData.endTimestampMs) && beatmapData.endTimestampMs > 0) ? beatmapData.endTimestampMs : ((beatmapData.metadata && Number.isFinite(beatmapData.metadata.endTimestampMs) && beatmapData.metadata.endTimestampMs > 0) ? beatmapData.metadata.endTimestampMs : null),
         scrollDurationMs: Number(beatmapData.scrollDurationMs) || (beatmapData.metadata && Number(beatmapData.metadata.scrollDurationMs)) || 1400,
-        is_daily_featured: !!beatmapData.is_daily_featured,
+        is_daily_featured: !!window.currentFeaturedSongX2,
         is_community: !!beatmapData.is_community,
         communityChartId: beatmapData.communityChartId || beatmapData.id || (beatmapData.metadata && beatmapData.metadata.id) || null,
         source: beatmapData.source || 'catalog',
@@ -7628,6 +7650,7 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
 
       currentActiveBeatmap = finalBeatmap;
       window.currentActiveBeatmap = finalBeatmap;
+      window.currentFeaturedSongX2 = false; // Consumir de inmediato para que NINGUNA otra canción posterior tenga x2
       window.isGameLoadingOrActive = true;
       currentActiveAudioBlob = resolvedAudioBlob;
 
@@ -9001,6 +9024,7 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
     let isSubmittingRating = false;
 
     async function playFeaturedSong(songId, isCommunity = false) {
+      window.currentFeaturedSongX2 = true; // Activar multiplicador x2 EXCLUSIVAMENTE para esta sesión
       const song = (dailyFeaturedSongsList || []).find(s => s.id === songId) || null;
       const isComm = isCommunity || (song && song.is_community);
 
@@ -9068,7 +9092,7 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
     async function loadDailyFeaturedSongs() {
       let candidateSongs = [];
 
-      // 1. Cargar todas las canciones calificadas localmente (sean comunitarias o no)
+      // 1. Cargar todas las canciones calificadas localmente
       try {
         const ratingsStore = JSON.parse(localStorage.getItem('beatstar_song_ratings') || '{}');
         // Purgar semillas ficticias legacy
@@ -9088,6 +9112,7 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
               rating_avg: r.avgStars || 5.0,
               votes_count: r.count || 1,
               sync_avg: r.avgSync || 100,
+              lastRated: Number(r.lastRated) || 0,
               is_community: !!r.is_community,
               source: r.source || (r.is_community ? 'community' : (id.startsWith('osu_') ? 'osu' : 'catalog')),
               source_name: r.source_name || (r.is_community ? 'Comunidad' : (id.startsWith('osu_') ? 'osu!' : 'Catálogo')),
@@ -9099,7 +9124,7 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         }
       } catch (e) {}
 
-      // 2. Si hay servidor online configurado, mezclar con pistas mejor calificadas de la nube
+      // 2. Si hay servidor online configurado, mezclar con pistas de la nube
       try {
         const baseUrl = getApiBaseUrl();
         if (baseUrl) {
@@ -9112,20 +9137,13 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
             }
           } catch (_) {}
 
-          // Fallback a búsqueda por rating si /featured no respondiera
-          if (!cloudData || cloudData.length === 0) {
-            const fallbackRes = await fetch(`${baseUrl}/api/v1/community/charts/search?sort=rating&limit=6`);
-            if (fallbackRes.ok) {
-              cloudData = await fallbackRes.json();
-            }
-          }
-
           if (Array.isArray(cloudData)) {
             for (const cs of cloudData) {
               if (cs && cs.votes_count > 0 && !cs.id.startsWith('comm_galaxy') && !cs.id.startsWith('comm_cyber')) {
                 const existingIdx = candidateSongs.findIndex(s => s.id === cs.id);
                 const songObj = {
                   ...cs,
+                  lastRated: cs.has_recent_votes ? Date.now() : 0,
                   is_community: !!cs.is_community,
                   source: cs.source || (cs.is_community ? 'community' : (cs.id.startsWith('osu_') ? 'osu' : 'catalog')),
                   source_name: cs.source_name || (cs.is_community ? 'Comunidad' : (cs.id.startsWith('osu_') ? 'osu!' : 'Catálogo')),
@@ -9145,18 +9163,51 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         console.warn('Conexión con servidor para destacados omitida:', err);
       }
 
-      // 3. Filtrar estrictamente solo aquellas canciones con votos reales (> 0) y ordenar por mejor valoración
-      const ratedOnly = candidateSongs.filter(s => (s.votes_count > 0));
-      ratedOnly.sort((a, b) => {
-        if (b.rating_avg !== a.rating_avg) {
-          return b.rating_avg - a.rating_avg; // Mejor media primero (ej: 5.0 > 4.8)
-        }
-        return (b.votes_count || 0) - (a.votes_count || 0); // Más votos desempata
-      });
+      const now = Date.now();
+      const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
 
-      const topRated = ratedOnly.slice(0, 3);
+      // REGLA DEFINITIVA:
+      // 1º: Canciones mejor valoradas en las últimas 24h
+      const recentRated = candidateSongs.filter(s => (s.votes_count > 0) && (now - (s.lastRated || 0) <= TWENTY_FOUR_HOURS));
+      recentRated.sort((a, b) => (b.rating_avg - a.rating_avg) || ((b.votes_count || 0) - (a.votes_count || 0)));
+
+      // 2º: Canciones mejor valoradas en general (todas las valoradas históricamente)
+      const allTimeRated = candidateSongs.filter(s => s.votes_count > 0);
+      allTimeRated.sort((a, b) => (b.rating_avg - a.rating_avg) || ((b.votes_count || 0) - (a.votes_count || 0)));
+
+      let topRated = [];
+      // Agregar primero las de las últimas 24h
+      for (const s of recentRated) {
+        if (topRated.length >= 3) break;
+        topRated.push(s);
+      }
+      // Si faltan, complementar con las mejor valoradas en general
+      if (topRated.length < 3) {
+        for (const s of allTimeRated) {
+          if (topRated.length >= 3) break;
+          if (!topRated.some(ex => ex.id === s.id)) {
+            topRated.push(s);
+          }
+        }
+      }
+      // Si aún faltan (< 3), complementar con canciones comunitarias reales
+      if (topRated.length < 3 && typeof GLOBAL_COMMUNITY_FALLBACKS !== 'undefined') {
+        const fallbacks = [...GLOBAL_COMMUNITY_FALLBACKS];
+        for (const fb of fallbacks) {
+          if (topRated.length >= 3) break;
+          if (!topRated.some(ex => ex.id === fb.id)) {
+            topRated.push({
+              ...fb,
+              rating_avg: fb.rating_avg || 5.0,
+              votes_count: fb.votes_count || 1
+            });
+          }
+        }
+      }
+
       dailyFeaturedSongsList = topRated;
       renderDailyFeaturedCards(topRated);
+      return topRated;
     }
 
     function renderDailyFeaturedCards(songs) {
@@ -9330,23 +9381,33 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
           const cData = stored?.unpackedData || stored?.chartData || ls.chartData || ls.unpackedData;
           const audioBlob = stored?.audioBlob || ls.audioBlob;
           if (cData) {
-            const formData = new FormData();
-            formData.append('title', ls.title || 'Pista Comunitaria');
-            formData.append('artist', ls.artist || 'Comunidad');
-            formData.append('creator_name', ls.creator_name || ls.creator || 'Creador');
-            formData.append('creator_id', ls.creator_id || '');
-            formData.append('bpm', ls.bpm || 120);
-            formData.append('offset_ms', ls.offset_ms || 0);
-            formData.append('difficulty_name', ls.difficulty_name || 'Media');
-            formData.append('stars', ls.stars || 3.5);
-            formData.append('scroll_duration_ms', ls.scroll_duration_ms || 1400);
-            formData.append('chart_json', JSON.stringify(cData));
+            let audioDataUrl = null;
             if (audioBlob) {
-              formData.append('audio_file', audioBlob, 'audio.mp3');
+              audioDataUrl = await new Promise(resolve => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = () => resolve(null);
+                reader.readAsDataURL(audioBlob);
+              });
             }
+            const payload = {
+              title: ls.title || 'Pista Comunitaria',
+              artist: ls.artist || 'Comunidad',
+              creator_name: ls.creator_name || ls.creator || 'Creador',
+              creator_id: ls.creator_id || '',
+              bpm: ls.bpm || 120,
+              offset_ms: ls.offset_ms || 0,
+              difficulty: ls.difficulty_name || 'Media',
+              difficulty_name: ls.difficulty_name || 'Media',
+              stars: ls.stars || 3.5,
+              scroll_duration_ms: ls.scroll_duration_ms || 1400,
+              chart_data: cData,
+              audio_data: audioDataUrl
+            };
             const res = await fetch(`${baseUrl}/api/v1/community/charts/publish`, {
               method: 'POST',
-              body: formData
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
             });
             if (res.ok) {
               const pubData = await res.json();
@@ -10799,20 +10860,16 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         console.warn('Error cargando ranking semanal:', err);
       }
 
+      // Encabezado compacto sin cuadraditos de recompensas (las recompensas van directamente en cada puesto y franja)
       const headerBanner = `
-        <div class="p-2.5 mb-2.5 bg-gradient-to-r from-amber-950/90 via-stone-950 to-black border border-amber-500/40 rounded-xl space-y-2 text-center shadow-lg">
-          <div class="flex items-center justify-between text-[11px] font-bold text-amber-300">
-            <span class="flex items-center gap-1">🏆 Torneo Semanal</span>
-            <span class="font-mono text-cyan-300 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-500/30 text-[10px]">${timeRemainingText || 'Lunes a Domingo 23:59 UTC'}</span>
+        <div class="p-2.5 mb-2 bg-gradient-to-r from-amber-950/90 via-stone-950 to-black border border-amber-500/40 rounded-xl flex items-center justify-between shadow-lg">
+          <div class="flex items-center gap-1.5 text-xs font-bold text-amber-300">
+            <span>🏆</span>
+            <span>Torneo Semanal</span>
           </div>
-          <div class="text-[9.5px] text-gray-200 grid grid-cols-3 gap-1 border-t border-amber-500/30 pt-1.5 font-mono">
-            <span class="bg-amber-500/15 py-1 px-1 rounded border border-amber-500/30">Top 1: <strong class="text-amber-400">1.000 𝄞</strong></span>
-            <span class="bg-stone-500/15 py-1 px-1 rounded border border-stone-400/30">Top 2: <strong class="text-gray-200">500 𝄞</strong></span>
-            <span class="bg-amber-700/15 py-1 px-1 rounded border border-amber-600/30">Top 3: <strong class="text-amber-500">250 𝄞</strong></span>
-            <span class="bg-cyan-500/15 py-1 px-1 rounded border border-cyan-400/30">Top 10%: <strong class="text-cyan-300">100 𝄞</strong></span>
-            <span class="bg-purple-500/15 py-1 px-1 rounded border border-purple-400/30">Top 20%: <strong class="text-purple-300">50 𝄞</strong></span>
-            <span class="bg-emerald-500/15 py-1 px-1 rounded border border-emerald-400/30">Top 50%: <strong class="text-emerald-300">20 𝄞</strong></span>
-          </div>
+          <span class="font-mono text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/30 text-[10px]">
+            ${timeRemainingText || 'Lunes a Domingo 23:59 UTC'}
+          </span>
         </div>
       `;
 
@@ -10821,7 +10878,7 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       listDiv.className = 'space-y-1.5';
       container.appendChild(listDiv);
 
-      renderLeaderboardRows(rows, listDiv);
+      renderLeaderboardRows(rows, listDiv, true);
     }
 
     function getCurrentUtcWeekId() {
@@ -10875,7 +10932,18 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       }
     }
 
-    function renderLeaderboardRows(rows, container) {
+    function renderLeaderboardRows(rows, container, isWeekly = false) {
+      // Deduplicar personas/jugadores: conservar unicamente la mejor puntuacion de cada persona
+      const dedupMap = new Map();
+      (rows || []).forEach(r => {
+        const rawName = (r.player_name || 'Jugador').trim();
+        const pKey = rawName.toLowerCase();
+        if (!dedupMap.has(pKey) || (r.score || 0) > (dedupMap.get(pKey).score || 0)) {
+          dedupMap.set(pKey, r);
+        }
+      });
+      rows = Array.from(dedupMap.values()).sort((a, b) => (b.score || 0) - (a.score || 0));
+
       if (!rows || rows.length === 0) {
         container.innerHTML = `
           <div class="p-6 text-center text-gray-400 text-xs space-y-1">
@@ -10886,19 +10954,93 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         return;
       }
 
+      const totalPlayers = Math.max(rows.length, 10);
+      const top10Cutoff = Math.max(3, Math.ceil(totalPlayers * 0.10));
+      const top20Cutoff = Math.max(top10Cutoff + 1, Math.ceil(totalPlayers * 0.20));
+      const top50Cutoff = Math.max(top20Cutoff + 1, Math.ceil(totalPlayers * 0.50));
+
       let html = '';
+      let shownTop10Line = false;
+      let shownTop20Line = false;
+      let shownTop50Line = false;
+
       rows.forEach((r, idx) => {
-        const medalIcons = { 'platinum': '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#67e8f9" stroke-width="2" class="inline align-middle"><polygon points="6 3 18 3 22 9 12 22 2 9 6 3"/></svg>', 'gold': '<svg width="11" height="11" viewBox="0 0 24 24" fill="#fcd34d" stroke="#fcd34d" stroke-width="1.5" class="inline align-middle"><circle cx="12" cy="12" r="7"/></svg>', 'silver': '<svg width="11" height="11" viewBox="0 0 24 24" fill="#cbd5e1" stroke="#cbd5e1" stroke-width="1.5" class="inline align-middle"><circle cx="12" cy="12" r="7"/></svg>' };
+        const rank = idx + 1;
+
+        // Líneas divisorias de franja para Torneo Semanal con recompensas claras
+        if (isWeekly) {
+          if (rank === 4 && !shownTop10Line) {
+            shownTop10Line = true;
+            html += `
+              <div class="flex items-center gap-2 py-1.5 my-1">
+                <div class="flex-1 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent"></div>
+                <span class="text-[9.5px] font-mono font-bold text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/40 uppercase tracking-wide">
+                  ✦ Top 10% • Recompensa: 100 𝄞
+                </span>
+                <div class="flex-1 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent"></div>
+              </div>
+            `;
+          } else if (rank > top10Cutoff && !shownTop20Line) {
+            shownTop20Line = true;
+            html += `
+              <div class="flex items-center gap-2 py-1.5 my-1">
+                <div class="flex-1 h-[1px] bg-gradient-to-r from-transparent via-purple-500/50 to-transparent"></div>
+                <span class="text-[9.5px] font-mono font-bold text-purple-300 bg-purple-950/80 px-2 py-0.5 rounded border border-purple-500/40 uppercase tracking-wide">
+                  ✦ Top 20% • Recompensa: 50 𝄞
+                </span>
+                <div class="flex-1 h-[1px] bg-gradient-to-r from-transparent via-purple-500/50 to-transparent"></div>
+              </div>
+            `;
+          } else if (rank > top20Cutoff && !shownTop50Line) {
+            shownTop50Line = true;
+            html += `
+              <div class="flex items-center gap-2 py-1.5 my-1">
+                <div class="flex-1 h-[1px] bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent"></div>
+                <span class="text-[9.5px] font-mono font-bold text-emerald-300 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/40 uppercase tracking-wide">
+                  ✦ Top 50% • Recompensa: 20 𝄞
+                </span>
+                <div class="flex-1 h-[1px] bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent"></div>
+              </div>
+            `;
+          }
+        }
+
+        const medalIcons = {
+          'platinum': '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#67e8f9" stroke-width="2" class="inline align-middle"><polygon points="6 3 18 3 22 9 12 22 2 9 6 3"/></svg>',
+          'gold': '<svg width="11" height="11" viewBox="0 0 24 24" fill="#fcd34d" stroke="#fcd34d" stroke-width="1.5" class="inline align-middle"><circle cx="12" cy="12" r="7"/></svg>',
+          'silver': '<svg width="11" height="11" viewBox="0 0 24 24" fill="#cbd5e1" stroke="#cbd5e1" stroke-width="1.5" class="inline align-middle"><circle cx="12" cy="12" r="7"/></svg>'
+        };
         const medalIcon = r.medal_tier ? (medalIcons[r.medal_tier] || '') : '';
         const rankColors = ['text-amber-400 font-black', 'text-gray-300 font-bold', 'text-amber-600 font-bold'];
         const rankClass = idx < 3 ? rankColors[idx] : 'text-gray-500 font-bold';
 
+        // Píldora de recompensa en cada puesto del Torneo Semanal
+        let weeklyRewardBadge = '';
+        if (isWeekly) {
+          if (rank === 1) {
+            weeklyRewardBadge = '<span class="px-1.5 py-0.5 bg-amber-500/25 border border-amber-400/50 rounded text-[9px] font-mono font-bold text-amber-300">🏆 1.000 𝄞</span>';
+          } else if (rank === 2) {
+            weeklyRewardBadge = '<span class="px-1.5 py-0.5 bg-stone-500/25 border border-stone-400/50 rounded text-[9px] font-mono font-bold text-gray-200">🥈 500 𝄞</span>';
+          } else if (rank === 3) {
+            weeklyRewardBadge = '<span class="px-1.5 py-0.5 bg-amber-700/25 border border-amber-600/50 rounded text-[9px] font-mono font-bold text-amber-500">🥉 250 𝄞</span>';
+          } else if (rank <= top10Cutoff) {
+            weeklyRewardBadge = '<span class="px-1.5 py-0.5 bg-cyan-500/20 border border-cyan-400/40 rounded text-[9px] font-mono font-bold text-cyan-300">100 𝄞</span>';
+          } else if (rank <= top20Cutoff) {
+            weeklyRewardBadge = '<span class="px-1.5 py-0.5 bg-purple-500/20 border border-purple-400/40 rounded text-[9px] font-mono font-bold text-purple-300">50 𝄞</span>';
+          } else if (rank <= top50Cutoff) {
+            weeklyRewardBadge = '<span class="px-1.5 py-0.5 bg-emerald-500/20 border border-emerald-400/40 rounded text-[9px] font-mono font-bold text-emerald-300">20 𝄞</span>';
+          }
+        }
+
         html += `
-          <div class="p-2 bg-black/50 border border-white/5 rounded-xl flex items-center justify-between gap-2 text-xs">
+          <div class="p-2 bg-black/60 border border-white/5 hover:border-amber-500/30 rounded-xl flex items-center justify-between gap-2 text-xs transition">
             <div class="flex items-center gap-2 min-w-0">
-              <span class="w-5 text-center ${rankClass}">#${idx + 1}</span>
+              <span class="w-5 text-center ${rankClass}">#${rank}</span>
               <div class="min-w-0 truncate">
-                <span class="font-bold text-white truncate block">${escapeHtml(r.player_name)} ${medalIcon}</span>
+                <div class="flex items-center gap-1.5 truncate">
+                  <span class="font-bold text-white truncate block">${escapeHtml(r.player_name)} ${medalIcon}</span>
+                  ${weeklyRewardBadge}
+                </div>
                 <span class="text-[9px] text-gray-400">Combo: ${r.max_combo || 0} • ${r.stars || 0}★</span>
               </div>
             </div>

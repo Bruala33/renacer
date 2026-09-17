@@ -443,12 +443,12 @@ app.all(['/api/proxy', '/api/v1/download/proxy'], async (req, res) => {
 // ==========================================
 // Featured daily tracks - Filtradas por valoraciones de las últimas 48h
 app.get('/api/v1/community/featured', (req, res) => {
-  const FORTY_EIGHT_HOURS_MS = 48 * 60 * 60 * 1000;
+  const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
   const now = Date.now();
 
-  const chartsWithRecentStats = Array.from(communityCharts.values()).map(chart => {
+  const chartsWithStats = Array.from(communityCharts.values()).map(chart => {
     const ratings = chartRatings.get(chart.id) || [];
-    const recentRatings = ratings.filter(r => (now - (r.timestamp || 0)) <= FORTY_EIGHT_HOURS_MS);
+    const recentRatings = ratings.filter(r => (now - (r.timestamp || 0)) <= TWENTY_FOUR_HOURS_MS);
 
     if (recentRatings.length > 0) {
       const totalStars = recentRatings.reduce((sum, r) => sum + (r.rating || 5), 0);
@@ -466,14 +466,14 @@ app.get('/api/v1/community/featured', (req, res) => {
     };
   });
 
-  // Priorizar pistas con votos en las últimas 48h; si hay pocas, complementar con las de mejor promedio
-  chartsWithRecentStats.sort((a, b) => {
+  // Priorizar estrictamente canciones con votos en las últimas 24h; si hay menos de 3, complementar con las mejor valoradas en general
+  chartsWithStats.sort((a, b) => {
     if (a.has_recent_votes && !b.has_recent_votes) return -1;
     if (!a.has_recent_votes && b.has_recent_votes) return 1;
-    return b.rating_avg - a.rating_avg || b.votes_count - a.votes_count;
+    return (b.rating_avg || 0) - (a.rating_avg || 0) || (b.votes_count || 0) - (a.votes_count || 0);
   });
 
-  res.json(chartsWithRecentStats.slice(0, 6));
+  res.json(chartsWithStats.slice(0, 6));
 });
 
 // Search community tracks
@@ -516,7 +516,15 @@ app.get('/api/v1/community/charts/search', (req, res) => {
 // Publish track
 app.post('/api/v1/community/charts/publish', (req, res) => {
   try {
-    const { title, artist, bpm, stars, difficulty, creator_name, chart_data, audio_data } = req.body;
+    const rawBody = req.body || {};
+    const title = (rawBody.title || rawBody.title_name || '').trim();
+    const artist = (rawBody.artist || rawBody.artist_name || '').trim();
+    const creator_name = (rawBody.creator_name || rawBody.creator || '').trim();
+    const bpm = rawBody.bpm;
+    const stars = rawBody.stars;
+    const difficulty = rawBody.difficulty || rawBody.difficulty_name;
+    const chart_data = rawBody.chart_data || rawBody.chart_json;
+    const audio_data = rawBody.audio_data || rawBody.audio_file || rawBody.audioBlob;
     const newId = `comm_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
     const folderPath = path.join(COMMUNITY_DIR, newId);
@@ -805,7 +813,22 @@ app.post('/api/v1/community/charts/:id/score', (req, res) => {
     created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
   };
 
-  currentScores.push(newEntry);
+  const cleanName = (player_name || 'Jugador Anónimo').trim();
+  const parsedScore = parseInt(score, 10) || 0;
+  newEntry.player_name = cleanName;
+  newEntry.score = parsedScore;
+
+  const existingIdx = currentScores.findIndex(
+    s => (s.player_name || '').trim().toLowerCase() === cleanName.toLowerCase()
+  );
+  if (existingIdx >= 0) {
+    if (parsedScore >= (currentScores[existingIdx].score || 0)) {
+      currentScores[existingIdx] = newEntry;
+    }
+  } else {
+    currentScores.push(newEntry);
+  }
+
   currentScores.sort((a, b) => b.score - a.score);
   currentScores.forEach((s, idx) => (s.rank = idx + 1));
 
@@ -835,10 +858,16 @@ app.get(['/api/v1/community/charts/:id/leaderboard', '/api/v1/community/charts/:
 
 // Global Leaderboard (Compatible con /leaderboard/global y /leaderboards/global)
 app.get(['/api/v1/community/leaderboard/global', '/api/v1/community/leaderboards/global'], (req, res) => {
-  const allScores = [];
+  const playerMap = new Map();
   chartScores.forEach((scores) => {
-    allScores.push(...scores);
+    scores.forEach((s) => {
+      const pKey = (s.player_name || 'Jugador').trim().toLowerCase();
+      if (!playerMap.has(pKey) || (s.score || 0) > (playerMap.get(pKey).score || 0)) {
+        playerMap.set(pKey, s);
+      }
+    });
   });
+  const allScores = Array.from(playerMap.values());
   allScores.sort((a, b) => b.score - a.score);
   allScores.forEach((s, idx) => (s.rank = idx + 1));
   const topScores = allScores.slice(0, 50);
@@ -867,16 +896,20 @@ app.get(['/api/v1/community/leaderboard/weekly', '/api/v1/community/leaderboards
   const mondayMs = monday.getTime();
   const sundayMs = sundayEnd.getTime();
 
-  const weeklyScores = [];
+  const playerWeeklyMap = new Map();
   chartScores.forEach((scores, cId) => {
     scores.forEach(s => {
       const sTime = s.timestamp || (s.created_at ? new Date(s.created_at).getTime() : 0);
       if (sTime >= mondayMs && sTime <= sundayMs) {
-        weeklyScores.push({ ...s, chart_id: s.chart_id || cId });
+        const pKey = (s.player_name || 'Jugador').trim().toLowerCase();
+        if (!playerWeeklyMap.has(pKey) || (s.score || 0) > (playerWeeklyMap.get(pKey).score || 0)) {
+          playerWeeklyMap.set(pKey, { ...s, chart_id: s.chart_id || cId });
+        }
       }
     });
   });
 
+  const weeklyScores = Array.from(playerWeeklyMap.values());
   weeklyScores.sort((a, b) => b.score - a.score);
   weeklyScores.forEach((s, idx) => (s.rank = idx + 1));
   const topWeekly = weeklyScores.slice(0, 50);
