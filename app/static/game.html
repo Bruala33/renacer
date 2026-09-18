@@ -5215,6 +5215,11 @@
         }
       }
 
+      // Auto-sincronizar catálogo Top desde CDN Release
+      if (typeof fetchAndSyncTopSongsCatalog === 'function') {
+        fetchAndSyncTopSongsCatalog(true);
+      }
+
       // Inicializar música de menú y cargar desafíos comunitarios
       loadDailyFeaturedSongs();
       setTimeout(() => {
@@ -6271,7 +6276,7 @@ window.switchMainTab = switchMainTab;
       const badge = document.getElementById('activeFilterBadge');
       const commSort = document.getElementById('commSortButtons');
       if (badge) {
-        badge.innerText = isCommunityOnly ? 'Comunidad' : (topCheck?.checked ? 'Top 90' : 'Global');
+        const topCount = (window.TOP_SONGS_CATALOG && window.TOP_SONGS_CATALOG.length) ? window.TOP_SONGS_CATALOG.length : 90; badge.innerText = isCommunityOnly ? 'Comunidad' : (topCheck?.checked ? `Top ${topCount}` : 'Global');
       }
       if (commSort) {
         if (isCommunityOnly) {
@@ -6295,9 +6300,13 @@ window.switchMainTab = switchMainTab;
           commSort.classList.remove('flex');
         }
       }
+      const topCount = (window.TOP_SONGS_CATALOG && window.TOP_SONGS_CATALOG.length) ? window.TOP_SONGS_CATALOG.length : 90;
       const badge = document.getElementById('activeFilterBadge');
       if (badge) {
-        badge.innerText = isTopOnly ? 'Top 90' : (commCheck?.checked ? 'Comunidad' : 'Global');
+        badge.innerText = isTopOnly ? `Top ${topCount}` : (commCheck?.checked ? 'Comunidad' : 'Global');
+      }
+      if (isTopOnly && typeof fetchAndSyncTopSongsCatalog === 'function') {
+        fetchAndSyncTopSongsCatalog(false);
       }
       executeSearch();
     }
@@ -7038,6 +7047,7 @@ window.switchMainTab = switchMainTab;
         if (spinner) spinner.classList.add('hidden');
       }
     }
+    window.executeSearch = executeSearch;
 
     function buildSongCardHtml(item, idx, targetNum = null) {
       const hs = highscores[item.id];
@@ -7729,7 +7739,204 @@ window.switchMainTab = switchMainTab;
         console.error(err);
       }
     }
-function startGame(beatmapData, audioBlob, diffLabel = '') {
+
+    // ==========================================
+    // HUMANIZADOR Y EQUILIBRADOR MUSICAL DE NOTAS
+    // ==========================================
+    function humanizeAndBalanceBeatmapNotes(rawNotes, bpm = 120) {
+      if (!Array.isArray(rawNotes) || rawNotes.length === 0) return [];
+      const beatMs = bpm > 0 ? (60000.0 / bpm) : 500;
+
+      // 1. Parsing robusto y ordenamiento
+      const parsed = rawNotes.map((n, idx) => {
+        let rawT = n.timestamp_ms !== undefined ? n.timestamp_ms : (n.timeMs !== undefined ? n.timeMs : (n.timestamp !== undefined ? n.timestamp : (n.time !== undefined ? n.time : 0)));
+        let t = Number(rawT);
+        if (!Number.isFinite(t)) t = idx * 500;
+        if (t > 0 && t < 100 && (n.time !== undefined || n.timeSec !== undefined)) {
+          t = Math.round(t * 1000);
+        }
+        t = Math.round(t);
+
+        let rawDur = n.duration_ms !== undefined ? n.duration_ms : (n.holdDuration !== undefined ? n.holdDuration : (n.duration !== undefined ? n.duration : 0));
+        let dur = Number(rawDur);
+        if (!Number.isFinite(dur) || dur < 0) dur = 0;
+        if (dur > 0 && dur < 50 && (n.duration !== undefined || n.holdDuration !== undefined)) {
+          dur = Math.round(dur * 1000);
+        }
+        dur = Math.round(dur);
+
+        const laneVal = Math.max(0, Math.min(2, parseInt(n.lane !== undefined ? n.lane : (n.column !== undefined ? n.column : (n.track !== undefined ? n.track : 0)), 10) || 0));
+        const isHold = n.type === 'hold' || n.type === 'long' || dur > 180;
+        const typeStr = isHold ? 'hold' : ((n.type === 'swipe' || n.type === 'slide') ? 'swipe' : 'tap');
+        const dirStr = n.direction || n.swipeDirection || 'up';
+        const isInst = Boolean(n.isInstrumental || n.is_instrumental);
+
+        return {
+          idx,
+          t,
+          dur,
+          lane: laneVal,
+          type: typeStr,
+          direction: dirStr,
+          isInst,
+          pitch: n.pitch,
+          lyric: n.lyric || ''
+        };
+      });
+
+      parsed.sort((a, b) => a.t - b.t);
+
+      // Verificación de sesgo excesivo hacia un único carril (> 55% de notas)
+      const laneCounts = [0, 0, 0];
+      parsed.forEach(n => { if (n.lane >= 0 && n.lane <= 2) laneCounts[n.lane]++; });
+      const total = parsed.length;
+      const isHeavilySkewed = laneCounts.some(c => (c / total) > 0.55);
+
+      // 8 patrones musicales auténticos para instrumentales (compases de 4 tiempos)
+      const instPatterns = [
+        [0, 1, 2, 1], // Roll progresivo
+        [2, 1, 0, 1], // Roll regresivo
+        [0, 2, 1, 2], // Salto sincopado
+        [2, 0, 1, 0], // Salto invertido
+        [0, 0, 1, 2], // Doble rebote izquierdo
+        [2, 2, 1, 0], // Doble rebote derecho
+        [1, 0, 1, 2], // Ola central
+        [1, 2, 1, 0]  // Caída central
+      ];
+
+      let melodyLane = 1;
+      let melodyDir = 1;
+      const laneOccupiedUntil = [0, 0, 0];
+      const recentLanes = [];
+
+      const resolved = [];
+
+      for (let i = 0; i < parsed.length; i++) {
+        const n = parsed[i];
+        let t = n.t;
+        let dur = n.dur;
+        let ty = n.type;
+        let targetLane = n.lane;
+
+        // 1. Selección de Carril Orgánica
+        if (n.isInst) {
+          const patternGroup = Math.floor(t / (beatMs * 4)) % instPatterns.length;
+          const step = Math.floor(t / Math.max(100, beatMs / 2)) % 4;
+          targetLane = instPatterns[patternGroup][step];
+        } else if (isHeavilySkewed) {
+          if (typeof n.pitch === 'number' && n.pitch > 0) {
+            if (n.pitch < 56) targetLane = 0;
+            else if (n.pitch > 66) targetLane = 2;
+            else targetLane = 1;
+          } else {
+            if (i % 4 === 0) melodyDir = -melodyDir;
+            const nextL = melodyLane + melodyDir;
+            if (nextL > 2) {
+              melodyLane = 1;
+              melodyDir = -1;
+            } else if (nextL < 0) {
+              melodyLane = 1;
+              melodyDir = 1;
+            } else {
+              melodyLane = nextL;
+            }
+            targetLane = melodyLane;
+          }
+        }
+
+        // 2. Regla de Protección: Jamás generar una tecla en un carril mientras se sostiene un Hold
+        if (laneOccupiedUntil[targetLane] > t) {
+          const freeLanes = [0, 1, 2].filter(l => laneOccupiedUntil[l] <= t);
+          if (freeLanes.length > 0) {
+            freeLanes.sort((a, b) => Math.abs(a - targetLane) - Math.abs(b - targetLane));
+            targetLane = freeLanes[0];
+          } else {
+            targetLane = laneOccupiedUntil.indexOf(Math.min(...laneOccupiedUntil));
+            t = Math.max(t, laneOccupiedUntil[targetLane] + 20);
+          }
+        }
+
+        // 3. Regla Anti-Martilleo: Máximo 2 notas consecutivas en el mismo carril
+        if (recentLanes.length >= 2 && recentLanes[recentLanes.length - 1] === targetLane && recentLanes[recentLanes.length - 2] === targetLane) {
+          const altLanes = [0, 1, 2].filter(l => l !== targetLane && laneOccupiedUntil[l] <= t);
+          if (altLanes.length > 0) {
+            if (targetLane === 1) {
+              targetLane = (i % 2 === 0) ? 0 : 2;
+            } else if (altLanes.includes(1)) {
+              targetLane = 1;
+            } else {
+              targetLane = altLanes[0];
+            }
+          }
+        }
+
+        // 4. Gestión de notas sostenidas (Hold) y ventana libre de 160ms
+        const isHold = (ty === 'hold' || dur > 180);
+        if (isHold && dur > 0) {
+          let maxDur = dur;
+          for (let j = i + 1; j < Math.min(i + 25, parsed.length); j++) {
+            const nextN = parsed[j];
+            if (nextN.t > t) {
+              const gap = nextN.t - t - 160;
+              if (gap < maxDur) {
+                maxDur = Math.max(0, gap);
+              }
+              break;
+            }
+          }
+
+          if (maxDur >= 200) {
+            dur = maxDur;
+            ty = 'hold';
+            laneOccupiedUntil[targetLane] = t + dur + 160;
+          } else {
+            ty = 'tap';
+            dur = 0;
+            laneOccupiedUntil[targetLane] = t + 100;
+          }
+        } else {
+          laneOccupiedUntil[targetLane] = t + 90;
+        }
+
+        recentLanes.push(targetLane);
+        if (recentLanes.length > 10) recentLanes.shift();
+
+        let dirStr = n.direction;
+        if (ty === 'swipe') {
+          if (targetLane === 0 && dirStr === 'up') dirStr = 'left';
+          else if (targetLane === 2 && dirStr === 'up') dirStr = 'right';
+        }
+
+        resolved.push({
+          id: i,
+          lane: targetLane,
+          column: targetLane,
+          track: targetLane,
+          time: t / 1000.0,
+          timeSec: t / 1000.0,
+          timeMs: t,
+          timestamp: t,
+          timestamp_ms: t,
+          type: ty,
+          duration: dur / 1000.0,
+          duration_ms: dur,
+          holdDuration: dur / 1000.0,
+          end_timestamp_ms: ty === 'hold' ? (t + Math.max(150, dur)) : null,
+          direction: dirStr,
+          swipeDirection: dirStr,
+          hit: false,
+          holding: false,
+          holdCompleted: false,
+          missed: false,
+          processed: false
+        });
+      }
+
+      return resolved;
+    }
+    window.humanizeAndBalanceBeatmapNotes = humanizeAndBalanceBeatmapNotes;
+
+    function startGame(beatmapData, audioBlob, diffLabel = '') {
       if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
       if (window.isSlotActiveDuringLoad) {
         window.pendingGameToStart = { beatmapData, audioBlob, diffLabel };
@@ -7758,55 +7965,9 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         }
       }
 
-      // 2. Blindaje numérico estricto (Evita valores NaN o infinitos que rompen el motor)
-      const resolvedNotes = rawNotes.map((n, idx) => {
-        let rawT = n.timestamp_ms !== undefined ? n.timestamp_ms : (n.timeMs !== undefined ? n.timeMs : (n.timestamp !== undefined ? n.timestamp : (n.time !== undefined ? n.time : 0)));
-        let t = Number(rawT);
-        if (!Number.isFinite(t)) t = idx * 500;
-        // Si el tiempo viene en segundos (ej. 2.5 en lugar de 2500ms), convertir a ms
-        if (t > 0 && t < 100 && (n.time !== undefined || n.timeSec !== undefined)) {
-          t = Math.round(t * 1000);
-        }
-        t = Math.round(t);
-
-        let rawDur = n.duration_ms !== undefined ? n.duration_ms : (n.holdDuration !== undefined ? n.holdDuration : (n.duration !== undefined ? n.duration : 0));
-        let dur = Number(rawDur);
-        if (!Number.isFinite(dur) || dur < 0) dur = 0;
-        if (dur > 0 && dur < 50 && (n.duration !== undefined || n.holdDuration !== undefined)) {
-          dur = Math.round(dur * 1000);
-        }
-        dur = Math.round(dur);
-
-        const laneVal = Math.max(0, Math.min(2, parseInt(n.lane !== undefined ? n.lane : (n.column !== undefined ? n.column : (n.track !== undefined ? n.track : 0)), 10) || 0));
-        const isHold = n.type === 'hold' || n.type === 'long' || dur > 0;
-        const typeStr = isHold ? 'hold' : ((n.type === 'swipe' || n.type === 'slide') ? 'swipe' : 'tap');
-        const dirStr = n.direction || n.swipeDirection || 'up';
-
-        return {
-          id: idx,
-          lane: laneVal,
-          column: laneVal,
-          track: laneVal,
-          time: t / 1000,
-          timeSec: t / 1000,
-          timeMs: t,
-          timestamp: t,
-          timestamp_ms: t,
-          type: typeStr,
-          duration: dur / 1000,
-          duration_ms: dur,
-          holdDuration: dur / 1000,
-          end_timestamp_ms: isHold ? (t + Math.max(150, dur)) : null,
-          direction: dirStr,
-          swipeDirection: dirStr,
-          hit: false,
-          holding: false,
-          holdCompleted: false,
-          missed: false,
-          processed: false
-        };
-      });
-
+      // 2. Blindaje numérico, humanización musical, anti-martilleo y protección de Holds
+      const songBpm = Number(beatmapData.bpm) || 120;
+      const resolvedNotes = humanizeAndBalanceBeatmapNotes(rawNotes, songBpm);
       resolvedNotes.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
 
       const resolvedAudioBlob = audioBlob || beatmapData.audioBlob || (beatmapData.unpackedData && beatmapData.unpackedData.audioBlob);
@@ -9506,9 +9667,112 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
 
     
     // ==========================================
-    // TOP SONGS CDN SYSTEM (90 CANCIONES PRODUCIDAS GITHUB RELEASES)
+    // TOP SONGS CDN SYSTEM (PRODUCCIÓN GITHUB RELEASES & AUTO-SYNC)
     // ==========================================
     const TOP_SONGS_CDN_BASE = 'https://github.com/Bruala33/renacer/releases/download/3/';
+
+    // Restaurar canciones sincronizadas desde almacenamiento local
+    try {
+      const cachedRemoteCat = localStorage.getItem('beatstar_remote_top_catalog');
+      if (cachedRemoteCat) {
+        const parsedCat = JSON.parse(cachedRemoteCat);
+        if (Array.isArray(parsedCat) && parsedCat.length > 0) {
+          if (!Array.isArray(window.TOP_SONGS_CATALOG)) window.TOP_SONGS_CATALOG = [];
+          const existingIds = new Set(window.TOP_SONGS_CATALOG.map(s => s.id));
+          for (const s of parsedCat) {
+            if (s && s.id && !existingIds.has(s.id)) {
+              window.TOP_SONGS_CATALOG.push(s);
+              existingIds.add(s.id);
+            }
+          }
+        }
+      }
+    } catch (_) {}
+
+    let lastTopSongsSyncTime = 0;
+    async function fetchAndSyncTopSongsCatalog(isSilent = false) {
+      const now = Date.now();
+      if (!isSilent && (now - lastTopSongsSyncTime < 15000)) {
+        return;
+      }
+      lastTopSongsSyncTime = now;
+
+      const CDN_CATALOG_URL = `${TOP_SONGS_CDN_BASE}catalog.json?t=${now}`;
+      const PROXY_CATALOG_URL = `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(CDN_CATALOG_URL)}`;
+
+      let remoteSongs = null;
+      try {
+        const res = await fetch(PROXY_CATALOG_URL);
+        if (res.ok) {
+          remoteSongs = await res.json();
+        }
+      } catch (e) {
+        console.warn('[TopSongs] Error conectando por proxy:', e);
+      }
+
+      if (!remoteSongs || !Array.isArray(remoteSongs)) {
+        try {
+          const res = await fetch(CDN_CATALOG_URL);
+          if (res.ok) {
+            remoteSongs = await res.json();
+          }
+        } catch (e) {
+          console.warn('[TopSongs] Error conectando directo:', e);
+        }
+      }
+
+      if (Array.isArray(remoteSongs) && remoteSongs.length > 0) {
+        if (!Array.isArray(window.TOP_SONGS_CATALOG)) {
+          window.TOP_SONGS_CATALOG = [];
+        }
+
+        let newCount = 0;
+        const currentMap = new Map();
+        window.TOP_SONGS_CATALOG.forEach(s => currentMap.set(s.id, s));
+
+        for (const rSong of remoteSongs) {
+          if (!rSong || !rSong.id) continue;
+          if (currentMap.has(rSong.id)) {
+            const existing = currentMap.get(rSong.id);
+            if (!existing.cover_url && rSong.cover_url) existing.cover_url = rSong.cover_url;
+            if (!existing.thumbnail && rSong.thumbnail) existing.thumbnail = rSong.thumbnail;
+            if (rSong.total_notes) existing.total_notes = rSong.total_notes;
+            if (rSong.bpm) existing.bpm = rSong.bpm;
+          } else {
+            const newSong = {
+              id: rSong.id,
+              title: rSong.title || rSong.id.replace(/_/g, ' '),
+              artist: rSong.artist || 'Artista',
+              bpm: Number(rSong.bpm) || 120,
+              total_notes: Number(rSong.total_notes) || 300,
+              chart_url: rSong.chart_url || `${rSong.id}.json`,
+              audio_url: rSong.audio_url || `${rSong.id}.mp3`,
+              cover_url: rSong.cover_url || rSong.thumbnail || './app_logo.png',
+              thumbnail: rSong.thumbnail || rSong.cover_url || './app_logo.png'
+            };
+            window.TOP_SONGS_CATALOG.push(newSong);
+            currentMap.set(newSong.id, newSong);
+            newCount++;
+          }
+        }
+
+        try {
+          localStorage.setItem('beatstar_remote_top_catalog', JSON.stringify(window.TOP_SONGS_CATALOG));
+        } catch (_) {}
+
+        if (newCount > 0 && !isSilent) {
+          if (typeof showSuccessToast === 'function') {
+            showSuccessToast(`¡${newCount} nueva(s) canción(es) Top sincronizada(s)!`);
+          }
+        }
+
+        const topCheckbox = document.getElementById('filterOnlyTopSongs');
+        if (topCheckbox && topCheckbox.checked && typeof executeSearch === 'function') {
+          executeSearch();
+        }
+      }
+    }
+    window.fetchAndSyncTopSongsCatalog = fetchAndSyncTopSongsCatalog;
 
     function getFormattedTopSongsCatalog() {
       const catalog = window.TOP_SONGS_CATALOG || [];
