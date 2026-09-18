@@ -58,7 +58,7 @@ const ChartEditor = {
   activeKeys: new Map(),
 
   init() {
-    window.isEditorActive = true;
+    window.isEditorTabOpen = true;
     if (typeof window.pauseMenuAmbientMusic === 'function') {
       try { window.pauseMenuAmbientMusic(); } catch (_) {}
     }
@@ -103,7 +103,7 @@ const ChartEditor = {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
 
-    window.isEditorActive = true;
+    window.isEditorTabOpen = true;
     if (typeof window.pauseMenuAmbientMusic === 'function') {
       try { window.pauseMenuAmbientMusic(); } catch (_) {}
     }

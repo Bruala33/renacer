@@ -1155,6 +1155,11 @@
             <span class="sm:hidden text-[10px] font-black tracking-wide uppercase">APK</span>
           </a>
 
+          <!-- Menu Music Manual Toggle Button -->
+          <button id="btnMenuMusicToggle" onclick="toggleMenuMusicManual()" class="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-400/50 hover:border-amber-400/80 active:scale-95 text-amber-300 flex items-center justify-center transition cursor-pointer flex-shrink-0 shadow-sm" title="Música del Menú (Activar/Silenciar)">
+            <span id="menuMusicIcon" class="text-sm">🎵</span>
+          </button>
+
           <!-- Global Leaderboard Button (Trophy SVG) -->
           <button id="btnOpenGlobalLeaderboard" onclick="openLeaderboardModal(null, 'weekly')" class="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-400/50 hover:border-amber-400/80 active:scale-95 text-amber-400 flex items-center justify-center transition cursor-pointer flex-shrink-0" title="Clasificación y Torneo Semanal">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="text-amber-400"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/></svg>
@@ -1245,6 +1250,15 @@
               <input type="checkbox" id="filterOnlyCommunity" onchange="onFilterCommunityChange(this.checked)" class="accent-[#c5a059] w-4 h-4 cursor-pointer">
             </label>
 
+            <!-- Checkbox Canciones Top (90 Pistas Oficiales CDN) -->
+            <label class="flex items-center justify-between p-2 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer transition border border-white/5">
+              <div class="flex items-center gap-1.5">
+                <span class="text-amber-400 text-xs">★</span>
+                <span class="text-xs font-semibold text-[#eee5d5]">Canciones Top</span>
+              </div>
+              <input type="checkbox" id="filterOnlyTopSongs" onchange="onFilterTopSongsChange(this.checked)" class="accent-amber-400 w-4 h-4 cursor-pointer">
+            </label>
+
             <!-- Selector de Dificultad -->
             <div class="space-y-1.5">
               <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Dificultad</span>
@@ -1310,6 +1324,8 @@
             </button>
           </div>
         </div>
+
+
 
 
 
@@ -3022,6 +3038,19 @@
           </div>
         </div>
 
+        <!-- PANEL INTERACTIVO DIRECTO DE CANCIONES DESTACADAS (TACTIL & ACCESIBLE) -->
+        <div id="slotFeaturedSongsCardsContainer" class="w-full space-y-2 mt-2 px-1" style="display: none;">
+          <div class="flex items-center justify-between px-1">
+            <span class="text-[10px] font-black uppercase text-amber-300 font-mono flex items-center gap-1">
+              <span>★</span> CANCIONES DESTACADAS REVELADAS (2X CLAVES):
+            </span>
+            <span class="text-[9px] bg-amber-500/20 text-amber-200 px-1.5 py-0.5 rounded border border-amber-400/40 font-bold">BONUS x2</span>
+          </div>
+          <div id="slotFeaturedSongsCardsList" class="space-y-1.5 max-h-[190px] overflow-y-auto pr-0.5">
+            <!-- Renderizado dinámicamente con botones grandes de Jugar -->
+          </div>
+        </div>
+
         <!-- Sonido y aviso minimo -->
         <div class="w-full mt-2 flex justify-between items-center text-[10px] text-amber-200/70 px-1">
           <button id="soundToggleBtn" class="hover:text-amber-100 flex items-center gap-1 bg-[#1a0e07] px-2 py-0.5 rounded border border-[#3d200d] cursor-pointer">
@@ -3038,6 +3067,9 @@
   <script src="./parsers.js?v=3.5"></script>
   <script src="./game.js?v=3.5"></script>
   <script src="./slot_machine.js?v=1789652777"></script>
+  <script src="./songs/comm_camilo_sesto/chart.js"></script>
+  <script src="./songs/renacer/chart.js"></script>
+  <script src="./songs/catalog_top.js"></script>
   <script>
     let engine = null;
     let currentActiveBeatmap = null;
@@ -4853,8 +4885,7 @@
 
       // 5. Recompensa en rojo: desglose mecanografiado exacto (puntuación * 0.00001 * dificultad) con multiplicador X2 si es destacada
       delay += 240;
-      const isFeatured2X = !!window.currentFeaturedSongX2;
-      window.currentFeaturedSongX2 = false; // Consumir de inmediato para que NUNCA afecte a siguientes partidas
+      const isFeatured2X = !!(currentActiveBeatmap?.is_daily_featured || currentActiveBeatmap?.metadata?.is_daily_featured || engine?.beatmapData?.is_daily_featured);
       const rawStars = Number(currentActiveBeatmap?.metadata?.stars || currentActiveBeatmap?.stars || stars || 3.0);
       const diffStarsClamped = Math.min(7, Math.max(1, Math.round(rawStars * 10) / 10));
       const baseScoreClefs = Math.floor((score || 0) * 0.00001);
@@ -5017,7 +5048,9 @@
           const isNewRecord = saveHighscore(songId, engine.score, engine.stars || 0, engine.maxCombo || 0, engine.currentMedalTier || null, scorePct);
 
           // Otorgar claves de sol por estrellas conseguidas hasta ese momento
-          const earnedClefs = Math.min(15, (engine.stars || 0) * 3);
+          const isFeat = !!(currentActiveBeatmap?.is_daily_featured || currentActiveBeatmap?.metadata?.is_daily_featured || (engine && engine.beatmapData?.is_daily_featured));
+          const baseEarned = Math.min(15, (engine.stars || 0) * 3);
+          const earnedClefs = isFeat ? (baseEarned * 2) : baseEarned;
           if (earnedClefs > 0 && typeof addClefs === 'function') {
             addClefs(earnedClefs);
           }
@@ -5182,8 +5215,13 @@
         }
       }
 
-      // Cargar desafíos diarios comunitarios
+      // Inicializar música de menú y cargar desafíos comunitarios
       loadDailyFeaturedSongs();
+      setTimeout(() => {
+        if (typeof playMenuAmbientMusic === 'function') {
+          playMenuAmbientMusic();
+        }
+      }, 100);
 
       const savedSpeed = localStorage.getItem('beatstar_note_speed') || '1.0';
       const speedSelect = document.getElementById('settingsNoteSpeedSelect');
@@ -5582,6 +5620,9 @@ function switchMainTab(tab) {
       discoverSection.classList.remove('hidden');
       discoverSection.style.display = 'block';
     }
+    if (typeof loadDailyFeaturedSongs === 'function') {
+      loadDailyFeaturedSongs();
+    }
   } else if (tab === 'library') {
     if (libraryTabBtn) libraryTabBtn.classList.add('active');
     if (librarySection) {
@@ -5622,18 +5663,24 @@ function switchMainTab(tab) {
   }
 
   // Silenciar música de menú inmediatamente al entrar al editor o casino y reanudar al salir
-  if (tab === 'editor' || window.isCasinoActive) {
-    window.isEditorActive = (tab === 'editor');
+  if (tab === 'editor') {
+    window.isEditorTabOpen = true;
     if (typeof pauseMenuAmbientMusic === 'function') {
       pauseMenuAmbientMusic();
     }
-  } else if (!window.isGameLoadingOrActive && !window.isInCasinoMode && !window.isCasinoActive) {
-    window.isEditorActive = false;
-    if (typeof resumeMenuAmbientMusic === 'function') {
-      resumeMenuAmbientMusic();
+  } else {
+    window.isEditorTabOpen = false;
+    if (typeof ChartEditor !== 'undefined' && ChartEditor.pause) {
+      try { ChartEditor.pause(); } catch (_) {}
+    }
+    if (!window.isGameLoadingOrActive && !window.isInCasinoMode && !window.isCasinoActive) {
+      if (typeof resumeMenuAmbientMusic === 'function') {
+        resumeMenuAmbientMusic();
+      }
     }
   }
 }
+window.switchMainTab = switchMainTab;
 
     // ==========================================
     // FAVORITES & PLAYLIST MODAL ACTIONS
@@ -6217,10 +6264,14 @@ function switchMainTab(tab) {
     }
 
     function onFilterCommunityChange(isCommunityOnly) {
+      const topCheck = document.getElementById('filterOnlyTopSongs');
+      if (isCommunityOnly && topCheck && topCheck.checked) {
+        topCheck.checked = false;
+      }
       const badge = document.getElementById('activeFilterBadge');
       const commSort = document.getElementById('commSortButtons');
       if (badge) {
-        badge.innerText = isCommunityOnly ? 'Comunidad' : 'Global';
+        badge.innerText = isCommunityOnly ? 'Comunidad' : (topCheck?.checked ? 'Top 90' : 'Global');
       }
       if (commSort) {
         if (isCommunityOnly) {
@@ -6233,6 +6284,24 @@ function switchMainTab(tab) {
       }
       executeSearch();
     }
+
+    function onFilterTopSongsChange(isTopOnly) {
+      const commCheck = document.getElementById('filterOnlyCommunity');
+      if (isTopOnly && commCheck && commCheck.checked) {
+        commCheck.checked = false;
+        const commSort = document.getElementById('commSortButtons');
+        if (commSort) {
+          commSort.classList.add('hidden');
+          commSort.classList.remove('flex');
+        }
+      }
+      const badge = document.getElementById('activeFilterBadge');
+      if (badge) {
+        badge.innerText = isTopOnly ? 'Top 90' : (commCheck?.checked ? 'Comunidad' : 'Global');
+      }
+      executeSearch();
+    }
+    window.onFilterTopSongsChange = onFilterTopSongsChange;
 
     document.addEventListener('click', (e) => {
       const dd = document.getElementById('searchFilterDropdown');
@@ -6280,59 +6349,100 @@ function switchMainTab(tab) {
 
     function getMenuBgmAudio() {
       if (!menuBgmAudio) {
+        // Direct relative path for universal support across Web, local file:// and Android WebView
         menuBgmAudio = new Audio('./songs/renacer/audio.mp3');
         menuBgmAudio.loop = true;
         menuBgmAudio.preload = 'auto';
+        menuBgmAudio.volume = 0.60;
+
+        menuBgmAudio.onerror = (e) => {
+          console.warn('[MenuBGM] Error con ./songs/renacer/audio.mp3, probando ./assets/casino_music.mp3:', e);
+          if (!menuBgmAudio.src.includes('casino_music')) {
+            menuBgmAudio.src = './assets/casino_music.mp3';
+            menuBgmAudio.load();
+            if (!isGameCurrentlyActive() && !isEditorActive() && !window.isCasinoActive) {
+              menuBgmAudio.play().catch(() => {});
+            }
+          }
+        };
       }
       return menuBgmAudio;
     }
 
+    function toggleMenuMusicManual() {
+      const audio = getMenuBgmAudio();
+      const icon = document.getElementById('menuMusicIcon');
+      if (audio.paused) {
+        audio.muted = false;
+        audio.volume = 0.60;
+        audio.play().then(() => {
+          if (icon) icon.innerText = '🎵';
+          showSuccessToast('Música de menú reproduciendo');
+        }).catch(err => {
+          showErrorToast('Autoplay bloqueado por el navegador: toca la pantalla');
+        });
+      } else {
+        audio.pause();
+        if (icon) icon.innerText = '🔇';
+        showSuccessToast('Música de menú pausada');
+      }
+    }
+    window.toggleMenuMusicManual = toggleMenuMusicManual;
+
     function updateMenuAudioVolume() {
       if (!menuBgmAudio) return;
-      const isMuted = localStorage.getItem('beatstar_master_muted') === 'true';
-      const savedVol = parseFloat(localStorage.getItem('beatstar_master_volume') ?? '1.0');
-      menuBgmAudio.volume = isMuted ? 0 : Math.max(0, Math.min(1, savedVol));
+      const rawVol = parseFloat(localStorage.getItem('beatstar_master_volume'));
+      const vol = (Number.isFinite(rawVol) && rawVol > 0) ? rawVol : 0.60;
+      // Garantizar volumen audible (entre 0.20 y 1.0)
+      menuBgmAudio.volume = Math.max(0.20, Math.min(1.0, vol));
     }
 
     function isGameCurrentlyActive() {
-      if (window.isGameLoadingOrActive) return true;
       if (window.engine && (window.engine.isRunning || window.engine.isCountingDown)) return true;
-      if (typeof currentActiveBeatmap !== 'undefined' && currentActiveBeatmap !== null) return true;
-      if (typeof window.currentActiveBeatmap !== 'undefined' && window.currentActiveBeatmap !== null) return true;
-      const searchScreen = document.getElementById('searchScreen');
-      if (searchScreen && (searchScreen.classList.contains('hidden') || searchScreen.style.display === 'none')) {
+      const gameCanvas = document.getElementById('gameCanvas');
+      if (gameCanvas && !gameCanvas.classList.contains('hidden') && gameCanvas.style.display === 'block') {
+        return true;
+      }
+      const overlay = document.getElementById('globalLoadingOverlay');
+      if (window.isGameLoadingOrActive && overlay && overlay.classList.contains('active')) {
         return true;
       }
       return false;
     }
 
     function isEditorActive() {
-      if (window.isEditorActive) return true;
+      if (window.isEditorTabOpen === true) return true;
       if (typeof currentActiveTab !== 'undefined' && currentActiveTab === 'editor') return true;
       const editorSec = document.getElementById('tabEditorSection');
       if (editorSec && !editorSec.classList.contains('hidden') && editorSec.style.display !== 'none') return true;
       return false;
     }
-    window.isEditorActive = isEditorActive;
+    window.isEditorTabOpen = false;
+    window.isEditorActive = function() {
+      return isEditorActive();
+    };
 
     function playMenuAmbientMusic() {
-      // En el editor de canciones NUNCA puede sonar la música de menú
       if (isEditorActive()) {
         pauseMenuAmbientMusic();
         return;
       }
-      // Si el casino o tragaperras está activo, NUNCA reproducir la música de menú
       if (window.isCasinoActive) return;
-      // Si el juego está activo, en carga o en progreso, NUNCA reproducir la música ambiental de menú
       if (isGameCurrentlyActive()) {
         pauseMenuAmbientMusic();
         return;
       }
       const audio = getMenuBgmAudio();
       updateMenuAudioVolume();
-      const p = audio.play();
-      if (p !== undefined) {
-        p.catch(() => {});
+      try {
+        const p = audio.play();
+        if (p !== undefined && typeof p.catch === 'function') {
+          p.catch(err => {
+            console.warn('[MenuBGM] Autoplay en espera de interacción:', err);
+          });
+        }
+      } catch (err) {
+        console.warn('[MenuBGM] Play exception:', err);
       }
     }
 
@@ -6340,7 +6450,6 @@ function switchMainTab(tab) {
       if (menuBgmAudio) {
         try {
           menuBgmAudio.pause();
-          menuBgmAudio.currentTime = 0;
         } catch (_) {}
       }
     }
@@ -6467,41 +6576,34 @@ function switchMainTab(tab) {
 
     window.addEventListener('pagehide', handleAppBackground);
     window.addEventListener('beforeunload', handleAppBackground);
-    window.addEventListener('blur', handleAppBackground);
+    // window.addEventListener('blur', handleAppBackground);
     window.addEventListener('focus', () => {
       if (!document.hidden) {
         handleAppForeground();
       }
     });
 
-    // Inicializar al primer gesto del usuario en la pantalla
-    const onFirstUserGesture = () => {
-      if (!menuBgmUnlocked) {
-        menuBgmUnlocked = true;
-        if (!isGameCurrentlyActive()) {
-          initMenuAmbientMusic();
+    // Inicializar y asegurar música de menú ante cualquier interacción del usuario
+    const ensureMenuMusicOnUserGesture = () => {
+      menuBgmUnlocked = true;
+      if (!isGameCurrentlyActive() && !isEditorActive() && !window.isCasinoActive) {
+        const audio = getMenuBgmAudio();
+        if (audio && (audio.paused || audio.currentTime === 0)) {
+          playMenuAmbientMusic();
         }
       }
-      document.removeEventListener('pointerdown', onFirstUserGesture);
-      document.removeEventListener('keydown', onFirstUserGesture);
     };
-    document.addEventListener('pointerdown', onFirstUserGesture, { once: true });
-    document.addEventListener('keydown', onFirstUserGesture, { once: true });
+    ['pointerdown', 'touchstart', 'click', 'keydown'].forEach(evt => {
+      document.addEventListener(evt, ensureMenuMusicOnUserGesture, { passive: true });
+    });
 
 
     // ==========================================
     //  PIISTAS HISTÓRICAS COMUNITARIAS (100% REALES Y JUGABLES)
     // ==========================================
     const GLOBAL_COMMUNITY_FALLBACKS = [
-      { id: 'comm_renacer', title: 'Renacer', artist: 'Piano Community', creator_id: 'creator_piano_comm', creator_name: 'Piano Community', bpm: 100, difficulty_name: 'Normal', stars: 3.5, notes_count: 203, rating_avg: 5.0, votes_count: 184, sync_avg: 100.0, is_community: true, source: 'community', source_name: 'Piano Community', thumbnail: './app_logo.png' },
-      { id: 'comm_galaxy_anthem', title: 'Galaxy Anthem (Community 3K)', artist: 'Kowalski', creator_id: 'cr_master', creator_name: 'PianoMaster', bpm: 128, difficulty_name: 'Difícil', stars: 4.5, notes_count: 320, rating_avg: 4.8, votes_count: 5, sync_avg: 100.0, is_community: true, source: 'community', thumbnail: './app_logo.png' },
-      { id: 'comm_cyber_frenzy', title: 'Cyber Frenzy', artist: 'SynthRider', creator_id: 'cr_neon', creator_name: 'NeonCharter', bpm: 140, difficulty_name: 'Experto', stars: 6.0, notes_count: 450, rating_avg: 4.9, votes_count: 8, sync_avg: 100.0, is_community: true, source: 'community', thumbnail: './app_logo.png' },
-      { id: 'comm_moonlight_flow', title: 'Moonlight Groove', artist: 'Aethel', creator_id: 'cr_chopin', creator_name: 'ChopinGamer', bpm: 115, difficulty_name: 'Normal', stars: 3.0, notes_count: 210, rating_avg: 4.7, votes_count: 4, sync_avg: 100.0, is_community: true, source: 'community', thumbnail: './app_logo.png' },
-      { id: 'comm_impuestos', title: 'Impuestos', artist: 'Perro Sánxe', creator_id: 'cr_599315', creator_name: 'Rocky', bpm: 160, difficulty_name: 'Difícil', stars: 5.5, notes_count: 144, rating_avg: 5.0, votes_count: 1, sync_avg: 100.0, is_community: true, source: 'community', thumbnail: './app_logo.png' },
-      { id: 'comm_1788769406_7797', title: 'Pikete espacial', artist: 'cecilioge', creator_id: 'cr_191176', creator_name: 'Creador', bpm: 120, difficulty_name: 'Media', stars: 3.5, notes_count: 705, rating_avg: 5.0, votes_count: 1, sync_avg: 100.0, is_community: true, source: 'community', thumbnail: './app_logo.png' },
-      { id: 'comm_1789044866_4266', title: 'Flight of the Bumblebee - Rimsky-Korsakov (arr. Rachmaninoff)', artist: 'Comunidad', creator_id: 'cr_4266', creator_name: 'Comunidad', bpm: 144, difficulty_name: 'Difícil', stars: 4.5, notes_count: 269, rating_avg: 5.0, votes_count: 1, sync_avg: 100.0, is_community: true, source: 'community', thumbnail: './app_logo.png' },
-      { id: 'comm_1789044857_213', title: 'Impuestos (Perreo Sanxe - El secreto de las ayudas)', artist: 'Perro Sánxe', creator_id: 'cr_599315', creator_name: 'Rocky', bpm: 160, difficulty_name: 'Difícil', stars: 5.5, notes_count: 144, rating_avg: 5.0, votes_count: 1, sync_avg: 100.0, is_community: true, source: 'community', thumbnail: './app_logo.png' },
-      { id: 'comm_1788622108_2296', title: 'Unit Test Song', artist: 'Tester', creator_id: 'cr_573828', creator_name: 'TestCharter', bpm: 120, difficulty_name: 'Media', stars: 3.5, notes_count: 150, rating_avg: 5.0, votes_count: 1, sync_avg: 100.0, is_community: true, source: 'community', thumbnail: './app_logo.png' }
+      { id: 'comm_camilo_sesto', title: '¿Quieres ser mi amante?', artist: 'Camilo Sesto', creator_id: 'creator_javar61', creator_name: 'JaVar61', bpm: 76, difficulty_name: 'Media', stars: 4.0, notes_count: 528, rating_avg: 5.0, votes_count: 142, sync_avg: 100.0, is_community: true, source: 'community', source_name: 'Comunidad UltraStar', thumbnail: './covers/camilo_sesto.jpg', cover_url: './covers/camilo_sesto.jpg' },
+      { id: 'comm_renacer', title: 'Renacer', artist: 'Piano Community', creator_id: 'creator_piano_comm', creator_name: 'Piano Community', bpm: 100, difficulty_name: 'Normal', stars: 3.5, notes_count: 203, rating_avg: 5.0, votes_count: 184, sync_avg: 100.0, is_community: true, source: 'community', source_name: 'Piano Community', thumbnail: './app_logo.png', cover_url: './app_logo.png' }
     ];
 
     function fisherYatesShuffle(array) {
@@ -6640,14 +6742,29 @@ function switchMainTab(tab) {
         console.warn('Infinite catalog Catboy notice:', catErr);
       }
 
-      // 2. En la primera carga (!isAppend), si falló la red o para poblar de inmediato, combinar canciones locales y comunitarias
-      if (!isAppend && fetchedSongs.length === 0) {
+      // 2. En la primera carga (!isAppend), anteponer canciones Top Oficiales y comunitarias destacadas
+      if (!isAppend) {
+        const topFeatured = [];
+        if (typeof getFormattedTopSongsCatalog === 'function') {
+          const allTop = getFormattedTopSongsCatalog();
+          // Tomar una selección destacada inicial de canciones Top
+          for (const ts of allTop) {
+            if (ts && ts.id && !catalogSeenIds.has(ts.id)) {
+              catalogSeenIds.add(ts.id);
+              topFeatured.push(ts);
+            }
+          }
+        }
         for (const fb of GLOBAL_COMMUNITY_FALLBACKS) {
           if (fb && fb.id && !catalogSeenIds.has(fb.id)) {
             catalogSeenIds.add(fb.id);
-            fetchedSongs.push(fb);
+            topFeatured.push(fb);
           }
         }
+        fetchedSongs = [...topFeatured, ...fetchedSongs];
+      }
+
+      if (!isAppend && fetchedSongs.length === 0) {
 
         try {
           const cached = JSON.parse(localStorage.getItem('beatstar_community_cache') || '[]');
@@ -6751,17 +6868,44 @@ function switchMainTab(tab) {
     async function executeSearch() {
       const q = document.getElementById('searchInput').value.trim();
       const isCommunityOnly = Boolean(document.getElementById('filterOnlyCommunity')?.checked);
-      if (!q && !isCommunityOnly) {
+      const isTopOnly = Boolean(document.getElementById('filterOnlyTopSongs')?.checked);
+
+      if (!q && !isCommunityOnly && !isTopOnly) {
         await loadInitialShuffledCatalog();
         return;
       }
 
       const btnText = document.getElementById('searchBtnText');
       const spinner = document.getElementById('searchSpinner');
-      const resultsList = document.getElementById('resultsList');
-
       if (btnText) btnText.innerText = '...';
       if (spinner) spinner.classList.remove('hidden');
+
+      // FILTRO: Canciones Top (90 canciones alojadas en GitHub Releases CDN)
+      if (isTopOnly) {
+        let list = getFormattedTopSongsCatalog();
+        const qLower = q.toLowerCase();
+        if (qLower) {
+          list = list.filter(s => (s.title + ' ' + s.artist).toLowerCase().includes(qLower));
+        }
+        if (typeof currentTargetDifficulty !== 'undefined' && currentTargetDifficulty !== 'all') {
+          const targetNum = parseFloat(currentTargetDifficulty);
+          list = list.filter(s => {
+            const diffStars = s.difficulties?.[0]?.stars || s.stars || 3.5;
+            if (targetNum === 2) return diffStars <= 2.5;
+            if (targetNum === 3) return diffStars > 2.5 && diffStars <= 4.5;
+            if (targetNum === 5) return diffStars > 4.5 && diffStars <= 6.5;
+            if (targetNum === 7) return diffStars > 6.5;
+            return true;
+          });
+        }
+        searchResultsCache = list;
+        renderSearchResults(list, []);
+        if (btnText) btnText.innerText = 'Buscar';
+        if (spinner) spinner.classList.add('hidden');
+        return;
+      }
+
+      const resultsList = document.getElementById('resultsList');
 
       // Si "Solo Comunidad" está marcado en el menú de 3 rayas, buscar en la nube comunitaria
       if (isCommunityOnly) {
@@ -6791,19 +6935,43 @@ function switchMainTab(tab) {
           console.warn('[Search] Fallo consultando comunidad en línea:', err);
         }
 
+        // Fallback local robusto a GLOBAL_COMMUNITY_FALLBACKS y cache
+        const qLower = q.toLowerCase();
+        let commList = [...GLOBAL_COMMUNITY_FALLBACKS];
         try {
           const cached = JSON.parse(localStorage.getItem('beatstar_community_cache') || '[]');
-          const filtered = q ? cached.filter(s => (s.title + ' ' + s.artist + ' ' + (s.creator_name || '')).toLowerCase().includes(q.toLowerCase())) : cached;
-          searchResultsCache = filtered.length > 0 ? filtered : cached;
-          renderSearchResults(searchResultsCache, []);
+          if (Array.isArray(cached)) {
+            for (const c of cached) {
+              if (c && c.id && !commList.some(x => x.id === c.id)) commList.push(c);
+            }
+          }
         } catch (e) {}
+
+        const filtered = qLower
+          ? commList.filter(s => (s.title + ' ' + s.artist + ' ' + (s.creator_name || '')).toLowerCase().includes(qLower))
+          : commList;
+        searchResultsCache = filtered;
+        renderSearchResults(searchResultsCache, []);
 
         if (btnText) btnText.innerText = 'Buscar';
         if (spinner) spinner.classList.add('hidden');
         return;
       }
 
-      console.log(`[Search] Iniciando búsqueda para "${q}" (osu! Mania + Clone Hero)...`);
+      console.log(`[Search] Iniciando búsqueda para "${q}"...`);
+      const qLower = q.toLowerCase();
+
+      // Prioridad 1: Coincidencias en el catálogo de 90 Canciones Top Oficiales
+      const topMatches = typeof getFormattedTopSongsCatalog === 'function' ? getFormattedTopSongsCatalog().filter(s => {
+        const sText = `${s.title || ''} ${s.artist || ''}`.toLowerCase();
+        return sText.includes(qLower);
+      }) : [];
+
+      // Prioridad 2: Coincidencias en pistas comunitarias fijas (Camilo Sesto, Renacer)
+      const localCommunityMatches = GLOBAL_COMMUNITY_FALLBACKS.filter(fb => {
+        const s = `${fb.title || ''} ${fb.artist || ''} ${fb.creator_name || ''} ${fb.source_name || ''}`.toLowerCase();
+        return s.includes(qLower);
+      });
 
       // 1. Intento principal: Búsqueda agregada ultrarrápida del backend
       try {
@@ -6813,9 +6981,13 @@ function switchMainTab(tab) {
         clearTimeout(tid);
         if (backendResp.ok) {
           const data = await backendResp.json();
-          if (Array.isArray(data) && data.length > 0) {
-            console.log(`[Search] Servidor backend entregó ${data.length} canciones.`);
-            const sortedItems = sortItemsByTargetDifficulty(data, currentTargetDifficulty);
+          if (Array.isArray(data)) {
+            const combined = [...topMatches, ...localCommunityMatches];
+            for (const item of data) {
+              if (!combined.some(x => x.id === item.id)) combined.push(item);
+            }
+            console.log(`[Search] Servidor backend entregó ${data.length} canciones (+${localCommunityMatches.length} comunitarias).`);
+            const sortedItems = sortItemsByTargetDifficulty(combined, currentTargetDifficulty);
             searchResultsCache = sortedItems;
             renderSearchResults(sortedItems, []);
             if (btnText) btnText.innerText = 'Buscar';
@@ -6834,17 +7006,21 @@ function switchMainTab(tab) {
           withTimeout(searchCloneHero(q), 12000, 'Clone Hero')
         ]);
 
-        const allItems = [];
+        const allItems = [...topMatches, ...localCommunityMatches];
         const failedApis = [];
 
         if (osuRes.status === 'fulfilled' && Array.isArray(osuRes.value)) {
-          allItems.push(...osuRes.value);
+          for (const item of osuRes.value) {
+            if (!allItems.some(x => x.id === item.id)) allItems.push(item);
+          }
         } else {
           failedApis.push({ name: 'osu! Mania', error: osuRes.reason?.message || 'Sin respuesta' });
         }
 
         if (chRes.status === 'fulfilled' && Array.isArray(chRes.value)) {
-          allItems.push(...chRes.value);
+          for (const item of chRes.value) {
+            if (!allItems.some(x => x.id === item.id)) allItems.push(item);
+          }
         } else {
           failedApis.push({ name: 'Clone Hero', error: chRes.reason?.message || 'Sin respuesta' });
         }
@@ -6910,7 +7086,7 @@ function switchMainTab(tab) {
 
         return `
           <button 
-            onclick="downloadAndPlaySong('${item.id}', '${diff.id}', '${cleanName.replace(/'/g, "\\'")}', ${idx})" 
+            onclick="${isComm ? `playCommunitySong('${item.id}')` : `downloadAndPlaySong('${item.id}', '${diff.id}', '${cleanName.replace(/'/g, "\\'")}', ${idx})`}" 
             class="${chipClass}" 
             title="Jugar dificultad ${cleanName}"
           >
@@ -7185,8 +7361,16 @@ function switchMainTab(tab) {
       if (engine && engine.sync) {
         engine.sync.unlockAudio();
       }
-      if (chartId === 'comm_renacer') {
-        playCommunitySong('comm_renacer');
+
+      // Enrutamiento prioritario para Canciones Top (CDN Oficial)
+      if (typeof chartId === 'string' && (chartId.startsWith('top_') || (window.TOP_SONGS_CATALOG && window.TOP_SONGS_CATALOG.some(s => s.id === chartId)))) {
+        playTopSong(chartId);
+        return;
+      }
+
+      if (typeof chartId === 'string' && (chartId.startsWith('comm_') || chartId.startsWith('custom_') || chartId.toLowerCase().includes('camilo'))) {
+        const targetCommId = chartId.startsWith('comm_') ? chartId : ('comm_' + chartId);
+        playCommunitySong(targetCommId);
         return;
       }
       let chartItem = null;
@@ -7197,11 +7381,17 @@ function switchMainTab(tab) {
         chartItem = searchResultsCache[itemIndex];
       }
 
+      if (chartItem && (chartItem.is_community || chartItem.source === 'community')) {
+        playCommunitySong(chartItem.id || chartId);
+        return;
+      }
+
       if (!chartItem) {
         chartItem = await IndexedDBStorage.getChart(chartId);
       }
 
       if (!chartItem) {
+        window.isGameLoadingOrActive = false;
         showErrorToast('No se encontró información de la canción seleccionada.');
         return;
       }
@@ -7650,6 +7840,15 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       }
 
       const songSpeedVal = getSongSpeed(beatmapData.id || (beatmapData.metadata && beatmapData.metadata.id) || beatmapData.communityChartId);
+      const rawTrackId = String(beatmapData.communityChartId || beatmapData.id || beatmapData.metadata?.id || '');
+      const isFeatured = !!(
+        window.currentFeaturedSongX2 || 
+        beatmapData.is_daily_featured || 
+        (beatmapData.metadata && beatmapData.metadata.is_daily_featured) ||
+        (Array.isArray(dailyFeaturedSongsList) && dailyFeaturedSongsList.some(s => s && String(s.id) === rawTrackId)) ||
+        (typeof featuredSongsReelPool !== 'undefined' && Array.isArray(featuredSongsReelPool) && featuredSongsReelPool.some(s => s && String(s.id) === rawTrackId))
+      );
+
       const finalBeatmap = {
         songPlaybackSpeed: songSpeedVal,
         stars: resolvedStars,
@@ -7660,7 +7859,8 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
           title: beatmapData.title || beatmapData.metadata?.title || 'Canción Creada',
           artist: beatmapData.artist || beatmapData.metadata?.artist || 'Comunidad',
           difficulty_name: diffLabel || beatmapData.metadata?.difficulty_name || 'Normal',
-          stars: resolvedStars
+          stars: resolvedStars,
+          is_daily_featured: isFeatured
         },
         bpm: Number(beatmapData.bpm) || 120,
         offset: Number(beatmapData.offset) || 0,
@@ -7668,7 +7868,7 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         endMarkerMs: (Number.isFinite(beatmapData.endMarkerMs) && beatmapData.endMarkerMs > 0) ? beatmapData.endMarkerMs : ((beatmapData.metadata && Number.isFinite(beatmapData.metadata.endMarkerMs) && beatmapData.metadata.endMarkerMs > 0) ? beatmapData.metadata.endMarkerMs : null),
         endTimestampMs: (Number.isFinite(beatmapData.endTimestampMs) && beatmapData.endTimestampMs > 0) ? beatmapData.endTimestampMs : ((beatmapData.metadata && Number.isFinite(beatmapData.metadata.endTimestampMs) && beatmapData.metadata.endTimestampMs > 0) ? beatmapData.metadata.endTimestampMs : null),
         scrollDurationMs: Number(beatmapData.scrollDurationMs) || (beatmapData.metadata && Number(beatmapData.metadata.scrollDurationMs)) || 1400,
-        is_daily_featured: !!window.currentFeaturedSongX2,
+        is_daily_featured: isFeatured,
         is_community: !!beatmapData.is_community,
         communityChartId: beatmapData.communityChartId || beatmapData.id || (beatmapData.metadata && beatmapData.metadata.id) || null,
         source: beatmapData.source || 'catalog',
@@ -7688,7 +7888,7 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
 
       currentActiveBeatmap = finalBeatmap;
       window.currentActiveBeatmap = finalBeatmap;
-      window.currentFeaturedSongX2 = false; // Consumir de inmediato para que NINGUNA otra canción posterior tenga x2
+      window.currentFeaturedSongX2 = isFeatured; // Conservar flag para la sesión
       window.isGameLoadingOrActive = true;
       currentActiveAudioBlob = resolvedAudioBlob;
 
@@ -7757,6 +7957,9 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
           engine.sync.setVolume(1.0, false);
         }
         engine.loadBeatmap(finalBeatmap, resolvedAudioBlob);
+        if (engine && engine.beatmapData) {
+          engine.beatmapData.is_daily_featured = isFeatured;
+        }
       } catch (e) {
         console.error("Error al cargar beatmap en engine:", e);
         showErrorToast("Error iniciando la partida: " + e.message);
@@ -7774,15 +7977,11 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       if (resMaxComboEl) resMaxComboEl.innerText = maxCombo;
       
       // Recompensas de Claves de Sol (con multiplicador x2 si es Canción Destacada Diaria)
-      let finalEarnedClefs = earnedClefs;
+      const isDailyFeat = !!(currentActiveBeatmap?.is_daily_featured || currentActiveBeatmap?.metadata?.is_daily_featured || engine?.beatmapData?.is_daily_featured);
       const resEarnedClefsEl = document.getElementById('resEarnedClefs');
-      if (currentActiveBeatmap?.is_daily_featured) {
-        finalEarnedClefs = earnedClefs * 2;
-        if (resEarnedClefsEl) resEarnedClefsEl.innerText = `${finalEarnedClefs} (¡x2 Diario!)`;
-      } else {
-        if (resEarnedClefsEl) resEarnedClefsEl.innerText = finalEarnedClefs;
+      if (resEarnedClefsEl) {
+        resEarnedClefsEl.innerText = isDailyFeat ? `${earnedClefs} (¡x2 Diario!)` : earnedClefs;
       }
-      userClefs += (finalEarnedClefs - earnedClefs); // Sumar el bonus extra si aplica
       updateUserWalletDisplay();
 
       // Porcentaje de puntuación real alcanzado sobre la máxima teórica (rige estrellas y medallas):
@@ -9064,7 +9263,7 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
     async function playFeaturedSong(songId, isCommunity = false) {
       window.currentFeaturedSongX2 = true; // Activar multiplicador x2 EXCLUSIVAMENTE para esta sesión
       const song = (dailyFeaturedSongsList || []).find(s => s.id === songId) || null;
-      const isComm = isCommunity || (song && song.is_community);
+      const isComm = isCommunity || (song && song.is_community) || String(songId).startsWith('comm_');
 
       if (isComm) {
         playCommunitySong(songId, true);
@@ -9162,97 +9361,91 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         }
       } catch (e) {}
 
-      // 2. Si hay servidor online configurado, mezclar con pistas de la nube
-      try {
-        const baseUrl = getApiBaseUrl();
-        if (baseUrl) {
-          let cloudData = null;
-          try {
-            const res = await fetch(`${baseUrl}/api/v1/community/featured`);
+      function buildTopRated(candidates) {
+        const now = Date.now();
+        const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+        const recentRated = candidates.filter(s => (s.votes_count > 0) && (now - (s.lastRated || 0) <= TWENTY_FOUR_HOURS));
+        recentRated.sort((a, b) => (b.rating_avg - a.rating_avg) || ((b.votes_count || 0) - (a.votes_count || 0)));
+
+        const allTimeRated = candidates.filter(s => s.votes_count > 0);
+        allTimeRated.sort((a, b) => (b.rating_avg - a.rating_avg) || ((b.votes_count || 0) - (a.votes_count || 0)));
+
+        let list = [];
+        for (const s of recentRated) {
+          if (list.length >= 3) break;
+          list.push(s);
+        }
+        if (list.length < 3) {
+          for (const s of allTimeRated) {
+            if (list.length >= 3) break;
+            if (!list.some(ex => ex.id === s.id)) list.push(s);
+          }
+        }
+        if (list.length < 3 && typeof GLOBAL_COMMUNITY_FALLBACKS !== 'undefined') {
+          for (const fb of GLOBAL_COMMUNITY_FALLBACKS) {
+            if (list.length >= 3) break;
+            if (!list.some(ex => ex.id === fb.id)) {
+              list.push({
+                ...fb,
+                rating_avg: fb.rating_avg || 5.0,
+                votes_count: fb.votes_count || 1
+              });
+            }
+          }
+        }
+        return list;
+      }
+
+      // RENDER INMEDIATO (0ms): Construir y renderizar con canciones locales / oficiales de inmediato
+      const initialTop = buildTopRated(candidateSongs);
+      dailyFeaturedSongsList = initialTop;
+      renderDailyFeaturedCards(initialTop);
+
+      // ASÍNCRONO EN SEGUNDO PLANO: Consultar nube con abort controller de 2.5 segundos
+      (async () => {
+        try {
+          const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
+          if (baseUrl) {
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 2500);
+            const res = await fetch(`${baseUrl}/api/v1/community/featured`, { signal: ctrl.signal });
+            clearTimeout(timer);
             if (res.ok) {
               const resJson = await res.json();
-              cloudData = Array.isArray(resJson) ? resJson : (resJson.featured || (resJson.id ? [resJson] : []));
-            }
-          } catch (_) {}
-
-          if (Array.isArray(cloudData)) {
-            for (const cs of cloudData) {
-              if (cs && cs.votes_count > 0 && !cs.id.startsWith('comm_galaxy') && !cs.id.startsWith('comm_cyber')) {
-                const existingIdx = candidateSongs.findIndex(s => s.id === cs.id);
-                const songObj = {
-                  ...cs,
-                  lastRated: cs.has_recent_votes ? Date.now() : 0,
-                  is_community: !!cs.is_community,
-                  source: cs.source || (cs.is_community ? 'community' : (cs.id.startsWith('osu_') ? 'osu' : 'catalog')),
-                  source_name: cs.source_name || (cs.is_community ? 'Comunidad' : (cs.id.startsWith('osu_') ? 'osu!' : 'Catálogo')),
-                  rating_avg: cs.rating_avg || 5.0,
-                  votes_count: cs.votes_count || 1
-                };
-                if (existingIdx >= 0) {
-                  candidateSongs[existingIdx] = { ...candidateSongs[existingIdx], ...songObj };
-                } else {
-                  candidateSongs.push(songObj);
+              const cloudData = Array.isArray(resJson) ? resJson : (resJson.featured || (resJson.id ? [resJson] : []));
+              if (Array.isArray(cloudData) && cloudData.length > 0) {
+                for (const cs of cloudData) {
+                  if (cs && cs.votes_count > 0 && !cs.id.startsWith('comm_galaxy') && !cs.id.startsWith('comm_cyber')) {
+                    const existingIdx = candidateSongs.findIndex(s => s.id === cs.id);
+                    const songObj = {
+                      ...cs,
+                      lastRated: cs.has_recent_votes ? Date.now() : 0,
+                      is_community: !!cs.is_community,
+                      source: cs.source || (cs.is_community ? 'community' : (cs.id.startsWith('osu_') ? 'osu' : 'catalog')),
+                      source_name: cs.source_name || (cs.is_community ? 'Comunidad' : (cs.id.startsWith('osu_') ? 'osu!' : 'Catálogo')),
+                      rating_avg: cs.rating_avg || 5.0,
+                      votes_count: cs.votes_count || 1
+                    };
+                    if (existingIdx >= 0) candidateSongs[existingIdx] = { ...candidateSongs[existingIdx], ...songObj };
+                    else candidateSongs.push(songObj);
+                  }
                 }
+                const updatedTop = buildTopRated(candidateSongs);
+                dailyFeaturedSongsList = updatedTop;
+                renderDailyFeaturedCards(updatedTop);
               }
             }
           }
-        }
-      } catch (err) {
-        console.warn('Conexión con servidor para destacados omitida:', err);
-      }
+        } catch (_) {}
+      })();
 
-      const now = Date.now();
-      const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
-
-      // REGLA DEFINITIVA:
-      // 1º: Canciones mejor valoradas en las últimas 24h
-      const recentRated = candidateSongs.filter(s => (s.votes_count > 0) && (now - (s.lastRated || 0) <= TWENTY_FOUR_HOURS));
-      recentRated.sort((a, b) => (b.rating_avg - a.rating_avg) || ((b.votes_count || 0) - (a.votes_count || 0)));
-
-      // 2º: Canciones mejor valoradas en general (todas las valoradas históricamente)
-      const allTimeRated = candidateSongs.filter(s => s.votes_count > 0);
-      allTimeRated.sort((a, b) => (b.rating_avg - a.rating_avg) || ((b.votes_count || 0) - (a.votes_count || 0)));
-
-      let topRated = [];
-      // Agregar primero las de las últimas 24h
-      for (const s of recentRated) {
-        if (topRated.length >= 3) break;
-        topRated.push(s);
-      }
-      // Si faltan, complementar con las mejor valoradas en general
-      if (topRated.length < 3) {
-        for (const s of allTimeRated) {
-          if (topRated.length >= 3) break;
-          if (!topRated.some(ex => ex.id === s.id)) {
-            topRated.push(s);
-          }
-        }
-      }
-      // Si aún faltan (< 3), complementar con canciones comunitarias reales
-      if (topRated.length < 3 && typeof GLOBAL_COMMUNITY_FALLBACKS !== 'undefined') {
-        const fallbacks = [...GLOBAL_COMMUNITY_FALLBACKS];
-        for (const fb of fallbacks) {
-          if (topRated.length >= 3) break;
-          if (!topRated.some(ex => ex.id === fb.id)) {
-            topRated.push({
-              ...fb,
-              rating_avg: fb.rating_avg || 5.0,
-              votes_count: fb.votes_count || 1
-            });
-          }
-        }
-      }
-
-      dailyFeaturedSongsList = topRated;
-      renderDailyFeaturedCards(topRated);
-      return topRated;
+      return initialTop;
     }
 
     function renderDailyFeaturedCards(songs) {
       const container = document.getElementById('dailyFeaturedListContainer');
       if (!container) return;
 
-      // Si no hay ninguna canción valorada, mostrar mensaje claro hasta que haya alguna
       if (!songs || songs.length === 0) {
         container.innerHTML = `
           <div class="p-4 text-center text-gray-400 bg-black/40 border border-white/5 rounded-xl space-y-1">
@@ -9274,21 +9467,26 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
       let html = '';
       songs.forEach((song, idx) => {
         const diffColor = diffBadgeColors[song.difficulty_name] || 'text-cyan-300';
+        const coverSrc = song.thumbnail || song.cover_url || song.cover || './app_logo.png';
+        const isComm = !!(song.is_community || (song.id && String(song.id).startsWith('comm_')));
         html += `
-          <div class="p-2.5 bg-black/60 border border-white/10 rounded-xl flex items-center justify-between gap-2.5 transition hover:border-amber-400/40">
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-1.5">
-                <span class="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 text-[8px] font-bold uppercase tracking-wider">Top #${idx + 1}</span>
-                <span class="text-[9px] ${diffColor} font-bold">${escapeHtml(song.difficulty_name || 'Normal')} ${song.stars || 3.5}★</span>
-                ${song.is_community ? `<span class="text-[8px] bg-cyan-500/20 text-cyan-300 px-1 rounded">${t('badge_community', 'Comunidad')}</span>` : `<span class="text-[8px] bg-purple-500/20 text-purple-300 px-1 rounded">${t('badge_catalog', 'Catálogo')}</span>`}
-              </div>
-              <h4 class="text-xs font-black text-white truncate mt-0.5">${escapeHtml(song.title)}</h4>
-              <p class="text-[10px] text-gray-300 truncate">${escapeHtml(song.artist || t('unknown_artist', 'Artista'))}</p>
-              <div class="flex items-center gap-2 text-[9px] text-amber-300 font-semibold mt-0.5">
-                <span>⭐ ${song.rating_avg || 5.0} (${song.votes_count || 1} ${t('votes', 'votos')})</span>
+          <div class="p-2.5 bg-black/60 border border-amber-500/20 hover:border-amber-400/50 rounded-xl flex items-center justify-between gap-2.5 transition">
+            <div class="flex items-center gap-2.5 min-w-0 flex-1">
+              <img src="${escapeHtml(coverSrc)}" class="w-10 h-10 rounded-lg object-cover border border-amber-400/30 flex-shrink-0 bg-stone-900" onerror="this.src='./app_logo.png'">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 text-[8px] font-bold uppercase tracking-wider">Top #${idx + 1}</span>
+                  <span class="text-[9px] ${diffColor} font-bold">${escapeHtml(song.difficulty_name || 'Normal')} ${song.stars || 3.5}★</span>
+                  <span class="text-[8px] bg-amber-500/30 text-amber-200 border border-amber-400/40 px-1 rounded font-bold">x2 Claves</span>
+                </div>
+                <h4 class="text-xs font-black text-white truncate mt-0.5">${escapeHtml(song.title)}</h4>
+                <p class="text-[10px] text-gray-300 truncate">${escapeHtml(song.artist || t('unknown_artist', 'Artista'))}</p>
+                <div class="flex items-center gap-2 text-[9px] text-amber-300 font-semibold mt-0.5">
+                  <span>⭐ ${song.rating_avg || 5.0} (${song.votes_count || 1} ${t('votes', 'votos')})</span>
+                </div>
               </div>
             </div>
-            <button onclick="playFeaturedSong('${song.id}', ${!!song.is_community})" class="px-3 py-1.5 bg-gradient-to-r from-amber-400 to-pink-500 hover:from-amber-300 text-black font-black text-xs rounded-xl shadow-md transition active:scale-95 flex items-center gap-1 cursor-pointer flex-shrink-0">
+            <button onclick="playFeaturedSong('${song.id}', ${isComm})" class="px-3 py-1.5 bg-gradient-to-r from-amber-400 to-pink-500 hover:from-amber-300 text-black font-black text-xs rounded-xl shadow-md transition active:scale-95 flex items-center gap-1 cursor-pointer flex-shrink-0">
               <span>▶</span> ${t('play', 'Jugar')}
             </button>
           </div>
@@ -9305,6 +9503,221 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
         showErrorToast('Aún no hay canciones destacadas valoradas.');
       }
     }
+
+    
+    // ==========================================
+    // TOP SONGS CDN SYSTEM (90 CANCIONES PRODUCIDAS GITHUB RELEASES)
+    // ==========================================
+    const TOP_SONGS_CDN_BASE = 'https://github.com/Bruala33/renacer/releases/download/3/';
+
+    function getFormattedTopSongsCatalog() {
+      const catalog = window.TOP_SONGS_CATALOG || [];
+      return catalog.map((song, idx) => {
+        const rawNotes = Number(song.total_notes) || 300;
+        const starsVal = Math.min(5.0, Math.max(2.5, +(2.0 + (rawNotes / 150)).toFixed(1)));
+        const diffName = rawNotes >= 500 ? 'Difícil' : (rawNotes >= 350 ? 'Media' : 'Normal');
+        const songId = `top_${song.id}`;
+
+        return {
+          id: songId,
+          raw_id: song.id,
+          title: song.title || 'Canción',
+          artist: song.artist || 'Artista',
+          bpm: Number(song.bpm) || 120,
+          total_notes: rawNotes,
+          notes_count: rawNotes,
+          stars: starsVal,
+          difficulty_name: diffName,
+          source: 'top_playlist',
+          source_name: 'Canciones Top',
+          is_top_song: true,
+          chart_url: song.chart_url || `${song.id}.json`,
+          audio_url: song.audio_url || `${song.id}.mp3`,
+          thumbnail: song.cover_url || song.thumbnail || './app_logo.png',
+          cover_url: song.cover_url || song.thumbnail || './app_logo.png',
+          difficulties: [{
+            id: 'diff_standard',
+            name: diffName,
+            stars: starsVal,
+            keys: 3
+          }]
+        };
+      });
+    }
+    window.getFormattedTopSongsCatalog = getFormattedTopSongsCatalog;
+
+    async function playTopSong(songId) {
+      window.isGameLoadingOrActive = true;
+      if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
+      if (window.engine && window.engine.sync) {
+        window.engine.sync.unlockAudio();
+      }
+
+      const rawId = String(songId).replace(/^top_/, '');
+      const catalog = window.TOP_SONGS_CATALOG || [];
+      const songMeta = catalog.find(s => s.id === rawId || s.id === songId) || {
+        id: rawId,
+        title: rawId,
+        artist: 'Canción Top',
+        bpm: 120,
+        total_notes: 300,
+        chart_url: `${rawId}.json`,
+        audio_url: `${rawId}.mp3`
+      };
+
+      const overlay = document.getElementById('globalLoadingOverlay');
+      const loadTitle = document.getElementById('globalLoadTitle') || document.getElementById('loadingOverlayTitle');
+      const loadArtist = document.getElementById('globalLoadArtist');
+      const loadStatus = document.getElementById('globalLoadStatus') || document.getElementById('loadingOverlayStatus');
+      const curtain = document.getElementById('gameCurtain');
+
+      if (curtain) curtain.classList.remove('revealed');
+      if (loadTitle) loadTitle.innerText = songMeta.title || 'Canción Top';
+      if (loadArtist) loadArtist.innerText = `${songMeta.artist || 'Artista'} (CDN Oficial)`;
+      if (loadStatus) loadStatus.innerText = 'Verificando almacenamiento local...';
+      if (overlay) overlay.classList.add('active');
+
+      window.isSlotActiveDuringLoad = false;
+      window.pendingGameToStart = null;
+
+      try {
+        // 1. Comprobar y sanear caché IndexedDB (eliminar cualquier caché antigua japonesa u osu!)
+        if (typeof IndexedDBStorage !== 'undefined') {
+          try {
+            const cached = await IndexedDBStorage.getChart(`top_${rawId}`) || await IndexedDBStorage.getChart(rawId);
+            if (cached) {
+              const isCorruptOsu = (cached.source === 'osu' || cached.source_name === 'osu!' || !cached.is_top_song || !cached.audioBlob);
+              if (isCorruptOsu) {
+                console.warn('[TopSongs] Purgando caché obsoleta osu! en IndexedDB para:', rawId);
+                await IndexedDBStorage.deleteChart(`top_${rawId}`);
+                await IndexedDBStorage.deleteChart(rawId);
+              } else if (cached.audioBlob && cached.is_top_song) {
+                if (loadStatus) loadStatus.innerText = 'Cargando pista desde memoria local...';
+                setTimeout(() => {
+                  if (overlay) overlay.classList.remove('active');
+                  startGame(cached, cached.audioBlob, cached.difficulty_name || 'Normal');
+                }, 120);
+                return;
+              }
+            }
+          } catch (_) {}
+        }
+
+        const myWorker = (u) => `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(u)}`;
+
+        // 2. Descargar Chart JSON
+        if (loadStatus) loadStatus.innerText = 'Descargando mapa de notas (CDN)...';
+        const chartFilename = songMeta.chart_url || `${rawId}.json`;
+        const chartUrl = `${TOP_SONGS_CDN_BASE}${chartFilename}`;
+        const chartProxyUrl = myWorker(chartUrl);
+
+        let chartData = null;
+        // Priorizar proxy worker para evitar bloqueo CORS de GitHub Releases
+        try {
+          const cRes = await fetch(chartProxyUrl);
+          if (cRes.ok) chartData = await cRes.json();
+        } catch (_) {}
+
+        if (!chartData) {
+          try {
+            const cRes = await fetch(chartUrl);
+            if (cRes.ok) chartData = await cRes.json();
+          } catch (_) {}
+        }
+        if (!chartData) throw new Error('No se pudo descargar el mapa de notas JSON');
+
+        // 3. Descargar Audio MP3
+        if (loadStatus) loadStatus.innerText = 'Descargando audio de alta fidelidad...';
+        const audioFilename = songMeta.audio_url || `${rawId}.mp3`;
+        const audioUrl = `${TOP_SONGS_CDN_BASE}${audioFilename}`;
+        const audioProxyUrl = myWorker(audioUrl);
+
+        let audioBlob = null;
+        try {
+          const aRes = await fetch(audioProxyUrl);
+          if (aRes.ok) {
+            const b = await aRes.blob();
+            if (b && b.size > 20000) audioBlob = b;
+          }
+        } catch (_) {}
+
+        if (!audioBlob) {
+          try {
+            const aRes = await fetch(audioUrl);
+            if (aRes.ok) {
+              const b = await aRes.blob();
+              if (b && b.size > 20000) audioBlob = b;
+            }
+          } catch (_) {}
+        }
+        if (!audioBlob) throw new Error('No se pudo descargar el archivo de audio MP3');
+
+        // 4. Preparar BeatmapData estandarizado
+        const totalNotesCount = Number(songMeta.total_notes || chartData.total_notes || (chartData.notes && chartData.notes.length) || 300);
+        const starsVal = Math.min(5.0, Math.max(2.5, +(2.0 + (totalNotesCount / 150)).toFixed(1)));
+        const diffName = totalNotesCount >= 500 ? 'Difícil' : (totalNotesCount >= 350 ? 'Media' : 'Normal');
+
+        chartData.id = `top_${rawId}`;
+        chartData.title = songMeta.title || chartData.title;
+        chartData.artist = songMeta.artist || chartData.artist;
+        chartData.bpm = Number(songMeta.bpm || chartData.bpm) || 120;
+        chartData.difficulty_name = diffName;
+        chartData.stars = starsVal;
+        chartData.is_top_song = true;
+        chartData.source = 'top_playlist';
+        chartData.source_name = 'Canciones Top';
+        chartData.audioBlob = audioBlob;
+        chartData.metadata = {
+          id: `top_${rawId}`,
+          title: chartData.title,
+          artist: chartData.artist,
+          bpm: chartData.bpm,
+          stars: starsVal,
+          difficulty_name: diffName,
+          is_top_song: true,
+          source: 'top_playlist',
+          source_name: 'Canciones Top'
+        };
+
+        // 5. Guardar en IndexedDB para disponibilidad offline
+        if (typeof IndexedDBStorage !== 'undefined') {
+          try {
+            const itemToSave = {
+              id: `top_${rawId}`,
+              title: chartData.title,
+              artist: chartData.artist,
+              stars: starsVal,
+              difficulty_name: diffName,
+              source: 'top_playlist',
+              source_name: 'Canciones Top',
+              is_top_song: true,
+              thumbnail: songMeta.cover_url || songMeta.thumbnail || './app_logo.png'
+            };
+            await IndexedDBStorage.saveChart(itemToSave, chartData, audioBlob);
+          } catch (_) {}
+        }
+
+        if (loadStatus) loadStatus.innerText = '¡Iniciando partida!';
+        setTimeout(() => {
+          if (overlay) overlay.classList.remove('active');
+          startGame(chartData, audioBlob, diffName);
+        }, 120);
+
+      } catch (err) {
+        console.error('[TopSongs] Error al cargar canción:', err);
+        window.isGameLoadingOrActive = false;
+        if (overlay) overlay.classList.remove('active');
+        showErrorToast('Error al descargar canción: ' + (err.message || 'Error de conexión'));
+      }
+    }
+    window.playTopSong = playTopSong;
+
+    window.playFeaturedSong = playFeaturedSong;
+    window.loadDailyFeaturedSongs = loadDailyFeaturedSongs;
+    window.playDailyFeaturedSong = playDailyFeaturedSong;
+    window.playCommunitySong = playCommunitySong;
+    window.downloadAndPlaySong = downloadAndPlaySong;
+    window.startGame = startGame;
 
     window.togglePianoAccordion = function(sId) {
       const acc = document.getElementById(`pianoAccordion_${sId}`);
@@ -9803,65 +10216,131 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
           engine.sync.unlockAudio();
         }
 
-        if (chartId === 'comm_renacer') {
+        // 0a. Purgar caché errónea o japonesa de osu/Catboy si estuviera guardada en IndexedDB bajo Camilo Sesto
+        if (typeof IndexedDBStorage !== 'undefined') {
           try {
-            let cData = null;
-            let aBlob = null;
-            const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
+            const existing = await IndexedDBStorage.getChart(chartId);
+            if (existing) {
+              const isCamilo = String(chartId).toLowerCase().includes('camilo');
+              const itemArtist = existing.artist || existing.metadata?.artist || '';
+              if (isCamilo && (!itemArtist.toLowerCase().includes('camilo') || existing.source === 'osu' || existing.source_name?.toLowerCase().includes('osu'))) {
+                console.warn('[Community] Purgando caché errónea osu/extranjera de Camilo Sesto en IndexedDB');
+                await IndexedDBStorage.deleteChart(chartId);
+                await IndexedDBStorage.deleteChart('comm_camilo_sesto');
+                await IndexedDBStorage.deleteChart('camilo_sesto');
+              }
+            }
+          } catch (_) {}
+        }
 
-            // Intentar cargar mapa desde múltiples rutas candidatas
-            const chartCandidates = [
-              './songs/renacer/chart.json',
-              '/songs/renacer/chart.json',
-              '/static/songs/renacer/chart.json',
-              `${baseUrl}/api/v1/community/charts/comm_renacer/chart`
-            ];
-            for (const cUrl of chartCandidates) {
-              try {
-                const res = await fetch(cUrl);
-                if (res.ok) {
-                  const data = await res.json();
-                  if (data && (data.notes || data.difficulties)) {
-                    cData = data;
-                    break;
-                  }
+        // 0b. Soporte 100% offline instantáneo para canciones comunitarias oficiales precompiladas (Camilo Sesto, Renacer)
+        const cleanId = String(chartId).replace(/^comm_/, '');
+        const bundledKey = window.BUNDLED_COMMUNITY_CHARTS && (
+          window.BUNDLED_COMMUNITY_CHARTS[chartId] ? chartId :
+          (window.BUNDLED_COMMUNITY_CHARTS[`comm_${cleanId}`] ? `comm_${cleanId}` :
+          (window.BUNDLED_COMMUNITY_CHARTS[cleanId] ? cleanId : null))
+        );
+
+        if (bundledKey && window.BUNDLED_COMMUNITY_CHARTS[bundledKey]) {
+          const bData = JSON.parse(JSON.stringify(window.BUNDLED_COMMUNITY_CHARTS[bundledKey]));
+          bData.is_community = true;
+          bData.is_daily_featured = isDailyFeatured;
+          bData.source = 'community';
+          bData.communityChartId = chartId;
+
+          const audioPathCandidates = [
+            `./songs/${bundledKey}/audio.mp3`,
+            `./songs/comm_${cleanId}/audio.mp3`,
+            `./songs/${cleanId}/audio.mp3`,
+            `/songs/${bundledKey}/audio.mp3`,
+            `/static/songs/${bundledKey}/audio.mp3`
+          ];
+
+          let foundAudio = null;
+          for (const aPath of audioPathCandidates) {
+            try {
+              const aRes = await fetch(aPath);
+              if (aRes.ok) {
+                const b = await aRes.blob();
+                if (b && b.size > 20000) {
+                  foundAudio = b;
+                  break;
                 }
-              } catch (_) {}
-            }
-
-            // Intentar cargar audio desde múltiples rutas candidatas
-            const audioCandidates = [
-              './songs/renacer/audio.mp3',
-              '/songs/renacer/audio.mp3',
-              '/static/songs/renacer/audio.mp3',
-              `${baseUrl}/api/v1/community/charts/comm_renacer/audio`
-            ];
-            for (const aUrl of audioCandidates) {
-              try {
-                const aRes = await fetch(aUrl);
-                if (aRes.ok) {
-                  const b = await aRes.blob();
-                  if (b && b.size > 20000) {
-                    aBlob = b;
-                    break;
-                  }
-                }
-              } catch (_) {}
-            }
-
-            if (cData && aBlob) {
-              cData.is_community = true;
-              cData.is_daily_featured = isDailyFeatured;
-              cData.source = 'community';
-              cData.source_name = 'Piano Community';
-              cData.communityChartId = 'comm_renacer';
-              if (overlay) overlay.classList.remove('active');
-              startGame(cData, aBlob, cData.metadata?.difficulty_name || 'Normal');
-              return;
-            }
-          } catch (offlineErr) {
-            console.warn('[Renacer] Error cargando ruta multi-candidata:', offlineErr);
+              }
+            } catch (_) {}
           }
+          if (!foundAudio) {
+            // Fallback por URL directa para entornos file:// o restricciones CORS
+            foundAudio = audioPathCandidates[0];
+          }
+
+          if (overlay) overlay.classList.remove('active');
+          startGame(bData, foundAudio, bData.difficulty_name || 'Normal');
+          return;
+        }
+
+        // 0c. Soporte directo ultrarrápido para canciones comunitarias locales empaquetadas (ej. Camilo Sesto, Renacer)
+        try {
+          const cleanId = String(chartId).replace(/^comm_/, '');
+          const staticFolderCandidates = [
+            String(chartId),
+            `comm_${cleanId}`,
+            cleanId
+          ];
+          let cData = null;
+          let aBlob = null;
+
+          for (const sFolder of staticFolderCandidates) {
+            const chartPaths = [
+              `./songs/${sFolder}/chart.json`,
+              `/songs/${sFolder}/chart.json`,
+              `/static/songs/${sFolder}/chart.json`
+            ];
+            for (const cPath of chartPaths) {
+              try {
+                const cRes = await fetch(cPath);
+                if (cRes.ok) {
+                  const d = await cRes.json();
+                  if (d && (d.notes || d.difficulties)) {
+                    cData = d;
+                    break;
+                  }
+                }
+              } catch (_) {}
+            }
+            if (cData) {
+              const audioPaths = [
+                `./songs/${sFolder}/audio.mp3`,
+                `/songs/${sFolder}/audio.mp3`,
+                `/static/songs/${sFolder}/audio.mp3`
+              ];
+              for (const aPath of audioPaths) {
+                try {
+                  const aRes = await fetch(aPath);
+                  if (aRes.ok) {
+                    const b = await aRes.blob();
+                    if (b && b.size > 20000) {
+                      aBlob = b;
+                      break;
+                    }
+                  }
+                } catch (_) {}
+              }
+              if (aBlob) break;
+            }
+          }
+
+          if (cData && aBlob) {
+            cData.is_community = true;
+            cData.is_daily_featured = isDailyFeatured;
+            cData.source = 'community';
+            cData.communityChartId = chartId;
+            if (overlay) overlay.classList.remove('active');
+            startGame(cData, aBlob, cData.metadata?.difficulty_name || 'Normal');
+            return;
+          }
+        } catch (fastStaticErr) {
+          console.warn('[Community] Fast static path lookup:', fastStaticErr);
         }
 
         // 1. Si la canción existe localmente en IndexedDB, cargar al instante offline
@@ -9918,6 +10397,12 @@ function startGame(beatmapData, audioBlob, diffLabel = '') {
             if (!candidateUrls.includes(cloudUrl)) candidateUrls.push(cloudUrl);
           }
           if (!candidateUrls.includes(endpointPath)) candidateUrls.push(endpointPath);
+
+          // Soporte directo para canciones locales estáticas (ej. comm_camilo_sesto, comm_renacer)
+          const staticFile = isBlob ? 'audio.mp3' : 'chart.json';
+          candidateUrls.unshift(`/static/songs/${encodeURIComponent(chartId)}/${staticFile}`);
+          candidateUrls.unshift(`/songs/${encodeURIComponent(chartId)}/${staticFile}`);
+          candidateUrls.unshift(`./songs/${encodeURIComponent(chartId)}/${staticFile}`);
 
           let lastRes = null;
           let lastErr = null;

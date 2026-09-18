@@ -1792,6 +1792,158 @@ class IndexedDBStorage {
   }
 }
 
+// ==========================================
+// 8. ULTRASTAR KARAOKE PARSER (Spanish & Vocal Charts -> Beatstar 3-Lanes)
+// ==========================================
+
+class UltraStarParser {
+  /**
+   * Parsea el contenido en texto plano de un archivo UltraStar (.txt)
+   * y devuelve un chart adaptado a los 3 carriles de Beatstar.
+   */
+  static parseTxt(txtContent, options = {}) {
+    if (!txtContent || typeof txtContent !== 'string') {
+      throw new Error('Contenido de UltraStar vacío o inválido');
+    }
+
+    const lines = txtContent.split(/\r?\n/);
+    const headers = {};
+    const rawEvents = [];
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      if (trimmed.startsWith('#')) {
+        const colonIdx = trimmed.indexOf(':');
+        if (colonIdx > 0) {
+          const key = trimmed.slice(1, colonIdx).toUpperCase().trim();
+          const val = trimmed.slice(colonIdx + 1).trim();
+          headers[key] = val;
+        }
+      } else if (trimmed.startsWith(':') || trimmed.startsWith('*') || trimmed.startsWith('F') || trimmed.startsWith('R') || trimmed.startsWith('G')) {
+        const parts = trimmed.split(/\s+/);
+        if (parts.length >= 4) {
+          rawEvents.push({
+            typeChar: parts[0],
+            startBeat: parseInt(parts[1], 10),
+            durBeat: parseInt(parts[2], 10),
+            pitch: parseInt(parts[3], 10),
+            lyric: parts.slice(4).join(' '),
+            isBreak: false
+          });
+        }
+      } else if (trimmed.startsWith('-')) {
+        const beat = parseInt(trimmed.slice(1).trim(), 10);
+        rawEvents.push({ isBreak: true, beat });
+      }
+    }
+
+    const rawBpm = parseFloat((headers.BPM || '120').replace(',', '.'));
+    const gapMs = parseFloat((headers.GAP || '0').replace(',', '.'));
+    const msPerBeat = 15000 / (rawBpm > 0 ? rawBpm : 120);
+
+    const noteEvents = rawEvents.filter(e => !e.isBreak);
+    if (noteEvents.length === 0) {
+      throw new Error('No se encontraron notas vocales en el archivo UltraStar');
+    }
+
+    // Análisis de percentiles de tono vocal para equilibrar los 3 carriles
+    const allPitches = noteEvents.map(e => e.pitch).sort((a, b) => a - b);
+    const pLow = allPitches[Math.floor(allPitches.length * 0.33)];
+    const pHigh = allPitches[Math.floor(allPitches.length * 0.67)];
+
+    const notes = [];
+    let prevPitch = noteEvents[0].pitch;
+    let samePitchStreak = 0;
+
+    for (let i = 0; i < noteEvents.length; i++) {
+      const ev = noteEvents[i];
+      const tMs = Math.round(gapMs + (ev.startBeat * msPerBeat));
+      const durMs = Math.round(ev.durBeat * msPerBeat);
+      const isGolden = ev.typeChar === '*';
+
+      const nextEvent = (i < noteEvents.length - 1) ? noteEvents[i + 1] : null;
+      const isEndOfPhrase = !nextEvent || ((nextEvent.startBeat - (ev.startBeat + ev.durBeat)) > 8);
+
+      if (ev.pitch === prevPitch) {
+        samePitchStreak++;
+      } else {
+        samePitchStreak = 0;
+      }
+
+      // Asignación de carril basada en altura melódica
+      let lane = 1;
+      if (ev.pitch <= pLow) lane = 0;
+      else if (ev.pitch >= pHigh) lane = 2;
+      else lane = 1;
+
+      // Ergonomía humana: evitar ráfagas excesivas en un mismo carril
+      if (samePitchStreak >= 2) {
+        if (lane === 1) lane = (samePitchStreak % 2 === 0) ? 0 : 2;
+        else if (lane === 0) lane = 1;
+        else if (lane === 2) lane = 1;
+      }
+
+      let type = 'tap';
+      let holdDur = 0;
+      let swipeDir = null;
+
+      // Swipes para remates de frase intensos o notas doradas
+      if (isEndOfPhrase && (isGolden || durMs >= 220 || ev.pitch >= pHigh)) {
+        type = 'swipe';
+        swipeDir = lane === 0 ? 'left' : (lane === 2 ? 'right' : 'up');
+      } else if (durMs >= 260 || isGolden) {
+        type = 'hold';
+        holdDur = durMs;
+      }
+
+      notes.push({
+        id: i,
+        lane,
+        column: lane,
+        track: lane,
+        time: tMs / 1000,
+        timeSec: tMs / 1000,
+        timeMs: tMs,
+        timestamp: tMs,
+        timestamp_ms: tMs,
+        type,
+        duration: holdDur / 1000,
+        duration_ms: holdDur,
+        holdDuration: holdDur / 1000,
+        end_timestamp_ms: type === 'hold' ? (tMs + holdDur) : null,
+        direction: swipeDir,
+        swipeDirection: swipeDir,
+        lyric: ev.lyric,
+        pitch: ev.pitch
+      });
+
+      prevPitch = ev.pitch;
+    }
+
+    const cleanTitle = (headers.TITLE || 'Canción UltraStar').replace(/^[\ufffd\?]+/, '¿');
+    const cleanArtist = headers.ARTIST || 'Artista';
+    const cleanCover = headers.COVER || '';
+
+    return {
+      title: cleanTitle,
+      artist: cleanArtist,
+      bpm: Math.round((rawBpm / 4) * 10) / 10,
+      ultrastar_bpm: rawBpm,
+      stars: 4.0,
+      difficulty_name: 'Media',
+      scrollDurationMs: 1550,
+      firstBeatOffsetMs: gapMs,
+      startMarkerMs: 0,
+      endMarkerMs: parseInt(headers.END || '0', 10) || (notes[notes.length - 1].timeMs + 5000),
+      notes_count: notes.length,
+      cover_filename: cleanCover,
+      mp3_filename: headers.MP3 || '',
+      notes
+    };
+  }
+}
+
 // Export to global window scope
 window.LaneRemapper = LaneRemapper;
 window.OsuManiaParser = OsuManiaParser;
@@ -1802,3 +1954,4 @@ window.MidiChartParser = MidiChartParser;
 window.SngUnpacker = SngUnpacker;
 window.PackageUnpacker = PackageUnpacker;
 window.IndexedDBStorage = IndexedDBStorage;
+window.UltraStarParser = UltraStarParser;

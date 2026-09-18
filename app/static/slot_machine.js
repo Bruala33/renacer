@@ -854,9 +854,11 @@
 
   // Pool de canciones para los rodillos cilíndricos en Modo "Canciones Destacadas"
   let featuredSongsReelPool = [
-    { id: 'comm_renacer', title: 'Renacer', artist: 'Beatstar Official', stars: 5.0, difficulty_name: 'Difícil', is_community: true },
-    { id: 'comm_1788769406_7797', title: 'Pikete espacial', artist: 'cecilioge', stars: 5.0, difficulty_name: 'Media', is_community: true },
-    { id: 'comm_impuestos', title: 'Impuestos', artist: 'Perro Sánxe', stars: 5.0, difficulty_name: 'Difícil', is_community: true }
+    { id: 'top_juanes_a_dios_le_pido', title: 'A Dios le pido', artist: 'Juanes', stars: 4.5, difficulty_name: 'Difícil', is_top_song: true },
+    { id: 'top_luis_miguel_ahora_te_puedes_marchar', title: 'Ahora te puedes marchar', artist: 'Luis Miguel', stars: 4.0, difficulty_name: 'Media', is_top_song: true },
+    { id: 'comm_camilo_sesto', title: '¿Quieres ser mi amante?', artist: 'Camilo Sesto', stars: 4.0, difficulty_name: 'Media', is_community: true, thumbnail: './covers/camilo_sesto.jpg' },
+    { id: 'top_juan_gabriel_abrzame_muy_fuerte', title: 'Abrázame muy fuerte', artist: 'Juan Gabriel', stars: 4.5, difficulty_name: 'Difícil', is_top_song: true },
+    { id: 'comm_renacer', title: 'Renacer', artist: 'Beatstar Official', stars: 5.0, difficulty_name: 'Difícil', is_community: true }
   ];
   const TOTAL_SONG_SLOTS = 6;
   const SONG_STEP = (Math.PI * 2) / TOTAL_SONG_SLOTS;
@@ -898,14 +900,24 @@
   async function refreshFeaturedSongsPool() {
     try {
       let songs = [];
-      if (typeof window.loadDailyFeaturedSongs === 'function') {
-        songs = await window.loadDailyFeaturedSongs();
+      if (window.TOP_SONGS_CATALOG && Array.isArray(window.TOP_SONGS_CATALOG) && window.TOP_SONGS_CATALOG.length > 0) {
+        const c = window.TOP_SONGS_CATALOG;
+        const now = new Date();
+        const daySeed = now.getDate() + (now.getMonth() * 31);
+        const idx1 = daySeed % c.length;
+        const idx2 = (daySeed + 13) % c.length;
+        const idx3 = (daySeed + 29) % c.length;
+        songs = [c[idx1], c[idx2], c[idx3]].filter(Boolean).map(s => ({
+          ...s,
+          id: s.id.startsWith('top_') ? s.id : `top_${s.id}`,
+          is_top_song: true,
+          stars: s.stars || 4.0,
+          cover_url: s.cover_url || s.thumbnail || './app_logo.png',
+          thumbnail: s.cover_url || s.thumbnail || './app_logo.png'
+        }));
       }
-      if (!Array.isArray(songs) || songs.length === 0) {
-        songs = window.dailyFeaturedSongsList || [];
-      }
-      if (Array.isArray(songs) && songs.length > 0) {
-        featuredSongsReelPool = songs.slice(0, 3);
+      if (songs.length > 0) {
+        featuredSongsReelPool = songs;
       }
     } catch (_) {}
   }
@@ -1289,7 +1301,7 @@
 
   function isFeaturedDailySpinAvailable() {
     const todayStr = new Date().toISOString().slice(0, 10);
-    const lastSpin = localStorage.getItem('beatstar_last_featured_spin_date');
+    const lastSpin = localStorage.getItem('beatstar_last_featured_spin');
     return lastSpin !== todayStr;
   }
   function isFeaturedFreeSpinAvailable() {
@@ -1820,6 +1832,58 @@
   // ============================================================
   // 11. PUBLIC INTERACTION METHODS & LIFECYCLE
   // ============================================================
+  
+  function renderSlotFeaturedCards() {
+    const container = document.getElementById('slotFeaturedSongsCardsContainer');
+    const listEl = document.getElementById('slotFeaturedSongsCardsList');
+    if (!container || !listEl) return;
+
+    if (slotMachineMode !== 'featured') {
+      container.style.display = 'none';
+      return;
+    }
+
+    container.style.display = 'block';
+
+    const songs = (featuredSongsReelPool && featuredSongsReelPool.length > 0)
+      ? featuredSongsReelPool.slice(0, 3)
+      : [];
+
+    if (songs.length === 0) {
+      listEl.innerHTML = '<div class="text-[10px] text-gray-400 text-center py-2">Gira la máquina para descubrir canciones destacadas</div>';
+      return;
+    }
+
+    listEl.innerHTML = songs.map((s, idx) => {
+      const cover = s.thumbnail || s.cover_url || s.cover || './app_logo.png';
+      const isComm = !!s.is_community;
+      const sId = String(s.id);
+      return `
+        <div class="p-2 bg-black/80 border border-amber-400/40 rounded-xl flex items-center justify-between gap-2 shadow-md hover:border-amber-300 transition">
+          <div class="flex items-center gap-2 min-w-0 flex-1">
+            <img src="${cover}" class="w-10 h-10 rounded-lg object-cover border border-amber-400/30 flex-shrink-0 bg-stone-900" onerror="this.src='./app_logo.png'">
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-1">
+                <span class="px-1 rounded bg-amber-500/20 text-amber-300 text-[8px] font-bold">#${idx + 1}</span>
+                <span class="text-[9px] text-amber-300 font-bold">★ ${(s.stars || 4.0).toFixed(1)}</span>
+                <span class="text-[8px] text-emerald-300 bg-emerald-950/60 px-1 rounded font-mono font-bold">2X CLAVES</span>
+              </div>
+              <h4 class="text-xs font-black text-white truncate leading-tight mt-0.5">${s.title || 'Canción'}</h4>
+              <p class="text-[10px] text-amber-200/80 truncate font-medium">${s.artist || 'Artista'}</p>
+            </div>
+          </div>
+          <button 
+            type="button"
+            onclick="window.launchSongFromSlot('${sId}', ${isComm})" 
+            class="px-3 py-2 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:brightness-110 active:scale-95 text-black font-black text-[11px] rounded-xl shadow-md flex items-center gap-1 cursor-pointer flex-shrink-0"
+          >
+            <span>▶</span> <span>JUGAR</span>
+          </button>
+        </div>
+      `;
+    }).join('');
+  }
+
   function setSlotMode(mode) {
     slotMachineMode = mode === 'featured' ? 'featured' : 'bet';
 
@@ -1848,6 +1912,7 @@
       if (centerPayline) centerPayline.style.display = 'none';
 
       refreshFeaturedSongsPool().then(() => {
+        renderSlotFeaturedCards();
         reels.forEach(r => { r.angle = 0; r.isSpinning = false; });
         const statusMsg = document.getElementById('statusMsg');
         if (isFeaturedDailySpinAvailable()) {
@@ -1859,6 +1924,8 @@
         updateScoreboards();
       });
     } else {
+      const cardsCont = document.getElementById('slotFeaturedSongsCardsContainer');
+      if (cardsCont) cardsCont.style.display = 'none';
       if (modalRibbon) modalRibbon.textContent = 'LAS VEGAS 1977';
       if (modePillText) modePillText.textContent = '🎰 GRAN FORTUNA 1977';
       if (betControls) betControls.style.display = 'flex';
@@ -1903,8 +1970,9 @@
     setTimeout(() => {
       isMachineActive = false;
       reels.forEach(r => { r.angle = 0; r.isSpinning = false; });
-      if (statusMsg) statusMsg.textContent = '★ ¡TOCA UNA CANCIÓN PARA JUGAR CON CLAVES X2! ★';
+      if (statusMsg) statusMsg.textContent = '★ ¡TOCA UNA CANCIÓN O PULSA JUGAR ABAJO (CLAVES X2)! ★';
       soundWin(5);
+      renderSlotFeaturedCards();
       drawCylindricalReels();
     }, 2850);
   }
@@ -1976,12 +2044,7 @@
     // Detener musica de casino y restaurar menu
     stopCasinoMusic();
 
-    // Si estabamos en la pestaña discover, volver a search
-    if (typeof window.currentActiveTab !== 'undefined' && window.currentActiveTab === 'discover') {
-      if (typeof window.switchMainTab === 'function') {
-        window.switchMainTab('search');
-      }
-    }
+    // Si estabamos en la pestaña discover, permanecer en ella limpiamente sin forzar cambio a search
 
     // Si habia una cancion cargada en espera, continuar directamente al juego
     if (window.pendingGameToStart) {
@@ -2030,9 +2093,39 @@
   }
 
   function launchSongFromSlot(songId, isCommunity) {
-    closeGranFortuna();
+    window.isSlotActiveDuringLoad = false;
+    window.pendingGameToStart = null;
+    window.currentFeaturedSongX2 = true;
+
+    // Cerrar el modal de la tragaperras y silenciar audio de casino
+    const modal = document.getElementById('granFortunaModal');
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.style.display = 'none';
+    }
+    pauseCasinoMusic();
+
+    console.log('[SlotMachine] Iniciando canción destacada x2 desde tragaperras:', songId);
+
+    // 1. Si es canción Top (o empieza por top_), iniciar vía playTopSong
+    const strId = String(songId);
+    const isTop = strId.startsWith('top_') || (window.TOP_SONGS_CATALOG && window.TOP_SONGS_CATALOG.some(s => s.id === strId));
+    if (isTop && typeof window.playTopSong === 'function') {
+      window.playTopSong(songId);
+      return;
+    }
+
+    // 2. Si es comunitaria o Camilo / Renacer
+    if ((isCommunity || strId.startsWith('comm_')) && typeof window.playCommunitySong === 'function') {
+      window.playCommunitySong(songId, true);
+      return;
+    }
+
+    // 3. Fallbacks
     if (typeof window.playFeaturedSong === 'function') {
-      window.playFeaturedSong(songId, isCommunity);
+      window.playFeaturedSong(songId, true);
+    } else if (typeof window.downloadAndPlaySong === 'function') {
+      window.downloadAndPlaySong(songId, 'diff_standard', 'Normal');
     }
   }
 

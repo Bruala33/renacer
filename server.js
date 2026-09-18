@@ -88,6 +88,25 @@ function loadRatingsFromDisk() {
 function seedCommunityCharts() {
   const seedItems = [
     {
+      id: 'comm_camilo_sesto',
+      folder: 'comm_camilo_sesto',
+      title: '¿Quieres ser mi amante?',
+      artist: 'Camilo Sesto',
+      creator_id: 'creator_javar61',
+      creator_name: 'JaVar61',
+      bpm: 76.17,
+      offset_ms: 18122,
+      difficulty_name: 'Media',
+      stars: 4.0,
+      scroll_duration_ms: 1550,
+      notes_count: 404,
+      rating_avg: 5.0,
+      votes_count: 142,
+      sync_avg: 100.0,
+      sync_votes_count: 142,
+      created_at: '2026-03-01 10:00:00',
+    },
+    {
       id: 'comm_renacer',
       folder: 'comm_renacer',
       title: 'Renacer',

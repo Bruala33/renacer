@@ -3810,11 +3810,17 @@ class BeatstarEngine {
     }
     this.currentMedalTier = finalMedal;
 
-    // Claves (Clefs) según fórmula solicitada: puntuación * 0.00001 * dificultad (estrellas, máximo x7)
+    // Claves (Clefs) según fórmula solicitada: puntuación * 0.00001 * dificultad (estrellas, máximo x7) con x2 en destacadas
     const rawDiffStars = Number(this.beatmapData?.metadata?.stars || this.beatmapData?.stars || this.stars || 3.0);
     const diffMultiplier = Math.min(7, Math.max(1, Math.round(rawDiffStars * 10) / 10));
     const baseScoreClefs = Math.floor((this.score || 0) * 0.00001);
-    const earnedClefs = Math.max(1, Math.round(baseScoreClefs * diffMultiplier));
+    const isFeatured = !!(
+      this.beatmapData?.is_daily_featured || 
+      this.beatmapData?.metadata?.is_daily_featured || 
+      (typeof window !== 'undefined' && (window.currentActiveBeatmap?.is_daily_featured || window.currentActiveBeatmap?.metadata?.is_daily_featured || window.currentFeaturedSongX2))
+    );
+    const clefMultiplier = isFeatured ? 2 : 1;
+    const earnedClefs = Math.max(1, Math.round(baseScoreClefs * diffMultiplier)) * clefMultiplier;
 
     if (this.ui && this.ui.onGameEnd) {
       this.ui.onGameEnd(this.score, this.maxCombo, this.stars, this.stats, earnedClefs, finalMedal, scorePct, earnedMedals, totalNotes, accuracyPct);
