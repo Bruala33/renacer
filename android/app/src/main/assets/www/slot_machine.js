@@ -1241,14 +1241,15 @@
   let isReelLoopActive = false;
   function loopReelPhysics(now) {
     if (!isReelLoopActive) return;
-    requestAnimationFrame(loopReelPhysics);
 
     try {
       const currentNow = now || performance.now();
+      let anyReelSpinning = false;
 
       for (let i = 0; i < 3; i++) {
         const reel = reels[i];
         if (reel.isSpinning) {
+          anyReelSpinning = true;
           const elapsed = Math.max(0, currentNow - reel.startTime);
 
           if (elapsed >= reel.duration) {
@@ -1272,7 +1273,15 @@
       }
 
       drawCylindricalReels();
-    } catch (_) {}
+
+      if (anyReelSpinning) {
+        requestAnimationFrame(loopReelPhysics);
+      } else {
+        isReelLoopActive = false;
+      }
+    } catch (_) {
+      isReelLoopActive = false;
+    }
   }
 
   // ============================================================
@@ -1495,20 +1504,14 @@
         window.addClefs(-currentBet);
       }
     } else if (slotMachineMode === 'featured') {
-      const isFree = isFeaturedFreeSpinAvailable();
-      if (isFree) {
-        const todayStr = new Date().toISOString().slice(0, 10);
-        localStorage.setItem('beatstar_last_featured_free_spin', todayStr);
-      } else {
-        const clefs = getPlayerClefs();
-        if (clefs < 3) {
-          if (statusMsg) statusMsg.textContent = '¡NECESITAS 3 CLAVES PARA GIRAR!';
-          return;
-        }
-        if (typeof window.addClefs === 'function') {
-          window.addClefs(-3);
-        }
+      if (!isFeaturedDailySpinAvailable()) {
+        const countdownStr = getTimeUntilNextFreeSpin();
+        if (statusMsg) statusMsg.textContent = `⏱️ ¡YA HAS TIRADO HOY! VUELVE EN ${countdownStr}`;
+        soundReelTick();
+        return;
       }
+      const todayStr = new Date().toISOString().slice(0, 10);
+      localStorage.setItem('beatstar_last_featured_spin', todayStr);
     }
 
     isMachineActive = true;
@@ -1526,13 +1529,6 @@
     let outcome;
 
     if (slotMachineMode === 'featured') {
-      if (!isFeaturedDailySpinAvailable()) {
-        const countdownStr = getTimeUntilNextFreeSpin();
-        if (statusMsg) statusMsg.textContent = `⏱️ ¡YA HAS TIRADO HOY! VUELVE EN ${countdownStr}`;
-        return;
-      }
-      const todayStr = new Date().toISOString().slice(0, 10);
-      localStorage.setItem('beatstar_last_featured_spin_date', todayStr);
       await refreshFeaturedSongsPool();
       outcome = {
         indices: [0, 0, 0],
@@ -1560,6 +1556,11 @@
       const delta = (targetExactAngle - (reel.startAngle % (Math.PI * 2)) + (Math.PI * 2)) % (Math.PI * 2);
       reel.targetAngle = reel.startAngle + (fullSpins[i] * Math.PI * 2) + delta;
       reel.isSpinning = true;
+    }
+
+    if (!isReelLoopActive) {
+      isReelLoopActive = true;
+      requestAnimationFrame(loopReelPhysics);
     }
 
     setTimeout(() => {
@@ -1835,53 +1836,7 @@
   
   function renderSlotFeaturedCards() {
     const container = document.getElementById('slotFeaturedSongsCardsContainer');
-    const listEl = document.getElementById('slotFeaturedSongsCardsList');
-    if (!container || !listEl) return;
-
-    if (slotMachineMode !== 'featured') {
-      container.style.display = 'none';
-      return;
-    }
-
-    container.style.display = 'block';
-
-    const songs = (featuredSongsReelPool && featuredSongsReelPool.length > 0)
-      ? featuredSongsReelPool.slice(0, 3)
-      : [];
-
-    if (songs.length === 0) {
-      listEl.innerHTML = '<div class="text-[10px] text-gray-400 text-center py-2">Gira la máquina para descubrir canciones destacadas</div>';
-      return;
-    }
-
-    listEl.innerHTML = songs.map((s, idx) => {
-      const cover = s.thumbnail || s.cover_url || s.cover || './app_logo.png';
-      const isComm = !!s.is_community;
-      const sId = String(s.id);
-      return `
-        <div class="p-2 bg-black/80 border border-amber-400/40 rounded-xl flex items-center justify-between gap-2 shadow-md hover:border-amber-300 transition">
-          <div class="flex items-center gap-2 min-w-0 flex-1">
-            <img src="${cover}" class="w-10 h-10 rounded-lg object-cover border border-amber-400/30 flex-shrink-0 bg-stone-900" onerror="this.src='./app_logo.png'">
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-1">
-                <span class="px-1 rounded bg-amber-500/20 text-amber-300 text-[8px] font-bold">#${idx + 1}</span>
-                <span class="text-[9px] text-amber-300 font-bold">★ ${(s.stars || 4.0).toFixed(1)}</span>
-                <span class="text-[8px] text-emerald-300 bg-emerald-950/60 px-1 rounded font-mono font-bold">2X CLAVES</span>
-              </div>
-              <h4 class="text-xs font-black text-white truncate leading-tight mt-0.5">${s.title || 'Canción'}</h4>
-              <p class="text-[10px] text-amber-200/80 truncate font-medium">${s.artist || 'Artista'}</p>
-            </div>
-          </div>
-          <button 
-            type="button"
-            onclick="window.launchSongFromSlot('${sId}', ${isComm})" 
-            class="px-3 py-2 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:brightness-110 active:scale-95 text-black font-black text-[11px] rounded-xl shadow-md flex items-center gap-1 cursor-pointer flex-shrink-0"
-          >
-            <span>▶</span> <span>JUGAR</span>
-          </button>
-        </div>
-      `;
-    }).join('');
+    if (container) container.style.display = 'none';
   }
 
   function setSlotMode(mode) {
@@ -1897,6 +1852,8 @@
 
     const glassOverlay = document.getElementById('slotGlassOverlay');
     const centerPayline = document.getElementById('slotCenterPayline');
+    const cardsCont = document.getElementById('slotFeaturedSongsCardsContainer');
+    if (cardsCont) cardsCont.style.display = 'none';
 
     if (slotMachineMode === 'featured') {
       if (modalRibbon) modalRibbon.textContent = 'CANCIONES DESTACADAS (CLAVES X2)';
@@ -1912,7 +1869,6 @@
       if (centerPayline) centerPayline.style.display = 'none';
 
       refreshFeaturedSongsPool().then(() => {
-        renderSlotFeaturedCards();
         reels.forEach(r => { r.angle = 0; r.isSpinning = false; });
         const statusMsg = document.getElementById('statusMsg');
         if (isFeaturedDailySpinAvailable()) {
@@ -1924,8 +1880,6 @@
         updateScoreboards();
       });
     } else {
-      const cardsCont = document.getElementById('slotFeaturedSongsCardsContainer');
-      if (cardsCont) cardsCont.style.display = 'none';
       if (modalRibbon) modalRibbon.textContent = 'LAS VEGAS 1977';
       if (modePillText) modePillText.textContent = '🎰 GRAN FORTUNA 1977';
       if (betControls) betControls.style.display = 'flex';
@@ -1945,6 +1899,12 @@
 
   async function triggerFeaturedDailySpin() {
     if (isMachineActive) return;
+    if (!isFeaturedDailySpinAvailable()) {
+      const statusMsg = document.getElementById('statusMsg');
+      if (statusMsg) statusMsg.textContent = `⏱️ ¡YA HAS TIRADO HOY! (${getTimeUntilNextFreeSpin()})`;
+      soundReelTick();
+      return;
+    }
     initSlotAudio();
     isMachineActive = true;
     const statusMsg = document.getElementById('statusMsg');
@@ -1967,13 +1927,18 @@
       reel.isSpinning = true;
     }
 
+    if (!isReelLoopActive) {
+      isReelLoopActive = true;
+      requestAnimationFrame(loopReelPhysics);
+    }
+
     setTimeout(() => {
       isMachineActive = false;
       reels.forEach(r => { r.angle = 0; r.isSpinning = false; });
-      if (statusMsg) statusMsg.textContent = '★ ¡TOCA UNA CANCIÓN O PULSA JUGAR ABAJO (CLAVES X2)! ★';
+      if (statusMsg) statusMsg.textContent = '★ ¡TOCA UNA CANCIÓN EN EL RODILLO PARA JUGAR (CLAVES X2)! ★';
       soundWin(5);
-      renderSlotFeaturedCards();
       drawCylindricalReels();
+      updateScoreboards();
     }, 2850);
   }
 
@@ -2024,6 +1989,7 @@
   }
 
   function closeGranFortuna() {
+    isReelLoopActive = false;
     if (slotCountdownTimerInterval) {
       clearInterval(slotCountdownTimerInterval);
       slotCountdownTimerInterval = null;
@@ -2043,8 +2009,6 @@
 
     // Detener musica de casino y restaurar menu
     stopCasinoMusic();
-
-    // Si estabamos en la pestaña discover, permanecer en ella limpiamente sin forzar cambio a search
 
     // Si habia una cancion cargada en espera, continuar directamente al juego
     if (window.pendingGameToStart) {
@@ -2093,17 +2057,22 @@
   }
 
   function launchSongFromSlot(songId, isCommunity) {
+    isReelLoopActive = false;
+    window.isCasinoActive = false;
     window.isSlotActiveDuringLoad = false;
     window.pendingGameToStart = null;
     window.currentFeaturedSongX2 = true;
 
-    // Cerrar el modal de la tragaperras y silenciar audio de casino
+    // Cerrar completamente el modal de la tragaperras y silenciar audio de casino
     const modal = document.getElementById('granFortunaModal');
     if (modal) {
       modal.classList.add('hidden');
       modal.style.display = 'none';
     }
-    pauseCasinoMusic();
+    stopCasinoMusic();
+    if (typeof window.pauseMenuAmbientMusic === 'function') {
+      window.pauseMenuAmbientMusic();
+    }
 
     console.log('[SlotMachine] Iniciando canción destacada x2 desde tragaperras:', songId);
 

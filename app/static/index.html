@@ -3038,18 +3038,6 @@
           </div>
         </div>
 
-        <!-- PANEL INTERACTIVO DIRECTO DE CANCIONES DESTACADAS (TACTIL & ACCESIBLE) -->
-        <div id="slotFeaturedSongsCardsContainer" class="w-full space-y-2 mt-2 px-1" style="display: none;">
-          <div class="flex items-center justify-between px-1">
-            <span class="text-[10px] font-black uppercase text-amber-300 font-mono flex items-center gap-1">
-              <span>★</span> CANCIONES DESTACADAS REVELADAS (2X CLAVES):
-            </span>
-            <span class="text-[9px] bg-amber-500/20 text-amber-200 px-1.5 py-0.5 rounded border border-amber-400/40 font-bold">BONUS x2</span>
-          </div>
-          <div id="slotFeaturedSongsCardsList" class="space-y-1.5 max-h-[190px] overflow-y-auto pr-0.5">
-            <!-- Renderizado dinámicamente con botones grandes de Jugar -->
-          </div>
-        </div>
 
         <!-- Sonido y aviso minimo -->
         <div class="w-full mt-2 flex justify-between items-center text-[10px] text-amber-200/70 px-1">
@@ -5094,6 +5082,7 @@
       if (searchScreen) {
         searchScreen.classList.remove('hidden');
         searchScreen.style.display = 'flex';
+        searchScreen.style.visibility = 'visible';
       }
 
       // Si se estaba probando una pista desde el editor, regresar directamente al editor sin crasheos
@@ -6450,11 +6439,15 @@ window.switchMainTab = switchMainTab;
       }
       const audio = getMenuBgmAudio();
       updateMenuAudioVolume();
+      audio.muted = false;
       try {
         const p = audio.play();
         if (p !== undefined && typeof p.catch === 'function') {
-          p.catch(err => {
-            console.warn('[MenuBGM] Autoplay en espera de interacción:', err);
+          p.then(() => {
+            const icon = document.getElementById('menuMusicIcon');
+            if (icon) icon.innerText = '🎵';
+          }).catch(err => {
+            console.warn('[MenuBGM] Autoplay en espera de interacción táctil:', err);
           });
         }
       } catch (err) {
@@ -6502,6 +6495,7 @@ window.switchMainTab = switchMainTab;
     function initMenuAmbientMusic() {
       if (typeof isEditorActive === 'function' && isEditorActive()) return;
       if (isGameCurrentlyActive()) return;
+      if (window.isCasinoActive) return;
       const audio = getMenuBgmAudio();
       updateMenuAudioVolume();
       playMenuAmbientMusic();
@@ -6510,7 +6504,26 @@ window.switchMainTab = switchMainTab;
     window.pauseMenuAmbientMusic = pauseMenuAmbientMusic;
     window.resumeMenuAmbientMusic = resumeMenuAmbientMusic;
     window.playMenuAmbientMusic = playMenuAmbientMusic;
+    window.initMenuAmbientMusic = initMenuAmbientMusic;
     window.isGameCurrentlyActive = isGameCurrentlyActive;
+
+    // Auto-activación inmediata de sonido por defecto al entrar
+    setTimeout(() => {
+      initMenuAmbientMusic();
+    }, 250);
+
+    // Desbloqueo universal en el primer toque de pantalla para WebView de Android y navegadores
+    const unlockMenuAudioOnFirstTouch = () => {
+      initMenuAmbientMusic();
+      window.removeEventListener('pointerdown', unlockMenuAudioOnFirstTouch);
+      window.removeEventListener('touchstart', unlockMenuAudioOnFirstTouch);
+      window.removeEventListener('click', unlockMenuAudioOnFirstTouch);
+      window.removeEventListener('keydown', unlockMenuAudioOnFirstTouch);
+    };
+    window.addEventListener('pointerdown', unlockMenuAudioOnFirstTouch, { passive: true });
+    window.addEventListener('touchstart', unlockMenuAudioOnFirstTouch, { passive: true });
+    window.addEventListener('click', unlockMenuAudioOnFirstTouch, { passive: true });
+    window.addEventListener('keydown', unlockMenuAudioOnFirstTouch, { passive: true });
 
     // ==========================================
     //  GLOBAL APP & AUDIO LIFECYCLE MANAGEMENT
@@ -7054,7 +7067,32 @@ window.switchMainTab = switchMainTab;
         if (spinner) spinner.classList.add('hidden');
       }
     }
-    window.executeSearch = executeSearch;
+    function getSongCoverFallback(title = '', artist = '') {
+      const t = String(title || '');
+      const a = String(artist || '');
+      const initials = ((a ? a[0] : 'P') + (t ? t[0] : 'C')).toUpperCase();
+      const colors = [
+        ['#4a154b', '#1a0b2e'],
+        ['#1e3a8a', '#0f172a'],
+        ['#831843', '#3b0764'],
+        ['#7c2d12', '#451a03'],
+        ['#065f46', '#022c22'],
+        ['#92400e', '#451a03'],
+        ['#1e293b', '#090d16']
+      ];
+      let charCode = 0;
+      for (let i = 0; i < t.length; i++) charCode += t.charCodeAt(i);
+      for (let i = 0; i < a.length; i++) charCode += a.charCodeAt(i);
+      const [c1, c2] = colors[Math.abs(charCode) % colors.length];
+      const gid = 'g_' + (Math.abs(charCode) % 997);
+      const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='${gid}' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='${c1}'/><stop offset='100%' stop-color='${c2}'/></linearGradient></defs><circle cx='50' cy='50' r='50' fill='url(#${gid})'/><circle cx='50' cy='50' r='46' fill='none' stroke='#c5a059' stroke-width='1.5' stroke-dasharray='2,3'/><circle cx='50' cy='50' r='20' fill='#111111' stroke='#d4af37' stroke-width='1'/><circle cx='50' cy='50' r='5' fill='#d4af37'/><text x='50' y='54' font-size='12' font-weight='900' font-family='sans-serif' fill='#ffd700' text-anchor='middle' dominant-baseline='middle'>${initials}</text></svg>`;
+      try {
+        return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+      } catch (_) {
+        return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+      }
+    }
+    window.getSongCoverFallback = getSongCoverFallback;
 
     function buildSongCardHtml(item, idx, targetNum = null) {
       const hs = highscores[item.id];
@@ -7062,6 +7100,8 @@ window.switchMainTab = switchMainTab;
       const sId = safeSongId(item.id);
       const isComm = Boolean((item.is_community || item.source === 'community') && item.source !== 'osu' && item.source !== 'clonehero' && item.source !== 'catboy' && !String(item.id).startsWith('osu_') && !item.sng_url && !item.download_url);
       const cStars = typeof item.stars === 'number' ? item.stars : (parseFloat(item.stars) || 3.5);
+      const fallbackCover = getSongCoverFallback(item.title, item.artist);
+      const initialCover = (item.thumbnail && typeof item.thumbnail === 'string' && item.thumbnail.trim() && item.thumbnail !== './app_logo.png') ? item.thumbnail : fallbackCover;
 
       // Find primary difficulty (closest to target filter or balanced 3.5★)
       let primaryDiff = null;
@@ -7121,7 +7161,7 @@ window.switchMainTab = switchMainTab;
               <div class="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
                 <!-- Round Inlaid Medallion Artwork -->
                 <div class="piano-key-thumb relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-[#c5a059] shadow-sm flex items-center justify-center bg-stone-900">
-                  <img src="${item.thumbnail || getSongCoverFallback(item.title, item.artist)}" alt="" class="w-full h-full object-cover rounded-full" loading="lazy" onerror="this.onerror=null; this.src=getSongCoverFallback(item.title, item.artist);">
+                  <img src="${initialCover}" alt="" class="w-full h-full object-cover rounded-full" loading="lazy" onerror="this.onerror=null; this.src='${fallbackCover}';">
                 </div>
                 <!-- Track Metadata -->
                 <div class="min-w-0 flex-1 flex flex-col justify-center overflow-hidden">
@@ -7427,6 +7467,7 @@ window.switchMainTab = switchMainTab;
 
     async function downloadAndPlaySong(chartId, diffId, diffName, itemIndex = null) {
       window.isGameLoadingOrActive = true;
+      if (typeof stopCasinoMusic === 'function') stopCasinoMusic();
       if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
       if (engine && engine.sync) {
         engine.sync.unlockAudio();
@@ -8191,11 +8232,18 @@ window.switchMainTab = switchMainTab;
       window.isGameLoadingOrActive = true;
       currentActiveAudioBlob = resolvedAudioBlob;
 
+      // Parar música y física de tragaperras
+      if (typeof stopCasinoMusic === 'function') stopCasinoMusic();
+      if (typeof closeGranFortuna === 'function') closeGranFortuna();
+      window.isCasinoActive = false;
+      window.isReelLoopActive = false;
+
       // 4. Ocultar menús y abrir interfaz de juego
       const searchScreen = document.getElementById('searchScreen');
       if (searchScreen) {
         searchScreen.classList.add('hidden');
         searchScreen.style.display = 'none';
+        searchScreen.style.visibility = 'hidden';
       }
 
       const gameCanvas = document.getElementById('gameCanvas');
@@ -8453,6 +8501,8 @@ window.switchMainTab = switchMainTab;
           const starsVal = Number.isFinite(item.metadata?.stars) ? item.metadata.stars : (Number.isFinite(item.stars) ? item.stars : 3.5);
           const safeTitle = (item.title || t('unknown_song', 'Canción')).replace(/'/g, "\\'");
           const safeArtist = (item.artist || t('unknown_artist', 'Artista')).replace(/'/g, "\\'");
+          const fallbackCover = getSongCoverFallback(item.title, item.artist);
+          const initialCover = (item.thumbnail && typeof item.thumbnail === 'string' && item.thumbnail.trim() && item.thumbnail !== './app_logo.png') ? item.thumbnail : fallbackCover;
 
           return `
             <div class="piano-key-row flex flex-col">
@@ -8462,7 +8512,7 @@ window.switchMainTab = switchMainTab;
                   <div class="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
                     <!-- Round Inlaid Medallion Artwork -->
                     <div class="piano-key-thumb relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-[#c5a059] shadow-sm flex items-center justify-center bg-stone-900">
-                      <img src="${item.thumbnail || getSongCoverFallback(item.title, item.artist)}" alt="" class="w-full h-full object-cover rounded-full" loading="lazy" onerror="this.onerror=null; this.src=getSongCoverFallback(item.title, item.artist);">
+                      <img src="${initialCover}" alt="" class="w-full h-full object-cover rounded-full" loading="lazy" onerror="this.onerror=null; this.src='${fallbackCover}';">
                     </div>
                     <!-- Track Metadata -->
                     <div class="min-w-0 flex-1 flex flex-col justify-center overflow-hidden">
@@ -8564,6 +8614,8 @@ window.switchMainTab = switchMainTab;
               </button>
             `;
           }).join('') : '';
+          const fallbackCover = getSongCoverFallback(item.title, item.artist);
+          const initialCover = (item.thumbnail && typeof item.thumbnail === 'string' && item.thumbnail.trim() && item.thumbnail !== './app_logo.png') ? item.thumbnail : fallbackCover;
 
           return `
             <div class="piano-key-row flex flex-col">
@@ -8573,7 +8625,7 @@ window.switchMainTab = switchMainTab;
                   <div class="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
                     <!-- Round Inlaid Medallion -->
                     <div class="piano-key-thumb relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-[#c5a059] shadow-sm flex items-center justify-center bg-stone-900">
-                      <img src="${item.thumbnail || getSongCoverFallback(item.title, item.artist)}" alt="" class="w-full h-full object-cover rounded-full" loading="lazy" onerror="this.onerror=null; this.src=getSongCoverFallback(item.title, item.artist);">
+                      <img src="${initialCover}" alt="" class="w-full h-full object-cover rounded-full" loading="lazy" onerror="this.onerror=null; this.src='${fallbackCover}';">
                     </div>
                     <!-- Track Metadata -->
                     <div class="min-w-0 flex-1 flex flex-col justify-center overflow-hidden">
@@ -9912,22 +9964,6 @@ window.switchMainTab = switchMainTab;
     }
     window.fetchAndSyncTopSongsCatalog = fetchAndSyncTopSongsCatalog;
 
-    function getSongCoverFallback(title = '', artist = '') {
-      const initials = ((artist ? artist[0] : 'P') + (title ? title[0] : 'C')).toUpperCase();
-      const colors = [
-        ['#4a154b', '#1a0b2e'],
-        ['#1e3a8a', '#0f172a'],
-        ['#831843', '#3b0764'],
-        ['#7c2d12', '#451a03'],
-        ['#065f46', '#022c22']
-      ];
-      const charCode = (title.charCodeAt(0) || 0) + (artist.charCodeAt(0) || 0);
-      const [c1, c2] = colors[charCode % colors.length];
-
-      return `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='${encodeURIComponent(c1)}'/><stop offset='100%' stop-color='${encodeURIComponent(c2)}'/></linearGradient></defs><circle cx='50' cy='50' r='50' fill='url(%23g)'/><circle cx='50' cy='50' r='46' fill='none' stroke='%23c5a059' stroke-width='1.5' stroke-dasharray='2,3'/><circle cx='50' cy='50' r='20' fill='%23111' stroke='%23d4af37' stroke-width='1'/><circle cx='50' cy='50' r='5' fill='%23d4af37'/><text x='50' y='54' font-size='11' font-weight='900' font-family='serif' fill='%23ffd700' text-anchor='middle' dominant-baseline='middle'>${initials}</text></svg>`;
-    }
-    window.getSongCoverFallback = getSongCoverFallback;
-
     function getFormattedTopSongsCatalog() {
       const catalog = window.TOP_SONGS_CATALOG || [];
       return catalog.map((song, idx) => {
@@ -9976,6 +10012,7 @@ window.switchMainTab = switchMainTab;
 
     async function playTopSong(songId, targetDiff = 'Normal') {
       window.isGameLoadingOrActive = true;
+      if (typeof stopCasinoMusic === 'function') stopCasinoMusic();
       if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
       if (window.engine && window.engine.sync) {
         window.engine.sync.unlockAudio();
@@ -10626,6 +10663,7 @@ window.switchMainTab = switchMainTab;
 
     async function playCommunitySong(chartId, isDailyFeatured = false) {
       window.isGameLoadingOrActive = true;
+      if (typeof stopCasinoMusic === 'function') stopCasinoMusic();
       if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
       const overlay = document.getElementById('globalLoadingOverlay');
       const loadTitle = document.getElementById('loadingOverlayTitle');

@@ -4145,8 +4145,11 @@ class BeatstarEngine {
     const palette = this.activeSongPalette || (typeof SONG_COLOR_PALETTES !== 'undefined' ? SONG_COLOR_PALETTES.classic : { primary: '#c5a059', secondary: '#ede5d8', glow: '#c5a059', ribs: '#e5b869', spotlight1: '#c5a059', spotlight2: '#8c6d23', spark: '#fff3cf' });
 
     const mult = this.multiplier || 1;
-    const bpm = (this.beatmapData && this.beatmapData.bpm) ? Math.max(40, this.beatmapData.bpm) : (this.bpm || 120);
-    const beatInterval = 60 / bpm;
+    const rawBpm = (this.beatmapData && this.beatmapData.bpm) ? Math.max(40, this.beatmapData.bpm) : (this.bpm || 120);
+    let normBpm = rawBpm;
+    while (normBpm > 175) normBpm /= 2;
+    while (normBpm < 75) normBpm *= 2;
+    const beatInterval = 60 / normBpm;
     const audioTime = Math.max(0, currentTime) / 1000;
     const beatFraction = ((audioTime % beatInterval) + beatInterval) % beatInterval / beatInterval;
     const beatPulse = Math.pow(Math.max(0, 1 - beatFraction), 2.8);
@@ -5691,7 +5694,10 @@ class BeatstarEngine {
 
     // Cálculo exacto del pulso Beatstar sincronizado al BPM de la canción
     const songBpm = (this.beatmapData && this.beatmapData.bpm) ? Math.max(40, this.beatmapData.bpm) : 128;
-    const beatInterval = 60 / songBpm;
+    let normBpm = songBpm;
+    while (normBpm > 175) normBpm /= 2;
+    while (normBpm < 75) normBpm *= 2;
+    const beatInterval = 60 / normBpm;
     const audioTime = Math.max(0, cTime) / 1000;
     const beatFraction = ((audioTime % beatInterval) + beatInterval) % beatInterval / beatInterval;
     const beatPulse = Math.pow(Math.max(0, 1 - beatFraction), 2.8); // Pico explosivo en el bombo
@@ -5909,7 +5915,7 @@ class BeatstarEngine {
 
       // 4. BARITAS DE RITMO DE BORDES CON ACABADO REDONDEADO Y DEGRADADO VIBRANTE
       const numLines = 36;
-      const bpmSpeed = (songBpm / 60) * Math.PI * 2;
+      const bpmSpeed = (normBpm / 60) * Math.PI * 2;
 
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';

@@ -2422,6 +2422,8 @@ body {
   position: relative;
   width: 100%;
   background: #0b080e;
+  content-visibility: auto;
+  contain-intrinsic-size: 56px;
 }
 
 /* White Ivory Key Body */
