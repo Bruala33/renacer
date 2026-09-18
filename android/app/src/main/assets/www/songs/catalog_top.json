@@ -1,5 +1,38 @@
 [
   {
+    "id": "britney_spears_you_drive_me_crazy",
+    "title": "(You Drive Me) Crazy",
+    "artist": "Britney Spears",
+    "bpm": 208.0,
+    "total_notes": 382,
+    "chart_url": "britney_spears_you_drive_me_crazy.json",
+    "audio_url": "britney_spears_you_drive_me_crazy.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/51/73/28/5173280b-9b5e-c5e4-d3f8-a2612d044543/888880423368.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/51/73/28/5173280b-9b5e-c5e4-d3f8-a2612d044543/888880423368.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "celtas_cortos_20_de_abril",
+    "title": "20 de abril",
+    "artist": "Celtas Cortos",
+    "bpm": 480.0,
+    "total_notes": 395,
+    "chart_url": "celtas_cortos_20_de_abril.json",
+    "audio_url": "celtas_cortos_20_de_abril.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music71/v4/33/dd/ba/33ddbae8-af9b-cce2-2685-0a0b86229ac1/dj.wqeciiih.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music71/v4/33/dd/ba/33ddbae8-af9b-cce2-2685-0a0b86229ac1/dj.wqeciiih.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "green_day_21_guns",
+    "title": "21 guns",
+    "artist": "Green Day",
+    "bpm": 320.58,
+    "total_notes": 424,
+    "chart_url": "green_day_21_guns.json",
+    "audio_url": "green_day_21_guns.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/b8/36/d6/b836d655-7ef3-5c93-734e-fb77c4981308/mzi.opxridrf.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/b8/36/d6/b836d655-7ef3-5c93-734e-fb77c4981308/mzi.opxridrf.jpg/300x300bb.jpg"
+  },
+  {
     "id": "juanes_a_dios_le_pido",
     "title": "A Dios le pido",
     "artist": "Juanes",
@@ -11,8 +44,52 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/8f/b1/5d/8fb15d20-491c-5232-e939-ca4ddbd07a9d/06UMGIM13859.rgb.jpg/300x300bb.jpg"
   },
   {
+    "id": "alex_ubago_a_gritos_de_esperanza",
+    "title": "A gritos de esperanza",
+    "artist": "Alex Ubago",
+    "bpm": 240.0,
+    "total_notes": 483,
+    "chart_url": "alex_ubago_a_gritos_de_esperanza.json",
+    "audio_url": "alex_ubago_a_gritos_de_esperanza.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music114/v4/e6/f6/51/e6f65172-4ca2-1265-6048-91d4a195e547/mzi.tspqdcwg.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music114/v4/e6/f6/51/e6f65172-4ca2-1265-6048-91d4a195e547/mzi.tspqdcwg.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "alejandro_sanz_a_la_primera_persona",
+    "title": "A la primera persona",
+    "artist": "Alejandro Sanz",
+    "bpm": 242.0,
+    "total_notes": 925,
+    "chart_url": "alejandro_sanz_a_la_primera_persona.json",
+    "audio_url": "alejandro_sanz_a_la_primera_persona.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music/0c/22/8b/mzi.knbuuqrt.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music/0c/22/8b/mzi.knbuuqrt.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "diego_torres_y_juan_luis_guerra_abriendo_caminos",
+    "title": "Abriendo caminos",
+    "artist": "Diego Torres y Juan Luis Guerra",
+    "bpm": 212.02,
+    "total_notes": 704,
+    "chart_url": "diego_torres_y_juan_luis_guerra_abriendo_caminos.json",
+    "audio_url": "diego_torres_y_juan_luis_guerra_abriendo_caminos.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music/23/f4/f2/mzi.rjbghmpm.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music/23/f4/f2/mzi.rjbghmpm.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "camila_abrzame",
+    "title": "Abrzame",
+    "artist": "Camila",
+    "bpm": 301.06,
+    "total_notes": 530,
+    "chart_url": "camila_abrzame.json",
+    "audio_url": "camila_abrzame.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music114/v4/f4/89/08/f4890857-5e34-6a83-8d48-f18ee53a2395/mzi.ffgsessp.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music114/v4/f4/89/08/f4890857-5e34-6a83-8d48-f18ee53a2395/mzi.ffgsessp.jpg/300x300bb.jpg"
+  },
+  {
     "id": "juan_gabriel_abrzame_muy_fuerte",
-    "title": "Abrázame muy fuerte",
+    "title": "Abrzame muy fuerte",
     "artist": "Juan Gabriel",
     "bpm": 257.34,
     "total_notes": 520,
@@ -20,6 +97,17 @@
     "audio_url": "juan_gabriel_abrzame_muy_fuerte.mp3",
     "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/c4/bb/ec/c4bbecf2-92ba-12cd-a92f-8bbedf6f77e7/743218022722.jpg/300x300bb.jpg",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/c4/bb/ec/c4bbecf2-92ba-12cd-a92f-8bbedf6f77e7/743218022722.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "andres_de_len_ahora_que",
+    "title": "Ahora que",
+    "artist": "Andres de Len",
+    "bpm": 300.0,
+    "total_notes": 395,
+    "chart_url": "andres_de_len_ahora_que.json",
+    "audio_url": "andres_de_len_ahora_que.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music113/v4/1c/5d/1b/1c5d1b65-7bd0-a404-733b-488439186b8d/194491222451.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music113/v4/1c/5d/1b/1c5d1b65-7bd0-a404-733b-488439186b8d/194491222451.jpg/300x300bb.jpg"
   },
   {
     "id": "luis_miguel_ahora_te_puedes_marchar",
@@ -33,6 +121,17 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/d9/58/af/d958afe4-2f9c-cf24-4070-37fc970061ce/825646432202.jpg/300x300bb.jpg"
   },
   {
+    "id": "avril_lavigne_alice",
+    "title": "Alice",
+    "artist": "Avril Lavigne",
+    "bpm": 300.0,
+    "total_notes": 313,
+    "chart_url": "avril_lavigne_alice.json",
+    "audio_url": "avril_lavigne_alice.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/e1/56/b3/e156b346-4361-deb0-9f77-8404d3ec37c8/00050087161200.rgb.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/e1/56/b3/e156b346-4361-deb0-9f77-8404d3ec37c8/00050087161200.rgb.jpg/300x300bb.jpg"
+  },
+  {
     "id": "camila_aljate_de_m",
     "title": "Aljate de m",
     "artist": "Camila",
@@ -42,6 +141,105 @@
     "audio_url": "camila_aljate_de_m.mp3",
     "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/83/33/5f/83335f9f-97a9-ca63-5fec-1ae81e045fbf/artwork.jpg/300x300bb.jpg",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/83/33/5f/83335f9f-97a9-ca63-5fec-1ae81e045fbf/artwork.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "blink_182_all_the_small_things",
+    "title": "All the small things",
+    "artist": "Blink 182",
+    "bpm": 396.5,
+    "total_notes": 285,
+    "chart_url": "blink_182_all_the_small_things.json",
+    "audio_url": "blink_182_all_the_small_things.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/c1/3d/86/c13d8619-0794-ceee-6b1b-d0709119a9cf/16UMGIM35657.rgb.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/c1/3d/86/c13d8619-0794-ceee-6b1b-d0709119a9cf/16UMGIM35657.rgb.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "bon_jovi_always",
+    "title": "Always",
+    "artist": "Bon Jovi",
+    "bpm": 286.48,
+    "total_notes": 588,
+    "chart_url": "bon_jovi_always.json",
+    "audio_url": "bon_jovi_always.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music122/v4/9a/ed/d0/9aedd0b6-e815-9f20-19b8-58b93fa9b1d0/06UMGIM04503.rgb.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music122/v4/9a/ed/d0/9aedd0b6-e815-9f20-19b8-58b93fa9b1d0/06UMGIM04503.rgb.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "green_day_american_idiot",
+    "title": "American Idiot",
+    "artist": "Green Day",
+    "bpm": 279.0,
+    "total_notes": 339,
+    "chart_url": "green_day_american_idiot.json",
+    "audio_url": "green_day_american_idiot.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/0e/17/f0/0e17f011-aadf-d4d1-1c7e-b61ce39f968b/093624947301.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/0e/17/f0/0e17f011-aadf-d4d1-1c7e-b61ce39f968b/093624947301.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "enanitos_verdes_amigos",
+    "title": "Amigos",
+    "artist": "Enanitos Verdes",
+    "bpm": 358.32,
+    "total_notes": 352,
+    "chart_url": "enanitos_verdes_amigos.json",
+    "audio_url": "enanitos_verdes_amigos.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/61/77/a6/6177a695-25f3-3326-2178-caf51b5d5170/00724349964051.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/61/77/a6/6177a695-25f3-3326-2178-caf51b5d5170/00724349964051.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "axel_fernando_amo",
+    "title": "Amo",
+    "artist": "Axel Fernando",
+    "bpm": 236.0,
+    "total_notes": 429,
+    "chart_url": "axel_fernando_amo.json",
+    "audio_url": "axel_fernando_amo.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music6/v4/1a/3f/20/1a3f20d4-f1f3-6096-3da7-d79d846c3dd5/886443214859.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music6/v4/1a/3f/20/1a3f20d4-f1f3-6096-3da7-d79d846c3dd5/886443214859.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "alejandro_fernndez_y_beyonc_amor_gitano",
+    "title": "Amor gitano",
+    "artist": "Alejandro Fernndez y Beyonc",
+    "bpm": 336.0,
+    "total_notes": 485,
+    "chart_url": "alejandro_fernndez_y_beyonc_amor_gitano.json",
+    "audio_url": "alejandro_fernndez_y_beyonc_amor_gitano.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/47/b2/b2/47b2b26b-5abd-0953-6688-7dfff80508ec/mzi.sozuruch.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/47/b2/b2/47b2b26b-5abd-0953-6688-7dfff80508ec/mzi.sozuruch.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "cristian_castro_angel",
+    "title": "Angel",
+    "artist": "Cristian Castro",
+    "bpm": 276.0,
+    "total_notes": 367,
+    "chart_url": "cristian_castro_angel.json",
+    "audio_url": "cristian_castro_angel.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/51/c7/1b/51c71bcd-d2a1-4a65-2cb2-49473e87fe3f/mzi.rtugypzk.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/51/c7/1b/51c71bcd-d2a1-4a65-2cb2-49473e87fe3f/mzi.rtugypzk.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "coti_antes_que_ver_el_sol",
+    "title": "Antes Que Ver El Sol",
+    "artist": "Coti",
+    "bpm": 268.2,
+    "total_notes": 462,
+    "chart_url": "coti_antes_que_ver_el_sol.json",
+    "audio_url": "coti_antes_que_ver_el_sol.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music118/v4/5a/b8/6a/5ab86abc-07b7-c3b2-a99d-38ab2a529d3a/00602547953964.rgb.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music118/v4/5a/b8/6a/5ab86abc-07b7-c3b2-a99d-38ab2a529d3a/00602547953964.rgb.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "fito_y_fitipaldis_antes_de_que_cuente_diez",
+    "title": "Antes de que cuente diez",
+    "artist": "Fito y Fitipaldis",
+    "bpm": 302.03,
+    "total_notes": 421,
+    "chart_url": "fito_y_fitipaldis_antes_de_que_cuente_diez.json",
+    "audio_url": "fito_y_fitipaldis_antes_de_que_cuente_diez.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/37/e1/39/37e1397f-37e4-9bd3-4661-b26865b5ff42/mzi.wkspohgj.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/37/e1/39/37e1397f-37e4-9bd3-4661-b26865b5ff42/mzi.wkspohgj.jpg/300x300bb.jpg"
   },
   {
     "id": "luis_fonsi_aqu_estoy_yo",
@@ -55,6 +253,61 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/b4/8d/05/b48d0549-0b8b-4326-3c11-39e5fffc2038/09UMGIM22775.rgb.jpg/300x300bb.jpg"
   },
   {
+    "id": "alejandro_sanz_aquello_que_me_diste",
+    "title": "Aquello que me diste",
+    "artist": "Alejandro Sanz",
+    "bpm": 303.96,
+    "total_notes": 752,
+    "chart_url": "alejandro_sanz_aquello_que_me_diste.json",
+    "audio_url": "alejandro_sanz_aquello_que_me_diste.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music/e0/69/65/mzi.wefyxwke.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music/e0/69/65/mzi.wefyxwke.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "attaque_77_arranca_corazones",
+    "title": "Arranca corazones",
+    "artist": "Attaque 77",
+    "bpm": 240.0,
+    "total_notes": 366,
+    "chart_url": "attaque_77_arranca_corazones.json",
+    "audio_url": "attaque_77_arranca_corazones.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music/be/ae/7c/mzi.kxkmxhka.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music/be/ae/7c/mzi.kxkmxhka.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "backstreet_boys_as_long_as_you_love_me",
+    "title": "As Long As You Love Me",
+    "artist": "Backstreet Boys",
+    "bpm": 396.0,
+    "total_notes": 355,
+    "chart_url": "backstreet_boys_as_long_as_you_love_me.json",
+    "audio_url": "backstreet_boys_as_long_as_you_love_me.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music114/v4/59/00/53/59005338-772d-2dd7-e2ff-674484629337/012414158925.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music114/v4/59/00/53/59005338-772d-2dd7-e2ff-674484629337/012414158925.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "calle_13_atrvete_te_te",
+    "title": "Atrvete, te, te!",
+    "artist": "Calle 13",
+    "bpm": 352.04,
+    "total_notes": 507,
+    "chart_url": "calle_13_atrvete_te_te.json",
+    "audio_url": "calle_13_atrvete_te_te.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "abel_pintos_y_marcela_morelo_aventura",
+    "title": "Aventura",
+    "artist": "Abel Pintos y Marcela Morelo",
+    "bpm": 300.0,
+    "total_notes": 588,
+    "chart_url": "abel_pintos_y_marcela_morelo_aventura.json",
+    "audio_url": "abel_pintos_y_marcela_morelo_aventura.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music114/v4/1b/dd/0b/1bdd0bff-939d-937f-8d03-43a75d0c24af/886448323396.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music114/v4/1b/dd/0b/1bdd0bff-939d-937f-8d03-43a75d0c24af/886448323396.jpg/300x300bb.jpg"
+  },
+  {
     "id": "don_omar_ayer_la_vi",
     "title": "Ayer la vi",
     "artist": "Don Omar",
@@ -64,6 +317,72 @@
     "audio_url": "don_omar_ayer_la_vi.mp3",
     "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/0e/54/64/0e5464f9-3145-b40d-1025-57f527be253b/06UMGIM74912.rgb.jpg/300x300bb.jpg",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/0e/54/64/0e5464f9-3145-b40d-1025-57f527be253b/06UMGIM74912.rgb.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "cristian_castro_azul",
+    "title": "Azul",
+    "artist": "Cristian Castro",
+    "bpm": 256.0,
+    "total_notes": 642,
+    "chart_url": "cristian_castro_azul.json",
+    "audio_url": "cristian_castro_azul.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/d1/2e/68/d12e6892-8d75-124f-597c-ce467ec99811/743219578723.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/d1/2e/68/d12e6892-8d75-124f-597c-ce467ec99811/743219578723.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "britney_spears_baby_one_more_time",
+    "title": "Baby One More Time",
+    "artist": "Britney Spears",
+    "bpm": 240.0,
+    "total_notes": 468,
+    "chart_url": "britney_spears_baby_one_more_time.json",
+    "audio_url": "britney_spears_baby_one_more_time.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/51/73/28/5173280b-9b5e-c5e4-d3f8-a2612d044543/888880423368.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/51/73/28/5173280b-9b5e-c5e4-d3f8-a2612d044543/888880423368.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "amy_winehouse_back_to_black",
+    "title": "Back To Black",
+    "artist": "Amy Winehouse",
+    "bpm": 252.0,
+    "total_notes": 332,
+    "chart_url": "amy_winehouse_back_to_black.json",
+    "audio_url": "amy_winehouse_back_to_black.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music128/v4/cd/6c/11/cd6c11b3-6300-0a29-d211-855847ed2c8c/00602547505040.rgb.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music128/v4/cd/6c/11/cd6c11b3-6300-0a29-d211-855847ed2c8c/00602547505040.rgb.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "acdc_back_in_black_live",
+    "title": "Back in Black (Live)",
+    "artist": "AC/DC",
+    "bpm": 395.98,
+    "total_notes": 474,
+    "chart_url": "acdc_back_in_black_live.json",
+    "audio_url": "acdc_back_in_black_live.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/b1/dc/37/b1dc3799-17cd-1056-3e16-7f90ee56f252/886443673519.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/b1/dc/37/b1dc3799-17cd-1056-3e16-7f90ee56f252/886443673519.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "alaska_y_los_pegamoides_bailando",
+    "title": "Bailando",
+    "artist": "Alaska y los Pegamoides",
+    "bpm": 240.0,
+    "total_notes": 255,
+    "chart_url": "alaska_y_los_pegamoides_bailando.json",
+    "audio_url": "alaska_y_los_pegamoides_bailando.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music127/v4/02/41/a8/0241a83c-5343-7d60-9675-3058ce8d1be8/8429006991464.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music127/v4/02/41/a8/0241a83c-5343-7d60-9675-3058ce8d1be8/8429006991464.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "abel_pintos_bailando_con_tu_sombra_aleli",
+    "title": "Bailando con tu sombra (Aleli)",
+    "artist": "Abel Pintos",
+    "bpm": 323.75,
+    "total_notes": 388,
+    "chart_url": "abel_pintos_bailando_con_tu_sombra_aleli.json",
+    "audio_url": "abel_pintos_bailando_con_tu_sombra_aleli.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/68/d0/a6/68d0a6cd-9674-9276-77fc-f10be965fd1d/mzi.wijtfwnw.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/68/d0/a6/68d0a6cd-9674-9276-77fc-f10be965fd1d/mzi.wijtfwnw.jpg/300x300bb.jpg"
   },
   {
     "id": "la_sirenita_bajo_el_mar",
@@ -77,6 +396,127 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/48/55/7b/48557b77-4b09-632a-4d7d-5581d2e1546c/0.jpg/300x300bb.jpg"
   },
   {
+    "id": "azcar_moreno_bandido",
+    "title": "Bandido",
+    "artist": "Azcar Moreno",
+    "bpm": 255.66,
+    "total_notes": 384,
+    "chart_url": "azcar_moreno_bandido.json",
+    "audio_url": "azcar_moreno_bandido.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "cecilia_la_incomparable_bao_de_mar_a_medianoche",
+    "title": "Bao de mar a medianoche",
+    "artist": "Cecilia La Incomparable",
+    "bpm": 309.92,
+    "total_notes": 331,
+    "chart_url": "cecilia_la_incomparable_bao_de_mar_a_medianoche.json",
+    "audio_url": "cecilia_la_incomparable_bao_de_mar_a_medianoche.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music6/v4/64/05/70/64057089-7502-8988-bd6f-26d06af1ff6d/00094638550358.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music6/v4/64/05/70/64057089-7502-8988-bd6f-26d06af1ff6d/00094638550358.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "green_day_basket_case",
+    "title": "Basket Case",
+    "artist": "Green Day",
+    "bpm": 263.55,
+    "total_notes": 231,
+    "chart_url": "green_day_basket_case.json",
+    "audio_url": "green_day_basket_case.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/88/83/e7/8883e74b-1b7c-0725-09de-21e4e00d54b5/093624915713.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/88/83/e7/8883e74b-1b7c-0725-09de-21e4e00d54b5/093624915713.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "christina_aguilera_beautiful",
+    "title": "Beautiful",
+    "artist": "Christina Aguilera",
+    "bpm": 304.6,
+    "total_notes": 520,
+    "chart_url": "christina_aguilera_beautiful.json",
+    "audio_url": "christina_aguilera_beautiful.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Features115/v4/48/54/c8/4854c8db-36ed-4c5b-3c09-9739b570d93e/dj.gctnwros.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Features115/v4/48/54/c8/4854c8db-36ed-4c5b-3c09-9739b570d93e/dj.gctnwros.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "cher_believe",
+    "title": "Believe",
+    "artist": "Cher",
+    "bpm": 260.0,
+    "total_notes": 500,
+    "chart_url": "cher_believe.json",
+    "audio_url": "cher_believe.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/bb/90/f3/bb90f392-b78d-f180-ba6b-f04d2d1e62fd/s05.kfnyrece.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/bb/90/f3/bb90f392-b78d-f180-ba6b-f04d2d1e62fd/s05.kfnyrece.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "belinda_bella_traicin",
+    "title": "Bella traicin",
+    "artist": "Belinda",
+    "bpm": 280.04,
+    "total_notes": 521,
+    "chart_url": "belinda_bella_traicin.json",
+    "audio_url": "belinda_bella_traicin.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music114/v4/d3/f2/a9/d3f2a99d-d3fd-d52b-f9e8-87967330e383/00094636073651.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music114/v4/d3/f2/a9/d3f2a99d-d3fd-d52b-f9e8-87967330e383/00094636073651.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "ax_bahia_beso_en_la_boca",
+    "title": "Beso en la boca",
+    "artist": "Ax Bahia",
+    "bpm": 270.0,
+    "total_notes": 533,
+    "chart_url": "ax_bahia_beso_en_la_boca.json",
+    "audio_url": "ax_bahia_beso_en_la_boca.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/cb/c2/f0/cbc2f020-e3f0-d5ff-ef3d-819456b176fb/198588685341.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/cb/c2/f0/cbc2f020-e3f0-d5ff-ef3d-819456b176fb/198588685341.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "el_canto_del_loco_besos",
+    "title": "Besos",
+    "artist": "El Canto del Loco",
+    "bpm": 210.0,
+    "total_notes": 351,
+    "chart_url": "el_canto_del_loco_besos.json",
+    "audio_url": "el_canto_del_loco_besos.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Features125/v4/58/39/17/583917b9-d4f3-86f7-2d37-c2991cc02e48/dj.kqfjwqjx.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Features125/v4/58/39/17/583917b9-d4f3-86f7-2d37-c2991cc02e48/dj.kqfjwqjx.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "foo_fighters_best_of_you",
+    "title": "Best Of You",
+    "artist": "Foo Fighters",
+    "bpm": 340.0,
+    "total_notes": 458,
+    "chart_url": "foo_fighters_best_of_you.json",
+    "audio_url": "foo_fighters_best_of_you.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/03/15/58/0315584b-0c8d-93c8-2342-55b3fc3fa88b/828767967257.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/03/15/58/0315584b-0c8d-93c8-2342-55b3fc3fa88b/828767967257.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "fergie_big_girls_dont_cry",
+    "title": "Big Girls Don't Cry",
+    "artist": "Fergie",
+    "bpm": 225.8,
+    "total_notes": 530,
+    "chart_url": "fergie_big_girls_dont_cry.json",
+    "audio_url": "fergie_big_girls_dont_cry.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/1c/fd/34/1cfd3490-f752-b814-1175-150dcb6a90ea/06UMGIM42200.rgb.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/1c/fd/34/1cfd3490-f752-b814-1175-150dcb6a90ea/06UMGIM42200.rgb.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "elvis_presley_blue_suede_shoes",
+    "title": "Blue Suede Shoes",
+    "artist": "Elvis Presley",
+    "bpm": 350.0,
+    "total_notes": 337,
+    "chart_url": "elvis_presley_blue_suede_shoes.json",
+    "audio_url": "elvis_presley_blue_suede_shoes.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/c5/83/f0/c583f039-b1b2-cad8-c3e6-1c40026bb4d8/886444095242.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/c5/83/f0/c583f039-b1b2-cad8-c3e6-1c40026bb4d8/886444095242.jpg/300x300bb.jpg"
+  },
+  {
     "id": "dibujos_animados_bob_esponja",
     "title": "Bob Esponja",
     "artist": "Dibujos Animados",
@@ -86,6 +526,28 @@
     "audio_url": "dibujos_animados_bob_esponja.mp3",
     "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music1/v4/d3/74/c2/d374c246-ff17-02aa-8387-075dda32399e/888831655121.jpg/300x300bb.jpg",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music1/v4/d3/74/c2/d374c246-ff17-02aa-8387-075dda32399e/888831655121.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "green_day_boulevard_of_broken_dreams",
+    "title": "Boulevard of Broken Dreams",
+    "artist": "Green Day",
+    "bpm": 333.7,
+    "total_notes": 429,
+    "chart_url": "green_day_boulevard_of_broken_dreams.json",
+    "audio_url": "green_day_boulevard_of_broken_dreams.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/49/f3/08/49f308bf-478c-629e-8f50-4d1980ca59f9/5063740367982_cover.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/49/f3/08/49f308bf-478c-629e-8f50-4d1980ca59f9/5063740367982_cover.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "evanescence_bring_me_to_life",
+    "title": "Bring Me to Life",
+    "artist": "Evanescence",
+    "bpm": 379.84,
+    "total_notes": 541,
+    "chart_url": "evanescence_bring_me_to_life.json",
+    "audio_url": "evanescence_bring_me_to_life.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/10/4c/21/104c21e6-9ef0-4d3a-d1bd-d47167f121e5/00601501406300.rgb.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/10/4c/21/104c21e6-9ef0-4d3a-d1bd-d47167f121e5/00601501406300.rgb.jpg/300x300bb.jpg"
   },
   {
     "id": "camila_bsame",
@@ -99,6 +561,138 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music114/v4/43/74/48/43744887-d066-1705-3a7f-0bfba1c17f2b/mzi.crhraapt.jpg/300x300bb.jpg"
   },
   {
+    "id": "el_arrebato_bscate_un_hombre_que_te_quiera",
+    "title": "Bscate Un Hombre Que Te Quiera",
+    "artist": "El Arrebato",
+    "bpm": 326.0,
+    "total_notes": 727,
+    "chart_url": "el_arrebato_bscate_un_hombre_que_te_quiera.json",
+    "audio_url": "el_arrebato_bscate_un_hombre_que_te_quiera.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "franco_de_vita_buen_perdedor",
+    "title": "Buen perdedor",
+    "artist": "Franco De Vita",
+    "bpm": 254.57,
+    "total_notes": 360,
+    "chart_url": "franco_de_vita_buen_perdedor.json",
+    "audio_url": "franco_de_vita_buen_perdedor.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/d3/89/a3/d389a312-de54-5d94-6d6b-ab50dc3daf3d/00801472113027.rgb.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/d3/89/a3/d389a312-de54-5d94-6d6b-ab50dc3daf3d/00801472113027.rgb.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "david_bisbal_bulera",
+    "title": "Bulera",
+    "artist": "David Bisbal",
+    "bpm": 250.0,
+    "total_notes": 858,
+    "chart_url": "david_bisbal_bulera.json",
+    "audio_url": "david_bisbal_bulera.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/23/53/c6/2353c6df-0385-a214-8412-f4e81bac595a/00602547824585.rgb.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/23/53/c6/2353c6df-0385-a214-8412-f4e81bac595a/00602547824585.rgb.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "el_libro_de_la_selva_busca_lo_ms_vital",
+    "title": "Busca lo ms vital",
+    "artist": "El Libro De La Selva",
+    "bpm": 350.0,
+    "total_notes": 275,
+    "chart_url": "el_libro_de_la_selva_busca_lo_ms_vital.json",
+    "audio_url": "el_libro_de_la_selva_busca_lo_ms_vital.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music/v4/2c/bb/df/2cbbdf3e-0236-6a51-b357-c3a549489dc4/887845977748.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music/v4/2c/bb/df/2cbbdf3e-0236-6a51-b357-c3a549489dc4/887845977748.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "david_civera_bye_bye",
+    "title": "Bye Bye",
+    "artist": "David Civera",
+    "bpm": 190.0,
+    "total_notes": 472,
+    "chart_url": "david_civera_bye_bye.json",
+    "audio_url": "david_civera_bye_bye.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music71/v4/3a/09/cf/3a09cf64-3ac4-b70d-890a-ba6cde6dc104/886446165141.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music71/v4/3a/09/cf/3a09cf64-3ac4-b70d-890a-ba6cde6dc104/886446165141.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "estopa_cacho_a_cacho",
+    "title": "Cacho a cacho",
+    "artist": "Estopa",
+    "bpm": 334.0004063671611,
+    "total_notes": 517,
+    "chart_url": "estopa_cacho_a_cacho.json",
+    "audio_url": "estopa_cacho_a_cacho.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/6e/3b/f8/6e3bf820-fabd-cb93-0e46-908e16d7e161/mzi.snxjxtwn.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/6e/3b/f8/6e3bf820-fabd-cb93-0e46-908e16d7e161/mzi.snxjxtwn.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "carly_rae_jepsen_call_me_maybe",
+    "title": "Call Me Maybe",
+    "artist": "Carly Rae Jepsen",
+    "bpm": 240.0,
+    "total_notes": 476,
+    "chart_url": "carly_rae_jepsen_call_me_maybe.json",
+    "audio_url": "carly_rae_jepsen_call_me_maybe.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/14/54/19/145419b2-96f6-fc9e-3110-fbdc78022df6/12UMGIM48177.rgb.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/14/54/19/145419b2-96f6-fc9e-3110-fbdc78022df6/12UMGIM48177.rgb.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "david_bisbal_camina_y_ven",
+    "title": "Camina y ven",
+    "artist": "David Bisbal",
+    "bpm": 260.0,
+    "total_notes": 716,
+    "chart_url": "david_bisbal_camina_y_ven.json",
+    "audio_url": "david_bisbal_camina_y_ven.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/23/53/c6/2353c6df-0385-a214-8412-f4e81bac595a/00602547824585.rgb.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/23/53/c6/2353c6df-0385-a214-8412-f4e81bac595a/00602547824585.rgb.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "elvis_presley_cant_help_falling_in_love",
+    "title": "Can't help falling in love",
+    "artist": "Elvis Presley",
+    "bpm": 248.64,
+    "total_notes": 192,
+    "chart_url": "elvis_presley_cant_help_falling_in_love.json",
+    "audio_url": "elvis_presley_cant_help_falling_in_love.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "chayanne_caprichosa",
+    "title": "Caprichosa",
+    "artist": "Chayanne",
+    "bpm": 480.0,
+    "total_notes": 538,
+    "chart_url": "chayanne_caprichosa.json",
+    "audio_url": "chayanne_caprichosa.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music/9a/29/25/mzi.zncuwxmv.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music/9a/29/25/mzi.zncuwxmv.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "george_michael_careless_whisper",
+    "title": "Careless Whisper",
+    "artist": "George Michael",
+    "bpm": 305.6,
+    "total_notes": 615,
+    "chart_url": "george_michael_careless_whisper.json",
+    "audio_url": "george_michael_careless_whisper.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "europe_carrie",
+    "title": "Carrie",
+    "artist": "Europe",
+    "bpm": 272.64,
+    "total_notes": 328,
+    "chart_url": "europe_carrie.json",
+    "audio_url": "europe_carrie.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/00/4d/a9/004da9d2-9b4f-99f4-d396-72ec786fb88c/696998575721.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/00/4d/a9/004da9d2-9b4f-99f4-d396-72ec786fb88c/696998575721.jpg/300x300bb.jpg"
+  },
+  {
     "id": "paulina_rubio_causa_y_efecto",
     "title": "Causa y efecto",
     "artist": "Paulina Rubio",
@@ -110,6 +704,50 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music114/v4/82/8d/08/828d0880-b191-1848-383b-1dfa13657e6c/00602527120911.rgb.jpg/300x300bb.jpg"
   },
   {
+    "id": "axel_fernando_celebra_la_vida",
+    "title": "Celebra la vida",
+    "artist": "Axel Fernando",
+    "bpm": 240.0,
+    "total_notes": 393,
+    "chart_url": "axel_fernando_celebra_la_vida.json",
+    "audio_url": "axel_fernando_celebra_la_vida.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "fanny_lu_celos",
+    "title": "Celos",
+    "artist": "Fanny Lu",
+    "bpm": 264.0,
+    "total_notes": 389,
+    "chart_url": "fanny_lu_celos.json",
+    "audio_url": "fanny_lu_celos.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "adele_chasing_pavements",
+    "title": "Chasing Pavements",
+    "artist": "Adele",
+    "bpm": 321.0,
+    "total_notes": 426,
+    "chart_url": "adele_chasing_pavements.json",
+    "audio_url": "adele_chasing_pavements.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "abba_chiquitita",
+    "title": "Chiquitita",
+    "artist": "ABBA",
+    "bpm": 338.6,
+    "total_notes": 451,
+    "chart_url": "abba_chiquitita.json",
+    "audio_url": "abba_chiquitita.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/60/f8/a6/60f8a6bc-e875-238d-f2f8-f34a6034e6d2/14UMGIM07615.rgb.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/60/f8/a6/60f8a6bc-e875-238d-f2f8-f34a6034e6d2/14UMGIM07615.rgb.jpg/300x300bb.jpg"
+  },
+  {
     "id": "shakira_ciega_sordomuda",
     "title": "Ciega, sordomuda",
     "artist": "Shakira",
@@ -119,6 +757,39 @@
     "audio_url": "shakira_ciega_sordomuda.mp3",
     "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/e5/6d/96/e56d9688-0239-7c8f-f907-7614c0f9860b/mzi.uffuznlo.jpg/300x300bb.jpg",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/e5/6d/96/e56d9688-0239-7c8f-f907-7614c0f9860b/mzi.uffuznlo.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "duncan_dhu_cien_gaviotas",
+    "title": "Cien gaviotas",
+    "artist": "Duncan Dhu",
+    "bpm": 273.4,
+    "total_notes": 324,
+    "chart_url": "duncan_dhu_cien_gaviotas.json",
+    "audio_url": "duncan_dhu_cien_gaviotas.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "gorillaz_clint_eastwood",
+    "title": "Clint Eastwood",
+    "artist": "Gorillaz",
+    "bpm": 399.04,
+    "total_notes": 393,
+    "chart_url": "gorillaz_clint_eastwood.json",
+    "audio_url": "gorillaz_clint_eastwood.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/76/fc/e7/76fce783-7be6-2dcd-7b54-1306c7d872ea/825646264261.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/76/fc/e7/76fce783-7be6-2dcd-7b54-1306c7d872ea/825646264261.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "coldplay_clocks",
+    "title": "Clocks",
+    "artist": "Coldplay",
+    "bpm": 262.0,
+    "total_notes": 306,
+    "chart_url": "coldplay_clocks.json",
+    "audio_url": "coldplay_clocks.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/b9/b4/2a/b9b42ad1-1e25-5096-da43-497a247e69a3/190295978051.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/b9/b4/2a/b9b42ad1-1e25-5096-da43-497a247e69a3/190295978051.jpg/300x300bb.jpg"
   },
   {
     "id": "camila_coleccionista_de_canciones",
@@ -143,6 +814,50 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/53/3a/e6/533ae626-afee-3493-12e0-424cb95970b7/mzi.vmihvndj.jpg/300x300bb.jpg"
   },
   {
+    "id": "estopa_como_camarn",
+    "title": "Como Camarn",
+    "artist": "Estopa",
+    "bpm": 600.0,
+    "total_notes": 762,
+    "chart_url": "estopa_como_camarn.json",
+    "audio_url": "estopa_como_camarn.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "amaral_como_hablar",
+    "title": "Como hablar",
+    "artist": "Amaral",
+    "bpm": 234.0,
+    "total_notes": 443,
+    "chart_url": "amaral_como_hablar.json",
+    "audio_url": "amaral_como_hablar.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "alejandro_fernandez_como_quien_pierde_una_estrella",
+    "title": "Como quien pierde una estrella",
+    "artist": "Alejandro Fernandez",
+    "bpm": 312.0,
+    "total_notes": 361,
+    "chart_url": "alejandro_fernandez_como_quien_pierde_una_estrella.json",
+    "audio_url": "alejandro_fernandez_como_quien_pierde_una_estrella.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "caf_tacuba_como_te_extrao",
+    "title": "Como te extrao",
+    "artist": "Caf Tacuba",
+    "bpm": 258.0,
+    "total_notes": 281,
+    "chart_url": "caf_tacuba_como_te_extrao.json",
+    "audio_url": "caf_tacuba_como_te_extrao.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "bon_jovi_como_yo_nadie_te_ha_amado",
     "title": "Como yo nadie te ha amado",
     "artist": "Bon Jovi",
@@ -152,6 +867,94 @@
     "audio_url": "bon_jovi_como_yo_nadie_te_ha_amado.mp3",
     "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music122/v4/18/7b/b8/187bb8ab-6ef6-6e21-b413-eaee375df86c/22UM1IM14678.rgb.jpg/300x300bb.jpg",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music122/v4/18/7b/b8/187bb8ab-6ef6-6e21-b413-eaee375df86c/22UM1IM14678.rgb.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "chayanne_completamente_enamorados",
+    "title": "Completamente enamorados",
+    "artist": "Chayanne",
+    "bpm": 240.0,
+    "total_notes": 506,
+    "chart_url": "chayanne_completamente_enamorados.json",
+    "audio_url": "chayanne_completamente_enamorados.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "avril_lavigne_complicated",
+    "title": "Complicated",
+    "artist": "Avril Lavigne",
+    "bpm": 311.68,
+    "total_notes": 635,
+    "chart_url": "avril_lavigne_complicated.json",
+    "audio_url": "avril_lavigne_complicated.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/32/2c/f3/322cf324-9ea1-3962-865a-f4f9bf83764d/888880191069.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/32/2c/f3/322cf324-9ea1-3962-865a-f4f9bf83764d/888880191069.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "camilo_sesto_con_el_viento_a_tu_favor",
+    "title": "Con el viento a tu favor",
+    "artist": "Camilo Sesto",
+    "bpm": 240.0,
+    "total_notes": 315,
+    "chart_url": "camilo_sesto_con_el_viento_a_tu_favor.json",
+    "audio_url": "camilo_sesto_con_el_viento_a_tu_favor.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "gloria_trevi_con_los_ojos_cerrados",
+    "title": "Con los ojos cerrados",
+    "artist": "Gloria Trevi",
+    "bpm": 240.0,
+    "total_notes": 548,
+    "chart_url": "gloria_trevi_con_los_ojos_cerrados.json",
+    "audio_url": "gloria_trevi_con_los_ojos_cerrados.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "cachureos_congelao",
+    "title": "Congelao",
+    "artist": "Cachureos",
+    "bpm": 373.64,
+    "total_notes": 250,
+    "chart_url": "cachureos_congelao.json",
+    "audio_url": "cachureos_congelao.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/61/e9/b6/61e9b643-66ef-516f-02ef-a4bf74cff571/859747247410_cover.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/61/e9/b6/61e9b643-66ef-516f-02ef-a4bf74cff571/859747247410_cover.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "ana_beln_y_vctor_manuel_contamname",
+    "title": "Contamname",
+    "artist": "Ana Beln y Vctor Manuel",
+    "bpm": 240.0,
+    "total_notes": 529,
+    "chart_url": "ana_beln_y_vctor_manuel_contamname.json",
+    "audio_url": "ana_beln_y_vctor_manuel_contamname.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "camela_corazn_indomable",
+    "title": "Corazn indomable",
+    "artist": "Camela",
+    "bpm": 285.68,
+    "total_notes": 541,
+    "chart_url": "camela_corazn_indomable.json",
+    "audio_url": "camela_corazn_indomable.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "david_bisbal_corazn_latino",
+    "title": "Corazn latino",
+    "artist": "David Bisbal",
+    "bpm": 240.0,
+    "total_notes": 462,
+    "chart_url": "david_bisbal_corazn_latino.json",
+    "audio_url": "david_bisbal_corazn_latino.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
   },
   {
     "id": "jesse__joy_corre",
@@ -165,6 +968,61 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/f1/04/b8/f104b805-9295-99e1-9c65-2985ceeecdcb/mzi.vvlnoxph.jpg/300x300bb.jpg"
   },
   {
+    "id": "bob_marley__the_wailers_could_you_be_loved",
+    "title": "Could you be loved",
+    "artist": "Bob Marley & the Wailers",
+    "bpm": 398.15,
+    "total_notes": 402,
+    "chart_url": "bob_marley__the_wailers_could_you_be_loved.json",
+    "audio_url": "bob_marley__the_wailers_could_you_be_loved.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "beyonce_crazy_in_love",
+    "title": "Crazy In Love",
+    "artist": "Beyonce",
+    "bpm": 198.4,
+    "total_notes": 638,
+    "chart_url": "beyonce_crazy_in_love.json",
+    "audio_url": "beyonce_crazy_in_love.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "gustavo_cerati_crimen",
+    "title": "Crimen",
+    "artist": "Gustavo Cerati",
+    "bpm": 214.46,
+    "total_notes": 277,
+    "chart_url": "gustavo_cerati_crimen.json",
+    "audio_url": "gustavo_cerati_crimen.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/f3/3d/d5/f33dd5c7-bbb8-c2b3-e5e8-0d2a4dd7f1a7/828768164426.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/f3/3d/d5/f33dd5c7-bbb8-c2b3-e5e8-0d2a4dd7f1a7/828768164426.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "estopa_cuando_amanece",
+    "title": "Cuando amanece",
+    "artist": "Estopa",
+    "bpm": 358.0,
+    "total_notes": 529,
+    "chart_url": "estopa_cuando_amanece.json",
+    "audio_url": "estopa_cuando_amanece.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Features114/v4/16/fd/fc/16fdfcdb-5bb9-0e5d-84f6-afcb9022bfda/dj.acvkxbpz.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Features114/v4/16/fd/fc/16fdfcdb-5bb9-0e5d-84f6-afcb9022bfda/dj.acvkxbpz.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "ella_baila_sola_cuando_los_sapos_bailen_flamenco",
+    "title": "Cuando los sapos bailen flamenco",
+    "artist": "Ella Baila Sola",
+    "bpm": 300.0,
+    "total_notes": 549,
+    "chart_url": "ella_baila_sola_cuando_los_sapos_bailen_flamenco.json",
+    "audio_url": "ella_baila_sola_cuando_los_sapos_bailen_flamenco.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "enrique_iglesias_y_juan_luis_guerra_cuando_me_enamoro",
     "title": "Cuando me enamoro",
     "artist": "Enrique Iglesias y Juan Luis Guerra",
@@ -174,6 +1032,94 @@
     "audio_url": "enrique_iglesias_y_juan_luis_guerra_cuando_me_enamoro.mp3",
     "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/a5/84/90/a58490c6-5dad-2663-7f44-d15fdbeba0d0/00602527419923.rgb.jpg/300x300bb.jpg",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/a5/84/90/a58490c6-5dad-2663-7f44-d15fdbeba0d0/00602527419923.rgb.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "chenoa_cuando_t_vas",
+    "title": "Cuando t vas",
+    "artist": "Chenoa",
+    "bpm": 272.0,
+    "total_notes": 558,
+    "chart_url": "chenoa_cuando_t_vas.json",
+    "audio_url": "chenoa_cuando_t_vas.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "aventura_cuando_volvers",
+    "title": "Cuando volvers",
+    "artist": "Aventura",
+    "bpm": 252.0,
+    "total_notes": 433,
+    "chart_url": "aventura_cuando_volvers.json",
+    "audio_url": "aventura_cuando_volvers.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/a6/6e/34/a66e341f-a6cb-863a-552c-f8df1ea4c82e/mzi.mrqxniwj.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/a6/6e/34/a66e341f-a6cb-863a-552c-f8df1ea4c82e/mzi.mrqxniwj.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "camela_cuando_zarpa_el_amor",
+    "title": "Cuando zarpa el amor",
+    "artist": "Camela",
+    "bpm": 228.0,
+    "total_notes": 837,
+    "chart_url": "camela_cuando_zarpa_el_amor.json",
+    "audio_url": "camela_cuando_zarpa_el_amor.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music/v4/a9/c9/17/a9c91701-1871-8505-babf-eee4c598fb79/0724354824456_1404x1404_300dpi.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music/v4/a9/c9/17/a9c91701-1871-8505-babf-eee4c598fb79/0724354824456_1404x1404_300dpi.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "amaia_montero_cuatro_segundos",
+    "title": "Cuatro segundos",
+    "artist": "Amaia Montero",
+    "bpm": 297.96,
+    "total_notes": 603,
+    "chart_url": "amaia_montero_cuatro_segundos.json",
+    "audio_url": "amaia_montero_cuatro_segundos.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Features/c3/21/4b/dj.ctxuozfq.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Features/c3/21/4b/dj.ctxuozfq.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "celtas_cortos_cuentame_un_cuento",
+    "title": "Cuentame un cuento",
+    "artist": "Celtas Cortos",
+    "bpm": 240.0,
+    "total_notes": 539,
+    "chart_url": "celtas_cortos_cuentame_un_cuento.json",
+    "audio_url": "celtas_cortos_cuentame_un_cuento.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "frmula_v_cuntame",
+    "title": "Cuntame",
+    "artist": "Frmula V",
+    "bpm": 263.4,
+    "total_notes": 297,
+    "chart_url": "frmula_v_cuntame.json",
+    "audio_url": "frmula_v_cuntame.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "cecilia_dama_dama",
+    "title": "Dama, Dama",
+    "artist": "Cecilia",
+    "bpm": 302.6,
+    "total_notes": 496,
+    "chart_url": "cecilia_dama_dama.json",
+    "audio_url": "cecilia_dama_dama.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "alex_ubago_dame_tu_aire",
+    "title": "Dame tu aire",
+    "artist": "Alex Ubago",
+    "bpm": 248.0,
+    "total_notes": 418,
+    "chart_url": "alex_ubago_dame_tu_aire.json",
+    "audio_url": "alex_ubago_dame_tu_aire.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
   },
   {
     "id": "don_omar__lucenzo_danza_kuduro",
@@ -187,6 +1133,94 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/be/9d/22/be9d22c2-99b2-9e26-11dd-d1a043779b8d/10UMGIM27798.rgb.jpg/300x300bb.jpg"
   },
   {
+    "id": "chayanne_dara_cualquier_cosa",
+    "title": "Dara cualquier cosa",
+    "artist": "Chayanne",
+    "bpm": 360.0,
+    "total_notes": 386,
+    "chart_url": "chayanne_dara_cualquier_cosa.json",
+    "audio_url": "chayanne_dara_cualquier_cosa.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "amaral_das_de_verano",
+    "title": "Das de verano",
+    "artist": "Amaral",
+    "bpm": 279.92,
+    "total_notes": 365,
+    "chart_url": "amaral_das_de_verano.json",
+    "audio_url": "amaral_das_de_verano.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "camila_de_que_me_sirve_la_vida",
+    "title": "De que me sirve la vida",
+    "artist": "Camila",
+    "bpm": 147.98,
+    "total_notes": 462,
+    "chart_url": "camila_de_que_me_sirve_la_vida.json",
+    "audio_url": "camila_de_que_me_sirve_la_vida.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "ateens_desconocido",
+    "title": "Desconocido",
+    "artist": "A-Teens",
+    "bpm": 269.98,
+    "total_notes": 503,
+    "chart_url": "ateens_desconocido.json",
+    "audio_url": "ateens_desconocido.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "britney_spears_desconocido",
+    "title": "Desconocido",
+    "artist": "Britney Spears",
+    "bpm": 286.02,
+    "total_notes": 403,
+    "chart_url": "britney_spears_desconocido.json",
+    "audio_url": "britney_spears_desconocido.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "frank_sinatra_desconocido",
+    "title": "Desconocido",
+    "artist": "Frank Sinatra",
+    "bpm": 211.02,
+    "total_notes": 286,
+    "chart_url": "frank_sinatra_desconocido.json",
+    "audio_url": "frank_sinatra_desconocido.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "alejandro_sanz_desde_cuando",
+    "title": "Desde cuando",
+    "artist": "Alejandro Sanz",
+    "bpm": 240.0,
+    "total_notes": 433,
+    "chart_url": "alejandro_sanz_desde_cuando.json",
+    "audio_url": "alejandro_sanz_desde_cuando.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "alejandro_lerner_despus_de_ti",
+    "title": "Despus de ti",
+    "artist": "Alejandro Lerner",
+    "bpm": 324.0,
+    "total_notes": 416,
+    "chart_url": "alejandro_lerner_despus_de_ti.json",
+    "audio_url": "alejandro_lerner_despus_de_ti.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "hombres_g_devulveme_a_mi_chica",
     "title": "Devulveme A Mi Chica",
     "artist": "Hombres G",
@@ -196,6 +1230,39 @@
     "audio_url": "hombres_g_devulveme_a_mi_chica.mp3",
     "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Features125/v4/84/5a/75/845a75a4-cc81-4325-9ba3-e40c190f38fd/dj.rmjgttvf.jpg/300x300bb.jpg",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Features125/v4/84/5a/75/845a75a4-cc81-4325-9ba3-e40c190f38fd/dj.rmjgttvf.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "antonio_orozco_devulveme_la_vida",
+    "title": "Devulveme La Vida",
+    "artist": "Antonio Orozco",
+    "bpm": 320.0,
+    "total_notes": 450,
+    "chart_url": "antonio_orozco_devulveme_la_vida.json",
+    "audio_url": "antonio_orozco_devulveme_la_vida.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "david_bustamante_devulveme_la_vida",
+    "title": "Devulveme la vida",
+    "artist": "David Bustamante",
+    "bpm": 340.0,
+    "total_notes": 769,
+    "chart_url": "david_bustamante_devulveme_la_vida.json",
+    "audio_url": "david_bustamante_devulveme_la_vida.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "david_bisbal_dgale",
+    "title": "Dgale",
+    "artist": "David Bisbal",
+    "bpm": 280.0,
+    "total_notes": 390,
+    "chart_url": "david_bisbal_dgale.json",
+    "audio_url": "david_bisbal_dgale.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
   },
   {
     "id": "digimon_digimon",
@@ -220,6 +1287,83 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/71/44/ab/7144ab43-17de-e8a2-fa09-21f333ec3485/06UMGIM15438.rgb.jpg/300x300bb.jpg"
   },
   {
+    "id": "beth_dime",
+    "title": "Dime",
+    "artist": "Beth",
+    "bpm": 130.0,
+    "total_notes": 446,
+    "chart_url": "beth_dime.json",
+    "audio_url": "beth_dime.mp3",
+    "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music128/v4/a5/40/a2/a540a20a-bfca-11b1-3ff2-acdcc756645d/00602517726086.rgb.jpg/300x300bb.jpg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music128/v4/a5/40/a2/a540a20a-bfca-11b1-3ff2-acdcc756645d/00602517726086.rgb.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "guns_n_roses_dont_cry",
+    "title": "Don't Cry",
+    "artist": "Guns N' Roses",
+    "bpm": 244.0,
+    "total_notes": 360,
+    "chart_url": "guns_n_roses_dont_cry.json",
+    "audio_url": "guns_n_roses_dont_cry.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "glee_dont_stop_believin",
+    "title": "Don't Stop Believin'",
+    "artist": "Glee",
+    "bpm": 247.52,
+    "total_notes": 291,
+    "chart_url": "glee_dont_stop_believin.json",
+    "audio_url": "glee_dont_stop_believin.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "adele_dont_you_remember",
+    "title": "Don't You Remember",
+    "artist": "Adele",
+    "bpm": 342.57,
+    "total_notes": 499,
+    "chart_url": "adele_dont_you_remember.json",
+    "audio_url": "adele_dont_you_remember.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "camilo_sesto_donde_ests_con_quien_ests",
+    "title": "Donde ests, con quien ests",
+    "artist": "Camilo Sesto",
+    "bpm": 286.64,
+    "total_notes": 385,
+    "chart_url": "camilo_sesto_donde_ests_con_quien_ests.json",
+    "audio_url": "camilo_sesto_donde_ests_con_quien_ests.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "david_bustamante_y_lex_casademunt_dos_hombres_y_un_destino",
+    "title": "Dos hombres y un destino",
+    "artist": "David Bustamante y lex Casademunt",
+    "bpm": 288.0,
+    "total_notes": 495,
+    "chart_url": "david_bustamante_y_lex_casademunt_dos_hombres_y_un_destino.json",
+    "audio_url": "david_bustamante_y_lex_casademunt_dos_hombres_y_un_destino.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "aerosmith_dream_on",
+    "title": "Dream on",
+    "artist": "Aerosmith",
+    "bpm": 288.0,
+    "total_notes": 445,
+    "chart_url": "aerosmith_dream_on.json",
+    "audio_url": "aerosmith_dream_on.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "aleks_syntek_y_ana_torroja_duele_el_amor",
     "title": "Duele el amor",
     "artist": "Aleks Syntek y Ana Torroja",
@@ -229,6 +1373,28 @@
     "audio_url": "aleks_syntek_y_ana_torroja_duele_el_amor.mp3",
     "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music128/v4/d8/d3/49/d8d3493f-61d1-6ef9-9f76-084a6b1f4d3f/00600753552209.rgb.jpg/300x300bb.jpg",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music128/v4/d8/d3/49/d8d3493f-61d1-6ef9-9f76-084a6b1f4d3f/00600753552209.rgb.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "enrique_iglesias_ft_wisin_duele_el_corazn",
+    "title": "Duele el corazn",
+    "artist": "Enrique Iglesias ft. Wisin",
+    "bpm": 364.0,
+    "total_notes": 545,
+    "chart_url": "enrique_iglesias_ft_wisin_duele_el_corazn.json",
+    "audio_url": "enrique_iglesias_ft_wisin_duele_el_corazn.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "belinda__pitbull_egosta",
+    "title": "Egosta",
+    "artist": "Belinda & Pitbull",
+    "bpm": 250.1,
+    "total_notes": 449,
+    "chart_url": "belinda__pitbull_egosta.json",
+    "audio_url": "belinda__pitbull_egosta.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
   },
   {
     "id": "vicente_fernandez_el_rey",
@@ -242,6 +1408,72 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/c5/85/87/c58587d3-fb95-226b-1063-3e72b3c47132/mzi.sfllgtrf.jpg/300x300bb.jpg"
   },
   {
+    "id": "andrs_calamaro_el_salmn",
+    "title": "El Salmn",
+    "artist": "Andrs Calamaro",
+    "bpm": 250.0,
+    "total_notes": 428,
+    "chart_url": "andrs_calamaro_el_salmn.json",
+    "audio_url": "andrs_calamaro_el_salmn.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "gabinete_caligari_el_calor_del_amor_en_un_bar",
+    "title": "El calor del amor en un bar",
+    "artist": "Gabinete Caligari",
+    "bpm": 258.8,
+    "total_notes": 274,
+    "chart_url": "gabinete_caligari_el_calor_del_amor_en_un_bar.json",
+    "audio_url": "gabinete_caligari_el_calor_del_amor_en_un_bar.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "el_rey_len_el_ciclo_de_la_vida",
+    "title": "El ciclo de la vida",
+    "artist": "El Rey Len",
+    "bpm": 340.0,
+    "total_notes": 310,
+    "chart_url": "el_rey_len_el_ciclo_de_la_vida.json",
+    "audio_url": "el_rey_len_el_ciclo_de_la_vida.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "estopa_el_del_medio_de_los_chichos",
+    "title": "El del medio de Los Chichos",
+    "artist": "Estopa",
+    "bpm": 360.0,
+    "total_notes": 521,
+    "chart_url": "estopa_el_del_medio_de_los_chichos.json",
+    "audio_url": "estopa_el_del_medio_de_los_chichos.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "enanitos_verdes_el_extrao_de_pelo_largo",
+    "title": "El extrao de pelo largo",
+    "artist": "Enanitos Verdes",
+    "bpm": 240.0,
+    "total_notes": 282,
+    "chart_url": "enanitos_verdes_el_extrao_de_pelo_largo.json",
+    "audio_url": "enanitos_verdes_el_extrao_de_pelo_largo.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "ana_beln_el_hombre_del_piano",
+    "title": "El hombre del piano",
+    "artist": "Ana Beln",
+    "bpm": 320.0,
+    "total_notes": 510,
+    "chart_url": "ana_beln_el_hombre_del_piano.json",
+    "audio_url": "ana_beln_el_hombre_del_piano.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "adrin_barba_el_poder_nuestro_es",
     "title": "El poder nuestro es",
     "artist": "Adrin Barba",
@@ -251,6 +1483,28 @@
     "audio_url": "adrin_barba_el_poder_nuestro_es.mp3",
     "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/93/de/4b/93de4b8a-203c-de25-06be-3011c9c465f4/PBYCV.png/300x300bb.jpg",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/93/de/4b/93de4b8a-203c-de25-06be-3011c9c465f4/PBYCV.png/300x300bb.jpg"
+  },
+  {
+    "id": "aladdn_el_rey_del_bazar",
+    "title": "El rey del bazar",
+    "artist": "Aladdn",
+    "bpm": 473.16,
+    "total_notes": 273,
+    "chart_url": "aladdn_el_rey_del_bazar.json",
+    "audio_url": "aladdn_el_rey_del_bazar.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "daddy_yankee_el_ritmo_no_perdona",
+    "title": "El ritmo no perdona",
+    "artist": "Daddy Yankee",
+    "bpm": 350.0,
+    "total_notes": 688,
+    "chart_url": "daddy_yankee_el_ritmo_no_perdona.json",
+    "audio_url": "daddy_yankee_el_ritmo_no_perdona.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
   },
   {
     "id": "la_quinta_estacin_el_sol_no_regresa",
@@ -264,15 +1518,70 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/9a/cc/6c/9acc6c44-cf70-5d9b-8555-829bc6332639/886443505766.jpg/300x300bb.jpg"
   },
   {
+    "id": "el_fary_el_toro_guapo",
+    "title": "El toro guapo",
+    "artist": "El Fary",
+    "bpm": 246.9,
+    "total_notes": 684,
+    "chart_url": "el_fary_el_toro_guapo.json",
+    "audio_url": "el_fary_el_toro_guapo.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "amaral_el_universo_sobre_mi",
+    "title": "El universo sobre mi",
+    "artist": "Amaral",
+    "bpm": 372.0,
+    "total_notes": 549,
+    "chart_url": "amaral_el_universo_sobre_mi.json",
+    "audio_url": "amaral_el_universo_sobre_mi.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "duncan_dhu_en_algn_lugar",
+    "title": "En algn lugar",
+    "artist": "Duncan Dhu",
+    "bpm": 297.12,
+    "total_notes": 418,
+    "chart_url": "duncan_dhu_en_algn_lugar.json",
+    "audio_url": "duncan_dhu_en_algn_lugar.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "man_en_el_muelle_de_san_blas",
     "title": "En el muelle de San Blas",
-    "artist": "Maná",
+    "artist": "Man",
     "bpm": 376.0,
     "total_notes": 531,
     "chart_url": "man_en_el_muelle_de_san_blas.json",
     "audio_url": "man_en_el_muelle_de_san_blas.mp3",
     "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/a3/39/fd/a339fdf6-e8f6-0a88-8799-b1db02c3aee9/mzi.nvqsivqv.jpg/300x300bb.jpg",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/a3/39/fd/a339fdf6-e8f6-0a88-8799-b1db02c3aee9/mzi.nvqsivqv.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "el_rey_len_en_la_jungla",
+    "title": "En la jungla",
+    "artist": "El Rey Len",
+    "bpm": 262.5,
+    "total_notes": 281,
+    "chart_url": "el_rey_len_en_la_jungla.json",
+    "audio_url": "el_rey_len_en_la_jungla.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "depeche_mode_enjoy_the_silence",
+    "title": "Enjoy The Silence",
+    "artist": "Depeche Mode",
+    "bpm": 226.0,
+    "total_notes": 291,
+    "chart_url": "depeche_mode_enjoy_the_silence.json",
+    "audio_url": "depeche_mode_enjoy_the_silence.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
   },
   {
     "id": "sin_bandera_entra_en_mi_vida",
@@ -286,6 +1595,182 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/52/05/bc/5205bc20-2e70-7e86-cbaf-2796191a9644/mzi.fkqxcawi.jpg/300x300bb.jpg"
   },
   {
+    "id": "caf_tacuba_eres",
+    "title": "Eres",
+    "artist": "Caf Tacuba",
+    "bpm": 300.0,
+    "total_notes": 366,
+    "chart_url": "caf_tacuba_eres.json",
+    "audio_url": "caf_tacuba_eres.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "el_canto_del_loco_eres_tonto",
+    "title": "Eres tonto",
+    "artist": "El Canto del Loco",
+    "bpm": 188.98,
+    "total_notes": 491,
+    "chart_url": "el_canto_del_loco_eres_tonto.json",
+    "audio_url": "el_canto_del_loco_eres_tonto.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "cmplices_es_por_ti",
+    "title": "Es por ti",
+    "artist": "Cmplices",
+    "bpm": 300.0,
+    "total_notes": 483,
+    "chart_url": "cmplices_es_por_ti.json",
+    "audio_url": "cmplices_es_por_ti.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "enrique_iglesias_escapar",
+    "title": "Escapar",
+    "artist": "Enrique Iglesias",
+    "bpm": 252.0,
+    "total_notes": 373,
+    "chart_url": "enrique_iglesias_escapar.json",
+    "audio_url": "enrique_iglesias_escapar.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "david_bisbal_esclavo_de_sus_besos",
+    "title": "Esclavo de sus besos",
+    "artist": "David Bisbal",
+    "bpm": 305.04,
+    "total_notes": 516,
+    "chart_url": "david_bisbal_esclavo_de_sus_besos.json",
+    "audio_url": "david_bisbal_esclavo_de_sus_besos.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "andrs_calamaro_estadio_azteca",
+    "title": "Estadio azteca",
+    "artist": "Andrs Calamaro",
+    "bpm": 284.0,
+    "total_notes": 241,
+    "chart_url": "andrs_calamaro_estadio_azteca.json",
+    "audio_url": "andrs_calamaro_estadio_azteca.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "amistades_peligrosas_estoy_por_ti",
+    "title": "Estoy por ti",
+    "artist": "Amistades Peligrosas",
+    "bpm": 392.0,
+    "total_notes": 1013,
+    "chart_url": "amistades_peligrosas_estoy_por_ti.json",
+    "audio_url": "amistades_peligrosas_estoy_por_ti.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "abba_estoy_soando",
+    "title": "Estoy soando",
+    "artist": "ABBA",
+    "bpm": 208.2,
+    "total_notes": 281,
+    "chart_url": "abba_estoy_soando.json",
+    "audio_url": "abba_estoy_soando.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "frmula_v_eva_mara",
+    "title": "Eva Mara",
+    "artist": "Frmula V",
+    "bpm": 246.0,
+    "total_notes": 180,
+    "chart_url": "frmula_v_eva_mara.json",
+    "audio_url": "frmula_v_eva_mara.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "backstreet_boys_everybody_backstreets_back",
+    "title": "Everybody (Backstreet's Back)",
+    "artist": "Backstreet Boys",
+    "bpm": 216.12,
+    "total_notes": 374,
+    "chart_url": "backstreet_boys_everybody_backstreets_back.json",
+    "audio_url": "backstreet_boys_everybody_backstreets_back.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "alicia_keys_fallin",
+    "title": "Fallin'",
+    "artist": "Alicia Keys",
+    "bpm": 127.76,
+    "total_notes": 385,
+    "chart_url": "alicia_keys_fallin.json",
+    "audio_url": "alicia_keys_fallin.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "christina_aguilera_falsas_esperanzas",
+    "title": "Falsas esperanzas",
+    "artist": "Christina Aguilera",
+    "bpm": 262.0,
+    "total_notes": 422,
+    "chart_url": "christina_aguilera_falsas_esperanzas.json",
+    "audio_url": "christina_aguilera_falsas_esperanzas.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "gorillaz_feel_good_inc",
+    "title": "Feel Good Inc.",
+    "artist": "Gorillaz",
+    "bpm": 277.0,
+    "total_notes": 196,
+    "chart_url": "gorillaz_feel_good_inc.json",
+    "audio_url": "gorillaz_feel_good_inc.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "abba_felicidad",
+    "title": "Felicidad",
+    "artist": "ABBA",
+    "bpm": 131.86,
+    "total_notes": 454,
+    "chart_url": "abba_felicidad.json",
+    "audio_url": "abba_felicidad.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "al_bano_y_romina_power_felicidad",
+    "title": "Felicidad",
+    "artist": "Al Bano y Romina Power",
+    "bpm": 298.5,
+    "total_notes": 689,
+    "chart_url": "al_bano_y_romina_power_felicidad.json",
+    "audio_url": "al_bano_y_romina_power_felicidad.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "abba_fernando",
+    "title": "Fernando",
+    "artist": "ABBA",
+    "bpm": 210.1,
+    "total_notes": 498,
+    "chart_url": "abba_fernando.json",
+    "audio_url": "abba_fernando.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "mgo_de_oz_fiesta_pagana",
     "title": "Fiesta pagana",
     "artist": "Mgo de Oz",
@@ -295,6 +1780,83 @@
     "audio_url": "mgo_de_oz_fiesta_pagana.mp3",
     "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music/a3/29/06/mzi.qjlxyzsv.tif/300x300bb.jpg",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music/a3/29/06/mzi.qjlxyzsv.tif/300x300bb.jpg"
+  },
+  {
+    "id": "europe_final_countdown",
+    "title": "Final Countdown",
+    "artist": "Europe",
+    "bpm": 235.26,
+    "total_notes": 329,
+    "chart_url": "europe_final_countdown.json",
+    "audio_url": "europe_final_countdown.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "coldplay_fix_you",
+    "title": "Fix You",
+    "artist": "Coldplay",
+    "bpm": 560.0,
+    "total_notes": 313,
+    "chart_url": "coldplay_fix_you.json",
+    "audio_url": "coldplay_fix_you.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "30_seconds_to_mars_from_yesterday",
+    "title": "From Yesterday",
+    "artist": "30 Seconds To Mars",
+    "bpm": 269.84,
+    "total_notes": 507,
+    "chart_url": "30_seconds_to_mars_from_yesterday.json",
+    "audio_url": "30_seconds_to_mars_from_yesterday.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "carlos_vives_fruta_fresca",
+    "title": "Fruta fresca",
+    "artist": "Carlos Vives",
+    "bpm": 238.0,
+    "total_notes": 489,
+    "chart_url": "carlos_vives_fruta_fresca.json",
+    "audio_url": "carlos_vives_fruta_fresca.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "despistaos_fsica_o_qumica",
+    "title": "Fsica o qumica",
+    "artist": "Despistaos",
+    "bpm": 200.0,
+    "total_notes": 392,
+    "chart_url": "despistaos_fsica_o_qumica.json",
+    "audio_url": "despistaos_fsica_o_qumica.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "eros_ramazzotti_con_carlos_santana_fuego_en_el_fuego",
+    "title": "Fuego en el fuego",
+    "artist": "Eros Ramazzotti con Carlos Santana",
+    "bpm": 254.04,
+    "total_notes": 483,
+    "chart_url": "eros_ramazzotti_con_carlos_santana_fuego_en_el_fuego.json",
+    "audio_url": "eros_ramazzotti_con_carlos_santana_fuego_en_el_fuego.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "gilda_fuiste",
+    "title": "Fuiste",
+    "artist": "Gilda",
+    "bpm": 392.0,
+    "total_notes": 510,
+    "chart_url": "gilda_fuiste.json",
+    "audio_url": "gilda_fuiste.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
   },
   {
     "id": "ricardo_arjona_ft_gaby_moreno_fuiste_t",
@@ -308,6 +1870,127 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/37/00/c3/3700c3a3-c29a-a96f-6fbe-296062a36320/886444931953_Cover.jpg/300x300bb.jpg"
   },
   {
+    "id": "daft_punk_get_lucky",
+    "title": "Get Lucky",
+    "artist": "Daft Punk",
+    "bpm": 232.1,
+    "total_notes": 571,
+    "chart_url": "daft_punk_get_lucky.json",
+    "audio_url": "daft_punk_get_lucky.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "bob_marley_get_up_stand_up",
+    "title": "Get Up, Stand Up",
+    "artist": "Bob Marley",
+    "bpm": 394.37,
+    "total_notes": 448,
+    "chart_url": "bob_marley_get_up_stand_up.json",
+    "audio_url": "bob_marley_get_up_stand_up.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "camilo_sesto_getsemani",
+    "title": "Getsemani",
+    "artist": "Camilo Sesto",
+    "bpm": 240.0,
+    "total_notes": 456,
+    "chart_url": "camilo_sesto_getsemani.json",
+    "audio_url": "camilo_sesto_getsemani.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "abba_gimme_gimme_gimme_a_man_after_midnight",
+    "title": "Gimme! Gimme! Gimme! (A Man After Midnight)",
+    "artist": "ABBA",
+    "bpm": 236.7,
+    "total_notes": 350,
+    "chart_url": "abba_gimme_gimme_gimme_a_man_after_midnight.json",
+    "audio_url": "abba_gimme_gimme_gimme_a_man_after_midnight.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "alicia_keys_girl_on_fire",
+    "title": "Girl On Fire",
+    "artist": "Alicia Keys",
+    "bpm": 186.06,
+    "total_notes": 464,
+    "chart_url": "alicia_keys_girl_on_fire.json",
+    "audio_url": "alicia_keys_girl_on_fire.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "avril_lavigne_girlfriend",
+    "title": "Girlfriend",
+    "artist": "Avril Lavigne",
+    "bpm": 328.11,
+    "total_notes": 630,
+    "chart_url": "avril_lavigne_girlfriend.json",
+    "audio_url": "avril_lavigne_girlfriend.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "cyndi_lauper_girls_just_wanna_have_fun",
+    "title": "Girls Just Wanna Have Fun",
+    "artist": "Cyndi Lauper",
+    "bpm": 240.36,
+    "total_notes": 526,
+    "chart_url": "cyndi_lauper_girls_just_wanna_have_fun.json",
+    "audio_url": "cyndi_lauper_girls_just_wanna_have_fun.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "evanescence_going_under",
+    "title": "Going under",
+    "artist": "Evanescence",
+    "bpm": 350.32,
+    "total_notes": 284,
+    "chart_url": "evanescence_going_under.json",
+    "audio_url": "evanescence_going_under.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "bruno_mars_grenade",
+    "title": "Grenade",
+    "artist": "Bruno Mars",
+    "bpm": 221.03,
+    "total_notes": 495,
+    "chart_url": "bruno_mars_grenade.json",
+    "audio_url": "bruno_mars_grenade.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "diego_torres_guapa",
+    "title": "Guapa",
+    "artist": "Diego Torres",
+    "bpm": 280.16,
+    "total_notes": 499,
+    "chart_url": "diego_torres_guapa.json",
+    "audio_url": "diego_torres_guapa.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "alejandra_guzmn_hacer_el_amor_con_otro",
+    "title": "Hacer el amor con otro",
+    "artist": "Alejandra Guzmn",
+    "bpm": 240.0,
+    "total_notes": 442,
+    "chart_url": "alejandra_guzmn_hacer_el_amor_con_otro.json",
+    "audio_url": "alejandra_guzmn_hacer_el_amor_con_otro.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "el_rey_len_hakuna_matata",
     "title": "Hakuna matata",
     "artist": "El Rey Len",
@@ -317,6 +2000,83 @@
     "audio_url": "el_rey_len_hakuna_matata.mp3",
     "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/fa/a5/43/faa5432c-dfc0-1283-eb8c-08efcbace9d2/12UMGIM09776.rgb.jpg/300x300bb.jpg",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/fa/a5/43/faa5432c-dfc0-1283-eb8c-08efcbace9d2/12UMGIM09776.rgb.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "beyonc_halo",
+    "title": "Halo",
+    "artist": "Beyonc",
+    "bpm": 319.7,
+    "total_notes": 587,
+    "chart_url": "beyonc_halo.json",
+    "audio_url": "beyonc_halo.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "aleste_hay_un_lmite",
+    "title": "Hay un lmite",
+    "artist": "Aleste",
+    "bpm": 253.74,
+    "total_notes": 466,
+    "chart_url": "aleste_hay_un_lmite.json",
+    "audio_url": "aleste_hay_un_lmite.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "adele_hello",
+    "title": "Hello",
+    "artist": "Adele",
+    "bpm": 313.34,
+    "total_notes": 821,
+    "chart_url": "adele_hello.json",
+    "audio_url": "adele_hello.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "avicii_hey_brother",
+    "title": "Hey brother",
+    "artist": "Avicii",
+    "bpm": 250.0,
+    "total_notes": 354,
+    "chart_url": "avicii_hey_brother.json",
+    "audio_url": "avicii_hey_brother.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "blancanieves_hiho",
+    "title": "Hi-ho",
+    "artist": "Blancanieves",
+    "bpm": 431.6,
+    "total_notes": 119,
+    "chart_url": "blancanieves_hiho.json",
+    "audio_url": "blancanieves_hiho.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "acdc_highway_to_hell",
+    "title": "Highway To Hell",
+    "artist": "AC/DC",
+    "bpm": 232.14,
+    "total_notes": 428,
+    "chart_url": "acdc_highway_to_hell.json",
+    "audio_url": "acdc_highway_to_hell.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "acdc_highway_to_hell_live",
+    "title": "Highway to Hell (Live)",
+    "artist": "AC/DC",
+    "bpm": 399.35,
+    "total_notes": 560,
+    "chart_url": "acdc_highway_to_hell_live.json",
+    "audio_url": "acdc_highway_to_hell_live.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
   },
   {
     "id": "tarzn_hijo_de_hombre",
@@ -341,6 +2101,149 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music/23/3b/aa/mzi.kugocjka.jpg/300x300bb.jpg"
   },
   {
+    "id": "green_day_holiday",
+    "title": "Holiday",
+    "artist": "Green Day",
+    "bpm": 293.04,
+    "total_notes": 393,
+    "chart_url": "green_day_holiday.json",
+    "audio_url": "green_day_holiday.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "bee_gees_how_deep_is_your_love",
+    "title": "How Deep Is Your Love",
+    "artist": "Bee Gees",
+    "bpm": 240.0,
+    "total_notes": 485,
+    "chart_url": "bee_gees_how_deep_is_your_love.json",
+    "audio_url": "bee_gees_how_deep_is_your_love.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "gloria_estefan_hoy",
+    "title": "Hoy",
+    "artist": "Gloria Estefan",
+    "bpm": 196.0,
+    "total_notes": 452,
+    "chart_url": "gloria_estefan_hoy.json",
+    "audio_url": "gloria_estefan_hoy.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "enrique_iglesias_hroe",
+    "title": "Hroe",
+    "artist": "Enrique Iglesias",
+    "bpm": 304.7,
+    "total_notes": 316,
+    "chart_url": "enrique_iglesias_hroe.json",
+    "audio_url": "enrique_iglesias_hroe.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "chayanne_humanos_a_marte",
+    "title": "Humanos a marte",
+    "artist": "Chayanne",
+    "bpm": 372.0,
+    "total_notes": 760,
+    "chart_url": "chayanne_humanos_a_marte.json",
+    "audio_url": "chayanne_humanos_a_marte.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "bryan_adams_i_do_it_for_you",
+    "title": "I Do It For You",
+    "artist": "Bryan Adams",
+    "bpm": 262.0,
+    "total_notes": 300,
+    "chart_url": "bryan_adams_i_do_it_for_you.json",
+    "audio_url": "bryan_adams_i_do_it_for_you.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "enrique_iglesias_feat_pitbull_i_like_it",
+    "title": "I Like It",
+    "artist": "Enrique Iglesias feat. Pitbull",
+    "bpm": 258.0,
+    "total_notes": 514,
+    "chart_url": "enrique_iglesias_feat_pitbull_i_like_it.json",
+    "audio_url": "enrique_iglesias_feat_pitbull_i_like_it.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "blink_182_i_miss_you",
+    "title": "I Miss You",
+    "artist": "Blink 182",
+    "bpm": 340.0,
+    "total_notes": 400,
+    "chart_url": "blink_182_i_miss_you.json",
+    "audio_url": "blink_182_i_miss_you.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "backstreet_boys_i_want_it_that_way",
+    "title": "I Want It That Way",
+    "artist": "Backstreet Boys",
+    "bpm": 395.8,
+    "total_notes": 370,
+    "chart_url": "backstreet_boys_i_want_it_that_way.json",
+    "audio_url": "backstreet_boys_i_want_it_that_way.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "gloria_gaynor_i_will_survive",
+    "title": "I Will Survive",
+    "artist": "Gloria Gaynor",
+    "bpm": 350.0,
+    "total_notes": 493,
+    "chart_url": "gloria_gaynor_i_will_survive.json",
+    "audio_url": "gloria_gaynor_i_will_survive.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "avril_lavigne_im_with_you",
+    "title": "I'm With You",
+    "artist": "Avril Lavigne",
+    "bpm": 304.0,
+    "total_notes": 451,
+    "chart_url": "avril_lavigne_im_with_you.json",
+    "audio_url": "avril_lavigne_im_with_you.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "beyonc_if_i_were_a_boy",
+    "title": "If I were a boy",
+    "artist": "Beyonc",
+    "bpm": 360.0,
+    "total_notes": 401,
+    "chart_url": "beyonc_if_i_were_a_boy.json",
+    "audio_url": "beyonc_if_i_were_a_boy.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "coldplay_in_my_place",
+    "title": "In My Place",
+    "artist": "Coldplay",
+    "bpm": 392.75,
+    "total_notes": 379,
+    "chart_url": "coldplay_in_my_place.json",
+    "audio_url": "coldplay_in_my_place.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "reik_inolvidable",
     "title": "Inolvidable",
     "artist": "Reik",
@@ -350,6 +2253,72 @@
     "audio_url": "reik_inolvidable.mp3",
     "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Features114/v4/69/34/c5/6934c5c8-fb00-3d46-30bb-7cc9f2cea74d/dj.fplmmfra.jpg/300x300bb.jpg",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Features114/v4/69/34/c5/6934c5c8-fb00-3d46-30bb-7cc9f2cea74d/dj.fplmmfra.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "el_ltimo_de_la_fila_insurreccin",
+    "title": "Insurreccin",
+    "artist": "El ltimo de la Fila",
+    "bpm": 280.0,
+    "total_notes": 202,
+    "chart_url": "el_ltimo_de_la_fila_insurreccin.json",
+    "audio_url": "el_ltimo_de_la_fila_insurreccin.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "alanis_morissette_ironic",
+    "title": "Ironic",
+    "artist": "Alanis Morissette",
+    "bpm": 341.52,
+    "total_notes": 435,
+    "chart_url": "alanis_morissette_ironic.json",
+    "audio_url": "alanis_morissette_ironic.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "babasnicos_irresponsables",
+    "title": "Irresponsables",
+    "artist": "Babasnicos",
+    "bpm": 374.0,
+    "total_notes": 278,
+    "chart_url": "babasnicos_irresponsables.json",
+    "audio_url": "babasnicos_irresponsables.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "bruno_mars_it_will_rain",
+    "title": "It Will Rain",
+    "artist": "Bruno Mars",
+    "bpm": 300.04,
+    "total_notes": 492,
+    "chart_url": "bruno_mars_it_will_rain.json",
+    "audio_url": "bruno_mars_it_will_rain.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "bob_marley_jamming",
+    "title": "Jamming",
+    "artist": "Bob Marley",
+    "bpm": 488.0,
+    "total_notes": 375,
+    "chart_url": "bob_marley_jamming.json",
+    "audio_url": "bob_marley_jamming.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "extremoduro_jesucristo_garcia",
+    "title": "Jesucristo Garcia",
+    "artist": "Extremoduro",
+    "bpm": 280.0,
+    "total_notes": 539,
+    "chart_url": "extremoduro_jesucristo_garcia.json",
+    "audio_url": "extremoduro_jesucristo_garcia.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
   },
   {
     "id": "la_oreja_de_van_gogh_jueves",
@@ -363,6 +2332,39 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/0e/cc/49/0ecc49f9-fb50-6139-3121-5547c3c13cc1/mzi.cggmjmus.jpg/300x300bb.jpg"
   },
   {
+    "id": "bruno_mars_just_the_way_you_are",
+    "title": "Just the Way You Are",
+    "artist": "Bruno Mars",
+    "bpm": 217.8,
+    "total_notes": 431,
+    "chart_url": "bruno_mars_just_the_way_you_are.json",
+    "audio_url": "bruno_mars_just_the_way_you_are.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "culture_club_karma_chameleon",
+    "title": "Karma Chameleon",
+    "artist": "Culture Club",
+    "bpm": 183.0,
+    "total_notes": 440,
+    "chart_url": "culture_club_karma_chameleon.json",
+    "audio_url": "culture_club_karma_chameleon.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "guns_n_roses_knocking_on_heavens_door",
+    "title": "Knocking On Heavens Door",
+    "artist": "Guns N' Roses",
+    "bpm": 264.9,
+    "total_notes": 423,
+    "chart_url": "guns_n_roses_knocking_on_heavens_door.json",
+    "audio_url": "guns_n_roses_knocking_on_heavens_door.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "jarabe_de_palo_la_flaca",
     "title": "La Flaca",
     "artist": "Jarabe de Palo",
@@ -372,6 +2374,83 @@
     "audio_url": "jarabe_de_palo_la_flaca.mp3",
     "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music118/v4/98/cf/d4/98cfd417-b114-5219-ac6e-61b29c2dcb8d/724354214158.jpg/300x300bb.jpg",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music118/v4/98/cf/d4/98cfd417-b114-5219-ac6e-61b29c2dcb8d/724354214158.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "caf_quijano_la_lola",
+    "title": "La Lola",
+    "artist": "Caf Quijano",
+    "bpm": 304.0,
+    "total_notes": 476,
+    "chart_url": "caf_quijano_la_lola.json",
+    "audio_url": "caf_quijano_la_lola.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "ana_beln_y_victor_manuel_la_puerta_de_alcal",
+    "title": "La Puerta de Alcal",
+    "artist": "Ana Beln y Victor Manuel",
+    "bpm": 304.0,
+    "total_notes": 720,
+    "chart_url": "ana_beln_y_victor_manuel_la_puerta_de_alcal.json",
+    "audio_url": "ana_beln_y_victor_manuel_la_puerta_de_alcal.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "carlos_vives_y_shakira_la_bicicleta",
+    "title": "La bicicleta",
+    "artist": "Carlos Vives y Shakira",
+    "bpm": 360.0,
+    "total_notes": 1085,
+    "chart_url": "carlos_vives_y_shakira_la_bicicleta.json",
+    "audio_url": "carlos_vives_y_shakira_la_bicicleta.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "antonio_banderas_y_los_lobos_la_cancin_del_mariachi",
+    "title": "La cancin del Mariachi",
+    "artist": "Antonio Banderas y Los Lobos",
+    "bpm": 195.0,
+    "total_notes": 268,
+    "chart_url": "antonio_banderas_y_los_lobos_la_cancin_del_mariachi.json",
+    "audio_url": "antonio_banderas_y_los_lobos_la_cancin_del_mariachi.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "fito_y_fitipaldis_la_casa_por_el_tejado",
+    "title": "La casa por el tejado",
+    "artist": "Fito y Fitipaldis",
+    "bpm": 300.0,
+    "total_notes": 551,
+    "chart_url": "fito_y_fitipaldis_la_casa_por_el_tejado.json",
+    "audio_url": "fito_y_fitipaldis_la_casa_por_el_tejado.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "emmanuel_la_chica_de_humo",
+    "title": "La chica de humo",
+    "artist": "Emmanuel",
+    "bpm": 409.7,
+    "total_notes": 647,
+    "chart_url": "emmanuel_la_chica_de_humo.json",
+    "audio_url": "emmanuel_la_chica_de_humo.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "cachureos_la_chica_yeye",
+    "title": "La chica ye-ye",
+    "artist": "Cachureos",
+    "bpm": 368.72,
+    "total_notes": 432,
+    "chart_url": "cachureos_la_chica_yeye.json",
+    "audio_url": "cachureos_la_chica_yeye.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
   },
   {
     "id": "eros_ramazzotti_la_cosa_ms_bella",
@@ -396,6 +2475,61 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/f1/04/b8/f104b805-9295-99e1-9c65-2985ceeecdcb/mzi.vvlnoxph.jpg/300x300bb.jpg"
   },
   {
+    "id": "daddy_yankee_la_despedida",
+    "title": "La despedida",
+    "artist": "Daddy Yankee",
+    "bpm": 560.0,
+    "total_notes": 667,
+    "chart_url": "daddy_yankee_la_despedida.json",
+    "audio_url": "daddy_yankee_la_despedida.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "chico_trujillo_la_escoba",
+    "title": "La escoba",
+    "artist": "Chico trujillo",
+    "bpm": 528.4,
+    "total_notes": 351,
+    "chart_url": "chico_trujillo_la_escoba.json",
+    "audio_url": "chico_trujillo_la_escoba.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "dragon_ball_la_fantstica_aventura",
+    "title": "La fantstica aventura",
+    "artist": "Dragon Ball",
+    "bpm": 270.86,
+    "total_notes": 287,
+    "chart_url": "dragon_ball_la_fantstica_aventura.json",
+    "audio_url": "dragon_ball_la_fantstica_aventura.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "carlos_vives_la_gota_fra",
+    "title": "La gota fra",
+    "artist": "Carlos Vives",
+    "bpm": 403.16,
+    "total_notes": 502,
+    "chart_url": "carlos_vives_la_gota_fra.json",
+    "audio_url": "carlos_vives_la_gota_fra.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "gente_de_zona_y_marc_anthony_la_gozadera",
+    "title": "La gozadera",
+    "artist": "Gente de Zona y Marc Anthony",
+    "bpm": 380.04,
+    "total_notes": 663,
+    "chart_url": "gente_de_zona_y_marc_anthony_la_gozadera.json",
+    "audio_url": "gente_de_zona_y_marc_anthony_la_gozadera.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "luis_miguel_la_incondicional",
     "title": "La incondicional",
     "artist": "Luis Miguel",
@@ -416,6 +2550,39 @@
     "audio_url": "rata_blanca_la_leyenda_del_hada_y_el_mago.mp3",
     "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music/86/90/f2/mzi.hztpqkvd.tif/300x300bb.jpg",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music/86/90/f2/mzi.hztpqkvd.tif/300x300bb.jpg"
+  },
+  {
+    "id": "el_canto_del_loco_la_madre_de_jos",
+    "title": "La madre de Jos",
+    "artist": "El Canto del Loco",
+    "bpm": 402.0,
+    "total_notes": 572,
+    "chart_url": "el_canto_del_loco_la_madre_de_jos.json",
+    "audio_url": "el_canto_del_loco_la_madre_de_jos.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "el_rey_len_la_noche_del_amor",
+    "title": "La noche del amor",
+    "artist": "El Rey Len",
+    "bpm": 340.26,
+    "total_notes": 267,
+    "chart_url": "el_rey_len_la_noche_del_amor.json",
+    "audio_url": "el_rey_len_la_noche_del_amor.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "daddy_yankee_la_nueva_y_la_ex",
+    "title": "La nueva y la ex",
+    "artist": "Daddy Yankee",
+    "bpm": 396.02,
+    "total_notes": 457,
+    "chart_url": "daddy_yankee_la_nueva_y_la_ex.json",
+    "audio_url": "daddy_yankee_la_nueva_y_la_ex.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
   },
   {
     "id": "la_oreja_de_van_gogh_la_playa",
@@ -440,6 +2607,17 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music117/v4/b2/ec/2e/b2ec2ef6-0c5d-2b72-c419-12a6b44e3cbe/084247973242.jpg/300x300bb.jpg"
   },
   {
+    "id": "dlg_la_quiero_a_morir",
+    "title": "La quiero a morir",
+    "artist": "DLG",
+    "bpm": 204.0,
+    "total_notes": 392,
+    "chart_url": "dlg_la_quiero_a_morir.json",
+    "audio_url": "dlg_la_quiero_a_morir.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "shakira_y_alejandro_sanz_la_tortura",
     "title": "La tortura",
     "artist": "Shakira y Alejandro Sanz",
@@ -449,6 +2627,17 @@
     "audio_url": "shakira_y_alejandro_sanz_la_tortura.mp3",
     "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/6f/18/1d/6f181d45-8041-cbdc-2c79-bc7374d01207/196872648560.jpg/300x300bb.jpg",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/6f/18/1d/6f181d45-8041-cbdc-2c79-bc7374d01207/196872648560.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "extremoduro_la_vereda_de_la_puerta_de_atrs",
+    "title": "La vereda de la puerta de atrs",
+    "artist": "Extremoduro",
+    "bpm": 282.0,
+    "total_notes": 514,
+    "chart_url": "extremoduro_la_vereda_de_la_puerta_de_atrs.json",
+    "audio_url": "extremoduro_la_vereda_de_la_puerta_de_atrs.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
   },
   {
     "id": "celia_cruz_la_vida_es_un_carnaval",
@@ -464,7 +2653,7 @@
   {
     "id": "man_labios_compartidos",
     "title": "Labios compartidos",
-    "artist": "Maná",
+    "artist": "Man",
     "bpm": 324.0,
     "total_notes": 498,
     "chart_url": "man_labios_compartidos.json",
@@ -485,7 +2674,7 @@
   },
   {
     "id": "shakira_las_de_la_intuicin",
-    "title": "Las de la intuición",
+    "title": "Las de la intuicin",
     "artist": "Shakira",
     "bpm": 125.0,
     "total_notes": 316,
@@ -495,8 +2684,30 @@
     "thumbnail": "https://cdn-images.dzcdn.net/images/cover/ca9c06a7551ad33edace4b2a7d2f5b83/250x250-000000-80-0-0.jpg"
   },
   {
+    "id": "caf_tacuba_las_flores",
+    "title": "Las flores",
+    "artist": "Caf Tacuba",
+    "bpm": 480.0,
+    "total_notes": 354,
+    "chart_url": "caf_tacuba_las_flores.json",
+    "audio_url": "caf_tacuba_las_flores.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "daddy_yankee_limbo",
+    "title": "Limbo",
+    "artist": "Daddy Yankee",
+    "bpm": 250.04,
+    "total_notes": 714,
+    "chart_url": "daddy_yankee_limbo.json",
+    "audio_url": "daddy_yankee_limbo.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "julieta_venegas_limn_y_sal",
-    "title": "Limón y sal",
+    "title": "Limn Y Sal",
     "artist": "Julieta Venegas",
     "bpm": 222.0,
     "total_notes": 428,
@@ -517,6 +2728,61 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/ab/3c/ed/ab3cedd0-03a6-0802-ec42-2f48c4eb118c/074646989128.jpg/300x300bb.jpg"
   },
   {
+    "id": "bon_jovi_livin_on_a_prayer",
+    "title": "Livin' on a Prayer",
+    "artist": "Bon Jovi",
+    "bpm": 244.8,
+    "total_notes": 439,
+    "chart_url": "bon_jovi_livin_on_a_prayer.json",
+    "audio_url": "bon_jovi_livin_on_a_prayer.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "cristian_castro_lloran_las_rosas",
+    "title": "Lloran las rosas",
+    "artist": "Cristian Castro",
+    "bpm": 289.15,
+    "total_notes": 507,
+    "chart_url": "cristian_castro_lloran_las_rosas.json",
+    "audio_url": "cristian_castro_lloran_las_rosas.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "cristian_castro_lloviendo_estrellas",
+    "title": "Lloviendo estrellas",
+    "artist": "Cristian Castro",
+    "bpm": 268.0,
+    "total_notes": 477,
+    "chart_url": "cristian_castro_lloviendo_estrellas.json",
+    "audio_url": "cristian_castro_lloviendo_estrellas.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "ella_baila_sola_lo_echamos_a_suertes",
+    "title": "Lo echamos a suertes",
+    "artist": "Ella Baila Sola",
+    "bpm": 356.0,
+    "total_notes": 769,
+    "chart_url": "ella_baila_sola_lo_echamos_a_suertes.json",
+    "audio_url": "ella_baila_sola_lo_echamos_a_suertes.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "alejandro_sanz_lo_ves",
+    "title": "Lo ves?",
+    "artist": "Alejandro Sanz",
+    "bpm": 480.0,
+    "total_notes": 401,
+    "chart_url": "alejandro_sanz_lo_ves.json",
+    "audio_url": "alejandro_sanz_lo_ves.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "shakira_loba",
     "title": "Loba",
     "artist": "Shakira",
@@ -526,6 +2792,28 @@
     "audio_url": "shakira_loba.mp3",
     "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music/51/e4/1a/mzi.hvpbrkmc.jpg/300x300bb.jpg",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music/51/e4/1a/mzi.hvpbrkmc.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "chico_trujillo_loca",
+    "title": "Loca",
+    "artist": "Chico Trujillo",
+    "bpm": 387.36,
+    "total_notes": 406,
+    "chart_url": "chico_trujillo_loca.json",
+    "audio_url": "chico_trujillo_loca.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "bruno_mars_locked_out_of_heaven",
+    "title": "Locked Out Of Heaven",
+    "artist": "Bruno Mars",
+    "bpm": 147.0,
+    "total_notes": 471,
+    "chart_url": "bruno_mars_locked_out_of_heaven.json",
+    "audio_url": "bruno_mars_locked_out_of_heaven.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
   },
   {
     "id": "enrique_iglesias_ft_romeo_santos_loco",
@@ -539,8 +2827,41 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/d4/ec/f5/d4ecf56c-2fb8-d529-b6bd-27ffcd43bb17/00602547230461.rgb.jpg/300x300bb.jpg"
   },
   {
+    "id": "alejandro_sanz_y_alicia_keys_looking_for_paradise",
+    "title": "Looking for Paradise",
+    "artist": "Alejandro Sanz y Alicia Keys",
+    "bpm": 356.0,
+    "total_notes": 705,
+    "chart_url": "alejandro_sanz_y_alicia_keys_looking_for_paradise.json",
+    "audio_url": "alejandro_sanz_y_alicia_keys_looking_for_paradise.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "ana_torroja_los_amantes",
+    "title": "Los Amantes",
+    "artist": "Ana Torroja",
+    "bpm": 286.2,
+    "total_notes": 428,
+    "chart_url": "ana_torroja_los_amantes.json",
+    "audio_url": "ana_torroja_los_amantes.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "daddy_yankee_lovumba",
+    "title": "Lovumba",
+    "artist": "Daddy Yankee",
+    "bpm": 242.02,
+    "total_notes": 704,
+    "chart_url": "daddy_yankee_lovumba.json",
+    "audio_url": "daddy_yankee_lovumba.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "dragon_ball_z_luz_fuego_destruccin",
-    "title": "Luz, fuego, destrucción",
+    "title": "Luz, fuego, destruccin",
     "artist": "Dragon Ball Z",
     "bpm": 320.08,
     "total_notes": 216,
@@ -548,6 +2869,50 @@
     "audio_url": "dragon_ball_z_luz_fuego_destruccin.mp3",
     "cover_url": "https://cdn-images.dzcdn.net/images/cover/ad52402a67be4e7995d7da514c4cdd9f/250x250-000000-80-0-0.jpg",
     "thumbnail": "https://cdn-images.dzcdn.net/images/cover/ad52402a67be4e7995d7da514c4cdd9f/250x250-000000-80-0-0.jpg"
+  },
+  {
+    "id": "bebe_malo",
+    "title": "Malo",
+    "artist": "Bebe",
+    "bpm": 216.0,
+    "total_notes": 769,
+    "chart_url": "bebe_malo.json",
+    "audio_url": "bebe_malo.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "abba_mamma_mia",
+    "title": "Mamma Mia",
+    "artist": "ABBA",
+    "bpm": 273.4,
+    "total_notes": 459,
+    "chart_url": "abba_mamma_mia.json",
+    "audio_url": "abba_mamma_mia.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "digimon_mariposa",
+    "title": "Mariposa",
+    "artist": "Digimon",
+    "bpm": 329.9,
+    "total_notes": 217,
+    "chart_url": "digimon_mariposa.json",
+    "audio_url": "digimon_mariposa.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "fito_paez_mariposa_technicolor",
+    "title": "Mariposa Technicolor",
+    "artist": "Fito Paez",
+    "bpm": 583.9998637333651,
+    "total_notes": 453,
+    "chart_url": "fito_paez_mariposa_technicolor.json",
+    "audio_url": "fito_paez_mariposa_technicolor.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
   },
   {
     "id": "man_mariposa_traicionera",
@@ -561,6 +2926,61 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/82/e3/bd/82e3bdd0-1319-5dfb-e384-968f6906f994/mzi.gtrsvzlb.jpg/300x300bb.jpg"
   },
   {
+    "id": "bruno_mars_marry_you",
+    "title": "Marry you",
+    "artist": "Bruno Mars",
+    "bpm": 394.22,
+    "total_notes": 552,
+    "chart_url": "bruno_mars_marry_you.json",
+    "audio_url": "bruno_mars_marry_you.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "amaral_marta_sebas_guille_y_los_dems",
+    "title": "Marta, Sebas, Guille y los dems",
+    "artist": "Amaral",
+    "bpm": 205.0,
+    "total_notes": 432,
+    "chart_url": "amaral_marta_sebas_guille_y_los_dems.json",
+    "audio_url": "amaral_marta_sebas_guille_y_los_dems.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "chocolate_mayonesa",
+    "title": "Mayonesa",
+    "artist": "Chocolate",
+    "bpm": 388.32,
+    "total_notes": 459,
+    "chart_url": "chocolate_mayonesa.json",
+    "audio_url": "chocolate_mayonesa.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "fito_y_fitipaldis_me_equivocara_otra_vez",
+    "title": "Me Equivocara Otra Vez",
+    "artist": "Fito Y Fitipaldis",
+    "bpm": 265.8,
+    "total_notes": 491,
+    "chart_url": "fito_y_fitipaldis_me_equivocara_otra_vez.json",
+    "audio_url": "fito_y_fitipaldis_me_equivocara_otra_vez.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "alex_ubago_me_arrepiento",
+    "title": "Me arrepiento",
+    "artist": "Alex Ubago",
+    "bpm": 256.02,
+    "total_notes": 433,
+    "chart_url": "alex_ubago_me_arrepiento.json",
+    "audio_url": "alex_ubago_me_arrepiento.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "alejandro_fernndez_me_dediqu_a_perderte",
     "title": "Me dediqu a perderte",
     "artist": "Alejandro Fernndez",
@@ -570,6 +2990,17 @@
     "audio_url": "alejandro_fernndez_me_dediqu_a_perderte.mp3",
     "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/75/6a/d9/756ad92c-2d6c-5d28-30c9-d5b78288fa79/mzi.yytcitvy.jpg/300x300bb.jpg",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/75/6a/d9/756ad92c-2d6c-5d28-30c9-d5b78288fa79/mzi.yytcitvy.jpg/300x300bb.jpg"
+  },
+  {
+    "id": "chayanne_me_enamor_de_ti",
+    "title": "Me enamor de ti",
+    "artist": "Chayanne",
+    "bpm": 399.62,
+    "total_notes": 516,
+    "chart_url": "chayanne_me_enamor_de_ti.json",
+    "audio_url": "chayanne_me_enamor_de_ti.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
   },
   {
     "id": "roco_durcal_me_gustas_mucho",
@@ -583,6 +3014,17 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Features125/v4/54/57/de/5457de7d-5b62-b880-9f96-f66efb587cb1/dj.rvqxjtjn.jpg/300x300bb.jpg"
   },
   {
+    "id": "alejandro_fernndez_me_hace_tanto_bien",
+    "title": "Me hace tanto bien",
+    "artist": "Alejandro Fernndez",
+    "bpm": 420.28,
+    "total_notes": 518,
+    "chart_url": "alejandro_fernndez_me_hace_tanto_bien.json",
+    "audio_url": "alejandro_fernndez_me_hace_tanto_bien.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "julieta_venegas_me_voy",
     "title": "Me voy",
     "artist": "Julieta Venegas",
@@ -594,9 +3036,20 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/20/02/1e/20021e77-06d1-b186-48ba-4b42eb3399d3/888880242693.jpg/300x300bb.jpg"
   },
   {
+    "id": "camilo_sesto_melina",
+    "title": "Melina",
+    "artist": "Camilo Sesto",
+    "bpm": 356.0,
+    "total_notes": 347,
+    "chart_url": "camilo_sesto_melina.json",
+    "audio_url": "camilo_sesto_melina.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "alejandro_arnais_mi_corazn_encantado",
-    "title": "Mi corazón encantado",
-    "artist": "Dragon Ball GT",
+    "title": "Mi corazn encantado",
+    "artist": "Alejandro Arnais",
     "bpm": 267.48,
     "total_notes": 237,
     "chart_url": "alejandro_arnais_mi_corazn_encantado.json",
@@ -605,8 +3058,85 @@
     "thumbnail": "https://cdn-images.dzcdn.net/images/cover/e9b6a2e4369e29930a2f8983a03811c9/250x250-000000-80-0-0.jpg"
   },
   {
+    "id": "31_minutos_mi_equilibrio_espiritual",
+    "title": "Mi equilibrio espiritual",
+    "artist": "31 Minutos",
+    "bpm": 269.96,
+    "total_notes": 387,
+    "chart_url": "31_minutos_mi_equilibrio_espiritual.json",
+    "audio_url": "31_minutos_mi_equilibrio_espiritual.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "aventura_mi_hermanita",
+    "title": "Mi hermanita",
+    "artist": "Aventura",
+    "bpm": 252.0,
+    "total_notes": 516,
+    "chart_url": "aventura_mi_hermanita.json",
+    "audio_url": "aventura_mi_hermanita.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "gianluca_grignani_mi_historia_entre_tus_dedos",
+    "title": "Mi historia entre tus dedos",
+    "artist": "Gianluca Grignani",
+    "bpm": 315.96,
+    "total_notes": 619,
+    "chart_url": "gianluca_grignani_mi_historia_entre_tus_dedos.json",
+    "audio_url": "gianluca_grignani_mi_historia_entre_tus_dedos.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "andrs_de_len_mi_loco_amor_de_verano",
+    "title": "Mi loco amor de verano",
+    "artist": "Andrs de Len",
+    "bpm": 260.9,
+    "total_notes": 593,
+    "chart_url": "andrs_de_len_mi_loco_amor_de_verano.json",
+    "audio_url": "andrs_de_len_mi_loco_amor_de_verano.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "alejandro_sanz_mi_marciana",
+    "title": "Mi marciana",
+    "artist": "Alejandro Sanz",
+    "bpm": 371.0,
+    "total_notes": 697,
+    "chart_url": "alejandro_sanz_mi_marciana.json",
+    "audio_url": "alejandro_sanz_mi_marciana.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "carlos_baute_mi_medicina",
+    "title": "Mi medicina",
+    "artist": "Carlos Baute",
+    "bpm": 350.0,
+    "total_notes": 554,
+    "chart_url": "carlos_baute_mi_medicina.json",
+    "audio_url": "carlos_baute_mi_medicina.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "31_minutos_mi_mueca_me_habl",
+    "title": "Mi mueca me habl",
+    "artist": "31 Minutos",
+    "bpm": 395.56,
+    "total_notes": 323,
+    "chart_url": "31_minutos_mi_mueca_me_habl.json",
+    "audio_url": "31_minutos_mi_mueca_me_habl.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "enanitos_verdes_mi_primer_da_sin_ti",
-    "title": "Mi primer día sin ti",
+    "title": "Mi primer da sin ti",
     "artist": "Enanitos Verdes",
     "bpm": 232.0,
     "total_notes": 540,
@@ -614,6 +3144,50 @@
     "audio_url": "enanitos_verdes_mi_primer_da_sin_ti.mp3",
     "cover_url": "https://cdn-images.dzcdn.net/images/cover/68e380c17c5ce1400558ddadf2083f62/250x250-000000-80-0-0.jpg",
     "thumbnail": "https://cdn-images.dzcdn.net/images/cover/68e380c17c5ce1400558ddadf2083f62/250x250-000000-80-0-0.jpg"
+  },
+  {
+    "id": "david_bisbal_mi_princesa",
+    "title": "Mi princesa",
+    "artist": "David Bisbal",
+    "bpm": 240.0,
+    "total_notes": 562,
+    "chart_url": "david_bisbal_mi_princesa.json",
+    "audio_url": "david_bisbal_mi_princesa.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "alejandro_sanz_mi_soledad_y_yo",
+    "title": "Mi soledad y yo",
+    "artist": "Alejandro Sanz",
+    "bpm": 246.0,
+    "total_notes": 663,
+    "chart_url": "alejandro_sanz_mi_soledad_y_yo.json",
+    "audio_url": "alejandro_sanz_mi_soledad_y_yo.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "gloria_estefan_mi_tierra",
+    "title": "Mi tierra",
+    "artist": "Gloria Estefan",
+    "bpm": 397.2,
+    "total_notes": 577,
+    "chart_url": "gloria_estefan_mi_tierra.json",
+    "audio_url": "gloria_estefan_mi_tierra.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "david_bisbal_y_elena_gadel_mienteme",
+    "title": "Mienteme",
+    "artist": "David Bisbal Y Elena Gadel",
+    "bpm": 350.0,
+    "total_notes": 644,
+    "chart_url": "david_bisbal_y_elena_gadel_mienteme.json",
+    "audio_url": "david_bisbal_y_elena_gadel_mienteme.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
   },
   {
     "id": "camila_mientes",
@@ -640,7 +3214,7 @@
   {
     "id": "mgo_de_oz_molinos_de_viento",
     "title": "Molinos de viento",
-    "artist": "Mägo de Oz",
+    "artist": "Mgo de Oz",
     "bpm": 276.0,
     "total_notes": 573,
     "chart_url": "mgo_de_oz_molinos_de_viento.json",
@@ -649,15 +3223,136 @@
     "thumbnail": "https://cdn-images.dzcdn.net/images/cover/ef455faf2313988040599b78b99aeef6/250x250-000000-80-0-0.jpg"
   },
   {
+    "id": "abba_money_money_money",
+    "title": "Money Money Money",
+    "artist": "ABBA",
+    "bpm": 339.2,
+    "total_notes": 360,
+    "chart_url": "abba_money_money_money.json",
+    "audio_url": "abba_money_money_money.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "extreme_more_than_words",
+    "title": "More Than Words",
+    "artist": "Extreme",
+    "bpm": 184.0,
+    "total_notes": 407,
+    "chart_url": "extreme_more_than_words.json",
+    "audio_url": "extreme_more_than_words.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "amaral_morira_por_vos",
+    "title": "Morira por vos",
+    "artist": "Amaral",
+    "bpm": 300.0,
+    "total_notes": 374,
+    "chart_url": "amaral_morira_por_vos.json",
+    "audio_url": "amaral_morira_por_vos.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "rata_blanca_mujer_amante",
     "title": "Mujer amante",
-    "artist": "Rata Blanca",
+    "artist": "Rata blanca",
     "bpm": 230.0,
     "total_notes": 402,
     "chart_url": "rata_blanca_mujer_amante.json",
     "audio_url": "rata_blanca_mujer_amante.mp3",
     "cover_url": "https://cdn-images.dzcdn.net/images/cover/f080ce8cec9bbc9820ddbdce47fdbf63/250x250-000000-80-0-0.jpg",
     "thumbnail": "https://cdn-images.dzcdn.net/images/cover/f080ce8cec9bbc9820ddbdce47fdbf63/250x250-000000-80-0-0.jpg"
+  },
+  {
+    "id": "francisca_valenzuela_murdete_la_lengua",
+    "title": "Murdete la lengua",
+    "artist": "Francisca Valenzuela",
+    "bpm": 262.32,
+    "total_notes": 359,
+    "chart_url": "francisca_valenzuela_murdete_la_lengua.json",
+    "audio_url": "francisca_valenzuela_murdete_la_lengua.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "avril_lavigne_my_happy_ending",
+    "title": "My Happy Ending",
+    "artist": "Avril Lavigne",
+    "bpm": 340.0,
+    "total_notes": 560,
+    "chart_url": "avril_lavigne_my_happy_ending.json",
+    "audio_url": "avril_lavigne_my_happy_ending.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "cline_dion_my_heart_will_go_on",
+    "title": "My Heart Will Go On",
+    "artist": "Cline Dion",
+    "bpm": 384.0,
+    "total_notes": 282,
+    "chart_url": "cline_dion_my_heart_will_go_on.json",
+    "audio_url": "cline_dion_my_heart_will_go_on.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "evanescence_my_inmortal",
+    "title": "My Inmortal",
+    "artist": "Evanescence",
+    "bpm": 149.65,
+    "total_notes": 314,
+    "chart_url": "evanescence_my_inmortal.json",
+    "audio_url": "evanescence_my_inmortal.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "frank_sinatra_my_way",
+    "title": "My Way",
+    "artist": "Frank Sinatra",
+    "bpm": 305.0,
+    "total_notes": 278,
+    "chart_url": "frank_sinatra_my_way.json",
+    "audio_url": "frank_sinatra_my_way.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "caf_quijano_nada_de_n",
+    "title": "Nada de n",
+    "artist": "Caf Quijano",
+    "bpm": 294.0,
+    "total_notes": 547,
+    "chart_url": "caf_quijano_nada_de_n.json",
+    "audio_url": "caf_quijano_nada_de_n.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "coti_y_andrs_calamaro_nada_fue_un_error",
+    "title": "Nada fue un error",
+    "artist": "Coti y Andrs Calamaro",
+    "bpm": 277.04,
+    "total_notes": 422,
+    "chart_url": "coti_y_andrs_calamaro_nada_fue_un_error.json",
+    "audio_url": "coti_y_andrs_calamaro_nada_fue_un_error.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "alaska_y_dinarama_ni_t_ni_nadie",
+    "title": "Ni t ni nadie",
+    "artist": "Alaska y Dinarama",
+    "bpm": 275.64,
+    "total_notes": 385,
+    "chart_url": "alaska_y_dinarama_ni_t_ni_nadie.json",
+    "audio_url": "alaska_y_dinarama_ni_t_ni_nadie.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
   },
   {
     "id": "paulina_rubio_ni_una_sola_palabra",
@@ -671,8 +3366,63 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music128/v4/eb/61/cd/eb61cd80-8caa-9ae7-3a2d-527f71620d0b/00600753472392.rgb.jpg/300x300bb.jpg"
   },
   {
+    "id": "chino__nacho_nia_bonita",
+    "title": "Nia bonita",
+    "artist": "Chino & Nacho",
+    "bpm": 480.0,
+    "total_notes": 706,
+    "chart_url": "chino__nacho_nia_bonita.json",
+    "audio_url": "chino__nacho_nia_bonita.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "bob_marley_no_woman_no_cry",
+    "title": "No Woman No Cry",
+    "artist": "Bob Marley",
+    "bpm": 310.0,
+    "total_notes": 472,
+    "chart_url": "bob_marley_no_woman_no_cry.json",
+    "audio_url": "bob_marley_no_woman_no_cry.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "antonio_flores_no_dudara",
+    "title": "No dudara",
+    "artist": "Antonio Flores",
+    "bpm": 280.0,
+    "total_notes": 496,
+    "chart_url": "antonio_flores_no_dudara.json",
+    "audio_url": "antonio_flores_no_dudara.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "alejandro_sanz_no_es_lo_mismo",
+    "title": "No es lo mismo",
+    "artist": "Alejandro Sanz",
+    "bpm": 320.0,
+    "total_notes": 1044,
+    "chart_url": "alejandro_sanz_no_es_lo_mismo.json",
+    "audio_url": "alejandro_sanz_no_es_lo_mismo.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "eros_ramazzotti_y_ricky_martin_no_estamos_solos",
+    "title": "No estamos solos",
+    "artist": "Eros Ramazzotti y Ricky Martin",
+    "bpm": 240.0,
+    "total_notes": 409,
+    "chart_url": "eros_ramazzotti_y_ricky_martin_no_estamos_solos.json",
+    "audio_url": "eros_ramazzotti_y_ricky_martin_no_estamos_solos.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "jennifer_lopez_y_marc_anthony_no_me_ames_versin_balada",
-    "title": "No me ames",
+    "title": "No me ames (versin balada)",
     "artist": "Jennifer Lopez y Marc Anthony",
     "bpm": 318.0,
     "total_notes": 730,
@@ -680,6 +3430,39 @@
     "audio_url": "jennifer_lopez_y_marc_anthony_no_me_ames_versin_balada.mp3",
     "cover_url": "https://cdn-images.dzcdn.net/images/cover/c6385c391e17a1c16beccb7ef7da976f/250x250-000000-80-0-0.jpg",
     "thumbnail": "https://cdn-images.dzcdn.net/images/cover/c6385c391e17a1c16beccb7ef7da976f/250x250-000000-80-0-0.jpg"
+  },
+  {
+    "id": "attaque_77_no_me_arrepiento_de_este_amor",
+    "title": "No me arrepiento de este amor",
+    "artist": "Attaque 77",
+    "bpm": 380.84,
+    "total_notes": 420,
+    "chart_url": "attaque_77_no_me_arrepiento_de_este_amor.json",
+    "audio_url": "attaque_77_no_me_arrepiento_de_este_amor.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "gilda_no_me_arrepiento_de_este_amor",
+    "title": "No me arrepiento de este amor",
+    "artist": "Gilda",
+    "bpm": 235.0,
+    "total_notes": 496,
+    "chart_url": "gilda_no_me_arrepiento_de_este_amor.json",
+    "audio_url": "gilda_no_me_arrepiento_de_este_amor.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "alejandro_sanz_no_me_compares",
+    "title": "No me compares",
+    "artist": "Alejandro Sanz",
+    "bpm": 284.0,
+    "total_notes": 624,
+    "chart_url": "alejandro_sanz_no_me_compares.json",
+    "audio_url": "alejandro_sanz_no_me_compares.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
   },
   {
     "id": "enrique_iglesias_wisin__yandel_no_me_digas_que_no",
@@ -704,6 +3487,61 @@
     "thumbnail": "https://cdn-images.dzcdn.net/images/cover/ab32fe4d2e0e95cb6399b127e4fd0ab1/250x250-000000-80-0-0.jpg"
   },
   {
+    "id": "abel_pintos_no_me_olvides",
+    "title": "No me olvides",
+    "artist": "Abel Pintos",
+    "bpm": 376.13,
+    "total_notes": 505,
+    "chart_url": "abel_pintos_no_me_olvides.json",
+    "audio_url": "abel_pintos_no_me_olvides.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "alicia_keys_no_one",
+    "title": "No one",
+    "artist": "Alicia Keys",
+    "bpm": 179.8,
+    "total_notes": 528,
+    "chart_url": "alicia_keys_no_one.json",
+    "audio_url": "alicia_keys_no_one.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "grease_noches_de_verano",
+    "title": "Noches de verano",
+    "artist": "Grease",
+    "bpm": 452.0,
+    "total_notes": 365,
+    "chart_url": "grease_noches_de_verano.json",
+    "audio_url": "grease_noches_de_verano.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "bob_feat_bruno_mars_nothin_on_you",
+    "title": "Nothin' on you",
+    "artist": "B.o.B Feat. Bruno Mars",
+    "bpm": 415.92,
+    "total_notes": 659,
+    "chart_url": "bob_feat_bruno_mars_nothin_on_you.json",
+    "audio_url": "bob_feat_bruno_mars_nothin_on_you.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "guns_n_roses_november_rain",
+    "title": "November rain",
+    "artist": "Guns N' Roses",
+    "bpm": 314.72,
+    "total_notes": 648,
+    "chart_url": "guns_n_roses_november_rain.json",
+    "audio_url": "guns_n_roses_november_rain.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "reik_noviembre_sin_ti",
     "title": "Noviembre sin ti",
     "artist": "Reik",
@@ -715,8 +3553,41 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/fd/22/aa/fd22aa0f-42cb-c4ce-3140-1318e134c3ee/mzi.uahtvkpr.jpg/300x300bb.jpg"
   },
   {
+    "id": "alejandro_sanz_nuestro_amor_ser_leyenda",
+    "title": "Nuestro amor ser leyenda",
+    "artist": "Alejandro Sanz",
+    "bpm": 240.0,
+    "total_notes": 452,
+    "chart_url": "alejandro_sanz_nuestro_amor_ser_leyenda.json",
+    "audio_url": "alejandro_sanz_nuestro_amor_ser_leyenda.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "el_sueo_de_morfeo_nunca_volver",
+    "title": "Nunca volver",
+    "artist": "El Sueo de Morfeo",
+    "bpm": 240.0,
+    "total_notes": 401,
+    "chart_url": "el_sueo_de_morfeo_nunca_volver.json",
+    "audio_url": "el_sueo_de_morfeo_nunca_volver.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "doraemon_ojala_mis_sueos",
+    "title": "Ojala mis sueos",
+    "artist": "Doraemon",
+    "bpm": 121.0,
+    "total_notes": 111,
+    "chart_url": "doraemon_ojala_mis_sueos.json",
+    "audio_url": "doraemon_ojala_mis_sueos.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "shakira_ojos_as",
-    "title": "Ojos así",
+    "title": "Ojos as",
     "artist": "Shakira",
     "bpm": 254.02,
     "total_notes": 576,
@@ -726,8 +3597,19 @@
     "thumbnail": "https://cdn-images.dzcdn.net/images/cover/a62a4c9224f2869b22c5b56f6e0b91e0/250x250-000000-80-0-0.jpg"
   },
   {
+    "id": "campeones_oliver_y_benji_oliver_y_benji",
+    "title": "Oliver y Benji",
+    "artist": "Campeones: Oliver y Benji",
+    "bpm": 267.12,
+    "total_notes": 438,
+    "chart_url": "campeones_oliver_y_benji_oliver_y_benji.json",
+    "audio_url": "campeones_oliver_y_benji_oliver_y_benji.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "pimpinela_olvdame_y_pega_la_vuelta",
-    "title": "Olvídame y pega la vuelta",
+    "title": "Olvdame y pega la vuelta",
     "artist": "Pimpinela",
     "bpm": 308.8,
     "total_notes": 495,
@@ -737,15 +3619,257 @@
     "thumbnail": "https://cdn-images.dzcdn.net/images/cover/77cc019ebe6a6c055dbda33286bfa59b/250x250-000000-80-0-0.jpg"
   },
   {
+    "id": "blondie_one_way_or_another",
+    "title": "One way or another",
+    "artist": "Blondie",
+    "bpm": 397.5,
+    "total_notes": 538,
+    "chart_url": "blondie_one_way_or_another.json",
+    "audio_url": "blondie_one_way_or_another.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "britney_spears_oops_i_did_it_again",
+    "title": "Oops! I did it again",
+    "artist": "Britney Spears",
+    "bpm": 300.0,
+    "total_notes": 504,
+    "chart_url": "britney_spears_oops_i_did_it_again.json",
+    "audio_url": "britney_spears_oops_i_did_it_again.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "eros_ramazzotti_otra_como_t",
+    "title": "Otra como t",
+    "artist": "Eros Ramazzotti",
+    "bpm": 355.32,
+    "total_notes": 481,
+    "chart_url": "eros_ramazzotti_otra_como_t.json",
+    "audio_url": "eros_ramazzotti_otra_como_t.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "el_barrio_pa_madrid",
+    "title": "Pa' Madrid",
+    "artist": "El Barrio",
+    "bpm": 334.0,
+    "total_notes": 896,
+    "chart_url": "el_barrio_pa_madrid.json",
+    "audio_url": "el_barrio_pa_madrid.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "antonio_carmona_y_alejandro_sanz_para_que_t_no_llores",
+    "title": "Para que t no llores",
+    "artist": "Antonio Carmona y Alejandro Sanz",
+    "bpm": 360.0,
+    "total_notes": 837,
+    "chart_url": "antonio_carmona_y_alejandro_sanz_para_que_t_no_llores.json",
+    "audio_url": "antonio_carmona_y_alejandro_sanz_para_que_t_no_llores.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "el_sueo_de_morfeo_para_toda_la_vida",
+    "title": "Para toda la vida",
+    "artist": "El Sueo de Morfeo",
+    "bpm": 308.0,
+    "total_notes": 522,
+    "chart_url": "el_sueo_de_morfeo_para_toda_la_vida.json",
+    "audio_url": "el_sueo_de_morfeo_para_toda_la_vida.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "coldplay_paradise",
+    "title": "Paradise",
+    "artist": "Coldplay",
+    "bpm": 279.32,
+    "total_notes": 525,
+    "chart_url": "coldplay_paradise.json",
+    "audio_url": "coldplay_paradise.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "black_sabbath_paranoid",
+    "title": "Paranoid",
+    "artist": "Black Sabbath",
+    "bpm": 326.86,
+    "total_notes": 199,
+    "chart_url": "black_sabbath_paranoid.json",
+    "audio_url": "black_sabbath_paranoid.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "estopa_partiendo_la_pana",
+    "title": "Partiendo la pana",
+    "artist": "Estopa",
+    "bpm": 264.0,
+    "total_notes": 719,
+    "chart_url": "estopa_partiendo_la_pana.json",
+    "audio_url": "estopa_partiendo_la_pana.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "estopa_pastillas_de_freno",
+    "title": "Pastillas de freno",
+    "artist": "Estopa",
+    "bpm": 459.9992333346111,
+    "total_notes": 554,
+    "chart_url": "estopa_pastillas_de_freno.json",
+    "audio_url": "estopa_pastillas_de_freno.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "diego_torres_penlope",
+    "title": "Penlope",
+    "artist": "Diego Torres",
+    "bpm": 400.0,
+    "total_notes": 583,
+    "chart_url": "diego_torres_penlope.json",
+    "audio_url": "diego_torres_penlope.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "depeche_mode_personal_jesus",
+    "title": "Personal Jesus",
+    "artist": "Depeche Mode",
+    "bpm": 270.0,
+    "total_notes": 254,
+    "chart_url": "depeche_mode_personal_jesus.json",
+    "audio_url": "depeche_mode_personal_jesus.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "el_canto_del_loco_peter_pan",
+    "title": "Peter Pan",
+    "artist": "El Canto del Loco",
+    "bpm": 370.0,
+    "total_notes": 674,
+    "chart_url": "el_canto_del_loco_peter_pan.json",
+    "audio_url": "el_canto_del_loco_peter_pan.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "alejandro_sanz_pisando_fuerte",
+    "title": "Pisando fuerte",
+    "artist": "Alejandro Sanz",
+    "bpm": 274.16,
+    "total_notes": 543,
+    "chart_url": "alejandro_sanz_pisando_fuerte.json",
+    "audio_url": "alejandro_sanz_pisando_fuerte.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "elvis_crespo_pntame",
+    "title": "Pntame",
+    "artist": "Elvis Crespo",
+    "bpm": 120.0,
+    "total_notes": 489,
+    "chart_url": "elvis_crespo_pntame.json",
+    "audio_url": "elvis_crespo_pntame.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "fito_y_fitipaldis_por_la_boca_vive_el_pez",
+    "title": "Por La Boca Vive El Pez",
+    "artist": "Fito Y Fitipaldis",
+    "bpm": 302.42,
+    "total_notes": 468,
+    "chart_url": "fito_y_fitipaldis_por_la_boca_vive_el_pez.json",
+    "audio_url": "fito_y_fitipaldis_por_la_boca_vive_el_pez.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "cristian_castro_por_amarte_as",
+    "title": "Por amarte as",
+    "artist": "Cristian Castro",
+    "bpm": 240.0,
+    "total_notes": 627,
+    "chart_url": "cristian_castro_por_amarte_as.json",
+    "audio_url": "cristian_castro_por_amarte_as.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "andrea_bocelli_por_ti_volar",
+    "title": "Por ti volar",
+    "artist": "Andrea Bocelli",
+    "bpm": 240.0,
+    "total_notes": 328,
+    "chart_url": "andrea_bocelli_por_ti_volar.json",
+    "audio_url": "andrea_bocelli_por_ti_volar.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "aventura_por_un_segundo",
+    "title": "Por un segundo",
+    "artist": "Aventura",
+    "bpm": 300.0,
+    "total_notes": 898,
+    "chart_url": "aventura_por_un_segundo.json",
+    "audio_url": "aventura_por_un_segundo.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "daddy_yankee_pose",
+    "title": "Pose",
+    "artist": "Daddy Yankee",
+    "bpm": 234.0,
+    "total_notes": 366,
+    "chart_url": "daddy_yankee_pose.json",
+    "audio_url": "daddy_yankee_pose.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "david_demara_precisamente_ahora",
+    "title": "Precisamente Ahora",
+    "artist": "David DeMara",
+    "bpm": 280.0,
+    "total_notes": 668,
+    "chart_url": "david_demara_precisamente_ahora.json",
+    "audio_url": "david_demara_precisamente_ahora.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "aladdn_prncipe_al",
-    "title": "Príncipe Alí",
-    "artist": "Aladdín",
+    "title": "Prncipe Al",
+    "artist": "Aladdn",
     "bpm": 368.06,
     "total_notes": 429,
     "chart_url": "aladdn_prncipe_al.json",
     "audio_url": "aladdn_prncipe_al.mp3",
     "cover_url": "https://cdn-images.dzcdn.net/images/cover/4576902f74cecabb871378d56fbcf789/250x250-000000-80-0-0.jpg",
     "thumbnail": "https://cdn-images.dzcdn.net/images/cover/4576902f74cecabb871378d56fbcf789/250x250-000000-80-0-0.jpg"
+  },
+  {
+    "id": "chichi_peralta_procura",
+    "title": "Procura",
+    "artist": "Chichi Peralta",
+    "bpm": 408.44,
+    "total_notes": 680,
+    "chart_url": "chichi_peralta_procura.json",
+    "audio_url": "chichi_peralta_procura.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
   },
   {
     "id": "romeo_santos_propuesta_indecente",
@@ -759,6 +3883,61 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/8f/fc/6e/8ffc6efb-353f-46ac-eeb6-8247c01cfc87/886444383691.jpg/300x300bb.jpg"
   },
   {
+    "id": "chayanne_provcame",
+    "title": "Provcame",
+    "artist": "Chayanne",
+    "bpm": 479.1,
+    "total_notes": 608,
+    "chart_url": "chayanne_provcame.json",
+    "audio_url": "chayanne_provcame.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "el_canto_del_loco_y_amaia_montero_puede_ser",
+    "title": "Puede ser",
+    "artist": "El Canto del Loco y Amaia Montero",
+    "bpm": 376.08,
+    "total_notes": 572,
+    "chart_url": "el_canto_del_loco_y_amaia_montero_puede_ser.json",
+    "audio_url": "el_canto_del_loco_y_amaia_montero_puede_ser.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "gustavo_cerati_puente",
+    "title": "Puente",
+    "artist": "Gustavo Cerati",
+    "bpm": 305.46,
+    "total_notes": 283,
+    "chart_url": "gustavo_cerati_puente.json",
+    "audio_url": "gustavo_cerati_puente.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "burning_qu_hace_una_chica_como_t_en_un_sitio_como_este",
+    "title": "Qu hace una chica como t en un sitio como este?",
+    "artist": "Burning",
+    "bpm": 229.0,
+    "total_notes": 315,
+    "chart_url": "burning_qu_hace_una_chica_como_t_en_un_sitio_como_este.json",
+    "audio_url": "burning_qu_hace_una_chica_como_t_en_un_sitio_como_este.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "alex_ubago_qu_pides_t",
+    "title": "Qu pides t?",
+    "artist": "Alex Ubago",
+    "bpm": 240.0,
+    "total_notes": 646,
+    "chart_url": "alex_ubago_qu_pides_t.json",
+    "audio_url": "alex_ubago_qu_pides_t.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "sin_bandera_que_lloro",
     "title": "Que lloro",
     "artist": "Sin Bandera",
@@ -770,6 +3949,17 @@
     "thumbnail": "https://cdn-images.dzcdn.net/images/cover/3d3ec96d57cc2b59002f599108db1958/250x250-000000-80-0-0.jpg"
   },
   {
+    "id": "daddy_yankee_que_tengo_que_hacer",
+    "title": "Que tengo que hacer",
+    "artist": "Daddy Yankee",
+    "bpm": 216.0,
+    "total_notes": 518,
+    "chart_url": "daddy_yankee_que_tengo_que_hacer.json",
+    "audio_url": "daddy_yankee_que_tengo_que_hacer.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "juan_gabriel_querida",
     "title": "Querida",
     "artist": "Juan Gabriel",
@@ -779,6 +3969,149 @@
     "audio_url": "juan_gabriel_querida.mp3",
     "cover_url": "https://cdn-images.dzcdn.net/images/cover/af70b63213958f1a44386284c3575f39/250x250-000000-80-0-0.jpg",
     "thumbnail": "https://cdn-images.dzcdn.net/images/cover/af70b63213958f1a44386284c3575f39/250x250-000000-80-0-0.jpg"
+  },
+  {
+    "id": "carlos_baute_quien_te_quiere_como_yo",
+    "title": "Quien te quiere como yo",
+    "artist": "Carlos Baute",
+    "bpm": 268.0,
+    "total_notes": 500,
+    "chart_url": "carlos_baute_quien_te_quiere_como_yo.json",
+    "audio_url": "carlos_baute_quien_te_quiere_como_yo.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "andres_de_len_quiero",
+    "title": "Quiero",
+    "artist": "Andres de Len",
+    "bpm": 240.0,
+    "total_notes": 422,
+    "chart_url": "andres_de_len_quiero.json",
+    "audio_url": "andres_de_len_quiero.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "adrin_barba_quiero_gritar_te_amo",
+    "title": "Quiero gritar te amo",
+    "artist": "Adrin Barba",
+    "bpm": 286.18,
+    "total_notes": 244,
+    "chart_url": "adrin_barba_quiero_gritar_te_amo.json",
+    "audio_url": "adrin_barba_quiero_gritar_te_amo.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "amaia_montero_quiero_ser",
+    "title": "Quiero ser",
+    "artist": "Amaia Montero",
+    "bpm": 273.9,
+    "total_notes": 519,
+    "chart_url": "amaia_montero_quiero_ser.json",
+    "audio_url": "amaia_montero_quiero_ser.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "el_libro_de_la_selva_quiero_ser_como_t",
+    "title": "Quiero ser como t",
+    "artist": "El Libro De La Selva",
+    "bpm": 240.0,
+    "total_notes": 428,
+    "chart_url": "el_libro_de_la_selva_quiero_ser_como_t.json",
+    "audio_url": "el_libro_de_la_selva_quiero_ser_como_t.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "ana_gabriel_quin_como_t",
+    "title": "Quin como t",
+    "artist": "Ana Gabriel",
+    "bpm": 240.0,
+    "total_notes": 373,
+    "chart_url": "ana_gabriel_quin_como_t.json",
+    "audio_url": "ana_gabriel_quin_como_t.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "david_bisbal_quin_me_iba_a_decir",
+    "title": "Quin me iba a decir",
+    "artist": "David Bisbal",
+    "bpm": 340.0,
+    "total_notes": 827,
+    "chart_url": "david_bisbal_quin_me_iba_a_decir.json",
+    "audio_url": "david_bisbal_quin_me_iba_a_decir.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "andy_y_lucas_quireme",
+    "title": "Quireme",
+    "artist": "Andy y Lucas",
+    "bpm": 320.0,
+    "total_notes": 1053,
+    "chart_url": "andy_y_lucas_quireme.json",
+    "audio_url": "andy_y_lucas_quireme.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "do_dinmico_quisiera_ser",
+    "title": "Quisiera ser",
+    "artist": "Do Dinmico",
+    "bpm": 388.0,
+    "total_notes": 515,
+    "chart_url": "do_dinmico_quisiera_ser.json",
+    "audio_url": "do_dinmico_quisiera_ser.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "amy_winehouse_rehab",
+    "title": "Rehab",
+    "artist": "Amy Winehouse",
+    "bpm": 291.0,
+    "total_notes": 471,
+    "chart_url": "amy_winehouse_rehab.json",
+    "audio_url": "amy_winehouse_rehab.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "amaral_resurreccin",
+    "title": "Resurreccin",
+    "artist": "Amaral",
+    "bpm": 274.02,
+    "total_notes": 351,
+    "chart_url": "amaral_resurreccin.json",
+    "audio_url": "amaral_resurreccin.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "amaral_revolucin_en_directo",
+    "title": "Revolucin (En directo)",
+    "artist": "Amaral",
+    "bpm": 256.0,
+    "total_notes": 486,
+    "chart_url": "amaral_revolucin_en_directo.json",
+    "audio_url": "amaral_revolucin_en_directo.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "fito_y_fitipaldis_rojitas_las_orejas",
+    "title": "Rojitas las orejas",
+    "artist": "Fito y Fitipaldis",
+    "bpm": 157.99,
+    "total_notes": 352,
+    "chart_url": "fito_y_fitipaldis_rojitas_las_orejas.json",
+    "audio_url": "fito_y_fitipaldis_rojitas_las_orejas.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
   },
   {
     "id": "la_oreja_de_van_gogh_rosas",
@@ -803,6 +4136,94 @@
     "thumbnail": "https://cdn-images.dzcdn.net/images/cover/75667ab1c526ea6a141480991c3a87c1/250x250-000000-80-0-0.jpg"
   },
   {
+    "id": "danza_invisible_sabor_de_amor",
+    "title": "Sabor de amor",
+    "artist": "Danza Invisible",
+    "bpm": 340.0,
+    "total_notes": 435,
+    "chart_url": "danza_invisible_sabor_de_amor.json",
+    "audio_url": "danza_invisible_sabor_de_amor.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "extremoduro_salir",
+    "title": "Salir",
+    "artist": "Extremoduro",
+    "bpm": 329.44,
+    "total_notes": 504,
+    "chart_url": "extremoduro_salir.json",
+    "audio_url": "extremoduro_salir.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "amaral_salir_corriendo",
+    "title": "Salir corriendo",
+    "artist": "Amaral",
+    "bpm": 360.08,
+    "total_notes": 356,
+    "chart_url": "amaral_salir_corriendo.json",
+    "audio_url": "amaral_salir_corriendo.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "chayanne_salom",
+    "title": "Salom",
+    "artist": "Chayanne",
+    "bpm": 255.98,
+    "total_notes": 624,
+    "chart_url": "chayanne_salom.json",
+    "audio_url": "chayanne_salom.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "enrique_iglesias_feat_zion__lennox_y_descemer_bueno_sbeme_la_radio",
+    "title": "Sbeme la radio",
+    "artist": "Enrique Iglesias feat. Zion & Lennox y Descemer Bueno",
+    "bpm": 371.43,
+    "total_notes": 918,
+    "chart_url": "enrique_iglesias_feat_zion__lennox_y_descemer_bueno_sbeme_la_radio.json",
+    "audio_url": "enrique_iglesias_feat_zion__lennox_y_descemer_bueno_sbeme_la_radio.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "gilda_se_me_ha_perdido_un_corazn",
+    "title": "Se me ha perdido un corazn",
+    "artist": "Gilda",
+    "bpm": 372.08,
+    "total_notes": 386,
+    "chart_url": "gilda_se_me_ha_perdido_un_corazn.json",
+    "audio_url": "gilda_se_me_ha_perdido_un_corazn.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "david_guetta_feat_akon_sexy_bitch",
+    "title": "Sexy Bitch",
+    "artist": "David Guetta feat. Akon",
+    "bpm": 260.02,
+    "total_notes": 472,
+    "chart_url": "david_guetta_feat_akon_sexy_bitch.json",
+    "audio_url": "david_guetta_feat_akon_sexy_bitch.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "artista_shape_of_you",
+    "title": "Shape of you",
+    "artist": "Artista",
+    "bpm": 383.95,
+    "total_notes": 903,
+    "chart_url": "artista_shape_of_you.json",
+    "audio_url": "artista_shape_of_you.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "shakira_si_te_vas",
     "title": "Si te vas",
     "artist": "Shakira",
@@ -812,6 +4233,28 @@
     "audio_url": "shakira_si_te_vas.mp3",
     "cover_url": "https://cdn-images.dzcdn.net/images/cover/a62a4c9224f2869b22c5b56f6e0b91e0/250x250-000000-80-0-0.jpg",
     "thumbnail": "https://cdn-images.dzcdn.net/images/cover/a62a4c9224f2869b22c5b56f6e0b91e0/250x250-000000-80-0-0.jpg"
+  },
+  {
+    "id": "beyonc_si_yo_fuera_un_chico",
+    "title": "Si yo fuera un chico",
+    "artist": "Beyonc",
+    "bpm": 360.0,
+    "total_notes": 412,
+    "chart_url": "beyonc_si_yo_fuera_un_chico.json",
+    "audio_url": "beyonc_si_yo_fuera_un_chico.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "david_bisbal_silencio",
+    "title": "Silencio",
+    "artist": "David Bisbal",
+    "bpm": 258.0,
+    "total_notes": 501,
+    "chart_url": "david_bisbal_silencio.json",
+    "audio_url": "david_bisbal_silencio.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
   },
   {
     "id": "ana_gabriel_simplemente_amigos",
@@ -825,6 +4268,193 @@
     "thumbnail": "https://cdn-images.dzcdn.net/images/cover/e3a8179306c49dde8689984d41e5d509/250x250-000000-80-0-0.jpg"
   },
   {
+    "id": "beyonc_single_ladies_put_a_ring_on_it",
+    "title": "Single ladies (Put a ring on it)",
+    "artist": "Beyonc",
+    "bpm": 387.99,
+    "total_notes": 727,
+    "chart_url": "beyonc_single_ladies_put_a_ring_on_it.json",
+    "audio_url": "beyonc_single_ladies_put_a_ring_on_it.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "avril_lavigne_sk8er_boi",
+    "title": "Sk8er Boi",
+    "artist": "Avril Lavigne",
+    "bpm": 299.96,
+    "total_notes": 531,
+    "chart_url": "avril_lavigne_sk8er_boi.json",
+    "audio_url": "avril_lavigne_sk8er_boi.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "adele_skyfall",
+    "title": "Skyfall",
+    "artist": "Adele",
+    "bpm": 300.0,
+    "total_notes": 436,
+    "chart_url": "adele_skyfall.json",
+    "audio_url": "adele_skyfall.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "ana_beln_y_antonio_flores_slo_le_pido_a_dios",
+    "title": "Slo le pido a Dios",
+    "artist": "Ana Beln y Antonio Flores",
+    "bpm": 356.0,
+    "total_notes": 374,
+    "chart_url": "ana_beln_y_antonio_flores_slo_le_pido_a_dios.json",
+    "audio_url": "ana_beln_y_antonio_flores_slo_le_pido_a_dios.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "camila_slo_para_ti",
+    "title": "Slo para ti",
+    "artist": "Camila",
+    "bpm": 208.6,
+    "total_notes": 335,
+    "chart_url": "camila_slo_para_ti.json",
+    "audio_url": "camila_slo_para_ti.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "deep_purple_smoke_on_the_water",
+    "title": "Smoke On The Water",
+    "artist": "Deep Purple",
+    "bpm": 300.0,
+    "total_notes": 389,
+    "chart_url": "deep_purple_smoke_on_the_water.json",
+    "audio_url": "deep_purple_smoke_on_the_water.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "extremoduro_so_payaso",
+    "title": "So payaso",
+    "artist": "Extremoduro",
+    "bpm": 304.0,
+    "total_notes": 439,
+    "chart_url": "extremoduro_so_payaso.json",
+    "audio_url": "extremoduro_so_payaso.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "alejandro_arnais_sola_nunca_estars",
+    "title": "Sola nunca estars",
+    "artist": "Alejandro Arnais",
+    "bpm": 266.0,
+    "total_notes": 212,
+    "chart_url": "alejandro_arnais_sola_nunca_estars.json",
+    "audio_url": "alejandro_arnais_sola_nunca_estars.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "fito_y_fitipaldis_soldadito_marinero",
+    "title": "Soldadito marinero",
+    "artist": "Fito y Fitipaldis",
+    "bpm": 280.0,
+    "total_notes": 423,
+    "chart_url": "fito_y_fitipaldis_soldadito_marinero.json",
+    "audio_url": "fito_y_fitipaldis_soldadito_marinero.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "adele_someone_like_you_studio",
+    "title": "Someone Like You (Studio)",
+    "artist": "Adele",
+    "bpm": 270.0,
+    "total_notes": 585,
+    "chart_url": "adele_someone_like_you_studio.json",
+    "audio_url": "adele_someone_like_you_studio.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "blur_song_2",
+    "title": "Song 2",
+    "artist": "Blur",
+    "bpm": 255.0,
+    "total_notes": 258,
+    "chart_url": "blur_song_2.json",
+    "audio_url": "blur_song_2.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "banda_blanca_sopa_de_caracol",
+    "title": "Sopa de caracol",
+    "artist": "Banda Blanca",
+    "bpm": 249.26,
+    "total_notes": 517,
+    "chart_url": "banda_blanca_sopa_de_caracol.json",
+    "audio_url": "banda_blanca_sopa_de_caracol.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "david_el_gnomo_soy_un_gnomo",
+    "title": "Soy un gnomo",
+    "artist": "David el Gnomo",
+    "bpm": 265.72,
+    "total_notes": 167,
+    "chart_url": "david_el_gnomo_soy_un_gnomo.json",
+    "audio_url": "david_el_gnomo_soy_un_gnomo.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "coldplay_speed_of_sound",
+    "title": "Speed Of Sound",
+    "artist": "Coldplay",
+    "bpm": 246.04,
+    "total_notes": 427,
+    "chart_url": "coldplay_speed_of_sound.json",
+    "audio_url": "coldplay_speed_of_sound.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "ben_e_king_stand_by_me",
+    "title": "Stand by me",
+    "artist": "Ben E. King",
+    "bpm": 238.84,
+    "total_notes": 248,
+    "chart_url": "ben_e_king_stand_by_me.json",
+    "audio_url": "ben_e_king_stand_by_me.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "bee_gees_stayin_alive",
+    "title": "Stayin' Alive",
+    "artist": "Bee Gees",
+    "bpm": 397.31,
+    "total_notes": 784,
+    "chart_url": "bee_gees_stayin_alive.json",
+    "audio_url": "bee_gees_stayin_alive.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "elvis_crespo_suavemente",
+    "title": "Suavemente",
+    "artist": "Elvis Crespo",
+    "bpm": 248.32,
+    "total_notes": 530,
+    "chart_url": "elvis_crespo_suavemente.json",
+    "audio_url": "elvis_crespo_suavemente.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "shakira_suerte",
     "title": "Suerte",
     "artist": "Shakira",
@@ -834,6 +4464,94 @@
     "audio_url": "shakira_suerte.mp3",
     "cover_url": "https://cdn-images.dzcdn.net/images/cover/3c50690401eed099df05e72f5080af1b/250x250-000000-80-0-0.jpg",
     "thumbnail": "https://cdn-images.dzcdn.net/images/cover/3c50690401eed099df05e72f5080af1b/250x250-000000-80-0-0.jpg"
+  },
+  {
+    "id": "grease_john_travolta__olivia_newtonjohn_summer_nights",
+    "title": "Summer Nights",
+    "artist": "Grease (John Travolta & Olivia Newton-John)",
+    "bpm": 247.62,
+    "total_notes": 438,
+    "chart_url": "grease_john_travolta__olivia_newtonjohn_summer_nights.json",
+    "audio_url": "grease_john_travolta__olivia_newtonjohn_summer_nights.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "abba_super_trouper",
+    "title": "Super Trouper",
+    "artist": "ABBA",
+    "bpm": 236.2,
+    "total_notes": 471,
+    "chart_url": "abba_super_trouper.json",
+    "audio_url": "abba_super_trouper.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "elvis_presley_suspicious_minds",
+    "title": "Suspicious minds",
+    "artist": "Elvis Presley",
+    "bpm": 227.6,
+    "total_notes": 348,
+    "chart_url": "elvis_presley_suspicious_minds.json",
+    "audio_url": "elvis_presley_suspicious_minds.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "guns_n_roses_sweet_child_omine",
+    "title": "Sweet Child OMine",
+    "artist": "Guns N' Roses",
+    "bpm": 256.0,
+    "total_notes": 534,
+    "chart_url": "guns_n_roses_sweet_child_omine.json",
+    "audio_url": "guns_n_roses_sweet_child_omine.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "franco_de_vita_t_de_que_vas",
+    "title": "T de que vas",
+    "artist": "Franco De Vita",
+    "bpm": 321.72,
+    "total_notes": 442,
+    "chart_url": "franco_de_vita_t_de_que_vas.json",
+    "audio_url": "franco_de_vita_t_de_que_vas.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "fanny_lu_t_no_eres_para_m",
+    "title": "T no eres para m",
+    "artist": "Fanny Lu",
+    "bpm": 250.04,
+    "total_notes": 682,
+    "chart_url": "fanny_lu_t_no_eres_para_m.json",
+    "audio_url": "fanny_lu_t_no_eres_para_m.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "dread_mar_i_t_sin_m",
+    "title": "T sin m",
+    "artist": "Dread Mar I",
+    "bpm": 336.08,
+    "total_notes": 502,
+    "chart_url": "dread_mar_i_t_sin_m.json",
+    "audio_url": "dread_mar_i_t_sin_m.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "acdc_tnt_live",
+    "title": "T.N.T. (Live)",
+    "artist": "AC/DC",
+    "bpm": 395.05,
+    "total_notes": 320,
+    "chart_url": "acdc_tnt_live.json",
+    "audio_url": "acdc_tnt_live.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
   },
   {
     "id": "bacilos_tabaco_y_chanel",
@@ -858,6 +4576,94 @@
     "thumbnail": "https://cdn-images.dzcdn.net/images/cover/c22882ab30334c535a3e638f9cbf24d6/250x250-000000-80-0-0.jpg"
   },
   {
+    "id": "abba_take_a_chance_on_me",
+    "title": "Take A Chance On Me",
+    "artist": "ABBA",
+    "bpm": 338.7,
+    "total_notes": 520,
+    "chart_url": "abba_take_a_chance_on_me.json",
+    "audio_url": "abba_take_a_chance_on_me.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "franz_ferdinand_take_me_out",
+    "title": "Take Me Out",
+    "artist": "Franz Ferdinand",
+    "bpm": 209.2,
+    "total_notes": 273,
+    "chart_url": "franz_ferdinand_take_me_out.json",
+    "audio_url": "franz_ferdinand_take_me_out.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "aha_take_on_me",
+    "title": "Take on me",
+    "artist": "a-ha",
+    "bpm": 338.52,
+    "total_notes": 276,
+    "chart_url": "aha_take_on_me.json",
+    "audio_url": "aha_take_on_me.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "franco_de_vita_y_alejandra_guzman_tan_slo_t",
+    "title": "Tan slo t",
+    "artist": "Franco De Vita y Alejandra Guzman",
+    "bpm": 295.52,
+    "total_notes": 687,
+    "chart_url": "franco_de_vita_y_alejandra_guzman_tan_slo_t.json",
+    "audio_url": "franco_de_vita_y_alejandra_guzman_tan_slo_t.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "alejandro_fernndez_tantita_pena",
+    "title": "Tantita pena",
+    "artist": "Alejandro Fernndez",
+    "bpm": 364.0,
+    "total_notes": 448,
+    "chart_url": "alejandro_fernndez_tantita_pena.json",
+    "audio_url": "alejandro_fernndez_tantita_pena.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "andy_y_lucas_tanto_la_quera",
+    "title": "Tanto la quera",
+    "artist": "Andy y Lucas",
+    "bpm": 240.0,
+    "total_notes": 579,
+    "chart_url": "andy_y_lucas_tanto_la_quera.json",
+    "audio_url": "andy_y_lucas_tanto_la_quera.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "franco_de_vita_te_amo",
+    "title": "Te amo",
+    "artist": "Franco De Vita",
+    "bpm": 239.1,
+    "total_notes": 351,
+    "chart_url": "franco_de_vita_te_amo.json",
+    "audio_url": "franco_de_vita_te_amo.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "chayanne_te_echo_de_menos",
+    "title": "Te echo de menos",
+    "artist": "Chayanne",
+    "bpm": 240.0,
+    "total_notes": 438,
+    "chart_url": "chayanne_te_echo_de_menos.json",
+    "audio_url": "chayanne_te_echo_de_menos.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "alejandro_sanz_y_shakira_te_lo_agradezco_pero_no",
     "title": "Te lo agradezco pero no",
     "artist": "Alejandro Sanz y Shakira",
@@ -869,6 +4675,28 @@
     "thumbnail": "https://cdn-images.dzcdn.net/images/cover/83459ae5d885c72f5388ac2787f5a0ac/250x250-000000-80-0-0.jpg"
   },
   {
+    "id": "amaral_te_necesito",
+    "title": "Te necesito",
+    "artist": "Amaral",
+    "bpm": 244.0,
+    "total_notes": 397,
+    "chart_url": "amaral_te_necesito.json",
+    "audio_url": "amaral_te_necesito.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "carlos_baute_te_regalo",
+    "title": "Te regalo",
+    "artist": "Carlos Baute",
+    "bpm": 240.0,
+    "total_notes": 627,
+    "chart_url": "carlos_baute_te_regalo.json",
+    "audio_url": "carlos_baute_te_regalo.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "sin_bandera_te_vi_venir",
     "title": "Te vi venir",
     "artist": "Sin Bandera",
@@ -878,6 +4706,138 @@
     "audio_url": "sin_bandera_te_vi_venir.mp3",
     "cover_url": "https://cdn-images.dzcdn.net/images/cover/2a66b52a6a0200d3dfbbbf9054982693/250x250-000000-80-0-0.jpg",
     "thumbnail": "https://cdn-images.dzcdn.net/images/cover/2a66b52a6a0200d3dfbbbf9054982693/250x250-000000-80-0-0.jpg"
+  },
+  {
+    "id": "dido_thank_you",
+    "title": "Thank You",
+    "artist": "Dido",
+    "bpm": 160.0,
+    "total_notes": 322,
+    "chart_url": "dido_thank_you.json",
+    "audio_url": "dido_thank_you.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "bruno_mars_the_lazy_song",
+    "title": "The Lazy Song",
+    "artist": "Bruno Mars",
+    "bpm": 350.0,
+    "total_notes": 592,
+    "chart_url": "bruno_mars_the_lazy_song.json",
+    "audio_url": "bruno_mars_the_lazy_song.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "coldplay_the_scientist",
+    "title": "The Scientist",
+    "artist": "Coldplay",
+    "bpm": 292.4,
+    "total_notes": 372,
+    "chart_url": "coldplay_the_scientist.json",
+    "audio_url": "coldplay_the_scientist.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "black_eyed_peas_the_time_dirty_bit",
+    "title": "The Time (Dirty Bit)",
+    "artist": "Black Eyed Peas",
+    "bpm": 255.96,
+    "total_notes": 582,
+    "chart_url": "black_eyed_peas_the_time_dirty_bit.json",
+    "audio_url": "black_eyed_peas_the_time_dirty_bit.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "abba_the_winner_takes_it_all",
+    "title": "The Winner Takes It All",
+    "artist": "ABBA",
+    "bpm": 339.36,
+    "total_notes": 442,
+    "chart_url": "abba_the_winner_takes_it_all.json",
+    "audio_url": "abba_the_winner_takes_it_all.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "artista_thinking_out_loud",
+    "title": "Thinking out loud",
+    "artist": "Artista",
+    "bpm": 316.04,
+    "total_notes": 631,
+    "chart_url": "artista_thinking_out_loud.json",
+    "audio_url": "artista_thinking_out_loud.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "acdc_thunderstruck_live",
+    "title": "Thunderstruck (Live)",
+    "artist": "AC/DC",
+    "bpm": 395.05,
+    "total_notes": 548,
+    "chart_url": "acdc_thunderstruck_live.json",
+    "audio_url": "acdc_thunderstruck_live.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "david_guetta__sia_titanium",
+    "title": "Titanium",
+    "artist": "David Guetta & Sia",
+    "bpm": 252.0,
+    "total_notes": 358,
+    "chart_url": "david_guetta__sia_titanium.json",
+    "audio_url": "david_guetta__sia_titanium.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "amaral_toda_la_noche_en_la_calle",
+    "title": "Toda la noche en la calle",
+    "artist": "Amaral",
+    "bpm": 522.0,
+    "total_notes": 474,
+    "chart_url": "amaral_toda_la_noche_en_la_calle.json",
+    "audio_url": "amaral_toda_la_noche_en_la_calle.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "chenoa_todo_ir_bien",
+    "title": "Todo Ir Bien",
+    "artist": "Chenoa",
+    "bpm": 196.0,
+    "total_notes": 558,
+    "chart_url": "chenoa_todo_ir_bien.json",
+    "audio_url": "chenoa_todo_ir_bien.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "camila_todo_cambi",
+    "title": "Todo cambi",
+    "artist": "Camila",
+    "bpm": 347.96,
+    "total_notes": 416,
+    "chart_url": "camila_todo_cambi.json",
+    "audio_url": "camila_todo_cambi.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "bryan_adams_todo_lo_que_hago_lo_hago_por_ti",
+    "title": "Todo lo que hago, lo hago por ti",
+    "artist": "Bryan Adams",
+    "bpm": 262.6,
+    "total_notes": 316,
+    "chart_url": "bryan_adams_todo_lo_que_hago_lo_hago_por_ti.json",
+    "audio_url": "bryan_adams_todo_lo_que_hago_lo_hago_por_ti.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
   },
   {
     "id": "gloria_trevi_todos_me_miran",
@@ -902,6 +4862,83 @@
     "thumbnail": "https://cdn-images.dzcdn.net/images/cover/a45e7e8f7fe0aac354349ad763cb14c3/250x250-000000-80-0-0.jpg"
   },
   {
+    "id": "david_bisbal_ft_wisin_y_yandel_torre_de_babel",
+    "title": "Torre de Babel",
+    "artist": "David Bisbal ft. Wisin Y Yandel",
+    "bpm": 480.0,
+    "total_notes": 626,
+    "chart_url": "david_bisbal_ft_wisin_y_yandel_torre_de_babel.json",
+    "audio_url": "david_bisbal_ft_wisin_y_yandel_torre_de_babel.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "bonnie_tyler_total_eclipse_of_the_heart",
+    "title": "Total Eclipse of the Heart",
+    "artist": "Bonnie Tyler",
+    "bpm": 264.0,
+    "total_notes": 592,
+    "chart_url": "bonnie_tyler_total_eclipse_of_the_heart.json",
+    "audio_url": "bonnie_tyler_total_eclipse_of_the_heart.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "amrico_traicionera",
+    "title": "Traicionera",
+    "artist": "Amrico",
+    "bpm": 403.66,
+    "total_notes": 554,
+    "chart_url": "amrico_traicionera.json",
+    "audio_url": "amrico_traicionera.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "diego_torres_tratar_de_estar_mejor",
+    "title": "Tratar de estar mejor",
+    "artist": "Diego Torres",
+    "bpm": 344.0,
+    "total_notes": 416,
+    "chart_url": "diego_torres_tratar_de_estar_mejor.json",
+    "audio_url": "diego_torres_tratar_de_estar_mejor.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "bruno_mars_treasure",
+    "title": "Treasure",
+    "artist": "Bruno Mars",
+    "bpm": 232.0,
+    "total_notes": 372,
+    "chart_url": "bruno_mars_treasure.json",
+    "audio_url": "bruno_mars_treasure.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "chino__nacho_tu_angelito",
+    "title": "Tu angelito",
+    "artist": "Chino & Nacho",
+    "bpm": 236.02,
+    "total_notes": 737,
+    "chart_url": "chino__nacho_tu_angelito.json",
+    "audio_url": "chino__nacho_tu_angelito.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "estopa_tu_calorro",
+    "title": "Tu calorro",
+    "artist": "Estopa",
+    "bpm": 352.0,
+    "total_notes": 717,
+    "chart_url": "estopa_tu_calorro.json",
+    "audio_url": "estopa_tu_calorro.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "enanitos_verdes_tu_crcel",
     "title": "Tu crcel",
     "artist": "Enanitos Verdes",
@@ -913,6 +4950,39 @@
     "thumbnail": "https://cdn-images.dzcdn.net/images/cover/374d42bf9ada9a96e206edada8775047/250x250-000000-80-0-0.jpg"
   },
   {
+    "id": "aventura_un_beso",
+    "title": "Un beso",
+    "artist": "Aventura",
+    "bpm": 252.0,
+    "total_notes": 447,
+    "chart_url": "aventura_un_beso.json",
+    "audio_url": "aventura_un_beso.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "el_smbolo_un_dos_tres",
+    "title": "Un dos tres",
+    "artist": "El smbolo",
+    "bpm": 528.0,
+    "total_notes": 484,
+    "chart_url": "el_smbolo_un_dos_tres.json",
+    "audio_url": "el_smbolo_un_dos_tres.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "aladdn_un_genio_genial",
+    "title": "Un genio genial",
+    "artist": "Aladdn",
+    "bpm": 400.0,
+    "total_notes": 341,
+    "chart_url": "aladdn_un_genio_genial.json",
+    "audio_url": "aladdn_un_genio_genial.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "aladdn_un_mundo_ideal",
     "title": "Un mundo ideal",
     "artist": "Aladdn",
@@ -922,6 +4992,17 @@
     "audio_url": "aladdn_un_mundo_ideal.mp3",
     "cover_url": "https://cdn-images.dzcdn.net/images/cover/6672df6a33ebc708e14aea28d7eca7ef/250x250-000000-80-0-0.jpg",
     "thumbnail": "https://cdn-images.dzcdn.net/images/cover/6672df6a33ebc708e14aea28d7eca7ef/250x250-000000-80-0-0.jpg"
+  },
+  {
+    "id": "cecilia_un_ramito_de_violetas",
+    "title": "Un ramito de violetas",
+    "artist": "Cecilia",
+    "bpm": 240.0,
+    "total_notes": 447,
+    "chart_url": "cecilia_un_ramito_de_violetas.json",
+    "audio_url": "cecilia_un_ramito_de_violetas.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
   },
   {
     "id": "chayanne_un_siglo_sin_ti",
@@ -946,6 +5027,116 @@
     "thumbnail": "https://cdn-images.dzcdn.net/images/cover/d969a77e34a9842080769219de38327a/250x250-000000-80-0-0.jpg"
   },
   {
+    "id": "el_canto_del_loco_una_foto_en_blanco_y_negro",
+    "title": "Una foto en blanco y negro",
+    "artist": "El Canto del Loco",
+    "bpm": 278.04,
+    "total_notes": 362,
+    "chart_url": "el_canto_del_loco_una_foto_en_blanco_y_negro.json",
+    "audio_url": "el_canto_del_loco_una_foto_en_blanco_y_negro.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "alexandre_pires_usted_se_me_llev_la_vida",
+    "title": "Usted se me llev la vida",
+    "artist": "Alexandre Pires",
+    "bpm": 280.12,
+    "total_notes": 693,
+    "chart_url": "alexandre_pires_usted_se_me_llev_la_vida.json",
+    "audio_url": "alexandre_pires_usted_se_me_llev_la_vida.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "daddy_yankee__prince_royce_ven_conmigo",
+    "title": "Ven conmigo",
+    "artist": "Daddy Yankee & Prince Royce",
+    "bpm": 240.0,
+    "total_notes": 747,
+    "chart_url": "daddy_yankee__prince_royce_ven_conmigo.json",
+    "audio_url": "daddy_yankee__prince_royce_ven_conmigo.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "christina_aguilera_ven_conmigo_solamente_t",
+    "title": "Ven conmigo (Solamente t)",
+    "artist": "Christina Aguilera",
+    "bpm": 237.98,
+    "total_notes": 636,
+    "chart_url": "christina_aguilera_ven_conmigo_solamente_t.json",
+    "audio_url": "christina_aguilera_ven_conmigo_solamente_t.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "dragon_ball_gt_ven_ven",
+    "title": "Ven, ven",
+    "artist": "Dragon Ball GT",
+    "bpm": 267.58,
+    "total_notes": 236,
+    "chart_url": "dragon_ball_gt_ven_ven.json",
+    "audio_url": "dragon_ball_gt_ven_ven.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "alex_ubago_viajar_contigo",
+    "title": "Viajar Contigo",
+    "artist": "Alex Ubago",
+    "bpm": 264.0,
+    "total_notes": 436,
+    "chart_url": "alex_ubago_viajar_contigo.json",
+    "audio_url": "alex_ubago_viajar_contigo.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "beyonc_ft_lady_gaga_video_phone",
+    "title": "Video Phone",
+    "artist": "Beyonc ft. Lady Gaga",
+    "bpm": 312.12,
+    "total_notes": 907,
+    "chart_url": "beyonc_ft_lady_gaga_video_phone.json",
+    "audio_url": "beyonc_ft_lady_gaga_video_phone.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "estopa_vino_tinto",
+    "title": "Vino tinto",
+    "artist": "Estopa",
+    "bpm": 185.0,
+    "total_notes": 665,
+    "chart_url": "estopa_vino_tinto.json",
+    "audio_url": "estopa_vino_tinto.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "don_omar_virtual_diva",
+    "title": "Virtual diva",
+    "artist": "Don Omar",
+    "bpm": 227.98,
+    "total_notes": 456,
+    "chart_url": "don_omar_virtual_diva.json",
+    "audio_url": "don_omar_virtual_diva.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "coldplay_viva_la_vida",
+    "title": "Viva la vida",
+    "artist": "Coldplay",
+    "bpm": 276.02,
+    "total_notes": 435,
+    "chart_url": "coldplay_viva_la_vida.json",
+    "audio_url": "coldplay_viva_la_vida.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "marc_anthony_vivir_mi_vida",
     "title": "Vivir mi vida",
     "artist": "Marc Anthony",
@@ -955,6 +5146,83 @@
     "audio_url": "marc_anthony_vivir_mi_vida.mp3",
     "cover_url": "https://cdn-images.dzcdn.net/images/cover/704472d2cb6d5e71fc79f424f83d1956/250x250-000000-80-0-0.jpg",
     "thumbnail": "https://cdn-images.dzcdn.net/images/cover/704472d2cb6d5e71fc79f424f83d1956/250x250-000000-80-0-0.jpg"
+  },
+  {
+    "id": "gipsy_kings_volare",
+    "title": "Volare",
+    "artist": "Gipsy Kings",
+    "bpm": 352.43,
+    "total_notes": 456,
+    "chart_url": "gipsy_kings_volare.json",
+    "audio_url": "gipsy_kings_volare.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "carlos_vives_volv_a_nacer",
+    "title": "Volv a nacer",
+    "artist": "Carlos Vives",
+    "bpm": 392.04,
+    "total_notes": 876,
+    "chart_url": "carlos_vives_volv_a_nacer.json",
+    "audio_url": "carlos_vives_volv_a_nacer.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "el_canto_del_loco_volver",
+    "title": "Volver",
+    "artist": "El Canto del Loco",
+    "bpm": 252.0,
+    "total_notes": 470,
+    "chart_url": "el_canto_del_loco_volver.json",
+    "audio_url": "el_canto_del_loco_volver.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "alejandro_lerner_volver_a_empezar",
+    "title": "Volver a empezar",
+    "artist": "Alejandro Lerner",
+    "bpm": 248.16,
+    "total_notes": 326,
+    "chart_url": "alejandro_lerner_volver_a_empezar.json",
+    "audio_url": "alejandro_lerner_volver_a_empezar.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "abba_voulez_vous",
+    "title": "Voulez Vous",
+    "artist": "ABBA",
+    "bpm": 254.0,
+    "total_notes": 451,
+    "chart_url": "abba_voulez_vous.json",
+    "audio_url": "abba_voulez_vous.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "el_rey_len_voy_a_ser_el_rey_len",
+    "title": "Voy a ser El Rey Len",
+    "artist": "El Rey Len",
+    "bpm": 206.2,
+    "total_notes": 190,
+    "chart_url": "el_rey_len_voy_a_ser_el_rey_len.json",
+    "audio_url": "el_rey_len_voy_a_ser_el_rey_len.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "christina_y_los_subterrneos_voy_en_un_coche",
+    "title": "Voy en un coche",
+    "artist": "Christina y los Subterrneos",
+    "bpm": 363.48,
+    "total_notes": 507,
+    "chart_url": "christina_y_los_subterrneos_voy_en_un_coche.json",
+    "audio_url": "christina_y_los_subterrneos_voy_en_un_coche.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
   },
   {
     "id": "shakira_ft_freshlyground_waka_waka_esto_es_frica",
@@ -968,6 +5236,116 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music122/v4/c4/6e/63/c46e6321-2a8a-dfaa-2c0f-21d4b62450b3/884977620108.jpg/300x300bb.jpg"
   },
   {
+    "id": "green_day_wake_me_up_when_september_ends",
+    "title": "Wake Me Up When September Ends",
+    "artist": "Green Day",
+    "bpm": 340.0,
+    "total_notes": 284,
+    "chart_url": "green_day_wake_me_up_when_september_ends.json",
+    "audio_url": "green_day_wake_me_up_when_september_ends.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "avicii_wake_me_up",
+    "title": "Wake Me Up!",
+    "artist": "Avicii",
+    "bpm": 248.7,
+    "total_notes": 479,
+    "chart_url": "avicii_wake_me_up.json",
+    "audio_url": "avicii_wake_me_up.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "abba_waterloo",
+    "title": "Waterloo",
+    "artist": "ABBA",
+    "bpm": 339.3,
+    "total_notes": 327,
+    "chart_url": "abba_waterloo.json",
+    "audio_url": "abba_waterloo.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "david_bisbal_feat_knaan_waving_flag",
+    "title": "Waving Flag",
+    "artist": "David Bisbal feat Knaan",
+    "bpm": 304.0,
+    "total_notes": 647,
+    "chart_url": "david_bisbal_feat_knaan_waving_flag.json",
+    "audio_url": "david_bisbal_feat_knaan_waving_flag.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "bruno_mars_when_i_was_your_man",
+    "title": "When I Was Your Man",
+    "artist": "Bruno Mars",
+    "bpm": 304.0,
+    "total_notes": 471,
+    "chart_url": "bruno_mars_when_i_was_your_man.json",
+    "audio_url": "bruno_mars_when_i_was_your_man.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "avril_lavigne_when_youre_gone",
+    "title": "When You're Gone",
+    "artist": "Avril Lavigne",
+    "bpm": 142.04,
+    "total_notes": 437,
+    "chart_url": "avril_lavigne_when_youre_gone.json",
+    "audio_url": "avril_lavigne_when_youre_gone.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "david_guetta_ft_kelly_rowland_when_love_takes_over",
+    "title": "When love takes over",
+    "artist": "David Guetta ft. Kelly Rowland",
+    "bpm": 260.06,
+    "total_notes": 386,
+    "chart_url": "david_guetta_ft_kelly_rowland_when_love_takes_over.json",
+    "audio_url": "david_guetta_ft_kelly_rowland_when_love_takes_over.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "david_guetta_feat_rihanna_whos_that_chick",
+    "title": "Who's That Chick?",
+    "artist": "David Guetta feat. Rihanna",
+    "bpm": 255.92,
+    "total_notes": 505,
+    "chart_url": "david_guetta_feat_rihanna_whos_that_chick.json",
+    "audio_url": "david_guetta_feat_rihanna_whos_that_chick.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "david_guetta_feat_usher_without_you",
+    "title": "Without You",
+    "artist": "David Guetta feat. Usher",
+    "bpm": 256.04,
+    "total_notes": 366,
+    "chart_url": "david_guetta_feat_usher_without_you.json",
+    "audio_url": "david_guetta_feat_usher_without_you.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "britney_spears_womanizer",
+    "title": "Womanizer",
+    "artist": "Britney Spears",
+    "bpm": 277.999791500156,
+    "total_notes": 656,
+    "chart_url": "britney_spears_womanizer.json",
+    "audio_url": "britney_spears_womanizer.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "chayanne_y_t_te_vas",
     "title": "Y t te vas",
     "artist": "Chayanne",
@@ -979,6 +5357,39 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music114/v4/45/eb/eb/45ebebe8-8eab-ccdc-e610-0b029b02ceb3/mzi.flmctplg.jpg/300x300bb.jpg"
   },
   {
+    "id": "el_canto_del_loco_ya_nada_volver_a_ser_como_antes",
+    "title": "Ya nada volver a ser como antes",
+    "artist": "El Canto del Loco",
+    "bpm": 264.0,
+    "total_notes": 337,
+    "chart_url": "el_canto_del_loco_ya_nada_volver_a_ser_como_antes.json",
+    "audio_url": "el_canto_del_loco_ya_nada_volver_a_ser_como_antes.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "coldplay_yellow",
+    "title": "Yellow",
+    "artist": "Coldplay",
+    "bpm": 552.0,
+    "total_notes": 398,
+    "chart_url": "coldplay_yellow.json",
+    "audio_url": "coldplay_yellow.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "31_minutos_yo_nunca_vi_televisin_y_luego_s_pero_despus_no",
+    "title": "Yo nunca vi televisin (y luego s, pero despus no)",
+    "artist": "31 Minutos",
+    "bpm": 329.84,
+    "total_notes": 292,
+    "chart_url": "31_minutos_yo_nunca_vi_televisin_y_luego_s_pero_despus_no.json",
+    "audio_url": "31_minutos_yo_nunca_vi_televisin_y_luego_s_pero_despus_no.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
     "id": "reik_yo_quisiera",
     "title": "Yo quisiera",
     "artist": "Reik",
@@ -988,5 +5399,93 @@
     "audio_url": "reik_yo_quisiera.mp3",
     "cover_url": "https://cdn-images.dzcdn.net/images/cover/97ce862e951858a9dad0635fbd6fa371/250x250-000000-80-0-0.jpg",
     "thumbnail": "https://cdn-images.dzcdn.net/images/cover/97ce862e951858a9dad0635fbd6fa371/250x250-000000-80-0-0.jpg"
+  },
+  {
+    "id": "chayanne_yo_te_amo",
+    "title": "Yo te amo",
+    "artist": "Chayanne",
+    "bpm": 280.0,
+    "total_notes": 497,
+    "chart_url": "chayanne_yo_te_amo.json",
+    "audio_url": "chayanne_yo_te_amo.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "cali_y_el_dandee_yo_te_esperar",
+    "title": "Yo te esperar",
+    "artist": "Cali y El Dandee",
+    "bpm": 351.99,
+    "total_notes": 661,
+    "chart_url": "cali_y_el_dandee_yo_te_esperar.json",
+    "audio_url": "cali_y_el_dandee_yo_te_esperar.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "bon_jovi_you_give_love_a_bad_name",
+    "title": "You Give Love A Bad Name",
+    "artist": "Bon Jovi",
+    "bpm": 248.0,
+    "total_notes": 345,
+    "chart_url": "bon_jovi_you_give_love_a_bad_name.json",
+    "audio_url": "bon_jovi_you_give_love_a_bad_name.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "amy_winehouse_you_know_im_no_good",
+    "title": "You Know I'm No Good",
+    "artist": "Amy Winehouse",
+    "bpm": 206.0,
+    "total_notes": 381,
+    "chart_url": "amy_winehouse_you_know_im_no_good.json",
+    "audio_url": "amy_winehouse_you_know_im_no_good.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "grease_john_travolta__olivia_newtonjohn_youre_the_one_that_i_want",
+    "title": "You're the One that I Want",
+    "artist": "Grease (John Travolta & Olivia Newton-John)",
+    "bpm": 212.89,
+    "total_notes": 691,
+    "chart_url": "grease_john_travolta__olivia_newtonjohn_youre_the_one_that_i_want.json",
+    "audio_url": "grease_john_travolta__olivia_newtonjohn_youre_the_one_that_i_want.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "el_canto_del_loco_zapatillas",
+    "title": "Zapatillas",
+    "artist": "El Canto Del Loco",
+    "bpm": 340.0,
+    "total_notes": 593,
+    "chart_url": "el_canto_del_loco_zapatillas.json",
+    "audio_url": "el_canto_del_loco_zapatillas.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "amanda_miguel_l_me_minti",
+    "title": "l me minti",
+    "artist": "Amanda Miguel",
+    "bpm": 206.63,
+    "total_notes": 322,
+    "chart_url": "amanda_miguel_l_me_minti.json",
+    "audio_url": "amanda_miguel_l_me_minti.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
+  },
+  {
+    "id": "adrin_barba_ngeles_fuimos",
+    "title": "ngeles fuimos",
+    "artist": "Adrin Barba",
+    "bpm": 300.0,
+    "total_notes": 204,
+    "chart_url": "adrin_barba_ngeles_fuimos.json",
+    "audio_url": "adrin_barba_ngeles_fuimos.mp3",
+    "cover_url": "./app_logo.png",
+    "thumbnail": "./app_logo.png"
   }
 ]
