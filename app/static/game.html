@@ -143,6 +143,8 @@
         onboarding_nick_desc: 'Elige tu Nickname para que la comunidad te reconozca y pueda seguir tus pistas creadas:',
         onboarding_placeholder: 'Tu Nickname (ej. Mozart99)...',
         onboarding_start: 'Guardar y Empezar',
+        onboarding_apk_hint: '💡 Recuerda que también puedes descargar la app nativa para Android en cualquier momento desde Ajustes ⚙️.',
+        onboarding_apk_btn: 'Descargar App (APK Android)',
         add_fav: 'Añadir a Favoritos',
         remove_fav: 'Quitar de Favoritos',
         add_playlist: 'Añadir a Playlist',
@@ -446,6 +448,8 @@
         onboarding_nick_desc: 'Choose your Nickname so the community can recognize you and follow your tracks:',
         onboarding_placeholder: 'Your Nickname (e.g. Mozart99)...',
         onboarding_start: 'Save & Start',
+        onboarding_apk_hint: '💡 Remember you can also download the native Android app at any time from Settings ⚙️.',
+        onboarding_apk_btn: 'Download App (Android APK)',
         add_fav: 'Add to Favorites',
         remove_fav: 'Remove from Favorites',
         add_playlist: 'Add to Playlist',
@@ -1148,13 +1152,6 @@
 
         <!-- Action Buttons (Flex-shrink-0 to guarantee settings gear is always visible) -->
         <div class="flex items-center gap-1.5 flex-shrink-0">
-          <!-- Botón Descargar APK Android (Solo visible en versión Web) -->
-          <a id="btnDownloadApk" href="/download/apk" download="PianoCommunity.apk" class="apk-only-web px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/25 to-yellow-600/25 border border-amber-400/50 hover:border-amber-400/90 active:scale-95 text-amber-300 flex items-center gap-1.5 transition cursor-pointer text-xs font-bold flex-shrink-0 shadow-[0_0_12px_rgba(229,184,105,0.25)]" title="Descargar APK para Android">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span class="hidden sm:inline text-[11px] font-black tracking-wide uppercase" data-i18n="apk_download_btn">Descargar APK</span>
-            <span class="sm:hidden text-[10px] font-black tracking-wide uppercase">APK</span>
-          </a>
-
           <!-- Menu Music Manual Toggle Button -->
           <button id="btnMenuMusicToggle" onclick="toggleMenuMusicManual()" class="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-400/50 hover:border-amber-400/80 active:scale-95 text-amber-300 flex items-center justify-center transition cursor-pointer flex-shrink-0 shadow-sm" title="Música del Menú (Activar/Silenciar)">
             <span id="menuMusicIcon" class="text-sm">🎵</span>
@@ -2190,6 +2187,15 @@
         <button onclick="saveOnboardingNickname()" data-i18n="onboarding_start" class="w-full py-2.5 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 text-white font-black text-xs rounded-xl shadow-lg shadow-pink-500/30 transition cursor-pointer active:scale-95">
           Guardar y Empezar
         </button>
+        <div class="apk-only-web pt-2 border-t border-white/10 space-y-2">
+          <p data-i18n="onboarding_apk_hint" class="text-[10px] text-amber-300/90 leading-tight">
+            💡 Recuerda que también puedes descargar la app nativa para Android en cualquier momento desde <b>Ajustes ⚙️</b>.
+          </p>
+          <a href="/download/apk" download="PianoCommunity.apk" class="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 rounded-xl text-amber-300 text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="text-amber-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span data-i18n="onboarding_apk_btn">Descargar App (APK Android)</span>
+          </a>
+        </div>
       </div>
     </div>
 
@@ -5131,6 +5137,8 @@
     let appUpdateDownloadUrl = '/download/apk';
 
     async function checkForAppUpdates() {
+      // En la versión web NUNCA mostrar aviso de actualización
+      if (!window.AndroidNative) return;
       try {
         const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
         if (!baseUrl) return;
@@ -6415,7 +6423,7 @@ window.switchMainTab = switchMainTab;
       return false;
     }
 
-    function isEditorActive() {
+    function checkIsEditorActive() {
       if (window.isEditorTabOpen === true) return true;
       if (typeof currentActiveTab !== 'undefined' && currentActiveTab === 'editor') return true;
       const editorSec = document.getElementById('tabEditorSection');
@@ -6423,9 +6431,10 @@ window.switchMainTab = switchMainTab;
       return false;
     }
     window.isEditorTabOpen = false;
-    window.isEditorActive = function() {
-      return isEditorActive();
-    };
+    window.isEditorActive = checkIsEditorActive;
+    function isEditorActive() {
+      return checkIsEditorActive();
+    }
 
     function playMenuAmbientMusic() {
       if (isEditorActive()) {
@@ -6894,6 +6903,115 @@ window.switchMainTab = switchMainTab;
       }
     };
 
+    function normalizeSearchText(str) {
+      return String(str || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function levenshteinDist(s1, s2) {
+      const m = s1.length, n = s2.length;
+      if (m === 0) return n;
+      if (n === 0) return m;
+      const d = [];
+      for (let i = 0; i <= m; i++) d[i] = [i];
+      for (let j = 0; j <= n; j++) d[0][j] = j;
+      for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+          const cost = s1[i - 1] === s2[j - 1] ? 0 : 1;
+          d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+        }
+      }
+      return d[m][n];
+    }
+
+    function wordSimilarity(w1, w2) {
+      if (w1 === w2) return 1.0;
+      if (!w1 || !w2) return 0;
+      if (w1.length >= 3 && (w2.startsWith(w1) || w1.startsWith(w2))) {
+        return (Math.min(w1.length, w2.length) / Math.max(w1.length, w2.length)) * 0.95;
+      }
+      if (w1.length >= 3 && (w2.includes(w1) || w1.includes(w2))) {
+        return (Math.min(w1.length, w2.length) / Math.max(w1.length, w2.length)) * 0.90;
+      }
+      const maxLen = Math.max(w1.length, w2.length);
+      if (maxLen === 0) return 1.0;
+      const dist = levenshteinDist(w1, w2);
+      return Math.max(0, 1.0 - (dist / maxLen));
+    }
+
+    function computeSongRelevanceScore(query, title, artist, extra = '') {
+      const nq = normalizeSearchText(query);
+      if (!nq) return 100;
+      const nt = normalizeSearchText(title);
+      const na = normalizeSearchText(artist);
+      const ne = normalizeSearchText(extra);
+
+      if (nt === nq || na === nq) return 100;
+
+      if (nt.includes(nq)) {
+        return (' ' + nt + ' ').includes(' ' + nq + ' ') ? 98 : 94;
+      }
+      if (na.includes(nq)) {
+        return (' ' + na + ' ').includes(' ' + nq + ' ') ? 96 : 92;
+      }
+
+      const qWords = nq.split(' ').filter(Boolean);
+      if (!qWords.length) return 0;
+
+      const tWords = nt.split(' ').filter(Boolean);
+      const aWords = na.split(' ').filter(Boolean);
+      const primaryWords = [...tWords, ...aWords];
+
+      let primaryScore = 0;
+      if (primaryWords.length > 0) {
+        let sumSim = 0;
+        for (const qw of qWords) {
+          let best = 0;
+          for (const pw of primaryWords) {
+            const sim = wordSimilarity(qw, pw);
+            if (sim > best) best = sim;
+          }
+          sumSim += best;
+        }
+        primaryScore = Math.round((sumSim / qWords.length) * 100);
+      }
+
+      if (primaryScore >= 50) {
+        return Math.min(100, primaryScore);
+      }
+
+      if (ne) {
+        if (ne.includes(nq)) {
+          return (' ' + ne + ' ').includes(' ' + nq + ' ') ? 75 : 68;
+        }
+        const eWords = ne.split(' ').filter(Boolean);
+        if (eWords.length > 0) {
+          let sumSim = 0;
+          for (const qw of qWords) {
+            let best = 0;
+            for (const ew of eWords) {
+              const sim = wordSimilarity(qw, ew);
+              if (sim > best) best = sim;
+            }
+            sumSim += best;
+          }
+          const extraScore = Math.round((sumSim / qWords.length) * 70);
+          if (extraScore >= 40) return Math.min(75, Math.max(primaryScore, extraScore));
+        }
+      }
+
+      return Math.max(0, primaryScore);
+    }
+    window.normalizeSearchText = normalizeSearchText;
+    window.levenshteinDist = levenshteinDist;
+    window.wordSimilarity = wordSimilarity;
+    window.computeSongRelevanceScore = computeSongRelevanceScore;
+
     async function executeSearch() {
       const q = document.getElementById('searchInput').value.trim();
       const isCommunityOnly = Boolean(document.getElementById('filterOnlyCommunity')?.checked);
@@ -6911,10 +7029,12 @@ window.switchMainTab = switchMainTab;
 
       // FILTRO: Canciones Top (90 canciones alojadas en GitHub Releases CDN)
       if (isTopOnly) {
-        let list = getFormattedTopSongsCatalog();
-        const qLower = q.toLowerCase();
-        if (qLower) {
-          list = list.filter(s => (s.title + ' ' + s.artist).toLowerCase().includes(qLower));
+        let list = typeof getFormattedTopSongsCatalog === 'function' ? getFormattedTopSongsCatalog() : [];
+        if (q) {
+          list = list
+            .map(s => ({ ...s, relevanceScore: computeSongRelevanceScore(q, s.title, s.artist) }))
+            .filter(s => s.relevanceScore >= 40);
+          list.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
         }
         if (typeof currentTargetDifficulty !== 'undefined' && currentTargetDifficulty !== 'all') {
           const targetNum = parseFloat(currentTargetDifficulty);
@@ -6953,8 +7073,15 @@ window.switchMainTab = switchMainTab;
           if (res.ok) {
             const data = await res.json();
             if (Array.isArray(data)) {
-              searchResultsCache = data;
-              renderSearchResults(data, []);
+              let list = data;
+              if (q) {
+                list = list
+                  .map(s => ({ ...s, relevanceScore: s.relevanceScore || computeSongRelevanceScore(q, s.title, s.artist, s.creator_name || '') }))
+                  .filter(s => s.relevanceScore >= 35);
+                list.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
+              }
+              searchResultsCache = list;
+              renderSearchResults(list, []);
               if (btnText) btnText.innerText = 'Buscar';
               if (spinner) spinner.classList.add('hidden');
               return;
@@ -6965,7 +7092,6 @@ window.switchMainTab = switchMainTab;
         }
 
         // Fallback local robusto a GLOBAL_COMMUNITY_FALLBACKS y cache
-        const qLower = q.toLowerCase();
         let commList = [...GLOBAL_COMMUNITY_FALLBACKS];
         try {
           const cached = JSON.parse(localStorage.getItem('beatstar_community_cache') || '[]');
@@ -6976,9 +7102,13 @@ window.switchMainTab = switchMainTab;
           }
         } catch (e) {}
 
-        const filtered = qLower
-          ? commList.filter(s => (s.title + ' ' + s.artist + ' ' + (s.creator_name || '')).toLowerCase().includes(qLower))
-          : commList;
+        let filtered = commList;
+        if (q) {
+          filtered = commList
+            .map(s => ({ ...s, relevanceScore: computeSongRelevanceScore(q, s.title, s.artist, s.creator_name || '') }))
+            .filter(s => s.relevanceScore >= 35);
+          filtered.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
+        }
         searchResultsCache = filtered;
         renderSearchResults(searchResultsCache, []);
 
@@ -6988,19 +7118,21 @@ window.switchMainTab = switchMainTab;
       }
 
       console.log(`[Search] Iniciando búsqueda para "${q}"...`);
-      const qLower = q.toLowerCase();
 
       // Prioridad 1: Coincidencias en el catálogo de 90 Canciones Top Oficiales
-      const topMatches = typeof getFormattedTopSongsCatalog === 'function' ? getFormattedTopSongsCatalog().filter(s => {
-        const sText = `${s.title || ''} ${s.artist || ''}`.toLowerCase();
-        return sText.includes(qLower);
-      }) : [];
+      const allTop = typeof getFormattedTopSongsCatalog === 'function' ? getFormattedTopSongsCatalog() : [];
+      const topMatches = q
+        ? allTop
+            .map(s => ({ ...s, relevanceScore: computeSongRelevanceScore(q, s.title, s.artist) }))
+            .filter(s => s.relevanceScore >= 40)
+        : allTop;
 
       // Prioridad 2: Coincidencias en pistas comunitarias fijas (Camilo Sesto, Renacer)
-      const localCommunityMatches = GLOBAL_COMMUNITY_FALLBACKS.filter(fb => {
-        const s = `${fb.title || ''} ${fb.artist || ''} ${fb.creator_name || ''} ${fb.source_name || ''}`.toLowerCase();
-        return s.includes(qLower);
-      });
+      const localCommunityMatches = q
+        ? GLOBAL_COMMUNITY_FALLBACKS
+            .map(fb => ({ ...fb, relevanceScore: computeSongRelevanceScore(q, fb.title, fb.artist, fb.creator_name || '') }))
+            .filter(s => s.relevanceScore >= 40)
+        : GLOBAL_COMMUNITY_FALLBACKS;
 
       // 1. Intento principal: Búsqueda agregada ultrarrápida del backend
       try {
@@ -7013,10 +7145,22 @@ window.switchMainTab = switchMainTab;
           if (Array.isArray(data)) {
             const combined = [...topMatches, ...localCommunityMatches];
             for (const item of data) {
-              if (!combined.some(x => x.id === item.id)) combined.push(item);
+              if (!combined.some(x => x.id === item.id)) {
+                if (q) {
+                  item.relevanceScore = item.relevanceScore || computeSongRelevanceScore(q, item.title, item.artist, item.creator_name || '');
+                }
+                if (!q || item.relevanceScore >= 35) {
+                  combined.push(item);
+                }
+              }
             }
             console.log(`[Search] Servidor backend entregó ${data.length} canciones (+${localCommunityMatches.length} comunitarias).`);
-            const sortedItems = sortItemsByTargetDifficulty(combined, currentTargetDifficulty);
+            let sortedItems = combined;
+            if (q) {
+              sortedItems.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
+            } else {
+              sortedItems = sortItemsByTargetDifficulty(combined, currentTargetDifficulty);
+            }
             searchResultsCache = sortedItems;
             renderSearchResults(sortedItems, []);
             if (btnText) btnText.innerText = 'Buscar';
@@ -7040,7 +7184,14 @@ window.switchMainTab = switchMainTab;
 
         if (osuRes.status === 'fulfilled' && Array.isArray(osuRes.value)) {
           for (const item of osuRes.value) {
-            if (!allItems.some(x => x.id === item.id)) allItems.push(item);
+            if (!allItems.some(x => x.id === item.id)) {
+              if (q) {
+                item.relevanceScore = computeSongRelevanceScore(q, item.title, item.artist, item.creator_name || '');
+              }
+              if (!q || item.relevanceScore >= 35) {
+                allItems.push(item);
+              }
+            }
           }
         } else {
           failedApis.push({ name: 'osu! Mania', error: osuRes.reason?.message || 'Sin respuesta' });
@@ -7048,7 +7199,14 @@ window.switchMainTab = switchMainTab;
 
         if (chRes.status === 'fulfilled' && Array.isArray(chRes.value)) {
           for (const item of chRes.value) {
-            if (!allItems.some(x => x.id === item.id)) allItems.push(item);
+            if (!allItems.some(x => x.id === item.id)) {
+              if (q) {
+                item.relevanceScore = computeSongRelevanceScore(q, item.title, item.artist, item.creator_name || '');
+              }
+              if (!q || item.relevanceScore >= 35) {
+                allItems.push(item);
+              }
+            }
           }
         } else {
           failedApis.push({ name: 'Clone Hero', error: chRes.reason?.message || 'Sin respuesta' });
@@ -7056,7 +7214,12 @@ window.switchMainTab = switchMainTab;
 
         console.log(`[Search] Total unificado: ${allItems.length} canciones encontradas.`);
 
-        const sortedItems = sortItemsByTargetDifficulty(allItems, currentTargetDifficulty);
+        let sortedItems = allItems;
+        if (q) {
+          sortedItems.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
+        } else {
+          sortedItems = sortItemsByTargetDifficulty(allItems, currentTargetDifficulty);
+        }
         searchResultsCache = sortedItems;
         renderSearchResults(sortedItems, failedApis);
 
@@ -7067,6 +7230,7 @@ window.switchMainTab = switchMainTab;
         if (spinner) spinner.classList.add('hidden');
       }
     }
+    window.executeSearch = executeSearch;
     function getSongCoverFallback(title = '', artist = '') {
       const t = String(title || '');
       const a = String(artist || '');
@@ -7167,6 +7331,17 @@ window.switchMainTab = switchMainTab;
                 <div class="min-w-0 flex-1 flex flex-col justify-center overflow-hidden">
                   <div class="flex items-center gap-1.5 truncate">
                     <h3 class="text-xs font-black text-[#17131d] truncate font-serif leading-tight">${escapeHtml(item.title || t('unknown_song', 'Canción'))}</h3>
+                    ${item.relevanceScore && item.relevanceScore > 0 ? `
+                      <span class="text-[8.5px] font-mono font-black px-1.5 py-0.2 rounded-full flex-shrink-0 ${
+                        item.relevanceScore >= 80 
+                          ? 'bg-emerald-600/25 text-emerald-900 border border-emerald-600/40' 
+                          : item.relevanceScore >= 60 
+                            ? 'bg-amber-600/25 text-amber-900 border border-amber-600/40' 
+                            : 'bg-blue-600/25 text-blue-900 border border-blue-600/40'
+                      }" title="${item.relevanceScore}% de coincidencia con tu búsqueda">
+                        ${item.relevanceScore}%
+                      </span>
+                    ` : ''}
                     ${hs ? `<span class="text-[8px] font-mono font-bold text-amber-800 flex-shrink-0 flex items-center gap-0.5"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="text-amber-700 inline"><path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2"/><path d="M6 9a6 6 0 0 0 12 0"/><path d="M12 15v5"/><path d="M8 20h8"/></svg> ${hs.score.toLocaleString()}</span>` : ''}
                   </div>
                   <p class="text-[10px] text-[#5a422d] font-semibold truncate leading-tight mt-0.5">${escapeHtml(item.artist || t('unknown_artist', 'Artista'))}${isComm ? ` • <span class="text-[#2b1f13]">${escapeHtml(item.creator_name || 'Comunidad')}</span>` : ''}</p>

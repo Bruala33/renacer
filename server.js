@@ -495,9 +495,114 @@ app.get('/api/v1/community/featured', (req, res) => {
   res.json(chartsWithStats.slice(0, 6));
 });
 
+function normalizeSearchText(str) {
+  return String(str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function levenshteinDist(s1, s2) {
+  const m = s1.length, n = s2.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  const d = [];
+  for (let i = 0; i <= m; i++) d[i] = [i];
+  for (let j = 0; j <= n; j++) d[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = s1[i - 1] === s2[j - 1] ? 0 : 1;
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+    }
+  }
+  return d[m][n];
+}
+
+function wordSimilarity(w1, w2) {
+  if (w1 === w2) return 1.0;
+  if (!w1 || !w2) return 0;
+  if (w1.length >= 3 && (w2.startsWith(w1) || w1.startsWith(w2))) {
+    return (Math.min(w1.length, w2.length) / Math.max(w1.length, w2.length)) * 0.95;
+  }
+  if (w1.length >= 3 && (w2.includes(w1) || w1.includes(w2))) {
+    return (Math.min(w1.length, w2.length) / Math.max(w1.length, w2.length)) * 0.90;
+  }
+  const maxLen = Math.max(w1.length, w2.length);
+  if (maxLen === 0) return 1.0;
+  const dist = levenshteinDist(w1, w2);
+  return Math.max(0, 1.0 - (dist / maxLen));
+}
+
+function computeSongRelevanceScore(query, title, artist, extra = '') {
+  const nq = normalizeSearchText(query);
+  if (!nq) return 100;
+  const nt = normalizeSearchText(title);
+  const na = normalizeSearchText(artist);
+  const ne = normalizeSearchText(extra);
+
+  if (nt === nq || na === nq) return 100;
+
+  if (nt.includes(nq)) {
+    return (' ' + nt + ' ').includes(' ' + nq + ' ') ? 98 : 94;
+  }
+  if (na.includes(nq)) {
+    return (' ' + na + ' ').includes(' ' + nq + ' ') ? 96 : 92;
+  }
+
+  const qWords = nq.split(' ').filter(Boolean);
+  if (!qWords.length) return 0;
+
+  const tWords = nt.split(' ').filter(Boolean);
+  const aWords = na.split(' ').filter(Boolean);
+  const primaryWords = [...tWords, ...aWords];
+
+  let primaryScore = 0;
+  if (primaryWords.length > 0) {
+    let sumSim = 0;
+    for (const qw of qWords) {
+      let best = 0;
+      for (const pw of primaryWords) {
+        const sim = wordSimilarity(qw, pw);
+        if (sim > best) best = sim;
+      }
+      sumSim += best;
+    }
+    primaryScore = Math.round((sumSim / qWords.length) * 100);
+  }
+
+  if (primaryScore >= 50) {
+    return Math.min(100, primaryScore);
+  }
+
+  if (ne) {
+    if (ne.includes(nq)) {
+      return (' ' + ne + ' ').includes(' ' + nq + ' ') ? 75 : 68;
+    }
+    const eWords = ne.split(' ').filter(Boolean);
+    if (eWords.length > 0) {
+      let sumSim = 0;
+      for (const qw of qWords) {
+        let best = 0;
+        for (const ew of eWords) {
+          const sim = wordSimilarity(qw, ew);
+          if (sim > best) best = sim;
+        }
+        sumSim += best;
+      }
+      const extraScore = Math.round((sumSim / qWords.length) * 70);
+      if (extraScore >= 40) return Math.min(75, Math.max(primaryScore, extraScore));
+    }
+  }
+
+  return Math.max(0, primaryScore);
+}
+
 // Search community tracks
 app.get('/api/v1/community/charts/search', (req, res) => {
-  const q = (req.query.q || '').toString().toLowerCase().trim();
+  const q = (req.query.q || '').toString().trim();
   const difficulty = (req.query.difficulty || '').toString().toLowerCase().trim();
   const sort = (req.query.sort || 'rating').toString().toLowerCase().trim();
   const creator_id = (req.query.creator_id || '').toString().trim();
@@ -505,12 +610,12 @@ app.get('/api/v1/community/charts/search', (req, res) => {
   let results = Array.from(communityCharts.values());
 
   if (q) {
-    results = results.filter(
-      (c) =>
-        c.title?.toLowerCase().includes(q) ||
-        c.artist?.toLowerCase().includes(q) ||
-        c.creator_name?.toLowerCase().includes(q)
-    );
+    results = results
+      .map((c) => ({
+        ...c,
+        relevanceScore: computeSongRelevanceScore(q, c.title, c.artist, c.creator_name || ''),
+      }))
+      .filter((c) => c.relevanceScore >= 35);
   }
 
   if (difficulty && difficulty !== 'todas') {
@@ -521,7 +626,9 @@ app.get('/api/v1/community/charts/search', (req, res) => {
     results = results.filter((c) => c.creator_id === creator_id);
   }
 
-  if (sort === 'newest') {
+  if (q && sort !== 'newest') {
+    results.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
+  } else if (sort === 'newest') {
     results.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   } else if (sort === 'trending') {
     results.sort((a, b) => b.votes_count - a.votes_count || b.rating_avg - a.rating_avg);
@@ -1002,12 +1109,9 @@ app.get(['/api/search', '/api/v1/search', '/api/v1/search/community'], async (re
 
   // 1. Search local community charts
   for (const c of communityCharts.values()) {
-    if (
-      c.title?.toLowerCase().includes(qLower) ||
-      c.artist?.toLowerCase().includes(qLower) ||
-      c.creator_name?.toLowerCase().includes(qLower)
-    ) {
-      results.push(c);
+    const score = computeSongRelevanceScore(q, c.title, c.artist, c.creator_name || '');
+    if (score >= 35) {
+      results.push({ ...c, relevanceScore: score });
     }
   }
 
@@ -1062,6 +1166,13 @@ app.get(['/api/search', '/api/v1/search', '/api/v1/search/community'], async (re
   } catch (err) {
     // Non-blocking fallback
   }
+
+  for (const item of results) {
+    if (typeof item.relevanceScore !== 'number') {
+      item.relevanceScore = computeSongRelevanceScore(q, item.title, item.artist, item.creator_name || '');
+    }
+  }
+  results.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
 
   res.json(results);
 });
