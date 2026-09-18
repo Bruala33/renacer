@@ -4443,13 +4443,13 @@ body {
   transform: translateX(-50%);
   width: 90%;
   max-width: 580px;
-  background: radial-gradient(ellipse at center, rgba(10, 8, 18, 0.28) 0%, rgba(5, 4, 10, 0.10) 80%, transparent 100%);
-  padding: 6px 14px;
-  border-radius: 20px;
-  backdrop-filter: blur(2.5px);
-  -webkit-backdrop-filter: blur(2.5px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  background: rgba(11, 9, 20, 0.88);
+  padding: 8px 18px;
+  border-radius: 24px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   z-index: 25;
   pointer-events: none;
   transition: opacity 0.25s ease, transform 0.25s ease;
@@ -4469,8 +4469,8 @@ body {
 /* Base word style */
 .karaoke-word {
   display: inline-block;
-  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-weight: 900;
+  font-family: 'Outfit', 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-weight: 800;
   font-size: 1.25rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -4486,17 +4486,23 @@ body {
   }
 }
 
-/* 1. Unpainted: Letra sin pintar / estilo relieve hueco elegante */
+/* 1. Unpainted: Silueta exterior limpia; el relleno oscuro oculta cualquier costura interna */
 .karaoke-word.unpainted {
-  color: rgba(255, 255, 255, 0.30);
-  -webkit-text-stroke: 1.2px rgba(255, 255, 255, 0.60);
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.85), 0 0 6px rgba(255, 255, 255, 0.10);
+  color: #0b0914 !important;
+  -webkit-text-fill-color: #0b0914 !important;
+  -webkit-text-stroke: 1.8px rgba(255, 255, 255, 0.95);
+  paint-order: stroke fill;
+  text-shadow:
+    0 0 1px rgba(255, 255, 255, 0.8),
+    0 2px 5px rgba(0, 0, 0, 0.95) !important;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.95));
   transform: scale(0.96);
 }
 
 /* 2. Painted: Letra "pintada" con destello oro/rosa al llegar la palabra voladora */
 .karaoke-word.painted {
   color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
   -webkit-text-stroke: 0px;
   text-shadow:
     0 0 10px #ffd700,
@@ -4523,18 +4529,7 @@ body {
 }
 
 #karaokeNextLine {
-  font-size: 0.80rem;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.55);
-  letter-spacing: 0.05em;
-  margin-top: 4px;
-  font-family: 'Montserrat', system-ui, sans-serif;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
-  min-height: 18px;
-  max-width: 90%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: none !important;
 }
 
 

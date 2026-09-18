@@ -2200,7 +2200,8 @@ class BeatstarEngine {
         end_timestamp_ms: isHold ? (rawT + Math.max(150, rawDur)) : null,
         lyric: n.lyric || null,
         wordIdx: n.wordIdx !== undefined ? n.wordIdx : null,
-        lineIdx: n.lineIdx !== undefined ? n.lineIdx : null
+        lineIdx: n.lineIdx !== undefined ? n.lineIdx : null,
+        isInstrumental: Boolean(n.isInstrumental || n.is_instrumental || n.isInst)
       };
     }) : [];
 
@@ -3215,10 +3216,7 @@ class BeatstarEngine {
       let wIdx = (note && note.wordIdx !== undefined) ? note.wordIdx : null;
       let lIdx = (note && note.lineIdx !== undefined) ? note.lineIdx : null;
 
-      if (!lyricWord && this.activeKaraokeLyrics && this.activeKaraokeLyrics.length > 0) {
-        lyricWord = this.getKaraokeWordAtTime(currentTime, note);
-      }
-
+      // Solo generar lírica voladora si la nota tenía asignada una palabra vocal real (no en notas instrumentales)
       if (lyricWord) {
         this.spawnFlyingLyric(lyricWord, x, y, wIdx, lIdx);
       }
@@ -3643,6 +3641,12 @@ class BeatstarEngine {
   distributeKaraokeLyrics(targetNotes, lrcLines) {
     if (!targetNotes || !Array.isArray(targetNotes) || !lrcLines || !Array.isArray(lrcLines) || lrcLines.length === 0) return;
 
+    // Si las notas ya tienen letras y asignaciones válidas (ej. UltraStar con sílabas integradas), no sobreescribir
+    const alreadyMapped = targetNotes.some(n => n.lineIdx !== null && n.lineIdx !== undefined && n.lyric && !['♪', '♫', '▲', '~', '-'].includes(String(n.lyric).trim()));
+    if (alreadyMapped) {
+      return;
+    }
+
     // 1. Limpiar asignaciones previas
     for (let i = 0; i < targetNotes.length; i++) {
       targetNotes[i].lyric = null;
@@ -3657,45 +3661,125 @@ class BeatstarEngine {
       return tA - tB;
     });
 
-    // 3. Asignación 1:1 estricta: cada palabra de la frase se asigna a EXACTAMENTE UNA sola nota
+    const firstLrcTime = lrcLines[0].timeMs;
+
+    // 3. Agrupar notas simultáneas en eventos melódicos ÚNICAMENTE si no son instrumentales
+    const rhythmicEvents = [];
+    let currentEvent = null;
+    for (let i = 0; i < targetNotes.length; i++) {
+      const n = targetNotes[i];
+      const t = Number.isFinite(n.timestamp_ms) ? n.timestamp_ms : (n.timeMs || 0);
+
+      // BLINDAJE INSTRUMENTAL:
+      // Notas marcadas explícitamente como instrumentales o muy anteriores al canto (< firstLrcTime - 1200ms)
+      // permanecen 100% instrumentales sin letra.
+      const isExplicitInst = Boolean(n.isInstrumental || n.is_instrumental || n.isInst);
+      if (isExplicitInst || t < (firstLrcTime - 1200)) {
+        continue;
+      }
+
+      if (!currentEvent || Math.abs(t - currentEvent.timeMs) > 45) {
+        currentEvent = { timeMs: t, notes: [n] };
+        rhythmicEvents.push(currentEvent);
+      } else {
+        currentEvent.notes.push(n);
+      }
+    }
+
+    let lastAssignedEventIdx = -1;
+
+    // 4. Asignación secuencial musical garantizada
     for (let lIdx = 0; lIdx < lrcLines.length; lIdx++) {
       const line = lrcLines[lIdx];
       const nextLine = lrcLines[lIdx + 1];
       const lineStart = line.timeMs;
-      const lineEnd = nextLine ? nextLine.timeMs : (lineStart + Math.max(3000, (line.words ? line.words.length : 4) * 600));
-      const lineDur = Math.max(750, lineEnd - lineStart);
-      const words = line.words || (line.text ? line.text.split(/\s+/).filter(Boolean) : []);
+      const words = (line.words || (line.text ? line.text.split(/\s+/).filter(Boolean) : []))
+        .map(w => String(w).toUpperCase().trim())
+        .filter(Boolean);
       if (!words.length) continue;
 
-      const availableNotes = targetNotes.filter(n => {
-        const nTime = Number.isFinite(n.timestamp_ms) ? n.timestamp_ms : (n.timeMs || 0);
-        return nTime >= (lineStart - 220) && nTime < (lineEnd - 40);
-      });
+      line.words = words;
+      line.wordTimestamps = [];
 
-      if (!availableNotes.length) continue;
+      // Búsqueda de eventos para la línea:
+      // La primera línea (Line 0) SIEMPRE se ancla en los primeros eventos vocales de la canción
+      let startSearchTime;
+      if (lIdx === 0) {
+        startSearchTime = (rhythmicEvents.length > 0) ? rhythmicEvents[0].timeMs - 100 : lineStart - 1200;
+      } else {
+        const minT = (lastAssignedEventIdx >= 0 && lastAssignedEventIdx < rhythmicEvents.length)
+          ? rhythmicEvents[lastAssignedEventIdx].timeMs + 80
+          : 0;
+        startSearchTime = Math.max(minT, lineStart - 800);
+      }
 
-      let lastAssignedIdx = -1;
-      for (let wIdx = 0; wIdx < words.length; wIdx++) {
-        const word = words[wIdx];
-        const targetVocalTime = lineStart + (wIdx / words.length) * lineDur;
+      const maxDur = Math.max(1200, words.length * 600);
+      const endSearchTime = nextLine
+        ? Math.min(nextLine.timeMs - 150, lineStart + maxDur + 400)
+        : (lineStart + maxDur + 1200);
 
-        let bestIdx = -1;
-        let minDiff = Infinity;
-        for (let i = lastAssignedIdx + 1; i < availableNotes.length; i++) {
-          const nTime = Number.isFinite(availableNotes[i].timestamp_ms) ? availableNotes[i].timestamp_ms : (availableNotes[i].timeMs || 0);
-          const diff = Math.abs(nTime - targetVocalTime);
-          if (diff < minDiff) {
-            minDiff = diff;
-            bestIdx = i;
-          }
+      const phraseEvents = [];
+      for (let eIdx = Math.max(0, lastAssignedEventIdx + 1); eIdx < rhythmicEvents.length; eIdx++) {
+        const ev = rhythmicEvents[eIdx];
+        if (ev.timeMs >= startSearchTime && ev.timeMs <= endSearchTime) {
+          phraseEvents.push({ ev, eIdx });
+        } else if (ev.timeMs > endSearchTime) {
+          break;
         }
+      }
 
-        if (bestIdx !== -1) {
-          lastAssignedIdx = bestIdx;
-          const note = availableNotes[bestIdx];
-          note.lyric = String(word).toUpperCase();
-          note.wordIdx = wIdx;
-          note.lineIdx = lIdx;
+      // GARANTÍA VITAL PARA LINE 0:
+      // Si la búsqueda por ventana no encontró eventos debido a desfase entre LRC y chart,
+      // Line 0 toma inmediatamente los primeros eventos disponibles a partir de startSearchTime.
+      if (!phraseEvents.length) {
+        if (lIdx === 0 && rhythmicEvents.length > 0) {
+          const count = Math.min(rhythmicEvents.length, Math.max(words.length, 3));
+          for (let eIdx = 0; eIdx < count; eIdx++) {
+            phraseEvents.push({ ev: rhythmicEvents[eIdx], eIdx });
+          }
+        } else {
+          // Para líneas siguientes sin eventos en la ventana (posible pausa o solo instrumental),
+          // interpolar marcas de tiempo para que el teleprompter no falle
+          for (let wIdx = 0; wIdx < words.length; wIdx++) {
+            line.wordTimestamps[wIdx] = lineStart + wIdx * 350;
+          }
+          continue;
+        }
+      }
+
+      const numEvents = phraseEvents.length;
+      const numWords = words.length;
+
+      if (numEvents <= numWords) {
+        for (let wIdx = 0; wIdx < numEvents; wIdx++) {
+          const item = phraseEvents[wIdx];
+          item.ev.notes[0].lyric = words[wIdx];
+          item.ev.notes[0].wordIdx = wIdx;
+          item.ev.notes[0].lineIdx = lIdx;
+          line.wordTimestamps[wIdx] = item.ev.notes[0].timestamp_ms;
+          lastAssignedEventIdx = item.eIdx;
+        }
+        // Interpolar palabras restantes sin notas directas
+        for (let wIdx = numEvents; wIdx < numWords; wIdx++) {
+          const prevT = line.wordTimestamps[wIdx - 1] || lineStart;
+          line.wordTimestamps[wIdx] = prevT + 300;
+        }
+      } else {
+        const maxSpan = Math.min(numEvents - 1, Math.max(numWords - 1, Math.round(numWords * 1.35)));
+        let lastAssignedSubIdx = -1;
+
+        for (let wIdx = 0; wIdx < numWords; wIdx++) {
+          let subIdx = (wIdx === 0) ? 0 : (wIdx === numWords - 1) ? maxSpan : Math.round((wIdx / (numWords - 1)) * maxSpan);
+          if (subIdx <= lastAssignedSubIdx) subIdx = lastAssignedSubIdx + 1;
+          if (subIdx >= numEvents) subIdx = numEvents - 1;
+          lastAssignedSubIdx = subIdx;
+
+          const item = phraseEvents[subIdx];
+          item.ev.notes[0].lyric = words[wIdx];
+          item.ev.notes[0].wordIdx = wIdx;
+          item.ev.notes[0].lineIdx = lIdx;
+          line.wordTimestamps[wIdx] = item.ev.notes[0].timestamp_ms;
+          lastAssignedEventIdx = item.eIdx;
         }
       }
     }
@@ -3783,56 +3867,69 @@ class BeatstarEngine {
 
     if (typeof window !== 'undefined' && window.isKaraokeModeActive && this.activeKaraokeLyrics && this.activeKaraokeLyrics.length > 0) {
       let curIndex = -1;
-      const leadTimeMs = Math.max(900, (this.scrollDurationMs || 1400) * 0.70);
+      const leadTimeMs = Math.max(900, (this.scrollDurationMs || 1400) * 0.75);
       for (let k = 0; k < this.activeKaraokeLyrics.length; k++) {
         const item = this.activeKaraokeLyrics[k];
         const nextItem = this.activeKaraokeLyrics[k + 1];
-        const endMs = nextItem ? nextItem.timeMs : (item.timeMs + 5500);
-        // Anticipar la frase con buen margen para leerla cómodamente antes del impacto
-        if (currentTime >= (item.timeMs - leadTimeMs) && currentTime < endMs) {
+
+        // Anclar inicio de línea al primer timestamp de nota real cuando esté disponible
+        const hasTimestamps = item.wordTimestamps && item.wordTimestamps.length > 0 && Number.isFinite(item.wordTimestamps[0]);
+        const lineStart = hasTimestamps ? item.wordTimestamps[0] : item.timeMs;
+
+        // Fin de la frase vocal cantada
+        const lastNoteTs = (hasTimestamps && Number.isFinite(item.wordTimestamps[item.wordTimestamps.length - 1]))
+          ? item.wordTimestamps[item.wordTimestamps.length - 1]
+          : (lineStart + Math.max(1200, (item.words ? item.words.length : 4) * 580));
+
+        // Inicio de la siguiente frase
+        const nextHasTimestamps = nextItem && nextItem.wordTimestamps && nextItem.wordTimestamps.length > 0 && Number.isFinite(nextItem.wordTimestamps[0]);
+        const nextStart = nextHasTimestamps ? nextItem.wordTimestamps[0] : (nextItem ? nextItem.timeMs : null);
+
+        // La línea permanece visible mientras se cantan sus notas (+900ms para lectura).
+        // Si hay una pausa instrumental prolongada antes de la siguiente estrofa, el teleprompter se limpia.
+        const lineEnd = nextStart
+          ? Math.min(lastNoteTs + 1000, nextStart - leadTimeMs)
+          : (lastNoteTs + 2500);
+
+        if (currentTime >= (lineStart - leadTimeMs) && currentTime < lineEnd) {
           curIndex = k;
           break;
         }
       }
 
       const curEl = document.getElementById('karaokeCurrentLine');
-      const nextEl = document.getElementById('karaokeNextLine');
 
       if (curIndex !== -1 && curIndex !== this._lastCurLyricIndex) {
         this._lastCurLyricIndex = curIndex;
         const curItem = this.activeKaraokeLyrics[curIndex];
-        const nextItem = this.activeKaraokeLyrics[curIndex + 1];
 
-        if (curEl) {
+        if (curEl && curItem && curItem.words) {
           curEl.innerHTML = curItem.words.map((w, wIdx) => {
             const cleanW = String(w).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[m]);
             return `<span class="karaoke-word unpainted" data-line-idx="${curIndex}" data-word-idx="${wIdx}">${cleanW}</span>`;
           }).join(' ');
         }
-        if (nextEl) {
-          nextEl.textContent = nextItem ? nextItem.text : '';
-        }
       } else if (curIndex === -1 && this._lastCurLyricIndex !== -1) {
         this._lastCurLyricIndex = -1;
         if (curEl) curEl.innerHTML = '';
-        if (nextEl) nextEl.textContent = '';
       }
 
-      // Pintado natural si una palabra ya se cantó hace más de 450ms y no fue acertada
+      // Pintado de respaldo: SOLO si la nota ya cruzó completamente la barra de acierto (+260ms) y no fue acertada
       if (curIndex !== -1 && curEl) {
         const curItem = this.activeKaraokeLyrics[curIndex];
-        const nextItem = this.activeKaraokeLyrics[curIndex + 1];
-        const lineStart = curItem.timeMs;
-        const lineEnd = nextItem ? nextItem.timeMs : (lineStart + Math.max(3000, curItem.words.length * 600));
-        const lineDur = Math.max(750, lineEnd - lineStart);
+        if (curItem && curItem.words) {
+          for (let wIdx = 0; wIdx < curItem.words.length; wIdx++) {
+            const noteT = (curItem.wordTimestamps && Number.isFinite(curItem.wordTimestamps[wIdx]))
+              ? curItem.wordTimestamps[wIdx]
+              : (curItem.timeMs + wIdx * 500);
 
-        for (let wIdx = 0; wIdx < curItem.words.length; wIdx++) {
-          const wTime = lineStart + (wIdx / curItem.words.length) * lineDur;
-          if (currentTime > (wTime + 450)) {
-            const unpSpan = curEl.querySelector(`.karaoke-word.unpainted[data-word-idx="${wIdx}"]`);
-            if (unpSpan) {
-              unpSpan.classList.remove('unpainted');
-              unpSpan.classList.add('painted');
+            // ÚNICAMENTE después de que la nota haya sobrepasado la línea de acierto (nota fallada/pasada)
+            if (currentTime > (noteT + 260)) {
+              const unpSpan = curEl.querySelector(`.karaoke-word.unpainted[data-word-idx="${wIdx}"]`);
+              if (unpSpan) {
+                unpSpan.classList.remove('unpainted');
+                unpSpan.classList.add('painted');
+              }
             }
           }
         }

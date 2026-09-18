@@ -1142,7 +1142,6 @@
       <!-- Karaoke Live Teleprompter (Visible exclusively in Modo Karaoke) -->
       <div id="karaokeTeleprompterBar" class="hidden absolute z-30 pointer-events-none flex flex-col items-center justify-center select-none transition-all">
         <div id="karaokeCurrentLine" class="karaoke-current-line"></div>
-        <div id="karaokeNextLine"></div>
       </div>
     </div>
 
@@ -7960,8 +7959,20 @@ window.switchMainTab = switchMainTab;
        ========================================================================= */
     async function loadKaraokeLyricsForBeatmap(beatmap, gameEngine) {
       if (!beatmap || !beatmap.notes) return;
-      const title = String(beatmap.title || beatmap.metadata?.title || '').trim();
-      const artist = String(beatmap.artist || beatmap.metadata?.artist || '').trim();
+      let rawTitle = String(beatmap.title || beatmap.metadata?.title || '').trim();
+      let rawArtist = String(beatmap.artist || beatmap.metadata?.artist || '').trim();
+
+      // Si el título contiene "Artista - Canción" o viceversa
+      if (rawTitle.includes(' - ')) {
+        const parts = rawTitle.split(' - ');
+        const p0 = parts[0].trim();
+        const p1 = parts.slice(1).join(' - ').trim();
+        const isGenericArtist = !rawArtist || ['comunidad', 'osu!', 'desconocido', 'canción top', 'catálogo', 'unknown'].includes(rawArtist.toLowerCase());
+        if (isGenericArtist) {
+          rawArtist = p0;
+          rawTitle = p1;
+        }
+      }
 
       // CASO 1: Chart ya contiene notas con letras incrustadas (ej. UltraStar)
       const existingWordNotes = beatmap.notes.filter(n => n.lyric && String(n.lyric).trim().length > 0 && !['♪', '♫', '▲', '~', '-'].includes(String(n.lyric).trim()));
@@ -7971,32 +7982,56 @@ window.switchMainTab = switchMainTab;
         if (reconstructedLines.length > 0) {
           beatmap.activeKaraokeLyrics = reconstructedLines;
           if (gameEngine) gameEngine.activeKaraokeLyrics = reconstructedLines;
-          distributeLrcWordsToNotes(beatmap.notes, reconstructedLines, gameEngine);
+          linkExistingNotesToReconstructedLines(beatmap.notes, reconstructedLines);
+          if (gameEngine && gameEngine.notes) {
+            linkExistingNotesToReconstructedLines(gameEngine.notes, reconstructedLines);
+          }
           return;
         }
       }
 
-      // CASO 2: Buscar en LRCLIB (Directo y con Proxy Fallback para Android)
-      console.log(`[Karaoke] Buscando letra sincronizada en LRCLIB para "${title}" - "${artist}"...`);
+      // CASO 2: Buscar en LRCLIB con saneamiento y proxy completo (Directo + Worker Proxy)
+      const cleanTitle = rawTitle
+        .replace(/\([^)]*(?:tv\s*size|cut\s*ver|short\s*ver|audio|video|feat|ft\.)[^)]*\)/gi, '')
+        .replace(/\[[^\]]*\]/g, '')
+        .replace(/\([^)]*\)/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      const cleanArtist = rawArtist
+        .replace(/\[[^\]]*\]/g, '')
+        .replace(/\([^)]*\)/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      const isRealArtist = cleanArtist && !['comunidad', 'osu!', 'desconocido', 'canción top', 'catálogo', 'unknown'].includes(cleanArtist.toLowerCase());
+
+      console.log(`[Karaoke] Buscando letra sincronizada en LRCLIB para "${cleanTitle}" - "${cleanArtist}"...`);
       let lrcText = null;
+      const myWorker = (u) => `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(u)}`;
+
       try {
-        const cleanTitle = title.replace(/\([^)]*\)|\[[^\]]*\]/g, '').trim();
-        const cleanArtist = artist.replace(/\([^)]*\)|\[[^\]]*\]/g, '').trim();
+        const directUrl = isRealArtist
+          ? `https://lrclib.net/api/get?artist_name=${encodeURIComponent(cleanArtist)}&track_name=${encodeURIComponent(cleanTitle)}`
+          : null;
+        const searchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent((cleanTitle + (isRealArtist ? (' ' + cleanArtist) : '')).trim())}`;
+        const titleOnlySearchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(cleanTitle)}`;
 
         // 1. Intento por track + artist directo
-        const directUrl = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(cleanArtist)}&track_name=${encodeURIComponent(cleanTitle)}`;
-        try {
-          const res = await fetch(directUrl);
-          if (res.ok) {
-            const data = await res.json();
-            if (data && data.syncedLyrics) lrcText = data.syncedLyrics;
-          }
-        } catch (_) {}
+        if (directUrl) {
+          try {
+            const res = await fetch(directUrl);
+            if (res.ok) {
+              const data = await res.json();
+              if (data && data.syncedLyrics) lrcText = data.syncedLyrics;
+            }
+          } catch (_) {}
+        }
 
         // 2. Intento por búsqueda directa
         if (!lrcText) {
           try {
-            const sRes = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(cleanTitle + ' ' + cleanArtist)}`);
+            const sRes = await fetch(searchUrl);
             if (sRes.ok) {
               const list = await sRes.json();
               if (Array.isArray(list) && list.length > 0) {
@@ -8007,14 +8042,41 @@ window.switchMainTab = switchMainTab;
           } catch (_) {}
         }
 
-        // 3. Intento vía Cloudflare Proxy si el directo falla
-        if (!lrcText) {
+        // 3. Intento vía Cloudflare Proxy (Get directo)
+        if (!lrcText && directUrl) {
           try {
-            const proxyUrl = `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(directUrl)}`;
-            const pRes = await fetch(proxyUrl);
+            const pRes = await fetch(myWorker(directUrl));
             if (pRes.ok) {
               const data = await pRes.json();
               if (data && data.syncedLyrics) lrcText = data.syncedLyrics;
+            }
+          } catch (_) {}
+        }
+
+        // 4. Intento vía Cloudflare Proxy (Búsqueda completa por texto + artista)
+        if (!lrcText) {
+          try {
+            const pRes = await fetch(myWorker(searchUrl));
+            if (pRes.ok) {
+              const list = await pRes.json();
+              if (Array.isArray(list) && list.length > 0) {
+                const matched = list.find(x => x.syncedLyrics);
+                if (matched) lrcText = matched.syncedLyrics;
+              }
+            }
+          } catch (_) {}
+        }
+
+        // 5. Intento vía Cloudflare Proxy (Búsqueda solo por título limpio)
+        if (!lrcText) {
+          try {
+            const pRes = await fetch(myWorker(titleOnlySearchUrl));
+            if (pRes.ok) {
+              const list = await pRes.json();
+              if (Array.isArray(list) && list.length > 0) {
+                const matched = list.find(x => x.syncedLyrics);
+                if (matched) lrcText = matched.syncedLyrics;
+              }
             }
           } catch (_) {}
         }
@@ -8033,8 +8095,8 @@ window.switchMainTab = switchMainTab;
         console.warn('[Karaoke] Aviso buscando letra en LRCLIB:', err);
       }
 
-      // CASO 3: Fallback Procedural Universal (Garantiza letras en el 100% de las canciones)
-      console.log(`[Karaoke] Generando lírica rítmica melódica procedural para "${title}"...`);
+      // CASO 3: Fallback Procedural Universal (Garantiza letras con protección estricta de intro instrumental)
+      console.log(`[Karaoke] Generando lírica rítmica melódica procedural para "${cleanTitle}"...`);
       const proceduralLines = generateProceduralLyricsForBeatmap(beatmap);
       beatmap.activeKaraokeLyrics = proceduralLines;
       if (gameEngine) gameEngine.activeKaraokeLyrics = proceduralLines;
@@ -8119,14 +8181,31 @@ window.switchMainTab = switchMainTab;
       if (!notes.length) return [];
       const sortedNotes = [...notes].sort((a, b) => (a.timestamp_ms || 0) - (b.timestamp_ms || 0));
 
+      // Protección estricta de intro instrumental:
+      // Nunca generar letras en los primeros 12 segundos o sobre notas marcadas como instrumentales
+      const firstT = sortedNotes[0].timestamp_ms || sortedNotes[0].timeMs || 0;
+      const minVocalStartMs = Math.max(firstT + 8000, 12000);
+
+      const vocalCandidateNotes = sortedNotes.filter(n => {
+        const t = n.timestamp_ms || n.timeMs || 0;
+        const isInst = Boolean(n.isInstrumental || n.is_instrumental || n.isInst);
+        return !isInst && t >= minVocalStartMs;
+      });
+
+      const effectiveNotes = vocalCandidateNotes.length >= 8
+        ? vocalCandidateNotes
+        : sortedNotes.filter(n => (n.timestamp_ms || n.timeMs || 0) >= minVocalStartMs);
+
+      if (!effectiveNotes.length) return [];
+
       const lines = [];
       let currentGroup = [];
       let groupStartTime = null;
       let lastTime = 0;
       let phraseIdx = 0;
 
-      for (let i = 0; i < sortedNotes.length; i++) {
-        const t = sortedNotes[i].timestamp_ms || sortedNotes[i].timeMs || 0;
+      for (let i = 0; i < effectiveNotes.length; i++) {
+        const t = effectiveNotes[i].timestamp_ms || effectiveNotes[i].timeMs || 0;
         if (groupStartTime === null) groupStartTime = t;
 
         const gap = t - lastTime;
@@ -8142,7 +8221,7 @@ window.switchMainTab = switchMainTab;
           currentGroup = [];
           groupStartTime = t;
         }
-        currentGroup.push(sortedNotes[i]);
+        currentGroup.push(effectiveNotes[i]);
         lastTime = t;
       }
 
@@ -8172,6 +8251,13 @@ window.switchMainTab = switchMainTab;
         if (!matches || matches.length === 0) continue;
         const text = line.replace(tagRegex, '').trim();
         if (!text) continue;
+
+        // Filtrar etiquetas instrumentales, créditos y metadatos que no son letras cantadas
+        const lower = text.toLowerCase().replace(/^[(\[{<]|[)\]}>]$/g, '').trim();
+        if (/^(instrumental|intro|m[uú]sica|music|solo|interlude|outro|bridge|guitar solo|solo de guitarra|fade out)$/i.test(lower)) continue;
+        if (/^(by|sync by|synced by|lyrics by|letra por|escrita por|composer|lyricist|producer|arranged by|beat by|track|album|artist)\b/i.test(lower)) continue;
+        if (/^[♪♫~—–\-_.*#\s]+$/.test(text)) continue;
+
         const words = text.split(/\s+/).filter(Boolean);
         if (!words.length) continue;
 
@@ -8186,65 +8272,169 @@ window.switchMainTab = switchMainTab;
       return result.sort((a, b) => a.timeMs - b.timeMs);
     }
 
+    function linkExistingNotesToReconstructedLines(notes, lines) {
+      if (!notes || !lines || !lines.length) return;
+      for (let lIdx = 0; lIdx < lines.length; lIdx++) {
+        const line = lines[lIdx];
+        const nextLine = lines[lIdx + 1];
+        const lStart = line.timeMs;
+        const lEnd = nextLine ? nextLine.timeMs : (lStart + 10000);
+        line.wordTimestamps = [];
+
+        let wCounter = 0;
+        for (let i = 0; i < notes.length; i++) {
+          const n = notes[i];
+          const t = Number.isFinite(n.timestamp_ms) ? n.timestamp_ms : (n.timeMs || 0);
+          if (t >= (lStart - 100) && t < (lEnd - 100) && n.lyric && !['♪', '♫', '▲', '~', '-'].includes(String(n.lyric).trim())) {
+            n.lineIdx = lIdx;
+            n.wordIdx = wCounter;
+            if (line.words && wCounter < line.words.length) {
+              line.wordTimestamps[wCounter] = t;
+            }
+            wCounter++;
+          }
+        }
+      }
+    }
+
     function distributeLrcWordsToNotes(notes, lrcLines, gameEngine = null) {
       if (!notes || !lrcLines || lrcLines.length === 0) return;
 
       const applyToNoteList = (targetNotes) => {
         if (!Array.isArray(targetNotes) || targetNotes.length === 0) return;
 
-        // Limpiar letras previas
-        targetNotes.forEach(n => {
-          n.lyric = null;
-          n.wordIdx = null;
-          n.lineIdx = null;
-        });
+        // Si las notas ya tienen letras y asignaciones válidas (ej. UltraStar), no sobreescribir
+        const alreadyMapped = targetNotes.some(n => n.lineIdx !== null && n.lineIdx !== undefined && n.lyric && !['♪', '♫', '▲', '~', '-'].includes(String(n.lyric).trim()));
+        if (alreadyMapped) return;
 
-        // Ordenar notas cronológicamente por su tiempo de llegada a la línea de impacto
+        // 1. Limpiar asignaciones previas
+        for (let i = 0; i < targetNotes.length; i++) {
+          targetNotes[i].lyric = null;
+          targetNotes[i].wordIdx = null;
+          targetNotes[i].lineIdx = null;
+        }
+
+        // 2. Ordenar notas cronológicamente
         targetNotes.sort((a, b) => {
           const tA = Number.isFinite(a.timestamp_ms) ? a.timestamp_ms : (a.timeMs || 0);
           const tB = Number.isFinite(b.timestamp_ms) ? b.timestamp_ms : (b.timeMs || 0);
           return tA - tB;
         });
 
+        const firstLrcTime = lrcLines[0].timeMs;
+
+        // 3. Agrupar notas simultáneas en eventos melódicos ÚNICAMENTE si no son instrumentales
+        const rhythmicEvents = [];
+        let currentEvent = null;
+        for (let i = 0; i < targetNotes.length; i++) {
+          const n = targetNotes[i];
+          const t = Number.isFinite(n.timestamp_ms) ? n.timestamp_ms : (n.timeMs || 0);
+
+          // BLINDAJE INSTRUMENTAL ESTRICTO:
+          // Cualquier nota anterior al inicio del canto (< firstLrcTime - 1200ms) o explícitamente marcada
+          // como instrumental JAMÁS recibe letra. Permanece 100% instrumental sin texto en la tecla.
+          const isExplicitInst = Boolean(n.isInstrumental || n.is_instrumental || n.isInst);
+          if (isExplicitInst || t < (firstLrcTime - 1200)) {
+            continue;
+          }
+
+          if (!currentEvent || Math.abs(t - currentEvent.timeMs) > 45) {
+            currentEvent = { timeMs: t, notes: [n] };
+            rhythmicEvents.push(currentEvent);
+          } else {
+            currentEvent.notes.push(n);
+          }
+        }
+
+        let lastAssignedEventIdx = -1;
+
+        // 4. Asignación secuencial musical garantizada
         for (let lIdx = 0; lIdx < lrcLines.length; lIdx++) {
           const line = lrcLines[lIdx];
           const nextLine = lrcLines[lIdx + 1];
           const lineStart = line.timeMs;
-          const lineEnd = nextLine ? nextLine.timeMs : (lineStart + Math.max(3000, line.words.length * 600));
-          const lineDur = Math.max(750, lineEnd - lineStart);
+          const words = (line.words || (line.text ? line.text.split(/\s+/).filter(Boolean) : []))
+            .map(w => String(w).toUpperCase().trim())
+            .filter(Boolean);
+          if (!words.length) continue;
 
-          // Filtrar notas que llegan a la barra de acierto durante el intervalo de esta frase
-          const availableNotes = targetNotes.filter(n => {
-            const nTime = Number.isFinite(n.timestamp_ms) ? n.timestamp_ms : (n.timeMs || 0);
-            return nTime >= (lineStart - 180) && nTime < (lineEnd - 50);
-          });
+          line.words = words;
+          line.wordTimestamps = [];
 
-          if (!availableNotes.length || !line.words.length) continue;
+          let startSearchTime;
+          if (lIdx === 0) {
+            startSearchTime = (rhythmicEvents.length > 0) ? rhythmicEvents[0].timeMs - 100 : lineStart - 1200;
+          } else {
+            const minT = (lastAssignedEventIdx >= 0 && lastAssignedEventIdx < rhythmicEvents.length)
+              ? rhythmicEvents[lastAssignedEventIdx].timeMs + 80
+              : 0;
+            startSearchTime = Math.max(minT, lineStart - 800);
+          }
 
-          // Asignación 1:1 estricta: cada palabra de la frase se asigna a EXACTAMENTE UNA nota
-          let lastAssignedIdx = -1;
-          for (let wIdx = 0; wIdx < line.words.length; wIdx++) {
-            const word = line.words[wIdx];
-            // Tiempo exacto estimado en el que el cantante vocaliza esta palabra
-            const targetVocalTime = lineStart + (wIdx / line.words.length) * lineDur;
+          const maxDur = Math.max(1200, words.length * 600);
+          const endSearchTime = nextLine
+            ? Math.min(nextLine.timeMs - 150, lineStart + maxDur + 400)
+            : (lineStart + maxDur + 1200);
 
-            let bestIdx = -1;
-            let minDiff = Infinity;
-            for (let i = lastAssignedIdx + 1; i < availableNotes.length; i++) {
-              const nTime = Number.isFinite(availableNotes[i].timestamp_ms) ? availableNotes[i].timestamp_ms : (availableNotes[i].timeMs || 0);
-              const diff = Math.abs(nTime - targetVocalTime);
-              if (diff < minDiff) {
-                minDiff = diff;
-                bestIdx = i;
-              }
+          const phraseEvents = [];
+          for (let eIdx = Math.max(0, lastAssignedEventIdx + 1); eIdx < rhythmicEvents.length; eIdx++) {
+            const ev = rhythmicEvents[eIdx];
+            if (ev.timeMs >= startSearchTime && ev.timeMs <= endSearchTime) {
+              phraseEvents.push({ ev, eIdx });
+            } else if (ev.timeMs > endSearchTime) {
+              break;
             }
+          }
 
-            if (bestIdx !== -1) {
-              lastAssignedIdx = bestIdx;
-              const note = availableNotes[bestIdx];
-              note.lyric = word.toUpperCase();
-              note.wordIdx = wIdx;
-              note.lineIdx = lIdx;
+          // GARANTÍA VITAL PARA LINE 0:
+          // Si la búsqueda por ventana no encontró eventos debido a desfase entre LRC y chart,
+          // Line 0 toma inmediatamente los primeros eventos disponibles a partir de startSearchTime.
+          if (!phraseEvents.length) {
+            if (lIdx === 0 && rhythmicEvents.length > 0) {
+              const count = Math.min(rhythmicEvents.length, Math.max(words.length, 3));
+              for (let eIdx = 0; eIdx < count; eIdx++) {
+                phraseEvents.push({ ev: rhythmicEvents[eIdx], eIdx });
+              }
+            } else {
+              for (let wIdx = 0; wIdx < words.length; wIdx++) {
+                line.wordTimestamps[wIdx] = lineStart + wIdx * 350;
+              }
+              continue;
+            }
+          }
+
+          const numEvents = phraseEvents.length;
+          const numWords = words.length;
+
+          if (numEvents <= numWords) {
+            for (let wIdx = 0; wIdx < numEvents; wIdx++) {
+              const item = phraseEvents[wIdx];
+              item.ev.notes[0].lyric = words[wIdx];
+              item.ev.notes[0].wordIdx = wIdx;
+              item.ev.notes[0].lineIdx = lIdx;
+              line.wordTimestamps[wIdx] = item.ev.notes[0].timestamp_ms;
+              lastAssignedEventIdx = item.eIdx;
+            }
+            for (let wIdx = numEvents; wIdx < numWords; wIdx++) {
+              const prevT = line.wordTimestamps[wIdx - 1] || lineStart;
+              line.wordTimestamps[wIdx] = prevT + 300;
+            }
+          } else {
+            const maxSpan = Math.min(numEvents - 1, Math.max(numWords - 1, Math.round(numWords * 1.35)));
+            let lastAssignedSubIdx = -1;
+
+            for (let wIdx = 0; wIdx < numWords; wIdx++) {
+              let subIdx = (wIdx === 0) ? 0 : (wIdx === numWords - 1) ? maxSpan : Math.round((wIdx / (numWords - 1)) * maxSpan);
+              if (subIdx <= lastAssignedSubIdx) subIdx = lastAssignedSubIdx + 1;
+              if (subIdx >= numEvents) subIdx = numEvents - 1;
+              lastAssignedSubIdx = subIdx;
+
+              const item = phraseEvents[subIdx];
+              item.ev.notes[0].lyric = words[wIdx];
+              item.ev.notes[0].wordIdx = wIdx;
+              item.ev.notes[0].lineIdx = lIdx;
+              line.wordTimestamps[wIdx] = item.ev.notes[0].timestamp_ms;
+              lastAssignedEventIdx = item.eIdx;
             }
           }
         }
@@ -9006,6 +9196,8 @@ window.switchMainTab = switchMainTab;
           end_timestamp_ms: ty === 'hold' ? (t + Math.max(150, dur)) : null,
           direction: dirStr,
           swipeDirection: dirStr,
+          isInstrumental: Boolean(n.isInst || n.isInstrumental || n.is_instrumental),
+          lyric: n.lyric || null,
           hit: false,
           holding: false,
           holdCompleted: false,
@@ -9137,6 +9329,8 @@ window.switchMainTab = switchMainTab;
       window._launchingFromSlot = false;
 
       const finalBeatmap = {
+        title: beatmapData.title || beatmapData.metadata?.title || 'Canción Creada',
+        artist: beatmapData.artist || beatmapData.metadata?.artist || 'Comunidad',
         songPlaybackSpeed: songSpeedVal,
         stars: resolvedStars,
         selectedStars: resolvedStars,
