@@ -20,6 +20,10 @@
   <!-- High Performance Offline-Ready Tailwind CSS, JSZip & Style CSS -->
   <script src="./assets/vendor/tailwind.min.js"></script>
   <script src="./assets/vendor/jszip.min.js"></script>
+  <!-- Google Fonts: Cormorant Garamond & Montserrat -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./style.css?v=4.0">
   <script>
     // ===================================================
@@ -1133,6 +1137,12 @@
             <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
           </button>
         </div>
+      </div>
+
+      <!-- Karaoke Live Teleprompter (Visible exclusively in Modo Karaoke) -->
+      <div id="karaokeTeleprompterBar" class="hidden absolute z-30 pointer-events-none flex flex-col items-center justify-center select-none transition-all">
+        <div id="karaokeCurrentLine" class="karaoke-current-line"></div>
+        <div id="karaokeNextLine"></div>
       </div>
     </div>
 
@@ -5073,6 +5083,8 @@
       window._launchingFromSlot = false;
 
       document.getElementById('fixedTopHud').classList.add('hidden');
+      const teleBar = document.getElementById('karaokeTeleprompterBar');
+      if (teleBar) teleBar.classList.add('hidden');
 
       // Limpiar y ocultar el canvas de juego para que no quede visible detrás del menú
       const gameCanvas = document.getElementById('gameCanvas');
@@ -6616,6 +6628,7 @@ window.switchMainTab = switchMainTab;
 
     function toggleKaraokeMode() {
       window.isKaraokeModeActive = !window.isKaraokeModeActive;
+      try { localStorage.setItem('isKaraokeModeActive', window.isKaraokeModeActive ? '1' : '0'); } catch (_) {}
       const btn = document.getElementById('btnKaraokeToggle');
       if (btn) {
         if (window.isKaraokeModeActive) {
@@ -6640,6 +6653,17 @@ window.switchMainTab = switchMainTab;
       }
     }
     window.toggleKaraokeMode = toggleKaraokeMode;
+
+    try {
+      if (localStorage.getItem('isKaraokeModeActive') === '1') {
+        window.isKaraokeModeActive = true;
+        const btn = document.getElementById('btnKaraokeToggle');
+        if (btn) {
+          btn.classList.add('bg-pink-500/40', 'border-pink-400', 'shadow-[0_0_12px_rgba(244,114,182,0.6)]');
+          btn.classList.remove('bg-purple-600/20', 'border-purple-400/40');
+        }
+      }
+    } catch (_) {}
 
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
@@ -7433,7 +7457,7 @@ window.switchMainTab = switchMainTab;
     const CATALOG_PAGE_SIZE = 12;
     window.currentCatalogPage = 1;
 
-    function goToCatalogPage(page) {
+    function goToCatalogPage(page, shouldScroll = false) {
       const items = window.currentSearchResultsList || [];
       const totalPages = Math.max(1, Math.ceil(items.length / CATALOG_PAGE_SIZE));
       if (page < 1) page = 1;
@@ -7441,9 +7465,11 @@ window.switchMainTab = switchMainTab;
       window.currentCatalogPage = page;
       renderSearchResultsPage(page);
 
-      const searchScreen = document.getElementById('searchScreen');
-      if (searchScreen) {
-        searchScreen.scrollTo({ top: 0, behavior: 'smooth' });
+      if (shouldScroll) {
+        const searchScreen = document.getElementById('searchScreen');
+        if (searchScreen) {
+          searchScreen.scrollTo({ top: 0, behavior: 'smooth' });
+        }
       }
     }
     window.goToCatalogPage = goToCatalogPage;
@@ -7465,23 +7491,772 @@ window.switchMainTab = switchMainTab;
           <div class="piano-felt-top-strip"></div>
           ${cardsHtml}
         </div>
-        ${totalPages > 1 ? `
-          <div class="flex items-center justify-between p-3.5 bg-black/50 border border-[#c5a059]/30 rounded-2xl mt-3 shadow-lg">
-            <button onclick="goToCatalogPage(${page - 1})" ${page <= 1 ? 'disabled style="opacity: 0.4; cursor: not-allowed;"' : 'class="cursor-pointer active:scale-95"'} class="px-3.5 py-2 bg-white/10 hover:bg-white/20 border border-white/20 text-[#f5d998] font-black text-xs rounded-xl flex items-center gap-1.5 transition">
-              <span>◀</span> <span>Anterior</span>
-            </button>
-            <div class="text-center">
-              <span class="text-xs font-black text-[#f5d998]">Página ${page} de ${totalPages}</span>
-              <span class="block text-[9.5px] text-gray-400 font-semibold">${items.length} canciones encontradas</span>
-            </div>
-            <button onclick="goToCatalogPage(${page + 1})" ${page >= totalPages ? 'disabled style="opacity: 0.4; cursor: not-allowed;"' : 'class="cursor-pointer active:scale-95"'} class="px-3.5 py-2 bg-white/10 hover:bg-white/20 border border-white/20 text-[#f5d998] font-black text-xs rounded-xl flex items-center gap-1.5 transition">
-              <span>Siguiente</span> <span>▶</span>
-            </button>
+
+        <!-- ========================================================================= -->
+        <!-- PIANO DE 88 TECLAS - AL FINAL DE TODAS LAS CANCIONES (SIN TEXTOS EXTERNOS) -->
+        <!-- Solo visible con scroll hacia abajo. Cada tecla tiene su nombre hundido. -->
+        <!-- ========================================================================= -->
+        <section class="grand-piano-chassis flex-shrink-0 relative z-10 pt-2 pb-2.5 border-t border-amber-600/40 select-none shadow-[0_-10px_30px_rgba(0,0,0,0.85)] mt-4 rounded-2xl overflow-hidden">
+          
+          <!-- Listón de Latón Dorado y Fieltro de apagadores -->
+          <div class="brass-rail h-1 w-full"></div>
+          <div class="damper-felt h-2.5 w-full relative">
+            <div id="hammerTracker" class="hammer-tracker" style="left: 21px;"></div>
           </div>
-        ` : ''}
+
+          <!-- Ventana de la Cámara con Zonas Táctiles invisibles -->
+          <div id="pianoCameraViewport" class="relative w-full h-[136px] overflow-hidden keyboard-viewport-mask mt-0.5">
+            
+            <!-- Pista continua de 88 teclas (movimiento fluido por requestAnimationFrame) -->
+            <div id="pianoKeyboardTrack" class="relative flex h-full will-change-transform pointer-events-none" style="transform: translateX(0px);">
+              <!-- Teclas inyectadas proceduralmente con texto troquelado -->
+            </div>
+
+            <!-- Zonas táctiles izquierda / derecha sin textos -->
+            <div id="tapZoneLeft" class="piano-touch-zone piano-touch-zone-left"></div>
+            <div id="tapZoneRight" class="piano-touch-zone piano-touch-zone-right"></div>
+
+          </div>
+
+          <!-- Remate artesanal de madera -->
+          <div class="h-3 w-full flex items-center justify-center pt-1 opacity-50">
+            <div class="w-12 h-0.5 bg-gradient-to-r from-transparent via-amber-500/40 to-transparent rounded-full"></div>
+          </div>
+        </section>
       `;
+
+      initGrandPianoPagination(page, totalPages);
     }
     window.renderSearchResultsPage = renderSearchResultsPage;
+
+    /* =========================================================================
+       MOTOR ACÚSTICO DE PIANO DE COLA STEINWAY MODEL D (PAGINACIÓN 88 TECLAS)
+       ========================================================================= */
+    class AcousticGrandPianoSynth {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+        this.masterCompressor = null;
+        this.masterGain = null;
+        this.bodyFilter = null;
+        this.bassWave = null;
+        this.midWave = null;
+        this.trebleWave = null;
+        this.activeVoices = [];
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+            this.buildAudioGraph();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      createPianoWavetable(type) {
+        const numHarmonics = 28;
+        const real = new Float32Array(numHarmonics);
+        const imag = new Float32Array(numHarmonics);
+        real[0] = 0;
+        imag[0] = 0;
+
+        for (let n = 1; n < numHarmonics; n++) {
+          let amplitude = 0;
+          if (type === 'bass') {
+            if (n === 1) amplitude = 0.35;
+            else if (n === 2) amplitude = 1.0;
+            else if (n === 3) amplitude = 0.88;
+            else if (n === 4) amplitude = 0.72;
+            else if (n === 5) amplitude = 0.58;
+            else if (n === 6) amplitude = 0.44;
+            else if (n === 7) amplitude = 0.32;
+            else if (n === 8) amplitude = 0.24;
+            else amplitude = Math.pow(0.78, n) * 0.4;
+          } else if (type === 'mid') {
+            if (n === 1) amplitude = 1.0;
+            else if (n === 2) amplitude = 0.65;
+            else if (n === 3) amplitude = 0.42;
+            else if (n === 4) amplitude = 0.26;
+            else if (n === 5) amplitude = 0.15;
+            else amplitude = Math.pow(0.68, n);
+          } else {
+            if (n === 1) amplitude = 1.0;
+            else if (n === 2) amplitude = 0.45;
+            else if (n === 3) amplitude = 0.16;
+            else amplitude = Math.pow(0.5, n);
+          }
+          imag[n] = amplitude;
+        }
+
+        return this.ctx.createPeriodicWave(real, imag, { disableNormalization: false });
+      }
+
+      buildAudioGraph() {
+        if (!this.ctx) return;
+
+        this.bassWave = this.createPianoWavetable('bass');
+        this.midWave = this.createPianoWavetable('mid');
+        this.trebleWave = this.createPianoWavetable('treble');
+
+        this.masterCompressor = this.ctx.createDynamicsCompressor();
+        this.masterCompressor.threshold.setValueAtTime(-18, this.ctx.currentTime);
+        this.masterCompressor.knee.setValueAtTime(12, this.ctx.currentTime);
+        this.masterCompressor.ratio.setValueAtTime(6, this.ctx.currentTime);
+        this.masterCompressor.attack.setValueAtTime(0.002, this.ctx.currentTime);
+        this.masterCompressor.release.setValueAtTime(0.12, this.ctx.currentTime);
+
+        this.bodyFilter = this.ctx.createBiquadFilter();
+        this.bodyFilter.type = 'peaking';
+        this.bodyFilter.frequency.setValueAtTime(230, this.ctx.currentTime);
+        this.bodyFilter.Q.setValueAtTime(1.4, this.ctx.currentTime);
+        this.bodyFilter.gain.setValueAtTime(4.5, this.ctx.currentTime);
+
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.setValueAtTime(0.85, this.ctx.currentTime);
+
+        this.bodyFilter.connect(this.masterCompressor);
+        this.masterCompressor.connect(this.masterGain);
+        this.masterGain.connect(this.ctx.destination);
+      }
+
+      getFrequency(keyIndex) {
+        return 440 * Math.pow(2, (keyIndex - 49) / 12);
+      }
+
+      playKey(keyIndex, isTurbo = false) {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const freq = this.getFrequency(keyIndex);
+        const now = this.ctx.currentTime;
+        const isBass = keyIndex <= 26;
+        const isTreble = keyIndex >= 62;
+
+        if (isTurbo) {
+          while (this.activeVoices.length > 4) {
+            const old = this.activeVoices.shift();
+            try {
+              old.gain.linearRampToValueAtTime(0.0001, now + 0.03);
+              setTimeout(() => { old.nodes.forEach(n => { try { n.stop(); } catch(e){} }); }, 40);
+            } catch(e) {}
+          }
+        }
+
+        const voiceNodes = [];
+        const duration = isTurbo ? 0.45 : (isBass ? 2.6 : (isTreble ? 1.1 : 1.7));
+
+        let wave = this.midWave;
+        if (isBass) wave = this.bassWave;
+        else if (isTreble) wave = this.trebleWave;
+
+        const voiceGain = this.ctx.createGain();
+        voiceGain.gain.setValueAtTime(0.0001, now);
+        
+        const peakGain = isTurbo ? 0.32 : (isBass ? 0.75 : 0.60);
+        voiceGain.gain.linearRampToValueAtTime(peakGain, now + 0.003);
+        voiceGain.gain.exponentialRampToValueAtTime(peakGain * 0.45, now + (isTurbo ? 0.08 : 0.28));
+        voiceGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        const initialCutoff = isBass ? Math.max(1400, freq * 20) : Math.min(10000, freq * 7);
+        filter.frequency.setValueAtTime(initialCutoff, now);
+        filter.frequency.exponentialRampToValueAtTime(Math.max(260, freq * 2.2), now + duration);
+
+        const detuneCents = isBass ? 0.7 : (isTreble ? 1.8 : 1.1);
+
+        const stringA = this.ctx.createOscillator();
+        stringA.setPeriodicWave(wave);
+        stringA.frequency.setValueAtTime(freq, now);
+        stringA.detune.setValueAtTime(-detuneCents, now);
+
+        const stringB = this.ctx.createOscillator();
+        stringB.setPeriodicWave(wave);
+        stringB.frequency.setValueAtTime(freq, now);
+        stringB.detune.setValueAtTime(detuneCents, now);
+
+        stringA.connect(filter);
+        stringB.connect(filter);
+        stringA.start(now);
+        stringB.start(now);
+        stringA.stop(now + duration);
+        stringB.stop(now + duration);
+        voiceNodes.push(stringA, stringB);
+
+        if (isBass) {
+          const subReinforcement = this.ctx.createOscillator();
+          subReinforcement.type = 'sine';
+          subReinforcement.frequency.setValueAtTime(freq * 2, now);
+          const subGain = this.ctx.createGain();
+          subGain.gain.setValueAtTime(0.35, now);
+          subGain.gain.exponentialRampToValueAtTime(0.0001, now + (isTurbo ? 0.35 : 1.8));
+
+          subReinforcement.connect(subGain);
+          subGain.connect(filter);
+          subReinforcement.start(now);
+          subReinforcement.stop(now + duration);
+          voiceNodes.push(subReinforcement);
+        }
+
+        const hammerBuffer = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * 0.018), this.ctx.sampleRate);
+        const hammerData = hammerBuffer.getChannelData(0);
+        for (let i = 0; i < hammerData.length; i++) {
+          hammerData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.003));
+        }
+        const hammer = this.ctx.createBufferSource();
+        hammer.buffer = hammerBuffer;
+        const hammerFilter = this.ctx.createBiquadFilter();
+        hammerFilter.type = 'bandpass';
+        hammerFilter.frequency.setValueAtTime(isBass ? 360 : 1800, now);
+        hammerFilter.Q.setValueAtTime(2.0, now);
+        const hammerGain = this.ctx.createGain();
+        hammerGain.gain.setValueAtTime(isTurbo ? 0.09 : 0.22, now);
+
+        hammer.connect(hammerFilter);
+        hammerFilter.connect(hammerGain);
+        hammerGain.connect(filter);
+        hammer.start(now);
+        voiceNodes.push(hammer);
+
+        const panner = this.ctx.createStereoPanner ? this.ctx.createStereoPanner() : null;
+        if (panner) {
+          const pan = ((keyIndex - 1) / 87) * 1.1 - 0.55;
+          panner.pan.setValueAtTime(pan, now);
+        }
+
+        filter.connect(voiceGain);
+        if (panner) {
+          voiceGain.connect(panner);
+          panner.connect(this.bodyFilter);
+        } else {
+          voiceGain.connect(this.bodyFilter);
+        }
+
+        const voiceRecord = { gain: voiceGain, nodes: voiceNodes };
+        this.activeVoices.push(voiceRecord);
+        setTimeout(() => {
+          const idx = this.activeVoices.indexOf(voiceRecord);
+          if (idx !== -1) this.activeVoices.splice(idx, 1);
+        }, duration * 1000);
+      }
+    }
+
+    const soundEngine = new AcousticGrandPianoSynth();
+    const whiteKeyWidth = 42;
+    const blackKeyWidth = 26;
+    const noteNamesPattern = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const piano88Keys = [];
+
+    // Octava 0 (A0, A#0, B0)
+    piano88Keys.push({ index: 1, note: 'A0', isBlack: false });
+    piano88Keys.push({ index: 2, note: 'A#0', isBlack: true });
+    piano88Keys.push({ index: 3, note: 'B0', isBlack: false });
+
+    // Octavas 1 a 7
+    let keyCounter = 4;
+    for (let oct = 1; oct <= 7; oct++) {
+      for (let n = 0; n < noteNamesPattern.length; n++) {
+        const name = noteNamesPattern[n];
+        piano88Keys.push({
+          index: keyCounter++,
+          note: `${name}${oct}`,
+          isBlack: name.includes('#')
+        });
+      }
+    }
+    // Tecla 88: C8
+    piano88Keys.push({ index: 88, note: 'C8', isBlack: false });
+
+    let pianoKeyElementsMap = {};
+    let currentKeyIndex = 1;
+    let cameraCurrentX = 0;
+    let cameraTargetX = 0;
+    let hammerCurrentX = 21;
+    let hammerTargetX = 21;
+    let isHoldingPiano = false;
+    let activePianoKeyEl = null;
+    let pianoCameraRafId = null;
+    let pianoHoldTimer = null;
+    let pianoTurboInterval = null;
+
+    function build88KeysKeyboard(trackEl) {
+      if (!trackEl) return;
+      trackEl.innerHTML = '';
+      pianoKeyElementsMap = {};
+      let currentWhiteIndex = 0;
+
+      piano88Keys.forEach((keyData) => {
+        if (!keyData.isBlack) {
+          const keyEl = document.createElement('div');
+          keyEl.className = 'ivory-key pointer-events-auto';
+          keyEl.dataset.keyIndex = keyData.index;
+
+          const noteLabel = document.createElement('span');
+          noteLabel.className = 'engraved-note-white';
+          noteLabel.textContent = keyData.note;
+          keyEl.appendChild(noteLabel);
+
+          keyData.centerX = (currentWhiteIndex * whiteKeyWidth) + (whiteKeyWidth / 2);
+          trackEl.appendChild(keyEl);
+          pianoKeyElementsMap[keyData.index] = keyEl;
+          currentWhiteIndex++;
+        } else {
+          const keyEl = document.createElement('div');
+          keyEl.className = 'ebony-key pointer-events-auto';
+          keyEl.dataset.keyIndex = keyData.index;
+
+          const noteLabel = document.createElement('span');
+          noteLabel.className = 'engraved-note-black';
+          noteLabel.textContent = keyData.note;
+          keyEl.appendChild(noteLabel);
+
+          const leftPos = (currentWhiteIndex * whiteKeyWidth) - (blackKeyWidth / 2);
+          keyEl.style.left = `${leftPos}px`;
+          keyData.centerX = leftPos + (blackKeyWidth / 2);
+
+          trackEl.appendChild(keyEl);
+          pianoKeyElementsMap[keyData.index] = keyEl;
+        }
+      });
+
+      trackEl.style.width = `${52 * whiteKeyWidth}px`;
+    }
+
+    function updateCameraTarget(keyIndex) {
+      const viewport = document.getElementById('pianoCameraViewport');
+      if (!viewport) return;
+      const keyData = piano88Keys.find(k => k.index === keyIndex);
+      if (!keyData) return;
+
+      const viewportWidth = viewport.clientWidth || 360;
+      const totalWidth = 52 * whiteKeyWidth;
+      let targetX = -(keyData.centerX - (viewportWidth / 2));
+      const minX = -(totalWidth - viewportWidth);
+      const maxX = 0;
+      cameraTargetX = Math.max(minX, Math.min(maxX, targetX));
+
+      hammerTargetX = Math.max(10, Math.min(viewportWidth - 10, keyData.centerX + cameraTargetX));
+    }
+
+    function cameraRenderLoop() {
+      const track = document.getElementById('pianoKeyboardTrack');
+      const hammer = document.getElementById('hammerTracker');
+      if (track && hammer) {
+        const cameraLerp = isHoldingPiano ? 0.32 : 0.18;
+        cameraCurrentX += (cameraTargetX - cameraCurrentX) * cameraLerp;
+        track.style.transform = `translateX(${cameraCurrentX}px)`;
+
+        hammerCurrentX += (hammerTargetX - hammerCurrentX) * cameraLerp;
+        hammer.style.left = `${hammerCurrentX}px`;
+      }
+      pianoCameraRafId = requestAnimationFrame(cameraRenderLoop);
+    }
+
+    function applyKeyVisual(targetIndex) {
+      if (activePianoKeyEl) {
+        activePianoKeyEl.classList.remove('pressed', 'active-key');
+      }
+      activePianoKeyEl = pianoKeyElementsMap[targetIndex];
+      if (activePianoKeyEl) {
+        activePianoKeyEl.classList.add('pressed', 'active-key');
+        setTimeout(() => {
+          if (activePianoKeyEl === pianoKeyElementsMap[targetIndex]) {
+            activePianoKeyEl.classList.remove('pressed');
+            activePianoKeyEl.classList.add('active-key');
+          }
+        }, isHoldingPiano ? 60 : 150);
+      }
+    }
+
+    function goToPageKey(targetIndex, playSound = true, isTurbo = false, shouldRenderList = true) {
+      const items = window.currentSearchResultsList || [];
+      const totalPages = Math.max(1, Math.ceil(items.length / CATALOG_PAGE_SIZE));
+
+      if (targetIndex > 88) targetIndex = 1;
+      else if (targetIndex < 1) targetIndex = 88;
+
+      currentKeyIndex = targetIndex;
+
+      if (playSound) {
+        soundEngine.playKey(currentKeyIndex, isTurbo);
+      }
+
+      applyKeyVisual(currentKeyIndex);
+      updateCameraTarget(currentKeyIndex);
+
+      if (shouldRenderList) {
+        const mappedPage = Math.min(totalPages, Math.max(1, ((currentKeyIndex - 1) % totalPages) + 1));
+        if (mappedPage !== window.currentCatalogPage) {
+          goToCatalogPage(mappedPage, false);
+        }
+      }
+    }
+
+    function initGrandPianoPagination(currentPage, totalPages) {
+      const track = document.getElementById('pianoKeyboardTrack');
+      const tapLeft = document.getElementById('tapZoneLeft');
+      const tapRight = document.getElementById('tapZoneRight');
+      if (!track || !tapLeft || !tapRight) return;
+
+      build88KeysKeyboard(track);
+
+      currentKeyIndex = Math.min(88, Math.max(1, currentPage));
+      applyKeyVisual(currentKeyIndex);
+      updateCameraTarget(currentKeyIndex);
+      cameraCurrentX = cameraTargetX;
+      hammerCurrentX = hammerTargetX;
+
+      if (!pianoCameraRafId) {
+        pianoCameraRafId = requestAnimationFrame(cameraRenderLoop);
+      }
+
+      function startPress(direction) {
+        soundEngine.init();
+        isHoldingPiano = false;
+        goToPageKey(currentKeyIndex + direction, true, false, true);
+
+        clearTimeout(pianoHoldTimer);
+        clearInterval(pianoTurboInterval);
+
+        pianoHoldTimer = setTimeout(() => {
+          isHoldingPiano = true;
+          pianoTurboInterval = setInterval(() => {
+            goToPageKey(currentKeyIndex + direction, true, true, false);
+          }, 55);
+        }, 200);
+      }
+
+      function stopPress() {
+        clearTimeout(pianoHoldTimer);
+        clearInterval(pianoTurboInterval);
+        pianoHoldTimer = null;
+        pianoTurboInterval = null;
+
+        if (isHoldingPiano) {
+          isHoldingPiano = false;
+          goToPageKey(currentKeyIndex, false, false, true);
+        }
+      }
+
+      tapLeft.onpointerdown = (e) => { e.preventDefault(); startPress(-1); };
+      tapLeft.onpointerup = stopPress;
+      tapLeft.onpointercancel = stopPress;
+      tapLeft.onpointerleave = stopPress;
+
+      tapRight.onpointerdown = (e) => { e.preventDefault(); startPress(1); };
+      tapRight.onpointerup = stopPress;
+      tapRight.onpointercancel = stopPress;
+      tapRight.onpointerleave = stopPress;
+    }
+
+    /* =========================================================================
+       MOTOR DE SINCRONIZACIÓN LÍRICA PARA MODO KARAOKE (LRCLIB + ULTRASTAR + PROCEDURAL)
+       ========================================================================= */
+    async function loadKaraokeLyricsForBeatmap(beatmap, gameEngine) {
+      if (!beatmap || !beatmap.notes) return;
+      const title = String(beatmap.title || beatmap.metadata?.title || '').trim();
+      const artist = String(beatmap.artist || beatmap.metadata?.artist || '').trim();
+
+      // CASO 1: Chart ya contiene notas con letras incrustadas (ej. UltraStar)
+      const existingWordNotes = beatmap.notes.filter(n => n.lyric && String(n.lyric).trim().length > 0 && !['♪', '♫', '▲', '~', '-'].includes(String(n.lyric).trim()));
+      if (existingWordNotes.length >= 8) {
+        console.log(`[Karaoke] ${existingWordNotes.length} notas con letra detectadas en el chart. Construyendo teleprompter...`);
+        const reconstructedLines = buildLrcLinesFromExistingNotes(beatmap.notes);
+        if (reconstructedLines.length > 0) {
+          beatmap.activeKaraokeLyrics = reconstructedLines;
+          if (gameEngine) gameEngine.activeKaraokeLyrics = reconstructedLines;
+          distributeLrcWordsToNotes(beatmap.notes, reconstructedLines, gameEngine);
+          return;
+        }
+      }
+
+      // CASO 2: Buscar en LRCLIB (Directo y con Proxy Fallback para Android)
+      console.log(`[Karaoke] Buscando letra sincronizada en LRCLIB para "${title}" - "${artist}"...`);
+      let lrcText = null;
+      try {
+        const cleanTitle = title.replace(/\([^)]*\)|\[[^\]]*\]/g, '').trim();
+        const cleanArtist = artist.replace(/\([^)]*\)|\[[^\]]*\]/g, '').trim();
+
+        // 1. Intento por track + artist directo
+        const directUrl = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(cleanArtist)}&track_name=${encodeURIComponent(cleanTitle)}`;
+        try {
+          const res = await fetch(directUrl);
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.syncedLyrics) lrcText = data.syncedLyrics;
+          }
+        } catch (_) {}
+
+        // 2. Intento por búsqueda directa
+        if (!lrcText) {
+          try {
+            const sRes = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(cleanTitle + ' ' + cleanArtist)}`);
+            if (sRes.ok) {
+              const list = await sRes.json();
+              if (Array.isArray(list) && list.length > 0) {
+                const matched = list.find(x => x.syncedLyrics);
+                if (matched) lrcText = matched.syncedLyrics;
+              }
+            }
+          } catch (_) {}
+        }
+
+        // 3. Intento vía Cloudflare Proxy si el directo falla
+        if (!lrcText) {
+          try {
+            const proxyUrl = `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(directUrl)}`;
+            const pRes = await fetch(proxyUrl);
+            if (pRes.ok) {
+              const data = await pRes.json();
+              if (data && data.syncedLyrics) lrcText = data.syncedLyrics;
+            }
+          } catch (_) {}
+        }
+
+        if (lrcText) {
+          const parsedLines = parseLrcToTimedLines(lrcText);
+          if (parsedLines.length > 0) {
+            beatmap.activeKaraokeLyrics = parsedLines;
+            if (gameEngine) gameEngine.activeKaraokeLyrics = parsedLines;
+            distributeLrcWordsToNotes(beatmap.notes, parsedLines, gameEngine);
+            console.log(`[Karaoke] ¡Letras sincronizadas aplicadas con éxito de LRCLIB! (${parsedLines.length} líneas)`);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('[Karaoke] Aviso buscando letra en LRCLIB:', err);
+      }
+
+      // CASO 3: Fallback Procedural Universal (Garantiza letras en el 100% de las canciones)
+      console.log(`[Karaoke] Generando lírica rítmica melódica procedural para "${title}"...`);
+      const proceduralLines = generateProceduralLyricsForBeatmap(beatmap);
+      beatmap.activeKaraokeLyrics = proceduralLines;
+      if (gameEngine) gameEngine.activeKaraokeLyrics = proceduralLines;
+      distributeLrcWordsToNotes(beatmap.notes, proceduralLines, gameEngine);
+    }
+
+    function buildLrcLinesFromExistingNotes(notes) {
+      const lines = [];
+      let currentWords = [];
+      let currentWord = '';
+      let lineStartMs = null;
+      let lastNoteTime = 0;
+
+      for (let i = 0; i < notes.length; i++) {
+        const n = notes[i];
+        const syl = String(n.lyric || '').trim();
+        if (!syl || ['♪', '♫', '~'].includes(syl)) continue;
+
+        if (syl === '▲' || (lastNoteTime > 0 && (n.timestamp_ms - lastNoteTime > 1400))) {
+          if (currentWord) {
+            currentWords.push(currentWord);
+            currentWord = '';
+          }
+          if (currentWords.length > 0 && lineStartMs !== null) {
+            lines.push({
+              timeMs: lineStartMs,
+              text: currentWords.join(' '),
+              words: [...currentWords]
+            });
+            currentWords = [];
+          }
+          lineStartMs = null;
+          if (syl === '▲') continue;
+        }
+
+        if (lineStartMs === null) {
+          lineStartMs = n.timestamp_ms;
+        }
+        lastNoteTime = n.timestamp_ms;
+
+        const rawLyric = String(n.lyric || '');
+        currentWord += syl;
+        if (rawLyric.endsWith(' ') || rawLyric.endsWith('-') || currentWord.length >= 8) {
+          currentWords.push(currentWord.replace(/[-~]/g, '').trim());
+          currentWord = '';
+        }
+      }
+
+      if (currentWord) currentWords.push(currentWord.replace(/[-~]/g, '').trim());
+      if (currentWords.length > 0 && lineStartMs !== null) {
+        lines.push({
+          timeMs: lineStartMs,
+          text: currentWords.join(' '),
+          words: [...currentWords]
+        });
+      }
+
+      return lines;
+    }
+
+    function generateProceduralLyricsForBeatmap(beatmap) {
+      const title = String(beatmap.title || beatmap.metadata?.title || 'PIANO').replace(/\([^)]*\)|\[[^\]]*\]/g, '').trim();
+      const titleWords = title.split(/\s+/).filter(Boolean).map(w => w.toUpperCase());
+      const hookWords = titleWords.length > 0 ? titleWords : ['CANTA', 'CONMIGO'];
+
+      const versePatterns = [
+        ['DIME', 'LO', 'QUE', 'SIENTES'],
+        ['TODO', 'MI', 'AMOR', 'POR', 'TI'],
+        ['BAILA', 'JUNTO', 'A', 'MÍ'],
+        ['SINTIENDO', 'EL', 'RITMO'],
+        ['EN', 'ESTA', 'NOCHE', 'ETERNA'],
+        ['TU', 'VOZ', 'EN', 'MI', 'PECHO'],
+        ['VIVIR', 'CADA', 'MOMENTO'],
+        ['NUNCA', 'DIGAS', 'NUNCA'],
+        ['DAME', 'UNA', 'SEÑAL'],
+        ['CONTIGO', 'HASTA', 'EL', 'FIN'],
+        ['SUEÑA', 'SIN', 'TEMOR'],
+        ['ES', 'NUESTRO', 'MOMENTO']
+      ];
+
+      const notes = beatmap.notes || [];
+      if (!notes.length) return [];
+      const sortedNotes = [...notes].sort((a, b) => (a.timestamp_ms || 0) - (b.timestamp_ms || 0));
+
+      const lines = [];
+      let currentGroup = [];
+      let groupStartTime = null;
+      let lastTime = 0;
+      let phraseIdx = 0;
+
+      for (let i = 0; i < sortedNotes.length; i++) {
+        const t = sortedNotes[i].timestamp_ms || sortedNotes[i].timeMs || 0;
+        if (groupStartTime === null) groupStartTime = t;
+
+        const gap = t - lastTime;
+        if (lastTime > 0 && (gap > 1200 || currentGroup.length >= 5)) {
+          const isChorus = (phraseIdx % 3 === 0);
+          const chosenWords = isChorus ? hookWords : versePatterns[phraseIdx % versePatterns.length];
+          lines.push({
+            timeMs: groupStartTime,
+            text: chosenWords.join(' '),
+            words: [...chosenWords]
+          });
+          phraseIdx++;
+          currentGroup = [];
+          groupStartTime = t;
+        }
+        currentGroup.push(sortedNotes[i]);
+        lastTime = t;
+      }
+
+      if (currentGroup.length > 0 && groupStartTime !== null) {
+        const isChorus = (phraseIdx % 3 === 0);
+        const chosenWords = isChorus ? hookWords : versePatterns[phraseIdx % versePatterns.length];
+        lines.push({
+          timeMs: groupStartTime,
+          text: chosenWords.join(' '),
+          words: [...chosenWords]
+        });
+      }
+
+      return lines;
+    }
+
+    function parseLrcToTimedLines(lrc) {
+      if (!lrc) return [];
+      const lines = String(lrc).split('\n');
+      const result = [];
+      const tagRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/g;
+
+      for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) continue;
+        const matches = [...line.matchAll(tagRegex)];
+        if (!matches || matches.length === 0) continue;
+        const text = line.replace(tagRegex, '').trim();
+        if (!text) continue;
+        const words = text.split(/\s+/).filter(Boolean);
+        if (!words.length) continue;
+
+        for (const m of matches) {
+          const min = parseInt(m[1], 10);
+          const sec = parseInt(m[2], 10);
+          const ms = m[3].length === 2 ? parseInt(m[3], 10) * 10 : parseInt(m[3], 10);
+          const timeMs = (min * 60 + sec) * 1000 + ms;
+          result.push({ timeMs, text, words });
+        }
+      }
+      return result.sort((a, b) => a.timeMs - b.timeMs);
+    }
+
+    function distributeLrcWordsToNotes(notes, lrcLines, gameEngine = null) {
+      if (!notes || !lrcLines || lrcLines.length === 0) return;
+
+      const applyToNoteList = (targetNotes) => {
+        if (!Array.isArray(targetNotes) || targetNotes.length === 0) return;
+
+        // Limpiar letras previas
+        targetNotes.forEach(n => {
+          n.lyric = null;
+          n.wordIdx = null;
+          n.lineIdx = null;
+        });
+
+        // Ordenar notas cronológicamente por su tiempo de llegada a la línea de impacto
+        targetNotes.sort((a, b) => {
+          const tA = Number.isFinite(a.timestamp_ms) ? a.timestamp_ms : (a.timeMs || 0);
+          const tB = Number.isFinite(b.timestamp_ms) ? b.timestamp_ms : (b.timeMs || 0);
+          return tA - tB;
+        });
+
+        for (let lIdx = 0; lIdx < lrcLines.length; lIdx++) {
+          const line = lrcLines[lIdx];
+          const nextLine = lrcLines[lIdx + 1];
+          const lineStart = line.timeMs;
+          const lineEnd = nextLine ? nextLine.timeMs : (lineStart + Math.max(3000, line.words.length * 600));
+          const lineDur = Math.max(750, lineEnd - lineStart);
+
+          // Filtrar notas que llegan a la barra de acierto durante el intervalo de esta frase
+          const availableNotes = targetNotes.filter(n => {
+            const nTime = Number.isFinite(n.timestamp_ms) ? n.timestamp_ms : (n.timeMs || 0);
+            return nTime >= (lineStart - 180) && nTime < (lineEnd - 50);
+          });
+
+          if (!availableNotes.length || !line.words.length) continue;
+
+          // Asignación 1:1 estricta: cada palabra de la frase se asigna a EXACTAMENTE UNA nota
+          let lastAssignedIdx = -1;
+          for (let wIdx = 0; wIdx < line.words.length; wIdx++) {
+            const word = line.words[wIdx];
+            // Tiempo exacto estimado en el que el cantante vocaliza esta palabra
+            const targetVocalTime = lineStart + (wIdx / line.words.length) * lineDur;
+
+            let bestIdx = -1;
+            let minDiff = Infinity;
+            for (let i = lastAssignedIdx + 1; i < availableNotes.length; i++) {
+              const nTime = Number.isFinite(availableNotes[i].timestamp_ms) ? availableNotes[i].timestamp_ms : (availableNotes[i].timeMs || 0);
+              const diff = Math.abs(nTime - targetVocalTime);
+              if (diff < minDiff) {
+                minDiff = diff;
+                bestIdx = i;
+              }
+            }
+
+            if (bestIdx !== -1) {
+              lastAssignedIdx = bestIdx;
+              const note = availableNotes[bestIdx];
+              note.lyric = word.toUpperCase();
+              note.wordIdx = wIdx;
+              note.lineIdx = lIdx;
+            }
+          }
+        }
+      };
+
+      applyToNoteList(notes);
+      if (gameEngine && Array.isArray(gameEngine.notes) && gameEngine.notes.length > 0) {
+        applyToNoteList(gameEngine.notes);
+      }
+    }
+    window.distributeLrcWordsToNotes = distributeLrcWordsToNotes;
+    window.loadKaraokeLyricsForBeatmap = loadKaraokeLyricsForBeatmap;
 
     function renderSearchResults(items, failedApis = []) {
       const container = document.getElementById('resultsList');
@@ -8287,7 +9062,7 @@ window.switchMainTab = switchMainTab;
     }
     window.humanizeAndBalanceBeatmapNotes = humanizeAndBalanceBeatmapNotes;
 
-    function startGame(beatmapData, audioBlob, diffLabel = '') {
+    async function startGame(beatmapData, audioBlob, diffLabel = '') {
       if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
       if (window.isSlotActiveDuringLoad) {
         window.pendingGameToStart = { beatmapData, audioBlob, diffLabel };
@@ -8403,6 +9178,17 @@ window.switchMainTab = switchMainTab;
       window.currentFeaturedSongX2 = isFeatured; // Conservar flag para la sesión
       window.isGameLoadingOrActive = true;
       currentActiveAudioBlob = resolvedAudioBlob;
+
+      // Teleprompter y Líricas Sincronizadas para Modo Karaoke
+      const teleBar = document.getElementById('karaokeTeleprompterBar');
+      if (window.isKaraokeModeActive) {
+        if (teleBar) teleBar.classList.remove('hidden');
+        if (typeof loadKaraokeLyricsForBeatmap === 'function') {
+          await loadKaraokeLyricsForBeatmap(finalBeatmap, engine || window.engine);
+        }
+      } else {
+        if (teleBar) teleBar.classList.add('hidden');
+      }
 
       // Desmontar catálogo del DOM para liberar el 100% de GPU y compositor durante la partida a 120 FPS
       window._savedMenuCatalog = {

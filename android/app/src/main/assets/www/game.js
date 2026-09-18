@@ -1568,6 +1568,9 @@ class BeatstarEngine {
     const savedContinueMode = typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_continue_mode') : null;
     this.continueMode = (savedContinueMode === 'true' || savedContinueMode === true);
     this.judgements = [];
+    this.flyingLyrics = [];
+    this.activeKaraokeLyrics = [];
+    this._lastCurLyricIndex = -1;
     this.stats = { perfectPlus: 0, perfect: 0, great: 0, miss: 0 };
     this.vignetteAlpha = 0;
     this.vignetteColor = '#e5b869';
@@ -2084,6 +2087,13 @@ class BeatstarEngine {
     if (this.particles) {
       this.particles.reset();
     }
+    this.flyingLyrics = [];
+    this._lastCurLyricIndex = -1;
+    if (beatmapData && beatmapData.activeKaraokeLyrics && beatmapData.activeKaraokeLyrics.length > 0) {
+      this.activeKaraokeLyrics = beatmapData.activeKaraokeLyrics;
+    } else if (!this.activeKaraokeLyrics) {
+      this.activeKaraokeLyrics = [];
+    }
 
     // Extract real BPM and Beat Grid Offset
     this.bpm = Number.isFinite(beatmapData.metadata?.bpm) ? beatmapData.metadata.bpm : (Number.isFinite(beatmapData.bpm) ? beatmapData.bpm : 120);
@@ -2187,7 +2197,10 @@ class BeatstarEngine {
         timestamp_ms: rawT,
         duration_ms: rawDur,
         holdDuration: rawDur / 1000,
-        end_timestamp_ms: isHold ? (rawT + Math.max(150, rawDur)) : null
+        end_timestamp_ms: isHold ? (rawT + Math.max(150, rawDur)) : null,
+        lyric: n.lyric || null,
+        wordIdx: n.wordIdx !== undefined ? n.wordIdx : null,
+        lineIdx: n.lineIdx !== undefined ? n.lineIdx : null
       };
     }) : [];
 
@@ -2321,6 +2334,10 @@ class BeatstarEngine {
     }
 
     this.notes = cleanedNotes;
+    // Si estamos en Modo Karaoke y tenemos letras, asegurar distribución 1:1 en las notas finales
+    if (typeof window !== 'undefined' && window.isKaraokeModeActive && this.activeKaraokeLyrics && this.activeKaraokeLyrics.length > 0) {
+      this.distributeKaraokeLyrics(this.notes, this.activeKaraokeLyrics);
+    }
     this.lastNoteTime = this.notes && this.notes.length > 0
       ? this.notes.reduce((max, n) => Math.max(max, n.end_timestamp_ms || n.timestamp_ms || 0), 0)
       : 0;
@@ -3191,8 +3208,23 @@ class BeatstarEngine {
       this.streakCount = 0;
     }
 
-    if (typeof window !== 'undefined' && window.isKaraokeModeActive && note && note.lyric) {
-      text = String(note.lyric).trim();
+    if (typeof window !== 'undefined' && window.isKaraokeModeActive) {
+      let lyricWord = (note && note.lyric && String(note.lyric).trim().length > 0)
+        ? String(note.lyric).trim().toUpperCase()
+        : null;
+      let wIdx = (note && note.wordIdx !== undefined) ? note.wordIdx : null;
+      let lIdx = (note && note.lineIdx !== undefined) ? note.lineIdx : null;
+
+      if (!lyricWord && this.activeKaraokeLyrics && this.activeKaraokeLyrics.length > 0) {
+        lyricWord = this.getKaraokeWordAtTime(currentTime, note);
+      }
+
+      if (lyricWord) {
+        this.spawnFlyingLyric(lyricWord, x, y, wIdx, lIdx);
+      }
+      text = '';
+      color = '#ffd700';
+      flashColor = '#ffd700';
     }
 
     const noteLane = (note && typeof note.lane === 'number') ? note.lane : 1;
@@ -3256,7 +3288,9 @@ class BeatstarEngine {
     }
     
     this.addScore(points * this.multiplier);
-    this.addJudgement(text, color, noteLane);
+    if (text && String(text).trim().length > 0) {
+      this.addJudgement(text, color, noteLane);
+    }
     return { text, color, points };
   }
 
@@ -3563,6 +3597,7 @@ class BeatstarEngine {
    * y flota 15px hacia arriba mientras decae suavemente.
    */
   addJudgement(text, color, lane = null) {
+    if (!text || !String(text).trim().length) return;
     const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
     const startY = hitY - 24;
     let posX = this.width / 2;
@@ -3585,6 +3620,85 @@ class BeatstarEngine {
       scale: 1.45,
       age: 0
     });
+  }
+
+  getKaraokeWordAtTime(curTimeMs, note = null) {
+    if (!this.activeKaraokeLyrics || !this.activeKaraokeLyrics.length) return null;
+    for (let i = 0; i < this.activeKaraokeLyrics.length; i++) {
+      const l = this.activeKaraokeLyrics[i];
+      const nextL = this.activeKaraokeLyrics[i + 1];
+      const endMs = nextL ? nextL.timeMs : (l.timeMs + 5000);
+      if (curTimeMs >= (l.timeMs - 250) && curTimeMs < endMs) {
+        if (l.words && l.words.length > 0) {
+          const ratio = Math.max(0, Math.min(1, (curTimeMs - l.timeMs) / Math.max(1, endMs - l.timeMs)));
+          const wordIdx = Math.min(l.words.length - 1, Math.floor(ratio * l.words.length));
+          return l.words[wordIdx];
+        }
+        return l.text;
+      }
+    }
+    return null;
+  }
+
+  distributeKaraokeLyrics(targetNotes, lrcLines) {
+    if (!targetNotes || !Array.isArray(targetNotes) || !lrcLines || !Array.isArray(lrcLines) || lrcLines.length === 0) return;
+
+    // 1. Limpiar asignaciones previas
+    for (let i = 0; i < targetNotes.length; i++) {
+      targetNotes[i].lyric = null;
+      targetNotes[i].wordIdx = null;
+      targetNotes[i].lineIdx = null;
+    }
+
+    // 2. Ordenar notas cronológicamente
+    targetNotes.sort((a, b) => {
+      const tA = Number.isFinite(a.timestamp_ms) ? a.timestamp_ms : (a.timeMs || 0);
+      const tB = Number.isFinite(b.timestamp_ms) ? b.timestamp_ms : (b.timeMs || 0);
+      return tA - tB;
+    });
+
+    // 3. Asignación 1:1 estricta: cada palabra de la frase se asigna a EXACTAMENTE UNA sola nota
+    for (let lIdx = 0; lIdx < lrcLines.length; lIdx++) {
+      const line = lrcLines[lIdx];
+      const nextLine = lrcLines[lIdx + 1];
+      const lineStart = line.timeMs;
+      const lineEnd = nextLine ? nextLine.timeMs : (lineStart + Math.max(3000, (line.words ? line.words.length : 4) * 600));
+      const lineDur = Math.max(750, lineEnd - lineStart);
+      const words = line.words || (line.text ? line.text.split(/\s+/).filter(Boolean) : []);
+      if (!words.length) continue;
+
+      const availableNotes = targetNotes.filter(n => {
+        const nTime = Number.isFinite(n.timestamp_ms) ? n.timestamp_ms : (n.timeMs || 0);
+        return nTime >= (lineStart - 220) && nTime < (lineEnd - 40);
+      });
+
+      if (!availableNotes.length) continue;
+
+      let lastAssignedIdx = -1;
+      for (let wIdx = 0; wIdx < words.length; wIdx++) {
+        const word = words[wIdx];
+        const targetVocalTime = lineStart + (wIdx / words.length) * lineDur;
+
+        let bestIdx = -1;
+        let minDiff = Infinity;
+        for (let i = lastAssignedIdx + 1; i < availableNotes.length; i++) {
+          const nTime = Number.isFinite(availableNotes[i].timestamp_ms) ? availableNotes[i].timestamp_ms : (availableNotes[i].timeMs || 0);
+          const diff = Math.abs(nTime - targetVocalTime);
+          if (diff < minDiff) {
+            minDiff = diff;
+            bestIdx = i;
+          }
+        }
+
+        if (bestIdx !== -1) {
+          lastAssignedIdx = bestIdx;
+          const note = availableNotes[bestIdx];
+          note.lyric = String(word).toUpperCase();
+          note.wordIdx = wIdx;
+          note.lineIdx = lIdx;
+        }
+      }
+    }
   }
 
   update(dt) {
@@ -3661,6 +3775,69 @@ class BeatstarEngine {
 
     const currentTime = this.getCurrentGameTimeMs();
     const nowPerf = performance.now();
+
+    // Actualización de Teleprompter de Letras en tiempo real (Modo Karaoke)
+    if ((!this.activeKaraokeLyrics || this.activeKaraokeLyrics.length === 0) && this.beatmapData && this.beatmapData.activeKaraokeLyrics && this.beatmapData.activeKaraokeLyrics.length > 0) {
+      this.activeKaraokeLyrics = this.beatmapData.activeKaraokeLyrics;
+    }
+
+    if (typeof window !== 'undefined' && window.isKaraokeModeActive && this.activeKaraokeLyrics && this.activeKaraokeLyrics.length > 0) {
+      let curIndex = -1;
+      const leadTimeMs = Math.max(900, (this.scrollDurationMs || 1400) * 0.70);
+      for (let k = 0; k < this.activeKaraokeLyrics.length; k++) {
+        const item = this.activeKaraokeLyrics[k];
+        const nextItem = this.activeKaraokeLyrics[k + 1];
+        const endMs = nextItem ? nextItem.timeMs : (item.timeMs + 5500);
+        // Anticipar la frase con buen margen para leerla cómodamente antes del impacto
+        if (currentTime >= (item.timeMs - leadTimeMs) && currentTime < endMs) {
+          curIndex = k;
+          break;
+        }
+      }
+
+      const curEl = document.getElementById('karaokeCurrentLine');
+      const nextEl = document.getElementById('karaokeNextLine');
+
+      if (curIndex !== -1 && curIndex !== this._lastCurLyricIndex) {
+        this._lastCurLyricIndex = curIndex;
+        const curItem = this.activeKaraokeLyrics[curIndex];
+        const nextItem = this.activeKaraokeLyrics[curIndex + 1];
+
+        if (curEl) {
+          curEl.innerHTML = curItem.words.map((w, wIdx) => {
+            const cleanW = String(w).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[m]);
+            return `<span class="karaoke-word unpainted" data-line-idx="${curIndex}" data-word-idx="${wIdx}">${cleanW}</span>`;
+          }).join(' ');
+        }
+        if (nextEl) {
+          nextEl.textContent = nextItem ? nextItem.text : '';
+        }
+      } else if (curIndex === -1 && this._lastCurLyricIndex !== -1) {
+        this._lastCurLyricIndex = -1;
+        if (curEl) curEl.innerHTML = '';
+        if (nextEl) nextEl.textContent = '';
+      }
+
+      // Pintado natural si una palabra ya se cantó hace más de 450ms y no fue acertada
+      if (curIndex !== -1 && curEl) {
+        const curItem = this.activeKaraokeLyrics[curIndex];
+        const nextItem = this.activeKaraokeLyrics[curIndex + 1];
+        const lineStart = curItem.timeMs;
+        const lineEnd = nextItem ? nextItem.timeMs : (lineStart + Math.max(3000, curItem.words.length * 600));
+        const lineDur = Math.max(750, lineEnd - lineStart);
+
+        for (let wIdx = 0; wIdx < curItem.words.length; wIdx++) {
+          const wTime = lineStart + (wIdx / curItem.words.length) * lineDur;
+          if (currentTime > (wTime + 450)) {
+            const unpSpan = curEl.querySelector(`.karaoke-word.unpainted[data-word-idx="${wIdx}"]`);
+            if (unpSpan) {
+              unpSpan.classList.remove('unpainted');
+              unpSpan.classList.add('painted');
+            }
+          }
+        }
+      }
+    }
 
     // Emisor de Chispas en Holds (Soldadura): 3 partículas continuas por frame en la base del piano
     if (this.activeHolds && this.activeHolds.size > 0) {
@@ -4776,6 +4953,7 @@ class BeatstarEngine {
     this.particles.render(this.ctx);
     this.renderMusicalNotes();
     this.renderJudgements();
+    this.renderFlyingLyrics(this.ctx, currentTime);
     this.renderDiscoLighting(this.ctx, currentTime);
     this.renderDiscoBall(this.ctx, currentTime);
     this.render3DComboExplosion(this.ctx);
@@ -4868,6 +5046,150 @@ class BeatstarEngine {
       this.renderVectorChevron(ctx, 0, 0, launch.dir, keyW, keyH);
 
       ctx.restore();
+    }
+  }
+
+  spawnFlyingLyric(word, hitX, hitY, wordIdx, lineIdx) {
+    if (!this.flyingLyrics) this.flyingLyrics = [];
+
+    let targetX = this.width / 2;
+    let targetY = 85;
+    let targetSpan = null;
+
+    if (typeof document !== 'undefined') {
+      if (lineIdx !== null && wordIdx !== null) {
+        targetSpan = document.querySelector(`.karaoke-word[data-line-idx="${lineIdx}"][data-word-idx="${wordIdx}"]`);
+      }
+      if (!targetSpan) {
+        targetSpan = document.querySelector('#karaokeCurrentLine .karaoke-word.unpainted') || document.querySelector('#karaokeCurrentLine .karaoke-word');
+      }
+      if (targetSpan && this.canvas) {
+        const rect = targetSpan.getBoundingClientRect();
+        const canvasRect = this.canvas.getBoundingClientRect();
+        if (canvasRect.width > 0 && canvasRect.height > 0) {
+          targetX = (rect.left + rect.width / 2 - canvasRect.left) * (this.width / canvasRect.width);
+          targetY = (rect.top + rect.height / 2 - canvasRect.top) * (this.height / canvasRect.height);
+        }
+      }
+    }
+
+    const midX = (hitX + targetX) / 2;
+    const ctrlX = midX + (hitX < targetX ? -25 : 25);
+    const ctrlY = Math.min(hitY, targetY) - 75;
+
+    this.flyingLyrics.push({
+      text: word,
+      startX: hitX,
+      startY: hitY,
+      ctrlX: ctrlX,
+      ctrlY: ctrlY,
+      targetX: targetX,
+      targetY: targetY,
+      startTime: performance.now(),
+      duration: 380,
+      wordIdx: wordIdx,
+      lineIdx: lineIdx,
+      targetSpan: targetSpan,
+      sparkles: []
+    });
+  }
+
+  renderFlyingLyrics(ctx, currentTime) {
+    if (!this.flyingLyrics || this.flyingLyrics.length === 0) return;
+    const now = performance.now();
+
+    for (let i = this.flyingLyrics.length - 1; i >= 0; i--) {
+      const fly = this.flyingLyrics[i];
+      const elapsed = now - fly.startTime;
+      const t = Math.min(1.0, Math.max(0, elapsed / fly.duration));
+
+      // Ease out cubic para despegue dinámico y aterrizaje desacelerado suave
+      const p = 1.0 - Math.pow(1.0 - t, 3);
+
+      const inv = 1.0 - p;
+      const curX = inv * inv * fly.startX + 2 * inv * p * fly.ctrlX + p * p * fly.targetX;
+      const curY = inv * inv * fly.startY + 2 * inv * p * fly.ctrlY + p * p * fly.targetY;
+
+      // Estela de chispas y polvo de estrellas
+      if (t < 0.94 && Math.random() < 0.75) {
+        fly.sparkles.push({
+          x: curX + (Math.random() - 0.5) * 16,
+          y: curY + (Math.random() - 0.5) * 16,
+          size: Math.random() * 3.5 + 1.5,
+          alpha: 1.0,
+          color: Math.random() < 0.5 ? '#ffd700' : '#f472b6'
+        });
+      }
+
+      if (fly.sparkles.length > 0) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (let s = fly.sparkles.length - 1; s >= 0; s--) {
+          const sp = fly.sparkles[s];
+          sp.alpha -= 0.045;
+          if (sp.alpha <= 0) {
+            fly.sparkles.splice(s, 1);
+            continue;
+          }
+          ctx.fillStyle = sp.color;
+          ctx.globalAlpha = sp.alpha;
+          ctx.beginPath();
+          ctx.arc(sp.x, sp.y, sp.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // Renderizado del texto volador (Luminoso, ultra-nítido, con escala dinámica)
+      const scale = 1.35 - p * 0.3;
+      const fontSize = Math.max(16, Math.min(32, 22 * scale));
+
+      ctx.save();
+      ctx.translate(curX, curY);
+      ctx.font = `900 ${Math.round(fontSize)}px Montserrat, -apple-system, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // Resplandor neón dorado
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.shadowColor = '#ffd700';
+      ctx.shadowBlur = 18 * (1.0 - p * 0.3);
+
+      // Trazo fucsia/magenta neón
+      ctx.lineWidth = 3.5;
+      ctx.strokeStyle = '#f472b6';
+      ctx.strokeText(fly.text, 0, 0);
+
+      // Núcleo blanco incandescente
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(fly.text, 0, 0);
+      ctx.restore();
+
+      // Llegada e impacto en el teleprompter ("pinta la letra")
+      if (t >= 1.0) {
+        let span = fly.targetSpan;
+        if (!span && typeof document !== 'undefined') {
+          if (fly.lineIdx !== null && fly.wordIdx !== null) {
+            span = document.querySelector(`.karaoke-word[data-line-idx="${fly.lineIdx}"][data-word-idx="${fly.wordIdx}"]`);
+          }
+          if (!span) {
+            span = document.querySelector('#karaokeCurrentLine .karaoke-word.unpainted') || document.querySelector('#karaokeCurrentLine .karaoke-word');
+          }
+        }
+        if (span) {
+          span.classList.remove('unpainted');
+          span.classList.add('painted');
+        }
+
+        // Destello de chispas al aterrizar
+        if (this.particles && typeof this.particles.emitHoldSpark === 'function') {
+          for (let k = 0; k < 5; k++) {
+            this.particles.emitHoldSpark(fly.targetX, fly.targetY, '#ffd700');
+          }
+        }
+
+        this.flyingLyrics.splice(i, 1);
+      }
     }
   }
 
@@ -5507,7 +5829,7 @@ class BeatstarEngine {
     return midX + (lineIdx - 1.5) * laneW;
   }
 
-  drawIvoryKey(ctx, laneOrCx, cy, h, scale = 1.0, isPressed = false, isLarge = true, isSwipe = false) {
+  drawIvoryKey(ctx, laneOrCx, cy, h, scale = 1.0, isPressed = false, isLarge = true, isSwipe = false, lyricText = null) {
     ctx.save();
 
     let lane = 0;
@@ -5609,42 +5931,75 @@ class BeatstarEngine {
     ctx.stroke();
     ctx.restore();
 
-    // 5. Hendidura de Luz Central incandescente ultra fluida (sin shadowBlur)
+    // 5. Hendidura de Luz Central incandescente O Palabra Grabada en Relieve (Modo Karaoke)
     if (!isSwipe) {
-      const slitW = keyW * 0.62;
-      const slitH = Math.max(4.5, 7.0 * scale);
-      const slitX = cx - slitW / 2;
-      const slitY = cyMid - slitH / 2;
+      if (lyricText && String(lyricText).trim().length > 0) {
+        // MODO KARAOKE: PALABRA EN RELIEVE HUECO / GRABADO DE ALTA VISIBILIDAD
+        const cleanLyric = String(lyricText).trim().toUpperCase();
+        const baseFontSize = Math.max(14, Math.min(28 * scale, keyW * 0.36));
+        const charCount = cleanLyric.length;
+        const fontScale = charCount > 6 ? (6 / charCount) : 1.0;
+        const fontSize = Math.max(11, baseFontSize * fontScale);
 
-      ctx.save();
-      // Base biselada hundida en negro
-      ctx.fillStyle = '#000000';
-      if (ctx.roundRect) ctx.roundRect(slitX - 1, slitY - 1, slitW + 2, slitH + 2, slitH / 2);
-      else ctx.rect(slitX - 1, slitY - 1, slitW + 2, slitH + 2);
-      ctx.fill();
+        ctx.save();
+        ctx.font = `900 ${Math.round(fontSize)}px Montserrat, -apple-system, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
 
-      // Resplandor neón difuso con aceleración por hardware
-      ctx.globalCompositeOperation = 'lighter';
-      const haloSpread = Math.max(2, 3.5 * scale);
-      ctx.fillStyle = hexToRgba(glowColor, 0.40);
-      if (ctx.roundRect) ctx.roundRect(slitX - haloSpread, slitY - haloSpread, slitW + haloSpread * 2, slitH + haloSpread * 2, (slitH + haloSpread * 2) / 2);
-      else ctx.rect(slitX - haloSpread, slitY - haloSpread, slitW + haloSpread * 2, slitH + haloSpread * 2);
-      ctx.fill();
+        // Bisel inferior (sombra 3D profunda en relieve grabada en la madera/marfil)
+        ctx.fillStyle = '#000000';
+        ctx.fillText(cleanLyric, cx, cyMid + 2.0 * scale);
 
-      // Luz incandescente blanca pura
-      ctx.fillStyle = '#ffffff';
-      if (ctx.roundRect) ctx.roundRect(slitX, slitY, slitW, slitH, slitH / 2);
-      else ctx.rect(slitX, slitY, slitW, slitH);
-      ctx.fill();
+        // Bisel superior reflectante (destello de relieve metálico)
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.60)';
+        ctx.fillText(cleanLyric, cx, cyMid - 1.2 * scale);
 
-      // Núcleo central de alta energía
-      ctx.fillStyle = glowColor;
-      const coreW = slitW * 0.45;
-      const coreH = Math.max(2.0, slitH * 0.45);
-      if (ctx.roundRect) ctx.roundRect(cx - coreW / 2, cyMid - coreH / 2, coreW, coreH, coreH / 2);
-      else ctx.rect(cx - coreW / 2, cyMid - coreH / 2, coreW, coreH);
-      ctx.fill();
-      ctx.restore();
+        // Contorno nítido de relieve de alta visibilidad (oro/blanco)
+        ctx.strokeStyle = isPressed ? '#ffffff' : '#ffd700';
+        ctx.lineWidth = Math.max(1.8, 2.8 * scale);
+        ctx.strokeText(cleanLyric, cx, cyMid);
+
+        // Relleno diamante blanco sólido brillante de máxima legibilidad
+        ctx.fillStyle = isPressed ? '#ffe066' : '#ffffff';
+        ctx.fillText(cleanLyric, cx, cyMid);
+
+        ctx.restore();
+      } else {
+        const slitW = keyW * 0.62;
+        const slitH = Math.max(4.5, 7.0 * scale);
+        const slitX = cx - slitW / 2;
+        const slitY = cyMid - slitH / 2;
+
+        ctx.save();
+        // Base biselada hundida en negro
+        ctx.fillStyle = '#000000';
+        if (ctx.roundRect) ctx.roundRect(slitX - 1, slitY - 1, slitW + 2, slitH + 2, slitH / 2);
+        else ctx.rect(slitX - 1, slitY - 1, slitW + 2, slitH + 2);
+        ctx.fill();
+
+        // Resplandor neón difuso con aceleración por hardware
+        ctx.globalCompositeOperation = 'lighter';
+        const haloSpread = Math.max(2, 3.5 * scale);
+        ctx.fillStyle = hexToRgba(glowColor, 0.40);
+        if (ctx.roundRect) ctx.roundRect(slitX - haloSpread, slitY - haloSpread, slitW + haloSpread * 2, slitH + haloSpread * 2, (slitH + haloSpread * 2) / 2);
+        else ctx.rect(slitX - haloSpread, slitY - haloSpread, slitW + haloSpread * 2, slitH + haloSpread * 2);
+        ctx.fill();
+
+        // Luz incandescente blanca pura
+        ctx.fillStyle = '#ffffff';
+        if (ctx.roundRect) ctx.roundRect(slitX, slitY, slitW, slitH, slitH / 2);
+        else ctx.rect(slitX, slitY, slitW, slitH);
+        ctx.fill();
+
+        // Núcleo central de alta energía
+        ctx.fillStyle = glowColor;
+        const coreW = slitW * 0.45;
+        const coreH = Math.max(2.0, slitH * 0.45);
+        if (ctx.roundRect) ctx.roundRect(cx - coreW / 2, cyMid - coreH / 2, coreW, coreH, coreH / 2);
+        else ctx.rect(cx - coreW / 2, cyMid - coreH / 2, coreW, coreH);
+        ctx.fill();
+        ctx.restore();
+      }
     }
 
     ctx.restore();
@@ -5652,7 +6007,7 @@ class BeatstarEngine {
   }
 
   // Tecla Neón 2D Clásica (para modo 2D Neón)
-  draw2DNeonKey(ctx, cx, cy, w, h, isPressed = false, isLarge = true) {
+  draw2DNeonKey(ctx, cx, cy, w, h, isPressed = false, isLarge = true, lyricText = null) {
     ctx.save();
     const x0 = cx - w / 2;
     const y0 = cy - h / 2;
@@ -5683,8 +6038,26 @@ class BeatstarEngine {
     ctx.lineWidth = isLarge ? 2.2 : 1.4;
     ctx.stroke();
 
-    // Línea de energía central para teclas grandes en 2D
-    if (isLarge) {
+    if (lyricText && String(lyricText).trim().length > 0) {
+      const cleanLyric = String(lyricText).trim().toUpperCase();
+      const baseFontSize = Math.max(13, Math.min(24, w * 0.32));
+      const fontScale = cleanLyric.length > 6 ? (6 / cleanLyric.length) : 1.0;
+      const fontSize = Math.max(11, baseFontSize * fontScale);
+
+      ctx.save();
+      ctx.font = `900 ${Math.round(fontSize)}px Montserrat, -apple-system, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#000000';
+      ctx.fillText(cleanLyric, cx, cy + 1.8);
+      ctx.strokeStyle = isPressed ? '#ffffff' : '#ffd700';
+      ctx.lineWidth = 2.0;
+      ctx.strokeText(cleanLyric, cx, cy);
+      ctx.fillStyle = isPressed ? '#ffe066' : '#ffffff';
+      ctx.fillText(cleanLyric, cx, cy);
+      ctx.restore();
+    } else if (isLarge) {
+      // Línea de energía central para teclas grandes en 2D
       ctx.fillStyle = isPressed ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 242, 254, 0.85)';
       ctx.fillRect(cx - (w * 0.48) / 2, cy - 1.5, w * 0.48, 3);
     }
@@ -6720,7 +7093,7 @@ class BeatstarEngine {
           // Head Ivory Piano Key
           const headPt = stringPoints[segments];
           const headH = Math.min((isLarge ? 80 : 30) * headPt.scale, maxH3D);
-          this.drawIvoryKey(ctx, lane, headPt.y, headH, headPt.scale, isBeingHeld, isLarge, false);
+          this.drawIvoryKey(ctx, lane, headPt.y, headH, headPt.scale, isBeingHeld, isLarge, false, note.lyric);
 
           ctx.restore();
 
@@ -6740,7 +7113,7 @@ class BeatstarEngine {
           }
 
           ctx.save();
-          const swipeKey = this.drawIvoryKey(ctx, lane, coord.y, h, coord.scale, false, isLarge, true);
+          const swipeKey = this.drawIvoryKey(ctx, lane, coord.y, h, coord.scale, false, isLarge, true, note.lyric);
           this.renderVectorChevron(ctx, swipeKey.cx + dragX, swipeKey.cy + dragY, dir, swipeKey.w, swipeKey.h);
           ctx.restore();
 
@@ -6749,7 +7122,7 @@ class BeatstarEngine {
           const h = Math.min((isLarge ? 80 : 30) * coord.scale, maxH3D);
 
           ctx.save();
-          this.drawIvoryKey(ctx, lane, coord.y, h, coord.scale, false, isLarge, false);
+          this.drawIvoryKey(ctx, lane, coord.y, h, coord.scale, false, isLarge, false, note.lyric);
           ctx.restore();
         }
 
@@ -6794,18 +7167,18 @@ class BeatstarEngine {
           ctx.restore();
 
           const h = Math.min(isLarge ? 80 : 28, maxH2D);
-          this.draw2DNeonKey(ctx, cx, currentHeadY, w, h, isBeingHeld, isLarge);
+          this.draw2DNeonKey(ctx, cx, currentHeadY, w, h, isBeingHeld, isLarge, note.lyric);
 
         } else if (note.type === 'swipe') {
           const cy = hitY * pHead;
           const h = Math.min(isLarge ? 98 : 36, maxH2D);
-          this.draw2DNeonKey(ctx, cx, cy, w, h, false, isLarge);
+          this.draw2DNeonKey(ctx, cx, cy, w, h, false, isLarge, note.lyric);
           this.renderVectorChevron(ctx, cx, cy, note.direction || 'up', w, h);
 
         } else {
           const cy = hitY * pHead;
           const h = Math.min(isLarge ? 80 : 28, maxH2D);
-          this.draw2DNeonKey(ctx, cx, cy, w, h, false, isLarge);
+          this.draw2DNeonKey(ctx, cx, cy, w, h, false, isLarge, note.lyric);
         }
       }
     }
