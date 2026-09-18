@@ -3191,6 +3191,10 @@ class BeatstarEngine {
       this.streakCount = 0;
     }
 
+    if (typeof window !== 'undefined' && window.isKaraokeModeActive && note && note.lyric) {
+      text = String(note.lyric).trim();
+    }
+
     const noteLane = (note && typeof note.lane === 'number') ? note.lane : 1;
 
     // Columna de Luz de Carril (Lane Flash): Explosión de luz volumétrica del color del juicio
@@ -3821,6 +3825,11 @@ class BeatstarEngine {
     );
     const clefMultiplier = isFeatured ? 2 : 1;
     const earnedClefs = Math.max(1, Math.round(baseScoreClefs * diffMultiplier)) * clefMultiplier;
+
+    // Consumir inmediatamente el multiplicador x2 de tragaperras para que NO afecte a partidas posteriores
+    if (typeof window !== 'undefined') {
+      window.currentFeaturedSongX2 = false;
+    }
 
     if (this.ui && this.ui.onGameEnd) {
       this.ui.onGameEnd(this.score, this.maxCombo, this.stars, this.stats, earnedClefs, finalMedal, scorePct, earnedMedals, totalNotes, accuracyPct);

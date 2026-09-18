@@ -2061,6 +2061,7 @@
     window.isCasinoActive = false;
     window.isSlotActiveDuringLoad = false;
     window.pendingGameToStart = null;
+    window._launchingFromSlot = true;
     window.currentFeaturedSongX2 = true;
 
     // Cerrar completamente el modal de la tragaperras y silenciar audio de casino

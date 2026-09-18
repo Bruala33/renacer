@@ -1152,9 +1152,9 @@
 
         <!-- Action Buttons (Flex-shrink-0 to guarantee settings gear is always visible) -->
         <div class="flex items-center gap-1.5 flex-shrink-0">
-          <!-- Menu Music Manual Toggle Button -->
-          <button id="btnMenuMusicToggle" onclick="toggleMenuMusicManual()" class="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-400/50 hover:border-amber-400/80 active:scale-95 text-amber-300 flex items-center justify-center transition cursor-pointer flex-shrink-0 shadow-sm" title="Música del Menú (Activar/Silenciar)">
-            <span id="menuMusicIcon" class="text-sm">🎵</span>
+          <!-- Karaoke Mode Toggle Button (Microphone) -->
+          <button id="btnKaraokeToggle" onclick="toggleKaraokeMode()" class="w-8 h-8 rounded-xl bg-purple-600/20 border border-purple-400/40 hover:border-purple-400/80 active:scale-95 text-purple-300 flex items-center justify-center transition cursor-pointer flex-shrink-0 shadow-sm" title="Modo Karaoke">
+            <span class="text-sm">🎤</span>
           </button>
 
           <!-- Global Leaderboard Button (Trophy SVG) -->
@@ -5069,6 +5069,8 @@
       window.isGameLoadingOrActive = false;
       window.currentActiveBeatmap = null;
       currentActiveBeatmap = null;
+      window.currentFeaturedSongX2 = false;
+      window._launchingFromSlot = false;
 
       document.getElementById('fixedTopHud').classList.add('hidden');
 
@@ -5089,6 +5091,14 @@
         searchScreen.classList.remove('hidden');
         searchScreen.style.display = 'flex';
         searchScreen.style.visibility = 'visible';
+      }
+
+      // Restaurar catálogo paginado exactamente en la página que estaba el usuario
+      if (window._savedMenuCatalog && Array.isArray(window._savedMenuCatalog.items) && window._savedMenuCatalog.items.length > 0) {
+        window.currentSearchResultsList = window._savedMenuCatalog.items;
+        window.currentTargetDiffNum = window._savedMenuCatalog.targetDiff;
+        window.currentCatalogPage = window._savedMenuCatalog.page || 1;
+        renderSearchResultsPage(window.currentCatalogPage);
       }
 
       // Si se estaba probando una pista desde el editor, regresar directamente al editor sin crasheos
@@ -6604,6 +6614,33 @@ window.switchMainTab = switchMainTab;
     window.onAppBackground = handleAppBackground;
     window.onAppForeground = handleAppForeground;
 
+    function toggleKaraokeMode() {
+      window.isKaraokeModeActive = !window.isKaraokeModeActive;
+      const btn = document.getElementById('btnKaraokeToggle');
+      if (btn) {
+        if (window.isKaraokeModeActive) {
+          btn.classList.add('bg-pink-500/40', 'border-pink-400', 'shadow-[0_0_12px_rgba(244,114,182,0.6)]');
+          btn.classList.remove('bg-purple-600/20', 'border-purple-400/40');
+        } else {
+          btn.classList.remove('bg-pink-500/40', 'border-pink-400', 'shadow-[0_0_12px_rgba(244,114,182,0.6)]');
+          btn.classList.add('bg-purple-600/20', 'border-purple-400/40');
+        }
+      }
+      if (window.isKaraokeModeActive) {
+        if (typeof showSuccessToast === 'function') {
+          showSuccessToast('Mostrando canciones con modo karaoke');
+        }
+      } else {
+        if (typeof showInfoToast === 'function') {
+          showInfoToast('Modo normal activado');
+        }
+      }
+      if (typeof executeSearch === 'function') {
+        executeSearch();
+      }
+    }
+    window.toggleKaraokeMode = toggleKaraokeMode;
+
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         handleAppBackground();
@@ -6849,43 +6886,24 @@ window.switchMainTab = switchMainTab;
       } else {
         if (shuffledBatch.length > 0) {
           searchResultsCache.push(...shuffledBatch);
-          appendSearchResults(shuffledBatch);
+          if (Array.isArray(window.currentSearchResultsList)) {
+            window.currentSearchResultsList.push(...shuffledBatch);
+            renderSearchResultsPage(window.currentCatalogPage || 1);
+          }
         } else {
           catalogHasEnded = true;
-          const loaderEl = document.getElementById('infiniteScrollLoader');
-          if (loaderEl) loaderEl.innerHTML = `<span class="text-[10px] text-gray-500">Has llegado al final del catálogo</span>`;
         }
       }
 
       const loaderEl = document.getElementById('infiniteScrollLoader');
-      if (loaderEl && !catalogHasEnded) loaderEl.classList.add('hidden');
+      if (loaderEl) loaderEl.classList.add('hidden');
 
       catalogPage++;
       catalogIsLoading = false;
-
-      // Iniciar listener de scroll infinito si no está registrado aún
-      if (!infiniteScrollInitialized) {
-        initInfiniteScroll();
-      }
     }
 
     function initInfiniteScroll() {
-      const screen = document.getElementById('searchScreen');
-      if (!screen || infiniteScrollInitialized) return;
-      infiniteScrollInitialized = true;
-
-      screen.addEventListener('scroll', () => {
-        const q = (document.getElementById('searchInput')?.value || '').trim();
-        const isComm = Boolean(document.getElementById('filterOnlyCommunity')?.checked);
-        // Solo activar scroll infinito si estamos en el modo explorar por defecto (sin búsqueda activa de texto)
-        if (q || isComm) return;
-
-        const scrollPos = screen.scrollTop + screen.clientHeight;
-        const scrollThreshold = screen.scrollHeight - 350;
-        if (scrollPos >= scrollThreshold && !catalogIsLoading && !catalogHasEnded) {
-          loadInfiniteRandomCatalog(true);
-        }
-      }, { passive: true });
+      // Paginación limpia de 12 elementos: el scroll infinito queda deshabilitado para evitar acumular nodos DOM que ralenticen la partida a 120 FPS
     }
 
     // Compatibilidad retroactiva
@@ -7412,50 +7430,58 @@ window.switchMainTab = switchMainTab;
       `;
     }
 
-    function appendSearchResults(newItems) {
-      const container = document.getElementById('resultsList');
-      if (!container) return;
-      const bed = container.querySelector('.piano-keyboard-bed');
-      if (!bed) {
-        renderSearchResults(searchResultsCache, []);
-        return;
-      }
-      const targetNum = currentTargetDifficulty !== 'all' ? parseFloat(currentTargetDifficulty) : null;
-      const startIndex = searchResultsCache.length - newItems.length;
-      const newHtml = newItems.map((item, idx) => buildSongCardHtml(item, startIndex + idx, targetNum)).join('');
-      bed.insertAdjacentHTML('beforeend', newHtml);
-    }
+    const CATALOG_PAGE_SIZE = 12;
+    window.currentCatalogPage = 1;
 
-        function loadMoreSearchResults() {
+    function goToCatalogPage(page) {
       const items = window.currentSearchResultsList || [];
-      const bed = document.getElementById('pianoKeyboardBed');
-      if (!bed || !items.length) return;
+      const totalPages = Math.max(1, Math.ceil(items.length / CATALOG_PAGE_SIZE));
+      if (page < 1) page = 1;
+      if (page > totalPages) page = totalPages;
+      window.currentCatalogPage = page;
+      renderSearchResultsPage(page);
 
-      const startIndex = window.currentRenderedIndex || 0;
-      const nextItems = items.slice(startIndex, startIndex + 24);
-      if (!nextItems.length) {
-        const c = document.getElementById('btnLoadMoreContainer');
-        if (c) c.remove();
-        return;
-      }
-
-      const targetNum = window.currentTargetDiffNum;
-      const newHtml = nextItems.map((item, idx) => buildSongCardHtml(item, startIndex + idx, targetNum)).join('');
-      bed.insertAdjacentHTML('beforeend', newHtml);
-      window.currentRenderedIndex = startIndex + nextItems.length;
-
-      const btnContainer = document.getElementById('btnLoadMoreContainer');
-      if (btnContainer) {
-        const remaining = items.length - window.currentRenderedIndex;
-        if (remaining > 0) {
-          const btn = document.getElementById('btnLoadMoreSongs');
-          if (btn) btn.innerHTML = `<span>+</span> <span>Cargar más canciones (${remaining} restantes)</span>`;
-        } else {
-          btnContainer.remove();
-        }
+      const searchScreen = document.getElementById('searchScreen');
+      if (searchScreen) {
+        searchScreen.scrollTo({ top: 0, behavior: 'smooth' });
       }
     }
-    window.loadMoreSearchResults = loadMoreSearchResults;
+    window.goToCatalogPage = goToCatalogPage;
+
+    function renderSearchResultsPage(page) {
+      const items = window.currentSearchResultsList || [];
+      const container = document.getElementById('resultsList');
+      if (!container || !items.length) return;
+
+      const totalPages = Math.max(1, Math.ceil(items.length / CATALOG_PAGE_SIZE));
+      const startIndex = (page - 1) * CATALOG_PAGE_SIZE;
+      const pageItems = items.slice(startIndex, startIndex + CATALOG_PAGE_SIZE);
+      const targetNum = window.currentTargetDiffNum;
+
+      const cardsHtml = pageItems.map((item, idx) => buildSongCardHtml(item, startIndex + idx, targetNum)).join('');
+
+      container.innerHTML = `
+        <div class="piano-keyboard-bed" id="pianoKeyboardBed">
+          <div class="piano-felt-top-strip"></div>
+          ${cardsHtml}
+        </div>
+        ${totalPages > 1 ? `
+          <div class="flex items-center justify-between p-3.5 bg-black/50 border border-[#c5a059]/30 rounded-2xl mt-3 shadow-lg">
+            <button onclick="goToCatalogPage(${page - 1})" ${page <= 1 ? 'disabled style="opacity: 0.4; cursor: not-allowed;"' : 'class="cursor-pointer active:scale-95"'} class="px-3.5 py-2 bg-white/10 hover:bg-white/20 border border-white/20 text-[#f5d998] font-black text-xs rounded-xl flex items-center gap-1.5 transition">
+              <span>◀</span> <span>Anterior</span>
+            </button>
+            <div class="text-center">
+              <span class="text-xs font-black text-[#f5d998]">Página ${page} de ${totalPages}</span>
+              <span class="block text-[9.5px] text-gray-400 font-semibold">${items.length} canciones encontradas</span>
+            </div>
+            <button onclick="goToCatalogPage(${page + 1})" ${page >= totalPages ? 'disabled style="opacity: 0.4; cursor: not-allowed;"' : 'class="cursor-pointer active:scale-95"'} class="px-3.5 py-2 bg-white/10 hover:bg-white/20 border border-white/20 text-[#f5d998] font-black text-xs rounded-xl flex items-center gap-1.5 transition">
+              <span>Siguiente</span> <span>▶</span>
+            </button>
+          </div>
+        ` : ''}
+      `;
+    }
+    window.renderSearchResultsPage = renderSearchResultsPage;
 
     function renderSearchResults(items, failedApis = []) {
       const container = document.getElementById('resultsList');
@@ -7507,40 +7533,8 @@ window.switchMainTab = switchMainTab;
       const targetNum = currentTargetDifficulty !== 'all' ? parseFloat(currentTargetDifficulty) : null;
       window.currentSearchResultsList = items;
       window.currentTargetDiffNum = targetNum;
-      window.currentRenderedIndex = 0;
-      const PAGE_CHUNK = 24;
-
-      const initialItems = items.slice(0, PAGE_CHUNK);
-      window.currentRenderedIndex = initialItems.length;
-      const cardsHtml = initialItems.map((item, idx) => buildSongCardHtml(item, idx, targetNum)).join('');
-
-      container.innerHTML = `
-        <div class="piano-keyboard-bed" id="pianoKeyboardBed">
-          <div class="piano-felt-top-strip"></div>
-          ${cardsHtml}
-        </div>
-        ${items.length > PAGE_CHUNK ? `
-          <div id="btnLoadMoreContainer" class="p-4 text-center">
-            <button id="btnLoadMoreSongs" onclick="loadMoreSearchResults()" class="w-full max-w-sm mx-auto py-3 bg-white/10 hover:bg-white/20 active:scale-95 text-[#f5d998] font-black text-xs rounded-xl border border-[#c5a059]/40 shadow-lg flex items-center justify-center gap-2 cursor-pointer transition">
-              <span>+</span>
-              <span>Cargar más canciones (${items.length - PAGE_CHUNK} restantes)</span>
-            </button>
-          </div>
-        ` : ''}
-      `;
-
-      // Auto-cargar más al hacer scroll si existe IntersectionObserver
-      setTimeout(() => {
-        const btnLoad = document.getElementById('btnLoadMoreContainer');
-        if (btnLoad && 'IntersectionObserver' in window) {
-          const obs = new IntersectionObserver((entries) => {
-            if (entries[0].isIntersecting) {
-              loadMoreSearchResults();
-            }
-          }, { threshold: 0.1 });
-          obs.observe(btnLoad);
-        }
-      }, 200);
+      window.currentCatalogPage = 1;
+      renderSearchResultsPage(1);
     }
 
     // ==========================================
@@ -7644,6 +7638,9 @@ window.switchMainTab = switchMainTab;
       window.isGameLoadingOrActive = true;
       if (typeof stopCasinoMusic === 'function') stopCasinoMusic();
       if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
+      if (!window._launchingFromSlot) {
+        window.currentFeaturedSongX2 = false;
+      }
       if (engine && engine.sync) {
         engine.sync.unlockAudio();
       }
@@ -8357,12 +8354,12 @@ window.switchMainTab = switchMainTab;
       const songSpeedVal = getSongSpeed(beatmapData.id || (beatmapData.metadata && beatmapData.metadata.id) || beatmapData.communityChartId);
       const rawTrackId = String(beatmapData.communityChartId || beatmapData.id || beatmapData.metadata?.id || '');
       const isFeatured = !!(
+        window._launchingFromSlot ||
         window.currentFeaturedSongX2 || 
         beatmapData.is_daily_featured || 
-        (beatmapData.metadata && beatmapData.metadata.is_daily_featured) ||
-        (Array.isArray(dailyFeaturedSongsList) && dailyFeaturedSongsList.some(s => s && String(s.id) === rawTrackId)) ||
-        (typeof featuredSongsReelPool !== 'undefined' && Array.isArray(featuredSongsReelPool) && featuredSongsReelPool.some(s => s && String(s.id) === rawTrackId))
+        (beatmapData.metadata && beatmapData.metadata.is_daily_featured)
       );
+      window._launchingFromSlot = false;
 
       const finalBeatmap = {
         songPlaybackSpeed: songSpeedVal,
@@ -8406,6 +8403,17 @@ window.switchMainTab = switchMainTab;
       window.currentFeaturedSongX2 = isFeatured; // Conservar flag para la sesión
       window.isGameLoadingOrActive = true;
       currentActiveAudioBlob = resolvedAudioBlob;
+
+      // Desmontar catálogo del DOM para liberar el 100% de GPU y compositor durante la partida a 120 FPS
+      window._savedMenuCatalog = {
+        items: window.currentSearchResultsList || searchResultsCache || [],
+        page: window.currentCatalogPage || 1,
+        targetDiff: window.currentTargetDiffNum
+      };
+      const resultsList = document.getElementById('resultsList');
+      if (resultsList) {
+        resultsList.innerHTML = '';
+      }
 
       // Parar música y física de tragaperras
       if (typeof stopCasinoMusic === 'function') stopCasinoMusic();
@@ -10189,6 +10197,9 @@ window.switchMainTab = switchMainTab;
       window.isGameLoadingOrActive = true;
       if (typeof stopCasinoMusic === 'function') stopCasinoMusic();
       if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
+      if (!window._launchingFromSlot) {
+        window.currentFeaturedSongX2 = false;
+      }
       if (window.engine && window.engine.sync) {
         window.engine.sync.unlockAudio();
       }
@@ -10840,6 +10851,9 @@ window.switchMainTab = switchMainTab;
       window.isGameLoadingOrActive = true;
       if (typeof stopCasinoMusic === 'function') stopCasinoMusic();
       if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
+      if (!isDailyFeatured && !window._launchingFromSlot) {
+        window.currentFeaturedSongX2 = false;
+      }
       const overlay = document.getElementById('globalLoadingOverlay');
       const loadTitle = document.getElementById('loadingOverlayTitle');
       const loadStatus = document.getElementById('loadingOverlayStatus');
