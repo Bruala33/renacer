@@ -8044,9 +8044,10 @@ window.switchMainTab = switchMainTab;
         if (!n.lyric && (n.text || n.syllable || n.word || n.l || n.w)) {
           n.lyric = n.text || n.syllable || n.word || n.l || n.w;
         }
-        const raw = String(n.lyric !== undefined && n.lyric !== null ? n.lyric : '');
+        let raw = String(n.lyric !== undefined && n.lyric !== null ? n.lyric : '');
+        if (!raw.trim() || /^[\s~♪♫▲]+$/.test(raw)) continue;
+        raw = raw.replace(/([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ])-([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ])/g, '$1 $2');
         const syl = raw.trim();
-        if (!syl || ['♪', '♫', '~'].includes(syl)) continue;
 
         const t = Number.isFinite(n.timestamp_ms)
           ? n.timestamp_ms
@@ -8171,6 +8172,14 @@ window.switchMainTab = switchMainTab;
       if (!Array.isArray(lyricsArray) || lyricsArray.length === 0) return [];
       const lines = [];
 
+      // Palabras y partículas comunes en español para comprobación de límite léxico
+      const SPANISH_BOUNDARIES = new Set([
+        'DE', 'LA', 'EL', 'EN', 'Y', 'A', 'UN', 'UNA', 'QUE', 'SE', 'ME', 'TE', 'MI', 'TU', 'SU',
+        'AL', 'DEL', 'POR', 'CON', 'NO', 'SI', 'SÍ', 'YO', 'LO', 'LOS', 'LAS', 'ES', 'SON', 'FUE',
+        'MÁS', 'TAN', 'MUY', 'O', 'SIN', 'SUS', 'MIS', 'TUS', 'YA', 'LE', 'LES', 'NOS', 'HAY',
+        'DOS', 'TRES', 'SOLO', 'SÓLO', 'VOZ', 'VAS', 'BIEN', 'MAL', 'HOY', 'SER', 'VER', 'DAR', 'IR'
+      ]);
+
       for (let lIdx = 0; lIdx < lyricsArray.length; lIdx++) {
         const rawLine = lyricsArray[lIdx];
         if (!Array.isArray(rawLine) || rawLine.length === 0) continue;
@@ -8180,6 +8189,9 @@ window.switchMainTab = switchMainTab;
         let curWord = '';
         let curWordStartTime = null;
         const sylList = [];
+        let prevSylEndTime = 0;
+        let prevSylHadTrailingSpace = false;
+        let prevSylEndedWithPunct = false;
 
         const flushWord = () => {
           const clean = curWord.replace(/[-~]/g, '').trim();
@@ -8193,65 +8205,101 @@ window.switchMainTab = switchMainTab;
 
         for (let sIdx = 0; sIdx < rawLine.length; sIdx++) {
           const syl = rawLine[sIdx];
-          const rawText = String(syl.text !== undefined && syl.text !== null ? syl.text : '');
-          const trimmed = rawText.trim();
+          let rawText = String(syl.text !== undefined && syl.text !== null ? syl.text : '');
+          const sylTime = Number(syl.time) || 0;
+          const sylDur = Number(syl.dur) || 0;
 
-          if (!trimmed || ['~', '♪', '♫'].includes(trimmed)) {
+          // 1. Filtrar notas de prolongación (~): ocultar visualmente pero mantener su tiempo
+          const isPureTilde = /^[\s~♪♫▲]+$/.test(rawText) || !rawText.trim();
+          if (isPureTilde) {
             sylList.push({
-              time: Number(syl.time) || 0,
-              dur: Number(syl.dur) || 0,
+              time: sylTime,
+              dur: sylDur,
               text: rawText,
-              cleanText: '',
+              cleanText: '', // Oculto en pantalla
               wordIdx: null,
-              lineIdx: lIdx
+              lineIdx: lIdx,
+              isProlongation: true
             });
+            prevSylEndTime = sylTime + sylDur;
             continue;
           }
 
-          if (rawText.startsWith(' ') && curWord.length > 0) {
-            flushWord();
+          // 2. Tratamiento de sinalefas: reemplaza guiones entre palabras (ej. do-al -> do al, Yo-en -> Yo en)
+          rawText = rawText.replace(/([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ])-([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ])/g, '$1 $2');
+          const trimmed = rawText.trim();
+
+          const startsWithSpace = rawText.startsWith(' ');
+          const endsWithSpace = rawText.endsWith(' ');
+          const endsWithPunct = /[,.?!;:]$/.test(trimmed);
+
+          // 3. Comprobación de espacio de palabra: si empieza por letra y la anterior no terminó en espacio
+          if (curWord.length > 0) {
+            const curWordUpper = curWord.replace(/[-~]/g, '').trim().toUpperCase();
+            const startsWithLetter = /^[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/.test(trimmed);
+            const isCapitalized = /^[A-ZÁÉÍÓÚÜÑ]/.test(trimmed);
+            const musicalGap = prevSylEndTime > 0 ? (sylTime - prevSylEndTime) : 0;
+
+            const isWordBoundary = startsWithSpace || 
+                                   prevSylHadTrailingSpace || 
+                                   prevSylEndedWithPunct || 
+                                   SPANISH_BOUNDARIES.has(curWordUpper) || 
+                                   (isCapitalized && curWord.length >= 2) || 
+                                   (startsWithLetter && musicalGap > 280);
+
+            if (isWordBoundary) {
+              flushWord();
+            }
           }
 
           if (curWordStartTime === null) {
-            curWordStartTime = Number(syl.time) || 0;
+            curWordStartTime = sylTime;
           }
 
           const assignedWordIdx = words.length;
 
+          // Si el texto contiene espacios internos (generados por separación de sinalefa)
           const parts = trimmed.split(/\s+/);
           if (parts.length > 1) {
             for (let p = 0; p < parts.length; p++) {
               curWord += parts[p];
               if (p < parts.length - 1) {
                 flushWord();
-                curWordStartTime = Number(syl.time) || 0;
+                curWordStartTime = sylTime;
               }
             }
           } else {
             curWord += trimmed;
           }
 
-          if (rawText.endsWith(' ') || /[,.?!;:]$/.test(trimmed)) {
+          if (endsWithSpace || endsWithPunct) {
             flushWord();
           }
 
           const cleanSyl = trimmed.replace(/[-~]/g, '').trim().toUpperCase();
           sylList.push({
-            time: Number(syl.time) || 0,
-            dur: Number(syl.dur) || 0,
+            time: sylTime,
+            dur: sylDur,
             text: rawText,
             cleanText: cleanSyl,
             wordIdx: assignedWordIdx,
-            lineIdx: lIdx
+            lineIdx: lIdx,
+            isProlongation: false
           });
+
+          prevSylEndTime = sylTime + sylDur;
+          prevSylHadTrailingSpace = endsWithSpace;
+          prevSylEndedWithPunct = endsWithPunct;
         }
 
         flushWord();
 
+        // Espaciado entre versos: siempre conserva cada verso como bloque diferenciado con separador explícito
         if (words.length > 0) {
           lines.push({
             timeMs: Number(rawLine[0].time) || 0,
             text: words.join(' '),
+            verseText: words.join(' ') + '\n',
             words: [...words],
             wordTimestamps: [...wordTimestamps],
             syllables: sylList
@@ -8269,7 +8317,6 @@ window.switchMainTab = switchMainTab;
       for (const line of reconstructedLines) {
         if (!line.syllables) continue;
         for (const syl of line.syllables) {
-          if (!syl.cleanText) continue;
           const sylTime = syl.time;
           let bestNote = null;
           let minDiff = 50;
@@ -8289,9 +8336,16 @@ window.switchMainTab = switchMainTab;
           }
 
           if (bestNote) {
-            bestNote.lyric = syl.cleanText;
-            bestNote.lineIdx = syl.lineIdx;
-            bestNote.wordIdx = syl.wordIdx;
+            // Filtrar notas de prolongación (~): no mostrar texto en pantalla
+            if (syl.isProlongation || !syl.cleanText) {
+              bestNote.lyric = null;
+              bestNote.lineIdx = syl.lineIdx;
+              bestNote.wordIdx = null;
+            } else {
+              bestNote.lyric = syl.cleanText;
+              bestNote.lineIdx = syl.lineIdx;
+              bestNote.wordIdx = syl.wordIdx;
+            }
           }
         }
       }

@@ -6151,9 +6151,11 @@ class BeatstarEngine {
 
     // 5. Hendidura de Luz Central incandescente O Palabra Grabada en Relieve (Modo Karaoke)
     if (!isSwipe) {
-      if (lyricText && String(lyricText).trim().length > 0 && !['♪', '♫', '~', '▲'].includes(String(lyricText).trim())) {
-        // MODO KARAOKE: PALABRA EN RELIEVE HUECO / GRABADO DE ALTA VISIBILIDAD
-        const cleanLyric = String(lyricText).trim().toUpperCase();
+      const isKaraokeActive = Boolean((typeof window !== 'undefined' && window.isKaraokeModeActive) || this.isKaraokeModeActive);
+      const isProlongationOnly = !lyricText || /^[\s~♪♫▲\-]+$/.test(String(lyricText));
+      if (isKaraokeActive && lyricText && String(lyricText).trim().length > 0 && !isProlongationOnly) {
+        // MODO KARAOKE: PALABRA EN RELIEVE HUECO / GRABADO DE ALTA VISIBILIDAD (CON LIMPIEZA DE SINALEFA)
+        const cleanLyric = String(lyricText).replace(/([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ])-([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ])/g, '$1 $2').trim().toUpperCase();
         const baseFontSize = Math.max(14, Math.min(28 * scale, keyW * 0.36));
         const charCount = cleanLyric.length;
         const fontScale = charCount > 6 ? (6 / charCount) : 1.0;
@@ -6256,8 +6258,10 @@ class BeatstarEngine {
     ctx.lineWidth = isLarge ? 2.2 : 1.4;
     ctx.stroke();
 
-    if (lyricText && String(lyricText).trim().length > 0 && !['♪', '♫', '~', '▲'].includes(String(lyricText).trim())) {
-      const cleanLyric = String(lyricText).trim().toUpperCase();
+    const isKaraokeActive = Boolean((typeof window !== 'undefined' && window.isKaraokeModeActive) || this.isKaraokeModeActive);
+    const isProlongationOnly = !lyricText || /^[\s~♪♫▲\-]+$/.test(String(lyricText));
+    if (isKaraokeActive && lyricText && String(lyricText).trim().length > 0 && !isProlongationOnly) {
+      const cleanLyric = String(lyricText).replace(/([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ])-([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ])/g, '$1 $2').trim().toUpperCase();
       const baseFontSize = Math.max(13, Math.min(24, w * 0.32));
       const fontScale = cleanLyric.length > 6 ? (6 / cleanLyric.length) : 1.0;
       const fontSize = Math.max(11, baseFontSize * fontScale);
@@ -7309,13 +7313,17 @@ class BeatstarEngine {
         ctx.restore();
 
           // Head Ivory Piano Key
+          const isKaraokeActive = Boolean((typeof window !== 'undefined' && window.isKaraokeModeActive) || this.isKaraokeModeActive);
+          const lyricForNote = (isKaraokeActive && note.lyric && !/^[\s~♪♫▲\-]+$/.test(String(note.lyric))) ? note.lyric : null;
           const headPt = stringPoints[segments];
           const headH = Math.min((isLarge ? 80 : 30) * headPt.scale, maxH3D);
-          this.drawIvoryKey(ctx, lane, headPt.y, headH, headPt.scale, isBeingHeld, isLarge, false, note.lyric);
+          this.drawIvoryKey(ctx, lane, headPt.y, headH, headPt.scale, isBeingHeld, isLarge, false, lyricForNote);
 
           ctx.restore();
 
         } else if (note.type === 'swipe') {
+          const isKaraokeActive = Boolean((typeof window !== 'undefined' && window.isKaraokeModeActive) || this.isKaraokeModeActive);
+          const lyricForNote = (isKaraokeActive && note.lyric && !/^[\s~♪♫▲\-]+$/.test(String(note.lyric))) ? note.lyric : null;
           const h = Math.min((isLarge ? 84 : 32) * coord.scale, maxH3D);
           const dir = note.direction || 'up';
 
@@ -7331,16 +7339,18 @@ class BeatstarEngine {
           }
 
           ctx.save();
-          const swipeKey = this.drawIvoryKey(ctx, lane, coord.y, h, coord.scale, false, isLarge, true, note.lyric);
+          const swipeKey = this.drawIvoryKey(ctx, lane, coord.y, h, coord.scale, false, isLarge, true, lyricForNote);
           this.renderVectorChevron(ctx, swipeKey.cx + dragX, swipeKey.cy + dragY, dir, swipeKey.w, swipeKey.h);
           ctx.restore();
 
         } else {
           // Tap Note
+          const isKaraokeActive = Boolean((typeof window !== 'undefined' && window.isKaraokeModeActive) || this.isKaraokeModeActive);
+          const lyricForNote = (isKaraokeActive && note.lyric && !/^[\s~♪♫▲\-]+$/.test(String(note.lyric))) ? note.lyric : null;
           const h = Math.min((isLarge ? 80 : 30) * coord.scale, maxH3D);
 
           ctx.save();
-          this.drawIvoryKey(ctx, lane, coord.y, h, coord.scale, false, isLarge, false, note.lyric);
+          this.drawIvoryKey(ctx, lane, coord.y, h, coord.scale, false, isLarge, false, lyricForNote);
           ctx.restore();
         }
 
@@ -7353,6 +7363,8 @@ class BeatstarEngine {
         const maxH2D = nextSameLaneDiffMs < scrollDur
           ? Math.max(24, ((nextSameLaneDiffMs / scrollDur) * hitY) - 8)
           : Infinity;
+        const isKaraokeActive = Boolean((typeof window !== 'undefined' && window.isKaraokeModeActive) || this.isKaraokeModeActive);
+        const lyricForNote = (isKaraokeActive && note.lyric && !/^[\s~♪♫▲\-]+$/.test(String(note.lyric))) ? note.lyric : null;
 
         if (note.type === 'hold') {
           const rawDur = Number.isFinite(note.duration_ms)
@@ -7385,18 +7397,18 @@ class BeatstarEngine {
           ctx.restore();
 
           const h = Math.min(isLarge ? 80 : 28, maxH2D);
-          this.draw2DNeonKey(ctx, cx, currentHeadY, w, h, isBeingHeld, isLarge, note.lyric);
+          this.draw2DNeonKey(ctx, cx, currentHeadY, w, h, isBeingHeld, isLarge, lyricForNote);
 
         } else if (note.type === 'swipe') {
           const cy = hitY * pHead;
           const h = Math.min(isLarge ? 98 : 36, maxH2D);
-          this.draw2DNeonKey(ctx, cx, cy, w, h, false, isLarge, note.lyric);
+          this.draw2DNeonKey(ctx, cx, cy, w, h, false, isLarge, lyricForNote);
           this.renderVectorChevron(ctx, cx, cy, note.direction || 'up', w, h);
 
         } else {
           const cy = hitY * pHead;
           const h = Math.min(isLarge ? 80 : 28, maxH2D);
-          this.draw2DNeonKey(ctx, cx, cy, w, h, false, isLarge, note.lyric);
+          this.draw2DNeonKey(ctx, cx, cy, w, h, false, isLarge, lyricForNote);
         }
       }
     }
