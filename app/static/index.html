@@ -11203,6 +11203,9 @@ window.switchMainTab = switchMainTab;
         if (loadStatus) loadStatus.innerText = 'Descargando mapa de notas (CDN)...';
         const chartFilename = songMeta.chart_url || `${rawId}.json`;
         const releaseTags = ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15'];
+        let chartData = null;
+        let chartFoundTag = null;
+
         // 1.5. Comprobar si el chart existe localmente en /songs/
         try {
           let localRes = await fetch(`./songs/${chartFilename}`);
