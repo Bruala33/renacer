@@ -5371,21 +5371,20 @@ class BeatstarEngine {
       const elapsed = now - fly.startTime;
       const t = Math.min(1.0, Math.max(0, elapsed / fly.duration));
 
-      // Ease out cubic para despegue dinámico y aterrizaje desacelerado suave
+      // Curva parabólica suave con desaceleración elástica (ease-out cubic)
       const p = 1.0 - Math.pow(1.0 - t, 3);
-
       const inv = 1.0 - p;
       const curX = inv * inv * fly.startX + 2 * inv * p * fly.ctrlX + p * p * fly.targetX;
       const curY = inv * inv * fly.startY + 2 * inv * p * fly.ctrlY + p * p * fly.targetY;
 
-      // Estela de chispas y polvo de estrellas
-      if (t < 0.94 && Math.random() < 0.75) {
+      // 1. Estela de chispas de oro y estrellas incandescentes (acelerada por GPU)
+      if (t < 0.92 && Math.random() < 0.65) {
         fly.sparkles.push({
-          x: curX + (Math.random() - 0.5) * 16,
-          y: curY + (Math.random() - 0.5) * 16,
-          size: Math.random() * 3.5 + 1.5,
+          x: curX + (Math.random() - 0.5) * 14,
+          y: curY + (Math.random() - 0.5) * 14,
+          size: Math.random() * 3.2 + 1.2,
           alpha: 1.0,
-          color: Math.random() < 0.5 ? '#ffd700' : '#f472b6'
+          color: Math.random() < 0.55 ? '#ffd700' : '#ffffff'
         });
       }
 
@@ -5394,7 +5393,7 @@ class BeatstarEngine {
         ctx.globalCompositeOperation = 'lighter';
         for (let s = fly.sparkles.length - 1; s >= 0; s--) {
           const sp = fly.sparkles[s];
-          sp.alpha -= 0.045;
+          sp.alpha -= 0.055;
           if (sp.alpha <= 0) {
             fly.sparkles.splice(s, 1);
             continue;
@@ -5408,8 +5407,8 @@ class BeatstarEngine {
         ctx.restore();
       }
 
-      // Renderizado del texto volador (Luminoso, ultra-nítido, con escala dinámica)
-      const scale = 1.35 - p * 0.3;
+      // 2. Sílaba voladora dorada arcade (sin strokeText ni blur para evitar tirones)
+      const scale = 1.35 - p * 0.35;
       const fontSize = Math.max(16, Math.min(32, 22 * scale));
 
       ctx.save();
@@ -5419,21 +5418,22 @@ class BeatstarEngine {
       ctx.textBaseline = 'middle';
       ctx.shadowBlur = 0;
 
-      // 1. Sombra sólida arcade desplazada 1.5px
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-      ctx.fillText(fly.text, 1.5, 1.5);
+      // Sombra sólida negra de contraste (relieve 3D)
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+      ctx.fillText(fly.text, 1.8, 1.8);
+      ctx.fillText(fly.text, -0.8, -0.8);
 
-      // 2. Trazo fucsia/magenta neón
-      ctx.lineWidth = 3.0;
-      ctx.strokeStyle = '#f472b6';
-      ctx.strokeText(fly.text, 0, 0);
+      // Oro radiante frontal
+      ctx.fillStyle = '#ffd700';
+      ctx.fillText(fly.text, 0, 0);
 
-      // 3. Núcleo blanco incandescente
-      ctx.fillStyle = '#ffffff';
+      // Brillo blanco en el núcleo de la letra
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.font = `900 ${Math.round(fontSize * 0.88)}px Montserrat, -apple-system, sans-serif`;
       ctx.fillText(fly.text, 0, 0);
       ctx.restore();
 
-      // Llegada e impacto en el teleprompter ("pinta la letra")
+      // 3. Impacto en el teleprompter superior ("pinta" la letra e ilumina)
       if (t >= 1.0) {
         let span = fly.targetSpan;
         if (!span && Number.isFinite(fly.sylTime)) {
@@ -5449,8 +5449,7 @@ class BeatstarEngine {
         }
         if (span) {
           span.classList.remove('unpainted');
-          span.classList.add('painted');
-          span.classList.add('activa');
+          span.classList.add('painted', 'activa');
         }
         if (Number.isFinite(fly.sylTime)) {
           if (typeof iluminarSilaba === 'function') {
@@ -5460,9 +5459,9 @@ class BeatstarEngine {
           }
         }
 
-        // Destello de chispas al aterrizar
+        // Estallido de chispas doradas en el teleprompter al aterrizar
         if (this.particles && typeof this.particles.emitHoldSpark === 'function') {
-          for (let k = 0; k < 5; k++) {
+          for (let k = 0; k < 6; k++) {
             this.particles.emitHoldSpark(fly.targetX, fly.targetY, '#ffd700');
           }
         }
@@ -5471,7 +5470,6 @@ class BeatstarEngine {
       }
     }
   }
-
   render3DComboExplosion(ctx) {
     if ((!this.combo3DExplosions || this.combo3DExplosions.length === 0) && !this.topComboToast) return;
     const explosions = (this.combo3DExplosions && this.combo3DExplosions.length > 0) ? this.combo3DExplosions : [this.topComboToast];
@@ -6215,7 +6213,6 @@ class BeatstarEngine {
       const isKaraokeActive = Boolean((typeof window !== 'undefined' && window.isKaraokeModeActive) || this.isKaraokeModeActive);
       const isProlongationOnly = !lyricText || /^[\s~♪♫▲\-]+$/.test(String(lyricText));
       if (isKaraokeActive && lyricText && String(lyricText).trim().length > 0 && !isProlongationOnly) {
-        // MODO KARAOKE: PALABRA EN RELIEVE HUECO / GRABADO DE ALTA VISIBILIDAD (CON LIMPIEZA DE SINALEFA)
         const cleanLyric = String(lyricText).replace(/([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ])-([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ])/g, '$1 $2').trim().toUpperCase();
         const baseFontSize = Math.max(14, Math.min(28 * scale, keyW * 0.36));
         const charCount = cleanLyric.length;
@@ -6226,17 +6223,42 @@ class BeatstarEngine {
         ctx.font = `900 ${Math.round(fontSize)}px Montserrat, -apple-system, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.shadowBlur = 0;
+        ctx.shadowBlur = 0; // Cero lag de CPU
 
-        // 1. Sombra sólida de contraste (desplazada 1.5px)
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-        ctx.fillText(cleanLyric, cx + 1.5, cyMid + 1.5);
+        // 1. SURCO HUNDIDO EN LA TECLA (Profundidad 3D)
+        // Bisel de luz inferior del hueco
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+        ctx.fillText(cleanLyric, cx, cyMid + 1.2);
 
-        // 2. Texto frontal nítido y brillante
-        ctx.fillStyle = isPressed ? '#ffe066' : '#ffffff';
+        // Sombra profunda superior que crea la cavidad
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.95)';
+        ctx.fillText(cleanLyric, cx, cyMid - 1.2);
+        ctx.fillText(cleanLyric, cx - 0.7, cyMid - 0.7);
+
+        // 2. BRILLO NEÓN INCANDESCENTE (Acelerado por GPU en modo 'lighter')
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+
+        const neonColor = isPressed ? '#ffffff' : (glowColor || '#ffd700');
+
+        // A. Halo difuso exterior de neón (resplandor suave a los lados)
+        ctx.fillStyle = hexToRgba(neonColor, isPressed ? 0.50 : 0.28);
+        ctx.fillText(cleanLyric, cx - 1.5, cyMid);
+        ctx.fillText(cleanLyric, cx + 1.5, cyMid);
+        ctx.fillText(cleanLyric, cx, cyMid - 1.5);
+        ctx.fillText(cleanLyric, cx, cyMid + 1.5);
+
+        // B. Cuerpo de neón radiante saturado
+        ctx.fillStyle = isPressed ? '#ffffff' : '#ffd700';
         ctx.fillText(cleanLyric, cx, cyMid);
 
-        ctx.restore();
+        // C. Núcleo/filamento central blanco de alta energía
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.font = `900 ${Math.round(fontSize * 0.92)}px Montserrat, -apple-system, sans-serif`;
+        ctx.fillText(cleanLyric, cx, cyMid);
+
+        ctx.restore(); // Cierre modo lighter
+        ctx.restore(); // Cierre general
       } else {
         const slitW = keyW * 0.62;
         const slitH = Math.max(4.5, 7.0 * scale);
