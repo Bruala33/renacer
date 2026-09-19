@@ -1250,6 +1250,15 @@
               <span id="activeFilterBadge" class="text-[9.5px] text-amber-300 font-mono">Global</span>
             </div>
 
+            <!-- Checkbox Modo Karaoke (Canciones con Letra) -->
+            <label class="flex items-center justify-between p-2 rounded-lg bg-pink-950/25 hover:bg-pink-900/40 cursor-pointer transition border border-pink-500/30">
+              <div class="flex items-center gap-1.5">
+                <span class="text-pink-400 text-xs">🎤</span>
+                <span class="text-xs font-semibold text-pink-100">Modo Karaoke (Con Letra)</span>
+              </div>
+              <input type="checkbox" id="filterOnlyKaraoke" onchange="toggleKaraokeMode(this.checked)" class="accent-pink-500 w-4 h-4 cursor-pointer">
+            </label>
+
             <!-- Checkbox Solo Comunidad -->
             <label class="flex items-center justify-between p-2 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer transition border border-white/5">
               <span class="text-xs font-semibold text-[#eee5d5]">Solo Comunidad</span>
@@ -6627,28 +6636,62 @@ window.switchMainTab = switchMainTab;
     window.onAppBackground = handleAppBackground;
     window.onAppForeground = handleAppForeground;
 
-    function toggleKaraokeMode() {
-      window.isKaraokeModeActive = !window.isKaraokeModeActive;
+    function toggleKaraokeMode(forceState = null) {
+      if (typeof forceState === 'boolean') {
+        window.isKaraokeModeActive = forceState;
+      } else {
+        window.isKaraokeModeActive = !window.isKaraokeModeActive;
+      }
       try { localStorage.setItem('isKaraokeModeActive', window.isKaraokeModeActive ? '1' : '0'); } catch (_) {}
+
       const btn = document.getElementById('btnKaraokeToggle');
       if (btn) {
         if (window.isKaraokeModeActive) {
-          btn.classList.add('bg-pink-500/40', 'border-pink-400', 'shadow-[0_0_12px_rgba(244,114,182,0.6)]');
-          btn.classList.remove('bg-purple-600/20', 'border-purple-400/40');
+          btn.className = 'w-8 h-8 rounded-xl bg-pink-600 text-white border border-pink-300 ring-2 ring-pink-400/50 shadow-[0_0_14px_rgba(244,114,182,0.8)] flex items-center justify-center transition cursor-pointer flex-shrink-0 scale-105';
         } else {
-          btn.classList.remove('bg-pink-500/40', 'border-pink-400', 'shadow-[0_0_12px_rgba(244,114,182,0.6)]');
-          btn.classList.add('bg-purple-600/20', 'border-purple-400/40');
+          btn.className = 'w-8 h-8 rounded-xl bg-purple-600/20 text-purple-300 border border-purple-400/40 hover:border-purple-400/80 active:scale-95 flex items-center justify-center transition cursor-pointer flex-shrink-0 shadow-sm';
         }
       }
+
+      // Asegurar que estamos en la pestaña Explorar
+      if (typeof switchMainTab === 'function') {
+        const searchSec = document.getElementById('tabSearchSection');
+        if (!searchSec || searchSec.style.display === 'none') {
+          switchMainTab('search');
+        }
+      }
+
+      // Sincronizar checkboxes de filtros
+      const karaokeCheck = document.getElementById('filterOnlyKaraoke');
+      const topCheck = document.getElementById('filterOnlyTopSongs');
+      const commCheck = document.getElementById('filterOnlyCommunity');
+      if (karaokeCheck) karaokeCheck.checked = window.isKaraokeModeActive;
+      if (topCheck) topCheck.checked = window.isKaraokeModeActive;
+      if (commCheck && window.isKaraokeModeActive) {
+        commCheck.checked = false;
+        const commSort = document.getElementById('commSortButtons');
+        if (commSort) {
+          commSort.classList.add('hidden');
+          commSort.classList.remove('flex');
+        }
+      }
+
+      const badge = document.getElementById('activeFilterBadge');
+      if (badge) {
+        const topCount = (window.TOP_SONGS_CATALOG && window.TOP_SONGS_CATALOG.length) ? window.TOP_SONGS_CATALOG.length : 90;
+        badge.innerText = window.isKaraokeModeActive ? `🎤 Karaoke (${topCount})` : 'Global';
+      }
+
       if (window.isKaraokeModeActive) {
         if (typeof showSuccessToast === 'function') {
-          showSuccessToast('Mostrando canciones con modo karaoke');
+          showSuccessToast('🎤 Modo Karaoke activado: mostrando canciones');
         }
       } else {
         if (typeof showInfoToast === 'function') {
           showInfoToast('Modo normal activado');
         }
       }
+
       if (typeof executeSearch === 'function') {
         executeSearch();
       }
@@ -6660,8 +6703,16 @@ window.switchMainTab = switchMainTab;
         window.isKaraokeModeActive = true;
         const btn = document.getElementById('btnKaraokeToggle');
         if (btn) {
-          btn.classList.add('bg-pink-500/40', 'border-pink-400', 'shadow-[0_0_12px_rgba(244,114,182,0.6)]');
-          btn.classList.remove('bg-purple-600/20', 'border-purple-400/40');
+          btn.className = 'w-8 h-8 rounded-xl bg-pink-600 text-white border border-pink-300 ring-2 ring-pink-400/50 shadow-[0_0_14px_rgba(244,114,182,0.8)] flex items-center justify-center transition cursor-pointer flex-shrink-0 scale-105';
+        }
+        const karaokeCheck = document.getElementById('filterOnlyKaraoke');
+        const topCheck = document.getElementById('filterOnlyTopSongs');
+        if (karaokeCheck) karaokeCheck.checked = true;
+        if (topCheck) topCheck.checked = true;
+        const badge = document.getElementById('activeFilterBadge');
+        if (badge) {
+          const topCount = (window.TOP_SONGS_CATALOG && window.TOP_SONGS_CATALOG.length) ? window.TOP_SONGS_CATALOG.length : 90;
+          badge.innerText = `🎤 Karaoke (${topCount})`;
         }
       }
     } catch (_) {}
@@ -7058,7 +7109,8 @@ window.switchMainTab = switchMainTab;
     async function executeSearch() {
       const q = document.getElementById('searchInput').value.trim();
       const isCommunityOnly = Boolean(document.getElementById('filterOnlyCommunity')?.checked);
-      const isTopOnly = Boolean(document.getElementById('filterOnlyTopSongs')?.checked);
+      const isKaraoke = Boolean(window.isKaraokeModeActive);
+      const isTopOnly = Boolean(document.getElementById('filterOnlyTopSongs')?.checked) || isKaraoke;
 
       if (!q && !isCommunityOnly && !isTopOnly) {
         await loadInitialShuffledCatalog();
@@ -7070,13 +7122,13 @@ window.switchMainTab = switchMainTab;
       if (btnText) btnText.innerText = '...';
       if (spinner) spinner.classList.remove('hidden');
 
-      // FILTRO: Canciones Top (90 canciones alojadas en GitHub Releases CDN)
+      // FILTRO: Canciones Top / Modo Karaoke (Canciones alojadas en CDN Releases)
       if (isTopOnly) {
         let list = typeof getFormattedTopSongsCatalog === 'function' ? getFormattedTopSongsCatalog() : [];
         if (q) {
           list = list
             .map(s => ({ ...s, relevanceScore: computeSongRelevanceScore(q, s.title, s.artist) }))
-            .filter(s => s.relevanceScore >= 40);
+            .filter(s => s.relevanceScore >= 35);
           list.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
         }
         if (typeof currentTargetDifficulty !== 'undefined' && currentTargetDifficulty !== 'all') {
@@ -7374,18 +7426,6 @@ window.switchMainTab = switchMainTab;
                 <div class="min-w-0 flex-1 flex flex-col justify-center overflow-hidden">
                   <div class="flex items-center gap-1.5 truncate">
                     <h3 class="text-xs font-black text-[#17131d] truncate font-serif leading-tight">${escapeHtml(item.title || t('unknown_song', 'Canción'))}</h3>
-                    ${item.relevanceScore && item.relevanceScore > 0 ? `
-                      <span class="text-[8.5px] font-mono font-black px-1.5 py-0.2 rounded-full flex-shrink-0 ${
-                        item.relevanceScore >= 80 
-                          ? 'bg-emerald-600/25 text-emerald-900 border border-emerald-600/40' 
-                          : item.relevanceScore >= 60 
-                            ? 'bg-amber-600/25 text-amber-900 border border-amber-600/40' 
-                            : 'bg-blue-600/25 text-blue-900 border border-blue-600/40'
-                      }" title="${item.relevanceScore}% de coincidencia con tu búsqueda">
-                        ${item.relevanceScore}%
-                      </span>
-                    ` : ''}
-                    ${hs ? `<span class="text-[8px] font-mono font-bold text-amber-800 flex-shrink-0 flex items-center gap-0.5"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="text-amber-700 inline"><path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2"/><path d="M6 9a6 6 0 0 0 12 0"/><path d="M12 15v5"/><path d="M8 20h8"/></svg> ${hs.score.toLocaleString()}</span>` : ''}
                   </div>
                   <p class="text-[10px] text-[#5a422d] font-semibold truncate leading-tight mt-0.5">${escapeHtml(item.artist || t('unknown_artist', 'Artista'))}${isComm ? ` • <span class="text-[#2b1f13]">${escapeHtml(item.creator_name || 'Comunidad')}</span>` : ''}</p>
                 </div>
@@ -8127,21 +8167,181 @@ window.switchMainTab = switchMainTab;
     }
     window.linkExistingNotesToReconstructedLines = linkExistingNotesToReconstructedLines;
 
+    function parseTopLevelLyrics(lyricsArray) {
+      if (!Array.isArray(lyricsArray) || lyricsArray.length === 0) return [];
+      const lines = [];
+
+      for (let lIdx = 0; lIdx < lyricsArray.length; lIdx++) {
+        const rawLine = lyricsArray[lIdx];
+        if (!Array.isArray(rawLine) || rawLine.length === 0) continue;
+
+        const words = [];
+        const wordTimestamps = [];
+        let curWord = '';
+        let curWordStartTime = null;
+        const sylList = [];
+
+        const flushWord = () => {
+          const clean = curWord.replace(/[-~]/g, '').trim();
+          if (clean) {
+            words.push(clean.toUpperCase());
+            wordTimestamps.push(curWordStartTime);
+          }
+          curWord = '';
+          curWordStartTime = null;
+        };
+
+        for (let sIdx = 0; sIdx < rawLine.length; sIdx++) {
+          const syl = rawLine[sIdx];
+          const rawText = String(syl.text !== undefined && syl.text !== null ? syl.text : '');
+          const trimmed = rawText.trim();
+
+          if (!trimmed || ['~', '♪', '♫'].includes(trimmed)) {
+            sylList.push({
+              time: Number(syl.time) || 0,
+              dur: Number(syl.dur) || 0,
+              text: rawText,
+              cleanText: '',
+              wordIdx: null,
+              lineIdx: lIdx
+            });
+            continue;
+          }
+
+          if (rawText.startsWith(' ') && curWord.length > 0) {
+            flushWord();
+          }
+
+          if (curWordStartTime === null) {
+            curWordStartTime = Number(syl.time) || 0;
+          }
+
+          const assignedWordIdx = words.length;
+
+          const parts = trimmed.split(/\s+/);
+          if (parts.length > 1) {
+            for (let p = 0; p < parts.length; p++) {
+              curWord += parts[p];
+              if (p < parts.length - 1) {
+                flushWord();
+                curWordStartTime = Number(syl.time) || 0;
+              }
+            }
+          } else {
+            curWord += trimmed;
+          }
+
+          if (rawText.endsWith(' ') || /[,.?!;:]$/.test(trimmed)) {
+            flushWord();
+          }
+
+          const cleanSyl = trimmed.replace(/[-~]/g, '').trim().toUpperCase();
+          sylList.push({
+            time: Number(syl.time) || 0,
+            dur: Number(syl.dur) || 0,
+            text: rawText,
+            cleanText: cleanSyl,
+            wordIdx: assignedWordIdx,
+            lineIdx: lIdx
+          });
+        }
+
+        flushWord();
+
+        if (words.length > 0) {
+          lines.push({
+            timeMs: Number(rawLine[0].time) || 0,
+            text: words.join(' '),
+            words: [...words],
+            wordTimestamps: [...wordTimestamps],
+            syllables: sylList
+          });
+        }
+      }
+
+      return lines;
+    }
+    window.parseTopLevelLyrics = parseTopLevelLyrics;
+
+    function linkSyllablesToNotes(notes, reconstructedLines) {
+      if (!Array.isArray(notes) || !notes.length || !Array.isArray(reconstructedLines) || !reconstructedLines.length) return;
+
+      for (const line of reconstructedLines) {
+        if (!line.syllables) continue;
+        for (const syl of line.syllables) {
+          if (!syl.cleanText) continue;
+          const sylTime = syl.time;
+          let bestNote = null;
+          let minDiff = 50;
+
+          for (let i = 0; i < notes.length; i++) {
+            const n = notes[i];
+            const nTime = Number.isFinite(n.timestamp_ms)
+              ? n.timestamp_ms
+              : (Number.isFinite(n.timeMs)
+                  ? n.timeMs
+                  : (Number.isFinite(n.time) ? (n.time > 100 ? n.time : n.time * 1000) : 0));
+            const diff = Math.abs(nTime - sylTime);
+            if (diff < minDiff) {
+              minDiff = diff;
+              bestNote = n;
+            }
+          }
+
+          if (bestNote) {
+            bestNote.lyric = syl.cleanText;
+            bestNote.lineIdx = syl.lineIdx;
+            bestNote.wordIdx = syl.wordIdx;
+          }
+        }
+      }
+    }
+    window.linkSyllablesToNotes = linkSyllablesToNotes;
+
     function loadKaraokeLyricsForBeatmap(beatmap, gameEngine) {
-      if (!beatmap || !beatmap.notes) return;
+      if (!beatmap) return;
       const curLyricEl = document.getElementById('karaokeCurrentLine');
       if (curLyricEl) curLyricEl.innerHTML = '';
 
-      // Tomar las líricas directamente de las notas contenidas en el archivo del chart
-      const reconstructedLines = buildLrcLinesFromExistingNotes(beatmap.notes);
-      if (reconstructedLines.length > 0) {
+      const rawLyrics = (Array.isArray(beatmap.lyrics) && beatmap.lyrics.length > 0)
+        ? beatmap.lyrics
+        : ((beatmap.unpackedData && Array.isArray(beatmap.unpackedData.lyrics) && beatmap.unpackedData.lyrics.length > 0)
+            ? beatmap.unpackedData.lyrics
+            : ((beatmap.metadata && Array.isArray(beatmap.metadata.lyrics) && beatmap.metadata.lyrics.length > 0)
+                ? beatmap.metadata.lyrics
+                : null));
+
+      let reconstructedLines = [];
+
+      const notesToUse = (Array.isArray(beatmap.notes) && beatmap.notes.length > 0)
+        ? beatmap.notes
+        : (beatmap.difficulties && Array.isArray(beatmap.difficulties[0]?.notes) ? beatmap.difficulties[0].notes : ((gameEngine && Array.isArray(gameEngine.notes)) ? gameEngine.notes : []));
+
+      if (rawLyrics) {
+        reconstructedLines = parseTopLevelLyrics(rawLyrics);
+        if (reconstructedLines.length > 0) {
+          if (notesToUse && notesToUse.length > 0) {
+            linkSyllablesToNotes(notesToUse, reconstructedLines);
+          }
+          if (gameEngine && gameEngine.notes && gameEngine.notes !== notesToUse) {
+            linkSyllablesToNotes(gameEngine.notes, reconstructedLines);
+          }
+        }
+      }
+
+      // Si no había top-level lyrics, intentar reconstruir desde notas existentes
+      if ((!reconstructedLines || reconstructedLines.length === 0) && notesToUse && notesToUse.length > 0) {
+        reconstructedLines = buildLrcLinesFromExistingNotes(notesToUse);
+        if (reconstructedLines.length > 0 && gameEngine && gameEngine.notes && gameEngine.notes !== notesToUse) {
+          linkExistingNotesToReconstructedLines(gameEngine.notes, reconstructedLines);
+        }
+      }
+
+      if (reconstructedLines && reconstructedLines.length > 0) {
         console.log(`[Karaoke] ${reconstructedLines.length} líneas construidas directamente desde el archivo del chart.`);
         beatmap.activeKaraokeLyrics = reconstructedLines;
         if (gameEngine) {
           gameEngine.activeKaraokeLyrics = reconstructedLines;
-          if (gameEngine.notes && gameEngine.notes !== beatmap.notes) {
-            linkExistingNotesToReconstructedLines(gameEngine.notes, reconstructedLines);
-          }
         }
         const teleBar = document.getElementById('karaokeTeleprompterBar');
         if (teleBar && window.isKaraokeModeActive) teleBar.classList.remove('hidden');
@@ -9005,6 +9205,23 @@ window.switchMainTab = switchMainTab;
         }
       }
 
+      const rawLyrics = (Array.isArray(beatmapData.lyrics) && beatmapData.lyrics.length > 0)
+        ? beatmapData.lyrics
+        : ((beatmapData.unpackedData && Array.isArray(beatmapData.unpackedData.lyrics) && beatmapData.unpackedData.lyrics.length > 0)
+            ? beatmapData.unpackedData.lyrics
+            : ((beatmapData.metadata && Array.isArray(beatmapData.metadata.lyrics) && beatmapData.metadata.lyrics.length > 0)
+                ? beatmapData.metadata.lyrics
+                : null));
+
+      let prebuiltLyrics = null;
+      if (rawLyrics && typeof parseTopLevelLyrics === 'function') {
+        prebuiltLyrics = parseTopLevelLyrics(rawLyrics);
+        if (prebuiltLyrics && prebuiltLyrics.length > 0 && typeof linkSyllablesToNotes === 'function') {
+          linkSyllablesToNotes(rawNotes, prebuiltLyrics);
+          beatmapData.activeKaraokeLyrics = prebuiltLyrics;
+        }
+      }
+
       // 2. Blindaje numérico, humanización musical, anti-martilleo y protección de Holds
       const songBpm = Number(beatmapData.bpm) || 120;
       const resolvedNotes = humanizeAndBalanceBeatmapNotes(rawNotes, songBpm, diffLabel);
@@ -9063,8 +9280,11 @@ window.switchMainTab = switchMainTab;
           artist: beatmapData.artist || beatmapData.metadata?.artist || 'Comunidad',
           difficulty_name: diffLabel || beatmapData.metadata?.difficulty_name || 'Normal',
           stars: resolvedStars,
+          lyrics: rawLyrics,
           is_daily_featured: isFeatured
         },
+        lyrics: rawLyrics,
+        activeKaraokeLyrics: prebuiltLyrics || beatmapData.activeKaraokeLyrics || null,
         bpm: Number(beatmapData.bpm) || 120,
         offset: Number(beatmapData.offset) || 0,
         startMarkerMs: Number(beatmapData.startMarkerMs) || (beatmapData.metadata && Number(beatmapData.metadata.startMarkerMs)) || 0,
@@ -10946,7 +11166,7 @@ window.switchMainTab = switchMainTab;
             if (cached) {
               const isCorruptOsu = (cached.source === 'osu' || cached.source_name === 'osu!' || !cached.is_top_song || !cached.audioBlob);
               const cachedNotes = cached.notes || (cached.difficulties && cached.difficulties[0]?.notes) || [];
-              const cachedHasLyrics = cachedNotes.some(n => Boolean(n.lyric || n.text || n.l || n.w || n.syllable || n.word));
+              const cachedHasLyrics = (Array.isArray(cached.lyrics) && cached.lyrics.length > 0) || (Array.isArray(cached.activeKaraokeLyrics) && cached.activeKaraokeLyrics.length > 0) || cachedNotes.some(n => Boolean(n.lyric || n.text || n.l || n.w || n.syllable || n.word));
               const needLyricRefetch = Boolean(window.isKaraokeModeActive && !cachedHasLyrics);
 
               if (isCorruptOsu) {

@@ -2095,6 +2095,14 @@ class BeatstarEngine {
     }
     if (beatmapData && beatmapData.activeKaraokeLyrics && beatmapData.activeKaraokeLyrics.length > 0) {
       this.activeKaraokeLyrics = beatmapData.activeKaraokeLyrics;
+    } else if (beatmapData && (beatmapData.lyrics || (beatmapData.metadata && beatmapData.metadata.lyrics))) {
+      const bLyrics = beatmapData.lyrics || beatmapData.metadata.lyrics;
+      if (typeof window !== 'undefined' && typeof window.parseTopLevelLyrics === 'function') {
+        this.activeKaraokeLyrics = window.parseTopLevelLyrics(bLyrics);
+        beatmapData.activeKaraokeLyrics = this.activeKaraokeLyrics;
+      } else {
+        this.activeKaraokeLyrics = [];
+      }
     } else if (!this.activeKaraokeLyrics) {
       this.activeKaraokeLyrics = [];
     }
@@ -2341,7 +2349,15 @@ class BeatstarEngine {
     this.notes = cleanedNotes;
     // Si estamos en Modo Karaoke y tenemos letras, vincular o construir 1:1 desde las notas reales
     if (typeof window !== 'undefined' && window.isKaraokeModeActive) {
-      if ((!this.activeKaraokeLyrics || this.activeKaraokeLyrics.length === 0) && typeof window.buildLrcLinesFromExistingNotes === 'function') {
+      if (this.activeKaraokeLyrics && this.activeKaraokeLyrics.length > 0) {
+        if (typeof window.linkSyllablesToNotes === 'function') {
+          window.linkSyllablesToNotes(this.notes, this.activeKaraokeLyrics);
+        } else if (typeof window.linkExistingNotesToReconstructedLines === 'function') {
+          window.linkExistingNotesToReconstructedLines(this.notes, this.activeKaraokeLyrics);
+        }
+        const teleBar = document.getElementById('karaokeTeleprompterBar');
+        if (teleBar) teleBar.classList.remove('hidden');
+      } else if (typeof window.buildLrcLinesFromExistingNotes === 'function') {
         const lines = window.buildLrcLinesFromExistingNotes(this.notes);
         if (lines && lines.length > 0) {
           this.activeKaraokeLyrics = lines;
@@ -2349,8 +2365,6 @@ class BeatstarEngine {
           const teleBar = document.getElementById('karaokeTeleprompterBar');
           if (teleBar) teleBar.classList.remove('hidden');
         }
-      } else if (this.activeKaraokeLyrics && this.activeKaraokeLyrics.length > 0 && typeof window.linkExistingNotesToReconstructedLines === 'function') {
-        window.linkExistingNotesToReconstructedLines(this.notes, this.activeKaraokeLyrics);
       }
     }
     this.lastNoteTime = this.notes && this.notes.length > 0
