@@ -2202,7 +2202,7 @@ class BeatstarEngine {
         duration_ms: rawDur,
         holdDuration: rawDur / 1000,
         end_timestamp_ms: isHold ? (rawT + Math.max(150, rawDur)) : null,
-        lyric: n.lyric || null,
+        lyric: (n.lyric !== undefined && n.lyric !== null && n.lyric !== '') ? n.lyric : (n.text || n.syllable || n.word || n.l || n.w || null),
         wordIdx: n.wordIdx !== undefined ? n.wordIdx : null,
         lineIdx: n.lineIdx !== undefined ? n.lineIdx : null,
         isInstrumental: Boolean(n.isInstrumental || n.is_instrumental || n.isInst)
@@ -2339,9 +2339,19 @@ class BeatstarEngine {
     }
 
     this.notes = cleanedNotes;
-    // Si estamos en Modo Karaoke y tenemos letras, asegurar distribución 1:1 en las notas finales
-    if (typeof window !== 'undefined' && window.isKaraokeModeActive && this.activeKaraokeLyrics && this.activeKaraokeLyrics.length > 0) {
-      this.distributeKaraokeLyrics(this.notes, this.activeKaraokeLyrics);
+    // Si estamos en Modo Karaoke y tenemos letras, vincular o construir 1:1 desde las notas reales
+    if (typeof window !== 'undefined' && window.isKaraokeModeActive) {
+      if ((!this.activeKaraokeLyrics || this.activeKaraokeLyrics.length === 0) && typeof window.buildLrcLinesFromExistingNotes === 'function') {
+        const lines = window.buildLrcLinesFromExistingNotes(this.notes);
+        if (lines && lines.length > 0) {
+          this.activeKaraokeLyrics = lines;
+          if (this.beatmapData) this.beatmapData.activeKaraokeLyrics = lines;
+          const teleBar = document.getElementById('karaokeTeleprompterBar');
+          if (teleBar) teleBar.classList.remove('hidden');
+        }
+      } else if (this.activeKaraokeLyrics && this.activeKaraokeLyrics.length > 0 && typeof window.linkExistingNotesToReconstructedLines === 'function') {
+        window.linkExistingNotesToReconstructedLines(this.notes, this.activeKaraokeLyrics);
+      }
     }
     this.lastNoteTime = this.notes && this.notes.length > 0
       ? this.notes.reduce((max, n) => Math.max(max, n.end_timestamp_ms || n.timestamp_ms || 0), 0)
@@ -6127,7 +6137,7 @@ class BeatstarEngine {
 
     // 5. Hendidura de Luz Central incandescente O Palabra Grabada en Relieve (Modo Karaoke)
     if (!isSwipe) {
-      if (lyricText && String(lyricText).trim().length > 0) {
+      if (lyricText && String(lyricText).trim().length > 0 && !['♪', '♫', '~', '▲'].includes(String(lyricText).trim())) {
         // MODO KARAOKE: PALABRA EN RELIEVE HUECO / GRABADO DE ALTA VISIBILIDAD
         const cleanLyric = String(lyricText).trim().toUpperCase();
         const baseFontSize = Math.max(14, Math.min(28 * scale, keyW * 0.36));
@@ -6232,7 +6242,7 @@ class BeatstarEngine {
     ctx.lineWidth = isLarge ? 2.2 : 1.4;
     ctx.stroke();
 
-    if (lyricText && String(lyricText).trim().length > 0) {
+    if (lyricText && String(lyricText).trim().length > 0 && !['♪', '♫', '~', '▲'].includes(String(lyricText).trim())) {
       const cleanLyric = String(lyricText).trim().toUpperCase();
       const baseFontSize = Math.max(13, Math.min(24, w * 0.32));
       const fontScale = cleanLyric.length > 6 ? (6 / cleanLyric.length) : 1.0;

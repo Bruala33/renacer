@@ -4443,13 +4443,13 @@ body {
   transform: translateX(-50%);
   width: 90%;
   max-width: 580px;
-  background: rgba(10, 8, 18, 0.30);
+  background: rgba(10, 8, 18, 0.18);
   padding: 8px 18px;
   border-radius: 24px;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
   z-index: 25;
   pointer-events: none;
   transition: opacity 0.25s ease, transform 0.25s ease;
