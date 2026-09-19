@@ -4443,13 +4443,13 @@ body {
   transform: translateX(-50%);
   width: 90%;
   max-width: 580px;
-  background: rgba(11, 9, 20, 0.88);
+  background: rgba(10, 8, 18, 0.30);
   padding: 8px 18px;
   border-radius: 24px;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
   z-index: 25;
   pointer-events: none;
   transition: opacity 0.25s ease, transform 0.25s ease;
@@ -4488,14 +4488,14 @@ body {
 
 /* 1. Unpainted: Silueta exterior limpia; el relleno oscuro oculta cualquier costura interna */
 .karaoke-word.unpainted {
-  color: #0b0914 !important;
-  -webkit-text-fill-color: #0b0914 !important;
-  -webkit-text-stroke: 1.8px rgba(255, 255, 255, 0.95);
+  color: rgba(10, 8, 18, 0.70) !important;
+  -webkit-text-fill-color: rgba(10, 8, 18, 0.70) !important;
+  -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.92);
   paint-order: stroke fill;
   text-shadow:
-    0 0 1px rgba(255, 255, 255, 0.8),
-    0 2px 5px rgba(0, 0, 0, 0.95) !important;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.95));
+    0 0 1px rgba(255, 255, 255, 0.7),
+    0 2px 5px rgba(0, 0, 0, 0.9) !important;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.9));
   transform: scale(0.96);
 }
 

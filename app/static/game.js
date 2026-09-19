@@ -2089,6 +2089,10 @@ class BeatstarEngine {
     }
     this.flyingLyrics = [];
     this._lastCurLyricIndex = -1;
+    if (typeof document !== 'undefined') {
+      const curEl = document.getElementById('karaokeCurrentLine');
+      if (curEl) curEl.innerHTML = '';
+    }
     if (beatmapData && beatmapData.activeKaraokeLyrics && beatmapData.activeKaraokeLyrics.length > 0) {
       this.activeKaraokeLyrics = beatmapData.activeKaraokeLyrics;
     } else if (!this.activeKaraokeLyrics) {
@@ -2640,6 +2644,12 @@ class BeatstarEngine {
     this.notes = [];
     this.judgements = [];
     this.fxRipples = [];
+    this.flyingLyrics = [];
+    this._lastCurLyricIndex = -1;
+    if (typeof document !== 'undefined') {
+      const curEl = document.getElementById('karaokeCurrentLine');
+      if (curEl) curEl.innerHTML = '';
+    }
   }
 
   getCurrentGameTimeMs() {
@@ -3638,6 +3648,67 @@ class BeatstarEngine {
     return null;
   }
 
+  splitWordSyllables(rawWord) {
+    const word = String(rawWord || '').trim();
+    if (!word) return [];
+    const clean = word.replace(/^[^\wáéíóúüñÁÉÍÓÚÜÑ]+|[^\wáéíóúüñÁÉÍÓÚÜÑ]+$/gi, '').toUpperCase();
+    if (clean.length <= 2) return [clean || word.toUpperCase()];
+
+    const isVowel = c => /[AEIOUÁÉÍÓÚÜ]/.test(c);
+    const isStrong = c => /[AEOÁÉÍÓÚ]/.test(c);
+
+    const syllables = [];
+    let currentSyl = '';
+    const letters = clean.split('');
+    let i = 0;
+
+    while (i < letters.length) {
+      currentSyl += letters[i];
+      if (i < letters.length - 1 && isVowel(letters[i])) {
+        const nextChar = letters[i + 1];
+        const afterNext = letters[i + 2];
+        const after2 = letters[i + 3];
+
+        if (isVowel(nextChar)) {
+          if (isStrong(letters[i]) && isStrong(nextChar)) {
+            syllables.push(currentSyl + '-');
+            currentSyl = '';
+          }
+        } else if (!isVowel(nextChar)) {
+          if (!afterNext) {
+          } else if (isVowel(afterNext)) {
+            syllables.push(currentSyl + '-');
+            currentSyl = '';
+          } else {
+            const pair = nextChar + afterNext;
+            const inseparable = /^(CH|LL|RR|QU|GU|BL|BR|CL|CR|DR|FL|FR|GL|GR|PL|PR|TR)$/.test(pair);
+            if (after2 && isVowel(after2) && inseparable) {
+              syllables.push(currentSyl + '-');
+              currentSyl = '';
+            } else if (afterNext && !after2) {
+            } else if (after2 && !isVowel(after2)) {
+              currentSyl += nextChar;
+              i++;
+              syllables.push(currentSyl + '-');
+              currentSyl = '';
+            } else {
+              currentSyl += nextChar;
+              i++;
+              syllables.push(currentSyl + '-');
+              currentSyl = '';
+            }
+          }
+        }
+      }
+      i++;
+    }
+    if (currentSyl) syllables.push(currentSyl);
+    if (syllables.length > 0) {
+      syllables[syllables.length - 1] = syllables[syllables.length - 1].replace(/-+$/, '');
+    }
+    return syllables.length > 0 ? syllables : [clean];
+  }
+
   distributeKaraokeLyrics(targetNotes, lrcLines) {
     if (!targetNotes || !Array.isArray(targetNotes) || !lrcLines || !Array.isArray(lrcLines) || lrcLines.length === 0) return;
 
@@ -3688,21 +3759,34 @@ class BeatstarEngine {
 
     let lastAssignedEventIdx = -1;
 
-    // 4. Asignación secuencial musical garantizada
+    // 4. Asignación secuencial musical garantizada SÍLABA A SÍLABA (1 nota = 1 sílaba cantada)
     for (let lIdx = 0; lIdx < lrcLines.length; lIdx++) {
       const line = lrcLines[lIdx];
       const nextLine = lrcLines[lIdx + 1];
       const lineStart = line.timeMs;
-      const words = (line.words || (line.text ? line.text.split(/\s+/).filter(Boolean) : []))
+      const rawWords = (line.words || (line.text ? line.text.split(/\s+/).filter(Boolean) : []))
         .map(w => String(w).toUpperCase().trim())
         .filter(Boolean);
-      if (!words.length) continue;
+      if (!rawWords.length) continue;
 
-      line.words = words;
+      line.words = rawWords;
       line.wordTimestamps = [];
 
-      // Búsqueda de eventos para la línea:
-      // La primera línea (Line 0) SIEMPRE se ancla en los primeros eventos vocales de la canción
+      // Descomponer las palabras de la línea en sílabas cantadas exactas
+      const lineSyllables = [];
+      rawWords.forEach((wText, wIdx) => {
+        const syls = this.splitWordSyllables(wText);
+        syls.forEach((sText, sIdx) => {
+          lineSyllables.push({
+            text: sText,
+            wordIdx: wIdx,
+            isFirstOfWord: sIdx === 0,
+            isLastOfWord: sIdx === syls.length - 1,
+            fullWord: wText
+          });
+        });
+      });
+
       let startSearchTime;
       if (lIdx === 0) {
         startSearchTime = (rhythmicEvents.length > 0) ? rhythmicEvents[0].timeMs - 100 : lineStart - 1200;
@@ -3713,7 +3797,7 @@ class BeatstarEngine {
         startSearchTime = Math.max(minT, lineStart - 800);
       }
 
-      const maxDur = Math.max(1200, words.length * 600);
+      const maxDur = Math.max(1200, lineSyllables.length * 520);
       const endSearchTime = nextLine
         ? Math.min(nextLine.timeMs - 150, lineStart + maxDur + 400)
         : (lineStart + maxDur + 1200);
@@ -3728,19 +3812,14 @@ class BeatstarEngine {
         }
       }
 
-      // GARANTÍA VITAL PARA LINE 0:
-      // Si la búsqueda por ventana no encontró eventos debido a desfase entre LRC y chart,
-      // Line 0 toma inmediatamente los primeros eventos disponibles a partir de startSearchTime.
       if (!phraseEvents.length) {
         if (lIdx === 0 && rhythmicEvents.length > 0) {
-          const count = Math.min(rhythmicEvents.length, Math.max(words.length, 3));
+          const count = Math.min(rhythmicEvents.length, Math.max(lineSyllables.length, 3));
           for (let eIdx = 0; eIdx < count; eIdx++) {
             phraseEvents.push({ ev: rhythmicEvents[eIdx], eIdx });
           }
         } else {
-          // Para líneas siguientes sin eventos en la ventana (posible pausa o solo instrumental),
-          // interpolar marcas de tiempo para que el teleprompter no falle
-          for (let wIdx = 0; wIdx < words.length; wIdx++) {
+          for (let wIdx = 0; wIdx < rawWords.length; wIdx++) {
             line.wordTimestamps[wIdx] = lineStart + wIdx * 350;
           }
           continue;
@@ -3748,38 +3827,54 @@ class BeatstarEngine {
       }
 
       const numEvents = phraseEvents.length;
-      const numWords = words.length;
+      const numSyllables = lineSyllables.length;
 
-      if (numEvents <= numWords) {
-        for (let wIdx = 0; wIdx < numEvents; wIdx++) {
-          const item = phraseEvents[wIdx];
-          item.ev.notes[0].lyric = words[wIdx];
-          item.ev.notes[0].wordIdx = wIdx;
+      if (numEvents >= numSyllables) {
+        for (let sIdx = 0; sIdx < numSyllables; sIdx++) {
+          const syl = lineSyllables[sIdx];
+          const item = phraseEvents[sIdx];
+          item.ev.notes[0].lyric = syl.text;
+          item.ev.notes[0].wordIdx = syl.wordIdx;
           item.ev.notes[0].lineIdx = lIdx;
-          line.wordTimestamps[wIdx] = item.ev.notes[0].timestamp_ms;
+          if (syl.isFirstOfWord && line.wordTimestamps[syl.wordIdx] === undefined) {
+            line.wordTimestamps[syl.wordIdx] = item.ev.notes[0].timestamp_ms;
+          }
           lastAssignedEventIdx = item.eIdx;
-        }
-        // Interpolar palabras restantes sin notas directas
-        for (let wIdx = numEvents; wIdx < numWords; wIdx++) {
-          const prevT = line.wordTimestamps[wIdx - 1] || lineStart;
-          line.wordTimestamps[wIdx] = prevT + 300;
         }
       } else {
-        const maxSpan = Math.min(numEvents - 1, Math.max(numWords - 1, Math.round(numWords * 1.35)));
-        let lastAssignedSubIdx = -1;
+        // Si hay menos notas que sílabas (sinalefas o canto rápido), agrupar sílabas proporcionalmente
+        let sylIdx = 0;
+        for (let eIdx = 0; eIdx < numEvents; eIdx++) {
+          const item = phraseEvents[eIdx];
+          const remainingEvents = numEvents - eIdx;
+          const remainingSyls = numSyllables - sylIdx;
+          const take = (remainingEvents === 1) ? remainingSyls : Math.max(1, Math.round(remainingSyls / remainingEvents));
+          const assignedSyls = lineSyllables.slice(sylIdx, sylIdx + take);
+          const combinedText = assignedSyls.map(s => s.text).join('').replace(/-+/g, '-');
+          const lastSyl = assignedSyls[assignedSyls.length - 1];
 
-        for (let wIdx = 0; wIdx < numWords; wIdx++) {
-          let subIdx = (wIdx === 0) ? 0 : (wIdx === numWords - 1) ? maxSpan : Math.round((wIdx / (numWords - 1)) * maxSpan);
-          if (subIdx <= lastAssignedSubIdx) subIdx = lastAssignedSubIdx + 1;
-          if (subIdx >= numEvents) subIdx = numEvents - 1;
-          lastAssignedSubIdx = subIdx;
-
-          const item = phraseEvents[subIdx];
-          item.ev.notes[0].lyric = words[wIdx];
-          item.ev.notes[0].wordIdx = wIdx;
+          item.ev.notes[0].lyric = combinedText;
+          item.ev.notes[0].wordIdx = lastSyl.wordIdx;
           item.ev.notes[0].lineIdx = lIdx;
-          line.wordTimestamps[wIdx] = item.ev.notes[0].timestamp_ms;
+
+          assignedSyls.forEach(s => {
+            if (s.isFirstOfWord && line.wordTimestamps[s.wordIdx] === undefined) {
+              line.wordTimestamps[s.wordIdx] = item.ev.notes[0].timestamp_ms;
+            }
+          });
+
+          sylIdx += take;
           lastAssignedEventIdx = item.eIdx;
+        }
+      }
+
+      // Rellenar timestamps para palabras completas
+      for (let wIdx = 0; wIdx < rawWords.length; wIdx++) {
+        if (!Number.isFinite(line.wordTimestamps[wIdx])) {
+          const prevT = (wIdx > 0 && Number.isFinite(line.wordTimestamps[wIdx - 1]))
+            ? line.wordTimestamps[wIdx - 1] + 320
+            : lineStart + wIdx * 320;
+          line.wordTimestamps[wIdx] = prevT;
         }
       }
     }
@@ -3909,9 +4004,11 @@ class BeatstarEngine {
             return `<span class="karaoke-word unpainted" data-line-idx="${curIndex}" data-word-idx="${wIdx}">${cleanW}</span>`;
           }).join(' ');
         }
-      } else if (curIndex === -1 && this._lastCurLyricIndex !== -1) {
-        this._lastCurLyricIndex = -1;
-        if (curEl) curEl.innerHTML = '';
+      } else if (curIndex === -1) {
+        if (this._lastCurLyricIndex !== -1 || (curEl && curEl.innerHTML !== '')) {
+          this._lastCurLyricIndex = -1;
+          if (curEl) curEl.innerHTML = '';
+        }
       }
 
       // Pintado de respaldo: SOLO si la nota ya cruzó completamente la barra de acierto (+260ms) y no fue acertada

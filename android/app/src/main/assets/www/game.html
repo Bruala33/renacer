@@ -5084,6 +5084,8 @@
       document.getElementById('fixedTopHud').classList.add('hidden');
       const teleBar = document.getElementById('karaokeTeleprompterBar');
       if (teleBar) teleBar.classList.add('hidden');
+      const curLyricEl = document.getElementById('karaokeCurrentLine');
+      if (curLyricEl) curLyricEl.innerHTML = '';
 
       // Limpiar y ocultar el canvas de juego para que no quede visible detrás del menú
       const gameCanvas = document.getElementById('gameCanvas');
@@ -8104,54 +8106,100 @@ window.switchMainTab = switchMainTab;
     }
 
     function buildLrcLinesFromExistingNotes(notes) {
+      if (!notes || !notes.length) return [];
       const lines = [];
-      let currentWords = [];
-      let currentWord = '';
+      let currentLineWords = [];
+      let currentWordNotes = [];
+      let currentWordText = '';
       let lineStartMs = null;
       let lastNoteTime = 0;
 
+      const finishWord = (lIdx) => {
+        if (!currentWordText && currentWordNotes.length === 0) return;
+        const wIdx = currentLineWords.length;
+        const cleanWord = currentWordText.replace(/[-~]/g, '').trim().toUpperCase();
+        if (cleanWord) {
+          currentLineWords.push(cleanWord);
+          for (const n of currentWordNotes) {
+            n.lineIdx = lIdx;
+            n.wordIdx = wIdx;
+          }
+        }
+        currentWordText = '';
+        currentWordNotes = [];
+      };
+
+      const finishLine = () => {
+        const lIdx = lines.length;
+        finishWord(lIdx);
+        if (currentLineWords.length > 0 && lineStartMs !== null) {
+          lines.push({
+            timeMs: lineStartMs,
+            text: currentLineWords.join(' '),
+            words: [...currentLineWords],
+            wordTimestamps: []
+          });
+        }
+        currentLineWords = [];
+        lineStartMs = null;
+      };
+
       for (let i = 0; i < notes.length; i++) {
         const n = notes[i];
-        const syl = String(n.lyric || '').trim();
+        const t = Number.isFinite(n.timestamp_ms) ? n.timestamp_ms : (n.timeMs || 0);
+        const raw = String(n.lyric || '');
+        const syl = raw.trim();
         if (!syl || ['♪', '♫', '~'].includes(syl)) continue;
 
-        if (syl === '▲' || (lastNoteTime > 0 && (n.timestamp_ms - lastNoteTime > 1400))) {
-          if (currentWord) {
-            currentWords.push(currentWord);
-            currentWord = '';
-          }
-          if (currentWords.length > 0 && lineStartMs !== null) {
-            lines.push({
-              timeMs: lineStartMs,
-              text: currentWords.join(' '),
-              words: [...currentWords]
-            });
-            currentWords = [];
-          }
-          lineStartMs = null;
+        if (syl === '▲' || (lastNoteTime > 0 && (t - lastNoteTime > 1200))) {
+          finishLine();
           if (syl === '▲') continue;
         }
 
-        if (lineStartMs === null) {
-          lineStartMs = n.timestamp_ms;
-        }
-        lastNoteTime = n.timestamp_ms;
+        if (lineStartMs === null) lineStartMs = t;
 
-        const rawLyric = String(n.lyric || '');
-        currentWord += syl;
-        if (rawLyric.endsWith(' ') || rawLyric.endsWith('-') || currentWord.length >= 8) {
-          currentWords.push(currentWord.replace(/[-~]/g, '').trim());
-          currentWord = '';
+        // Si la sílaba contiene espacios internos (ej. "ro y")
+        if (raw.includes(' ')) {
+          const parts = raw.split(/\s+/).filter(Boolean);
+          if (parts.length > 1) {
+            currentWordText += parts[0];
+            currentWordNotes.push(n);
+            finishWord(lines.length);
+            currentWordText = parts.slice(1).join(' ');
+            currentWordNotes.push(n);
+            lastNoteTime = t;
+            continue;
+          }
         }
+
+        currentWordText += syl;
+        currentWordNotes.push(n);
+
+        const nextNote = notes[i + 1];
+        const nextT = nextNote ? (Number.isFinite(nextNote.timestamp_ms) ? nextNote.timestamp_ms : nextNote.timeMs) : null;
+        const gap = nextT ? (nextT - t) : 0;
+        const isPunct = /[,.?!;:]$/.test(syl);
+
+        if (raw.endsWith(' ') || isPunct || gap > 340) {
+          finishWord(lines.length);
+        }
+        lastNoteTime = t;
       }
 
-      if (currentWord) currentWords.push(currentWord.replace(/[-~]/g, '').trim());
-      if (currentWords.length > 0 && lineStartMs !== null) {
-        lines.push({
-          timeMs: lineStartMs,
-          text: currentWords.join(' '),
-          words: [...currentWords]
-        });
+      finishLine();
+
+      // Computar timestamps de cada palabra a partir de su primera nota
+      for (let lIdx = 0; lIdx < lines.length; lIdx++) {
+        const line = lines[lIdx];
+        line.wordTimestamps = [];
+        for (const n of notes) {
+          if (n.lineIdx === lIdx && n.wordIdx !== null && n.wordIdx !== undefined) {
+            const t = Number.isFinite(n.timestamp_ms) ? n.timestamp_ms : (n.timeMs || 0);
+            if (line.wordTimestamps[n.wordIdx] === undefined) {
+              line.wordTimestamps[n.wordIdx] = t;
+            }
+          }
+        }
       }
 
       return lines;
@@ -8274,27 +8322,95 @@ window.switchMainTab = switchMainTab;
 
     function linkExistingNotesToReconstructedLines(notes, lines) {
       if (!notes || !lines || !lines.length) return;
+      const alreadyLinked = notes.some(n => n.lineIdx !== null && n.lineIdx !== undefined && n.wordIdx !== null && n.wordIdx !== undefined);
+      if (alreadyLinked) return;
+
       for (let lIdx = 0; lIdx < lines.length; lIdx++) {
         const line = lines[lIdx];
         const nextLine = lines[lIdx + 1];
         const lStart = line.timeMs;
         const lEnd = nextLine ? nextLine.timeMs : (lStart + 10000);
-        line.wordTimestamps = [];
 
-        let wCounter = 0;
         for (let i = 0; i < notes.length; i++) {
           const n = notes[i];
           const t = Number.isFinite(n.timestamp_ms) ? n.timestamp_ms : (n.timeMs || 0);
           if (t >= (lStart - 100) && t < (lEnd - 100) && n.lyric && !['♪', '♫', '▲', '~', '-'].includes(String(n.lyric).trim())) {
             n.lineIdx = lIdx;
-            n.wordIdx = wCounter;
-            if (line.words && wCounter < line.words.length) {
-              line.wordTimestamps[wCounter] = t;
+            if (line.wordTimestamps && line.wordTimestamps.length > 0) {
+              let matchedWIdx = 0;
+              for (let w = 0; w < line.wordTimestamps.length; w++) {
+                if (t >= line.wordTimestamps[w] - 50) {
+                  matchedWIdx = w;
+                }
+              }
+              n.wordIdx = matchedWIdx;
+            } else {
+              n.wordIdx = 0;
             }
-            wCounter++;
           }
         }
       }
+    }
+
+    function splitLrcWordSyllables(rawWord) {
+      const word = String(rawWord || '').trim();
+      if (!word) return [];
+      const clean = word.replace(/^[^\wáéíóúüñÁÉÍÓÚÜÑ]+|[^\wáéíóúüñÁÉÍÓÚÜÑ]+$/gi, '').toUpperCase();
+      if (clean.length <= 2) return [clean || word.toUpperCase()];
+
+      const isVowel = c => /[AEIOUÁÉÍÓÚÜ]/.test(c);
+      const isStrong = c => /[AEOÁÉÍÓÚ]/.test(c);
+
+      const syllables = [];
+      let currentSyl = '';
+      const letters = clean.split('');
+      let i = 0;
+
+      while (i < letters.length) {
+        currentSyl += letters[i];
+        if (i < letters.length - 1 && isVowel(letters[i])) {
+          const nextChar = letters[i + 1];
+          const afterNext = letters[i + 2];
+          const after2 = letters[i + 3];
+
+          if (isVowel(nextChar)) {
+            if (isStrong(letters[i]) && isStrong(nextChar)) {
+              syllables.push(currentSyl + '-');
+              currentSyl = '';
+            }
+          } else if (!isVowel(nextChar)) {
+            if (!afterNext) {
+            } else if (isVowel(afterNext)) {
+              syllables.push(currentSyl + '-');
+              currentSyl = '';
+            } else {
+              const pair = nextChar + afterNext;
+              const inseparable = /^(CH|LL|RR|QU|GU|BL|BR|CL|CR|DR|FL|FR|GL|GR|PL|PR|TR)$/.test(pair);
+              if (after2 && isVowel(after2) && inseparable) {
+                syllables.push(currentSyl + '-');
+                currentSyl = '';
+              } else if (afterNext && !after2) {
+              } else if (after2 && !isVowel(after2)) {
+                currentSyl += nextChar;
+                i++;
+                syllables.push(currentSyl + '-');
+                currentSyl = '';
+              } else {
+                currentSyl += nextChar;
+                i++;
+                syllables.push(currentSyl + '-');
+                currentSyl = '';
+              }
+            }
+          }
+        }
+        i++;
+      }
+      if (currentSyl) syllables.push(currentSyl);
+      if (syllables.length > 0) {
+        syllables[syllables.length - 1] = syllables[syllables.length - 1].replace(/-+$/, '');
+      }
+      return syllables.length > 0 ? syllables : [clean];
     }
 
     function distributeLrcWordsToNotes(notes, lrcLines, gameEngine = null) {
@@ -8348,18 +8464,33 @@ window.switchMainTab = switchMainTab;
 
         let lastAssignedEventIdx = -1;
 
-        // 4. Asignación secuencial musical garantizada
+        // 4. Asignación secuencial musical garantizada SÍLABA A SÍLABA (1 nota = 1 sílaba cantada)
         for (let lIdx = 0; lIdx < lrcLines.length; lIdx++) {
           const line = lrcLines[lIdx];
           const nextLine = lrcLines[lIdx + 1];
           const lineStart = line.timeMs;
-          const words = (line.words || (line.text ? line.text.split(/\s+/).filter(Boolean) : []))
+          const rawWords = (line.words || (line.text ? line.text.split(/\s+/).filter(Boolean) : []))
             .map(w => String(w).toUpperCase().trim())
             .filter(Boolean);
-          if (!words.length) continue;
+          if (!rawWords.length) continue;
 
-          line.words = words;
+          line.words = rawWords;
           line.wordTimestamps = [];
+
+          // Descomponer palabras de la frase en sílabas cantadas
+          const lineSyllables = [];
+          rawWords.forEach((wText, wIdx) => {
+            const syls = splitLrcWordSyllables(wText);
+            syls.forEach((sText, sIdx) => {
+              lineSyllables.push({
+                text: sText,
+                wordIdx: wIdx,
+                isFirstOfWord: sIdx === 0,
+                isLastOfWord: sIdx === syls.length - 1,
+                fullWord: wText
+              });
+            });
+          });
 
           let startSearchTime;
           if (lIdx === 0) {
@@ -8371,7 +8502,7 @@ window.switchMainTab = switchMainTab;
             startSearchTime = Math.max(minT, lineStart - 800);
           }
 
-          const maxDur = Math.max(1200, words.length * 600);
+          const maxDur = Math.max(1200, lineSyllables.length * 520);
           const endSearchTime = nextLine
             ? Math.min(nextLine.timeMs - 150, lineStart + maxDur + 400)
             : (lineStart + maxDur + 1200);
@@ -8386,17 +8517,14 @@ window.switchMainTab = switchMainTab;
             }
           }
 
-          // GARANTÍA VITAL PARA LINE 0:
-          // Si la búsqueda por ventana no encontró eventos debido a desfase entre LRC y chart,
-          // Line 0 toma inmediatamente los primeros eventos disponibles a partir de startSearchTime.
           if (!phraseEvents.length) {
             if (lIdx === 0 && rhythmicEvents.length > 0) {
-              const count = Math.min(rhythmicEvents.length, Math.max(words.length, 3));
+              const count = Math.min(rhythmicEvents.length, Math.max(lineSyllables.length, 3));
               for (let eIdx = 0; eIdx < count; eIdx++) {
                 phraseEvents.push({ ev: rhythmicEvents[eIdx], eIdx });
               }
             } else {
-              for (let wIdx = 0; wIdx < words.length; wIdx++) {
+              for (let wIdx = 0; wIdx < rawWords.length; wIdx++) {
                 line.wordTimestamps[wIdx] = lineStart + wIdx * 350;
               }
               continue;
@@ -8404,37 +8532,53 @@ window.switchMainTab = switchMainTab;
           }
 
           const numEvents = phraseEvents.length;
-          const numWords = words.length;
+          const numSyllables = lineSyllables.length;
 
-          if (numEvents <= numWords) {
-            for (let wIdx = 0; wIdx < numEvents; wIdx++) {
-              const item = phraseEvents[wIdx];
-              item.ev.notes[0].lyric = words[wIdx];
-              item.ev.notes[0].wordIdx = wIdx;
+          if (numEvents >= numSyllables) {
+            for (let sIdx = 0; sIdx < numSyllables; sIdx++) {
+              const syl = lineSyllables[sIdx];
+              const item = phraseEvents[sIdx];
+              item.ev.notes[0].lyric = syl.text;
+              item.ev.notes[0].wordIdx = syl.wordIdx;
               item.ev.notes[0].lineIdx = lIdx;
-              line.wordTimestamps[wIdx] = item.ev.notes[0].timestamp_ms;
+              if (syl.isFirstOfWord && line.wordTimestamps[syl.wordIdx] === undefined) {
+                line.wordTimestamps[syl.wordIdx] = item.ev.notes[0].timestamp_ms;
+              }
               lastAssignedEventIdx = item.eIdx;
-            }
-            for (let wIdx = numEvents; wIdx < numWords; wIdx++) {
-              const prevT = line.wordTimestamps[wIdx - 1] || lineStart;
-              line.wordTimestamps[wIdx] = prevT + 300;
             }
           } else {
-            const maxSpan = Math.min(numEvents - 1, Math.max(numWords - 1, Math.round(numWords * 1.35)));
-            let lastAssignedSubIdx = -1;
+            let sylIdx = 0;
+            for (let eIdx = 0; eIdx < numEvents; eIdx++) {
+              const item = phraseEvents[eIdx];
+              const remainingEvents = numEvents - eIdx;
+              const remainingSyls = numSyllables - sylIdx;
+              const take = (remainingEvents === 1) ? remainingSyls : Math.max(1, Math.round(remainingSyls / remainingEvents));
+              const assignedSyls = lineSyllables.slice(sylIdx, sylIdx + take);
+              const combinedText = assignedSyls.map(s => s.text).join('').replace(/-+/g, '-');
+              const lastSyl = assignedSyls[assignedSyls.length - 1];
 
-            for (let wIdx = 0; wIdx < numWords; wIdx++) {
-              let subIdx = (wIdx === 0) ? 0 : (wIdx === numWords - 1) ? maxSpan : Math.round((wIdx / (numWords - 1)) * maxSpan);
-              if (subIdx <= lastAssignedSubIdx) subIdx = lastAssignedSubIdx + 1;
-              if (subIdx >= numEvents) subIdx = numEvents - 1;
-              lastAssignedSubIdx = subIdx;
-
-              const item = phraseEvents[subIdx];
-              item.ev.notes[0].lyric = words[wIdx];
-              item.ev.notes[0].wordIdx = wIdx;
+              item.ev.notes[0].lyric = combinedText;
+              item.ev.notes[0].wordIdx = lastSyl.wordIdx;
               item.ev.notes[0].lineIdx = lIdx;
-              line.wordTimestamps[wIdx] = item.ev.notes[0].timestamp_ms;
+
+              assignedSyls.forEach(s => {
+                if (s.isFirstOfWord && line.wordTimestamps[s.wordIdx] === undefined) {
+                  line.wordTimestamps[s.wordIdx] = item.ev.notes[0].timestamp_ms;
+                }
+              });
+
+              sylIdx += take;
               lastAssignedEventIdx = item.eIdx;
+            }
+          }
+
+          // Rellenar timestamps para palabras completas
+          for (let wIdx = 0; wIdx < rawWords.length; wIdx++) {
+            if (!Number.isFinite(line.wordTimestamps[wIdx])) {
+              const prevT = (wIdx > 0 && Number.isFinite(line.wordTimestamps[wIdx - 1]))
+                ? line.wordTimestamps[wIdx - 1] + 320
+                : lineStart + wIdx * 320;
+              line.wordTimestamps[wIdx] = prevT;
             }
           }
         }
@@ -9256,6 +9400,17 @@ window.switchMainTab = switchMainTab;
 
     async function startGame(beatmapData, audioBlob, diffLabel = '') {
       if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
+
+      // Ocultar inmediatamente menús de catálogo y limpiar líricas anteriores para evitar cualquier parpadeo de 1s
+      const searchScreen = document.getElementById('searchScreen');
+      if (searchScreen) {
+        searchScreen.classList.add('hidden');
+        searchScreen.style.display = 'none';
+        searchScreen.style.visibility = 'hidden';
+      }
+      const curLyricEl = document.getElementById('karaokeCurrentLine');
+      if (curLyricEl) curLyricEl.innerHTML = '';
+
       if (window.isSlotActiveDuringLoad) {
         window.pendingGameToStart = { beatmapData, audioBlob, diffLabel };
         if (typeof notifySongReadyInSlot === 'function') {
@@ -9375,6 +9530,7 @@ window.switchMainTab = switchMainTab;
 
       // Teleprompter y Líricas Sincronizadas para Modo Karaoke
       const teleBar = document.getElementById('karaokeTeleprompterBar');
+      if (curLyricEl) curLyricEl.innerHTML = '';
       if (window.isKaraokeModeActive) {
         if (teleBar) teleBar.classList.remove('hidden');
         if (typeof loadKaraokeLyricsForBeatmap === 'function') {
@@ -9402,7 +9558,6 @@ window.switchMainTab = switchMainTab;
       window.isReelLoopActive = false;
 
       // 4. Ocultar menús y abrir interfaz de juego
-      const searchScreen = document.getElementById('searchScreen');
       if (searchScreen) {
         searchScreen.classList.add('hidden');
         searchScreen.style.display = 'none';
@@ -9477,6 +9632,11 @@ window.switchMainTab = switchMainTab;
     }
    
     function showResults(score, maxCombo, stars, stats, earnedClefs = 0, isNewRecord = false, finalMedal = null, scorePct = 0, earnedMedals = null, totalNotes = 0, accuracyPct = 100.0) {
+      const teleBar = document.getElementById('karaokeTeleprompterBar');
+      if (teleBar) teleBar.classList.add('hidden');
+      const curLyricEl = document.getElementById('karaokeCurrentLine');
+      if (curLyricEl) curLyricEl.innerHTML = '';
+
       const resSongTitleEl = document.getElementById('resSongTitle');
       if (resSongTitleEl) resSongTitleEl.innerText = currentActiveBeatmap?.metadata?.title || 'Canción';
       const resDiffNameEl = document.getElementById('resDiffName');
@@ -11225,7 +11385,6 @@ window.switchMainTab = switchMainTab;
               } else if (cached.audioBlob && cached.is_top_song) {
                 if (loadStatus) loadStatus.innerText = 'Cargando pista desde memoria local...';
                 setTimeout(() => {
-                  if (overlay) overlay.classList.remove('active');
                   startGame(cached, cached.audioBlob, targetDiff || cached.difficulty_name || 'Normal');
                 }, 120);
                 return;
@@ -11326,7 +11485,6 @@ window.switchMainTab = switchMainTab;
 
         if (loadStatus) loadStatus.innerText = '¡Iniciando partida!';
         setTimeout(() => {
-          if (overlay) overlay.classList.remove('active');
           startGame(chartData, audioBlob, targetDiff || diffName);
         }, 120);
 
