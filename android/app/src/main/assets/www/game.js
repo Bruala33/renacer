@@ -5362,6 +5362,28 @@ class BeatstarEngine {
     });
   }
 
+  spawnFlyingLyric(word, hitX, hitY, wordIdx, lineIdx, sylTime) {
+    if (!this.flyingLyrics) this.flyingLyrics = [];
+    if (this.flyingLyrics.length > 5) this.flyingLyrics.shift(); // Evitar acumulación
+
+    // Destino matemático exacto sin consultar getBoundingClientRect (0 lag de DOM)
+    const targetX = this.width / 2;
+    const targetY = 85;
+
+    this.flyingLyrics.push({
+      text: word,
+      startX: hitX,
+      startY: hitY,
+      ctrlX: (hitX + targetX) / 2 + (hitX < targetX ? -20 : 20),
+      ctrlY: targetY - 40,
+      targetX: targetX,
+      targetY: targetY,
+      startTime: performance.now(),
+      duration: 320,
+      sylTime: sylTime
+    });
+  }
+
   renderFlyingLyrics(ctx, currentTime) {
     if (!this.flyingLyrics || this.flyingLyrics.length === 0) return;
     const now = performance.now();
@@ -5369,108 +5391,38 @@ class BeatstarEngine {
     for (let i = this.flyingLyrics.length - 1; i >= 0; i--) {
       const fly = this.flyingLyrics[i];
       const elapsed = now - fly.startTime;
-      const t = Math.min(1.0, Math.max(0, elapsed / fly.duration));
+      const t = elapsed / fly.duration;
 
-      // Curva parabólica suave con desaceleración elástica (ease-out cubic)
+      if (t >= 1.0) {
+        // Al impactar, ilumina la sílaba en el DOM una sola vez
+        if (Number.isFinite(fly.sylTime)) {
+          if (typeof iluminarSilaba === 'function') iluminarSilaba(fly.sylTime);
+          else if (typeof window.iluminarSilaba === 'function') window.iluminarSilaba(fly.sylTime);
+        }
+        this.flyingLyrics.splice(i, 1);
+        continue;
+      }
+
+      // Parábola fluida ease-out
       const p = 1.0 - Math.pow(1.0 - t, 3);
       const inv = 1.0 - p;
       const curX = inv * inv * fly.startX + 2 * inv * p * fly.ctrlX + p * p * fly.targetX;
       const curY = inv * inv * fly.startY + 2 * inv * p * fly.ctrlY + p * p * fly.targetY;
 
-      // 1. Estela de chispas de oro y estrellas incandescentes (acelerada por GPU)
-      if (t < 0.92 && Math.random() < 0.65) {
-        fly.sparkles.push({
-          x: curX + (Math.random() - 0.5) * 14,
-          y: curY + (Math.random() - 0.5) * 14,
-          size: Math.random() * 3.2 + 1.2,
-          alpha: 1.0,
-          color: Math.random() < 0.55 ? '#ffd700' : '#ffffff'
-        });
-      }
-
-      if (fly.sparkles.length > 0) {
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        for (let s = fly.sparkles.length - 1; s >= 0; s--) {
-          const sp = fly.sparkles[s];
-          sp.alpha -= 0.055;
-          if (sp.alpha <= 0) {
-            fly.sparkles.splice(s, 1);
-            continue;
-          }
-          ctx.fillStyle = sp.color;
-          ctx.globalAlpha = sp.alpha;
-          ctx.beginPath();
-          ctx.arc(sp.x, sp.y, sp.size, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.restore();
-      }
-
-      // 2. Sílaba voladora dorada arcade (sin strokeText ni blur para evitar tirones)
-      const scale = 1.35 - p * 0.35;
-      const fontSize = Math.max(16, Math.min(32, 22 * scale));
-
       ctx.save();
       ctx.translate(curX, curY);
-      ctx.font = `900 ${Math.round(fontSize)}px Montserrat, -apple-system, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.shadowBlur = 0;
 
-      // Sombra sólida negra de contraste (relieve 3D)
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
-      ctx.fillText(fly.text, 1.8, 1.8);
-      ctx.fillText(fly.text, -0.8, -0.8);
+      // Sombra sólida negra de contraste
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+      ctx.fillText(fly.text, 1.5, 1.5);
 
-      // Oro radiante frontal
+      // Núcleo de oro brillante
       ctx.fillStyle = '#ffd700';
       ctx.fillText(fly.text, 0, 0);
 
-      // Brillo blanco en el núcleo de la letra
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-      ctx.font = `900 ${Math.round(fontSize * 0.88)}px Montserrat, -apple-system, sans-serif`;
-      ctx.fillText(fly.text, 0, 0);
       ctx.restore();
-
-      // 3. Impacto en el teleprompter superior ("pinta" la letra e ilumina)
-      if (t >= 1.0) {
-        let span = fly.targetSpan;
-        if (!span && Number.isFinite(fly.sylTime)) {
-          span = document.getElementById(`lyric-${fly.sylTime}`);
-        }
-        if (!span && typeof document !== 'undefined') {
-          if (fly.lineIdx !== null && fly.wordIdx !== null) {
-            span = document.querySelector(`.karaoke-word[data-line-idx="${fly.lineIdx}"][data-word-idx="${fly.wordIdx}"]`);
-          }
-          if (!span) {
-            span = document.querySelector('#karaokeCurrentLine .karaoke-syllable:not(.activa):not(.melisma)') || document.querySelector('#karaokeCurrentLine .karaoke-word.unpainted') || document.querySelector('#karaokeCurrentLine .karaoke-syllable:not(.melisma)');
-          }
-        }
-        if (span) {
-          span.classList.remove('unpainted');
-          span.classList.add('painted', 'activa');
-        }
-        if (Number.isFinite(fly.sylTime)) {
-          if (typeof iluminarSilaba === 'function') {
-            iluminarSilaba(fly.sylTime);
-          } else if (typeof window.iluminarSilaba === 'function') {
-            window.iluminarSilaba(fly.sylTime);
-          }
-        }
-
-        // Estallido de chispas doradas en el teleprompter al aterrizar
-        if (this.particles && typeof this.particles.emitHoldSpark === 'function') {
-          for (let k = 0; k < 6; k++) {
-            this.particles.emitHoldSpark(fly.targetX, fly.targetY, '#ffd700');
-          }
-        }
-
-        this.flyingLyrics.splice(i, 1);
-      }
     }
-  }
-  render3DComboExplosion(ctx) {
+  }  render3DComboExplosion(ctx) {
     if ((!this.combo3DExplosions || this.combo3DExplosions.length === 0) && !this.topComboToast) return;
     const explosions = (this.combo3DExplosions && this.combo3DExplosions.length > 0) ? this.combo3DExplosions : [this.topComboToast];
 
