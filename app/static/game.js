@@ -3289,9 +3289,10 @@ class BeatstarEngine {
         : (note ? (Number.isFinite(note.timestamp_ms) ? note.timestamp_ms : (Number.isFinite(note.timeMs) ? note.timeMs : Math.round((note.time || 0) * 1000))) : null);
 
       // Solo generar lírica voladora si la nota tenía asignada una palabra vocal real (no en notas instrumentales)
-      if (lyricWord) {
-        this.spawnFlyingLyric(lyricWord, x, y, wIdx, lIdx, nTime);
-      }
+     if (nTime !== null) {
+  if (typeof iluminarSilaba === 'function') iluminarSilaba(nTime);
+  else if (typeof window.iluminarSilaba === 'function') window.iluminarSilaba(nTime);
+}
       if (nTime !== null) {
         if (typeof iluminarSilaba === 'function') {
           iluminarSilaba(nTime);
@@ -5314,75 +5315,10 @@ class BeatstarEngine {
   }
 
   spawnFlyingLyric(word, hitX, hitY, wordIdx, lineIdx, sylTime) {
-    if (!this.flyingLyrics) this.flyingLyrics = [];
-
-    let targetX = this.width / 2;
-    let targetY = 85;
-    let targetSpan = null;
-
-    if (typeof document !== 'undefined') {
-      if (Number.isFinite(sylTime)) {
-        targetSpan = document.getElementById(`lyric-${sylTime}`);
-      }
-      if (!targetSpan && lineIdx !== null && wordIdx !== null) {
-        targetSpan = document.querySelector(`.karaoke-word[data-line-idx="${lineIdx}"][data-word-idx="${wordIdx}"]`) || document.querySelector(`.karaoke-syllable[data-time="${sylTime}"]`);
-      }
-      if (!targetSpan) {
-        targetSpan = document.querySelector('#karaokeCurrentLine .karaoke-syllable:not(.activa):not(.melisma)') || document.querySelector('#karaokeCurrentLine .karaoke-word.unpainted') || document.querySelector('#karaokeCurrentLine .karaoke-syllable:not(.melisma)');
-      }
-      if (targetSpan && this.canvas) {
-        const rect = targetSpan.getBoundingClientRect();
-        const canvasRect = this.canvas.getBoundingClientRect();
-        if (canvasRect.width > 0 && canvasRect.height > 0) {
-          targetX = (rect.left + rect.width / 2 - canvasRect.left) * (this.width / canvasRect.width);
-          targetY = (rect.top + rect.height / 2 - canvasRect.top) * (this.height / canvasRect.height);
-        }
-      }
-    }
-
-    const midX = (hitX + targetX) / 2;
-    const ctrlX = midX + (hitX < targetX ? -25 : 25);
-    const ctrlY = Math.min(hitY, targetY) - 75;
-
-    this.flyingLyrics.push({
-      text: word,
-      startX: hitX,
-      startY: hitY,
-      ctrlX: ctrlX,
-      ctrlY: ctrlY,
-      targetX: targetX,
-      targetY: targetY,
-      startTime: performance.now(),
-      duration: 380,
-      wordIdx: wordIdx,
-      lineIdx: lineIdx,
-      sylTime: sylTime,
-      targetSpan: targetSpan,
-      sparkles: []
-    });
-  }
+     }
 
   spawnFlyingLyric(word, hitX, hitY, wordIdx, lineIdx, sylTime) {
-    if (!this.flyingLyrics) this.flyingLyrics = [];
-    if (this.flyingLyrics.length > 5) this.flyingLyrics.shift(); // Evitar acumulación
-
-    // Destino matemático exacto sin consultar getBoundingClientRect (0 lag de DOM)
-    const targetX = this.width / 2;
-    const targetY = 85;
-
-    this.flyingLyrics.push({
-      text: word,
-      startX: hitX,
-      startY: hitY,
-      ctrlX: (hitX + targetX) / 2 + (hitX < targetX ? -20 : 20),
-      ctrlY: targetY - 40,
-      targetX: targetX,
-      targetY: targetY,
-      startTime: performance.now(),
-      duration: 320,
-      sylTime: sylTime
-    });
-  }
+     }
 
   renderFlyingLyrics(ctx, currentTime) {
     if (!this.flyingLyrics || this.flyingLyrics.length === 0) return;

@@ -7515,7 +7515,37 @@ window.switchMainTab = switchMainTab;
     }
     window.goToCatalogPage = goToCatalogPage;
 
+
+
+
+// ===================================================
+// CONTROL SEGURO DE PAGINACIÓN DEL PIANO (CERO BUCLES)
+// ===================================================
+window._pianoPageRepeatTimer = null;
+window._pianoPageHoldTimeout = null;
+
+function detenerPaginacionPiano() {
+  if (window._pianoPageRepeatTimer) {
+    clearInterval(window._pianoPageRepeatTimer);
+    window._pianoPageRepeatTimer = null;
+  }
+  if (window._pianoPageHoldTimeout) {
+    clearTimeout(window._pianoPageHoldTimeout);
+    window._pianoPageHoldTimeout = null;
+  }
+}
+
+// Detener en seco si levantas el dedo en CUALQUIER lugar de la pantalla
+['touchend', 'touchcancel', 'mouseup', 'pointerup', 'pointercancel', 'blur'].forEach(evt => {
+  window.addEventListener(evt, detenerPaginacionPiano, { passive: true });
+});
+
+
+
+
+
     function renderSearchResultsPage(page) {
+      detenerPaginacionPiano();
       const items = window.currentSearchResultsList || [];
       const container = document.getElementById('resultsList');
       if (!container || !items.length) return;
