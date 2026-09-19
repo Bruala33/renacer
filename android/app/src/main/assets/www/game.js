@@ -36,6 +36,41 @@ function hexToRgba(hex, alpha) {
   return `rgba(197, 160, 89, ${a.toFixed(3)})`;
 }
 
+// ==========================================
+// MODO KARAOKE: FORMATEO Y RENDERIZADO DEFINITIVO
+// ==========================================
+function renderizarVersoKaraoke(verso, contenedor) {
+  // 1. Obligatorio para que el navegador respete los espacios en blanco nativos
+  contenedor.style.whiteSpace = 'pre-wrap';
+
+  // 2. Mapear sílabas sin añadir espacios artificiales entre spans
+  const htmlSpans = verso.map((s) => {
+    let texto = s.text;
+    const esMelisma = texto.trim() === '~';
+
+    // Reemplazar guiones de sinalefa por espacios
+    texto = texto.replace(/-/g, ' ');
+
+    if (esMelisma) {
+      // Se mantiene en el DOM con display:none para evitar errores de ID nulo
+      return `<span id="lyric-${s.time}" class="karaoke-syllable melisma" style="display:none;" data-time="${s.time}"></span>`;
+    }
+
+    // Los spans van pegados directamente
+    return `<span id="lyric-${s.time}" class="karaoke-syllable" data-time="${s.time}" data-dur="${s.dur}">${texto}</span>`;
+  }).join(''); // NUNCA usar .join(' ') ni saltos de línea
+
+  contenedor.innerHTML = htmlSpans;
+}
+if (typeof window !== 'undefined') window.renderizarVersoKaraoke = renderizarVersoKaraoke;
+
+function iluminarSilaba(tiempoMs) {
+  const el = document.getElementById(`lyric-${tiempoMs}`);
+  if (el && !el.classList.contains('activa')) {
+    el.classList.add('activa');
+  }
+}
+if (typeof window !== 'undefined') window.iluminarSilaba = iluminarSilaba;
 
 // ==========================================
 // DYNAMIC SONG COLOR PALETTE REGISTRY (BEATSTAR PRESETS & ADAPTIVE SYSTEM)
@@ -3247,12 +3282,22 @@ class BeatstarEngine {
       let lyricWord = (note && note.lyric && String(note.lyric).trim().length > 0)
         ? String(note.lyric).trim().toUpperCase()
         : null;
-      let wIdx = (note && note.wordIdx !== undefined) ? note.wordIdx : null;
+      let wIdx = (note && note.wordIdx !== undefined) ? note.wordIdx : (note && note.sylIdx !== undefined ? note.sylIdx : null);
       let lIdx = (note && note.lineIdx !== undefined) ? note.lineIdx : null;
+      const nTime = (note && Number.isFinite(note.sylTime))
+        ? note.sylTime
+        : (note ? (Number.isFinite(note.timestamp_ms) ? note.timestamp_ms : (Number.isFinite(note.timeMs) ? note.timeMs : Math.round((note.time || 0) * 1000))) : null);
 
       // Solo generar lírica voladora si la nota tenía asignada una palabra vocal real (no en notas instrumentales)
       if (lyricWord) {
-        this.spawnFlyingLyric(lyricWord, x, y, wIdx, lIdx);
+        this.spawnFlyingLyric(lyricWord, x, y, wIdx, lIdx, nTime);
+      }
+      if (nTime !== null) {
+        if (typeof iluminarSilaba === 'function') {
+          iluminarSilaba(nTime);
+        } else if (typeof window.iluminarSilaba === 'function') {
+          window.iluminarSilaba(nTime);
+        }
       }
       text = '';
       color = '#ffd700';
@@ -3990,24 +4035,28 @@ class BeatstarEngine {
       for (let k = 0; k < this.activeKaraokeLyrics.length; k++) {
         const item = this.activeKaraokeLyrics[k];
         const nextItem = this.activeKaraokeLyrics[k + 1];
+        const verso = item ? (item.verso || item.syllables || (Array.isArray(item) ? item : [])) : [];
 
-        // Anclar inicio de línea al primer timestamp de nota real cuando esté disponible
-        const hasTimestamps = item.wordTimestamps && item.wordTimestamps.length > 0 && Number.isFinite(item.wordTimestamps[0]);
-        const lineStart = hasTimestamps ? item.wordTimestamps[0] : item.timeMs;
+        // Anclar inicio de línea al primer timestamp de la sílaba
+        const hasVerso = Array.isArray(verso) && verso.length > 0;
+        const lineStart = (hasVerso && Number.isFinite(verso[0].time))
+          ? verso[0].time
+          : ((item.wordTimestamps && item.wordTimestamps.length > 0 && Number.isFinite(item.wordTimestamps[0])) ? item.wordTimestamps[0] : item.timeMs);
 
-        // Fin de la frase vocal cantada
-        const lastNoteTs = (hasTimestamps && Number.isFinite(item.wordTimestamps[item.wordTimestamps.length - 1]))
-          ? item.wordTimestamps[item.wordTimestamps.length - 1]
-          : (lineStart + Math.max(1200, (item.words ? item.words.length : 4) * 580));
+        // Fin de la estrofa/frase cantada
+        const lastSyl = hasVerso ? verso[verso.length - 1] : null;
+        const lastNoteTs = (lastSyl && Number.isFinite(lastSyl.time))
+          ? (lastSyl.time + (Number(lastSyl.dur) || 350))
+          : ((item.wordTimestamps && Number.isFinite(item.wordTimestamps[item.wordTimestamps.length - 1])) ? item.wordTimestamps[item.wordTimestamps.length - 1] : (lineStart + 2500));
 
-        // Inicio de la siguiente frase
-        const nextHasTimestamps = nextItem && nextItem.wordTimestamps && nextItem.wordTimestamps.length > 0 && Number.isFinite(nextItem.wordTimestamps[0]);
-        const nextStart = nextHasTimestamps ? nextItem.wordTimestamps[0] : (nextItem ? nextItem.timeMs : null);
+        // Inicio de la siguiente estrofa
+        const nextVerso = nextItem ? (nextItem.verso || nextItem.syllables || (Array.isArray(nextItem) ? nextItem : [])) : [];
+        const nextStart = (Array.isArray(nextVerso) && nextVerso.length > 0 && Number.isFinite(nextVerso[0].time))
+          ? nextVerso[0].time
+          : ((nextItem && nextItem.wordTimestamps && nextItem.wordTimestamps.length > 0 && Number.isFinite(nextItem.wordTimestamps[0])) ? nextItem.wordTimestamps[0] : (nextItem ? nextItem.timeMs : null));
 
-        // La línea permanece visible mientras se cantan sus notas (+900ms para lectura).
-        // Si hay una pausa instrumental prolongada antes de la siguiente estrofa, el teleprompter se limpia.
         const lineEnd = nextStart
-          ? Math.min(lastNoteTs + 1000, nextStart - leadTimeMs)
+          ? Math.min(lastNoteTs + 1200, nextStart - leadTimeMs)
           : (lastNoteTs + 2500);
 
         if (currentTime >= (lineStart - leadTimeMs) && currentTime < lineEnd) {
@@ -4021,12 +4070,14 @@ class BeatstarEngine {
       if (curIndex !== -1 && curIndex !== this._lastCurLyricIndex) {
         this._lastCurLyricIndex = curIndex;
         const curItem = this.activeKaraokeLyrics[curIndex];
+        const verso = curItem ? (curItem.verso || curItem.syllables || (Array.isArray(curItem) ? curItem : [])) : [];
 
-        if (curEl && curItem && curItem.words) {
-          curEl.innerHTML = curItem.words.map((w, wIdx) => {
-            const cleanW = String(w).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[m]);
-            return `<span class="karaoke-word unpainted" data-line-idx="${curIndex}" data-word-idx="${wIdx}">${cleanW}</span>`;
-          }).join(' ');
+        if (curEl && Array.isArray(verso) && verso.length > 0) {
+          if (typeof renderizarVersoKaraoke === 'function') {
+            renderizarVersoKaraoke(verso, curEl);
+          } else if (typeof window.renderizarVersoKaraoke === 'function') {
+            window.renderizarVersoKaraoke(verso, curEl);
+          }
         }
       } else if (curIndex === -1) {
         if (this._lastCurLyricIndex !== -1 || (curEl && curEl.innerHTML !== '')) {
@@ -4035,22 +4086,17 @@ class BeatstarEngine {
         }
       }
 
-      // Pintado de respaldo: SOLO si la nota ya cruzó completamente la barra de acierto (+260ms) y no fue acertada
+      // Iluminación sincronizada de sílabas por tiempo
       if (curIndex !== -1 && curEl) {
         const curItem = this.activeKaraokeLyrics[curIndex];
-        if (curItem && curItem.words) {
-          for (let wIdx = 0; wIdx < curItem.words.length; wIdx++) {
-            const noteT = (curItem.wordTimestamps && Number.isFinite(curItem.wordTimestamps[wIdx]))
-              ? curItem.wordTimestamps[wIdx]
-              : (curItem.timeMs + wIdx * 500);
-
-            // ÚNICAMENTE después de que la nota haya sobrepasado la línea de acierto (nota fallada/pasada)
-            if (currentTime > (noteT + 260)) {
-              const unpSpan = curEl.querySelector(`.karaoke-word.unpainted[data-word-idx="${wIdx}"]`);
-              if (unpSpan) {
-                unpSpan.classList.remove('unpainted');
-                unpSpan.classList.add('painted');
-              }
+        const verso = curItem ? (curItem.verso || curItem.syllables || (Array.isArray(curItem) ? curItem : [])) : [];
+        for (let sIdx = 0; sIdx < verso.length; sIdx++) {
+          const s = verso[sIdx];
+          if (s && Number.isFinite(s.time) && currentTime >= s.time) {
+            if (typeof iluminarSilaba === 'function') {
+              iluminarSilaba(s.time);
+            } else if (typeof window.iluminarSilaba === 'function') {
+              window.iluminarSilaba(s.time);
             }
           }
         }
@@ -5267,7 +5313,7 @@ class BeatstarEngine {
     }
   }
 
-  spawnFlyingLyric(word, hitX, hitY, wordIdx, lineIdx) {
+  spawnFlyingLyric(word, hitX, hitY, wordIdx, lineIdx, sylTime) {
     if (!this.flyingLyrics) this.flyingLyrics = [];
 
     let targetX = this.width / 2;
@@ -5275,11 +5321,14 @@ class BeatstarEngine {
     let targetSpan = null;
 
     if (typeof document !== 'undefined') {
-      if (lineIdx !== null && wordIdx !== null) {
-        targetSpan = document.querySelector(`.karaoke-word[data-line-idx="${lineIdx}"][data-word-idx="${wordIdx}"]`);
+      if (Number.isFinite(sylTime)) {
+        targetSpan = document.getElementById(`lyric-${sylTime}`);
+      }
+      if (!targetSpan && lineIdx !== null && wordIdx !== null) {
+        targetSpan = document.querySelector(`.karaoke-word[data-line-idx="${lineIdx}"][data-word-idx="${wordIdx}"]`) || document.querySelector(`.karaoke-syllable[data-time="${sylTime}"]`);
       }
       if (!targetSpan) {
-        targetSpan = document.querySelector('#karaokeCurrentLine .karaoke-word.unpainted') || document.querySelector('#karaokeCurrentLine .karaoke-word');
+        targetSpan = document.querySelector('#karaokeCurrentLine .karaoke-syllable:not(.activa):not(.melisma)') || document.querySelector('#karaokeCurrentLine .karaoke-word.unpainted') || document.querySelector('#karaokeCurrentLine .karaoke-syllable:not(.melisma)');
       }
       if (targetSpan && this.canvas) {
         const rect = targetSpan.getBoundingClientRect();
@@ -5307,6 +5356,7 @@ class BeatstarEngine {
       duration: 380,
       wordIdx: wordIdx,
       lineIdx: lineIdx,
+      sylTime: sylTime,
       targetSpan: targetSpan,
       sparkles: []
     });
@@ -5386,17 +5436,28 @@ class BeatstarEngine {
       // Llegada e impacto en el teleprompter ("pinta la letra")
       if (t >= 1.0) {
         let span = fly.targetSpan;
+        if (!span && Number.isFinite(fly.sylTime)) {
+          span = document.getElementById(`lyric-${fly.sylTime}`);
+        }
         if (!span && typeof document !== 'undefined') {
           if (fly.lineIdx !== null && fly.wordIdx !== null) {
             span = document.querySelector(`.karaoke-word[data-line-idx="${fly.lineIdx}"][data-word-idx="${fly.wordIdx}"]`);
           }
           if (!span) {
-            span = document.querySelector('#karaokeCurrentLine .karaoke-word.unpainted') || document.querySelector('#karaokeCurrentLine .karaoke-word');
+            span = document.querySelector('#karaokeCurrentLine .karaoke-syllable:not(.activa):not(.melisma)') || document.querySelector('#karaokeCurrentLine .karaoke-word.unpainted') || document.querySelector('#karaokeCurrentLine .karaoke-syllable:not(.melisma)');
           }
         }
         if (span) {
           span.classList.remove('unpainted');
           span.classList.add('painted');
+          span.classList.add('activa');
+        }
+        if (Number.isFinite(fly.sylTime)) {
+          if (typeof iluminarSilaba === 'function') {
+            iluminarSilaba(fly.sylTime);
+          } else if (typeof window.iluminarSilaba === 'function') {
+            window.iluminarSilaba(fly.sylTime);
+          }
         }
 
         // Destello de chispas al aterrizar

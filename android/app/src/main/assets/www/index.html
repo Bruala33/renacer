@@ -8168,17 +8168,42 @@ window.switchMainTab = switchMainTab;
     }
     window.linkExistingNotesToReconstructedLines = linkExistingNotesToReconstructedLines;
 
+    function renderizarVersoKaraoke(verso, contenedor) {
+      // 1. Obligatorio para que el navegador respete los espacios en blanco nativos
+      contenedor.style.whiteSpace = 'pre-wrap';
+
+      // 2. Mapear sílabas sin añadir espacios artificiales entre spans
+      const htmlSpans = verso.map((s) => {
+        let texto = s.text;
+        const esMelisma = texto.trim() === '~';
+
+        // Reemplazar guiones de sinalefa por espacios
+        texto = texto.replace(/-/g, ' ');
+
+        if (esMelisma) {
+          // Se mantiene en el DOM con display:none para evitar errores de ID nulo
+          return `<span id="lyric-${s.time}" class="karaoke-syllable melisma" style="display:none;" data-time="${s.time}"></span>`;
+        }
+
+        // Los spans van pegados directamente
+        return `<span id="lyric-${s.time}" class="karaoke-syllable" data-time="${s.time}" data-dur="${s.dur}">${texto}</span>`;
+      }).join(''); // NUNCA usar .join(' ') ni saltos de línea
+
+      contenedor.innerHTML = htmlSpans;
+    }
+    window.renderizarVersoKaraoke = renderizarVersoKaraoke;
+
+    function iluminarSilaba(tiempoMs) {
+      const el = document.getElementById(`lyric-${tiempoMs}`);
+      if (el && !el.classList.contains('activa')) {
+        el.classList.add('activa');
+      }
+    }
+    window.iluminarSilaba = iluminarSilaba;
+
     function parseTopLevelLyrics(lyricsArray) {
       if (!Array.isArray(lyricsArray) || lyricsArray.length === 0) return [];
       const lines = [];
-
-      // Palabras y partículas comunes en español para comprobación de límite léxico
-      const SPANISH_BOUNDARIES = new Set([
-        'DE', 'LA', 'EL', 'EN', 'Y', 'A', 'UN', 'UNA', 'QUE', 'SE', 'ME', 'TE', 'MI', 'TU', 'SU',
-        'AL', 'DEL', 'POR', 'CON', 'NO', 'SI', 'SÍ', 'YO', 'LO', 'LOS', 'LAS', 'ES', 'SON', 'FUE',
-        'MÁS', 'TAN', 'MUY', 'O', 'SIN', 'SUS', 'MIS', 'TUS', 'YA', 'LE', 'LES', 'NOS', 'HAY',
-        'DOS', 'TRES', 'SOLO', 'SÓLO', 'VOZ', 'VAS', 'BIEN', 'MAL', 'HOY', 'SER', 'VER', 'DAR', 'IR'
-      ]);
 
       for (let lIdx = 0; lIdx < lyricsArray.length; lIdx++) {
         const rawLine = lyricsArray[lIdx];
@@ -8188,10 +8213,6 @@ window.switchMainTab = switchMainTab;
         const wordTimestamps = [];
         let curWord = '';
         let curWordStartTime = null;
-        const sylList = [];
-        let prevSylEndTime = 0;
-        let prevSylHadTrailingSpace = false;
-        let prevSylEndedWithPunct = false;
 
         const flushWord = () => {
           const clean = curWord.replace(/[-~]/g, '').trim();
@@ -8207,104 +8228,37 @@ window.switchMainTab = switchMainTab;
           const syl = rawLine[sIdx];
           let rawText = String(syl.text !== undefined && syl.text !== null ? syl.text : '');
           const sylTime = Number(syl.time) || 0;
-          const sylDur = Number(syl.dur) || 0;
 
-          // 1. Filtrar notas de prolongación (~): ocultar visualmente pero mantener su tiempo
-          const isPureTilde = /^[\s~♪♫▲]+$/.test(rawText) || !rawText.trim();
-          if (isPureTilde) {
-            sylList.push({
-              time: sylTime,
-              dur: sylDur,
-              text: rawText,
-              cleanText: '', // Oculto en pantalla
-              wordIdx: null,
-              lineIdx: lIdx,
-              isProlongation: true
-            });
-            prevSylEndTime = sylTime + sylDur;
-            continue;
-          }
-
-          // 2. Tratamiento de sinalefas: reemplaza guiones entre palabras (ej. do-al -> do al, Yo-en -> Yo en)
-          rawText = rawText.replace(/([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ])-([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ])/g, '$1 $2');
-          const trimmed = rawText.trim();
-
-          const startsWithSpace = rawText.startsWith(' ');
-          const endsWithSpace = rawText.endsWith(' ');
-          const endsWithPunct = /[,.?!;:]$/.test(trimmed);
-
-          // 3. Comprobación de espacio de palabra: si empieza por letra y la anterior no terminó en espacio
-          if (curWord.length > 0) {
-            const curWordUpper = curWord.replace(/[-~]/g, '').trim().toUpperCase();
-            const startsWithLetter = /^[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/.test(trimmed);
-            const isCapitalized = /^[A-ZÁÉÍÓÚÜÑ]/.test(trimmed);
-            const musicalGap = prevSylEndTime > 0 ? (sylTime - prevSylEndTime) : 0;
-
-            const isWordBoundary = startsWithSpace || 
-                                   prevSylHadTrailingSpace || 
-                                   prevSylEndedWithPunct || 
-                                   SPANISH_BOUNDARIES.has(curWordUpper) || 
-                                   (isCapitalized && curWord.length >= 2) || 
-                                   (startsWithLetter && musicalGap > 280);
-
-            if (isWordBoundary) {
-              flushWord();
-            }
+          if (rawText.startsWith(' ') && curWord.length > 0) {
+            flushWord();
           }
 
           if (curWordStartTime === null) {
             curWordStartTime = sylTime;
           }
 
-          const assignedWordIdx = words.length;
+          curWord += rawText;
 
-          // Si el texto contiene espacios internos (generados por separación de sinalefa)
-          const parts = trimmed.split(/\s+/);
-          if (parts.length > 1) {
-            for (let p = 0; p < parts.length; p++) {
-              curWord += parts[p];
-              if (p < parts.length - 1) {
-                flushWord();
-                curWordStartTime = sylTime;
-              }
-            }
-          } else {
-            curWord += trimmed;
-          }
-
-          if (endsWithSpace || endsWithPunct) {
+          if (rawText.endsWith(' ') || /[,.?!;:]$/.test(rawText.trim())) {
             flushWord();
           }
-
-          const cleanSyl = trimmed.replace(/[-~]/g, '').trim().toUpperCase();
-          sylList.push({
-            time: sylTime,
-            dur: sylDur,
-            text: rawText,
-            cleanText: cleanSyl,
-            wordIdx: assignedWordIdx,
-            lineIdx: lIdx,
-            isProlongation: false
-          });
-
-          prevSylEndTime = sylTime + sylDur;
-          prevSylHadTrailingSpace = endsWithSpace;
-          prevSylEndedWithPunct = endsWithPunct;
         }
-
         flushWord();
 
-        // Espaciado entre versos: siempre conserva cada verso como bloque diferenciado con separador explícito
-        if (words.length > 0) {
-          lines.push({
-            timeMs: Number(rawLine[0].time) || 0,
-            text: words.join(' '),
-            verseText: words.join(' ') + '\n',
-            words: [...words],
-            wordTimestamps: [...wordTimestamps],
-            syllables: sylList
-          });
-        }
+        const lineStart = Number(rawLine[0].time) || 0;
+        const lastRaw = rawLine[rawLine.length - 1];
+        const lineEnd = (Number(lastRaw.time) || 0) + (Number(lastRaw.dur) || 300);
+
+        lines.push({
+          timeMs: lineStart,
+          endTimeMs: lineEnd,
+          text: words.join(' '),
+          verseText: words.join(' ') + '\n',
+          words: [...words],
+          wordTimestamps: [...wordTimestamps],
+          syllables: rawLine,
+          verso: rawLine
+        });
       }
 
       return lines;
@@ -8314,12 +8268,16 @@ window.switchMainTab = switchMainTab;
     function linkSyllablesToNotes(notes, reconstructedLines) {
       if (!Array.isArray(notes) || !notes.length || !Array.isArray(reconstructedLines) || !reconstructedLines.length) return;
 
-      for (const line of reconstructedLines) {
-        if (!line.syllables) continue;
-        for (const syl of line.syllables) {
-          const sylTime = syl.time;
+      for (let lIdx = 0; lIdx < reconstructedLines.length; lIdx++) {
+        const line = reconstructedLines[lIdx];
+        const verso = line.verso || line.syllables;
+        if (!Array.isArray(verso)) continue;
+
+        for (let sIdx = 0; sIdx < verso.length; sIdx++) {
+          const syl = verso[sIdx];
+          const sylTime = Number(syl.time) || 0;
           let bestNote = null;
-          let minDiff = 50;
+          let minDiff = 55;
 
           for (let i = 0; i < notes.length; i++) {
             const n = notes[i];
@@ -8336,15 +8294,14 @@ window.switchMainTab = switchMainTab;
           }
 
           if (bestNote) {
-            // Filtrar notas de prolongación (~): no mostrar texto en pantalla
-            if (syl.isProlongation || !syl.cleanText) {
-              bestNote.lyric = null;
-              bestNote.lineIdx = syl.lineIdx;
-              bestNote.wordIdx = null;
+            bestNote.lineIdx = lIdx;
+            bestNote.sylIdx = sIdx;
+            bestNote.sylTime = sylTime;
+            const cleanT = String(syl.text || '').replace(/[-~]/g, '').trim().toUpperCase();
+            if (cleanT && cleanT !== '~') {
+              bestNote.lyric = cleanT;
             } else {
-              bestNote.lyric = syl.cleanText;
-              bestNote.lineIdx = syl.lineIdx;
-              bestNote.wordIdx = syl.wordIdx;
+              bestNote.lyric = null;
             }
           }
         }
@@ -11246,10 +11203,20 @@ window.switchMainTab = switchMainTab;
         if (loadStatus) loadStatus.innerText = 'Descargando mapa de notas (CDN)...';
         const chartFilename = songMeta.chart_url || `${rawId}.json`;
         const releaseTags = ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15'];
-        let chartData = null;
-        let chartFoundTag = null;
+        // 1.5. Comprobar si el chart existe localmente en /songs/
+        try {
+          let localRes = await fetch(`./songs/${chartFilename}`);
+          if (!localRes.ok) localRes = await fetch(`songs/${chartFilename}`);
+          if (localRes.ok) {
+            chartData = await localRes.json();
+            if (chartData) {
+              chartFoundTag = '8'; // Tag preferente donde suele estar el audio
+            }
+          }
+        } catch (_) {}
 
-        for (const tag of releaseTags) {
+        if (!chartData) {
+          for (const tag of releaseTags) {
           const cUrl = `https://github.com/Bruala33/renacer/releases/download/${tag}/${chartFilename}`;
           try {
             let cRes = await fetch(cUrl);
@@ -11275,6 +11242,7 @@ window.switchMainTab = switchMainTab;
               }
             } catch (_) {}
           }
+        }
         }
         if (!chartData) throw new Error('Esta pista aún no está disponible en los releases de producción.');
 
