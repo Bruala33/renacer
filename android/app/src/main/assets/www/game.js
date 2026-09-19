@@ -5417,18 +5417,18 @@ class BeatstarEngine {
       ctx.font = `900 ${Math.round(fontSize)}px Montserrat, -apple-system, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
+      ctx.shadowBlur = 0;
 
-      // Resplandor neón dorado
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.shadowColor = '#ffd700';
-      ctx.shadowBlur = 18 * (1.0 - p * 0.3);
+      // 1. Sombra sólida arcade desplazada 1.5px
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+      ctx.fillText(fly.text, 1.5, 1.5);
 
-      // Trazo fucsia/magenta neón
-      ctx.lineWidth = 3.5;
+      // 2. Trazo fucsia/magenta neón
+      ctx.lineWidth = 3.0;
       ctx.strokeStyle = '#f472b6';
       ctx.strokeText(fly.text, 0, 0);
 
-      // Núcleo blanco incandescente
+      // 3. Núcleo blanco incandescente
       ctx.fillStyle = '#ffffff';
       ctx.fillText(fly.text, 0, 0);
       ctx.restore();
@@ -6226,21 +6226,13 @@ class BeatstarEngine {
         ctx.font = `900 ${Math.round(fontSize)}px Montserrat, -apple-system, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
+        ctx.shadowBlur = 0;
 
-        // Bisel inferior (sombra 3D profunda en relieve grabada en la madera/marfil)
-        ctx.fillStyle = '#000000';
-        ctx.fillText(cleanLyric, cx, cyMid + 2.0 * scale);
+        // 1. Sombra sólida de contraste (desplazada 1.5px)
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+        ctx.fillText(cleanLyric, cx + 1.5, cyMid + 1.5);
 
-        // Bisel superior reflectante (destello de relieve metálico)
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.60)';
-        ctx.fillText(cleanLyric, cx, cyMid - 1.2 * scale);
-
-        // Contorno nítido de relieve de alta visibilidad (oro/blanco)
-        ctx.strokeStyle = isPressed ? '#ffffff' : '#ffd700';
-        ctx.lineWidth = Math.max(1.8, 2.8 * scale);
-        ctx.strokeText(cleanLyric, cx, cyMid);
-
-        // Relleno diamante blanco sólido brillante de máxima legibilidad
+        // 2. Texto frontal nítido y brillante
         ctx.fillStyle = isPressed ? '#ffe066' : '#ffffff';
         ctx.fillText(cleanLyric, cx, cyMid);
 
@@ -6331,11 +6323,13 @@ class BeatstarEngine {
       ctx.font = `900 ${Math.round(fontSize)}px Montserrat, -apple-system, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#000000';
-      ctx.fillText(cleanLyric, cx, cy + 1.8);
-      ctx.strokeStyle = isPressed ? '#ffffff' : '#ffd700';
-      ctx.lineWidth = 2.0;
-      ctx.strokeText(cleanLyric, cx, cy);
+      ctx.shadowBlur = 0;
+
+      // 1. Sombra sólida de contraste (desplazada 1.5px)
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+      ctx.fillText(cleanLyric, cx + 1.5, cy + 1.5);
+
+      // 2. Texto frontal nítido y brillante
       ctx.fillStyle = isPressed ? '#ffe066' : '#ffffff';
       ctx.fillText(cleanLyric, cx, cy);
       ctx.restore();
@@ -7123,6 +7117,13 @@ class BeatstarEngine {
     const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
     const laneW = this.width / 3;
     const horizonY = 12;
+
+    // Caché de tipografía y alineación de notas una única vez antes del bucle de notas visibles
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowBlur = 0;
+    const baseNoteFontSize = Math.round(Math.max(13, Math.min(26, (this.width / 3) * 0.32)));
+    ctx.font = `900 ${baseNoteFontSize}px Montserrat, -apple-system, sans-serif`;
 
     for (let i = 0; i < len; i++) {
       const note = this.notes[i];
