@@ -193,13 +193,23 @@
         "accuracy": 90.37242462787442,
         "date": "2026-09-20 18:30:06"
       }
+    ],
+    "top_tom_jones_sex_bomb": [
+      {
+        "name": "Jocomomolo",
+        "score": 1551302,
+        "stars": 5,
+        "combo": 710,
+        "accuracy": 99.94111644255696,
+        "date": "2026-09-20 18:35:23"
+      }
     ]
   },
   "global": [
     {
       "name": "Jocomomolo",
-      "total_score": 4024850,
-      "clefs": 38
+      "total_score": 5576152,
+      "clefs": 53
     },
     {
       "name": "MasterPianist",
