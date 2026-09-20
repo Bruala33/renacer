@@ -579,7 +579,7 @@
         "stars": 3,
         "combo": 40,
         "accuracy": 74.48266053523598,
-        "date": "2026-09-20 20:54:18"
+        "date": "2026-09-20 20:54:19"
       }
     ]
   },
@@ -591,7 +591,7 @@
     },
     {
       "name": "Rocky",
-      "total_score": 9120322,
+      "total_score": 9151744,
       "clefs": 89
     },
     {
@@ -635,7 +635,7 @@
     "players": [
       {
         "name": "Rocky",
-        "score": 9120322
+        "score": 9151744
       },
       {
         "name": "Jocomomolo",
