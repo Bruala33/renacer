@@ -12,28 +12,44 @@ const SFX_MISS_BASE64 = 'data:audio/wav;base64,UklGRpxgAABXQVZFZm10IBAAAAABAAEAR
 const LEAD_IN_TIME = 1200; // 1.2 segundos de preparación visual (400ms por dígito)
 
 // ==========================================
-// GLOBAL COLOR UTILITIES
+// ZERO-GC COLOR & GEOMETRY UTILITIES
 // ==========================================
+const _rgbaCache = new Map();
 function hexToRgba(hex, alpha) {
-  const a = Math.max(0, Math.min(1, alpha));
-  if (typeof hex === 'string' && hex.startsWith('#')) {
-    const c = hex.slice(1);
-    let r = 255, g = 255, b = 255;
-    if (c.length === 3) {
-      r = parseInt(c[0] + c[0], 16);
-      g = parseInt(c[1] + c[1], 16);
-      b = parseInt(c[2] + c[2], 16);
-    } else {
-      r = parseInt(c.substring(0, 2), 16);
-      g = parseInt(c.substring(2, 4), 16);
-      b = parseInt(c.substring(4, 6), 16);
+  const aClamped = Math.max(0, Math.min(1, alpha));
+  const aInt = (aClamped * 100) | 0; // 100 niveles de precisión idénticos al ojo
+  const key = `${hex}_${aInt}`;
+  let cached = _rgbaCache.get(key);
+  if (cached) return cached;
+
+  let r = 255, g = 255, b = 255;
+  if (typeof hex === 'string' && hex.charCodeAt(0) === 35) {
+    const len = hex.length;
+    if (len === 7) {
+      r = parseInt(hex.substring(1, 3), 16) || 255;
+      g = parseInt(hex.substring(3, 5), 16) || 255;
+      b = parseInt(hex.substring(5, 7), 16) || 255;
+    } else if (len === 4) {
+      r = parseInt(hex[1] + hex[1], 16) || 255;
+      g = parseInt(hex[2] + hex[2], 16) || 255;
+      b = parseInt(hex[3] + hex[3], 16) || 255;
     }
-    r = Number.isFinite(r) ? r : 255;
-    g = Number.isFinite(g) ? g : 255;
-    b = Number.isFinite(b) ? b : 255;
-    return `rgba(${r}, ${g}, ${b}, ${a.toFixed(3)})`;
   }
-  return `rgba(197, 160, 89, ${a.toFixed(3)})`;
+  cached = `rgba(${r}, ${g}, ${b}, ${(aInt * 0.01).toFixed(2)})`;
+  if (_rgbaCache.size < 800) _rgbaCache.set(key, cached);
+  return cached;
+}
+
+// Sacada fuera del bucle de notas para evitar instanciar funciones en memoria en cada frame
+function tracePerspectiveQuad(ctx, x0T, x1T, x0B, x1B, topY, botY, rad) {
+  const cr = Math.min(rad, (botY - topY) * 0.35, (x1T - x0T) * 0.30);
+  ctx.beginPath();
+  ctx.moveTo((x0T + x1T) * 0.5, topY);
+  ctx.arcTo(x1T, topY, x1B, botY, cr);
+  ctx.arcTo(x1B, botY, x0B, botY, cr);
+  ctx.arcTo(x0B, botY, x0T, topY, cr);
+  ctx.arcTo(x0T, topY, x1T, topY, cr);
+  ctx.closePath();
 }
 
 // ==========================================
@@ -620,33 +636,32 @@ class DirectAudioSync {
       return (this.audioElement.currentTime || 0) * 1000;
     }
     const nowPerf = performance.now();
-    const rawAudioMs = (this.audioElement.currentTime || 0) * 1000;
 
-    if (!this._lastSyncPerf) {
-      this._lastSyncPerf = nowPerf;
-      this._lastRawAudioMs = rawAudioMs;
-      this._smoothTime = rawAudioMs;
-      this._lastRawObserved = rawAudioMs;
+    // Muestreo del hardware de audio cada 100ms: elimina el bloqueo de IPC a 120 FPS
+    if (!this._lastAudioPollPerf || (nowPerf - this._lastAudioPollPerf > 100)) {
+      this._lastAudioPollPerf = nowPerf;
+      const rawAudioMs = (this.audioElement.currentTime || 0) * 1000;
+
+      if (!this._lastSyncPerf) {
+        this._lastSyncPerf = nowPerf;
+        this._lastRawAudioMs = rawAudioMs;
+        this._smoothTime = rawAudioMs;
+      } else {
+        const drift = rawAudioMs - this._smoothTime;
+        if (Math.abs(drift) > 70) {
+          this._lastRawAudioMs = rawAudioMs;
+          this._lastSyncPerf = nowPerf;
+          this._smoothTime = rawAudioMs;
+        } else {
+          this._lastRawAudioMs += drift * 0.05;
+        }
+      }
     }
 
-    // Proyección lineal 100% continua a 120 Hz usando el reloj de la CPU
-    const deltaPerf = nowPerf - this._lastSyncPerf;
     const rate = this.playbackRate || this.audioElement.playbackRate || 1.0;
-    let targetTime = this._lastRawAudioMs + deltaPerf * rate;
+    const deltaPerf = nowPerf - this._lastSyncPerf;
+    const targetTime = this._lastRawAudioMs + deltaPerf * rate;
 
-    // Si el desfase con el audio real es mayor a 70ms (pausa o tirón de audio), resincronizamos
-    const drift = rawAudioMs - targetTime;
-    if (Math.abs(drift) > 70) {
-      this._lastRawAudioMs = rawAudioMs;
-      this._lastSyncPerf = nowPerf;
-      targetTime = rawAudioMs;
-    } else if (rawAudioMs !== this._lastRawObserved) {
-      // Compensación ultra suave de deriva (5% por pulso) sin saltos visibles
-      this._lastRawObserved = rawAudioMs;
-      this._lastRawAudioMs += drift * 0.05;
-    }
-
-    // LEY SUPREMA: El tiempo NUNCA puede retroceder
     this._smoothTime = Math.max(this._smoothTime || 0, targetTime);
     return this._smoothTime;
   }
@@ -4709,17 +4724,6 @@ class BeatstarEngine {
     const beatFraction = ((audioTime % beatInterval) + beatInterval) % beatInterval / beatInterval;
     const beatPulse = Math.pow(Math.max(0, 1 - beatFraction), 2.8);
 
-    const hexToRgba = (hex, alpha) => {
-      const a = Math.max(0, Math.min(1, alpha));
-      if (typeof hex === 'string' && hex.startsWith('#')) {
-        const c = hex.slice(1);
-        const r = parseInt(c.substring(0, 2), 16) || 255;
-        const g = parseInt(c.substring(2, 4), 16) || 0;
-        const b = parseInt(c.substring(4, 6), 16) || 128;
-        return `rgba(${r}, ${g}, ${b}, ${a.toFixed(3)})`;
-      }
-      return `rgba(197, 160, 89, ${a.toFixed(3)})`;
-    };
 
     // 0. IMAGEN DE FONDO PERSONALIZADA DE LA CANCIÓN
     const customBgSrc = this.beatmapData && (this.beatmapData.background_image || this.beatmapData.bg_image || (this.beatmapData.metadata && (this.beatmapData.metadata.background_image || this.beatmapData.metadata.bg_image)));
@@ -5421,8 +5425,6 @@ class BeatstarEngine {
   }
 
 
-  spawnFlyingLyric(word, hitX, hitY, wordIdx, lineIdx, sylTime) {
-     }
 
   renderFlyingLyrics(ctx, currentTime) {
     if (!this.flyingLyrics || this.flyingLyrics.length === 0) return;
@@ -6125,17 +6127,7 @@ class BeatstarEngine {
 
     const r = Math.max(4, (isLarge ? 10 : 6) * scale);
 
-    const tracePerspectiveQuad = (x0T, x1T, x0B, x1B, topY, botY, rad) => {
-      const cr = Math.min(rad, (botY - topY) * 0.35, (x1T - x0T) * 0.30);
-      ctx.beginPath();
-      ctx.moveTo((x0T + x1T) / 2, topY);
-      ctx.arcTo(x1T, topY, x1B, botY, cr);
-      ctx.arcTo(x1B, botY, x0B, botY, cr);
-      ctx.arcTo(x0B, botY, x0T, topY, cr);
-      ctx.arcTo(x0T, topY, x1T, topY, cr);
-      ctx.closePath();
-    };
-
+   
     // Paleta y color neón de la nota
     const palette = this.activeSongPalette || (typeof SONG_COLOR_PALETTES !== 'undefined' ? SONG_COLOR_PALETTES.classic : { primary: '#ff00aa', secondary: '#ffffff', glow: '#ff00aa' });
     const glowColor = palette ? (palette.glow || palette.primary) : '#ff00aa';
