@@ -203,13 +203,23 @@
         "accuracy": 99.94111644255696,
         "date": "2026-09-20 18:35:38"
       }
+    ],
+    "top_caf_quijano_la_lola": [
+      {
+        "name": "Jocomomolo",
+        "score": 1797546,
+        "stars": 5,
+        "combo": 612,
+        "accuracy": 92.756125488731,
+        "date": "2026-09-20 18:40:37"
+      }
     ]
   },
   "global": [
     {
       "name": "Jocomomolo",
-      "total_score": 5576152,
-      "clefs": 53
+      "total_score": 7373698,
+      "clefs": 70
     },
     {
       "name": "MasterPianist",
