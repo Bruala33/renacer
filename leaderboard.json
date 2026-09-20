@@ -543,6 +543,16 @@
         "accuracy": 0.2446181459779171,
         "date": "2026-09-20 20:26:30"
       }
+    ],
+    "top_alaska_y_dinarama_a_quien_le_importa": [
+      {
+        "name": "Rocky",
+        "score": 1460670,
+        "stars": 5,
+        "combo": 674,
+        "accuracy": 98.86700297615623,
+        "date": "2026-09-20 20:30:42"
+      }
     ]
   },
   "global": [
@@ -550,6 +560,11 @@
       "name": "Jocomomolo",
       "total_score": 17872941,
       "clefs": 169
+    },
+    {
+      "name": "Rocky",
+      "total_score": 1460670,
+      "clefs": 14
     },
     {
       "name": "MasterPianist",
@@ -593,6 +608,10 @@
       {
         "name": "Jocomomolo",
         "score": 2356194
+      },
+      {
+        "name": "Rocky",
+        "score": 1460670
       },
       {
         "name": "Layla",
