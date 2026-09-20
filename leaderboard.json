@@ -273,13 +273,23 @@
         "accuracy": 3.8946324883161028,
         "date": "2026-09-20 19:05:23"
       }
+    ],
+    "top_mecano_ay_que_pesado": [
+      {
+        "name": "Jocomomolo",
+        "score": 1236245,
+        "stars": 5,
+        "combo": 323,
+        "accuracy": 93.0826072421385,
+        "date": "2026-09-20 19:09:11"
+      }
     ]
   },
   "global": [
     {
       "name": "Jocomomolo",
-      "total_score": 14883455,
-      "clefs": 142
+      "total_score": 16119700,
+      "clefs": 154
     },
     {
       "name": "MasterPianist",
