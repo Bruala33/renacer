@@ -601,68 +601,72 @@ class DirectAudioSync {
 
   pause() {
     this.isPlaying = false;
+    this._anchorPerf = 0;
     try {
       this.audioElement.pause();
     } catch (e) {}
     this.baseTimeMs = (this.audioElement.currentTime || 0) * 1000;
     this.basePerfNow = performance.now();
-    this._lastRawAudio = this.audioElement.currentTime || 0;
-    this._lastSyncPerf = performance.now();
-    this._interpolatedTime = this.baseTimeMs;
   }
 
   seekTo(seconds) {
     const sec = Math.max(0, parseFloat(seconds) || 0);
+    this._anchorPerf = 0;
+    this._smoothTime = sec * 1000;
     try {
       if (this.audioElement.readyState >= 1) {
         this.audioElement.currentTime = sec;
-      } else {
-        const onMeta = () => {
-          try { this.audioElement.currentTime = sec; } catch (e) {}
-          this.audioElement.removeEventListener('loadedmetadata', onMeta);
-        };
-        this.audioElement.addEventListener('loadedmetadata', onMeta, { once: true });
       }
     } catch (e) {}
-    this.baseTimeMs = sec * 1000;
-    this.basePerfNow = performance.now();
-    this._lastRawAudio = sec;
-    this._lastSyncPerf = performance.now();
-    this._interpolatedTime = this.baseTimeMs;
   }
-
   getCurrentTimeMs() {
     if (!this.isPlaying) {
-      return (this.audioElement && !isNaN(this.audioElement.currentTime) ? this.audioElement.currentTime * 1000 : 0);
+      const raw = (this.audioElement && !isNaN(this.audioElement.currentTime)) ? this.audioElement.currentTime * 1000 : 0;
+      this._anchorPerf = 0;
+      this._smoothTime = raw;
+      return raw;
     }
     const nowPerf = performance.now();
 
-    // Consultamos el hardware de audio REAL exclusivamente una vez cada 100ms
-    if (!this._lastAudioPollPerf || (nowPerf - this._lastAudioPollPerf > 100)) {
+    // Si aún no se ancló el reloj (inicio, tras despausar, o tras seek)
+    if (!this._anchorPerf) {
+      this._anchorPerf = nowPerf;
+      this._anchorAudioMs = (this.audioElement && !isNaN(this.audioElement.currentTime)) ? this.audioElement.currentTime * 1000 : 0;
+      this._smoothTime = this._anchorAudioMs;
       this._lastAudioPollPerf = nowPerf;
-      const rawAudioMs = (this.audioElement && !isNaN(this.audioElement.currentTime) ? this.audioElement.currentTime * 1000 : 0);
+      return this._smoothTime;
+    }
 
-      if (!this._lastSyncPerf) {
-        this._lastSyncPerf = nowPerf;
-        this._lastRawAudioMs = rawAudioMs;
+    // Muestreo del hardware de audio cada 200ms
+    if (nowPerf - this._lastAudioPollPerf > 200) {
+      this._lastAudioPollPerf = nowPerf;
+      const rawAudioMs = (this.audioElement && !isNaN(this.audioElement.currentTime)) ? this.audioElement.currentTime * 1000 : 0;
+      const rate = this.playbackRate || (this.audioElement ? this.audioElement.playbackRate : 1.0) || 1.0;
+      const expectedTime = this._anchorAudioMs + (nowPerf - this._anchorPerf) * rate;
+      const drift = rawAudioMs - expectedTime;
+
+      // Solo si el desfase es gigantesco (> 800ms por un tirón del sistema operativo) reanclamos
+      if (Math.abs(drift) > 800) {
+        this._anchorPerf = nowPerf;
+        this._anchorAudioMs = rawAudioMs;
         this._smoothTime = rawAudioMs;
-      } else {
-        const drift = rawAudioMs - this._smoothTime;
-        if (Math.abs(drift) > 70) {
-          this._lastRawAudioMs = rawAudioMs;
-          this._lastSyncPerf = nowPerf;
-          this._smoothTime = rawAudioMs;
-        } else {
-          this._lastRawAudioMs += drift * 0.05;
-        }
+      } else if (Math.abs(drift) > 20) {
+        // Corrección ultrasuave del 3% por ciclo: imperceptible al ojo
+        this._anchorAudioMs += drift * 0.03;
       }
     }
 
     const rate = this.playbackRate || (this.audioElement ? this.audioElement.playbackRate : 1.0) || 1.0;
-    const deltaPerf = nowPerf - (this._lastSyncPerf || nowPerf);
-    const targetTime = (this._lastRawAudioMs || 0) + deltaPerf * rate;
+    const targetTime = this._anchorAudioMs + (nowPerf - this._anchorPerf) * rate;
 
-    this._smoothTime = Math.max(this._smoothTime || 0, targetTime);
+    // REGLA DE ORO: Si hay un micro-ajuste hacia atrás, avanzamos al ritmo natural
+    // para que las notas NUNCA se queden congeladas en pantalla
+    if (targetTime > this._smoothTime) {
+      this._smoothTime = targetTime;
+    } else {
+      this._smoothTime += (1000 / 120) * rate * 0.85;
+    }
+
     return this._smoothTime;
   }
 }
@@ -4426,8 +4430,8 @@ class BeatstarEngine {
           this.cachedHudScoreEl = document.getElementById('hudScore');
         }
         if (this.cachedHudScoreEl) {
-          this.cachedHudScoreEl.innerText = sVal.toLocaleString();
-        }
+  this.cachedHudScoreEl.textContent = sVal.toLocaleString();
+}
       }
     }
 
@@ -5828,52 +5832,36 @@ class BeatstarEngine {
     ctx.stroke();
 
     // 2. Enganche superior cromado
-    const capGrad = ctx.createLinearGradient(ballX - 6, ballY - radius - 7, ballX + 6, ballY - radius);
-    capGrad.addColorStop(0.0, '#ffffff');
-    capGrad.addColorStop(0.50, '#cbd5e1');
-    capGrad.addColorStop(1.0, '#64748b');
-    ctx.fillStyle = capGrad;
+    ctx.fillStyle = '#cbd5e1';
     ctx.beginPath();
     ctx.arc(ballX, ballY - radius - 3, 4.0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 3. Base esférica cromada hiperrealista
+    // 3. Base esférica cromada
     const sphereGrad = ctx.createRadialGradient(
-      ballX - radius * 0.40,
-      ballY - radius * 0.40,
-      1,
-      ballX,
-      ballY,
-      radius
+      ballX - radius * 0.40, ballY - radius * 0.40, 1,
+      ballX, ballY, radius
     );
     sphereGrad.addColorStop(0.0, '#ffffff');
-    sphereGrad.addColorStop(0.20, '#f8fafc');
-    sphereGrad.addColorStop(0.55, '#cbd5e1');
-    sphereGrad.addColorStop(0.85, '#94a3b8');
+    sphereGrad.addColorStop(0.35, '#cbd5e1');
     sphereGrad.addColorStop(1.0, '#475569');
     ctx.fillStyle = sphereGrad;
     ctx.beginPath();
     ctx.arc(ballX, ballY, radius, 0, Math.PI * 2);
     ctx.fill();
 
-    // Clip circular para azulejos de espejo
     ctx.save();
     ctx.beginPath();
     ctx.arc(ballX, ballY, radius, 0, Math.PI * 2);
     ctx.clip();
 
-    // 4. Malla 3D de facetas de espejo con reflejos metálicos de colores
-    const latBands = 10;
-    const lonSegments = 20;
-    const spotlights = [
-      { x: -0.65, y: -0.55, z: 0.52, rgb: { r: 255, g: 255, b: 255 }, weight: 1.1 }, // Blanco cromo
-      { x: 0.70, y: -0.45, z: 0.55, rgb: { r: 0, g: 242, b: 254 }, weight: 0.95 },   // Cian metálico
-      { x: -0.25, y: -0.75, z: 0.60, rgb: { r: 255, g: 0, b: 127 }, weight: 1.0 },   // Magenta metálico
-      { x: 0.40, y: -0.60, z: 0.70, rgb: { r: 251, g: 191, b: 36 }, weight: 0.9 }    // Oro metálico
-    ];
-
+    // 4. Malla 3D de facetas (84 facetas con un único trazo de rejilla unificado)
+    const latBands = 7;
+    const lonSegments = 12;
     const starburstFlares = [];
 
+    // Trazado unificado de líneas de faceta
+    ctx.beginPath();
     for (let i = 0; i < latBands; i++) {
       const lat0 = -Math.PI * 0.44 + (i / latBands) * (Math.PI * 0.88);
       const lat1 = -Math.PI * 0.44 + ((i + 1) / latBands) * (Math.PI * 0.88);
@@ -5883,116 +5871,42 @@ class BeatstarEngine {
       for (let j = 0; j < lonSegments; j++) {
         const lon0 = rot + (j / lonSegments) * Math.PI * 2;
         const lon1 = rot + ((j + 1) / lonSegments) * Math.PI * 2;
-        const cosLon0 = Math.cos(lon0), sinLon0 = Math.sin(lon0);
-        const cosLon1 = Math.cos(lon1), sinLon1 = Math.sin(lon1);
 
-        const z00 = radius * cosLat0 * cosLon0;
-        const z10 = radius * cosLat0 * cosLon1;
-        const z11 = radius * cosLat1 * cosLon1;
-        const z01 = radius * cosLat1 * sinLon0;
-        const avgZ = (z00 + z10 + z11 + z01) * 0.25;
-        if (avgZ <= -0.2) continue; // Descartar cara trasera
-
-        const x00 = radius * cosLat0 * sinLon0;
+        const x00 = radius * cosLat0 * Math.sin(lon0);
         const y00 = -radius * sinLat0;
-        const x10 = radius * cosLat0 * sinLon1;
+        const x10 = radius * cosLat0 * Math.sin(lon1);
         const y10 = -radius * sinLat0;
-        const x11 = radius * cosLat1 * sinLon1;
+        const x11 = radius * cosLat1 * Math.sin(lon1);
         const y11 = -radius * sinLat1;
-        const x01 = radius * cosLat1 * sinLon0;
+        const x01 = radius * cosLat1 * Math.sin(lon0);
         const y01 = -radius * sinLat1;
 
-        const avgX = (x00 + x10 + x11 + x01) * 0.25;
-        const avgY = (y00 + y10 + y11 + y01) * 0.25;
-        const normLen = Math.hypot(avgX, avgY, avgZ) || 1;
-        const nx = avgX / normLen;
-        const ny = avgY / normLen;
-        const nz = avgZ / normLen;
+        if (cosLat0 * Math.cos(lon0) <= -0.2) continue;
 
-        let totalR = 75 + nz * 40;
-        let totalG = 75 + nz * 40;
-        let totalB = 90 + nz * 45;
-        let maxSpecular = 0;
-        let dominantColor = spotlights[0].rgb;
-
-        for (const spot of spotlights) {
-          const dot = nx * spot.x + ny * spot.y + nz * spot.z;
-          if (dot > 0) {
-            const spec = (dot * dot * dot * dot) * spot.weight;
-            const diff = dot * 0.4;
-            totalR += (spot.rgb.r * diff * 0.35) + (spot.rgb.r * spec * 0.85);
-            totalG += (spot.rgb.g * diff * 0.35) + (spot.rgb.g * spec * 0.85);
-            totalB += (spot.rgb.b * diff * 0.35) + (spot.rgb.b * spec * 0.85);
-            if (spec > maxSpecular) {
-              maxSpecular = spec;
-              dominantColor = spot.rgb;
-            }
-          }
-        }
-
-        totalR = Math.min(255, Math.floor(totalR));
-        totalG = Math.min(255, Math.floor(totalG));
-        totalB = Math.min(255, Math.floor(totalB));
-
-        ctx.fillStyle = 'rgb(' + totalR + ',' + totalG + ',' + totalB + ')';
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-        ctx.lineWidth = 0.5;
-
-        ctx.beginPath();
         ctx.moveTo(ballX + x00, ballY + y00);
         ctx.lineTo(ballX + x10, ballY + y10);
         ctx.lineTo(ballX + x11, ballY + y11);
         ctx.lineTo(ballX + x01, ballY + y01);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        // Destellos especulares metálicos en facetas alineadas
-        if (maxSpecular > 0.65 && starburstFlares.length < 2) {
-          starburstFlares.push({
-            x: ballX + avgX,
-            y: ballY + avgY,
-            intensity: maxSpecular,
-            rgb: dominantColor
-          });
-        }
       }
     }
-    ctx.restore(); // Quitar clip
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.lineWidth = 0.6;
+    ctx.stroke(); // 1 único stroke en lugar de cientos
+    ctx.restore();
 
-    // 5. Resplandor perimetral y halo metálico
+    // 5. Destellos ópticos estelares
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    const rimGlow = ctx.createRadialGradient(ballX, ballY, radius * 0.88, ballX, ballY, radius * 1.25);
+    const rimGlow = ctx.createRadialGradient(ballX, ballY, radius * 0.85, ballX, ballY, radius * 1.25);
     rimGlow.addColorStop(0.0, 'rgba(255, 255, 255, 0.25)');
-    rimGlow.addColorStop(0.45, 'rgba(0, 242, 254, 0.12)');
+    rimGlow.addColorStop(0.5, 'rgba(0, 242, 254, 0.15)');
     rimGlow.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
     ctx.fillStyle = rimGlow;
     ctx.beginPath();
     ctx.arc(ballX, ballY, radius * 1.25, 0, Math.PI * 2);
     ctx.fill();
-
-    // 6. Destellos ópticos estelares en los puntos más brillantes
-    for (const flare of starburstFlares) {
-      const flareSize = (8 + 6 * flare.intensity) * (1.0 + beatPulse * 0.25);
-      const flareAlpha = Math.min(0.35, flare.intensity * 0.40);
-      const rgb = flare.rgb;
-
-      ctx.save();
-      ctx.translate(flare.x, flare.y);
-      ctx.rotate(nowSec * 1.5);
-
-      ctx.fillStyle = 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + flareAlpha.toFixed(2) + ')';
-      ctx.beginPath();
-      ctx.ellipse(0, 0, flareSize, flareSize * 0.14, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(0, 0, flareSize * 0.14, flareSize, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
-
     ctx.restore();
+
     ctx.restore();
   }
 
@@ -6413,25 +6327,13 @@ class BeatstarEngine {
       const tL_bot = getBoundaryX(0, bottomY);
 
       // A. Suelo principal de la pista con degradado de perspectiva atmosférica infinita
-      let trackGrad = this._trackGrad;
-      if (!trackGrad) {
-        trackGrad = ctx.createLinearGradient(midX, horizonY, midX, bottomY);
-        trackGrad.addColorStop(0.0, 'rgba(12, 16, 26, 0.20)');
-        trackGrad.addColorStop(0.12, 'rgba(40, 58, 72, 0.55)');
-        trackGrad.addColorStop(0.30, 'rgba(92, 122, 138, 0.80)');
-        trackGrad.addColorStop(0.60, '#bdd7de');
-        trackGrad.addColorStop(0.85, '#eef6f8');
-        trackGrad.addColorStop(1.0, '#ffffff');
-        this._trackGrad = trackGrad;
-      }
-
       ctx.beginPath();
       ctx.moveTo(tL_top, horizonY);
       ctx.lineTo(tR_top, horizonY);
       ctx.lineTo(tR_bot, bottomY);
       ctx.lineTo(tL_bot, bottomY);
       ctx.closePath();
-      ctx.fillStyle = trackGrad;
+      ctx.fillStyle = this._trackGrad || '#ffffff';
       ctx.fill();
 
       // B. Peldaños de cuadrícula en perspectiva hiperbólica hacia el infinito (Perspective Depth Rungs)
