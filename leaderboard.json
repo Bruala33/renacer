@@ -330,8 +330,8 @@
         "score": 661,
         "stars": 5,
         "combo": 1,
-        "accuracy": 98.93617021276596,
-        "date": "2026-09-20 20:02:49"
+        "accuracy": 99.3920972644377,
+        "date": "2026-09-20 20:03:10"
       }
     ],
     "osu_2123424": [
@@ -478,33 +478,39 @@
   "global": [
     {
       "name": "Jocomomolo",
-      "total_score": 17870958,
-      "clefs": 169
+      "total_score": 17871619,
+      "clefs": 169,
+      "rank": 1
     },
     {
       "name": "MasterPianist",
       "total_score": 600000,
-      "clefs": 6
+      "clefs": 6,
+      "rank": 2
     },
     {
       "name": "RhythmHero",
       "total_score": 572400,
-      "clefs": 0
+      "clefs": 0,
+      "rank": 3
     },
     {
       "name": "BeatMaster",
       "total_score": 547200,
-      "clefs": 0
+      "clefs": 0,
+      "rank": 4
     },
     {
       "name": "Mozart 2.0",
       "total_score": 1338,
-      "clefs": 0
+      "clefs": 0,
+      "rank": 5
     },
     {
       "name": "Mozart",
       "total_score": 1328,
-      "clefs": 0
+      "clefs": 0,
+      "rank": 6
     }
   ],
   "weekly": {
@@ -512,27 +518,33 @@
     "players": [
       {
         "name": "Jocomomolo",
-        "score": 2354211
+        "score": 2354872,
+        "rank": 1
       },
       {
         "name": "MasterPianist",
-        "score": 100000
+        "score": 100000,
+        "rank": 2
       },
       {
         "name": "RhythmHero",
-        "score": 95400
+        "score": 95400,
+        "rank": 3
       },
       {
         "name": "BeatMaster",
-        "score": 91200
+        "score": 91200,
+        "rank": 4
       },
       {
         "name": "Mozart 2.0",
-        "score": 1338
+        "score": 1338,
+        "rank": 5
       },
       {
         "name": "Mozart",
-        "score": 1328
+        "score": 1328,
+        "rank": 6
       }
     ]
   }
