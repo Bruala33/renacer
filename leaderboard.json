@@ -651,6 +651,16 @@
         "accuracy": 20.67782259695095,
         "date": "2026-09-20 21:42:40"
       }
+    ],
+    "top_el_arrebato_una_noche_con_arte": [
+      {
+        "name": "Test",
+        "score": 55650,
+        "stars": 3.5,
+        "combo": 56,
+        "accuracy": 2.5776717579350836,
+        "date": "2026-09-20 22:04:46"
+      }
     ]
   },
   "global": [
@@ -688,6 +698,11 @@
       "name": "`pc",
       "total_score": 222198,
       "clefs": 1
+    },
+    {
+      "name": "Test",
+      "total_score": 55650,
+      "clefs": 0
     },
     {
       "name": "Mozart 2.0",
@@ -730,6 +745,10 @@
       {
         "name": "BeatMaster",
         "score": 91200
+      },
+      {
+        "name": "Test",
+        "score": 55650
       },
       {
         "name": "Mozart 2.0",
