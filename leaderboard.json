@@ -493,6 +493,16 @@
         "accuracy": 9.494549491346522,
         "date": "2026-09-20 20:21:56"
       }
+    ],
+    "top_michael_jackson_dont_stop_till_you_get_enough": [
+      {
+        "name": "Layla",
+        "score": 49635,
+        "stars": 3.5,
+        "combo": 31,
+        "accuracy": 2.938898737033926,
+        "date": "2026-09-20 20:22:13"
+      }
     ]
   },
   "global": [
@@ -520,6 +530,11 @@
       "name": "`pc",
       "total_score": 130429,
       "clefs": 1
+    },
+    {
+      "name": "Layla",
+      "total_score": 49635,
+      "clefs": 0
     },
     {
       "name": "Mozart 2.0",
@@ -554,6 +569,10 @@
       {
         "name": "BeatMaster",
         "score": 91200
+      },
+      {
+        "name": "Layla",
+        "score": 49635
       },
       {
         "name": "Mozart 2.0",
