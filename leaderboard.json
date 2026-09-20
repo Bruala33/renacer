@@ -483,6 +483,76 @@
         "accuracy": 99.85915492957747,
         "date": "2026-09-20 20:13:46"
       }
+    ],
+    "top_manolo_garcia_a_san_fernando": [
+      {
+        "name": "`pc",
+        "score": 130429,
+        "stars": 3.5,
+        "combo": 71,
+        "accuracy": 9.494549491346522,
+        "date": "2026-09-20 20:21:56"
+      }
+    ],
+    "top_michael_jackson_dont_stop_till_you_get_enough": [
+      {
+        "name": "Layla",
+        "score": 110790,
+        "stars": 3.5,
+        "combo": 80,
+        "accuracy": 10.374732063344018,
+        "date": "2026-09-20 20:29:15"
+      }
+    ],
+    "osu_2260409": [
+      {
+        "name": "Layla",
+        "score": 33975,
+        "stars": 3.5,
+        "combo": 21,
+        "accuracy": 1.3038911492351712,
+        "date": "2026-09-20 20:24:37"
+      }
+    ],
+    "osu_1796984": [
+      {
+        "name": "Layla",
+        "score": 5850,
+        "stars": 3.5,
+        "combo": 9,
+        "accuracy": 0.12727222422045764,
+        "date": "2026-09-20 20:23:27"
+      }
+    ],
+    "top_los_del_ro_macarena_river_remix_103_bpm": [
+      {
+        "name": "Layla",
+        "score": 52950,
+        "stars": 3.5,
+        "combo": 40,
+        "accuracy": 1.0927694988714776,
+        "date": "2026-09-20 20:24:10"
+      }
+    ],
+    "top_glee_total_eclipse_of_the_heart": [
+      {
+        "name": "Layla",
+        "score": 59290,
+        "stars": 3.5,
+        "combo": 6,
+        "accuracy": 0.2446181459779171,
+        "date": "2026-09-20 20:26:30"
+      }
+    ],
+    "top_alaska_y_dinarama_a_quien_le_importa": [
+      {
+        "name": "Rocky",
+        "score": 1460670,
+        "stars": 3.5,
+        "combo": 67,
+        "accuracy": 8.048266438149941,
+        "date": "2026-09-20 20:31:30"
+      }
     ]
   },
   "global": [
@@ -490,6 +560,11 @@
       "name": "Jocomomolo",
       "total_score": 17872941,
       "clefs": 169
+    },
+    {
+      "name": "Rocky",
+      "total_score": 4382010,
+      "clefs": 42
     },
     {
       "name": "MasterPianist",
@@ -507,6 +582,16 @@
       "clefs": 0
     },
     {
+      "name": "Layla",
+      "total_score": 396100,
+      "clefs": 1
+    },
+    {
+      "name": "`pc",
+      "total_score": 130429,
+      "clefs": 1
+    },
+    {
       "name": "Mozart 2.0",
       "total_score": 2756,
       "clefs": 0
@@ -521,8 +606,20 @@
     "week_id": "2026-W38",
     "players": [
       {
+        "name": "Rocky",
+        "score": 4382010
+      },
+      {
         "name": "Jocomomolo",
         "score": 2356194
+      },
+      {
+        "name": "Layla",
+        "score": 396100
+      },
+      {
+        "name": "`pc",
+        "score": 130429
       },
       {
         "name": "MasterPianist",
