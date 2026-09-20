@@ -360,9 +360,12 @@ class DirectAudioSync {
     this.duration = 0;
     this.playbackRate = 1.0;
     
-    // High-resolution clock anchor
+    // High-resolution clock anchor & 120Hz Audio Interpolation
     this.baseTimeMs = 0;
     this.basePerfNow = performance.now();
+    this._lastRawAudio = -1;
+    this._lastSyncPerf = performance.now();
+    this._interpolatedTime = 0;
 
     const enforceSpeedAndPitch = () => {
       if (this.audioElement) {
@@ -587,6 +590,9 @@ class DirectAudioSync {
     } catch (e) {}
     this.baseTimeMs = (this.audioElement.currentTime || 0) * 1000;
     this.basePerfNow = performance.now();
+    this._lastRawAudio = this.audioElement.currentTime || 0;
+    this._lastSyncPerf = performance.now();
+    this._interpolatedTime = this.baseTimeMs;
   }
 
   seekTo(seconds) {
@@ -604,15 +610,31 @@ class DirectAudioSync {
     } catch (e) {}
     this.baseTimeMs = sec * 1000;
     this.basePerfNow = performance.now();
+    this._lastRawAudio = sec;
+    this._lastSyncPerf = performance.now();
+    this._interpolatedTime = this.baseTimeMs;
   }
 
   getCurrentTimeMs() {
     if (!this.isPlaying) {
       return (this.audioElement.currentTime || 0) * 1000;
     }
-    const rate = this.playbackRate || this.audioElement.playbackRate || 1.0;
-    const elapsed = (performance.now() - this.basePerfNow) * rate;
-    return Math.max(0, this.baseTimeMs + elapsed);
+    const rawAudioSec = this.audioElement.currentTime || 0;
+    const nowPerf = performance.now();
+
+    // Si currentTime cambió en el hardware de audio, sincronizar con la fuente real
+    if (rawAudioSec !== this._lastRawAudio) {
+      this._lastRawAudio = rawAudioSec;
+      this._lastSyncPerf = nowPerf;
+      this._interpolatedTime = rawAudioSec * 1000;
+    } else {
+      // Si el reloj de audio se estancó entre frames de Android (30-40Hz), interpolar con performance.now() a 120Hz con tope de 0.06s
+      const deltaSec = Math.min(0.06, Math.max(0, (nowPerf - this._lastSyncPerf) / 1000));
+      const rate = this.playbackRate || this.audioElement.playbackRate || 1.0;
+      this._interpolatedTime = (this._lastRawAudio + deltaSec * rate) * 1000;
+    }
+
+    return Math.max(0, this._interpolatedTime);
   }
 }
 
@@ -1983,6 +2005,9 @@ class BeatstarEngine {
   }
 
   bindEvents() {
+    if (this._touchBound) return;
+    this._touchBound = true;
+
     window.addEventListener('resize', () => this.initCanvasSize());
 
     this.canvas.addEventListener('touchstart', (e) => {
@@ -2720,6 +2745,11 @@ class BeatstarEngine {
         URL.revokeObjectURL(this.sync._blobUrl);
       } catch (e) {}
       this.sync._blobUrl = null;
+    }
+    if (this.sync) {
+      this.sync._lastRawAudio = -1;
+      this.sync._interpolatedTime = 0;
+      this.sync._lastSyncPerf = performance.now();
     }
     this.activeHolds.clear();
     this.activeTouches.clear();
