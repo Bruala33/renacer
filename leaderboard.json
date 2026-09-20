@@ -661,6 +661,16 @@
         "accuracy": 2.5776717579350836,
         "date": "2026-09-20 22:04:46"
       }
+    ],
+    "top_estopa_cacho_a_cacho": [
+      {
+        "name": "Rocky",
+        "score": 1109846,
+        "stars": 3,
+        "combo": 567,
+        "accuracy": 71.07085338481882,
+        "date": "2026-09-20 22:07:33"
+      }
     ]
   },
   "global": [
@@ -671,8 +681,8 @@
     },
     {
       "name": "Rocky",
-      "total_score": 14132066,
-      "clefs": 135
+      "total_score": 15241912,
+      "clefs": 146
     },
     {
       "name": "MasterPianist",
@@ -720,7 +730,7 @@
     "players": [
       {
         "name": "Rocky",
-        "score": 14132066
+        "score": 15241912
       },
       {
         "name": "Jocomomolo",
