@@ -641,6 +641,16 @@
         "accuracy": 9.172477014692324,
         "date": "2026-09-20 21:40:43"
       }
+    ],
+    "top_camela_cuando_zarpa_el_amor": [
+      {
+        "name": "Rocky",
+        "score": 818147,
+        "stars": 1,
+        "combo": 342,
+        "accuracy": 20.67782259695095,
+        "date": "2026-09-20 21:42:40"
+      }
     ]
   },
   "global": [
@@ -651,8 +661,8 @@
     },
     {
       "name": "Rocky",
-      "total_score": 13313919,
-      "clefs": 127
+      "total_score": 14132066,
+      "clefs": 135
     },
     {
       "name": "MasterPianist",
@@ -695,7 +705,7 @@
     "players": [
       {
         "name": "Rocky",
-        "score": 13313919
+        "score": 14132066
       },
       {
         "name": "Jocomomolo",
