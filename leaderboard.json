@@ -183,13 +183,23 @@
         "accuracy": 20.32640122340722,
         "date": "2026-09-20 18:22:44"
       }
+    ],
+    "top_melendi_tu_jardn_con_enanitos": [
+      {
+        "name": "Jocomomolo",
+        "score": 2266441,
+        "stars": 5,
+        "combo": 808,
+        "accuracy": 90.37242462787442,
+        "date": "2026-09-20 18:29:15"
+      }
     ]
   },
   "global": [
     {
       "name": "Jocomomolo",
-      "total_score": 1758409,
-      "clefs": 16
+      "total_score": 4024850,
+      "clefs": 38
     },
     {
       "name": "MasterPianist",
@@ -212,7 +222,7 @@
     "players": [
       {
         "name": "Jocomomolo",
-        "score": 1374948
+        "score": 2266441
       },
       {
         "name": "MasterPianist",
