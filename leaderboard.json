@@ -691,18 +691,28 @@
         "accuracy": 40.40119259529522,
         "date": "2026-09-20 22:12:54"
       }
+    ],
+    "top_rosalia_despecha": [
+      {
+        "name": "Rocky",
+        "score": 1383760,
+        "stars": 5,
+        "combo": 428,
+        "accuracy": 90.56613652725963,
+        "date": "2026-09-20 22:31:05"
+      }
     ]
   },
   "global": [
     {
+      "name": "Rocky",
+      "total_score": 18537217,
+      "clefs": 177
+    },
+    {
       "name": "Jocomomolo",
       "total_score": 17872941,
       "clefs": 169
-    },
-    {
-      "name": "Rocky",
-      "total_score": 17153457,
-      "clefs": 164
     },
     {
       "name": "MasterPianist",
@@ -750,7 +760,7 @@
     "players": [
       {
         "name": "Rocky",
-        "score": 17153457
+        "score": 18537217
       },
       {
         "name": "Jocomomolo",
