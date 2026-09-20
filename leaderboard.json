@@ -253,13 +253,23 @@
         "accuracy": 97.69149367601958,
         "date": "2026-09-20 18:58:34"
       }
+    ],
+    "osu_1359860": [
+      {
+        "name": "Jocomomolo",
+        "score": 970883,
+        "stars": 1,
+        "combo": 192,
+        "accuracy": 27.228719075132833,
+        "date": "2026-09-20 19:02:29"
+      }
     ]
   },
   "global": [
     {
       "name": "Jocomomolo",
-      "total_score": 13788822,
-      "clefs": 132
+      "total_score": 14759705,
+      "clefs": 141
     },
     {
       "name": "MasterPianist",
