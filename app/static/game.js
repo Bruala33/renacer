@@ -632,41 +632,37 @@ class DirectAudioSync {
   }
 
   getCurrentTimeMs() {
-    const rawAudioMs = (this.audioElement && !isNaN(this.audioElement.currentTime) ? this.audioElement.currentTime : 0) * 1000;
     if (!this.isPlaying) {
-      this._smoothTime = rawAudioMs;
-      this._lastRawAudioMs = rawAudioMs;
-      this._lastSyncPerf = performance.now();
-      return rawAudioMs;
+      return (this.audioElement && !isNaN(this.audioElement.currentTime) ? this.audioElement.currentTime * 1000 : 0);
     }
     const nowPerf = performance.now();
 
-    // Protección antibloqueo: si aún no se inicializó, arrancamos desde el audio real
-    if (typeof this._smoothTime !== 'number' || isNaN(this._smoothTime) || typeof this._lastRawAudioMs !== 'number' || isNaN(this._lastRawAudioMs)) {
-      this._smoothTime = rawAudioMs;
-      this._lastRawAudioMs = rawAudioMs;
-      this._lastSyncPerf = nowPerf;
-      this._lastAudioPollPerf = nowPerf;
-    }
-
-    // Muestreo del hardware de audio cada 100ms para no bloquear la CPU a 120 FPS
+    // Consultamos el hardware de audio REAL exclusivamente una vez cada 100ms
     if (!this._lastAudioPollPerf || (nowPerf - this._lastAudioPollPerf > 100)) {
       this._lastAudioPollPerf = nowPerf;
-      const drift = rawAudioMs - this._smoothTime;
-      if (Math.abs(drift) > 70) {
-        this._lastRawAudioMs = rawAudioMs;
+      const rawAudioMs = (this.audioElement && !isNaN(this.audioElement.currentTime) ? this.audioElement.currentTime * 1000 : 0);
+
+      if (!this._lastSyncPerf) {
         this._lastSyncPerf = nowPerf;
+        this._lastRawAudioMs = rawAudioMs;
         this._smoothTime = rawAudioMs;
       } else {
-        this._lastRawAudioMs += drift * 0.05;
+        const drift = rawAudioMs - this._smoothTime;
+        if (Math.abs(drift) > 70) {
+          this._lastRawAudioMs = rawAudioMs;
+          this._lastSyncPerf = nowPerf;
+          this._smoothTime = rawAudioMs;
+        } else {
+          this._lastRawAudioMs += drift * 0.05;
+        }
       }
     }
 
     const rate = this.playbackRate || (this.audioElement ? this.audioElement.playbackRate : 1.0) || 1.0;
     const deltaPerf = nowPerf - (this._lastSyncPerf || nowPerf);
-    const targetTime = this._lastRawAudioMs + deltaPerf * rate;
+    const targetTime = (this._lastRawAudioMs || 0) + deltaPerf * rate;
 
-    this._smoothTime = Math.max(this._smoothTime, targetTime);
+    this._smoothTime = Math.max(this._smoothTime || 0, targetTime);
     return this._smoothTime;
   }
 }
@@ -2034,6 +2030,14 @@ class BeatstarEngine {
       }
       this.ctx.scale(this.dpr, this.dpr);
     }
+// Caché de degradados estáticos (evita miles de asignaciones por segundo)
+    this._trackGrad = this.ctx.createLinearGradient(this.width / 2, 12, this.width / 2, this.height + 30);
+    this._trackGrad.addColorStop(0.0, 'rgba(12, 16, 26, 0.20)');
+    this._trackGrad.addColorStop(0.12, 'rgba(40, 58, 72, 0.55)');
+    this._trackGrad.addColorStop(0.30, 'rgba(92, 122, 138, 0.80)');
+    this._trackGrad.addColorStop(0.60, '#bdd7de');
+    this._trackGrad.addColorStop(0.85, '#eef6f8');
+    this._trackGrad.addColorStop(1.0, '#ffffff');
   }
 
   bindEvents() {
@@ -6409,13 +6413,17 @@ class BeatstarEngine {
       const tL_bot = getBoundaryX(0, bottomY);
 
       // A. Suelo principal de la pista con degradado de perspectiva atmosférica infinita
-      const trackGrad = ctx.createLinearGradient(midX, horizonY, midX, bottomY);
-      trackGrad.addColorStop(0.0, 'rgba(12, 16, 26, 0.20)'); // Fundido infinito hacia el horizonte
-      trackGrad.addColorStop(0.12, 'rgba(40, 58, 72, 0.55)');
-      trackGrad.addColorStop(0.30, 'rgba(92, 122, 138, 0.80)');
-      trackGrad.addColorStop(0.60, '#bdd7de');
-      trackGrad.addColorStop(0.85, '#eef6f8');
-      trackGrad.addColorStop(1.0, '#ffffff'); // Blanco puro reflectante ultra nítido en el receptor
+      let trackGrad = this._trackGrad;
+      if (!trackGrad) {
+        trackGrad = ctx.createLinearGradient(midX, horizonY, midX, bottomY);
+        trackGrad.addColorStop(0.0, 'rgba(12, 16, 26, 0.20)');
+        trackGrad.addColorStop(0.12, 'rgba(40, 58, 72, 0.55)');
+        trackGrad.addColorStop(0.30, 'rgba(92, 122, 138, 0.80)');
+        trackGrad.addColorStop(0.60, '#bdd7de');
+        trackGrad.addColorStop(0.85, '#eef6f8');
+        trackGrad.addColorStop(1.0, '#ffffff');
+        this._trackGrad = trackGrad;
+      }
 
       ctx.beginPath();
       ctx.moveTo(tL_top, horizonY);
