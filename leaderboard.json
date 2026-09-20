@@ -283,13 +283,23 @@
         "accuracy": 93.0826072421385,
         "date": "2026-09-20 19:09:25"
       }
+    ],
+    "top_la_unin_lobohombre_en_pars": [
+      {
+        "name": "Jocomomolo",
+        "score": 1481047,
+        "stars": 4,
+        "combo": 706,
+        "accuracy": 81.63546868626737,
+        "date": "2026-09-20 19:13:27"
+      }
     ]
   },
   "global": [
     {
       "name": "Jocomomolo",
-      "total_score": 16119700,
-      "clefs": 154
+      "total_score": 17600747,
+      "clefs": 168
     },
     {
       "name": "MasterPianist",
