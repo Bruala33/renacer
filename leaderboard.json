@@ -503,6 +503,16 @@
         "accuracy": 2.938898737033926,
         "date": "2026-09-20 20:22:13"
       }
+    ],
+    "osu_2260409": [
+      {
+        "name": "Layla",
+        "score": 33975,
+        "stars": 3.5,
+        "combo": 9,
+        "accuracy": 0.41652078378345747,
+        "date": "2026-09-20 20:22:57"
+      }
     ]
   },
   "global": [
@@ -533,7 +543,7 @@
     },
     {
       "name": "Layla",
-      "total_score": 49635,
+      "total_score": 83610,
       "clefs": 0
     },
     {
@@ -572,7 +582,7 @@
       },
       {
         "name": "Layla",
-        "score": 49635
+        "score": 83610
       },
       {
         "name": "Mozart 2.0",
