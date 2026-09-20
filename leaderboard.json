@@ -481,7 +481,7 @@
         "stars": 5,
         "combo": 1,
         "accuracy": 99.85915492957747,
-        "date": "2026-09-20 20:13:18"
+        "date": "2026-09-20 20:13:46"
       }
     ]
   },
@@ -508,7 +508,7 @@
     },
     {
       "name": "Mozart 2.0",
-      "total_score": 2047,
+      "total_score": 2756,
       "clefs": 0
     },
     {
@@ -538,7 +538,7 @@
       },
       {
         "name": "Mozart 2.0",
-        "score": 2047
+        "score": 2756
       },
       {
         "name": "Mozart",
