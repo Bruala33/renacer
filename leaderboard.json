@@ -486,6 +486,14 @@
     ],
     "top_manolo_garcia_a_san_fernando": [
       {
+        "name": "Rocky",
+        "score": 1505994,
+        "stars": 3,
+        "combo": 719,
+        "accuracy": 66.23465898470572,
+        "date": "2026-09-20 20:43:25"
+      },
+      {
         "name": "`pc",
         "score": 130429,
         "stars": 3.5,
@@ -563,8 +571,8 @@
     },
     {
       "name": "Rocky",
-      "total_score": 4382010,
-      "clefs": 42
+      "total_score": 5888004,
+      "clefs": 57
     },
     {
       "name": "MasterPianist",
@@ -607,7 +615,7 @@
     "players": [
       {
         "name": "Rocky",
-        "score": 4382010
+        "score": 5888004
       },
       {
         "name": "Jocomomolo",
