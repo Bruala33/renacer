@@ -619,22 +619,36 @@ class DirectAudioSync {
     if (!this.isPlaying) {
       return (this.audioElement.currentTime || 0) * 1000;
     }
-    const rawAudioSec = this.audioElement.currentTime || 0;
     const nowPerf = performance.now();
+    const rawAudioMs = (this.audioElement.currentTime || 0) * 1000;
 
-    // Si currentTime cambió en el hardware de audio, sincronizar con la fuente real
-    if (rawAudioSec !== this._lastRawAudio) {
-      this._lastRawAudio = rawAudioSec;
+    if (!this._lastSyncPerf) {
       this._lastSyncPerf = nowPerf;
-      this._interpolatedTime = rawAudioSec * 1000;
-    } else {
-      // Si el reloj de audio se estancó entre frames de Android (30-40Hz), interpolar con performance.now() a 120Hz con tope de 0.06s
-      const deltaSec = Math.min(0.06, Math.max(0, (nowPerf - this._lastSyncPerf) / 1000));
-      const rate = this.playbackRate || this.audioElement.playbackRate || 1.0;
-      this._interpolatedTime = (this._lastRawAudio + deltaSec * rate) * 1000;
+      this._lastRawAudioMs = rawAudioMs;
+      this._smoothTime = rawAudioMs;
+      this._lastRawObserved = rawAudioMs;
     }
 
-    return Math.max(0, this._interpolatedTime);
+    // Proyección lineal 100% continua a 120 Hz usando el reloj de la CPU
+    const deltaPerf = nowPerf - this._lastSyncPerf;
+    const rate = this.playbackRate || this.audioElement.playbackRate || 1.0;
+    let targetTime = this._lastRawAudioMs + deltaPerf * rate;
+
+    // Si el desfase con el audio real es mayor a 70ms (pausa o tirón de audio), resincronizamos
+    const drift = rawAudioMs - targetTime;
+    if (Math.abs(drift) > 70) {
+      this._lastRawAudioMs = rawAudioMs;
+      this._lastSyncPerf = nowPerf;
+      targetTime = rawAudioMs;
+    } else if (rawAudioMs !== this._lastRawObserved) {
+      // Compensación ultra suave de deriva (5% por pulso) sin saltos visibles
+      this._lastRawObserved = rawAudioMs;
+      this._lastRawAudioMs += drift * 0.05;
+    }
+
+    // LEY SUPREMA: El tiempo NUNCA puede retroceder
+    this._smoothTime = Math.max(this._smoothTime || 0, targetTime);
+    return this._smoothTime;
   }
 }
 
@@ -3345,11 +3359,7 @@ class BeatstarEngine {
         ? note.sylTime
         : (note ? (Number.isFinite(note.timestamp_ms) ? note.timestamp_ms : (Number.isFinite(note.timeMs) ? note.timeMs : Math.round((note.time || 0) * 1000))) : null);
 
-      // Solo generar lírica voladora si la nota tenía asignada una palabra vocal real (no en notas instrumentales)
-     if (nTime !== null) {
-  if (typeof iluminarSilaba === 'function') iluminarSilaba(nTime);
-  else if (typeof window.iluminarSilaba === 'function') window.iluminarSilaba(nTime);
-}
+   
       if (nTime !== null) {
         if (typeof iluminarSilaba === 'function') {
           iluminarSilaba(nTime);
@@ -5304,28 +5314,7 @@ class BeatstarEngine {
     const currentTime = this.getCurrentGameTimeMs();
     const nowPerf = performance.now();
 
-    // 120 FPS Priority: Throttle heavy background atmosphere to 60 FPS (>= 16ms delta) via offscreen buffer
-    if (!this.bgCanvas) {
-      this.bgCanvas = document.createElement('canvas');
-      this.bgCtx = this.bgCanvas.getContext('2d', { alpha: false });
-      this.lastBgRenderPerf = 0;
-    }
-    if (this.bgCanvas.width !== this.width || this.bgCanvas.height !== this.height) {
-      this.bgCanvas.width = this.width;
-      this.bgCanvas.height = this.height;
-      this.lastBgRenderPerf = 0;
-    }
-
-    if (nowPerf - (this.lastBgRenderPerf || 0) >= 16.0) {
-      this.lastBgRenderPerf = nowPerf;
-      const mainCtx = this.ctx;
-      this.ctx = this.bgCtx;
-      this.renderBackgroundFX(currentTime);
-      this.ctx = mainCtx;
-    }
-    if (this.bgCanvas) {
-      this.ctx.drawImage(this.bgCanvas, 0, 0);
-    }
+    this.renderBackgroundFX(currentTime);
 
     this.renderLanes(currentTime);
     this.renderHitLine();
@@ -5431,8 +5420,6 @@ class BeatstarEngine {
     }
   }
 
-  spawnFlyingLyric(word, hitX, hitY, wordIdx, lineIdx, sylTime) {
-     }
 
   spawnFlyingLyric(word, hitX, hitY, wordIdx, lineIdx, sylTime) {
      }
