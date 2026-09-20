@@ -711,13 +711,23 @@
         "accuracy": 8.387576316117363,
         "date": "2026-09-20 22:31:59"
       }
+    ],
+    "top_alexandra_stan_mr_saxobeat": [
+      {
+        "name": "Rocky",
+        "score": 407550,
+        "stars": 1,
+        "combo": 219,
+        "accuracy": 26.250700469556143,
+        "date": "2026-09-20 22:33:20"
+      }
     ]
   },
   "global": [
     {
       "name": "Rocky",
-      "total_score": 20057631,
-      "clefs": 191
+      "total_score": 20465181,
+      "clefs": 195
     },
     {
       "name": "Jocomomolo",
@@ -770,7 +780,7 @@
     "players": [
       {
         "name": "Rocky",
-        "score": 20057631
+        "score": 20465181
       },
       {
         "name": "Jocomomolo",
