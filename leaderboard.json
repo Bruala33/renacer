@@ -2,12 +2,36 @@
   "songs": {
     "comm_camilo_sesto": [
       {
+        "name": "Lidia",
+        "score": 9122233,
+        "stars": 4,
+        "combo": 343,
+        "accuracy": 96.5,
+        "date": "2026-02-03 14:00:00"
+      },
+      {
         "name": "Jocomomolo",
         "score": 1374948,
         "stars": 5,
         "combo": 586,
         "accuracy": 94.46509777679148,
         "date": "2026-09-20 17:39:17"
+      },
+      {
+        "name": "Fernando",
+        "score": 954032,
+        "stars": 4,
+        "combo": 363,
+        "accuracy": 88.2,
+        "date": "2026-02-02 11:30:00"
+      },
+      {
+        "name": "killer",
+        "score": 121983,
+        "stars": 4,
+        "combo": 404,
+        "accuracy": 96.8,
+        "date": "2026-02-01 10:00:00"
       },
       {
         "name": "MasterPianist",
@@ -36,6 +60,30 @@
     ],
     "comm_renacer": [
       {
+        "name": "Lidia",
+        "score": 9122233,
+        "stars": 3.5,
+        "combo": 110,
+        "accuracy": 96.5,
+        "date": "2026-02-03 14:00:00"
+      },
+      {
+        "name": "Fernando",
+        "score": 954032,
+        "stars": 3.5,
+        "combo": 117,
+        "accuracy": 88.2,
+        "date": "2026-02-02 11:30:00"
+      },
+      {
+        "name": "killer",
+        "score": 121983,
+        "stars": 3.5,
+        "combo": 130,
+        "accuracy": 96.8,
+        "date": "2026-02-01 10:00:00"
+      },
+      {
         "name": "MasterPianist",
         "score": 100000,
         "stars": 3.5,
@@ -61,6 +109,30 @@
       }
     ],
     "comm_impuestos": [
+      {
+        "name": "Lidia",
+        "score": 9122233,
+        "stars": 5.5,
+        "combo": 212,
+        "accuracy": 96.5,
+        "date": "2026-02-03 14:00:00"
+      },
+      {
+        "name": "Fernando",
+        "score": 954032,
+        "stars": 5.5,
+        "combo": 225,
+        "accuracy": 88.2,
+        "date": "2026-02-02 11:30:00"
+      },
+      {
+        "name": "killer",
+        "score": 121983,
+        "stars": 5.5,
+        "combo": 250,
+        "accuracy": 96.8,
+        "date": "2026-02-01 10:00:00"
+      },
       {
         "name": "MasterPianist",
         "score": 100000,
@@ -88,6 +160,30 @@
     ],
     "comm_cyber_frenzy": [
       {
+        "name": "Lidia",
+        "score": 9122233,
+        "stars": 6,
+        "combo": 102,
+        "accuracy": 96.5,
+        "date": "2026-02-03 14:00:00"
+      },
+      {
+        "name": "Fernando",
+        "score": 954032,
+        "stars": 6,
+        "combo": 108,
+        "accuracy": 88.2,
+        "date": "2026-02-02 11:30:00"
+      },
+      {
+        "name": "killer",
+        "score": 121983,
+        "stars": 6,
+        "combo": 120,
+        "accuracy": 96.8,
+        "date": "2026-02-01 10:00:00"
+      },
+      {
         "name": "MasterPianist",
         "score": 100000,
         "stars": 6,
@@ -113,6 +209,30 @@
       }
     ],
     "comm_galaxy_anthem": [
+      {
+        "name": "Lidia",
+        "score": 9122233,
+        "stars": 4.5,
+        "combo": 102,
+        "accuracy": 96.5,
+        "date": "2026-02-03 14:00:00"
+      },
+      {
+        "name": "Fernando",
+        "score": 954032,
+        "stars": 4.5,
+        "combo": 108,
+        "accuracy": 88.2,
+        "date": "2026-02-02 11:30:00"
+      },
+      {
+        "name": "killer",
+        "score": 121983,
+        "stars": 4.5,
+        "combo": 120,
+        "accuracy": 96.8,
+        "date": "2026-02-01 10:00:00"
+      },
       {
         "name": "MasterPianist",
         "score": 100000,
@@ -140,6 +260,30 @@
     ],
     "comm_moonlight_flow": [
       {
+        "name": "Lidia",
+        "score": 9122233,
+        "stars": 2.5,
+        "combo": 80,
+        "accuracy": 96.5,
+        "date": "2026-02-03 14:00:00"
+      },
+      {
+        "name": "Fernando",
+        "score": 954032,
+        "stars": 2.5,
+        "combo": 85,
+        "accuracy": 88.2,
+        "date": "2026-02-02 11:30:00"
+      },
+      {
+        "name": "killer",
+        "score": 121983,
+        "stars": 2.5,
+        "combo": 95,
+        "accuracy": 96.8,
+        "date": "2026-02-01 10:00:00"
+      },
+      {
         "name": "MasterPianist",
         "score": 100000,
         "stars": 2.5,
@@ -165,6 +309,14 @@
       }
     ],
     "comm_1788622108_2296": [
+      {
+        "name": "Mozart",
+        "score": 664,
+        "stars": 5,
+        "combo": 1,
+        "accuracy": 100,
+        "date": "2026-09-20 19:57:12"
+      },
       {
         "name": "Jocomomolo",
         "score": 661,
@@ -319,21 +471,30 @@
     {
       "name": "Jocomomolo",
       "total_score": 17870297,
-      "clefs": 169
+      "clefs": 169,
+      "rank": 1
     },
     {
       "name": "MasterPianist",
       "total_score": 600000,
-      "clefs": 6
+      "clefs": 6,
+      "rank": 2
     },
     {
       "name": "RhythmHero",
       "total_score": 572400,
-      "clefs": 0
+      "clefs": 0,
+      "rank": 3
     },
     {
       "name": "BeatMaster",
       "total_score": 547200,
+      "clefs": 0,
+      "rank": 4
+    },
+    {
+      "name": "Mozart",
+      "total_score": 664,
       "clefs": 0
     }
   ],
@@ -342,19 +503,27 @@
     "players": [
       {
         "name": "Jocomomolo",
-        "score": 2353550
+        "score": 2353550,
+        "rank": 1
       },
       {
         "name": "MasterPianist",
-        "score": 100000
+        "score": 100000,
+        "rank": 2
       },
       {
         "name": "RhythmHero",
-        "score": 95400
+        "score": 95400,
+        "rank": 3
       },
       {
         "name": "BeatMaster",
-        "score": 91200
+        "score": 91200,
+        "rank": 4
+      },
+      {
+        "name": "Mozart",
+        "score": 664
       }
     ]
   }
