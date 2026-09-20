@@ -548,10 +548,10 @@
       {
         "name": "Rocky",
         "score": 1460670,
-        "stars": 5,
-        "combo": 674,
-        "accuracy": 98.86700297615623,
-        "date": "2026-09-20 20:30:46"
+        "stars": 3.5,
+        "combo": 67,
+        "accuracy": 8.048266438149941,
+        "date": "2026-09-20 20:31:30"
       }
     ]
   },
@@ -563,8 +563,8 @@
     },
     {
       "name": "Rocky",
-      "total_score": 2921340,
-      "clefs": 28
+      "total_score": 4382010,
+      "clefs": 42
     },
     {
       "name": "MasterPianist",
@@ -607,7 +607,7 @@
     "players": [
       {
         "name": "Rocky",
-        "score": 2921340
+        "score": 4382010
       },
       {
         "name": "Jocomomolo",
