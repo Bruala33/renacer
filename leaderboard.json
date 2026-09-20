@@ -601,6 +601,16 @@
         "accuracy": 3.2691098000086765,
         "date": "2026-09-20 21:00:55"
       }
+    ],
+    "top_britney_spears_you_drive_me_crazy": [
+      {
+        "name": "`pc",
+        "score": 10200,
+        "stars": 3.5,
+        "combo": 17,
+        "accuracy": 0.8777236323645962,
+        "date": "2026-09-20 21:28:52"
+      }
     ]
   },
   "global": [
@@ -636,7 +646,7 @@
     },
     {
       "name": "`pc",
-      "total_score": 130429,
+      "total_score": 140629,
       "clefs": 1
     },
     {
@@ -667,7 +677,7 @@
       },
       {
         "name": "`pc",
-        "score": 130429
+        "score": 140629
       },
       {
         "name": "MasterPianist",
