@@ -601,6 +601,56 @@
         "accuracy": 3.2691098000086765,
         "date": "2026-09-20 21:00:55"
       }
+    ],
+    "top_britney_spears_you_drive_me_crazy": [
+      {
+        "name": "`pc",
+        "score": 10200,
+        "stars": 3.5,
+        "combo": 17,
+        "accuracy": 0.8777236323645962,
+        "date": "2026-09-20 21:28:52"
+      }
+    ],
+    "top_aqua_my_oh_my": [
+      {
+        "name": "Rocky",
+        "score": 280314,
+        "stars": 1,
+        "combo": 153,
+        "accuracy": 24.23371092692989,
+        "date": "2026-09-20 21:32:23"
+      }
+    ],
+    "top_alvaro_soler_sofia": [
+      {
+        "name": "Rocky",
+        "score": 986900,
+        "stars": 3,
+        "combo": 295,
+        "accuracy": 63.85396083485706,
+        "date": "2026-09-20 21:39:47"
+      }
+    ],
+    "top_david_bisbal_corazn_latino": [
+      {
+        "name": "Rocky",
+        "score": 176703,
+        "stars": 3.5,
+        "combo": 120,
+        "accuracy": 9.172477014692324,
+        "date": "2026-09-20 21:40:43"
+      }
+    ],
+    "top_camela_cuando_zarpa_el_amor": [
+      {
+        "name": "Rocky",
+        "score": 818147,
+        "stars": 1,
+        "combo": 342,
+        "accuracy": 20.67782259695095,
+        "date": "2026-09-20 21:42:40"
+      }
     ]
   },
   "global": [
@@ -611,8 +661,8 @@
     },
     {
       "name": "Rocky",
-      "total_score": 11870002,
-      "clefs": 115
+      "total_score": 14132066,
+      "clefs": 135
     },
     {
       "name": "MasterPianist",
@@ -636,7 +686,7 @@
     },
     {
       "name": "`pc",
-      "total_score": 130429,
+      "total_score": 140629,
       "clefs": 1
     },
     {
@@ -655,7 +705,7 @@
     "players": [
       {
         "name": "Rocky",
-        "score": 11870002
+        "score": 14132066
       },
       {
         "name": "Jocomomolo",
@@ -667,7 +717,7 @@
       },
       {
         "name": "`pc",
-        "score": 130429
+        "score": 140629
       },
       {
         "name": "MasterPianist",
