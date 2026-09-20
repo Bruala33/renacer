@@ -631,6 +631,16 @@
         "accuracy": 63.85396083485706,
         "date": "2026-09-20 21:39:47"
       }
+    ],
+    "top_david_bisbal_corazn_latino": [
+      {
+        "name": "Rocky",
+        "score": 176703,
+        "stars": 3.5,
+        "combo": 120,
+        "accuracy": 9.172477014692324,
+        "date": "2026-09-20 21:40:43"
+      }
     ]
   },
   "global": [
@@ -641,8 +651,8 @@
     },
     {
       "name": "Rocky",
-      "total_score": 13137216,
-      "clefs": 126
+      "total_score": 13313919,
+      "clefs": 127
     },
     {
       "name": "MasterPianist",
@@ -685,7 +695,7 @@
     "players": [
       {
         "name": "Rocky",
-        "score": 13137216
+        "score": 13313919
       },
       {
         "name": "Jocomomolo",
