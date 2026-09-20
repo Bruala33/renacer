@@ -1222,9 +1222,16 @@ app.get([
   '/api/v1/community/leaderboards/global'
 ], (req, res) => {
   const globalScores = Array.from(playerGlobalAccumulator.values())
-    .sort((a, b) => b.total_score - a.total_score)
-    .slice(0, 50);
-  globalScores.forEach((s, idx) => (s.rank = idx + 1));
+    .sort((a, b) => (b.total_score || b.score || 0) - (a.total_score || a.score || 0))
+    .slice(0, 50)
+    .map((s, idx) => ({
+      rank: idx + 1,
+      player_name: s.player_name || s.name || 'Jugador',
+      name: s.player_name || s.name || 'Jugador',
+      score: s.total_score || s.score || 0,
+      total_score: s.total_score || s.score || 0,
+      clefs: s.clefs || Math.floor((s.total_score || s.score || 0) * 0.00001)
+    }));
 
   res.json({
     success: true,
@@ -1244,9 +1251,16 @@ app.get([
   const currentWeek = getIsoWeekId();
   const weekMap = playerWeeklyAccumulator.get(currentWeek) || new Map();
   const weeklyScores = Array.from(weekMap.values())
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 50);
-  weeklyScores.forEach((s, idx) => (s.rank = idx + 1));
+    .sort((a, b) => (b.score || b.total_score || 0) - (a.score || a.total_score || 0))
+    .slice(0, 50)
+    .map((s, idx) => ({
+      rank: idx + 1,
+      player_name: s.player_name || s.name || 'Jugador',
+      name: s.player_name || s.name || 'Jugador',
+      score: s.score || s.total_score || 0,
+      total_score: s.score || s.total_score || 0,
+      clefs: s.clefs || Math.floor((s.score || s.total_score || 0) * 0.00001)
+    }));
 
   res.json({
     success: true,
@@ -1256,7 +1270,6 @@ app.get([
     total_participants: weeklyScores.length
   });
 });
-
 // Creator profile & follow
 app.get('/api/v1/community/creators/:id', (req, res) => {
   const creator_id = req.params.id;
