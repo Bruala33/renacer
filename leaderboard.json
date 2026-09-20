@@ -523,6 +523,16 @@
         "accuracy": 0.12727222422045764,
         "date": "2026-09-20 20:23:27"
       }
+    ],
+    "top_los_del_ro_macarena_river_remix_103_bpm": [
+      {
+        "name": "Layla",
+        "score": 52950,
+        "stars": 3.5,
+        "combo": 40,
+        "accuracy": 1.0927694988714776,
+        "date": "2026-09-20 20:24:10"
+      }
     ]
   },
   "global": [
@@ -547,14 +557,14 @@
       "clefs": 0
     },
     {
+      "name": "Layla",
+      "total_score": 142410,
+      "clefs": 0
+    },
+    {
       "name": "`pc",
       "total_score": 130429,
       "clefs": 1
-    },
-    {
-      "name": "Layla",
-      "total_score": 89460,
-      "clefs": 0
     },
     {
       "name": "Mozart 2.0",
@@ -575,6 +585,10 @@
         "score": 2356194
       },
       {
+        "name": "Layla",
+        "score": 142410
+      },
+      {
         "name": "`pc",
         "score": 130429
       },
@@ -589,10 +603,6 @@
       {
         "name": "BeatMaster",
         "score": 91200
-      },
-      {
-        "name": "Layla",
-        "score": 89460
       },
       {
         "name": "Mozart 2.0",
