@@ -1649,6 +1649,12 @@ class BeatstarEngine {
 
     this.initCanvasSize();
     this.bindEvents();
+
+    // Cache de elementos de odómetro (roller digits)
+    this.cachedRollerDigits = [0, 1, 2, 3, 4, 5, 6].map(d => (typeof document !== 'undefined' ? document.getElementById(`rollerDigit${6 - d}`) : null));
+    this.lastDisplayedRollerValues = new Array(7).fill(-1);
+    this.cachedHudScoreEl = (typeof document !== 'undefined' ? document.getElementById('hudScore') : null);
+    this.lastScoreInt = -1;
   }
 
   setMasterVolume(val, muted = false) {
@@ -2406,6 +2412,8 @@ class BeatstarEngine {
       ? this.notes.reduce((max, n) => Math.max(max, n.end_timestamp_ms || n.timestamp_ms || 0), 0)
       : 0;
 
+    this.firstActiveNoteIndex = 0;
+    this.lastLitSyllableIndex = -1;
     this.activeHolds.clear();
     this.activeTouches.clear();
     this.judgements = [];
@@ -2648,6 +2656,8 @@ class BeatstarEngine {
       }
     }
 
+    this.firstActiveNoteIndex = 0;
+    this.lastLitSyllableIndex = -1;
     if (this.particles) {
       this.particles.reset();
     }
@@ -2698,12 +2708,29 @@ class BeatstarEngine {
       this.animFrameId = null;
     }
     this.sync.pause();
+    if (this.sync.audioElement) {
+      try {
+        this.sync.audioElement.pause();
+        this.sync.audioElement.removeAttribute('src');
+        this.sync.audioElement.load();
+      } catch (e) {}
+    }
+    if (this.sync._blobUrl) {
+      try {
+        URL.revokeObjectURL(this.sync._blobUrl);
+      } catch (e) {}
+      this.sync._blobUrl = null;
+    }
     this.activeHolds.clear();
     this.activeTouches.clear();
-    this.notes = [];
-    this.judgements = [];
-    this.fxRipples = [];
-    this.flyingLyrics = [];
+    this.notes.length = 0;
+    this.judgements.length = 0;
+    this.fxRipples.length = 0;
+    this.flyingLyrics.length = 0;
+    this.bgBursts.length = 0;
+    this.musicalNotes.length = 0;
+    this.firstActiveNoteIndex = 0;
+    this.lastLitSyllableIndex = -1;
     this._lastCurLyricIndex = -1;
     if (typeof document !== 'undefined') {
       const curEl = document.getElementById('karaokeCurrentLine');
@@ -4070,6 +4097,7 @@ class BeatstarEngine {
 
       if (curIndex !== -1 && curIndex !== this._lastCurLyricIndex) {
         this._lastCurLyricIndex = curIndex;
+        this.lastLitSyllableIndex = -1;
         const curItem = this.activeKaraokeLyrics[curIndex];
         const verso = curItem ? (curItem.verso || curItem.syllables || (Array.isArray(curItem) ? curItem : [])) : [];
 
@@ -4083,22 +4111,26 @@ class BeatstarEngine {
       } else if (curIndex === -1) {
         if (this._lastCurLyricIndex !== -1 || (curEl && curEl.innerHTML !== '')) {
           this._lastCurLyricIndex = -1;
+          this.lastLitSyllableIndex = -1;
           if (curEl) curEl.innerHTML = '';
         }
       }
 
-      // Iluminación sincronizada de sílabas por tiempo
+      // Iluminación sincronizada de sílabas sin spam al DOM: avanzar lastLitSyllableIndex una sola vez por sílaba
       if (curIndex !== -1 && curEl) {
         const curItem = this.activeKaraokeLyrics[curIndex];
         const verso = curItem ? (curItem.verso || curItem.syllables || (Array.isArray(curItem) ? curItem : [])) : [];
-        for (let sIdx = 0; sIdx < verso.length; sIdx++) {
-          const s = verso[sIdx];
-          if (s && Number.isFinite(s.time) && currentTime >= s.time) {
+        while (this.lastLitSyllableIndex + 1 < verso.length) {
+          const nextSyl = verso[this.lastLitSyllableIndex + 1];
+          if (nextSyl && Number.isFinite(nextSyl.time) && currentTime >= nextSyl.time) {
+            this.lastLitSyllableIndex++;
             if (typeof iluminarSilaba === 'function') {
-              iluminarSilaba(s.time);
+              iluminarSilaba(nextSyl.time);
             } else if (typeof window.iluminarSilaba === 'function') {
-              window.iluminarSilaba(s.time);
+              window.iluminarSilaba(nextSyl.time);
             }
+          } else {
+            break;
           }
         }
       }
@@ -4123,8 +4155,21 @@ class BeatstarEngine {
 
     // Once a note has passed the hit window (+120ms), it can no longer be hit and is judged MISS
     const exitScreenOffsetMs = 120;
+    const notesLen = this.notes.length;
 
-    for (let i = 0; i < this.notes.length; i++) {
+    while (this.firstActiveNoteIndex < notesLen) {
+      const pastN = this.notes[this.firstActiveNoteIndex];
+      if (!pastN) { this.firstActiveNoteIndex++; continue; }
+      const pastT = pastN.end_timestamp_ms || pastN.timestamp_ms || pastN.timeMs || 0;
+      if ((pastN.hit || pastN.missed || pastN.processed || pastN.holdCompleted) && !pastN.holding && (currentTime - pastT > 400)) {
+        this.firstActiveNoteIndex++;
+      } else {
+        break;
+      }
+    }
+
+    const startUpdateIdx = Math.min(this.firstActiveNoteIndex, notesLen);
+    for (let i = startUpdateIdx; i < notesLen; i++) {
       const note = this.notes[i];
       if (!note || note.hit || note.missed || note.holding || note.processed || note.holdCompleted) continue;
 
@@ -4133,6 +4178,11 @@ class BeatstarEngine {
         : (Number.isFinite(note.timeMs)
             ? note.timeMs
             : (Number.isFinite(note.time) ? (note.time > 100 ? note.time : note.time * 1000) : 0));
+
+      // Si la nota está a más de 1200ms en el futuro, no puede haber caído
+      if (noteTime - currentTime > 1200) {
+        break;
+      }
 
       if (currentTime >= 0 && (currentTime - noteTime >= exitScreenOffsetMs)) {
         note.missed = true;
@@ -4291,17 +4341,31 @@ class BeatstarEngine {
         this.displayScore = this.score;
       }
       const sVal = Math.min(9999999, Math.max(0, Math.floor(this.displayScore)));
-      const scoreStr = String(sVal).padStart(7, "0");
-      for (let d = 0; d < 7; d++) {
-        const strip = document.getElementById(`rollerDigit${6 - d}`);
-        if (strip) {
-          const digitVal = parseInt(scoreStr[d], 10) || 0;
-          strip.style.transform = `translateY(-${digitVal * 24}px)`;
+      if (sVal !== this.lastScoreInt) {
+        this.lastScoreInt = sVal;
+        const scoreStr = String(sVal).padStart(7, "0");
+        if (!this.cachedRollerDigits || !this.cachedRollerDigits[0]) {
+          this.cachedRollerDigits = [0, 1, 2, 3, 4, 5, 6].map(d => document.getElementById(`rollerDigit${6 - d}`));
         }
-      }
-      const hudScoreEl = document.getElementById('hudScore');
-      if (hudScoreEl) {
-        hudScoreEl.innerText = Math.floor(this.displayScore).toLocaleString();
+        if (!this.lastDisplayedRollerValues) {
+          this.lastDisplayedRollerValues = new Array(7).fill(-1);
+        }
+        for (let d = 0; d < 7; d++) {
+          const digitVal = parseInt(scoreStr[d], 10) || 0;
+          if (this.lastDisplayedRollerValues[d] !== digitVal) {
+            this.lastDisplayedRollerValues[d] = digitVal;
+            const strip = this.cachedRollerDigits[d];
+            if (strip) {
+              strip.style.transform = `translateY(-${digitVal * 24}px)`;
+            }
+          }
+        }
+        if (!this.cachedHudScoreEl) {
+          this.cachedHudScoreEl = document.getElementById('hudScore');
+        }
+        if (this.cachedHudScoreEl) {
+          this.cachedHudScoreEl.innerText = sVal.toLocaleString();
+        }
       }
     }
 
@@ -5208,8 +5272,31 @@ class BeatstarEngine {
     }
 
     const currentTime = this.getCurrentGameTimeMs();
+    const nowPerf = performance.now();
 
-    this.renderBackgroundFX(currentTime);
+    // 120 FPS Priority: Throttle heavy background atmosphere to 60 FPS (>= 16ms delta) via offscreen buffer
+    if (!this.bgCanvas) {
+      this.bgCanvas = document.createElement('canvas');
+      this.bgCtx = this.bgCanvas.getContext('2d', { alpha: false });
+      this.lastBgRenderPerf = 0;
+    }
+    if (this.bgCanvas.width !== this.width || this.bgCanvas.height !== this.height) {
+      this.bgCanvas.width = this.width;
+      this.bgCanvas.height = this.height;
+      this.lastBgRenderPerf = 0;
+    }
+
+    if (nowPerf - (this.lastBgRenderPerf || 0) >= 16.0) {
+      this.lastBgRenderPerf = nowPerf;
+      const mainCtx = this.ctx;
+      this.ctx = this.bgCtx;
+      this.renderBackgroundFX(currentTime);
+      this.ctx = mainCtx;
+    }
+    if (this.bgCanvas) {
+      this.ctx.drawImage(this.bgCanvas, 0, 0);
+    }
+
     this.renderLanes(currentTime);
     this.renderHitLine();
     this.renderRipples(this.ctx);
@@ -7035,7 +7122,20 @@ class BeatstarEngine {
     const baseNoteFontSize = Math.round(Math.max(13, Math.min(26, (this.width / 3) * 0.32)));
     ctx.font = `900 ${baseNoteFontSize}px Montserrat, -apple-system, sans-serif`;
 
-    for (let i = 0; i < len; i++) {
+    // Avanzar firstActiveNoteIndex descartando notas pasadas (>400ms tras su impacto/miss)
+    while (this.firstActiveNoteIndex < len) {
+      const pastN = this.notes[this.firstActiveNoteIndex];
+      if (!pastN) { this.firstActiveNoteIndex++; continue; }
+      const pastT = pastN.end_timestamp_ms || pastN.timestamp_ms || pastN.timeMs || 0;
+      if ((pastN.hit || pastN.missed || pastN.processed || pastN.holdCompleted) && !pastN.holding && (currentTime - pastT > 400)) {
+        this.firstActiveNoteIndex++;
+      } else {
+        break;
+      }
+    }
+
+    const startIdx = Math.min(this.firstActiveNoteIndex, len);
+    for (let i = startIdx; i < len; i++) {
       const note = this.notes[i];
       if (!note || note.holdCompleted) continue;
       if (note.hit && note.type !== 'hold') continue;
@@ -7058,10 +7158,8 @@ class BeatstarEngine {
       const timeUntilHit = noteT - currentTime;
       if (!Number.isFinite(timeUntilHit)) continue;
 
-      // Early break ultrarrápido: dado que this.notes está estrictamente ordenado cronológicamente,
-      // si una nota futura aún no ha alcanzado la pista (tiempo hasta el hit > scrollDur * 1.25),
-      // ninguna de las siguientes notas será visible. Cortamos el loop inmediatamente.
-      if (timeUntilHit > scrollDur * 1.25) {
+      // Break si una nota futura está a más de 1200ms en el futuro (y por encima de scrollDur)
+      if (timeUntilHit > 1200 && timeUntilHit > scrollDur) {
         break;
       }
 

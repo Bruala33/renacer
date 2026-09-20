@@ -1790,6 +1790,54 @@ class IndexedDBStorage {
       return false;
     }
   }
+
+  // --- Highscores Respaldo Persistente ---
+  static async saveHighscoreRecord(songId, record) {
+    try {
+      const db = await this.openDB();
+      return new Promise((resolve) => {
+        const tx = db.transaction(this.STORE_SAVED, 'readwrite');
+        const store = tx.objectStore(this.STORE_SAVED);
+        const item = {
+          id: `highscore_${songId}`,
+          songId,
+          record,
+          updatedAt: Date.now()
+        };
+        const req = store.put(item);
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => resolve(false);
+      });
+    } catch (e) {
+      console.warn('Error guardando highscore en IndexedDB:', e);
+      return false;
+    }
+  }
+
+  static async getAllHighscores() {
+    try {
+      const db = await this.openDB();
+      return new Promise((resolve) => {
+        const tx = db.transaction(this.STORE_SAVED, 'readonly');
+        const store = tx.objectStore(this.STORE_SAVED);
+        const req = store.getAll();
+        req.onsuccess = () => {
+          const results = {};
+          const all = req.result || [];
+          for (const item of all) {
+            if (item && item.id && item.id.startsWith('highscore_') && item.record) {
+              results[item.songId] = item.record;
+            }
+          }
+          resolve(results);
+        };
+        req.onerror = () => resolve({});
+      });
+    } catch (e) {
+      console.warn('Error leyendo highscores de IndexedDB:', e);
+      return {};
+    }
+  }
 }
 
 // ==========================================

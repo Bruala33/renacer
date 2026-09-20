@@ -3291,11 +3291,33 @@
       return true;
     }
 
-    function loadHighscores() {
+    async function loadHighscores() {
       try {
         highscores = JSON.parse(localStorage.getItem('beatstar_highscores') || '{}');
       } catch (e) {
         highscores = {};
+      }
+
+      // IndexedDB Respaldo / Fusión
+      try {
+        if (typeof IndexedDBStorage !== 'undefined' && typeof IndexedDBStorage.getAllHighscores === 'function') {
+          const idbScores = await IndexedDBStorage.getAllHighscores();
+          if (idbScores && typeof idbScores === 'object') {
+            let changed = false;
+            for (const [sId, rec] of Object.entries(idbScores)) {
+              const local = highscores[sId];
+              if (!local || (rec && rec.score > (local.score || 0))) {
+                highscores[sId] = rec;
+                changed = true;
+              }
+            }
+            if (changed) {
+              localStorage.setItem('beatstar_highscores', JSON.stringify(highscores));
+            }
+          }
+        }
+      } catch (idbErr) {
+        console.warn('[Highscores] Error cargando respaldo IndexedDB:', idbErr);
       }
     }
 
@@ -3311,11 +3333,27 @@
     function saveHighscore(songId, score, stars, maxCombo, medalTier = null, accuracyPct = 0) {
       const current = highscores[songId];
       let isNewRecord = false;
-      if (!current || score > current.score) {
-        highscores[songId] = { score, stars, maxCombo, medalTier, accuracyPct };
+      const currentScore = current ? (current.score || 0) : 0;
+      const bestScore = Math.max(currentScore, score);
+
+      if (!current || score > currentScore) {
+        highscores[songId] = {
+          score: bestScore,
+          stars: Math.max(stars || 0, current?.stars || 0),
+          maxCombo: Math.max(maxCombo || 0, current?.maxCombo || 0),
+          medalTier: medalTier || current?.medalTier || null,
+          accuracyPct: Math.max(accuracyPct || 0, current?.accuracyPct || 0)
+        };
         localStorage.setItem('beatstar_highscores', JSON.stringify(highscores));
         isNewRecord = true;
       }
+
+      // Respaldo en IndexedDB Storage
+      try {
+        if (typeof IndexedDBStorage !== 'undefined' && typeof IndexedDBStorage.saveHighscoreRecord === 'function') {
+          IndexedDBStorage.saveHighscoreRecord(songId, highscores[songId]).catch(() => {});
+        }
+      } catch (e) {}
 
       // Enviar record a la clasificacion online si hay servidor configurado
       try {
@@ -3327,7 +3365,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               player_name: playerName,
-              score: score,
+              score: bestScore,
               max_combo: maxCombo,
               stars: stars,
               accuracy_pct: accuracyPct,
@@ -7987,43 +8025,20 @@ function detenerPaginacionPiano() {
         pianoCameraRafId = requestAnimationFrame(cameraRenderLoop);
       }
 
-      function startPress(direction) {
+      let lastTapTime = 0;
+      function handleSingleTap(direction) {
+        const now = performance.now();
+        if (now - lastTapTime < 220) return; // Lockout de 220ms para evitar saltos dobles de página
+        lastTapTime = now;
+        window._lastPianoTapTime = now;
+
         soundEngine.init();
         isHoldingPiano = false;
         goToPageKey(currentKeyIndex + direction, true, false, true);
-
-        clearTimeout(pianoHoldTimer);
-        clearInterval(pianoTurboInterval);
-
-        pianoHoldTimer = setTimeout(() => {
-          isHoldingPiano = true;
-          pianoTurboInterval = setInterval(() => {
-            goToPageKey(currentKeyIndex + direction, true, true, false);
-          }, 55);
-        }, 200);
       }
 
-      function stopPress() {
-        clearTimeout(pianoHoldTimer);
-        clearInterval(pianoTurboInterval);
-        pianoHoldTimer = null;
-        pianoTurboInterval = null;
-
-        if (isHoldingPiano) {
-          isHoldingPiano = false;
-          goToPageKey(currentKeyIndex, false, false, true);
-        }
-      }
-
-      tapLeft.onpointerdown = (e) => { e.preventDefault(); startPress(-1); };
-      tapLeft.onpointerup = stopPress;
-      tapLeft.onpointercancel = stopPress;
-      tapLeft.onpointerleave = stopPress;
-
-      tapRight.onpointerdown = (e) => { e.preventDefault(); startPress(1); };
-      tapRight.onpointerup = stopPress;
-      tapRight.onpointercancel = stopPress;
-      tapRight.onpointerleave = stopPress;
+      tapLeft.onpointerdown = (e) => { e.preventDefault(); handleSingleTap(-1); };
+      tapRight.onpointerdown = (e) => { e.preventDefault(); handleSingleTap(1); };
     }
 
     /* =========================================================================

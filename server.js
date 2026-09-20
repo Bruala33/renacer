@@ -20,6 +20,14 @@ const COMMUNITY_DIR = path.join(__dirname, 'app', 'uploads', 'community');
 const SONGS_DIR = path.join(STATIC_DIR, 'songs');
 const SCORES_FILE = path.join(__dirname, 'app', 'uploads', 'leaderboard_scores.json');
 const RATINGS_FILE = path.join(__dirname, 'app', 'uploads', 'chart_ratings.json');
+const GITHUB_LEADERBOARD_FILE = path.join(__dirname, 'leaderboard.json');
+
+// GitHub API Persistence Configuration
+const GITHUB_REPO = process.env.GITHUB_REPOSITORY || 'Bruala33/renacer';
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
+let githubLeaderboardSha = null;
+let isSyncingToGithub = false;
+let pendingGithubSync = false;
 
 // In-memory data store for community charts, ratings, and leaderboards
 const communityCharts = new Map();
@@ -27,6 +35,206 @@ const chartScores = new Map();
 const chartRatings = new Map();
 const followedCreators = new Set();
 const players = new Map();
+
+// Helper to compute ISO Week ID (AAAA-WSS)
+function getIsoWeekId(date = new Date()) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}
+
+// Build consolidated leaderboard payload for GitHub persistence
+function buildConsolidatedLeaderboardJson() {
+  const songsObj = {};
+  for (const [id, scores] of chartScores.entries()) {
+    songsObj[id] = (scores || []).slice(0, 20).map(s => ({
+      name: s.player_name || 'Jugador Anónimo',
+      score: s.score || 0,
+      stars: s.stars || 0,
+      combo: s.max_combo || 0,
+      accuracy: s.accuracy_pct || 100,
+      date: s.created_at || new Date().toISOString()
+    }));
+  }
+
+  const playerGlobalMap = new Map();
+  chartScores.forEach((scores) => {
+    scores.forEach((s) => {
+      const pKey = (s.player_name || 'Jugador').trim().toLowerCase();
+      const existing = playerGlobalMap.get(pKey);
+      if (!existing) {
+        playerGlobalMap.set(pKey, {
+          name: s.player_name || 'Jugador',
+          total_score: s.score || 0,
+          clefs: Math.floor((s.score || 0) * 0.00001)
+        });
+      } else {
+        existing.total_score += (s.score || 0);
+        existing.clefs += Math.floor((s.score || 0) * 0.00001);
+      }
+    });
+  });
+  const globalList = Array.from(playerGlobalMap.values())
+    .sort((a, b) => b.total_score - a.total_score)
+    .slice(0, 50);
+
+  const currentWeek = getIsoWeekId();
+  const playerWeeklyMap = new Map();
+  chartScores.forEach((scores) => {
+    scores.forEach((s) => {
+      const pKey = (s.player_name || 'Jugador').trim().toLowerCase();
+      if (!playerWeeklyMap.has(pKey) || (s.score || 0) > (playerWeeklyMap.get(pKey).score || 0)) {
+        playerWeeklyMap.set(pKey, {
+          name: s.player_name || 'Jugador',
+          score: s.score || 0
+        });
+      }
+    });
+  });
+  const weeklyList = Array.from(playerWeeklyMap.values())
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 50);
+
+  return {
+    songs: songsObj,
+    global: globalList,
+    weekly: {
+      week_id: currentWeek,
+      players: weeklyList
+    }
+  };
+}
+
+async function syncLeaderboardToGithub() {
+  const consolidated = buildConsolidatedLeaderboardJson();
+  const jsonStr = JSON.stringify(consolidated, null, 2);
+
+  // Always save locally to leaderboard.json
+  try {
+    fs.writeFileSync(GITHUB_LEADERBOARD_FILE, jsonStr, 'utf-8');
+  } catch (e) {
+    console.warn('[Server] Could not write local leaderboard.json:', e.message);
+  }
+
+  if (!GITHUB_TOKEN) return;
+  if (isSyncingToGithub) {
+    pendingGithubSync = true;
+    return;
+  }
+
+  isSyncingToGithub = true;
+  try {
+    const base64Content = Buffer.from(jsonStr).toString('base64');
+    const apiUrl = `https://api.github.com/repos/${GITHUB_REPO}/contents/leaderboard.json`;
+    const payload = {
+      message: `Update online leaderboards [skip ci]`,
+      content: base64Content
+    };
+    if (githubLeaderboardSha) {
+      payload.sha = githubLeaderboardSha;
+    }
+
+    const res = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'Renacer-Leaderboard-Service',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      githubLeaderboardSha = data?.content?.sha || githubLeaderboardSha;
+      console.log('[Server] Online leaderboard successfully persisted to GitHub.');
+    } else {
+      const errTxt = await res.text();
+      console.warn('[Server] GitHub leaderboard commit returned:', res.status, errTxt);
+    }
+  } catch (err) {
+    console.warn('[Server] GitHub leaderboard commit failed:', err.message);
+  } finally {
+    isSyncingToGithub = false;
+    if (pendingGithubSync) {
+      pendingGithubSync = false;
+      syncLeaderboardToGithub().catch(() => {});
+    }
+  }
+}
+
+async function loadLeaderboardFromGithub() {
+  if (GITHUB_TOKEN) {
+    try {
+      const apiUrl = `https://api.github.com/repos/${GITHUB_REPO}/contents/leaderboard.json`;
+      const res = await fetch(apiUrl, {
+        headers: {
+          'Authorization': `token ${GITHUB_TOKEN}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'Renacer-Leaderboard-Service'
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        githubLeaderboardSha = data.sha;
+        if (data.content) {
+          const raw = Buffer.from(data.content, 'base64').toString('utf-8');
+          fs.writeFileSync(GITHUB_LEADERBOARD_FILE, raw, 'utf-8');
+          applyLeaderboardJson(JSON.parse(raw));
+          console.log('[Server] Loaded leaderboard.json directly from GitHub API.');
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('[Server] Could not load leaderboard from GitHub API:', err.message);
+    }
+  }
+
+  // Fallback to local leaderboard.json if present
+  try {
+    if (fs.existsSync(GITHUB_LEADERBOARD_FILE)) {
+      const raw = fs.readFileSync(GITHUB_LEADERBOARD_FILE, 'utf-8');
+      applyLeaderboardJson(JSON.parse(raw));
+      console.log('[Server] Loaded leaderboard from local leaderboard.json.');
+    }
+  } catch (err) {
+    console.warn('[Server] Could not load local leaderboard.json:', err.message);
+  }
+}
+
+function applyLeaderboardJson(data) {
+  if (!data || typeof data !== 'object') return;
+  if (data.songs && typeof data.songs === 'object') {
+    for (const [id, list] of Object.entries(data.songs)) {
+      if (!Array.isArray(list)) continue;
+      const formatted = list.map((item, idx) => ({
+        rank: idx + 1,
+        chart_id: id,
+        player_name: item.name || item.player_name || 'Jugador',
+        score: parseInt(item.score, 10) || 0,
+        max_combo: parseInt(item.combo || item.max_combo, 10) || 0,
+        stars: parseFloat(item.stars) || 3.5,
+        accuracy_pct: parseFloat(item.accuracy || item.accuracy_pct) || 100.0,
+        created_at: item.date || item.created_at || new Date().toISOString()
+      }));
+      const existing = chartScores.get(id) || [];
+      const mergedMap = new Map();
+      existing.forEach(e => mergedMap.set((e.player_name || '').trim().toLowerCase(), e));
+      formatted.forEach(f => {
+        const key = (f.player_name || '').trim().toLowerCase();
+        if (!mergedMap.has(key) || f.score > (mergedMap.get(key).score || 0)) {
+          mergedMap.set(key, f);
+        }
+      });
+      const combined = Array.from(mergedMap.values()).sort((a, b) => b.score - a.score);
+      combined.forEach((c, i) => (c.rank = i + 1));
+      chartScores.set(id, combined.slice(0, 50));
+    }
+  }
+}
 
 function saveScoresToDisk() {
   try {
@@ -305,6 +513,7 @@ function seedCommunityCharts() {
 seedCommunityCharts();
 loadScoresFromDisk();
 loadRatingsFromDisk();
+loadLeaderboardFromGithub().catch(() => {});
 
 // ==========================================
 // 1. Health & Status Endpoints
@@ -958,20 +1167,26 @@ app.post('/api/v1/community/charts/:id/score', (req, res) => {
   currentScores.sort((a, b) => b.score - a.score);
   currentScores.forEach((s, idx) => (s.rank = idx + 1));
 
+  const isRecord = newEntry.rank === 1;
   chartScores.set(id, currentScores.slice(0, 50));
   saveScoresToDisk();
+  syncLeaderboardToGithub().catch(() => {});
 
   res.json({
     success: true,
     rank: newEntry.rank,
-    is_new_record: newEntry.rank === 1,
+    is_new_record: isRecord,
     total_players: currentScores.length,
     entry: newEntry
   });
 });
 
 // Chart Leaderboard (Compatible tanto con .leaderboard como array directo)
-app.get(['/api/v1/community/charts/:id/leaderboard', '/api/v1/community/charts/:id/leaderboards'], (req, res) => {
+app.get([
+  '/api/v1/community/charts/:id/leaderboard',
+  '/api/v1/community/charts/:id/leaderboards',
+  '/api/v1/charts/:id/leaderboard'
+], (req, res) => {
   const id = req.params.id;
   const scores = chartScores.get(id) || [];
   res.json({
@@ -982,8 +1197,13 @@ app.get(['/api/v1/community/charts/:id/leaderboard', '/api/v1/community/charts/:
   });
 });
 
-// Global Leaderboard (Compatible con /leaderboard/global y /leaderboards/global)
-app.get(['/api/v1/community/leaderboard/global', '/api/v1/community/leaderboards/global'], (req, res) => {
+// Global Leaderboard (Compatible con /leaderboard/global y /community/leaderboard/global)
+app.get([
+  '/api/v1/leaderboard/global',
+  '/api/v1/leaderboards/global',
+  '/api/v1/community/leaderboard/global',
+  '/api/v1/community/leaderboards/global'
+], (req, res) => {
   const playerMap = new Map();
   chartScores.forEach((scores) => {
     scores.forEach((s) => {
@@ -1007,7 +1227,12 @@ app.get(['/api/v1/community/leaderboard/global', '/api/v1/community/leaderboards
 });
 
 // Weekly Leaderboard (Torneo Semanal: Lunes 00:00:00 a Domingo 23:59:59 UTC)
-app.get(['/api/v1/community/leaderboard/weekly', '/api/v1/community/leaderboards/weekly'], (req, res) => {
+app.get([
+  '/api/v1/leaderboard/weekly',
+  '/api/v1/leaderboards/weekly',
+  '/api/v1/community/leaderboard/weekly',
+  '/api/v1/community/leaderboards/weekly'
+], (req, res) => {
   const now = new Date();
   const day = now.getUTCDay(); // 0 es Domingo, 1 es Lunes
   const diffToMonday = (day === 0 ? -6 : 1) - day;
