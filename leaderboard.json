@@ -497,11 +497,11 @@
     "top_michael_jackson_dont_stop_till_you_get_enough": [
       {
         "name": "Layla",
-        "score": 49635,
+        "score": 110790,
         "stars": 3.5,
-        "combo": 31,
-        "accuracy": 2.829991675117967,
-        "date": "2026-09-20 20:25:09"
+        "combo": 80,
+        "accuracy": 10.374732063344018,
+        "date": "2026-09-20 20:29:15"
       }
     ],
     "osu_2260409": [
@@ -568,8 +568,8 @@
     },
     {
       "name": "Layla",
-      "total_score": 285310,
-      "clefs": 0
+      "total_score": 396100,
+      "clefs": 1
     },
     {
       "name": "`pc",
@@ -596,7 +596,7 @@
       },
       {
         "name": "Layla",
-        "score": 285310
+        "score": 396100
       },
       {
         "name": "`pc",
