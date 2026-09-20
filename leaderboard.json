@@ -315,7 +315,7 @@
         "stars": 5,
         "combo": 1,
         "accuracy": 100,
-        "date": "2026-09-20 20:00:33"
+        "date": "2026-09-20 20:01:16"
       },
       {
         "name": "Mozart",
@@ -501,15 +501,16 @@
       "rank": 4
     },
     {
+      "name": "Mozart 2.0",
+      "total_score": 1338,
+      "clefs": 0,
+      "rank": 6
+    },
+    {
       "name": "Mozart",
       "total_score": 1328,
       "clefs": 0,
       "rank": 5
-    },
-    {
-      "name": "Mozart 2.0",
-      "total_score": 669,
-      "clefs": 0
     }
   ],
   "weekly": {
@@ -536,13 +537,14 @@
         "rank": 4
       },
       {
+        "name": "Mozart 2.0",
+        "score": 1338,
+        "rank": 6
+      },
+      {
         "name": "Mozart",
         "score": 1328,
         "rank": 5
-      },
-      {
-        "name": "Mozart 2.0",
-        "score": 669
       }
     ]
   }
