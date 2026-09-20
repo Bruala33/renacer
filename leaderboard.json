@@ -607,9 +607,9 @@
         "name": "`pc",
         "score": 81569,
         "stars": 3.5,
-        "combo": 59,
-        "accuracy": 7.019121467485072,
-        "date": "2026-09-20 22:03:41"
+        "combo": 18,
+        "accuracy": 1.2391392456911945,
+        "date": "2026-09-20 22:26:14"
       }
     ],
     "top_aqua_my_oh_my": [
@@ -726,7 +726,7 @@
     },
     {
       "name": "`pc",
-      "total_score": 222198,
+      "total_score": 303767,
       "clefs": 1
     },
     {
@@ -762,7 +762,7 @@
       },
       {
         "name": "`pc",
-        "score": 222198
+        "score": 303767
       },
       {
         "name": "MasterPianist",
