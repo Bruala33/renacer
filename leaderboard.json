@@ -701,13 +701,23 @@
         "accuracy": 90.56613652725963,
         "date": "2026-09-20 22:31:12"
       }
+    ],
+    "top_juanes_a_dios_le_pido": [
+      {
+        "name": "Rocky",
+        "score": 136654,
+        "stars": 3.5,
+        "combo": 97,
+        "accuracy": 8.387576316117363,
+        "date": "2026-09-20 22:31:59"
+      }
     ]
   },
   "global": [
     {
       "name": "Rocky",
-      "total_score": 19920977,
-      "clefs": 190
+      "total_score": 20057631,
+      "clefs": 191
     },
     {
       "name": "Jocomomolo",
@@ -760,7 +770,7 @@
     "players": [
       {
         "name": "Rocky",
-        "score": 19920977
+        "score": 20057631
       },
       {
         "name": "Jocomomolo",
