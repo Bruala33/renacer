@@ -330,8 +330,8 @@
         "score": 661,
         "stars": 5,
         "combo": 1,
-        "accuracy": 99.3920972644377,
-        "date": "2026-09-20 20:03:10"
+        "accuracy": 100,
+        "date": "2026-09-20 20:03:29"
       }
     ],
     "osu_2123424": [
@@ -478,7 +478,7 @@
   "global": [
     {
       "name": "Jocomomolo",
-      "total_score": 17871619,
+      "total_score": 17872280,
       "clefs": 169,
       "rank": 1
     },
@@ -518,7 +518,7 @@
     "players": [
       {
         "name": "Jocomomolo",
-        "score": 2354872,
+        "score": 2355533,
         "rank": 1
       },
       {
