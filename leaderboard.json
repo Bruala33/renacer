@@ -581,6 +581,16 @@
         "accuracy": 74.48266053523598,
         "date": "2026-09-20 20:54:19"
       }
+    ],
+    "osu_590628": [
+      {
+        "name": "Rocky",
+        "score": 1322958,
+        "stars": 5,
+        "combo": 525,
+        "accuracy": 91.60280924199904,
+        "date": "2026-09-20 20:59:03"
+      }
     ]
   },
   "global": [
@@ -591,8 +601,8 @@
     },
     {
       "name": "Rocky",
-      "total_score": 9151744,
-      "clefs": 89
+      "total_score": 10474702,
+      "clefs": 102
     },
     {
       "name": "MasterPianist",
@@ -635,7 +645,7 @@
     "players": [
       {
         "name": "Rocky",
-        "score": 9151744
+        "score": 10474702
       },
       {
         "name": "Jocomomolo",
