@@ -561,6 +561,16 @@
         "accuracy": 8.048266438149941,
         "date": "2026-09-20 20:31:30"
       }
+    ],
+    "top_david_bustamante_no_soy_un_superman": [
+      {
+        "name": "Rocky",
+        "score": 1600448,
+        "stars": 4,
+        "combo": 462,
+        "accuracy": 78.68603571247715,
+        "date": "2026-09-20 20:48:37"
+      }
     ]
   },
   "global": [
@@ -571,8 +581,8 @@
     },
     {
       "name": "Rocky",
-      "total_score": 5888004,
-      "clefs": 57
+      "total_score": 7488452,
+      "clefs": 73
     },
     {
       "name": "MasterPianist",
@@ -615,7 +625,7 @@
     "players": [
       {
         "name": "Rocky",
-        "score": 5888004
+        "score": 7488452
       },
       {
         "name": "Jocomomolo",
