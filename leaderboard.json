@@ -2,6 +2,14 @@
   "songs": {
     "comm_camilo_sesto": [
       {
+        "name": "Jocomomolo",
+        "score": 1374948,
+        "stars": 5,
+        "combo": 586,
+        "accuracy": 94.46509777679148,
+        "date": "2026-09-20 17:39:10"
+      },
+      {
         "name": "MasterPianist",
         "score": 100000,
         "stars": 4,
@@ -169,6 +177,11 @@
   },
   "global": [
     {
+      "name": "Jocomomolo",
+      "total_score": 1375556,
+      "clefs": 13
+    },
+    {
       "name": "MasterPianist",
       "total_score": 600000,
       "clefs": 6
@@ -182,16 +195,15 @@
       "name": "BeatMaster",
       "total_score": 547200,
       "clefs": 0
-    },
-    {
-      "name": "Jocomomolo",
-      "total_score": 608,
-      "clefs": 0
     }
   ],
   "weekly": {
     "week_id": "2026-W38",
     "players": [
+      {
+        "name": "Jocomomolo",
+        "score": 1374948
+      },
       {
         "name": "MasterPianist",
         "score": 100000
@@ -203,10 +215,6 @@
       {
         "name": "BeatMaster",
         "score": 91200
-      },
-      {
-        "name": "Jocomomolo",
-        "score": 608
       }
     ]
   }
