@@ -486,6 +486,14 @@
     ],
     "top_manolo_garcia_a_san_fernando": [
       {
+        "name": "Rocky",
+        "score": 1505994,
+        "stars": 3,
+        "combo": 719,
+        "accuracy": 66.23465898470572,
+        "date": "2026-09-20 20:43:25"
+      },
+      {
         "name": "`pc",
         "score": 130429,
         "stars": 3.5,
@@ -553,6 +561,46 @@
         "accuracy": 8.048266438149941,
         "date": "2026-09-20 20:31:30"
       }
+    ],
+    "top_david_bustamante_no_soy_un_superman": [
+      {
+        "name": "Rocky",
+        "score": 1600448,
+        "stars": 4,
+        "combo": 462,
+        "accuracy": 78.68603571247715,
+        "date": "2026-09-20 20:49:10"
+      }
+    ],
+    "comm_1789937559769_269": [
+      {
+        "name": "Rocky",
+        "score": 31422,
+        "stars": 3,
+        "combo": 40,
+        "accuracy": 74.48266053523598,
+        "date": "2026-09-20 20:54:19"
+      }
+    ],
+    "osu_590628": [
+      {
+        "name": "Rocky",
+        "score": 1322958,
+        "stars": 5,
+        "combo": 525,
+        "accuracy": 91.60280924199904,
+        "date": "2026-09-20 20:59:06"
+      }
+    ],
+    "osu_578013": [
+      {
+        "name": "Rocky",
+        "score": 72342,
+        "stars": 3.5,
+        "combo": 60,
+        "accuracy": 3.2691098000086765,
+        "date": "2026-09-20 21:00:55"
+      }
     ]
   },
   "global": [
@@ -563,8 +611,8 @@
     },
     {
       "name": "Rocky",
-      "total_score": 4382010,
-      "clefs": 42
+      "total_score": 11870002,
+      "clefs": 115
     },
     {
       "name": "MasterPianist",
@@ -607,7 +655,7 @@
     "players": [
       {
         "name": "Rocky",
-        "score": 4382010
+        "score": 11870002
       },
       {
         "name": "Jocomomolo",
