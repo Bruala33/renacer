@@ -681,6 +681,16 @@
         "accuracy": 40.278621524579705,
         "date": "2026-09-20 22:10:27"
       }
+    ],
+    "top_cnco_reggaeton_lento_bailemos": [
+      {
+        "name": "Rocky",
+        "score": 986625,
+        "stars": 2,
+        "combo": 346,
+        "accuracy": 40.40119259529522,
+        "date": "2026-09-20 22:12:54"
+      }
     ]
   },
   "global": [
@@ -691,8 +701,8 @@
     },
     {
       "name": "Rocky",
-      "total_score": 16166832,
-      "clefs": 155
+      "total_score": 17153457,
+      "clefs": 164
     },
     {
       "name": "MasterPianist",
@@ -740,7 +750,7 @@
     "players": [
       {
         "name": "Rocky",
-        "score": 16166832
+        "score": 17153457
       },
       {
         "name": "Jocomomolo",
