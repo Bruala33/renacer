@@ -213,13 +213,23 @@
         "accuracy": 92.756125488731,
         "date": "2026-09-20 18:40:45"
       }
+    ],
+    "top_miguel_bos_morenama": [
+      {
+        "name": "Jocomomolo",
+        "score": 2353550,
+        "stars": 5,
+        "combo": 1135,
+        "accuracy": 95.1661784120707,
+        "date": "2026-09-20 18:47:07"
+      }
     ]
   },
   "global": [
     {
       "name": "Jocomomolo",
-      "total_score": 7373698,
-      "clefs": 70
+      "total_score": 9727248,
+      "clefs": 93
     },
     {
       "name": "MasterPianist",
@@ -242,7 +252,7 @@
     "players": [
       {
         "name": "Jocomomolo",
-        "score": 2266441
+        "score": 2353550
       },
       {
         "name": "MasterPianist",
