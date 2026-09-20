@@ -671,6 +671,16 @@
         "accuracy": 71.07085338481882,
         "date": "2026-09-20 22:07:33"
       }
+    ],
+    "top_chayanne_caprichosa": [
+      {
+        "name": "Rocky",
+        "score": 924920,
+        "stars": 2,
+        "combo": 475,
+        "accuracy": 40.278621524579705,
+        "date": "2026-09-20 22:10:27"
+      }
     ]
   },
   "global": [
@@ -681,8 +691,8 @@
     },
     {
       "name": "Rocky",
-      "total_score": 15241912,
-      "clefs": 146
+      "total_score": 16166832,
+      "clefs": 155
     },
     {
       "name": "MasterPianist",
@@ -730,7 +740,7 @@
     "players": [
       {
         "name": "Rocky",
-        "score": 15241912
+        "score": 16166832
       },
       {
         "name": "Jocomomolo",
