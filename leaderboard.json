@@ -533,6 +533,16 @@
         "accuracy": 1.0927694988714776,
         "date": "2026-09-20 20:24:10"
       }
+    ],
+    "top_glee_total_eclipse_of_the_heart": [
+      {
+        "name": "Layla",
+        "score": 59290,
+        "stars": 3.5,
+        "combo": 6,
+        "accuracy": 0.2446181459779171,
+        "date": "2026-09-20 20:26:30"
+      }
     ]
   },
   "global": [
@@ -558,7 +568,7 @@
     },
     {
       "name": "Layla",
-      "total_score": 226020,
+      "total_score": 285310,
       "clefs": 0
     },
     {
@@ -586,7 +596,7 @@
       },
       {
         "name": "Layla",
-        "score": 226020
+        "score": 285310
       },
       {
         "name": "`pc",
