@@ -632,41 +632,44 @@ class DirectAudioSync {
   }
 
   getCurrentTimeMs() {
+    const rawAudioMs = (this.audioElement && !isNaN(this.audioElement.currentTime) ? this.audioElement.currentTime : 0) * 1000;
     if (!this.isPlaying) {
-      return (this.audioElement.currentTime || 0) * 1000;
+      this._smoothTime = rawAudioMs;
+      this._lastRawAudioMs = rawAudioMs;
+      this._lastSyncPerf = performance.now();
+      return rawAudioMs;
     }
     const nowPerf = performance.now();
 
-    // Muestreo del hardware de audio cada 100ms: elimina el bloqueo de IPC a 120 FPS
+    // Protección antibloqueo: si aún no se inicializó, arrancamos desde el audio real
+    if (typeof this._smoothTime !== 'number' || isNaN(this._smoothTime) || typeof this._lastRawAudioMs !== 'number' || isNaN(this._lastRawAudioMs)) {
+      this._smoothTime = rawAudioMs;
+      this._lastRawAudioMs = rawAudioMs;
+      this._lastSyncPerf = nowPerf;
+      this._lastAudioPollPerf = nowPerf;
+    }
+
+    // Muestreo del hardware de audio cada 100ms para no bloquear la CPU a 120 FPS
     if (!this._lastAudioPollPerf || (nowPerf - this._lastAudioPollPerf > 100)) {
       this._lastAudioPollPerf = nowPerf;
-      const rawAudioMs = (this.audioElement.currentTime || 0) * 1000;
-
-      if (!this._lastSyncPerf) {
-        this._lastSyncPerf = nowPerf;
+      const drift = rawAudioMs - this._smoothTime;
+      if (Math.abs(drift) > 70) {
         this._lastRawAudioMs = rawAudioMs;
+        this._lastSyncPerf = nowPerf;
         this._smoothTime = rawAudioMs;
       } else {
-        const drift = rawAudioMs - this._smoothTime;
-        if (Math.abs(drift) > 70) {
-          this._lastRawAudioMs = rawAudioMs;
-          this._lastSyncPerf = nowPerf;
-          this._smoothTime = rawAudioMs;
-        } else {
-          this._lastRawAudioMs += drift * 0.05;
-        }
+        this._lastRawAudioMs += drift * 0.05;
       }
     }
 
-    const rate = this.playbackRate || this.audioElement.playbackRate || 1.0;
-    const deltaPerf = nowPerf - this._lastSyncPerf;
+    const rate = this.playbackRate || (this.audioElement ? this.audioElement.playbackRate : 1.0) || 1.0;
+    const deltaPerf = nowPerf - (this._lastSyncPerf || nowPerf);
     const targetTime = this._lastRawAudioMs + deltaPerf * rate;
 
-    this._smoothTime = Math.max(this._smoothTime || 0, targetTime);
+    this._smoothTime = Math.max(this._smoothTime, targetTime);
     return this._smoothTime;
   }
 }
-
 // ==========================================
 // HIGH PERFORMANCE ZERO-GC PARTICLE POOL SYSTEM
 // ==========================================
@@ -6138,6 +6141,7 @@ class BeatstarEngine {
     const keyH = y1 - y0;
 
     // 0. HALO AMBIENTAL NEÓN EXTERIOR (Acelerado por GPU pura con 'lighter' sin allocar RadialGradients)
+    // 0. HALO AMBIENTAL NEÓN EXTERIOR
     if (scale > 0.42) {
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
@@ -6150,7 +6154,7 @@ class BeatstarEngine {
       const hy1 = y1 + haloMargin * 0.8;
       const haloRad = r + 4;
       ctx.fillStyle = hexToRgba(glowColor, isPressed ? 0.32 : 0.16);
-      tracePerspectiveQuad(hx0T, hx1T, hx0B, hx1B, hy0, hy1, haloRad);
+      tracePerspectiveQuad(ctx, hx0T, hx1T, hx0B, hx1B, hy0, hy1, haloRad); // <--- AÑADIDO ctx
       ctx.fill();
       ctx.restore();
     }
@@ -6158,7 +6162,7 @@ class BeatstarEngine {
     // 1. Sombra de contacto suave proyectada sobre la pista clara de escenario
     ctx.fillStyle = isPressed ? 'rgba(0, 0, 0, 0.25)' : 'rgba(0, 0, 0, 0.42)';
     const shadowOff = (isLarge ? 6.0 : 3.2) * scale;
-    tracePerspectiveQuad(x0Top, x1Top, x0Bot, x1Bot, y0 + shadowOff, y1 + shadowOff, r);
+    tracePerspectiveQuad(ctx, x0Top, x1Top, x0Bot, x1Bot, y0 + shadowOff, y1 + shadowOff, r); // <--- AÑADIDO ctx
     ctx.fill();
 
     // 2. Cara Frontal en grosor 3D negro mate (#141419)
@@ -6168,19 +6172,19 @@ class BeatstarEngine {
     const x1Bev = this.getLaneBoundaryX(lane + 1, yBevelTop) - margin;
 
     ctx.fillStyle = isPressed ? '#22222a' : '#141419';
-    tracePerspectiveQuad(x0Bev, x1Bev, x0Bot, x1Bot, yBevelTop, y1, r);
+    tracePerspectiveQuad(ctx, x0Bev, x1Bev, x0Bot, x1Bot, yBevelTop, y1, r); // <--- AÑADIDO ctx
     ctx.fill();
 
     // 3. Cara Superior en negro obsidiana pulido (Optimizado GPU: 0 allocs)
     ctx.fillStyle = isPressed ? '#45e69e' : '#1e2230';
-    tracePerspectiveQuad(x0Top, x1Top, x0Bev, x1Bev, y0, yBevelTop, r);
+    tracePerspectiveQuad(ctx, x0Top, x1Top, x0Bev, x1Bev, y0, yBevelTop, r); // <--- AÑADIDO ctx
     ctx.fill();
 
     // 4. Borde metálico (#4e4e60)
     ctx.save();
     ctx.strokeStyle = isPressed ? '#ffffff' : '#4e4e60';
     ctx.lineWidth = Math.max(1.1, (isPressed ? 2.0 : 1.5) * scale);
-    tracePerspectiveQuad(x0Top, x1Top, x0Bot, x1Bot, y0, y1, r);
+    tracePerspectiveQuad(ctx, x0Top, x1Top, x0Bot, x1Bot, y0, y1, r); // <--- AÑADIDO ctx
     ctx.stroke();
 
     // Destello de bisel reflectante superior
