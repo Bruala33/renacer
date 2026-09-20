@@ -315,7 +315,7 @@
         "stars": 5,
         "combo": 1,
         "accuracy": 100,
-        "date": "2026-09-20 19:57:12"
+        "date": "2026-09-20 19:57:26"
       },
       {
         "name": "Jocomomolo",
@@ -494,8 +494,9 @@
     },
     {
       "name": "Mozart",
-      "total_score": 664,
-      "clefs": 0
+      "total_score": 1328,
+      "clefs": 0,
+      "rank": 5
     }
   ],
   "weekly": {
@@ -523,7 +524,8 @@
       },
       {
         "name": "Mozart",
-        "score": 664
+        "score": 1328,
+        "rank": 5
       }
     ]
   }
