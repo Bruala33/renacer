@@ -1256,22 +1256,6 @@ app.get([
     total_participants: weeklyScores.length
   });
 });
-  const weeklyScores = Array.from(playerWeeklyMap.values());
-  weeklyScores.sort((a, b) => b.score - a.score);
-  weeklyScores.forEach((s, idx) => (s.rank = idx + 1));
-  const topWeekly = weeklyScores.slice(0, 50);
-
-  res.json({
-    success: true,
-    weekly_leaderboard: topWeekly,
-    leaderboard: topWeekly,
-    week_start: monday.toISOString(),
-    week_end: sundayEnd.toISOString(),
-    current_time: now.toISOString(),
-    time_remaining_ms: Math.max(0, sundayMs - now.getTime()),
-    total_participants: weeklyScores.length
-  });
-});
 
 // Creator profile & follow
 app.get('/api/v1/community/creators/:id', (req, res) => {
