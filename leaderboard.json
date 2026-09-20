@@ -1,0 +1,361 @@
+{
+  "songs": {
+    "comm_camilo_sesto": [
+      {
+        "name": "Jocomomolo",
+        "score": 1374948,
+        "stars": 5,
+        "combo": 586,
+        "accuracy": 94.46509777679148,
+        "date": "2026-09-20 17:39:17"
+      },
+      {
+        "name": "MasterPianist",
+        "score": 100000,
+        "stars": 4,
+        "combo": 404,
+        "accuracy": 99.8,
+        "date": "2026-02-01 10:00:00"
+      },
+      {
+        "name": "RhythmHero",
+        "score": 95400,
+        "stars": 4,
+        "combo": 363,
+        "accuracy": 98.2,
+        "date": "2026-02-02 11:30:00"
+      },
+      {
+        "name": "BeatMaster",
+        "score": 91200,
+        "stars": 4,
+        "combo": 343,
+        "accuracy": 96.5,
+        "date": "2026-02-03 14:00:00"
+      }
+    ],
+    "comm_renacer": [
+      {
+        "name": "MasterPianist",
+        "score": 100000,
+        "stars": 3.5,
+        "combo": 130,
+        "accuracy": 99.8,
+        "date": "2026-02-01 10:00:00"
+      },
+      {
+        "name": "RhythmHero",
+        "score": 95400,
+        "stars": 3.5,
+        "combo": 117,
+        "accuracy": 98.2,
+        "date": "2026-02-02 11:30:00"
+      },
+      {
+        "name": "BeatMaster",
+        "score": 91200,
+        "stars": 3.5,
+        "combo": 110,
+        "accuracy": 96.5,
+        "date": "2026-02-03 14:00:00"
+      }
+    ],
+    "comm_impuestos": [
+      {
+        "name": "MasterPianist",
+        "score": 100000,
+        "stars": 5.5,
+        "combo": 250,
+        "accuracy": 99.8,
+        "date": "2026-02-01 10:00:00"
+      },
+      {
+        "name": "RhythmHero",
+        "score": 95400,
+        "stars": 5.5,
+        "combo": 225,
+        "accuracy": 98.2,
+        "date": "2026-02-02 11:30:00"
+      },
+      {
+        "name": "BeatMaster",
+        "score": 91200,
+        "stars": 5.5,
+        "combo": 212,
+        "accuracy": 96.5,
+        "date": "2026-02-03 14:00:00"
+      }
+    ],
+    "comm_cyber_frenzy": [
+      {
+        "name": "MasterPianist",
+        "score": 100000,
+        "stars": 6,
+        "combo": 120,
+        "accuracy": 99.8,
+        "date": "2026-02-01 10:00:00"
+      },
+      {
+        "name": "RhythmHero",
+        "score": 95400,
+        "stars": 6,
+        "combo": 108,
+        "accuracy": 98.2,
+        "date": "2026-02-02 11:30:00"
+      },
+      {
+        "name": "BeatMaster",
+        "score": 91200,
+        "stars": 6,
+        "combo": 102,
+        "accuracy": 96.5,
+        "date": "2026-02-03 14:00:00"
+      }
+    ],
+    "comm_galaxy_anthem": [
+      {
+        "name": "MasterPianist",
+        "score": 100000,
+        "stars": 4.5,
+        "combo": 120,
+        "accuracy": 99.8,
+        "date": "2026-02-01 10:00:00"
+      },
+      {
+        "name": "RhythmHero",
+        "score": 95400,
+        "stars": 4.5,
+        "combo": 108,
+        "accuracy": 98.2,
+        "date": "2026-02-02 11:30:00"
+      },
+      {
+        "name": "BeatMaster",
+        "score": 91200,
+        "stars": 4.5,
+        "combo": 102,
+        "accuracy": 96.5,
+        "date": "2026-02-03 14:00:00"
+      }
+    ],
+    "comm_moonlight_flow": [
+      {
+        "name": "MasterPianist",
+        "score": 100000,
+        "stars": 2.5,
+        "combo": 95,
+        "accuracy": 99.8,
+        "date": "2026-02-01 10:00:00"
+      },
+      {
+        "name": "RhythmHero",
+        "score": 95400,
+        "stars": 2.5,
+        "combo": 85,
+        "accuracy": 98.2,
+        "date": "2026-02-02 11:30:00"
+      },
+      {
+        "name": "BeatMaster",
+        "score": 91200,
+        "stars": 2.5,
+        "combo": 80,
+        "accuracy": 96.5,
+        "date": "2026-02-03 14:00:00"
+      }
+    ],
+    "comm_1788622108_2296": [
+      {
+        "name": "Jocomomolo",
+        "score": 661,
+        "stars": 5,
+        "combo": 1,
+        "accuracy": 100,
+        "date": "2026-09-20 17:39:58"
+      }
+    ],
+    "osu_2123424": [
+      {
+        "name": "Jocomomolo",
+        "score": 382800,
+        "stars": 1,
+        "combo": 210,
+        "accuracy": 20.32640122340722,
+        "date": "2026-09-20 18:22:44"
+      }
+    ],
+    "top_melendi_tu_jardn_con_enanitos": [
+      {
+        "name": "Jocomomolo",
+        "score": 2266441,
+        "stars": 5,
+        "combo": 808,
+        "accuracy": 90.37242462787442,
+        "date": "2026-09-20 18:30:06"
+      }
+    ],
+    "top_tom_jones_sex_bomb": [
+      {
+        "name": "Jocomomolo",
+        "score": 1551302,
+        "stars": 5,
+        "combo": 710,
+        "accuracy": 99.94111644255696,
+        "date": "2026-09-20 18:35:38"
+      }
+    ],
+    "top_caf_quijano_la_lola": [
+      {
+        "name": "Jocomomolo",
+        "score": 1797546,
+        "stars": 5,
+        "combo": 612,
+        "accuracy": 92.756125488731,
+        "date": "2026-09-20 18:40:45"
+      }
+    ],
+    "top_miguel_bos_morenama": [
+      {
+        "name": "Jocomomolo",
+        "score": 2353550,
+        "stars": 5,
+        "combo": 1135,
+        "accuracy": 95.1661784120707,
+        "date": "2026-09-20 18:47:19"
+      }
+    ],
+    "top_michael_jackson_thriller_videoclip": [
+      {
+        "name": "Jocomomolo",
+        "score": 1063425,
+        "stars": 3.5,
+        "combo": 401,
+        "accuracy": 10.380113676849689,
+        "date": "2026-09-20 18:50:03"
+      }
+    ],
+    "top_el_koala_opa_yo_viaze_un_corra": [
+      {
+        "name": "Jocomomolo",
+        "score": 1456460,
+        "stars": 5,
+        "combo": 585,
+        "accuracy": 91.80999568200657,
+        "date": "2026-09-20 18:53:28"
+      }
+    ],
+    "top_los_chichos_ni_mas_ni_menos": [
+      {
+        "name": "Jocomomolo",
+        "score": 1541689,
+        "stars": 5,
+        "combo": 736,
+        "accuracy": 97.69149367601958,
+        "date": "2026-09-20 18:58:34"
+      }
+    ],
+    "osu_1359860": [
+      {
+        "name": "Jocomomolo",
+        "score": 970883,
+        "stars": 3.5,
+        "combo": 85,
+        "accuracy": 7.897167928051428,
+        "date": "2026-09-20 19:04:15"
+      }
+    ],
+    "osu_1859754": [
+      {
+        "name": "Jocomomolo",
+        "score": 123750,
+        "stars": 3.5,
+        "combo": 93,
+        "accuracy": 3.8946324883161028,
+        "date": "2026-09-20 19:05:23"
+      }
+    ],
+    "top_mecano_ay_que_pesado": [
+      {
+        "name": "Jocomomolo",
+        "score": 1236245,
+        "stars": 5,
+        "combo": 323,
+        "accuracy": 93.0826072421385,
+        "date": "2026-09-20 19:09:25"
+      }
+    ],
+    "top_la_unin_lobohombre_en_pars": [
+      {
+        "name": "Jocomomolo",
+        "score": 1481047,
+        "stars": 4,
+        "combo": 706,
+        "accuracy": 81.63546868626737,
+        "date": "2026-09-20 19:13:27"
+      }
+    ],
+    "osu_2069233": [
+      {
+        "name": "Jocomomolo",
+        "score": 171600,
+        "stars": 3.5,
+        "combo": 116,
+        "accuracy": 8.152503117762338,
+        "date": "2026-09-20 19:14:28"
+      }
+    ],
+    "top_el_canto_del_loco_la_madre_de_jos": [
+      {
+        "name": "Jocomomolo",
+        "score": 97950,
+        "stars": 3.5,
+        "combo": 88,
+        "accuracy": 4.505778851129895,
+        "date": "2026-09-20 19:16:08"
+      }
+    ]
+  },
+  "global": [
+    {
+      "name": "Jocomomolo",
+      "total_score": 17870297,
+      "clefs": 169
+    },
+    {
+      "name": "MasterPianist",
+      "total_score": 600000,
+      "clefs": 6
+    },
+    {
+      "name": "RhythmHero",
+      "total_score": 572400,
+      "clefs": 0
+    },
+    {
+      "name": "BeatMaster",
+      "total_score": 547200,
+      "clefs": 0
+    }
+  ],
+  "weekly": {
+    "week_id": "2026-W38",
+    "players": [
+      {
+        "name": "Jocomomolo",
+        "score": 2353550
+      },
+      {
+        "name": "MasterPianist",
+        "score": 100000
+      },
+      {
+        "name": "RhythmHero",
+        "score": 95400
+      },
+      {
+        "name": "BeatMaster",
+        "score": 91200
+      }
+    ]
+  }
+}
