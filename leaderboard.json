@@ -303,12 +303,22 @@
         "accuracy": 8.152503117762338,
         "date": "2026-09-20 19:14:28"
       }
+    ],
+    "top_el_canto_del_loco_la_madre_de_jos": [
+      {
+        "name": "Jocomomolo",
+        "score": 64500,
+        "stars": 3.5,
+        "combo": 55,
+        "accuracy": 2.96705192340866,
+        "date": "2026-09-20 19:15:35"
+      }
     ]
   },
   "global": [
     {
       "name": "Jocomomolo",
-      "total_score": 17772347,
+      "total_score": 17836847,
       "clefs": 169
     },
     {
