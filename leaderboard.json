@@ -233,13 +233,23 @@
         "accuracy": 10.380113676849689,
         "date": "2026-09-20 18:50:03"
       }
+    ],
+    "top_el_koala_opa_yo_viaze_un_corra": [
+      {
+        "name": "Jocomomolo",
+        "score": 1456460,
+        "stars": 5,
+        "combo": 585,
+        "accuracy": 91.80999568200657,
+        "date": "2026-09-20 18:53:19"
+      }
     ]
   },
   "global": [
     {
       "name": "Jocomomolo",
-      "total_score": 10790673,
-      "clefs": 103
+      "total_score": 12247133,
+      "clefs": 117
     },
     {
       "name": "MasterPianist",
