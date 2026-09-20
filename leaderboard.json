@@ -177,19 +177,19 @@
     "osu_2123424": [
       {
         "name": "Jocomomolo",
-        "score": 208200,
-        "stars": 3.5,
-        "combo": 70,
-        "accuracy": 7.189809946594424,
-        "date": "2026-09-20 18:21:47"
+        "score": 382800,
+        "stars": 1,
+        "combo": 210,
+        "accuracy": 20.32640122340722,
+        "date": "2026-09-20 18:22:44"
       }
     ]
   },
   "global": [
     {
       "name": "Jocomomolo",
-      "total_score": 1583809,
-      "clefs": 15
+      "total_score": 1758409,
+      "clefs": 16
     },
     {
       "name": "MasterPianist",
