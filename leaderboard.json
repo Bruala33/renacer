@@ -699,15 +699,15 @@
         "stars": 5,
         "combo": 428,
         "accuracy": 90.56613652725963,
-        "date": "2026-09-20 22:31:05"
+        "date": "2026-09-20 22:31:12"
       }
     ]
   },
   "global": [
     {
       "name": "Rocky",
-      "total_score": 18537217,
-      "clefs": 177
+      "total_score": 19920977,
+      "clefs": 190
     },
     {
       "name": "Jocomomolo",
@@ -760,7 +760,7 @@
     "players": [
       {
         "name": "Rocky",
-        "score": 18537217
+        "score": 19920977
       },
       {
         "name": "Jocomomolo",
