@@ -24,8 +24,11 @@ const GITHUB_LEADERBOARD_FILE = path.join(__dirname, 'leaderboard.json');
 
 // GitHub API Persistence Configuration
 const GITHUB_REPO = process.env.GITHUB_REPOSITORY || 'Bruala33/renacer';
+const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'version-estable';
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
+const GITHUB_COMMUNITY_FILE = path.join(__dirname, 'community_charts.json');
 let githubLeaderboardSha = null;
+let githubCommunitySha = null;
 let isSyncingToGithub = false;
 let pendingGithubSync = false;
 
@@ -45,7 +48,10 @@ function getIsoWeekId(date = new Date()) {
   return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 }
 
-// Build consolidated leaderboard payload for GitHub persistence
+// Mapas permanentes para acumuladores de puntos
+const playerGlobalAccumulator = new Map();
+const playerWeeklyAccumulator = new Map();
+
 function buildConsolidatedLeaderboardJson() {
   const songsObj = {};
   for (const [id, scores] of chartScores.entries()) {
@@ -59,41 +65,15 @@ function buildConsolidatedLeaderboardJson() {
     }));
   }
 
-  const playerGlobalMap = new Map();
-  chartScores.forEach((scores) => {
-    scores.forEach((s) => {
-      const pKey = (s.player_name || 'Jugador').trim().toLowerCase();
-      const existing = playerGlobalMap.get(pKey);
-      if (!existing) {
-        playerGlobalMap.set(pKey, {
-          name: s.player_name || 'Jugador',
-          total_score: s.score || 0,
-          clefs: Math.floor((s.score || 0) * 0.00001)
-        });
-      } else {
-        existing.total_score += (s.score || 0);
-        existing.clefs += Math.floor((s.score || 0) * 0.00001);
-      }
-    });
-  });
-  const globalList = Array.from(playerGlobalMap.values())
+  // 1. Global: Ranking acumulativo por puntos totales conseguidos
+  const globalList = Array.from(playerGlobalAccumulator.values())
     .sort((a, b) => b.total_score - a.total_score)
     .slice(0, 50);
 
+  // 2. Semanal: Ranking acumulativo por puntos conseguidos esta semana
   const currentWeek = getIsoWeekId();
-  const playerWeeklyMap = new Map();
-  chartScores.forEach((scores) => {
-    scores.forEach((s) => {
-      const pKey = (s.player_name || 'Jugador').trim().toLowerCase();
-      if (!playerWeeklyMap.has(pKey) || (s.score || 0) > (playerWeeklyMap.get(pKey).score || 0)) {
-        playerWeeklyMap.set(pKey, {
-          name: s.player_name || 'Jugador',
-          score: s.score || 0
-        });
-      }
-    });
-  });
-  const weeklyList = Array.from(playerWeeklyMap.values())
+  const currentWeekData = playerWeeklyAccumulator.get(currentWeek) || new Map();
+  const weeklyList = Array.from(currentWeekData.values())
     .sort((a, b) => b.score - a.score)
     .slice(0, 50);
 
@@ -130,7 +110,8 @@ async function syncLeaderboardToGithub() {
     const apiUrl = `https://api.github.com/repos/${GITHUB_REPO}/contents/leaderboard.json`;
     const payload = {
       message: `Update online leaderboards [skip ci]`,
-      content: base64Content
+      content: base64Content,
+      branch: GITHUB_BRANCH
     };
     if (githubLeaderboardSha) {
       payload.sha = githubLeaderboardSha;
@@ -169,7 +150,7 @@ async function syncLeaderboardToGithub() {
 async function loadLeaderboardFromGithub() {
   if (GITHUB_TOKEN) {
     try {
-      const apiUrl = `https://api.github.com/repos/${GITHUB_REPO}/contents/leaderboard.json`;
+      const apiUrl = `https://api.github.com/repos/${GITHUB_REPO}/contents/leaderboard.json?ref=${GITHUB_BRANCH}`;
       const res = await fetch(apiUrl, {
         headers: {
           'Authorization': `token ${GITHUB_TOKEN}`,
@@ -233,6 +214,23 @@ function applyLeaderboardJson(data) {
       combined.forEach((c, i) => (c.rank = i + 1));
       chartScores.set(id, combined.slice(0, 50));
     }
+  }
+// Restaurar acumulador Global
+  if (Array.isArray(data.global)) {
+    data.global.forEach(p => {
+      const key = (p.name || '').trim().toLowerCase();
+      if (key) playerGlobalAccumulator.set(key, { name: p.name, total_score: p.total_score || 0, clefs: p.clefs || 0 });
+    });
+  }
+
+  // Restaurar acumulador Semanal
+  if (data.weekly && data.weekly.week_id && Array.isArray(data.weekly.players)) {
+    const weekMap = new Map();
+    data.weekly.players.forEach(p => {
+      const key = (p.name || '').trim().toLowerCase();
+      if (key) weekMap.set(key, { name: p.name, score: p.score || 0 });
+    });
+    playerWeeklyAccumulator.set(data.weekly.week_id, weekMap);
   }
 }
 
@@ -427,28 +425,28 @@ function seedCommunityCharts() {
     chartScores.set(item.id, [
       {
         rank: 1,
-        player_name: 'MasterPianist',
-        score: 100000,
+        player_name: 'killer',
+        score: 121983,
         max_combo: item.notes_count,
         stars: item.stars,
-        accuracy_pct: 99.8,
+        accuracy_pct: 96.8,
         medal_tier: 'diamond',
         created_at: '2026-02-01 10:00:00',
       },
       {
         rank: 2,
-        player_name: 'RhythmHero',
-        score: 95400,
+        player_name: 'Fernando',
+        score: 954032,
         max_combo: Math.floor(item.notes_count * 0.9),
         stars: item.stars,
-        accuracy_pct: 98.2,
+        accuracy_pct: 88.2,
         medal_tier: 'platinum',
         created_at: '2026-02-02 11:30:00',
       },
       {
         rank: 3,
-        player_name: 'BeatMaster',
-        score: 91200,
+        player_name: 'Lidia',
+        score: 9122233,
         max_combo: Math.floor(item.notes_count * 0.85),
         stars: item.stars,
         accuracy_pct: 96.5,
@@ -901,6 +899,7 @@ app.post('/api/v1/community/charts/publish', (req, res) => {
     };
 
     communityCharts.set(newId, newChart);
+    syncCommunityChartsToGithub().catch(() => {});
     res.json({ success: true, chart_id: newId, chart: newChart });
   } catch (err) {
     res.status(500).json({ error: `Error publicando pista: ${err.message}` });
@@ -1169,6 +1168,24 @@ app.post('/api/v1/community/charts/:id/score', (req, res) => {
 
   const isRecord = newEntry.rank === 1;
   chartScores.set(id, currentScores.slice(0, 50));
+
+  // 1. Sumar puntuación al acumulador Global
+  const pKey = cleanName.toLowerCase();
+  const globalData = playerGlobalAccumulator.get(pKey) || { name: cleanName, total_score: 0, clefs: 0 };
+  globalData.total_score += parsedScore;
+  globalData.clefs += Math.floor(parsedScore * 0.00001);
+  playerGlobalAccumulator.set(pKey, globalData);
+
+  // 2. Sumar puntuación al torneo Semanal
+  const curWeek = getIsoWeekId();
+  if (!playerWeeklyAccumulator.has(curWeek)) {
+    playerWeeklyAccumulator.set(curWeek, new Map());
+  }
+  const weekMap = playerWeeklyAccumulator.get(curWeek);
+  const weeklyData = weekMap.get(pKey) || { name: cleanName, score: 0 };
+  weeklyData.score += parsedScore;
+  weekMap.set(pKey, weeklyData);
+
   saveScoresToDisk();
   syncLeaderboardToGithub().catch(() => {});
 
@@ -1197,69 +1214,48 @@ app.get([
   });
 });
 
-// Global Leaderboard (Compatible con /leaderboard/global y /community/leaderboard/global)
+// Global Leaderboard (Suma acumulada de todos los tiempos)
 app.get([
   '/api/v1/leaderboard/global',
   '/api/v1/leaderboards/global',
   '/api/v1/community/leaderboard/global',
   '/api/v1/community/leaderboards/global'
 ], (req, res) => {
-  const playerMap = new Map();
-  chartScores.forEach((scores) => {
-    scores.forEach((s) => {
-      const pKey = (s.player_name || 'Jugador').trim().toLowerCase();
-      if (!playerMap.has(pKey) || (s.score || 0) > (playerMap.get(pKey).score || 0)) {
-        playerMap.set(pKey, s);
-      }
-    });
-  });
-  const allScores = Array.from(playerMap.values());
-  allScores.sort((a, b) => b.score - a.score);
-  allScores.forEach((s, idx) => (s.rank = idx + 1));
-  const topScores = allScores.slice(0, 50);
+  const globalScores = Array.from(playerGlobalAccumulator.values())
+    .sort((a, b) => b.total_score - a.total_score)
+    .slice(0, 50);
+  globalScores.forEach((s, idx) => (s.rank = idx + 1));
 
   res.json({
     success: true,
-    global_leaderboard: topScores,
-    leaderboard: topScores,
-    total: allScores.length
+    global_leaderboard: globalScores,
+    leaderboard: globalScores,
+    total: globalScores.length
   });
 });
 
-// Weekly Leaderboard (Torneo Semanal: Lunes 00:00:00 a Domingo 23:59:59 UTC)
+// Weekly Leaderboard (Suma acumulada del torneo semanal)
 app.get([
   '/api/v1/leaderboard/weekly',
   '/api/v1/leaderboards/weekly',
   '/api/v1/community/leaderboard/weekly',
   '/api/v1/community/leaderboards/weekly'
 ], (req, res) => {
-  const now = new Date();
-  const day = now.getUTCDay(); // 0 es Domingo, 1 es Lunes
-  const diffToMonday = (day === 0 ? -6 : 1) - day;
-  const monday = new Date(now);
-  monday.setUTCDate(now.getUTCDate() + diffToMonday);
-  monday.setUTCHours(0, 0, 0, 0);
+  const currentWeek = getIsoWeekId();
+  const weekMap = playerWeeklyAccumulator.get(currentWeek) || new Map();
+  const weeklyScores = Array.from(weekMap.values())
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 50);
+  weeklyScores.forEach((s, idx) => (s.rank = idx + 1));
 
-  const sundayEnd = new Date(monday);
-  sundayEnd.setUTCDate(monday.getUTCDate() + 6);
-  sundayEnd.setUTCHours(23, 59, 59, 999);
-
-  const mondayMs = monday.getTime();
-  const sundayMs = sundayEnd.getTime();
-
-  const playerWeeklyMap = new Map();
-  chartScores.forEach((scores, cId) => {
-    scores.forEach(s => {
-      const sTime = s.timestamp || (s.created_at ? new Date(s.created_at).getTime() : 0);
-      if (sTime >= mondayMs && sTime <= sundayMs) {
-        const pKey = (s.player_name || 'Jugador').trim().toLowerCase();
-        if (!playerWeeklyMap.has(pKey) || (s.score || 0) > (playerWeeklyMap.get(pKey).score || 0)) {
-          playerWeeklyMap.set(pKey, { ...s, chart_id: s.chart_id || cId });
-        }
-      }
-    });
+  res.json({
+    success: true,
+    weekly_leaderboard: weeklyScores,
+    leaderboard: weeklyScores,
+    week_id: currentWeek,
+    total_participants: weeklyScores.length
   });
-
+});
   const weeklyScores = Array.from(playerWeeklyMap.values());
   weeklyScores.sort((a, b) => b.score - a.score);
   weeklyScores.forEach((s, idx) => (s.rank = idx + 1));
@@ -1494,3 +1490,72 @@ app.use((req, res) => {
 app.listen(PORT, HOST, () => {
   console.log(`Piano Community Rhythm Engine server running at http://${HOST}:${PORT}`);
 });
+
+// =======================================================
+// PERSISTENCIA DE CANCIONES COMUNITARIAS EN GITHUB
+// =======================================================
+async function syncCommunityChartsToGithub() {
+  if (!GITHUB_TOKEN) return;
+  try {
+    const list = Array.from(communityCharts.values()).filter(c => !c.id.startsWith('comm_camilo') && !c.id.startsWith('comm_renacer'));
+    const jsonStr = JSON.stringify(list, null, 2);
+    const base64Content = Buffer.from(jsonStr).toString('base64');
+    const apiUrl = `https://api.github.com/repos/${GITHUB_REPO}/contents/community_charts.json`;
+    
+    const payload = {
+      message: `Update community charts [skip ci]`,
+      content: base64Content,
+      branch: GITHUB_BRANCH
+    };
+    if (githubCommunitySha) payload.sha = githubCommunitySha;
+
+    const res = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'Renacer-Leaderboard-Service',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      githubCommunitySha = data?.content?.sha || githubCommunitySha;
+      console.log('[Server] Community charts persisted to GitHub.');
+    }
+  } catch (err) {
+    console.warn('[Server] Error saving community charts to GitHub:', err.message);
+  }
+}
+
+async function loadCommunityChartsFromGithub() {
+  if (!GITHUB_TOKEN) return;
+  try {
+    const apiUrl = `https://api.github.com/repos/${GITHUB_REPO}/contents/community_charts.json?ref=${GITHUB_BRANCH}`;
+    const res = await fetch(apiUrl, {
+      headers: {
+        'Authorization': `token ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'Renacer-Leaderboard-Service'
+      }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      githubCommunitySha = data.sha;
+      if (data.content) {
+        const raw = Buffer.from(data.content, 'base64').toString('utf-8');
+        const list = JSON.parse(raw);
+        if (Array.isArray(list)) {
+          list.forEach(c => communityCharts.set(c.id, c));
+          console.log(`[Server] Loaded ${list.length} community charts from GitHub.`);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Server] Could not load community charts from GitHub:', err.message);
+  }
+}
+
+// Cargar canciones comunitarias al arrancar
+loadCommunityChartsFromGithub().catch(() => {});
