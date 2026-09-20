@@ -551,7 +551,7 @@
         "stars": 5,
         "combo": 674,
         "accuracy": 98.86700297615623,
-        "date": "2026-09-20 20:30:42"
+        "date": "2026-09-20 20:30:46"
       }
     ]
   },
@@ -563,8 +563,8 @@
     },
     {
       "name": "Rocky",
-      "total_score": 1460670,
-      "clefs": 14
+      "total_score": 2921340,
+      "clefs": 28
     },
     {
       "name": "MasterPianist",
@@ -606,12 +606,12 @@
     "week_id": "2026-W38",
     "players": [
       {
-        "name": "Jocomomolo",
-        "score": 2356194
+        "name": "Rocky",
+        "score": 2921340
       },
       {
-        "name": "Rocky",
-        "score": 1460670
+        "name": "Jocomomolo",
+        "score": 2356194
       },
       {
         "name": "Layla",
