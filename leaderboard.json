@@ -223,13 +223,23 @@
         "accuracy": 95.1661784120707,
         "date": "2026-09-20 18:47:19"
       }
+    ],
+    "top_michael_jackson_thriller_videoclip": [
+      {
+        "name": "Jocomomolo",
+        "score": 1063425,
+        "stars": 3.5,
+        "combo": 401,
+        "accuracy": 10.380113676849689,
+        "date": "2026-09-20 18:50:03"
+      }
     ]
   },
   "global": [
     {
       "name": "Jocomomolo",
-      "total_score": 9727248,
-      "clefs": 93
+      "total_score": 10790673,
+      "clefs": 103
     },
     {
       "name": "MasterPianist",
