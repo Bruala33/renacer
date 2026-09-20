@@ -243,13 +243,23 @@
         "accuracy": 91.80999568200657,
         "date": "2026-09-20 18:53:28"
       }
+    ],
+    "top_los_chichos_ni_mas_ni_menos": [
+      {
+        "name": "Jocomomolo",
+        "score": 1541689,
+        "stars": 5,
+        "combo": 736,
+        "accuracy": 97.69149367601958,
+        "date": "2026-09-20 18:58:29"
+      }
     ]
   },
   "global": [
     {
       "name": "Jocomomolo",
-      "total_score": 12247133,
-      "clefs": 117
+      "total_score": 13788822,
+      "clefs": 132
     },
     {
       "name": "MasterPianist",
