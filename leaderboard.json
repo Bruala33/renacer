@@ -483,6 +483,16 @@
         "accuracy": 99.85915492957747,
         "date": "2026-09-20 20:13:46"
       }
+    ],
+    "top_manolo_garcia_a_san_fernando": [
+      {
+        "name": "`pc",
+        "score": 130429,
+        "stars": 3.5,
+        "combo": 71,
+        "accuracy": 9.494549491346522,
+        "date": "2026-09-20 20:21:56"
+      }
     ]
   },
   "global": [
@@ -507,6 +517,11 @@
       "clefs": 0
     },
     {
+      "name": "`pc",
+      "total_score": 130429,
+      "clefs": 1
+    },
+    {
       "name": "Mozart 2.0",
       "total_score": 2756,
       "clefs": 0
@@ -523,6 +538,10 @@
       {
         "name": "Jocomomolo",
         "score": 2356194
+      },
+      {
+        "name": "`pc",
+        "score": 130429
       },
       {
         "name": "MasterPianist",
