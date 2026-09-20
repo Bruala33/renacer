@@ -611,6 +611,16 @@
         "accuracy": 0.8777236323645962,
         "date": "2026-09-20 21:28:52"
       }
+    ],
+    "top_aqua_my_oh_my": [
+      {
+        "name": "Rocky",
+        "score": 280314,
+        "stars": 1,
+        "combo": 153,
+        "accuracy": 24.23371092692989,
+        "date": "2026-09-20 21:32:23"
+      }
     ]
   },
   "global": [
@@ -621,8 +631,8 @@
     },
     {
       "name": "Rocky",
-      "total_score": 11870002,
-      "clefs": 115
+      "total_score": 12150316,
+      "clefs": 117
     },
     {
       "name": "MasterPianist",
@@ -665,7 +675,7 @@
     "players": [
       {
         "name": "Rocky",
-        "score": 11870002
+        "score": 12150316
       },
       {
         "name": "Jocomomolo",
