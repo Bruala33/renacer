@@ -18,6 +18,14 @@
         "date": "2026-09-20 17:39:17"
       },
       {
+        "name": "Rocky",
+        "score": 1374948,
+        "stars": 3.5,
+        "combo": 156,
+        "accuracy": 17.790889647539107,
+        "date": "2026-09-21 20:12:16"
+      },
+      {
         "name": "Fernando",
         "score": 954032,
         "stars": 4,
@@ -826,8 +834,8 @@
   "global": [
     {
       "name": "Rocky",
-      "total_score": 22636305,
-      "clefs": 213
+      "total_score": 24011253,
+      "clefs": 226
     },
     {
       "name": "Jocomomolo",
@@ -885,7 +893,7 @@
     "players": [
       {
         "name": "Rocky",
-        "score": 2171124
+        "score": 3546072
       },
       {
         "name": "Layla",
