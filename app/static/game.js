@@ -6461,72 +6461,81 @@ class BeatstarEngine {
       ctx.stroke();
       ctx.restore();
 
-     // 4. BARITAS DE RITMO DE BORDES: ESPECTRO NEÓN DINÁMICO CONTINUO (1 solo stroke masivo)
-      const numLines = 36;
+     // 4. BARRAS DE RITMO LATERALES ESTILO BEATSTAR (Horizontales, espaciadas y definidas)
+      const numLines = 26; // 26 barras con separación limpia (no serrucho apretado)
       const bpmSpeed = (normBpm / 60) * Math.PI * 2;
 
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       ctx.lineCap = 'round';
 
-      // Ciclo cromático continuo y suave (rota los colores con el tiempo sin saturar la CPU)
+      // Espectro neón continuo
       const hueShift = (currentTime * 0.04) % 360;
-      const sideSpectrumGrad = ctx.createLinearGradient(0, horizonY, 0, bottomY);
-      sideSpectrumGrad.addColorStop(0.00, `hsl(${hueShift}, 100%, 65%)`);
-      sideSpectrumGrad.addColorStop(0.25, `hsl(${(hueShift + 90) % 360}, 100%, 65%)`);
-      sideSpectrumGrad.addColorStop(0.50, `hsl(${(hueShift + 180) % 360}, 100%, 65%)`);
-      sideSpectrumGrad.addColorStop(0.75, `hsl(${(hueShift + 270) % 360}, 100%, 65%)`);
-      sideSpectrumGrad.addColorStop(1.00, `hsl(${hueShift}, 100%, 65%)`);
+      const sideGrad = ctx.createLinearGradient(0, horizonY, 0, bottomY);
+      sideGrad.addColorStop(0.00, `hsl(${hueShift}, 100%, 65%)`);
+      sideGrad.addColorStop(0.30, `hsl(${(hueShift + 70) % 360}, 100%, 60%)`);
+      sideGrad.addColorStop(0.65, `hsl(${(hueShift + 160) % 360}, 100%, 60%)`);
+      sideGrad.addColorStop(1.00, `hsl(${(hueShift + 240) % 360}, 100%, 65%)`);
 
-      ctx.strokeStyle = sideSpectrumGrad;
-      ctx.lineWidth = Math.max(2.8, 4.2 * (1.0 + beatPulse * 0.35));
+      const beatGlow = 1.0 + beatPulse * 0.35;
+
+      // 1. PASADA EXTERIOR: Tubo neón grueso y visible
+      ctx.strokeStyle = sideGrad;
+      ctx.lineWidth = Math.max(3.8, 5.2 * (1.0 + beatPulse * 0.25));
 
       ctx.beginPath();
       for (let s = 0; s < numLines; s++) {
         const pNorm = s / (numLines - 1);
-        const p = Math.pow(pNorm, 1.25);
+        const p = Math.pow(pNorm, 1.30); // Distribución natural en profundidad
         const yCenter = horizonY + (bottomY - horizonY) * p;
 
-        // Onda senoidal sincronizada al BPM
-        const wavePhase = p * 14.0 - audioTime * bpmSpeed;
+        // Onda senoidal rítmica al compás
+        const wavePhase = p * 12.0 - audioTime * bpmSpeed;
         const sineVal = 0.5 + 0.5 * Math.sin(wavePhase);
 
-        const baseLength = 16 + 54 * p;
-        const ribLength = baseLength * (0.35 + 0.65 * sineVal) * (1.0 + beatPulse * 0.40);
+        // Longitud horizontal equilibrada (claramente visible sin invadir la pista)
+        const baseLength = 14 + 32 * p;
+        const ribLength = baseLength * (0.40 + 0.60 * sineVal) * beatGlow;
+
+        const xL_in = getBoundaryX(0, yCenter) - 2;
+        const xR_in = getBoundaryX(3, yCenter) + 2;
+
+        // Estrictamente horizontales: de yCenter a yCenter (sin inclinación artificial)
+        ctx.moveTo(xL_in, yCenter);
+        ctx.lineTo(xL_in - ribLength, yCenter);
+
+        ctx.moveTo(xR_in, yCenter);
+        ctx.lineTo(xR_in + ribLength, yCenter);
+      }
+      ctx.stroke();
+
+      // 2. PASADA INTERIOR: Núcleo blanco incandescente
+      ctx.strokeStyle = `rgba(255, 255, 255, ${(0.75 + beatPulse * 0.25).toFixed(2)})`;
+      ctx.lineWidth = 1.8;
+
+      ctx.beginPath();
+      for (let s = 0; s < numLines; s++) {
+        const pNorm = s / (numLines - 1);
+        const p = Math.pow(pNorm, 1.30);
+        const yCenter = horizonY + (bottomY - horizonY) * p;
+
+        const wavePhase = p * 12.0 - audioTime * bpmSpeed;
+        const sineVal = 0.5 + 0.5 * Math.sin(wavePhase);
+
+        const baseLength = 14 + 32 * p;
+        const ribLength = (baseLength * (0.40 + 0.60 * sineVal) * beatGlow) * 0.70;
 
         const xL_in = getBoundaryX(0, yCenter) - 2;
         const xR_in = getBoundaryX(3, yCenter) + 2;
 
         ctx.moveTo(xL_in, yCenter);
         ctx.lineTo(xL_in - ribLength, yCenter);
+
         ctx.moveTo(xR_in, yCenter);
         ctx.lineTo(xR_in + ribLength, yCenter);
       }
-      ctx.stroke(); // 1 único trazo para todas las barras
+      ctx.stroke();
 
-      // Destellos blancos eléctricos en los picos del compás (BPM Beat)
-      if (beatPulse > 0.30) {
-        ctx.strokeStyle = `rgba(255, 255, 255, ${(beatPulse * 0.90).toFixed(2)})`;
-        ctx.lineWidth = 1.8;
-        ctx.beginPath();
-        for (let s = 0; s < numLines; s += 2) {
-          const pNorm = s / (numLines - 1);
-          const p = Math.pow(pNorm, 1.25);
-          const yCenter = horizonY + (bottomY - horizonY) * p;
-          const wavePhase = p * 14.0 - audioTime * bpmSpeed;
-          const sineVal = 0.5 + 0.5 * Math.sin(wavePhase);
-          if (sineVal > 0.65) {
-            const ribLength = (16 + 54 * p) * 0.45;
-            const xL_in = getBoundaryX(0, yCenter) - 2;
-            const xR_in = getBoundaryX(3, yCenter) + 2;
-            ctx.moveTo(xL_in, yCenter);
-            ctx.lineTo(xL_in - ribLength, yCenter);
-            ctx.moveTo(xR_in, yCenter);
-            ctx.lineTo(xR_in + ribLength, yCenter);
-          }
-        }
-        ctx.stroke();
-      }
       ctx.restore();
       // 5. GUÍAS LÁSER DE NEÓN CONTINUAS DE ALTA INTENSIDAD (Estilo Beatstar Pure Laser Guides)
       ctx.save();
