@@ -4603,4 +4603,119 @@ body {
     filter: brightness(1.1);
   }
 }
+/* =========================================================
+   AHORRO EXTREMO DE CPU/GPU EN MÓVIL
+   Desactiva pintura, animaciones y filtros en capas ocultas
+   ========================================================= */
 
+/* 1. OCULTAR DE VERDAD los overlays/modales cerrados.
+      El atributo `opacity: 0` NO desactiva el pintado: solo lo hace invisible. */
+#globalLoadingOverlay:not(.active),
+#calibrationScreen:not(.open),
+#calibrationBackdrop:not(.active),
+#startCountdownOverlay:not(.show),
+#rewindBadgeOverlay:not(.show),
+#resultsModal:not(.open),
+#reviveModal:not(.open),
+#pauseModal:not(.open),
+#settingsModal:not(.open),
+#fxShopModal:not(.open),
+#nicknameModal.hidden,
+#nicknameModal:not(.open),
+#appUpdateModal:not(.open),
+#publishCommunityModal:not(.open),
+#addToPlaylistModal:not(.open),
+#songSpeedModal:not(.open),
+#ytMusicModal:not(.open),
+#leaderboardModal.hidden,
+#rateSongModal.hidden,
+#creatorNotificationModal.hidden,
+#granFortunaModal.hidden,
+#granFortunaModal:not(.open),
+#fixedTopHud.hidden,
+#karaokeTeleprompterBar.hidden,
+#diagnosticTerminal.hidden,
+#diagnosticErrorBox.hidden,
+#errorToast:not(.show),
+[hidden] {
+  display: none !important;
+}
+
+/* 2. MATAR animaciones y transiciones dentro de cualquier capa oculta.
+      Sin esto, `animation: spin infinite` sigue consumiendo aunque no se vea. */
+:is(#globalLoadingOverlay:not(.active),
+    #calibrationScreen:not(.open),
+    #startCountdownOverlay:not(.show),
+    #rewindBadgeOverlay:not(.show),
+    #resultsModal:not(.open),
+    #reviveModal:not(.open),
+    #pauseModal:not(.open),
+    #settingsModal:not(.open),
+    #fxShopModal:not(.open),
+    #nicknameModal:not(.open),
+    #appUpdateModal:not(.open),
+    #publishCommunityModal:not(.open),
+    #addToPlaylistModal:not(.open),
+    #songSpeedModal:not(.open),
+    #ytMusicModal:not(.open),
+    #leaderboardModal.hidden,
+    #rateSongModal.hidden,
+    #creatorNotificationModal.hidden,
+    #granFortunaModal.hidden,
+    #fixedTopHud.hidden) * {
+  animation: none !important;
+  transition: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+/* 3. CANVAS: nunca deben estar renderizados si no se usan.
+      gameCanvas arranca en display:block por defecto (550x915 = ~2 MB de buffer). */
+#gameCanvas:not(.active-game),
+#coinCanvas:not(.active-game),
+#reelsCanvas:not(.active-game),
+#editorCanvas:not(.active-editor) {
+  display: none !important;
+}
+
+/* 4. LOS FILTROS MÁS CAROS EN MÓVIL. Reducir drop-shadow a nada en estáticos.
+      El drop-shadow sobre SVG cuesta una pasada de blur por elemento. */
+.star-node,
+.star-node svg,
+.play-arrow-gold,
+.hud-odometer-drum .roller-strip,
+.star-svg {
+  filter: none !important;
+}
+
+/* 5. Desactivar backdrop-filter en móvil (el header sticky usa blur(12px)). */
+@media (max-width: 900px), (pointer: coarse) {
+  .sticky.top-0.z-30.backdrop-blur-md,
+  [class*="backdrop-blur"] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+/* 6. Si el móvil no usa las animaciones decorativas del HUD,
+      las apagamos directamente salvo durante la partida. */
+body:not(.is-playing) .hud-progress-fill,
+body:not(.is-playing) .star-shockwave,
+body:not(.is-playing) .vinyl-disc,
+body:not(.is-playing) .eq-bar,
+body:not(.is-playing) .loading-progress-bar,
+body:not(.is-playing) .siren-revolving-beam,
+body:not(.is-playing) .sunburst-overlay,
+body:not(.is-playing) .type-caret {
+  animation: none !important;
+}
+
+/* 7. Forzar aceleración GPU solo en lo que realmente lo necesita. */
+.vinyl-disc,
+.eq-bar,
+.siren-revolving-beam {
+  will-change: auto !important;
+}
