@@ -525,11 +525,11 @@
     "osu_1796984": [
       {
         "name": "Layla",
-        "score": 5850,
+        "score": 41250,
         "stars": 3.5,
-        "combo": 9,
-        "accuracy": 0.12727222422045764,
-        "date": "2026-09-20 20:23:27"
+        "combo": 31,
+        "accuracy": 1.5217331156793845,
+        "date": "2026-09-21 04:56:51"
       }
     ],
     "top_los_del_ro_macarena_river_remix_103_bpm": [
@@ -751,7 +751,7 @@
     },
     {
       "name": "Layla",
-      "total_score": 396100,
+      "total_score": 437350,
       "clefs": 1
     },
     {
@@ -776,47 +776,11 @@
     }
   ],
   "weekly": {
-    "week_id": "2026-W38",
+    "week_id": "2026-W39",
     "players": [
       {
-        "name": "Rocky",
-        "score": 20465181
-      },
-      {
-        "name": "Jocomomolo",
-        "score": 2356194
-      },
-      {
         "name": "Layla",
-        "score": 396100
-      },
-      {
-        "name": "`pc",
-        "score": 303767
-      },
-      {
-        "name": "MasterPianist",
-        "score": 100000
-      },
-      {
-        "name": "RhythmHero",
-        "score": 95400
-      },
-      {
-        "name": "BeatMaster",
-        "score": 91200
-      },
-      {
-        "name": "Test",
-        "score": 55650
-      },
-      {
-        "name": "Mozart 2.0",
-        "score": 2756
-      },
-      {
-        "name": "Mozart",
-        "score": 1328
+        "score": 41250
       }
     ]
   }
