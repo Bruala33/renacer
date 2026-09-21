@@ -811,13 +811,23 @@
         "accuracy": 0.05161222018567165,
         "date": "2026-09-21 09:31:58"
       }
+    ],
+    "top_campeones_oliver_y_benji_oliver_y_benji": [
+      {
+        "name": "Rocky",
+        "score": 335675,
+        "stars": 1,
+        "combo": 125,
+        "accuracy": 32.04696753153143,
+        "date": "2026-09-21 20:09:03"
+      }
     ]
   },
   "global": [
     {
       "name": "Rocky",
-      "total_score": 22300630,
-      "clefs": 210
+      "total_score": 22636305,
+      "clefs": 213
     },
     {
       "name": "Jocomomolo",
@@ -875,7 +885,7 @@
     "players": [
       {
         "name": "Rocky",
-        "score": 1835449
+        "score": 2171124
       },
       {
         "name": "Layla",
