@@ -839,6 +839,16 @@
         "accuracy": 0.05810606759052732,
         "date": "2026-09-21 20:27:31"
       }
+    ],
+    "top_la_abeja_maya_la_abeja_maya": [
+      {
+        "name": "`pc",
+        "score": 63095,
+        "stars": 3.5,
+        "combo": 32,
+        "accuracy": 8.745436350078036,
+        "date": "2026-09-21 20:39:09"
+      }
     ]
   },
   "global": [
@@ -874,7 +884,7 @@
     },
     {
       "name": "`pc",
-      "total_score": 304517,
+      "total_score": 367612,
       "clefs": 1
     },
     {
@@ -906,16 +916,16 @@
         "score": 3546072
       },
       {
+        "name": "`pc",
+        "score": 63845
+      },
+      {
         "name": "Layla",
         "score": 41250
       },
       {
         "name": "Ghapin",
         "score": 1950
-      },
-      {
-        "name": "`pc",
-        "score": 750
       }
     ]
   }
