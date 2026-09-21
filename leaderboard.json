@@ -741,13 +741,23 @@
         "accuracy": 55.55688581333291,
         "date": "2026-09-21 06:38:55"
       }
+    ],
+    "osu_2480900": [
+      {
+        "name": "Rocky",
+        "score": 329100,
+        "stars": 2,
+        "combo": 188,
+        "accuracy": 55.23665659617322,
+        "date": "2026-09-21 06:40:37"
+      }
     ]
   },
   "global": [
     {
       "name": "Rocky",
-      "total_score": 20857853,
-      "clefs": 198
+      "total_score": 21186953,
+      "clefs": 201
     },
     {
       "name": "Jocomomolo",
@@ -800,7 +810,7 @@
     "players": [
       {
         "name": "Rocky",
-        "score": 392672
+        "score": 721772
       },
       {
         "name": "Layla",
