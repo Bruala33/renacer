@@ -801,6 +801,16 @@
         "accuracy": 47.92120607724778,
         "date": "2026-09-21 09:04:14"
       }
+    ],
+    "osu_1741783": [
+      {
+        "name": "Ghapin",
+        "score": 1950,
+        "stars": 3.5,
+        "combo": 5,
+        "accuracy": 0.05161222018567165,
+        "date": "2026-09-21 09:31:58"
+      }
     ]
   },
   "global": [
@@ -850,6 +860,11 @@
       "clefs": 0
     },
     {
+      "name": "Ghapin",
+      "total_score": 1950,
+      "clefs": 0
+    },
+    {
       "name": "Mozart",
       "total_score": 1328,
       "clefs": 0
@@ -865,6 +880,10 @@
       {
         "name": "Layla",
         "score": 41250
+      },
+      {
+        "name": "Ghapin",
+        "score": 1950
       }
     ]
   }
