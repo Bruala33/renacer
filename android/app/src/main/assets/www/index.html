@@ -1033,8 +1033,7 @@
     </div>
 
     <!-- Layer 6: 120 FPS High Performance Game Canvas (Strictly 3 Lanes) -->
-    <canvas id="gameCanvas"></canvas>
-
+    <canvas id="gameCanvas" class="hidden"></canvas>
     <!-- Layer 7: Fixed Top HUD Header (Minimalist Clean Floating Style - No Box) -->
     <div id="fixedTopHud" class="fixed-top-hud hidden pointer-events-none">
       <!-- Top: Full-width 6px Segmented Star Progress Bar -->
@@ -5139,6 +5138,7 @@
       if (gameCanvas) {
         gameCanvas.style.display = 'none';
         gameCanvas.classList.add('hidden');
+        gameCanvas.classList.remove('active-game');
         try {
           const gCtx = gameCanvas.getContext('2d');
           if (gCtx) gCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
@@ -9471,6 +9471,7 @@ function stopPianoCameraLoop() {
       if (gameCanvas) {
         gameCanvas.style.display = 'block';
         gameCanvas.classList.remove('hidden');
+        gameCanvas.classList.add('active-game');   // activa la regla CSS #3
       }
 
       const topHud = document.getElementById('fixedTopHud');
