@@ -4604,118 +4604,94 @@ body {
   }
 }
 /* =========================================================
-   AHORRO EXTREMO DE CPU/GPU EN MÓVIL
-   Desactiva pintura, animaciones y filtros en capas ocultas
+   AHORRO DE CPU/GPU EN MÓVIL — Versión 2 (quirúrgica)
+   Solo apaga animaciones y filtros DENTRO de capas cerradas.
+   NO modifica display. NO depende de clases que no existan.
    ========================================================= */
 
-/* 1. OCULTAR DE VERDAD los overlays/modales cerrados.
-      El atributo `opacity: 0` NO desactiva el pintado: solo lo hace invisible. */
-#globalLoadingOverlay:not(.active),
-#calibrationScreen:not(.open),
-#calibrationBackdrop:not(.active),
-#startCountdownOverlay:not(.show),
-#rewindBadgeOverlay:not(.show),
-#resultsModal:not(.open),
-#reviveModal:not(.open),
-#pauseModal:not(.open),
-#settingsModal:not(.open),
-#fxShopModal:not(.open),
-#nicknameModal.hidden,
-#nicknameModal:not(.open),
-#appUpdateModal:not(.open),
-#publishCommunityModal:not(.open),
-#addToPlaylistModal:not(.open),
-#songSpeedModal:not(.open),
-#ytMusicModal:not(.open),
-#leaderboardModal.hidden,
-#rateSongModal.hidden,
-#creatorNotificationModal.hidden,
-#granFortunaModal.hidden,
-#granFortunaModal:not(.open),
-#fixedTopHud.hidden,
-#karaokeTeleprompterBar.hidden,
-#diagnosticTerminal.hidden,
-#diagnosticErrorBox.hidden,
-#errorToast:not(.show),
-[hidden] {
-  display: none !important;
+/* 1. Overlay de carga cerrado: apaga sus animaciones decorativas */
+#globalLoadingOverlay:not(.active) .vinyl-disc,
+#globalLoadingOverlay:not(.active) .vinyl-center-hole,
+#globalLoadingOverlay:not(.active) .eq-bar,
+#globalLoadingOverlay:not(.active) .loading-progress-bar,
+#globalLoadingOverlay:not(.active) .animate-pulse,
+#globalLoadingOverlay:not(.active) .animate-spin {
+  animation: none !important;
 }
 
-/* 2. MATAR animaciones y transiciones dentro de cualquier capa oculta.
-      Sin esto, `animation: spin infinite` sigue consumiendo aunque no se vea. */
-:is(#globalLoadingOverlay:not(.active),
-    #calibrationScreen:not(.open),
-    #startCountdownOverlay:not(.show),
-    #rewindBadgeOverlay:not(.show),
-    #resultsModal:not(.open),
-    #reviveModal:not(.open),
-    #pauseModal:not(.open),
-    #settingsModal:not(.open),
-    #fxShopModal:not(.open),
-    #nicknameModal:not(.open),
-    #appUpdateModal:not(.open),
-    #publishCommunityModal:not(.open),
-    #addToPlaylistModal:not(.open),
-    #songSpeedModal:not(.open),
-    #ytMusicModal:not(.open),
-    #leaderboardModal.hidden,
-    #rateSongModal.hidden,
-    #creatorNotificationModal.hidden,
-    #granFortunaModal.hidden,
-    #fixedTopHud.hidden) * {
+/* 2. Modales cerrados: matar animaciones, transiciones y filtros
+      de sus descendientes. NO tocamos display ni visibility. */
+#pauseModal:not(.open) *,
+#resultsModal:not(.open) *,
+#reviveModal:not(.open) *,
+#settingsModal:not(.open) *,
+#fxShopModal:not(.open) *,
+#calibrationScreen:not(.open) *,
+#startCountdownOverlay:not(.show) *,
+#rewindBadgeOverlay:not(.show) *,
+#appUpdateModal:not(.open) *,
+#publishCommunityModal:not(.open) *,
+#addToPlaylistModal:not(.open) *,
+#songSpeedModal:not(.open) *,
+#ytMusicModal:not(.open) *,
+#nicknameModal:not(.open) *,
+#leaderboardModal:not(.open) *,
+#rateSongModal:not(.open) *,
+#creatorNotificationModal:not(.open) * {
   animation: none !important;
   transition: none !important;
   filter: none !important;
   backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
   box-shadow: none !important;
   text-shadow: none !important;
 }
 
-/* 3. CANVAS: nunca deben estar renderizados si no se usan.
-      gameCanvas arranca en display:block por defecto (550x915 = ~2 MB de buffer). */
-#gameCanvas:not(.active-game),
-#coinCanvas:not(.active-game),
-#reelsCanvas:not(.active-game),
-#editorCanvas:not(.active-editor) {
-  display: none !important;
+/* 3. Casino cerrado: usa .hidden de Tailwind Y style="display:none" inline */
+#granFortunaModal.hidden *,
+#granFortunaModal[style*="display: none"] * {
+  animation: none !important;
+  transition: none !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+/* La sirena y el sunburst son los más caros del casino */
+#granFortunaModal.hidden .siren-revolving-beam,
+#granFortunaModal.hidden .sunburst-overlay,
+#granFortunaModal[style*="display: none"] .siren-revolving-beam,
+#granFortunaModal[style*="display: none"] .sunburst-overlay {
+  animation: none !important;
 }
 
-/* 4. LOS FILTROS MÁS CAROS EN MÓVIL. Reducir drop-shadow a nada en estáticos.
-      El drop-shadow sobre SVG cuesta una pasada de blur por elemento. */
-.star-node,
-.star-node svg,
-.play-arrow-gold,
-.hud-odometer-drum .roller-strip,
-.star-svg {
+/* 4. HUD oculto: quitar drop-shadows de las estrellas y sus SVG
+      (10 elementos × 2 filtros = 20 capas de compositing gratis) */
+#fixedTopHud.hidden .star-node,
+#fixedTopHud.hidden .star-node svg,
+#fixedTopHud.hidden .play-arrow-gold,
+#fixedTopHud.hidden .star-svg,
+#fixedTopHud.hidden .plat-medal-svg {
   filter: none !important;
 }
 
-/* 5. Desactivar backdrop-filter en móvil (el header sticky usa blur(12px)). */
-@media (max-width: 900px), (pointer: coarse) {
-  .sticky.top-0.z-30.backdrop-blur-md,
+/* 5. Teleprompter karaoke oculto: su caret parpadea a 0.5s para siempre */
+#karaokeTeleprompterBar.hidden *,
+#karaokeTeleprompterBar .hidden * {
+  animation: none !important;
+}
+
+/* 6. En móvil, el backdrop-filter del header sticky cuesta muchísimo
+      (12px de blur a pantalla ancha = repaint de toda la franja superior). */
+@media (pointer: coarse) {
   [class*="backdrop-blur"] {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
   }
 }
 
-/* 6. Si el móvil no usa las animaciones decorativas del HUD,
-      las apagamos directamente salvo durante la partida. */
-body:not(.is-playing) .hud-progress-fill,
-body:not(.is-playing) .star-shockwave,
-body:not(.is-playing) .vinyl-disc,
-body:not(.is-playing) .eq-bar,
-body:not(.is-playing) .loading-progress-bar,
-body:not(.is-playing) .siren-revolving-beam,
-body:not(.is-playing) .sunburst-overlay,
-body:not(.is-playing) .type-caret {
-  animation: none !important;
-}
-
-/* 7. Forzar aceleración GPU solo en lo que realmente lo necesita. */
-.vinyl-disc,
-.eq-bar,
-.siren-revolving-beam {
-  will-change: auto !important;
+/* 7. En móvil, los drop-shadows sobre SVG son carísimos.
+      Los reemplazamos por box-shadow solo en las estrellas del HUD. */
+@media (pointer: coarse) {
+  .star-node,
+  .play-arrow-gold {
+    filter: none !important;
+  }
 }

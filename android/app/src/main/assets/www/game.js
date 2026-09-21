@@ -1774,6 +1774,7 @@ class BeatstarEngine {
 
   setVisualDimension(dim) {
     this.visualDimension = (dim === '2d') ? '2d' : '3d';
+    this._hitSpriteSocket = null;
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem('beatstar_visual_dimension', this.visualDimension);
     }
@@ -1781,6 +1782,7 @@ class BeatstarEngine {
 
   setKeyStyle(style) {
     this.keyStyle = (style === 'compact') ? 'compact' : 'beatstar_large';
+    this._hitSpriteSocket = null;
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem('beatstar_key_style', this.keyStyle);
     }
@@ -2025,9 +2027,10 @@ class BeatstarEngine {
     this.hitLineY = this.height * 0.82;
 
     // ⚡ OPTIMIZADO: DPR cap 1.25 en móviles (reduce fillrate >50% sin pérdida visual perceptible)
-    // En escritorio se mantiene 1.75 para nitidez extra. Elimina ciclos de thermal throttling.
-    const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    this.dpr = isMobile ? Math.min(window.devicePixelRatio || 1, 1.25) : Math.min(window.devicePixelRatio || 1, 1.75);
+    // DPR 2.0 máximo (nitidez real de pantalla). El 1.25 anterior emborronaba en móviles DPR 2.5-3
+const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+const dprCap = isMobile ? 2.0 : 2.0;
+this.dpr = Math.min(window.devicePixelRatio || 1, dprCap);
 
     this.canvas.width = Math.round(this.width * this.dpr);
     this.canvas.height = Math.round(this.height * this.dpr);
@@ -2064,6 +2067,14 @@ class BeatstarEngine {
       }
       this._bgGrads[m] = g;
     }
+
+// Invalidar sprites precompilados (cambia el tamaño del canvas)
+this._hitSprites = null;
+this._hitSpriteSocket = null;
+this._hitSpriteKeyIdle = null;
+this._hitSpriteKeyPressed = null;
+
+
   }
 
   bindEvents() {
@@ -2196,6 +2207,7 @@ class BeatstarEngine {
     this.isCalibrating = false;
     this.beatmapData = beatmapData;
     this.activeSongPalette = (typeof getSongColorPalette === 'function') ? getSongColorPalette(beatmapData.metadata || beatmapData) : SONG_COLOR_PALETTES.classic;
+    this._hitSpriteSocket = null; // el palette cambió → regenerar con el color nuevo
     if (this.ui && typeof this.ui.onSongLoaded === 'function') {
       this.ui.onSongLoaded(beatmapData.metadata || beatmapData, this.activeSongPalette);
     }
@@ -6617,346 +6629,393 @@ class BeatstarEngine {
     ctx.restore();
   }
 
+
+// =========================================================================
+// PRECOMPILACIÓN DE SPRITES DEL HITLINE (Ahorro ~90% del coste de dibujo)
+// Se llama UNA vez por carril cuando cambia el tamaño o el palette
+// =========================================================================
+buildHitLineSprites() {
+  const isLarge = (this.keyStyle !== 'compact');
+  const palette = this.activeSongPalette || (typeof SONG_COLOR_PALETTES !== 'undefined' ? SONG_COLOR_PALETTES.classic : null);
+  const laserCol = palette ? (palette.primary || '#00f5a0') : '#00f5a0';
+  const glowCol = palette ? (palette.glow || '#ffd700') : '#ffd700';
+  const laserRgb = hexToRgb(laserCol);
+  const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
+  const dpr = this.dpr || 1;
+
+  const socketH = isLarge ? 56 : 32;
+  const socketTopY = hitY - (isLarge ? 12 : 6);
+  const socketBotY = socketTopY + socketH;
+  const margin = Math.max(2.5, isLarge ? 4.0 : 2.5);
+  const socketRad = isLarge ? 8 : 5;
+  const keyClearance = 2.5;
+  const bevelH = isLarge ? 7 : 4;
+
+  // Dimensiones del sprite común (todas las teclas del hitline son iguales en ancho porque
+  // están justo en la hitLine donde la perspectiva da el mismo laneW para los 3 carriles)
+  const laneWidthAtHit = this.getLaneBoundaryX(1, hitY) - this.getLaneBoundaryX(0, hitY);
+  const socketW = laneWidthAtHit - margin * 2;
+  const keyW = socketW - keyClearance * 2;
+
+  const pad = 10; // margen para que no se corte el resplandor
+  const spriteCssW = socketW + pad * 2;
+  const spriteCssH = socketH + pad * 2;
+
+  this._hitSprites = { pad, socketW, socketH, keyW, spriteCssW, spriteCssH, laserCol, glowCol, laserRgb };
+
+  // ---- SPRITE DEL SOCKET (estático, no cambia con el sink) ----
+  const sockCanvas = document.createElement('canvas');
+  sockCanvas.width = Math.ceil(spriteCssW * dpr);
+  sockCanvas.height = Math.ceil(spriteCssH * dpr);
+  const sctx = sockCanvas.getContext('2d');
+  sctx.scale(dpr, dpr);
+
+  const sx0 = pad, sx1 = pad + socketW;
+  const sy0 = pad, sy1 = pad + socketH;
+
+  // Fondo profundo del hueco
+  sctx.fillStyle = '#060810';
+  this._traceQuadOn(sctx, sx0, sx1, sx0, sx1, sy0, sy1, socketRad);
+  sctx.fill();
+
+  // Sombra interior superior
+  const innerShadowH = Math.max(4, socketH * 0.28);
+  sctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+  this._traceQuadOn(sctx, sx0, sx1, sx0, sx1, sy0, sy0 + innerShadowH, socketRad);
+  sctx.fill();
+
+  // Borde exterior biselado
+  sctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+  sctx.lineWidth = 1.2;
+  this._traceQuadOn(sctx, sx0, sx1, sx0, sx1, sy0, sy1, socketRad);
+  sctx.stroke();
+
+  this._hitSpriteSocket = sockCanvas;
+
+  // ---- SPRITES DE LA TECLA (uno normal, uno pressed) ----
+  const buildKeySprite = (isPressed) => {
+    const c = document.createElement('canvas');
+    c.width = Math.ceil(spriteCssW * dpr);
+    c.height = Math.ceil(spriteCssH * dpr);
+    const kctx = c.getContext('2d');
+    kctx.scale(dpr, dpr);
+
+    const kx0 = pad + keyClearance;
+    const kx1 = pad + socketW - keyClearance;
+    const ky0 = pad + keyClearance;
+    const ky1 = pad + socketH - keyClearance;
+    const keyRad = Math.max(3, socketRad - 2);
+    const yKeyBevel = ky1 - bevelH;
+    const kx0Bev = kx0, kx1Bev = kx1; // geometría recta en la hitLine (no perspectiva)
+
+    // Bisel 3D
+    kctx.fillStyle = isPressed ? '#1e2436' : '#12141e';
+    this._traceQuadOn(kctx, kx0Bev, kx1Bev, kx0, kx1, yKeyBevel, ky1, keyRad);
+    kctx.fill();
+
+    // Superficie superior
+    kctx.fillStyle = isPressed
+      ? `rgba(${laserRgb.r}, ${laserRgb.g}, ${laserRgb.b}, 0.95)`
+      : '#181b28';
+    this._traceQuadOn(kctx, kx0, kx1, kx0Bev, kx1Bev, ky0, yKeyBevel, keyRad);
+    kctx.fill();
+
+    // Borde fino
+    kctx.strokeStyle = isPressed ? 'rgba(255, 255, 255, 0.90)' : 'rgba(255, 255, 255, 0.18)';
+    kctx.lineWidth = isPressed ? 1.5 : 1.0;
+    this._traceQuadOn(kctx, kx0, kx1, kx0, kx1, ky0, ky1, keyRad);
+    kctx.stroke();
+
+    return c;
+  };
+
+  this._hitSpriteKeyIdle = buildKeySprite(false);
+  this._hitSpriteKeyPressed = buildKeySprite(true);
+}
+
+// Helper estático que dibuja en un contexto arbitrario (no en this.ctx)
+_traceQuadOn(ctx, x0T, x1T, x0B, x1B, topY, botY, rad) {
+  const cr = Math.min(rad, (botY - topY) * 0.35, (x1T - x0T) * 0.30);
+  ctx.beginPath();
+  if (cr < 1.2) {
+    ctx.moveTo(x0T, topY);
+    ctx.lineTo(x1T, topY);
+    ctx.lineTo(x1B, botY);
+    ctx.lineTo(x0B, botY);
+    ctx.closePath();
+    return;
+  }
+  ctx.moveTo((x0T + x1T) * 0.5, topY);
+  ctx.arcTo(x1T, topY, x1B, botY, cr);
+  ctx.arcTo(x1B, botY, x0B, botY, cr);
+  ctx.arcTo(x0B, botY, x0T, topY, cr);
+  ctx.arcTo(x0T, topY, x1T, topY, cr);
+  ctx.closePath();
+}
+
+
   renderHitLine() {
-    const ctx = this.ctx;
-    const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
-    const W = this.width;
-    const is3D = (this.visualDimension !== '2d');
+  const ctx = this.ctx;
+  const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
+  const W = this.width;
+  const is3D = (this.visualDimension !== '2d');
+
+  // Generar sprites si hace falta (solo la primera vez o si cambió el tamaño/palette)
+  if (is3D && (!this._hitSpriteSocket || !this._hitSprites)) {
+    this.buildHitLineSprites();
+  }
+
+  ctx.save();
+
+  if (is3D) {
+    const s = this._hitSprites;
+    if (!s) { ctx.restore(); return; }
+
+    const palette = this.activeSongPalette;
+    const laserCol = s.laserCol;
+    const glowCol = s.glowCol;
+    const laserRgb = s.laserRgb;
     const isLarge = (this.keyStyle !== 'compact');
 
-    ctx.save();
+    const xTrackLeft = this.getLaneBoundaryX(0, hitY) - 16;
+    const xTrackRight = this.getLaneBoundaryX(3, hitY) + 16;
+    const trackWidth = xTrackRight - xTrackLeft;
 
-    if (is3D) {
-      const palette = this.activeSongPalette || (typeof SONG_COLOR_PALETTES !== 'undefined' ? SONG_COLOR_PALETTES.classic : null);
-      const laserCol = palette ? (palette.primary || '#00f5a0') : '#00f5a0';
-      const glowCol = palette ? (palette.glow || '#ffd700') : '#ffd700';
-      const laserRgb = hexToRgb(laserCol);
-      const glowRgb = hexToRgb(glowCol);
+    // === CHIP BASE DEL ESCENARIO ===
+    ctx.fillStyle = 'rgba(8, 11, 20, 0.90)';
+    const deckH = isLarge ? 64 : 38;
+    const deckTopY = hitY - (deckH * 0.32);
+    if (ctx.roundRect) ctx.roundRect(xTrackLeft, deckTopY, trackWidth, deckH, 10);
+    else ctx.rect(xTrackLeft, deckTopY, trackWidth, deckH);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.lineWidth = 1.0;
+    ctx.stroke();
 
-      const xTrackLeft = this.getLaneBoundaryX(0, hitY) - 16;
-      const xTrackRight = this.getLaneBoundaryX(3, hitY) + 16;
-      const trackWidth = xTrackRight - xTrackLeft;
+    // === 3 BOTONES ===
+    const maxSink = isLarge ? 9.0 : 5.0;
+    const spriteOffX = -(s.spriteCssW / 2); // centrado
+    const spriteOffY = -((isLarge ? 12 : 6) + s.pad);
 
-      // =========================================================================
-      // DISEÑO MAESTRO: HUECO DE TECLADO DE PIANO 3D CON TECLA HUNDIBLE Y ZONA PERFECT+
-      // =========================================================================
+    for (let l = 0; l < 3; l++) {
+      const coord = this.getPerspectiveCoord(l, 1.0);
+      const cx = coord.x;
 
-      const deckH = isLarge ? 64 : 38;
-      const deckTopY = hitY - (deckH * 0.32);
-      const deckBotY = deckTopY + deckH;
-
-      // 1. CHIP / BASE DEL ESCENARIO DE FONDO BAJO LA ZONA DE IMPACTO (Optimizado GPU)
-      ctx.save();
-      ctx.fillStyle = 'rgba(8, 11, 20, 0.90)';
-      if (ctx.roundRect) ctx.roundRect(xTrackLeft, deckTopY, trackWidth, deckH, 10);
-      else ctx.rect(xTrackLeft, deckTopY, trackWidth, deckH);
-      ctx.fill();
-
-      // Borde sutil del marco del escenario
-      ctx.strokeStyle = `rgba(255, 255, 255, 0.08)`;
-      ctx.lineWidth = 1.0;
-      if (ctx.roundRect) ctx.roundRect(xTrackLeft, deckTopY, trackWidth, deckH, 10);
-      else ctx.rect(xTrackLeft, deckTopY, trackWidth, deckH);
-      ctx.stroke();
-      ctx.restore();
-
-      const traceQuad = (x0T, x1T, x0B, x1B, topY, botY, rad) => {
-        const cr = Math.min(rad, (botY - topY) * 0.35, (x1T - x0T) * 0.30);
-        ctx.beginPath();
-        ctx.moveTo((x0T + x1T) / 2, topY);
-        ctx.arcTo(x1T, topY, x1B, botY, cr);
-        ctx.arcTo(x1B, botY, x0B, botY, cr);
-        ctx.arcTo(x0B, botY, x0T, topY, cr);
-        ctx.arcTo(x0T, topY, x1T, topY, cr);
-        ctx.closePath();
-      };
-
-      // 2. HUECO Y TECLA 3D HUNDIBLE POR CARRILE
-      for (let l = 0; l < 3; l++) {
-        const coord = this.getPerspectiveCoord(l, 1.0);
-        const cx = coord.x;
-        const isHolding = this.activeHolds.has(l);
-        const glow = this.laneGlows[l] || 0;
-        const isPressed = glow > 0.35 || isHolding;
-
-        // FÍSICA DE HUNDIMIENTO MECÁNICO DE TECLA DE PIANO
-        const elapsedPress = performance.now() - (this.lanePressAnim ? (this.lanePressAnim[l] || 0) : 0);
-        const isTapping = elapsedPress >= 0 && elapsedPress < 160;
-        let tapDepth = 0;
-        if (isTapping) {
-          const t = elapsedPress / 160;
-          if (t < 0.22) {
-            tapDepth = t / 0.22; // Hundimiento ultra rápido y táctil
-          } else {
-            const rt = (t - 0.22) / 0.78;
-            tapDepth = Math.exp(-rt * 4.2) * Math.cos(rt * Math.PI * 2.0); // Rebote elástico amortiguado
-          }
-        }
-
-        const maxSink = isLarge ? 9.0 : 5.0;
-        const currentSink = Math.max(0, (isHolding ? maxSink * 0.95 : 0) + (isTapping ? maxSink * tapDepth : (isPressed ? maxSink * 0.75 : 0)));
-
-        // Dimensiones del HUECO (Cavidad en la pista, un pelín más grande que la tecla)
-        const socketH = isLarge ? 56 : 32;
-        const socketTopY = hitY - (isLarge ? 12 : 6);
-        const socketBotY = socketTopY + socketH;
-        const margin = Math.max(2.5, isLarge ? 4.0 : 2.5);
-
-        const sx0Top = this.getLaneBoundaryX(l, socketTopY) + margin;
-        const sx1Top = this.getLaneBoundaryX(l + 1, socketTopY) - margin;
-        const sx0Bot = this.getLaneBoundaryX(l, socketBotY) + margin;
-        const sx1Bot = this.getLaneBoundaryX(l + 1, socketBotY) - margin;
-        const socketRad = isLarge ? 8 : 5;
-
-        // --- A. EL HUECO (Cavidad rebajada en la pista con bisel y sombra interior) ---
-        ctx.save();
-        // Fondo profundo del hueco (Optimizado GPU)
-        ctx.fillStyle = '#060810';
-        traceQuad(sx0Top, sx1Top, sx0Bot, sx1Bot, socketTopY, socketBotY, socketRad);
-        ctx.fill();
-
-        // Sombra de pared interior superior del hueco
-        const innerShadowH = Math.max(4, socketH * 0.28);
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-        traceQuad(sx0Top, sx1Top, sx0Top + (sx0Bot - sx0Top) * 0.28, sx1Top + (sx1Bot - sx1Top) * 0.28, socketTopY, socketTopY + innerShadowH, socketRad);
-        ctx.fill();
-
-        // Borde exterior biselado del hueco
-        ctx.strokeStyle = isPressed ? `rgba(${laserRgb.r}, ${laserRgb.g}, ${laserRgb.b}, 0.55)` : 'rgba(255, 255, 255, 0.12)';
-        ctx.lineWidth = 1.2;
-        traceQuad(sx0Top, sx1Top, sx0Bot, sx1Bot, socketTopY, socketBotY, socketRad);
-        ctx.stroke();
-        ctx.restore();
-
-        // --- B. LA TECLA DE PIANO 3D QUE SE METE HACIA ADENTRO ---
-        const keyClearance = 2.5; // Holgura para encajar dentro del hueco
-        const kx0Top = sx0Top + keyClearance;
-        const kx1Top = sx1Top - keyClearance;
-        const kx0Bot = sx0Bot + keyClearance;
-        const kx1Bot = sx1Bot - keyClearance;
-        const keyRad = Math.max(3, socketRad - 2);
-
-        const keyTopY = socketTopY + keyClearance + currentSink;
-        const keyBotY = socketBotY - keyClearance + currentSink;
-        const keyH = keyBotY - keyTopY;
-        const keyMidY = (keyTopY + keyBotY) / 2;
-
-        // Resplandor de fondo que emana del hueco al hundirse la tecla (Optimizado GPU)
-        if (currentSink > 0.5 || isPressed) {
-          ctx.save();
-          ctx.globalCompositeOperation = 'lighter';
-          const spillAlpha = Math.min(0.9, (currentSink / maxSink) * 0.85 + (isHolding ? 0.4 : 0));
-          ctx.fillStyle = hexToRgba(laserCol, spillAlpha * 0.45);
-          traceQuad(sx0Top - 4, sx1Top + 4, sx0Bot - 4, sx1Bot + 4, socketTopY - 2, socketBotY + 4, socketRad + 3);
-          ctx.fill();
-          ctx.restore();
-        }
-
-        // Cara frontal / grosor 3D de la tecla al hundirse (Optimizado GPU)
-        const bevelH = Math.max(3, (isLarge ? 7 : 4) * (1 - (currentSink / (maxSink * 1.8))));
-        const yKeyBevel = keyBotY - bevelH;
-        const kx0Bev = kx0Top + (kx0Bot - kx0Top) * ((yKeyBevel - keyTopY) / keyH);
-        const kx1Bev = kx1Top + (kx1Bot - kx1Top) * ((yKeyBevel - keyTopY) / keyH);
-
-        ctx.save();
-        ctx.fillStyle = isPressed ? '#1e2436' : '#12141e';
-        traceQuad(kx0Bev, kx1Bev, kx0Bot, kx1Bot, yKeyBevel, keyBotY, keyRad);
-        ctx.fill();
-
-        // Superficie superior de la tecla (Optimizado GPU)
-        ctx.fillStyle = (isPressed || isHolding) ? `rgba(${laserRgb.r}, ${laserRgb.g}, ${laserRgb.b}, 0.95)` : '#181b28';
-        traceQuad(kx0Top, kx1Top, kx0Bev, kx1Bev, keyTopY, yKeyBevel, keyRad);
-        ctx.fill();
-
-        // Sombra proyectada por el borde del hueco sobre la tecla hundida
-        if (currentSink > 0.8) {
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
-          traceQuad(kx0Top, kx1Top, kx0Bev, kx1Bev, keyTopY, keyTopY + currentSink * 1.4, keyRad);
-          ctx.fill();
-        }
-
-        // Borde fino de precisión de la tecla
-        ctx.strokeStyle = isPressed ? `rgba(255, 255, 255, 0.90)` : `rgba(255, 255, 255, 0.18)`;
-        ctx.lineWidth = isPressed ? 1.5 : 1.0;
-        traceQuad(kx0Top, kx1Top, kx0Bot, kx1Bot, keyTopY, keyBotY, keyRad);
-        ctx.stroke();
-        ctx.restore();
-
-        // --- C. ZONA PERFECT+ DE ALTA PRECISIÓN (Fácilmente identificable) ---
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        const perfY = hitY + currentSink;
-        const keyW = kx1Bot - kx0Bot;
-
-        // Franja micro-slot iluminada del Perfect+ (Optimizado GPU)
-        const slotW = keyW * 0.72;
-        const slotH = isLarge ? 5.0 : 3.5;
-        const slotAlpha = isPressed ? 0.95 : 0.65;
-        ctx.fillStyle = `rgba(0, 245, 160, ${(slotAlpha * 0.80).toFixed(3)})`;
-        ctx.fillRect(cx - slotW / 2, perfY - slotH / 2, slotW, slotH);
-
-        // Mira central Perfect+ (Micro-Crosshair & Diamond ✦)
-        const crosshairSize = isLarge ? 6.5 : 4.5;
-        ctx.strokeStyle = isPressed ? '#ffffff' : hexToRgba(laserCol, 0.90);
-        ctx.lineWidth = 1.4;
-
-        // Línea central de precisión
-        ctx.beginPath();
-        ctx.moveTo(cx - slotW * 0.45, perfY);
-        ctx.lineTo(cx + slotW * 0.45, perfY);
-        ctx.stroke();
-
-        // Ticks de delimitación lateral [ — ✦ — ]
-        const tickLen = isLarge ? 4.5 : 3.0;
-        ctx.beginPath();
-        ctx.moveTo(cx - slotW * 0.35, perfY - tickLen);
-        ctx.lineTo(cx - slotW * 0.35, perfY + tickLen);
-        ctx.moveTo(cx + slotW * 0.35, perfY - tickLen);
-        ctx.lineTo(cx + slotW * 0.35, perfY + tickLen);
-        ctx.stroke();
-
-        // Diamante central Perfect+
-        ctx.fillStyle = isPressed ? '#ffffff' : laserCol;
-        ctx.beginPath();
-        ctx.moveTo(cx, perfY - crosshairSize * 0.8);
-        ctx.lineTo(cx + crosshairSize * 0.8, perfY);
-        ctx.lineTo(cx, perfY + crosshairSize * 0.8);
-        ctx.lineTo(cx - crosshairSize * 0.8, perfY);
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(cx, perfY, 1.4, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-
-        // --- D. ANILLO DE ENERGÍA DE NOTA SOSTENIDA (HOLD ARC) ---
-        if (isHolding) {
-          const active = this.activeHolds.get(l);
-          const startT = active.startTime;
-          const endT = active.note.end_timestamp_ms || (startT + (active.note.duration_ms || 700));
-          const currT = this.getCurrentGameTimeMs();
-          const progress = Math.min(1.0, Math.max(0, (currT - startT) / (endT - startT)));
-
-          ctx.save();
-          ctx.globalCompositeOperation = 'lighter';
-          ctx.strokeStyle = laserCol;
-          ctx.lineWidth = 3.6;
-          ctx.beginPath();
-          ctx.arc(cx, perfY, 22, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
-          ctx.stroke();
-
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 1.6;
-          ctx.beginPath();
-          ctx.arc(cx, perfY, 22, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
-          ctx.stroke();
-          ctx.restore();
-        }
-
-        // --- E. KEYBINDS EN PC FLOTANTES ---
-        if (this.isPCMode) {
-          const kb = this.pcKeybinds || { 0: 'd', 1: 'f', 2: 'j' };
-          const keyChar = ((kb[l] || (l === 0 ? 'd' : (l === 1 ? 'f' : 'j'))).toUpperCase());
-          const pillW = 26;
-          const pillH = 17;
-          const pillY = socketBotY + 12;
-          ctx.save();
-          ctx.fillStyle = isPressed ? 'rgba(255, 255, 255, 0.32)' : 'rgba(10, 12, 22, 0.80)';
-          ctx.strokeStyle = isPressed ? '#ffffff' : 'rgba(255, 255, 255, 0.22)';
-          ctx.lineWidth = 1.1;
-          if (ctx.roundRect) ctx.roundRect(cx - pillW / 2, pillY - pillH / 2, pillW, pillH, 4.5);
-          else ctx.rect(cx - pillW / 2, pillY - pillH / 2, pillW, pillH);
-          ctx.fill();
-          ctx.stroke();
-
-          ctx.font = '800 11px "Outfit", system-ui, -apple-system, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillStyle = isPressed ? '#ffffff' : 'rgba(255, 255, 255, 0.90)';
-          ctx.fillText(keyChar, cx, pillY);
-          ctx.restore();
+      // Física de hundimiento
+      const elapsedPress = performance.now() - (this.lanePressAnim ? (this.lanePressAnim[l] || 0) : 0);
+      const isTapping = elapsedPress >= 0 && elapsedPress < 160;
+      let tapDepth = 0;
+      if (isTapping) {
+        const t = elapsedPress / 160;
+        if (t < 0.22) tapDepth = t / 0.22;
+        else {
+          const rt = (t - 0.22) / 0.78;
+          tapDepth = Math.exp(-rt * 4.2) * Math.cos(rt * Math.PI * 2.0);
         }
       }
 
-      // 3. LÍNEA GUÍA HOLOGRÁFICA ULTRA NÍTIDA (Precision Horizon Guideline)
+      const isHolding = this.activeHolds.has(l);
+      const glow = this.laneGlows[l] || 0;
+      const isPressed = glow > 0.35 || isHolding;
+      const currentSink = Math.max(0, (isHolding ? maxSink * 0.95 : 0) + (isTapping ? maxSink * tapDepth : (isPressed ? maxSink * 0.75 : 0)));
+
+      // 1) Resplandor de fondo que emana del hueco (más barato: un fillRect con alpha)
+      if (currentSink > 0.5 || isPressed) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        const spillAlpha = Math.min(0.9, (currentSink / maxSink) * 0.85 + (isHolding ? 0.4 : 0));
+        ctx.fillStyle = hexToRgba(laserCol, spillAlpha * 0.45);
+        // Trapecio simple (no arcTo)
+        const sx0 = this.getLaneBoundaryX(l, hitY - 8) + 2;
+        const sx1 = this.getLaneBoundaryX(l + 1, hitY - 8) - 2;
+        const sy0 = hitY - (isLarge ? 18 : 10);
+        const sy1 = hitY + (isLarge ? 54 : 32);
+        const sx0b = this.getLaneBoundaryX(l, sy1) + 2;
+        const sx1b = this.getLaneBoundaryX(l + 1, sy1) - 2;
+        ctx.beginPath();
+        ctx.moveTo(sx0, sy0); ctx.lineTo(sx1, sy0);
+        ctx.lineTo(sx1b, sy1); ctx.lineTo(sx0b, sy1);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // 2) Socket (sprite estático)
+      ctx.drawImage(
+        this._hitSpriteSocket,
+        cx + spriteOffX,
+        hitY + spriteOffY,
+        s.spriteCssW,
+        s.spriteCssH
+      );
+
+      // 3) Tecla (sprite que se hunde según currentSink)
+      const keySprite = currentSink > 1.0 ? this._hitSpriteKeyPressed : this._hitSpriteKeyIdle;
+      ctx.drawImage(
+        keySprite,
+        cx + spriteOffX,
+        hitY + spriteOffY + currentSink,
+        s.spriteCssW,
+        s.spriteCssH
+      );
+
+      // 4) Zona Perfect+ (franja + crosshair + diamante) — se queda dinámica pero es barato
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
+      const perfY = hitY + currentSink;
+      const keyW = s.keyW;
+      const slotW = keyW * 0.72;
+      const slotH = isLarge ? 5.0 : 3.5;
+      const slotAlpha = isPressed ? 0.95 : 0.65;
+      ctx.fillStyle = `rgba(0, 245, 160, ${(slotAlpha * 0.80).toFixed(3)})`;
+      ctx.fillRect(cx - slotW / 2, perfY - slotH / 2, slotW, slotH);
 
-      const guideGrad = ctx.createLinearGradient(xTrackLeft, 0, xTrackRight, 0);
-      guideGrad.addColorStop(0.0, 'rgba(0, 0, 0, 0)');
-      guideGrad.addColorStop(0.12, `rgba(${laserRgb.r}, ${laserRgb.g}, ${laserRgb.b}, 0.35)`);
-      guideGrad.addColorStop(0.50, `rgba(255, 255, 255, 0.85)`);
-      guideGrad.addColorStop(0.88, `rgba(${laserRgb.r}, ${laserRgb.g}, ${laserRgb.b}, 0.35)`);
-      guideGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-
-      ctx.strokeStyle = guideGrad;
-      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = isPressed ? '#ffffff' : hexToRgba(laserCol, 0.90);
+      ctx.lineWidth = 1.4;
       ctx.beginPath();
-      ctx.moveTo(xTrackLeft, hitY);
-      ctx.lineTo(xTrackRight, hitY);
+      ctx.moveTo(cx - slotW * 0.45, perfY);
+      ctx.lineTo(cx + slotW * 0.45, perfY);
       ctx.stroke();
 
-      // Micro-marcas terminales elegantes
-      ctx.fillStyle = laserCol;
+      const crosshairSize = isLarge ? 6.5 : 4.5;
       ctx.beginPath();
-      ctx.arc(xTrackLeft + 4, hitY, 3, 0, Math.PI * 2);
-      ctx.arc(xTrackRight - 4, hitY, 3, 0, Math.PI * 2);
+      ctx.moveTo(cx - slotW * 0.35, perfY - (isLarge ? 4.5 : 3));
+      ctx.lineTo(cx - slotW * 0.35, perfY + (isLarge ? 4.5 : 3));
+      ctx.moveTo(cx + slotW * 0.35, perfY - (isLarge ? 4.5 : 3));
+      ctx.lineTo(cx + slotW * 0.35, perfY + (isLarge ? 4.5 : 3));
+      ctx.stroke();
+
+      ctx.fillStyle = isPressed ? '#ffffff' : laserCol;
+      ctx.beginPath();
+      ctx.moveTo(cx, perfY - crosshairSize * 0.8);
+      ctx.lineTo(cx + crosshairSize * 0.8, perfY);
+      ctx.lineTo(cx, perfY + crosshairSize * 0.8);
+      ctx.lineTo(cx - crosshairSize * 0.8, perfY);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(cx, perfY, 1.4, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
 
-    } else {
-      // ==========================================
-      // 2D NEÓN HIT LINE (Modo Plano)
-      // ==========================================
-      const laneW = this.width / 3;
-
-      ctx.save();
-      ctx.strokeStyle = '#00f2fe';
-      ctx.lineWidth = 3;
-      ctx.shadowBlur = 0;
-      ctx.beginPath();
-      ctx.moveTo(0, hitY);
-      ctx.lineTo(W, hitY);
-      ctx.stroke();
-      ctx.restore();
-
-      for (let l = 0; l < 3; l++) {
-        const cx = (l + 0.5) * laneW;
-        const isHolding = this.activeHolds.has(l);
-        const glow = this.laneGlows[l] || 0;
-        const isPressed = glow > 0.35 || isHolding;
-
-        const targetW = laneW * (isLarge ? 0.98 : 0.80);
-        const targetH = isLarge ? 64 : 24;
+      // 5) Arco de energía si isHolding
+      if (isHolding) {
+        const active = this.activeHolds.get(l);
+        const startT = active.startTime;
+        const endT = active.note.end_timestamp_ms || (startT + (active.note.duration_ms || 700));
+        const currT = this.getCurrentGameTimeMs();
+        const progress = Math.min(1.0, Math.max(0, (currT - startT) / (endT - startT)));
 
         ctx.save();
-        ctx.fillStyle = isPressed ? 'rgba(0, 242, 254, 0.25)' : 'rgba(0, 0, 0, 0.6)';
-        ctx.strokeStyle = isPressed ? '#ff007f' : 'rgba(0, 242, 254, 0.6)';
-        ctx.lineWidth = isPressed ? 2.5 : 1.5;
-        ctx.shadowBlur = 0;
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.strokeStyle = laserCol;
+        ctx.lineWidth = 3.6;
         ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(cx - targetW / 2, hitY - targetH / 2, targetW, targetH, isLarge ? 8 : 4);
-        else ctx.rect(cx - targetW / 2, hitY - targetH / 2, targetW, targetH);
+        ctx.arc(cx, perfY, 22, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+        ctx.stroke();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 6) Keybind en PC
+      if (this.isPCMode) {
+        const kb = this.pcKeybinds || { 0: 'd', 1: 'f', 2: 'j' };
+        const keyChar = ((kb[l] || (l === 0 ? 'd' : (l === 1 ? 'f' : 'j'))).toUpperCase());
+        const pillW = 26, pillH = 17;
+        const pillY = hitY + (isLarge ? 54 : 32) + 12;
+        ctx.save();
+        ctx.fillStyle = isPressed ? 'rgba(255, 255, 255, 0.32)' : 'rgba(10, 12, 22, 0.80)';
+        ctx.strokeStyle = isPressed ? '#ffffff' : 'rgba(255, 255, 255, 0.22)';
+        ctx.lineWidth = 1.1;
+        if (ctx.roundRect) ctx.roundRect(cx - pillW / 2, pillY - pillH / 2, pillW, pillH, 4.5);
+        else ctx.rect(cx - pillW / 2, pillY - pillH / 2, pillW, pillH);
         ctx.fill();
         ctx.stroke();
-
-        if (this.isPCMode) {
-          const kb = this.pcKeybinds || { 0: 'd', 1: 'f', 2: 'j' };
-          const keyChar = ((kb[l] || (l === 0 ? 'd' : (l === 1 ? 'f' : 'j'))).toUpperCase());
-          ctx.font = '700 12px "Outfit", sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillStyle = isPressed ? '#00f2fe' : '#ffffff';
-          ctx.fillText(`[ ${keyChar} ]`, cx, hitY + (isLarge ? 46 : 34));
-        }
+        ctx.font = '800 11px "Outfit", system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = isPressed ? '#ffffff' : 'rgba(255, 255, 255, 0.90)';
+        ctx.fillText(keyChar, cx, pillY);
         ctx.restore();
       }
     }
 
+    // === LÍNEA GUÍA HOLOGRÁFICA (con gradiente cacheado) ===
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const guideKey = `${laserCol}_${xTrackLeft}_${xTrackRight}`;
+    if (this._guideGradKey !== guideKey || !this._guideGrad) {
+      this._guideGradKey = guideKey;
+      const g = ctx.createLinearGradient(xTrackLeft, 0, xTrackRight, 0);
+      g.addColorStop(0.0, 'rgba(0, 0, 0, 0)');
+      g.addColorStop(0.12, `rgba(${laserRgb.r}, ${laserRgb.g}, ${laserRgb.b}, 0.35)`);
+      g.addColorStop(0.50, 'rgba(255, 255, 255, 0.85)');
+      g.addColorStop(0.88, `rgba(${laserRgb.r}, ${laserRgb.g}, ${laserRgb.b}, 0.35)`);
+      g.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+      this._guideGrad = g;
+    }
+    ctx.strokeStyle = this._guideGrad;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(xTrackLeft, hitY);
+    ctx.lineTo(xTrackRight, hitY);
+    ctx.stroke();
+
+    ctx.fillStyle = laserCol;
+    ctx.beginPath();
+    ctx.arc(xTrackLeft + 4, hitY, 3, 0, Math.PI * 2);
+    ctx.arc(xTrackRight - 4, hitY, 3, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
+
+  } else {
+    // Modo 2D — se queda igual que antes (no es el cuello de botella)
+    const laneW = this.width / 3;
+    const isLarge = (this.keyStyle !== 'compact');
+    ctx.save();
+    ctx.strokeStyle = '#00f2fe';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, hitY);
+    ctx.lineTo(W, hitY);
+    ctx.stroke();
+    ctx.restore();
+
+    for (let l = 0; l < 3; l++) {
+      const cx = (l + 0.5) * laneW;
+      const isHolding = this.activeHolds.has(l);
+      const glow = this.laneGlows[l] || 0;
+      const isPressed = glow > 0.35 || isHolding;
+      const targetW = laneW * (isLarge ? 0.98 : 0.80);
+      const targetH = isLarge ? 64 : 24;
+      ctx.save();
+      ctx.fillStyle = isPressed ? 'rgba(0, 242, 254, 0.25)' : 'rgba(0, 0, 0, 0.6)';
+      ctx.strokeStyle = isPressed ? '#ff007f' : 'rgba(0, 242, 254, 0.6)';
+      ctx.lineWidth = isPressed ? 2.5 : 1.5;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(cx - targetW / 2, hitY - targetH / 2, targetW, targetH, isLarge ? 8 : 4);
+      else ctx.rect(cx - targetW / 2, hitY - targetH / 2, targetW, targetH);
+      ctx.fill();
+      ctx.stroke();
+      if (this.isPCMode) {
+        const kb = this.pcKeybinds || { 0: 'd', 1: 'f', 2: 'j' };
+        const keyChar = ((kb[l] || (l === 0 ? 'd' : (l === 1 ? 'f' : 'j'))).toUpperCase());
+        ctx.font = '700 12px "Outfit", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = isPressed ? '#00f2fe' : '#ffffff';
+        ctx.fillText(`[ ${keyChar} ]`, cx, hitY + (isLarge ? 46 : 34));
+      }
+      ctx.restore();
+    }
   }
+
+  ctx.restore();
+}
 
   // Rediseño Total de Flechas Swipe: Aerodinámico, bajo relieve en latón pulido, contenido en la tecla
   renderVectorChevron(ctx, x, y, direction, maxW = 50, maxH = 30) {
