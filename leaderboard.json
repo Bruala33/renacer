@@ -829,6 +829,16 @@
         "accuracy": 32.04696753153143,
         "date": "2026-09-21 20:09:03"
       }
+    ],
+    "top_blur_coffee__tv": [
+      {
+        "name": "`pc",
+        "score": 750,
+        "stars": 3.5,
+        "combo": 4,
+        "accuracy": 0.05810606759052732,
+        "date": "2026-09-21 20:27:31"
+      }
     ]
   },
   "global": [
@@ -864,7 +874,7 @@
     },
     {
       "name": "`pc",
-      "total_score": 303767,
+      "total_score": 304517,
       "clefs": 1
     },
     {
@@ -902,6 +912,10 @@
       {
         "name": "Ghapin",
         "score": 1950
+      },
+      {
+        "name": "`pc",
+        "score": 750
       }
     ]
   }
