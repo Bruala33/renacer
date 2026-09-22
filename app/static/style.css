@@ -4695,3 +4695,21 @@ body {
     filter: none !important;
   }
 }
+
+/* Capas ambientales / decorativas: nunca deben interceptar toques */
+.video-overlay-filter,
+#gameCurtain,
+#calibrationBackdrop,
+#startCountdownOverlay:not(.show),
+#rewindBadgeOverlay:not(.show) {
+  pointer-events: none !important;
+}
+
+/* El HUD superior solo el botón de pausa debe ser clicable */
+#fixedTopHud {
+  pointer-events: none !important;
+}
+#fixedTopHud .hud-pause-btn,
+#fixedTopHud #btnPauseGame {
+  pointer-events: auto !important;
+}
