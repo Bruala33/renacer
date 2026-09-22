@@ -16,6 +16,8 @@ const LEAD_IN_TIME = 1200; // 1.2 segundos de preparación visual (400ms por dí
 // ZERO-GC COLOR & GEOMETRY UTILITIES
 // ==========================================
 const _rgbaCache = new Map();
+const _PROLONG_RE = /^[\s~♪♫▲\-]+$/;
+const _HYPHEN_RE = /([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ])-([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ])/g;
 function hexToRgba(hex, alpha) {
   const aClamped = Math.max(0, Math.min(1, alpha));
   const aInt = (aClamped * 100) | 0; // 100 niveles de precisión idénticos al ojo
@@ -630,41 +632,48 @@ class DirectAudioSync {
   }
 
   // ==========================================
-  // OPTIMIZADO: Sin freno artificial. Extrapolación pura con corrección suave cada 400ms.
+  // ULTRA-SMOOTH: Slew-rate-limited drift correction. Zero pixel jumps.
   // ==========================================
-  getCurrentTimeMs() {
+  getCurrentTimeMs(frameNow) {
     if (!this.isPlaying) {
       const raw = (this.audioElement && !isNaN(this.audioElement.currentTime)) ? this.audioElement.currentTime * 1000 : 0;
       this._anchorPerf = 0;
       this._smoothTime = raw;
+      this._driftOffset = 0;
       return raw;
     }
-    const nowPerf = performance.now();
+    const nowPerf = frameNow || performance.now();
 
     if (!this._anchorPerf) {
       this._anchorPerf = nowPerf;
       this._anchorAudioMs = (this.audioElement && !isNaN(this.audioElement.currentTime)) ? this.audioElement.currentTime * 1000 : 0;
       this._smoothTime = this._anchorAudioMs;
       this._lastAudioPollPerf = nowPerf;
+      this._driftOffset = 0;
       return this._smoothTime;
     }
 
-    // Comprobación de hardware cada 400ms sin freno artificial
-    if (nowPerf - this._lastAudioPollPerf > 400) {
+    const rate = this.playbackRate || 1.0;
+
+    // Sondeo de hardware cada 350ms
+    if (nowPerf - this._lastAudioPollPerf > 350) {
       this._lastAudioPollPerf = nowPerf;
       const rawAudioMs = (this.audioElement && !isNaN(this.audioElement.currentTime)) ? this.audioElement.currentTime * 1000 : 0;
-      const rate = this.playbackRate || (this.audioElement ? this.audioElement.playbackRate : 1.0) || 1.0;
-      const expectedTime = this._anchorAudioMs + (nowPerf - this._anchorPerf) * rate;
-      const drift = rawAudioMs - expectedTime;
+      const targetTime = this._anchorAudioMs + (nowPerf - this._anchorPerf) * rate + this._driftOffset;
+      const drift = rawAudioMs - targetTime;
 
-      // Solo si el desfase es mayor a 140ms por congelación del SO se reajusta suavemente
-      if (Math.abs(drift) > 140) {
-        this._anchorAudioMs += drift * 0.20;
+      // Desfase mayor por suspensión o cambio de pestaña
+      if (Math.abs(drift) > 500) {
+        this._anchorPerf = nowPerf;
+        this._anchorAudioMs = rawAudioMs;
+        this._driftOffset = 0;
+      } else if (Math.abs(drift) > 1.5) {
+        // Absorción continua: máximo 0.05ms de corrección por fotograma (imperceptible al ojo)
+        this._driftOffset += Math.sign(drift) * Math.min(Math.abs(drift) * 0.15, 1.5);
       }
     }
 
-    const rate = this.playbackRate || (this.audioElement ? this.audioElement.playbackRate : 1.0) || 1.0;
-    this._smoothTime = this._anchorAudioMs + (nowPerf - this._anchorPerf) * rate;
+    this._smoothTime = this._anchorAudioMs + (nowPerf - this._anchorPerf) * rate + (this._driftOffset || 0);
     return this._smoothTime;
   }
 }
@@ -2074,6 +2083,16 @@ this._hitSpriteSocket = null;
 this._hitSpriteKeyIdle = null;
 this._hitSpriteKeyPressed = null;
 
+    // Caché de font strings (Zero-GC: elimina template literal + Skia re-parse por nota)
+    this._fontCache = {};
+    for (let s = 11; s <= 30; s++) {
+      this._fontCache[s] = `900 ${s}px Montserrat, -apple-system, sans-serif`;
+    }
+
+    // Caché de geometría para sideGrad de renderLanes (evita createLinearGradient por frame)
+    this._sideGradGeom = { horizonY: 12, bottomY: this.height + 30 };
+    this._sideGradCache = null;
+    this._sideGradHue = -1;
 
   }
 
@@ -2513,6 +2532,16 @@ this._hitSpriteKeyPressed = null;
 
     this.firstActiveNoteIndex = 0;
     this.lastLitSyllableIndex = -1;
+    // Pre-computar texto limpio de sílabas (Zero-GC: elimina regex del render loop)
+    for (let i = 0, nLen = this.notes.length; i < nLen; i++) {
+      const n = this.notes[i];
+      if (n.lyric && !_PROLONG_RE.test(String(n.lyric))) {
+        _HYPHEN_RE.lastIndex = 0;
+        n._cleanLyric = String(n.lyric).replace(_HYPHEN_RE, '$1 $2').trim().toUpperCase();
+      } else {
+        n._cleanLyric = null;
+      }
+    }
     this.activeHolds.clear();
     this.activeTouches.clear();
     this.judgements = [];
@@ -2856,14 +2885,15 @@ this._hitSpriteKeyPressed = null;
   }
 
   getCurrentGameTimeMs() {
+    const fn = this._frameNow || performance.now();
     if (this.isCountingDown) {
-      const elapsed = performance.now() - this.leadInStartTime;
+      const elapsed = fn - this.leadInStartTime;
       return Math.min(0, elapsed - this.leadInDurationMs);
     }
     if (this.isCalibrating) {
-      return (performance.now() - this.calibrationStartTime) + this.latencyOffsetMs;
+      return (fn - this.calibrationStartTime) + this.latencyOffsetMs;
     }
-    return this.sync.getCurrentTimeMs() + this.latencyOffsetMs;
+    return this.sync.getCurrentTimeMs(fn) + this.latencyOffsetMs;
   }
 
   getLaneFromX(clientX, clientY = null) {
@@ -4090,7 +4120,8 @@ this._hitSpriteKeyPressed = null;
     }
   }
 
-  update(dt) {
+  update(dt, frameNow) {
+    this._frameNow = frameNow || performance.now();
     if (this.isPaused || this.isRewinding) return;
 
     if (this.sync && this.sync.audioElement && this.sync.isPlaying) {
@@ -5342,7 +5373,8 @@ this._hitSpriteKeyPressed = null;
     }
   }
 
-  render() {
+  render(frameNow) {
+    this._frameNow = frameNow || performance.now();
     this.ctx.clearRect(0, 0, this.width, this.height);
     const hasShake = (this.shakeDuration > 0);
     if (hasShake) {
@@ -5353,7 +5385,6 @@ this._hitSpriteKeyPressed = null;
     }
 
     const currentTime = this.getCurrentGameTimeMs();
-    const nowPerf = performance.now();
 
     this.renderBackgroundFX(currentTime);
 
@@ -6151,16 +6182,15 @@ this._hitSpriteKeyPressed = null;
     // 5. Letras de canciones con el color dorado EXACTO del teleprompter
     // 5. Letras de canciones IDÉNTICAS al teleprompter (Blanco puro + halo dorado cálido)
     if (!isSwipe) {
-      const isKaraokeActive = Boolean((typeof window !== 'undefined' && window.isKaraokeModeActive) || this.isKaraokeModeActive);
-      const isProlongationOnly = !lyricText || /^[\s~♪♫▲\-]+$/.test(String(lyricText));
-      if (isKaraokeActive && lyricText && String(lyricText).trim().length > 0 && !isProlongationOnly) {
-        const cleanLyric = String(lyricText).replace(/([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ])-([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ])/g, '$1 $2').trim().toUpperCase();
+      if (lyricText) {
+        // lyricText ya es el _cleanLyric pre-computado (sin regex en render loop)
+        const cleanLyric = lyricText;
         const baseFontSize = Math.max(14, Math.min(26 * scale, keyW * 0.35));
         const fontScale = cleanLyric.length > 6 ? (6 / cleanLyric.length) : 1.0;
         const fontSize = Math.round(Math.max(11, baseFontSize * fontScale));
 
         ctx.save();
-        ctx.font = `900 ${fontSize}px Montserrat, -apple-system, sans-serif`;
+        ctx.font = (this._fontCache && this._fontCache[fontSize]) || `900 ${fontSize}px Montserrat, -apple-system, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.shadowBlur = 0;
@@ -6255,16 +6285,15 @@ this._hitSpriteKeyPressed = null;
     ctx.lineWidth = isLarge ? 2.2 : 1.4;
     ctx.stroke();
 
-    const isKaraokeActive = Boolean((typeof window !== 'undefined' && window.isKaraokeModeActive) || this.isKaraokeModeActive);
-    const isProlongationOnly = !lyricText || /^[\s~♪♫▲\-]+$/.test(String(lyricText));
-    if (isKaraokeActive && lyricText && String(lyricText).trim().length > 0 && !isProlongationOnly) {
-      const cleanLyric = String(lyricText).replace(/([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ])-([a-zA-ZáéíóúüñÁÉÍÓÚÜÑ])/g, '$1 $2').trim().toUpperCase();
+    if (lyricText) {
+      // lyricText ya es el _cleanLyric pre-computado
+      const cleanLyric = lyricText;
       const baseFontSize = Math.max(13, Math.min(24, w * 0.32));
       const fontScale = cleanLyric.length > 6 ? (6 / cleanLyric.length) : 1.0;
       const fontSize = Math.max(11, baseFontSize * fontScale);
 
       ctx.save();
-      ctx.font = `900 ${Math.round(fontSize)}px Montserrat, -apple-system, sans-serif`;
+      ctx.font = (this._fontCache && this._fontCache[Math.round(fontSize)]) || `900 ${Math.round(fontSize)}px Montserrat, -apple-system, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.shadowBlur = 0;
@@ -6473,78 +6502,100 @@ this._hitSpriteKeyPressed = null;
       ctx.stroke();
       ctx.restore();
 
-     // 4. BARRAS DE RITMO LATERALES ESTILO BEATSTAR (Horizontales, espaciadas y definidas)
-      const numLines = 26; // 26 barras con separación limpia (no serrucho apretado)
+    // 4. BARRAS LATERALES BEATSTAR: Vector Normal a 90° (Ortogonales al raíl en 3D)
+      const numLines = 28;
       const bpmSpeed = (normBpm / 60) * Math.PI * 2;
 
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       ctx.lineCap = 'round';
 
-      // Espectro neón continuo
-      const hueShift = (currentTime * 0.04) % 360;
-      const sideGrad = ctx.createLinearGradient(0, horizonY, 0, bottomY);
-      sideGrad.addColorStop(0.00, `hsl(${hueShift}, 100%, 65%)`);
-      sideGrad.addColorStop(0.30, `hsl(${(hueShift + 70) % 360}, 100%, 60%)`);
-      sideGrad.addColorStop(0.65, `hsl(${(hueShift + 160) % 360}, 100%, 60%)`);
-      sideGrad.addColorStop(1.00, `hsl(${(hueShift + 240) % 360}, 100%, 65%)`);
+      // Reutilización de gradiente para no saturar memoria a 120 FPS
+      const hueShift = ((currentTime * 0.04) % 360) | 0;
+      if (!this._sideGradCache || Math.abs(hueShift - (this._lastSideHue || 0)) >= 4) {
+        this._lastSideHue = hueShift;
+        const sideGrad = ctx.createLinearGradient(0, horizonY, 0, bottomY);
+        sideGrad.addColorStop(0.00, `hsl(${hueShift}, 100%, 65%)`);
+        sideGrad.addColorStop(0.30, `hsl(${(hueShift + 70) % 360}, 100%, 60%)`);
+        sideGrad.addColorStop(0.65, `hsl(${(hueShift + 160) % 360}, 100%, 60%)`);
+        sideGrad.addColorStop(1.00, `hsl(${(hueShift + 240) % 360}, 100%, 65%)`);
+        this._sideGradCache = sideGrad;
+      }
 
-      const beatGlow = 1.0 + beatPulse * 0.35;
+      // Cálculo del vector unitario perpendicular (a 90° exactos de la inclinación del raíl)
+      const tLx_top = getBoundaryX(0, horizonY);
+      const tLx_bot = getBoundaryX(0, bottomY);
+      const dyL = bottomY - horizonY;
+      const dxL = tLx_bot - tLx_top;
+      const lenL = Math.hypot(dxL, dyL) || 1;
+      // Normal izquierda orientada hacia afuera a 90°
+      const normLx = -dyL / lenL;
+      const normLy = dxL / lenL;
 
-      // 1. PASADA EXTERIOR: Tubo neón grueso y visible
-      ctx.strokeStyle = sideGrad;
-      ctx.lineWidth = Math.max(3.8, 5.2 * (1.0 + beatPulse * 0.25));
+      const tRx_top = getBoundaryX(3, horizonY);
+      const tRx_bot = getBoundaryX(3, bottomY);
+      const dyR = bottomY - horizonY;
+      const dxR = tRx_bot - tRx_top;
+      const lenR = Math.hypot(dxR, dyR) || 1;
+      // Normal derecha orientada hacia afuera a 90°
+      const normRx = dyR / lenR;
+      const normRy = -dxR / lenR;
+
+      const beatGlow = 1.0 + beatPulse * 0.40;
+
+      // --- PASADA 1: Tubo de Neón coloreado y con presencia ---
+      ctx.strokeStyle = this._sideGradCache;
+      ctx.lineWidth = Math.max(3.8, 5.0 * (1.0 + beatPulse * 0.25));
 
       ctx.beginPath();
       for (let s = 0; s < numLines; s++) {
         const pNorm = s / (numLines - 1);
-        const p = Math.pow(pNorm, 1.30); // Distribución natural en profundidad
+        const p = Math.pow(pNorm, 1.25);
         const yCenter = horizonY + (bottomY - horizonY) * p;
 
-        // Onda senoidal rítmica al compás
-        const wavePhase = p * 12.0 - audioTime * bpmSpeed;
+        const wavePhase = p * 13.0 - audioTime * bpmSpeed;
         const sineVal = 0.5 + 0.5 * Math.sin(wavePhase);
 
-        // Longitud horizontal equilibrada (claramente visible sin invadir la pista)
-        const baseLength = 14 + 32 * p;
-        const ribLength = baseLength * (0.40 + 0.60 * sineVal) * beatGlow;
+        // Longitud destacada de escenario (18px arriba hasta 46px abajo)
+        const baseLength = 18 + 28 * p;
+        const ribLength = baseLength * (0.45 + 0.55 * sineVal) * beatGlow;
 
-        const xL_in = getBoundaryX(0, yCenter) - 2;
-        const xR_in = getBoundaryX(3, yCenter) + 2;
+        const xL = getBoundaryX(0, yCenter) - 2;
+        const xR = getBoundaryX(3, yCenter) + 2;
 
-        // Estrictamente horizontales: de yCenter a yCenter (sin inclinación artificial)
-        ctx.moveTo(xL_in, yCenter);
-        ctx.lineTo(xL_in - ribLength, yCenter);
+        // Proyección ortogonal precisa a 90° del raíl
+        ctx.moveTo(xL, yCenter);
+        ctx.lineTo(xL + normLx * ribLength, yCenter + normLy * ribLength);
 
-        ctx.moveTo(xR_in, yCenter);
-        ctx.lineTo(xR_in + ribLength, yCenter);
+        ctx.moveTo(xR, yCenter);
+        ctx.lineTo(xR + normRx * ribLength, yCenter + normRy * ribLength);
       }
       ctx.stroke();
 
-      // 2. PASADA INTERIOR: Núcleo blanco incandescente
+      // --- PASADA 2: Filamento blanco incandescente interior ---
       ctx.strokeStyle = `rgba(255, 255, 255, ${(0.75 + beatPulse * 0.25).toFixed(2)})`;
       ctx.lineWidth = 1.8;
 
       ctx.beginPath();
       for (let s = 0; s < numLines; s++) {
         const pNorm = s / (numLines - 1);
-        const p = Math.pow(pNorm, 1.30);
+        const p = Math.pow(pNorm, 1.25);
         const yCenter = horizonY + (bottomY - horizonY) * p;
 
-        const wavePhase = p * 12.0 - audioTime * bpmSpeed;
+        const wavePhase = p * 13.0 - audioTime * bpmSpeed;
         const sineVal = 0.5 + 0.5 * Math.sin(wavePhase);
 
-        const baseLength = 14 + 32 * p;
-        const ribLength = (baseLength * (0.40 + 0.60 * sineVal) * beatGlow) * 0.70;
+        const baseLength = 18 + 28 * p;
+        const ribLength = (baseLength * (0.45 + 0.55 * sineVal) * beatGlow) * 0.65;
 
-        const xL_in = getBoundaryX(0, yCenter) - 2;
-        const xR_in = getBoundaryX(3, yCenter) + 2;
+        const xL = getBoundaryX(0, yCenter) - 2;
+        const xR = getBoundaryX(3, yCenter) + 2;
 
-        ctx.moveTo(xL_in, yCenter);
-        ctx.lineTo(xL_in - ribLength, yCenter);
+        ctx.moveTo(xL, yCenter);
+        ctx.lineTo(xL + normLx * ribLength, yCenter + normLy * ribLength);
 
-        ctx.moveTo(xR_in, yCenter);
-        ctx.lineTo(xR_in + ribLength, yCenter);
+        ctx.moveTo(xR, yCenter);
+        ctx.lineTo(xR + normRx * ribLength, yCenter + normRy * ribLength);
       }
       ctx.stroke();
 
@@ -6628,420 +6679,250 @@ this._hitSpriteKeyPressed = null;
 
     ctx.restore();
   }
-
-
 // =========================================================================
-// PRECOMPILACIÓN DE SPRITES DEL HITLINE (Ahorro ~90% del coste de dibujo)
-// Se llama UNA vez por carril cuando cambia el tamaño o el palette
-// =========================================================================
-buildHitLineSprites() {
-  const isLarge = (this.keyStyle !== 'compact');
-  const palette = this.activeSongPalette || (typeof SONG_COLOR_PALETTES !== 'undefined' ? SONG_COLOR_PALETTES.classic : null);
-  const laserCol = palette ? (palette.primary || '#00f5a0') : '#00f5a0';
-  const glowCol = palette ? (palette.glow || '#ffd700') : '#ffd700';
-  const laserRgb = hexToRgb(laserCol);
-  const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
-  const dpr = this.dpr || 1;
+    // PRECOMPILACIÓN DE SPRITES DEL HITLINE (Ahorro ~90% de GPU)
+    // =========================================================================
+    buildHitLineSprites() {
+      const isLarge = (this.keyStyle !== 'compact');
+      const palette = this.activeSongPalette || (typeof SONG_COLOR_PALETTES !== 'undefined' ? SONG_COLOR_PALETTES.classic : null);
+      const laserCol = palette ? (palette.primary || '#00f5a0') : '#00f5a0';
+      const glowCol = palette ? (palette.glow || '#ffd700') : '#ffd700';
+      const laserRgb = hexToRgb(laserCol);
+      const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
+      const dpr = this.dpr || 1;
 
-  const socketH = isLarge ? 56 : 32;
-  const socketTopY = hitY - (isLarge ? 12 : 6);
-  const socketBotY = socketTopY + socketH;
-  const margin = Math.max(2.5, isLarge ? 4.0 : 2.5);
-  const socketRad = isLarge ? 8 : 5;
-  const keyClearance = 2.5;
-  const bevelH = isLarge ? 7 : 4;
+      const socketH = isLarge ? 56 : 32;
+      const margin = Math.max(2.5, isLarge ? 4.0 : 2.5);
+      const socketRad = isLarge ? 8 : 5;
+      const keyClearance = 2.5;
+      const bevelH = isLarge ? 7 : 4;
 
-  // Dimensiones del sprite común (todas las teclas del hitline son iguales en ancho porque
-  // están justo en la hitLine donde la perspectiva da el mismo laneW para los 3 carriles)
-  const laneWidthAtHit = this.getLaneBoundaryX(1, hitY) - this.getLaneBoundaryX(0, hitY);
-  const socketW = laneWidthAtHit - margin * 2;
-  const keyW = socketW - keyClearance * 2;
+      const laneWidthAtHit = this.getLaneBoundaryX(1, hitY) - this.getLaneBoundaryX(0, hitY);
+      const socketW = laneWidthAtHit - margin * 2;
+      const keyW = socketW - keyClearance * 2;
 
-  const pad = 10; // margen para que no se corte el resplandor
-  const spriteCssW = socketW + pad * 2;
-  const spriteCssH = socketH + pad * 2;
+      const pad = 10;
+      const spriteCssW = socketW + pad * 2;
+      const spriteCssH = socketH + pad * 2;
 
-  this._hitSprites = { pad, socketW, socketH, keyW, spriteCssW, spriteCssH, laserCol, glowCol, laserRgb };
+      this._hitSprites = { pad, socketW, socketH, keyW, spriteCssW, spriteCssH, laserCol, glowCol, laserRgb };
 
-  // ---- SPRITE DEL SOCKET (estático, no cambia con el sink) ----
-  const sockCanvas = document.createElement('canvas');
-  sockCanvas.width = Math.ceil(spriteCssW * dpr);
-  sockCanvas.height = Math.ceil(spriteCssH * dpr);
-  const sctx = sockCanvas.getContext('2d');
-  sctx.scale(dpr, dpr);
+      // Sprite del socket
+      const sockCanvas = document.createElement('canvas');
+      sockCanvas.width = Math.ceil(spriteCssW * dpr);
+      sockCanvas.height = Math.ceil(spriteCssH * dpr);
+      const sctx = sockCanvas.getContext('2d');
+      sctx.scale(dpr, dpr);
 
-  const sx0 = pad, sx1 = pad + socketW;
-  const sy0 = pad, sy1 = pad + socketH;
+      const sx0 = pad, sx1 = pad + socketW;
+      const sy0 = pad, sy1 = pad + socketH;
 
-  // Fondo profundo del hueco
-  sctx.fillStyle = '#060810';
-  this._traceQuadOn(sctx, sx0, sx1, sx0, sx1, sy0, sy1, socketRad);
-  sctx.fill();
+      sctx.fillStyle = '#060810';
+      this._traceQuadOn(sctx, sx0, sx1, sx0, sx1, sy0, sy1, socketRad);
+      sctx.fill();
 
-  // Sombra interior superior
-  const innerShadowH = Math.max(4, socketH * 0.28);
-  sctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-  this._traceQuadOn(sctx, sx0, sx1, sx0, sx1, sy0, sy0 + innerShadowH, socketRad);
-  sctx.fill();
+      const innerShadowH = Math.max(4, socketH * 0.28);
+      sctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+      this._traceQuadOn(sctx, sx0, sx1, sx0, sx1, sy0, sy0 + innerShadowH, socketRad);
+      sctx.fill();
 
-  // Borde exterior biselado
-  sctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-  sctx.lineWidth = 1.2;
-  this._traceQuadOn(sctx, sx0, sx1, sx0, sx1, sy0, sy1, socketRad);
-  sctx.stroke();
+      sctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+      sctx.lineWidth = 1.2;
+      this._traceQuadOn(sctx, sx0, sx1, sx0, sx1, sy0, sy1, socketRad);
+      sctx.stroke();
+      this._hitSpriteSocket = sockCanvas;
 
-  this._hitSpriteSocket = sockCanvas;
+      // Sprites de tecla (idle y pressed)
+      const buildKeySprite = (isPressed) => {
+        const c = document.createElement('canvas');
+        c.width = Math.ceil(spriteCssW * dpr);
+        c.height = Math.ceil(spriteCssH * dpr);
+        const kctx = c.getContext('2d');
+        kctx.scale(dpr, dpr);
 
-  // ---- SPRITES DE LA TECLA (uno normal, uno pressed) ----
-  const buildKeySprite = (isPressed) => {
-    const c = document.createElement('canvas');
-    c.width = Math.ceil(spriteCssW * dpr);
-    c.height = Math.ceil(spriteCssH * dpr);
-    const kctx = c.getContext('2d');
-    kctx.scale(dpr, dpr);
+        const kx0 = pad + keyClearance;
+        const kx1 = pad + socketW - keyClearance;
+        const ky0 = pad + keyClearance;
+        const ky1 = pad + socketH - keyClearance;
+        const keyRad = Math.max(3, socketRad - 2);
+        const yKeyBevel = ky1 - bevelH;
 
-    const kx0 = pad + keyClearance;
-    const kx1 = pad + socketW - keyClearance;
-    const ky0 = pad + keyClearance;
-    const ky1 = pad + socketH - keyClearance;
-    const keyRad = Math.max(3, socketRad - 2);
-    const yKeyBevel = ky1 - bevelH;
-    const kx0Bev = kx0, kx1Bev = kx1; // geometría recta en la hitLine (no perspectiva)
+        kctx.fillStyle = isPressed ? '#1e2436' : '#12141e';
+        this._traceQuadOn(kctx, kx0, kx1, kx0, kx1, yKeyBevel, ky1, keyRad);
+        kctx.fill();
 
-    // Bisel 3D
-    kctx.fillStyle = isPressed ? '#1e2436' : '#12141e';
-    this._traceQuadOn(kctx, kx0Bev, kx1Bev, kx0, kx1, yKeyBevel, ky1, keyRad);
-    kctx.fill();
+        kctx.fillStyle = isPressed ? `rgba(${laserRgb.r}, ${laserRgb.g}, ${laserRgb.b}, 0.95)` : '#181b28';
+        this._traceQuadOn(kctx, kx0, kx1, kx0, kx1, ky0, yKeyBevel, keyRad);
+        kctx.fill();
 
-    // Superficie superior
-    kctx.fillStyle = isPressed
-      ? `rgba(${laserRgb.r}, ${laserRgb.g}, ${laserRgb.b}, 0.95)`
-      : '#181b28';
-    this._traceQuadOn(kctx, kx0, kx1, kx0Bev, kx1Bev, ky0, yKeyBevel, keyRad);
-    kctx.fill();
+        kctx.strokeStyle = isPressed ? 'rgba(255, 255, 255, 0.90)' : 'rgba(255, 255, 255, 0.18)';
+        kctx.lineWidth = isPressed ? 1.5 : 1.0;
+        this._traceQuadOn(kctx, kx0, kx1, kx0, kx1, ky0, ky1, keyRad);
+        kctx.stroke();
 
-    // Borde fino
-    kctx.strokeStyle = isPressed ? 'rgba(255, 255, 255, 0.90)' : 'rgba(255, 255, 255, 0.18)';
-    kctx.lineWidth = isPressed ? 1.5 : 1.0;
-    this._traceQuadOn(kctx, kx0, kx1, kx0, kx1, ky0, ky1, keyRad);
-    kctx.stroke();
+        return c;
+      };
 
-    return c;
-  };
+      this._hitSpriteKeyIdle = buildKeySprite(false);
+      this._hitSpriteKeyPressed = buildKeySprite(true);
+    }
 
-  this._hitSpriteKeyIdle = buildKeySprite(false);
-  this._hitSpriteKeyPressed = buildKeySprite(true);
-}
-
-// Helper estático que dibuja en un contexto arbitrario (no en this.ctx)
-_traceQuadOn(ctx, x0T, x1T, x0B, x1B, topY, botY, rad) {
-  const cr = Math.min(rad, (botY - topY) * 0.35, (x1T - x0T) * 0.30);
-  ctx.beginPath();
-  if (cr < 1.2) {
-    ctx.moveTo(x0T, topY);
-    ctx.lineTo(x1T, topY);
-    ctx.lineTo(x1B, botY);
-    ctx.lineTo(x0B, botY);
-    ctx.closePath();
-    return;
-  }
-  ctx.moveTo((x0T + x1T) * 0.5, topY);
-  ctx.arcTo(x1T, topY, x1B, botY, cr);
-  ctx.arcTo(x1B, botY, x0B, botY, cr);
-  ctx.arcTo(x0B, botY, x0T, topY, cr);
-  ctx.arcTo(x0T, topY, x1T, topY, cr);
-  ctx.closePath();
-}
-
-
-  renderHitLine() {
-  const ctx = this.ctx;
-  const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
-  const W = this.width;
-  const is3D = (this.visualDimension !== '2d');
-
-  // Generar sprites si hace falta (solo la primera vez o si cambió el tamaño/palette)
-  if (is3D && (!this._hitSpriteSocket || !this._hitSprites)) {
-    this.buildHitLineSprites();
-  }
-
-  ctx.save();
-
-  if (is3D) {
-    const s = this._hitSprites;
-    if (!s) { ctx.restore(); return; }
-
-    const palette = this.activeSongPalette;
-    const laserCol = s.laserCol;
-    const glowCol = s.glowCol;
-    const laserRgb = s.laserRgb;
-    const isLarge = (this.keyStyle !== 'compact');
-
-    const xTrackLeft = this.getLaneBoundaryX(0, hitY) - 16;
-    const xTrackRight = this.getLaneBoundaryX(3, hitY) + 16;
-    const trackWidth = xTrackRight - xTrackLeft;
-
-    // === CHIP BASE DEL ESCENARIO ===
-    ctx.fillStyle = 'rgba(8, 11, 20, 0.90)';
-    const deckH = isLarge ? 64 : 38;
-    const deckTopY = hitY - (deckH * 0.32);
-    if (ctx.roundRect) ctx.roundRect(xTrackLeft, deckTopY, trackWidth, deckH, 10);
-    else ctx.rect(xTrackLeft, deckTopY, trackWidth, deckH);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-    ctx.lineWidth = 1.0;
-    ctx.stroke();
-
-    // === 3 BOTONES ===
-    const maxSink = isLarge ? 9.0 : 5.0;
-    const spriteOffX = -(s.spriteCssW / 2); // centrado
-    const spriteOffY = -((isLarge ? 12 : 6) + s.pad);
-
-    for (let l = 0; l < 3; l++) {
-      const coord = this.getPerspectiveCoord(l, 1.0);
-      const cx = coord.x;
-
-      // Física de hundimiento
-      const elapsedPress = performance.now() - (this.lanePressAnim ? (this.lanePressAnim[l] || 0) : 0);
-      const isTapping = elapsedPress >= 0 && elapsedPress < 160;
-      let tapDepth = 0;
-      if (isTapping) {
-        const t = elapsedPress / 160;
-        if (t < 0.22) tapDepth = t / 0.22;
-        else {
-          const rt = (t - 0.22) / 0.78;
-          tapDepth = Math.exp(-rt * 4.2) * Math.cos(rt * Math.PI * 2.0);
-        }
-      }
-
-      const isHolding = this.activeHolds.has(l);
-      const glow = this.laneGlows[l] || 0;
-      const isPressed = glow > 0.35 || isHolding;
-      const currentSink = Math.max(0, (isHolding ? maxSink * 0.95 : 0) + (isTapping ? maxSink * tapDepth : (isPressed ? maxSink * 0.75 : 0)));
-
-      // 1) Resplandor de fondo que emana del hueco (más barato: un fillRect con alpha)
-      if (currentSink > 0.5 || isPressed) {
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        const spillAlpha = Math.min(0.9, (currentSink / maxSink) * 0.85 + (isHolding ? 0.4 : 0));
-        ctx.fillStyle = hexToRgba(laserCol, spillAlpha * 0.45);
-        // Trapecio simple (no arcTo)
-        const sx0 = this.getLaneBoundaryX(l, hitY - 8) + 2;
-        const sx1 = this.getLaneBoundaryX(l + 1, hitY - 8) - 2;
-        const sy0 = hitY - (isLarge ? 18 : 10);
-        const sy1 = hitY + (isLarge ? 54 : 32);
-        const sx0b = this.getLaneBoundaryX(l, sy1) + 2;
-        const sx1b = this.getLaneBoundaryX(l + 1, sy1) - 2;
-        ctx.beginPath();
-        ctx.moveTo(sx0, sy0); ctx.lineTo(sx1, sy0);
-        ctx.lineTo(sx1b, sy1); ctx.lineTo(sx0b, sy1);
+    _traceQuadOn(ctx, x0T, x1T, x0B, x1B, topY, botY, rad) {
+      const cr = Math.min(rad, (botY - topY) * 0.35, (x1T - x0T) * 0.30);
+      ctx.beginPath();
+      if (cr < 1.2) {
+        ctx.moveTo(x0T, topY); ctx.lineTo(x1T, topY); ctx.lineTo(x1B, botY); ctx.lineTo(x0B, botY);
         ctx.closePath();
-        ctx.fill();
-        ctx.restore();
+        return;
+      }
+      ctx.moveTo((x0T + x1T) * 0.5, topY);
+      ctx.arcTo(x1T, topY, x1B, botY, cr);
+      ctx.arcTo(x1B, botY, x0B, botY, cr);
+      ctx.arcTo(x0B, botY, x0T, topY, cr);
+      ctx.arcTo(x0T, topY, x1T, topY, cr);
+      ctx.closePath();
+    }
+
+    renderHitLine() {
+      const ctx = this.ctx;
+      const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
+      const is3D = (this.visualDimension !== '2d');
+
+      if (is3D && (!this._hitSpriteSocket || !this._hitSprites)) {
+        this.buildHitLineSprites();
       }
 
-      // 2) Socket (sprite estático)
-      ctx.drawImage(
-        this._hitSpriteSocket,
-        cx + spriteOffX,
-        hitY + spriteOffY,
-        s.spriteCssW,
-        s.spriteCssH
-      );
-
-      // 3) Tecla (sprite que se hunde según currentSink)
-      const keySprite = currentSink > 1.0 ? this._hitSpriteKeyPressed : this._hitSpriteKeyIdle;
-      ctx.drawImage(
-        keySprite,
-        cx + spriteOffX,
-        hitY + spriteOffY + currentSink,
-        s.spriteCssW,
-        s.spriteCssH
-      );
-
-      // 4) Zona Perfect+ (franja + crosshair + diamante) — se queda dinámica pero es barato
       ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      const perfY = hitY + currentSink;
-      const keyW = s.keyW;
-      const slotW = keyW * 0.72;
-      const slotH = isLarge ? 5.0 : 3.5;
-      const slotAlpha = isPressed ? 0.95 : 0.65;
-      ctx.fillStyle = `rgba(0, 245, 160, ${(slotAlpha * 0.80).toFixed(3)})`;
-      ctx.fillRect(cx - slotW / 2, perfY - slotH / 2, slotW, slotH);
+      if (is3D) {
+        const s = this._hitSprites;
+        if (!s) { ctx.restore(); return; }
 
-      ctx.strokeStyle = isPressed ? '#ffffff' : hexToRgba(laserCol, 0.90);
-      ctx.lineWidth = 1.4;
-      ctx.beginPath();
-      ctx.moveTo(cx - slotW * 0.45, perfY);
-      ctx.lineTo(cx + slotW * 0.45, perfY);
-      ctx.stroke();
+        const laserCol = s.laserCol;
+        const laserRgb = s.laserRgb;
+        const isLarge = (this.keyStyle !== 'compact');
 
-      const crosshairSize = isLarge ? 6.5 : 4.5;
-      ctx.beginPath();
-      ctx.moveTo(cx - slotW * 0.35, perfY - (isLarge ? 4.5 : 3));
-      ctx.lineTo(cx - slotW * 0.35, perfY + (isLarge ? 4.5 : 3));
-      ctx.moveTo(cx + slotW * 0.35, perfY - (isLarge ? 4.5 : 3));
-      ctx.lineTo(cx + slotW * 0.35, perfY + (isLarge ? 4.5 : 3));
-      ctx.stroke();
+        const xTrackLeft = this.getLaneBoundaryX(0, hitY) - 16;
+        const xTrackRight = this.getLaneBoundaryX(3, hitY) + 16;
+        const trackWidth = xTrackRight - xTrackLeft;
 
-      ctx.fillStyle = isPressed ? '#ffffff' : laserCol;
-      ctx.beginPath();
-      ctx.moveTo(cx, perfY - crosshairSize * 0.8);
-      ctx.lineTo(cx + crosshairSize * 0.8, perfY);
-      ctx.lineTo(cx, perfY + crosshairSize * 0.8);
-      ctx.lineTo(cx - crosshairSize * 0.8, perfY);
-      ctx.closePath();
-      ctx.fill();
+        // Base del escenario
+        ctx.fillStyle = 'rgba(8, 11, 20, 0.90)';
+        const deckH = isLarge ? 64 : 38;
+        const deckTopY = hitY - (deckH * 0.32);
+        if (ctx.roundRect) ctx.roundRect(xTrackLeft, deckTopY, trackWidth, deckH, 10);
+        else ctx.rect(xTrackLeft, deckTopY, trackWidth, deckH);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1.0;
+        ctx.stroke();
 
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(cx, perfY, 1.4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+        const maxSink = isLarge ? 9.0 : 5.0;
+        const spriteOffX = -(s.spriteCssW / 2);
+        const spriteOffY = -((isLarge ? 12 : 6) + s.pad);
 
-      // 5) Arco de energía si isHolding
-      if (isHolding) {
-        const active = this.activeHolds.get(l);
-        const startT = active.startTime;
-        const endT = active.note.end_timestamp_ms || (startT + (active.note.duration_ms || 700));
-        const currT = this.getCurrentGameTimeMs();
-        const progress = Math.min(1.0, Math.max(0, (currT - startT) / (endT - startT)));
+        for (let l = 0; l < 3; l++) {
+          const coord = this.getPerspectiveCoord(l, 1.0);
+          const cx = coord.x;
 
+          const elapsedPress = performance.now() - (this.lanePressAnim ? (this.lanePressAnim[l] || 0) : 0);
+          const isTapping = elapsedPress >= 0 && elapsedPress < 160;
+          let tapDepth = 0;
+          if (isTapping) {
+            const t = elapsedPress / 160;
+            tapDepth = t < 0.22 ? (t / 0.22) : Math.exp(-((t - 0.22) / 0.78) * 4.2) * Math.cos(((t - 0.22) / 0.78) * Math.PI * 2.0);
+          }
+
+          const isHolding = this.activeHolds.has(l);
+          const glow = this.laneGlows[l] || 0;
+          const isPressed = glow > 0.35 || isHolding;
+          const currentSink = Math.max(0, (isHolding ? maxSink * 0.95 : 0) + (isTapping ? maxSink * tapDepth : (isPressed ? maxSink * 0.75 : 0)));
+
+          // Socket y Tecla (vía sprites)
+          ctx.drawImage(this._hitSpriteSocket, cx + spriteOffX, hitY + spriteOffY, s.spriteCssW, s.spriteCssH);
+          const keySprite = currentSink > 1.0 ? this._hitSpriteKeyPressed : this._hitSpriteKeyIdle;
+          ctx.drawImage(keySprite, cx + spriteOffX, hitY + spriteOffY + currentSink, s.spriteCssW, s.spriteCssH);
+
+          // Zona Perfect+
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          const perfY = hitY + currentSink;
+          const keyW = s.keyW;
+          const slotW = keyW * 0.72;
+          const slotH = isLarge ? 5.0 : 3.5;
+          ctx.fillStyle = `rgba(0, 245, 160, ${(isPressed ? 0.75 : 0.52).toFixed(3)})`;
+          ctx.fillRect(cx - slotW / 2, perfY - slotH / 2, slotW, slotH);
+
+          ctx.strokeStyle = isPressed ? '#ffffff' : hexToRgba(laserCol, 0.90);
+          ctx.lineWidth = 1.4;
+          ctx.beginPath();
+          ctx.moveTo(cx - slotW * 0.45, perfY); ctx.lineTo(cx + slotW * 0.45, perfY);
+          ctx.stroke();
+
+          const crosshairSize = isLarge ? 6.5 : 4.5;
+          ctx.fillStyle = isPressed ? '#ffffff' : laserCol;
+          ctx.beginPath();
+          ctx.moveTo(cx, perfY - crosshairSize * 0.8);
+          ctx.lineTo(cx + crosshairSize * 0.8, perfY);
+          ctx.lineTo(cx, perfY + crosshairSize * 0.8);
+          ctx.lineTo(cx - crosshairSize * 0.8, perfY);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+
+          // Arco en Hold
+          if (isHolding) {
+            const active = this.activeHolds.get(l);
+            const startT = active.startTime;
+            const endT = active.note.end_timestamp_ms || (startT + (active.note.duration_ms || 700));
+            const progress = Math.min(1.0, Math.max(0, (this.getCurrentGameTimeMs() - startT) / (endT - startT)));
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.strokeStyle = laserCol;
+            ctx.lineWidth = 3.6;
+            ctx.beginPath();
+            ctx.arc(cx, perfY, 22, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+
+        // Línea guía holográfica
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
-        ctx.strokeStyle = laserCol;
-        ctx.lineWidth = 3.6;
-        ctx.beginPath();
-        ctx.arc(cx, perfY, 22, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
-        ctx.stroke();
-        ctx.strokeStyle = '#ffffff';
+        ctx.strokeStyle = `rgba(${laserRgb.r}, ${laserRgb.g}, ${laserRgb.b}, 0.55)`;
         ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(xTrackLeft, hitY); ctx.lineTo(xTrackRight, hitY);
         ctx.stroke();
         ctx.restore();
-      }
 
-      // 6) Keybind en PC
-      if (this.isPCMode) {
-        const kb = this.pcKeybinds || { 0: 'd', 1: 'f', 2: 'j' };
-        const keyChar = ((kb[l] || (l === 0 ? 'd' : (l === 1 ? 'f' : 'j'))).toUpperCase());
-        const pillW = 26, pillH = 17;
-        const pillY = hitY + (isLarge ? 54 : 32) + 12;
-        ctx.save();
-        ctx.fillStyle = isPressed ? 'rgba(255, 255, 255, 0.32)' : 'rgba(10, 12, 22, 0.80)';
-        ctx.strokeStyle = isPressed ? '#ffffff' : 'rgba(255, 255, 255, 0.22)';
-        ctx.lineWidth = 1.1;
-        if (ctx.roundRect) ctx.roundRect(cx - pillW / 2, pillY - pillH / 2, pillW, pillH, 4.5);
-        else ctx.rect(cx - pillW / 2, pillY - pillH / 2, pillW, pillH);
-        ctx.fill();
+      } else {
+        // Modo 2D
+        const laneW = this.width / 3;
+        ctx.strokeStyle = '#00f2fe';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(0, hitY); ctx.lineTo(this.width, hitY);
         ctx.stroke();
-        ctx.font = '800 11px "Outfit", system-ui, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = isPressed ? '#ffffff' : 'rgba(255, 255, 255, 0.90)';
-        ctx.fillText(keyChar, cx, pillY);
-        ctx.restore();
-      }
-    }
-
-    // === LÍNEA GUÍA HOLOGRÁFICA (con gradiente cacheado) ===
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    const guideKey = `${laserCol}_${xTrackLeft}_${xTrackRight}`;
-    if (this._guideGradKey !== guideKey || !this._guideGrad) {
-      this._guideGradKey = guideKey;
-      const g = ctx.createLinearGradient(xTrackLeft, 0, xTrackRight, 0);
-      g.addColorStop(0.0, 'rgba(0, 0, 0, 0)');
-      g.addColorStop(0.12, `rgba(${laserRgb.r}, ${laserRgb.g}, ${laserRgb.b}, 0.35)`);
-      g.addColorStop(0.50, 'rgba(255, 255, 255, 0.85)');
-      g.addColorStop(0.88, `rgba(${laserRgb.r}, ${laserRgb.g}, ${laserRgb.b}, 0.35)`);
-      g.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-      this._guideGrad = g;
-    }
-    ctx.strokeStyle = this._guideGrad;
-    ctx.lineWidth = 1.6;
-    ctx.beginPath();
-    ctx.moveTo(xTrackLeft, hitY);
-    ctx.lineTo(xTrackRight, hitY);
-    ctx.stroke();
-
-    ctx.fillStyle = laserCol;
-    ctx.beginPath();
-    ctx.arc(xTrackLeft + 4, hitY, 3, 0, Math.PI * 2);
-    ctx.arc(xTrackRight - 4, hitY, 3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
-  } else {
-    // Modo 2D — se queda igual que antes (no es el cuello de botella)
-    const laneW = this.width / 3;
-    const isLarge = (this.keyStyle !== 'compact');
-    ctx.save();
-    ctx.strokeStyle = '#00f2fe';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(0, hitY);
-    ctx.lineTo(W, hitY);
-    ctx.stroke();
-    ctx.restore();
-
-    for (let l = 0; l < 3; l++) {
-      const cx = (l + 0.5) * laneW;
-      const isHolding = this.activeHolds.has(l);
-      const glow = this.laneGlows[l] || 0;
-      const isPressed = glow > 0.35 || isHolding;
-      const targetW = laneW * (isLarge ? 0.98 : 0.80);
-      const targetH = isLarge ? 64 : 24;
-      ctx.save();
-      ctx.fillStyle = isPressed ? 'rgba(0, 242, 254, 0.25)' : 'rgba(0, 0, 0, 0.6)';
-      ctx.strokeStyle = isPressed ? '#ff007f' : 'rgba(0, 242, 254, 0.6)';
-      ctx.lineWidth = isPressed ? 2.5 : 1.5;
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(cx - targetW / 2, hitY - targetH / 2, targetW, targetH, isLarge ? 8 : 4);
-      else ctx.rect(cx - targetW / 2, hitY - targetH / 2, targetW, targetH);
-      ctx.fill();
-      ctx.stroke();
-      if (this.isPCMode) {
-        const kb = this.pcKeybinds || { 0: 'd', 1: 'f', 2: 'j' };
-        const keyChar = ((kb[l] || (l === 0 ? 'd' : (l === 1 ? 'f' : 'j'))).toUpperCase());
-        ctx.font = '700 12px "Outfit", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = isPressed ? '#00f2fe' : '#ffffff';
-        ctx.fillText(`[ ${keyChar} ]`, cx, hitY + (isLarge ? 46 : 34));
       }
       ctx.restore();
     }
-  }
 
-  ctx.restore();
-}
+    renderVectorChevron(ctx, x, y, direction, maxW = 50, maxH = 30) {
+      ctx.save();
+      let angle = 0;
+      if (direction === 'down') angle = Math.PI;
+      else if (direction === 'left') angle = -Math.PI / 2;
+      else if (direction === 'right') angle = Math.PI / 2;
 
-  // Rediseño Total de Flechas Swipe: Aerodinámico, bajo relieve en latón pulido, contenido en la tecla
-  renderVectorChevron(ctx, x, y, direction, maxW = 50, maxH = 30) {
-    ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
 
-    let angle = 0;
-    if (direction === 'down') angle = Math.PI;
-    else if (direction === 'left') angle = -Math.PI / 2;
-    else if (direction === 'right') angle = Math.PI / 2;
-
-    ctx.translate(x, y);
-    ctx.rotate(angle);
-
-    const effectiveW = (typeof maxW === 'number' && maxW > 0) ? maxW : 60;
-    const effectiveH = (typeof maxH === 'number' && maxH > 0) ? maxH : 35;
-    const arrowW = Math.max(16, effectiveW * 0.52);
-    const arrowH = Math.max(14, effectiveH * 0.55);
-
-    const palette = this.activeSongPalette || (typeof SONG_COLOR_PALETTES !== 'undefined' ? SONG_COLOR_PALETTES.classic : null);
-    const neonCol = palette ? (palette.glow || palette.primary) : '#ff00aa';
-
-    // Trazado de flecha limpia estilo Beatstar (punta triangular + cuerpo rectangular)
-    const traceArrow = () => {
+      const arrowW = Math.max(16, ((maxW > 0 ? maxW : 60) * 0.52));
+      const arrowH = Math.max(14, ((maxH > 0 ? maxH : 35) * 0.55));
       const headH = arrowH * 0.55;
       const stemW = arrowW * 0.42;
-      const stemH = arrowH * 0.45;
+
       ctx.beginPath();
       ctx.moveTo(0, -arrowH / 2);
       ctx.lineTo(arrowW / 2, -arrowH / 2 + headH);
@@ -7051,546 +6932,183 @@ _traceQuadOn(ctx, x0T, x1T, x0B, x1B, topY, botY, rad) {
       ctx.lineTo(-stemW / 2, -arrowH / 2 + headH);
       ctx.lineTo(-arrowW / 2, -arrowH / 2 + headH);
       ctx.closePath();
-    };
 
-    // 1. Resplandor exterior grueso de neón (Exacto a Beatstar)
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.strokeStyle = hexToRgba(neonCol, 0.95);
-    ctx.lineWidth = 4.5;
-    traceArrow();
-    ctx.stroke();
-    ctx.restore();
-
-    // 2. Relleno blanco brillante nítido
-    ctx.fillStyle = '#ffffff';
-    traceArrow();
-    ctx.fill();
-
-    // 3. Borde fino blanco
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 1.2;
-    traceArrow();
-    ctx.stroke();
-
-    ctx.restore();
-  }
-
-  renderNotes(currentTime) {
-    const ctx = this.ctx;
-    const len = this.notes.length;
-    const scrollDur = (Number.isFinite(this.scrollDurationMs) && this.scrollDurationMs > 0) ? this.scrollDurationMs : 1400;
-    const is3D = (this.visualDimension !== '2d');
-    const isLarge = (this.keyStyle !== 'compact');
-    const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
-    const laneW = this.width / 3;
-    const horizonY = 12;
-
-    // Caché de tipografía y alineación de notas una única vez antes del bucle de notas visibles
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.shadowBlur = 0;
-    const baseNoteFontSize = Math.round(Math.max(13, Math.min(26, (this.width / 3) * 0.32)));
-    ctx.font = `900 ${baseNoteFontSize}px Montserrat, -apple-system, sans-serif`;
-
-    // Avanzar firstActiveNoteIndex descartando notas pasadas (>400ms tras su impacto/miss)
-    while (this.firstActiveNoteIndex < len) {
-      const pastN = this.notes[this.firstActiveNoteIndex];
-      if (!pastN) { this.firstActiveNoteIndex++; continue; }
-      const pastT = pastN.end_timestamp_ms || pastN.timestamp_ms || pastN.timeMs || 0;
-      if ((pastN.hit || pastN.missed || pastN.processed || pastN.holdCompleted) && !pastN.holding && (currentTime - pastT > 400)) {
-        this.firstActiveNoteIndex++;
-      } else {
-        break;
-      }
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.restore();
     }
 
-    const startIdx = Math.min(this.firstActiveNoteIndex, len);
-    for (let i = startIdx; i < len; i++) {
-      const note = this.notes[i];
-      if (!note || note.holdCompleted) continue;
-      if (note.hit && note.type !== 'hold') continue;
-      if (note.missed && !note.holding) continue;
-      if (note.processed && !note.holding) continue;
+    renderNotes(currentTime) {
+      const ctx = this.ctx;
+      const len = this.notes.length;
+      const scrollDur = (Number.isFinite(this.scrollDurationMs) && this.scrollDurationMs > 0) ? this.scrollDurationMs : 1400;
+      const is3D = (this.visualDimension !== '2d');
+      const isLarge = (this.keyStyle !== 'compact');
+      const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
+      const horizonY = 12;
 
-      const lane = Number.isFinite(note.lane)
-        ? Math.max(0, Math.min(2, Math.round(note.lane)))
-        : (Number.isFinite(note.column) ? Math.max(0, Math.min(2, Math.round(note.column))) : 0);
-
-      const noteT = Number.isFinite(note.timestamp_ms)
-        ? note.timestamp_ms
-        : (Number.isFinite(note.timeMs)
-            ? note.timeMs
-            : (Number.isFinite(note.time) ? (note.time > 100 ? note.time : note.time * 1000) : 0));
-
-      if (!Number.isFinite(noteT)) continue;
-
-      const isBeingHeld = Boolean(note.holding && !note.holdCompleted);
-      const timeUntilHit = noteT - currentTime;
-      if (!Number.isFinite(timeUntilHit)) continue;
-
-      // Break si una nota futura está a más de 1200ms en el futuro (y por encima de scrollDur)
-      if (timeUntilHit > 1200 && timeUntilHit > scrollDur) {
-        break;
+      while (this.firstActiveNoteIndex < len) {
+        const pastN = this.notes[this.firstActiveNoteIndex];
+        if (!pastN) { this.firstActiveNoteIndex++; continue; }
+        const pastT = pastN.end_timestamp_ms || pastN.timestamp_ms || pastN.timeMs || 0;
+        if ((pastN.hit || pastN.missed || pastN.processed || pastN.holdCompleted) && !pastN.holding && (currentTime - pastT > 400)) {
+          this.firstActiveNoteIndex++;
+        } else {
+          break;
+        }
       }
 
-      const pHead = 1.0 - timeUntilHit / scrollDur;
-      if (pHead < -0.15 || (!isBeingHeld && pHead > 1.25)) continue;
+      const startIdx = Math.min(this.firstActiveNoteIndex, len);
+      const isKaraokeActive = Boolean((typeof window !== 'undefined' && window.isKaraokeModeActive) || this.isKaraokeModeActive);
 
-      // Clamping de solapamiento O(1) precalculado al cargar la canción
-      const nextSameLaneDiffMs = (note.nextSameLaneDiffMs !== undefined) ? note.nextSameLaneDiffMs : Infinity;
+      for (let i = startIdx; i < len; i++) {
+        const note = this.notes[i];
+        if (!note || note.holdCompleted) continue;
+        if (note.hit && note.type !== 'hold') continue;
+        if (note.missed && !note.holding) continue;
+        if (note.processed && !note.holding) continue;
 
-      if (is3D) {
-        // =========================================================================
-        // 3D VINTAGE ACOUSTIC GRAND PIANO (CONICAL PERSPECTIVE)
-        // =========================================================================
+        const lane = Math.max(0, Math.min(2, Math.round(note.lane ?? 0)));
+        const noteT = note.timestamp_ms ?? note.timeMs ?? 0;
+        const isBeingHeld = Boolean(note.holding && !note.holdCompleted);
+        const timeUntilHit = noteT - currentTime;
+
+        if (timeUntilHit > 1200 && timeUntilHit > scrollDur) break;
+
+        const pHead = 1.0 - timeUntilHit / scrollDur;
+        if (pHead < -0.15 || (!isBeingHeld && pHead > 1.25)) continue;
+
+        const nextDiff = note.nextSameLaneDiffMs ?? Infinity;
         const coord = this.getPerspectiveCoord(lane, pHead);
-        const maxH3D = nextSameLaneDiffMs < scrollDur
-          ? Math.max(26, ((nextSameLaneDiffMs / scrollDur) * (hitY - horizonY) * coord.scale) - 8)
-          : Infinity;
+        const maxH3D = nextDiff < scrollDur ? Math.max(26, ((nextDiff / scrollDur) * (hitY - horizonY) * coord.scale) - 8) : Infinity;
+        const lyricForNote = isKaraokeActive ? note._cleanLyric : null;
 
         if (note.type === 'hold') {
-          const rawDur = Number.isFinite(note.duration_ms)
-            ? note.duration_ms
-            : (Number.isFinite(note.holdDuration)
-                ? (note.holdDuration > 50 ? note.holdDuration : note.holdDuration * 1000)
-                : (Number.isFinite(note.duration) ? (note.duration > 50 ? note.duration : note.duration * 1000) : 700));
-          const holdDuration = Math.max(150, Number.isFinite(rawDur) ? rawDur : 700);
-          const endT = Number.isFinite(note.end_timestamp_ms) ? note.end_timestamp_ms : (noteT + holdDuration);
-
-          let currentHeadP = isBeingHeld ? 1.0 : pHead;
-          let currentTailP = 1.0 - (endT - currentTime) / scrollDur;
+          const rawDur = note.duration_ms || 700;
+          const endT = note.end_timestamp_ms || (noteT + rawDur);
+          const currentHeadP = isBeingHeld ? 1.0 : pHead;
+          const currentTailP = 1.0 - (endT - currentTime) / scrollDur;
 
           if (currentTailP > 1.25 || currentHeadP < -0.2) continue;
 
-          ctx.save();
-
           const segments = 10;
           const stringPoints = this._holdPointsBuffer || [];
-          const timeSec = currentTime / 1000;
           for (let s = 0; s <= segments; s++) {
             const frac = s / segments;
             const pStep = currentTailP + (currentHeadP - currentTailP) * frac;
             const ptCoord = this.getPerspectiveCoord(lane, pStep);
-
-            const standingEnvelope = Math.sin(Math.PI * frac);
-            const vibration = isBeingHeld 
-              ? (Math.sin(timeSec * 30.0 + ptCoord.y * 0.10) * (6.0 * standingEnvelope * ptCoord.scale))
-              : (Math.sin(timeSec * 6.0 + ptCoord.y * 0.05) * (1.2 * standingEnvelope * ptCoord.scale));
-
-            const wave = Math.sin((ptCoord.y * 0.04) - (currentTime * 0.008)) * (2.4 * ptCoord.scale);
-            const halfW = Math.max(4, (ptCoord.laneW * 0.40) + wave);
-
-            let pt = stringPoints[s];
-            if (!pt) {
-              pt = { x: 0, y: 0, scale: 1, laneW: 50, halfW: 20 };
-              stringPoints[s] = pt;
-            }
-            pt.x = ptCoord.x + vibration;
+            let pt = stringPoints[s] || { x: 0, y: 0, scale: 1, laneW: 50, halfW: 20 };
+            pt.x = ptCoord.x;
             pt.y = ptCoord.y;
             pt.scale = ptCoord.scale;
             pt.laneW = ptCoord.laneW;
-            pt.halfW = halfW;
+            pt.halfW = Math.max(4, ptCoord.laneW * 0.40);
+            stringPoints[s] = pt;
           }
 
-        // 1. Beatstar Neon Translucent Energy Ribbon (Colores Vívidos e Hiper-Exagerados)
-        const palette = this.activeSongPalette || (typeof SONG_COLOR_PALETTES !== 'undefined' ? SONG_COLOR_PALETTES.classic : null);
-        const holdCol = palette ? (palette.primary || '#00f2fe') : '#00f2fe';
-        const holdGlow = palette ? (palette.glow || '#ff00aa') : '#ff00aa';
-
-        ctx.save();
-        // A. Base opaca y saturada con ribete de contraste oscuro (100% visible sobre pistas claras/blancas)
-        ctx.globalCompositeOperation = 'source-over';
-
-        // 1. Ribete exterior de contraste oscuro
-        ctx.beginPath();
-        for (let s = 0; s <= segments; s++) {
-          const pt = stringPoints[s];
-          if (s === 0) ctx.moveTo(pt.x - pt.halfW - 2.5, pt.y);
-          else ctx.lineTo(pt.x - pt.halfW - 2.5, pt.y);
-        }
-        for (let s = segments; s >= 0; s--) {
-          const pt = stringPoints[s];
-          ctx.lineTo(pt.x + pt.halfW + 2.5, pt.y);
-        }
-        ctx.closePath();
-        ctx.fillStyle = 'rgba(10, 4, 18, 0.72)';
-        ctx.fill();
-
-        // 2. Relleno vibrante y fuertemente saturado
-        ctx.beginPath();
-        for (let s = 0; s <= segments; s++) {
-          const pt = stringPoints[s];
-          if (s === 0) ctx.moveTo(pt.x - pt.halfW, pt.y);
-          else ctx.lineTo(pt.x - pt.halfW, pt.y);
-        }
-        for (let s = segments; s >= 0; s--) {
-          const pt = stringPoints[s];
-          ctx.lineTo(pt.x + pt.halfW, pt.y);
-        }
-        ctx.closePath();
-        ctx.fillStyle = hexToRgba(holdCol, isBeingHeld ? 0.95 : 0.88);
-        ctx.fill();
-
-        // Efectos incandescentes en modo lighter
-        ctx.globalCompositeOperation = 'lighter';
-
-        // B. Pulsos de energía diamantinos viajando a lo largo del listón (Traveling Energy Nodes)
-        const pulseCycle = (currentTime * 0.003) % 1.0;
-        for (let pIdx = 0; pIdx < 3; pIdx++) {
-          const pFrac = (pulseCycle + pIdx * 0.33) % 1.0;
-          const ptIdx = Math.min(stringPoints.length - 1, Math.floor(pFrac * (stringPoints.length - 1)));
-          const pulsePt = stringPoints[ptIdx];
-          if (pulsePt) {
-            const pRad = (isBeingHeld ? 8.5 : 5.5) * pulsePt.scale;
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            ctx.arc(pulsePt.x, pulsePt.y, pRad, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.strokeStyle = holdGlow;
-            ctx.lineWidth = 2.4;
-            ctx.beginPath();
-            ctx.arc(pulsePt.x, pulsePt.y, pRad * 1.8, 0, Math.PI * 2);
-            ctx.stroke();
+          // Cinta del Hold
+          ctx.save();
+          ctx.beginPath();
+          for (let s = 0; s <= segments; s++) {
+            const pt = stringPoints[s];
+            if (s === 0) ctx.moveTo(pt.x - pt.halfW, pt.y);
+            else ctx.lineTo(pt.x - pt.halfW, pt.y);
           }
-        }
-
-        // C. Lluvia continua de brillantitos y estrellas diamante al mantener pulsado
-        if (isBeingHeld) {
-          const headPoint = stringPoints[segments];
-          if (this.particles && this.particles.emitHoldSpark) {
-            this.particles.emitHoldSpark(headPoint.x, hitY, holdCol);
+          for (let s = segments; s >= 0; s--) {
+            const pt = stringPoints[s];
+            ctx.lineTo(pt.x + pt.halfW, pt.y);
           }
-        }
+          ctx.closePath();
+          ctx.fillStyle = hexToRgba(this.activeSongPalette?.primary || '#00f2fe', isBeingHeld ? 0.95 : 0.85);
+          ctx.fill();
+          ctx.restore();
 
-        // D. Raíles laterales de neón en los bordes de la cinta
-        ctx.strokeStyle = isBeingHeld ? hexToRgba(holdGlow, 1.0) : hexToRgba(holdGlow, 0.75);
-        ctx.lineWidth = 4.2 * stringPoints[segments].scale;
-        ctx.beginPath();
-        for (let s = 0; s <= segments; s++) {
-          const pt = stringPoints[s];
-          if (s === 0) ctx.moveTo(pt.x - pt.halfW, pt.y);
-          else ctx.lineTo(pt.x - pt.halfW, pt.y);
-        }
-        for (let s = 0; s <= segments; s++) {
-          const pt = stringPoints[s];
-          if (s === 0) ctx.moveTo(pt.x + pt.halfW, pt.y);
-          else ctx.lineTo(pt.x + pt.halfW, pt.y);
-        }
-        ctx.stroke();
-
-        // E. Espina dorsal de láser central de alta tensión
-        ctx.strokeStyle = hexToRgba(holdCol, 1.0);
-        ctx.lineWidth = 5.2 * stringPoints[segments].scale;
-        ctx.beginPath();
-        for (let s = 0; s <= segments; s++) {
-          if (s === 0) ctx.moveTo(stringPoints[s].x, stringPoints[s].y);
-          else ctx.lineTo(stringPoints[s].x, stringPoints[s].y);
-        }
-        ctx.stroke();
-
-        // Núcleo blanco incandescente de plasma
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2.4 * stringPoints[segments].scale;
-        ctx.stroke();
-        ctx.restore();
-
-        // F. CAPUCHÓN TERMINAL ULTRA-VISIBLE: GEMA BRILLANTE Y CORONA ("FIN DEL HOLD")
-        const tailPt = stringPoints[0];
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        const pinRad = (isLarge ? 11 : 7.5) * tailPt.scale;
-
-        // 1. Halo expansivo de alerta visual (Optimizado GPU)
-        ctx.fillStyle = hexToRgba(holdGlow, 0.55);
-        ctx.beginPath();
-        ctx.arc(tailPt.x, tailPt.y, pinRad * 2.8, 0, Math.PI * 2);
-        ctx.fill();
-
-        // 2. Anillo exterior dorado / neón con muescas de precisión
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = Math.max(1.6, 3.2 * tailPt.scale);
-        ctx.beginPath();
-        ctx.arc(tailPt.x, tailPt.y, pinRad * 1.5, 0, Math.PI * 2);
-        ctx.stroke();
-
-        ctx.strokeStyle = holdGlow;
-        ctx.lineWidth = Math.max(1.2, 2.4 * tailPt.scale);
-        ctx.beginPath();
-        ctx.arc(tailPt.x, tailPt.y, pinRad * 1.9, 0, Math.PI * 2);
-        ctx.stroke();
-
-        // 3. Estrella diamante facetada ✦ giratoria en el centro del fin del hold
-        const starRot = currentTime * 0.004;
-        ctx.save();
-        ctx.translate(tailPt.x, tailPt.y);
-        ctx.rotate(starRot);
-        const sOuter = pinRad * 1.7;
-        const sInner = pinRad * 0.42;
-        ctx.beginPath();
-        for (let pt = 0; pt < 8; pt++) {
-          const rCur = (pt % 2 === 0) ? sOuter : sInner;
-          const aCur = (pt / 8) * Math.PI * 2;
-          const px = Math.cos(aCur) * rCur;
-          const py = Math.sin(aCur) * rCur;
-          if (pt === 0) ctx.moveTo(px, py);
-          else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
-        ctx.fillStyle = '#ffffff';
-        ctx.fill();
-        ctx.restore();
-
-        // 4. Barra transversal / Cresta de terminación brillante (Optimizado GPU)
-        const barW = Math.max(12, (tailPt.laneW * 0.42));
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.90)';
-        ctx.lineWidth = Math.max(2.2, 4.2 * tailPt.scale);
-        ctx.beginPath();
-        ctx.moveTo(tailPt.x - barW, tailPt.y);
-        ctx.lineTo(tailPt.x + barW, tailPt.y);
-        ctx.stroke();
-
-        ctx.restore();
-
-          // Head Ivory Piano Key
-          const isKaraokeActive = Boolean((typeof window !== 'undefined' && window.isKaraokeModeActive) || this.isKaraokeModeActive);
-          const lyricForNote = (isKaraokeActive && note.lyric && !/^[\s~♪♫▲\-]+$/.test(String(note.lyric))) ? note.lyric : null;
+          // Cabeza del Hold
           const headPt = stringPoints[segments];
           const headH = Math.min((isLarge ? 80 : 30) * headPt.scale, maxH3D);
           this.drawIvoryKey(ctx, lane, headPt.y, headH, headPt.scale, isBeingHeld, isLarge, false, lyricForNote);
 
-          ctx.restore();
-
         } else if (note.type === 'swipe') {
-          const isKaraokeActive = Boolean((typeof window !== 'undefined' && window.isKaraokeModeActive) || this.isKaraokeModeActive);
-          const lyricForNote = (isKaraokeActive && note.lyric && !/^[\s~♪♫▲\-]+$/.test(String(note.lyric))) ? note.lyric : null;
           const h = Math.min((isLarge ? 84 : 32) * coord.scale, maxH3D);
-          const dir = note.direction || 'up';
-
-          // Seguimiento interactivo: la flecha se mueve en tiempo real con el dedo del jugador
-          let dragX = 0;
-          let dragY = 0;
-          for (const [tId, drag] of this.activeSwipeDrags.entries()) {
-            if (drag && drag.lane === lane) {
-              dragX = drag.dx * 0.75;
-              dragY = drag.dy * 0.75;
-              break;
-            }
-          }
-
-          ctx.save();
           const swipeKey = this.drawIvoryKey(ctx, lane, coord.y, h, coord.scale, false, isLarge, true, lyricForNote);
-          this.renderVectorChevron(ctx, swipeKey.cx + dragX, swipeKey.cy + dragY, dir, swipeKey.w, swipeKey.h);
-          ctx.restore();
-
+          this.renderVectorChevron(ctx, swipeKey.cx, swipeKey.cy, note.direction || 'up', swipeKey.w, swipeKey.h);
         } else {
-          // Tap Note
-          const isKaraokeActive = Boolean((typeof window !== 'undefined' && window.isKaraokeModeActive) || this.isKaraokeModeActive);
-          const lyricForNote = (isKaraokeActive && note.lyric && !/^[\s~♪♫▲\-]+$/.test(String(note.lyric))) ? note.lyric : null;
           const h = Math.min((isLarge ? 80 : 30) * coord.scale, maxH3D);
-
-          ctx.save();
           this.drawIvoryKey(ctx, lane, coord.y, h, coord.scale, false, isLarge, false, lyricForNote);
-          ctx.restore();
-        }
-
-      } else {
-        // ==========================================
-        // 2D NEÓN CLÁSICO (Modo Plano)
-        // ==========================================
-        const cx = (lane + 0.5) * laneW;
-        const w = laneW * (isLarge ? 0.98 : 0.80);
-        const maxH2D = nextSameLaneDiffMs < scrollDur
-          ? Math.max(24, ((nextSameLaneDiffMs / scrollDur) * hitY) - 8)
-          : Infinity;
-        const isKaraokeActive = Boolean((typeof window !== 'undefined' && window.isKaraokeModeActive) || this.isKaraokeModeActive);
-        const lyricForNote = (isKaraokeActive && note.lyric && !/^[\s~♪♫▲\-]+$/.test(String(note.lyric))) ? note.lyric : null;
-
-        if (note.type === 'hold') {
-          const rawDur = Number.isFinite(note.duration_ms)
-            ? note.duration_ms
-            : (Number.isFinite(note.holdDuration)
-                ? (note.holdDuration > 50 ? note.holdDuration : note.holdDuration * 1000)
-                : (Number.isFinite(note.duration) ? (note.duration > 50 ? note.duration : note.duration * 1000) : 700));
-          const holdDuration = Math.max(150, Number.isFinite(rawDur) ? rawDur : 700);
-          const endT = Number.isFinite(note.end_timestamp_ms) ? note.end_timestamp_ms : (noteT + holdDuration);
-
-          const currentHeadY = isBeingHeld ? hitY : (hitY * pHead);
-          const currentTailY = hitY * (1.0 - (endT - currentTime) / scrollDur);
-
-          if (currentTailY > hitY + 30 || currentHeadY < -20) continue;
-
-          // Vertical Neon Ribbon
-          ctx.save();
-          const ribbonGrad = ctx.createLinearGradient(0, currentTailY, 0, currentHeadY);
-          ribbonGrad.addColorStop(0.0, 'rgba(0, 242, 254, 0.3)');
-          ribbonGrad.addColorStop(0.5, 'rgba(0, 242, 254, 0.6)');
-          ribbonGrad.addColorStop(1.0, '#00f2fe');
-
-          ctx.fillStyle = ribbonGrad;
-          const ribbonW = w * 0.45;
-          ctx.fillRect(cx - ribbonW / 2, currentTailY, ribbonW, Math.max(4, currentHeadY - currentTailY));
-
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 1;
-          ctx.strokeRect(cx - ribbonW / 2, currentTailY, ribbonW, Math.max(4, currentHeadY - currentTailY));
-          ctx.restore();
-
-          const h = Math.min(isLarge ? 80 : 28, maxH2D);
-          this.draw2DNeonKey(ctx, cx, currentHeadY, w, h, isBeingHeld, isLarge, lyricForNote);
-
-        } else if (note.type === 'swipe') {
-          const cy = hitY * pHead;
-          const h = Math.min(isLarge ? 98 : 36, maxH2D);
-          this.draw2DNeonKey(ctx, cx, cy, w, h, false, isLarge, lyricForNote);
-          this.renderVectorChevron(ctx, cx, cy, note.direction || 'up', w, h);
-
-        } else {
-          const cy = hitY * pHead;
-          const h = Math.min(isLarge ? 80 : 28, maxH2D);
-          this.draw2DNeonKey(ctx, cx, cy, w, h, false, isLarge, lyricForNote);
         }
       }
     }
-  }
 
-  renderJudgements() {
-    const ctx = this.ctx;
-    const len = this.judgements.length;
-    if (len === 0) return;
+    renderJudgements() {
+      const ctx = this.ctx;
+      const len = this.judgements.length;
+      if (len === 0) return;
 
-    ctx.save();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-
-    for (let i = 0; i < len; i++) {
-      const j = this.judgements[i];
-      if (!j || j.alpha <= 0.01) continue;
-
-      const alpha = Math.max(0, Math.min(1, j.alpha));
-      ctx.globalAlpha = alpha;
-
-      const isPerfectPlus = j.text.includes('PERFECT+');
-      const isPerfect = j.text === 'PERFECT';
-      const isGreat = j.text.includes('GREAT');
-      const isGood = j.text.includes('GOOD');
-      const isMiss = j.text.includes('MISS');
-
-      // Respetar estrictamente los colores configurados por el usuario en Ajustes
-      let textColor = j.color;
-      if (!textColor) {
-        if (isPerfectPlus) textColor = this.getScoreColor('perfectPlus');
-        else if (isPerfect) textColor = this.getScoreColor('perfect');
-        else if (isGreat) textColor = this.getScoreColor('great');
-        else if (isGood) textColor = this.getScoreColor('good');
-        else if (isMiss) textColor = this.getScoreColor('miss');
-        else textColor = '#ffffff';
-      }
-
-      let coreColor = isPerfectPlus ? '#ffffff' : (isPerfect ? '#fff6d6' : (isGreat ? '#e0faff' : '#ffffff'));
-
-      const drawX = (typeof j.x === 'number') ? j.x : (this.width / 2);
-      const fontSize = Math.round((isPerfectPlus ? 24 : 22) * j.scale);
-      ctx.font = `900 ${fontSize}px "Outfit", "Montserrat", system-ui, -apple-system, sans-serif`;
-
-      // 1. Haz de Luz Anamórfico Horizontal (Signature Beatstar dopamine burst en PERFECT+)
-      if (isPerfectPlus && alpha > 0.2) {
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        const flareW = Math.min(180, 120 * j.scale);
-        const flareH = Math.max(6, 12 * j.scale);
-        const flareGrad = ctx.createLinearGradient(drawX - flareW, j.y, drawX + flareW, j.y);
-        flareGrad.addColorStop(0.0, 'rgba(0, 0, 0, 0)');
-        flareGrad.addColorStop(0.35, hexToRgba(textColor, alpha * 0.55));
-        flareGrad.addColorStop(0.50, hexToRgba('#ffffff', alpha * 0.95));
-        flareGrad.addColorStop(0.65, hexToRgba(textColor, alpha * 0.55));
-        flareGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-        ctx.fillStyle = flareGrad;
-        ctx.fillRect(drawX - flareW, j.y - flareH / 2, flareW * 2, flareH);
-
-        // Núcleo blanco fino de ultra energía
-        ctx.strokeStyle = `rgba(255, 255, 255, ${(alpha * 0.9).toFixed(2)})`;
-        ctx.lineWidth = 1.6;
-        ctx.beginPath();
-        ctx.moveTo(drawX - flareW * 0.6, j.y);
-        ctx.lineTo(drawX + flareW * 0.6, j.y);
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      // 2. Contorno grueso obsidiana ultra nítido
       ctx.save();
-      ctx.strokeStyle = '#040207';
-      ctx.lineWidth = 5.5;
-      ctx.strokeText(j.text, drawX, j.y);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
 
-      // 3. Relleno con el color de juicio vibrante
-      ctx.fillStyle = textColor;
-      ctx.fillText(j.text, drawX, j.y);
-      ctx.restore();
+      for (let i = 0; i < len; i++) {
+        const j = this.judgements[i];
+        if (!j || j.alpha <= 0.01) continue;
 
-      // 5. Núcleo interior brillante fino para notas críticas (PERFECT+ / PERFECT)
-      if (isPerfectPlus || isPerfect) {
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.font = `900 ${Math.round(fontSize * 0.94)}px "Outfit", "Montserrat", system-ui, -apple-system, sans-serif`;
-        ctx.fillStyle = coreColor;
+        ctx.globalAlpha = Math.max(0, Math.min(1, j.alpha));
+        const drawX = (typeof j.x === 'number') ? j.x : (this.width / 2);
+        const fontSize = Math.round(22 * j.scale);
+        ctx.font = `900 ${fontSize}px "Outfit", system-ui, sans-serif`;
+
+        ctx.strokeStyle = '#040207';
+        ctx.lineWidth = 5.5;
+        ctx.strokeText(j.text, drawX, j.y);
+
+        ctx.fillStyle = j.color || '#ffffff';
         ctx.fillText(j.text, drawX, j.y);
-        ctx.restore();
       }
+      ctx.restore();
     }
-    ctx.restore();
-  }
 
-  startLoop() {
-    if (this.animFrameId) {
-      cancelAnimationFrame(this.animFrameId);
-      this.animFrameId = null;
-    }
-    this.isRunning = true;
-    let lastTime = performance.now();
-
-    const loop = (now) => {
-      if (!this.isRunning || this.isPaused || this.isRewinding) {
+    startLoop() {
+      if (this.animFrameId) {
+        cancelAnimationFrame(this.animFrameId);
         this.animFrameId = null;
-        return;
       }
-      // Uncapped high-refresh-rate delta calculation (60Hz, 90Hz, 120Hz, 144Hz)
-      const dt = Math.min(0.05, Math.max(0.001, (now - lastTime) / 1000));
-      lastTime = now;
+      this.isRunning = true;
+      let lastTime = performance.now();
 
-      try {
-        this.update(dt);
-        this.render();
-      } catch (err) {
-        console.error('Error inside render loop:', err);
-      }
+      const loop = (now) => {
+        if (!this.isRunning || this.isPaused || this.isRewinding) {
+          this.animFrameId = null;
+          return;
+        }
+        const dt = Math.min(0.05, Math.max(0.001, (now - lastTime) / 1000));
+        lastTime = now;
+        this._frameNow = now;
 
+        try {
+          this.update(dt, now);
+          this.render(now);
+        } catch (err) {
+          console.error('Error inside render loop:', err);
+        }
+
+        this.animFrameId = requestAnimationFrame(loop);
+      };
       this.animFrameId = requestAnimationFrame(loop);
-    };
-    this.animFrameId = requestAnimationFrame(loop);
-  }
+    }
 
-  onAudioReady() {
-    console.log("Audio track ready and buffered.");
-  }
-
-  onAudioEnded() {
-    console.log("Audio track finished.");
-    if (!this.isGameOver && this.beatmapData) {
-      setTimeout(() => {
-        this.triggerGameEnd();
-      }, 400);
+    onAudioReady() {}
+    onAudioEnded() {
+      if (!this.isGameOver && this.beatmapData) {
+        setTimeout(() => this.triggerGameEnd(), 400);
+      }
+    }
+    onAudioError(msg) {
+      console.warn("Audio sync error:", msg);
     }
   }
 
-  onAudioError(msg) {
-    console.warn("Audio sync error notification:", msg);
-  }
-}
-
-window.BeatstarEngine = BeatstarEngine;
-window.DirectAudioSync = DirectAudioSync;
-window.ParticleSystem = ParticleSystem;
-window.HighFidelityAudioPlayer = HighFidelityAudioPlayer;
+  // Exportación al objeto global
+  window.BeatstarEngine = BeatstarEngine;
+  window.DirectAudioSync = DirectAudioSync;
+  window.ParticleSystem = ParticleSystem;
+  window.HighFidelityAudioPlayer = HighFidelityAudioPlayer;
