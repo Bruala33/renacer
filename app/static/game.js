@@ -367,6 +367,10 @@ class HighFidelityAudioPlayer {
 // DIRECT HIGH-FIDELITY AUDIO SYNC ENGINE
 // ==========================================
 
+// ==========================================
+// DIRECT HIGH-FIDELITY AUDIO SYNC ENGINE (120 FPS JITTER-FREE)
+// ==========================================
+
 class DirectAudioSync {
   constructor(onReady, onEnded, onError) {
     this.audioElement = new Audio();
@@ -387,12 +391,10 @@ class DirectAudioSync {
     this.duration = 0;
     this.playbackRate = 1.0;
     
-    // High-resolution clock anchor & 120Hz Audio Interpolation
-    this.baseTimeMs = 0;
-    this.basePerfNow = performance.now();
-    this._lastRawAudio = -1;
-    this._lastSyncPerf = performance.now();
-    this._interpolatedTime = 0;
+    // Anclaje de alta precisión
+    this._anchorPerf = 0;
+    this._anchorAudioMs = 0;
+    this._lastSyncCheck = 0;
 
     const enforceSpeedAndPitch = () => {
       if (this.audioElement) {
@@ -400,8 +402,6 @@ class DirectAudioSync {
           this.audioElement.defaultPlaybackRate = this.playbackRate;
           this.audioElement.playbackRate = this.playbackRate;
           this.audioElement.preservesPitch = true;
-          this.audioElement.mozPreservesPitch = true;
-          this.audioElement.webkitPreservesPitch = true;
         } catch (e) {}
       }
     };
@@ -416,49 +416,27 @@ class DirectAudioSync {
     this.audioElement.addEventListener('playing', () => {
       this.isPlaying = true;
       enforceSpeedAndPitch();
-      this.baseTimeMs = (this.audioElement.currentTime || 0) * 1000;
-      this.basePerfNow = performance.now();
+      this._anchorAudioMs = (this.audioElement.currentTime || 0) * 1000;
+      this._anchorPerf = performance.now();
+      this._lastSyncCheck = this._anchorPerf;
       const toast = document.getElementById('audioUnlockToast');
       if (toast) toast.classList.remove('show');
     });
 
     this.audioElement.addEventListener('pause', () => {
       this.isPlaying = false;
-      this.baseTimeMs = (this.audioElement.currentTime || 0) * 1000;
-      this.basePerfNow = performance.now();
-    });
-
-    this.audioElement.addEventListener('seeking', () => {
-      enforceSpeedAndPitch();
-      this.baseTimeMs = (this.audioElement.currentTime || 0) * 1000;
-      this.basePerfNow = performance.now();
-    });
-
-    this.audioElement.addEventListener('seeked', () => {
-      enforceSpeedAndPitch();
-      this.baseTimeMs = (this.audioElement.currentTime || 0) * 1000;
-      this.basePerfNow = performance.now();
+      this._anchorPerf = 0;
     });
 
     this.audioElement.addEventListener('ended', () => {
       this.isPlaying = false;
+      this._anchorPerf = 0;
       if (this.onEnded) this.onEnded();
     });
 
     this.audioElement.addEventListener('error', (e) => {
-      console.warn('Audio playback error event:', e);
       if (this.audioElement.src && this.onError) {
         this.onError('Error en la reproducción de audio.');
-      }
-    });
-
-    this.audioElement.addEventListener('timeupdate', () => {
-      if (this.isPlaying) {
-        const audioCurrent = this.audioElement.currentTime;
-        const now = performance.now();
-        const actual = audioCurrent * 1000;
-        this.baseTimeMs = actual;
-        this.basePerfNow = now;
       }
     });
   }
@@ -474,28 +452,16 @@ class DirectAudioSync {
         const p = this.audioElement.play();
         if (p && typeof p.then === 'function') {
           p.then(() => {
-            if (!this.isPlaying) {
-              this.audioElement.pause();
-            }
-            this.audioElement.muted = false;
-            this.audioElement.volume = 1.0;
-          }).catch(() => {
-            this.audioElement.muted = false;
-            this.audioElement.volume = 1.0;
-          });
+            if (!this.isPlaying) this.audioElement.pause();
+          }).catch(() => {});
         }
-      } catch (e) {
-        this.audioElement.muted = false;
-        this.audioElement.volume = 1.0;
-      }
+      } catch (e) {}
     }
   }
 
   showUnlockPrompt() {
     const toast = document.getElementById('audioUnlockToast');
-    if (toast) {
-      toast.classList.add('show');
-    }
+    if (toast) toast.classList.add('show');
   }
 
   setPlaybackRate(rate) {
@@ -506,12 +472,12 @@ class DirectAudioSync {
         this.audioElement.defaultPlaybackRate = r;
         this.audioElement.playbackRate = r;
         this.audioElement.preservesPitch = true;
-        this.audioElement.mozPreservesPitch = true;
-        this.audioElement.webkitPreservesPitch = true;
       } catch (e) {}
     }
-    this.baseTimeMs = (this.audioElement.currentTime || 0) * 1000;
-    this.basePerfNow = performance.now();
+    if (this.isPlaying) {
+      this._anchorAudioMs = (this.audioElement.currentTime || 0) * 1000;
+      this._anchorPerf = performance.now();
+    }
   }
 
   setVolume(vol, muted = false) {
@@ -556,8 +522,8 @@ class DirectAudioSync {
       this.audioElement.removeAttribute('src');
       this.audioElement.load();
     }
-    this.baseTimeMs = 0;
-    this.basePerfNow = performance.now();
+    this._anchorPerf = 0;
+    this._anchorAudioMs = 0;
   }
 
   play() {
@@ -565,47 +531,27 @@ class DirectAudioSync {
       try { window.pauseMenuAmbientMusic(); } catch (_) {}
     }
     if (!this.audioElement.src) return Promise.resolve();
-    // Invariante absoluto: Si el juego está en pausa, procesando fallo, en game over, no iniciado o en cuenta atrás, no reproducir
     if (window.engine && (window.engine.isPaused || window.engine.isProcessingMiss || window.engine.isGameOver || !window.engine.isRunning || window.engine.isCountingDown)) {
       return Promise.resolve();
     }
     try {
-      try {
-        this.audioElement.defaultPlaybackRate = this.playbackRate;
-        this.audioElement.playbackRate = this.playbackRate;
-        this.audioElement.preservesPitch = true;
-        this.audioElement.mozPreservesPitch = true;
-        this.audioElement.webkitPreservesPitch = true;
-      } catch (e) {}
-
+      this.audioElement.playbackRate = this.playbackRate;
       this.audioElement.muted = this.muted;
       this.audioElement.volume = this.muted ? 0 : this.volume;
 
       const p = this.audioElement.play();
       if (p && typeof p.then === 'function') {
         return p.then(() => {
-          // Si mientras resolvía la promesa el juego se pausó o falló, pausar inmediatamente
-          if (window.engine && (window.engine.isPaused || window.engine.isProcessingMiss || window.engine.isGameOver || !window.engine.isRunning || window.engine.isCountingDown)) {
-            this.pause();
-            return;
-          }
           this.isPlaying = true;
-          this.baseTimeMs = (this.audioElement.currentTime || 0) * 1000;
-          this.basePerfNow = performance.now();
-          const toast = document.getElementById('audioUnlockToast');
-          if (toast) toast.classList.remove('show');
+          this._anchorAudioMs = (this.audioElement.currentTime || 0) * 1000;
+          this._anchorPerf = performance.now();
+          this._lastSyncCheck = this._anchorPerf;
         }).catch(err => {
-          if (err.name !== 'AbortError') {
-            console.warn('[DirectAudioSync] Audio play request catch:', err);
-            if (err.name === 'NotAllowedError') {
-              this.showUnlockPrompt();
-            }
-          }
+          if (err.name === 'NotAllowedError') this.showUnlockPrompt();
         });
       }
       return Promise.resolve();
     } catch (e) {
-      console.warn('Audio play exception:', e);
       return Promise.resolve();
     }
   }
@@ -616,14 +562,12 @@ class DirectAudioSync {
     try {
       this.audioElement.pause();
     } catch (e) {}
-    this.baseTimeMs = (this.audioElement.currentTime || 0) * 1000;
-    this.basePerfNow = performance.now();
   }
 
   seekTo(seconds) {
     const sec = Math.max(0, parseFloat(seconds) || 0);
     this._anchorPerf = 0;
-    this._smoothTime = sec * 1000;
+    this._anchorAudioMs = sec * 1000;
     try {
       if (this.audioElement.readyState >= 1) {
         this.audioElement.currentTime = sec;
@@ -632,49 +576,44 @@ class DirectAudioSync {
   }
 
   // ==========================================
-  // ULTRA-SMOOTH: Slew-rate-limited drift correction. Zero pixel jumps.
+  // RELOJ 100% LINEAL Y CONTINUO ANCLADO AL MONITOR (0 TIRONES A 120 FPS)
   // ==========================================
   getCurrentTimeMs(frameNow) {
     if (!this.isPlaying) {
-      const raw = (this.audioElement && !isNaN(this.audioElement.currentTime)) ? this.audioElement.currentTime * 1000 : 0;
-      this._anchorPerf = 0;
-      this._smoothTime = raw;
-      this._driftOffset = 0;
-      return raw;
+      return (this.audioElement && !isNaN(this.audioElement.currentTime)) 
+        ? this.audioElement.currentTime * 1000 
+        : (this._anchorAudioMs || 0);
     }
-    const nowPerf = frameNow || performance.now();
+
+    const now = frameNow || performance.now();
 
     if (!this._anchorPerf) {
-      this._anchorPerf = nowPerf;
-      this._anchorAudioMs = (this.audioElement && !isNaN(this.audioElement.currentTime)) ? this.audioElement.currentTime * 1000 : 0;
-      this._smoothTime = this._anchorAudioMs;
-      this._lastAudioPollPerf = nowPerf;
-      this._driftOffset = 0;
-      return this._smoothTime;
+      this._anchorPerf = now;
+      this._anchorAudioMs = (this.audioElement && !isNaN(this.audioElement.currentTime)) 
+        ? this.audioElement.currentTime * 1000 
+        : 0;
+      this._lastSyncCheck = now;
+      return this._anchorAudioMs;
     }
 
     const rate = this.playbackRate || 1.0;
 
-    // Sondeo de hardware cada 350ms
-    if (nowPerf - this._lastAudioPollPerf > 350) {
-      this._lastAudioPollPerf = nowPerf;
-      const rawAudioMs = (this.audioElement && !isNaN(this.audioElement.currentTime)) ? this.audioElement.currentTime * 1000 : 0;
-      const targetTime = this._anchorAudioMs + (nowPerf - this._anchorPerf) * rate + this._driftOffset;
-      const drift = rawAudioMs - targetTime;
+    // Solo comprobar si hubo una congelación o desincronización grave real (>120ms)
+    // Se ignoran los micro-saltos de 20-30ms propios del reproductor del navegador
+    if (now - this._lastSyncCheck > 500) {
+      this._lastSyncCheck = now;
+      const hwAudioMs = (this.audioElement.currentTime || 0) * 1000;
+      const expectedTime = this._anchorAudioMs + (now - this._anchorPerf) * rate;
+      const drift = hwAudioMs - expectedTime;
 
-      // Desfase mayor por suspensión o cambio de pestaña
-      if (Math.abs(drift) > 500) {
-        this._anchorPerf = nowPerf;
-        this._anchorAudioMs = rawAudioMs;
-        this._driftOffset = 0;
-      } else if (Math.abs(drift) > 1.5) {
-        // Absorción continua: máximo 0.05ms de corrección por fotograma (imperceptible al ojo)
-        this._driftOffset += Math.sign(drift) * Math.min(Math.abs(drift) * 0.15, 1.5);
+      if (Math.abs(drift) > 120) {
+        this._anchorPerf = now;
+        this._anchorAudioMs = hwAudioMs;
       }
     }
 
-    this._smoothTime = this._anchorAudioMs + (nowPerf - this._anchorPerf) * rate + (this._driftOffset || 0);
-    return this._smoothTime;
+    // Progreso matemático continuo: avanza exactamente al compás de cada fotograma
+    return this._anchorAudioMs + (now - this._anchorPerf) * rate;
   }
 }
 
