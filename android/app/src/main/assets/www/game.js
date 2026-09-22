@@ -593,29 +593,36 @@ class DirectAudioSync {
         ? this.audioElement.currentTime * 1000 
         : 0;
       this._lastSyncCheck = now;
+      this._slewRatio = 1.0;
       return this._anchorAudioMs;
     }
 
     const rate = this.playbackRate || 1.0;
 
-    // Solo comprobar si hubo una congelación o desincronización grave real (>120ms)
-    // Se ignoran los micro-saltos de 20-30ms propios del reproductor del navegador
-    if (now - this._lastSyncCheck > 500) {
+    // Comprobación periódica sin saltos discretos
+    if (now - this._lastSyncCheck > 400) {
       this._lastSyncCheck = now;
       const hwAudioMs = (this.audioElement.currentTime || 0) * 1000;
       const expectedTime = this._anchorAudioMs + (now - this._anchorPerf) * rate;
       const drift = hwAudioMs - expectedTime;
 
-      if (Math.abs(drift) > 120) {
+      // Si el desvío es grande por congelación del sistema, resincronizar base
+      if (Math.abs(drift) > 250) {
         this._anchorPerf = now;
         this._anchorAudioMs = hwAudioMs;
+        this._slewRatio = 1.0;
+      } else if (Math.abs(drift) > 5) {
+        // Corrección infinitesimal de velocidad (0.02%) imperceptible para el ojo
+        this._slewRatio = 1.0 + (drift > 0 ? 0.0002 : -0.0002);
+      } else {
+        this._slewRatio = 1.0;
       }
     }
 
-    // Progreso matemático continuo: avanza exactamente al compás de cada fotograma
-    return this._anchorAudioMs + (now - this._anchorPerf) * rate;
+    return this._anchorAudioMs + (now - this._anchorPerf) * rate * (this._slewRatio || 1.0);
   }
 }
+
 
 // ==========================================
 // HIGH PERFORMANCE ZERO-GC PARTICLE POOL SYSTEM
@@ -2823,8 +2830,8 @@ this._hitSpriteKeyPressed = null;
     }
   }
 
-  getCurrentGameTimeMs() {
-    const fn = this._frameNow || performance.now();
+  getCurrentGameTimeMs(frameNow = null) {
+    const fn = (frameNow !== null && Number.isFinite(frameNow)) ? frameNow : (this._frameNow || performance.now());
     if (this.isCountingDown) {
       const elapsed = fn - this.leadInStartTime;
       return Math.min(0, elapsed - this.leadInDurationMs);
@@ -2833,15 +2840,6 @@ this._hitSpriteKeyPressed = null;
       return (fn - this.calibrationStartTime) + this.latencyOffsetMs;
     }
     return this.sync.getCurrentTimeMs(fn) + this.latencyOffsetMs;
-  }
-
-  getLaneFromX(clientX, clientY = null) {
-    const rect = this.canvas.getBoundingClientRect();
-    if (!rect || rect.width <= 0) return 1;
-    // Normalización de toque por carril (tercios de pantalla limpios y exactos al 100%)
-    const normX = (clientX - rect.left) / rect.width;
-    const lane = Math.floor(normX * 3);
-    return Math.max(0, Math.min(2, lane));
   }
 
   handleTouchStart(e) {
@@ -4062,7 +4060,7 @@ this._hitSpriteKeyPressed = null;
   update(dt, frameNow) {
     this._frameNow = frameNow || performance.now();
     if (this.isPaused || this.isRewinding) return;
-
+    const currentTime = this.getCurrentGameTimeMs(this._frameNow);
     if (this.sync && this.sync.audioElement && this.sync.isPlaying) {
       if (Math.abs(this.sync.audioElement.playbackRate - this.songPlaybackRate) > 0.01) {
         try {
@@ -4132,7 +4130,6 @@ this._hitSpriteKeyPressed = null;
       }
     }
 
-    const currentTime = this.getCurrentGameTimeMs();
     const nowPerf = performance.now();
 
     // Actualización de Teleprompter de Letras en tiempo real (Modo Karaoke)
@@ -5323,10 +5320,10 @@ this._hitSpriteKeyPressed = null;
       this.ctx.translate(sx, sy);
     }
 
-    const currentTime = this.getCurrentGameTimeMs();
+    // ⚡ TIEMPO BLOQUEADO AL FRAME: Un solo valor inmutable para todo el frame
+    const currentTime = this.getCurrentGameTimeMs(this._frameNow);
 
     this.renderBackgroundFX(currentTime);
-
     this.renderLanes(currentTime);
     this.renderHitLine();
     this.renderRipples(this.ctx);
@@ -7044,10 +7041,10 @@ this._hitSpriteKeyPressed = null;
     onAudioError(msg) {
       console.warn("Audio sync error:", msg);
     }
-  }
+}
 
   // Exportación al objeto global
-  window.BeatstarEngine = BeatstarEngine;
-  window.DirectAudioSync = DirectAudioSync;
-  window.ParticleSystem = ParticleSystem;
-  window.HighFidelityAudioPlayer = HighFidelityAudioPlayer;
+window.BeatstarEngine = BeatstarEngine;
+window.DirectAudioSync = DirectAudioSync;
+window.ParticleSystem = ParticleSystem;
+window.HighFidelityAudioPlayer = HighFidelityAudioPlayer;
