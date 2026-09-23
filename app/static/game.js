@@ -2047,67 +2047,148 @@ this._hitSpriteKeyPressed = null;
 
     window.addEventListener('resize', () => this.initCanvasSize());
 
-    // ⚡ ENTRADA TÁCTIL Y RATÓN A NIVEL DE VENTANA (Ningún overlay transparente puede bloquearla)
-    const handlePointerDown = (clientX, clientY, identifier = 'mouse', isTouch = false) => {
-      if (this.isPaused || this.isRewinding) return;
-
-      // Si el toque fue sobre el botón de pausa o la cruz de cerrar, no capturarlo como nota
-      const target = document.elementFromPoint(clientX, clientY);
-      if (target && (target.closest('.hud-pause-btn') || target.closest('button') || target.closest('.modal-overlay'))) {
-        return;
-      }
-
-      const rect = this.canvas.getBoundingClientRect();
-      if (!rect || rect.width <= 0) return;
-
-      // Comprobar que el clic/toque ocurra dentro del ancho del juego
-      if (clientX < rect.left || clientX > rect.right) return;
-
-      const normX = (clientX - rect.left) / rect.width;
-      const lane = Math.max(0, Math.min(2, Math.floor(normX * 3)));
-
-      this.triggerLaneInput(lane, 'tap', null, identifier);
-    };
-
-    // Móvil (Touch)
+    // ⚡ ENTRADA TÁCTIL (TOUCH) A NIVEL DE VENTANA CON SOPORTE COMPLETO DE SWIPE
     window.addEventListener('touchstart', (e) => {
       if (this.isPaused || this.isRewinding) return;
       this.lastTouchTime = performance.now();
+      const rect = this.canvas.getBoundingClientRect();
+      if (!rect || rect.width <= 0) return;
+      const now = performance.now();
+
       for (let i = 0; i < e.changedTouches.length; i++) {
         const t = e.changedTouches[i];
-        handlePointerDown(t.clientX, t.clientY, t.identifier, true);
+        const target = document.elementFromPoint(t.clientX, t.clientY);
+        if (target && (target.closest('.hud-pause-btn') || target.closest('button') || target.closest('.modal-overlay'))) {
+          continue;
+        }
+
+        if (t.clientX < rect.left || t.clientX > rect.right) continue;
+
+        const normX = (t.clientX - rect.left) / rect.width;
+        const lane = Math.max(0, Math.min(2, Math.floor(normX * 3)));
+
+        // Guardar origen de toque para el cálculo del swipe
+        this.activeTouches.set(t.identifier, {
+          startX: t.clientX,
+          startY: t.clientY,
+          startTime: now,
+          lane: lane,
+          swiped: false
+        });
+
+        this.triggerLaneInput(lane, 'tap', null, t.identifier);
+      }
+    }, { passive: false });
+
+    // ⚡ DETECCIÓN DE DESLIZAMIENTO / FLICK (SWIPE)
+    window.addEventListener('touchmove', (e) => {
+      if (this.isPaused || this.isRewinding) return;
+      const now = performance.now();
+
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        const tData = this.activeTouches.get(t.identifier);
+        if (!tData || tData.swiped) continue;
+
+        const dx = t.clientX - tData.startX;
+        const dy = t.clientY - tData.startY;
+        const dist = Math.hypot(dx, dy);
+        const elapsed = now - tData.startTime;
+
+        // Umbral de activación natural de swipe (18px en menos de 500ms)
+        if (dist > 18 && elapsed < 500) {
+          let direction = 'up';
+          if (Math.abs(dx) > Math.abs(dy)) {
+            direction = dx > 0 ? 'right' : 'left';
+          } else {
+            direction = dy > 0 ? 'down' : 'up';
+          }
+
+          tData.swiped = true;
+          this.triggerLaneInput(tData.lane, 'swipe', direction, t.identifier);
+        }
       }
     }, { passive: false });
 
     window.addEventListener('touchend', (e) => {
       for (let i = 0; i < e.changedTouches.length; i++) {
         const t = e.changedTouches[i];
-        const rect = this.canvas.getBoundingClientRect();
-        if (rect && rect.width > 0) {
-          const normX = (t.clientX - rect.left) / rect.width;
-          const lane = Math.max(0, Math.min(2, Math.floor(normX * 3)));
-          this.releaseLaneHold(lane, t.identifier);
+        const tData = this.activeTouches.get(t.identifier);
+        if (tData) {
+          this.releaseLaneHold(tData.lane, t.identifier);
+          this.activeTouches.delete(t.identifier);
+        } else {
+          const rect = this.canvas.getBoundingClientRect();
+          if (rect && rect.width > 0) {
+            const normX = (t.clientX - rect.left) / rect.width;
+            const lane = Math.max(0, Math.min(2, Math.floor(normX * 3)));
+            this.releaseLaneHold(lane, t.identifier);
+          }
         }
       }
     }, { passive: false });
 
-    // PC (Ratón)
+    window.addEventListener('touchcancel', (e) => {
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        const tData = this.activeTouches.get(t.identifier);
+        if (tData) {
+          this.releaseLaneHold(tData.lane, t.identifier);
+          this.activeTouches.delete(t.identifier);
+        }
+      }
+    }, { passive: false });
+
+    // ⚡ RATÓN PC CON SOPORTE DE ARRASTRE PARA SWIPE
     window.addEventListener('mousedown', (e) => {
-      // Evitar eventos de ratón sintéticos en pantallas táctiles
       if (performance.now() - (this.lastTouchTime || 0) < 500) return;
-      handlePointerDown(e.clientX, e.clientY, 'mouse', false);
+      if (this.isPaused || this.isRewinding) return;
+
+      const target = document.elementFromPoint(e.clientX, e.clientY);
+      if (target && (target.closest('.hud-pause-btn') || target.closest('button') || target.closest('.modal-overlay'))) {
+        return;
+      }
+
+      const rect = this.canvas.getBoundingClientRect();
+      if (!rect || rect.width <= 0) return;
+      if (e.clientX < rect.left || e.clientX > rect.right) return;
+
+      const normX = (e.clientX - rect.left) / rect.width;
+      const lane = Math.max(0, Math.min(2, Math.floor(normX * 3)));
+
+      this.mouseTouch = {
+        startX: e.clientX,
+        startY: e.clientY,
+        startTime: performance.now(),
+        lane: lane,
+        swiped: false
+      };
+
+      this.triggerLaneInput(lane, 'tap', null, 'mouse');
     });
 
-    window.addEventListener('mouseup', (e) => {
-      const rect = this.canvas.getBoundingClientRect();
-      if (rect && rect.width > 0 && e.clientX >= rect.left && e.clientX <= rect.right) {
-        const normX = (e.clientX - rect.left) / rect.width;
-        const lane = Math.max(0, Math.min(2, Math.floor(normX * 3)));
-        this.releaseLaneHold(lane, 'mouse');
+    window.addEventListener('mousemove', (e) => {
+      if (!this.mouseTouch || this.mouseTouch.swiped || this.isPaused || this.isRewinding) return;
+      const dx = e.clientX - this.mouseTouch.startX;
+      const dy = e.clientY - this.mouseTouch.startY;
+      const dist = Math.hypot(dx, dy);
+      const elapsed = performance.now() - this.mouseTouch.startTime;
+
+      if (dist > 18 && elapsed < 500) {
+        let direction = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+        this.mouseTouch.swiped = true;
+        this.triggerLaneInput(this.mouseTouch.lane, 'swipe', direction, 'mouse');
       }
     });
 
-    // Teclado PC (D, F, J)
+    window.addEventListener('mouseup', (e) => {
+      if (this.mouseTouch) {
+        this.releaseLaneHold(this.mouseTouch.lane, 'mouse');
+        this.mouseTouch = null;
+      }
+    });
+
+    // ⚡ TECLADO PC (D, F, J y Flechas para Swipe)
     window.addEventListener('keydown', (e) => {
       if (e.repeat) return;
       if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
@@ -2128,6 +2209,35 @@ this._hitSpriteKeyPressed = null;
       if (k === (kb[0] || 'd') || k === 'a' || k === '1') this.triggerLaneInput(0, 'tap');
       else if (k === (kb[1] || 'f') || k === 's' || k === ' ' || k === '2') this.triggerLaneInput(1, 'tap');
       else if (k === (kb[2] || 'j') || k === 'k' || k === '3') this.triggerLaneInput(2, 'tap');
+
+      const handleArrowSwipe = (dir) => {
+        const currentTime = this.getCurrentGameTimeMs();
+        let targetLane = -1;
+        let bestDiff = Infinity;
+        if (Array.isArray(this.notes)) {
+          for (let i = 0; i < this.notes.length; i++) {
+            const n = this.notes[i];
+            if (n.hit || n.missed || n.holdCompleted || n.holding) continue;
+            const diff = currentTime - n.timestamp_ms;
+            const absDiff = Math.abs(diff);
+            if (absDiff <= 340 && n.type === 'swipe' && (!n.direction || n.direction === dir)) {
+              if (absDiff < bestDiff) {
+                bestDiff = absDiff;
+                targetLane = n.lane;
+              }
+            }
+          }
+        }
+        if (targetLane === -1) {
+          targetLane = (dir === 'left' ? 0 : dir === 'right' ? 2 : 1);
+        }
+        this.triggerLaneInput(targetLane, 'swipe', dir);
+      };
+
+      if (e.key === 'ArrowLeft') handleArrowSwipe('left');
+      else if (e.key === 'ArrowRight') handleArrowSwipe('right');
+      else if (e.key === 'ArrowUp') handleArrowSwipe('up');
+      else if (e.key === 'ArrowDown') handleArrowSwipe('down');
     });
 
     window.addEventListener('keyup', (e) => {
@@ -3115,12 +3225,12 @@ this._hitSpriteKeyPressed = null;
       color: p.c1
     });
 
-    // Ventana de colisión fluida (±240 ms): cubre Perfect+, Perfect, Great y Good sin ignorar toques
-    const HIT_WINDOW = 240;
+   // ⚡ Ventana amplia para swipes (320ms) para compensar el tiempo que tarda el dedo en desplazarse 18px
+    const HIT_WINDOW = (inputType === 'swipe') ? 320 : 240;
     let closestNote = null;
     let minDiff = Infinity;
 
-    // 1. Recolectar todas las notas activas en este carril dentro de la ventana de tiempo
+    // 1. Recolectar notas activas en este carril
     const laneNotes = [];
     for (let i = 0; i < this.notes.length; i++) {
       const note = this.notes[i];
@@ -3134,9 +3244,21 @@ this._hitSpriteKeyPressed = null;
       }
     }
 
-    // Ordenar cronológicamente (la nota que llega primero en el tiempo va primero)
-    laneNotes.sort((a, b) => a.time - b.time);
+    // ⚡ Si es swipe y el jugador empezó el gesto ligeramente ladeado, buscar en carriles adyacentes
+    if (inputType === 'swipe' && laneNotes.length === 0) {
+      for (let i = 0; i < this.notes.length; i++) {
+        const note = this.notes[i];
+        if (note.hit || note.missed || note.holdCompleted || note.holding) continue;
+        if (note.type !== 'swipe') continue;
+        const diffFromNote = currentTime - note.timestamp_ms;
+        const absDiff = Math.abs(diffFromNote);
+        if (absDiff <= HIT_WINDOW) {
+          laneNotes.push({ note, absDiff, diff: diffFromNote, time: note.timestamp_ms });
+        }
+      }
+    }
 
+    laneNotes.sort((a, b) => a.time - b.time);
     const isActivelyPlaying = (this.isRunning || (this.sync && this.sync.isPlaying)) && !this.isPaused && !this.isGameOver && !this.isCountingDown && !this.isCalibrating && !!this.beatmapData;
 
     if (laneNotes.length === 0) {
