@@ -578,14 +578,22 @@ class DirectAudioSync {
   // ==========================================
   // RELOJ 100% LINEAL Y CONTINUO ANCLADO AL MONITOR (0 TIRONES A 120 FPS)
   // ==========================================
-  getCurrentTimeMs(frameNow) {
+getCurrentTimeMs(frameNow) {
+    const now = frameNow || performance.now();
+
     if (!this.isPlaying) {
-      return (this.audioElement && !isNaN(this.audioElement.currentTime)) 
-        ? this.audioElement.currentTime * 1000 
-        : (this._anchorAudioMs || 0);
+      if (this.audioElement && !isNaN(this.audioElement.currentTime) && this.audioElement.currentTime > 0) {
+        return this.audioElement.currentTime * 1000;
+      }
+      // Si la partida está corriendo pero el audio móvil está pausado/bloqueado, avanzar por reloj
+      if (window.engine && window.engine.isRunning && !window.engine.isPaused && !window.engine.isCountingDown) {
+        if (!this._fallbackAnchor) this._fallbackAnchor = now;
+        return (now - this._fallbackAnchor) * (this.playbackRate || 1.0);
+      }
+      return this._anchorAudioMs || 0;
     }
 
-    const now = frameNow || performance.now();
+    this._fallbackAnchor = null;
 
     if (!this._anchorPerf) {
       this._anchorPerf = now;
@@ -593,33 +601,24 @@ class DirectAudioSync {
         ? this.audioElement.currentTime * 1000 
         : 0;
       this._lastSyncCheck = now;
-      this._slewRatio = 1.0;
       return this._anchorAudioMs;
     }
 
     const rate = this.playbackRate || 1.0;
 
-    // Comprobación periódica sin saltos discretos
-    if (now - this._lastSyncCheck > 400) {
+    if (now - this._lastSyncCheck > 350) {
       this._lastSyncCheck = now;
       const hwAudioMs = (this.audioElement.currentTime || 0) * 1000;
       const expectedTime = this._anchorAudioMs + (now - this._anchorPerf) * rate;
       const drift = hwAudioMs - expectedTime;
 
-      // Si el desvío es grande por congelación del sistema, resincronizar base
-      if (Math.abs(drift) > 250) {
+      if (Math.abs(drift) > 300) {
         this._anchorPerf = now;
         this._anchorAudioMs = hwAudioMs;
-        this._slewRatio = 1.0;
-      } else if (Math.abs(drift) > 5) {
-        // Corrección infinitesimal de velocidad (0.02%) imperceptible para el ojo
-        this._slewRatio = 1.0 + (drift > 0 ? 0.0002 : -0.0002);
-      } else {
-        this._slewRatio = 1.0;
       }
     }
 
-    return this._anchorAudioMs + (now - this._anchorPerf) * rate * (this._slewRatio || 1.0);
+    return this._anchorAudioMs + (now - this._anchorPerf) * rate;
   }
 }
 
@@ -4057,10 +4056,13 @@ this._hitSpriteKeyPressed = null;
     }
   }
 
-  update(dt, frameNow) {
+update(dt, frameNow) {
     this._frameNow = frameNow || performance.now();
     if (this.isPaused || this.isRewinding) return;
-    const currentTime = this.getCurrentGameTimeMs(this._frameNow);
+
+    // ⚡ Reloj anclado: se declara una sola vez con let
+    let currentTime = this.getCurrentGameTimeMs(this._frameNow);
+
     if (this.sync && this.sync.audioElement && this.sync.isPlaying) {
       if (Math.abs(this.sync.audioElement.playbackRate - this.songPlaybackRate) > 0.01) {
         try {
@@ -4097,10 +4099,7 @@ this._hitSpriteKeyPressed = null;
       for (const note of this.notes) {
         if (!note.flashed && currentCalibTime >= note.timestamp_ms) {
           note.flashed = true;
-          const hitX = (1 + 0.5) * this.laneWidth;
-          // Only pulse lane glow — full effect fires on player tap to avoid double animation
           this.laneGlows[1] = 1.0;
-
           if (this.ui && this.ui.onMetronomeBeat) {
             this.ui.onMetronomeBeat();
           }
@@ -4130,6 +4129,8 @@ this._hitSpriteKeyPressed = null;
       }
     }
 
+    // Se actualiza el tiempo sin redeclarar la variable
+    currentTime = this.getCurrentGameTimeMs(this._frameNow);
     const nowPerf = performance.now();
 
     // Actualización de Teleprompter de Letras en tiempo real (Modo Karaoke)
