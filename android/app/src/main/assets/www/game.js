@@ -7035,31 +7035,78 @@ update(dt, frameNow) {
         const maxH3D = nextDiff < scrollDur ? Math.max(26, ((nextDiff / scrollDur) * (hitY - horizonY) * coord.scale) - 8) : Infinity;
         const lyricForNote = isKaraokeActive ? note._cleanLyric : null;
 
+        // ==========================================
+        // 1. NOTAS HOLD (ONDA SINUSOIDAL + FILAMENTO DE PLASMA)
+        // ==========================================
         if (note.type === 'hold') {
-          const rawDur = note.duration_ms || 700;
-          const endT = note.end_timestamp_ms || (noteT + rawDur);
-          const currentHeadP = isBeingHeld ? 1.0 : pHead;
-          const currentTailP = 1.0 - (endT - currentTime) / scrollDur;
+          const rawDur = Number.isFinite(note.duration_ms)
+            ? note.duration_ms
+            : (Number.isFinite(note.holdDuration)
+                ? (note.holdDuration > 50 ? note.holdDuration : note.holdDuration * 1000)
+                : (Number.isFinite(note.duration) ? (note.duration > 50 ? note.duration : note.duration * 1000) : 700));
+          const holdDuration = Math.max(150, Number.isFinite(rawDur) ? rawDur : 700);
+          const endT = Number.isFinite(note.end_timestamp_ms) ? note.end_timestamp_ms : (noteT + holdDuration);
+
+          let currentHeadP = isBeingHeld ? 1.0 : pHead;
+          let currentTailP = 1.0 - (endT - currentTime) / scrollDur;
 
           if (currentTailP > 1.25 || currentHeadP < -0.2) continue;
 
+          ctx.save();
+
           const segments = 10;
           const stringPoints = this._holdPointsBuffer || [];
+          const timeSec = currentTime / 1000;
           for (let s = 0; s <= segments; s++) {
             const frac = s / segments;
             const pStep = currentTailP + (currentHeadP - currentTailP) * frac;
             const ptCoord = this.getPerspectiveCoord(lane, pStep);
-            let pt = stringPoints[s] || { x: 0, y: 0, scale: 1, laneW: 50, halfW: 20 };
-            pt.x = ptCoord.x;
+
+            const standingEnvelope = Math.sin(Math.PI * frac);
+            const vibration = isBeingHeld 
+              ? (Math.sin(timeSec * 30.0 + ptCoord.y * 0.10) * (6.0 * standingEnvelope * ptCoord.scale))
+              : (Math.sin(timeSec * 6.0 + ptCoord.y * 0.05) * (1.2 * standingEnvelope * ptCoord.scale));
+
+            const wave = Math.sin((ptCoord.y * 0.04) - (currentTime * 0.008)) * (2.4 * ptCoord.scale);
+            const halfW = Math.max(4, (ptCoord.laneW * 0.40) + wave);
+
+            let pt = stringPoints[s];
+            if (!pt) {
+              pt = { x: 0, y: 0, scale: 1, laneW: 50, halfW: 20 };
+              stringPoints[s] = pt;
+            }
+            pt.x = ptCoord.x + vibration;
             pt.y = ptCoord.y;
             pt.scale = ptCoord.scale;
             pt.laneW = ptCoord.laneW;
-            pt.halfW = Math.max(4, ptCoord.laneW * 0.40);
-            stringPoints[s] = pt;
+            pt.halfW = halfW;
           }
 
-          // Cinta del Hold
+          // 1. Beatstar Neon Translucent Energy Ribbon
+          const palette = this.activeSongPalette || (typeof SONG_COLOR_PALETTES !== 'undefined' ? SONG_COLOR_PALETTES.classic : null);
+          const holdCol = palette ? (palette.primary || '#00f2fe') : '#00f2fe';
+          const holdGlow = palette ? (palette.glow || '#ff00aa') : '#ff00aa';
+
           ctx.save();
+          // A. Base opaca y saturada con ribete de contraste oscuro
+          ctx.globalCompositeOperation = 'source-over';
+
+          // 1. Ribete exterior de contraste oscuro
+          ctx.beginPath();
+          for (let s = 0; s <= segments; s++) {
+            const pt = stringPoints[s];
+            if (s === 0) ctx.moveTo(pt.x - pt.halfW - 2.5, pt.y);
+            else ctx.lineTo(pt.x - pt.halfW - 2.5, pt.y);
+          }
+          for (let s = segments; s >= 0; s--) {
+            const pt = stringPoints[s];
+            ctx.lineTo(pt.x + pt.halfW + 2.5, pt.y);
+          }
+          ctx.closePath();
+          ctx.fillStyle = 'rgba(10, 4, 18, 0.72)';
+          ctx.fill();
+
+          // 2. Relleno vibrante y fuertemente saturado
           ctx.beginPath();
           for (let s = 0; s <= segments; s++) {
             const pt = stringPoints[s];
@@ -7071,8 +7118,126 @@ update(dt, frameNow) {
             ctx.lineTo(pt.x + pt.halfW, pt.y);
           }
           ctx.closePath();
-          ctx.fillStyle = hexToRgba(this.activeSongPalette?.primary || '#00f2fe', isBeingHeld ? 0.95 : 0.85);
+          ctx.fillStyle = hexToRgba(holdCol, isBeingHeld ? 0.95 : 0.88);
           ctx.fill();
+
+          // Efectos incandescentes en modo lighter
+          ctx.globalCompositeOperation = 'lighter';
+
+          // B. Pulsos de energía diamantinos viajando a lo largo del listón
+          const pulseCycle = (currentTime * 0.003) % 1.0;
+          for (let pIdx = 0; pIdx < 3; pIdx++) {
+            const pFrac = (pulseCycle + pIdx * 0.33) % 1.0;
+            const ptIdx = Math.min(stringPoints.length - 1, Math.floor(pFrac * (stringPoints.length - 1)));
+            const pulsePt = stringPoints[ptIdx];
+            if (pulsePt) {
+              const pRad = (isBeingHeld ? 8.5 : 5.5) * pulsePt.scale;
+              ctx.fillStyle = '#ffffff';
+              ctx.beginPath();
+              ctx.arc(pulsePt.x, pulsePt.y, pRad, 0, Math.PI * 2);
+              ctx.fill();
+
+              ctx.strokeStyle = holdGlow;
+              ctx.lineWidth = 2.4;
+              ctx.beginPath();
+              ctx.arc(pulsePt.x, pulsePt.y, pRad * 1.8, 0, Math.PI * 2);
+              ctx.stroke();
+            }
+          }
+
+          // C. Lluvia continua de brillantitos y estrellas diamante al mantener pulsado
+          if (isBeingHeld) {
+            const headPoint = stringPoints[segments];
+            if (this.particles && this.particles.emitHoldSpark) {
+              this.particles.emitHoldSpark(headPoint.x, hitY, holdCol);
+            }
+          }
+
+          // D. Raíles laterales de neón en los bordes de la cinta
+          ctx.strokeStyle = isBeingHeld ? hexToRgba(holdGlow, 1.0) : hexToRgba(holdGlow, 0.75);
+          ctx.lineWidth = 4.2 * stringPoints[segments].scale;
+          ctx.beginPath();
+          for (let s = 0; s <= segments; s++) {
+            const pt = stringPoints[s];
+            if (s === 0) ctx.moveTo(pt.x - pt.halfW, pt.y);
+            else ctx.lineTo(pt.x - pt.halfW, pt.y);
+          }
+          for (let s = 0; s <= segments; s++) {
+            const pt = stringPoints[s];
+            if (s === 0) ctx.moveTo(pt.x + pt.halfW, pt.y);
+            else ctx.lineTo(pt.x + pt.halfW, pt.y);
+          }
+          ctx.stroke();
+
+          // E. Espina dorsal de láser central de alta tensión
+          ctx.strokeStyle = hexToRgba(holdCol, 1.0);
+          ctx.lineWidth = 5.2 * stringPoints[segments].scale;
+          ctx.beginPath();
+          for (let s = 0; s <= segments; s++) {
+            if (s === 0) ctx.moveTo(stringPoints[s].x, stringPoints[s].y);
+            else ctx.lineTo(stringPoints[s].x, stringPoints[s].y);
+          }
+          ctx.stroke();
+
+          // Núcleo blanco incandescente de plasma
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2.4 * stringPoints[segments].scale;
+          ctx.stroke();
+          ctx.restore();
+
+          // F. CAPUCHÓN TERMINAL: GEMA BRILLANTE Y ESTRELLA GIRATORIA
+          const tailPt = stringPoints[0];
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          const pinRad = (isLarge ? 11 : 7.5) * tailPt.scale;
+
+          ctx.fillStyle = hexToRgba(holdGlow, 0.55);
+          ctx.beginPath();
+          ctx.arc(tailPt.x, tailPt.y, pinRad * 2.8, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = Math.max(1.6, 3.2 * tailPt.scale);
+          ctx.beginPath();
+          ctx.arc(tailPt.x, tailPt.y, pinRad * 1.5, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.strokeStyle = holdGlow;
+          ctx.lineWidth = Math.max(1.2, 2.4 * tailPt.scale);
+          ctx.beginPath();
+          ctx.arc(tailPt.x, tailPt.y, pinRad * 1.9, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Estrella diamante facetada ✦ giratoria
+          const starRot = currentTime * 0.004;
+          ctx.save();
+          ctx.translate(tailPt.x, tailPt.y);
+          ctx.rotate(starRot);
+          const sOuter = pinRad * 1.7;
+          const sInner = pinRad * 0.42;
+          ctx.beginPath();
+          for (let pt = 0; pt < 8; pt++) {
+            const rCur = (pt % 2 === 0) ? sOuter : sInner;
+            const aCur = (pt / 8) * Math.PI * 2;
+            const px = Math.cos(aCur) * rCur;
+            const py = Math.sin(aCur) * rCur;
+            if (pt === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.fillStyle = '#ffffff';
+          ctx.fill();
+          ctx.restore();
+
+          // Barra transversal de terminación
+          const barW = Math.max(12, (tailPt.laneW * 0.42));
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.90)';
+          ctx.lineWidth = Math.max(2.2, 4.2 * tailPt.scale);
+          ctx.beginPath();
+          ctx.moveTo(tailPt.x - barW, tailPt.y);
+          ctx.lineTo(tailPt.x + barW, tailPt.y);
+          ctx.stroke();
+
           ctx.restore();
 
           // Cabeza del Hold
@@ -7080,10 +7245,19 @@ update(dt, frameNow) {
           const headH = Math.min((isLarge ? 80 : 30) * headPt.scale, maxH3D);
           this.drawIvoryKey(ctx, lane, headPt.y, headH, headPt.scale, isBeingHeld, isLarge, false, lyricForNote);
 
+          ctx.restore();
+        
+        // ==========================================
+        // 2. NOTAS SWIPE (DESLIZAMIENTO CON CHEVRÓN)
+        // ==========================================
         } else if (note.type === 'swipe') {
           const h = Math.min((isLarge ? 84 : 32) * coord.scale, maxH3D);
           const swipeKey = this.drawIvoryKey(ctx, lane, coord.y, h, coord.scale, false, isLarge, true, lyricForNote);
           this.renderVectorChevron(ctx, swipeKey.cx, swipeKey.cy, note.direction || 'up', swipeKey.w, swipeKey.h);
+
+        // ==========================================
+        // 3. NOTAS NORMALES (TAP ESTÁNDAR)
+        // ==========================================
         } else {
           const h = Math.min((isLarge ? 80 : 30) * coord.scale, maxH3D);
           this.drawIvoryKey(ctx, lane, coord.y, h, coord.scale, false, isLarge, false, lyricForNote);
