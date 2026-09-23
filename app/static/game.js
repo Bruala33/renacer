@@ -2047,19 +2047,67 @@ this._hitSpriteKeyPressed = null;
 
     window.addEventListener('resize', () => this.initCanvasSize());
 
-    this.canvas.addEventListener('touchstart', (e) => {
-      this.handleTouchStart(e);
+    // ⚡ ENTRADA TÁCTIL Y RATÓN A NIVEL DE VENTANA (Ningún overlay transparente puede bloquearla)
+    const handlePointerDown = (clientX, clientY, identifier = 'mouse', isTouch = false) => {
+      if (this.isPaused || this.isRewinding) return;
+
+      // Si el toque fue sobre el botón de pausa o la cruz de cerrar, no capturarlo como nota
+      const target = document.elementFromPoint(clientX, clientY);
+      if (target && (target.closest('.hud-pause-btn') || target.closest('button') || target.closest('.modal-overlay'))) {
+        return;
+      }
+
+      const rect = this.canvas.getBoundingClientRect();
+      if (!rect || rect.width <= 0) return;
+
+      // Comprobar que el clic/toque ocurra dentro del ancho del juego
+      if (clientX < rect.left || clientX > rect.right) return;
+
+      const normX = (clientX - rect.left) / rect.width;
+      const lane = Math.max(0, Math.min(2, Math.floor(normX * 3)));
+
+      this.triggerLaneInput(lane, 'tap', null, identifier);
+    };
+
+    // Móvil (Touch)
+    window.addEventListener('touchstart', (e) => {
+      if (this.isPaused || this.isRewinding) return;
+      this.lastTouchTime = performance.now();
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        handlePointerDown(t.clientX, t.clientY, t.identifier, true);
+      }
     }, { passive: false });
-    this.canvas.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: false });
-    this.canvas.addEventListener('touchend', (e) => this.handleTouchEnd(e), { passive: false });
-    this.canvas.addEventListener('touchcancel', (e) => this.handleTouchEnd(e), { passive: false });
 
-    this.canvas.addEventListener('mousedown', (e) => {
-      this.handleMouseDown(e);
+    window.addEventListener('touchend', (e) => {
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        const rect = this.canvas.getBoundingClientRect();
+        if (rect && rect.width > 0) {
+          const normX = (t.clientX - rect.left) / rect.width;
+          const lane = Math.max(0, Math.min(2, Math.floor(normX * 3)));
+          this.releaseLaneHold(lane, t.identifier);
+        }
+      }
+    }, { passive: false });
+
+    // PC (Ratón)
+    window.addEventListener('mousedown', (e) => {
+      // Evitar eventos de ratón sintéticos en pantallas táctiles
+      if (performance.now() - (this.lastTouchTime || 0) < 500) return;
+      handlePointerDown(e.clientX, e.clientY, 'mouse', false);
     });
-    this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
-    this.canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e));
 
+    window.addEventListener('mouseup', (e) => {
+      const rect = this.canvas.getBoundingClientRect();
+      if (rect && rect.width > 0 && e.clientX >= rect.left && e.clientX <= rect.right) {
+        const normX = (e.clientX - rect.left) / rect.width;
+        const lane = Math.max(0, Math.min(2, Math.floor(normX * 3)));
+        this.releaseLaneHold(lane, 'mouse');
+      }
+    });
+
+    // Teclado PC (D, F, J)
     window.addEventListener('keydown', (e) => {
       if (e.repeat) return;
       if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
@@ -2080,40 +2128,6 @@ this._hitSpriteKeyPressed = null;
       if (k === (kb[0] || 'd') || k === 'a' || k === '1') this.triggerLaneInput(0, 'tap');
       else if (k === (kb[1] || 'f') || k === 's' || k === ' ' || k === '2') this.triggerLaneInput(1, 'tap');
       else if (k === (kb[2] || 'j') || k === 'k' || k === '3') this.triggerLaneInput(2, 'tap');
-
-      const handleArrowSwipe = (dir) => {
-        const currentTime = this.getCurrentGameTimeMs();
-        let targetLane = -1;
-        let bestDiff = Infinity;
-        if (Array.isArray(this.notes)) {
-          for (let i = 0; i < this.notes.length; i++) {
-            const n = this.notes[i];
-            if (n.hit || n.missed || n.holdCompleted || n.holding) continue;
-            const diff = currentTime - n.timestamp_ms;
-            const absDiff = Math.abs(diff);
-            if (absDiff <= 340 && n.type === 'swipe' && (!n.direction || n.direction === dir)) {
-              if (absDiff < bestDiff) {
-                bestDiff = absDiff;
-                targetLane = n.lane;
-              }
-            }
-          }
-        }
-        if (targetLane === -1) {
-          targetLane = (dir === 'left' ? 0 : dir === 'right' ? 2 : 1);
-        }
-        this.triggerLaneInput(targetLane, 'swipe', dir);
-      };
-
-      if (e.key === 'ArrowLeft') {
-        handleArrowSwipe('left');
-      } else if (e.key === 'ArrowRight') {
-        handleArrowSwipe('right');
-      } else if (e.key === 'ArrowUp') {
-        handleArrowSwipe('up');
-      } else if (e.key === 'ArrowDown') {
-        handleArrowSwipe('down');
-      }
     });
 
     window.addEventListener('keyup', (e) => {
@@ -6042,8 +6056,6 @@ update(dt, frameNow) {
 
     const r = Math.max(4, (isLarge ? 10 : 6) * scale);
 
-   
-    // Paleta y color neón de la nota
     const palette = this.activeSongPalette || (typeof SONG_COLOR_PALETTES !== 'undefined' ? SONG_COLOR_PALETTES.classic : { primary: '#ff00aa', secondary: '#ffffff', glow: '#ff00aa' });
     const glowColor = palette ? (palette.glow || palette.primary) : '#ff00aa';
 
@@ -6052,28 +6064,9 @@ update(dt, frameNow) {
     const keyW = x1Bot - x0Bot;
     const keyH = y1 - y0;
 
-    // 0. HALO AMBIENTAL NEÓN EXTERIOR (Acelerado por GPU pura con 'lighter' sin allocar RadialGradients)
-    // 0. HALO AMBIENTAL NEÓN EXTERIOR
-    if (scale > 0.42) {
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      const haloMargin = (isLarge ? 9 : 6) * scale;
-      const hx0T = x0Top - haloMargin;
-      const hx1T = x1Top + haloMargin;
-      const hx0B = x0Bot - haloMargin;
-      const hx1B = x1Bot + haloMargin;
-      const hy0 = y0 - haloMargin * 0.6;
-      const hy1 = y1 + haloMargin * 0.8;
-      const haloRad = r + 4;
-      ctx.fillStyle = hexToRgba(glowColor, isPressed ? 0.32 : 0.16);
-      tracePerspectiveQuad(ctx, hx0T, hx1T, hx0B, hx1B, hy0, hy1, haloRad);
-      ctx.fill();
-      ctx.restore();
-    }
-
-    // 1. Sombra de contacto suave proyectada sobre la pista clara de escenario
-    ctx.fillStyle = isPressed ? 'rgba(0, 0, 0, 0.25)' : 'rgba(0, 0, 0, 0.42)';
-    const shadowOff = (isLarge ? 6.0 : 3.2) * scale;
+    // 1. Sombra suave bajo la tecla (sin bordes semitransparentes hacia los lados)
+    ctx.fillStyle = isPressed ? 'rgba(0, 0, 0, 0.20)' : 'rgba(0, 0, 0, 0.35)';
+    const shadowOff = (isLarge ? 4.5 : 2.5) * scale;
     tracePerspectiveQuad(ctx, x0Top, x1Top, x0Bot, x1Bot, y0 + shadowOff, y1 + shadowOff, r);
     ctx.fill();
 
@@ -6087,21 +6080,21 @@ update(dt, frameNow) {
     tracePerspectiveQuad(ctx, x0Bev, x1Bev, x0Bot, x1Bot, yBevelTop, y1, r);
     ctx.fill();
 
-    // 3. Cara Superior en negro obsidiana pulido (Optimizado GPU: 0 allocs)
-    ctx.fillStyle = isPressed ? '#45e69e' : '#1e2230';
+    // 3. Cara Superior en negro pulido
+    ctx.fillStyle = isPressed ? '#45e69e' : '#1a1d28';
     tracePerspectiveQuad(ctx, x0Top, x1Top, x0Bev, x1Bev, y0, yBevelTop, r);
     ctx.fill();
 
-    // 4. Borde metálico (#4e4e60)
+    // 4. Borde metálico nítido
     ctx.save();
-    ctx.strokeStyle = isPressed ? '#ffffff' : '#4e4e60';
-    ctx.lineWidth = Math.max(1.1, (isPressed ? 2.0 : 1.5) * scale);
+    ctx.strokeStyle = isPressed ? '#ffffff' : '#3e4252';
+    ctx.lineWidth = Math.max(1.1, (isPressed ? 2.0 : 1.4) * scale);
     tracePerspectiveQuad(ctx, x0Top, x1Top, x0Bot, x1Bot, y0, y1, r);
     ctx.stroke();
 
     // Destello de bisel reflectante superior
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-    ctx.lineWidth = Math.max(0.8, 1.2 * scale);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.40)';
+    ctx.lineWidth = Math.max(0.8, 1.1 * scale);
     ctx.beginPath();
     ctx.moveTo(x0Top + r, y0 + 0.8);
     ctx.lineTo(x1Top - r, y0 + 0.8);
