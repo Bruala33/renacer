@@ -867,6 +867,16 @@
         "accuracy": 43.41142020497804,
         "date": "2026-09-24 03:28:23"
       }
+    ],
+    "osu_2236703": [
+      {
+        "name": "bubu",
+        "score": 435491,
+        "stars": 3,
+        "combo": 147,
+        "accuracy": 73.8859198181232,
+        "date": "2026-09-24 04:13:51"
+      }
     ]
   },
   "global": [
@@ -879,6 +889,11 @@
       "name": "Jocomomolo",
       "total_score": 17872941,
       "clefs": 169
+    },
+    {
+      "name": "bubu",
+      "total_score": 835766,
+      "clefs": 8
     },
     {
       "name": "MasterPianist",
@@ -899,11 +914,6 @@
       "name": "Layla",
       "total_score": 437350,
       "clefs": 1
-    },
-    {
-      "name": "bubu",
-      "total_score": 400275,
-      "clefs": 4
     },
     {
       "name": "`pc",
@@ -940,7 +950,7 @@
       },
       {
         "name": "bubu",
-        "score": 400275
+        "score": 835766
       },
       {
         "name": "Test",
