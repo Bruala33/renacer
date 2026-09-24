@@ -875,7 +875,7 @@
         "stars": 3,
         "combo": 147,
         "accuracy": 73.8859198181232,
-        "date": "2026-09-24 04:13:51"
+        "date": "2026-09-24 04:13:55"
       }
     ]
   },
@@ -892,8 +892,8 @@
     },
     {
       "name": "bubu",
-      "total_score": 835766,
-      "clefs": 8
+      "total_score": 1271257,
+      "clefs": 12
     },
     {
       "name": "MasterPianist",
@@ -950,7 +950,7 @@
       },
       {
         "name": "bubu",
-        "score": 835766
+        "score": 1271257
       },
       {
         "name": "Test",
