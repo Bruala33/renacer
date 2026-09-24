@@ -887,6 +887,16 @@
         "accuracy": 1.5103044563130892,
         "date": "2026-09-24 04:15:11"
       }
+    ],
+    "osu_2293826": [
+      {
+        "name": "bubu",
+        "score": 165510,
+        "stars": 3,
+        "combo": 108,
+        "accuracy": 68.62452421822523,
+        "date": "2026-09-24 04:16:21"
+      }
     ]
   },
   "global": [
@@ -902,8 +912,8 @@
     },
     {
       "name": "bubu",
-      "total_score": 1313185,
-      "clefs": 12
+      "total_score": 1478695,
+      "clefs": 13
     },
     {
       "name": "MasterPianist",
@@ -960,7 +970,7 @@
       },
       {
         "name": "bubu",
-        "score": 1313185
+        "score": 1478695
       },
       {
         "name": "Test",
