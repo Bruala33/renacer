@@ -937,12 +937,22 @@
         "accuracy": 72.16731288920221,
         "date": "2026-09-24 04:38:21"
       }
+    ],
+    "osu_2522206": [
+      {
+        "name": "Rocky",
+        "score": 2407,
+        "stars": 3.5,
+        "combo": 6,
+        "accuracy": 0.5466342365175288,
+        "date": "2026-09-24 19:18:25"
+      }
     ]
   },
   "global": [
     {
       "name": "Rocky",
-      "total_score": 24011253,
+      "total_score": 24013660,
       "clefs": 226
     },
     {
@@ -1010,7 +1020,7 @@
       },
       {
         "name": "Rocky",
-        "score": 3546072
+        "score": 3548479
       },
       {
         "name": "Test",
