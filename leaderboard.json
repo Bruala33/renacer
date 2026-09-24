@@ -857,6 +857,16 @@
         "accuracy": 8.745436350078036,
         "date": "2026-09-21 20:39:09"
       }
+    ],
+    "osu_361039": [
+      {
+        "name": "bubu",
+        "score": 400275,
+        "stars": 2,
+        "combo": 104,
+        "accuracy": 43.41142020497804,
+        "date": "2026-09-24 03:28:23"
+      }
     ]
   },
   "global": [
@@ -891,6 +901,11 @@
       "clefs": 1
     },
     {
+      "name": "bubu",
+      "total_score": 400275,
+      "clefs": 4
+    },
+    {
       "name": "`pc",
       "total_score": 367612,
       "clefs": 1
@@ -922,6 +937,10 @@
       {
         "name": "Rocky",
         "score": 3546072
+      },
+      {
+        "name": "bubu",
+        "score": 400275
       },
       {
         "name": "Test",
