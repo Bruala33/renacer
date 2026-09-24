@@ -955,15 +955,15 @@
         "stars": 4,
         "combo": 414,
         "accuracy": 86.42277818407568,
-        "date": "2026-09-24 19:23:02"
+        "date": "2026-09-24 19:23:04"
       }
     ]
   },
   "global": [
     {
       "name": "Rocky",
-      "total_score": 25189684,
-      "clefs": 237
+      "total_score": 26365708,
+      "clefs": 248
     },
     {
       "name": "Jocomomolo",
@@ -1030,7 +1030,7 @@
       },
       {
         "name": "Rocky",
-        "score": 4724503
+        "score": 5900527
       },
       {
         "name": "Test",
