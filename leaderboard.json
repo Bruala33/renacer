@@ -947,13 +947,23 @@
         "accuracy": 0.5466342365175288,
         "date": "2026-09-24 19:18:25"
       }
+    ],
+    "top_miguel_bose_amante_bandido": [
+      {
+        "name": "Rocky",
+        "score": 1176024,
+        "stars": 4,
+        "combo": 414,
+        "accuracy": 86.42277818407568,
+        "date": "2026-09-24 19:23:02"
+      }
     ]
   },
   "global": [
     {
       "name": "Rocky",
-      "total_score": 24013660,
-      "clefs": 226
+      "total_score": 25189684,
+      "clefs": 237
     },
     {
       "name": "Jocomomolo",
@@ -1020,7 +1030,7 @@
       },
       {
         "name": "Rocky",
-        "score": 3548479
+        "score": 4724503
       },
       {
         "name": "Test",
