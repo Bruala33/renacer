@@ -907,6 +907,16 @@
         "accuracy": 74.43062473056145,
         "date": "2026-09-24 04:24:06"
       }
+    ],
+    "osu_94410": [
+      {
+        "name": "bubu",
+        "score": 74232,
+        "stars": 1,
+        "combo": 63,
+        "accuracy": 23.026813743129058,
+        "date": "2026-09-24 04:25:45"
+      }
     ]
   },
   "global": [
@@ -922,7 +932,7 @@
     },
     {
       "name": "bubu",
-      "total_score": 5863823,
+      "total_score": 5938055,
       "clefs": 56
     },
     {
@@ -976,7 +986,7 @@
     "players": [
       {
         "name": "bubu",
-        "score": 5863823
+        "score": 5938055
       },
       {
         "name": "Rocky",
