@@ -917,6 +917,16 @@
         "accuracy": 23.026813743129058,
         "date": "2026-09-24 04:25:45"
       }
+    ],
+    "osu_240181": [
+      {
+        "name": "bubu",
+        "score": 450662,
+        "stars": 4,
+        "combo": 177,
+        "accuracy": 81.5999797205051,
+        "date": "2026-09-24 04:29:41"
+      }
     ]
   },
   "global": [
@@ -932,8 +942,8 @@
     },
     {
       "name": "bubu",
-      "total_score": 5938055,
-      "clefs": 56
+      "total_score": 6388717,
+      "clefs": 60
     },
     {
       "name": "MasterPianist",
@@ -986,7 +996,7 @@
     "players": [
       {
         "name": "bubu",
-        "score": 5938055
+        "score": 6388717
       },
       {
         "name": "Rocky",
