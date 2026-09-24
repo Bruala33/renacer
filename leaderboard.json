@@ -935,7 +935,7 @@
         "stars": 3,
         "combo": 352,
         "accuracy": 72.16731288920221,
-        "date": "2026-09-24 04:38:15"
+        "date": "2026-09-24 04:38:21"
       }
     ]
   },
@@ -952,8 +952,8 @@
     },
     {
       "name": "bubu",
-      "total_score": 8374919,
-      "clefs": 79
+      "total_score": 9910459,
+      "clefs": 94
     },
     {
       "name": "MasterPianist",
@@ -1006,7 +1006,7 @@
     "players": [
       {
         "name": "bubu",
-        "score": 8374919
+        "score": 9910459
       },
       {
         "name": "Rocky",
