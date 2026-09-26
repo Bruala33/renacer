@@ -957,6 +957,16 @@
         "accuracy": 86.42277818407568,
         "date": "2026-09-24 19:23:04"
       }
+    ],
+    "top_camaron_soy_gitano": [
+      {
+        "name": "Trnde",
+        "score": 600,
+        "stars": 3.5,
+        "combo": 2,
+        "accuracy": 0.03306825453076422,
+        "date": "2026-09-26 02:18:09"
+      }
     ]
   },
   "global": [
@@ -1019,6 +1029,11 @@
       "name": "Mozart",
       "total_score": 1328,
       "clefs": 0
+    },
+    {
+      "name": "Trnde",
+      "total_score": 600,
+      "clefs": 0
     }
   ],
   "weekly": {
@@ -1047,6 +1062,10 @@
       {
         "name": "Ghapin",
         "score": 1950
+      },
+      {
+        "name": "Trnde",
+        "score": 600
       }
     ]
   }
