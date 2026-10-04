@@ -985,12 +985,22 @@
         "accuracy": 95.51449426991881,
         "date": "2026-09-27 13:14:05"
       }
+    ],
+    "top_cecilia_la_incomparable_bao_de_mar_a_medianoche": [
+      {
+        "name": "Rocky",
+        "score": 80932,
+        "stars": 3.5,
+        "combo": 63,
+        "accuracy": 8.992474419359176,
+        "date": "2026-10-04 18:48:51"
+      }
     ]
   },
   "global": [
     {
       "name": "Rocky",
-      "total_score": 27093578,
+      "total_score": 27174510,
       "clefs": 254
     },
     {
@@ -1060,6 +1070,10 @@
       {
         "name": "bubu",
         "score": 660150
+      },
+      {
+        "name": "Rocky",
+        "score": 80932
       }
     ]
   }
