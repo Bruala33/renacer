@@ -1000,8 +1000,8 @@
     },
     {
       "name": "bubu",
-      "total_score": 10240534,
-      "clefs": 97
+      "total_score": 10570609,
+      "clefs": 100
     },
     {
       "name": "MasterPianist",
@@ -1059,7 +1059,7 @@
     "players": [
       {
         "name": "bubu",
-        "score": 330075
+        "score": 660150
       }
     ]
   }
