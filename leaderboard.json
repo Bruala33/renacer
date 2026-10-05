@@ -999,11 +999,11 @@
     "osu_139291": [
       {
         "name": "bobon",
-        "score": 196425,
-        "stars": 1,
-        "combo": 134,
-        "accuracy": 33.73261205564142,
-        "date": "2026-10-05 03:48:26"
+        "score": 567000,
+        "stars": 4,
+        "combo": 275,
+        "accuracy": 78.30950901180857,
+        "date": "2026-10-05 03:51:21"
       }
     ]
   },
@@ -1022,6 +1022,11 @@
       "name": "bubu",
       "total_score": 10570609,
       "clefs": 100
+    },
+    {
+      "name": "bobon",
+      "total_score": 763425,
+      "clefs": 6
     },
     {
       "name": "MasterPianist",
@@ -1046,11 +1051,6 @@
     {
       "name": "`pc",
       "total_score": 367612,
-      "clefs": 1
-    },
-    {
-      "name": "bobon",
-      "total_score": 196425,
       "clefs": 1
     },
     {
@@ -1084,7 +1084,7 @@
     "players": [
       {
         "name": "bobon",
-        "score": 196425
+        "score": 763425
       }
     ]
   }
