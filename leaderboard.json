@@ -1025,6 +1025,16 @@
         "accuracy": 8.414554905782975,
         "date": "2026-10-05 03:56:24"
       }
+    ],
+    "top_nino_bravo_te_quiero_te_quiero": [
+      {
+        "name": "Elpapu",
+        "score": 6750,
+        "stars": 3.5,
+        "combo": 10,
+        "accuracy": 0.7383294721436494,
+        "date": "2026-10-05 20:06:41"
+      }
     ]
   },
   "global": [
@@ -1079,6 +1089,11 @@
       "clefs": 1
     },
     {
+      "name": "Elpapu",
+      "total_score": 6750,
+      "clefs": 0
+    },
+    {
       "name": "Mozart 2.0",
       "total_score": 2756,
       "clefs": 0
@@ -1105,6 +1120,10 @@
       {
         "name": "bobon",
         "score": 2421629
+      },
+      {
+        "name": "Elpapu",
+        "score": 6750
       }
     ]
   }
