@@ -1003,7 +1003,7 @@
         "stars": 4,
         "combo": 275,
         "accuracy": 78.30950901180857,
-        "date": "2026-10-05 03:51:21"
+        "date": "2026-10-05 03:51:28"
       }
     ]
   },
@@ -1025,8 +1025,8 @@
     },
     {
       "name": "bobon",
-      "total_score": 763425,
-      "clefs": 6
+      "total_score": 1330425,
+      "clefs": 11
     },
     {
       "name": "MasterPianist",
@@ -1084,7 +1084,7 @@
     "players": [
       {
         "name": "bobon",
-        "score": 763425
+        "score": 1330425
       }
     ]
   }
