@@ -1005,6 +1005,16 @@
         "accuracy": 78.30950901180857,
         "date": "2026-10-05 03:51:28"
       }
+    ],
+    "osu_118405": [
+      {
+        "name": "bobon",
+        "score": 1032929,
+        "stars": 5,
+        "combo": 509,
+        "accuracy": 94.93474970152779,
+        "date": "2026-10-05 03:55:42"
+      }
     ]
   },
   "global": [
@@ -1025,8 +1035,8 @@
     },
     {
       "name": "bobon",
-      "total_score": 1330425,
-      "clefs": 11
+      "total_score": 2363354,
+      "clefs": 21
     },
     {
       "name": "MasterPianist",
@@ -1084,7 +1094,7 @@
     "players": [
       {
         "name": "bobon",
-        "score": 1330425
+        "score": 2363354
       }
     ]
   }
