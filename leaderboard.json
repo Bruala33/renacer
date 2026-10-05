@@ -995,6 +995,16 @@
         "accuracy": 8.992474419359176,
         "date": "2026-10-04 18:48:51"
       }
+    ],
+    "osu_139291": [
+      {
+        "name": "bobon",
+        "score": 196425,
+        "stars": 1,
+        "combo": 134,
+        "accuracy": 33.73261205564142,
+        "date": "2026-10-05 03:48:26"
+      }
     ]
   },
   "global": [
@@ -1039,6 +1049,11 @@
       "clefs": 1
     },
     {
+      "name": "bobon",
+      "total_score": 196425,
+      "clefs": 1
+    },
+    {
       "name": "Test",
       "total_score": 161207,
       "clefs": 1
@@ -1065,15 +1080,11 @@
     }
   ],
   "weekly": {
-    "week_id": "2026-W40",
+    "week_id": "2026-W41",
     "players": [
       {
-        "name": "bubu",
-        "score": 660150
-      },
-      {
-        "name": "Rocky",
-        "score": 80932
+        "name": "bobon",
+        "score": 196425
       }
     ]
   }
