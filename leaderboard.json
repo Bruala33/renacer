@@ -1043,6 +1043,16 @@
         "accuracy": 0.7383294721436494,
         "date": "2026-10-05 20:06:41"
       }
+    ],
+    "osu_2520280": [
+      {
+        "name": "Papa",
+        "score": 900,
+        "stars": 3.5,
+        "combo": 3,
+        "accuracy": 0.05124076669851185,
+        "date": "2026-10-10 23:35:24"
+      }
     ]
   },
   "global": [
@@ -1117,6 +1127,11 @@
       "clefs": 0
     },
     {
+      "name": "Papa",
+      "total_score": 900,
+      "clefs": 0
+    },
+    {
       "name": "Trnde",
       "total_score": 600,
       "clefs": 0
@@ -1132,6 +1147,10 @@
       {
         "name": "Elpapu",
         "score": 6750
+      },
+      {
+        "name": "Papa",
+        "score": 900
       }
     ]
   }
