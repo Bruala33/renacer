@@ -990,8 +990,8 @@
         "score": 314960,
         "stars": 5,
         "combo": 181,
-        "accuracy": 95.51449426991881,
-        "date": "2026-09-27 13:14:05"
+        "accuracy": 92.3345190765153,
+        "date": "2026-10-11 18:28:48"
       }
     ],
     "top_cecilia_la_incomparable_bao_de_mar_a_medianoche": [
@@ -1068,8 +1068,8 @@
   "global": [
     {
       "name": "Rocky",
-      "total_score": 27174510,
-      "clefs": 254
+      "total_score": 27489470,
+      "clefs": 257
     },
     {
       "name": "Jocomomolo",
@@ -1153,6 +1153,10 @@
       {
         "name": "bobon",
         "score": 3845429
+      },
+      {
+        "name": "Rocky",
+        "score": 314960
       },
       {
         "name": "Papa",
