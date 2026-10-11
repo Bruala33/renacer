@@ -1053,6 +1053,16 @@
         "accuracy": 0.05124076669851185,
         "date": "2026-10-10 23:35:24"
       }
+    ],
+    "osu_1566340": [
+      {
+        "name": "Papa",
+        "score": 6726,
+        "stars": 3.5,
+        "combo": 13,
+        "accuracy": 2.0370891976121897,
+        "date": "2026-10-11 03:45:19"
+      }
     ]
   },
   "global": [
@@ -1107,6 +1117,11 @@
       "clefs": 1
     },
     {
+      "name": "Papa",
+      "total_score": 7626,
+      "clefs": 0
+    },
+    {
       "name": "Elpapu",
       "total_score": 6750,
       "clefs": 0
@@ -1127,11 +1142,6 @@
       "clefs": 0
     },
     {
-      "name": "Papa",
-      "total_score": 900,
-      "clefs": 0
-    },
-    {
       "name": "Trnde",
       "total_score": 600,
       "clefs": 0
@@ -1145,12 +1155,12 @@
         "score": 3845429
       },
       {
-        "name": "Elpapu",
-        "score": 6750
+        "name": "Papa",
+        "score": 7626
       },
       {
-        "name": "Papa",
-        "score": 900
+        "name": "Elpapu",
+        "score": 6750
       }
     ]
   }
