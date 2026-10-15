@@ -1083,6 +1083,16 @@
         "accuracy": 0.01244898509649001,
         "date": "2026-10-15 23:37:07"
       }
+    ],
+    "top_kylie_minogue_in_your_eyes": [
+      {
+        "name": "Pablito pop",
+        "score": 4500,
+        "stars": 3.5,
+        "combo": 10,
+        "accuracy": 0.4845091652983769,
+        "date": "2026-10-15 23:37:43"
+      }
     ]
   },
   "global": [
@@ -1152,6 +1162,11 @@
       "clefs": 0
     },
     {
+      "name": "Pablito pop",
+      "total_score": 4800,
+      "clefs": 0
+    },
+    {
       "name": "Mozart 2.0",
       "total_score": 2756,
       "clefs": 0
@@ -1170,11 +1185,6 @@
       "name": "Trnde",
       "total_score": 600,
       "clefs": 0
-    },
-    {
-      "name": "Pablito pop",
-      "total_score": 300,
-      "clefs": 0
     }
   ],
   "weekly": {
@@ -1186,7 +1196,7 @@
       },
       {
         "name": "Pablito pop",
-        "score": 300
+        "score": 4800
       }
     ]
   }
