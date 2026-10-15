@@ -1073,6 +1073,16 @@
         "accuracy": 5.385131216080142,
         "date": "2026-10-15 19:55:06"
       }
+    ],
+    "top_acdc_for_those_about_to_rock_we_salute_you_live": [
+      {
+        "name": "Pablito pop",
+        "score": 300,
+        "stars": 3.5,
+        "combo": 1,
+        "accuracy": 0.01244898509649001,
+        "date": "2026-10-15 23:37:07"
+      }
     ]
   },
   "global": [
@@ -1160,6 +1170,11 @@
       "name": "Trnde",
       "total_score": 600,
       "clefs": 0
+    },
+    {
+      "name": "Pablito pop",
+      "total_score": 300,
+      "clefs": 0
     }
   ],
   "weekly": {
@@ -1168,6 +1183,10 @@
       {
         "name": ".",
         "score": 24975
+      },
+      {
+        "name": "Pablito pop",
+        "score": 300
       }
     ]
   }
