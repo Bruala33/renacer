@@ -1063,6 +1063,16 @@
         "accuracy": 2.0370891976121897,
         "date": "2026-10-11 03:45:19"
       }
+    ],
+    "top_dragon_ball_z_luz_fuego_destruccin": [
+      {
+        "name": ".",
+        "score": 24975,
+        "stars": 3.5,
+        "combo": 39,
+        "accuracy": 5.385131216080142,
+        "date": "2026-10-15 19:55:06"
+      }
     ]
   },
   "global": [
@@ -1117,6 +1127,11 @@
       "clefs": 1
     },
     {
+      "name": ".",
+      "total_score": 24975,
+      "clefs": 0
+    },
+    {
       "name": "Papa",
       "total_score": 7626,
       "clefs": 0
@@ -1148,23 +1163,11 @@
     }
   ],
   "weekly": {
-    "week_id": "2026-W41",
+    "week_id": "2026-W42",
     "players": [
       {
-        "name": "bobon",
-        "score": 3845429
-      },
-      {
-        "name": "Rocky",
-        "score": 629920
-      },
-      {
-        "name": "Papa",
-        "score": 7626
-      },
-      {
-        "name": "Elpapu",
-        "score": 6750
+        "name": ".",
+        "score": 24975
       }
     ]
   }
