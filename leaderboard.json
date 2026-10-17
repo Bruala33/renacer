@@ -1103,6 +1103,16 @@
         "accuracy": 5.482751690368746,
         "date": "2026-10-17 09:39:46"
       }
+    ],
+    "top_las_grecas_te_estoy_amando_locamente": [
+      {
+        "name": "Test",
+        "score": 25800,
+        "stars": 3.5,
+        "combo": 36,
+        "accuracy": 1.9193429598053875,
+        "date": "2026-10-17 10:23:41"
+      }
     ]
   },
   "global": [
@@ -1153,7 +1163,7 @@
     },
     {
       "name": "Test",
-      "total_score": 252050,
+      "total_score": 277850,
       "clefs": 1
     },
     {
@@ -1202,7 +1212,7 @@
     "players": [
       {
         "name": "Test",
-        "score": 90843
+        "score": 116643
       },
       {
         "name": ".",
