@@ -1213,6 +1213,16 @@
         "accuracy": 83.29900888145193,
         "date": "2026-10-17 15:47:45"
       }
+    ],
+    "custom_1792252129873": [
+      {
+        "name": "Azure",
+        "score": 131018,
+        "stars": 5,
+        "combo": 99,
+        "accuracy": 90.20668952506851,
+        "date": "2026-10-17 15:50:17"
+      }
     ]
   },
   "global": [
@@ -1252,6 +1262,11 @@
       "clefs": 0
     },
     {
+      "name": "Azure",
+      "total_score": 519033,
+      "clefs": 3
+    },
+    {
       "name": "Test",
       "total_score": 461091,
       "clefs": 2
@@ -1260,11 +1275,6 @@
       "name": "Layla",
       "total_score": 437350,
       "clefs": 1
-    },
-    {
-      "name": "Azure",
-      "total_score": 388015,
-      "clefs": 2
     },
     {
       "name": "`pc",
@@ -1317,7 +1327,7 @@
     "players": [
       {
         "name": "Azure",
-        "score": 388015
+        "score": 519033
       },
       {
         "name": "Test",
