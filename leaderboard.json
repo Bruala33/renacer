@@ -1203,6 +1203,16 @@
         "accuracy": 87.7044667564944,
         "date": "2026-10-17 15:45:25"
       }
+    ],
+    "custom_1792251946538": [
+      {
+        "name": "Azure",
+        "score": 116487,
+        "stars": 4,
+        "combo": 96,
+        "accuracy": 83.29900888145193,
+        "date": "2026-10-17 15:47:45"
+      }
     ]
   },
   "global": [
@@ -1252,13 +1262,13 @@
       "clefs": 1
     },
     {
-      "name": "`pc",
-      "total_score": 367612,
-      "clefs": 1
+      "name": "Azure",
+      "total_score": 388015,
+      "clefs": 2
     },
     {
-      "name": "Azure",
-      "total_score": 271528,
+      "name": "`pc",
+      "total_score": 367612,
       "clefs": 1
     },
     {
@@ -1306,12 +1316,12 @@
     "week_id": "2026-W42",
     "players": [
       {
-        "name": "Test",
-        "score": 299884
+        "name": "Azure",
+        "score": 388015
       },
       {
-        "name": "Azure",
-        "score": 271528
+        "name": "Test",
+        "score": 299884
       },
       {
         "name": ".",
