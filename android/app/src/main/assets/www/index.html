@@ -2032,38 +2032,35 @@
 
     <!-- Layer 10: Máquina Expendedora de Bolas 3D a Pantalla Completa (Solo Palanca 3D • 100 Claves) -->
     <div id="fxShopModal" class="modal-overlay !p-0">
-      <div class="relative w-screen h-screen overflow-hidden select-none" style="background: radial-gradient(circle at 50% 42%, #3a1018 0%, #15060a 58%, #050204 100%);">
+      <div class="relative w-full h-full overflow-hidden select-none" style="background: radial-gradient(circle at 50% 42%, #3a1018 0%, #15060a 58%, #050204 100%);">
 
         <!-- Full-Screen Three.js 3D Canvas -->
         <canvas id="gachapon3DCanvas" class="w-full h-full block cursor-pointer"></canvas>
 
-        <!-- Minimal Floating Top HUD (Balance + Effects Drawer Toggle + Close) -->
-        <div class="absolute top-4 inset-x-4 flex items-center justify-between z-20 pointer-events-none">
-          <!-- Left: Compact Claves & Medals Pill -->
-          <div id="gachaponWalletBar" class="pointer-events-auto flex items-center gap-3 px-3.5 py-2 rounded-full bg-black/75 backdrop-blur-md border border-amber-400/40 shadow-xl text-xs font-mono">
-            <div class="flex items-center gap-1.5 text-amber-300 font-black">
-              <span class="text-amber-400 text-sm">𝄞</span>
-              <span id="shopClefsDisplay">100</span>
-            </div>
-            <div class="h-3 w-px bg-white/15"></div>
-            <div class="flex items-center gap-2 text-[11px] font-bold">
-              <span class="text-gray-200 flex items-center gap-0.5"><svg width="10" height="10" viewBox="0 0 24 24" fill="#cbd5e1"><circle cx="12" cy="12" r="8"/></svg><span id="shopSilversDisplay">0</span></span>
-              <span class="text-amber-300 flex items-center gap-0.5"><svg width="10" height="10" viewBox="0 0 24 24" fill="#fcd34d"><circle cx="12" cy="12" r="8"/></svg><span id="shopGoldsDisplay">0</span></span>
-              <span class="text-cyan-300 flex items-center gap-0.5"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#67e8f9" stroke-width="2.2"><polygon points="6 3 18 3 22 9 12 22 2 9 6 3"/></svg><span id="shopPlatinumsDisplay">0</span></span>
-            </div>
+        <!-- Compact Mobile-Safe Floating Top Bar (Always fits 100% width with prominent Salir button) -->
+        <div class="absolute top-3 inset-x-3 flex items-center justify-between gap-2 z-20 pointer-events-none">
+          <!-- Left: Always-Visible Prominent Exit Button -->
+          <button onclick="closeFXShopModal()" class="pointer-events-auto shrink-0 px-3.5 py-2 rounded-full bg-black/80 hover:bg-black/95 backdrop-blur-md border border-white/30 text-white font-black text-xs flex items-center gap-1.5 shadow-xl transition active:scale-95 cursor-pointer">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+            <span>Salir</span>
+          </button>
+
+          <!-- Center: Ultra-Clean Claves Pill -->
+          <div id="gachaponWalletBar" class="pointer-events-auto shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-amber-400/45 shadow-xl text-xs font-mono">
+            <span class="text-amber-400 text-sm leading-none">𝄞</span>
+            <span id="shopClefsDisplay" class="text-amber-300 font-black">100</span>
+            <!-- Hidden counters to preserve JS DOM references without cluttering the mobile bar -->
+            <span id="shopSilversDisplay" class="hidden">0</span>
+            <span id="shopGoldsDisplay" class="hidden">0</span>
+            <span id="shopPlatinumsDisplay" class="hidden">0</span>
           </div>
 
-          <!-- Right: Effects Baúl Button & Close Button -->
-          <div class="pointer-events-auto flex items-center gap-2">
-            <button onclick="toggleGachaponEffectsDrawer(true)" class="px-3.5 py-2 rounded-full bg-black/75 hover:bg-black/90 backdrop-blur-md border border-amber-400/45 text-amber-200 font-black text-xs flex items-center gap-1.5 shadow-xl transition active:scale-95 cursor-pointer">
-              <span>✨</span>
-              <span>Efectos</span>
-              <span id="gachaponCollectionProgressText" class="text-[10px] font-mono text-amber-400 ml-0.5"></span>
-            </button>
-            <button onclick="closeFXShopModal()" class="w-9 h-9 rounded-full bg-black/75 hover:bg-white/15 backdrop-blur-md border border-white/25 text-white text-sm font-black flex items-center justify-center shadow-xl transition active:scale-95 cursor-pointer">
-              ✕
-            </button>
-          </div>
+          <!-- Right: Effects Baúl Button -->
+          <button onclick="toggleGachaponEffectsDrawer(true)" class="pointer-events-auto shrink-0 px-3.5 py-2 rounded-full bg-black/80 hover:bg-black/95 backdrop-blur-md border border-amber-400/50 text-amber-200 font-black text-xs flex items-center gap-1.5 shadow-xl transition active:scale-95 cursor-pointer">
+            <span>✨</span>
+            <span>Efectos</span>
+            <span id="gachaponCollectionProgressText" class="text-[10px] font-mono text-amber-400"></span>
+          </button>
         </div>
 
         <!-- Compact Reward Reveal Card (Appears at bottom when capsule opens) -->
