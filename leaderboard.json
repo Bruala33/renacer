@@ -1163,6 +1163,16 @@
         "accuracy": 96.82739123606095,
         "date": "2026-10-17 15:13:12"
       }
+    ],
+    "custom_1792250433823": [
+      {
+        "name": "Azure",
+        "score": 23970,
+        "stars": 4,
+        "combo": 30,
+        "accuracy": 88.89630618602581,
+        "date": "2026-10-17 15:21:17"
+      }
     ]
   },
   "global": [
@@ -1217,13 +1227,13 @@
       "clefs": 1
     },
     {
-      "name": ".",
-      "total_score": 24975,
+      "name": "Azure",
+      "total_score": 36300,
       "clefs": 0
     },
     {
-      "name": "Azure",
-      "total_score": 12330,
+      "name": ".",
+      "total_score": 24975,
       "clefs": 0
     },
     {
@@ -1270,12 +1280,12 @@
         "score": 299884
       },
       {
-        "name": ".",
-        "score": 24975
+        "name": "Azure",
+        "score": 36300
       },
       {
-        "name": "Azure",
-        "score": 12330
+        "name": ".",
+        "score": 24975
       },
       {
         "name": "Pablito pop",
