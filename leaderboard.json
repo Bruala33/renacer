@@ -1133,6 +1133,16 @@
         "accuracy": 10.125823807634005,
         "date": "2026-10-17 13:33:30"
       }
+    ],
+    "custom_1792245309361": [
+      {
+        "name": "Azure",
+        "score": 0,
+        "stars": 3.5,
+        "combo": 0,
+        "accuracy": 100,
+        "date": "2026-10-17 13:55:22"
+      }
     ]
   },
   "global": [
@@ -1225,6 +1235,11 @@
       "name": "Trnde",
       "total_score": 600,
       "clefs": 0
+    },
+    {
+      "name": "Azure",
+      "total_score": 0,
+      "clefs": 0
     }
   ],
   "weekly": {
@@ -1241,6 +1256,10 @@
       {
         "name": "Pablito pop",
         "score": 4800
+      },
+      {
+        "name": "Azure",
+        "score": 0
       }
     ]
   }
