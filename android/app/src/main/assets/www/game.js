@@ -225,17 +225,19 @@ function getSongColorPalette(meta = {}) {
   return SONG_COLOR_PALETTES[keys[hash % keys.length]];
 }
 
+const _rgbCache = new Map();
 function hexToRgb(hex) {
   if (!hex || typeof hex !== 'string') return { r: 229, g: 184, b: 105 };
+  let cached = _rgbCache.get(hex);
+  if (cached) return cached;
   let c = hex.replace('#', '').trim();
-  if (c.length === 3) c = c.split('').map(x => x + x).join('');
+  if (c.length === 3) c = c[0] + c[0] + c[1] + c[1] + c[2] + c[2];
   const num = parseInt(c, 16);
-  if (isNaN(num)) return { r: 229, g: 184, b: 105 };
-  return {
-    r: (num >> 16) & 255,
-    g: (num >> 8) & 255,
-    b: num & 255
-  };
+  cached = isNaN(num)
+    ? { r: 229, g: 184, b: 105 }
+    : { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+  if (_rgbCache.size < 256) _rgbCache.set(hex, cached);
+  return cached;
 }
 
 class HighFidelityAudioPlayer {
@@ -391,10 +393,12 @@ class DirectAudioSync {
     this.duration = 0;
     this.playbackRate = 1.0;
     
-    // Anclaje de alta precisión
+    // Anclaje de alta precisión con corrección de deriva suave (PLL sin saltos)
     this._anchorPerf = 0;
     this._anchorAudioMs = 0;
     this._lastSyncCheck = 0;
+    this._clockSkewRate = 1.0;
+    this._lastRawAudioTime = -1;
 
     const enforceSpeedAndPitch = () => {
       if (this.audioElement) {
@@ -416,9 +420,12 @@ class DirectAudioSync {
     this.audioElement.addEventListener('playing', () => {
       this.isPlaying = true;
       enforceSpeedAndPitch();
-      this._anchorAudioMs = (this.audioElement.currentTime || 0) * 1000;
+      const rawSec = this.audioElement.currentTime || 0;
+      this._anchorAudioMs = rawSec * 1000;
       this._anchorPerf = performance.now();
       this._lastSyncCheck = this._anchorPerf;
+      this._clockSkewRate = 1.0;
+      this._lastRawAudioTime = rawSec;
       const toast = document.getElementById('audioUnlockToast');
       if (toast) toast.classList.remove('show');
     });
@@ -426,11 +433,13 @@ class DirectAudioSync {
     this.audioElement.addEventListener('pause', () => {
       this.isPlaying = false;
       this._anchorPerf = 0;
+      this._clockSkewRate = 1.0;
     });
 
     this.audioElement.addEventListener('ended', () => {
       this.isPlaying = false;
       this._anchorPerf = 0;
+      this._clockSkewRate = 1.0;
       if (this.onEnded) this.onEnded();
     });
 
@@ -576,16 +585,15 @@ class DirectAudioSync {
   }
 
   // ==========================================
-  // RELOJ 100% LINEAL Y CONTINUO ANCLADO AL MONITOR (0 TIRONES A 120 FPS)
+  // RELOJ PLL 100% LINEAL Y CONTINUO ANCLADO AL VSYNC (0 TIRONES A 120 FPS)
   // ==========================================
-getCurrentTimeMs(frameNow) {
-    const now = frameNow || performance.now();
+  getCurrentTimeMs(frameNow) {
+    const now = (frameNow !== undefined && frameNow !== null) ? frameNow : performance.now();
 
     if (!this.isPlaying) {
       if (this.audioElement && !isNaN(this.audioElement.currentTime) && this.audioElement.currentTime > 0) {
         return this.audioElement.currentTime * 1000;
       }
-      // Si la partida está corriendo pero el audio móvil está pausado/bloqueado, avanzar por reloj
       if (window.engine && window.engine.isRunning && !window.engine.isPaused && !window.engine.isCountingDown) {
         if (!this._fallbackAnchor) this._fallbackAnchor = now;
         return (now - this._fallbackAnchor) * (this.playbackRate || 1.0);
@@ -594,31 +602,50 @@ getCurrentTimeMs(frameNow) {
     }
 
     this._fallbackAnchor = null;
+    const rate = this.playbackRate || 1.0;
 
     if (!this._anchorPerf) {
+      const rawSec = (this.audioElement && !isNaN(this.audioElement.currentTime)) ? this.audioElement.currentTime : 0;
       this._anchorPerf = now;
-      this._anchorAudioMs = (this.audioElement && !isNaN(this.audioElement.currentTime)) 
-        ? this.audioElement.currentTime * 1000 
-        : 0;
+      this._anchorAudioMs = rawSec * 1000;
       this._lastSyncCheck = now;
+      this._clockSkewRate = 1.0;
+      this._lastRawAudioTime = rawSec;
       return this._anchorAudioMs;
     }
 
-    const rate = this.playbackRate || 1.0;
+    const elapsed = Math.max(0, now - this._anchorPerf);
+    let currentPredMs = this._anchorAudioMs + elapsed * rate * (this._clockSkewRate || 1.0);
 
-    if (now - this._lastSyncCheck > 350) {
-      this._lastSyncCheck = now;
-      const hwAudioMs = (this.audioElement.currentTime || 0) * 1000;
-      const expectedTime = this._anchorAudioMs + (now - this._anchorPerf) * rate;
-      const drift = hwAudioMs - expectedTime;
+    // Comprobar deriva cada 100ms usando corrección de frecuencia suave (PLL) sin saltos de posición
+    if (now - this._lastSyncCheck >= 100) {
+      const rawSec = this.audioElement ? this.audioElement.currentTime : 0;
+      // Solo recalibrar cuando el buffer de audio de hardware realmente se haya actualizado
+      if (rawSec !== this._lastRawAudioTime && rawSec > 0) {
+        this._lastRawAudioTime = rawSec;
+        this._lastSyncCheck = now;
+        const hwAudioMs = rawSec * 1000;
+        const drift = hwAudioMs - currentPredMs;
 
-      if (Math.abs(drift) > 300) {
+        // Re-anclar el punto actual sin cambiar currentPredMs (continuidad C0/C1 perfecta)
         this._anchorPerf = now;
-        this._anchorAudioMs = hwAudioMs;
+        this._anchorAudioMs = currentPredMs;
+
+        if (Math.abs(drift) > 95) {
+          // Solo hacer snap duro si hubo un seek o pausa real (>95ms de desfase)
+          this._anchorAudioMs = hwAudioMs;
+          this._clockSkewRate = 1.0;
+          currentPredMs = hwAudioMs;
+        } else if (Math.abs(drift) > 2.5) {
+          // Ajuste suave de velocidad (±2% máx) para converger sin micro-saltos visuales
+          this._clockSkewRate = 1.0 + Math.max(-0.02, Math.min(0.02, drift / 1400));
+        } else {
+          this._clockSkewRate = 1.0;
+        }
       }
     }
 
-    return this._anchorAudioMs + (now - this._anchorPerf) * rate;
+    return currentPredMs;
   }
 }
 
@@ -1510,11 +1537,21 @@ const GLOBAL_DISCO_SPOTLIGHTS = [
 class BeatstarEngine {
   constructor(canvas, uiCallbacks) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext('2d', { alpha: true });
+    this.ctx = (canvas && canvas.getContext)
+      ? (canvas.getContext('2d', { alpha: false, desynchronized: true }) || canvas.getContext('2d', { alpha: false }) || canvas.getContext('2d'))
+      : null;
     this.ui = uiCallbacks;
 
-    // Cap resolution scaling at 2x max for 120 FPS mobile GPU efficiency
-    this.dpr = Math.min(typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1, 2);
+    // Buffers reutilizables Zero-GC para coordenadas en perspectiva a 120 FPS
+    this._coordScratch0 = { x: 0, y: 0, scale: 1, laneW: 50, pCurved: 0 };
+    this._coordScratch1 = { x: 0, y: 0, scale: 1, laneW: 50, pCurved: 0 };
+    this._coordScratch2 = { x: 0, y: 0, scale: 1, laneW: 50, pCurved: 0 };
+    this._frameDt = 1 / 120;
+    this._lastPortalPulse = -1;
+    this._canvasRect = null;
+
+    // Cap resolution scaling for 120 FPS mobile GPU efficiency
+    this.dpr = Math.min(typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1, 1.5);
     this.width = 0;
     this.height = 0;
     this.numLanes = 3; // Fixed strictly to 3 vertical lanes
@@ -1970,21 +2007,29 @@ class BeatstarEngine {
   }
 
   initCanvasSize() {
-    const rect = (this.canvas && this.canvas.getBoundingClientRect) ? this.canvas.getBoundingClientRect() : { width: 360, height: 640 };
+    const rect = (this.canvas && this.canvas.getBoundingClientRect) ? this.canvas.getBoundingClientRect() : { left: 0, top: 0, right: 360, bottom: 640, width: 360, height: 640 };
     const viewport = typeof document !== 'undefined' ? document.querySelector('.game-viewport') : null;
     const vpRect = (viewport && viewport.getBoundingClientRect) ? viewport.getBoundingClientRect() : null;
 
     this.width = rect.width || (vpRect ? vpRect.width : 0) || (typeof window !== 'undefined' ? window.innerWidth : 360) || 360;
     this.height = rect.height || (vpRect ? vpRect.height : 0) || (typeof window !== 'undefined' ? window.innerHeight : 640) || 640;
+    this._canvasRect = (rect && rect.width > 0) ? rect : (vpRect && vpRect.width > 0 ? vpRect : { left: 0, top: 0, right: this.width, bottom: this.height, width: this.width, height: this.height });
     this.numLanes = 3;
     this.laneWidth = this.width / 3;
     this.hitLineY = this.height * 0.82;
 
-    // ⚡ OPTIMIZADO: DPR cap 1.25 en móviles (reduce fillrate >50% sin pérdida visual perceptible)
-    // DPR 2.0 máximo (nitidez real de pantalla). El 1.25 anterior emborronaba en móviles DPR 2.5-3
-const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-const dprCap = isMobile ? 2.0 : 2.0;
-this.dpr = Math.min(window.devicePixelRatio || 1, dprCap);
+    // Constantes precalculadas para proyección cónica 3D (Zero-GC en renderNotes y getLaneBoundaryX)
+    this._perspHorizonY = 12;
+    this._perspHitY = this.hitLineY;
+    this._perspSpanY = Math.max(1, this._perspHitY - this._perspHorizonY);
+    this._perspInvSpanY = 1.0 / this._perspSpanY;
+    this._perspMidX = this.width * 0.5;
+    this._perspBaseLaneW = (this.width * 0.94) / 3;
+
+    // ⚡ OPTIMIZADO PARA 120 FPS ESTABLES: DPR 1.5 en móviles (ahorra 44% de fill-rate de GPU manteniendo nitidez Retina)
+    const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const dprCap = isMobile ? 1.5 : 2.0;
+    this.dpr = Math.min(window.devicePixelRatio || 1, dprCap);
 
     this.canvas.width = Math.round(this.width * this.dpr);
     this.canvas.height = Math.round(this.height * this.dpr);
@@ -2022,11 +2067,12 @@ this.dpr = Math.min(window.devicePixelRatio || 1, dprCap);
       this._bgGrads[m] = g;
     }
 
-// Invalidar sprites precompilados (cambia el tamaño del canvas)
-this._hitSprites = null;
-this._hitSpriteSocket = null;
-this._hitSpriteKeyIdle = null;
-this._hitSpriteKeyPressed = null;
+    // Invalidar sprites precompilados (cambia el tamaño del canvas)
+    this._hitSprites = null;
+    this._hitSpriteSocket = null;
+    this._hitSpriteKeyIdle = null;
+    this._hitSpriteKeyPressed = null;
+    this._laneFloodGradCache = {};
 
     // Caché de font strings (Zero-GC: elimina template literal + Skia re-parse por nota)
     this._fontCache = {};
@@ -2038,7 +2084,6 @@ this._hitSpriteKeyPressed = null;
     this._sideGradGeom = { horizonY: 12, bottomY: this.height + 30 };
     this._sideGradCache = null;
     this._sideGradHue = -1;
-
   }
 
   bindEvents() {
@@ -2047,25 +2092,29 @@ this._hitSpriteKeyPressed = null;
 
     window.addEventListener('resize', () => this.initCanvasSize());
 
-    // ⚡ ENTRADA TÁCTIL (TOUCH) A NIVEL DE VENTANA CON SOPORTE COMPLETO DE SWIPE
+    // ⚡ ENTRADA TÁCTIL (TOUCH) A NIVEL DE VENTANA SIN REFLOWS DE DOM
     window.addEventListener('touchstart', (e) => {
       if (this.isPaused || this.isRewinding) return;
-      this.lastTouchTime = performance.now();
-      const rect = this.canvas.getBoundingClientRect();
-      if (!rect || rect.width <= 0) return;
       const now = performance.now();
+      this.lastTouchTime = now;
+      let rect = this._canvasRect;
+      if (!rect || rect.width <= 0) {
+        rect = this.canvas.getBoundingClientRect();
+        this._canvasRect = rect;
+      }
+      if (!rect || rect.width <= 0) return;
+
+      const targetEl = e.target;
+      const isUiTap = targetEl && targetEl !== this.canvas && targetEl.closest &&
+        (targetEl.closest('.hud-pause-btn') || targetEl.closest('button') || targetEl.closest('.modal-overlay'));
+      if (isUiTap) return;
 
       for (let i = 0; i < e.changedTouches.length; i++) {
         const t = e.changedTouches[i];
-        const target = document.elementFromPoint(t.clientX, t.clientY);
-        if (target && (target.closest('.hud-pause-btn') || target.closest('button') || target.closest('.modal-overlay'))) {
-          continue;
-        }
-
         if (t.clientX < rect.left || t.clientX > rect.right) continue;
 
         const normX = (t.clientX - rect.left) / rect.width;
-        const lane = Math.max(0, Math.min(2, Math.floor(normX * 3)));
+        const lane = Math.max(0, Math.min(2, (normX * 3) | 0));
 
         // Guardar origen de toque para el cálculo del swipe
         this.activeTouches.set(t.identifier, {
@@ -2078,7 +2127,7 @@ this._hitSpriteKeyPressed = null;
 
         this.triggerLaneInput(lane, 'tap', null, t.identifier);
       }
-    }, { passive: false });
+    }, { passive: true });
 
     // ⚡ DETECCIÓN DE DESLIZAMIENTO / FLICK (SWIPE)
     window.addEventListener('touchmove', (e) => {
@@ -2092,11 +2141,11 @@ this._hitSpriteKeyPressed = null;
 
         const dx = t.clientX - tData.startX;
         const dy = t.clientY - tData.startY;
-        const dist = Math.hypot(dx, dy);
+        const distSq = dx * dx + dy * dy;
         const elapsed = now - tData.startTime;
 
-        // Umbral de activación natural de swipe (18px en menos de 500ms)
-        if (dist > 18 && elapsed < 500) {
+        // Umbral de activación natural de swipe (18px -> 324px² en menos de 500ms)
+        if (distSq > 324 && elapsed < 500) {
           let direction = 'up';
           if (Math.abs(dx) > Math.abs(dy)) {
             direction = dx > 0 ? 'right' : 'left';
@@ -2108,25 +2157,23 @@ this._hitSpriteKeyPressed = null;
           this.triggerLaneInput(tData.lane, 'swipe', direction, t.identifier);
         }
       }
-    }, { passive: false });
+    }, { passive: true });
 
     window.addEventListener('touchend', (e) => {
+      const rect = this._canvasRect;
       for (let i = 0; i < e.changedTouches.length; i++) {
         const t = e.changedTouches[i];
         const tData = this.activeTouches.get(t.identifier);
         if (tData) {
           this.releaseLaneHold(tData.lane, t.identifier);
           this.activeTouches.delete(t.identifier);
-        } else {
-          const rect = this.canvas.getBoundingClientRect();
-          if (rect && rect.width > 0) {
-            const normX = (t.clientX - rect.left) / rect.width;
-            const lane = Math.max(0, Math.min(2, Math.floor(normX * 3)));
-            this.releaseLaneHold(lane, t.identifier);
-          }
+        } else if (rect && rect.width > 0) {
+          const normX = (t.clientX - rect.left) / rect.width;
+          const lane = Math.max(0, Math.min(2, (normX * 3) | 0));
+          this.releaseLaneHold(lane, t.identifier);
         }
       }
-    }, { passive: false });
+    }, { passive: true });
 
     window.addEventListener('touchcancel', (e) => {
       for (let i = 0; i < e.changedTouches.length; i++) {
@@ -2137,7 +2184,7 @@ this._hitSpriteKeyPressed = null;
           this.activeTouches.delete(t.identifier);
         }
       }
-    }, { passive: false });
+    }, { passive: true });
 
     // ⚡ RATÓN PC CON SOPORTE DE ARRASTRE PARA SWIPE
     window.addEventListener('mousedown', (e) => {
@@ -4192,8 +4239,9 @@ this._hitSpriteKeyPressed = null;
     }
   }
 
-update(dt, frameNow) {
+  update(dt, frameNow) {
     this._frameNow = frameNow || performance.now();
+    this._frameDt = dt || 0.00833;
     if (this.isPaused || this.isRewinding) return;
 
     // ⚡ Reloj anclado: se declara una sola vez con let
@@ -4209,7 +4257,7 @@ update(dt, frameNow) {
     }
 
     if (this.isCalibrating) {
-      const now = performance.now();
+      const now = this._frameNow;
       const currentCalibTime = (now - this.calibrationStartTime) + this.latencyOffsetMs;
       const interval = this.calibrationIntervalMs || 1200;
 
@@ -4251,7 +4299,7 @@ update(dt, frameNow) {
     }
 
     if (this.isCountingDown) {
-      const elapsed = performance.now() - this.leadInStartTime;
+      const elapsed = this._frameNow - this.leadInStartTime;
       if (elapsed >= this.leadInDurationMs) {
         this.isCountingDown = false;
         if (typeof window !== 'undefined' && typeof window.pauseMenuAmbientMusic === 'function') {
@@ -4267,7 +4315,7 @@ update(dt, frameNow) {
 
     // Se actualiza el tiempo sin redeclarar la variable
     currentTime = this.getCurrentGameTimeMs(this._frameNow);
-    const nowPerf = performance.now();
+    const nowPerf = this._frameNow;
 
     // Actualización de Teleprompter de Letras en tiempo real (Modo Karaoke)
     if ((!this.activeKaraokeLyrics || this.activeKaraokeLyrics.length === 0) && this.beatmapData && this.beatmapData.activeKaraokeLyrics && this.beatmapData.activeKaraokeLyrics.length > 0) {
@@ -4353,23 +4401,6 @@ update(dt, frameNow) {
       }
     }
 
-    // Emisor de Chispas en Holds (Soldadura): 3 partículas continuas por frame en la base del piano
-    if (this.activeHolds && this.activeHolds.size > 0) {
-      const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
-      for (const [lane, holdData] of this.activeHolds.entries()) {
-        let holdX = 0;
-        if (this.visualDimension !== '2d') {
-          holdX = (this.getLaneBoundaryX(lane, hitY) + this.getLaneBoundaryX(lane + 1, hitY)) / 2;
-        } else {
-          holdX = (lane + 0.5) * (this.width / 3);
-        }
-        if (this.particles) {
-          this.particles.emitHoldSparks(holdX, hitY, holdData.color || '#ffe082', 3);
-        }
-        this.laneFlashTimers[lane] = 0.11;
-      }
-    }
-
     // Once a note has passed the hit window (+120ms), it can no longer be hit and is judged MISS
     const exitScreenOffsetMs = 120;
     const notesLen = this.notes.length;
@@ -4409,7 +4440,7 @@ update(dt, frameNow) {
           type: 'note_dropped',
           lane: note.lane,
           note: note,
-          time: performance.now()
+          time: this._frameNow
         };
 
         this.synth.playPunchyArcadeMiss();
@@ -4419,13 +4450,20 @@ update(dt, frameNow) {
       }
     }
 
+    const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
     for (const [lane, active] of this.activeHolds.entries()) {
       const note = active.note;
       const endT = note.end_timestamp_ms || (note.timestamp_ms + (note.duration_ms || 700));
-      const hitX = (lane + 0.5) * this.laneWidth;
+      const hitX = (this.visualDimension !== '2d')
+        ? (this.getLaneBoundaryX(lane, hitY) + this.getLaneBoundaryX(lane + 1, hitY)) * 0.5
+        : (lane + 0.5) * this.laneWidth;
       const holdColor = (active.color && active.color !== '#00ff88' && active.color !== '#00f2fe') ? active.color : '#ffe082';
-      
-      this.particles.emitHoldSpark(hitX, this.hitLineY, holdColor);
+      this.laneFlashTimers[lane] = 0.11;
+
+      if (!active._lastSparkTime || (this._frameNow - active._lastSparkTime >= 22)) {
+        active._lastSparkTime = this._frameNow;
+        this.particles.emitHoldSparks(hitX, hitY, holdColor, 2);
+      }
       this.addScore(Math.round(260 * dt * this.multiplier));
 
       // Keep vignette alive and colored during full_focus holds
@@ -4439,7 +4477,7 @@ update(dt, frameNow) {
         note.hit = true;
         note.holding = false;
         this.activeHolds.delete(lane);
-        this.emitKeyHit(hitX, this.hitLineY, holdColor, 35);
+        this.emitKeyHit(hitX, hitY, holdColor, 35);
         this.addJudgement('HOLD CLEAR!', '#ffe082');
       }
     }
@@ -4760,13 +4798,15 @@ update(dt, frameNow) {
     if (!this.borderEqLeftSurges) this.borderEqLeftSurges = new Float32Array(16);
     if (!this.borderEqRightSurges) this.borderEqRightSurges = new Float32Array(16);
 
+    const frameScale = Math.min(2.5, (this._frameDt || 0.00833) * 60);
+    const decayStep = 0.038 * frameScale;
     const numBars = 12; // 12 filas horizontales concentradas en la parte alta
     for (let i = 0; i < numBars; i++) {
       if (this.borderEqLeftSurges[i] > 0) {
-        this.borderEqLeftSurges[i] = Math.max(0, this.borderEqLeftSurges[i] - 0.038);
+        this.borderEqLeftSurges[i] = Math.max(0, this.borderEqLeftSurges[i] - decayStep);
       }
       if (this.borderEqRightSurges[i] > 0) {
-        this.borderEqRightSurges[i] = Math.max(0, this.borderEqRightSurges[i] - 0.038);
+        this.borderEqRightSurges[i] = Math.max(0, this.borderEqRightSurges[i] - decayStep);
       }
     }
 
@@ -5067,10 +5107,11 @@ update(dt, frameNow) {
         });
       }
 
+      const frameScale = Math.min(2.5, (this._frameDt || 0.00833) * 60);
       for (let i = 0; i < this.speedStreaks.length; i++) {
         const s = this.speedStreaks[i];
         const warpSpeed = (0.9 + mult * 0.55);
-        s.progress += 0.018 * s.speed * warpSpeed;
+        s.progress += 0.018 * s.speed * warpSpeed * frameScale;
         if (s.progress > 1.0) {
           s.progress = 0;
           s.speed = 1.8 + Math.random() * 2.6;
@@ -5127,10 +5168,11 @@ update(dt, frameNow) {
       }
     }
 
+    const dustScale = Math.min(2.5, (this._frameDt || 0.00833) * 60);
     for (let i = 0; i < this.stageDustMotes.length; i++) {
       const m = this.stageDustMotes[i];
-      m.y -= m.speed * (mult >= 3 ? 1.5 : 1.0);
-      m.x += Math.sin(m.phase + currentTime * 0.0016) * 0.5;
+      m.y -= m.speed * (mult >= 3 ? 1.5 : 1.0) * dustScale;
+      m.x += Math.sin(m.phase + currentTime * 0.0016) * 0.5 * dustScale;
       if (m.y < -10) {
         m.y = h + 10;
         m.x = Math.random() * w;
@@ -5141,27 +5183,26 @@ update(dt, frameNow) {
       ctx.fill();
     }
 
-    // 6. REFLEJOS ESPECULARES EN EL SUELO BAJO LAS NOTAS
+    // 6. REFLEJOS ESPECULARES EN EL SUELO BAJO LAS NOTAS (Optimizado: empieza en firstActiveNoteIndex y sin RadialGradient por frame)
     const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (h * 0.84);
     if (Array.isArray(this.notes)) {
       let drawnReflections = 0;
-      for (let i = 0; i < this.notes.length; i++) {
+      const startRefIdx = Math.min(this.firstActiveNoteIndex || 0, this.notes.length);
+      const scrollDur = this.scrollDurationMs || 1000;
+      for (let i = startRefIdx; i < this.notes.length; i++) {
         const n = this.notes[i];
-        if (n.consumed || n.hit || n.missed) continue;
+        if (!n || n.consumed || n.hit || n.missed) continue;
         const noteTime = n.timeMs || n.timestamp_ms || 0;
         const diff = noteTime - currentTime;
         if (diff > 500) break;
         if (diff >= -50 && diff <= 500 && drawnReflections < 3) {
-          const laneCoord = this.getPerspectiveCoord(n.lane, 1.0 - (diff / (this.scrollDurationMs || 1000)));
+          const laneCoord = this.getPerspectiveCoord(n.lane, 1.0 - (diff / scrollDur), this._coordScratch0);
           if (laneCoord && laneCoord.y > hitY * 0.4) {
             drawnReflections++;
-            const refAlpha = Math.max(0, Math.min(0.22, (1 - diff / 500) * 0.22));
-            const refGrad = ctx.createRadialGradient(laneCoord.x, hitY + 12, 5, laneCoord.x, hitY + 12, laneCoord.laneW * 0.65);
-            refGrad.addColorStop(0, hexToRgba(beamColor1, refAlpha));
-            refGrad.addColorStop(1, 'rgba(0,0,0,0)');
-            ctx.fillStyle = refGrad;
+            const refAlpha = Math.max(0, Math.min(0.20, (1 - diff / 500) * 0.20));
+            ctx.fillStyle = hexToRgba(beamColor1, refAlpha);
             ctx.beginPath();
-            ctx.ellipse(laneCoord.x, hitY + 12, laneCoord.laneW * 0.65, 14, 0, 0, Math.PI * 2);
+            ctx.ellipse(laneCoord.x, hitY + 12, laneCoord.laneW * 0.55, 11, 0, 0, Math.PI * 2);
             ctx.fill();
           }
         }
@@ -5448,7 +5489,6 @@ update(dt, frameNow) {
 
   render(frameNow) {
     this._frameNow = frameNow || performance.now();
-    this.ctx.clearRect(0, 0, this.width, this.height);
     const hasShake = (this.shakeDuration > 0);
     if (hasShake) {
       this.ctx.save();
@@ -5462,7 +5502,7 @@ update(dt, frameNow) {
 
     this.renderBackgroundFX(currentTime);
     this.renderLanes(currentTime);
-    this.renderHitLine();
+    this.renderHitLine(currentTime);
     this.renderRipples(this.ctx);
     this.renderNotes(currentTime);
     this.renderSwipeLaunches(this.ctx, currentTime);
@@ -5482,7 +5522,7 @@ update(dt, frameNow) {
 
   renderSwipeLaunches(ctx, currentTime) {
     if (!this.activeSwipeLaunches || this.activeSwipeLaunches.length === 0) return;
-    const now = performance.now();
+    const now = this._frameNow || performance.now();
     const isLarge = this.keyStyle === 'beatstar_large';
 
     for (let i = this.activeSwipeLaunches.length - 1; i >= 0; i--) {
@@ -5569,7 +5609,7 @@ update(dt, frameNow) {
 
   renderFlyingLyrics(ctx, currentTime) {
     if (!this.flyingLyrics || this.flyingLyrics.length === 0) return;
-    const now = performance.now();
+    const now = this._frameNow || performance.now();
 
     for (let i = this.flyingLyrics.length - 1; i >= 0; i--) {
       const fly = this.flyingLyrics[i];
@@ -6118,37 +6158,39 @@ update(dt, frameNow) {
   // PSEUDO-3D CONICAL ENGINE (BEATSTAR PERSPECTIVE)
   // =========================================================================
 
-  getPerspectiveCoord(lane, p) {
+  getPerspectiveCoord(lane, p, out = null) {
     // p: 0.0 at horizon, 1.0 at hit line (y = hitLineY)
-    const pClamped = Math.max(-0.25, Math.min(1.4, p));
+    const pClamped = p < -0.25 ? -0.25 : (p > 1.4 ? 1.4 : p);
     const pCurved = pClamped >= 0 ? Math.pow(pClamped, 1.7) : -Math.pow(-pClamped, 1.7);
-    const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
-    const horizonY = 12; // Top vanishing horizon margin
-    const y = horizonY + (hitY - horizonY) * pCurved;
+    const horizonY = this._perspHorizonY || 12;
+    const spanY = this._perspSpanY || ((Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84)) - horizonY);
+    const y = horizonY + spanY * pCurved;
 
-    // Pista Beatstar al 94% del ancho de la pantalla (elimina huecos laterales)
-    const totalBaseW = this.width * 0.94;
-    const baseLaneW = totalBaseW / 3;
+    const baseLaneW = this._perspBaseLaneW || ((this.width * 0.94) / 3);
     const scale = 0.50 + 0.50 * pCurved;
     const laneW = baseLaneW * scale;
-    const midX = this.width / 2;
-    // Lane 0: left (midX - laneW), Lane 1: center (midX), Lane 2: right (midX + laneW)
+    const midX = this._perspMidX || (this.width * 0.5);
     const x = midX + (lane - 1) * laneW;
 
+    if (out) {
+      out.x = x;
+      out.y = y;
+      out.scale = scale;
+      out.laneW = laneW;
+      out.pCurved = pCurved;
+      return out;
+    }
     return { x, y, scale, laneW, pCurved };
   }
 
   getLaneBoundaryX(lineIdx, yTarget) {
-    const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
-    const horizonY = 12;
-    const midX = this.width / 2;
-    const totalBaseW = this.width * 0.94;
-    const baseLaneW = totalBaseW / 3;
-    // Interpolación cónica exacta a lo largo de las guías de la pista:
-    const t = (yTarget - horizonY) / (hitY - horizonY);
+    const horizonY = this._perspHorizonY || 12;
+    const invSpanY = this._perspInvSpanY || (1.0 / ((Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84)) - horizonY));
+    const midX = this._perspMidX || (this.width * 0.5);
+    const baseLaneW = this._perspBaseLaneW || ((this.width * 0.94) / 3);
+    const t = (yTarget - horizonY) * invSpanY;
     const scale = 0.50 + 0.50 * t;
-    const laneW = baseLaneW * scale;
-    return midX + (lineIdx - 1.5) * laneW;
+    return midX + (lineIdx - 1.5) * (baseLaneW * scale);
   }
 
   drawIvoryKey(ctx, laneOrCx, cy, h, scale = 1.0, isPressed = false, isLarge = true, isSwipe = false, lyricText = null) {
@@ -6406,9 +6448,10 @@ update(dt, frameNow) {
       railGlowCol = '#ffd700';
     }
 
-    // Actualizar portal del artista al compás del BPM
+    // Actualizar portal del artista al compás del BPM con filtro de umbral para no tocar el DOM 120 veces/seg
     if (!this.hudArtistPortalEl) this.hudArtistPortalEl = document.getElementById('hudArtistPortal');
-    if (this.hudArtistPortalEl) {
+    if (this.hudArtistPortalEl && Math.abs(beatPulse - (this._lastPortalPulse || 0)) > 0.018) {
+      this._lastPortalPulse = beatPulse;
       this.hudArtistPortalEl.style.transform = `scale(${(1 + beatPulse * 0.12).toFixed(3)})`;
     }
 
@@ -6563,8 +6606,8 @@ update(dt, frameNow) {
       ctx.lineCap = 'round';
 
       // Reutilización de gradiente para no saturar memoria a 120 FPS
-      const hueShift = ((currentTime * 0.04) % 360) | 0;
-      if (!this._sideGradCache || Math.abs(hueShift - (this._lastSideHue || 0)) >= 4) {
+      const hueShift = ((cTime * 0.04) % 360) | 0;
+      if (!this._sideGradCache || Math.abs(hueShift - (this._lastSideHue || 0)) >= 8) {
         this._lastSideHue = hueShift;
         const sideGrad = ctx.createLinearGradient(0, horizonY, 0, bottomY);
         sideGrad.addColorStop(0.00, `hsl(${hueShift}, 100%, 65%)`);
@@ -6835,10 +6878,12 @@ update(dt, frameNow) {
       ctx.closePath();
     }
 
-    renderHitLine() {
+    renderHitLine(currentTime = null) {
       const ctx = this.ctx;
       const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
       const is3D = (this.visualDimension !== '2d');
+      const nowPerf = this._frameNow || performance.now();
+      const cTime = Number.isFinite(currentTime) ? currentTime : this.getCurrentGameTimeMs(nowPerf);
 
       if (is3D && (!this._hitSpriteSocket || !this._hitSprites)) {
         this.buildHitLineSprites();
@@ -6873,10 +6918,10 @@ update(dt, frameNow) {
         const spriteOffY = -((isLarge ? 12 : 6) + s.pad);
 
         for (let l = 0; l < 3; l++) {
-          const coord = this.getPerspectiveCoord(l, 1.0);
+          const coord = this.getPerspectiveCoord(l, 1.0, this._coordScratch0);
           const cx = coord.x;
 
-          const elapsedPress = performance.now() - (this.lanePressAnim ? (this.lanePressAnim[l] || 0) : 0);
+          const elapsedPress = nowPerf - (this.lanePressAnim ? (this.lanePressAnim[l] || 0) : 0);
           const isTapping = elapsedPress >= 0 && elapsedPress < 160;
           let tapDepth = 0;
           if (isTapping) {
@@ -6901,7 +6946,7 @@ update(dt, frameNow) {
           const keyW = s.keyW;
           const slotW = keyW * 0.72;
           const slotH = isLarge ? 5.0 : 3.5;
-          ctx.fillStyle = `rgba(0, 245, 160, ${(isPressed ? 0.75 : 0.52).toFixed(3)})`;
+          ctx.fillStyle = isPressed ? 'rgba(0, 245, 160, 0.75)' : 'rgba(0, 245, 160, 0.52)';
           ctx.fillRect(cx - slotW / 2, perfY - slotH / 2, slotW, slotH);
 
           ctx.strokeStyle = isPressed ? '#ffffff' : hexToRgba(laserCol, 0.90);
@@ -6926,7 +6971,7 @@ update(dt, frameNow) {
             const active = this.activeHolds.get(l);
             const startT = active.startTime;
             const endT = active.note.end_timestamp_ms || (startT + (active.note.duration_ms || 700));
-            const progress = Math.min(1.0, Math.max(0, (this.getCurrentGameTimeMs() - startT) / (endT - startT)));
+            const progress = Math.min(1.0, Math.max(0, (cTime - startT) / (endT - startT)));
             ctx.save();
             ctx.globalCompositeOperation = 'lighter';
             ctx.strokeStyle = laserCol;
@@ -6994,10 +7039,12 @@ update(dt, frameNow) {
       const ctx = this.ctx;
       const len = this.notes.length;
       const scrollDur = (Number.isFinite(this.scrollDurationMs) && this.scrollDurationMs > 0) ? this.scrollDurationMs : 1400;
+      const invScrollDur = 1.0 / scrollDur;
       const is3D = (this.visualDimension !== '2d');
       const isLarge = (this.keyStyle !== 'compact');
       const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
       const horizonY = 12;
+      const spanY = hitY - horizonY;
 
       while (this.firstActiveNoteIndex < len) {
         const pastN = this.notes[this.firstActiveNoteIndex];
@@ -7027,12 +7074,12 @@ update(dt, frameNow) {
 
         if (timeUntilHit > 1200 && timeUntilHit > scrollDur) break;
 
-        const pHead = 1.0 - timeUntilHit / scrollDur;
+        const pHead = 1.0 - timeUntilHit * invScrollDur;
         if (pHead < -0.15 || (!isBeingHeld && pHead > 1.25)) continue;
 
         const nextDiff = note.nextSameLaneDiffMs ?? Infinity;
-        const coord = this.getPerspectiveCoord(lane, pHead);
-        const maxH3D = nextDiff < scrollDur ? Math.max(26, ((nextDiff / scrollDur) * (hitY - horizonY) * coord.scale) - 8) : Infinity;
+        const coord = this.getPerspectiveCoord(lane, pHead, this._coordScratch0);
+        const maxH3D = nextDiff < scrollDur ? Math.max(26, ((nextDiff * invScrollDur) * spanY * coord.scale) - 8) : Infinity;
         const lyricForNote = isKaraokeActive ? note._cleanLyric : null;
 
         // ==========================================
@@ -7048,7 +7095,7 @@ update(dt, frameNow) {
           const endT = Number.isFinite(note.end_timestamp_ms) ? note.end_timestamp_ms : (noteT + holdDuration);
 
           let currentHeadP = isBeingHeld ? 1.0 : pHead;
-          let currentTailP = 1.0 - (endT - currentTime) / scrollDur;
+          let currentTailP = 1.0 - (endT - currentTime) * invScrollDur;
 
           if (currentTailP > 1.25 || currentHeadP < -0.2) continue;
 
@@ -7056,11 +7103,11 @@ update(dt, frameNow) {
 
           const segments = 10;
           const stringPoints = this._holdPointsBuffer || [];
-          const timeSec = currentTime / 1000;
+          const timeSec = currentTime * 0.001;
           for (let s = 0; s <= segments; s++) {
             const frac = s / segments;
             const pStep = currentTailP + (currentHeadP - currentTailP) * frac;
-            const ptCoord = this.getPerspectiveCoord(lane, pStep);
+            const ptCoord = this.getPerspectiveCoord(lane, pStep, this._coordScratch1);
 
             const standingEnvelope = Math.sin(Math.PI * frac);
             const vibration = isBeingHeld 
@@ -7142,14 +7189,6 @@ update(dt, frameNow) {
               ctx.beginPath();
               ctx.arc(pulsePt.x, pulsePt.y, pRad * 1.8, 0, Math.PI * 2);
               ctx.stroke();
-            }
-          }
-
-          // C. Lluvia continua de brillantitos y estrellas diamante al mantener pulsado
-          if (isBeingHeld) {
-            const headPoint = stringPoints[segments];
-            if (this.particles && this.particles.emitHoldSpark) {
-              this.particles.emitHoldSpark(headPoint.x, hitY, holdCol);
             }
           }
 

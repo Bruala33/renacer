@@ -5332,6 +5332,10 @@
               lastMultiplier: -1,
               lastMedalTier: '',
               lastScoreFloor: -1,
+              lastCombo: -1,
+              lastPctQuant: -1,
+              lastPlatPhase: false,
+              lastScoreDomPerf: 0,
               lastDigits: ['', '', '', '', '', '', '']
             };
           }
@@ -5339,40 +5343,51 @@
 
           if (hud.fillEl) {
             const clampedPct = Math.min(100, Math.max(0, pct || 0));
-            hud.fillEl.style.width = clampedPct + '%';
-            if (clampedPct >= 90.0 || stars >= 5) {
-              hud.fillEl.classList.add('platinum-phase');
-              if (hud.platNode) hud.platNode.classList.remove('hidden');
-            } else {
-              hud.fillEl.classList.remove('platinum-phase');
-              if (hud.platNode) hud.platNode.classList.add('hidden');
+            const pctQuant = (clampedPct * 4) | 0; // actualizar solo cada 0.25% para evitar reflows a 120Hz
+            if (hud.lastPctQuant !== pctQuant) {
+              hud.lastPctQuant = pctQuant;
+              hud.fillEl.style.width = (pctQuant * 0.25) + '%';
+            }
+            const isPlatPhase = (clampedPct >= 90.0 || stars >= 5);
+            if (hud.lastPlatPhase !== isPlatPhase) {
+              hud.lastPlatPhase = isPlatPhase;
+              if (isPlatPhase) {
+                hud.fillEl.classList.add('platinum-phase');
+                if (hud.platNode) hud.platNode.classList.remove('hidden');
+              } else {
+                hud.fillEl.classList.remove('platinum-phase');
+                if (hud.platNode) hud.platNode.classList.add('hidden');
+              }
             }
           }
 
           if (hud.lastStars !== stars) {
             hud.lastStars = stars;
-            hud.starNodes.forEach(node => {
+            for (let i = 0; i < hud.starNodes.length; i++) {
+              const node = hud.starNodes[i];
               const sNum = parseInt(node.dataset.star, 10);
               if (sNum <= stars) node.classList.add('unlocked');
               else node.classList.remove('unlocked');
-            });
+            }
           }
 
           if (hud.pill && hud.medalName && hud.lastMedalTier !== medalTier) {
             hud.lastMedalTier = medalTier;
             if (pct >= 90.0 || stars >= 5 || medalTier === 'platinum') {
               hud.pill.className = 'hud-medal-pill platinum mt-1';
-              hud.medalName.innerText = 'PLATINO';
+              hud.medalName.textContent = 'PLATINO';
             } else if (pct >= 75.0 || stars >= 4 || medalTier === 'gold') {
               hud.pill.className = 'hud-medal-pill gold mt-1';
-              hud.medalName.innerText = 'ORO';
+              hud.medalName.textContent = 'ORO';
             } else {
               hud.pill.className = 'hud-medal-pill hidden mt-1';
             }
           }
 
+          const nowPerf = performance.now();
           const scoreInt = Math.floor(score);
-          if (hud.lastScoreFloor !== scoreInt) {
+          if (hud.lastScoreFloor !== scoreInt && (scoreInt === 0 || nowPerf - hud.lastScoreDomPerf > 45)) {
+            hud.lastScoreDomPerf = nowPerf;
             hud.lastScoreFloor = scoreInt;
             const scoreStr = String(Math.min(9999999, Math.max(0, scoreInt))).padStart(7, '0');
             for (let d = 0; d < 7; d++) {
@@ -5385,22 +5400,25 @@
                 }
               }
             }
-            if (hud.scoreEl) hud.scoreEl.innerText = scoreInt.toLocaleString();
+            if (hud.scoreEl) hud.scoreEl.textContent = scoreInt.toLocaleString();
           }
 
           if (hud.lastMultiplier !== multiplier) {
             hud.lastMultiplier = multiplier;
-            if (hud.gasMultVal) hud.gasMultVal.innerText = multiplier || 1;
+            if (hud.gasMultVal) hud.gasMultVal.textContent = multiplier || 1;
             if (hud.gasBadge) {
               hud.gasBadge.className = 'hud-gas-combo-badge ' + (multiplier >= 4 ? 'max-mult' : (multiplier >= 3 ? 'high-mult' : (multiplier >= 2 ? 'med-mult' : '')));
             }
             if (hud.multEl) {
-              hud.multEl.innerText = multiplier + 'x';
+              hud.multEl.textContent = multiplier + 'x';
               hud.multEl.className = 'multiplier-badge ' + (multiplier >= 2 ? ('x' + multiplier) : '');
             }
           }
 
-          if (hud.comboEl) hud.comboEl.innerText = 'COMBO ' + combo;
+          if (hud.comboEl && hud.lastCombo !== combo) {
+            hud.lastCombo = combo;
+            hud.comboEl.textContent = 'COMBO ' + combo;
+          }
         },
         onStarUnlocked: (starNum, isPlatinum) => {
           const node = document.querySelector(`.star-node[data-star="${starNum}"]`);
@@ -5415,16 +5433,10 @@
           }
         },
         onHitBeatPulse: (combo) => {
-          const box = document.getElementById('hudComboContainer');
+          const box = (window._cachedHud && window._cachedHud.comboContainer) || document.getElementById('hudComboContainer');
           if (box) {
-            box.classList.remove('beat-pulse');
-            requestAnimationFrame(() => {
-              box.classList.add('beat-pulse');
-            });
-            box.classList.remove('streak-25', 'streak-50', 'streak-100');
-            if (combo >= 100) box.classList.add('streak-100');
-            else if (combo >= 50) box.classList.add('streak-50');
-            else if (combo >= 25) box.classList.add('streak-25');
+            const tier = combo >= 100 ? ' streak-100' : (combo >= 50 ? ' streak-50' : (combo >= 25 ? ' streak-25' : ''));
+            box.className = 'hud-combo-box beat-pulse' + tier;
           }
         },
         onSongLoaded: (meta, palette) => {
@@ -11251,46 +11263,58 @@ function detenerPaginacionPiano() {
         let chartData = null;
         let chartFoundTag = null;
 
-        // 1.5. Comprobar si el chart existe localmente en /songs/
-        try {
-          let localRes = await fetch(`./songs/${chartFilename}`);
-          if (!localRes.ok) localRes = await fetch(`songs/${chartFilename}`);
-          if (localRes.ok) {
-            chartData = await localRes.json();
-            if (chartData) {
-              chartFoundTag = '8'; // Tag preferente donde suele estar el audio
+        // 1.5. Comprobar si el chart existe localmente en /songs/ (solo para charts incluidos en el paquete local)
+        const BUNDLED_LOCAL_TOP_CHARTS = new Set(['david_bustamante_abrazame_muy_fuerte.json']);
+        if (BUNDLED_LOCAL_TOP_CHARTS.has(chartFilename)) {
+          try {
+            const localRes = await fetch(`./songs/${chartFilename}`);
+            if (localRes.ok) {
+              chartData = await localRes.json();
+              if (chartData) {
+                chartFoundTag = '8'; // Tag preferente donde suele estar el audio
+              }
             }
-          }
-        } catch (_) {}
+          } catch (_) {}
+        }
 
-        if (!chartData) {
-          for (const tag of releaseTags) {
+        const isAndroidWebView = typeof window.AndroidNative !== 'undefined';
+        const fetchReleaseJson = async (tag) => {
           const cUrl = `https://github.com/Bruala33/renacer/releases/download/${tag}/${chartFilename}`;
           try {
-            let cRes = await fetch(cUrl);
+            const primaryUrl = isAndroidWebView ? cUrl : myWorker(cUrl);
+            let cRes = await fetch(primaryUrl);
             if (!cRes.ok && cRes.status !== 404) {
-              cRes = await fetch(myWorker(cUrl));
+              const fallbackUrl = isAndroidWebView ? myWorker(cUrl) : cUrl;
+              cRes = await fetch(fallbackUrl);
             }
             if (cRes.ok) {
-              chartData = await cRes.json();
-              if (chartData) {
-                chartFoundTag = tag;
-                break;
-              }
+              const data = await cRes.json();
+              if (data) return { tag, data };
             }
           } catch (_) {
             try {
               const cRes = await fetch(myWorker(cUrl));
               if (cRes.ok) {
-                chartData = await cRes.json();
-                if (chartData) {
-                  chartFoundTag = tag;
-                  break;
-                }
+                const data = await cRes.json();
+                if (data) return { tag, data };
               }
             } catch (_) {}
           }
-        }
+          return null;
+        };
+
+        if (!chartData) {
+          const batchSize = 4;
+          for (let i = 0; i < releaseTags.length; i += batchSize) {
+            const batch = releaseTags.slice(i, i + batchSize);
+            const results = await Promise.all(batch.map(tag => fetchReleaseJson(tag)));
+            const hit = results.find(r => r && r.data);
+            if (hit) {
+              chartData = hit.data;
+              chartFoundTag = hit.tag;
+              break;
+            }
+          }
         }
         if (!chartData) throw new Error('Esta pista aún no está disponible en los releases de producción.');
 
@@ -11303,9 +11327,11 @@ function detenerPaginacionPiano() {
         for (const tag of audioTags) {
           const aUrl = `https://github.com/Bruala33/renacer/releases/download/${tag}/${audioFilename}`;
           try {
-            let aRes = await fetch(aUrl);
+            const primaryAudioUrl = isAndroidWebView ? aUrl : myWorker(aUrl);
+            let aRes = await fetch(primaryAudioUrl);
             if (!aRes.ok && aRes.status !== 404) {
-              aRes = await fetch(myWorker(aUrl));
+              const fallbackAudioUrl = isAndroidWebView ? myWorker(aUrl) : aUrl;
+              aRes = await fetch(fallbackAudioUrl);
             }
             if (aRes.ok) {
               const b = await aRes.blob();
