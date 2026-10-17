@@ -1,8 +1,9 @@
 /**
  * ============================================================================
- * VINTAGE 3D GACHAPON CAPSULE VENDING MACHINE ("LA IMPERIAL ACÚSTICA 1958")
- * Ultra-Realistic Three.js PBR 3D Machine, Real-Time 26-Ball Sphere Physics,
- * Mechanical Crank & Chute Choreography, and Cinematic 3D Capsule Burst Reveal
+ * HYPER-REALISTIC 3D VINTAGE GUMBALL MACHINE (THREE.JS PBR)
+ * Full-Screen Interactive 3D Machine with Direct 3D Lever Pull (100 Claves),
+ * Heavy Gravity Ball Physics (Zero Flying), Visible Funnel-to-Tray Ball Drop,
+ * and 3D Capsule Hemisphere Opening Animation
  * ============================================================================
  */
 (function () {
@@ -17,9 +18,7 @@
       cssColor: '#fbbf24',
       glowCss: 'rgba(251, 191, 36, 0.65)',
       badgeBg: 'linear-gradient(135deg, #f59e0b 0%, #fde047 50%, #d97706 100%)',
-      badgeText: '#1c1002',
-      weightNormal: 12,
-      weightGolden: 34
+      badgeText: '#1c1002'
     },
     epic: {
       id: 'epic',
@@ -29,9 +28,7 @@
       cssColor: '#f43f5e',
       glowCss: 'rgba(244, 63, 94, 0.55)',
       badgeBg: 'linear-gradient(135deg, #be123c 0%, #f43f5e 50%, #9333ea 100%)',
-      badgeText: '#ffffff',
-      weightNormal: 26,
-      weightGolden: 42
+      badgeText: '#ffffff'
     },
     rare: {
       id: 'rare',
@@ -41,9 +38,7 @@
       cssColor: '#34d399',
       glowCss: 'rgba(52, 211, 153, 0.50)',
       badgeBg: 'linear-gradient(135deg, #047857 0%, #10b981 50%, #0d9488 100%)',
-      badgeText: '#ffffff',
-      weightNormal: 36,
-      weightGolden: 24
+      badgeText: '#ffffff'
     },
     classic: {
       id: 'classic',
@@ -53,45 +48,11 @@
       cssColor: '#7dd3fc',
       glowCss: 'rgba(56, 189, 248, 0.45)',
       badgeBg: 'linear-gradient(135deg, #0369a1 0%, #38bdf8 50%, #475569 100%)',
-      badgeText: '#ffffff',
-      weightNormal: 26,
-      weightGolden: 0
+      badgeText: '#ffffff'
     }
   };
 
-  // Preset Vintage & Concert Stage Backgrounds unlockable from capsules
-  const VINTAGE_STAGE_BACKGROUNDS = [
-    {
-      id: 'bg_imperial_velvet',
-      name: 'Escenario: Terciopelo Imperial 1920',
-      desc: 'Cortinaje de ópera carmesí con filigranas de oro envejecido e iluminación cálida de candelabro.',
-      rarity: 'rare',
-      palette: ['#1a0509', '#590d1b', '#c5a059', '#fde68a']
-    },
-    {
-      id: 'bg_golden_conservatory',
-      name: 'Escenario: Conservatorio Real de Viena',
-      desc: 'Parquet de caoba imperial y haces volumétricos dorados sobre cámara acústica de concierto.',
-      rarity: 'epic',
-      palette: ['#0f0a06', '#3b2313', '#eab308', '#fef08a']
-    },
-    {
-      id: 'bg_celestial_cathedral',
-      name: 'Escenario: Vitral Celestial Áureo',
-      desc: 'Rosetón gótico luminiscente con destellos de zafiro, esmeralda y latón bruñido.',
-      rarity: 'legendary',
-      palette: ['#050b14', '#1e3a8a', '#38bdf8', '#fbbf24']
-    },
-    {
-      id: 'bg_midnight_jazz_club',
-      name: 'Escenario: Club de Jazz Vinilo 1958',
-      desc: 'Atmósfera íntima de club nocturno vintage con humo cálido, latón de saxofón y neón ámbar.',
-      rarity: 'rare',
-      palette: ['#09060d', '#2e1065', '#f59e0b', '#f43f5e']
-    }
-  ];
-
-  // Synthesized Vintage Mechanical & Musical Sound Engine (Web Audio API)
+  // Synthesized Mechanical & Musical Sound Engine (Web Audio API)
   class GachaponSoundFX {
     constructor() {
       this.ctx = null;
@@ -111,28 +72,27 @@
 
     getMasterGain() {
       const vol = parseFloat(localStorage.getItem('beatstar_master_volume') ?? '1.0');
-      return Math.max(0.05, Math.min(1.0, isNaN(vol) ? 0.8 : vol)) * 0.45;
+      return Math.max(0.05, Math.min(1.0, isNaN(vol) ? 0.8 : vol)) * 0.48;
     }
 
-    playCoinInsert() {
+    playCoinAndLeverStart() {
       const ctx = this.ensureCtx();
       if (!ctx) return;
       const now = ctx.currentTime;
       const vol = this.getMasterGain();
 
-      // Metallic coin clink (two high bell partials)
-      [2450, 3680, 5120].forEach((freq, i) => {
+      [2200, 3350, 4680].forEach((freq, i) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, now + i * 0.035);
-        osc.frequency.exponentialRampToValueAtTime(freq * 1.04, now + i * 0.035 + 0.14);
-        gain.gain.setValueAtTime(vol * (0.45 - i * 0.1), now + i * 0.035);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.035 + 0.18);
+        osc.frequency.setValueAtTime(freq, now + i * 0.03);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.03, now + i * 0.03 + 0.12);
+        gain.gain.setValueAtTime(vol * (0.42 - i * 0.1), now + i * 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.03 + 0.15);
         osc.connect(gain);
         gain.connect(ctx.destination);
-        osc.start(now + i * 0.035);
-        osc.stop(now + i * 0.035 + 0.19);
+        osc.start(now + i * 0.03);
+        osc.stop(now + i * 0.03 + 0.16);
       });
     }
 
@@ -145,17 +105,17 @@
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(220 * pitchScale, now);
-      osc.frequency.exponentialRampToValueAtTime(68 * pitchScale, now + 0.045);
+      osc.frequency.setValueAtTime(195 * pitchScale, now);
+      osc.frequency.exponentialRampToValueAtTime(58 * pitchScale, now + 0.042);
       gain.gain.setValueAtTime(vol * 0.55, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.046);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(now);
-      osc.stop(now + 0.055);
+      osc.stop(now + 0.05);
     }
 
-    playBallClatter(intensity = 0.6) {
+    playBallRollClack(intensity = 0.5) {
       const ctx = this.ensureCtx();
       if (!ctx) return;
       const now = ctx.currentTime;
@@ -164,68 +124,48 @@
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
-      const baseFreq = 520 + Math.random() * 480;
+      const baseFreq = 420 + Math.random() * 280;
       osc.frequency.setValueAtTime(baseFreq, now);
-      osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.45, now + 0.04);
-      gain.gain.setValueAtTime(vol * 0.25, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+      osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.45, now + 0.038);
+      gain.gain.setValueAtTime(vol * 0.22, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.042);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(now);
-      osc.stop(now + 0.05);
+      osc.stop(now + 0.045);
     }
 
-    playChuteDropAndDoor() {
+    playChuteBounceAndDoor() {
       const ctx = this.ensureCtx();
       if (!ctx) return;
       const now = ctx.currentTime;
       const vol = this.getMasterGain();
 
-      // Heavy hollow thud + metallic flap clack
+      // Heavy hollow impact as the ball hits the metal tray
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(160, now);
-      osc.frequency.exponentialRampToValueAtTime(42, now + 0.14);
-      gain.gain.setValueAtTime(vol * 0.8, now);
+      osc.frequency.setValueAtTime(155, now);
+      osc.frequency.exponentialRampToValueAtTime(38, now + 0.14);
+      gain.gain.setValueAtTime(vol * 0.85, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(now);
       osc.stop(now + 0.17);
 
-      // Metallic flap ring
+      // Chrome flap door clack
       const flapOsc = ctx.createOscillator();
       const flapGain = ctx.createGain();
-      flapOsc.type = 'square';
-      flapOsc.frequency.setValueAtTime(880, now + 0.08);
-      flapOsc.frequency.exponentialRampToValueAtTime(310, now + 0.19);
-      flapGain.gain.setValueAtTime(vol * 0.22, now + 0.08);
-      flapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.20);
+      flapOsc.type = 'triangle';
+      flapOsc.frequency.setValueAtTime(820, now + 0.04);
+      flapOsc.frequency.exponentialRampToValueAtTime(260, now + 0.15);
+      flapGain.gain.setValueAtTime(vol * 0.28, now + 0.04);
+      flapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
       flapOsc.connect(flapGain);
       flapGain.connect(ctx.destination);
-      flapOsc.start(now + 0.08);
-      flapOsc.stop(now + 0.21);
-    }
-
-    playSuspenseCharge() {
-      const ctx = this.ensureCtx();
-      if (!ctx) return;
-      const now = ctx.currentTime;
-      const vol = this.getMasterGain();
-
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(260, now);
-      osc.frequency.exponentialRampToValueAtTime(780, now + 0.55);
-      gain.gain.setValueAtTime(0.01, now);
-      gain.gain.linearRampToValueAtTime(vol * 0.35, now + 0.45);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.60);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.62);
+      flapOsc.start(now + 0.04);
+      flapOsc.stop(now + 0.17);
     }
 
     playCapsuleBurstFanfare(rarityId = 'rare') {
@@ -234,20 +174,18 @@
       const now = ctx.currentTime;
       const vol = this.getMasterGain();
 
-      // 1. Pop / Burst transient
       const popOsc = ctx.createOscillator();
       const popGain = ctx.createGain();
       popOsc.type = 'triangle';
-      popOsc.frequency.setValueAtTime(420, now);
-      popOsc.frequency.exponentialRampToValueAtTime(65, now + 0.18);
+      popOsc.frequency.setValueAtTime(390, now);
+      popOsc.frequency.exponentialRampToValueAtTime(62, now + 0.16);
       popGain.gain.setValueAtTime(vol * 0.85, now);
-      popGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+      popGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
       popOsc.connect(popGain);
       popGain.connect(ctx.destination);
       popOsc.start(now);
-      popOsc.stop(now + 0.21);
+      popOsc.stop(now + 0.19);
 
-      // 2. Grand Piano / Celeste Harmonic Arpeggio based on Rarity
       const chords = {
         classic: [523.25, 659.25, 783.99, 1046.50],
         rare: [523.25, 659.25, 783.99, 987.77, 1318.51],
@@ -257,7 +195,7 @@
       const notes = chords[rarityId] || chords.rare;
 
       notes.forEach((freq, idx) => {
-        const delay = idx * 0.065;
+        const delay = idx * 0.06;
         const osc = ctx.createOscillator();
         const sub = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -268,8 +206,8 @@
         sub.frequency.setValueAtTime(freq * 2, now + delay);
 
         gain.gain.setValueAtTime(0.001, now + delay);
-        gain.gain.linearRampToValueAtTime(vol * 0.36, now + delay + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0008, now + delay + 0.95);
+        gain.gain.linearRampToValueAtTime(vol * 0.34, now + delay + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0008, now + delay + 0.9);
 
         osc.connect(gain);
         sub.connect(gain);
@@ -277,8 +215,8 @@
 
         osc.start(now + delay);
         sub.start(now + delay);
-        osc.stop(now + delay + 1.0);
-        sub.stop(now + delay + 1.0);
+        osc.stop(now + delay + 0.95);
+        sub.stop(now + delay + 0.95);
       });
     }
   }
@@ -293,47 +231,56 @@
       this.rafId = null;
       this.lastTime = 0;
 
-      // Machine state: 'IDLE' | 'COIN_AND_CRANK' | 'BALL_DROP_CHUTE' | 'HERO_PRESENTATION' | 'CAPSULE_BURST_OPEN'
+      // States: 'IDLE' | 'LEVER_PULL_AND_TUMBLE' | 'BALL_VISIBLE_FALL' | 'HERO_PRESENTATION' | 'CAPSULE_BURST_OPEN'
       this.state = 'IDLE';
       this.stateTimer = 0;
       this.pendingReward = null;
       this.lastRatchetStep = -1;
 
-      // Orbit / camera interaction
+      // Camera & Orbit state
       this.userYaw = 0;
-      this.targetYaw = 0;
-      this.userPitch = 0.04;
-      this.targetPitch = 0.04;
-      this.isDragging = false;
+      this.userPitch = 0.02;
+      this.isDraggingOrbit = false;
+      this.isPullingLeverDrag = false;
+      this.leverPullProgress = 0;
       this.dragStartX = 0;
       this.dragStartY = 0;
 
-      // Physics balls array inside the glass dome
-      this.balls = [];
-      this.domeCenter = new THREE.Vector3(0, 1.52, 0);
-      this.domeRadius = 1.34;
-      this.ballRadius = 0.255;
+      // Raycaster for 3D Lever interaction
+      this.raycaster = new THREE.Raycaster();
+      this.pointerNDC = new THREE.Vector2();
+      this.leverInteractables = [];
 
-      // Burst particles in 3D
+      // Physics balls inside the glass globe
+      this.balls = [];
+      this.droppingBall = null;
+      this.dropPathPhase = 0;
+      this.domeCenter = new THREE.Vector3(0, 1.56, 0);
+      this.domeRadius = 1.42;
+      this.ballRadius = 0.245;
+
+      // 3D Burst particles
       this.burstParticles = [];
 
       this.initScene();
       this.buildMaterials();
       this.buildMachineMesh();
-      this.populateCapsules(26);
-      this.buildHeroCapsule();
+      this.populateCapsules(32);
+      this.buildHeroOpenAssembly();
       this.bindInteraction();
     }
 
     initScene() {
-      const w = this.canvas.clientWidth || 340;
-      const h = this.canvas.clientHeight || 420;
+      const w = this.canvas.clientWidth || window.innerWidth || 380;
+      const h = this.canvas.clientHeight || window.innerHeight || 680;
 
       this.scene = new THREE.Scene();
 
-      this.camera = new THREE.PerspectiveCamera(38, w / h, 0.1, 50);
-      this.defaultCamPos = new THREE.Vector3(0, 0.72, 7.65);
-      this.defaultLookAt = new THREE.Vector3(0, 0.42, 0);
+      const aspect = w / Math.max(1, h);
+      const fov = aspect < 0.65 ? 44 : 38;
+      this.camera = new THREE.PerspectiveCamera(fov, aspect, 0.1, 50);
+      this.defaultCamPos = new THREE.Vector3(0, 0.45, aspect < 0.65 ? 8.35 : 7.55);
+      this.defaultLookAt = new THREE.Vector3(0, 0.22, 0);
       this.currentCamPos = this.defaultCamPos.clone();
       this.currentLookAt = this.defaultLookAt.clone();
       this.camera.position.copy(this.currentCamPos);
@@ -351,52 +298,56 @@
       this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       if (THREE.ACESFilmicToneMapping !== undefined) {
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.18;
+        this.renderer.toneMappingExposure = 1.22;
       }
       if (THREE.sRGBEncoding !== undefined) {
         this.renderer.outputEncoding = THREE.sRGBEncoding;
       }
 
-      // Generate Procedural Warm Vintage Showroom Environment Map for PBR Metals & Glass
       this.createStudioEnvironment();
 
-      // Theatrical Vintage Lighting Setup
-      const ambient = new THREE.AmbientLight(0xfff0d4, 0.55);
+      // Studio Lighting
+      const ambient = new THREE.AmbientLight(0xfff4e0, 0.62);
       this.scene.add(ambient);
 
-      this.keyLight = new THREE.DirectionalLight(0xfff5e0, 1.85);
-      this.keyLight.position.set(4.5, 7.5, 6.0);
+      this.keyLight = new THREE.DirectionalLight(0xfff8eb, 2.0);
+      this.keyLight.position.set(4.8, 8.2, 6.5);
       this.keyLight.castShadow = true;
       this.keyLight.shadow.mapSize.width = 1024;
       this.keyLight.shadow.mapSize.height = 1024;
       this.keyLight.shadow.camera.near = 1;
-      this.keyLight.shadow.camera.far = 20;
-      const d = 3.5;
+      this.keyLight.shadow.camera.far = 22;
+      const d = 3.8;
       this.keyLight.shadow.camera.left = -d;
       this.keyLight.shadow.camera.right = d;
       this.keyLight.shadow.camera.top = d;
       this.keyLight.shadow.camera.bottom = -d;
-      this.keyLight.shadow.bias = -0.0015;
+      this.keyLight.shadow.bias = -0.0012;
       this.scene.add(this.keyLight);
 
-      // Warm Golden Rim Light from Left/Back
-      this.rimLight = new THREE.PointLight(0xfbbf24, 1.6, 14);
-      this.rimLight.position.set(-4.2, 3.2, -2.5);
+      // Warm Golden Rim Light from Left
+      this.rimLight = new THREE.PointLight(0xfbbf24, 1.75, 16);
+      this.rimLight.position.set(-4.6, 3.4, -2.2);
       this.scene.add(this.rimLight);
 
-      // Cool Cyan/Sapphire Accent Fill from Right for Glass Specular Contrast
-      this.fillLight = new THREE.PointLight(0x38bdf8, 1.15, 14);
-      this.fillLight.position.set(4.4, 2.0, 3.2);
+      // Cool Studio Specular Fill from Right
+      this.fillLight = new THREE.PointLight(0x7dd3fc, 1.25, 16);
+      this.fillLight.position.set(4.8, 1.8, 3.6);
       this.scene.add(this.fillLight);
 
-      // Internal Dome Warm Bulb Glow (illuminates capsules from inside the crown!)
-      this.domeInnerLight = new THREE.PointLight(0xffdfa0, 1.35, 4.5);
-      this.domeInnerLight.position.set(0, 2.55, 0);
+      // Internal Globe Warm Illumination
+      this.domeInnerLight = new THREE.PointLight(0xffe4b5, 1.4, 5.0);
+      this.domeInnerLight.position.set(0, 2.6, 0.2);
       this.scene.add(this.domeInnerLight);
 
-      // Hero Spotlight for Capsule Reveal
-      this.heroLight = new THREE.PointLight(0xffffff, 0, 8);
-      this.heroLight.position.set(0, 1.2, 4.4);
+      // Chute Interior Accent Light (makes the falling ball clearly visible inside the chute!)
+      this.chuteLight = new THREE.PointLight(0xffedd5, 1.25, 3.2);
+      this.chuteLight.position.set(0, -0.55, 1.45);
+      this.scene.add(this.chuteLight);
+
+      // Hero Reveal Light
+      this.heroLight = new THREE.PointLight(0xffffff, 0, 9);
+      this.heroLight.position.set(0, 1.0, 4.8);
       this.scene.add(this.heroLight);
     }
 
@@ -407,52 +358,52 @@
         pmremGenerator.compileCubemapShader();
 
         const envScene = new THREE.Scene();
-        envScene.background = new THREE.Color(0x12090d);
+        envScene.background = new THREE.Color(0x0f070a);
 
-        // Warm overhead softbox
+        // Overhead studio softbox
         const topBox = new THREE.Mesh(
-          new THREE.PlaneGeometry(12, 12),
-          new THREE.MeshBasicMaterial({ color: 0xfffaed, side: THREE.DoubleSide })
+          new THREE.PlaneGeometry(14, 14),
+          new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
         );
-        topBox.position.set(0, 7, 0);
+        topBox.position.set(0, 7.5, 0);
         topBox.rotation.x = Math.PI / 2;
         envScene.add(topBox);
 
-        // Left golden strip reflector
+        // Left warm gold reflector strip
         const leftStrip = new THREE.Mesh(
-          new THREE.PlaneGeometry(4, 10),
-          new THREE.MeshBasicMaterial({ color: 0xfbbf24, side: THREE.DoubleSide })
+          new THREE.PlaneGeometry(4.5, 11),
+          new THREE.MeshBasicMaterial({ color: 0xfde68a, side: THREE.DoubleSide })
         );
-        leftStrip.position.set(-6, 2, 2);
+        leftStrip.position.set(-6.5, 2.0, 2.5);
         leftStrip.lookAt(0, 0, 0);
         envScene.add(leftStrip);
 
-        // Right crystal-blue strip reflector
+        // Right cool white reflector strip
         const rightStrip = new THREE.Mesh(
-          new THREE.PlaneGeometry(3.5, 10),
+          new THREE.PlaneGeometry(4.0, 11),
           new THREE.MeshBasicMaterial({ color: 0xe0f2fe, side: THREE.DoubleSide })
         );
-        rightStrip.position.set(6, 2.5, 3);
+        rightStrip.position.set(6.5, 2.5, 3.0);
         rightStrip.lookAt(0, 0, 0);
         envScene.add(rightStrip);
 
-        // Front warm ring highlight for glass globe reflection
-        const frontArc = new THREE.Mesh(
-          new THREE.RingGeometry(1.8, 2.3, 32),
+        // Front curved studio window highlight for realistic glass reflection
+        const frontWindow = new THREE.Mesh(
+          new THREE.RingGeometry(1.9, 2.5, 40),
           new THREE.MeshBasicMaterial({ color: 0xfffbeb, side: THREE.DoubleSide })
         );
-        frontArc.position.set(0, 2.0, 7);
-        envScene.add(frontArc);
+        frontWindow.position.set(0, 2.1, 7.2);
+        envScene.add(frontWindow);
 
-        const envRT = pmremGenerator.fromScene(envScene, 0.035);
+        const envRT = pmremGenerator.fromScene(envScene, 0.03);
         this.scene.environment = envRT.texture;
         pmremGenerator.dispose();
       } catch (e) {
-        console.warn('[Gachapon3D] Fallback environment lighting:', e);
+        console.warn('[Gachapon3D] Environment fallback:', e);
       }
     }
 
-    createHammeredMetalBumpTexture() {
+    createCastIronMicroBump() {
       const c = document.createElement('canvas');
       c.width = 256;
       c.height = 256;
@@ -460,12 +411,12 @@
       ctx.fillStyle = '#808080';
       ctx.fillRect(0, 0, 256, 256);
 
-      for (let i = 0; i < 420; i++) {
+      for (let i = 0; i < 600; i++) {
         const x = Math.random() * 256;
         const y = Math.random() * 256;
-        const r = 4 + Math.random() * 12;
+        const r = 2 + Math.random() * 6;
         const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-        const shade = Math.random() > 0.5 ? 165 : 105;
+        const shade = Math.random() > 0.5 ? 148 : 112;
         g.addColorStop(0, `rgb(${shade},${shade},${shade})`);
         g.addColorStop(1, 'rgba(128,128,128,0)');
         ctx.fillStyle = g;
@@ -476,540 +427,599 @@
       const tex = new THREE.CanvasTexture(c);
       tex.wrapS = THREE.RepeatWrapping;
       tex.wrapT = THREE.RepeatWrapping;
-      tex.repeat.set(3, 3);
+      tex.repeat.set(4, 4);
       return tex;
     }
 
-    createVintagePlaqueTexture() {
+    createCoinPlateTexture() {
       const c = document.createElement('canvas');
       c.width = 512;
       c.height = 256;
       const ctx = c.getContext('2d');
 
-      // Dark antique bronze background with golden border
+      // Brushed metallic dark bronze-chrome background
       const grad = ctx.createLinearGradient(0, 0, 512, 256);
-      grad.addColorStop(0, '#2a1808');
-      grad.addColorStop(0.5, '#42260d');
-      grad.addColorStop(1, '#1f1105');
+      grad.addColorStop(0, '#1e1610');
+      grad.addColorStop(0.5, '#332417');
+      grad.addColorStop(1, '#17100b');
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, 512, 256);
 
-      // Ornate double brass border
-      ctx.strokeStyle = '#f3d791';
+      // Double embossed chrome/brass frame
+      ctx.strokeStyle = '#f8fafc';
       ctx.lineWidth = 10;
       ctx.strokeRect(12, 12, 488, 232);
-      ctx.strokeStyle = '#c5a059';
+      ctx.strokeStyle = '#eab308';
       ctx.lineWidth = 4;
       ctx.strokeRect(26, 26, 460, 204);
 
-      // Corner rivets
-      const corners = [[38, 38], [474, 38], [38, 218], [474, 218]];
-      ctx.fillStyle = '#fde68a';
-      corners.forEach(([cx, cy]) => {
-        ctx.beginPath();
-        ctx.arc(cx, cy, 8, 0, Math.PI * 2);
-        ctx.fill();
-      });
-
-      // Vintage Typography
-      ctx.fillStyle = '#fde68a';
-      ctx.font = 'bold 42px Georgia, serif';
+      // Price badge: 100 Claves
+      ctx.fillStyle = '#fde047';
+      ctx.font = '900 78px Georgia, serif';
       ctx.textAlign = 'center';
-      ctx.fillText('IMPERIAL 1958', 256, 86);
+      ctx.textBaseline = 'middle';
+      ctx.fillText('100 𝄞', 256, 112);
 
-      ctx.fillStyle = '#f59e0b';
-      ctx.font = 'bold 24px monospace';
-      ctx.fillText('★ CÁPSULAS DE CONCIERTO ★', 256, 132);
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = 'bold 26px monospace';
+      ctx.fillText('TIRA DE LA PALANCA ➔', 256, 188);
 
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 30px Georgia, serif';
-      ctx.fillText('25 𝄞  •  PREMIO SEGURO', 256, 188);
-
-      const tex = new THREE.CanvasTexture(c);
-      return tex;
+      return new THREE.CanvasTexture(c);
     }
 
     buildMaterials() {
-      const bumpTex = this.createHammeredMetalBumpTexture();
+      const bumpTex = this.createCastIronMicroBump();
+      const PhysicalMat = THREE.MeshPhysicalMaterial || THREE.MeshStandardMaterial;
 
-      // 1. Vintage Crimson Cast-Iron Enamel (Body)
-      this.matCrimsonEnamel = new THREE.MeshStandardMaterial({
-        color: 0x99111c,
-        roughness: 0.18,
-        metalness: 0.38,
+      // 1. Hyper-Realistic Clearcoat Crimson Enamel (Body & Lid)
+      this.matCrimsonEnamel = new PhysicalMat({
+        color: 0xa30e1b,
+        roughness: 0.14,
+        metalness: 0.22,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.05,
         bumpMap: bumpTex,
-        bumpScale: 0.012,
-        envMapIntensity: 1.5
-      });
-
-      // 2. Deep Mahogany / Ebony Pedestal Trim
-      this.matMahoganyDark = new THREE.MeshStandardMaterial({
-        color: 0x1c0d0a,
-        roughness: 0.28,
-        metalness: 0.25,
-        envMapIntensity: 1.2
-      });
-
-      // 3. Polished Royal Brass (Crown, Collar, Moldings, Plaque)
-      this.matPolishedBrass = new THREE.MeshStandardMaterial({
-        color: 0xeab308,
-        roughness: 0.16,
-        metalness: 0.92,
-        bumpMap: bumpTex,
-        bumpScale: 0.005,
+        bumpScale: 0.006,
         envMapIntensity: 1.85
       });
 
-      // 4. Antique Brushed Bronze
-      this.matAntiqueBronze = new THREE.MeshStandardMaterial({
-        color: 0x9a6b28,
-        roughness: 0.32,
-        metalness: 0.85,
-        envMapIntensity: 1.4
+      // 2. Heavy Cast-Iron Matte Charcoal Pedestal Base
+      this.matCastIronBase = new THREE.MeshStandardMaterial({
+        color: 0x16181d,
+        roughness: 0.42,
+        metalness: 0.72,
+        bumpMap: bumpTex,
+        bumpScale: 0.012,
+        envMapIntensity: 1.25
       });
 
-      // 5. Mirror Chrome (Crank Handle, Chute Door, Internal Rod)
-      this.matMirrorChrome = new THREE.MeshStandardMaterial({
+      // 3. Black Vulcanized Rubber Gasket
+      this.matRubberGasket = new THREE.MeshStandardMaterial({
+        color: 0x0b0c0e,
+        roughness: 0.85,
+        metalness: 0.08
+      });
+
+      // 4. Mirror Chrome (Collar, Escutcheon, Chute Frame, Flap Door, Lever Arm)
+      this.matMirrorChrome = new PhysicalMat({
         color: 0xf8fafc,
-        roughness: 0.08,
-        metalness: 0.96,
-        envMapIntensity: 2.0
+        roughness: 0.05,
+        metalness: 0.98,
+        clearcoat: 0.6,
+        clearcoatRoughness: 0.04,
+        envMapIntensity: 2.3
       });
 
-      // 6. Crystal Glass Globe Material (Outer & Inner Specular Layers)
-      this.matGlassOuter = new THREE.MeshStandardMaterial({
-        color: 0xe0f2fe,
-        roughness: 0.04,
+      // 5. Brushed Royal Brass (Accents, Finial, Funnel Floor, Lever Trim)
+      this.matPolishedBrass = new PhysicalMat({
+        color: 0xf59e0b,
+        roughness: 0.15,
+        metalness: 0.92,
+        clearcoat: 0.4,
+        envMapIntensity: 1.95
+      });
+
+      // 6. Glossy Bakelite Lever Knob (Glowing Crimson-Gold Grip)
+      this.matLeverKnob = new PhysicalMat({
+        color: 0xdc2626,
+        emissive: 0x450a0a,
+        emissiveIntensity: 0.35,
+        roughness: 0.08,
         metalness: 0.15,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.03,
+        envMapIntensity: 2.2
+      });
+
+      // 7. Optical Crystal Glass Globe
+      this.matGlassOuter = new PhysicalMat({
+        color: 0xf0f9ff,
+        roughness: 0.02,
+        metalness: 0.08,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.01,
         transparent: true,
-        opacity: 0.24,
-        envMapIntensity: 2.4,
+        opacity: 0.22,
+        envMapIntensity: 2.6,
         depthWrite: false,
         side: THREE.FrontSide
       });
 
       this.matGlassRim = new THREE.MeshStandardMaterial({
         color: 0xfffbeb,
-        roughness: 0.08,
-        metalness: 0.3,
+        roughness: 0.06,
+        metalness: 0.25,
         transparent: true,
-        opacity: 0.14,
+        opacity: 0.12,
         envMapIntensity: 2.0,
         depthWrite: false,
         side: THREE.BackSide
       });
 
-      // 7. Velvet Chute Interior
-      this.matVelvetInterior = new THREE.MeshStandardMaterial({
-        color: 0x26050c,
-        roughness: 0.9,
-        metalness: 0.05
+      // 8. Dark Velvet Chute Interior
+      this.matDarkCavity = new THREE.MeshStandardMaterial({
+        color: 0x120609,
+        roughness: 0.85,
+        metalness: 0.1
       });
     }
 
     buildMachineMesh() {
       this.machineGroup = new THREE.Group();
-      this.machineGroup.position.set(0, -0.35, 0);
+      this.machineGroup.position.set(0, -0.32, 0);
       this.scene.add(this.machineGroup);
 
       // ======================================================================
-      // A. HEAVY OCTAGONAL CAST-IRON & BRASS PEDESTAL BASE (y: -2.45 to -1.75)
+      // A. HEAVY STEPPED CAST-IRON & CHROME PEDESTAL BASE (y: -2.42 to -1.85)
       // ======================================================================
-      const baseFootGeo = new THREE.CylinderGeometry(1.42, 1.58, 0.26, 32);
-      const baseFoot = new THREE.Mesh(baseFootGeo, this.matMahoganyDark);
-      baseFoot.position.y = -2.30;
-      baseFoot.castShadow = true;
-      baseFoot.receiveShadow = true;
-      this.machineGroup.add(baseFoot);
+      // Bottom rubber pad
+      const rubberPad = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.56, 1.62, 0.10, 64),
+        this.matRubberGasket
+      );
+      rubberPad.position.y = -2.40;
+      rubberPad.receiveShadow = true;
+      this.machineGroup.add(rubberPad);
 
-      // Brass step ring above base foot
-      const baseBrassRingGeo = new THREE.TorusGeometry(1.40, 0.065, 16, 48);
-      const baseBrassRing = new THREE.Mesh(baseBrassRingGeo, this.matPolishedBrass);
-      baseBrassRing.rotation.x = Math.PI / 2;
-      baseBrassRing.position.y = -2.16;
-      this.machineGroup.add(baseBrassRing);
+      // Cast-iron stepped pedestal base
+      const castBase = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.40, 1.55, 0.28, 64),
+        this.matCastIronBase
+      );
+      castBase.position.y = -2.22;
+      castBase.castShadow = true;
+      castBase.receiveShadow = true;
+      this.machineGroup.add(castBase);
 
-      // 4 Ornate Brass Lion/Ball Claw Feet
-      const clawGeo = new THREE.SphereGeometry(0.16, 16, 16);
-      for (let i = 0; i < 4; i++) {
-        const ang = (i / 4) * Math.PI * 2 + Math.PI / 4;
-        const foot = new THREE.Mesh(clawGeo, this.matPolishedBrass);
-        foot.scale.set(1.1, 0.75, 1.1);
-        foot.position.set(Math.cos(ang) * 1.44, -2.40, Math.sin(ang) * 1.44);
-        this.machineGroup.add(foot);
-      }
+      // Polished chrome base molding ring
+      const baseChromeRing = new THREE.Mesh(
+        new THREE.TorusGeometry(1.39, 0.055, 20, 64),
+        this.matMirrorChrome
+      );
+      baseChromeRing.rotation.x = Math.PI / 2;
+      baseChromeRing.position.y = -2.07;
+      this.machineGroup.add(baseChromeRing);
 
       // ======================================================================
-      // B. VINTAGE TAPERED CRIMSON ENAMEL BODY (y: -2.15 to +0.18)
+      // B. CONTOURED AUTOMOTIVE-LACQUER CRIMSON BODY (NO RANDOM GOLD BARS!)
       // ======================================================================
-      // Lathe profile for authentic 1950s curved gumball pedestal waist
       const lathePoints = [
-        new THREE.Vector2(1.38, -2.15),
-        new THREE.Vector2(1.32, -1.85),
-        new THREE.Vector2(1.12, -1.25),
-        new THREE.Vector2(1.06, -0.60),
-        new THREE.Vector2(1.18, -0.05),
-        new THREE.Vector2(1.28, 0.16)
+        new THREE.Vector2(1.38, -2.07),
+        new THREE.Vector2(1.35, -1.75),
+        new THREE.Vector2(1.16, -1.20),
+        new THREE.Vector2(1.08, -0.62),
+        new THREE.Vector2(1.14, -0.15),
+        new THREE.Vector2(1.28, 0.16),
+        new THREE.Vector2(1.34, 0.26)
       ];
-      const bodyGeo = new THREE.LatheGeometry(lathePoints, 48);
+      const bodyGeo = new THREE.LatheGeometry(lathePoints, 64);
       const bodyMesh = new THREE.Mesh(bodyGeo, this.matCrimsonEnamel);
       bodyMesh.castShadow = true;
       bodyMesh.receiveShadow = true;
       this.machineGroup.add(bodyMesh);
 
-      // 6 Decorative Fluted Brass Ribs along the crimson body
-      for (let i = 0; i < 6; i++) {
-        const ang = (i / 6) * Math.PI * 2 + Math.PI / 6;
-        // Skip the very front center so the plaque & chute sit cleanly
-        if (Math.abs(Math.sin(ang)) < 0.3 && Math.cos(ang) > 0) continue;
-        const ribGeo = new THREE.CylinderGeometry(0.032, 0.042, 2.15, 12);
-        const rib = new THREE.Mesh(ribGeo, this.matPolishedBrass);
-        rib.position.set(Math.sin(ang) * 1.16, -1.0, Math.cos(ang) * 1.16);
-        this.machineGroup.add(rib);
-      }
-
-      // Mid-waist ornamental brass belt
-      const waistBelt = new THREE.Mesh(
-        new THREE.TorusGeometry(1.11, 0.04, 14, 48),
-        this.matPolishedBrass
+      // Sleek horizontal chrome waist trim ring (authentic 1950s detail)
+      const waistChromeTrim = new THREE.Mesh(
+        new THREE.TorusGeometry(1.105, 0.032, 16, 64),
+        this.matMirrorChrome
       );
-      waistBelt.rotation.x = Math.PI / 2;
-      waistBelt.position.y = -0.95;
-      this.machineGroup.add(waistBelt);
+      waistChromeTrim.rotation.x = Math.PI / 2;
+      waistChromeTrim.position.y = -0.78;
+      this.machineGroup.add(waistChromeTrim);
 
       // ======================================================================
-      // C. COLLAR NECK RING SUPPORTING THE GLASS GLOBE (y: +0.16 to +0.34)
+      // C. CHROME NECK COLLAR, RUBBER GASKET & INTERNAL FUNNEL WITH DROP HOLE
       // ======================================================================
-      const collarGeo = new THREE.CylinderGeometry(1.32, 1.25, 0.22, 48);
-      const collarMesh = new THREE.Mesh(collarGeo, this.matPolishedBrass);
-      collarMesh.position.y = 0.22;
+      const collarMesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.38, 1.32, 0.22, 64),
+        this.matMirrorChrome
+      );
+      collarMesh.position.y = 0.30;
       collarMesh.castShadow = true;
       this.machineGroup.add(collarMesh);
 
-      const collarLip = new THREE.Mesh(
-        new THREE.TorusGeometry(1.31, 0.055, 16, 48),
+      // Black rubber globe-seating gasket
+      const globeGasket = new THREE.Mesh(
+        new THREE.TorusGeometry(1.34, 0.045, 16, 64),
+        this.matRubberGasket
+      );
+      globeGasket.rotation.x = Math.PI / 2;
+      globeGasket.position.y = 0.41;
+      this.machineGroup.add(globeGasket);
+
+      // Internal Sloped Brass Funnel Floor at bottom of glass globe
+      const funnelFloor = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.26, 0.95, 0.12, 48),
         this.matPolishedBrass
       );
-      collarLip.rotation.x = Math.PI / 2;
-      collarLip.position.y = 0.31;
-      this.machineGroup.add(collarLip);
+      funnelFloor.position.y = 0.44;
+      this.machineGroup.add(funnelFloor);
 
-      // ======================================================================
-      // D. FRONT EMBOSSED VINTAGE BRASS PLAQUE & ROTARY CRANK MECHANISM
-      // ======================================================================
-      // Curved/Bevelled Front Escutcheon Plate
-      const plaqueGroup = new THREE.Group();
-      plaqueGroup.position.set(0, -0.46, 1.11);
-      this.machineGroup.add(plaqueGroup);
-
-      // Brass backing shield
-      const shieldGeo = new THREE.BoxGeometry(1.16, 0.92, 0.12);
-      const shieldMesh = new THREE.Mesh(shieldGeo, this.matPolishedBrass);
-      shieldMesh.castShadow = true;
-      plaqueGroup.add(shieldMesh);
-
-      // Textured Vintage Nameplate on top half of shield
-      const plaqueTex = this.createVintagePlaqueTexture();
-      const nameplateMat = new THREE.MeshStandardMaterial({
-        map: plaqueTex,
-        roughness: 0.25,
-        metalness: 0.65
-      });
-      const nameplateMesh = new THREE.Mesh(
-        new THREE.PlaneGeometry(1.04, 0.44),
-        nameplateMat
+      // Real Dark Circular Drop Hole / Aperture at front-bottom of globe (x=0, z=0.58)
+      const dropApertureHole = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.32, 0.30, 0.16, 32),
+        this.matDarkCavity
       );
-      nameplateMesh.position.set(0, 0.19, 0.065);
-      plaqueGroup.add(nameplateMesh);
+      dropApertureHole.position.set(0, 0.45, 0.58);
+      this.machineGroup.add(dropApertureHole);
 
-      // Coin Slot Bezel (Left of crank)
-      const coinBezel = new THREE.Mesh(
-        new THREE.BoxGeometry(0.22, 0.30, 0.08),
-        this.matAntiqueBronze
-      );
-      coinBezel.position.set(-0.36, -0.18, 0.06);
-      plaqueGroup.add(coinBezel);
-
-      const coinSlit = new THREE.Mesh(
-        new THREE.BoxGeometry(0.035, 0.18, 0.09),
-        this.matVelvetInterior
-      );
-      coinSlit.position.set(-0.36, -0.18, 0.068);
-      plaqueGroup.add(coinSlit);
-
-      // 3D Animated Golden Coin (slides into coinSlit during COIN_AND_CRANK)
-      this.coinMesh = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.13, 0.13, 0.028, 24),
-        this.matPolishedBrass
-      );
-      this.coinMesh.rotation.z = Math.PI / 2;
-      this.coinMesh.position.set(-0.36, -0.18, 0.35);
-      this.coinMesh.visible = false;
-      plaqueGroup.add(this.coinMesh);
-
-      // Rotary Chrome & Brass Crank Mechanism (Center-Right of shield)
-      this.crankGroup = new THREE.Group();
-      this.crankGroup.position.set(0.10, -0.18, 0.08);
-      plaqueGroup.add(this.crankGroup);
-
-      // Circular dial drum
-      const dialDrum = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.24, 0.26, 0.12, 32),
+      const dropHoleRim = new THREE.Mesh(
+        new THREE.TorusGeometry(0.32, 0.03, 14, 32),
         this.matMirrorChrome
       );
-      dialDrum.rotation.x = Math.PI / 2;
-      this.crankGroup.add(dialDrum);
+      dropHoleRim.rotation.x = Math.PI / 2;
+      dropHoleRim.position.set(0, 0.51, 0.58);
+      this.machineGroup.add(dropHoleRim);
 
-      // Brass inner hub
-      const dialHub = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.11, 0.11, 0.18, 24),
-        this.matPolishedBrass
+      // ======================================================================
+      // D. VISIBLE FRONT GLASS DROP CHUTE & LOWER DISPENSER TRAY
+      //    (Allows the user to clearly see the ball fall from the globe to the tray!)
+      // ======================================================================
+      const chuteChannelGroup = new THREE.Group();
+      this.machineGroup.add(chuteChannelGroup);
+
+      // Recessed dark velvet vertical chute interior (from y=+0.35 down to y=-1.65)
+      const verticalChuteBack = new THREE.Mesh(
+        new THREE.BoxGeometry(0.62, 1.95, 0.24),
+        this.matDarkCavity
       );
-      dialHub.rotation.x = Math.PI / 2;
-      dialHub.position.z = 0.04;
-      this.crankGroup.add(dialHub);
+      verticalChuteBack.position.set(0, -0.68, 1.04);
+      chuteChannelGroup.add(verticalChuteBack);
 
-      // Crossbar Wing Handle (What the player turns!)
-      const handleBar = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.042, 0.042, 0.56, 16),
-        this.matMirrorChrome
-      );
-      handleBar.rotation.z = Math.PI / 2;
-      handleBar.position.z = 0.13;
-      this.crankGroup.add(handleBar);
-
-      // Brass end-knobs on the crossbar
-      [-0.27, 0.27].forEach(xOff => {
-        const knob = new THREE.Mesh(
-          new THREE.SphereGeometry(0.068, 16, 16),
-          this.matPolishedBrass
+      // Left & Right Chrome Chute Rails framing the visible drop window
+      [-0.34, 0.34].forEach(xSide => {
+        const rail = new THREE.Mesh(
+          new THREE.BoxGeometry(0.07, 1.96, 0.28),
+          this.matMirrorChrome
         );
-        knob.position.set(xOff, 0, 0.13);
-        this.crankGroup.add(knob);
+        rail.position.set(xSide, -0.68, 1.08);
+        rail.castShadow = true;
+        chuteChannelGroup.add(rail);
       });
 
-      // ======================================================================
-      // E. LOWER DISPENSER CHUTE ALCOVE, HINGED FLAP DOOR & VELVET TRAY
-      // ======================================================================
-      const chuteGroup = new THREE.Group();
-      chuteGroup.position.set(0, -1.65, 1.22);
-      this.machineGroup.add(chuteGroup);
-
-      // Outer Brass Chute Frame
-      const chuteFrame = new THREE.Mesh(
-        new THREE.BoxGeometry(0.86, 0.68, 0.26),
-        this.matPolishedBrass
+      // Transparent protective glass window over the upper drop chute so you see the ball fall inside!
+      const chuteGlassWindow = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.60, 1.25),
+        this.matGlassOuter
       );
-      chuteFrame.castShadow = true;
-      chuteGroup.add(chuteFrame);
+      chuteGlassWindow.position.set(0, -0.35, 1.21);
+      chuteChannelGroup.add(chuteGlassWindow);
 
-      // Dark Velvet Recessed Interior Cavity
-      const chuteCavity = new THREE.Mesh(
-        new THREE.BoxGeometry(0.68, 0.52, 0.24),
-        this.matVelvetInterior
+      // Compact Embossed Price Escutcheon Plate above the lower outlet ("100 𝄞")
+      const coinPlateTex = this.createCoinPlateTexture();
+      const coinPlateMat = new THREE.MeshStandardMaterial({
+        map: coinPlateTex,
+        roughness: 0.22,
+        metalness: 0.75
+      });
+      const coinPlateFrame = new THREE.Mesh(
+        new THREE.BoxGeometry(0.92, 0.42, 0.08),
+        this.matMirrorChrome
       );
-      chuteCavity.position.set(0, -0.02, 0.03);
-      chuteGroup.add(chuteCavity);
+      coinPlateFrame.position.set(0, 0.12, 1.24);
+      chuteChannelGroup.add(coinPlateFrame);
 
-      // Protruding Curved Lip / Collection Tray at the bottom of the chute
+      const coinPlateFace = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.84, 0.35),
+        coinPlateMat
+      );
+      coinPlateFace.position.set(0, 0.12, 1.285);
+      chuteChannelGroup.add(coinPlateFace);
+
+      // Lower Dispenser Outlet Housing & Curved Chrome Collection Tray (y: -1.68)
+      const outletGroup = new THREE.Group();
+      outletGroup.position.set(0, -1.65, 1.18);
+      this.machineGroup.add(outletGroup);
+
+      const outletFrame = new THREE.Mesh(
+        new THREE.BoxGeometry(0.88, 0.64, 0.28),
+        this.matMirrorChrome
+      );
+      outletFrame.castShadow = true;
+      outletGroup.add(outletFrame);
+
+      const outletCavity = new THREE.Mesh(
+        new THREE.BoxGeometry(0.70, 0.50, 0.26),
+        this.matDarkCavity
+      );
+      outletCavity.position.set(0, -0.02, 0.03);
+      outletGroup.add(outletCavity);
+
+      // Protruding Curved Chrome & Brass Collection Tray Lip
       const trayLip = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.44, 0.38, 0.12, 24, 1, false, 0, Math.PI),
-        this.matPolishedBrass
+        new THREE.CylinderGeometry(0.46, 0.40, 0.14, 32, 1, false, 0, Math.PI),
+        this.matMirrorChrome
       );
-      trayLip.position.set(0, -0.30, 0.08);
-      chuteGroup.add(trayLip);
+      trayLip.position.set(0, -0.28, 0.12);
+      outletGroup.add(trayLip);
 
-      // Hinged Swinging Chrome Flap Door (pivots from its top edge!)
+      // Hinged Swinging Chrome Flap Door (kicked open when the falling ball hits it!)
       this.flapPivot = new THREE.Group();
-      this.flapPivot.position.set(0, 0.22, 0.12);
-      chuteGroup.add(this.flapPivot);
+      this.flapPivot.position.set(0, 0.21, 0.13);
+      outletGroup.add(this.flapPivot);
 
       const flapDoorMesh = new THREE.Mesh(
-        new THREE.BoxGeometry(0.62, 0.44, 0.035),
+        new THREE.BoxGeometry(0.64, 0.42, 0.035),
         this.matMirrorChrome
       );
-      flapDoorMesh.position.set(0, -0.22, 0);
+      flapDoorMesh.position.set(0, -0.21, 0);
       this.flapPivot.add(flapDoorMesh);
 
-      // Embossed brass emblem on the flap door
-      const flapBadge = new THREE.Mesh(
-        new THREE.BoxGeometry(0.36, 0.12, 0.045),
+      // ======================================================================
+      // E. INTERACTIVE 3D MECHANICAL PULL LEVER ("PALANCA") ON THE MACHINE
+      //    (The ONLY way to draw a ball — no external UI buttons!)
+      // ======================================================================
+      this.leverMountGroup = new THREE.Group();
+      // Mounted prominently on the right-front side of the machine body
+      this.leverMountGroup.position.set(1.08, -0.52, 0.55);
+      this.leverMountGroup.rotation.y = -0.32;
+      this.machineGroup.add(this.leverMountGroup);
+
+      // Heavy Chrome Gearbox Housing attached to the crimson body
+      const gearboxHousing = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.30, 0.34, 0.36, 32),
+        this.matMirrorChrome
+      );
+      gearboxHousing.rotation.z = Math.PI / 2;
+      gearboxHousing.castShadow = true;
+      this.leverMountGroup.add(gearboxHousing);
+
+      const gearboxBrassCap = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.22, 0.22, 0.40, 24),
         this.matPolishedBrass
       );
-      flapBadge.position.set(0, -0.24, 0.008);
-      this.flapPivot.add(flapBadge);
+      gearboxBrassCap.rotation.z = Math.PI / 2;
+      this.leverMountGroup.add(gearboxBrassCap);
+
+      // Rotating Lever Pivot (rotates forward/down around X axis when pulled!)
+      this.leverPivot = new THREE.Group();
+      this.leverPivot.position.set(0.18, 0, 0);
+      // Rest angle tilted slightly backward/upward (+0.32 rad)
+      this.leverRestAngle = -0.28;
+      this.leverPivot.rotation.x = this.leverRestAngle;
+      this.leverMountGroup.add(this.leverPivot);
+
+      // Forged Chrome Lever Arm Shaft
+      const leverShaft = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.055, 0.075, 1.35, 24),
+        this.matMirrorChrome
+      );
+      leverShaft.position.set(0.06, 0.65, 0.12);
+      leverShaft.rotation.x = 0.18;
+      leverShaft.castShadow = true;
+      this.leverPivot.add(leverShaft);
+
+      // Brass Collar below the Knob
+      const knobCollar = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.095, 0.065, 0.12, 24),
+        this.matPolishedBrass
+      );
+      knobCollar.position.set(0.06, 1.28, 0.24);
+      knobCollar.rotation.x = 0.18;
+      this.leverPivot.add(knobCollar);
+
+      // Prominent Glossy Spherical Grip Ball ("Bola de la Palanca")
+      this.leverKnobMesh = new THREE.Mesh(
+        new THREE.SphereGeometry(0.24, 32, 32),
+        this.matLeverKnob
+      );
+      this.leverKnobMesh.position.set(0.06, 1.48, 0.28);
+      this.leverKnobMesh.castShadow = true;
+      this.leverPivot.add(this.leverKnobMesh);
+
+      // Golden Equatorial Ring around the Lever Knob
+      const knobGoldRing = new THREE.Mesh(
+        new THREE.TorusGeometry(0.242, 0.022, 14, 32),
+        this.matPolishedBrass
+      );
+      knobGoldRing.position.copy(this.leverKnobMesh.position);
+      knobGoldRing.rotation.x = Math.PI / 2;
+      this.leverPivot.add(knobGoldRing);
+
+      // Generous Invisible Raycast Hit Target around the entire Lever & Front Plate so tapping/dragging is effortless
+      const leverHitBox = new THREE.Mesh(
+        new THREE.SphereGeometry(0.75, 12, 12),
+        new THREE.MeshBasicMaterial({ visible: false })
+      );
+      leverHitBox.position.set(0.0, 0.95, 0.25);
+      this.leverPivot.add(leverHitBox);
+
+      const frontPlateHitBox = new THREE.Mesh(
+        new THREE.BoxGeometry(1.1, 0.9, 0.6),
+        new THREE.MeshBasicMaterial({ visible: false })
+      );
+      frontPlateHitBox.position.set(0, -0.1, 1.25);
+      this.machineGroup.add(frontPlateHitBox);
+
+      this.leverInteractables = [
+        this.leverKnobMesh,
+        leverShaft,
+        knobCollar,
+        gearboxHousing,
+        leverHitBox,
+        frontPlateHitBox,
+        coinPlateFace
+      ];
 
       // ======================================================================
-      // F. CRYSTAL GLASS GLOBE, INTERNAL BRASS ROD & AGITATOR WHEEL
+      // F. CRYSTAL GLASS GLOBE & AGITATOR WHEEL (NO EXTERNAL GOLD BARS!)
       // ======================================================================
-      // Central Threaded Brass Rod inside the globe
+      // Thin Central Chrome Rod holding the lid (authentic gumball center axis)
       const centerRod = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.065, 0.065, 2.72, 20),
-        this.matPolishedBrass
+        new THREE.CylinderGeometry(0.042, 0.042, 2.75, 20),
+        this.matMirrorChrome
       );
       centerRod.position.copy(this.domeCenter);
       this.machineGroup.add(centerRod);
 
-      // Internal Rotating Brass Agitator Wheel at bottom of globe
+      // Internal Rotating Agitator Wheel at bottom of globe
       this.agitatorGroup = new THREE.Group();
-      this.agitatorGroup.position.set(0, 0.42, 0);
+      this.agitatorGroup.position.set(0, 0.50, 0);
       this.machineGroup.add(this.agitatorGroup);
 
-      const agitatorDisc = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.88, 0.88, 0.06, 24),
-        this.matPolishedBrass
-      );
-      this.agitatorGroup.add(agitatorDisc);
-
       for (let i = 0; i < 4; i++) {
-        const fin = new THREE.Mesh(
-          new THREE.BoxGeometry(0.75, 0.14, 0.05),
+        const paddle = new THREE.Mesh(
+          new THREE.BoxGeometry(0.78, 0.09, 0.045),
           this.matMirrorChrome
         );
         const a = (i / 4) * Math.PI * 2;
-        fin.rotation.y = a;
-        fin.position.set(Math.cos(a) * 0.35, 0.08, Math.sin(a) * 0.35);
-        this.agitatorGroup.add(fin);
+        paddle.rotation.y = a;
+        paddle.position.set(Math.cos(a) * 0.36, 0.04, Math.sin(a) * 0.36);
+        this.agitatorGroup.add(paddle);
       }
 
-      // 4 External Vintage Brass Tie-Rods framing the glass globe
-      for (let i = 0; i < 4; i++) {
-        const ang = (i / 4) * Math.PI * 2 + Math.PI / 4;
-        const rodX = Math.cos(ang) * 1.37;
-        const rodZ = Math.sin(ang) * 1.37;
-        const tieRod = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.022, 0.022, 2.38, 12),
-          this.matPolishedBrass
-        );
-        tieRod.position.set(rodX, 1.50, rodZ);
-        this.machineGroup.add(tieRod);
-      }
-
-      // Inner Glass Back-Face Rim Sphere
+      // Inner Glass Back-Face Rim
       const glassBackMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(this.domeRadius * 0.99, 48, 36),
+        new THREE.SphereGeometry(this.domeRadius * 0.992, 56, 40),
         this.matGlassRim
       );
       glassBackMesh.position.copy(this.domeCenter);
       this.machineGroup.add(glassBackMesh);
 
-      // Outer Crystal Glass Globe
+      // Outer Optical Crystal Glass Globe
       this.glassGlobeMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(this.domeRadius, 48, 36),
+        new THREE.SphereGeometry(this.domeRadius, 56, 40),
         this.matGlassOuter
       );
       this.glassGlobeMesh.position.copy(this.domeCenter);
       this.glassGlobeMesh.renderOrder = 2;
       this.machineGroup.add(this.glassGlobeMesh);
 
-      // Specular Studio Highlight Arc painted inside glass for unmistakable 3D glass depth
+      // Studio Specular Reflection Arc on Glass Globe
       const highlightGeo = new THREE.SphereGeometry(
         this.domeRadius * 1.002,
-        32,
-        24,
-        -Math.PI * 0.38,
-        Math.PI * 0.22,
-        Math.PI * 0.18,
-        Math.PI * 0.55
+        36,
+        28,
+        -Math.PI * 0.36,
+        Math.PI * 0.20,
+        Math.PI * 0.16,
+        Math.PI * 0.52
       );
-      const highlightMat = new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        transparent: true,
-        opacity: 0.22,
-        side: THREE.FrontSide,
-        depthWrite: false
-      });
-      const glassHighlight = new THREE.Mesh(highlightGeo, highlightMat);
+      const glassHighlight = new THREE.Mesh(
+        highlightGeo,
+        new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.20,
+          side: THREE.FrontSide,
+          depthWrite: false
+        })
+      );
       glassHighlight.position.copy(this.domeCenter);
       glassHighlight.renderOrder = 3;
       this.machineGroup.add(glassHighlight);
 
       // ======================================================================
-      // G. ORNATE VICTORIAN / ART-DECO BRASS CROWN LID & FINIAL (y: +2.68 to +3.40)
+      // G. AUTHENTIC CRIMSON & CHROME DOME LID CAP (y: +2.80 to +3.42)
       // ======================================================================
       const crownGroup = new THREE.Group();
-      crownGroup.position.set(0, 2.68, 0);
+      crownGroup.position.set(0, 2.80, 0);
       this.machineGroup.add(crownGroup);
 
-      const crownBaseRing = new THREE.Mesh(
-        new THREE.TorusGeometry(0.92, 0.06, 16, 48),
-        this.matPolishedBrass
+      const lidGasket = new THREE.Mesh(
+        new THREE.TorusGeometry(0.88, 0.042, 16, 48),
+        this.matRubberGasket
       );
-      crownBaseRing.rotation.x = Math.PI / 2;
-      crownGroup.add(crownBaseRing);
+      lidGasket.rotation.x = Math.PI / 2;
+      crownGroup.add(lidGasket);
 
-      const crownDome = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.42, 0.92, 0.32, 32),
+      const lidChromeRim = new THREE.Mesh(
+        new THREE.TorusGeometry(0.90, 0.052, 16, 48),
+        this.matMirrorChrome
+      );
+      lidChromeRim.rotation.x = Math.PI / 2;
+      lidChromeRim.position.y = 0.04;
+      crownGroup.add(lidChromeRim);
+
+      const lidDome = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.36, 0.89, 0.30, 48),
         this.matCrimsonEnamel
       );
-      crownDome.position.y = 0.16;
-      crownGroup.add(crownDome);
+      lidDome.position.y = 0.18;
+      crownGroup.add(lidDome);
 
-      const crownTopCap = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.18, 0.46, 0.16, 32),
-        this.matPolishedBrass
+      // Knurled Chrome Lock-Nut Finial on top of the lid
+      const lockNutBase = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.18, 0.36, 0.12, 32),
+        this.matMirrorChrome
       );
-      crownTopCap.position.y = 0.38;
-      crownGroup.add(crownTopCap);
+      lockNutBase.position.y = 0.38;
+      crownGroup.add(lockNutBase);
 
-      // Iconic Vintage Gumball Finial Orb & Spire
-      const finialOrb = new THREE.Mesh(
-        new THREE.SphereGeometry(0.16, 24, 24),
-        this.matPolishedBrass
+      const finialKnob = new THREE.Mesh(
+        new THREE.SphereGeometry(0.15, 24, 24),
+        this.matMirrorChrome
       );
-      finialOrb.position.y = 0.56;
-      crownGroup.add(finialOrb);
-
-      const finialSpire = new THREE.Mesh(
-        new THREE.ConeGeometry(0.06, 0.22, 16),
-        this.matPolishedBrass
-      );
-      finialSpire.position.y = 0.76;
-      crownGroup.add(finialSpire);
+      finialKnob.position.y = 0.52;
+      crownGroup.add(finialKnob);
     }
 
     createCapsuleMesh(rarityKey, radius = this.ballRadius) {
       const tier = RARITY_TIERS[rarityKey] || RARITY_TIERS.rare;
       const group = new THREE.Group();
+      const PhysicalMat = THREE.MeshPhysicalMaterial || THREE.MeshStandardMaterial;
 
-      // 1. Bottom Metallic/Pearlescent Hemisphere
-      const bottomMat = new THREE.MeshStandardMaterial({
+      // 1. Bottom Pearlescent/Metallic Hemisphere
+      const bottomMat = new PhysicalMat({
         color: tier.colorHex,
-        roughness: 0.16,
-        metalness: 0.55,
-        envMapIntensity: 1.7
+        roughness: 0.12,
+        metalness: 0.45,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.04,
+        envMapIntensity: 1.9
       });
       const bottomGeo = new THREE.SphereGeometry(radius, 24, 16, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
       const bottomMesh = new THREE.Mesh(bottomGeo, bottomMat);
       group.add(bottomMesh);
 
-      // 2. Equatorial Gold/Chrome Seam Ring
+      // 2. Equatorial Seam Ring
       const seamMat = new THREE.MeshStandardMaterial({
-        color: 0xfde68a,
-        roughness: 0.2,
-        metalness: 0.9
+        color: 0xf8fafc,
+        roughness: 0.15,
+        metalness: 0.92
       });
       const seamMesh = new THREE.Mesh(
-        new THREE.TorusGeometry(radius * 0.995, radius * 0.045, 10, 28),
+        new THREE.TorusGeometry(radius * 0.995, radius * 0.038, 10, 28),
         seamMat
       );
       seamMesh.rotation.x = Math.PI / 2;
       group.add(seamMesh);
 
-      // 3. Top Translucent Glossy Dome
-      const topMat = new THREE.MeshStandardMaterial({
+      // 3. Top Translucent Glossy Hemisphere
+      const topMat = new PhysicalMat({
         color: tier.secondaryHex,
-        roughness: 0.08,
-        metalness: 0.15,
+        roughness: 0.06,
+        metalness: 0.10,
+        clearcoat: 1.0,
         transparent: true,
-        opacity: 0.76,
-        envMapIntensity: 2.0
+        opacity: 0.82,
+        envMapIntensity: 2.1
       });
       const topGeo = new THREE.SphereGeometry(radius, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2);
       const topMesh = new THREE.Mesh(topGeo, topMat);
       group.add(topMesh);
 
-      // 4. Inner Glowing Prize Core (Octahedron Gem visible inside the top dome!)
+      // 4. Inner Glowing Core
       const coreMat = new THREE.MeshStandardMaterial({
         color: 0xffffff,
         emissive: tier.colorHex,
@@ -1018,23 +1028,22 @@
         metalness: 0.8
       });
       const coreMesh = new THREE.Mesh(
-        new THREE.OctahedronGeometry(radius * 0.42, 0),
+        new THREE.OctahedronGeometry(radius * 0.40, 0),
         coreMat
       );
       group.add(coreMesh);
 
       group.userData = {
         rarityKey,
-        bottomMesh,
-        topMesh,
-        seamMesh,
-        coreMesh
+        bottomMat,
+        topMat,
+        coreMat
       };
 
       return group;
     }
 
-    populateCapsules(count = 26) {
+    populateCapsules(count = 32) {
       const rarityKeys = ['legendary', 'epic', 'rare', 'classic', 'rare', 'epic'];
       this.balls = [];
 
@@ -1042,13 +1051,12 @@
         const rKey = rarityKeys[i % rarityKeys.length];
         const mesh = this.createCapsuleMesh(rKey, this.ballRadius);
 
-        // Place inside lower-to-mid hemisphere of the glass dome
-        const layer = Math.floor(i / 7);
-        const angle = (i % 7) * ((Math.PI * 2) / 7) + layer * 0.45;
-        const dist = 0.34 + (i % 3) * 0.28;
+        const layer = Math.floor(i / 8);
+        const angle = (i % 8) * ((Math.PI * 2) / 8) + layer * 0.42;
+        const dist = 0.32 + (i % 3) * 0.30;
         const bx = Math.cos(angle) * dist;
         const bz = Math.sin(angle) * dist;
-        const by = this.domeCenter.y - 0.65 + layer * 0.36 + (Math.random() - 0.5) * 0.08;
+        const by = 0.72 + layer * 0.34 + (Math.random() - 0.5) * 0.05;
 
         mesh.position.set(bx, by, bz);
         mesh.rotation.set(
@@ -1063,29 +1071,28 @@
           mesh,
           pos: mesh.position,
           vel: new THREE.Vector3(0, 0, 0),
-          angVel: new THREE.Vector3(
-            (Math.random() - 0.5) * 1.5,
-            (Math.random() - 0.5) * 1.5,
-            (Math.random() - 0.5) * 1.5
-          ),
-          rarityKey: rKey
+          angVel: new THREE.Vector3(0, 0, 0),
+          rarityKey: rKey,
+          isDropping: false
         });
       }
     }
 
-    buildHeroCapsule() {
-      // Dedicated high-detail Hero Capsule used for Chute Drop -> Presentation -> Burst Reveal
+    buildHeroOpenAssembly() {
+      // Used seamlessly at the exact position of the dropped ball when it opens its two hemispheres!
       this.heroGroup = new THREE.Group();
       this.heroGroup.visible = false;
       this.scene.add(this.heroGroup);
 
-      const r = 0.42;
+      const r = 0.40;
+      const PhysicalMat = THREE.MeshPhysicalMaterial || THREE.MeshStandardMaterial;
 
-      this.heroBottomMat = new THREE.MeshStandardMaterial({
+      this.heroBottomMat = new PhysicalMat({
         color: 0xfbbf24,
-        roughness: 0.14,
-        metalness: 0.68,
-        envMapIntensity: 2.0
+        roughness: 0.12,
+        metalness: 0.55,
+        clearcoat: 1.0,
+        envMapIntensity: 2.1
       });
       this.heroBottomHalf = new THREE.Mesh(
         new THREE.SphereGeometry(r, 36, 24, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
@@ -1093,21 +1100,21 @@
       );
       this.heroGroup.add(this.heroBottomHalf);
 
-      // Inner hollow lip on bottom half
       const innerRim = new THREE.Mesh(
-        new THREE.TorusGeometry(r * 0.98, r * 0.05, 14, 36),
-        this.matPolishedBrass
+        new THREE.TorusGeometry(r * 0.98, r * 0.045, 14, 36),
+        this.matMirrorChrome
       );
       innerRim.rotation.x = Math.PI / 2;
       this.heroBottomHalf.add(innerRim);
 
-      this.heroTopMat = new THREE.MeshStandardMaterial({
+      this.heroTopMat = new PhysicalMat({
         color: 0x38bdf8,
-        roughness: 0.06,
-        metalness: 0.15,
+        roughness: 0.05,
+        metalness: 0.12,
+        clearcoat: 1.0,
         transparent: true,
-        opacity: 0.80,
-        envMapIntensity: 2.2
+        opacity: 0.84,
+        envMapIntensity: 2.3
       });
       this.heroTopHalf = new THREE.Mesh(
         new THREE.SphereGeometry(r, 36, 24, 0, Math.PI * 2, 0, Math.PI / 2),
@@ -1115,31 +1122,29 @@
       );
       this.heroGroup.add(this.heroTopHalf);
 
-      // Glowing 3D Prize Totem inside the Hero Capsule
+      // Glowing 3D Prize Totem inside the Capsule
       this.heroPrizeTotem = new THREE.Group();
       this.heroGroup.add(this.heroPrizeTotem);
 
       this.totemCoreMat = new THREE.MeshStandardMaterial({
         color: 0xffffff,
         emissive: 0xfbbf24,
-        emissiveIntensity: 1.1,
+        emissiveIntensity: 1.15,
         roughness: 0.08,
         metalness: 0.9
       });
       this.totemGem = new THREE.Mesh(
-        new THREE.OctahedronGeometry(0.24, 1),
+        new THREE.OctahedronGeometry(0.23, 1),
         this.totemCoreMat
       );
       this.heroPrizeTotem.add(this.totemGem);
 
-      // Orbiting Golden Halo Ring around the Prize Totem
       this.totemHalo = new THREE.Mesh(
-        new THREE.TorusGeometry(0.34, 0.022, 12, 40),
+        new THREE.TorusGeometry(0.33, 0.02, 12, 40),
         this.matPolishedBrass
       );
       this.heroPrizeTotem.add(this.totemHalo);
 
-      // 3D Shockwave Ring on Burst
       this.shockwaveMat = new THREE.MeshBasicMaterial({
         color: 0xfde68a,
         transparent: true,
@@ -1147,21 +1152,20 @@
         side: THREE.DoubleSide
       });
       this.shockwaveRing = new THREE.Mesh(
-        new THREE.RingGeometry(0.35, 0.48, 48),
+        new THREE.RingGeometry(0.34, 0.46, 48),
         this.shockwaveMat
       );
       this.heroGroup.add(this.shockwaveRing);
     }
 
     spawnBurstParticles(colorHex, secondaryHex) {
-      // Clear any previous burst particles
       this.burstParticles.forEach(p => this.scene.remove(p.mesh));
       this.burstParticles = [];
 
-      const geo = new THREE.OctahedronGeometry(0.055, 0);
+      const geo = new THREE.OctahedronGeometry(0.052, 0);
       const colors = [colorHex, secondaryHex, 0xffffff, 0xfde047];
 
-      for (let i = 0; i < 64; i++) {
+      for (let i = 0; i < 60; i++) {
         const mat = new THREE.MeshBasicMaterial({
           color: colors[i % colors.length],
           transparent: true,
@@ -1172,11 +1176,11 @@
 
         const theta = Math.random() * Math.PI * 2;
         const phi = Math.acos(2 * Math.random() - 1);
-        const speed = 1.6 + Math.random() * 3.8;
+        const speed = 1.5 + Math.random() * 3.5;
 
         const vel = new THREE.Vector3(
           Math.sin(phi) * Math.cos(theta) * speed,
-          Math.sin(phi) * Math.sin(theta) * speed + 0.8,
+          Math.sin(phi) * Math.sin(theta) * speed + 0.75,
           Math.cos(phi) * speed * 0.65
         );
 
@@ -1185,30 +1189,40 @@
           mesh,
           vel,
           rotSpeed: new THREE.Vector3(
-            (Math.random() - 0.5) * 10,
-            (Math.random() - 0.5) * 10,
-            (Math.random() - 0.5) * 10
+            (Math.random() - 0.5) * 9,
+            (Math.random() - 0.5) * 9,
+            (Math.random() - 0.5) * 9
           ),
           life: 1.0,
-          decay: 0.55 + Math.random() * 0.45
+          decay: 0.58 + Math.random() * 0.42
         });
       }
     }
 
-    shakeGlobe(strength = 1.0) {
-      this.sfx.playBallClatter(0.85 * strength);
+    shakeGlobe(strength = 0.6) {
+      this.sfx.playBallRollClack(0.65 * strength);
+      // Horizontal jostle only — never launch balls up into the air!
       for (let i = 0; i < this.balls.length; i++) {
         const b = this.balls[i];
-        b.vel.x += (Math.random() - 0.5) * 6.5 * strength;
-        b.vel.y += (1.8 + Math.random() * 4.2) * strength;
-        b.vel.z += (Math.random() - 0.5) * 6.5 * strength;
+        if (b.isDropping) continue;
+        b.vel.x += (Math.random() - 0.5) * 3.2 * strength;
+        b.vel.z += (Math.random() - 0.5) * 3.2 * strength;
       }
     }
 
     startVendingSequence(rewardObj) {
       if (this.state !== 'IDLE' && this.state !== 'CAPSULE_BURST_OPEN') return false;
 
-      // Reset any open hero capsule state
+      // Return any previously dropped ball to the top of the pile inside the globe
+      if (this.droppingBall) {
+        this.droppingBall.isDropping = false;
+        this.droppingBall.mesh.visible = true;
+        this.droppingBall.mesh.scale.set(1, 1, 1);
+        this.droppingBall.pos.set((Math.random() - 0.5) * 0.4, 1.55, (Math.random() - 0.5) * 0.4);
+        this.droppingBall.vel.set(0, 0, 0);
+        this.droppingBall = null;
+      }
+
       this.heroGroup.visible = false;
       this.flapPivot.rotation.x = 0;
       this.pendingReward = rewardObj;
@@ -1219,14 +1233,34 @@
       this.totemCoreMat.emissive.setHex(tier.colorHex);
       this.shockwaveMat.color.setHex(tier.colorHex);
 
-      // Prepare coin animation
-      this.coinMesh.visible = true;
-      this.coinMesh.position.set(-0.36, -0.18, 0.36);
+      // Pick the actual ball closest to the front-bottom funnel hole (0, 0.65, 0.55) so WE SEE IT FALL!
+      let bestBall = this.balls[0];
+      let bestDist = Infinity;
+      const holeTarget = new THREE.Vector3(0, 0.68, 0.56);
+      for (let i = 0; i < this.balls.length; i++) {
+        const b = this.balls[i];
+        const d = b.pos.distanceToSquared(holeTarget);
+        if (d < bestDist) {
+          bestDist = d;
+          bestBall = b;
+        }
+      }
 
-      this.state = 'COIN_AND_CRANK';
+      this.droppingBall = bestBall;
+      if (this.droppingBall) {
+        // Color the actual ball in the globe with the winning rarity so it's the exact same ball that drops!
+        const ud = this.droppingBall.mesh.userData;
+        if (ud && ud.bottomMat && ud.topMat && ud.coreMat) {
+          ud.bottomMat.color.setHex(tier.colorHex);
+          ud.topMat.color.setHex(tier.secondaryHex);
+          ud.coreMat.emissive.setHex(tier.colorHex);
+        }
+      }
+
+      this.state = 'LEVER_PULL_AND_TUMBLE';
       this.stateTimer = 0;
       this.lastRatchetStep = -1;
-      this.sfx.playCoinInsert();
+      this.sfx.playCoinAndLeverStart();
 
       if (this.callbacks.onStateChange) {
         this.callbacks.onStateChange(this.state, rewardObj);
@@ -1252,62 +1286,74 @@
     }
 
     resetToIdle() {
+      if (this.droppingBall) {
+        this.droppingBall.isDropping = false;
+        this.droppingBall.mesh.visible = true;
+        this.droppingBall.mesh.scale.set(1, 1, 1);
+        this.droppingBall.pos.set((Math.random() - 0.5) * 0.35, 1.50, (Math.random() - 0.5) * 0.35);
+        this.droppingBall.vel.set(0, 0, 0);
+        this.droppingBall = null;
+      }
       this.state = 'IDLE';
       this.stateTimer = 0;
       this.heroGroup.visible = false;
       this.heroLight.intensity = 0;
       this.flapPivot.rotation.x = 0;
-      this.crankGroup.rotation.z = 0;
+      this.leverPivot.rotation.x = this.leverRestAngle;
       if (this.callbacks.onStateChange) {
         this.callbacks.onStateChange('IDLE', null);
       }
     }
 
     updatePhysics(dt) {
-      const gravity = -16.5;
+      // Strong realistic downward gravity — balls NEVER fly up into the air!
+      const gravity = -24.0;
       const maxAllowableR = this.domeRadius - this.ballRadius - 0.04;
-      const rodMinR = 0.075 + this.ballRadius;
-      const isMixing = (this.state === 'COIN_AND_CRANK');
+      const rodMinR = 0.05 + this.ballRadius;
+      const isTumbling = (this.state === 'LEVER_PULL_AND_TUMBLE');
 
-      // 1. Integrate velocities, gravity, and vortex mixing forces
       for (let i = 0; i < this.balls.length; i++) {
         const b = this.balls[i];
+        if (b.isDropping) continue;
 
+        // Apply downward gravity
         b.vel.y += gravity * dt;
 
-        if (isMixing) {
-          // Strong tangential vortex swirl + upward fountain lift from spinning agitator
+        if (isTumbling) {
+          // Purely horizontal rotational stirring from the bottom agitator wheel (NO upward fountain velocity!)
           const dx = b.pos.x;
           const dz = b.pos.z;
           const distXZ = Math.sqrt(dx * dx + dz * dz) || 0.001;
           const tangX = -dz / distXZ;
           const tangZ = dx / distXZ;
 
-          b.vel.x += (tangX * 14.5 + (Math.random() - 0.5) * 9.0) * dt;
-          b.vel.z += (tangZ * 14.5 + (Math.random() - 0.5) * 9.0) * dt;
-          if (b.pos.y < this.domeCenter.y - 0.15) {
-            b.vel.y += (18.0 + Math.random() * 14.0) * dt;
+          // Only stir balls resting near the bottom/middle of the globe
+          const heightFactor = Math.max(0.15, 1.0 - Math.max(0, b.pos.y - 0.65) * 0.7);
+          b.vel.x += tangX * 9.5 * heightFactor * dt;
+          b.vel.z += tangZ * 9.5 * heightFactor * dt;
+
+          // Guide the chosen droppingBall smoothly into the front funnel aperture (0, 0.62, 0.58)
+          if (b === this.droppingBall) {
+            b.vel.x += (0 - b.pos.x) * 14.0 * dt;
+            b.vel.z += (0.58 - b.pos.z) * 14.0 * dt;
           }
         }
 
-        // Air damping
-        const damping = isMixing ? 0.992 : 0.965;
-        b.vel.multiplyScalar(damping);
+        // Heavy friction/damping so balls roll like solid glass/resin spheres
+        b.vel.x *= isTumbling ? 0.96 : 0.91;
+        b.vel.z *= isTumbling ? 0.96 : 0.91;
+        b.vel.y *= 0.95;
 
-        // Clamp max speed
-        const speedSq = b.vel.lengthSq();
-        if (speedSq > 64) {
-          b.vel.multiplyScalar(8 / Math.sqrt(speedSq));
-        }
+        // Clamp vertical velocity so no collision can ever pop a ball into the upper dome
+        if (b.vel.y > 1.8) b.vel.y = 1.8;
 
         b.pos.addScaledVector(b.vel, dt);
 
-        // Rotate capsule visually based on velocity
-        b.mesh.rotation.x += (b.vel.z * 2.2 + b.angVel.x * 0.2) * dt;
-        b.mesh.rotation.y += b.angVel.y * dt;
-        b.mesh.rotation.z -= (b.vel.x * 2.2 + b.angVel.z * 0.2) * dt;
+        // Realistic rolling rotation proportional to horizontal travel
+        b.mesh.rotation.x += b.vel.z * 3.2 * dt;
+        b.mesh.rotation.z -= b.vel.x * 3.2 * dt;
 
-        // 2. Central vertical brass rod collision
+        // Central axis rod collision
         const rXZ = Math.sqrt(b.pos.x * b.pos.x + b.pos.z * b.pos.z);
         if (rXZ < rodMinR && rXZ > 0.0001) {
           const nx = b.pos.x / rXZ;
@@ -1316,19 +1362,19 @@
           b.pos.z = nz * rodMinR;
           const vn = b.vel.x * nx + b.vel.z * nz;
           if (vn < 0) {
-            b.vel.x -= 1.5 * vn * nx;
-            b.vel.z -= 1.5 * vn * nz;
+            b.vel.x -= 1.2 * vn * nx;
+            b.vel.z -= 1.2 * vn * nz;
           }
         }
 
-        // 3. Floor collar plate inside globe (y >= 0.66)
-        const minY = 0.68;
-        if (b.pos.y < minY) {
-          b.pos.y = minY;
-          if (b.vel.y < 0) b.vel.y = -b.vel.y * 0.55;
+        // Sloped funnel floor inside globe (y = 0.66 + slight slope toward center)
+        const floorY = 0.66 + rXZ * 0.08;
+        if (b.pos.y < floorY) {
+          b.pos.y = floorY;
+          if (b.vel.y < 0) b.vel.y = -b.vel.y * 0.22;
         }
 
-        // 4. Spherical Glass Dome Boundary Constraint
+        // Spherical Glass Dome Boundary Constraint
         const relX = b.pos.x - this.domeCenter.x;
         const relY = b.pos.y - this.domeCenter.y;
         const relZ = b.pos.z - this.domeCenter.z;
@@ -1347,22 +1393,25 @@
 
           const vn = b.vel.x * nx + b.vel.y * ny + b.vel.z * nz;
           if (vn > 0) {
-            b.vel.x -= 1.62 * vn * nx;
-            b.vel.y -= 1.62 * vn * ny;
-            b.vel.z -= 1.62 * vn * nz;
+            b.vel.x -= 1.25 * vn * nx;
+            b.vel.y -= 1.25 * vn * ny;
+            b.vel.z -= 1.25 * vn * nz;
           }
         }
       }
 
-      // 5. Pairwise Sphere-to-Sphere Elastic Collisions (2 solver iterations for solid stacking)
+      // Pairwise Sphere-to-Sphere Collisions (3 iterations for rock-solid resting stack)
       const minDist = this.ballRadius * 2.0;
       const minDistSq = minDist * minDist;
 
-      for (let iter = 0; iter < 2; iter++) {
+      for (let iter = 0; iter < 3; iter++) {
         for (let i = 0; i < this.balls.length; i++) {
           const b1 = this.balls[i];
+          if (b1.isDropping) continue;
           for (let j = i + 1; j < this.balls.length; j++) {
             const b2 = this.balls[j];
+            if (b2.isDropping) continue;
+
             const dx = b2.pos.x - b1.pos.x;
             const dy = b2.pos.y - b1.pos.y;
             const dz = b2.pos.z - b1.pos.z;
@@ -1370,7 +1419,7 @@
 
             if (distSq < minDistSq && distSq > 0.00001) {
               const dist = Math.sqrt(distSq);
-              const overlap = (minDist - dist) * 0.52;
+              const overlap = (minDist - dist) * 0.5;
               const nx = dx / dist;
               const ny = dy / dist;
               const nz = dz / dist;
@@ -1389,7 +1438,7 @@
                 const velAlongNormal = rvx * nx + rvy * ny + rvz * nz;
 
                 if (velAlongNormal < 0) {
-                  const impulse = -(1 + 0.58) * velAlongNormal * 0.5;
+                  const impulse = -(1 + 0.25) * velAlongNormal * 0.5;
                   b1.vel.x -= impulse * nx;
                   b1.vel.y -= impulse * ny;
                   b1.vel.z -= impulse * nz;
@@ -1407,7 +1456,7 @@
     updateStateMachine(dt) {
       this.stateTimer += dt;
 
-      // Update 3D burst particles if active
+      // Update 3D burst particles
       for (let i = this.burstParticles.length - 1; i >= 0; i--) {
         const p = this.burstParticles[i];
         p.life -= p.decay * dt;
@@ -1426,10 +1475,16 @@
       }
 
       if (this.state === 'IDLE') {
-        // Smooth camera return to default with user orbit
-        const targetX = Math.sin(this.userYaw) * 7.65;
-        const targetZ = Math.cos(this.userYaw) * 7.65;
-        const targetY = 0.72 + this.userPitch * 2.2;
+        // Subtle breathing gleam on the 3D Lever so user knows to pull it
+        if (!this.isPullingLeverDrag) {
+          const idleBob = Math.sin(performance.now() * 0.0035) * 0.045;
+          this.leverPivot.rotation.x = this.leverRestAngle + idleBob;
+        }
+
+        const baseZ = this.defaultCamPos.z;
+        const targetX = Math.sin(this.userYaw) * baseZ;
+        const targetZ = Math.cos(this.userYaw) * baseZ;
+        const targetY = this.defaultCamPos.y + this.userPitch * 2.0;
         this.currentCamPos.lerp(new THREE.Vector3(targetX, targetY, targetZ), Math.min(1, dt * 6));
         this.currentLookAt.lerp(this.defaultLookAt, Math.min(1, dt * 6));
         this.camera.position.copy(this.currentCamPos);
@@ -1437,90 +1492,131 @@
         return;
       }
 
-      if (this.state === 'COIN_AND_CRANK') {
-        const duration = 1.38;
+      // ======================================================================
+      // STAGE 1: 3D LEVER PULL DOWN + HEAVY BALL TUMBLE AT BOTTOM OF GLOBE
+      // ======================================================================
+      if (this.state === 'LEVER_PULL_AND_TUMBLE') {
+        const duration = 1.05;
         const t = Math.min(1, this.stateTimer / duration);
 
-        // 1. Coin slides into brass slot in first 0.32s
-        if (t < 0.25) {
-          const ct = t / 0.25;
-          this.coinMesh.position.z = 0.36 * (1 - ct);
+        // Pull lever down from -0.28 rad to +1.15 rad in first 65%, then spring back up!
+        let leverAngle = this.leverRestAngle;
+        if (t < 0.68) {
+          const p = t / 0.68;
+          const easeInOut = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+          leverAngle = this.leverRestAngle + easeInOut * 1.42;
         } else {
-          this.coinMesh.visible = false;
+          const p = (t - 0.68) / 0.32;
+          const springBack = 1 - Math.exp(-p * 6) * Math.cos(p * 12);
+          leverAngle = (this.leverRestAngle + 1.42) - springBack * 1.42;
         }
+        this.leverPivot.rotation.x = leverAngle;
 
-        // 2. Rotate Heavy Brass Crank 360 degrees with mechanical gear clicks
-        const crankT = Math.max(0, Math.min(1, (t - 0.12) / 0.88));
-        // Ease in-out cubic with slight mechanical step feel
-        const easedCrank = crankT < 0.5
-          ? 4 * crankT * crankT * crankT
-          : 1 - Math.pow(-2 * crankT + 2, 3) / 2;
+        // Rotate internal agitator wheel smoothly
+        this.agitatorGroup.rotation.y += dt * 7.5;
 
-        this.crankGroup.rotation.z = -easedCrank * Math.PI * 2;
-        this.agitatorGroup.rotation.y += dt * 14.0;
-
-        const ratchetStep = Math.floor(easedCrank * 9);
-        if (ratchetStep > this.lastRatchetStep && ratchetStep <= 8) {
+        const ratchetStep = Math.floor(t * 7);
+        if (ratchetStep > this.lastRatchetStep && ratchetStep <= 6) {
           this.lastRatchetStep = ratchetStep;
           this.sfx.playRatchetClick(0.92 + ratchetStep * 0.03);
-          if (ratchetStep % 2 === 0) this.sfx.playBallClatter(0.75);
+          this.sfx.playBallRollClack(0.65);
         }
 
-        // Camera zooms slightly toward the globe & crank
-        this.targetYaw = 0;
+        // Center camera cleanly on the machine
         this.userYaw *= 0.88;
-        this.currentCamPos.lerp(new THREE.Vector3(0, 0.65, 6.75), Math.min(1, dt * 5));
-        this.currentLookAt.lerp(new THREE.Vector3(0, 0.35, 0), Math.min(1, dt * 5));
+        this.currentCamPos.lerp(new THREE.Vector3(0, 0.35, this.defaultCamPos.z - 0.55), Math.min(1, dt * 5));
+        this.currentLookAt.lerp(new THREE.Vector3(0, 0.15, 0), Math.min(1, dt * 5));
         this.camera.position.copy(this.currentCamPos);
         this.camera.lookAt(this.currentLookAt);
 
         if (this.stateTimer >= duration) {
-          this.state = 'BALL_DROP_CHUTE';
+          this.state = 'BALL_VISIBLE_FALL';
           this.stateTimer = 0;
-          this.crankGroup.rotation.z = 0;
+          this.leverPivot.rotation.x = this.leverRestAngle;
 
-          // Position hero capsule inside the chute behind the flap door
-          this.heroGroup.visible = true;
-          this.heroBottomHalf.position.set(0, 0, 0);
-          this.heroBottomHalf.rotation.set(0, 0, 0);
-          this.heroTopHalf.position.set(0, 0, 0);
-          this.heroTopHalf.rotation.set(0, 0, 0);
-          this.heroPrizeTotem.scale.set(0.55, 0.55, 0.55);
-          this.shockwaveMat.opacity = 0;
-          this.heroGroup.scale.set(0.62, 0.62, 0.62);
-          this.heroGroup.position.set(0, -1.55, 0.85);
-          this.sfx.playChuteDropAndDoor();
+          // Detach the chosen ball from the dome constraint so it physically drops down the visible front chute!
+          if (this.droppingBall) {
+            this.droppingBall.isDropping = true;
+            // Start right at the bottom-front funnel aperture where it rolled!
+            this.droppingBall.pos.set(0, 0.56, 0.62);
+            this.droppingBall.vel.set(0, -1.2, 0.65);
+          }
         }
         return;
       }
 
-      if (this.state === 'BALL_DROP_CHUTE') {
-        const duration = 0.82;
+      // ======================================================================
+      // STAGE 2: CONTINUOUS VISIBLE BALL DROP FROM GLOBE -> CHUTE -> TRAY
+      // ======================================================================
+      if (this.state === 'BALL_VISIBLE_FALL') {
+        const duration = 0.96;
         const t = Math.min(1, this.stateTimer / duration);
 
-        // Flap door gets kicked open by the capsule and swings down with spring bounce
-        const flapAngle = t < 0.45
-          ? -Math.sin((t / 0.45) * (Math.PI / 2)) * 1.28
-          : -1.28 * Math.exp(-(t - 0.45) * 4.5) * Math.cos((t - 0.45) * 14);
-        this.flapPivot.rotation.x = Math.min(0, flapAngle);
+        if (this.droppingBall) {
+          const b = this.droppingBall;
 
-        // Capsule rolls out of the chute cavity into the front velvet tray
-        const dropY = -1.55 - Math.sin(t * Math.PI) * 0.22 - t * 0.42;
-        const dropZ = 0.85 + t * 0.72;
-        this.heroGroup.position.set(0, dropY, dropZ);
-        this.heroGroup.rotation.x += dt * 9.5;
-        this.heroGroup.rotation.z += dt * 3.2;
+          if (t < 0.58) {
+            // Phase A (0.0 -> 0.58): Ball accelerates downward under gravity inside the glass-windowed front chute
+            const fallP = t / 0.58;
+            const accelP = fallP * fallP;
+            b.pos.x = 0;
+            b.pos.y = 0.56 - accelP * 2.18; // Drops from y = +0.56 down to y = -1.62
+            b.pos.z = 0.62 + fallP * 0.46; // Moves into the front chute channel (z = 1.08)
+            b.mesh.rotation.x += dt * 11.0;
+            b.mesh.rotation.z += dt * 3.5;
+          } else {
+            // Phase B (0.58 -> 1.0): Ball kicks open the chrome flap door and bounces onto the curved front tray!
+            if (!this._playedDoorSound) {
+              this._playedDoorSound = true;
+              this.sfx.playChuteBounceAndDoor();
+            }
+            const outP = (t - 0.58) / 0.42;
+            // Bounce arc on the lower tray
+            const bounce = Math.abs(Math.sin(outP * Math.PI * 1.5)) * (1 - outP) * 0.22;
+            b.pos.x = 0;
+            b.pos.y = -1.62 - outP * 0.16 + bounce;
+            b.pos.z = 1.08 + outP * 0.44; // Rolls out to z = 1.52 on the tray lip
+            b.mesh.rotation.x += dt * 9.0 * (1 - outP * 0.5);
+          }
+        }
 
-        // Camera pans down slightly toward the dispenser tray
-        this.currentCamPos.lerp(new THREE.Vector3(0, -0.35, 6.2), Math.min(1, dt * 6));
-        this.currentLookAt.lerp(new THREE.Vector3(0, -1.25, 0.8), Math.min(1, dt * 6));
+        // Flap door swings open when the falling ball reaches y = -1.45 (t >= 0.52)
+        if (t >= 0.50) {
+          const doorT = (t - 0.50) / 0.50;
+          const flapAngle = doorT < 0.45
+            ? -Math.sin((doorT / 0.45) * (Math.PI / 2)) * 1.32
+            : -1.32 * Math.exp(-(doorT - 0.45) * 4.0) * Math.cos((doorT - 0.45) * 12);
+          this.flapPivot.rotation.x = Math.min(0, flapAngle);
+        }
+
+        // Camera follows the falling ball down to the lower collection tray
+        this.currentCamPos.lerp(new THREE.Vector3(0, -0.25, this.defaultCamPos.z - 0.9), Math.min(1, dt * 6));
+        this.currentLookAt.lerp(new THREE.Vector3(0, -1.05, 0.85), Math.min(1, dt * 6));
         this.camera.position.copy(this.currentCamPos);
         this.camera.lookAt(this.currentLookAt);
 
         if (this.stateTimer >= duration) {
+          this._playedDoorSound = false;
           this.state = 'HERO_PRESENTATION';
           this.stateTimer = 0;
-          this.sfx.playSuspenseCharge();
+
+          // Seamlessly hand off the dropped ball's exact world position to the split-able Hero Capsule!
+          const worldStartPos = new THREE.Vector3(0, -1.78 + this.machineGroup.position.y, 1.52);
+          if (this.droppingBall) {
+            this.droppingBall.mesh.getWorldPosition(worldStartPos);
+            this.droppingBall.mesh.visible = false;
+          }
+
+          this.heroGroup.visible = true;
+          this.heroGroup.position.copy(worldStartPos);
+          this.heroGroup.scale.set(0.62, 0.62, 0.62);
+          this.heroBottomHalf.position.set(0, 0, 0);
+          this.heroBottomHalf.rotation.set(0, 0, 0);
+          this.heroTopHalf.position.set(0, 0, 0);
+          this.heroTopHalf.rotation.set(0, 0, 0);
+          this.heroPrizeTotem.scale.set(0.5, 0.5, 0.5);
+          this.shockwaveMat.opacity = 0;
+
           if (this.callbacks.onStateChange) {
             this.callbacks.onStateChange(this.state, this.pendingReward);
           }
@@ -1528,119 +1624,147 @@
         return;
       }
 
+      // ======================================================================
+      // STAGE 3: BALL RISES FROM TRAY & OPENS ITS TWO HEMISPHERES
+      // ======================================================================
       if (this.state === 'HERO_PRESENTATION') {
-        const flyDuration = 0.68;
+        const flyDuration = 0.62;
         const t = Math.min(1, this.stateTimer / flyDuration);
-        const easeOutBack = 1 + 1.8 * Math.pow(t - 1, 3) + 0.8 * Math.pow(t - 1, 2);
+        const easeOut = 1 - Math.pow(1 - t, 3);
 
-        // Fly from tray (0, -1.97, 1.57) to center camera stage (0, 0.52, 4.15)
-        const targetPos = new THREE.Vector3(0, 0.52, 4.15);
-        this.heroGroup.position.lerp(targetPos, Math.min(1, dt * 8.5));
-        const sc = 0.62 + 0.48 * Math.min(1.12, easeOutBack);
+        const targetPos = new THREE.Vector3(0, 0.38, 4.15);
+        this.heroGroup.position.lerp(targetPos, Math.min(1, dt * 9.0));
+        const sc = 0.62 + 0.46 * easeOut;
         this.heroGroup.scale.set(sc, sc, sc);
 
-        // Anticipation vibration + spinning before burst
-        const vib = Math.min(1, this.stateTimer / 0.8) * 0.035;
+        const vib = Math.min(1, this.stateTimer / 0.6) * 0.028;
         this.heroGroup.position.x = Math.sin(this.stateTimer * 55) * vib;
-        this.heroGroup.rotation.y += dt * (4.5 + this.stateTimer * 6.0);
-        this.heroGroup.rotation.x = Math.sin(this.stateTimer * 12) * 0.18;
-        this.heroGroup.rotation.z = Math.cos(this.stateTimer * 15) * 0.14;
+        this.heroGroup.rotation.y += dt * (4.2 + this.stateTimer * 5.5);
 
-        // Slight seam separation showing inner glow
-        const seamGap = Math.min(0.06, this.stateTimer * 0.05);
+        const seamGap = Math.min(0.06, this.stateTimer * 0.06);
         this.heroTopHalf.position.y = seamGap;
         this.heroBottomHalf.position.y = -seamGap;
+        this.heroLight.intensity = Math.min(2.5, this.stateTimer * 4.0);
 
-        this.heroLight.intensity = Math.min(2.6, this.stateTimer * 3.5);
-
-        // Camera centers on the floating Hero Capsule
-        this.currentCamPos.lerp(new THREE.Vector3(0, 0.55, 6.85), Math.min(1, dt * 6));
-        this.currentLookAt.lerp(new THREE.Vector3(0, 0.35, 2.5), Math.min(1, dt * 6));
+        this.currentCamPos.lerp(new THREE.Vector3(0, 0.42, this.defaultCamPos.z - 0.6), Math.min(1, dt * 6));
+        this.currentLookAt.lerp(new THREE.Vector3(0, 0.25, 2.2), Math.min(1, dt * 6));
         this.camera.position.copy(this.currentCamPos);
         this.camera.lookAt(this.currentLookAt);
 
-        // Auto-burst after 0.95s of dramatic buildup so the experience is seamless & thrilling!
-        if (this.stateTimer >= 0.95) {
+        if (this.stateTimer >= 0.72) {
           this.triggerCapsuleBurstNow();
         }
         return;
       }
 
       if (this.state === 'CAPSULE_BURST_OPEN') {
-        const t = Math.min(1, this.stateTimer / 0.75);
+        const t = Math.min(1, this.stateTimer / 0.70);
         const easeOut = 1 - Math.pow(1 - t, 3);
 
-        // Keep Hero Group centered in upper-mid viewport so the Reveal Card fits cleanly below
-        this.heroGroup.position.lerp(new THREE.Vector3(0, 0.92, 4.25), Math.min(1, dt * 7));
+        this.heroGroup.position.lerp(new THREE.Vector3(0, 0.65, 4.20), Math.min(1, dt * 7));
         this.heroGroup.rotation.set(0, 0, 0);
 
-        // Top and Bottom Capsule Hemispheres fly apart and tilt dramatically
-        this.heroTopHalf.position.set(-easeOut * 0.52, 0.42 + easeOut * 0.45, -easeOut * 0.25);
-        this.heroTopHalf.rotation.set(-easeOut * 0.85, this.stateTimer * 1.8, easeOut * 0.65);
+        // Two capsule halves split open cleanly
+        this.heroTopHalf.position.set(-easeOut * 0.48, 0.38 + easeOut * 0.42, -easeOut * 0.20);
+        this.heroTopHalf.rotation.set(-easeOut * 0.82, this.stateTimer * 1.6, easeOut * 0.60);
 
-        this.heroBottomHalf.position.set(easeOut * 0.52, -0.42 - easeOut * 0.38, -easeOut * 0.25);
-        this.heroBottomHalf.rotation.set(easeOut * 0.75, -this.stateTimer * 1.6, -easeOut * 0.55);
+        this.heroBottomHalf.position.set(easeOut * 0.48, -0.38 - easeOut * 0.35, -easeOut * 0.20);
+        this.heroBottomHalf.rotation.set(easeOut * 0.72, -this.stateTimer * 1.5, -easeOut * 0.50);
 
-        // Central 3D Prize Totem expands and spins majestically
-        const totemScale = 0.55 + easeOut * 0.75 + Math.sin(this.stateTimer * 4) * 0.05;
+        const totemScale = 0.55 + easeOut * 0.72 + Math.sin(this.stateTimer * 4) * 0.04;
         this.heroPrizeTotem.scale.set(totemScale, totemScale, totemScale);
         this.totemGem.rotation.y += dt * 2.4;
-        this.totemGem.rotation.x = Math.sin(this.stateTimer * 2.2) * 0.25;
-        this.totemHalo.rotation.x = Math.PI / 3 + Math.sin(this.stateTimer * 1.7) * 0.3;
+        this.totemGem.rotation.x = Math.sin(this.stateTimer * 2.2) * 0.22;
+        this.totemHalo.rotation.x = Math.PI / 3 + Math.sin(this.stateTimer * 1.7) * 0.28;
         this.totemHalo.rotation.y -= dt * 1.9;
 
-        // Expanding 3D Shockwave Ring
-        if (this.stateTimer < 0.55) {
-          const swT = this.stateTimer / 0.55;
-          const swScale = 1 + swT * 5.2;
+        if (this.stateTimer < 0.52) {
+          const swT = this.stateTimer / 0.52;
+          const swScale = 1 + swT * 5.0;
           this.shockwaveRing.scale.set(swScale, swScale, 1);
-          this.shockwaveMat.opacity = (1 - swT) * 0.9;
+          this.shockwaveMat.opacity = (1 - swT) * 0.88;
         } else {
           this.shockwaveMat.opacity = 0;
         }
-
-        this.currentCamPos.lerp(new THREE.Vector3(0, 0.55, 6.85), Math.min(1, dt * 5));
-        this.currentLookAt.lerp(new THREE.Vector3(0, 0.45, 2.5), Math.min(1, dt * 5));
-        this.camera.position.copy(this.currentCamPos);
-        this.camera.lookAt(this.currentLookAt);
       }
+    }
+
+    checkLeverIntersection(clientX, clientY) {
+      const rect = this.canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) return false;
+      this.pointerNDC.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      this.pointerNDC.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+      this.raycaster.setFromCamera(this.pointerNDC, this.camera);
+      const hits = this.raycaster.intersectObjects(this.leverInteractables, true);
+      return hits.length > 0;
     }
 
     bindInteraction() {
       const onDown = (clientX, clientY) => {
-        this.isDragging = true;
         this.dragStartX = clientX;
         this.dragStartY = clientY;
         this.downTime = performance.now();
+
+        if (this.state === 'HERO_PRESENTATION') {
+          this.triggerCapsuleBurstNow();
+          return;
+        }
+
+        // Check if user touched/clicked the 3D Lever on the machine!
+        if ((this.state === 'IDLE' || this.state === 'CAPSULE_BURST_OPEN') && this.checkLeverIntersection(clientX, clientY)) {
+          this.isPullingLeverDrag = true;
+          this.leverPullProgress = 0;
+          return;
+        }
+
+        this.isDraggingOrbit = true;
       };
 
       const onMove = (clientX, clientY) => {
-        if (!this.isDragging) return;
+        if (this.isPullingLeverDrag) {
+          const dy = Math.max(0, clientY - this.dragStartY);
+          this.leverPullProgress = Math.min(1, dy / 70);
+          this.leverPivot.rotation.x = this.leverRestAngle + this.leverPullProgress * 1.25;
+          if (this.leverPullProgress >= 0.65) {
+            this.isPullingLeverDrag = false;
+            if (this.callbacks.onLeverPulled) {
+              this.callbacks.onLeverPulled();
+            }
+          }
+          return;
+        }
+
+        if (!this.isDraggingOrbit) return;
         const dx = clientX - this.dragStartX;
         const dy = clientY - this.dragStartY;
         this.dragStartX = clientX;
         this.dragStartY = clientY;
 
-        this.userYaw = Math.max(-0.65, Math.min(0.65, this.userYaw - dx * 0.007));
-        this.userPitch = Math.max(-0.25, Math.min(0.35, this.userPitch + dy * 0.005));
+        this.userYaw = Math.max(-0.55, Math.min(0.55, this.userYaw - dx * 0.006));
+        this.userPitch = Math.max(-0.20, Math.min(0.28, this.userPitch + dy * 0.004));
       };
 
-      const onUp = (clientX, clientY) => {
-        if (!this.isDragging) return;
-        this.isDragging = false;
-        const elapsed = performance.now() - (this.downTime || 0);
-        if (elapsed < 260) {
-          if (this.state === 'HERO_PRESENTATION') {
-            this.triggerCapsuleBurstNow();
-          } else if (this.state === 'IDLE') {
-            this.shakeGlobe(0.85);
+      const onUp = () => {
+        if (this.isPullingLeverDrag) {
+          this.isPullingLeverDrag = false;
+          // Either a tap on the lever or a partial pull triggers the lever draw!
+          this.leverPivot.rotation.x = this.leverRestAngle;
+          if (this.callbacks.onLeverPulled) {
+            this.callbacks.onLeverPulled();
           }
+          return;
         }
+
+        if (!this.isDraggingOrbit) return;
+        this.isDraggingOrbit = false;
       };
 
-      this.canvas.addEventListener('mousedown', e => onDown(e.clientX, e.clientY));
+      this.canvas.addEventListener('mousedown', e => {
+        e.preventDefault();
+        onDown(e.clientX, e.clientY);
+      });
       window.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
-      window.addEventListener('mouseup', e => onUp(e.clientX, e.clientY));
+      window.addEventListener('mouseup', () => onUp());
 
       this.canvas.addEventListener('touchstart', e => {
         if (e.touches.length === 1) {
@@ -1649,43 +1773,48 @@
       }, { passive: true });
 
       this.canvas.addEventListener('touchmove', e => {
-        if (this.isDragging && e.touches.length === 1) {
+        if ((this.isDraggingOrbit || this.isPullingLeverDrag) && e.touches.length === 1) {
+          if (e.cancelable) e.preventDefault();
           onMove(e.touches[0].clientX, e.touches[0].clientY);
         }
+      }, { passive: false });
+
+      this.canvas.addEventListener('touchend', () => {
+        onUp();
       }, { passive: true });
 
-      this.canvas.addEventListener('touchend', e => {
-        onUp(0, 0);
-      }, { passive: true });
+      window.addEventListener('resize', () => this.resize());
     }
 
     resize() {
       if (!this.canvas || !this.renderer || !this.camera) return;
-      const w = this.canvas.clientWidth || 340;
-      const h = this.canvas.clientHeight || 420;
-      this.camera.aspect = w / h;
+      const w = this.canvas.clientWidth || window.innerWidth || 380;
+      const h = this.canvas.clientHeight || window.innerHeight || 680;
+      const aspect = w / Math.max(1, h);
+      this.camera.fov = aspect < 0.65 ? 44 : 38;
+      this.camera.aspect = aspect;
       this.camera.updateProjectionMatrix();
+      this.defaultCamPos.z = aspect < 0.65 ? 8.35 : 7.55;
       this.renderer.setSize(w, h, false);
     }
 
     start() {
       if (this.isRunning) return;
       this.isRunning = true;
-      this.resize();
       this.lastTime = performance.now();
+      this.resize();
 
       const loop = (now) => {
         if (!this.isRunning) return;
-        this.rafId = requestAnimationFrame(loop);
-
-        const dt = Math.min(0.05, Math.max(0.001, (now - this.lastTime) / 1000));
+        const dt = Math.min(0.04, Math.max(0.001, (now - this.lastTime) / 1000));
         this.lastTime = now;
 
         this.updatePhysics(dt);
         this.updateStateMachine(dt);
         this.renderer.render(this.scene, this.camera);
-      };
 
+        this.rafId = requestAnimationFrame(loop);
+      };
       this.rafId = requestAnimationFrame(loop);
     }
 
@@ -1700,5 +1829,4 @@
 
   window.VintageGachapon3D = VintageGachapon3D;
   window.GACHAPON_RARITY_TIERS = RARITY_TIERS;
-  window.VINTAGE_STAGE_BACKGROUNDS = VINTAGE_STAGE_BACKGROUNDS;
 })();

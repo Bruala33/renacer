@@ -2030,167 +2030,82 @@
       </div>
     </div>
 
-    <!-- Layer 10: Máquina Expendedora de Bolas 3D Vintage (Three.js Gachapon & Colección) -->
-    <div id="fxShopModal" class="modal-overlay">
-      <div class="glass-card w-full max-w-[385px] p-3.5 rounded-3xl space-y-2.5 max-h-[94vh] flex flex-col bg-gradient-to-b from-[#170b0d]/98 via-[#0c0609]/98 to-[#060305]/98 border-2 border-[#c5a059]/55 shadow-[0_0_50px_rgba(197,160,89,0.25)] relative overflow-hidden">
-        
-        <!-- Ornate Vintage Brass Header -->
-        <div class="flex items-center justify-between border-b border-[#c5a059]/30 pb-2">
-          <div class="flex items-center gap-2">
-            <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-300 via-amber-500 to-amber-800 p-0.5 shadow-md flex items-center justify-center text-stone-950 font-black text-sm">
-              🎱
+    <!-- Layer 10: Máquina Expendedora de Bolas 3D a Pantalla Completa (Solo Palanca 3D • 100 Claves) -->
+    <div id="fxShopModal" class="modal-overlay !p-0">
+      <div class="relative w-screen h-screen overflow-hidden select-none" style="background: radial-gradient(circle at 50% 42%, #3a1018 0%, #15060a 58%, #050204 100%);">
+
+        <!-- Full-Screen Three.js 3D Canvas -->
+        <canvas id="gachapon3DCanvas" class="w-full h-full block cursor-pointer"></canvas>
+
+        <!-- Minimal Floating Top HUD (Balance + Effects Drawer Toggle + Close) -->
+        <div class="absolute top-4 inset-x-4 flex items-center justify-between z-20 pointer-events-none">
+          <!-- Left: Compact Claves & Medals Pill -->
+          <div id="gachaponWalletBar" class="pointer-events-auto flex items-center gap-3 px-3.5 py-2 rounded-full bg-black/75 backdrop-blur-md border border-amber-400/40 shadow-xl text-xs font-mono">
+            <div class="flex items-center gap-1.5 text-amber-300 font-black">
+              <span class="text-amber-400 text-sm">𝄞</span>
+              <span id="shopClefsDisplay">100</span>
             </div>
-            <div>
-              <h3 class="text-[11px] font-black text-amber-200 uppercase tracking-widest font-serif leading-none">
-                LA IMPERIAL 1958
-              </h3>
-              <p class="text-[9px] text-amber-400/80 font-mono tracking-wider uppercase mt-0.5">
-                Máquina Expendedora 3D • Cápsulas Reales
-              </p>
+            <div class="h-3 w-px bg-white/15"></div>
+            <div class="flex items-center gap-2 text-[11px] font-bold">
+              <span class="text-gray-200 flex items-center gap-0.5"><svg width="10" height="10" viewBox="0 0 24 24" fill="#cbd5e1"><circle cx="12" cy="12" r="8"/></svg><span id="shopSilversDisplay">0</span></span>
+              <span class="text-amber-300 flex items-center gap-0.5"><svg width="10" height="10" viewBox="0 0 24 24" fill="#fcd34d"><circle cx="12" cy="12" r="8"/></svg><span id="shopGoldsDisplay">0</span></span>
+              <span class="text-cyan-300 flex items-center gap-0.5"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#67e8f9" stroke-width="2.2"><polygon points="6 3 18 3 22 9 12 22 2 9 6 3"/></svg><span id="shopPlatinumsDisplay">0</span></span>
             </div>
           </div>
-          <button onclick="closeFXShopModal()" class="w-7 h-7 rounded-full bg-white/5 hover:bg-white/15 border border-amber-500/30 text-amber-200 hover:text-white text-xs flex items-center justify-center cursor-pointer transition">✕</button>
-        </div>
 
-        <!-- Live Wallet Bar (Always Visible) -->
-        <div id="gachaponWalletBar" class="flex items-center justify-between px-3 py-1.5 bg-black/85 rounded-xl border border-[#c5a059]/40 text-[10px] shadow-inner">
-          <div class="flex items-center gap-1.5 text-amber-300 font-black font-mono text-xs">
-            <span class="text-amber-400 text-sm">𝄞</span>
-            <span id="shopClefsDisplay">100</span>
-            <span class="text-[8px] text-amber-200/70 uppercase font-sans font-bold ml-0.5">Claves</span>
-          </div>
-          <div class="flex items-center gap-2.5 font-bold font-mono">
-            <span class="text-gray-200 flex items-center gap-1" title="Medallas de Plata"><svg width="11" height="11" viewBox="0 0 24 24" fill="#cbd5e1" stroke="#cbd5e1" stroke-width="1.5" class="inline"><circle cx="12" cy="12" r="7"/></svg> <span id="shopSilversDisplay">0</span></span>
-            <span class="text-amber-300 flex items-center gap-1" title="Medallas de Oro"><svg width="11" height="11" viewBox="0 0 24 24" fill="#fcd34d" stroke="#fcd34d" stroke-width="1.5" class="inline"><circle cx="12" cy="12" r="7"/></svg> <span id="shopGoldsDisplay">0</span></span>
-            <span class="text-cyan-300 flex items-center gap-1" title="Diamantes / Platinos"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#67e8f9" stroke-width="2" class="inline"><polygon points="6 3 18 3 22 9 12 22 2 9 6 3"/></svg> <span id="shopPlatinumsDisplay">0</span></span>
+          <!-- Right: Effects Baúl Button & Close Button -->
+          <div class="pointer-events-auto flex items-center gap-2">
+            <button onclick="toggleGachaponEffectsDrawer(true)" class="px-3.5 py-2 rounded-full bg-black/75 hover:bg-black/90 backdrop-blur-md border border-amber-400/45 text-amber-200 font-black text-xs flex items-center gap-1.5 shadow-xl transition active:scale-95 cursor-pointer">
+              <span>✨</span>
+              <span>Efectos</span>
+              <span id="gachaponCollectionProgressText" class="text-[10px] font-mono text-amber-400 ml-0.5"></span>
+            </button>
+            <button onclick="closeFXShopModal()" class="w-9 h-9 rounded-full bg-black/75 hover:bg-white/15 backdrop-blur-md border border-white/25 text-white text-sm font-black flex items-center justify-center shadow-xl transition active:scale-95 cursor-pointer">
+              ✕
+            </button>
           </div>
         </div>
 
-        <!-- 3 Navigation Subtabs: Máquina 3D | Mi Baúl & Teclas | Escenario -->
-        <div class="grid grid-cols-3 gap-1 p-1 bg-black/60 rounded-xl border border-[#c5a059]/25 text-[10px] font-bold">
-          <button id="tabBtnShopMachine" onclick="switchFXShopSubtab('machine')" class="py-1.5 px-1 rounded-lg transition text-center cursor-pointer bg-gradient-to-r from-amber-500/35 to-red-700/35 text-amber-200 border border-amber-400/60 shadow-sm font-black">
-            🎱 Máquina 3D
-          </button>
-          <button id="tabBtnShopEffects" onclick="switchFXShopSubtab('effects')" class="py-1.5 px-1 rounded-lg transition text-center cursor-pointer text-gray-400 hover:text-white border border-transparent">
-            🎒 Baúl / Teclas
-          </button>
-          <button id="tabBtnShopBackground" onclick="switchFXShopSubtab('background')" class="py-1.5 px-1 rounded-lg transition text-center cursor-pointer text-gray-400 hover:text-white border border-transparent">
-            🖼️ Escenario
-          </button>
+        <!-- Compact Reward Reveal Card (Appears at bottom when capsule opens) -->
+        <div id="gachaponRewardOverlay" class="hidden absolute inset-x-4 bottom-6 max-w-sm mx-auto z-30 p-4 rounded-3xl bg-black/90 border-2 border-amber-400/80 shadow-[0_0_40px_rgba(251,191,36,0.45)] backdrop-blur-xl space-y-2.5">
+          <div class="flex items-center justify-between gap-2">
+            <span id="gachaponRewardRarityBadge" class="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow">
+              ★ LEGENDARIO ★
+            </span>
+            <span id="gachaponRewardNewTag" class="px-2 py-0.5 rounded bg-emerald-500/25 border border-emerald-400/50 text-emerald-300 text-[9px] font-black uppercase tracking-wider">
+              ¡NUEVO!
+            </span>
+          </div>
+
+          <div class="text-center space-y-1">
+            <h4 id="gachaponRewardTitle" class="text-base font-black text-white font-serif tracking-wide">
+              Recompensa
+            </h4>
+            <p id="gachaponRewardDesc" class="text-xs text-gray-300 leading-snug">
+            </p>
+          </div>
+
+          <div id="gachaponRewardActions" class="flex items-center justify-center gap-2 pt-1 flex-wrap">
+          </div>
         </div>
 
-        <!-- SUBTAB 0 (HERO): MÁQUINA EXPENDEDORA DE BOLAS 3D EN THREE.JS -->
-        <div id="shopMachineSubtabContent" class="flex-1 flex flex-col space-y-2.5 overflow-hidden">
-          
-          <!-- 3D Three.js Viewport Container -->
-          <div id="gachapon3DStage" class="relative w-full flex-1 min-h-[325px] max-h-[410px] rounded-2xl overflow-hidden border border-[#c5a059]/45 shadow-[inset_0_0_45px_rgba(0,0,0,0.95)]" style="background: radial-gradient(circle at 50% 38%, #3b1219 0%, #17070b 52%, #060305 100%);">
-            
-            <!-- Ambient Brass Filigree Corner Accents -->
-            <div class="pointer-events-none absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-amber-400/50 rounded-tl"></div>
-            <div class="pointer-events-none absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-amber-400/50 rounded-tr"></div>
-            <div class="pointer-events-none absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-amber-400/50 rounded-bl"></div>
-            <div class="pointer-events-none absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-amber-400/50 rounded-br"></div>
-
-            <!-- Top Interactive Status Pill & Shake Button -->
-            <div class="absolute top-2.5 inset-x-3 flex items-center justify-between z-10 pointer-events-none">
-              <span id="gachaponStatusBadge" class="px-2.5 py-0.5 rounded-full bg-black/75 border border-amber-400/35 text-[9px] font-mono font-bold text-amber-200/90 backdrop-blur-sm">
-                Arrastra en 3D • Toca el globo para agitar
-              </span>
-              <button onclick="shakeGachaponMachine()" class="pointer-events-auto px-2 py-0.5 rounded-full bg-amber-500/20 hover:bg-amber-500/35 border border-amber-400/50 text-[9px] font-black text-amber-200 transition active:scale-90 cursor-pointer shadow">
-                🌀 Agitar
+        <!-- Slide-Over Effects Drawer (Baúl de Efectos & Probar en Pista) -->
+        <div id="gachaponEffectsDrawer" class="hidden absolute inset-0 z-40 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div class="w-full max-w-md max-h-[86vh] rounded-3xl bg-[#12090d] border-2 border-amber-400/50 shadow-2xl flex flex-col overflow-hidden p-4 space-y-3">
+            <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
+              <div class="flex items-center gap-2">
+                <span class="text-base">✨</span>
+                <h3 class="text-sm font-black text-amber-200 uppercase tracking-wider font-serif">Mis Efectos y Teclas</h3>
+              </div>
+              <button onclick="toggleGachaponEffectsDrawer(false)" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black flex items-center justify-center cursor-pointer transition">
+                ✕
               </button>
             </div>
-
-            <!-- Three.js WebGL Canvas -->
-            <canvas id="gachapon3DCanvas" class="w-full h-full block cursor-grab active:cursor-grabbing"></canvas>
-
-            <!-- Tap-to-Open Prompt during HERO_PRESENTATION -->
-            <div id="gachaponTapPrompt" onclick="triggerGachaponBurstNow()" class="hidden absolute inset-x-0 bottom-5 flex flex-col items-center justify-center z-20 cursor-pointer">
-              <div class="px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-500 text-stone-950 font-black text-xs uppercase tracking-wider shadow-[0_0_25px_rgba(251,191,36,0.9)] animate-bounce">
-                ✨ ¡Toca para abrir tu cápsula! ✨
-              </div>
-            </div>
-
-            <!-- Spectacular Reward Reveal Card Overlay (Shown when capsule bursts open!) -->
-            <div id="gachaponRewardOverlay" class="hidden absolute inset-x-2.5 bottom-2.5 z-30 p-3 rounded-2xl bg-gradient-to-b from-[#1a0d12]/95 via-[#0d060a]/98 to-black/98 border-2 border-amber-400/80 shadow-[0_0_35px_rgba(251,191,36,0.45)] backdrop-blur-md space-y-2 transition-all duration-300">
-              <div class="flex items-center justify-between gap-1">
-                <span id="gachaponRewardRarityBadge" class="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow">
-                  ★ LEGENDARIO ★
-                </span>
-                <span id="gachaponRewardNewTag" class="px-2 py-0.5 rounded bg-emerald-500/25 border border-emerald-400/50 text-emerald-300 text-[8.5px] font-black uppercase tracking-wider">
-                  ¡NUEVO EN TU BAÚL!
-                </span>
-              </div>
-
-              <div class="text-center space-y-0.5 pt-0.5">
-                <h4 id="gachaponRewardTitle" class="text-sm font-black text-white font-serif tracking-wide drop-shadow">
-                  Supernova de Diamante Celestial
-                </h4>
-                <p id="gachaponRewardDesc" class="text-[10px] text-gray-300 leading-snug line-clamp-2">
-                  Descripción de la recompensa obtenida en la cápsula vintage.
-                </p>
-              </div>
-
-              <div id="gachaponRewardActions" class="flex items-center justify-center gap-1.5 pt-1 flex-wrap">
-                <!-- Dynamically populated buttons: Equipar / Probar / Otra Bola -->
-              </div>
-            </div>
-          </div>
-
-          <!-- Vintage Mechanical Control Deck (Spin Buttons & Collection Progress) -->
-          <div id="gachaponControlDeck" class="p-2.5 rounded-2xl bg-gradient-to-b from-[#24110b] to-[#120705] border border-[#c5a059]/45 shadow-xl space-y-2">
-            <div class="flex items-center justify-between text-[9.5px] px-0.5">
-              <span class="text-amber-200/90 font-bold flex items-center gap-1">
-                <span>🏆 Colección de Cápsulas:</span>
-                <span id="gachaponCollectionProgressText" class="text-amber-400 font-mono font-black">2 / 18</span>
-              </span>
-              <span class="text-emerald-300/90 font-mono text-[9px]" id="gachaponPityHint">
-                Prioridad a efectos no desbloqueados
-              </span>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2">
-              <!-- Standard Vintage Capsule Pull (25 Clefs or Free Daily) -->
-              <button id="btnPullClassicCapsule" onclick="pullGachaponCapsule('classic')" class="py-2 px-2.5 rounded-xl bg-gradient-to-b from-amber-400 via-amber-500 to-amber-700 hover:brightness-110 active:scale-95 text-stone-950 font-black transition cursor-pointer border border-amber-200 shadow-[0_4px_15px_rgba(245,158,11,0.35)] flex flex-col items-center justify-center leading-tight">
-                <span class="text-[11px] uppercase tracking-wider flex items-center gap-1">
-                  <span>🎱</span> <span id="classicPullBtnLabel">Girar Manivela</span>
-                </span>
-                <span id="classicPullCostBadge" class="text-[9.5px] font-mono font-black bg-black/25 text-amber-950 px-2 py-0.5 rounded-full mt-0.5">
-                  25 𝄞 Claves
-                </span>
-              </button>
-
-              <!-- Royal Golden Capsule Pull (75 Clefs — Guaranteed Rare/Epic/Legendary) -->
-              <button id="btnPullRoyalCapsule" onclick="pullGachaponCapsule('royal')" class="py-2 px-2.5 rounded-xl bg-gradient-to-b from-rose-500 via-red-600 to-purple-900 hover:brightness-110 active:scale-95 text-white font-black transition cursor-pointer border border-amber-300/80 shadow-[0_4px_18px_rgba(225,29,72,0.4)] flex flex-col items-center justify-center leading-tight">
-                <span class="text-[11px] uppercase tracking-wider text-amber-200 flex items-center gap-1">
-                  <span>👑</span> <span>Bola Imperial</span>
-                </span>
-                <span class="text-[9px] font-mono font-bold bg-black/40 text-amber-300 px-2 py-0.5 rounded-full mt-0.5 border border-amber-400/30">
-                  75 𝄞 • ★ Épico/Legend.
-                </span>
-              </button>
+            <div id="fxShopCardsContainer" class="space-y-2.5 overflow-y-auto flex-1 pr-1">
             </div>
           </div>
         </div>
 
-        <!-- SUBTAB 1: BAÚL DE COLECCIÓN, EFECTOS EQUIPABLES Y MODO 3D/2D -->
-        <div id="shopEffectsSubtabContent" class="space-y-3 flex-1 flex flex-col overflow-hidden hidden">
-          <p class="text-[10px] text-amber-200/80 leading-tight px-1">
-            Equipa o prueba en tiempo real los efectos desbloqueados en la Máquina de Bolas 3D, o ajusta la perspectiva del piano.
-          </p>
-
-          <!-- Effects List & Visual Settings -->
-          <div id="fxShopCardsContainer" class="space-y-3 overflow-y-auto flex-1 pr-1">
-            <!-- Injected dynamically -->
-          </div>
-        </div>
-
-        <!-- SUBTAB 2: ESCENARIO Y FONDO PERSONALIZADO -->
-        <div id="shopBackgroundSubtabContent" class="space-y-3 flex-1 flex flex-col overflow-y-auto pr-1 hidden">
-          <div id="customBgControlsContainer" class="space-y-3 text-xs">
-            <!-- Injected dynamically -->
-          </div>
-        </div>
       </div>
     </div>
 
@@ -3613,22 +3528,10 @@
 
 
     // =========================================================================
-    // VINTAGE 3D GACHAPON CAPSULE VENDING MACHINE CONTROLLER & COLLECTION LOGIC
+    // FULL-SCREEN 3D VINTAGE GUMBALL MACHINE CONTROLLER (100 CLAVES LEVER PULL)
     // =========================================================================
     let gachapon3DInstance = null;
-    let currentShopSubtab = 'machine';
-    let unlockedStageBgs = JSON.parse(localStorage.getItem('beatstar_unlocked_stage_bgs') || '[]');
-    let activeStageBgId = localStorage.getItem('beatstar_active_stage_bg') || '';
-
-    function isDailyGachaponFreeAvailable() {
-      const todayKey = new Date().toISOString().slice(0, 10);
-      return localStorage.getItem('beatstar_gachapon_free_date') !== todayKey;
-    }
-
-    function markDailyGachaponFreeUsed() {
-      const todayKey = new Date().toISOString().slice(0, 10);
-      localStorage.setItem('beatstar_gachapon_free_date', todayKey);
-    }
+    const GACHAPON_PULL_COST = 100;
 
     function getEffectRarity(effect) {
       if (effect.rarity) return effect.rarity;
@@ -3639,24 +3542,20 @@
     }
 
     function updateGachaponControlDeckUI() {
-      const totalCollectibles = KEY_EFFECTS.length + (window.VINTAGE_STAGE_BACKGROUNDS ? window.VINTAGE_STAGE_BACKGROUNDS.length : 4);
-      const unlockedCount = unlockedEffects.length + unlockedStageBgs.length;
       const progEl = document.getElementById('gachaponCollectionProgressText');
-      if (progEl) progEl.innerText = `${unlockedCount} / ${totalCollectibles}`;
-
-      const freeToday = isDailyGachaponFreeAvailable();
-      const classicLabel = document.getElementById('classicPullBtnLabel');
-      const classicCost = document.getElementById('classicPullCostBadge');
-      if (classicLabel && classicCost) {
-        if (freeToday) {
-          classicLabel.innerText = '¡1ª Bola Gratis!';
-          classicCost.innerText = 'GRATIS HOY ✨';
-        } else {
-          classicLabel.innerText = 'Girar Manivela';
-          classicCost.innerText = '25 𝄞 Claves';
-        }
-      }
+      if (progEl) progEl.innerText = `(${unlockedEffects.length}/${KEY_EFFECTS.length})`;
     }
+
+    window.toggleGachaponEffectsDrawer = function(show) {
+      const drawer = document.getElementById('gachaponEffectsDrawer');
+      if (!drawer) return;
+      if (show) {
+        renderFXShopItems();
+        drawer.classList.remove('hidden');
+      } else {
+        drawer.classList.add('hidden');
+      }
+    };
 
     function initOrResumeGachapon3D() {
       const canvas = document.getElementById('gachapon3DCanvas');
@@ -3664,23 +3563,13 @@
 
       if (!gachapon3DInstance) {
         gachapon3DInstance = new window.VintageGachapon3D(canvas, {
-          onStateChange: (state, reward) => {
-            const tapPrompt = document.getElementById('gachaponTapPrompt');
+          onLeverPulled: () => {
+            pullGachaponCapsule();
+          },
+          onStateChange: (state) => {
             const overlay = document.getElementById('gachaponRewardOverlay');
-            const badge = document.getElementById('gachaponStatusBadge');
-
-            if (tapPrompt) {
-              tapPrompt.classList.toggle('hidden', state !== 'HERO_PRESENTATION');
-            }
             if (state !== 'CAPSULE_BURST_OPEN' && overlay) {
               overlay.classList.add('hidden');
-            }
-            if (badge) {
-              if (state === 'COIN_AND_CRANK') badge.innerText = '⚙️ Girando manivela y mezclando bolas 3D...';
-              else if (state === 'BALL_DROP_CHUTE') badge.innerText = '🎱 ¡Bola cayendo por la rampa de latón!';
-              else if (state === 'HERO_PRESENTATION') badge.innerText = '✨ ¡Abriendo cápsula premiada!';
-              else if (state === 'CAPSULE_BURST_OPEN') badge.innerText = '🎉 ¡Recompensa desbloqueada!';
-              else badge.innerText = 'Arrastra en 3D • Toca el globo para agitar';
             }
           },
           onRewardRevealed: (reward) => {
@@ -3695,35 +3584,13 @@
       }, 60);
     }
 
-    window.shakeGachaponMachine = function() {
-      if (gachapon3DInstance) {
-        gachapon3DInstance.shakeGlobe(1.15);
-      }
-    };
-
-    window.triggerGachaponBurstNow = function() {
-      if (gachapon3DInstance) {
-        gachapon3DInstance.triggerCapsuleBurstNow();
-      }
-    };
-
-    function rollGachaponReward(pullType = 'classic') {
-      const tiers = window.GACHAPON_RARITY_TIERS || {};
-      const stageBgs = window.VINTAGE_STAGE_BACKGROUNDS || [];
-
-      // 1. Pick Rarity Tier based on pullType ('classic' vs 'royal')
-      const weights = pullType === 'royal'
-        ? [
-            { id: 'legendary', w: 36 },
-            { id: 'epic', w: 44 },
-            { id: 'rare', w: 20 }
-          ]
-        : [
-            { id: 'legendary', w: 14 },
-            { id: 'epic', w: 28 },
-            { id: 'rare', w: 36 },
-            { id: 'classic', w: 22 }
-          ];
+    function rollGachaponReward() {
+      const weights = [
+        { id: 'legendary', w: 18 },
+        { id: 'epic', w: 32 },
+        { id: 'rare', w: 34 },
+        { id: 'classic', w: 16 }
+      ];
 
       const totalW = weights.reduce((acc, it) => acc + it.w, 0);
       let rnd = Math.random() * totalW;
@@ -3736,77 +3603,33 @@
         rnd -= item.w;
       }
 
-      // 2. Gather unowned Key Effects & Stage Backgrounds first (Smart Collector Pity!)
+      // Prioritize unowned Key Effects
       const unownedEffects = KEY_EFFECTS.filter(e => !unlockedEffects.includes(e.id));
-      const unownedBgs = stageBgs.filter(b => !unlockedStageBgs.includes(b.id));
+      const unownedMatching = unownedEffects.filter(e => getEffectRarity(e) === chosenRarity);
 
-      // Filter by chosen rarity or upgrade/fallback to available unowned items
-      const unownedEffectsMatching = unownedEffects.filter(e => getEffectRarity(e) === chosenRarity);
-      const unownedBgsMatching = unownedBgs.filter(b => b.rarity === chosenRarity);
-
-      const shouldDropUnownedCollectible = (unownedEffects.length > 0 || unownedBgs.length > 0) &&
-        (pullType === 'royal' ? Math.random() < 0.88 : Math.random() < 0.75);
-
-      if (shouldDropUnownedCollectible) {
-        if (unownedEffectsMatching.length > 0) {
-          const ef = unownedEffectsMatching[Math.floor(Math.random() * unownedEffectsMatching.length)];
-          return {
-            type: 'key_effect',
-            id: ef.id,
-            rarity: getEffectRarity(ef),
-            isNew: true,
-            title: ef.name,
-            desc: ef.desc
-          };
-        }
-        if (unownedBgsMatching.length > 0) {
-          const bg = unownedBgsMatching[Math.floor(Math.random() * unownedBgsMatching.length)];
-          return {
-            type: 'stage_bg',
-            id: bg.id,
-            rarity: bg.rarity,
-            isNew: true,
-            title: bg.name,
-            desc: bg.desc,
-            bgData: bg
-          };
-        }
-        // Fallback to any unowned effect!
-        if (unownedEffects.length > 0) {
-          const ef = unownedEffects[Math.floor(Math.random() * unownedEffects.length)];
-          return {
-            type: 'key_effect',
-            id: ef.id,
-            rarity: getEffectRarity(ef),
-            isNew: true,
-            title: ef.name,
-            desc: ef.desc
-          };
-        }
-        if (unownedBgs.length > 0) {
-          const bg = unownedBgs[Math.floor(Math.random() * unownedBgs.length)];
-          return {
-            type: 'stage_bg',
-            id: bg.id,
-            rarity: bg.rarity,
-            isNew: true,
-            title: bg.name,
-            desc: bg.desc,
-            bgData: bg
-          };
-        }
+      if (unownedEffects.length > 0 && Math.random() < 0.85) {
+        const pool = unownedMatching.length > 0 ? unownedMatching : unownedEffects;
+        const ef = pool[Math.floor(Math.random() * pool.length)];
+        return {
+          type: 'key_effect',
+          id: ef.id,
+          rarity: getEffectRarity(ef),
+          isNew: true,
+          title: ef.name,
+          desc: ef.desc
+        };
       }
 
-      // 3. Currency & Medal Jackpot Capsules (or when all effects are unlocked)
+      // Currency & Medal Jackpot Capsules
       if (chosenRarity === 'legendary') {
         return {
           type: 'jackpot_bundle',
           id: 'jackpot_imperial',
           rarity: 'legendary',
           isNew: false,
-          title: '¡Gran Tesoro Imperial de Concierto!',
-          desc: 'Cápsula maciza de oro: +160 𝄞 Claves de Sol, +2 Diamantes de Platino y +2 Medallas de Oro.',
-          clefs: 160,
+          title: '¡Gran Tesoro Imperial!',
+          desc: '+200 𝄞 Claves de Sol, +2 Diamantes de Platino y +2 Medallas de Oro.',
+          clefs: 200,
           silvers: 0,
           golds: 2,
           platinums: 2
@@ -3817,9 +3640,9 @@
           id: 'jackpot_ruby',
           rarity: 'epic',
           isNew: false,
-          title: 'Cápsula Real de Rubí y Platino',
-          desc: 'Recompensa de cámara acústica: +90 𝄞 Claves de Sol, +1 Diamante de Platino y +2 Medallas de Oro.',
-          clefs: 90,
+          title: 'Cápsula Real de Rubí',
+          desc: '+130 𝄞 Claves de Sol, +1 Diamante de Platino y +2 Medallas de Oro.',
+          clefs: 130,
           silvers: 1,
           golds: 2,
           platinums: 1
@@ -3830,9 +3653,9 @@
           id: 'jackpot_emerald',
           rarity: 'rare',
           isNew: false,
-          title: 'Cápsula Armónica de Esmeralda',
-          desc: 'Premio de colección: +55 𝄞 Claves de Sol, +1 Medalla de Oro y +2 Medallas de Plata.',
-          clefs: 55,
+          title: 'Cápsula de Esmeralda',
+          desc: '+110 𝄞 Claves de Sol, +1 Medalla de Oro y +2 Medallas de Plata.',
+          clefs: 110,
           silvers: 2,
           golds: 1,
           platinums: 0
@@ -3843,9 +3666,9 @@
           id: 'jackpot_classic',
           rarity: 'classic',
           isNew: false,
-          title: 'Cápsula Clásica de Marfil',
-          desc: 'Contiene +35 𝄞 Claves de Sol y +2 Medallas de Plata para tu colección.',
-          clefs: 35,
+          title: 'Cápsula de Marfil',
+          desc: '+80 𝄞 Claves de Sol y +2 Medallas de Plata.',
+          clefs: 80,
           silvers: 2,
           golds: 0,
           platinums: 0
@@ -3859,11 +3682,6 @@
         if (!unlockedEffects.includes(reward.id)) {
           unlockedEffects.push(reward.id);
           localStorage.setItem('beatstar_unlocked_effects', JSON.stringify(unlockedEffects));
-        }
-      } else if (reward.type === 'stage_bg') {
-        if (!unlockedStageBgs.includes(reward.id)) {
-          unlockedStageBgs.push(reward.id);
-          localStorage.setItem('beatstar_unlocked_stage_bgs', JSON.stringify(unlockedStageBgs));
         }
       } else if (reward.type === 'jackpot_bundle') {
         if (reward.clefs) userClefs += reward.clefs;
@@ -3898,13 +3716,7 @@
       }
 
       if (newTag) {
-        if (reward.isNew) {
-          newTag.innerText = '✨ ¡NUEVO DESBLOQUEO!';
-          newTag.className = 'px-2 py-0.5 rounded bg-emerald-500/25 border border-emerald-400/50 text-emerald-300 text-[8.5px] font-black uppercase tracking-wider';
-        } else {
-          newTag.innerText = '💎 BOTE DE TESORO';
-          newTag.className = 'px-2 py-0.5 rounded bg-amber-500/25 border border-amber-400/50 text-amber-300 text-[8.5px] font-black uppercase tracking-wider';
-        }
+        newTag.innerText = reward.isNew ? '✨ ¡NUEVO EFECTO!' : '💎 PREMIO';
       }
 
       if (titleEl) titleEl.innerText = reward.title;
@@ -3914,23 +3726,17 @@
         let btns = '';
         if (reward.type === 'key_effect') {
           btns += `
-            <button onclick="equipKeyEffect('${reward.id}'); gachapon3DInstance && gachapon3DInstance.resetToIdle();" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 hover:brightness-110 text-stone-950 font-black text-[11px] transition active:scale-95 cursor-pointer shadow-md">
-              ⚡ Equipar Ahora
+            <button onclick="equipKeyEffect('${reward.id}'); gachapon3DInstance && gachapon3DInstance.resetToIdle(); document.getElementById('gachaponRewardOverlay').classList.add('hidden');" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 hover:brightness-110 text-stone-950 font-black text-xs transition active:scale-95 cursor-pointer shadow-md">
+              ⚡ Equipar
             </button>
-            <button onclick="launchEffectDemo('${reward.id}')" class="px-2.5 py-1.5 rounded-xl bg-cyan-500/25 hover:bg-cyan-500/40 text-cyan-200 border border-cyan-400/50 font-black text-[11px] transition active:scale-95 cursor-pointer">
-              ▶ Probar en Pista
-            </button>
-          `;
-        } else if (reward.type === 'stage_bg') {
-          btns += `
-            <button onclick="equipVintageStageBg('${reward.id}'); gachapon3DInstance && gachapon3DInstance.resetToIdle();" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 hover:brightness-110 text-stone-950 font-black text-[11px] transition active:scale-95 cursor-pointer shadow-md">
-              🖼️ Aplicar Escenario
+            <button onclick="launchEffectDemo('${reward.id}')" class="px-3.5 py-2 rounded-xl bg-cyan-500/25 hover:bg-cyan-500/40 text-cyan-200 border border-cyan-400/50 font-black text-xs transition active:scale-95 cursor-pointer">
+              ▶ Probar
             </button>
           `;
         }
         btns += `
-          <button onclick="gachapon3DInstance && gachapon3DInstance.resetToIdle(); document.getElementById('gachaponRewardOverlay').classList.add('hidden');" class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-amber-200 border border-amber-400/30 font-bold text-[11px] transition active:scale-95 cursor-pointer">
-            🎱 Seguir Tirando
+          <button onclick="gachapon3DInstance && gachapon3DInstance.resetToIdle(); document.getElementById('gachaponRewardOverlay').classList.add('hidden');" class="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold text-xs transition active:scale-95 cursor-pointer">
+            OK
           </button>
         `;
         actionsEl.innerHTML = btns;
@@ -3939,7 +3745,7 @@
       overlay.classList.remove('hidden');
     }
 
-    window.pullGachaponCapsule = function(pullType = 'classic') {
+    window.pullGachaponCapsule = function() {
       if (!gachapon3DInstance) {
         initOrResumeGachapon3D();
       }
@@ -3947,22 +3753,14 @@
         return;
       }
 
-      const freeToday = (pullType === 'classic') && isDailyGachaponFreeAvailable();
-      const costClefs = pullType === 'royal' ? 75 : (freeToday ? 0 : 25);
-
-      if (userClefs < costClefs) {
-        showErrorToast(`Necesitas ${costClefs} 𝄞 Claves de Sol para esta bola. ¡Juega canciones o usa tu tirada clásica!`);
-        if (gachapon3DInstance) gachapon3DInstance.shakeGlobe(0.6);
+      if (userClefs < GACHAPON_PULL_COST) {
+        showErrorToast(`Necesitas ${GACHAPON_PULL_COST} 𝄞 Claves para tirar de la palanca.`);
+        if (gachapon3DInstance) gachapon3DInstance.shakeGlobe(0.5);
         return;
       }
 
-      if (freeToday) {
-        markDailyGachaponFreeUsed();
-      } else if (costClefs > 0) {
-        userClefs -= costClefs;
-      }
-
-      const reward = rollGachaponReward(pullType);
+      userClefs -= GACHAPON_PULL_COST;
+      const reward = rollGachaponReward();
       applyGachaponRewardToProfile(reward);
 
       const overlay = document.getElementById('gachaponRewardOverlay');
@@ -3971,64 +3769,6 @@
       if (gachapon3DInstance) {
         gachapon3DInstance.startVendingSequence(reward);
       }
-    };
-
-    window.equipVintageStageBg = function(stageBgId) {
-      const stageBgs = window.VINTAGE_STAGE_BACKGROUNDS || [];
-      const bgObj = stageBgs.find(b => b.id === stageBgId);
-      if (!bgObj) return;
-
-      // Generate a rich procedural vintage stage artwork dataURL
-      const c = document.createElement('canvas');
-      c.width = 540;
-      c.height = 960;
-      const ctx = c.getContext('2d');
-      const [c0, c1, c2, c3] = bgObj.palette;
-
-      const grad = ctx.createRadialGradient(270, 320, 40, 270, 480, 620);
-      grad.addColorStop(0, c2);
-      grad.addColorStop(0.38, c1);
-      grad.addColorStop(1, c0);
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, 540, 960);
-
-      // Ornate stage rays & vintage vignette rings
-      ctx.save();
-      ctx.translate(270, 300);
-      for (let i = 0; i < 24; i++) {
-        ctx.rotate((Math.PI * 2) / 24);
-        ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)';
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(-28, 700);
-        ctx.lineTo(28, 700);
-        ctx.closePath();
-        ctx.fill();
-      }
-      ctx.restore();
-
-      ctx.strokeStyle = c3;
-      ctx.lineWidth = 3;
-      ctx.strokeRect(24, 24, 492, 912);
-      ctx.lineWidth = 1.2;
-      ctx.strokeRect(36, 36, 468, 888);
-
-      const dataUrl = c.toDataURL('image/jpeg', 0.88);
-      try {
-        localStorage.setItem('beatstar_custom_bg_data', dataUrl);
-        localStorage.setItem('beatstar_active_stage_bg', stageBgId);
-        activeStageBgId = stageBgId;
-      } catch (e) {}
-
-      window.customBgMediaBlobUrl = dataUrl;
-      window.customBgMediaType = 'image';
-      localStorage.setItem('beatstar_bg_mode', 'reactive');
-
-      if (engine) {
-        engine.setCustomBackground(dataUrl, 'image', 'reactive', 0.55);
-      }
-      renderFXShopBackgroundPanel();
-      showSuccessToast(`¡${bgObj.name} aplicado al escenario!`);
     };
 
     window.openFXShopModal = function() {
@@ -4040,7 +3780,7 @@
         modal.style.display = 'flex';
         modal.classList.add('open');
       }
-      switchFXShopSubtab(currentShopSubtab || 'machine');
+      initOrResumeGachapon3D();
     };
 
     window.closeFXShopModal = function() {
@@ -4048,6 +3788,8 @@
       if (gachapon3DInstance) {
         gachapon3DInstance.stop();
       }
+      const drawer = document.getElementById('gachaponEffectsDrawer');
+      if (drawer) drawer.classList.add('hidden');
       const modal = document.getElementById('fxShopModal');
       if (modal) {
         modal.classList.remove('open');
@@ -4056,40 +3798,23 @@
     };
 
     window.applyVisualDimensionTheme = function(dim) {
-      const mode = dim || localStorage.getItem('beatstar_visual_dimension') || '3d';
-      localStorage.setItem('beatstar_visual_dimension', mode);
-      const is3D = (mode === '3d');
-      
+      localStorage.setItem('beatstar_visual_dimension', '3d');
       const docEl = document.documentElement;
       const bodyEl = document.body;
-
-      if (is3D) {
-        docEl.classList.add('theme-vintage-3d');
-        bodyEl.classList.add('theme-vintage-3d');
-        docEl.classList.remove('theme-neon-2d');
-        bodyEl.classList.remove('theme-neon-2d');
-      } else {
-        docEl.classList.add('theme-neon-2d');
-        bodyEl.classList.add('theme-neon-2d');
-        docEl.classList.remove('theme-vintage-3d');
-        bodyEl.classList.remove('theme-vintage-3d');
-      }
+      docEl.classList.add('theme-vintage-3d');
+      bodyEl.classList.add('theme-vintage-3d');
+      docEl.classList.remove('theme-neon-2d');
+      bodyEl.classList.remove('theme-neon-2d');
 
       const activeEngine = (typeof engine !== 'undefined' && engine) || window.engine;
       if (activeEngine && typeof activeEngine.setVisualDimension === 'function') {
-        activeEngine.setVisualDimension(mode);
+        activeEngine.setVisualDimension('3d');
       }
     };
 
-    window.setVisualDimensionMode = function(dim) {
-      localStorage.setItem('beatstar_visual_dimension', dim);
-      applyVisualDimensionTheme(dim);
-      const activeEngine = (typeof engine !== 'undefined' && engine) || window.engine;
-      if (activeEngine && typeof activeEngine.setVisualDimension === 'function') {
-        activeEngine.setVisualDimension(dim);
-      }
+    window.setVisualDimensionMode = function() {
+      applyVisualDimensionTheme('3d');
       renderFXShopItems();
-      showSuccessToast(dim === '3d' ? t('toast_3d_mode', 'Modo 3D Gran Piano activado.') : t('toast_2d_mode', 'Modo 2D Neón Clásico activado.'));
     };
 
     window.setPianoKeyStyle = function(style) {
@@ -4099,69 +3824,27 @@
         activeEngine.setKeyStyle(style);
       }
       renderFXShopItems();
-      showSuccessToast(style === 'beatstar_large' ? t('toast_keys_large', 'Teclas grandes tradicionales activadas.') : t('toast_keys_compact', 'Teclas compactas activadas.'));
+      showSuccessToast(style === 'beatstar_large' ? t('toast_keys_large', 'Teclas grandes activadas.') : t('toast_keys_compact', 'Teclas compactas activadas.'));
     };
 
     function renderFXShopItems() {
       const container = document.getElementById('fxShopCardsContainer');
       if (!container) return;
 
-      const currentDim = localStorage.getItem('beatstar_visual_dimension') || '3d';
-      const is3D = currentDim === '3d';
       const currentKeyStyle = localStorage.getItem('beatstar_key_style') || 'beatstar_large';
       const isLargeKeys = currentKeyStyle === 'beatstar_large';
 
-      // 1. Dimensión Visual (3D Gran Piano vs 2D Neón)
-      const dimensionCardHtml = `
-        <div class="p-3 rounded-2xl bg-gradient-to-r from-amber-500/15 via-[#18121f] to-amber-900/10 border border-amber-500/35 space-y-2 shadow-lg">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-amber-300"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"/></svg>
-              <div>
-                <p class="text-xs font-black text-amber-200 uppercase tracking-wide font-serif">${t('shop_dimension_title', 'Dimensión Visual del Juego')}</p>
-                <p class="text-[9.5px] text-gray-300 leading-tight mt-0.5">${t('shop_dimension_desc', 'Elige entre la perspectiva 3D gran piano y el clásico neón 2D.')}</p>
-              </div>
-            </div>
-          </div>
-          <div class="grid grid-cols-2 gap-2 pt-0.5">
-            <button onclick="setVisualDimensionMode('3d')" class="py-2 px-2 rounded-xl text-xs font-black transition flex flex-col items-center gap-0.5 cursor-pointer border ${is3D ? 'bg-amber-500/25 text-amber-300 border-amber-400 shadow-lg shadow-amber-500/25' : 'bg-white/5 text-gray-400 border-white/10 hover:border-white/20'}">
-              <span class="font-serif font-bold text-center">${t('shop_mode_3d', '3D Gran Piano')}</span>
-              <span class="text-[8px] font-black text-amber-400/90 tracking-tight">${t('shop_mode_3d_tag', '★ RECOMENDADO')}</span>
-            </button>
-            <button onclick="setVisualDimensionMode('2d')" class="py-2 px-2 rounded-xl text-xs font-black transition flex flex-col items-center gap-0.5 cursor-pointer border ${!is3D ? 'bg-cyan-500/25 text-cyan-300 border-cyan-400 shadow-lg shadow-cyan-500/25' : 'bg-white/5 text-gray-400 border-white/10 hover:border-white/20'}">
-              <span class="font-bold text-center">${t('shop_mode_2d', '2D Neón Clásico')}</span>
-              <span class="text-[8px] font-black text-cyan-400/90 tracking-tight">${t('shop_mode_2d_tag', 'PLANO 2D')}</span>
-            </button>
-          </div>
-        </div>
-      `;
-
-      // 2. Estilo de Teclas de Piano
       const keyStyleCardHtml = `
-        <div class="p-3 rounded-2xl bg-gradient-to-r from-purple-500/10 via-[#140f1a] to-white/5 border border-white/15 space-y-2 shadow-md">
-          <div class="flex items-center justify-between">
-            <p class="text-xs font-black text-white uppercase tracking-wide">${t('shop_keystyle_title', 'Tamaño de Teclas en Pista')}</p>
-          </div>
+        <div class="p-3 rounded-2xl bg-white/5 border border-white/15 space-y-2">
+          <p class="text-xs font-black text-white uppercase tracking-wide">${t('shop_keystyle_title', 'Tamaño de Teclas en Pista')}</p>
           <div class="grid grid-cols-2 gap-2">
-            <button onclick="setPianoKeyStyle('beatstar_large')" class="py-2 px-2 rounded-xl text-xs font-black transition flex flex-col items-center gap-0.5 cursor-pointer border ${isLargeKeys ? 'bg-amber-500/25 text-amber-300 border-amber-400 shadow-lg shadow-amber-500/25' : 'bg-white/5 text-gray-400 border-white/10 hover:border-white/20'}">
-              <span class="font-serif font-bold text-center">${t('shop_keys_beatstar', 'Teclas Grandes')}</span>
-              <span class="text-[8px] font-black text-amber-400/90 tracking-tight">ANCHO COMPLETO</span>
+            <button onclick="setPianoKeyStyle('beatstar_large')" class="py-2 px-2 rounded-xl text-xs font-black transition cursor-pointer border ${isLargeKeys ? 'bg-amber-500/25 text-amber-300 border-amber-400' : 'bg-white/5 text-gray-400 border-white/10'}">
+              Teclas Grandes
             </button>
-            <button onclick="setPianoKeyStyle('compact')" class="py-2 px-2 rounded-xl text-xs font-black transition flex flex-col items-center gap-0.5 cursor-pointer border ${!isLargeKeys ? 'bg-purple-500/25 text-purple-300 border-purple-400 shadow-lg shadow-purple-500/25' : 'bg-white/5 text-gray-400 border-white/10 hover:border-white/20'}">
-              <span class="font-bold text-center">${t('shop_keys_compact', 'Teclas Compactas')}</span>
-              <span class="text-[8px] font-black text-gray-400 tracking-tight">CLÁSICAS</span>
+            <button onclick="setPianoKeyStyle('compact')" class="py-2 px-2 rounded-xl text-xs font-black transition cursor-pointer border ${!isLargeKeys ? 'bg-amber-500/25 text-amber-300 border-amber-400' : 'bg-white/5 text-gray-400 border-white/10'}">
+              Teclas Compactas
             </button>
           </div>
-        </div>
-      `;
-
-      // 3. Baúl de Efectos de Cápsula
-      const effectsHeaderHtml = `
-        <div class="pt-1 flex items-center justify-between">
-          <p class="text-[11px] font-black text-amber-200 uppercase tracking-wider flex items-center gap-1.5 font-serif">
-            <span>🎱</span> Baúl de Efectos de Impacto
-          </p>
-          <span class="text-[9px] text-amber-300 font-mono font-bold">${unlockedEffects.length} / ${KEY_EFFECTS.length} desbloqueados</span>
         </div>
       `;
 
@@ -4178,465 +3861,49 @@
         let actionBtnHtml = '';
         if (isActive) {
           actionBtnHtml = `
-            <button disabled class="px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 font-bold text-xs border border-amber-500/40 opacity-90 cursor-default flex items-center gap-1">
-              <span>✓</span> Equipado
+            <button disabled class="px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 font-bold text-xs border border-amber-500/40 cursor-default">
+              ✓ Equipado
             </button>
           `;
         } else if (isUnlocked) {
           actionBtnHtml = `
-            <button onclick="equipKeyEffect('${effect.id}')" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 text-black font-black text-xs transition active:scale-95 cursor-pointer shadow-md shadow-amber-500/25">
+            <button onclick="equipKeyEffect('${effect.id}')" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 text-black font-black text-xs transition active:scale-95 cursor-pointer">
               ⚡ Equipar
             </button>
           `;
         } else {
           actionBtnHtml = `
-            <button onclick="switchFXShopSubtab('machine')" class="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-600/40 to-red-800/40 hover:from-amber-500/50 text-amber-200 border border-amber-400/50 font-black text-[10px] transition active:scale-95 cursor-pointer flex items-center gap-1">
-              <span>🎱</span> Sacar Bola
-            </button>
+            <span class="px-2.5 py-1 rounded-lg bg-white/5 text-gray-400 font-bold text-[10px] border border-white/10">
+              🔒 En Máquina (100 𝄞)
+            </span>
           `;
         }
 
-        const statusBadgeHtml = isUnlocked
-          ? '<span class="text-[9px] font-bold text-emerald-400">✓ En tu Baúl</span>'
-          : `<span class="text-[9px] font-bold text-amber-300/80">🔒 Sale en Máquina 3D</span>`;
-
         return `
-          <div class="fx-shop-card ${isActive ? 'active-theme' : ''} ${!isUnlocked ? 'opacity-85' : ''}">
+          <div class="fx-shop-card ${isActive ? 'active-theme' : ''} ${!isUnlocked ? 'opacity-80' : ''}">
             <div class="space-y-2">
-              <div>
-                <div class="flex items-center justify-between gap-1 flex-wrap">
-                  <p class="text-xs font-black text-white flex items-center gap-1.5">
-                    <span style="color:${tier.cssColor}">●</span> ${effectName}
-                  </p>
-                  <div class="flex items-center gap-1">
-                    <span class="px-1.5 py-0.5 rounded bg-black/60 border border-white/15 text-[8px] font-black tracking-wider uppercase" style="color:${tier.cssColor}">${tier.label}</span>
-                    ${isActive ? '<span class="px-2 py-0.5 rounded-full bg-amber-500/25 text-amber-300 text-[9px] font-black border border-amber-400/40">EQUIPADO</span>' : ''}
-                  </div>
-                </div>
-                <p class="text-[10px] text-gray-300 leading-tight mt-1">${effectDesc}</p>
+              <div class="flex items-center justify-between gap-1">
+                <p class="text-xs font-black text-white flex items-center gap-1.5">
+                  <span style="color:${tier.cssColor}">●</span> ${effectName}
+                </p>
+                <span class="px-1.5 py-0.5 rounded bg-black/60 border border-white/15 text-[8px] font-black uppercase" style="color:${tier.cssColor}">${tier.label}</span>
               </div>
-              
-              <div class="flex items-center justify-between pt-1.5 border-t border-white/10 gap-2">
-                <div class="flex-1">
-                  ${statusBadgeHtml}
-                </div>
-                <div class="flex items-center gap-1.5 flex-shrink-0">
-                  <button onclick="launchEffectDemo('${effect.id}')" class="px-2.5 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 font-black text-xs border border-cyan-400/40 transition active:scale-95 cursor-pointer flex items-center gap-1 shadow-sm">
-                    <span>▶</span> Probar
-                  </button>
-                  ${actionBtnHtml}
-                </div>
+              <p class="text-[10px] text-gray-300 leading-tight">${effectDesc}</p>
+              <div class="flex items-center justify-end pt-1.5 border-t border-white/10 gap-2">
+                <button onclick="launchEffectDemo('${effect.id}')" class="px-3 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/35 text-cyan-300 font-black text-xs border border-cyan-400/40 transition active:scale-95 cursor-pointer flex items-center gap-1">
+                  <span>▶</span> Probar
+                </button>
+                ${actionBtnHtml}
               </div>
             </div>
           </div>
         `;
       }).join('');
 
-      container.innerHTML = dimensionCardHtml + keyStyleCardHtml + effectsHeaderHtml + effectsCardsHtml;
+      container.innerHTML = keyStyleCardHtml + effectsCardsHtml;
     }
 
-    window.switchFXShopSubtab = function(tab) {
-      currentShopSubtab = tab || 'machine';
-      const btnMachine = document.getElementById('tabBtnShopMachine');
-      const btnEffects = document.getElementById('tabBtnShopEffects');
-      const btnBg = document.getElementById('tabBtnShopBackground');
-
-      const contentMachine = document.getElementById('shopMachineSubtabContent');
-      const contentEffects = document.getElementById('shopEffectsSubtabContent');
-      const contentBg = document.getElementById('shopBackgroundSubtabContent');
-
-      const activeCls = 'py-1.5 px-1 rounded-lg transition text-center cursor-pointer bg-gradient-to-r from-amber-500/35 to-red-700/35 text-amber-200 border border-amber-400/60 shadow-sm font-black';
-      const inactiveCls = 'py-1.5 px-1 rounded-lg transition text-center cursor-pointer text-gray-400 hover:text-white border border-transparent';
-
-      if (btnMachine) btnMachine.className = (currentShopSubtab === 'machine') ? activeCls : inactiveCls;
-      if (btnEffects) btnEffects.className = (currentShopSubtab === 'effects') ? activeCls : inactiveCls;
-      if (btnBg) btnBg.className = (currentShopSubtab === 'background') ? activeCls : inactiveCls;
-
-      if (contentMachine) contentMachine.classList.toggle('hidden', currentShopSubtab !== 'machine');
-      if (contentEffects) contentEffects.classList.toggle('hidden', currentShopSubtab !== 'effects');
-      if (contentBg) contentBg.classList.toggle('hidden', currentShopSubtab !== 'background');
-
-      if (currentShopSubtab === 'machine') {
-        updateGachaponControlDeckUI();
-        initOrResumeGachapon3D();
-      } else {
-        if (gachapon3DInstance) gachapon3DInstance.stop();
-        if (currentShopSubtab === 'effects') {
-          renderFXShopItems();
-        } else if (currentShopSubtab === 'background') {
-          renderFXShopBackgroundPanel();
-        }
-      }
-    };
-
-    window.customBgMediaBlobUrl = null;
-    window.customBgMediaType = null;
-
-    window.setGameBgFit = function(fit) {
-      localStorage.setItem('beatstar_bg_fit', fit);
-      if (engine && engine.setCustomBgTransform) {
-        engine.setCustomBgTransform(
-          parseFloat(localStorage.getItem('beatstar_bg_crop_x') || '0.5'),
-          parseFloat(localStorage.getItem('beatstar_bg_crop_y') || '0.5'),
-          parseFloat(localStorage.getItem('beatstar_bg_crop_zoom') || '1.0'),
-          fit
-        );
-      }
-      renderFXShopBackgroundPanel();
-      showSuccessToast(fit === 'contain' ? 'Ajuste: Imagen/Vídeo completo' : 'Ajuste: Cubrir toda la pantalla');
-    };
-
-    window.updateGameBgCrop = function(cropX, cropY, zoom) {
-      const curFit = localStorage.getItem('beatstar_bg_fit') || 'cover';
-      const x = cropX !== undefined ? parseFloat(cropX) : parseFloat(localStorage.getItem('beatstar_bg_crop_x') || '0.5');
-      const y = cropY !== undefined ? parseFloat(cropY) : parseFloat(localStorage.getItem('beatstar_bg_crop_y') || '0.5');
-      const z = zoom !== undefined ? parseFloat(zoom) : parseFloat(localStorage.getItem('beatstar_bg_crop_zoom') || '1.0');
-
-      localStorage.setItem('beatstar_bg_crop_x', x.toString());
-      localStorage.setItem('beatstar_bg_crop_y', y.toString());
-      localStorage.setItem('beatstar_bg_crop_zoom', z.toString());
-
-      if (engine && engine.setCustomBgTransform) {
-        engine.setCustomBgTransform(x, y, z, curFit);
-      }
-
-      const zoomTxt = document.getElementById('bgZoomValueText');
-      if (zoomTxt) zoomTxt.innerText = Math.round(z * 100) + '%';
-      const prevMedia = document.getElementById('shopBgPreviewMedia');
-      if (prevMedia) {
-        prevMedia.style.objectPosition = `${Math.round(x * 100)}% ${Math.round(y * 100)}%`;
-        prevMedia.style.transform = `scale(${z})`;
-      }
-    };
-
-    window.resetGameBgCrop = function() {
-      window.updateGameBgCrop(0.5, 0.5, 1.0);
-      const slX = document.getElementById('bgCropXSlider'); if (slX) slX.value = 50;
-      const slY = document.getElementById('bgCropYSlider'); if (slY) slY.value = 50;
-      const slZ = document.getElementById('bgZoomSlider'); if (slZ) slZ.value = 100;
-      showSuccessToast('Encuadre centrado al 100%.');
-    };
-
-    window.initShopBgPreviewDrag = function(previewEl) {
-      if (!previewEl || previewEl._dragInitialized) return;
-      previewEl._dragInitialized = true;
-      let isDragging = false;
-      let startX = 0, startY = 0;
-      let startCropX = 0.5, startCropY = 0.5;
-
-      const onStart = (clientX, clientY) => {
-        isDragging = true;
-        startX = clientX;
-        startY = clientY;
-        startCropX = parseFloat(localStorage.getItem('beatstar_bg_crop_x') || '0.5');
-        startCropY = parseFloat(localStorage.getItem('beatstar_bg_crop_y') || '0.5');
-      };
-
-      const onMove = (clientX, clientY) => {
-        if (!isDragging) return;
-        const rect = previewEl.getBoundingClientRect();
-        const deltaX = (startX - clientX) / (rect.width || 150);
-        const deltaY = (startY - clientY) / (rect.height || 260);
-        const newX = Math.max(0, Math.min(1, startCropX + deltaX));
-        const newY = Math.max(0, Math.min(1, startCropY + deltaY));
-        window.updateGameBgCrop(newX, newY, undefined);
-        const slX = document.getElementById('bgCropXSlider'); if (slX) slX.value = Math.round(newX * 100);
-        const slY = document.getElementById('bgCropYSlider'); if (slY) slY.value = Math.round(newY * 100);
-      };
-
-      const onEnd = () => { isDragging = false; };
-
-      previewEl.addEventListener('mousedown', e => { e.preventDefault(); onStart(e.clientX, e.clientY); });
-      window.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
-      window.addEventListener('mouseup', onEnd);
-
-      previewEl.addEventListener('touchstart', e => {
-        if (e.touches.length === 1) {
-          onStart(e.touches[0].clientX, e.touches[0].clientY);
-        }
-      }, { passive: true });
-      window.addEventListener('touchmove', e => {
-        if (isDragging && e.touches.length === 1) {
-          if (e.cancelable) e.preventDefault();
-          onMove(e.touches[0].clientX, e.touches[0].clientY);
-        }
-      }, { passive: false });
-      window.addEventListener('touchend', onEnd);
-      window.addEventListener('touchcancel', onEnd);
-    };
-
-    window.renderFXShopBackgroundPanel = function() {
-      const container = document.getElementById('customBgControlsContainer');
-      if (!container) return;
-
-      const currentMode = localStorage.getItem('beatstar_bg_mode') || 'black';
-      const currentOpacity = parseFloat(localStorage.getItem('beatstar_bg_opacity') || '0.40') || 0.40;
-      const currentFit = localStorage.getItem('beatstar_bg_fit') || 'cover';
-      const currentCropX = parseFloat(localStorage.getItem('beatstar_bg_crop_x') || '0.5');
-      const currentCropY = parseFloat(localStorage.getItem('beatstar_bg_crop_y') || '0.5');
-      const currentZoom = parseFloat(localStorage.getItem('beatstar_bg_crop_zoom') || '1.0');
-
-      const mediaUrl = window.customBgMediaBlobUrl || localStorage.getItem('beatstar_custom_bg_data') || './preview.png';
-      const isVideo = window.customBgMediaType === 'video' || (typeof mediaUrl === 'string' && (mediaUrl.includes('.mp4') || mediaUrl.includes('.webm') || mediaUrl.startsWith('data:video')));
-
-      const stageBgs = window.VINTAGE_STAGE_BACKGROUNDS || [];
-      const stageBgsHtml = stageBgs.length > 0 ? `
-        <div class="p-2.5 bg-black/60 rounded-xl border border-amber-500/30 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="text-[10.5px] font-black text-amber-200 uppercase tracking-wider font-serif">🎱 Escenarios de Cápsula 3D</span>
-            <span class="text-[9px] text-amber-400 font-mono font-bold">${unlockedStageBgs.length} / ${stageBgs.length}</span>
-          </div>
-          <div class="grid grid-cols-2 gap-1.5">
-            ${stageBgs.map(bg => {
-              const isOwned = unlockedStageBgs.includes(bg.id);
-              const isEquipped = activeStageBgId === bg.id && currentMode !== 'black';
-              return `
-                <button onclick="${isOwned ? `equipVintageStageBg('${bg.id}')` : `switchFXShopSubtab('machine')`}" class="p-2 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between gap-1 ${isEquipped ? 'bg-amber-500/25 border-amber-400 text-amber-100' : (isOwned ? 'bg-white/5 border-white/15 text-gray-200 hover:border-amber-400/50' : 'bg-black/40 border-white/10 text-gray-400 opacity-80')}">
-                  <div class="flex items-center justify-between gap-1">
-                    <span class="w-3 h-3 rounded-full border border-white/40 flex-shrink-0" style="background: linear-gradient(135deg, ${bg.palette[1]}, ${bg.palette[2]});"></span>
-                    <span class="text-[8px] font-mono font-bold ${isEquipped ? 'text-amber-300' : (isOwned ? 'text-emerald-400' : 'text-amber-400/80')}">${isEquipped ? 'ACTIVO' : (isOwned ? 'APLICAR' : '🔒 BOLA 3D')}</span>
-                  </div>
-                  <span class="text-[9.5px] font-bold leading-tight line-clamp-1">${bg.name.replace('Escenario: ', '')}</span>
-                </button>
-              `;
-            }).join('')}
-          </div>
-        </div>
-      ` : '';
-
-      container.innerHTML = `
-        ${stageBgsHtml}
-        <!-- Vista previa interactiva del fondo (Encuadre exacto vertical 9:16 de pantalla de móvil) -->
-        <div class="flex flex-col items-center justify-center py-1">
-          <div id="shopBgPreviewFrame" class="relative w-36 max-w-[155px] rounded-2xl overflow-hidden border-2 border-white/25 shadow-2xl bg-black flex items-center justify-center select-none cursor-grab active:cursor-grabbing ring-4 ring-black/50" style="aspect-ratio: 9 / 16;">
-            ${isVideo ? `
-              <video id="shopBgPreviewMedia" src="${mediaUrl}" autoplay muted loop playsinline class="absolute inset-0 w-full h-full transition-all duration-75 pointer-events-none" style="object-fit: ${currentFit}; object-position: ${Math.round(currentCropX * 100)}% ${Math.round(currentCropY * 100)}%; transform: scale(${currentZoom}); opacity: ${currentMode === 'black' ? 0.05 : (currentMode === 'reactive' ? 0.75 : currentOpacity)};"></video>
-            ` : `
-              <img id="shopBgPreviewMedia" src="${mediaUrl}" class="absolute inset-0 w-full h-full transition-all duration-75 pointer-events-none" style="object-fit: ${currentFit}; object-position: ${Math.round(currentCropX * 100)}% ${Math.round(currentCropY * 100)}%; transform: scale(${currentZoom}); opacity: ${currentMode === 'black' ? 0.05 : (currentMode === 'reactive' ? 0.75 : currentOpacity)};">
-            `}
-            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 pointer-events-none"></div>
-
-            <!-- Notch de teléfono móvil superior -->
-            <div class="absolute top-1.5 w-8 h-1 bg-white/30 rounded-full pointer-events-none shadow-sm"></div>
-
-            <!-- Guía de 3 carriles rítmicos exactos del juego -->
-            <div class="absolute inset-x-2 top-4 bottom-8 border border-white/10 rounded-md pointer-events-none flex opacity-30">
-              <div class="flex-1 border-r border-dashed border-white/20"></div>
-              <div class="flex-1 border-r border-dashed border-white/20"></div>
-              <div class="flex-1"></div>
-            </div>
-
-            <!-- Línea de impacto perfecta abajo -->
-            <div class="absolute bottom-6 inset-x-2.5 h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent pointer-events-none opacity-80 shadow-sm shadow-cyan-400"></div>
-
-            <!-- Badge de modo activo -->
-            <div class="absolute bottom-1 inset-x-0 text-center px-1 pointer-events-none">
-              <span class="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${currentMode === 'reactive' ? 'bg-cyan-500/40 text-cyan-200 border border-cyan-400/50' : (currentMode === 'static' ? 'bg-purple-500/40 text-purple-200 border border-purple-400/50' : 'bg-gray-900/80 text-gray-300 border border-white/15')}">
-                ${currentMode === 'reactive' ? 'Reactivo' : (currentMode === 'static' ? 'Estático' : 'Negro')}
-              </span>
-            </div>
-          </div>
-          <p class="text-[9px] text-gray-400 font-semibold text-center mt-1.5 flex items-center justify-center gap-1">
-            Ratio 9:16 Pantalla • <span class="text-cyan-300">Arrastra para encuadrar</span>
-          </p>
-        </div>
-
-        <!-- Selector de Modo de Fondo -->
-        <div class="space-y-1.5">
-          <label class="text-[11px] font-bold text-gray-200 flex items-center gap-1">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Modo de Fondo:
-          </label>
-          <div class="grid grid-cols-3 gap-1.5">
-            <button onclick="setGameBgMode('black')" class="p-2 rounded-xl border text-center transition cursor-pointer ${currentMode === 'black' ? 'bg-pink-500/25 border-pink-400 text-pink-200 shadow-sm shadow-pink-500/20 font-bold' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}">
-              <span class="block text-xs font-mono font-black text-gray-400">[BLK]</span>
-              <span class="text-[9px] block leading-tight mt-0.5">Negro Clásico</span>
-            </button>
-            <button onclick="setGameBgMode('reactive')" class="p-2 rounded-xl border text-center transition cursor-pointer ${currentMode === 'reactive' ? 'bg-cyan-500/25 border-cyan-400 text-cyan-200 shadow-sm shadow-cyan-500/20 font-bold' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mx-auto text-cyan-300"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-              <span class="text-[9px] block leading-tight mt-0.5">Fondo Reactivo</span>
-            </button>
-            <button onclick="setGameBgMode('static')" class="p-2 rounded-xl border text-center transition cursor-pointer ${currentMode === 'static' ? 'bg-purple-500/25 border-purple-400 text-purple-200 shadow-sm shadow-purple-500/20 font-bold' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mx-auto text-purple-300"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-              <span class="text-[9px] block leading-tight mt-0.5">Fondo Estático</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Slider de Opacidad para Fondo Estático -->
-        ${currentMode === 'static' ? `
-        <div class="p-2.5 bg-black/60 rounded-xl border border-white/10 space-y-1.5">
-          <div class="flex items-center justify-between text-[10px] text-gray-300 font-semibold">
-            <span>Opacidad del fondo:</span>
-            <span id="bgOpacityValueText" class="text-cyan-300 font-mono">${Math.round(currentOpacity * 100)}%</span>
-          </div>
-          <input type="range" min="0.10" max="0.80" step="0.05" value="${currentOpacity}" oninput="setGameBgOpacity(this.value)" class="w-full accent-cyan-400 cursor-pointer h-1.5 bg-gray-700 rounded-lg">
-        </div>
-        ` : ''}
-
-        <!-- Panel de Recorte, Encuadre y Zoom -->
-        <div class="p-3 bg-black/60 rounded-xl border border-white/10 space-y-2.5">
-          <div class="flex items-center justify-between">
-            <span class="text-[11px] font-bold text-gray-200 flex items-center gap-1.5">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg> Recorte y Encuadre:
-            </span>
-            <div class="flex gap-1">
-              <button onclick="setGameBgFit('cover')" class="px-2 py-0.5 rounded text-[9px] font-bold border transition cursor-pointer ${currentFit === 'cover' ? 'bg-cyan-500/30 border-cyan-400 text-cyan-200' : 'bg-white/5 border-white/10 text-gray-400'}">
-                Cubrir
-              </button>
-              <button onclick="setGameBgFit('contain')" class="px-2 py-0.5 rounded text-[9px] font-bold border transition cursor-pointer ${currentFit === 'contain' ? 'bg-cyan-500/30 border-cyan-400 text-cyan-200' : 'bg-white/5 border-white/10 text-gray-400'}">
-                Completo
-              </button>
-            </div>
-          </div>
-
-          <!-- Slider Zoom -->
-          <div class="space-y-1">
-            <div class="flex items-center justify-between text-[10px] text-gray-300 font-semibold">
-              <span>Zoom / Escala:</span>
-              <span id="bgZoomValueText" class="text-cyan-300 font-mono">${Math.round(currentZoom * 100)}%</span>
-            </div>
-            <input type="range" id="bgZoomSlider" min="100" max="250" step="5" value="${Math.round(currentZoom * 100)}" oninput="updateGameBgCrop(undefined, undefined, this.value / 100)" class="w-full accent-cyan-400 cursor-pointer h-1.5 bg-gray-700 rounded-lg">
-          </div>
-
-          <!-- Slider Vertical (Pan Y) -->
-          <div class="space-y-1">
-            <div class="flex items-center justify-between text-[10px] text-gray-300 font-semibold">
-              <span>Posición Vertical:</span>
-              <span class="text-gray-400 text-[9px]">Arriba ↔ Abajo</span>
-            </div>
-            <input type="range" id="bgCropYSlider" min="0" max="100" step="1" value="${Math.round(currentCropY * 100)}" oninput="updateGameBgCrop(undefined, this.value / 100, undefined)" class="w-full accent-cyan-400 cursor-pointer h-1.5 bg-gray-700 rounded-lg">
-          </div>
-
-          <!-- Slider Horizontal (Pan X) -->
-          <div class="space-y-1">
-            <div class="flex items-center justify-between text-[10px] text-gray-300 font-semibold">
-              <span>Posición Horizontal:</span>
-              <span class="text-gray-400 text-[9px]">Izq ↔ Der</span>
-            </div>
-            <input type="range" id="bgCropXSlider" min="0" max="100" step="1" value="${Math.round(currentCropX * 100)}" oninput="updateGameBgCrop(this.value / 100, undefined, undefined)" class="w-full accent-cyan-400 cursor-pointer h-1.5 bg-gray-700 rounded-lg">
-          </div>
-
-          <div class="flex justify-between items-center pt-1 text-[9px] text-gray-400">
-            <span>Arrastra la vista previa para mover</span>
-            <button onclick="resetGameBgCrop()" class="px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 text-cyan-300 font-bold border border-cyan-400/30 transition cursor-pointer">
-              ↺ Centrar
-            </button>
-          </div>
-        </div>
-
-        <!-- Botones de Carga Dedicados (Foto / Vídeo) -->
-        <div class="space-y-2 pt-1">
-          <input type="file" id="customBgImgInput" accept="image/*" onchange="handleCustomBgUpload(event, 'image')" class="hidden">
-          <input type="file" id="customBgVidInput" accept="video/mp4,video/webm,video/*" onchange="handleCustomBgUpload(event, 'video')" class="hidden">
-
-          <div class="grid grid-cols-2 gap-2">
-            <button onclick="document.getElementById('customBgImgInput').click()" class="py-2.5 px-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 text-white font-black text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-cyan-500/20">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> Subir Imagen
-            </button>
-            <button onclick="document.getElementById('customBgVidInput').click()" class="py-2.5 px-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-400 text-white font-black text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/20">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg> Subir Vídeo
-            </button>
-          </div>
-        </div>
-
-        <!-- Botón Restablecer -->
-        <button onclick="resetCustomBgToDefault()" class="w-full py-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white text-[10px] font-bold transition cursor-pointer text-center">
-          Restablecer a Negro Clásico
-        </button>
-      `;
-
-      const frameEl = document.getElementById('shopBgPreviewFrame');
-      if (frameEl) initShopBgPreviewDrag(frameEl);
-    };
-
-    window.setGameBgMode = function(mode) {
-      localStorage.setItem('beatstar_bg_mode', mode);
-      if (engine) {
-        engine.setCustomBackground(undefined, undefined, mode, undefined);
-      }
-      renderFXShopBackgroundPanel();
-      showSuccessToast(mode === 'reactive' ? '¡Fondo reactivo iluminado activado!' : (mode === 'static' ? 'Fondo estático activado' : 'Fondo negro clásico activado'));
-    };
-
-    window.setGameBgOpacity = function(val) {
-      const op = parseFloat(val) || 0.40;
-      localStorage.setItem('beatstar_bg_opacity', op.toString());
-      const txt = document.getElementById('bgOpacityValueText');
-      if (txt) txt.innerText = Math.round(op * 100) + '%';
-      const prev = document.getElementById('shopBgPreviewMedia');
-      if (prev) prev.style.opacity = op;
-      if (engine) {
-        engine.setCustomBackground(undefined, undefined, undefined, op);
-      }
-    };
-
-    window.resetCustomBgToDefault = function() {
-      localStorage.removeItem('beatstar_custom_bg_data');
-      localStorage.setItem('beatstar_bg_mode', 'black');
-      localStorage.removeItem('beatstar_bg_crop_x');
-      localStorage.removeItem('beatstar_bg_crop_y');
-      localStorage.removeItem('beatstar_bg_crop_zoom');
-      localStorage.removeItem('beatstar_bg_fit');
-      window.customBgMediaBlobUrl = null;
-      window.customBgMediaType = null;
-      if (typeof IndexedDBStorage !== 'undefined') {
-        IndexedDBStorage.deleteCustomMedia().catch(() => {});
-      }
-      if (engine) {
-        engine.setCustomBackground('none', 'image', 'black', 0.40);
-        engine.setCustomBgTransform(0.5, 0.5, 1.0, 'cover');
-      }
-      renderFXShopBackgroundPanel();
-      showSuccessToast('Fondo restablecido a negro clásico.');
-    };
-
-    window.handleCustomBgUpload = async function(event, forcedType) {
-      const file = event.target?.files?.[0];
-      if (!file) return;
-
-      const isVideo = (forcedType === 'video') || (file.type && file.type.startsWith('video/')) || /\.(mp4|webm|mkv|mov)$/i.test(file.name);
-      const mediaType = isVideo ? 'video' : 'image';
-
-      // 1. Convertir imagen a dataUrl para fallback síncrono en localStorage
-      if (!isVideo && file.size < 4 * 1024 * 1024) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          try {
-            localStorage.setItem('beatstar_custom_bg_data', e.target.result);
-          } catch (err) {
-            console.warn('Fondo temporal en memoria:', err);
-          }
-        };
-        reader.readAsDataURL(file);
-      }
-
-      // 2. Guardar en IndexedDB
-      try {
-        if (typeof IndexedDBStorage !== 'undefined') {
-          await IndexedDBStorage.saveCustomMedia(file, mediaType);
-        }
-      } catch (idbErr) {
-        console.warn('Error guardando medio en IndexedDB:', idbErr);
-      }
-
-      const mediaUrl = URL.createObjectURL(file);
-      window.customBgMediaBlobUrl = mediaUrl;
-      window.customBgMediaType = mediaType;
-
-      const curMode = localStorage.getItem('beatstar_bg_mode') || 'black';
-      const nextMode = curMode === 'black' ? 'reactive' : curMode;
-
-      if (engine) {
-        engine.setCustomBackground(mediaUrl, mediaType, nextMode, undefined);
-      }
-      if (nextMode !== curMode) {
-        setGameBgMode(nextMode);
-      } else {
-        renderFXShopBackgroundPanel();
-      }
-
-      showSuccessToast(isVideo ? '¡Vídeo de fondo cargado exitosamente!' : '¡Imagen de fondo cargada exitosamente!');
-    };
+    window.renderFXShopBackgroundPanel = function() {};
 
     window.syncPCKeybindsUI = function() {
       const kb = (engine && engine.pcKeybinds) || JSON.parse(localStorage.getItem('beatstar_pc_keybinds') || '{"0":"d","1":"f","2":"j"}');
@@ -4696,11 +3963,23 @@
       // Close Shop Modal
       closeFXShopModal();
 
-      // Switch to Game Screen
+      // Hide Menu Screen
       const searchScreen = document.getElementById('searchScreen');
       if (searchScreen) {
         searchScreen.classList.add('hidden');
         searchScreen.style.display = 'none';
+      }
+
+      // Activate Game Canvas & Reveal Curtain so screen is NEVER black!
+      const gameCanvas = document.getElementById('gameCanvas');
+      if (gameCanvas) {
+        gameCanvas.style.display = 'block';
+        gameCanvas.classList.remove('hidden');
+        gameCanvas.classList.add('active-game');
+      }
+      const curtain = document.getElementById('gameCurtain');
+      if (curtain) {
+        curtain.classList.add('revealed');
       }
 
       // Show floating Demo Banner
@@ -4718,14 +3997,20 @@
           <span class="text-cyan-300">${effect.name}</span>
         </div>
         <button onclick="exitEffectDemo()" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 text-white text-xs font-black transition cursor-pointer shadow-lg shadow-pink-600/30">
-          ✕ Volver a la Tienda
+          ✕ Volver
         </button>
       `;
       banner.style.display = 'flex';
 
-      // Start Real Interactive Calibration Session with the effect active
+      // Start Interactive Effect Demo on the 3D White Highway
       if (engine) {
+        engine.isEffectDemoMode = true;
         engine.startNativeCalibration();
+        setTimeout(() => {
+          if (engine && engine.isCalibrating) {
+            engine.triggerLaneInput(1, 'tap');
+          }
+        }, 120);
       }
     };
 
@@ -4734,24 +4019,32 @@
       if (banner) banner.style.display = 'none';
 
       if (engine) {
+        engine.isEffectDemoMode = false;
         engine.stopNativeCalibration();
         if (previousEquippedEffectId) {
           engine.setActiveEffect(previousEquippedEffectId);
         }
       }
 
+      const gameCanvas = document.getElementById('gameCanvas');
+      if (gameCanvas) {
+        gameCanvas.style.display = 'none';
+        gameCanvas.classList.add('hidden');
+        gameCanvas.classList.remove('active-game');
+      }
+
       const searchScreen = document.getElementById('searchScreen');
       if (searchScreen) {
         searchScreen.classList.remove('hidden');
         searchScreen.style.display = 'flex';
+        searchScreen.style.visibility = 'visible';
       }
 
       openFXShopModal();
+      toggleGachaponEffectsDrawer(true);
     };
 
-    function startShopDemoLoop() {
-      // Kept for backward compatibility
-    }
+    function startShopDemoLoop() {}
 
     function stopShopDemoLoop() {
       if (shopDemoAnimId) {
@@ -4771,22 +4064,9 @@
     window.buyKeyEffect = function(effectId) {
       const effect = KEY_EFFECTS.find(e => e.id === effectId);
       if (!effect) return;
-
-      if (userClefs < effect.costClefs || userSilvers < effect.costSilver || userGolds < effect.costGold || userPlatinums < effect.costPlatinum) {
-        showErrorToast(`Requisitos: ${effect.costClefs} Claves, ${effect.costSilver} Plata, ${effect.costGold} Oro, ${effect.costPlatinum} Platino.`);
-        return;
-      }
-
-      userClefs -= effect.costClefs;
-      userSilvers -= effect.costSilver;
-      userGolds -= effect.costGold;
-      userPlatinums -= effect.costPlatinum;
-      updateUserWalletDisplay();
-
       unlockedEffects.push(effectId);
       localStorage.setItem('beatstar_unlocked_effects', JSON.stringify(unlockedEffects));
       equipKeyEffect(effectId);
-      showSuccessToast(`¡Efecto "${effect.name}" desbloqueado y equipado!`);
     };
 
     window.updateMapDensity = function(val) {
@@ -4816,6 +4096,15 @@
       closeSettingsModal();
       document.getElementById('searchScreen').classList.add('hidden');
       document.getElementById('fixedTopHud').classList.add('hidden');
+
+      const gameCanvas = document.getElementById('gameCanvas');
+      if (gameCanvas) {
+        gameCanvas.style.display = 'block';
+        gameCanvas.classList.remove('hidden');
+        gameCanvas.classList.add('active-game');
+      }
+      const curtain = document.getElementById('gameCurtain');
+      if (curtain) curtain.classList.add('revealed');
       
       const calibBackdrop = document.getElementById('calibrationBackdrop');
       if (calibBackdrop) {
@@ -4829,11 +4118,21 @@
         calibScreen.style.display = 'flex';
       }
 
-      if (engine) engine.startNativeCalibration();
+      if (engine) {
+        engine.isEffectDemoMode = false;
+        engine.startNativeCalibration();
+      }
     };
 
     window.saveAndExitCalibration = function() {
       if (engine) engine.stopNativeCalibration();
+
+      const gameCanvas = document.getElementById('gameCanvas');
+      if (gameCanvas) {
+        gameCanvas.style.display = 'none';
+        gameCanvas.classList.add('hidden');
+        gameCanvas.classList.remove('active-game');
+      }
       
       const calibBackdrop = document.getElementById('calibrationBackdrop');
       if (calibBackdrop) {
@@ -4851,6 +4150,7 @@
       if (searchScreen) {
         searchScreen.classList.remove('hidden');
         searchScreen.style.display = 'flex';
+        searchScreen.style.visibility = 'visible';
       }
       showSuccessToast('Offset de latencia guardado.');
       if (typeof resumeMenuAmbientMusic === 'function') resumeMenuAmbientMusic();

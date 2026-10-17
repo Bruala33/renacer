@@ -2160,15 +2160,24 @@ class BeatstarEngine {
       this.ctx.scale(this.dpr, this.dpr);
     }
 
-    // Degradado de pista 3D de obsidiana-titanio con profundidad atmosférica y alto contraste
+    // Degradado de pista 3D blanca estilizada con sombreado atmosférico profundo en el fondo (horizonte)
     this._trackGrad = this.ctx.createLinearGradient(this.width / 2, 12, this.width / 2, this.height + 30);
-    this._trackGrad.addColorStop(0.00, 'rgba(6, 10, 22, 0.28)');
-    this._trackGrad.addColorStop(0.16, 'rgba(14, 22, 42, 0.65)');
-    this._trackGrad.addColorStop(0.40, 'rgba(24, 38, 66, 0.85)');
-    this._trackGrad.addColorStop(0.66, '#233554');
-    this._trackGrad.addColorStop(0.81, '#2b4064');
-    this._trackGrad.addColorStop(0.92, '#18243c');
-    this._trackGrad.addColorStop(1.00, '#080c18');
+    this._trackGrad.addColorStop(0.00, 'rgba(10, 15, 28, 0.96)');
+    this._trackGrad.addColorStop(0.11, 'rgba(38, 52, 74, 0.94)');
+    this._trackGrad.addColorStop(0.24, '#94a3b8');
+    this._trackGrad.addColorStop(0.38, '#dce4ee');
+    this._trackGrad.addColorStop(0.54, '#f4f7fb');
+    this._trackGrad.addColorStop(0.72, '#ffffff');
+    this._trackGrad.addColorStop(0.88, '#f8fafc');
+    this._trackGrad.addColorStop(1.00, '#dbe3ee');
+
+    // Sombreado lateral 3D cóncavo sobre la pista blanca para relieve tridimensional
+    this._trackEdgeShadowGrad = this.ctx.createLinearGradient(0, 0, this.width, 0);
+    this._trackEdgeShadowGrad.addColorStop(0.00, 'rgba(15, 23, 42, 0.34)');
+    this._trackEdgeShadowGrad.addColorStop(0.16, 'rgba(15, 23, 42, 0.06)');
+    this._trackEdgeShadowGrad.addColorStop(0.50, 'rgba(255, 255, 255, 0.0)');
+    this._trackEdgeShadowGrad.addColorStop(0.84, 'rgba(15, 23, 42, 0.06)');
+    this._trackEdgeShadowGrad.addColorStop(1.00, 'rgba(15, 23, 42, 0.34)');
 
     // Degradados de fondo cacheados (evita crearlos 120 veces por segundo)
     const h = this.height;
@@ -2855,29 +2864,33 @@ class BeatstarEngine {
   }
 
   startNativeCalibration() {
-    this.visualDimension = (typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_visual_dimension') : null) || '3d';
+    this.visualDimension = '3d';
     this.keyStyle = (typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_key_style') : null) || 'beatstar_large';
     this.isCalibrating = true;
-    this.calibrationIntervalMs = 1200; // Intervalo de nota cada 1.2s en bucle infinito
-    this.scrollDurationMs = 1200;
+    this.calibrationIntervalMs = this.isEffectDemoMode ? 720 : 1200;
+    this.scrollDurationMs = 1150;
     this.isPaused = false;
     this.isGameOver = false;
     this.isRewinding = false;
     this.isCountingDown = false;
+    this.firstActiveNoteIndex = 0;
+    this._calibLaneCounter = 0;
     this.sync.pause();
     this.notes = [];
     this.activeHolds.clear();
     this.activeTouches.clear();
     this.judgements = [];
 
+    this.initCanvasSize();
     this.synth.ensureContext();
     this.calibrationStartTime = performance.now();
-    this.nextCalibNoteTime = performance.now() + 300;
+    this.nextCalibNoteTime = performance.now() + 180;
     this.startLoop();
   }
 
   stopNativeCalibration() {
     this.isCalibrating = false;
+    this.isEffectDemoMode = false;
     this.notes = [];
     this.activeHolds.clear();
     this.activeTouches.clear();
@@ -4380,7 +4393,7 @@ class BeatstarEngine {
     if (this.isCalibrating) {
       const now = this._frameNow;
       const currentCalibTime = (now - this.calibrationStartTime) + this.latencyOffsetMs;
-      const interval = this.calibrationIntervalMs || 1200;
+      const interval = this.calibrationIntervalMs || (this.isEffectDemoMode ? 720 : 1200);
 
       if (now >= this.nextCalibNoteTime) {
         const targetHitTime = currentCalibTime + this.scrollDurationMs;
@@ -4388,11 +4401,16 @@ class BeatstarEngine {
         const delaySec = Math.max(0, (this.scrollDurationMs - this.latencyOffsetMs) / 1000);
         if (audioCtx) this.synth.playPianoChime(audioCtx.currentTime + delaySec);
 
+        const spawnLane = this.isEffectDemoMode
+          ? ((this._calibLaneCounter = ((this._calibLaneCounter || 0) + 1) % 3))
+          : 1;
+
         this.notes.push({
           id: Date.now() + Math.random(),
-          lane: 1,
+          lane: spawnLane,
           type: 'tap',
           timestamp_ms: targetHitTime,
+          timeMs: targetHitTime,
           hit: false,
           missed: false,
           flashed: false
@@ -4404,8 +4422,11 @@ class BeatstarEngine {
       for (const note of this.notes) {
         if (!note.flashed && currentCalibTime >= note.timestamp_ms) {
           note.flashed = true;
-          this.laneGlows[1] = 1.0;
-          if (this.ui && this.ui.onMetronomeBeat) {
+          const nLane = note.lane ?? 1;
+          this.laneGlows[nLane] = 1.0;
+          if (this.isEffectDemoMode && !note.hit) {
+            this.triggerLaneInput(nLane, 'tap');
+          } else if (this.ui && this.ui.onMetronomeBeat) {
             this.ui.onMetronomeBeat();
           }
         }
@@ -4413,6 +4434,7 @@ class BeatstarEngine {
 
       if (this.notes.length > 25) {
         this.notes = this.notes.filter(n => (currentCalibTime - n.timestamp_ms) < 1500);
+        this.firstActiveNoteIndex = 0;
       }
 
       this.updateVisualEffects(dt);
@@ -6575,13 +6597,25 @@ class BeatstarEngine {
     if (is3D) {
       const getBoundaryX = (lineIdx, yTarget) => this.getLaneBoundaryX(lineIdx, yTarget);
 
-      // 1. PISTA RETROILUMINADA CON PROFUNDIDAD INFINITA (Infinite 3D Highway with Horizon Vanishing Point)
+      // 1. PISTA BLANCA ESTILIZADA 3D CON SOMBREADO PROFUNDO EN EL FONDO Y RELIEVE TRIDIMENSIONAL
       const tL_top = getBoundaryX(0, horizonY);
       const tR_top = getBoundaryX(3, horizonY);
       const tR_bot = getBoundaryX(3, bottomY);
       const tL_bot = getBoundaryX(0, bottomY);
 
-      // A. Suelo principal de la pista con degradado de perspectiva atmosférica infinita
+      // A0. Sombra proyectada 3D bajo el chasis de la pista blanca para elevarla del fondo
+      ctx.save();
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.62)';
+      ctx.beginPath();
+      ctx.moveTo(tL_top - 10, horizonY);
+      ctx.lineTo(tR_top + 10, horizonY);
+      ctx.lineTo(tR_bot + 26, bottomY);
+      ctx.lineTo(tL_bot - 26, bottomY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      // A1. Superficie principal blanca estilizada con sombreado atmosférico en el horizonte (fondo)
       ctx.beginPath();
       ctx.moveTo(tL_top, horizonY);
       ctx.lineTo(tR_top, horizonY);
@@ -6591,11 +6625,17 @@ class BeatstarEngine {
       ctx.fillStyle = this._trackGrad || '#ffffff';
       ctx.fill();
 
+      // A2. Sombreado cóncavo 3D en los bordes laterales de la pista blanca
+      if (this._trackEdgeShadowGrad) {
+        ctx.fillStyle = this._trackEdgeShadowGrad;
+        ctx.fill();
+      }
+
       // =========================================================================
-      // B. PELDAÑOS EN PERSPECTIVA (OPTIMIZADO: 1 solo stroke en lugar de 24)
+      // B. PELDAÑOS EN PERSPECTIVA 3D SOBRE PISTA BLANCA (1 solo stroke optimizado)
       // =========================================================================
       const numRungs = 24;
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+      ctx.strokeStyle = 'rgba(15, 23, 42, 0.09)';
       ctx.lineWidth = 1.2;
       ctx.beginPath();
       for (let r = 1; r < numRungs; r++) {
@@ -6606,16 +6646,22 @@ class BeatstarEngine {
       }
       ctx.stroke();
 
-      // C. Resplandor sutil lineal en el horizonte (sin overlay rectangle fuera de la pista)
+      // C. Sombra de profundidad en la boca del horizonte + resplandor sutil
       ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.fillStyle = hexToRgba(railLaserCol, 0.22);
-      ctx.fillRect(midX - 70, horizonY - 2, 140, 4);
+      ctx.fillStyle = 'rgba(8, 12, 24, 0.55)';
+      ctx.beginPath();
+      const hShadowY = horizonY + (bottomY - horizonY) * 0.14;
+      ctx.moveTo(tL_top, horizonY);
+      ctx.lineTo(tR_top, horizonY);
+      ctx.lineTo(getBoundaryX(3, hShadowY), hShadowY);
+      ctx.lineTo(getBoundaryX(0, hShadowY), hShadowY);
+      ctx.closePath();
+      ctx.fill();
       ctx.restore();
 
-      // Líneas divisorias de carriles (1 solo stroke unificado)
-      ctx.strokeStyle = 'rgba(54, 72, 82, 0.72)';
-      ctx.lineWidth = 1.8;
+      // D. Líneas divisorias de carriles grabadas en 3D sobre el marfil blanco
+      ctx.strokeStyle = 'rgba(30, 41, 59, 0.28)';
+      ctx.lineWidth = 2.0;
       ctx.beginPath();
       for (let l = 1; l <= 2; l++) {
         ctx.moveTo(getBoundaryX(l, horizonY), horizonY);
@@ -6829,14 +6875,18 @@ class BeatstarEngine {
       // ==========================================
       const laneW = this.width / 3;
 
-      ctx.fillStyle = 'rgba(8, 6, 14, 0.88)';
+      ctx.fillStyle = this._trackGrad || '#ffffff';
       ctx.fillRect(0, 0, this.width, this.height);
+      if (this._trackEdgeShadowGrad) {
+        ctx.fillStyle = this._trackEdgeShadowGrad;
+        ctx.fillRect(0, 0, this.width, this.height);
+      }
 
       for (let l = 1; l <= 2; l++) {
         const lx = l * laneW;
         ctx.save();
-        ctx.strokeStyle = 'rgba(197, 160, 89, 0.35)';
-        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = 'rgba(30, 41, 59, 0.28)';
+        ctx.lineWidth = 2.0;
         ctx.beginPath();
         ctx.moveTo(lx, 0);
         ctx.lineTo(lx, this.height);
