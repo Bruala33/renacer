@@ -1,65 +1,73 @@
 /**
  * ============================================================================
  * HYPER-REALISTIC 3D VINTAGE GUMBALL MACHINE (THREE.JS PBR)
+ * - Side-Mounted Outward Lever (Zero Collision / Clipping with Machine)
  * - Rock-Steady Sleeping Physics in IDLE (Zero Ball Vibration)
- * - Clean Non-Intersecting Geometry (No Body/Chute Clipping, Proper Lid & Lever)
- * - Balanced Deep Crimson, Brushed Brass & Chrome Studio Lighting
- * - Continuous Visible Ball Drop from Funnel -> Chute Window -> Dispenser Tray
+ * - Clean Capsule Split-Open Animation Framing the Live Visual Prize
  * ============================================================================
  */
+
 (function () {
   'use strict';
 
   const RARITY_TIERS = {
-    legendary: {
-      id: 'legendary',
-      label: '★ LEGENDARIO ★',
-      colorHex: 0xd97706,
-      secondaryHex: 0xfbbf24,
-      cssColor: '#fbbf24',
-      glowCss: 'rgba(251, 191, 36, 0.65)',
-      badgeBg: 'linear-gradient(135deg, #f59e0b 0%, #fde047 50%, #d97706 100%)',
-      badgeText: '#1c1002'
-    },
-    epic: {
-      id: 'epic',
-      label: '◆ ÉPICO ◆',
-      colorHex: 0xbe123c,
-      secondaryHex: 0x9333ea,
-      cssColor: '#f43f5e',
-      glowCss: 'rgba(244, 63, 94, 0.55)',
-      badgeBg: 'linear-gradient(135deg, #be123c 0%, #f43f5e 50%, #9333ea 100%)',
+    classic: {
+      id: 'classic',
+      label: '★ CLÁSICO ★',
+      shellHex: 0x0284c7,
+      glowHex: 0x38bdf8,
+      cssColor: '#38bdf8',
+      badgeBg: 'linear-gradient(135deg, #0284c7, #38bdf8)',
       badgeText: '#ffffff'
     },
     rare: {
       id: 'rare',
-      label: '● RARO ●',
-      colorHex: 0x047857,
-      secondaryHex: 0x10b981,
+      label: '★★ RARO ★★',
+      shellHex: 0x059669,
+      glowHex: 0x34d399,
       cssColor: '#34d399',
-      glowCss: 'rgba(52, 211, 153, 0.50)',
-      badgeBg: 'linear-gradient(135deg, #047857 0%, #10b981 50%, #0d9488 100%)',
+      badgeBg: 'linear-gradient(135deg, #059669, #34d399)',
+      badgeText: '#022c22'
+    },
+    epic: {
+      id: 'epic',
+      label: '★★★ ÉPICO ★★★',
+      shellHex: 0x9333ea,
+      glowHex: 0xe879f9,
+      cssColor: '#e879f9',
+      badgeBg: 'linear-gradient(135deg, #7e22ce, #ec4899)',
       badgeText: '#ffffff'
     },
-    classic: {
-      id: 'classic',
-      label: '✦ CLÁSICO ✦',
-      colorHex: 0x0369a1,
-      secondaryHex: 0x38bdf8,
-      cssColor: '#7dd3fc',
-      glowCss: 'rgba(56, 189, 248, 0.45)',
-      badgeBg: 'linear-gradient(135deg, #0369a1 0%, #38bdf8 50%, #475569 100%)',
-      badgeText: '#ffffff'
+    legendary: {
+      id: 'legendary',
+      label: '♛ LEGENDARIO ♛',
+      shellHex: 0xd97706,
+      glowHex: 0xfde047,
+      cssColor: '#fde047',
+      badgeBg: 'linear-gradient(135deg, #f59e0b, #fef08a, #d97706)',
+      badgeText: '#1c1917'
     }
   };
 
-  class GachaponSoundFX {
+  const CAPSULE_PALETTE = [
+    0xef4444, // Cherry Red
+    0x3b82f6, // Cobalt Blue
+    0x10b981, // Emerald Green
+    0xf59e0b, // Amber Gold
+    0xa855f7, // Amethyst Purple
+    0xec4899, // Rose Pink
+    0x06b6d4  // Turquoise Cyan
+  ];
+
+  // ==========================================================================
+  // PROCEDURAL WEB AUDIO MECHANICAL & PRIZE SYNTHESIZER
+  // ==========================================================================
+  class GachaponSoundEngine {
     constructor() {
       this.ctx = null;
     }
 
-    ensureCtx() {
-      if (localStorage.getItem('beatstar_master_muted') === 'true') return null;
+    _ensureCtx() {
       if (!this.ctx) {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         if (AudioCtx) this.ctx = new AudioCtx();
@@ -70,220 +78,179 @@
       return this.ctx;
     }
 
-    getMasterGain() {
-      const vol = parseFloat(localStorage.getItem('beatstar_master_volume') ?? '1.0');
-      return Math.max(0.05, Math.min(1.0, isNaN(vol) ? 0.8 : vol)) * 0.48;
+    isMuted() {
+      return localStorage.getItem('beatstar_master_muted') === 'true';
     }
 
-    playCoinAndLeverStart() {
-      const ctx = this.ensureCtx();
-      if (!ctx) return;
-      const now = ctx.currentTime;
-      const vol = this.getMasterGain();
+    getVol() {
+      if (this.isMuted()) return 0;
+      const v = parseFloat(localStorage.getItem('beatstar_master_volume') ?? '1.0');
+      return isNaN(v) ? 1.0 : Math.max(0, Math.min(1, v));
+    }
 
-      [2200, 3350, 4680].forEach((freq, i) => {
+    playLeverPull() {
+      const ctx = this._ensureCtx();
+      const vol = this.getVol();
+      if (!ctx || vol <= 0) return;
+
+      // Ratchet clicks as the side lever pulls down and returns
+      const clicks = [0, 0.055, 0.11, 0.17, 0.24, 0.32, 0.42];
+      clicks.forEach((delay, idx) => {
+        const t = ctx.currentTime + delay;
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, now + i * 0.03);
-        osc.frequency.exponentialRampToValueAtTime(freq * 1.03, now + i * 0.03 + 0.12);
-        gain.gain.setValueAtTime(vol * (0.42 - i * 0.1), now + i * 0.03);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.03 + 0.15);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(190 + idx * 24, t);
+        osc.frequency.exponentialRampToValueAtTime(68, t + 0.04);
+        gain.gain.setValueAtTime(0.24 * vol, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.045);
         osc.connect(gain);
         gain.connect(ctx.destination);
-        osc.start(now + i * 0.03);
-        osc.stop(now + i * 0.03 + 0.16);
+        osc.start(t);
+        osc.stop(t + 0.05);
       });
     }
 
-    playRatchetClick(pitchScale = 1.0) {
-      const ctx = this.ensureCtx();
-      if (!ctx) return;
-      const now = ctx.currentTime;
-      const vol = this.getMasterGain();
-
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(195 * pitchScale, now);
-      osc.frequency.exponentialRampToValueAtTime(58 * pitchScale, now + 0.042);
-      gain.gain.setValueAtTime(vol * 0.55, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.046);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.05);
-    }
-
-    playBallRollClack(intensity = 0.5) {
-      const ctx = this.ensureCtx();
-      if (!ctx) return;
-      const now = ctx.currentTime;
-      const vol = this.getMasterGain() * Math.min(1, intensity);
+    playCapsuleumble() {
+      const ctx = this._ensureCtx();
+      const vol = this.getVol();
+      if (!ctx || vol <= 0) return;
+      const t = ctx.currentTime;
 
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
-      const baseFreq = 420 + Math.random() * 280;
-      osc.frequency.setValueAtTime(baseFreq, now);
-      osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.45, now + 0.038);
-      gain.gain.setValueAtTime(vol * 0.22, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.042);
+      osc.frequency.setValueAtTime(520 + Math.random() * 240, t);
+      osc.frequency.exponentialRampToValueAtTime(160, t + 0.032);
+      gain.gain.setValueAtTime(0.11 * vol, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.035);
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.045);
+      osc.start(t);
+      osc.stop(t + 0.04);
     }
 
-    playChuteBounceAndDoor() {
-      const ctx = this.ensureCtx();
-      if (!ctx) return;
-      const now = ctx.currentTime;
-      const vol = this.getMasterGain();
+    playChuteDropBounce() {
+      const ctx = this._ensureCtx();
+      const vol = this.getVol();
+      if (!ctx || vol <= 0) return;
 
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(155, now);
-      osc.frequency.exponentialRampToValueAtTime(38, now + 0.14);
-      gain.gain.setValueAtTime(vol * 0.85, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.17);
-
-      const flapOsc = ctx.createOscillator();
-      const flapGain = ctx.createGain();
-      flapOsc.type = 'triangle';
-      flapOsc.frequency.setValueAtTime(820, now + 0.04);
-      flapOsc.frequency.exponentialRampToValueAtTime(260, now + 0.15);
-      flapGain.gain.setValueAtTime(vol * 0.28, now + 0.04);
-      flapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
-      flapOsc.connect(flapGain);
-      flapGain.connect(ctx.destination);
-      flapOsc.start(now + 0.04);
-      flapOsc.stop(now + 0.17);
+      const hits = [
+        { d: 0.0, f: 340, a: 0.28 },
+        { d: 0.16, f: 420, a: 0.22 },
+        { d: 0.31, f: 280, a: 0.32 }
+      ];
+      hits.forEach((h) => {
+        const t = ctx.currentTime + h.d;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(h.f, t);
+        osc.frequency.exponentialRampToValueAtTime(75, t + 0.075);
+        gain.gain.setValueAtTime(h.a * vol, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.09);
+      });
     }
 
-    playCapsuleBurstFanfare(rarityId = 'rare') {
-      const ctx = this.ensureCtx();
-      if (!ctx) return;
+    playCapsuleOpenFanfare(rarity = 'classic') {
+      const ctx = this._ensureCtx();
+      const vol = this.getVol();
+      if (!ctx || vol <= 0) return;
       const now = ctx.currentTime;
-      const vol = this.getMasterGain();
 
+      // Crisp pop sound of the plastic capsule shell snapping open
       const popOsc = ctx.createOscillator();
       const popGain = ctx.createGain();
-      popOsc.type = 'triangle';
-      popOsc.frequency.setValueAtTime(390, now);
-      popOsc.frequency.exponentialRampToValueAtTime(62, now + 0.16);
-      popGain.gain.setValueAtTime(vol * 0.85, now);
-      popGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+      popOsc.type = 'sine';
+      popOsc.frequency.setValueAtTime(320, now);
+      popOsc.frequency.exponentialRampToValueAtTime(1180, now + 0.065);
+      popGain.gain.setValueAtTime(0.32 * vol, now);
+      popGain.gain.exponentialRampToValueAtTime(0.001, now + 0.075);
       popOsc.connect(popGain);
       popGain.connect(ctx.destination);
       popOsc.start(now);
-      popOsc.stop(now + 0.19);
+      popOsc.stop(now + 0.08);
 
       const chords = {
         classic: [523.25, 659.25, 783.99, 1046.50],
-        rare: [523.25, 659.25, 783.99, 987.77, 1318.51],
-        epic: [440.0, 554.37, 659.25, 880.0, 1108.73, 1318.51],
+        rare: [587.33, 739.99, 880.00, 1174.66, 1479.98],
+        epic: [523.25, 659.25, 783.99, 987.77, 1318.51, 1567.98],
         legendary: [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98, 2093.00]
       };
-      const notes = chords[rarityId] || chords.rare;
-
-      notes.forEach((freq, idx) => {
-        const delay = idx * 0.06;
+      const notes = chords[rarity] || chords.classic;
+      notes.forEach((freq, i) => {
+        const t = now + 0.05 + i * 0.055;
         const osc = ctx.createOscillator();
-        const sub = ctx.createOscillator();
         const gain = ctx.createGain();
-
-        osc.type = 'triangle';
-        sub.type = 'sine';
-        osc.frequency.setValueAtTime(freq, now + delay);
-        sub.frequency.setValueAtTime(freq * 2, now + delay);
-
-        gain.gain.setValueAtTime(0.001, now + delay);
-        gain.gain.linearRampToValueAtTime(vol * 0.34, now + delay + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0008, now + delay + 0.9);
-
+        osc.type = i % 2 === 0 ? 'triangle' : 'sine';
+        osc.frequency.setValueAtTime(freq, t);
+        gain.gain.setValueAtTime(0.001, t);
+        gain.gain.linearRampToValueAtTime(0.20 * vol, t + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0008, t + 0.68);
         osc.connect(gain);
-        sub.connect(gain);
         gain.connect(ctx.destination);
-
-        osc.start(now + delay);
-        sub.start(now + delay);
-        osc.stop(now + delay + 0.95);
-        sub.stop(now + delay + 0.95);
+        osc.start(t);
+        osc.stop(t + 0.72);
       });
     }
   }
 
+  // ==========================================================================
+  // MAIN 3D VINTAGE GUMBALL MACHINE ENGINE
+  // ==========================================================================
   class VintageGachapon3D {
-    constructor(canvasEl, callbacks = {}) {
-      this.canvas = canvasEl;
+    constructor(canvas, callbacks = {}) {
+      this.canvas = canvas;
       this.callbacks = callbacks;
-      this.sfx = new GachaponSoundFX();
+      this.sfx = new GachaponSoundEngine();
 
       this.isRunning = false;
       this.rafId = null;
-      this.lastTime = 0;
+      this.clock = typeof THREE !== 'undefined' ? new THREE.Clock() : null;
 
-      // States: 'IDLE' | 'LEVER_PULL_AND_TUMBLE' | 'BALL_VISIBLE_FALL' | 'HERO_PRESENTATION' | 'CAPSULE_BURST_OPEN'
+      // States: IDLE | LEVER_PULL | BALL_DROP_CHUTE | CAPSULE_PRESENT | CAPSULE_BURST_OPEN
       this.state = 'IDLE';
       this.stateTimer = 0;
       this.pendingReward = null;
-      this.lastRatchetStep = -1;
-      this.physicsSettlingTimer = 0;
 
-      // Camera & Orbit state
-      this.userYaw = 0;
-      this.userPitch = 0.02;
-      this.isDraggingOrbit = false;
-      this.isPullingLeverDrag = false;
-      this.leverPullProgress = 0;
-      this.dragStartX = 0;
+      this.globeCenter = typeof THREE !== 'undefined' ? new THREE.Vector3(0, 1.55, 0) : null;
+      this.globeRadius = 1.48;
+      this.capsuleRadius = 0.25;
+      this.capsules = [];
+
+      // Drag/Tap interaction state for the 3D lever
+      this.isDraggingLever = false;
       this.dragStartY = 0;
+      this.leverPullProgress = 0;
 
-      // Raycaster for 3D Lever interaction
-      this.raycaster = new THREE.Raycaster();
-      this.pointerNDC = new THREE.Vector2();
-      this.leverInteractables = [];
-
-      // Physics balls inside the glass globe
-      this.balls = [];
-      this.droppingBall = null;
-      this.domeCenter = new THREE.Vector3(0, 1.48, 0);
-      this.domeRadius = 1.32;
-      this.ballRadius = 0.235;
-
-      // 3D Burst particles
-      this.burstParticles = [];
-
-      this.initScene();
-      this.buildMaterials();
-      this.buildMachineMesh();
-      this.populateCapsules(28);
-      this.preSettleBalls();
-      this.buildHeroOpenAssembly();
-      this.bindInteraction();
+      if (typeof THREE !== 'undefined') {
+        this._initThreeScene();
+        this._buildMaterials();
+        this._buildMachineGeometry();
+        this._populateCapsules(28);
+        this._buildDispensingCapsuleRig();
+        this._buildBurstParticles();
+        this._bindPointerInteraction();
+      }
     }
 
-    initScene() {
+    _initThreeScene() {
+      this.scene = new THREE.Scene();
+
       const w = this.canvas.clientWidth || window.innerWidth || 380;
       const h = this.canvas.clientHeight || window.innerHeight || 680;
 
-      this.scene = new THREE.Scene();
-
-      const aspect = w / Math.max(1, h);
-      const fov = aspect < 0.65 ? 45 : 38;
-      this.camera = new THREE.PerspectiveCamera(fov, aspect, 0.1, 50);
-      this.defaultCamPos = new THREE.Vector3(0, 0.36, aspect < 0.65 ? 8.55 : 7.65);
-      this.defaultLookAt = new THREE.Vector3(0, 0.18, 0);
-      this.currentCamPos = this.defaultCamPos.clone();
-      this.currentLookAt = this.defaultLookAt.clone();
-      this.camera.position.copy(this.currentCamPos);
-      this.camera.lookAt(this.currentLookAt);
+      this.camera = new THREE.PerspectiveCamera(36, w / h, 0.1, 100);
+      this.baseCamPos = new THREE.Vector3(0.10, 0.28, 9.6);
+      this.baseLookAt = new THREE.Vector3(0.08, 0.12, 0);
+      this.currentCamPos = this.baseCamPos.clone();
+      this.currentLookAt = this.baseLookAt.clone();
+      this.targetCamPos = this.baseCamPos.clone();
+      this.targetLookAt = this.baseLookAt.clone();
 
       this.renderer = new THREE.WebGLRenderer({
         canvas: this.canvas,
@@ -295,1408 +262,728 @@
       this.renderer.setSize(w, h, false);
       this.renderer.shadowMap.enabled = true;
       this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-      if (THREE.ACESFilmicToneMapping !== undefined) {
-        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        // Balanced exposure so reds stay rich crimson and metals don't wash out!
-        this.renderer.toneMappingExposure = 0.92;
-      }
-      if (THREE.sRGBEncoding !== undefined) {
+      if ('outputColorSpace' in this.renderer) {
+        this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+      } else if ('outputEncoding' in this.renderer) {
         this.renderer.outputEncoding = THREE.sRGBEncoding;
       }
+      this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      this.renderer.toneMappingExposure = 1.05;
 
-      this.createStudioEnvironment();
-
-      // Balanced Studio Lighting (No washed-out overexposure)
-      const ambient = new THREE.AmbientLight(0xffe8cc, 0.36);
+      // Balanced Studio Lighting
+      const ambient = new THREE.AmbientLight(0xfff5ea, 0.72);
       this.scene.add(ambient);
 
-      this.keyLight = new THREE.DirectionalLight(0xfff5e6, 1.15);
-      this.keyLight.position.set(4.2, 7.5, 5.8);
-      this.keyLight.castShadow = true;
-      this.keyLight.shadow.mapSize.width = 1024;
-      this.keyLight.shadow.mapSize.height = 1024;
-      this.keyLight.shadow.camera.near = 1;
-      this.keyLight.shadow.camera.far = 20;
-      const d = 3.6;
-      this.keyLight.shadow.camera.left = -d;
-      this.keyLight.shadow.camera.right = d;
-      this.keyLight.shadow.camera.top = d;
-      this.keyLight.shadow.camera.bottom = -d;
-      this.keyLight.shadow.bias = -0.0012;
-      this.scene.add(this.keyLight);
+      const hemi = new THREE.HemisphereLight(0xffffff, 0x241018, 0.65);
+      hemi.position.set(0, 8, 0);
+      this.scene.add(hemi);
 
-      // Warm Golden Rim Light from Left
-      this.rimLight = new THREE.PointLight(0xf59e0b, 0.95, 14);
-      this.rimLight.position.set(-4.2, 3.0, -2.0);
-      this.scene.add(this.rimLight);
+      const keyLight = new THREE.DirectionalLight(0xfffbeb, 1.45);
+      keyLight.position.set(4.2, 7.2, 6.2);
+      keyLight.castShadow = true;
+      keyLight.shadow.mapSize.width = 1024;
+      keyLight.shadow.mapSize.height = 1024;
+      keyLight.shadow.bias = -0.0005;
+      this.scene.add(keyLight);
 
-      // Subtle Cool Fill from Right
-      this.fillLight = new THREE.PointLight(0x38bdf8, 0.55, 14);
-      this.fillLight.position.set(4.5, 1.5, 3.2);
-      this.scene.add(this.fillLight);
+      const fillLight = new THREE.DirectionalLight(0x93c5fd, 0.60);
+      fillLight.position.set(-5.0, 2.5, 4.0);
+      this.scene.add(fillLight);
 
-      // Soft Chute Light so the falling ball is clearly visible in the front window
-      this.chuteLight = new THREE.PointLight(0xffdfa0, 0.75, 2.8);
-      this.chuteLight.position.set(0, -0.55, 1.55);
-      this.scene.add(this.chuteLight);
+      const rimLight = new THREE.SpotLight(0xfbbf24, 1.15, 18, Math.PI * 0.35, 0.5);
+      rimLight.position.set(0, 5.5, -5.0);
+      this.scene.add(rimLight);
 
-      // Hero Reveal Light
-      this.heroLight = new THREE.PointLight(0xffffff, 0, 8);
-      this.heroLight.position.set(0, 0.9, 4.8);
-      this.scene.add(this.heroLight);
+      this.prizeLight = new THREE.PointLight(0xfde047, 0, 5.5);
+      this.prizeLight.position.set(0, -0.15, 3.6);
+      this.scene.add(this.prizeLight);
+
+      this.machineRoot = new THREE.Group();
+      this.scene.add(this.machineRoot);
     }
 
-    createStudioEnvironment() {
-      try {
-        if (!THREE.PMREMGenerator) return;
-        const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
-        pmremGenerator.compileCubemapShader();
-
-        const envScene = new THREE.Scene();
-        // Dark studio environment so metallic reflections have deep contrast
-        envScene.background = new THREE.Color(0x060305);
-
-        const topBox = new THREE.Mesh(
-          new THREE.PlaneGeometry(8, 8),
-          new THREE.MeshBasicMaterial({ color: 0xffe4b5, side: THREE.DoubleSide })
-        );
-        topBox.position.set(0, 8.0, 0);
-        topBox.rotation.x = Math.PI / 2;
-        envScene.add(topBox);
-
-        const leftStrip = new THREE.Mesh(
-          new THREE.PlaneGeometry(2.8, 9),
-          new THREE.MeshBasicMaterial({ color: 0xf59e0b, side: THREE.DoubleSide })
-        );
-        leftStrip.position.set(-7.0, 2.0, 2.0);
-        leftStrip.lookAt(0, 0, 0);
-        envScene.add(leftStrip);
-
-        const rightStrip = new THREE.Mesh(
-          new THREE.PlaneGeometry(2.5, 9),
-          new THREE.MeshBasicMaterial({ color: 0x94a3b8, side: THREE.DoubleSide })
-        );
-        rightStrip.position.set(7.0, 2.2, 2.5);
-        rightStrip.lookAt(0, 0, 0);
-        envScene.add(rightStrip);
-
-        const envRT = pmremGenerator.fromScene(envScene, 0.04);
-        this.scene.environment = envRT.texture;
-        pmremGenerator.dispose();
-      } catch (e) {
-        console.warn('[Gachapon3D] Environment fallback:', e);
-      }
-    }
-
-    createCastIronMicroBump() {
+    _createEnvTexture() {
       const c = document.createElement('canvas');
       c.width = 256;
-      c.height = 256;
+      c.height = 128;
       const ctx = c.getContext('2d');
-      ctx.fillStyle = '#808080';
-      ctx.fillRect(0, 0, 256, 256);
+      const g = ctx.createLinearGradient(0, 0, 0, 128);
+      g.addColorStop(0.0, '#ffffff');
+      g.addColorStop(0.22, '#dbeafe');
+      g.addColorStop(0.48, '#334155');
+      g.addColorStop(0.52, '#0f172a');
+      g.addColorStop(0.80, '#fde68a');
+      g.addColorStop(1.0, '#78350f');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 256, 128);
 
-      for (let i = 0; i < 500; i++) {
-        const x = Math.random() * 256;
-        const y = Math.random() * 256;
-        const r = 2 + Math.random() * 5;
-        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-        const shade = Math.random() > 0.5 ? 144 : 116;
-        g.addColorStop(0, `rgb(${shade},${shade},${shade})`);
-        g.addColorStop(1, 'rgba(128,128,128,0)');
-        ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillRect(28, 14, 52, 22);
+      ctx.fillRect(156, 18, 60, 20);
+
       const tex = new THREE.CanvasTexture(c);
-      tex.wrapS = THREE.RepeatWrapping;
-      tex.wrapT = THREE.RepeatWrapping;
-      tex.repeat.set(4, 4);
+      tex.mapping = THREE.EquirectangularReflectionMapping;
       return tex;
     }
 
-    createCoinPlateTexture() {
+    _createBrassPlateTexture() {
       const c = document.createElement('canvas');
       c.width = 512;
       c.height = 256;
       const ctx = c.getContext('2d');
 
-      const grad = ctx.createLinearGradient(0, 0, 512, 256);
-      grad.addColorStop(0, '#170f09');
-      grad.addColorStop(0.5, '#2b1c10');
-      grad.addColorStop(1, '#120b06');
-      ctx.fillStyle = grad;
+      const bg = ctx.createLinearGradient(0, 0, 512, 256);
+      bg.addColorStop(0.0, '#78350f');
+      bg.addColorStop(0.3, '#d97706');
+      bg.addColorStop(0.5, '#fde047');
+      bg.addColorStop(0.7, '#b45309');
+      bg.addColorStop(1.0, '#451a03');
+      ctx.fillStyle = bg;
       ctx.fillRect(0, 0, 512, 256);
 
-      // Ornate double brass frame with generous padding so text never clips
-      ctx.strokeStyle = '#fbbf24';
-      ctx.lineWidth = 10;
-      ctx.strokeRect(16, 16, 480, 224);
-      ctx.strokeStyle = '#92400e';
-      ctx.lineWidth = 4;
-      ctx.strokeRect(30, 30, 452, 196);
+      ctx.strokeStyle = '#fef08a';
+      ctx.lineWidth = 8;
+      ctx.strokeRect(14, 14, 484, 228);
+
+      ctx.fillStyle = '#290f02';
+      ctx.fillRect(26, 26, 460, 204);
 
       ctx.fillStyle = '#fde047';
-      ctx.font = '900 68px Georgia, serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
+      ctx.font = '900 72px "Cinzel", Georgia, serif';
       ctx.fillText('100 𝄞', 256, 108);
 
-      ctx.fillStyle = '#f8fafc';
-      ctx.font = 'bold 24px monospace';
-      ctx.fillText('TIRA DE LA PALANCA ➔', 256, 182);
+      ctx.fillStyle = '#fef3c7';
+      ctx.font = 'bold 26px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('TIRA DE LA PALANCA', 256, 182);
 
-      return new THREE.CanvasTexture(c);
+      const tex = new THREE.CanvasTexture(c);
+      tex.needsUpdate = true;
+      return tex;
     }
 
-    buildMaterials() {
-      const bumpTex = this.createCastIronMicroBump();
-      const PhysicalMat = THREE.MeshPhysicalMaterial || THREE.MeshStandardMaterial;
+    _buildMaterials() {
+      const envMap = this._createEnvTexture();
 
-      // 1. Deep Vintage Crimson Automotive Lacquer (Rich dark red, never baby pink!)
-      this.matCrimsonEnamel = new PhysicalMat({
-        color: 0x7f0914,
-        roughness: 0.20,
-        metalness: 0.18,
-        clearcoat: 0.85,
+      // Deep Vintage Crimson Enamel
+      this.crimsonMat = new THREE.MeshPhysicalMaterial({
+        color: 0xb91c1c,
+        metalness: 0.25,
+        roughness: 0.18,
+        clearcoat: 1.0,
         clearcoatRoughness: 0.08,
-        bumpMap: bumpTex,
-        bumpScale: 0.005,
-        envMapIntensity: 1.05
+        envMap,
+        envMapIntensity: 1.1
       });
 
-      // 2. Heavy Cast-Iron Matte Gunmetal Base
-      this.matCastIronBase = new THREE.MeshStandardMaterial({
-        color: 0x111318,
-        roughness: 0.48,
-        metalness: 0.75,
-        bumpMap: bumpTex,
-        bumpScale: 0.012,
-        envMapIntensity: 0.9
-      });
-
-      // 3. Black Vulcanized Rubber Gasket
-      this.matRubberGasket = new THREE.MeshStandardMaterial({
-        color: 0x090a0c,
-        roughness: 0.88,
-        metalness: 0.05
-      });
-
-      // 4. Polished Dark-Contrast Chrome
-      this.matMirrorChrome = new PhysicalMat({
-        color: 0xcbd5e1,
-        roughness: 0.12,
+      // Polished Mirror Chrome
+      this.chromeMat = new THREE.MeshPhysicalMaterial({
+        color: 0xf1f5f9,
         metalness: 0.92,
-        clearcoat: 0.5,
-        clearcoatRoughness: 0.06,
-        envMapIntensity: 1.35
+        roughness: 0.08,
+        clearcoat: 0.6,
+        envMap,
+        envMapIntensity: 1.4
       });
 
-      // 5. Antique Brushed Brass / Gold
-      this.matPolishedBrass = new PhysicalMat({
-        color: 0xd97706,
-        roughness: 0.22,
-        metalness: 0.88,
-        clearcoat: 0.35,
+      // Warm Vintage Gold / Brass
+      this.brassMat = new THREE.MeshPhysicalMaterial({
+        color: 0xf59e0b,
+        metalness: 0.85,
+        roughness: 0.16,
+        clearcoat: 0.5,
+        envMap,
         envMapIntensity: 1.25
       });
 
-      // 6. Glossy Deep Ruby Bakelite Lever Ball
-      this.matLeverKnob = new PhysicalMat({
-        color: 0x991b1b,
-        emissive: 0x2a0404,
-        emissiveIntensity: 0.25,
-        roughness: 0.10,
-        metalness: 0.12,
-        clearcoat: 1.0,
-        clearcoatRoughness: 0.04,
-        envMapIntensity: 1.3
+      // Dark Cast Iron Base
+      this.castIronMat = new THREE.MeshStandardMaterial({
+        color: 0x18181b,
+        metalness: 0.70,
+        roughness: 0.38,
+        envMap,
+        envMapIntensity: 0.6
       });
 
-      // 7. Crystal Clear Glass Globe (Clean transparency without cloudy grey fill)
-      this.matGlassOuter = new PhysicalMat({
-        color: 0xe0f2fe,
+      // Crystal-Clear Glass Globe
+      this.glassGlobeMat = new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.18,
         roughness: 0.04,
         metalness: 0.05,
         clearcoat: 1.0,
         clearcoatRoughness: 0.02,
-        transparent: true,
-        opacity: 0.13,
-        envMapIntensity: 1.4,
-        depthWrite: false,
-        side: THREE.FrontSide
+        envMap,
+        envMapIntensity: 1.5,
+        depthWrite: false
       });
 
-      // 8. Dark Velvet Chute Interior
-      this.matDarkCavity = new THREE.MeshStandardMaterial({
-        color: 0x090406,
-        roughness: 0.92,
-        metalness: 0.05
+      // Clear Acrylic Front Chute
+      this.chuteGlassMat = new THREE.MeshPhysicalMaterial({
+        color: 0xe0f2fe,
+        transparent: true,
+        opacity: 0.28,
+        roughness: 0.06,
+        metalness: 0.05,
+        clearcoat: 1.0,
+        envMap,
+        envMapIntensity: 1.2,
+        depthWrite: false,
+        side: THREE.DoubleSide
       });
+
+      // Translucent Capsule Top Dome
+      this.capsuleTopMat = new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.46,
+        roughness: 0.08,
+        metalness: 0.05,
+        clearcoat: 1.0,
+        envMap,
+        envMapIntensity: 1.2
+      });
+
+      this.envMap = envMap;
     }
 
-    buildMachineMesh() {
-      this.machineGroup = new THREE.Group();
-      this.machineGroup.position.set(0, -0.36, 0);
-      this.scene.add(this.machineGroup);
-
-      // ======================================================================
-      // A. HEAVY STEPPED CAST-IRON & CHROME PEDESTAL BASE (y: -2.38 to -1.92)
-      // ======================================================================
-      const rubberPad = new THREE.Mesh(
-        new THREE.CylinderGeometry(1.48, 1.54, 0.10, 64),
-        this.matRubberGasket
+    _buildMachineGeometry() {
+      // 1. CIRCULAR STAGE PEDESTAL
+      const stageBase = new THREE.Mesh(
+        new THREE.CylinderGeometry(2.25, 2.45, 0.24, 48),
+        this.castIronMat
       );
-      rubberPad.position.y = -2.35;
-      rubberPad.receiveShadow = true;
-      this.machineGroup.add(rubberPad);
+      stageBase.position.y = -2.28;
+      stageBase.receiveShadow = true;
+      this.machineRoot.add(stageBase);
 
-      const castBase = new THREE.Mesh(
-        new THREE.CylinderGeometry(1.32, 1.46, 0.28, 64),
-        this.matCastIronBase
+      const stageBrassTrim = new THREE.Mesh(
+        new THREE.TorusGeometry(2.30, 0.04, 16, 64),
+        this.brassMat
       );
-      castBase.position.y = -2.17;
-      castBase.castShadow = true;
-      castBase.receiveShadow = true;
-      this.machineGroup.add(castBase);
+      stageBrassTrim.rotation.x = Math.PI / 2;
+      stageBrassTrim.position.y = -2.16;
+      this.machineRoot.add(stageBrassTrim);
 
-      const baseChromeRing = new THREE.Mesh(
-        new THREE.TorusGeometry(1.31, 0.05, 20, 64),
-        this.matMirrorChrome
+      // 2. LOWER CAST-IRON FOOT & CRIMSON SKIRT
+      const ironFoot = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.38, 1.62, 0.34, 48),
+        this.castIronMat
       );
-      baseChromeRing.rotation.x = Math.PI / 2;
-      baseChromeRing.position.y = -2.02;
-      this.machineGroup.add(baseChromeRing);
+      ironFoot.position.y = -1.98;
+      this.machineRoot.add(ironFoot);
 
-      // ======================================================================
-      // B. CONTOURED CRIMSON CAST-IRON BODY (Radius kept <= 0.98 at waist so
-      //    it NEVER pokes through the front chute housing at z = 1.06!)
-      // ======================================================================
-      const lathePoints = [
-        new THREE.Vector2(1.30, -2.02),
-        new THREE.Vector2(1.18, -1.72),
-        new THREE.Vector2(0.96, -1.25),
-        new THREE.Vector2(0.92, -0.65),
-        new THREE.Vector2(0.98, -0.10),
-        new THREE.Vector2(1.14, 0.18),
-        new THREE.Vector2(1.22, 0.28)
-      ];
-      const bodyGeo = new THREE.LatheGeometry(lathePoints, 64);
-      const bodyMesh = new THREE.Mesh(bodyGeo, this.matCrimsonEnamel);
-      bodyMesh.castShadow = true;
-      bodyMesh.receiveShadow = true;
-      this.machineGroup.add(bodyMesh);
-
-      // Sleek horizontal brass belt molding around the waist (r = 0.935)
-      const waistBrassBelt = new THREE.Mesh(
-        new THREE.TorusGeometry(0.935, 0.028, 16, 64),
-        this.matPolishedBrass
+      const lowerSkirt = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.06, 1.44, 0.56, 48),
+        this.crimsonMat
       );
-      waistBrassBelt.rotation.x = Math.PI / 2;
-      waistBrassBelt.position.y = -0.82;
-      this.machineGroup.add(waistBrassBelt);
+      lowerSkirt.position.y = -1.58;
+      this.machineRoot.add(lowerSkirt);
 
-      // ======================================================================
-      // C. CHROME NECK COLLAR, RUBBER GASKET & INTERNAL FUNNEL FLOOR
-      // ======================================================================
-      const collarMesh = new THREE.Mesh(
-        new THREE.CylinderGeometry(1.24, 1.20, 0.22, 64),
-        this.matMirrorChrome
+      const waistBelt = new THREE.Mesh(
+        new THREE.TorusGeometry(1.08, 0.055, 18, 48),
+        this.brassMat
       );
-      collarMesh.position.y = 0.34;
-      collarMesh.castShadow = true;
-      this.machineGroup.add(collarMesh);
+      waistBelt.rotation.x = Math.PI / 2;
+      waistBelt.position.y = -1.28;
+      this.machineRoot.add(waistBelt);
 
-      const globeGasket = new THREE.Mesh(
-        new THREE.TorusGeometry(1.20, 0.042, 16, 64),
-        this.matRubberGasket
+      // 3. UPPER TAPERED CRIMSON BODY
+      const upperBody = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.32, 1.06, 1.50, 48),
+        this.crimsonMat
       );
-      globeGasket.rotation.x = Math.PI / 2;
-      globeGasket.position.y = 0.45;
-      this.machineGroup.add(globeGasket);
+      upperBody.position.y = -0.52;
+      this.machineRoot.add(upperBody);
 
-      // Internal Sloped Brass Funnel Floor at bottom of glass globe
+      // 4. CHROME COLLAR RING CRADLING THE GLOBE
+      const collarCyl = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.36, 1.32, 0.24, 48),
+        this.chromeMat
+      );
+      collarCyl.position.y = 0.26;
+      this.machineRoot.add(collarCyl);
+
+      const collarRim = new THREE.Mesh(
+        new THREE.TorusGeometry(1.36, 0.06, 18, 48),
+        this.chromeMat
+      );
+      collarRim.rotation.x = Math.PI / 2;
+      collarRim.position.y = 0.35;
+      this.machineRoot.add(collarRim);
+
+      // Internal funnel deck inside globe base
       const funnelFloor = new THREE.Mesh(
-        new THREE.CylinderGeometry(1.14, 0.88, 0.10, 48),
-        this.matPolishedBrass
+        new THREE.CylinderGeometry(1.24, 0.92, 0.14, 40),
+        this.chromeMat
       );
-      funnelFloor.position.y = 0.48;
-      this.machineGroup.add(funnelFloor);
+      funnelFloor.position.y = 0.32;
+      this.machineRoot.add(funnelFloor);
 
-      // Real Dark Circular Drop Aperture at front-bottom of globe (x=0, z=0.54)
-      const dropApertureHole = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.29, 0.27, 0.14, 32),
-        this.matDarkCavity
+      // 5. AGITATOR PADDLE WHEEL & CENTER ROD INSIDE GLOBE
+      this.agitatorGroup = new THREE.Group();
+      this.agitatorGroup.position.set(0, 0.42, 0);
+      this.machineRoot.add(this.agitatorGroup);
+
+      const agitatorHub = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.32, 0.36, 0.14, 24),
+        this.brassMat
       );
-      dropApertureHole.position.set(0, 0.49, 0.54);
-      this.machineGroup.add(dropApertureHole);
+      this.agitatorGroup.add(agitatorHub);
 
-      // ======================================================================
-      // D. UNIFIED FRONT CHROME ESCUTCHEON, VISIBLE GLASS CHUTE & OUTLET
-      //    (Positioned cleanly at z = 1.05..1.30, 100% outside the crimson waist!)
-      // ======================================================================
-      const frontAssembly = new THREE.Group();
-      this.machineGroup.add(frontAssembly);
-
-      // Solid Chrome Outer Housing Column spanning from y = +0.18 down to y = -1.96
-      // Left Wall, Right Wall, Top Header, Bottom Sill, and Recessed Dark Back Wall
-      const housingBackWall = new THREE.Mesh(
-        new THREE.BoxGeometry(0.74, 2.12, 0.18),
-        this.matDarkCavity
-      );
-      housingBackWall.position.set(0, -0.89, 1.03);
-      frontAssembly.add(housingBackWall);
-
-      [-0.40, 0.40].forEach(xSide => {
-        const sidePillar = new THREE.Mesh(
-          new THREE.BoxGeometry(0.09, 2.14, 0.30),
-          this.matMirrorChrome
+      for (let i = 0; i < 4; i++) {
+        const blade = new THREE.Mesh(
+          new THREE.BoxGeometry(1.52, 0.07, 0.09),
+          this.brassMat
         );
-        sidePillar.position.set(xSide, -0.89, 1.12);
-        sidePillar.castShadow = true;
-        frontAssembly.add(sidePillar);
+        blade.rotation.y = (i * Math.PI) / 2;
+        blade.position.y = 0.04;
+        this.agitatorGroup.add(blade);
+      }
+
+      const centerPost = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.05, 0.05, 2.55, 20),
+        this.chromeMat
+      );
+      centerPost.position.set(0, 1.65, 0);
+      this.machineRoot.add(centerPost);
+
+      // 6. SPHERICAL GLASS GLOBE + SPECULAR RIM
+      this.globeGroup = new THREE.Group();
+      this.globeGroup.position.copy(this.globeCenter);
+      this.machineRoot.add(this.globeGroup);
+
+      const glassSphere = new THREE.Mesh(
+        new THREE.SphereGeometry(this.globeRadius, 48, 36),
+        this.glassGlobeMat
+      );
+      glassSphere.renderOrder = 3;
+      this.globeGroup.add(glassSphere);
+
+      // 7. FLUSH VINTAGE TOP CROWN LID
+      this.topCrownGroup = new THREE.Group();
+      this.topCrownGroup.position.set(0, 2.94, 0);
+      this.machineRoot.add(this.topCrownGroup);
+
+      const crownRim = new THREE.Mesh(
+        new THREE.TorusGeometry(0.68, 0.05, 16, 40),
+        this.chromeMat
+      );
+      crownRim.rotation.x = Math.PI / 2;
+      crownRim.position.y = -0.02;
+      this.topCrownGroup.add(crownRim);
+
+      const crownDome = new THREE.Mesh(
+        new THREE.ConeGeometry(0.70, 0.34, 40),
+        this.crimsonMat
+      );
+      crownDome.position.y = 0.15;
+      this.topCrownGroup.add(crownDome);
+
+      const finialKnob = new THREE.Mesh(
+        new THREE.SphereGeometry(0.13, 24, 24),
+        this.brassMat
+      );
+      finialKnob.position.y = 0.36;
+      this.topCrownGroup.add(finialKnob);
+
+      // 8. FRONT ESCUTCHEON PLATE ("100 𝄞 TIRA DE LA PALANCA")
+      const plateFrame = new THREE.Mesh(
+        new THREE.BoxGeometry(0.98, 0.56, 0.10),
+        this.chromeMat
+      );
+      plateFrame.position.set(0, -0.34, 1.16);
+      plateFrame.rotation.x = -0.14;
+      this.machineRoot.add(plateFrame);
+
+      const badgePlane = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.86, 0.44),
+        new THREE.MeshBasicMaterial({ map: this._createBrassPlateTexture() })
+      );
+      badgePlane.position.set(0, -0.34, 1.22);
+      badgePlane.rotation.x = -0.14;
+      this.machineRoot.add(badgePlane);
+
+      // 9. TRANSPARENT FRONT CHUTE & COLLECTION TRAY
+      const chuteBackWall = new THREE.Mesh(
+        new THREE.BoxGeometry(0.58, 0.92, 0.12),
+        this.castIronMat
+      );
+      chuteBackWall.position.set(0, -1.12, 1.05);
+      chuteBackWall.rotation.x = 0.14;
+      this.machineRoot.add(chuteBackWall);
+
+      const chuteTunnel = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.28, 0.30, 0.88, 24, 1, true, -Math.PI * 0.48, Math.PI * 0.96),
+        this.chuteGlassMat
+      );
+      chuteTunnel.position.set(0, -1.10, 1.14);
+      chuteTunnel.rotation.x = 0.22;
+      chuteTunnel.renderOrder = 4;
+      this.machineRoot.add(chuteTunnel);
+
+      this.chuteFlapPivot = new THREE.Group();
+      this.chuteFlapPivot.position.set(0, -1.40, 1.28);
+      this.machineRoot.add(this.chuteFlapPivot);
+
+      const chuteFlap = new THREE.Mesh(
+        new THREE.BoxGeometry(0.52, 0.32, 0.04),
+        this.chromeMat
+      );
+      chuteFlap.position.set(0, -0.14, 0);
+      this.chuteFlapPivot.add(chuteFlap);
+
+      // Collection Tray
+      const trayGroup = new THREE.Group();
+      trayGroup.position.set(0, -1.78, 1.44);
+      this.machineRoot.add(trayGroup);
+
+      const trayFloor = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.46, 0.40, 0.14, 32),
+        this.chromeMat
+      );
+      trayGroup.add(trayFloor);
+
+      const trayLip = new THREE.Mesh(
+        new THREE.TorusGeometry(0.44, 0.055, 16, 32, Math.PI * 1.15),
+        this.brassMat
+      );
+      trayLip.rotation.x = Math.PI / 2;
+      trayLip.rotation.z = -Math.PI * 0.075;
+      trayLip.position.y = 0.07;
+      trayGroup.add(trayLip);
+
+      // ====================================================================
+      // 10. SIDE-MOUNTED 3D LEVER WITH OUTWARD AXLE (ZERO MACHINE COLLISION!)
+      // ====================================================================
+      // Placed on the pure right side (+X), with a horizontal axle extending out
+      // to X = 1.72, completely clear of the crimson body (r=1.32) and globe (r=1.48)!
+      this.leverGroup = new THREE.Group();
+      this.leverGroup.position.set(1.16, -0.48, 0.08);
+      this.leverGroup.rotation.set(0, 0, 0);
+      this.machineRoot.add(this.leverGroup);
+
+      // Side gearbox mount bolted onto the right wall of the crimson body
+      const leverMountBox = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.24, 0.28, 0.34, 24),
+        this.chromeMat
+      );
+      leverMountBox.rotation.z = Math.PI / 2;
+      leverMountBox.position.set(0.08, 0, 0);
+      this.leverGroup.add(leverMountBox);
+
+      const leverBrassRing = new THREE.Mesh(
+        new THREE.TorusGeometry(0.24, 0.035, 14, 24),
+        this.brassMat
+      );
+      leverBrassRing.rotation.y = Math.PI / 2;
+      leverBrassRing.position.set(0.25, 0, 0);
+      this.leverGroup.add(leverBrassRing);
+
+      // Horizontal chrome axle shaft extending outward to X = 1.16 + 0.54 = 1.70
+      const outwardAxle = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.075, 0.075, 0.56, 20),
+        this.chromeMat
+      );
+      outwardAxle.rotation.z = Math.PI / 2;
+      outwardAxle.position.set(0.36, 0, 0);
+      this.leverGroup.add(outwardAxle);
+
+      // Pivot hub at X = 1.16 + 0.56 = 1.72 (well outside the 1.48 globe radius!)
+      this.leverPivot = new THREE.Group();
+      this.leverPivot.position.set(0.56, 0, 0);
+      this.leverGroup.add(this.leverPivot);
+
+      const outerHub = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.14, 0.14, 0.16, 24),
+        this.brassMat
+      );
+      outerHub.rotation.z = Math.PI / 2;
+      this.leverPivot.add(outerHub);
+
+      // Lever Arm + Knob moving strictly in the vertical Y-Z plane at X = 1.72
+      const leverArmGroup = new THREE.Group();
+      // Slight outward cant (+Z forward and +X clear) so it never approaches the machine
+      leverArmGroup.rotation.z = -0.05;
+      this.leverPivot.add(leverArmGroup);
+
+      const leverShaft = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.055, 0.075, 1.12, 20),
+        this.chromeMat
+      );
+      leverShaft.position.set(0, 0.54, 0);
+      leverArmGroup.add(leverShaft);
+
+      const knobCollar = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.10, 0.065, 0.12, 20),
+        this.brassMat
+      );
+      knobCollar.position.set(0, 1.08, 0);
+      leverArmGroup.add(knobCollar);
+
+      this.leverKnobMat = new THREE.MeshPhysicalMaterial({
+        color: 0xdc2626,
+        emissive: 0x7f1d1d,
+        emissiveIntensity: 0.35,
+        metalness: 0.15,
+        roughness: 0.10,
+        clearcoat: 1.0,
+        envMap: this.envMap,
+        envMapIntensity: 1.4
       });
 
-      // Upper Price Escutcheon Plate ("100 𝄞") seated cleanly below the neck collar
-      const topHeaderBlock = new THREE.Mesh(
-        new THREE.BoxGeometry(0.89, 0.44, 0.30),
-        this.matMirrorChrome
-      );
-      topHeaderBlock.position.set(0, -0.04, 1.13);
-      topHeaderBlock.castShadow = true;
-      frontAssembly.add(topHeaderBlock);
-
-      const coinPlateTex = this.createCoinPlateTexture();
-      const coinPlateFace = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.78, 0.36),
-        new THREE.MeshStandardMaterial({
-          map: coinPlateTex,
-          roughness: 0.24,
-          metalness: 0.75
-        })
-      );
-      coinPlateFace.position.set(0, -0.04, 1.285);
-      frontAssembly.add(coinPlateFace);
-
-      // Middle Glass Inspection Window (y = -0.26 down to -1.32) where you watch the ball drop!
-      const chuteWindowGlass = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.70, 1.06),
-        this.matGlassOuter
-      );
-      chuteWindowGlass.position.set(0, -0.79, 1.24);
-      frontAssembly.add(chuteWindowGlass);
-
-      // Brass horizontal divider bar between inspection window and lower outlet door
-      const chuteDividerBar = new THREE.Mesh(
-        new THREE.BoxGeometry(0.88, 0.07, 0.31),
-        this.matPolishedBrass
-      );
-      chuteDividerBar.position.set(0, -1.34, 1.13);
-      frontAssembly.add(chuteDividerBar);
-
-      // Lower Dispenser Alcove & Symmetrical Recessed Tray Floor (y = -1.38 down to -1.96)
-      const bottomTraySill = new THREE.Mesh(
-        new THREE.BoxGeometry(0.90, 0.12, 0.44),
-        this.matMirrorChrome
-      );
-      bottomTraySill.position.set(0, -1.90, 1.20);
-      bottomTraySill.castShadow = true;
-      frontAssembly.add(bottomTraySill);
-
-      const bottomBrassLip = new THREE.Mesh(
-        new THREE.BoxGeometry(0.92, 0.06, 0.08),
-        this.matPolishedBrass
-      );
-      bottomBrassLip.position.set(0, -1.85, 1.40);
-      frontAssembly.add(bottomBrassLip);
-
-      // Hinged Swinging Chrome Flap Door inside the lower dispenser opening
-      this.flapPivot = new THREE.Group();
-      this.flapPivot.position.set(0, -1.37, 1.24);
-      frontAssembly.add(this.flapPivot);
-
-      const flapDoorMesh = new THREE.Mesh(
-        new THREE.BoxGeometry(0.68, 0.44, 0.035),
-        this.matMirrorChrome
-      );
-      flapDoorMesh.position.set(0, -0.22, 0);
-      this.flapPivot.add(flapDoorMesh);
-
-      // ======================================================================
-      // E. CLEAN PROPORTIONAL 3D MECHANICAL LEVER ("PALANCA") ON THE RIGHT
-      //    (No shaft poking out the bottom, no knob overlapping the globe!)
-      // ======================================================================
-      this.leverMountGroup = new THREE.Group();
-      this.leverMountGroup.position.set(0.96, -0.62, 0.52);
-      this.leverMountGroup.rotation.y = -0.22;
-      this.machineGroup.add(this.leverMountGroup);
-
-      // Chrome Gearbox Cylinder attached flush to the crimson body
-      const gearboxHousing = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.24, 0.28, 0.34, 32),
-        this.matMirrorChrome
-      );
-      gearboxHousing.rotation.z = Math.PI / 2;
-      gearboxHousing.castShadow = true;
-      this.leverMountGroup.add(gearboxHousing);
-
-      const gearboxBrassCap = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.17, 0.17, 0.38, 24),
-        this.matPolishedBrass
-      );
-      gearboxBrassCap.rotation.z = Math.PI / 2;
-      this.leverMountGroup.add(gearboxBrassCap);
-
-      // Rotating Lever Pivot
-      this.leverPivot = new THREE.Group();
-      this.leverPivot.position.set(0.18, 0, 0);
-      this.leverRestAngle = -0.22;
-      this.leverPivot.rotation.x = this.leverRestAngle;
-      this.leverMountGroup.add(this.leverPivot);
-
-      // Rounded Chrome Hub Joint so the shaft starts cleanly at the center of the gearbox!
-      const leverHubJoint = new THREE.Mesh(
-        new THREE.SphereGeometry(0.11, 20, 20),
-        this.matMirrorChrome
-      );
-      this.leverPivot.add(leverHubJoint);
-
-      // Forged Chrome Lever Arm extending strictly UPWARD from the hub (0 to +0.76)
-      const armLen = 0.76;
-      const leverShaft = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.048, 0.068, armLen, 24),
-        this.matMirrorChrome
-      );
-      // Offset by +armLen/2 so bottom of cylinder sits at (0,0,0) inside leverHubJoint!
-      leverShaft.position.set(0, armLen * 0.5, 0.08);
-      leverShaft.rotation.x = 0.20;
-      leverShaft.castShadow = true;
-      this.leverPivot.add(leverShaft);
-
-      // Brass Neck Collar under the Grip Ball
-      const knobCollar = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.082, 0.055, 0.09, 24),
-        this.matPolishedBrass
-      );
-      knobCollar.position.set(0, 0.77, 0.16);
-      knobCollar.rotation.x = 0.20;
-      this.leverPivot.add(knobCollar);
-
-      // Glossy Spherical Grip Knob (sits cleanly at y ≈ +0.28 world space, well below the globe!)
       this.leverKnobMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(0.19, 32, 32),
-        this.matLeverKnob
+        new THREE.SphereGeometry(0.24, 32, 32),
+        this.leverKnobMat
       );
-      this.leverKnobMesh.position.set(0, 0.92, 0.19);
-      this.leverKnobMesh.castShadow = true;
-      this.leverPivot.add(this.leverKnobMesh);
-
-      const knobGoldRing = new THREE.Mesh(
-        new THREE.TorusGeometry(0.192, 0.018, 14, 32),
-        this.matPolishedBrass
-      );
-      knobGoldRing.position.copy(this.leverKnobMesh.position);
-      knobGoldRing.rotation.x = Math.PI / 2;
-      this.leverPivot.add(knobGoldRing);
-
-      // Invisible Raycast Hit Targets for effortless touch/click on the lever
-      const leverHitBox = new THREE.Mesh(
-        new THREE.SphereGeometry(0.68, 12, 12),
-        new THREE.MeshBasicMaterial({ visible: false })
-      );
-      leverHitBox.position.set(0, 0.55, 0.15);
-      this.leverPivot.add(leverHitBox);
-
-      const frontPlateHitBox = new THREE.Mesh(
-        new THREE.BoxGeometry(1.1, 0.8, 0.5),
-        new THREE.MeshBasicMaterial({ visible: false })
-      );
-      frontPlateHitBox.position.set(0, -0.05, 1.25);
-      this.machineGroup.add(frontPlateHitBox);
+      this.leverKnobMesh.position.set(0, 1.26, 0);
+      leverArmGroup.add(this.leverKnobMesh);
 
       this.leverInteractables = [
         this.leverKnobMesh,
         leverShaft,
         knobCollar,
-        gearboxHousing,
-        leverHitBox,
-        frontPlateHitBox,
-        coinPlateFace
+        outerHub,
+        outwardAxle,
+        leverMountBox
       ];
-
-      // ======================================================================
-      // F. CRYSTAL GLASS GLOBE & AGITATOR WHEEL
-      // ======================================================================
-      // Central Chrome Rod spanning strictly from funnel floor (y=0.48) to lid cap (y=2.62)
-      const rodHeight = 2.16;
-      const centerRod = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.036, 0.036, rodHeight, 20),
-        this.matMirrorChrome
-      );
-      centerRod.position.set(0, 0.48 + rodHeight * 0.5, 0);
-      this.machineGroup.add(centerRod);
-
-      // Internal Rotating Agitator Wheel at bottom of globe
-      this.agitatorGroup = new THREE.Group();
-      this.agitatorGroup.position.set(0, 0.53, 0);
-      this.machineGroup.add(this.agitatorGroup);
-
-      for (let i = 0; i < 4; i++) {
-        const paddle = new THREE.Mesh(
-          new THREE.BoxGeometry(0.72, 0.07, 0.04),
-          this.matMirrorChrome
-        );
-        const a = (i / 4) * Math.PI * 2;
-        paddle.rotation.y = a;
-        paddle.position.set(Math.cos(a) * 0.34, 0.03, Math.sin(a) * 0.34);
-        this.agitatorGroup.add(paddle);
-      }
-
-      // Outer Optical Crystal Glass Globe
-      this.glassGlobeMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(this.domeRadius, 56, 40),
-        this.matGlassOuter
-      );
-      this.glassGlobeMesh.position.copy(this.domeCenter);
-      this.glassGlobeMesh.renderOrder = 2;
-      this.machineGroup.add(this.glassGlobeMesh);
-
-      // Crisp Curved Specular Studio Highlight on Left-Front of Glass Globe
-      const highlightGeo = new THREE.SphereGeometry(
-        this.domeRadius * 1.002,
-        36,
-        28,
-        -Math.PI * 0.35,
-        Math.PI * 0.16,
-        Math.PI * 0.22,
-        Math.PI * 0.46
-      );
-      const glassHighlight = new THREE.Mesh(
-        highlightGeo,
-        new THREE.MeshBasicMaterial({
-          color: 0xffffff,
-          transparent: true,
-          opacity: 0.18,
-          side: THREE.FrontSide,
-          depthWrite: false
-        })
-      );
-      glassHighlight.position.copy(this.domeCenter);
-      glassHighlight.renderOrder = 3;
-      this.machineGroup.add(glassHighlight);
-
-      // ======================================================================
-      // G. FLUSH-FITTED CRIMSON & CHROME DOME LID CAP (Seated at y = 2.58,
-      //    matching the exact sphere radius 0.73 at that height!)
-      // ======================================================================
-      const crownGroup = new THREE.Group();
-      crownGroup.position.set(0, 2.58, 0);
-      this.machineGroup.add(crownGroup);
-
-      const lidGasket = new THREE.Mesh(
-        new THREE.TorusGeometry(0.73, 0.036, 16, 48),
-        this.matRubberGasket
-      );
-      lidGasket.rotation.x = Math.PI / 2;
-      crownGroup.add(lidGasket);
-
-      const lidChromeRim = new THREE.Mesh(
-        new THREE.TorusGeometry(0.74, 0.044, 16, 48),
-        this.matMirrorChrome
-      );
-      lidChromeRim.rotation.x = Math.PI / 2;
-      lidChromeRim.position.y = 0.03;
-      crownGroup.add(lidChromeRim);
-
-      // Spherical-cap style lid dome that follows the top curve of the globe
-      const lidDome = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.28, 0.74, 0.24, 48),
-        this.matCrimsonEnamel
-      );
-      lidDome.position.y = 0.15;
-      crownGroup.add(lidDome);
-
-      const lockNutBase = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.14, 0.28, 0.09, 32),
-        this.matPolishedBrass
-      );
-      lockNutBase.position.y = 0.31;
-      crownGroup.add(lockNutBase);
-
-      const finialKnob = new THREE.Mesh(
-        new THREE.SphereGeometry(0.12, 24, 24),
-        this.matPolishedBrass
-      );
-      finialKnob.position.y = 0.42;
-      crownGroup.add(finialKnob);
     }
 
-    createCapsuleMesh(rarityKey, radius = this.ballRadius) {
-      const tier = RARITY_TIERS[rarityKey] || RARITY_TIERS.rare;
+    _createSingleCapsuleMesh(colorHex) {
       const group = new THREE.Group();
-      const PhysicalMat = THREE.MeshPhysicalMaterial || THREE.MeshStandardMaterial;
+      const r = this.capsuleRadius;
 
-      // 1. Bottom Jewel-Toned Metallic Hemisphere
-      const bottomMat = new PhysicalMat({
-        color: tier.colorHex,
-        roughness: 0.16,
-        metalness: 0.38,
-        clearcoat: 0.9,
-        clearcoatRoughness: 0.06,
+      const bottomMat = new THREE.MeshPhysicalMaterial({
+        color: colorHex,
+        metalness: 0.18,
+        roughness: 0.14,
+        clearcoat: 1.0,
+        envMap: this.envMap,
         envMapIntensity: 1.15
       });
-      const bottomGeo = new THREE.SphereGeometry(radius, 24, 16, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
-      const bottomMesh = new THREE.Mesh(bottomGeo, bottomMat);
-      group.add(bottomMesh);
 
-      // 2. Equatorial Gold Seam Ring
-      const seamMat = new THREE.MeshStandardMaterial({
-        color: 0xfbbf24,
-        roughness: 0.22,
-        metalness: 0.85
-      });
-      const seamMesh = new THREE.Mesh(
-        new THREE.TorusGeometry(radius * 0.995, radius * 0.035, 10, 28),
-        seamMat
+      const bottomHemisphere = new THREE.Mesh(
+        new THREE.SphereGeometry(r, 24, 14, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
+        bottomMat
       );
-      seamMesh.rotation.x = Math.PI / 2;
-      group.add(seamMesh);
+      group.add(bottomHemisphere);
 
-      // 3. Top Translucent Tinted Hemisphere
-      const topMat = new PhysicalMat({
-        color: tier.secondaryHex,
-        roughness: 0.08,
-        metalness: 0.08,
-        clearcoat: 0.9,
-        transparent: true,
-        opacity: 0.78,
-        envMapIntensity: 1.25
-      });
-      const topGeo = new THREE.SphereGeometry(radius, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2);
-      const topMesh = new THREE.Mesh(topGeo, topMat);
-      group.add(topMesh);
-
-      // 4. Inner Core Gem
-      const coreMat = new THREE.MeshStandardMaterial({
-        color: tier.secondaryHex,
-        emissive: tier.colorHex,
-        emissiveIntensity: 0.45,
-        roughness: 0.15,
-        metalness: 0.7
-      });
-      const coreMesh = new THREE.Mesh(
-        new THREE.OctahedronGeometry(radius * 0.38, 0),
-        coreMat
+      const topHemisphere = new THREE.Mesh(
+        new THREE.SphereGeometry(r, 24, 14, 0, Math.PI * 2, 0, Math.PI / 2),
+        this.capsuleTopMat
       );
-      group.add(coreMesh);
+      group.add(topHemisphere);
 
-      group.userData = {
-        rarityKey,
-        bottomMat,
-        topMat,
-        coreMat
-      };
+      const seamBand = new THREE.Mesh(
+        new THREE.TorusGeometry(r * 0.99, 0.015, 8, 24),
+        this.brassMat
+      );
+      seamBand.rotation.x = Math.PI / 2;
+      group.add(seamBand);
+
+      const coreGem = new THREE.Mesh(
+        new THREE.OctahedronGeometry(r * 0.40, 0),
+        new THREE.MeshStandardMaterial({
+          color: colorHex,
+          emissive: colorHex,
+          emissiveIntensity: 0.55,
+          roughness: 0.18,
+          metalness: 0.75
+        })
+      );
+      group.add(coreGem);
 
       return group;
     }
 
-    populateCapsules(count = 28) {
-      const rarityKeys = ['legendary', 'epic', 'rare', 'classic', 'rare', 'epic'];
-      this.balls = [];
+    _populateCapsules(count = 28) {
+      this.capsules.forEach((c) => this.scene.remove(c.mesh));
+      this.capsules = [];
 
       for (let i = 0; i < count; i++) {
-        const rKey = rarityKeys[i % rarityKeys.length];
-        const mesh = this.createCapsuleMesh(rKey, this.ballRadius);
+        const colorHex = CAPSULE_PALETTE[i % CAPSULE_PALETTE.length];
+        const mesh = this._createSingleCapsuleMesh(colorHex);
 
-        const layer = Math.floor(i / 7);
-        const angle = (i % 7) * ((Math.PI * 2) / 7) + layer * 0.45;
-        const dist = 0.28 + (i % 3) * 0.27;
-        const bx = Math.cos(angle) * dist;
-        const bz = Math.sin(angle) * dist;
-        const by = 0.72 + layer * 0.32;
+        const layer = Math.floor(i / 8);
+        const angle = (i % 8) * ((Math.PI * 2) / 8) + layer * 0.45;
+        const rad = 0.26 + (i % 3) * 0.28;
 
-        mesh.position.set(bx, by, bz);
-        mesh.rotation.set(
-          Math.random() * Math.PI * 2,
-          Math.random() * Math.PI * 2,
-          Math.random() * Math.PI * 2
+        const pos = new THREE.Vector3(
+          Math.cos(angle) * rad,
+          this.globeCenter.y - 0.62 + layer * 0.36,
+          Math.sin(angle) * rad
         );
 
-        this.machineGroup.add(mesh);
+        mesh.position.copy(pos);
+        mesh.rotation.set(i * 0.7, i * 1.1, i * 0.5);
+        this.scene.add(mesh);
 
-        this.balls.push({
+        this.capsules.push({
           mesh,
-          pos: mesh.position,
+          colorHex,
+          pos,
           vel: new THREE.Vector3(0, 0, 0),
-          rarityKey: rKey,
-          isDropping: false
+          angVel: new THREE.Vector3(0, 0, 0)
         });
       }
+
+      // Pre-settle in silence so balls start 100% motionless
+      for (let step = 0; step < 160; step++) {
+        this._stepCapsulePhysics(1 / 60, false, true);
+      }
+      for (let i = 0; i < this.capsules.length; i++) {
+        this.capsules[i].vel.set(0, 0, 0);
+        this.capsules[i].angVel.set(0, 0, 0);
+        this.capsules[i].mesh.position.copy(this.capsules[i].pos);
+      }
     }
 
-    preSettleBalls() {
-      // Run 90 silent physics steps on initialization so balls rest in a stable equilibrium pile,
-      // then freeze velocities so they NEVER vibrate in IDLE!
-      for (let step = 0; step < 90; step++) {
-        this.stepPhysicsInternal(0.016, false);
-      }
-      for (let i = 0; i < this.balls.length; i++) {
-        this.balls[i].vel.set(0, 0, 0);
-      }
-    }
+    _buildDispensingCapsuleRig() {
+      this.activeCapsuleRig = new THREE.Group();
+      this.activeCapsuleRig.visible = false;
+      this.scene.add(this.activeCapsuleRig);
 
-    buildHeroOpenAssembly() {
-      this.heroGroup = new THREE.Group();
-      this.heroGroup.visible = false;
-      this.scene.add(this.heroGroup);
+      const r = this.capsuleRadius * 1.15;
 
-      const r = 0.38;
-      const PhysicalMat = THREE.MeshPhysicalMaterial || THREE.MeshStandardMaterial;
-
-      this.heroBottomMat = new PhysicalMat({
-        color: 0xd97706,
-        roughness: 0.14,
-        metalness: 0.45,
-        clearcoat: 0.9,
-        envMapIntensity: 1.3
-      });
-      this.heroBottomHalf = new THREE.Mesh(
-        new THREE.SphereGeometry(r, 36, 24, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
-        this.heroBottomMat
-      );
-      this.heroGroup.add(this.heroBottomHalf);
-
-      const innerRim = new THREE.Mesh(
-        new THREE.TorusGeometry(r * 0.98, r * 0.042, 14, 36),
-        this.matPolishedBrass
-      );
-      innerRim.rotation.x = Math.PI / 2;
-      this.heroBottomHalf.add(innerRim);
-
-      this.heroTopMat = new PhysicalMat({
-        color: 0x38bdf8,
-        roughness: 0.06,
-        metalness: 0.10,
-        clearcoat: 0.9,
-        transparent: true,
-        opacity: 0.80,
+      this.activeBottomMat = new THREE.MeshPhysicalMaterial({
+        color: 0xf59e0b,
+        metalness: 0.30,
+        roughness: 0.12,
+        clearcoat: 1.0,
+        envMap: this.envMap,
         envMapIntensity: 1.4
       });
-      this.heroTopHalf = new THREE.Mesh(
-        new THREE.SphereGeometry(r, 36, 24, 0, Math.PI * 2, 0, Math.PI / 2),
-        this.heroTopMat
-      );
-      this.heroGroup.add(this.heroTopHalf);
 
-      this.heroPrizeTotem = new THREE.Group();
-      this.heroGroup.add(this.heroPrizeTotem);
-
-      this.totemCoreMat = new THREE.MeshStandardMaterial({
+      this.activeTopMat = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
-        emissive: 0xfbbf24,
-        emissiveIntensity: 0.95,
-        roughness: 0.1,
-        metalness: 0.85
-      });
-      this.totemGem = new THREE.Mesh(
-        new THREE.OctahedronGeometry(0.22, 1),
-        this.totemCoreMat
-      );
-      this.heroPrizeTotem.add(this.totemGem);
-
-      this.totemHalo = new THREE.Mesh(
-        new THREE.TorusGeometry(0.31, 0.02, 12, 40),
-        this.matPolishedBrass
-      );
-      this.heroPrizeTotem.add(this.totemHalo);
-
-      this.shockwaveMat = new THREE.MeshBasicMaterial({
-        color: 0xfde68a,
         transparent: true,
-        opacity: 0,
-        side: THREE.DoubleSide
+        opacity: 0.52,
+        roughness: 0.05,
+        metalness: 0.05,
+        clearcoat: 1.0,
+        envMap: this.envMap,
+        envMapIntensity: 1.5
       });
-      this.shockwaveRing = new THREE.Mesh(
-        new THREE.RingGeometry(0.32, 0.44, 48),
-        this.shockwaveMat
+
+      this.activeBottomHalf = new THREE.Group();
+      const botShell = new THREE.Mesh(
+        new THREE.SphereGeometry(r, 32, 20, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
+        this.activeBottomMat
       );
-      this.heroGroup.add(this.shockwaveRing);
+      const botRim = new THREE.Mesh(
+        new THREE.TorusGeometry(r, 0.024, 12, 32),
+        this.brassMat
+      );
+      botRim.rotation.x = Math.PI / 2;
+      this.activeBottomHalf.add(botShell, botRim);
+      this.activeCapsuleRig.add(this.activeBottomHalf);
+
+      this.activeTopHalf = new THREE.Group();
+      const topShell = new THREE.Mesh(
+        new THREE.SphereGeometry(r, 32, 20, 0, Math.PI * 2, 0, Math.PI / 2),
+        this.activeTopMat
+      );
+      const topRim = new THREE.Mesh(
+        new THREE.TorusGeometry(r, 0.022, 12, 32),
+        this.chromeMat
+      );
+      topRim.rotation.x = Math.PI / 2;
+      this.activeTopHalf.add(topShell, topRim);
+      this.activeCapsuleRig.add(this.activeTopHalf);
     }
 
-    spawnBurstParticles(colorHex, secondaryHex) {
-      this.burstParticles.forEach(p => this.scene.remove(p.mesh));
+    _buildBurstParticles() {
       this.burstParticles = [];
-
-      const geo = new THREE.OctahedronGeometry(0.05, 0);
-      const colors = [colorHex, secondaryHex, 0xffffff, 0xfde047];
-
-      for (let i = 0; i < 56; i++) {
+      const geo = new THREE.OctahedronGeometry(0.055, 0);
+      for (let i = 0; i < 42; i++) {
         const mat = new THREE.MeshBasicMaterial({
-          color: colors[i % colors.length],
+          color: 0xfde047,
           transparent: true,
-          opacity: 1
+          opacity: 0
         });
         const mesh = new THREE.Mesh(geo, mat);
-        mesh.position.copy(this.heroGroup.position);
-
-        const theta = Math.random() * Math.PI * 2;
-        const phi = Math.acos(2 * Math.random() - 1);
-        const speed = 1.5 + Math.random() * 3.4;
-
-        const vel = new THREE.Vector3(
-          Math.sin(phi) * Math.cos(theta) * speed,
-          Math.sin(phi) * Math.sin(theta) * speed + 0.7,
-          Math.cos(phi) * speed * 0.6
-        );
-
+        mesh.visible = false;
         this.scene.add(mesh);
         this.burstParticles.push({
           mesh,
-          vel,
-          rotSpeed: new THREE.Vector3(
-            (Math.random() - 0.5) * 9,
-            (Math.random() - 0.5) * 9,
-            (Math.random() - 0.5) * 9
-          ),
-          life: 1.0,
-          decay: 0.60 + Math.random() * 0.40
+          vel: new THREE.Vector3(),
+          life: 0,
+          maxLife: 1.0
         });
       }
     }
 
-    shakeGlobe(strength = 0.5) {
-      this.sfx.playBallRollClack(0.6 * strength);
-      this.physicsSettlingTimer = 0.65;
-      for (let i = 0; i < this.balls.length; i++) {
-        const b = this.balls[i];
-        if (b.isDropping) continue;
-        b.vel.x += (Math.random() - 0.5) * 2.4 * strength;
-        b.vel.z += (Math.random() - 0.5) * 2.4 * strength;
-      }
-    }
-
-    startVendingSequence(rewardObj) {
-      if (this.state !== 'IDLE' && this.state !== 'CAPSULE_BURST_OPEN') return false;
-
-      if (this.droppingBall) {
-        this.droppingBall.isDropping = false;
-        this.droppingBall.mesh.visible = true;
-        this.droppingBall.mesh.scale.set(1, 1, 1);
-        this.droppingBall.pos.set((Math.random() - 0.5) * 0.35, 1.38, (Math.random() - 0.5) * 0.35);
-        this.droppingBall.vel.set(0, 0, 0);
-        this.droppingBall = null;
-      }
-
-      this.heroGroup.visible = false;
-      this.flapPivot.rotation.x = 0;
-      this.pendingReward = rewardObj;
-
-      const tier = RARITY_TIERS[rewardObj.rarity] || RARITY_TIERS.rare;
-      this.heroBottomMat.color.setHex(tier.colorHex);
-      this.heroTopMat.color.setHex(tier.secondaryHex);
-      this.totemCoreMat.emissive.setHex(tier.colorHex);
-      this.shockwaveMat.color.setHex(tier.colorHex);
-
-      // Select the ball closest to the front-bottom funnel hole (0, 0.68, 0.54)
-      let bestBall = this.balls[0];
-      let bestDist = Infinity;
-      const holeTarget = new THREE.Vector3(0, 0.68, 0.54);
-      for (let i = 0; i < this.balls.length; i++) {
-        const b = this.balls[i];
-        const d = b.pos.distanceToSquared(holeTarget);
-        if (d < bestDist) {
-          bestDist = d;
-          bestBall = b;
-        }
-      }
-
-      this.droppingBall = bestBall;
-      if (this.droppingBall) {
-        const ud = this.droppingBall.mesh.userData;
-        if (ud && ud.bottomMat && ud.topMat && ud.coreMat) {
-          ud.bottomMat.color.setHex(tier.colorHex);
-          ud.topMat.color.setHex(tier.secondaryHex);
-          ud.coreMat.emissive.setHex(tier.colorHex);
-        }
-      }
-
-      this.state = 'LEVER_PULL_AND_TUMBLE';
-      this.stateTimer = 0;
-      this.lastRatchetStep = -1;
-      this.physicsSettlingTimer = 1.8;
-      this.sfx.playCoinAndLeverStart();
-
-      if (this.callbacks.onStateChange) {
-        this.callbacks.onStateChange(this.state, rewardObj);
-      }
-      return true;
-    }
-
-    triggerCapsuleBurstNow() {
-      if (this.state !== 'HERO_PRESENTATION') return;
-      this.state = 'CAPSULE_BURST_OPEN';
-      this.stateTimer = 0;
-
-      const tier = RARITY_TIERS[this.pendingReward?.rarity] || RARITY_TIERS.rare;
-      this.sfx.playCapsuleBurstFanfare(tier.id);
-      this.spawnBurstParticles(tier.colorHex, tier.secondaryHex);
-
-      if (this.callbacks.onStateChange) {
-        this.callbacks.onStateChange(this.state, this.pendingReward);
-      }
-      if (this.callbacks.onRewardRevealed && this.pendingReward) {
-        this.callbacks.onRewardRevealed(this.pendingReward);
-      }
-    }
-
-    resetToIdle() {
-      if (this.droppingBall) {
-        this.droppingBall.isDropping = false;
-        this.droppingBall.mesh.visible = true;
-        this.droppingBall.mesh.scale.set(1, 1, 1);
-        this.droppingBall.pos.set((Math.random() - 0.5) * 0.30, 1.35, (Math.random() - 0.5) * 0.30);
-        this.droppingBall.vel.set(0, 0, 0);
-        this.droppingBall = null;
-        this.preSettleBalls();
-      }
-      this.state = 'IDLE';
-      this.stateTimer = 0;
-      this.physicsSettlingTimer = 0;
-      this.heroGroup.visible = false;
-      this.heroLight.intensity = 0;
-      this.flapPivot.rotation.x = 0;
-      this.leverPivot.rotation.x = this.leverRestAngle;
-      if (this.callbacks.onStateChange) {
-        this.callbacks.onStateChange('IDLE', null);
-      }
-    }
-
-    updatePhysics(dt) {
-      const isTumbling = (this.state === 'LEVER_PULL_AND_TUMBLE');
-      if (!isTumbling && this.physicsSettlingTimer <= 0) {
-        // 100% ASLEEP IN IDLE — ZERO VIBRATION OR JITTER!
-        return;
-      }
-
-      if (!isTumbling && this.physicsSettlingTimer > 0) {
-        this.physicsSettlingTimer = Math.max(0, this.physicsSettlingTimer - dt);
-      }
-
-      this.stepPhysicsInternal(dt, isTumbling);
-
-      // When settling timer finishes, zero out any residual micro-velocities
-      if (!isTumbling && this.physicsSettlingTimer <= 0) {
-        for (let i = 0; i < this.balls.length; i++) {
-          this.balls[i].vel.set(0, 0, 0);
-        }
-      }
-    }
-
-    stepPhysicsInternal(dt, isTumbling) {
-      const gravity = -22.0;
-      const maxAllowableR = this.domeRadius - this.ballRadius - 0.04;
-      const rodMinR = 0.045 + this.ballRadius;
-      const settleFactor = isTumbling ? 1.0 : Math.min(1.0, this.physicsSettlingTimer / 0.4);
-
-      for (let i = 0; i < this.balls.length; i++) {
-        const b = this.balls[i];
-        if (b.isDropping) continue;
-
-        b.vel.y += gravity * dt;
-
-        if (isTumbling) {
-          const dx = b.pos.x;
-          const dz = b.pos.z;
-          const distXZ = Math.sqrt(dx * dx + dz * dz) || 0.001;
-          const tangX = -dz / distXZ;
-          const tangZ = dx / distXZ;
-
-          const heightFactor = Math.max(0.15, 1.0 - Math.max(0, b.pos.y - 0.65) * 0.7);
-          b.vel.x += tangX * 8.2 * heightFactor * dt;
-          b.vel.z += tangZ * 8.2 * heightFactor * dt;
-
-          if (b === this.droppingBall) {
-            b.vel.x += (0 - b.pos.x) * 14.0 * dt;
-            b.vel.z += (0.54 - b.pos.z) * 14.0 * dt;
-          }
-        }
-
-        const damp = isTumbling ? 0.94 : (0.82 * settleFactor);
-        b.vel.x *= damp;
-        b.vel.z *= damp;
-        b.vel.y *= 0.90;
-
-        if (b.vel.y > 1.2) b.vel.y = 1.2;
-
-        b.pos.addScaledVector(b.vel, dt);
-
-        // Only rotate ball mesh when actively rolling above threshold (prevents micro-jitter!)
-        const horizSpeedSq = b.vel.x * b.vel.x + b.vel.z * b.vel.z;
-        if (horizSpeedSq > 0.04) {
-          b.mesh.rotation.x += b.vel.z * 2.8 * dt;
-          b.mesh.rotation.z -= b.vel.x * 2.8 * dt;
-        }
-
-        // Central axis rod collision
-        const rXZ = Math.sqrt(b.pos.x * b.pos.x + b.pos.z * b.pos.z);
-        if (rXZ < rodMinR && rXZ > 0.0001) {
-          const nx = b.pos.x / rXZ;
-          const nz = b.pos.z / rXZ;
-          b.pos.x = nx * rodMinR;
-          b.pos.z = nz * rodMinR;
-          const vn = b.vel.x * nx + b.vel.z * nz;
-          if (vn < 0) {
-            b.vel.x -= 1.1 * vn * nx;
-            b.vel.z -= 1.1 * vn * nz;
-          }
-        }
-
-        // Flat floor inside globe (y = 0.68) so balls rest without sliding endlessly down a slope
-        const floorY = 0.68;
-        if (b.pos.y < floorY) {
-          b.pos.y = floorY;
-          if (b.vel.y < 0) b.vel.y = 0;
-        }
-
-        // Spherical Glass Dome Boundary Constraint
-        const relX = b.pos.x - this.domeCenter.x;
-        const relY = b.pos.y - this.domeCenter.y;
-        const relZ = b.pos.z - this.domeCenter.z;
-        const distFromCenter = Math.sqrt(relX * relX + relY * relY + relZ * relZ);
-
-        if (distFromCenter > maxAllowableR && distFromCenter > 0.0001) {
-          const nx = relX / distFromCenter;
-          const ny = relY / distFromCenter;
-          const nz = relZ / distFromCenter;
-
-          b.pos.set(
-            this.domeCenter.x + nx * maxAllowableR,
-            this.domeCenter.y + ny * maxAllowableR,
-            this.domeCenter.z + nz * maxAllowableR
-          );
-
-          const vn = b.vel.x * nx + b.vel.y * ny + b.vel.z * nz;
-          if (vn > 0) {
-            b.vel.x -= 1.1 * vn * nx;
-            b.vel.y -= 1.1 * vn * ny;
-            b.vel.z -= 1.1 * vn * nz;
-          }
-        }
-      }
-
-      // Pairwise Sphere-to-Sphere Collisions
-      const minDist = this.ballRadius * 2.0;
-      const minDistSq = minDist * minDist;
-
-      for (let iter = 0; iter < 3; iter++) {
-        for (let i = 0; i < this.balls.length; i++) {
-          const b1 = this.balls[i];
-          if (b1.isDropping) continue;
-          for (let j = i + 1; j < this.balls.length; j++) {
-            const b2 = this.balls[j];
-            if (b2.isDropping) continue;
-
-            const dx = b2.pos.x - b1.pos.x;
-            const dy = b2.pos.y - b1.pos.y;
-            const dz = b2.pos.z - b1.pos.z;
-            const distSq = dx * dx + dy * dy + dz * dz;
-
-            if (distSq < minDistSq && distSq > 0.00001) {
-              const dist = Math.sqrt(distSq);
-              const overlap = (minDist - dist) * 0.48;
-              const nx = dx / dist;
-              const ny = dy / dist;
-              const nz = dz / dist;
-
-              b1.pos.x -= nx * overlap;
-              b1.pos.y -= ny * overlap;
-              b1.pos.z -= nz * overlap;
-              b2.pos.x += nx * overlap;
-              b2.pos.y += ny * overlap;
-              b2.pos.z += nz * overlap;
-
-              if (iter === 0) {
-                const rvx = b2.vel.x - b1.vel.x;
-                const rvy = b2.vel.y - b1.vel.y;
-                const rvz = b2.vel.z - b1.vel.z;
-                const velAlongNormal = rvx * nx + rvy * ny + rvz * nz;
-
-                if (velAlongNormal < 0) {
-                  const impulse = -(1 + 0.15) * velAlongNormal * 0.5;
-                  b1.vel.x -= impulse * nx;
-                  b1.vel.y -= impulse * ny;
-                  b1.vel.z -= impulse * nz;
-                  b2.vel.x += impulse * nx;
-                  b2.vel.y += impulse * ny;
-                  b2.vel.z += impulse * nz;
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    updateStateMachine(dt) {
-      this.stateTimer += dt;
-
-      for (let i = this.burstParticles.length - 1; i >= 0; i--) {
+    _triggerBurstParticles(origin, colorHex) {
+      for (let i = 0; i < this.burstParticles.length; i++) {
         const p = this.burstParticles[i];
-        p.life -= p.decay * dt;
-        if (p.life <= 0) {
-          this.scene.remove(p.mesh);
-          this.burstParticles.splice(i, 1);
-          continue;
-        }
-        p.vel.y -= 4.5 * dt;
-        p.mesh.position.addScaledVector(p.vel, dt);
-        p.mesh.rotation.x += p.rotSpeed.x * dt;
-        p.mesh.rotation.y += p.rotSpeed.y * dt;
-        p.mesh.material.opacity = Math.max(0, p.life);
-        const s = 0.5 + p.life * 0.8;
-        p.mesh.scale.set(s, s, s);
-      }
+        p.mesh.visible = true;
+        p.mesh.position.copy(origin);
+        p.mesh.material.color.setHex(i % 3 === 0 ? 0xffffff : colorHex);
+        p.mesh.material.opacity = 1.0;
 
-      if (this.state === 'IDLE') {
-        if (!this.isPullingLeverDrag) {
-          this.leverPivot.rotation.x = this.leverRestAngle;
-        }
-
-        const baseZ = this.defaultCamPos.z;
-        const targetX = Math.sin(this.userYaw) * baseZ;
-        const targetZ = Math.cos(this.userYaw) * baseZ;
-        const targetY = this.defaultCamPos.y + this.userPitch * 2.0;
-        this.currentCamPos.lerp(new THREE.Vector3(targetX, targetY, targetZ), Math.min(1, dt * 6));
-        this.currentLookAt.lerp(this.defaultLookAt, Math.min(1, dt * 6));
-        this.camera.position.copy(this.currentCamPos);
-        this.camera.lookAt(this.currentLookAt);
-        return;
-      }
-
-      // ======================================================================
-      // STAGE 1: 3D LEVER PULL DOWN + HEAVY BALL TUMBLE AT BOTTOM OF GLOBE
-      // ======================================================================
-      if (this.state === 'LEVER_PULL_AND_TUMBLE') {
-        const duration = 1.05;
-        const t = Math.min(1, this.stateTimer / duration);
-
-        let leverAngle = this.leverRestAngle;
-        if (t < 0.68) {
-          const p = t / 0.68;
-          const easeInOut = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
-          leverAngle = this.leverRestAngle + easeInOut * 1.38;
-        } else {
-          const p = (t - 0.68) / 0.32;
-          const springBack = 1 - Math.exp(-p * 6) * Math.cos(p * 12);
-          leverAngle = (this.leverRestAngle + 1.38) - springBack * 1.38;
-        }
-        this.leverPivot.rotation.x = leverAngle;
-
-        this.agitatorGroup.rotation.y += dt * 7.5;
-
-        const ratchetStep = Math.floor(t * 7);
-        if (ratchetStep > this.lastRatchetStep && ratchetStep <= 6) {
-          this.lastRatchetStep = ratchetStep;
-          this.sfx.playRatchetClick(0.92 + ratchetStep * 0.03);
-          this.sfx.playBallRollClack(0.65);
-        }
-
-        this.userYaw *= 0.88;
-        this.currentCamPos.lerp(new THREE.Vector3(0, 0.32, this.defaultCamPos.z - 0.5), Math.min(1, dt * 5));
-        this.currentLookAt.lerp(new THREE.Vector3(0, 0.12, 0), Math.min(1, dt * 5));
-        this.camera.position.copy(this.currentCamPos);
-        this.camera.lookAt(this.currentLookAt);
-
-        if (this.stateTimer >= duration) {
-          this.state = 'BALL_VISIBLE_FALL';
-          this.stateTimer = 0;
-          this.physicsSettlingTimer = 0.55;
-          this.leverPivot.rotation.x = this.leverRestAngle;
-
-          if (this.droppingBall) {
-            this.droppingBall.isDropping = true;
-            this.droppingBall.pos.set(0, 0.54, 0.58);
-            this.droppingBall.vel.set(0, -1.2, 0.65);
-          }
-        }
-        return;
-      }
-
-      // ======================================================================
-      // STAGE 2: CONTINUOUS VISIBLE BALL DROP FROM GLOBE -> CHUTE -> TRAY
-      // ======================================================================
-      if (this.state === 'BALL_VISIBLE_FALL') {
-        const duration = 0.96;
-        const t = Math.min(1, this.stateTimer / duration);
-
-        if (this.droppingBall) {
-          const b = this.droppingBall;
-
-          if (t < 0.58) {
-            const fallP = t / 0.58;
-            const accelP = fallP * fallP;
-            b.pos.x = 0;
-            b.pos.y = 0.54 - accelP * 2.16; // Drops from y = +0.54 down to y = -1.62 inside the glass chute
-            b.pos.z = 0.58 + fallP * 0.54; // Moves cleanly into the front chute channel (z = 1.12)
-            b.mesh.rotation.x += dt * 10.5;
-            b.mesh.rotation.z += dt * 3.2;
-          } else {
-            if (!this._playedDoorSound) {
-              this._playedDoorSound = true;
-              this.sfx.playChuteBounceAndDoor();
-            }
-            const outP = (t - 0.58) / 0.42;
-            const bounce = Math.abs(Math.sin(outP * Math.PI * 1.5)) * (1 - outP) * 0.18;
-            b.pos.x = 0;
-            b.pos.y = -1.62 + bounce;
-            b.pos.z = 1.12 + outP * 0.24; // Rests on the lower tray sill (z = 1.36)
-            b.mesh.rotation.x += dt * 8.0 * (1 - outP * 0.5);
-          }
-        }
-
-        if (t >= 0.50) {
-          const doorT = (t - 0.50) / 0.50;
-          const flapAngle = doorT < 0.45
-            ? -Math.sin((doorT / 0.45) * (Math.PI / 2)) * 1.30
-            : -1.30 * Math.exp(-(doorT - 0.45) * 4.0) * Math.cos((doorT - 0.45) * 12);
-          this.flapPivot.rotation.x = Math.min(0, flapAngle);
-        }
-
-        this.currentCamPos.lerp(new THREE.Vector3(0, -0.25, this.defaultCamPos.z - 0.85), Math.min(1, dt * 6));
-        this.currentLookAt.lerp(new THREE.Vector3(0, -1.05, 0.85), Math.min(1, dt * 6));
-        this.camera.position.copy(this.currentCamPos);
-        this.camera.lookAt(this.currentLookAt);
-
-        if (this.stateTimer >= duration) {
-          this._playedDoorSound = false;
-          this.state = 'HERO_PRESENTATION';
-          this.stateTimer = 0;
-
-          const worldStartPos = new THREE.Vector3(0, -1.62 + this.machineGroup.position.y, 1.36);
-          if (this.droppingBall) {
-            this.droppingBall.mesh.getWorldPosition(worldStartPos);
-            this.droppingBall.mesh.visible = false;
-          }
-
-          this.heroGroup.visible = true;
-          this.heroGroup.position.copy(worldStartPos);
-          this.heroGroup.scale.set(0.62, 0.62, 0.62);
-          this.heroBottomHalf.position.set(0, 0, 0);
-          this.heroBottomHalf.rotation.set(0, 0, 0);
-          this.heroTopHalf.position.set(0, 0, 0);
-          this.heroTopHalf.rotation.set(0, 0, 0);
-          this.heroPrizeTotem.scale.set(0.5, 0.5, 0.5);
-          this.shockwaveMat.opacity = 0;
-
-          if (this.callbacks.onStateChange) {
-            this.callbacks.onStateChange(this.state, this.pendingReward);
-          }
-        }
-        return;
-      }
-
-      // ======================================================================
-      // STAGE 3: BALL RISES FROM TRAY & OPENS ITS TWO HEMISPHERES
-      // ======================================================================
-      if (this.state === 'HERO_PRESENTATION') {
-        const flyDuration = 0.62;
-        const t = Math.min(1, this.stateTimer / flyDuration);
-        const easeOut = 1 - Math.pow(1 - t, 3);
-
-        const targetPos = new THREE.Vector3(0, 0.36, 4.15);
-        this.heroGroup.position.lerp(targetPos, Math.min(1, dt * 9.0));
-        const sc = 0.62 + 0.46 * easeOut;
-        this.heroGroup.scale.set(sc, sc, sc);
-
-        const vib = Math.min(1, this.stateTimer / 0.6) * 0.025;
-        this.heroGroup.position.x = Math.sin(this.stateTimer * 55) * vib;
-        this.heroGroup.rotation.y += dt * (4.2 + this.stateTimer * 5.5);
-
-        const seamGap = Math.min(0.06, this.stateTimer * 0.06);
-        this.heroTopHalf.position.y = seamGap;
-        this.heroBottomHalf.position.y = -seamGap;
-        this.heroLight.intensity = Math.min(2.2, this.stateTimer * 3.5);
-
-        this.currentCamPos.lerp(new THREE.Vector3(0, 0.38, this.defaultCamPos.z - 0.55), Math.min(1, dt * 6));
-        this.currentLookAt.lerp(new THREE.Vector3(0, 0.22, 2.2), Math.min(1, dt * 6));
-        this.camera.position.copy(this.currentCamPos);
-        this.camera.lookAt(this.currentLookAt);
-
-        if (this.stateTimer >= 0.72) {
-          this.triggerCapsuleBurstNow();
-        }
-        return;
-      }
-
-      if (this.state === 'CAPSULE_BURST_OPEN') {
-        const t = Math.min(1, this.stateTimer / 0.70);
-        const easeOut = 1 - Math.pow(1 - t, 3);
-
-        this.heroGroup.position.lerp(new THREE.Vector3(0, 0.62, 4.20), Math.min(1, dt * 7));
-        this.heroGroup.rotation.set(0, 0, 0);
-
-        this.heroTopHalf.position.set(-easeOut * 0.48, 0.38 + easeOut * 0.42, -easeOut * 0.20);
-        this.heroTopHalf.rotation.set(-easeOut * 0.82, this.stateTimer * 1.6, easeOut * 0.60);
-
-        this.heroBottomHalf.position.set(easeOut * 0.48, -0.38 - easeOut * 0.35, -easeOut * 0.20);
-        this.heroBottomHalf.rotation.set(easeOut * 0.72, -this.stateTimer * 1.5, -easeOut * 0.50);
-
-        const totemScale = 0.55 + easeOut * 0.72 + Math.sin(this.stateTimer * 4) * 0.04;
-        this.heroPrizeTotem.scale.set(totemScale, totemScale, totemScale);
-        this.totemGem.rotation.y += dt * 2.4;
-        this.totemGem.rotation.x = Math.sin(this.stateTimer * 2.2) * 0.22;
-        this.totemHalo.rotation.x = Math.PI / 3 + Math.sin(this.stateTimer * 1.7) * 0.28;
-        this.totemHalo.rotation.y -= dt * 1.9;
-
-        if (this.stateTimer < 0.52) {
-          const swT = this.stateTimer / 0.52;
-          const swScale = 1 + swT * 5.0;
-          this.shockwaveRing.scale.set(swScale, swScale, 1);
-          this.shockwaveMat.opacity = (1 - swT) * 0.88;
-        } else {
-          this.shockwaveMat.opacity = 0;
-        }
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        const speed = 1.6 + Math.random() * 3.4;
+        p.vel.set(
+          Math.sin(phi) * Math.cos(theta) * speed,
+          Math.sin(phi) * Math.sin(theta) * speed + 0.8,
+          Math.cos(phi) * speed
+        );
+        p.life = 0;
+        p.maxLife = 0.65 + Math.random() * 0.55;
       }
     }
 
-    checkLeverIntersection(clientX, clientY) {
-      const rect = this.canvas.getBoundingClientRect();
-      if (!rect.width || !rect.height) return false;
-      this.pointerNDC.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-      this.pointerNDC.y = -((clientY - rect.top) / rect.height) * 2 + 1;
-      this.raycaster.setFromCamera(this.pointerNDC, this.camera);
-      const hits = this.raycaster.intersectObjects(this.leverInteractables, true);
-      return hits.length > 0;
-    }
+    _bindPointerInteraction() {
+      this.raycaster = new THREE.Raycaster();
+      this.pointerNDC = new THREE.Vector2();
 
-    bindInteraction() {
-      const onDown = (clientX, clientY) => {
-        this.dragStartX = clientX;
-        this.dragStartY = clientY;
-        this.downTime = performance.now();
-
-        if (this.state === 'HERO_PRESENTATION') {
-          this.triggerCapsuleBurstNow();
-          return;
-        }
-
-        if ((this.state === 'IDLE' || this.state === 'CAPSULE_BURST_OPEN') && this.checkLeverIntersection(clientX, clientY)) {
-          this.isPullingLeverDrag = true;
-          this.leverPullProgress = 0;
-          return;
-        }
-
-        this.isDraggingOrbit = true;
+      const updateNDC = (clientX, clientY) => {
+        const rect = this.canvas.getBoundingClientRect();
+        this.pointerNDC.x = ((clientX - rect.left) / Math.max(1, rect.width)) * 2 - 1;
+        this.pointerNDC.y = -((clientY - rect.top) / Math.max(1, rect.height)) * 2 + 1;
       };
 
-      const onMove = (clientX, clientY) => {
-        if (this.isPullingLeverDrag) {
-          const dy = Math.max(0, clientY - this.dragStartY);
-          this.leverPullProgress = Math.min(1, dy / 70);
-          this.leverPivot.rotation.x = this.leverRestAngle + this.leverPullProgress * 1.25;
-          if (this.leverPullProgress >= 0.65) {
-            this.isPullingLeverDrag = false;
+      const checkHitsLeverOrMachine = () => {
+        this.raycaster.setFromCamera(this.pointerNDC, this.camera);
+        const hits = this.raycaster.intersectObjects(this.leverInteractables, true);
+        if (hits.length > 0) return 'lever';
+        // Generous screen-space hitbox around the right-side lever
+        if (this.pointerNDC.x > 0.12 && this.pointerNDC.y > -0.60 && this.pointerNDC.y < 0.35) {
+          return 'lever';
+        }
+        return null;
+      };
+
+      this._onPointerDown = (e) => {
+        if (this.state !== 'IDLE') return;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        updateNDC(clientX, clientY);
+
+        const target = checkHitsLeverOrMachine();
+        if (target === 'lever') {
+          this.isDraggingLever = true;
+          this.dragStartY = clientY;
+          this.leverPullProgress = 0.15;
+        }
+      };
+
+      this._onPointerMove = (e) => {
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+        if (this.isDraggingLever && this.state === 'IDLE') {
+          const dy = clientY - this.dragStartY;
+          this.leverPullProgress = Math.max(0.1, Math.min(1.0, 0.15 + dy / 90));
+          // Pull lever forward around X-axis at X=1.72 (0 collision with machine!)
+          this.leverPivot.rotation.x = this.leverPullProgress * 1.05;
+
+          if (this.leverPullProgress >= 0.68) {
+            this.isDraggingLever = false;
+            this.leverPullProgress = 0;
             if (this.callbacks.onLeverPulled) {
               this.callbacks.onLeverPulled();
             }
@@ -1704,55 +991,433 @@
           return;
         }
 
-        if (!this.isDraggingOrbit) return;
-        const dx = clientX - this.dragStartX;
-        const dy = clientY - this.dragStartY;
-        this.dragStartX = clientX;
-        this.dragStartY = clientY;
-
-        this.userYaw = Math.max(-0.55, Math.min(0.55, this.userYaw - dx * 0.006));
-        this.userPitch = Math.max(-0.20, Math.min(0.28, this.userPitch + dy * 0.004));
+        if (!e.touches && this.state === 'IDLE') {
+          updateNDC(clientX, clientY);
+          const target = checkHitsLeverOrMachine();
+          this.canvas.style.cursor = target === 'lever' ? 'grab' : 'default';
+        }
       };
 
-      const onUp = () => {
-        if (this.isPullingLeverDrag) {
-          this.isPullingLeverDrag = false;
-          this.leverPivot.rotation.x = this.leverRestAngle;
+      this._onPointerUp = () => {
+        if (!this.isDraggingLever) return;
+        this.isDraggingLever = false;
+        if (this.state === 'IDLE') {
+          this.leverPullProgress = 0;
           if (this.callbacks.onLeverPulled) {
             this.callbacks.onLeverPulled();
           }
-          return;
         }
-
-        if (!this.isDraggingOrbit) return;
-        this.isDraggingOrbit = false;
       };
 
-      this.canvas.addEventListener('mousedown', e => {
-        e.preventDefault();
-        onDown(e.clientX, e.clientY);
-      });
-      window.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
-      window.addEventListener('mouseup', () => onUp());
+      this.canvas.addEventListener('mousedown', this._onPointerDown);
+      window.addEventListener('mousemove', this._onPointerMove);
+      window.addEventListener('mouseup', this._onPointerUp);
 
-      this.canvas.addEventListener('touchstart', e => {
-        if (e.touches.length === 1) {
-          onDown(e.touches[0].clientX, e.touches[0].clientY);
+      this.canvas.addEventListener('touchstart', this._onPointerDown, { passive: true });
+      window.addEventListener('touchmove', this._onPointerMove, { passive: true });
+      window.addEventListener('touchend', this._onPointerUp, { passive: true });
+    }
+
+    shakeGlobe(intensity = 0.5) {
+      if (this.state !== 'IDLE') return;
+      this.sfx.playCapsuleumble();
+      this._wakeTimer = 0.55;
+      for (let i = 0; i < this.capsules.length; i++) {
+        const c = this.capsules[i];
+        c.vel.x += (Math.random() - 0.5) * 4.5 * intensity;
+        c.vel.y += (0.5 + Math.random() * 1.8) * intensity;
+        c.vel.z += (Math.random() - 0.5) * 4.5 * intensity;
+      }
+    }
+
+    startVendingSequence(rewardData) {
+      if (this.state !== 'IDLE' && this.state !== 'CAPSULE_BURST_OPEN') return;
+
+      this.resetToIdle();
+      this.pendingReward = rewardData || {
+        rarity: 'classic',
+        title: '+80 𝄞 Claves de Sol',
+        desc: 'Premio directo de la máquina expendedora.'
+      };
+
+      const tier = RARITY_TIERS[this.pendingReward.rarity] || RARITY_TIERS.classic;
+      this.activeBottomMat.color.setHex(tier.shellHex);
+      this.prizeLight.color.setHex(tier.glowHex);
+
+      // Select lowest front capsule to drop down the chute
+      let lowestIdx = 0;
+      let lowestScore = Infinity;
+      for (let i = 0; i < this.capsules.length; i++) {
+        const c = this.capsules[i];
+        const score = c.pos.y - c.pos.z * 0.35;
+        if (score < lowestScore) {
+          lowestScore = score;
+          lowestIdx = i;
         }
-      }, { passive: true });
+      }
+      this.dispensedPoolCapsule = this.capsules[lowestIdx];
 
-      this.canvas.addEventListener('touchmove', e => {
-        if ((this.isDraggingOrbit || this.isPullingLeverDrag) && e.touches.length === 1) {
-          if (e.cancelable) e.preventDefault();
-          onMove(e.touches[0].clientX, e.touches[0].clientY);
+      this.state = 'LEVER_PULL';
+      this.stateTimer = 0;
+      this.sfx.playLeverPull();
+
+      if (this.callbacks.onStateChange) {
+        this.callbacks.onStateChange(this.state);
+      }
+    }
+
+    resetToIdle() {
+      this.state = 'IDLE';
+      this.stateTimer = 0;
+      this._wakeTimer = 0;
+      this.activeCapsuleRig.visible = false;
+      this.activeCapsuleRig.scale.set(1, 1, 1);
+      this.activeTopHalf.position.set(0, 0, 0);
+      this.activeTopHalf.rotation.set(0, 0, 0);
+      this.activeBottomHalf.position.set(0, 0, 0);
+      this.activeBottomHalf.rotation.set(0, 0, 0);
+      this.leverPivot.rotation.set(0, 0, 0);
+      this.chuteFlapPivot.rotation.set(0, 0, 0);
+      this.prizeLight.intensity = 0;
+
+      if (this.dispensedPoolCapsule) {
+        this.dispensedPoolCapsule.mesh.visible = true;
+        this.dispensedPoolCapsule.pos.set(
+          (Math.random() - 0.5) * 0.45,
+          this.globeCenter.y + 0.55,
+          (Math.random() - 0.5) * 0.45
+        );
+        this.dispensedPoolCapsule.vel.set(0, 0, 0);
+        this.dispensedPoolCapsule.mesh.position.copy(this.dispensedPoolCapsule.pos);
+        this.dispensedPoolCapsule = null;
+      }
+
+      for (let i = 0; i < this.capsules.length; i++) {
+        this.capsules[i].vel.set(0, 0, 0);
+        this.capsules[i].angVel.set(0, 0, 0);
+      }
+
+      this.targetCamPos.copy(this.baseCamPos);
+      this.targetLookAt.copy(this.baseLookAt);
+
+      if (this.callbacks.onStateChange) {
+        this.callbacks.onStateChange('IDLE');
+      }
+    }
+
+    _stepCapsulePhysics(dt, agitate = false, silent = false) {
+      // ROCK-STEADY SLEEPING PHYSICS IN IDLE: zero vibration when idle!
+      if (this.state === 'IDLE' && !agitate && (!this._wakeTimer || this._wakeTimer <= 0)) {
+        return;
+      }
+      if (this._wakeTimer > 0) {
+        this._wakeTimer = Math.max(0, this._wakeTimer - dt);
+      }
+
+      const safeDt = Math.min(dt, 0.025);
+      const gravity = -26.0;
+      const maxContainR = this.globeRadius - this.capsuleRadius - 0.08;
+      const minDist = this.capsuleRadius * 2.0;
+      const floorY = this.globeCenter.y - 1.00;
+
+      for (let i = 0; i < this.capsules.length; i++) {
+        const c = this.capsules[i];
+        if (c === this.dispensedPoolCapsule && !c.mesh.visible) continue;
+
+        c.vel.y += gravity * safeDt;
+
+        if (agitate) {
+          const dx = c.pos.x;
+          const dz = c.pos.z;
+          const distXZ = Math.hypot(dx, dz) || 0.001;
+          const heightFactor = Math.max(0, 1.0 - (c.pos.y - floorY) / 1.15);
+          const swirlStrength = 10.5 * heightFactor;
+
+          c.vel.x += (-dz / distXZ) * swirlStrength * safeDt;
+          c.vel.z += (dx / distXZ) * swirlStrength * safeDt;
+          c.vel.y += (1.2 + Math.sin(this.stateTimer * 16 + i) * 1.4) * heightFactor * safeDt;
+
+          if (!silent && Math.random() < 0.05) {
+            this.sfx.playCapsuleumble();
+          }
         }
-      }, { passive: false });
 
-      this.canvas.addEventListener('touchend', () => {
-        onUp();
-      }, { passive: true });
+        const damping = agitate ? 0.94 : 0.80;
+        c.vel.multiplyScalar(damping);
+        c.pos.addScaledVector(c.vel, safeDt);
 
-      window.addEventListener('resize', () => this.resize());
+        if (c.pos.y < floorY) {
+          c.pos.y = floorY;
+          if (c.vel.y < 0) c.vel.y *= -0.15;
+          c.vel.x *= 0.82;
+          c.vel.z *= 0.82;
+        }
+
+        const relX = c.pos.x - this.globeCenter.x;
+        const relY = c.pos.y - this.globeCenter.y;
+        const relZ = c.pos.z - this.globeCenter.z;
+        const dist = Math.hypot(relX, relY, relZ);
+
+        if (dist > maxContainR && dist > 0.0001) {
+          const nx = relX / dist;
+          const ny = relY / dist;
+          const nz = relZ / dist;
+
+          c.pos.set(
+            this.globeCenter.x + nx * maxContainR,
+            this.globeCenter.y + ny * maxContainR,
+            this.globeCenter.z + nz * maxContainR
+          );
+
+          const vn = c.vel.x * nx + c.vel.y * ny + c.vel.z * nz;
+          if (vn > 0) {
+            c.vel.x -= 1.2 * vn * nx;
+            c.vel.y -= 1.2 * vn * ny;
+            c.vel.z -= 1.2 * vn * nz;
+          }
+        }
+      }
+
+      for (let iter = 0; iter < 3; iter++) {
+        for (let i = 0; i < this.capsules.length; i++) {
+          const a = this.capsules[i];
+          if (a === this.dispensedPoolCapsule && !a.mesh.visible) continue;
+
+          for (let j = i + 1; j < this.capsules.length; j++) {
+            const b = this.capsules[j];
+            if (b === this.dispensedPoolCapsule && !b.mesh.visible) continue;
+
+            const dx = b.pos.x - a.pos.x;
+            const dy = b.pos.y - a.pos.y;
+            const dz = b.pos.z - a.pos.z;
+            const dSq = dx * dx + dy * dy + dz * dz;
+
+            if (dSq < minDist * minDist && dSq > 0.00001) {
+              const d = Math.sqrt(dSq);
+              const overlap = (minDist - d) * 0.5;
+              const nx = dx / d;
+              const ny = dy / d;
+              const nz = dz / d;
+
+              a.pos.x -= nx * overlap;
+              a.pos.y -= ny * overlap;
+              a.pos.z -= nz * overlap;
+
+              b.pos.x += nx * overlap;
+              b.pos.y += ny * overlap;
+              b.pos.z += nz * overlap;
+
+              const rvx = b.vel.x - a.vel.x;
+              const rvy = b.vel.y - a.vel.y;
+              const rvz = b.vel.z - a.vel.z;
+              const vn = rvx * nx + rvy * ny + rvz * nz;
+
+              if (vn < 0) {
+                const imp = -0.52 * vn;
+                a.vel.x -= imp * nx;
+                a.vel.y -= imp * ny;
+                a.vel.z -= imp * nz;
+                b.vel.x += imp * nx;
+                b.vel.y += imp * ny;
+                b.vel.z += imp * nz;
+              }
+            }
+          }
+        }
+      }
+
+      for (let i = 0; i < this.capsules.length; i++) {
+        const c = this.capsules[i];
+        if (c === this.dispensedPoolCapsule && !c.mesh.visible) continue;
+
+        const speed = c.vel.length();
+        if (!agitate && speed < 0.08) {
+          c.vel.set(0, 0, 0);
+        } else {
+          c.mesh.position.copy(c.pos);
+          c.mesh.rotation.x += c.vel.z * safeDt * 1.4;
+          c.mesh.rotation.z -= c.vel.x * safeDt * 1.4;
+        }
+      }
+    }
+
+    _updateAnimationState(dt) {
+      const now = performance.now() * 0.001;
+
+      if (this.state === 'IDLE') {
+        this.machineRoot.rotation.y = Math.sin(now * 0.45) * 0.035;
+        if (!this.isDraggingLever) {
+          this.leverPivot.rotation.x += (0 - this.leverPivot.rotation.x) * Math.min(1, dt * 10);
+        }
+        this.leverKnobMat.emissiveIntensity = 0.28 + 0.22 * Math.sin(now * 3.2);
+        this._stepCapsulePhysics(dt, false);
+      }
+
+      // PHASE 1: LEVER PULLS FORWARD ON THE SIDE & AGITATES GLOBE
+      else if (this.state === 'LEVER_PULL') {
+        this.stateTimer += dt;
+        const p = Math.min(1.0, this.stateTimer / 0.85);
+
+        // Smooth pull down to +1.10 rad around X at X=1.72, then spring back
+        let leverAngle = 0;
+        if (p < 0.55) {
+          const t = p / 0.55;
+          leverAngle = Math.sin(t * Math.PI * 0.5) * 1.10;
+        } else {
+          const t = (p - 0.55) / 0.45;
+          leverAngle = (1 - t) * 1.10 * Math.cos(t * Math.PI * 0.5);
+        }
+        this.leverPivot.rotation.x = leverAngle;
+
+        this.agitatorGroup.rotation.y += dt * 9.5 * Math.sin(p * Math.PI);
+        this.machineRoot.rotation.z = Math.sin(this.stateTimer * 32) * 0.008 * Math.sin(p * Math.PI);
+
+        this._stepCapsulePhysics(dt, true);
+
+        if (p >= 1.0) {
+          this.leverPivot.rotation.x = 0;
+          this.machineRoot.rotation.z = 0;
+
+          if (this.dispensedPoolCapsule) {
+            this.dispensedPoolCapsule.mesh.visible = false;
+          }
+          this.activeCapsuleRig.visible = true;
+          this.activeCapsuleRig.scale.set(1, 1, 1);
+          this.activeCapsuleRig.position.set(0, 0.18, 0.92);
+          this.activeTopHalf.position.set(0, 0, 0);
+          this.activeTopHalf.rotation.set(0, 0, 0);
+          this.activeBottomHalf.position.set(0, 0, 0);
+          this.activeBottomHalf.rotation.set(0, 0, 0);
+
+          this.state = 'BALL_DROP_CHUTE';
+          this.stateTimer = 0;
+          this.sfx.playChuteDropBounce();
+
+          this.targetCamPos.set(0.05, -0.45, 7.8);
+          this.targetLookAt.set(0, -0.85, 0.8);
+
+          if (this.callbacks.onStateChange) this.callbacks.onStateChange(this.state);
+        }
+      }
+
+      // PHASE 2: BALL VISIBLY DROPS DOWN TRANSPARENT CHUTE INTO TRAY
+      else if (this.state === 'BALL_DROP_CHUTE') {
+        this.stateTimer += dt;
+        this._stepCapsulePhysics(dt, false);
+
+        const p = Math.min(1.0, this.stateTimer / 0.78);
+        let yPos = 0.18;
+        let zPos = 0.92;
+        let flapAngle = 0;
+
+        if (p < 0.48) {
+          const t = p / 0.48;
+          const easeIn = t * t;
+          yPos = 0.18 + (-1.42 - 0.18) * easeIn;
+          zPos = 0.92 + (1.22 - 0.92) * t;
+          if (t > 0.65) {
+            flapAngle = -((t - 0.65) / 0.35) * 0.95;
+          }
+        } else if (p < 0.76) {
+          const t = (p - 0.48) / 0.28;
+          yPos = -1.42 + (-1.68 - -1.42) * t + Math.sin(t * Math.PI) * 0.12;
+          zPos = 1.22 + (1.46 - 1.22) * t;
+          flapAngle = -0.95 * (1 - t * 0.65);
+        } else {
+          const t = (p - 0.76) / 0.24;
+          yPos = -1.68 + Math.sin(t * Math.PI) * 0.05;
+          zPos = 1.46;
+          flapAngle = -0.30 * (1 - t);
+        }
+
+        this.chuteFlapPivot.rotation.x = flapAngle;
+        this.activeCapsuleRig.position.set(0, yPos, zPos);
+        this.activeCapsuleRig.rotation.x += dt * 11.0;
+
+        if (p >= 1.0) {
+          this.chuteFlapPivot.rotation.x = 0;
+          this.state = 'CAPSULE_PRESENT';
+          this.stateTimer = 0;
+
+          this.targetCamPos.set(0, -0.05, 6.8);
+          this.targetLookAt.set(0, -0.10, 1.8);
+
+          if (this.callbacks.onStateChange) this.callbacks.onStateChange(this.state);
+        }
+      }
+
+      // PHASE 3: CAPSULE RISES TO CENTER FOREGROUND & SHAKES BEFORE SPLITTING
+      else if (this.state === 'CAPSULE_PRESENT') {
+        this.stateTimer += dt;
+        const p = Math.min(1.0, this.stateTimer / 0.62);
+        const ease = 1 - Math.pow(1 - p, 3);
+
+        this.activeCapsuleRig.position.set(
+          Math.sin(p * Math.PI * 10) * 0.03 * p,
+          -1.68 + (0.05 - -1.68) * ease,
+          1.46 + (3.20 - 1.46) * ease
+        );
+        const sc = 1.0 + 0.55 * ease;
+        this.activeCapsuleRig.scale.set(sc, sc, sc);
+        this.activeCapsuleRig.rotation.x = (1 - ease) * 0.5;
+        this.activeCapsuleRig.rotation.y = ease * Math.PI * 2;
+
+        this.prizeLight.intensity = ease * 2.2;
+
+        if (p >= 1.0) {
+          this.state = 'CAPSULE_BURST_OPEN';
+          this.stateTimer = 0;
+
+          const rarity = (this.pendingReward && this.pendingReward.rarity) || 'classic';
+          const tier = RARITY_TIERS[rarity] || RARITY_TIERS.classic;
+          this.sfx.playCapsuleOpenFanfare(rarity);
+          this._triggerBurstParticles(this.activeCapsuleRig.position, tier.glowHex);
+
+          if (this.callbacks.onStateChange) this.callbacks.onStateChange(this.state);
+          if (this.callbacks.onRewardRevealed) {
+            this.callbacks.onRewardRevealed(this.pendingReward);
+          }
+        }
+      }
+
+      // PHASE 4: CAPSULE SPLITS OPEN CLEANLY ABOVE & BELOW THE PRIZE SHOWCASE
+      else if (this.state === 'CAPSULE_BURST_OPEN') {
+        this.stateTimer += dt;
+        const openT = Math.min(1.0, this.stateTimer / 0.45);
+        const easeOut = 1 - Math.pow(1 - openT, 3);
+
+        // Keep top half & bottom half neatly framing the opened capsule center
+        this.activeTopHalf.position.set(0, easeOut * 0.78, 0);
+        this.activeTopHalf.rotation.x = -easeOut * 0.52;
+
+        this.activeBottomHalf.position.set(0, -easeOut * 0.78, 0);
+        this.activeBottomHalf.rotation.x = easeOut * 0.42;
+
+        this.prizeLight.intensity = 2.4 + Math.sin(this.stateTimer * 6.0) * 0.5;
+      }
+
+      // Update 3D burst particles
+      for (let i = 0; i < this.burstParticles.length; i++) {
+        const p = this.burstParticles[i];
+        if (!p.mesh.visible) continue;
+        p.life += dt;
+        if (p.life >= p.maxLife) {
+          p.mesh.visible = false;
+          continue;
+        }
+        p.vel.y -= 4.2 * dt;
+        p.mesh.position.addScaledVector(p.vel, dt);
+        p.mesh.rotation.x += 6 * dt;
+        p.mesh.rotation.y += 8 * dt;
+        p.mesh.material.opacity = Math.max(0, 1 - p.life / p.maxLife);
+      }
+
+      // Smooth camera interpolation
+      const camLerp = Math.min(1.0, dt * 5.0);
+      this.currentCamPos.lerp(this.targetCamPos, camLerp);
+      this.currentLookAt.lerp(this.targetLookAt, camLerp);
+      this.camera.position.copy(this.currentCamPos);
+      this.camera.lookAt(this.currentLookAt);
     }
 
     resize() {
@@ -1760,29 +1425,37 @@
       const w = this.canvas.clientWidth || window.innerWidth || 380;
       const h = this.canvas.clientHeight || window.innerHeight || 680;
       const aspect = w / Math.max(1, h);
-      this.camera.fov = aspect < 0.65 ? 45 : 38;
+
       this.camera.aspect = aspect;
+      // Frame the machine + right-side lever (X=1.72) comfortably on all portrait screens
+      if (aspect < 0.60) {
+        this.baseCamPos.set(0.18, 0.25, 11.4);
+      } else if (aspect < 0.80) {
+        this.baseCamPos.set(0.16, 0.26, 10.4);
+      } else {
+        this.baseCamPos.set(0.12, 0.28, 9.2);
+      }
+      if (this.state === 'IDLE') {
+        this.targetCamPos.copy(this.baseCamPos);
+      }
       this.camera.updateProjectionMatrix();
-      this.defaultCamPos.z = aspect < 0.65 ? 8.55 : 7.65;
       this.renderer.setSize(w, h, false);
     }
 
     start() {
       if (this.isRunning) return;
       this.isRunning = true;
-      this.lastTime = performance.now();
       this.resize();
+      if (this.clock) this.clock.getDelta();
 
-      const loop = (now) => {
+      const loop = () => {
         if (!this.isRunning) return;
-        const dt = Math.min(0.04, Math.max(0.001, (now - this.lastTime) / 1000));
-        this.lastTime = now;
-
-        this.updatePhysics(dt);
-        this.updateStateMachine(dt);
-        this.renderer.render(this.scene, this.camera);
-
         this.rafId = requestAnimationFrame(loop);
+        const dt = this.clock ? Math.min(this.clock.getDelta(), 0.05) : 1 / 60;
+        this._updateAnimationState(dt);
+        if (this.renderer && this.scene && this.camera) {
+          this.renderer.render(this.scene, this.camera);
+        }
       };
       this.rafId = requestAnimationFrame(loop);
     }

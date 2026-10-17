@@ -2063,8 +2063,8 @@
           </button>
         </div>
 
-        <!-- Compact Reward Reveal Card (Appears at bottom when capsule opens) -->
-        <div id="gachaponRewardOverlay" class="hidden absolute inset-x-4 bottom-6 max-w-sm mx-auto z-30 p-4 rounded-3xl bg-black/90 border-2 border-amber-400/80 shadow-[0_0_40px_rgba(251,191,36,0.45)] backdrop-blur-xl space-y-2.5">
+        <!-- Live Visual Capsule Prize Reveal (Shows exact Effect or Claves emerging from the opened ball) -->
+        <div id="gachaponRewardOverlay" class="hidden absolute inset-x-4 top-1/2 -translate-y-1/2 max-w-xs mx-auto z-30 p-4 rounded-3xl bg-black/90 border-2 border-amber-400/85 shadow-[0_0_55px_rgba(251,191,36,0.55)] backdrop-blur-xl space-y-3">
           <div class="flex items-center justify-between gap-2">
             <span id="gachaponRewardRarityBadge" class="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow">
               ★ LEGENDARIO ★
@@ -2072,6 +2072,11 @@
             <span id="gachaponRewardNewTag" class="px-2 py-0.5 rounded bg-emerald-500/25 border border-emerald-400/50 text-emerald-300 text-[9px] font-black uppercase tracking-wider">
               ¡NUEVO!
             </span>
+          </div>
+
+          <!-- Live 60FPS Visual Showcase of the Exact Prize Inside the Opened Ball -->
+          <div class="relative w-full h-40 rounded-2xl overflow-hidden border border-amber-400/40 bg-[#07040c] shadow-inner flex items-center justify-center">
+            <canvas id="gachaponPrizeLiveCanvas" width="280" height="160" class="w-full h-full block"></canvas>
           </div>
 
           <div class="text-center space-y-1">
@@ -3122,162 +3127,98 @@
 
     const GENERIC_THUMBNAIL = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 120' width='160' height='120'><defs><linearGradient id='bg' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='%23140628'/><stop offset='50%' stop-color='%232c0c4a'/><stop offset='100%' stop-color='%235c1782'/></linearGradient></defs><rect width='160' height='120' fill='url(%23bg)'/><circle cx='80' cy='60' r='32' fill='%23000' opacity='0.5'/><circle cx='80' cy='60' r='14' fill='%23ff007f' opacity='0.9'/><circle cx='80' cy='60' r='4' fill='%23fff'/><path d='M75 44v22.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V51h14V44h-12z' fill='%2300f2fe'/></svg>";
 
-    // Key FX Effects Catalog (Acoustic 3D & Pure Black Visual FX)
+    // Catálogo de 12 Efectos Originales Profesionales de Alto Impacto
     const KEY_EFFECTS = [
       {
-        id: 'royal_brass',
-        name: 'Latón Real y Destello Áureo',
-        nameKey: 'effect_royal_brass_name',
-        desc: 'Chispas incandescentes de latón pulido y una majestuosa onda expansiva dorada.',
-        descKey: 'effect_royal_brass_desc',
-        costClefs: 0,
-        costSilver: 0,
-        costGold: 0,
-        costPlatinum: 0,
-        exclusive3D: true
+        id: 'solar_inferno',
+        name: 'Llamarada Infernal',
+        desc: 'Columnas de fuego volumétrico ardiente, lenguas de magma ascendentes y pavesas incandescentes.',
+        rarity: 'classic'
       },
       {
-        id: 'acoustic_resonance',
-        name: 'Resonancia Acústica Armónica',
-        nameKey: 'effect_acoustic_resonance_name',
-        desc: 'Doble halo acústico de ondas armónicas que resuenan como cuerdas de piano.',
-        descKey: 'effect_acoustic_resonance_desc',
-        costClefs: 100,
-        costSilver: 2,
-        costGold: 1,
-        costPlatinum: 0,
-        exclusive3D: true
+        id: 'cyber_neon',
+        name: 'Pulso Cyberpunk Neón',
+        desc: 'Haces láser synthwave en magenta y cian con hexágonos holográficos giratorios y distorsión glitch.',
+        rarity: 'classic'
       },
       {
-        id: 'crimson_royale',
-        name: 'Fieltro Carmesí Real',
-        nameKey: 'effect_crimson_royale_name',
-        desc: 'Brasas de fieltro rojo carmesí y oro ascendentes inspiradas en apagadores de concierto.',
-        descKey: 'effect_crimson_royale_desc',
-        costClefs: 120,
-        costSilver: 3,
-        costGold: 2,
-        costPlatinum: 1,
-        exclusive3D: true
-      },
-      {
-        id: 'luminous_ivory',
-        name: 'Marfil Luminoso y Cénit',
-        nameKey: 'effect_luminous_ivory_name',
-        desc: 'Destello de marfil puro pulido con estallido radial celestial al pulsar.',
-        descKey: 'effect_luminous_ivory_desc',
-        costClefs: 150,
-        costSilver: 4,
-        costGold: 3,
-        costPlatinum: 2,
-        exclusive3D: true
-      },
-      {
-        id: 'default_neon',
-        name: 'Estándar Minimal',
-        desc: 'Fondo negro puro con efectos táctiles limpios y máxima claridad visual.',
-        costClefs: 0,
-        costSilver: 0,
-        costGold: 0,
-        costPlatinum: 0
-      },
-      {
-        id: 'paint_splash',
-        name: 'Chorros de Pintura Neón',
-        desc: 'Dispara una ráfaga radial de gotas y salpicaduras de pintura multicolor (magenta, cian, lima y amarillo) de rápida disipación.',
-        costClefs: 100,
-        costSilver: 3,
-        costGold: 2,
-        costPlatinum: 1
-      },
-      {
-        id: 'fire_inferno',
-        name: 'Modo Fuego e Infierno',
-        desc: 'Llamaradas y chispas ardientes ascendentes con resplandor ígneo en los bordes, manteniendo 100% de visibilidad.',
-        costClefs: 100,
-        costSilver: 3,
-        costGold: 2,
-        costPlatinum: 1
-      },
-      {
-        id: 'color_burst',
-        name: 'Explosiones de Color Neón',
-        desc: 'Ondas expansivas y explosiones de nebulosa en el fondo al pulsar cada tecla, sin tapar las notas.',
-        costClefs: 100,
-        costSilver: 3,
-        costGold: 2,
-        costPlatinum: 1
-      },
-      {
-        id: 'full_focus_base',
-        name: 'Full Focus',
-        desc: 'Destello ambiental perimetral en los bordes de la pantalla con el color del juicio obtenido. Inmersivo y limpio.',
-        costClefs: 100,
-        costSilver: 3,
-        costGold: 2,
-        costPlatinum: 1
-      },
-      {
-        id: 'full_focus_fireworks',
-        name: 'Full Focus: Fuegos Artificiales',
-        desc: 'Detonación de chispas tipo fuegos artificiales con física de gravedad adaptada al color de la puntuación.',
-        costClefs: 120,
-        costSilver: 3,
-        costGold: 2,
-        costPlatinum: 1
-      },
-      {
-        id: 'full_focus_electric',
-        name: 'Full Focus: Aros Eléctricos',
-        desc: 'Ondas radiales de energía eléctrica expansiva ultrarrápida del color del impacto desde la línea de pulsación.',
-        costClefs: 120,
-        costSilver: 3,
-        costGold: 2,
-        costPlatinum: 1,
-        rarity: 'epic'
-      },
-      {
-        id: 'emerald_symphony',
-        name: 'Sinfonía Esmeralda Imperial',
-        desc: 'Estallido de esmeraldas talladas y estrellas doradas con doble onda armónica de concierto.',
-        costClefs: 140,
-        costSilver: 3,
-        costGold: 2,
-        costPlatinum: 1,
-        exclusive3D: true,
+        id: 'cryo_blizzard',
+        name: 'Ventisca Criogénica',
+        desc: 'Estalagmitas de hielo cristalino 3D que estallan al impactar junto a fractales de escarcha ártica.',
         rarity: 'rare'
       },
       {
-        id: 'amethyst_vortex',
-        name: 'Vórtice de Amatista Vintage',
-        desc: 'Espiral hipnótica de cristales amatista, rubí y oro rosa que gira al impactar cada tecla.',
-        costClefs: 160,
-        costSilver: 4,
-        costGold: 3,
-        costPlatinum: 1,
-        exclusive3D: true,
+        id: 'dragon_fire',
+        name: 'Aliento de Dragón Esmeralda',
+        desc: 'Doble hélice de fuego místico esmeralda y oro imperial que asciende en espiral por el carril.',
+        rarity: 'rare'
+      },
+      {
+        id: 'aurora_borealis',
+        name: 'Aurora Boreal Celestial',
+        desc: 'Cortinas ondulantes de luces del norte en turquesa, esmeralda, violeta y rosa polar.',
+        rarity: 'rare'
+      },
+      {
+        id: 'quantum_prism',
+        name: 'Matriz Hiper-Cuántica',
+        desc: 'Hipercubos 3D giratorios en alambre de neón y ondas de escáner láser verde ácido.',
+        rarity: 'rare'
+      },
+      {
+        id: 'grand_fireworks',
+        name: 'Pirotecnia Imperial',
+        desc: 'Cohetes y carcasas de fuegos artificiales multicolor con caída gravitatoria y estrellas estroboscópicas.',
         rarity: 'epic'
       },
       {
-        id: 'diamond_supernova',
-        name: 'Supernova de Diamante Celestial',
-        desc: 'Relámpago diamantino de 36 facetas con halo perimetral zafiro y doble onda expansiva.',
-        costClefs: 220,
-        costSilver: 5,
-        costGold: 4,
-        costPlatinum: 2,
-        exclusive3D: true,
+        id: 'zeus_lightning',
+        name: 'Tormenta de Zeus',
+        desc: 'Relámpagos eléctricos ramificados de alta tensión que caen desde el cielo directo a la tecla.',
+        rarity: 'epic'
+      },
+      {
+        id: 'deep_cosmos',
+        name: 'Nebulosa Cósmica',
+        desc: 'Portal del espacio profundo con brazos de galaxia espiral, polvo estelar y planetas anillados.',
+        rarity: 'epic'
+      },
+      {
+        id: 'asteroid_impact',
+        name: 'Lluvia de Asteroides',
+        desc: 'Meteoritos volcánicos en llamas que impactan la pista liberando rocas incandescentes y cráter de magma.',
+        rarity: 'legendary'
+      },
+      {
+        id: 'black_hole',
+        name: 'Horizonte de Sucesos',
+        desc: 'Singularidad de agujero negro con disco de acreción relativista y jets de radiación gravitacional.',
+        rarity: 'legendary'
+      },
+      {
+        id: 'supernova_burst',
+        name: 'Explosión Supernova',
+        desc: 'Colapso estelar hipermasivo con destello de difracción de 8 puntas y onda de plasma cósmico.',
         rarity: 'legendary'
       }
     ];
 
-    let unlockedEffects = JSON.parse(localStorage.getItem('beatstar_unlocked_effects') || '["default_neon", "royal_brass"]');
-    unlockedEffects = unlockedEffects.filter(e => e !== 'spotlight_reveal');
-    if (!unlockedEffects.includes('royal_brass')) unlockedEffects.push('royal_brass');
-    let activeEffectId = localStorage.getItem('beatstar_active_effect') || 'royal_brass';
-    if (activeEffectId === 'spotlight_reveal') {
-      activeEffectId = 'royal_brass';
-      localStorage.setItem('beatstar_active_effect', 'royal_brass');
+    const VALID_NEW_EFFECT_IDS = new Set(KEY_EFFECTS.map(e => e.id));
+    let rawSavedUnlocked = [];
+    try {
+      rawSavedUnlocked = JSON.parse(localStorage.getItem('beatstar_unlocked_effects_v2') || '["solar_inferno"]');
+    } catch (e) {
+      rawSavedUnlocked = ['solar_inferno'];
+    }
+    let unlockedEffects = rawSavedUnlocked.filter(id => VALID_NEW_EFFECT_IDS.has(id));
+    if (!unlockedEffects.includes('solar_inferno')) unlockedEffects.unshift('solar_inferno');
+    localStorage.setItem('beatstar_unlocked_effects_v2', JSON.stringify(unlockedEffects));
+    localStorage.setItem('beatstar_unlocked_effects', JSON.stringify(unlockedEffects));
+
+    let activeEffectId = localStorage.getItem('beatstar_active_effect') || 'solar_inferno';
+    if (!VALID_NEW_EFFECT_IDS.has(activeEffectId)) {
+      activeEffectId = 'solar_inferno';
+      localStorage.setItem('beatstar_active_effect', 'solar_inferno');
     }
 
     // Player Currency & Medals State (100 claves de bienvenida para nuevos jugadores)
@@ -3528,13 +3469,11 @@
     // FULL-SCREEN 3D VINTAGE GUMBALL MACHINE CONTROLLER (100 CLAVES LEVER PULL)
     // =========================================================================
     let gachapon3DInstance = null;
+    let gachaponPrizePreviewRaf = null;
     const GACHAPON_PULL_COST = 100;
 
     function getEffectRarity(effect) {
-      if (effect.rarity) return effect.rarity;
-      if (effect.id === 'luminous_ivory' || effect.id === 'diamond_supernova') return 'legendary';
-      if (effect.id === 'crimson_royale' || effect.id === 'full_focus_fireworks' || effect.id === 'full_focus_electric' || effect.id === 'amethyst_vortex') return 'epic';
-      if (effect.id === 'acoustic_resonance' || effect.id === 'fire_inferno' || effect.id === 'paint_splash' || effect.id === 'emerald_symphony') return 'rare';
+      if (effect && effect.rarity) return effect.rarity;
       return 'classic';
     }
 
@@ -3554,6 +3493,143 @@
       }
     };
 
+    function stopGachaponPrizePreview() {
+      if (gachaponPrizePreviewRaf) {
+        cancelAnimationFrame(gachaponPrizePreviewRaf);
+        gachaponPrizePreviewRaf = null;
+      }
+    }
+
+    function startGachaponPrizePreview(reward) {
+      stopGachaponPrizePreview();
+      const canvas = document.getElementById('gachaponPrizeLiveCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+      const startPerf = performance.now();
+
+      const loop = (now) => {
+        gachaponPrizePreviewRaf = requestAnimationFrame(loop);
+        ctx.clearRect(0, 0, w, h);
+
+        // Fondo cósmico estilizado dentro de la bola abierta
+        const bgGrad = ctx.createRadialGradient(w * 0.5, h * 0.55, 6, w * 0.5, h * 0.55, w * 0.65);
+        bgGrad.addColorStop(0.0, '#1e1035');
+        bgGrad.addColorStop(0.6, '#0d061a');
+        bgGrad.addColorStop(1.0, '#040208');
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, w, h);
+
+        if (reward.type === 'key_effect') {
+          // Dibujar mini-pista 3D blanca estilizada y el EFECTO EXACTO estallando en vivo
+          ctx.save();
+          const tGrad = ctx.createLinearGradient(w * 0.5, 18, w * 0.5, h);
+          tGrad.addColorStop(0.0, '#93c5fd');
+          tGrad.addColorStop(0.45, '#eff6ff');
+          tGrad.addColorStop(1.0, '#ffffff');
+          ctx.fillStyle = tGrad;
+          ctx.beginPath();
+          ctx.moveTo(w * 0.34, 18);
+          ctx.lineTo(w * 0.66, 18);
+          ctx.lineTo(w * 0.86, h);
+          ctx.lineTo(w * 0.14, h);
+          ctx.closePath();
+          ctx.fill();
+
+          // Receptor Perfect+ en miniatura
+          const hitY = h * 0.80;
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(w * 0.20, hitY - 10, w * 0.60, 20);
+          ctx.strokeStyle = '#38bdf8';
+          ctx.lineWidth = 1.6;
+          ctx.strokeRect(w * 0.20, hitY - 10, w * 0.60, 20);
+          ctx.restore();
+
+          // Ciclo continuo del efecto ganado (1.5s por explosión)
+          const cycle = ((now - startPerf) % 720) / 720;
+          const alpha = Math.max(0.08, 1.0 - Math.pow(cycle, 1.25));
+          if (typeof BeatstarEngine !== 'undefined' && typeof BeatstarEngine.drawSingleEffectBurst === 'function') {
+            BeatstarEngine.drawSingleEffectBurst(
+              ctx,
+              {
+                type: reward.id,
+                x: w * 0.5,
+                y: hitY,
+                alpha,
+                seed: 12.4
+              },
+              now,
+              0.72
+            );
+          }
+        } else {
+          // PREMIO DE CLAVES DE SOL (𝄞): Visualización directa de las Claves saliendo de la bola
+          const tSec = (now - startPerf) * 0.001;
+          const cx = w * 0.5;
+          const cy = h * 0.52;
+
+          // Rayos dorados giratorios
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.rotate(tSec * 0.65);
+          for (let r = 0; r < 12; r++) {
+            ctx.save();
+            ctx.rotate((r * Math.PI) / 6);
+            const rg = ctx.createLinearGradient(0, 0, 95, 0);
+            rg.addColorStop(0.0, 'rgba(251, 191, 36, 0.42)');
+            rg.addColorStop(1.0, 'rgba(251, 191, 36, 0)');
+            ctx.fillStyle = rg;
+            ctx.beginPath();
+            ctx.moveTo(0, -6);
+            ctx.lineTo(95, 0);
+            ctx.lineTo(0, 6);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+          }
+          ctx.restore();
+
+          // Claves de Sol satélite flotando alrededor
+          const orbitCount = 6;
+          for (let i = 0; i < orbitCount; i++) {
+            const ang = tSec * 1.8 + (i * Math.PI * 2) / orbitCount;
+            const ox = cx + Math.cos(ang) * 68;
+            const oy = cy + Math.sin(ang) * 36;
+            ctx.save();
+            ctx.translate(ox, oy);
+            ctx.fillStyle = '#fbbf24';
+            ctx.font = 'bold 20px "Cinzel", serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('𝄞', 0, 0);
+            ctx.restore();
+          }
+
+          // Gran Clave de Sol 3D central y cantidad exacta ganada
+          const pulse = 1.0 + Math.sin(tSec * 5.0) * 0.08;
+          ctx.save();
+          ctx.translate(cx, cy - 6);
+          ctx.scale(pulse, pulse);
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.font = '900 44px "Cinzel", Georgia, serif';
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+          ctx.fillText(`+${reward.clefs} 𝄞`, 2, 3);
+          ctx.fillStyle = '#fde047';
+          ctx.fillText(`+${reward.clefs} 𝄞`, 0, 0);
+          ctx.restore();
+
+          ctx.fillStyle = '#fef3c7';
+          ctx.font = 'bold 11px "Plus Jakarta Sans", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('CLAVES DE SOL', cx, h - 18);
+        }
+      };
+
+      gachaponPrizePreviewRaf = requestAnimationFrame(loop);
+    }
+
     function initOrResumeGachapon3D() {
       const canvas = document.getElementById('gachapon3DCanvas');
       if (!canvas || typeof window.VintageGachapon3D !== 'function') return;
@@ -3566,6 +3642,7 @@
           onStateChange: (state) => {
             const overlay = document.getElementById('gachaponRewardOverlay');
             if (state !== 'CAPSULE_BURST_OPEN' && overlay) {
+              stopGachaponPrizePreview();
               overlay.classList.add('hidden');
             }
           },
@@ -3581,31 +3658,60 @@
       }, 60);
     }
 
-    function rollGachaponReward() {
-      const weights = [
-        { id: 'legendary', w: 18 },
-        { id: 'epic', w: 32 },
-        { id: 'rare', w: 34 },
-        { id: 'classic', w: 16 }
+    // Distribución de Claves con media matemática exacta = 80.0 Claves:
+    // 0.20*50 (10) + 0.25*65 (16.25) + 0.25*80 (20) + 0.15*95 (14.25) + 0.10*115 (11.5) + 0.05*160 (8) = 80.0 Claves
+    function rollClavesPrizeWithMean80() {
+      const table = [
+        { clefs: 50,  w: 20, rarity: 'classic',   title: '+50 𝄞 Claves de Sol' },
+        { clefs: 65,  w: 25, rarity: 'classic',   title: '+65 𝄞 Claves de Sol' },
+        { clefs: 80,  w: 25, rarity: 'rare',      title: '+80 𝄞 Claves de Sol' },
+        { clefs: 95,  w: 15, rarity: 'rare',      title: '+95 𝄞 Claves de Sol' },
+        { clefs: 115, w: 10, rarity: 'epic',      title: '+115 𝄞 Claves de Sol' },
+        { clefs: 160, w: 5,  rarity: 'legendary', title: '+160 𝄞 ¡Bote de Claves!' }
       ];
-
-      const totalW = weights.reduce((acc, it) => acc + it.w, 0);
-      let rnd = Math.random() * totalW;
-      let chosenRarity = weights[0].id;
-      for (const item of weights) {
-        if (rnd < item.w) {
-          chosenRarity = item.id;
+      let r = Math.random() * 100;
+      let picked = table[2];
+      for (const row of table) {
+        if (r < row.w) {
+          picked = row;
           break;
         }
-        rnd -= item.w;
+        r -= row.w;
       }
+      return {
+        type: 'clefs_prize',
+        id: `clefs_${picked.clefs}`,
+        rarity: picked.rarity,
+        isNew: false,
+        clefs: picked.clefs,
+        title: picked.title,
+        desc: `Se han añadido +${picked.clefs} 𝄞 Claves de Sol a tu cuenta.`
+      };
+    }
 
-      // Prioritize unowned Key Effects
+    function rollGachaponReward() {
       const unownedEffects = KEY_EFFECTS.filter(e => !unlockedEffects.includes(e.id));
-      const unownedMatching = unownedEffects.filter(e => getEffectRarity(e) === chosenRarity);
 
-      if (unownedEffects.length > 0 && Math.random() < 0.85) {
-        const pool = unownedMatching.length > 0 ? unownedMatching : unownedEffects;
+      // Si quedan efectos por desbloquear, 45% de probabilidad de obtener un efecto nuevo;
+      // el 55% restante (o 100% si ya tienes todos los efectos) otorga Claves con media 80.
+      if (unownedEffects.length > 0 && Math.random() < 0.45) {
+        const rarityWeights = [
+          { id: 'legendary', w: 16 },
+          { id: 'epic',      w: 28 },
+          { id: 'rare',      w: 34 },
+          { id: 'classic',   w: 22 }
+        ];
+        let rnd = Math.random() * 100;
+        let chosenRarity = 'rare';
+        for (const item of rarityWeights) {
+          if (rnd < item.w) {
+            chosenRarity = item.id;
+            break;
+          }
+          rnd -= item.w;
+        }
+        const matching = unownedEffects.filter(e => getEffectRarity(e) === chosenRarity);
+        const pool = matching.length > 0 ? matching : unownedEffects;
         const ef = pool[Math.floor(Math.random() * pool.length)];
         return {
           type: 'key_effect',
@@ -3617,60 +3723,7 @@
         };
       }
 
-      // Currency & Medal Jackpot Capsules
-      if (chosenRarity === 'legendary') {
-        return {
-          type: 'jackpot_bundle',
-          id: 'jackpot_imperial',
-          rarity: 'legendary',
-          isNew: false,
-          title: '¡Gran Tesoro Imperial!',
-          desc: '+200 𝄞 Claves de Sol, +2 Diamantes de Platino y +2 Medallas de Oro.',
-          clefs: 200,
-          silvers: 0,
-          golds: 2,
-          platinums: 2
-        };
-      } else if (chosenRarity === 'epic') {
-        return {
-          type: 'jackpot_bundle',
-          id: 'jackpot_ruby',
-          rarity: 'epic',
-          isNew: false,
-          title: 'Cápsula Real de Rubí',
-          desc: '+130 𝄞 Claves de Sol, +1 Diamante de Platino y +2 Medallas de Oro.',
-          clefs: 130,
-          silvers: 1,
-          golds: 2,
-          platinums: 1
-        };
-      } else if (chosenRarity === 'rare') {
-        return {
-          type: 'jackpot_bundle',
-          id: 'jackpot_emerald',
-          rarity: 'rare',
-          isNew: false,
-          title: 'Cápsula de Esmeralda',
-          desc: '+110 𝄞 Claves de Sol, +1 Medalla de Oro y +2 Medallas de Plata.',
-          clefs: 110,
-          silvers: 2,
-          golds: 1,
-          platinums: 0
-        };
-      } else {
-        return {
-          type: 'jackpot_bundle',
-          id: 'jackpot_classic',
-          rarity: 'classic',
-          isNew: false,
-          title: 'Cápsula de Marfil',
-          desc: '+80 𝄞 Claves de Sol y +2 Medallas de Plata.',
-          clefs: 80,
-          silvers: 2,
-          golds: 0,
-          platinums: 0
-        };
-      }
+      return rollClavesPrizeWithMean80();
     }
 
     function applyGachaponRewardToProfile(reward) {
@@ -3678,13 +3731,11 @@
       if (reward.type === 'key_effect') {
         if (!unlockedEffects.includes(reward.id)) {
           unlockedEffects.push(reward.id);
+          localStorage.setItem('beatstar_unlocked_effects_v2', JSON.stringify(unlockedEffects));
           localStorage.setItem('beatstar_unlocked_effects', JSON.stringify(unlockedEffects));
         }
-      } else if (reward.type === 'jackpot_bundle') {
+      } else if (reward.type === 'clefs_prize' || reward.type === 'jackpot_bundle') {
         if (reward.clefs) userClefs += reward.clefs;
-        if (reward.silvers) userSilvers += reward.silvers;
-        if (reward.golds) userGolds += reward.golds;
-        if (reward.platinums) userPlatinums += reward.platinums;
       }
       updateUserWalletDisplay();
       updateGachaponControlDeckUI();
@@ -3713,7 +3764,7 @@
       }
 
       if (newTag) {
-        newTag.innerText = reward.isNew ? '✨ ¡NUEVO EFECTO!' : '💎 PREMIO';
+        newTag.innerText = reward.type === 'key_effect' ? '✨ ¡NUEVO EFECTO!' : `𝄞 +${reward.clefs} CLAVES`;
       }
 
       if (titleEl) titleEl.innerText = reward.title;
@@ -3723,23 +3774,24 @@
         let btns = '';
         if (reward.type === 'key_effect') {
           btns += `
-            <button onclick="equipKeyEffect('${reward.id}'); gachapon3DInstance && gachapon3DInstance.resetToIdle(); document.getElementById('gachaponRewardOverlay').classList.add('hidden');" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 hover:brightness-110 text-stone-950 font-black text-xs transition active:scale-95 cursor-pointer shadow-md">
+            <button onclick="equipKeyEffect('${reward.id}'); stopGachaponPrizePreview(); gachapon3DInstance && gachapon3DInstance.resetToIdle(); document.getElementById('gachaponRewardOverlay').classList.add('hidden');" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 hover:brightness-110 text-stone-950 font-black text-xs transition active:scale-95 cursor-pointer shadow-md">
               ⚡ Equipar
             </button>
-            <button onclick="launchEffectDemo('${reward.id}')" class="px-3.5 py-2 rounded-xl bg-cyan-500/25 hover:bg-cyan-500/40 text-cyan-200 border border-cyan-400/50 font-black text-xs transition active:scale-95 cursor-pointer">
+            <button onclick="stopGachaponPrizePreview(); launchEffectDemo('${reward.id}')" class="px-3.5 py-2 rounded-xl bg-cyan-500/25 hover:bg-cyan-500/40 text-cyan-200 border border-cyan-400/50 font-black text-xs transition active:scale-95 cursor-pointer">
               ▶ Probar
             </button>
           `;
         }
         btns += `
-          <button onclick="gachapon3DInstance && gachapon3DInstance.resetToIdle(); document.getElementById('gachaponRewardOverlay').classList.add('hidden');" class="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold text-xs transition active:scale-95 cursor-pointer">
-            OK
+          <button onclick="stopGachaponPrizePreview(); gachapon3DInstance && gachapon3DInstance.resetToIdle(); document.getElementById('gachaponRewardOverlay').classList.add('hidden');" class="px-4 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white border border-white/25 font-bold text-xs transition active:scale-95 cursor-pointer">
+            Continuar
           </button>
         `;
         actionsEl.innerHTML = btns;
       }
 
       overlay.classList.remove('hidden');
+      startGachaponPrizePreview(reward);
     }
 
     window.pullGachaponCapsule = function() {
@@ -3782,9 +3834,13 @@
 
     window.closeFXShopModal = function() {
       stopShopDemoLoop();
+      stopGachaponPrizePreview();
       if (gachapon3DInstance) {
+        gachapon3DInstance.resetToIdle();
         gachapon3DInstance.stop();
       }
+      const overlay = document.getElementById('gachaponRewardOverlay');
+      if (overlay) overlay.classList.add('hidden');
       const drawer = document.getElementById('gachaponEffectsDrawer');
       if (drawer) drawer.classList.add('hidden');
       const modal = document.getElementById('fxShopModal');

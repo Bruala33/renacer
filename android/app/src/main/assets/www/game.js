@@ -1891,46 +1891,98 @@ class BeatstarEngine {
     }
   }
 
-  emitKeyHit(x, y, color = '#ffdf9e', count = 22) {
-    if (this.activeEffect === 'royal_brass') {
-      this.particles.emitRoyalBrass(x, y);
-    } else if (this.activeEffect === 'acoustic_resonance') {
-      this.particles.emitAcousticResonance(x, y);
-    } else if (this.activeEffect === 'crimson_royale') {
-      this.particles.emitCrimsonRoyale(x, y);
-    } else if (this.activeEffect === 'luminous_ivory') {
-      this.particles.emitLuminousIvory(x, y);
-    } else if (this.activeEffect === 'emerald_symphony') {
-      this.particles.emitEmeraldSymphony(x, y);
-    } else if (this.activeEffect === 'amethyst_vortex') {
-      this.particles.emitAmethystVortex(x, y);
-    } else if (this.activeEffect === 'diamond_supernova') {
-      this.vignetteAlpha = 0.65;
-      this.vignetteColor = '#38bdf8';
-      this.particles.emitDiamondSupernova(x, y);
-    } else if (this.activeEffect === 'paint_splash') {
-      this.particles.emitPaintSplash(x, y, 30);
-    } else if (this.activeEffect === 'fire_inferno') {
-      this.particles.emitFireInferno(x, y, 32);
-    } else if (this.activeEffect === 'full_focus_base') {
-      this.vignetteAlpha = 0.85;
-      this.vignetteColor = color;
-      this.particles.emitHit(x, y, color, 20);
-    } else if (this.activeEffect === 'full_focus_fireworks') {
-      this.vignetteAlpha = 0.70;
-      this.vignetteColor = color;
-      this.particles.emitFullFocusFireworks(x, y, color, this.width || 360, this.height || 740);
-    } else if (this.activeEffect === 'full_focus_electric') {
-      this.vignetteAlpha = 0.75;
-      this.vignetteColor = color;
-      this.particles.emitFullFocusElectric(x, y, color, this.width || 360, this.height || 740);
-    } else {
-      this.particles.emitHit(x, y, color, count);
+  normalizeEffectId(rawId) {
+    const LEGACY_MAP = {
+      default_neon: 'solar_inferno',
+      royal_brass: 'solar_inferno',
+      fire_inferno: 'solar_inferno',
+      crimson_royale: 'solar_inferno',
+      acoustic_resonance: 'cryo_blizzard',
+      luminous_ivory: 'aurora_borealis',
+      paint_splash: 'cyber_neon',
+      color_burst: 'cyber_neon',
+      full_focus_base: 'zeus_lightning',
+      full_focus_fireworks: 'grand_fireworks',
+      full_focus_electric: 'zeus_lightning',
+      emerald_symphony: 'dragon_fire',
+      amethyst_vortex: 'deep_cosmos',
+      diamond_supernova: 'supernova_burst'
+    };
+    const validIds = new Set([
+      'solar_inferno',
+      'cryo_blizzard',
+      'cyber_neon',
+      'grand_fireworks',
+      'zeus_lightning',
+      'deep_cosmos',
+      'asteroid_impact',
+      'black_hole',
+      'dragon_fire',
+      'aurora_borealis',
+      'supernova_burst',
+      'quantum_prism'
+    ]);
+    if (validIds.has(rawId)) return rawId;
+    return LEGACY_MAP[rawId] || 'solar_inferno';
+  }
+
+  emitKeyHit(x, y, color = '#ffdf9e', count = 24) {
+    const fx = this.normalizeEffectId(this.activeEffect);
+    this.activeEffect = fx;
+
+    const paletteByFx = {
+      solar_inferno: ['#ffffff', '#fde047', '#fb923c', '#ff3300', '#dc2626'],
+      cryo_blizzard: ['#ffffff', '#e0f2fe', '#7dd3fc', '#38bdf8', '#0284c7'],
+      cyber_neon: ['#ff007f', '#00f2fe', '#ffe600', '#a855f7', '#39ff14'],
+      grand_fireworks: ['#ffd700', '#ff0055', '#00ff88', '#00f2fe', '#e879f9', '#ffffff'],
+      zeus_lightning: ['#ffffff', '#a5f3fc', '#00f2fe', '#818cf8', '#c084fc'],
+      deep_cosmos: ['#c084fc', '#f472b6', '#38bdf8', '#fde047', '#818cf8'],
+      asteroid_impact: ['#fde047', '#fb923c', '#ea580c', '#dc2626', '#78350f'],
+      black_hole: ['#f97316', '#ec4899', '#a855f7', '#fde047', '#38bdf8'],
+      dragon_fire: ['#fde047', '#34d399', '#10b981', '#059669', '#a7f3d0'],
+      aurora_borealis: ['#2dd4bf', '#34d399', '#38bdf8', '#c084fc', '#f472b6'],
+      supernova_burst: ['#ffffff', '#fde047', '#ff007f', '#00f2fe', '#a855f7'],
+      quantum_prism: ['#39ff14', '#00f2fe', '#a855f7', '#ffffff', '#fde047']
+    };
+
+    const pal = paletteByFx[fx] || paletteByFx.solar_inferno;
+    for (let i = 0; i < count; i++) {
+      const p = this.particles.spawnParticle();
+      if (!p) break;
+
+      const isRising = (fx === 'solar_inferno' || fx === 'dragon_fire' || fx === 'aurora_borealis');
+      const angle = isRising
+        ? (-Math.PI / 2 + (Math.random() - 0.5) * 1.35)
+        : (Math.random() * Math.PI * 2);
+      const speed = 95 + Math.random() * 250;
+
+      p.x = x + (Math.random() - 0.5) * 20;
+      p.y = y + (Math.random() - 0.5) * 8;
+      p.vx = Math.cos(angle) * speed;
+      p.vy = Math.sin(angle) * speed - (isRising ? 75 : 30);
+      p.gravity = isRising ? -95 : (fx === 'grand_fireworks' || fx === 'asteroid_impact' ? 280 : 45);
+      p.drag = 0.94;
+      p.radius = 2.6 + Math.random() * 4.2;
+      p.color = pal[i % pal.length];
+      p.alpha = 1.0;
+      p.decay = 2.1 + Math.random() * 1.2;
+      p.type = (i % 2 === 0) ? 'glitter_star' : 'diamond_spark';
+      p.rotation = Math.random() * Math.PI * 2;
+      p.rotSpeed = (Math.random() - 0.5) * 12;
+      p.scaleX = 1;
+      p.scaleY = 1;
+    }
+
+    if (fx === 'zeus_lightning' || fx === 'cyber_neon' || fx === 'supernova_burst') {
+      const w = this.width || 360;
+      const h = this.height || 740;
+      this.particles.spawnLightningArc(x + (Math.random() - 0.5) * 90, h * 0.16, x, y, pal[1]);
+      this.particles.spawnLightningArc(x - 65, y - 35, x + 65, y - 10, pal[2]);
     }
   }
 
   setActiveEffect(effectId) {
-    this.activeEffect = effectId || 'default_neon';
+    this.activeEffect = this.normalizeEffectId(effectId);
     localStorage.setItem('beatstar_active_effect', this.activeEffect);
   }
 
@@ -2160,24 +2212,23 @@ class BeatstarEngine {
       this.ctx.scale(this.dpr, this.dpr);
     }
 
-    // Degradado de pista 3D blanca estilizada con sombreado atmosférico profundo en el fondo (horizonte)
+    // Degradado 3D estilizado limpio (Blanco perlado a azul glaciar luminoso, SIN sombra negra/gris)
     this._trackGrad = this.ctx.createLinearGradient(this.width / 2, 12, this.width / 2, this.height + 30);
-    this._trackGrad.addColorStop(0.00, 'rgba(10, 15, 28, 0.96)');
-    this._trackGrad.addColorStop(0.11, 'rgba(38, 52, 74, 0.94)');
-    this._trackGrad.addColorStop(0.24, '#94a3b8');
-    this._trackGrad.addColorStop(0.38, '#dce4ee');
-    this._trackGrad.addColorStop(0.54, '#f4f7fb');
-    this._trackGrad.addColorStop(0.72, '#ffffff');
-    this._trackGrad.addColorStop(0.88, '#f8fafc');
-    this._trackGrad.addColorStop(1.00, '#dbe3ee');
+    this._trackGrad.addColorStop(0.00, '#93c5fd');
+    this._trackGrad.addColorStop(0.14, '#bfdbfe');
+    this._trackGrad.addColorStop(0.30, '#dbeafe');
+    this._trackGrad.addColorStop(0.48, '#eff6ff');
+    this._trackGrad.addColorStop(0.68, '#f8fafc');
+    this._trackGrad.addColorStop(0.88, '#ffffff');
+    this._trackGrad.addColorStop(1.00, '#e2e8f0');
 
-    // Sombreado lateral 3D cóncavo sobre la pista blanca para relieve tridimensional
+    // Brillo especular cilíndrico 3D limpio sobre la pista (sin sombras negras en los bordes)
     this._trackEdgeShadowGrad = this.ctx.createLinearGradient(0, 0, this.width, 0);
-    this._trackEdgeShadowGrad.addColorStop(0.00, 'rgba(15, 23, 42, 0.34)');
-    this._trackEdgeShadowGrad.addColorStop(0.16, 'rgba(15, 23, 42, 0.06)');
-    this._trackEdgeShadowGrad.addColorStop(0.50, 'rgba(255, 255, 255, 0.0)');
-    this._trackEdgeShadowGrad.addColorStop(0.84, 'rgba(15, 23, 42, 0.06)');
-    this._trackEdgeShadowGrad.addColorStop(1.00, 'rgba(15, 23, 42, 0.34)');
+    this._trackEdgeShadowGrad.addColorStop(0.00, 'rgba(96, 165, 250, 0.22)');
+    this._trackEdgeShadowGrad.addColorStop(0.18, 'rgba(255, 255, 255, 0.0)');
+    this._trackEdgeShadowGrad.addColorStop(0.50, 'rgba(255, 255, 255, 0.48)');
+    this._trackEdgeShadowGrad.addColorStop(0.82, 'rgba(255, 255, 255, 0.0)');
+    this._trackEdgeShadowGrad.addColorStop(1.00, 'rgba(96, 165, 250, 0.22)');
 
     // Degradados de fondo cacheados (evita crearlos 120 veces por segundo)
     const h = this.height;
@@ -3300,109 +3351,38 @@ class BeatstarEngine {
     ];
     const p = burstPalette[lane % 3] || { c1: '#00f2fe', c2: '#ff007f', alt: '#ffe600' };
 
-    const effect = this.activeEffect || 'default_neon';
+    const effect = this.normalizeEffectId(this.activeEffect);
+    this.activeEffect = effect;
 
-    // Spawn rich, creative full-screen phenomena strictly on key tap (capped to avoid GC/frame drops)
-    if (this.bgBursts.length >= 4) this.bgBursts.shift();
+    if (this.bgBursts.length >= 6) this.bgBursts.shift();
     if (this.fxRipples.length >= 5) this.fxRipples.shift();
 
-    if (effect === 'paint_splash') {
-      const blotches = [];
-      const blotchColors = ['#ff007f', '#00f2fe', '#ffe600', '#39ff14', '#b142ff', '#ff3366'];
-      const numBlotches = 4;
-      for (let i = 0; i < numBlotches; i++) {
-        const ang = (Math.random() - 0.5) * Math.PI * 1.7 - Math.PI / 2;
-        const dist = 50 + Math.random() * (this.height * 0.55);
-        blotches.push({
-          angle: ang,
-          dist: dist,
-          maxDist: dist * (1.1 + Math.random() * 0.2),
-          radius: 10 + Math.random() * 18,
-          color: blotchColors[i % blotchColors.length],
-          subDrops: [
-            { dx: (Math.random() - 0.5) * 25, dy: (Math.random() - 0.5) * 25, r: 2 + Math.random() * 4 }
-          ]
-        });
-      }
-
-      this.bgBursts.push({
-        type: 'paint_splash',
-        lane,
-        x: hitX,
-        y: hitY,
-        radius: 30,
-        maxRadius: Math.max(this.width, this.height) * 0.9,
-        alpha: 0.85,
-        decay: 2.5,
-        color1: p.c1,
-        color2: p.c2,
-        blotches: blotches
-      });
-    } else if (effect === 'fire_inferno') {
-      const flames = [];
-      const numFlames = 3;
-      for (let i = 0; i < numFlames; i++) {
-        flames.push({
-          targetX: (this.width * 0.15) + Math.random() * (this.width * 0.7),
-          curveOffsetX: (Math.random() - 0.5) * 90,
-          speed: 1.2 + Math.random() * 0.7,
-          phase: Math.random() * Math.PI * 2,
-          width: 18 + Math.random() * 20,
-          color: i % 2 === 0 ? '#ffea00' : '#ff3300'
-        });
-      }
-
-      this.bgBursts.push({
-        type: 'fire_inferno',
-        lane,
-        x: hitX,
-        y: hitY,
-        progress: 0,
-        radius: 20,
-        maxRadius: Math.max(this.width, this.height) * 0.9,
-        alpha: 0.9,
-        decay: 2.3,
-        color1: '#ff8800',
-        color2: '#ff2200',
-        flames: flames
-      });
-    } else if (effect === 'color_burst') {
-      const rays = [];
-      const numRays = 6;
-      for (let i = 0; i < numRays; i++) {
-        rays.push({
-          angle: (i / numRays) * Math.PI * 2 + (Math.random() - 0.5) * 0.2,
-          len: 80 + Math.random() * (this.height * 0.5),
-          width: 6 + Math.random() * 10,
-          color: i % 2 === 0 ? p.c1 : p.c2
-        });
-      }
-
-      this.bgBursts.push({
-        type: 'color_burst',
-        lane,
-        x: hitX,
-        y: hitY,
-        rotation: Math.random() * Math.PI * 2,
-        rotSpeed: (Math.random() - 0.5) * 2.0,
-        radius: 20,
-        maxRadius: Math.max(this.width, this.height) * 0.95,
-        alpha: 0.85,
-        decay: 2.2,
-        color1: p.c1,
-        color2: p.c2,
-        rays: rays
-      });
-    }
+    this.bgBursts.push({
+      type: effect,
+      lane,
+      x: hitX,
+      y: hitY,
+      age: 0,
+      duration: 0.62,
+      radius: 16,
+      maxRadius: Math.max(this.width, this.height) * 0.55,
+      alpha: 1.0,
+      decay: 1.65,
+      seed: Math.random() * 100,
+      rotation: Math.random() * Math.PI * 2,
+      rotSpeed: (Math.random() < 0.5 ? 1 : -1) * 2.8,
+      color1: p.c1,
+      color2: p.c2
+    });
 
     this.fxRipples.push({
       lane,
       x: hitX,
       y: hitY,
-      radius: 12,
-      maxRadius: 180,
-      alpha: 0.85,
-      decay: 2.2,
+      radius: 10,
+      maxRadius: Math.max(55, (this.laneWidth || 100) * 0.72),
+      alpha: 0.90,
+      decay: 3.4,
       color: p.c1
     });
 
@@ -4893,12 +4873,10 @@ class BeatstarEngine {
 
     for (let i = this.bgBursts.length - 1; i >= 0; i--) {
       const b = this.bgBursts[i];
+      b.age = (b.age || 0) + dt;
       b.radius += (b.maxRadius - b.radius) * 5.5 * dt;
       if (b.rotation !== undefined) {
         b.rotation += (b.rotSpeed || 0) * dt;
-      }
-      if (b.progress !== undefined) {
-        b.progress = Math.min(1.0, b.progress + dt * 2.2);
       }
       b.alpha -= b.decay * dt;
       if (b.alpha <= 0) this.bgBursts.splice(i, 1);
@@ -5360,168 +5338,13 @@ class BeatstarEngine {
       ctx.restore();
     }
 
-    const effect = this.activeEffect || 'default_neon';
     const isReactiveActive = this.customBgMode === 'reactive' && !!this.customBgMedia;
-    if (!isReactiveActive && (effect === 'default_neon' || this.bgBursts.length === 0)) {
+    if (!isReactiveActive) {
       return;
     }
 
     try {
-
-      // ====================================================
-      // 1. CHORROS DE PINTURA (Graffiti & Manchas de Acuarela por toda la pantalla)
-      // ====================================================
-      if (effect === 'paint_splash') {
-        ctx.save();
-        ctx.globalCompositeOperation = 'screen';
-        for (const b of this.bgBursts) {
-          if (b.alpha <= 0.01) continue;
-
-          // A. Expansión de halo de acuarela en el fondo
-          const washRadius = b.radius * 1.4;
-          const washGrad = ctx.createRadialGradient(b.x, b.y, 5, b.x, b.y, washRadius);
-          washGrad.addColorStop(0, hexToRgba(b.color1, b.alpha * 0.28));
-          washGrad.addColorStop(0.5, hexToRgba(b.color2, b.alpha * 0.14));
-          washGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-          ctx.fillStyle = washGrad;
-          ctx.beginPath();
-          ctx.arc(b.x, b.y, washRadius, 0, Math.PI * 2);
-          ctx.fill();
-
-          // B. Manchas orgánicas de pintura y estelas de gotas disparadas
-          if (b.blotches) {
-            for (const blotch of b.blotches) {
-              const progress = 1 - (b.alpha / 0.9);
-              const curDist = blotch.dist + (blotch.maxDist - blotch.dist) * progress;
-              const bx = b.x + Math.cos(blotch.angle) * curDist;
-              const by = b.y + Math.sin(blotch.angle) * curDist;
-              const curR = blotch.radius * (0.4 + b.alpha * 0.6);
-
-              // 1. Estela conectora fluida
-              ctx.strokeStyle = hexToRgba(blotch.color, b.alpha * 0.16);
-              ctx.lineWidth = Math.max(1, curR * 0.3);
-              ctx.beginPath();
-              ctx.moveTo(b.x, b.y);
-              ctx.quadraticCurveTo((b.x + bx) / 2 + Math.sin(blotch.angle) * 20, (b.y + by) / 2, bx, by);
-              ctx.stroke();
-
-              // 2. Mancha principal
-              ctx.fillStyle = hexToRgba(blotch.color, b.alpha * 0.30);
-              ctx.beginPath();
-              ctx.arc(bx, by, curR, 0, Math.PI * 2);
-              ctx.fill();
-
-              // 3. Gotas satélite
-              if (blotch.subDrops) {
-                for (const sd of blotch.subDrops) {
-                  ctx.fillStyle = hexToRgba(blotch.color, b.alpha * 0.26);
-                  ctx.beginPath();
-                  ctx.arc(bx + sd.dx, by + sd.dy, sd.r * (0.5 + b.alpha * 0.5), 0, Math.PI * 2);
-                  ctx.fill();
-                }
-              }
-            }
-          }
-        }
-        ctx.restore();
-        return;
-      }
-
-      // ====================================================
-      // 2. MODO FUEGO / INFIERNO (Cintas de Fuego Serpentino y Vórtice de Magma)
-      // ====================================================
-      if (effect === 'fire_inferno') {
-        ctx.save();
-        ctx.globalCompositeOperation = 'screen';
-        for (const b of this.bgBursts) {
-          if (b.alpha <= 0.01) continue;
-
-          // A. Resplandor térmico suave que inunda la pantalla al toque
-          const heatRadius = b.radius * 1.5;
-          const heatGrad = ctx.createRadialGradient(b.x, b.y, 10, b.x, b.y, heatRadius);
-          heatGrad.addColorStop(0, hexToRgba('#ff8800', b.alpha * 0.28));
-          heatGrad.addColorStop(0.5, hexToRgba('#ff2200', b.alpha * 0.14));
-          heatGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-          ctx.fillStyle = heatGrad;
-          ctx.fillRect(0, 0, w, h);
-
-          // B. Llamaradas serpentinas ascendentes
-          if (b.flames) {
-            for (const fl of b.flames) {
-              const wave = Math.sin((1 - b.alpha) * 8 + fl.phase) * fl.curveOffsetX;
-              const midX = (b.x + fl.targetX) / 2 + wave;
-              const midY = (b.y + 0) / 2;
-
-              const flGrad = ctx.createLinearGradient(b.x, b.y, fl.targetX, 0);
-              flGrad.addColorStop(0, hexToRgba('#ffffff', b.alpha * 0.38));
-              flGrad.addColorStop(0.35, hexToRgba(fl.color, b.alpha * 0.28));
-              flGrad.addColorStop(0.75, hexToRgba('#ff0033', b.alpha * 0.16));
-              flGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-
-              ctx.strokeStyle = flGrad;
-              ctx.lineWidth = fl.width * (0.4 + b.alpha * 0.6);
-              ctx.lineCap = 'round';
-              ctx.beginPath();
-              ctx.moveTo(b.x, b.y);
-              ctx.quadraticCurveTo(midX, midY, fl.targetX, 0);
-              ctx.stroke();
-            }
-          }
-        }
-        ctx.restore();
-        return;
-      }
-
-      // ====================================================
-      // 3. EXPLOSIONES DE COLOR NEÓN (Rayos Supernova y Ondas Celestiales)
-      // ====================================================
-      if (effect === 'color_burst') {
-        ctx.save();
-        ctx.globalCompositeOperation = 'screen';
-        for (const b of this.bgBursts) {
-          if (b.alpha <= 0.01) continue;
-
-          // A. Ondas concéntricas de distorsión neón
-          const warpRadius = b.radius * 1.5;
-          const warpGrad = ctx.createRadialGradient(b.x, b.y, 10, b.x, b.y, warpRadius);
-          warpGrad.addColorStop(0, hexToRgba(b.color1, b.alpha * 0.30));
-          warpGrad.addColorStop(0.45, hexToRgba(b.color2, b.alpha * 0.16));
-          warpGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-          ctx.fillStyle = warpGrad;
-          ctx.beginPath();
-          ctx.arc(b.x, b.y, warpRadius, 0, Math.PI * 2);
-          ctx.fill();
-
-          // B. Rayos Supernova giratorios por toda la pantalla
-          if (b.rays) {
-            ctx.save();
-            ctx.translate(b.x, b.y);
-            ctx.rotate(b.rotation || 0);
-
-            for (const ray of b.rays) {
-              const curLen = ray.len * (0.6 + (1 - b.alpha) * 0.8);
-              const rayGrad = ctx.createLinearGradient(0, 0, Math.cos(ray.angle) * curLen, Math.sin(ray.angle) * curLen);
-              rayGrad.addColorStop(0, hexToRgba('#ffffff', b.alpha * 0.35));
-              rayGrad.addColorStop(0.4, hexToRgba(ray.color, b.alpha * 0.26));
-              rayGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-
-              ctx.strokeStyle = rayGrad;
-              ctx.lineWidth = ray.width * (0.5 + b.alpha * 0.5);
-              ctx.beginPath();
-              ctx.moveTo(0, 0);
-              ctx.lineTo(Math.cos(ray.angle) * curLen, Math.sin(ray.angle) * curLen);
-              ctx.stroke();
-            }
-            ctx.restore();
-          }
-        }
-        ctx.restore();
-        return;
-      }
-
-      // ====================================================
-      // 4. FONDO REACTIVO: ILUMINACIÓN ADITIVA DINÁMICA (MÁS TECLAS = MÁS LUZ)
-      // ====================================================
+      // FONDO REACTIVO: ILUMINACIÓN ADITIVA DINÁMICA
       if (this.customBgMode === 'reactive' && this.customBgMedia) {
         const hasBursts = this.bgBursts.some(b => b.type === 'reactive_reveal' && b.alpha > 0.01);
         const hasHolds = this.activeHolds.size > 0;
@@ -5540,12 +5363,10 @@ class BeatstarEngine {
           const sCtx = this.spotlightCtx;
           sCtx.clearRect(0, 0, spotW, spotH);
 
-          // PASO 1: Dibujar todas las fuentes de luz en la máscara usando 'lighter' (ADITIVO: más teclas = más luz, NUNCA se queda negro!)
           sCtx.save();
           sCtx.scale(spotScale, spotScale);
           sCtx.globalCompositeOperation = 'lighter';
 
-          // A. Resplandor ambiental reactivo acumulado por ráfagas de notas
           if (hasBoost) {
             const ambGrad = sCtx.createRadialGradient(w / 2, this.hitLineY, 20, w / 2, this.hitLineY, Math.max(w, h));
             const boostA = Math.min(0.70, (this.reactiveLightBoost || 0) * 0.70);
@@ -5556,7 +5377,6 @@ class BeatstarEngine {
             sCtx.fillRect(0, 0, w, h);
           }
 
-          // B. Cada onda expansiva de cada tecla pulsada suma luz
           for (const b of this.bgBursts) {
             if (b.type !== 'reactive_reveal' || b.alpha <= 0.01) continue;
             const rad = Math.max(20, b.radius);
@@ -5572,7 +5392,6 @@ class BeatstarEngine {
             sCtx.fill();
           }
 
-          // C. Cada nota mantenida (hold) añade un haz de luz continuo
           for (const [holdLane] of this.activeHolds.entries()) {
             const hx = (holdLane + 0.5) * this.laneWidth;
             const hy = this.hitLineY;
@@ -5588,38 +5407,538 @@ class BeatstarEngine {
           }
           sCtx.restore();
 
-          // PASO 2: Recortar la imagen o vídeo con la máscara de luz sumada (source-in)
           sCtx.save();
           sCtx.globalCompositeOperation = 'source-in';
           sCtx.scale(spotScale, spotScale);
           this.drawCoverMedia(sCtx, this.customBgMedia, w, h);
           sCtx.restore();
 
-          // PASO 3: Dibujar la escena iluminada sobre el fondo negro base
           ctx.save();
           ctx.drawImage(this.spotlightCanvas, 0, 0, w, h);
-
-          // PASO 4: Halo de onda expansiva perimetral con el color exacto del juicio (Perfect+, Perfect, Great, Good)
-          ctx.globalCompositeOperation = 'screen';
-          for (const b of this.bgBursts) {
-            if (b.type !== 'reactive_reveal' || b.alpha <= 0.01) continue;
-            const rad = Math.max(15, b.radius);
-            const rimCol = b.color || '#00f2fe';
-            const rim = ctx.createRadialGradient(b.x, b.y, Math.max(0, rad - 35), b.x, b.y, rad);
-            rim.addColorStop(0, 'rgba(0, 0, 0, 0)');
-            rim.addColorStop(0.65, hexToRgba(rimCol, b.alpha * 0.45));
-            rim.addColorStop(1, 'rgba(0, 0, 0, 0)');
-            ctx.fillStyle = rim;
-            ctx.beginPath();
-            ctx.arc(b.x, b.y, rad, 0, Math.PI * 2);
-            ctx.fill();
-          }
           ctx.restore();
         }
-        return;
       }
     } catch (fxErr) {
       console.warn('Background FX warning:', fxErr);
+    }
+  }
+
+  // =========================================================================
+  // MOTOR DE 12 EFECTOS ORIGINALES DE ALTA GAMA (VISIBLES SOBRE PISTA Y CÁPSULA)
+  // =========================================================================
+  static drawSingleEffectBurst(ctx, b, nowMs = 0, spanScale = 1.0) {
+    if (!ctx || !b || b.alpha <= 0.01) return;
+    const fx = b.type || 'solar_inferno';
+    const a = Math.max(0, Math.min(1, b.alpha));
+    const p = Math.max(0, Math.min(1, 1 - a));
+    const x = b.x;
+    const y = b.y;
+    const s = spanScale;
+    const seed = b.seed || 17.3;
+
+    ctx.save();
+
+    // 1. LLAMARADA INFERNAL (FUEGO VOLUMÉTRICO INTENSO)
+    if (fx === 'solar_inferno') {
+      const baseGrad = ctx.createRadialGradient(x, y, 4 * s, x, y - 55 * s * p, 95 * s);
+      baseGrad.addColorStop(0.0, `rgba(153, 27, 27, ${(a * 0.72).toFixed(3)})`);
+      baseGrad.addColorStop(0.5, `rgba(234, 88, 12, ${(a * 0.45).toFixed(3)})`);
+      baseGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = baseGrad;
+      ctx.beginPath();
+      ctx.ellipse(x, y - 35 * s * p, 62 * s, 95 * s, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      const flameCols = ['#dc2626', '#ff4500', '#fb923c', '#fde047', '#ffffff'];
+      for (let i = 0; i < 7; i++) {
+        const frac = i / 6;
+        const spread = (frac - 0.5) * 76 * s;
+        const flameH = (85 + Math.sin(seed + i * 2.1) * 35 + p * 145) * s;
+        const wave = Math.sin(nowMs * 0.018 + i * 1.4) * 16 * s;
+        const topX = x + spread * (0.55 + p * 0.45) + wave;
+        const topY = y - flameH;
+        const baseW = (24 - (i % 3) * 4) * s * a;
+
+        ctx.beginPath();
+        ctx.moveTo(x + spread * 0.35 - baseW, y + 6 * s);
+        ctx.quadraticCurveTo(x + spread * 0.7 - wave * 0.6, y - flameH * 0.5, topX, topY);
+        ctx.quadraticCurveTo(x + spread * 0.7 + wave * 0.6, y - flameH * 0.5, x + spread * 0.35 + baseW, y + 6 * s);
+        ctx.closePath();
+
+        const fg = ctx.createLinearGradient(x, y, topX, topY);
+        fg.addColorStop(0.0, '#ffffff');
+        fg.addColorStop(0.25, '#fde047');
+        fg.addColorStop(0.60, '#ff4500');
+        fg.addColorStop(1.0, 'rgba(185, 28, 28, 0)');
+        ctx.fillStyle = fg;
+        ctx.globalAlpha = a * 0.92;
+        ctx.fill();
+      }
+
+      ctx.strokeStyle = '#ff4500';
+      ctx.lineWidth = 4.5 * s * a;
+      ctx.beginPath();
+      ctx.ellipse(x, y, (24 + p * 68) * s, (10 + p * 26) * s, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      for (let e = 0; e < 10; e++) {
+        const ang = seed + e * 0.9 + p * 3.5;
+        const ex = x + Math.sin(ang) * (15 + e * 5.5) * s;
+        const ey = y - (p * (60 + e * 16) + (e * 7)) * s;
+        ctx.fillStyle = flameCols[e % flameCols.length];
+        ctx.beginPath();
+        ctx.arc(ex, ey, (3.8 - (e % 3) * 0.8) * s * a, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // 2. VENTISCA CRIOGÉNICA (CRISTALES DE HIELO Y ESCARCHA)
+    else if (fx === 'cryo_blizzard') {
+      const iceGrad = ctx.createRadialGradient(x, y, 2 * s, x, y, 88 * s);
+      iceGrad.addColorStop(0.0, `rgba(3, 105, 161, ${(a * 0.68).toFixed(3)})`);
+      iceGrad.addColorStop(0.55, `rgba(14, 165, 233, ${(a * 0.35).toFixed(3)})`);
+      iceGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = iceGrad;
+      ctx.beginPath();
+      ctx.arc(x, y, 88 * s, 0, Math.PI * 2);
+      ctx.fill();
+
+      for (let i = 0; i < 9; i++) {
+        const ang = -Math.PI * 0.88 + (i / 8) * Math.PI * 0.76;
+        const len = (42 + (i % 2) * 32 + p * 68) * s;
+        const tipX = x + Math.cos(ang) * len;
+        const tipY = y + Math.sin(ang) * len;
+        const perpX = -Math.sin(ang) * 9 * s * a;
+        const perpY = Math.cos(ang) * 9 * s * a;
+
+        ctx.beginPath();
+        ctx.moveTo(x + perpX, y + perpY);
+        ctx.lineTo(tipX, tipY);
+        ctx.lineTo(x - perpX, y - perpY);
+        ctx.closePath();
+        ctx.fillStyle = i % 2 === 0 ? `rgba(2, 132, 199, ${(a * 0.85).toFixed(3)})` : `rgba(56, 189, 248, ${(a * 0.88).toFixed(3)})`;
+        ctx.fill();
+        ctx.strokeStyle = `rgba(255, 255, 255, ${(a * 0.95).toFixed(3)})`;
+        ctx.lineWidth = 1.6 * s;
+        ctx.stroke();
+      }
+
+      ctx.save();
+      ctx.translate(x, y - 28 * p * s);
+      ctx.rotate(p * 1.4 + seed);
+      const hexR = (22 + p * 54) * s;
+      ctx.strokeStyle = `rgba(224, 242, 254, ${(a * 0.95).toFixed(3)})`;
+      ctx.lineWidth = 2.6 * s * a;
+      ctx.beginPath();
+      for (let k = 0; k < 6; k++) {
+        const ka = (k * Math.PI) / 3;
+        const kx = Math.cos(ka) * hexR;
+        const ky = Math.sin(ka) * hexR;
+        ctx.moveTo(0, 0);
+        ctx.lineTo(kx, ky);
+        const b1x = Math.cos(ka) * hexR * 0.62;
+        const b1y = Math.sin(ka) * hexR * 0.62;
+        ctx.moveTo(b1x, b1y);
+        ctx.lineTo(b1x + Math.cos(ka + 0.6) * hexR * 0.28, b1y + Math.sin(ka + 0.6) * hexR * 0.28);
+        ctx.moveTo(b1x, b1y);
+        ctx.lineTo(b1x + Math.cos(ka - 0.6) * hexR * 0.28, b1y + Math.sin(ka - 0.6) * hexR * 0.28);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 3. PULSO CYBERPUNK (EFECTO NEÓN SYNTHWAVE)
+    else if (fx === 'cyber_neon') {
+      const neonCols = ['#ff007f', '#00f2fe', '#a855f7', '#ffe600'];
+      const beamH = (120 + p * 180) * s;
+      const bg = ctx.createLinearGradient(x, y, x, y - beamH);
+      bg.addColorStop(0.0, `rgba(255, 0, 127, ${(a * 0.78).toFixed(3)})`);
+      bg.addColorStop(0.5, `rgba(0, 242, 254, ${(a * 0.55).toFixed(3)})`);
+      bg.addColorStop(1.0, 'rgba(168, 85, 247, 0)');
+      ctx.fillStyle = bg;
+      ctx.fillRect(x - 36 * s * a, y - beamH, 72 * s * a, beamH);
+
+      for (let hIdx = 0; hIdx < 3; hIdx++) {
+        ctx.save();
+        ctx.translate(x, y - hIdx * 24 * p * s);
+        ctx.rotate((hIdx % 2 === 0 ? 1 : -1) * (p * 2.5 + hIdx));
+        ctx.scale(1, 0.62);
+        const rad = (20 + hIdx * 18 + p * 52) * s;
+        ctx.beginPath();
+        for (let v = 0; v < 6; v++) {
+          const va = (v * Math.PI) / 3;
+          if (v === 0) ctx.moveTo(Math.cos(va) * rad, Math.sin(va) * rad);
+          else ctx.lineTo(Math.cos(va) * rad, Math.sin(va) * rad);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = neonCols[hIdx % neonCols.length];
+        ctx.lineWidth = (4.0 - hIdx * 0.8) * s * a;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      for (let g = 0; g < 6; g++) {
+        const gy = y - (g * 26 + p * 65) * s;
+        const gw = (35 + ((g * 19) % 45)) * s * a;
+        const gx = x + Math.sin(seed + g * 2.3 + p * 8) * 28 * s;
+        ctx.fillStyle = neonCols[g % neonCols.length];
+        ctx.globalAlpha = a * 0.90;
+        ctx.fillRect(gx - gw * 0.5, gy, gw, 3.5 * s);
+      }
+    }
+
+    // 4. PIROTECNIA IMPERIAL (FUEGOS ARTIFICIALES MULTICOLOR)
+    else if (fx === 'grand_fireworks') {
+      const shells = [
+        { ox: 0, oy: -68 * s, col1: '#ff0055', col2: '#ffd700', r: 72 * s },
+        { ox: -36 * s, oy: -105 * s, col1: '#00f2fe', col2: '#39ff14', r: 54 * s },
+        { ox: 38 * s, oy: -96 * s, col1: '#a855f7', col2: '#fde047', r: 56 * s }
+      ];
+      for (let sIdx = 0; sIdx < shells.length; sIdx++) {
+        const sh = shells[sIdx];
+        const cx = x + sh.ox * (0.4 + p * 0.6);
+        const cy = y + sh.oy * (0.35 + p * 0.65);
+
+        ctx.fillStyle = `rgba(15, 6, 30, ${(a * 0.45).toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(cx, cy, sh.r * (0.3 + p * 0.7), 0, Math.PI * 2);
+        ctx.fill();
+
+        const spokes = 16;
+        for (let k = 0; k < spokes; k++) {
+          const ang = (k / spokes) * Math.PI * 2 + sIdx * 0.3;
+          const dist = sh.r * (0.18 + p * 0.85);
+          const droop = p * p * 26 * s;
+          const tx = cx + Math.cos(ang) * dist;
+          const ty = cy + Math.sin(ang) * dist + droop;
+
+          ctx.strokeStyle = k % 2 === 0 ? sh.col1 : sh.col2;
+          ctx.lineWidth = 2.6 * s * a;
+          ctx.beginPath();
+          ctx.moveTo(cx + Math.cos(ang) * dist * 0.25, cy + Math.sin(ang) * dist * 0.25);
+          ctx.quadraticCurveTo(
+            cx + Math.cos(ang) * dist * 0.65,
+            cy + Math.sin(ang) * dist * 0.65 + droop * 0.3,
+            tx,
+            ty
+          );
+          ctx.stroke();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(tx, ty, 2.8 * s * a, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    // 5. TORMENTA DE ZEUS (ILUMINACIONES Y RAYOS TESLA)
+    else if (fx === 'zeus_lightning') {
+      const stormH = 220 * s;
+      const sg = ctx.createLinearGradient(x, y, x, y - stormH);
+      sg.addColorStop(0.0, `rgba(49, 46, 129, ${(a * 0.72).toFixed(3)})`);
+      sg.addColorStop(0.6, `rgba(124, 58, 237, ${(a * 0.40).toFixed(3)})`);
+      sg.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = sg;
+      ctx.beginPath();
+      ctx.ellipse(x, y - stormH * 0.45, 48 * s, stormH * 0.55, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      for (let bIdx = 0; bIdx < 3; bIdx++) {
+        const startX = x + (bIdx - 1) * 34 * s;
+        const startY = y - (170 + bIdx * 28) * s;
+        const segments = 7;
+
+        ctx.strokeStyle = bIdx === 1 ? '#00f2fe' : '#a855f7';
+        ctx.lineWidth = (7.0 - bIdx * 1.5) * s * a;
+        ctx.lineJoin = 'miter';
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        const pts = [{ x: startX, y: startY }];
+        for (let seg = 1; seg < segments; seg++) {
+          const frac = seg / segments;
+          const jx = startX + (x - startX) * frac + Math.sin(nowMs * 0.045 + seg * 3.7 + bIdx * 2.1) * 24 * s;
+          const jy = startY + (y - startY) * frac;
+          pts.push({ x: jx, y: jy });
+          ctx.lineTo(jx, jy);
+        }
+        pts.push({ x, y });
+        ctx.lineTo(x, y);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.4 * s * a;
+        ctx.beginPath();
+        for (let seg = 0; seg < pts.length; seg++) {
+          if (seg === 0) ctx.moveTo(pts[seg].x, pts[seg].y);
+          else ctx.lineTo(pts[seg].x, pts[seg].y);
+        }
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = '#00f2fe';
+      ctx.lineWidth = 3.2 * s * a;
+      ctx.beginPath();
+      ctx.ellipse(x, y, (28 + p * 64) * s, (12 + p * 26) * s, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // 6. NEBULOSA CÓSMICA (EFECTO DEL ESPACIO Y GALAXIA)
+    else if (fx === 'deep_cosmos') {
+      const cy = y - 28 * p * s;
+      const maxR = (42 + p * 54) * s;
+
+      const spaceGrad = ctx.createRadialGradient(x, cy, 2 * s, x, cy, maxR);
+      spaceGrad.addColorStop(0.0, `rgba(15, 5, 41, ${(a * 0.90).toFixed(3)})`);
+      spaceGrad.addColorStop(0.55, `rgba(88, 28, 135, ${(a * 0.72).toFixed(3)})`);
+      spaceGrad.addColorStop(0.85, `rgba(219, 39, 119, ${(a * 0.35).toFixed(3)})`);
+      spaceGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = spaceGrad;
+      ctx.beginPath();
+      ctx.ellipse(x, cy, maxR, maxR * 0.68, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      const armCols = ['#38bdf8', '#f472b6', '#fde047', '#c084fc', '#ffffff'];
+      for (let i = 0; i < 28; i++) {
+        const arm = i % 2;
+        const t = i / 28;
+        const theta = arm * Math.PI + t * Math.PI * 3.2 - p * 4.2 + seed;
+        const r = t * maxR * 0.88;
+        const sx = x + Math.cos(theta) * r;
+        const sy = cy + Math.sin(theta) * r * 0.68;
+        ctx.fillStyle = armCols[i % armCols.length];
+        ctx.beginPath();
+        ctx.arc(sx, sy, (1.8 + (1 - t) * 3.0) * s * a, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      const pAng = seed + p * 3.8;
+      const px = x + Math.cos(pAng) * maxR * 0.52;
+      const py = cy + Math.sin(pAng) * maxR * 0.34;
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.arc(px, py, 7.5 * s * a, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#fde047';
+      ctx.lineWidth = 2.2 * s * a;
+      ctx.beginPath();
+      ctx.ellipse(px, py, 15 * s * a, 4.5 * s * a, -0.35, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // 7. LLUVIA DE ASTEROIDES (METEORITOS EN LLAMAS E IMPACTO)
+    else if (fx === 'asteroid_impact') {
+      const craterR = (28 + p * 58) * s;
+      const cg = ctx.createRadialGradient(x, y, 2 * s, x, y, craterR);
+      cg.addColorStop(0.0, `rgba(254, 240, 138, ${(a * 0.95).toFixed(3)})`);
+      cg.addColorStop(0.35, `rgba(234, 88, 12, ${(a * 0.82).toFixed(3)})`);
+      cg.addColorStop(0.75, `rgba(127, 29, 29, ${(a * 0.55).toFixed(3)})`);
+      cg.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = cg;
+      ctx.beginPath();
+      ctx.ellipse(x, y, craterR, craterR * 0.48, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      for (let m = 0; m < 6; m++) {
+        const ang = -Math.PI * 0.82 + (m / 5) * Math.PI * 0.64;
+        const dist = (18 + p * (72 + (m % 3) * 28)) * s;
+        const rx = x + Math.cos(ang) * dist;
+        const ry = y + Math.sin(ang) * dist + p * p * 34 * s;
+        const rockR = (8.5 - (m % 3) * 1.8) * s * a;
+
+        ctx.strokeStyle = `rgba(249, 115, 22, ${(a * 0.75).toFixed(3)})`;
+        ctx.lineWidth = rockR * 1.4;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(rx, ry);
+        ctx.stroke();
+
+        ctx.save();
+        ctx.translate(rx, ry);
+        ctx.rotate(seed + m + p * 6);
+        ctx.beginPath();
+        for (let v = 0; v < 7; v++) {
+          const va = (v / 7) * Math.PI * 2;
+          const vr = rockR * (v % 2 === 0 ? 1.15 : 0.78);
+          if (v === 0) ctx.moveTo(Math.cos(va) * vr, Math.sin(va) * vr);
+          else ctx.lineTo(Math.cos(va) * vr, Math.sin(va) * vr);
+        }
+        ctx.closePath();
+        ctx.fillStyle = '#292524';
+        ctx.fill();
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 1.8 * s;
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // 8. HORIZONTE DE SUCESOS (AGUJERO NEGRO GRAVITACIONAL)
+    else if (fx === 'black_hole') {
+      const cy = y - 18 * p * s;
+      const diskR = (38 + p * 52) * s;
+
+      const accGrad = ctx.createRadialGradient(x, cy, diskR * 0.28, x, cy, diskR);
+      accGrad.addColorStop(0.0, `rgba(255, 255, 255, ${(a * 0.95).toFixed(3)})`);
+      accGrad.addColorStop(0.25, `rgba(249, 115, 22, ${(a * 0.88).toFixed(3)})`);
+      accGrad.addColorStop(0.60, `rgba(219, 39, 119, ${(a * 0.65).toFixed(3)})`);
+      accGrad.addColorStop(0.85, `rgba(109, 40, 217, ${(a * 0.40).toFixed(3)})`);
+      accGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = accGrad;
+      ctx.beginPath();
+      ctx.ellipse(x, cy, diskR, diskR * 0.52, -0.18, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = `rgba(56, 189, 248, ${(a * 0.75).toFixed(3)})`;
+      ctx.lineWidth = 5 * s * a;
+      ctx.beginPath();
+      ctx.moveTo(x, cy - diskR * 1.45);
+      ctx.lineTo(x, cy + diskR * 0.85);
+      ctx.stroke();
+
+      const coreR = (18 + (1 - p) * 8) * s * a;
+      ctx.fillStyle = '#000000';
+      ctx.beginPath();
+      ctx.arc(x, cy, coreR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#fde047';
+      ctx.lineWidth = 2.8 * s * a;
+      ctx.stroke();
+    }
+
+    // 9. LLAMA DE DRAGÓN ESMERALDA (DOBLE HÉLICE DE FUEGO MÍSTICO)
+    else if (fx === 'dragon_fire') {
+      const hMax = (110 + p * 160) * s;
+      const dg = ctx.createRadialGradient(x, y - hMax * 0.35, 4 * s, x, y - hMax * 0.35, 85 * s);
+      dg.addColorStop(0.0, `rgba(6, 78, 59, ${(a * 0.75).toFixed(3)})`);
+      dg.addColorStop(0.6, `rgba(16, 185, 129, ${(a * 0.38).toFixed(3)})`);
+      dg.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = dg;
+      ctx.beginPath();
+      ctx.ellipse(x, y - hMax * 0.35, 58 * s, 90 * s, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      for (let strand = 0; strand < 2; strand++) {
+        ctx.beginPath();
+        for (let step = 0; step <= 16; step++) {
+          const f = step / 16;
+          const angle = f * Math.PI * 3.5 + p * 7.0 + strand * Math.PI;
+          const hx = x + Math.sin(angle) * (28 * (1 - f * 0.45)) * s;
+          const hy = y - f * hMax;
+          if (step === 0) ctx.moveTo(hx, hy);
+          else ctx.lineTo(hx, hy);
+        }
+        ctx.strokeStyle = strand === 0 ? '#10b981' : '#fde047';
+        ctx.lineWidth = 7.5 * s * a;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.2 * s * a;
+        ctx.stroke();
+      }
+    }
+
+    // 10. AURORA BOREAL CELESTIAL (CORTINAS DE LUZ PRISMÁTICA)
+    else if (fx === 'aurora_borealis') {
+      const ribbons = [
+        { col: '#06b6d4', off: -32 },
+        { col: '#10b981', off: -10 },
+        { col: '#8b5cf6', off: 12 },
+        { col: '#f43f5e', off: 34 }
+      ];
+      const curH = (125 + p * 135) * s;
+      for (let r = 0; r < ribbons.length; r++) {
+        const rb = ribbons[r];
+        const wave = Math.sin(nowMs * 0.008 + r * 1.4 + p * 4) * 18 * s;
+        const rx = x + rb.off * s + wave;
+        const rg = ctx.createLinearGradient(rx, y, rx, y - curH);
+        rg.addColorStop(0.0, hexToRgba(rb.col, a * 0.85));
+        rg.addColorStop(0.55, hexToRgba(rb.col, a * 0.55));
+        rg.addColorStop(1.0, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = rg;
+        ctx.beginPath();
+        ctx.moveTo(rx - 14 * s, y);
+        ctx.quadraticCurveTo(rx + wave, y - curH * 0.5, rx - 6 * s, y - curH);
+        ctx.lineTo(rx + 14 * s, y - curH);
+        ctx.quadraticCurveTo(rx + wave + 14 * s, y - curH * 0.5, rx + 14 * s, y);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+
+    // 11. EXPLOSIÓN SUPERNOVA (ESTRELLA HIPERMASIVA)
+    else if (fx === 'supernova_burst') {
+      const cy = y - 16 * p * s;
+      const rad = (45 + p * 75) * s;
+
+      const ng = ctx.createRadialGradient(x, cy, 2 * s, x, cy, rad);
+      ng.addColorStop(0.0, '#ffffff');
+      ng.addColorStop(0.25, `rgba(253, 224, 71, ${(a * 0.92).toFixed(3)})`);
+      ng.addColorStop(0.55, `rgba(255, 0, 127, ${(a * 0.68).toFixed(3)})`);
+      ng.addColorStop(0.85, `rgba(0, 242, 254, ${(a * 0.42).toFixed(3)})`);
+      ng.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = ng;
+      ctx.beginPath();
+      ctx.arc(x, cy, rad, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.save();
+      ctx.translate(x, cy);
+      ctx.rotate(p * 0.8);
+      for (let sp = 0; sp < 8; sp++) {
+        ctx.save();
+        ctx.rotate((sp * Math.PI) / 4);
+        const spikeLen = (sp % 2 === 0 ? rad * 1.45 : rad * 0.88);
+        ctx.fillStyle = sp % 2 === 0 ? '#ffffff' : '#fde047';
+        ctx.globalAlpha = a * 0.95;
+        ctx.beginPath();
+        ctx.moveTo(0, -4.5 * s);
+        ctx.lineTo(spikeLen, 0);
+        ctx.lineTo(0, 4.5 * s);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+
+    // 12. MATRIZ HIPER-CUÁNTICA (HIPERCUBOS 3D Y LÁSER)
+    else if (fx === 'quantum_prism') {
+      const cy = y - 35 * p * s;
+      const scanY = y - p * 175 * s;
+      ctx.strokeStyle = '#39ff14';
+      ctx.lineWidth = 3.5 * s * a;
+      ctx.beginPath();
+      ctx.moveTo(x - 48 * s, scanY);
+      ctx.lineTo(x + 48 * s, scanY);
+      ctx.stroke();
+
+      for (let c = 0; c < 2; c++) {
+        const sz = (24 + c * 18 + p * 32) * s;
+        ctx.save();
+        ctx.translate(x, cy);
+        ctx.rotate((c === 0 ? 1 : -1) * (p * 3.2 + seed));
+        ctx.strokeStyle = c === 0 ? '#00f2fe' : '#a855f7';
+        ctx.lineWidth = 3.0 * s * a;
+        ctx.strokeRect(-sz * 0.5, -sz * 0.5, sz, sz);
+        ctx.fillStyle = c === 0 ? `rgba(0, 242, 254, ${(a * 0.22).toFixed(3)})` : `rgba(168, 85, 247, ${(a * 0.18).toFixed(3)})`;
+        ctx.fillRect(-sz * 0.5, -sz * 0.5, sz, sz);
+        ctx.restore();
+      }
+    }
+
+    ctx.restore();
+  }
+
+  renderForegroundEffectBursts(ctx, currentTime) {
+    if (!this.bgBursts || this.bgBursts.length === 0 || !ctx) return;
+    const nowMs = this._frameNow || performance.now();
+    for (let i = 0; i < this.bgBursts.length; i++) {
+      const b = this.bgBursts[i];
+      if (!b || b.type === 'reactive_reveal' || b.alpha <= 0.01) continue;
+      BeatstarEngine.drawSingleEffectBurst(ctx, b, nowMs, 1.0);
     }
   }
 
@@ -5640,6 +5959,7 @@ class BeatstarEngine {
     this.renderLanes(currentTime);
     this.renderHitLine(currentTime);
     this.renderRipples(this.ctx);
+    this.renderForegroundEffectBursts(this.ctx, currentTime);
     this.renderNotes(currentTime);
     this.renderSwipeLaunches(this.ctx, currentTime);
     this.particles.render(this.ctx);
@@ -6223,7 +6543,6 @@ class BeatstarEngine {
   renderRipples(ctx) {
     if (!this.fxRipples || this.fxRipples.length === 0 || !ctx) return;
     ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
     const len = this.fxRipples.length;
 
     for (let i = 0; i < len; i++) {
@@ -6232,30 +6551,18 @@ class BeatstarEngine {
       const alpha = Math.max(0, Math.min(1, r.alpha));
       const col = r.color || '#00f2fe';
       const rad = Math.max(1, r.radius);
-      const maxR = Math.max(10, r.maxRadius || 200);
+      const maxR = Math.max(10, r.maxRadius || 90);
       const progress = Math.min(1, rad / maxR);
       const widthFactor = 1 - progress;
 
-      // 1. Halo de onda luminosa en perspectiva acelerado por GPU
+      // Halo elíptico en escorzo 3D contenido dentro del receptor
       ctx.strokeStyle = hexToRgba(col, alpha * 0.85);
-      ctx.lineWidth = Math.max(1.6, 4.8 * widthFactor);
+      ctx.lineWidth = Math.max(1.5, 4.0 * widthFactor);
       ctx.beginPath();
       if (ctx.ellipse) {
-        ctx.ellipse(r.x, r.y, rad, rad * 0.72, 0, 0, Math.PI * 2);
+        ctx.ellipse(r.x, r.y, rad, rad * 0.36, 0, 0, Math.PI * 2);
       } else {
-        ctx.arc(r.x, r.y, rad, 0, Math.PI * 2);
-      }
-      ctx.stroke();
-
-      // 2. Núcleo blanco brillante central
-      ctx.strokeStyle = `rgba(255, 255, 255, ${(alpha * 0.90).toFixed(3)})`;
-      ctx.lineWidth = Math.max(0.8, 1.8 * widthFactor);
-      ctx.beginPath();
-      const innerRad = Math.max(1, rad - 1.5);
-      if (ctx.ellipse) {
-        ctx.ellipse(r.x, r.y, innerRad, innerRad * 0.72, 0, 0, Math.PI * 2);
-      } else {
-        ctx.arc(r.x, r.y, innerRad, 0, Math.PI * 2);
+        ctx.arc(r.x, r.y, rad * 0.6, 0, Math.PI * 2);
       }
       ctx.stroke();
     }
@@ -6597,25 +6904,13 @@ class BeatstarEngine {
     if (is3D) {
       const getBoundaryX = (lineIdx, yTarget) => this.getLaneBoundaryX(lineIdx, yTarget);
 
-      // 1. PISTA BLANCA ESTILIZADA 3D CON SOMBREADO PROFUNDO EN EL FONDO Y RELIEVE TRIDIMENSIONAL
+      // 1. PISTA 3D ESTILIZADA CON DEGRADADO LUMINOSO (SIN SOMBRA NEGRA)
       const tL_top = getBoundaryX(0, horizonY);
       const tR_top = getBoundaryX(3, horizonY);
       const tR_bot = getBoundaryX(3, bottomY);
       const tL_bot = getBoundaryX(0, bottomY);
 
-      // A0. Sombra proyectada 3D bajo el chasis de la pista blanca para elevarla del fondo
-      ctx.save();
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.62)';
-      ctx.beginPath();
-      ctx.moveTo(tL_top - 10, horizonY);
-      ctx.lineTo(tR_top + 10, horizonY);
-      ctx.lineTo(tR_bot + 26, bottomY);
-      ctx.lineTo(tL_bot - 26, bottomY);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-
-      // A1. Superficie principal blanca estilizada con sombreado atmosférico en el horizonte (fondo)
+      // A1. Superficie principal con degradado estilizado 3D (Blanco perlado a azul hielo celeste)
       ctx.beginPath();
       ctx.moveTo(tL_top, horizonY);
       ctx.lineTo(tR_top, horizonY);
@@ -6625,17 +6920,15 @@ class BeatstarEngine {
       ctx.fillStyle = this._trackGrad || '#ffffff';
       ctx.fill();
 
-      // A2. Sombreado cóncavo 3D en los bordes laterales de la pista blanca
+      // A2. Brillo especular central 3D y bisel celeste limpio en los bordes
       if (this._trackEdgeShadowGrad) {
         ctx.fillStyle = this._trackEdgeShadowGrad;
         ctx.fill();
       }
 
-      // =========================================================================
-      // B. PELDAÑOS EN PERSPECTIVA 3D SOBRE PISTA BLANCA (1 solo stroke optimizado)
-      // =========================================================================
-      const numRungs = 24;
-      ctx.strokeStyle = 'rgba(15, 23, 42, 0.09)';
+      // B. Peldaños en perspectiva 3D sobre la pista estilizada
+      const numRungs = 22;
+      ctx.strokeStyle = 'rgba(59, 130, 246, 0.14)';
       ctx.lineWidth = 1.2;
       ctx.beginPath();
       for (let r = 1; r < numRungs; r++) {
@@ -6646,22 +6939,19 @@ class BeatstarEngine {
       }
       ctx.stroke();
 
-      // C. Sombra de profundidad en la boca del horizonte + resplandor sutil
+      // C. Borde luminoso 3D en la arista del horizonte (reemplaza la antigua sombra negra)
       ctx.save();
-      ctx.fillStyle = 'rgba(8, 12, 24, 0.55)';
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.5;
       ctx.beginPath();
-      const hShadowY = horizonY + (bottomY - horizonY) * 0.14;
-      ctx.moveTo(tL_top, horizonY);
-      ctx.lineTo(tR_top, horizonY);
-      ctx.lineTo(getBoundaryX(3, hShadowY), hShadowY);
-      ctx.lineTo(getBoundaryX(0, hShadowY), hShadowY);
-      ctx.closePath();
-      ctx.fill();
+      ctx.moveTo(tL_top, horizonY + 1);
+      ctx.lineTo(tR_top, horizonY + 1);
+      ctx.stroke();
       ctx.restore();
 
-      // D. Líneas divisorias de carriles grabadas en 3D sobre el marfil blanco
-      ctx.strokeStyle = 'rgba(30, 41, 59, 0.28)';
-      ctx.lineWidth = 2.0;
+      // D. Líneas divisorias de carriles grabadas en 3D con bisel especular
+      ctx.strokeStyle = 'rgba(59, 130, 246, 0.28)';
+      ctx.lineWidth = 2.2;
       ctx.beginPath();
       for (let l = 1; l <= 2; l++) {
         ctx.moveTo(getBoundaryX(l, horizonY), horizonY);
