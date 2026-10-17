@@ -1273,6 +1273,16 @@
         "accuracy": 89.35307112365469,
         "date": "2026-10-17 16:19:19"
       }
+    ],
+    "custom_1792254136031": [
+      {
+        "name": "Azure",
+        "score": 223845,
+        "stars": 4,
+        "combo": 146,
+        "accuracy": 87.98869505742879,
+        "date": "2026-10-17 16:23:42"
+      }
     ]
   },
   "global": [
@@ -1298,8 +1308,8 @@
     },
     {
       "name": "Azure",
-      "total_score": 1403091,
-      "clefs": 10
+      "total_score": 1626936,
+      "clefs": 12
     },
     {
       "name": "MasterPianist",
@@ -1377,7 +1387,7 @@
     "players": [
       {
         "name": "Azure",
-        "score": 1403091
+        "score": 1626936
       },
       {
         "name": "Test",
