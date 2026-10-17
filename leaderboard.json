@@ -1153,6 +1153,16 @@
         "accuracy": 0.3527419809989653,
         "date": "2026-10-17 14:31:15"
       }
+    ],
+    "custom_1792249978875": [
+      {
+        "name": "Azure",
+        "score": 12330,
+        "stars": 5,
+        "combo": 18,
+        "accuracy": 96.82739123606095,
+        "date": "2026-10-17 15:13:12"
+      }
     ]
   },
   "global": [
@@ -1212,6 +1222,11 @@
       "clefs": 0
     },
     {
+      "name": "Azure",
+      "total_score": 12330,
+      "clefs": 0
+    },
+    {
       "name": "Papa",
       "total_score": 7626,
       "clefs": 0
@@ -1245,11 +1260,6 @@
       "name": "Trnde",
       "total_score": 600,
       "clefs": 0
-    },
-    {
-      "name": "Azure",
-      "total_score": 0,
-      "clefs": 0
     }
   ],
   "weekly": {
@@ -1264,16 +1274,16 @@
         "score": 24975
       },
       {
+        "name": "Azure",
+        "score": 12330
+      },
+      {
         "name": "Pablito pop",
         "score": 4800
       },
       {
         "name": "Rocky",
         "score": 3600
-      },
-      {
-        "name": "Azure",
-        "score": 0
       }
     ]
   }
