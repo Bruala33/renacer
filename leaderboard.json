@@ -1123,6 +1123,16 @@
         "accuracy": 0.12085200664686037,
         "date": "2026-10-17 13:30:17"
       }
+    ],
+    "top_leona_lewis_better_in_time": [
+      {
+        "name": "Test",
+        "score": 155641,
+        "stars": 3.5,
+        "combo": 122,
+        "accuracy": 10.125823807634005,
+        "date": "2026-10-17 13:33:30"
+      }
     ]
   },
   "global": [
@@ -1162,6 +1172,11 @@
       "clefs": 0
     },
     {
+      "name": "Test",
+      "total_score": 461091,
+      "clefs": 2
+    },
+    {
       "name": "Layla",
       "total_score": 437350,
       "clefs": 1
@@ -1169,11 +1184,6 @@
     {
       "name": "`pc",
       "total_score": 367612,
-      "clefs": 1
-    },
-    {
-      "name": "Test",
-      "total_score": 305450,
       "clefs": 1
     },
     {
@@ -1222,7 +1232,7 @@
     "players": [
       {
         "name": "Test",
-        "score": 144243
+        "score": 299884
       },
       {
         "name": ".",
