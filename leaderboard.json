@@ -1143,12 +1143,22 @@
         "accuracy": 100,
         "date": "2026-10-17 13:55:28"
       }
+    ],
+    "top_linkin_park_in_the_end": [
+      {
+        "name": "Rocky",
+        "score": 3600,
+        "stars": 3.5,
+        "combo": 8,
+        "accuracy": 0.3527419809989653,
+        "date": "2026-10-17 14:31:15"
+      }
     ]
   },
   "global": [
     {
       "name": "Rocky",
-      "total_score": 27804430,
+      "total_score": 27808030,
       "clefs": 260
     },
     {
@@ -1256,6 +1266,10 @@
       {
         "name": "Pablito pop",
         "score": 4800
+      },
+      {
+        "name": "Rocky",
+        "score": 3600
       },
       {
         "name": "Azure",
