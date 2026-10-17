@@ -1093,6 +1093,16 @@
         "accuracy": 0.4845091652983769,
         "date": "2026-10-15 23:37:43"
       }
+    ],
+    "top_the_beatles_hey_jude": [
+      {
+        "name": "Test",
+        "score": 90843,
+        "stars": 3.5,
+        "combo": 70,
+        "accuracy": 5.482751690368746,
+        "date": "2026-10-17 09:39:46"
+      }
     ]
   },
   "global": [
@@ -1143,7 +1153,7 @@
     },
     {
       "name": "Test",
-      "total_score": 161207,
+      "total_score": 252050,
       "clefs": 1
     },
     {
@@ -1190,6 +1200,10 @@
   "weekly": {
     "week_id": "2026-W42",
     "players": [
+      {
+        "name": "Test",
+        "score": 90843
+      },
       {
         "name": ".",
         "score": 24975
