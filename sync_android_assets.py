@@ -51,11 +51,11 @@ def sync_to_target(android_www):
             os.makedirs(os.path.dirname(dst_renacer), exist_ok=True)
             shutil.copy2(renacer_audio, dst_renacer)
 
-    src_game_html = os.path.join(STATIC_DIR, 'game.html')
-    if os.path.exists(src_game_html):
-        shutil.copy2(src_game_html, os.path.join(STATIC_DIR, 'index.html'))
-        shutil.copy2(src_game_html, os.path.join(android_www, 'index.html'))
-        shutil.copy2(src_game_html, os.path.join(android_www, 'game.html'))
+    src_index_html = os.path.join(STATIC_DIR, 'index.html')
+    if os.path.exists(src_index_html):
+        shutil.copy2(src_index_html, os.path.join(STATIC_DIR, 'game.html'))
+        shutil.copy2(src_index_html, os.path.join(android_www, 'index.html'))
+        shutil.copy2(src_index_html, os.path.join(android_www, 'game.html'))
     print(f'[SUCCESS] Successfully synced {copied_count} assets to {android_www}!')
 
 def sync_assets():

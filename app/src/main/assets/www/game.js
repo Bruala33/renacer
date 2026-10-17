@@ -1351,6 +1351,118 @@ class ParticleSystem {
     }
   }
 
+  // 5. GACHAPON COLECCIONISTA: SINFONÍA ESMERALDA IMPERIAL
+  emitEmeraldSymphony(x, y, count = 28) {
+    const emeraldPalette = ['#10b981', '#34d399', '#6ee7b7', '#fbbf24', '#ecfdf5', '#059669'];
+    for (let i = 0; i < count; i++) {
+      const p = this.spawnParticle();
+      if (!p) break;
+      const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.25;
+      const speed = 75 + Math.random() * 210;
+      p.x = x;
+      p.y = y;
+      p.vx = Math.cos(angle) * speed;
+      p.vy = Math.sin(angle) * speed - 35;
+      p.gravity = 30;
+      p.drag = 0.94;
+      p.radius = 2.2 + Math.random() * 3.2;
+      p.color = emeraldPalette[i % emeraldPalette.length];
+      p.alpha = 1.0;
+      p.decay = 2.0 + Math.random() * 1.3;
+      p.rotation = Math.random() * Math.PI * 2;
+      p.rotSpeed = (Math.random() - 0.5) * 10;
+      p.type = i % 2 === 0 ? 'diamond_spark' : 'glitter_star';
+    }
+    for (let r = 0; r < 2; r++) {
+      const sw = this.spawnShockwave();
+      if (sw) {
+        sw.x = x;
+        sw.y = y;
+        sw.radius = 8 + r * 10;
+        sw.maxRadius = 75 + r * 22;
+        sw.growth = 15.0 + r * 3;
+        sw.color = r === 0 ? '#34d399' : '#fbbf24';
+        sw.alpha = 0.95;
+        sw.decay = 3.2;
+        sw.lineWidth = 3.0 - r * 0.8;
+      }
+    }
+  }
+
+  // 6. GACHAPON ÉPICO: VÓRTICE DE AMATISTA VINTAGE
+  emitAmethystVortex(x, y, count = 30) {
+    const amethystPalette = ['#c084fc', '#a855f7', '#e879f9', '#f5d0fe', '#fbbf24', '#f43f5e'];
+    for (let i = 0; i < count; i++) {
+      const p = this.spawnParticle();
+      if (!p) break;
+      const spiralAngle = (i / count) * Math.PI * 4;
+      const speed = 65 + (i / count) * 195;
+      p.x = x + Math.cos(spiralAngle) * 6;
+      p.y = y + Math.sin(spiralAngle) * 4;
+      p.vx = Math.cos(spiralAngle) * speed;
+      p.vy = Math.sin(spiralAngle) * speed - 25;
+      p.gravity = 20;
+      p.drag = 0.95;
+      p.radius = 2.0 + Math.random() * 3.4;
+      p.color = amethystPalette[i % amethystPalette.length];
+      p.alpha = 1.0;
+      p.decay = 1.9 + Math.random() * 1.4;
+      p.rotation = spiralAngle;
+      p.rotSpeed = 12;
+      p.type = i % 3 === 0 ? 'glitter_star' : 'diamond_spark';
+    }
+    const sw = this.spawnShockwave();
+    if (sw) {
+      sw.x = x;
+      sw.y = y;
+      sw.radius = 10;
+      sw.maxRadius = 92;
+      sw.growth = 16.5;
+      sw.color = '#e879f9';
+      sw.alpha = 0.95;
+      sw.decay = 3.4;
+      sw.lineWidth = 3.2;
+    }
+  }
+
+  // 7. GACHAPON LEGENDARIO: SUPERNOVA DE DIAMANTE CELESTIAL
+  emitDiamondSupernova(x, y, count = 36) {
+    const diamondPalette = ['#ffffff', '#38bdf8', '#bae6fd', '#fde047', '#f472b6', '#7dd3fc'];
+    for (let i = 0; i < count; i++) {
+      const p = this.spawnParticle();
+      if (!p) break;
+      const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.15;
+      const speed = 90 + Math.random() * 240;
+      p.x = x;
+      p.y = y;
+      p.vx = Math.cos(angle) * speed;
+      p.vy = Math.sin(angle) * speed - 40;
+      p.gravity = 18;
+      p.drag = 0.94;
+      p.radius = 2.4 + Math.random() * 3.8;
+      p.color = diamondPalette[i % diamondPalette.length];
+      p.alpha = 1.0;
+      p.decay = 1.85 + Math.random() * 1.3;
+      p.rotation = Math.random() * Math.PI * 2;
+      p.rotSpeed = (Math.random() - 0.5) * 14;
+      p.type = i % 2 === 0 ? 'glitter_star' : 'diamond_spark';
+    }
+    for (let r = 0; r < 2; r++) {
+      const sw = this.spawnShockwave();
+      if (sw) {
+        sw.x = x;
+        sw.y = y;
+        sw.radius = 10 + r * 14;
+        sw.maxRadius = 95 + r * 25;
+        sw.growth = 18.0;
+        sw.color = r === 0 ? '#ffffff' : '#38bdf8';
+        sw.alpha = 1.0;
+        sw.decay = 3.5;
+        sw.lineWidth = 3.6 - r * 1.0;
+      }
+    }
+  }
+
   update(dt) {
     if (!this.particles || !this.shockwaves) return;
     for (let i = 0; i < this.maxParticles; i++) {
@@ -1788,6 +1900,14 @@ class BeatstarEngine {
       this.particles.emitCrimsonRoyale(x, y);
     } else if (this.activeEffect === 'luminous_ivory') {
       this.particles.emitLuminousIvory(x, y);
+    } else if (this.activeEffect === 'emerald_symphony') {
+      this.particles.emitEmeraldSymphony(x, y);
+    } else if (this.activeEffect === 'amethyst_vortex') {
+      this.particles.emitAmethystVortex(x, y);
+    } else if (this.activeEffect === 'diamond_supernova') {
+      this.vignetteAlpha = 0.65;
+      this.vignetteColor = '#38bdf8';
+      this.particles.emitDiamondSupernova(x, y);
     } else if (this.activeEffect === 'paint_splash') {
       this.particles.emitPaintSplash(x, y, 30);
     } else if (this.activeEffect === 'fire_inferno') {
