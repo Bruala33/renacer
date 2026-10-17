@@ -151,18 +151,12 @@ class MainActivity : AppCompatActivity() {
                             maxMode = mode
                         }
                     }
-                    if (maxRate <= currentMode.refreshRate) {
-                        for (mode in modes) {
-                            if (mode.refreshRate > maxRate) {
-                                maxRate = mode.refreshRate
-                                maxMode = mode
-                            }
-                        }
+                    if (maxMode.modeId != currentMode.modeId) {
+                        val params = window.attributes
+                        params.preferredDisplayModeId = maxMode.modeId
+                        params.preferredRefreshRate = maxRate
+                        window.attributes = params
                     }
-                    val params = window.attributes
-                    params.preferredDisplayModeId = maxMode.modeId
-                    params.preferredRefreshRate = maxRate
-                    window.attributes = params
                 }
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 @Suppress("DEPRECATION")
@@ -182,10 +176,12 @@ class MainActivity : AppCompatActivity() {
                             maxMode = mode
                         }
                     }
-                    val params = window.attributes
-                    params.preferredDisplayModeId = maxMode.modeId
-                    params.preferredRefreshRate = maxRate
-                    window.attributes = params
+                    if (maxMode.modeId != currentMode.modeId) {
+                        val params = window.attributes
+                        params.preferredDisplayModeId = maxMode.modeId
+                        params.preferredRefreshRate = maxRate
+                        window.attributes = params
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -205,10 +201,10 @@ class MainActivity : AppCompatActivity() {
             .addPathHandler("/", silentHandler)
             .build()
 
-        // 5. Configuración de WebView con aceleración directa por GPU
+        // 5. Configuración de WebView con renderizado directo en la ventana acelerada por GPU (sin FBO intermedio que parpadee)
         webView = WebView(this).apply {
             setBackgroundColor(0xFF06040A.toInt())
-            setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            setLayerType(View.LAYER_TYPE_NONE, null)
             isFocusable = true
             isFocusableInTouchMode = true
             overScrollMode = View.OVER_SCROLL_NEVER

@@ -1538,7 +1538,7 @@ class BeatstarEngine {
   constructor(canvas, uiCallbacks) {
     this.canvas = canvas;
     this.ctx = (canvas && canvas.getContext)
-      ? (canvas.getContext('2d', { alpha: false, desynchronized: true }) || canvas.getContext('2d', { alpha: false }) || canvas.getContext('2d'))
+      ? canvas.getContext('2d')
       : null;
     this.ui = uiCallbacks;
 
@@ -2040,14 +2040,15 @@ class BeatstarEngine {
       this.ctx.scale(this.dpr, this.dpr);
     }
 
-    // Degradado de pista cacheado
+    // Degradado de pista 3D de obsidiana-titanio con profundidad atmosférica y alto contraste
     this._trackGrad = this.ctx.createLinearGradient(this.width / 2, 12, this.width / 2, this.height + 30);
-    this._trackGrad.addColorStop(0.0, 'rgba(12, 16, 26, 0.20)');
-    this._trackGrad.addColorStop(0.12, 'rgba(40, 58, 72, 0.55)');
-    this._trackGrad.addColorStop(0.30, 'rgba(92, 122, 138, 0.80)');
-    this._trackGrad.addColorStop(0.60, '#bdd7de');
-    this._trackGrad.addColorStop(0.85, '#eef6f8');
-    this._trackGrad.addColorStop(1.0, '#ffffff');
+    this._trackGrad.addColorStop(0.00, 'rgba(6, 10, 22, 0.28)');
+    this._trackGrad.addColorStop(0.16, 'rgba(14, 22, 42, 0.65)');
+    this._trackGrad.addColorStop(0.40, 'rgba(24, 38, 66, 0.85)');
+    this._trackGrad.addColorStop(0.66, '#233554');
+    this._trackGrad.addColorStop(0.81, '#2b4064');
+    this._trackGrad.addColorStop(0.92, '#18243c');
+    this._trackGrad.addColorStop(1.00, '#080c18');
 
     // Degradados de fondo cacheados (evita crearlos 120 veces por segundo)
     const h = this.height;
@@ -3137,16 +3138,16 @@ class BeatstarEngine {
     const rowCount = 12;
     if (lane === 0) {
       for (let i = 0; i < rowCount; i++) {
-        this.borderEqLeftSurges[i] = Math.min(1.0, 0.85 + Math.random() * 0.35);
+        this.borderEqLeftSurges[i] = Math.min(1.0, (this.borderEqLeftSurges[i] || 0) * 0.4 + 0.55 + Math.random() * 0.35);
       }
     } else if (lane === 2) {
       for (let i = 0; i < rowCount; i++) {
-        this.borderEqRightSurges[i] = Math.min(1.0, 0.85 + Math.random() * 0.35);
+        this.borderEqRightSurges[i] = Math.min(1.0, (this.borderEqRightSurges[i] || 0) * 0.4 + 0.55 + Math.random() * 0.35);
       }
     } else {
       for (let i = 0; i < rowCount; i++) {
-        this.borderEqLeftSurges[i] = Math.min(1.0, 0.75 + Math.random() * 0.30);
-        this.borderEqRightSurges[i] = Math.min(1.0, 0.75 + Math.random() * 0.30);
+        this.borderEqLeftSurges[i] = Math.min(1.0, (this.borderEqLeftSurges[i] || 0) * 0.4 + 0.48 + Math.random() * 0.30);
+        this.borderEqRightSurges[i] = Math.min(1.0, (this.borderEqRightSurges[i] || 0) * 0.4 + 0.48 + Math.random() * 0.30);
       }
     }
     this.laneGlows[lane] = 1.0;
@@ -4813,8 +4814,8 @@ class BeatstarEngine {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
 
-    const timeSec = (currentTime || performance.now()) * 0.001;
-    const palIdx = Math.floor((timeSec * 0.10 + (mult - 1)) % GLOBAL_SYNTH_PALETTES.length);
+    const timeSec = (this._frameNow || performance.now()) * 0.001;
+    const palIdx = Math.floor((((timeSec * 0.08 + (mult - 1)) % GLOBAL_SYNTH_PALETTES.length) + GLOBAL_SYNTH_PALETTES.length) % GLOBAL_SYNTH_PALETTES.length);
     const blockPalette = GLOBAL_SYNTH_PALETTES[Math.max(0, Math.min(GLOBAL_SYNTH_PALETTES.length - 1, palIdx))];
     const palLen = blockPalette.length;
 
@@ -4823,8 +4824,8 @@ class BeatstarEngine {
     const blockH = 8.0;
     const blockGap = 1.2;
 
-    // Patrón dinámico de ondas de sintetizador que evoluciona en el tiempo
-    const waveT = timeSec * 1.5;
+    // Patrón dinámico de ondas de sintetizador que evoluciona suavemente sin saltos
+    const waveT = timeSec * 1.4;
 
     // 1. LATERAL IZQUIERDO: Solo en la parte alta (4% a 36% de altura) con patrón cambiante
     for (let i = 0; i < numBars; i++) {
@@ -4848,21 +4849,21 @@ class BeatstarEngine {
         ? Math.max(1, Math.min(rowMaxBlocks, Math.round(1 + surge * (rowMaxBlocks - 1))))
         : 1;
 
-      const alphaBase = surge > 0.01 ? 0.95 : 0.22;
+      const alphaBase = 0.18 + surge * 0.58;
 
       for (let b = 0; b < activeBlocks; b++) {
         const bx = startX + b * (blockW + blockGap);
         const colIdx = Math.min(palLen - 1, Math.floor((b / Math.max(1, rowMaxBlocks - 1)) * palLen));
         ctx.fillStyle = blockPalette[colIdx];
-        ctx.globalAlpha = (b === 0 && surge <= 0.01) ? 0.22 : alphaBase;
+        ctx.globalAlpha = (b === 0 && surge <= 0.01) ? 0.18 : alphaBase;
         ctx.fillRect(bx, y - blockH / 2, blockW, blockH);
       }
 
-      // Cuadradito blanco incandescente de punta (Peak) al tocar
-      if (surge > 0.08 && activeBlocks >= 2) {
+      // Cuadradito blanco incandescente de punta (Peak) proporcional al surge
+      if (surge > 0.12 && activeBlocks >= 2) {
         const peakX = startX + (activeBlocks - 1) * (blockW + blockGap);
         ctx.fillStyle = '#ffffff';
-        ctx.globalAlpha = 1.0;
+        ctx.globalAlpha = Math.min(0.85, surge * 0.90);
         ctx.fillRect(peakX, y - blockH / 2, blockW, blockH);
       }
     }
@@ -4889,21 +4890,21 @@ class BeatstarEngine {
         ? Math.max(1, Math.min(rowMaxBlocks, Math.round(1 + surge * (rowMaxBlocks - 1))))
         : 1;
 
-      const alphaBase = surge > 0.01 ? 0.95 : 0.22;
+      const alphaBase = 0.18 + surge * 0.58;
 
       for (let b = 0; b < activeBlocks; b++) {
         const bx = endX - (b + 1) * (blockW + blockGap);
         const colIdx = Math.min(palLen - 1, Math.floor((b / Math.max(1, rowMaxBlocks - 1)) * palLen));
         ctx.fillStyle = blockPalette[colIdx];
-        ctx.globalAlpha = (b === 0 && surge <= 0.01) ? 0.22 : alphaBase;
+        ctx.globalAlpha = (b === 0 && surge <= 0.01) ? 0.18 : alphaBase;
         ctx.fillRect(bx, y - blockH / 2, blockW, blockH);
       }
 
-      // Cuadradito blanco incandescente de punta (Peak) al tocar
-      if (surge > 0.08 && activeBlocks >= 2) {
+      // Cuadradito blanco incandescente de punta (Peak) proporcional al surge
+      if (surge > 0.12 && activeBlocks >= 2) {
         const peakX = endX - activeBlocks * (blockW + blockGap);
         ctx.fillStyle = '#ffffff';
-        ctx.globalAlpha = 1.0;
+        ctx.globalAlpha = Math.min(0.85, surge * 0.90);
         ctx.fillRect(peakX, y - blockH / 2, blockW, blockH);
       }
     }
@@ -4918,6 +4919,7 @@ class BeatstarEngine {
     if (!w || !h) return;
 
     const horizY = Math.max(14, h * 0.035);
+    const safePerfNow = this._frameNow || performance.now();
 
     const palette = this.activeSongPalette || (typeof SONG_COLOR_PALETTES !== 'undefined' ? SONG_COLOR_PALETTES.classic : { primary: '#c5a059', secondary: '#ede5d8', glow: '#c5a059', ribs: '#e5b869', spotlight1: '#c5a059', spotlight2: '#8c6d23', spark: '#fff3cf' });
 
@@ -4927,7 +4929,7 @@ class BeatstarEngine {
     while (normBpm > 175) normBpm /= 2;
     while (normBpm < 75) normBpm *= 2;
     const beatInterval = 60 / normBpm;
-    const audioTime = Math.max(0, currentTime) / 1000;
+    const audioTime = (currentTime >= 0 ? currentTime : safePerfNow) / 1000;
     const beatFraction = ((audioTime % beatInterval) + beatInterval) % beatInterval / beatInterval;
     const beatPulse = Math.pow(Math.max(0, 1 - beatFraction), 2.8);
 
@@ -4956,20 +4958,20 @@ class BeatstarEngine {
       }
     }
 
-    // 1. GRADIENTE ATMOSFÉRICO DE ESTADIO SEGÚN MULTIPLICADOR (Optimizado sin allocaciones)
+    // 1. GRADIENTE ATMOSFÉRICO DE ESTADIO SEGÚN MULTIPLICADOR (Con margen anti-artefactos de shake)
     const bgGradIdx = mult >= 5 ? 4 : Math.max(0, mult - 1);
     ctx.fillStyle = (this._bgGrads && this._bgGrads[bgGradIdx]) ? this._bgGrads[bgGradIdx] : '#0e081e';
-    ctx.fillRect(0, 0, w, h);
+    ctx.fillRect(-20, -20, w + 40, h + 40);
 
-    // Resplandor aditivo difuminado si hubo cambio de atmósfera
+    // Resplandor aditivo suave si hubo cambio de atmósfera (sin parpadeo de pantalla completa)
     if (this.targetAtmosphereColor && this.atmosphereShiftProgress < 1.0) {
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      const shiftAlpha = (1.0 - this.atmosphereShiftProgress) * 0.40;
-      const atmRad = Math.max(w, h) * 0.85;
-      const atmGrad = ctx.createRadialGradient(w / 2, h * 0.35, 10, w / 2, h * 0.35, atmRad);
+      const shiftAlpha = (1.0 - this.atmosphereShiftProgress) * 0.16;
+      const atmRad = Math.max(w, h) * 0.75;
+      const atmGrad = ctx.createRadialGradient(w / 2, h * 0.28, 10, w / 2, h * 0.28, atmRad);
       atmGrad.addColorStop(0.0, hexToRgba(this.targetAtmosphereColor, shiftAlpha));
-      atmGrad.addColorStop(0.55, hexToRgba(this.targetAtmosphereColor, shiftAlpha * 0.35));
+      atmGrad.addColorStop(0.55, hexToRgba(this.targetAtmosphereColor, shiftAlpha * 0.30));
       atmGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
       ctx.fillStyle = atmGrad;
       ctx.fillRect(0, 0, w, h);
@@ -4982,20 +4984,12 @@ class BeatstarEngine {
       ctx.globalCompositeOperation = 'lighter';
       for (const exp of this.combo3DExplosions) {
         if (exp.radius < 10) continue;
-        const expAlpha = exp.alpha * 0.18;
+        const expAlpha = exp.alpha * 0.12;
         ctx.fillStyle = hexToRgba(exp.color || '#ffd700', expAlpha);
         ctx.beginPath();
         ctx.arc(exp.originX, exp.originY, exp.radius, 0, Math.PI * 2);
         ctx.fill();
       }
-      ctx.restore();
-    }
-
-    // Strobe estroboscópico de estadio al compás del bombo en modo Fiebre (5x)
-    if (mult >= 5 && beatPulse > 0.45) {
-      ctx.save();
-      ctx.fillStyle = `rgba(255, 255, 255, ${(beatPulse * 0.14).toFixed(3)})`;
-      ctx.fillRect(0, 0, w, h);
       ctx.restore();
     }
 
@@ -5042,45 +5036,45 @@ class BeatstarEngine {
     const bpmSpeedVal = (this.currentBpm || 120);
     this.renderEqualizerBorders(ctx, w, h, currentTime, bpmSpeedVal, beatPulse, mult);
 
-    // 3. FOCOS ZENITALES MÓVILES VOLUMÉTRICOS
+    // 3. FOCOS ZENITALES MÓVILES VOLUMÉTRICOS (Fase continua monotónica sin saltos)
     // Foco Izquierdo
     const spot1BaseX = w * 0.15;
-    const spot1Swing = Math.sin(currentTime * swingFreq) * (w * 0.45);
+    const spot1Swing = Math.sin(safePerfNow * swingFreq) * (w * 0.45);
     const spot1TargetX = (w * 0.50) + spot1Swing;
     const spot1TargetY = h * 0.90;
 
-    ctx.fillStyle = hexToRgba(beamColor1, 0.12 * stageIntensity);
+    ctx.fillStyle = hexToRgba(beamColor1, 0.10 * stageIntensity);
     ctx.beginPath();
     ctx.moveTo(spot1BaseX - 30, -10);
     ctx.lineTo(spot1BaseX + 30, -10);
-    ctx.lineTo(spot1TargetX + (w * 0.22 * (1 + beatPulse * 0.2)), spot1TargetY);
-    ctx.lineTo(spot1TargetX - (w * 0.22 * (1 + beatPulse * 0.2)), spot1TargetY);
+    ctx.lineTo(spot1TargetX + (w * 0.22 * (1 + beatPulse * 0.16)), spot1TargetY);
+    ctx.lineTo(spot1TargetX - (w * 0.22 * (1 + beatPulse * 0.16)), spot1TargetY);
     ctx.closePath();
     ctx.fill();
 
     // Foco Derecho
     const spot2BaseX = w * 0.85;
-    const spot2Swing = Math.sin(currentTime * swingFreq + 1.4) * (w * 0.45);
+    const spot2Swing = Math.sin(safePerfNow * swingFreq + 1.4) * (w * 0.45);
     const spot2TargetX = (w * 0.50) - spot2Swing;
     const spot2TargetY = h * 0.90;
 
-    ctx.fillStyle = hexToRgba(beamColor2, 0.12 * stageIntensity);
+    ctx.fillStyle = hexToRgba(beamColor2, 0.10 * stageIntensity);
     ctx.beginPath();
     ctx.moveTo(spot2BaseX - 30, -10);
     ctx.lineTo(spot2BaseX + 30, -10);
-    ctx.lineTo(spot2TargetX + (w * 0.22 * (1 + beatPulse * 0.2)), spot2TargetY);
-    ctx.lineTo(spot2TargetX - (w * 0.22 * (1 + beatPulse * 0.2)), spot2TargetY);
+    ctx.lineTo(spot2TargetX + (w * 0.22 * (1 + beatPulse * 0.16)), spot2TargetY);
+    ctx.lineTo(spot2TargetX - (w * 0.22 * (1 + beatPulse * 0.16)), spot2TargetY);
     ctx.closePath();
     ctx.fill();
 
     // Focos adicionales en combo alto (3x, 4x, 5x)
     if (mult >= 3) {
       const spot3BaseX = w * 0.50;
-      const spot3Swing = Math.cos(currentTime * swingFreq * 1.3) * (w * 0.40);
+      const spot3Swing = Math.cos(safePerfNow * swingFreq * 1.3) * (w * 0.40);
       const spot3TargetX = (w * 0.50) + spot3Swing;
       const spot3TargetY = h * 0.92;
 
-      ctx.fillStyle = hexToRgba(beamColor1, 0.10 * stageIntensity);
+      ctx.fillStyle = hexToRgba(beamColor1, 0.08 * stageIntensity);
       ctx.beginPath();
       ctx.moveTo(spot3BaseX - 20, -10);
       ctx.lineTo(spot3BaseX + 20, -10);
@@ -5172,7 +5166,7 @@ class BeatstarEngine {
     for (let i = 0; i < this.stageDustMotes.length; i++) {
       const m = this.stageDustMotes[i];
       m.y -= m.speed * (mult >= 3 ? 1.5 : 1.0) * dustScale;
-      m.x += Math.sin(m.phase + currentTime * 0.0016) * 0.5 * dustScale;
+      m.x += Math.sin(m.phase + safePerfNow * 0.0016) * 0.5 * dustScale;
       if (m.y < -10) {
         m.y = h + 10;
         m.x = Math.random() * w;
@@ -6424,9 +6418,10 @@ class BeatstarEngine {
     while (normBpm > 175) normBpm /= 2;
     while (normBpm < 75) normBpm *= 2;
     const beatInterval = 60 / normBpm;
-    const audioTime = Math.max(0, cTime) / 1000;
+    const safePerfNow = this._frameNow || performance.now();
+    const audioTime = (cTime >= 0 ? cTime : safePerfNow) / 1000;
     const beatFraction = ((audioTime % beatInterval) + beatInterval) % beatInterval / beatInterval;
-    const beatPulse = Math.pow(Math.max(0, 1 - beatFraction), 2.8); // Pico explosivo en el bombo
+    const beatPulse = Math.pow(Math.max(0, 1 - beatFraction), 2.8); // Pico en el bombo
 
     // Multiplicador activo y color temático
     const mult = this.multiplier || 1;
@@ -6491,14 +6486,7 @@ class BeatstarEngine {
       }
       ctx.stroke();
 
-      // C. Reflejo especular satinado central
-      ctx.save();
-      ctx.globalCompositeOperation = 'overlay';
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
-      ctx.fillRect(tL_top - 20, horizonY, (tR_bot - tL_bot) + 40, bottomY - horizonY);
-      ctx.restore();
-
-      // D. Resplandor sutil lineal en el horizonte (sin círculos toscos)
+      // C. Resplandor sutil lineal en el horizonte (sin overlay rectangle fuera de la pista)
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       ctx.fillStyle = hexToRgba(railLaserCol, 0.22);
@@ -6506,7 +6494,7 @@ class BeatstarEngine {
       ctx.restore();
 
       // Líneas divisorias de carriles (1 solo stroke unificado)
-      ctx.strokeStyle = 'rgba(70, 88, 94, 0.65)';
+      ctx.strokeStyle = 'rgba(54, 72, 82, 0.72)';
       ctx.lineWidth = 1.8;
       ctx.beginPath();
       for (let l = 1; l <= 2; l++) {
@@ -6515,7 +6503,7 @@ class BeatstarEngine {
       }
       ctx.stroke();
 
-      // 2. COLUMNAS DE LUZ VOLUMÉTRICAS DE CARRIL (Sin la franja blanca rara, luz limpia y suave)
+      // 2. COLUMNAS DE LUZ VOLUMÉTRICAS DE CARRIL (Suaves, sin parpadeo ni saturación blanca)
       for (let l = 0; l < 3; l++) {
         const flashTimer = (Array.isArray(this.laneFlashTimers) && this.laneFlashTimers[l]) || 0;
         const isHolding = this.activeHolds.has(l);
@@ -6524,37 +6512,31 @@ class BeatstarEngine {
         if (isHolding || flashTimer > 0 || glow > 0.04) {
           ctx.save();
           ctx.globalCompositeOperation = 'lighter';
-          const pL_top = getBoundaryX(l, horizonY);
-          const pR_top = getBoundaryX(l + 1, horizonY);
-          const pL_bot = getBoundaryX(l, hitY + 32);
-          const pR_bot = getBoundaryX(l + 1, hitY + 32);
-          const midBotX = (pL_bot + pR_bot) / 2;
+          const beamTopY = horizonY + (hitY - horizonY) * 0.22;
+          const beamBotY = hitY + 24;
+          const pL_top = getBoundaryX(l, beamTopY);
+          const pR_top = getBoundaryX(l + 1, beamTopY);
+          const pL_bot = getBoundaryX(l, beamBotY);
+          const pR_bot = getBoundaryX(l + 1, beamBotY);
 
           const flashCol = (Array.isArray(this.laneFlashColors) && this.laneFlashColors[l]) || railLaserCol;
           const rgb = hexToRgb(flashCol);
-          let baseAlpha = isHolding ? 0.85 : (flashTimer > 0 ? (0.80 * Math.min(1.0, flashTimer / 0.16)) : Math.min(0.70, glow * 0.70));
+          const rawAlpha = isHolding
+            ? 0.42
+            : (flashTimer > 0 ? (0.38 * Math.min(1.0, flashTimer / 0.18)) : Math.min(0.32, glow * 0.34));
 
-          // Columna de luz volumétrica homogénea (sin rayas blancas en medio)
-          const floodGrad = ctx.createLinearGradient(0, hitY + 32, 0, horizonY);
-          floodGrad.addColorStop(0.0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(baseAlpha * 0.85).toFixed(3)})`);
-          floodGrad.addColorStop(0.35, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(baseAlpha * 0.40).toFixed(3)})`);
-          floodGrad.addColorStop(0.75, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(baseAlpha * 0.12).toFixed(3)})`);
+          const floodGrad = ctx.createLinearGradient(0, beamBotY, 0, beamTopY);
+          floodGrad.addColorStop(0.0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${rawAlpha.toFixed(3)})`);
+          floodGrad.addColorStop(0.42, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(rawAlpha * 0.42).toFixed(3)})`);
           floodGrad.addColorStop(1.0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
           ctx.fillStyle = floodGrad;
           ctx.beginPath();
-          ctx.moveTo(pL_top, horizonY);
-          ctx.lineTo(pR_top, horizonY);
-          ctx.lineTo(pR_bot, hitY + 32);
-          ctx.lineTo(pL_bot, hitY + 32);
+          ctx.moveTo(pL_top, beamTopY);
+          ctx.lineTo(pR_top, beamTopY);
+          ctx.lineTo(pR_bot, beamBotY);
+          ctx.lineTo(pL_bot, beamBotY);
           ctx.closePath();
           ctx.fill();
-
-          // Resplandor cálido en el punto de contacto
-          ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(baseAlpha * 0.50).toFixed(3)})`;
-          ctx.beginPath();
-          ctx.arc(midBotX, hitY, (pR_bot - pL_bot) * 0.55, 0, Math.PI * 2);
-          ctx.fill();
-
           ctx.restore();
         }
       }
@@ -6605,8 +6587,8 @@ class BeatstarEngine {
       ctx.globalCompositeOperation = 'lighter';
       ctx.lineCap = 'round';
 
-      // Reutilización de gradiente para no saturar memoria a 120 FPS
-      const hueShift = ((cTime * 0.04) % 360) | 0;
+      // Reutilización de gradiente con hue monotónico positivo (evita parpadeo en cuenta atrás)
+      const hueShift = ((((safePerfNow * 0.035) % 360) + 360) % 360) | 0;
       if (!this._sideGradCache || Math.abs(hueShift - (this._lastSideHue || 0)) >= 8) {
         this._lastSideHue = hueShift;
         const sideGrad = ctx.createLinearGradient(0, horizonY, 0, bottomY);
@@ -6774,92 +6756,64 @@ class BeatstarEngine {
 
     ctx.restore();
   }
-// =========================================================================
-    // PRECOMPILACIÓN DE SPRITES DEL HITLINE (Ahorro ~90% de GPU)
+    // =========================================================================
+    // ZONA PERFECT+ 3D EN PERSPECTIVA CÓNICA REAL CON ANIMACIONES DINÁMICAS
     // =========================================================================
     buildHitLineSprites() {
       const isLarge = (this.keyStyle !== 'compact');
-      const palette = this.activeSongPalette || (typeof SONG_COLOR_PALETTES !== 'undefined' ? SONG_COLOR_PALETTES.classic : null);
-      const laserCol = palette ? (palette.primary || '#00f5a0') : '#00f5a0';
-      const glowCol = palette ? (palette.glow || '#ffd700') : '#ffd700';
-      const laserRgb = hexToRgb(laserCol);
-      const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
-      const dpr = this.dpr || 1;
+      const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.82);
+      const padH = isLarge ? 84 : 48;
+      const yDeckTop = hitY - padH * 0.56;
+      const yDeckBot = hitY + padH * 0.60;
 
-      const socketH = isLarge ? 56 : 32;
-      const margin = Math.max(2.5, isLarge ? 4.0 : 2.5);
-      const socketRad = isLarge ? 8 : 5;
-      const keyClearance = 2.5;
-      const bevelH = isLarge ? 7 : 4;
+      // Degradados pre-cacheados para el chasis 3D y las cavidades en perspectiva (Zero-GC a 120 FPS)
+      const deckGrad = this.ctx.createLinearGradient(0, yDeckTop, 0, yDeckBot);
+      deckGrad.addColorStop(0.00, '#1e2b48');
+      deckGrad.addColorStop(0.18, '#121b30');
+      deckGrad.addColorStop(0.55, '#090e1c');
+      deckGrad.addColorStop(0.88, '#060913');
+      deckGrad.addColorStop(1.00, '#03050a');
 
-      const laneWidthAtHit = this.getLaneBoundaryX(1, hitY) - this.getLaneBoundaryX(0, hitY);
-      const socketW = laneWidthAtHit - margin * 2;
-      const keyW = socketW - keyClearance * 2;
+      const deckLipGrad = this.ctx.createLinearGradient(0, yDeckBot, 0, yDeckBot + 12);
+      deckLipGrad.addColorStop(0.00, '#2a3b60');
+      deckLipGrad.addColorStop(0.45, '#121a2e');
+      deckLipGrad.addColorStop(1.00, '#04060d');
 
-      const pad = 10;
-      const spriteCssW = socketW + pad * 2;
-      const spriteCssH = socketH + pad * 2;
+      const apronGrad = this.ctx.createLinearGradient(0, yDeckBot, 0, this.height + 30);
+      apronGrad.addColorStop(0.00, '#050811');
+      apronGrad.addColorStop(0.45, '#080d1a');
+      apronGrad.addColorStop(1.00, '#020307');
 
-      this._hitSprites = { pad, socketW, socketH, keyW, spriteCssW, spriteCssH, laserCol, glowCol, laserRgb };
+      const wellGrad = this.ctx.createLinearGradient(0, yDeckTop, 0, yDeckBot);
+      wellGrad.addColorStop(0.00, '#020409');
+      wellGrad.addColorStop(0.40, '#070c18');
+      wellGrad.addColorStop(1.00, '#0e172c');
 
-      // Sprite del socket
-      const sockCanvas = document.createElement('canvas');
-      sockCanvas.width = Math.ceil(spriteCssW * dpr);
-      sockCanvas.height = Math.ceil(spriteCssH * dpr);
-      const sctx = sockCanvas.getContext('2d');
-      sctx.scale(dpr, dpr);
+      const plateIdleGrad = this.ctx.createLinearGradient(0, hitY - padH * 0.46, 0, hitY + padH * 0.46);
+      plateIdleGrad.addColorStop(0.00, '#2a3550');
+      plateIdleGrad.addColorStop(0.28, '#1b2438');
+      plateIdleGrad.addColorStop(0.65, '#111726');
+      plateIdleGrad.addColorStop(1.00, '#0a0e19');
 
-      const sx0 = pad, sx1 = pad + socketW;
-      const sy0 = pad, sy1 = pad + socketH;
+      const glassBandGrad = this.ctx.createLinearGradient(0, hitY - 14, 0, hitY + 14);
+      glassBandGrad.addColorStop(0.00, 'rgba(255, 255, 255, 0.22)');
+      glassBandGrad.addColorStop(0.25, 'rgba(255, 255, 255, 0.06)');
+      glassBandGrad.addColorStop(0.50, 'rgba(255, 255, 255, 0.14)');
+      glassBandGrad.addColorStop(0.75, 'rgba(255, 255, 255, 0.06)');
+      glassBandGrad.addColorStop(1.00, 'rgba(255, 255, 255, 0.24)');
 
-      sctx.fillStyle = '#060810';
-      this._traceQuadOn(sctx, sx0, sx1, sx0, sx1, sy0, sy1, socketRad);
-      sctx.fill();
-
-      const innerShadowH = Math.max(4, socketH * 0.28);
-      sctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-      this._traceQuadOn(sctx, sx0, sx1, sx0, sx1, sy0, sy0 + innerShadowH, socketRad);
-      sctx.fill();
-
-      sctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-      sctx.lineWidth = 1.2;
-      this._traceQuadOn(sctx, sx0, sx1, sx0, sx1, sy0, sy1, socketRad);
-      sctx.stroke();
-      this._hitSpriteSocket = sockCanvas;
-
-      // Sprites de tecla (idle y pressed)
-      const buildKeySprite = (isPressed) => {
-        const c = document.createElement('canvas');
-        c.width = Math.ceil(spriteCssW * dpr);
-        c.height = Math.ceil(spriteCssH * dpr);
-        const kctx = c.getContext('2d');
-        kctx.scale(dpr, dpr);
-
-        const kx0 = pad + keyClearance;
-        const kx1 = pad + socketW - keyClearance;
-        const ky0 = pad + keyClearance;
-        const ky1 = pad + socketH - keyClearance;
-        const keyRad = Math.max(3, socketRad - 2);
-        const yKeyBevel = ky1 - bevelH;
-
-        kctx.fillStyle = isPressed ? '#1e2436' : '#12141e';
-        this._traceQuadOn(kctx, kx0, kx1, kx0, kx1, yKeyBevel, ky1, keyRad);
-        kctx.fill();
-
-        kctx.fillStyle = isPressed ? `rgba(${laserRgb.r}, ${laserRgb.g}, ${laserRgb.b}, 0.95)` : '#181b28';
-        this._traceQuadOn(kctx, kx0, kx1, kx0, kx1, ky0, yKeyBevel, keyRad);
-        kctx.fill();
-
-        kctx.strokeStyle = isPressed ? 'rgba(255, 255, 255, 0.90)' : 'rgba(255, 255, 255, 0.18)';
-        kctx.lineWidth = isPressed ? 1.5 : 1.0;
-        this._traceQuadOn(kctx, kx0, kx1, kx0, kx1, ky0, ky1, keyRad);
-        kctx.stroke();
-
-        return c;
+      this._hitSprites = {
+        padH,
+        yDeckTop,
+        yDeckBot,
+        deckGrad,
+        deckLipGrad,
+        apronGrad,
+        wellGrad,
+        plateIdleGrad,
+        glassBandGrad
       };
-
-      this._hitSpriteKeyIdle = buildKeySprite(false);
-      this._hitSpriteKeyPressed = buildKeySprite(true);
+      this._hitSpriteSocket = true;
     }
 
     _traceQuadOn(ctx, x0T, x1T, x0B, x1B, topY, botY, rad) {
@@ -6880,122 +6834,601 @@ class BeatstarEngine {
 
     renderHitLine(currentTime = null) {
       const ctx = this.ctx;
-      const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
+      const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.82);
       const is3D = (this.visualDimension !== '2d');
       const nowPerf = this._frameNow || performance.now();
       const cTime = Number.isFinite(currentTime) ? currentTime : this.getCurrentGameTimeMs(nowPerf);
 
-      if (is3D && (!this._hitSpriteSocket || !this._hitSprites)) {
+      if (is3D && !this._hitSprites) {
         this.buildHitLineSprites();
       }
+
+      // Color reactivo según multiplicador y paleta
+      const mult = this.multiplier || 1;
+      const palette = this.activeSongPalette || (typeof SONG_COLOR_PALETTES !== 'undefined' ? SONG_COLOR_PALETTES.classic : null);
+      let laserCol = palette ? (palette.primary || '#00f5a0') : '#00f5a0';
+      let accentCol = palette ? (palette.glow || '#00f2fe') : '#00f2fe';
+      if (mult === 2) {
+        laserCol = '#ffd700';
+        accentCol = '#ff9900';
+      } else if (mult === 3) {
+        laserCol = '#ff007f';
+        accentCol = '#d946ef';
+      } else if (mult === 4) {
+        laserCol = '#00f2fe';
+        accentCol = '#38bdf8';
+      } else if (mult >= 5) {
+        laserCol = '#00f5a0';
+        accentCol = '#ffd700';
+      }
+      const laserRgb = hexToRgb(laserCol);
+      const accentRgb = hexToRgb(accentCol);
+
+      // Pulso rítmico sincronizado al BPM (monotónico en cuenta atrás)
+      const songBpm = (this.beatmapData && this.beatmapData.bpm) ? Math.max(40, this.beatmapData.bpm) : 128;
+      let normBpm = songBpm;
+      while (normBpm > 175) normBpm /= 2;
+      while (normBpm < 75) normBpm *= 2;
+      const beatInterval = 60 / normBpm;
+      const audioTime = (cTime >= 0 ? cTime : nowPerf) / 1000;
+      const beatFraction = ((audioTime % beatInterval) + beatInterval) % beatInterval / beatInterval;
+      const beatPulse = Math.pow(Math.max(0, 1 - beatFraction), 2.6);
 
       ctx.save();
       if (is3D) {
         const s = this._hitSprites;
-        if (!s) { ctx.restore(); return; }
-
-        const laserCol = s.laserCol;
-        const laserRgb = s.laserRgb;
         const isLarge = (this.keyStyle !== 'compact');
+        const padH = s.padH;
+        const yDeckTop = s.yDeckTop;
+        const yDeckBot = s.yDeckBot;
+        const bottomY = this.height + 30;
 
-        const xTrackLeft = this.getLaneBoundaryX(0, hitY) - 16;
-        const xTrackRight = this.getLaneBoundaryX(3, hitY) + 16;
-        const trackWidth = xTrackRight - xTrackLeft;
-
-        // Base del escenario
-        ctx.fillStyle = 'rgba(8, 11, 20, 0.90)';
-        const deckH = isLarge ? 64 : 38;
-        const deckTopY = hitY - (deckH * 0.32);
-        if (ctx.roundRect) ctx.roundRect(xTrackLeft, deckTopY, trackWidth, deckH, 10);
-        else ctx.rect(xTrackLeft, deckTopY, trackWidth, deckH);
+        // 1. FALDÓN ESCÉNICO INFERIOR EN PERSPECTIVA CÓNICA CON REJILLA ACÚSTICA 3D
+        const apL_top = this.getLaneBoundaryX(0, yDeckBot);
+        const apR_top = this.getLaneBoundaryX(3, yDeckBot);
+        const apL_bot = this.getLaneBoundaryX(0, bottomY);
+        const apR_bot = this.getLaneBoundaryX(3, bottomY);
+        ctx.fillStyle = s.apronGrad;
+        ctx.beginPath();
+        ctx.moveTo(apL_top - 14, yDeckBot);
+        ctx.lineTo(apR_top + 14, yDeckBot);
+        ctx.lineTo(apR_bot + 24, bottomY);
+        ctx.lineTo(apL_bot - 24, bottomY);
+        ctx.closePath();
         ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-        ctx.lineWidth = 1.0;
+
+        // Líneas de fuga y costillas horizontales en el faldón inferior
+        ctx.strokeStyle = `rgba(${laserRgb.r}, ${laserRgb.g}, ${laserRgb.b}, 0.22)`;
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        for (let l = 1; l <= 2; l++) {
+          ctx.moveTo(this.getLaneBoundaryX(l, yDeckBot), yDeckBot);
+          ctx.lineTo(this.getLaneBoundaryX(l, bottomY), bottomY);
+        }
+        for (let r = 1; r <= 3; r++) {
+          const ry = yDeckBot + (bottomY - yDeckBot) * (r * 0.26);
+          if (ry < bottomY) {
+            ctx.moveTo(this.getLaneBoundaryX(0, ry) - 8, ry);
+            ctx.lineTo(this.getLaneBoundaryX(3, ry) + 8, ry);
+          }
+        }
         ctx.stroke();
 
-        const maxSink = isLarge ? 9.0 : 5.0;
-        const spriteOffX = -(s.spriteCssW / 2);
-        const spriteOffY = -((isLarge ? 12 : 6) + s.pad);
+        // 2. CONSOLA / CHASIS 3D EN PERSPECTIVA CÓNICA CON LABIO FRONTAL EXTRUIDO
+        const chMarginTop = 12;
+        const chMarginBot = 16;
+        const chL_top = this.getLaneBoundaryX(0, yDeckTop) - chMarginTop;
+        const chR_top = this.getLaneBoundaryX(3, yDeckTop) + chMarginTop;
+        const chL_bot = this.getLaneBoundaryX(0, yDeckBot) - chMarginBot;
+        const chR_bot = this.getLaneBoundaryX(3, yDeckBot) + chMarginBot;
+
+        // A. Pared frontal extruida del puente (3D Front Lip)
+        const lipH = isLarge ? 10 : 7;
+        const yLipBot = yDeckBot + lipH;
+        const chL_lip = this.getLaneBoundaryX(0, yLipBot) - (chMarginBot + 2);
+        const chR_lip = this.getLaneBoundaryX(3, yLipBot) + (chMarginBot + 2);
+        ctx.fillStyle = s.deckLipGrad;
+        this._traceQuadOn(ctx, chL_bot, chR_bot, chL_lip, chR_lip, yDeckBot - 2, yLipBot, 10);
+        ctx.fill();
+        ctx.strokeStyle = `rgba(${laserRgb.r}, ${laserRgb.g}, ${laserRgb.b}, ${(0.40 + beatPulse * 0.25).toFixed(3)})`;
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+
+        // B. Cubierta superior inclinada del puente (3D Perspective Deck)
+        ctx.fillStyle = s.deckGrad;
+        this._traceQuadOn(ctx, chL_top, chR_top, chL_bot, chR_bot, yDeckTop, yDeckBot, 13);
+        ctx.fill();
+
+        // Bisel metálico cromado perimetral del puente 3D
+        ctx.strokeStyle = `rgba(${laserRgb.r}, ${laserRgb.g}, ${laserRgb.b}, ${(0.38 + beatPulse * 0.28).toFixed(3)})`;
+        ctx.lineWidth = 2.0;
+        ctx.stroke();
+
+        // Filamento especular en la arista superior e inferior del puente
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(chL_top + 12, yDeckTop + 1.5);
+        ctx.lineTo(chR_top - 12, yDeckTop + 1.5);
+        ctx.moveTo(chL_bot + 12, yDeckBot - 1.5);
+        ctx.lineTo(chR_bot - 12, yDeckBot - 1.5);
+        ctx.stroke();
+
+        // 3. RECEPTORES MECÁNICOS 3D POR CARRIL (Fieles al punto de fuga de la autopista)
+        const wellHalfH = padH * 0.46;
+        const yWellTop = hitY - wellHalfH;
+        const yWellBot = hitY + wellHalfH;
+        const wellMargin = isLarge ? 3.8 : 2.8;
+        const plateMargin = isLarge ? 6.2 : 4.4;
+        const maxSink = isLarge ? 7.0 : 4.5;
+        const cornerRad = isLarge ? 10 : 6;
 
         for (let l = 0; l < 3; l++) {
-          const coord = this.getPerspectiveCoord(l, 1.0, this._coordScratch0);
-          const cx = coord.x;
-
           const elapsedPress = nowPerf - (this.lanePressAnim ? (this.lanePressAnim[l] || 0) : 0);
-          const isTapping = elapsedPress >= 0 && elapsedPress < 160;
-          let tapDepth = 0;
+          const isTapping = elapsedPress >= 0 && elapsedPress < 260;
+          let tapWave = 0;
+          let shockProgress = 0;
           if (isTapping) {
-            const t = elapsedPress / 160;
-            tapDepth = t < 0.22 ? (t / 0.22) : Math.exp(-((t - 0.22) / 0.78) * 4.2) * Math.cos(((t - 0.22) / 0.78) * Math.PI * 2.0);
+            const t = elapsedPress / 260;
+            shockProgress = t;
+            tapWave = t < 0.16
+              ? (t / 0.16)
+              : Math.exp(-((t - 0.16) / 0.84) * 3.6) * Math.cos(((t - 0.16) / 0.84) * Math.PI * 1.8);
           }
 
           const isHolding = this.activeHolds.has(l);
+          const flashTimer = (Array.isArray(this.laneFlashTimers) && this.laneFlashTimers[l]) || 0;
           const glow = this.laneGlows[l] || 0;
-          const isPressed = glow > 0.35 || isHolding;
-          const currentSink = Math.max(0, (isHolding ? maxSink * 0.95 : 0) + (isTapping ? maxSink * tapDepth : (isPressed ? maxSink * 0.75 : 0)));
+          const isActive = isHolding || flashTimer > 0.01 || glow > 0.18 || (isTapping && elapsedPress < 130);
+          const energy = Math.min(1.0, Math.max(
+            isHolding ? 1.0 : 0,
+            flashTimer > 0 ? Math.min(1.0, flashTimer / 0.15) : 0,
+            glow * 0.85,
+            isTapping ? Math.max(0, 1 - elapsedPress / 200) : 0
+          ));
 
-          // Socket y Tecla (vía sprites)
-          ctx.drawImage(this._hitSpriteSocket, cx + spriteOffX, hitY + spriteOffY, s.spriteCssW, s.spriteCssH);
-          const keySprite = currentSink > 1.0 ? this._hitSpriteKeyPressed : this._hitSpriteKeyIdle;
-          ctx.drawImage(keySprite, cx + spriteOffX, hitY + spriteOffY + currentSink, s.spriteCssW, s.spriteCssH);
+          const laneFlashCol = (Array.isArray(this.laneFlashColors) && this.laneFlashColors[l]) || laserCol;
+          const activeRgb = isActive ? hexToRgb(laneFlashCol) : laserRgb;
 
-          // Zona Perfect+
-          ctx.save();
-          ctx.globalCompositeOperation = 'lighter';
-          const perfY = hitY + currentSink;
-          const keyW = s.keyW;
-          const slotW = keyW * 0.72;
-          const slotH = isLarge ? 5.0 : 3.5;
-          ctx.fillStyle = isPressed ? 'rgba(0, 245, 160, 0.75)' : 'rgba(0, 245, 160, 0.52)';
-          ctx.fillRect(cx - slotW / 2, perfY - slotH / 2, slotW, slotH);
+          // A. Cavidad receptora profunda (3D Recessed Socket) con paredes interiores visibles
+          const wL_top = this.getLaneBoundaryX(l, yWellTop) + wellMargin;
+          const wR_top = this.getLaneBoundaryX(l + 1, yWellTop) - wellMargin;
+          const wL_bot = this.getLaneBoundaryX(l, yWellBot) + wellMargin;
+          const wR_bot = this.getLaneBoundaryX(l + 1, yWellBot) - wellMargin;
 
-          ctx.strokeStyle = isPressed ? '#ffffff' : hexToRgba(laserCol, 0.90);
-          ctx.lineWidth = 1.4;
+          ctx.fillStyle = s.wellGrad;
+          this._traceQuadOn(ctx, wL_top, wR_top, wL_bot, wR_bot, yWellTop, yWellBot, cornerRad);
+          ctx.fill();
+
+          // Pared interior superior de la cavidad (efecto de profundidad real 3D)
+          const yInnerWall = yWellTop + (isLarge ? 6.5 : 4.5);
+          const iwL = this.getLaneBoundaryX(l, yInnerWall) + wellMargin + 1.5;
+          const iwR = this.getLaneBoundaryX(l + 1, yInnerWall) - wellMargin - 1.5;
+          ctx.fillStyle = isActive
+            ? `rgba(${Math.round(activeRgb.r * 0.35)}, ${Math.round(activeRgb.g * 0.35)}, ${Math.round(activeRgb.b * 0.35)}, 0.90)`
+            : 'rgba(2, 4, 10, 0.92)';
           ctx.beginPath();
-          ctx.moveTo(cx - slotW * 0.45, perfY); ctx.lineTo(cx + slotW * 0.45, perfY);
-          ctx.stroke();
-
-          const crosshairSize = isLarge ? 6.5 : 4.5;
-          ctx.fillStyle = isPressed ? '#ffffff' : laserCol;
-          ctx.beginPath();
-          ctx.moveTo(cx, perfY - crosshairSize * 0.8);
-          ctx.lineTo(cx + crosshairSize * 0.8, perfY);
-          ctx.lineTo(cx, perfY + crosshairSize * 0.8);
-          ctx.lineTo(cx - crosshairSize * 0.8, perfY);
+          ctx.moveTo(wL_top, yWellTop);
+          ctx.lineTo(wR_top, yWellTop);
+          ctx.lineTo(iwR, yInnerWall);
+          ctx.lineTo(iwL, yInnerWall);
           ctx.closePath();
           ctx.fill();
-          ctx.restore();
 
-          // Arco en Hold
+          // Marco luminoso perimetral de la cavidad
+          ctx.strokeStyle = isActive
+            ? `rgba(${activeRgb.r}, ${activeRgb.g}, ${activeRgb.b}, ${(0.55 + energy * 0.45).toFixed(3)})`
+            : `rgba(${laserRgb.r}, ${laserRgb.g}, ${laserRgb.b}, ${(0.22 + beatPulse * 0.12).toFixed(3)})`;
+          ctx.lineWidth = isActive ? 1.8 : 1.2;
+          this._traceQuadOn(ctx, wL_top, wR_top, wL_bot, wR_bot, yWellTop, yWellBot, cornerRad);
+          ctx.stroke();
+
+          // B. Placa Táctil 3D con compresión de pistón en el plano de perspectiva
+          const currentSink = Math.max(-1.8, (isHolding ? maxSink * 0.88 : 0) + (isTapping ? maxSink * tapWave : (glow > 0.22 ? maxSink * 0.50 : 0)));
+          const yPlateTop = yWellTop + 3.0 + currentSink * 0.85;
+          const yPlateBot = yWellBot - 2.2 + currentSink * 0.42;
+          const bevelH = Math.max(3.5, (isLarge ? 8.5 : 5.0) - Math.max(0, currentSink * 0.70));
+          const yBevelTop = yPlateBot - bevelH;
+
+          const pL_top = this.getLaneBoundaryX(l, yPlateTop) + plateMargin;
+          const pR_top = this.getLaneBoundaryX(l + 1, yPlateTop) - plateMargin;
+          const pL_bev = this.getLaneBoundaryX(l, yBevelTop) + plateMargin;
+          const pR_bev = this.getLaneBoundaryX(l + 1, yBevelTop) - plateMargin;
+          const pL_bot = this.getLaneBoundaryX(l, yPlateBot) + plateMargin;
+          const pR_bot = this.getLaneBoundaryX(l + 1, yPlateBot) - plateMargin;
+          const plateRad = Math.max(4, cornerRad - 2);
+
+          // Cara frontal 3D (Bisel delantero de la tecla receptora)
+          ctx.fillStyle = isActive
+            ? `rgba(${Math.round(activeRgb.r * 0.52)}, ${Math.round(activeRgb.g * 0.52)}, ${Math.round(activeRgb.b * 0.52)}, 0.96)`
+            : '#090d18';
+          this._traceQuadOn(ctx, pL_bev, pR_bev, pL_bot, pR_bot, yBevelTop, yPlateBot, plateRad);
+          ctx.fill();
+
+          // Cara superior 3D de la tecla receptora
+          ctx.fillStyle = s.plateIdleGrad;
+          this._traceQuadOn(ctx, pL_top, pR_top, pL_bev, pR_bev, yPlateTop, yBevelTop, plateRad);
+          ctx.fill();
+
+          // Retroiluminación interna reactiva al impacto o nota mantenida
+          if (energy > 0.02) {
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.fillStyle = `rgba(${activeRgb.r}, ${activeRgb.g}, ${activeRgb.b}, ${(energy * 0.36).toFixed(3)})`;
+            this._traceQuadOn(ctx, pL_top, pR_top, pL_bev, pR_bev, yPlateTop, yBevelTop, plateRad);
+            ctx.fill();
+            ctx.restore();
+          }
+
+          // Chevrons guía en escorzo 3D sobre la placa receptora (animados hacia el centro de impacto)
+          const chevShift = ((audioTime * 2.2) % 1.0);
+          const plateMidXTop = (pL_top + pR_top) * 0.5;
+          const plateMidXBot = (pL_bev + pR_bev) * 0.5;
+          const chevW = (pR_top - pL_top) * 0.24;
+          const chevY = yPlateTop + 5 + chevShift * 5;
+          ctx.strokeStyle = `rgba(${activeRgb.r}, ${activeRgb.g}, ${activeRgb.b}, ${(0.20 + energy * 0.35 + (1 - chevShift) * 0.15).toFixed(3)})`;
+          ctx.lineWidth = 1.4;
+          ctx.beginPath();
+          ctx.moveTo(plateMidXTop - chevW, chevY - 2.5);
+          ctx.lineTo(plateMidXTop, chevY + 1.5);
+          ctx.lineTo(plateMidXTop + chevW, chevY - 2.5);
+          const chevBotY = yBevelTop - 4 - chevShift * 4;
+          ctx.moveTo(plateMidXBot - chevW * 1.05, chevBotY + 2.5);
+          ctx.lineTo(plateMidXBot, chevBotY - 1.5);
+          ctx.lineTo(plateMidXBot + chevW * 1.05, chevBotY + 2.5);
+          ctx.stroke();
+
+          // Borde especular metálico de la placa 3D
+          ctx.strokeStyle = isActive
+            ? `rgba(255, 255, 255, ${(0.65 + energy * 0.35).toFixed(3)})`
+            : `rgba(${laserRgb.r}, ${laserRgb.g}, ${laserRgb.b}, ${(0.28 + beatPulse * 0.16).toFixed(3)})`;
+          ctx.lineWidth = isActive ? 1.9 : 1.25;
+          this._traceQuadOn(ctx, pL_top, pR_top, pL_bev, pR_bev, yPlateTop, yBevelTop, plateRad);
+          ctx.stroke();
+        }
+
+        // 4. BANDA HOLOGRÁFICA CONTINUA PERFECT+ EN PERSPECTIVA CÓNICA (Atraviesa los 3 carriles)
+        const bandHalfH = isLarge ? 12.5 : 8.5;
+        const yBandTop = hitY - bandHalfH;
+        const yBandBot = hitY + bandHalfH;
+        const bandOuterMargin = 4;
+        const bandL_top = this.getLaneBoundaryX(0, yBandTop) - bandOuterMargin;
+        const bandR_top = this.getLaneBoundaryX(3, yBandTop) + bandOuterMargin;
+        const bandL_bot = this.getLaneBoundaryX(0, yBandBot) - bandOuterMargin;
+        const bandR_bot = this.getLaneBoundaryX(3, yBandBot) + bandOuterMargin;
+
+        ctx.save();
+        // Lente acrílica translúcida continua de la ventana Perfect+
+        ctx.fillStyle = s.glassBandGrad;
+        this._traceQuadOn(ctx, bandL_top, bandR_top, bandL_bot, bandR_bot, yBandTop, yBandBot, 6);
+        ctx.fill();
+
+        // Tinte de energía reactiva en la banda Perfect+
+        ctx.fillStyle = `rgba(${laserRgb.r}, ${laserRgb.g}, ${laserRgb.b}, ${(0.12 + beatPulse * 0.10).toFixed(3)})`;
+        ctx.fill();
+
+        // Bordes superior e inferior de la ventana Perfect+ (delimitan visualmente el área exacta Perfect+)
+        ctx.strokeStyle = `rgba(${laserRgb.r}, ${laserRgb.g}, ${laserRgb.b}, ${(0.55 + beatPulse * 0.30).toFixed(3)})`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(bandL_top + 4, yBandTop);
+        ctx.lineTo(bandR_top - 4, yBandTop);
+        ctx.moveTo(bandL_bot + 4, yBandBot);
+        ctx.lineTo(bandR_bot - 4, yBandBot);
+        ctx.stroke();
+        ctx.restore();
+
+        // 5. NÚCLEOS DE PRECISIÓN PERFECT+, CORCHETES Y ANIMACIONES ESPECTACULARES POR CARRIL
+        for (let l = 0; l < 3; l++) {
+          const elapsedPress = nowPerf - (this.lanePressAnim ? (this.lanePressAnim[l] || 0) : 0);
+          const isTapping = elapsedPress >= 0 && elapsedPress < 260;
+          const shockProgress = isTapping ? (elapsedPress / 260) : 0;
+          const tapWave = isTapping
+            ? (shockProgress < 0.16
+                ? (shockProgress / 0.16)
+                : Math.exp(-((shockProgress - 0.16) / 0.84) * 3.6) * Math.cos(((shockProgress - 0.16) / 0.84) * Math.PI * 1.8))
+            : 0;
+
+          const isHolding = this.activeHolds.has(l);
+          const flashTimer = (Array.isArray(this.laneFlashTimers) && this.laneFlashTimers[l]) || 0;
+          const glow = this.laneGlows[l] || 0;
+          const isActive = isHolding || flashTimer > 0.01 || glow > 0.18 || (isTapping && elapsedPress < 130);
+          const energy = Math.min(1.0, Math.max(
+            isHolding ? 1.0 : 0,
+            flashTimer > 0 ? Math.min(1.0, flashTimer / 0.15) : 0,
+            glow * 0.85,
+            isTapping ? Math.max(0, 1 - elapsedPress / 200) : 0
+          ));
+
+          const laneFlashCol = (Array.isArray(this.laneFlashColors) && this.laneFlashColors[l]) || laserCol;
+          const activeRgb = isActive ? hexToRgb(laneFlashCol) : laserRgb;
+
+          const currentSink = Math.max(-1.8, (isHolding ? maxSink * 0.88 : 0) + (isTapping ? maxSink * tapWave : (glow > 0.22 ? maxSink * 0.50 : 0)));
+          const perfY = hitY + currentSink * 0.55;
+          const cBandTop = perfY - (isLarge ? 10.5 : 7.5);
+          const cBandBot = perfY + (isLarge ? 10.5 : 7.5);
+          const bandInset = plateMargin + 3.5;
+
+          // Expansión elástica de los corchetes al impactar
+          const brkRecoil = (isTapping ? Math.sin(Math.min(1, shockProgress * 2.2) * Math.PI) * 4.5 : 0) + (isHolding ? 2.5 : 0);
+          const bL_top = this.getLaneBoundaryX(l, cBandTop) + bandInset - brkRecoil;
+          const bR_top = this.getLaneBoundaryX(l + 1, cBandTop) - bandInset + brkRecoil;
+          const bL_bot = this.getLaneBoundaryX(l, cBandBot) + bandInset - brkRecoil;
+          const bR_bot = this.getLaneBoundaryX(l + 1, cBandBot) - bandInset + brkRecoil;
+          const cx = (bL_top + bR_top + bL_bot + bR_bot) * 0.25;
+
+          ctx.save();
+          // A. Resplandor localizado de ventana Perfect+ cuando el carril está activo
+          if (energy > 0.01) {
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.fillStyle = `rgba(${activeRgb.r}, ${activeRgb.g}, ${activeRgb.b}, ${(0.22 + energy * 0.36).toFixed(3)})`;
+            this._traceQuadOn(ctx, bL_top, bR_top, bL_bot, bR_bot, cBandTop, cBandBot, 5);
+            ctx.fill();
+          }
+
+          // B. Corchetes de bloqueo en perspectiva cónica [   ] con rebote táctil
+          const brkLen = Math.max(9, (bR_bot - bL_bot) * 0.19);
+          ctx.strokeStyle = isActive
+            ? '#ffffff'
+            : `rgba(${laserRgb.r}, ${laserRgb.g}, ${laserRgb.b}, ${(0.78 + beatPulse * 0.22).toFixed(3)})`;
+          ctx.lineWidth = isActive ? 2.5 : 1.7;
+          ctx.beginPath();
+          // Corchete izquierdo alineado a la pendiente del carril
+          ctx.moveTo(bL_top + brkLen, cBandTop);
+          ctx.lineTo(bL_top, cBandTop);
+          ctx.lineTo(bL_bot, cBandBot);
+          ctx.lineTo(bL_bot + brkLen, cBandBot);
+          // Corchete derecho alineado a la pendiente del carril
+          ctx.moveTo(bR_top - brkLen, cBandTop);
+          ctx.lineTo(bR_top, cBandTop);
+          ctx.lineTo(bR_bot, cBandBot);
+          ctx.lineTo(bR_bot - brkLen, cBandBot);
+          ctx.stroke();
+
+          // C. Haz Láser Central Perfect+ y Retícula Diamante 3D en Escorzo
+          ctx.globalCompositeOperation = 'lighter';
+          const coreL = (bL_top + bL_bot) * 0.5 + 3;
+          const coreR = (bR_top + bR_bot) * 0.5 - 3;
+
+          // Halo exterior del láser del carril
+          ctx.strokeStyle = `rgba(${activeRgb.r}, ${activeRgb.g}, ${activeRgb.b}, ${(0.58 + energy * 0.42 + beatPulse * 0.20).toFixed(3)})`;
+          ctx.lineWidth = isActive ? 6.0 : 3.8;
+          ctx.beginPath();
+          ctx.moveTo(coreL, perfY);
+          ctx.lineTo(coreR, perfY);
+          ctx.stroke();
+
+          // Filamento central incandescente
+          ctx.strokeStyle = `rgba(255, 255, 255, ${(0.84 + energy * 0.16).toFixed(3)})`;
+          ctx.lineWidth = isActive ? 2.5 : 1.6;
+          ctx.beginPath();
+          ctx.moveTo(coreL + 3, perfY);
+          ctx.lineTo(coreR - 3, perfY);
+          ctx.stroke();
+
+          // Emblema Prisma / Diamante 3D en el centro del carril (achatado en Y por perspectiva cónica)
+          const prismScale = 1.0 + beatPulse * 0.18 + energy * 0.48;
+          const rx = (isLarge ? 12.0 : 8.5) * prismScale;
+          const ry = (isLarge ? 6.6 : 4.8) * prismScale;
+
+          // Anillo exterior del prisma
+          ctx.strokeStyle = `rgba(${activeRgb.r}, ${activeRgb.g}, ${activeRgb.b}, ${(0.70 + energy * 0.30).toFixed(3)})`;
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.moveTo(cx, perfY - ry * 1.32);
+          ctx.lineTo(cx + rx * 1.32, perfY);
+          ctx.lineTo(cx, perfY + ry * 1.32);
+          ctx.lineTo(cx - rx * 1.32, perfY);
+          ctx.closePath();
+          ctx.stroke();
+
+          // Cuerpo del prisma energético
+          ctx.fillStyle = `rgba(${activeRgb.r}, ${activeRgb.g}, ${activeRgb.b}, ${(0.80 + energy * 0.20).toFixed(3)})`;
+          ctx.beginPath();
+          ctx.moveTo(cx, perfY - ry);
+          ctx.lineTo(cx + rx, perfY);
+          ctx.lineTo(cx, perfY + ry);
+          ctx.lineTo(cx - rx, perfY);
+          ctx.closePath();
+          ctx.fill();
+
+          // Núcleo de diamante blanco puro
+          const irx = rx * 0.52;
+          const iry = ry * 0.52;
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.moveTo(cx, perfY - iry);
+          ctx.lineTo(cx + irx, perfY);
+          ctx.lineTo(cx, perfY + iry);
+          ctx.lineTo(cx - irx, perfY);
+          ctx.closePath();
+          ctx.fill();
+
+          // D. ANIMACIÓN DE IMPACTO: Doble Onda de Choque Trapezoidal 3D + Barrido de Luz Ascendente + Destello Anamórfico
+          if (isTapping && shockProgress > 0 && shockProgress < 1.0) {
+            const easeOut = 1 - Math.pow(1 - shockProgress, 2.5);
+            const shockAlpha = (1 - shockProgress) * 0.90;
+            const expandX = easeOut * 14;
+            const expandY = easeOut * 11;
+
+            const wL_top = this.getLaneBoundaryX(l, yWellTop) + wellMargin;
+            const wR_top = this.getLaneBoundaryX(l + 1, yWellTop) - wellMargin;
+            const wL_bot = this.getLaneBoundaryX(l, yWellBot) + wellMargin;
+            const wR_bot = this.getLaneBoundaryX(l + 1, yWellBot) - wellMargin;
+
+            // Onda exterior trapezoidal alineada al carril
+            ctx.strokeStyle = `rgba(${activeRgb.r}, ${activeRgb.g}, ${activeRgb.b}, ${shockAlpha.toFixed(3)})`;
+            ctx.lineWidth = Math.max(1.0, 3.4 * (1 - shockProgress));
+            this._traceQuadOn(
+              ctx,
+              wL_top - expandX * 0.85,
+              wR_top + expandX * 0.85,
+              wL_bot - expandX * 1.05,
+              wR_bot + expandX * 1.05,
+              yWellTop - expandY,
+              yWellBot + expandY,
+              cornerRad + 4
+            );
+            ctx.stroke();
+
+            // Segunda onda interior desfasada en blanco brillante
+            if (shockProgress > 0.08) {
+              const p2 = (shockProgress - 0.08) / 0.92;
+              const ease2 = 1 - Math.pow(1 - p2, 2.2);
+              const ex2 = ease2 * 8;
+              const ey2 = ease2 * 6;
+              ctx.strokeStyle = `rgba(255, 255, 255, ${((1 - p2) * 0.75).toFixed(3)})`;
+              ctx.lineWidth = Math.max(0.8, 2.0 * (1 - p2));
+              this._traceQuadOn(ctx, bL_top - ex2, bR_top + ex2, bL_bot - ex2, bR_bot + ex2, cBandTop - ey2, cBandBot + ey2, 6);
+              ctx.stroke();
+            }
+
+            // Pulso de luz que viaja por la superficie del carril hacia el horizonte
+            const pulseDist = easeOut * 68;
+            const pyTop = yWellTop - pulseDist - 8;
+            const pyBot = yWellTop - pulseDist;
+            const pwL_t = this.getLaneBoundaryX(l, pyTop) + 8;
+            const pwR_t = this.getLaneBoundaryX(l + 1, pyTop) - 8;
+            const pwL_b = this.getLaneBoundaryX(l, pyBot) + 8;
+            const pwR_b = this.getLaneBoundaryX(l + 1, pyBot) - 8;
+            ctx.fillStyle = `rgba(${activeRgb.r}, ${activeRgb.g}, ${activeRgb.b}, ${(shockAlpha * 0.55).toFixed(3)})`;
+            ctx.beginPath();
+            ctx.moveTo(pwL_t, pyTop);
+            ctx.lineTo(pwR_t, pyTop);
+            ctx.lineTo(pwR_b, pyBot);
+            ctx.lineTo(pwL_b, pyBot);
+            ctx.closePath();
+            ctx.fill();
+
+            // Destello horizontal anamórfico en la línea Perfect+
+            const flareHalfW = ((coreR - coreL) * 0.65) * (0.5 + easeOut * 0.75);
+            const flareH = Math.max(1.5, 5.8 * (1 - shockProgress));
+            ctx.fillStyle = `rgba(255, 255, 255, ${(shockAlpha * 0.95).toFixed(3)})`;
+            ctx.beginPath();
+            ctx.moveTo(cx - flareHalfW, perfY);
+            ctx.lineTo(cx, perfY - flareH);
+            ctx.lineTo(cx + flareHalfW, perfY);
+            ctx.lineTo(cx, perfY + flareH);
+            ctx.closePath();
+            ctx.fill();
+          }
+
+          // E. ANIMACIÓN DE NOTA MANTENIDA (HOLD): Reactor de Plasma Elíptico en Perspectiva 3D
           if (isHolding) {
             const active = this.activeHolds.get(l);
             const startT = active.startTime;
             const endT = active.note.end_timestamp_ms || (startT + (active.note.duration_ms || 700));
-            const progress = Math.min(1.0, Math.max(0, (cTime - startT) / (endT - startT)));
-            ctx.save();
-            ctx.globalCompositeOperation = 'lighter';
-            ctx.strokeStyle = laserCol;
+            const progress = Math.min(1.0, Math.max(0, (cTime - startT) / Math.max(1, endT - startT)));
+
+            const ringRx = (bR_bot - bL_bot) * 0.36;
+            const ringRy = ringRx * 0.54; // Escorzo cónico 3D exacto del plano de la pista
+
+            // Onda de compresión concéntrica hacia el núcleo del reactor
+            const inWave = 1.0 - ((nowPerf * 0.0035) % 1.0);
+            ctx.strokeStyle = `rgba(${activeRgb.r}, ${activeRgb.g}, ${activeRgb.b}, ${((1 - inWave) * 0.65).toFixed(3)})`;
+            ctx.lineWidth = 1.8;
+            ctx.beginPath();
+            if (ctx.ellipse) {
+              ctx.ellipse(cx, perfY, ringRx * (0.4 + inWave * 0.9), ringRy * (0.4 + inWave * 0.9), 0, 0, Math.PI * 2);
+            }
+            ctx.stroke();
+
+            // Anillo base en perspectiva 3D
+            ctx.strokeStyle = `rgba(${activeRgb.r}, ${activeRgb.g}, ${activeRgb.b}, 0.42)`;
+            ctx.lineWidth = 2.4;
+            ctx.beginPath();
+            if (ctx.ellipse) {
+              ctx.ellipse(cx, perfY, ringRx, ringRy, 0, 0, Math.PI * 2);
+            } else {
+              ctx.arc(cx, perfY, ringRy, 0, Math.PI * 2);
+            }
+            ctx.stroke();
+
+            // Arco de carga progresiva incandescente en perspectiva
+            ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 3.6;
             ctx.beginPath();
-            ctx.arc(cx, perfY, 22, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+            if (ctx.ellipse) {
+              ctx.ellipse(cx, perfY, ringRx, ringRy, 0, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+            } else {
+              ctx.arc(cx, perfY, ringRy, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+            }
             ctx.stroke();
-            ctx.restore();
+
+            // Nodos orbitales giratorios en el plano 3D de la tecla
+            const orbitAngle = nowPerf * 0.009;
+            for (let n = 0; n < 3; n++) {
+              const a = orbitAngle + n * ((Math.PI * 2) / 3);
+              const nx = cx + Math.cos(a) * ringRx;
+              const ny = perfY + Math.sin(a) * ringRy;
+              ctx.fillStyle = '#ffffff';
+              ctx.beginPath();
+              ctx.arc(nx, ny, 3.0, 0, Math.PI * 2);
+              ctx.fill();
+            }
           }
+
+          ctx.restore();
         }
 
-        // Línea guía holográfica
+        // 6. EMISORES LÁSER LATERALES 3D Y LÍNEA HORIZONTE DE PRECISIÓN PERFECT+
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
-        ctx.strokeStyle = `rgba(${laserRgb.r}, ${laserRgb.g}, ${laserRgb.b}, 0.55)`;
-        ctx.lineWidth = 1.6;
+        const lineL = this.getLaneBoundaryX(0, hitY) - 12;
+        const lineR = this.getLaneBoundaryX(3, hitY) + 12;
+
+        // Haz láser continuo que une los 3 carriles y los emisores exteriores
+        ctx.strokeStyle = `rgba(${laserRgb.r}, ${laserRgb.g}, ${laserRgb.b}, ${(0.48 + beatPulse * 0.32).toFixed(3)})`;
+        ctx.lineWidth = 2.6;
         ctx.beginPath();
-        ctx.moveTo(xTrackLeft, hitY); ctx.lineTo(xTrackRight, hitY);
+        ctx.moveTo(lineL, hitY);
+        ctx.lineTo(lineR, hitY);
         ctx.stroke();
+
+        // Nodos divisores luminosos sobre las separaciones de carril (l = 1, 2)
+        for (let div = 1; div <= 2; div++) {
+          const divX = this.getLaneBoundaryX(div, hitY);
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.moveTo(divX, hitY - 5);
+          ctx.lineTo(divX + 3.5, hitY);
+          ctx.lineTo(divX, hitY + 5);
+          ctx.lineTo(divX - 3.5, hitY);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        // Cabezales Emisores Láser 3D en los extremos izquierdo y derecho de la zona Perfect+
+        const podW = 10 + beatPulse * 3.0;
+        const podH = 9 + beatPulse * 2.0;
+        ctx.fillStyle = `rgba(${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}, 0.92)`;
+        ctx.beginPath();
+        // Emisor Izquierdo apuntando hacia el centro de la pista
+        ctx.moveTo(lineL - podW, hitY - podH * 0.45);
+        ctx.lineTo(lineL + 3, hitY - podH);
+        ctx.lineTo(lineL + 6, hitY);
+        ctx.lineTo(lineL + 3, hitY + podH);
+        ctx.lineTo(lineL - podW, hitY + podH * 0.45);
+        ctx.closePath();
+        // Emisor Derecho apuntando hacia el centro de la pista
+        ctx.moveTo(lineR + podW, hitY - podH * 0.45);
+        ctx.lineTo(lineR - 3, hitY - podH);
+        ctx.lineTo(lineR - 6, hitY);
+        ctx.lineTo(lineR - 3, hitY + podH);
+        ctx.lineTo(lineR + podW, hitY + podH * 0.45);
+        ctx.closePath();
+        ctx.fill();
+
+        // Núcleo blanco de los emisores laterales
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(lineL, hitY, 2.8, 0, Math.PI * 2);
+        ctx.arc(lineR, hitY, 2.8, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
 
       } else {
         // Modo 2D
-        const laneW = this.width / 3;
         ctx.strokeStyle = '#00f2fe';
         ctx.lineWidth = 3;
         ctx.beginPath();
