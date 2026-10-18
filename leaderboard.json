@@ -1343,6 +1343,16 @@
         "accuracy": 81.75227928261948,
         "date": "2026-10-17 18:33:01"
       }
+    ],
+    "top_parchs_comando_g": [
+      {
+        "name": "Dady cool",
+        "score": 845423,
+        "stars": 3,
+        "combo": 414,
+        "accuracy": 62.059050655955275,
+        "date": "2026-10-18 09:08:38"
+      }
     ]
   },
   "global": [
@@ -1370,6 +1380,11 @@
       "name": "bobon",
       "total_score": 3845429,
       "clefs": 33
+    },
+    {
+      "name": "Dady cool",
+      "total_score": 845423,
+      "clefs": 8
     },
     {
       "name": "MasterPianist",
@@ -1448,6 +1463,10 @@
       {
         "name": "Azure",
         "score": 5132756
+      },
+      {
+        "name": "Dady cool",
+        "score": 845423
       },
       {
         "name": "Test",
