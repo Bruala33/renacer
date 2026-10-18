@@ -1683,6 +1683,7 @@
 
     let step = 0;
     setInterval(() => {
+      if (!window.isCasinoActive) return;
       step = (step + 1) % 3;
       bulbs.forEach((bulb, idx) => {
         bulb.className = 'perimeter-bulb';
@@ -2231,14 +2232,16 @@
 
     ['click', 'touchstart', 'keydown'].forEach(evt => {
       document.addEventListener(evt, () => {
+        if (!window.isCasinoActive) return;
         initSlotAudio();
-        if (window.isCasinoActive && casinoBgmAudio && casinoBgmAudio.paused && !isSoundMuted) {
+        if (casinoBgmAudio && casinoBgmAudio.paused && !isSoundMuted) {
           casinoBgmAudio.play().catch(() => {});
         }
       }, { passive: true });
     });
 
     window.addEventListener('resize', () => {
+      if (!window.isCasinoActive) return;
       resizeReelsCanvas();
       resizeCoinCanvas();
     });

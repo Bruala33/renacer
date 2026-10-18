@@ -608,6 +608,11 @@ class DirectAudioSync {
       return this._anchorAudioMs || 0;
     }
 
+    // Si ya se calculó para este mismo VSync frameNow, devolver en O(1)
+    if (frameNow !== undefined && frameNow !== null && this._cachedFrameNow === frameNow) {
+      return this._lastReturnedMs;
+    }
+
     this._fallbackAnchor = null;
     const rate = this.playbackRate || 1.0;
 
@@ -618,49 +623,53 @@ class DirectAudioSync {
       this._lastReturnedMs = this._anchorAudioMs;
       this._lastSyncCheck = now;
       this._clockSkewRate = 1.0;
+      this._smoothedDrift = 0;
       this._lastRawAudioTime = rawSec;
+      this._cachedFrameNow = frameNow;
       return this._anchorAudioMs;
     }
 
     const elapsed = Math.max(0, now - this._anchorPerf);
     let currentPredMs = this._anchorAudioMs + elapsed * rate * (this._clockSkewRate || 1.0);
 
-    // Comprobar deriva como máximo cada 140ms para no saturar el IPC del hilo de medios en Android
-    if (now - this._lastSyncCheck >= 140) {
+    // Muestrear deriva cada 250ms filtrando el escalón de cuantización del buffer de audio (21-46ms en Android)
+    if (now - this._lastSyncCheck >= 250) {
       this._lastSyncCheck = now;
       const rawSec = this.audioElement ? this.audioElement.currentTime : 0;
-      // Solo recalibrar cuando el buffer de audio de hardware realmente haya avanzado
       if (rawSec !== this._lastRawAudioTime && rawSec > 0) {
         this._lastRawAudioTime = rawSec;
         const hwAudioMs = rawSec * 1000;
         const drift = hwAudioMs - currentPredMs;
 
-        // Re-anclar el punto actual manteniendo estricta continuidad C0/C1 (sin saltos hacia atrás jamás)
         this._anchorPerf = now;
         this._anchorAudioMs = currentPredMs;
 
         if (Math.abs(drift) > 450) {
-          // Solo hacer snap duro si hubo un seek explícito o interrupción mayor (>450ms)
           this._anchorAudioMs = hwAudioMs;
           this._lastReturnedMs = hwAudioMs;
           this._clockSkewRate = 1.0;
+          this._smoothedDrift = 0;
           currentPredMs = hwAudioMs;
-        } else if (Math.abs(drift) > 3.0) {
-          // Corrección de frecuencia suave (PLL ±3.5% máx) para converger sin tirones visuales
-          this._clockSkewRate = 1.0 + Math.max(-0.035, Math.min(0.035, drift / 900));
         } else {
-          this._clockSkewRate = 1.0;
+          // Filtro paso-bajo exponencial que absorbe el jitter de cuantización del mixer de audio
+          this._smoothedDrift = (this._smoothedDrift || 0) * 0.86 + drift * 0.14;
+          if (Math.abs(this._smoothedDrift) > 36.0) {
+            // Corrección de frecuencia ultra-suave (±0.35% máx) totalmente imperceptible al ojo a 120Hz
+            this._clockSkewRate = 1.0 + Math.max(-0.0035, Math.min(0.0035, this._smoothedDrift / 4000));
+          } else {
+            this._clockSkewRate = 1.0;
+          }
         }
       }
     }
 
-    // Garantizar monotonía estricta para que las teclas jamás retrocedan ni den micro-tirones
     if (this._lastReturnedMs !== undefined && currentPredMs < this._lastReturnedMs) {
       currentPredMs = this._lastReturnedMs;
     } else {
       this._lastReturnedMs = currentPredMs;
     }
 
+    this._cachedFrameNow = frameNow;
     return currentPredMs;
   }
 }
@@ -671,10 +680,10 @@ class DirectAudioSync {
 // ==========================================
 
 class ParticleSystem {
-  constructor(maxParticles = 160, maxShockwaves = 16) {
+  constructor(maxParticles = 72, maxShockwaves = 12) {
     this.maxParticles = maxParticles;
     this.maxShockwaves = maxShockwaves;
-    this.maxArcs = 20;
+    this.maxArcs = 12;
 
     // Fixed pre-allocated memory pool (Zero Garbage Collection spikes)
     this.particles = new Array(maxParticles);
@@ -1588,13 +1597,11 @@ class ParticleSystem {
         ctx.fill();
         ctx.restore();
       } else if (p.type === 'fire_ember') {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius * (0.6 + p.alpha * 0.4), 0, Math.PI * 2);
-        ctx.fill();
+        const r = p.radius * (0.6 + p.alpha * 0.4);
+        ctx.fillRect(p.x - r, p.y - r, r * 2, r * 2);
       } else {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fill();
+        const r = p.radius;
+        ctx.fillRect(p.x - r, p.y - r, r * 2, r * 2);
       }
     }
 
@@ -5322,17 +5329,12 @@ class BeatstarEngine {
     ctx.fillStyle = (this._bgGrads && this._bgGrads[bgGradIdx]) ? this._bgGrads[bgGradIdx] : '#0e081e';
     ctx.fillRect(-20, -20, w + 40, h + 40);
 
-    // Resplandor aditivo suave si hubo cambio de atmósfera (sin parpadeo de pantalla completa)
+    // Resplandor aditivo suave si hubo cambio de atmósfera (0 Gradient Allocs)
     if (this.targetAtmosphereColor && this.atmosphereShiftProgress < 1.0) {
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      const shiftAlpha = (1.0 - this.atmosphereShiftProgress) * 0.16;
-      const atmRad = Math.max(w, h) * 0.75;
-      const atmGrad = ctx.createRadialGradient(w / 2, h * 0.28, 10, w / 2, h * 0.28, atmRad);
-      atmGrad.addColorStop(0.0, hexToRgba(this.targetAtmosphereColor, shiftAlpha));
-      atmGrad.addColorStop(0.55, hexToRgba(this.targetAtmosphereColor, shiftAlpha * 0.30));
-      atmGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = atmGrad;
+      const shiftAlpha = (1.0 - this.atmosphereShiftProgress) * 0.12;
+      ctx.fillStyle = hexToRgba(this.targetAtmosphereColor, shiftAlpha);
       ctx.fillRect(0, 0, w, h);
       ctx.restore();
     }
@@ -5564,16 +5566,13 @@ class BeatstarEngine {
 
     ctx.restore();
 
-    // 7. Full Focus Vignette Ambient Flash (Modo aditivo luminoso que jamás oscurece la pantalla)
+    // 7. Full Focus Vignette Ambient Flash (0 Gradient Allocs)
     if (this.vignetteAlpha > 0.01) {
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      const vGrad = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.28, w / 2, h / 2, Math.max(w, h) * 0.82);
-      vGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-      vGrad.addColorStop(0.60, hexToRgba(this.vignetteColor || beamColor1, this.vignetteAlpha * 0.22));
-      vGrad.addColorStop(1, hexToRgba(this.vignetteColor || beamColor1, this.vignetteAlpha * 0.40));
-      ctx.fillStyle = vGrad;
-      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = hexToRgba(this.vignetteColor || beamColor1, this.vignetteAlpha * 0.28);
+      ctx.lineWidth = Math.max(18, w * 0.06);
+      ctx.strokeRect(0, 0, w, h);
       ctx.restore();
     }
 
@@ -5677,25 +5676,16 @@ class BeatstarEngine {
 
     ctx.save();
 
-    // 1. LLAMARADA INFERNAL (FUEGO VOLUMÉTRICO INTENSO)
+    // 1. LLAMARADA INFERNAL (FUEGO VOLUMÉTRICO INTENSO - 0 Gradient Allocs)
     if (fx === 'solar_inferno') {
-      const baseGrad = ctx.createRadialGradient(x, y, 4 * s, x, y - 55 * s * p, 95 * s);
-      baseGrad.addColorStop(0.0, `rgba(153, 27, 27, ${(a * 0.72).toFixed(3)})`);
-      baseGrad.addColorStop(0.5, `rgba(234, 88, 12, ${(a * 0.45).toFixed(3)})`);
-      baseGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = baseGrad;
+      ctx.fillStyle = `rgba(234, 88, 12, ${(a * 0.38).toFixed(3)})`;
       ctx.beginPath();
-      ctx.ellipse(x, y - 35 * s * p, 62 * s, 95 * s, 0, 0, Math.PI * 2);
+      ctx.ellipse(x, y - 35 * s * p, 62 * s, 90 * s, 0, 0, Math.PI * 2);
       ctx.fill();
 
       const flameCols = ['#dc2626', '#ff4500', '#fb923c', '#fde047', '#ffffff'];
-      const sharedFg = ctx.createLinearGradient(x, y + 6 * s, x, y - (130 + p * 145) * s);
-      sharedFg.addColorStop(0.0, '#ffffff');
-      sharedFg.addColorStop(0.25, '#fde047');
-      sharedFg.addColorStop(0.60, '#ff4500');
-      sharedFg.addColorStop(1.0, 'rgba(185, 28, 28, 0)');
-      ctx.fillStyle = sharedFg;
-      ctx.globalAlpha = a * 0.92;
+      ctx.fillStyle = '#ff5500';
+      ctx.globalAlpha = a * 0.85;
       ctx.beginPath();
       for (let i = 0; i < 7; i++) {
         const frac = i / 6;
@@ -5712,32 +5702,45 @@ class BeatstarEngine {
       }
       ctx.fill();
 
+      ctx.fillStyle = '#fde047';
+      ctx.globalAlpha = a * 0.90;
+      ctx.beginPath();
+      for (let i = 1; i < 6; i++) {
+        const frac = i / 6;
+        const spread = (frac - 0.5) * 52 * s;
+        const flameH = (52 + Math.sin(seed + i * 2.1) * 22 + p * 95) * s;
+        const wave = Math.sin(nowMs * 0.018 + i * 1.4) * 10 * s;
+        const topX = x + spread * 0.5 + wave;
+        const topY = y - flameH;
+        const baseW = 12 * s * a;
+        ctx.moveTo(x + spread * 0.25 - baseW, y + 4 * s);
+        ctx.lineTo(topX, topY);
+        ctx.lineTo(x + spread * 0.25 + baseW, y + 4 * s);
+      }
+      ctx.fill();
+
       ctx.strokeStyle = '#ff4500';
       ctx.lineWidth = 4.5 * s * a;
       ctx.beginPath();
       ctx.ellipse(x, y, (24 + p * 68) * s, (10 + p * 26) * s, 0, 0, Math.PI * 2);
       ctx.stroke();
 
-      for (let e = 0; e < 10; e++) {
+      for (let e = 0; e < 8; e++) {
         const ang = seed + e * 0.9 + p * 3.5;
         const ex = x + Math.sin(ang) * (15 + e * 5.5) * s;
         const ey = y - (p * (60 + e * 16) + (e * 7)) * s;
         ctx.fillStyle = flameCols[e % flameCols.length];
         ctx.beginPath();
-        ctx.arc(ex, ey, (3.8 - (e % 3) * 0.8) * s * a, 0, Math.PI * 2);
+        ctx.arc(ex, ey, (3.6 - (e % 3) * 0.7) * s * a, 0, Math.PI * 2);
         ctx.fill();
       }
     }
 
-    // 2. VENTISCA CRIOGÉNICA (CRISTALES DE HIELO Y ESCARCHA)
+    // 2. VENTISCA CRIOGÉNICA (CRISTALES DE HIELO Y ESCARCHA - 0 Gradient Allocs)
     else if (fx === 'cryo_blizzard') {
-      const iceGrad = ctx.createRadialGradient(x, y, 2 * s, x, y, 88 * s);
-      iceGrad.addColorStop(0.0, `rgba(3, 105, 161, ${(a * 0.68).toFixed(3)})`);
-      iceGrad.addColorStop(0.55, `rgba(14, 165, 233, ${(a * 0.35).toFixed(3)})`);
-      iceGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = iceGrad;
+      ctx.fillStyle = `rgba(14, 165, 233, ${(a * 0.35).toFixed(3)})`;
       ctx.beginPath();
-      ctx.arc(x, y, 88 * s, 0, Math.PI * 2);
+      ctx.arc(x, y, 76 * s, 0, Math.PI * 2);
       ctx.fill();
 
       for (let i = 0; i < 9; i++) {
@@ -5784,16 +5787,14 @@ class BeatstarEngine {
       ctx.restore();
     }
 
-    // 3. PULSO CYBERPUNK (EFECTO NEÓN SYNTHWAVE)
+    // 3. PULSO CYBERPUNK (EFECTO NEÓN SYNTHWAVE - 0 Gradient Allocs)
     else if (fx === 'cyber_neon') {
       const neonCols = ['#ff007f', '#00f2fe', '#a855f7', '#ffe600'];
       const beamH = (120 + p * 180) * s;
-      const bg = ctx.createLinearGradient(x, y, x, y - beamH);
-      bg.addColorStop(0.0, `rgba(255, 0, 127, ${(a * 0.78).toFixed(3)})`);
-      bg.addColorStop(0.5, `rgba(0, 242, 254, ${(a * 0.55).toFixed(3)})`);
-      bg.addColorStop(1.0, 'rgba(168, 85, 247, 0)');
-      ctx.fillStyle = bg;
-      ctx.fillRect(x - 36 * s * a, y - beamH, 72 * s * a, beamH);
+      ctx.fillStyle = `rgba(255, 0, 127, ${(a * 0.42).toFixed(3)})`;
+      ctx.fillRect(x - 34 * s * a, y - beamH * 0.65, 68 * s * a, beamH * 0.65);
+      ctx.fillStyle = `rgba(0, 242, 254, ${(a * 0.32).toFixed(3)})`;
+      ctx.fillRect(x - 20 * s * a, y - beamH, 40 * s * a, beamH);
 
       for (let hIdx = 0; hIdx < 3; hIdx++) {
         ctx.save();
@@ -5841,44 +5842,42 @@ class BeatstarEngine {
         ctx.arc(cx, cy, sh.r * (0.3 + p * 0.7), 0, Math.PI * 2);
         ctx.fill();
 
-        const spokes = 16;
+        const spokes = 12;
+        ctx.strokeStyle = sh.col1;
+        ctx.lineWidth = 2.5 * s * a;
+        ctx.beginPath();
         for (let k = 0; k < spokes; k++) {
           const ang = (k / spokes) * Math.PI * 2 + sIdx * 0.3;
           const dist = sh.r * (0.18 + p * 0.85);
           const droop = p * p * 26 * s;
           const tx = cx + Math.cos(ang) * dist;
           const ty = cy + Math.sin(ang) * dist + droop;
-
-          ctx.strokeStyle = k % 2 === 0 ? sh.col1 : sh.col2;
-          ctx.lineWidth = 2.6 * s * a;
-          ctx.beginPath();
           ctx.moveTo(cx + Math.cos(ang) * dist * 0.25, cy + Math.sin(ang) * dist * 0.25);
-          ctx.quadraticCurveTo(
-            cx + Math.cos(ang) * dist * 0.65,
-            cy + Math.sin(ang) * dist * 0.65 + droop * 0.3,
-            tx,
-            ty
-          );
-          ctx.stroke();
-
-          ctx.fillStyle = '#ffffff';
-          ctx.beginPath();
-          ctx.arc(tx, ty, 2.8 * s * a, 0, Math.PI * 2);
-          ctx.fill();
+          ctx.lineTo(tx, ty);
         }
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        for (let k = 0; k < spokes; k++) {
+          const ang = (k / spokes) * Math.PI * 2 + sIdx * 0.3;
+          const dist = sh.r * (0.18 + p * 0.85);
+          const droop = p * p * 26 * s;
+          const tx = cx + Math.cos(ang) * dist;
+          const ty = cy + Math.sin(ang) * dist + droop;
+          ctx.moveTo(tx + 2.6 * s * a, ty);
+          ctx.arc(tx, ty, 2.6 * s * a, 0, Math.PI * 2);
+        }
+        ctx.fill();
       }
     }
 
-    // 5. TORMENTA DE ZEUS (ILUMINACIONES Y RAYOS TESLA)
+    // 5. TORMENTA DE ZEUS (ILUMINACIONES Y RAYOS TESLA - 0 Gradient Allocs)
     else if (fx === 'zeus_lightning') {
       const stormH = 220 * s;
-      const sg = ctx.createLinearGradient(x, y, x, y - stormH);
-      sg.addColorStop(0.0, `rgba(49, 46, 129, ${(a * 0.72).toFixed(3)})`);
-      sg.addColorStop(0.6, `rgba(124, 58, 237, ${(a * 0.40).toFixed(3)})`);
-      sg.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = sg;
+      ctx.fillStyle = `rgba(124, 58, 237, ${(a * 0.35).toFixed(3)})`;
       ctx.beginPath();
-      ctx.ellipse(x, y - stormH * 0.45, 48 * s, stormH * 0.55, 0, 0, Math.PI * 2);
+      ctx.ellipse(x, y - stormH * 0.45, 48 * s, stormH * 0.50, 0, 0, Math.PI * 2);
       ctx.fill();
 
       for (let bIdx = 0; bIdx < 3; bIdx++) {
@@ -5891,25 +5890,17 @@ class BeatstarEngine {
         ctx.lineJoin = 'miter';
         ctx.beginPath();
         ctx.moveTo(startX, startY);
-        const pts = [{ x: startX, y: startY }];
         for (let seg = 1; seg < segments; seg++) {
           const frac = seg / segments;
           const jx = startX + (x - startX) * frac + Math.sin(nowMs * 0.045 + seg * 3.7 + bIdx * 2.1) * 24 * s;
           const jy = startY + (y - startY) * frac;
-          pts.push({ x: jx, y: jy });
           ctx.lineTo(jx, jy);
         }
-        pts.push({ x, y });
         ctx.lineTo(x, y);
         ctx.stroke();
 
         ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2.4 * s * a;
-        ctx.beginPath();
-        for (let seg = 0; seg < pts.length; seg++) {
-          if (seg === 0) ctx.moveTo(pts[seg].x, pts[seg].y);
-          else ctx.lineTo(pts[seg].x, pts[seg].y);
-        }
+        ctx.lineWidth = 2.2 * s * a;
         ctx.stroke();
       }
 
@@ -5920,33 +5911,32 @@ class BeatstarEngine {
       ctx.stroke();
     }
 
-    // 6. NEBULOSA CÓSMICA (EFECTO DEL ESPACIO Y GALAXIA)
+    // 6. NEBULOSA CÓSMICA (EFECTO DEL ESPACIO Y GALAXIA - 0 Gradient Allocs)
     else if (fx === 'deep_cosmos') {
       const cy = y - 28 * p * s;
       const maxR = (42 + p * 54) * s;
 
-      const spaceGrad = ctx.createRadialGradient(x, cy, 2 * s, x, cy, maxR);
-      spaceGrad.addColorStop(0.0, `rgba(15, 5, 41, ${(a * 0.90).toFixed(3)})`);
-      spaceGrad.addColorStop(0.55, `rgba(88, 28, 135, ${(a * 0.72).toFixed(3)})`);
-      spaceGrad.addColorStop(0.85, `rgba(219, 39, 119, ${(a * 0.35).toFixed(3)})`);
-      spaceGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = spaceGrad;
+      ctx.fillStyle = `rgba(88, 28, 135, ${(a * 0.62).toFixed(3)})`;
       ctx.beginPath();
       ctx.ellipse(x, cy, maxR, maxR * 0.68, 0, 0, Math.PI * 2);
       ctx.fill();
 
+      ctx.fillStyle = `rgba(219, 39, 119, ${(a * 0.38).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.ellipse(x, cy, maxR * 0.65, maxR * 0.44, 0, 0, Math.PI * 2);
+      ctx.fill();
+
       const armCols = ['#38bdf8', '#f472b6', '#fde047', '#c084fc', '#ffffff'];
-      for (let i = 0; i < 28; i++) {
+      for (let i = 0; i < 20; i++) {
         const arm = i % 2;
-        const t = i / 28;
+        const t = i / 20;
         const theta = arm * Math.PI + t * Math.PI * 3.2 - p * 4.2 + seed;
         const r = t * maxR * 0.88;
         const sx = x + Math.cos(theta) * r;
         const sy = cy + Math.sin(theta) * r * 0.68;
         ctx.fillStyle = armCols[i % armCols.length];
-        ctx.beginPath();
-        ctx.arc(sx, sy, (1.8 + (1 - t) * 3.0) * s * a, 0, Math.PI * 2);
-        ctx.fill();
+        const sr = (1.8 + (1 - t) * 2.8) * s * a;
+        ctx.fillRect(sx - sr, sy - sr, sr * 2, sr * 2);
       }
 
       const pAng = seed + p * 3.8;
@@ -5963,17 +5953,17 @@ class BeatstarEngine {
       ctx.stroke();
     }
 
-    // 7. LLUVIA DE ASTEROIDES (METEORITOS EN LLAMAS E IMPACTO)
+    // 7. LLUVIA DE ASTEROIDES (METEORITOS EN LLAMAS E IMPACTO - 0 Gradient Allocs)
     else if (fx === 'asteroid_impact') {
       const craterR = (28 + p * 58) * s;
-      const cg = ctx.createRadialGradient(x, y, 2 * s, x, y, craterR);
-      cg.addColorStop(0.0, `rgba(254, 240, 138, ${(a * 0.95).toFixed(3)})`);
-      cg.addColorStop(0.35, `rgba(234, 88, 12, ${(a * 0.82).toFixed(3)})`);
-      cg.addColorStop(0.75, `rgba(127, 29, 29, ${(a * 0.55).toFixed(3)})`);
-      cg.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = cg;
+      ctx.fillStyle = `rgba(234, 88, 12, ${(a * 0.65).toFixed(3)})`;
       ctx.beginPath();
       ctx.ellipse(x, y, craterR, craterR * 0.48, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = `rgba(254, 240, 138, ${(a * 0.85).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.ellipse(x, y, craterR * 0.45, craterR * 0.22, 0, 0, Math.PI * 2);
       ctx.fill();
 
       for (let m = 0; m < 6; m++) {
@@ -6011,20 +6001,19 @@ class BeatstarEngine {
       }
     }
 
-    // 8. HORIZONTE DE SUCESOS (AGUJERO NEGRO GRAVITACIONAL)
+    // 8. HORIZONTE DE SUCESOS (AGUJERO NEGRO GRAVITACIONAL - 0 Gradient Allocs)
     else if (fx === 'black_hole') {
       const cy = y - 18 * p * s;
       const diskR = (38 + p * 52) * s;
 
-      const accGrad = ctx.createRadialGradient(x, cy, diskR * 0.28, x, cy, diskR);
-      accGrad.addColorStop(0.0, `rgba(255, 255, 255, ${(a * 0.95).toFixed(3)})`);
-      accGrad.addColorStop(0.25, `rgba(249, 115, 22, ${(a * 0.88).toFixed(3)})`);
-      accGrad.addColorStop(0.60, `rgba(219, 39, 119, ${(a * 0.65).toFixed(3)})`);
-      accGrad.addColorStop(0.85, `rgba(109, 40, 217, ${(a * 0.40).toFixed(3)})`);
-      accGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = accGrad;
+      ctx.fillStyle = `rgba(219, 39, 119, ${(a * 0.55).toFixed(3)})`;
       ctx.beginPath();
       ctx.ellipse(x, cy, diskR, diskR * 0.52, -0.18, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = `rgba(249, 115, 22, ${(a * 0.78).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.ellipse(x, cy, diskR * 0.65, diskR * 0.34, -0.18, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.strokeStyle = `rgba(56, 189, 248, ${(a * 0.75).toFixed(3)})`;
@@ -6044,22 +6033,18 @@ class BeatstarEngine {
       ctx.stroke();
     }
 
-    // 9. LLAMA DE DRAGÓN ESMERALDA (DOBLE HÉLICE DE FUEGO MÍSTICO)
+    // 9. LLAMA DE DRAGÓN ESMERALDA (DOBLE HÉLICE DE FUEGO MÍSTICO - 0 Gradient Allocs)
     else if (fx === 'dragon_fire') {
       const hMax = (110 + p * 160) * s;
-      const dg = ctx.createRadialGradient(x, y - hMax * 0.35, 4 * s, x, y - hMax * 0.35, 85 * s);
-      dg.addColorStop(0.0, `rgba(6, 78, 59, ${(a * 0.75).toFixed(3)})`);
-      dg.addColorStop(0.6, `rgba(16, 185, 129, ${(a * 0.38).toFixed(3)})`);
-      dg.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = dg;
+      ctx.fillStyle = `rgba(16, 185, 129, ${(a * 0.36).toFixed(3)})`;
       ctx.beginPath();
-      ctx.ellipse(x, y - hMax * 0.35, 58 * s, 90 * s, 0, 0, Math.PI * 2);
+      ctx.ellipse(x, y - hMax * 0.35, 54 * s, 84 * s, 0, 0, Math.PI * 2);
       ctx.fill();
 
       for (let strand = 0; strand < 2; strand++) {
         ctx.beginPath();
-        for (let step = 0; step <= 16; step++) {
-          const f = step / 16;
+        for (let step = 0; step <= 14; step++) {
+          const f = step / 14;
           const angle = f * Math.PI * 3.5 + p * 7.0 + strand * Math.PI;
           const hx = x + Math.sin(angle) * (28 * (1 - f * 0.45)) * s;
           const hy = y - f * hMax;
@@ -6077,7 +6062,7 @@ class BeatstarEngine {
       }
     }
 
-    // 10. AURORA BOREAL CELESTIAL (CORTINAS DE LUZ PRISMÁTICA)
+    // 10. AURORA BOREAL CELESTIAL (CORTINAS DE LUZ PRISMÁTICA - 0 Gradient Allocs)
     else if (fx === 'aurora_borealis') {
       const ribbons = [
         { col: '#06b6d4', off: -32 },
@@ -6086,15 +6071,12 @@ class BeatstarEngine {
         { col: '#f43f5e', off: 34 }
       ];
       const curH = (125 + p * 135) * s;
+      ctx.globalAlpha = a * 0.72;
       for (let r = 0; r < ribbons.length; r++) {
         const rb = ribbons[r];
         const wave = Math.sin(nowMs * 0.008 + r * 1.4 + p * 4) * 18 * s;
         const rx = x + rb.off * s + wave;
-        const rg = ctx.createLinearGradient(rx, y, rx, y - curH);
-        rg.addColorStop(0.0, hexToRgba(rb.col, a * 0.85));
-        rg.addColorStop(0.55, hexToRgba(rb.col, a * 0.55));
-        rg.addColorStop(1.0, 'rgba(255, 255, 255, 0)');
-        ctx.fillStyle = rg;
+        ctx.fillStyle = rb.col;
         ctx.beginPath();
         ctx.moveTo(rx - 14 * s, y);
         ctx.quadraticCurveTo(rx + wave, y - curH * 0.5, rx - 6 * s, y - curH);
@@ -6105,20 +6087,19 @@ class BeatstarEngine {
       }
     }
 
-    // 11. EXPLOSIÓN SUPERNOVA (ESTRELLA HIPERMASIVA)
+    // 11. EXPLOSIÓN SUPERNOVA (ESTRELLA HIPERMASIVA - 0 Gradient Allocs)
     else if (fx === 'supernova_burst') {
       const cy = y - 16 * p * s;
       const rad = (45 + p * 75) * s;
 
-      const ng = ctx.createRadialGradient(x, cy, 2 * s, x, cy, rad);
-      ng.addColorStop(0.0, '#ffffff');
-      ng.addColorStop(0.25, `rgba(253, 224, 71, ${(a * 0.92).toFixed(3)})`);
-      ng.addColorStop(0.55, `rgba(255, 0, 127, ${(a * 0.68).toFixed(3)})`);
-      ng.addColorStop(0.85, `rgba(0, 242, 254, ${(a * 0.42).toFixed(3)})`);
-      ng.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = ng;
+      ctx.fillStyle = `rgba(255, 0, 127, ${(a * 0.45).toFixed(3)})`;
       ctx.beginPath();
       ctx.arc(x, cy, rad, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = `rgba(253, 224, 71, ${(a * 0.78).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.arc(x, cy, rad * 0.55, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.save();
@@ -6246,16 +6227,12 @@ class BeatstarEngine {
       const keyW = (this.laneWidth || 100) * 0.78;
       const keyH = isLarge ? 58 : 30;
 
-      // 1. Estela de propulsión hipersónica luminosa
+      // 1. Estela de propulsión hipersónica luminosa (0 Gradient Allocs)
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       const trailLenX = -launch.vx * 0.05;
       const trailLenY = -launch.vy * 0.05;
-      const trailGrad = ctx.createLinearGradient(0, 0, trailLenX, trailLenY);
-      trailGrad.addColorStop(0.0, hexToRgba(launch.color, 0.95));
-      trailGrad.addColorStop(0.40, hexToRgba('#ffffff', 0.85));
-      trailGrad.addColorStop(1.0, 'rgba(255, 255, 255, 0)');
-      ctx.fillStyle = trailGrad;
+      ctx.fillStyle = hexToRgba(launch.color, 0.72);
       ctx.beginPath();
       ctx.moveTo(-keyW / 2, -keyH / 2);
       ctx.lineTo(keyW / 2, -keyH / 2);
@@ -6265,17 +6242,12 @@ class BeatstarEngine {
       ctx.fill();
       ctx.restore();
 
-      // 2. Tecla marfil en 3D saliendo proyectada
-      const keyGrad = ctx.createLinearGradient(0, -keyH / 2, 0, keyH / 2);
-      keyGrad.addColorStop(0.0, '#ffffff');
-      keyGrad.addColorStop(0.3, '#f5f7fa');
-      keyGrad.addColorStop(0.75, '#d9e0e8');
-      keyGrad.addColorStop(1.0, '#a8b2c0');
-
-      ctx.fillStyle = keyGrad;
+      // 2. Tecla marfil en 3D saliendo proyectada (0 Gradient Allocs)
+      ctx.fillStyle = '#e8edf4';
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2.4;
 
+      ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(-keyW / 2, -keyH / 2, keyW, keyH, 8);
       else ctx.rect(-keyW / 2, -keyH / 2, keyW, keyH);
       ctx.fill();
@@ -6286,6 +6258,7 @@ class BeatstarEngine {
       ctx.globalCompositeOperation = 'lighter';
       ctx.strokeStyle = hexToRgba(launch.color, (1 - progress) * 0.85);
       ctx.lineWidth = 4.0;
+      ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(-keyW / 2, -keyH / 2, keyW, keyH, 8);
       else ctx.rect(-keyW / 2, -keyH / 2, keyW, keyH);
       ctx.stroke();
@@ -6461,6 +6434,7 @@ class BeatstarEngine {
         // Base difuminada luminosa translúcida
         ctx.save();
         ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.22)`;
+        ctx.beginPath();
         if (ctx.roundRect) ctx.roundRect(-pillW / 2, subY - pillH / 2, pillW, pillH, 9.5);
         else ctx.rect(-pillW / 2, subY - pillH / 2, pillW, pillH);
         ctx.fill();
@@ -6937,7 +6911,6 @@ class BeatstarEngine {
     // 5. Letras de canciones IDÉNTICAS al teleprompter (Blanco puro + halo dorado cálido)
     if (!isSwipe) {
       if (lyricText) {
-        // lyricText ya es el _cleanLyric pre-computado (sin regex en render loop)
         const cleanLyric = lyricText;
         const baseFontSize = Math.max(14, Math.min(26 * scale, keyW * 0.35));
         const fontScale = cleanLyric.length > 6 ? (6 / cleanLyric.length) : 1.0;
@@ -6949,21 +6922,11 @@ class BeatstarEngine {
         ctx.textBaseline = 'middle';
         ctx.shadowBlur = 0;
 
-        // 1. Sombra de profundidad 3D para contraste
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.90)';
-        ctx.fillText(cleanLyric, cx + 1.2, cyMid + 1.2);
+        // Reborde cálido + cara frontal blanca en solo 2 llamadas (sin 6x fillText por nota)
+        ctx.strokeStyle = 'rgba(255, 175, 0, 0.85)';
+        ctx.lineWidth = 2.6 * scale;
+        ctx.strokeText(cleanLyric, cx, cyMid);
 
-        // 2. Halo dorado/ámbar idéntico al del teleprompter
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.fillStyle = 'rgba(255, 180, 0, 0.75)';
-        ctx.fillText(cleanLyric, cx - 1.2, cyMid);
-        ctx.fillText(cleanLyric, cx + 1.2, cyMid);
-        ctx.fillText(cleanLyric, cx, cyMid - 1.2);
-        ctx.fillText(cleanLyric, cx, cyMid + 1.2);
-        ctx.restore();
-
-        // 3. Cara frontal en blanco brillante (#ffffff), igual que "What can" arriba
         ctx.fillStyle = isPressed ? '#ffe57f' : '#ffffff';
         ctx.fillText(cleanLyric, cx, cyMid);
 
@@ -6976,35 +6939,34 @@ class BeatstarEngine {
 
         ctx.save();
         ctx.fillStyle = '#000000';
-        if (ctx.roundRect) ctx.roundRect(slitX - 1, slitY - 1, slitW + 2, slitH + 2, slitH / 2);
-        else ctx.rect(slitX - 1, slitY - 1, slitW + 2, slitH + 2);
-        ctx.fill();
+        ctx.fillRect(slitX - 1, slitY - 1, slitW + 2, slitH + 2);
 
         ctx.globalCompositeOperation = 'lighter';
         const haloSpread = Math.max(2, 3.5 * scale);
         ctx.fillStyle = hexToRgba(glowColor, 0.40);
-        if (ctx.roundRect) ctx.roundRect(slitX - haloSpread, slitY - haloSpread, slitW + haloSpread * 2, slitH + haloSpread * 2, (slitH + haloSpread * 2) / 2);
-        else ctx.rect(slitX - haloSpread, slitY - haloSpread, slitW + haloSpread * 2, slitH + haloSpread * 2);
-        ctx.fill();
+        ctx.fillRect(slitX - haloSpread, slitY - haloSpread, slitW + haloSpread * 2, slitH + haloSpread * 2);
 
         ctx.fillStyle = '#ffffff';
-        if (ctx.roundRect) ctx.roundRect(slitX, slitY, slitW, slitH, slitH / 2);
-        else ctx.rect(slitX, slitY, slitW, slitH);
-        ctx.fill();
+        ctx.fillRect(slitX, slitY, slitW, slitH);
 
         // Núcleo central de alta energía
         ctx.fillStyle = glowColor;
         const coreW = slitW * 0.45;
         const coreH = Math.max(2.0, slitH * 0.45);
-        if (ctx.roundRect) ctx.roundRect(cx - coreW / 2, cyMid - coreH / 2, coreW, coreH, coreH / 2);
-        else ctx.rect(cx - coreW / 2, cyMid - coreH / 2, coreW, coreH);
-        ctx.fill();
+        ctx.fillRect(cx - coreW / 2, cyMid - coreH / 2, coreW, coreH);
         ctx.restore();
       }
     }
 
     ctx.restore();
-    return { cx, cy: cyMid, w: keyW, h: keyH };
+    if (!this._keyRectScratch) {
+      this._keyRectScratch = { cx: 0, cy: 0, w: 0, h: 0 };
+    }
+    this._keyRectScratch.cx = cx;
+    this._keyRectScratch.cy = cyMid;
+    this._keyRectScratch.w = keyW;
+    this._keyRectScratch.h = keyH;
+    return this._keyRectScratch;
   }
 
   // Tecla Neón 2D Clásica (para modo 2D Neón)
