@@ -1455,11 +1455,11 @@
     "osu_1550712": [
       {
         "name": "Dady cool",
-        "score": 7200,
-        "stars": 3.5,
-        "combo": 14,
-        "accuracy": 0.36943272578753306,
-        "date": "2026-10-18 18:29:05"
+        "score": 616132,
+        "stars": 1,
+        "combo": 332,
+        "accuracy": 31.61379502846171,
+        "date": "2026-10-18 18:32:02"
       }
     ]
   },
@@ -1491,8 +1491,8 @@
     },
     {
       "name": "Dady cool",
-      "total_score": 2522489,
-      "clefs": 23
+      "total_score": 3138621,
+      "clefs": 29
     },
     {
       "name": "MasterPianist",
@@ -1579,7 +1579,7 @@
       },
       {
         "name": "Dady cool",
-        "score": 2522489
+        "score": 3138621
       },
       {
         "name": "Test",
