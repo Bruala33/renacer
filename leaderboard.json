@@ -1391,6 +1391,16 @@
         "accuracy": 0.4327531018862168,
         "date": "2026-10-18 10:33:20"
       }
+    ],
+    "top_backstreet_boys_larger_than_life": [
+      {
+        "name": "Test",
+        "score": 59700,
+        "stars": 3.5,
+        "combo": 56,
+        "accuracy": 3.6542034050809953,
+        "date": "2026-10-18 10:46:51"
+      }
     ]
   },
   "global": [
@@ -1441,7 +1451,7 @@
     },
     {
       "name": "Test",
-      "total_score": 469941,
+      "total_score": 529641,
       "clefs": 2
     },
     {
@@ -1508,7 +1518,7 @@
       },
       {
         "name": "Test",
-        "score": 308734
+        "score": 368434
       },
       {
         "name": ".",
