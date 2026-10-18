@@ -1456,10 +1456,10 @@
       {
         "name": "Dady cool",
         "score": 616132,
-        "stars": 1,
-        "combo": 332,
-        "accuracy": 31.61379502846171,
-        "date": "2026-10-18 18:32:02"
+        "stars": 3.5,
+        "combo": 85,
+        "accuracy": 5.466732069941824,
+        "date": "2026-10-18 18:32:37"
       }
     ]
   },
@@ -1491,8 +1491,8 @@
     },
     {
       "name": "Dady cool",
-      "total_score": 3138621,
-      "clefs": 29
+      "total_score": 3754753,
+      "clefs": 35
     },
     {
       "name": "MasterPianist",
@@ -1579,7 +1579,7 @@
       },
       {
         "name": "Dady cool",
-        "score": 3138621
+        "score": 3754753
       },
       {
         "name": "Test",
