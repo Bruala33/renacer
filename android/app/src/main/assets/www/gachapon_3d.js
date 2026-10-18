@@ -1,8 +1,9 @@
 /**
  * ============================================================================
  * HYPER-REALISTIC 3D VINTAGE GUMBALL MACHINE (THREE.JS PBR)
- * - Side-Mounted Outward Lever (Zero Collision / Clipping with Machine)
- * - Rock-Steady Sleeping Physics in IDLE (Zero Ball Vibration)
+ * - Concentric Curved Escutcheon & Spherical Top Cap (Zero Mesh Clipping)
+ * - Side-Mounted Outward Lever at X=1.72 (Zero Collision with Machine)
+ * - Pre-Settled Opaque High-Gloss Two-Tone Capsules & Center-Rod Collider
  * - Clean Capsule Split-Open Animation Framing the Live Visual Prize
  * ============================================================================
  */
@@ -50,13 +51,13 @@
   };
 
   const CAPSULE_PALETTE = [
-    0xef4444, // Cherry Red
-    0x3b82f6, // Cobalt Blue
-    0x10b981, // Emerald Green
-    0xf59e0b, // Amber Gold
-    0xa855f7, // Amethyst Purple
-    0xec4899, // Rose Pink
-    0x06b6d4  // Turquoise Cyan
+    0xdc2626, // Ruby Red
+    0x2563eb, // Royal Blue
+    0x059669, // Emerald Green
+    0xd97706, // Amber Gold
+    0x9333ea, // Amethyst Purple
+    0xdb2777, // Cerise Pink
+    0x0891b2  // Cyan Teal
   ];
 
   // ==========================================================================
@@ -93,7 +94,6 @@
       const vol = this.getVol();
       if (!ctx || vol <= 0) return;
 
-      // Ratchet clicks as the side lever pulls down and returns
       const clicks = [0, 0.055, 0.11, 0.17, 0.24, 0.32, 0.42];
       clicks.forEach((delay, idx) => {
         const t = ctx.currentTime + delay;
@@ -162,7 +162,6 @@
       if (!ctx || vol <= 0) return;
       const now = ctx.currentTime;
 
-      // Crisp pop sound of the plastic capsule shell snapping open
       const popOsc = ctx.createOscillator();
       const popGain = ctx.createGain();
       popOsc.type = 'sine';
@@ -215,11 +214,12 @@
       // States: IDLE | LEVER_PULL | BALL_DROP_CHUTE | CAPSULE_PRESENT | CAPSULE_BURST_OPEN
       this.state = 'IDLE';
       this.stateTimer = 0;
+      this._wakeTimer = 0;
       this.pendingReward = null;
 
       this.globeCenter = typeof THREE !== 'undefined' ? new THREE.Vector3(0, 1.55, 0) : null;
       this.globeRadius = 1.48;
-      this.capsuleRadius = 0.25;
+      this.capsuleRadius = 0.245;
       this.capsules = [];
 
       // Drag/Tap interaction state for the 3D lever
@@ -245,7 +245,7 @@
       const h = this.canvas.clientHeight || window.innerHeight || 680;
 
       this.camera = new THREE.PerspectiveCamera(36, w / h, 0.1, 100);
-      this.baseCamPos = new THREE.Vector3(0.10, 0.28, 9.6);
+      this.baseCamPos = new THREE.Vector3(0.12, 0.26, 9.6);
       this.baseLookAt = new THREE.Vector3(0.08, 0.12, 0);
       this.currentCamPos = this.baseCamPos.clone();
       this.currentLookAt = this.baseLookAt.clone();
@@ -268,30 +268,30 @@
         this.renderer.outputEncoding = THREE.sRGBEncoding;
       }
       this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      this.renderer.toneMappingExposure = 1.05;
+      this.renderer.toneMappingExposure = 1.02;
 
-      // Balanced Studio Lighting
-      const ambient = new THREE.AmbientLight(0xfff5ea, 0.72);
+      // Dramatic 3-Point Studio Lighting for Rich 3D Cylindrical Contrast
+      const ambient = new THREE.AmbientLight(0xfff1e6, 0.44);
       this.scene.add(ambient);
 
-      const hemi = new THREE.HemisphereLight(0xffffff, 0x241018, 0.65);
+      const hemi = new THREE.HemisphereLight(0xffffff, 0x18090d, 0.48);
       hemi.position.set(0, 8, 0);
       this.scene.add(hemi);
 
-      const keyLight = new THREE.DirectionalLight(0xfffbeb, 1.45);
-      keyLight.position.set(4.2, 7.2, 6.2);
+      const keyLight = new THREE.DirectionalLight(0xfffbeb, 1.55);
+      keyLight.position.set(4.5, 6.8, 6.5);
       keyLight.castShadow = true;
       keyLight.shadow.mapSize.width = 1024;
       keyLight.shadow.mapSize.height = 1024;
       keyLight.shadow.bias = -0.0005;
       this.scene.add(keyLight);
 
-      const fillLight = new THREE.DirectionalLight(0x93c5fd, 0.60);
-      fillLight.position.set(-5.0, 2.5, 4.0);
+      const fillLight = new THREE.DirectionalLight(0x60a5fa, 0.38);
+      fillLight.position.set(-5.5, 2.0, 3.2);
       this.scene.add(fillLight);
 
-      const rimLight = new THREE.SpotLight(0xfbbf24, 1.15, 18, Math.PI * 0.35, 0.5);
-      rimLight.position.set(0, 5.5, -5.0);
+      const rimLight = new THREE.SpotLight(0xfbbf24, 1.25, 18, Math.PI * 0.35, 0.5);
+      rimLight.position.set(0, 5.8, -5.2);
       this.scene.add(rimLight);
 
       this.prizeLight = new THREE.PointLight(0xfde047, 0, 5.5);
@@ -308,21 +308,54 @@
       c.height = 128;
       const ctx = c.getContext('2d');
       const g = ctx.createLinearGradient(0, 0, 0, 128);
-      g.addColorStop(0.0, '#ffffff');
-      g.addColorStop(0.22, '#dbeafe');
-      g.addColorStop(0.48, '#334155');
-      g.addColorStop(0.52, '#0f172a');
-      g.addColorStop(0.80, '#fde68a');
-      g.addColorStop(1.0, '#78350f');
+      g.addColorStop(0.0, '#f8fafc');
+      g.addColorStop(0.20, '#94a3b8');
+      g.addColorStop(0.48, '#1e293b');
+      g.addColorStop(0.55, '#090d16');
+      g.addColorStop(0.82, '#d97706');
+      g.addColorStop(1.0, '#451a03');
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, 256, 128);
 
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.fillRect(28, 14, 52, 22);
-      ctx.fillRect(156, 18, 60, 20);
+      // Studio softbox reflection strips
+      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.fillRect(34, 14, 46, 24);
+      ctx.fillRect(164, 18, 52, 20);
 
       const tex = new THREE.CanvasTexture(c);
       tex.mapping = THREE.EquirectangularReflectionMapping;
+      return tex;
+    }
+
+    _createGlassGlobeReflectionTexture() {
+      const c = document.createElement('canvas');
+      c.width = 512;
+      c.height = 256;
+      const ctx = c.getContext('2d');
+
+      // Ultra-clear center with subtle rim & two studio window specular highlights
+      ctx.fillStyle = 'rgba(224, 242, 254, 0.14)';
+      ctx.fillRect(0, 0, 512, 256);
+
+      // Left curved studio reflection ribbon
+      const hl1 = ctx.createLinearGradient(180, 20, 235, 220);
+      hl1.addColorStop(0.0, 'rgba(255, 255, 255, 0)');
+      hl1.addColorStop(0.35, 'rgba(255, 255, 255, 0.85)');
+      hl1.addColorStop(0.65, 'rgba(224, 242, 254, 0.65)');
+      hl1.addColorStop(1.0, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = hl1;
+      ctx.beginPath();
+      ctx.ellipse(208, 112, 16, 78, -0.18, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Right secondary reflection highlight
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+      ctx.beginPath();
+      ctx.ellipse(312, 145, 9, 44, 0.15, 0, Math.PI * 2);
+      ctx.fill();
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.needsUpdate = true;
       return tex;
     }
 
@@ -334,29 +367,43 @@
 
       const bg = ctx.createLinearGradient(0, 0, 512, 256);
       bg.addColorStop(0.0, '#78350f');
-      bg.addColorStop(0.3, '#d97706');
+      bg.addColorStop(0.28, '#d97706');
       bg.addColorStop(0.5, '#fde047');
-      bg.addColorStop(0.7, '#b45309');
+      bg.addColorStop(0.72, '#b45309');
       bg.addColorStop(1.0, '#451a03');
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, 512, 256);
 
       ctx.strokeStyle = '#fef08a';
-      ctx.lineWidth = 8;
+      ctx.lineWidth = 10;
       ctx.strokeRect(14, 14, 484, 228);
 
-      ctx.fillStyle = '#290f02';
+      ctx.fillStyle = '#240c02';
       ctx.fillRect(26, 26, 460, 204);
+
+      // Corner brass rivets
+      const rivets = [
+        [44, 44],
+        [468, 44],
+        [44, 212],
+        [468, 212]
+      ];
+      ctx.fillStyle = '#fde047';
+      rivets.forEach(([rx, ry]) => {
+        ctx.beginPath();
+        ctx.arc(rx, ry, 8, 0, Math.PI * 2);
+        ctx.fill();
+      });
 
       ctx.fillStyle = '#fde047';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.font = '900 72px "Cinzel", Georgia, serif';
-      ctx.fillText('100 𝄞', 256, 108);
+      ctx.font = '900 74px "Cinzel", Georgia, serif';
+      ctx.fillText('100 𝄞', 256, 104);
 
       ctx.fillStyle = '#fef3c7';
       ctx.font = 'bold 26px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText('TIRA DE LA PALANCA', 256, 182);
+      ctx.fillText('TIRA DE LA PALANCA', 256, 180);
 
       const tex = new THREE.CanvasTexture(c);
       tex.needsUpdate = true;
@@ -365,88 +412,78 @@
 
     _buildMaterials() {
       const envMap = this._createEnvTexture();
+      this.envMap = envMap;
 
-      // Deep Vintage Crimson Enamel
+      // Rich Vintage Candy-Apple Crimson Enamel (Deep 3D Contrast)
       this.crimsonMat = new THREE.MeshPhysicalMaterial({
-        color: 0xb91c1c,
-        metalness: 0.25,
-        roughness: 0.18,
+        color: 0x991b1b,
+        emissive: 0x1f0303,
+        emissiveIntensity: 0.35,
+        metalness: 0.16,
+        roughness: 0.20,
         clearcoat: 1.0,
-        clearcoatRoughness: 0.08,
+        clearcoatRoughness: 0.06,
         envMap,
-        envMapIntensity: 1.1
+        envMapIntensity: 0.65
       });
 
       // Polished Mirror Chrome
       this.chromeMat = new THREE.MeshPhysicalMaterial({
-        color: 0xf1f5f9,
-        metalness: 0.92,
-        roughness: 0.08,
+        color: 0xe2e8f0,
+        metalness: 0.90,
+        roughness: 0.10,
         clearcoat: 0.6,
         envMap,
-        envMapIntensity: 1.4
+        envMapIntensity: 1.25
       });
 
       // Warm Vintage Gold / Brass
       this.brassMat = new THREE.MeshPhysicalMaterial({
         color: 0xf59e0b,
-        metalness: 0.85,
+        emissive: 0x451a03,
+        emissiveIntensity: 0.20,
+        metalness: 0.84,
         roughness: 0.16,
         clearcoat: 0.5,
         envMap,
-        envMapIntensity: 1.25
+        envMapIntensity: 1.15
       });
 
       // Dark Cast Iron Base
       this.castIronMat = new THREE.MeshStandardMaterial({
         color: 0x18181b,
-        metalness: 0.70,
-        roughness: 0.38,
+        metalness: 0.72,
+        roughness: 0.34,
         envMap,
-        envMapIntensity: 0.6
+        envMapIntensity: 0.55
       });
 
-      // Crystal-Clear Glass Globe
+      // Crystal-Clear Blown Glass Globe with Studio Window Reflection Highlights
+      const globeTex = this._createGlassGlobeReflectionTexture();
       this.glassGlobeMat = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
+        map: globeTex,
         transparent: true,
-        opacity: 0.18,
-        roughness: 0.04,
+        opacity: 0.22,
+        roughness: 0.03,
         metalness: 0.05,
         clearcoat: 1.0,
         clearcoatRoughness: 0.02,
         envMap,
-        envMapIntensity: 1.5,
+        envMapIntensity: 1.4,
         depthWrite: false
       });
 
-      // Clear Acrylic Front Chute
-      this.chuteGlassMat = new THREE.MeshPhysicalMaterial({
-        color: 0xe0f2fe,
-        transparent: true,
-        opacity: 0.28,
-        roughness: 0.06,
-        metalness: 0.05,
+      // Opaque High-Gloss Pearl Ivory Top Shell for Capsules (Zero WebGL Z-Sorting Glitches)
+      this.capsulePearlTopMat = new THREE.MeshPhysicalMaterial({
+        color: 0xfffbeb,
+        metalness: 0.08,
+        roughness: 0.12,
         clearcoat: 1.0,
+        clearcoatRoughness: 0.05,
         envMap,
-        envMapIntensity: 1.2,
-        depthWrite: false,
-        side: THREE.DoubleSide
+        envMapIntensity: 1.0
       });
-
-      // Translucent Capsule Top Dome
-      this.capsuleTopMat = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
-        transparent: true,
-        opacity: 0.46,
-        roughness: 0.08,
-        metalness: 0.05,
-        clearcoat: 1.0,
-        envMap,
-        envMapIntensity: 1.2
-      });
-
-      this.envMap = envMap;
     }
 
     _buildMachineGeometry() {
@@ -460,42 +497,44 @@
       this.machineRoot.add(stageBase);
 
       const stageBrassTrim = new THREE.Mesh(
-        new THREE.TorusGeometry(2.30, 0.04, 16, 64),
+        new THREE.TorusGeometry(2.30, 0.042, 16, 64),
         this.brassMat
       );
       stageBrassTrim.rotation.x = Math.PI / 2;
       stageBrassTrim.position.y = -2.16;
       this.machineRoot.add(stageBrassTrim);
 
-      // 2. LOWER CAST-IRON FOOT & CRIMSON SKIRT
+      // 2. LOWER CAST-IRON FOOT & FLARED CRIMSON SKIRT
       const ironFoot = new THREE.Mesh(
-        new THREE.CylinderGeometry(1.38, 1.62, 0.34, 48),
+        new THREE.CylinderGeometry(1.42, 1.64, 0.32, 48),
         this.castIronMat
       );
       ironFoot.position.y = -1.98;
       this.machineRoot.add(ironFoot);
 
+      // Lower crimson skirt from y = -1.84 (r=1.42) up to waist at y = -1.00 (r=1.10)
       const lowerSkirt = new THREE.Mesh(
-        new THREE.CylinderGeometry(1.06, 1.44, 0.56, 48),
+        new THREE.CylinderGeometry(1.10, 1.42, 0.84, 48),
         this.crimsonMat
       );
-      lowerSkirt.position.y = -1.58;
+      lowerSkirt.position.y = -1.42;
       this.machineRoot.add(lowerSkirt);
 
+      // Brass Waist Ring at y = -1.00 (above the dispenser hood so it never intersects!)
       const waistBelt = new THREE.Mesh(
-        new THREE.TorusGeometry(1.08, 0.055, 18, 48),
+        new THREE.TorusGeometry(1.11, 0.05, 18, 48),
         this.brassMat
       );
       waistBelt.rotation.x = Math.PI / 2;
-      waistBelt.position.y = -1.28;
+      waistBelt.position.y = -1.00;
       this.machineRoot.add(waistBelt);
 
-      // 3. UPPER TAPERED CRIMSON BODY
+      // 3. UPPER TAPERED CRIMSON HOPPER BODY (from y = -1.00, r=1.10 to y = +0.26, r=1.32)
       const upperBody = new THREE.Mesh(
-        new THREE.CylinderGeometry(1.32, 1.06, 1.50, 48),
+        new THREE.CylinderGeometry(1.32, 1.10, 1.26, 48),
         this.crimsonMat
       );
-      upperBody.position.y = -0.52;
+      upperBody.position.y = -0.37;
       this.machineRoot.add(upperBody);
 
       // 4. CHROME COLLAR RING CRADLING THE GLOBE
@@ -503,28 +542,27 @@
         new THREE.CylinderGeometry(1.36, 1.32, 0.24, 48),
         this.chromeMat
       );
-      collarCyl.position.y = 0.26;
+      collarCyl.position.y = 0.28;
       this.machineRoot.add(collarCyl);
 
       const collarRim = new THREE.Mesh(
-        new THREE.TorusGeometry(1.36, 0.06, 18, 48),
+        new THREE.TorusGeometry(1.36, 0.055, 18, 48),
         this.chromeMat
       );
       collarRim.rotation.x = Math.PI / 2;
-      collarRim.position.y = 0.35;
+      collarRim.position.y = 0.38;
       this.machineRoot.add(collarRim);
 
-      // Internal funnel deck inside globe base
       const funnelFloor = new THREE.Mesh(
         new THREE.CylinderGeometry(1.24, 0.92, 0.14, 40),
         this.chromeMat
       );
-      funnelFloor.position.y = 0.32;
+      funnelFloor.position.y = 0.34;
       this.machineRoot.add(funnelFloor);
 
       // 5. AGITATOR PADDLE WHEEL & CENTER ROD INSIDE GLOBE
       this.agitatorGroup = new THREE.Group();
-      this.agitatorGroup.position.set(0, 0.42, 0);
+      this.agitatorGroup.position.set(0, 0.44, 0);
       this.machineRoot.add(this.agitatorGroup);
 
       const agitatorHub = new THREE.Mesh(
@@ -544,13 +582,13 @@
       }
 
       const centerPost = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.05, 0.05, 2.55, 20),
+        new THREE.CylinderGeometry(0.05, 0.05, 2.52, 20),
         this.chromeMat
       );
-      centerPost.position.set(0, 1.65, 0);
+      centerPost.position.set(0, 1.68, 0);
       this.machineRoot.add(centerPost);
 
-      // 6. SPHERICAL GLASS GLOBE + SPECULAR RIM
+      // 6. SPHERICAL GLASS GLOBE + CONCENTRIC SPHERICAL TOP CROWN LID
       this.globeGroup = new THREE.Group();
       this.globeGroup.position.copy(this.globeCenter);
       this.machineRoot.add(this.globeGroup);
@@ -562,110 +600,137 @@
       glassSphere.renderOrder = 3;
       this.globeGroup.add(glassSphere);
 
-      // 7. FLUSH VINTAGE TOP CROWN LID
-      this.topCrownGroup = new THREE.Group();
-      this.topCrownGroup.position.set(0, 2.94, 0);
-      this.machineRoot.add(this.topCrownGroup);
+      // 7. CONCENTRIC SPHERICAL TOP CROWN CAP (Hugs the glass globe with 0 gap!)
+      // Polar angle 0 to 0.52 rad on radius 1.50 matches globe curvature 100%!
+      const crownCapMesh = new THREE.Mesh(
+        new THREE.SphereGeometry(this.globeRadius + 0.02, 48, 20, 0, Math.PI * 2, 0, 0.52),
+        this.crimsonMat
+      );
+      crownCapMesh.renderOrder = 4;
+      this.globeGroup.add(crownCapMesh);
 
+      const crownRimRadius = (this.globeRadius + 0.02) * Math.sin(0.52);
+      const crownRimY = (this.globeRadius + 0.02) * Math.cos(0.52);
       const crownRim = new THREE.Mesh(
-        new THREE.TorusGeometry(0.68, 0.05, 16, 40),
+        new THREE.TorusGeometry(crownRimRadius, 0.048, 16, 48),
         this.chromeMat
       );
       crownRim.rotation.x = Math.PI / 2;
-      crownRim.position.y = -0.02;
-      this.topCrownGroup.add(crownRim);
+      crownRim.position.y = crownRimY;
+      this.globeGroup.add(crownRim);
 
-      const crownDome = new THREE.Mesh(
-        new THREE.ConeGeometry(0.70, 0.34, 40),
-        this.crimsonMat
-      );
-      crownDome.position.y = 0.15;
-      this.topCrownGroup.add(crownDome);
-
-      const finialKnob = new THREE.Mesh(
-        new THREE.SphereGeometry(0.13, 24, 24),
-        this.brassMat
-      );
-      finialKnob.position.y = 0.36;
-      this.topCrownGroup.add(finialKnob);
-
-      // 8. FRONT ESCUTCHEON PLATE ("100 𝄞 TIRA DE LA PALANCA")
-      const plateFrame = new THREE.Mesh(
-        new THREE.BoxGeometry(0.98, 0.56, 0.10),
+      const finialBase = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.16, 0.22, 0.10, 24),
         this.chromeMat
       );
-      plateFrame.position.set(0, -0.34, 1.16);
-      plateFrame.rotation.x = -0.14;
-      this.machineRoot.add(plateFrame);
+      finialBase.position.y = this.globeRadius + 0.04;
+      this.globeGroup.add(finialBase);
 
-      const badgePlane = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.86, 0.44),
-        new THREE.MeshBasicMaterial({ map: this._createBrassPlateTexture() })
+      const finialKnob = new THREE.Mesh(
+        new THREE.SphereGeometry(0.14, 24, 24),
+        this.brassMat
       );
-      badgePlane.position.set(0, -0.34, 1.22);
-      badgePlane.rotation.x = -0.14;
-      this.machineRoot.add(badgePlane);
+      finialKnob.position.y = this.globeRadius + 0.17;
+      this.globeGroup.add(finialKnob);
 
-      // 9. TRANSPARENT FRONT CHUTE & COLLECTION TRAY
-      const chuteBackWall = new THREE.Mesh(
-        new THREE.BoxGeometry(0.58, 0.92, 0.12),
+      // 8. CONCENTRIC CURVED FRONT ESCUTCHEON PLATE ("100 𝄞 TIRA DE LA PALANCA")
+      // Wrapped concentrically around upperBody so the cylinder NEVER pokes through!
+      // At y = -0.37 (height 0.54, from y = -0.10 to y = -0.64):
+      // upperBody radius at y=-0.10 is 1.273, and at y=-0.64 is 1.179.
+      const bezelShell = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.273 + 0.03, 1.179 + 0.03, 0.56, 36, 1, true, -0.38, 0.76),
+        this.chromeMat
+      );
+      bezelShell.position.set(0, -0.37, 0);
+      this.machineRoot.add(bezelShell);
+
+      const plateTexture = this._createBrassPlateTexture();
+      const curvedPlateMat = new THREE.MeshBasicMaterial({
+        map: plateTexture,
+        side: THREE.FrontSide
+      });
+      const curvedPlateMesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.273 + 0.045, 1.179 + 0.045, 0.48, 36, 1, true, -0.34, 0.68),
+        curvedPlateMat
+      );
+      curvedPlateMesh.position.set(0, -0.37, 0);
+      this.machineRoot.add(curvedPlateMesh);
+
+      // 9. COHESIVE 3D CHROME DISPENSER ALCOVE & FLAP DOOR (Below Waist Belt y=-1.00)
+      const chuteGroup = new THREE.Group();
+      chuteGroup.position.set(0, -1.42, 1.28);
+      this.machineRoot.add(chuteGroup);
+
+      // Solid chrome outer dispenser housing protruding cleanly from lowerSkirt
+      const chuteHousingTop = new THREE.Mesh(
+        new THREE.BoxGeometry(0.72, 0.12, 0.34),
+        this.chromeMat
+      );
+      chuteHousingTop.position.set(0, 0.24, 0);
+      chuteGroup.add(chuteHousingTop);
+
+      const chuteHousingLeft = new THREE.Mesh(
+        new THREE.BoxGeometry(0.11, 0.56, 0.34),
+        this.chromeMat
+      );
+      chuteHousingLeft.position.set(-0.305, 0, 0);
+      chuteGroup.add(chuteHousingLeft);
+
+      const chuteHousingRight = new THREE.Mesh(
+        new THREE.BoxGeometry(0.11, 0.56, 0.34),
+        this.chromeMat
+      );
+      chuteHousingRight.position.set(0.305, 0, 0);
+      chuteGroup.add(chuteHousingRight);
+
+      // Deep dark interior recess placed at z = 0.13 (z_world = 1.41, well outside lowerSkirt!)
+      const chuteDarkRecess = new THREE.Mesh(
+        new THREE.BoxGeometry(0.50, 0.46, 0.06),
         this.castIronMat
       );
-      chuteBackWall.position.set(0, -1.12, 1.05);
-      chuteBackWall.rotation.x = 0.14;
-      this.machineRoot.add(chuteBackWall);
+      chuteDarkRecess.position.set(0, -0.02, 0.12);
+      chuteGroup.add(chuteDarkRecess);
 
-      const chuteTunnel = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.28, 0.30, 0.88, 24, 1, true, -Math.PI * 0.48, Math.PI * 0.96),
-        this.chuteGlassMat
-      );
-      chuteTunnel.position.set(0, -1.10, 1.14);
-      chuteTunnel.rotation.x = 0.22;
-      chuteTunnel.renderOrder = 4;
-      this.machineRoot.add(chuteTunnel);
-
+      // Hinged Chrome Chute Flap Door inside the chrome housing
       this.chuteFlapPivot = new THREE.Group();
-      this.chuteFlapPivot.position.set(0, -1.40, 1.28);
+      this.chuteFlapPivot.position.set(0, -1.24, 1.44);
       this.machineRoot.add(this.chuteFlapPivot);
 
       const chuteFlap = new THREE.Mesh(
-        new THREE.BoxGeometry(0.52, 0.32, 0.04),
+        new THREE.BoxGeometry(0.46, 0.36, 0.04),
         this.chromeMat
       );
-      chuteFlap.position.set(0, -0.14, 0);
+      chuteFlap.position.set(0, -0.18, 0);
       this.chuteFlapPivot.add(chuteFlap);
 
-      // Collection Tray
+      // Curved Chrome & Brass Collection Tray below the flap
       const trayGroup = new THREE.Group();
-      trayGroup.position.set(0, -1.78, 1.44);
+      trayGroup.position.set(0, -1.74, 1.46);
       this.machineRoot.add(trayGroup);
 
       const trayFloor = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.46, 0.40, 0.14, 32),
+        new THREE.CylinderGeometry(0.44, 0.38, 0.12, 32),
         this.chromeMat
       );
       trayGroup.add(trayFloor);
 
       const trayLip = new THREE.Mesh(
-        new THREE.TorusGeometry(0.44, 0.055, 16, 32, Math.PI * 1.15),
+        new THREE.TorusGeometry(0.43, 0.05, 16, 32, Math.PI * 1.15),
         this.brassMat
       );
       trayLip.rotation.x = Math.PI / 2;
       trayLip.rotation.z = -Math.PI * 0.075;
-      trayLip.position.y = 0.07;
+      trayLip.position.y = 0.06;
       trayGroup.add(trayLip);
 
       // ====================================================================
       // 10. SIDE-MOUNTED 3D LEVER WITH OUTWARD AXLE (ZERO MACHINE COLLISION!)
       // ====================================================================
-      // Placed on the pure right side (+X), with a horizontal axle extending out
-      // to X = 1.72, completely clear of the crimson body (r=1.32) and globe (r=1.48)!
       this.leverGroup = new THREE.Group();
-      this.leverGroup.position.set(1.16, -0.48, 0.08);
+      this.leverGroup.position.set(1.16, -0.44, 0.08);
       this.leverGroup.rotation.set(0, 0, 0);
       this.machineRoot.add(this.leverGroup);
 
-      // Side gearbox mount bolted onto the right wall of the crimson body
       const leverMountBox = new THREE.Mesh(
         new THREE.CylinderGeometry(0.24, 0.28, 0.34, 24),
         this.chromeMat
@@ -682,7 +747,6 @@
       leverBrassRing.position.set(0.25, 0, 0);
       this.leverGroup.add(leverBrassRing);
 
-      // Horizontal chrome axle shaft extending outward to X = 1.16 + 0.54 = 1.70
       const outwardAxle = new THREE.Mesh(
         new THREE.CylinderGeometry(0.075, 0.075, 0.56, 20),
         this.chromeMat
@@ -691,7 +755,6 @@
       outwardAxle.position.set(0.36, 0, 0);
       this.leverGroup.add(outwardAxle);
 
-      // Pivot hub at X = 1.16 + 0.56 = 1.72 (well outside the 1.48 globe radius!)
       this.leverPivot = new THREE.Group();
       this.leverPivot.position.set(0.56, 0, 0);
       this.leverGroup.add(this.leverPivot);
@@ -703,9 +766,7 @@
       outerHub.rotation.z = Math.PI / 2;
       this.leverPivot.add(outerHub);
 
-      // Lever Arm + Knob moving strictly in the vertical Y-Z plane at X = 1.72
       const leverArmGroup = new THREE.Group();
-      // Slight outward cant (+Z forward and +X clear) so it never approaches the machine
       leverArmGroup.rotation.z = -0.05;
       this.leverPivot.add(leverArmGroup);
 
@@ -731,7 +792,7 @@
         roughness: 0.10,
         clearcoat: 1.0,
         envMap: this.envMap,
-        envMapIntensity: 1.4
+        envMapIntensity: 1.2
       });
 
       this.leverKnobMesh = new THREE.Mesh(
@@ -755,13 +816,15 @@
       const group = new THREE.Group();
       const r = this.capsuleRadius;
 
+      // Opaque High-Gloss Colored Bottom Hemisphere
       const bottomMat = new THREE.MeshPhysicalMaterial({
         color: colorHex,
-        metalness: 0.18,
-        roughness: 0.14,
+        metalness: 0.14,
+        roughness: 0.12,
         clearcoat: 1.0,
+        clearcoatRoughness: 0.05,
         envMap: this.envMap,
-        envMapIntensity: 1.15
+        envMapIntensity: 1.05
       });
 
       const bottomHemisphere = new THREE.Mesh(
@@ -770,30 +833,20 @@
       );
       group.add(bottomHemisphere);
 
+      // Opaque High-Gloss Pearl Ivory Top Hemisphere (Zero transparency Z-fighting!)
       const topHemisphere = new THREE.Mesh(
         new THREE.SphereGeometry(r, 24, 14, 0, Math.PI * 2, 0, Math.PI / 2),
-        this.capsuleTopMat
+        this.capsulePearlTopMat
       );
       group.add(topHemisphere);
 
+      // Crisp Gold Equatorial Ring
       const seamBand = new THREE.Mesh(
-        new THREE.TorusGeometry(r * 0.99, 0.015, 8, 24),
+        new THREE.TorusGeometry(r * 0.995, 0.016, 10, 24),
         this.brassMat
       );
       seamBand.rotation.x = Math.PI / 2;
       group.add(seamBand);
-
-      const coreGem = new THREE.Mesh(
-        new THREE.OctahedronGeometry(r * 0.40, 0),
-        new THREE.MeshStandardMaterial({
-          color: colorHex,
-          emissive: colorHex,
-          emissiveIntensity: 0.55,
-          roughness: 0.18,
-          metalness: 0.75
-        })
-      );
-      group.add(coreGem);
 
       return group;
     }
@@ -806,37 +859,50 @@
         const colorHex = CAPSULE_PALETTE[i % CAPSULE_PALETTE.length];
         const mesh = this._createSingleCapsuleMesh(colorHex);
 
-        const layer = Math.floor(i / 8);
-        const angle = (i % 8) * ((Math.PI * 2) / 8) + layer * 0.45;
-        const rad = 0.26 + (i % 3) * 0.28;
+        const layer = Math.floor(i / 9);
+        const idxInLayer = i % 9;
+        const angle = idxInLayer * ((Math.PI * 2) / 9) + layer * 0.55;
+        // Start outside the center post (rad >= 0.42) in the lower half of the globe
+        const rad = 0.44 + (idxInLayer % 3) * 0.24;
 
         const pos = new THREE.Vector3(
           Math.cos(angle) * rad,
-          this.globeCenter.y - 0.62 + layer * 0.36,
+          this.globeCenter.y - 0.72 + layer * 0.34,
           Math.sin(angle) * rad
         );
 
         mesh.position.copy(pos);
-        mesh.rotation.set(i * 0.7, i * 1.1, i * 0.5);
+        mesh.rotation.set(
+          (i * 0.42) % 0.9 - 0.45,
+          i * 1.1,
+          (i * 0.35) % 0.9 - 0.45
+        );
         this.scene.add(mesh);
 
         this.capsules.push({
           mesh,
           colorHex,
           pos,
+          restPos: pos.clone(),
+          restRot: mesh.rotation.clone(),
           vel: new THREE.Vector3(0, 0, 0),
           angVel: new THREE.Vector3(0, 0, 0)
         });
       }
 
-      // Pre-settle in silence so balls start 100% motionless
-      for (let step = 0; step < 160; step++) {
+      // Run 220 silent physics steps so every capsule settles firmly at the bottom of the globe
+      for (let step = 0; step < 220; step++) {
         this._stepCapsulePhysics(1 / 60, false, true);
       }
+
+      // Lock in the settled resting positions so no ball can ever float in mid-air
       for (let i = 0; i < this.capsules.length; i++) {
-        this.capsules[i].vel.set(0, 0, 0);
-        this.capsules[i].angVel.set(0, 0, 0);
-        this.capsules[i].mesh.position.copy(this.capsules[i].pos);
+        const c = this.capsules[i];
+        c.vel.set(0, 0, 0);
+        c.angVel.set(0, 0, 0);
+        c.restPos.copy(c.pos);
+        c.restRot.copy(c.mesh.rotation);
+        c.mesh.position.copy(c.pos);
       }
     }
 
@@ -849,22 +915,11 @@
 
       this.activeBottomMat = new THREE.MeshPhysicalMaterial({
         color: 0xf59e0b,
-        metalness: 0.30,
+        metalness: 0.25,
         roughness: 0.12,
         clearcoat: 1.0,
         envMap: this.envMap,
-        envMapIntensity: 1.4
-      });
-
-      this.activeTopMat = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
-        transparent: true,
-        opacity: 0.52,
-        roughness: 0.05,
-        metalness: 0.05,
-        clearcoat: 1.0,
-        envMap: this.envMap,
-        envMapIntensity: 1.5
+        envMapIntensity: 1.3
       });
 
       this.activeBottomHalf = new THREE.Group();
@@ -883,7 +938,7 @@
       this.activeTopHalf = new THREE.Group();
       const topShell = new THREE.Mesh(
         new THREE.SphereGeometry(r, 32, 20, 0, Math.PI * 2, 0, Math.PI / 2),
-        this.activeTopMat
+        this.capsulePearlTopMat
       );
       const topRim = new THREE.Mesh(
         new THREE.TorusGeometry(r, 0.022, 12, 32),
@@ -950,7 +1005,6 @@
         this.raycaster.setFromCamera(this.pointerNDC, this.camera);
         const hits = this.raycaster.intersectObjects(this.leverInteractables, true);
         if (hits.length > 0) return 'lever';
-        // Generous screen-space hitbox around the right-side lever
         if (this.pointerNDC.x > 0.12 && this.pointerNDC.y > -0.60 && this.pointerNDC.y < 0.35) {
           return 'lever';
         }
@@ -978,7 +1032,6 @@
         if (this.isDraggingLever && this.state === 'IDLE') {
           const dy = clientY - this.dragStartY;
           this.leverPullProgress = Math.max(0.1, Math.min(1.0, 0.15 + dy / 90));
-          // Pull lever forward around X-axis at X=1.72 (0 collision with machine!)
           this.leverPivot.rotation.x = this.leverPullProgress * 1.05;
 
           if (this.leverPullProgress >= 0.68) {
@@ -1021,12 +1074,12 @@
     shakeGlobe(intensity = 0.5) {
       if (this.state !== 'IDLE') return;
       this.sfx.playCapsuleumble();
-      this._wakeTimer = 0.55;
+      this._wakeTimer = 0.65;
       for (let i = 0; i < this.capsules.length; i++) {
         const c = this.capsules[i];
-        c.vel.x += (Math.random() - 0.5) * 4.5 * intensity;
-        c.vel.y += (0.5 + Math.random() * 1.8) * intensity;
-        c.vel.z += (Math.random() - 0.5) * 4.5 * intensity;
+        c.vel.x += (Math.random() - 0.5) * 4.2 * intensity;
+        c.vel.y += (0.4 + Math.random() * 1.5) * intensity;
+        c.vel.z += (Math.random() - 0.5) * 4.2 * intensity;
       }
     }
 
@@ -1044,7 +1097,6 @@
       this.activeBottomMat.color.setHex(tier.shellHex);
       this.prizeLight.color.setHex(tier.glowHex);
 
-      // Select lowest front capsule to drop down the chute
       let lowestIdx = 0;
       let lowestScore = Infinity;
       for (let i = 0; i < this.capsules.length; i++) {
@@ -1082,19 +1134,23 @@
 
       if (this.dispensedPoolCapsule) {
         this.dispensedPoolCapsule.mesh.visible = true;
-        this.dispensedPoolCapsule.pos.set(
-          (Math.random() - 0.5) * 0.45,
-          this.globeCenter.y + 0.55,
-          (Math.random() - 0.5) * 0.45
-        );
+        if (this.dispensedPoolCapsule.restPos) {
+          this.dispensedPoolCapsule.pos.copy(this.dispensedPoolCapsule.restPos);
+        }
         this.dispensedPoolCapsule.vel.set(0, 0, 0);
         this.dispensedPoolCapsule.mesh.position.copy(this.dispensedPoolCapsule.pos);
         this.dispensedPoolCapsule = null;
       }
 
+      // Run 50 silent settle steps so all capsules sit peacefully at the bottom of the globe
+      for (let step = 0; step < 50; step++) {
+        this._stepCapsulePhysics(1 / 60, false, true);
+      }
+
       for (let i = 0; i < this.capsules.length; i++) {
         this.capsules[i].vel.set(0, 0, 0);
         this.capsules[i].angVel.set(0, 0, 0);
+        this.capsules[i].mesh.position.copy(this.capsules[i].pos);
       }
 
       this.targetCamPos.copy(this.baseCamPos);
@@ -1106,19 +1162,20 @@
     }
 
     _stepCapsulePhysics(dt, agitate = false, silent = false) {
-      // ROCK-STEADY SLEEPING PHYSICS IN IDLE: zero vibration when idle!
-      if (this.state === 'IDLE' && !agitate && (!this._wakeTimer || this._wakeTimer <= 0)) {
+      // Sleep in IDLE unless silent pre-settling or explicitly woken
+      if (!silent && this.state === 'IDLE' && !agitate && (!this._wakeTimer || this._wakeTimer <= 0)) {
         return;
       }
-      if (this._wakeTimer > 0) {
+      if (!silent && this._wakeTimer > 0) {
         this._wakeTimer = Math.max(0, this._wakeTimer - dt);
       }
 
       const safeDt = Math.min(dt, 0.025);
-      const gravity = -26.0;
+      const gravity = -28.0;
       const maxContainR = this.globeRadius - this.capsuleRadius - 0.08;
-      const minDist = this.capsuleRadius * 2.0;
-      const floorY = this.globeCenter.y - 1.00;
+      const minDist = this.capsuleRadius * 2.02;
+      const floorY = this.globeCenter.y - 1.02;
+      const rodClearanceR = 0.065 + this.capsuleRadius;
 
       for (let i = 0; i < this.capsules.length; i++) {
         const c = this.capsules[i];
@@ -1130,29 +1187,53 @@
           const dx = c.pos.x;
           const dz = c.pos.z;
           const distXZ = Math.hypot(dx, dz) || 0.001;
-          const heightFactor = Math.max(0, 1.0 - (c.pos.y - floorY) / 1.15);
-          const swirlStrength = 10.5 * heightFactor;
+          const heightFactor = Math.max(0, 1.0 - (c.pos.y - floorY) / 1.10);
+          const swirlStrength = 10.2 * heightFactor;
 
           c.vel.x += (-dz / distXZ) * swirlStrength * safeDt;
           c.vel.z += (dx / distXZ) * swirlStrength * safeDt;
-          c.vel.y += (1.2 + Math.sin(this.stateTimer * 16 + i) * 1.4) * heightFactor * safeDt;
+          c.vel.y += (1.1 + Math.sin(this.stateTimer * 16 + i) * 1.2) * heightFactor * safeDt;
 
           if (!silent && Math.random() < 0.05) {
             this.sfx.playCapsuleumble();
           }
         }
 
-        const damping = agitate ? 0.94 : 0.80;
+        const damping = agitate ? 0.93 : 0.78;
         c.vel.multiplyScalar(damping);
         c.pos.addScaledVector(c.vel, safeDt);
 
+        // Floor containment
         if (c.pos.y < floorY) {
           c.pos.y = floorY;
-          if (c.vel.y < 0) c.vel.y *= -0.15;
-          c.vel.x *= 0.82;
-          c.vel.z *= 0.82;
+          if (c.vel.y < 0) c.vel.y *= -0.12;
+          c.vel.x *= 0.80;
+          c.vel.z *= 0.80;
         }
 
+        // Strict Upper Cap inside Globe so no ball can EVER float into the upper half!
+        const maxAllowedY = agitate ? (this.globeCenter.y + 0.18) : (this.globeCenter.y - 0.05);
+        if (c.pos.y > maxAllowedY) {
+          c.pos.y = maxAllowedY;
+          if (c.vel.y > 0) c.vel.y = 0;
+        }
+
+        // Central Chrome Rod Collider (x=0, z=0) so no ball ever touches the vertical rod!
+        const rXZ = Math.hypot(c.pos.x, c.pos.z);
+        if (rXZ < rodClearanceR) {
+          const pushAngle = rXZ > 0.0001 ? Math.atan2(c.pos.z, c.pos.x) : (i * 1.1);
+          const nx = Math.cos(pushAngle);
+          const nz = Math.sin(pushAngle);
+          c.pos.x = nx * rodClearanceR;
+          c.pos.z = nz * rodClearanceR;
+          const vn = c.vel.x * nx + c.vel.z * nz;
+          if (vn < 0) {
+            c.vel.x -= 1.2 * vn * nx;
+            c.vel.z -= 1.2 * vn * nz;
+          }
+        }
+
+        // Spherical Globe Wall Containment
         const relX = c.pos.x - this.globeCenter.x;
         const relY = c.pos.y - this.globeCenter.y;
         const relZ = c.pos.z - this.globeCenter.z;
@@ -1178,7 +1259,8 @@
         }
       }
 
-      for (let iter = 0; iter < 3; iter++) {
+      // Pairwise Sphere-Sphere Collision Resolution
+      for (let iter = 0; iter < 4; iter++) {
         for (let i = 0; i < this.capsules.length; i++) {
           const a = this.capsules[i];
           if (a === this.dispensedPoolCapsule && !a.mesh.visible) continue;
@@ -1213,7 +1295,7 @@
               const vn = rvx * nx + rvy * ny + rvz * nz;
 
               if (vn < 0) {
-                const imp = -0.52 * vn;
+                const imp = -0.48 * vn;
                 a.vel.x -= imp * nx;
                 a.vel.y -= imp * ny;
                 a.vel.z -= imp * nz;
@@ -1229,6 +1311,15 @@
       for (let i = 0; i < this.capsules.length; i++) {
         const c = this.capsules[i];
         if (c === this.dispensedPoolCapsule && !c.mesh.visible) continue;
+
+        // Re-enforce floor and rod clearance after pairwise resolution
+        if (c.pos.y < floorY) c.pos.y = floorY;
+        const rXZ = Math.hypot(c.pos.x, c.pos.z);
+        if (rXZ < rodClearanceR) {
+          const pushAngle = rXZ > 0.0001 ? Math.atan2(c.pos.z, c.pos.x) : (i * 1.1);
+          c.pos.x = Math.cos(pushAngle) * rodClearanceR;
+          c.pos.z = Math.sin(pushAngle) * rodClearanceR;
+        }
 
         const speed = c.vel.length();
         if (!agitate && speed < 0.08) {
@@ -1250,7 +1341,7 @@
           this.leverPivot.rotation.x += (0 - this.leverPivot.rotation.x) * Math.min(1, dt * 10);
         }
         this.leverKnobMat.emissiveIntensity = 0.28 + 0.22 * Math.sin(now * 3.2);
-        this._stepCapsulePhysics(dt, false);
+        this._stepCapsulePhysics(dt, false, false);
       }
 
       // PHASE 1: LEVER PULLS FORWARD ON THE SIDE & AGITATES GLOBE
@@ -1258,7 +1349,6 @@
         this.stateTimer += dt;
         const p = Math.min(1.0, this.stateTimer / 0.85);
 
-        // Smooth pull down to +1.10 rad around X at X=1.72, then spring back
         let leverAngle = 0;
         if (p < 0.55) {
           const t = p / 0.55;
@@ -1272,7 +1362,7 @@
         this.agitatorGroup.rotation.y += dt * 9.5 * Math.sin(p * Math.PI);
         this.machineRoot.rotation.z = Math.sin(this.stateTimer * 32) * 0.008 * Math.sin(p * Math.PI);
 
-        this._stepCapsulePhysics(dt, true);
+        this._stepCapsulePhysics(dt, true, false);
 
         if (p >= 1.0) {
           this.leverPivot.rotation.x = 0;
@@ -1283,7 +1373,7 @@
           }
           this.activeCapsuleRig.visible = true;
           this.activeCapsuleRig.scale.set(1, 1, 1);
-          this.activeCapsuleRig.position.set(0, 0.18, 0.92);
+          this.activeCapsuleRig.position.set(0, -1.25, 1.32);
           this.activeTopHalf.position.set(0, 0, 0);
           this.activeTopHalf.rotation.set(0, 0, 0);
           this.activeBottomHalf.position.set(0, 0, 0);
@@ -1300,34 +1390,32 @@
         }
       }
 
-      // PHASE 2: BALL VISIBLY DROPS DOWN TRANSPARENT CHUTE INTO TRAY
+      // PHASE 2: BALL VISIBLY PUSHES OPEN CHROME FLAP DOOR & DROPS INTO TRAY
       else if (this.state === 'BALL_DROP_CHUTE') {
         this.stateTimer += dt;
-        this._stepCapsulePhysics(dt, false);
+        this._stepCapsulePhysics(dt, false, true);
 
-        const p = Math.min(1.0, this.stateTimer / 0.78);
-        let yPos = 0.18;
-        let zPos = 0.92;
+        const p = Math.min(1.0, this.stateTimer / 0.72);
+        let yPos = -1.25;
+        let zPos = 1.32;
         let flapAngle = 0;
 
-        if (p < 0.48) {
-          const t = p / 0.48;
+        if (p < 0.45) {
+          const t = p / 0.45;
           const easeIn = t * t;
-          yPos = 0.18 + (-1.42 - 0.18) * easeIn;
-          zPos = 0.92 + (1.22 - 0.92) * t;
-          if (t > 0.65) {
-            flapAngle = -((t - 0.65) / 0.35) * 0.95;
-          }
-        } else if (p < 0.76) {
-          const t = (p - 0.48) / 0.28;
-          yPos = -1.42 + (-1.68 - -1.42) * t + Math.sin(t * Math.PI) * 0.12;
-          zPos = 1.22 + (1.46 - 1.22) * t;
-          flapAngle = -0.95 * (1 - t * 0.65);
+          yPos = -1.25 + (-1.56 - -1.25) * easeIn;
+          zPos = 1.32 + (1.46 - 1.32) * t;
+          flapAngle = -Math.sin(t * Math.PI * 0.5) * 1.05;
+        } else if (p < 0.78) {
+          const t = (p - 0.45) / 0.33;
+          yPos = -1.56 + (-1.62 - -1.56) * t + Math.sin(t * Math.PI) * 0.14;
+          zPos = 1.46 + (1.52 - 1.46) * t;
+          flapAngle = -1.05 * (1 - t * 0.75);
         } else {
-          const t = (p - 0.76) / 0.24;
-          yPos = -1.68 + Math.sin(t * Math.PI) * 0.05;
-          zPos = 1.46;
-          flapAngle = -0.30 * (1 - t);
+          const t = (p - 0.78) / 0.22;
+          yPos = -1.62 + Math.sin(t * Math.PI) * 0.05;
+          zPos = 1.52;
+          flapAngle = -0.26 * (1 - t);
         }
 
         this.chuteFlapPivot.rotation.x = flapAngle;
@@ -1354,8 +1442,8 @@
 
         this.activeCapsuleRig.position.set(
           Math.sin(p * Math.PI * 10) * 0.03 * p,
-          -1.68 + (0.05 - -1.68) * ease,
-          1.46 + (3.20 - 1.46) * ease
+          -1.62 + (0.05 - -1.62) * ease,
+          1.52 + (3.20 - 1.52) * ease
         );
         const sc = 1.0 + 0.55 * ease;
         this.activeCapsuleRig.scale.set(sc, sc, sc);
@@ -1386,7 +1474,6 @@
         const openT = Math.min(1.0, this.stateTimer / 0.45);
         const easeOut = 1 - Math.pow(1 - openT, 3);
 
-        // Keep top half & bottom half neatly framing the opened capsule center
         this.activeTopHalf.position.set(0, easeOut * 0.78, 0);
         this.activeTopHalf.rotation.x = -easeOut * 0.52;
 
@@ -1396,7 +1483,6 @@
         this.prizeLight.intensity = 2.4 + Math.sin(this.stateTimer * 6.0) * 0.5;
       }
 
-      // Update 3D burst particles
       for (let i = 0; i < this.burstParticles.length; i++) {
         const p = this.burstParticles[i];
         if (!p.mesh.visible) continue;
@@ -1412,7 +1498,6 @@
         p.mesh.material.opacity = Math.max(0, 1 - p.life / p.maxLife);
       }
 
-      // Smooth camera interpolation
       const camLerp = Math.min(1.0, dt * 5.0);
       this.currentCamPos.lerp(this.targetCamPos, camLerp);
       this.currentLookAt.lerp(this.targetLookAt, camLerp);
@@ -1427,7 +1512,6 @@
       const aspect = w / Math.max(1, h);
 
       this.camera.aspect = aspect;
-      // Frame the machine + right-side lever (X=1.72) comfortably on all portrait screens
       if (aspect < 0.60) {
         this.baseCamPos.set(0.18, 0.25, 11.4);
       } else if (aspect < 0.80) {
