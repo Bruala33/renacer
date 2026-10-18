@@ -3321,14 +3321,20 @@ class BeatstarEngine {
     if (!this.borderEqRightSurges) this.borderEqRightSurges = new Float32Array(16);
     const rowCount = 12;
     if (lane === 0) {
+      this.borderSurgeL = 1.0;
+      this.borderSurgeR = Math.max(this.borderSurgeR || 0, 0.35);
       for (let i = 0; i < rowCount; i++) {
         this.borderEqLeftSurges[i] = Math.min(1.0, (this.borderEqLeftSurges[i] || 0) * 0.4 + 0.55 + Math.random() * 0.35);
       }
     } else if (lane === 2) {
+      this.borderSurgeR = 1.0;
+      this.borderSurgeL = Math.max(this.borderSurgeL || 0, 0.35);
       for (let i = 0; i < rowCount; i++) {
         this.borderEqRightSurges[i] = Math.min(1.0, (this.borderEqRightSurges[i] || 0) * 0.4 + 0.55 + Math.random() * 0.35);
       }
     } else {
+      this.borderSurgeL = Math.max(this.borderSurgeL || 0, 0.85);
+      this.borderSurgeR = Math.max(this.borderSurgeR || 0, 0.85);
       for (let i = 0; i < rowCount; i++) {
         this.borderEqLeftSurges[i] = Math.min(1.0, (this.borderEqLeftSurges[i] || 0) * 0.4 + 0.48 + Math.random() * 0.30);
         this.borderEqRightSurges[i] = Math.min(1.0, (this.borderEqRightSurges[i] || 0) * 0.4 + 0.48 + Math.random() * 0.30);
@@ -4915,13 +4921,130 @@ class BeatstarEngine {
   // SYNTHESIZER EQUALIZER STRIPES WITH LARGE COLORED BLOCKS
   // Abarcan desde el 75% hasta arriba del todo, más largas arriba, reactivas a teclas
   // =========================================================================
+  getEffectBorderTheme(fxRaw) {
+    const fx = this.normalizeEffectId(fxRaw || this.activeEffect);
+    const THEMES = {
+      solar_inferno: {
+        id: 'solar_inferno',
+        cCore: '#ffffff',
+        cInner: '#fde047',
+        cMid: '#f97316',
+        cOuter: '#dc2626',
+        cDeep: '#7f1d1d',
+        blocks: ['#7f1d1d', '#b91c1c', '#dc2626', '#ea580c', '#f97316', '#facc15', '#fde047']
+      },
+      cryo_blizzard: {
+        id: 'cryo_blizzard',
+        cCore: '#ffffff',
+        cInner: '#e0f2fe',
+        cMid: '#38bdf8',
+        cOuter: '#0284c7',
+        cDeep: '#0c4a6e',
+        blocks: ['#0c4a6e', '#075985', '#0369a1', '#0284c7', '#38bdf8', '#7dd3fc', '#bae6fd']
+      },
+      cyber_neon: {
+        id: 'cyber_neon',
+        cCore: '#ffffff',
+        cInner: '#00f2fe',
+        cMid: '#ff007f',
+        cOuter: '#a855f7',
+        cDeep: '#3b0764',
+        blocks: ['#4c1d95', '#7e22ce', '#a855f7', '#db2777', '#ff007f', '#06b6d4', '#00f2fe']
+      },
+      grand_fireworks: {
+        id: 'grand_fireworks',
+        cCore: '#ffffff',
+        cInner: '#fde047',
+        cMid: '#ff007f',
+        cOuter: '#00f2fe',
+        cDeep: '#39ff14',
+        blocks: ['#be185d', '#ff007f', '#f59e0b', '#fde047', '#39ff14', '#00f2fe', '#e879f9']
+      },
+      zeus_lightning: {
+        id: 'zeus_lightning',
+        cCore: '#ffffff',
+        cInner: '#bae6fd',
+        cMid: '#38bdf8',
+        cOuter: '#6366f1',
+        cDeep: '#1e1b4b',
+        blocks: ['#1e1b4b', '#312e81', '#4338ca', '#6366f1', '#38bdf8', '#7dd3fc', '#e0f2fe']
+      },
+      deep_cosmos: {
+        id: 'deep_cosmos',
+        cCore: '#ffffff',
+        cInner: '#f472b6',
+        cMid: '#a855f7',
+        cOuter: '#06b6d4',
+        cDeep: '#2e1065',
+        blocks: ['#2e1065', '#4c1d95', '#6d28d9', '#9333ea', '#c084fc', '#f472b6', '#22d3ee']
+      },
+      asteroid_impact: {
+        id: 'asteroid_impact',
+        cCore: '#ffffff',
+        cInner: '#facc15',
+        cMid: '#ea580c',
+        cOuter: '#b91c1c',
+        cDeep: '#451a03',
+        blocks: ['#451a03', '#7c2d12', '#991b1b', '#dc2626', '#ea580c', '#f59e0b', '#fde047']
+      },
+      black_hole: {
+        id: 'black_hole',
+        cCore: '#ffffff',
+        cInner: '#fde047',
+        cMid: '#f97316',
+        cOuter: '#db2777',
+        cDeep: '#4c1d95',
+        blocks: ['#2e1065', '#581c87', '#831843', '#be185d', '#ea580c', '#f97316', '#fde047']
+      },
+      dragon_fire: {
+        id: 'dragon_fire',
+        cCore: '#ffffff',
+        cInner: '#fde047',
+        cMid: '#10b981',
+        cOuter: '#047857',
+        cDeep: '#064e3b',
+        blocks: ['#064e3b', '#065f46', '#047857', '#059669', '#10b981', '#34d399', '#fde047']
+      },
+      aurora_borealis: {
+        id: 'aurora_borealis',
+        cCore: '#ffffff',
+        cInner: '#34d399',
+        cMid: '#06b6d4',
+        cOuter: '#8b5cf6',
+        cDeep: '#f43f5e',
+        blocks: ['#4c1d95', '#7c3aed', '#0891b2', '#06b6d4', '#10b981', '#34d399', '#a7f3d0']
+      },
+      supernova_burst: {
+        id: 'supernova_burst',
+        cCore: '#ffffff',
+        cInner: '#fde047',
+        cMid: '#ff007f',
+        cOuter: '#00f2fe',
+        cDeep: '#701a75',
+        blocks: ['#701a75', '#a21caf', '#db2777', '#ff007f', '#f59e0b', '#fde047', '#00f2fe']
+      },
+      quantum_prism: {
+        id: 'quantum_prism',
+        cCore: '#ffffff',
+        cInner: '#39ff14',
+        cMid: '#00f2fe',
+        cOuter: '#a855f7',
+        cDeep: '#0f172a',
+        blocks: ['#1e1b4b', '#581c87', '#7e22ce', '#0369a1', '#00f2fe', '#22c55e', '#39ff14']
+      }
+    };
+    return THEMES[fx] || THEMES.solar_inferno;
+  }
+
   renderEqualizerBorders(ctx, w, h, currentTime, bpmSpeed, beatPulse, mult) {
     if (!this.borderEqLeftSurges) this.borderEqLeftSurges = new Float32Array(16);
     if (!this.borderEqRightSurges) this.borderEqRightSurges = new Float32Array(16);
 
     const frameScale = Math.min(2.5, (this._frameDt || 0.00833) * 60);
-    const decayStep = 0.038 * frameScale;
-    const numBars = 12; // 12 filas horizontales concentradas en la parte alta
+    const decayStep = 0.036 * frameScale;
+    const numBars = 12;
+    let avgSurgeL = 0;
+    let avgSurgeR = 0;
     for (let i = 0; i < numBars; i++) {
       if (this.borderEqLeftSurges[i] > 0) {
         this.borderEqLeftSurges[i] = Math.max(0, this.borderEqLeftSurges[i] - decayStep);
@@ -4929,105 +5052,221 @@ class BeatstarEngine {
       if (this.borderEqRightSurges[i] > 0) {
         this.borderEqRightSurges[i] = Math.max(0, this.borderEqRightSurges[i] - decayStep);
       }
+      avgSurgeL += this.borderEqLeftSurges[i];
+      avgSurgeR += this.borderEqRightSurges[i];
     }
+    avgSurgeL /= numBars;
+    avgSurgeR /= numBars;
+
+    const theme = this.getEffectBorderTheme(this.activeEffect);
+    const fx = theme.id;
+    const blockPalette = theme.blocks;
+    const palLen = blockPalette.length;
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
 
     const timeSec = (this._frameNow || performance.now()) * 0.001;
-    const palIdx = Math.floor((((timeSec * 0.08 + (mult - 1)) % GLOBAL_SYNTH_PALETTES.length) + GLOBAL_SYNTH_PALETTES.length) % GLOBAL_SYNTH_PALETTES.length);
-    const blockPalette = GLOBAL_SYNTH_PALETTES[Math.max(0, Math.min(GLOBAL_SYNTH_PALETTES.length - 1, palIdx))];
-    const palLen = blockPalette.length;
+    const waveT = timeSec * 1.65;
 
-    // Cuadrados grandes con separación muy pequeña
-    const blockW = 12.0;
-    const blockH = 8.0;
-    const blockGap = 1.2;
+    // 0. DIFUMINADO ATMOSFÉRICO SUPERIOR EN LOS BORDES (Soft Gaussian-Style Radial Bloom)
+    const topZoneY = h * 0.20;
+    const leftBloomR = Math.max(85, w * 0.34);
+    const leftBloom = ctx.createRadialGradient(w * 0.08, topZoneY, 4, w * 0.08, topZoneY, leftBloomR);
+    leftBloom.addColorStop(0.0, hexToRgba(theme.cMid, 0.24 + avgSurgeL * 0.32 + beatPulse * 0.12));
+    leftBloom.addColorStop(0.55, hexToRgba(theme.cOuter, 0.11 + avgSurgeL * 0.16));
+    leftBloom.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = leftBloom;
+    ctx.fillRect(0, 0, w * 0.45, h * 0.45);
 
-    // Patrón dinámico de ondas de sintetizador que evoluciona suavemente sin saltos
-    const waveT = timeSec * 1.4;
+    const rightBloom = ctx.createRadialGradient(w * 0.92, topZoneY, 4, w * 0.92, topZoneY, leftBloomR);
+    rightBloom.addColorStop(0.0, hexToRgba(theme.cMid, 0.24 + avgSurgeR * 0.32 + beatPulse * 0.12));
+    rightBloom.addColorStop(0.55, hexToRgba(theme.cOuter, 0.11 + avgSurgeR * 0.16));
+    rightBloom.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = rightBloom;
+    ctx.fillRect(w * 0.55, 0, w * 0.45, h * 0.45);
 
-    // 1. LATERAL IZQUIERDO: Solo en la parte alta (4% a 36% de altura) con patrón cambiante
-    for (let i = 0; i < numBars; i++) {
-      const frac = i / (numBars - 1);
-      const y = h * (0.04 + frac * 0.32);
-      const trackLeftX = this.getLaneBoundaryX(0, y) - 6;
-      const startX = 3;
-      const availW = Math.max(12, trackLeftX - startX);
-      const totalPossibleBlocks = Math.max(2, Math.floor((availW + blockGap) / (blockW + blockGap)));
+    const blockW = 11.5;
+    const blockH = 7.6;
+    const blockGap = 1.6;
 
-      // Patrón orgánico que varía dinámicamente con el tiempo y el compás
-      const organicRand = 0.60 
-        + 0.28 * Math.sin(i * 3.4 + waveT) 
-        + 0.18 * Math.cos(i * 6.1 - waveT * 0.7) 
-        + 0.14 * Math.sin((i + mult) * 2.2 + waveT * 1.3);
-      const slopeFactor = 1.0 - (frac * 0.38);
-      const rowMaxBlocks = Math.max(2, Math.round(totalPossibleBlocks * Math.max(0.30, Math.min(1.0, slopeFactor * organicRand))));
+    const renderSideEqualizerZone = (isLeft) => {
+      let prevPeakX = null;
+      let prevPeakY = null;
 
-      const surge = this.borderEqLeftSurges[i] || 0;
-      const activeBlocks = surge > 0.01 
-        ? Math.max(1, Math.min(rowMaxBlocks, Math.round(1 + surge * (rowMaxBlocks - 1))))
-        : 1;
+      for (let i = 0; i < numBars; i++) {
+        const frac = i / (numBars - 1);
+        const y = h * (0.04 + frac * 0.33);
+        const trackEdgeX = isLeft
+          ? (this.getLaneBoundaryX(0, y) - 7)
+          : (this.getLaneBoundaryX(3, y) + 7);
+        const outerEdgeX = isLeft ? 4 : (w - 4);
+        const availW = Math.max(14, isLeft ? (trackEdgeX - outerEdgeX) : (outerEdgeX - trackEdgeX));
+        const totalPossibleBlocks = Math.max(2, Math.floor((availW + blockGap) / (blockW + blockGap)));
 
-      const alphaBase = 0.18 + surge * 0.58;
+        const phaseShift = isLeft ? 0 : 1.85;
+        const organicRand = 0.62
+          + 0.26 * Math.sin(i * 3.1 + waveT + phaseShift)
+          + 0.18 * Math.cos(i * 5.7 - waveT * 0.8 + phaseShift)
+          + 0.14 * Math.sin((i + mult) * 2.1 + waveT * 1.4);
+        const slopeFactor = 1.0 - (frac * 0.35);
+        const rowMaxBlocks = Math.max(2, Math.round(totalPossibleBlocks * Math.max(0.32, Math.min(1.0, slopeFactor * organicRand))));
 
-      for (let b = 0; b < activeBlocks; b++) {
-        const bx = startX + b * (blockW + blockGap);
-        const colIdx = Math.min(palLen - 1, Math.floor((b / Math.max(1, rowMaxBlocks - 1)) * palLen));
-        ctx.fillStyle = blockPalette[colIdx];
-        ctx.globalAlpha = (b === 0 && surge <= 0.01) ? 0.18 : alphaBase;
-        ctx.fillRect(bx, y - blockH / 2, blockW, blockH);
+        const surge = (isLeft ? this.borderEqLeftSurges[i] : this.borderEqRightSurges[i]) || 0;
+        const beatDrive = 0.25 + beatPulse * 0.35;
+        const effectiveDrive = Math.min(1.0, Math.max(beatDrive * 0.65, surge));
+        const activeBlocks = Math.max(1, Math.min(rowMaxBlocks, Math.round(1 + effectiveDrive * (rowMaxBlocks - 1))));
+        const rowSpanPx = activeBlocks * (blockW + blockGap);
+
+        // 1. Cinta difuminada de fondo por cada fila (Soft Under-Row Gradient Ribbon)
+        const rowStartX = outerEdgeX;
+        const rowEndX = isLeft ? (outerEdgeX + rowSpanPx + 14) : (outerEdgeX - rowSpanPx - 14);
+        const ribGrad = ctx.createLinearGradient(rowStartX, y, rowEndX, y);
+        ribGrad.addColorStop(0.0, hexToRgba(theme.cOuter, 0.28 + effectiveDrive * 0.32));
+        ribGrad.addColorStop(0.7, hexToRgba(theme.cInner, 0.16 + effectiveDrive * 0.24));
+        ribGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = ribGrad;
+        ctx.fillRect(
+          Math.min(rowStartX, rowEndX),
+          y - blockH * 0.85,
+          Math.abs(rowEndX - rowStartX),
+          blockH * 1.7
+        );
+
+        // 2. Cuadraditos biselados con degradado temático del efecto activo
+        const alphaBase = 0.26 + effectiveDrive * 0.62;
+        for (let b = 0; b < activeBlocks; b++) {
+          const bx = isLeft
+            ? (outerEdgeX + b * (blockW + blockGap))
+            : (outerEdgeX - (b + 1) * (blockW + blockGap));
+          const colIdx = Math.min(palLen - 1, Math.floor((b / Math.max(1, rowMaxBlocks - 1)) * palLen));
+          ctx.fillStyle = blockPalette[colIdx];
+          ctx.globalAlpha = (b === 0 && surge <= 0.02) ? 0.28 : alphaBase;
+          if (ctx.roundRect) {
+            ctx.beginPath();
+            ctx.roundRect(bx, y - blockH / 2, blockW, blockH, 2.2);
+            ctx.fill();
+          } else {
+            ctx.fillRect(bx, y - blockH / 2, blockW, blockH);
+          }
+        }
+
+        // Coordenada de la punta activa (Peak) de esta fila superior
+        const peakX = isLeft
+          ? (outerEdgeX + (activeBlocks - 1) * (blockW + blockGap) + blockW * 0.5)
+          : (outerEdgeX - (activeBlocks - 1) * (blockW + blockGap) - blockW * 0.5);
+        const dirSign = isLeft ? 1 : -1;
+
+        // 3. Punta incandescente + Halo difuminado en el extremo de cada fila
+        ctx.globalAlpha = Math.min(0.95, 0.45 + effectiveDrive * 0.55);
+        ctx.fillStyle = theme.cCore;
+        ctx.fillRect(peakX - blockW * 0.5, y - blockH / 2, blockW, blockH);
+
+        // 4. FENÓMENO COMPLEMENTARIO EN LA PARTE SUPERIOR SEGÚN EL EFECTO ACTIVO
+        if (fx === 'solar_inferno' || fx === 'dragon_fire') {
+          // Lenguas de fuego lamiendo desde la punta de los cuadraditos superiores
+          const flameLen = (10 + effectiveDrive * 22) * (1 + 0.25 * Math.sin(timeSec * 11 + i * 1.7));
+          const flameLift = -6 - 5 * Math.cos(timeSec * 9 + i);
+          const fGrad = ctx.createLinearGradient(peakX, y, peakX + dirSign * flameLen, y + flameLift);
+          fGrad.addColorStop(0.0, '#ffffff');
+          fGrad.addColorStop(0.3, theme.cInner);
+          fGrad.addColorStop(0.7, theme.cMid);
+          fGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+          ctx.fillStyle = fGrad;
+          ctx.globalAlpha = 0.78;
+          ctx.beginPath();
+          ctx.moveTo(peakX, y - blockH * 0.65);
+          ctx.quadraticCurveTo(
+            peakX + dirSign * flameLen * 0.65,
+            y - blockH * 0.9 + flameLift * 0.5,
+            peakX + dirSign * flameLen,
+            y + flameLift
+          );
+          ctx.quadraticCurveTo(
+            peakX + dirSign * flameLen * 0.55,
+            y + blockH * 0.75,
+            peakX,
+            y + blockH * 0.65
+          );
+          ctx.closePath();
+          ctx.fill();
+        } else if (fx === 'cryo_blizzard') {
+          // Puntas cristalinas de hielo en el extremo de cada barra superior
+          const spikeLen = 9 + effectiveDrive * 18;
+          ctx.fillStyle = theme.cInner;
+          ctx.globalAlpha = 0.80;
+          ctx.beginPath();
+          ctx.moveTo(peakX, y - blockH * 0.55);
+          ctx.lineTo(peakX + dirSign * spikeLen, y);
+          ctx.lineTo(peakX, y + blockH * 0.55);
+          ctx.closePath();
+          ctx.fill();
+        } else if (fx === 'zeus_lightning' && prevPeakX !== null) {
+          // Arcos eléctricos conectando las puntas de las filas superiores
+          const midArcX = (prevPeakX + peakX) * 0.5 + Math.sin(timeSec * 28 + i * 3.1) * 7;
+          const midArcY = (prevPeakY + y) * 0.5;
+          ctx.strokeStyle = theme.cMid;
+          ctx.lineWidth = 2.6;
+          ctx.globalAlpha = 0.75;
+          ctx.beginPath();
+          ctx.moveTo(prevPeakX, prevPeakY);
+          ctx.lineTo(midArcX, midArcY);
+          ctx.lineTo(peakX, y);
+          ctx.stroke();
+
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.1;
+          ctx.stroke();
+        } else if (fx === 'grand_fireworks' || fx === 'supernova_burst') {
+          // Destellos estelares de 4 puntas en las puntas de mayor impulso
+          if (i % 2 === 0) {
+            const starR = 5 + effectiveDrive * 9;
+            ctx.strokeStyle = i % 4 === 0 ? theme.cInner : theme.cMid;
+            ctx.lineWidth = 1.8;
+            ctx.globalAlpha = 0.85;
+            ctx.beginPath();
+            ctx.moveTo(peakX - starR, y);
+            ctx.lineTo(peakX + starR, y);
+            ctx.moveTo(peakX, y - starR);
+            ctx.lineTo(peakX, y + starR);
+            ctx.stroke();
+          }
+        } else if (fx === 'aurora_borealis' || fx === 'deep_cosmos' || fx === 'cyber_neon') {
+          // Cintas de plasma / constelación uniendo las puntas superiores
+          if (prevPeakX !== null) {
+            ctx.strokeStyle = i % 2 === 0 ? theme.cInner : theme.cMid;
+            ctx.lineWidth = 2.2;
+            ctx.globalAlpha = 0.62;
+            ctx.beginPath();
+            ctx.moveTo(prevPeakX, prevPeakY);
+            ctx.quadraticCurveTo(
+              (prevPeakX + peakX) * 0.5 + dirSign * 6 * Math.sin(timeSec * 5 + i),
+              (prevPeakY + y) * 0.5,
+              peakX,
+              y
+            );
+            ctx.stroke();
+          }
+        } else if (fx === 'quantum_prism' && i % 2 === 0) {
+          // Micro-cubos holográficos giratorios en la punta de cada barra
+          const cSz = 5 + effectiveDrive * 5;
+          ctx.save();
+          ctx.translate(peakX + dirSign * 6, y);
+          ctx.rotate(timeSec * 2.5 + i);
+          ctx.strokeStyle = theme.cInner;
+          ctx.lineWidth = 1.4;
+          ctx.globalAlpha = 0.82;
+          ctx.strokeRect(-cSz * 0.5, -cSz * 0.5, cSz, cSz);
+          ctx.restore();
+        }
+
+        prevPeakX = peakX;
+        prevPeakY = y;
       }
+    };
 
-      // Cuadradito blanco incandescente de punta (Peak) proporcional al surge
-      if (surge > 0.12 && activeBlocks >= 2) {
-        const peakX = startX + (activeBlocks - 1) * (blockW + blockGap);
-        ctx.fillStyle = '#ffffff';
-        ctx.globalAlpha = Math.min(0.85, surge * 0.90);
-        ctx.fillRect(peakX, y - blockH / 2, blockW, blockH);
-      }
-    }
-
-    // 2. LATERAL DERECHO: Solo en la parte alta (4% a 36% de altura) con desfase dinámico
-    for (let i = 0; i < numBars; i++) {
-      const frac = i / (numBars - 1);
-      const y = h * (0.04 + frac * 0.32);
-      const trackRightX = this.getLaneBoundaryX(3, y) + 6;
-      const endX = w - 3;
-      const availW = Math.max(12, endX - trackRightX);
-      const totalPossibleBlocks = Math.max(2, Math.floor((availW + blockGap) / (blockW + blockGap)));
-
-      // Patrón orgánico con desfase propio
-      const organicRand = 0.60 
-        + 0.28 * Math.sin(i * 3.4 + waveT + 1.8) 
-        + 0.18 * Math.cos(i * 6.1 - waveT * 0.7 + 2.4) 
-        + 0.14 * Math.sin((i + mult) * 2.2 + waveT * 1.3 + 0.9);
-      const slopeFactor = 1.0 - (frac * 0.38);
-      const rowMaxBlocks = Math.max(2, Math.round(totalPossibleBlocks * Math.max(0.30, Math.min(1.0, slopeFactor * organicRand))));
-
-      const surge = this.borderEqRightSurges[i] || 0;
-      const activeBlocks = surge > 0.01 
-        ? Math.max(1, Math.min(rowMaxBlocks, Math.round(1 + surge * (rowMaxBlocks - 1))))
-        : 1;
-
-      const alphaBase = 0.18 + surge * 0.58;
-
-      for (let b = 0; b < activeBlocks; b++) {
-        const bx = endX - (b + 1) * (blockW + blockGap);
-        const colIdx = Math.min(palLen - 1, Math.floor((b / Math.max(1, rowMaxBlocks - 1)) * palLen));
-        ctx.fillStyle = blockPalette[colIdx];
-        ctx.globalAlpha = (b === 0 && surge <= 0.01) ? 0.18 : alphaBase;
-        ctx.fillRect(bx, y - blockH / 2, blockW, blockH);
-      }
-
-      // Cuadradito blanco incandescente de punta (Peak) proporcional al surge
-      if (surge > 0.12 && activeBlocks >= 2) {
-        const peakX = endX - activeBlocks * (blockW + blockGap);
-        ctx.fillStyle = '#ffffff';
-        ctx.globalAlpha = Math.min(0.85, surge * 0.90);
-        ctx.fillRect(peakX, y - blockH / 2, blockW, blockH);
-      }
-    }
+    renderSideEqualizerZone(true);
+    renderSideEqualizerZone(false);
 
     ctx.restore();
   }
@@ -7035,33 +7274,30 @@ class BeatstarEngine {
       ctx.stroke();
       ctx.restore();
 
-    // 4. BARRAS LATERALES BEATSTAR: Vector Normal a 90° (Ortogonales al raíl en 3D)
+    // 4. FENÓMENOS VISUALES 3D EN LOS BORDES DE LA PISTA + COSTILLAS DE RITMO (Reactivos al Efecto Equipado)
       const numLines = 28;
       const bpmSpeed = (normBpm / 60) * Math.PI * 2;
+      const theme = this.getEffectBorderTheme(this.activeEffect);
+      const fx = theme.id;
+      const timeSec = safePerfNow * 0.001;
+
+      const frameScale = Math.min(2.5, (this._frameDt || 0.00833) * 60);
+      this.borderSurgeL = Math.max(0, (this.borderSurgeL || 0) - 0.045 * frameScale);
+      this.borderSurgeR = Math.max(0, (this.borderSurgeR || 0) - 0.045 * frameScale);
+      const surgeL = this.borderSurgeL || 0;
+      const surgeR = this.borderSurgeR || 0;
 
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
 
-      // Reutilización de gradiente con hue monotónico positivo (evita parpadeo en cuenta atrás)
-      const hueShift = ((((safePerfNow * 0.035) % 360) + 360) % 360) | 0;
-      if (!this._sideGradCache || Math.abs(hueShift - (this._lastSideHue || 0)) >= 8) {
-        this._lastSideHue = hueShift;
-        const sideGrad = ctx.createLinearGradient(0, horizonY, 0, bottomY);
-        sideGrad.addColorStop(0.00, `hsl(${hueShift}, 100%, 65%)`);
-        sideGrad.addColorStop(0.30, `hsl(${(hueShift + 70) % 360}, 100%, 60%)`);
-        sideGrad.addColorStop(0.65, `hsl(${(hueShift + 160) % 360}, 100%, 60%)`);
-        sideGrad.addColorStop(1.00, `hsl(${(hueShift + 240) % 360}, 100%, 65%)`);
-        this._sideGradCache = sideGrad;
-      }
-
-      // Cálculo del vector unitario perpendicular (a 90° exactos de la inclinación del raíl)
+      // Vectores unitarios ortogonales a los raíles 3D
       const tLx_top = getBoundaryX(0, horizonY);
       const tLx_bot = getBoundaryX(0, bottomY);
       const dyL = bottomY - horizonY;
       const dxL = tLx_bot - tLx_top;
       const lenL = Math.hypot(dxL, dyL) || 1;
-      // Normal izquierda orientada hacia afuera a 90°
       const normLx = -dyL / lenL;
       const normLy = dxL / lenL;
 
@@ -7070,15 +7306,253 @@ class BeatstarEngine {
       const dyR = bottomY - horizonY;
       const dxR = tRx_bot - tRx_top;
       const lenR = Math.hypot(dxR, dyR) || 1;
-      // Normal derecha orientada hacia afuera a 90°
       const normRx = dyR / lenR;
       const normRy = -dxR / lenR;
 
-      const beatGlow = 1.0 + beatPulse * 0.40;
+      // --- CAPA 1: AURA DIFUMINADA VOLUMÉTRICA A LO LARGO DE AMBOS BORDES DE LA PISTA ---
+      const auraSpanTop = 36 + beatPulse * 14;
+      const auraSpanBot = 88 + beatPulse * 28;
 
-      // --- PASADA 1: Tubo de Neón coloreado y con presencia ---
-      ctx.strokeStyle = this._sideGradCache;
-      ctx.lineWidth = Math.max(3.8, 5.0 * (1.0 + beatPulse * 0.25));
+      const leftAuraGrad = ctx.createLinearGradient(
+        (tLx_top + tLx_bot) * 0.5,
+        (horizonY + bottomY) * 0.5,
+        (tLx_top + tLx_bot) * 0.5 + normLx * (auraSpanBot * 0.85),
+        (horizonY + bottomY) * 0.5 + normLy * (auraSpanBot * 0.85)
+      );
+      leftAuraGrad.addColorStop(0.0, hexToRgba(theme.cInner, 0.42 + surgeL * 0.28 + beatPulse * 0.15));
+      leftAuraGrad.addColorStop(0.38, hexToRgba(theme.cMid, 0.24 + surgeL * 0.18));
+      leftAuraGrad.addColorStop(0.75, hexToRgba(theme.cOuter, 0.09));
+      leftAuraGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = leftAuraGrad;
+      ctx.beginPath();
+      ctx.moveTo(tLx_top, horizonY);
+      ctx.lineTo(tLx_top + normLx * auraSpanTop, horizonY + normLy * auraSpanTop);
+      ctx.lineTo(tLx_bot + normLx * auraSpanBot, bottomY + normLy * auraSpanBot);
+      ctx.lineTo(tLx_bot, bottomY);
+      ctx.closePath();
+      ctx.fill();
+
+      const rightAuraGrad = ctx.createLinearGradient(
+        (tRx_top + tRx_bot) * 0.5,
+        (horizonY + bottomY) * 0.5,
+        (tRx_top + tRx_bot) * 0.5 + normRx * (auraSpanBot * 0.85),
+        (horizonY + bottomY) * 0.5 + normRy * (auraSpanBot * 0.85)
+      );
+      rightAuraGrad.addColorStop(0.0, hexToRgba(theme.cInner, 0.42 + surgeR * 0.28 + beatPulse * 0.15));
+      rightAuraGrad.addColorStop(0.38, hexToRgba(theme.cMid, 0.24 + surgeR * 0.18));
+      rightAuraGrad.addColorStop(0.75, hexToRgba(theme.cOuter, 0.09));
+      rightAuraGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = rightAuraGrad;
+      ctx.beginPath();
+      ctx.moveTo(tRx_top, horizonY);
+      ctx.lineTo(tRx_top + normRx * auraSpanTop, horizonY + normRy * auraSpanTop);
+      ctx.lineTo(tRx_bot + normRx * auraSpanBot, bottomY + normRy * auraSpanBot);
+      ctx.lineTo(tRx_bot, bottomY);
+      ctx.closePath();
+      ctx.fill();
+
+      // Gradiente longitudinal vertical del efecto activo para los bordes
+      const borderVertGrad = ctx.createLinearGradient(0, horizonY, 0, bottomY);
+      borderVertGrad.addColorStop(0.00, theme.cOuter);
+      borderVertGrad.addColorStop(0.35, theme.cMid);
+      borderVertGrad.addColorStop(0.75, theme.cInner);
+      borderVertGrad.addColorStop(1.00, theme.cCore);
+
+      // --- CAPA 2: ANIMACIÓN PROFESIONAL TEMÁTICA EN LOS BORDES DE LA PISTA ---
+      if (fx === 'solar_inferno' || fx === 'dragon_fire') {
+        // MURO DE LLAMAS 3D EN PERSPECTIVA (Lenguas de fuego orgánicas + brasas ascendentes)
+        const numFlames = 22;
+        for (let side = 0; side < 2; side++) {
+          const isLeft = side === 0;
+          const nX = isLeft ? normLx : normRx;
+          const nY = isLeft ? normLy : normRy;
+          const sideSurge = isLeft ? surgeL : surgeR;
+
+          for (let f = 0; f < numFlames; f++) {
+            const p0 = Math.pow(f / numFlames, 1.2);
+            const p1 = Math.pow((f + 1.35) / numFlames, 1.2);
+            const y0 = horizonY + (bottomY - horizonY) * p0;
+            const y1 = horizonY + (bottomY - horizonY) * p1;
+            const yMid = (y0 + y1) * 0.5;
+
+            const x0 = getBoundaryX(isLeft ? 0 : 3, y0);
+            const x1 = getBoundaryX(isLeft ? 0 : 3, y1);
+            const xMid = (x0 + x1) * 0.5;
+
+            const flicker = 0.55
+              + 0.30 * Math.sin(f * 2.1 - timeSec * 11.5 + side * 1.7)
+              + 0.20 * Math.cos(f * 3.7 - timeSec * 7.8);
+            const reach = (18 + 38 * p0) * flicker * (1.0 + beatPulse * 0.35 + sideSurge * 0.45);
+            const liftY = -(10 + 22 * p0) * (0.7 + 0.3 * Math.sin(timeSec * 9.0 + f));
+
+            const tipX = xMid + nX * reach;
+            const tipY = yMid + nY * reach + liftY;
+
+            // Lengua exterior difuminada (Rojo/Naranja o Esmeralda)
+            ctx.fillStyle = hexToRgba(f % 2 === 0 ? theme.cOuter : theme.cMid, 0.52);
+            ctx.beginPath();
+            ctx.moveTo(x0, y0);
+            ctx.quadraticCurveTo(xMid + nX * reach * 0.65, y0 + liftY * 0.4, tipX, tipY);
+            ctx.quadraticCurveTo(xMid + nX * reach * 0.55, y1, x1, y1);
+            ctx.closePath();
+            ctx.fill();
+
+            // Núcleo ígneo incandescente interior (Amarillo/Blanco)
+            ctx.fillStyle = hexToRgba(theme.cInner, 0.68);
+            ctx.beginPath();
+            ctx.moveTo(x0, y0 + (y1 - y0) * 0.18);
+            ctx.quadraticCurveTo(
+              xMid + nX * reach * 0.38,
+              yMid + liftY * 0.35,
+              xMid + nX * reach * 0.58,
+              yMid + nY * reach * 0.58 + liftY * 0.65
+            );
+            ctx.quadraticCurveTo(
+              xMid + nX * reach * 0.32,
+              y1 - (y1 - y0) * 0.15,
+              x1,
+              y1 - (y1 - y0) * 0.18
+            );
+            ctx.closePath();
+            ctx.fill();
+          }
+        }
+      } else if (fx === 'cryo_blizzard') {
+        // CRISTALES DE HIELO FACETADOS 3D Y ESCARCHA EN LOS BORDES
+        const numSpikes = 20;
+        for (let side = 0; side < 2; side++) {
+          const isLeft = side === 0;
+          const nX = isLeft ? normLx : normRx;
+          const nY = isLeft ? normLy : normRy;
+          const sideSurge = isLeft ? surgeL : surgeR;
+
+          for (let k = 0; k < numSpikes; k++) {
+            const p = Math.pow(k / (numSpikes - 1), 1.22);
+            const yBase = horizonY + (bottomY - horizonY) * p;
+            const xBase = getBoundaryX(isLeft ? 0 : 3, yBase);
+            const pulseWave = 0.6 + 0.4 * Math.sin(p * 10 - timeSec * 5.5 + side);
+            const spikeLen = (16 + 34 * p) * pulseWave * (1 + beatPulse * 0.3 + sideSurge * 0.4);
+            const halfW = 5 + 9 * p;
+
+            const tipX = xBase + nX * spikeLen;
+            const tipY = yBase + nY * spikeLen - 8 * p;
+
+            ctx.fillStyle = hexToRgba(k % 2 === 0 ? theme.cMid : theme.cInner, 0.55);
+            ctx.beginPath();
+            ctx.moveTo(xBase, yBase - halfW);
+            ctx.lineTo(tipX, tipY);
+            ctx.lineTo(xBase, yBase + halfW);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.3;
+            ctx.beginPath();
+            ctx.moveTo(xBase, yBase);
+            ctx.lineTo(tipX, tipY);
+            ctx.stroke();
+          }
+        }
+      } else if (fx === 'zeus_lightning') {
+        // CADENAS DE RELÁMPAGOS DE ALTA TENSIÓN EN AMBOS BORDES
+        for (let side = 0; side < 2; side++) {
+          const isLeft = side === 0;
+          const nX = isLeft ? normLx : normRx;
+          const nY = isLeft ? normLy : normRy;
+          const sideSurge = isLeft ? surgeL : surgeR;
+
+          ctx.beginPath();
+          const steps = 26;
+          for (let k = 0; k <= steps; k++) {
+            const p = k / steps;
+            const yPos = horizonY + (bottomY - horizonY) * p;
+            const xRail = getBoundaryX(isLeft ? 0 : 3, yPos);
+            const jag = (10 + 26 * p) * (0.45 + 0.55 * Math.abs(Math.sin(k * 4.3 - timeSec * 24 + side * 2))) * (1 + sideSurge * 0.45);
+            const lx = xRail + nX * jag;
+            const ly = yPos + nY * jag;
+            if (k === 0) ctx.moveTo(lx, ly);
+            else ctx.lineTo(lx, ly);
+          }
+          ctx.strokeStyle = hexToRgba(theme.cMid, 0.72);
+          ctx.lineWidth = 5.5;
+          ctx.stroke();
+
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.9;
+          ctx.stroke();
+        }
+      } else if (fx === 'aurora_borealis' || fx === 'deep_cosmos' || fx === 'cyber_neon' || fx === 'black_hole') {
+        // CORTINAS ONDULANTES DE PLASMA / AURORA / NEBULOSA EN PERSPECTIVA 3D
+        for (let side = 0; side < 2; side++) {
+          const isLeft = side === 0;
+          const nX = isLeft ? normLx : normRx;
+          const nY = isLeft ? normLy : normRy;
+          const sideSurge = isLeft ? surgeL : surgeR;
+
+          for (let ribbon = 0; ribbon < 2; ribbon++) {
+            ctx.beginPath();
+            const steps = 24;
+            for (let k = 0; k <= steps; k++) {
+              const p = k / steps;
+              const yPos = horizonY + (bottomY - horizonY) * p;
+              const xRail = getBoundaryX(isLeft ? 0 : 3, yPos);
+              const wave = 0.55 + 0.45 * Math.sin(p * 11.0 - timeSec * (4.5 + ribbon * 2.2) + ribbon * 1.9 + side);
+              const offset = (12 + 34 * p) * wave * (1 + beatPulse * 0.3 + sideSurge * 0.4);
+              const rx = xRail + nX * offset;
+              const ry = yPos + nY * offset;
+              if (k === 0) ctx.moveTo(rx, ry);
+              else ctx.lineTo(rx, ry);
+            }
+            ctx.strokeStyle = ribbon === 0 ? theme.cMid : theme.cInner;
+            ctx.lineWidth = ribbon === 0 ? 5.0 : 2.6;
+            ctx.stroke();
+          }
+        }
+      } else if (fx === 'grand_fireworks' || fx === 'supernova_burst' || fx === 'asteroid_impact' || fx === 'quantum_prism') {
+        // DESTELLOS ESTELARES, METEOROS O HIPERCUBOS A LO LARGO DE LOS BORDES
+        const numNodes = 14;
+        for (let side = 0; side < 2; side++) {
+          const isLeft = side === 0;
+          const nX = isLeft ? normLx : normRx;
+          const nY = isLeft ? normLy : normRy;
+          const sideSurge = isLeft ? surgeL : surgeR;
+
+          for (let k = 1; k < numNodes; k++) {
+            const p = Math.pow(((k / numNodes) + (timeSec * 0.18) % (1 / numNodes)), 1.25);
+            if (p > 1.0) continue;
+            const yPos = horizonY + (bottomY - horizonY) * p;
+            const xRail = getBoundaryX(isLeft ? 0 : 3, yPos);
+            const distOut = (16 + 32 * p) * (0.65 + 0.35 * Math.sin(k * 2.7 + timeSec * 5)) * (1 + sideSurge * 0.35);
+            const nx = xRail + nX * distOut;
+            const ny = yPos + nY * distOut;
+            const sz = (4 + 7 * p) * (1 + beatPulse * 0.35);
+
+            if (fx === 'quantum_prism') {
+              ctx.save();
+              ctx.translate(nx, ny);
+              ctx.rotate(timeSec * 3.0 + k);
+              ctx.strokeStyle = k % 2 === 0 ? theme.cInner : theme.cMid;
+              ctx.lineWidth = 1.8;
+              ctx.strokeRect(-sz * 0.5, -sz * 0.5, sz, sz);
+              ctx.restore();
+            } else {
+              ctx.strokeStyle = k % 2 === 0 ? theme.cInner : theme.cMid;
+              ctx.lineWidth = 2.0;
+              ctx.beginPath();
+              ctx.moveTo(nx - sz, ny);
+              ctx.lineTo(nx + sz, ny);
+              ctx.moveTo(nx, ny - sz);
+              ctx.lineTo(nx, ny + sz);
+              ctx.stroke();
+            }
+          }
+        }
+      }
+
+      // --- CAPA 3: COSTILLAS DE RITMO ORTOGONALES CON DEGRADADO Y PUNTA LUMINOSA ---
+      const beatGlow = 1.0 + beatPulse * 0.42;
+      ctx.strokeStyle = borderVertGrad;
+      ctx.lineWidth = Math.max(3.6, 4.8 * (1.0 + beatPulse * 0.25));
 
       ctx.beginPath();
       for (let s = 0; s < numLines; s++) {
@@ -7088,27 +7562,24 @@ class BeatstarEngine {
 
         const wavePhase = p * 13.0 - audioTime * bpmSpeed;
         const sineVal = 0.5 + 0.5 * Math.sin(wavePhase);
-
-        // Longitud destacada de escenario (18px arriba hasta 46px abajo)
-        const baseLength = 18 + 28 * p;
-        const ribLength = baseLength * (0.45 + 0.55 * sineVal) * beatGlow;
+        const baseLength = 16 + 28 * p;
+        const ribLenL = baseLength * (0.45 + 0.55 * sineVal) * (beatGlow + surgeL * 0.45);
+        const ribLenR = baseLength * (0.45 + 0.55 * sineVal) * (beatGlow + surgeR * 0.45);
 
         const xL = getBoundaryX(0, yCenter) - 2;
         const xR = getBoundaryX(3, yCenter) + 2;
 
-        // Proyección ortogonal precisa a 90° del raíl
         ctx.moveTo(xL, yCenter);
-        ctx.lineTo(xL + normLx * ribLength, yCenter + normLy * ribLength);
+        ctx.lineTo(xL + normLx * ribLenL, yCenter + normLy * ribLenL);
 
         ctx.moveTo(xR, yCenter);
-        ctx.lineTo(xR + normRx * ribLength, yCenter + normRy * ribLength);
+        ctx.lineTo(xR + normRx * ribLenR, yCenter + normRy * ribLenR);
       }
       ctx.stroke();
 
-      // --- PASADA 2: Filamento blanco incandescente interior ---
-      ctx.strokeStyle = `rgba(255, 255, 255, ${(0.75 + beatPulse * 0.25).toFixed(2)})`;
-      ctx.lineWidth = 1.8;
-
+      // Filamento interior blanco incandescente de alta definición
+      ctx.strokeStyle = `rgba(255, 255, 255, ${(0.78 + beatPulse * 0.22).toFixed(2)})`;
+      ctx.lineWidth = 1.7;
       ctx.beginPath();
       for (let s = 0; s < numLines; s++) {
         const pNorm = s / (numLines - 1);
@@ -7117,29 +7588,29 @@ class BeatstarEngine {
 
         const wavePhase = p * 13.0 - audioTime * bpmSpeed;
         const sineVal = 0.5 + 0.5 * Math.sin(wavePhase);
-
-        const baseLength = 18 + 28 * p;
-        const ribLength = (baseLength * (0.45 + 0.55 * sineVal) * beatGlow) * 0.65;
+        const baseLength = 16 + 28 * p;
+        const ribLenL = baseLength * (0.45 + 0.55 * sineVal) * (beatGlow + surgeL * 0.45) * 0.62;
+        const ribLenR = baseLength * (0.45 + 0.55 * sineVal) * (beatGlow + surgeR * 0.45) * 0.62;
 
         const xL = getBoundaryX(0, yCenter) - 2;
         const xR = getBoundaryX(3, yCenter) + 2;
 
         ctx.moveTo(xL, yCenter);
-        ctx.lineTo(xL + normLx * ribLength, yCenter + normLy * ribLength);
+        ctx.lineTo(xL + normLx * ribLenL, yCenter + normLy * ribLenL);
 
         ctx.moveTo(xR, yCenter);
-        ctx.lineTo(xR + normRx * ribLength, yCenter + normRy * ribLength);
+        ctx.lineTo(xR + normRx * ribLenR, yCenter + normRy * ribLenR);
       }
       ctx.stroke();
 
       ctx.restore();
-      // 5. GUÍAS LÁSER DE NEÓN CONTINUAS DE ALTA INTENSIDAD (Estilo Beatstar Pure Laser Guides)
+
+      // 5. GUÍAS LÁSER DE NEÓN CONTINUAS DE ALTA INTENSIDAD CON EL COLOR DEL EFECTO
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
 
-      // Resplandor difuso exterior
-      ctx.strokeStyle = hexToRgba(railLaserCol, 0.55 + beatPulse * 0.35);
-      ctx.lineWidth = 6.5;
+      ctx.strokeStyle = hexToRgba(theme.cMid, 0.65 + beatPulse * 0.35);
+      ctx.lineWidth = 7.0;
       ctx.beginPath();
       ctx.moveTo(tL_top, horizonY);
       ctx.lineTo(tL_bot, bottomY);
@@ -7147,9 +7618,8 @@ class BeatstarEngine {
       ctx.lineTo(tR_bot, bottomY);
       ctx.stroke();
 
-      // Núcleo blanco incandescente
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2.2;
+      ctx.lineWidth = 2.4;
       ctx.beginPath();
       ctx.moveTo(tL_top, horizonY);
       ctx.lineTo(tL_bot, bottomY);

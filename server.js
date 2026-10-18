@@ -539,72 +539,41 @@ app.get(['/api/version', '/api/v1/version'], (req, res) => {
   });
 });
 
-app.all(['/download/apk', '/api/v1/app/download_apk'], (req, res) => {
+app.all(['/download/apk', '/api/v1/app/download_apk', '/PianoCommunity.apk', '/downloads/PianoCommunity.apk'], (req, res) => {
   const apkCandidates = [
+    path.join(STATIC_DIR, 'downloads', 'PianoCommunity.apk'),
+    path.join(STATIC_DIR, 'PianoCommunity.apk'),
     path.join(__dirname, 'PianoCommunity.apk'),
     path.join(__dirname, 'downloads', 'PianoCommunity.apk'),
-    path.join(STATIC_DIR, 'PianoCommunity.apk'),
-    path.join(STATIC_DIR, 'downloads', 'PianoCommunity.apk'),
     path.join(__dirname, 'beatstar.apk'),
     path.join(STATIC_DIR, 'beatstar.apk'),
     path.join(__dirname, 'downloads', 'beatstar.apk'),
     path.join(STATIC_DIR, 'downloads', 'beatstar.apk'),
+    path.join(__dirname, 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk'),
+    path.join(__dirname, 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk'),
     path.join(__dirname, 'android', 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk'),
     path.join(__dirname, 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk'),
   ];
   for (const apkPath of apkCandidates) {
     if (fs.existsSync(apkPath)) {
-      if (req.method === 'HEAD') {
-        const stat = fs.statSync(apkPath);
+      const stat = fs.statSync(apkPath);
+      if (stat.size > 10000) {
         res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+        res.setHeader('Content-Disposition', 'attachment; filename="PianoCommunity.apk"');
         res.setHeader('Content-Length', stat.size);
-        return res.status(200).end();
+        res.setHeader('Cache-Control', 'no-cache');
+        if (req.method === 'HEAD') {
+          return res.status(200).end();
+        }
+        return fs.createReadStream(apkPath).pipe(res);
       }
-      return res.download(apkPath, 'PianoCommunity.apk');
     }
   }
 
-  if (req.method === 'HEAD') {
-    return res.status(404).end();
-  }
-
-  if (req.xhr || req.headers.accept?.includes('application/json')) {
-    return res.status(404).json({
-      available: false,
-      error: 'APK aún no generado en este servidor web.',
-      info: 'Instala la app como PWA o compila localmente con build_android.bat'
-    });
-  }
-
-  // Página web amigable si se abre en el navegador directamente
-  res.status(200).send(`
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>Descarga APK - Piano Community</title>
-      <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #07050a; color: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
-        .card { background: #16111d; border: 1px solid #3d324c; border-radius: 18px; padding: 28px 24px; max-width: 440px; text-align: center; box-shadow: 0 16px 40px rgba(0,0,0,0.8); }
-        h1 { color: #f5dc8c; font-size: 20px; margin: 0 0 12px; }
-        p { color: #c4b9d0; font-size: 13.5px; line-height: 1.6; margin: 0 0 18px; }
-        .btn { display: inline-block; width: 100%; box-sizing: border-box; padding: 14px; margin-bottom: 10px; border-radius: 12px; font-weight: bold; font-size: 14px; text-decoration: none; cursor: pointer; transition: 0.15s; }
-        .btn-gold { background: linear-gradient(180deg, #f5dc8c, #c4942e); color: #171004; }
-        .btn-secondary { background: rgba(255,255,255,0.08); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.15); }
-      </style>
-    </head>
-    <body>
-      <div class="card">
-        <h1>🎹 Piano Community Android</h1>
-        <p>El archivo APK nativo aún no ha sido subido o compilado en esta instancia de hosting. ¡Puedes jugar ahora mismo a pantalla completa de 2 maneras:</p>
-        <a class="btn btn-gold" href="/">Jugar en la Web / Instalar PWA</a>
-        <a class="btn btn-secondary" href="https://github.com/Bruala33/renacer" target="_blank" rel="noopener">Ver Repositorio & Código</a>
-        <p style="font-size: 11px; color: #8a7c9d; margin-top: 14px; margin-bottom: 0;">Para compilar el APK nativo: clona el repositorio y ejecuta <code>build_android.bat</code> en Windows.</p>
-      </div>
-    </body>
-    </html>
-  `);
+  return res.status(404).json({
+    available: false,
+    error: 'El archivo APK se está preparando. Inténtalo de nuevo en unos segundos.'
+  });
 });
 
 // ==========================================
