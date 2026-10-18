@@ -1411,6 +1411,16 @@
         "accuracy": 18.075363350579963,
         "date": "2026-10-18 14:46:15"
       }
+    ],
+    "osu_2307716": [
+      {
+        "name": "Darwin67",
+        "score": 8910,
+        "stars": 3.5,
+        "combo": 21,
+        "accuracy": 0.4512482255207967,
+        "date": "2026-10-18 17:02:48"
+      }
     ]
   },
   "global": [
@@ -1480,6 +1490,11 @@
       "clefs": 0
     },
     {
+      "name": "Darwin67",
+      "total_score": 8910,
+      "clefs": 0
+    },
+    {
       "name": "Papa",
       "total_score": 7626,
       "clefs": 0
@@ -1533,6 +1548,10 @@
       {
         "name": ".",
         "score": 24975
+      },
+      {
+        "name": "Darwin67",
+        "score": 8910
       },
       {
         "name": "Pablito pop",
