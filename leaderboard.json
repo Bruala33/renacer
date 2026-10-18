@@ -1371,6 +1371,16 @@
         "accuracy": 1.8336091387079474,
         "date": "2026-10-18 09:08:58"
       }
+    ],
+    "top_ace_of_base_the_sign": [
+      {
+        "name": "Dady cool",
+        "score": 823408,
+        "stars": 2,
+        "combo": 419,
+        "accuracy": 41.02547750072868,
+        "date": "2026-10-18 09:44:39"
+      }
     ]
   },
   "global": [
@@ -1401,8 +1411,8 @@
     },
     {
       "name": "Dady cool",
-      "total_score": 1492821,
-      "clefs": 14
+      "total_score": 2316229,
+      "clefs": 22
     },
     {
       "name": "MasterPianist",
@@ -1484,7 +1494,7 @@
       },
       {
         "name": "Dady cool",
-        "score": 1492821
+        "score": 2316229
       },
       {
         "name": "Test",
