@@ -27,6 +27,7 @@ import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
 import androidx.webkit.WebViewAssetLoader
 import java.io.ByteArrayInputStream
+import java.io.File
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
@@ -124,9 +125,31 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun ensureWebViewCacheDirectories() {
+        try {
+            val baseCache = cacheDir
+            val subDirs = listOf(
+                "WebView/Default/HTTP Cache/Code Cache/js",
+                "WebView/Default/HTTP Cache/Code Cache/wasm",
+                "WebView/Default/HTTP Cache",
+                "org.chromium.android_webview"
+            )
+            for (sub in subDirs) {
+                val dir = File(baseCache, sub)
+                if (!dir.exists()) {
+                    dir.mkdirs()
+                }
+            }
+        } catch (_: Exception) {
+        }
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Pre-crear jerarquía de directorios de caché de Chromium WebView para evitar errores de simple_backend_impl.cc
+        ensureWebViewCacheDirectories()
 
         // 1. Mantener pantalla encendida y activar aceleración por hardware a nivel de ventana
         window.addFlags(
@@ -225,7 +248,7 @@ class MainActivity : AppCompatActivity() {
         @Suppress("DEPRECATION")
         settings.allowUniversalAccessFromFileURLs = true
         settings.loadWithOverviewMode = true
-        settings.cacheMode = WebSettings.LOAD_DEFAULT
+        settings.cacheMode = WebSettings.LOAD_NO_CACHE
         @Suppress("DEPRECATION")
         settings.setRenderPriority(WebSettings.RenderPriority.HIGH)
         settings.javaScriptCanOpenWindowsAutomatically = true
