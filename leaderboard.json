@@ -1353,6 +1353,16 @@
         "accuracy": 62.059050655955275,
         "date": "2026-10-18 09:08:38"
       }
+    ],
+    "top_rosana_el_talisman": [
+      {
+        "name": "Dady cool",
+        "score": 24000,
+        "stars": 3.5,
+        "combo": 31,
+        "accuracy": 1.8336091387079474,
+        "date": "2026-10-18 09:08:58"
+      }
     ]
   },
   "global": [
@@ -1383,7 +1393,7 @@
     },
     {
       "name": "Dady cool",
-      "total_score": 845423,
+      "total_score": 869423,
       "clefs": 8
     },
     {
@@ -1466,7 +1476,7 @@
       },
       {
         "name": "Dady cool",
-        "score": 845423
+        "score": 869423
       },
       {
         "name": "Test",
