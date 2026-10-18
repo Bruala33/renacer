@@ -1431,6 +1431,16 @@
         "accuracy": 0.0658544616397761,
         "date": "2026-10-18 17:03:56"
       }
+    ],
+    "osu_2632579": [
+      {
+        "name": "Darwin67",
+        "score": 1875,
+        "stars": 3.5,
+        "combo": 5,
+        "accuracy": 0.10300748905648437,
+        "date": "2026-10-18 17:05:55"
+      }
     ]
   },
   "global": [
@@ -1501,7 +1511,7 @@
     },
     {
       "name": "Darwin67",
-      "total_score": 19620,
+      "total_score": 21495,
       "clefs": 0
     },
     {
@@ -1561,7 +1571,7 @@
       },
       {
         "name": "Darwin67",
-        "score": 19620
+        "score": 21495
       },
       {
         "name": "Pablito pop",
