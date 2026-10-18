@@ -992,6 +992,14 @@
         "combo": 181,
         "accuracy": 92.3345190765153,
         "date": "2026-10-11 18:28:53"
+      },
+      {
+        "name": "Dady cool",
+        "score": 311699,
+        "stars": 5,
+        "combo": 181,
+        "accuracy": 94.5255662606027,
+        "date": "2026-10-18 09:42:45"
       }
     ],
     "top_cecilia_la_incomparable_bao_de_mar_a_medianoche": [
@@ -1393,8 +1401,8 @@
     },
     {
       "name": "Dady cool",
-      "total_score": 869423,
-      "clefs": 8
+      "total_score": 1181122,
+      "clefs": 11
     },
     {
       "name": "MasterPianist",
@@ -1476,7 +1484,7 @@
       },
       {
         "name": "Dady cool",
-        "score": 869423
+        "score": 1181122
       },
       {
         "name": "Test",
