@@ -1415,11 +1415,11 @@
     "osu_2307716": [
       {
         "name": "Darwin67",
-        "score": 8910,
+        "score": 18691,
         "stars": 3.5,
-        "combo": 22,
-        "accuracy": 0.3695576096100172,
-        "date": "2026-10-18 17:05:02"
+        "combo": 28,
+        "accuracy": 1.0763090505895772,
+        "date": "2026-10-18 17:07:15"
       }
     ],
     "osu_2563028": [
@@ -1505,13 +1505,13 @@
       "clefs": 1
     },
     {
-      "name": ".",
-      "total_score": 24975,
+      "name": "Darwin67",
+      "total_score": 40186,
       "clefs": 0
     },
     {
-      "name": "Darwin67",
-      "total_score": 21495,
+      "name": ".",
+      "total_score": 24975,
       "clefs": 0
     },
     {
@@ -1566,12 +1566,12 @@
         "score": 368434
       },
       {
-        "name": ".",
-        "score": 24975
+        "name": "Darwin67",
+        "score": 40186
       },
       {
-        "name": "Darwin67",
-        "score": 21495
+        "name": ".",
+        "score": 24975
       },
       {
         "name": "Pablito pop",
