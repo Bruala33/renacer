@@ -1401,6 +1401,16 @@
         "accuracy": 3.6542034050809953,
         "date": "2026-10-18 10:46:51"
       }
+    ],
+    "top_paulina_rubio_ni_una_sola_palabra": [
+      {
+        "name": "Dady cool",
+        "score": 199060,
+        "stars": 3.5,
+        "combo": 101,
+        "accuracy": 18.075363350579963,
+        "date": "2026-10-18 14:46:15"
+      }
     ]
   },
   "global": [
@@ -1431,8 +1441,8 @@
     },
     {
       "name": "Dady cool",
-      "total_score": 2316229,
-      "clefs": 22
+      "total_score": 2515289,
+      "clefs": 23
     },
     {
       "name": "MasterPianist",
@@ -1514,7 +1524,7 @@
       },
       {
         "name": "Dady cool",
-        "score": 2316229
+        "score": 2515289
       },
       {
         "name": "Test",
