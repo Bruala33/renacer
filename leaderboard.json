@@ -1451,6 +1451,16 @@
         "accuracy": 7.115012499823449,
         "date": "2026-10-18 17:10:55"
       }
+    ],
+    "osu_1550712": [
+      {
+        "name": "Dady cool",
+        "score": 7200,
+        "stars": 3.5,
+        "combo": 14,
+        "accuracy": 0.36943272578753306,
+        "date": "2026-10-18 18:29:05"
+      }
     ]
   },
   "global": [
@@ -1481,7 +1491,7 @@
     },
     {
       "name": "Dady cool",
-      "total_score": 2515289,
+      "total_score": 2522489,
       "clefs": 23
     },
     {
@@ -1569,7 +1579,7 @@
       },
       {
         "name": "Dady cool",
-        "score": 2515289
+        "score": 2522489
       },
       {
         "name": "Test",
