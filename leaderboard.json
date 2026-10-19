@@ -1635,6 +1635,16 @@
         "accuracy": 75.55398396982555,
         "date": "2026-10-19 19:23:45"
       }
+    ],
+    "top_romeo_santos_propuesta_indecente": [
+      {
+        "name": "Dady cool",
+        "score": 616950,
+        "stars": 1,
+        "combo": 257,
+        "accuracy": 22.839510743214227,
+        "date": "2026-10-19 20:49:22"
+      }
     ]
   },
   "global": [
@@ -1650,8 +1660,8 @@
     },
     {
       "name": "Dady cool",
-      "total_score": 13733063,
-      "clefs": 131
+      "total_score": 14350013,
+      "clefs": 137
     },
     {
       "name": "bubu",
@@ -1754,7 +1764,7 @@
     "players": [
       {
         "name": "Dady cool",
-        "score": 9978310
+        "score": 10595260
       },
       {
         "name": "Test",
