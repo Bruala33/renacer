@@ -1607,6 +1607,16 @@
         "accuracy": 98.47340151176599,
         "date": "2026-10-19 18:56:34"
       }
+    ],
+    "osu_1769342": [
+      {
+        "name": "Dady cool",
+        "score": 307169,
+        "stars": 3.5,
+        "combo": 176,
+        "accuracy": 19.719571210115518,
+        "date": "2026-10-19 18:57:54"
+      }
     ]
   },
   "global": [
@@ -1627,8 +1637,8 @@
     },
     {
       "name": "Dady cool",
-      "total_score": 9699142,
-      "clefs": 92
+      "total_score": 10006311,
+      "clefs": 95
     },
     {
       "name": "Azure",
@@ -1726,7 +1736,7 @@
     "players": [
       {
         "name": "Dady cool",
-        "score": 5944389
+        "score": 6251558
       },
       {
         "name": "Test",
