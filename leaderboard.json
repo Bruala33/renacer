@@ -1597,6 +1597,16 @@
         "accuracy": 5.651066037997478,
         "date": "2026-10-19 18:50:41"
       }
+    ],
+    "top_camilo_sesto_melina": [
+      {
+        "name": "Dady cool",
+        "score": 1029050,
+        "stars": 5,
+        "combo": 471,
+        "accuracy": 98.47340151176599,
+        "date": "2026-10-19 18:56:13"
+      }
     ]
   },
   "global": [
@@ -1617,8 +1627,8 @@
     },
     {
       "name": "Dady cool",
-      "total_score": 7641042,
-      "clefs": 72
+      "total_score": 8670092,
+      "clefs": 82
     },
     {
       "name": "Azure",
@@ -1715,12 +1725,12 @@
     "week_id": "2026-W43",
     "players": [
       {
-        "name": "Test",
-        "score": 4133694
+        "name": "Dady cool",
+        "score": 4915339
       },
       {
-        "name": "Dady cool",
-        "score": 3886289
+        "name": "Test",
+        "score": 4133694
       },
       {
         "name": "PixToPix",
