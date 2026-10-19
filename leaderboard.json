@@ -1008,6 +1008,14 @@
         "combo": 181,
         "accuracy": 94.5255662606027,
         "date": "2026-10-18 09:42:50"
+      },
+      {
+        "name": "Test",
+        "score": 252841,
+        "stars": 3.5,
+        "combo": 52,
+        "accuracy": 15.344911766757342,
+        "date": "2026-10-19 07:48:05"
       }
     ],
     "top_cecilia_la_incomparable_bao_de_mar_a_medianoche": [
@@ -1513,6 +1521,11 @@
       "clefs": 35
     },
     {
+      "name": "Test",
+      "total_score": 783628,
+      "clefs": 4
+    },
+    {
       "name": "MasterPianist",
       "total_score": 600000,
       "clefs": 6
@@ -1526,11 +1539,6 @@
       "name": "BeatMaster",
       "total_score": 547200,
       "clefs": 0
-    },
-    {
-      "name": "Test",
-      "total_score": 530787,
-      "clefs": 2
     },
     {
       "name": "Layla",
@@ -1597,12 +1605,12 @@
     "week_id": "2026-W43",
     "players": [
       {
-        "name": "PixToPix",
-        "score": 1500
+        "name": "Test",
+        "score": 253987
       },
       {
-        "name": "Test",
-        "score": 1146
+        "name": "PixToPix",
+        "score": 1500
       }
     ]
   }
