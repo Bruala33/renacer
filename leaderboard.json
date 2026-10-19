@@ -1547,6 +1547,16 @@
         "accuracy": 11.080362483411509,
         "date": "2026-10-19 15:57:38"
       }
+    ],
+    "top_jonas_brothers_when_you_look_me_in_the_eyes": [
+      {
+        "name": "Test",
+        "score": 65974,
+        "stars": 3.5,
+        "combo": 58,
+        "accuracy": 3.4373811421813047,
+        "date": "2026-10-19 16:32:53"
+      }
     ]
   },
   "global": [
@@ -1577,7 +1587,7 @@
     },
     {
       "name": "Test",
-      "total_score": 4550740,
+      "total_score": 4616714,
       "clefs": 39
     },
     {
@@ -1666,7 +1676,7 @@
     "players": [
       {
         "name": "Test",
-        "score": 4021099
+        "score": 4087073
       },
       {
         "name": "Dady cool",
