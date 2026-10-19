@@ -1625,6 +1625,16 @@
         "accuracy": 19.719571210115518,
         "date": "2026-10-19 18:57:54"
       }
+    ],
+    "top_rodolfo_chikilicuatre_el_baile_del_chikichiki": [
+      {
+        "name": "Dady cool",
+        "score": 480750,
+        "stars": 4,
+        "combo": 259,
+        "accuracy": 75.55398396982555,
+        "date": "2026-10-19 19:23:45"
+      }
     ]
   },
   "global": [
@@ -1640,8 +1650,8 @@
     },
     {
       "name": "Dady cool",
-      "total_score": 13252313,
-      "clefs": 127
+      "total_score": 13733063,
+      "clefs": 131
     },
     {
       "name": "bubu",
@@ -1744,7 +1754,7 @@
     "players": [
       {
         "name": "Dady cool",
-        "score": 9497560
+        "score": 9978310
       },
       {
         "name": "Test",
