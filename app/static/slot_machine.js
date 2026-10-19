@@ -188,16 +188,18 @@
     initSlotAudio();
     try {
       [1, 2, 3, 4, 5].forEach(tier => {
-        const src = `./assets/slot_win_${tier}.mp3`;
+        const src = `./assets/slot_win_${tier}.mp3?v=4.0`;
         if (!winAudioCache[src]) {
           const a = new Audio(src);
+          a.preload = 'auto';
           a.load();
           winAudioCache[src] = a;
         }
       });
       if (!casinoBgmAudio) {
-        casinoBgmAudio = new Audio('./assets/casino_music.mp3');
+        casinoBgmAudio = new Audio('./assets/casino_music.mp3?v=4.0');
         casinoBgmAudio.loop = true;
+        casinoBgmAudio.preload = 'auto';
         casinoBgmAudio.load();
       }
     } catch (_) {}
@@ -273,7 +275,7 @@
     else tier = 1;                 // 3x Frutas (limón, naranja, uvas, cerezas) (1.71s)
 
     try {
-      const src = `./assets/slot_win_${tier}.mp3`;
+      const src = `./assets/slot_win_${tier}.mp3?v=4.0`;
       if (!winAudioCache[src]) {
         winAudioCache[src] = new Audio(src);
       }
@@ -299,9 +301,10 @@
       window.pauseMenuAmbientMusic();
     }
     initSlotAudio();
-    if (!casinoBgmAudio) {
-      casinoBgmAudio = new Audio('./assets/casino_music.mp3');
+    if (!casinoBgmAudio || casinoBgmAudio.error) {
+      casinoBgmAudio = new Audio('./assets/casino_music.mp3?v=4.0');
       casinoBgmAudio.loop = true;
+      casinoBgmAudio.preload = 'auto';
       casinoBgmAudio.addEventListener('ended', () => {
         if (window.isCasinoActive && casinoBgmAudio) {
           casinoBgmAudio.currentTime = 0;
@@ -309,7 +312,8 @@
         }
       });
     }
-    casinoBgmAudio.volume = 0.55;
+    casinoBgmAudio.muted = isSoundMuted;
+    casinoBgmAudio.volume = 0.65;
     try {
       const p = casinoBgmAudio.play();
       if (p !== undefined && typeof p.catch === 'function') {
@@ -318,7 +322,7 @@
           const modal = document.getElementById('granFortunaModal');
           if (modal) {
             const unlockHandler = () => {
-              if (window.isCasinoActive && casinoBgmAudio) {
+              if (window.isCasinoActive && casinoBgmAudio && !isSoundMuted) {
                 casinoBgmAudio.play().catch(() => {});
               }
               modal.removeEventListener('click', unlockHandler);

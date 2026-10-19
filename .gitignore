@@ -90,6 +90,13 @@ love_man.bin
 !app/static/songs/**
 !app/static/songs/**/*.mp3
 !app/static/songs/**/*.json
+!app/static/assets/
+!app/static/assets/**
+!app/static/assets/*.mp3
+!app/src/main/assets/www/assets/*.mp3
+!android/app/src/main/assets/www/assets/*.mp3
+!app/src/main/assets/www/songs/**/*.mp3
+!android/app/src/main/assets/www/songs/**/*.mp3
 
 
 

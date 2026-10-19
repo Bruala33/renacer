@@ -1845,12 +1845,12 @@
                 </svg>
                 <span class="text-amber-300 font-bold" data-i18n="apk_card_title">App Oficial Android (APK):</span>
               </span>
-              <span class="text-[10px] font-mono text-amber-400/80 bg-amber-400/10 px-1.5 py-0.5 rounded">v1.2</span>
+              <span class="text-[10px] font-mono text-amber-400/80 bg-amber-400/10 px-1.5 py-0.5 rounded">v1.4</span>
             </div>
             <p class="text-[10px] text-gray-300 leading-tight" data-i18n="apk_card_desc">
               Instala la app oficial en tu móvil para jugar a pantalla completa, vibración háptica y con disponibilidad 100% offline.
             </p>
-            <a href="/download/apk" download="PianoCommunity.apk" class="w-full py-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 text-black font-black rounded-lg text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition active:scale-95 cursor-pointer">
+            <a href="/download/apk?v=4.0" download="PianoCommunity.apk" class="w-full py-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 text-black font-black rounded-lg text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition active:scale-95 cursor-pointer">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               <span data-i18n="apk_card_btn">DESCARGAR APK ANDROID</span>
             </a>
@@ -2247,7 +2247,7 @@
           <p data-i18n="onboarding_apk_hint" class="text-[10px] text-amber-300/90 leading-tight">
             💡 Recuerda que también puedes descargar la app nativa para Android en cualquier momento desde <b>Ajustes ⚙️</b>.
           </p>
-          <a href="/download/apk" download="PianoCommunity.apk" class="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 rounded-xl text-amber-300 text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer">
+          <a href="/download/apk?v=4.0" download="PianoCommunity.apk" class="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 rounded-xl text-amber-300 text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="text-amber-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             <span data-i18n="onboarding_apk_btn">Descargar App (APK Android)</span>
           </a>
@@ -3171,9 +3171,9 @@
 
   </div> <!-- End of game-viewport -->
 
-  <script src="./parsers.js?v=3.9"></script>
-  <script src="./game.js?v=3.9"></script>
-  <script src="./slot_machine.js?v=1789652777"></script>
+  <script src="./parsers.js?v=4.0"></script>
+  <script src="./game.js?v=4.0"></script>
+  <script src="./slot_machine.js?v=4.0"></script>
   <script src="./gachapon_3d.js?v=1.0"></script>
   <script src="./songs/comm_camilo_sesto/chart.js"></script>
   <script src="./songs/renacer/chart.js"></script>
@@ -13481,20 +13481,29 @@ function stopPianoCameraLoop() {
 
       container.innerHTML = '';
 
-      // Panel superior de Premios Semanales y Reloj dibujado 100% con Píxeles LED
+      // Panel superior de Premios Semanales y Reloj en dos módulos LED apilados (0 solapamiento)
       const prizeWrap = document.createElement('div');
-      prizeWrap.className = 'p-1 mb-1.5 bg-[#060401] border border-[#ffb300]/45 rounded';
+      prizeWrap.className = 'p-1 mb-1.5 bg-[#060401] border border-[#ffb300]/45 rounded space-y-1';
       const prizeCanvas = document.createElement('canvas');
-      prizeCanvas.className = 'w-full h-[24px] block';
+      prizeCanvas.className = 'w-full h-[22px] block';
+      const timerCanvas = document.createElement('canvas');
+      timerCanvas.className = 'w-full h-[20px] block border-t border-[#241808] pt-0.5';
       prizeWrap.appendChild(prizeCanvas);
+      prizeWrap.appendChild(timerCanvas);
       container.appendChild(prizeWrap);
 
       renderLedMatrixCanvas(
         prizeCanvas,
-        330, 24, 2.2,
+        336, 22, 2.05,
         [
-          { text: '1.+1000 2.+500 3.+250', color: '#ffcc00', colOffset: 1 },
-          { text: timeRemainingText, color: '#00f5a0', align: 'right', rightPad: 1 }
+          { text: '1.+1000  2.+500  3.+250', color: '#ffcc00', align: 'center' }
+        ]
+      );
+      renderLedMatrixCanvas(
+        timerCanvas,
+        336, 20, 2.0,
+        [
+          { text: `TIEMPO: ${timeRemainingText}`, color: '#00f5a0', align: 'center' }
         ]
       );
 
@@ -13802,25 +13811,42 @@ function stopPianoCameraLoop() {
         const cleanName = normalizeLedText(r.player_name || 'JUGADOR').slice(0, maxNameChars);
 
         const rowWrap = document.createElement('div');
-        rowWrap.className = `p-1 bg-[#050301] border ${borderCol} rounded`;
+        rowWrap.className = `p-1 bg-[#050301] border ${borderCol} rounded flex items-center gap-1`;
+
         const rowCanvas = document.createElement('canvas');
-        rowCanvas.className = 'w-full h-[28px] block';
+        rowCanvas.className = 'flex-1 min-w-0 h-[28px] block';
         rowWrap.appendChild(rowCanvas);
-        container.appendChild(rowWrap);
 
-        // Construir los segmentos LED para la fila: Puesto + Nombre + Premio + Puntuación
+        const mainWidthCss = prizeStr ? 256 : 330;
+        const mainPitchCss = 2.05;
+        const mainTotalCols = Math.floor((mainWidthCss - 4) / mainPitchCss);
         const rightScoreCols = scoreStr.length * 6;
-        const segments = [
-          { text: rankStr, color: ledColor, colOffset: 1 },
-          { text: cleanName, color: ledColor, colOffset: 15 }
-        ];
-        if (prizeStr) {
-          const prizeRightPad = rightScoreCols + 2;
-          segments.push({ text: prizeStr, color: '#00f5a0', align: 'right', rightPad: prizeRightPad });
-        }
-        segments.push({ text: scoreStr, color: ledColor, align: 'right', rightPad: 1 });
+        const safeNameMaxCol = Math.max(27, mainTotalCols - rightScoreCols - 4);
 
-        renderLedMatrixCanvas(rowCanvas, 330, 28, 2.35, segments);
+        const mainSegments = [
+          { text: rankStr, color: ledColor, colOffset: 1 },
+          { text: cleanName, color: ledColor, colOffset: 15, maxCol: safeNameMaxCol },
+          { text: scoreStr, color: ledColor, align: 'right', rightPad: 1 }
+        ];
+        renderLedMatrixCanvas(rowCanvas, mainWidthCss, 28, mainPitchCss, mainSegments);
+
+        if (prizeStr) {
+          const prizeCell = document.createElement('div');
+          prizeCell.className = 'w-[68px] flex-shrink-0 pl-1 border-l-2 border-[#261808]';
+          const prizeBadgeCanvas = document.createElement('canvas');
+          prizeBadgeCanvas.className = 'w-full h-[28px] block';
+          prizeCell.appendChild(prizeBadgeCanvas);
+          rowWrap.appendChild(prizeCell);
+
+          const prizeLedCol = isMe ? '#ffe600' : '#00f5a0';
+          renderLedMatrixCanvas(
+            prizeBadgeCanvas,
+            64, 28, 1.95,
+            [{ text: prizeStr, color: prizeLedCol, align: 'center' }]
+          );
+        }
+
+        container.appendChild(rowWrap);
       });
     }
 

@@ -532,42 +532,55 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 6,
-    version_name: '1.3.2',
+    version_code: 7,
+    version_name: '1.4.0',
     release_notes: 'Piano Community Web & Offline Player. Sincronización comunitaria y soporte osu! Mania / Clone Hero.',
-    download_url: '/download/apk',
+    download_url: '/download/apk?v=4.0',
   });
 });
 
-app.all(['/download/apk', '/api/v1/app/download_apk', '/PianoCommunity.apk', '/downloads/PianoCommunity.apk'], (req, res) => {
+app.all(['/download/apk', '/api/v1/app/download_apk', '/PianoCommunity.apk', '/downloads/PianoCommunity.apk', '/HyperRhythm.apk'], (req, res) => {
   const apkCandidates = [
+    path.join(__dirname, '.build-outputs', 'app-debug.apk'),
+    path.join(__dirname, 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk'),
+    path.join(__dirname, 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk'),
+    path.join(__dirname, 'android', 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk'),
+    path.join(__dirname, 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk'),
     path.join(STATIC_DIR, 'downloads', 'PianoCommunity.apk'),
     path.join(STATIC_DIR, 'PianoCommunity.apk'),
+    path.join(STATIC_DIR, 'HyperRhythm.apk'),
     path.join(__dirname, 'PianoCommunity.apk'),
     path.join(__dirname, 'downloads', 'PianoCommunity.apk'),
     path.join(__dirname, 'beatstar.apk'),
     path.join(STATIC_DIR, 'beatstar.apk'),
     path.join(__dirname, 'downloads', 'beatstar.apk'),
     path.join(STATIC_DIR, 'downloads', 'beatstar.apk'),
-    path.join(__dirname, 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk'),
-    path.join(__dirname, 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk'),
-    path.join(__dirname, 'android', 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk'),
-    path.join(__dirname, 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk'),
   ];
+  const validApks = [];
   for (const apkPath of apkCandidates) {
-    if (fs.existsSync(apkPath)) {
-      const stat = fs.statSync(apkPath);
-      if (stat.size > 10000) {
-        res.setHeader('Content-Type', 'application/vnd.android.package-archive');
-        res.setHeader('Content-Disposition', 'attachment; filename="PianoCommunity.apk"');
-        res.setHeader('Content-Length', stat.size);
-        res.setHeader('Cache-Control', 'no-cache');
-        if (req.method === 'HEAD') {
-          return res.status(200).end();
+    try {
+      if (fs.existsSync(apkPath)) {
+        const stat = fs.statSync(apkPath);
+        if (stat.isFile() && stat.size > 10000) {
+          validApks.push({ apkPath, stat });
         }
-        return fs.createReadStream(apkPath).pipe(res);
       }
+    } catch (_) {}
+  }
+  validApks.sort((a, b) => b.stat.mtimeMs - a.stat.mtimeMs);
+
+  if (validApks.length > 0) {
+    const { apkPath, stat } = validApks[0];
+    res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+    res.setHeader('Content-Disposition', 'attachment; filename="PianoCommunity.apk"');
+    res.setHeader('Content-Length', stat.size);
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    if (req.method === 'HEAD') {
+      return res.status(200).end();
     }
+    return fs.createReadStream(apkPath).pipe(res);
   }
 
   return res.status(404).json({
@@ -1444,7 +1457,7 @@ app.use(
   '/static',
   express.static(STATIC_DIR, {
     setHeaders: (res, filePath) => {
-      if (filePath.endsWith('.css') || filePath.endsWith('.js') || filePath.endsWith('.html')) {
+      if (filePath.endsWith('.css') || filePath.endsWith('.js') || filePath.endsWith('.html') || filePath.endsWith('.apk')) {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       } else {
         res.setHeader('Cache-Control', 'public, max-age=3600');
@@ -1457,7 +1470,7 @@ app.use(
 app.use(
   express.static(STATIC_DIR, {
     setHeaders: (res, filePath) => {
-      if (filePath.endsWith('.css') || filePath.endsWith('.js') || filePath.endsWith('.html')) {
+      if (filePath.endsWith('.css') || filePath.endsWith('.js') || filePath.endsWith('.html') || filePath.endsWith('.apk')) {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       } else {
         res.setHeader('Cache-Control', 'public, max-age=3600');

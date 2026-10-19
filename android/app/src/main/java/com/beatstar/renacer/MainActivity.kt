@@ -27,6 +27,7 @@ import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
 import androidx.webkit.WebViewAssetLoader
 import java.io.ByteArrayInputStream
+import java.io.File
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
@@ -46,7 +47,8 @@ class MainActivity : AppCompatActivity() {
         private val CORS_HEADERS = mapOf(
             "Access-Control-Allow-Origin" to "*",
             "Access-Control-Allow-Methods" to "GET, HEAD, OPTIONS",
-            "Access-Control-Allow-Headers" to "*"
+            "Access-Control-Allow-Headers" to "*",
+            "Cache-Control" to "no-store, no-cache, must-revalidate"
         )
 
         fun guessMimeType(path: String): String {
@@ -86,7 +88,21 @@ class MainActivity : AppCompatActivity() {
                 return notFoundResponse()
             }
 
-            val candidates = LinkedHashSet<String>(4)
+            if (cleanPath == "api/songs" || cleanPath == "api/custom-songs") {
+                return WebResourceResponse(
+                    "application/json",
+                    "UTF-8",
+                    200,
+                    "OK",
+                    CORS_HEADERS,
+                    ByteArrayInputStream("[]".toByteArray(Charsets.UTF_8))
+                )
+            }
+
+            val candidates = LinkedHashSet<String>(6)
+            if (cleanPath == "api/leaderboard" || cleanPath == "leaderboard.json") {
+                candidates.add("www/leaderboard.json")
+            }
             candidates.add(cleanPath)
             if (!cleanPath.startsWith("www/")) {
                 candidates.add("www/$cleanPath")
@@ -124,9 +140,44 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun ensureDirectoryPath(root: File, relativePath: String) {
+        var current = root
+        for (part in relativePath.split('/')) {
+            if (part.isEmpty()) continue
+            current = File(current, part)
+            if (current.exists() && !current.isDirectory) {
+                current.delete()
+            }
+            if (!current.exists()) {
+                current.mkdirs()
+            }
+        }
+    }
+
+    private fun ensureWebViewCacheDirectories() {
+        try {
+            val roots = listOfNotNull(cacheDir, codeCacheDir)
+            val subDirs = listOf(
+                "WebView/Default/HTTP Cache/Code Cache/js",
+                "WebView/Default/HTTP Cache/Code Cache/wasm",
+                "WebView/Default/HTTP Cache",
+                "org.chromium.android_webview"
+            )
+            for (root in roots) {
+                for (sub in subDirs) {
+                    ensureDirectoryPath(root, sub)
+                }
+            }
+        } catch (_: Exception) {
+        }
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Pre-crear jerarquía de directorios de caché de Chromium WebView para evitar errores de simple_backend_impl.cc
+        ensureWebViewCacheDirectories()
 
         // 1. Mantener pantalla encendida y activar aceleración por hardware a nivel de ventana
         window.addFlags(
@@ -225,7 +276,7 @@ class MainActivity : AppCompatActivity() {
         @Suppress("DEPRECATION")
         settings.allowUniversalAccessFromFileURLs = true
         settings.loadWithOverviewMode = true
-        settings.cacheMode = WebSettings.LOAD_DEFAULT
+        settings.cacheMode = WebSettings.LOAD_NO_CACHE
         @Suppress("DEPRECATION")
         settings.setRenderPriority(WebSettings.RenderPriority.HIGH)
         settings.javaScriptCanOpenWindowsAutomatically = true
@@ -366,8 +417,9 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(webView)
 
-        // 9. Carga inicial del juego
-        webView.loadUrl("https://appassets.androidplatform.net/assets/www/game.html")
+        // 9. Limpiar caché de WebView y cargar la versión actualizada del juego
+        webView.clearCache(true)
+        webView.loadUrl("https://appassets.androidplatform.net/assets/www/game.html?v=4.0")
 
         hideSystemUI()
     }
