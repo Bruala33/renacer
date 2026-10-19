@@ -1537,6 +1537,16 @@
         "accuracy": 96.33702272941412,
         "date": "2026-10-19 11:40:21"
       }
+    ],
+    "top_mecano_tu": [
+      {
+        "name": "Dady cool",
+        "score": 214330,
+        "stars": 3.5,
+        "combo": 129,
+        "accuracy": 11.080362483411509,
+        "date": "2026-10-19 15:57:38"
+      }
     ]
   },
   "global": [
@@ -1557,8 +1567,8 @@
     },
     {
       "name": "Dady cool",
-      "total_score": 7231113,
-      "clefs": 69
+      "total_score": 7445443,
+      "clefs": 71
     },
     {
       "name": "Azure",
@@ -1660,7 +1670,7 @@
       },
       {
         "name": "Dady cool",
-        "score": 3476360
+        "score": 3690690
       },
       {
         "name": "PixToPix",
