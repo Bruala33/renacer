@@ -1461,6 +1461,16 @@
         "accuracy": 5.466732069941824,
         "date": "2026-10-18 18:32:37"
       }
+    ],
+    "osu_65374": [
+      {
+        "name": "PixToPix",
+        "score": 1500,
+        "stars": 3.5,
+        "combo": 4,
+        "accuracy": 0.06982265046781176,
+        "date": "2026-10-19 01:27:37"
+      }
     ]
   },
   "global": [
@@ -1560,6 +1570,11 @@
       "clefs": 0
     },
     {
+      "name": "PixToPix",
+      "total_score": 1500,
+      "clefs": 0
+    },
+    {
       "name": "Mozart",
       "total_score": 1328,
       "clefs": 0
@@ -1571,35 +1586,11 @@
     }
   ],
   "weekly": {
-    "week_id": "2026-W42",
+    "week_id": "2026-W43",
     "players": [
       {
-        "name": "Azure",
-        "score": 5132756
-      },
-      {
-        "name": "Dady cool",
-        "score": 3754753
-      },
-      {
-        "name": "Test",
-        "score": 368434
-      },
-      {
-        "name": "Darwin67",
-        "score": 89102
-      },
-      {
-        "name": ".",
-        "score": 24975
-      },
-      {
-        "name": "Pablito pop",
-        "score": 4800
-      },
-      {
-        "name": "Rocky",
-        "score": 3600
+        "name": "PixToPix",
+        "score": 1500
       }
     ]
   }
