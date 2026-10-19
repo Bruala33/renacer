@@ -1459,11 +1459,11 @@
     "osu_2632579": [
       {
         "name": "Darwin67",
-        "score": 1875,
-        "stars": 3.5,
-        "combo": 5,
-        "accuracy": 0.10300748905648437,
-        "date": "2026-10-18 17:05:55"
+        "score": 265556,
+        "stars": 1,
+        "combo": 114,
+        "accuracy": 28.373034740289228,
+        "date": "2026-10-19 21:14:02"
       }
     ],
     "top_dragon_ball_la_fantstica_aventura": [
@@ -1740,8 +1740,8 @@
     },
     {
       "name": "Darwin67",
-      "total_score": 89102,
-      "clefs": 0
+      "total_score": 354658,
+      "clefs": 2
     },
     {
       "name": ".",
@@ -1799,6 +1799,10 @@
       {
         "name": "Test",
         "score": 4133694
+      },
+      {
+        "name": "Darwin67",
+        "score": 265556
       },
       {
         "name": "PixToPix",
