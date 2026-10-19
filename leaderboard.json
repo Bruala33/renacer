@@ -1665,6 +1665,16 @@
         "accuracy": 35.05348366579936,
         "date": "2026-10-19 20:54:13"
       }
+    ],
+    "top_pereza_como_lo_tienes_tu": [
+      {
+        "name": "Dady cool",
+        "score": 17850,
+        "stars": 3.5,
+        "combo": 23,
+        "accuracy": 1.0800429838955607,
+        "date": "2026-10-19 21:12:00"
+      }
     ]
   },
   "global": [
@@ -1680,7 +1690,7 @@
     },
     {
       "name": "Dady cool",
-      "total_score": 16103468,
+      "total_score": 16121318,
       "clefs": 154
     },
     {
@@ -1784,7 +1794,7 @@
     "players": [
       {
         "name": "Dady cool",
-        "score": 12348715
+        "score": 12366565
       },
       {
         "name": "Test",
