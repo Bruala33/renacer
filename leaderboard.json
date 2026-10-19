@@ -831,7 +831,7 @@
         "stars": 5,
         "combo": 745,
         "accuracy": 97.77827178969069,
-        "date": "2026-10-19 19:22:11"
+        "date": "2026-10-19 19:22:28"
       },
       {
         "name": "Rocky",
@@ -1640,8 +1640,8 @@
     },
     {
       "name": "Dady cool",
-      "total_score": 11629312,
-      "clefs": 111
+      "total_score": 13252313,
+      "clefs": 127
     },
     {
       "name": "bubu",
@@ -1744,7 +1744,7 @@
     "players": [
       {
         "name": "Dady cool",
-        "score": 7874559
+        "score": 9497560
       },
       {
         "name": "Test",
