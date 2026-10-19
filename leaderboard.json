@@ -1557,6 +1557,16 @@
         "accuracy": 3.4373811421813047,
         "date": "2026-10-19 16:32:53"
       }
+    ],
+    "top_chayanne_completamente_enamorados": [
+      {
+        "name": "Dady cool",
+        "score": 22275,
+        "stars": 3.5,
+        "combo": 31,
+        "accuracy": 0.9915168003674955,
+        "date": "2026-10-19 16:33:48"
+      }
     ]
   },
   "global": [
@@ -1577,7 +1587,7 @@
     },
     {
       "name": "Dady cool",
-      "total_score": 7445443,
+      "total_score": 7467718,
       "clefs": 71
     },
     {
@@ -1680,7 +1690,7 @@
       },
       {
         "name": "Dady cool",
-        "score": 3690690
+        "score": 3712965
       },
       {
         "name": "PixToPix",
