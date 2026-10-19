@@ -1527,6 +1527,16 @@
         "accuracy": 92.92807050207907,
         "date": "2026-10-19 10:13:18"
       }
+    ],
+    "top_caf_quijano_la_taberna_del_buda": [
+      {
+        "name": "Dady cool",
+        "score": 1738180,
+        "stars": 5,
+        "combo": 837,
+        "accuracy": 96.33702272941412,
+        "date": "2026-10-19 11:39:26"
+      }
     ]
   },
   "global": [
@@ -1546,6 +1556,11 @@
       "clefs": 100
     },
     {
+      "name": "Dady cool",
+      "total_score": 5492933,
+      "clefs": 52
+    },
+    {
       "name": "Azure",
       "total_score": 5132756,
       "clefs": 43
@@ -1559,11 +1574,6 @@
       "name": "bobon",
       "total_score": 3845429,
       "clefs": 33
-    },
-    {
-      "name": "Dady cool",
-      "total_score": 3754753,
-      "clefs": 35
     },
     {
       "name": "MasterPianist",
@@ -1647,6 +1657,10 @@
       {
         "name": "Test",
         "score": 4021099
+      },
+      {
+        "name": "Dady cool",
+        "score": 1738180
       },
       {
         "name": "PixToPix",
