@@ -826,6 +826,14 @@
     ],
     "top_fernando_esteso_la_ramona": [
       {
+        "name": "Dady cool",
+        "score": 1623001,
+        "stars": 5,
+        "combo": 745,
+        "accuracy": 97.77827178969069,
+        "date": "2026-10-19 19:22:11"
+      },
+      {
         "name": "Rocky",
         "score": 662653,
         "stars": 2,
@@ -1631,14 +1639,14 @@
       "clefs": 169
     },
     {
+      "name": "Dady cool",
+      "total_score": 11629312,
+      "clefs": 111
+    },
+    {
       "name": "bubu",
       "total_score": 10570609,
       "clefs": 100
-    },
-    {
-      "name": "Dady cool",
-      "total_score": 10006311,
-      "clefs": 95
     },
     {
       "name": "Azure",
@@ -1736,7 +1744,7 @@
     "players": [
       {
         "name": "Dady cool",
-        "score": 6251558
+        "score": 7874559
       },
       {
         "name": "Test",
