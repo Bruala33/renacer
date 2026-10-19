@@ -1495,7 +1495,7 @@
         "stars": 4,
         "combo": 485,
         "accuracy": 88.02061451582996,
-        "date": "2026-10-19 09:41:28"
+        "date": "2026-10-19 09:46:57"
       }
     ]
   },
@@ -1526,14 +1526,14 @@
       "clefs": 33
     },
     {
+      "name": "Test",
+      "total_score": 3825950,
+      "clefs": 34
+    },
+    {
       "name": "Dady cool",
       "total_score": 3754753,
       "clefs": 35
-    },
-    {
-      "name": "Test",
-      "total_score": 2304789,
-      "clefs": 19
     },
     {
       "name": "MasterPianist",
@@ -1616,7 +1616,7 @@
     "players": [
       {
         "name": "Test",
-        "score": 1775148
+        "score": 3296309
       },
       {
         "name": "PixToPix",
