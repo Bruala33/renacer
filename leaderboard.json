@@ -1605,7 +1605,7 @@
         "stars": 5,
         "combo": 471,
         "accuracy": 98.47340151176599,
-        "date": "2026-10-19 18:56:13"
+        "date": "2026-10-19 18:56:34"
       }
     ]
   },
@@ -1627,8 +1627,8 @@
     },
     {
       "name": "Dady cool",
-      "total_score": 8670092,
-      "clefs": 82
+      "total_score": 9699142,
+      "clefs": 92
     },
     {
       "name": "Azure",
@@ -1726,7 +1726,7 @@
     "players": [
       {
         "name": "Dady cool",
-        "score": 4915339
+        "score": 5944389
       },
       {
         "name": "Test",
