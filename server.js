@@ -1218,7 +1218,17 @@ app.get([
   '/api/v1/community/leaderboards/weekly'
 ], (req, res) => {
   const currentWeek = getIsoWeekId();
-  const weekMap = playerWeeklyAccumulator.get(currentWeek) || new Map();
+  const requestedWeek = (req.query && req.query.week_id) ? String(req.query.week_id) : currentWeek;
+  let weekMap = playerWeeklyAccumulator.get(requestedWeek);
+  if ((!weekMap || weekMap.size === 0) && playerWeeklyAccumulator.size > 0) {
+    // Si la semana recién empieza o se solicita la última con actividad, usar la semana registrada más reciente
+    const allWeeks = Array.from(playerWeeklyAccumulator.keys()).sort();
+    const fallbackWeek = allWeeks[allWeeks.length - 1];
+    if (requestedWeek !== currentWeek || (weekMap === undefined)) {
+      weekMap = playerWeeklyAccumulator.get(fallbackWeek);
+    }
+  }
+  weekMap = weekMap || new Map();
   const weeklyScores = Array.from(weekMap.values())
     .sort((a, b) => (b.score || b.total_score || 0) - (a.score || a.total_score || 0))
     .slice(0, 50)
@@ -1231,11 +1241,25 @@ app.get([
       clefs: s.clefs || Math.floor((s.score || s.total_score || 0) * 0.00001)
     }));
 
+  // Calcular tiempo restante hasta el Domingo 23:59:59 UTC
+  const now = new Date();
+  const dayOfWeek = now.getUTCDay(); // 0 = Domingo, 1 = Lunes, ...
+  const daysUntilSunday = dayOfWeek === 0 ? 0 : (7 - dayOfWeek);
+  const endOfWeekUtc = Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate() + daysUntilSunday,
+    23, 59, 59, 999
+  );
+  const timeRemainingMs = Math.max(0, endOfWeekUtc - now.getTime());
+
   res.json({
     success: true,
     weekly_leaderboard: weeklyScores,
     leaderboard: weeklyScores,
-    week_id: currentWeek,
+    week_id: requestedWeek,
+    current_week_id: currentWeek,
+    time_remaining_ms: timeRemainingMs,
     total_participants: weeklyScores.length
   });
 });

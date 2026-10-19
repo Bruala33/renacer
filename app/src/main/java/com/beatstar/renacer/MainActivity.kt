@@ -47,7 +47,8 @@ class MainActivity : AppCompatActivity() {
         private val CORS_HEADERS = mapOf(
             "Access-Control-Allow-Origin" to "*",
             "Access-Control-Allow-Methods" to "GET, HEAD, OPTIONS",
-            "Access-Control-Allow-Headers" to "*"
+            "Access-Control-Allow-Headers" to "*",
+            "Cache-Control" to "no-store, no-cache, must-revalidate"
         )
 
         fun guessMimeType(path: String): String {
@@ -87,7 +88,21 @@ class MainActivity : AppCompatActivity() {
                 return notFoundResponse()
             }
 
-            val candidates = LinkedHashSet<String>(4)
+            if (cleanPath == "api/songs" || cleanPath == "api/custom-songs") {
+                return WebResourceResponse(
+                    "application/json",
+                    "UTF-8",
+                    200,
+                    "OK",
+                    CORS_HEADERS,
+                    ByteArrayInputStream("[]".toByteArray(Charsets.UTF_8))
+                )
+            }
+
+            val candidates = LinkedHashSet<String>(6)
+            if (cleanPath == "api/leaderboard" || cleanPath == "leaderboard.json") {
+                candidates.add("www/leaderboard.json")
+            }
             candidates.add(cleanPath)
             if (!cleanPath.startsWith("www/")) {
                 candidates.add("www/$cleanPath")
@@ -125,19 +140,32 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun ensureDirectoryPath(root: File, relativePath: String) {
+        var current = root
+        for (part in relativePath.split('/')) {
+            if (part.isEmpty()) continue
+            current = File(current, part)
+            if (current.exists() && !current.isDirectory) {
+                current.delete()
+            }
+            if (!current.exists()) {
+                current.mkdirs()
+            }
+        }
+    }
+
     private fun ensureWebViewCacheDirectories() {
         try {
-            val baseCache = cacheDir
+            val roots = listOfNotNull(cacheDir, codeCacheDir)
             val subDirs = listOf(
                 "WebView/Default/HTTP Cache/Code Cache/js",
                 "WebView/Default/HTTP Cache/Code Cache/wasm",
                 "WebView/Default/HTTP Cache",
                 "org.chromium.android_webview"
             )
-            for (sub in subDirs) {
-                val dir = File(baseCache, sub)
-                if (!dir.exists()) {
-                    dir.mkdirs()
+            for (root in roots) {
+                for (sub in subDirs) {
+                    ensureDirectoryPath(root, sub)
                 }
             }
         } catch (_: Exception) {
