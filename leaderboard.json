@@ -506,6 +506,14 @@
         "combo": 1,
         "accuracy": 99.85915492957747,
         "date": "2026-09-20 20:13:46"
+      },
+      {
+        "name": "Test",
+        "score": 573,
+        "stars": 4,
+        "combo": 1,
+        "accuracy": 80.70422535211267,
+        "date": "2026-10-19 07:45:14"
       }
     ],
     "top_manolo_garcia_a_san_fernando": [
@@ -1521,7 +1529,7 @@
     },
     {
       "name": "Test",
-      "total_score": 529641,
+      "total_score": 530214,
       "clefs": 2
     },
     {
@@ -1591,6 +1599,10 @@
       {
         "name": "PixToPix",
         "score": 1500
+      },
+      {
+        "name": "Test",
+        "score": 573
       }
     ]
   }
