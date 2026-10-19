@@ -1645,6 +1645,16 @@
         "accuracy": 22.839510743214227,
         "date": "2026-10-19 20:49:22"
       }
+    ],
+    "top_luis_fonsi_feat_daddy_yankee_despacito": [
+      {
+        "name": "Dady cool",
+        "score": 1207830,
+        "stars": 2,
+        "combo": 600,
+        "accuracy": 47.99198007893567,
+        "date": "2026-10-19 20:51:46"
+      }
     ]
   },
   "global": [
@@ -1660,8 +1670,8 @@
     },
     {
       "name": "Dady cool",
-      "total_score": 14350013,
-      "clefs": 137
+      "total_score": 15557843,
+      "clefs": 149
     },
     {
       "name": "bubu",
@@ -1764,7 +1774,7 @@
     "players": [
       {
         "name": "Dady cool",
-        "score": 10595260
+        "score": 11803090
       },
       {
         "name": "Test",
