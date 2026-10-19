@@ -1577,6 +1577,16 @@
         "accuracy": 3.5256359356082347,
         "date": "2026-10-19 16:34:33"
       }
+    ],
+    "top_la_sonora_de_tommy_rey_la_aranita": [
+      {
+        "name": "Dady cool",
+        "score": 53100,
+        "stars": 3.5,
+        "combo": 52,
+        "accuracy": 3.5038056872507,
+        "date": "2026-10-19 18:49:23"
+      }
     ]
   },
   "global": [
@@ -1597,7 +1607,7 @@
     },
     {
       "name": "Dady cool",
-      "total_score": 7467718,
+      "total_score": 7520818,
       "clefs": 71
     },
     {
@@ -1700,7 +1710,7 @@
       },
       {
         "name": "Dady cool",
-        "score": 3712965
+        "score": 3766065
       },
       {
         "name": "PixToPix",
