@@ -5126,14 +5126,186 @@ class BeatstarEngine {
       this._eqGradCache = { key: cacheKey, lBloom, rBloom, lRib, rRib };
     }
 
-    ctx.globalAlpha = Math.min(1.0, 0.55 + avgSurgeL * 0.45 + beatPulse * 0.22);
+    ctx.globalAlpha = Math.min(1.0, 0.65 + avgSurgeL * 0.55 + beatPulse * 0.25);
     ctx.fillStyle = this._eqGradCache.lBloom;
     ctx.fillRect(0, 0, w * 0.45, h * 0.45);
 
-    ctx.globalAlpha = Math.min(1.0, 0.55 + avgSurgeR * 0.45 + beatPulse * 0.22);
+    ctx.globalAlpha = Math.min(1.0, 0.65 + avgSurgeR * 0.55 + beatPulse * 0.25);
     ctx.fillStyle = this._eqGradCache.rBloom;
     ctx.fillRect(w * 0.55, 0, w * 0.45, h * 0.45);
     ctx.globalAlpha = 1.0;
+
+    const blockW = 11.5;
+    const blockH = 7.6;
+    const blockGap = 1.6;
+
+    const renderSideEqualizerZone = (isLeft) => {
+      let prevPeakX = null;
+      let prevPeakY = null;
+      const cachedRibGrad = isLeft ? this._eqGradCache.lRib : this._eqGradCache.rRib;
+
+      for (let i = 0; i < numBars; i++) {
+        const frac = i / (numBars - 1);
+        const y = h * (0.04 + frac * 0.33);
+        const trackEdgeX = isLeft
+          ? (this.getLaneBoundaryX(0, y) - 7)
+          : (this.getLaneBoundaryX(3, y) + 7);
+        const outerEdgeX = isLeft ? 4 : (w - 4);
+        const availW = Math.max(14, isLeft ? (trackEdgeX - outerEdgeX) : (outerEdgeX - trackEdgeX));
+        const totalPossibleBlocks = Math.max(2, Math.floor((availW + blockGap) / (blockW + blockGap)));
+
+        const phaseShift = isLeft ? 0 : 1.85;
+        const organicRand = 0.62
+          + 0.26 * Math.sin(i * 3.1 + waveT + phaseShift)
+          + 0.18 * Math.cos(i * 5.7 - waveT * 0.8 + phaseShift)
+          + 0.14 * Math.sin((i + mult) * 2.1 + waveT * 1.4);
+        const slopeFactor = 1.0 - (frac * 0.35);
+        const rowMaxBlocks = Math.max(2, Math.round(totalPossibleBlocks * Math.max(0.32, Math.min(1.0, slopeFactor * organicRand))));
+
+        const surge = (isLeft ? this.borderEqLeftSurges[i] : this.borderEqRightSurges[i]) || 0;
+        const beatDrive = 0.25 + beatPulse * 0.35;
+        const effectiveDrive = Math.min(1.0, Math.max(beatDrive * 0.65, surge));
+        const activeBlocks = Math.max(1, Math.min(rowMaxBlocks, Math.round(1 + effectiveDrive * (rowMaxBlocks - 1))));
+        const rowSpanPx = activeBlocks * (blockW + blockGap);
+
+        // 1. Cinta difuminada de fondo por cada fila (0 allocs/frame)
+        const rowStartX = outerEdgeX;
+        const rowEndX = isLeft ? (outerEdgeX + rowSpanPx + 14) : (outerEdgeX - rowSpanPx - 14);
+        ctx.globalAlpha = 0.55 + effectiveDrive * 0.45;
+        ctx.fillStyle = cachedRibGrad;
+        ctx.fillRect(
+          Math.min(rowStartX, rowEndX),
+          y - blockH * 0.85,
+          Math.abs(rowEndX - rowStartX),
+          blockH * 1.7
+        );
+
+        // 2. Cuadraditos con degradado temático del efecto activo (fillRect directo para máximo rendimiento GPU)
+        const alphaBase = 0.26 + effectiveDrive * 0.62;
+        for (let b = 0; b < activeBlocks; b++) {
+          const bx = isLeft
+            ? (outerEdgeX + b * (blockW + blockGap))
+            : (outerEdgeX - (b + 1) * (blockW + blockGap));
+          const colIdx = Math.min(palLen - 1, Math.floor((b / Math.max(1, rowMaxBlocks - 1)) * palLen));
+          ctx.fillStyle = blockPalette[colIdx];
+          ctx.globalAlpha = (b === 0 && surge <= 0.02) ? 0.28 : alphaBase;
+          ctx.fillRect(bx, y - blockH / 2, blockW, blockH);
+        }
+
+        // Coordenada de la punta activa (Peak) de esta fila superior
+        const peakX = isLeft
+          ? (outerEdgeX + (activeBlocks - 1) * (blockW + blockGap) + blockW * 0.5)
+          : (outerEdgeX - (activeBlocks - 1) * (blockW + blockGap) - blockW * 0.5);
+        const dirSign = isLeft ? 1 : -1;
+
+        // 3. Punta incandescente en el extremo de cada fila
+        ctx.globalAlpha = Math.min(0.95, 0.45 + effectiveDrive * 0.55);
+        ctx.fillStyle = theme.cCore;
+        ctx.fillRect(peakX - blockW * 0.5, y - blockH / 2, blockW, blockH);
+
+        // 4. FENÓMENO COMPLEMENTARIO EN LA PARTE SUPERIOR SEGÚN EL EFECTO ACTIVO (0 Gradient Allocs)
+        if (fx === 'solar_inferno' || fx === 'dragon_fire') {
+          const flameLen = (10 + effectiveDrive * 22) * (1 + 0.25 * Math.sin(timeSec * 11 + i * 1.7));
+          const flameLift = -6 - 5 * Math.cos(timeSec * 9 + i);
+          ctx.fillStyle = theme.cMid;
+          ctx.globalAlpha = 0.68;
+          ctx.beginPath();
+          ctx.moveTo(peakX, y - blockH * 0.65);
+          ctx.quadraticCurveTo(
+            peakX + dirSign * flameLen * 0.65,
+            y - blockH * 0.9 + flameLift * 0.5,
+            peakX + dirSign * flameLen,
+            y + flameLift
+          );
+          ctx.quadraticCurveTo(
+            peakX + dirSign * flameLen * 0.55,
+            y + blockH * 0.75,
+            peakX,
+            y + blockH * 0.65
+          );
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.fillStyle = theme.cInner;
+          ctx.globalAlpha = 0.82;
+          ctx.beginPath();
+          ctx.moveTo(peakX, y - blockH * 0.35);
+          ctx.lineTo(peakX + dirSign * flameLen * 0.58, y + flameLift * 0.55);
+          ctx.lineTo(peakX, y + blockH * 0.35);
+          ctx.closePath();
+          ctx.fill();
+        } else if (fx === 'cryo_blizzard') {
+          const spikeLen = 9 + effectiveDrive * 18;
+          ctx.fillStyle = theme.cInner;
+          ctx.globalAlpha = 0.80;
+          ctx.beginPath();
+          ctx.moveTo(peakX, y - blockH * 0.55);
+          ctx.lineTo(peakX + dirSign * spikeLen, y);
+          ctx.lineTo(peakX, y + blockH * 0.55);
+          ctx.closePath();
+          ctx.fill();
+        } else if (fx === 'zeus_lightning' && prevPeakX !== null) {
+          const midArcX = (prevPeakX + peakX) * 0.5 + Math.sin(timeSec * 28 + i * 3.1) * 7;
+          const midArcY = (prevPeakY + y) * 0.5;
+          ctx.strokeStyle = theme.cMid;
+          ctx.lineWidth = 2.6;
+          ctx.globalAlpha = 0.75;
+          ctx.beginPath();
+          ctx.moveTo(prevPeakX, prevPeakY);
+          ctx.lineTo(midArcX, midArcY);
+          ctx.lineTo(peakX, y);
+          ctx.stroke();
+
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.1;
+          ctx.stroke();
+        } else if (fx === 'grand_fireworks' || fx === 'supernova_burst') {
+          if (i % 2 === 0) {
+            const starR = 5 + effectiveDrive * 9;
+            ctx.strokeStyle = i % 4 === 0 ? theme.cInner : theme.cMid;
+            ctx.lineWidth = 1.8;
+            ctx.globalAlpha = 0.85;
+            ctx.beginPath();
+            ctx.moveTo(peakX - starR, y);
+            ctx.lineTo(peakX + starR, y);
+            ctx.moveTo(peakX, y - starR);
+            ctx.lineTo(peakX, y + starR);
+            ctx.stroke();
+          }
+        } else if (fx === 'aurora_borealis' || fx === 'deep_cosmos' || fx === 'cyber_neon') {
+          if (prevPeakX !== null) {
+            ctx.strokeStyle = i % 2 === 0 ? theme.cInner : theme.cMid;
+            ctx.lineWidth = 2.2;
+            ctx.globalAlpha = 0.62;
+            ctx.beginPath();
+            ctx.moveTo(prevPeakX, prevPeakY);
+            ctx.quadraticCurveTo(
+              (prevPeakX + peakX) * 0.5 + dirSign * 6 * Math.sin(timeSec * 5 + i),
+              (prevPeakY + y) * 0.5,
+              peakX,
+              y
+            );
+            ctx.stroke();
+          }
+        } else if (fx === 'quantum_prism' && i % 2 === 0) {
+          const cSz = 5 + effectiveDrive * 5;
+          ctx.save();
+          ctx.translate(peakX + dirSign * 6, y);
+          ctx.rotate(timeSec * 2.5 + i);
+          ctx.strokeStyle = theme.cInner;
+          ctx.lineWidth = 1.4;
+          ctx.globalAlpha = 0.82;
+          ctx.strokeRect(-cSz * 0.5, -cSz * 0.5, cSz, cSz);
+          ctx.restore();
+        }
+
+        prevPeakX = peakX;
+        prevPeakY = y;
+      }
+    };
+
+    renderSideEqualizerZone(true);
+    renderSideEqualizerZone(false);
 
     ctx.restore();
   }
@@ -6022,6 +6194,9 @@ class BeatstarEngine {
 
   render(frameNow) {
     this._frameNow = frameNow || performance.now();
+    this.ctx.globalCompositeOperation = 'source-over';
+    this.ctx.globalAlpha = 1.0;
+    this.ctx.shadowBlur = 0;
     const hasShake = (this.shakeDuration > 0);
     if (hasShake) {
       this.ctx.save();
@@ -6792,59 +6967,68 @@ class BeatstarEngine {
 
         ctx.restore();
       } else {
-        // Barra de luz neón blanca pura estilo Beatstar (Cápsula redondeada con halo multicapa a 120 FPS, 0 allocs)
-        const barY = (y0 + yBevelTop) * 0.52;
-        const slitW = keyW * 0.54;
-        const slitH = Math.max(3.4, (isLarge ? 5.4 : 3.8) * scale);
-        const xBarL = cx - slitW * 0.5;
-        const xBarR = cx + slitW * 0.5;
+        // Línea blanca neón pura y elegante en su posición original exacta (cyMid) con brillo blanco intenso
+        const slitW = keyW * 0.62;
+        const slitH = Math.max(4.5, 6.8 * scale);
+        const slitX = cx - slitW / 2;
+        const slitY = cyMid - slitH / 2;
 
         ctx.save();
-        ctx.lineCap = 'round';
 
-        // 1. Hendidura oscura biselada de alojamiento del tubo neón
-        ctx.strokeStyle = 'rgba(4, 6, 14, 0.72)';
-        ctx.lineWidth = slitH + 2.2 * scale;
-        ctx.beginPath();
-        ctx.moveTo(xBarL, barY);
-        ctx.lineTo(xBarR, barY);
-        ctx.stroke();
-
-        // 2. Resplandor atmosférico exterior blanco-hielo (aditivo suave)
+        // 1. Resplandor difuminado exterior blanco neón puro (con shadowBlur blanco real + modo aditivo)
         ctx.globalCompositeOperation = 'lighter';
-        ctx.strokeStyle = isPressed ? 'rgba(180, 255, 240, 0.28)' : 'rgba(195, 232, 255, 0.24)';
-        ctx.lineWidth = slitH * 3.1;
+        ctx.shadowColor = '#ffffff';
+        ctx.shadowBlur = Math.round(18 * scale);
+        const outerSpreadX = 5.5 * scale;
+        const outerSpreadY = 4.2 * scale;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.42)';
         ctx.beginPath();
-        ctx.moveTo(xBarL, barY);
-        ctx.lineTo(xBarR, barY);
-        ctx.stroke();
+        if (ctx.roundRect) {
+          ctx.roundRect(
+            slitX - outerSpreadX,
+            slitY - outerSpreadY,
+            slitW + outerSpreadX * 2,
+            slitH + outerSpreadY * 2,
+            (slitH + outerSpreadY * 2) / 2
+          );
+        } else {
+          ctx.rect(slitX - outerSpreadX, slitY - outerSpreadY, slitW + outerSpreadX * 2, slitH + outerSpreadY * 2);
+        }
+        ctx.fill();
 
-        // 3. Halo intermedio de cristal neón blanco
-        ctx.strokeStyle = 'rgba(235, 248, 255, 0.54)';
-        ctx.lineWidth = slitH * 1.85;
+        // 2. Halo intermedio blanco brillante de alta luminosidad
+        const midSpreadX = 2.4 * scale;
+        const midSpreadY = 1.8 * scale;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
         ctx.beginPath();
-        ctx.moveTo(xBarL, barY);
-        ctx.lineTo(xBarR, barY);
-        ctx.stroke();
+        if (ctx.roundRect) {
+          ctx.roundRect(
+            slitX - midSpreadX,
+            slitY - midSpreadY,
+            slitW + midSpreadX * 2,
+            slitH + midSpreadY * 2,
+            (slitH + midSpreadY * 2) / 2
+          );
+        } else {
+          ctx.rect(slitX - midSpreadX, slitY - midSpreadY, slitW + midSpreadX * 2, slitH + midSpreadY * 2);
+        }
+        ctx.fill();
 
-        // 4. Tubo central blanco puro incandescente
+        // 3. Núcleo de tubo neón blanco puro incandescente (#ffffff)
         ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = slitH;
+        ctx.shadowColor = '#ffffff';
+        ctx.shadowBlur = Math.round(12 * scale);
+        ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.moveTo(xBarL, barY);
-        ctx.lineTo(xBarR, barY);
-        ctx.stroke();
+        if (ctx.roundRect) ctx.roundRect(slitX, slitY, slitW, slitH, slitH / 2);
+        else ctx.rect(slitX, slitY, slitW, slitH);
+        ctx.fill();
 
-        // 5. Filamento especular de máxima intensidad en el núcleo
+        // 4. Sobrecarga blanca aditiva en el centro para máximo fulgor neón blanco
         ctx.globalCompositeOperation = 'lighter';
-        const innerSpan = slitW * 0.34;
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.92)';
-        ctx.lineWidth = Math.max(1.6, slitH * 0.52);
-        ctx.beginPath();
-        ctx.moveTo(cx - innerSpan, barY);
-        ctx.lineTo(cx + innerSpan, barY);
-        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
 
         ctx.restore();
       }
@@ -6915,25 +7099,27 @@ class BeatstarEngine {
       ctx.fillText(cleanLyric, cx, cy);
       ctx.restore();
     } else if (isLarge) {
-      // Línea de energía central blanco neón elegante para teclas grandes en 2D
-      const slitW = w * 0.52;
+      // Línea de energía central blanco neón brillante para teclas grandes en 2D
+      const slitW = w * 0.62;
+      const slitH = 6.0;
+      const slitX = cx - slitW / 2;
+      const slitY = cy - slitH / 2;
       ctx.save();
-      ctx.lineCap = 'round';
       ctx.globalCompositeOperation = 'lighter';
-      ctx.strokeStyle = 'rgba(210, 242, 255, 0.48)';
-      ctx.lineWidth = 7.5;
+      ctx.shadowColor = '#ffffff';
+      ctx.shadowBlur = 14;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
       ctx.beginPath();
-      ctx.moveTo(cx - slitW * 0.5, cy);
-      ctx.lineTo(cx + slitW * 0.5, cy);
-      ctx.stroke();
+      if (ctx.roundRect) ctx.roundRect(slitX - 3, slitY - 2.5, slitW + 6, slitH + 5, (slitH + 5) / 2);
+      else ctx.rect(slitX - 3, slitY - 2.5, slitW + 6, slitH + 5);
+      ctx.fill();
 
       ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 3.6;
+      ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.moveTo(cx - slitW * 0.5, cy);
-      ctx.lineTo(cx + slitW * 0.5, cy);
-      ctx.stroke();
+      if (ctx.roundRect) ctx.roundRect(slitX, slitY, slitW, slitH, slitH / 2);
+      else ctx.rect(slitX, slitY, slitW, slitH);
+      ctx.fill();
       ctx.restore();
     }
 
@@ -7042,7 +7228,7 @@ class BeatstarEngine {
       if (odLevel > 0.02) {
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
-        const odPulse = 0.5 + 0.5 * Math.sin(nowPerf * 0.008);
+        const odPulse = 0.5 + 0.5 * Math.sin(safePerfNow * 0.008);
         ctx.fillStyle = hexToRgba(railLaserCol, odLevel * (0.09 + odPulse * 0.06));
         ctx.beginPath();
         ctx.moveTo(tL_top, horizonY);
@@ -7063,7 +7249,7 @@ class BeatstarEngine {
             const frac = s / segCount;
             const yPos = horizonY + spanH * (frac * frac);
             const baseX = getBoundaryX(l, yPos);
-            const waveX = Math.sin(frac * 10.0 - nowPerf * 0.014 + l * 1.5) * (3.2 * frac * odLevel);
+            const waveX = Math.sin(frac * 10.0 - safePerfNow * 0.014 + l * 1.5) * (3.2 * frac * odLevel);
             if (s === 0) ctx.moveTo(baseX + waveX, yPos);
             else ctx.lineTo(baseX + waveX, yPos);
           }
@@ -7161,11 +7347,12 @@ class BeatstarEngine {
       ctx.stroke();
       ctx.restore();
 
-      // 4. ALAS DE RITMO NEÓN ESTILO BEATSTAR ORIGINAL (Barras LED horizontales en perspectiva cónica + Picos flotantes)
+      // 4. ALAS DE RITMO NEÓN ESTILO BEATSTAR ORIGINAL + EFECTOS ESPECIALES DE BORDE (Fuego, Hielo, Rayos, etc.)
       const numRibs = 34;
       const bpmSpeed = (normBpm / 60) * Math.PI * 2;
       const theme = this.getEffectBorderTheme(this.activeEffect);
       const fx = theme.id;
+      const timeSec = safePerfNow * 0.001;
 
       const frameScale = Math.min(2.5, (this._frameDt || 0.00833) * 60);
       this.borderSurgeL = Math.max(0, (this.borderSurgeL || 0) - 0.045 * frameScale);
@@ -7194,35 +7381,35 @@ class BeatstarEngine {
       const normRx = dyR / lenR;
       const normRy = -dxR / lenR;
 
-      // --- CAPA 1: AURA DIFUMINADA VOLUMÉTRICA LATERAL (Pre-cacheada: 0 allocs/frame) ---
-      const auraSpanTop = 32 + beatPulse * 12;
-      const auraSpanBot = 78 + beatPulse * 24;
-      const borderCacheKey = `${this.width}_${this.height}_${fx}_${mult}`;
+      // --- CAPA 1: AURA DIFUMINADA VOLUMÉTRICA LATERAL FIEL AL TEMA DEL EFECTO (Pre-cacheada: 0 allocs/frame) ---
+      const auraSpanTop = 34 + beatPulse * 12;
+      const auraSpanBot = 82 + beatPulse * 24;
+      const borderCacheKey = `${this.width}_${this.height}_${fx}`;
       if (!this._borderGradCache || this._borderGradCache.key !== borderCacheKey) {
-        const primaryWingCol = mult >= 2 ? railLaserCol : theme.cInner;
-        const midWingCol = mult >= 2 ? railGlowCol : theme.cMid;
+        const primaryWingCol = theme.cInner;
+        const midWingCol = theme.cMid;
         const outerWingCol = theme.cOuter;
 
         const lAura = ctx.createLinearGradient(
           (tLx_top + tLx_bot) * 0.5,
           (horizonY + bottomY) * 0.5,
-          (tLx_top + tLx_bot) * 0.5 + normLx * 78,
-          (horizonY + bottomY) * 0.5 + normLy * 78
+          (tLx_top + tLx_bot) * 0.5 + normLx * 82,
+          (horizonY + bottomY) * 0.5 + normLy * 82
         );
-        lAura.addColorStop(0.0, hexToRgba(primaryWingCol, 0.42));
-        lAura.addColorStop(0.40, hexToRgba(midWingCol, 0.22));
-        lAura.addColorStop(0.80, hexToRgba(outerWingCol, 0.07));
+        lAura.addColorStop(0.0, hexToRgba(primaryWingCol, 0.46));
+        lAura.addColorStop(0.40, hexToRgba(midWingCol, 0.25));
+        lAura.addColorStop(0.80, hexToRgba(outerWingCol, 0.08));
         lAura.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
 
         const rAura = ctx.createLinearGradient(
           (tRx_top + tRx_bot) * 0.5,
           (horizonY + bottomY) * 0.5,
-          (tRx_top + tRx_bot) * 0.5 + normRx * 78,
-          (horizonY + bottomY) * 0.5 + normRy * 78
+          (tRx_top + tRx_bot) * 0.5 + normRx * 82,
+          (horizonY + bottomY) * 0.5 + normRy * 82
         );
-        rAura.addColorStop(0.0, hexToRgba(primaryWingCol, 0.42));
-        rAura.addColorStop(0.40, hexToRgba(midWingCol, 0.22));
-        rAura.addColorStop(0.80, hexToRgba(outerWingCol, 0.07));
+        rAura.addColorStop(0.0, hexToRgba(primaryWingCol, 0.46));
+        rAura.addColorStop(0.40, hexToRgba(midWingCol, 0.25));
+        rAura.addColorStop(0.80, hexToRgba(outerWingCol, 0.08));
         rAura.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
 
         const vGrad = ctx.createLinearGradient(0, horizonY, 0, hitY);
@@ -7234,7 +7421,7 @@ class BeatstarEngine {
         this._borderGradCache = { key: borderCacheKey, lAura, rAura, vGrad, primaryWingCol, midWingCol };
       }
 
-      ctx.globalAlpha = Math.min(1.0, 0.65 + surgeL * 0.32 + beatPulse * 0.18);
+      ctx.globalAlpha = Math.min(1.0, 0.72 + surgeL * 0.35 + beatPulse * 0.20);
       ctx.fillStyle = this._borderGradCache.lAura;
       ctx.beginPath();
       ctx.moveTo(tLx_top - railTopW, horizonY);
@@ -7244,7 +7431,7 @@ class BeatstarEngine {
       ctx.closePath();
       ctx.fill();
 
-      ctx.globalAlpha = Math.min(1.0, 0.65 + surgeR * 0.32 + beatPulse * 0.18);
+      ctx.globalAlpha = Math.min(1.0, 0.72 + surgeR * 0.35 + beatPulse * 0.20);
       ctx.fillStyle = this._borderGradCache.rAura;
       ctx.beginPath();
       ctx.moveTo(tRx_top + railTopW, horizonY);
@@ -7255,9 +7442,180 @@ class BeatstarEngine {
       ctx.fill();
       ctx.globalAlpha = 1.0;
 
-      // --- CAPA 2: ECUALIZADOR RÍTMICO LATERAL HORIZONTAL EN PERSPECTIVA 3D (Beatstar Original Stage Wings) ---
-      // Las líneas nacen con una separación limpia respecto al bisel exterior del carril y se proyectan
-      // horizontalmente en paralelo a los peldaños de perspectiva desde el horizonte hasta la consola Perfect+.
+      // --- CAPA 2: EFECTOS EXTRA TEMÁTICOS EN LOS BORDES LATERALES (Fuego 3D, Hielo, Relámpagos, Plasma, Meteoros) ---
+      if (fx === 'solar_inferno' || fx === 'dragon_fire') {
+        const numFlames = 18;
+        ctx.fillStyle = hexToRgba(theme.cMid, 0.54);
+        ctx.beginPath();
+        for (let side = 0; side < 2; side++) {
+          const isLeft = side === 0;
+          const nX = isLeft ? normLx : normRx;
+          const nY = isLeft ? normLy : normRy;
+          const sideSurge = isLeft ? surgeL : surgeR;
+          for (let f = 0; f < numFlames; f++) {
+            const p0 = Math.pow(f / numFlames, 1.2);
+            const p1 = Math.pow((f + 1.35) / numFlames, 1.2);
+            const y0 = horizonY + (bottomY - horizonY) * p0;
+            const y1 = horizonY + (bottomY - horizonY) * p1;
+            const yMid = (y0 + y1) * 0.5;
+            const x0 = getBoundaryX(isLeft ? 0 : 3, y0);
+            const x1 = getBoundaryX(isLeft ? 0 : 3, y1);
+            const xMid = (x0 + x1) * 0.5;
+            const flicker = 0.55 + 0.30 * Math.sin(f * 2.1 - timeSec * 11.5 + side * 1.7) + 0.20 * Math.cos(f * 3.7 - timeSec * 7.8);
+            const reach = (18 + 38 * p0) * flicker * (1.0 + beatPulse * 0.35 + sideSurge * 0.45);
+            const liftY = -(10 + 22 * p0) * (0.7 + 0.3 * Math.sin(timeSec * 9.0 + f));
+            const tipX = xMid + nX * reach;
+            const tipY = yMid + nY * reach + liftY;
+            ctx.moveTo(x0, y0);
+            ctx.quadraticCurveTo(xMid + nX * reach * 0.65, y0 + liftY * 0.4, tipX, tipY);
+            ctx.quadraticCurveTo(xMid + nX * reach * 0.55, y1, x1, y1);
+          }
+        }
+        ctx.fill();
+
+        ctx.fillStyle = hexToRgba(theme.cInner, 0.68);
+        ctx.beginPath();
+        for (let side = 0; side < 2; side++) {
+          const isLeft = side === 0;
+          const nX = isLeft ? normLx : normRx;
+          const nY = isLeft ? normLy : normRy;
+          const sideSurge = isLeft ? surgeL : surgeR;
+          for (let f = 0; f < numFlames; f++) {
+            const p0 = Math.pow(f / numFlames, 1.2);
+            const p1 = Math.pow((f + 1.35) / numFlames, 1.2);
+            const y0 = horizonY + (bottomY - horizonY) * p0;
+            const y1 = horizonY + (bottomY - horizonY) * p1;
+            const yMid = (y0 + y1) * 0.5;
+            const x0 = getBoundaryX(isLeft ? 0 : 3, y0);
+            const x1 = getBoundaryX(isLeft ? 0 : 3, y1);
+            const xMid = (x0 + x1) * 0.5;
+            const flicker = 0.55 + 0.30 * Math.sin(f * 2.1 - timeSec * 11.5 + side * 1.7) + 0.20 * Math.cos(f * 3.7 - timeSec * 7.8);
+            const reach = (18 + 38 * p0) * flicker * (1.0 + beatPulse * 0.35 + sideSurge * 0.45);
+            const liftY = -(10 + 22 * p0) * (0.7 + 0.3 * Math.sin(timeSec * 9.0 + f));
+            ctx.moveTo(x0, y0 + (y1 - y0) * 0.18);
+            ctx.quadraticCurveTo(xMid + nX * reach * 0.38, yMid + liftY * 0.35, xMid + nX * reach * 0.58, yMid + nY * reach * 0.58 + liftY * 0.65);
+            ctx.quadraticCurveTo(xMid + nX * reach * 0.32, y1 - (y1 - y0) * 0.15, x1, y1 - (y1 - y0) * 0.18);
+          }
+        }
+        ctx.fill();
+      } else if (fx === 'cryo_blizzard') {
+        const numSpikes = 18;
+        ctx.fillStyle = hexToRgba(theme.cInner, 0.56);
+        ctx.beginPath();
+        for (let side = 0; side < 2; side++) {
+          const isLeft = side === 0;
+          const nX = isLeft ? normLx : normRx;
+          const nY = isLeft ? normLy : normRy;
+          const sideSurge = isLeft ? surgeL : surgeR;
+          for (let k = 0; k < numSpikes; k++) {
+            const p = Math.pow(k / (numSpikes - 1), 1.22);
+            const yBase = horizonY + (bottomY - horizonY) * p;
+            const xBase = getBoundaryX(isLeft ? 0 : 3, yBase);
+            const pulseWave = 0.6 + 0.4 * Math.sin(p * 10 - timeSec * 5.5 + side);
+            const spikeLen = (16 + 34 * p) * pulseWave * (1 + beatPulse * 0.3 + sideSurge * 0.4);
+            const halfW = 5 + 9 * p;
+            const tipX = xBase + nX * spikeLen;
+            const tipY = yBase + nY * spikeLen - 8 * p;
+            ctx.moveTo(xBase, yBase - halfW);
+            ctx.lineTo(tipX, tipY);
+            ctx.lineTo(xBase, yBase + halfW);
+          }
+        }
+        ctx.fill();
+      } else if (fx === 'zeus_lightning') {
+        for (let side = 0; side < 2; side++) {
+          const isLeft = side === 0;
+          const nX = isLeft ? normLx : normRx;
+          const nY = isLeft ? normLy : normRy;
+          const sideSurge = isLeft ? surgeL : surgeR;
+
+          ctx.beginPath();
+          const steps = 26;
+          for (let k = 0; k <= steps; k++) {
+            const p = k / steps;
+            const yPos = horizonY + (bottomY - horizonY) * p;
+            const xRail = getBoundaryX(isLeft ? 0 : 3, yPos);
+            const jag = (10 + 26 * p) * (0.45 + 0.55 * Math.abs(Math.sin(k * 4.3 - timeSec * 24 + side * 2))) * (1 + sideSurge * 0.45);
+            const lx = xRail + nX * jag;
+            const ly = yPos + nY * jag;
+            if (k === 0) ctx.moveTo(lx, ly);
+            else ctx.lineTo(lx, ly);
+          }
+          ctx.strokeStyle = hexToRgba(theme.cMid, 0.72);
+          ctx.lineWidth = 5.5;
+          ctx.stroke();
+
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.9;
+          ctx.stroke();
+        }
+      } else if (fx === 'aurora_borealis' || fx === 'deep_cosmos' || fx === 'cyber_neon' || fx === 'black_hole') {
+        for (let side = 0; side < 2; side++) {
+          const isLeft = side === 0;
+          const nX = isLeft ? normLx : normRx;
+          const nY = isLeft ? normLy : normRy;
+          const sideSurge = isLeft ? surgeL : surgeR;
+
+          for (let ribbon = 0; ribbon < 2; ribbon++) {
+            ctx.beginPath();
+            const steps = 24;
+            for (let k = 0; k <= steps; k++) {
+              const p = k / steps;
+              const yPos = horizonY + (bottomY - horizonY) * p;
+              const xRail = getBoundaryX(isLeft ? 0 : 3, yPos);
+              const wave = 0.55 + 0.45 * Math.sin(p * 11.0 - timeSec * (4.5 + ribbon * 2.2) + ribbon * 1.9 + side);
+              const offset = (12 + 34 * p) * wave * (1 + beatPulse * 0.3 + sideSurge * 0.4);
+              const rx = xRail + nX * offset;
+              const ry = yPos + nY * offset;
+              if (k === 0) ctx.moveTo(rx, ry);
+              else ctx.lineTo(rx, ry);
+            }
+            ctx.strokeStyle = ribbon === 0 ? theme.cMid : theme.cInner;
+            ctx.lineWidth = ribbon === 0 ? 5.0 : 2.6;
+            ctx.stroke();
+          }
+        }
+      } else if (fx === 'grand_fireworks' || fx === 'supernova_burst' || fx === 'asteroid_impact' || fx === 'quantum_prism') {
+        const numNodes = 14;
+        for (let side = 0; side < 2; side++) {
+          const isLeft = side === 0;
+          const nX = isLeft ? normLx : normRx;
+          const nY = isLeft ? normLy : normRy;
+          const sideSurge = isLeft ? surgeL : surgeR;
+
+          for (let k = 1; k < numNodes; k++) {
+            const p = Math.pow(((k / numNodes) + (timeSec * 0.18) % (1 / numNodes)), 1.25);
+            if (p > 1.0) continue;
+            const yPos = horizonY + (bottomY - horizonY) * p;
+            const xRail = getBoundaryX(isLeft ? 0 : 3, yPos);
+            const distOut = (16 + 32 * p) * (0.65 + 0.35 * Math.sin(k * 2.7 + timeSec * 5)) * (1 + sideSurge * 0.35);
+            const nx = xRail + nX * distOut;
+            const ny = yPos + nY * distOut;
+            const sz = (4 + 7 * p) * (1 + beatPulse * 0.35);
+
+            if (fx === 'quantum_prism') {
+              ctx.save();
+              ctx.translate(nx, ny);
+              ctx.rotate(timeSec * 3.0 + k);
+              ctx.strokeStyle = k % 2 === 0 ? theme.cInner : theme.cMid;
+              ctx.lineWidth = 1.8;
+              ctx.strokeRect(-sz * 0.5, -sz * 0.5, sz, sz);
+              ctx.restore();
+            } else {
+              ctx.strokeStyle = k % 2 === 0 ? theme.cInner : theme.cMid;
+              ctx.lineWidth = 2.0;
+              ctx.beginPath();
+              ctx.moveTo(nx - sz, ny);
+              ctx.lineTo(nx + sz, ny);
+              ctx.moveTo(nx, ny - sz);
+              ctx.lineTo(nx, ny + sz);
+              ctx.stroke();
+            }
+          }
+        }
+      }
+
+      // --- CAPA 3: ECUALIZADOR RÍTMICO LATERAL HORIZONTAL EN PERSPECTIVA 3D (Beatstar Original Stage Wings) ---
       const startY = horizonY + 14;
       const endY = hitY - 14;
       const spanRhythmY = Math.max(60, endY - startY);
@@ -7280,7 +7638,7 @@ class BeatstarEngine {
 
       for (let s = 0; s < numRibs; s++) {
         const pNorm = s / (numRibs - 1);
-        const p = Math.pow(pNorm, 1.32); // Compresión de perspectiva real hacia el horizonte
+        const p = Math.pow(pNorm, 1.32);
         const yPos = startY + spanRhythmY * p;
 
         const railWAtY = railTopW + (railBotW - railTopW) * p;
@@ -7290,7 +7648,6 @@ class BeatstarEngine {
 
         const maxWingReach = Math.max(12, Math.min(this.width * 0.21, xStartL - 6));
 
-        // Onda descendente sincronizada al BPM + armónicos de sub-banda estilo ecualizador Beatstar
         const cascadeWave = 0.5 + 0.5 * Math.sin(p * 10.5 - audioTime * bpmSpeed);
         const subHarmonic = 0.5 + 0.5 * Math.cos(s * 1.55 + audioTime * bpmSpeed * 0.5);
         const barCadence = (s % 2 === 0) ? 1.0 : 0.70;
@@ -7356,13 +7713,11 @@ class BeatstarEngine {
         const coreLenL = rs.lenL[s] * 0.56;
         const coreLenR = rs.lenR[s] * 0.56;
 
-        // Filamento interior blanco junto al raíl
         ctx.moveTo(xL, yPos);
         ctx.lineTo(xL - coreLenL, yPos);
         ctx.moveTo(xR, yPos);
         ctx.lineTo(xR + coreLenR, yPos);
 
-        // Cápsula Peak-Hold flotante en el extremo exterior (en las barras principales)
         if (s % 2 === 0) {
           const p = rs.p[s];
           const peakGap = 4.0 + 2.5 * p + beatPulse * 2.0;

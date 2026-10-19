@@ -608,6 +608,11 @@ class DirectAudioSync {
       return this._anchorAudioMs || 0;
     }
 
+    // Si ya se calculó para este mismo VSync frameNow, devolver en O(1)
+    if (frameNow !== undefined && frameNow !== null && this._cachedFrameNow === frameNow) {
+      return this._lastReturnedMs;
+    }
+
     this._fallbackAnchor = null;
     const rate = this.playbackRate || 1.0;
 
@@ -618,49 +623,53 @@ class DirectAudioSync {
       this._lastReturnedMs = this._anchorAudioMs;
       this._lastSyncCheck = now;
       this._clockSkewRate = 1.0;
+      this._smoothedDrift = 0;
       this._lastRawAudioTime = rawSec;
+      this._cachedFrameNow = frameNow;
       return this._anchorAudioMs;
     }
 
     const elapsed = Math.max(0, now - this._anchorPerf);
     let currentPredMs = this._anchorAudioMs + elapsed * rate * (this._clockSkewRate || 1.0);
 
-    // Comprobar deriva como máximo cada 140ms para no saturar el IPC del hilo de medios en Android
-    if (now - this._lastSyncCheck >= 140) {
+    // Muestrear deriva cada 250ms filtrando el escalón de cuantización del buffer de audio (21-46ms en Android)
+    if (now - this._lastSyncCheck >= 250) {
       this._lastSyncCheck = now;
       const rawSec = this.audioElement ? this.audioElement.currentTime : 0;
-      // Solo recalibrar cuando el buffer de audio de hardware realmente haya avanzado
       if (rawSec !== this._lastRawAudioTime && rawSec > 0) {
         this._lastRawAudioTime = rawSec;
         const hwAudioMs = rawSec * 1000;
         const drift = hwAudioMs - currentPredMs;
 
-        // Re-anclar el punto actual manteniendo estricta continuidad C0/C1 (sin saltos hacia atrás jamás)
         this._anchorPerf = now;
         this._anchorAudioMs = currentPredMs;
 
         if (Math.abs(drift) > 450) {
-          // Solo hacer snap duro si hubo un seek explícito o interrupción mayor (>450ms)
           this._anchorAudioMs = hwAudioMs;
           this._lastReturnedMs = hwAudioMs;
           this._clockSkewRate = 1.0;
+          this._smoothedDrift = 0;
           currentPredMs = hwAudioMs;
-        } else if (Math.abs(drift) > 3.0) {
-          // Corrección de frecuencia suave (PLL ±3.5% máx) para converger sin tirones visuales
-          this._clockSkewRate = 1.0 + Math.max(-0.035, Math.min(0.035, drift / 900));
         } else {
-          this._clockSkewRate = 1.0;
+          // Filtro paso-bajo exponencial que absorbe el jitter de cuantización del mixer de audio
+          this._smoothedDrift = (this._smoothedDrift || 0) * 0.86 + drift * 0.14;
+          if (Math.abs(this._smoothedDrift) > 36.0) {
+            // Corrección de frecuencia ultra-suave (±0.35% máx) totalmente imperceptible al ojo a 120Hz
+            this._clockSkewRate = 1.0 + Math.max(-0.0035, Math.min(0.0035, this._smoothedDrift / 4000));
+          } else {
+            this._clockSkewRate = 1.0;
+          }
         }
       }
     }
 
-    // Garantizar monotonía estricta para que las teclas jamás retrocedan ni den micro-tirones
     if (this._lastReturnedMs !== undefined && currentPredMs < this._lastReturnedMs) {
       currentPredMs = this._lastReturnedMs;
     } else {
       this._lastReturnedMs = currentPredMs;
     }
 
+    this._cachedFrameNow = frameNow;
     return currentPredMs;
   }
 }
@@ -671,10 +680,10 @@ class DirectAudioSync {
 // ==========================================
 
 class ParticleSystem {
-  constructor(maxParticles = 160, maxShockwaves = 16) {
+  constructor(maxParticles = 72, maxShockwaves = 12) {
     this.maxParticles = maxParticles;
     this.maxShockwaves = maxShockwaves;
-    this.maxArcs = 20;
+    this.maxArcs = 12;
 
     // Fixed pre-allocated memory pool (Zero Garbage Collection spikes)
     this.particles = new Array(maxParticles);
@@ -1188,33 +1197,6 @@ class ParticleSystem {
     }
   }
 
-  emitHoldSpark(x, y, color = '#ffe082') {
-    const pal = [color, '#ffffff', '#fff7d6', '#ffd700', '#00f2fe', '#ff00aa'];
-    for (let i = 0; i < 5; i++) {
-      const p = this.spawnParticle();
-      if (!p) break;
-
-      const angle = (Math.random() - 0.5) * Math.PI * 1.6 - Math.PI / 2;
-      const speed = 60 + Math.random() * 160;
-
-      p.x = x + (Math.random() - 0.5) * 24;
-      p.y = y + (Math.random() - 0.5) * 8;
-      p.vx = Math.cos(angle) * speed;
-      p.vy = Math.sin(angle) * speed - 15;
-      p.gravity = 70;
-      p.drag = 0.95;
-      p.radius = 1.8 + Math.random() * 2.8;
-      p.color = pal[Math.floor(Math.random() * pal.length)];
-      p.alpha = 1.0;
-      p.decay = 3.0 + Math.random() * 1.5;
-      p.type = Math.random() < 0.7 ? 'glitter_star' : 'diamond_spark';
-      p.rotation = Math.random() * Math.PI * 2;
-      p.rotSpeed = (Math.random() - 0.5) * 10;
-      p.scaleX = 1;
-      p.scaleY = 1;
-    }
-  }
-
   // 1. EXCLUSIVO 3D: CHISPAS DE LATÓN REAL (Royal Brass Sparks & Embers)
   emitRoyalBrass(x, y, count = 28) {
     const brassPalette = ['#fff3cf', '#ffd700', '#c5a059', '#e6af34', '#ffffff', '#f59e0b'];
@@ -1588,13 +1570,11 @@ class ParticleSystem {
         ctx.fill();
         ctx.restore();
       } else if (p.type === 'fire_ember') {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius * (0.6 + p.alpha * 0.4), 0, Math.PI * 2);
-        ctx.fill();
+        const r = p.radius * (0.6 + p.alpha * 0.4);
+        ctx.fillRect(p.x - r, p.y - r, r * 2, r * 2);
       } else {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fill();
+        const r = p.radius;
+        ctx.fillRect(p.x - r, p.y - r, r * 2, r * 2);
       }
     }
 
@@ -1779,6 +1759,10 @@ class BeatstarEngine {
     this.activeKaraokeLyrics = [];
     this._lastCurLyricIndex = -1;
     this.stats = { perfectPlus: 0, perfect: 0, great: 0, miss: 0 };
+    this.timingStats = { count: 0, sumSignedMs: 0, sumAbsMs: 0, earlyCount: 0, lateCount: 0, exactCount: 0 };
+    this.overdriveLevel = 0;
+    this.overdriveFlash = 0;
+    this._wasOverdrive = false;
     this.vignetteAlpha = 0;
     this.vignetteColor = '#e5b869';
 
@@ -1859,8 +1843,8 @@ class BeatstarEngine {
 
   onAudioEnded() {
     console.log('[BeatstarEngine] Audio reached end of stream.');
-    if (this.isRunning && !this.isGameOver) {
-      this.triggerGameEnd();
+    if (this.isRunning && !this.isGameOver && this.beatmapData) {
+      setTimeout(() => this.triggerGameEnd(), 350);
     }
   }
 
@@ -2872,6 +2856,10 @@ class BeatstarEngine {
     this.missCount = 0;
     this.invulnerableUntil = 2400; // Invulnerable during startup grace period
     this.stats = { perfectPlus: 0, perfect: 0, great: 0, miss: 0 };
+    this.timingStats = { count: 0, sumSignedMs: 0, sumAbsMs: 0, earlyCount: 0, lateCount: 0, exactCount: 0 };
+    this.overdriveLevel = 0;
+    this.overdriveFlash = 0;
+    this._wasOverdrive = false;
     
     if (this.discoBall) {
       this.discoBall.active = false;
@@ -3361,19 +3349,22 @@ class BeatstarEngine {
     this.laneGlows[lane] = 1.0;
     if (this.laneFlashTimers) this.laneFlashTimers[lane] = 0.22;
     if (this.laneFlashColors) this.laneFlashColors[lane] = this.getScoreColor('perfectPlus') || '#ffd700';
-    if (this.lanePressAnim) this.lanePressAnim[lane] = performance.now();
-    const currentTime = this.getCurrentGameTimeMs(this._frameNow);
+    const nowInput = performance.now();
+    if (this.lanePressAnim) this.lanePressAnim[lane] = nowInput;
+    const currentTime = this.getCurrentGameTimeMs(this._frameNow || nowInput);
 
     const hitX = (lane + 0.5) * this.laneWidth;
     const hitY = this.hitLineY;
 
-    // Palette per lane
-    const burstPalette = [
-      { c1: '#00f2fe', c2: '#3b82f6', alt: '#39ff14' }, // Lane 0: Electric Cyan / Lime
-      { c1: '#ff007f', c2: '#a855f7', alt: '#ffe600' }, // Lane 1: Hot Magenta / Royal Purple
-      { c1: '#fbbf24', c2: '#ff3300', alt: '#ff007f' }  // Lane 2: Radiant Gold / Crimson
-    ];
-    const p = burstPalette[lane % 3] || { c1: '#00f2fe', c2: '#ff007f', alt: '#ffe600' };
+    // Palette per lane (pre-allocated para 0 GC)
+    if (!this._laneBurstPalettes) {
+      this._laneBurstPalettes = [
+        { c1: '#00f2fe', c2: '#3b82f6', alt: '#39ff14' }, // Lane 0: Electric Cyan / Lime
+        { c1: '#ff007f', c2: '#a855f7', alt: '#ffe600' }, // Lane 1: Hot Magenta / Royal Purple
+        { c1: '#fbbf24', c2: '#ff3300', alt: '#ff007f' }  // Lane 2: Radiant Gold / Crimson
+      ];
+    }
+    const p = this._laneBurstPalettes[lane % 3];
 
     const effect = this.normalizeEffectId(this.activeEffect);
     this.activeEffect = effect;
@@ -3686,6 +3677,7 @@ class BeatstarEngine {
     let points = 150;
     let flashDuration = 0.18;
     let flashColor = '#ffd700';
+    let judgeTier = 'great';
 
     if (diffMs <= 45) {
       text = customLabel ? `PERFECT+ ${customLabel}` : 'PERFECT+';
@@ -3695,6 +3687,7 @@ class BeatstarEngine {
       points = 450;
       this.stats.perfectPlus++;
       this.streakCount++;
+      judgeTier = 'perfectPlus';
     } else if (diffMs <= 90) {
       text = customLabel ? `PERFECT ${customLabel}` : 'PERFECT';
       color = this.getScoreColor('perfect');
@@ -3703,6 +3696,7 @@ class BeatstarEngine {
       points = 300;
       this.stats.perfect++;
       this.streakCount++;
+      judgeTier = 'perfect';
     } else if (diffMs <= 170) {
       text = customLabel ? `GREAT ${customLabel}` : 'GREAT';
       color = this.getScoreColor('great');
@@ -3711,6 +3705,7 @@ class BeatstarEngine {
       points = 150;
       this.stats.great++;
       this.streakCount = Math.max(0, this.streakCount - 1);
+      judgeTier = 'great';
     } else {
       text = customLabel ? `GOOD ${customLabel}` : 'GOOD';
       color = this.getScoreColor('good');
@@ -3719,6 +3714,27 @@ class BeatstarEngine {
       points = 75;
       this.stats.good = (this.stats.good || 0) + 1;
       this.streakCount = 0;
+      judgeTier = 'good';
+    }
+
+    // Telemetría de precisión sub-milisegundo (Early < 0 / Late > 0, 0 allocs)
+    if (note) {
+      if (!this.timingStats) {
+        this.timingStats = { count: 0, sumSignedMs: 0, sumAbsMs: 0, earlyCount: 0, lateCount: 0, exactCount: 0 };
+      }
+      const noteT = Number.isFinite(note.timestamp_ms) ? note.timestamp_ms : (Number.isFinite(note.timeMs) ? note.timeMs : 0);
+      const curT = this.getCurrentGameTimeMs(this._frameNow);
+      const signedDiff = Math.max(-180, Math.min(180, curT - noteT));
+      this.timingStats.count++;
+      this.timingStats.sumSignedMs += signedDiff;
+      this.timingStats.sumAbsMs += Math.abs(signedDiff);
+      if (signedDiff < -15) this.timingStats.earlyCount++;
+      else if (signedDiff > 15) this.timingStats.lateCount++;
+      else this.timingStats.exactCount++;
+
+      if (this.ui && typeof this.ui.onTimingOffset === 'function') {
+        this.ui.onTimingOffset(signedDiff, judgeTier);
+      }
     }
 
     if (typeof window !== 'undefined' && window.isKaraokeModeActive) {
@@ -4743,6 +4759,17 @@ class BeatstarEngine {
       window.currentFeaturedSongX2 = false;
     }
 
+    // Adjuntar telemetría de sincronización de impacto en stats para el informe y auto-calibración
+    const ts = this.timingStats || { count: 0, sumSignedMs: 0, sumAbsMs: 0, earlyCount: 0, lateCount: 0, exactCount: 0 };
+    this.stats.timing = {
+      count: ts.count,
+      avgSignedMs: ts.count > 0 ? Math.round((ts.sumSignedMs / ts.count) * 10) / 10 : 0,
+      avgAbsMs: ts.count > 0 ? Math.round((ts.sumAbsMs / ts.count) * 10) / 10 : 0,
+      earlyCount: ts.earlyCount,
+      lateCount: ts.lateCount,
+      exactCount: ts.exactCount
+    };
+
     if (this.ui && this.ui.onGameEnd) {
       this.ui.onGameEnd(this.score, this.maxCombo, this.stars, this.stats, earnedClefs, finalMedal, scorePct, earnedMedals, totalNotes, accuracyPct);
     }
@@ -4751,6 +4778,22 @@ class BeatstarEngine {
   updateVisualEffects(dt) {
     if (this.shakeDuration > 0) {
       this.shakeDuration = Math.max(0, this.shakeDuration - dt);
+    }
+
+    // Modo Fiebre Overdrive (Se activa en multiplicador x4 / x5 o combo >= 50)
+    const isOverdriveActive = (this.multiplier >= 4 || this.combo >= 50);
+    const targetOverdrive = this.multiplier >= 5 ? 1.0 : (isOverdriveActive ? 0.72 : 0.0);
+    this.overdriveLevel = (this.overdriveLevel || 0) + (targetOverdrive - (this.overdriveLevel || 0)) * Math.min(1, dt * 4.5);
+    if (isOverdriveActive && !this._wasOverdrive) {
+      this._wasOverdrive = true;
+      this.overdriveFlash = 1.0;
+      this.borderSurgeL = 1.0;
+      this.borderSurgeR = 1.0;
+    } else if (!isOverdriveActive) {
+      this._wasOverdrive = false;
+    }
+    if (this.overdriveFlash > 0) {
+      this.overdriveFlash = Math.max(0, this.overdriveFlash - dt * 2.2);
     }
 
     if (typeof this.displayScore !== 'number') this.displayScore = 0;
@@ -5202,7 +5245,6 @@ class BeatstarEngine {
           ctx.closePath();
           ctx.fill();
         } else if (fx === 'zeus_lightning' && prevPeakX !== null) {
-          // Arcos eléctricos conectando las puntas de las filas superiores
           const midArcX = (prevPeakX + peakX) * 0.5 + Math.sin(timeSec * 28 + i * 3.1) * 7;
           const midArcY = (prevPeakY + y) * 0.5;
           ctx.strokeStyle = theme.cMid;
@@ -5218,7 +5260,6 @@ class BeatstarEngine {
           ctx.lineWidth = 1.1;
           ctx.stroke();
         } else if (fx === 'grand_fireworks' || fx === 'supernova_burst') {
-          // Destellos estelares de 4 puntas en las puntas de mayor impulso
           if (i % 2 === 0) {
             const starR = 5 + effectiveDrive * 9;
             ctx.strokeStyle = i % 4 === 0 ? theme.cInner : theme.cMid;
@@ -5232,7 +5273,6 @@ class BeatstarEngine {
             ctx.stroke();
           }
         } else if (fx === 'aurora_borealis' || fx === 'deep_cosmos' || fx === 'cyber_neon') {
-          // Cintas de plasma / constelación uniendo las puntas superiores
           if (prevPeakX !== null) {
             ctx.strokeStyle = i % 2 === 0 ? theme.cInner : theme.cMid;
             ctx.lineWidth = 2.2;
@@ -5248,7 +5288,6 @@ class BeatstarEngine {
             ctx.stroke();
           }
         } else if (fx === 'quantum_prism' && i % 2 === 0) {
-          // Micro-cubos holográficos giratorios en la punta de cada barra
           const cSz = 5 + effectiveDrive * 5;
           ctx.save();
           ctx.translate(peakX + dirSign * 6, y);
@@ -5322,17 +5361,12 @@ class BeatstarEngine {
     ctx.fillStyle = (this._bgGrads && this._bgGrads[bgGradIdx]) ? this._bgGrads[bgGradIdx] : '#0e081e';
     ctx.fillRect(-20, -20, w + 40, h + 40);
 
-    // Resplandor aditivo suave si hubo cambio de atmósfera (sin parpadeo de pantalla completa)
+    // Resplandor aditivo suave si hubo cambio de atmósfera (0 Gradient Allocs)
     if (this.targetAtmosphereColor && this.atmosphereShiftProgress < 1.0) {
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      const shiftAlpha = (1.0 - this.atmosphereShiftProgress) * 0.16;
-      const atmRad = Math.max(w, h) * 0.75;
-      const atmGrad = ctx.createRadialGradient(w / 2, h * 0.28, 10, w / 2, h * 0.28, atmRad);
-      atmGrad.addColorStop(0.0, hexToRgba(this.targetAtmosphereColor, shiftAlpha));
-      atmGrad.addColorStop(0.55, hexToRgba(this.targetAtmosphereColor, shiftAlpha * 0.30));
-      atmGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = atmGrad;
+      const shiftAlpha = (1.0 - this.atmosphereShiftProgress) * 0.12;
+      ctx.fillStyle = hexToRgba(this.targetAtmosphereColor, shiftAlpha);
       ctx.fillRect(0, 0, w, h);
       ctx.restore();
     }
@@ -5564,16 +5598,13 @@ class BeatstarEngine {
 
     ctx.restore();
 
-    // 7. Full Focus Vignette Ambient Flash (Modo aditivo luminoso que jamás oscurece la pantalla)
+    // 7. Full Focus Vignette Ambient Flash (0 Gradient Allocs)
     if (this.vignetteAlpha > 0.01) {
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      const vGrad = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.28, w / 2, h / 2, Math.max(w, h) * 0.82);
-      vGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-      vGrad.addColorStop(0.60, hexToRgba(this.vignetteColor || beamColor1, this.vignetteAlpha * 0.22));
-      vGrad.addColorStop(1, hexToRgba(this.vignetteColor || beamColor1, this.vignetteAlpha * 0.40));
-      ctx.fillStyle = vGrad;
-      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = hexToRgba(this.vignetteColor || beamColor1, this.vignetteAlpha * 0.28);
+      ctx.lineWidth = Math.max(18, w * 0.06);
+      ctx.strokeRect(0, 0, w, h);
       ctx.restore();
     }
 
@@ -5677,25 +5708,16 @@ class BeatstarEngine {
 
     ctx.save();
 
-    // 1. LLAMARADA INFERNAL (FUEGO VOLUMÉTRICO INTENSO)
+    // 1. LLAMARADA INFERNAL (FUEGO VOLUMÉTRICO INTENSO - 0 Gradient Allocs)
     if (fx === 'solar_inferno') {
-      const baseGrad = ctx.createRadialGradient(x, y, 4 * s, x, y - 55 * s * p, 95 * s);
-      baseGrad.addColorStop(0.0, `rgba(153, 27, 27, ${(a * 0.72).toFixed(3)})`);
-      baseGrad.addColorStop(0.5, `rgba(234, 88, 12, ${(a * 0.45).toFixed(3)})`);
-      baseGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = baseGrad;
+      ctx.fillStyle = `rgba(234, 88, 12, ${(a * 0.38).toFixed(3)})`;
       ctx.beginPath();
-      ctx.ellipse(x, y - 35 * s * p, 62 * s, 95 * s, 0, 0, Math.PI * 2);
+      ctx.ellipse(x, y - 35 * s * p, 62 * s, 90 * s, 0, 0, Math.PI * 2);
       ctx.fill();
 
       const flameCols = ['#dc2626', '#ff4500', '#fb923c', '#fde047', '#ffffff'];
-      const sharedFg = ctx.createLinearGradient(x, y + 6 * s, x, y - (130 + p * 145) * s);
-      sharedFg.addColorStop(0.0, '#ffffff');
-      sharedFg.addColorStop(0.25, '#fde047');
-      sharedFg.addColorStop(0.60, '#ff4500');
-      sharedFg.addColorStop(1.0, 'rgba(185, 28, 28, 0)');
-      ctx.fillStyle = sharedFg;
-      ctx.globalAlpha = a * 0.92;
+      ctx.fillStyle = '#ff5500';
+      ctx.globalAlpha = a * 0.85;
       ctx.beginPath();
       for (let i = 0; i < 7; i++) {
         const frac = i / 6;
@@ -5712,32 +5734,45 @@ class BeatstarEngine {
       }
       ctx.fill();
 
+      ctx.fillStyle = '#fde047';
+      ctx.globalAlpha = a * 0.90;
+      ctx.beginPath();
+      for (let i = 1; i < 6; i++) {
+        const frac = i / 6;
+        const spread = (frac - 0.5) * 52 * s;
+        const flameH = (52 + Math.sin(seed + i * 2.1) * 22 + p * 95) * s;
+        const wave = Math.sin(nowMs * 0.018 + i * 1.4) * 10 * s;
+        const topX = x + spread * 0.5 + wave;
+        const topY = y - flameH;
+        const baseW = 12 * s * a;
+        ctx.moveTo(x + spread * 0.25 - baseW, y + 4 * s);
+        ctx.lineTo(topX, topY);
+        ctx.lineTo(x + spread * 0.25 + baseW, y + 4 * s);
+      }
+      ctx.fill();
+
       ctx.strokeStyle = '#ff4500';
       ctx.lineWidth = 4.5 * s * a;
       ctx.beginPath();
       ctx.ellipse(x, y, (24 + p * 68) * s, (10 + p * 26) * s, 0, 0, Math.PI * 2);
       ctx.stroke();
 
-      for (let e = 0; e < 10; e++) {
+      for (let e = 0; e < 8; e++) {
         const ang = seed + e * 0.9 + p * 3.5;
         const ex = x + Math.sin(ang) * (15 + e * 5.5) * s;
         const ey = y - (p * (60 + e * 16) + (e * 7)) * s;
         ctx.fillStyle = flameCols[e % flameCols.length];
         ctx.beginPath();
-        ctx.arc(ex, ey, (3.8 - (e % 3) * 0.8) * s * a, 0, Math.PI * 2);
+        ctx.arc(ex, ey, (3.6 - (e % 3) * 0.7) * s * a, 0, Math.PI * 2);
         ctx.fill();
       }
     }
 
-    // 2. VENTISCA CRIOGÉNICA (CRISTALES DE HIELO Y ESCARCHA)
+    // 2. VENTISCA CRIOGÉNICA (CRISTALES DE HIELO Y ESCARCHA - 0 Gradient Allocs)
     else if (fx === 'cryo_blizzard') {
-      const iceGrad = ctx.createRadialGradient(x, y, 2 * s, x, y, 88 * s);
-      iceGrad.addColorStop(0.0, `rgba(3, 105, 161, ${(a * 0.68).toFixed(3)})`);
-      iceGrad.addColorStop(0.55, `rgba(14, 165, 233, ${(a * 0.35).toFixed(3)})`);
-      iceGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = iceGrad;
+      ctx.fillStyle = `rgba(14, 165, 233, ${(a * 0.35).toFixed(3)})`;
       ctx.beginPath();
-      ctx.arc(x, y, 88 * s, 0, Math.PI * 2);
+      ctx.arc(x, y, 76 * s, 0, Math.PI * 2);
       ctx.fill();
 
       for (let i = 0; i < 9; i++) {
@@ -5784,16 +5819,14 @@ class BeatstarEngine {
       ctx.restore();
     }
 
-    // 3. PULSO CYBERPUNK (EFECTO NEÓN SYNTHWAVE)
+    // 3. PULSO CYBERPUNK (EFECTO NEÓN SYNTHWAVE - 0 Gradient Allocs)
     else if (fx === 'cyber_neon') {
       const neonCols = ['#ff007f', '#00f2fe', '#a855f7', '#ffe600'];
       const beamH = (120 + p * 180) * s;
-      const bg = ctx.createLinearGradient(x, y, x, y - beamH);
-      bg.addColorStop(0.0, `rgba(255, 0, 127, ${(a * 0.78).toFixed(3)})`);
-      bg.addColorStop(0.5, `rgba(0, 242, 254, ${(a * 0.55).toFixed(3)})`);
-      bg.addColorStop(1.0, 'rgba(168, 85, 247, 0)');
-      ctx.fillStyle = bg;
-      ctx.fillRect(x - 36 * s * a, y - beamH, 72 * s * a, beamH);
+      ctx.fillStyle = `rgba(255, 0, 127, ${(a * 0.42).toFixed(3)})`;
+      ctx.fillRect(x - 34 * s * a, y - beamH * 0.65, 68 * s * a, beamH * 0.65);
+      ctx.fillStyle = `rgba(0, 242, 254, ${(a * 0.32).toFixed(3)})`;
+      ctx.fillRect(x - 20 * s * a, y - beamH, 40 * s * a, beamH);
 
       for (let hIdx = 0; hIdx < 3; hIdx++) {
         ctx.save();
@@ -5841,44 +5874,42 @@ class BeatstarEngine {
         ctx.arc(cx, cy, sh.r * (0.3 + p * 0.7), 0, Math.PI * 2);
         ctx.fill();
 
-        const spokes = 16;
+        const spokes = 12;
+        ctx.strokeStyle = sh.col1;
+        ctx.lineWidth = 2.5 * s * a;
+        ctx.beginPath();
         for (let k = 0; k < spokes; k++) {
           const ang = (k / spokes) * Math.PI * 2 + sIdx * 0.3;
           const dist = sh.r * (0.18 + p * 0.85);
           const droop = p * p * 26 * s;
           const tx = cx + Math.cos(ang) * dist;
           const ty = cy + Math.sin(ang) * dist + droop;
-
-          ctx.strokeStyle = k % 2 === 0 ? sh.col1 : sh.col2;
-          ctx.lineWidth = 2.6 * s * a;
-          ctx.beginPath();
           ctx.moveTo(cx + Math.cos(ang) * dist * 0.25, cy + Math.sin(ang) * dist * 0.25);
-          ctx.quadraticCurveTo(
-            cx + Math.cos(ang) * dist * 0.65,
-            cy + Math.sin(ang) * dist * 0.65 + droop * 0.3,
-            tx,
-            ty
-          );
-          ctx.stroke();
-
-          ctx.fillStyle = '#ffffff';
-          ctx.beginPath();
-          ctx.arc(tx, ty, 2.8 * s * a, 0, Math.PI * 2);
-          ctx.fill();
+          ctx.lineTo(tx, ty);
         }
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        for (let k = 0; k < spokes; k++) {
+          const ang = (k / spokes) * Math.PI * 2 + sIdx * 0.3;
+          const dist = sh.r * (0.18 + p * 0.85);
+          const droop = p * p * 26 * s;
+          const tx = cx + Math.cos(ang) * dist;
+          const ty = cy + Math.sin(ang) * dist + droop;
+          ctx.moveTo(tx + 2.6 * s * a, ty);
+          ctx.arc(tx, ty, 2.6 * s * a, 0, Math.PI * 2);
+        }
+        ctx.fill();
       }
     }
 
-    // 5. TORMENTA DE ZEUS (ILUMINACIONES Y RAYOS TESLA)
+    // 5. TORMENTA DE ZEUS (ILUMINACIONES Y RAYOS TESLA - 0 Gradient Allocs)
     else if (fx === 'zeus_lightning') {
       const stormH = 220 * s;
-      const sg = ctx.createLinearGradient(x, y, x, y - stormH);
-      sg.addColorStop(0.0, `rgba(49, 46, 129, ${(a * 0.72).toFixed(3)})`);
-      sg.addColorStop(0.6, `rgba(124, 58, 237, ${(a * 0.40).toFixed(3)})`);
-      sg.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = sg;
+      ctx.fillStyle = `rgba(124, 58, 237, ${(a * 0.35).toFixed(3)})`;
       ctx.beginPath();
-      ctx.ellipse(x, y - stormH * 0.45, 48 * s, stormH * 0.55, 0, 0, Math.PI * 2);
+      ctx.ellipse(x, y - stormH * 0.45, 48 * s, stormH * 0.50, 0, 0, Math.PI * 2);
       ctx.fill();
 
       for (let bIdx = 0; bIdx < 3; bIdx++) {
@@ -5891,25 +5922,17 @@ class BeatstarEngine {
         ctx.lineJoin = 'miter';
         ctx.beginPath();
         ctx.moveTo(startX, startY);
-        const pts = [{ x: startX, y: startY }];
         for (let seg = 1; seg < segments; seg++) {
           const frac = seg / segments;
           const jx = startX + (x - startX) * frac + Math.sin(nowMs * 0.045 + seg * 3.7 + bIdx * 2.1) * 24 * s;
           const jy = startY + (y - startY) * frac;
-          pts.push({ x: jx, y: jy });
           ctx.lineTo(jx, jy);
         }
-        pts.push({ x, y });
         ctx.lineTo(x, y);
         ctx.stroke();
 
         ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2.4 * s * a;
-        ctx.beginPath();
-        for (let seg = 0; seg < pts.length; seg++) {
-          if (seg === 0) ctx.moveTo(pts[seg].x, pts[seg].y);
-          else ctx.lineTo(pts[seg].x, pts[seg].y);
-        }
+        ctx.lineWidth = 2.2 * s * a;
         ctx.stroke();
       }
 
@@ -5920,33 +5943,32 @@ class BeatstarEngine {
       ctx.stroke();
     }
 
-    // 6. NEBULOSA CÓSMICA (EFECTO DEL ESPACIO Y GALAXIA)
+    // 6. NEBULOSA CÓSMICA (EFECTO DEL ESPACIO Y GALAXIA - 0 Gradient Allocs)
     else if (fx === 'deep_cosmos') {
       const cy = y - 28 * p * s;
       const maxR = (42 + p * 54) * s;
 
-      const spaceGrad = ctx.createRadialGradient(x, cy, 2 * s, x, cy, maxR);
-      spaceGrad.addColorStop(0.0, `rgba(15, 5, 41, ${(a * 0.90).toFixed(3)})`);
-      spaceGrad.addColorStop(0.55, `rgba(88, 28, 135, ${(a * 0.72).toFixed(3)})`);
-      spaceGrad.addColorStop(0.85, `rgba(219, 39, 119, ${(a * 0.35).toFixed(3)})`);
-      spaceGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = spaceGrad;
+      ctx.fillStyle = `rgba(88, 28, 135, ${(a * 0.62).toFixed(3)})`;
       ctx.beginPath();
       ctx.ellipse(x, cy, maxR, maxR * 0.68, 0, 0, Math.PI * 2);
       ctx.fill();
 
+      ctx.fillStyle = `rgba(219, 39, 119, ${(a * 0.38).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.ellipse(x, cy, maxR * 0.65, maxR * 0.44, 0, 0, Math.PI * 2);
+      ctx.fill();
+
       const armCols = ['#38bdf8', '#f472b6', '#fde047', '#c084fc', '#ffffff'];
-      for (let i = 0; i < 28; i++) {
+      for (let i = 0; i < 20; i++) {
         const arm = i % 2;
-        const t = i / 28;
+        const t = i / 20;
         const theta = arm * Math.PI + t * Math.PI * 3.2 - p * 4.2 + seed;
         const r = t * maxR * 0.88;
         const sx = x + Math.cos(theta) * r;
         const sy = cy + Math.sin(theta) * r * 0.68;
         ctx.fillStyle = armCols[i % armCols.length];
-        ctx.beginPath();
-        ctx.arc(sx, sy, (1.8 + (1 - t) * 3.0) * s * a, 0, Math.PI * 2);
-        ctx.fill();
+        const sr = (1.8 + (1 - t) * 2.8) * s * a;
+        ctx.fillRect(sx - sr, sy - sr, sr * 2, sr * 2);
       }
 
       const pAng = seed + p * 3.8;
@@ -5963,17 +5985,17 @@ class BeatstarEngine {
       ctx.stroke();
     }
 
-    // 7. LLUVIA DE ASTEROIDES (METEORITOS EN LLAMAS E IMPACTO)
+    // 7. LLUVIA DE ASTEROIDES (METEORITOS EN LLAMAS E IMPACTO - 0 Gradient Allocs)
     else if (fx === 'asteroid_impact') {
       const craterR = (28 + p * 58) * s;
-      const cg = ctx.createRadialGradient(x, y, 2 * s, x, y, craterR);
-      cg.addColorStop(0.0, `rgba(254, 240, 138, ${(a * 0.95).toFixed(3)})`);
-      cg.addColorStop(0.35, `rgba(234, 88, 12, ${(a * 0.82).toFixed(3)})`);
-      cg.addColorStop(0.75, `rgba(127, 29, 29, ${(a * 0.55).toFixed(3)})`);
-      cg.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = cg;
+      ctx.fillStyle = `rgba(234, 88, 12, ${(a * 0.65).toFixed(3)})`;
       ctx.beginPath();
       ctx.ellipse(x, y, craterR, craterR * 0.48, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = `rgba(254, 240, 138, ${(a * 0.85).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.ellipse(x, y, craterR * 0.45, craterR * 0.22, 0, 0, Math.PI * 2);
       ctx.fill();
 
       for (let m = 0; m < 6; m++) {
@@ -6011,20 +6033,19 @@ class BeatstarEngine {
       }
     }
 
-    // 8. HORIZONTE DE SUCESOS (AGUJERO NEGRO GRAVITACIONAL)
+    // 8. HORIZONTE DE SUCESOS (AGUJERO NEGRO GRAVITACIONAL - 0 Gradient Allocs)
     else if (fx === 'black_hole') {
       const cy = y - 18 * p * s;
       const diskR = (38 + p * 52) * s;
 
-      const accGrad = ctx.createRadialGradient(x, cy, diskR * 0.28, x, cy, diskR);
-      accGrad.addColorStop(0.0, `rgba(255, 255, 255, ${(a * 0.95).toFixed(3)})`);
-      accGrad.addColorStop(0.25, `rgba(249, 115, 22, ${(a * 0.88).toFixed(3)})`);
-      accGrad.addColorStop(0.60, `rgba(219, 39, 119, ${(a * 0.65).toFixed(3)})`);
-      accGrad.addColorStop(0.85, `rgba(109, 40, 217, ${(a * 0.40).toFixed(3)})`);
-      accGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = accGrad;
+      ctx.fillStyle = `rgba(219, 39, 119, ${(a * 0.55).toFixed(3)})`;
       ctx.beginPath();
       ctx.ellipse(x, cy, diskR, diskR * 0.52, -0.18, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = `rgba(249, 115, 22, ${(a * 0.78).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.ellipse(x, cy, diskR * 0.65, diskR * 0.34, -0.18, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.strokeStyle = `rgba(56, 189, 248, ${(a * 0.75).toFixed(3)})`;
@@ -6044,22 +6065,18 @@ class BeatstarEngine {
       ctx.stroke();
     }
 
-    // 9. LLAMA DE DRAGÓN ESMERALDA (DOBLE HÉLICE DE FUEGO MÍSTICO)
+    // 9. LLAMA DE DRAGÓN ESMERALDA (DOBLE HÉLICE DE FUEGO MÍSTICO - 0 Gradient Allocs)
     else if (fx === 'dragon_fire') {
       const hMax = (110 + p * 160) * s;
-      const dg = ctx.createRadialGradient(x, y - hMax * 0.35, 4 * s, x, y - hMax * 0.35, 85 * s);
-      dg.addColorStop(0.0, `rgba(6, 78, 59, ${(a * 0.75).toFixed(3)})`);
-      dg.addColorStop(0.6, `rgba(16, 185, 129, ${(a * 0.38).toFixed(3)})`);
-      dg.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = dg;
+      ctx.fillStyle = `rgba(16, 185, 129, ${(a * 0.36).toFixed(3)})`;
       ctx.beginPath();
-      ctx.ellipse(x, y - hMax * 0.35, 58 * s, 90 * s, 0, 0, Math.PI * 2);
+      ctx.ellipse(x, y - hMax * 0.35, 54 * s, 84 * s, 0, 0, Math.PI * 2);
       ctx.fill();
 
       for (let strand = 0; strand < 2; strand++) {
         ctx.beginPath();
-        for (let step = 0; step <= 16; step++) {
-          const f = step / 16;
+        for (let step = 0; step <= 14; step++) {
+          const f = step / 14;
           const angle = f * Math.PI * 3.5 + p * 7.0 + strand * Math.PI;
           const hx = x + Math.sin(angle) * (28 * (1 - f * 0.45)) * s;
           const hy = y - f * hMax;
@@ -6077,7 +6094,7 @@ class BeatstarEngine {
       }
     }
 
-    // 10. AURORA BOREAL CELESTIAL (CORTINAS DE LUZ PRISMÁTICA)
+    // 10. AURORA BOREAL CELESTIAL (CORTINAS DE LUZ PRISMÁTICA - 0 Gradient Allocs)
     else if (fx === 'aurora_borealis') {
       const ribbons = [
         { col: '#06b6d4', off: -32 },
@@ -6086,15 +6103,12 @@ class BeatstarEngine {
         { col: '#f43f5e', off: 34 }
       ];
       const curH = (125 + p * 135) * s;
+      ctx.globalAlpha = a * 0.72;
       for (let r = 0; r < ribbons.length; r++) {
         const rb = ribbons[r];
         const wave = Math.sin(nowMs * 0.008 + r * 1.4 + p * 4) * 18 * s;
         const rx = x + rb.off * s + wave;
-        const rg = ctx.createLinearGradient(rx, y, rx, y - curH);
-        rg.addColorStop(0.0, hexToRgba(rb.col, a * 0.85));
-        rg.addColorStop(0.55, hexToRgba(rb.col, a * 0.55));
-        rg.addColorStop(1.0, 'rgba(255, 255, 255, 0)');
-        ctx.fillStyle = rg;
+        ctx.fillStyle = rb.col;
         ctx.beginPath();
         ctx.moveTo(rx - 14 * s, y);
         ctx.quadraticCurveTo(rx + wave, y - curH * 0.5, rx - 6 * s, y - curH);
@@ -6105,20 +6119,19 @@ class BeatstarEngine {
       }
     }
 
-    // 11. EXPLOSIÓN SUPERNOVA (ESTRELLA HIPERMASIVA)
+    // 11. EXPLOSIÓN SUPERNOVA (ESTRELLA HIPERMASIVA - 0 Gradient Allocs)
     else if (fx === 'supernova_burst') {
       const cy = y - 16 * p * s;
       const rad = (45 + p * 75) * s;
 
-      const ng = ctx.createRadialGradient(x, cy, 2 * s, x, cy, rad);
-      ng.addColorStop(0.0, '#ffffff');
-      ng.addColorStop(0.25, `rgba(253, 224, 71, ${(a * 0.92).toFixed(3)})`);
-      ng.addColorStop(0.55, `rgba(255, 0, 127, ${(a * 0.68).toFixed(3)})`);
-      ng.addColorStop(0.85, `rgba(0, 242, 254, ${(a * 0.42).toFixed(3)})`);
-      ng.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = ng;
+      ctx.fillStyle = `rgba(255, 0, 127, ${(a * 0.45).toFixed(3)})`;
       ctx.beginPath();
       ctx.arc(x, cy, rad, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = `rgba(253, 224, 71, ${(a * 0.78).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.arc(x, cy, rad * 0.55, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.save();
@@ -6181,6 +6194,9 @@ class BeatstarEngine {
 
   render(frameNow) {
     this._frameNow = frameNow || performance.now();
+    this.ctx.globalCompositeOperation = 'source-over';
+    this.ctx.globalAlpha = 1.0;
+    this.ctx.shadowBlur = 0;
     const hasShake = (this.shakeDuration > 0);
     if (hasShake) {
       this.ctx.save();
@@ -6246,16 +6262,12 @@ class BeatstarEngine {
       const keyW = (this.laneWidth || 100) * 0.78;
       const keyH = isLarge ? 58 : 30;
 
-      // 1. Estela de propulsión hipersónica luminosa
+      // 1. Estela de propulsión hipersónica luminosa (0 Gradient Allocs)
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       const trailLenX = -launch.vx * 0.05;
       const trailLenY = -launch.vy * 0.05;
-      const trailGrad = ctx.createLinearGradient(0, 0, trailLenX, trailLenY);
-      trailGrad.addColorStop(0.0, hexToRgba(launch.color, 0.95));
-      trailGrad.addColorStop(0.40, hexToRgba('#ffffff', 0.85));
-      trailGrad.addColorStop(1.0, 'rgba(255, 255, 255, 0)');
-      ctx.fillStyle = trailGrad;
+      ctx.fillStyle = hexToRgba(launch.color, 0.72);
       ctx.beginPath();
       ctx.moveTo(-keyW / 2, -keyH / 2);
       ctx.lineTo(keyW / 2, -keyH / 2);
@@ -6265,17 +6277,12 @@ class BeatstarEngine {
       ctx.fill();
       ctx.restore();
 
-      // 2. Tecla marfil en 3D saliendo proyectada
-      const keyGrad = ctx.createLinearGradient(0, -keyH / 2, 0, keyH / 2);
-      keyGrad.addColorStop(0.0, '#ffffff');
-      keyGrad.addColorStop(0.3, '#f5f7fa');
-      keyGrad.addColorStop(0.75, '#d9e0e8');
-      keyGrad.addColorStop(1.0, '#a8b2c0');
-
-      ctx.fillStyle = keyGrad;
+      // 2. Tecla marfil en 3D saliendo proyectada (0 Gradient Allocs)
+      ctx.fillStyle = '#e8edf4';
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2.4;
 
+      ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(-keyW / 2, -keyH / 2, keyW, keyH, 8);
       else ctx.rect(-keyW / 2, -keyH / 2, keyW, keyH);
       ctx.fill();
@@ -6286,6 +6293,7 @@ class BeatstarEngine {
       ctx.globalCompositeOperation = 'lighter';
       ctx.strokeStyle = hexToRgba(launch.color, (1 - progress) * 0.85);
       ctx.lineWidth = 4.0;
+      ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(-keyW / 2, -keyH / 2, keyW, keyH, 8);
       else ctx.rect(-keyW / 2, -keyH / 2, keyW, keyH);
       ctx.stroke();
@@ -6461,6 +6469,7 @@ class BeatstarEngine {
         // Base difuminada luminosa translúcida
         ctx.save();
         ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.22)`;
+        ctx.beginPath();
         if (ctx.roundRect) ctx.roundRect(-pillW / 2, subY - pillH / 2, pillW, pillH, 9.5);
         else ctx.rect(-pillW / 2, subY - pillH / 2, pillW, pillH);
         ctx.fill();
@@ -6937,7 +6946,6 @@ class BeatstarEngine {
     // 5. Letras de canciones IDÉNTICAS al teleprompter (Blanco puro + halo dorado cálido)
     if (!isSwipe) {
       if (lyricText) {
-        // lyricText ya es el _cleanLyric pre-computado (sin regex en render loop)
         const cleanLyric = lyricText;
         const baseFontSize = Math.max(14, Math.min(26 * scale, keyW * 0.35));
         const fontScale = cleanLyric.length > 6 ? (6 / cleanLyric.length) : 1.0;
@@ -6949,62 +6957,92 @@ class BeatstarEngine {
         ctx.textBaseline = 'middle';
         ctx.shadowBlur = 0;
 
-        // 1. Sombra de profundidad 3D para contraste
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.90)';
-        ctx.fillText(cleanLyric, cx + 1.2, cyMid + 1.2);
+        // Reborde cálido + cara frontal blanca en solo 2 llamadas (sin 6x fillText por nota)
+        ctx.strokeStyle = 'rgba(255, 175, 0, 0.85)';
+        ctx.lineWidth = 2.6 * scale;
+        ctx.strokeText(cleanLyric, cx, cyMid);
 
-        // 2. Halo dorado/ámbar idéntico al del teleprompter
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.fillStyle = 'rgba(255, 180, 0, 0.75)';
-        ctx.fillText(cleanLyric, cx - 1.2, cyMid);
-        ctx.fillText(cleanLyric, cx + 1.2, cyMid);
-        ctx.fillText(cleanLyric, cx, cyMid - 1.2);
-        ctx.fillText(cleanLyric, cx, cyMid + 1.2);
-        ctx.restore();
-
-        // 3. Cara frontal en blanco brillante (#ffffff), igual que "What can" arriba
         ctx.fillStyle = isPressed ? '#ffe57f' : '#ffffff';
         ctx.fillText(cleanLyric, cx, cyMid);
 
         ctx.restore();
       } else {
+        // Línea blanca neón pura y elegante en su posición original exacta (cyMid) con brillo blanco intenso
         const slitW = keyW * 0.62;
-        const slitH = Math.max(4.5, 7.0 * scale);
+        const slitH = Math.max(4.5, 6.8 * scale);
         const slitX = cx - slitW / 2;
         const slitY = cyMid - slitH / 2;
 
         ctx.save();
-        ctx.fillStyle = '#000000';
-        if (ctx.roundRect) ctx.roundRect(slitX - 1, slitY - 1, slitW + 2, slitH + 2, slitH / 2);
-        else ctx.rect(slitX - 1, slitY - 1, slitW + 2, slitH + 2);
-        ctx.fill();
 
+        // 1. Resplandor difuminado exterior blanco neón puro (con shadowBlur blanco real + modo aditivo)
         ctx.globalCompositeOperation = 'lighter';
-        const haloSpread = Math.max(2, 3.5 * scale);
-        ctx.fillStyle = hexToRgba(glowColor, 0.40);
-        if (ctx.roundRect) ctx.roundRect(slitX - haloSpread, slitY - haloSpread, slitW + haloSpread * 2, slitH + haloSpread * 2, (slitH + haloSpread * 2) / 2);
-        else ctx.rect(slitX - haloSpread, slitY - haloSpread, slitW + haloSpread * 2, slitH + haloSpread * 2);
+        ctx.shadowColor = '#ffffff';
+        ctx.shadowBlur = Math.round(18 * scale);
+        const outerSpreadX = 5.5 * scale;
+        const outerSpreadY = 4.2 * scale;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.42)';
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(
+            slitX - outerSpreadX,
+            slitY - outerSpreadY,
+            slitW + outerSpreadX * 2,
+            slitH + outerSpreadY * 2,
+            (slitH + outerSpreadY * 2) / 2
+          );
+        } else {
+          ctx.rect(slitX - outerSpreadX, slitY - outerSpreadY, slitW + outerSpreadX * 2, slitH + outerSpreadY * 2);
+        }
         ctx.fill();
 
+        // 2. Halo intermedio blanco brillante de alta luminosidad
+        const midSpreadX = 2.4 * scale;
+        const midSpreadY = 1.8 * scale;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(
+            slitX - midSpreadX,
+            slitY - midSpreadY,
+            slitW + midSpreadX * 2,
+            slitH + midSpreadY * 2,
+            (slitH + midSpreadY * 2) / 2
+          );
+        } else {
+          ctx.rect(slitX - midSpreadX, slitY - midSpreadY, slitW + midSpreadX * 2, slitH + midSpreadY * 2);
+        }
+        ctx.fill();
+
+        // 3. Núcleo de tubo neón blanco puro incandescente (#ffffff)
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.shadowColor = '#ffffff';
+        ctx.shadowBlur = Math.round(12 * scale);
         ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
         if (ctx.roundRect) ctx.roundRect(slitX, slitY, slitW, slitH, slitH / 2);
         else ctx.rect(slitX, slitY, slitW, slitH);
         ctx.fill();
 
-        // Núcleo central de alta energía
-        ctx.fillStyle = glowColor;
-        const coreW = slitW * 0.45;
-        const coreH = Math.max(2.0, slitH * 0.45);
-        if (ctx.roundRect) ctx.roundRect(cx - coreW / 2, cyMid - coreH / 2, coreW, coreH, coreH / 2);
-        else ctx.rect(cx - coreW / 2, cyMid - coreH / 2, coreW, coreH);
+        // 4. Sobrecarga blanca aditiva en el centro para máximo fulgor neón blanco
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#ffffff';
         ctx.fill();
+
         ctx.restore();
       }
     }
 
     ctx.restore();
-    return { cx, cy: cyMid, w: keyW, h: keyH };
+    if (!this._keyRectScratch) {
+      this._keyRectScratch = { cx: 0, cy: 0, w: 0, h: 0 };
+    }
+    this._keyRectScratch.cx = cx;
+    this._keyRectScratch.cy = cyMid;
+    this._keyRectScratch.w = keyW;
+    this._keyRectScratch.h = keyH;
+    return this._keyRectScratch;
   }
 
   // Tecla Neón 2D Clásica (para modo 2D Neón)
@@ -7061,9 +7099,28 @@ class BeatstarEngine {
       ctx.fillText(cleanLyric, cx, cy);
       ctx.restore();
     } else if (isLarge) {
-      // Línea de energía central para teclas grandes en 2D
-      ctx.fillStyle = isPressed ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 242, 254, 0.85)';
-      ctx.fillRect(cx - (w * 0.48) / 2, cy - 1.5, w * 0.48, 3);
+      // Línea de energía central blanco neón brillante para teclas grandes en 2D
+      const slitW = w * 0.62;
+      const slitH = 6.0;
+      const slitX = cx - slitW / 2;
+      const slitY = cy - slitH / 2;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.shadowColor = '#ffffff';
+      ctx.shadowBlur = 14;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(slitX - 3, slitY - 2.5, slitW + 6, slitH + 5, (slitH + 5) / 2);
+      else ctx.rect(slitX - 3, slitY - 2.5, slitW + 6, slitH + 5);
+      ctx.fill();
+
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(slitX, slitY, slitW, slitH, slitH / 2);
+      else ctx.rect(slitX, slitY, slitW, slitH);
+      ctx.fill();
+      ctx.restore();
     }
 
     ctx.restore();
@@ -7166,9 +7223,43 @@ class BeatstarEngine {
       ctx.stroke();
       ctx.restore();
 
-      // D. Líneas divisorias de carriles grabadas en 3D con bisel especular
-      ctx.strokeStyle = 'rgba(59, 130, 246, 0.28)';
-      ctx.lineWidth = 2.2;
+      // D. Líneas divisorias de carriles grabadas en 3D con bisel especular + Modo Fiebre Overdrive
+      const odLevel = this.overdriveLevel || 0;
+      if (odLevel > 0.02) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        const odPulse = 0.5 + 0.5 * Math.sin(safePerfNow * 0.008);
+        ctx.fillStyle = hexToRgba(railLaserCol, odLevel * (0.09 + odPulse * 0.06));
+        ctx.beginPath();
+        ctx.moveTo(tL_top, horizonY);
+        ctx.lineTo(tR_top, horizonY);
+        ctx.lineTo(tR_bot, bottomY);
+        ctx.lineTo(tL_bot, bottomY);
+        ctx.closePath();
+        ctx.fill();
+
+        // Onda sinusoidal prismática en las divisorias de carril durante Fiebre Overdrive (0 allocs)
+        const segCount = 12;
+        const spanH = bottomY - horizonY;
+        for (let l = 1; l <= 2; l++) {
+          ctx.strokeStyle = l === 1 ? '#00f2fe' : '#ff007f';
+          ctx.lineWidth = 2.6 * odLevel;
+          ctx.beginPath();
+          for (let s = 0; s <= segCount; s++) {
+            const frac = s / segCount;
+            const yPos = horizonY + spanH * (frac * frac);
+            const baseX = getBoundaryX(l, yPos);
+            const waveX = Math.sin(frac * 10.0 - safePerfNow * 0.014 + l * 1.5) * (3.2 * frac * odLevel);
+            if (s === 0) ctx.moveTo(baseX + waveX, yPos);
+            else ctx.lineTo(baseX + waveX, yPos);
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      ctx.strokeStyle = odLevel > 0.05 ? `rgba(125, 211, 252, ${(0.28 + odLevel * 0.42).toFixed(2)})` : 'rgba(59, 130, 246, 0.28)';
+      ctx.lineWidth = 2.2 + odLevel * 0.8;
       ctx.beginPath();
       for (let l = 1; l <= 2; l++) {
         ctx.moveTo(getBoundaryX(l, horizonY), horizonY);
@@ -7221,47 +7312,43 @@ class BeatstarEngine {
           ctx.restore();
         }
       }
-      // 3. CHASIS METÁLICO CONTINUO Y ALAS LATERALES (Estilo Beatstar Cyber-Metallic Chassis)
-      const wingMaxWidth = this.width * 0.16;
+      // 3. BISEL METÁLICO 3D DE PRECISIÓN EN LOS BORDES DE LA AUTOPISTA (Estilo Beatstar Original)
+      const railTopW = 5.0;
+      const railBotW = 14.0;
 
-      // Alas sólidas laterales (Optimizado GPU: 0 allocs)
       ctx.save();
-      ctx.fillStyle = '#151c27';
+      ctx.fillStyle = '#0d1322';
+      // Bisel lateral izquierdo
       ctx.beginPath();
       ctx.moveTo(tL_top, horizonY);
-      ctx.lineTo(Math.max(0, tL_top - 14), horizonY);
-      ctx.lineTo(Math.max(0, tL_bot - wingMaxWidth), bottomY);
+      ctx.lineTo(Math.max(0, tL_top - railTopW), horizonY);
+      ctx.lineTo(Math.max(0, tL_bot - railBotW), bottomY);
       ctx.lineTo(tL_bot, bottomY);
       ctx.closePath();
       ctx.fill();
 
-      // Borde exterior biselado de cromo (Ala Izquierda)
-      ctx.strokeStyle = 'rgba(110, 136, 160, 0.45)';
-      ctx.lineWidth = 2.0;
-      ctx.beginPath();
-      ctx.moveTo(Math.max(0, tL_top - 14), horizonY);
-      ctx.lineTo(Math.max(0, tL_bot - wingMaxWidth), bottomY);
-      ctx.stroke();
-
+      // Bisel lateral derecho
       ctx.beginPath();
       ctx.moveTo(tR_top, horizonY);
-      ctx.lineTo(Math.min(this.width, tR_top + 14), horizonY);
-      ctx.lineTo(Math.min(this.width, tR_bot + wingMaxWidth), bottomY);
+      ctx.lineTo(Math.min(this.width, tR_top + railTopW), horizonY);
+      ctx.lineTo(Math.min(this.width, tR_bot + railBotW), bottomY);
       ctx.lineTo(tR_bot, bottomY);
       ctx.closePath();
       ctx.fill();
 
-      // Borde exterior biselado de cromo (Ala Derecha)
-      ctx.strokeStyle = 'rgba(110, 136, 160, 0.45)';
-      ctx.lineWidth = 2.0;
+      // Arista exterior cromada de los raíles 3D
+      ctx.strokeStyle = 'rgba(148, 178, 214, 0.48)';
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.moveTo(Math.min(this.width, tR_top + 14), horizonY);
-      ctx.lineTo(Math.min(this.width, tR_bot + wingMaxWidth), bottomY);
+      ctx.moveTo(Math.max(0, tL_top - railTopW), horizonY);
+      ctx.lineTo(Math.max(0, tL_bot - railBotW), bottomY);
+      ctx.moveTo(Math.min(this.width, tR_top + railTopW), horizonY);
+      ctx.lineTo(Math.min(this.width, tR_bot + railBotW), bottomY);
       ctx.stroke();
       ctx.restore();
 
-    // 4. FENÓMENOS VISUALES 3D EN LOS BORDES DE LA PISTA + COSTILLAS DE RITMO (Reactivos al Efecto Equipado)
-      const numLines = 28;
+      // 4. ALAS DE RITMO NEÓN ESTILO BEATSTAR ORIGINAL + EFECTOS ESPECIALES DE BORDE (Fuego, Hielo, Rayos, etc.)
+      const numRibs = 34;
       const bpmSpeed = (normBpm / 60) * Math.PI * 2;
       const theme = this.getEffectBorderTheme(this.activeEffect);
       const fx = theme.id;
@@ -7278,7 +7365,6 @@ class BeatstarEngine {
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
 
-      // Vectores unitarios ortogonales a los raíles 3D
       const tLx_top = getBoundaryX(0, horizonY);
       const tLx_bot = getBoundaryX(0, bottomY);
       const dyL = bottomY - horizonY;
@@ -7295,20 +7381,24 @@ class BeatstarEngine {
       const normRx = dyR / lenR;
       const normRy = -dxR / lenR;
 
-      // --- CAPA 1: AURA DIFUMINADA VOLUMÉTRICA (Pre-cacheada por dimensión y efecto: 0 allocs/frame) ---
-      const auraSpanTop = 36 + beatPulse * 14;
-      const auraSpanBot = 88 + beatPulse * 28;
+      // --- CAPA 1: AURA DIFUMINADA VOLUMÉTRICA LATERAL FIEL AL TEMA DEL EFECTO (Pre-cacheada: 0 allocs/frame) ---
+      const auraSpanTop = 34 + beatPulse * 12;
+      const auraSpanBot = 82 + beatPulse * 24;
       const borderCacheKey = `${this.width}_${this.height}_${fx}`;
       if (!this._borderGradCache || this._borderGradCache.key !== borderCacheKey) {
+        const primaryWingCol = theme.cInner;
+        const midWingCol = theme.cMid;
+        const outerWingCol = theme.cOuter;
+
         const lAura = ctx.createLinearGradient(
           (tLx_top + tLx_bot) * 0.5,
           (horizonY + bottomY) * 0.5,
           (tLx_top + tLx_bot) * 0.5 + normLx * 82,
           (horizonY + bottomY) * 0.5 + normLy * 82
         );
-        lAura.addColorStop(0.0, hexToRgba(theme.cInner, 0.52));
-        lAura.addColorStop(0.38, hexToRgba(theme.cMid, 0.28));
-        lAura.addColorStop(0.75, hexToRgba(theme.cOuter, 0.10));
+        lAura.addColorStop(0.0, hexToRgba(primaryWingCol, 0.46));
+        lAura.addColorStop(0.40, hexToRgba(midWingCol, 0.25));
+        lAura.addColorStop(0.80, hexToRgba(outerWingCol, 0.08));
         lAura.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
 
         const rAura = ctx.createLinearGradient(
@@ -7317,46 +7407,43 @@ class BeatstarEngine {
           (tRx_top + tRx_bot) * 0.5 + normRx * 82,
           (horizonY + bottomY) * 0.5 + normRy * 82
         );
-        rAura.addColorStop(0.0, hexToRgba(theme.cInner, 0.52));
-        rAura.addColorStop(0.38, hexToRgba(theme.cMid, 0.28));
-        rAura.addColorStop(0.75, hexToRgba(theme.cOuter, 0.10));
+        rAura.addColorStop(0.0, hexToRgba(primaryWingCol, 0.46));
+        rAura.addColorStop(0.40, hexToRgba(midWingCol, 0.25));
+        rAura.addColorStop(0.80, hexToRgba(outerWingCol, 0.08));
         rAura.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
 
-        const vGrad = ctx.createLinearGradient(0, horizonY, 0, bottomY);
-        vGrad.addColorStop(0.00, theme.cOuter);
-        vGrad.addColorStop(0.35, theme.cMid);
-        vGrad.addColorStop(0.75, theme.cInner);
-        vGrad.addColorStop(1.00, theme.cCore);
+        const vGrad = ctx.createLinearGradient(0, horizonY, 0, hitY);
+        vGrad.addColorStop(0.00, outerWingCol);
+        vGrad.addColorStop(0.32, midWingCol);
+        vGrad.addColorStop(0.72, primaryWingCol);
+        vGrad.addColorStop(1.00, '#ffffff');
 
-        this._borderGradCache = { key: borderCacheKey, lAura, rAura, vGrad };
+        this._borderGradCache = { key: borderCacheKey, lAura, rAura, vGrad, primaryWingCol, midWingCol };
       }
 
       ctx.globalAlpha = Math.min(1.0, 0.72 + surgeL * 0.35 + beatPulse * 0.20);
       ctx.fillStyle = this._borderGradCache.lAura;
       ctx.beginPath();
-      ctx.moveTo(tLx_top, horizonY);
+      ctx.moveTo(tLx_top - railTopW, horizonY);
       ctx.lineTo(tLx_top + normLx * auraSpanTop, horizonY + normLy * auraSpanTop);
       ctx.lineTo(tLx_bot + normLx * auraSpanBot, bottomY + normLy * auraSpanBot);
-      ctx.lineTo(tLx_bot, bottomY);
+      ctx.lineTo(tLx_bot - railBotW, bottomY);
       ctx.closePath();
       ctx.fill();
 
       ctx.globalAlpha = Math.min(1.0, 0.72 + surgeR * 0.35 + beatPulse * 0.20);
       ctx.fillStyle = this._borderGradCache.rAura;
       ctx.beginPath();
-      ctx.moveTo(tRx_top, horizonY);
+      ctx.moveTo(tRx_top + railTopW, horizonY);
       ctx.lineTo(tRx_top + normRx * auraSpanTop, horizonY + normRy * auraSpanTop);
       ctx.lineTo(tRx_bot + normRx * auraSpanBot, bottomY + normRy * auraSpanBot);
-      ctx.lineTo(tRx_bot, bottomY);
+      ctx.lineTo(tRx_bot + railBotW, bottomY);
       ctx.closePath();
       ctx.fill();
       ctx.globalAlpha = 1.0;
 
-      const borderVertGrad = this._borderGradCache.vGrad;
-
-      // --- CAPA 2: ANIMACIÓN PROFESIONAL TEMÁTICA EN LOS BORDES DE LA PISTA (Batched GPU Draw Calls) ---
+      // --- CAPA 2: EFECTOS EXTRA TEMÁTICOS EN LOS BORDES LATERALES (Fuego 3D, Hielo, Relámpagos, Plasma, Meteoros) ---
       if (fx === 'solar_inferno' || fx === 'dragon_fire') {
-        // MURO DE LLAMAS 3D EN PERSPECTIVA (Agrupado en 2 draw calls globales en lugar de 88)
         const numFlames = 18;
         ctx.fillStyle = hexToRgba(theme.cMid, 0.54);
         ctx.beginPath();
@@ -7412,7 +7499,6 @@ class BeatstarEngine {
         }
         ctx.fill();
       } else if (fx === 'cryo_blizzard') {
-        // CRISTALES DE HIELO FACETADOS 3D (Agrupado en 2 draw calls globales en lugar de 80)
         const numSpikes = 18;
         ctx.fillStyle = hexToRgba(theme.cInner, 0.56);
         ctx.beginPath();
@@ -7437,7 +7523,6 @@ class BeatstarEngine {
         }
         ctx.fill();
       } else if (fx === 'zeus_lightning') {
-        // CADENAS DE RELÁMPAGOS DE ALTA TENSIÓN EN AMBOS BORDES
         for (let side = 0; side < 2; side++) {
           const isLeft = side === 0;
           const nX = isLeft ? normLx : normRx;
@@ -7465,7 +7550,6 @@ class BeatstarEngine {
           ctx.stroke();
         }
       } else if (fx === 'aurora_borealis' || fx === 'deep_cosmos' || fx === 'cyber_neon' || fx === 'black_hole') {
-        // CORTINAS ONDULANTES DE PLASMA / AURORA / NEBULOSA EN PERSPECTIVA 3D
         for (let side = 0; side < 2; side++) {
           const isLeft = side === 0;
           const nX = isLeft ? normLx : normRx;
@@ -7492,7 +7576,6 @@ class BeatstarEngine {
           }
         }
       } else if (fx === 'grand_fireworks' || fx === 'supernova_burst' || fx === 'asteroid_impact' || fx === 'quantum_prism') {
-        // DESTELLOS ESTELARES, METEOROS O HIPERCUBOS A LO LARGO DE LOS BORDES
         const numNodes = 14;
         for (let side = 0; side < 2; side++) {
           const isLeft = side === 0;
@@ -7532,68 +7615,137 @@ class BeatstarEngine {
         }
       }
 
-      // --- CAPA 3: COSTILLAS DE RITMO ORTOGONALES CON DEGRADADO Y PUNTA LUMINOSA ---
-      const beatGlow = 1.0 + beatPulse * 0.42;
-      ctx.strokeStyle = borderVertGrad;
-      ctx.lineWidth = Math.max(3.6, 4.8 * (1.0 + beatPulse * 0.25));
+      // --- CAPA 3: ECUALIZADOR RÍTMICO LATERAL HORIZONTAL EN PERSPECTIVA 3D (Beatstar Original Stage Wings) ---
+      const startY = horizonY + 14;
+      const endY = hitY - 14;
+      const spanRhythmY = Math.max(60, endY - startY);
+      const eqSurgesL = this.borderEqLeftSurges;
+      const eqSurgesR = this.borderEqRightSurges;
+      const borderVertGrad = this._borderGradCache.vGrad;
+      const midWingCol = this._borderGradCache.midWingCol;
 
+      if (!this._ribScratch) {
+        this._ribScratch = {
+          y: new Float32Array(numRibs),
+          xStartL: new Float32Array(numRibs),
+          lenL: new Float32Array(numRibs),
+          xStartR: new Float32Array(numRibs),
+          lenR: new Float32Array(numRibs),
+          p: new Float32Array(numRibs)
+        };
+      }
+      const rs = this._ribScratch;
+
+      for (let s = 0; s < numRibs; s++) {
+        const pNorm = s / (numRibs - 1);
+        const p = Math.pow(pNorm, 1.32);
+        const yPos = startY + spanRhythmY * p;
+
+        const railWAtY = railTopW + (railBotW - railTopW) * p;
+        const railGap = 4.5 + 3.5 * p;
+        const xStartL = getBoundaryX(0, yPos) - railWAtY - railGap;
+        const xStartR = getBoundaryX(3, yPos) + railWAtY + railGap;
+
+        const maxWingReach = Math.max(12, Math.min(this.width * 0.21, xStartL - 6));
+
+        const cascadeWave = 0.5 + 0.5 * Math.sin(p * 10.5 - audioTime * bpmSpeed);
+        const subHarmonic = 0.5 + 0.5 * Math.cos(s * 1.55 + audioTime * bpmSpeed * 0.5);
+        const barCadence = (s % 2 === 0) ? 1.0 : 0.70;
+        const wingEnvelope = Math.sin(Math.pow(pNorm, 0.72) * Math.PI * 0.94);
+
+        const bandIdx = Math.min(11, Math.floor(pNorm * 12));
+        const bandSurgeL = (eqSurgesL ? eqSurgesL[bandIdx] : 0) || 0;
+        const bandSurgeR = (eqSurgesR ? eqSurgesR[bandIdx] : 0) || 0;
+
+        const driveL = (0.28 + 0.44 * cascadeWave + 0.28 * subHarmonic) * barCadence * (1.0 + beatPulse * 0.42 + surgeL * 0.48 + bandSurgeL * 0.45);
+        const driveR = (0.28 + 0.44 * cascadeWave + 0.28 * subHarmonic) * barCadence * (1.0 + beatPulse * 0.42 + surgeR * 0.48 + bandSurgeR * 0.45);
+
+        const baseMin = 5 + 8 * p;
+        const lenLVal = Math.min(maxWingReach, baseMin + maxWingReach * 0.72 * wingEnvelope * Math.min(1.25, driveL));
+        const lenRVal = Math.min(maxWingReach, baseMin + maxWingReach * 0.72 * wingEnvelope * Math.min(1.25, driveR));
+
+        rs.y[s] = yPos;
+        rs.xStartL[s] = xStartL;
+        rs.lenL[s] = lenLVal;
+        rs.xStartR[s] = xStartR;
+        rs.lenR[s] = lenRVal;
+        rs.p[s] = p;
+      }
+
+      // Pasada A: Halo exterior difuminado de neón (Batched en 1 draw call)
+      ctx.strokeStyle = hexToRgba(midWingCol, 0.30 + beatPulse * 0.14);
+      ctx.lineWidth = 6.0;
       ctx.beginPath();
-      for (let s = 0; s < numLines; s++) {
-        const pNorm = s / (numLines - 1);
-        const p = Math.pow(pNorm, 1.25);
-        const yCenter = horizonY + (bottomY - horizonY) * p;
-
-        const wavePhase = p * 13.0 - audioTime * bpmSpeed;
-        const sineVal = 0.5 + 0.5 * Math.sin(wavePhase);
-        const baseLength = 16 + 28 * p;
-        const ribLenL = baseLength * (0.45 + 0.55 * sineVal) * (beatGlow + surgeL * 0.45);
-        const ribLenR = baseLength * (0.45 + 0.55 * sineVal) * (beatGlow + surgeR * 0.45);
-
-        const xL = getBoundaryX(0, yCenter) - 2;
-        const xR = getBoundaryX(3, yCenter) + 2;
-
-        ctx.moveTo(xL, yCenter);
-        ctx.lineTo(xL + normLx * ribLenL, yCenter + normLy * ribLenL);
-
-        ctx.moveTo(xR, yCenter);
-        ctx.lineTo(xR + normRx * ribLenR, yCenter + normRy * ribLenR);
+      for (let s = 0; s < numRibs; s++) {
+        const yPos = rs.y[s];
+        const xL = rs.xStartL[s];
+        const xR = rs.xStartR[s];
+        ctx.moveTo(xL, yPos);
+        ctx.lineTo(xL - rs.lenL[s], yPos);
+        ctx.moveTo(xR, yPos);
+        ctx.lineTo(xR + rs.lenR[s], yPos);
       }
       ctx.stroke();
 
-      // Filamento interior blanco incandescente de alta definición
-      ctx.strokeStyle = `rgba(255, 255, 255, ${(0.78 + beatPulse * 0.22).toFixed(2)})`;
-      ctx.lineWidth = 1.7;
+      // Pasada B: Cuerpo principal de las barras de ritmo con degradado vertical en perspectiva (1 draw call)
+      ctx.strokeStyle = borderVertGrad;
+      ctx.lineWidth = 2.6 + beatPulse * 0.55;
       ctx.beginPath();
-      for (let s = 0; s < numLines; s++) {
-        const pNorm = s / (numLines - 1);
-        const p = Math.pow(pNorm, 1.25);
-        const yCenter = horizonY + (bottomY - horizonY) * p;
+      for (let s = 0; s < numRibs; s++) {
+        const yPos = rs.y[s];
+        const xL = rs.xStartL[s];
+        const xR = rs.xStartR[s];
+        ctx.moveTo(xL, yPos);
+        ctx.lineTo(xL - rs.lenL[s], yPos);
+        ctx.moveTo(xR, yPos);
+        ctx.lineTo(xR + rs.lenR[s], yPos);
+      }
+      ctx.stroke();
 
-        const wavePhase = p * 13.0 - audioTime * bpmSpeed;
-        const sineVal = 0.5 + 0.5 * Math.sin(wavePhase);
-        const baseLength = 16 + 28 * p;
-        const ribLenL = baseLength * (0.45 + 0.55 * sineVal) * (beatGlow + surgeL * 0.45) * 0.62;
-        const ribLenR = baseLength * (0.45 + 0.55 * sineVal) * (beatGlow + surgeR * 0.45) * 0.62;
+      // Pasada C: Núcleo interior blanco incandescente junto al raíl + Puntas Peak-Hold flotantes (1 draw call)
+      ctx.strokeStyle = `rgba(255, 255, 255, ${(0.84 + beatPulse * 0.16).toFixed(2)})`;
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      for (let s = 0; s < numRibs; s++) {
+        const yPos = rs.y[s];
+        const xL = rs.xStartL[s];
+        const xR = rs.xStartR[s];
+        const coreLenL = rs.lenL[s] * 0.56;
+        const coreLenR = rs.lenR[s] * 0.56;
 
-        const xL = getBoundaryX(0, yCenter) - 2;
-        const xR = getBoundaryX(3, yCenter) + 2;
+        ctx.moveTo(xL, yPos);
+        ctx.lineTo(xL - coreLenL, yPos);
+        ctx.moveTo(xR, yPos);
+        ctx.lineTo(xR + coreLenR, yPos);
 
-        ctx.moveTo(xL, yCenter);
-        ctx.lineTo(xL + normLx * ribLenL, yCenter + normLy * ribLenL);
-
-        ctx.moveTo(xR, yCenter);
-        ctx.lineTo(xR + normRx * ribLenR, yCenter + normRy * ribLenR);
+        if (s % 2 === 0) {
+          const p = rs.p[s];
+          const peakGap = 4.0 + 2.5 * p + beatPulse * 2.0;
+          const peakDotLen = 2.2 + 2.0 * p;
+          const tipL = xL - rs.lenL[s] - peakGap;
+          const tipR = xR + rs.lenR[s] + peakGap;
+          if (tipL - peakDotLen > 2) {
+            ctx.moveTo(tipL, yPos);
+            ctx.lineTo(tipL - peakDotLen, yPos);
+          }
+          if (tipR + peakDotLen < this.width - 2) {
+            ctx.moveTo(tipR, yPos);
+            ctx.lineTo(tipR + peakDotLen, yPos);
+          }
+        }
       }
       ctx.stroke();
 
       ctx.restore();
 
-      // 5. GUÍAS LÁSER DE NEÓN CONTINUAS DE ALTA INTENSIDAD CON EL COLOR DEL EFECTO
+      // 5. GUÍAS LÁSER DE NEÓN CONTINUAS DE ALTA INTENSIDAD Y PULSOS VIAJEROS DE COMPÁS
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
+      ctx.lineCap = 'round';
 
-      ctx.strokeStyle = hexToRgba(theme.cMid, 0.65 + beatPulse * 0.35);
-      ctx.lineWidth = 7.0;
+      // Halo exterior del raíl láser
+      ctx.strokeStyle = hexToRgba(this._borderGradCache.midWingCol, 0.58 + beatPulse * 0.34);
+      ctx.lineWidth = 7.2;
       ctx.beginPath();
       ctx.moveTo(tL_top, horizonY);
       ctx.lineTo(tL_bot, bottomY);
@@ -7601,13 +7753,27 @@ class BeatstarEngine {
       ctx.lineTo(tR_bot, bottomY);
       ctx.stroke();
 
+      // Filamento central blanco puro incandescente del raíl
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2.4;
+      ctx.lineWidth = 2.2;
       ctx.beginPath();
       ctx.moveTo(tL_top, horizonY);
       ctx.lineTo(tL_bot, bottomY);
       ctx.moveTo(tR_top, horizonY);
       ctx.lineTo(tR_bot, bottomY);
+      ctx.stroke();
+
+      // Pulsos viajeros de energía descendiendo por los raíles al compás del BPM
+      const pulseP = Math.pow(beatFraction, 1.5);
+      const pulseY0 = horizonY + (hitY - horizonY) * Math.max(0, pulseP - 0.08);
+      const pulseY1 = horizonY + (hitY - horizonY) * Math.min(1, pulseP + 0.08);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.92)';
+      ctx.lineWidth = 4.2;
+      ctx.beginPath();
+      ctx.moveTo(getBoundaryX(0, pulseY0), pulseY0);
+      ctx.lineTo(getBoundaryX(0, pulseY1), pulseY1);
+      ctx.moveTo(getBoundaryX(3, pulseY0), pulseY0);
+      ctx.lineTo(getBoundaryX(3, pulseY1), pulseY1);
       ctx.stroke();
 
       ctx.restore();
@@ -8029,6 +8195,22 @@ class BeatstarEngine {
         ctx.moveTo(bandL_bot + 4, yBandBot);
         ctx.lineTo(bandR_bot - 4, yBandBot);
         ctx.stroke();
+
+        // Escáner láser sub-superficial sincronizado al BPM que recorre la lente acrílica Perfect+
+        const scanPhase = ((audioTime * 0.85) % 1.0);
+        const scanFrac = 0.5 + 0.44 * Math.sin(scanPhase * Math.PI * 2);
+        const scanXTop = bandL_top + (bandR_top - bandL_top) * scanFrac;
+        const scanXBot = bandL_bot + (bandR_bot - bandL_bot) * scanFrac;
+        const scanW = 18 + beatPulse * 10 + (this.overdriveLevel || 0) * 14;
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = `rgba(255, 255, 255, ${(0.16 + beatPulse * 0.14 + (this.overdriveLevel || 0) * 0.12).toFixed(3)})`;
+        ctx.beginPath();
+        ctx.moveTo(scanXTop - scanW, yBandTop);
+        ctx.lineTo(scanXTop + scanW, yBandTop);
+        ctx.lineTo(scanXBot + scanW * 1.15, yBandBot);
+        ctx.lineTo(scanXBot - scanW * 1.15, yBandBot);
+        ctx.closePath();
+        ctx.fill();
         ctx.restore();
 
         // 5. NÚCLEOS DE PRECISIÓN PERFECT+, CORCHETES Y ANIMACIONES ESPECTACULARES POR CARRIL
@@ -8224,6 +8406,32 @@ class BeatstarEngine {
             ctx.lineTo(cx, perfY + flareH);
             ctx.closePath();
             ctx.fill();
+
+            // Onda de Choque con Refracción Cristalina (Aberración Cromática Prismática 3D en el Acrílico)
+            const refRx = ((bR_bot - bL_bot) * 0.22) + easeOut * ((bR_bot - bL_bot) * 0.52);
+            const refRy = refRx * 0.44;
+            if (ctx.ellipse) {
+              // Canal Cian (Desfase exterior)
+              ctx.strokeStyle = `rgba(0, 242, 254, ${(shockAlpha * 0.78).toFixed(3)})`;
+              ctx.lineWidth = Math.max(1.0, 2.6 * (1 - shockProgress));
+              ctx.beginPath();
+              ctx.ellipse(cx - 2.2 * (1 - shockProgress), perfY, refRx * 1.05, refRy * 1.05, 0, 0, Math.PI * 2);
+              ctx.stroke();
+
+              // Canal Magenta (Desfase interior)
+              ctx.strokeStyle = `rgba(255, 0, 127, ${(shockAlpha * 0.72).toFixed(3)})`;
+              ctx.lineWidth = Math.max(1.0, 2.2 * (1 - shockProgress));
+              ctx.beginPath();
+              ctx.ellipse(cx + 2.2 * (1 - shockProgress), perfY, refRx * 0.94, refRy * 0.94, 0, 0, Math.PI * 2);
+              ctx.stroke();
+
+              // Destello especular diamante central
+              ctx.strokeStyle = `rgba(255, 255, 255, ${(shockAlpha * 0.90).toFixed(3)})`;
+              ctx.lineWidth = Math.max(0.8, 1.8 * (1 - shockProgress));
+              ctx.beginPath();
+              ctx.ellipse(cx, perfY, refRx, refRy, 0, 0, Math.PI * 2);
+              ctx.stroke();
+            }
           }
 
           // E. ANIMACIÓN DE NOTA MANTENIDA (HOLD): Reactor de Plasma Elíptico en Perspectiva 3D
@@ -8568,6 +8776,41 @@ class BeatstarEngine {
           ctx.strokeStyle = '#ffffff';
           ctx.lineWidth = 2.4 * stringPoints[segments].scale;
           ctx.stroke();
+
+          // F0. Filamento Doble Hélice + Polvo Estelar Ascendente cuando el Hold está activo
+          if (isBeingHeld) {
+            for (let strand = 0; strand < 2; strand++) {
+              ctx.strokeStyle = strand === 0 ? '#ffffff' : holdGlow;
+              ctx.lineWidth = (strand === 0 ? 2.0 : 1.6) * stringPoints[segments].scale;
+              ctx.beginPath();
+              const phaseOffset = strand * Math.PI;
+              for (let s = 0; s <= segments; s++) {
+                const pt = stringPoints[s];
+                const env = Math.sin((s / segments) * Math.PI);
+                const helixX = pt.x + Math.sin(s * 0.95 - currentTime * 0.016 + phaseOffset) * (pt.halfW * 0.62 * env);
+                if (s === 0) ctx.moveTo(helixX, pt.y);
+                else ctx.lineTo(helixX, pt.y);
+              }
+              ctx.stroke();
+            }
+
+            // Micro-prismas de Polvo Estelar ascendiendo desde el punto de contacto (0 allocs)
+            const headContact = stringPoints[segments];
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            for (let sp = 0; sp < 5; sp++) {
+              const spCycle = ((currentTime * 0.0045 + sp * 0.2) % 1.0);
+              const spX = headContact.x + Math.sin(sp * 2.1 + currentTime * 0.01) * (headContact.halfW * 0.85);
+              const spY = headContact.y - spCycle * 56 * headContact.scale;
+              const spR = Math.max(1.2, (1.0 - spCycle) * 4.2 * headContact.scale);
+              ctx.moveTo(spX, spY - spR);
+              ctx.lineTo(spX + spR, spY);
+              ctx.lineTo(spX, spY + spR);
+              ctx.lineTo(spX - spR, spY);
+              ctx.closePath();
+            }
+            ctx.fill();
+          }
           ctx.restore();
 
           // F. CAPUCHÓN TERMINAL: GEMA BRILLANTE Y ESTRELLA GIRATORIA
@@ -8633,10 +8876,43 @@ class BeatstarEngine {
           ctx.restore();
         
         // ==========================================
-        // 2. NOTAS SWIPE (DESLIZAMIENTO CON CHEVRÓN)
+        // 2. NOTAS SWIPE (DESLIZAMIENTO CON CHEVRÓN + ESTELA DE POLVO ESTELAR)
         // ==========================================
         } else if (note.type === 'swipe') {
           const h = Math.min((isLarge ? 84 : 32) * coord.scale, maxH3D);
+          // Estela aerodinámica de polvo estelar detrás de la tecla Swipe (0 allocs)
+          if (pHead > 0.04 && pHead < 1.12) {
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            const swipeDir = note.direction || 'up';
+            const wakeCol = (this.activeSongPalette && this.activeSongPalette.glow) ? this.activeSongPalette.glow : '#00f2fe';
+            for (let wIdx = 1; wIdx <= 3; wIdx++) {
+              const pWake = Math.max(0.01, pHead - wIdx * 0.036);
+              const wCoord = this.getPerspectiveCoord(lane, pWake, this._coordScratch1);
+              const wakeAlpha = (0.38 - wIdx * 0.09) * Math.min(1, pHead * 1.8);
+              if (wakeAlpha <= 0.02) continue;
+              const wHalf = wCoord.laneW * (0.34 - wIdx * 0.05);
+              const wY = wCoord.y - h * 0.45;
+              ctx.strokeStyle = wIdx === 1 ? `rgba(255, 255, 255, ${wakeAlpha.toFixed(2)})` : hexToRgba(wakeCol, wakeAlpha);
+              ctx.lineWidth = Math.max(1.2, (3.2 - wIdx * 0.6) * wCoord.scale);
+              ctx.beginPath();
+              if (swipeDir === 'left') {
+                ctx.moveTo(wCoord.x + wHalf * 0.4, wY - 6 * wCoord.scale);
+                ctx.lineTo(wCoord.x - wHalf * 0.5, wY);
+                ctx.lineTo(wCoord.x + wHalf * 0.4, wY + 6 * wCoord.scale);
+              } else if (swipeDir === 'right') {
+                ctx.moveTo(wCoord.x - wHalf * 0.4, wY - 6 * wCoord.scale);
+                ctx.lineTo(wCoord.x + wHalf * 0.5, wY);
+                ctx.lineTo(wCoord.x - wHalf * 0.4, wY + 6 * wCoord.scale);
+              } else {
+                ctx.moveTo(wCoord.x - wHalf, wY + 5 * wCoord.scale);
+                ctx.lineTo(wCoord.x, wY - 4 * wCoord.scale);
+                ctx.lineTo(wCoord.x + wHalf, wY + 5 * wCoord.scale);
+              }
+              ctx.stroke();
+            }
+            ctx.restore();
+          }
           const swipeKey = this.drawIvoryKey(ctx, lane, coord.y, h, coord.scale, false, isLarge, true, lyricForNote);
           this.renderVectorChevron(ctx, swipeKey.cx, swipeKey.cy, note.direction || 'up', swipeKey.w, swipeKey.h);
 
@@ -8705,16 +8981,6 @@ class BeatstarEngine {
         this.animFrameId = requestAnimationFrame(loop);
       };
       this.animFrameId = requestAnimationFrame(loop);
-    }
-
-    onAudioReady() {}
-    onAudioEnded() {
-      if (!this.isGameOver && this.beatmapData) {
-        setTimeout(() => this.triggerGameEnd(), 400);
-      }
-    }
-    onAudioError(msg) {
-      console.warn("Audio sync error:", msg);
     }
 }
 

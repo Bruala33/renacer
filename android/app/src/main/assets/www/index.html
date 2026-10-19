@@ -1139,6 +1139,16 @@
         </div>
       </div>
 
+      <!-- Micro-Indicador de Calibración en Vivo (Early / 0ms / Late) -->
+      <div id="liveCalibrationPill" class="mx-auto mt-1 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/65 border border-white/15 backdrop-blur-md shadow-[0_0_12px_rgba(0,0,0,0.65)] transition-opacity duration-300 opacity-85" style="width: 146px; height: 18px;">
+        <span class="text-[7.5px] font-mono font-bold text-cyan-300/90 tracking-tighter">EARLY</span>
+        <div class="relative flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden flex items-center">
+          <div class="absolute left-1/2 top-0 bottom-0 w-[1.5px] -translate-x-1/2 bg-white/75"></div>
+          <div id="liveCalibDot" class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399] transition-transform duration-75" style="position: absolute; left: 50%; transform: translate(-50%, 0);"></div>
+        </div>
+        <span id="liveCalibMsText" class="text-[8px] font-mono font-black text-emerald-300 w-7 text-right">0ms</span>
+      </div>
+
       <!-- Karaoke Live Teleprompter (Visible exclusively in Modo Karaoke) -->
       <div id="karaokeTeleprompterBar" class="hidden absolute z-30 pointer-events-none flex flex-col items-center justify-center select-none transition-all">
         <div id="karaokeCurrentLine" class="karaoke-current-line"></div>
@@ -2595,34 +2605,82 @@
 
     <!-- Layer 16: Results Screen Modal with Highscores -->
     
-    <!-- Layer 17: Online Leaderboard Modal -->
-    <div id="leaderboardModal" class="results-modal space-y-3.5 hidden" style="display: none; z-index: 10020 !important;">
-      <div class="glass-card w-full max-w-[340px] p-4 rounded-2xl space-y-3.5 bg-black/90 border border-amber-500/30 shadow-2xl">
-        <div class="flex items-center justify-between">
-          <h3 class="text-xs font-bold text-white flex items-center gap-1.5 font-serif">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline text-amber-400"><path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2"/><path d="M6 9a6 6 0 0 0 12 0"/><path d="M12 15v5"/><path d="M8 20h8"/></svg> <span id="lbModalTitleText">Clasificación Global</span>
-          </h3>
-          <button onclick="closeLeaderboardModal()" class="text-gray-400 hover:text-white text-xs p-1 cursor-pointer">✕</button>
+    <!-- Layer 17: Online Leaderboard Modal (Pantalla Gigante de LEDs Vintage) -->
+    <div id="leaderboardModal" class="results-modal hidden" style="display: none; z-index: 10020 !important; background: rgba(3, 3, 5, 0.92);">
+      <div class="w-full max-w-[366px] p-2.5 rounded-2xl bg-[#0b0b0e] border-[3px] border-[#26262e] shadow-[0_0_50px_rgba(0,0,0,0.95),inset_0_0_12px_rgba(0,0,0,0.9)] relative overflow-hidden">
+        <!-- Hilera superior de bombillas LED grandes vintage -->
+        <div class="flex items-center justify-between px-2 py-1.5 bg-[#060608] border-b border-[#1c1c22]">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#ff9900] shadow-[0_0_8px_#ff9900,inset_0_0_3px_#ffffff]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#ff3b00] shadow-[0_0_8px_#ff3b00,inset_0_0_3px_#ffffff]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#ff9900] shadow-[0_0_8px_#ff9900,inset_0_0_3px_#ffffff]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#ff3b00] shadow-[0_0_8px_#ff3b00,inset_0_0_3px_#ffffff]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#ff9900] shadow-[0_0_8px_#ff9900,inset_0_0_3px_#ffffff]"></span>
+          </div>
+          <span id="lbModalTitleText" class="font-mono font-black text-sm tracking-[0.26em] text-[#ffb300] uppercase" style="text-shadow: 0 0 10px rgba(255,179,0,0.85), 0 0 2px #fff;">SEMANAL</span>
+          <button onclick="closeLeaderboardModal()" class="px-2 py-0.5 rounded bg-[#141418] border border-[#33333d] text-[#ff5500] hover:text-[#ffb300] font-mono font-black text-xs cursor-pointer" style="text-shadow: 0 0 6px rgba(255,85,0,0.8);">X</button>
         </div>
 
-        <div id="lbSubTabsContainer" class="flex items-center gap-1 p-1 bg-black/60 border border-white/10 rounded-xl">
-          <button id="lbSubTabSongBtn" onclick="switchLeaderboardSubTab('song')" class="flex-1 py-1 rounded-lg text-[10px] font-bold bg-amber-500/25 text-amber-300 border border-amber-400/40 cursor-pointer font-serif">
-            Esta Canción
+        <!-- Botonera selectora LED vintage minimalista (sin emojis) -->
+        <div id="lbSubTabsContainer" class="grid grid-cols-3 gap-1.5 p-1.5 bg-[#050507] border-b border-[#1c1c22]">
+          <button id="lbSubTabSongBtn" onclick="switchLeaderboardSubTab('song')" class="py-1.5 rounded bg-[#0c0802] border border-[#ffb300] text-[#ffb300] font-mono font-black text-[11px] tracking-[0.18em] uppercase cursor-pointer" style="text-shadow: 0 0 8px rgba(255,179,0,0.8);">
+            PISTA
           </button>
-          <button id="lbSubTabGlobalBtn" onclick="switchLeaderboardSubTab('global')" class="flex-1 py-1 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white cursor-pointer font-serif">
-            Global
+          <button id="lbSubTabGlobalBtn" onclick="switchLeaderboardSubTab('global')" class="py-1.5 rounded bg-[#09090c] border border-[#22222a] text-[#664400] font-mono font-black text-[11px] tracking-[0.18em] uppercase cursor-pointer">
+            GLOBAL
           </button>
-          <button id="lbSubTabWeeklyBtn" onclick="switchLeaderboardSubTab('weekly')" class="flex-1 py-1 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white cursor-pointer font-serif">
-            🏆 Semanal
+          <button id="lbSubTabWeeklyBtn" onclick="switchLeaderboardSubTab('weekly')" class="py-1.5 rounded bg-[#09090c] border border-[#22222a] text-[#664400] font-mono font-black text-[11px] tracking-[0.18em] uppercase cursor-pointer">
+            SEMANAL
           </button>
         </div>
 
-        <div id="leaderboardRowsContainer" class="space-y-1.5 max-h-[260px] overflow-y-auto">
-          <!-- Injected dynamically -->
+        <!-- PANTALLA GIGANTE DE MATRIZ DE LEDS GRANDES VINTAGE -->
+        <div class="p-2.5 bg-[#040301] border-2 border-[#19150e] rounded-lg my-1.5 shadow-[inset_0_0_24px_rgba(0,0,0,1)]" style="background-image: radial-gradient(circle, rgba(255, 145, 0, 0.14) 2px, rgba(4, 3, 1, 0.96) 2.6px); background-size: 7px 7px;">
+          <div id="lbModalSubtitleText" class="hidden"></div>
+          <div id="leaderboardRowsContainer" class="space-y-1.5 max-h-[340px] overflow-y-auto pr-0.5">
+            <!-- Injected dynamically -->
+          </div>
         </div>
 
-        <button onclick="closeLeaderboardModal()" class="w-full py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold text-white transition active:scale-95 cursor-pointer">
-          Cerrar
+        <!-- Hilera inferior de bombillas LED grandes + Controles simples -->
+        <div class="flex items-center justify-between gap-2 pt-1 px-1">
+          <button onclick="triggerWeeklyPrizePreview()" class="py-1.5 px-3 bg-[#0c0802] hover:bg-[#160f04] border border-[#ff9900]/70 rounded font-mono font-black text-[10px] tracking-[0.16em] text-[#ffb300] uppercase cursor-pointer" style="text-shadow: 0 0 8px rgba(255,179,0,0.75);">
+            PREMIO
+          </button>
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#ff3b00] shadow-[0_0_8px_#ff3b00,inset_0_0_3px_#ffffff]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#ff9900] shadow-[0_0_8px_#ff9900,inset_0_0_3px_#ffffff]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#ff3b00] shadow-[0_0_8px_#ff3b00,inset_0_0_3px_#ffffff]"></span>
+          </div>
+          <button onclick="closeLeaderboardModal()" class="py-1.5 px-3 bg-[#101015] hover:bg-[#181820] border border-[#2e2e38] rounded font-mono font-black text-[10px] tracking-[0.16em] text-[#ff5500] uppercase cursor-pointer" style="text-shadow: 0 0 6px rgba(255,85,0,0.7);">
+            CERRAR
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layer 17B: Ceremonia de Premio de Torneo Semanal (Pantalla LED Vintage al abrir el juego al final de la semana) -->
+    <div id="weeklyPrizeCeremonyModal" class="results-modal hidden" style="display: none; z-index: 10050 !important; background: rgba(2, 2, 4, 0.96);">
+      <canvas id="weeklyPrizeCanvas" class="absolute inset-0 w-full h-full pointer-events-none" style="z-index: 1;"></canvas>
+      <div class="relative z-10 w-full max-w-[348px] p-4 rounded-2xl bg-[#09090c] border-[3px] border-[#282832] shadow-[0_0_60px_rgba(0,0,0,0.95)] text-center space-y-3 mx-auto">
+        <div class="flex items-center justify-center gap-2 py-1 border-b border-[#1e1e26]">
+          <span class="w-2.5 h-2.5 rounded-full bg-[#ff9900] shadow-[0_0_8px_#ff9900]"></span>
+          <span id="weeklyCeremonyWeekLabel" class="text-[10px] font-mono font-black tracking-[0.22em] text-[#ffb300] uppercase" style="text-shadow: 0 0 8px rgba(255,179,0,0.8);">SEMANA FINALIZADA</span>
+          <span class="w-2.5 h-2.5 rounded-full bg-[#ff3b00] shadow-[0_0_8px_#ff3b00]"></span>
+        </div>
+
+        <div class="p-4 rounded-lg bg-[#040301] border-2 border-[#1c160c] space-y-2.5" style="background-image: radial-gradient(circle, rgba(255, 145, 0, 0.15) 2px, rgba(4, 3, 1, 0.96) 2.6px); background-size: 7px 7px;">
+          <div id="weeklyCeremonyTrophyIcon" class="hidden"></div>
+          <div id="weeklyCeremonyRankBadge" class="text-xl font-mono font-black tracking-[0.2em] text-[#ffb300]" style="text-shadow: 0 0 12px rgba(255,179,0,0.9);">PUESTO #1</div>
+          <div class="text-3xl font-mono font-black tracking-wider text-[#00f5a0]" style="text-shadow: 0 0 14px rgba(0,245,160,0.9);">
+            +<span id="weeklyCeremonyClefsCount">1000</span>
+          </div>
+          <div id="weeklyCeremonyScoreDetail" class="text-[11px] font-mono font-bold tracking-[0.15em] text-[#ff7b00] uppercase">0 PTS</div>
+          <p id="weeklyCeremonyPlayerSub" class="text-[10px] font-mono text-[#ffb300]/80 uppercase tracking-wider"></p>
+        </div>
+
+        <button id="btnClaimWeeklyCeremony" onclick="claimWeeklyPrizeCeremony()" class="w-full py-2.5 rounded bg-[#140d02] border-2 border-[#ffb300] text-[#ffb300] font-mono font-black text-xs uppercase tracking-[0.2em] shadow-[0_0_18px_rgba(255,179,0,0.45)] transition transform active:scale-95 cursor-pointer" style="text-shadow: 0 0 8px rgba(255,179,0,0.85);">
+          COBRAR PREMIO
         </button>
       </div>
     </div>
@@ -2758,6 +2816,14 @@
                   G: <span id="resParchmentG" class="font-bold text-[#141018]">0</span> |
                   M: <span id="resParchmentM" class="font-bold text-[#141018]">0</span>
                 </div>
+
+                <!-- Telemetría de Sincronización Early/Late y Auto-Calibración -->
+                <div id="resTimingTelemetryBox" class="mt-1 pt-1 border-t border-[#bba68a]/60 text-[9px] text-center space-y-1">
+                  <div id="resTimingDeviationText" class="font-mono font-bold text-[#3b2c1e]">SINCRONIZACIÓN: 0.0 ms (EXACTA)</div>
+                  <button id="btnAutoAdjustCalibration" onclick="applySmartAutoCalibration()" class="hidden mx-auto px-2 py-0.5 rounded bg-[#8b261d] text-[#fff8eb] font-mono font-bold text-[8.5px] uppercase tracking-wider shadow cursor-pointer">
+                    ⚡ Auto-Ajustar Calibración
+                  </button>
+                </div>
               </div>
 
               <div class="typewritten-separator"></div>
@@ -2820,7 +2886,7 @@
             <span class="key-clef-badge">↺</span>
           </button>
 
-          <div class="round-keys-row" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
+          <div class="round-keys-row" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
             <button class="tw-chrome-key" id="btnResExit" onclick="exitToSearch()">
               <span class="text-sm">⌂</span>
               <span data-i18n="results_btn_exit">MENÚ</span>
@@ -2830,7 +2896,7 @@
               <span>VALORAR</span>
             </button>
             <button class="tw-chrome-key" id="btnResLeaderboard" onclick="openResultsLeaderboardModal()">
-              <span class="text-sm text-yellow-300">🏆</span>
+              <span class="text-sm text-yellow-300">#</span>
               <span>RANKING</span>
             </button>
           </div>
@@ -3104,8 +3170,8 @@
 
   </div> <!-- End of game-viewport -->
 
-  <script src="./parsers.js?v=3.5"></script>
-  <script src="./game.js?v=3.5"></script>
+  <script src="./parsers.js?v=3.8"></script>
+  <script src="./game.js?v=3.8"></script>
   <script src="./slot_machine.js?v=1789652777"></script>
   <script src="./gachapon_3d.js?v=1.0"></script>
   <script src="./songs/comm_camilo_sesto/chart.js"></script>
@@ -3346,6 +3412,24 @@
         localStorage.setItem('beatstar_highscores', JSON.stringify(highscores));
         isNewRecord = true;
       }
+
+      // Acumular puntos en el historial del Torneo Semanal local (garantiza premio al finalizar la semana incluso offline)
+      try {
+        const curWeek = typeof getCurrentUtcWeekId === 'function' ? getCurrentUtcWeekId() : 'current_week';
+        const weeklyHist = JSON.parse(localStorage.getItem('beatstar_weekly_history') || '{}');
+        const prevEntry = weeklyHist[curWeek] || { score: 0, songsPlayed: 0, maxCombo: 0, stars: 0, accuracyPct: 0, medalTier: null };
+        prevEntry.score = (prevEntry.score || 0) + Math.max(0, Math.round(score || 0));
+        prevEntry.songsPlayed = (prevEntry.songsPlayed || 0) + 1;
+        prevEntry.maxCombo = Math.max(prevEntry.maxCombo || 0, maxCombo || 0);
+        prevEntry.stars = Math.max(prevEntry.stars || 0, stars || 0);
+        prevEntry.accuracyPct = Math.max(prevEntry.accuracyPct || 0, accuracyPct || 0);
+        if (medalTier === 'platinum' || (!prevEntry.medalTier && medalTier)) {
+          prevEntry.medalTier = medalTier;
+        }
+        prevEntry.updatedAt = Date.now();
+        weeklyHist[curWeek] = prevEntry;
+        localStorage.setItem('beatstar_weekly_history', JSON.stringify(weeklyHist));
+      } catch (eWeekly) {}
 
       // Respaldo en IndexedDB Storage
       try {
@@ -5323,7 +5407,7 @@
 
           const nowPerf = performance.now();
           const scoreInt = Math.floor(score);
-          if (hud.lastScoreFloor !== scoreInt && (scoreInt === 0 || nowPerf - hud.lastScoreDomPerf > 45)) {
+          if (hud.lastScoreFloor !== scoreInt && (scoreInt === 0 || nowPerf - hud.lastScoreDomPerf > 75)) {
             hud.lastScoreDomPerf = nowPerf;
             hud.lastScoreFloor = scoreInt;
             const scoreStr = String(Math.min(9999999, Math.max(0, scoreInt))).padStart(7, '0');
@@ -5333,11 +5417,10 @@
                 const strip = hud.rollerDigits[d];
                 if (strip) {
                   const digitVal = parseInt(scoreStr[d], 10) || 0;
-                  strip.style.transform = 'translateY(-' + (digitVal * 24) + 'px)';
+                  strip.style.transform = 'translate3d(0,-' + (digitVal * 24) + 'px,0)';
                 }
               }
             }
-            if (hud.scoreEl) hud.scoreEl.textContent = scoreInt.toLocaleString();
           }
 
           if (hud.lastMultiplier !== multiplier) {
@@ -5378,6 +5461,33 @@
               box._lastCls = nextCls;
               box.className = nextCls;
             }
+          }
+        },
+        onTimingOffset: (signedDiffMs, judgeTier) => {
+          if (!window._calibHudCache) {
+            window._calibHudCache = {
+              dot: document.getElementById('liveCalibDot'),
+              txt: document.getElementById('liveCalibMsText')
+            };
+          }
+          const dot = window._calibHudCache.dot;
+          const txt = window._calibHudCache.txt;
+          if (!dot || !txt) return;
+          const clamped = Math.max(-90, Math.min(90, Math.round(signedDiffMs)));
+          const pct = 50 + (clamped / 90) * 44;
+          dot.style.left = `${pct.toFixed(1)}%`;
+          if (Math.abs(clamped) <= 15) {
+            dot.className = 'w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]';
+            txt.className = 'text-[8px] font-mono font-black text-emerald-300 w-7 text-right';
+            txt.innerText = `${clamped > 0 ? '+' : ''}${clamped}ms`;
+          } else if (clamped < 0) {
+            dot.className = 'w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]';
+            txt.className = 'text-[8px] font-mono font-black text-cyan-300 w-7 text-right';
+            txt.innerText = `${clamped}ms`;
+          } else {
+            dot.className = 'w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_#fbbf24]';
+            txt.className = 'text-[8px] font-mono font-black text-amber-300 w-7 text-right';
+            txt.innerText = `+${clamped}ms`;
           }
         },
         onSongLoaded: (meta, palette) => {
@@ -6345,6 +6455,7 @@ window.switchMainTab = switchMainTab;
     window.onFilterTopSongsChange = onFilterTopSongsChange;
 
     document.addEventListener('click', (e) => {
+      if (window.engine && window.engine.isRunning) return;
       const dd = document.getElementById('searchFilterDropdown');
       const btn = document.getElementById('btnToggleSearchFilter');
       if (dd && dd.classList.contains('show')) {
@@ -6733,6 +6844,7 @@ window.switchMainTab = switchMainTab;
     // Inicializar y asegurar música de menú ante cualquier interacción del usuario
     const ensureMenuMusicOnUserGesture = () => {
       menuBgmUnlocked = true;
+      if (window.engine && (window.engine.isRunning || window.engine.isCountingDown)) return;
       if (!isGameCurrentlyActive() && !isEditorActive() && !window.isCasinoActive) {
         const audio = getMenuBgmAudio();
         if (audio && (audio.paused || audio.currentTime === 0)) {
@@ -9592,6 +9704,44 @@ function stopPianoCameraLoop() {
       if (resGEl) resGEl.innerText = stats.great;
       const resMEl = document.getElementById('resM');
       if (resMEl) resMEl.innerText = stats.miss;
+
+      // Telemetría de Sincronización (Early / Late) y Auto-Calibración Inteligente
+      const timing = (stats && stats.timing) || { count: 0, avgSignedMs: 0, avgAbsMs: 0, earlyCount: 0, lateCount: 0, exactCount: 0 };
+      const devTxtEl = document.getElementById('resTimingDeviationText');
+      const autoBtnEl = document.getElementById('btnAutoAdjustCalibration');
+      if (devTxtEl) {
+        const avgS = Number(timing.avgSignedMs || 0);
+        const signStr = avgS > 0 ? `+${avgS.toFixed(1)}` : avgS.toFixed(1);
+        const tendency = Math.abs(avgS) <= 5 ? 'SINCRONIZACIÓN PERFECTA' : (avgS < 0 ? 'TENDENCIA ADELANTADA (EARLY)' : 'TENDENCIA ATRASADA (LATE)');
+        devTxtEl.innerText = `DESVIACIÓN: ${signStr} ms (±${Number(timing.avgAbsMs || 0).toFixed(1)}ms) • ${tendency}`;
+      }
+      if (autoBtnEl) {
+        const suggestedDelta = Math.round(timing.avgSignedMs || 0);
+        if (timing.count >= 5 && Math.abs(suggestedDelta) >= 5) {
+          window._pendingSmartCalibDelta = suggestedDelta;
+          autoBtnEl.innerText = `⚡ Auto-Calibrar Audio (${suggestedDelta > 0 ? '+' : ''}${suggestedDelta} ms)`;
+          autoBtnEl.classList.remove('hidden');
+        } else {
+          autoBtnEl.classList.add('hidden');
+        }
+      }
+
+      // Guardar snapshot para la Tarjeta de Récord Compartible (Brag Card)
+      window._lastResultBragSnapshot = {
+        title: currentActiveBeatmap?.metadata?.title || 'Canción',
+        artist: currentActiveBeatmap?.metadata?.artist || 'Comunidad Beatstar',
+        difficulty: currentActiveBeatmap?.metadata?.difficulty_name || 'Normal',
+        cover: currentActiveBeatmap?.metadata?.cover_url || currentActiveBeatmap?.metadata?.cover || './app_logo.png',
+        score: score || 0,
+        maxCombo: maxCombo || 0,
+        stars: stars || 0,
+        finalMedal: finalMedal,
+        scorePct: displayScorePct,
+        stats: stats || { perfectPlus: 0, perfect: 0, great: 0, miss: 0 },
+        timing: timing,
+        isNewRecord: isNewRecord,
+        playerName: localStorage.getItem('beatstar_player_nickname') || 'Jugador VIP'
+      };
 
       // Módulo de valoración disponible para TODAS las canciones (solo estrellas 1-5, sin sincronización)
       const commRatingSec = document.getElementById('resCommunityRatingSection');
@@ -12688,11 +12838,18 @@ function stopPianoCameraLoop() {
     };
 
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-          .then(reg => console.log('PWA Service Worker registered:', reg.scope))
-          .catch(err => console.log('Service Worker registration failed:', err));
-      });
+      if (window.AndroidNative || location.hostname === 'appassets.androidplatform.net') {
+        navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister())).catch(() => {});
+        if (window.caches && caches.keys) {
+          caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(() => {});
+        }
+      } else {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('PWA Service Worker registered:', reg.scope))
+            .catch(err => console.log('Service Worker registration failed:', err));
+        });
+      }
     }
   </script>
   <script src="./editor.js?v=1.0"></script>
@@ -12819,41 +12976,7 @@ function stopPianoCameraLoop() {
     }
 
     function renderInlineLeaderboardRows(rows, container) {
-      if (!rows || rows.length === 0) {
-        container.innerHTML = `
-          <div class="p-3 text-center text-gray-400 text-[10px] space-y-0.5">
-            <p class="font-bold text-gray-300">Sin puntuaciones registradas</p>
-            <p class="text-gray-500">¡Sé el primero en jugar y registrar tu récord!</p>
-          </div>
-        `;
-        return;
-      }
-
-      const medalIcons = { 'platinum': '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#67e8f9" stroke-width="2" class="inline align-middle"><polygon points="6 3 18 3 22 9 12 22 2 9 6 3"/></svg>', 'gold': '<svg width="11" height="11" viewBox="0 0 24 24" fill="#fcd34d" stroke="#fcd34d" stroke-width="1.5" class="inline align-middle"><circle cx="12" cy="12" r="7"/></svg>', 'silver': '<svg width="11" height="11" viewBox="0 0 24 24" fill="#cbd5e1" stroke="#cbd5e1" stroke-width="1.5" class="inline align-middle"><circle cx="12" cy="12" r="7"/></svg>' };
-      const rankColors = ['text-amber-400 font-black', 'text-gray-300 font-bold', 'text-amber-600 font-bold'];
-
-      let html = '';
-      rows.forEach((r, idx) => {
-        const medalIcon = r.medal_tier ? (medalIcons[r.medal_tier] || '') : '';
-        const rankClass = idx < 3 ? rankColors[idx] : 'text-gray-500 font-bold';
-
-        html += `
-          <div class="p-1.5 bg-black/60 border border-white/5 rounded-xl flex items-center justify-between gap-2 text-xs">
-            <div class="flex items-center gap-2 min-w-0">
-              <span class="w-5 text-center ${rankClass}">#${idx + 1}</span>
-              <div class="min-w-0 truncate">
-                <span class="font-bold text-white truncate block text-[11px]">${escapeHtml(r.player_name)} ${medalIcon}</span>
-                <span class="text-[9px] text-gray-400">${r.max_combo ? `Combo: ${r.max_combo}` : ''}${r.stars ? ` • ${r.stars}★` : ''}</span>
-              </div>
-            </div>
-            <div class="text-right flex-shrink-0">
-              <span class="font-mono font-black text-cyan-300 text-xs">${(r.score || 0).toLocaleString()}</span>
-              <span class="text-[8px] text-gray-400 block">${r.accuracy_pct ? Number(r.accuracy_pct).toFixed(1) + '%' : ''}</span>
-            </div>
-          </div>
-        `;
-      });
-      container.innerHTML = html;
+      renderLeaderboardRows(rows, container, false);
     }
 
     let currentLeaderboardSubTab = 'song';
@@ -12917,16 +13040,14 @@ function stopPianoCameraLoop() {
       if (tabsContainer) tabsContainer.style.display = 'flex';
 
       if (!chartId) {
-        // Abierto desde la cabecera: mostrar Torneo Semanal con recompensas y Global
         currentLeaderboardChartId = null;
         if (songBtn) songBtn.style.display = 'none';
-        if (titleText) titleText.innerText = t('leaderboard_weekly_title', '🏆 Torneo Semanal');
+        if (titleText) titleText.innerText = 'SEMANAL';
         switchLeaderboardSubTab(preferredTab || 'weekly');
       } else {
-        // Abierto para una canción específica al finalizar
         currentLeaderboardChartId = chartId;
         if (songBtn) songBtn.style.display = 'block';
-        if (titleText) titleText.innerText = t('leaderboard_song_title', 'Clasificación Online');
+        if (titleText) titleText.innerText = 'PISTA';
         switchLeaderboardSubTab('song');
       }
     }
@@ -12945,21 +13066,40 @@ function stopPianoCameraLoop() {
       const songBtn = document.getElementById('lbSubTabSongBtn');
       const globalBtn = document.getElementById('lbSubTabGlobalBtn');
       const weeklyBtn = document.getElementById('lbSubTabWeeklyBtn');
+      const titleText = document.getElementById('lbModalTitleText');
       const container = document.getElementById('leaderboardRowsContainer');
       if (!container) return;
 
+      const inactiveCls = 'py-1.5 rounded bg-[#08080b] border border-[#22222a] text-[#664400] hover:text-[#ffb300] font-mono font-black text-[11px] tracking-[0.18em] uppercase cursor-pointer transition';
+      const activeCls = 'py-1.5 rounded bg-[#140c02] border border-[#ffb300] text-[#ffb300] font-mono font-black text-[11px] tracking-[0.18em] uppercase cursor-pointer shadow-[0_0_10px_rgba(255,179,0,0.4)] transition';
+
       [songBtn, globalBtn, weeklyBtn].forEach(b => {
-        if (b) b.className = 'flex-1 py-1 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white cursor-pointer font-serif';
+        if (b) {
+          b.className = inactiveCls;
+          b.style.textShadow = 'none';
+        }
       });
 
       if (tab === 'song') {
-        if (songBtn) songBtn.className = 'flex-1 py-1 rounded-lg text-[10px] font-bold bg-amber-500/25 text-amber-300 border border-amber-400/40 cursor-pointer font-serif';
+        if (songBtn) {
+          songBtn.className = activeCls;
+          songBtn.style.textShadow = '0 0 8px rgba(255,179,0,0.85)';
+        }
+        if (titleText) titleText.innerText = 'PISTA';
         loadSongLeaderboard(currentLeaderboardChartId);
       } else if (tab === 'weekly') {
-        if (weeklyBtn) weeklyBtn.className = 'flex-1 py-1 rounded-lg text-[10px] font-bold bg-amber-500/25 text-amber-300 border border-amber-400/40 cursor-pointer font-serif';
+        if (weeklyBtn) {
+          weeklyBtn.className = activeCls;
+          weeklyBtn.style.textShadow = '0 0 8px rgba(255,179,0,0.85)';
+        }
+        if (titleText) titleText.innerText = 'SEMANAL';
         loadWeeklyLeaderboard();
       } else {
-        if (globalBtn) globalBtn.className = 'flex-1 py-1 rounded-lg text-[10px] font-bold bg-amber-500/25 text-amber-300 border border-amber-400/40 cursor-pointer font-serif';
+        if (globalBtn) {
+          globalBtn.className = activeCls;
+          globalBtn.style.textShadow = '0 0 8px rgba(255,179,0,0.85)';
+        }
+        if (titleText) titleText.innerText = 'GLOBAL';
         loadGlobalLeaderboard();
       }
     }
@@ -12968,11 +13108,7 @@ function stopPianoCameraLoop() {
       const container = document.getElementById('leaderboardRowsContainer');
       if (!container) return;
 
-      container.innerHTML = `
-        <div class="p-4 text-center text-gray-400 text-xs font-serif">
-          <p>Cargando clasificaciones...</p>
-        </div>
-      `;
+      container.innerHTML = `<div class="p-4 text-center font-mono font-black text-xs tracking-[0.2em] text-[#ffb300]" style="text-shadow: 0 0 8px rgba(255,179,0,0.8);">CARGANDO...</div>`;
 
       let rows = [];
       try {
@@ -12988,37 +13124,25 @@ function stopPianoCameraLoop() {
         console.warn('Error cargando clasificación remota:', err);
       }
 
-      // Si no hay datos en la nube, mostrar el récord local
-      if (rows.length === 0) {
-        const highscores = JSON.parse(localStorage.getItem('beatstar_highscores') || '{}');
-        const songRecord = chartId ? highscores[chartId] : null;
-        if (songRecord) {
-          const nickname = localStorage.getItem('beatstar_player_nickname') || 'Tú';
-          rows.push({
-            player_name: nickname + ' (Récord Local)',
-            score: songRecord.score || 0,
-            max_combo: songRecord.maxCombo || 0,
-            stars: songRecord.stars || 0,
-            accuracy_pct: songRecord.scorePct || 100,
-            medal_tier: songRecord.medal || null
-          });
-        }
+      const highscores = JSON.parse(localStorage.getItem('beatstar_highscores') || '{}');
+      const songRecord = chartId ? highscores[chartId] : null;
+      if (songRecord && songRecord.score > 0) {
+        const nickname = localStorage.getItem('beatstar_player_nickname') || 'TU';
+        rows.push({
+          player_name: nickname,
+          score: songRecord.score || 0
+        });
       }
 
-      renderLeaderboardRows(rows, container);
+      renderLeaderboardRows(rows, container, false);
     }
 
     async function loadGlobalLeaderboard() {
       const container = document.getElementById('leaderboardRowsContainer');
       if (!container) return;
 
-      container.innerHTML = `
-        <div class="p-4 text-center text-gray-400 text-xs font-serif">
-          <p>Cargando ranking global...</p>
-        </div>
-      `;
+      container.innerHTML = `<div class="p-4 text-center font-mono font-black text-xs tracking-[0.2em] text-[#ffb300]" style="text-shadow: 0 0 8px rgba(255,179,0,0.8);">CARGANDO...</div>`;
 
-      // Sincronizar jugador y puntuaciones antes de consultar
       await syncPlayerAndScoresWithServer();
 
       let rows = [];
@@ -13029,12 +13153,8 @@ function stopPianoCameraLoop() {
           if (res.ok) {
             const data = await res.json();
             rows = (data.global_leaderboard || data.leaderboard || []).map(r => ({
-              player_name: r.player_name || 'Jugador',
-              score: r.score || r.total_score || 0,
-              max_combo: r.max_combo || (r.songs_played ? `${r.songs_played} pistas` : '0'),
-              stars: r.stars || 5,
-              accuracy_pct: r.accuracy_pct,
-              medal_tier: r.medal_tier
+              player_name: r.player_name || r.name || 'JUGADOR',
+              score: r.score || r.total_score || 0
             }));
           }
         }
@@ -13042,37 +13162,45 @@ function stopPianoCameraLoop() {
         console.warn('Error cargando ranking global:', err);
       }
 
-      if (rows.length === 0) {
-        const nickname = localStorage.getItem('beatstar_player_nickname') || 'Tú';
-        const highscores = JSON.parse(localStorage.getItem('beatstar_highscores') || '{}');
-        let totalLocal = 0;
-        let countLocal = 0;
-        for (const k in highscores) {
-          if (highscores[k] && highscores[k].score) {
-            totalLocal += highscores[k].score;
-            countLocal++;
-          }
+      const nickname = localStorage.getItem('beatstar_player_nickname') || 'TU';
+      const highscores = JSON.parse(localStorage.getItem('beatstar_highscores') || '{}');
+      let totalLocal = 0;
+      for (const k in highscores) {
+        if (highscores[k] && highscores[k].score) {
+          totalLocal += highscores[k].score;
         }
-        rows = [
-          { player_name: nickname, score: totalLocal, max_combo: `${countLocal} pistas`, stars: 5 }
-        ];
+      }
+      if (totalLocal > 0 || rows.length === 0) {
+        rows.push({
+          player_name: nickname,
+          score: totalLocal
+        });
       }
 
-      renderLeaderboardRows(rows, container);
+      container.innerHTML = '';
+      renderLeaderboardRows(rows, container, false);
+    }
+
+    function getRemainingWeekCountdownText() {
+      const now = new Date();
+      const dayOfWeek = now.getUTCDay();
+      const daysUntilSunday = dayOfWeek === 0 ? 0 : (7 - dayOfWeek);
+      const endUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + daysUntilSunday, 23, 59, 59, 999);
+      const diffMs = Math.max(0, endUtc - now.getTime());
+      const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      return days > 0 ? `${days}D ${hours}H` : `${hours}H ${mins}M`;
     }
 
     async function loadWeeklyLeaderboard() {
       const container = document.getElementById('leaderboardRowsContainer');
       if (!container) return;
 
-      container.innerHTML = `
-        <div class="p-4 text-center text-gray-400 text-xs font-serif">
-          <p>Cargando torneo semanal (Lunes a Domingo 23:59 UTC)...</p>
-        </div>
-      `;
+      container.innerHTML = `<div class="p-4 text-center font-mono font-black text-xs tracking-[0.2em] text-[#ffb300]" style="text-shadow: 0 0 8px rgba(255,179,0,0.8);">CARGANDO...</div>`;
 
       let rows = [];
-      let timeRemainingText = '';
+      let timeRemainingText = getRemainingWeekCountdownText();
       try {
         const baseUrl = getApiBaseUrl();
         if (baseUrl) {
@@ -13080,40 +13208,52 @@ function stopPianoCameraLoop() {
           if (res.ok) {
             const data = await res.json();
             rows = (data.weekly_leaderboard || data.leaderboard || []).map(r => ({
-              player_name: r.player_name || 'Jugador',
-              score: r.score || 0,
-              max_combo: r.max_combo || 0,
-              stars: r.stars || 3.5,
-              accuracy_pct: r.accuracy_pct,
-              medal_tier: r.medal_tier
+              player_name: r.player_name || r.name || 'JUGADOR',
+              score: r.score || r.total_score || 0
             }));
-            if (data.time_remaining_ms) {
-              const hours = Math.floor(data.time_remaining_ms / (1000 * 60 * 60));
-              const mins = Math.floor((data.time_remaining_ms % (1000 * 60 * 60)) / (1000 * 60));
-              timeRemainingText = `⏱️ ${hours}h ${mins}m restantes`;
-            }
           }
         }
       } catch (err) {
         console.warn('Error cargando ranking semanal:', err);
       }
 
-      // Encabezado compacto sin cuadraditos de recompensas (las recompensas van directamente en cada puesto y franja)
+      const curWeek = getCurrentUtcWeekId();
+      const nickname = localStorage.getItem('beatstar_player_nickname') || 'TU';
+      const weeklyHist = JSON.parse(localStorage.getItem('beatstar_weekly_history') || '{}');
+      let localWeekEntry = weeklyHist[curWeek];
+      if (!localWeekEntry) {
+        const highscores = JSON.parse(localStorage.getItem('beatstar_highscores') || '{}');
+        let sumLocal = 0;
+        let songsCount = 0;
+        for (const k in highscores) {
+          if (highscores[k] && highscores[k].score) {
+            sumLocal += highscores[k].score;
+            songsCount++;
+          }
+        }
+        if (sumLocal > 0) {
+          localWeekEntry = { score: sumLocal, songsPlayed: songsCount };
+          weeklyHist[curWeek] = localWeekEntry;
+          localStorage.setItem('beatstar_weekly_history', JSON.stringify(weeklyHist));
+        }
+      }
+      if (localWeekEntry && localWeekEntry.score > 0) {
+        rows.push({
+          player_name: nickname,
+          score: localWeekEntry.score
+        });
+      }
+
       const headerBanner = `
-        <div class="p-2.5 mb-2 bg-gradient-to-r from-amber-950/90 via-stone-950 to-black border border-amber-500/40 rounded-xl flex items-center justify-between shadow-lg">
-          <div class="flex items-center gap-1.5 text-xs font-bold text-amber-300">
-            <span>🏆</span>
-            <span>Torneo Semanal</span>
-          </div>
-          <span class="font-mono text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/30 text-[10px]">
-            ${timeRemainingText || 'Lunes a Domingo 23:59 UTC'}
-          </span>
+        <div class="px-2.5 py-1.5 mb-2 bg-[#0a0601] border border-[#ffb300]/40 rounded flex items-center justify-between font-mono text-[10px] font-black tracking-[0.16em]">
+          <span class="text-[#ff7b00]" style="text-shadow: 0 0 6px rgba(255,123,0,0.75);"> #1 +1000 | #2 +500 | #3 +250 </span>
+          <span class="text-[#00f5a0]" style="text-shadow: 0 0 8px rgba(0,245,160,0.8);">${timeRemainingText}</span>
         </div>
       `;
 
       container.innerHTML = headerBanner;
       const listDiv = document.createElement('div');
-      listDiv.className = 'space-y-1.5';
+      listDiv.className = 'space-y-1';
       container.appendChild(listDiv);
 
       renderLeaderboardRows(rows, listDiv, true);
@@ -13128,37 +13268,209 @@ function stopPianoCameraLoop() {
       return `${d.getUTCFullYear()}_W${weekNo}`;
     }
 
+    function computeWeeklyRewardForRank(rank, totalPlayers = 10) {
+      const total = Math.max(10, totalPlayers);
+      if (rank === 1) return 1000;
+      if (rank === 2) return 500;
+      if (rank === 3) return 250;
+      if (rank <= Math.max(4, Math.ceil(total * 0.10))) return 100;
+      if (rank <= Math.max(6, Math.ceil(total * 0.20))) return 50;
+      return 20;
+    }
+
+    let _weeklyCeremonyAnimId = null;
+    let _pendingWeeklyRewardClefs = 0;
+
+    function playVegasJackpotFanfare() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98];
+        notes.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = idx % 2 === 0 ? 'triangle' : 'sine';
+          osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.085);
+          gain.gain.setValueAtTime(0.001, ctx.currentTime + idx * 0.085);
+          gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + idx * 0.085 + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + idx * 0.085 + 0.42);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(ctx.currentTime + idx * 0.085);
+          osc.stop(ctx.currentTime + idx * 0.085 + 0.45);
+        });
+      } catch (_) {}
+    }
+
+    function openWeeklyPrizeCeremony(rank = 1, weeklyScore = 125000, rewardClefs = 1000, weekLabel = 'SEMANAL', grantReward = true) {
+      const modal = document.getElementById('weeklyPrizeCeremonyModal');
+      if (!modal) return;
+
+      _pendingWeeklyRewardClefs = grantReward ? rewardClefs : 0;
+
+      const weekEl = document.getElementById('weeklyCeremonyWeekLabel');
+      if (weekEl) weekEl.innerText = `SEMANA ${weekLabel}`;
+      const rankEl = document.getElementById('weeklyCeremonyRankBadge');
+      if (rankEl) rankEl.innerText = `PUESTO #${rank}`;
+      const subEl = document.getElementById('weeklyCeremonyPlayerSub');
+      const nickname = localStorage.getItem('beatstar_player_nickname') || 'JUGADOR';
+      if (subEl) {
+        subEl.innerText = String(nickname).toUpperCase();
+      }
+      const scoreEl = document.getElementById('weeklyCeremonyScoreDetail');
+      if (scoreEl) scoreEl.innerText = `${(weeklyScore || 0).toLocaleString()} PTS`;
+      const btnEl = document.getElementById('btnClaimWeeklyCeremony');
+      if (btnEl) {
+        btnEl.innerText = grantReward
+          ? `COBRAR +${rewardClefs}`
+          : `CERRAR`;
+      }
+
+      modal.classList.remove('hidden');
+      modal.classList.add('open');
+      modal.style.display = 'flex';
+
+      playVegasJackpotFanfare();
+
+      const countEl = document.getElementById('weeklyCeremonyClefsCount');
+      if (countEl) {
+        const startT = performance.now();
+        const dur = 1100;
+        const stepCount = (now) => {
+          const p = Math.min(1, (now - startT) / dur);
+          const ease = 1 - Math.pow(1 - p, 3);
+          countEl.innerText = Math.round(rewardClefs * ease).toLocaleString();
+          if (p < 1) requestAnimationFrame(stepCount);
+        };
+        requestAnimationFrame(stepCount);
+      }
+
+      const cvs = document.getElementById('weeklyPrizeCanvas');
+      if (cvs) {
+        cvs.width = window.innerWidth || 360;
+        cvs.height = window.innerHeight || 640;
+        const cctx = cvs.getContext('2d');
+        const sparks = Array.from({ length: 32 }, () => ({
+          x: Math.random() * cvs.width,
+          y: -20 - Math.random() * cvs.height,
+          vy: 110 + Math.random() * 160,
+          r: 3.5 + Math.random() * 3.5,
+          color: Math.random() > 0.3 ? '#ffb300' : '#ff3b00'
+        }));
+        let lastT = performance.now();
+        if (_weeklyCeremonyAnimId) cancelAnimationFrame(_weeklyCeremonyAnimId);
+        const loopSparks = (now) => {
+          if (modal.style.display === 'none' || modal.classList.contains('hidden')) return;
+          const dt = Math.min(0.05, (now - lastT) / 1000);
+          lastT = now;
+          cctx.clearRect(0, 0, cvs.width, cvs.height);
+          cctx.save();
+          cctx.globalCompositeOperation = 'lighter';
+          for (let i = 0; i < sparks.length; i++) {
+            const s = sparks[i];
+            s.y += s.vy * dt;
+            if (s.y > cvs.height + 20) {
+              s.y = -20;
+              s.x = Math.random() * cvs.width;
+            }
+            cctx.fillStyle = s.color;
+            cctx.beginPath();
+            cctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+            cctx.fill();
+          }
+          cctx.restore();
+          _weeklyCeremonyAnimId = requestAnimationFrame(loopSparks);
+        };
+        _weeklyCeremonyAnimId = requestAnimationFrame(loopSparks);
+      }
+    }
+
+    window.claimWeeklyPrizeCeremony = function() {
+      const modal = document.getElementById('weeklyPrizeCeremonyModal');
+      if (modal) {
+        modal.classList.remove('open');
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+      }
+      if (_weeklyCeremonyAnimId) {
+        cancelAnimationFrame(_weeklyCeremonyAnimId);
+        _weeklyCeremonyAnimId = null;
+      }
+      if (_pendingWeeklyRewardClefs > 0) {
+        const reward = _pendingWeeklyRewardClefs;
+        _pendingWeeklyRewardClefs = 0;
+        addClefs(reward);
+        updateUserWalletDisplay();
+        showSuccessToast(`PREMIO SEMANAL COBRADO: +${reward}`);
+      }
+    };
+
+    window.triggerWeeklyPrizePreview = async function() {
+      const curWeek = getCurrentUtcWeekId();
+      const nickname = (localStorage.getItem('beatstar_player_nickname') || 'TU').trim().toLowerCase();
+      const weeklyHist = JSON.parse(localStorage.getItem('beatstar_weekly_history') || '{}');
+      const myScore = (weeklyHist[curWeek] && weeklyHist[curWeek].score) || 98500;
+      let myRank = 1;
+      let total = 10;
+      try {
+        const baseUrl = getApiBaseUrl();
+        if (baseUrl) {
+          const res = await fetch(`${baseUrl}/api/v1/community/leaderboards/weekly`);
+          if (res.ok) {
+            const data = await res.json();
+            const list = data.weekly_leaderboard || [];
+            total = Math.max(10, list.length);
+            const foundIdx = list.findIndex(e => (e.player_name || e.name || '').trim().toLowerCase() === nickname);
+            if (foundIdx >= 0) myRank = foundIdx + 1;
+          }
+        }
+      } catch (_) {}
+      const reward = computeWeeklyRewardForRank(myRank, total);
+      openWeeklyPrizeCeremony(myRank, myScore, reward, curWeek, false);
+    };
+
     async function checkWeeklyTournamentRewards() {
       const currentWeek = getCurrentUtcWeekId();
       const lastClaimedWeek = localStorage.getItem('beatstar_last_claimed_week');
+      const weeklyHist = JSON.parse(localStorage.getItem('beatstar_weekly_history') || '{}');
+      const highscores = JSON.parse(localStorage.getItem('beatstar_highscores') || '{}');
+
+      let totalHistoricalScore = 0;
+      for (const k in highscores) {
+        if (highscores[k] && highscores[k].score) totalHistoricalScore += highscores[k].score;
+      }
+
       if (!lastClaimedWeek) {
         localStorage.setItem('beatstar_last_claimed_week', currentWeek);
+        if (totalHistoricalScore > 0 && !localStorage.getItem('beatstar_vegas_weekly_ceremony_seen_v1')) {
+          localStorage.setItem('beatstar_vegas_weekly_ceremony_seen_v1', 'true');
+          setTimeout(() => {
+            openWeeklyPrizeCeremony(1, totalHistoricalScore, 1000, currentWeek, true);
+          }, 900);
+        }
         return;
       }
+
       if (lastClaimedWeek !== currentWeek) {
+        let rank = 1;
+        let total = 10;
+        let weeklyScore = (weeklyHist[lastClaimedWeek] && weeklyHist[lastClaimedWeek].score) || totalHistoricalScore;
+        const nickname = (localStorage.getItem('beatstar_player_nickname') || 'TU').trim();
+
         try {
           const baseUrl = getApiBaseUrl();
           if (baseUrl) {
-            const res = await fetch(`${baseUrl}/api/v1/community/leaderboards/weekly`);
+            const res = await fetch(`${baseUrl}/api/v1/community/leaderboards/weekly?week_id=${encodeURIComponent(lastClaimedWeek)}`);
             if (res.ok) {
               const data = await res.json();
-              const nickname = localStorage.getItem('beatstar_player_nickname') || 'Tú';
               const weeklyList = data.weekly_leaderboard || [];
-              const myEntry = weeklyList.find(e => e.player_name === nickname);
-              if (myEntry) {
-                const rank = myEntry.rank || (weeklyList.indexOf(myEntry) + 1);
-                const total = Math.max(1, weeklyList.length);
-                let rewardClefs = 0;
-                if (rank === 1) rewardClefs = 1000;
-                else if (rank === 2) rewardClefs = 500;
-                else if (rank === 3) rewardClefs = 250;
-                else if (rank <= Math.ceil(total * 0.10)) rewardClefs = 100;
-                else if (rank <= Math.ceil(total * 0.20)) rewardClefs = 50;
-                else if (rank <= Math.ceil(total * 0.50)) rewardClefs = 20;
-
-                if (rewardClefs > 0) {
-                  addClefs(rewardClefs);
-                  showSuccessToast(`🏆 ¡Premio de Torneo Semanal: +${rewardClefs} 𝄞 por alcanzar el puesto #${rank}!`);
+              if (weeklyList.length > 0) {
+                total = Math.max(10, weeklyList.length);
+                const myEntry = weeklyList.find(e => (e.player_name || e.name || '').trim().toLowerCase() === nickname.toLowerCase());
+                if (myEntry) {
+                  rank = myEntry.rank || (weeklyList.indexOf(myEntry) + 1);
+                  weeklyScore = Math.max(weeklyScore, myEntry.score || 0);
                 }
               }
             }
@@ -13166,131 +13478,135 @@ function stopPianoCameraLoop() {
         } catch (e) {
           console.warn('Error verificando recompensas semanales:', e);
         }
+
         localStorage.setItem('beatstar_last_claimed_week', currentWeek);
+        localStorage.setItem('beatstar_vegas_weekly_ceremony_seen_v1', 'true');
+
+        if (weeklyScore > 0) {
+          const rewardClefs = computeWeeklyRewardForRank(rank, total);
+          setTimeout(() => {
+            openWeeklyPrizeCeremony(rank, weeklyScore, rewardClefs, lastClaimedWeek, true);
+          }, 800);
+        }
+      } else if (totalHistoricalScore > 0 && !localStorage.getItem('beatstar_vegas_weekly_ceremony_seen_v1')) {
+        localStorage.setItem('beatstar_vegas_weekly_ceremony_seen_v1', 'true');
+        setTimeout(() => {
+          openWeeklyPrizeCeremony(1, totalHistoricalScore, 1000, currentWeek, true);
+        }, 900);
       }
     }
 
     function renderLeaderboardRows(rows, container, isWeekly = false) {
-      // Deduplicar personas/jugadores: conservar unicamente la mejor puntuacion de cada persona
       const dedupMap = new Map();
       (rows || []).forEach(r => {
-        const rawName = (r.player_name || 'Jugador').trim();
+        const rawName = (r.player_name || r.name || 'JUGADOR').replace(/\s*\((Tu Récord|Récord Local|Tú)\)/i, '').trim();
         const pKey = rawName.toLowerCase();
         if (!dedupMap.has(pKey) || (r.score || 0) > (dedupMap.get(pKey).score || 0)) {
-          dedupMap.set(pKey, r);
+          dedupMap.set(pKey, Object.assign({}, r, { player_name: rawName }));
         }
       });
       rows = Array.from(dedupMap.values()).sort((a, b) => (b.score || 0) - (a.score || 0));
 
       if (!rows || rows.length === 0) {
         container.innerHTML = `
-          <div class="p-6 text-center text-gray-400 text-xs space-y-1">
-            <p class="font-bold text-gray-300">Sin puntuaciones registradas</p>
-            <p class="text-[10px] text-gray-500">¡Sé el primero en jugar y registrar tu récord!</p>
+          <div class="p-5 text-center font-mono font-black text-xs tracking-[0.2em] text-[#ff7b00] uppercase">
+            SIN REGISTROS
           </div>
         `;
         return;
       }
 
+      const myNick = (localStorage.getItem('beatstar_player_nickname') || 'TU').trim().toLowerCase();
       const totalPlayers = Math.max(rows.length, 10);
       const top10Cutoff = Math.max(3, Math.ceil(totalPlayers * 0.10));
       const top20Cutoff = Math.max(top10Cutoff + 1, Math.ceil(totalPlayers * 0.20));
       const top50Cutoff = Math.max(top20Cutoff + 1, Math.ceil(totalPlayers * 0.50));
 
       let html = '';
-      let shownTop10Line = false;
-      let shownTop20Line = false;
-      let shownTop50Line = false;
 
       rows.forEach((r, idx) => {
         const rank = idx + 1;
+        const rankStr = String(rank).padStart(2, '0');
+        const isMe = (r.player_name || '').trim().toLowerCase() === myNick;
 
-        // Líneas divisorias de franja para Torneo Semanal con recompensas claras
+        // Colores de LEDs grandes vintage según posición (Ámbar brillante #1, Naranja neón #2-#3, Rojo-Ámbar resto, Verde LED si eres tú)
+        let ledColor = '#ff6a00';
+        let ledShadow = '0 0 8px rgba(255,106,0,0.75)';
+        let borderCol = 'border-[#261708]';
+        let dotCol = 'bg-[#ff6a00] shadow-[0_0_6px_#ff6a00]';
+
+        if (rank === 1) {
+          ledColor = '#ffcc00';
+          ledShadow = '0 0 12px rgba(255,204,0,0.95), 0 0 2px #ffffff';
+          borderCol = 'border-[#ffcc00]/65';
+          dotCol = 'bg-[#ffcc00] shadow-[0_0_9px_#ffcc00]';
+        } else if (rank === 2 || rank === 3) {
+          ledColor = '#ff9900';
+          ledShadow = '0 0 10px rgba(255,153,0,0.85)';
+          borderCol = 'border-[#ff9900]/45';
+          dotCol = 'bg-[#ff9900] shadow-[0_0_7px_#ff9900]';
+        }
+        if (isMe) {
+          ledColor = '#00f5a0';
+          ledShadow = '0 0 11px rgba(0,245,160,0.9)';
+          borderCol = 'border-[#00f5a0]/65';
+          dotCol = 'bg-[#00f5a0] shadow-[0_0_8px_#00f5a0]';
+        }
+
+        let weeklyPrizeText = '';
         if (isWeekly) {
-          if (rank === 4 && !shownTop10Line) {
-            shownTop10Line = true;
-            html += `
-              <div class="flex items-center gap-2 py-1.5 my-1">
-                <div class="flex-1 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent"></div>
-                <span class="text-[9.5px] font-mono font-bold text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/40 uppercase tracking-wide">
-                  ✦ Top 10% • Recompensa: 100 𝄞
-                </span>
-                <div class="flex-1 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent"></div>
-              </div>
-            `;
-          } else if (rank > top10Cutoff && !shownTop20Line) {
-            shownTop20Line = true;
-            html += `
-              <div class="flex items-center gap-2 py-1.5 my-1">
-                <div class="flex-1 h-[1px] bg-gradient-to-r from-transparent via-purple-500/50 to-transparent"></div>
-                <span class="text-[9.5px] font-mono font-bold text-purple-300 bg-purple-950/80 px-2 py-0.5 rounded border border-purple-500/40 uppercase tracking-wide">
-                  ✦ Top 20% • Recompensa: 50 𝄞
-                </span>
-                <div class="flex-1 h-[1px] bg-gradient-to-r from-transparent via-purple-500/50 to-transparent"></div>
-              </div>
-            `;
-          } else if (rank > top20Cutoff && !shownTop50Line) {
-            shownTop50Line = true;
-            html += `
-              <div class="flex items-center gap-2 py-1.5 my-1">
-                <div class="flex-1 h-[1px] bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent"></div>
-                <span class="text-[9.5px] font-mono font-bold text-emerald-300 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/40 uppercase tracking-wide">
-                  ✦ Top 50% • Recompensa: 20 𝄞
-                </span>
-                <div class="flex-1 h-[1px] bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent"></div>
-              </div>
-            `;
+          let prizeVal = 0;
+          if (rank === 1) prizeVal = 1000;
+          else if (rank === 2) prizeVal = 500;
+          else if (rank === 3) prizeVal = 250;
+          else if (rank <= top10Cutoff) prizeVal = 100;
+          else if (rank <= top20Cutoff) prizeVal = 50;
+          else if (rank <= top50Cutoff) prizeVal = 20;
+          if (prizeVal > 0) {
+            weeklyPrizeText = `<span class="px-1.5 py-0.5 rounded bg-[#140c02] border border-[#ffb300]/40 font-mono font-black text-[10px] text-[#ffcc00] tracking-wider flex-shrink-0" style="text-shadow: 0 0 6px rgba(255,204,0,0.8);">+${prizeVal}</span>`;
           }
         }
 
-        const medalIcons = {
-          'platinum': '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#67e8f9" stroke-width="2" class="inline align-middle"><polygon points="6 3 18 3 22 9 12 22 2 9 6 3"/></svg>',
-          'gold': '<svg width="11" height="11" viewBox="0 0 24 24" fill="#fcd34d" stroke="#fcd34d" stroke-width="1.5" class="inline align-middle"><circle cx="12" cy="12" r="7"/></svg>',
-          'silver': '<svg width="11" height="11" viewBox="0 0 24 24" fill="#cbd5e1" stroke="#cbd5e1" stroke-width="1.5" class="inline align-middle"><circle cx="12" cy="12" r="7"/></svg>'
-        };
-        const medalIcon = r.medal_tier ? (medalIcons[r.medal_tier] || '') : '';
-        const rankColors = ['text-amber-400 font-black', 'text-gray-300 font-bold', 'text-amber-600 font-bold'];
-        const rankClass = idx < 3 ? rankColors[idx] : 'text-gray-500 font-bold';
-
-        // Píldora de recompensa en cada puesto del Torneo Semanal
-        let weeklyRewardBadge = '';
-        if (isWeekly) {
-          if (rank === 1) {
-            weeklyRewardBadge = '<span class="px-1.5 py-0.5 bg-amber-500/25 border border-amber-400/50 rounded text-[9px] font-mono font-bold text-amber-300">🏆 1.000 𝄞</span>';
-          } else if (rank === 2) {
-            weeklyRewardBadge = '<span class="px-1.5 py-0.5 bg-stone-500/25 border border-stone-400/50 rounded text-[9px] font-mono font-bold text-gray-200">🥈 500 𝄞</span>';
-          } else if (rank === 3) {
-            weeklyRewardBadge = '<span class="px-1.5 py-0.5 bg-amber-700/25 border border-amber-600/50 rounded text-[9px] font-mono font-bold text-amber-500">🥉 250 𝄞</span>';
-          } else if (rank <= top10Cutoff) {
-            weeklyRewardBadge = '<span class="px-1.5 py-0.5 bg-cyan-500/20 border border-cyan-400/40 rounded text-[9px] font-mono font-bold text-cyan-300">100 𝄞</span>';
-          } else if (rank <= top20Cutoff) {
-            weeklyRewardBadge = '<span class="px-1.5 py-0.5 bg-purple-500/20 border border-purple-400/40 rounded text-[9px] font-mono font-bold text-purple-300">50 𝄞</span>';
-          } else if (rank <= top50Cutoff) {
-            weeklyRewardBadge = '<span class="px-1.5 py-0.5 bg-emerald-500/20 border border-emerald-400/40 rounded text-[9px] font-mono font-bold text-emerald-300">20 𝄞</span>';
-          }
-        }
+        const cleanName = escapeHtml(String(r.player_name || 'JUGADOR').toUpperCase().slice(0, 14));
 
         html += `
-          <div class="p-2 bg-black/60 border border-white/5 hover:border-amber-500/30 rounded-xl flex items-center justify-between gap-2 text-xs transition">
+          <div class="px-2.5 py-2 bg-[#070502]/90 border ${borderCol} rounded flex items-center justify-between gap-2 font-mono">
             <div class="flex items-center gap-2 min-w-0">
-              <span class="w-5 text-center ${rankClass}">#${rank}</span>
-              <div class="min-w-0 truncate">
-                <div class="flex items-center gap-1.5 truncate">
-                  <span class="font-bold text-white truncate block">${escapeHtml(r.player_name)} ${medalIcon}</span>
-                  ${weeklyRewardBadge}
-                </div>
-                <span class="text-[9px] text-gray-400">Combo: ${r.max_combo || 0} • ${r.stars || 0}★</span>
-              </div>
+              <span class="w-2 h-2 rounded-full ${dotCol} flex-shrink-0"></span>
+              <span class="font-black text-sm tracking-widest flex-shrink-0" style="color: ${ledColor}; text-shadow: ${ledShadow};">${rankStr}</span>
+              <span class="font-black text-xs tracking-[0.14em] truncate" style="color: ${ledColor}; text-shadow: ${ledShadow};">${cleanName}</span>
             </div>
-            <div class="text-right flex-shrink-0">
-              <span class="font-mono font-black text-cyan-300">${(r.score || 0).toLocaleString()}</span>
-              <span class="text-[8px] text-gray-400 block">${r.accuracy_pct ? Number(r.accuracy_pct).toFixed(1) + '%' : ''}</span>
+            <div class="flex items-center gap-2 flex-shrink-0">
+              ${weeklyPrizeText}
+              <span class="font-black text-sm tracking-[0.12em]" style="color: ${ledColor}; text-shadow: ${ledShadow};">${(r.score || 0).toLocaleString()}</span>
             </div>
           </div>
         `;
       });
       container.innerHTML = html;
     }
+
+    // Auto-Calibración Inteligente con 1 toque desde la pantalla de Resultados
+    window.applySmartAutoCalibration = function() {
+      const delta = Number(window._pendingSmartCalibDelta || 0);
+      if (!delta) return;
+      const curOffset = parseInt(localStorage.getItem('beatstar_audio_offset') || '0', 10) || 0;
+      const nextOffset = Math.max(-250, Math.min(250, curOffset + delta));
+      localStorage.setItem('beatstar_audio_offset', String(nextOffset));
+      if (window.engine && typeof window.engine.setCalibration === 'function') {
+        window.engine.setCalibration(nextOffset);
+      }
+      const slider = document.getElementById('offsetSlider');
+      if (slider) slider.value = String(nextOffset);
+      const valEl = document.getElementById('offsetValue');
+      if (valEl) valEl.innerText = `${nextOffset} ms`;
+      const btn = document.getElementById('btnAutoAdjustCalibration');
+      if (btn) {
+        btn.innerText = `✓ Calibrado a ${nextOffset} ms`;
+        btn.disabled = true;
+      }
+      showSuccessToast(`Calibración ajustada a ${nextOffset} ms (${delta > 0 ? '+' : ''}${delta} ms).`);
+    };
 
     // ==========================================
     // MODAL DE CALIFICACIÓN MANUAL (BIBLIOTECA)

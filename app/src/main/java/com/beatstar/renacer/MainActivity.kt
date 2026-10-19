@@ -417,8 +417,9 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(webView)
 
-        // 9. Carga inicial del juego
-        webView.loadUrl("https://appassets.androidplatform.net/assets/www/game.html")
+        // 9. Limpiar caché de WebView y cargar la versión actualizada del juego
+        webView.clearCache(true)
+        webView.loadUrl("https://appassets.androidplatform.net/assets/www/game.html?v=3.8")
 
         hideSystemUI()
     }
