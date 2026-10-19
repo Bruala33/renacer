@@ -533,9 +533,9 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
     version_code: 7,
-    version_name: '1.4.0',
+    version_name: '1.5.0',
     release_notes: 'Piano Community Web & Offline Player. Sincronización comunitaria y soporte osu! Mania / Clone Hero.',
-    download_url: '/download/apk?v=4.0',
+    download_url: '/download/apk?v=7.0',
   });
 });
 

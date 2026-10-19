@@ -1140,11 +1140,11 @@
       </div>
 
       <!-- Micro-Indicador de Calibración en Vivo (Early / 0ms / Late) -->
-      <div id="liveCalibrationPill" class="mx-auto mt-1 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/65 border border-white/15 backdrop-blur-md shadow-[0_0_12px_rgba(0,0,0,0.65)] transition-opacity duration-300 opacity-85" style="width: 146px; height: 18px;">
+      <div id="liveCalibrationPill" class="mx-auto mt-1 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/80 border border-white/15 shadow-[0_0_12px_rgba(0,0,0,0.65)] transition-opacity duration-300 opacity-85" style="width: 146px; height: 18px;">
         <span class="text-[7.5px] font-mono font-bold text-cyan-300/90 tracking-tighter">EARLY</span>
         <div class="relative flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden flex items-center">
           <div class="absolute left-1/2 top-0 bottom-0 w-[1.5px] -translate-x-1/2 bg-white/75"></div>
-          <div id="liveCalibDot" class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399] transition-transform duration-75" style="position: absolute; left: 50%; transform: translate(-50%, 0);"></div>
+          <div id="liveCalibDot" class="w-2 h-2 rounded-full bg-emerald-400" style="position: absolute; left: 50%; transform: translate3d(-50%, 0, 0);"></div>
         </div>
         <span id="liveCalibMsText" class="text-[8px] font-mono font-black text-emerald-300 w-7 text-right">0ms</span>
       </div>
@@ -1845,12 +1845,12 @@
                 </svg>
                 <span class="text-amber-300 font-bold" data-i18n="apk_card_title">App Oficial Android (APK):</span>
               </span>
-              <span class="text-[10px] font-mono text-amber-400/80 bg-amber-400/10 px-1.5 py-0.5 rounded">v1.4</span>
+              <span class="text-[10px] font-mono text-amber-400/80 bg-amber-400/10 px-1.5 py-0.5 rounded">v1.5</span>
             </div>
             <p class="text-[10px] text-gray-300 leading-tight" data-i18n="apk_card_desc">
               Instala la app oficial en tu móvil para jugar a pantalla completa, vibración háptica y con disponibilidad 100% offline.
             </p>
-            <a href="/download/apk?v=4.0" download="PianoCommunity.apk" class="w-full py-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 text-black font-black rounded-lg text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition active:scale-95 cursor-pointer">
+            <a href="/download/apk?v=7.0" onclick="this.href='/download/apk?v=7.0&t=' + Date.now()" download="PianoCommunity.apk" class="w-full py-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 text-black font-black rounded-lg text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition active:scale-95 cursor-pointer">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               <span data-i18n="apk_card_btn">DESCARGAR APK ANDROID</span>
             </a>
@@ -2247,7 +2247,7 @@
           <p data-i18n="onboarding_apk_hint" class="text-[10px] text-amber-300/90 leading-tight">
             💡 Recuerda que también puedes descargar la app nativa para Android en cualquier momento desde <b>Ajustes ⚙️</b>.
           </p>
-          <a href="/download/apk?v=4.0" download="PianoCommunity.apk" class="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 rounded-xl text-amber-300 text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer">
+          <a href="/download/apk?v=7.0" onclick="this.href='/download/apk?v=7.0&t=' + Date.now()" download="PianoCommunity.apk" class="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 rounded-xl text-amber-300 text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="text-amber-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             <span data-i18n="onboarding_apk_btn">Descargar App (APK Android)</span>
           </a>
@@ -2255,8 +2255,8 @@
       </div>
     </div>
 
-    <!-- Modal de Actualización Disponible (In-App Updater) -->
-    <div id="appUpdateModal" class="modal-overlay">
+    <!-- Modal de Actualización Disponible (In-App Updater - Desactivado en inicio automático) -->
+    <div id="appUpdateModal" class="modal-overlay hidden" style="display: none !important;">
       <div class="glass-card w-full max-w-[340px] p-5 rounded-2xl space-y-3.5 text-center bg-gradient-to-b from-[#1a103c] via-[#0d0718] to-black border border-cyan-500/50 shadow-2xl">
         <div class="w-12 h-12 mx-auto rounded-2xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-300 shadow-lg shadow-cyan-500/30">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-cyan-300"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
@@ -5222,44 +5222,20 @@
       return DEFAULT_CLOUD_SERVER;
     }
 
-    // Código de versión local: si es el APK anterior (sin getAppVersionCode) es versión 1
+    // Código de versión local actualizado a 7 (v1.4.0)
     const CURRENT_APP_VERSION_CODE = (window.AndroidNative && typeof window.AndroidNative.getAppVersionCode === 'function')
-      ? window.AndroidNative.getAppVersionCode()
-      : (window.AndroidNative ? 1 : 3);
+      ? Math.max(7, Number(window.AndroidNative.getAppVersionCode()) || 7)
+      : 7;
     let appUpdateDownloadUrl = '/download/apk';
 
     async function checkForAppUpdates() {
-      // En la versión web NUNCA mostrar aviso de actualización
-      if (!window.AndroidNative) return;
-      try {
-        const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
-        if (!baseUrl) return;
-        const res = await fetch(`${baseUrl}/api/v1/version`);
-        if (!res.ok) return;
-        const data = await res.json();
-
-        if (data && data.version_code) {
-          const remoteCode = parseInt(data.version_code, 10);
-          if (remoteCode > CURRENT_APP_VERSION_CODE) {
-            const dismissedVer = localStorage.getItem('dismissed_update_version');
-            if (dismissedVer === String(remoteCode)) return;
-
-            appUpdateDownloadUrl = data.download_url || '/download/apk';
-            const titleEl = document.getElementById('appUpdateTitle');
-            const notesEl = document.getElementById('appUpdateNotes');
-            if (titleEl) titleEl.innerText = `Piano Community v${data.version_name || data.version_code}`;
-            if (notesEl && data.release_notes) notesEl.innerText = data.release_notes;
-
-            const modal = document.getElementById('appUpdateModal');
-            if (modal) {
-              modal.classList.add('open');
-              modal.style.display = 'flex';
-            }
-          }
-        }
-      } catch (e) {
-        console.warn('Comprobación de versión omitida:', e);
+      // Aviso automático de actualización desactivado para que nunca salte al abrir la app
+      const modal = document.getElementById('appUpdateModal');
+      if (modal) {
+        modal.classList.remove('open');
+        modal.style.display = 'none';
       }
+      return;
     }
 
     function closeAppUpdateModal() {
@@ -5468,27 +5444,37 @@
           if (!window._calibHudCache) {
             window._calibHudCache = {
               dot: document.getElementById('liveCalibDot'),
-              txt: document.getElementById('liveCalibMsText')
+              txt: document.getElementById('liveCalibMsText'),
+              lastColor: '',
+              lastVal: 999999
             };
           }
-          const dot = window._calibHudCache.dot;
-          const txt = window._calibHudCache.txt;
+          const cache = window._calibHudCache;
+          const dot = cache.dot;
+          const txt = cache.txt;
           if (!dot || !txt) return;
           const clamped = Math.max(-90, Math.min(90, Math.round(signedDiffMs)));
-          const pct = 50 + (clamped / 90) * 44;
-          dot.style.left = `${pct.toFixed(1)}%`;
+          // Usamos translate3d en vez de style.left o className para 0 reflows y 0 disparos del MutationObserver de Tailwind
+          const offsetPx = (clamped / 90) * 28;
+          dot.style.transform = `translate3d(calc(-50% + ${offsetPx.toFixed(1)}px), 0, 0)`;
+
+          let dotBg = '#fbbf24';
+          let txtCol = '#fcd34d';
           if (Math.abs(clamped) <= 15) {
-            dot.className = 'w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]';
-            txt.className = 'text-[8px] font-mono font-black text-emerald-300 w-7 text-right';
-            txt.innerText = `${clamped > 0 ? '+' : ''}${clamped}ms`;
+            dotBg = '#34d399';
+            txtCol = '#6ee7b7';
           } else if (clamped < 0) {
-            dot.className = 'w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]';
-            txt.className = 'text-[8px] font-mono font-black text-cyan-300 w-7 text-right';
-            txt.innerText = `${clamped}ms`;
-          } else {
-            dot.className = 'w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_#fbbf24]';
-            txt.className = 'text-[8px] font-mono font-black text-amber-300 w-7 text-right';
-            txt.innerText = `+${clamped}ms`;
+            dotBg = '#22d3ee';
+            txtCol = '#67e8f9';
+          }
+          if (cache.lastColor !== dotBg) {
+            cache.lastColor = dotBg;
+            dot.style.backgroundColor = dotBg;
+            txt.style.color = txtCol;
+          }
+          if (cache.lastVal !== clamped) {
+            cache.lastVal = clamped;
+            txt.textContent = `${clamped > 0 ? '+' : ''}${clamped}ms`;
           }
         },
         onSongLoaded: (meta, palette) => {
@@ -7649,7 +7635,10 @@ function detenerPaginacionPiano() {
 
 // Detener en seco si levantas el dedo en CUALQUIER lugar de la pantalla
 ['touchend', 'touchcancel', 'mouseup', 'pointerup', 'pointercancel', 'blur'].forEach(evt => {
-  window.addEventListener(evt, detenerPaginacionPiano, { passive: true });
+  window.addEventListener(evt, () => {
+    if (window.engine && window.engine.isRunning && !window.engine.isPaused) return;
+    detenerPaginacionPiano();
+  }, { passive: true });
 });
 
 
@@ -9520,7 +9509,9 @@ function stopPianoCameraLoop() {
         resultsList.innerHTML = '';
       }
 
-      // Parar música y física de tragaperras
+      // Parar música, cámara de piano y física de tragaperras
+      if (typeof stopPianoCameraLoop === 'function') stopPianoCameraLoop();
+      if (typeof detenerPaginacionPiano === 'function') detenerPaginacionPiano();
       if (typeof stopCasinoMusic === 'function') stopCasinoMusic();
       if (typeof closeGranFortuna === 'function') closeGranFortuna();
       window.isCasinoActive = false;
