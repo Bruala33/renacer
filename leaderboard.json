@@ -1587,6 +1587,16 @@
         "accuracy": 3.5038056872507,
         "date": "2026-10-19 18:49:23"
       }
+    ],
+    "osu_2292624": [
+      {
+        "name": "Dady cool",
+        "score": 120224,
+        "stars": 3.5,
+        "combo": 87,
+        "accuracy": 5.651066037997478,
+        "date": "2026-10-19 18:50:41"
+      }
     ]
   },
   "global": [
@@ -1607,8 +1617,8 @@
     },
     {
       "name": "Dady cool",
-      "total_score": 7520818,
-      "clefs": 71
+      "total_score": 7641042,
+      "clefs": 72
     },
     {
       "name": "Azure",
@@ -1710,7 +1720,7 @@
       },
       {
         "name": "Dady cool",
-        "score": 3766065
+        "score": 3886289
       },
       {
         "name": "PixToPix",
