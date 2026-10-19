@@ -1958,26 +1958,26 @@
             </div>
             <div class="grid grid-cols-2 gap-2">
               <label class="flex items-center justify-between gap-2 cursor-pointer">
-                <span class="text-[10px] text-white font-bold">PERFECT+</span>
-                <input type="color" id="colorPerfectPlus" value="#ffffff"
+                <span class="text-[10px] text-emerald-400 font-bold">PERFECT+</span>
+                <input type="color" id="colorPerfectPlus" value="#00f5a0"
                   oninput="applyJudgeColor('perfectPlus', this.value)"
                   class="w-7 h-6 rounded cursor-pointer border-0 bg-transparent p-0">
               </label>
               <label class="flex items-center justify-between gap-2 cursor-pointer">
                 <span class="text-[10px] text-amber-300 font-bold">PERFECT</span>
-                <input type="color" id="colorPerfect" value="#e5b869"
+                <input type="color" id="colorPerfect" value="#ffd700"
                   oninput="applyJudgeColor('perfect', this.value)"
                   class="w-7 h-6 rounded cursor-pointer border-0 bg-transparent p-0">
               </label>
               <label class="flex items-center justify-between gap-2 cursor-pointer">
-                <span class="text-[10px] text-orange-400 font-bold">GREAT</span>
-                <input type="color" id="colorGreat" value="#e08238"
+                <span class="text-[10px] text-cyan-400 font-bold">GREAT</span>
+                <input type="color" id="colorGreat" value="#00d4ff"
                   oninput="applyJudgeColor('great', this.value)"
                   class="w-7 h-6 rounded cursor-pointer border-0 bg-transparent p-0">
               </label>
               <label class="flex items-center justify-between gap-2 cursor-pointer">
-                <span class="text-[10px] text-stone-400 font-bold">GOOD</span>
-                <input type="color" id="colorGood" value="#9e7b66"
+                <span class="text-[10px] text-orange-400 font-bold">GOOD</span>
+                <input type="color" id="colorGood" value="#ff7b00"
                   oninput="applyJudgeColor('good', this.value)"
                   class="w-7 h-6 rounded cursor-pointer border-0 bg-transparent p-0">
               </label>
@@ -2605,55 +2605,56 @@
 
     <!-- Layer 16: Results Screen Modal with Highscores -->
     
-    <!-- Layer 17: Online Leaderboard Modal (Pantalla Gigante de LEDs Vintage) -->
-    <div id="leaderboardModal" class="results-modal hidden" style="display: none; z-index: 10020 !important; background: rgba(3, 3, 5, 0.92);">
-      <div class="w-full max-w-[366px] p-2.5 rounded-2xl bg-[#0b0b0e] border-[3px] border-[#26262e] shadow-[0_0_50px_rgba(0,0,0,0.95),inset_0_0_12px_rgba(0,0,0,0.9)] relative overflow-hidden">
-        <!-- Hilera superior de bombillas LED grandes vintage -->
-        <div class="flex items-center justify-between px-2 py-1.5 bg-[#060608] border-b border-[#1c1c22]">
-          <div class="flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full bg-[#ff9900] shadow-[0_0_8px_#ff9900,inset_0_0_3px_#ffffff]"></span>
-            <span class="w-2.5 h-2.5 rounded-full bg-[#ff3b00] shadow-[0_0_8px_#ff3b00,inset_0_0_3px_#ffffff]"></span>
+    <!-- Layer 17: Online Leaderboard Modal (Pantalla Gigante de Píxeles LED Vintage) -->
+    <div id="leaderboardModal" class="results-modal hidden" style="display: none; z-index: 10020 !important; background: rgba(2, 2, 4, 0.94);">
+      <div class="w-full max-w-[372px] p-2.5 rounded-2xl bg-[#09090c] border-[3px] border-[#262630] shadow-[0_0_55px_rgba(0,0,0,0.98),inset_0_0_16px_rgba(0,0,0,0.95)] relative overflow-hidden">
+        <!-- Cabecera de Matriz de Píxeles LED Grandes -->
+        <div class="flex items-center justify-between gap-2 px-2 py-1.5 bg-[#040406] border-2 border-[#1b1b22] rounded-lg">
+          <div class="flex items-center gap-1.5">
             <span class="w-2.5 h-2.5 rounded-full bg-[#ff9900] shadow-[0_0_8px_#ff9900,inset_0_0_3px_#ffffff]"></span>
             <span class="w-2.5 h-2.5 rounded-full bg-[#ff3b00] shadow-[0_0_8px_#ff3b00,inset_0_0_3px_#ffffff]"></span>
             <span class="w-2.5 h-2.5 rounded-full bg-[#ff9900] shadow-[0_0_8px_#ff9900,inset_0_0_3px_#ffffff]"></span>
           </div>
-          <span id="lbModalTitleText" class="font-mono font-black text-sm tracking-[0.26em] text-[#ffb300] uppercase" style="text-shadow: 0 0 10px rgba(255,179,0,0.85), 0 0 2px #fff;">SEMANAL</span>
-          <button onclick="closeLeaderboardModal()" class="px-2 py-0.5 rounded bg-[#141418] border border-[#33333d] text-[#ff5500] hover:text-[#ffb300] font-mono font-black text-xs cursor-pointer" style="text-shadow: 0 0 6px rgba(255,85,0,0.8);">X</button>
-        </div>
-
-        <!-- Botonera selectora LED vintage minimalista (sin emojis) -->
-        <div id="lbSubTabsContainer" class="grid grid-cols-3 gap-1.5 p-1.5 bg-[#050507] border-b border-[#1c1c22]">
-          <button id="lbSubTabSongBtn" onclick="switchLeaderboardSubTab('song')" class="py-1.5 rounded bg-[#0c0802] border border-[#ffb300] text-[#ffb300] font-mono font-black text-[11px] tracking-[0.18em] uppercase cursor-pointer" style="text-shadow: 0 0 8px rgba(255,179,0,0.8);">
-            PISTA
-          </button>
-          <button id="lbSubTabGlobalBtn" onclick="switchLeaderboardSubTab('global')" class="py-1.5 rounded bg-[#09090c] border border-[#22222a] text-[#664400] font-mono font-black text-[11px] tracking-[0.18em] uppercase cursor-pointer">
-            GLOBAL
-          </button>
-          <button id="lbSubTabWeeklyBtn" onclick="switchLeaderboardSubTab('weekly')" class="py-1.5 rounded bg-[#09090c] border border-[#22222a] text-[#664400] font-mono font-black text-[11px] tracking-[0.18em] uppercase cursor-pointer">
-            SEMANAL
+          <span id="lbModalTitleText" class="hidden">SEMANAL</span>
+          <canvas id="lbHeaderLedCanvas" class="h-[26px] w-[170px] block"></canvas>
+          <button onclick="closeLeaderboardModal()" class="p-1 rounded bg-[#0c0804] border border-[#3a2210] hover:border-[#ff5500] cursor-pointer flex items-center justify-center">
+            <canvas id="lbCloseTopLedCanvas" class="h-[18px] w-[22px] block"></canvas>
           </button>
         </div>
 
-        <!-- PANTALLA GIGANTE DE MATRIZ DE LEDS GRANDES VINTAGE -->
-        <div class="p-2.5 bg-[#040301] border-2 border-[#19150e] rounded-lg my-1.5 shadow-[inset_0_0_24px_rgba(0,0,0,1)]" style="background-image: radial-gradient(circle, rgba(255, 145, 0, 0.14) 2px, rgba(4, 3, 1, 0.96) 2.6px); background-size: 7px 7px;">
+        <!-- Botonera selectora con texto dibujado en píxeles LED -->
+        <div id="lbSubTabsContainer" class="grid grid-cols-3 gap-1.5 p-1.5 mt-1.5 bg-[#040406] border-2 border-[#1b1b22] rounded-lg">
+          <button id="lbSubTabSongBtn" onclick="switchLeaderboardSubTab('song')" class="py-1 px-1 rounded bg-[#120b02] border border-[#ffb300] cursor-pointer flex items-center justify-center">
+            <canvas id="lbTabSongCanvas" class="h-[18px] w-full block"></canvas>
+          </button>
+          <button id="lbSubTabGlobalBtn" onclick="switchLeaderboardSubTab('global')" class="py-1 px-1 rounded bg-[#070709] border border-[#1f1f26] cursor-pointer flex items-center justify-center">
+            <canvas id="lbTabGlobalCanvas" class="h-[18px] w-full block"></canvas>
+          </button>
+          <button id="lbSubTabWeeklyBtn" onclick="switchLeaderboardSubTab('weekly')" class="py-1 px-1 rounded bg-[#070709] border border-[#1f1f26] cursor-pointer flex items-center justify-center">
+            <canvas id="lbTabWeeklyCanvas" class="h-[18px] w-full block"></canvas>
+          </button>
+        </div>
+
+        <!-- PANTALLA GIGANTE DE MATRIZ DE PÍXELES LED VINTAGE -->
+        <div class="p-2 bg-[#030201] border-[3px] border-[#1c160e] rounded-xl my-1.5 shadow-[inset_0_0_28px_rgba(0,0,0,1)]">
           <div id="lbModalSubtitleText" class="hidden"></div>
-          <div id="leaderboardRowsContainer" class="space-y-1.5 max-h-[340px] overflow-y-auto pr-0.5">
-            <!-- Injected dynamically -->
+          <div id="leaderboardRowsContainer" class="space-y-1.5 max-h-[346px] overflow-y-auto pr-0.5">
+            <!-- Filas de matriz de píxeles LED inyectadas dinámicamente -->
           </div>
         </div>
 
-        <!-- Hilera inferior de bombillas LED grandes + Controles simples -->
-        <div class="flex items-center justify-between gap-2 pt-1 px-1">
-          <button onclick="triggerWeeklyPrizePreview()" class="py-1.5 px-3 bg-[#0c0802] hover:bg-[#160f04] border border-[#ff9900]/70 rounded font-mono font-black text-[10px] tracking-[0.16em] text-[#ffb300] uppercase cursor-pointer" style="text-shadow: 0 0 8px rgba(255,179,0,0.75);">
-            PREMIO
+        <!-- Pie de pantalla con botones dibujados en píxeles LED -->
+        <div class="flex items-center justify-between gap-2 pt-0.5 px-0.5">
+          <button onclick="triggerWeeklyPrizePreview()" class="py-1 px-2 bg-[#0b0702] hover:bg-[#160f04] border border-[#ff9900]/70 rounded cursor-pointer flex items-center justify-center">
+            <canvas id="lbFooterPrizeLedCanvas" class="h-[18px] w-[86px] block"></canvas>
           </button>
           <div class="flex items-center gap-2">
             <span class="w-2.5 h-2.5 rounded-full bg-[#ff3b00] shadow-[0_0_8px_#ff3b00,inset_0_0_3px_#ffffff]"></span>
             <span class="w-2.5 h-2.5 rounded-full bg-[#ff9900] shadow-[0_0_8px_#ff9900,inset_0_0_3px_#ffffff]"></span>
             <span class="w-2.5 h-2.5 rounded-full bg-[#ff3b00] shadow-[0_0_8px_#ff3b00,inset_0_0_3px_#ffffff]"></span>
           </div>
-          <button onclick="closeLeaderboardModal()" class="py-1.5 px-3 bg-[#101015] hover:bg-[#181820] border border-[#2e2e38] rounded font-mono font-black text-[10px] tracking-[0.16em] text-[#ff5500] uppercase cursor-pointer" style="text-shadow: 0 0 6px rgba(255,85,0,0.7);">
-            CERRAR
+          <button onclick="closeLeaderboardModal()" class="py-1 px-2 bg-[#0b0604] hover:bg-[#180c08] border border-[#ff5500]/60 rounded cursor-pointer flex items-center justify-center">
+            <canvas id="lbFooterCloseLedCanvas" class="h-[18px] w-[86px] block"></canvas>
           </button>
         </div>
       </div>
@@ -3170,8 +3171,8 @@
 
   </div> <!-- End of game-viewport -->
 
-  <script src="./parsers.js?v=3.8"></script>
-  <script src="./game.js?v=3.8"></script>
+  <script src="./parsers.js?v=3.9"></script>
+  <script src="./game.js?v=3.9"></script>
   <script src="./slot_machine.js?v=1789652777"></script>
   <script src="./gachapon_3d.js?v=1.0"></script>
   <script src="./songs/comm_camilo_sesto/chart.js"></script>
@@ -3472,8 +3473,8 @@
       // Sync color pickers with current judgeColors
       const jc = engine && engine.judgeColors ? engine.judgeColors : {};
       const savedJC = (() => { try { return JSON.parse(localStorage.getItem('beatstar_judge_colors') || 'null'); } catch(e) { return null; } })() || {};
-      const defaults = { perfectPlus: '#ffffff', perfect: '#e5b869', great: '#e08238', good: '#9e7b66' };
-      const colors = Object.assign({}, defaults, savedJC);
+      const defaults = { perfectPlus: '#00f5a0', perfect: '#ffd700', great: '#00d4ff', good: '#ff7b00' };
+      const colors = Object.assign({}, defaults, savedJC, jc);
       const pp = document.getElementById('colorPerfectPlus'); if (pp) pp.value = colors.perfectPlus;
       const pf = document.getElementById('colorPerfect');     if (pf) pf.value = colors.perfect;
       const gr = document.getElementById('colorGreat');       if (gr) gr.value = colors.great;
@@ -3530,14 +3531,14 @@
     };
 
     window.resetJudgeColors = function() {
-      const defaults = { perfectPlus: '#ffffff', perfect: '#e5b869', great: '#e08238', good: '#9e7b66' };
+      const defaults = { perfectPlus: '#00f5a0', perfect: '#ffd700', great: '#00d4ff', good: '#ff7b00' };
       if (engine && engine.setJudgeColors) engine.setJudgeColors(defaults);
       localStorage.setItem('beatstar_judge_colors', JSON.stringify(defaults));
       const pp = document.getElementById('colorPerfectPlus'); if (pp) pp.value = defaults.perfectPlus;
       const pf = document.getElementById('colorPerfect');     if (pf) pf.value = defaults.perfect;
       const gr = document.getElementById('colorGreat');       if (gr) gr.value = defaults.great;
       const go = document.getElementById('colorGood');        if (go) go.value = defaults.good;
-      showSuccessToast('Colores nobles de juicio restaurados.');
+      showSuccessToast('Colores vibrantes de juicio restaurados.');
     };
 
     window.closeSettingsModal = function() {
@@ -13025,6 +13026,250 @@ function stopPianoCameraLoop() {
       }
     }
 
+    // =========================================================================
+    // MOTOR DE MATRIZ DE PÍXELES LED VINTAGE 5x7 (Dibuja nombres, premios y puntos con bombillas LED reales)
+    // =========================================================================
+    const LED_FONT_5X7 = {
+      'A': [0x0E, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11],
+      'B': [0x1E, 0x11, 0x11, 0x1E, 0x11, 0x11, 0x1E],
+      'C': [0x0E, 0x11, 0x10, 0x10, 0x10, 0x11, 0x0E],
+      'D': [0x1E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x1E],
+      'E': [0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x1F],
+      'F': [0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x10],
+      'G': [0x0E, 0x11, 0x10, 0x17, 0x11, 0x11, 0x0F],
+      'H': [0x11, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11],
+      'I': [0x0E, 0x04, 0x04, 0x04, 0x04, 0x04, 0x0E],
+      'J': [0x07, 0x02, 0x02, 0x02, 0x12, 0x12, 0x0C],
+      'K': [0x11, 0x12, 0x14, 0x18, 0x14, 0x12, 0x11],
+      'L': [0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x1F],
+      'M': [0x11, 0x1B, 0x15, 0x15, 0x11, 0x11, 0x11],
+      'N': [0x11, 0x19, 0x15, 0x13, 0x11, 0x11, 0x11],
+      'Ñ': [0x0E, 0x00, 0x11, 0x19, 0x15, 0x13, 0x11],
+      'O': [0x0E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E],
+      'P': [0x1E, 0x11, 0x11, 0x1E, 0x10, 0x10, 0x10],
+      'Q': [0x0E, 0x11, 0x11, 0x11, 0x15, 0x12, 0x0D],
+      'R': [0x1E, 0x11, 0x11, 0x1E, 0x14, 0x12, 0x11],
+      'S': [0x0F, 0x10, 0x10, 0x0E, 0x01, 0x01, 0x1E],
+      'T': [0x1F, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04],
+      'U': [0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E],
+      'V': [0x11, 0x11, 0x11, 0x11, 0x11, 0x0A, 0x04],
+      'W': [0x11, 0x11, 0x11, 0x15, 0x15, 0x1B, 0x11],
+      'X': [0x11, 0x11, 0x0A, 0x04, 0x0A, 0x11, 0x11],
+      'Y': [0x11, 0x11, 0x0A, 0x04, 0x04, 0x04, 0x04],
+      'Z': [0x1F, 0x01, 0x02, 0x04, 0x08, 0x10, 0x1F],
+      '0': [0x0E, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0E],
+      '1': [0x04, 0x0C, 0x04, 0x04, 0x04, 0x04, 0x0E],
+      '2': [0x0E, 0x11, 0x01, 0x06, 0x08, 0x10, 0x1F],
+      '3': [0x1F, 0x02, 0x04, 0x06, 0x01, 0x11, 0x0E],
+      '4': [0x02, 0x06, 0x0A, 0x12, 0x1F, 0x02, 0x02],
+      '5': [0x1F, 0x10, 0x1E, 0x01, 0x01, 0x11, 0x0E],
+      '6': [0x06, 0x08, 0x10, 0x1E, 0x11, 0x11, 0x0E],
+      '7': [0x1F, 0x01, 0x02, 0x04, 0x08, 0x08, 0x08],
+      '8': [0x0E, 0x11, 0x11, 0x0E, 0x11, 0x11, 0x0E],
+      '9': [0x0E, 0x11, 0x11, 0x0F, 0x01, 0x02, 0x0C],
+      '+': [0x00, 0x04, 0x04, 0x1F, 0x04, 0x04, 0x00],
+      '-': [0x00, 0x00, 0x00, 0x1F, 0x00, 0x00, 0x00],
+      '#': [0x0A, 0x1F, 0x0A, 0x0A, 0x1F, 0x0A, 0x00],
+      ':': [0x00, 0x04, 0x04, 0x00, 0x04, 0x04, 0x00],
+      '.': [0x00, 0x00, 0x00, 0x00, 0x00, 0x0C, 0x0C],
+      ',': [0x00, 0x00, 0x00, 0x00, 0x04, 0x04, 0x08],
+      '|': [0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04],
+      '/': [0x01, 0x02, 0x02, 0x04, 0x08, 0x08, 0x10],
+      '_': [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F],
+      ' ': [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+    };
+
+    function normalizeLedText(str) {
+      return String(str || '')
+        .toUpperCase()
+        .replace(/[ÁÀÄÂ]/g, 'A')
+        .replace(/[ÉÈËÊ]/g, 'E')
+        .replace(/[ÍÌÏÎ]/g, 'I')
+        .replace(/[ÓÒÖÔ]/g, 'O')
+        .replace(/[ÚÙÜÛ]/g, 'U')
+        .replace(/º|°/g, '.');
+    }
+
+    function hexToRgbObj(hex) {
+      const clean = String(hex || '#ffb300').replace('#', '');
+      const num = parseInt(clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean, 16) || 0xffb300;
+      return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+    }
+
+    /**
+     * Renderiza un panel de matriz de píxeles LED reales en un <canvas>.
+     * segments: Array de { text, color, align: 'left' | 'center' | 'right', colOffset }
+     */
+    function renderLedMatrixCanvas(canvas, widthCss, heightCss, pitchCss, segments, bgHex = '#050402', unlitHex = '#19140c') {
+      if (!canvas) return;
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      canvas.width = Math.round(widthCss * dpr);
+      canvas.height = Math.round(heightCss * dpr);
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      // 1. Fondo del panel LED
+      ctx.fillStyle = bgHex;
+      ctx.fillRect(0, 0, widthCss, heightCss);
+
+      const cols = Math.max(10, Math.floor((widthCss - 4) / pitchCss));
+      const rows = Math.max(7, Math.floor((heightCss - 2) / pitchCss));
+      const offsetX = (widthCss - cols * pitchCss) * 0.5 + pitchCss * 0.5;
+      const offsetY = (heightCss - rows * pitchCss) * 0.5 + pitchCss * 0.5;
+      const dotR = Math.max(1.05, pitchCss * 0.37);
+
+      // 2. Matriz física de bombillas LED apagadas
+      ctx.fillStyle = unlitHex;
+      ctx.beginPath();
+      for (let r = 0; r < rows; r++) {
+        const py = offsetY + r * pitchCss;
+        for (let c = 0; c < cols; c++) {
+          const px = offsetX + c * pitchCss;
+          ctx.moveTo(px + dotR * 0.78, py);
+          ctx.arc(px, py, dotR * 0.78, 0, Math.PI * 2);
+        }
+      }
+      ctx.fill();
+
+      const startRow = Math.max(0, Math.floor((rows - 7) * 0.5));
+
+      // 3. Encender los píxeles LED de cada segmento de texto
+      (segments || []).forEach(seg => {
+        const txt = normalizeLedText(seg.text || '');
+        if (!txt) return;
+        const charAdvance = 6; // 5 columnas + 1 columna de separación
+        const totalCols = txt.length * charAdvance - 1;
+        let startCol = seg.colOffset !== undefined ? seg.colOffset : 1;
+        if (seg.align === 'center') {
+          startCol = Math.max(0, Math.floor((cols - totalCols) * 0.5));
+        } else if (seg.align === 'right') {
+          const rightPad = seg.rightPad !== undefined ? seg.rightPad : 1;
+          startCol = Math.max(0, cols - totalCols - rightPad);
+        }
+
+        const rgb = hexToRgbObj(seg.color || '#ffb300');
+        const glowStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.34)`;
+        const mainStyle = seg.color || '#ffb300';
+        const coreStyle = seg.dim ? mainStyle : '#fff9db';
+
+        // Recolectar coordenadas de bombillas encendidas para este segmento
+        const litCoords = [];
+        for (let i = 0; i < txt.length; i++) {
+          const ch = txt[i];
+          const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7[' '];
+          const cBase = startCol + i * charAdvance;
+          if (cBase >= cols) break;
+          if (seg.maxCol !== undefined && cBase + 5 > seg.maxCol) break;
+
+          for (let gr = 0; gr < 7; gr++) {
+            const rowBits = glyph[gr];
+            if (!rowBits) continue;
+            const rIdx = startRow + gr;
+            if (rIdx < 0 || rIdx >= rows) continue;
+            const py = offsetY + rIdx * pitchCss;
+
+            for (let gc = 0; gc < 5; gc++) {
+              if ((rowBits >> (4 - gc)) & 1) {
+                const cIdx = cBase + gc;
+                if (cIdx >= 0 && cIdx < cols) {
+                  litCoords.push(offsetX + cIdx * pitchCss, py);
+                }
+              }
+            }
+          }
+        }
+
+        if (litCoords.length === 0) return;
+
+        // A. Halo de luz LED exterior
+        if (!seg.dim) {
+          ctx.fillStyle = glowStyle;
+          ctx.beginPath();
+          const haloR = dotR * 1.75;
+          for (let k = 0; k < litCoords.length; k += 2) {
+            const lx = litCoords[k], ly = litCoords[k + 1];
+            ctx.moveTo(lx + haloR, ly);
+            ctx.arc(lx, ly, haloR, 0, Math.PI * 2);
+          }
+          ctx.fill();
+        }
+
+        // B. Diodo LED encendido del color principal
+        ctx.fillStyle = mainStyle;
+        ctx.beginPath();
+        for (let k = 0; k < litCoords.length; k += 2) {
+          const lx = litCoords[k], ly = litCoords[k + 1];
+          ctx.moveTo(lx + dotR, ly);
+          ctx.arc(lx, ly, dotR, 0, Math.PI * 2);
+        }
+        ctx.fill();
+
+        // C. Punto incandescente central de cada píxel LED
+        if (!seg.dim) {
+          ctx.fillStyle = coreStyle;
+          ctx.beginPath();
+          const coreR = dotR * 0.45;
+          for (let k = 0; k < litCoords.length; k += 2) {
+            const lx = litCoords[k], ly = litCoords[k + 1];
+            ctx.moveTo(lx + coreR, ly);
+            ctx.arc(lx, ly, coreR, 0, Math.PI * 2);
+          }
+          ctx.fill();
+        }
+      });
+    }
+
+    function refreshLeaderboardChromeLedCanvases(activeTab = 'weekly') {
+      const titleLabel = activeTab === 'song' ? 'PISTA' : (activeTab === 'weekly' ? 'SEMANAL' : 'GLOBAL');
+      renderLedMatrixCanvas(
+        document.getElementById('lbHeaderLedCanvas'),
+        170, 26, 2.8,
+        [{ text: titleLabel, color: '#ffb300', align: 'center' }]
+      );
+      renderLedMatrixCanvas(
+        document.getElementById('lbCloseTopLedCanvas'),
+        22, 18, 2.2,
+        [{ text: 'X', color: '#ff4500', align: 'center' }]
+      );
+
+      const tabs = [
+        { id: 'lbTabSongCanvas', key: 'song', label: 'PISTA' },
+        { id: 'lbTabGlobalCanvas', key: 'global', label: 'GLOBAL' },
+        { id: 'lbTabWeeklyCanvas', key: 'weekly', label: 'SEMANAL' }
+      ];
+      tabs.forEach(t => {
+        const isAct = activeTab === t.key;
+        renderLedMatrixCanvas(
+          document.getElementById(t.id),
+          98, 18, 2.0,
+          [{ text: t.label, color: isAct ? '#ffb300' : '#5c3800', align: 'center', dim: !isAct }]
+        );
+      });
+
+      renderLedMatrixCanvas(
+        document.getElementById('lbFooterPrizeLedCanvas'),
+        86, 18, 2.0,
+        [{ text: 'PREMIO', color: '#ffcc00', align: 'center' }]
+      );
+      renderLedMatrixCanvas(
+        document.getElementById('lbFooterCloseLedCanvas'),
+        86, 18, 2.0,
+        [{ text: 'CERRAR', color: '#ff5500', align: 'center' }]
+      );
+    }
+
+    function renderLeaderboardStatusLed(container, statusText, color = '#ffb300') {
+      if (!container) return;
+      container.innerHTML = '';
+      const wrap = document.createElement('div');
+      wrap.className = 'p-1 bg-[#050402] border border-[#241a0c] rounded flex justify-center';
+      const cvs = document.createElement('canvas');
+      cvs.className = 'w-full h-[36px] block';
+      wrap.appendChild(cvs);
+      container.appendChild(wrap);
+      renderLedMatrixCanvas(cvs, 330, 36, 3.2, [{ text: statusText, color, align: 'center' }]);
+    }
+
     async function openLeaderboardModal(chartId = null, preferredTab = null) {
       const modal = document.getElementById('leaderboardModal');
       if (modal) {
@@ -13035,19 +13280,18 @@ function stopPianoCameraLoop() {
 
       const tabsContainer = document.getElementById('lbSubTabsContainer');
       const songBtn = document.getElementById('lbSubTabSongBtn');
-      const titleText = document.getElementById('lbModalTitleText');
 
-      if (tabsContainer) tabsContainer.style.display = 'flex';
+      if (tabsContainer) tabsContainer.style.display = 'grid';
 
       if (!chartId) {
         currentLeaderboardChartId = null;
         if (songBtn) songBtn.style.display = 'none';
-        if (titleText) titleText.innerText = 'SEMANAL';
+        if (tabsContainer) tabsContainer.className = 'grid grid-cols-2 gap-1.5 p-1.5 mt-1.5 bg-[#040406] border-2 border-[#1b1b22] rounded-lg';
         switchLeaderboardSubTab(preferredTab || 'weekly');
       } else {
         currentLeaderboardChartId = chartId;
-        if (songBtn) songBtn.style.display = 'block';
-        if (titleText) titleText.innerText = 'PISTA';
+        if (songBtn) songBtn.style.display = 'flex';
+        if (tabsContainer) tabsContainer.className = 'grid grid-cols-3 gap-1.5 p-1.5 mt-1.5 bg-[#040406] border-2 border-[#1b1b22] rounded-lg';
         switchLeaderboardSubTab('song');
       }
     }
@@ -13070,35 +13314,25 @@ function stopPianoCameraLoop() {
       const container = document.getElementById('leaderboardRowsContainer');
       if (!container) return;
 
-      const inactiveCls = 'py-1.5 rounded bg-[#08080b] border border-[#22222a] text-[#664400] hover:text-[#ffb300] font-mono font-black text-[11px] tracking-[0.18em] uppercase cursor-pointer transition';
-      const activeCls = 'py-1.5 rounded bg-[#140c02] border border-[#ffb300] text-[#ffb300] font-mono font-black text-[11px] tracking-[0.18em] uppercase cursor-pointer shadow-[0_0_10px_rgba(255,179,0,0.4)] transition';
+      const inactiveCls = 'py-1 px-1 rounded bg-[#070709] border border-[#1f1f26] cursor-pointer flex items-center justify-center transition';
+      const activeCls = 'py-1 px-1 rounded bg-[#140b02] border border-[#ffb300] shadow-[0_0_10px_rgba(255,179,0,0.35)] cursor-pointer flex items-center justify-center transition';
 
       [songBtn, globalBtn, weeklyBtn].forEach(b => {
-        if (b) {
-          b.className = inactiveCls;
-          b.style.textShadow = 'none';
-        }
+        if (b) b.className = inactiveCls;
       });
 
+      refreshLeaderboardChromeLedCanvases(tab);
+
       if (tab === 'song') {
-        if (songBtn) {
-          songBtn.className = activeCls;
-          songBtn.style.textShadow = '0 0 8px rgba(255,179,0,0.85)';
-        }
+        if (songBtn) songBtn.className = activeCls;
         if (titleText) titleText.innerText = 'PISTA';
         loadSongLeaderboard(currentLeaderboardChartId);
       } else if (tab === 'weekly') {
-        if (weeklyBtn) {
-          weeklyBtn.className = activeCls;
-          weeklyBtn.style.textShadow = '0 0 8px rgba(255,179,0,0.85)';
-        }
+        if (weeklyBtn) weeklyBtn.className = activeCls;
         if (titleText) titleText.innerText = 'SEMANAL';
         loadWeeklyLeaderboard();
       } else {
-        if (globalBtn) {
-          globalBtn.className = activeCls;
-          globalBtn.style.textShadow = '0 0 8px rgba(255,179,0,0.85)';
-        }
+        if (globalBtn) globalBtn.className = activeCls;
         if (titleText) titleText.innerText = 'GLOBAL';
         loadGlobalLeaderboard();
       }
@@ -13108,7 +13342,7 @@ function stopPianoCameraLoop() {
       const container = document.getElementById('leaderboardRowsContainer');
       if (!container) return;
 
-      container.innerHTML = `<div class="p-4 text-center font-mono font-black text-xs tracking-[0.2em] text-[#ffb300]" style="text-shadow: 0 0 8px rgba(255,179,0,0.8);">CARGANDO...</div>`;
+      renderLeaderboardStatusLed(container, 'CARGANDO...', '#ffb300');
 
       let rows = [];
       try {
@@ -13134,6 +13368,7 @@ function stopPianoCameraLoop() {
         });
       }
 
+      container.innerHTML = '';
       renderLeaderboardRows(rows, container, false);
     }
 
@@ -13141,7 +13376,7 @@ function stopPianoCameraLoop() {
       const container = document.getElementById('leaderboardRowsContainer');
       if (!container) return;
 
-      container.innerHTML = `<div class="p-4 text-center font-mono font-black text-xs tracking-[0.2em] text-[#ffb300]" style="text-shadow: 0 0 8px rgba(255,179,0,0.8);">CARGANDO...</div>`;
+      renderLeaderboardStatusLed(container, 'CARGANDO...', '#ffb300');
 
       await syncPlayerAndScoresWithServer();
 
@@ -13197,7 +13432,7 @@ function stopPianoCameraLoop() {
       const container = document.getElementById('leaderboardRowsContainer');
       if (!container) return;
 
-      container.innerHTML = `<div class="p-4 text-center font-mono font-black text-xs tracking-[0.2em] text-[#ffb300]" style="text-shadow: 0 0 8px rgba(255,179,0,0.8);">CARGANDO...</div>`;
+      renderLeaderboardStatusLed(container, 'CARGANDO...', '#ffb300');
 
       let rows = [];
       let timeRemainingText = getRemainingWeekCountdownText();
@@ -13244,16 +13479,27 @@ function stopPianoCameraLoop() {
         });
       }
 
-      const headerBanner = `
-        <div class="px-2.5 py-1.5 mb-2 bg-[#0a0601] border border-[#ffb300]/40 rounded flex items-center justify-between font-mono text-[10px] font-black tracking-[0.16em]">
-          <span class="text-[#ff7b00]" style="text-shadow: 0 0 6px rgba(255,123,0,0.75);"> #1 +1000 | #2 +500 | #3 +250 </span>
-          <span class="text-[#00f5a0]" style="text-shadow: 0 0 8px rgba(0,245,160,0.8);">${timeRemainingText}</span>
-        </div>
-      `;
+      container.innerHTML = '';
 
-      container.innerHTML = headerBanner;
+      // Panel superior de Premios Semanales y Reloj dibujado 100% con Píxeles LED
+      const prizeWrap = document.createElement('div');
+      prizeWrap.className = 'p-1 mb-1.5 bg-[#060401] border border-[#ffb300]/45 rounded';
+      const prizeCanvas = document.createElement('canvas');
+      prizeCanvas.className = 'w-full h-[24px] block';
+      prizeWrap.appendChild(prizeCanvas);
+      container.appendChild(prizeWrap);
+
+      renderLedMatrixCanvas(
+        prizeCanvas,
+        330, 24, 2.2,
+        [
+          { text: '1.+1000 2.+500 3.+250', color: '#ffcc00', colOffset: 1 },
+          { text: timeRemainingText, color: '#00f5a0', align: 'right', rightPad: 1 }
+        ]
+      );
+
       const listDiv = document.createElement('div');
-      listDiv.className = 'space-y-1';
+      listDiv.className = 'space-y-1.5';
       container.appendChild(listDiv);
 
       renderLeaderboardRows(rows, listDiv, true);
@@ -13508,11 +13754,7 @@ function stopPianoCameraLoop() {
       rows = Array.from(dedupMap.values()).sort((a, b) => (b.score || 0) - (a.score || 0));
 
       if (!rows || rows.length === 0) {
-        container.innerHTML = `
-          <div class="p-5 text-center font-mono font-black text-xs tracking-[0.2em] text-[#ff7b00] uppercase">
-            SIN REGISTROS
-          </div>
-        `;
+        renderLeaderboardStatusLed(container, 'SIN REGISTROS', '#ff6a00');
         return;
       }
 
@@ -13522,68 +13764,64 @@ function stopPianoCameraLoop() {
       const top20Cutoff = Math.max(top10Cutoff + 1, Math.ceil(totalPlayers * 0.20));
       const top50Cutoff = Math.max(top20Cutoff + 1, Math.ceil(totalPlayers * 0.50));
 
-      let html = '';
+      container.innerHTML = '';
 
       rows.forEach((r, idx) => {
         const rank = idx + 1;
         const rankStr = String(rank).padStart(2, '0');
         const isMe = (r.player_name || '').trim().toLowerCase() === myNick;
 
-        // Colores de LEDs grandes vintage según posición (Ámbar brillante #1, Naranja neón #2-#3, Rojo-Ámbar resto, Verde LED si eres tú)
+        // Colores de bombillas LED según puesto
         let ledColor = '#ff6a00';
-        let ledShadow = '0 0 8px rgba(255,106,0,0.75)';
-        let borderCol = 'border-[#261708]';
-        let dotCol = 'bg-[#ff6a00] shadow-[0_0_6px_#ff6a00]';
-
+        let borderCol = 'border-[#281808]';
         if (rank === 1) {
           ledColor = '#ffcc00';
-          ledShadow = '0 0 12px rgba(255,204,0,0.95), 0 0 2px #ffffff';
-          borderCol = 'border-[#ffcc00]/65';
-          dotCol = 'bg-[#ffcc00] shadow-[0_0_9px_#ffcc00]';
+          borderCol = 'border-[#ffcc00]/75';
         } else if (rank === 2 || rank === 3) {
           ledColor = '#ff9900';
-          ledShadow = '0 0 10px rgba(255,153,0,0.85)';
-          borderCol = 'border-[#ff9900]/45';
-          dotCol = 'bg-[#ff9900] shadow-[0_0_7px_#ff9900]';
+          borderCol = 'border-[#ff9900]/55';
         }
         if (isMe) {
           ledColor = '#00f5a0';
-          ledShadow = '0 0 11px rgba(0,245,160,0.9)';
-          borderCol = 'border-[#00f5a0]/65';
-          dotCol = 'bg-[#00f5a0] shadow-[0_0_8px_#00f5a0]';
+          borderCol = 'border-[#00f5a0]/75';
         }
 
-        let weeklyPrizeText = '';
+        let prizeVal = 0;
         if (isWeekly) {
-          let prizeVal = 0;
           if (rank === 1) prizeVal = 1000;
           else if (rank === 2) prizeVal = 500;
           else if (rank === 3) prizeVal = 250;
           else if (rank <= top10Cutoff) prizeVal = 100;
           else if (rank <= top20Cutoff) prizeVal = 50;
           else if (rank <= top50Cutoff) prizeVal = 20;
-          if (prizeVal > 0) {
-            weeklyPrizeText = `<span class="px-1.5 py-0.5 rounded bg-[#140c02] border border-[#ffb300]/40 font-mono font-black text-[10px] text-[#ffcc00] tracking-wider flex-shrink-0" style="text-shadow: 0 0 6px rgba(255,204,0,0.8);">+${prizeVal}</span>`;
-          }
         }
 
-        const cleanName = escapeHtml(String(r.player_name || 'JUGADOR').toUpperCase().slice(0, 14));
+        const scoreStr = String(Math.round(r.score || 0));
+        const prizeStr = prizeVal > 0 ? `+${prizeVal}` : '';
+        const maxNameChars = prizeStr ? 8 : 11;
+        const cleanName = normalizeLedText(r.player_name || 'JUGADOR').slice(0, maxNameChars);
 
-        html += `
-          <div class="px-2.5 py-2 bg-[#070502]/90 border ${borderCol} rounded flex items-center justify-between gap-2 font-mono">
-            <div class="flex items-center gap-2 min-w-0">
-              <span class="w-2 h-2 rounded-full ${dotCol} flex-shrink-0"></span>
-              <span class="font-black text-sm tracking-widest flex-shrink-0" style="color: ${ledColor}; text-shadow: ${ledShadow};">${rankStr}</span>
-              <span class="font-black text-xs tracking-[0.14em] truncate" style="color: ${ledColor}; text-shadow: ${ledShadow};">${cleanName}</span>
-            </div>
-            <div class="flex items-center gap-2 flex-shrink-0">
-              ${weeklyPrizeText}
-              <span class="font-black text-sm tracking-[0.12em]" style="color: ${ledColor}; text-shadow: ${ledShadow};">${(r.score || 0).toLocaleString()}</span>
-            </div>
-          </div>
-        `;
+        const rowWrap = document.createElement('div');
+        rowWrap.className = `p-1 bg-[#050301] border ${borderCol} rounded`;
+        const rowCanvas = document.createElement('canvas');
+        rowCanvas.className = 'w-full h-[28px] block';
+        rowWrap.appendChild(rowCanvas);
+        container.appendChild(rowWrap);
+
+        // Construir los segmentos LED para la fila: Puesto + Nombre + Premio + Puntuación
+        const rightScoreCols = scoreStr.length * 6;
+        const segments = [
+          { text: rankStr, color: ledColor, colOffset: 1 },
+          { text: cleanName, color: ledColor, colOffset: 15 }
+        ];
+        if (prizeStr) {
+          const prizeRightPad = rightScoreCols + 2;
+          segments.push({ text: prizeStr, color: '#00f5a0', align: 'right', rightPad: prizeRightPad });
+        }
+        segments.push({ text: scoreStr, color: ledColor, align: 'right', rightPad: 1 });
+
+        renderLedMatrixCanvas(rowCanvas, 330, 28, 2.35, segments);
       });
-      container.innerHTML = html;
     }
 
     // Auto-Calibración Inteligente con 1 toque desde la pantalla de Resultados

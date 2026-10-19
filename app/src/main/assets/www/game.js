@@ -1772,13 +1772,19 @@ class BeatstarEngine {
     this.masterVolume = isNaN(savedMasterVol) ? 1.0 : Math.max(0, Math.min(1, savedMasterVol));
     this.masterMuted = savedMasterMuted;
 
-    // Custom judgment colors: Paleta personalizada según Ajustes
+    // Custom judgment colors: Paleta vibrante Beatstar para juicios y resplandor de carril
     const _savedJudgeColors = (() => { try { return JSON.parse(localStorage.getItem('beatstar_judge_colors') || 'null'); } catch(e) { return null; } })();
+    if (_savedJudgeColors && _savedJudgeColors.perfectPlus === '#ffffff' && _savedJudgeColors.perfect === '#e5b869') {
+      delete _savedJudgeColors.perfectPlus;
+      delete _savedJudgeColors.perfect;
+      delete _savedJudgeColors.great;
+      delete _savedJudgeColors.good;
+    }
     this.judgeColors = Object.assign({
-      perfectPlus: '#ffffff',
-      perfect:     '#e5b869',
-      great:       '#e08238',
-      good:        '#9e7b66'
+      perfectPlus: '#00f5a0',
+      perfect:     '#ffd700',
+      great:       '#00d4ff',
+      good:        '#ff7b00'
     }, _savedJudgeColors || {});
 
     this.visualDimension = (typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_visual_dimension') : null) || '3d';
@@ -1797,7 +1803,7 @@ class BeatstarEngine {
 
     this.lanePressAnim = [0, 0, 0];
     this.laneFlashTimers = [0, 0, 0];
-    this.laneFlashColors = ['#e5b869', '#e5b869', '#e5b869'];
+    this.laneFlashColors = ['#00f5a0', '#00f5a0', '#00f5a0'];
     this.lastHitTimePerf = 0;
     this.shakeDuration = 0;
     this.shakeIntensity = 0;
@@ -1857,22 +1863,45 @@ class BeatstarEngine {
     switch (type) {
       case 'perfectPlus':
       case 'PERFECT+':
-        return jc.perfectPlus || '#ffffff';
+        return jc.perfectPlus || '#00f5a0';
       case 'perfect':
       case 'PERFECT':
-        return jc.perfect || '#e5b869';
+        return jc.perfect || '#ffd700';
       case 'great':
       case 'GREAT':
-        return jc.great || '#e08238';
+        return jc.great || '#00d4ff';
       case 'good':
       case 'GOOD':
-        return jc.good || '#9e7b66';
+        return jc.good || '#ff7b00';
       case 'miss':
       case 'MISS':
-        return '#a81b26';
+        return '#ff1744';
       default:
-        return '#e5b869';
+        return '#00f5a0';
     }
+  }
+
+  getJudgeGlowColor(type) {
+    const raw = this.getScoreColor(type);
+    if (!raw || raw.toLowerCase() === '#ffffff' || raw.toLowerCase() === '#fff') {
+      switch (type) {
+        case 'perfectPlus':
+        case 'PERFECT+':
+          return '#00f5a0';
+        case 'perfect':
+        case 'PERFECT':
+          return '#ffd700';
+        case 'great':
+        case 'GREAT':
+          return '#00d4ff';
+        case 'good':
+        case 'GOOD':
+          return '#ff7b00';
+        default:
+          return '#00f5a0';
+      }
+    }
+    return raw;
   }
 
   setVisualDimension(dim) {
@@ -2212,23 +2241,38 @@ class BeatstarEngine {
       this.ctx.scale(this.dpr, this.dpr);
     }
 
-    // Degradado 3D estilizado limpio (Blanco perlado a azul glaciar luminoso, SIN sombra negra/gris)
-    this._trackGrad = this.ctx.createLinearGradient(this.width / 2, 12, this.width / 2, this.height + 30);
-    this._trackGrad.addColorStop(0.00, '#93c5fd');
-    this._trackGrad.addColorStop(0.14, '#bfdbfe');
-    this._trackGrad.addColorStop(0.30, '#dbeafe');
-    this._trackGrad.addColorStop(0.48, '#eff6ff');
-    this._trackGrad.addColorStop(0.68, '#f8fafc');
-    this._trackGrad.addColorStop(0.88, '#ffffff');
-    this._trackGrad.addColorStop(1.00, '#e2e8f0');
+    // Degradado 3D nacarado de alta gama para la autopista blanca con volumen tridimensional real
+    const horizonY = 12;
+    const bottomY = this.height + 30;
+    this._trackGrad = this.ctx.createLinearGradient(this.width / 2, horizonY, this.width / 2, bottomY);
+    this._trackGrad.addColorStop(0.00, '#64748b');
+    this._trackGrad.addColorStop(0.08, '#94a3b8');
+    this._trackGrad.addColorStop(0.18, '#cbd5e1');
+    this._trackGrad.addColorStop(0.32, '#e2e8f0');
+    this._trackGrad.addColorStop(0.50, '#f1f5f9');
+    this._trackGrad.addColorStop(0.70, '#f8fafc');
+    this._trackGrad.addColorStop(0.86, '#ffffff');
+    this._trackGrad.addColorStop(1.00, '#dbeafe');
 
-    // Brillo especular cilíndrico 3D limpio sobre la pista (sin sombras negras en los bordes)
+    // Sombra atmosférica 3D suavemente difuminada al final de la pista (horizonte) sin bloques negros
+    const shadowEnd = horizonY + (this.hitLineY - horizonY) * 0.30;
+    this._trackHorizonShadowGrad = this.ctx.createLinearGradient(0, horizonY, 0, shadowEnd);
+    this._trackHorizonShadowGrad.addColorStop(0.00, 'rgba(6, 8, 20, 0.84)');
+    this._trackHorizonShadowGrad.addColorStop(0.16, 'rgba(8, 12, 28, 0.62)');
+    this._trackHorizonShadowGrad.addColorStop(0.36, 'rgba(12, 18, 40, 0.38)');
+    this._trackHorizonShadowGrad.addColorStop(0.60, 'rgba(16, 25, 52, 0.16)');
+    this._trackHorizonShadowGrad.addColorStop(0.82, 'rgba(20, 32, 64, 0.05)');
+    this._trackHorizonShadowGrad.addColorStop(1.00, 'rgba(20, 32, 64, 0.00)');
+
+    // Brillo especular cilíndrico 3D sobre la pista con oclusión suave en los bordes laterales
     this._trackEdgeShadowGrad = this.ctx.createLinearGradient(0, 0, this.width, 0);
-    this._trackEdgeShadowGrad.addColorStop(0.00, 'rgba(96, 165, 250, 0.22)');
-    this._trackEdgeShadowGrad.addColorStop(0.18, 'rgba(255, 255, 255, 0.0)');
-    this._trackEdgeShadowGrad.addColorStop(0.50, 'rgba(255, 255, 255, 0.48)');
-    this._trackEdgeShadowGrad.addColorStop(0.82, 'rgba(255, 255, 255, 0.0)');
-    this._trackEdgeShadowGrad.addColorStop(1.00, 'rgba(96, 165, 250, 0.22)');
+    this._trackEdgeShadowGrad.addColorStop(0.00, 'rgba(51, 65, 85, 0.32)');
+    this._trackEdgeShadowGrad.addColorStop(0.14, 'rgba(100, 116, 139, 0.12)');
+    this._trackEdgeShadowGrad.addColorStop(0.30, 'rgba(255, 255, 255, 0.08)');
+    this._trackEdgeShadowGrad.addColorStop(0.50, 'rgba(255, 255, 255, 0.45)');
+    this._trackEdgeShadowGrad.addColorStop(0.70, 'rgba(255, 255, 255, 0.08)');
+    this._trackEdgeShadowGrad.addColorStop(0.86, 'rgba(100, 116, 139, 0.12)');
+    this._trackEdgeShadowGrad.addColorStop(1.00, 'rgba(51, 65, 85, 0.32)');
 
     // Degradados de fondo cacheados (evita crearlos 120 veces por segundo)
     const h = this.height;
@@ -3347,8 +3391,8 @@ class BeatstarEngine {
       }
     }
     this.laneGlows[lane] = 1.0;
-    if (this.laneFlashTimers) this.laneFlashTimers[lane] = 0.22;
-    if (this.laneFlashColors) this.laneFlashColors[lane] = this.getScoreColor('perfectPlus') || '#ffd700';
+    if (this.laneFlashTimers) this.laneFlashTimers[lane] = 0.28;
+    if (this.laneFlashColors) this.laneFlashColors[lane] = this.getJudgeGlowColor('perfectPlus');
     const nowInput = performance.now();
     if (this.lanePressAnim) this.lanePressAnim[lane] = nowInput;
     const currentTime = this.getCurrentGameTimeMs(this._frameNow || nowInput);
@@ -3682,8 +3726,8 @@ class BeatstarEngine {
     if (diffMs <= 45) {
       text = customLabel ? `PERFECT+ ${customLabel}` : 'PERFECT+';
       color = this.getScoreColor('perfectPlus');
-      flashColor = color;
-      flashDuration = 0.22;
+      flashColor = this.getJudgeGlowColor('perfectPlus');
+      flashDuration = 0.34;
       points = 450;
       this.stats.perfectPlus++;
       this.streakCount++;
@@ -3691,8 +3735,8 @@ class BeatstarEngine {
     } else if (diffMs <= 90) {
       text = customLabel ? `PERFECT ${customLabel}` : 'PERFECT';
       color = this.getScoreColor('perfect');
-      flashColor = color;
-      flashDuration = 0.20;
+      flashColor = this.getJudgeGlowColor('perfect');
+      flashDuration = 0.30;
       points = 300;
       this.stats.perfect++;
       this.streakCount++;
@@ -3700,8 +3744,8 @@ class BeatstarEngine {
     } else if (diffMs <= 170) {
       text = customLabel ? `GREAT ${customLabel}` : 'GREAT';
       color = this.getScoreColor('great');
-      flashColor = color;
-      flashDuration = 0.17;
+      flashColor = this.getJudgeGlowColor('great');
+      flashDuration = 0.26;
       points = 150;
       this.stats.great++;
       this.streakCount = Math.max(0, this.streakCount - 1);
@@ -3709,8 +3753,8 @@ class BeatstarEngine {
     } else {
       text = customLabel ? `GOOD ${customLabel}` : 'GOOD';
       color = this.getScoreColor('good');
-      flashColor = color;
-      flashDuration = 0.15;
+      flashColor = this.getJudgeGlowColor('good');
+      flashDuration = 0.22;
       points = 75;
       this.stats.good = (this.stats.good || 0) + 1;
       this.streakCount = 0;
@@ -3762,7 +3806,7 @@ class BeatstarEngine {
 
     const noteLane = (note && typeof note.lane === 'number') ? note.lane : 1;
 
-    // Columna de Luz de Carril (Lane Flash): Explosión de luz volumétrica del color del juicio
+    // Resplandor difuminado de carril con el color exacto del juicio (PERFECT+, PERFECT, GREAT, GOOD)
     this.laneFlashTimers[noteLane] = flashDuration;
     this.laneFlashColors[noteLane] = flashColor;
     this.laneGlows[noteLane] = 1.0;
@@ -4780,21 +4824,10 @@ class BeatstarEngine {
       this.shakeDuration = Math.max(0, this.shakeDuration - dt);
     }
 
-    // Modo Fiebre Overdrive (Se activa en multiplicador x4 / x5 o combo >= 50)
-    const isOverdriveActive = (this.multiplier >= 4 || this.combo >= 50);
-    const targetOverdrive = this.multiplier >= 5 ? 1.0 : (isOverdriveActive ? 0.72 : 0.0);
-    this.overdriveLevel = (this.overdriveLevel || 0) + (targetOverdrive - (this.overdriveLevel || 0)) * Math.min(1, dt * 4.5);
-    if (isOverdriveActive && !this._wasOverdrive) {
-      this._wasOverdrive = true;
-      this.overdriveFlash = 1.0;
-      this.borderSurgeL = 1.0;
-      this.borderSurgeR = 1.0;
-    } else if (!isOverdriveActive) {
-      this._wasOverdrive = false;
-    }
-    if (this.overdriveFlash > 0) {
-      this.overdriveFlash = Math.max(0, this.overdriveFlash - dt * 2.2);
-    }
+    // Efecto blanco de Overdrive en X4 desactivado completamente para mantener la pista limpia y contrastada
+    this.overdriveLevel = 0;
+    this.overdriveFlash = 0;
+    this._wasOverdrive = false;
 
     if (typeof this.displayScore !== 'number') this.displayScore = 0;
     if (Math.abs(this.displayScore - this.score) > 0.5) {
@@ -5361,31 +5394,6 @@ class BeatstarEngine {
     ctx.fillStyle = (this._bgGrads && this._bgGrads[bgGradIdx]) ? this._bgGrads[bgGradIdx] : '#0e081e';
     ctx.fillRect(-20, -20, w + 40, h + 40);
 
-    // Resplandor aditivo suave si hubo cambio de atmósfera (0 Gradient Allocs)
-    if (this.targetAtmosphereColor && this.atmosphereShiftProgress < 1.0) {
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      const shiftAlpha = (1.0 - this.atmosphereShiftProgress) * 0.12;
-      ctx.fillStyle = hexToRgba(this.targetAtmosphereColor, shiftAlpha);
-      ctx.fillRect(0, 0, w, h);
-      ctx.restore();
-    }
-
-    // Ondas expansivas de fondo de la explosión 3D
-    if (this.combo3DExplosions && this.combo3DExplosions.length > 0) {
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      for (const exp of this.combo3DExplosions) {
-        if (exp.radius < 10) continue;
-        const expAlpha = exp.alpha * 0.12;
-        ctx.fillStyle = hexToRgba(exp.color || '#ffd700', expAlpha);
-        ctx.beginPath();
-        ctx.arc(exp.originX, exp.originY, exp.radius, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.restore();
-    }
-
     // 1b. Fondo personalizado si está activo
     if (this.customBgMode === 'static' && this.customBgMedia) {
       ctx.save();
@@ -5394,31 +5402,31 @@ class BeatstarEngine {
       ctx.restore();
     }
 
-    // Intensidades y velocidad según multiplicador
+    // Intensidades y velocidad según multiplicador (sin blanquear la escena en X4/X5)
     let stageIntensity = 0.65;
     let swingFreq = 0.0011;
     let beamColor1 = palette.spotlight1 || '#9b51e0';
     let beamColor2 = palette.spotlight2 || '#ff5964';
 
     if (mult === 2) {
-      stageIntensity = 0.90;
-      swingFreq = 0.0015;
+      stageIntensity = 0.80;
+      swingFreq = 0.0014;
       beamColor1 = '#ffd700';
       beamColor2 = '#ff9900';
     } else if (mult === 3) {
-      stageIntensity = 1.15;
-      swingFreq = 0.0020;
+      stageIntensity = 0.90;
+      swingFreq = 0.0018;
       beamColor1 = '#ff007f';
       beamColor2 = '#d946ef';
     } else if (mult === 4) {
-      stageIntensity = 1.40;
-      swingFreq = 0.0026;
-      beamColor1 = '#00f2fe';
-      beamColor2 = '#38bdf8';
+      stageIntensity = 0.95;
+      swingFreq = 0.0020;
+      beamColor1 = '#00b4d8';
+      beamColor2 = '#7c3aed';
     } else if (mult >= 5) {
-      stageIntensity = 1.70;
-      swingFreq = 0.0032;
-      beamColor1 = '#ffffff';
+      stageIntensity = 1.00;
+      swingFreq = 0.0022;
+      beamColor1 = '#a855f7';
       beamColor2 = '#ffd700';
     }
 
@@ -6362,68 +6370,14 @@ class BeatstarEngine {
 
       ctx.save();
 
-      // 1. GRAN NEBULOSA AMBIENTAL DIFUMINADA (2 círculos concéntricos: 0 Gradient Allocs)
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      const bloomRad = Math.min(w * 0.85, 290);
-      ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(0.14 * expAlpha).toFixed(3)})`;
-      ctx.beginPath();
-      ctx.arc(midX, topY + 10, bloomRad, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(0.24 * expAlpha).toFixed(3)})`;
-      ctx.beginPath();
-      ctx.arc(midX, topY + 10, bloomRad * 0.48, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-
-      // 2. RAYOS ETÉREOS DE LUZ SUAVE Y DIFUMINADA (Optimizado GPU: Polígonos en modo lighter)
-      if (exp.rays && exp.age < exp.duration * 0.85) {
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.translate(midX, topY + 15);
-        ctx.rotate(exp.rotation * 0.6);
-        const rayProgress = exp.age / (exp.duration * 0.85);
-        const rayAlpha = Math.max(0, (1 - rayProgress) * 0.28 * expAlpha);
-
-        for (const ray of exp.rays) {
-          ctx.save();
-          ctx.rotate(ray.angle);
-          const rayRgb = hexToRgb(ray.color || col);
-          ctx.fillStyle = `rgba(${rayRgb.r}, ${rayRgb.g}, ${rayRgb.b}, ${rayAlpha.toFixed(3)})`;
-          ctx.beginPath();
-          ctx.moveTo(0, -ray.width * 0.5);
-          ctx.lineTo(ray.length * 0.85, 0);
-          ctx.lineTo(0, ray.width * 0.5);
-          ctx.closePath();
-          ctx.fill();
-          ctx.restore();
-        }
-        ctx.restore();
-      }
-
-      // 3. ONDAS DE CHOQUE SUAVEMENTE DIFUMINADAS (Halo Shockwave - Optimizado GPU)
-      if (exp.radius > 5) {
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        const shockRad = exp.radius;
-        const shockAlpha = (1 - (exp.radius / exp.maxRadius)) * 0.40 * expAlpha;
-        ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${shockAlpha.toFixed(3)})`;
-        ctx.lineWidth = Math.max(1.5, 6.0 * (1 - (exp.radius / exp.maxRadius)));
-        ctx.beginPath();
-        ctx.arc(midX, topY + 15, shockRad, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      // 4. POLVO DE CHISPAS BOKEH Y PARTÍCULAS (Soft Glowing Bokeh - Optimizado GPU)
+      // Partículas discretas sin nebulosa ni rayos blancos que blanqueen la pista
       if (exp.sparks && exp.sparks.length > 0) {
         ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
         for (const sp of exp.sparks) {
           if (sp.alpha <= 0.01) continue;
           const zScale = Math.max(0.3, 1.0 + (sp.z / 260));
-          const pRad = Math.max(1.5, sp.radius * zScale * 1.5);
-          const pAlpha = Math.max(0, Math.min(1, sp.alpha * expAlpha * 0.70));
+          const pRad = Math.max(1.5, sp.radius * zScale * 1.2);
+          const pAlpha = Math.max(0, Math.min(1, sp.alpha * expAlpha * 0.55));
           const spRgb = hexToRgb(sp.color || col);
 
           ctx.fillStyle = `rgba(${spRgb.r}, ${spRgb.g}, ${spRgb.b}, ${pAlpha.toFixed(3)})`;
@@ -7159,10 +7113,10 @@ class BeatstarEngine {
       railLaserCol = '#ff007f'; // Magenta Neón 3x
       railGlowCol = '#d946ef';
     } else if (mult === 4) {
-      railLaserCol = '#00f2fe'; // Cian Eléctrico 4x
+      railLaserCol = '#00d4ff'; // Cian Eléctrico 4x
       railGlowCol = '#38bdf8';
     } else if (mult >= 5) {
-      railLaserCol = '#ffffff'; // Fiebre Diamante 5x
+      railLaserCol = '#a855f7'; // Púrpura Imperial / Oro 5x (sin blanco cegador)
       railGlowCol = '#ffd700';
     }
 
@@ -7178,88 +7132,78 @@ class BeatstarEngine {
     if (is3D) {
       const getBoundaryX = (lineIdx, yTarget) => this.getLaneBoundaryX(lineIdx, yTarget);
 
-      // 1. PISTA 3D ESTILIZADA CON DEGRADADO LUMINOSO (SIN SOMBRA NEGRA)
+      // 1. AUTOPISTA 3D BLANCA NACARADA DE ALTA GAMA CON VOLUMEN CILÍNDRICO Y SOMBRA DIFUMINADA EN EL HORIZONTE
       const tL_top = getBoundaryX(0, horizonY);
       const tR_top = getBoundaryX(3, horizonY);
       const tR_bot = getBoundaryX(3, bottomY);
       const tL_bot = getBoundaryX(0, bottomY);
 
-      // A1. Superficie principal con degradado estilizado 3D (Blanco perlado a azul hielo celeste)
+      // A1. Superficie principal con degradado nacarado 3D
       ctx.beginPath();
       ctx.moveTo(tL_top, horizonY);
       ctx.lineTo(tR_top, horizonY);
       ctx.lineTo(tR_bot, bottomY);
       ctx.lineTo(tL_bot, bottomY);
       ctx.closePath();
-      ctx.fillStyle = this._trackGrad || '#ffffff';
+      ctx.fillStyle = this._trackGrad || '#f8fafc';
       ctx.fill();
 
-      // A2. Brillo especular central 3D y bisel celeste limpio en los bordes
+      // A2. Sombreado cilíndrico 3D de bordes y brillo central perlado
       if (this._trackEdgeShadowGrad) {
         ctx.fillStyle = this._trackEdgeShadowGrad;
         ctx.fill();
       }
 
-      // B. Peldaños en perspectiva 3D sobre la pista estilizada
-      const numRungs = 22;
-      ctx.strokeStyle = 'rgba(59, 130, 246, 0.14)';
-      ctx.lineWidth = 1.2;
+      // A3. Lomo especular 3D en el centro de cada uno de los 3 carriles para dar relieve individual
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.38)';
       ctx.beginPath();
-      for (let r = 1; r < numRungs; r++) {
-        const p = Math.pow(r / numRungs, 2.3);
-        const ry = horizonY + (bottomY - horizonY) * p;
-        ctx.moveTo(getBoundaryX(0, ry), ry);
-        ctx.lineTo(getBoundaryX(3, ry), ry);
-      }
-      ctx.stroke();
-
-      // C. Borde luminoso 3D en la arista del horizonte (reemplaza la antigua sombra negra)
-      ctx.save();
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.moveTo(tL_top, horizonY + 1);
-      ctx.lineTo(tR_top, horizonY + 1);
-      ctx.stroke();
-      ctx.restore();
-
-      // D. Líneas divisorias de carriles grabadas en 3D con bisel especular + Modo Fiebre Overdrive
-      const odLevel = this.overdriveLevel || 0;
-      if (odLevel > 0.02) {
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        const odPulse = 0.5 + 0.5 * Math.sin(safePerfNow * 0.008);
-        ctx.fillStyle = hexToRgba(railLaserCol, odLevel * (0.09 + odPulse * 0.06));
-        ctx.beginPath();
-        ctx.moveTo(tL_top, horizonY);
-        ctx.lineTo(tR_top, horizonY);
-        ctx.lineTo(tR_bot, bottomY);
-        ctx.lineTo(tL_bot, bottomY);
+      for (let l = 0; l < 3; l++) {
+        const cTopL = getBoundaryX(l + 0.28, horizonY);
+        const cTopR = getBoundaryX(l + 0.72, horizonY);
+        const cBotR = getBoundaryX(l + 0.72, bottomY);
+        const cBotL = getBoundaryX(l + 0.28, bottomY);
+        ctx.moveTo(cTopL, horizonY);
+        ctx.lineTo(cTopR, horizonY);
+        ctx.lineTo(cBotR, bottomY);
+        ctx.lineTo(cBotL, bottomY);
         ctx.closePath();
-        ctx.fill();
+      }
+      ctx.fill();
 
-        // Onda sinusoidal prismática en las divisorias de carril durante Fiebre Overdrive (0 allocs)
-        const segCount = 12;
-        const spanH = bottomY - horizonY;
-        for (let l = 1; l <= 2; l++) {
-          ctx.strokeStyle = l === 1 ? '#00f2fe' : '#ff007f';
-          ctx.lineWidth = 2.6 * odLevel;
-          ctx.beginPath();
-          for (let s = 0; s <= segCount; s++) {
-            const frac = s / segCount;
-            const yPos = horizonY + spanH * (frac * frac);
-            const baseX = getBoundaryX(l, yPos);
-            const waveX = Math.sin(frac * 10.0 - safePerfNow * 0.014 + l * 1.5) * (3.2 * frac * odLevel);
-            if (s === 0) ctx.moveTo(baseX + waveX, yPos);
-            else ctx.lineTo(baseX + waveX, yPos);
-          }
-          ctx.stroke();
-        }
-        ctx.restore();
+      // A4. Oclusión ambiental interna a lo largo de los bordes laterales en perspectiva 3D
+      ctx.fillStyle = 'rgba(30, 41, 59, 0.16)';
+      ctx.beginPath();
+      // Borde interior izquierdo
+      ctx.moveTo(tL_top, horizonY);
+      ctx.lineTo(getBoundaryX(0.14, horizonY), horizonY);
+      ctx.lineTo(getBoundaryX(0.14, bottomY), bottomY);
+      ctx.lineTo(tL_bot, bottomY);
+      ctx.closePath();
+      // Borde interior derecho
+      ctx.moveTo(getBoundaryX(2.86, horizonY), horizonY);
+      ctx.lineTo(tR_top, horizonY);
+      ctx.lineTo(tR_bot, bottomY);
+      ctx.lineTo(getBoundaryX(2.86, bottomY), bottomY);
+      ctx.closePath();
+      ctx.fill();
+
+      // B. Líneas de compás en perspectiva 3D (se desvanecen suavemente hacia el horizonte)
+      const numRungs = 20;
+      for (let r = 2; r < numRungs; r++) {
+        const p = Math.pow(r / numRungs, 2.25);
+        const ry = horizonY + (bottomY - horizonY) * p;
+        const rungAlpha = Math.min(0.16, p * 0.18);
+        ctx.strokeStyle = `rgba(71, 85, 105, ${rungAlpha.toFixed(3)})`;
+        ctx.lineWidth = 0.8 + p * 0.7;
+        ctx.beginPath();
+        ctx.moveTo(getBoundaryX(0, ry) + 2, ry);
+        ctx.lineTo(getBoundaryX(3, ry) - 2, ry);
+        ctx.stroke();
       }
 
-      ctx.strokeStyle = odLevel > 0.05 ? `rgba(125, 211, 252, ${(0.28 + odLevel * 0.42).toFixed(2)})` : 'rgba(59, 130, 246, 0.28)';
-      ctx.lineWidth = 2.2 + odLevel * 0.8;
+      // C. Hendiduras divisorias de carril grabadas en 3D (Sombra de surco + Bisel especular blanco)
+      ctx.strokeStyle = 'rgba(51, 65, 85, 0.34)';
+      ctx.lineWidth = 2.4;
       ctx.beginPath();
       for (let l = 1; l <= 2; l++) {
         ctx.moveTo(getBoundaryX(l, horizonY), horizonY);
@@ -7267,48 +7211,94 @@ class BeatstarEngine {
       }
       ctx.stroke();
 
-      // 2. COLUMNAS DE LUZ VOLUMÉTRICAS DE CARRIL (Suaves, sin parpadeo ni saturación blanca)
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      for (let l = 1; l <= 2; l++) {
+        ctx.moveTo(getBoundaryX(l, horizonY) + 1.4, horizonY);
+        ctx.lineTo(getBoundaryX(l, bottomY) + 1.8, bottomY);
+      }
+      ctx.stroke();
+
+      // D. SOMBRA 3D DIFUMINADA AL FINAL DE LA PISTA (Horizonte profundo sin bloques negros)
+      if (this._trackHorizonShadowGrad) {
+        const shadowEndY = horizonY + (hitY - horizonY) * 0.30;
+        const sL_bot = getBoundaryX(0, shadowEndY);
+        const sR_bot = getBoundaryX(3, shadowEndY);
+        ctx.save();
+        ctx.fillStyle = this._trackHorizonShadowGrad;
+        ctx.beginPath();
+        ctx.moveTo(tL_top - 1, horizonY);
+        ctx.lineTo(tR_top + 1, horizonY);
+        ctx.lineTo(sR_bot + 1, shadowEndY);
+        ctx.lineTo(sL_bot - 1, shadowEndY);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // 2. RESPLANDOR DIFUMINADO EN EL CARRIL AL TOCAR UNA TECLA (Color exacto de PERFECT+, PERFECT, GREAT, GOOD)
       for (let l = 0; l < 3; l++) {
         const flashTimer = (Array.isArray(this.laneFlashTimers) && this.laneFlashTimers[l]) || 0;
         const isHolding = this.activeHolds.has(l);
         const glow = this.laneGlows[l] || 0;
 
-        if (isHolding || flashTimer > 0 || glow > 0.04) {
+        if (isHolding || flashTimer > 0.005 || glow > 0.02) {
           ctx.save();
-          ctx.globalCompositeOperation = 'lighter';
-          const beamTopY = horizonY + (hitY - horizonY) * 0.22;
-          const beamBotY = hitY + 24;
-          const pL_top = getBoundaryX(l, beamTopY);
-          const pR_top = getBoundaryX(l + 1, beamTopY);
-          const pL_bot = getBoundaryX(l, beamBotY);
-          const pR_bot = getBoundaryX(l + 1, beamBotY);
-
-          const flashCol = (Array.isArray(this.laneFlashColors) && this.laneFlashColors[l]) || railLaserCol;
+          const flashCol = (Array.isArray(this.laneFlashColors) && this.laneFlashColors[l]) || this.getJudgeGlowColor('perfectPlus');
           const rgb = hexToRgb(flashCol);
-          const rawAlpha = isHolding
-            ? 0.36
-            : (flashTimer > 0 ? (0.32 * Math.min(1.0, flashTimer / 0.18)) : Math.min(0.28, glow * 0.30));
+          const intensity = isHolding
+            ? 0.88
+            : Math.min(1.0, Math.max(flashTimer / 0.28, glow * 0.75));
+          const easeGlow = Math.pow(intensity, 0.85);
 
-          ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(rawAlpha * 0.55).toFixed(3)})`;
+          // A. Degradado longitudinal ultra-difuminado que nace en el receptor y se disipa suavemente por el carril (0 cortes rectos)
+          const auraTopY = horizonY + (hitY - horizonY) * (0.20 + (1.0 - easeGlow) * 0.16);
+          const auraBotY = hitY + 30;
+          const aL_top = getBoundaryX(l, auraTopY);
+          const aR_top = getBoundaryX(l + 1, auraTopY);
+          const aL_bot = getBoundaryX(l, auraBotY);
+          const aR_bot = getBoundaryX(l + 1, auraBotY);
+
+          const vGrad = ctx.createLinearGradient(0, auraBotY, 0, auraTopY);
+          vGrad.addColorStop(0.00, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(easeGlow * 0.62).toFixed(3)})`);
+          vGrad.addColorStop(0.14, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(easeGlow * 0.54).toFixed(3)})`);
+          vGrad.addColorStop(0.32, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(easeGlow * 0.36).toFixed(3)})`);
+          vGrad.addColorStop(0.55, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(easeGlow * 0.18).toFixed(3)})`);
+          vGrad.addColorStop(0.78, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(easeGlow * 0.06).toFixed(3)})`);
+          vGrad.addColorStop(1.00, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.000)`);
+
+          ctx.fillStyle = vGrad;
           ctx.beginPath();
-          ctx.moveTo(pL_top, beamTopY);
-          ctx.lineTo(pR_top, beamTopY);
-          ctx.lineTo(pR_bot, beamBotY);
-          ctx.lineTo(pL_bot, beamBotY);
+          ctx.moveTo(aL_top, auraTopY);
+          ctx.lineTo(aR_top, auraTopY);
+          ctx.lineTo(aR_bot, auraBotY);
+          ctx.lineTo(aL_bot, auraBotY);
           ctx.closePath();
           ctx.fill();
 
-          const midBeamY = beamTopY + (beamBotY - beamTopY) * 0.45;
-          const pL_mid = getBoundaryX(l, midBeamY);
-          const pR_mid = getBoundaryX(l + 1, midBeamY);
-          ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(rawAlpha * 0.65).toFixed(3)})`;
+          // B. Nebulosa elíptica radial difuminada centrada en la zona de impacto del carril
+          const hitCx = (getBoundaryX(l, hitY) + getBoundaryX(l + 1, hitY)) * 0.5;
+          const laneWAtHit = Math.max(30, getBoundaryX(l + 1, hitY) - getBoundaryX(l, hitY));
+          const bloomCy = hitY - (1.0 - easeGlow) * 38;
+          const bloomRadius = laneWAtHit * (0.85 + (1.0 - easeGlow) * 0.35);
+
+          const rGrad = ctx.createRadialGradient(hitCx, bloomCy, 2, hitCx, bloomCy, bloomRadius);
+          rGrad.addColorStop(0.00, `rgba(255, 255, 255, ${(easeGlow * 0.75).toFixed(3)})`);
+          rGrad.addColorStop(0.22, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(easeGlow * 0.72).toFixed(3)})`);
+          rGrad.addColorStop(0.52, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(easeGlow * 0.38).toFixed(3)})`);
+          rGrad.addColorStop(0.80, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(easeGlow * 0.12).toFixed(3)})`);
+          rGrad.addColorStop(1.00, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.000)`);
+
+          ctx.fillStyle = rGrad;
           ctx.beginPath();
-          ctx.moveTo(pL_mid, midBeamY);
-          ctx.lineTo(pR_mid, midBeamY);
-          ctx.lineTo(pR_bot, beamBotY);
-          ctx.lineTo(pL_bot, beamBotY);
+          ctx.moveTo(aL_top, auraTopY);
+          ctx.lineTo(aR_top, auraTopY);
+          ctx.lineTo(aR_bot, auraBotY);
+          ctx.lineTo(aL_bot, auraBotY);
           ctx.closePath();
           ctx.fill();
+
           ctx.restore();
         }
       }
@@ -8378,23 +8368,6 @@ class BeatstarEngine {
               ctx.stroke();
             }
 
-            // Pulso de luz que viaja por la superficie del carril hacia el horizonte
-            const pulseDist = easeOut * 68;
-            const pyTop = yWellTop - pulseDist - 8;
-            const pyBot = yWellTop - pulseDist;
-            const pwL_t = this.getLaneBoundaryX(l, pyTop) + 8;
-            const pwR_t = this.getLaneBoundaryX(l + 1, pyTop) - 8;
-            const pwL_b = this.getLaneBoundaryX(l, pyBot) + 8;
-            const pwR_b = this.getLaneBoundaryX(l + 1, pyBot) - 8;
-            ctx.fillStyle = `rgba(${activeRgb.r}, ${activeRgb.g}, ${activeRgb.b}, ${(shockAlpha * 0.55).toFixed(3)})`;
-            ctx.beginPath();
-            ctx.moveTo(pwL_t, pyTop);
-            ctx.lineTo(pwR_t, pyTop);
-            ctx.lineTo(pwR_b, pyBot);
-            ctx.lineTo(pwL_b, pyBot);
-            ctx.closePath();
-            ctx.fill();
-
             // Destello horizontal anamórfico en la línea Perfect+
             const flareHalfW = ((coreR - coreL) * 0.65) * (0.5 + easeOut * 0.75);
             const flareH = Math.max(1.5, 5.8 * (1 - shockProgress));
@@ -8683,31 +8656,39 @@ class BeatstarEngine {
             pt.halfW = halfW;
           }
 
-          // 1. Beatstar Neon Translucent Energy Ribbon
-          const palette = this.activeSongPalette || (typeof SONG_COLOR_PALETTES !== 'undefined' ? SONG_COLOR_PALETTES.classic : null);
-          const holdCol = palette ? (palette.primary || '#00f2fe') : '#00f2fe';
-          const holdGlow = palette ? (palette.glow || '#ff00aa') : '#ff00aa';
+          // 1. Cinta Hold 100% Opaca y Ultra-Saturada (Máximo contraste sobre la pista blanca 3D)
+          const LANE_HOLD_THEMES = [
+            { body: '#0066ff', mid: '#00c8ff', rail: '#0044cc', rim: '#04081c' }, // Carril 0: Azul/Cian Eléctrico Saturado
+            { body: '#d9006c', mid: '#ff1a8c', rail: '#99004d', rim: '#1c0412' }, // Carril 1: Magenta/Rubí Neón Saturado
+            { body: '#7c00ff', mid: '#b833ff', rail: '#4d0099', rim: '#110420' }  // Carril 2: Violeta/Amatista Eléctrico Saturado
+          ];
+          const hTheme = LANE_HOLD_THEMES[lane % 3];
+          const holdCol = isBeingHeld ? '#00d67f' : hTheme.body;
+          const holdMid = isBeingHeld ? '#00ff9d' : hTheme.mid;
+          const holdGlow = isBeingHeld ? '#00a862' : hTheme.rail;
 
           ctx.save();
-          // A. Base opaca y saturada con ribete de contraste oscuro
+          // Todo el cuerpo del Hold se dibuja en source-over con opacidad 1.0 (sin transparencia ni blanqueo lighter)
           ctx.globalCompositeOperation = 'source-over';
+          ctx.globalAlpha = 1.0;
 
-          // 1. Ribete exterior de contraste oscuro
+          // A1. Carcasa exterior oscura sólida (100% opaca) para contraste absoluto sobre pista blanca
+          const borderPad = 3.5;
           ctx.beginPath();
           for (let s = 0; s <= segments; s++) {
             const pt = stringPoints[s];
-            if (s === 0) ctx.moveTo(pt.x - pt.halfW - 2.5, pt.y);
-            else ctx.lineTo(pt.x - pt.halfW - 2.5, pt.y);
+            if (s === 0) ctx.moveTo(pt.x - pt.halfW - borderPad, pt.y);
+            else ctx.lineTo(pt.x - pt.halfW - borderPad, pt.y);
           }
           for (let s = segments; s >= 0; s--) {
             const pt = stringPoints[s];
-            ctx.lineTo(pt.x + pt.halfW + 2.5, pt.y);
+            ctx.lineTo(pt.x + pt.halfW + borderPad, pt.y);
           }
           ctx.closePath();
-          ctx.fillStyle = 'rgba(10, 4, 18, 0.72)';
+          ctx.fillStyle = hTheme.rim;
           ctx.fill();
 
-          // 2. Relleno vibrante y fuertemente saturado
+          // A2. Cuerpo principal 100% opaco y profundamente saturado
           ctx.beginPath();
           for (let s = 0; s <= segments; s++) {
             const pt = stringPoints[s];
@@ -8719,36 +8700,29 @@ class BeatstarEngine {
             ctx.lineTo(pt.x + pt.halfW, pt.y);
           }
           ctx.closePath();
-          ctx.fillStyle = hexToRgba(holdCol, isBeingHeld ? 0.95 : 0.88);
+          ctx.fillStyle = holdCol;
           ctx.fill();
 
-          // Efectos incandescentes en modo lighter
-          ctx.globalCompositeOperation = 'lighter';
-
-          // B. Pulsos de energía diamantinos viajando a lo largo del listón
-          const pulseCycle = (currentTime * 0.003) % 1.0;
-          for (let pIdx = 0; pIdx < 3; pIdx++) {
-            const pFrac = (pulseCycle + pIdx * 0.33) % 1.0;
-            const ptIdx = Math.min(stringPoints.length - 1, Math.floor(pFrac * (stringPoints.length - 1)));
-            const pulsePt = stringPoints[ptIdx];
-            if (pulsePt) {
-              const pRad = (isBeingHeld ? 8.5 : 5.5) * pulsePt.scale;
-              ctx.fillStyle = '#ffffff';
-              ctx.beginPath();
-              ctx.arc(pulsePt.x, pulsePt.y, pRad, 0, Math.PI * 2);
-              ctx.fill();
-
-              ctx.strokeStyle = holdGlow;
-              ctx.lineWidth = 2.4;
-              ctx.beginPath();
-              ctx.arc(pulsePt.x, pulsePt.y, pRad * 1.8, 0, Math.PI * 2);
-              ctx.stroke();
-            }
+          // A3. Banda interior saturada de alto brillo (sin transparencia)
+          ctx.beginPath();
+          for (let s = 0; s <= segments; s++) {
+            const pt = stringPoints[s];
+            const innerW = pt.halfW * 0.62;
+            if (s === 0) ctx.moveTo(pt.x - innerW, pt.y);
+            else ctx.lineTo(pt.x - innerW, pt.y);
           }
+          for (let s = segments; s >= 0; s--) {
+            const pt = stringPoints[s];
+            const innerW = pt.halfW * 0.62;
+            ctx.lineTo(pt.x + innerW, pt.y);
+          }
+          ctx.closePath();
+          ctx.fillStyle = holdMid;
+          ctx.fill();
 
-          // D. Raíles laterales de neón en los bordes de la cinta
-          ctx.strokeStyle = isBeingHeld ? hexToRgba(holdGlow, 1.0) : hexToRgba(holdGlow, 0.75);
-          ctx.lineWidth = 4.2 * stringPoints[segments].scale;
+          // B. Raíles laterales sólidos de alta saturación
+          ctx.strokeStyle = holdGlow;
+          ctx.lineWidth = Math.max(2.5, 4.4 * stringPoints[segments].scale);
           ctx.beginPath();
           for (let s = 0; s <= segments; s++) {
             const pt = stringPoints[s];
@@ -8762,9 +8736,9 @@ class BeatstarEngine {
           }
           ctx.stroke();
 
-          // E. Espina dorsal de láser central de alta tensión
-          ctx.strokeStyle = hexToRgba(holdCol, 1.0);
-          ctx.lineWidth = 5.2 * stringPoints[segments].scale;
+          // C. Espina dorsal central con borde de contraste y núcleo blanco puro
+          ctx.strokeStyle = hTheme.rim;
+          ctx.lineWidth = Math.max(3.5, 6.8 * stringPoints[segments].scale);
           ctx.beginPath();
           for (let s = 0; s <= segments; s++) {
             if (s === 0) ctx.moveTo(stringPoints[s].x, stringPoints[s].y);
@@ -8772,77 +8746,89 @@ class BeatstarEngine {
           }
           ctx.stroke();
 
-          // Núcleo blanco incandescente de plasma
           ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 2.4 * stringPoints[segments].scale;
+          ctx.lineWidth = Math.max(2.0, 3.4 * stringPoints[segments].scale);
           ctx.stroke();
 
-          // F0. Filamento Doble Hélice + Polvo Estelar Ascendente cuando el Hold está activo
+          // D. Pulsos de energía sólidos viajando a lo largo del Hold
+          const pulseCycle = (currentTime * 0.003) % 1.0;
+          for (let pIdx = 0; pIdx < 3; pIdx++) {
+            const pFrac = (pulseCycle + pIdx * 0.33) % 1.0;
+            const ptIdx = Math.min(stringPoints.length - 1, Math.floor(pFrac * (stringPoints.length - 1)));
+            const pulsePt = stringPoints[ptIdx];
+            if (pulsePt) {
+              const pRad = (isBeingHeld ? 7.5 : 5.2) * pulsePt.scale;
+              ctx.fillStyle = '#ffffff';
+              ctx.strokeStyle = hTheme.rim;
+              ctx.lineWidth = 2.0;
+              ctx.beginPath();
+              ctx.arc(pulsePt.x, pulsePt.y, pRad, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.stroke();
+            }
+          }
+
+          // E. Filamento Doble Hélice cuando el Hold está siendo pulsado
           if (isBeingHeld) {
             for (let strand = 0; strand < 2; strand++) {
-              ctx.strokeStyle = strand === 0 ? '#ffffff' : holdGlow;
-              ctx.lineWidth = (strand === 0 ? 2.0 : 1.6) * stringPoints[segments].scale;
+              ctx.strokeStyle = strand === 0 ? '#ffffff' : '#ffe600';
+              ctx.lineWidth = (strand === 0 ? 2.4 : 2.0) * stringPoints[segments].scale;
               ctx.beginPath();
               const phaseOffset = strand * Math.PI;
               for (let s = 0; s <= segments; s++) {
                 const pt = stringPoints[s];
                 const env = Math.sin((s / segments) * Math.PI);
-                const helixX = pt.x + Math.sin(s * 0.95 - currentTime * 0.016 + phaseOffset) * (pt.halfW * 0.62 * env);
+                const helixX = pt.x + Math.sin(s * 0.95 - currentTime * 0.016 + phaseOffset) * (pt.halfW * 0.65 * env);
                 if (s === 0) ctx.moveTo(helixX, pt.y);
                 else ctx.lineTo(helixX, pt.y);
               }
               ctx.stroke();
             }
-
-            // Micro-prismas de Polvo Estelar ascendiendo desde el punto de contacto (0 allocs)
-            const headContact = stringPoints[segments];
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            for (let sp = 0; sp < 5; sp++) {
-              const spCycle = ((currentTime * 0.0045 + sp * 0.2) % 1.0);
-              const spX = headContact.x + Math.sin(sp * 2.1 + currentTime * 0.01) * (headContact.halfW * 0.85);
-              const spY = headContact.y - spCycle * 56 * headContact.scale;
-              const spR = Math.max(1.2, (1.0 - spCycle) * 4.2 * headContact.scale);
-              ctx.moveTo(spX, spY - spR);
-              ctx.lineTo(spX + spR, spY);
-              ctx.lineTo(spX, spY + spR);
-              ctx.lineTo(spX - spR, spY);
-              ctx.closePath();
-            }
-            ctx.fill();
           }
           ctx.restore();
 
-          // F. CAPUCHÓN TERMINAL: GEMA BRILLANTE Y ESTRELLA GIRATORIA
+          // F. CAPUCHÓN TERMINAL 100% OPACO Y CON ALTO CONTRASTE
           const tailPt = stringPoints[0];
           ctx.save();
-          ctx.globalCompositeOperation = 'lighter';
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.globalAlpha = 1.0;
           const pinRad = (isLarge ? 11 : 7.5) * tailPt.scale;
 
-          ctx.fillStyle = hexToRgba(holdGlow, 0.55);
+          // Barra transversal de cierre con borde oscuro
+          const barW = Math.max(12, (tailPt.laneW * 0.42));
+          ctx.strokeStyle = hTheme.rim;
+          ctx.lineWidth = Math.max(4.5, 7.5 * tailPt.scale);
           ctx.beginPath();
-          ctx.arc(tailPt.x, tailPt.y, pinRad * 2.8, 0, Math.PI * 2);
+          ctx.moveTo(tailPt.x - barW, tailPt.y);
+          ctx.lineTo(tailPt.x + barW, tailPt.y);
+          ctx.stroke();
+
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = Math.max(2.4, 4.2 * tailPt.scale);
+          ctx.stroke();
+
+          // Medallón sólido saturado en la punta del Hold
+          ctx.fillStyle = hTheme.rim;
+          ctx.beginPath();
+          ctx.arc(tailPt.x, tailPt.y, pinRad * 1.55, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = holdCol;
+          ctx.beginPath();
+          ctx.arc(tailPt.x, tailPt.y, pinRad * 1.25, 0, Math.PI * 2);
           ctx.fill();
 
           ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = Math.max(1.6, 3.2 * tailPt.scale);
-          ctx.beginPath();
-          ctx.arc(tailPt.x, tailPt.y, pinRad * 1.5, 0, Math.PI * 2);
+          ctx.lineWidth = Math.max(1.8, 2.8 * tailPt.scale);
           ctx.stroke();
 
-          ctx.strokeStyle = holdGlow;
-          ctx.lineWidth = Math.max(1.2, 2.4 * tailPt.scale);
-          ctx.beginPath();
-          ctx.arc(tailPt.x, tailPt.y, pinRad * 1.9, 0, Math.PI * 2);
-          ctx.stroke();
-
-          // Estrella diamante facetada ✦ giratoria
+          // Estrella diamante central blanca
           const starRot = currentTime * 0.004;
           ctx.save();
           ctx.translate(tailPt.x, tailPt.y);
           ctx.rotate(starRot);
-          const sOuter = pinRad * 1.7;
-          const sInner = pinRad * 0.42;
+          const sOuter = pinRad * 1.15;
+          const sInner = pinRad * 0.38;
           ctx.beginPath();
           for (let pt = 0; pt < 8; pt++) {
             const rCur = (pt % 2 === 0) ? sOuter : sInner;
@@ -8856,15 +8842,6 @@ class BeatstarEngine {
           ctx.fillStyle = '#ffffff';
           ctx.fill();
           ctx.restore();
-
-          // Barra transversal de terminación
-          const barW = Math.max(12, (tailPt.laneW * 0.42));
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.90)';
-          ctx.lineWidth = Math.max(2.2, 4.2 * tailPt.scale);
-          ctx.beginPath();
-          ctx.moveTo(tailPt.x - barW, tailPt.y);
-          ctx.lineTo(tailPt.x + barW, tailPt.y);
-          ctx.stroke();
 
           ctx.restore();
 
