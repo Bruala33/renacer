@@ -1567,6 +1567,16 @@
         "accuracy": 0.9915168003674955,
         "date": "2026-10-19 16:33:48"
       }
+    ],
+    "top_roy_orbison_desconocido": [
+      {
+        "name": "Test",
+        "score": 46621,
+        "stars": 3.5,
+        "combo": 48,
+        "accuracy": 3.5256359356082347,
+        "date": "2026-10-19 16:34:33"
+      }
     ]
   },
   "global": [
@@ -1597,7 +1607,7 @@
     },
     {
       "name": "Test",
-      "total_score": 4616714,
+      "total_score": 4663335,
       "clefs": 39
     },
     {
@@ -1686,7 +1696,7 @@
     "players": [
       {
         "name": "Test",
-        "score": 4087073
+        "score": 4133694
       },
       {
         "name": "Dady cool",
