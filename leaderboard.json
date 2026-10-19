@@ -1497,6 +1497,16 @@
         "accuracy": 88.02061451582996,
         "date": "2026-10-19 09:46:57"
       }
+    ],
+    "top_justin_bieber_what_do_you_mean": [
+      {
+        "name": "Test",
+        "score": 117300,
+        "stars": 3.5,
+        "combo": 93,
+        "accuracy": 6.39761766462412,
+        "date": "2026-10-19 09:48:00"
+      }
     ]
   },
   "global": [
@@ -1521,14 +1531,14 @@
       "clefs": 43
     },
     {
+      "name": "Test",
+      "total_score": 3943250,
+      "clefs": 35
+    },
+    {
       "name": "bobon",
       "total_score": 3845429,
       "clefs": 33
-    },
-    {
-      "name": "Test",
-      "total_score": 3825950,
-      "clefs": 34
     },
     {
       "name": "Dady cool",
@@ -1616,7 +1626,7 @@
     "players": [
       {
         "name": "Test",
-        "score": 3296309
+        "score": 3413609
       },
       {
         "name": "PixToPix",
