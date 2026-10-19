@@ -1487,6 +1487,16 @@
         "accuracy": 0.06982265046781176,
         "date": "2026-10-19 01:27:37"
       }
+    ],
+    "top_estopa_partiendo_la_pana": [
+      {
+        "name": "Test",
+        "score": 1521161,
+        "stars": 4,
+        "combo": 485,
+        "accuracy": 88.02061451582996,
+        "date": "2026-10-19 09:41:28"
+      }
     ]
   },
   "global": [
@@ -1522,8 +1532,8 @@
     },
     {
       "name": "Test",
-      "total_score": 783628,
-      "clefs": 4
+      "total_score": 2304789,
+      "clefs": 19
     },
     {
       "name": "MasterPianist",
@@ -1606,7 +1616,7 @@
     "players": [
       {
         "name": "Test",
-        "score": 253987
+        "score": 1775148
       },
       {
         "name": "PixToPix",
