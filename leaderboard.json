@@ -1517,6 +1517,16 @@
         "accuracy": 0.41925225991678705,
         "date": "2026-10-19 10:10:23"
       }
+    ],
+    "osu_2125241": [
+      {
+        "name": "Test",
+        "score": 299470,
+        "stars": 5,
+        "combo": 179,
+        "accuracy": 92.92807050207907,
+        "date": "2026-10-19 10:12:49"
+      }
     ]
   },
   "global": [
@@ -1542,8 +1552,8 @@
     },
     {
       "name": "Test",
-      "total_score": 3951800,
-      "clefs": 35
+      "total_score": 4251270,
+      "clefs": 37
     },
     {
       "name": "bobon",
@@ -1636,7 +1646,7 @@
     "players": [
       {
         "name": "Test",
-        "score": 3422159
+        "score": 3721629
       },
       {
         "name": "PixToPix",
