@@ -2317,9 +2317,18 @@ class BeatstarEngine {
 
     window.addEventListener('resize', () => this.initCanvasSize());
 
-    // ⚡ ENTRADA TÁCTIL (TOUCH) A NIVEL DE VENTANA SIN REFLOWS DE DOM
+    // ⚡ ENTRADA TÁCTIL (TOUCH) A NIVEL DE VENTANA SIN REFLOWS DE DOM NI GESTURE DELAY
     window.addEventListener('touchstart', (e) => {
       if (this.isPaused || this.isRewinding) return;
+      const targetEl = e.target;
+      const isUiTap = targetEl && targetEl !== this.canvas && targetEl.closest &&
+        (targetEl.closest('.hud-pause-btn') || targetEl.closest('button') || targetEl.closest('.modal-overlay'));
+      if (isUiTap) return;
+
+      if (this.isRunning && e.cancelable) {
+        e.preventDefault();
+      }
+
       const now = performance.now();
       this.lastTouchTime = now;
       let rect = this._canvasRect;
@@ -2328,11 +2337,6 @@ class BeatstarEngine {
         this._canvasRect = rect;
       }
       if (!rect || rect.width <= 0) return;
-
-      const targetEl = e.target;
-      const isUiTap = targetEl && targetEl !== this.canvas && targetEl.closest &&
-        (targetEl.closest('.hud-pause-btn') || targetEl.closest('button') || targetEl.closest('.modal-overlay'));
-      if (isUiTap) return;
 
       for (let i = 0; i < e.changedTouches.length; i++) {
         const t = e.changedTouches[i];
@@ -2352,7 +2356,7 @@ class BeatstarEngine {
 
         this.triggerLaneInput(lane, 'tap', null, t.identifier);
       }
-    }, { passive: true });
+    }, { passive: false });
 
     // ⚡ DETECCIÓN DE DESLIZAMIENTO / FLICK (SWIPE)
     window.addEventListener('touchmove', (e) => {
@@ -6752,26 +6756,41 @@ class BeatstarEngine {
   renderMusicalNotes() {
     if (!this.musicalNotes || this.musicalNotes.length === 0) return;
     const ctx = this.ctx;
+    if (!this._musicalNoteSpriteCache) {
+      this._musicalNoteSpriteCache = new Map();
+    }
     ctx.save();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
     for (let i = 0; i < this.musicalNotes.length; i++) {
       const mn = this.musicalNotes[i];
       if (!mn || mn.alpha <= 0.01) continue;
+      const col = mn.color || '#ffd700';
+      const sym = mn.symbol || '♪';
+      const cacheKey = `${sym}_${col}`;
+      let sprite = this._musicalNoteSpriteCache.get(cacheKey);
+      if (!sprite) {
+        const off = document.createElement('canvas');
+        off.width = 40;
+        off.height = 40;
+        const octx = off.getContext('2d');
+        octx.textAlign = 'center';
+        octx.textBaseline = 'middle';
+        octx.font = 'bold 22px "Cinzel", serif';
+        octx.fillStyle = col;
+        octx.fillText(sym, 20, 20);
+        octx.fillStyle = '#ffffff';
+        octx.font = 'bold 18px "Cinzel", serif';
+        octx.fillText(sym, 20, 20);
+        sprite = off;
+        if (this._musicalNoteSpriteCache.size < 64) {
+          this._musicalNoteSpriteCache.set(cacheKey, sprite);
+        }
+      }
       ctx.save();
       ctx.globalAlpha = Math.max(0, Math.min(1, mn.alpha));
       ctx.translate(mn.x, mn.y);
       ctx.rotate(mn.rot);
       ctx.scale(mn.scale, mn.scale);
-
-      ctx.font = 'bold 22px "Cinzel", serif';
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = mn.color || '#ffd700';
-      ctx.fillText(mn.symbol, 0, 0);
-
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 18px "Cinzel", serif';
-      ctx.fillText(mn.symbol, 0, 0);
+      ctx.drawImage(sprite, -20, -20);
       ctx.restore();
     }
     ctx.restore();
@@ -6921,18 +6940,34 @@ class BeatstarEngine {
 
         ctx.restore();
       } else {
-        // Línea blanca neón pura y elegante en su posición original exacta (cyMid) con brillo blanco intenso
+        // Línea blanca neón pura y elegante en su posición original exacta (cyMid) con brillo blanco intenso (0 pasadas de shadowBlur GPU)
         const slitW = keyW * 0.62;
         const slitH = Math.max(4.5, 6.8 * scale);
         const slitX = cx - slitW / 2;
         const slitY = cyMid - slitH / 2;
 
         ctx.save();
-
-        // 1. Resplandor difuminado exterior blanco neón puro (con shadowBlur blanco real + modo aditivo)
         ctx.globalCompositeOperation = 'lighter';
-        ctx.shadowColor = '#ffffff';
-        ctx.shadowBlur = Math.round(18 * scale);
+
+        // 0. Corona exterior difuminada amplia (sustituye exactamente el radio de 18px de shadowBlur sin penalizar la GPU)
+        const wideSpreadX = 11.5 * scale;
+        const wideSpreadY = 8.5 * scale;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(
+            slitX - wideSpreadX,
+            slitY - wideSpreadY,
+            slitW + wideSpreadX * 2,
+            slitH + wideSpreadY * 2,
+            (slitH + wideSpreadY * 2) / 2
+          );
+        } else {
+          ctx.rect(slitX - wideSpreadX, slitY - wideSpreadY, slitW + wideSpreadX * 2, slitH + wideSpreadY * 2);
+        }
+        ctx.fill();
+
+        // 1. Resplandor difuminado exterior blanco neón puro
         const outerSpreadX = 5.5 * scale;
         const outerSpreadY = 4.2 * scale;
         ctx.fillStyle = 'rgba(255, 255, 255, 0.42)';
@@ -6969,19 +7004,10 @@ class BeatstarEngine {
         ctx.fill();
 
         // 3. Núcleo de tubo neón blanco puro incandescente (#ffffff)
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.shadowColor = '#ffffff';
-        ctx.shadowBlur = Math.round(12 * scale);
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
         if (ctx.roundRect) ctx.roundRect(slitX, slitY, slitW, slitH, slitH / 2);
         else ctx.rect(slitX, slitY, slitW, slitH);
-        ctx.fill();
-
-        // 4. Sobrecarga blanca aditiva en el centro para máximo fulgor neón blanco
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = '#ffffff';
         ctx.fill();
 
         ctx.restore();
@@ -7053,22 +7079,25 @@ class BeatstarEngine {
       ctx.fillText(cleanLyric, cx, cy);
       ctx.restore();
     } else if (isLarge) {
-      // Línea de energía central blanco neón brillante para teclas grandes en 2D
+      // Línea de energía central blanco neón brillante para teclas grandes en 2D (0 shadowBlur GPU)
       const slitW = w * 0.62;
       const slitH = 6.0;
       const slitX = cx - slitW / 2;
       const slitY = cy - slitH / 2;
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.shadowColor = '#ffffff';
-      ctx.shadowBlur = 14;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(slitX - 7, slitY - 5, slitW + 14, slitH + 10, (slitH + 10) / 2);
+      else ctx.rect(slitX - 7, slitY - 5, slitW + 14, slitH + 10);
+      ctx.fill();
+
       ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
       ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(slitX - 3, slitY - 2.5, slitW + 6, slitH + 5, (slitH + 5) / 2);
       else ctx.rect(slitX - 3, slitY - 2.5, slitW + 6, slitH + 5);
       ctx.fill();
 
-      ctx.globalCompositeOperation = 'source-over';
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(slitX, slitY, slitW, slitH, slitH / 2);
@@ -7237,66 +7266,77 @@ class BeatstarEngine {
         ctx.restore();
       }
 
-      // 2. RESPLANDOR DIFUMINADO EN EL CARRIL AL TOCAR UNA TECLA (Color exacto de PERFECT+, PERFECT, GREAT, GOOD)
+      // 2. RESPLANDOR DIFUMINADO EN EL CARRIL AL TOCAR UNA TECLA (Color exacto de PERFECT+, PERFECT, GREAT, GOOD - 0 Gradient Allocs por frame)
+      const hitGradCacheKey = `${this.width}_${hitY}_${horizonY}`;
+      if (!this._laneTapGradCache || this._laneTapGradCacheKey !== hitGradCacheKey) {
+        this._laneTapGradCache = new Map();
+        this._laneTapGradCacheKey = hitGradCacheKey;
+      }
+
       for (let l = 0; l < 3; l++) {
         const flashTimer = (Array.isArray(this.laneFlashTimers) && this.laneFlashTimers[l]) || 0;
         const isHolding = this.activeHolds.has(l);
         const glow = this.laneGlows[l] || 0;
 
         if (isHolding || flashTimer > 0.005 || glow > 0.02) {
-          ctx.save();
           const flashCol = (Array.isArray(this.laneFlashColors) && this.laneFlashColors[l]) || this.getJudgeGlowColor('perfectPlus');
-          const rgb = hexToRgb(flashCol);
           const intensity = isHolding
             ? 0.88
             : Math.min(1.0, Math.max(flashTimer / 0.28, glow * 0.75));
           const easeGlow = Math.pow(intensity, 0.85);
 
-          // A. Degradado longitudinal ultra-difuminado que nace en el receptor y se disipa suavemente por el carril (0 cortes rectos)
-          const auraTopY = horizonY + (hitY - horizonY) * (0.20 + (1.0 - easeGlow) * 0.16);
-          const auraBotY = hitY + 30;
-          const aL_top = getBoundaryX(l, auraTopY);
-          const aR_top = getBoundaryX(l + 1, auraTopY);
-          const aL_bot = getBoundaryX(l, auraBotY);
-          const aR_bot = getBoundaryX(l + 1, auraBotY);
+          const cKey = `${l}_${flashCol}`;
+          let cached = this._laneTapGradCache.get(cKey);
+          if (!cached) {
+            const rgb = hexToRgb(flashCol);
+            const auraTopY = horizonY + (hitY - horizonY) * 0.22;
+            const auraBotY = hitY + 30;
+            const aL_top = getBoundaryX(l, auraTopY);
+            const aR_top = getBoundaryX(l + 1, auraTopY);
+            const aL_bot = getBoundaryX(l, auraBotY);
+            const aR_bot = getBoundaryX(l + 1, auraBotY);
 
-          const vGrad = ctx.createLinearGradient(0, auraBotY, 0, auraTopY);
-          vGrad.addColorStop(0.00, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(easeGlow * 0.62).toFixed(3)})`);
-          vGrad.addColorStop(0.14, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(easeGlow * 0.54).toFixed(3)})`);
-          vGrad.addColorStop(0.32, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(easeGlow * 0.36).toFixed(3)})`);
-          vGrad.addColorStop(0.55, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(easeGlow * 0.18).toFixed(3)})`);
-          vGrad.addColorStop(0.78, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(easeGlow * 0.06).toFixed(3)})`);
-          vGrad.addColorStop(1.00, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.000)`);
+            const vGrad = ctx.createLinearGradient(0, auraBotY, 0, auraTopY);
+            vGrad.addColorStop(0.00, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.62)`);
+            vGrad.addColorStop(0.14, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.54)`);
+            vGrad.addColorStop(0.32, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.36)`);
+            vGrad.addColorStop(0.55, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.18)`);
+            vGrad.addColorStop(0.78, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.06)`);
+            vGrad.addColorStop(1.00, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.000)`);
 
-          ctx.fillStyle = vGrad;
+            const hitCx = (getBoundaryX(l, hitY) + getBoundaryX(l + 1, hitY)) * 0.5;
+            const laneWAtHit = Math.max(30, getBoundaryX(l + 1, hitY) - getBoundaryX(l, hitY));
+            const bloomCy = hitY - 8;
+            const bloomRadius = laneWAtHit * 0.95;
+
+            const rGrad = ctx.createRadialGradient(hitCx, bloomCy, 2, hitCx, bloomCy, bloomRadius);
+            rGrad.addColorStop(0.00, `rgba(255, 255, 255, 0.75)`);
+            rGrad.addColorStop(0.22, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.72)`);
+            rGrad.addColorStop(0.52, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.38)`);
+            rGrad.addColorStop(0.80, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.12)`);
+            rGrad.addColorStop(1.00, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.000)`);
+
+            cached = { auraTopY, auraBotY, aL_top, aR_top, aL_bot, aR_bot, vGrad, rGrad };
+            if (this._laneTapGradCache.size < 36) {
+              this._laneTapGradCache.set(cKey, cached);
+            }
+          }
+
+          ctx.save();
+          ctx.globalAlpha = easeGlow;
+
+          // A. Degradado longitudinal ultra-difuminado que nace en el receptor y se disipa suavemente por el carril
+          ctx.fillStyle = cached.vGrad;
           ctx.beginPath();
-          ctx.moveTo(aL_top, auraTopY);
-          ctx.lineTo(aR_top, auraTopY);
-          ctx.lineTo(aR_bot, auraBotY);
-          ctx.lineTo(aL_bot, auraBotY);
+          ctx.moveTo(cached.aL_top, cached.auraTopY);
+          ctx.lineTo(cached.aR_top, cached.auraTopY);
+          ctx.lineTo(cached.aR_bot, cached.auraBotY);
+          ctx.lineTo(cached.aL_bot, cached.auraBotY);
           ctx.closePath();
           ctx.fill();
 
           // B. Nebulosa elíptica radial difuminada centrada en la zona de impacto del carril
-          const hitCx = (getBoundaryX(l, hitY) + getBoundaryX(l + 1, hitY)) * 0.5;
-          const laneWAtHit = Math.max(30, getBoundaryX(l + 1, hitY) - getBoundaryX(l, hitY));
-          const bloomCy = hitY - (1.0 - easeGlow) * 38;
-          const bloomRadius = laneWAtHit * (0.85 + (1.0 - easeGlow) * 0.35);
-
-          const rGrad = ctx.createRadialGradient(hitCx, bloomCy, 2, hitCx, bloomCy, bloomRadius);
-          rGrad.addColorStop(0.00, `rgba(255, 255, 255, ${(easeGlow * 0.75).toFixed(3)})`);
-          rGrad.addColorStop(0.22, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(easeGlow * 0.72).toFixed(3)})`);
-          rGrad.addColorStop(0.52, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(easeGlow * 0.38).toFixed(3)})`);
-          rGrad.addColorStop(0.80, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(easeGlow * 0.12).toFixed(3)})`);
-          rGrad.addColorStop(1.00, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.000)`);
-
-          ctx.fillStyle = rGrad;
-          ctx.beginPath();
-          ctx.moveTo(aL_top, auraTopY);
-          ctx.lineTo(aR_top, auraTopY);
-          ctx.lineTo(aR_bot, auraBotY);
-          ctx.lineTo(aL_bot, auraBotY);
-          ctx.closePath();
+          ctx.fillStyle = cached.rGrad;
           ctx.fill();
 
           ctx.restore();
@@ -8908,25 +8948,45 @@ class BeatstarEngine {
       const len = this.judgements.length;
       if (len === 0) return;
 
-      ctx.save();
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
+      if (!this._judgementSpriteCache) {
+        this._judgementSpriteCache = new Map();
+      }
 
+      ctx.save();
       for (let i = 0; i < len; i++) {
         const j = this.judgements[i];
         if (!j || j.alpha <= 0.01) continue;
 
+        const text = j.text || '';
+        const col = j.color || '#ffffff';
+        const cacheKey = `${text}_${col}`;
+        let sprite = this._judgementSpriteCache.get(cacheKey);
+        if (!sprite) {
+          const off = document.createElement('canvas');
+          off.width = 240;
+          off.height = 56;
+          const octx = off.getContext('2d');
+          octx.textAlign = 'center';
+          octx.textBaseline = 'middle';
+          octx.font = '900 32px "Outfit", system-ui, sans-serif';
+          octx.lineJoin = 'round';
+          octx.strokeStyle = '#040207';
+          octx.lineWidth = 8.0;
+          octx.strokeText(text, 120, 28);
+          octx.fillStyle = col;
+          octx.fillText(text, 120, 28);
+          sprite = off;
+          if (this._judgementSpriteCache.size < 32) {
+            this._judgementSpriteCache.set(cacheKey, sprite);
+          }
+        }
+
         ctx.globalAlpha = Math.max(0, Math.min(1, j.alpha));
         const drawX = (typeof j.x === 'number') ? j.x : (this.width / 2);
-        const fontSize = Math.round(22 * j.scale);
-        ctx.font = `900 ${fontSize}px "Outfit", system-ui, sans-serif`;
-
-        ctx.strokeStyle = '#040207';
-        ctx.lineWidth = 5.5;
-        ctx.strokeText(j.text, drawX, j.y);
-
-        ctx.fillStyle = j.color || '#ffffff';
-        ctx.fillText(j.text, drawX, j.y);
+        const sRatio = (22 * (j.scale || 1)) / 32;
+        const w = 240 * sRatio;
+        const h = 56 * sRatio;
+        ctx.drawImage(sprite, drawX - w * 0.5, j.y - h * 0.5, w, h);
       }
       ctx.restore();
     }

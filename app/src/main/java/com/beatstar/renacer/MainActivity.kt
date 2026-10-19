@@ -586,7 +586,7 @@ class MainActivity : AppCompatActivity() {
                     pInfo.versionCode
                 }
             } catch (e: Exception) {
-                2
+                7
             }
         }
 
