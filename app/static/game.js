@@ -2890,6 +2890,7 @@ class BeatstarEngine {
       this._lyricKeySpriteCache = new Map();
     }
     const isKaraokePrewarm = Boolean((typeof window !== 'undefined' && window.isKaraokeModeActive) || this.isKaraokeModeActive);
+    const isMushPrewarm = Boolean((typeof window !== 'undefined' && window.isMushroomModeActive) || this.isMushroomModeActive);
     for (let i = 0, nLen = this.notes.length; i < nLen; i++) {
       const n = this.notes[i];
       if (n.lyric && !_PROLONG_RE.test(String(n.lyric))) {
@@ -2901,10 +2902,31 @@ class BeatstarEngine {
       } else {
         n._cleanLyric = null;
       }
+
+      // En modo Setas Alucinógenas: asignar fase de oscilación de grosor/tamaño y salto travieso de carril (~30% de notas)
+      n._mushPhase = (i * 1.41) % (Math.PI * 2);
+      n._mushColorIdx = i % 4;
+      const prevT = i > 0 ? (this.notes[i - 1].timestamp_ms ?? 0) : -9999;
+      const nextT = i + 1 < nLen ? (this.notes[i + 1].timestamp_ms ?? 9999999) : 9999999;
+      const curT = n.timestamp_ms ?? 0;
+      if (isMushPrewarm && n.type !== 'hold' && (curT - prevT > 240) && (nextT - curT > 240) && (i % 3 === 1)) {
+        n._mushFromLane = (n.lane + ((i % 2 === 0) ? 1 : 2)) % 3;
+      } else {
+        n._mushFromLane = n.lane;
+      }
     }
 
     if ((typeof window !== 'undefined' && window.isStormModeActive) || this.isStormModeActive) {
       this.initStormModeAssets();
+    }
+    if (isMushPrewarm) {
+      this.initMushroomModeAssets();
+      this._mushFlipProgress = 0.0;
+      this._mushTargetFlipped = false;
+      this._mushNextFlipTimeMs = 9500;
+      this._mushSafeGraceUntilMs = 0;
+      this._mushBannerText = '🍄 ¡MODO SETAS ALUCINÓGENAS! 🍄';
+      this._mushBannerTimer = 2.6;
     }
     this.activeHolds.clear();
     this.activeTouches.clear();
@@ -4663,6 +4685,19 @@ class BeatstarEngine {
         break;
       }
 
+      // En Modo Setas Alucinógenas: durante la transición elegante de inversión de gravedad,
+      // auto-completar las notas que cruzan la línea para que sea 100% imposible perder en mitad del giro
+      if (this._mushInSafeTransition && currentTime >= noteTime - 25) {
+        note.hit = true;
+        note.processed = true;
+        if (note.type === 'hold') note.holdCompleted = true;
+        const autoX = ((note.lane ?? 1) + 0.5) * (this.width / 3);
+        const autoY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
+        this.judgeHit(note, 10, autoX, autoY, '🍄');
+        this.emitKeyHit(autoX, autoY, '#ff00ff', 14);
+        continue;
+      }
+
       if (currentTime >= 0 && (currentTime - noteTime >= exitScreenOffsetMs)) {
         note.missed = true;
         note.processed = true;
@@ -4801,7 +4836,11 @@ class BeatstarEngine {
       this.beatmapData?.metadata?.is_daily_featured || 
       (typeof window !== 'undefined' && (window.currentActiveBeatmap?.is_daily_featured || window.currentActiveBeatmap?.metadata?.is_daily_featured || window.currentFeaturedSongX2))
     );
-    const isStormX2 = Boolean(this.isStormModeActive || (typeof window !== 'undefined' && window.isStormModeActive));
+    const isStormX2 = Boolean(
+      this.isStormModeActive ||
+      this.isMushroomModeActive ||
+      (typeof window !== 'undefined' && (window.isStormModeActive || window.isMushroomModeActive))
+    );
     const clefMultiplier = (isFeatured ? 2 : 1) * (isStormX2 ? 2 : 1);
     const earnedClefs = Math.max(1, Math.round(baseScoreClefs * diffMultiplier)) * clefMultiplier;
 
@@ -6215,8 +6254,12 @@ class BeatstarEngine {
 
     // ⚡ TIEMPO BLOQUEADO AL FRAME: Un solo valor inmutable para todo el frame
     const currentTime = this.getCurrentGameTimeMs(this._frameNow);
+    const isMushActive = Boolean(this.isMushroomModeActive || (typeof window !== 'undefined' && window.isMushroomModeActive));
 
     this.renderBackgroundFX(currentTime);
+    if (isMushActive) {
+      this._beginMushroomWorldTransform(this.ctx, currentTime);
+    }
     this.renderLanes(currentTime);
     this.renderHitLine(currentTime);
     this.renderRipples(this.ctx);
@@ -6225,6 +6268,10 @@ class BeatstarEngine {
     this.renderSwipeLaunches(this.ctx, currentTime);
     this.particles.render(this.ctx);
     this.renderMusicalNotes();
+    if (isMushActive) {
+      this._endMushroomWorldTransform(this.ctx);
+      this.renderMushroomModeOverlay(this.ctx, currentTime);
+    }
     if (this.isStormModeActive || (typeof window !== 'undefined' && window.isStormModeActive)) {
       this.renderStormModeOverlay(this.ctx, currentTime);
     }
@@ -7173,6 +7220,298 @@ class BeatstarEngine {
   }
 
   // =========================================================================
+  // MODO SETAS ALUCINÓGENAS (PSICODELIA 120 FPS, SETAS HD, CÁMARA EBRIA E INVERSIÓN DE GRAVEDAD)
+  // =========================================================================
+  initMushroomModeAssets() {
+    if (this._mushAssetsReady && this._mushSprites && this._mushSprites.length === 4) {
+      return;
+    }
+    this._mushAssetsReady = true;
+    this._mushSprites = [];
+
+    // Pre-hornear 4 sprites de setas mágicas bioluminiscentes en alta definición (0 gradientes en tiempo real)
+    const palettes = [
+      { capTop: '#ff00aa', capBot: '#7900ff', spots: '#00f2fe', stem: '#ffe6ff', glow: 'rgba(255, 0, 170, 0.42)' },
+      { capTop: '#00ff88', capBot: '#0088ff', spots: '#ffee00', stem: '#e0fff4', glow: 'rgba(0, 255, 136, 0.42)' },
+      { capTop: '#ff5500', capBot: '#ff0055', spots: '#ffffff', stem: '#fff3e0', glow: 'rgba(255, 85, 0, 0.42)' },
+      { capTop: '#00e5ff', capBot: '#7b2cbf', spots: '#ff00ff', stem: '#e0f7fa', glow: 'rgba(0, 229, 255, 0.42)' }
+    ];
+
+    for (let i = 0; i < palettes.length; i++) {
+      const pal = palettes[i];
+      const cvs = document.createElement('canvas');
+      cvs.width = 76;
+      cvs.height = 76;
+      const c = cvs.getContext('2d');
+      const cx = 38;
+      const cy = 38;
+
+      // Halo psicodélico exterior
+      const halo = c.createRadialGradient(cx, cy - 4, 4, cx, cy, 36);
+      halo.addColorStop(0, pal.glow);
+      halo.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      c.fillStyle = halo;
+      c.fillRect(0, 0, 76, 76);
+
+      // Tallo orgánico curvado de la seta
+      c.fillStyle = pal.stem;
+      c.strokeStyle = pal.capBot;
+      c.lineWidth = 2;
+      c.beginPath();
+      c.moveTo(cx - 7, cy + 2);
+      c.quadraticCurveTo(cx - 9, cy + 16, cx - 10, cy + 26);
+      c.quadraticCurveTo(cx, cy + 31, cx + 10, cy + 26);
+      c.quadraticCurveTo(cx + 8, cy + 15, cx + 7, cy + 2);
+      c.closePath();
+      c.fill();
+      c.stroke();
+
+      // Sombrero de seta alucinógena
+      const capGrad = c.createLinearGradient(cx, cy - 26, cx, cy + 6);
+      capGrad.addColorStop(0, pal.capTop);
+      capGrad.addColorStop(1, pal.capBot);
+      c.fillStyle = capGrad;
+      c.beginPath();
+      c.moveTo(cx - 26, cy + 4);
+      c.bezierCurveTo(cx - 28, cy - 26, cx + 28, cy - 26, cx + 26, cy + 4);
+      c.quadraticCurveTo(cx, cy + 10, cx - 26, cy + 4);
+      c.closePath();
+      c.fill();
+      c.strokeStyle = '#ffffff';
+      c.lineWidth = 1.6;
+      c.stroke();
+
+      // Motas luminosas del sombrero
+      c.fillStyle = pal.spots;
+      const spotCoords = [
+        { x: cx, y: cy - 14, r: 4.5 },
+        { x: cx - 13, y: cy - 8, r: 3.6 },
+        { x: cx + 13, y: cy - 8, r: 3.6 },
+        { x: cx - 7, y: cy - 1, r: 2.6 },
+        { x: cx + 8, y: cy - 1, r: 2.8 }
+      ];
+      for (let s = 0; s < spotCoords.length; s++) {
+        const sp = spotCoords[s];
+        c.beginPath();
+        c.arc(sp.x, sp.y, sp.r, 0, Math.PI * 2);
+        c.fill();
+      }
+
+      this._mushSprites.push(cvs);
+    }
+
+    // Pool fijo de setas flotantes a ambos lados de la pista y esporas luminosas (0 allocs en el bucle)
+    this._mushSideMushrooms = [];
+    for (let i = 0; i < 8; i++) {
+      this._mushSideMushrooms.push({
+        side: i % 2 === 0 ? -1 : 1,
+        progress: (i / 8),
+        speed: 0.14 + (i % 3) * 0.04,
+        spriteIdx: i % 4,
+        phase: i * 0.9,
+        baseSize: 34 + (i % 3) * 10
+      });
+    }
+
+    this._mushSporesPool = [];
+    for (let i = 0; i < 28; i++) {
+      this._mushSporesPool.push({
+        x: (i * 41) % 360,
+        y: (i * 67) % 640,
+        vx: (i % 2 === 0 ? 1 : -1) * (12 + (i % 5) * 5),
+        vy: -18 - (i % 4) * 9,
+        r: 2.0 + (i % 3) * 1.4,
+        color: ['#ff00ff', '#00ff88', '#00f2fe', '#ffee00'][i % 4],
+        phase: i * 0.7
+      });
+    }
+  }
+
+  _beginMushroomWorldTransform(ctx, currentTime) {
+    if (!this._mushAssetsReady) this.initMushroomModeAssets();
+    const nowPerf = this._frameNow || performance.now();
+    const dt = Math.min(0.05, Math.max(0.004, (nowPerf - (this._mushLastTransformNow || nowPerf)) / 1000));
+    this._mushLastTransformNow = nowPerf;
+
+    // Programar inversiones elegantes de gravedad cada ~13.5 segundos
+    if (currentTime > 3000 && currentTime >= (this._mushNextFlipTimeMs || 9500)) {
+      this._mushTargetFlipped = !this._mushTargetFlipped;
+      this._mushNextFlipTimeMs = currentTime + 13500;
+      this._mushBannerText = this._mushTargetFlipped
+        ? '🍄 ¡GRAVEDAD INVERTIDA: PERFECT ARRIBA! 🍄'
+        : '🍄 ¡GRAVEDAD NORMAL: PERFECT ABAJO! 🍄';
+      this._mushBannerTimer = 2.6;
+    }
+
+    const targetP = this._mushTargetFlipped ? 1.0 : 0.0;
+    const curP = this._mushFlipProgress || 0.0;
+    if (Math.abs(targetP - curP) > 0.001) {
+      const step = dt / 1.65; // Transición suave y elegante de 1.65s
+      if (curP < targetP) {
+        this._mushFlipProgress = Math.min(1.0, curP + step);
+      } else {
+        this._mushFlipProgress = Math.max(0.0, curP - step);
+      }
+      this._mushSafeGraceUntilMs = currentTime + 750;
+      this._mushInSafeTransition = true;
+      this.invulnerableUntil = Math.max(this.invulnerableUntil || 0, currentTime + 900);
+    } else {
+      this._mushFlipProgress = targetP;
+      this._mushInSafeTransition = currentTime < (this._mushSafeGraceUntilMs || 0);
+    }
+
+    if (this._mushBannerTimer > 0) {
+      this._mushBannerTimer = Math.max(0, this._mushBannerTimer - dt);
+    }
+
+    const w = this.width || 360;
+    const h = this.height || 640;
+    const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (h * 0.84);
+    const horizonY = 12;
+    const midTrackY = (horizonY + hitY) * 0.52;
+
+    const tSec = currentTime * 0.001;
+    const flipEase = 0.5 - 0.5 * Math.cos(Math.PI * (this._mushFlipProgress || 0));
+    const flipSin = Math.sin(Math.PI * flipEase);
+
+    // Balanceo de cámara ebria + rotación suave durante la transición de gravedad
+    const camRoll = Math.sin(tSec * 1.45) * 0.052 + Math.cos(tSec * 0.82) * 0.025 + flipSin * 0.18;
+    const camScaleX = (1.0 + Math.sin(tSec * 2.15) * 0.036) * (1.0 - flipSin * 0.12);
+    const rawScaleY = (1.0 - 2.0 * flipEase) * (1.0 + Math.cos(tSec * 1.85) * 0.03);
+    const safeScaleY = Math.abs(rawScaleY) < 0.07 ? (rawScaleY < 0 ? -0.07 : 0.07) : rawScaleY;
+    const swayX = Math.sin(tSec * 1.15) * 11;
+
+    ctx.save();
+    ctx.translate(w * 0.5 + swayX, midTrackY);
+    ctx.rotate(camRoll);
+    ctx.scale(camScaleX, safeScaleY);
+    ctx.translate(-w * 0.5, -midTrackY);
+  }
+
+  _endMushroomWorldTransform(ctx) {
+    ctx.restore();
+  }
+
+  renderMushroomModeOverlay(ctx, currentTime) {
+    if (!this._mushAssetsReady || !this._mushSprites) {
+      this.initMushroomModeAssets();
+    }
+    const nowPerf = this._frameNow || performance.now();
+    const dt = Math.min(0.05, Math.max(0.004, (nowPerf - (this._mushLastOverlayNow || nowPerf)) / 1000));
+    this._mushLastOverlayNow = nowPerf;
+
+    const w = this.width || 360;
+    const h = this.height || 640;
+    const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (h * 0.84);
+    const tSec = currentTime * 0.001;
+    const beatDur = 60000 / Math.max(60, this.bpm || 120);
+    const beatPulse = Math.pow(1.0 - ((currentTime % beatDur) / beatDur), 2.0);
+
+    ctx.save();
+
+    // 1. Neblina caleidoscópica psicodélica en los bordes (sin costosos radialGradients por frame)
+    ctx.globalCompositeOperation = 'lighter';
+    const auraColors = ['rgba(255, 0, 170, 0.11)', 'rgba(0, 255, 136, 0.10)', 'rgba(0, 229, 255, 0.11)'];
+    const activeAura = auraColors[Math.floor(tSec * 1.5) % auraColors.length];
+    ctx.fillStyle = activeAura;
+    ctx.fillRect(0, 0, 18 + Math.sin(tSec * 3) * 6, h);
+    ctx.fillRect(w - (18 + Math.cos(tSec * 3) * 6), 0, 24, h);
+
+    // 2. Esporas psicodélicas flotantes
+    if (this._mushSporesPool) {
+      for (let i = 0; i < this._mushSporesPool.length; i++) {
+        const sp = this._mushSporesPool[i];
+        sp.x += (sp.vx + Math.sin(tSec * 2.2 + sp.phase) * 18) * dt;
+        sp.y += sp.vy * (this._mushTargetFlipped ? -1 : 1) * dt;
+        if (sp.y < -10) sp.y = h + 10;
+        if (sp.y > h + 10) sp.y = -10;
+        if (sp.x < -10) sp.x = w + 10;
+        if (sp.x > w + 10) sp.x = -10;
+
+        ctx.fillStyle = sp.color;
+        ctx.globalAlpha = 0.45 + 0.35 * Math.sin(tSec * 4 + sp.phase);
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, sp.r * (1 + beatPulse * 0.35), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // 3. Setas alucinógenas animadas brotando y bailando a los lados de la pista
+    ctx.globalCompositeOperation = 'source-over';
+    if (this._mushSideMushrooms && this._mushSprites.length > 0) {
+      for (let i = 0; i < this._mushSideMushrooms.length; i++) {
+        const m = this._mushSideMushrooms[i];
+        m.progress = (m.progress + m.speed * dt) % 1.0;
+        const p = m.progress;
+        const yPos = this._mushTargetFlipped
+          ? (hitY - p * (hitY - 30))
+          : (30 + p * (hitY - 30));
+        const bndX = this.getLaneBoundaryX(m.side < 0 ? 0 : 3, 30 + p * (hitY - 30));
+        const xPos = bndX + m.side * (16 + p * 18) + Math.sin(tSec * 3.2 + m.phase) * 7;
+        const scaleM = (0.55 + 0.65 * p) * (1.0 + beatPulse * 0.24);
+        const sz = m.baseSize * scaleM;
+        const tilt = Math.sin(tSec * 4.0 + m.phase) * 0.28;
+
+        ctx.save();
+        ctx.globalAlpha = Math.min(0.95, p * 2.5) * (1.0 - Math.max(0, (p - 0.85) / 0.15));
+        ctx.translate(xPos, yPos);
+        ctx.rotate(tilt);
+        ctx.scale(1.0 + Math.sin(tSec * 5 + m.phase) * 0.16, 1.0 + Math.cos(tSec * 5 + m.phase) * 0.16);
+        const spr = this._mushSprites[m.spriteIdx % this._mushSprites.length];
+        ctx.drawImage(spr, -sz * 0.5, -sz * 0.5, sz, sz);
+        ctx.restore();
+      }
+    }
+
+    // 4. Portal circular y cartel durante la transición elegante de gravedad (sin perder combo)
+    const flipEase = 0.5 - 0.5 * Math.cos(Math.PI * (this._mushFlipProgress || 0));
+    const flipSin = Math.sin(Math.PI * flipEase);
+    if (flipSin > 0.02) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const portalR = (w * 0.42) * flipSin;
+      ctx.strokeStyle = `rgba(255, 0, 255, ${(flipSin * 0.75).toFixed(2)})`;
+      ctx.lineWidth = 5.5;
+      ctx.beginPath();
+      ctx.arc(w * 0.5, h * 0.46, portalR, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeStyle = `rgba(0, 255, 136, ${(flipSin * 0.75).toFixed(2)})`;
+      ctx.lineWidth = 3.0;
+      ctx.beginPath();
+      ctx.arc(w * 0.5, h * 0.46, portalR * 0.72, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (this._mushBannerTimer > 0 && this._mushBannerText) {
+      ctx.save();
+      const alpha = Math.min(1, this._mushBannerTimer * 1.5);
+      ctx.globalAlpha = alpha;
+      const bannerY = h * 0.24;
+      ctx.fillStyle = 'rgba(10, 4, 20, 0.82)';
+      ctx.strokeStyle = '#ff00ff';
+      ctx.lineWidth = 2.2;
+      const bw = Math.min(w - 24, 332);
+      const bh = 34;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(w * 0.5 - bw * 0.5, bannerY - bh * 0.5, bw, bh, 12);
+      else ctx.rect(w * 0.5 - bw * 0.5, bannerY - bh * 0.5, bw, bh);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.font = '900 12px "Outfit", system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#00ff88';
+      ctx.fillText(this._mushBannerText, w * 0.5, bannerY);
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
+  // =========================================================================
   // PSEUDO-3D CONICAL ENGINE (BEATSTAR PERSPECTIVE)
   // =========================================================================
 
@@ -7216,8 +7555,8 @@ class BeatstarEngine {
 
     let lane = 0;
     if (typeof laneOrCx === 'number') {
-      if (laneOrCx <= 2) {
-        lane = Math.max(0, Math.min(2, Math.round(laneOrCx)));
+      if (laneOrCx <= 2.5) {
+        lane = Math.max(0, Math.min(2, laneOrCx));
       } else {
         const laneW = this.width / 3;
         lane = Math.max(0, Math.min(2, Math.floor(laneOrCx / laneW)));
@@ -7245,6 +7584,7 @@ class BeatstarEngine {
     const cyMid = (y0 + y1) / 2;
     const keyW = x1Bot - x0Bot;
     const keyH = y1 - y0;
+    const isMushKey = Boolean(this.isMushroomModeActive || (typeof window !== 'undefined' && window.isMushroomModeActive));
 
     // 1. Sombra suave bajo la tecla (sin bordes semitransparentes hacia los lados)
     ctx.fillStyle = isPressed ? 'rgba(0, 0, 0, 0.20)' : 'rgba(0, 0, 0, 0.35)';
@@ -7258,19 +7598,21 @@ class BeatstarEngine {
     const x0Bev = this.getLaneBoundaryX(lane, yBevelTop) + margin;
     const x1Bev = this.getLaneBoundaryX(lane + 1, yBevelTop) - margin;
 
-    ctx.fillStyle = isPressed ? '#22222a' : '#141419';
+    ctx.fillStyle = isPressed ? '#22222a' : (isMushKey ? '#230b36' : '#141419');
     tracePerspectiveQuad(ctx, x0Bev, x1Bev, x0Bot, x1Bot, yBevelTop, y1, r);
     ctx.fill();
 
-    // 3. Cara Superior en negro pulido
-    ctx.fillStyle = isPressed ? '#45e69e' : '#1a1d28';
+    // 3. Cara Superior en negro pulido (o púrpura psicodélico profundo en modo Setas)
+    ctx.fillStyle = isPressed ? '#45e69e' : (isMushKey ? '#2d124d' : '#1a1d28');
     tracePerspectiveQuad(ctx, x0Top, x1Top, x0Bev, x1Bev, y0, yBevelTop, r);
     ctx.fill();
 
-    // 4. Borde metálico nítido
+    // 4. Borde metálico nítido (o neón cambiante en modo Setas)
     ctx.save();
-    ctx.strokeStyle = isPressed ? '#ffffff' : '#3e4252';
-    ctx.lineWidth = Math.max(1.1, (isPressed ? 2.0 : 1.4) * scale);
+    const mushRimColors = ['#ff00ff', '#00ff88', '#00f2fe', '#ffee00'];
+    const mushRimCol = isMushKey ? mushRimColors[Math.floor((cy * 0.03 + (this._frameNow || 0) * 0.006)) & 3] : '#3e4252';
+    ctx.strokeStyle = isPressed ? '#ffffff' : mushRimCol;
+    ctx.lineWidth = Math.max(1.1, (isPressed ? 2.2 : (isMushKey ? 2.1 : 1.4)) * scale);
     tracePerspectiveQuad(ctx, x0Top, x1Top, x0Bot, x1Bot, y0, y1, r);
     ctx.stroke();
 
@@ -7284,21 +7626,22 @@ class BeatstarEngine {
     ctx.restore();
 
     // ===========================================================================
-    // 5. Hendidura de Luz Central incandescente O Palabra Grabada en Relieve (Modo Karaoke Ultra-Optimizado)
-    //    OPTIMIZACIÓN CRÍTICA:
-    //    - Se eliminan las dos expresiones regulares pesadas del render loop
-    //    - Se reduce el número de fillText() de 9 a 2 por tecla (-78% rasterizado de fuentes por CPU Skia/FreeType)
-    //    - ctx.font se asigna UNA sola vez por tecla
+    // 5. Hendidura de Luz Central incandescente O Palabra Grabada en Relieve
     // ===========================================================================
-    // 5. Letras de canciones SIEMPRE en el color dorado del teleprompter (#ffd700)
-    // 5. Letras de canciones con el color dorado EXACTO del teleprompter
-    // 5. Letras de canciones IDÉNTICAS al teleprompter (Blanco puro + halo dorado cálido)
     if (!isSwipe) {
       if (lyricText) {
         const sp = this._getLyricKeySprite(lyricText, isPressed);
         const drawW = Math.min(keyW * 0.94, 132 * scale);
         const drawH = 42 * (drawW / 132);
-        ctx.drawImage(sp, cx - drawW * 0.5, cyMid - drawH * 0.5, drawW, drawH);
+        if (isMushKey && (this._mushFlipProgress || 0) > 0.5) {
+          ctx.save();
+          ctx.translate(cx, cyMid);
+          ctx.scale(1, -1);
+          ctx.drawImage(sp, -drawW * 0.5, -drawH * 0.5, drawW, drawH);
+          ctx.restore();
+        } else {
+          ctx.drawImage(sp, cx - drawW * 0.5, cyMid - drawH * 0.5, drawW, drawH);
+        }
       } else {
         // Línea blanca neón pura y elegante en su posición original exacta (cyMid) con brillo blanco intenso (0 pasadas de shadowBlur GPU)
         const slitW = keyW * 0.62;
@@ -7511,14 +7854,25 @@ class BeatstarEngine {
       const tR_bot = getBoundaryX(3, bottomY);
       const tL_bot = getBoundaryX(0, bottomY);
 
-      // A1. Superficie principal con degradado nacarado 3D
+      // A1. Superficie principal con degradado nacarado 3D (o autopista psicodélica en Modo Setas Alucinógenas)
+      const isMushTrack = Boolean(this.isMushroomModeActive || (typeof window !== 'undefined' && window.isMushroomModeActive));
+      if (isMushTrack && (!this._mushTrackGrad || this._mushTrackGradH !== bottomY)) {
+        this._mushTrackGradH = bottomY;
+        const mg = ctx.createLinearGradient(this.width / 2, horizonY, this.width / 2, bottomY);
+        mg.addColorStop(0.00, '#120324');
+        mg.addColorStop(0.25, '#2b0952');
+        mg.addColorStop(0.55, '#431278');
+        mg.addColorStop(0.82, '#5e179e');
+        mg.addColorStop(1.00, '#380b66');
+        this._mushTrackGrad = mg;
+      }
       ctx.beginPath();
       ctx.moveTo(tL_top, horizonY);
       ctx.lineTo(tR_top, horizonY);
       ctx.lineTo(tR_bot, bottomY);
       ctx.lineTo(tL_bot, bottomY);
       ctx.closePath();
-      ctx.fillStyle = this._trackGrad || '#f8fafc';
+      ctx.fillStyle = isMushTrack ? (this._mushTrackGrad || '#2b0952') : (this._trackGrad || '#f8fafc');
       ctx.fill();
 
       // A2. Sombreado cilíndrico 3D de bordes y brillo central perlado
@@ -8970,6 +9324,7 @@ class BeatstarEngine {
 
       const startIdx = Math.min(this.firstActiveNoteIndex, len);
       const isKaraokeActive = Boolean((typeof window !== 'undefined' && window.isKaraokeModeActive) || this.isKaraokeModeActive);
+      const isMushroomActive = Boolean((typeof window !== 'undefined' && window.isMushroomModeActive) || this.isMushroomModeActive);
 
       for (let i = startIdx; i < len; i++) {
         const note = this.notes[i];
@@ -8988,8 +9343,24 @@ class BeatstarEngine {
         const pHead = 1.0 - timeUntilHit * invScrollDur;
         if (pHead < -0.15 || (!isBeingHeld && pHead > 1.25)) continue;
 
+        // En Modo Setas Alucinógenas: algunas teclas saltan de un carril a otro mientras caen y su grosor/tamaño respira
+        let drawLane = lane;
+        let mushHeightMult = 1.0;
+        if (isMushroomActive && note.type !== 'hold') {
+          const fromL = (note._mushFromLane !== undefined) ? note._mushFromLane : lane;
+          if (fromL !== lane && pHead < 0.54) {
+            const swapT = Math.max(0, Math.min(1, (pHead - 0.06) / 0.46));
+            const easeSwap = 0.5 - 0.5 * Math.cos(Math.PI * swapT);
+            drawLane = fromL + (lane - fromL) * easeSwap;
+          } else if (pHead < 0.72) {
+            // Oscilación ebria sutil del carril antes de llegar a la zona de golpeo
+            drawLane = Math.max(0, Math.min(2, lane + Math.sin(currentTime * 0.007 + (note._mushPhase || 0)) * 0.11 * (1 - pHead)));
+          }
+          mushHeightMult = 1.0 + Math.sin(currentTime * 0.009 + (note._mushPhase || 0)) * 0.25;
+        }
+
         const nextDiff = note.nextSameLaneDiffMs ?? Infinity;
-        const coord = this.getPerspectiveCoord(lane, pHead, this._coordScratch0);
+        const coord = this.getPerspectiveCoord(drawLane, pHead, this._coordScratch0);
         const maxH3D = nextDiff < scrollDur ? Math.max(26, ((nextDiff * invScrollDur) * spanY * coord.scale) - 8) : Infinity;
         const lyricForNote = isKaraokeActive ? note._cleanLyric : null;
 
@@ -9274,15 +9645,21 @@ class BeatstarEngine {
             }
             ctx.restore();
           }
-          const swipeKey = this.drawIvoryKey(ctx, lane, coord.y, h, coord.scale, false, isLarge, true, lyricForNote);
+          const swipeKey = this.drawIvoryKey(ctx, drawLane, coord.y, h * mushHeightMult, coord.scale, false, isLarge, true, lyricForNote);
           this.renderVectorChevron(ctx, swipeKey.cx, swipeKey.cy, note.direction || 'up', swipeKey.w, swipeKey.h);
 
         // ==========================================
         // 3. NOTAS NORMALES (TAP ESTÁNDAR)
         // ==========================================
         } else {
-          const h = Math.min((isLarge ? 80 : 30) * coord.scale, maxH3D);
-          this.drawIvoryKey(ctx, lane, coord.y, h, coord.scale, false, isLarge, false, lyricForNote);
+          const h = Math.min((isLarge ? 80 : 30) * coord.scale * mushHeightMult, maxH3D);
+          const tapKey = this.drawIvoryKey(ctx, drawLane, coord.y, h, coord.scale, false, isLarge, false, lyricForNote);
+          // En modo Setas: si la tecla está saltando de carril o es múltiplo de 3, dibujar seta mágica sobre la tecla
+          if (isMushroomActive && this._mushSprites && this._mushSprites.length > 0 && ((note._mushFromLane !== undefined && note._mushFromLane !== lane) || (i % 3 === 0))) {
+            const spr = this._mushSprites[(note._mushColorIdx || 0) % this._mushSprites.length];
+            const mSz = Math.max(16, 30 * coord.scale);
+            ctx.drawImage(spr, tapKey.cx - mSz * 0.5, tapKey.cy - mSz * 0.5, mSz, mSz);
+          }
         }
       }
     }

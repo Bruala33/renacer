@@ -532,10 +532,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 8,
-    version_name: '1.6.0',
-    release_notes: 'Piano Community Web & Offline Player. Sincronización comunitaria y soporte osu! Mania / Clone Hero.',
-    download_url: '/download/apk?v=8.0',
+    version_code: 9,
+    version_name: '1.7.0',
+    release_notes: 'Piano Community Web & Offline Player. Nuevo modo Setas Alucinógenas, Selector LED limpio y +3000 Claves por compartir.',
+    download_url: '/download/apk?v=9.0',
   });
 });
 
@@ -1168,6 +1168,15 @@ app.post('/api/v1/community/charts/:id/score', (req, res) => {
   weeklyData.score += parsedScore;
   weekMap.set(pKey, weeklyData);
 
+  // 3. Registrar referido si el jugador entró con enlace de invitación (?ref=...)
+  const referredBy = String(req.body.referred_by || '').trim().toLowerCase();
+  if (referredBy && referredBy !== pKey) {
+    if (!global.completedReferralsMap) global.completedReferralsMap = new Map();
+    const list = global.completedReferralsMap.get(referredBy) || new Set();
+    list.add(cleanName);
+    global.completedReferralsMap.set(referredBy, list);
+  }
+
   saveScoresToDisk();
   syncLeaderboardToGithub().catch(() => {});
 
@@ -1177,6 +1186,51 @@ app.post('/api/v1/community/charts/:id/score', (req, res) => {
     is_new_record: isRecord,
     total_players: currentScores.length,
     entry: newEntry
+  });
+});
+
+// Verify if an invited friend has played at least one match (appears in leaderboard or referral registry)
+app.get('/api/v1/community/verify-friend', (req, res) => {
+  const friendRaw = String(req.query.friend || '').trim();
+  const referrerRaw = String(req.query.referrer || '').trim().toLowerCase();
+  const friendKey = friendRaw.toLowerCase();
+
+  if (referrerRaw && global.completedReferralsMap && global.completedReferralsMap.has(referrerRaw)) {
+    const friendsSet = global.completedReferralsMap.get(referrerRaw);
+    if (friendsSet && friendsSet.size > 0) {
+      const matchedFriend = Array.from(friendsSet)[0];
+      return res.json({ verified: true, friend_name: matchedFriend, method: 'referral_link' });
+    }
+  }
+
+  if (!friendKey) {
+    return res.json({ verified: false, message: 'Introduce el nickname de tu amigo.' });
+  }
+  if (referrerRaw && friendKey === referrerRaw) {
+    return res.json({ verified: false, message: 'No puedes poner tu propio nickname.' });
+  }
+
+  const inGlobal = playerGlobalAccumulator.has(friendKey);
+  let inWeekly = false;
+  for (const [, wMap] of playerWeeklyAccumulator.entries()) {
+    if (wMap && wMap.has(friendKey)) {
+      inWeekly = true;
+      break;
+    }
+  }
+
+  if (inGlobal || inWeekly) {
+    const info = playerGlobalAccumulator.get(friendKey);
+    return res.json({
+      verified: true,
+      friend_name: (info && info.name) || friendRaw,
+      method: 'leaderboard'
+    });
+  }
+
+  return res.json({
+    verified: false,
+    message: 'Tu amigo aún no aparece en la clasificación. ¡Dile que juegue su primera partida!'
   });
 });
 

@@ -25,7 +25,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css?v=8.0">
+  <link rel="stylesheet" href="./style.css?v=9.0">
   <script>
     // ===================================================
     // SISTEMA DE INTERNACIONALIZACIÓN (i18n: ES / EN)
@@ -1836,7 +1836,7 @@
             <p class="text-[10px] text-gray-300 leading-tight" data-i18n="apk_card_desc">
               Instala la app oficial en tu móvil para jugar a pantalla completa, vibración háptica y con disponibilidad 100% offline.
             </p>
-            <a href="/download/apk?v=8.0" onclick="this.href='/download/apk?v=8.0&t=' + Date.now()" download="PianoCommunity.apk" class="w-full py-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 text-black font-black rounded-lg text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition active:scale-95 cursor-pointer">
+            <a href="/download/apk?v=9.0" onclick="this.href='/download/apk?v=9.0&t=' + Date.now()" download="PianoCommunity.apk" class="w-full py-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 text-black font-black rounded-lg text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition active:scale-95 cursor-pointer">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               <span data-i18n="apk_card_btn">DESCARGAR APK ANDROID</span>
             </a>
@@ -2233,7 +2233,7 @@
           <p data-i18n="onboarding_apk_hint" class="text-[10px] text-amber-300/90 leading-tight">
             💡 Recuerda que también puedes descargar la app nativa para Android en cualquier momento desde <b>Ajustes ⚙️</b>.
           </p>
-          <a href="/download/apk?v=8.0" onclick="this.href='/download/apk?v=8.0&t=' + Date.now()" download="PianoCommunity.apk" class="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 rounded-xl text-amber-300 text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer">
+          <a href="/download/apk?v=9.0" onclick="this.href='/download/apk?v=9.0&t=' + Date.now()" download="PianoCommunity.apk" class="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 rounded-xl text-amber-300 text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="text-amber-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             <span data-i18n="onboarding_apk_btn">Descargar App (APK Android)</span>
           </a>
@@ -2646,9 +2646,9 @@
       </div>
     </div>
 
-    <!-- Layer 17A: Selector de Modo de Juego en Pantalla Vintage de Píxeles LED Grandes (NORMAL / KARAOKE / TORMENTA) -->
+    <!-- Layer 17A: Selector de Modo de Juego en Pantalla Vintage de Píxeles LED Grandes (Minimalista, Candados LED + Setas Alucinógenas) -->
     <div id="gameModeSelectModal" class="results-modal hidden" style="display: none; z-index: 10035 !important; background: rgba(2, 2, 4, 0.94);">
-      <div class="w-full max-w-[372px] p-2.5 rounded-2xl bg-[#09090c] border-[3px] border-[#262630] shadow-[0_0_55px_rgba(0,0,0,0.98),inset_0_0_16px_rgba(0,0,0,0.95)] relative overflow-hidden">
+      <div class="w-full max-w-[358px] p-2.5 rounded-2xl bg-[#09090c] border-[3px] border-[#262630] shadow-[0_0_55px_rgba(0,0,0,0.98),inset_0_0_16px_rgba(0,0,0,0.95)] relative overflow-hidden">
         <!-- Cabecera de Matriz de Píxeles LED Grandes -->
         <div class="flex items-center justify-between gap-2 px-2 py-1.5 bg-[#040406] border-2 border-[#1b1b22] rounded-lg">
           <div class="flex items-center gap-1.5">
@@ -2656,47 +2656,109 @@
             <span class="w-2.5 h-2.5 rounded-full bg-[#ff3b00] shadow-[0_0_8px_#ff3b00,inset_0_0_3px_#ffffff]"></span>
             <span class="w-2.5 h-2.5 rounded-full bg-[#ff9900] shadow-[0_0_8px_#ff9900,inset_0_0_3px_#ffffff]"></span>
           </div>
-          <canvas id="gmHeaderLedCanvas" class="h-[26px] w-[184px] block"></canvas>
+          <canvas id="gmHeaderLedCanvas" class="h-[24px] w-[176px] block"></canvas>
           <button onclick="cancelGameModeSelection()" class="p-1 rounded bg-[#0c0804] border border-[#3a2210] hover:border-[#ff5500] cursor-pointer flex items-center justify-center">
             <canvas id="gmCloseTopLedCanvas" class="h-[18px] w-[22px] block"></canvas>
           </button>
         </div>
 
-        <!-- Marquesina LED de Canción Seleccionada -->
-        <div class="p-1.5 mt-1.5 bg-[#040406] border-2 border-[#1b1b22] rounded-lg">
-          <canvas id="gmSongTitleLedCanvas" class="w-full h-[20px] block"></canvas>
-        </div>
-
-        <!-- Pantalla Gigante Retro de Selección de Modos con Píxeles LED Grandes -->
-        <div class="p-2.5 bg-[#030201] border-[3px] border-[#1c160e] rounded-xl my-1.5 shadow-[inset_0_0_28px_rgba(0,0,0,1)] space-y-2.5">
-          <!-- Botón 1: MODO NORMAL (LED Estático Clásico) -->
-          <button id="btnModeSelectNormal" onclick="confirmGameModeSelection('normal')" class="w-full p-2 rounded-xl bg-[#060503] border-2 border-[#1d3b2a] hover:border-[#00f5a0] active:scale-[0.98] transition cursor-pointer flex flex-col items-center gap-1 shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
-            <canvas id="gmBtnNormalMainCanvas" class="w-full h-[42px] block"></canvas>
-            <canvas id="gmBtnNormalSubCanvas" class="w-full h-[18px] block border-t border-[#14261c] pt-0.5"></canvas>
+        <!-- Pantalla Gigante Retro de Selección de Modos (Sin texto innecesario, solo píxeles grandes y candados LED) -->
+        <div class="p-2 bg-[#030201] border-[3px] border-[#1c160e] rounded-xl my-2 shadow-[inset_0_0_28px_rgba(0,0,0,1)] space-y-2">
+          <!-- Botón 1: MODO NORMAL (LED Estático Clásico - Siempre desbloqueado) -->
+          <button id="btnModeSelectNormal" onclick="confirmGameModeSelection('normal')" class="w-full p-1.5 rounded-xl bg-[#060503] border-2 border-[#1d3b2a] hover:border-[#00f5a0] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
+            <canvas id="gmBtnNormalMainCanvas" class="w-full h-[38px] block"></canvas>
           </button>
 
-          <!-- Botón 2: MODO KARAOKE (Animación LED Secuencial KA-RA-O-KE en Dorado) -->
-          <button id="btnModeSelectKaraoke" onclick="confirmGameModeSelection('karaoke')" class="w-full p-2 rounded-xl bg-[#070502] border-2 border-[#422c08] hover:border-[#ffd700] active:scale-[0.98] transition cursor-pointer flex flex-col items-center gap-1 shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
-            <canvas id="gmBtnKaraokeMainCanvas" class="w-full h-[42px] block"></canvas>
-            <canvas id="gmBtnKaraokeSubCanvas" class="w-full h-[18px] block border-t border-[#2b1c05] pt-0.5"></canvas>
+          <!-- Botón 2: MODO KARAOKE (Animación LED Secuencial KA-RA-O-KE en Dorado + Candado LED 1000 Claves) -->
+          <button id="btnModeSelectKaraoke" onclick="confirmGameModeSelection('karaoke')" class="w-full p-1.5 rounded-xl bg-[#070502] border-2 border-[#422c08] hover:border-[#ffd700] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
+            <canvas id="gmBtnKaraokeMainCanvas" class="w-full h-[38px] block"></canvas>
           </button>
 
-          <!-- Botón 3: MODO TORMENTA (Efecto de Rayo con Cortocircuito LED + X2 CLAVES) -->
-          <button id="btnModeSelectStorm" onclick="confirmGameModeSelection('storm')" class="w-full p-2 rounded-xl bg-[#03060a] border-2 border-[#12364d] hover:border-[#00e5ff] active:scale-[0.98] transition cursor-pointer flex flex-col items-center gap-1 shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
-            <canvas id="gmBtnStormMainCanvas" class="w-full h-[42px] block"></canvas>
-            <canvas id="gmBtnStormSubCanvas" class="w-full h-[18px] block border-t border-[#0d2638] pt-0.5"></canvas>
+          <!-- Botón 3: MODO TORMENTA (Efecto de Rayo LED + Candado LED 1000 Claves) -->
+          <button id="btnModeSelectStorm" onclick="confirmGameModeSelection('storm')" class="w-full p-1.5 rounded-xl bg-[#03060a] border-2 border-[#12364d] hover:border-[#00e5ff] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
+            <canvas id="gmBtnStormMainCanvas" class="w-full h-[38px] block"></canvas>
+          </button>
+
+          <!-- Botón 4: MODO SETAS ALUCINÓGENAS (Letras borrachas psicodélicas + Candado LED 1000 Claves) -->
+          <button id="btnModeSelectMushroom" onclick="confirmGameModeSelection('mushroom')" class="w-full p-1.5 rounded-xl bg-[#09030d] border-2 border-[#4a1259] hover:border-[#ff00ff] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
+            <canvas id="gmBtnMushroomMainCanvas" class="w-full h-[46px] block"></canvas>
           </button>
         </div>
 
-        <!-- Pie de pantalla LED -->
-        <div class="flex items-center justify-between gap-2 pt-0.5 px-0.5">
-          <div class="flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full bg-[#ff3b00] shadow-[0_0_8px_#ff3b00,inset_0_0_3px_#ffffff]"></span>
-            <span class="w-2.5 h-2.5 rounded-full bg-[#ff9900] shadow-[0_0_8px_#ff9900,inset_0_0_3px_#ffffff]"></span>
-            <span class="w-2.5 h-2.5 rounded-full bg-[#ff3b00] shadow-[0_0_8px_#ff3b00,inset_0_0_3px_#ffffff]"></span>
+        <!-- Pie de pantalla LED: Cancelar + ¿Quieres más claves? -->
+        <div class="space-y-1.5 pt-0.5 px-0.5">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-[#ff3b00] shadow-[0_0_8px_#ff3b00,inset_0_0_3px_#ffffff]"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-[#ff9900] shadow-[0_0_8px_#ff9900,inset_0_0_3px_#ffffff]"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-[#ff3b00] shadow-[0_0_8px_#ff3b00,inset_0_0_3px_#ffffff]"></span>
+            </div>
+            <button onclick="cancelGameModeSelection()" class="py-1 px-2.5 bg-[#0b0604] hover:bg-[#180c08] border border-[#ff5500]/75 rounded cursor-pointer flex items-center justify-center">
+              <canvas id="gmFooterCancelLedCanvas" class="h-[20px] w-[118px] block"></canvas>
+            </button>
           </div>
-          <button onclick="cancelGameModeSelection()" class="py-1 px-2 bg-[#0b0604] hover:bg-[#180c08] border border-[#ff5500]/60 rounded cursor-pointer flex items-center justify-center">
-            <canvas id="gmFooterCancelLedCanvas" class="h-[18px] w-[96px] block"></canvas>
+
+          <!-- Botón inferior: ¿Quieres más claves? -->
+          <button onclick="openPromoMoreKeysModal()" class="w-full py-1.5 px-2 bg-[#070502] hover:bg-[#140e04] border-2 border-[#ffb300]/65 rounded-lg cursor-pointer flex items-center justify-center active:scale-[0.98] transition shadow-[0_0_14px_rgba(255,179,0,0.2)]">
+            <canvas id="gmWantMoreKeysLedCanvas" class="w-full h-[22px] block"></canvas>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layer 17A-2: Pantalla Retro LED de Promoción (+3000 Claves por Compartir el Juego con un Amigo) -->
+    <div id="sharePromoKeysModal" class="results-modal hidden" style="display: none; z-index: 10060 !important; background: rgba(2, 2, 4, 0.96);">
+      <div class="w-full max-w-[362px] p-3 rounded-2xl bg-[#09090c] border-[3px] border-[#282834] shadow-[0_0_60px_rgba(0,0,0,0.98),inset_0_0_18px_rgba(0,0,0,0.95)] relative overflow-hidden space-y-2.5">
+        <!-- Cabecera LED -->
+        <div class="flex items-center justify-between gap-2 px-2 py-1.5 bg-[#040406] border-2 border-[#1b1b22] rounded-lg">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#00f5a0] shadow-[0_0_8px_#00f5a0]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#ffb300] shadow-[0_0_8px_#ffb300]"></span>
+          </div>
+          <canvas id="promoHeaderLedCanvas" class="h-[24px] w-[206px] block"></canvas>
+          <button onclick="closePromoMoreKeysModal()" class="p-1 rounded bg-[#0c0804] border border-[#3a2210] hover:border-[#ff5500] cursor-pointer flex items-center justify-center">
+            <canvas id="promoCloseTopLedCanvas" class="h-[18px] w-[22px] block"></canvas>
+          </button>
+        </div>
+
+        <!-- Panel Retro de Mensaje Motivador y Premio LED -->
+        <div class="p-3 rounded-xl bg-[#040301] border-2 border-[#261b0a] space-y-2 text-center" style="background-image: radial-gradient(circle, rgba(255, 165, 0, 0.12) 1.5px, rgba(4, 3, 1, 0.96) 2.2px); background-size: 6px 6px;">
+          <canvas id="promoHeroPrizeLedCanvas" class="w-full h-[34px] block mx-auto"></canvas>
+          <p class="text-[11px] font-mono font-black tracking-wide text-[#ffb300] uppercase leading-snug" style="text-shadow: 0 0 8px rgba(255,179,0,0.55);">
+            ¡Ayuda a que el juego llegue a más gente!
+          </p>
+          <p class="text-[10.5px] font-mono text-[#ffe082]/90 leading-relaxed">
+            Comparte el enlace con un amigo. En cuanto tu amigo descargue o abra el juego y <span class="text-[#00f5a0] font-bold">juegue 1 partida</span> (apareciendo su nickname en la clasificación), recibirás <span class="text-[#00f5a0] font-black">+3000 Claves 𝄞</span> al instante.
+          </p>
+        </div>
+
+        <!-- Paso 1: Enlace del juego para copiar y pegar -->
+        <div class="p-2.5 rounded-xl bg-[#050508] border-2 border-[#1e1e2a] space-y-1.5">
+          <div class="text-[9.5px] font-mono font-bold text-[#ffb300] uppercase tracking-wider">1. Copia y envía este enlace a tu amigo:</div>
+          <div class="flex items-center gap-1.5">
+            <input id="promoShareUrlInput" type="text" readonly value="https://renacer.onrender.com" class="flex-1 bg-[#020203] border border-[#3a2a10] rounded px-2 py-1.5 text-[10.5px] font-mono text-[#00f5a0] focus:outline-none select-all" />
+            <button onclick="copyPromoShareLink()" class="px-2.5 py-1.5 rounded bg-[#171003] hover:bg-[#261a05] border border-[#ffb300] text-[#ffb300] font-mono font-black text-[10px] uppercase tracking-wider cursor-pointer active:scale-95 transition shrink-0" style="text-shadow: 0 0 6px rgba(255,179,0,0.6);">
+              COPIAR
+            </button>
+          </div>
+        </div>
+
+        <!-- Paso 2: Comprobar que el amigo ha jugado una partida -->
+        <div class="p-2.5 rounded-xl bg-[#050508] border-2 border-[#1e1e2a] space-y-2">
+          <div class="text-[9.5px] font-mono font-bold text-[#00e5ff] uppercase tracking-wider">2. Escribe el Nickname de tu amigo al terminar su 1ª partida:</div>
+          <div class="flex items-center gap-1.5">
+            <input id="promoFriendNicknameInput" type="text" maxlength="24" placeholder="Nickname de tu amigo..." class="flex-1 bg-[#020203] border border-[#143d52] focus:border-[#00e5ff] rounded px-2.5 py-1.5 text-[11px] font-mono text-white placeholder-gray-500 focus:outline-none" />
+            <button id="btnVerifyPromoFriend" onclick="verifyFriendPlayedAndClaimKeys()" class="px-3 py-1.5 rounded bg-[#041e14] hover:bg-[#073322] border-2 border-[#00f5a0] text-[#00f5a0] font-mono font-black text-[10px] uppercase tracking-wider cursor-pointer active:scale-95 transition shrink-0" style="text-shadow: 0 0 8px rgba(0,245,160,0.7);">
+              VERIFICAR +3000 𝄞
+            </button>
+          </div>
+          <div id="promoVerifyStatusMsg" class="text-[10px] font-mono text-center min-h-[14px] text-[#ffb300]"></div>
+        </div>
+
+        <!-- Pie LED -->
+        <div class="flex items-center justify-end pt-0.5">
+          <button onclick="closePromoMoreKeysModal()" class="py-1 px-3 bg-[#0b0604] hover:bg-[#180c08] border border-[#ff5500]/75 rounded cursor-pointer flex items-center justify-center">
+            <canvas id="promoFooterCloseLedCanvas" class="h-[20px] w-[110px] block"></canvas>
           </button>
         </div>
       </div>
@@ -3214,7 +3276,7 @@
   </div> <!-- End of game-viewport -->
 
   <script src="./parsers.js?v=4.0"></script>
-  <script src="./game.js?v=8.0"></script>
+  <script src="./game.js?v=9.0"></script>
   <script src="./slot_machine.js?v=4.0"></script>
   <script src="./gachapon_3d.js?v=1.0"></script>
   <script src="./songs/comm_camilo_sesto/chart.js"></script>
@@ -3486,6 +3548,7 @@
         const baseUrl = getApiBaseUrl();
         if (baseUrl) {
           const playerName = localStorage.getItem('beatstar_player_nickname') || 'Jugador';
+          const referredBy = localStorage.getItem('beatstar_referred_by') || '';
           fetch(`${baseUrl}/api/v1/community/charts/${encodeURIComponent(songId)}/score`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -3495,7 +3558,8 @@
               max_combo: maxCombo,
               stars: stars,
               accuracy_pct: accuracyPct,
-              medal_tier: medalTier
+              medal_tier: medalTier,
+              referred_by: referredBy
             })
           }).catch(() => {});
         }
@@ -3930,7 +3994,8 @@
       }
 
       if (userClefs < GACHAPON_PULL_COST) {
-        showErrorToast(`Necesitas ${GACHAPON_PULL_COST} 𝄞 Claves para tirar de la palanca.`);
+        if (typeof openPromoMoreKeysModal === 'function') openPromoMoreKeysModal();
+        else showErrorToast(`Necesitas ${GACHAPON_PULL_COST} 𝄞 Claves para tirar de la palanca.`);
         if (gachapon3DInstance) gachapon3DInstance.shakeGlobe(0.5);
         return;
       }
@@ -4821,6 +4886,9 @@
           if (engine) engine.reviveAndResume();
         }, 450);
       } else {
+        if (typeof openPromoMoreKeysModal === 'function') {
+          openPromoMoreKeysModal();
+        }
         const toast = document.getElementById('deathToastNotice');
         if (toast) {
           toast.innerText = '¡Saldo insuficiente de Claves de Sol (𝄞)!';
@@ -6774,15 +6842,20 @@ window.switchMainTab = switchMainTab;
     window.onAppForeground = handleAppForeground;
 
     function applySelectedGameMode(mode) {
-      const m = (mode === 'karaoke' || mode === 'storm') ? mode : 'normal';
+      const m = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom') ? mode : 'normal';
       window.currentGameMode = m;
       window.isKaraokeModeActive = (m === 'karaoke');
       window.isStormModeActive = (m === 'storm');
+      window.isMushroomModeActive = (m === 'mushroom');
       if (window.engine) {
         window.engine.isKaraokeModeActive = window.isKaraokeModeActive;
         window.engine.isStormModeActive = window.isStormModeActive;
+        window.engine.isMushroomModeActive = window.isMushroomModeActive;
         if (window.isStormModeActive && typeof window.engine.initStormModeAssets === 'function') {
           window.engine.initStormModeAssets();
+        }
+        if (window.isMushroomModeActive && typeof window.engine.initMushroomModeAssets === 'function') {
+          window.engine.initMushroomModeAssets();
         }
       }
       try { localStorage.setItem('isKaraokeModeActive', '0'); } catch (_) {}
@@ -6799,6 +6872,7 @@ window.switchMainTab = switchMainTab;
     window.currentGameMode = 'normal';
     window.isKaraokeModeActive = false;
     window.isStormModeActive = false;
+    window.isMushroomModeActive = false;
     try { localStorage.setItem('isKaraokeModeActive', '0'); } catch (_) {}
 
     document.addEventListener('visibilitychange', () => {
@@ -13113,6 +13187,9 @@ function stopPianoCameraLoop() {
       '|': [0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04],
       '/': [0x01, 0x02, 0x02, 0x04, 0x08, 0x08, 0x10],
       '_': [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F],
+      '?': [0x0E, 0x11, 0x01, 0x02, 0x04, 0x00, 0x04],
+      '¿': [0x04, 0x00, 0x04, 0x08, 0x10, 0x11, 0x0E],
+      '@': [0x0E, 0x11, 0x11, 0x1F, 0x1B, 0x1B, 0x1F],
       ' ': [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
     };
 
@@ -13343,12 +13420,48 @@ function stopPianoCameraLoop() {
     }
 
     // =========================================================================
-    // SELECTOR VINTAGE DE MODO DE JUEGO (NORMAL / KARAOKE / TORMENTA) EN PÍXELES LED GRANDES
+    // SELECTOR VINTAGE DE MODO DE JUEGO (NORMAL / KARAOKE / TORMENTA / SETAS ALUCINÓGENAS)
+    // CON CANDADOS LED DE 1000 CLAVES Y PANTALLA RETRO DE PROMOCIÓN (+3000 CLAVES)
     // =========================================================================
+    const GAME_MODE_UNLOCK_COST = 1000;
     let _gameModeModalResolver = null;
     let _gameModeLedAnimId = null;
     let _gameModeStormStrikeUntil = 0;
     let _gameModeStormNextStrike = 0;
+    let _currentModalSongTitle = 'PISTA';
+    let _currentModalSongArtist = '';
+
+    // Capturar parámetro de invitación (?ref=nickname) si el jugador abrió un enlace compartido
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const refParam = (urlParams.get('ref') || '').trim();
+      if (refParam) {
+        localStorage.setItem('beatstar_referred_by', refParam);
+      }
+    } catch (_) {}
+
+    function _getUnlockedGameModesMap() {
+      try {
+        const raw = JSON.parse(localStorage.getItem('beatstar_unlocked_game_modes_v1') || '{}');
+        return Object.assign({ normal: true }, raw);
+      } catch (_) {
+        return { normal: true };
+      }
+    }
+
+    function isGameModeUnlocked(mode) {
+      if (!mode || mode === 'normal') return true;
+      const map = _getUnlockedGameModesMap();
+      return Boolean(map[mode]);
+    }
+
+    function _setGameModeUnlocked(mode) {
+      const map = _getUnlockedGameModesMap();
+      map[mode] = true;
+      try {
+        localStorage.setItem('beatstar_unlocked_game_modes_v1', JSON.stringify(map));
+      } catch (_) {}
+    }
 
     function _drawStormBoltOnLedCanvas(canvas, intensity = 1.0) {
       if (!canvas) return;
@@ -13361,26 +13474,24 @@ function stopPianoCameraLoop() {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.globalCompositeOperation = 'lighter';
 
-      // Destello eléctrico de impacto sobre la matriz LED
       ctx.fillStyle = `rgba(186, 230, 253, ${(0.28 * intensity).toFixed(2)})`;
       ctx.fillRect(0, 0, w, h);
 
-      // Rayo quebrado cruzando el propio botón
-      const startX = w * (0.28 + Math.random() * 0.44);
+      const startX = w * (0.22 + Math.random() * 0.42);
       let cx = startX;
       let cy = 0;
       const steps = 6;
       const stepY = h / steps;
 
       ctx.strokeStyle = `rgba(0, 229, 255, ${(0.9 * intensity).toFixed(2)})`;
-      ctx.lineWidth = 5.0;
+      ctx.lineWidth = 4.6;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       const pts = [{ x: cx, y: cy }];
       for (let i = 1; i <= steps; i++) {
-        cx += (Math.random() - 0.5) * 32;
+        cx += (Math.random() - 0.5) * 28;
         cy = i * stepY;
         pts.push({ x: cx, y: cy });
         ctx.lineTo(cx, cy);
@@ -13388,7 +13499,7 @@ function stopPianoCameraLoop() {
       ctx.stroke();
 
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2.0;
+      ctx.lineWidth = 1.9;
       ctx.beginPath();
       for (let i = 0; i < pts.length; i++) {
         if (i === 0) ctx.moveTo(pts[i].x, pts[i].y);
@@ -13398,57 +13509,158 @@ function stopPianoCameraLoop() {
       ctx.restore();
     }
 
+    // Dibuja el botón de "SETAS ALUCINOGENAS" con letras borrachas que se mueven, cambian de grosor y tamaño en matriz LED
+    function _renderMushroomDrunkLedButton(canvas, now, isLocked) {
+      if (!canvas) return;
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const widthCss = 318;
+      const heightCss = 46;
+      if (canvas.width !== Math.round(widthCss * dpr) || canvas.height !== Math.round(heightCss * dpr)) {
+        canvas.width = Math.round(widthCss * dpr);
+        canvas.height = Math.round(heightCss * dpr);
+      }
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      ctx.fillStyle = '#07020b';
+      ctx.fillRect(0, 0, widthCss, heightCss);
+
+      const pitch = 2.65;
+      const cols = Math.floor((widthCss - 4) / pitch);
+      const rows = Math.floor((heightCss - 2) / pitch);
+      const offsetX = (widthCss - cols * pitch) * 0.5 + pitch * 0.5;
+      const offsetY = (heightCss - rows * pitch) * 0.5 + pitch * 0.5;
+      const baseDotR = pitch * 0.37;
+
+      // Matriz de bombillas apagadas de fondo
+      ctx.fillStyle = '#1b0926';
+      ctx.beginPath();
+      for (let r = 0; r < rows; r++) {
+        const py = offsetY + r * pitch;
+        for (let c = 0; c < cols; c++) {
+          const px = offsetX + c * pitch;
+          ctx.moveTo(px + baseDotR * 0.76, py);
+          ctx.arc(px, py, baseDotR * 0.76, 0, Math.PI * 2);
+        }
+      }
+      ctx.fill();
+
+      const t = now * 0.001;
+      const lines = [
+        { text: 'SETAS', baseRow: 1.2, baseCol: isLocked ? 14 : 24 },
+        { text: 'ALUCINOGENAS', baseRow: 9.2, baseCol: isLocked ? 3 : 11 }
+      ];
+      const palette = ['#ff00ff', '#00ff88', '#00f2fe', '#ffee00', '#ff3b9a'];
+
+      lines.forEach((ln, lineIdx) => {
+        for (let i = 0; i < ln.text.length; i++) {
+          const ch = ln.text[i];
+          const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7[' '];
+          const charSeed = i * 0.85 + lineIdx * 2.1;
+
+          // Oscilación borracha: posición, tamaño y grosor de LED cambian por letra
+          const drunkDy = Math.sin(t * 4.2 + charSeed) * 2.3;
+          const drunkDx = Math.cos(t * 3.1 + charSeed * 1.3) * 1.3;
+          const charScale = 1.0 + Math.sin(t * 5.0 + i * 1.15) * 0.26;
+          const dotThickness = baseDotR * (1.02 + 0.42 * Math.sin(t * 6.2 + i * 1.6));
+          const colHex = palette[(i + lineIdx + Math.floor(t * 3.5)) % palette.length];
+          const cBase = ln.baseCol + i * 6.2;
+
+          ctx.fillStyle = colHex;
+          ctx.beginPath();
+          for (let gr = 0; gr < 7; gr++) {
+            const rowBits = glyph[gr];
+            if (!rowBits) continue;
+            for (let gc = 0; gc < 5; gc++) {
+              if ((rowBits >> (4 - gc)) & 1) {
+                const lx = offsetX + (cBase + (gc - 2) * charScale + 2) * pitch + drunkDx;
+                const ly = offsetY + (ln.baseRow + (gr - 3) * charScale + 3) * pitch + drunkDy;
+                ctx.moveTo(lx + dotThickness, ly);
+                ctx.arc(lx, ly, dotThickness, 0, Math.PI * 2);
+              }
+            }
+          }
+          ctx.fill();
+
+          // Núcleo brillante blanco
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          const coreR = dotThickness * 0.44;
+          for (let gr = 0; gr < 7; gr++) {
+            const rowBits = glyph[gr];
+            if (!rowBits) continue;
+            for (let gc = 0; gc < 5; gc++) {
+              if ((rowBits >> (4 - gc)) & 1) {
+                const lx = offsetX + (cBase + (gc - 2) * charScale + 2) * pitch + drunkDx;
+                const ly = offsetY + (ln.baseRow + (gr - 3) * charScale + 3) * pitch + drunkDy;
+                ctx.moveTo(lx + coreR, ly);
+                ctx.arc(lx, ly, coreR, 0, Math.PI * 2);
+              }
+            }
+          }
+          ctx.fill();
+        }
+      });
+
+      // Si está bloqueado: Candado LED + 1000 a la derecha
+      if (isLocked) {
+        const lockStr = '@1000';
+        const lockStartCol = cols - (lockStr.length * 6) - 1;
+        const lockRow = Math.floor((rows - 7) * 0.5);
+        for (let i = 0; i < lockStr.length; i++) {
+          const ch = lockStr[i];
+          const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7[' '];
+          const isLockIcon = (ch === '@');
+          ctx.fillStyle = isLockIcon ? '#ff4500' : '#ffb300';
+          ctx.beginPath();
+          for (let gr = 0; gr < 7; gr++) {
+            const rowBits = glyph[gr];
+            if (!rowBits) continue;
+            for (let gc = 0; gc < 5; gc++) {
+              if ((rowBits >> (4 - gc)) & 1) {
+                const lx = offsetX + (lockStartCol + i * 6 + gc) * pitch;
+                const ly = offsetY + (lockRow + gr) * pitch;
+                ctx.moveTo(lx + baseDotR * 1.12, ly);
+                ctx.arc(lx, ly, baseDotR * 1.12, 0, Math.PI * 2);
+              }
+            }
+          }
+          ctx.fill();
+        }
+      }
+    }
+
     function _renderGameModeStaticLeds(songTitle = 'PISTA', songArtist = '') {
+      _currentModalSongTitle = songTitle;
+      _currentModalSongArtist = songArtist;
       renderLedMatrixCanvas(
         document.getElementById('gmHeaderLedCanvas'),
-        184, 26, 2.5,
-        [{ text: 'MODO DE JUEGO', color: '#ffb300', align: 'center' }]
+        176, 24, 2.75,
+        [{ text: 'MODOS', color: '#ffb300', align: 'center' }]
       );
       renderLedMatrixCanvas(
         document.getElementById('gmCloseTopLedCanvas'),
         22, 18, 2.2,
         [{ text: 'X', color: '#ff4500', align: 'center' }]
       );
-      const cleanSongInfo = normalizeLedText(songArtist ? `${songTitle} - ${songArtist}` : songTitle).slice(0, 26);
-      renderLedMatrixCanvas(
-        document.getElementById('gmSongTitleLedCanvas'),
-        330, 20, 2.2,
-        [{ text: cleanSongInfo || 'SELECCIONA MODO', color: '#ff9900', align: 'center' }]
-      );
       renderLedMatrixCanvas(
         document.getElementById('gmFooterCancelLedCanvas'),
-        96, 18, 2.0,
+        118, 20, 2.15,
         [{ text: 'CANCELAR', color: '#ff5500', align: 'center' }]
       );
+      renderLedMatrixCanvas(
+        document.getElementById('gmWantMoreKeysLedCanvas'),
+        318, 22, 2.2,
+        [{ text: '¿QUIERES MAS CLAVES?', color: '#ffb300', align: 'center' }],
+        '#060401', '#1f1505'
+      );
 
-      // 1. MODO NORMAL: Fijo y estático con píxeles LED grandes (pitch 4.6)
+      // 1. MODO NORMAL: Fijo, limpio y sin candado
       renderLedMatrixCanvas(
         document.getElementById('gmBtnNormalMainCanvas'),
-        326, 42, 4.6,
+        318, 38, 4.3,
         [{ text: 'NORMAL', color: '#00f5a0', align: 'center' }],
         '#040604', '#0e1f16'
-      );
-      renderLedMatrixCanvas(
-        document.getElementById('gmBtnNormalSubCanvas'),
-        326, 18, 2.1,
-        [{ text: 'CLASICO ORIGINAL - 1X CLAVES', color: '#00c47a', align: 'center' }],
-        '#040604', '#0c1912'
-      );
-
-      // Subtítulo fijo de Karaoke
-      renderLedMatrixCanvas(
-        document.getElementById('gmBtnKaraokeSubCanvas'),
-        326, 18, 2.1,
-        [{ text: 'LETRA SINCRONIZADA EN VIVO', color: '#ffb300', align: 'center' }],
-        '#060402', '#1f1506'
-      );
-
-      // Subtítulo fijo de Tormenta
-      renderLedMatrixCanvas(
-        document.getElementById('gmBtnStormSubCanvas'),
-        326, 18, 2.1,
-        [{ text: 'NUBES Y RAYOS HD - X2 CLAVES', color: '#38bdf8', align: 'center' }],
-        '#020508', '#0a1c29'
       );
     }
 
@@ -13458,20 +13670,10 @@ function stopPianoCameraLoop() {
         _gameModeLedAnimId = null;
       }
       const startTime = performance.now();
-      _gameModeStormNextStrike = startTime + 900;
+      _gameModeStormNextStrike = startTime + 850;
       _gameModeStormStrikeUntil = 0;
 
-      // Coordenadas exactas de las 4 sílabas KA - RA - O - KE en la matriz de 70 columnas (pitch 4.6, ancho 326)
-      // 'KARAOKE' = 7 letras * 6 cols - 1 = 41 cols -> centrado en col 14
-      const baseCol = 14;
-      const karaokeSyllables = [
-        { text: 'KA', colOffset: baseCol + 0 },
-        { text: 'RA', colOffset: baseCol + 12 },
-        { text: 'O',  colOffset: baseCol + 24 },
-        { text: 'KE', colOffset: baseCol + 30 }
-      ];
-
-      let lastKaraokeStep = -1;
+      let lastKaraokeKey = '';
       let lastStormVisualState = '';
 
       const tick = (now) => {
@@ -13481,11 +13683,23 @@ function stopPianoCameraLoop() {
           return;
         }
 
-        // A. ANIMACIÓN LED MODO KARAOKE: Secuencia KA -> RA -> O -> KE iluminándose en dorado (#ffd700)
-        // Ciclo de 5 pasos cada 340ms: 0=KA, 1=KA-RA, 2=KA-RA-O, 3=KA-RA-O-KE, 4=apagado breve antes de repetir
+        const karaokeLocked = !isGameModeUnlocked('karaoke');
+        const stormLocked = !isGameModeUnlocked('storm');
+        const mushroomLocked = !isGameModeUnlocked('mushroom');
+
+        // A. ANIMACIÓN LED MODO KARAOKE: KA -> RA -> O -> KE iluminándose en dorado + Candado LED (@ 1000) si está bloqueado
         const kStep = Math.floor(((now - startTime) % 1900) / 380);
-        if (kStep !== lastKaraokeStep) {
-          lastKaraokeStep = kStep;
+        const kStateKey = `${kStep}_${karaokeLocked}`;
+        if (kStateKey !== lastKaraokeKey) {
+          lastKaraokeKey = kStateKey;
+          const kPitch = karaokeLocked ? 3.55 : 4.3;
+          const kBaseCol = karaokeLocked ? 3 : 16;
+          const karaokeSyllables = [
+            { text: 'KA', colOffset: kBaseCol + 0 },
+            { text: 'RA', colOffset: kBaseCol + 12 },
+            { text: 'O',  colOffset: kBaseCol + 24 },
+            { text: 'KE', colOffset: kBaseCol + 30 }
+          ];
           const kSegments = karaokeSyllables.map((syl, idx) => {
             const isLit = (kStep < 4) ? (idx <= kStep) : false;
             return {
@@ -13495,61 +13709,79 @@ function stopPianoCameraLoop() {
               dim: !isLit
             };
           });
+          if (karaokeLocked) {
+            kSegments.push({ text: '@1000', align: 'right', rightPad: 2, color: '#ff5500' });
+          }
           renderLedMatrixCanvas(
             document.getElementById('gmBtnKaraokeMainCanvas'),
-            326, 42, 4.6,
+            318, 38, kPitch,
             kSegments,
             '#060402', '#1c1306'
           );
         }
 
-        // B. ANIMACIÓN LED MODO TORMENTA: LED encendido que sufre el impacto de un rayo y parpadea rápidamente
+        // B. ANIMACIÓN LED MODO TORMENTA: Rayo + Candado LED (@ 1000) si está bloqueado
         if (now >= _gameModeStormNextStrike) {
           _gameModeStormStrikeUntil = now + 440;
-          _gameModeStormNextStrike = now + 2200 + Math.random() * 1100;
+          _gameModeStormNextStrike = now + 2100 + Math.random() * 1000;
         }
 
         const stormBtn = document.getElementById('btnModeSelectStorm');
         const stormCanvas = document.getElementById('gmBtnStormMainCanvas');
+        const sPitch = stormLocked ? 3.45 : 4.3;
 
         if (now < _gameModeStormStrikeUntil) {
-          // Secuencia rápida de cortocircuito eléctrico al caer el rayo (apaga/enciende varias veces rápidamente)
           const phase = Math.floor((now - (_gameModeStormStrikeUntil - 440)) / 55);
-          // Fases pares: impacto blanco/cian o apagón total
           const isBlackout = (phase === 1 || phase === 3 || phase === 5);
           const isFlashWhite = (phase === 0 || phase === 2 || phase === 6);
-          const stateKey = `strike_${phase}`;
+          const stateKey = `strike_${phase}_${stormLocked}`;
 
           if (stateKey !== lastStormVisualState) {
             lastStormVisualState = stateKey;
-            if (isBlackout) {
-              renderLedMatrixCanvas(
-                stormCanvas, 326, 42, 4.6,
-                [{ text: 'TORMENTA', color: '#091e2c', align: 'center', dim: true }],
-                '#020408', '#07121c'
-              );
-              if (stormBtn) stormBtn.style.borderColor = '#091e2c';
-            } else {
-              renderLedMatrixCanvas(
-                stormCanvas, 326, 42, 4.6,
-                [{ text: 'TORMENTA', color: isFlashWhite ? '#ffffff' : '#00e5ff', align: 'center', dim: false }],
-                 isFlashWhite ? '#0c2538' : '#03080e', '#0d2638'
-              );
+            const segs = stormLocked
+              ? [
+                  { text: 'TORMENTA', colOffset: 2, color: isBlackout ? '#091e2c' : (isFlashWhite ? '#ffffff' : '#00e5ff'), dim: isBlackout },
+                  { text: '@1000', align: 'right', rightPad: 2, color: isBlackout ? '#2a1205' : '#ff5500', dim: isBlackout }
+                ]
+              : [{ text: 'TORMENTA', color: isBlackout ? '#091e2c' : (isFlashWhite ? '#ffffff' : '#00e5ff'), align: 'center', dim: isBlackout }];
+
+            renderLedMatrixCanvas(
+              stormCanvas, 318, 38, sPitch,
+              segs,
+              isBlackout ? '#020408' : (isFlashWhite ? '#0c2538' : '#03080e'),
+              isBlackout ? '#07121c' : '#0d2638'
+            );
+            if (!isBlackout) {
               _drawStormBoltOnLedCanvas(stormCanvas, isFlashWhite ? 1.0 : 0.65);
-              if (stormBtn) stormBtn.style.borderColor = isFlashWhite ? '#ffffff' : '#00e5ff';
             }
+            if (stormBtn) stormBtn.style.borderColor = isBlackout ? '#091e2c' : (isFlashWhite ? '#ffffff' : '#00e5ff');
           }
         } else {
-          if (lastStormVisualState !== 'steady_on') {
-            lastStormVisualState = 'steady_on';
+          const steadyKey = `steady_${stormLocked}`;
+          if (lastStormVisualState !== steadyKey) {
+            lastStormVisualState = steadyKey;
+            const segs = stormLocked
+              ? [
+                  { text: 'TORMENTA', colOffset: 2, color: '#00e5ff', dim: false },
+                  { text: '@1000', align: 'right', rightPad: 2, color: '#ff5500', dim: false }
+                ]
+              : [{ text: 'TORMENTA', color: '#00e5ff', align: 'center', dim: false }];
+
             renderLedMatrixCanvas(
-              stormCanvas, 326, 42, 4.6,
-              [{ text: 'TORMENTA', color: '#00e5ff', align: 'center', dim: false }],
+              stormCanvas, 318, 38, sPitch,
+              segs,
               '#03060a', '#0b2233'
             );
             if (stormBtn) stormBtn.style.borderColor = '';
           }
         }
+
+        // C. ANIMACIÓN LED MODO SETAS ALUCINÓGENAS: Letras ebrias cambiando de tamaño/grosor + Candado LED
+        _renderMushroomDrunkLedButton(
+          document.getElementById('gmBtnMushroomMainCanvas'),
+          now,
+          mushroomLocked
+        );
 
         _gameModeLedAnimId = requestAnimationFrame(tick);
       };
@@ -13588,8 +13820,26 @@ function stopPianoCameraLoop() {
     }
 
     function confirmGameModeSelection(mode) {
+      const chosen = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom') ? mode : 'normal';
+
+      // Si el modo no es normal y aún tiene candado LED (1000 Claves para desbloquear):
+      if (chosen !== 'normal' && !isGameModeUnlocked(chosen)) {
+        if (typeof userClefs === 'number' && userClefs >= GAME_MODE_UNLOCK_COST) {
+          if (typeof deductClefs === 'function' && deductClefs(GAME_MODE_UNLOCK_COST)) {
+            _setGameModeUnlocked(chosen);
+            if (typeof showSuccessToast === 'function') {
+              const modeLabel = chosen === 'karaoke' ? 'KARAOKE' : (chosen === 'storm' ? 'TORMENTA' : 'SETAS ALUCINÓGENAS');
+              showSuccessToast(`¡Modo ${modeLabel} desbloqueado para siempre! (-1000 𝄞)`);
+            }
+          }
+        } else {
+          // No tiene suficientes claves: abrir pantalla promocional retro de +3000 Claves
+          openPromoMoreKeysModal();
+          return;
+        }
+      }
+
       _closeGameModeModalInternal();
-      const chosen = (mode === 'karaoke' || mode === 'storm') ? mode : 'normal';
       applySelectedGameMode(chosen);
       if (typeof _gameModeModalResolver === 'function') {
         const r = _gameModeModalResolver;
@@ -13608,6 +13858,227 @@ function stopPianoCameraLoop() {
       }
     }
     window.cancelGameModeSelection = cancelGameModeSelection;
+
+    // =========================================================================
+    // PANTALLA RETRO LED DE PROMOCIÓN: +3000 CLAVES POR COMPARTIR CON UN AMIGO
+    // =========================================================================
+    function _getShareReferralUrl() {
+      const myNick = (localStorage.getItem('beatstar_player_nickname') || '').trim();
+      const baseOrigin = (window.location.origin && window.location.origin.startsWith('http') && !window.location.origin.includes('appassets'))
+        ? window.location.origin
+        : 'https://renacer.onrender.com';
+      return myNick ? `${baseOrigin}/?ref=${encodeURIComponent(myNick)}` : `${baseOrigin}/`;
+    }
+
+    function openPromoMoreKeysModal() {
+      const modal = document.getElementById('sharePromoKeysModal');
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      modal.classList.add('open');
+      modal.style.display = 'flex';
+
+      const urlInput = document.getElementById('promoShareUrlInput');
+      if (urlInput) {
+        urlInput.value = _getShareReferralUrl();
+      }
+      const statusMsg = document.getElementById('promoVerifyStatusMsg');
+      if (statusMsg) {
+        statusMsg.innerText = '';
+      }
+
+      renderLedMatrixCanvas(
+        document.getElementById('promoHeaderLedCanvas'),
+        206, 24, 2.35,
+        [{ text: 'CONSIGUE CLAVES', color: '#ffb300', align: 'center' }]
+      );
+      renderLedMatrixCanvas(
+        document.getElementById('promoCloseTopLedCanvas'),
+        22, 18, 2.2,
+        [{ text: 'X', color: '#ff4500', align: 'center' }]
+      );
+      renderLedMatrixCanvas(
+        document.getElementById('promoHeroPrizeLedCanvas'),
+        310, 34, 3.6,
+        [{ text: '+3000 CLAVES', color: '#00f5a0', align: 'center' }],
+        '#030604', '#0c1f14'
+      );
+      renderLedMatrixCanvas(
+        document.getElementById('promoFooterCloseLedCanvas'),
+        110, 20, 2.2,
+        [{ text: 'VOLVER', color: '#ff5500', align: 'center' }]
+      );
+    }
+    window.openPromoMoreKeysModal = openPromoMoreKeysModal;
+
+    function closePromoMoreKeysModal() {
+      const modal = document.getElementById('sharePromoKeysModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('open');
+        modal.style.display = 'none';
+      }
+    }
+    window.closePromoMoreKeysModal = closePromoMoreKeysModal;
+
+    async function copyPromoShareLink() {
+      const url = _getShareReferralUrl();
+      const input = document.getElementById('promoShareUrlInput');
+      if (input) {
+        input.value = url;
+        try {
+          input.select();
+          input.setSelectionRange(0, 99999);
+        } catch (_) {}
+      }
+      let copied = false;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(url);
+          copied = true;
+        }
+      } catch (_) {}
+      if (!copied) {
+        try {
+          document.execCommand('copy');
+          copied = true;
+        } catch (_) {}
+      }
+      const statusMsg = document.getElementById('promoVerifyStatusMsg');
+      if (statusMsg) {
+        statusMsg.style.color = '#00f5a0';
+        statusMsg.innerText = '¡Enlace copiado! Envíalo a tu amigo y dile que juegue 1 partida.';
+      }
+      if (typeof showSuccessToast === 'function') {
+        showSuccessToast('¡Enlace del juego copiado al portapapeles!');
+      }
+    }
+    window.copyPromoShareLink = copyPromoShareLink;
+
+    async function verifyFriendPlayedAndClaimKeys() {
+      const friendInput = document.getElementById('promoFriendNicknameInput');
+      const statusMsg = document.getElementById('promoVerifyStatusMsg');
+      const btn = document.getElementById('btnVerifyPromoFriend');
+      const friendNick = (friendInput ? friendInput.value : '').trim();
+      const myNick = (localStorage.getItem('beatstar_player_nickname') || '').trim();
+
+      if (!friendNick && !myNick) {
+        if (statusMsg) {
+          statusMsg.style.color = '#ff5500';
+          statusMsg.innerText = 'Escribe el nickname con el que tu amigo jugó su partida.';
+        }
+        return;
+      }
+
+      if (friendNick && myNick && friendNick.toLowerCase() === myNick.toLowerCase()) {
+        if (statusMsg) {
+          statusMsg.style.color = '#ff5500';
+          statusMsg.innerText = 'No puedes introducir tu propio nickname. Debe ser el de tu amigo.';
+        }
+        return;
+      }
+
+      const claimedFriends = JSON.parse(localStorage.getItem('beatstar_claimed_promo_friends_v1') || '[]');
+      if (friendNick && claimedFriends.includes(friendNick.toLowerCase())) {
+        if (statusMsg) {
+          statusMsg.style.color = '#ff5500';
+          statusMsg.innerText = 'Ya has reclamado las +3000 Claves con este amigo.';
+        }
+        return;
+      }
+
+      if (btn) btn.disabled = true;
+      if (statusMsg) {
+        statusMsg.style.color = '#ffb300';
+        statusMsg.innerText = 'Comprobando clasificación online...';
+      }
+
+      let verified = false;
+      let verifiedName = friendNick;
+      let serverMsg = '';
+
+      try {
+        const baseUrl = (typeof getApiBaseUrl === 'function') ? getApiBaseUrl() : '';
+        if (baseUrl) {
+          const qs = `friend=${encodeURIComponent(friendNick)}&referrer=${encodeURIComponent(myNick)}`;
+          const res = await fetch(`${baseUrl}/api/v1/community/verify-friend?${qs}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.verified) {
+              const matchedLower = String(data.friend_name || friendNick).trim().toLowerCase();
+              if (!claimedFriends.includes(matchedLower)) {
+                verified = true;
+                verifiedName = data.friend_name || friendNick;
+              } else {
+                serverMsg = 'Ya reclamaste el premio de este amigo anteriormente.';
+              }
+            } else if (data && data.message) {
+              serverMsg = data.message;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Error verificando en verify-friend:', err);
+      }
+
+      // Fallback directo contra la leaderboard global y semanal por si el servidor está en modo caché
+      if (!verified && friendNick && !serverMsg) {
+        try {
+          const baseUrl = (typeof getApiBaseUrl === 'function') ? getApiBaseUrl() : '';
+          if (baseUrl) {
+            const [resG, resW] = await Promise.all([
+              fetch(`${baseUrl}/api/v1/community/leaderboards/global`).catch(() => null),
+              fetch(`${baseUrl}/api/v1/community/leaderboards/weekly`).catch(() => null)
+            ]);
+            const targetKey = friendNick.toLowerCase();
+            if (resG && resG.ok) {
+              const dG = await resG.json();
+              const listG = dG.global_leaderboard || dG.leaderboard || [];
+              const foundG = listG.find(r => String(r.player_name || r.name || '').trim().toLowerCase() === targetKey);
+              if (foundG) {
+                verified = true;
+                verifiedName = foundG.player_name || foundG.name || friendNick;
+              }
+            }
+            if (!verified && resW && resW.ok) {
+              const dW = await resW.json();
+              const listW = dW.weekly_leaderboard || dW.leaderboard || [];
+              const foundW = listW.find(r => String(r.player_name || r.name || '').trim().toLowerCase() === targetKey);
+              if (foundW) {
+                verified = true;
+                verifiedName = foundW.player_name || foundW.name || friendNick;
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (btn) btn.disabled = false;
+
+      if (verified) {
+        const cleanClaimKey = String(verifiedName || friendNick).trim().toLowerCase();
+        if (cleanClaimKey && !claimedFriends.includes(cleanClaimKey)) {
+          claimedFriends.push(cleanClaimKey);
+          localStorage.setItem('beatstar_claimed_promo_friends_v1', JSON.stringify(claimedFriends));
+        }
+        if (typeof addClefs === 'function') {
+          addClefs(3000);
+        }
+        if (statusMsg) {
+          statusMsg.style.color = '#00f5a0';
+          statusMsg.innerText = `¡Verificado! ${verifiedName} jugó una partida. ¡+3000 Claves 𝄞 añadidas!`;
+        }
+        if (typeof showSuccessToast === 'function') {
+          showSuccessToast(`¡+3000 Claves 𝄞 recibidas gracias a ${verifiedName}!`);
+        }
+        if (friendInput) friendInput.value = '';
+      } else {
+        if (statusMsg) {
+          statusMsg.style.color = '#ff5500';
+          statusMsg.innerText = serverMsg || `Aún no aparece "${friendNick}" en la leaderboard. ¡Dile que termine 1 partida!`;
+        }
+      }
+    }
+    window.verifyFriendPlayedAndClaimKeys = verifyFriendPlayedAndClaimKeys;
 
     async function switchLeaderboardSubTab(tab) {
       currentLeaderboardSubTab = tab;
