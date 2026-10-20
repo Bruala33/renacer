@@ -1915,6 +1915,16 @@
         "accuracy": 39.42460260707441,
         "date": "2026-10-20 19:30:44"
       }
+    ],
+    "top_manolo_escobar_el_porompompero": [
+      {
+        "name": "Mauricio",
+        "score": 888809,
+        "stars": 5,
+        "combo": 446,
+        "accuracy": 94.27523465152564,
+        "date": "2026-10-20 19:33:05"
+      }
     ]
   },
   "global": [
@@ -1950,8 +1960,8 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 3957188,
-      "clefs": 33
+      "total_score": 4845997,
+      "clefs": 41
     },
     {
       "name": "bobon",
@@ -2057,7 +2067,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 3957188
+        "score": 4845997
       },
       {
         "name": "Darwin67",
