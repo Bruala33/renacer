@@ -569,10 +569,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 10,
-    version_name: '1.8.0',
-    release_notes: 'Piano Community Web & Offline Player. Nube de Setas en transición, timing permisivo y verificación estricta de enlace.',
-    download_url: '/download/apk?v=10.0',
+    version_code: 11,
+    version_name: '1.9.0',
+    release_notes: 'Piano Community Web & Offline Player. Modo Setas con inmunidad en transición, timing facilitado y fallos reales activos.',
+    download_url: '/download/apk?v=11.0',
   });
 });
 

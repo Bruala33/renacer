@@ -3491,9 +3491,9 @@ class BeatstarEngine {
     });
 
     const isMushTiming = Boolean(this.isMushroomModeActive || (typeof window !== 'undefined' && window.isMushroomModeActive));
-    // ⚡ En Modo Setas Alucinógenas la ventana de tiempo es mucho más permisiva (400ms tap / 480ms swipe)
+    // ⚡ En Modo Setas Alucinógenas el timing está facilitado (300ms tap / 370ms swipe) pero tocar a destiempo cuenta como fallo
     const HIT_WINDOW = isMushTiming
-      ? ((inputType === 'swipe') ? 480 : 400)
+      ? ((inputType === 'swipe') ? 370 : 300)
       : ((inputType === 'swipe') ? 320 : 240);
     let closestNote = null;
     let minDiff = Infinity;
@@ -3506,9 +3506,7 @@ class BeatstarEngine {
       const note = this.notes[i];
       if (!note || note.hit || note.missed || note.holdCompleted || note.holding) continue;
       if (note.timestamp_ms - currentTime > HIT_WINDOW + 80) break;
-      const matchesLane = this.isCalibrating
-        || note.lane === lane
-        || (isMushTiming && note._mushFromLane === lane);
+      const matchesLane = this.isCalibrating || note.lane === lane;
       if (!matchesLane) continue;
 
       const diffFromNote = currentTime - note.timestamp_ms;
@@ -3518,16 +3516,16 @@ class BeatstarEngine {
       }
     }
 
-    // ⚡ Si es swipe (o estamos en Modo Setas donde la cámara y las teclas bailan) y no hubo nota exacta en el carril, buscar en carriles adyacentes
-    if ((inputType === 'swipe' || isMushTiming) && laneNotes.length === 0) {
+    // ⚡ Si es swipe y no hubo nota exacta en el carril de inicio, buscar nota swipe activa en carriles adyacentes
+    if (inputType === 'swipe' && laneNotes.length === 0) {
       for (let i = startSearchIdx; i < nLen; i++) {
         const note = this.notes[i];
         if (!note || note.hit || note.missed || note.holdCompleted || note.holding) continue;
         if (note.timestamp_ms - currentTime > HIT_WINDOW + 80) break;
-        if (!isMushTiming && note.type !== 'swipe') continue;
+        if (note.type !== 'swipe') continue;
         const diffFromNote = currentTime - note.timestamp_ms;
         const absDiff = Math.abs(diffFromNote);
-        if (absDiff <= (isMushTiming ? 280 : HIT_WINDOW)) {
+        if (absDiff <= HIT_WINDOW) {
           laneNotes.push({ note, absDiff, diff: diffFromNote, time: note.timestamp_ms });
         }
       }
@@ -3543,9 +3541,9 @@ class BeatstarEngine {
       if (this.customBgMode === 'reactive') {
         this.addReactiveBurst(lane, hitX, hitY, this.getScoreColor('perfectPlus'));
       }
-      if (this.isCalibrating || isProtectedTransition || isMushTiming) {
+      if (this.isCalibrating || isProtectedTransition) {
         this.synth.playClick();
-        this.emitKeyHit(hitX, hitY, isMushTiming ? '#ff00ff' : this.getScoreColor('perfectPlus'), 18);
+        this.emitKeyHit(hitX, hitY, this.getScoreColor('perfectPlus'), 18);
         return;
       }
       if (isActivelyPlaying && !this.isProcessingMiss) {
@@ -3568,11 +3566,12 @@ class BeatstarEngine {
     // La nota frontal es la que está más abajo en la pista (más cercana a la línea de golpeo)
     const frontEntry = laneNotes[0];
     const frontNote = frontEntry.note;
+    const isFlippedMush = Boolean(isMushTiming && (this._mushFlipProgress || 0) > 0.5);
 
     if (inputType === 'tap') {
-      // Si la nota frontal es un SWIPE, en modo normal se espera a handleTouchMove;
-      // en Modo Setas Alucinógenas se acepta también con tap directo para no penalizar cuando la cámara gira
-      if (frontNote.type === 'swipe' && !isMushTiming) {
+      // Si la nota frontal es un SWIPE, el toque inicial (touchstart) NO la falla;
+      // se espera a que handleTouchMove detecte el deslizamiento del dedo.
+      if (frontNote.type === 'swipe') {
         return;
       }
       closestNote = frontNote;
@@ -3581,7 +3580,10 @@ class BeatstarEngine {
       if (frontNote.type === 'swipe') {
         const targetDir = (frontNote.direction || 'up').toLowerCase();
         const curDir = (swipeDirection || '').toLowerCase();
-        if (isMushTiming || !curDir || !targetDir || curDir === targetDir) {
+        const flippedTargetDir = isFlippedMush
+          ? (targetDir === 'up' ? 'down' : (targetDir === 'down' ? 'up' : targetDir))
+          : targetDir;
+        if (!curDir || !targetDir || curDir === targetDir || curDir === flippedTargetDir) {
           closestNote = frontNote;
           minDiff = frontEntry.absDiff;
         } else {
@@ -3626,7 +3628,10 @@ class BeatstarEngine {
     else if (closestNote.type === 'swipe') {
       const targetDir = (closestNote.direction || 'up').toLowerCase();
       const curDir = (swipeDirection || '').toLowerCase();
-      const isExactSwipe = isMushTiming || (inputType === 'swipe' && (!curDir || !closestNote.direction || curDir === targetDir));
+      const flippedTargetDir = isFlippedMush
+        ? (targetDir === 'up' ? 'down' : (targetDir === 'down' ? 'up' : targetDir))
+        : targetDir;
+      const isExactSwipe = inputType === 'swipe' && (!curDir || !closestNote.direction || curDir === targetDir || curDir === flippedTargetDir);
       
       if (!isExactSwipe) {
         // Dirección errónea o toque simple: no valida
@@ -3735,11 +3740,10 @@ class BeatstarEngine {
     const heldDuration = currentTime - active.startTime;
     const totalDuration = endT - active.startTime;
 
-    const isMushHold = Boolean(this.isMushroomModeActive || (typeof window !== 'undefined' && window.isMushroomModeActive));
     const isSafeHold = Boolean(this._mushInSafeTransition || (currentTime < (this.invulnerableUntil || 0)));
 
-    // Acierto completado si se mantuvo al menos el 60% o hasta 180ms del final (mucho más permisivo en Modo Setas o durante transición)
-    if (isSafeHold || isMushHold || currentTime >= endT - 180 || (totalDuration > 0 && (heldDuration / totalDuration) >= 0.60)) {
+    // Acierto completado si se mantuvo al menos el 60% o hasta 180ms del final (o durante transición inmune)
+    if (isSafeHold || currentTime >= endT - 180 || (totalDuration > 0 && (heldDuration / totalDuration) >= 0.60)) {
       note.holdCompleted = true;
       note.hit = true;
       note.holding = false;
@@ -3777,9 +3781,9 @@ class BeatstarEngine {
     let judgeTier = 'great';
 
     const isMushJudge = Boolean(this.isMushroomModeActive || (typeof window !== 'undefined' && window.isMushroomModeActive));
-    const perfPlusMax = isMushJudge ? 115 : 45;
-    const perfMax = isMushJudge ? 210 : 90;
-    const greatMax = isMushJudge ? 320 : 170;
+    const perfPlusMax = isMushJudge ? 85 : 45;
+    const perfMax = isMushJudge ? 155 : 90;
+    const greatMax = isMushJudge ? 235 : 170;
 
     if (diffMs <= perfPlusMax) {
       text = customLabel ? `PERFECT+ ${customLabel}` : 'PERFECT+';
@@ -4676,9 +4680,9 @@ class BeatstarEngine {
       }
     }
 
-    // Once a note has passed the hit window (+120ms normal / +260ms en Modo Setas Alucinógenas), it is judged
+    // Once a note has passed the hit window (+120ms normal / +185ms en Modo Setas Alucinógenas), it is judged as MISS
     const isMushUpdate = Boolean(this.isMushroomModeActive || (typeof window !== 'undefined' && window.isMushroomModeActive));
-    const exitScreenOffsetMs = isMushUpdate ? 260 : 120;
+    const exitScreenOffsetMs = isMushUpdate ? 185 : 120;
     const notesLen = this.notes.length;
 
     while (this.firstActiveNoteIndex < notesLen) {

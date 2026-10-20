@@ -419,7 +419,7 @@ class MainActivity : AppCompatActivity() {
 
         // 9. Limpiar caché de WebView y cargar la versión actualizada del juego
         webView.clearCache(true)
-        webView.loadUrl("https://appassets.androidplatform.net/assets/www/game.html?v=10.0")
+        webView.loadUrl("https://appassets.androidplatform.net/assets/www/game.html?v=11.0")
 
         hideSystemUI()
     }
