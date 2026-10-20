@@ -1683,6 +1683,16 @@
         "accuracy": 1.0800429838955607,
         "date": "2026-10-19 21:12:00"
       }
+    ],
+    "top_mana_clavado_en_un_bar": [
+      {
+        "name": "Test",
+        "score": 151359,
+        "stars": 3.5,
+        "combo": 103,
+        "accuracy": 11.260121231598776,
+        "date": "2026-10-20 08:55:28"
+      }
     ]
   },
   "global": [
@@ -1713,8 +1723,8 @@
     },
     {
       "name": "Test",
-      "total_score": 4820835,
-      "clefs": 40
+      "total_score": 4972194,
+      "clefs": 41
     },
     {
       "name": "bobon",
@@ -1806,7 +1816,7 @@
       },
       {
         "name": "Test",
-        "score": 4291194
+        "score": 4442553
       },
       {
         "name": "Darwin67",
