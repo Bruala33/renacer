@@ -1701,6 +1701,16 @@
         "accuracy": 11.260121231598776,
         "date": "2026-10-20 08:55:28"
       }
+    ],
+    "top_mark_ronson_feat_bruno_mars_uptown_funk": [
+      {
+        "name": "Mauricio",
+        "score": 401400,
+        "stars": 3.5,
+        "combo": 193,
+        "accuracy": 19.107461620849698,
+        "date": "2026-10-20 09:08:29"
+      }
     ]
   },
   "global": [
@@ -1758,6 +1768,11 @@
       "name": "Layla",
       "total_score": 437350,
       "clefs": 1
+    },
+    {
+      "name": "Mauricio",
+      "total_score": 401400,
+      "clefs": 4
     },
     {
       "name": "`pc",
@@ -1825,6 +1840,10 @@
       {
         "name": "Test",
         "score": 4711465
+      },
+      {
+        "name": "Mauricio",
+        "score": 401400
       },
       {
         "name": "Darwin67",
