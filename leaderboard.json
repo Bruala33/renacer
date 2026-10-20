@@ -1831,11 +1831,11 @@
     "top_el_sueno_de_morfeo_demasiado_tarde": [
       {
         "name": "Test",
-        "score": 9340,
+        "score": 39264,
         "stars": 3.5,
-        "combo": 15,
-        "accuracy": 0.9893816258908672,
-        "date": "2026-10-20 18:56:31"
+        "combo": 37,
+        "accuracy": 4.159216291111243,
+        "date": "2026-10-20 18:57:00"
       }
     ]
   },
@@ -1862,7 +1862,7 @@
     },
     {
       "name": "Test",
-      "total_score": 5250446,
+      "total_score": 5289710,
       "clefs": 43
     },
     {
@@ -1975,7 +1975,7 @@
       },
       {
         "name": "Test",
-        "score": 4720805
+        "score": 4760069
       },
       {
         "name": "Mauricio",
