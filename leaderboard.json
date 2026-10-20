@@ -1817,6 +1817,16 @@
         "accuracy": 0.08947504988234031,
         "date": "2026-10-20 17:57:11"
       }
+    ],
+    "top_oasis_wonderwall": [
+      {
+        "name": "Mauricio",
+        "score": 1350,
+        "stars": 3.5,
+        "combo": 3,
+        "accuracy": 0.10564909630893361,
+        "date": "2026-10-20 17:57:43"
+      }
     ]
   },
   "global": [
@@ -1857,7 +1867,7 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 1850591,
+      "total_score": 1851941,
       "clefs": 15
     },
     {
@@ -1959,7 +1969,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 1850591
+        "score": 1851941
       },
       {
         "name": "Darwin67",
