@@ -471,11 +471,11 @@
       },
       {
         "name": "Test",
-        "score": 157500,
-        "stars": 3.5,
-        "combo": 47,
-        "accuracy": 5.758752764740788,
-        "date": "2026-10-20 08:54:33"
+        "score": 265570,
+        "stars": 1,
+        "combo": 173,
+        "accuracy": 23.877470284655914,
+        "date": "2026-10-20 08:57:02"
       }
     ],
     "osu_2069233": [
@@ -1717,14 +1717,14 @@
       "clefs": 100
     },
     {
-      "name": "Azure",
-      "total_score": 5132756,
+      "name": "Test",
+      "total_score": 5237764,
       "clefs": 43
     },
     {
-      "name": "Test",
-      "total_score": 4972194,
-      "clefs": 41
+      "name": "Azure",
+      "total_score": 5132756,
+      "clefs": 43
     },
     {
       "name": "bobon",
@@ -1816,7 +1816,7 @@
       },
       {
         "name": "Test",
-        "score": 4442553
+        "score": 4708123
       },
       {
         "name": "Darwin67",
