@@ -25,7 +25,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css?v=11.0">
+  <link rel="stylesheet" href="./style.css?v=12.0">
   <script>
     // ===================================================
     // SISTEMA DE INTERNACIONALIZACIÓN (i18n: ES / EN)
@@ -1836,7 +1836,7 @@
             <p class="text-[10px] text-gray-300 leading-tight" data-i18n="apk_card_desc">
               Instala la app oficial en tu móvil para jugar a pantalla completa, vibración háptica y con disponibilidad 100% offline.
             </p>
-            <a href="/download/apk?v=11.0" onclick="this.href='/download/apk?v=11.0&t=' + Date.now()" download="PianoCommunity.apk" class="w-full py-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 text-black font-black rounded-lg text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition active:scale-95 cursor-pointer">
+            <a href="/download/apk?v=12.0" onclick="this.href='/download/apk?v=12.0&t=' + Date.now()" download="PianoCommunity.apk" class="w-full py-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 text-black font-black rounded-lg text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition active:scale-95 cursor-pointer">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               <span data-i18n="apk_card_btn">DESCARGAR APK ANDROID</span>
             </a>
@@ -2233,7 +2233,7 @@
           <p data-i18n="onboarding_apk_hint" class="text-[10px] text-amber-300/90 leading-tight">
             💡 Recuerda que también puedes descargar la app nativa para Android en cualquier momento desde <b>Ajustes ⚙️</b>.
           </p>
-          <a href="/download/apk?v=11.0" onclick="this.href='/download/apk?v=11.0&t=' + Date.now()" download="PianoCommunity.apk" class="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 rounded-xl text-amber-300 text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer">
+          <a href="/download/apk?v=12.0" onclick="this.href='/download/apk?v=12.0&t=' + Date.now()" download="PianoCommunity.apk" class="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 rounded-xl text-amber-300 text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="text-amber-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             <span data-i18n="onboarding_apk_btn">Descargar App (APK Android)</span>
           </a>
@@ -2663,25 +2663,30 @@
         </div>
 
         <!-- Pantalla Gigante Retro de Selección de Modos (Sin texto innecesario, solo píxeles grandes y candados LED) -->
-        <div class="p-2 bg-[#030201] border-[3px] border-[#1c160e] rounded-xl my-2 shadow-[inset_0_0_28px_rgba(0,0,0,1)] space-y-2">
+        <div class="p-2 bg-[#030201] border-[3px] border-[#1c160e] rounded-xl my-1.5 shadow-[inset_0_0_28px_rgba(0,0,0,1)] space-y-1.5">
           <!-- Botón 1: MODO NORMAL (LED Estático Clásico - Siempre desbloqueado) -->
-          <button id="btnModeSelectNormal" onclick="confirmGameModeSelection('normal')" class="w-full p-1.5 rounded-xl bg-[#060503] border-2 border-[#1d3b2a] hover:border-[#00f5a0] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
-            <canvas id="gmBtnNormalMainCanvas" class="w-full h-[38px] block"></canvas>
+          <button id="btnModeSelectNormal" onclick="confirmGameModeSelection('normal')" class="w-full p-1 rounded-xl bg-[#060503] border-2 border-[#1d3b2a] hover:border-[#00f5a0] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
+            <canvas id="gmBtnNormalMainCanvas" class="w-full h-[34px] block"></canvas>
           </button>
 
           <!-- Botón 2: MODO KARAOKE (Animación LED Secuencial KA-RA-O-KE en Dorado + Candado LED 1000 Claves) -->
-          <button id="btnModeSelectKaraoke" onclick="confirmGameModeSelection('karaoke')" class="w-full p-1.5 rounded-xl bg-[#070502] border-2 border-[#422c08] hover:border-[#ffd700] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
-            <canvas id="gmBtnKaraokeMainCanvas" class="w-full h-[38px] block"></canvas>
+          <button id="btnModeSelectKaraoke" onclick="confirmGameModeSelection('karaoke')" class="w-full p-1 rounded-xl bg-[#070502] border-2 border-[#422c08] hover:border-[#ffd700] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
+            <canvas id="gmBtnKaraokeMainCanvas" class="w-full h-[34px] block"></canvas>
           </button>
 
           <!-- Botón 3: MODO TORMENTA (Efecto de Rayo LED + Candado LED 1000 Claves) -->
-          <button id="btnModeSelectStorm" onclick="confirmGameModeSelection('storm')" class="w-full p-1.5 rounded-xl bg-[#03060a] border-2 border-[#12364d] hover:border-[#00e5ff] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
-            <canvas id="gmBtnStormMainCanvas" class="w-full h-[38px] block"></canvas>
+          <button id="btnModeSelectStorm" onclick="confirmGameModeSelection('storm')" class="w-full p-1 rounded-xl bg-[#03060a] border-2 border-[#12364d] hover:border-[#00e5ff] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
+            <canvas id="gmBtnStormMainCanvas" class="w-full h-[34px] block"></canvas>
           </button>
 
           <!-- Botón 4: MODO SETAS ALUCINÓGENAS (Letras borrachas psicodélicas + Candado LED 1000 Claves) -->
-          <button id="btnModeSelectMushroom" onclick="confirmGameModeSelection('mushroom')" class="w-full p-1.5 rounded-xl bg-[#09030d] border-2 border-[#4a1259] hover:border-[#ff00ff] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
-            <canvas id="gmBtnMushroomMainCanvas" class="w-full h-[46px] block"></canvas>
+          <button id="btnModeSelectMushroom" onclick="confirmGameModeSelection('mushroom')" class="w-full p-1 rounded-xl bg-[#09030d] border-2 border-[#4a1259] hover:border-[#ff00ff] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
+            <canvas id="gmBtnMushroomMainCanvas" class="w-full h-[40px] block"></canvas>
+          </button>
+
+          <!-- Botón 5: MODO CARRETERA / AUTOPISTA (F1, Tesla Roadster con propulsores, Tractor, Fiat 500 y Trenecitos + Candado LED 1000 Claves) -->
+          <button id="btnModeSelectHighway" onclick="confirmGameModeSelection('highway')" class="w-full p-1 rounded-xl bg-[#070604] border-2 border-[#4d2608] hover:border-[#ff5500] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
+            <canvas id="gmBtnHighwayMainCanvas" class="w-full h-[40px] block"></canvas>
           </button>
         </div>
 
@@ -3276,7 +3281,7 @@
   </div> <!-- End of game-viewport -->
 
   <script src="./parsers.js?v=4.0"></script>
-  <script src="./game.js?v=11.0"></script>
+  <script src="./game.js?v=12.0"></script>
   <script src="./slot_machine.js?v=4.0"></script>
   <script src="./gachapon_3d.js?v=1.0"></script>
   <script src="./songs/comm_camilo_sesto/chart.js"></script>
@@ -6844,20 +6849,25 @@ window.switchMainTab = switchMainTab;
     window.onAppForeground = handleAppForeground;
 
     function applySelectedGameMode(mode) {
-      const m = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom') ? mode : 'normal';
+      const m = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway') ? mode : 'normal';
       window.currentGameMode = m;
       window.isKaraokeModeActive = (m === 'karaoke');
       window.isStormModeActive = (m === 'storm');
       window.isMushroomModeActive = (m === 'mushroom');
+      window.isHighwayModeActive = (m === 'highway');
       if (window.engine) {
         window.engine.isKaraokeModeActive = window.isKaraokeModeActive;
         window.engine.isStormModeActive = window.isStormModeActive;
         window.engine.isMushroomModeActive = window.isMushroomModeActive;
+        window.engine.isHighwayModeActive = window.isHighwayModeActive;
         if (window.isStormModeActive && typeof window.engine.initStormModeAssets === 'function') {
           window.engine.initStormModeAssets();
         }
         if (window.isMushroomModeActive && typeof window.engine.initMushroomModeAssets === 'function') {
           window.engine.initMushroomModeAssets();
+        }
+        if (window.isHighwayModeActive && typeof window.engine.initHighwayModeAssets === 'function') {
+          window.engine.initHighwayModeAssets();
         }
       }
       try { localStorage.setItem('isKaraokeModeActive', '0'); } catch (_) {}
@@ -6875,6 +6885,7 @@ window.switchMainTab = switchMainTab;
     window.isKaraokeModeActive = false;
     window.isStormModeActive = false;
     window.isMushroomModeActive = false;
+    window.isHighwayModeActive = false;
     try { localStorage.setItem('isKaraokeModeActive', '0'); } catch (_) {}
 
     document.addEventListener('visibilitychange', () => {
@@ -13543,7 +13554,7 @@ function stopPianoCameraLoop() {
       if (!canvas) return;
       const dpr = Math.min(2, window.devicePixelRatio || 1);
       const widthCss = 318;
-      const heightCss = 46;
+      const heightCss = 40;
       if (canvas.width !== Math.round(widthCss * dpr) || canvas.height !== Math.round(heightCss * dpr)) {
         canvas.width = Math.round(widthCss * dpr);
         canvas.height = Math.round(heightCss * dpr);
@@ -13554,7 +13565,7 @@ function stopPianoCameraLoop() {
       ctx.fillStyle = '#07020b';
       ctx.fillRect(0, 0, widthCss, heightCss);
 
-      const pitch = 2.65;
+      const pitch = 2.55;
       const cols = Math.floor((widthCss - 4) / pitch);
       const rows = Math.floor((heightCss - 2) / pitch);
       const offsetX = (widthCss - cols * pitch) * 0.5 + pitch * 0.5;
@@ -13576,8 +13587,8 @@ function stopPianoCameraLoop() {
 
       const t = now * 0.001;
       const lines = [
-        { text: 'SETAS', baseRow: 1.2, baseCol: isLocked ? 14 : 24 },
-        { text: 'ALUCINOGENAS', baseRow: 9.2, baseCol: isLocked ? 3 : 11 }
+        { text: 'SETAS', baseRow: 0.6, baseCol: isLocked ? 14 : 24 },
+        { text: 'ALUCINOGENAS', baseRow: 7.8, baseCol: isLocked ? 3 : 11 }
       ];
       const palette = ['#ff00ff', '#00ff88', '#00f2fe', '#ffee00', '#ff3b9a'];
 
@@ -13659,6 +13670,198 @@ function stopPianoCameraLoop() {
       }
     }
 
+    // Dibuja el botón LED creativo de "CARRETERA" con líneas discontinuas de autopista en movimiento,
+    // pianos rojiblancos de circuito y un coche LED con propulsores adelantando en tiempo real
+    function _renderHighwayLedButton(canvas, now, isLocked) {
+      if (!canvas) return;
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const widthCss = 318;
+      const heightCss = 40;
+      if (canvas.width !== Math.round(widthCss * dpr) || canvas.height !== Math.round(heightCss * dpr)) {
+        canvas.width = Math.round(widthCss * dpr);
+        canvas.height = Math.round(heightCss * dpr);
+      }
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      ctx.fillStyle = '#070604';
+      ctx.fillRect(0, 0, widthCss, heightCss);
+
+      const pitch = 2.65;
+      const cols = Math.floor((widthCss - 4) / pitch);
+      const rows = Math.floor((heightCss - 2) / pitch);
+      const offsetX = (widthCss - cols * pitch) * 0.5 + pitch * 0.5;
+      const offsetY = (heightCss - rows * pitch) * 0.5 + pitch * 0.5;
+      const dotR = pitch * 0.38;
+
+      // 1. Matriz de bombillas LED apagadas (asfalto oscuro)
+      ctx.fillStyle = '#181410';
+      ctx.beginPath();
+      for (let r = 0; r < rows; r++) {
+        const py = offsetY + r * pitch;
+        for (let c = 0; c < cols; c++) {
+          const px = offsetX + c * pitch;
+          ctx.moveTo(px + dotR * 0.74, py);
+          ctx.arc(px, py, dotR * 0.74, 0, Math.PI * 2);
+        }
+      }
+      ctx.fill();
+
+      const t = now * 0.001;
+      const scrollCol = Math.floor(t * 28);
+      const maxRoadCol = isLocked ? (cols - 31) : (cols - 2);
+
+      // 2. Pianos de circuito (rojo y blanco alternos en fila superior 0 e inferior rows-1)
+      for (let c = 0; c < maxRoadCol; c++) {
+        const isRedKerb = ((c + scrollCol) % 6) < 3;
+        ctx.fillStyle = isRedKerb ? '#ff2a00' : '#f8fafc';
+        ctx.beginPath();
+        const px = offsetX + c * pitch;
+        const pyTop = offsetY;
+        const pyBot = offsetY + (rows - 1) * pitch;
+        ctx.moveTo(px + dotR * 0.92, pyTop);
+        ctx.arc(px, pyTop, dotR * 0.92, 0, Math.PI * 2);
+        ctx.moveTo(px + dotR * 0.92, pyBot);
+        ctx.arc(px, pyBot, dotR * 0.92, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 3. Líneas discontinuas blancas de autopista corriendo por las filas intermedias (r=2 y r=rows-3)
+      ctx.fillStyle = '#fde047';
+      ctx.beginPath();
+      for (let c = 1; c < maxRoadCol - 1; c++) {
+        if (((c + scrollCol) % 8) < 4) {
+          const px = offsetX + c * pitch;
+          const py1 = offsetY + 2 * pitch;
+          const py2 = offsetY + (rows - 3) * pitch;
+          ctx.moveTo(px + dotR * 0.75, py1);
+          ctx.arc(px, py1, dotR * 0.75, 0, Math.PI * 2);
+          ctx.moveTo(px + dotR * 0.75, py2);
+          ctx.arc(px, py2, dotR * 0.75, 0, Math.PI * 2);
+        }
+      }
+      ctx.fill();
+
+      // 4. Mini Tesla Roadster / F1 LED adelantando a toda velocidad con estela de humo blanco LED
+      const carCycle = (t * 26) % (maxRoadCol + 14);
+      const carCol = Math.floor(carCycle) - 7;
+      const carRow = (Math.sin(t * 5.5) > 0) ? 1 : (rows - 2);
+      // Estela de humo blanco de propulsores detrás del coche LED
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      for (let s = 1; s <= 4; s++) {
+        const sc = carCol - s;
+        if (sc >= 0 && sc < maxRoadCol) {
+          const px = offsetX + sc * pitch;
+          const py = offsetY + carRow * pitch;
+          const sr = dotR * (1.05 - s * 0.16);
+          ctx.moveTo(px + sr, py);
+          ctx.arc(px, py, sr, 0, Math.PI * 2);
+        }
+      }
+      ctx.fill();
+      // Chasis rojo fuego del coche LED
+      ctx.fillStyle = '#00f5a0';
+      ctx.beginPath();
+      for (let b = 0; b < 3; b++) {
+        const bc = carCol + b;
+        if (bc >= 0 && bc < maxRoadCol) {
+          const px = offsetX + bc * pitch;
+          const py = offsetY + carRow * pitch;
+          ctx.moveTo(px + dotR * 1.15, py);
+          ctx.arc(px, py, dotR * 1.15, 0, Math.PI * 2);
+        }
+      }
+      ctx.fill();
+
+      // 5. Texto principal en píxeles LED grandes: "CARRETERA" con brillo ámbar/neón de velocidad
+      const label = 'CARRETERA';
+      const textStartCol = isLocked ? 14 : Math.floor((cols - label.length * 6) * 0.5) + 2;
+      const textRow = Math.floor((rows - 7) * 0.5);
+
+      // Bandera a cuadros LED a la izquierda del texto
+      const flagCol = isLocked ? 3 : (textStartCol - 9);
+      for (let fr = 0; fr < 5; fr++) {
+        for (let fc = 0; fc < 6; fc++) {
+          const isWhite = ((fr + fc + Math.floor(t * 6)) % 2) === 0;
+          ctx.fillStyle = isWhite ? '#ffffff' : '#ff5500';
+          const px = offsetX + (flagCol + fc) * pitch;
+          const py = offsetY + (textRow + 1 + fr) * pitch;
+          ctx.beginPath();
+          ctx.arc(px, py, dotR * 0.95, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      for (let i = 0; i < label.length; i++) {
+        const ch = label[i];
+        const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7[' '];
+        const waveHighlight = Math.floor(t * 10) % label.length === i;
+        const charCol = waveHighlight ? '#ffffff' : (i % 2 === 0 ? '#ff9900' : '#ff4500');
+        const cBase = textStartCol + i * 6;
+
+        ctx.fillStyle = charCol;
+        ctx.beginPath();
+        for (let gr = 0; gr < 7; gr++) {
+          const rowBits = glyph[gr];
+          if (!rowBits) continue;
+          for (let gc = 0; gc < 5; gc++) {
+            if ((rowBits >> (4 - gc)) & 1) {
+              const lx = offsetX + (cBase + gc) * pitch;
+              const ly = offsetY + (textRow + gr) * pitch;
+              ctx.moveTo(lx + dotR * 1.12, ly);
+              ctx.arc(lx, ly, dotR * 1.12, 0, Math.PI * 2);
+            }
+          }
+        }
+        ctx.fill();
+
+        // Núcleo incandescente
+        ctx.fillStyle = '#fffbeb';
+        ctx.beginPath();
+        for (let gr = 0; gr < 7; gr++) {
+          const rowBits = glyph[gr];
+          if (!rowBits) continue;
+          for (let gc = 0; gc < 5; gc++) {
+            if ((rowBits >> (4 - gc)) & 1) {
+              const lx = offsetX + (cBase + gc) * pitch;
+              const ly = offsetY + (textRow + gr) * pitch;
+              ctx.moveTo(lx + dotR * 0.45, ly);
+              ctx.arc(lx, ly, dotR * 0.45, 0, Math.PI * 2);
+            }
+          }
+        }
+        ctx.fill();
+      }
+
+      // 6. Si está bloqueado: Candado LED (@1000) a la derecha
+      if (isLocked) {
+        const lockStr = '@1000';
+        const lockStartCol = cols - (lockStr.length * 6) - 1;
+        const lockRow = Math.floor((rows - 7) * 0.5);
+        for (let i = 0; i < lockStr.length; i++) {
+          const ch = lockStr[i];
+          const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7[' '];
+          const isLockIcon = (ch === '@');
+          ctx.fillStyle = isLockIcon ? '#ff4500' : '#ffb300';
+          ctx.beginPath();
+          for (let gr = 0; gr < 7; gr++) {
+            const rowBits = glyph[gr];
+            if (!rowBits) continue;
+            for (let gc = 0; gc < 5; gc++) {
+              if ((rowBits >> (4 - gc)) & 1) {
+                const lx = offsetX + (lockStartCol + i * 6 + gc) * pitch;
+                const ly = offsetY + (lockRow + gr) * pitch;
+                ctx.moveTo(lx + dotR * 1.12, ly);
+                ctx.arc(lx, ly, dotR * 1.12, 0, Math.PI * 2);
+              }
+            }
+          }
+          ctx.fill();
+        }
+      }
+    }
+
     function _renderGameModeStaticLeds(songTitle = 'PISTA', songArtist = '') {
       _currentModalSongTitle = songTitle;
       _currentModalSongArtist = songArtist;
@@ -13687,7 +13890,7 @@ function stopPianoCameraLoop() {
       // 1. MODO NORMAL: Fijo, limpio y sin candado
       renderLedMatrixCanvas(
         document.getElementById('gmBtnNormalMainCanvas'),
-        318, 38, 4.3,
+        318, 34, 4.0,
         [{ text: 'NORMAL', color: '#00f5a0', align: 'center' }],
         '#040604', '#0e1f16'
       );
@@ -13715,13 +13918,14 @@ function stopPianoCameraLoop() {
         const karaokeLocked = !isGameModeUnlocked('karaoke');
         const stormLocked = !isGameModeUnlocked('storm');
         const mushroomLocked = !isGameModeUnlocked('mushroom');
+        const highwayLocked = !isGameModeUnlocked('highway');
 
         // A. ANIMACIÓN LED MODO KARAOKE: KA -> RA -> O -> KE iluminándose en dorado + Candado LED (@ 1000) si está bloqueado
         const kStep = Math.floor(((now - startTime) % 1900) / 380);
         const kStateKey = `${kStep}_${karaokeLocked}`;
         if (kStateKey !== lastKaraokeKey) {
           lastKaraokeKey = kStateKey;
-          const kPitch = karaokeLocked ? 3.55 : 4.3;
+          const kPitch = karaokeLocked ? 3.55 : 4.0;
           const kBaseCol = karaokeLocked ? 3 : 16;
           const karaokeSyllables = [
             { text: 'KA', colOffset: kBaseCol + 0 },
@@ -13743,7 +13947,7 @@ function stopPianoCameraLoop() {
           }
           renderLedMatrixCanvas(
             document.getElementById('gmBtnKaraokeMainCanvas'),
-            318, 38, kPitch,
+            318, 34, kPitch,
             kSegments,
             '#060402', '#1c1306'
           );
@@ -13757,7 +13961,7 @@ function stopPianoCameraLoop() {
 
         const stormBtn = document.getElementById('btnModeSelectStorm');
         const stormCanvas = document.getElementById('gmBtnStormMainCanvas');
-        const sPitch = stormLocked ? 3.45 : 4.3;
+        const sPitch = stormLocked ? 3.45 : 4.0;
 
         if (now < _gameModeStormStrikeUntil) {
           const phase = Math.floor((now - (_gameModeStormStrikeUntil - 440)) / 55);
@@ -13775,7 +13979,7 @@ function stopPianoCameraLoop() {
               : [{ text: 'TORMENTA', color: isBlackout ? '#091e2c' : (isFlashWhite ? '#ffffff' : '#00e5ff'), align: 'center', dim: isBlackout }];
 
             renderLedMatrixCanvas(
-              stormCanvas, 318, 38, sPitch,
+              stormCanvas, 318, 34, sPitch,
               segs,
               isBlackout ? '#020408' : (isFlashWhite ? '#0c2538' : '#03080e'),
               isBlackout ? '#07121c' : '#0d2638'
@@ -13797,7 +14001,7 @@ function stopPianoCameraLoop() {
               : [{ text: 'TORMENTA', color: '#00e5ff', align: 'center', dim: false }];
 
             renderLedMatrixCanvas(
-              stormCanvas, 318, 38, sPitch,
+              stormCanvas, 318, 34, sPitch,
               segs,
               '#03060a', '#0b2233'
             );
@@ -13810,6 +14014,13 @@ function stopPianoCameraLoop() {
           document.getElementById('gmBtnMushroomMainCanvas'),
           now,
           mushroomLocked
+        );
+
+        // D. ANIMACIÓN LED MODO CARRETERA: Autopista LED en movimiento, coche con propulsores adelantando y bandera a cuadros + Candado LED
+        _renderHighwayLedButton(
+          document.getElementById('gmBtnHighwayMainCanvas'),
+          now,
+          highwayLocked
         );
 
         _gameModeLedAnimId = requestAnimationFrame(tick);
@@ -13849,7 +14060,7 @@ function stopPianoCameraLoop() {
     }
 
     function confirmGameModeSelection(mode) {
-      const chosen = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom') ? mode : 'normal';
+      const chosen = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway') ? mode : 'normal';
 
       // Si el modo no es normal y aún tiene candado LED (1000 Claves para desbloquear):
       if (chosen !== 'normal' && !isGameModeUnlocked(chosen)) {
@@ -13857,7 +14068,9 @@ function stopPianoCameraLoop() {
           if (typeof deductClefs === 'function' && deductClefs(GAME_MODE_UNLOCK_COST)) {
             _setGameModeUnlocked(chosen);
             if (typeof showSuccessToast === 'function') {
-              const modeLabel = chosen === 'karaoke' ? 'KARAOKE' : (chosen === 'storm' ? 'TORMENTA' : 'SETAS ALUCINÓGENAS');
+              const modeLabel = chosen === 'karaoke'
+                ? 'KARAOKE'
+                : (chosen === 'storm' ? 'TORMENTA' : (chosen === 'mushroom' ? 'SETAS ALUCINÓGENAS' : 'CARRETERA'));
               showSuccessToast(`¡Modo ${modeLabel} desbloqueado para siempre! (-1000 𝄞)`);
             }
           }

@@ -569,10 +569,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 11,
-    version_name: '1.9.0',
-    release_notes: 'Piano Community Web & Offline Player. Modo Setas con inmunidad en transición, timing facilitado y fallos reales activos.',
-    download_url: '/download/apk?v=11.0',
+    version_code: 12,
+    version_name: '2.0.0',
+    release_notes: 'Piano Community Web & Offline Player. Nuevo Modo Carretera con F1, Tesla Roadster (vuelo y pirueta), Tractor, Fiat 500 y Trenes de Vapor.',
+    download_url: '/download/apk?v=12.0',
   });
 });
 

@@ -2916,6 +2916,7 @@ class BeatstarEngine {
       }
     }
 
+    const isHighwayPrewarm = Boolean((typeof window !== 'undefined' && window.isHighwayModeActive) || this.isHighwayModeActive);
     if ((typeof window !== 'undefined' && window.isStormModeActive) || this.isStormModeActive) {
       this.initStormModeAssets();
     }
@@ -2929,6 +2930,12 @@ class BeatstarEngine {
       this._mushTransitionClouds = [];
       this._mushBannerText = '🍄 ¡MODO SETAS ALUCINÓGENAS! 🍄';
       this._mushBannerTimer = 2.6;
+    }
+    if (isHighwayPrewarm) {
+      this.initHighwayModeAssets();
+      this._prepareHighwayTrafficChoreography();
+      this._hwBannerText = '🏎️ ¡AUTOPISTA ACTIVA: F1, TESLA ROADSTER Y TRENES! 🚂';
+      this._hwBannerTimer = 2.8;
     }
     this.activeHolds.clear();
     this.activeTouches.clear();
@@ -4874,7 +4881,8 @@ class BeatstarEngine {
     const isStormX2 = Boolean(
       this.isStormModeActive ||
       this.isMushroomModeActive ||
-      (typeof window !== 'undefined' && (window.isStormModeActive || window.isMushroomModeActive))
+      this.isHighwayModeActive ||
+      (typeof window !== 'undefined' && (window.isStormModeActive || window.isMushroomModeActive || window.isHighwayModeActive))
     );
     const clefMultiplier = (isFeatured ? 2 : 1) * (isStormX2 ? 2 : 1);
     const earnedClefs = Math.max(1, Math.round(baseScoreClefs * diffMultiplier)) * clefMultiplier;
@@ -6310,6 +6318,9 @@ class BeatstarEngine {
     if (this.isStormModeActive || (typeof window !== 'undefined' && window.isStormModeActive)) {
       this.renderStormModeOverlay(this.ctx, currentTime);
     }
+    if (this.isHighwayModeActive || (typeof window !== 'undefined' && window.isHighwayModeActive)) {
+      this.renderHighwayModeOverlay(this.ctx, currentTime);
+    }
     this.renderJudgements();
     this.renderFlyingLyrics(this.ctx, currentTime);
     this.renderDiscoLighting(this.ctx, currentTime);
@@ -7697,6 +7708,1436 @@ class BeatstarEngine {
   }
 
   // =========================================================================
+  // MODO CARRETERA (HIGHWAY MODE): F1, TESLA ROADSTER (VUELO + PIRUETA),
+  // TRACTOR, FIAT 500 Y TRENECITOS DE VAPOR CON VAGONES (0 SOLAPAMIENTOS)
+  // =========================================================================
+
+  initHighwayModeAssets() {
+    if (this._hwAssetsReady && this._hwSprites) {
+      return;
+    }
+    this._hwAssetsReady = true;
+    this._hwSprites = {
+      tractor: this._buildHighwayTractorSprite(),
+      fiat500: [
+        this._buildHighwayFiat500Sprite('#6ee7b7', '#059669', '#ecfdf5'), // Verde Menta Dolcevita
+        this._buildHighwayFiat500Sprite('#fde68a', '#d97706', '#fffbeb'), // Crema Amalfi
+        this._buildHighwayFiat500Sprite('#fda4af', '#e11d48', '#fff1f2')  // Coral Italiano
+      ],
+      f1: [
+        this._buildHighwayF1Sprite('#dc2626', '#991b1b', '#facc15', '16'), // Scuderia Rojo
+        this._buildHighwayF1Sprite('#06b6d4', '#0e7490', '#ffffff', '44'), // Cian Mercedes/Petronas
+        this._buildHighwayF1Sprite('#eab308', '#1e293b', '#ef4444', '1')   // Oro/Carbono RedBull
+      ],
+      tesla_roadster: this._buildHighwayTeslaRoadsterSprite(),
+      steam_locomotive: this._buildHighwaySteamLocomotiveSprite(),
+      steam_wagons: [
+        this._buildHighwaySteamWagonSprite('tender', '#1e293b', '#f59e0b'),
+        this._buildHighwaySteamWagonSprite('coach', '#b91c1c', '#fbbf24'),
+        this._buildHighwaySteamWagonSprite('coach', '#047857', '#fde047'),
+        this._buildHighwaySteamWagonSprite('caboose', '#dc2626', '#ffffff')
+      ]
+    };
+    this._hwSmokeParticles = [];
+  }
+
+  _buildHighwayTractorSprite() {
+    const cvs = document.createElement('canvas');
+    cvs.width = 128;
+    cvs.height = 176;
+    const c = cvs.getContext('2d');
+    const cx = 64;
+
+    // 1. Sombra de contacto bajo el tractor
+    c.fillStyle = 'rgba(0, 0, 0, 0.48)';
+    c.beginPath();
+    c.ellipse(cx, 92, 48, 72, 0, 0, Math.PI * 2);
+    c.fill();
+
+    // 2. Ruedas delanteras direccionables (arriba/trasera en perspectiva hacia abajo, el frente del vehículo apunta hacia ABAJO y=160)
+    // Nota: Los vehículos caen de arriba (y=0) hacia abajo (hitLine), por tanto el MORRO apunta hacia ABAJO (y=156) y la TRASERA está arriba (y=20)
+    const drawMudTire = (tx, ty, tw, th, isRear) => {
+      c.save();
+      c.fillStyle = '#111827';
+      c.strokeStyle = '#030712';
+      c.lineWidth = 2.5;
+      c.beginPath();
+      if (c.roundRect) c.roundRect(tx - tw * 0.5, ty - th * 0.5, tw, th, 6);
+      else c.rect(tx - tw * 0.5, ty - th * 0.5, tw, th);
+      c.fill();
+      c.stroke();
+
+      // Tacos profundos de goma agrícola en espiga
+      c.strokeStyle = '#374151';
+      c.lineWidth = isRear ? 3.2 : 2.2;
+      const steps = isRear ? 7 : 5;
+      for (let s = 0; s < steps; s++) {
+        const yy = (ty - th * 0.40) + (s / (steps - 1)) * (th * 0.80);
+        c.beginPath();
+        c.moveTo(tx - tw * 0.44, yy - 2);
+        c.lineTo(tx, yy + 2);
+        c.lineTo(tx + tw * 0.44, yy - 2);
+        c.stroke();
+      }
+
+      // Llanta amarilla John Deere lateral visible en escorzo
+      c.fillStyle = '#facc15';
+      c.fillRect(tx + (tx < cx ? -tw * 0.18 : -tw * 0.12), ty - th * 0.26, tw * 0.30, th * 0.52);
+      c.restore();
+    };
+
+    // Enormes ruedas traseras (parte superior del sprite: y=54)
+    drawMudTire(22, 56, 28, 64, true);
+    drawMudTire(106, 56, 28, 64, true);
+    // Ruedas delanteras más pequeñas junto al morro (parte inferior del sprite: y=132)
+    drawMudTire(28, 130, 18, 42, false);
+    drawMudTire(100, 130, 18, 42, false);
+
+    // 3. Ejes metálicos pesados
+    c.fillStyle = '#1f2937';
+    c.fillRect(26, 50, 76, 12);
+    c.fillRect(30, 125, 68, 9);
+
+    // 4. Guardabarros traseros verdes con ribete amarillo
+    c.fillStyle = '#15803d';
+    c.strokeStyle = '#facc15';
+    c.lineWidth = 2;
+    c.beginPath();
+    if (c.roundRect) {
+      c.roundRect(10, 22, 24, 68, 7);
+      c.roundRect(94, 22, 24, 68, 7);
+    } else {
+      c.rect(10, 22, 24, 68);
+      c.rect(94, 22, 24, 68);
+    }
+    c.fill();
+    c.stroke();
+
+    // 5. Capó largo del motor (apuntando hacia abajo y=82..154)
+    const hoodGrad = c.createLinearGradient(cx - 22, 80, cx + 22, 80);
+    hoodGrad.addColorStop(0.0, '#14532d');
+    hoodGrad.addColorStop(0.5, '#22c55e');
+    hoodGrad.addColorStop(1.0, '#14532d');
+    c.fillStyle = hoodGrad;
+    c.strokeStyle = '#052e16';
+    c.lineWidth = 2.5;
+    c.beginPath();
+    if (c.roundRect) c.roundRect(cx - 21, 78, 42, 74, [6, 6, 14, 14]);
+    else c.rect(cx - 21, 78, 42, 74);
+    c.fill();
+    c.stroke();
+
+    // Franja central amarilla y rejillas de ventilación del motor
+    c.fillStyle = '#facc15';
+    c.fillRect(cx - 4, 82, 8, 66);
+    c.fillStyle = '#064e3b';
+    for (let r = 0; r < 5; r++) {
+      c.fillRect(cx - 16, 94 + r * 9, 9, 4);
+      c.fillRect(cx + 7, 94 + r * 9, 9, 4);
+    }
+
+    // 6. Contrapeso delantero de hierro fundido y faros halógenos (en el morro inferior y=152)
+    c.fillStyle = '#1e293b';
+    c.strokeStyle = '#475569';
+    c.lineWidth = 2;
+    c.beginPath();
+    if (c.roundRect) c.roundRect(cx - 24, 147, 48, 12, 5);
+    else c.rect(cx - 24, 147, 48, 12);
+    c.fill();
+    c.stroke();
+
+    // Faros delanteros encendidos
+    c.fillStyle = '#fef08a';
+    c.beginPath();
+    c.arc(cx - 14, 155, 5, 0, Math.PI * 2);
+    c.arc(cx + 14, 155, 5, 0, Math.PI * 2);
+    c.fill();
+
+    // 7. Cabina acristalada panorámica con barras antivuelco (y=24..84)
+    c.fillStyle = '#0f172a';
+    c.strokeStyle = '#22c55e';
+    c.lineWidth = 3.5;
+    c.beginPath();
+    if (c.roundRect) c.roundRect(cx - 28, 22, 56, 62, 10);
+    else c.rect(cx - 28, 22, 56, 62);
+    c.fill();
+    c.stroke();
+
+    // Cristal azulado y techo verde con luz rotativa ámbar
+    c.fillStyle = 'rgba(56, 189, 248, 0.35)';
+    c.fillRect(cx - 23, 28, 46, 50);
+
+    c.fillStyle = '#16a34a';
+    c.strokeStyle = '#facc15';
+    c.lineWidth = 2;
+    c.beginPath();
+    if (c.roundRect) c.roundRect(cx - 22, 32, 44, 40, 8);
+    else c.rect(cx - 22, 32, 44, 40);
+    c.fill();
+    c.stroke();
+
+    // Sirena / Rotativo ámbar en el techo
+    c.fillStyle = '#f59e0b';
+    c.strokeStyle = '#ffffff';
+    c.lineWidth = 2;
+    c.beginPath();
+    c.arc(cx, 52, 8.5, 0, Math.PI * 2);
+    c.fill();
+    c.stroke();
+
+    // 8. Tubo de escape vertical cromado en el capó (en x=46, y=108)
+    c.fillStyle = '#94a3b8';
+    c.strokeStyle = '#0f172a';
+    c.lineWidth = 2;
+    c.beginPath();
+    c.arc(cx - 13, 110, 6.5, 0, Math.PI * 2);
+    c.fill();
+    c.stroke();
+    c.fillStyle = '#020617';
+    c.beginPath();
+    c.arc(cx - 13, 110, 3.2, 0, Math.PI * 2);
+    c.fill();
+
+    return cvs;
+  }
+
+  _buildHighwayFiat500Sprite(bodyHex, shadeHex, highlightHex) {
+    const cvs = document.createElement('canvas');
+    cvs.width = 112;
+    cvs.height = 156;
+    const c = cvs.getContext('2d');
+    const cx = 56;
+
+    // 1. Sombra suave bajo el Fiat 500
+    c.fillStyle = 'rgba(0, 0, 0, 0.45)';
+    c.beginPath();
+    c.ellipse(cx, 80, 40, 64, 0, 0, Math.PI * 2);
+    c.fill();
+
+    // 2. Cuatro neumáticos con tapacubos cromados clásicos
+    c.fillStyle = '#0f172a';
+    const wheels = [
+      [17, 42], [95, 42],
+      [17, 114], [95, 114]
+    ];
+    for (let i = 0; i < wheels.length; i++) {
+      const [wx, wy] = wheels[i];
+      c.beginPath();
+      if (c.roundRect) c.roundRect(wx - 7, wy - 15, 14, 30, 4);
+      else c.rect(wx - 7, wy - 15, 14, 30);
+      c.fill();
+    }
+
+    // 3. Carrocería redondeada estilo "bambino" italiano (morro hacia abajo y=144, trasera arriba y=16)
+    const bodyGrad = c.createLinearGradient(cx - 34, 20, cx + 34, 20);
+    bodyGrad.addColorStop(0.0, shadeHex);
+    bodyGrad.addColorStop(0.25, bodyHex);
+    bodyGrad.addColorStop(0.5, highlightHex);
+    bodyGrad.addColorStop(0.75, bodyHex);
+    bodyGrad.addColorStop(1.0, shadeHex);
+
+    c.fillStyle = bodyGrad;
+    c.strokeStyle = '#0f172a';
+    c.lineWidth = 2.8;
+    c.beginPath();
+    if (c.roundRect) c.roundRect(cx - 34, 16, 68, 126, [24, 24, 30, 30]);
+    else c.rect(cx - 34, 16, 68, 126);
+    c.fill();
+    c.stroke();
+
+    // 4. Franja deportiva tricolor italiana (Verde - Blanco - Rojo) a lo largo del capó y techo
+    c.fillStyle = '#16a34a';
+    c.fillRect(cx - 6, 18, 4, 122);
+    c.fillStyle = '#ffffff';
+    c.fillRect(cx - 2, 18, 4, 122);
+    c.fillStyle = '#dc2626';
+    c.fillRect(cx + 2, 18, 4, 122);
+
+    // 5. Habitáculo redondeado, parabrisas delantero (abajo y=96..112), luneta trasera (arriba y=28..42) y techo solar
+    c.fillStyle = '#1e293b';
+    c.strokeStyle = '#cbd5e1';
+    c.lineWidth = 1.8;
+    c.beginPath();
+    if (c.roundRect) c.roundRect(cx - 27, 30, 54, 80, 18);
+    else c.rect(cx - 27, 30, 54, 80);
+    c.fill();
+    c.stroke();
+
+    // Techo con ventana solar panorámica oscura
+    c.fillStyle = bodyHex;
+    c.beginPath();
+    if (c.roundRect) c.roundRect(cx - 23, 44, 46, 48, 12);
+    else c.rect(cx - 23, 44, 46, 48);
+    c.fill();
+
+    c.fillStyle = '#090d16';
+    c.strokeStyle = '#94a3b8';
+    c.lineWidth = 1.4;
+    c.beginPath();
+    if (c.roundRect) c.roundRect(cx - 17, 50, 34, 26, 7);
+    else c.rect(cx - 17, 50, 34, 26);
+    c.fill();
+    c.stroke();
+
+    // 6. Espejos retrovisores cromados
+    c.fillStyle = '#f8fafc';
+    c.strokeStyle = '#0f172a';
+    c.lineWidth = 1.6;
+    c.beginPath();
+    c.ellipse(cx - 37, 94, 6, 4, -0.3, 0, Math.PI * 2);
+    c.ellipse(cx + 37, 94, 6, 4, 0.3, 0, Math.PI * 2);
+    c.fill();
+    c.stroke();
+
+    // 7. Parachoques cromados y "bigote" frontal clásico con insignia roja 500 + faros redondos dobles
+    c.strokeStyle = '#f8fafc';
+    c.lineWidth = 3.5;
+    c.beginPath();
+    c.arc(cx, 118, 28, 0.22 * Math.PI, 0.78 * Math.PI);
+    c.stroke();
+
+    // Insignia central roja Fiat
+    c.fillStyle = '#ef4444';
+    c.strokeStyle = '#ffffff';
+    c.lineWidth = 1.5;
+    c.beginPath();
+    c.arc(cx, 138, 4.5, 0, Math.PI * 2);
+    c.fill();
+    c.stroke();
+
+    // Faros redondos icónicos del Fiat 500
+    c.fillStyle = '#fef9c3';
+    c.strokeStyle = '#e2e8f0';
+    c.lineWidth = 2;
+    c.beginPath();
+    c.arc(cx - 20, 134, 6.2, 0, Math.PI * 2);
+    c.arc(cx + 20, 134, 6.2, 0, Math.PI * 2);
+    c.fill();
+    c.stroke();
+
+    // Pilotos traseros rubí (arriba y=19)
+    c.fillStyle = '#ef4444';
+    c.fillRect(cx - 24, 17, 10, 5);
+    c.fillRect(cx + 14, 17, 10, 5);
+
+    return cvs;
+  }
+
+  _buildHighwayF1Sprite(primaryHex, darkHex, accentHex, raceNum) {
+    const cvs = document.createElement('canvas');
+    cvs.width = 124;
+    cvs.height = 188;
+    const c = cvs.getContext('2d');
+    const cx = 62;
+
+    // 1. Sombra aerodinámica bajo el monoplaza F1
+    c.fillStyle = 'rgba(0, 0, 0, 0.50)';
+    c.beginPath();
+    c.ellipse(cx, 96, 46, 80, 0, 0, Math.PI * 2);
+    c.fill();
+
+    // 2. Brazos de suspensión de fibra de carbono (delanteros abajo y=134, traseros arriba y=42)
+    c.strokeStyle = '#1e293b';
+    c.lineWidth = 3.6;
+    c.beginPath();
+    // Suspensión trasera
+    c.moveTo(22, 36); c.lineTo(cx, 48); c.lineTo(102, 36);
+    c.moveTo(22, 48); c.lineTo(cx, 40); c.lineTo(102, 48);
+    // Suspensión delantera (push-rod)
+    c.moveTo(24, 130); c.lineTo(cx, 120); c.lineTo(100, 130);
+    c.moveTo(24, 140); c.lineTo(cx, 136); c.lineTo(100, 140);
+    c.stroke();
+
+    // 3. Neumáticos Pirelli Slick expuestos con anillo de compuesto coloreado
+    const drawPirelliSlick = (tx, ty, tw, th) => {
+      c.save();
+      c.fillStyle = '#090d16';
+      c.strokeStyle = '#000000';
+      c.lineWidth = 2;
+      c.beginPath();
+      if (c.roundRect) c.roundRect(tx - tw * 0.5, ty - th * 0.5, tw, th, 5);
+      else c.rect(tx - tw * 0.5, ty - th * 0.5, tw, th);
+      c.fill();
+      c.stroke();
+
+      // Brillo de goma slick caliente y banda Pirelli
+      c.fillStyle = '#1e293b';
+      c.fillRect(tx - tw * 0.32, ty - th * 0.44, tw * 0.64, th * 0.88);
+      c.strokeStyle = accentHex;
+      c.lineWidth = 2.2;
+      c.strokeRect(tx - tw * 0.36, ty - th * 0.38, tw * 0.72, th * 0.76);
+      c.restore();
+    };
+    // Ruedas traseras anchas (y=42) y delanteras (y=134)
+    drawPirelliSlick(18, 42, 22, 42);
+    drawPirelliSlick(106, 42, 22, 42);
+    drawPirelliSlick(20, 134, 19, 38);
+    drawPirelliSlick(104, 134, 19, 38);
+
+    // 4. Fondo plano de fibra de carbono (Floor & Venturi tunnels)
+    c.fillStyle = '#0f172a';
+    c.strokeStyle = '#334155';
+    c.lineWidth = 1.6;
+    c.beginPath();
+    c.moveTo(cx - 16, 34);
+    c.lineTo(cx + 16, 34);
+    c.lineTo(cx + 34, 62);
+    c.lineTo(cx + 32, 108);
+    c.lineTo(cx + 10, 124);
+    c.lineTo(cx - 10, 124);
+    c.lineTo(cx - 32, 108);
+    c.lineTo(cx - 34, 62);
+    c.closePath();
+    c.fill();
+    c.stroke();
+
+    // 5. Pontones aerodinámicos esculpidos (Sidepods) y cubierta motor con aleta de tiburón
+    const bodyGrad = c.createLinearGradient(cx - 28, 40, cx + 28, 40);
+    bodyGrad.addColorStop(0.0, darkHex);
+    bodyGrad.addColorStop(0.5, primaryHex);
+    bodyGrad.addColorStop(1.0, darkHex);
+    c.fillStyle = bodyGrad;
+    c.strokeStyle = '#ffffff';
+    c.lineWidth = 1.5;
+    c.beginPath();
+    c.moveTo(cx - 8, 32);
+    c.lineTo(cx + 8, 32);
+    c.lineTo(cx + 28, 66);
+    c.lineTo(cx + 26, 104);
+    c.lineTo(cx + 9, 122);
+    c.lineTo(cx + 6, 166);
+    c.lineTo(cx - 6, 166);
+    c.lineTo(cx - 9, 122);
+    c.lineTo(cx - 26, 104);
+    c.lineTo(cx - 28, 66);
+    c.closePath();
+    c.fill();
+    c.stroke();
+
+    // Branquias de refrigeración en los pontones y aleta de tiburón trasera
+    c.strokeStyle = '#090d16';
+    c.lineWidth = 2;
+    for (let g = 0; g < 4; g++) {
+      const gy = 68 + g * 7;
+      c.beginPath();
+      c.moveTo(cx - 22, gy); c.lineTo(cx - 13, gy + 3);
+      c.moveTo(cx + 22, gy); c.lineTo(cx + 13, gy + 3);
+      c.stroke();
+    }
+    // Aleta de tiburón (Shark fin)
+    c.strokeStyle = accentHex;
+    c.lineWidth = 2.6;
+    c.beginPath();
+    c.moveTo(cx, 32);
+    c.lineTo(cx, 66);
+    c.stroke();
+
+    // 6. Cockpit, Casco del Piloto y Sistema HALO de Titanio
+    c.fillStyle = '#020617';
+    c.beginPath();
+    c.ellipse(cx, 88, 9.5, 16, 0, 0, Math.PI * 2);
+    c.fill();
+
+    // Casco del piloto con visera iridiscente
+    c.fillStyle = accentHex;
+    c.beginPath();
+    c.arc(cx, 86, 6.8, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = '#0284c7';
+    c.fillRect(cx - 5, 87, 10, 3.5);
+
+    // Arco de seguridad HALO en V
+    c.strokeStyle = '#e2e8f0';
+    c.lineWidth = 2.8;
+    c.beginPath();
+    c.moveTo(cx - 8, 78);
+    c.quadraticCurveTo(cx, 104, cx, 104);
+    c.moveTo(cx + 8, 78);
+    c.quadraticCurveTo(cx, 104, cx, 104);
+    c.stroke();
+
+    // 7. Alerón Trasero DRS (arriba y=14..28) + Luz FIA de lluvia roja
+    c.fillStyle = '#0f172a';
+    c.strokeStyle = accentHex;
+    c.lineWidth = 2.2;
+    c.beginPath();
+    if (c.roundRect) c.roundRect(cx - 34, 14, 68, 15, 3);
+    else c.rect(cx - 34, 14, 68, 15);
+    c.fill();
+    c.stroke();
+    c.fillStyle = primaryHex;
+    c.fillRect(cx - 32, 20, 64, 4);
+    // Luz FIA trasera roja brillante
+    c.fillStyle = '#ff0033';
+    c.beginPath();
+    c.arc(cx, 31, 3.8, 0, Math.PI * 2);
+    c.fill();
+
+    // 8. Alerón Delantero Multi-plano (abajo en el morro y=158..174) con Endplates blancos
+    c.fillStyle = '#0f172a';
+    c.strokeStyle = '#f8fafc';
+    c.lineWidth = 2.2;
+    c.beginPath();
+    c.moveTo(cx - 44, 158);
+    c.lineTo(cx, 165);
+    c.lineTo(cx + 44, 158);
+    c.lineTo(cx + 46, 171);
+    c.lineTo(cx, 177);
+    c.lineTo(cx - 46, 171);
+    c.closePath();
+    c.fill();
+    c.stroke();
+
+    c.strokeStyle = accentHex;
+    c.lineWidth = 2;
+    c.beginPath();
+    c.moveTo(cx - 42, 164);
+    c.lineTo(cx, 170);
+    c.lineTo(cx + 42, 164);
+    c.stroke();
+
+    // Dorsal numérico en el morro
+    c.fillStyle = '#ffffff';
+    c.font = '900 11px "Outfit", sans-serif';
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.fillText(raceNum, cx, 138);
+
+    return cvs;
+  }
+
+  _buildHighwayTeslaRoadsterSprite() {
+    const cvs = document.createElement('canvas');
+    cvs.width = 124;
+    cvs.height = 176;
+    const c = cvs.getContext('2d');
+    const cx = 62;
+
+    // 1. Sombra exterior
+    c.fillStyle = 'rgba(0, 0, 0, 0.48)';
+    c.beginPath();
+    c.ellipse(cx, 92, 44, 72, 0, 0, Math.PI * 2);
+    c.fill();
+
+    // 2. Toberas de propulsores de gas frío SpaceX (Traseras en y=14 y laterales en y=58)
+    c.fillStyle = '#334155';
+    c.strokeStyle = '#38bdf8';
+    c.lineWidth = 2;
+    // Dos toberas traseras principales
+    c.fillRect(cx - 18, 10, 12, 12);
+    c.fillRect(cx + 6, 10, 12, 12);
+    c.strokeRect(cx - 18, 10, 12, 12);
+    c.strokeRect(cx + 6, 10, 12, 12);
+    // Núcleo incandescente blanco/cian de propulsor
+    c.fillStyle = '#e0f2fe';
+    c.beginPath();
+    c.arc(cx - 12, 12, 4.5, 0, Math.PI * 2);
+    c.arc(cx + 12, 12, 4.5, 0, Math.PI * 2);
+    c.fill();
+
+    // 3. Ruedas deportivas aerodinámicas
+    c.fillStyle = '#090d16';
+    const wheels = [[18, 44], [106, 44], [19, 128], [105, 128]];
+    for (let i = 0; i < wheels.length; i++) {
+      const [wx, wy] = wheels[i];
+      c.fillRect(wx - 6, wy - 16, 12, 32);
+    }
+
+    // 4. Carrocería superdeportiva Midnight Cherry Red con cintura de avispa
+    const roadsterGrad = c.createLinearGradient(cx - 38, 20, cx + 38, 20);
+    roadsterGrad.addColorStop(0.0, '#7f1d1d');
+    roadsterGrad.addColorStop(0.22, '#dc2626');
+    roadsterGrad.addColorStop(0.50, '#ff4d6d');
+    roadsterGrad.addColorStop(0.78, '#dc2626');
+    roadsterGrad.addColorStop(1.0, '#7f1d1d');
+
+    c.fillStyle = roadsterGrad;
+    c.strokeStyle = '#fecdd3';
+    c.lineWidth = 2.2;
+    c.beginPath();
+    c.moveTo(cx - 28, 18);
+    c.lineTo(cx + 28, 18);
+    c.quadraticCurveTo(cx + 40, 38, cx + 38, 56);
+    c.lineTo(cx + 33, 88);
+    c.quadraticCurveTo(cx + 40, 118, cx + 36, 144);
+    c.quadraticCurveTo(cx, 166, cx - 36, 144);
+    c.quadraticCurveTo(cx - 40, 118, cx - 33, 88);
+    c.lineTo(cx - 38, 56);
+    c.quadraticCurveTo(cx - 40, 38, cx - 28, 18);
+    c.closePath();
+    c.fill();
+    c.stroke();
+
+    // 5. Cúpula de cristal panorámica aerodinámica y asientos blancos SpaceX
+    c.fillStyle = '#090d16';
+    c.strokeStyle = '#94a3b8';
+    c.lineWidth = 1.8;
+    c.beginPath();
+    c.moveTo(cx - 21, 38);
+    c.lineTo(cx + 21, 38);
+    c.lineTo(cx + 25, 98);
+    c.quadraticCurveTo(cx, 114, cx - 25, 98);
+    c.closePath();
+    c.fill();
+    c.stroke();
+
+    // Asientos deportivos blancos visibles a través del techo de cristal
+    c.fillStyle = 'rgba(248, 250, 252, 0.78)';
+    c.beginPath();
+    if (c.roundRect) {
+      c.roundRect(cx - 15, 62, 11, 20, 4);
+      c.roundRect(cx + 4, 62, 11, 20, 4);
+    } else {
+      c.rect(cx - 15, 62, 11, 20);
+      c.rect(cx + 4, 62, 11, 20);
+    }
+    c.fill();
+
+    // 6. Nervaduras del capó y barra de faros láser Cyber-LED en el morro (y=142..154)
+    c.strokeStyle = '#7f1d1d';
+    c.lineWidth = 2;
+    c.beginPath();
+    c.moveTo(cx - 18, 106); c.lineTo(cx - 12, 148);
+    c.moveTo(cx + 18, 106); c.lineTo(cx + 12, 148);
+    c.stroke();
+
+    // Faros láser LED afilados
+    c.strokeStyle = '#ffffff';
+    c.lineWidth = 3.6;
+    c.beginPath();
+    c.moveTo(cx - 32, 140); c.lineTo(cx - 14, 150);
+    c.moveTo(cx + 32, 140); c.lineTo(cx + 14, 150);
+    c.stroke();
+
+    // Insignia "T" plateada en el morro
+    c.strokeStyle = '#ffffff';
+    c.lineWidth = 2;
+    c.beginPath();
+    c.moveTo(cx - 5, 146); c.lineTo(cx + 5, 146);
+    c.moveTo(cx, 146); c.lineTo(cx, 153);
+    c.stroke();
+
+    return cvs;
+  }
+
+  _buildHighwaySteamLocomotiveSprite() {
+    const cvs = document.createElement('canvas');
+    cvs.width = 124;
+    cvs.height = 176;
+    const c = cvs.getContext('2d');
+    const cx = 62;
+
+    // 1. Sombra de la locomotora
+    c.fillStyle = 'rgba(0, 0, 0, 0.52)';
+    c.beginPath();
+    c.ellipse(cx, 92, 44, 74, 0, 0, Math.PI * 2);
+    c.fill();
+
+    // 2. Bielas y ruedas motrices rojas con llanta de acero a ambos lados
+    for (let r = 0; r < 3; r++) {
+      const wy = 44 + r * 36;
+      c.fillStyle = '#dc2626';
+      c.strokeStyle = '#e2e8f0';
+      c.lineWidth = 2.5;
+      c.fillRect(14, wy - 12, 10, 24);
+      c.strokeRect(14, wy - 12, 10, 24);
+      c.fillRect(100, wy - 12, 10, 24);
+      c.strokeRect(100, wy - 12, 10, 24);
+    }
+    // Biela lateral plateada conectando las ruedas
+    c.fillStyle = '#cbd5e1';
+    c.fillRect(16, 40, 4, 82);
+    c.fillRect(104, 40, 4, 82);
+
+    // 3. Apartavacas delantero en V (Cowcatcher rojo y dorado en el frente inferior y=144..170)
+    c.fillStyle = '#b91c1c';
+    c.strokeStyle = '#fbbf24';
+    c.lineWidth = 2.6;
+    c.beginPath();
+    c.moveTo(cx - 34, 140);
+    c.lineTo(cx + 34, 140);
+    c.lineTo(cx, 170);
+    c.closePath();
+    c.fill();
+    c.stroke();
+
+    // Rejilla metálica del apartavacas
+    c.strokeStyle = '#fde68a';
+    c.lineWidth = 1.8;
+    for (let k = -24; k <= 24; k += 8) {
+      c.beginPath();
+      c.moveTo(cx + k, 141);
+      c.lineTo(cx + k * 0.35, 165);
+      c.stroke();
+    }
+
+    // 4. Bastidor lateral rojo imperial (Running boards)
+    c.fillStyle = '#991b1b';
+    c.strokeStyle = '#f59e0b';
+    c.lineWidth = 2;
+    c.fillRect(cx - 34, 22, 68, 120);
+    c.strokeRect(cx - 34, 22, 68, 120);
+
+    // 5. Cabina del maquinista (arriba y=18..62) en rojo real con ribete de latón y resplandor de caldera
+    c.fillStyle = '#7f1d1d';
+    c.strokeStyle = '#fbbf24';
+    c.lineWidth = 2.8;
+    c.beginPath();
+    if (c.roundRect) c.roundRect(cx - 32, 18, 64, 46, 8);
+    else c.rect(cx - 32, 18, 64, 46);
+    c.fill();
+    c.stroke();
+
+    // Claraboya y resplandor naranja de carbón ardiente
+    c.fillStyle = '#fb923c';
+    c.fillRect(cx - 18, 22, 36, 8);
+
+    // 6. Caldera cilíndrica negra mate (y=62..142) con bandas de latón dorado
+    const boilerGrad = c.createLinearGradient(cx - 24, 62, cx + 24, 62);
+    boilerGrad.addColorStop(0.0, '#020617');
+    boilerGrad.addColorStop(0.35, '#1e293b');
+    boilerGrad.addColorStop(0.50, '#475569');
+    boilerGrad.addColorStop(0.65, '#1e293b');
+    boilerGrad.addColorStop(1.0, '#020617');
+    c.fillStyle = boilerGrad;
+    c.strokeStyle = '#fbbf24';
+    c.lineWidth = 2;
+    c.beginPath();
+    if (c.roundRect) c.roundRect(cx - 24, 60, 48, 82, 10);
+    else c.rect(cx - 24, 60, 48, 82);
+    c.fill();
+    c.stroke();
+
+    // 3 Bandas de latón dorado alrededor de la caldera
+    c.fillStyle = '#fbbf24';
+    c.fillRect(cx - 24, 76, 48, 4.5);
+    c.fillRect(cx - 24, 98, 48, 4.5);
+    c.fillRect(cx - 24, 120, 48, 4.5);
+
+    // Domo de vapor de latón pulido (en y=88)
+    c.fillStyle = '#f59e0b';
+    c.strokeStyle = '#fef08a';
+    c.lineWidth = 2;
+    c.beginPath();
+    c.arc(cx, 88, 10, 0, Math.PI * 2);
+    c.fill();
+    c.stroke();
+
+    // 7. Gran Chimenea de Vapor (en y=126) + Gran Faro Dorado Central (en y=144)
+    c.fillStyle = '#090d16';
+    c.strokeStyle = '#fbbf24';
+    c.lineWidth = 3.2;
+    c.beginPath();
+    c.arc(cx, 126, 12, 0, Math.PI * 2);
+    c.fill();
+    c.stroke();
+
+    c.fillStyle = '#fef08a';
+    c.strokeStyle = '#f59e0b';
+    c.lineWidth = 2.4;
+    c.beginPath();
+    c.arc(cx, 145, 7.5, 0, Math.PI * 2);
+    c.fill();
+    c.stroke();
+
+    return cvs;
+  }
+
+  _buildHighwaySteamWagonSprite(kind, bodyHex, trimHex) {
+    const cvs = document.createElement('canvas');
+    cvs.width = 108;
+    cvs.height = 132;
+    const c = cvs.getContext('2d');
+    const cx = 54;
+
+    // Sombra bajo el vagón
+    c.fillStyle = 'rgba(0, 0, 0, 0.44)';
+    c.beginPath();
+    c.ellipse(cx, 66, 38, 56, 0, 0, Math.PI * 2);
+    c.fill();
+
+    // Enganches de acero delantero y trasero (Couplers)
+    c.fillStyle = '#64748b';
+    c.strokeStyle = '#0f172a';
+    c.lineWidth = 2;
+    c.fillRect(cx - 6, 4, 12, 16);
+    c.strokeRect(cx - 6, 4, 12, 16);
+    c.fillRect(cx - 6, 112, 12, 16);
+    c.strokeRect(cx - 6, 112, 12, 16);
+
+    // Ruedas de hierro de los bogies
+    c.fillStyle = '#1e293b';
+    c.fillRect(14, 26, 9, 24);
+    c.fillRect(85, 26, 9, 24);
+    c.fillRect(14, 82, 9, 24);
+    c.fillRect(85, 82, 9, 24);
+
+    // Cuerpo del vagón con borde dorado
+    c.fillStyle = bodyHex;
+    c.strokeStyle = trimHex;
+    c.lineWidth = 3;
+    c.beginPath();
+    if (c.roundRect) c.roundRect(cx - 32, 16, 64, 100, 9);
+    else c.rect(cx - 32, 16, 64, 100);
+    c.fill();
+    c.stroke();
+
+    if (kind === 'tender') {
+      // Vagón carbonero lleno de carbón mineral brillante
+      c.fillStyle = '#090d16';
+      c.fillRect(cx - 24, 26, 48, 80);
+      c.fillStyle = '#334155';
+      for (let k = 0; k < 12; k++) {
+        const kx = cx - 18 + (k % 3) * 16 + ((k % 2) * 3);
+        const ky = 34 + Math.floor(k / 3) * 18;
+        c.beginPath();
+        c.arc(kx, ky, 7, 0, Math.PI * 2);
+        c.fill();
+      }
+    } else {
+      // Vagón expreso de pasajeros con ventanillas iluminadas cálidas y nervaduras de techo
+      c.fillStyle = '#fef08a';
+      for (let w = 0; w < 4; w++) {
+        const wy = 26 + w * 21;
+        c.fillRect(cx - 30, wy, 5, 13);
+        c.fillRect(cx + 25, wy, 5, 13);
+      }
+      // Lomo central del techo del vagón
+      c.fillStyle = 'rgba(255, 255, 255, 0.16)';
+      c.fillRect(cx - 14, 20, 28, 92);
+      c.strokeStyle = trimHex;
+      c.lineWidth = 1.6;
+      for (let r = 0; r < 5; r++) {
+        const ry = 28 + r * 19;
+        c.beginPath();
+        c.moveTo(cx - 24, ry);
+        c.lineTo(cx + 24, ry);
+        c.stroke();
+      }
+      if (kind === 'caboose') {
+        // Farolillos rojos de cola en el último vagón
+        c.fillStyle = '#ff0033';
+        c.beginPath();
+        c.arc(cx - 18, 18, 4.5, 0, Math.PI * 2);
+        c.arc(cx + 18, 18, 4.5, 0, Math.PI * 2);
+        c.fill();
+      }
+    }
+
+    return cvs;
+  }
+
+  _prepareHighwayTrafficChoreography() {
+    if (!this.notes || this.notes.length === 0) return;
+    const baseDur = Math.max(1100, this.scrollDurationMs || 1700);
+    const nLen = this.notes.length;
+
+    // 1. Asignación inicial de tipos de vehículo y velocidades base:
+    // - Holds -> 'steam_train' (locomotora de vapor con vagones)
+    // - Tap/Swipe -> mezcla variada de 'tractor' (lento), 'fiat500' (medio), 'f1' (muy rápido) y 'tesla_roadster' (hiper-rápido volador)
+    const speedCatalog = {
+      tractor: baseDur * 1.48,
+      fiat500: baseDur * 1.12,
+      steam_train: baseDur * 1.00,
+      f1: baseDur * 0.74,
+      tesla_roadster: baseDur * 0.65
+    };
+
+    const cycleTypes = ['f1', 'tractor', 'fiat500', 'tesla_roadster', 'fiat500', 'f1', 'tractor', 'tesla_roadster'];
+    for (let i = 0; i < nLen; i++) {
+      const n = this.notes[i];
+      n._hwStartLane = n.lane ?? 1;
+      n._hwPassLane = n.lane ?? 1;
+      n._hwOvertakeP = -1;
+      n._hwIsFlyingOvertake = false;
+      n._hwVariantIdx = i % 3;
+
+      if (n.type === 'hold') {
+        n._hwVehicleType = 'steam_train';
+        n._hwDurationMs = speedCatalog.steam_train;
+      } else {
+        const vType = cycleTypes[i % cycleTypes.length];
+        n._hwVehicleType = vType;
+        n._hwDurationMs = speedCatalog[vType];
+      }
+    }
+
+    // 2. Planificador de adelantamientos espectaculares:
+    // Si la nota i (que llega ANTES al Perfect, en T_i) es un coche rápido ('tesla_roadster' o 'f1')
+    // y la nota i+1 (que llega DESPUÉS al Perfect, en T_{i+1}) está a [240ms..860ms] de distancia,
+    // hacemos que i+1 sea un vehículo más lento ('tractor' o 'fiat500') que salió antes por el horizonte.
+    // Así el vehículo rápido i alcanza por detrás a i+1 y lo ADELANTA en mitad de la autopista antes del Perfect!
+    for (let i = 0; i < nLen - 1; i++) {
+      const fastN = this.notes[i];
+      const slowN = this.notes[i + 1];
+      if (!fastN || !slowN || fastN.type === 'hold' || slowN.type === 'hold') continue;
+
+      const dtBeat = (slowN.timestamp_ms || 0) - (fastN.timestamp_ms || 0);
+      if (dtBeat >= 230 && dtBeat <= 860 && (i % 2 === 0)) {
+        const useTesla = (i % 4 === 0);
+        fastN._hwVehicleType = useTesla ? 'tesla_roadster' : 'f1';
+        fastN._hwDurationMs = useTesla ? speedCatalog.tesla_roadster : speedCatalog.f1;
+
+        slowN._hwVehicleType = (i % 4 === 0) ? 'tractor' : 'fiat500';
+        slowN._hwDurationMs = (slowN._hwVehicleType === 'tractor') ? speedCatalog.tractor : speedCatalog.fiat500;
+
+        const dSlow = slowN._hwDurationMs;
+        const dFast = fastN._hwDurationMs;
+        const pOvertake = 1.0 - (dtBeat / Math.max(100, dSlow - dFast));
+
+        if (pOvertake >= 0.20 && pOvertake <= 0.72) {
+          fastN._hwOvertakeP = pOvertake;
+          if (useTesla) {
+            // El Tesla Roadster sale detrás del vehículo lento, enciende sus propulsores de humo blanco,
+            // lo adelanta VOLANDO por encima con una pirueta de 360° y aterriza en su carril real fastN.lane
+            fastN._hwStartLane = slowN.lane;
+            fastN._hwIsFlyingOvertake = true;
+          } else {
+            // El F1 sale detrás del vehículo lento y cambia de carril con intermitentes para adelantarlo sin tocarlo
+            if (fastN.lane !== slowN.lane) {
+              fastN._hwStartLane = slowN.lane;
+            } else {
+              // Mismo carril: el F1 se abre a un carril contiguo despejado para adelantar y vuelve a su carril
+              const altLane = (fastN.lane === 1) ? ((i % 2 === 0) ? 0 : 2) : 1;
+              fastN._hwPassLane = altLane;
+            }
+          }
+          i++; // Avanzar pareja ya coreografiada
+        }
+      }
+    }
+
+    // 3. Pasada matemática estricta Anti-Solapamiento por carril (Garantía de 0% colisiones en carretera):
+    // Como p(t) es lineal respecto a t, si dos vehículos en el mismo carril mantienen una separación >= minGapP
+    // tanto al nacer en el horizonte como al cruzar la meta (Perfect), jamás pueden solaparse en ningún instante intermedio.
+    const lastNoteByLane = [null, null, null];
+    const minGapP = 0.21;
+    for (let i = 0; i < nLen; i++) {
+      const cur = this.notes[i];
+      const lane = Math.max(0, Math.min(2, Math.round(cur.lane ?? 1)));
+      const prev = lastNoteByLane[lane];
+
+      if (prev) {
+        const prevEndT = (prev.type === 'hold')
+          ? (prev.end_timestamp_ms || (prev.timestamp_ms + (prev.duration_ms || 700)))
+          : prev.timestamp_ms;
+        const dt = (cur.timestamp_ms || 0) - (prevEndT || 0);
+        const prevDur = prev._hwDurationMs || baseDur;
+
+        // Si el vehículo actual NO está haciendo un adelantamiento aéreo ni por otro carril sobre prev,
+        // limitar su duración para que nunca alcance el parachoques trasero de prev ni nazca encima de él
+        const isBypassingPrev = (cur._hwIsFlyingOvertake || cur._hwPassLane !== lane || cur._hwStartLane !== lane);
+        if (!isBypassingPrev) {
+          const maxAllowedDur = Math.max(baseDur * 0.58, dt + prevDur * (1.0 - minGapP));
+          if (cur._hwDurationMs > maxAllowedDur) {
+            cur._hwDurationMs = maxAllowedDur;
+          }
+          // Y si cur es mucho más rápido que prev pero llega DESPUÉS que prev, no permitir que nazca antes que prev en el mismo carril
+          const minAllowedDur = Math.max(baseDur * 0.58, prevDur - Math.max(0, dt - prevDur * minGapP));
+          if (cur._hwDurationMs < minAllowedDur && dt < prevDur * 0.9) {
+            cur._hwDurationMs = minAllowedDur;
+          }
+        }
+      }
+      lastNoteByLane[lane] = cur;
+    }
+  }
+
+  _emitHighwaySmoke(x, y, vx, vy, rStart, rEnd, color, alpha, duration) {
+    if (!this._hwSmokeParticles) this._hwSmokeParticles = [];
+    if (this._hwSmokeParticles.length > 110) return;
+    this._hwSmokeParticles.push({
+      x, y, vx, vy,
+      r: rStart,
+      maxR: rEnd,
+      color: color || '#ffffff',
+      alpha: alpha || 0.75,
+      age: 0,
+      duration: duration || 0.55
+    });
+  }
+
+  _renderHighwaySteamTrainHold(ctx, note, lane, currentTime, pHead, endT, isBeingHeld, maxH3D) {
+    if (!this._hwAssetsReady || !this._hwSprites) this.initHighwayModeAssets();
+    const noteDur = note._hwDurationMs || this.scrollDurationMs || 1700;
+    const invNoteDur = 1.0 / noteDur;
+
+    const currentHeadP = isBeingHeld ? 1.0 : pHead;
+    const currentTailP = 1.0 - (endT - currentTime) * invNoteDur;
+    if (currentTailP > 1.25 || currentHeadP < -0.20) return;
+
+    const visibleTailP = Math.max(-0.08, currentTailP);
+    const visibleHeadP = Math.min(1.18, currentHeadP);
+    if (visibleHeadP <= visibleTailP) return;
+
+    ctx.save();
+
+    // 1. Dibujar vía de ferrocarril 3D (balasto, traviesas de madera y raíles de acero) sobre el carril de la carretera
+    const railSteps = 12;
+    const pts = [];
+    for (let s = 0; s <= railSteps; s++) {
+      const frac = s / railSteps;
+      const pStep = visibleTailP + (visibleHeadP - visibleTailP) * frac;
+      const c = this.getPerspectiveCoord(lane, pStep);
+      pts.push({ x: c.x, y: c.y, scale: c.scale, laneW: c.laneW, p: pStep });
+    }
+
+    // Traviesas de madera de roble a lo largo del tramo del tren
+    const sleeperSpanP = visibleHeadP - visibleTailP;
+    const numSleepers = Math.max(4, Math.min(26, Math.floor(sleeperSpanP * 24)));
+    ctx.strokeStyle = '#78350f';
+    for (let k = 0; k <= numSleepers; k++) {
+      const pSl = visibleTailP + (k / numSleepers) * sleeperSpanP;
+      const sc = this.getPerspectiveCoord(lane, pSl, this._coordScratch1);
+      const slHalfW = sc.laneW * 0.34;
+      ctx.lineWidth = Math.max(2.0, 4.5 * sc.scale);
+      ctx.beginPath();
+      ctx.moveTo(sc.x - slHalfW, sc.y);
+      ctx.lineTo(sc.x + slHalfW, sc.y);
+      ctx.stroke();
+    }
+
+    // Dos raíles de acero bruñido
+    ctx.strokeStyle = isBeingHeld ? '#fde047' : '#cbd5e1';
+    ctx.lineWidth = Math.max(2.0, 3.4 * pts[pts.length - 1].scale);
+    ctx.beginPath();
+    for (let s = 0; s <= railSteps; s++) {
+      const pt = pts[s];
+      const rOff = pt.laneW * 0.22;
+      if (s === 0) ctx.moveTo(pt.x - rOff, pt.y);
+      else ctx.lineTo(pt.x - rOff, pt.y);
+    }
+    for (let s = 0; s <= railSteps; s++) {
+      const pt = pts[s];
+      const rOff = pt.laneW * 0.22;
+      if (s === 0) ctx.moveTo(pt.x + rOff, pt.y);
+      else ctx.lineTo(pt.x + rOff, pt.y);
+    }
+    ctx.stroke();
+
+    // 2. Dibujar vagones acoplados desde la cola (currentTailP) hasta justo detrás de la locomotora (currentHeadP)
+    const wagonStepP = 0.165;
+    const availableWagonSpan = Math.max(0, (currentHeadP - 0.13) - currentTailP);
+    const wagonCount = Math.min(10, Math.max(1, Math.round(availableWagonSpan / wagonStepP)));
+    const wagonsSprites = this._hwSprites.steam_wagons;
+
+    for (let wIdx = wagonCount - 1; wIdx >= 0; wIdx--) {
+      const pWagon = currentHeadP - 0.15 - wIdx * wagonStepP;
+      if (pWagon < -0.08 || pWagon > 1.12) continue;
+      if (pWagon < currentTailP - 0.03) continue;
+
+      const wCoord = this.getPerspectiveCoord(lane, pWagon, this._coordScratch1);
+      const wWidth = Math.min(wCoord.laneW * 0.66, 68 * wCoord.scale);
+      const wHeight = wWidth * 1.22;
+      const swayX = Math.sin(currentTime * 0.014 + wIdx * 1.4) * (1.8 * wCoord.scale);
+
+      // Seleccionar sprite de vagón: el primero tras la locomotora es el carbonero (tender), el último el furgón de cola (caboose)
+      let spr = wagonsSprites[1];
+      if (wIdx === 0) spr = wagonsSprites[0];
+      else if (wIdx === wagonCount - 1) spr = wagonsSprites[3];
+      else spr = wagonsSprites[1 + (wIdx % 2)];
+
+      ctx.drawImage(
+        spr,
+        wCoord.x + swayX - wWidth * 0.5,
+        wCoord.y - wHeight * 0.55,
+        wWidth,
+        wHeight
+      );
+    }
+
+    // 3. Dibujar la Locomotora de Vapor en la cabeza del Hold (currentHeadP)
+    const headCoord = this.getPerspectiveCoord(lane, Math.min(1.06, currentHeadP), this._coordScratch1);
+    const locoW = Math.min(headCoord.laneW * 0.72, 76 * headCoord.scale);
+    const locoH = locoW * 1.42;
+    const chugBounce = isBeingHeld
+      ? Math.sin(currentTime * 0.035) * (2.2 * headCoord.scale)
+      : Math.sin(currentTime * 0.018) * (1.2 * headCoord.scale);
+
+    // Cono de luz dorada del faro delantero de la locomotora sobre la vía
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const beamLen = (isBeingHeld ? 62 : 44) * headCoord.scale;
+    const beamGrad = ctx.createLinearGradient(headCoord.x, headCoord.y, headCoord.x, headCoord.y + beamLen);
+    beamGrad.addColorStop(0.0, isBeingHeld ? 'rgba(254, 240, 138, 0.72)' : 'rgba(254, 240, 138, 0.42)');
+    beamGrad.addColorStop(1.0, 'rgba(254, 240, 138, 0.0)');
+    ctx.fillStyle = beamGrad;
+    ctx.beginPath();
+    ctx.moveTo(headCoord.x - 8 * headCoord.scale, headCoord.y + 4 * headCoord.scale);
+    ctx.lineTo(headCoord.x + 8 * headCoord.scale, headCoord.y + 4 * headCoord.scale);
+    ctx.lineTo(headCoord.x + 26 * headCoord.scale, headCoord.y + beamLen);
+    ctx.lineTo(headCoord.x - 26 * headCoord.scale, headCoord.y + beamLen);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // El morro (apartavacas) de la locomotora se alinea con headCoord.y para que el juicio en hitLineY sea exacto
+    ctx.drawImage(
+      this._hwSprites.steam_locomotive,
+      headCoord.x + chugBounce * 0.4 - locoW * 0.5,
+      headCoord.y - locoH * 0.78,
+      locoW,
+      locoH
+    );
+
+    // 4. Emitir bocanadas de vapor blanco desde la chimenea de la locomotora
+    if (!note._lastSteamMs || (currentTime - note._lastSteamMs > (isBeingHeld ? 55 : 115))) {
+      note._lastSteamMs = currentTime;
+      const stackX = headCoord.x + (Math.random() - 0.5) * 6 * headCoord.scale;
+      const stackY = headCoord.y - locoH * 0.22;
+      this._emitHighwaySmoke(
+        stackX,
+        stackY,
+        (Math.random() - 0.5) * 24,
+        -38 - Math.random() * 24,
+        6 * headCoord.scale,
+        (isBeingHeld ? 26 : 19) * headCoord.scale,
+        isBeingHeld ? '#fef9c3' : '#f8fafc',
+        isBeingHeld ? 0.85 : 0.65,
+        0.58
+      );
+    }
+
+    ctx.restore();
+  }
+
+  _renderHighwayVehicleNote(ctx, note, noteIdx, lane, currentTime, pHead, maxH3D) {
+    if (!this._hwAssetsReady || !this._hwSprites) this.initHighwayModeAssets();
+    const vType = note._hwVehicleType || 'f1';
+
+    // 1. Calcular carril dinámico (adelantamientos limpios sin solaparse) y vuelo/pirueta del Tesla Roadster
+    let visualLane = lane;
+    let steerAngle = 0;
+    let flightLift = 0;      // 0 en asfalto, hasta 1.0 en pleno vuelo del Tesla Roadster
+    let pirouetteAngle = 0;  // Rotación 360° (2*PI) durante la pirueta aérea del Tesla Roadster
+    let blinkerSide = 0;     // -1 intermitente izquierdo, +1 intermitente derecho
+
+    const overtakeP = note._hwOvertakeP ?? -1;
+    if (overtakeP > 0) {
+      if (note._hwIsFlyingOvertake && vType === 'tesla_roadster') {
+        // El Tesla Roadster sale detrás del coche lento en _hwStartLane, enciende sus propulsores de humo blanco,
+        // se eleva volando sobre el coche delantero haciendo una pirueta completa de 360° y aterriza en su carril real `lane`
+        const fStart = Math.max(0.06, overtakeP - 0.24);
+        const fEnd = Math.min(0.78, overtakeP + 0.22);
+        if (pHead < fStart) {
+          visualLane = note._hwStartLane ?? lane;
+        } else if (pHead <= fEnd) {
+          const u = (pHead - fStart) / Math.max(0.01, fEnd - fStart);
+          const smoothU = 0.5 - 0.5 * Math.cos(Math.PI * u);
+          visualLane = (note._hwStartLane ?? lane) + (lane - (note._hwStartLane ?? lane)) * smoothU;
+          flightLift = Math.sin(Math.PI * u);
+          // Pirueta completa de 360 grados en el aire como el Tesla Roadster SpaceX
+          pirouetteAngle = (0.5 - 0.5 * Math.cos(Math.PI * u)) * Math.PI * 2;
+        } else {
+          visualLane = lane;
+        }
+      } else if ((note._hwStartLane !== undefined) && note._hwStartLane !== lane) {
+        // Adelantamiento cambiando de carril (_hwStartLane -> lane)
+        const sStart = Math.max(0.08, overtakeP - 0.22);
+        const sEnd = Math.min(0.74, overtakeP + 0.10);
+        if (pHead < sStart) {
+          visualLane = note._hwStartLane;
+          if (pHead > sStart - 0.12) {
+            blinkerSide = (lane > note._hwStartLane) ? 1 : -1;
+          }
+        } else if (pHead <= sEnd) {
+          const u = (pHead - sStart) / Math.max(0.01, sEnd - sStart);
+          const smoothU = 0.5 - 0.5 * Math.cos(Math.PI * u);
+          visualLane = note._hwStartLane + (lane - note._hwStartLane) * smoothU;
+          const dir = (lane > note._hwStartLane) ? 1 : -1;
+          steerAngle = Math.sin(Math.PI * u) * 0.22 * dir;
+          blinkerSide = dir;
+        } else {
+          visualLane = lane;
+        }
+      } else if ((note._hwPassLane !== undefined) && note._hwPassLane !== lane) {
+        // Adelantamiento saliendo al carril contiguo libre y volviendo a `lane` antes de p=0.76
+        const pStart = Math.max(0.06, overtakeP - 0.24);
+        const pEnd = Math.min(0.76, overtakeP + 0.20);
+        if (pHead >= pStart && pHead <= pEnd) {
+          const u = (pHead - pStart) / Math.max(0.01, pEnd - pStart);
+          const offsetBell = Math.sin(Math.PI * u);
+          visualLane = lane + (note._hwPassLane - lane) * offsetBell;
+          steerAngle = Math.cos(Math.PI * u) * 0.20 * ((note._hwPassLane > lane) ? 1 : -1);
+          blinkerSide = (u < 0.5) ? ((note._hwPassLane > lane) ? 1 : -1) : ((lane > note._hwPassLane) ? 1 : -1);
+        }
+      }
+    }
+
+    const coord = this.getPerspectiveCoord(visualLane, pHead, this._coordScratch0);
+    const scale = coord.scale;
+    const laneW = coord.laneW;
+
+    // 2. Dimensiones estrictamente contenidas dentro del carril (máx 68% del ancho de carril) para que jamás se toquen lateralmente
+    let carW = Math.min(laneW * 0.66, 72 * scale);
+    let carH = carW * 1.42;
+    let sprite = this._hwSprites.f1[0];
+
+    if (vType === 'tractor') {
+      carW = Math.min(laneW * 0.68, 74 * scale);
+      carH = carW * 1.36;
+      sprite = this._hwSprites.tractor;
+    } else if (vType === 'fiat500') {
+      carW = Math.min(laneW * 0.60, 64 * scale);
+      carH = carW * 1.38;
+      const fList = this._hwSprites.fiat500;
+      sprite = fList[(note._hwVariantIdx || 0) % fList.length];
+    } else if (vType === 'f1') {
+      carW = Math.min(laneW * 0.66, 72 * scale);
+      carH = carW * 1.50;
+      const f1List = this._hwSprites.f1;
+      sprite = f1List[(note._hwVariantIdx || 0) % f1List.length];
+    } else if (vType === 'tesla_roadster') {
+      carW = Math.min(laneW * 0.66, 72 * scale);
+      carH = carW * 1.42;
+      sprite = this._hwSprites.tesla_roadster;
+    }
+
+    // 3. Efectos de partículas dinámicas por tipo de vehículo (propulsores de humo blanco del Tesla, escape del tractor, chispas del F1)
+    const liftOffsetY = flightLift * (46 * scale);
+    const drawX = coord.x;
+    // Alinear el parachoques delantero del vehículo con coord.y (para que toque la línea de PERFECT exactamente en pHead = 1.0)
+    const drawCenterY = coord.y - carH * 0.42 - liftOffsetY;
+
+    if (vType === 'tesla_roadster') {
+      // Propulsores traseros SpaceX soltando abundante humo blanco
+      const smokeInterval = flightLift > 0.05 ? 24 : 52;
+      if (!note._lastSmokeMs || (currentTime - note._lastSmokeMs >= smokeInterval)) {
+        note._lastSmokeMs = currentTime;
+        const rearY = drawCenterY - carH * 0.44;
+        const spread = (flightLift > 0.05 ? 16 : 9) * scale;
+        this._emitHighwaySmoke(
+          drawX - spread + (Math.random() - 0.5) * 6,
+          rearY,
+          (Math.random() - 0.5) * (flightLift > 0.05 ? 65 : 22),
+          -55 - Math.random() * 40,
+          (flightLift > 0.05 ? 9 : 6) * scale,
+          (flightLift > 0.05 ? 30 : 20) * scale,
+          '#ffffff',
+          flightLift > 0.05 ? 0.92 : 0.72,
+          flightLift > 0.05 ? 0.62 : 0.45
+        );
+        this._emitHighwaySmoke(
+          drawX + spread + (Math.random() - 0.5) * 6,
+          rearY,
+          (Math.random() - 0.5) * (flightLift > 0.05 ? 65 : 22),
+          -55 - Math.random() * 40,
+          (flightLift > 0.05 ? 9 : 6) * scale,
+          (flightLift > 0.05 ? 30 : 20) * scale,
+          '#f1f5f9',
+          flightLift > 0.05 ? 0.88 : 0.68,
+          flightLift > 0.05 ? 0.62 : 0.45
+        );
+      }
+    } else if (vType === 'tractor') {
+      // Anillos de humo diésel saliendo por la chimenea vertical del tractor
+      if (!note._lastSmokeMs || (currentTime - note._lastSmokeMs >= 135)) {
+        note._lastSmokeMs = currentTime;
+        this._emitHighwaySmoke(
+          drawX - carW * 0.18,
+          drawCenterY + carH * 0.10,
+          -12 + (Math.random() - 0.5) * 14,
+          -34 - Math.random() * 18,
+          4.5 * scale,
+          15 * scale,
+          '#cbd5e1',
+          0.55,
+          0.48
+        );
+      }
+    }
+
+    ctx.save();
+
+    // 4. Si el Tesla Roadster está adelantando en pleno vuelo, dibujar su sombra proyectada sobre el asfalto debajo
+    if (flightLift > 0.02) {
+      ctx.fillStyle = `rgba(0, 0, 0, ${(0.45 * (1 - flightLift * 0.35)).toFixed(2)})`;
+      ctx.beginPath();
+      ctx.ellipse(coord.x, coord.y - carH * 0.38, carW * 0.42 * (1 - flightLift * 0.2), carH * 0.44 * (1 - flightLift * 0.2), 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 5. Haces de luz de los faros delanteros proyectados hacia delante en el asfalto
+    if (flightLift < 0.35) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const beamLen = (vType === 'f1' ? 28 : 42) * scale;
+      const frontY = coord.y - 2 * scale;
+      const hGrad = ctx.createLinearGradient(drawX, frontY, drawX, frontY + beamLen);
+      const beamCol = (vType === 'tesla_roadster') ? 'rgba(186, 230, 253, 0.46)' : 'rgba(254, 240, 138, 0.36)';
+      hGrad.addColorStop(0.0, beamCol);
+      hGrad.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
+      ctx.fillStyle = hGrad;
+      ctx.beginPath();
+      ctx.moveTo(drawX - carW * 0.34, frontY);
+      ctx.lineTo(drawX + carW * 0.34, frontY);
+      ctx.lineTo(drawX + carW * 0.56, frontY + beamLen);
+      ctx.lineTo(drawX - carW * 0.56, frontY + beamLen);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // 6. Transformación del vehículo (inclinación de volante al adelantar + escala de vuelo + pirueta 360° del Tesla Roadster)
+    const flightScale = 1.0 + flightLift * 0.34;
+    ctx.translate(drawX, drawCenterY);
+    ctx.rotate(steerAngle + pirouetteAngle);
+    ctx.scale(flightScale, flightScale);
+
+    // Chispas de titanio del F1 y llamas de propulsor del Tesla Roadster
+    if (vType === 'f1') {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const sparkFlicker = (Math.floor(currentTime * 0.04) + noteIdx) % 2 === 0;
+      if (sparkFlicker || Math.abs(steerAngle) > 0.02) {
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = Math.max(1.4, 2.2 * scale);
+        ctx.beginPath();
+        for (let sp = -1; sp <= 1; sp += 2) {
+          const sx = sp * carW * 0.24;
+          const sy = -carH * 0.46;
+          ctx.moveTo(sx, sy);
+          ctx.lineTo(sx + sp * 5 * scale, sy - (10 + (currentTime % 9)) * scale);
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
+    } else if (vType === 'tesla_roadster') {
+      // Chorros gemelos de gas frío blanco-cian saliendo de las toberas traseras (y laterales en la pirueta)
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const jetLen = (flightLift > 0.05 ? 34 : 18) * scale * (0.85 + 0.3 * Math.sin(currentTime * 0.05));
+      const jetGrad = ctx.createLinearGradient(0, -carH * 0.45, 0, -carH * 0.45 - jetLen);
+      jetGrad.addColorStop(0.0, 'rgba(255, 255, 255, 0.95)');
+      jetGrad.addColorStop(0.45, 'rgba(186, 230, 253, 0.75)');
+      jetGrad.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
+      ctx.fillStyle = jetGrad;
+      for (let side = -1; side <= 1; side += 2) {
+        const jx = side * carW * 0.19;
+        ctx.beginPath();
+        ctx.moveTo(jx - 4.5 * scale, -carH * 0.44);
+        ctx.lineTo(jx + 4.5 * scale, -carH * 0.44);
+        ctx.lineTo(jx + side * 7 * scale, -carH * 0.44 - jetLen);
+        ctx.lineTo(jx - side * 3 * scale, -carH * 0.44 - jetLen);
+        ctx.closePath();
+        ctx.fill();
+      }
+      if (flightLift > 0.08) {
+        // Anillo aerodinámico supersónico blanco durante la pirueta aérea
+        ctx.strokeStyle = `rgba(255, 255, 255, ${(flightLift * 0.65).toFixed(2)})`;
+        ctx.lineWidth = 2.4 * scale;
+        ctx.beginPath();
+        ctx.arc(0, 0, carW * 0.68, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // Dibujar sprite ultra detallado del vehículo
+    if (sprite) {
+      ctx.drawImage(sprite, -carW * 0.5, -carH * 0.5, carW, carH);
+    }
+
+    // Luz rotativa ámbar girando en el techo del Tractor
+    if (vType === 'tractor') {
+      const rotAng = currentTime * 0.015;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = 'rgba(251, 191, 36, 0.78)';
+      ctx.beginPath();
+      ctx.arc(0, -carH * 0.19, 6 * scale, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(254, 240, 138, 0.85)';
+      ctx.lineWidth = 3.0 * scale;
+      ctx.beginPath();
+      ctx.moveTo(0, -carH * 0.19);
+      ctx.lineTo(Math.cos(rotAng) * 16 * scale, -carH * 0.19 + Math.sin(rotAng) * 16 * scale);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Intermitente ámbar parpadeando cuando un vehículo cambia de carril para adelantar
+    if (blinkerSide !== 0 && (Math.floor(currentTime * 0.016) % 2 === 0)) {
+      ctx.fillStyle = '#fbbf24';
+      const bx = blinkerSide * (carW * 0.44);
+      ctx.beginPath();
+      ctx.arc(bx, carH * 0.36, 4.2 * scale, 0, Math.PI * 2);
+      ctx.arc(bx, -carH * 0.36, 4.2 * scale, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Si la nota es un SWIPE, dibujar chevrón direccional luminoso sobre el techo del vehículo
+    if (note.type === 'swipe') {
+      this.renderVectorChevron(ctx, 0, 4 * scale, note.direction || 'up', carW * 0.88, carH * 0.42);
+    }
+
+    ctx.restore();
+  }
+
+  renderHighwayModeOverlay(ctx, currentTime) {
+    if (!this._hwAssetsReady) this.initHighwayModeAssets();
+    const nowPerf = this._frameNow || performance.now();
+    const dt = Math.min(0.05, Math.max(0.004, (nowPerf - (this._hwLastOverlayNow || nowPerf)) / 1000));
+    this._hwLastOverlayNow = nowPerf;
+
+    const w = this.width || 360;
+    const h = this.height || 640;
+
+    ctx.save();
+
+    // 1. Renderizar y actualizar partículas de humo blanco de los propulsores SpaceX del Tesla Roadster,
+    // bocanadas de vapor blanco de las locomotoras y anillos de humo de los tractores
+    if (this._hwSmokeParticles && this._hwSmokeParticles.length > 0) {
+      for (let i = this._hwSmokeParticles.length - 1; i >= 0; i--) {
+        const sp = this._hwSmokeParticles[i];
+        sp.age += dt;
+        if (sp.age >= sp.duration) {
+          this._hwSmokeParticles.splice(i, 1);
+          continue;
+        }
+        const p = sp.age / sp.duration;
+        sp.x += sp.vx * dt;
+        sp.y += sp.vy * dt;
+        const curR = sp.r + (sp.maxR - sp.r) * (1 - Math.pow(1 - p, 2));
+        const curAlpha = sp.alpha * (1 - p);
+
+        ctx.globalAlpha = Math.max(0, Math.min(1, curAlpha));
+        ctx.fillStyle = sp.color;
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, curR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // 2. Cartel luminoso de apertura del Modo Carretera
+    if (this._hwBannerTimer > 0 && this._hwBannerText) {
+      this._hwBannerTimer = Math.max(0, this._hwBannerTimer - dt);
+      const alpha = Math.min(1, this._hwBannerTimer * 1.5);
+      ctx.globalAlpha = alpha;
+      const bannerY = h * 0.23;
+      const bw = Math.min(w - 20, 342);
+      const bh = 34;
+
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(w * 0.5 - bw * 0.5, bannerY - bh * 0.5, bw, bh, 12);
+      else ctx.rect(w * 0.5 - bw * 0.5, bannerY - bh * 0.5, bw, bh);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.font = '900 11.5px "Outfit", system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fde047';
+      ctx.fillText(this._hwBannerText, w * 0.5, bannerY);
+    }
+
+    ctx.restore();
+  }
+
+  // =========================================================================
   // PSEUDO-3D CONICAL ENGINE (BEATSTAR PERSPECTIVE)
   // =========================================================================
 
@@ -8039,8 +9480,9 @@ class BeatstarEngine {
       const tR_bot = getBoundaryX(3, bottomY);
       const tL_bot = getBoundaryX(0, bottomY);
 
-      // A1. Superficie principal con degradado nacarado 3D (o autopista psicodélica en Modo Setas Alucinógenas)
+      // A1. Superficie principal con degradado nacarado 3D (o autopista psicodélica en Modo Setas / asfalto de competición en Modo Carretera)
       const isMushTrack = Boolean(this.isMushroomModeActive || (typeof window !== 'undefined' && window.isMushroomModeActive));
+      const isHighwayTrack = Boolean(this.isHighwayModeActive || (typeof window !== 'undefined' && window.isHighwayModeActive));
       if (isMushTrack && (!this._mushTrackGrad || this._mushTrackGradH !== bottomY)) {
         this._mushTrackGradH = bottomY;
         const mg = ctx.createLinearGradient(this.width / 2, horizonY, this.width / 2, bottomY);
@@ -8051,23 +9493,34 @@ class BeatstarEngine {
         mg.addColorStop(1.00, '#380b66');
         this._mushTrackGrad = mg;
       }
+      if (isHighwayTrack && (!this._hwTrackGrad || this._hwTrackGradH !== bottomY)) {
+        this._hwTrackGradH = bottomY;
+        const hg = ctx.createLinearGradient(this.width / 2, horizonY, this.width / 2, bottomY);
+        hg.addColorStop(0.00, '#090d16');
+        hg.addColorStop(0.28, '#111827');
+        hg.addColorStop(0.65, '#1e293b');
+        hg.addColorStop(1.00, '#0f172a');
+        this._hwTrackGrad = hg;
+      }
       ctx.beginPath();
       ctx.moveTo(tL_top, horizonY);
       ctx.lineTo(tR_top, horizonY);
       ctx.lineTo(tR_bot, bottomY);
       ctx.lineTo(tL_bot, bottomY);
       ctx.closePath();
-      ctx.fillStyle = isMushTrack ? (this._mushTrackGrad || '#2b0952') : (this._trackGrad || '#f8fafc');
+      ctx.fillStyle = isHighwayTrack
+        ? (this._hwTrackGrad || '#1e293b')
+        : (isMushTrack ? (this._mushTrackGrad || '#2b0952') : (this._trackGrad || '#f8fafc'));
       ctx.fill();
 
       // A2. Sombreado cilíndrico 3D de bordes y brillo central perlado
-      if (this._trackEdgeShadowGrad) {
+      if (this._trackEdgeShadowGrad && !isHighwayTrack) {
         ctx.fillStyle = this._trackEdgeShadowGrad;
         ctx.fill();
       }
 
-      // A3. Lomo especular 3D en el centro de cada uno de los 3 carriles para dar relieve individual
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.38)';
+      // A3. Lomo especular 3D en el centro de cada uno de los 3 carriles (o rodadas de neumáticos en asfalto en Modo Carretera)
+      ctx.fillStyle = isHighwayTrack ? 'rgba(255, 255, 255, 0.045)' : 'rgba(255, 255, 255, 0.38)';
       ctx.beginPath();
       for (let l = 0; l < 3; l++) {
         const cTopL = getBoundaryX(l + 0.28, horizonY);
@@ -8082,55 +9535,116 @@ class BeatstarEngine {
       }
       ctx.fill();
 
-      // A4. Oclusión ambiental interna a lo largo de los bordes laterales en perspectiva 3D
-      ctx.fillStyle = 'rgba(30, 41, 59, 0.16)';
-      ctx.beginPath();
-      // Borde interior izquierdo
-      ctx.moveTo(tL_top, horizonY);
-      ctx.lineTo(getBoundaryX(0.14, horizonY), horizonY);
-      ctx.lineTo(getBoundaryX(0.14, bottomY), bottomY);
-      ctx.lineTo(tL_bot, bottomY);
-      ctx.closePath();
-      // Borde interior derecho
-      ctx.moveTo(getBoundaryX(2.86, horizonY), horizonY);
-      ctx.lineTo(tR_top, horizonY);
-      ctx.lineTo(tR_bot, bottomY);
-      ctx.lineTo(getBoundaryX(2.86, bottomY), bottomY);
-      ctx.closePath();
-      ctx.fill();
+      // En Modo Carretera: Pianos rojiblancos de circuito en ambos arcenes + líneas discontinuas blancas de autopista en movimiento
+      if (isHighwayTrack) {
+        const roadScroll = ((cTime >= 0 ? cTime : safePerfNow) * 0.0014) % 1.0;
+        const kerbSegs = 18;
+        for (let k = 0; k < kerbSegs; k++) {
+          const u0 = (k / kerbSegs + roadScroll) % 1.0;
+          const u1 = Math.min(1.0, u0 + (1.0 / kerbSegs));
+          if (u1 <= u0) continue;
+          const p0 = Math.pow(u0, 1.7);
+          const p1 = Math.pow(u1, 1.7);
+          const y0 = horizonY + (bottomY - horizonY) * p0;
+          const y1 = horizonY + (bottomY - horizonY) * p1;
+          ctx.fillStyle = (k % 2 === 0) ? '#ef4444' : '#f8fafc';
 
-      // B. Líneas de compás en perspectiva 3D (se desvanecen suavemente hacia el horizonte)
-      const numRungs = 20;
-      for (let r = 2; r < numRungs; r++) {
-        const p = Math.pow(r / numRungs, 2.25);
-        const ry = horizonY + (bottomY - horizonY) * p;
-        const rungAlpha = Math.min(0.16, p * 0.18);
-        ctx.strokeStyle = `rgba(71, 85, 105, ${rungAlpha.toFixed(3)})`;
-        ctx.lineWidth = 0.8 + p * 0.7;
+          // Piano izquierdo
+          ctx.beginPath();
+          ctx.moveTo(getBoundaryX(0, y0), y0);
+          ctx.lineTo(getBoundaryX(0.11, y0), y0);
+          ctx.lineTo(getBoundaryX(0.11, y1), y1);
+          ctx.lineTo(getBoundaryX(0, y1), y1);
+          ctx.closePath();
+          ctx.fill();
+
+          // Piano derecho
+          ctx.beginPath();
+          ctx.moveTo(getBoundaryX(2.89, y0), y0);
+          ctx.lineTo(getBoundaryX(3, y0), y0);
+          ctx.lineTo(getBoundaryX(3, y1), y1);
+          ctx.lineTo(getBoundaryX(2.89, y1), y1);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        // Líneas discontinuas blancas de autopista dividiendo los 3 carriles con escorzo 3D
+        const dashCount = 11;
+        ctx.fillStyle = '#f8fafc';
+        for (let d = 0; d < dashCount; d++) {
+          const uStart = ((d / dashCount) + roadScroll) % 1.0;
+          const uEnd = Math.min(1.0, uStart + (0.48 / dashCount));
+          if (uEnd <= uStart + 0.005) continue;
+          const p0 = Math.pow(uStart, 1.7);
+          const p1 = Math.pow(uEnd, 1.7);
+          const y0 = horizonY + (bottomY - horizonY) * p0;
+          const y1 = horizonY + (bottomY - horizonY) * p1;
+          const w0 = 1.2 + 2.8 * p0;
+          const w1 = 1.2 + 2.8 * p1;
+
+          for (let l = 1; l <= 2; l++) {
+            const x0 = getBoundaryX(l, y0);
+            const x1 = getBoundaryX(l, y1);
+            ctx.beginPath();
+            ctx.moveTo(x0 - w0, y0);
+            ctx.lineTo(x0 + w0, y0);
+            ctx.lineTo(x1 + w1, y1);
+            ctx.lineTo(x1 - w1, y1);
+            ctx.closePath();
+            ctx.fill();
+          }
+        }
+      } else {
+        // A4. Oclusión ambiental interna a lo largo de los bordes laterales en perspectiva 3D
+        ctx.fillStyle = 'rgba(30, 41, 59, 0.16)';
         ctx.beginPath();
-        ctx.moveTo(getBoundaryX(0, ry) + 2, ry);
-        ctx.lineTo(getBoundaryX(3, ry) - 2, ry);
+        // Borde interior izquierdo
+        ctx.moveTo(tL_top, horizonY);
+        ctx.lineTo(getBoundaryX(0.14, horizonY), horizonY);
+        ctx.lineTo(getBoundaryX(0.14, bottomY), bottomY);
+        ctx.lineTo(tL_bot, bottomY);
+        ctx.closePath();
+        // Borde interior derecho
+        ctx.moveTo(getBoundaryX(2.86, horizonY), horizonY);
+        ctx.lineTo(tR_top, horizonY);
+        ctx.lineTo(tR_bot, bottomY);
+        ctx.lineTo(getBoundaryX(2.86, bottomY), bottomY);
+        ctx.closePath();
+        ctx.fill();
+
+        // B. Líneas de compás en perspectiva 3D (se desvanecen suavemente hacia el horizonte)
+        const numRungs = 20;
+        for (let r = 2; r < numRungs; r++) {
+          const p = Math.pow(r / numRungs, 2.25);
+          const ry = horizonY + (bottomY - horizonY) * p;
+          const rungAlpha = Math.min(0.16, p * 0.18);
+          ctx.strokeStyle = `rgba(71, 85, 105, ${rungAlpha.toFixed(3)})`;
+          ctx.lineWidth = 0.8 + p * 0.7;
+          ctx.beginPath();
+          ctx.moveTo(getBoundaryX(0, ry) + 2, ry);
+          ctx.lineTo(getBoundaryX(3, ry) - 2, ry);
+          ctx.stroke();
+        }
+
+        // C. Hendiduras divisorias de carril grabadas en 3D (Sombra de surco + Bisel especular blanco)
+        ctx.strokeStyle = 'rgba(51, 65, 85, 0.34)';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        for (let l = 1; l <= 2; l++) {
+          ctx.moveTo(getBoundaryX(l, horizonY), horizonY);
+          ctx.lineTo(getBoundaryX(l, bottomY), bottomY);
+        }
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        for (let l = 1; l <= 2; l++) {
+          ctx.moveTo(getBoundaryX(l, horizonY) + 1.4, horizonY);
+          ctx.lineTo(getBoundaryX(l, bottomY) + 1.8, bottomY);
+        }
         ctx.stroke();
       }
-
-      // C. Hendiduras divisorias de carril grabadas en 3D (Sombra de surco + Bisel especular blanco)
-      ctx.strokeStyle = 'rgba(51, 65, 85, 0.34)';
-      ctx.lineWidth = 2.4;
-      ctx.beginPath();
-      for (let l = 1; l <= 2; l++) {
-        ctx.moveTo(getBoundaryX(l, horizonY), horizonY);
-        ctx.lineTo(getBoundaryX(l, bottomY), bottomY);
-      }
-      ctx.stroke();
-
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      for (let l = 1; l <= 2; l++) {
-        ctx.moveTo(getBoundaryX(l, horizonY) + 1.4, horizonY);
-        ctx.lineTo(getBoundaryX(l, bottomY) + 1.8, bottomY);
-      }
-      ctx.stroke();
 
       // D. SOMBRA 3D DIFUMINADA AL FINAL DE LA PISTA (Horizonte profundo sin bloques negros)
       if (this._trackHorizonShadowGrad) {
@@ -9109,6 +10623,32 @@ class BeatstarEngine {
         ctx.lineTo(bandR_bot - 4, yBandBot);
         ctx.stroke();
 
+        // En Modo Carretera: Franja de Línea de Meta Ajedrezada (Checkered Finish Line) sobre la banda Perfect+
+        if (this.isHighwayModeActive || (typeof window !== 'undefined' && window.isHighwayModeActive)) {
+          const checkCols = 24;
+          const midBandY = (yBandTop + yBandBot) * 0.5;
+          for (let row = 0; row < 2; row++) {
+            const rTop = row === 0 ? yBandTop + 1 : midBandY;
+            const rBot = row === 0 ? midBandY : yBandBot - 1;
+            const xL0 = this.getLaneBoundaryX(0, rTop);
+            const xR0 = this.getLaneBoundaryX(3, rTop);
+            const xL1 = this.getLaneBoundaryX(0, rBot);
+            const xR1 = this.getLaneBoundaryX(3, rBot);
+            for (let col = 0; col < checkCols; col++) {
+              const f0 = col / checkCols;
+              const f1 = (col + 1) / checkCols;
+              ctx.fillStyle = ((row + col) % 2 === 0) ? 'rgba(255, 255, 255, 0.34)' : 'rgba(9, 13, 22, 0.42)';
+              ctx.beginPath();
+              ctx.moveTo(xL0 + (xR0 - xL0) * f0, rTop);
+              ctx.lineTo(xL0 + (xR0 - xL0) * f1, rTop);
+              ctx.lineTo(xL1 + (xR1 - xL1) * f1, rBot);
+              ctx.lineTo(xL1 + (xR1 - xL1) * f0, rBot);
+              ctx.closePath();
+              ctx.fill();
+            }
+          }
+        }
+
         // Escáner láser sub-superficial sincronizado al BPM que recorre la lente acrílica Perfect+
         const scanPhase = ((audioTime * 0.85) % 1.0);
         const scanFrac = 0.5 + 0.44 * Math.sin(scanPhase * Math.PI * 2);
@@ -9510,6 +11050,82 @@ class BeatstarEngine {
       const startIdx = Math.min(this.firstActiveNoteIndex, len);
       const isKaraokeActive = Boolean((typeof window !== 'undefined' && window.isKaraokeModeActive) || this.isKaraokeModeActive);
       const isMushroomActive = Boolean((typeof window !== 'undefined' && window.isMushroomModeActive) || this.isMushroomModeActive);
+      const isHighwayActive = Boolean((typeof window !== 'undefined' && window.isHighwayModeActive) || this.isHighwayModeActive);
+
+      if (isHighwayActive) {
+        if (!this._hwAssetsReady) {
+          this.initHighwayModeAssets();
+          this._prepareHighwayTrafficChoreography();
+        } else if (len > 0 && !this.notes[0]._hwVehicleType) {
+          this._prepareHighwayTrafficChoreography();
+        }
+
+        // En Modo Carretera los vehículos tienen distintas velocidades (_hwDurationMs) y se adelantan,
+        // por lo que recolectamos los vehículos visibles y los ordenamos de atrás hacia delante (y los voladores encima)
+        const maxLookaheadMs = scrollDur * 1.65;
+        const visibleHighwayItems = [];
+        for (let i = startIdx; i < len; i++) {
+          const note = this.notes[i];
+          if (!note || note.holdCompleted) continue;
+          if (note.hit && note.type !== 'hold') continue;
+          if (note.missed && !note.holding) continue;
+          if (note.processed && !note.holding) continue;
+
+          const lane = Math.max(0, Math.min(2, Math.round(note.lane ?? 0)));
+          const noteT = note.timestamp_ms ?? note.timeMs ?? 0;
+          const isBeingHeld = Boolean(note.holding && !note.holdCompleted);
+          const timeUntilHit = noteT - currentTime;
+
+          if (timeUntilHit > maxLookaheadMs) break;
+
+          const noteDur = note._hwDurationMs || scrollDur;
+          const pHead = 1.0 - (timeUntilHit / noteDur);
+          if (pHead < -0.15 || (!isBeingHeld && pHead > 1.22)) continue;
+
+          const isFlyingNow = Boolean(
+            note._hwIsFlyingOvertake &&
+            note._hwOvertakeP > 0 &&
+            pHead >= (note._hwOvertakeP - 0.24) &&
+            pHead <= (note._hwOvertakeP + 0.22)
+          );
+          visibleHighwayItems.push({
+            note,
+            i,
+            lane,
+            noteT,
+            isBeingHeld,
+            pHead,
+            sortOrder: (isFlyingNow ? 10.0 : 0.0) + pHead
+          });
+        }
+
+        visibleHighwayItems.sort((a, b) => a.sortOrder - b.sortOrder);
+
+        for (let k = 0; k < visibleHighwayItems.length; k++) {
+          const item = visibleHighwayItems[k];
+          const note = item.note;
+          const lane = item.lane;
+          const pHead = item.pHead;
+          const isBeingHeld = item.isBeingHeld;
+          const nextDiff = note.nextSameLaneDiffMs ?? Infinity;
+          const coord = this.getPerspectiveCoord(lane, pHead, this._coordScratch0);
+          const maxH3D = nextDiff < scrollDur ? Math.max(26, ((nextDiff * invScrollDur) * spanY * coord.scale) - 8) : Infinity;
+
+          if (note.type === 'hold') {
+            const rawDur = Number.isFinite(note.duration_ms)
+              ? note.duration_ms
+              : (Number.isFinite(note.holdDuration)
+                  ? (note.holdDuration > 50 ? note.holdDuration : note.holdDuration * 1000)
+                  : (Number.isFinite(note.duration) ? (note.duration > 50 ? note.duration : note.duration * 1000) : 700));
+            const holdDuration = Math.max(150, Number.isFinite(rawDur) ? rawDur : 700);
+            const endT = Number.isFinite(note.end_timestamp_ms) ? note.end_timestamp_ms : (item.noteT + holdDuration);
+            this._renderHighwaySteamTrainHold(ctx, note, lane, currentTime, pHead, endT, isBeingHeld, maxH3D);
+          } else {
+            this._renderHighwayVehicleNote(ctx, note, item.i, lane, currentTime, pHead, maxH3D);
+          }
+        }
+        return;
+      }
 
       for (let i = startIdx; i < len; i++) {
         const note = this.notes[i];
