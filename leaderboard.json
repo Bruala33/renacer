@@ -1749,6 +1749,16 @@
         "accuracy": 2.5806603610362395,
         "date": "2026-10-20 10:12:08"
       }
+    ],
+    "top_los_payasos_de_la_tele_la_gallina_turuleca": [
+      {
+        "name": "Mauricio",
+        "score": 489872,
+        "stars": 2,
+        "combo": 119,
+        "accuracy": 46.0756779126967,
+        "date": "2026-10-20 11:23:21"
+      }
     ]
   },
   "global": [
@@ -1789,8 +1799,8 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 957739,
-      "clefs": 9
+      "total_score": 1447611,
+      "clefs": 13
     },
     {
       "name": "MasterPianist",
@@ -1886,7 +1896,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 957739
+        "score": 1447611
       },
       {
         "name": "Darwin67",
@@ -1901,5 +1911,6 @@
         "score": 1500
       }
     ]
-  }
+  },
+  "referrals": {}
 }
