@@ -1837,6 +1837,16 @@
         "accuracy": 4.159216291111243,
         "date": "2026-10-20 18:57:00"
       }
+    ],
+    "top_efecto_pasillo_pan_y_mantequilla": [
+      {
+        "name": "Test",
+        "score": 126784,
+        "stars": 3.5,
+        "combo": 96,
+        "accuracy": 8.382889870101705,
+        "date": "2026-10-20 18:57:42"
+      }
     ]
   },
   "global": [
@@ -1862,8 +1872,8 @@
     },
     {
       "name": "Test",
-      "total_score": 5289710,
-      "clefs": 43
+      "total_score": 5416494,
+      "clefs": 44
     },
     {
       "name": "Azure",
@@ -1975,7 +1985,7 @@
       },
       {
         "name": "Test",
-        "score": 4760069
+        "score": 4886853
       },
       {
         "name": "Mauricio",
