@@ -1711,6 +1711,16 @@
         "accuracy": 0.06426276329882184,
         "date": "2026-10-20 09:09:56"
       }
+    ],
+    "top_paulina_rubio_yo_no_soy_esa_mujer": [
+      {
+        "name": "Mauricio",
+        "score": 104437,
+        "stars": 3.5,
+        "combo": 78,
+        "accuracy": 8.163171190775445,
+        "date": "2026-10-20 09:10:43"
+      }
     ]
   },
   "global": [
@@ -1751,8 +1761,8 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 802800,
-      "clefs": 8
+      "total_score": 907237,
+      "clefs": 9
     },
     {
       "name": "MasterPianist",
@@ -1843,7 +1853,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 802800
+        "score": 907237
       },
       {
         "name": "Darwin67",
