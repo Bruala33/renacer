@@ -1895,6 +1895,16 @@
         "accuracy": 21.568781786607204,
         "date": "2026-10-20 19:15:12"
       }
+    ],
+    "top_fito_y_fitipaldis_la_casa_por_el_tejado": [
+      {
+        "name": "Mauricio",
+        "score": 462796,
+        "stars": 1,
+        "combo": 172,
+        "accuracy": 29.997925795327856,
+        "date": "2026-10-20 19:28:52"
+      }
     ]
   },
   "global": [
@@ -1935,8 +1945,8 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 2736318,
-      "clefs": 22
+      "total_score": 3199114,
+      "clefs": 26
     },
     {
       "name": "MasterPianist",
@@ -2037,7 +2047,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 2736318
+        "score": 3199114
       },
       {
         "name": "Darwin67",
