@@ -1925,6 +1925,16 @@
         "accuracy": 94.27523465152564,
         "date": "2026-10-20 19:33:17"
       }
+    ],
+    "top_don_omar_taboo": [
+      {
+        "name": "Mauricio",
+        "score": 94329,
+        "stars": 3.5,
+        "combo": 40,
+        "accuracy": 5.861849537845466,
+        "date": "2026-10-20 19:35:03"
+      }
     ]
   },
   "global": [
@@ -1950,7 +1960,7 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 5734806,
+      "total_score": 5829135,
       "clefs": 49
     },
     {
@@ -2063,7 +2073,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 5734806
+        "score": 5829135
       },
       {
         "name": "Test",
