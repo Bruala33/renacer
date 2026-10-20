@@ -1807,6 +1807,16 @@
         "accuracy": 21.861872513974205,
         "date": "2026-10-20 12:10:03"
       }
+    ],
+    "top_jose_luis_rodriguez_el_puma_culpable_soy_yo": [
+      {
+        "name": "Mauricio",
+        "score": 900,
+        "stars": 3.5,
+        "combo": 2,
+        "accuracy": 0.08947504988234031,
+        "date": "2026-10-20 17:57:11"
+      }
     ]
   },
   "global": [
@@ -1847,7 +1857,7 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 1849691,
+      "total_score": 1850591,
       "clefs": 15
     },
     {
@@ -1949,7 +1959,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 1849691
+        "score": 1850591
       },
       {
         "name": "Darwin67",
