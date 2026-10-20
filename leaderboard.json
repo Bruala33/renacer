@@ -1867,6 +1867,16 @@
         "accuracy": 0.28297632674820034,
         "date": "2026-10-20 19:12:06"
       }
+    ],
+    "top_los_autnticos_decadentes_el_dinero_no_es_todo": [
+      {
+        "name": "Mauricio",
+        "score": 272400,
+        "stars": 3.5,
+        "combo": 161,
+        "accuracy": 14.316610474145747,
+        "date": "2026-10-20 19:13:14"
+      }
     ]
   },
   "global": [
@@ -1907,8 +1917,8 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 1977058,
-      "clefs": 16
+      "total_score": 2249458,
+      "clefs": 18
     },
     {
       "name": "MasterPianist",
@@ -2009,7 +2019,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 1977058
+        "score": 2249458
       },
       {
         "name": "Darwin67",
