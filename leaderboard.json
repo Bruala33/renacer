@@ -1769,6 +1769,16 @@
         "accuracy": 1.2816065723413965,
         "date": "2026-10-20 11:25:23"
       }
+    ],
+    "top_berlin_take_my_breath_away": [
+      {
+        "name": "Mauricio",
+        "score": 16586,
+        "stars": 3.5,
+        "combo": 23,
+        "accuracy": 1.3229882976237102,
+        "date": "2026-10-20 11:26:16"
+      }
     ]
   },
   "global": [
@@ -1809,7 +1819,7 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 1447611,
+      "total_score": 1464197,
       "clefs": 13
     },
     {
@@ -1911,7 +1921,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 1447611
+        "score": 1464197
       },
       {
         "name": "Darwin67",
@@ -1936,7 +1946,8 @@
       "Camaleon"
     ],
     "rnc_ty7gkp": [
-      "Camaleon"
+      "Camaleon",
+      "Mauricio"
     ]
   }
 }
