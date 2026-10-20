@@ -1821,11 +1821,11 @@
     "top_oasis_wonderwall": [
       {
         "name": "Mauricio",
-        "score": 1350,
+        "score": 4500,
         "stars": 3.5,
-        "combo": 3,
-        "accuracy": 0.10564909630893361,
-        "date": "2026-10-20 17:57:43"
+        "combo": 7,
+        "accuracy": 0.35216365436311203,
+        "date": "2026-10-20 17:58:05"
       }
     ]
   },
@@ -1867,7 +1867,7 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 1851941,
+      "total_score": 1856441,
       "clefs": 15
     },
     {
@@ -1969,7 +1969,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 1851941
+        "score": 1856441
       },
       {
         "name": "Darwin67",
