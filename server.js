@@ -569,10 +569,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 12,
-    version_name: '2.0.0',
-    release_notes: 'Piano Community Web & Offline Player. Nuevo Modo Carretera con F1, Tesla Roadster (vuelo y pirueta), Tractor, Fiat 500 y Trenes de Vapor.',
-    download_url: '/download/apk?v=12.0',
+    version_code: 13,
+    version_name: '2.1.0',
+    release_notes: 'Piano Community Web & Offline Player. Modo Carretera con velocidad reducida y tren hold hiper-visible con lecho luminoso y distintivo HOLD. Corrección estricta de teclas fantasma y márgenes de tiempo.',
+    download_url: '/download/apk?v=13.0',
   });
 });
 

@@ -1749,6 +1749,56 @@
         "accuracy": 2.5806603610362395,
         "date": "2026-10-20 10:12:08"
       }
+    ],
+    "top_los_payasos_de_la_tele_la_gallina_turuleca": [
+      {
+        "name": "Mauricio",
+        "score": 489872,
+        "stars": 2,
+        "combo": 119,
+        "accuracy": 46.0756779126967,
+        "date": "2026-10-20 11:23:21"
+      }
+    ],
+    "top_madness_our_house": [
+      {
+        "name": "Camaleon",
+        "score": 17550,
+        "stars": 3.5,
+        "combo": 25,
+        "accuracy": 1.2816065723413965,
+        "date": "2026-10-20 11:25:23"
+      }
+    ],
+    "top_berlin_take_my_breath_away": [
+      {
+        "name": "Mauricio",
+        "score": 16586,
+        "stars": 3.5,
+        "combo": 23,
+        "accuracy": 1.3229882976237102,
+        "date": "2026-10-20 11:26:16"
+      }
+    ],
+    "osu_963422": [
+      {
+        "name": "Mauricio",
+        "score": 90250,
+        "stars": 3.5,
+        "combo": 74,
+        "accuracy": 10.097619647002881,
+        "date": "2026-10-20 12:07:52"
+      }
+    ],
+    "osu_2611015": [
+      {
+        "name": "Mauricio",
+        "score": 262553,
+        "stars": 1,
+        "combo": 86,
+        "accuracy": 21.861872513974205,
+        "date": "2026-10-20 12:10:03"
+      }
     ]
   },
   "global": [
@@ -1789,8 +1839,8 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 957739,
-      "clefs": 9
+      "total_score": 1817000,
+      "clefs": 15
     },
     {
       "name": "MasterPianist",
@@ -1830,6 +1880,11 @@
     {
       "name": ".",
       "total_score": 24975,
+      "clefs": 0
+    },
+    {
+      "name": "Camaleon",
+      "total_score": 17550,
       "clefs": 0
     },
     {
@@ -1886,7 +1941,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 957739
+        "score": 1817000
       },
       {
         "name": "Darwin67",
@@ -1897,9 +1952,22 @@
         "score": 30185
       },
       {
+        "name": "Camaleon",
+        "score": 17550
+      },
+      {
         "name": "PixToPix",
         "score": 1500
       }
+    ]
+  },
+  "referrals": {
+    "mauricio": [
+      "Camaleon"
+    ],
+    "rnc_ty7gkp": [
+      "Camaleon",
+      "Mauricio"
     ]
   }
 }

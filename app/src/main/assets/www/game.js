@@ -2889,8 +2889,22 @@ class BeatstarEngine {
     if (!this._lyricKeySpriteCache) {
       this._lyricKeySpriteCache = new Map();
     }
-    const isKaraokePrewarm = Boolean((typeof window !== 'undefined' && window.isKaraokeModeActive) || this.isKaraokeModeActive);
-    const isMushPrewarm = Boolean((typeof window !== 'undefined' && window.isMushroomModeActive) || this.isMushroomModeActive);
+    // Sincronizar de forma estricta los modos de juego para que ningún estado previo quede residual
+    const curActiveMode = (typeof window !== 'undefined' && window.currentGameMode) ? window.currentGameMode : 'normal';
+    this.isKaraokeModeActive = (curActiveMode === 'karaoke');
+    this.isStormModeActive = (curActiveMode === 'storm');
+    this.isMushroomModeActive = (curActiveMode === 'mushroom');
+    this.isHighwayModeActive = (curActiveMode === 'highway');
+    if (typeof window !== 'undefined') {
+      window.isKaraokeModeActive = this.isKaraokeModeActive;
+      window.isStormModeActive = this.isStormModeActive;
+      window.isMushroomModeActive = this.isMushroomModeActive;
+      window.isHighwayModeActive = this.isHighwayModeActive;
+    }
+
+    const isKaraokePrewarm = this.isKaraokeModeActive;
+    const isMushPrewarm = this.isMushroomModeActive;
+    const isHighwayPrewarm = this.isHighwayModeActive;
     for (let i = 0, nLen = this.notes.length; i < nLen; i++) {
       const n = this.notes[i];
       if (n.lyric && !_PROLONG_RE.test(String(n.lyric))) {
@@ -2916,18 +2930,19 @@ class BeatstarEngine {
       }
     }
 
-    const isHighwayPrewarm = Boolean((typeof window !== 'undefined' && window.isHighwayModeActive) || this.isHighwayModeActive);
-    if ((typeof window !== 'undefined' && window.isStormModeActive) || this.isStormModeActive) {
+    if (this.isStormModeActive) {
       this.initStormModeAssets();
     }
+    // Resetear siempre el estado de Setas Alucinógenas al cargar cualquier beatmap
+    this._mushFlipProgress = 0.0;
+    this._mushTargetFlipped = false;
+    this._mushNextFlipTimeMs = 9500;
+    this._mushSafeGraceUntilMs = 0;
+    this._mushInSafeTransition = false;
+    this._mushTransitionClouds = [];
+    this._mushBannerTimer = 0;
     if (isMushPrewarm) {
       this.initMushroomModeAssets();
-      this._mushFlipProgress = 0.0;
-      this._mushTargetFlipped = false;
-      this._mushNextFlipTimeMs = 9500;
-      this._mushSafeGraceUntilMs = 0;
-      this._mushInSafeTransition = false;
-      this._mushTransitionClouds = [];
       this._mushBannerText = '🍄 ¡MODO SETAS ALUCINÓGENAS! 🍄';
       this._mushBannerTimer = 2.6;
     }
@@ -2950,7 +2965,7 @@ class BeatstarEngine {
     this.lastCelebratedStar = 0;
     this.currentMedalTier = null;
     this.missCount = 0;
-    this.invulnerableUntil = 2400; // Invulnerable during startup grace period
+    this.invulnerableUntil = 0; // Sin auto-completado indebido de notas
     this.stats = { perfectPlus: 0, perfect: 0, great: 0, miss: 0 };
     this.timingStats = { count: 0, sumSignedMs: 0, sumAbsMs: 0, earlyCount: 0, lateCount: 0, exactCount: 0 };
     this.overdriveLevel = 0;
@@ -3497,7 +3512,7 @@ class BeatstarEngine {
       color: p.c1
     });
 
-    const isMushTiming = Boolean(this.isMushroomModeActive || (typeof window !== 'undefined' && window.isMushroomModeActive));
+    const isMushTiming = Boolean(this.isMushroomModeActive);
     // ⚡ En Modo Setas Alucinógenas el timing está facilitado (300ms tap / 370ms swipe) pero tocar a destiempo cuenta como fallo
     const HIT_WINDOW = isMushTiming
       ? ((inputType === 'swipe') ? 370 : 300)
@@ -3542,7 +3557,7 @@ class BeatstarEngine {
       laneNotes.sort((a, b) => a.time - b.time);
     }
     const isActivelyPlaying = (this.isRunning || (this.sync && this.sync.isPlaying)) && !this.isPaused && !this.isGameOver && !this.isCountingDown && !this.isCalibrating && !!this.beatmapData;
-    const isProtectedTransition = Boolean(this._mushInSafeTransition || (currentTime < (this.invulnerableUntil || 0)));
+    const isProtectedTransition = Boolean(this.isMushroomModeActive && this._mushInSafeTransition);
 
     if (laneNotes.length === 0) {
       if (this.customBgMode === 'reactive') {
@@ -3747,7 +3762,7 @@ class BeatstarEngine {
     const heldDuration = currentTime - active.startTime;
     const totalDuration = endT - active.startTime;
 
-    const isSafeHold = Boolean(this._mushInSafeTransition || (currentTime < (this.invulnerableUntil || 0)));
+    const isSafeHold = Boolean(this.isMushroomModeActive && this._mushInSafeTransition);
 
     // Acierto completado si se mantuvo al menos el 60% o hasta 180ms del final (o durante transición inmune)
     if (isSafeHold || currentTime >= endT - 180 || (totalDuration > 0 && (heldDuration / totalDuration) >= 0.60)) {
@@ -3787,7 +3802,7 @@ class BeatstarEngine {
     let flashColor = '#ffd700';
     let judgeTier = 'great';
 
-    const isMushJudge = Boolean(this.isMushroomModeActive || (typeof window !== 'undefined' && window.isMushroomModeActive));
+    const isMushJudge = Boolean(this.isMushroomModeActive);
     const perfPlusMax = isMushJudge ? 85 : 45;
     const perfMax = isMushJudge ? 155 : 90;
     const greatMax = isMushJudge ? 235 : 170;
@@ -4158,8 +4173,7 @@ class BeatstarEngine {
   }
 
   handleMiss() {
-    const curGameT = this.getCurrentGameTimeMs();
-    if (this._mushInSafeTransition || (curGameT < (this.invulnerableUntil || 0))) {
+    if (this.isMushroomModeActive && this._mushInSafeTransition) {
       return;
     }
     if (this.isProcessingMiss || this.isGameOver || this.isPaused) {
@@ -4688,7 +4702,7 @@ class BeatstarEngine {
     }
 
     // Once a note has passed the hit window (+120ms normal / +185ms en Modo Setas Alucinógenas), it is judged as MISS
-    const isMushUpdate = Boolean(this.isMushroomModeActive || (typeof window !== 'undefined' && window.isMushroomModeActive));
+    const isMushUpdate = Boolean(this.isMushroomModeActive);
     const exitScreenOffsetMs = isMushUpdate ? 185 : 120;
     const notesLen = this.notes.length;
 
@@ -4721,9 +4735,9 @@ class BeatstarEngine {
         break;
       }
 
-      // En Modo Setas Alucinógenas: durante la transición de nube de setas / inversión de gravedad,
+      // En Modo Setas Alucinógenas: ÚNICAMENTE durante la transición de nube de setas (giro de gravedad),
       // auto-completar las notas para que jamás se pueda fallar en mitad del cambio
-      if ((this._mushInSafeTransition || currentTime < (this.invulnerableUntil || 0)) && currentTime >= noteTime - 60) {
+      if (this.isMushroomModeActive && this._mushInSafeTransition && currentTime >= noteTime - 60) {
         note.hit = true;
         note.processed = true;
         if (note.type === 'hold') note.holdCompleted = true;
@@ -4735,7 +4749,7 @@ class BeatstarEngine {
       }
 
       if (currentTime >= 0 && (currentTime - noteTime >= exitScreenOffsetMs)) {
-        if (this._mushInSafeTransition || currentTime < (this.invulnerableUntil || 0)) {
+        if (this.isMushroomModeActive && this._mushInSafeTransition) {
           note.hit = true;
           note.processed = true;
           if (note.type === 'hold') note.holdCompleted = true;
@@ -8529,18 +8543,20 @@ class BeatstarEngine {
 
   _prepareHighwayTrafficChoreography() {
     if (!this.notes || this.notes.length === 0) return;
-    const baseDur = Math.max(1100, this.scrollDurationMs || 1700);
+    // 🏎️ Reducimos la velocidad de todos los vehículos en general (duraciones más amplias en pantalla)
+    // para que la lectura rítmica sea cómoda, fluida y accesible
+    const baseDur = Math.max(2400, (this.scrollDurationMs || 1700) * 1.65);
     const nLen = this.notes.length;
 
     // 1. Asignación inicial de tipos de vehículo y velocidades base:
     // - Holds -> 'steam_train' (locomotora de vapor con vagones)
-    // - Tap/Swipe -> mezcla variada de 'tractor' (lento), 'fiat500' (medio), 'f1' (muy rápido) y 'tesla_roadster' (hiper-rápido volador)
+    // - Tap/Swipe -> mezcla variada de 'tractor' (lento), 'fiat500' (medio), 'f1' (ágil) y 'tesla_roadster' (adelanta volando con pirueta)
     const speedCatalog = {
-      tractor: baseDur * 1.48,
-      fiat500: baseDur * 1.12,
-      steam_train: baseDur * 1.00,
-      f1: baseDur * 0.74,
-      tesla_roadster: baseDur * 0.65
+      tractor: baseDur * 1.35,       // ~3500ms
+      fiat500: baseDur * 1.18,       // ~3050ms
+      steam_train: baseDur * 1.12,   // ~2900ms
+      f1: baseDur * 0.94,            // ~2450ms
+      tesla_roadster: baseDur * 0.86 // ~2250ms
     };
 
     const cycleTypes = ['f1', 'tractor', 'fiat500', 'tesla_roadster', 'fiat500', 'f1', 'tractor', 'tesla_roadster'];
@@ -8608,10 +8624,8 @@ class BeatstarEngine {
     }
 
     // 3. Pasada matemática estricta Anti-Solapamiento por carril (Garantía de 0% colisiones en carretera):
-    // Como p(t) es lineal respecto a t, si dos vehículos en el mismo carril mantienen una separación >= minGapP
-    // tanto al nacer en el horizonte como al cruzar la meta (Perfect), jamás pueden solaparse en ningún instante intermedio.
     const lastNoteByLane = [null, null, null];
-    const minGapP = 0.21;
+    const minGapP = 0.22;
     for (let i = 0; i < nLen; i++) {
       const cur = this.notes[i];
       const lane = Math.max(0, Math.min(2, Math.round(cur.lane ?? 1)));
@@ -8624,16 +8638,13 @@ class BeatstarEngine {
         const dt = (cur.timestamp_ms || 0) - (prevEndT || 0);
         const prevDur = prev._hwDurationMs || baseDur;
 
-        // Si el vehículo actual NO está haciendo un adelantamiento aéreo ni por otro carril sobre prev,
-        // limitar su duración para que nunca alcance el parachoques trasero de prev ni nazca encima de él
         const isBypassingPrev = (cur._hwIsFlyingOvertake || cur._hwPassLane !== lane || cur._hwStartLane !== lane);
         if (!isBypassingPrev) {
-          const maxAllowedDur = Math.max(baseDur * 0.58, dt + prevDur * (1.0 - minGapP));
+          const maxAllowedDur = Math.max(baseDur * 0.68, dt + prevDur * (1.0 - minGapP));
           if (cur._hwDurationMs > maxAllowedDur) {
             cur._hwDurationMs = maxAllowedDur;
           }
-          // Y si cur es mucho más rápido que prev pero llega DESPUÉS que prev, no permitir que nazca antes que prev en el mismo carril
-          const minAllowedDur = Math.max(baseDur * 0.58, prevDur - Math.max(0, dt - prevDur * minGapP));
+          const minAllowedDur = Math.max(baseDur * 0.68, prevDur - Math.max(0, dt - prevDur * minGapP));
           if (cur._hwDurationMs < minAllowedDur && dt < prevDur * 0.9) {
             cur._hwDurationMs = minAllowedDur;
           }
@@ -8659,7 +8670,7 @@ class BeatstarEngine {
 
   _renderHighwaySteamTrainHold(ctx, note, lane, currentTime, pHead, endT, isBeingHeld, maxH3D) {
     if (!this._hwAssetsReady || !this._hwSprites) this.initHighwayModeAssets();
-    const noteDur = note._hwDurationMs || this.scrollDurationMs || 1700;
+    const noteDur = note._hwDurationMs || this.scrollDurationMs || 2900;
     const invNoteDur = 1.0 / noteDur;
 
     const currentHeadP = isBeingHeld ? 1.0 : pHead;
@@ -8672,8 +8683,8 @@ class BeatstarEngine {
 
     ctx.save();
 
-    // 1. Dibujar vía de ferrocarril 3D (balasto, traviesas de madera y raíles de acero) sobre el carril de la carretera
-    const railSteps = 12;
+    // 1. Puntos de perspectiva para el trazado continuo de la vía y el lecho luminoso del Hold
+    const railSteps = 16;
     const pts = [];
     for (let s = 0; s <= railSteps; s++) {
       const frac = s / railSteps;
@@ -8682,24 +8693,71 @@ class BeatstarEngine {
       pts.push({ x: c.x, y: c.y, scale: c.scale, laneW: c.laneW, p: pStep });
     }
 
-    // Traviesas de madera de roble a lo largo del tramo del tren
+    // 2. ✨ LECHO LUMINOSO DE HOLD (Franja continua ultra visible que conecta todo el tren)
+    ctx.beginPath();
+    for (let s = 0; s <= railSteps; s++) {
+      const pt = pts[s];
+      const rOff = pt.laneW * 0.32;
+      if (s === 0) ctx.moveTo(pt.x + rOff, pt.y);
+      else ctx.lineTo(pt.x + rOff, pt.y);
+    }
+    for (let s = railSteps; s >= 0; s--) {
+      const pt = pts[s];
+      const rOff = pt.laneW * 0.32;
+      ctx.lineTo(pt.x - rOff, pt.y);
+    }
+    ctx.closePath();
+
+    const holdBedGrad = ctx.createLinearGradient(pts[0].x, pts[0].y, pts[pts.length - 1].x, pts[pts.length - 1].y);
+    if (isBeingHeld) {
+      holdBedGrad.addColorStop(0.0, 'rgba(234, 179, 8, 0.35)');
+      holdBedGrad.addColorStop(0.5, 'rgba(245, 158, 11, 0.52)');
+      holdBedGrad.addColorStop(1.0, 'rgba(251, 191, 36, 0.72)');
+    } else {
+      holdBedGrad.addColorStop(0.0, 'rgba(14, 165, 233, 0.22)');
+      holdBedGrad.addColorStop(0.5, 'rgba(56, 189, 248, 0.38)');
+      holdBedGrad.addColorStop(1.0, 'rgba(2, 132, 199, 0.58)');
+    }
+    ctx.fillStyle = holdBedGrad;
+    ctx.fill();
+
+    // Flechas / impulsos de energía animados a lo largo del lecho para denotar dirección continua
+    const arrowPhase = (currentTime * 0.0028) % 1.0;
+    const numArrows = 6;
+    for (let a = 0; a < numArrows; a++) {
+      const aFrac = (arrowPhase + a / numArrows) % 1.0;
+      const pArr = visibleTailP + (visibleHeadP - visibleTailP) * aFrac;
+      if (pArr > visibleTailP + 0.05 && pArr < visibleHeadP - 0.08) {
+        const ac = this.getPerspectiveCoord(lane, pArr, this._coordScratch1);
+        const aSpan = ac.laneW * 0.20;
+        ctx.strokeStyle = isBeingHeld ? 'rgba(254, 240, 138, 0.85)' : 'rgba(224, 242, 254, 0.75)';
+        ctx.lineWidth = Math.max(1.8, 3.2 * ac.scale);
+        ctx.beginPath();
+        ctx.moveTo(ac.x - aSpan, ac.y - 4 * ac.scale);
+        ctx.lineTo(ac.x, ac.y + 4 * ac.scale);
+        ctx.lineTo(ac.x + aSpan, ac.y - 4 * ac.scale);
+        ctx.stroke();
+      }
+    }
+
+    // 3. Traviesas de madera de roble con refuerzo metálico
     const sleeperSpanP = visibleHeadP - visibleTailP;
-    const numSleepers = Math.max(4, Math.min(26, Math.floor(sleeperSpanP * 24)));
-    ctx.strokeStyle = '#78350f';
+    const numSleepers = Math.max(4, Math.min(28, Math.floor(sleeperSpanP * 24)));
     for (let k = 0; k <= numSleepers; k++) {
       const pSl = visibleTailP + (k / numSleepers) * sleeperSpanP;
       const sc = this.getPerspectiveCoord(lane, pSl, this._coordScratch1);
-      const slHalfW = sc.laneW * 0.34;
-      ctx.lineWidth = Math.max(2.0, 4.5 * sc.scale);
+      const slHalfW = sc.laneW * 0.35;
+      ctx.strokeStyle = isBeingHeld ? '#854d0e' : '#78350f';
+      ctx.lineWidth = Math.max(2.2, 5.0 * sc.scale);
       ctx.beginPath();
       ctx.moveTo(sc.x - slHalfW, sc.y);
       ctx.lineTo(sc.x + slHalfW, sc.y);
       ctx.stroke();
     }
 
-    // Dos raíles de acero bruñido
-    ctx.strokeStyle = isBeingHeld ? '#fde047' : '#cbd5e1';
-    ctx.lineWidth = Math.max(2.0, 3.4 * pts[pts.length - 1].scale);
+    // 4. Raíles de acero luminosos (primera pasada con resplandor neón)
+    ctx.strokeStyle = isBeingHeld ? '#fde047' : '#38bdf8';
+    ctx.lineWidth = Math.max(3.2, 5.8 * pts[pts.length - 1].scale);
     ctx.beginPath();
     for (let s = 0; s <= railSteps; s++) {
       const pt = pts[s];
@@ -8715,11 +8773,33 @@ class BeatstarEngine {
     }
     ctx.stroke();
 
-    // 2. Dibujar vagones acoplados desde la cola (currentTailP) hasta justo detrás de la locomotora (currentHeadP)
+    // Núcleo blanco brillante en los raíles
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = Math.max(1.4, 2.2 * pts[pts.length - 1].scale);
+    ctx.beginPath();
+    for (let s = 0; s <= railSteps; s++) {
+      const pt = pts[s];
+      const rOff = pt.laneW * 0.22;
+      if (s === 0) ctx.moveTo(pt.x - rOff, pt.y);
+      else ctx.lineTo(pt.x - rOff, pt.y);
+    }
+    for (let s = 0; s <= railSteps; s++) {
+      const pt = pts[s];
+      const rOff = pt.laneW * 0.22;
+      if (s === 0) ctx.moveTo(pt.x + rOff, pt.y);
+      else ctx.lineTo(pt.x + rOff, pt.y);
+    }
+    ctx.stroke();
+
+    // 5. Vagones acoplados con cables de enganche luminosos
     const wagonStepP = 0.165;
     const availableWagonSpan = Math.max(0, (currentHeadP - 0.13) - currentTailP);
     const wagonCount = Math.min(10, Math.max(1, Math.round(availableWagonSpan / wagonStepP)));
     const wagonsSprites = this._hwSprites.steam_wagons;
+
+    let prevWagonX = null;
+    let prevWagonY = null;
+    let tailWagonCoord = null;
 
     for (let wIdx = wagonCount - 1; wIdx >= 0; wIdx--) {
       const pWagon = currentHeadP - 0.15 - wIdx * wagonStepP;
@@ -8730,23 +8810,63 @@ class BeatstarEngine {
       const wWidth = Math.min(wCoord.laneW * 0.66, 68 * wCoord.scale);
       const wHeight = wWidth * 1.22;
       const swayX = Math.sin(currentTime * 0.014 + wIdx * 1.4) * (1.8 * wCoord.scale);
+      const curWx = wCoord.x + swayX;
+      const curWy = wCoord.y - wHeight * 0.55;
 
-      // Seleccionar sprite de vagón: el primero tras la locomotora es el carbonero (tender), el último el furgón de cola (caboose)
+      if (!tailWagonCoord) {
+        tailWagonCoord = { x: curWx, y: curWy, scale: wCoord.scale, w: wWidth, h: wHeight };
+      }
+
+      // Viga de enganche continuo entre vagones
+      if (prevWagonX !== null) {
+        ctx.strokeStyle = isBeingHeld ? '#fef08a' : '#38bdf8';
+        ctx.lineWidth = Math.max(2.0, 3.2 * wCoord.scale);
+        ctx.beginPath();
+        ctx.moveTo(prevWagonX, prevWagonY + wHeight * 0.5);
+        ctx.lineTo(curWx, curWy + wHeight * 0.5);
+        ctx.stroke();
+      }
+      prevWagonX = curWx;
+      prevWagonY = curWy;
+
       let spr = wagonsSprites[1];
       if (wIdx === 0) spr = wagonsSprites[0];
       else if (wIdx === wagonCount - 1) spr = wagonsSprites[3];
       else spr = wagonsSprites[1 + (wIdx % 2)];
 
-      ctx.drawImage(
-        spr,
-        wCoord.x + swayX - wWidth * 0.5,
-        wCoord.y - wHeight * 0.55,
-        wWidth,
-        wHeight
-      );
+      ctx.drawImage(spr, curWx - wWidth * 0.5, curWy, wWidth, wHeight);
     }
 
-    // 3. Dibujar la Locomotora de Vapor en la cabeza del Hold (currentHeadP)
+    // 6. Marcador de cola en el último vagón (FIN HOLD / FAROL ROJO)
+    if (tailWagonCoord && currentTailP > -0.05 && currentTailP < 1.10) {
+      const redGlowR = Math.max(6, 14 * tailWagonCoord.scale);
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.arc(tailWagonCoord.x, tailWagonCoord.y + 4, Math.max(3, 5 * tailWagonCoord.scale), 0, Math.PI * 2);
+      ctx.fill();
+
+      // Etiqueta flotante FIN HOLD
+      ctx.save();
+      ctx.font = `900 ${Math.max(9, Math.round(11 * tailWagonCoord.scale))}px Inter, system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const endText = '🛑 FIN HOLD';
+      const endTw = ctx.measureText(endText).width;
+      const badgeH = 14 * tailWagonCoord.scale;
+      const badgeY = tailWagonCoord.y - 12 * tailWagonCoord.scale;
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.roundRect(tailWagonCoord.x - endTw * 0.5 - 6, badgeY - badgeH * 0.5, endTw + 12, badgeH, 6);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#fca5a5';
+      ctx.fillText(endText, tailWagonCoord.x, badgeY);
+      ctx.restore();
+    }
+
+    // 7. Locomotora de Vapor en la cabeza del Hold
     const headCoord = this.getPerspectiveCoord(lane, Math.min(1.06, currentHeadP), this._coordScratch1);
     const locoW = Math.min(headCoord.laneW * 0.72, 76 * headCoord.scale);
     const locoH = locoW * 1.42;
@@ -8754,24 +8874,24 @@ class BeatstarEngine {
       ? Math.sin(currentTime * 0.035) * (2.2 * headCoord.scale)
       : Math.sin(currentTime * 0.018) * (1.2 * headCoord.scale);
 
-    // Cono de luz dorada del faro delantero de la locomotora sobre la vía
+    // Cono de luz dorada del faro delantero sobre la vía
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    const beamLen = (isBeingHeld ? 62 : 44) * headCoord.scale;
+    const beamLen = (isBeingHeld ? 68 : 48) * headCoord.scale;
     const beamGrad = ctx.createLinearGradient(headCoord.x, headCoord.y, headCoord.x, headCoord.y + beamLen);
-    beamGrad.addColorStop(0.0, isBeingHeld ? 'rgba(254, 240, 138, 0.72)' : 'rgba(254, 240, 138, 0.42)');
+    beamGrad.addColorStop(0.0, isBeingHeld ? 'rgba(254, 240, 138, 0.82)' : 'rgba(254, 240, 138, 0.50)');
     beamGrad.addColorStop(1.0, 'rgba(254, 240, 138, 0.0)');
     ctx.fillStyle = beamGrad;
     ctx.beginPath();
-    ctx.moveTo(headCoord.x - 8 * headCoord.scale, headCoord.y + 4 * headCoord.scale);
-    ctx.lineTo(headCoord.x + 8 * headCoord.scale, headCoord.y + 4 * headCoord.scale);
-    ctx.lineTo(headCoord.x + 26 * headCoord.scale, headCoord.y + beamLen);
-    ctx.lineTo(headCoord.x - 26 * headCoord.scale, headCoord.y + beamLen);
+    ctx.moveTo(headCoord.x - 9 * headCoord.scale, headCoord.y + 4 * headCoord.scale);
+    ctx.lineTo(headCoord.x + 9 * headCoord.scale, headCoord.y + 4 * headCoord.scale);
+    ctx.lineTo(headCoord.x + 30 * headCoord.scale, headCoord.y + beamLen);
+    ctx.lineTo(headCoord.x - 30 * headCoord.scale, headCoord.y + beamLen);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
 
-    // El morro (apartavacas) de la locomotora se alinea con headCoord.y para que el juicio en hitLineY sea exacto
+    // Sprite de la locomotora alineado exactamente con la meta
     ctx.drawImage(
       this._hwSprites.steam_locomotive,
       headCoord.x + chugBounce * 0.4 - locoW * 0.5,
@@ -8780,8 +8900,16 @@ class BeatstarEngine {
       locoH
     );
 
-    // 4. Emitir bocanadas de vapor blanco desde la chimenea de la locomotora
-    if (!note._lastSteamMs || (currentTime - note._lastSteamMs > (isBeingHeld ? 55 : 115))) {
+    // 8. Chispas de rieles si está siendo sostenido (hold activo)
+    if (isBeingHeld) {
+      const sparkY = headCoord.y - 2;
+      const slOff = locoW * 0.42;
+      this._emitHighwaySmoke(headCoord.x - slOff, sparkY, -26 - Math.random() * 20, -14, 2 * headCoord.scale, 5 * headCoord.scale, '#fde047', 0.9, 0.22);
+      this._emitHighwaySmoke(headCoord.x + slOff, sparkY, 26 + Math.random() * 20, -14, 2 * headCoord.scale, 5 * headCoord.scale, '#fde047', 0.9, 0.22);
+    }
+
+    // 9. Bocanadas de vapor blanco continuo
+    if (!note._lastSteamMs || (currentTime - note._lastSteamMs > (isBeingHeld ? 50 : 105))) {
       note._lastSteamMs = currentTime;
       const stackX = headCoord.x + (Math.random() - 0.5) * 6 * headCoord.scale;
       const stackY = headCoord.y - locoH * 0.22;
@@ -8790,13 +8918,58 @@ class BeatstarEngine {
         stackY,
         (Math.random() - 0.5) * 24,
         -38 - Math.random() * 24,
-        6 * headCoord.scale,
-        (isBeingHeld ? 26 : 19) * headCoord.scale,
+        7 * headCoord.scale,
+        (isBeingHeld ? 28 : 20) * headCoord.scale,
         isBeingHeld ? '#fef9c3' : '#f8fafc',
-        isBeingHeld ? 0.85 : 0.65,
+        isBeingHeld ? 0.88 : 0.68,
         0.58
       );
     }
+
+    // 10. 🏷️ DISTINTIVO GIGANTE LUMINOSO: "MANTÉN / HOLD" EN LA CABEZA DEL TREN
+    ctx.save();
+    const badgeScale = Math.max(0.72, headCoord.scale);
+    const holdPulse = 1.0 + Math.sin(currentTime * 0.010) * 0.08;
+    const badgeY = headCoord.y - locoH * 0.88;
+    ctx.translate(headCoord.x, badgeY);
+    ctx.scale(badgeScale * holdPulse, badgeScale * holdPulse);
+
+    ctx.font = '900 13px Inter, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    const holdLabel = isBeingHeld ? '⚡ ¡SOSTENIENDO! ⚡' : '👆 MANTÉN (HOLD) ⚓';
+    const textW = ctx.measureText(holdLabel).width;
+    const pillW = textW + 20;
+    const pillH = 22;
+
+    // Fondo y borde neón llamativo
+    ctx.fillStyle = isBeingHeld ? 'rgba(20, 14, 2, 0.92)' : 'rgba(3, 20, 36, 0.92)';
+    ctx.strokeStyle = isBeingHeld ? '#facc15' : '#38bdf8';
+    ctx.lineWidth = 2.4;
+    ctx.shadowColor = isBeingHeld ? '#eab308' : '#0284c7';
+    ctx.shadowBlur = 12;
+
+    ctx.beginPath();
+    ctx.roundRect(-pillW * 0.5, -pillH * 0.5, pillW, pillH, 11);
+    ctx.fill();
+    ctx.stroke();
+
+    // Texto brillante
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = isBeingHeld ? '#fef08a' : '#e0f2fe';
+    ctx.fillText(holdLabel, 0, 0);
+
+    // Flecha indicadora hacia la cabina
+    ctx.fillStyle = isBeingHeld ? '#facc15' : '#38bdf8';
+    ctx.beginPath();
+    ctx.moveTo(-5, pillH * 0.5);
+    ctx.lineTo(5, pillH * 0.5);
+    ctx.lineTo(0, pillH * 0.5 + 5);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
 
     ctx.restore();
   }
@@ -11061,8 +11234,8 @@ class BeatstarEngine {
         }
 
         // En Modo Carretera los vehículos tienen distintas velocidades (_hwDurationMs) y se adelantan,
-        // por lo que recolectamos los vehículos visibles y los ordenamos de atrás hacia delante (y los voladores encima)
-        const maxLookaheadMs = scrollDur * 1.65;
+        // por lo que recolectamos los vehículos visibles con lookahead holgado para que nazcan en el horizonte lejanamente
+        const maxLookaheadMs = Math.max(5200, scrollDur * 3.4);
         const visibleHighwayItems = [];
         for (let i = startIdx; i < len; i++) {
           const note = this.notes[i];
