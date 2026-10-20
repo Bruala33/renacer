@@ -25,7 +25,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css?v=4.0">
+  <link rel="stylesheet" href="./style.css?v=8.0">
   <script>
     // ===================================================
     // SISTEMA DE INTERNACIONALIZACIÓN (i18n: ES / EN)
@@ -1171,11 +1171,6 @@
 
         <!-- Action Buttons (Flex-shrink-0 to guarantee settings gear is always visible) -->
         <div class="flex items-center gap-1.5 flex-shrink-0">
-          <!-- Karaoke Mode Toggle Button (Microphone) -->
-          <button id="btnKaraokeToggle" onclick="toggleKaraokeMode()" class="w-8 h-8 rounded-xl bg-purple-600/20 border border-purple-400/40 hover:border-purple-400/80 active:scale-95 text-purple-300 flex items-center justify-center transition cursor-pointer flex-shrink-0 shadow-sm" title="Modo Karaoke">
-            <span class="text-sm">🎤</span>
-          </button>
-
           <!-- Global Leaderboard Button (Trophy SVG) -->
           <button id="btnOpenGlobalLeaderboard" onclick="openLeaderboardModal(null, 'weekly')" class="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-400/50 hover:border-amber-400/80 active:scale-95 text-amber-400 flex items-center justify-center transition cursor-pointer flex-shrink-0" title="Clasificación y Torneo Semanal">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="text-amber-400"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/></svg>
@@ -1259,15 +1254,6 @@
               <span class="text-[11px] font-bold text-[#c5a059] uppercase tracking-wider">Filtro de Búsqueda</span>
               <span id="activeFilterBadge" class="text-[9.5px] text-amber-300 font-mono">Global</span>
             </div>
-
-            <!-- Checkbox Modo Karaoke (Canciones con Letra) -->
-            <label class="flex items-center justify-between p-2 rounded-lg bg-pink-950/25 hover:bg-pink-900/40 cursor-pointer transition border border-pink-500/30">
-              <div class="flex items-center gap-1.5">
-                <span class="text-pink-400 text-xs">🎤</span>
-                <span class="text-xs font-semibold text-pink-100">Modo Karaoke (Con Letra)</span>
-              </div>
-              <input type="checkbox" id="filterOnlyKaraoke" onchange="toggleKaraokeMode(this.checked)" class="accent-pink-500 w-4 h-4 cursor-pointer">
-            </label>
 
             <!-- Checkbox Solo Comunidad -->
             <label class="flex items-center justify-between p-2 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer transition border border-white/5">
@@ -1850,7 +1836,7 @@
             <p class="text-[10px] text-gray-300 leading-tight" data-i18n="apk_card_desc">
               Instala la app oficial en tu móvil para jugar a pantalla completa, vibración háptica y con disponibilidad 100% offline.
             </p>
-            <a href="/download/apk?v=7.0" onclick="this.href='/download/apk?v=7.0&t=' + Date.now()" download="PianoCommunity.apk" class="w-full py-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 text-black font-black rounded-lg text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition active:scale-95 cursor-pointer">
+            <a href="/download/apk?v=8.0" onclick="this.href='/download/apk?v=8.0&t=' + Date.now()" download="PianoCommunity.apk" class="w-full py-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 text-black font-black rounded-lg text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition active:scale-95 cursor-pointer">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               <span data-i18n="apk_card_btn">DESCARGAR APK ANDROID</span>
             </a>
@@ -2247,7 +2233,7 @@
           <p data-i18n="onboarding_apk_hint" class="text-[10px] text-amber-300/90 leading-tight">
             💡 Recuerda que también puedes descargar la app nativa para Android en cualquier momento desde <b>Ajustes ⚙️</b>.
           </p>
-          <a href="/download/apk?v=7.0" onclick="this.href='/download/apk?v=7.0&t=' + Date.now()" download="PianoCommunity.apk" class="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 rounded-xl text-amber-300 text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer">
+          <a href="/download/apk?v=8.0" onclick="this.href='/download/apk?v=8.0&t=' + Date.now()" download="PianoCommunity.apk" class="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 rounded-xl text-amber-300 text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="text-amber-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             <span data-i18n="onboarding_apk_btn">Descargar App (APK Android)</span>
           </a>
@@ -2655,6 +2641,62 @@
           </div>
           <button onclick="closeLeaderboardModal()" class="py-1 px-2 bg-[#0b0604] hover:bg-[#180c08] border border-[#ff5500]/60 rounded cursor-pointer flex items-center justify-center">
             <canvas id="lbFooterCloseLedCanvas" class="h-[18px] w-[86px] block"></canvas>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layer 17A: Selector de Modo de Juego en Pantalla Vintage de Píxeles LED Grandes (NORMAL / KARAOKE / TORMENTA) -->
+    <div id="gameModeSelectModal" class="results-modal hidden" style="display: none; z-index: 10035 !important; background: rgba(2, 2, 4, 0.94);">
+      <div class="w-full max-w-[372px] p-2.5 rounded-2xl bg-[#09090c] border-[3px] border-[#262630] shadow-[0_0_55px_rgba(0,0,0,0.98),inset_0_0_16px_rgba(0,0,0,0.95)] relative overflow-hidden">
+        <!-- Cabecera de Matriz de Píxeles LED Grandes -->
+        <div class="flex items-center justify-between gap-2 px-2 py-1.5 bg-[#040406] border-2 border-[#1b1b22] rounded-lg">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#ff9900] shadow-[0_0_8px_#ff9900,inset_0_0_3px_#ffffff]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#ff3b00] shadow-[0_0_8px_#ff3b00,inset_0_0_3px_#ffffff]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#ff9900] shadow-[0_0_8px_#ff9900,inset_0_0_3px_#ffffff]"></span>
+          </div>
+          <canvas id="gmHeaderLedCanvas" class="h-[26px] w-[184px] block"></canvas>
+          <button onclick="cancelGameModeSelection()" class="p-1 rounded bg-[#0c0804] border border-[#3a2210] hover:border-[#ff5500] cursor-pointer flex items-center justify-center">
+            <canvas id="gmCloseTopLedCanvas" class="h-[18px] w-[22px] block"></canvas>
+          </button>
+        </div>
+
+        <!-- Marquesina LED de Canción Seleccionada -->
+        <div class="p-1.5 mt-1.5 bg-[#040406] border-2 border-[#1b1b22] rounded-lg">
+          <canvas id="gmSongTitleLedCanvas" class="w-full h-[20px] block"></canvas>
+        </div>
+
+        <!-- Pantalla Gigante Retro de Selección de Modos con Píxeles LED Grandes -->
+        <div class="p-2.5 bg-[#030201] border-[3px] border-[#1c160e] rounded-xl my-1.5 shadow-[inset_0_0_28px_rgba(0,0,0,1)] space-y-2.5">
+          <!-- Botón 1: MODO NORMAL (LED Estático Clásico) -->
+          <button id="btnModeSelectNormal" onclick="confirmGameModeSelection('normal')" class="w-full p-2 rounded-xl bg-[#060503] border-2 border-[#1d3b2a] hover:border-[#00f5a0] active:scale-[0.98] transition cursor-pointer flex flex-col items-center gap-1 shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
+            <canvas id="gmBtnNormalMainCanvas" class="w-full h-[42px] block"></canvas>
+            <canvas id="gmBtnNormalSubCanvas" class="w-full h-[18px] block border-t border-[#14261c] pt-0.5"></canvas>
+          </button>
+
+          <!-- Botón 2: MODO KARAOKE (Animación LED Secuencial KA-RA-O-KE en Dorado) -->
+          <button id="btnModeSelectKaraoke" onclick="confirmGameModeSelection('karaoke')" class="w-full p-2 rounded-xl bg-[#070502] border-2 border-[#422c08] hover:border-[#ffd700] active:scale-[0.98] transition cursor-pointer flex flex-col items-center gap-1 shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
+            <canvas id="gmBtnKaraokeMainCanvas" class="w-full h-[42px] block"></canvas>
+            <canvas id="gmBtnKaraokeSubCanvas" class="w-full h-[18px] block border-t border-[#2b1c05] pt-0.5"></canvas>
+          </button>
+
+          <!-- Botón 3: MODO TORMENTA (Efecto de Rayo con Cortocircuito LED + X2 CLAVES) -->
+          <button id="btnModeSelectStorm" onclick="confirmGameModeSelection('storm')" class="w-full p-2 rounded-xl bg-[#03060a] border-2 border-[#12364d] hover:border-[#00e5ff] active:scale-[0.98] transition cursor-pointer flex flex-col items-center gap-1 shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
+            <canvas id="gmBtnStormMainCanvas" class="w-full h-[42px] block"></canvas>
+            <canvas id="gmBtnStormSubCanvas" class="w-full h-[18px] block border-t border-[#0d2638] pt-0.5"></canvas>
+          </button>
+        </div>
+
+        <!-- Pie de pantalla LED -->
+        <div class="flex items-center justify-between gap-2 pt-0.5 px-0.5">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#ff3b00] shadow-[0_0_8px_#ff3b00,inset_0_0_3px_#ffffff]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#ff9900] shadow-[0_0_8px_#ff9900,inset_0_0_3px_#ffffff]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#ff3b00] shadow-[0_0_8px_#ff3b00,inset_0_0_3px_#ffffff]"></span>
+          </div>
+          <button onclick="cancelGameModeSelection()" class="py-1 px-2 bg-[#0b0604] hover:bg-[#180c08] border border-[#ff5500]/60 rounded cursor-pointer flex items-center justify-center">
+            <canvas id="gmFooterCancelLedCanvas" class="h-[18px] w-[96px] block"></canvas>
           </button>
         </div>
       </div>
@@ -3172,7 +3214,7 @@
   </div> <!-- End of game-viewport -->
 
   <script src="./parsers.js?v=4.0"></script>
-  <script src="./game.js?v=4.0"></script>
+  <script src="./game.js?v=8.0"></script>
   <script src="./slot_machine.js?v=4.0"></script>
   <script src="./gachapon_3d.js?v=1.0"></script>
   <script src="./songs/comm_camilo_sesto/chart.js"></script>
@@ -5125,10 +5167,11 @@
           
           const isNewRecord = saveHighscore(songId, engine.score, engine.stars || 0, engine.maxCombo || 0, engine.currentMedalTier || null, scorePct);
 
-          // Otorgar claves de sol por estrellas conseguidas hasta ese momento
+          // Otorgar claves de sol por estrellas conseguidas hasta ese momento (X2 si es Modo Tormenta o Destacada Diaria)
           const isFeat = !!(currentActiveBeatmap?.is_daily_featured || currentActiveBeatmap?.metadata?.is_daily_featured || (engine && engine.beatmapData?.is_daily_featured));
+          const isStorm = Boolean(window.isStormModeActive || (engine && engine.isStormModeActive));
           const baseEarned = Math.min(15, (engine.stars || 0) * 3);
-          const earnedClefs = isFeat ? (baseEarned * 2) : baseEarned;
+          const earnedClefs = baseEarned * (isFeat ? 2 : 1) * (isStorm ? 2 : 1);
           if (earnedClefs > 0 && typeof addClefs === 'function') {
             addClefs(earnedClefs);
           }
@@ -6730,86 +6773,33 @@ window.switchMainTab = switchMainTab;
     window.onAppBackground = handleAppBackground;
     window.onAppForeground = handleAppForeground;
 
+    function applySelectedGameMode(mode) {
+      const m = (mode === 'karaoke' || mode === 'storm') ? mode : 'normal';
+      window.currentGameMode = m;
+      window.isKaraokeModeActive = (m === 'karaoke');
+      window.isStormModeActive = (m === 'storm');
+      if (window.engine) {
+        window.engine.isKaraokeModeActive = window.isKaraokeModeActive;
+        window.engine.isStormModeActive = window.isStormModeActive;
+        if (window.isStormModeActive && typeof window.engine.initStormModeAssets === 'function') {
+          window.engine.initStormModeAssets();
+        }
+      }
+      try { localStorage.setItem('isKaraokeModeActive', '0'); } catch (_) {}
+    }
+    window.applySelectedGameMode = applySelectedGameMode;
+
     function toggleKaraokeMode(forceState = null) {
-      if (typeof forceState === 'boolean') {
-        window.isKaraokeModeActive = forceState;
-      } else {
-        window.isKaraokeModeActive = !window.isKaraokeModeActive;
-      }
-      try { localStorage.setItem('isKaraokeModeActive', window.isKaraokeModeActive ? '1' : '0'); } catch (_) {}
-
-      const btn = document.getElementById('btnKaraokeToggle');
-      if (btn) {
-        if (window.isKaraokeModeActive) {
-          btn.className = 'w-8 h-8 rounded-xl bg-pink-600 text-white border border-pink-300 ring-2 ring-pink-400/50 shadow-[0_0_14px_rgba(244,114,182,0.8)] flex items-center justify-center transition cursor-pointer flex-shrink-0 scale-105';
-        } else {
-          btn.className = 'w-8 h-8 rounded-xl bg-purple-600/20 text-purple-300 border border-purple-400/40 hover:border-purple-400/80 active:scale-95 flex items-center justify-center transition cursor-pointer flex-shrink-0 shadow-sm';
-        }
-      }
-
-      // Asegurar que estamos en la pestaña Explorar
-      if (typeof switchMainTab === 'function') {
-        const searchSec = document.getElementById('tabSearchSection');
-        if (!searchSec || searchSec.style.display === 'none') {
-          switchMainTab('search');
-        }
-      }
-
-      // Sincronizar checkboxes de filtros
-      const karaokeCheck = document.getElementById('filterOnlyKaraoke');
-      const topCheck = document.getElementById('filterOnlyTopSongs');
-      const commCheck = document.getElementById('filterOnlyCommunity');
-      if (karaokeCheck) karaokeCheck.checked = window.isKaraokeModeActive;
-      if (topCheck) topCheck.checked = window.isKaraokeModeActive;
-      if (commCheck && window.isKaraokeModeActive) {
-        commCheck.checked = false;
-        const commSort = document.getElementById('commSortButtons');
-        if (commSort) {
-          commSort.classList.add('hidden');
-          commSort.classList.remove('flex');
-        }
-      }
-
-      const badge = document.getElementById('activeFilterBadge');
-      if (badge) {
-        const topCount = (window.TOP_SONGS_CATALOG && window.TOP_SONGS_CATALOG.length) ? window.TOP_SONGS_CATALOG.length : 90;
-        badge.innerText = window.isKaraokeModeActive ? `🎤 Karaoke (${topCount})` : 'Global';
-      }
-
-      if (window.isKaraokeModeActive) {
-        if (typeof showSuccessToast === 'function') {
-          showSuccessToast('🎤 Modo Karaoke activado: mostrando canciones');
-        }
-      } else {
-        if (typeof showInfoToast === 'function') {
-          showInfoToast('Modo normal activado');
-        }
-      }
-
-      if (typeof executeSearch === 'function') {
-        executeSearch();
-      }
+      const nextState = typeof forceState === 'boolean' ? forceState : !window.isKaraokeModeActive;
+      applySelectedGameMode(nextState ? 'karaoke' : 'normal');
     }
     window.toggleKaraokeMode = toggleKaraokeMode;
 
-    try {
-      if (localStorage.getItem('isKaraokeModeActive') === '1') {
-        window.isKaraokeModeActive = true;
-        const btn = document.getElementById('btnKaraokeToggle');
-        if (btn) {
-          btn.className = 'w-8 h-8 rounded-xl bg-pink-600 text-white border border-pink-300 ring-2 ring-pink-400/50 shadow-[0_0_14px_rgba(244,114,182,0.8)] flex items-center justify-center transition cursor-pointer flex-shrink-0 scale-105';
-        }
-        const karaokeCheck = document.getElementById('filterOnlyKaraoke');
-        const topCheck = document.getElementById('filterOnlyTopSongs');
-        if (karaokeCheck) karaokeCheck.checked = true;
-        if (topCheck) topCheck.checked = true;
-        const badge = document.getElementById('activeFilterBadge');
-        if (badge) {
-          const topCount = (window.TOP_SONGS_CATALOG && window.TOP_SONGS_CATALOG.length) ? window.TOP_SONGS_CATALOG.length : 90;
-          badge.innerText = `🎤 Karaoke (${topCount})`;
-        }
-      }
-    } catch (_) {}
+    // Al iniciar la app, el modo por defecto se elige siempre al pulsar una canción
+    window.currentGameMode = 'normal';
+    window.isKaraokeModeActive = false;
+    window.isStormModeActive = false;
+    try { localStorage.setItem('isKaraokeModeActive', '0'); } catch (_) {}
 
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
@@ -8329,34 +8319,41 @@ function stopPianoCameraLoop() {
     window.linkExistingNotesToReconstructedLines = linkExistingNotesToReconstructedLines;
 
     function renderizarVersoKaraoke(verso, contenedor) {
-      // 1. Obligatorio para que el navegador respete los espacios en blanco nativos
+      if (!contenedor) return;
       contenedor.style.whiteSpace = 'pre-wrap';
+      contenedor.textContent = '';
 
-      // 2. Mapear sílabas sin añadir espacios artificiales entre spans
-      const htmlSpans = verso.map((s) => {
-        let texto = s.text;
+      const sylMap = new Map();
+      window._karaokeSylMap = sylMap;
+      const frag = document.createDocumentFragment();
+
+      for (let i = 0; i < verso.length; i++) {
+        const s = verso[i];
+        let texto = String(s.text || '');
         const esMelisma = texto.trim() === '~';
-
-        // Reemplazar guiones de sinalefa por espacios
         texto = texto.replace(/-/g, ' ');
 
+        const span = document.createElement('span');
+        span.id = `lyric-${s.time}`;
         if (esMelisma) {
-          // Se mantiene en el DOM con display:none para evitar errores de ID nulo
-          return `<span id="lyric-${s.time}" class="karaoke-syllable melisma" style="display:none;" data-time="${s.time}"></span>`;
+          span.className = 'karaoke-syllable melisma';
+          span.style.display = 'none';
+        } else {
+          span.className = 'karaoke-syllable';
+          span.textContent = texto;
         }
+        sylMap.set(s.time, span);
+        frag.appendChild(span);
+      }
 
-        // Los spans van pegados directamente
-        return `<span id="lyric-${s.time}" class="karaoke-syllable" data-time="${s.time}" data-dur="${s.dur}">${texto}</span>`;
-      }).join(''); // NUNCA usar .join(' ') ni saltos de línea
-
-      contenedor.innerHTML = htmlSpans;
+      contenedor.appendChild(frag);
     }
     window.renderizarVersoKaraoke = renderizarVersoKaraoke;
 
     function iluminarSilaba(tiempoMs) {
-      const el = document.getElementById(`lyric-${tiempoMs}`);
-      if (el && !el.classList.contains('activa')) {
-        el.classList.add('activa');
+      const el = (window._karaokeSylMap && window._karaokeSylMap.get(tiempoMs)) || document.getElementById(`lyric-${tiempoMs}`);
+      if (el && el.getAttribute('data-lit') !== '1') {
+        el.setAttribute('data-lit', '1');
       }
     }
     window.iluminarSilaba = iluminarSilaba;
@@ -8720,6 +8717,16 @@ function stopPianoCameraLoop() {
         window.isGameLoadingOrActive = false;
         showErrorToast('No se encontró información de la canción seleccionada.');
         return;
+      }
+
+      if (!window._modeAlreadyChosenForThisLaunch && !window.isPlaytestingFromEditor && typeof openGameModeSelectModal === 'function') {
+        const chosenMode = await openGameModeSelectModal(chartItem.title || 'PISTA', chartItem.artist || '');
+        if (!chosenMode) {
+          window.isGameLoadingOrActive = false;
+          return;
+        }
+        applySelectedGameMode(chosenMode);
+        window._modeAlreadyChosenForThisLaunch = true;
       }
 
       const overlay = document.getElementById('globalLoadingOverlay');
@@ -9336,7 +9343,22 @@ function stopPianoCameraLoop() {
     }
     window.humanizeAndBalanceBeatmapNotes = humanizeAndBalanceBeatmapNotes;
 
-    async function startGame(beatmapData, audioBlob, diffLabel = '') {
+    async function startGame(beatmapData, audioBlob, diffLabel = '', skipModeModal = false) {
+      if (!skipModeModal && !window._modeAlreadyChosenForThisLaunch && !window.isPlaytestingFromEditor && typeof openGameModeSelectModal === 'function') {
+        const overlayPre = document.getElementById('globalLoadingOverlay');
+        const wasOverlayActive = overlayPre && overlayPre.classList.contains('active');
+        if (wasOverlayActive) overlayPre.classList.remove('active');
+        const sTitle = beatmapData?.title || beatmapData?.metadata?.title || 'PISTA';
+        const sArtist = beatmapData?.artist || beatmapData?.metadata?.artist || '';
+        const chosenMode = await openGameModeSelectModal(sTitle, sArtist);
+        if (!chosenMode) {
+          window.isGameLoadingOrActive = false;
+          return;
+        }
+        applySelectedGameMode(chosenMode);
+      }
+      window._modeAlreadyChosenForThisLaunch = false;
+
       if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
 
       // Ocultar inmediatamente menús de catálogo y limpiar líricas anteriores para evitar cualquier parpadeo de 1s
@@ -9614,11 +9636,15 @@ function stopPianoCameraLoop() {
       const resMaxComboEl = document.getElementById('resMaxCombo');
       if (resMaxComboEl) resMaxComboEl.innerText = maxCombo;
       
-      // Recompensas de Claves de Sol (con multiplicador x2 si es Canción Destacada Diaria)
+      // Recompensas de Claves de Sol (con multiplicador x2 en Modo Tormenta y/o Canción Destacada Diaria)
       const isDailyFeat = !!(currentActiveBeatmap?.is_daily_featured || currentActiveBeatmap?.metadata?.is_daily_featured || engine?.beatmapData?.is_daily_featured);
+      const isStorm = Boolean(window.isStormModeActive || (engine && engine.isStormModeActive));
       const resEarnedClefsEl = document.getElementById('resEarnedClefs');
       if (resEarnedClefsEl) {
-        resEarnedClefsEl.innerText = isDailyFeat ? `${earnedClefs} (¡x2 Diario!)` : earnedClefs;
+        if (isStorm && isDailyFeat) resEarnedClefsEl.innerText = `${earnedClefs} (¡x4 Tormenta + Diario!)`;
+        else if (isStorm) resEarnedClefsEl.innerText = `${earnedClefs} (¡x2 Modo Tormenta!)`;
+        else if (isDailyFeat) resEarnedClefsEl.innerText = `${earnedClefs} (¡x2 Diario!)`;
+        else resEarnedClefsEl.innerText = earnedClefs;
       }
       updateUserWalletDisplay();
 
@@ -9797,7 +9823,7 @@ function stopPianoCameraLoop() {
       if (engine && engine.beatmapData) {
         engine.restart();
       } else if (currentActiveBeatmap && currentActiveAudioBlob) {
-        startGame(currentActiveBeatmap, currentActiveAudioBlob, currentActiveBeatmap.metadata?.difficulty_name);
+        startGame(currentActiveBeatmap, currentActiveAudioBlob, currentActiveBeatmap.metadata?.difficulty_name, true);
       }
     }
 
@@ -11368,6 +11394,16 @@ function stopPianoCameraLoop() {
       const loadStatus = document.getElementById('globalLoadStatus') || document.getElementById('loadingOverlayStatus');
       const curtain = document.getElementById('gameCurtain');
 
+      if (!window._modeAlreadyChosenForThisLaunch && !window.isPlaytestingFromEditor && typeof openGameModeSelectModal === 'function') {
+        const chosenMode = await openGameModeSelectModal(songMeta.title || 'PISTA TOP', songMeta.artist || '');
+        if (!chosenMode) {
+          window.isGameLoadingOrActive = false;
+          return;
+        }
+        applySelectedGameMode(chosenMode);
+        window._modeAlreadyChosenForThisLaunch = true;
+      }
+
       if (curtain) curtain.classList.remove('revealed');
       if (loadTitle) loadTitle.innerText = songMeta.title || 'Canción Top';
       if (loadArtist) loadArtist.innerText = `${songMeta.artist || 'Artista'} (CDN Oficial)`;
@@ -12060,6 +12096,16 @@ function stopPianoCameraLoop() {
       if (!isDailyFeatured && !window._launchingFromSlot) {
         window.currentFeaturedSongX2 = false;
       }
+      if (!window._modeAlreadyChosenForThisLaunch && !window.isPlaytestingFromEditor && typeof openGameModeSelectModal === 'function') {
+        const chosenMode = await openGameModeSelectModal('PISTA COMUNITARIA', '');
+        if (!chosenMode) {
+          window.isGameLoadingOrActive = false;
+          return;
+        }
+        applySelectedGameMode(chosenMode);
+        window._modeAlreadyChosenForThisLaunch = true;
+      }
+
       const overlay = document.getElementById('globalLoadingOverlay');
       const loadTitle = document.getElementById('loadingOverlayTitle');
       const loadStatus = document.getElementById('loadingOverlayStatus');
@@ -13295,6 +13341,273 @@ function stopPianoCameraLoop() {
         modal.style.display = 'none';
       }
     }
+
+    // =========================================================================
+    // SELECTOR VINTAGE DE MODO DE JUEGO (NORMAL / KARAOKE / TORMENTA) EN PÍXELES LED GRANDES
+    // =========================================================================
+    let _gameModeModalResolver = null;
+    let _gameModeLedAnimId = null;
+    let _gameModeStormStrikeUntil = 0;
+    let _gameModeStormNextStrike = 0;
+
+    function _drawStormBoltOnLedCanvas(canvas, intensity = 1.0) {
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const w = canvas.width / dpr;
+      const h = canvas.height / dpr;
+      ctx.save();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.globalCompositeOperation = 'lighter';
+
+      // Destello eléctrico de impacto sobre la matriz LED
+      ctx.fillStyle = `rgba(186, 230, 253, ${(0.28 * intensity).toFixed(2)})`;
+      ctx.fillRect(0, 0, w, h);
+
+      // Rayo quebrado cruzando el propio botón
+      const startX = w * (0.28 + Math.random() * 0.44);
+      let cx = startX;
+      let cy = 0;
+      const steps = 6;
+      const stepY = h / steps;
+
+      ctx.strokeStyle = `rgba(0, 229, 255, ${(0.9 * intensity).toFixed(2)})`;
+      ctx.lineWidth = 5.0;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      const pts = [{ x: cx, y: cy }];
+      for (let i = 1; i <= steps; i++) {
+        cx += (Math.random() - 0.5) * 32;
+        cy = i * stepY;
+        pts.push({ x: cx, y: cy });
+        ctx.lineTo(cx, cy);
+      }
+      ctx.stroke();
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.0;
+      ctx.beginPath();
+      for (let i = 0; i < pts.length; i++) {
+        if (i === 0) ctx.moveTo(pts[i].x, pts[i].y);
+        else ctx.lineTo(pts[i].x, pts[i].y);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function _renderGameModeStaticLeds(songTitle = 'PISTA', songArtist = '') {
+      renderLedMatrixCanvas(
+        document.getElementById('gmHeaderLedCanvas'),
+        184, 26, 2.5,
+        [{ text: 'MODO DE JUEGO', color: '#ffb300', align: 'center' }]
+      );
+      renderLedMatrixCanvas(
+        document.getElementById('gmCloseTopLedCanvas'),
+        22, 18, 2.2,
+        [{ text: 'X', color: '#ff4500', align: 'center' }]
+      );
+      const cleanSongInfo = normalizeLedText(songArtist ? `${songTitle} - ${songArtist}` : songTitle).slice(0, 26);
+      renderLedMatrixCanvas(
+        document.getElementById('gmSongTitleLedCanvas'),
+        330, 20, 2.2,
+        [{ text: cleanSongInfo || 'SELECCIONA MODO', color: '#ff9900', align: 'center' }]
+      );
+      renderLedMatrixCanvas(
+        document.getElementById('gmFooterCancelLedCanvas'),
+        96, 18, 2.0,
+        [{ text: 'CANCELAR', color: '#ff5500', align: 'center' }]
+      );
+
+      // 1. MODO NORMAL: Fijo y estático con píxeles LED grandes (pitch 4.6)
+      renderLedMatrixCanvas(
+        document.getElementById('gmBtnNormalMainCanvas'),
+        326, 42, 4.6,
+        [{ text: 'NORMAL', color: '#00f5a0', align: 'center' }],
+        '#040604', '#0e1f16'
+      );
+      renderLedMatrixCanvas(
+        document.getElementById('gmBtnNormalSubCanvas'),
+        326, 18, 2.1,
+        [{ text: 'CLASICO ORIGINAL - 1X CLAVES', color: '#00c47a', align: 'center' }],
+        '#040604', '#0c1912'
+      );
+
+      // Subtítulo fijo de Karaoke
+      renderLedMatrixCanvas(
+        document.getElementById('gmBtnKaraokeSubCanvas'),
+        326, 18, 2.1,
+        [{ text: 'LETRA SINCRONIZADA EN VIVO', color: '#ffb300', align: 'center' }],
+        '#060402', '#1f1506'
+      );
+
+      // Subtítulo fijo de Tormenta
+      renderLedMatrixCanvas(
+        document.getElementById('gmBtnStormSubCanvas'),
+        326, 18, 2.1,
+        [{ text: 'NUBES Y RAYOS HD - X2 CLAVES', color: '#38bdf8', align: 'center' }],
+        '#020508', '#0a1c29'
+      );
+    }
+
+    function _startGameModeLedAnimationLoop() {
+      if (_gameModeLedAnimId) {
+        cancelAnimationFrame(_gameModeLedAnimId);
+        _gameModeLedAnimId = null;
+      }
+      const startTime = performance.now();
+      _gameModeStormNextStrike = startTime + 900;
+      _gameModeStormStrikeUntil = 0;
+
+      // Coordenadas exactas de las 4 sílabas KA - RA - O - KE en la matriz de 70 columnas (pitch 4.6, ancho 326)
+      // 'KARAOKE' = 7 letras * 6 cols - 1 = 41 cols -> centrado en col 14
+      const baseCol = 14;
+      const karaokeSyllables = [
+        { text: 'KA', colOffset: baseCol + 0 },
+        { text: 'RA', colOffset: baseCol + 12 },
+        { text: 'O',  colOffset: baseCol + 24 },
+        { text: 'KE', colOffset: baseCol + 30 }
+      ];
+
+      let lastKaraokeStep = -1;
+      let lastStormVisualState = '';
+
+      const tick = (now) => {
+        const modal = document.getElementById('gameModeSelectModal');
+        if (!modal || modal.classList.contains('hidden') || modal.style.display === 'none') {
+          _gameModeLedAnimId = null;
+          return;
+        }
+
+        // A. ANIMACIÓN LED MODO KARAOKE: Secuencia KA -> RA -> O -> KE iluminándose en dorado (#ffd700)
+        // Ciclo de 5 pasos cada 340ms: 0=KA, 1=KA-RA, 2=KA-RA-O, 3=KA-RA-O-KE, 4=apagado breve antes de repetir
+        const kStep = Math.floor(((now - startTime) % 1900) / 380);
+        if (kStep !== lastKaraokeStep) {
+          lastKaraokeStep = kStep;
+          const kSegments = karaokeSyllables.map((syl, idx) => {
+            const isLit = (kStep < 4) ? (idx <= kStep) : false;
+            return {
+              text: syl.text,
+              colOffset: syl.colOffset,
+              color: isLit ? '#ffd700' : '#4a3208',
+              dim: !isLit
+            };
+          });
+          renderLedMatrixCanvas(
+            document.getElementById('gmBtnKaraokeMainCanvas'),
+            326, 42, 4.6,
+            kSegments,
+            '#060402', '#1c1306'
+          );
+        }
+
+        // B. ANIMACIÓN LED MODO TORMENTA: LED encendido que sufre el impacto de un rayo y parpadea rápidamente
+        if (now >= _gameModeStormNextStrike) {
+          _gameModeStormStrikeUntil = now + 440;
+          _gameModeStormNextStrike = now + 2200 + Math.random() * 1100;
+        }
+
+        const stormBtn = document.getElementById('btnModeSelectStorm');
+        const stormCanvas = document.getElementById('gmBtnStormMainCanvas');
+
+        if (now < _gameModeStormStrikeUntil) {
+          // Secuencia rápida de cortocircuito eléctrico al caer el rayo (apaga/enciende varias veces rápidamente)
+          const phase = Math.floor((now - (_gameModeStormStrikeUntil - 440)) / 55);
+          // Fases pares: impacto blanco/cian o apagón total
+          const isBlackout = (phase === 1 || phase === 3 || phase === 5);
+          const isFlashWhite = (phase === 0 || phase === 2 || phase === 6);
+          const stateKey = `strike_${phase}`;
+
+          if (stateKey !== lastStormVisualState) {
+            lastStormVisualState = stateKey;
+            if (isBlackout) {
+              renderLedMatrixCanvas(
+                stormCanvas, 326, 42, 4.6,
+                [{ text: 'TORMENTA', color: '#091e2c', align: 'center', dim: true }],
+                '#020408', '#07121c'
+              );
+              if (stormBtn) stormBtn.style.borderColor = '#091e2c';
+            } else {
+              renderLedMatrixCanvas(
+                stormCanvas, 326, 42, 4.6,
+                [{ text: 'TORMENTA', color: isFlashWhite ? '#ffffff' : '#00e5ff', align: 'center', dim: false }],
+                 isFlashWhite ? '#0c2538' : '#03080e', '#0d2638'
+              );
+              _drawStormBoltOnLedCanvas(stormCanvas, isFlashWhite ? 1.0 : 0.65);
+              if (stormBtn) stormBtn.style.borderColor = isFlashWhite ? '#ffffff' : '#00e5ff';
+            }
+          }
+        } else {
+          if (lastStormVisualState !== 'steady_on') {
+            lastStormVisualState = 'steady_on';
+            renderLedMatrixCanvas(
+              stormCanvas, 326, 42, 4.6,
+              [{ text: 'TORMENTA', color: '#00e5ff', align: 'center', dim: false }],
+              '#03060a', '#0b2233'
+            );
+            if (stormBtn) stormBtn.style.borderColor = '';
+          }
+        }
+
+        _gameModeLedAnimId = requestAnimationFrame(tick);
+      };
+
+      _gameModeLedAnimId = requestAnimationFrame(tick);
+    }
+
+    function openGameModeSelectModal(songTitle = 'PISTA', songArtist = '') {
+      return new Promise((resolve) => {
+        _gameModeModalResolver = resolve;
+        const modal = document.getElementById('gameModeSelectModal');
+        if (!modal) {
+          resolve('normal');
+          return;
+        }
+        modal.classList.remove('hidden');
+        modal.classList.add('open');
+        modal.style.display = 'flex';
+        _renderGameModeStaticLeds(songTitle, songArtist);
+        _startGameModeLedAnimationLoop();
+      });
+    }
+    window.openGameModeSelectModal = openGameModeSelectModal;
+
+    function _closeGameModeModalInternal() {
+      if (_gameModeLedAnimId) {
+        cancelAnimationFrame(_gameModeLedAnimId);
+        _gameModeLedAnimId = null;
+      }
+      const modal = document.getElementById('gameModeSelectModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('open');
+        modal.style.display = 'none';
+      }
+    }
+
+    function confirmGameModeSelection(mode) {
+      _closeGameModeModalInternal();
+      const chosen = (mode === 'karaoke' || mode === 'storm') ? mode : 'normal';
+      applySelectedGameMode(chosen);
+      if (typeof _gameModeModalResolver === 'function') {
+        const r = _gameModeModalResolver;
+        _gameModeModalResolver = null;
+        r(chosen);
+      }
+    }
+    window.confirmGameModeSelection = confirmGameModeSelection;
+
+    function cancelGameModeSelection() {
+      _closeGameModeModalInternal();
+      if (typeof _gameModeModalResolver === 'function') {
+        const r = _gameModeModalResolver;
+        _gameModeModalResolver = null;
+        r(null);
+      }
+    }
+    window.cancelGameModeSelection = cancelGameModeSelection;
 
     async function switchLeaderboardSubTab(tab) {
       currentLeaderboardSubTab = tab;

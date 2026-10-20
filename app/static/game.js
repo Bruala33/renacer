@@ -2167,12 +2167,15 @@ class BeatstarEngine {
   }
 
   triggerScreenShake(intensity = 2.0, durationMs = 50) {
-    this.shakeIntensity = intensity;
-    this.shakeDuration = durationMs / 1000;
+    // Vibración visual de pantalla desactivada para evitar que la pista tiemble al pulsar 2 teclas a la vez
+    this.shakeIntensity = 0;
+    this.shakeDuration = 0;
   }
 
   setJudgeColors(colors) {
     this.judgeColors = Object.assign(this.judgeColors || {}, colors);
+    this._laneTapGradCache = null;
+    this._judgementSpriteCache = null;
     localStorage.setItem('beatstar_judge_colors', JSON.stringify(this.judgeColors));
   }
 
@@ -2744,19 +2747,22 @@ class BeatstarEngine {
       window.isPlaytestingFromEditor
     );
 
-    const densityMode = (typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_map_density') : null) || 'hard';
+    const isStormActive = Boolean(this.isStormModeActive || (typeof window !== 'undefined' && window.isStormModeActive));
+    const baseDensityMode = (typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_map_density') : null) || 'hard';
+    const densityMode = (isStormActive && baseDensityMode === 'hard') ? 'extreme' : baseDensityMode;
+    const effectiveStars = isStormActive ? Math.min(10.0, (diffStars || 3.5) + 1.2) : diffStars;
     const sanitizedNotes = (!isCommunity && typeof LaneRemapper !== 'undefined' && LaneRemapper.sanitizeForTwoFingers)
-      ? LaneRemapper.sanitizeForTwoFingers(rawNotes, this.bpm, diffStars, densityMode)
+      ? LaneRemapper.sanitizeForTwoFingers(rawNotes, this.bpm, effectiveStars, densityMode)
       : rawNotes;
 
     // Set dynamic base scroll duration based on difficulty stars curve
-    const baseScroll = this.computeDynamicScrollDuration(diffStars, sanitizedNotes);
+    const baseScroll = this.computeDynamicScrollDuration(effectiveStars, sanitizedNotes);
     this.baseScrollDurationMs = baseScroll;
 
-    // Apply the active note speed multiplier to the dynamic scroll duration
-    const speedMult = Math.max(0.5, Math.min(2.5, this.noteSpeedMultiplier || 1.0));
+    // Apply the active note speed multiplier to the dynamic scroll duration (+12% velocidad eléctrica en Modo Tormenta)
+    const speedMult = Math.max(0.5, Math.min(2.5, this.noteSpeedMultiplier || 1.0)) * (isStormActive ? 1.12 : 1.0);
     this.scrollDurationMs = Math.round(baseScroll / speedMult);
-    console.log(`[BeatstarEngine] Diff: ${diffStars}★ ("${dNameRaw}") | BaseScroll: ${baseScroll}ms | Mult: ${speedMult}x -> Final: ${this.scrollDurationMs}ms`);
+    console.log(`[BeatstarEngine] Diff: ${effectiveStars}★ ("${dNameRaw}") | BaseScroll: ${baseScroll}ms | Mult: ${speedMult}x -> Final: ${this.scrollDurationMs}ms`);
 
     // Apply custom song playback rate if provided
     const songRate = Math.max(0.5, Math.min(2.0, parseFloat(this.beatmapData.songPlaybackSpeed) || 1.0));
@@ -2879,15 +2885,26 @@ class BeatstarEngine {
 
     this.firstActiveNoteIndex = 0;
     this.lastLitSyllableIndex = -1;
-    // Pre-computar texto limpio de sílabas (Zero-GC: elimina regex del render loop)
+    // Pre-computar texto limpio de sílabas y pre-renderizar sprites de sílabas para Karaoke (0 rasterizado de fuentes en el render loop)
+    if (!this._lyricKeySpriteCache) {
+      this._lyricKeySpriteCache = new Map();
+    }
+    const isKaraokePrewarm = Boolean((typeof window !== 'undefined' && window.isKaraokeModeActive) || this.isKaraokeModeActive);
     for (let i = 0, nLen = this.notes.length; i < nLen; i++) {
       const n = this.notes[i];
       if (n.lyric && !_PROLONG_RE.test(String(n.lyric))) {
         _HYPHEN_RE.lastIndex = 0;
         n._cleanLyric = String(n.lyric).replace(_HYPHEN_RE, '$1 $2').trim().toUpperCase();
+        if (isKaraokePrewarm && n._cleanLyric) {
+          this._getLyricKeySprite(n._cleanLyric, false);
+        }
       } else {
         n._cleanLyric = null;
       }
+    }
+
+    if ((typeof window !== 'undefined' && window.isStormModeActive) || this.isStormModeActive) {
+      this.initStormModeAssets();
     }
     this.activeHolds.clear();
     this.activeTouches.clear();
@@ -3786,16 +3803,10 @@ class BeatstarEngine {
     }
 
     if (typeof window !== 'undefined' && window.isKaraokeModeActive) {
-      let lyricWord = (note && note.lyric && String(note.lyric).trim().length > 0)
-        ? String(note.lyric).trim().toUpperCase()
-        : null;
-      let wIdx = (note && note.wordIdx !== undefined) ? note.wordIdx : (note && note.sylIdx !== undefined ? note.sylIdx : null);
-      let lIdx = (note && note.lineIdx !== undefined) ? note.lineIdx : null;
       const nTime = (note && Number.isFinite(note.sylTime))
         ? note.sylTime
         : (note ? (Number.isFinite(note.timestamp_ms) ? note.timestamp_ms : (Number.isFinite(note.timeMs) ? note.timeMs : Math.round((note.time || 0) * 1000))) : null);
 
-   
       if (nTime !== null) {
         if (typeof iluminarSilaba === 'function') {
           iluminarSilaba(nTime);
@@ -3803,9 +3814,6 @@ class BeatstarEngine {
           window.iluminarSilaba(nTime);
         }
       }
-      text = '';
-      color = '#ffd700';
-      flashColor = '#ffd700';
     }
 
     const noteLane = (note && typeof note.lane === 'number') ? note.lane : 1;
@@ -3814,13 +3822,7 @@ class BeatstarEngine {
     this.laneFlashTimers[noteLane] = flashDuration;
     this.laneFlashColors[noteLane] = flashColor;
     this.laneGlows[noteLane] = 1.0;
-
-    // Micro-screen shake: simultaneous hits (within 35ms) or swipe note PERFECT+ (-3px a +3px en 60ms)
-    const nowPerf = performance.now();
-    if ((customLabel === 'SWIPE' && diffMs <= 45) || (nowPerf - this.lastHitTimePerf < 35)) {
-      this.triggerScreenShake(3.5, 70);
-    }
-    this.lastHitTimePerf = nowPerf;
+    this.lastHitTimePerf = performance.now();
 
     const prevMult = this.multiplier || 1;
     this.combo++;
@@ -4799,7 +4801,8 @@ class BeatstarEngine {
       this.beatmapData?.metadata?.is_daily_featured || 
       (typeof window !== 'undefined' && (window.currentActiveBeatmap?.is_daily_featured || window.currentActiveBeatmap?.metadata?.is_daily_featured || window.currentFeaturedSongX2))
     );
-    const clefMultiplier = isFeatured ? 2 : 1;
+    const isStormX2 = Boolean(this.isStormModeActive || (typeof window !== 'undefined' && window.isStormModeActive));
+    const clefMultiplier = (isFeatured ? 2 : 1) * (isStormX2 ? 2 : 1);
     const earnedClefs = Math.max(1, Math.round(baseScoreClefs * diffMultiplier)) * clefMultiplier;
 
     // Consumir inmediatamente el multiplicador x2 de tragaperras para que NO afecte a partidas posteriores
@@ -6209,13 +6212,6 @@ class BeatstarEngine {
     this.ctx.globalCompositeOperation = 'source-over';
     this.ctx.globalAlpha = 1.0;
     this.ctx.shadowBlur = 0;
-    const hasShake = (this.shakeDuration > 0);
-    if (hasShake) {
-      this.ctx.save();
-      const sx = (Math.random() - 0.5) * 2 * (this.shakeIntensity || 2);
-      const sy = (Math.random() - 0.5) * 2 * (this.shakeIntensity || 2);
-      this.ctx.translate(sx, sy);
-    }
 
     // ⚡ TIEMPO BLOQUEADO AL FRAME: Un solo valor inmutable para todo el frame
     const currentTime = this.getCurrentGameTimeMs(this._frameNow);
@@ -6229,16 +6225,15 @@ class BeatstarEngine {
     this.renderSwipeLaunches(this.ctx, currentTime);
     this.particles.render(this.ctx);
     this.renderMusicalNotes();
+    if (this.isStormModeActive || (typeof window !== 'undefined' && window.isStormModeActive)) {
+      this.renderStormModeOverlay(this.ctx, currentTime);
+    }
     this.renderJudgements();
     this.renderFlyingLyrics(this.ctx, currentTime);
     this.renderDiscoLighting(this.ctx, currentTime);
     this.renderDiscoBall(this.ctx, currentTime);
     this.render3DComboExplosion(this.ctx);
     this.renderMissFailureFeedback(this.ctx, currentTime);
-
-    if (hasShake) {
-      this.ctx.restore();
-    }
   }
 
   renderSwipeLaunches(ctx, currentTime) {
@@ -6788,11 +6783,392 @@ class BeatstarEngine {
       ctx.save();
       ctx.globalAlpha = Math.max(0, Math.min(1, mn.alpha));
       ctx.translate(mn.x, mn.y);
-      ctx.rotate(mn.rot);
-      ctx.scale(mn.scale, mn.scale);
+      ctx.rotate(mn.rotation || 0);
+      ctx.scale(mn.scale || 1, mn.scale || 1);
       ctx.drawImage(sprite, -20, -20);
       ctx.restore();
     }
+    ctx.restore();
+  }
+
+  _getLyricKeySprite(cleanLyric, isPressed = false) {
+    if (!this._lyricKeySpriteCache) {
+      this._lyricKeySpriteCache = new Map();
+    }
+    const key = `${cleanLyric}_${isPressed ? 1 : 0}`;
+    let sp = this._lyricKeySpriteCache.get(key);
+    if (sp) return sp;
+
+    const sprW = 132;
+    const sprH = 42;
+    const off = document.createElement('canvas');
+    off.width = sprW;
+    off.height = sprH;
+    const octx = off.getContext('2d');
+    const fontScale = cleanLyric.length > 6 ? (6 / cleanLyric.length) : 1.0;
+    const fontSize = Math.round(Math.max(13, 25 * fontScale));
+    octx.font = `900 ${fontSize}px Montserrat, -apple-system, sans-serif`;
+    octx.textAlign = 'center';
+    octx.textBaseline = 'middle';
+    octx.lineJoin = 'round';
+    octx.strokeStyle = 'rgba(255, 175, 0, 0.90)';
+    octx.lineWidth = 3.2;
+    octx.strokeText(cleanLyric, sprW * 0.5, sprH * 0.5);
+    octx.fillStyle = isPressed ? '#ffe57f' : '#ffffff';
+    octx.fillText(cleanLyric, sprW * 0.5, sprH * 0.5);
+
+    if (this._lyricKeySpriteCache.size > 320) {
+      this._lyricKeySpriteCache.clear();
+    }
+    this._lyricKeySpriteCache.set(key, off);
+    return off;
+  }
+
+  initStormModeAssets() {
+    if (this._stormAssetsReady && this._stormCloudLayers && this._stormCloudLayers.length === 3) {
+      return;
+    }
+    this._stormAssetsReady = true;
+    this._stormCloudLayers = [];
+
+    // Pre-hornear 3 capas de nubes cumulonimbus volumétricas de alta definición (0 gradientes en tiempo real)
+    const layerConfigs = [
+      { w: 520, h: 210, puffs: 34, darkCol: [8, 13, 26], midCol: [24, 35, 58], rimCol: [94, 126, 168], seed: 11 },
+      { w: 520, h: 220, puffs: 40, darkCol: [6, 10, 22], midCol: [18, 28, 48], rimCol: [120, 155, 200], seed: 29 },
+      { w: 520, h: 200, puffs: 32, darkCol: [4, 8, 18],  midCol: [14, 22, 40], rimCol: [148, 184, 228], seed: 47 }
+    ];
+
+    for (let lIdx = 0; lIdx < layerConfigs.length; lIdx++) {
+      const cfg = layerConfigs[lIdx];
+      const cvs = document.createElement('canvas');
+      cvs.width = cfg.w;
+      cvs.height = cfg.h;
+      const cctx = cvs.getContext('2d');
+
+      // Función pseudo-aleatoria determinista para tiling horizontal perfecto (wrap-around en cfg.w)
+      let s = cfg.seed;
+      const rand = () => {
+        s = (s * 1664525 + 1013904223) % 4294967296;
+        return s / 4294967296;
+      };
+
+      const drawPuffWrapped = (px, py, rx, ry, rCol, gCol, bCol, alphaPeak) => {
+        for (let offset = -cfg.w; offset <= cfg.w; offset += cfg.w) {
+          const cx = px + offset;
+          if (cx + rx < 0 || cx - rx > cfg.w) continue;
+          cctx.save();
+          cctx.translate(cx, py);
+          cctx.scale(1, ry / Math.max(1, rx));
+          const grad = cctx.createRadialGradient(0, -rx * 0.18, rx * 0.08, 0, 0, rx);
+          grad.addColorStop(0.0, `rgba(${rCol}, ${gCol}, ${bCol}, ${alphaPeak})`);
+          grad.addColorStop(0.48, `rgba(${rCol}, ${gCol}, ${bCol}, ${(alphaPeak * 0.85).toFixed(3)})`);
+          grad.addColorStop(0.78, `rgba(${rCol}, ${gCol}, ${bCol}, ${(alphaPeak * 0.38).toFixed(3)})`);
+          grad.addColorStop(1.0, `rgba(${rCol}, ${gCol}, ${bCol}, 0)`);
+          cctx.fillStyle = grad;
+          cctx.beginPath();
+          cctx.arc(0, 0, rx, 0, Math.PI * 2);
+          cctx.fill();
+          cctx.restore();
+        }
+      };
+
+      // 1. Base densa del banco de tormenta en el centro de la franja para cubrir la pista con volumen realista
+      const bodyGrad = cctx.createLinearGradient(0, cfg.h * 0.14, 0, cfg.h * 0.90);
+      bodyGrad.addColorStop(0.00, `rgba(${cfg.midCol[0]}, ${cfg.midCol[1]}, ${cfg.midCol[2]}, 0)`);
+      bodyGrad.addColorStop(0.24, `rgba(${cfg.midCol[0]}, ${cfg.midCol[1]}, ${cfg.midCol[2]}, 0.82)`);
+      bodyGrad.addColorStop(0.55, `rgba(${cfg.darkCol[0]}, ${cfg.darkCol[1]}, ${cfg.darkCol[2]}, 0.96)`);
+      bodyGrad.addColorStop(0.80, `rgba(${cfg.darkCol[0]}, ${cfg.darkCol[1]}, ${cfg.darkCol[2]}, 0.78)`);
+      bodyGrad.addColorStop(1.00, `rgba(${cfg.darkCol[0]}, ${cfg.darkCol[1]}, ${cfg.darkCol[2]}, 0)`);
+      cctx.fillStyle = bodyGrad;
+      cctx.fillRect(0, 0, cfg.w, cfg.h);
+
+      // 2. Cúmulos superiores con borde plateado/azulado iluminado por la luna y tormenta
+      for (let i = 0; i < cfg.puffs; i++) {
+        const px = (i / cfg.puffs) * cfg.w + (rand() - 0.5) * 28;
+        const py = cfg.h * (0.26 + rand() * 0.34);
+        const rx = 44 + rand() * 52;
+        const ry = 32 + rand() * 36;
+        drawPuffWrapped(px, py - ry * 0.22, rx * 0.95, ry * 0.88, cfg.rimCol[0], cfg.rimCol[1], cfg.rimCol[2], 0.52);
+        drawPuffWrapped(px, py, rx, ry, cfg.midCol[0], cfg.midCol[1], cfg.midCol[2], 0.92);
+        drawPuffWrapped(px, py + ry * 0.28, rx * 1.05, ry * 0.92, cfg.darkCol[0], cfg.darkCol[1], cfg.darkCol[2], 0.95);
+      }
+
+      this._stormCloudLayers.push(cvs);
+    }
+
+    // Sprite pre-horneado de resplandor interno de nube para relámpagos
+    const flashCvs = document.createElement('canvas');
+    flashCvs.width = 256;
+    flashCvs.height = 160;
+    const fctx = flashCvs.getContext('2d');
+    const fGrad = fctx.createRadialGradient(128, 80, 8, 128, 80, 124);
+    fGrad.addColorStop(0.0, 'rgba(235, 250, 255, 0.95)');
+    fGrad.addColorStop(0.35, 'rgba(56, 189, 248, 0.65)');
+    fGrad.addColorStop(0.72, 'rgba(30, 64, 175, 0.25)');
+    fGrad.addColorStop(1.0, 'rgba(15, 23, 42, 0)');
+    fctx.fillStyle = fGrad;
+    fctx.fillRect(0, 0, 256, 160);
+    this._stormFlashSprite = flashCvs;
+
+    // Pool fijo de gotas de lluvia (0 GC)
+    const w = this.width || 360;
+    const h = this.height || 640;
+    this._stormRainPool = Array.from({ length: 72 }, (_, idx) => ({
+      x: Math.random() * (w + 120) - 40,
+      y: Math.random() * h,
+      len: (idx % 3 === 0) ? (22 + Math.random() * 14) : (13 + Math.random() * 10),
+      speed: (idx % 3 === 0) ? (820 + Math.random() * 260) : (580 + Math.random() * 200),
+      fg: (idx % 3 === 0)
+    }));
+
+    this._stormSplashes = Array.from({ length: 14 }, () => ({
+      x: Math.random() * w,
+      y: (this.hitLineY || h * 0.84) + (Math.random() - 0.5) * 18,
+      r: Math.random() * 10,
+      maxR: 7 + Math.random() * 9
+    }));
+
+    this._stormLightningBolts = [];
+    this._stormNextLightningTime = (performance.now() || 0) + 1200;
+    this._stormLightningFlashAlpha = 0;
+    this._stormLastRenderNow = performance.now() || 0;
+  }
+
+  _spawnStormLightningBolt(nowPerf) {
+    const w = this.width || 360;
+    const h = this.height || 640;
+    const startX = w * (0.16 + Math.random() * 0.68);
+    const startY = 0;
+    const endY = h * (0.56 + Math.random() * 0.28);
+    const segments = [];
+    const branches = [];
+    let curX = startX;
+    let curY = startY;
+    const steps = 11;
+    const stepY = (endY - startY) / steps;
+
+    for (let i = 0; i < steps; i++) {
+      const nextX = curX + (Math.random() - 0.5) * 42;
+      const nextY = curY + stepY;
+      segments.push({ x1: curX, y1: curY, x2: nextX, y2: nextY });
+
+      if (i > 1 && i < steps - 2 && Math.random() < 0.48) {
+        let bx = nextX;
+        let by = nextY;
+        const bDir = Math.random() < 0.5 ? -1 : 1;
+        for (let b = 0; b < 3; b++) {
+          const nbx = bx + bDir * (10 + Math.random() * 18);
+          const nby = by + stepY * (0.7 + Math.random() * 0.4);
+          branches.push({ x1: bx, y1: by, x2: nbx, y2: nby });
+          bx = nbx;
+          by = nby;
+        }
+      }
+      curX = nextX;
+      curY = nextY;
+    }
+
+    if (!this._stormLightningBolts) this._stormLightningBolts = [];
+    if (this._stormLightningBolts.length >= 2) this._stormLightningBolts.shift();
+    this._stormLightningBolts.push({
+      segments,
+      branches,
+      flashX: curX,
+      flashY: Math.min(h * 0.60, endY * 0.85),
+      birth: nowPerf,
+      duration: 340
+    });
+    this._stormLightningFlashAlpha = 0.92;
+    this._playStormThunderSound();
+  }
+
+  _playStormThunderSound() {
+    try {
+      if (this.masterMuted) return;
+      const ctx = (this.synth && this.synth.ctx) ? this.synth.ctx : null;
+      if (!ctx || ctx.state !== 'running') return;
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(92, now);
+      osc.frequency.exponentialRampToValueAtTime(28, now + 0.48);
+      const vol = Math.min(0.16, (this.masterVolume ?? 1.0) * 0.14);
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(vol, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.52);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.54);
+    } catch (_) {}
+  }
+
+  renderStormModeOverlay(ctx, currentTime) {
+    if (!this._stormAssetsReady || !this._stormCloudLayers || this._stormCloudLayers.length === 0) {
+      this.initStormModeAssets();
+    }
+    const nowPerf = this._frameNow || performance.now();
+    const dt = Math.min(0.05, Math.max(0.004, (nowPerf - (this._stormLastRenderNow || nowPerf)) / 1000));
+    this._stormLastRenderNow = nowPerf;
+
+    const w = this.width || 360;
+    const h = this.height || 640;
+    const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (h * 0.84);
+
+    // Disparar rayos automáticos de la tormenta cada 1.8s - 3.6s
+    if (nowPerf >= (this._stormNextLightningTime || 0)) {
+      this._spawnStormLightningBolt(nowPerf);
+      this._stormNextLightningTime = nowPerf + 1750 + Math.random() * 1850;
+    }
+
+    if (this._stormLightningFlashAlpha > 0) {
+      this._stormLightningFlashAlpha = Math.max(0, this._stormLightningFlashAlpha - dt * 2.8);
+    }
+
+    // Ráfaga de viento dinámica que inclina la lluvia y mece las nubes
+    const windAngleX = -0.18 + Math.sin(nowPerf * 0.0011) * 0.07;
+    const rainPool = this._stormRainPool || [];
+
+    ctx.save();
+
+    // 1. Lluvia de fondo (un solo path por lote para 0 sobrecarga GPU)
+    ctx.strokeStyle = 'rgba(148, 197, 255, 0.34)';
+    ctx.lineWidth = 1.15;
+    ctx.beginPath();
+    for (let i = 0; i < rainPool.length; i++) {
+      const r = rainPool[i];
+      r.y += r.speed * dt;
+      r.x += r.speed * windAngleX * dt;
+      if (r.y > hitY + 28) {
+        r.y = -25 - (i % 40);
+        r.x = ((i * 53 + Math.floor(nowPerf * 0.17)) % (w + 140)) - 30;
+      }
+      if (!r.fg) {
+        ctx.moveTo(r.x, r.y);
+        ctx.lineTo(r.x + r.len * windAngleX, r.y + r.len);
+      }
+    }
+    ctx.stroke();
+
+    // 2. Rayos eléctricos bifurcados de alta tensión
+    if (this._stormLightningBolts && this._stormLightningBolts.length > 0) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (let bIdx = this._stormLightningBolts.length - 1; bIdx >= 0; bIdx--) {
+        const bolt = this._stormLightningBolts[bIdx];
+        const age = nowPerf - bolt.birth;
+        if (age >= bolt.duration) {
+          this._stormLightningBolts.splice(bIdx, 1);
+          continue;
+        }
+        // Parpadeo eléctrico realista del rayo (enciende-apaga-enciende)
+        const norm = age / bolt.duration;
+        const flicker = (norm > 0.22 && norm < 0.36) || (norm > 0.56 && norm < 0.66) ? 0.15 : (1.0 - norm * 0.65);
+        if (flicker <= 0.05) continue;
+
+        // Halo exterior azul-eléctrico (sin shadowBlur)
+        ctx.strokeStyle = `rgba(56, 189, 248, ${(flicker * 0.48).toFixed(3)})`;
+        ctx.lineWidth = 7.5;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        for (let s = 0; s < bolt.segments.length; s++) {
+          const seg = bolt.segments[s];
+          if (s === 0) ctx.moveTo(seg.x1, seg.y1);
+          ctx.lineTo(seg.x2, seg.y2);
+        }
+        ctx.stroke();
+
+        // Ramas secundarias
+        if (bolt.branches.length > 0) {
+          ctx.strokeStyle = `rgba(125, 211, 252, ${(flicker * 0.72).toFixed(3)})`;
+          ctx.lineWidth = 2.0;
+          ctx.beginPath();
+          for (let br = 0; br < bolt.branches.length; br++) {
+            const bSeg = bolt.branches[br];
+            ctx.moveTo(bSeg.x1, bSeg.y1);
+            ctx.lineTo(bSeg.x2, bSeg.y2);
+          }
+          ctx.stroke();
+        }
+
+        // Núcleo incandescente blanco puro del rayo
+        ctx.strokeStyle = `rgba(255, 255, 255, ${(flicker * 0.98).toFixed(3)})`;
+        ctx.lineWidth = 2.6;
+        ctx.beginPath();
+        for (let s = 0; s < bolt.segments.length; s++) {
+          const seg = bolt.segments[s];
+          if (s === 0) ctx.moveTo(seg.x1, seg.y1);
+          ctx.lineTo(seg.x2, seg.y2);
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // 3. BANCO DE NUBES VOLUMÉTRICAS HD EN LA ZONA MEDIA-BAJA DE LA PANTALLA
+    // Cubre la parte media-baja de la pista (~38% a ~78% de la altura), dejando ver el inicio arriba y la línea de impacto abajo
+    const cloudBandTop = hitY * 0.42;
+    const cloudBandH = hitY * 0.46;
+    const speeds = [22, -34, 46];
+
+    for (let lIdx = 0; lIdx < this._stormCloudLayers.length; lIdx++) {
+      const layerCvs = this._stormCloudLayers[lIdx];
+      const tileW = Math.max(w * 1.25, 440);
+      const scrollX = ((nowPerf * 0.001 * speeds[lIdx]) % tileW + tileW) % tileW;
+      const bobY = Math.sin(nowPerf * 0.0016 + lIdx * 1.9) * 8;
+      const drawY = cloudBandTop + (lIdx - 1) * 16 + bobY;
+
+      ctx.globalAlpha = lIdx === 1 ? 0.98 : 0.92;
+      ctx.drawImage(layerCvs, -scrollX, drawY, tileW, cloudBandH);
+      ctx.drawImage(layerCvs, tileW - scrollX, drawY, tileW, cloudBandH);
+    }
+
+    // 4. Iluminación interna de las nubes cuando cae un rayo
+    if (this._stormLightningFlashAlpha > 0.02 && this._stormFlashSprite) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = Math.min(0.85, this._stormLightningFlashAlpha);
+      const fx = (this._stormLightningBolts && this._stormLightningBolts[0]) ? this._stormLightningBolts[0].flashX : (w * 0.5);
+      const fy = cloudBandTop + cloudBandH * 0.48;
+      ctx.drawImage(this._stormFlashSprite, fx - w * 0.55, fy - cloudBandH * 0.55, w * 1.1, cloudBandH * 1.1);
+      ctx.restore();
+    }
+
+    // 5. Lluvia intensa de primer plano + salpicaduras en la línea de golpeo
+    ctx.globalAlpha = 1.0;
+    ctx.strokeStyle = 'rgba(210, 235, 255, 0.56)';
+    ctx.lineWidth = 1.65;
+    ctx.beginPath();
+    for (let i = 0; i < rainPool.length; i++) {
+      const r = rainPool[i];
+      if (r.fg) {
+        ctx.moveTo(r.x, r.y);
+        ctx.lineTo(r.x + r.len * windAngleX, r.y + r.len);
+      }
+    }
+    ctx.stroke();
+
+    if (this._stormSplashes) {
+      ctx.strokeStyle = 'rgba(186, 230, 253, 0.42)';
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      for (let i = 0; i < this._stormSplashes.length; i++) {
+        const sp = this._stormSplashes[i];
+        sp.r += dt * 26;
+        if (sp.r > sp.maxR) {
+          sp.r = 1;
+          sp.x = ((i * 73 + Math.floor(nowPerf * 0.23)) % (w - 40)) + 20;
+        }
+        ctx.moveTo(sp.x + sp.r, sp.y);
+        if (ctx.ellipse) {
+          ctx.ellipse(sp.x, sp.y, sp.r, sp.r * 0.32, 0, 0, Math.PI * 2);
+        }
+      }
+      ctx.stroke();
+    }
+
     ctx.restore();
   }
 
@@ -6919,26 +7295,10 @@ class BeatstarEngine {
     // 5. Letras de canciones IDÉNTICAS al teleprompter (Blanco puro + halo dorado cálido)
     if (!isSwipe) {
       if (lyricText) {
-        const cleanLyric = lyricText;
-        const baseFontSize = Math.max(14, Math.min(26 * scale, keyW * 0.35));
-        const fontScale = cleanLyric.length > 6 ? (6 / cleanLyric.length) : 1.0;
-        const fontSize = Math.round(Math.max(11, baseFontSize * fontScale));
-
-        ctx.save();
-        ctx.font = (this._fontCache && this._fontCache[fontSize]) || `900 ${fontSize}px Montserrat, -apple-system, sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.shadowBlur = 0;
-
-        // Reborde cálido + cara frontal blanca en solo 2 llamadas (sin 6x fillText por nota)
-        ctx.strokeStyle = 'rgba(255, 175, 0, 0.85)';
-        ctx.lineWidth = 2.6 * scale;
-        ctx.strokeText(cleanLyric, cx, cyMid);
-
-        ctx.fillStyle = isPressed ? '#ffe57f' : '#ffffff';
-        ctx.fillText(cleanLyric, cx, cyMid);
-
-        ctx.restore();
+        const sp = this._getLyricKeySprite(lyricText, isPressed);
+        const drawW = Math.min(keyW * 0.94, 132 * scale);
+        const drawH = 42 * (drawW / 132);
+        ctx.drawImage(sp, cx - drawW * 0.5, cyMid - drawH * 0.5, drawW, drawH);
       } else {
         // Línea blanca neón pura y elegante en su posición original exacta (cyMid) con brillo blanco intenso (0 pasadas de shadowBlur GPU)
         const slitW = keyW * 0.62;
@@ -7058,26 +7418,10 @@ class BeatstarEngine {
     ctx.stroke();
 
     if (lyricText) {
-      // lyricText ya es el _cleanLyric pre-computado
-      const cleanLyric = lyricText;
-      const baseFontSize = Math.max(13, Math.min(24, w * 0.32));
-      const fontScale = cleanLyric.length > 6 ? (6 / cleanLyric.length) : 1.0;
-      const fontSize = Math.max(11, baseFontSize * fontScale);
-
-      ctx.save();
-      ctx.font = (this._fontCache && this._fontCache[Math.round(fontSize)]) || `900 ${Math.round(fontSize)}px Montserrat, -apple-system, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.shadowBlur = 0;
-
-      // 1. Sombra sólida de contraste (desplazada 1.5px)
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-      ctx.fillText(cleanLyric, cx + 1.5, cy + 1.5);
-
-      // 2. Texto frontal nítido y brillante
-      ctx.fillStyle = isPressed ? '#ffe066' : '#ffffff';
-      ctx.fillText(cleanLyric, cx, cy);
-      ctx.restore();
+      const sp = this._getLyricKeySprite(lyricText, isPressed);
+      const drawW = Math.min(w * 0.94, 124);
+      const drawH = 42 * (drawW / 132);
+      ctx.drawImage(sp, cx - drawW * 0.5, cy - drawH * 0.5, drawW, drawH);
     } else if (isLarge) {
       // Línea de energía central blanco neón brillante para teclas grandes en 2D (0 shadowBlur GPU)
       const slitW = w * 0.62;
@@ -8948,45 +9292,31 @@ class BeatstarEngine {
       const len = this.judgements.length;
       if (len === 0) return;
 
-      if (!this._judgementSpriteCache) {
-        this._judgementSpriteCache = new Map();
-      }
-
       ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = '900 22px "Outfit", system-ui, sans-serif';
+      ctx.lineJoin = 'round';
+      ctx.shadowBlur = 0;
+
       for (let i = 0; i < len; i++) {
         const j = this.judgements[i];
-        if (!j || j.alpha <= 0.01) continue;
+        if (!j || !j.text || j.alpha <= 0.01) continue;
 
-        const text = j.text || '';
-        const col = j.color || '#ffffff';
-        const cacheKey = `${text}_${col}`;
-        let sprite = this._judgementSpriteCache.get(cacheKey);
-        if (!sprite) {
-          const off = document.createElement('canvas');
-          off.width = 240;
-          off.height = 56;
-          const octx = off.getContext('2d');
-          octx.textAlign = 'center';
-          octx.textBaseline = 'middle';
-          octx.font = '900 32px "Outfit", system-ui, sans-serif';
-          octx.lineJoin = 'round';
-          octx.strokeStyle = '#040207';
-          octx.lineWidth = 8.0;
-          octx.strokeText(text, 120, 28);
-          octx.fillStyle = col;
-          octx.fillText(text, 120, 28);
-          sprite = off;
-          if (this._judgementSpriteCache.size < 32) {
-            this._judgementSpriteCache.set(cacheKey, sprite);
-          }
-        }
-
+        ctx.save();
         ctx.globalAlpha = Math.max(0, Math.min(1, j.alpha));
         const drawX = (typeof j.x === 'number') ? j.x : (this.width / 2);
-        const sRatio = (22 * (j.scale || 1)) / 32;
-        const w = 240 * sRatio;
-        const h = 56 * sRatio;
-        ctx.drawImage(sprite, drawX - w * 0.5, j.y - h * 0.5, w, h);
+        ctx.translate(drawX, j.y);
+        const s = j.scale || 1;
+        ctx.scale(s, s);
+
+        ctx.strokeStyle = '#040207';
+        ctx.lineWidth = 5.5;
+        ctx.strokeText(j.text, 0, 0);
+
+        ctx.fillStyle = j.color || '#ffffff';
+        ctx.fillText(j.text, 0, 0);
+        ctx.restore();
       }
       ctx.restore();
     }
