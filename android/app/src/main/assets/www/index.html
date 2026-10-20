@@ -25,7 +25,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css?v=4.0">
+  <link rel="stylesheet" href="./style.css?v=9.0">
   <script>
     // ===================================================
     // SISTEMA DE INTERNACIONALIZACIÓN (i18n: ES / EN)
@@ -1140,11 +1140,11 @@
       </div>
 
       <!-- Micro-Indicador de Calibración en Vivo (Early / 0ms / Late) -->
-      <div id="liveCalibrationPill" class="mx-auto mt-1 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/65 border border-white/15 backdrop-blur-md shadow-[0_0_12px_rgba(0,0,0,0.65)] transition-opacity duration-300 opacity-85" style="width: 146px; height: 18px;">
+      <div id="liveCalibrationPill" class="mx-auto mt-1 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/80 border border-white/15 shadow-[0_0_12px_rgba(0,0,0,0.65)] transition-opacity duration-300 opacity-85" style="width: 146px; height: 18px;">
         <span class="text-[7.5px] font-mono font-bold text-cyan-300/90 tracking-tighter">EARLY</span>
         <div class="relative flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden flex items-center">
           <div class="absolute left-1/2 top-0 bottom-0 w-[1.5px] -translate-x-1/2 bg-white/75"></div>
-          <div id="liveCalibDot" class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399] transition-transform duration-75" style="position: absolute; left: 50%; transform: translate(-50%, 0);"></div>
+          <div id="liveCalibDot" class="w-2 h-2 rounded-full bg-emerald-400" style="position: absolute; left: 50%; transform: translate3d(-50%, 0, 0);"></div>
         </div>
         <span id="liveCalibMsText" class="text-[8px] font-mono font-black text-emerald-300 w-7 text-right">0ms</span>
       </div>
@@ -1171,11 +1171,6 @@
 
         <!-- Action Buttons (Flex-shrink-0 to guarantee settings gear is always visible) -->
         <div class="flex items-center gap-1.5 flex-shrink-0">
-          <!-- Karaoke Mode Toggle Button (Microphone) -->
-          <button id="btnKaraokeToggle" onclick="toggleKaraokeMode()" class="w-8 h-8 rounded-xl bg-purple-600/20 border border-purple-400/40 hover:border-purple-400/80 active:scale-95 text-purple-300 flex items-center justify-center transition cursor-pointer flex-shrink-0 shadow-sm" title="Modo Karaoke">
-            <span class="text-sm">🎤</span>
-          </button>
-
           <!-- Global Leaderboard Button (Trophy SVG) -->
           <button id="btnOpenGlobalLeaderboard" onclick="openLeaderboardModal(null, 'weekly')" class="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-400/50 hover:border-amber-400/80 active:scale-95 text-amber-400 flex items-center justify-center transition cursor-pointer flex-shrink-0" title="Clasificación y Torneo Semanal">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="text-amber-400"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/></svg>
@@ -1259,15 +1254,6 @@
               <span class="text-[11px] font-bold text-[#c5a059] uppercase tracking-wider">Filtro de Búsqueda</span>
               <span id="activeFilterBadge" class="text-[9.5px] text-amber-300 font-mono">Global</span>
             </div>
-
-            <!-- Checkbox Modo Karaoke (Canciones con Letra) -->
-            <label class="flex items-center justify-between p-2 rounded-lg bg-pink-950/25 hover:bg-pink-900/40 cursor-pointer transition border border-pink-500/30">
-              <div class="flex items-center gap-1.5">
-                <span class="text-pink-400 text-xs">🎤</span>
-                <span class="text-xs font-semibold text-pink-100">Modo Karaoke (Con Letra)</span>
-              </div>
-              <input type="checkbox" id="filterOnlyKaraoke" onchange="toggleKaraokeMode(this.checked)" class="accent-pink-500 w-4 h-4 cursor-pointer">
-            </label>
 
             <!-- Checkbox Solo Comunidad -->
             <label class="flex items-center justify-between p-2 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer transition border border-white/5">
@@ -1845,12 +1831,12 @@
                 </svg>
                 <span class="text-amber-300 font-bold" data-i18n="apk_card_title">App Oficial Android (APK):</span>
               </span>
-              <span class="text-[10px] font-mono text-amber-400/80 bg-amber-400/10 px-1.5 py-0.5 rounded">v1.4</span>
+              <span class="text-[10px] font-mono text-amber-400/80 bg-amber-400/10 px-1.5 py-0.5 rounded">v1.5</span>
             </div>
             <p class="text-[10px] text-gray-300 leading-tight" data-i18n="apk_card_desc">
               Instala la app oficial en tu móvil para jugar a pantalla completa, vibración háptica y con disponibilidad 100% offline.
             </p>
-            <a href="/download/apk?v=4.0" download="PianoCommunity.apk" class="w-full py-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 text-black font-black rounded-lg text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition active:scale-95 cursor-pointer">
+            <a href="/download/apk?v=9.0" onclick="this.href='/download/apk?v=9.0&t=' + Date.now()" download="PianoCommunity.apk" class="w-full py-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 text-black font-black rounded-lg text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition active:scale-95 cursor-pointer">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               <span data-i18n="apk_card_btn">DESCARGAR APK ANDROID</span>
             </a>
@@ -2247,7 +2233,7 @@
           <p data-i18n="onboarding_apk_hint" class="text-[10px] text-amber-300/90 leading-tight">
             💡 Recuerda que también puedes descargar la app nativa para Android en cualquier momento desde <b>Ajustes ⚙️</b>.
           </p>
-          <a href="/download/apk?v=4.0" download="PianoCommunity.apk" class="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 rounded-xl text-amber-300 text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer">
+          <a href="/download/apk?v=9.0" onclick="this.href='/download/apk?v=9.0&t=' + Date.now()" download="PianoCommunity.apk" class="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 rounded-xl text-amber-300 text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="text-amber-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             <span data-i18n="onboarding_apk_btn">Descargar App (APK Android)</span>
           </a>
@@ -2255,8 +2241,8 @@
       </div>
     </div>
 
-    <!-- Modal de Actualización Disponible (In-App Updater) -->
-    <div id="appUpdateModal" class="modal-overlay">
+    <!-- Modal de Actualización Disponible (In-App Updater - Desactivado en inicio automático) -->
+    <div id="appUpdateModal" class="modal-overlay hidden" style="display: none !important;">
       <div class="glass-card w-full max-w-[340px] p-5 rounded-2xl space-y-3.5 text-center bg-gradient-to-b from-[#1a103c] via-[#0d0718] to-black border border-cyan-500/50 shadow-2xl">
         <div class="w-12 h-12 mx-auto rounded-2xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-300 shadow-lg shadow-cyan-500/30">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-cyan-300"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
@@ -2655,6 +2641,124 @@
           </div>
           <button onclick="closeLeaderboardModal()" class="py-1 px-2 bg-[#0b0604] hover:bg-[#180c08] border border-[#ff5500]/60 rounded cursor-pointer flex items-center justify-center">
             <canvas id="lbFooterCloseLedCanvas" class="h-[18px] w-[86px] block"></canvas>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layer 17A: Selector de Modo de Juego en Pantalla Vintage de Píxeles LED Grandes (Minimalista, Candados LED + Setas Alucinógenas) -->
+    <div id="gameModeSelectModal" class="results-modal hidden" style="display: none; z-index: 10035 !important; background: rgba(2, 2, 4, 0.94);">
+      <div class="w-full max-w-[358px] p-2.5 rounded-2xl bg-[#09090c] border-[3px] border-[#262630] shadow-[0_0_55px_rgba(0,0,0,0.98),inset_0_0_16px_rgba(0,0,0,0.95)] relative overflow-hidden">
+        <!-- Cabecera de Matriz de Píxeles LED Grandes -->
+        <div class="flex items-center justify-between gap-2 px-2 py-1.5 bg-[#040406] border-2 border-[#1b1b22] rounded-lg">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#ff9900] shadow-[0_0_8px_#ff9900,inset_0_0_3px_#ffffff]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#ff3b00] shadow-[0_0_8px_#ff3b00,inset_0_0_3px_#ffffff]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#ff9900] shadow-[0_0_8px_#ff9900,inset_0_0_3px_#ffffff]"></span>
+          </div>
+          <canvas id="gmHeaderLedCanvas" class="h-[24px] w-[176px] block"></canvas>
+          <button onclick="cancelGameModeSelection()" class="p-1 rounded bg-[#0c0804] border border-[#3a2210] hover:border-[#ff5500] cursor-pointer flex items-center justify-center">
+            <canvas id="gmCloseTopLedCanvas" class="h-[18px] w-[22px] block"></canvas>
+          </button>
+        </div>
+
+        <!-- Pantalla Gigante Retro de Selección de Modos (Sin texto innecesario, solo píxeles grandes y candados LED) -->
+        <div class="p-2 bg-[#030201] border-[3px] border-[#1c160e] rounded-xl my-2 shadow-[inset_0_0_28px_rgba(0,0,0,1)] space-y-2">
+          <!-- Botón 1: MODO NORMAL (LED Estático Clásico - Siempre desbloqueado) -->
+          <button id="btnModeSelectNormal" onclick="confirmGameModeSelection('normal')" class="w-full p-1.5 rounded-xl bg-[#060503] border-2 border-[#1d3b2a] hover:border-[#00f5a0] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
+            <canvas id="gmBtnNormalMainCanvas" class="w-full h-[38px] block"></canvas>
+          </button>
+
+          <!-- Botón 2: MODO KARAOKE (Animación LED Secuencial KA-RA-O-KE en Dorado + Candado LED 1000 Claves) -->
+          <button id="btnModeSelectKaraoke" onclick="confirmGameModeSelection('karaoke')" class="w-full p-1.5 rounded-xl bg-[#070502] border-2 border-[#422c08] hover:border-[#ffd700] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
+            <canvas id="gmBtnKaraokeMainCanvas" class="w-full h-[38px] block"></canvas>
+          </button>
+
+          <!-- Botón 3: MODO TORMENTA (Efecto de Rayo LED + Candado LED 1000 Claves) -->
+          <button id="btnModeSelectStorm" onclick="confirmGameModeSelection('storm')" class="w-full p-1.5 rounded-xl bg-[#03060a] border-2 border-[#12364d] hover:border-[#00e5ff] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
+            <canvas id="gmBtnStormMainCanvas" class="w-full h-[38px] block"></canvas>
+          </button>
+
+          <!-- Botón 4: MODO SETAS ALUCINÓGENAS (Letras borrachas psicodélicas + Candado LED 1000 Claves) -->
+          <button id="btnModeSelectMushroom" onclick="confirmGameModeSelection('mushroom')" class="w-full p-1.5 rounded-xl bg-[#09030d] border-2 border-[#4a1259] hover:border-[#ff00ff] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
+            <canvas id="gmBtnMushroomMainCanvas" class="w-full h-[46px] block"></canvas>
+          </button>
+        </div>
+
+        <!-- Pie de pantalla LED: Cancelar + ¿Quieres más claves? -->
+        <div class="space-y-1.5 pt-0.5 px-0.5">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-[#ff3b00] shadow-[0_0_8px_#ff3b00,inset_0_0_3px_#ffffff]"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-[#ff9900] shadow-[0_0_8px_#ff9900,inset_0_0_3px_#ffffff]"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-[#ff3b00] shadow-[0_0_8px_#ff3b00,inset_0_0_3px_#ffffff]"></span>
+            </div>
+            <button onclick="cancelGameModeSelection()" class="py-1 px-2.5 bg-[#0b0604] hover:bg-[#180c08] border border-[#ff5500]/75 rounded cursor-pointer flex items-center justify-center">
+              <canvas id="gmFooterCancelLedCanvas" class="h-[20px] w-[118px] block"></canvas>
+            </button>
+          </div>
+
+          <!-- Botón inferior: ¿Quieres más claves? -->
+          <button onclick="openPromoMoreKeysModal()" class="w-full py-1.5 px-2 bg-[#070502] hover:bg-[#140e04] border-2 border-[#ffb300]/65 rounded-lg cursor-pointer flex items-center justify-center active:scale-[0.98] transition shadow-[0_0_14px_rgba(255,179,0,0.2)]">
+            <canvas id="gmWantMoreKeysLedCanvas" class="w-full h-[22px] block"></canvas>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layer 17A-2: Pantalla Retro LED de Promoción (+3000 Claves por Compartir el Juego con un Amigo) -->
+    <div id="sharePromoKeysModal" class="results-modal hidden" style="display: none; z-index: 10060 !important; background: rgba(2, 2, 4, 0.96);">
+      <div class="w-full max-w-[362px] p-3 rounded-2xl bg-[#09090c] border-[3px] border-[#282834] shadow-[0_0_60px_rgba(0,0,0,0.98),inset_0_0_18px_rgba(0,0,0,0.95)] relative overflow-hidden space-y-2.5">
+        <!-- Cabecera LED -->
+        <div class="flex items-center justify-between gap-2 px-2 py-1.5 bg-[#040406] border-2 border-[#1b1b22] rounded-lg">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#00f5a0] shadow-[0_0_8px_#00f5a0]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#ffb300] shadow-[0_0_8px_#ffb300]"></span>
+          </div>
+          <canvas id="promoHeaderLedCanvas" class="h-[24px] w-[206px] block"></canvas>
+          <button onclick="closePromoMoreKeysModal()" class="p-1 rounded bg-[#0c0804] border border-[#3a2210] hover:border-[#ff5500] cursor-pointer flex items-center justify-center">
+            <canvas id="promoCloseTopLedCanvas" class="h-[18px] w-[22px] block"></canvas>
+          </button>
+        </div>
+
+        <!-- Panel Retro de Mensaje Motivador y Premio LED -->
+        <div class="p-3 rounded-xl bg-[#040301] border-2 border-[#261b0a] space-y-2 text-center" style="background-image: radial-gradient(circle, rgba(255, 165, 0, 0.12) 1.5px, rgba(4, 3, 1, 0.96) 2.2px); background-size: 6px 6px;">
+          <canvas id="promoHeroPrizeLedCanvas" class="w-full h-[34px] block mx-auto"></canvas>
+          <p class="text-[11px] font-mono font-black tracking-wide text-[#ffb300] uppercase leading-snug" style="text-shadow: 0 0 8px rgba(255,179,0,0.55);">
+            ¡Ayuda a que el juego llegue a más gente!
+          </p>
+          <p class="text-[10.5px] font-mono text-[#ffe082]/90 leading-relaxed">
+            Comparte el enlace con un amigo. En cuanto tu amigo descargue o abra el juego y <span class="text-[#00f5a0] font-bold">juegue 1 partida</span> (apareciendo su nickname en la clasificación), recibirás <span class="text-[#00f5a0] font-black">+3000 Claves 𝄞</span> al instante.
+          </p>
+        </div>
+
+        <!-- Paso 1: Enlace del juego para copiar y pegar -->
+        <div class="p-2.5 rounded-xl bg-[#050508] border-2 border-[#1e1e2a] space-y-1.5">
+          <div class="text-[9.5px] font-mono font-bold text-[#ffb300] uppercase tracking-wider">1. Copia y envía este enlace a tu amigo:</div>
+          <div class="flex items-center gap-1.5">
+            <input id="promoShareUrlInput" type="text" readonly value="https://renacer.onrender.com" class="flex-1 bg-[#020203] border border-[#3a2a10] rounded px-2 py-1.5 text-[10.5px] font-mono text-[#00f5a0] focus:outline-none select-all" />
+            <button onclick="copyPromoShareLink()" class="px-2.5 py-1.5 rounded bg-[#171003] hover:bg-[#261a05] border border-[#ffb300] text-[#ffb300] font-mono font-black text-[10px] uppercase tracking-wider cursor-pointer active:scale-95 transition shrink-0" style="text-shadow: 0 0 6px rgba(255,179,0,0.6);">
+              COPIAR
+            </button>
+          </div>
+        </div>
+
+        <!-- Paso 2: Comprobar que el amigo ha jugado una partida -->
+        <div class="p-2.5 rounded-xl bg-[#050508] border-2 border-[#1e1e2a] space-y-2">
+          <div class="text-[9.5px] font-mono font-bold text-[#00e5ff] uppercase tracking-wider">2. Escribe el Nickname de tu amigo al terminar su 1ª partida:</div>
+          <div class="flex items-center gap-1.5">
+            <input id="promoFriendNicknameInput" type="text" maxlength="24" placeholder="Nickname de tu amigo..." class="flex-1 bg-[#020203] border border-[#143d52] focus:border-[#00e5ff] rounded px-2.5 py-1.5 text-[11px] font-mono text-white placeholder-gray-500 focus:outline-none" />
+            <button id="btnVerifyPromoFriend" onclick="verifyFriendPlayedAndClaimKeys()" class="px-3 py-1.5 rounded bg-[#041e14] hover:bg-[#073322] border-2 border-[#00f5a0] text-[#00f5a0] font-mono font-black text-[10px] uppercase tracking-wider cursor-pointer active:scale-95 transition shrink-0" style="text-shadow: 0 0 8px rgba(0,245,160,0.7);">
+              VERIFICAR +3000 𝄞
+            </button>
+          </div>
+          <div id="promoVerifyStatusMsg" class="text-[10px] font-mono text-center min-h-[14px] text-[#ffb300]"></div>
+        </div>
+
+        <!-- Pie LED -->
+        <div class="flex items-center justify-end pt-0.5">
+          <button onclick="closePromoMoreKeysModal()" class="py-1 px-3 bg-[#0b0604] hover:bg-[#180c08] border border-[#ff5500]/75 rounded cursor-pointer flex items-center justify-center">
+            <canvas id="promoFooterCloseLedCanvas" class="h-[20px] w-[110px] block"></canvas>
           </button>
         </div>
       </div>
@@ -3172,7 +3276,7 @@
   </div> <!-- End of game-viewport -->
 
   <script src="./parsers.js?v=4.0"></script>
-  <script src="./game.js?v=4.0"></script>
+  <script src="./game.js?v=9.0"></script>
   <script src="./slot_machine.js?v=4.0"></script>
   <script src="./gachapon_3d.js?v=1.0"></script>
   <script src="./songs/comm_camilo_sesto/chart.js"></script>
@@ -3444,6 +3548,7 @@
         const baseUrl = getApiBaseUrl();
         if (baseUrl) {
           const playerName = localStorage.getItem('beatstar_player_nickname') || 'Jugador';
+          const referredBy = localStorage.getItem('beatstar_referred_by') || '';
           fetch(`${baseUrl}/api/v1/community/charts/${encodeURIComponent(songId)}/score`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -3453,7 +3558,8 @@
               max_combo: maxCombo,
               stars: stars,
               accuracy_pct: accuracyPct,
-              medal_tier: medalTier
+              medal_tier: medalTier,
+              referred_by: referredBy
             })
           }).catch(() => {});
         }
@@ -3888,7 +3994,8 @@
       }
 
       if (userClefs < GACHAPON_PULL_COST) {
-        showErrorToast(`Necesitas ${GACHAPON_PULL_COST} 𝄞 Claves para tirar de la palanca.`);
+        if (typeof openPromoMoreKeysModal === 'function') openPromoMoreKeysModal();
+        else showErrorToast(`Necesitas ${GACHAPON_PULL_COST} 𝄞 Claves para tirar de la palanca.`);
         if (gachapon3DInstance) gachapon3DInstance.shakeGlobe(0.5);
         return;
       }
@@ -4779,6 +4886,9 @@
           if (engine) engine.reviveAndResume();
         }, 450);
       } else {
+        if (typeof openPromoMoreKeysModal === 'function') {
+          openPromoMoreKeysModal();
+        }
         const toast = document.getElementById('deathToastNotice');
         if (toast) {
           toast.innerText = '¡Saldo insuficiente de Claves de Sol (𝄞)!';
@@ -5125,10 +5235,11 @@
           
           const isNewRecord = saveHighscore(songId, engine.score, engine.stars || 0, engine.maxCombo || 0, engine.currentMedalTier || null, scorePct);
 
-          // Otorgar claves de sol por estrellas conseguidas hasta ese momento
+          // Otorgar claves de sol por estrellas conseguidas hasta ese momento (X2 si es Modo Tormenta o Destacada Diaria)
           const isFeat = !!(currentActiveBeatmap?.is_daily_featured || currentActiveBeatmap?.metadata?.is_daily_featured || (engine && engine.beatmapData?.is_daily_featured));
+          const isStorm = Boolean(window.isStormModeActive || (engine && engine.isStormModeActive));
           const baseEarned = Math.min(15, (engine.stars || 0) * 3);
-          const earnedClefs = isFeat ? (baseEarned * 2) : baseEarned;
+          const earnedClefs = baseEarned * (isFeat ? 2 : 1) * (isStorm ? 2 : 1);
           if (earnedClefs > 0 && typeof addClefs === 'function') {
             addClefs(earnedClefs);
           }
@@ -5222,44 +5333,20 @@
       return DEFAULT_CLOUD_SERVER;
     }
 
-    // Código de versión local: si es el APK anterior (sin getAppVersionCode) es versión 1
+    // Código de versión local actualizado a 7 (v1.4.0)
     const CURRENT_APP_VERSION_CODE = (window.AndroidNative && typeof window.AndroidNative.getAppVersionCode === 'function')
-      ? window.AndroidNative.getAppVersionCode()
-      : (window.AndroidNative ? 1 : 3);
+      ? Math.max(7, Number(window.AndroidNative.getAppVersionCode()) || 7)
+      : 7;
     let appUpdateDownloadUrl = '/download/apk';
 
     async function checkForAppUpdates() {
-      // En la versión web NUNCA mostrar aviso de actualización
-      if (!window.AndroidNative) return;
-      try {
-        const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
-        if (!baseUrl) return;
-        const res = await fetch(`${baseUrl}/api/v1/version`);
-        if (!res.ok) return;
-        const data = await res.json();
-
-        if (data && data.version_code) {
-          const remoteCode = parseInt(data.version_code, 10);
-          if (remoteCode > CURRENT_APP_VERSION_CODE) {
-            const dismissedVer = localStorage.getItem('dismissed_update_version');
-            if (dismissedVer === String(remoteCode)) return;
-
-            appUpdateDownloadUrl = data.download_url || '/download/apk';
-            const titleEl = document.getElementById('appUpdateTitle');
-            const notesEl = document.getElementById('appUpdateNotes');
-            if (titleEl) titleEl.innerText = `Piano Community v${data.version_name || data.version_code}`;
-            if (notesEl && data.release_notes) notesEl.innerText = data.release_notes;
-
-            const modal = document.getElementById('appUpdateModal');
-            if (modal) {
-              modal.classList.add('open');
-              modal.style.display = 'flex';
-            }
-          }
-        }
-      } catch (e) {
-        console.warn('Comprobación de versión omitida:', e);
+      // Aviso automático de actualización desactivado para que nunca salte al abrir la app
+      const modal = document.getElementById('appUpdateModal');
+      if (modal) {
+        modal.classList.remove('open');
+        modal.style.display = 'none';
       }
+      return;
     }
 
     function closeAppUpdateModal() {
@@ -5468,27 +5555,37 @@
           if (!window._calibHudCache) {
             window._calibHudCache = {
               dot: document.getElementById('liveCalibDot'),
-              txt: document.getElementById('liveCalibMsText')
+              txt: document.getElementById('liveCalibMsText'),
+              lastColor: '',
+              lastVal: 999999
             };
           }
-          const dot = window._calibHudCache.dot;
-          const txt = window._calibHudCache.txt;
+          const cache = window._calibHudCache;
+          const dot = cache.dot;
+          const txt = cache.txt;
           if (!dot || !txt) return;
           const clamped = Math.max(-90, Math.min(90, Math.round(signedDiffMs)));
-          const pct = 50 + (clamped / 90) * 44;
-          dot.style.left = `${pct.toFixed(1)}%`;
+          // Usamos translate3d en vez de style.left o className para 0 reflows y 0 disparos del MutationObserver de Tailwind
+          const offsetPx = (clamped / 90) * 28;
+          dot.style.transform = `translate3d(calc(-50% + ${offsetPx.toFixed(1)}px), 0, 0)`;
+
+          let dotBg = '#fbbf24';
+          let txtCol = '#fcd34d';
           if (Math.abs(clamped) <= 15) {
-            dot.className = 'w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]';
-            txt.className = 'text-[8px] font-mono font-black text-emerald-300 w-7 text-right';
-            txt.innerText = `${clamped > 0 ? '+' : ''}${clamped}ms`;
+            dotBg = '#34d399';
+            txtCol = '#6ee7b7';
           } else if (clamped < 0) {
-            dot.className = 'w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]';
-            txt.className = 'text-[8px] font-mono font-black text-cyan-300 w-7 text-right';
-            txt.innerText = `${clamped}ms`;
-          } else {
-            dot.className = 'w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_#fbbf24]';
-            txt.className = 'text-[8px] font-mono font-black text-amber-300 w-7 text-right';
-            txt.innerText = `+${clamped}ms`;
+            dotBg = '#22d3ee';
+            txtCol = '#67e8f9';
+          }
+          if (cache.lastColor !== dotBg) {
+            cache.lastColor = dotBg;
+            dot.style.backgroundColor = dotBg;
+            txt.style.color = txtCol;
+          }
+          if (cache.lastVal !== clamped) {
+            cache.lastVal = clamped;
+            txt.textContent = `${clamped > 0 ? '+' : ''}${clamped}ms`;
           }
         },
         onSongLoaded: (meta, palette) => {
@@ -6744,86 +6841,39 @@ window.switchMainTab = switchMainTab;
     window.onAppBackground = handleAppBackground;
     window.onAppForeground = handleAppForeground;
 
+    function applySelectedGameMode(mode) {
+      const m = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom') ? mode : 'normal';
+      window.currentGameMode = m;
+      window.isKaraokeModeActive = (m === 'karaoke');
+      window.isStormModeActive = (m === 'storm');
+      window.isMushroomModeActive = (m === 'mushroom');
+      if (window.engine) {
+        window.engine.isKaraokeModeActive = window.isKaraokeModeActive;
+        window.engine.isStormModeActive = window.isStormModeActive;
+        window.engine.isMushroomModeActive = window.isMushroomModeActive;
+        if (window.isStormModeActive && typeof window.engine.initStormModeAssets === 'function') {
+          window.engine.initStormModeAssets();
+        }
+        if (window.isMushroomModeActive && typeof window.engine.initMushroomModeAssets === 'function') {
+          window.engine.initMushroomModeAssets();
+        }
+      }
+      try { localStorage.setItem('isKaraokeModeActive', '0'); } catch (_) {}
+    }
+    window.applySelectedGameMode = applySelectedGameMode;
+
     function toggleKaraokeMode(forceState = null) {
-      if (typeof forceState === 'boolean') {
-        window.isKaraokeModeActive = forceState;
-      } else {
-        window.isKaraokeModeActive = !window.isKaraokeModeActive;
-      }
-      try { localStorage.setItem('isKaraokeModeActive', window.isKaraokeModeActive ? '1' : '0'); } catch (_) {}
-
-      const btn = document.getElementById('btnKaraokeToggle');
-      if (btn) {
-        if (window.isKaraokeModeActive) {
-          btn.className = 'w-8 h-8 rounded-xl bg-pink-600 text-white border border-pink-300 ring-2 ring-pink-400/50 shadow-[0_0_14px_rgba(244,114,182,0.8)] flex items-center justify-center transition cursor-pointer flex-shrink-0 scale-105';
-        } else {
-          btn.className = 'w-8 h-8 rounded-xl bg-purple-600/20 text-purple-300 border border-purple-400/40 hover:border-purple-400/80 active:scale-95 flex items-center justify-center transition cursor-pointer flex-shrink-0 shadow-sm';
-        }
-      }
-
-      // Asegurar que estamos en la pestaña Explorar
-      if (typeof switchMainTab === 'function') {
-        const searchSec = document.getElementById('tabSearchSection');
-        if (!searchSec || searchSec.style.display === 'none') {
-          switchMainTab('search');
-        }
-      }
-
-      // Sincronizar checkboxes de filtros
-      const karaokeCheck = document.getElementById('filterOnlyKaraoke');
-      const topCheck = document.getElementById('filterOnlyTopSongs');
-      const commCheck = document.getElementById('filterOnlyCommunity');
-      if (karaokeCheck) karaokeCheck.checked = window.isKaraokeModeActive;
-      if (topCheck) topCheck.checked = window.isKaraokeModeActive;
-      if (commCheck && window.isKaraokeModeActive) {
-        commCheck.checked = false;
-        const commSort = document.getElementById('commSortButtons');
-        if (commSort) {
-          commSort.classList.add('hidden');
-          commSort.classList.remove('flex');
-        }
-      }
-
-      const badge = document.getElementById('activeFilterBadge');
-      if (badge) {
-        const topCount = (window.TOP_SONGS_CATALOG && window.TOP_SONGS_CATALOG.length) ? window.TOP_SONGS_CATALOG.length : 90;
-        badge.innerText = window.isKaraokeModeActive ? `🎤 Karaoke (${topCount})` : 'Global';
-      }
-
-      if (window.isKaraokeModeActive) {
-        if (typeof showSuccessToast === 'function') {
-          showSuccessToast('🎤 Modo Karaoke activado: mostrando canciones');
-        }
-      } else {
-        if (typeof showInfoToast === 'function') {
-          showInfoToast('Modo normal activado');
-        }
-      }
-
-      if (typeof executeSearch === 'function') {
-        executeSearch();
-      }
+      const nextState = typeof forceState === 'boolean' ? forceState : !window.isKaraokeModeActive;
+      applySelectedGameMode(nextState ? 'karaoke' : 'normal');
     }
     window.toggleKaraokeMode = toggleKaraokeMode;
 
-    try {
-      if (localStorage.getItem('isKaraokeModeActive') === '1') {
-        window.isKaraokeModeActive = true;
-        const btn = document.getElementById('btnKaraokeToggle');
-        if (btn) {
-          btn.className = 'w-8 h-8 rounded-xl bg-pink-600 text-white border border-pink-300 ring-2 ring-pink-400/50 shadow-[0_0_14px_rgba(244,114,182,0.8)] flex items-center justify-center transition cursor-pointer flex-shrink-0 scale-105';
-        }
-        const karaokeCheck = document.getElementById('filterOnlyKaraoke');
-        const topCheck = document.getElementById('filterOnlyTopSongs');
-        if (karaokeCheck) karaokeCheck.checked = true;
-        if (topCheck) topCheck.checked = true;
-        const badge = document.getElementById('activeFilterBadge');
-        if (badge) {
-          const topCount = (window.TOP_SONGS_CATALOG && window.TOP_SONGS_CATALOG.length) ? window.TOP_SONGS_CATALOG.length : 90;
-          badge.innerText = `🎤 Karaoke (${topCount})`;
-        }
-      }
-    } catch (_) {}
+    // Al iniciar la app, el modo por defecto se elige siempre al pulsar una canción
+    window.currentGameMode = 'normal';
+    window.isKaraokeModeActive = false;
+    window.isStormModeActive = false;
+    window.isMushroomModeActive = false;
+    try { localStorage.setItem('isKaraokeModeActive', '0'); } catch (_) {}
 
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
@@ -7649,7 +7699,10 @@ function detenerPaginacionPiano() {
 
 // Detener en seco si levantas el dedo en CUALQUIER lugar de la pantalla
 ['touchend', 'touchcancel', 'mouseup', 'pointerup', 'pointercancel', 'blur'].forEach(evt => {
-  window.addEventListener(evt, detenerPaginacionPiano, { passive: true });
+  window.addEventListener(evt, () => {
+    if (window.engine && window.engine.isRunning && !window.engine.isPaused) return;
+    detenerPaginacionPiano();
+  }, { passive: true });
 });
 
 
@@ -8340,34 +8393,41 @@ function stopPianoCameraLoop() {
     window.linkExistingNotesToReconstructedLines = linkExistingNotesToReconstructedLines;
 
     function renderizarVersoKaraoke(verso, contenedor) {
-      // 1. Obligatorio para que el navegador respete los espacios en blanco nativos
+      if (!contenedor) return;
       contenedor.style.whiteSpace = 'pre-wrap';
+      contenedor.textContent = '';
 
-      // 2. Mapear sílabas sin añadir espacios artificiales entre spans
-      const htmlSpans = verso.map((s) => {
-        let texto = s.text;
+      const sylMap = new Map();
+      window._karaokeSylMap = sylMap;
+      const frag = document.createDocumentFragment();
+
+      for (let i = 0; i < verso.length; i++) {
+        const s = verso[i];
+        let texto = String(s.text || '');
         const esMelisma = texto.trim() === '~';
-
-        // Reemplazar guiones de sinalefa por espacios
         texto = texto.replace(/-/g, ' ');
 
+        const span = document.createElement('span');
+        span.id = `lyric-${s.time}`;
         if (esMelisma) {
-          // Se mantiene en el DOM con display:none para evitar errores de ID nulo
-          return `<span id="lyric-${s.time}" class="karaoke-syllable melisma" style="display:none;" data-time="${s.time}"></span>`;
+          span.className = 'karaoke-syllable melisma';
+          span.style.display = 'none';
+        } else {
+          span.className = 'karaoke-syllable';
+          span.textContent = texto;
         }
+        sylMap.set(s.time, span);
+        frag.appendChild(span);
+      }
 
-        // Los spans van pegados directamente
-        return `<span id="lyric-${s.time}" class="karaoke-syllable" data-time="${s.time}" data-dur="${s.dur}">${texto}</span>`;
-      }).join(''); // NUNCA usar .join(' ') ni saltos de línea
-
-      contenedor.innerHTML = htmlSpans;
+      contenedor.appendChild(frag);
     }
     window.renderizarVersoKaraoke = renderizarVersoKaraoke;
 
     function iluminarSilaba(tiempoMs) {
-      const el = document.getElementById(`lyric-${tiempoMs}`);
-      if (el && !el.classList.contains('activa')) {
-        el.classList.add('activa');
+      const el = (window._karaokeSylMap && window._karaokeSylMap.get(tiempoMs)) || document.getElementById(`lyric-${tiempoMs}`);
+      if (el && el.getAttribute('data-lit') !== '1') {
+        el.setAttribute('data-lit', '1');
       }
     }
     window.iluminarSilaba = iluminarSilaba;
@@ -8731,6 +8791,16 @@ function stopPianoCameraLoop() {
         window.isGameLoadingOrActive = false;
         showErrorToast('No se encontró información de la canción seleccionada.');
         return;
+      }
+
+      if (!window._modeAlreadyChosenForThisLaunch && !window.isPlaytestingFromEditor && typeof openGameModeSelectModal === 'function') {
+        const chosenMode = await openGameModeSelectModal(chartItem.title || 'PISTA', chartItem.artist || '');
+        if (!chosenMode) {
+          window.isGameLoadingOrActive = false;
+          return;
+        }
+        applySelectedGameMode(chosenMode);
+        window._modeAlreadyChosenForThisLaunch = true;
       }
 
       const overlay = document.getElementById('globalLoadingOverlay');
@@ -9347,7 +9417,22 @@ function stopPianoCameraLoop() {
     }
     window.humanizeAndBalanceBeatmapNotes = humanizeAndBalanceBeatmapNotes;
 
-    async function startGame(beatmapData, audioBlob, diffLabel = '') {
+    async function startGame(beatmapData, audioBlob, diffLabel = '', skipModeModal = false) {
+      if (!skipModeModal && !window._modeAlreadyChosenForThisLaunch && !window.isPlaytestingFromEditor && typeof openGameModeSelectModal === 'function') {
+        const overlayPre = document.getElementById('globalLoadingOverlay');
+        const wasOverlayActive = overlayPre && overlayPre.classList.contains('active');
+        if (wasOverlayActive) overlayPre.classList.remove('active');
+        const sTitle = beatmapData?.title || beatmapData?.metadata?.title || 'PISTA';
+        const sArtist = beatmapData?.artist || beatmapData?.metadata?.artist || '';
+        const chosenMode = await openGameModeSelectModal(sTitle, sArtist);
+        if (!chosenMode) {
+          window.isGameLoadingOrActive = false;
+          return;
+        }
+        applySelectedGameMode(chosenMode);
+      }
+      window._modeAlreadyChosenForThisLaunch = false;
+
       if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
 
       // Ocultar inmediatamente menús de catálogo y limpiar líricas anteriores para evitar cualquier parpadeo de 1s
@@ -9520,7 +9605,9 @@ function stopPianoCameraLoop() {
         resultsList.innerHTML = '';
       }
 
-      // Parar música y física de tragaperras
+      // Parar música, cámara de piano y física de tragaperras
+      if (typeof stopPianoCameraLoop === 'function') stopPianoCameraLoop();
+      if (typeof detenerPaginacionPiano === 'function') detenerPaginacionPiano();
       if (typeof stopCasinoMusic === 'function') stopCasinoMusic();
       if (typeof closeGranFortuna === 'function') closeGranFortuna();
       window.isCasinoActive = false;
@@ -9623,11 +9710,15 @@ function stopPianoCameraLoop() {
       const resMaxComboEl = document.getElementById('resMaxCombo');
       if (resMaxComboEl) resMaxComboEl.innerText = maxCombo;
       
-      // Recompensas de Claves de Sol (con multiplicador x2 si es Canción Destacada Diaria)
+      // Recompensas de Claves de Sol (con multiplicador x2 en Modo Tormenta y/o Canción Destacada Diaria)
       const isDailyFeat = !!(currentActiveBeatmap?.is_daily_featured || currentActiveBeatmap?.metadata?.is_daily_featured || engine?.beatmapData?.is_daily_featured);
+      const isStorm = Boolean(window.isStormModeActive || (engine && engine.isStormModeActive));
       const resEarnedClefsEl = document.getElementById('resEarnedClefs');
       if (resEarnedClefsEl) {
-        resEarnedClefsEl.innerText = isDailyFeat ? `${earnedClefs} (¡x2 Diario!)` : earnedClefs;
+        if (isStorm && isDailyFeat) resEarnedClefsEl.innerText = `${earnedClefs} (¡x4 Tormenta + Diario!)`;
+        else if (isStorm) resEarnedClefsEl.innerText = `${earnedClefs} (¡x2 Modo Tormenta!)`;
+        else if (isDailyFeat) resEarnedClefsEl.innerText = `${earnedClefs} (¡x2 Diario!)`;
+        else resEarnedClefsEl.innerText = earnedClefs;
       }
       updateUserWalletDisplay();
 
@@ -9806,7 +9897,7 @@ function stopPianoCameraLoop() {
       if (engine && engine.beatmapData) {
         engine.restart();
       } else if (currentActiveBeatmap && currentActiveAudioBlob) {
-        startGame(currentActiveBeatmap, currentActiveAudioBlob, currentActiveBeatmap.metadata?.difficulty_name);
+        startGame(currentActiveBeatmap, currentActiveAudioBlob, currentActiveBeatmap.metadata?.difficulty_name, true);
       }
     }
 
@@ -11377,6 +11468,16 @@ function stopPianoCameraLoop() {
       const loadStatus = document.getElementById('globalLoadStatus') || document.getElementById('loadingOverlayStatus');
       const curtain = document.getElementById('gameCurtain');
 
+      if (!window._modeAlreadyChosenForThisLaunch && !window.isPlaytestingFromEditor && typeof openGameModeSelectModal === 'function') {
+        const chosenMode = await openGameModeSelectModal(songMeta.title || 'PISTA TOP', songMeta.artist || '');
+        if (!chosenMode) {
+          window.isGameLoadingOrActive = false;
+          return;
+        }
+        applySelectedGameMode(chosenMode);
+        window._modeAlreadyChosenForThisLaunch = true;
+      }
+
       if (curtain) curtain.classList.remove('revealed');
       if (loadTitle) loadTitle.innerText = songMeta.title || 'Canción Top';
       if (loadArtist) loadArtist.innerText = `${songMeta.artist || 'Artista'} (CDN Oficial)`;
@@ -12069,6 +12170,16 @@ function stopPianoCameraLoop() {
       if (!isDailyFeatured && !window._launchingFromSlot) {
         window.currentFeaturedSongX2 = false;
       }
+      if (!window._modeAlreadyChosenForThisLaunch && !window.isPlaytestingFromEditor && typeof openGameModeSelectModal === 'function') {
+        const chosenMode = await openGameModeSelectModal('PISTA COMUNITARIA', '');
+        if (!chosenMode) {
+          window.isGameLoadingOrActive = false;
+          return;
+        }
+        applySelectedGameMode(chosenMode);
+        window._modeAlreadyChosenForThisLaunch = true;
+      }
+
       const overlay = document.getElementById('globalLoadingOverlay');
       const loadTitle = document.getElementById('loadingOverlayTitle');
       const loadStatus = document.getElementById('loadingOverlayStatus');
@@ -13076,6 +13187,9 @@ function stopPianoCameraLoop() {
       '|': [0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04],
       '/': [0x01, 0x02, 0x02, 0x04, 0x08, 0x08, 0x10],
       '_': [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F],
+      '?': [0x0E, 0x11, 0x01, 0x02, 0x04, 0x00, 0x04],
+      '¿': [0x04, 0x00, 0x04, 0x08, 0x10, 0x11, 0x0E],
+      '@': [0x0E, 0x11, 0x11, 0x1F, 0x1B, 0x1B, 0x1F],
       ' ': [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
     };
 
@@ -13304,6 +13418,667 @@ function stopPianoCameraLoop() {
         modal.style.display = 'none';
       }
     }
+
+    // =========================================================================
+    // SELECTOR VINTAGE DE MODO DE JUEGO (NORMAL / KARAOKE / TORMENTA / SETAS ALUCINÓGENAS)
+    // CON CANDADOS LED DE 1000 CLAVES Y PANTALLA RETRO DE PROMOCIÓN (+3000 CLAVES)
+    // =========================================================================
+    const GAME_MODE_UNLOCK_COST = 1000;
+    let _gameModeModalResolver = null;
+    let _gameModeLedAnimId = null;
+    let _gameModeStormStrikeUntil = 0;
+    let _gameModeStormNextStrike = 0;
+    let _currentModalSongTitle = 'PISTA';
+    let _currentModalSongArtist = '';
+
+    // Capturar parámetro de invitación (?ref=nickname) si el jugador abrió un enlace compartido
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const refParam = (urlParams.get('ref') || '').trim();
+      if (refParam) {
+        localStorage.setItem('beatstar_referred_by', refParam);
+      }
+    } catch (_) {}
+
+    function _getUnlockedGameModesMap() {
+      try {
+        const raw = JSON.parse(localStorage.getItem('beatstar_unlocked_game_modes_v1') || '{}');
+        return Object.assign({ normal: true }, raw);
+      } catch (_) {
+        return { normal: true };
+      }
+    }
+
+    function isGameModeUnlocked(mode) {
+      if (!mode || mode === 'normal') return true;
+      const map = _getUnlockedGameModesMap();
+      return Boolean(map[mode]);
+    }
+
+    function _setGameModeUnlocked(mode) {
+      const map = _getUnlockedGameModesMap();
+      map[mode] = true;
+      try {
+        localStorage.setItem('beatstar_unlocked_game_modes_v1', JSON.stringify(map));
+      } catch (_) {}
+    }
+
+    function _drawStormBoltOnLedCanvas(canvas, intensity = 1.0) {
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const w = canvas.width / dpr;
+      const h = canvas.height / dpr;
+      ctx.save();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.globalCompositeOperation = 'lighter';
+
+      ctx.fillStyle = `rgba(186, 230, 253, ${(0.28 * intensity).toFixed(2)})`;
+      ctx.fillRect(0, 0, w, h);
+
+      const startX = w * (0.22 + Math.random() * 0.42);
+      let cx = startX;
+      let cy = 0;
+      const steps = 6;
+      const stepY = h / steps;
+
+      ctx.strokeStyle = `rgba(0, 229, 255, ${(0.9 * intensity).toFixed(2)})`;
+      ctx.lineWidth = 4.6;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      const pts = [{ x: cx, y: cy }];
+      for (let i = 1; i <= steps; i++) {
+        cx += (Math.random() - 0.5) * 28;
+        cy = i * stepY;
+        pts.push({ x: cx, y: cy });
+        ctx.lineTo(cx, cy);
+      }
+      ctx.stroke();
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.9;
+      ctx.beginPath();
+      for (let i = 0; i < pts.length; i++) {
+        if (i === 0) ctx.moveTo(pts[i].x, pts[i].y);
+        else ctx.lineTo(pts[i].x, pts[i].y);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Dibuja el botón de "SETAS ALUCINOGENAS" con letras borrachas que se mueven, cambian de grosor y tamaño en matriz LED
+    function _renderMushroomDrunkLedButton(canvas, now, isLocked) {
+      if (!canvas) return;
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const widthCss = 318;
+      const heightCss = 46;
+      if (canvas.width !== Math.round(widthCss * dpr) || canvas.height !== Math.round(heightCss * dpr)) {
+        canvas.width = Math.round(widthCss * dpr);
+        canvas.height = Math.round(heightCss * dpr);
+      }
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      ctx.fillStyle = '#07020b';
+      ctx.fillRect(0, 0, widthCss, heightCss);
+
+      const pitch = 2.65;
+      const cols = Math.floor((widthCss - 4) / pitch);
+      const rows = Math.floor((heightCss - 2) / pitch);
+      const offsetX = (widthCss - cols * pitch) * 0.5 + pitch * 0.5;
+      const offsetY = (heightCss - rows * pitch) * 0.5 + pitch * 0.5;
+      const baseDotR = pitch * 0.37;
+
+      // Matriz de bombillas apagadas de fondo
+      ctx.fillStyle = '#1b0926';
+      ctx.beginPath();
+      for (let r = 0; r < rows; r++) {
+        const py = offsetY + r * pitch;
+        for (let c = 0; c < cols; c++) {
+          const px = offsetX + c * pitch;
+          ctx.moveTo(px + baseDotR * 0.76, py);
+          ctx.arc(px, py, baseDotR * 0.76, 0, Math.PI * 2);
+        }
+      }
+      ctx.fill();
+
+      const t = now * 0.001;
+      const lines = [
+        { text: 'SETAS', baseRow: 1.2, baseCol: isLocked ? 14 : 24 },
+        { text: 'ALUCINOGENAS', baseRow: 9.2, baseCol: isLocked ? 3 : 11 }
+      ];
+      const palette = ['#ff00ff', '#00ff88', '#00f2fe', '#ffee00', '#ff3b9a'];
+
+      lines.forEach((ln, lineIdx) => {
+        for (let i = 0; i < ln.text.length; i++) {
+          const ch = ln.text[i];
+          const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7[' '];
+          const charSeed = i * 0.85 + lineIdx * 2.1;
+
+          // Oscilación borracha: posición, tamaño y grosor de LED cambian por letra
+          const drunkDy = Math.sin(t * 4.2 + charSeed) * 2.3;
+          const drunkDx = Math.cos(t * 3.1 + charSeed * 1.3) * 1.3;
+          const charScale = 1.0 + Math.sin(t * 5.0 + i * 1.15) * 0.26;
+          const dotThickness = baseDotR * (1.02 + 0.42 * Math.sin(t * 6.2 + i * 1.6));
+          const colHex = palette[(i + lineIdx + Math.floor(t * 3.5)) % palette.length];
+          const cBase = ln.baseCol + i * 6.2;
+
+          ctx.fillStyle = colHex;
+          ctx.beginPath();
+          for (let gr = 0; gr < 7; gr++) {
+            const rowBits = glyph[gr];
+            if (!rowBits) continue;
+            for (let gc = 0; gc < 5; gc++) {
+              if ((rowBits >> (4 - gc)) & 1) {
+                const lx = offsetX + (cBase + (gc - 2) * charScale + 2) * pitch + drunkDx;
+                const ly = offsetY + (ln.baseRow + (gr - 3) * charScale + 3) * pitch + drunkDy;
+                ctx.moveTo(lx + dotThickness, ly);
+                ctx.arc(lx, ly, dotThickness, 0, Math.PI * 2);
+              }
+            }
+          }
+          ctx.fill();
+
+          // Núcleo brillante blanco
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          const coreR = dotThickness * 0.44;
+          for (let gr = 0; gr < 7; gr++) {
+            const rowBits = glyph[gr];
+            if (!rowBits) continue;
+            for (let gc = 0; gc < 5; gc++) {
+              if ((rowBits >> (4 - gc)) & 1) {
+                const lx = offsetX + (cBase + (gc - 2) * charScale + 2) * pitch + drunkDx;
+                const ly = offsetY + (ln.baseRow + (gr - 3) * charScale + 3) * pitch + drunkDy;
+                ctx.moveTo(lx + coreR, ly);
+                ctx.arc(lx, ly, coreR, 0, Math.PI * 2);
+              }
+            }
+          }
+          ctx.fill();
+        }
+      });
+
+      // Si está bloqueado: Candado LED + 1000 a la derecha
+      if (isLocked) {
+        const lockStr = '@1000';
+        const lockStartCol = cols - (lockStr.length * 6) - 1;
+        const lockRow = Math.floor((rows - 7) * 0.5);
+        for (let i = 0; i < lockStr.length; i++) {
+          const ch = lockStr[i];
+          const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7[' '];
+          const isLockIcon = (ch === '@');
+          ctx.fillStyle = isLockIcon ? '#ff4500' : '#ffb300';
+          ctx.beginPath();
+          for (let gr = 0; gr < 7; gr++) {
+            const rowBits = glyph[gr];
+            if (!rowBits) continue;
+            for (let gc = 0; gc < 5; gc++) {
+              if ((rowBits >> (4 - gc)) & 1) {
+                const lx = offsetX + (lockStartCol + i * 6 + gc) * pitch;
+                const ly = offsetY + (lockRow + gr) * pitch;
+                ctx.moveTo(lx + baseDotR * 1.12, ly);
+                ctx.arc(lx, ly, baseDotR * 1.12, 0, Math.PI * 2);
+              }
+            }
+          }
+          ctx.fill();
+        }
+      }
+    }
+
+    function _renderGameModeStaticLeds(songTitle = 'PISTA', songArtist = '') {
+      _currentModalSongTitle = songTitle;
+      _currentModalSongArtist = songArtist;
+      renderLedMatrixCanvas(
+        document.getElementById('gmHeaderLedCanvas'),
+        176, 24, 2.75,
+        [{ text: 'MODOS', color: '#ffb300', align: 'center' }]
+      );
+      renderLedMatrixCanvas(
+        document.getElementById('gmCloseTopLedCanvas'),
+        22, 18, 2.2,
+        [{ text: 'X', color: '#ff4500', align: 'center' }]
+      );
+      renderLedMatrixCanvas(
+        document.getElementById('gmFooterCancelLedCanvas'),
+        118, 20, 2.15,
+        [{ text: 'CANCELAR', color: '#ff5500', align: 'center' }]
+      );
+      renderLedMatrixCanvas(
+        document.getElementById('gmWantMoreKeysLedCanvas'),
+        318, 22, 2.2,
+        [{ text: '¿QUIERES MAS CLAVES?', color: '#ffb300', align: 'center' }],
+        '#060401', '#1f1505'
+      );
+
+      // 1. MODO NORMAL: Fijo, limpio y sin candado
+      renderLedMatrixCanvas(
+        document.getElementById('gmBtnNormalMainCanvas'),
+        318, 38, 4.3,
+        [{ text: 'NORMAL', color: '#00f5a0', align: 'center' }],
+        '#040604', '#0e1f16'
+      );
+    }
+
+    function _startGameModeLedAnimationLoop() {
+      if (_gameModeLedAnimId) {
+        cancelAnimationFrame(_gameModeLedAnimId);
+        _gameModeLedAnimId = null;
+      }
+      const startTime = performance.now();
+      _gameModeStormNextStrike = startTime + 850;
+      _gameModeStormStrikeUntil = 0;
+
+      let lastKaraokeKey = '';
+      let lastStormVisualState = '';
+
+      const tick = (now) => {
+        const modal = document.getElementById('gameModeSelectModal');
+        if (!modal || modal.classList.contains('hidden') || modal.style.display === 'none') {
+          _gameModeLedAnimId = null;
+          return;
+        }
+
+        const karaokeLocked = !isGameModeUnlocked('karaoke');
+        const stormLocked = !isGameModeUnlocked('storm');
+        const mushroomLocked = !isGameModeUnlocked('mushroom');
+
+        // A. ANIMACIÓN LED MODO KARAOKE: KA -> RA -> O -> KE iluminándose en dorado + Candado LED (@ 1000) si está bloqueado
+        const kStep = Math.floor(((now - startTime) % 1900) / 380);
+        const kStateKey = `${kStep}_${karaokeLocked}`;
+        if (kStateKey !== lastKaraokeKey) {
+          lastKaraokeKey = kStateKey;
+          const kPitch = karaokeLocked ? 3.55 : 4.3;
+          const kBaseCol = karaokeLocked ? 3 : 16;
+          const karaokeSyllables = [
+            { text: 'KA', colOffset: kBaseCol + 0 },
+            { text: 'RA', colOffset: kBaseCol + 12 },
+            { text: 'O',  colOffset: kBaseCol + 24 },
+            { text: 'KE', colOffset: kBaseCol + 30 }
+          ];
+          const kSegments = karaokeSyllables.map((syl, idx) => {
+            const isLit = (kStep < 4) ? (idx <= kStep) : false;
+            return {
+              text: syl.text,
+              colOffset: syl.colOffset,
+              color: isLit ? '#ffd700' : '#4a3208',
+              dim: !isLit
+            };
+          });
+          if (karaokeLocked) {
+            kSegments.push({ text: '@1000', align: 'right', rightPad: 2, color: '#ff5500' });
+          }
+          renderLedMatrixCanvas(
+            document.getElementById('gmBtnKaraokeMainCanvas'),
+            318, 38, kPitch,
+            kSegments,
+            '#060402', '#1c1306'
+          );
+        }
+
+        // B. ANIMACIÓN LED MODO TORMENTA: Rayo + Candado LED (@ 1000) si está bloqueado
+        if (now >= _gameModeStormNextStrike) {
+          _gameModeStormStrikeUntil = now + 440;
+          _gameModeStormNextStrike = now + 2100 + Math.random() * 1000;
+        }
+
+        const stormBtn = document.getElementById('btnModeSelectStorm');
+        const stormCanvas = document.getElementById('gmBtnStormMainCanvas');
+        const sPitch = stormLocked ? 3.45 : 4.3;
+
+        if (now < _gameModeStormStrikeUntil) {
+          const phase = Math.floor((now - (_gameModeStormStrikeUntil - 440)) / 55);
+          const isBlackout = (phase === 1 || phase === 3 || phase === 5);
+          const isFlashWhite = (phase === 0 || phase === 2 || phase === 6);
+          const stateKey = `strike_${phase}_${stormLocked}`;
+
+          if (stateKey !== lastStormVisualState) {
+            lastStormVisualState = stateKey;
+            const segs = stormLocked
+              ? [
+                  { text: 'TORMENTA', colOffset: 2, color: isBlackout ? '#091e2c' : (isFlashWhite ? '#ffffff' : '#00e5ff'), dim: isBlackout },
+                  { text: '@1000', align: 'right', rightPad: 2, color: isBlackout ? '#2a1205' : '#ff5500', dim: isBlackout }
+                ]
+              : [{ text: 'TORMENTA', color: isBlackout ? '#091e2c' : (isFlashWhite ? '#ffffff' : '#00e5ff'), align: 'center', dim: isBlackout }];
+
+            renderLedMatrixCanvas(
+              stormCanvas, 318, 38, sPitch,
+              segs,
+              isBlackout ? '#020408' : (isFlashWhite ? '#0c2538' : '#03080e'),
+              isBlackout ? '#07121c' : '#0d2638'
+            );
+            if (!isBlackout) {
+              _drawStormBoltOnLedCanvas(stormCanvas, isFlashWhite ? 1.0 : 0.65);
+            }
+            if (stormBtn) stormBtn.style.borderColor = isBlackout ? '#091e2c' : (isFlashWhite ? '#ffffff' : '#00e5ff');
+          }
+        } else {
+          const steadyKey = `steady_${stormLocked}`;
+          if (lastStormVisualState !== steadyKey) {
+            lastStormVisualState = steadyKey;
+            const segs = stormLocked
+              ? [
+                  { text: 'TORMENTA', colOffset: 2, color: '#00e5ff', dim: false },
+                  { text: '@1000', align: 'right', rightPad: 2, color: '#ff5500', dim: false }
+                ]
+              : [{ text: 'TORMENTA', color: '#00e5ff', align: 'center', dim: false }];
+
+            renderLedMatrixCanvas(
+              stormCanvas, 318, 38, sPitch,
+              segs,
+              '#03060a', '#0b2233'
+            );
+            if (stormBtn) stormBtn.style.borderColor = '';
+          }
+        }
+
+        // C. ANIMACIÓN LED MODO SETAS ALUCINÓGENAS: Letras ebrias cambiando de tamaño/grosor + Candado LED
+        _renderMushroomDrunkLedButton(
+          document.getElementById('gmBtnMushroomMainCanvas'),
+          now,
+          mushroomLocked
+        );
+
+        _gameModeLedAnimId = requestAnimationFrame(tick);
+      };
+
+      _gameModeLedAnimId = requestAnimationFrame(tick);
+    }
+
+    function openGameModeSelectModal(songTitle = 'PISTA', songArtist = '') {
+      return new Promise((resolve) => {
+        _gameModeModalResolver = resolve;
+        const modal = document.getElementById('gameModeSelectModal');
+        if (!modal) {
+          resolve('normal');
+          return;
+        }
+        modal.classList.remove('hidden');
+        modal.classList.add('open');
+        modal.style.display = 'flex';
+        _renderGameModeStaticLeds(songTitle, songArtist);
+        _startGameModeLedAnimationLoop();
+      });
+    }
+    window.openGameModeSelectModal = openGameModeSelectModal;
+
+    function _closeGameModeModalInternal() {
+      if (_gameModeLedAnimId) {
+        cancelAnimationFrame(_gameModeLedAnimId);
+        _gameModeLedAnimId = null;
+      }
+      const modal = document.getElementById('gameModeSelectModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('open');
+        modal.style.display = 'none';
+      }
+    }
+
+    function confirmGameModeSelection(mode) {
+      const chosen = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom') ? mode : 'normal';
+
+      // Si el modo no es normal y aún tiene candado LED (1000 Claves para desbloquear):
+      if (chosen !== 'normal' && !isGameModeUnlocked(chosen)) {
+        if (typeof userClefs === 'number' && userClefs >= GAME_MODE_UNLOCK_COST) {
+          if (typeof deductClefs === 'function' && deductClefs(GAME_MODE_UNLOCK_COST)) {
+            _setGameModeUnlocked(chosen);
+            if (typeof showSuccessToast === 'function') {
+              const modeLabel = chosen === 'karaoke' ? 'KARAOKE' : (chosen === 'storm' ? 'TORMENTA' : 'SETAS ALUCINÓGENAS');
+              showSuccessToast(`¡Modo ${modeLabel} desbloqueado para siempre! (-1000 𝄞)`);
+            }
+          }
+        } else {
+          // No tiene suficientes claves: abrir pantalla promocional retro de +3000 Claves
+          openPromoMoreKeysModal();
+          return;
+        }
+      }
+
+      _closeGameModeModalInternal();
+      applySelectedGameMode(chosen);
+      if (typeof _gameModeModalResolver === 'function') {
+        const r = _gameModeModalResolver;
+        _gameModeModalResolver = null;
+        r(chosen);
+      }
+    }
+    window.confirmGameModeSelection = confirmGameModeSelection;
+
+    function cancelGameModeSelection() {
+      _closeGameModeModalInternal();
+      if (typeof _gameModeModalResolver === 'function') {
+        const r = _gameModeModalResolver;
+        _gameModeModalResolver = null;
+        r(null);
+      }
+    }
+    window.cancelGameModeSelection = cancelGameModeSelection;
+
+    // =========================================================================
+    // PANTALLA RETRO LED DE PROMOCIÓN: +3000 CLAVES POR COMPARTIR CON UN AMIGO
+    // =========================================================================
+    function _getShareReferralUrl() {
+      const myNick = (localStorage.getItem('beatstar_player_nickname') || '').trim();
+      const baseOrigin = (window.location.origin && window.location.origin.startsWith('http') && !window.location.origin.includes('appassets'))
+        ? window.location.origin
+        : 'https://renacer.onrender.com';
+      return myNick ? `${baseOrigin}/?ref=${encodeURIComponent(myNick)}` : `${baseOrigin}/`;
+    }
+
+    function openPromoMoreKeysModal() {
+      const modal = document.getElementById('sharePromoKeysModal');
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      modal.classList.add('open');
+      modal.style.display = 'flex';
+
+      const urlInput = document.getElementById('promoShareUrlInput');
+      if (urlInput) {
+        urlInput.value = _getShareReferralUrl();
+      }
+      const statusMsg = document.getElementById('promoVerifyStatusMsg');
+      if (statusMsg) {
+        statusMsg.innerText = '';
+      }
+
+      renderLedMatrixCanvas(
+        document.getElementById('promoHeaderLedCanvas'),
+        206, 24, 2.35,
+        [{ text: 'CONSIGUE CLAVES', color: '#ffb300', align: 'center' }]
+      );
+      renderLedMatrixCanvas(
+        document.getElementById('promoCloseTopLedCanvas'),
+        22, 18, 2.2,
+        [{ text: 'X', color: '#ff4500', align: 'center' }]
+      );
+      renderLedMatrixCanvas(
+        document.getElementById('promoHeroPrizeLedCanvas'),
+        310, 34, 3.6,
+        [{ text: '+3000 CLAVES', color: '#00f5a0', align: 'center' }],
+        '#030604', '#0c1f14'
+      );
+      renderLedMatrixCanvas(
+        document.getElementById('promoFooterCloseLedCanvas'),
+        110, 20, 2.2,
+        [{ text: 'VOLVER', color: '#ff5500', align: 'center' }]
+      );
+    }
+    window.openPromoMoreKeysModal = openPromoMoreKeysModal;
+
+    function closePromoMoreKeysModal() {
+      const modal = document.getElementById('sharePromoKeysModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('open');
+        modal.style.display = 'none';
+      }
+    }
+    window.closePromoMoreKeysModal = closePromoMoreKeysModal;
+
+    async function copyPromoShareLink() {
+      const url = _getShareReferralUrl();
+      const input = document.getElementById('promoShareUrlInput');
+      if (input) {
+        input.value = url;
+        try {
+          input.select();
+          input.setSelectionRange(0, 99999);
+        } catch (_) {}
+      }
+      let copied = false;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(url);
+          copied = true;
+        }
+      } catch (_) {}
+      if (!copied) {
+        try {
+          document.execCommand('copy');
+          copied = true;
+        } catch (_) {}
+      }
+      const statusMsg = document.getElementById('promoVerifyStatusMsg');
+      if (statusMsg) {
+        statusMsg.style.color = '#00f5a0';
+        statusMsg.innerText = '¡Enlace copiado! Envíalo a tu amigo y dile que juegue 1 partida.';
+      }
+      if (typeof showSuccessToast === 'function') {
+        showSuccessToast('¡Enlace del juego copiado al portapapeles!');
+      }
+    }
+    window.copyPromoShareLink = copyPromoShareLink;
+
+    async function verifyFriendPlayedAndClaimKeys() {
+      const friendInput = document.getElementById('promoFriendNicknameInput');
+      const statusMsg = document.getElementById('promoVerifyStatusMsg');
+      const btn = document.getElementById('btnVerifyPromoFriend');
+      const friendNick = (friendInput ? friendInput.value : '').trim();
+      const myNick = (localStorage.getItem('beatstar_player_nickname') || '').trim();
+
+      if (!friendNick && !myNick) {
+        if (statusMsg) {
+          statusMsg.style.color = '#ff5500';
+          statusMsg.innerText = 'Escribe el nickname con el que tu amigo jugó su partida.';
+        }
+        return;
+      }
+
+      if (friendNick && myNick && friendNick.toLowerCase() === myNick.toLowerCase()) {
+        if (statusMsg) {
+          statusMsg.style.color = '#ff5500';
+          statusMsg.innerText = 'No puedes introducir tu propio nickname. Debe ser el de tu amigo.';
+        }
+        return;
+      }
+
+      const claimedFriends = JSON.parse(localStorage.getItem('beatstar_claimed_promo_friends_v1') || '[]');
+      if (friendNick && claimedFriends.includes(friendNick.toLowerCase())) {
+        if (statusMsg) {
+          statusMsg.style.color = '#ff5500';
+          statusMsg.innerText = 'Ya has reclamado las +3000 Claves con este amigo.';
+        }
+        return;
+      }
+
+      if (btn) btn.disabled = true;
+      if (statusMsg) {
+        statusMsg.style.color = '#ffb300';
+        statusMsg.innerText = 'Comprobando clasificación online...';
+      }
+
+      let verified = false;
+      let verifiedName = friendNick;
+      let serverMsg = '';
+
+      try {
+        const baseUrl = (typeof getApiBaseUrl === 'function') ? getApiBaseUrl() : '';
+        if (baseUrl) {
+          const qs = `friend=${encodeURIComponent(friendNick)}&referrer=${encodeURIComponent(myNick)}`;
+          const res = await fetch(`${baseUrl}/api/v1/community/verify-friend?${qs}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.verified) {
+              const matchedLower = String(data.friend_name || friendNick).trim().toLowerCase();
+              if (!claimedFriends.includes(matchedLower)) {
+                verified = true;
+                verifiedName = data.friend_name || friendNick;
+              } else {
+                serverMsg = 'Ya reclamaste el premio de este amigo anteriormente.';
+              }
+            } else if (data && data.message) {
+              serverMsg = data.message;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Error verificando en verify-friend:', err);
+      }
+
+      // Fallback directo contra la leaderboard global y semanal por si el servidor está en modo caché
+      if (!verified && friendNick && !serverMsg) {
+        try {
+          const baseUrl = (typeof getApiBaseUrl === 'function') ? getApiBaseUrl() : '';
+          if (baseUrl) {
+            const [resG, resW] = await Promise.all([
+              fetch(`${baseUrl}/api/v1/community/leaderboards/global`).catch(() => null),
+              fetch(`${baseUrl}/api/v1/community/leaderboards/weekly`).catch(() => null)
+            ]);
+            const targetKey = friendNick.toLowerCase();
+            if (resG && resG.ok) {
+              const dG = await resG.json();
+              const listG = dG.global_leaderboard || dG.leaderboard || [];
+              const foundG = listG.find(r => String(r.player_name || r.name || '').trim().toLowerCase() === targetKey);
+              if (foundG) {
+                verified = true;
+                verifiedName = foundG.player_name || foundG.name || friendNick;
+              }
+            }
+            if (!verified && resW && resW.ok) {
+              const dW = await resW.json();
+              const listW = dW.weekly_leaderboard || dW.leaderboard || [];
+              const foundW = listW.find(r => String(r.player_name || r.name || '').trim().toLowerCase() === targetKey);
+              if (foundW) {
+                verified = true;
+                verifiedName = foundW.player_name || foundW.name || friendNick;
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (btn) btn.disabled = false;
+
+      if (verified) {
+        const cleanClaimKey = String(verifiedName || friendNick).trim().toLowerCase();
+        if (cleanClaimKey && !claimedFriends.includes(cleanClaimKey)) {
+          claimedFriends.push(cleanClaimKey);
+          localStorage.setItem('beatstar_claimed_promo_friends_v1', JSON.stringify(claimedFriends));
+        }
+        if (typeof addClefs === 'function') {
+          addClefs(3000);
+        }
+        if (statusMsg) {
+          statusMsg.style.color = '#00f5a0';
+          statusMsg.innerText = `¡Verificado! ${verifiedName} jugó una partida. ¡+3000 Claves 𝄞 añadidas!`;
+        }
+        if (typeof showSuccessToast === 'function') {
+          showSuccessToast(`¡+3000 Claves 𝄞 recibidas gracias a ${verifiedName}!`);
+        }
+        if (friendInput) friendInput.value = '';
+      } else {
+        if (statusMsg) {
+          statusMsg.style.color = '#ff5500';
+          statusMsg.innerText = serverMsg || `Aún no aparece "${friendNick}" en la leaderboard. ¡Dile que termine 1 partida!`;
+        }
+      }
+    }
+    window.verifyFriendPlayedAndClaimKeys = verifyFriendPlayedAndClaimKeys;
 
     async function switchLeaderboardSubTab(tab) {
       currentLeaderboardSubTab = tab;

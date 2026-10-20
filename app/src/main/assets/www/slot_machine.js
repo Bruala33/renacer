@@ -1613,6 +1613,9 @@
     if (slotMachineMode === 'bet' && getPlayerClefs() < currentBet) {
       const statusMsg = document.getElementById('statusMsg');
       if (statusMsg) statusMsg.textContent = '¡SIN CLAVES!';
+      if (typeof window.openPromoShareModal === 'function') {
+        window.openPromoShareModal();
+      }
       return;
     }
 

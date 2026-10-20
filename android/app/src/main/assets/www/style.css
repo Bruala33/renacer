@@ -608,14 +608,12 @@ body {
   height: 100%;
   border-radius: 4px;
   background: linear-gradient(90deg, #c5a059 0%, #e5b869 75%, #fff0c2 100%);
-  box-shadow: 0 0 12px rgba(229, 184, 105, 0.85);
-  transition: width 0.12s linear;
+  will-change: width;
 }
 
 /* Platinum Phase: Iridescent white/cyan liquid fill */
 .hud-progress-fill.platinum-phase {
   background: linear-gradient(90deg, #e2e8f0 0%, #ffffff 65%, #a5f3fc 100%);
-  box-shadow: 0 0 14px rgba(255, 255, 255, 0.95), 0 0 22px rgba(56, 189, 248, 0.75);
 }
 
 /* Segment Dividers */
@@ -627,7 +625,6 @@ body {
   background: rgba(255, 255, 255, 0.35);
   z-index: 4;
   transform: translateX(-50%);
-  box-shadow: 0 0 3px rgba(0, 0, 0, 0.9);
 }
 
 /* Star Nodes Placed Over Dividers - 3D Metallic Relief Upgrade */
@@ -642,7 +639,6 @@ body {
   justify-content: center;
   z-index: 8;
   pointer-events: none;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
 }
 
 .star-node .star-svg,
@@ -651,20 +647,18 @@ body {
 .star-node .plat-medal-svg {
   width: 20px;
   height: 20px;
-  transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  opacity: 0.35;
-  filter: grayscale(85%) brightness(0.6);
+  opacity: 0.32;
 }
 
 @keyframes starNodePop {
   0% { transform: translate(-50%, -50%) scale(0.9); }
-  40% { transform: translate(-50%, -50%) scale(1.45); filter: drop-shadow(0 0 12px #ffd700); }
-  75% { transform: translate(-50%, -50%) scale(0.95); }
+  40% { transform: translate(-50%, -50%) scale(1.38); }
+  75% { transform: translate(-50%, -50%) scale(0.96); }
   100% { transform: translate(-50%, -50%) scale(1.0); }
 }
 
 .star-node.unlocked {
-  animation: starNodePop 450ms cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  animation: starNodePop 380ms cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
 .star-node.unlocked .star-svg,
@@ -672,7 +666,6 @@ body {
 .star-node.unlocked .silver-medal-svg,
 .star-node.unlocked .plat-medal-svg {
   opacity: 1.0;
-  filter: grayscale(0%) brightness(1.1) drop-shadow(0 0 6px rgba(255, 215, 0, 0.9)) drop-shadow(0 0 14px rgba(255, 235, 120, 0.7));
 }
 
 .hud-platinum-node {
@@ -686,7 +679,6 @@ body {
   justify-content: center;
   z-index: 9;
   pointer-events: none;
-  filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.95));
 }
 .hud-platinum-node .plat-medal-svg {
   width: 22px;
@@ -4442,19 +4434,19 @@ body {
 #karaokeTeleprompterBar {
   top: 68px;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate3d(-50%, 0, 0);
   width: 90%;
   max-width: 580px;
-  background: rgba(10, 8, 18, 0.18);
+  background: rgba(10, 8, 18, 0.74);
   padding: 8px 18px;
   border-radius: 24px;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
   z-index: 25;
   pointer-events: none;
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  contain: layout style paint;
 }
 
 .karaoke-current-line {
@@ -4466,9 +4458,9 @@ body {
   line-height: 1.35;
 }
 
-/* Base syllable style (UltraStar / native whitespace compliant) */
+/* Base syllable style (UltraStar / native whitespace compliant, 0 CSS filter shaders) */
 .karaoke-syllable {
-  display: inline;
+  display: inline-block;
   font-family: 'Outfit', 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-weight: 800;
   font-size: 1.25rem;
@@ -4481,8 +4473,7 @@ body {
   text-shadow:
     0 0 1px rgba(255, 255, 255, 0.7),
     0 2px 5px rgba(0, 0, 0, 0.9) !important;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.9));
-  transition: color 0.15s ease, text-shadow 0.15s ease, filter 0.15s ease;
+  transform: translateZ(0);
 }
 
 @media (min-width: 640px) {
@@ -4491,19 +4482,18 @@ body {
   }
 }
 
-/* Syllable Illuminated / Active */
+/* Syllable Illuminated / Active (Soporta tanto data-lit="1" sin MutationObserver como clase .activa) */
+.karaoke-syllable[data-lit="1"],
 .karaoke-syllable.activa,
 .karaoke-syllable.painted {
-  color: #ffffff !important;
+  color: #ffd700 !important;
   -webkit-text-fill-color: #ffffff !important;
   -webkit-text-stroke: 0px !important;
   text-shadow:
     0 0 10px #ffd700,
     0 0 20px #ff8800,
-    0 0 32px #f472b6,
     0 2px 5px rgba(0, 0, 0, 0.95) !important;
-  filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
-  animation: wordPaintImpact 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  animation: syllableImpact 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
 /* Prolongation / Melisma notes (~): hidden in DOM to avoid breaking ID search */
@@ -4521,7 +4511,6 @@ body {
   text-transform: uppercase;
   position: relative;
   user-select: none;
-  transition: color 0.2s ease, text-shadow 0.2s ease, transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 @media (min-width: 640px) {
@@ -4531,7 +4520,6 @@ body {
   }
 }
 
-/* 1. Unpainted: Silueta exterior limpia; el relleno oscuro oculta cualquier costura interna */
 .karaoke-word.unpainted {
   color: rgba(10, 8, 18, 0.70) !important;
   -webkit-text-fill-color: rgba(10, 8, 18, 0.70) !important;
@@ -4540,11 +4528,9 @@ body {
   text-shadow:
     0 0 1px rgba(255, 255, 255, 0.7),
     0 2px 5px rgba(0, 0, 0, 0.9) !important;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.9));
-  transform: scale(0.96);
+  transform: scale3d(0.96, 0.96, 1);
 }
 
-/* 2. Painted: Letra "pintada" con destello oro/rosa al llegar la palabra voladora */
 .karaoke-word.painted {
   color: #ffffff;
   -webkit-text-fill-color: #ffffff;
@@ -4552,57 +4538,23 @@ body {
   text-shadow:
     0 0 10px #ffd700,
     0 0 20px #ff8800,
-    0 0 32px #f472b6,
     0 2px 5px rgba(0, 0, 0, 0.95);
-  transform: scale(1.06);
-  animation: wordPaintImpact 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-}
-
-@keyframes wordPaintImpact {
-  0% {
-    transform: scale(0.9);
-    filter: brightness(2.5);
-  }
-  45% {
-    transform: scale(1.25);
-    filter: brightness(2.8) drop-shadow(0 0 14px #ffd700);
-  }
-  100% {
-    transform: scale(1.06);
-    filter: brightness(1.2);
-  }
+  transform: scale3d(1.06, 1.06, 1);
 }
 
 #karaokeNextLine {
   display: none !important;
 }
-/* Sílaba inactiva en el teleprompter */
-.karaoke-syllable {
-  display: inline-block;
-  color: rgba(255, 255, 255, 0.45);
-  transition: color 0.15s ease, transform 0.15s ease;
-  will-change: transform, color;
-}
-
-/* Golpe de impacto elástico al tocar la tecla (Bass Pop) */
-.karaoke-syllable.activa {
-  color: #ffd700 !important;
-  text-shadow: 0 0 10px rgba(255, 215, 0, 0.9), 0 0 20px rgba(255, 180, 0, 0.6);
-  animation: syllableImpact 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-}
 
 @keyframes syllableImpact {
   0% {
-    transform: scale(1);
-    filter: brightness(1);
+    transform: scale3d(1, 1, 1);
   }
   35% {
-    transform: scale(1.28) translateY(-2px); /* Salto hacia ti */
-    filter: brightness(1.6);
+    transform: scale3d(1.26, 1.26, 1) translate3d(0, -2px, 0);
   }
   100% {
-    transform: scale(1.04);
-    filter: brightness(1.1);
+    transform: scale3d(1.04, 1.04, 1);
   }
 }
 /* =========================================================
