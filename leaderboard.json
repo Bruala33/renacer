@@ -1789,6 +1789,16 @@
         "accuracy": 10.097619647002881,
         "date": "2026-10-20 12:07:52"
       }
+    ],
+    "osu_2611015": [
+      {
+        "name": "Mauricio",
+        "score": 262553,
+        "stars": 1,
+        "combo": 86,
+        "accuracy": 21.861872513974205,
+        "date": "2026-10-20 12:10:03"
+      }
     ]
   },
   "global": [
@@ -1829,8 +1839,8 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 1554447,
-      "clefs": 13
+      "total_score": 1817000,
+      "clefs": 15
     },
     {
       "name": "MasterPianist",
@@ -1931,7 +1941,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 1554447
+        "score": 1817000
       },
       {
         "name": "Darwin67",
