@@ -34,6 +34,14 @@
         "date": "2026-02-02 11:30:00"
       },
       {
+        "name": "Mauricio",
+        "score": 138849,
+        "stars": 3.5,
+        "combo": 97,
+        "accuracy": 9.539549394747816,
+        "date": "2026-10-20 19:16:51"
+      },
+      {
         "name": "killer",
         "score": 121983,
         "stars": 4,
@@ -1927,8 +1935,8 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 2597469,
-      "clefs": 21
+      "total_score": 2736318,
+      "clefs": 22
     },
     {
       "name": "MasterPianist",
@@ -2029,7 +2037,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 2597469
+        "score": 2736318
       },
       {
         "name": "Darwin67",
