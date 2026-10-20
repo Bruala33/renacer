@@ -468,6 +468,14 @@
         "combo": 706,
         "accuracy": 81.63546868626737,
         "date": "2026-09-20 19:13:27"
+      },
+      {
+        "name": "Test",
+        "score": 157500,
+        "stars": 3.5,
+        "combo": 47,
+        "accuracy": 5.758752764740788,
+        "date": "2026-10-20 08:54:33"
       }
     ],
     "osu_2069233": [
@@ -1705,8 +1713,8 @@
     },
     {
       "name": "Test",
-      "total_score": 4663335,
-      "clefs": 39
+      "total_score": 4820835,
+      "clefs": 40
     },
     {
       "name": "bobon",
@@ -1798,7 +1806,7 @@
       },
       {
         "name": "Test",
-        "score": 4133694
+        "score": 4291194
       },
       {
         "name": "Darwin67",
