@@ -1739,6 +1739,16 @@
         "accuracy": 2.004451828742717,
         "date": "2026-10-20 10:06:07"
       }
+    ],
+    "top_incubus_drive": [
+      {
+        "name": "Mauricio",
+        "score": 35052,
+        "stars": 3.5,
+        "combo": 21,
+        "accuracy": 2.5806603610362395,
+        "date": "2026-10-20 10:12:08"
+      }
     ]
   },
   "global": [
@@ -1779,7 +1789,7 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 922687,
+      "total_score": 957739,
       "clefs": 9
     },
     {
@@ -1876,7 +1886,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 922687
+        "score": 957739
       },
       {
         "name": "Darwin67",
