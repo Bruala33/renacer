@@ -525,11 +525,11 @@
       },
       {
         "name": "Test",
-        "score": 573,
+        "score": 579,
         "stars": 4,
         "combo": 1,
-        "accuracy": 80.70422535211267,
-        "date": "2026-10-19 07:45:36"
+        "accuracy": 81.54929577464789,
+        "date": "2026-10-20 08:58:01"
       }
     ],
     "top_manolo_garcia_a_san_fernando": [
@@ -1726,7 +1726,7 @@
     },
     {
       "name": "Test",
-      "total_score": 5239948,
+      "total_score": 5240527,
       "clefs": 43
     },
     {
@@ -1824,7 +1824,7 @@
       },
       {
         "name": "Test",
-        "score": 4710307
+        "score": 4710886
       },
       {
         "name": "Darwin67",
