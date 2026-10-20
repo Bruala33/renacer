@@ -1779,6 +1779,16 @@
         "accuracy": 1.3229882976237102,
         "date": "2026-10-20 11:26:16"
       }
+    ],
+    "osu_963422": [
+      {
+        "name": "Mauricio",
+        "score": 90250,
+        "stars": 3.5,
+        "combo": 74,
+        "accuracy": 10.097619647002881,
+        "date": "2026-10-20 12:07:52"
+      }
     ]
   },
   "global": [
@@ -1819,7 +1829,7 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 1464197,
+      "total_score": 1554447,
       "clefs": 13
     },
     {
@@ -1921,7 +1931,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 1464197
+        "score": 1554447
       },
       {
         "name": "Darwin67",
