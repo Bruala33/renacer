@@ -1847,6 +1847,16 @@
         "accuracy": 8.382889870101705,
         "date": "2026-10-20 18:57:42"
       }
+    ],
+    "top_seguridad_social_me_siento_bien": [
+      {
+        "name": "Mauricio",
+        "score": 120617,
+        "stars": 3.5,
+        "combo": 88,
+        "accuracy": 11.752503388355748,
+        "date": "2026-10-20 18:59:13"
+      }
     ]
   },
   "global": [
@@ -1887,8 +1897,8 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 1856441,
-      "clefs": 15
+      "total_score": 1977058,
+      "clefs": 16
     },
     {
       "name": "MasterPianist",
@@ -1989,7 +1999,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 1856441
+        "score": 1977058
       },
       {
         "name": "Darwin67",
