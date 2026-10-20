@@ -1400,6 +1400,14 @@
         "combo": 414,
         "accuracy": 62.059050655955275,
         "date": "2026-10-18 09:08:38"
+      },
+      {
+        "name": "Mauricio",
+        "score": 15450,
+        "stars": 3.5,
+        "combo": 22,
+        "accuracy": 1.7237435917461135,
+        "date": "2026-10-20 10:07:35"
       }
     ],
     "top_rosana_el_talisman": [
@@ -1771,7 +1779,7 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 907237,
+      "total_score": 922687,
       "clefs": 9
     },
     {
@@ -1868,7 +1876,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 907237
+        "score": 922687
       },
       {
         "name": "Darwin67",
