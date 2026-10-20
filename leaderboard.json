@@ -1857,6 +1857,16 @@
         "accuracy": 11.752503388355748,
         "date": "2026-10-20 18:59:13"
       }
+    ],
+    "top_ricardo_arjona_mujeres": [
+      {
+        "name": "Test",
+        "score": 4650,
+        "stars": 3.5,
+        "combo": 10,
+        "accuracy": 0.28297632674820034,
+        "date": "2026-10-20 19:12:06"
+      }
     ]
   },
   "global": [
@@ -1882,7 +1892,7 @@
     },
     {
       "name": "Test",
-      "total_score": 5416494,
+      "total_score": 5421144,
       "clefs": 44
     },
     {
@@ -1995,7 +2005,7 @@
       },
       {
         "name": "Test",
-        "score": 4886853
+        "score": 4891503
       },
       {
         "name": "Mauricio",
