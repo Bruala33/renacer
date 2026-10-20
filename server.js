@@ -48,9 +48,28 @@ function getIsoWeekId(date = new Date()) {
   return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 }
 
-// Mapas permanentes para acumuladores de puntos
+// Mapas permanentes para acumuladores de puntos y referidos verificados por enlace
 const playerGlobalAccumulator = new Map();
 const playerWeeklyAccumulator = new Map();
+const completedReferralsMap = new Map(); // referrerKey -> Set<friendName>
+const pendingReferralClicksByIp = new Map(); // ip -> { referrer, refCode, ts }
+
+function getClientIp(req) {
+  const xff = req.headers['x-forwarded-for'];
+  if (xff) {
+    return String(xff).split(',')[0].trim();
+  }
+  return String(req.socket?.remoteAddress || req.ip || 'unknown').trim();
+}
+
+function registerReferralHelper(refKeyRaw, friendNameRaw) {
+  const rKey = String(refKeyRaw || '').trim().toLowerCase();
+  const fName = String(friendNameRaw || '').trim();
+  if (!rKey || !fName || rKey === fName.toLowerCase()) return;
+  const set = completedReferralsMap.get(rKey) || new Set();
+  set.add(fName);
+  completedReferralsMap.set(rKey, set);
+}
 
 function buildConsolidatedLeaderboardJson() {
   const songsObj = {};
@@ -77,13 +96,22 @@ function buildConsolidatedLeaderboardJson() {
     .sort((a, b) => b.score - a.score)
     .slice(0, 50);
 
+  // 3. Referidos verificados por enlace (?ref=...)
+  const referralsObj = {};
+  for (const [refKey, friendsSet] of completedReferralsMap.entries()) {
+    if (friendsSet && friendsSet.size > 0) {
+      referralsObj[refKey] = Array.from(friendsSet);
+    }
+  }
+
   return {
     songs: songsObj,
     global: globalList,
     weekly: {
       week_id: currentWeek,
       players: weeklyList
-    }
+    },
+    referrals: referralsObj
   };
 }
 
@@ -231,6 +259,15 @@ function applyLeaderboardJson(data) {
       if (key) weekMap.set(key, { name: p.name, score: p.score || 0 });
     });
     playerWeeklyAccumulator.set(data.weekly.week_id, weekMap);
+  }
+
+  // Restaurar referidos verificados por enlace
+  if (data.referrals && typeof data.referrals === 'object') {
+    for (const [refKey, friendList] of Object.entries(data.referrals)) {
+      if (Array.isArray(friendList)) {
+        friendList.forEach(fName => registerReferralHelper(refKey, fName));
+      }
+    }
   }
 }
 
@@ -532,10 +569,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 9,
-    version_name: '1.7.0',
-    release_notes: 'Piano Community Web & Offline Player. Nuevo modo Setas Alucinógenas, Selector LED limpio y +3000 Claves por compartir.',
-    download_url: '/download/apk?v=9.0',
+    version_code: 10,
+    version_name: '1.8.0',
+    release_notes: 'Piano Community Web & Offline Player. Nube de Setas en transición, timing permisivo y verificación estricta de enlace.',
+    download_url: '/download/apk?v=10.0',
   });
 });
 
@@ -1168,13 +1205,21 @@ app.post('/api/v1/community/charts/:id/score', (req, res) => {
   weeklyData.score += parsedScore;
   weekMap.set(pKey, weeklyData);
 
-  // 3. Registrar referido si el jugador entró con enlace de invitación (?ref=...)
+  // 3. Registrar referido únicamente si el jugador entró con el enlace de invitación (?ref=... o ?code=...)
   const referredBy = String(req.body.referred_by || '').trim().toLowerCase();
-  if (referredBy && referredBy !== pKey) {
-    if (!global.completedReferralsMap) global.completedReferralsMap = new Map();
-    const list = global.completedReferralsMap.get(referredBy) || new Set();
-    list.add(cleanName);
-    global.completedReferralsMap.set(referredBy, list);
+  const referredCode = String(req.body.referred_code || '').trim().toLowerCase();
+  const clientIp = getClientIp(req);
+  const ipPending = pendingReferralClicksByIp.get(clientIp);
+  const ipPendingValid = ipPending && (Date.now() - ipPending.ts < 24 * 60 * 60 * 1000);
+
+  const effectiveReferrer = referredBy || (ipPendingValid ? ipPending.referrer : '');
+  const effectiveRefCode = referredCode || (ipPendingValid ? ipPending.refCode : '');
+
+  if (effectiveReferrer && effectiveReferrer !== pKey) {
+    registerReferralHelper(effectiveReferrer, cleanName);
+  }
+  if (effectiveRefCode && effectiveRefCode !== pKey) {
+    registerReferralHelper(effectiveRefCode, cleanName);
   }
 
   saveScoresToDisk();
@@ -1189,48 +1234,69 @@ app.post('/api/v1/community/charts/:id/score', (req, res) => {
   });
 });
 
-// Verify if an invited friend has played at least one match (appears in leaderboard or referral registry)
+// Registrar visita al abrir el enlace de invitación (?ref=...&code=...) para vincular también si descarga el APK desde ese móvil
+app.post('/api/v1/community/referral-click', (req, res) => {
+  const referrer = String(req.body?.referrer || '').trim().toLowerCase();
+  const refCode = String(req.body?.ref_code || '').trim().toLowerCase();
+  if (referrer || refCode) {
+    const clientIp = getClientIp(req);
+    pendingReferralClicksByIp.set(clientIp, {
+      referrer,
+      refCode,
+      ts: Date.now()
+    });
+  }
+  res.json({ success: true });
+});
+
+// Verificar ESTRICTAMENTE si el amigo invitado entró por el enlace del jugador y jugó al menos 1 partida
 app.get('/api/v1/community/verify-friend', (req, res) => {
   const friendRaw = String(req.query.friend || '').trim();
   const referrerRaw = String(req.query.referrer || '').trim().toLowerCase();
+  const refCodeRaw = String(req.query.ref_code || '').trim().toLowerCase();
   const friendKey = friendRaw.toLowerCase();
 
-  if (referrerRaw && global.completedReferralsMap && global.completedReferralsMap.has(referrerRaw)) {
-    const friendsSet = global.completedReferralsMap.get(referrerRaw);
-    if (friendsSet && friendsSet.size > 0) {
-      const matchedFriend = Array.from(friendsSet)[0];
-      return res.json({ verified: true, friend_name: matchedFriend, method: 'referral_link' });
-    }
-  }
-
   if (!friendKey) {
-    return res.json({ verified: false, message: 'Introduce el nickname de tu amigo.' });
+    return res.json({ verified: false, message: 'Escribe el nickname con el que tu amigo jugó su partida.' });
   }
-  if (referrerRaw && friendKey === referrerRaw) {
-    return res.json({ verified: false, message: 'No puedes poner tu propio nickname.' });
+  if ((referrerRaw && friendKey === referrerRaw) || (refCodeRaw && friendKey === refCodeRaw)) {
+    return res.json({ verified: false, message: 'No puedes validar tu propio nickname. Debe ser el de tu amigo invitado.' });
   }
 
-  const inGlobal = playerGlobalAccumulator.has(friendKey);
-  let inWeekly = false;
-  for (const [, wMap] of playerWeeklyAccumulator.entries()) {
-    if (wMap && wMap.has(friendKey)) {
-      inWeekly = true;
-      break;
+  // Buscar el conjunto de amigos que realmente abrieron el enlace de este jugador (por nickname o por código único)
+  const allowedSets = [];
+  if (referrerRaw && completedReferralsMap.has(referrerRaw)) {
+    allowedSets.push(completedReferralsMap.get(referrerRaw));
+  }
+  if (refCodeRaw && completedReferralsMap.has(refCodeRaw)) {
+    allowedSets.push(completedReferralsMap.get(refCodeRaw));
+  }
+
+  for (const fSet of allowedSets) {
+    if (!fSet) continue;
+    for (const recordedName of fSet) {
+      if (String(recordedName).trim().toLowerCase() === friendKey) {
+        return res.json({
+          verified: true,
+          friend_name: recordedName,
+          method: 'referral_link'
+        });
+      }
     }
   }
 
-  if (inGlobal || inWeekly) {
-    const info = playerGlobalAccumulator.get(friendKey);
+  // Si el nombre existe en la clasificación pero NO entró con el enlace de este jugador, rechazarlo explícitamente
+  const existsInLeaderboard = playerGlobalAccumulator.has(friendKey);
+  if (existsInLeaderboard) {
     return res.json({
-      verified: true,
-      friend_name: (info && info.name) || friendRaw,
-      method: 'leaderboard'
+      verified: false,
+      message: 'Ese jugador no entró con tu enlace personal. Solo se valida al amigo al que le envíes tu enlace y juegue 1 partida.'
     });
   }
 
   return res.json({
     verified: false,
-    message: 'Tu amigo aún no aparece en la clasificación. ¡Dile que juegue su primera partida!'
+    message: 'Tu amigo aún no ha abierto tu enlace de invitación ni jugado su primera partida.'
   });
 });
 

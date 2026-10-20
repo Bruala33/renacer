@@ -25,7 +25,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css?v=9.0">
+  <link rel="stylesheet" href="./style.css?v=10.0">
   <script>
     // ===================================================
     // SISTEMA DE INTERNACIONALIZACIÓN (i18n: ES / EN)
@@ -1836,7 +1836,7 @@
             <p class="text-[10px] text-gray-300 leading-tight" data-i18n="apk_card_desc">
               Instala la app oficial en tu móvil para jugar a pantalla completa, vibración háptica y con disponibilidad 100% offline.
             </p>
-            <a href="/download/apk?v=9.0" onclick="this.href='/download/apk?v=9.0&t=' + Date.now()" download="PianoCommunity.apk" class="w-full py-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 text-black font-black rounded-lg text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition active:scale-95 cursor-pointer">
+            <a href="/download/apk?v=10.0" onclick="this.href='/download/apk?v=10.0&t=' + Date.now()" download="PianoCommunity.apk" class="w-full py-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 text-black font-black rounded-lg text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition active:scale-95 cursor-pointer">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               <span data-i18n="apk_card_btn">DESCARGAR APK ANDROID</span>
             </a>
@@ -2233,7 +2233,7 @@
           <p data-i18n="onboarding_apk_hint" class="text-[10px] text-amber-300/90 leading-tight">
             💡 Recuerda que también puedes descargar la app nativa para Android en cualquier momento desde <b>Ajustes ⚙️</b>.
           </p>
-          <a href="/download/apk?v=9.0" onclick="this.href='/download/apk?v=9.0&t=' + Date.now()" download="PianoCommunity.apk" class="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 rounded-xl text-amber-300 text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer">
+          <a href="/download/apk?v=10.0" onclick="this.href='/download/apk?v=10.0&t=' + Date.now()" download="PianoCommunity.apk" class="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 rounded-xl text-amber-300 text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="text-amber-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             <span data-i18n="onboarding_apk_btn">Descargar App (APK Android)</span>
           </a>
@@ -3276,7 +3276,7 @@
   </div> <!-- End of game-viewport -->
 
   <script src="./parsers.js?v=4.0"></script>
-  <script src="./game.js?v=9.0"></script>
+  <script src="./game.js?v=10.0"></script>
   <script src="./slot_machine.js?v=4.0"></script>
   <script src="./gachapon_3d.js?v=1.0"></script>
   <script src="./songs/comm_camilo_sesto/chart.js"></script>
@@ -3549,6 +3549,7 @@
         if (baseUrl) {
           const playerName = localStorage.getItem('beatstar_player_nickname') || 'Jugador';
           const referredBy = localStorage.getItem('beatstar_referred_by') || '';
+          const referredCode = localStorage.getItem('beatstar_referred_code') || '';
           fetch(`${baseUrl}/api/v1/community/charts/${encodeURIComponent(songId)}/score`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -3559,7 +3560,8 @@
               stars: stars,
               accuracy_pct: accuracyPct,
               medal_tier: medalTier,
-              referred_by: referredBy
+              referred_by: referredBy,
+              referred_code: referredCode
             })
           }).catch(() => {});
         }
@@ -13431,12 +13433,39 @@ function stopPianoCameraLoop() {
     let _currentModalSongTitle = 'PISTA';
     let _currentModalSongArtist = '';
 
-    // Capturar parámetro de invitación (?ref=nickname) si el jugador abrió un enlace compartido
+    function _getMyReferralCode() {
+      try {
+        let code = (localStorage.getItem('beatstar_my_ref_code') || '').trim();
+        if (!code) {
+          code = 'rnc_' + Math.random().toString(36).substring(2, 8);
+          localStorage.setItem('beatstar_my_ref_code', code);
+        }
+        return code;
+      } catch (_) {
+        return 'rnc_guest';
+      }
+    }
+
+    // Capturar parámetro de invitación (?ref=nickname&code=...) si el jugador abrió un enlace compartido
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const refParam = (urlParams.get('ref') || '').trim();
+      const codeParam = (urlParams.get('code') || '').trim();
       if (refParam) {
         localStorage.setItem('beatstar_referred_by', refParam);
+      }
+      if (codeParam) {
+        localStorage.setItem('beatstar_referred_code', codeParam);
+      }
+      if (refParam || codeParam) {
+        const baseUrl = (typeof getApiBaseUrl === 'function') ? getApiBaseUrl() : '';
+        if (baseUrl) {
+          fetch(`${baseUrl}/api/v1/community/referral-click`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ referrer: refParam, ref_code: codeParam })
+          }).catch(() => {});
+        }
       }
     } catch (_) {}
 
@@ -13864,10 +13893,14 @@ function stopPianoCameraLoop() {
     // =========================================================================
     function _getShareReferralUrl() {
       const myNick = (localStorage.getItem('beatstar_player_nickname') || '').trim();
+      const myCode = _getMyReferralCode();
       const baseOrigin = (window.location.origin && window.location.origin.startsWith('http') && !window.location.origin.includes('appassets'))
         ? window.location.origin
         : 'https://renacer.onrender.com';
-      return myNick ? `${baseOrigin}/?ref=${encodeURIComponent(myNick)}` : `${baseOrigin}/`;
+      if (myNick) {
+        return `${baseOrigin}/?ref=${encodeURIComponent(myNick)}&code=${encodeURIComponent(myCode)}`;
+      }
+      return `${baseOrigin}/?code=${encodeURIComponent(myCode)}`;
     }
 
     function openPromoMoreKeysModal() {
@@ -13960,16 +13993,17 @@ function stopPianoCameraLoop() {
       const btn = document.getElementById('btnVerifyPromoFriend');
       const friendNick = (friendInput ? friendInput.value : '').trim();
       const myNick = (localStorage.getItem('beatstar_player_nickname') || '').trim();
+      const myCode = _getMyReferralCode();
 
-      if (!friendNick && !myNick) {
+      if (!friendNick) {
         if (statusMsg) {
           statusMsg.style.color = '#ff5500';
-          statusMsg.innerText = 'Escribe el nickname con el que tu amigo jugó su partida.';
+          statusMsg.innerText = 'Escribe el nickname con el que tu amigo invitado jugó su partida.';
         }
         return;
       }
 
-      if (friendNick && myNick && friendNick.toLowerCase() === myNick.toLowerCase()) {
+      if (myNick && friendNick.toLowerCase() === myNick.toLowerCase()) {
         if (statusMsg) {
           statusMsg.style.color = '#ff5500';
           statusMsg.innerText = 'No puedes introducir tu propio nickname. Debe ser el de tu amigo.';
@@ -13978,7 +14012,7 @@ function stopPianoCameraLoop() {
       }
 
       const claimedFriends = JSON.parse(localStorage.getItem('beatstar_claimed_promo_friends_v1') || '[]');
-      if (friendNick && claimedFriends.includes(friendNick.toLowerCase())) {
+      if (claimedFriends.includes(friendNick.toLowerCase())) {
         if (statusMsg) {
           statusMsg.style.color = '#ff5500';
           statusMsg.innerText = 'Ya has reclamado las +3000 Claves con este amigo.';
@@ -13989,7 +14023,7 @@ function stopPianoCameraLoop() {
       if (btn) btn.disabled = true;
       if (statusMsg) {
         statusMsg.style.color = '#ffb300';
-        statusMsg.innerText = 'Comprobando clasificación online...';
+        statusMsg.innerText = 'Verificando invitación de tu enlace...';
       }
 
       let verified = false;
@@ -13999,7 +14033,7 @@ function stopPianoCameraLoop() {
       try {
         const baseUrl = (typeof getApiBaseUrl === 'function') ? getApiBaseUrl() : '';
         if (baseUrl) {
-          const qs = `friend=${encodeURIComponent(friendNick)}&referrer=${encodeURIComponent(myNick)}`;
+          const qs = `friend=${encodeURIComponent(friendNick)}&referrer=${encodeURIComponent(myNick)}&ref_code=${encodeURIComponent(myCode)}`;
           const res = await fetch(`${baseUrl}/api/v1/community/verify-friend?${qs}`);
           if (res.ok) {
             const data = await res.json();
@@ -14020,38 +14054,6 @@ function stopPianoCameraLoop() {
         console.warn('Error verificando en verify-friend:', err);
       }
 
-      // Fallback directo contra la leaderboard global y semanal por si el servidor está en modo caché
-      if (!verified && friendNick && !serverMsg) {
-        try {
-          const baseUrl = (typeof getApiBaseUrl === 'function') ? getApiBaseUrl() : '';
-          if (baseUrl) {
-            const [resG, resW] = await Promise.all([
-              fetch(`${baseUrl}/api/v1/community/leaderboards/global`).catch(() => null),
-              fetch(`${baseUrl}/api/v1/community/leaderboards/weekly`).catch(() => null)
-            ]);
-            const targetKey = friendNick.toLowerCase();
-            if (resG && resG.ok) {
-              const dG = await resG.json();
-              const listG = dG.global_leaderboard || dG.leaderboard || [];
-              const foundG = listG.find(r => String(r.player_name || r.name || '').trim().toLowerCase() === targetKey);
-              if (foundG) {
-                verified = true;
-                verifiedName = foundG.player_name || foundG.name || friendNick;
-              }
-            }
-            if (!verified && resW && resW.ok) {
-              const dW = await resW.json();
-              const listW = dW.weekly_leaderboard || dW.leaderboard || [];
-              const foundW = listW.find(r => String(r.player_name || r.name || '').trim().toLowerCase() === targetKey);
-              if (foundW) {
-                verified = true;
-                verifiedName = foundW.player_name || foundW.name || friendNick;
-              }
-            }
-          }
-        } catch (_) {}
-      }
-
       if (btn) btn.disabled = false;
 
       if (verified) {
@@ -14065,7 +14067,7 @@ function stopPianoCameraLoop() {
         }
         if (statusMsg) {
           statusMsg.style.color = '#00f5a0';
-          statusMsg.innerText = `¡Verificado! ${verifiedName} jugó una partida. ¡+3000 Claves 𝄞 añadidas!`;
+          statusMsg.innerText = `¡Verificado! ${verifiedName} entró con tu enlace y jugó. ¡+3000 Claves 𝄞 añadidas!`;
         }
         if (typeof showSuccessToast === 'function') {
           showSuccessToast(`¡+3000 Claves 𝄞 recibidas gracias a ${verifiedName}!`);
@@ -14074,7 +14076,7 @@ function stopPianoCameraLoop() {
       } else {
         if (statusMsg) {
           statusMsg.style.color = '#ff5500';
-          statusMsg.innerText = serverMsg || `Aún no aparece "${friendNick}" en la leaderboard. ¡Dile que termine 1 partida!`;
+          statusMsg.innerText = serverMsg || 'Ese jugador no entró desde tu enlace personal. Solo se valida al amigo al que le envías tu enlace.';
         }
       }
     }

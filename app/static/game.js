@@ -2925,6 +2925,8 @@ class BeatstarEngine {
       this._mushTargetFlipped = false;
       this._mushNextFlipTimeMs = 9500;
       this._mushSafeGraceUntilMs = 0;
+      this._mushInSafeTransition = false;
+      this._mushTransitionClouds = [];
       this._mushBannerText = '🍄 ¡MODO SETAS ALUCINÓGENAS! 🍄';
       this._mushBannerTimer = 2.6;
     }
@@ -3488,8 +3490,11 @@ class BeatstarEngine {
       color: p.c1
     });
 
-    // ⚡ Ventana amplia para swipes (320ms) para compensar el tiempo que tarda el dedo en desplazarse 18px
-    const HIT_WINDOW = (inputType === 'swipe') ? 320 : 240;
+    const isMushTiming = Boolean(this.isMushroomModeActive || (typeof window !== 'undefined' && window.isMushroomModeActive));
+    // ⚡ En Modo Setas Alucinógenas la ventana de tiempo es mucho más permisiva (400ms tap / 480ms swipe)
+    const HIT_WINDOW = isMushTiming
+      ? ((inputType === 'swipe') ? 480 : 400)
+      : ((inputType === 'swipe') ? 320 : 240);
     let closestNote = null;
     let minDiff = Infinity;
 
@@ -3501,7 +3506,10 @@ class BeatstarEngine {
       const note = this.notes[i];
       if (!note || note.hit || note.missed || note.holdCompleted || note.holding) continue;
       if (note.timestamp_ms - currentTime > HIT_WINDOW + 80) break;
-      if (!this.isCalibrating && note.lane !== lane) continue;
+      const matchesLane = this.isCalibrating
+        || note.lane === lane
+        || (isMushTiming && note._mushFromLane === lane);
+      if (!matchesLane) continue;
 
       const diffFromNote = currentTime - note.timestamp_ms;
       const absDiff = Math.abs(diffFromNote);
@@ -3510,16 +3518,16 @@ class BeatstarEngine {
       }
     }
 
-    // ⚡ Si es swipe y el jugador empezó el gesto ligeramente ladeado, buscar en carriles adyacentes
-    if (inputType === 'swipe' && laneNotes.length === 0) {
+    // ⚡ Si es swipe (o estamos en Modo Setas donde la cámara y las teclas bailan) y no hubo nota exacta en el carril, buscar en carriles adyacentes
+    if ((inputType === 'swipe' || isMushTiming) && laneNotes.length === 0) {
       for (let i = startSearchIdx; i < nLen; i++) {
         const note = this.notes[i];
         if (!note || note.hit || note.missed || note.holdCompleted || note.holding) continue;
         if (note.timestamp_ms - currentTime > HIT_WINDOW + 80) break;
-        if (note.type !== 'swipe') continue;
+        if (!isMushTiming && note.type !== 'swipe') continue;
         const diffFromNote = currentTime - note.timestamp_ms;
         const absDiff = Math.abs(diffFromNote);
-        if (absDiff <= HIT_WINDOW) {
+        if (absDiff <= (isMushTiming ? 280 : HIT_WINDOW)) {
           laneNotes.push({ note, absDiff, diff: diffFromNote, time: note.timestamp_ms });
         }
       }
@@ -3529,14 +3537,15 @@ class BeatstarEngine {
       laneNotes.sort((a, b) => a.time - b.time);
     }
     const isActivelyPlaying = (this.isRunning || (this.sync && this.sync.isPlaying)) && !this.isPaused && !this.isGameOver && !this.isCountingDown && !this.isCalibrating && !!this.beatmapData;
+    const isProtectedTransition = Boolean(this._mushInSafeTransition || (currentTime < (this.invulnerableUntil || 0)));
 
     if (laneNotes.length === 0) {
       if (this.customBgMode === 'reactive') {
         this.addReactiveBurst(lane, hitX, hitY, this.getScoreColor('perfectPlus'));
       }
-      if (this.isCalibrating) {
+      if (this.isCalibrating || isProtectedTransition || isMushTiming) {
         this.synth.playClick();
-        this.emitKeyHit(hitX, hitY, this.getScoreColor('perfectPlus'), 24);
+        this.emitKeyHit(hitX, hitY, isMushTiming ? '#ff00ff' : this.getScoreColor('perfectPlus'), 18);
         return;
       }
       if (isActivelyPlaying && !this.isProcessingMiss) {
@@ -3561,20 +3570,18 @@ class BeatstarEngine {
     const frontNote = frontEntry.note;
 
     if (inputType === 'tap') {
-      // Si la nota frontal es un SWIPE, el toque inicial (touchstart) NO la falla;
-      // se espera a que handleTouchMove detecte el deslizamiento del dedo.
-      if (frontNote.type === 'swipe') {
+      // Si la nota frontal es un SWIPE, en modo normal se espera a handleTouchMove;
+      // en Modo Setas Alucinógenas se acepta también con tap directo para no penalizar cuando la cámara gira
+      if (frontNote.type === 'swipe' && !isMushTiming) {
         return;
       }
-      // La nota frontal es un tap normal o un hold
       closestNote = frontNote;
       minDiff = frontEntry.absDiff;
     } else if (inputType === 'swipe') {
-      // Si la nota frontal es un SWIPE, verificar dirección
       if (frontNote.type === 'swipe') {
         const targetDir = (frontNote.direction || 'up').toLowerCase();
         const curDir = (swipeDirection || '').toLowerCase();
-        if (!curDir || !targetDir || curDir === targetDir) {
+        if (isMushTiming || !curDir || !targetDir || curDir === targetDir) {
           closestNote = frontNote;
           minDiff = frontEntry.absDiff;
         } else {
@@ -3619,7 +3626,7 @@ class BeatstarEngine {
     else if (closestNote.type === 'swipe') {
       const targetDir = (closestNote.direction || 'up').toLowerCase();
       const curDir = (swipeDirection || '').toLowerCase();
-      const isExactSwipe = (inputType === 'swipe' && (!curDir || !closestNote.direction || curDir === targetDir));
+      const isExactSwipe = isMushTiming || (inputType === 'swipe' && (!curDir || !closestNote.direction || curDir === targetDir));
       
       if (!isExactSwipe) {
         // Dirección errónea o toque simple: no valida
@@ -3728,8 +3735,11 @@ class BeatstarEngine {
     const heldDuration = currentTime - active.startTime;
     const totalDuration = endT - active.startTime;
 
-    // Acierto completado si se mantuvo al menos el 60% o hasta 180ms del final
-    if (currentTime >= endT - 180 || (totalDuration > 0 && (heldDuration / totalDuration) >= 0.60)) {
+    const isMushHold = Boolean(this.isMushroomModeActive || (typeof window !== 'undefined' && window.isMushroomModeActive));
+    const isSafeHold = Boolean(this._mushInSafeTransition || (currentTime < (this.invulnerableUntil || 0)));
+
+    // Acierto completado si se mantuvo al menos el 60% o hasta 180ms del final (mucho más permisivo en Modo Setas o durante transición)
+    if (isSafeHold || isMushHold || currentTime >= endT - 180 || (totalDuration > 0 && (heldDuration / totalDuration) >= 0.60)) {
       note.holdCompleted = true;
       note.hit = true;
       note.holding = false;
@@ -3766,7 +3776,12 @@ class BeatstarEngine {
     let flashColor = '#ffd700';
     let judgeTier = 'great';
 
-    if (diffMs <= 45) {
+    const isMushJudge = Boolean(this.isMushroomModeActive || (typeof window !== 'undefined' && window.isMushroomModeActive));
+    const perfPlusMax = isMushJudge ? 115 : 45;
+    const perfMax = isMushJudge ? 210 : 90;
+    const greatMax = isMushJudge ? 320 : 170;
+
+    if (diffMs <= perfPlusMax) {
       text = customLabel ? `PERFECT+ ${customLabel}` : 'PERFECT+';
       color = this.getScoreColor('perfectPlus');
       flashColor = this.getJudgeGlowColor('perfectPlus');
@@ -3775,7 +3790,7 @@ class BeatstarEngine {
       this.stats.perfectPlus++;
       this.streakCount++;
       judgeTier = 'perfectPlus';
-    } else if (diffMs <= 90) {
+    } else if (diffMs <= perfMax) {
       text = customLabel ? `PERFECT ${customLabel}` : 'PERFECT';
       color = this.getScoreColor('perfect');
       flashColor = this.getJudgeGlowColor('perfect');
@@ -3784,7 +3799,7 @@ class BeatstarEngine {
       this.stats.perfect++;
       this.streakCount++;
       judgeTier = 'perfect';
-    } else if (diffMs <= 170) {
+    } else if (diffMs <= greatMax) {
       text = customLabel ? `GREAT ${customLabel}` : 'GREAT';
       color = this.getScoreColor('great');
       flashColor = this.getJudgeGlowColor('great');
@@ -4132,6 +4147,10 @@ class BeatstarEngine {
   }
 
   handleMiss() {
+    const curGameT = this.getCurrentGameTimeMs();
+    if (this._mushInSafeTransition || (curGameT < (this.invulnerableUntil || 0))) {
+      return;
+    }
     if (this.isProcessingMiss || this.isGameOver || this.isPaused) {
       console.warn('[MISS] Blocked: processing=' + this.isProcessingMiss + ' gameOver=' + this.isGameOver + ' paused=' + this.isPaused);
       return;
@@ -4214,12 +4233,17 @@ class BeatstarEngine {
   addJudgement(text, color, lane = null) {
     if (!text || !String(text).trim().length) return;
     const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
-    const startY = hitY - 24;
+    const isFlippedMush = Boolean(
+      (this.isMushroomModeActive || (typeof window !== 'undefined' && window.isMushroomModeActive)) &&
+      (this._mushFlipProgress || 0) > 0.5
+    );
+    const startY = isFlippedMush ? ((this.height || 640) * 0.20 + 18) : (hitY - 24);
     let posX = this.width / 2;
     if (lane !== null && lane >= 0 && lane <= 2) {
       if (this.visualDimension !== '2d') {
-        const xL = this.getLaneBoundaryX(lane, startY);
-        const xR = this.getLaneBoundaryX(lane + 1, startY);
+        const refY = isFlippedMush ? (hitY - 24) : startY;
+        const xL = this.getLaneBoundaryX(lane, refY);
+        const xR = this.getLaneBoundaryX(lane + 1, refY);
         posX = (xL + xR) / 2;
       } else {
         posX = (lane + 0.5) * (this.width / 3);
@@ -4652,8 +4676,9 @@ class BeatstarEngine {
       }
     }
 
-    // Once a note has passed the hit window (+120ms), it can no longer be hit and is judged MISS
-    const exitScreenOffsetMs = 120;
+    // Once a note has passed the hit window (+120ms normal / +260ms en Modo Setas Alucinógenas), it is judged
+    const isMushUpdate = Boolean(this.isMushroomModeActive || (typeof window !== 'undefined' && window.isMushroomModeActive));
+    const exitScreenOffsetMs = isMushUpdate ? 260 : 120;
     const notesLen = this.notes.length;
 
     while (this.firstActiveNoteIndex < notesLen) {
@@ -4685,9 +4710,9 @@ class BeatstarEngine {
         break;
       }
 
-      // En Modo Setas Alucinógenas: durante la transición elegante de inversión de gravedad,
-      // auto-completar las notas que cruzan la línea para que sea 100% imposible perder en mitad del giro
-      if (this._mushInSafeTransition && currentTime >= noteTime - 25) {
+      // En Modo Setas Alucinógenas: durante la transición de nube de setas / inversión de gravedad,
+      // auto-completar las notas para que jamás se pueda fallar en mitad del cambio
+      if ((this._mushInSafeTransition || currentTime < (this.invulnerableUntil || 0)) && currentTime >= noteTime - 60) {
         note.hit = true;
         note.processed = true;
         if (note.type === 'hold') note.holdCompleted = true;
@@ -4699,6 +4724,12 @@ class BeatstarEngine {
       }
 
       if (currentTime >= 0 && (currentTime - noteTime >= exitScreenOffsetMs)) {
+        if (this._mushInSafeTransition || currentTime < (this.invulnerableUntil || 0)) {
+          note.hit = true;
+          note.processed = true;
+          if (note.type === 'hold') note.holdCompleted = true;
+          continue;
+        }
         note.missed = true;
         note.processed = true;
         note.missHighlight = true;
@@ -7327,34 +7358,138 @@ class BeatstarEngine {
     }
   }
 
+  _triggerMushroomCloudTransition(currentTime) {
+    if (!this._mushTransitionClouds) this._mushTransitionClouds = [];
+    const w = this.width || 360;
+    const h = this.height || 640;
+    const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (h * 0.84);
+    const horizonY = 12;
+    const scrollDur = (Number.isFinite(this.scrollDurationMs) && this.scrollDurationMs > 0) ? this.scrollDurationMs : 1400;
+    const wasFlipped = (this._mushFlipProgress || 0) > 0.5;
+    const cloudPalette = ['#ff00ff', '#00ff88', '#00f2fe', '#ffee00', '#b833ff'];
+
+    // 1. Completar holds activos limpiamente sin fallo
+    if (this.activeHolds && this.activeHolds.size > 0) {
+      for (const [, active] of this.activeHolds.entries()) {
+        if (active && active.note) {
+          active.note.holdCompleted = true;
+          active.note.hit = true;
+          active.note.holding = false;
+          active.note.processed = true;
+        }
+      }
+      this.activeHolds.clear();
+    }
+
+    // 2. Hacer desaparecer TODAS las teclas en pantalla y las que caerían durante el giro,
+    // convirtiendo cada tecla en una explosión de Nube de Setas Alucinógenas
+    const notesLen = this.notes ? this.notes.length : 0;
+    const startIdx = Math.max(0, (this.firstActiveNoteIndex || 0) - 2);
+    let dissolvedCount = 0;
+
+    for (let i = startIdx; i < notesLen; i++) {
+      const n = this.notes[i];
+      if (!n || n.hit || n.missed || n.processed || n.holdCompleted) continue;
+      const nTime = n.timestamp_ms ?? n.timeMs ?? 0;
+      const dtNote = nTime - currentTime;
+      if (dtNote > 2550) break;
+
+      if (dtNote >= -350 && dtNote <= 2550) {
+        const pRaw = Math.max(0.08, Math.min(0.95, 1.0 - (dtNote / scrollDur)));
+        const coord = this.getPerspectiveCoord(n.lane ?? 1, pRaw);
+        const screenX = coord.x;
+        const screenY = wasFlipped ? (horizonY + hitY - coord.y) : coord.y;
+
+        // Nube de humo psicodélica + seta brotando en la posición exacta de la tecla desaparecida
+        for (let k = 0; k < 3; k++) {
+          const ang = (k / 3) * Math.PI * 2 + (i * 0.7);
+          this._mushTransitionClouds.push({
+            x: screenX + Math.cos(ang) * 10,
+            y: screenY + Math.sin(ang) * 8,
+            vx: Math.cos(ang) * (28 + (k * 16)),
+            vy: Math.sin(ang) * (24 + (k * 12)) - 18,
+            r: 22 + (k % 2) * 14,
+            maxR: 54 + (k % 3) * 18,
+            color: cloudPalette[(i + k) % cloudPalette.length],
+            age: 0,
+            duration: 1.35 + (k * 0.18),
+            isMushroomSprite: (k === 0),
+            spriteIdx: (i + k) % 4,
+            rot: (k - 1) * 0.25,
+            rotSpeed: (k % 2 === 0 ? 1 : -1) * 2.2
+          });
+        }
+
+        n.hit = true;
+        n.processed = true;
+        n.holding = false;
+        if (n.type === 'hold') n.holdCompleted = true;
+        dissolvedCount++;
+      }
+    }
+
+    if (dissolvedCount > 0) {
+      this.combo += dissolvedCount;
+      if (this.combo > this.maxCombo) this.maxCombo = this.combo;
+      this.stats.perfectPlus = (this.stats.perfectPlus || 0) + dissolvedCount;
+      this.addScore(dissolvedCount * 350 * (this.multiplier || 1));
+    }
+
+    // 3. Gran Nube Central de Setas que envuelve la pista durante el giro de cámara
+    for (let c = 0; c < 18; c++) {
+      const frac = c / 18;
+      const angle = frac * Math.PI * 2;
+      const dist = 18 + (c % 4) * 28;
+      this._mushTransitionClouds.push({
+        x: w * 0.5 + Math.cos(angle) * dist,
+        y: h * (0.25 + (c % 5) * 0.12),
+        vx: Math.cos(angle) * (42 + (c % 3) * 22),
+        vy: Math.sin(angle) * 30 - 12,
+        r: 28 + (c % 3) * 16,
+        maxR: 68 + (c % 4) * 22,
+        color: cloudPalette[c % cloudPalette.length],
+        age: 0,
+        duration: 1.55 + (c % 3) * 0.2,
+        isMushroomSprite: (c % 2 === 0),
+        spriteIdx: c % 4,
+        rot: Math.sin(c) * 0.4,
+        rotSpeed: (c % 2 === 0 ? 1 : -1) * 2.6
+      });
+    }
+  }
+
   _beginMushroomWorldTransform(ctx, currentTime) {
     if (!this._mushAssetsReady) this.initMushroomModeAssets();
     const nowPerf = this._frameNow || performance.now();
     const dt = Math.min(0.05, Math.max(0.004, (nowPerf - (this._mushLastTransformNow || nowPerf)) / 1000));
     this._mushLastTransformNow = nowPerf;
 
-    // Programar inversiones elegantes de gravedad cada ~13.5 segundos
+    // Programar inversiones elegantes de gravedad cada ~14 segundos
     if (currentTime > 3000 && currentTime >= (this._mushNextFlipTimeMs || 9500)) {
       this._mushTargetFlipped = !this._mushTargetFlipped;
-      this._mushNextFlipTimeMs = currentTime + 13500;
+      this._mushNextFlipTimeMs = currentTime + 14000;
       this._mushBannerText = this._mushTargetFlipped
-        ? '🍄 ¡GRAVEDAD INVERTIDA: PERFECT ARRIBA! 🍄'
-        : '🍄 ¡GRAVEDAD NORMAL: PERFECT ABAJO! 🍄';
-      this._mushBannerTimer = 2.6;
+        ? '🍄 ¡NUBE DE SETAS: PERFECT ARRIBA! 🍄'
+        : '🍄 ¡NUBE DE SETAS: PERFECT ABAJO! 🍄';
+      this._mushBannerTimer = 2.8;
+      this._mushSafeGraceUntilMs = currentTime + 2900;
+      this._mushInSafeTransition = true;
+      this.invulnerableUntil = Math.max(this.invulnerableUntil || 0, currentTime + 2900);
+      this._triggerMushroomCloudTransition(currentTime);
     }
 
     const targetP = this._mushTargetFlipped ? 1.0 : 0.0;
     const curP = this._mushFlipProgress || 0.0;
     if (Math.abs(targetP - curP) > 0.001) {
-      const step = dt / 1.65; // Transición suave y elegante de 1.65s
+      const step = dt / 1.55; // Transición suave y elegante de 1.55s mientras la nube de setas limpia la pista
       if (curP < targetP) {
         this._mushFlipProgress = Math.min(1.0, curP + step);
       } else {
         this._mushFlipProgress = Math.max(0.0, curP - step);
       }
-      this._mushSafeGraceUntilMs = currentTime + 750;
+      this._mushSafeGraceUntilMs = Math.max(this._mushSafeGraceUntilMs || 0, currentTime + 1150);
       this._mushInSafeTransition = true;
-      this.invulnerableUntil = Math.max(this.invulnerableUntil || 0, currentTime + 900);
+      this.invulnerableUntil = Math.max(this.invulnerableUntil || 0, currentTime + 1150);
     } else {
       this._mushFlipProgress = targetP;
       this._mushInSafeTransition = currentTime < (this._mushSafeGraceUntilMs || 0);
@@ -7463,7 +7598,53 @@ class BeatstarEngine {
       }
     }
 
-    // 4. Portal circular y cartel durante la transición elegante de gravedad (sin perder combo)
+    // 4. Animación de NUBE DE SETAS al desaparecer las teclas durante la transición de gravedad
+    if (this._mushTransitionClouds && this._mushTransitionClouds.length > 0) {
+      for (let i = this._mushTransitionClouds.length - 1; i >= 0; i--) {
+        const cl = this._mushTransitionClouds[i];
+        cl.age += dt;
+        if (cl.age >= cl.duration) {
+          this._mushTransitionClouds.splice(i, 1);
+          continue;
+        }
+        const prog = cl.age / cl.duration;
+        const easeOut = 1.0 - Math.pow(1.0 - prog, 2.2);
+        cl.x += cl.vx * dt;
+        cl.y += cl.vy * dt;
+        cl.rot += cl.rotSpeed * dt;
+        const curR = cl.r + (cl.maxR - cl.r) * easeOut;
+        const alpha = prog < 0.2 ? (prog / 0.2) : (1.0 - ((prog - 0.2) / 0.8));
+
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = Math.max(0, Math.min(0.85, alpha * 0.65));
+        ctx.fillStyle = cl.color;
+        ctx.beginPath();
+        ctx.arc(cl.x, cl.y, curR, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.globalAlpha = Math.max(0, Math.min(0.95, alpha * 0.85));
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(cl.x - curR * 0.22, cl.y - curR * 0.18, curR * 0.42, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        if (cl.isMushroomSprite && this._mushSprites && this._mushSprites.length > 0) {
+          ctx.save();
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.globalAlpha = Math.max(0, Math.min(1.0, alpha * 1.1));
+          ctx.translate(cl.x, cl.y);
+          ctx.rotate(cl.rot);
+          const mSize = curR * 1.15;
+          const spr = this._mushSprites[cl.spriteIdx % this._mushSprites.length];
+          ctx.drawImage(spr, -mSize * 0.5, -mSize * 0.5, mSize, mSize);
+          ctx.restore();
+        }
+      }
+    }
+
+    // 5. Portal circular y cartel durante la transición elegante de gravedad (sin perder combo)
     const flipEase = 0.5 - 0.5 * Math.cos(Math.PI * (this._mushFlipProgress || 0));
     const flipSin = Math.sin(Math.PI * flipEase);
     if (flipSin > 0.02) {
