@@ -1877,6 +1877,16 @@
         "accuracy": 14.316610474145747,
         "date": "2026-10-20 19:13:14"
       }
+    ],
+    "top_david_bisbal_bulera": [
+      {
+        "name": "Mauricio",
+        "score": 348011,
+        "stars": 1,
+        "combo": 200,
+        "accuracy": 21.568781786607204,
+        "date": "2026-10-20 19:15:12"
+      }
     ]
   },
   "global": [
@@ -1917,8 +1927,8 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 2249458,
-      "clefs": 18
+      "total_score": 2597469,
+      "clefs": 21
     },
     {
       "name": "MasterPianist",
@@ -2019,7 +2029,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 2249458
+        "score": 2597469
       },
       {
         "name": "Darwin67",
