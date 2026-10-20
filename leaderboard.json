@@ -1827,6 +1827,16 @@
         "accuracy": 0.35216365436311203,
         "date": "2026-10-20 17:58:05"
       }
+    ],
+    "top_el_sueno_de_morfeo_demasiado_tarde": [
+      {
+        "name": "Test",
+        "score": 9340,
+        "stars": 3.5,
+        "combo": 15,
+        "accuracy": 0.9893816258908672,
+        "date": "2026-10-20 18:56:31"
+      }
     ]
   },
   "global": [
@@ -1852,7 +1862,7 @@
     },
     {
       "name": "Test",
-      "total_score": 5241106,
+      "total_score": 5250446,
       "clefs": 43
     },
     {
@@ -1965,7 +1975,7 @@
       },
       {
         "name": "Test",
-        "score": 4711465
+        "score": 4720805
       },
       {
         "name": "Mauricio",
@@ -1991,11 +2001,13 @@
   },
   "referrals": {
     "mauricio": [
-      "Camaleon"
+      "Camaleon",
+      "Test"
     ],
     "rnc_ty7gkp": [
       "Camaleon",
-      "Mauricio"
+      "Mauricio",
+      "Test"
     ]
   }
 }
