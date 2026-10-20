@@ -1759,6 +1759,16 @@
         "accuracy": 46.0756779126967,
         "date": "2026-10-20 11:23:21"
       }
+    ],
+    "top_madness_our_house": [
+      {
+        "name": "Camaleon",
+        "score": 17550,
+        "stars": 3.5,
+        "combo": 25,
+        "accuracy": 1.2816065723413965,
+        "date": "2026-10-20 11:25:23"
+      }
     ]
   },
   "global": [
@@ -1843,6 +1853,11 @@
       "clefs": 0
     },
     {
+      "name": "Camaleon",
+      "total_score": 17550,
+      "clefs": 0
+    },
+    {
       "name": "Papa",
       "total_score": 7626,
       "clefs": 0
@@ -1907,10 +1922,21 @@
         "score": 30185
       },
       {
+        "name": "Camaleon",
+        "score": 17550
+      },
+      {
         "name": "PixToPix",
         "score": 1500
       }
     ]
   },
-  "referrals": {}
+  "referrals": {
+    "mauricio": [
+      "Camaleon"
+    ],
+    "rnc_ty7gkp": [
+      "Camaleon"
+    ]
+  }
 }
