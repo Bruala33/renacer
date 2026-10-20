@@ -1707,9 +1707,9 @@
         "name": "Mauricio",
         "score": 401400,
         "stars": 3.5,
-        "combo": 193,
-        "accuracy": 19.107461620849698,
-        "date": "2026-10-20 09:08:29"
+        "combo": 3,
+        "accuracy": 0.06426276329882184,
+        "date": "2026-10-20 09:09:56"
       }
     ]
   },
@@ -1750,6 +1750,11 @@
       "clefs": 33
     },
     {
+      "name": "Mauricio",
+      "total_score": 802800,
+      "clefs": 8
+    },
+    {
       "name": "MasterPianist",
       "total_score": 600000,
       "clefs": 6
@@ -1768,11 +1773,6 @@
       "name": "Layla",
       "total_score": 437350,
       "clefs": 1
-    },
-    {
-      "name": "Mauricio",
-      "total_score": 401400,
-      "clefs": 4
     },
     {
       "name": "`pc",
@@ -1843,7 +1843,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 401400
+        "score": 802800
       },
       {
         "name": "Darwin67",
