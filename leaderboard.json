@@ -1905,6 +1905,16 @@
         "accuracy": 29.997925795327856,
         "date": "2026-10-20 19:28:52"
       }
+    ],
+    "top_shawn_mendes_camila_cabello_senorita": [
+      {
+        "name": "Mauricio",
+        "score": 758074,
+        "stars": 1,
+        "combo": 386,
+        "accuracy": 39.42460260707441,
+        "date": "2026-10-20 19:30:44"
+      }
     ]
   },
   "global": [
@@ -1939,14 +1949,14 @@
       "clefs": 43
     },
     {
-      "name": "bobon",
-      "total_score": 3845429,
+      "name": "Mauricio",
+      "total_score": 3957188,
       "clefs": 33
     },
     {
-      "name": "Mauricio",
-      "total_score": 3199114,
-      "clefs": 26
+      "name": "bobon",
+      "total_score": 3845429,
+      "clefs": 33
     },
     {
       "name": "MasterPianist",
@@ -2047,7 +2057,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 3199114
+        "score": 3957188
       },
       {
         "name": "Darwin67",
