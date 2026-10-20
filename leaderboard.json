@@ -1721,6 +1721,16 @@
         "accuracy": 8.163171190775445,
         "date": "2026-10-20 09:10:43"
       }
+    ],
+    "top_pablo_alboran_no_vaya_a_ser": [
+      {
+        "name": "U",
+        "score": 30185,
+        "stars": 3.5,
+        "combo": 30,
+        "accuracy": 2.004451828742717,
+        "date": "2026-10-20 10:06:07"
+      }
     ]
   },
   "global": [
@@ -1795,6 +1805,11 @@
       "clefs": 2
     },
     {
+      "name": "U",
+      "total_score": 30185,
+      "clefs": 0
+    },
+    {
       "name": ".",
       "total_score": 24975,
       "clefs": 0
@@ -1858,6 +1873,10 @@
       {
         "name": "Darwin67",
         "score": 265556
+      },
+      {
+        "name": "U",
+        "score": 30185
       },
       {
         "name": "PixToPix",
