@@ -1923,7 +1923,7 @@
         "stars": 5,
         "combo": 446,
         "accuracy": 94.27523465152564,
-        "date": "2026-10-20 19:33:05"
+        "date": "2026-10-20 19:33:17"
       }
     ]
   },
@@ -1949,6 +1949,11 @@
       "clefs": 100
     },
     {
+      "name": "Mauricio",
+      "total_score": 5734806,
+      "clefs": 49
+    },
+    {
       "name": "Test",
       "total_score": 5421144,
       "clefs": 44
@@ -1957,11 +1962,6 @@
       "name": "Azure",
       "total_score": 5132756,
       "clefs": 43
-    },
-    {
-      "name": "Mauricio",
-      "total_score": 4845997,
-      "clefs": 41
     },
     {
       "name": "bobon",
@@ -2062,12 +2062,12 @@
         "score": 12366565
       },
       {
-        "name": "Test",
-        "score": 4891503
+        "name": "Mauricio",
+        "score": 5734806
       },
       {
-        "name": "Mauricio",
-        "score": 4845997
+        "name": "Test",
+        "score": 4891503
       },
       {
         "name": "Darwin67",
