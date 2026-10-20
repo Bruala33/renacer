@@ -1708,6 +1708,14 @@
         "combo": 103,
         "accuracy": 11.260121231598776,
         "date": "2026-10-20 08:55:28"
+      },
+      {
+        "name": "Mauricio",
+        "score": 32691,
+        "stars": 3.5,
+        "combo": 14,
+        "accuracy": 2.431996929037557,
+        "date": "2026-10-20 17:55:36"
       }
     ],
     "top_mark_ronson_feat_bruno_mars_uptown_funk": [
@@ -1839,7 +1847,7 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 1817000,
+      "total_score": 1849691,
       "clefs": 15
     },
     {
@@ -1941,7 +1949,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 1817000
+        "score": 1849691
       },
       {
         "name": "Darwin67",
