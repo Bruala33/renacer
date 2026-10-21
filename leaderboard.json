@@ -2019,6 +2019,16 @@
         "accuracy": 24.120259671678472,
         "date": "2026-10-21 16:03:42"
       }
+    ],
+    "top_azcar_moreno_bandido": [
+      {
+        "name": "Test",
+        "score": 148200,
+        "stars": 3.5,
+        "combo": 105,
+        "accuracy": 15.424726398451282,
+        "date": "2026-10-21 17:30:27"
+      }
     ]
   },
   "global": [
@@ -2049,8 +2059,8 @@
     },
     {
       "name": "Test",
-      "total_score": 7798156,
-      "clefs": 66
+      "total_score": 7946356,
+      "clefs": 67
     },
     {
       "name": "Azure",
@@ -2161,7 +2171,7 @@
       },
       {
         "name": "Test",
-        "score": 7268515
+        "score": 7416715
       },
       {
         "name": "Darwin67",
