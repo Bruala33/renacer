@@ -2095,6 +2095,16 @@
         "accuracy": 75.08763893395428,
         "date": "2026-10-21 19:20:06"
       }
+    ],
+    "top_bad_bunny_yo_perreo_sola": [
+      {
+        "name": "Mauricio",
+        "score": 214241,
+        "stars": 3.5,
+        "combo": 133,
+        "accuracy": 14.354063459350666,
+        "date": "2026-10-21 20:00:06"
+      }
     ]
   },
   "global": [
@@ -2110,8 +2120,8 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 17007850,
-      "clefs": 153
+      "total_score": 17222091,
+      "clefs": 155
     },
     {
       "name": "Dady cool",
@@ -2229,7 +2239,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 17007850
+        "score": 17222091
       },
       {
         "name": "Dady cool",
