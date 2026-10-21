@@ -2043,11 +2043,11 @@
     "osu_2321476": [
       {
         "name": "Mauricio",
-        "score": 371550,
-        "stars": 3.5,
-        "combo": 206,
-        "accuracy": 8.469244708859028,
-        "date": "2026-10-21 17:34:35"
+        "score": 921450,
+        "stars": 1,
+        "combo": 258,
+        "accuracy": 32.53362991208558,
+        "date": "2026-10-21 17:36:45"
       }
     ]
   },
@@ -2069,8 +2069,8 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 11552559,
-      "clefs": 101
+      "total_score": 12474009,
+      "clefs": 110
     },
     {
       "name": "bubu",
@@ -2182,12 +2182,12 @@
     "week_id": "2026-W43",
     "players": [
       {
-        "name": "Dady cool",
-        "score": 12366565
+        "name": "Mauricio",
+        "score": 12474009
       },
       {
-        "name": "Mauricio",
-        "score": 11552559
+        "name": "Dady cool",
+        "score": 12366565
       },
       {
         "name": "Test",
