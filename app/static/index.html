@@ -8879,7 +8879,8 @@ function stopPianoCameraLoop() {
       }
 
       if (!window._modeAlreadyChosenForThisLaunch && !window.isPlaytestingFromEditor && typeof openGameModeSelectModal === 'function') {
-        const chosenMode = await openGameModeSelectModal(chartItem.title || 'PISTA', chartItem.artist || '');
+        const hasKaraoke = typeof doesSongHaveKaraoke === 'function' ? doesSongHaveKaraoke(chartItem) : false;
+        const chosenMode = await openGameModeSelectModal(chartItem.title || 'PISTA', chartItem.artist || '', hasKaraoke);
         if (!chosenMode) {
           window.isGameLoadingOrActive = false;
           return;
@@ -8950,64 +8951,92 @@ function stopPianoCameraLoop() {
         }
 
         // ==========================================
-        // 1. FLUJO BLINDADO PARA OSU! MANIA (CANALIZADO VIA CLOUDFLARE WORKER)
+        // 1. FLUJO ULTRARRÁPIDO PARALELO PARA OSU! MANIA (CARRERA SIMULTÁNEA DE MIRRORS)
         // ==========================================
         const isOsuTrack = chartItem.source === 'osu' || chartItem.source === 'catboy' || (chartItem.id && String(chartItem.id).startsWith('osu_'));
         if (isOsuTrack) {
           const term = document.getElementById('diagnosticTerminal');
           if (term) term.classList.add('hidden');
-          loadStatus.innerText = 'Descargando beatmap de osu!...';
+          loadStatus.innerText = 'Descargando beatmap de osu! a máxima velocidad...';
 
-          const osuSetId = (chartItem.id || '').replace('osu_', '');
+          const osuSetId = String(chartItem.id || '').replace(/^osu_/, '').trim();
           const myWorker = (u) => `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(u)}`;
+          const cfWorker2 = (u) => `https://tight-breeze-969f.p1822994.workers.dev/?url=${encodeURIComponent(u)}`;
           const apiBase = (typeof getApiBaseUrl === 'function') ? getApiBaseUrl() : '';
 
-          // Espejos ordenados por velocidad y compatibilidad CORS:
-          const osuCandidates = [
-            `${apiBase}/api/v1/download/osu/${osuSetId}`,
-            myWorker(`https://api.nerinyan.moe/d/${osuSetId}?noVideo=true`),
-            `https://api.nerinyan.moe/d/${osuSetId}?noVideo=true`,
-            myWorker(`https://dl.nerinyan.moe/v2/d/${osuSetId}?noVideo=true`),
-            `https://dl.nerinyan.moe/v2/d/${osuSetId}?noVideo=true`,
-            myWorker(`https://txy1.sayobot.cn/beatmaps/download/mini/${osuSetId}`),
-            `https://txy1.sayobot.cn/beatmaps/download/mini/${osuSetId}`,
-            `https://dl.sayobot.cn/beatmaps/download/mini/${osuSetId}`
-          ];
-
-          const tryOsuFetch = async (url) => {
-            const c = new AbortController();
-            const tid = setTimeout(() => c.abort(), 4500);
-            try {
-              const r = await fetch(url, { signal: c.signal });
-              clearTimeout(tid);
-              if (!r.ok) throw new Error('HTTP ' + r.status);
-
-              const b = await r.arrayBuffer();
-              if (!b || b.byteLength < 500) throw new Error('Buffer vacío o corrupto');
-
-              // Leer únicamente los primeros 30 bytes del buffer recibido
-              const firstBytes = new Uint8Array(b.slice(0, 30));
-              const firstStr = String.fromCharCode(...firstBytes).toLowerCase();
-              if (firstStr.includes('<!doc') || firstStr.includes('<html') || firstStr.includes('{"error"') || firstStr.includes('{"status":40')) {
-                throw new Error(`Respuesta HTML / error inválido: "${firstStr.slice(0, 20)}..."`);
-              }
-
-              return b;
-            } catch (e) {
-              clearTimeout(tid);
-              throw e;
-            }
-          };
-
-          let arrayBuffer = null;
+          if (!window._osuOszMemCache) window._osuOszMemCache = new Map();
+          let arrayBuffer = window._osuOszMemCache.get(osuSetId) || null;
           let lastOsuErr = null;
-          for (const u of osuCandidates) {
-            try {
-              arrayBuffer = await tryOsuFetch(u);
-              if (arrayBuffer && arrayBuffer.byteLength > 500) break;
-            } catch (e) {
-              lastOsuErr = e;
-              console.warn(`Mirror osu! fallido (${u}): ${e.message}`);
+
+          if (!arrayBuffer) {
+            // Nivel 1: Carrera paralela simultánea entre los CDNs sin vídeo más rápidos (el primero que responda aborta el resto al instante)
+            const fastParallelUrls = [
+              `https://catboy.best/d/${osuSetId}n`,
+              `https://api.nerinyan.moe/d/${osuSetId}?noVideo=true`,
+              `https://osu.direct/api/d/${osuSetId}?noVideo=1`,
+              `${apiBase}/api/v1/download/osu/${osuSetId}`,
+              myWorker(`https://catboy.best/d/${osuSetId}n`),
+              myWorker(`https://api.nerinyan.moe/d/${osuSetId}?noVideo=true`)
+            ];
+
+            // Nivel 2: Respaldo paralelo secundario si los principales tardan o bloquean CORS
+            const fallbackParallelUrls = [
+              `https://txy1.sayobot.cn/beatmaps/download/mini/${osuSetId}`,
+              `https://dl.nerinyan.moe/v2/d/${osuSetId}?noVideo=true`,
+              cfWorker2(`https://api.nerinyan.moe/d/${osuSetId}?noVideo=true`),
+              myWorker(`https://txy1.sayobot.cn/beatmaps/download/mini/${osuSetId}`),
+              `https://catboy.best/d/${osuSetId}`,
+              `https://dl.sayobot.cn/beatmaps/download/mini/${osuSetId}`
+            ];
+
+            const validateOszBuffer = (b) => {
+              if (!b || b.byteLength < 10000) throw new Error('Buffer vacío o demasiado pequeño');
+              const firstBytes = new Uint8Array(b, 0, Math.min(30, b.byteLength));
+              // Verificar cabecera ZIP ('PK') o descartar respuestas HTML/JSON de error
+              if (firstBytes[0] === 0x50 && firstBytes[1] === 0x4B) return b;
+              const firstStr = String.fromCharCode(...firstBytes).toLowerCase();
+              if (firstStr.includes('<!doc') || firstStr.includes('<html') || firstStr.includes('{"error"') || firstStr.includes('{"status"')) {
+                throw new Error(`Respuesta inválida: "${firstStr.slice(0, 20)}..."`);
+              }
+              return b;
+            };
+
+            const raceOsuBatch = async (urls, timeoutMs = 8500) => {
+              const controllers = urls.map(() => new AbortController());
+              const timer = setTimeout(() => {
+                controllers.forEach(c => { try { c.abort(); } catch (_) {} });
+              }, timeoutMs);
+
+              try {
+                const winner = await Promise.any(urls.map(async (u, idx) => {
+                  const r = await fetch(u, { signal: controllers[idx].signal });
+                  if (!r.ok) throw new Error('HTTP ' + r.status);
+                  const b = validateOszBuffer(await r.arrayBuffer());
+                  // Cancelar de inmediato las demás descargas en paralelo
+                  controllers.forEach((c, i) => { if (i !== idx) { try { c.abort(); } catch (_) {} } });
+                  return b;
+                }));
+                clearTimeout(timer);
+                return winner;
+              } catch (aggErr) {
+                clearTimeout(timer);
+                lastOsuErr = (aggErr && aggErr.errors && aggErr.errors[0]) ? aggErr.errors[0] : aggErr;
+                return null;
+              }
+            };
+
+            arrayBuffer = await raceOsuBatch(fastParallelUrls, 8500);
+            if (!arrayBuffer) {
+              loadStatus.innerText = 'Reintentando con espejos alternativos de osu!...';
+              arrayBuffer = await raceOsuBatch(fallbackParallelUrls, 11000);
+            }
+
+            if (arrayBuffer) {
+              if (window._osuOszMemCache.size >= 8) {
+                const firstKey = window._osuOszMemCache.keys().next().value;
+                window._osuOszMemCache.delete(firstKey);
+              }
+              window._osuOszMemCache.set(osuSetId, arrayBuffer);
             }
           }
 
@@ -9509,7 +9538,8 @@ function stopPianoCameraLoop() {
         if (wasOverlayActive) overlayPre.classList.remove('active');
         const sTitle = beatmapData?.title || beatmapData?.metadata?.title || 'PISTA';
         const sArtist = beatmapData?.artist || beatmapData?.metadata?.artist || '';
-        const chosenMode = await openGameModeSelectModal(sTitle, sArtist);
+        const hasKaraoke = typeof doesSongHaveKaraoke === 'function' ? doesSongHaveKaraoke(beatmapData) : false;
+        const chosenMode = await openGameModeSelectModal(sTitle, sArtist, hasKaraoke);
         if (!chosenMode) {
           window.isGameLoadingOrActive = false;
           return;
@@ -11554,7 +11584,7 @@ function stopPianoCameraLoop() {
       const curtain = document.getElementById('gameCurtain');
 
       if (!window._modeAlreadyChosenForThisLaunch && !window.isPlaytestingFromEditor && typeof openGameModeSelectModal === 'function') {
-        const chosenMode = await openGameModeSelectModal(songMeta.title || 'PISTA TOP', songMeta.artist || '');
+        const chosenMode = await openGameModeSelectModal(songMeta.title || 'PISTA TOP', songMeta.artist || '', true);
         if (!chosenMode) {
           window.isGameLoadingOrActive = false;
           return;
@@ -12256,7 +12286,8 @@ function stopPianoCameraLoop() {
         window.currentFeaturedSongX2 = false;
       }
       if (!window._modeAlreadyChosenForThisLaunch && !window.isPlaytestingFromEditor && typeof openGameModeSelectModal === 'function') {
-        const chosenMode = await openGameModeSelectModal('PISTA COMUNITARIA', '');
+        const hasCommKaraoke = typeof checkCommunitySongHasKaraoke === 'function' ? await checkCommunitySongHasKaraoke(chartId) : false;
+        const chosenMode = await openGameModeSelectModal('PISTA COMUNITARIA', '', hasCommKaraoke);
         if (!chosenMode) {
           window.isGameLoadingOrActive = false;
           return;
@@ -14472,13 +14503,108 @@ function stopPianoCameraLoop() {
       _gameModeLedAnimId = requestAnimationFrame(tick);
     }
 
-    function openGameModeSelectModal(songTitle = 'PISTA', songArtist = '') {
+    function doesSongHaveKaraoke(item) {
+      if (!item || typeof item !== 'object') return false;
+      const src = String(item.source || item.source_name || '').toLowerCase();
+      const itemId = String(item.id || item.communityChartId || '').toLowerCase();
+      // Las canciones de osu! y Clone Hero nunca tienen karaoke
+      if (
+        src.includes('osu') ||
+        src.includes('catboy') ||
+        src.includes('clonehero') ||
+        src.includes('clone hero') ||
+        src.includes('enchor') ||
+        itemId.startsWith('osu_') ||
+        itemId.startsWith('ch_') ||
+        Boolean(item.sng_url) ||
+        Boolean(item.osz_url) ||
+        item.fileType === 'osz' ||
+        item.fileType === 'sng'
+      ) {
+        return false;
+      }
+      // Las canciones del catálogo Top tienen karaoke sincronizado
+      if (item.is_top_song || src === 'top_playlist' || itemId.startsWith('top_')) {
+        return true;
+      }
+      if (window.TOP_SONGS_CATALOG && Array.isArray(window.TOP_SONGS_CATALOG) && itemId) {
+        const rawTopId = itemId.replace(/^top_/, '');
+        if (window.TOP_SONGS_CATALOG.some(s => String(s.id).toLowerCase() === rawTopId)) {
+          return true;
+        }
+      }
+      // Verificar arrays de letras explícitos
+      if (
+        (Array.isArray(item.lyrics) && item.lyrics.length > 0) ||
+        (Array.isArray(item.activeKaraokeLyrics) && item.activeKaraokeLyrics.length > 0) ||
+        (item.unpackedData && Array.isArray(item.unpackedData.lyrics) && item.unpackedData.lyrics.length > 0) ||
+        (item.chartData && Array.isArray(item.chartData.lyrics) && item.chartData.lyrics.length > 0) ||
+        (item.metadata && Array.isArray(item.metadata.lyrics) && item.metadata.lyrics.length > 0)
+      ) {
+        return true;
+      }
+      // Verificar si las notas contienen sílabas/palabras reales de karaoke (excluyendo símbolos decorativos)
+      const notes = item.notes || item.unpackedData?.notes || item.chartData?.notes || (Array.isArray(item.difficulties) && item.difficulties[0]?.notes) || [];
+      if (Array.isArray(notes) && notes.length > 0) {
+        const nonLyricSymbols = new Set(['♪', '♫', '▲', '▼', '◀', '▶', '★', '~', '-', '']);
+        for (let i = 0; i < notes.length; i++) {
+          const n = notes[i];
+          if (!n) continue;
+          const rawSyl = String(n.lyric || n.text || n.l || n.w || n.syllable || n.word || '').trim();
+          if (rawSyl && !nonLyricSymbols.has(rawSyl)) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+    window.doesSongHaveKaraoke = doesSongHaveKaraoke;
+
+    async function checkCommunitySongHasKaraoke(chartId) {
+      if (!chartId) return false;
+      const cleanId = String(chartId).replace(/^comm_/, '');
+      if (window.BUNDLED_COMMUNITY_CHARTS) {
+        const bKey = window.BUNDLED_COMMUNITY_CHARTS[chartId]
+          ? chartId
+          : (window.BUNDLED_COMMUNITY_CHARTS[`comm_${cleanId}`]
+              ? `comm_${cleanId}`
+              : (window.BUNDLED_COMMUNITY_CHARTS[cleanId] ? cleanId : null));
+        if (bKey && window.BUNDLED_COMMUNITY_CHARTS[bKey]) {
+          return doesSongHaveKaraoke(window.BUNDLED_COMMUNITY_CHARTS[bKey]);
+        }
+      }
+      if (typeof IndexedDBStorage !== 'undefined') {
+        try {
+          const localItem = await IndexedDBStorage.getChart(chartId);
+          if (localItem && doesSongHaveKaraoke(localItem.chartData || localItem.unpackedData || localItem)) {
+            return true;
+          }
+        } catch (_) {}
+      }
+      try {
+        const myVault = JSON.parse(localStorage.getItem('beatstar_my_published_charts') || '[]');
+        const localComm = JSON.parse(localStorage.getItem('beatstar_community_local_charts') || '[]');
+        const found = [...myVault, ...localComm].find(c => c && (c.id === chartId || c.communityChartId === chartId));
+        if (found && doesSongHaveKaraoke(found.chartData || found.unpackedData || found)) {
+          return true;
+        }
+      } catch (_) {}
+      return false;
+    }
+    window.checkCommunitySongHasKaraoke = checkCommunitySongHasKaraoke;
+
+    function openGameModeSelectModal(songTitle = 'PISTA', songArtist = '', hasKaraoke = true) {
       return new Promise((resolve) => {
         _gameModeModalResolver = resolve;
         const modal = document.getElementById('gameModeSelectModal');
         if (!modal) {
           resolve('normal');
           return;
+        }
+        const btnKaraoke = document.getElementById('btnModeSelectKaraoke');
+        if (btnKaraoke) {
+          btnKaraoke.style.display = hasKaraoke ? 'flex' : 'none';
+          btnKaraoke.classList.toggle('hidden', !hasKaraoke);
         }
         modal.classList.remove('hidden');
         modal.classList.add('open');

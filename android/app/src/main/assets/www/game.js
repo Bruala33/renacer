@@ -11431,7 +11431,7 @@ class BeatstarEngine {
   // Pre-calcula el mapa de caudal acumulado F(t) según la densidad de notas de cada sección
   // Así los 3 carriles aceleran en los Rápidos (alta densidad) y se calman en Aguas Mansas (baja densidad) al unísono
   _prepareRiverChoreography() {
-    const stepMs = 50;
+    const stepMs = 25;
     const minT = -3000;
     const maxT = Math.max(60000, (this.lastNoteTime || 60000) + 8000);
     const numSteps = Math.ceil((maxT - minT) / stepMs) + 1;
@@ -11440,6 +11440,7 @@ class BeatstarEngine {
     this._riverFlowStepMs = stepMs;
     this._riverFlowPosTable = new Float64Array(numSteps);
     this._riverSpeedMultTable = new Float32Array(numSteps);
+    const scratchSpeed = new Float32Array(numSteps);
 
     const notes = this.notes || [];
     const nLen = notes.length;
@@ -11450,10 +11451,9 @@ class BeatstarEngine {
       avgNotesPerSec = Math.max(1.4, Math.min(7.5, nLen / spanSec));
     }
 
-    let cumPos = 0.0;
     let noteCursor = 0;
-    const winBefore = 1100;
-    const winAfter = 1700;
+    const winBefore = 1250;
+    const winAfter = 1850;
     const winDurSec = (winBefore + winAfter) / 1000;
 
     for (let s = 0; s < numSteps; s++) {
@@ -11474,27 +11474,65 @@ class BeatstarEngine {
       const localDensity = weightedCount / winDurSec;
       const densityRatio = localDensity / avgNotesPerSec;
 
-      const riverSwell = Math.sin(t * 0.00095) * 0.11 + Math.cos(t * 0.0021) * 0.06;
-      let speedMult = 0.68 + Math.min(0.92, Math.pow(Math.max(0, densityRatio), 1.12) * 0.44) + riverSwell;
-      speedMult = Math.max(0.70, Math.min(1.68, speedMult));
+      const riverSwell = Math.sin(t * 0.00095) * 0.09 + Math.cos(t * 0.0021) * 0.05;
+      let speedMult = 0.70 + Math.min(0.88, Math.pow(Math.max(0, densityRatio), 1.08) * 0.42) + riverSwell;
+      speedMult = Math.max(0.72, Math.min(1.62, speedMult));
 
       this._riverSpeedMultTable[s] = speedMult;
-      this._riverFlowPosTable[s] = cumPos;
-      cumPos += speedMult * stepMs;
     }
 
-    let smoothCum = 0.0;
-    for (let s = 0; s < numSteps; s++) {
-      let sum = 0, cnt = 0;
-      for (let k = -3; k <= 3; k++) {
-        const idx = Math.max(0, Math.min(numSteps - 1, s + k));
-        sum += this._riverSpeedMultTable[idx];
-        cnt++;
+    // Triple pasada de suavizado tipo Gaussiano (ventana efectiva ±600ms) para eliminar cualquier tirón de aceleración
+    const radius = 8;
+    for (let pass = 0; pass < 3; pass++) {
+      const src = (pass % 2 === 0) ? this._riverSpeedMultTable : scratchSpeed;
+      const dst = (pass % 2 === 0) ? scratchSpeed : this._riverSpeedMultTable;
+      let runningSum = 0;
+      let count = 0;
+      for (let i = 0; i <= Math.min(numSteps - 1, radius); i++) {
+        runningSum += src[i];
+        count++;
       }
-      const sm = sum / cnt;
-      this._riverSpeedMultTable[s] = sm;
+      for (let s = 0; s < numSteps; s++) {
+        dst[s] = runningSum / count;
+        const removeIdx = s - radius;
+        const addIdx = s + radius + 1;
+        if (removeIdx >= 0) {
+          runningSum -= src[removeIdx];
+          count--;
+        }
+        if (addIdx < numSteps) {
+          runningSum += src[addIdx];
+          count++;
+        }
+      }
+    }
+
+    // Integración trapezoidal C2-continua para la posición acumulada del caudal
+    let smoothCum = 0.0;
+    this._riverFlowPosTable[0] = 0.0;
+    for (let s = 1; s < numSteps; s++) {
+      const v0 = this._riverSpeedMultTable[s - 1];
+      const v1 = this._riverSpeedMultTable[s];
+      smoothCum += 0.5 * (v0 + v1) * stepMs;
       this._riverFlowPosTable[s] = smoothCum;
-      smoothCum += sm * stepMs;
+    }
+
+    // Pre-cachear la posición de caudal exacta de cada nota para evitar búsquedas por nota en cada frame
+    for (let i = 0; i < nLen; i++) {
+      const n = notes[i];
+      if (!n) continue;
+      const nt = n.timestamp_ms ?? n.timeMs ?? 0;
+      n._riverFlowPos = this._getRiverFlowPos(nt);
+      if (n.type === 'hold') {
+        const rawDur = Number.isFinite(n.duration_ms)
+          ? n.duration_ms
+          : (Number.isFinite(n.holdDuration)
+              ? (n.holdDuration > 50 ? n.holdDuration : n.holdDuration * 1000)
+              : (Number.isFinite(n.duration) ? (n.duration > 50 ? n.duration : n.duration * 1000) : 700));
+        const holdDuration = Math.max(150, Number.isFinite(rawDur) ? rawDur : 700);
+        const endT = Number.isFinite(n.end_timestamp_ms) ? n.end_timestamp_ms : (nt + holdDuration);
+        n._riverFlowEndPos = this._getRiverFlowPos(endT);
+      }
     }
   }
 
@@ -11505,7 +11543,7 @@ class BeatstarEngine {
     const table = this._riverFlowPosTable;
     if (!table || table.length === 0) return timeMs;
     const minT = this._riverFlowMinT || -3000;
-    const stepMs = this._riverFlowStepMs || 50;
+    const stepMs = this._riverFlowStepMs || 25;
     const fIdx = (timeMs - minT) / stepMs;
     if (fIdx <= 0) {
       return table[0] + (timeMs - minT) * (this._riverSpeedMultTable ? this._riverSpeedMultTable[0] : 1.0);
@@ -11515,17 +11553,23 @@ class BeatstarEngine {
       const lastT = minT + maxIdx * stepMs;
       return table[maxIdx] + (timeMs - lastT) * (this._riverSpeedMultTable ? this._riverSpeedMultTable[maxIdx] : 1.0);
     }
-    const i0 = Math.floor(fIdx);
+    const i0 = fIdx | 0;
     const frac = fIdx - i0;
     return table[i0] + (table[i0 + 1] - table[i0]) * frac;
   }
 
   _getRiverSpeedMult(timeMs) {
-    if (!this._riverSpeedMultTable || this._riverSpeedMultTable.length === 0) return 1.0;
+    const table = this._riverSpeedMultTable;
+    if (!table || table.length === 0) return 1.0;
     const minT = this._riverFlowMinT || -3000;
-    const stepMs = this._riverFlowStepMs || 50;
-    const idx = Math.max(0, Math.min(this._riverSpeedMultTable.length - 1, Math.round((timeMs - minT) / stepMs)));
-    return this._riverSpeedMultTable[idx] || 1.0;
+    const stepMs = this._riverFlowStepMs || 25;
+    const fIdx = (timeMs - minT) / stepMs;
+    if (fIdx <= 0) return table[0] || 1.0;
+    const maxIdx = table.length - 1;
+    if (fIdx >= maxIdx) return table[maxIdx] || 1.0;
+    const i0 = fIdx | 0;
+    const frac = fIdx - i0;
+    return table[i0] + (table[i0 + 1] - table[i0]) * frac;
   }
 
   _emitRiverTapRipple(x, y, scale = 1.0, isStrongHit = false) {
@@ -11649,23 +11693,17 @@ class BeatstarEngine {
     }
     ctx.stroke();
 
-    // 3. Cara Superior de Baldosa de Piedra de Río Tallada (Pizarra/Granito mineral con bisel claro)
-    const rockGrad = ctx.createLinearGradient(cx, y0, cx, yBevelTop);
-    if (isPressed) {
-      rockGrad.addColorStop(0.0, '#38bdf8');
-      rockGrad.addColorStop(0.5, '#0284c7');
-      rockGrad.addColorStop(1.0, '#0369a1');
-    } else if (isSwipe) {
-      rockGrad.addColorStop(0.0, '#64748b');
-      rockGrad.addColorStop(0.45, '#475569');
-      rockGrad.addColorStop(1.0, '#334155');
-    } else {
-      rockGrad.addColorStop(0.0, '#64748b');
-      rockGrad.addColorStop(0.38, '#475569');
-      rockGrad.addColorStop(1.0, '#293548');
-    }
-    ctx.fillStyle = rockGrad;
+    // 3. Cara Superior de Baldosa de Piedra de Río Tallada (0 Gradient Allocations por frame para máxima fluidez en rápidos densos)
+    ctx.fillStyle = isPressed ? '#0284c7' : (isSwipe ? '#3b495e' : '#334155');
     tracePerspectiveQuad(ctx, x0Top, x1Top, x0Bev, x1Bev, y0, yBevelTop, r);
+    ctx.fill();
+
+    // Banda mineral superior iluminada por el sol sobre la roca húmeda
+    const ySunBand = y0 + (yBevelTop - y0) * 0.46;
+    const x0Sun = x0Top + (x0Bev - x0Top) * 0.46;
+    const x1Sun = x1Top + (x1Bev - x1Top) * 0.46;
+    ctx.fillStyle = isPressed ? 'rgba(125, 211, 252, 0.42)' : 'rgba(148, 163, 184, 0.28)';
+    tracePerspectiveQuad(ctx, x0Top, x1Top, x0Sun, x1Sun, y0, ySunBand, r);
     ctx.fill();
 
     // Facetas minerales y textura de piedra cincelada en las esquinas
@@ -12644,9 +12682,12 @@ class BeatstarEngine {
         }
         const activeTimeMs = cTime >= 0 ? cTime : safePerfNow;
         const riverFlowPos = this._getRiverFlowPos(activeTimeMs);
-        const riverScroll = ((riverFlowPos * 0.00105) % 1.0 + 1.0) % 1.0;
+        // Usar fase continua sin recortar antes de multiplicar para evitar saltos de módulo al acelerar
+        const riverFlowPhase = Math.max(0, riverFlowPos * 0.00105);
+        const riverScroll = riverFlowPhase % 1.0;
         const curSpeed = this._getRiverSpeedMult(activeTimeMs);
         const speedExcite = Math.max(0, Math.min(1.6, (curSpeed - 0.72) / 0.85));
+        const stepDt = Math.min(0.033, Math.max(0.004, this._frameDt || 0.016));
 
         // 0. Sombras profundas de las orillas sumergidas y lecho de cantos rodados subacuáticos
         ctx.fillStyle = 'rgba(2, 18, 34, 0.38)';
@@ -12668,7 +12709,7 @@ class BeatstarEngine {
         ctx.globalCompositeOperation = 'lighter';
         const causticBands = 14;
         for (let cb = 0; cb < causticBands; cb++) {
-          const u0 = ((cb / causticBands) + riverScroll * 0.82) % 1.0;
+          const u0 = ((cb / causticBands) + riverFlowPhase * 0.82) % 1.0;
           const p0 = Math.pow(u0, 1.7);
           const cy = horizonY + (bottomY - horizonY) * p0;
           const cAlpha = Math.sin(u0 * Math.PI) * (0.09 + speedExcite * 0.05);
@@ -12692,11 +12733,10 @@ class BeatstarEngine {
 
         // 1. Peces Koi nadando suavemente bajo la superficie translúcida del río
         if (this._riverSwimmingKoi && this._riverKoiSprites && this._riverKoiSprites.length > 0) {
-          const dtKoi = 0.016;
           for (let k = 0; k < this._riverSwimmingKoi.length; k++) {
             const koi = this._riverSwimmingKoi[k];
-            koi.lane += koi.vx * dtKoi * curSpeed;
-            koi.p += koi.vp * dtKoi * curSpeed;
+            koi.lane += koi.vx * stepDt * curSpeed;
+            koi.p += koi.vp * stepDt * curSpeed;
             if (koi.lane < 0.18 || koi.lane > 1.82) koi.vx = -koi.vx;
             if (koi.p < 0.14 || koi.p > 0.88) koi.vp = -koi.vp;
             const kCoord = this.getPerspectiveCoord(koi.lane, koi.p, this._coordScratch1);
@@ -12714,11 +12754,10 @@ class BeatstarEngine {
 
         // 1B. Focas Ultra Realistas nadando ágilmente por el cauce y dejando estelas de espuma en V
         if (this._riverSwimmingSeals && this._riverSealSprites && this._riverSealSprites.length > 0) {
-          const dtSeal = 0.016;
           for (let sIdx = 0; sIdx < this._riverSwimmingSeals.length; sIdx++) {
             const seal = this._riverSwimmingSeals[sIdx];
-            seal.lane += seal.vx * dtSeal * (0.85 + curSpeed * 0.35);
-            seal.p += seal.vp * dtSeal * (0.85 + curSpeed * 0.35);
+            seal.lane += seal.vx * stepDt * (0.85 + curSpeed * 0.35);
+            seal.p += seal.vp * stepDt * (0.85 + curSpeed * 0.35);
             if (seal.lane < 0.22) { seal.lane = 0.22; seal.vx = Math.abs(seal.vx); }
             if (seal.lane > 1.78) { seal.lane = 1.78; seal.vx = -Math.abs(seal.vx); }
             if (seal.p < 0.18) { seal.p = 0.18; seal.vp = Math.abs(seal.vp); }
@@ -12750,11 +12789,15 @@ class BeatstarEngine {
           }
         }
 
-        // 2. Pequeñas Olitas 3D Reactivas a la Velocidad (Crestas arqueadas con espuma blanca y sombra de seno de ola)
-        const numWavelets = Math.min(34, Math.floor(16 + curSpeed * 11));
+        // 2. Pequeñas Olitas 3D Reactivas a la Velocidad (Denominador fijo constante MAX_WAVELETS para que jamás den tirones al acelerar)
+        const MAX_WAVELETS = 28;
         ctx.lineCap = 'round';
-        for (let wIdx = 0; wIdx < numWavelets; wIdx++) {
-          const u0 = ((wIdx / numWavelets) + riverScroll * (1.0 + (wIdx % 3) * 0.14)) % 1.0;
+        for (let wIdx = 0; wIdx < MAX_WAVELETS; wIdx++) {
+          // Las olitas extra (wIdx >= 18) aparecen con fundido suave según la velocidad sin alterar la fase de las demás
+          const extraVisibility = wIdx < 18 ? 1.0 : Math.max(0, Math.min(1.0, (speedExcite * 10.5) - (wIdx - 18)));
+          if (extraVisibility <= 0.02) continue;
+
+          const u0 = ((wIdx / MAX_WAVELETS) + riverFlowPhase * (1.0 + (wIdx % 3) * 0.14)) % 1.0;
           if (u0 < 0.04 || u0 > 0.97) continue;
           const p0 = Math.pow(u0, 1.7);
           const wy = horizonY + (bottomY - horizonY) * p0;
@@ -12765,7 +12808,7 @@ class BeatstarEngine {
           const waveScale = (0.35 + 0.65 * p0) * (0.82 + speedExcite * 0.48);
           const waveHalfW = (14 + (wIdx % 4) * 5.5) * waveScale;
           const waveCrestH = (3.5 + (wIdx % 3) * 1.8 + speedExcite * 3.2) * waveScale;
-          const waveAlpha = Math.min(0.88, (0.28 + speedExcite * 0.38) * Math.sin(u0 * Math.PI));
+          const waveAlpha = Math.min(0.88, (0.28 + speedExcite * 0.38) * Math.sin(u0 * Math.PI) * extraVisibility);
 
           // Seno oscuro bajo la cresta de la olita (volumen 3D líquido)
           ctx.strokeStyle = `rgba(3, 36, 62, ${(waveAlpha * 0.65).toFixed(3)})`;
@@ -12795,7 +12838,7 @@ class BeatstarEngine {
         // 2B. Líneas de corriente rápida y burbujas de oxígeno arrastradas por el caudal
         const numStreaks = 16;
         for (let sIdx = 0; sIdx < numStreaks; sIdx++) {
-          const u0 = (sIdx / numStreaks + riverScroll * 1.25) % 1.0;
+          const u0 = ((sIdx / numStreaks) + riverFlowPhase * 1.25) % 1.0;
           const u1 = Math.min(1.0, u0 + (0.040 + 0.032 * Math.min(1.6, curSpeed)));
           if (u1 <= u0 + 0.005) continue;
           const p0 = Math.pow(u0, 1.7);
@@ -12828,7 +12871,7 @@ class BeatstarEngine {
             const u = s / steps;
             const p = Math.pow(u, 1.7);
             const ry = horizonY + (bottomY - horizonY) * p;
-            const rippleX = Math.sin(u * 14.0 - riverScroll * Math.PI * 4 + l * 2.1) * ((2.8 + speedExcite * 2.2) * p);
+            const rippleX = Math.sin(u * 14.0 - riverFlowPhase * Math.PI * 4 + l * 2.1) * ((2.8 + speedExcite * 2.2) * p);
             const rx = getBoundaryX(l, ry) + rippleX;
             if (s === 0) ctx.moveTo(rx, ry);
             else ctx.lineTo(rx, ry);
@@ -13052,7 +13095,8 @@ class BeatstarEngine {
         // =========================================================================
         const activeTimeMs = cTime >= 0 ? cTime : safePerfNow;
         const riverFlowPos = this._getRiverFlowPos(activeTimeMs);
-        const riverScroll = ((riverFlowPos * 0.00105) % 1.0 + 1.0) % 1.0;
+        const riverFlowPhase = Math.max(0, riverFlowPos * 0.00105);
+        const riverScroll = riverFlowPhase % 1.0;
         const curSpeed = this._getRiverSpeedMult(activeTimeMs);
         const speedExcite = Math.max(0, Math.min(1.6, (curSpeed - 0.72) / 0.85));
         const frameScale = Math.min(2.5, (this._frameDt || 0.00833) * 60);
@@ -13125,7 +13169,7 @@ class BeatstarEngine {
             const u = s / foamSteps;
             const p = Math.pow(u, 1.65);
             const fy = horizonY + (bottomY - horizonY) * p;
-            const foamOsc = Math.sin(u * 18.0 - riverScroll * Math.PI * 6 + side * 2.4) * (3.5 + speedExcite * 2.5) * p;
+            const foamOsc = Math.sin(u * 18.0 - riverFlowPhase * Math.PI * 6 + side * 2.4) * (3.5 + speedExcite * 2.5) * p;
             const fxPos = getBoundaryX(edgeIdx, fy) + sign * (3.0 * p) + foamOsc;
             if (s === 0) ctx.moveTo(fxPos, fy);
             else ctx.lineTo(fxPos, fy);
@@ -13140,7 +13184,7 @@ class BeatstarEngine {
         // D. Grandes Rocas de Río esculpidas en 3D con musgo esmeralda y helechos en ambos márgenes
         const bankRocks = 16;
         for (let b = 0; b < bankRocks; b++) {
-          const u = ((b / bankRocks) + riverScroll) % 1.0;
+          const u = ((b / bankRocks) + riverFlowPhase) % 1.0;
           const p = Math.pow(u, 1.7);
           const ry = horizonY + (bottomY - horizonY) * p;
           const sc = 0.42 + 0.68 * p;
@@ -13192,7 +13236,7 @@ class BeatstarEngine {
         if (this._riverLilyPads && this._riverLilyPadSprite) {
           for (let i = 0; i < this._riverLilyPads.length; i++) {
             const pad = this._riverLilyPads[i];
-            const uPad = (pad.p + riverScroll * 0.5) % 1.0;
+            const uPad = (pad.p + riverFlowPhase * 0.5) % 1.0;
             const pPad = Math.pow(uPad, 1.7);
             const py = horizonY + (bottomY - horizonY) * pPad;
             const px = getBoundaryX(pad.side === 0 ? 0.14 : 2.86, py);
@@ -13209,7 +13253,7 @@ class BeatstarEngine {
         if (this._riverBankSeals && this._riverSealBustSprites && this._riverSealBustSprites.length > 0) {
           for (let i = 0; i < this._riverBankSeals.length; i++) {
             const bSeal = this._riverBankSeals[i];
-            const uSeal = (bSeal.u + riverScroll * 0.32) % 1.0;
+            const uSeal = (bSeal.u + riverFlowPhase * 0.32) % 1.0;
             if (uSeal < 0.10 || uSeal > 0.92) continue;
             const pSeal = Math.pow(uSeal, 1.7);
             const sy = horizonY + (bottomY - horizonY) * pSeal;
@@ -13889,8 +13933,9 @@ class BeatstarEngine {
           // ZONA PERFECT+ Y CASCADA INFERIOR ("LO DE ABAJO DEL PERFECT") EXCLUSIVAS MODO RÍO
           // =========================================================================
           const activeTimeMs = cTime >= 0 ? cTime : nowPerf;
-          const curSpeed = this._getRiverSpeedMult ? this._getRiverSpeedMult(activeTimeMs) : 1.0;
-          const waterfallScroll = ((activeTimeMs * 0.0022 * (0.85 + curSpeed * 0.45)) % 1.0 + 1.0) % 1.0;
+          const waterfallFlowPos = this._getRiverFlowPos ? this._getRiverFlowPos(activeTimeMs) : activeTimeMs;
+          const waterfallPhase = Math.max(0, waterfallFlowPos * 0.0022);
+          const waterfallScroll = waterfallPhase % 1.0;
 
           // 1. LO DE ABAJO DEL PERFECT: GRAN CASCADA 3D Y POZA DE AGUA TURQUESA CON ESPUMA Y FOCA
           const apL_top = this.getLaneBoundaryX(0, yDeckBot) - 18;
@@ -13923,7 +13968,7 @@ class BeatstarEngine {
             const frac = (f + 0.5) / numFalls;
             const xTop = apL_top + (apR_top - apL_top) * frac;
             const xBot = apL_bot + (apR_bot - apL_bot) * frac;
-            const fallPhase = (waterfallScroll + (f * 0.19)) % 1.0;
+            const fallPhase = (waterfallPhase + (f * 0.19)) % 1.0;
             const y0 = yDeckBot + (bottomY - yDeckBot) * (fallPhase * 0.35);
             const y1 = yDeckBot + (bottomY - yDeckBot) * Math.min(1.0, fallPhase * 0.35 + 0.55);
             const x0 = xTop + (xBot - xTop) * ((y0 - yDeckBot) / Math.max(1, bottomY - yDeckBot));
@@ -13955,7 +14000,7 @@ class BeatstarEngine {
 
           // Ondas concéntricas de agua expandiéndose en la poza inferior ("lo de abajo del perfect")
           for (let w = 0; w < 3; w++) {
-            const wProg = ((waterfallScroll * 0.65 + w * 0.33) % 1.0);
+            const wProg = ((waterfallPhase * 0.65 + w * 0.33) % 1.0);
             const wy = foamBaseY + 12 + wProg * Math.max(24, (this.height - foamBaseY - 8));
             const wL = this.getLaneBoundaryX(0.15, wy);
             const wR = this.getLaneBoundaryX(2.85, wy);
@@ -15016,8 +15061,9 @@ class BeatstarEngine {
 
         // En Modo Río Rápido, la distancia visual viene dada por el caudal acumulado F(t):
         // ¡Los 3 carriles aceleran y frenan exactamente al mismo tiempo según la densidad de la sección!
+        const noteFlowPos = (note._riverFlowPos !== undefined) ? note._riverFlowPos : (isRiverActive ? this._getRiverFlowPos(noteT) : 0);
         const pHead = isRiverActive
-          ? (1.0 - (this._getRiverFlowPos(noteT) - curRiverFlowPos) * invScrollDur)
+          ? (1.0 - (noteFlowPos - curRiverFlowPos) * invScrollDur)
           : (1.0 - timeUntilHit * invScrollDur);
         // Para notas hold, no descartar por pHead > 1.25 mientras su cola siga en pantalla
         if (pHead < -0.15 || (!isBeingHeld && note.type !== 'hold' && pHead > 1.25)) continue;
@@ -15069,8 +15115,9 @@ class BeatstarEngine {
           const endT = Number.isFinite(note.end_timestamp_ms) ? note.end_timestamp_ms : (noteT + holdDuration);
 
           let currentHeadP = isBeingHeld ? 1.0 : pHead;
+          const noteEndFlowPos = (note._riverFlowEndPos !== undefined) ? note._riverFlowEndPos : (isRiverActive ? this._getRiverFlowPos(endT) : 0);
           let currentTailP = isRiverActive
-            ? (1.0 - (this._getRiverFlowPos(endT) - curRiverFlowPos) * invScrollDur)
+            ? (1.0 - (noteEndFlowPos - curRiverFlowPos) * invScrollDur)
             : (1.0 - (endT - currentTime) * invScrollDur);
 
           if (currentTailP > 1.25 || currentHeadP < -0.2) continue;

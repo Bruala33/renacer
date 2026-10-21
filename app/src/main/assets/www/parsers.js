@@ -1325,8 +1325,10 @@ class PackageUnpacker {
       const osuFiles = files.filter(f => f.toLowerCase().endsWith('.osu'));
       if (osuFiles.length === 0) throw new Error('No se encontraron archivos .osu en el paquete.');
 
-      for (const f of osuFiles) {
-        const txt = await zip.file(f).async('text');
+      const osuTexts = await Promise.all(osuFiles.map(f => zip.file(f).async('text')));
+      for (let i = 0; i < osuFiles.length; i++) {
+        const f = osuFiles[i];
+        const txt = osuTexts[i];
         const parsed = OsuManiaParser.parse(txt);
         const noteCount = (parsed.notes && Array.isArray(parsed.notes)) ? parsed.notes.length : 0;
         extractedDiffs.push({

@@ -1034,48 +1034,93 @@ app.get('/api/v1/community/charts/:id/audio', (req, res) => {
 });
 
 // ==========================================
-// 4b. Proxies de Descarga Robusta (osu! y Clone Hero)
+// 4b. Proxies de Descarga Robusta Ultrarrápida (osu! y Clone Hero)
 // ==========================================
+const OSU_OSZ_LRU_CACHE = new Map();
+const OSU_OSZ_LRU_MAX = 12;
+
 app.get(['/api/v1/download/osu/:setId', '/api/v1/osu/download/:setId'], async (req, res) => {
   const rawId = (req.params.setId || '').toString().replace(/^osu_/, '').trim();
   if (!rawId || !/^\d+$/.test(rawId)) {
     return res.status(400).json({ error: 'ID de beatmap de osu! inválido' });
   }
 
-  const mirrors = [
+  // 0. Servir al instante si está en la caché LRU en memoria del servidor
+  if (OSU_OSZ_LRU_CACHE.has(rawId)) {
+    const cachedBuf = OSU_OSZ_LRU_CACHE.get(rawId);
+    res.setHeader('Content-Type', 'application/x-osu-beatmap-archive');
+    res.setHeader('Content-Length', String(cachedBuf.byteLength));
+    res.setHeader('Content-Disposition', `attachment; filename="${rawId}.osz"`);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    return res.send(cachedBuf);
+  }
+
+  const fastMirrors = [
+    `https://catboy.best/d/${rawId}n`,
     `https://api.nerinyan.moe/d/${rawId}?noVideo=true`,
+    `https://osu.direct/api/d/${rawId}?noVideo=1`,
+    `https://txy1.sayobot.cn/beatmaps/download/mini/${rawId}`
+  ];
+
+  const fallbackMirrors = [
     `https://dl.nerinyan.moe/v2/d/${rawId}?noVideo=true`,
-    `https://txy1.sayobot.cn/beatmaps/download/mini/${rawId}`,
+    `https://catboy.best/d/${rawId}`,
     `https://dl.sayobot.cn/beatmaps/download/mini/${rawId}`
   ];
 
-  for (const mirrorUrl of mirrors) {
+  const raceMirrorGroup = async (urls, timeoutMs = 10000) => {
+    const controllers = urls.map(() => new AbortController());
+    const timer = setTimeout(() => {
+      controllers.forEach(c => { try { c.abort(); } catch (_) {} });
+    }, timeoutMs);
+
     try {
-      const resp = await fetch(mirrorUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': '*/*'
-        },
-        redirect: 'follow',
-        signal: AbortSignal.timeout(22000)
-      });
-
-      if (resp.ok) {
-        const ct = resp.headers.get('content-type') || 'application/x-osu-beatmap-archive';
-        const cl = resp.headers.get('content-length');
-        res.setHeader('Content-Type', ct);
-        if (cl) res.setHeader('Content-Length', cl);
-        res.setHeader('Content-Disposition', `attachment; filename="${rawId}.osz"`);
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Cache-Control', 'public, max-age=86400');
-
-        const { Readable } = await import('stream');
-        Readable.fromWeb(resp.body).pipe(res);
-        return;
-      }
+      const winnerBuf = await Promise.any(urls.map(async (mirrorUrl, idx) => {
+        const resp = await fetch(mirrorUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Accept': '*/*'
+          },
+          redirect: 'follow',
+          signal: controllers[idx].signal
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const ab = await resp.arrayBuffer();
+        if (!ab || ab.byteLength < 15000) throw new Error('Archivo .osz incompleto');
+        const u8 = new Uint8Array(ab, 0, 4);
+        // Verificar firma ZIP ('PK\x03\x04') para descartar páginas HTML de error
+        if (u8[0] !== 0x50 || u8[1] !== 0x4B) throw new Error('Respuesta no es un ZIP/OSZ válido');
+        // Abortar inmediatamente el resto de mirrors en curso
+        controllers.forEach((c, i) => { if (i !== idx) { try { c.abort(); } catch (_) {} } });
+        return Buffer.from(ab);
+      }));
+      clearTimeout(timer);
+      return winnerBuf;
     } catch (err) {
-      console.warn(`[Proxy Download] Mirror ${mirrorUrl} falló:`, err.message);
+      clearTimeout(timer);
+      return null;
     }
+  };
+
+  let oszBuffer = await raceMirrorGroup(fastMirrors, 9500);
+  if (!oszBuffer) {
+    oszBuffer = await raceMirrorGroup(fallbackMirrors, 12000);
+  }
+
+  if (oszBuffer) {
+    if (OSU_OSZ_LRU_CACHE.size >= OSU_OSZ_LRU_MAX) {
+      const oldestKey = OSU_OSZ_LRU_CACHE.keys().next().value;
+      OSU_OSZ_LRU_CACHE.delete(oldestKey);
+    }
+    OSU_OSZ_LRU_CACHE.set(rawId, oszBuffer);
+
+    res.setHeader('Content-Type', 'application/x-osu-beatmap-archive');
+    res.setHeader('Content-Length', String(oszBuffer.byteLength));
+    res.setHeader('Content-Disposition', `attachment; filename="${rawId}.osz"`);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    return res.send(oszBuffer);
   }
 
   res.status(502).json({ error: 'No se pudo descargar el paquete desde ningún mirror de osu!' });
