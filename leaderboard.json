@@ -2115,6 +2115,16 @@
         "accuracy": 9.837793280739175,
         "date": "2026-10-21 20:01:17"
       }
+    ],
+    "top_antonio_flores_no_dudara": [
+      {
+        "name": "Mauricio",
+        "score": 6750,
+        "stars": 3.5,
+        "combo": 12,
+        "accuracy": 0.5913531035086951,
+        "date": "2026-10-21 20:01:49"
+      }
     ]
   },
   "global": [
@@ -2130,7 +2140,7 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 17647575,
+      "total_score": 17654325,
       "clefs": 159
     },
     {
@@ -2249,7 +2259,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 17647575
+        "score": 17654325
       },
       {
         "name": "Dady cool",
