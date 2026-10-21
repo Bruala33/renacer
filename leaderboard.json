@@ -1545,7 +1545,7 @@
         "stars": 5,
         "combo": 845,
         "accuracy": 98.17125217139943,
-        "date": "2026-10-21 13:02:45"
+        "date": "2026-10-21 13:03:17"
       },
       {
         "name": "Test",
@@ -2002,14 +2002,14 @@
       "clefs": 154
     },
     {
+      "name": "Mauricio",
+      "total_score": 10937502,
+      "clefs": 96
+    },
+    {
       "name": "bubu",
       "total_score": 10570609,
       "clefs": 100
-    },
-    {
-      "name": "Mauricio",
-      "total_score": 9137537,
-      "clefs": 79
     },
     {
       "name": "Test",
@@ -2121,7 +2121,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 9137537
+        "score": 10937502
       },
       {
         "name": "Test",
