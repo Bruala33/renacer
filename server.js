@@ -569,48 +569,65 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 18,
-    version_name: '2.5.1',
-    release_notes: 'Piano Community Web & Offline Player. Nuevo Modo Río: Baldosas de roca flotantes con hendiduras luminosas, troncos de madera para los holds, corriente de agua sincronizada en los 3 carriles según la densidad de notas y carpas Koi animadas.',
-    download_url: '/download/apk?v=18.0',
+    version_code: 19,
+    version_name: '2.6.0',
+    release_notes: 'Piano Community Web & Offline Player. Modo Río renovado al completo: focas ultra realistas, agua multicapa con olitas reactivas a la velocidad, orillas rocosas vivas, cascada y poza bajo la zona Perfect, ondas de agua al tocar y descarga APK verificada.',
+    download_url: '/download/apk?v=19.0',
   });
 });
 
+function isCompleteZipApk(filePath, fileSize) {
+  try {
+    if (!fileSize || fileSize < 1000000) return false;
+    const readSize = Math.min(65558, fileSize);
+    const buf = Buffer.alloc(readSize);
+    const fd = fs.openSync(filePath, 'r');
+    try {
+      fs.readSync(fd, buf, 0, readSize, fileSize - readSize);
+    } finally {
+      fs.closeSync(fd);
+    }
+    for (let i = buf.length - 22; i >= 0; i--) {
+      if (buf[i] === 0x50 && buf[i + 1] === 0x4b && buf[i + 2] === 0x05 && buf[i + 3] === 0x06) {
+        return true;
+      }
+    }
+    return false;
+  } catch (_) {
+    return false;
+  }
+}
+
 app.all(['/download/apk', '/api/v1/app/download_apk', '/PianoCommunity.apk', '/downloads/PianoCommunity.apk', '/HyperRhythm.apk'], (req, res) => {
   const apkCandidates = [
+    path.join(__dirname, 'PianoCommunity.apk'),
+    path.join(STATIC_DIR, 'downloads', 'PianoCommunity.apk'),
+    path.join(STATIC_DIR, 'PianoCommunity.apk'),
     path.join(__dirname, '.build-outputs', 'app-debug.apk'),
     path.join(__dirname, 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk'),
     path.join(__dirname, 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk'),
     path.join(__dirname, 'android', 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk'),
     path.join(__dirname, 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk'),
-    path.join(STATIC_DIR, 'downloads', 'PianoCommunity.apk'),
-    path.join(STATIC_DIR, 'PianoCommunity.apk'),
-    path.join(STATIC_DIR, 'HyperRhythm.apk'),
-    path.join(__dirname, 'PianoCommunity.apk'),
     path.join(__dirname, 'downloads', 'PianoCommunity.apk'),
-    path.join(__dirname, 'beatstar.apk'),
-    path.join(STATIC_DIR, 'beatstar.apk'),
-    path.join(__dirname, 'downloads', 'beatstar.apk'),
-    path.join(STATIC_DIR, 'downloads', 'beatstar.apk'),
   ];
   const validApks = [];
   for (const apkPath of apkCandidates) {
     try {
       if (fs.existsSync(apkPath)) {
         const stat = fs.statSync(apkPath);
-        if (stat.isFile() && stat.size > 10000) {
+        if (stat.isFile() && isCompleteZipApk(apkPath, stat.size)) {
           validApks.push({ apkPath, stat });
         }
       }
     } catch (_) {}
   }
-  validApks.sort((a, b) => b.stat.mtimeMs - a.stat.mtimeMs);
 
   if (validApks.length > 0) {
     const { apkPath, stat } = validApks[0];
     res.setHeader('Content-Type', 'application/vnd.android.package-archive');
     res.setHeader('Content-Disposition', 'attachment; filename="PianoCommunity.apk"');
     res.setHeader('Content-Length', stat.size);
+    res.setHeader('Accept-Ranges', 'bytes');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');

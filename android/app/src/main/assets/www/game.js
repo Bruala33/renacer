@@ -1956,6 +1956,40 @@ class BeatstarEngine {
   }
 
   emitKeyHit(x, y, color = '#ffdf9e', count = 24) {
+    const isRiver = Boolean(this.isRiverModeActive || (typeof window !== 'undefined' && window.isRiverModeActive));
+    if (isRiver) {
+      if (typeof this._emitRiverSplash === 'function') {
+        this._emitRiverSplash(x, y - 4, 1.05, Math.min(18, Math.max(10, Math.round(count * 0.65))), false);
+      }
+      if (typeof this._emitRiverTapRipple === 'function') {
+        this._emitRiverTapRipple(x, y, 1.05, true);
+      }
+      const waterPal = ['#ffffff', '#e0f2fe', '#bae6fd', '#7dd3fc', '#38bdf8', '#00f2fe', '#34d399'];
+      const dropCount = Math.min(count, 22);
+      for (let i = 0; i < dropCount; i++) {
+        const p = this.particles.spawnParticle();
+        if (!p) break;
+        const angle = -Math.PI * (0.12 + Math.random() * 0.76);
+        const speed = 110 + Math.random() * 220;
+        p.x = x + (Math.random() - 0.5) * 26;
+        p.y = y + (Math.random() - 0.5) * 8;
+        p.vx = Math.cos(angle) * speed;
+        p.vy = Math.sin(angle) * speed - 45;
+        p.gravity = 320;
+        p.drag = 0.96;
+        p.radius = 2.4 + Math.random() * 3.8;
+        p.color = waterPal[i % waterPal.length];
+        p.alpha = 0.95;
+        p.decay = 2.0 + Math.random() * 1.1;
+        p.type = 'circle';
+        p.rotation = 0;
+        p.rotSpeed = 0;
+        p.scaleX = 0.85;
+        p.scaleY = 1.25;
+      }
+      return;
+    }
+
     const fx = this.normalizeEffectId(this.activeEffect);
     this.activeEffect = fx;
 
@@ -2981,8 +3015,8 @@ class BeatstarEngine {
     if (isRiverPrewarm) {
       this.initRiverModeAssets();
       this._prepareRiverChoreography();
-      this._riverBannerText = '🌊 ¡RÍO RÁPIDO: ROCAS FLOTANTES, TRONCOS Y CORRIENTE VIVA! 🪵';
-      this._riverBannerTimer = 3.0;
+      this._riverBannerText = '';
+      this._riverBannerTimer = 0;
     }
     this.activeHolds.clear();
     this.activeTouches.clear();
@@ -3608,8 +3642,19 @@ class BeatstarEngine {
       ];
     }
     const p = this._laneBurstPalettes[lane % 3];
-    const effect = this.normalizeEffectId(this.activeEffect);
-    this.activeEffect = effect;
+    const isRiverInput = Boolean(this.isRiverModeActive || (typeof window !== 'undefined' && window.isRiverModeActive));
+    const effect = isRiverInput ? 'river_splash' : this.normalizeEffectId(this.activeEffect);
+    if (!isRiverInput) this.activeEffect = effect;
+
+    if (isRiverInput) {
+      if (this.laneFlashColors) this.laneFlashColors[lane] = '#00f2fe';
+      if (typeof this._emitRiverTapRipple === 'function') {
+        this._emitRiverTapRipple(hitX, hitY, 1.0, false);
+      }
+      if (typeof this._emitRiverSplash === 'function') {
+        this._emitRiverSplash(hitX, hitY - 4, 0.95, 11, false);
+      }
+    }
 
     if (this.bgBursts.length >= 4) this.bgBursts.shift();
     if (this.fxRipples.length >= 4) this.fxRipples.shift();
@@ -3628,8 +3673,8 @@ class BeatstarEngine {
       seed: Math.random() * 100,
       rotation: Math.random() * Math.PI * 2,
       rotSpeed: (Math.random() < 0.5 ? 1 : -1) * 2.8,
-      color1: p.c1,
-      color2: p.c2
+      color1: isRiverInput ? '#00f2fe' : p.c1,
+      color2: isRiverInput ? '#38bdf8' : p.c2
     });
 
     this.fxRipples.push({
@@ -3637,10 +3682,10 @@ class BeatstarEngine {
       x: hitX,
       y: hitY,
       radius: 10,
-      maxRadius: Math.max(55, (this.laneWidth || 100) * 0.72),
-      alpha: 0.90,
-      decay: 3.4,
-      color: p.c1
+      maxRadius: Math.max(58, (this.laneWidth || 100) * (isRiverInput ? 0.88 : 0.72)),
+      alpha: 0.92,
+      decay: isRiverInput ? 2.6 : 3.4,
+      color: isRiverInput ? '#7dd3fc' : p.c1
     });
 
     const isActivelyPlaying = (this.isRunning || (this.sync && this.sync.isPlaying)) && !this.isPaused && !this.isGameOver && !this.isCountingDown && !this.isCalibrating && !!this.beatmapData;
@@ -5567,6 +5612,78 @@ class BeatstarEngine {
       }
     }
 
+    // En Modo Río: Toda la ambientación exterior y superior es un cañón fluvial natural con cascadas, bruma de agua y rayos de sol filtrados
+    const isRiverBg = Boolean(this.isRiverModeActive || (typeof window !== 'undefined' && window.isRiverModeActive));
+    if (isRiverBg) {
+      if (!this._riverCanyonBgGrad || this._riverCanyonBgGradH !== h) {
+        this._riverCanyonBgGradH = h;
+        const rbg = ctx.createLinearGradient(0, 0, 0, h);
+        rbg.addColorStop(0.00, '#021824');
+        rbg.addColorStop(0.28, '#052e3e');
+        rbg.addColorStop(0.62, '#06394c');
+        rbg.addColorStop(1.00, '#021c29');
+        this._riverCanyonBgGrad = rbg;
+      }
+      ctx.fillStyle = this._riverCanyonBgGrad;
+      ctx.fillRect(-20, -20, w + 40, h + 40);
+
+      // Rayos solares acuáticos filtrándose desde el dosel del río
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const sunSway1 = Math.sin(safePerfNow * 0.0008) * (w * 0.18);
+      const sunSway2 = Math.cos(safePerfNow * 0.0009 + 1.2) * (w * 0.18);
+      ctx.fillStyle = `rgba(56, 189, 248, ${(0.07 + beatPulse * 0.04).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.moveTo(w * 0.18 - 24, -10);
+      ctx.lineTo(w * 0.18 + 24, -10);
+      ctx.lineTo(w * 0.45 + sunSway1 + w * 0.16, h * 0.85);
+      ctx.lineTo(w * 0.45 + sunSway1 - w * 0.16, h * 0.85);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = `rgba(52, 211, 153, ${(0.06 + beatPulse * 0.035).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.moveTo(w * 0.82 - 24, -10);
+      ctx.lineTo(w * 0.82 + 24, -10);
+      ctx.lineTo(w * 0.55 + sunSway2 + w * 0.16, h * 0.85);
+      ctx.lineTo(w * 0.55 + sunSway2 - w * 0.16, h * 0.85);
+      ctx.closePath();
+      ctx.fill();
+
+      // Rocío de cascada y luciérnagas acuáticas flotando en los márgenes
+      if (!this._riverMistParticles || this._riverMistParticles.length === 0) {
+        this._riverMistParticles = [];
+        for (let i = 0; i < 24; i++) {
+          this._riverMistParticles.push({
+            x: Math.random() * w,
+            y: Math.random() * h,
+            r: 1.2 + Math.random() * 2.5,
+            speed: 0.4 + Math.random() * 0.7,
+            phase: Math.random() * Math.PI * 2,
+            isAqua: i % 2 === 0
+          });
+        }
+      }
+      const mistDt = Math.min(2.5, (this._frameDt || 0.00833) * 60);
+      for (let i = 0; i < this._riverMistParticles.length; i++) {
+        const mp = this._riverMistParticles[i];
+        mp.y -= mp.speed * mistDt;
+        mp.x += Math.sin(mp.phase + safePerfNow * 0.002) * 0.55 * mistDt;
+        if (mp.y < -10) {
+          mp.y = h + 10;
+          mp.x = Math.random() * w;
+        }
+        ctx.fillStyle = mp.isAqua
+          ? `rgba(125, 211, 252, ${(0.22 + beatPulse * 0.18).toFixed(2)})`
+          : `rgba(110, 231, 183, ${(0.20 + beatPulse * 0.16).toFixed(2)})`;
+        ctx.beginPath();
+        ctx.arc(mp.x, mp.y, mp.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+      return;
+    }
+
     // 1. GRADIENTE ATMOSFÉRICO DE ESTADIO SEGÚN MULTIPLICADOR (Con margen anti-artefactos de shake)
     const bgGradIdx = mult >= 5 ? 4 : Math.max(0, mult - 1);
     ctx.fillStyle = (this._bgGrads && this._bgGrads[bgGradIdx]) ? this._bgGrads[bgGradIdx] : '#0e081e';
@@ -5884,7 +6001,8 @@ class BeatstarEngine {
   // =========================================================================
   static drawSingleEffectBurst(ctx, b, nowMs = 0, spanScale = 1.0) {
     if (!ctx || !b || b.alpha <= 0.01) return;
-    const fx = b.type || 'solar_inferno';
+    const isRiverBurst = (b.type === 'river_splash') || (typeof window !== 'undefined' && window.isRiverModeActive);
+    const fx = isRiverBurst ? 'river_splash' : (b.type || 'solar_inferno');
     const a = Math.max(0, Math.min(1, b.alpha));
     const p = Math.max(0, Math.min(1, 1 - a));
     const x = b.x;
@@ -5893,6 +6011,57 @@ class BeatstarEngine {
     const seed = b.seed || 17.3;
 
     ctx.save();
+
+    // 0. SALPICADURA ACUÁTICA Y CORONA DE ONDAS DE RÍO (Exclusivo Modo Río)
+    if (fx === 'river_splash') {
+      // Triple anillo de onda de agua concéntrica en perspectiva 3D
+      for (let rIdx = 0; rIdx < 3; rIdx++) {
+        const rp = Math.max(0, Math.min(1, p * 1.15 - rIdx * 0.14));
+        if (rp <= 0.01) continue;
+        const rx = (18 + rp * (72 - rIdx * 12)) * s;
+        const ry = rx * 0.42;
+        const ringAlpha = a * (1 - rp * 0.65) * (rIdx === 0 ? 0.92 : 0.68);
+        ctx.strokeStyle = rIdx === 0 ? `rgba(255, 255, 255, ${ringAlpha.toFixed(3)})` : (rIdx === 1 ? `rgba(0, 242, 254, ${ringAlpha.toFixed(3)})` : `rgba(56, 189, 248, ${ringAlpha.toFixed(3)})`);
+        ctx.lineWidth = Math.max(1.2, (3.6 - rIdx * 0.8) * s * a);
+        ctx.beginPath();
+        ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Corona de salpicadura líquida ascendente (Water Crown Jets)
+      const crownSpikes = 7;
+      ctx.fillStyle = `rgba(186, 230, 253, ${(a * 0.72).toFixed(3)})`;
+      ctx.strokeStyle = `rgba(255, 255, 255, ${(a * 0.92).toFixed(3)})`;
+      ctx.lineWidth = 1.6 * s;
+      ctx.beginPath();
+      for (let k = 0; k < crownSpikes; k++) {
+        const frac = (k / (crownSpikes - 1)) - 0.5;
+        const baseX = x + frac * (34 + p * 44) * s;
+        const tipX = x + frac * (56 + p * 82) * s;
+        const archLift = Math.sin(Math.min(1, p * 1.45) * Math.PI);
+        const jetH = (26 + (1 - Math.abs(frac)) * 38) * archLift * s;
+        const tipY = y - jetH;
+        ctx.moveTo(baseX - 4 * s * a, y);
+        ctx.quadraticCurveTo((baseX + tipX) * 0.5, tipY + 6 * s, tipX, tipY);
+        ctx.quadraticCurveTo((baseX + tipX) * 0.5, tipY + 10 * s, baseX + 4 * s * a, y);
+      }
+      ctx.fill();
+      ctx.stroke();
+
+      // Gotas cristalinas desprendiéndose de las puntas de la corona de agua
+      for (let d = 0; d < 9; d++) {
+        const frac = (d / 8) - 0.5;
+        const dx = x + frac * (64 + p * 98) * s + Math.sin(seed + d * 1.9) * 6 * s;
+        const dy = y - (Math.sin(Math.min(1, p * 1.25) * Math.PI) * (42 + (d % 3) * 18) - p * p * 28) * s;
+        const dropR = (3.4 - (d % 3) * 0.6) * s * a;
+        ctx.fillStyle = (d % 2 === 0) ? '#ffffff' : '#7dd3fc';
+        ctx.beginPath();
+        ctx.arc(dx, dy, Math.max(1.0, dropR), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+      return;
+    }
 
     // 1. LLAMARADA INFERNAL (FUEGO VOLUMÉTRICO INTENSO - 0 Gradient Allocs)
     if (fx === 'solar_inferno') {
@@ -6457,12 +6626,14 @@ class BeatstarEngine {
       const keyW = (this.laneWidth || 100) * 0.78;
       const keyH = isLarge ? 58 : 30;
 
-      // 1. Estela de propulsión hipersónica luminosa (0 Gradient Allocs)
+      const isRiverSwipe = Boolean(this.isRiverModeActive || (typeof window !== 'undefined' && window.isRiverModeActive));
+
+      // 1. Estela de propulsión luminosa o estela de espuma de agua en Modo Río
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       const trailLenX = -launch.vx * 0.05;
       const trailLenY = -launch.vy * 0.05;
-      ctx.fillStyle = hexToRgba(launch.color, 0.72);
+      ctx.fillStyle = isRiverSwipe ? 'rgba(56, 189, 248, 0.72)' : hexToRgba(launch.color, 0.72);
       ctx.beginPath();
       ctx.moveTo(-keyW / 2, -keyH / 2);
       ctx.lineTo(keyW / 2, -keyH / 2);
@@ -6472,9 +6643,9 @@ class BeatstarEngine {
       ctx.fill();
       ctx.restore();
 
-      // 2. Tecla marfil en 3D saliendo proyectada (0 Gradient Allocs)
-      ctx.fillStyle = '#e8edf4';
-      ctx.strokeStyle = '#ffffff';
+      // 2. Tecla marfil en 3D o Baldosa de Roca de Río saliendo proyectada
+      ctx.fillStyle = isRiverSwipe ? '#475569' : '#e8edf4';
+      ctx.strokeStyle = isRiverSwipe ? '#7dd3fc' : '#ffffff';
       ctx.lineWidth = 2.4;
 
       ctx.beginPath();
@@ -6486,7 +6657,7 @@ class BeatstarEngine {
       // Halo de propulsión luminoso en hardware puro
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.strokeStyle = hexToRgba(launch.color, (1 - progress) * 0.85);
+      ctx.strokeStyle = isRiverSwipe ? `rgba(0, 242, 254, ${((1 - progress) * 0.90).toFixed(2)})` : hexToRgba(launch.color, (1 - progress) * 0.85);
       ctx.lineWidth = 4.0;
       ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(-keyW / 2, -keyH / 2, keyW, keyH, 8);
@@ -6911,27 +7082,52 @@ class BeatstarEngine {
     if (!this.fxRipples || this.fxRipples.length === 0 || !ctx) return;
     ctx.save();
     const len = this.fxRipples.length;
+    const isRiverRipples = Boolean(this.isRiverModeActive || (typeof window !== 'undefined' && window.isRiverModeActive));
 
     for (let i = 0; i < len; i++) {
       const r = this.fxRipples[i];
       if (!r || r.alpha <= 0.01) continue;
       const alpha = Math.max(0, Math.min(1, r.alpha));
-      const col = r.color || '#00f2fe';
+      const col = isRiverRipples ? '#00f2fe' : (r.color || '#00f2fe');
       const rad = Math.max(1, r.radius);
       const maxR = Math.max(10, r.maxRadius || 90);
       const progress = Math.min(1, rad / maxR);
       const widthFactor = 1 - progress;
 
-      // Halo elíptico en escorzo 3D contenido dentro del receptor
-      ctx.strokeStyle = hexToRgba(col, alpha * 0.85);
-      ctx.lineWidth = Math.max(1.5, 4.0 * widthFactor);
-      ctx.beginPath();
-      if (ctx.ellipse) {
-        ctx.ellipse(r.x, r.y, rad, rad * 0.36, 0, 0, Math.PI * 2);
+      if (isRiverRipples) {
+        // Triple onda de agua concéntrica con cresta de espuma blanca y anillo turquesa
+        ctx.strokeStyle = `rgba(255, 255, 255, ${(alpha * 0.92).toFixed(3)})`;
+        ctx.lineWidth = Math.max(1.6, 3.8 * widthFactor);
+        ctx.beginPath();
+        ctx.ellipse(r.x, r.y, rad, rad * 0.42, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        if (rad > 10) {
+          ctx.strokeStyle = `rgba(0, 242, 254, ${(alpha * 0.75).toFixed(3)})`;
+          ctx.lineWidth = Math.max(1.2, 2.6 * widthFactor);
+          ctx.beginPath();
+          ctx.ellipse(r.x, r.y, rad * 0.68, rad * 0.68 * 0.42, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        if (rad > 20) {
+          ctx.strokeStyle = `rgba(186, 230, 253, ${(alpha * 0.58).toFixed(3)})`;
+          ctx.lineWidth = Math.max(1.0, 1.8 * widthFactor);
+          ctx.beginPath();
+          ctx.ellipse(r.x, r.y, rad * 0.36, rad * 0.36 * 0.42, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
       } else {
-        ctx.arc(r.x, r.y, rad * 0.6, 0, Math.PI * 2);
+        // Halo elíptico en escorzo 3D contenido dentro del receptor
+        ctx.strokeStyle = hexToRgba(col, alpha * 0.85);
+        ctx.lineWidth = Math.max(1.5, 4.0 * widthFactor);
+        ctx.beginPath();
+        if (ctx.ellipse) {
+          ctx.ellipse(r.x, r.y, rad, rad * 0.36, 0, 0, Math.PI * 2);
+        } else {
+          ctx.arc(r.x, r.y, rad * 0.6, 0, Math.PI * 2);
+        }
+        ctx.stroke();
       }
-      ctx.stroke();
     }
     ctx.restore();
   }
@@ -10734,10 +10930,12 @@ class BeatstarEngine {
   // =========================================================================
 
   initRiverModeAssets() {
-    if (this._riverAssetsReady && this._riverLilyPadSprite && this._riverKoiSprites) return;
+    if (this._riverAssetsReady && this._riverLilyPadSprite && this._riverKoiSprites && this._riverSealSprites && this._riverSealBustSprites) return;
     this._riverAssetsReady = true;
     this._riverSplashes = [];
     this._riverSplashPool = [];
+    this._riverTapRipples = [];
+    this._riverWaterCrowns = [];
     this._riverLeapingFish = [];
     this._riverLastLaneFlash = [0, 0, 0];
 
@@ -10745,8 +10943,22 @@ class BeatstarEngine {
     this._riverSwimmingKoi = [
       { lane: 0.35, p: 0.28, vx: 0.18, vp: 0.08, variant: 0, phase: 0.0 },
       { lane: 1.65, p: 0.52, vx: -0.22, vp: -0.06, variant: 1, phase: 2.1 },
-      { lane: 0.95, p: 0.74, vx: 0.15, vp: 0.09, variant: 0, phase: 4.2 },
-      { lane: 1.25, p: 0.18, vx: -0.19, vp: 0.07, variant: 1, phase: 1.3 }
+      { lane: 0.95, p: 0.74, vx: 0.15, vp: 0.09, variant: 0, phase: 4.2 }
+    ];
+
+    // Focas Moteadas Ultra Realistas nadando y serpenteando por la corriente del río
+    this._riverSwimmingSeals = [
+      { lane: 0.42, p: 0.40, vx: 0.14, vp: 0.065, variant: 0, phase: 0.5, diveCycle: 0.0 },
+      { lane: 1.58, p: 0.68, vx: -0.15, vp: -0.055, variant: 1, phase: 3.1, diveCycle: 2.2 },
+      { lane: 1.02, p: 0.22, vx: 0.12, vp: 0.075, variant: 0, phase: 1.8, diveCycle: 4.5 }
+    ];
+
+    // Focas Ultra Realistas asomando la cabeza y descansando junto a las rocas de las orillas
+    this._riverBankSeals = [
+      { side: 0, p: 0.34, variant: 0, phase: 0.0, lookAng: 0.18 },
+      { side: 1, p: 0.56, variant: 1, phase: 1.9, lookAng: -0.22 },
+      { side: 0, p: 0.78, variant: 1, phase: 3.7, lookAng: 0.15 },
+      { side: 1, p: 0.24, variant: 0, phase: 5.1, lookAng: -0.16 }
     ];
 
     // Nenúfares esmeralda con flor de loto flotando junto a las orillas
@@ -10830,14 +11042,12 @@ class BeatstarEngine {
       const kc = kCvs.getContext('2d');
       kc.translate(42, 28);
 
-      // Aletas pectorales fluidas
       kc.fillStyle = kp.fin;
       kc.beginPath();
       kc.ellipse(4, -13, 9, 4.5, -0.5, 0, Math.PI * 2);
       kc.ellipse(4, 13, 9, 4.5, 0.5, 0, Math.PI * 2);
       kc.fill();
 
-      // Cola bifurcada elegante
       kc.beginPath();
       kc.moveTo(-14, 0);
       kc.quadraticCurveTo(-28, -12, -36, -9);
@@ -10846,20 +11056,17 @@ class BeatstarEngine {
       kc.closePath();
       kc.fill();
 
-      // Cuerpo ahusado del Koi
       kc.fillStyle = kp.body;
       kc.beginPath();
       kc.ellipse(2, 0, 22, 10.5, 0, 0, Math.PI * 2);
       kc.fill();
 
-      // Manchas características Kohaku / Yamabuki
       kc.fillStyle = kp.spot;
       kc.beginPath();
       kc.arc(8, -2, 6.5, 0, Math.PI * 2);
       kc.arc(-5, 3, 5.2, 0, Math.PI * 2);
       kc.fill();
 
-      // Ojitos
       kc.fillStyle = '#0f172a';
       kc.beginPath();
       kc.arc(18, -4.5, 1.8, 0, Math.PI * 2);
@@ -10867,6 +11074,357 @@ class BeatstarEngine {
       kc.fill();
 
       this._riverKoiSprites.push(kCvs);
+    }
+
+    // 3. FOCAS ULTRA REALISTAS NADANDO (2 variantes de pelaje húmedo: Gris Plateado Moteado y Pardo Pizarra Ártico)
+    this._riverSealSprites = [];
+    const sealCoats = [
+      {
+        deep: '#1e293b',
+        mid: '#475569',
+        light: '#94a3b8',
+        belly: '#cbd5e1',
+        wetSheen: 'rgba(241, 245, 249, 0.68)',
+        spotDark: 'rgba(15, 23, 42, 0.65)',
+        spotRing: 'rgba(226, 232, 240, 0.42)',
+        flipper: '#334155'
+      },
+      {
+        deep: '#292524',
+        mid: '#57534e',
+        light: '#a8a29e',
+        belly: '#d6d3d1',
+        wetSheen: 'rgba(250, 250, 249, 0.64)',
+        spotDark: 'rgba(28, 25, 23, 0.68)',
+        spotRing: 'rgba(231, 229, 228, 0.40)',
+        flipper: '#44403c'
+      }
+    ];
+
+    const sealSpots = [
+      { x: -24, y: -6, rx: 4.2, ry: 2.8, a: 0.2, ring: true },
+      { x: -16, y: 5, rx: 3.5, ry: 2.4, a: -0.3, ring: false },
+      { x: -10, y: -9, rx: 4.8, ry: 3.1, a: 0.1, ring: true },
+      { x: -4, y: 1, rx: 3.2, ry: 2.2, a: 0.4, ring: false },
+      { x: 2, y: 9, rx: 4.4, ry: 2.7, a: -0.2, ring: true },
+      { x: 8, y: -7, rx: 3.8, ry: 2.5, a: 0.3, ring: false },
+      { x: 14, y: 4, rx: 3.0, ry: 2.1, a: -0.1, ring: true },
+      { x: -29, y: 3, rx: 3.1, ry: 2.0, a: 0.2, ring: false },
+      { x: -19, y: -2, rx: 2.6, ry: 1.8, a: 0, ring: false },
+      { x: 5, y: -1, rx: 2.8, ry: 1.9, a: 0.2, ring: false },
+      { x: 18, y: -4, rx: 2.5, ry: 1.7, a: -0.2, ring: false },
+      { x: -8, y: 10, rx: 3.3, ry: 2.1, a: 0.1, ring: false }
+    ];
+
+    for (let sIdx = 0; sIdx < sealCoats.length; sIdx++) {
+      const sc = sealCoats[sIdx];
+      const sCvs = document.createElement('canvas');
+      sCvs.width = 164;
+      sCvs.height = 108;
+      const ctxS = sCvs.getContext('2d');
+      ctxS.translate(82, 54);
+
+      // Sombra submarina suave bajo la foca
+      ctxS.fillStyle = 'rgba(2, 18, 34, 0.38)';
+      ctxS.beginPath();
+      ctxS.ellipse(0, 6, 52, 22, 0, 0, Math.PI * 2);
+      ctxS.fill();
+
+      // Aletas traseras gemelas palmeadas (Hind Flippers) con estrías anatómicas
+      ctxS.fillStyle = sc.flipper;
+      ctxS.strokeStyle = sc.deep;
+      ctxS.lineWidth = 1.4;
+      for (let hf = -1; hf <= 1; hf += 2) {
+        ctxS.beginPath();
+        ctxS.moveTo(-36, hf * 3);
+        ctxS.quadraticCurveTo(-54, hf * 15, -66, hf * 12);
+        ctxS.quadraticCurveTo(-60, hf * 5, -64, hf * 2);
+        ctxS.quadraticCurveTo(-50, hf * 1, -36, hf * 1);
+        ctxS.closePath();
+        ctxS.fill();
+        ctxS.stroke();
+      }
+
+      // Aletas pectorales delanteras (Fore Flippers) con 5 dígitos palmeados
+      for (let ff = -1; ff <= 1; ff += 2) {
+        ctxS.save();
+        ctxS.translate(10, ff * 16);
+        ctxS.rotate(ff * 0.48);
+        const fGrad = ctxS.createLinearGradient(0, 0, -14, ff * 24);
+        fGrad.addColorStop(0, sc.mid);
+        fGrad.addColorStop(1, sc.deep);
+        ctxS.fillStyle = fGrad;
+        ctxS.beginPath();
+        ctxS.moveTo(8, 0);
+        ctxS.quadraticCurveTo(4, ff * 22, -10, ff * 26);
+        ctxS.quadraticCurveTo(-18, ff * 20, -14, ff * 10);
+        ctxS.quadraticCurveTo(-6, ff * 2, 8, 0);
+        ctxS.closePath();
+        ctxS.fill();
+        ctxS.stroke();
+        ctxS.restore();
+      }
+
+      // Cuerpo hidrodinámico fusiforme 3D de la foca con degradado de pelaje mojado
+      const bodyGrad = ctxS.createRadialGradient(4, -5, 4, -2, 0, 48);
+      bodyGrad.addColorStop(0.00, sc.light);
+      bodyGrad.addColorStop(0.45, sc.mid);
+      bodyGrad.addColorStop(0.85, sc.deep);
+      bodyGrad.addColorStop(1.00, '#0f172a');
+      ctxS.fillStyle = bodyGrad;
+      ctxS.beginPath();
+      ctxS.moveTo(32, 0);
+      ctxS.bezierCurveTo(32, -18, 4, -22, -22, -14);
+      ctxS.bezierCurveTo(-36, -9, -44, -4, -44, 0);
+      ctxS.bezierCurveTo(-44, 4, -36, 9, -22, 14);
+      ctxS.bezierCurveTo(4, 22, 32, 18, 32, 0);
+      ctxS.closePath();
+      ctxS.fill();
+
+      // Textura realista de manchas orgánicas de foca común (Phoca vitulina)
+      for (let m = 0; m < sealSpots.length; m++) {
+        const sp = sealSpots[m];
+        if (sp.ring) {
+          ctxS.strokeStyle = sc.spotRing;
+          ctxS.lineWidth = 1.3;
+          ctxS.beginPath();
+          ctxS.ellipse(sp.x, sp.y, sp.rx + 1.4, sp.ry + 1.2, sp.a, 0, Math.PI * 2);
+          ctxS.stroke();
+        }
+        ctxS.fillStyle = sc.spotDark;
+        ctxS.beginPath();
+        ctxS.ellipse(sp.x, sp.y, sp.rx, sp.ry, sp.a, 0, Math.PI * 2);
+        ctxS.fill();
+      }
+
+      // Brillo especular de agua sobre el lomo mojado de la foca
+      const sheenGrad = ctxS.createLinearGradient(-26, -6, 24, -2);
+      sheenGrad.addColorStop(0.0, 'rgba(255, 255, 255, 0.0)');
+      sheenGrad.addColorStop(0.35, sc.wetSheen);
+      sheenGrad.addColorStop(0.75, sc.wetSheen);
+      sheenGrad.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
+      ctxS.fillStyle = sheenGrad;
+      ctxS.beginPath();
+      ctxS.ellipse(-2, -4, 26, 6.5, -0.05, 0, Math.PI * 2);
+      ctxS.fill();
+
+      // Cabeza redondeada anatómica y hocico expresivo de foca
+      const headGrad = ctxS.createRadialGradient(34, -3, 2, 32, 0, 19);
+      headGrad.addColorStop(0.0, sc.belly);
+      headGrad.addColorStop(0.55, sc.mid);
+      headGrad.addColorStop(1.0, sc.deep);
+      ctxS.fillStyle = headGrad;
+      ctxS.beginPath();
+      ctxS.ellipse(31, 0, 16.5, 13.5, 0, 0, Math.PI * 2);
+      ctxS.fill();
+
+      // Hocico abultado (almohadillas de los bigotes) y nariz húmeda en forma de V
+      ctxS.fillStyle = sc.belly;
+      ctxS.beginPath();
+      ctxS.ellipse(44, -3.6, 5.5, 4.2, 0.2, 0, Math.PI * 2);
+      ctxS.ellipse(44, 3.6, 5.5, 4.2, -0.2, 0, Math.PI * 2);
+      ctxS.fill();
+
+      // Nariz negra brillante húmeda con fosas nasales
+      ctxS.fillStyle = '#090d16';
+      ctxS.beginPath();
+      ctxS.ellipse(47.5, 0, 3.2, 3.8, 0, 0, Math.PI * 2);
+      ctxS.fill();
+      ctxS.fillStyle = 'rgba(255, 255, 255, 0.75)';
+      ctxS.beginPath();
+      ctxS.arc(46.8, -1.1, 1.0, 0, Math.PI * 2);
+      ctxS.fill();
+
+      // Ojos grandes negros líquidos hiperrealistas con doble reflejo corneal
+      for (let ey = -1; ey <= 1; ey += 2) {
+        const eyeY = ey * 6.4;
+        ctxS.fillStyle = '#020617';
+        ctxS.beginPath();
+        ctxS.ellipse(36.5, eyeY, 3.6, 3.1, ey * 0.15, 0, Math.PI * 2);
+        ctxS.fill();
+        // Reflejo principal de cielo/agua en la córnea
+        ctxS.fillStyle = '#ffffff';
+        ctxS.beginPath();
+        ctxS.arc(37.6, eyeY - 1.0, 1.25, 0, Math.PI * 2);
+        ctxS.fill();
+        ctxS.fillStyle = '#bae6fd';
+        ctxS.beginPath();
+        ctxS.arc(35.3, eyeY + 1.0, 0.65, 0, Math.PI * 2);
+        ctxS.fill();
+      }
+
+      // Vibrisas (Bigotes plateados translúcidos curvados hacia atrás)
+      ctxS.strokeStyle = 'rgba(241, 245, 249, 0.85)';
+      ctxS.lineWidth = 1.05;
+      ctxS.beginPath();
+      for (let side = -1; side <= 1; side += 2) {
+        for (let w = 0; w < 4; w++) {
+          const wy0 = side * (3.2 + w * 1.1);
+          const wx0 = 44.5 - w * 0.8;
+          ctxS.moveTo(wx0, wy0);
+          ctxS.quadraticCurveTo(wx0 + 2, wy0 + side * (7 + w * 2.5), wx0 - 7 - w * 2, wy0 + side * (12 + w * 3.2));
+        }
+      }
+      ctxS.stroke();
+
+      this._riverSealSprites.push(sCvs);
+    }
+
+    // 4. FOCAS ULTRA REALISTAS ASOMANDO DEL AGUA (Spy-Hopping / Busto 3D con cabeza, ojos húmedos, bigotes y anillo de espuma)
+    this._riverSealBustSprites = [];
+    for (let bIdx = 0; bIdx < 2; bIdx++) {
+      const sc = sealCoats[bIdx % sealCoats.length];
+      const bCvs = document.createElement('canvas');
+      bCvs.width = 132;
+      bCvs.height = 132;
+      const bc = bCvs.getContext('2d');
+      const cx = 66, cy = 72;
+
+      // Anillo de espuma blanca y onda turquesa en la superficie del agua rodeando a la foca
+      bc.strokeStyle = 'rgba(125, 211, 252, 0.65)';
+      bc.lineWidth = 3.0;
+      bc.beginPath();
+      bc.ellipse(cx, cy + 20, 48, 17, 0, 0, Math.PI * 2);
+      bc.stroke();
+
+      bc.fillStyle = 'rgba(224, 242, 254, 0.78)';
+      bc.beginPath();
+      bc.ellipse(cx, cy + 18, 41, 13, 0, 0, Math.PI * 2);
+      bc.fill();
+
+      // Hombros y cuello rechoncho húmedo emergiendo del agua
+      const neckGrad = bc.createLinearGradient(cx - 28, cy - 10, cx + 28, cy + 22);
+      neckGrad.addColorStop(0.0, sc.light);
+      neckGrad.addColorStop(0.45, sc.mid);
+      neckGrad.addColorStop(1.0, sc.deep);
+      bc.fillStyle = neckGrad;
+      bc.beginPath();
+      bc.moveTo(cx - 32, cy + 18);
+      bc.quadraticCurveTo(cx - 30, cy - 16, cx - 18, cy - 26);
+      bc.lineTo(cx + 18, cy - 26);
+      bc.quadraticCurveTo(cx + 30, cy - 16, cx + 32, cy + 18);
+      bc.closePath();
+      bc.fill();
+
+      // Pecho claro moteado
+      const chestGrad = bc.createRadialGradient(cx, cy + 6, 3, cx, cy + 8, 24);
+      chestGrad.addColorStop(0.0, sc.belly);
+      chestGrad.addColorStop(1.0, 'rgba(148, 163, 184, 0)');
+      bc.fillStyle = chestGrad;
+      bc.beginPath();
+      bc.ellipse(cx, cy + 6, 22, 14, 0, 0, Math.PI * 2);
+      bc.fill();
+
+      // Motas realistas en hombros y pecho
+      const bustSpots = [
+        { x: -18, y: 4, r: 3.2 }, { x: -11, y: 12, r: 2.6 }, { x: 16, y: 5, r: 3.4 },
+        { x: 11, y: 13, r: 2.4 }, { x: -6, y: 6, r: 2.1 }, { x: 7, y: 8, r: 2.3 }
+      ];
+      bc.fillStyle = sc.spotDark;
+      for (let s = 0; s < bustSpots.length; s++) {
+        bc.beginPath();
+        bc.ellipse(cx + bustSpots[s].x, cy + bustSpots[s].y, bustSpots[s].r, bustSpots[s].r * 0.75, 0.2, 0, Math.PI * 2);
+        bc.fill();
+      }
+
+      // Cabeza redondeada 3D de la foca
+      const hGrad = bc.createRadialGradient(cx - 5, cy - 30, 4, cx, cy - 24, 26);
+      hGrad.addColorStop(0.0, sc.belly);
+      hGrad.addColorStop(0.5, sc.mid);
+      hGrad.addColorStop(1.0, sc.deep);
+      bc.fillStyle = hGrad;
+      bc.beginPath();
+      bc.ellipse(cx, cy - 24, 24, 21, 0, 0, Math.PI * 2);
+      bc.fill();
+
+      // Brillo de agua en la coronilla de la foca
+      bc.fillStyle = sc.wetSheen;
+      bc.beginPath();
+      bc.ellipse(cx - 4, cy - 37, 13, 4.5, -0.12, 0, Math.PI * 2);
+      bc.fill();
+
+      // Ojos grandes redondos negros húmedos con doble brillo especular vivo
+      for (let side = -1; side <= 1; side += 2) {
+        const ex = cx + side * 10.5;
+        const ey = cy - 27;
+        // Cuenca suave
+        bc.fillStyle = 'rgba(15, 23, 42, 0.35)';
+        bc.beginPath();
+        bc.arc(ex, ey, 6.6, 0, Math.PI * 2);
+        bc.fill();
+        // Globo ocular negro líquido
+        bc.fillStyle = '#020617';
+        bc.beginPath();
+        bc.arc(ex, ey, 5.4, 0, Math.PI * 2);
+        bc.fill();
+        // Destello corneal principal
+        bc.fillStyle = '#ffffff';
+        bc.beginPath();
+        bc.arc(ex - 1.6, ey - 1.8, 2.0, 0, Math.PI * 2);
+        bc.fill();
+        // Destello secundario turquesa del río
+        bc.fillStyle = '#7dd3fc';
+        bc.beginPath();
+        bc.arc(ex + 1.8, ey + 1.8, 1.05, 0, Math.PI * 2);
+        bc.fill();
+      }
+
+      // Hocico rechoncho (almohadillas de bigotes izquierda y derecha)
+      bc.fillStyle = sc.belly;
+      bc.beginPath();
+      bc.ellipse(cx - 6.5, cy - 15, 8.5, 6.2, -0.15, 0, Math.PI * 2);
+      bc.ellipse(cx + 6.5, cy - 15, 8.5, 6.2, 0.15, 0, Math.PI * 2);
+      bc.fill();
+
+      // Boca dulce curvada debajo del hocico
+      bc.strokeStyle = '#1e293b';
+      bc.lineWidth = 1.6;
+      bc.beginPath();
+      bc.moveTo(cx - 6, cy - 11);
+      bc.quadraticCurveTo(cx, cy - 13.5, cx + 6, cy - 11);
+      bc.stroke();
+
+      // Nariz húmeda oscura en forma de corazón/V con fosas nasales y brillo
+      bc.fillStyle = '#090d16';
+      bc.beginPath();
+      bc.moveTo(cx, cy - 14.5);
+      bc.quadraticCurveTo(cx - 5.5, cy - 20.5, cx - 2.2, cy - 21);
+      bc.quadraticCurveTo(cx, cy - 19.5, cx + 2.2, cy - 21);
+      bc.quadraticCurveTo(cx + 5.5, cy - 20.5, cx, cy - 14.5);
+      bc.closePath();
+      bc.fill();
+      bc.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      bc.beginPath();
+      bc.ellipse(cx - 1.4, cy - 19.2, 1.6, 0.9, -0.2, 0, Math.PI * 2);
+      bc.fill();
+
+      // Puntos foliculares y abanico de bigotes plateados largos (Vibrisas realistas)
+      bc.strokeStyle = 'rgba(248, 250, 252, 0.90)';
+      bc.lineWidth = 1.15;
+      bc.beginPath();
+      for (let side = -1; side <= 1; side += 2) {
+        for (let w = 0; w < 5; w++) {
+          const sx = cx + side * (5.5 + (w % 2) * 3.0);
+          const sy = cy - 17 + w * 1.4;
+          const ctrlX = sx + side * (14 + w * 2.5);
+          const ctrlY = sy - 2 + w * 1.2;
+          const endX = sx + side * (24 + w * 3.2);
+          const endY = sy + 5 + w * 2.4;
+          bc.moveTo(sx, sy);
+          bc.quadraticCurveTo(ctrlX, ctrlY, endX, endY);
+        }
+      }
+      bc.stroke();
+
+      // Collar de espuma blanca delantero lamiendo el pecho de la foca
+      bc.fillStyle = '#ffffff';
+      bc.beginPath();
+      for (let f = -4; f <= 4; f++) {
+        bc.arc(cx + f * 7.5, cy + 18 + Math.abs(f) * 0.6, 5.2 - Math.abs(f) * 0.4, 0, Math.PI * 2);
+      }
+      bc.fill();
+
+      this._riverSealBustSprites.push(bCvs);
     }
   }
 
@@ -10886,7 +11444,6 @@ class BeatstarEngine {
     const notes = this.notes || [];
     const nLen = notes.length;
 
-    // Primero estimamos la densidad media de la canción para normalizar cualquier dificultad
     let avgNotesPerSec = 3.0;
     if (nLen > 4) {
       const spanSec = Math.max(10, ((notes[nLen - 1].timestamp_ms || 30000) - (notes[0].timestamp_ms || 0)) / 1000);
@@ -10905,22 +11462,19 @@ class BeatstarEngine {
         noteCursor++;
       }
 
-      // Contar densidad local ponderada de teclas en torno a `t`
       let weightedCount = 0;
       for (let j = noteCursor; j < nLen; j++) {
         const nt = notes[j].timestamp_ms ?? 0;
         if (nt > t + winAfter) break;
-        const rel = (nt - (t - winBefore)) / (winBefore + winAfter); // 0..1
-        const w = 0.5 - 0.5 * Math.cos(rel * Math.PI * 2); // Ventana Hann suave
+        const rel = (nt - (t - winBefore)) / (winBefore + winAfter);
+        const w = 0.5 - 0.5 * Math.cos(rel * Math.PI * 2);
         weightedCount += (notes[j].type === 'hold' ? 1.35 : 1.0) * (0.45 + 0.55 * w);
       }
 
       const localDensity = weightedCount / winDurSec;
       const densityRatio = localDensity / avgNotesPerSec;
 
-      // Ondulación orgánica de caudal de río + respuesta directa a la densidad de teclas de la sección
       const riverSwell = Math.sin(t * 0.00095) * 0.11 + Math.cos(t * 0.0021) * 0.06;
-      // Velocidad entre 0.72x (Aguas Mansas) y 1.68x (Rápidos Bravos / Cascada en secciones muy densas)
       let speedMult = 0.68 + Math.min(0.92, Math.pow(Math.max(0, densityRatio), 1.12) * 0.44) + riverSwell;
       speedMult = Math.max(0.70, Math.min(1.68, speedMult));
 
@@ -10929,7 +11483,6 @@ class BeatstarEngine {
       cumPos += speedMult * stepMs;
     }
 
-    // Suavizado adicional de 5 puntos sobre la velocidad para que los cambios de corriente se sientan ultra fluidos
     let smoothCum = 0.0;
     for (let s = 0; s < numSteps; s++) {
       let sum = 0, cnt = 0;
@@ -10945,7 +11498,6 @@ class BeatstarEngine {
     }
   }
 
-  // Devuelve la posición acumulada del caudal F(timeMs) en O(1) con interpolación lineal exacta
   _getRiverFlowPos(timeMs) {
     if (!this._riverFlowPosTable || this._riverFlowPosTable.length === 0) {
       this._prepareRiverChoreography();
@@ -10968,7 +11520,6 @@ class BeatstarEngine {
     return table[i0] + (table[i0 + 1] - table[i0]) * frac;
   }
 
-  // Devuelve el multiplicador instantáneo de velocidad del agua v(timeMs) (ej. 0.72x .. 1.68x)
   _getRiverSpeedMult(timeMs) {
     if (!this._riverSpeedMultTable || this._riverSpeedMultTable.length === 0) return 1.0;
     const minT = this._riverFlowMinT || -3000;
@@ -10977,27 +11528,52 @@ class BeatstarEngine {
     return this._riverSpeedMultTable[idx] || 1.0;
   }
 
+  _emitRiverTapRipple(x, y, scale = 1.0, isStrongHit = false) {
+    if (!this._riverTapRipples) this._riverTapRipples = [];
+    if (this._riverTapRipples.length >= 24) this._riverTapRipples.shift();
+    this._riverTapRipples.push({
+      x,
+      y,
+      scale: scale || 1.0,
+      age: 0,
+      duration: isStrongHit ? 0.68 : 0.54,
+      maxRx: (isStrongHit ? 82 : 66) * (scale || 1.0),
+      isStrong: isStrongHit
+    });
+
+    if (!this._riverWaterCrowns) this._riverWaterCrowns = [];
+    if (this._riverWaterCrowns.length >= 12) this._riverWaterCrowns.shift();
+    this._riverWaterCrowns.push({
+      x,
+      y,
+      scale: scale || 1.0,
+      age: 0,
+      duration: isStrongHit ? 0.36 : 0.28,
+      seed: Math.random() * 10
+    });
+  }
+
   _emitRiverSplash(x, y, scale, count = 8, isHoldSplash = false) {
     if (!this._riverSplashes) this._riverSplashes = [];
     if (!this._riverSplashPool) this._riverSplashPool = [];
     for (let i = 0; i < count; i++) {
-      if (this._riverSplashes.length >= 90) break;
+      if (this._riverSplashes.length >= 110) break;
       const sp = this._riverSplashPool.length > 0 ? this._riverSplashPool.pop() : {};
-      const ang = -Math.PI * (0.15 + Math.random() * 0.70);
-      const spd = (isHoldSplash ? 55 : 95) + Math.random() * 95;
-      sp.x = x + (Math.random() - 0.5) * 28 * scale;
+      const ang = -Math.PI * (0.12 + Math.random() * 0.76);
+      const spd = (isHoldSplash ? 65 : 115) + Math.random() * 115;
+      sp.x = x + (Math.random() - 0.5) * 32 * scale;
       sp.y = y;
       sp.vx = Math.cos(ang) * spd * scale;
       sp.vy = Math.sin(ang) * spd * scale;
-      sp.rad = (2.8 + Math.random() * 3.5) * scale;
+      sp.rad = (2.8 + Math.random() * 3.8) * scale;
       sp.age = 0;
-      sp.duration = 0.34 + Math.random() * 0.24;
-      sp.color = (i % 3 === 0) ? '#ffffff' : ((i % 2 === 0) ? '#7dd3fc' : '#00f2fe');
+      sp.duration = 0.38 + Math.random() * 0.26;
+      sp.color = (i % 3 === 0) ? '#ffffff' : ((i % 2 === 0) ? '#bae6fd' : '#00f2fe');
       this._riverSplashes.push(sp);
     }
   }
 
-  // Dibuja una Baldosa de Roca Flotante en 3D con Hondura Luminosa Tallada (Línea central o Flecha Swipe)
+  // Dibuja una Baldosa de Roca Flotante en 3D con Hondura Luminosa Tallada (Línea central o Flecha Swipe perfectamente centrada)
   drawRiverStoneKey(ctx, laneOrCx, cy, h, scale = 1.0, isPressed = false, isLarge = true, isSwipe = false, swipeDir = 'up', lyricText = null, noteIdx = 0, currentTime = 0) {
     ctx.save();
 
@@ -11012,7 +11588,7 @@ class BeatstarEngine {
     }
 
     // Flotabilidad natural sobre la corriente del agua (pequeño balanceo vertical hidrodinámico)
-    const bobOffset = isPressed ? (4.0 * scale) : (Math.sin(currentTime * 0.0055 + noteIdx * 1.9) * 2.0 * scale);
+    const bobOffset = isPressed ? (4.0 * scale) : (Math.sin(currentTime * 0.0055 + noteIdx * 1.9) * 1.8 * scale);
     const y = cy + bobOffset;
     const y0 = y - h / 2;
     const y1 = y0 + h;
@@ -11025,13 +11601,12 @@ class BeatstarEngine {
 
     const r = Math.max(5, (isLarge ? 12 : 7) * scale);
     const cx = (x0Top + x1Top + x0Bot + x1Bot) / 4;
-    const cyMid = (y0 + y1) / 2;
     const keyW = x1Bot - x0Bot;
     const keyH = y1 - y0;
 
     // 1. Estela de Espuma Blanca y Onda de Agua rodeando la base de la baldosa de roca flotante
     const foamExpand = (3.5 + Math.sin(currentTime * 0.009 + noteIdx) * 1.5) * scale;
-    ctx.strokeStyle = 'rgba(186, 230, 253, 0.62)';
+    ctx.strokeStyle = 'rgba(186, 230, 253, 0.65)';
     ctx.lineWidth = Math.max(1.5, 2.8 * scale);
     tracePerspectiveQuad(
       ctx,
@@ -11052,7 +11627,7 @@ class BeatstarEngine {
     ctx.fill();
 
     // 2. Cara Frontal Esculpida en Roca Basáltica Mojada (Grosor 3D de bloque de piedra)
-    const bevelH = Math.max(4, (isLarge ? 11.5 : 6.5) * scale);
+    const bevelH = Math.max(4, (isLarge ? 10.5 : 6.0) * scale);
     const yBevelTop = y1 - bevelH;
     const x0Bev = this.getLaneBoundaryX(lane, yBevelTop) + margin;
     const x1Bev = this.getLaneBoundaryX(lane + 1, yBevelTop) - margin;
@@ -11081,7 +11656,6 @@ class BeatstarEngine {
       rockGrad.addColorStop(0.5, '#0284c7');
       rockGrad.addColorStop(1.0, '#0369a1');
     } else if (isSwipe) {
-      // Las rocas Swipe tienen un tono pizarra-azulado mineral distintivo
       rockGrad.addColorStop(0.0, '#64748b');
       rockGrad.addColorStop(0.45, '#475569');
       rockGrad.addColorStop(1.0, '#334155');
@@ -11122,29 +11696,31 @@ class BeatstarEngine {
     ctx.stroke();
 
     // ===========================================================================
-    // 4. HONDURAS DE LA ROCA (SURCOS PROFUNDOS TALLADOS EN LA PIEDRA CON CRISTAL BIOLUMINISCENTE)
+    // 4. HONDURAS DE LA ROCA PERFECTAMENTE CENTRADAS EN LA CARA SUPERIOR (y0..yBevelTop)
     // ===========================================================================
-    const cyGroove = (y0 + yBevelTop) * 0.52;
+    const cyGroove = (y0 + yBevelTop) * 0.50;
+    const topFaceW = ((x1Top - x0Top) + (x1Bev - x0Bev)) * 0.5;
+    const topFaceH = Math.max(12, yBevelTop - y0);
 
     if (!isSwipe) {
       if (lyricText) {
         const sp = this._getLyricKeySprite(lyricText, isPressed);
-        const drawW = Math.min(keyW * 0.94, 132 * scale);
+        const drawW = Math.min(topFaceW * 0.94, 132 * scale);
         const drawH = 42 * (drawW / 132);
         ctx.drawImage(sp, cx - drawW * 0.5, cyGroove - drawH * 0.5, drawW, drawH);
       } else {
-        // HONDURA CENTRAL HORIZONTAL TALLADA EN LA ROCA (Misma posición de referencia visual que la línea de las teclas normales)
-        const grooveW = keyW * 0.66;
-        const grooveH = Math.max(7.0, 10.5 * scale);
+        // HONDURA CENTRAL HORIZONTAL TALLADA EN EL CENTRO EXACTO DE LA ROCA
+        const grooveW = topFaceW * 0.66;
+        const grooveH = Math.max(6.8, 10.2 * scale);
         const gx = cx - grooveW * 0.5;
         const gy = cyGroove - grooveH * 0.5;
         const gr = grooveH * 0.5;
 
         // A. Labio inferior iluminado del surco de piedra (efecto de profundidad hundida 3D)
-        ctx.fillStyle = 'rgba(226, 232, 240, 0.55)';
+        ctx.fillStyle = 'rgba(226, 232, 240, 0.58)';
         ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(gx - 1.5 * scale, gy + 1.8 * scale, grooveW + 3 * scale, grooveH, gr);
-        else ctx.rect(gx - 1.5 * scale, gy + 1.8 * scale, grooveW + 3 * scale, grooveH);
+        if (ctx.roundRect) ctx.roundRect(gx - 1.5 * scale, gy + 1.6 * scale, grooveW + 3 * scale, grooveH, gr);
+        else ctx.rect(gx - 1.5 * scale, gy + 1.6 * scale, grooveW + 3 * scale, grooveH);
         ctx.fill();
 
         // B. Cavidad profunda oscura tallada en la roca (#090d16)
@@ -11161,25 +11737,22 @@ class BeatstarEngine {
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
 
-        // Resplandor turquesa acuático que emana de la hendidura
         const spreadX = 6.5 * scale;
         const spreadY = 4.5 * scale;
-        ctx.fillStyle = 'rgba(0, 242, 254, 0.34)';
+        ctx.fillStyle = 'rgba(0, 242, 254, 0.36)';
         ctx.beginPath();
         if (ctx.roundRect) ctx.roundRect(gx - spreadX, gy - spreadY, grooveW + spreadX * 2, grooveH + spreadY * 2, gr + spreadY);
         else ctx.rect(gx - spreadX, gy - spreadY, grooveW + spreadX * 2, grooveH + spreadY * 2);
         ctx.fill();
 
-        // Halo cian cristalino dentro del surco
         const innerW = grooveW * 0.92;
         const innerH = Math.max(4.2, grooveH * 0.64);
-        ctx.fillStyle = 'rgba(56, 189, 248, 0.88)';
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.90)';
         ctx.beginPath();
         if (ctx.roundRect) ctx.roundRect(cx - innerW * 0.5, cyGroove - innerH * 0.5, innerW, innerH, innerH * 0.5);
         else ctx.rect(cx - innerW * 0.5, cyGroove - innerH * 0.5, innerW, innerH);
         ctx.fill();
 
-        // Núcleo incandescente blanco puro en el corazón de la hondura
         const coreW = grooveW * 0.84;
         const coreH = Math.max(2.6, grooveH * 0.36);
         ctx.fillStyle = '#ffffff';
@@ -11191,28 +11764,28 @@ class BeatstarEngine {
         ctx.restore();
       }
     } else {
-      // HONDURA DE FLECHA SWIPE TALLADA EN LA ROCA (Surco direccional esculpido a cincel con energía acuática brillante)
+      // HONDURA DE FLECHA SWIPE TALLADA EN EL CENTRO EXACTO DE LA CARA SUPERIOR DE LA ROCA
       const dir = String(swipeDir || 'up').toLowerCase();
-      const arrowSpanW = Math.min(keyW * 0.34, 34 * scale);
-      const arrowSpanH = Math.min(keyH * 0.28, 16 * scale);
+      const arrowSpanW = Math.min(topFaceW * 0.32, 32 * scale);
+      const arrowSpanH = Math.min(topFaceH * 0.32, 16 * scale);
 
       const traceArrowPath = (offsetX, offsetY) => {
         ctx.beginPath();
         if (dir === 'left') {
           ctx.moveTo(cx + arrowSpanW * 0.55 + offsetX, cyGroove - arrowSpanH + offsetY);
-          ctx.lineTo(cx - arrowSpanW * 0.65 + offsetX, cyGroove + offsetY);
+          ctx.lineTo(cx - arrowSpanW * 0.55 + offsetX, cyGroove + offsetY);
           ctx.lineTo(cx + arrowSpanW * 0.55 + offsetX, cyGroove + arrowSpanH + offsetY);
         } else if (dir === 'right') {
           ctx.moveTo(cx - arrowSpanW * 0.55 + offsetX, cyGroove - arrowSpanH + offsetY);
-          ctx.lineTo(cx + arrowSpanW * 0.65 + offsetX, cyGroove + offsetY);
+          ctx.lineTo(cx + arrowSpanW * 0.55 + offsetX, cyGroove + offsetY);
           ctx.lineTo(cx - arrowSpanW * 0.55 + offsetX, cyGroove + arrowSpanH + offsetY);
         } else if (dir === 'down') {
           ctx.moveTo(cx - arrowSpanW + offsetX, cyGroove - arrowSpanH * 0.55 + offsetY);
-          ctx.lineTo(cx + offsetX, cyGroove + arrowSpanH * 0.65 + offsetY);
+          ctx.lineTo(cx + offsetX, cyGroove + arrowSpanH * 0.55 + offsetY);
           ctx.lineTo(cx + arrowSpanW + offsetX, cyGroove - arrowSpanH * 0.55 + offsetY);
         } else {
           ctx.moveTo(cx - arrowSpanW + offsetX, cyGroove + arrowSpanH * 0.55 + offsetY);
-          ctx.lineTo(cx + offsetX, cyGroove - arrowSpanH * 0.65 + offsetY);
+          ctx.lineTo(cx + offsetX, cyGroove - arrowSpanH * 0.55 + offsetY);
           ctx.lineTo(cx + arrowSpanW + offsetX, cyGroove + arrowSpanH * 0.55 + offsetY);
         }
       };
@@ -11221,21 +11794,21 @@ class BeatstarEngine {
       ctx.lineJoin = 'round';
 
       // 1. Bisel inferior de piedra iluminada de la hondura de flecha
-      ctx.strokeStyle = 'rgba(226, 232, 240, 0.65)';
+      ctx.strokeStyle = 'rgba(226, 232, 240, 0.68)';
       ctx.lineWidth = Math.max(7.5, 13.5 * scale);
-      traceArrowPath(0, 2.0 * scale);
+      traceArrowPath(0, 1.8 * scale);
       ctx.stroke();
 
       // 2. Cavidad oscura profunda tallada en la roca
       ctx.strokeStyle = '#090d16';
-      ctx.lineWidth = Math.max(6.5, 11.8 * scale);
+      ctx.lineWidth = Math.max(6.5, 11.6 * scale);
       traceArrowPath(0, 0);
       ctx.stroke();
 
       // 3. Interior bioluminiscente turquesa y blanco puro dentro de la hondura de flecha
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.strokeStyle = 'rgba(0, 242, 254, 0.85)';
+      ctx.strokeStyle = 'rgba(0, 242, 254, 0.88)';
       ctx.lineWidth = Math.max(4.0, 7.2 * scale);
       traceArrowPath(0, 0);
       ctx.stroke();
@@ -11273,7 +11846,6 @@ class BeatstarEngine {
       const pStep = currentTailP + (currentHeadP - currentTailP) * frac;
       const ptCoord = this.getPerspectiveCoord(lane, pStep, this._coordScratch1);
 
-      // El tronco flota sobre la corriente con un ligero balanceo hidrodinámico
       const standingEnvelope = Math.sin(Math.PI * frac);
       const bobX = isBeingHeld
         ? (Math.sin(timeSec * 26.0 + ptCoord.y * 0.08) * (4.2 * standingEnvelope * ptCoord.scale))
@@ -11311,7 +11883,7 @@ class BeatstarEngine {
     }
     ctx.stroke();
 
-    // 2. Cuerpo Cilíndrico 3D del Tronco de Madera (Corteza oscura en los bordes -> Roble cálido -> Lomo iluminado)
+    // 2. Cuerpo Cilíndrico 3D del Tronco de Madera
     const barkPad = 3.2;
     ctx.beginPath();
     for (let s = 0; s <= segments; s++) {
@@ -11327,7 +11899,6 @@ class BeatstarEngine {
     ctx.fillStyle = '#271001';
     ctx.fill();
 
-    // cilindro intermedio de corteza marrón cedro/roble (#78350f)
     ctx.beginPath();
     for (let s = 0; s <= segments; s++) {
       const pt = stringPoints[s];
@@ -11342,7 +11913,6 @@ class BeatstarEngine {
     ctx.fillStyle = '#78350f';
     ctx.fill();
 
-    // Lomo central cilíndrico iluminado (#b45309)
     ctx.beginPath();
     for (let s = 0; s <= segments; s++) {
       const pt = stringPoints[s];
@@ -11373,7 +11943,6 @@ class BeatstarEngine {
     }
     ctx.stroke();
 
-    // Parches de musgo esmeralda sobre el tronco flotante
     ctx.fillStyle = 'rgba(34, 197, 94, 0.55)';
     for (let s = 2; s < segments; s += 3) {
       const pt = stringPoints[s];
@@ -11413,7 +11982,6 @@ class BeatstarEngine {
     ctx.fill();
     ctx.stroke();
 
-    // Anillos concéntricos de crecimiento de la madera
     ctx.strokeStyle = 'rgba(146, 64, 14, 0.65)';
     ctx.lineWidth = Math.max(1.0, 1.5 * tailPt.scale);
     ctx.beginPath();
@@ -11421,7 +11989,7 @@ class BeatstarEngine {
     ctx.ellipse(tailPt.x, tailPt.y, logCapRx * 0.32, logCapRy * 0.32, 0, 0, Math.PI * 2);
     ctx.stroke();
 
-    // 6. CABEZA DEL TRONCO (Frente de madera tallada con Hondura de Timing Cian-Blanca idéntica a las rocas para precisión total)
+    // 6. CABEZA DEL TRONCO (Frente de madera tallada con Hondura de Timing Cian-Blanca centrada)
     const headPt = stringPoints[segments];
     const headW = headPt.halfW * 2.12;
     const headH = Math.min(34 * headPt.scale, maxH3D);
@@ -11429,7 +11997,6 @@ class BeatstarEngine {
     const hy = headPt.y - headH * 0.5;
     const hr = Math.max(5, 9 * headPt.scale);
 
-    // Bloque frontal de madera maciza con corte claro y hondura luminosa central
     ctx.fillStyle = isBeingHeld ? '#059669' : '#78350f';
     ctx.strokeStyle = '#fef3c7';
     ctx.lineWidth = Math.max(1.8, 2.6 * headPt.scale);
@@ -11439,7 +12006,6 @@ class BeatstarEngine {
     ctx.fill();
     ctx.stroke();
 
-    // Hondura luminosa horizontal en la cabeza del tronco (línea exacta de timing)
     const grooveW = headW * 0.72;
     const grooveH = Math.max(6.0, 9.0 * headPt.scale);
     ctx.fillStyle = '#090d16';
@@ -11482,74 +12048,152 @@ class BeatstarEngine {
 
     ctx.save();
 
-    // 1. Detectar impactos recientes en los 3 carriles para disparar Salpicaduras de Agua Cristalina y Saltos de Peces Koi
+    // 1. Detectar impactos recientes en los 3 carriles para disparar Salpicaduras de Agua, Ondas y Saltos de Focas / Peces Koi
     if (!this._riverLastLaneFlash) this._riverLastLaneFlash = [0, 0, 0];
     for (let l = 0; l < 3; l++) {
       const ft = (Array.isArray(this.laneFlashTimers) && this.laneFlashTimers[l]) || 0;
       if (ft > this._riverLastLaneFlash[l] + 0.05) {
         const hitCoord = this.getPerspectiveCoord(l, 1.0, this._coordScratch0);
-        this._emitRiverSplash(hitCoord.x, hitY - 6, hitCoord.scale, 9, false);
+        this._emitRiverSplash(hitCoord.x, hitY - 6, hitCoord.scale, 10, false);
+        this._emitRiverTapRipple(hitCoord.x, hitY, hitCoord.scale, true);
 
-        // En zonas de rápidos o cada varios impactos, un pez Koi salta en arco fuera del agua
-        if (this._riverLeapingFish && this._riverLeapingFish.length < 2 && Math.random() < (curSpeedMult > 1.25 ? 0.28 : 0.12)) {
+        // En zonas de rápidos o cada varios impactos, una Foca realista o un Pez Koi salta alegremente en arco fuera del agua
+        if (this._riverLeapingFish && this._riverLeapingFish.length < 2 && Math.random() < (curSpeedMult > 1.20 ? 0.26 : 0.12)) {
           const fromSide = (l === 0) ? -0.15 : ((l === 2) ? 2.15 : (Math.random() < 0.5 ? -0.1 : 2.1));
           const toLane = Math.max(0.1, Math.min(1.9, l + (fromSide < 1 ? 0.65 : -0.65)));
+          const isSealJump = Math.random() < 0.55;
           this._riverLeapingFish.push({
             fromLane: fromSide,
             toLane: toLane,
-            p: 0.35 + Math.random() * 0.38,
+            p: 0.34 + Math.random() * 0.38,
             age: 0,
-            duration: 0.78,
-            variant: Math.random() < 0.6 ? 0 : 1
+            duration: isSealJump ? 0.88 : 0.76,
+            variant: Math.random() < 0.5 ? 0 : 1,
+            isSeal: isSealJump
           });
         }
       }
       this._riverLastLaneFlash[l] = ft;
 
       // Si se está manteniendo pulsado un Tronco de Madera (Hold), emitir espuma de agua continua en la línea de golpeo
-      if (this.activeHolds && this.activeHolds.has(l) && Math.random() < 0.45) {
+      if (this.activeHolds && this.activeHolds.has(l) && Math.random() < 0.50) {
         const holdCoord = this.getPerspectiveCoord(l, 1.0, this._coordScratch0);
-        this._emitRiverSplash(holdCoord.x, hitY - 4, holdCoord.scale, 2, true);
+        this._emitRiverSplash(holdCoord.x, hitY - 4, holdCoord.scale, 3, true);
       }
     }
 
-    // 2. Actualizar y dibujar Peces Koi Saltando fuera del agua en parábola 3D
-    if (this._riverLeapingFish && this._riverLeapingFish.length > 0 && this._riverKoiSprites) {
+    // 2. Ondas de Agua Concéntricas 3D al Tocar (Water Tap Ripples)
+    if (this._riverTapRipples && this._riverTapRipples.length > 0) {
+      for (let i = this._riverTapRipples.length - 1; i >= 0; i--) {
+        const rp = this._riverTapRipples[i];
+        rp.age += dt;
+        if (rp.age >= rp.duration) {
+          this._riverTapRipples.splice(i, 1);
+          continue;
+        }
+        const u = rp.age / rp.duration;
+        const ease = 1 - Math.pow(1 - u, 2.2);
+        const alpha = Math.max(0, (1 - u) * (rp.isStrong ? 0.92 : 0.78));
+
+        for (let ring = 0; ring < 3; ring++) {
+          const ringFrac = Math.max(0.08, ease - ring * 0.22);
+          if (ringFrac <= 0.08) continue;
+          const rx = rp.maxRx * ringFrac;
+          const ry = rx * 0.42;
+          ctx.strokeStyle = ring === 0
+            ? `rgba(255, 255, 255, ${alpha.toFixed(3)})`
+            : (ring === 1 ? `rgba(0, 242, 254, ${(alpha * 0.82).toFixed(3)})` : `rgba(186, 230, 253, ${(alpha * 0.65).toFixed(3)})`);
+          ctx.lineWidth = Math.max(1.1, (3.4 - ring * 0.8) * (1 - u * 0.5) * rp.scale);
+          ctx.beginPath();
+          ctx.ellipse(rp.x, rp.y, rx, ry, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // 3. Coronas de Salpicadura Líquida 3D al Tocar (Water Splash Crowns)
+    if (this._riverWaterCrowns && this._riverWaterCrowns.length > 0) {
+      for (let i = this._riverWaterCrowns.length - 1; i >= 0; i--) {
+        const wc = this._riverWaterCrowns[i];
+        wc.age += dt;
+        if (wc.age >= wc.duration) {
+          this._riverWaterCrowns.splice(i, 1);
+          continue;
+        }
+        const u = wc.age / wc.duration;
+        const crownLift = Math.sin(u * Math.PI);
+        const alpha = Math.max(0, 1 - u);
+        const spreadW = (24 + u * 36) * wc.scale;
+        const crownH = (18 + crownLift * 24) * wc.scale;
+
+        ctx.fillStyle = `rgba(186, 230, 253, ${(alpha * 0.65).toFixed(3)})`;
+        ctx.strokeStyle = `rgba(255, 255, 255, ${(alpha * 0.92).toFixed(3)})`;
+        ctx.lineWidth = 1.6 * wc.scale;
+        ctx.beginPath();
+        const jets = 5;
+        for (let j = 0; j < jets; j++) {
+          const jf = (j / (jets - 1)) - 0.5;
+          const bx = wc.x + jf * spreadW * 0.72;
+          const tx = wc.x + jf * spreadW * 1.18;
+          const ty = wc.y - crownH * (1 - Math.abs(jf) * 0.35);
+          ctx.moveTo(bx - 3.5 * wc.scale, wc.y);
+          ctx.quadraticCurveTo((bx + tx) * 0.5, ty + 4 * wc.scale, tx, ty);
+          ctx.quadraticCurveTo((bx + tx) * 0.5, ty + 8 * wc.scale, bx + 3.5 * wc.scale, wc.y);
+        }
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+
+    // 4. Actualizar y dibujar Focas Realistas y Peces Koi Saltando fuera del agua en parábola 3D
+    if (this._riverLeapingFish && this._riverLeapingFish.length > 0) {
       for (let i = this._riverLeapingFish.length - 1; i >= 0; i--) {
         const lf = this._riverLeapingFish[i];
         lf.age += dt;
         if (lf.age >= lf.duration) {
           const endCoord = this.getPerspectiveCoord(lf.toLane, lf.p, this._coordScratch1);
-          this._emitRiverSplash(endCoord.x, endCoord.y, endCoord.scale, 6, false);
+          this._emitRiverSplash(endCoord.x, endCoord.y, endCoord.scale, 8, false);
+          this._emitRiverTapRipple(endCoord.x, endCoord.y, endCoord.scale, false);
           this._riverLeapingFish.splice(i, 1);
           continue;
         }
         const u = lf.age / lf.duration;
         const curLane = lf.fromLane + (lf.toLane - lf.fromLane) * u;
         const fCoord = this.getPerspectiveCoord(curLane, lf.p, this._coordScratch1);
-        const arcLift = Math.sin(u * Math.PI) * (68 * fCoord.scale);
+        const arcLift = Math.sin(u * Math.PI) * (72 * fCoord.scale);
         const dirSign = lf.toLane >= lf.fromLane ? 1 : -1;
         const pitchAng = (dirSign > 0 ? 0 : Math.PI) + dirSign * (0.5 - u) * 1.15;
 
-        // Sombra sobre el agua debajo del pez saltando
-        ctx.fillStyle = 'rgba(2, 18, 32, 0.35)';
+        ctx.fillStyle = 'rgba(2, 18, 32, 0.38)';
         ctx.beginPath();
-        ctx.ellipse(fCoord.x, fCoord.y, 18 * fCoord.scale, 6 * fCoord.scale, 0, 0, Math.PI * 2);
+        ctx.ellipse(fCoord.x, fCoord.y, (lf.isSeal ? 26 : 18) * fCoord.scale, (lf.isSeal ? 8 : 6) * fCoord.scale, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        const koiImg = this._riverKoiSprites[lf.variant % this._riverKoiSprites.length];
-        const kw = 58 * fCoord.scale;
-        const kh = 38 * fCoord.scale;
-        ctx.save();
-        ctx.translate(fCoord.x, fCoord.y - arcLift);
-        ctx.rotate(pitchAng);
-        if (dirSign < 0) ctx.scale(1, -1);
-        ctx.drawImage(koiImg, -kw * 0.5, -kh * 0.5, kw, kh);
-        ctx.restore();
+        if (lf.isSeal && this._riverSealSprites && this._riverSealSprites.length > 0) {
+          const sealImg = this._riverSealSprites[lf.variant % this._riverSealSprites.length];
+          const sw = 88 * fCoord.scale;
+          const sh = 58 * fCoord.scale;
+          ctx.save();
+          ctx.translate(fCoord.x, fCoord.y - arcLift);
+          ctx.rotate(pitchAng);
+          if (dirSign < 0) ctx.scale(1, -1);
+          ctx.drawImage(sealImg, -sw * 0.5, -sh * 0.5, sw, sh);
+          ctx.restore();
+        } else if (this._riverKoiSprites && this._riverKoiSprites.length > 0) {
+          const koiImg = this._riverKoiSprites[lf.variant % this._riverKoiSprites.length];
+          const kw = 58 * fCoord.scale;
+          const kh = 38 * fCoord.scale;
+          ctx.save();
+          ctx.translate(fCoord.x, fCoord.y - arcLift);
+          ctx.rotate(pitchAng);
+          if (dirSign < 0) ctx.scale(1, -1);
+          ctx.drawImage(koiImg, -kw * 0.5, -kh * 0.5, kw, kh);
+          ctx.restore();
+        }
       }
     }
 
-    // 3. Partículas de Salpicaduras de Agua Cristalina (swap-and-pop O(1) sin GC)
+    // 5. Partículas de Salpicaduras de Agua Cristalina (swap-and-pop O(1) sin GC)
     if (this._riverSplashes && this._riverSplashes.length > 0) {
       let sLen = this._riverSplashes.length;
       for (let i = sLen - 1; i >= 0; i--) {
@@ -11559,13 +12203,13 @@ class BeatstarEngine {
           this._riverSplashes[i] = this._riverSplashes[sLen - 1];
           this._riverSplashes.pop();
           sLen--;
-          if (this._riverSplashPool.length < 100) this._riverSplashPool.push(sp);
+          if (this._riverSplashPool.length < 110) this._riverSplashPool.push(sp);
           continue;
         }
         const p = sp.age / sp.duration;
         sp.x += sp.vx * dt;
         sp.y += sp.vy * dt;
-        sp.vy += 290 * dt; // gravedad de las gotas de agua
+        sp.vy += 290 * dt;
         ctx.globalAlpha = Math.max(0, 1 - p);
         ctx.fillStyle = sp.color;
         ctx.beginPath();
@@ -11573,87 +12217,6 @@ class BeatstarEngine {
         ctx.fill();
       }
       ctx.globalAlpha = 1.0;
-    }
-
-    // 4. Medidor HUD de Caudal y Velocidad del Río en Tiempo Real (Muestra cómo los 3 carriles aceleran según la densidad)
-    {
-      const hudW = Math.min(w - 24, 272);
-      const hudH = 30;
-      const hudX = w * 0.5 - hudW * 0.5;
-      const hudY = Math.max(54, h * 0.115);
-
-      let zoneLabel = '🌊 CORRIENTE VIVA';
-      let zoneColor = '#38bdf8';
-      if (curSpeedMult >= 1.45) {
-        zoneLabel = '🌪️ ¡CASCADA EXTREMA!';
-        zoneColor = '#f43f5e';
-      } else if (curSpeedMult >= 1.20) {
-        zoneLabel = '⚡ ¡RÁPIDOS BRAVOS!';
-        zoneColor = '#00f2fe';
-      } else if (curSpeedMult <= 0.88) {
-        zoneLabel = '🪷 AGUAS MANSAS';
-        zoneColor = '#34d399';
-      }
-
-      ctx.save();
-      ctx.fillStyle = 'rgba(4, 24, 38, 0.86)';
-      ctx.strokeStyle = zoneColor;
-      ctx.lineWidth = 1.8;
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(hudX, hudY, hudW, hudH, 15);
-      else ctx.rect(hudX, hudY, hudW, hudH);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.font = '800 10.5px "Outfit", system-ui, sans-serif';
-      ctx.textBaseline = 'middle';
-      ctx.textAlign = 'left';
-      ctx.fillStyle = '#e0f2fe';
-      ctx.fillText(`${zoneLabel} (${curSpeedMult.toFixed(2)}x)`, hudX + 11, hudY + hudH * 0.5);
-
-      // Barra de caudal líquido animada a la derecha
-      const barX = hudX + 174;
-      const barW = hudW - 184;
-      const barH = 9;
-      const barY = hudY + (hudH - barH) * 0.5;
-      const fillRatio = Math.max(0.08, Math.min(1.0, (curSpeedMult - 0.68) / 0.95));
-
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(barX, barY, barW, barH, 4.5);
-      else ctx.rect(barX, barY, barW, barH);
-      ctx.fill();
-
-      ctx.fillStyle = zoneColor;
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(barX, barY, barW * fillRatio, barH, 4.5);
-      else ctx.rect(barX, barY, barW * fillRatio, barH);
-      ctx.fill();
-      ctx.restore();
-    }
-
-    // 5. Cartel luminoso de apertura del Modo Río Rápido
-    if (this._riverBannerTimer > 0 && this._riverBannerText) {
-      this._riverBannerTimer = Math.max(0, this._riverBannerTimer - dt);
-      ctx.globalAlpha = Math.min(1, this._riverBannerTimer * 1.5);
-      const bannerY = h * 0.22;
-      const bw = Math.min(w - 14, 356);
-      const bh = 34;
-
-      ctx.fillStyle = 'rgba(3, 22, 36, 0.94)';
-      ctx.strokeStyle = '#00f2fe';
-      ctx.lineWidth = 2.2;
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(w * 0.5 - bw * 0.5, bannerY - bh * 0.5, bw, bh, 12);
-      else ctx.rect(w * 0.5 - bw * 0.5, bannerY - bh * 0.5, bw, bh);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.font = '900 10px "Outfit", system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#7dd3fc';
-      ctx.fillText(this._riverBannerText, w * 0.5, bannerY);
     }
 
     ctx.restore();
@@ -12028,10 +12591,11 @@ class BeatstarEngine {
       if (isRiverTrack && (!this._riverTrackGrad || this._riverTrackGradH !== bottomY)) {
         this._riverTrackGradH = bottomY;
         const rg = ctx.createLinearGradient(this.width / 2, horizonY, this.width / 2, bottomY);
-        rg.addColorStop(0.00, '#032238');
-        rg.addColorStop(0.25, '#075985');
-        rg.addColorStop(0.55, '#0284c7');
-        rg.addColorStop(0.82, '#0891b2');
+        rg.addColorStop(0.00, '#021324');
+        rg.addColorStop(0.18, '#04385c');
+        rg.addColorStop(0.45, '#0369a1');
+        rg.addColorStop(0.75, '#0891b2');
+        rg.addColorStop(0.92, '#06b6d4');
         rg.addColorStop(1.00, '#0e7490');
         this._riverTrackGrad = rg;
       }
@@ -12056,7 +12620,7 @@ class BeatstarEngine {
 
       // A3. Lomo especular 3D en el centro de cada uno de los 3 carriles
       ctx.fillStyle = isRiverTrack
-        ? 'rgba(125, 211, 252, 0.14)'
+        ? 'rgba(125, 211, 252, 0.16)'
         : (isHighwayTrack ? 'rgba(255, 255, 255, 0.045)' : 'rgba(255, 255, 255, 0.38)');
       ctx.beginPath();
       for (let l = 0; l < 3; l++) {
@@ -12072,7 +12636,7 @@ class BeatstarEngine {
       }
       ctx.fill();
 
-      // En Modo Río Rápido: Corrientes de agua sincronizadas con la velocidad del caudal, peces Koi bajo el agua, nenúfares y orillas rocosas con espuma
+      // En Modo Río: Agua realista multicapa, cáusticas solares, pequeñas olitas reactivas a la velocidad, focas ultra realistas y riberas rocosas
       if (isRiverTrack) {
         if (!this._riverAssetsReady) {
           this.initRiverModeAssets();
@@ -12082,6 +12646,49 @@ class BeatstarEngine {
         const riverFlowPos = this._getRiverFlowPos(activeTimeMs);
         const riverScroll = ((riverFlowPos * 0.00105) % 1.0 + 1.0) % 1.0;
         const curSpeed = this._getRiverSpeedMult(activeTimeMs);
+        const speedExcite = Math.max(0, Math.min(1.6, (curSpeed - 0.72) / 0.85));
+
+        // 0. Sombras profundas de las orillas sumergidas y lecho de cantos rodados subacuáticos
+        ctx.fillStyle = 'rgba(2, 18, 34, 0.38)';
+        ctx.beginPath();
+        ctx.moveTo(tL_top, horizonY);
+        ctx.lineTo(getBoundaryX(0.24, horizonY), horizonY);
+        ctx.lineTo(getBoundaryX(0.24, bottomY), bottomY);
+        ctx.lineTo(tL_bot, bottomY);
+        ctx.closePath();
+        ctx.moveTo(getBoundaryX(2.76, horizonY), horizonY);
+        ctx.lineTo(tR_top, horizonY);
+        ctx.lineTo(tR_bot, bottomY);
+        ctx.lineTo(getBoundaryX(2.76, bottomY), bottomY);
+        ctx.closePath();
+        ctx.fill();
+
+        // 0B. Malla de refracción solar (cáusticas cristalinas animadas sobre el fondo del río)
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        const causticBands = 14;
+        for (let cb = 0; cb < causticBands; cb++) {
+          const u0 = ((cb / causticBands) + riverScroll * 0.82) % 1.0;
+          const p0 = Math.pow(u0, 1.7);
+          const cy = horizonY + (bottomY - horizonY) * p0;
+          const cAlpha = Math.sin(u0 * Math.PI) * (0.09 + speedExcite * 0.05);
+          if (cAlpha <= 0.01) continue;
+          const lx = getBoundaryX(0.15, cy);
+          const rx = getBoundaryX(2.85, cy);
+          const wSpan = rx - lx;
+          const waveY = (3 + 7 * p0) * Math.sin(activeTimeMs * 0.0045 + cb * 1.7);
+          ctx.strokeStyle = `rgba(165, 243, 252, ${cAlpha.toFixed(3)})`;
+          ctx.lineWidth = 1.4 + 3.0 * p0;
+          ctx.beginPath();
+          ctx.moveTo(lx, cy);
+          ctx.bezierCurveTo(
+            lx + wSpan * 0.33, cy + waveY,
+            lx + wSpan * 0.66, cy - waveY,
+            rx, cy + waveY * 0.4
+          );
+          ctx.stroke();
+        }
+        ctx.restore();
 
         // 1. Peces Koi nadando suavemente bajo la superficie translúcida del río
         if (this._riverSwimmingKoi && this._riverKoiSprites && this._riverKoiSprites.length > 0) {
@@ -12097,7 +12704,7 @@ class BeatstarEngine {
             const kh = 30 * kCoord.scale;
             const ang = Math.atan2(koi.vp * 1.4, koi.vx) + Math.sin(activeTimeMs * 0.009 + koi.phase) * 0.14;
             ctx.save();
-            ctx.globalAlpha = 0.50;
+            ctx.globalAlpha = 0.48;
             ctx.translate(kCoord.x, kCoord.y);
             ctx.rotate(ang);
             ctx.drawImage(this._riverKoiSprites[koi.variant % this._riverKoiSprites.length], -kw * 0.5, -kh * 0.5, kw, kh);
@@ -12105,102 +12712,132 @@ class BeatstarEngine {
           }
         }
 
-        // 2. Líneas de corriente de agua y espuma blanca (más intensas cuando el río entra en Rápidos de alta densidad)
-        const numWaveStreaks = 16;
+        // 1B. Focas Ultra Realistas nadando ágilmente por el cauce y dejando estelas de espuma en V
+        if (this._riverSwimmingSeals && this._riverSealSprites && this._riverSealSprites.length > 0) {
+          const dtSeal = 0.016;
+          for (let sIdx = 0; sIdx < this._riverSwimmingSeals.length; sIdx++) {
+            const seal = this._riverSwimmingSeals[sIdx];
+            seal.lane += seal.vx * dtSeal * (0.85 + curSpeed * 0.35);
+            seal.p += seal.vp * dtSeal * (0.85 + curSpeed * 0.35);
+            if (seal.lane < 0.22) { seal.lane = 0.22; seal.vx = Math.abs(seal.vx); }
+            if (seal.lane > 1.78) { seal.lane = 1.78; seal.vx = -Math.abs(seal.vx); }
+            if (seal.p < 0.18) { seal.p = 0.18; seal.vp = Math.abs(seal.vp); }
+            if (seal.p > 0.84) { seal.p = 0.84; seal.vp = -Math.abs(seal.vp); }
+
+            const sCoord = this.getPerspectiveCoord(seal.lane, seal.p, this._coordScratch1);
+            const sw = 88 * sCoord.scale;
+            const sh = 55 * sCoord.scale;
+            const swimWiggle = Math.sin(activeTimeMs * 0.0085 + seal.phase) * 0.11;
+            const sAng = Math.atan2(seal.vp * 1.35, seal.vx) + swimWiggle;
+
+            ctx.save();
+            ctx.translate(sCoord.x, sCoord.y);
+            ctx.rotate(sAng);
+
+            // Estela hidrodinámica en V y anillos de agua alrededor de la foca
+            ctx.strokeStyle = 'rgba(224, 242, 254, 0.55)';
+            ctx.lineWidth = Math.max(1.2, 2.0 * sCoord.scale);
+            ctx.beginPath();
+            ctx.moveTo(sw * 0.36, 0);
+            ctx.quadraticCurveTo(0, -sh * 0.44, -sw * 0.58, -sh * (0.56 + 0.08 * Math.sin(activeTimeMs * 0.01 + sIdx)));
+            ctx.moveTo(sw * 0.36, 0);
+            ctx.quadraticCurveTo(0, sh * 0.44, -sw * 0.58, sh * (0.56 + 0.08 * Math.cos(activeTimeMs * 0.01 + sIdx)));
+            ctx.stroke();
+
+            ctx.globalAlpha = 0.92;
+            ctx.drawImage(this._riverSealSprites[seal.variant % this._riverSealSprites.length], -sw * 0.5, -sh * 0.5, sw, sh);
+            ctx.restore();
+          }
+        }
+
+        // 2. Pequeñas Olitas 3D Reactivas a la Velocidad (Crestas arqueadas con espuma blanca y sombra de seno de ola)
+        const numWavelets = Math.min(34, Math.floor(16 + curSpeed * 11));
         ctx.lineCap = 'round';
-        for (let wIdx = 0; wIdx < numWaveStreaks; wIdx++) {
-          const u0 = (wIdx / numWaveStreaks + riverScroll) % 1.0;
-          const u1 = Math.min(1.0, u0 + (0.045 + 0.025 * Math.min(1.6, curSpeed)));
+        for (let wIdx = 0; wIdx < numWavelets; wIdx++) {
+          const u0 = ((wIdx / numWavelets) + riverScroll * (1.0 + (wIdx % 3) * 0.14)) % 1.0;
+          if (u0 < 0.04 || u0 > 0.97) continue;
+          const p0 = Math.pow(u0, 1.7);
+          const wy = horizonY + (bottomY - horizonY) * p0;
+          const lanePos = 0.18 + ((wIdx * 0.754877) % 2.64);
+          const lateralOsc = Math.sin(activeTimeMs * 0.0038 + wIdx * 1.9) * 0.08;
+          const wx = getBoundaryX(lanePos + lateralOsc, wy);
+
+          const waveScale = (0.35 + 0.65 * p0) * (0.82 + speedExcite * 0.48);
+          const waveHalfW = (14 + (wIdx % 4) * 5.5) * waveScale;
+          const waveCrestH = (3.5 + (wIdx % 3) * 1.8 + speedExcite * 3.2) * waveScale;
+          const waveAlpha = Math.min(0.88, (0.28 + speedExcite * 0.38) * Math.sin(u0 * Math.PI));
+
+          // Seno oscuro bajo la cresta de la olita (volumen 3D líquido)
+          ctx.strokeStyle = `rgba(3, 36, 62, ${(waveAlpha * 0.65).toFixed(3)})`;
+          ctx.lineWidth = Math.max(1.2, 2.8 * waveScale);
+          ctx.beginPath();
+          ctx.moveTo(wx - waveHalfW * 0.92, wy + waveCrestH * 0.55);
+          ctx.quadraticCurveTo(wx, wy - waveCrestH * 0.45, wx + waveHalfW * 0.92, wy + waveCrestH * 0.55);
+          ctx.stroke();
+
+          // Cuerpo turquesa cristalino de la olita
+          ctx.strokeStyle = `rgba(125, 211, 252, ${(waveAlpha * 0.85).toFixed(3)})`;
+          ctx.lineWidth = Math.max(1.2, 2.4 * waveScale);
+          ctx.beginPath();
+          ctx.moveTo(wx - waveHalfW, wy + waveCrestH * 0.25);
+          ctx.quadraticCurveTo(wx, wy - waveCrestH, wx + waveHalfW, wy + waveCrestH * 0.25);
+          ctx.stroke();
+
+          // Cresta de espuma blanca rizada en la cima de la olita (Whitecap)
+          ctx.strokeStyle = `rgba(255, 255, 255, ${(waveAlpha * (0.72 + speedExcite * 0.25)).toFixed(3)})`;
+          ctx.lineWidth = Math.max(1.0, 1.6 * waveScale);
+          ctx.beginPath();
+          ctx.moveTo(wx - waveHalfW * 0.68, wy - waveCrestH * 0.12);
+          ctx.quadraticCurveTo(wx, wy - waveCrestH * 1.05, wx + waveHalfW * 0.68, wy - waveCrestH * 0.12);
+          ctx.stroke();
+        }
+
+        // 2B. Líneas de corriente rápida y burbujas de oxígeno arrastradas por el caudal
+        const numStreaks = 16;
+        for (let sIdx = 0; sIdx < numStreaks; sIdx++) {
+          const u0 = (sIdx / numStreaks + riverScroll * 1.25) % 1.0;
+          const u1 = Math.min(1.0, u0 + (0.040 + 0.032 * Math.min(1.6, curSpeed)));
           if (u1 <= u0 + 0.005) continue;
           const p0 = Math.pow(u0, 1.7);
           const p1 = Math.pow(u1, 1.7);
           const y0 = horizonY + (bottomY - horizonY) * p0;
           const y1 = horizonY + (bottomY - horizonY) * p1;
-          const laneFrac = ((wIdx * 0.618) % 2.6) + 0.2;
-          const sway = Math.sin(u0 * 12.0 + activeTimeMs * 0.004 + wIdx) * 0.06;
+          const laneFrac = ((sIdx * 0.618) % 2.6) + 0.2;
+          const sway = Math.sin(u0 * 12.0 + activeTimeMs * 0.004 + sIdx) * 0.05;
           const x0 = getBoundaryX(laneFrac + sway, y0);
           const x1 = getBoundaryX(laneFrac - sway, y1);
 
-          const streakAlpha = Math.min(0.68, (0.18 + (curSpeed - 0.7) * 0.28) * Math.sin(u0 * Math.PI));
-          ctx.strokeStyle = (wIdx % 3 === 0)
-            ? `rgba(255, 255, 255, ${streakAlpha.toFixed(2)})`
-            : `rgba(186, 230, 253, ${(streakAlpha * 0.85).toFixed(2)})`;
-          ctx.lineWidth = Math.max(1.2, (1.5 + 2.8 * p0) * (curSpeed > 1.2 ? 1.25 : 1.0));
+          const streakAlpha = Math.min(0.65, (0.16 + speedExcite * 0.30) * Math.sin(u0 * Math.PI));
+          ctx.strokeStyle = (sIdx % 2 === 0)
+            ? `rgba(240, 249, 255, ${streakAlpha.toFixed(2)})`
+            : `rgba(165, 243, 252, ${(streakAlpha * 0.85).toFixed(2)})`;
+          ctx.lineWidth = Math.max(1.0, (1.3 + 2.2 * p0) * (1.0 + speedExcite * 0.25));
           ctx.beginPath();
           ctx.moveTo(x0, y0);
           ctx.lineTo(x1, y1);
           ctx.stroke();
         }
 
-        // 3. Corrientes divisorias ondulantes de espuma entre los 3 carriles
+        // 3. Corrientes divisorias ondulantes de espuma viva entre los 3 carriles
         for (let l = 1; l <= 2; l++) {
-          ctx.strokeStyle = 'rgba(224, 242, 254, 0.58)';
-          ctx.lineWidth = 2.2;
+          ctx.strokeStyle = 'rgba(186, 230, 253, 0.36)';
+          ctx.lineWidth = 4.2;
           ctx.beginPath();
-          const steps = 18;
+          const steps = 20;
           for (let s = 0; s <= steps; s++) {
             const u = s / steps;
             const p = Math.pow(u, 1.7);
             const ry = horizonY + (bottomY - horizonY) * p;
-            const rippleX = Math.sin(u * 14.0 - riverScroll * Math.PI * 4 + l * 2.1) * (3.2 * p);
+            const rippleX = Math.sin(u * 14.0 - riverScroll * Math.PI * 4 + l * 2.1) * ((2.8 + speedExcite * 2.2) * p);
             const rx = getBoundaryX(l, ry) + rippleX;
             if (s === 0) ctx.moveTo(rx, ry);
             else ctx.lineTo(rx, ry);
           }
           ctx.stroke();
-        }
 
-        // 4. Orillas rocosas con musgo y espuma de ribera en ambos márgenes del río + Nenúfares con flor de loto
-        const bankRocks = 14;
-        for (let b = 0; b < bankRocks; b++) {
-          const u = ((b / bankRocks) + riverScroll) % 1.0;
-          const p = Math.pow(u, 1.7);
-          const ry = horizonY + (bottomY - horizonY) * p;
-          const sc = 0.45 + 0.55 * p;
-          const rW = (10 + (b % 3) * 4) * sc;
-          const rH = (7 + (b % 2) * 3) * sc;
-
-          for (let side = 0; side < 2; side++) {
-            const bx = getBoundaryX(side === 0 ? 0.05 : 2.95, ry);
-            // Espuma blanca rompiendo contra las rocas de la orilla
-            ctx.fillStyle = 'rgba(224, 242, 254, 0.65)';
-            ctx.beginPath();
-            ctx.ellipse(bx + (side === 0 ? 4 : -4) * sc, ry, rW * 1.15, rH * 1.1, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Canto rodado de río
-            ctx.fillStyle = (b % 2 === 0) ? '#334155' : '#475569';
-            ctx.strokeStyle = '#1e293b';
-            ctx.lineWidth = Math.max(1, 1.5 * sc);
-            ctx.beginPath();
-            ctx.ellipse(bx, ry, rW, rH, (side === 0 ? 0.2 : -0.2), 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-
-            if (b % 3 === 0) {
-              ctx.fillStyle = 'rgba(34, 197, 94, 0.65)';
-              ctx.beginPath();
-              ctx.arc(bx, ry - rH * 0.25, rW * 0.45, 0, Math.PI * 2);
-              ctx.fill();
-            }
-          }
-        }
-
-        // Nenúfares flotando suavemente junto a las orillas
-        if (this._riverLilyPads && this._riverLilyPadSprite) {
-          for (let i = 0; i < this._riverLilyPads.length; i++) {
-            const pad = this._riverLilyPads[i];
-            const uPad = (pad.p + riverScroll * 0.5) % 1.0;
-            const pPad = Math.pow(uPad, 1.7);
-            const py = horizonY + (bottomY - horizonY) * pPad;
-            const px = getBoundaryX(pad.side === 0 ? 0.14 : 2.86, py);
-            const pSc = (0.45 + 0.55 * pPad) * 34;
-            ctx.save();
-            ctx.translate(px, py);
-            ctx.rotate(pad.rot + activeTimeMs * 0.0005);
-            ctx.drawImage(this._riverLilyPadSprite, -pSc * 0.5, -pSc * 0.5, pSc, pSc);
-            ctx.restore();
-          }
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.72)';
+          ctx.lineWidth = 1.8;
+          ctx.stroke();
         }
       } else if (isHighwayTrack) {
         const roadScroll = ((cTime >= 0 ? cTime : safePerfNow) * 0.0014) % 1.0;
@@ -12342,7 +12979,9 @@ class BeatstarEngine {
         const glow = this.laneGlows[l] || 0;
 
         if (isHolding || flashTimer > 0.005 || glow > 0.02) {
-          const flashCol = (Array.isArray(this.laneFlashColors) && this.laneFlashColors[l]) || this.getJudgeGlowColor('perfectPlus');
+          const flashCol = isRiverTrack
+            ? '#38bdf8'
+            : ((Array.isArray(this.laneFlashColors) && this.laneFlashColors[l]) || this.getJudgeGlowColor('perfectPlus'));
           const intensity = isHolding
             ? 0.88
             : Math.min(1.0, Math.max(flashTimer / 0.28, glow * 0.75));
@@ -12405,471 +13044,660 @@ class BeatstarEngine {
           ctx.restore();
         }
       }
-      // 3. BISEL METÁLICO 3D DE PRECISIÓN EN LOS BORDES DE LA AUTOPISTA (Estilo Beatstar Original)
-      const railTopW = 5.0;
-      const railBotW = 14.0;
 
-      ctx.save();
-      ctx.fillStyle = '#0d1322';
-      // Bisel lateral izquierdo
-      ctx.beginPath();
-      ctx.moveTo(tL_top, horizonY);
-      ctx.lineTo(Math.max(0, tL_top - railTopW), horizonY);
-      ctx.lineTo(Math.max(0, tL_bot - railBotW), bottomY);
-      ctx.lineTo(tL_bot, bottomY);
-      ctx.closePath();
-      ctx.fill();
+      if (isRiverTrack) {
+        // =========================================================================
+        // 3, 4 y 5 EXCLUSIVOS MODO RÍO: RIBERAS ROCOSAS NATURALES 3D, ESPUMA VIVA,
+        // CHORROS DE AGUA RÍTMICOS, VEGETACIÓN Y FOCAS ULTRA REALISTAS EN LAS ROCAS
+        // =========================================================================
+        const activeTimeMs = cTime >= 0 ? cTime : safePerfNow;
+        const riverFlowPos = this._getRiverFlowPos(activeTimeMs);
+        const riverScroll = ((riverFlowPos * 0.00105) % 1.0 + 1.0) % 1.0;
+        const curSpeed = this._getRiverSpeedMult(activeTimeMs);
+        const speedExcite = Math.max(0, Math.min(1.6, (curSpeed - 0.72) / 0.85));
+        const frameScale = Math.min(2.5, (this._frameDt || 0.00833) * 60);
+        this.borderSurgeL = Math.max(0, (this.borderSurgeL || 0) - 0.045 * frameScale);
+        this.borderSurgeR = Math.max(0, (this.borderSurgeR || 0) - 0.045 * frameScale);
+        const surgeL = this.borderSurgeL || 0;
+        const surgeR = this.borderSurgeR || 0;
 
-      // Bisel lateral derecho
-      ctx.beginPath();
-      ctx.moveTo(tR_top, horizonY);
-      ctx.lineTo(Math.min(this.width, tR_top + railTopW), horizonY);
-      ctx.lineTo(Math.min(this.width, tR_bot + railBotW), bottomY);
-      ctx.lineTo(tR_bot, bottomY);
-      ctx.closePath();
-      ctx.fill();
-
-      // Arista exterior cromada de los raíles 3D
-      ctx.strokeStyle = 'rgba(148, 178, 214, 0.48)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(Math.max(0, tL_top - railTopW), horizonY);
-      ctx.lineTo(Math.max(0, tL_bot - railBotW), bottomY);
-      ctx.moveTo(Math.min(this.width, tR_top + railTopW), horizonY);
-      ctx.lineTo(Math.min(this.width, tR_bot + railBotW), bottomY);
-      ctx.stroke();
-      ctx.restore();
-
-      // 4. ALAS DE RITMO NEÓN ESTILO BEATSTAR ORIGINAL + EFECTOS ESPECIALES DE BORDE (Fuego, Hielo, Rayos, etc.)
-      const numRibs = 34;
-      const bpmSpeed = (normBpm / 60) * Math.PI * 2;
-      const theme = this.getEffectBorderTheme(this.activeEffect);
-      const fx = theme.id;
-      const timeSec = safePerfNow * 0.001;
-
-      const frameScale = Math.min(2.5, (this._frameDt || 0.00833) * 60);
-      this.borderSurgeL = Math.max(0, (this.borderSurgeL || 0) - 0.045 * frameScale);
-      this.borderSurgeR = Math.max(0, (this.borderSurgeR || 0) - 0.045 * frameScale);
-      const surgeL = this.borderSurgeL || 0;
-      const surgeR = this.borderSurgeR || 0;
-
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-
-      const tLx_top = getBoundaryX(0, horizonY);
-      const tLx_bot = getBoundaryX(0, bottomY);
-      const dyL = bottomY - horizonY;
-      const dxL = tLx_bot - tLx_top;
-      const lenL = Math.hypot(dxL, dyL) || 1;
-      const normLx = -dyL / lenL;
-      const normLy = dxL / lenL;
-
-      const tRx_top = getBoundaryX(3, horizonY);
-      const tRx_bot = getBoundaryX(3, bottomY);
-      const dyR = bottomY - horizonY;
-      const dxR = tRx_bot - tRx_top;
-      const lenR = Math.hypot(dxR, dyR) || 1;
-      const normRx = dyR / lenR;
-      const normRy = -dxR / lenR;
-
-      // --- CAPA 1: AURA DIFUMINADA VOLUMÉTRICA LATERAL FIEL AL TEMA DEL EFECTO (Pre-cacheada: 0 allocs/frame) ---
-      const auraSpanTop = 34 + beatPulse * 12;
-      const auraSpanBot = 82 + beatPulse * 24;
-      const borderCacheKey = `${this.width}_${this.height}_${fx}`;
-      if (!this._borderGradCache || this._borderGradCache.key !== borderCacheKey) {
-        const primaryWingCol = theme.cInner;
-        const midWingCol = theme.cMid;
-        const outerWingCol = theme.cOuter;
-
-        const lAura = ctx.createLinearGradient(
-          (tLx_top + tLx_bot) * 0.5,
-          (horizonY + bottomY) * 0.5,
-          (tLx_top + tLx_bot) * 0.5 + normLx * 82,
-          (horizonY + bottomY) * 0.5 + normLy * 82
-        );
-        lAura.addColorStop(0.0, hexToRgba(primaryWingCol, 0.46));
-        lAura.addColorStop(0.40, hexToRgba(midWingCol, 0.25));
-        lAura.addColorStop(0.80, hexToRgba(outerWingCol, 0.08));
-        lAura.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-
-        const rAura = ctx.createLinearGradient(
-          (tRx_top + tRx_bot) * 0.5,
-          (horizonY + bottomY) * 0.5,
-          (tRx_top + tRx_bot) * 0.5 + normRx * 82,
-          (horizonY + bottomY) * 0.5 + normRy * 82
-        );
-        rAura.addColorStop(0.0, hexToRgba(primaryWingCol, 0.46));
-        rAura.addColorStop(0.40, hexToRgba(midWingCol, 0.25));
-        rAura.addColorStop(0.80, hexToRgba(outerWingCol, 0.08));
-        rAura.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-
-        const vGrad = ctx.createLinearGradient(0, horizonY, 0, hitY);
-        vGrad.addColorStop(0.00, outerWingCol);
-        vGrad.addColorStop(0.32, midWingCol);
-        vGrad.addColorStop(0.72, primaryWingCol);
-        vGrad.addColorStop(1.00, '#ffffff');
-
-        this._borderGradCache = { key: borderCacheKey, lAura, rAura, vGrad, primaryWingCol, midWingCol };
-      }
-
-      ctx.globalAlpha = Math.min(1.0, 0.72 + surgeL * 0.35 + beatPulse * 0.20);
-      ctx.fillStyle = this._borderGradCache.lAura;
-      ctx.beginPath();
-      ctx.moveTo(tLx_top - railTopW, horizonY);
-      ctx.lineTo(tLx_top + normLx * auraSpanTop, horizonY + normLy * auraSpanTop);
-      ctx.lineTo(tLx_bot + normLx * auraSpanBot, bottomY + normLy * auraSpanBot);
-      ctx.lineTo(tLx_bot - railBotW, bottomY);
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.globalAlpha = Math.min(1.0, 0.72 + surgeR * 0.35 + beatPulse * 0.20);
-      ctx.fillStyle = this._borderGradCache.rAura;
-      ctx.beginPath();
-      ctx.moveTo(tRx_top + railTopW, horizonY);
-      ctx.lineTo(tRx_top + normRx * auraSpanTop, horizonY + normRy * auraSpanTop);
-      ctx.lineTo(tRx_bot + normRx * auraSpanBot, bottomY + normRy * auraSpanBot);
-      ctx.lineTo(tRx_bot + railBotW, bottomY);
-      ctx.closePath();
-      ctx.fill();
-      ctx.globalAlpha = 1.0;
-
-      // --- CAPA 2: EFECTOS EXTRA TEMÁTICOS EN LOS BORDES LATERALES (Fuego 3D, Hielo, Relámpagos, Plasma, Meteoros) ---
-      if (fx === 'solar_inferno' || fx === 'dragon_fire') {
-        const numFlames = 18;
-        ctx.fillStyle = hexToRgba(theme.cMid, 0.54);
+        ctx.save();
+        // A. Taludes exteriores de roca húmeda de cañón y musgo de ribera a ambos lados del río
+        const bankTopW = 24;
+        const bankBotW = Math.max(54, this.width * 0.19);
+        ctx.fillStyle = '#0f172a';
         ctx.beginPath();
-        for (let side = 0; side < 2; side++) {
-          const isLeft = side === 0;
-          const nX = isLeft ? normLx : normRx;
-          const nY = isLeft ? normLy : normRy;
-          const sideSurge = isLeft ? surgeL : surgeR;
-          for (let f = 0; f < numFlames; f++) {
-            const p0 = Math.pow(f / numFlames, 1.2);
-            const p1 = Math.pow((f + 1.35) / numFlames, 1.2);
-            const y0 = horizonY + (bottomY - horizonY) * p0;
-            const y1 = horizonY + (bottomY - horizonY) * p1;
-            const yMid = (y0 + y1) * 0.5;
-            const x0 = getBoundaryX(isLeft ? 0 : 3, y0);
-            const x1 = getBoundaryX(isLeft ? 0 : 3, y1);
-            const xMid = (x0 + x1) * 0.5;
-            const flicker = 0.55 + 0.30 * Math.sin(f * 2.1 - timeSec * 11.5 + side * 1.7) + 0.20 * Math.cos(f * 3.7 - timeSec * 7.8);
-            const reach = (18 + 38 * p0) * flicker * (1.0 + beatPulse * 0.35 + sideSurge * 0.45);
-            const liftY = -(10 + 22 * p0) * (0.7 + 0.3 * Math.sin(timeSec * 9.0 + f));
-            const tipX = xMid + nX * reach;
-            const tipY = yMid + nY * reach + liftY;
-            ctx.moveTo(x0, y0);
-            ctx.quadraticCurveTo(xMid + nX * reach * 0.65, y0 + liftY * 0.4, tipX, tipY);
-            ctx.quadraticCurveTo(xMid + nX * reach * 0.55, y1, x1, y1);
-          }
-        }
+        // Margen rocoso izquierdo
+        ctx.moveTo(tL_top, horizonY);
+        ctx.lineTo(Math.max(0, tL_top - bankTopW), horizonY);
+        ctx.lineTo(Math.max(0, tL_bot - bankBotW), bottomY);
+        ctx.lineTo(tL_bot, bottomY);
+        ctx.closePath();
+        // Margen rocoso derecho
+        ctx.moveTo(tR_top, horizonY);
+        ctx.lineTo(Math.min(this.width, tR_top + bankTopW), horizonY);
+        ctx.lineTo(Math.min(this.width, tR_bot + bankBotW), bottomY);
+        ctx.lineTo(tR_bot, bottomY);
+        ctx.closePath();
         ctx.fill();
 
-        ctx.fillStyle = hexToRgba(theme.cInner, 0.68);
-        ctx.beginPath();
-        for (let side = 0; side < 2; side++) {
-          const isLeft = side === 0;
-          const nX = isLeft ? normLx : normRx;
-          const nY = isLeft ? normLy : normRy;
-          const sideSurge = isLeft ? surgeL : surgeR;
-          for (let f = 0; f < numFlames; f++) {
-            const p0 = Math.pow(f / numFlames, 1.2);
-            const p1 = Math.pow((f + 1.35) / numFlames, 1.2);
-            const y0 = horizonY + (bottomY - horizonY) * p0;
-            const y1 = horizonY + (bottomY - horizonY) * p1;
-            const yMid = (y0 + y1) * 0.5;
-            const x0 = getBoundaryX(isLeft ? 0 : 3, y0);
-            const x1 = getBoundaryX(isLeft ? 0 : 3, y1);
-            const xMid = (x0 + x1) * 0.5;
-            const flicker = 0.55 + 0.30 * Math.sin(f * 2.1 - timeSec * 11.5 + side * 1.7) + 0.20 * Math.cos(f * 3.7 - timeSec * 7.8);
-            const reach = (18 + 38 * p0) * flicker * (1.0 + beatPulse * 0.35 + sideSurge * 0.45);
-            const liftY = -(10 + 22 * p0) * (0.7 + 0.3 * Math.sin(timeSec * 9.0 + f));
-            ctx.moveTo(x0, y0 + (y1 - y0) * 0.18);
-            ctx.quadraticCurveTo(xMid + nX * reach * 0.38, yMid + liftY * 0.35, xMid + nX * reach * 0.58, yMid + nY * reach * 0.58 + liftY * 0.65);
-            ctx.quadraticCurveTo(xMid + nX * reach * 0.32, y1 - (y1 - y0) * 0.15, x1, y1 - (y1 - y0) * 0.18);
-          }
-        }
-        ctx.fill();
-      } else if (fx === 'cryo_blizzard') {
-        const numSpikes = 18;
-        ctx.fillStyle = hexToRgba(theme.cInner, 0.56);
-        ctx.beginPath();
-        for (let side = 0; side < 2; side++) {
-          const isLeft = side === 0;
-          const nX = isLeft ? normLx : normRx;
-          const nY = isLeft ? normLy : normRy;
-          const sideSurge = isLeft ? surgeL : surgeR;
-          for (let k = 0; k < numSpikes; k++) {
-            const p = Math.pow(k / (numSpikes - 1), 1.22);
-            const yBase = horizonY + (bottomY - horizonY) * p;
-            const xBase = getBoundaryX(isLeft ? 0 : 3, yBase);
-            const pulseWave = 0.6 + 0.4 * Math.sin(p * 10 - timeSec * 5.5 + side);
-            const spikeLen = (16 + 34 * p) * pulseWave * (1 + beatPulse * 0.3 + sideSurge * 0.4);
-            const halfW = 5 + 9 * p;
-            const tipX = xBase + nX * spikeLen;
-            const tipY = yBase + nY * spikeLen - 8 * p;
-            ctx.moveTo(xBase, yBase - halfW);
-            ctx.lineTo(tipX, tipY);
-            ctx.lineTo(xBase, yBase + halfW);
-          }
-        }
-        ctx.fill();
-      } else if (fx === 'zeus_lightning') {
-        for (let side = 0; side < 2; side++) {
-          const isLeft = side === 0;
-          const nX = isLeft ? normLx : normRx;
-          const nY = isLeft ? normLy : normRy;
-          const sideSurge = isLeft ? surgeL : surgeR;
+        // B. Chorros laterales de espuma y salpicaduras rítmicas de agua (reemplazan el ecualizador de fuego/neón)
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        const numWaterJets = 22;
+        const startY = horizonY + 18;
+        const spanY = Math.max(60, (hitY - 14) - startY);
+        for (let j = 0; j < numWaterJets; j++) {
+          const pNorm = j / (numWaterJets - 1);
+          const p = Math.pow(pNorm, 1.35);
+          const yPos = startY + spanY * p;
+          const waveL = 0.45 + 0.55 * Math.sin(p * 11.0 - activeTimeMs * 0.007 + j);
+          const waveR = 0.45 + 0.55 * Math.cos(p * 11.0 - activeTimeMs * 0.007 + j * 1.3);
+          const jetReachL = (10 + 34 * p) * waveL * (1.0 + beatPulse * 0.45 + surgeL * 0.55 + speedExcite * 0.30);
+          const jetReachR = (10 + 34 * p) * waveR * (1.0 + beatPulse * 0.45 + surgeR * 0.55 + speedExcite * 0.30);
+          const xL = getBoundaryX(0, yPos);
+          const xR = getBoundaryX(3, yPos);
 
+          ctx.strokeStyle = (j % 2 === 0)
+            ? `rgba(186, 230, 253, ${(0.28 + beatPulse * 0.18).toFixed(2)})`
+            : `rgba(56, 189, 248, ${(0.24 + speedExcite * 0.16).toFixed(2)})`;
+          ctx.lineWidth = 2.4 + 3.2 * p;
           ctx.beginPath();
-          const steps = 26;
-          for (let k = 0; k <= steps; k++) {
-            const p = k / steps;
-            const yPos = horizonY + (bottomY - horizonY) * p;
-            const xRail = getBoundaryX(isLeft ? 0 : 3, yPos);
-            const jag = (10 + 26 * p) * (0.45 + 0.55 * Math.abs(Math.sin(k * 4.3 - timeSec * 24 + side * 2))) * (1 + sideSurge * 0.45);
-            const lx = xRail + nX * jag;
-            const ly = yPos + nY * jag;
-            if (k === 0) ctx.moveTo(lx, ly);
-            else ctx.lineTo(lx, ly);
-          }
-          ctx.strokeStyle = hexToRgba(theme.cMid, 0.72);
-          ctx.lineWidth = 5.5;
-          ctx.stroke();
-
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 1.9;
+          ctx.moveTo(xL + 2, yPos);
+          ctx.quadraticCurveTo(xL - jetReachL * 0.5, yPos - 6 * p, xL - jetReachL, yPos + 3 * p);
+          ctx.moveTo(xR - 2, yPos);
+          ctx.quadraticCurveTo(xR + jetReachR * 0.5, yPos - 6 * p, xR + jetReachR, yPos + 3 * p);
           ctx.stroke();
         }
-      } else if (fx === 'aurora_borealis' || fx === 'deep_cosmos' || fx === 'cyber_neon' || fx === 'black_hole') {
+        ctx.restore();
+
+        // C. Orilla continua de espuma blanca hirviente donde el agua rompe contra las rocas laterales
         for (let side = 0; side < 2; side++) {
           const isLeft = side === 0;
-          const nX = isLeft ? normLx : normRx;
-          const nY = isLeft ? normLy : normRy;
-          const sideSurge = isLeft ? surgeL : surgeR;
+          const edgeIdx = isLeft ? 0 : 3;
+          const sign = isLeft ? 1 : -1;
 
-          for (let ribbon = 0; ribbon < 2; ribbon++) {
+          ctx.strokeStyle = 'rgba(125, 211, 252, 0.48)';
+          ctx.lineWidth = 8.0;
+          ctx.beginPath();
+          const foamSteps = 26;
+          for (let s = 0; s <= foamSteps; s++) {
+            const u = s / foamSteps;
+            const p = Math.pow(u, 1.65);
+            const fy = horizonY + (bottomY - horizonY) * p;
+            const foamOsc = Math.sin(u * 18.0 - riverScroll * Math.PI * 6 + side * 2.4) * (3.5 + speedExcite * 2.5) * p;
+            const fxPos = getBoundaryX(edgeIdx, fy) + sign * (3.0 * p) + foamOsc;
+            if (s === 0) ctx.moveTo(fxPos, fy);
+            else ctx.lineTo(fxPos, fy);
+          }
+          ctx.stroke();
+
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.88)';
+          ctx.lineWidth = 3.0 + beatPulse * 1.2;
+          ctx.stroke();
+        }
+
+        // D. Grandes Rocas de Río esculpidas en 3D con musgo esmeralda y helechos en ambos márgenes
+        const bankRocks = 16;
+        for (let b = 0; b < bankRocks; b++) {
+          const u = ((b / bankRocks) + riverScroll) % 1.0;
+          const p = Math.pow(u, 1.7);
+          const ry = horizonY + (bottomY - horizonY) * p;
+          const sc = 0.42 + 0.68 * p;
+          const rW = (13 + (b % 4) * 5.5) * sc;
+          const rH = (8.5 + (b % 3) * 3.8) * sc;
+
+          for (let side = 0; side < 2; side++) {
+            const isLeft = side === 0;
+            const bx = getBoundaryX(isLeft ? 0 : 3, ry) + (isLeft ? -rW * 0.42 : rW * 0.42);
+
+            // Anillo de espuma blanca rompiendo alrededor de cada peñasco
+            ctx.fillStyle = 'rgba(224, 242, 254, 0.72)';
             ctx.beginPath();
-            const steps = 24;
+            ctx.ellipse(bx + (isLeft ? 5 : -5) * sc, ry + 1.5 * sc, rW * 1.08, rH * 1.05, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Sombra base del peñasco
+            ctx.fillStyle = '#090f1d';
+            ctx.beginPath();
+            ctx.ellipse(bx, ry + rH * 0.25, rW * 1.04, rH * 0.95, isLeft ? 0.18 : -0.18, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Cuerpo principal de roca basáltica húmeda con facetas
+            ctx.fillStyle = (b % 2 === 0) ? '#334155' : '#475569';
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = Math.max(1, 1.6 * sc);
+            ctx.beginPath();
+            ctx.ellipse(bx, ry, rW, rH, isLeft ? 0.18 : -0.18, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Brillo especular de roca mojada en la cara superior
+            ctx.fillStyle = 'rgba(186, 230, 253, 0.34)';
+            ctx.beginPath();
+            ctx.ellipse(bx + (isLeft ? 2 : -2) * sc, ry - rH * 0.28, rW * 0.58, rH * 0.38, isLeft ? 0.12 : -0.12, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Musgo húmedo y juncos mecidos por la brisa del río
+            if (b % 2 === 0) {
+              ctx.fillStyle = 'rgba(34, 197, 94, 0.74)';
+              ctx.beginPath();
+              ctx.ellipse(bx - (isLeft ? 2 : -2) * sc, ry - rH * 0.22, rW * 0.46, rH * 0.34, 0, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+        }
+
+        // E. Nenúfares flotando suavemente junto a los márgenes de las orillas
+        if (this._riverLilyPads && this._riverLilyPadSprite) {
+          for (let i = 0; i < this._riverLilyPads.length; i++) {
+            const pad = this._riverLilyPads[i];
+            const uPad = (pad.p + riverScroll * 0.5) % 1.0;
+            const pPad = Math.pow(uPad, 1.7);
+            const py = horizonY + (bottomY - horizonY) * pPad;
+            const px = getBoundaryX(pad.side === 0 ? 0.14 : 2.86, py);
+            const pSc = (0.45 + 0.55 * pPad) * 34;
+            ctx.save();
+            ctx.translate(px, py);
+            ctx.rotate(pad.rot + activeTimeMs * 0.0005);
+            ctx.drawImage(this._riverLilyPadSprite, -pSc * 0.5, -pSc * 0.5, pSc, pSc);
+            ctx.restore();
+          }
+        }
+
+        // F. Focas Ultra Realistas tomando el sol y asomándose curiosas en las rocas de las orillas
+        if (this._riverBankSeals && this._riverSealBustSprites && this._riverSealBustSprites.length > 0) {
+          for (let i = 0; i < this._riverBankSeals.length; i++) {
+            const bSeal = this._riverBankSeals[i];
+            const uSeal = (bSeal.u + riverScroll * 0.32) % 1.0;
+            if (uSeal < 0.10 || uSeal > 0.92) continue;
+            const pSeal = Math.pow(uSeal, 1.7);
+            const sy = horizonY + (bottomY - horizonY) * pSeal;
+            const isLeft = bSeal.side === 0;
+            const sc = (0.44 + 0.68 * pSeal);
+            const sx = getBoundaryX(isLeft ? 0.04 : 2.96, sy) + (isLeft ? -8 * sc : 8 * sc);
+            const bobY = Math.sin(activeTimeMs * 0.0042 + bSeal.bobPhase) * 3.5 * sc;
+            const headTilt = Math.sin(activeTimeMs * 0.0028 + bSeal.bobPhase) * 0.08;
+            const sprite = this._riverSealBustSprites[bSeal.variant % this._riverSealBustSprites.length];
+            const drawSz = 62 * sc;
+
+            ctx.save();
+            ctx.translate(sx, sy + bobY);
+            if (!isLeft) ctx.scale(-1, 1);
+            ctx.rotate(headTilt);
+            ctx.drawImage(sprite, -drawSz * 0.5, -drawSz * 0.55, drawSz, drawSz);
+            ctx.restore();
+          }
+        }
+
+        ctx.restore();
+      } else {
+        // 3. BISEL METÁLICO 3D DE PRECISIÓN EN LOS BORDES DE LA AUTOPISTA (Estilo Beatstar Original)
+        const railTopW = 5.0;
+        const railBotW = 14.0;
+
+        ctx.save();
+        ctx.fillStyle = '#0d1322';
+        // Bisel lateral izquierdo
+        ctx.beginPath();
+        ctx.moveTo(tL_top, horizonY);
+        ctx.lineTo(Math.max(0, tL_top - railTopW), horizonY);
+        ctx.lineTo(Math.max(0, tL_bot - railBotW), bottomY);
+        ctx.lineTo(tL_bot, bottomY);
+        ctx.closePath();
+        ctx.fill();
+
+        // Bisel lateral derecho
+        ctx.beginPath();
+        ctx.moveTo(tR_top, horizonY);
+        ctx.lineTo(Math.min(this.width, tR_top + railTopW), horizonY);
+        ctx.lineTo(Math.min(this.width, tR_bot + railBotW), bottomY);
+        ctx.lineTo(tR_bot, bottomY);
+        ctx.closePath();
+        ctx.fill();
+
+        // Arista exterior cromada de los raíles 3D
+        ctx.strokeStyle = 'rgba(148, 178, 214, 0.48)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(Math.max(0, tL_top - railTopW), horizonY);
+        ctx.lineTo(Math.max(0, tL_bot - railBotW), bottomY);
+        ctx.moveTo(Math.min(this.width, tR_top + railTopW), horizonY);
+        ctx.lineTo(Math.min(this.width, tR_bot + railBotW), bottomY);
+        ctx.stroke();
+        ctx.restore();
+
+        // 4. ALAS DE RITMO NEÓN ESTILO BEATSTAR ORIGINAL + EFECTOS ESPECIALES DE BORDE (Fuego, Hielo, Rayos, etc.)
+        const numRibs = 34;
+        const bpmSpeed = (normBpm / 60) * Math.PI * 2;
+        const theme = this.getEffectBorderTheme(this.activeEffect);
+        const fx = theme.id;
+        const timeSec = safePerfNow * 0.001;
+
+        const frameScale = Math.min(2.5, (this._frameDt || 0.00833) * 60);
+        this.borderSurgeL = Math.max(0, (this.borderSurgeL || 0) - 0.045 * frameScale);
+        this.borderSurgeR = Math.max(0, (this.borderSurgeR || 0) - 0.045 * frameScale);
+        const surgeL = this.borderSurgeL || 0;
+        const surgeR = this.borderSurgeR || 0;
+
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        const tLx_top = getBoundaryX(0, horizonY);
+        const tLx_bot = getBoundaryX(0, bottomY);
+        const dyL = bottomY - horizonY;
+        const dxL = tLx_bot - tLx_top;
+        const lenL = Math.hypot(dxL, dyL) || 1;
+        const normLx = -dyL / lenL;
+        const normLy = dxL / lenL;
+
+        const tRx_top = getBoundaryX(3, horizonY);
+        const tRx_bot = getBoundaryX(3, bottomY);
+        const dyR = bottomY - horizonY;
+        const dxR = tRx_bot - tRx_top;
+        const lenR = Math.hypot(dxR, dyR) || 1;
+        const normRx = dyR / lenR;
+        const normRy = -dxR / lenR;
+
+        // --- CAPA 1: AURA DIFUMINADA VOLUMÉTRICA LATERAL FIEL AL TEMA DEL EFECTO (Pre-cacheada: 0 allocs/frame) ---
+        const auraSpanTop = 34 + beatPulse * 12;
+        const auraSpanBot = 82 + beatPulse * 24;
+        const borderCacheKey = `${this.width}_${this.height}_${fx}`;
+        if (!this._borderGradCache || this._borderGradCache.key !== borderCacheKey) {
+          const primaryWingCol = theme.cInner;
+          const midWingCol = theme.cMid;
+          const outerWingCol = theme.cOuter;
+
+          const lAura = ctx.createLinearGradient(
+            (tLx_top + tLx_bot) * 0.5,
+            (horizonY + bottomY) * 0.5,
+            (tLx_top + tLx_bot) * 0.5 + normLx * 82,
+            (horizonY + bottomY) * 0.5 + normLy * 82
+          );
+          lAura.addColorStop(0.0, hexToRgba(primaryWingCol, 0.46));
+          lAura.addColorStop(0.40, hexToRgba(midWingCol, 0.25));
+          lAura.addColorStop(0.80, hexToRgba(outerWingCol, 0.08));
+          lAura.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+
+          const rAura = ctx.createLinearGradient(
+            (tRx_top + tRx_bot) * 0.5,
+            (horizonY + bottomY) * 0.5,
+            (tRx_top + tRx_bot) * 0.5 + normRx * 82,
+            (horizonY + bottomY) * 0.5 + normRy * 82
+          );
+          rAura.addColorStop(0.0, hexToRgba(primaryWingCol, 0.46));
+          rAura.addColorStop(0.40, hexToRgba(midWingCol, 0.25));
+          rAura.addColorStop(0.80, hexToRgba(outerWingCol, 0.08));
+          rAura.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+
+          const vGrad = ctx.createLinearGradient(0, horizonY, 0, hitY);
+          vGrad.addColorStop(0.00, outerWingCol);
+          vGrad.addColorStop(0.32, midWingCol);
+          vGrad.addColorStop(0.72, primaryWingCol);
+          vGrad.addColorStop(1.00, '#ffffff');
+
+          this._borderGradCache = { key: borderCacheKey, lAura, rAura, vGrad, primaryWingCol, midWingCol };
+        }
+
+        ctx.globalAlpha = Math.min(1.0, 0.72 + surgeL * 0.35 + beatPulse * 0.20);
+        ctx.fillStyle = this._borderGradCache.lAura;
+        ctx.beginPath();
+        ctx.moveTo(tLx_top - railTopW, horizonY);
+        ctx.lineTo(tLx_top + normLx * auraSpanTop, horizonY + normLy * auraSpanTop);
+        ctx.lineTo(tLx_bot + normLx * auraSpanBot, bottomY + normLy * auraSpanBot);
+        ctx.lineTo(tLx_bot - railBotW, bottomY);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.globalAlpha = Math.min(1.0, 0.72 + surgeR * 0.35 + beatPulse * 0.20);
+        ctx.fillStyle = this._borderGradCache.rAura;
+        ctx.beginPath();
+        ctx.moveTo(tRx_top + railTopW, horizonY);
+        ctx.lineTo(tRx_top + normRx * auraSpanTop, horizonY + normRy * auraSpanTop);
+        ctx.lineTo(tRx_bot + normRx * auraSpanBot, bottomY + normRy * auraSpanBot);
+        ctx.lineTo(tRx_bot + railBotW, bottomY);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+
+        // --- CAPA 2: EFECTOS EXTRA TEMÁTICOS EN LOS BORDES LATERALES (Fuego 3D, Hielo, Relámpagos, Plasma, Meteoros) ---
+        if (fx === 'solar_inferno' || fx === 'dragon_fire') {
+          const numFlames = 18;
+          ctx.fillStyle = hexToRgba(theme.cMid, 0.54);
+          ctx.beginPath();
+          for (let side = 0; side < 2; side++) {
+            const isLeft = side === 0;
+            const nX = isLeft ? normLx : normRx;
+            const nY = isLeft ? normLy : normRy;
+            const sideSurge = isLeft ? surgeL : surgeR;
+            for (let f = 0; f < numFlames; f++) {
+              const p0 = Math.pow(f / numFlames, 1.2);
+              const p1 = Math.pow((f + 1.35) / numFlames, 1.2);
+              const y0 = horizonY + (bottomY - horizonY) * p0;
+              const y1 = horizonY + (bottomY - horizonY) * p1;
+              const yMid = (y0 + y1) * 0.5;
+              const x0 = getBoundaryX(isLeft ? 0 : 3, y0);
+              const x1 = getBoundaryX(isLeft ? 0 : 3, y1);
+              const xMid = (x0 + x1) * 0.5;
+              const flicker = 0.55 + 0.30 * Math.sin(f * 2.1 - timeSec * 11.5 + side * 1.7) + 0.20 * Math.cos(f * 3.7 - timeSec * 7.8);
+              const reach = (18 + 38 * p0) * flicker * (1.0 + beatPulse * 0.35 + sideSurge * 0.45);
+              const liftY = -(10 + 22 * p0) * (0.7 + 0.3 * Math.sin(timeSec * 9.0 + f));
+              const tipX = xMid + nX * reach;
+              const tipY = yMid + nY * reach + liftY;
+              ctx.moveTo(x0, y0);
+              ctx.quadraticCurveTo(xMid + nX * reach * 0.65, y0 + liftY * 0.4, tipX, tipY);
+              ctx.quadraticCurveTo(xMid + nX * reach * 0.55, y1, x1, y1);
+            }
+          }
+          ctx.fill();
+
+          ctx.fillStyle = hexToRgba(theme.cInner, 0.68);
+          ctx.beginPath();
+          for (let side = 0; side < 2; side++) {
+            const isLeft = side === 0;
+            const nX = isLeft ? normLx : normRx;
+            const nY = isLeft ? normLy : normRy;
+            const sideSurge = isLeft ? surgeL : surgeR;
+            for (let f = 0; f < numFlames; f++) {
+              const p0 = Math.pow(f / numFlames, 1.2);
+              const p1 = Math.pow((f + 1.35) / numFlames, 1.2);
+              const y0 = horizonY + (bottomY - horizonY) * p0;
+              const y1 = horizonY + (bottomY - horizonY) * p1;
+              const yMid = (y0 + y1) * 0.5;
+              const x0 = getBoundaryX(isLeft ? 0 : 3, y0);
+              const x1 = getBoundaryX(isLeft ? 0 : 3, y1);
+              const xMid = (x0 + x1) * 0.5;
+              const flicker = 0.55 + 0.30 * Math.sin(f * 2.1 - timeSec * 11.5 + side * 1.7) + 0.20 * Math.cos(f * 3.7 - timeSec * 7.8);
+              const reach = (18 + 38 * p0) * flicker * (1.0 + beatPulse * 0.35 + sideSurge * 0.45);
+              const liftY = -(10 + 22 * p0) * (0.7 + 0.3 * Math.sin(timeSec * 9.0 + f));
+              ctx.moveTo(x0, y0 + (y1 - y0) * 0.18);
+              ctx.quadraticCurveTo(xMid + nX * reach * 0.38, yMid + liftY * 0.35, xMid + nX * reach * 0.58, yMid + nY * reach * 0.58 + liftY * 0.65);
+              ctx.quadraticCurveTo(xMid + nX * reach * 0.32, y1 - (y1 - y0) * 0.15, x1, y1 - (y1 - y0) * 0.18);
+            }
+          }
+          ctx.fill();
+        } else if (fx === 'cryo_blizzard') {
+          const numSpikes = 18;
+          ctx.fillStyle = hexToRgba(theme.cInner, 0.56);
+          ctx.beginPath();
+          for (let side = 0; side < 2; side++) {
+            const isLeft = side === 0;
+            const nX = isLeft ? normLx : normRx;
+            const nY = isLeft ? normLy : normRy;
+            const sideSurge = isLeft ? surgeL : surgeR;
+            for (let k = 0; k < numSpikes; k++) {
+              const p = Math.pow(k / (numSpikes - 1), 1.22);
+              const yBase = horizonY + (bottomY - horizonY) * p;
+              const xBase = getBoundaryX(isLeft ? 0 : 3, yBase);
+              const pulseWave = 0.6 + 0.4 * Math.sin(p * 10 - timeSec * 5.5 + side);
+              const spikeLen = (16 + 34 * p) * pulseWave * (1 + beatPulse * 0.3 + sideSurge * 0.4);
+              const halfW = 5 + 9 * p;
+              const tipX = xBase + nX * spikeLen;
+              const tipY = yBase + nY * spikeLen - 8 * p;
+              ctx.moveTo(xBase, yBase - halfW);
+              ctx.lineTo(tipX, tipY);
+              ctx.lineTo(xBase, yBase + halfW);
+            }
+          }
+          ctx.fill();
+        } else if (fx === 'zeus_lightning') {
+          for (let side = 0; side < 2; side++) {
+            const isLeft = side === 0;
+            const nX = isLeft ? normLx : normRx;
+            const nY = isLeft ? normLy : normRy;
+            const sideSurge = isLeft ? surgeL : surgeR;
+
+            ctx.beginPath();
+            const steps = 26;
             for (let k = 0; k <= steps; k++) {
               const p = k / steps;
               const yPos = horizonY + (bottomY - horizonY) * p;
               const xRail = getBoundaryX(isLeft ? 0 : 3, yPos);
-              const wave = 0.55 + 0.45 * Math.sin(p * 11.0 - timeSec * (4.5 + ribbon * 2.2) + ribbon * 1.9 + side);
-              const offset = (12 + 34 * p) * wave * (1 + beatPulse * 0.3 + sideSurge * 0.4);
-              const rx = xRail + nX * offset;
-              const ry = yPos + nY * offset;
-              if (k === 0) ctx.moveTo(rx, ry);
-              else ctx.lineTo(rx, ry);
+              const jag = (10 + 26 * p) * (0.45 + 0.55 * Math.abs(Math.sin(k * 4.3 - timeSec * 24 + side * 2))) * (1 + sideSurge * 0.45);
+              const lx = xRail + nX * jag;
+              const ly = yPos + nY * jag;
+              if (k === 0) ctx.moveTo(lx, ly);
+              else ctx.lineTo(lx, ly);
             }
-            ctx.strokeStyle = ribbon === 0 ? theme.cMid : theme.cInner;
-            ctx.lineWidth = ribbon === 0 ? 5.0 : 2.6;
+            ctx.strokeStyle = hexToRgba(theme.cMid, 0.72);
+            ctx.lineWidth = 5.5;
+            ctx.stroke();
+
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.9;
             ctx.stroke();
           }
-        }
-      } else if (fx === 'grand_fireworks' || fx === 'supernova_burst' || fx === 'asteroid_impact' || fx === 'quantum_prism') {
-        const numNodes = 14;
-        for (let side = 0; side < 2; side++) {
-          const isLeft = side === 0;
-          const nX = isLeft ? normLx : normRx;
-          const nY = isLeft ? normLy : normRy;
-          const sideSurge = isLeft ? surgeL : surgeR;
+        } else if (fx === 'aurora_borealis' || fx === 'deep_cosmos' || fx === 'cyber_neon' || fx === 'black_hole') {
+          for (let side = 0; side < 2; side++) {
+            const isLeft = side === 0;
+            const nX = isLeft ? normLx : normRx;
+            const nY = isLeft ? normLy : normRy;
+            const sideSurge = isLeft ? surgeL : surgeR;
 
-          for (let k = 1; k < numNodes; k++) {
-            const p = Math.pow(((k / numNodes) + (timeSec * 0.18) % (1 / numNodes)), 1.25);
-            if (p > 1.0) continue;
-            const yPos = horizonY + (bottomY - horizonY) * p;
-            const xRail = getBoundaryX(isLeft ? 0 : 3, yPos);
-            const distOut = (16 + 32 * p) * (0.65 + 0.35 * Math.sin(k * 2.7 + timeSec * 5)) * (1 + sideSurge * 0.35);
-            const nx = xRail + nX * distOut;
-            const ny = yPos + nY * distOut;
-            const sz = (4 + 7 * p) * (1 + beatPulse * 0.35);
-
-            if (fx === 'quantum_prism') {
-              ctx.save();
-              ctx.translate(nx, ny);
-              ctx.rotate(timeSec * 3.0 + k);
-              ctx.strokeStyle = k % 2 === 0 ? theme.cInner : theme.cMid;
-              ctx.lineWidth = 1.8;
-              ctx.strokeRect(-sz * 0.5, -sz * 0.5, sz, sz);
-              ctx.restore();
-            } else {
-              ctx.strokeStyle = k % 2 === 0 ? theme.cInner : theme.cMid;
-              ctx.lineWidth = 2.0;
+            for (let ribbon = 0; ribbon < 2; ribbon++) {
               ctx.beginPath();
-              ctx.moveTo(nx - sz, ny);
-              ctx.lineTo(nx + sz, ny);
-              ctx.moveTo(nx, ny - sz);
-              ctx.lineTo(nx, ny + sz);
+              const steps = 24;
+              for (let k = 0; k <= steps; k++) {
+                const p = k / steps;
+                const yPos = horizonY + (bottomY - horizonY) * p;
+                const xRail = getBoundaryX(isLeft ? 0 : 3, yPos);
+                const wave = 0.55 + 0.45 * Math.sin(p * 11.0 - timeSec * (4.5 + ribbon * 2.2) + ribbon * 1.9 + side);
+                const offset = (12 + 34 * p) * wave * (1 + beatPulse * 0.3 + sideSurge * 0.4);
+                const rx = xRail + nX * offset;
+                const ry = yPos + nY * offset;
+                if (k === 0) ctx.moveTo(rx, ry);
+                else ctx.lineTo(rx, ry);
+              }
+              ctx.strokeStyle = ribbon === 0 ? theme.cMid : theme.cInner;
+              ctx.lineWidth = ribbon === 0 ? 5.0 : 2.6;
               ctx.stroke();
             }
           }
-        }
-      }
+        } else if (fx === 'grand_fireworks' || fx === 'supernova_burst' || fx === 'asteroid_impact' || fx === 'quantum_prism') {
+          const numNodes = 14;
+          for (let side = 0; side < 2; side++) {
+            const isLeft = side === 0;
+            const nX = isLeft ? normLx : normRx;
+            const nY = isLeft ? normLy : normRy;
+            const sideSurge = isLeft ? surgeL : surgeR;
 
-      // --- CAPA 3: ECUALIZADOR RÍTMICO LATERAL HORIZONTAL EN PERSPECTIVA 3D (Beatstar Original Stage Wings) ---
-      const startY = horizonY + 14;
-      const endY = hitY - 14;
-      const spanRhythmY = Math.max(60, endY - startY);
-      const eqSurgesL = this.borderEqLeftSurges;
-      const eqSurgesR = this.borderEqRightSurges;
-      const borderVertGrad = this._borderGradCache.vGrad;
-      const midWingCol = this._borderGradCache.midWingCol;
+            for (let k = 1; k < numNodes; k++) {
+              const p = Math.pow(((k / numNodes) + (timeSec * 0.18) % (1 / numNodes)), 1.25);
+              if (p > 1.0) continue;
+              const yPos = horizonY + (bottomY - horizonY) * p;
+              const xRail = getBoundaryX(isLeft ? 0 : 3, yPos);
+              const distOut = (16 + 32 * p) * (0.65 + 0.35 * Math.sin(k * 2.7 + timeSec * 5)) * (1 + sideSurge * 0.35);
+              const nx = xRail + nX * distOut;
+              const ny = yPos + nY * distOut;
+              const sz = (4 + 7 * p) * (1 + beatPulse * 0.35);
 
-      if (!this._ribScratch) {
-        this._ribScratch = {
-          y: new Float32Array(numRibs),
-          xStartL: new Float32Array(numRibs),
-          lenL: new Float32Array(numRibs),
-          xStartR: new Float32Array(numRibs),
-          lenR: new Float32Array(numRibs),
-          p: new Float32Array(numRibs)
-        };
-      }
-      const rs = this._ribScratch;
-
-      for (let s = 0; s < numRibs; s++) {
-        const pNorm = s / (numRibs - 1);
-        const p = Math.pow(pNorm, 1.32);
-        const yPos = startY + spanRhythmY * p;
-
-        const railWAtY = railTopW + (railBotW - railTopW) * p;
-        const railGap = 4.5 + 3.5 * p;
-        const xStartL = getBoundaryX(0, yPos) - railWAtY - railGap;
-        const xStartR = getBoundaryX(3, yPos) + railWAtY + railGap;
-
-        const maxWingReach = Math.max(12, Math.min(this.width * 0.21, xStartL - 6));
-
-        const cascadeWave = 0.5 + 0.5 * Math.sin(p * 10.5 - audioTime * bpmSpeed);
-        const subHarmonic = 0.5 + 0.5 * Math.cos(s * 1.55 + audioTime * bpmSpeed * 0.5);
-        const barCadence = (s % 2 === 0) ? 1.0 : 0.70;
-        const wingEnvelope = Math.sin(Math.pow(pNorm, 0.72) * Math.PI * 0.94);
-
-        const bandIdx = Math.min(11, Math.floor(pNorm * 12));
-        const bandSurgeL = (eqSurgesL ? eqSurgesL[bandIdx] : 0) || 0;
-        const bandSurgeR = (eqSurgesR ? eqSurgesR[bandIdx] : 0) || 0;
-
-        const driveL = (0.28 + 0.44 * cascadeWave + 0.28 * subHarmonic) * barCadence * (1.0 + beatPulse * 0.42 + surgeL * 0.48 + bandSurgeL * 0.45);
-        const driveR = (0.28 + 0.44 * cascadeWave + 0.28 * subHarmonic) * barCadence * (1.0 + beatPulse * 0.42 + surgeR * 0.48 + bandSurgeR * 0.45);
-
-        const baseMin = 5 + 8 * p;
-        const lenLVal = Math.min(maxWingReach, baseMin + maxWingReach * 0.72 * wingEnvelope * Math.min(1.25, driveL));
-        const lenRVal = Math.min(maxWingReach, baseMin + maxWingReach * 0.72 * wingEnvelope * Math.min(1.25, driveR));
-
-        rs.y[s] = yPos;
-        rs.xStartL[s] = xStartL;
-        rs.lenL[s] = lenLVal;
-        rs.xStartR[s] = xStartR;
-        rs.lenR[s] = lenRVal;
-        rs.p[s] = p;
-      }
-
-      // Pasada A: Halo exterior difuminado de neón (Batched en 1 draw call)
-      ctx.strokeStyle = hexToRgba(midWingCol, 0.30 + beatPulse * 0.14);
-      ctx.lineWidth = 6.0;
-      ctx.beginPath();
-      for (let s = 0; s < numRibs; s++) {
-        const yPos = rs.y[s];
-        const xL = rs.xStartL[s];
-        const xR = rs.xStartR[s];
-        ctx.moveTo(xL, yPos);
-        ctx.lineTo(xL - rs.lenL[s], yPos);
-        ctx.moveTo(xR, yPos);
-        ctx.lineTo(xR + rs.lenR[s], yPos);
-      }
-      ctx.stroke();
-
-      // Pasada B: Cuerpo principal de las barras de ritmo con degradado vertical en perspectiva (1 draw call)
-      ctx.strokeStyle = borderVertGrad;
-      ctx.lineWidth = 2.6 + beatPulse * 0.55;
-      ctx.beginPath();
-      for (let s = 0; s < numRibs; s++) {
-        const yPos = rs.y[s];
-        const xL = rs.xStartL[s];
-        const xR = rs.xStartR[s];
-        ctx.moveTo(xL, yPos);
-        ctx.lineTo(xL - rs.lenL[s], yPos);
-        ctx.moveTo(xR, yPos);
-        ctx.lineTo(xR + rs.lenR[s], yPos);
-      }
-      ctx.stroke();
-
-      // Pasada C: Núcleo interior blanco incandescente junto al raíl + Puntas Peak-Hold flotantes (1 draw call)
-      ctx.strokeStyle = `rgba(255, 255, 255, ${(0.84 + beatPulse * 0.16).toFixed(2)})`;
-      ctx.lineWidth = 1.3;
-      ctx.beginPath();
-      for (let s = 0; s < numRibs; s++) {
-        const yPos = rs.y[s];
-        const xL = rs.xStartL[s];
-        const xR = rs.xStartR[s];
-        const coreLenL = rs.lenL[s] * 0.56;
-        const coreLenR = rs.lenR[s] * 0.56;
-
-        ctx.moveTo(xL, yPos);
-        ctx.lineTo(xL - coreLenL, yPos);
-        ctx.moveTo(xR, yPos);
-        ctx.lineTo(xR + coreLenR, yPos);
-
-        if (s % 2 === 0) {
-          const p = rs.p[s];
-          const peakGap = 4.0 + 2.5 * p + beatPulse * 2.0;
-          const peakDotLen = 2.2 + 2.0 * p;
-          const tipL = xL - rs.lenL[s] - peakGap;
-          const tipR = xR + rs.lenR[s] + peakGap;
-          if (tipL - peakDotLen > 2) {
-            ctx.moveTo(tipL, yPos);
-            ctx.lineTo(tipL - peakDotLen, yPos);
-          }
-          if (tipR + peakDotLen < this.width - 2) {
-            ctx.moveTo(tipR, yPos);
-            ctx.lineTo(tipR + peakDotLen, yPos);
+              if (fx === 'quantum_prism') {
+                ctx.save();
+                ctx.translate(nx, ny);
+                ctx.rotate(timeSec * 3.0 + k);
+                ctx.strokeStyle = k % 2 === 0 ? theme.cInner : theme.cMid;
+                ctx.lineWidth = 1.8;
+                ctx.strokeRect(-sz * 0.5, -sz * 0.5, sz, sz);
+                ctx.restore();
+              } else {
+                ctx.strokeStyle = k % 2 === 0 ? theme.cInner : theme.cMid;
+                ctx.lineWidth = 2.0;
+                ctx.beginPath();
+                ctx.moveTo(nx - sz, ny);
+                ctx.lineTo(nx + sz, ny);
+                ctx.moveTo(nx, ny - sz);
+                ctx.lineTo(nx, ny + sz);
+                ctx.stroke();
+              }
+            }
           }
         }
+
+        // --- CAPA 3: ECUALIZADOR RÍTMICO LATERAL HORIZONTAL EN PERSPECTIVA 3D (Beatstar Original Stage Wings) ---
+        const startY = horizonY + 14;
+        const endY = hitY - 14;
+        const spanRhythmY = Math.max(60, endY - startY);
+        const eqSurgesL = this.borderEqLeftSurges;
+        const eqSurgesR = this.borderEqRightSurges;
+        const borderVertGrad = this._borderGradCache.vGrad;
+        const midWingCol = this._borderGradCache.midWingCol;
+
+        if (!this._ribScratch) {
+          this._ribScratch = {
+            y: new Float32Array(numRibs),
+            xStartL: new Float32Array(numRibs),
+            lenL: new Float32Array(numRibs),
+            xStartR: new Float32Array(numRibs),
+            lenR: new Float32Array(numRibs),
+            p: new Float32Array(numRibs)
+          };
+        }
+        const rs = this._ribScratch;
+
+        for (let s = 0; s < numRibs; s++) {
+          const pNorm = s / (numRibs - 1);
+          const p = Math.pow(pNorm, 1.32);
+          const yPos = startY + spanRhythmY * p;
+
+          const railWAtY = railTopW + (railBotW - railTopW) * p;
+          const railGap = 4.5 + 3.5 * p;
+          const xStartL = getBoundaryX(0, yPos) - railWAtY - railGap;
+          const xStartR = getBoundaryX(3, yPos) + railWAtY + railGap;
+
+          const maxWingReach = Math.max(12, Math.min(this.width * 0.21, xStartL - 6));
+
+          const cascadeWave = 0.5 + 0.5 * Math.sin(p * 10.5 - audioTime * bpmSpeed);
+          const subHarmonic = 0.5 + 0.5 * Math.cos(s * 1.55 + audioTime * bpmSpeed * 0.5);
+          const barCadence = (s % 2 === 0) ? 1.0 : 0.70;
+          const wingEnvelope = Math.sin(Math.pow(pNorm, 0.72) * Math.PI * 0.94);
+
+          const bandIdx = Math.min(11, Math.floor(pNorm * 12));
+          const bandSurgeL = (eqSurgesL ? eqSurgesL[bandIdx] : 0) || 0;
+          const bandSurgeR = (eqSurgesR ? eqSurgesR[bandIdx] : 0) || 0;
+
+          const driveL = (0.28 + 0.44 * cascadeWave + 0.28 * subHarmonic) * barCadence * (1.0 + beatPulse * 0.42 + surgeL * 0.48 + bandSurgeL * 0.45);
+          const driveR = (0.28 + 0.44 * cascadeWave + 0.28 * subHarmonic) * barCadence * (1.0 + beatPulse * 0.42 + surgeR * 0.48 + bandSurgeR * 0.45);
+
+          const baseMin = 5 + 8 * p;
+          const lenLVal = Math.min(maxWingReach, baseMin + maxWingReach * 0.72 * wingEnvelope * Math.min(1.25, driveL));
+          const lenRVal = Math.min(maxWingReach, baseMin + maxWingReach * 0.72 * wingEnvelope * Math.min(1.25, driveR));
+
+          rs.y[s] = yPos;
+          rs.xStartL[s] = xStartL;
+          rs.lenL[s] = lenLVal;
+          rs.xStartR[s] = xStartR;
+          rs.lenR[s] = lenRVal;
+          rs.p[s] = p;
+        }
+
+        // Pasada A: Halo exterior difuminado de neón (Batched en 1 draw call)
+        ctx.strokeStyle = hexToRgba(midWingCol, 0.30 + beatPulse * 0.14);
+        ctx.lineWidth = 6.0;
+        ctx.beginPath();
+        for (let s = 0; s < numRibs; s++) {
+          const yPos = rs.y[s];
+          const xL = rs.xStartL[s];
+          const xR = rs.xStartR[s];
+          ctx.moveTo(xL, yPos);
+          ctx.lineTo(xL - rs.lenL[s], yPos);
+          ctx.moveTo(xR, yPos);
+          ctx.lineTo(xR + rs.lenR[s], yPos);
+        }
+        ctx.stroke();
+
+        // Pasada B: Cuerpo principal de las barras de ritmo con degradado vertical en perspectiva (1 draw call)
+        ctx.strokeStyle = borderVertGrad;
+        ctx.lineWidth = 2.6 + beatPulse * 0.55;
+        ctx.beginPath();
+        for (let s = 0; s < numRibs; s++) {
+          const yPos = rs.y[s];
+          const xL = rs.xStartL[s];
+          const xR = rs.xStartR[s];
+          ctx.moveTo(xL, yPos);
+          ctx.lineTo(xL - rs.lenL[s], yPos);
+          ctx.moveTo(xR, yPos);
+          ctx.lineTo(xR + rs.lenR[s], yPos);
+        }
+        ctx.stroke();
+
+        // Pasada C: Núcleo interior blanco incandescente junto al raíl + Puntas Peak-Hold flotantes (1 draw call)
+        ctx.strokeStyle = `rgba(255, 255, 255, ${(0.84 + beatPulse * 0.16).toFixed(2)})`;
+        ctx.lineWidth = 1.3;
+        ctx.beginPath();
+        for (let s = 0; s < numRibs; s++) {
+          const yPos = rs.y[s];
+          const xL = rs.xStartL[s];
+          const xR = rs.xStartR[s];
+          const coreLenL = rs.lenL[s] * 0.56;
+          const coreLenR = rs.lenR[s] * 0.56;
+
+          ctx.moveTo(xL, yPos);
+          ctx.lineTo(xL - coreLenL, yPos);
+          ctx.moveTo(xR, yPos);
+          ctx.lineTo(xR + coreLenR, yPos);
+
+          if (s % 2 === 0) {
+            const p = rs.p[s];
+            const peakGap = 4.0 + 2.5 * p + beatPulse * 2.0;
+            const peakDotLen = 2.2 + 2.0 * p;
+            const tipL = xL - rs.lenL[s] - peakGap;
+            const tipR = xR + rs.lenR[s] + peakGap;
+            if (tipL - peakDotLen > 2) {
+              ctx.moveTo(tipL, yPos);
+              ctx.lineTo(tipL - peakDotLen, yPos);
+            }
+            if (tipR + peakDotLen < this.width - 2) {
+              ctx.moveTo(tipR, yPos);
+              ctx.lineTo(tipR + peakDotLen, yPos);
+            }
+          }
+        }
+        ctx.stroke();
+
+        ctx.restore();
+
+        // 5. GUÍAS LÁSER DE NEÓN CONTINUAS DE ALTA INTENSIDAD Y PULSOS VIAJEROS DE COMPÁS
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.lineCap = 'round';
+
+        // Halo exterior del raíl láser
+        ctx.strokeStyle = hexToRgba(this._borderGradCache.midWingCol, 0.58 + beatPulse * 0.34);
+        ctx.lineWidth = 7.2;
+        ctx.beginPath();
+        ctx.moveTo(tL_top, horizonY);
+        ctx.lineTo(tL_bot, bottomY);
+        ctx.moveTo(tR_top, horizonY);
+        ctx.lineTo(tR_bot, bottomY);
+        ctx.stroke();
+
+        // Filamento central blanco puro incandescente del raíl
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.moveTo(tL_top, horizonY);
+        ctx.lineTo(tL_bot, bottomY);
+        ctx.moveTo(tR_top, horizonY);
+        ctx.lineTo(tR_bot, bottomY);
+        ctx.stroke();
+
+        // Pulsos viajeros de energía descendiendo por los raíles al compás del BPM
+        const pulseP = Math.pow(beatFraction, 1.5);
+        const pulseY0 = horizonY + (hitY - horizonY) * Math.max(0, pulseP - 0.08);
+        const pulseY1 = horizonY + (hitY - horizonY) * Math.min(1, pulseP + 0.08);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.92)';
+        ctx.lineWidth = 4.2;
+        ctx.beginPath();
+        ctx.moveTo(getBoundaryX(0, pulseY0), pulseY0);
+        ctx.lineTo(getBoundaryX(0, pulseY1), pulseY1);
+        ctx.moveTo(getBoundaryX(3, pulseY0), pulseY0);
+        ctx.lineTo(getBoundaryX(3, pulseY1), pulseY1);
+        ctx.stroke();
+
+        ctx.restore();
       }
-      ctx.stroke();
-
-      ctx.restore();
-
-      // 5. GUÍAS LÁSER DE NEÓN CONTINUAS DE ALTA INTENSIDAD Y PULSOS VIAJEROS DE COMPÁS
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.lineCap = 'round';
-
-      // Halo exterior del raíl láser
-      ctx.strokeStyle = hexToRgba(this._borderGradCache.midWingCol, 0.58 + beatPulse * 0.34);
-      ctx.lineWidth = 7.2;
-      ctx.beginPath();
-      ctx.moveTo(tL_top, horizonY);
-      ctx.lineTo(tL_bot, bottomY);
-      ctx.moveTo(tR_top, horizonY);
-      ctx.lineTo(tR_bot, bottomY);
-      ctx.stroke();
-
-      // Filamento central blanco puro incandescente del raíl
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2.2;
-      ctx.beginPath();
-      ctx.moveTo(tL_top, horizonY);
-      ctx.lineTo(tL_bot, bottomY);
-      ctx.moveTo(tR_top, horizonY);
-      ctx.lineTo(tR_bot, bottomY);
-      ctx.stroke();
-
-      // Pulsos viajeros de energía descendiendo por los raíles al compás del BPM
-      const pulseP = Math.pow(beatFraction, 1.5);
-      const pulseY0 = horizonY + (hitY - horizonY) * Math.max(0, pulseP - 0.08);
-      const pulseY1 = horizonY + (hitY - horizonY) * Math.min(1, pulseP + 0.08);
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.92)';
-      ctx.lineWidth = 4.2;
-      ctx.beginPath();
-      ctx.moveTo(getBoundaryX(0, pulseY0), pulseY0);
-      ctx.lineTo(getBoundaryX(0, pulseY1), pulseY1);
-      ctx.moveTo(getBoundaryX(3, pulseY0), pulseY0);
-      ctx.lineTo(getBoundaryX(3, pulseY1), pulseY1);
-      ctx.stroke();
-
-      ctx.restore();
 
     } else {
       // ==========================================
@@ -13054,6 +13882,370 @@ class BeatstarEngine {
         const yDeckTop = s.yDeckTop;
         const yDeckBot = s.yDeckBot;
         const bottomY = this.height + 30;
+        const isRiverHit = Boolean(this.isRiverModeActive || (typeof window !== 'undefined' && window.isRiverModeActive));
+
+        if (isRiverHit) {
+          // =========================================================================
+          // ZONA PERFECT+ Y CASCADA INFERIOR ("LO DE ABAJO DEL PERFECT") EXCLUSIVAS MODO RÍO
+          // =========================================================================
+          const activeTimeMs = cTime >= 0 ? cTime : nowPerf;
+          const curSpeed = this._getRiverSpeedMult ? this._getRiverSpeedMult(activeTimeMs) : 1.0;
+          const waterfallScroll = ((activeTimeMs * 0.0022 * (0.85 + curSpeed * 0.45)) % 1.0 + 1.0) % 1.0;
+
+          // 1. LO DE ABAJO DEL PERFECT: GRAN CASCADA 3D Y POZA DE AGUA TURQUESA CON ESPUMA Y FOCA
+          const apL_top = this.getLaneBoundaryX(0, yDeckBot) - 18;
+          const apR_top = this.getLaneBoundaryX(3, yDeckBot) + 18;
+          const apL_bot = this.getLaneBoundaryX(0, bottomY) - 28;
+          const apR_bot = this.getLaneBoundaryX(3, bottomY) + 28;
+
+          if (!this._riverApronGrad || this._riverApronGradY !== yDeckBot) {
+            this._riverApronGradY = yDeckBot;
+            const ag = ctx.createLinearGradient(0, yDeckBot, 0, bottomY);
+            ag.addColorStop(0.00, '#022c43');
+            ag.addColorStop(0.24, '#0369a1');
+            ag.addColorStop(0.55, '#0891b2');
+            ag.addColorStop(0.85, '#0e7490');
+            ag.addColorStop(1.00, '#042f4b');
+            this._riverApronGrad = ag;
+          }
+          ctx.fillStyle = this._riverApronGrad;
+          ctx.beginPath();
+          ctx.moveTo(apL_top, yDeckBot);
+          ctx.lineTo(apR_top, yDeckBot);
+          ctx.lineTo(apR_bot, bottomY);
+          ctx.lineTo(apL_bot, bottomY);
+          ctx.closePath();
+          ctx.fill();
+
+          // Cortinas de agua cayendo en cascada vertical bajo el azud de piedra del Perfect
+          const numFalls = 22;
+          for (let f = 0; f < numFalls; f++) {
+            const frac = (f + 0.5) / numFalls;
+            const xTop = apL_top + (apR_top - apL_top) * frac;
+            const xBot = apL_bot + (apR_bot - apL_bot) * frac;
+            const fallPhase = (waterfallScroll + (f * 0.19)) % 1.0;
+            const y0 = yDeckBot + (bottomY - yDeckBot) * (fallPhase * 0.35);
+            const y1 = yDeckBot + (bottomY - yDeckBot) * Math.min(1.0, fallPhase * 0.35 + 0.55);
+            const x0 = xTop + (xBot - xTop) * ((y0 - yDeckBot) / Math.max(1, bottomY - yDeckBot));
+            const x1 = xTop + (xBot - xTop) * ((y1 - yDeckBot) / Math.max(1, bottomY - yDeckBot));
+
+            ctx.strokeStyle = (f % 2 === 0)
+              ? 'rgba(224, 242, 254, 0.46)'
+              : 'rgba(125, 211, 252, 0.34)';
+            ctx.lineWidth = 3.2 + (f % 3) * 1.4;
+            ctx.beginPath();
+            ctx.moveTo(x0, y0);
+            ctx.lineTo(x1, y1);
+            ctx.stroke();
+          }
+
+          // Nube de espuma blanca hirviente en la base del salto de agua y anillos en la poza inferior
+          const foamBaseY = yDeckBot + 14;
+          const numFoamPuffs = 15;
+          for (let pIdx = 0; pIdx < numFoamPuffs; pIdx++) {
+            const frac = pIdx / (numFoamPuffs - 1);
+            const fx = apL_top + (apR_top - apL_top) * frac;
+            const fy = foamBaseY + Math.sin(activeTimeMs * 0.008 + pIdx * 1.3) * 3.5;
+            const rPuff = 12 + (pIdx % 3) * 4 + beatPulse * 3.5;
+            ctx.fillStyle = (pIdx % 2 === 0) ? 'rgba(240, 249, 255, 0.78)' : 'rgba(186, 230, 253, 0.62)';
+            ctx.beginPath();
+            ctx.ellipse(fx, fy, rPuff * 1.25, rPuff * 0.62, 0, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          // Ondas concéntricas de agua expandiéndose en la poza inferior ("lo de abajo del perfect")
+          for (let w = 0; w < 3; w++) {
+            const wProg = ((waterfallScroll * 0.65 + w * 0.33) % 1.0);
+            const wy = foamBaseY + 12 + wProg * Math.max(24, (this.height - foamBaseY - 8));
+            const wL = this.getLaneBoundaryX(0.15, wy);
+            const wR = this.getLaneBoundaryX(2.85, wy);
+            ctx.strokeStyle = `rgba(224, 242, 254, ${((1 - wProg) * 0.52).toFixed(3)})`;
+            ctx.lineWidth = 2.2 * (1 - wProg * 0.4);
+            ctx.beginPath();
+            ctx.moveTo(wL, wy);
+            ctx.quadraticCurveTo((wL + wR) * 0.5, wy + 5 * Math.sin(activeTimeMs * 0.005 + w), wR, wy);
+            ctx.stroke();
+          }
+
+          // Foca Ultra Realista asomando la cabecita y nadando feliz en la poza de agua bajo el Perfect
+          if (this._riverSealBustSprites && this._riverSealBustSprites.length > 0 && (this.height - yDeckBot) > 36) {
+            const poolY = Math.min(this.height - 24, yDeckBot + (this.height - yDeckBot) * 0.58);
+            const poolX = this.width * 0.5 + Math.sin(activeTimeMs * 0.0014) * (this.width * 0.18);
+            const bob = Math.sin(activeTimeMs * 0.0048) * 3.5;
+            const sealSz = 56;
+            ctx.save();
+            ctx.translate(poolX, poolY + bob);
+            if (Math.cos(activeTimeMs * 0.0014) < 0) ctx.scale(-1, 1);
+            ctx.drawImage(this._riverSealBustSprites[0], -sealSz * 0.5, -sealSz * 0.52, sealSz, sealSz);
+            ctx.restore();
+          }
+
+          // 2. PRESA / PUENTE NATURAL DE ROCA ESCULPIDA Y MUSGO ESMERALDA (Chasis de la zona Perfect)
+          const chMarginTop = 14;
+          const chMarginBot = 18;
+          const chL_top = this.getLaneBoundaryX(0, yDeckTop) - chMarginTop;
+          const chR_top = this.getLaneBoundaryX(3, yDeckTop) + chMarginTop;
+          const chL_bot = this.getLaneBoundaryX(0, yDeckBot) - chMarginBot;
+          const chR_bot = this.getLaneBoundaryX(3, yDeckBot) + chMarginBot;
+
+          // Labio frontal de roca basáltica mojada sobre el salto de la cascada
+          const lipH = isLarge ? 12 : 8;
+          const yLipBot = yDeckBot + lipH;
+          const chL_lip = this.getLaneBoundaryX(0, yLipBot) - (chMarginBot + 3);
+          const chR_lip = this.getLaneBoundaryX(3, yLipBot) + (chMarginBot + 3);
+          ctx.fillStyle = '#1e293b';
+          this._traceQuadOn(ctx, chL_bot, chR_bot, chL_lip, chR_lip, yDeckBot - 2, yLipBot, 12);
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(125, 211, 252, 0.55)';
+          ctx.lineWidth = 1.6;
+          ctx.stroke();
+
+          // Cubierta principal de piedra de río tallada con pátina húmeda
+          if (!this._riverDeckGrad || this._riverDeckGradY !== yDeckTop) {
+            this._riverDeckGradY = yDeckTop;
+            const dg = ctx.createLinearGradient(0, yDeckTop, 0, yDeckBot);
+            dg.addColorStop(0.00, '#334155');
+            dg.addColorStop(0.28, '#1e293b');
+            dg.addColorStop(0.70, '#0f172a');
+            dg.addColorStop(1.00, '#1e293b');
+            this._riverDeckGrad = dg;
+          }
+          ctx.fillStyle = this._riverDeckGrad;
+          this._traceQuadOn(ctx, chL_top, chR_top, chL_bot, chR_bot, yDeckTop, yDeckBot, 14);
+          ctx.fill();
+          ctx.strokeStyle = `rgba(125, 211, 252, ${(0.48 + beatPulse * 0.25).toFixed(3)})`;
+          ctx.lineWidth = 2.2;
+          ctx.stroke();
+
+          // Grietas de piedra y parches de musgo húmedo en los extremos y separadores del puente de roca
+          ctx.fillStyle = 'rgba(34, 197, 94, 0.55)';
+          for (let m = 0; m <= 3; m++) {
+            const mx = this.getLaneBoundaryX(m, hitY);
+            ctx.beginPath();
+            ctx.ellipse(mx, yDeckTop + 6, 10, 4.5, 0, 0, Math.PI * 2);
+            ctx.ellipse(mx, yDeckBot - 6, 12, 5.0, 0, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          // 3. POZAS RECEPTORAS DE ROCA SUMERGIDA POR CARRIL
+          const wellHalfH = padH * 0.46;
+          const yWellTop = hitY - wellHalfH;
+          const yWellBot = hitY + wellHalfH;
+          const wellMargin = isLarge ? 3.8 : 2.8;
+          const plateMargin = isLarge ? 6.2 : 4.4;
+          const maxSink = isLarge ? 7.0 : 4.5;
+          const cornerRad = isLarge ? 12 : 8;
+
+          for (let l = 0; l < 3; l++) {
+            const elapsedPress = nowPerf - (this.lanePressAnim ? (this.lanePressAnim[l] || 0) : 0);
+            const isTapping = elapsedPress >= 0 && elapsedPress < 260;
+            const shockProgress = isTapping ? (elapsedPress / 260) : 0;
+            const tapWave = isTapping
+              ? (shockProgress < 0.16
+                  ? (shockProgress / 0.16)
+                  : Math.exp(-((shockProgress - 0.16) / 0.84) * 3.6) * Math.cos(((shockProgress - 0.16) / 0.84) * Math.PI * 1.8))
+              : 0;
+
+            const isHolding = this.activeHolds.has(l);
+            const flashTimer = (Array.isArray(this.laneFlashTimers) && this.laneFlashTimers[l]) || 0;
+            const glow = this.laneGlows[l] || 0;
+            const isActive = isHolding || flashTimer > 0.01 || glow > 0.18 || (isTapping && elapsedPress < 130);
+            const energy = Math.min(1.0, Math.max(
+              isHolding ? 1.0 : 0,
+              flashTimer > 0 ? Math.min(1.0, flashTimer / 0.15) : 0,
+              glow * 0.85,
+              isTapping ? Math.max(0, 1 - elapsedPress / 200) : 0
+            ));
+
+            const wL_top = this.getLaneBoundaryX(l, yWellTop) + wellMargin;
+            const wR_top = this.getLaneBoundaryX(l + 1, yWellTop) - wellMargin;
+            const wL_bot = this.getLaneBoundaryX(l, yWellBot) + wellMargin;
+            const wR_bot = this.getLaneBoundaryX(l + 1, yWellBot) - wellMargin;
+
+            // Cavidad de agua profunda enmarcada en roca
+            ctx.fillStyle = isActive ? '#0369a1' : '#082f49';
+            this._traceQuadOn(ctx, wL_top, wR_top, wL_bot, wR_bot, yWellTop, yWellBot, cornerRad);
+            ctx.fill();
+            ctx.strokeStyle = isActive
+              ? `rgba(224, 242, 254, ${(0.75 + energy * 0.25).toFixed(3)})`
+              : 'rgba(125, 211, 252, 0.38)';
+            ctx.lineWidth = isActive ? 2.2 : 1.4;
+            ctx.stroke();
+
+            // Losa receptora de piedra de río flotante que se hunde en el agua al pulsar
+            const currentSink = Math.max(-1.8, (isHolding ? maxSink * 0.88 : 0) + (isTapping ? maxSink * tapWave : (glow > 0.22 ? maxSink * 0.50 : 0)));
+            const yPlateTop = yWellTop + 3.0 + currentSink * 0.85;
+            const yPlateBot = yWellBot - 2.2 + currentSink * 0.42;
+            const bevelH = Math.max(3.5, (isLarge ? 8.5 : 5.0) - Math.max(0, currentSink * 0.70));
+            const yBevelTop = yPlateBot - bevelH;
+
+            const pL_top = this.getLaneBoundaryX(l, yPlateTop) + plateMargin;
+            const pR_top = this.getLaneBoundaryX(l + 1, yPlateTop) - plateMargin;
+            const pL_bev = this.getLaneBoundaryX(l, yBevelTop) + plateMargin;
+            const pR_bev = this.getLaneBoundaryX(l + 1, yBevelTop) - plateMargin;
+            const pL_bot = this.getLaneBoundaryX(l, yPlateBot) + plateMargin;
+            const pR_bot = this.getLaneBoundaryX(l + 1, yPlateBot) - plateMargin;
+            const plateRad = Math.max(5, cornerRad - 2);
+
+            // Bisel frontal de roca sumergida
+            ctx.fillStyle = isActive ? '#0284c7' : '#1e293b';
+            this._traceQuadOn(ctx, pL_bev, pR_bev, pL_bot, pR_bot, yBevelTop, yPlateBot, plateRad);
+            ctx.fill();
+
+            // Cara superior de baldosa de roca húmeda receptora
+            ctx.fillStyle = isActive ? '#38bdf8' : '#334155';
+            this._traceQuadOn(ctx, pL_top, pR_top, pL_bev, pR_bev, yPlateTop, yBevelTop, plateRad);
+            ctx.fill();
+
+            if (energy > 0.02) {
+              ctx.save();
+              ctx.globalCompositeOperation = 'lighter';
+              ctx.fillStyle = `rgba(186, 230, 253, ${(energy * 0.45).toFixed(3)})`;
+              this._traceQuadOn(ctx, pL_top, pR_top, pL_bev, pR_bev, yPlateTop, yBevelTop, plateRad);
+              ctx.fill();
+              ctx.restore();
+            }
+
+            // Anillo de espuma blanca perimetral alrededor de la roca receptora
+            ctx.strokeStyle = isActive
+              ? `rgba(255, 255, 255, ${(0.82 + energy * 0.18).toFixed(3)})`
+              : `rgba(186, 230, 253, ${(0.42 + beatPulse * 0.16).toFixed(3)})`;
+            ctx.lineWidth = isActive ? 2.2 : 1.4;
+            this._traceQuadOn(ctx, pL_top, pR_top, pL_bev, pR_bev, yPlateTop, yBevelTop, plateRad);
+            ctx.stroke();
+          }
+
+          // 4. BANDA DE CORRIENTE CRISTALINA PERFECT+ Y ESPUMA VIVA (Atraviesa los 3 carriles)
+          const bandHalfH = isLarge ? 12.5 : 8.5;
+          const yBandTop = hitY - bandHalfH;
+          const yBandBot = hitY + bandHalfH;
+          const bandL_top = this.getLaneBoundaryX(0, yBandTop) - 4;
+          const bandR_top = this.getLaneBoundaryX(3, yBandTop) + 4;
+          const bandL_bot = this.getLaneBoundaryX(0, yBandBot) - 4;
+          const bandR_bot = this.getLaneBoundaryX(3, yBandBot) + 4;
+
+          ctx.save();
+          ctx.fillStyle = 'rgba(56, 189, 248, 0.24)';
+          this._traceQuadOn(ctx, bandL_top, bandR_top, bandL_bot, bandR_bot, yBandTop, yBandBot, 7);
+          ctx.fill();
+
+          // Crestas onduladas de espuma blanca delimitando la ventana Perfect+
+          ctx.strokeStyle = `rgba(224, 242, 254, ${(0.76 + beatPulse * 0.22).toFixed(3)})`;
+          ctx.lineWidth = 2.0;
+          ctx.beginPath();
+          const stepsBand = 24;
+          for (let sb = 0; sb <= stepsBand; sb++) {
+            const f = sb / stepsBand;
+            const waveY = Math.sin(f * Math.PI * 6 - activeTimeMs * 0.008) * 1.6;
+            const xT = bandL_top + (bandR_top - bandL_top) * f;
+            if (sb === 0) ctx.moveTo(xT, yBandTop + waveY);
+            else ctx.lineTo(xT, yBandTop + waveY);
+          }
+          for (let sb = 0; sb <= stepsBand; sb++) {
+            const f = sb / stepsBand;
+            const waveY = Math.cos(f * Math.PI * 6 - activeTimeMs * 0.008) * 1.6;
+            const xB = bandL_bot + (bandR_bot - bandL_bot) * f;
+            if (sb === 0) ctx.moveTo(xB, yBandBot + waveY);
+            else ctx.lineTo(xB, yBandBot + waveY);
+          }
+          ctx.stroke();
+          ctx.restore();
+
+          // 5. REMOLINOS DE AGUA PERFECT+, ONDAS DE IMPACTO Y SALPICADURAS POR CARRIL
+          for (let l = 0; l < 3; l++) {
+            const elapsedPress = nowPerf - (this.lanePressAnim ? (this.lanePressAnim[l] || 0) : 0);
+            const isTapping = elapsedPress >= 0 && elapsedPress < 280;
+            const shockProgress = isTapping ? (elapsedPress / 280) : 0;
+            const isHolding = this.activeHolds.has(l);
+            const flashTimer = (Array.isArray(this.laneFlashTimers) && this.laneFlashTimers[l]) || 0;
+            const glow = this.laneGlows[l] || 0;
+            const isActive = isHolding || flashTimer > 0.01 || glow > 0.18 || (isTapping && elapsedPress < 140);
+            const energy = Math.min(1.0, Math.max(
+              isHolding ? 1.0 : 0,
+              flashTimer > 0 ? Math.min(1.0, flashTimer / 0.15) : 0,
+              glow * 0.85,
+              isTapping ? Math.max(0, 1 - elapsedPress / 220) : 0
+            ));
+
+            const bL = this.getLaneBoundaryX(l, hitY) + plateMargin + 4;
+            const bR = this.getLaneBoundaryX(l + 1, hitY) - plateMargin - 4;
+            const cx = (bL + bR) * 0.5;
+            const perfY = hitY;
+
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+
+            // Línea central de corriente de agua luminosa en cada carril
+            ctx.strokeStyle = `rgba(56, 189, 248, ${(0.65 + energy * 0.35).toFixed(3)})`;
+            ctx.lineWidth = isActive ? 6.2 : 3.8;
+            ctx.beginPath();
+            ctx.moveTo(bL, perfY);
+            ctx.lineTo(bR, perfY);
+            ctx.stroke();
+
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = isActive ? 2.6 : 1.6;
+            ctx.beginPath();
+            ctx.moveTo(bL + 4, perfY);
+            ctx.lineTo(bR - 4, perfY);
+            ctx.stroke();
+
+            // Emblema central de Gota/Remolino de Agua en el centro del receptor
+            const dropScale = 1.0 + beatPulse * 0.18 + energy * 0.45;
+            const rx = (isLarge ? 13 : 9.5) * dropScale;
+            const ry = (isLarge ? 7.2 : 5.2) * dropScale;
+            ctx.strokeStyle = 'rgba(186, 230, 253, 0.92)';
+            ctx.lineWidth = 2.0;
+            ctx.beginPath();
+            ctx.ellipse(cx, perfY, rx, ry, 0, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.ellipse(cx, perfY, rx * 0.48, ry * 0.48, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Onda de agua triple y corona de salpicadura en el receptor al tocar (Tap Water Splash)
+            if (isTapping && shockProgress > 0 && shockProgress < 1.0) {
+              const easeOut = 1 - Math.pow(1 - shockProgress, 2.3);
+              const alpha = (1 - shockProgress) * 0.95;
+              const maxRx = (bR - bL) * 0.56;
+              for (let ring = 0; ring < 3; ring++) {
+                const rProg = Math.max(0, Math.min(1, easeOut - ring * 0.16));
+                if (rProg <= 0) continue;
+                const rX = 8 + maxRx * rProg;
+                const rY = rX * 0.52;
+                ctx.strokeStyle = ring === 0
+                  ? `rgba(255, 255, 255, ${alpha.toFixed(3)})`
+                  : `rgba(125, 211, 252, ${(alpha * 0.80).toFixed(3)})`;
+                ctx.lineWidth = Math.max(1.0, (3.2 - ring * 0.8) * (1 - shockProgress));
+                ctx.beginPath();
+                ctx.ellipse(cx, perfY, rX, rY, 0, 0, Math.PI * 2);
+                ctx.stroke();
+              }
+            }
+
+            // Remolino de agua viva (Whirlpool Vortex) durante los Holds de troncos de madera
+            if (isHolding) {
+              const vortexRx = (bR - bL) * 0.38;
+              const vortexRy = vortexRx * 0.54;
+              const spin = activeTimeMs * 0.011;
+              for (let arm = 0; arm < 3; arm++) {
+                const a0 = spin + arm * ((Math.PI * 2) / 3);
+                ctx.strokeStyle = arm % 2 === 0 ? '#ffffff' : '#7dd3fc';
+                ctx.lineWidth = 2.6;
+                ctx.beginPath();
+                ctx.ellipse(cx, perfY, vortexRx, vortexRy, 0, a0, a0 + Math.PI * 0.95);
+                ctx.stroke();
+              }
+            }
+
+            ctx.restore();
+          }
+
+          ctx.restore();
+          return;
+        }
 
         // 1. FALDÓN ESCÉNICO INFERIOR EN PERSPECTIVA CÓNICA CON REJILLA ACÚSTICA 3D
         const apL_top = this.getLaneBoundaryX(0, yDeckBot);
