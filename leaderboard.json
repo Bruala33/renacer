@@ -752,6 +752,14 @@
         "combo": 475,
         "accuracy": 40.278621524579705,
         "date": "2026-09-20 22:10:27"
+      },
+      {
+        "name": "Mauricio",
+        "score": 544367,
+        "stars": 1,
+        "combo": 305,
+        "accuracy": 37.93815510704728,
+        "date": "2026-10-21 19:53:19"
       }
     ],
     "top_cnco_reggaeton_lento_bailemos": [
@@ -2102,8 +2110,8 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 16463483,
-      "clefs": 148
+      "total_score": 17007850,
+      "clefs": 153
     },
     {
       "name": "Dady cool",
@@ -2221,7 +2229,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 16463483
+        "score": 17007850
       },
       {
         "name": "Dady cool",
