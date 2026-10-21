@@ -2163,7 +2163,7 @@
         "stars": 4,
         "combo": 421,
         "accuracy": 86.30585488190772,
-        "date": "2026-10-21 21:43:23"
+        "date": "2026-10-21 21:43:31"
       }
     ]
   },
@@ -2175,8 +2175,8 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 21544465,
-      "clefs": 195
+      "total_score": 23266858,
+      "clefs": 212
     },
     {
       "name": "Jocomomolo",
@@ -2299,7 +2299,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 21544465
+        "score": 23266858
       },
       {
         "name": "Dady cool",
