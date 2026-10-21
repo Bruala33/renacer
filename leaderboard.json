@@ -2155,6 +2155,16 @@
         "accuracy": 58.21507410911384,
         "date": "2026-10-21 21:40:08"
       }
+    ],
+    "osu_467300": [
+      {
+        "name": "Mauricio",
+        "score": 1722393,
+        "stars": 4,
+        "combo": 421,
+        "accuracy": 86.30585488190772,
+        "date": "2026-10-21 21:43:23"
+      }
     ]
   },
   "global": [
@@ -2165,8 +2175,8 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 19822072,
-      "clefs": 178
+      "total_score": 21544465,
+      "clefs": 195
     },
     {
       "name": "Jocomomolo",
@@ -2289,7 +2299,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 19822072
+        "score": 21544465
       },
       {
         "name": "Dady cool",
