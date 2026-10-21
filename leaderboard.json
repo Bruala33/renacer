@@ -1540,6 +1540,14 @@
     ],
     "top_justin_bieber_what_do_you_mean": [
       {
+        "name": "Mauricio",
+        "score": 1799965,
+        "stars": 5,
+        "combo": 845,
+        "accuracy": 98.17125217139943,
+        "date": "2026-10-21 13:02:45"
+      },
+      {
         "name": "Test",
         "score": 117300,
         "stars": 3.5,
@@ -2000,8 +2008,8 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 7337572,
-      "clefs": 62
+      "total_score": 9137537,
+      "clefs": 79
     },
     {
       "name": "Test",
@@ -2113,7 +2121,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 7337572
+        "score": 9137537
       },
       {
         "name": "Test",
