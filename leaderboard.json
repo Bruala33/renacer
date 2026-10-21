@@ -1993,6 +1993,16 @@
         "accuracy": 17.23386755409028,
         "date": "2026-10-21 16:01:48"
       }
+    ],
+    "top_mgo_de_oz_fiesta_pagana": [
+      {
+        "name": "Test",
+        "score": 817596,
+        "stars": 1,
+        "combo": 311,
+        "accuracy": 24.120259671678472,
+        "date": "2026-10-21 16:03:42"
+      }
     ]
   },
   "global": [
@@ -2023,8 +2033,8 @@
     },
     {
       "name": "Test",
-      "total_score": 5726670,
-      "clefs": 46
+      "total_score": 6544266,
+      "clefs": 54
     },
     {
       "name": "Azure",
@@ -2135,7 +2145,7 @@
       },
       {
         "name": "Test",
-        "score": 5197029
+        "score": 6014625
       },
       {
         "name": "Darwin67",
