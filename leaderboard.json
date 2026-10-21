@@ -496,6 +496,14 @@
     ],
     "osu_2069233": [
       {
+        "name": "Test",
+        "score": 330975,
+        "stars": 3.5,
+        "combo": 133,
+        "accuracy": 15.724211651523248,
+        "date": "2026-10-21 16:04:49"
+      },
+      {
         "name": "Jocomomolo",
         "score": 171600,
         "stars": 3.5,
@@ -2033,8 +2041,8 @@
     },
     {
       "name": "Test",
-      "total_score": 6544266,
-      "clefs": 54
+      "total_score": 6875241,
+      "clefs": 57
     },
     {
       "name": "Azure",
@@ -2145,7 +2153,7 @@
       },
       {
         "name": "Test",
-        "score": 6014625
+        "score": 6345600
       },
       {
         "name": "Darwin67",
