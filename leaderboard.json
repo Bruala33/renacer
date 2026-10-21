@@ -1965,6 +1965,16 @@
         "accuracy": 55.02118024296052,
         "date": "2026-10-21 12:54:12"
       }
+    ],
+    "top_fools_garden_lemon_tree": [
+      {
+        "name": "Mauricio",
+        "score": 358813,
+        "stars": 1,
+        "combo": 97,
+        "accuracy": 31.877487562189057,
+        "date": "2026-10-21 12:57:24"
+      }
     ]
   },
   "global": [
@@ -1990,8 +2000,8 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 6978759,
-      "clefs": 59
+      "total_score": 7337572,
+      "clefs": 62
     },
     {
       "name": "Test",
@@ -2103,7 +2113,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 6978759
+        "score": 7337572
       },
       {
         "name": "Test",
