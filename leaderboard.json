@@ -1929,11 +1929,11 @@
     "top_david_bisbal_bulera": [
       {
         "name": "Mauricio",
-        "score": 348011,
-        "stars": 1,
-        "combo": 200,
-        "accuracy": 21.568781786607204,
-        "date": "2026-10-20 19:15:12"
+        "score": 1470400,
+        "stars": 5,
+        "combo": 722,
+        "accuracy": 93.80428562588396,
+        "date": "2026-10-21 21:48:22"
       }
     ],
     "top_fito_y_fitipaldis_la_casa_por_el_tejado": [
@@ -2175,8 +2175,8 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 23266858,
-      "clefs": 212
+      "total_score": 24737258,
+      "clefs": 226
     },
     {
       "name": "Jocomomolo",
@@ -2299,7 +2299,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 23266858
+        "score": 24737258
       },
       {
         "name": "Dady cool",
