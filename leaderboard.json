@@ -2125,6 +2125,16 @@
         "accuracy": 0.5913531035086951,
         "date": "2026-10-21 20:01:49"
       }
+    ],
+    "top_taxi_quiero_un_camino": [
+      {
+        "name": "Mauricio",
+        "score": 478897,
+        "stars": 2,
+        "combo": 232,
+        "accuracy": 41.71642064074175,
+        "date": "2026-10-21 20:04:17"
+      }
     ]
   },
   "global": [
@@ -2134,14 +2144,14 @@
       "clefs": 260
     },
     {
+      "name": "Mauricio",
+      "total_score": 18133222,
+      "clefs": 163
+    },
+    {
       "name": "Jocomomolo",
       "total_score": 17872941,
       "clefs": 169
-    },
-    {
-      "name": "Mauricio",
-      "total_score": 17654325,
-      "clefs": 159
     },
     {
       "name": "Dady cool",
@@ -2259,7 +2269,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 17654325
+        "score": 18133222
       },
       {
         "name": "Dady cool",
