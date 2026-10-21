@@ -2215,6 +2215,16 @@
         "accuracy": 0.08986669594060834,
         "date": "2026-10-21 23:58:15"
       }
+    ],
+    "top_karina_con_la_misma_moneda": [
+      {
+        "name": "fer",
+        "score": 933132,
+        "stars": 3,
+        "combo": 567,
+        "accuracy": 69.83031314427686,
+        "date": "2026-10-21 23:58:32"
+      }
     ]
   },
   "global": [
@@ -2257,6 +2267,11 @@
       "name": "bobon",
       "total_score": 3845429,
       "clefs": 33
+    },
+    {
+      "name": "fer",
+      "total_score": 946032,
+      "clefs": 9
     },
     {
       "name": "MasterPianist",
@@ -2306,11 +2321,6 @@
     {
       "name": "Camaleon",
       "total_score": 17550,
-      "clefs": 0
-    },
-    {
-      "name": "fer",
-      "total_score": 12900,
       "clefs": 0
     },
     {
@@ -2370,6 +2380,10 @@
         "score": 7428340
       },
       {
+        "name": "fer",
+        "score": 946032
+      },
+      {
         "name": "Darwin67",
         "score": 265556
       },
@@ -2384,10 +2398,6 @@
       {
         "name": "Camaleon",
         "score": 17550
-      },
-      {
-        "name": "fer",
-        "score": 12900
       },
       {
         "name": "PixToPix",
