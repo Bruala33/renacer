@@ -2185,6 +2185,16 @@
         "accuracy": 1.2500290704434986,
         "date": "2026-10-21 23:53:59"
       }
+    ],
+    "top_nirvana_smells_like_teen_spirit": [
+      {
+        "name": "bori",
+        "score": 103699,
+        "stars": 3.5,
+        "combo": 21,
+        "accuracy": 7.569701048672845,
+        "date": "2026-10-21 23:56:37"
+      }
     ]
   },
   "global": [
@@ -2259,6 +2269,11 @@
       "clefs": 2
     },
     {
+      "name": "bori",
+      "total_score": 110524,
+      "clefs": 1
+    },
+    {
       "name": "U",
       "total_score": 30185,
       "clefs": 0
@@ -2281,11 +2296,6 @@
     {
       "name": "Papa",
       "total_score": 7626,
-      "clefs": 0
-    },
-    {
-      "name": "bori",
-      "total_score": 6825,
       "clefs": 0
     },
     {
@@ -2344,6 +2354,10 @@
         "score": 265556
       },
       {
+        "name": "bori",
+        "score": 110524
+      },
+      {
         "name": "U",
         "score": 30185
       },
@@ -2354,10 +2368,6 @@
       {
         "name": "fer",
         "score": 12900
-      },
-      {
-        "name": "bori",
-        "score": 6825
       },
       {
         "name": "PixToPix",
