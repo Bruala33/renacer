@@ -514,6 +514,14 @@
     ],
     "top_el_canto_del_loco_la_madre_de_jos": [
       {
+        "name": "Test",
+        "score": 922915,
+        "stars": 2,
+        "combo": 422,
+        "accuracy": 58.48971107350863,
+        "date": "2026-10-21 17:29:23"
+      },
+      {
         "name": "Jocomomolo",
         "score": 97950,
         "stars": 3.5,
@@ -2041,8 +2049,8 @@
     },
     {
       "name": "Test",
-      "total_score": 6875241,
-      "clefs": 57
+      "total_score": 7798156,
+      "clefs": 66
     },
     {
       "name": "Azure",
@@ -2153,7 +2161,7 @@
       },
       {
         "name": "Test",
-        "score": 6345600
+        "score": 7268515
       },
       {
         "name": "Darwin67",
