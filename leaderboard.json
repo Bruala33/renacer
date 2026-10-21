@@ -2175,6 +2175,16 @@
         "accuracy": 0.5182724252491695,
         "date": "2026-10-21 23:42:02"
       }
+    ],
+    "osu_1913892": [
+      {
+        "name": "fer",
+        "score": 12900,
+        "stars": 3.5,
+        "combo": 22,
+        "accuracy": 1.2500290704434986,
+        "date": "2026-10-21 23:53:59"
+      }
     ]
   },
   "global": [
@@ -2264,6 +2274,11 @@
       "clefs": 0
     },
     {
+      "name": "fer",
+      "total_score": 12900,
+      "clefs": 0
+    },
+    {
       "name": "Papa",
       "total_score": 7626,
       "clefs": 0
@@ -2335,6 +2350,10 @@
       {
         "name": "Camaleon",
         "score": 17550
+      },
+      {
+        "name": "fer",
+        "score": 12900
       },
       {
         "name": "bori",
