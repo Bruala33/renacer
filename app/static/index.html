@@ -25,7 +25,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css?v=14.0">
+  <link rel="stylesheet" href="./style.css?v=15.0">
   <script>
     // ===================================================
     // SISTEMA DE INTERNACIONALIZACIÓN (i18n: ES / EN)
@@ -1836,7 +1836,7 @@
             <p class="text-[10px] text-gray-300 leading-tight" data-i18n="apk_card_desc">
               Instala la app oficial en tu móvil para jugar a pantalla completa, vibración háptica y con disponibilidad 100% offline.
             </p>
-            <a href="/download/apk?v=14.0" onclick="this.href='/download/apk?v=14.0&t=' + Date.now()" download="PianoCommunity.apk" class="w-full py-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 text-black font-black rounded-lg text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition active:scale-95 cursor-pointer">
+            <a href="/download/apk?v=15.0" onclick="this.href='/download/apk?v=15.0&t=' + Date.now()" download="PianoCommunity.apk" class="w-full py-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 text-black font-black rounded-lg text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition active:scale-95 cursor-pointer">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               <span data-i18n="apk_card_btn">DESCARGAR APK ANDROID</span>
             </a>
@@ -2233,7 +2233,7 @@
           <p data-i18n="onboarding_apk_hint" class="text-[10px] text-amber-300/90 leading-tight">
             💡 Recuerda que también puedes descargar la app nativa para Android en cualquier momento desde <b>Ajustes ⚙️</b>.
           </p>
-          <a href="/download/apk?v=14.0" onclick="this.href='/download/apk?v=14.0&t=' + Date.now()" download="PianoCommunity.apk" class="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 rounded-xl text-amber-300 text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer">
+          <a href="/download/apk?v=15.0" onclick="this.href='/download/apk?v=15.0&t=' + Date.now()" download="PianoCommunity.apk" class="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 rounded-xl text-amber-300 text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="text-amber-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             <span data-i18n="onboarding_apk_btn">Descargar App (APK Android)</span>
           </a>
@@ -2681,12 +2681,17 @@
 
           <!-- Botón 4: MODO SETAS ALUCINÓGENAS (Letras borrachas psicodélicas + Candado LED 1000 Claves) -->
           <button id="btnModeSelectMushroom" onclick="confirmGameModeSelection('mushroom')" class="w-full p-1 rounded-xl bg-[#09030d] border-2 border-[#4a1259] hover:border-[#ff00ff] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
-            <canvas id="gmBtnMushroomMainCanvas" class="w-full h-[40px] block"></canvas>
+            <canvas id="gmBtnMushroomMainCanvas" class="w-full h-[36px] block"></canvas>
           </button>
 
           <!-- Botón 5: MODO CARRETERA / AUTOPISTA (F1, Tesla Roadster con propulsores, Tractor, Fiat 500 y Trenecitos + Candado LED 1000 Claves) -->
           <button id="btnModeSelectHighway" onclick="confirmGameModeSelection('highway')" class="w-full p-1 rounded-xl bg-[#070604] border-2 border-[#4d2608] hover:border-[#ff5500] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
-            <canvas id="gmBtnHighwayMainCanvas" class="w-full h-[40px] block"></canvas>
+            <canvas id="gmBtnHighwayMainCanvas" class="w-full h-[36px] block"></canvas>
+          </button>
+
+          <!-- Botón 6: MODO PERRO MOLESTO (Pomeranian zorrito persiguiendo chuletones, dando zarpazos a las teclas y sentándose en los carriles + Candado LED 1000 Claves) -->
+          <button id="btnModeSelectAnnoyingDog" onclick="confirmGameModeSelection('annoying_dog')" class="w-full p-1 rounded-xl bg-[#090502] border-2 border-[#5c300c] hover:border-[#f59e0b] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
+            <canvas id="gmBtnAnnoyingDogMainCanvas" class="w-full h-[38px] block"></canvas>
           </button>
         </div>
 
@@ -3281,7 +3286,7 @@
   </div> <!-- End of game-viewport -->
 
   <script src="./parsers.js?v=4.0"></script>
-  <script src="./game.js?v=14.0"></script>
+  <script src="./game.js?v=15.0"></script>
   <script src="./slot_machine.js?v=4.0"></script>
   <script src="./gachapon_3d.js?v=1.0"></script>
   <script src="./songs/comm_camilo_sesto/chart.js"></script>
@@ -6849,17 +6854,19 @@ window.switchMainTab = switchMainTab;
     window.onAppForeground = handleAppForeground;
 
     function applySelectedGameMode(mode) {
-      const m = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway') ? mode : 'normal';
+      const m = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog') ? mode : 'normal';
       window.currentGameMode = m;
       window.isKaraokeModeActive = (m === 'karaoke');
       window.isStormModeActive = (m === 'storm');
       window.isMushroomModeActive = (m === 'mushroom');
       window.isHighwayModeActive = (m === 'highway');
+      window.isAnnoyingDogModeActive = (m === 'annoying_dog');
       if (window.engine) {
         window.engine.isKaraokeModeActive = window.isKaraokeModeActive;
         window.engine.isStormModeActive = window.isStormModeActive;
         window.engine.isMushroomModeActive = window.isMushroomModeActive;
         window.engine.isHighwayModeActive = window.isHighwayModeActive;
+        window.engine.isAnnoyingDogModeActive = window.isAnnoyingDogModeActive;
         if (window.isStormModeActive && typeof window.engine.initStormModeAssets === 'function') {
           window.engine.initStormModeAssets();
         }
@@ -6868,6 +6875,9 @@ window.switchMainTab = switchMainTab;
         }
         if (window.isHighwayModeActive && typeof window.engine.initHighwayModeAssets === 'function') {
           window.engine.initHighwayModeAssets();
+        }
+        if (window.isAnnoyingDogModeActive && typeof window.engine.initAnnoyingDogModeAssets === 'function') {
+          window.engine.initAnnoyingDogModeAssets();
         }
       }
       try { localStorage.setItem('isKaraokeModeActive', '0'); } catch (_) {}
@@ -6886,6 +6896,7 @@ window.switchMainTab = switchMainTab;
     window.isStormModeActive = false;
     window.isMushroomModeActive = false;
     window.isHighwayModeActive = false;
+    window.isAnnoyingDogModeActive = false;
     try { localStorage.setItem('isKaraokeModeActive', '0'); } catch (_) {}
 
     document.addEventListener('visibilitychange', () => {
@@ -13862,6 +13873,199 @@ function stopPianoCameraLoop() {
       }
     }
 
+    // Botón LED Creativo para MODO PERRO MOLESTO: Pomeranian zorrito en píxeles LED persiguiendo un chuletón, dejando huellas y dando zarpazos a las letras
+    function _renderAnnoyingDogLedButton(canvas, now, isLocked = false) {
+      if (!canvas) return;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const widthCss = 318;
+      const heightCss = 38;
+      if (canvas.width !== Math.round(widthCss * dpr) || canvas.height !== Math.round(heightCss * dpr)) {
+        canvas.width = Math.round(widthCss * dpr);
+        canvas.height = Math.round(heightCss * dpr);
+      }
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      ctx.fillStyle = '#090502';
+      ctx.fillRect(0, 0, widthCss, heightCss);
+
+      const pitch = 2.65;
+      const cols = Math.floor((widthCss - 4) / pitch);
+      const rows = Math.floor((heightCss - 2) / pitch);
+      const offsetX = (widthCss - cols * pitch) * 0.5 + pitch * 0.5;
+      const offsetY = (heightCss - rows * pitch) * 0.5 + pitch * 0.5;
+      const dotR = pitch * 0.39;
+
+      // 1. Matriz de bombillas LED apagadas (marrón cálido oscuro)
+      ctx.fillStyle = '#1c1209';
+      ctx.beginPath();
+      for (let r = 0; r < rows; r++) {
+        const py = offsetY + r * pitch;
+        for (let c = 0; c < cols; c++) {
+          const px = offsetX + c * pitch;
+          ctx.moveTo(px + dotR * 0.72, py);
+          ctx.arc(px, py, dotR * 0.72, 0, Math.PI * 2);
+        }
+      }
+      ctx.fill();
+
+      const t = now * 0.001;
+      const maxZoneCol = isLocked ? (cols - 31) : (cols - 2);
+
+      // 2. Huellas de patitas LED (🐾) encendiéndose en los bordes superior e inferior
+      ctx.fillStyle = '#d97706';
+      ctx.beginPath();
+      const pawStep = Math.floor(t * 7);
+      for (let p = 0; p < 6; p++) {
+        const pc = ((p * 16 + pawStep * 4) % Math.max(12, maxZoneCol - 4)) + 2;
+        const pr = (p % 2 === 0) ? 1 : (rows - 2);
+        const px = offsetX + pc * pitch;
+        const py = offsetY + pr * pitch;
+        ctx.moveTo(px + dotR * 0.95, py);
+        ctx.arc(px, py, dotR * 0.95, 0, Math.PI * 2);
+        ctx.moveTo(px - pitch + dotR * 0.65, py - pitch * 0.5);
+        ctx.arc(px - pitch, py - pitch * 0.5, dotR * 0.65, 0, Math.PI * 2);
+        ctx.moveTo(px - pitch + dotR * 0.65, py + pitch * 0.5);
+        ctx.arc(px - pitch, py + pitch * 0.5, dotR * 0.65, 0, Math.PI * 2);
+      }
+      ctx.fill();
+
+      // 3. Mini Chuletón T-Bone en píxeles LED a la izquierda + Pomeranian Zorrito LED con cola blanca esponjosa
+      const dogBaseCol = isLocked ? 3 : 4;
+      const dogBounce = (Math.floor(t * 9) % 2 === 0) ? 0 : -1;
+      const dogRow = Math.max(1, Math.floor((rows - 7) * 0.5) + dogBounce);
+
+      // Cola plumero blanca esponjosa del Pomeranian (3x3 LEDs blancos/crema moviéndose)
+      const tailWag = (Math.floor(t * 14) % 2 === 0) ? 0 : 1;
+      ctx.fillStyle = '#fffbeb';
+      ctx.beginPath();
+      for (let tr = 0; tr < 3; tr++) {
+        for (let tc = 0; tc < 3; tc++) {
+          if (tr === 2 && tc === 0) continue;
+          const lx = offsetX + (dogBaseCol + tc) * pitch;
+          const ly = offsetY + (dogRow + tailWag + tr) * pitch;
+          ctx.moveTo(lx + dotR * 1.08, ly);
+          ctx.arc(lx, ly, dotR * 1.08, 0, Math.PI * 2);
+        }
+      }
+      ctx.fill();
+
+      // Cuerpo y carita de zorrito marrón dorado + pechera blanca
+      const foxPixels = [
+        { c: 3, r: 2, col: '#ea580c' }, { c: 4, r: 2, col: '#d97706' }, { c: 5, r: 2, col: '#ea580c' },
+        { c: 3, r: 3, col: '#d97706' }, { c: 4, r: 3, col: '#f59e0b' }, { c: 5, r: 3, col: '#ffffff' }, // pechera blanca
+        { c: 6, r: 3, col: '#ffffff' },
+        { c: 5, r: 0, col: '#ea580c' }, { c: 7, r: 0, col: '#ea580c' }, // orejitas puntiagudas de zorrito
+        { c: 5, r: 1, col: '#f59e0b' }, { c: 6, r: 1, col: '#fbbf24' }, { c: 7, r: 1, col: '#f59e0b' },
+        { c: 6, r: 2, col: '#f59e0b' }, { c: 7, r: 2, col: '#ffffff' }, { c: 8, r: 2, col: '#fb7185' }, // hocico + lengüita rosa
+        { c: 3, r: 4, col: '#ffffff' }, { c: 6, r: 4, col: '#ffffff' }  // patitas blancas
+      ];
+      for (let fp = 0; fp < foxPixels.length; fp++) {
+        const pt = foxPixels[fp];
+        ctx.fillStyle = pt.col;
+        ctx.beginPath();
+        const lx = offsetX + (dogBaseCol + pt.c) * pitch;
+        const ly = offsetY + (dogRow + pt.r) * pitch;
+        ctx.moveTo(lx + dotR * 1.05, ly);
+        ctx.arc(lx, ly, dotR * 1.05, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Chuletón LED delante del perrito (rojo jugoso + hueso T blanco)
+      const steakCol = dogBaseCol + 10 + (Math.floor(t * 6) % 2);
+      const steakRow = dogRow + 1;
+      const steakPixels = [
+        { c: 0, r: 1, col: '#ef4444' }, { c: 1, r: 0, col: '#ef4444' }, { c: 1, r: 1, col: '#ffffff' },
+        { c: 1, r: 2, col: '#ffffff' }, { c: 2, r: 1, col: '#dc2626' }, { c: 2, r: 2, col: '#ef4444' }
+      ];
+      for (let sp = 0; sp < steakPixels.length; sp++) {
+        const pt = steakPixels[sp];
+        ctx.fillStyle = pt.col;
+        ctx.beginPath();
+        const lx = offsetX + (steakCol + pt.c) * pitch;
+        const ly = offsetY + (steakRow + pt.r) * pitch;
+        ctx.moveTo(lx + dotR * 1.05, ly);
+        ctx.arc(lx, ly, dotR * 1.05, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 4. Texto LED "PERRO" / "PERRO MOLESTO" donde una letra recibe un zarpazo y salta
+      const label = isLocked ? 'PERRO' : 'PERRO MOLESTO';
+      const textStartCol = isLocked ? 20 : 19;
+      const baseTextRow = Math.floor((rows - 7) * 0.5);
+      const battedCharIdx = Math.floor(t * 4.5) % label.length;
+
+      for (let i = 0; i < label.length; i++) {
+        const ch = label[i];
+        if (ch === ' ') continue;
+        const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7[' '];
+        const isBatted = (i === battedCharIdx);
+        const charRowOffset = isBatted ? -1 : 0;
+        const charCol = isBatted ? '#ffffff' : (i < 5 ? '#fbbf24' : '#f97316');
+        const cBase = textStartCol + i * 6;
+
+        ctx.fillStyle = charCol;
+        ctx.beginPath();
+        for (let gr = 0; gr < 7; gr++) {
+          const rowBits = glyph[gr];
+          if (!rowBits) continue;
+          for (let gc = 0; gc < 5; gc++) {
+            if ((rowBits >> (4 - gc)) & 1) {
+              const lx = offsetX + (cBase + gc) * pitch;
+              const ly = offsetY + (baseTextRow + charRowOffset + gr) * pitch;
+              ctx.moveTo(lx + dotR * 1.12, ly);
+              ctx.arc(lx, ly, dotR * 1.12, 0, Math.PI * 2);
+            }
+          }
+        }
+        ctx.fill();
+
+        // Brillo interior cálido
+        ctx.fillStyle = '#fffbeb';
+        ctx.beginPath();
+        for (let gr = 0; gr < 7; gr++) {
+          const rowBits = glyph[gr];
+          if (!rowBits) continue;
+          for (let gc = 0; gc < 5; gc++) {
+            if ((rowBits >> (4 - gc)) & 1) {
+              const lx = offsetX + (cBase + gc) * pitch;
+              const ly = offsetY + (baseTextRow + charRowOffset + gr) * pitch;
+              ctx.moveTo(lx + dotR * 0.44, ly);
+              ctx.arc(lx, ly, dotR * 0.44, 0, Math.PI * 2);
+            }
+          }
+        }
+        ctx.fill();
+      }
+
+      // 5. Si está bloqueado: Candado LED (@1000) a la derecha
+      if (isLocked) {
+        const lockStr = '@1000';
+        const lockStartCol = cols - (lockStr.length * 6) - 1;
+        const lockRow = Math.floor((rows - 7) * 0.5);
+        for (let i = 0; i < lockStr.length; i++) {
+          const ch = lockStr[i];
+          const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7[' '];
+          const isLockIcon = (ch === '@');
+          ctx.fillStyle = isLockIcon ? '#ff4500' : '#ffb300';
+          ctx.beginPath();
+          for (let gr = 0; gr < 7; gr++) {
+            const rowBits = glyph[gr];
+            if (!rowBits) continue;
+            for (let gc = 0; gc < 5; gc++) {
+              if ((rowBits >> (4 - gc)) & 1) {
+                const lx = offsetX + (lockStartCol + i * 6 + gc) * pitch;
+                const ly = offsetY + (lockRow + gr) * pitch;
+                ctx.moveTo(lx + dotR * 1.12, ly);
+                ctx.arc(lx, ly, dotR * 1.12, 0, Math.PI * 2);
+              }
+            }
+          }
+          ctx.fill();
+        }
+      }
+    }
+
     function _renderGameModeStaticLeds(songTitle = 'PISTA', songArtist = '') {
       _currentModalSongTitle = songTitle;
       _currentModalSongArtist = songArtist;
@@ -13919,6 +14123,7 @@ function stopPianoCameraLoop() {
         const stormLocked = !isGameModeUnlocked('storm');
         const mushroomLocked = !isGameModeUnlocked('mushroom');
         const highwayLocked = !isGameModeUnlocked('highway');
+        const annoyingDogLocked = !isGameModeUnlocked('annoying_dog');
 
         // A. ANIMACIÓN LED MODO KARAOKE: KA -> RA -> O -> KE iluminándose en dorado + Candado LED (@ 1000) si está bloqueado
         const kStep = Math.floor(((now - startTime) % 1900) / 380);
@@ -14023,6 +14228,13 @@ function stopPianoCameraLoop() {
           highwayLocked
         );
 
+        // E. ANIMACIÓN LED MODO PERRO MOLESTO: Pomeranian zorrito persiguiendo chuletón y dando zarpazos a las letras + Candado LED
+        _renderAnnoyingDogLedButton(
+          document.getElementById('gmBtnAnnoyingDogMainCanvas'),
+          now,
+          annoyingDogLocked
+        );
+
         _gameModeLedAnimId = requestAnimationFrame(tick);
       };
 
@@ -14060,7 +14272,7 @@ function stopPianoCameraLoop() {
     }
 
     function confirmGameModeSelection(mode) {
-      const chosen = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway') ? mode : 'normal';
+      const chosen = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog') ? mode : 'normal';
 
       // Si el modo no es normal y aún tiene candado LED (1000 Claves para desbloquear):
       if (chosen !== 'normal' && !isGameModeUnlocked(chosen)) {
@@ -14070,7 +14282,11 @@ function stopPianoCameraLoop() {
             if (typeof showSuccessToast === 'function') {
               const modeLabel = chosen === 'karaoke'
                 ? 'KARAOKE'
-                : (chosen === 'storm' ? 'TORMENTA' : (chosen === 'mushroom' ? 'SETAS ALUCINÓGENAS' : 'CARRETERA'));
+                : (chosen === 'storm'
+                    ? 'TORMENTA'
+                    : (chosen === 'mushroom'
+                        ? 'SETAS ALUCINÓGENAS'
+                        : (chosen === 'highway' ? 'CARRETERA' : 'PERRO MOLESTO')));
               showSuccessToast(`¡Modo ${modeLabel} desbloqueado para siempre! (-1000 𝄞)`);
             }
           }

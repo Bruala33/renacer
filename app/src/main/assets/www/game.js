@@ -2906,16 +2906,19 @@ class BeatstarEngine {
     this.isStormModeActive = (curActiveMode === 'storm');
     this.isMushroomModeActive = (curActiveMode === 'mushroom');
     this.isHighwayModeActive = (curActiveMode === 'highway');
+    this.isAnnoyingDogModeActive = (curActiveMode === 'annoying_dog');
     if (typeof window !== 'undefined') {
       window.isKaraokeModeActive = this.isKaraokeModeActive;
       window.isStormModeActive = this.isStormModeActive;
       window.isMushroomModeActive = this.isMushroomModeActive;
       window.isHighwayModeActive = this.isHighwayModeActive;
+      window.isAnnoyingDogModeActive = this.isAnnoyingDogModeActive;
     }
 
     const isKaraokePrewarm = this.isKaraokeModeActive;
     const isMushPrewarm = this.isMushroomModeActive;
     const isHighwayPrewarm = this.isHighwayModeActive;
+    const isDogPrewarm = this.isAnnoyingDogModeActive;
     for (let i = 0, nLen = this.notes.length; i < nLen; i++) {
       const n = this.notes[i];
       if (n.lyric && !_PROLONG_RE.test(String(n.lyric))) {
@@ -2939,6 +2942,9 @@ class BeatstarEngine {
       } else {
         n._mushFromLane = n.lane;
       }
+      n._dogBatted = false;
+      n._dogFromLane = n.lane;
+      n._dogSwipeP = 0.40;
     }
 
     if (this.isStormModeActive) {
@@ -2962,6 +2968,12 @@ class BeatstarEngine {
       this._prepareHighwayTrafficChoreography();
       this._hwBannerText = '🏎️ ¡AUTOPISTA ACTIVA: F1, TESLA ROADSTER Y TRENES! 🚂';
       this._hwBannerTimer = 2.8;
+    }
+    if (isDogPrewarm) {
+      this.initAnnoyingDogModeAssets();
+      this._prepareAnnoyingDogChoreography();
+      this._dogBannerText = '🐶 ¡PERRO MOLESTO: CUIDADO CON LOS ZARPAZOS Y CHULETONES! 🥩';
+      this._dogBannerTimer = 3.0;
     }
     this.activeHolds.clear();
     this.activeTouches.clear();
@@ -4948,7 +4960,8 @@ class BeatstarEngine {
       this.isStormModeActive ||
       this.isMushroomModeActive ||
       this.isHighwayModeActive ||
-      (typeof window !== 'undefined' && (window.isStormModeActive || window.isMushroomModeActive || window.isHighwayModeActive))
+      this.isAnnoyingDogModeActive ||
+      (typeof window !== 'undefined' && (window.isStormModeActive || window.isMushroomModeActive || window.isHighwayModeActive || window.isAnnoyingDogModeActive))
     );
     const clefMultiplier = (isFeatured ? 2 : 1) * (isStormX2 ? 2 : 1);
     const earnedClefs = Math.max(1, Math.round(baseScoreClefs * diffMultiplier)) * clefMultiplier;
@@ -6386,6 +6399,9 @@ class BeatstarEngine {
     }
     if (this.isHighwayModeActive || (typeof window !== 'undefined' && window.isHighwayModeActive)) {
       this.renderHighwayModeOverlay(this.ctx, currentTime);
+    }
+    if (this.isAnnoyingDogModeActive || (typeof window !== 'undefined' && window.isAnnoyingDogModeActive)) {
+      this.renderAnnoyingDogModeOverlay(this.ctx, currentTime);
     }
     this.renderJudgements();
     this.renderFlyingLyrics(this.ctx, currentTime);
@@ -9353,6 +9369,871 @@ class BeatstarEngine {
   }
 
   // =========================================================================
+  // MODO PERRO MOLESTO (POMERANIAN ZORRITO MARRÓN CON PECHERA Y COLA BLANCA)
+  // =========================================================================
+
+  initAnnoyingDogModeAssets() {
+    if (this._dogAssetsReady && this._dogSteakSprite && this._dogPawPrintSprite) return;
+    this._dogAssetsReady = true;
+    this._dogSteaks = this._dogSteaks || [];
+    this._dogSitSchedule = this._dogSitSchedule || [];
+    this._dogPawPrints = [];
+    this._dogFxParticles = [];
+    this._dogFxFreePool = [];
+    this._dogState = {
+      lane: 1.0,
+      p: 0.48,
+      vx: 0,
+      vy: 0,
+      pose: 'sitting', // 'sitting' | 'chasing' | 'swiping' | 'eating'
+      facingDir: 1,
+      swipeTimer: 0,
+      eatTimer: 0,
+      barkText: '🐶 ¡GUAU!',
+      barkTimer: 1.8,
+      lastStepMs: 0
+    };
+
+    if (typeof document === 'undefined') return;
+
+    // 1. Sprite de Chuletón T-Bone Jugoso (No jugable, objetivo del Pomeranian)
+    const stCvs = document.createElement('canvas');
+    stCvs.width = 120;
+    stCvs.height = 96;
+    const sc = stCvs.getContext('2d');
+    const scx = 60, scy = 48;
+
+    // Halo cálido apetitoso bajo el chuletón
+    const glowG = sc.createRadialGradient(scx, scy, 8, scx, scy, 50);
+    glowG.addColorStop(0.0, 'rgba(251, 191, 36, 0.55)');
+    glowG.addColorStop(0.6, 'rgba(239, 68, 68, 0.22)');
+    glowG.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+    sc.fillStyle = glowG;
+    sc.beginPath();
+    sc.arc(scx, scy, 50, 0, Math.PI * 2);
+    sc.fill();
+
+    // Sombra 3D y corteza exterior tostada a la brasa (#7c2d12)
+    sc.fillStyle = 'rgba(0, 0, 0, 0.40)';
+    sc.beginPath();
+    sc.ellipse(scx, scy + 7, 42, 27, -0.12, 0, Math.PI * 2);
+    sc.fill();
+
+    sc.save();
+    sc.translate(scx, scy);
+    sc.rotate(-0.12);
+
+    // Borde exterior de grasa dorada y corteza asada
+    sc.fillStyle = '#7c2d12';
+    sc.strokeStyle = '#fef3c7';
+    sc.lineWidth = 3.2;
+    sc.beginPath();
+    sc.ellipse(0, 3, 40, 25, 0, 0, Math.PI * 2);
+    sc.fill();
+    sc.stroke();
+
+    // Carne jugosa rojo rubí con veteado intramuscular
+    const meatGrad = sc.createLinearGradient(-34, -18, 34, 18);
+    meatGrad.addColorStop(0.0, '#b91c1c');
+    meatGrad.addColorStop(0.5, '#ef4444');
+    meatGrad.addColorStop(1.0, '#991b1b');
+    sc.fillStyle = meatGrad;
+    sc.beginPath();
+    sc.ellipse(0, -1, 35, 21, 0, 0, Math.PI * 2);
+    sc.fill();
+
+    // Marcas de parrilla al carbón
+    sc.strokeStyle = 'rgba(69, 26, 3, 0.55)';
+    sc.lineWidth = 2.6;
+    for (let g = -20; g <= 20; g += 10) {
+      sc.beginPath();
+      sc.moveTo(g - 8, -14);
+      sc.lineTo(g + 8, 12);
+      sc.stroke();
+    }
+
+    // Hueso central en T blanco marfil (T-Bone clásico)
+    sc.strokeStyle = '#fffbeb';
+    sc.lineWidth = 6.2;
+    sc.lineCap = 'round';
+    sc.beginPath();
+    sc.moveTo(-22, -7);
+    sc.lineTo(22, -5);
+    sc.moveTo(2, -6);
+    sc.lineTo(-4, 16);
+    sc.stroke();
+
+    // Nuez de mantequilla a las finas hierbas fundiéndose encima
+    sc.fillStyle = '#fde047';
+    sc.beginPath();
+    sc.ellipse(-12, 4, 8, 5.5, 0.2, 0, Math.PI * 2);
+    sc.fill();
+    sc.fillStyle = '#22c55e';
+    sc.beginPath();
+    sc.arc(-13, 3, 1.8, 0, Math.PI * 2);
+    sc.arc(-10, 5, 1.5, 0, Math.PI * 2);
+    sc.fill();
+
+    sc.restore();
+    this._dogSteakSprite = stCvs;
+
+    // 2. Sprite de Huella de Patita Dorada (🐾)
+    const pawCvs = document.createElement('canvas');
+    pawCvs.width = 56;
+    pawCvs.height = 56;
+    const pc = pawCvs.getContext('2d');
+    pc.translate(28, 28);
+    pc.fillStyle = '#f59e0b';
+    pc.strokeStyle = '#451a03';
+    pc.lineWidth = 2.2;
+    // Almohadilla central
+    pc.beginPath();
+    pc.ellipse(0, 6, 11, 8.5, 0, 0, Math.PI * 2);
+    pc.fill();
+    pc.stroke();
+    // 4 deditos
+    const toes = [
+      { x: -11, y: -5, a: -0.35 },
+      { x: -4,  y: -10, a: -0.12 },
+      { x: 4,   y: -10, a: 0.12 },
+      { x: 11,  y: -5, a: 0.35 }
+    ];
+    for (let i = 0; i < toes.length; i++) {
+      const t = toes[i];
+      pc.save();
+      pc.translate(t.x, t.y);
+      pc.rotate(t.a);
+      pc.beginPath();
+      pc.ellipse(0, 0, 4.2, 5.8, 0, 0, Math.PI * 2);
+      pc.fill();
+      pc.stroke();
+      pc.restore();
+    }
+    this._dogPawPrintSprite = pawCvs;
+  }
+
+  _prepareAnnoyingDogChoreography() {
+    if (!this.notes || this.notes.length === 0) return;
+    const nLen = this.notes.length;
+    this._dogSteaks = [];
+    this._dogSitSchedule = [];
+
+    // 1. Seleccionar teclas objetivo que el Pomeranian cambiará de carril de un zarpazo (~30% de taps bien espaciados)
+    // El zarpazo ocurre cuando la tecla va por p ≈ 0.38–0.44 (~800ms antes de la línea Perfect+), dando tiempo de reacción justo y divertido
+    let lastBattedTimeMs = -9999;
+    for (let i = 0; i < nLen; i++) {
+      const n = this.notes[i];
+      n._dogBatted = false;
+      n._dogFromLane = n.lane ?? 1;
+      n._dogSwipeP = 0.40;
+      n._dogSwipeTriggered = false;
+
+      if (!n || n.type === 'hold') continue;
+      const curT = n.timestamp_ms ?? 0;
+      const prevT = i > 0 ? (this.notes[i - 1].timestamp_ms ?? 0) : -9999;
+      const nextT = i + 1 < nLen ? (this.notes[i + 1].timestamp_ms ?? 9999999) : 9999999;
+
+      if (curT > 2400 && (curT - lastBattedTimeMs >= 1650) && (curT - prevT >= 250) && (nextT - curT >= 250)) {
+        const trueLane = Math.max(0, Math.min(2, Math.round(n.lane ?? 1)));
+        // El perro empuja la tecla desde un carril contiguo hacia su carril final (trueLane)
+        let originLane = trueLane === 1 ? ((i % 2 === 0) ? 0 : 2) : 1;
+        n._dogBatted = true;
+        n._dogFromLane = originLane;
+        n._dogSwipeP = 0.37 + (i % 3) * 0.03; // p = 0.37 .. 0.43
+        lastBattedTimeMs = curT;
+
+        // Colocar un Chuletón T-Bone no-jugable justo en la trayectoria para que el perro persiga el chuletón y empuje esta tecla a su paso
+        this._dogSteaks.push({
+          id: 'steak_bat_' + i,
+          lane: trueLane,
+          originLane: originLane,
+          hitTimeMs: curT + 140,
+          eatP: Math.min(0.62, n._dogSwipeP + 0.14),
+          eaten: false,
+          linkedNoteIdx: i
+        });
+      }
+    }
+
+    // 2. Añadir chuletones extra entre medias y tramos donde el perro se sienta en una columna tapando la visión
+    const firstT = Math.max(2000, (this.notes[0]?.timestamp_ms || 2000));
+    const lastT = this.lastNoteTime || 60000;
+    let cursorMs = firstT + 900;
+    let stepIdx = 0;
+
+    while (cursorMs < lastT - 1200) {
+      const hasNearbySteak = this._dogSteaks.some(s => Math.abs(s.hitTimeMs - cursorMs) < 1500);
+      if (!hasNearbySteak) {
+        if (stepIdx % 2 === 0) {
+          const stLane = (stepIdx * 2 + 1) % 3;
+          this._dogSteaks.push({
+            id: 'steak_extra_' + stepIdx,
+            lane: stLane,
+            originLane: stLane,
+            hitTimeMs: cursorMs,
+            eatP: 0.48 + (stepIdx % 3) * 0.05,
+            eaten: false,
+            linkedNoteIdx: -1
+          });
+        } else {
+          // El perro se sienta orgulloso encima de una columna tapando parcialmente la visión superior/media
+          const sitLane = (stepIdx + 1) % 3;
+          this._dogSitSchedule.push({
+            startMs: cursorMs - 700,
+            endMs: cursorMs + 1600,
+            lane: sitLane,
+            p: 0.50
+          });
+        }
+      }
+      cursorMs += 2400;
+      stepIdx++;
+    }
+
+    this._dogSteaks.sort((a, b) => a.hitTimeMs - b.hitTimeMs);
+  }
+
+  _emitDogFxParticle(x, y, vx, vy, kind, text, color, size, duration) {
+    if (!this._dogFxParticles) this._dogFxParticles = [];
+    if (!this._dogFxFreePool) this._dogFxFreePool = [];
+    if (this._dogFxParticles.length >= 60) return;
+    const pt = this._dogFxFreePool.length > 0 ? this._dogFxFreePool.pop() : {};
+    pt.x = x;
+    pt.y = y;
+    pt.vx = vx;
+    pt.vy = vy;
+    pt.kind = kind || 'heart'; // 'heart' | 'slash' | 'crumb' | 'text'
+    pt.text = text || '';
+    pt.color = color || '#fb7185';
+    pt.size = size || 14;
+    pt.age = 0;
+    pt.duration = duration || 0.65;
+    this._dogFxParticles.push(pt);
+  }
+
+  // Dibujo procedural ultra-detallado del Pomeranian marrón grande tipo zorrito (fiel a las fotos reales del usuario:
+  // manto canela/dorado esponjoso, gran pechera blanca en el pecho, enorme cola plumero blanca sobre el lomo, calcetines blancos y sonrisa de zorrito)
+  _drawPomeranianDog(ctx, x, y, scale, pose, facingDir, currentTime, swipeProgress = 0) {
+    ctx.save();
+    ctx.translate(x, y);
+
+    const t = currentTime * 0.001;
+    const isRunning = (pose === 'chasing');
+    const isSwiping = (pose === 'swiping');
+    const isEating = (pose === 'eating');
+    const isSitting = (pose === 'sitting');
+
+    const bobY = isRunning
+      ? -Math.abs(Math.sin(t * 17.0)) * (9.5 * scale)
+      : (isEating ? Math.sin(t * 24.0) * (3.5 * scale) : Math.sin(t * 4.5) * (2.2 * scale));
+    const bodyTilt = isRunning
+      ? (facingDir * 0.14 + Math.cos(t * 17.0) * 0.06)
+      : (isSwiping ? facingDir * 0.22 : Math.sin(t * 2.8) * 0.04);
+
+    // 1. Sombra elíptica suave sobre la pista bajo el perrito
+    ctx.fillStyle = isSitting ? 'rgba(15, 23, 42, 0.42)' : 'rgba(15, 23, 42, 0.32)';
+    ctx.beginPath();
+    const shRx = (isSitting ? 48 : 42) * scale;
+    const shRy = (isSitting ? 22 : 18) * scale;
+    ctx.ellipse(0, 26 * scale, shRx, shRy, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.translate(0, bobY);
+    ctx.rotate(bodyTilt);
+
+    // 2. ENORME COLA PLUMERO BLANCA CREMA ESPONJOSA (rasgo icónico de las fotos 1 y 2)
+    const wagSpeed = (isEating || isSwiping) ? 26.0 : (isRunning ? 20.0 : 9.5);
+    const wagAngle = Math.sin(t * wagSpeed) * (isEating ? 0.38 : 0.26);
+    ctx.save();
+    ctx.translate(-facingDir * 14 * scale, -18 * scale);
+    ctx.rotate(wagAngle - facingDir * 0.18);
+
+    // Múltiples penachos radiales blanco-crema (#fffbeb / #fef3c7) para dar textura de pelo largo esponjoso
+    const plumeColors = ['#fde68a', '#fef3c7', '#fffbeb', '#ffffff'];
+    for (let layer = 0; layer < plumeColors.length; layer++) {
+      ctx.fillStyle = plumeColors[layer];
+      const rad = (28 - layer * 3.5) * scale;
+      ctx.beginPath();
+      for (let k = 0; k < 10; k++) {
+        const ang = (k / 10) * Math.PI * 2;
+        const tuftR = rad * (0.85 + 0.22 * Math.sin(k * 3.1 + layer));
+        const px = Math.cos(ang) * tuftR * 1.12;
+        const py = -12 * scale + Math.sin(ang) * tuftR * 0.92;
+        if (k === 0) ctx.moveTo(px + 7 * scale, py);
+        ctx.arc(px, py, (9 - layer * 1.1) * scale, 0, Math.PI * 2);
+      }
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // 3. PATITAS TRASERAS CON CALCETINES BLANCOS
+    const legSwing = isRunning ? Math.sin(t * 17.0) * (11 * scale) : 0;
+    for (let side = -1; side <= 1; side += 2) {
+      const lx = side * 22 * scale;
+      const ly = (20 + (side * legSwing * 0.45)) * scale;
+      // Muslo marrón dorado
+      ctx.fillStyle = '#b45309';
+      ctx.beginPath();
+      ctx.ellipse(lx, ly - 5 * scale, 9 * scale, 11 * scale, side * 0.2, 0, Math.PI * 2);
+      ctx.fill();
+      // Calcetín blanco (patita blanca)
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#78350f';
+      ctx.lineWidth = Math.max(1.2, 1.8 * scale);
+      ctx.beginPath();
+      ctx.ellipse(lx + side * 2 * scale, ly + 4 * scale, 7.5 * scale, 5.2 * scale, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // 4. MANTO ESPONJOSO MARRÓN CANELA / ZORRITO DORADO (Cuerpo y melena leonina)
+    // Silueta exterior festoneada de pelo largo canela-rojizo (#b45309 -> #d97706 -> #f59e0b)
+    const coatLayers = [
+      { col: '#9a3412', rx: 40, ry: 33, yOff: 2 },
+      { col: '#c2410c', rx: 37, ry: 31, yOff: 1 },
+      { col: '#d97706', rx: 34, ry: 28, yOff: 0 },
+      { col: '#f59e0b', rx: 29, ry: 24, yOff: -1 }
+    ];
+    for (let cl = 0; cl < coatLayers.length; cl++) {
+      const L = coatLayers[cl];
+      ctx.fillStyle = L.col;
+      ctx.beginPath();
+      const tufts = 16;
+      for (let i = 0; i < tufts; i++) {
+        const a = (i / tufts) * Math.PI * 2;
+        const tx = Math.cos(a) * L.rx * scale;
+        const ty = (L.yOff + Math.sin(a) * L.ry) * scale;
+        const rTuft = (11.5 - cl * 1.4) * scale;
+        ctx.moveTo(tx + rTuft, ty);
+        ctx.arc(tx, ty, rTuft, 0, Math.PI * 2);
+      }
+      ctx.fill();
+    }
+
+    // 5. GRAN PECHERA BLANCA ESPONJOSA EN EL PECHO (idéntica a la foto 2 sentado junto al Fiat 500)
+    const bibLayers = [
+      { col: '#fef3c7', rx: 23, ry: 20, yOff: 5 },
+      { col: '#fffbeb', rx: 20, ry: 17, yOff: 4 },
+      { col: '#ffffff', rx: 16, ry: 14, yOff: 3 }
+    ];
+    for (let bl = 0; bl < bibLayers.length; bl++) {
+      const B = bibLayers[bl];
+      ctx.fillStyle = B.col;
+      ctx.beginPath();
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        const bx = Math.cos(a) * B.rx * scale;
+        const by = (B.yOff + Math.sin(a) * B.ry) * scale;
+        const rB = (8.5 - bl * 1.2) * scale;
+        ctx.moveTo(bx + rB, by);
+        ctx.arc(bx, by, rB, 0, Math.PI * 2);
+      }
+      ctx.fill();
+    }
+
+    // 6. PATITAS DELANTERAS CON CALCETINES BLANCOS (y animación de ZARPAZO cuando pose === 'swiping')
+    for (let side = -1; side <= 1; side += 2) {
+      const isSwipingPaw = isSwiping && (side === (facingDir >= 0 ? 1 : -1));
+      ctx.save();
+      if (isSwipingPaw) {
+        const swipeArc = Math.sin(swipeProgress * Math.PI);
+        const pawX = side * (22 + swipeArc * 28) * scale;
+        const pawY = (6 - swipeArc * 22) * scale;
+        ctx.translate(pawX, pawY);
+        ctx.rotate(side * (-0.75 - swipeArc * 0.9));
+
+        // Estela dorada de zarpazo
+        ctx.strokeStyle = '#fde047';
+        ctx.lineWidth = Math.max(2.5, 4.5 * scale);
+        ctx.beginPath();
+        ctx.arc(-side * 10 * scale, 4 * scale, 22 * scale, -0.7, 0.9);
+        ctx.stroke();
+
+        // Brazo marrón dorado y zarpa blanca extendida
+        ctx.fillStyle = '#d97706';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 8 * scale, 13 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#451a03';
+        ctx.lineWidth = Math.max(1.5, 2.2 * scale);
+        ctx.beginPath();
+        ctx.ellipse(0, 10 * scale, 9.5 * scale, 7.5 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Almohadillas rosas en la zarpa
+        ctx.fillStyle = '#fb7185';
+        ctx.beginPath();
+        ctx.arc(0, 11 * scale, 3.2 * scale, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        const stepY = isRunning ? (side * legSwing) : 0;
+        const fx = side * 14 * scale;
+        const fy = (22 + stepY * 0.65) * scale;
+        // Patita delantera marrón canela arriba y calcetín blanco abajo
+        ctx.fillStyle = '#d97706';
+        ctx.beginPath();
+        ctx.ellipse(fx, fy - 5 * scale, 6.8 * scale, 9.5 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#78350f';
+        ctx.lineWidth = Math.max(1.2, 1.8 * scale);
+        ctx.beginPath();
+        ctx.ellipse(fx, fy + 4 * scale, 7.0 * scale, 5.2 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // 7. CABEZA DE ZORRITO POMERANIAN (Orejitas puntiagudas, mejillas esponjosas, hocico fino y sonrisa feliz con lengüita rosa)
+    ctx.save();
+    const headTilt = isSitting
+      ? Math.sin(t * 3.4) * 0.15
+      : (isEating ? Math.sin(t * 28.0) * 0.12 : facingDir * 0.08);
+    ctx.translate(0, -14 * scale);
+    ctx.rotate(headTilt);
+
+    // A. Orejitas triangulares puntiagudas de zorrito con movimiento independiente
+    for (let side = -1; side <= 1; side += 2) {
+      const earTwitch = Math.sin(t * 6.5 + (side > 0 ? 1.2 : 0)) * 0.08;
+      ctx.save();
+      ctx.translate(side * 16 * scale, -15 * scale);
+      ctx.rotate(side * 0.24 + earTwitch);
+
+      // Exterior marrón canela tostado
+      ctx.fillStyle = '#b45309';
+      ctx.strokeStyle = '#451a03';
+      ctx.lineWidth = Math.max(1.3, 2.0 * scale);
+      ctx.beginPath();
+      ctx.moveTo(-9 * scale, 4 * scale);
+      ctx.lineTo(0, -17 * scale);
+      ctx.lineTo(9 * scale, 4 * scale);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Interior rosado/crema esponjoso
+      ctx.fillStyle = '#fde68a';
+      ctx.beginPath();
+      ctx.moveTo(-5 * scale, 2 * scale);
+      ctx.lineTo(0, -11 * scale);
+      ctx.lineTo(5 * scale, 2 * scale);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // B. Mejillas esponjosas de zorrito y cráneo dorado
+    ctx.fillStyle = '#d97706';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 24 * scale, 19 * scale, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Penachos laterales en los mofletes
+    ctx.fillStyle = '#f59e0b';
+    ctx.beginPath();
+    for (let side = -1; side <= 1; side += 2) {
+      ctx.moveTo(side * 22 * scale, 2 * scale);
+      ctx.lineTo(side * 30 * scale, -1 * scale);
+      ctx.lineTo(side * 26 * scale, 7 * scale);
+      ctx.lineTo(side * 31 * scale, 10 * scale);
+      ctx.lineTo(side * 19 * scale, 11 * scale);
+    }
+    ctx.fill();
+
+    ctx.fillStyle = '#fbbf24';
+    ctx.beginPath();
+    ctx.ellipse(0, 1 * scale, 19 * scale, 15.5 * scale, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // C. Cejas expresivas color crema claro
+    ctx.fillStyle = '#fef3c7';
+    ctx.beginPath();
+    ctx.ellipse(-7.5 * scale, -6.5 * scale, 3.8 * scale, 2.0 * scale, -0.2, 0, Math.PI * 2);
+    ctx.ellipse(7.5 * scale, -6.5 * scale, 3.8 * scale, 2.0 * scale, 0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // D. Ojos oscuros brillantes y traviesos con doble reflejo cristalino
+    const isBlinking = ((Math.floor(t * 2.2) % 9) === 0) && ((t % 0.45) < 0.11);
+    for (let side = -1; side <= 1; side += 2) {
+      const ex = side * 8.2 * scale;
+      const ey = -2.2 * scale;
+      if (isBlinking) {
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = Math.max(1.8, 2.6 * scale);
+        ctx.beginPath();
+        ctx.arc(ex, ey, 3.8 * scale, 0.15, Math.PI - 0.15);
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.arc(ex, ey, 4.1 * scale, 0, Math.PI * 2);
+        ctx.fill();
+        // Brillo blanco vivo en los ojos
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(ex - 1.3 * scale, ey - 1.4 * scale, 1.5 * scale, 0, Math.PI * 2);
+        ctx.arc(ex + 1.2 * scale, ey + 1.0 * scale, 0.75 * scale, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // E. Hocico cónico de zorrito con comisura negra sonriente, dientecitos blancos y lengüita rosa (igual a la foto 2)
+    ctx.fillStyle = '#fef3c7';
+    ctx.beginPath();
+    ctx.ellipse(0, 6.5 * scale, 9.5 * scale, 7.0 * scale, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Boca feliz abierta y lengüita rosa jadeando
+    const mouthOpen = isEating ? (1.1 + 0.35 * Math.sin(t * 32.0)) : (0.85 + 0.18 * Math.sin(t * 11.0));
+    ctx.fillStyle = '#1e1b4b';
+    ctx.beginPath();
+    ctx.arc(0, 6.8 * scale, 6.2 * scale * mouthOpen, 0.08, Math.PI - 0.08);
+    ctx.fill();
+
+    // Lengüita rosa asomando con alegría
+    ctx.fillStyle = '#fb7185';
+    ctx.beginPath();
+    ctx.ellipse(1.5 * scale, (10.5 + Math.sin(t * 12.0) * 1.1) * scale, 3.8 * scale, 4.6 * scale * mouthOpen, 0.15, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Comisura oscura sonriente característica de los Pomeranian
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = Math.max(1.5, 2.2 * scale);
+    ctx.beginPath();
+    ctx.arc(-3.5 * scale, 5.8 * scale, 4.2 * scale, 0.2, Math.PI * 0.85);
+    ctx.arc(3.5 * scale, 5.8 * scale, 4.2 * scale, Math.PI * 0.15, Math.PI - 0.2);
+    ctx.stroke();
+
+    // Trufa negra brillante en la punta del hocico de zorrito
+    ctx.fillStyle = '#090d16';
+    ctx.beginPath();
+    ctx.ellipse(0, 3.5 * scale, 4.4 * scale, 3.2 * scale, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.ellipse(-1.2 * scale, 2.6 * scale, 1.5 * scale, 0.9 * scale, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore(); // Fin cabeza
+    ctx.restore(); // Fin perro
+  }
+
+  renderAnnoyingDogModeOverlay(ctx, currentTime) {
+    if (!this._dogAssetsReady) {
+      this.initAnnoyingDogModeAssets();
+      this._prepareAnnoyingDogChoreography();
+    } else if (this.notes && this.notes.length > 0 && (!this._dogSteaks || this._dogSteaks.length === 0)) {
+      this._prepareAnnoyingDogChoreography();
+    }
+
+    const nowPerf = this._frameNow || performance.now();
+    const dt = Math.min(0.05, Math.max(0.004, (nowPerf - (this._dogLastOverlayNow || nowPerf)) / 1000));
+    this._dogLastOverlayNow = nowPerf;
+
+    const scrollDur = (Number.isFinite(this.scrollDurationMs) && this.scrollDurationMs > 0) ? this.scrollDurationMs : 1450;
+    const invScrollDur = 1.0 / scrollDur;
+    const w = this.width || 360;
+    const h = this.height || 640;
+    const st = this._dogState;
+
+    ctx.save();
+
+    // 1. Dibujar y actualizar las huellas doradas (🐾) que el Pomeranian va dejando sobre la pista
+    if (this._dogPawPrints && this._dogPawPrints.length > 0) {
+      for (let i = this._dogPawPrints.length - 1; i >= 0; i--) {
+        const fp = this._dogPawPrints[i];
+        fp.age += dt;
+        if (fp.age >= fp.duration) {
+          this._dogPawPrints[i] = this._dogPawPrints[this._dogPawPrints.length - 1];
+          this._dogPawPrints.pop();
+          continue;
+        }
+        const pCoord = this.getPerspectiveCoord(fp.lane, fp.p, this._coordScratch1);
+        const alpha = Math.max(0, (1 - fp.age / fp.duration) * 0.55);
+        const sz = Math.max(12, 24 * pCoord.scale);
+        ctx.globalAlpha = alpha;
+        if (this._dogPawPrintSprite) {
+          ctx.drawImage(this._dogPawPrintSprite, pCoord.x - sz * 0.5, pCoord.y - sz * 0.5, sz, sz);
+        }
+      }
+      ctx.globalAlpha = 1.0;
+    }
+
+    // 2. Renderizar los Chuletones T-Bone No-Jugables que caen por las columnas (objetivo del perro)
+    let activeTargetSteak = null;
+    let activeBattedNote = null;
+
+    if (this.notes && this.notes.length > 0) {
+      const startIdx = Math.max(0, this.firstActiveNoteIndex || 0);
+      for (let i = startIdx; i < this.notes.length; i++) {
+        const n = this.notes[i];
+        if (!n || n.hit || n.missed || !n._dogBatted) continue;
+        const timeUntil = (n.timestamp_ms ?? 0) - currentTime;
+        if (timeUntil > scrollDur * 1.1) break;
+        const pN = 1.0 - timeUntil * invScrollDur;
+        if (pN >= 0.12 && pN <= (n._dogSwipeP + 0.10)) {
+          activeBattedNote = { note: n, p: pN };
+          break;
+        }
+      }
+    }
+
+    if (this._dogSteaks && this._dogSteaks.length > 0) {
+      for (let i = 0; i < this._dogSteaks.length; i++) {
+        const stk = this._dogSteaks[i];
+        if (!stk || stk.eaten) continue;
+        const timeUntil = stk.hitTimeMs - currentTime;
+        if (timeUntil > scrollDur * 1.15) break;
+        const pSteak = 1.0 - timeUntil * invScrollDur;
+        if (pSteak > 1.05) {
+          stk.eaten = true;
+          continue;
+        }
+        if (pSteak < -0.08) continue;
+
+        if (!activeTargetSteak && pSteak >= 0.08 && pSteak <= stk.eatP + 0.08) {
+          activeTargetSteak = { steak: stk, p: pSteak };
+        }
+
+        const sCoord = this.getPerspectiveCoord(stk.lane, pSteak, this._coordScratch0);
+        const sW = Math.min(sCoord.laneW * 0.68, 72 * sCoord.scale);
+        const sH = sW * 0.80;
+        const sBob = Math.sin(currentTime * 0.010 + i) * (2.5 * sCoord.scale);
+
+        if (this._dogSteakSprite) {
+          ctx.drawImage(this._dogSteakSprite, sCoord.x - sW * 0.5, sCoord.y - sH * 0.5 + sBob, sW, sH);
+        }
+
+        // Si el Pomeranian alcanza la posición del chuletón, ¡se lo come de un bocado!
+        if (pSteak >= stk.eatP && Math.abs(st.lane - stk.lane) < 0.55) {
+          stk.eaten = true;
+          st.eatTimer = 0.52;
+          st.barkText = '🥩 ¡ÑAM ÑAM!';
+          st.barkTimer = 0.95;
+          for (let hIdx = 0; hIdx < 6; hIdx++) {
+            const ang = (hIdx / 6) * Math.PI * 2;
+            this._emitDogFxParticle(
+              sCoord.x,
+              sCoord.y - 10 * sCoord.scale,
+              Math.cos(ang) * (45 + Math.random() * 35),
+              -55 - Math.random() * 45 + Math.sin(ang) * 20,
+              hIdx % 2 === 0 ? 'heart' : 'crumb',
+              hIdx === 0 ? '❤️' : '',
+              hIdx % 2 === 0 ? '#fb7185' : '#fde047',
+              (12 + Math.random() * 6) * sCoord.scale,
+              0.68
+            );
+          }
+        }
+      }
+    }
+
+    // 3. Máquina de estados e IA del Pomeranian (Perseguir chuletones, dar zarpazos a las teclas y sentarse en las columnas)
+    let targetLane = st.lane;
+    let targetP = 0.50;
+    let desiredPose = 'sitting';
+
+    if (activeBattedNote) {
+      const n = activeBattedNote.note;
+      const pN = activeBattedNote.p;
+      const swipeP = n._dogSwipeP || 0.40;
+      const fromL = n._dogFromLane ?? n.lane;
+      const toL = n.lane ?? 1;
+
+      if (pN < swipeP - 0.02) {
+        targetLane = fromL;
+        targetP = Math.max(0.28, swipeP - 0.02);
+        desiredPose = 'chasing';
+      } else {
+        // ¡Momento exacto del ZARPAZO! El perro golpea la tecla cambiándola de carril
+        targetLane = fromL + (toL - fromL) * 0.45;
+        targetP = pN;
+        desiredPose = 'swiping';
+        st.swipeTimer = 0.36;
+        if (!n._dogSwipeTriggered) {
+          n._dogSwipeTriggered = true;
+          st.barkText = '🐾 ¡ZAS!';
+          st.barkTimer = 0.85;
+          const bCoord = this.getPerspectiveCoord(fromL, pN, this._coordScratch1);
+          for (let k = 0; k < 5; k++) {
+            this._emitDogFxParticle(
+              bCoord.x,
+              bCoord.y,
+              (toL - fromL) * (65 + k * 18),
+              -35 - Math.random() * 30,
+              'crumb',
+              '',
+              '#fde047',
+              9 * bCoord.scale,
+              0.45
+            );
+          }
+        }
+      }
+    } else if (activeTargetSteak) {
+      targetLane = activeTargetSteak.steak.lane;
+      targetP = Math.max(0.32, Math.min(0.62, activeTargetSteak.steak.eatP));
+      desiredPose = 'chasing';
+    } else {
+      // Comprobar si toca sentarse en una columna tapando la visión
+      let sitTarget = null;
+      if (this._dogSitSchedule) {
+        for (let i = 0; i < this._dogSitSchedule.length; i++) {
+          const s = this._dogSitSchedule[i];
+          if (currentTime >= s.startMs && currentTime <= s.endMs) {
+            sitTarget = s;
+            break;
+          }
+        }
+      }
+      if (sitTarget) {
+        targetLane = sitTarget.lane;
+        targetP = sitTarget.p;
+        desiredPose = 'sitting';
+      } else {
+        // Paseo curioso por la pista
+        targetLane = 1.0 + Math.sin(currentTime * 0.0011) * 0.92;
+        targetP = 0.48 + Math.cos(currentTime * 0.0009) * 0.08;
+        desiredPose = 'sitting';
+      }
+    }
+
+    const dLane = targetLane - st.lane;
+    const dP = targetP - st.p;
+    const followSpeed = (desiredPose === 'swiping' || desiredPose === 'chasing') ? 7.5 : 3.8;
+    st.lane += dLane * Math.min(1, dt * followSpeed);
+    st.p += dP * Math.min(1, dt * followSpeed);
+
+    if (Math.abs(dLane) > 0.04) {
+      st.facingDir = dLane > 0 ? 1 : -1;
+    }
+
+    if (st.swipeTimer > 0) {
+      st.swipeTimer = Math.max(0, st.swipeTimer - dt);
+      st.pose = 'swiping';
+    } else if (st.eatTimer > 0) {
+      st.eatTimer = Math.max(0, st.eatTimer - dt);
+      st.pose = 'eating';
+    } else if (Math.abs(dLane) > 0.14 || Math.abs(dP) > 0.06) {
+      st.pose = 'chasing';
+    } else {
+      st.pose = 'sitting';
+    }
+
+    // Emitir huellas de patitas al caminar/correr
+    if (st.pose === 'chasing' && (currentTime - (st.lastStepMs || 0) > 130)) {
+      st.lastStepMs = currentTime;
+      if (this._dogPawPrints.length < 18) {
+        this._dogPawPrints.push({
+          lane: st.lane + (Math.random() - 0.5) * 0.14,
+          p: st.p + 0.03,
+          age: 0,
+          duration: 1.15
+        });
+      }
+    }
+
+    // 4. Dibujar al Pomeranian en la coordenada 3D de la pista
+    const dogCoord = this.getPerspectiveCoord(st.lane, st.p, this._coordScratch0);
+    // Escala generosa para que al sentarse encima de una columna tape de verdad esa zona de visión de forma simpática
+    const dogScale = dogCoord.scale * (st.pose === 'sitting' ? 1.48 : 1.36);
+    const swipeProg = st.swipeTimer > 0 ? (1.0 - st.swipeTimer / 0.36) : 0;
+
+    this._drawPomeranianDog(ctx, dogCoord.x, dogCoord.y, dogScale, st.pose, st.facingDir, currentTime, swipeProg);
+
+    // Bocadillo expresivo sobre el perrito ("🐾 ¡ZAS!", "🥩 ¡ÑAM ÑAM!", "🐶 ¡GUAU!")
+    if (st.barkTimer > 0 && st.barkText) {
+      st.barkTimer = Math.max(0, st.barkTimer - dt);
+      const bAlpha = Math.min(1, st.barkTimer * 2.2);
+      ctx.save();
+      ctx.globalAlpha = bAlpha;
+      const bx = dogCoord.x;
+      const by = dogCoord.y - 52 * dogScale;
+      ctx.font = `900 ${Math.max(11, Math.round(13 * dogScale))}px "Outfit", system-ui, sans-serif`;
+      const tw = ctx.measureText(st.barkText).width + 16;
+      const th = 22 * Math.max(0.8, dogScale);
+
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 2.0;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(bx - tw * 0.5, by - th * 0.5, tw, th, 10);
+      else ctx.rect(bx - tw * 0.5, by - th * 0.5, tw, th);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#fef08a';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(st.barkText, bx, by);
+      ctx.restore();
+    }
+
+    // 5. Partículas de corazones, chispas de chuletón y zarpazos (swap-and-pop O(1) sin GC)
+    if (this._dogFxParticles && this._dogFxParticles.length > 0) {
+      let fLen = this._dogFxParticles.length;
+      for (let i = fLen - 1; i >= 0; i--) {
+        const pt = this._dogFxParticles[i];
+        pt.age += dt;
+        if (pt.age >= pt.duration) {
+          this._dogFxParticles[i] = this._dogFxParticles[fLen - 1];
+          this._dogFxParticles.pop();
+          fLen--;
+          if (this._dogFxFreePool.length < 80) this._dogFxFreePool.push(pt);
+          continue;
+        }
+        const p = pt.age / pt.duration;
+        pt.x += pt.vx * dt;
+        pt.y += pt.vy * dt;
+        ctx.globalAlpha = Math.max(0, 1 - p);
+        if (pt.text) {
+          ctx.font = `900 ${Math.round(pt.size)}px system-ui, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(pt.text, pt.x, pt.y);
+        } else {
+          ctx.fillStyle = pt.color;
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, Math.max(2, pt.size * 0.35 * (1 - p * 0.5)), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.globalAlpha = 1.0;
+    }
+
+    // 6. Cartel luminoso de apertura del Modo Perro Molesto
+    if (this._dogBannerTimer > 0 && this._dogBannerText) {
+      this._dogBannerTimer = Math.max(0, this._dogBannerTimer - dt);
+      ctx.globalAlpha = Math.min(1, this._dogBannerTimer * 1.5);
+      const bannerY = h * 0.23;
+      const bw = Math.min(w - 16, 348);
+      const bh = 34;
+
+      ctx.fillStyle = 'rgba(24, 13, 6, 0.92)';
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(w * 0.5 - bw * 0.5, bannerY - bh * 0.5, bw, bh, 12);
+      else ctx.rect(w * 0.5 - bw * 0.5, bannerY - bh * 0.5, bw, bh);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.font = '900 10.5px "Outfit", system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fde047';
+      ctx.fillText(this._dogBannerText, w * 0.5, bannerY);
+    }
+
+    ctx.restore();
+  }
+
+  // =========================================================================
   // PSEUDO-3D CONICAL ENGINE (BEATSTAR PERSPECTIVE)
   // =========================================================================
 
@@ -11266,6 +12147,7 @@ class BeatstarEngine {
       const isKaraokeActive = Boolean((typeof window !== 'undefined' && window.isKaraokeModeActive) || this.isKaraokeModeActive);
       const isMushroomActive = Boolean((typeof window !== 'undefined' && window.isMushroomModeActive) || this.isMushroomModeActive);
       const isHighwayActive = Boolean((typeof window !== 'undefined' && window.isHighwayModeActive) || this.isHighwayModeActive);
+      const isAnnoyingDogActive = Boolean((typeof window !== 'undefined' && window.isAnnoyingDogModeActive) || this.isAnnoyingDogModeActive);
 
       if (isHighwayActive) {
         if (!this._hwAssetsReady) {
@@ -11372,7 +12254,7 @@ class BeatstarEngine {
         // Para notas hold, no descartar por pHead > 1.25 mientras su cola siga en pantalla
         if (pHead < -0.15 || (!isBeingHeld && note.type !== 'hold' && pHead > 1.25)) continue;
 
-        // En Modo Setas Alucinógenas: algunas teclas saltan de un carril a otro mientras caen y su grosor/tamaño respira
+        // En Modo Setas Alucinógenas o Modo Perro Molesto (Zarpazo que cambia la tecla de carril):
         let drawLane = lane;
         let mushHeightMult = 1.0;
         if (isMushroomActive && note.type !== 'hold') {
@@ -11386,6 +12268,19 @@ class BeatstarEngine {
             drawLane = Math.max(0, Math.min(2, lane + Math.sin(currentTime * 0.007 + (note._mushPhase || 0)) * 0.11 * (1 - pHead)));
           }
           mushHeightMult = 1.0 + Math.sin(currentTime * 0.009 + (note._mushPhase || 0)) * 0.25;
+        } else if (isAnnoyingDogActive && note._dogBatted && note.type !== 'hold') {
+          const fromL = (note._dogFromLane !== undefined) ? note._dogFromLane : lane;
+          const swipeP = note._dogSwipeP || 0.40;
+          if (pHead < swipeP) {
+            drawLane = fromL;
+          } else if (pHead < swipeP + 0.15) {
+            const u = (pHead - swipeP) / 0.15;
+            // Curva elástica de impacto por el zarpazo del Pomeranian
+            const easeBat = 1 - Math.pow(1 - u, 3);
+            drawLane = fromL + (lane - fromL) * easeBat;
+          } else {
+            drawLane = lane;
+          }
         }
 
         const nextDiff = note.nextSameLaneDiffMs ?? Infinity;
@@ -11682,12 +12577,44 @@ class BeatstarEngine {
         // ==========================================
         } else {
           const h = Math.min((isLarge ? 80 : 30) * coord.scale * mushHeightMult, maxH3D);
+          if (isAnnoyingDogActive && note._dogBatted) {
+            const swipeP = note._dogSwipeP || 0.40;
+            const fromL = note._dogFromLane ?? lane;
+            if (pHead >= swipeP - 0.02 && pHead <= swipeP + 0.24 && fromL !== lane) {
+              const origCoord = this.getPerspectiveCoord(fromL, pHead, this._coordScratch1);
+              const trailAlpha = Math.max(0, 1 - Math.abs(pHead - (swipeP + 0.08)) / 0.16);
+              ctx.save();
+              ctx.strokeStyle = `rgba(251, 191, 36, ${(trailAlpha * 0.85).toFixed(2)})`;
+              ctx.lineWidth = Math.max(2.2, 4.2 * coord.scale);
+              ctx.beginPath();
+              ctx.moveTo(origCoord.x, origCoord.y);
+              ctx.quadraticCurveTo((origCoord.x + coord.x) * 0.5, origCoord.y - 22 * coord.scale, coord.x, coord.y);
+              ctx.stroke();
+
+              // 3 marcas de zarpazo doradas en el punto de golpeo
+              const dirSign = lane > fromL ? 1 : -1;
+              ctx.strokeStyle = `rgba(255, 255, 255, ${(trailAlpha * 0.92).toFixed(2)})`;
+              ctx.lineWidth = Math.max(1.6, 2.8 * coord.scale);
+              ctx.beginPath();
+              for (let cl = -1; cl <= 1; cl++) {
+                const sy = origCoord.y + cl * 7 * coord.scale;
+                ctx.moveTo(origCoord.x - dirSign * 14 * coord.scale, sy - 5 * coord.scale);
+                ctx.lineTo(origCoord.x + dirSign * 18 * coord.scale, sy + 4 * coord.scale);
+              }
+              ctx.stroke();
+              ctx.restore();
+            }
+          }
           const tapKey = this.drawIvoryKey(ctx, drawLane, coord.y, h, coord.scale, false, isLarge, false, lyricForNote);
           // En modo Setas: si la tecla está saltando de carril o es múltiplo de 3, dibujar seta mágica sobre la tecla
           if (isMushroomActive && this._mushSprites && this._mushSprites.length > 0 && ((note._mushFromLane !== undefined && note._mushFromLane !== lane) || (i % 3 === 0))) {
             const spr = this._mushSprites[(note._mushColorIdx || 0) % this._mushSprites.length];
             const mSz = Math.max(16, 30 * coord.scale);
             ctx.drawImage(spr, tapKey.cx - mSz * 0.5, tapKey.cy - mSz * 0.5, mSz, mSz);
+          } else if (isAnnoyingDogActive && note._dogBatted && this._dogPawPrintSprite) {
+            // Sello de huella dorada (🐾) sobre las teclas que el Pomeranian empuja de un zarpazo
+            const pSz = Math.max(16, 28 * coord.scale);
+            ctx.drawImage(this._dogPawPrintSprite, tapKey.cx - pSz * 0.5, tapKey.cy - pSz * 0.5, pSz, pSz);
           }
         }
       }

@@ -569,10 +569,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 14,
-    version_name: '2.2.0',
-    release_notes: 'Piano Community Web & Offline Player. Modo Carretera sin swipes, tren hold continuo con fuelles articulados sin texto, guía láser Perfect+ en cada vehículo y motor de alta fiabilidad 0 tirones.',
-    download_url: '/download/apk?v=14.0',
+    version_code: 15,
+    version_name: '2.3.0',
+    release_notes: 'Piano Community Web & Offline Player. Nuevo Modo Perro Molesto con Pomeranian zorrito marrón animado que persigue chuletones, empuja teclas de un zarpazo entre carriles y se sienta en las columnas.',
+    download_url: '/download/apk?v=15.0',
   });
 });
 
