@@ -2149,11 +2149,11 @@
     "osu_2417549": [
       {
         "name": "Mauricio",
-        "score": 3150,
-        "stars": 3.5,
-        "combo": 7,
-        "accuracy": 0.33112582781456956,
-        "date": "2026-10-21 21:39:10"
+        "score": 553800,
+        "stars": 2,
+        "combo": 303,
+        "accuracy": 58.21507410911384,
+        "date": "2026-10-21 21:40:08"
       }
     ]
   },
@@ -2165,8 +2165,8 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 19268272,
-      "clefs": 173
+      "total_score": 19822072,
+      "clefs": 178
     },
     {
       "name": "Jocomomolo",
@@ -2289,7 +2289,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 19268272
+        "score": 19822072
       },
       {
         "name": "Dady cool",
