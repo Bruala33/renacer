@@ -1935,6 +1935,16 @@
         "accuracy": 5.861849537845466,
         "date": "2026-10-20 19:35:03"
       }
+    ],
+    "top_las_machiturras_tirate_un_huaso": [
+      {
+        "name": "Mauricio",
+        "score": 18300,
+        "stars": 3.5,
+        "combo": 15,
+        "accuracy": 13.182918395573997,
+        "date": "2026-10-21 09:36:01"
+      }
     ]
   },
   "global": [
@@ -1960,7 +1970,7 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 5829135,
+      "total_score": 5847435,
       "clefs": 49
     },
     {
@@ -2073,7 +2083,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 5829135
+        "score": 5847435
       },
       {
         "name": "Test",
