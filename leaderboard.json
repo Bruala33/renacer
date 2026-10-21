@@ -2039,6 +2039,16 @@
         "accuracy": 12.720825351484324,
         "date": "2026-10-21 17:32:15"
       }
+    ],
+    "osu_2321476": [
+      {
+        "name": "Mauricio",
+        "score": 371550,
+        "stars": 3.5,
+        "combo": 206,
+        "accuracy": 8.469244708859028,
+        "date": "2026-10-21 17:34:35"
+      }
     ]
   },
   "global": [
@@ -2059,8 +2069,8 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 11181009,
-      "clefs": 98
+      "total_score": 11552559,
+      "clefs": 101
     },
     {
       "name": "bubu",
@@ -2177,7 +2187,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 11181009
+        "score": 11552559
       },
       {
         "name": "Test",
