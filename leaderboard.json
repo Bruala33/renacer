@@ -2044,10 +2044,10 @@
       {
         "name": "Mauricio",
         "score": 921450,
-        "stars": 1,
-        "combo": 258,
-        "accuracy": 32.53362991208558,
-        "date": "2026-10-21 17:36:45"
+        "stars": 3.5,
+        "combo": 84,
+        "accuracy": 3.882004024997352,
+        "date": "2026-10-21 17:38:04"
       }
     ]
   },
@@ -2069,8 +2069,8 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 12474009,
-      "clefs": 110
+      "total_score": 13395459,
+      "clefs": 119
     },
     {
       "name": "bubu",
@@ -2183,7 +2183,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 12474009
+        "score": 13395459
       },
       {
         "name": "Dady cool",
