@@ -569,10 +569,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 16,
-    version_name: '2.4.0',
-    release_notes: 'Piano Community Web & Offline Player. Mejoras en Modo Perro Molesto: Chuletones T-Bone gigantes con masticación en 3 bocados, engorde progresivo (0 a 10 chuletones) y frenesí de cacas olorosas con moscas animadas.',
-    download_url: '/download/apk?v=16.0',
+    version_code: 17,
+    version_name: '2.5.0',
+    release_notes: 'Piano Community Web & Offline Player. Nuevo Modo Río Rápido: Baldosas de roca flotantes con hendiduras luminosas, troncos de madera para los holds, corriente de agua sincronizada en los 3 carriles según la densidad de notas y carpas Koi animadas.',
+    download_url: '/download/apk?v=17.0',
   });
 });
 

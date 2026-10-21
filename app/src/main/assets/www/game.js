@@ -2907,18 +2907,21 @@ class BeatstarEngine {
     this.isMushroomModeActive = (curActiveMode === 'mushroom');
     this.isHighwayModeActive = (curActiveMode === 'highway');
     this.isAnnoyingDogModeActive = (curActiveMode === 'annoying_dog');
+    this.isRiverModeActive = (curActiveMode === 'river');
     if (typeof window !== 'undefined') {
       window.isKaraokeModeActive = this.isKaraokeModeActive;
       window.isStormModeActive = this.isStormModeActive;
       window.isMushroomModeActive = this.isMushroomModeActive;
       window.isHighwayModeActive = this.isHighwayModeActive;
       window.isAnnoyingDogModeActive = this.isAnnoyingDogModeActive;
+      window.isRiverModeActive = this.isRiverModeActive;
     }
 
     const isKaraokePrewarm = this.isKaraokeModeActive;
     const isMushPrewarm = this.isMushroomModeActive;
     const isHighwayPrewarm = this.isHighwayModeActive;
     const isDogPrewarm = this.isAnnoyingDogModeActive;
+    const isRiverPrewarm = this.isRiverModeActive;
     for (let i = 0, nLen = this.notes.length; i < nLen; i++) {
       const n = this.notes[i];
       if (n.lyric && !_PROLONG_RE.test(String(n.lyric))) {
@@ -2974,6 +2977,12 @@ class BeatstarEngine {
       this._prepareAnnoyingDogChoreography();
       this._dogBannerText = '🐶 ¡PERRO MOLESTO: CUIDADO CON LOS ZARPAZOS Y CHULETONES! 🥩';
       this._dogBannerTimer = 3.0;
+    }
+    if (isRiverPrewarm) {
+      this.initRiverModeAssets();
+      this._prepareRiverChoreography();
+      this._riverBannerText = '🌊 ¡RÍO RÁPIDO: ROCAS FLOTANTES, TRONCOS Y CORRIENTE VIVA! 🪵';
+      this._riverBannerTimer = 3.0;
     }
     this.activeHolds.clear();
     this.activeTouches.clear();
@@ -4961,7 +4970,8 @@ class BeatstarEngine {
       this.isMushroomModeActive ||
       this.isHighwayModeActive ||
       this.isAnnoyingDogModeActive ||
-      (typeof window !== 'undefined' && (window.isStormModeActive || window.isMushroomModeActive || window.isHighwayModeActive || window.isAnnoyingDogModeActive))
+      this.isRiverModeActive ||
+      (typeof window !== 'undefined' && (window.isStormModeActive || window.isMushroomModeActive || window.isHighwayModeActive || window.isAnnoyingDogModeActive || window.isRiverModeActive))
     );
     const clefMultiplier = (isFeatured ? 2 : 1) * (isStormX2 ? 2 : 1);
     const earnedClefs = Math.max(1, Math.round(baseScoreClefs * diffMultiplier)) * clefMultiplier;
@@ -6402,6 +6412,9 @@ class BeatstarEngine {
     }
     if (this.isAnnoyingDogModeActive || (typeof window !== 'undefined' && window.isAnnoyingDogModeActive)) {
       this.renderAnnoyingDogModeOverlay(this.ctx, currentTime);
+    }
+    if (this.isRiverModeActive || (typeof window !== 'undefined' && window.isRiverModeActive)) {
+      this.renderRiverModeOverlay(this.ctx, currentTime);
     }
     this.renderJudgements();
     this.renderFlyingLyrics(this.ctx, currentTime);
@@ -10717,6 +10730,936 @@ class BeatstarEngine {
   }
 
   // =========================================================================
+  // MODO RÍO RÁPIDO (ROCAS FLOTANTES CON HONDURAS LUMINOSAS, TRONCOS HOLD Y CORRIENTE DINÁMICA POR DENSIDAD)
+  // =========================================================================
+
+  initRiverModeAssets() {
+    if (this._riverAssetsReady && this._riverLilyPadSprite && this._riverKoiSprites) return;
+    this._riverAssetsReady = true;
+    this._riverSplashes = [];
+    this._riverSplashPool = [];
+    this._riverLeapingFish = [];
+    this._riverLastLaneFlash = [0, 0, 0];
+
+    // Peces Koi nadando bajo la superficie cristalina del río
+    this._riverSwimmingKoi = [
+      { lane: 0.35, p: 0.28, vx: 0.18, vp: 0.08, variant: 0, phase: 0.0 },
+      { lane: 1.65, p: 0.52, vx: -0.22, vp: -0.06, variant: 1, phase: 2.1 },
+      { lane: 0.95, p: 0.74, vx: 0.15, vp: 0.09, variant: 0, phase: 4.2 },
+      { lane: 1.25, p: 0.18, vx: -0.19, vp: 0.07, variant: 1, phase: 1.3 }
+    ];
+
+    // Nenúfares esmeralda con flor de loto flotando junto a las orillas
+    this._riverLilyPads = [
+      { side: 0, p: 0.20, rot: 0.2, hasLotus: true },
+      { side: 1, p: 0.44, rot: 1.5, hasLotus: false },
+      { side: 0, p: 0.68, rot: 2.8, hasLotus: true },
+      { side: 1, p: 0.85, rot: 4.1, hasLotus: true }
+    ];
+
+    if (typeof document === 'undefined') return;
+
+    // 1. Sprite de Nenúfar Esmeralda con Flor de Loto Rosa/Blanca (🪷)
+    const lilyCvs = document.createElement('canvas');
+    lilyCvs.width = 88;
+    lilyCvs.height = 88;
+    const lc = lilyCvs.getContext('2d');
+    const lcx = 44, lcy = 44;
+
+    lc.fillStyle = 'rgba(2, 44, 34, 0.38)';
+    lc.beginPath();
+    lc.arc(lcx, lcy + 4, 32, 0.25, Math.PI * 2 - 0.25);
+    lc.lineTo(lcx, lcy + 4);
+    lc.closePath();
+    lc.fill();
+
+    const padGrad = lc.createRadialGradient(lcx - 6, lcy - 6, 4, lcx, lcy, 32);
+    padGrad.addColorStop(0.0, '#4ade80');
+    padGrad.addColorStop(0.65, '#16a34a');
+    padGrad.addColorStop(1.0, '#14532d');
+    lc.fillStyle = padGrad;
+    lc.strokeStyle = '#bbf7d0';
+    lc.lineWidth = 1.8;
+    lc.beginPath();
+    lc.arc(lcx, lcy, 31, 0.28, Math.PI * 2 - 0.28);
+    lc.lineTo(lcx, lcy);
+    lc.closePath();
+    lc.fill();
+    lc.stroke();
+
+    // Nervaduras radiales de la hoja de nenúfar
+    lc.strokeStyle = 'rgba(187, 247, 208, 0.35)';
+    lc.lineWidth = 1.3;
+    for (let a = 0.7; a < Math.PI * 2 - 0.6; a += 0.65) {
+      lc.beginPath();
+      lc.moveTo(lcx, lcy);
+      lc.lineTo(lcx + Math.cos(a) * 26, lcy + Math.sin(a) * 26);
+      lc.stroke();
+    }
+
+    // Flor de loto central
+    for (let p = 0; p < 8; p++) {
+      const ang = (p / 8) * Math.PI * 2;
+      lc.save();
+      lc.translate(lcx, lcy);
+      lc.rotate(ang);
+      lc.fillStyle = (p % 2 === 0) ? '#f472b6' : '#fbcfe8';
+      lc.beginPath();
+      lc.ellipse(10, 0, 9, 4.5, 0, 0, Math.PI * 2);
+      lc.fill();
+      lc.restore();
+    }
+    lc.fillStyle = '#fde047';
+    lc.beginPath();
+    lc.arc(lcx, lcy, 5.2, 0, Math.PI * 2);
+    lc.fill();
+
+    this._riverLilyPadSprite = lilyCvs;
+
+    // 2. Dos Sprites de Peces Koi (Dorado Imperial y Calicó Blanco-Rojo)
+    this._riverKoiSprites = [];
+    const koiPalettes = [
+      { body: '#f97316', spot: '#fde047', fin: '#fffbeb' },
+      { body: '#f8fafc', spot: '#ef4444', fin: '#fed7aa' }
+    ];
+    for (let k = 0; k < koiPalettes.length; k++) {
+      const kp = koiPalettes[k];
+      const kCvs = document.createElement('canvas');
+      kCvs.width = 84;
+      kCvs.height = 56;
+      const kc = kCvs.getContext('2d');
+      kc.translate(42, 28);
+
+      // Aletas pectorales fluidas
+      kc.fillStyle = kp.fin;
+      kc.beginPath();
+      kc.ellipse(4, -13, 9, 4.5, -0.5, 0, Math.PI * 2);
+      kc.ellipse(4, 13, 9, 4.5, 0.5, 0, Math.PI * 2);
+      kc.fill();
+
+      // Cola bifurcada elegante
+      kc.beginPath();
+      kc.moveTo(-14, 0);
+      kc.quadraticCurveTo(-28, -12, -36, -9);
+      kc.quadraticCurveTo(-26, 0, -36, 9);
+      kc.quadraticCurveTo(-28, 12, -14, 0);
+      kc.closePath();
+      kc.fill();
+
+      // Cuerpo ahusado del Koi
+      kc.fillStyle = kp.body;
+      kc.beginPath();
+      kc.ellipse(2, 0, 22, 10.5, 0, 0, Math.PI * 2);
+      kc.fill();
+
+      // Manchas características Kohaku / Yamabuki
+      kc.fillStyle = kp.spot;
+      kc.beginPath();
+      kc.arc(8, -2, 6.5, 0, Math.PI * 2);
+      kc.arc(-5, 3, 5.2, 0, Math.PI * 2);
+      kc.fill();
+
+      // Ojitos
+      kc.fillStyle = '#0f172a';
+      kc.beginPath();
+      kc.arc(18, -4.5, 1.8, 0, Math.PI * 2);
+      kc.arc(18, 4.5, 1.8, 0, Math.PI * 2);
+      kc.fill();
+
+      this._riverKoiSprites.push(kCvs);
+    }
+  }
+
+  // Pre-calcula el mapa de caudal acumulado F(t) según la densidad de notas de cada sección
+  // Así los 3 carriles aceleran en los Rápidos (alta densidad) y se calman en Aguas Mansas (baja densidad) al unísono
+  _prepareRiverChoreography() {
+    const stepMs = 50;
+    const minT = -3000;
+    const maxT = Math.max(60000, (this.lastNoteTime || 60000) + 8000);
+    const numSteps = Math.ceil((maxT - minT) / stepMs) + 1;
+
+    this._riverFlowMinT = minT;
+    this._riverFlowStepMs = stepMs;
+    this._riverFlowPosTable = new Float64Array(numSteps);
+    this._riverSpeedMultTable = new Float32Array(numSteps);
+
+    const notes = this.notes || [];
+    const nLen = notes.length;
+
+    // Primero estimamos la densidad media de la canción para normalizar cualquier dificultad
+    let avgNotesPerSec = 3.0;
+    if (nLen > 4) {
+      const spanSec = Math.max(10, ((notes[nLen - 1].timestamp_ms || 30000) - (notes[0].timestamp_ms || 0)) / 1000);
+      avgNotesPerSec = Math.max(1.4, Math.min(7.5, nLen / spanSec));
+    }
+
+    let cumPos = 0.0;
+    let noteCursor = 0;
+    const winBefore = 1100;
+    const winAfter = 1700;
+    const winDurSec = (winBefore + winAfter) / 1000;
+
+    for (let s = 0; s < numSteps; s++) {
+      const t = minT + s * stepMs;
+      while (noteCursor < nLen && (notes[noteCursor].timestamp_ms ?? 0) < t - winBefore) {
+        noteCursor++;
+      }
+
+      // Contar densidad local ponderada de teclas en torno a `t`
+      let weightedCount = 0;
+      for (let j = noteCursor; j < nLen; j++) {
+        const nt = notes[j].timestamp_ms ?? 0;
+        if (nt > t + winAfter) break;
+        const rel = (nt - (t - winBefore)) / (winBefore + winAfter); // 0..1
+        const w = 0.5 - 0.5 * Math.cos(rel * Math.PI * 2); // Ventana Hann suave
+        weightedCount += (notes[j].type === 'hold' ? 1.35 : 1.0) * (0.45 + 0.55 * w);
+      }
+
+      const localDensity = weightedCount / winDurSec;
+      const densityRatio = localDensity / avgNotesPerSec;
+
+      // Ondulación orgánica de caudal de río + respuesta directa a la densidad de teclas de la sección
+      const riverSwell = Math.sin(t * 0.00095) * 0.11 + Math.cos(t * 0.0021) * 0.06;
+      // Velocidad entre 0.72x (Aguas Mansas) y 1.68x (Rápidos Bravos / Cascada en secciones muy densas)
+      let speedMult = 0.68 + Math.min(0.92, Math.pow(Math.max(0, densityRatio), 1.12) * 0.44) + riverSwell;
+      speedMult = Math.max(0.70, Math.min(1.68, speedMult));
+
+      this._riverSpeedMultTable[s] = speedMult;
+      this._riverFlowPosTable[s] = cumPos;
+      cumPos += speedMult * stepMs;
+    }
+
+    // Suavizado adicional de 5 puntos sobre la velocidad para que los cambios de corriente se sientan ultra fluidos
+    let smoothCum = 0.0;
+    for (let s = 0; s < numSteps; s++) {
+      let sum = 0, cnt = 0;
+      for (let k = -3; k <= 3; k++) {
+        const idx = Math.max(0, Math.min(numSteps - 1, s + k));
+        sum += this._riverSpeedMultTable[idx];
+        cnt++;
+      }
+      const sm = sum / cnt;
+      this._riverSpeedMultTable[s] = sm;
+      this._riverFlowPosTable[s] = smoothCum;
+      smoothCum += sm * stepMs;
+    }
+  }
+
+  // Devuelve la posición acumulada del caudal F(timeMs) en O(1) con interpolación lineal exacta
+  _getRiverFlowPos(timeMs) {
+    if (!this._riverFlowPosTable || this._riverFlowPosTable.length === 0) {
+      this._prepareRiverChoreography();
+    }
+    const table = this._riverFlowPosTable;
+    if (!table || table.length === 0) return timeMs;
+    const minT = this._riverFlowMinT || -3000;
+    const stepMs = this._riverFlowStepMs || 50;
+    const fIdx = (timeMs - minT) / stepMs;
+    if (fIdx <= 0) {
+      return table[0] + (timeMs - minT) * (this._riverSpeedMultTable ? this._riverSpeedMultTable[0] : 1.0);
+    }
+    const maxIdx = table.length - 1;
+    if (fIdx >= maxIdx) {
+      const lastT = minT + maxIdx * stepMs;
+      return table[maxIdx] + (timeMs - lastT) * (this._riverSpeedMultTable ? this._riverSpeedMultTable[maxIdx] : 1.0);
+    }
+    const i0 = Math.floor(fIdx);
+    const frac = fIdx - i0;
+    return table[i0] + (table[i0 + 1] - table[i0]) * frac;
+  }
+
+  // Devuelve el multiplicador instantáneo de velocidad del agua v(timeMs) (ej. 0.72x .. 1.68x)
+  _getRiverSpeedMult(timeMs) {
+    if (!this._riverSpeedMultTable || this._riverSpeedMultTable.length === 0) return 1.0;
+    const minT = this._riverFlowMinT || -3000;
+    const stepMs = this._riverFlowStepMs || 50;
+    const idx = Math.max(0, Math.min(this._riverSpeedMultTable.length - 1, Math.round((timeMs - minT) / stepMs)));
+    return this._riverSpeedMultTable[idx] || 1.0;
+  }
+
+  _emitRiverSplash(x, y, scale, count = 8, isHoldSplash = false) {
+    if (!this._riverSplashes) this._riverSplashes = [];
+    if (!this._riverSplashPool) this._riverSplashPool = [];
+    for (let i = 0; i < count; i++) {
+      if (this._riverSplashes.length >= 90) break;
+      const sp = this._riverSplashPool.length > 0 ? this._riverSplashPool.pop() : {};
+      const ang = -Math.PI * (0.15 + Math.random() * 0.70);
+      const spd = (isHoldSplash ? 55 : 95) + Math.random() * 95;
+      sp.x = x + (Math.random() - 0.5) * 28 * scale;
+      sp.y = y;
+      sp.vx = Math.cos(ang) * spd * scale;
+      sp.vy = Math.sin(ang) * spd * scale;
+      sp.rad = (2.8 + Math.random() * 3.5) * scale;
+      sp.age = 0;
+      sp.duration = 0.34 + Math.random() * 0.24;
+      sp.color = (i % 3 === 0) ? '#ffffff' : ((i % 2 === 0) ? '#7dd3fc' : '#00f2fe');
+      this._riverSplashes.push(sp);
+    }
+  }
+
+  // Dibuja una Baldosa de Roca Flotante en 3D con Hondura Luminosa Tallada (Línea central o Flecha Swipe)
+  drawRiverStoneKey(ctx, laneOrCx, cy, h, scale = 1.0, isPressed = false, isLarge = true, isSwipe = false, swipeDir = 'up', lyricText = null, noteIdx = 0, currentTime = 0) {
+    ctx.save();
+
+    let lane = 0;
+    if (typeof laneOrCx === 'number') {
+      if (laneOrCx <= 2.5) {
+        lane = Math.max(0, Math.min(2, laneOrCx));
+      } else {
+        const laneW = this.width / 3;
+        lane = Math.max(0, Math.min(2, Math.floor(laneOrCx / laneW)));
+      }
+    }
+
+    // Flotabilidad natural sobre la corriente del agua (pequeño balanceo vertical hidrodinámico)
+    const bobOffset = isPressed ? (4.0 * scale) : (Math.sin(currentTime * 0.0055 + noteIdx * 1.9) * 2.0 * scale);
+    const y = cy + bobOffset;
+    const y0 = y - h / 2;
+    const y1 = y0 + h;
+
+    const margin = Math.max(3.2, (isLarge ? 5.2 : 3.6) * scale);
+    const x0Top = this.getLaneBoundaryX(lane, y0) + margin;
+    const x1Top = this.getLaneBoundaryX(lane + 1, y0) - margin;
+    const x0Bot = this.getLaneBoundaryX(lane, y1) + margin;
+    const x1Bot = this.getLaneBoundaryX(lane + 1, y1) - margin;
+
+    const r = Math.max(5, (isLarge ? 12 : 7) * scale);
+    const cx = (x0Top + x1Top + x0Bot + x1Bot) / 4;
+    const cyMid = (y0 + y1) / 2;
+    const keyW = x1Bot - x0Bot;
+    const keyH = y1 - y0;
+
+    // 1. Estela de Espuma Blanca y Onda de Agua rodeando la base de la baldosa de roca flotante
+    const foamExpand = (3.5 + Math.sin(currentTime * 0.009 + noteIdx) * 1.5) * scale;
+    ctx.strokeStyle = 'rgba(186, 230, 253, 0.62)';
+    ctx.lineWidth = Math.max(1.5, 2.8 * scale);
+    tracePerspectiveQuad(
+      ctx,
+      x0Top - foamExpand * 0.7,
+      x1Top + foamExpand * 0.7,
+      x0Bot - foamExpand,
+      x1Bot + foamExpand,
+      y0 - foamExpand * 0.4,
+      y1 + foamExpand * 0.75,
+      r + 3 * scale
+    );
+    ctx.stroke();
+
+    // Sombra sumergida azul abisal bajo la roca
+    ctx.fillStyle = 'rgba(3, 22, 38, 0.55)';
+    const shadowOff = (isLarge ? 5.5 : 3.2) * scale;
+    tracePerspectiveQuad(ctx, x0Top, x1Top, x0Bot, x1Bot, y0 + shadowOff, y1 + shadowOff, r);
+    ctx.fill();
+
+    // 2. Cara Frontal Esculpida en Roca Basáltica Mojada (Grosor 3D de bloque de piedra)
+    const bevelH = Math.max(4, (isLarge ? 11.5 : 6.5) * scale);
+    const yBevelTop = y1 - bevelH;
+    const x0Bev = this.getLaneBoundaryX(lane, yBevelTop) + margin;
+    const x1Bev = this.getLaneBoundaryX(lane + 1, yBevelTop) - margin;
+
+    ctx.fillStyle = isPressed ? '#0f2942' : '#1e293b';
+    tracePerspectiveQuad(ctx, x0Bev, x1Bev, x0Bot, x1Bot, yBevelTop, y1, r);
+    ctx.fill();
+
+    // Grietas verticales de cincelado en el borde frontal de la roca
+    ctx.strokeStyle = 'rgba(15, 23, 42, 0.75)';
+    ctx.lineWidth = Math.max(1.0, 1.6 * scale);
+    ctx.beginPath();
+    for (let f = 1; f <= 3; f++) {
+      const frac = f * 0.25;
+      const fxTop = x0Bev + (x1Bev - x0Bev) * frac;
+      const fxBot = x0Bot + (x1Bot - x0Bot) * frac;
+      ctx.moveTo(fxTop, yBevelTop + 1);
+      ctx.lineTo(fxBot, y1 - 1);
+    }
+    ctx.stroke();
+
+    // 3. Cara Superior de Baldosa de Piedra de Río Tallada (Pizarra/Granito mineral con bisel claro)
+    const rockGrad = ctx.createLinearGradient(cx, y0, cx, yBevelTop);
+    if (isPressed) {
+      rockGrad.addColorStop(0.0, '#38bdf8');
+      rockGrad.addColorStop(0.5, '#0284c7');
+      rockGrad.addColorStop(1.0, '#0369a1');
+    } else if (isSwipe) {
+      // Las rocas Swipe tienen un tono pizarra-azulado mineral distintivo
+      rockGrad.addColorStop(0.0, '#64748b');
+      rockGrad.addColorStop(0.45, '#475569');
+      rockGrad.addColorStop(1.0, '#334155');
+    } else {
+      rockGrad.addColorStop(0.0, '#64748b');
+      rockGrad.addColorStop(0.38, '#475569');
+      rockGrad.addColorStop(1.0, '#293548');
+    }
+    ctx.fillStyle = rockGrad;
+    tracePerspectiveQuad(ctx, x0Top, x1Top, x0Bev, x1Bev, y0, yBevelTop, r);
+    ctx.fill();
+
+    // Facetas minerales y textura de piedra cincelada en las esquinas
+    ctx.strokeStyle = 'rgba(226, 232, 240, 0.28)';
+    ctx.lineWidth = Math.max(1.0, 1.5 * scale);
+    ctx.beginPath();
+    ctx.moveTo(x0Top + r * 0.8, y0 + 3.5 * scale);
+    ctx.lineTo(x1Top - r * 0.8, y0 + 3.5 * scale);
+    ctx.moveTo(x0Top + 6 * scale, y0 + 5 * scale);
+    ctx.lineTo(x0Bev + 5 * scale, yBevelTop - 4 * scale);
+    ctx.moveTo(x1Top - 6 * scale, y0 + 5 * scale);
+    ctx.lineTo(x1Bev - 5 * scale, yBevelTop - 4 * scale);
+    ctx.stroke();
+
+    // Pequeños toques de musgo esmeralda de río en dos esquinas opuestas de la roca
+    if (!isPressed && isLarge) {
+      ctx.fillStyle = 'rgba(34, 197, 94, 0.42)';
+      ctx.beginPath();
+      ctx.arc(x0Top + 9 * scale, y0 + 7 * scale, 4.2 * scale, 0, Math.PI * 2);
+      ctx.arc(x1Bev - 10 * scale, yBevelTop - 6 * scale, 3.8 * scale, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Borde exterior cincelado de la baldosa de roca
+    ctx.strokeStyle = isPressed ? '#e0f2fe' : '#94a3b8';
+    ctx.lineWidth = Math.max(1.3, 1.9 * scale);
+    tracePerspectiveQuad(ctx, x0Top, x1Top, x0Bot, x1Bot, y0, y1, r);
+    ctx.stroke();
+
+    // ===========================================================================
+    // 4. HONDURAS DE LA ROCA (SURCOS PROFUNDOS TALLADOS EN LA PIEDRA CON CRISTAL BIOLUMINISCENTE)
+    // ===========================================================================
+    const cyGroove = (y0 + yBevelTop) * 0.52;
+
+    if (!isSwipe) {
+      if (lyricText) {
+        const sp = this._getLyricKeySprite(lyricText, isPressed);
+        const drawW = Math.min(keyW * 0.94, 132 * scale);
+        const drawH = 42 * (drawW / 132);
+        ctx.drawImage(sp, cx - drawW * 0.5, cyGroove - drawH * 0.5, drawW, drawH);
+      } else {
+        // HONDURA CENTRAL HORIZONTAL TALLADA EN LA ROCA (Misma posición de referencia visual que la línea de las teclas normales)
+        const grooveW = keyW * 0.66;
+        const grooveH = Math.max(7.0, 10.5 * scale);
+        const gx = cx - grooveW * 0.5;
+        const gy = cyGroove - grooveH * 0.5;
+        const gr = grooveH * 0.5;
+
+        // A. Labio inferior iluminado del surco de piedra (efecto de profundidad hundida 3D)
+        ctx.fillStyle = 'rgba(226, 232, 240, 0.55)';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(gx - 1.5 * scale, gy + 1.8 * scale, grooveW + 3 * scale, grooveH, gr);
+        else ctx.rect(gx - 1.5 * scale, gy + 1.8 * scale, grooveW + 3 * scale, grooveH);
+        ctx.fill();
+
+        // B. Cavidad profunda oscura tallada en la roca (#090d16)
+        ctx.fillStyle = '#090d16';
+        ctx.strokeStyle = '#020617';
+        ctx.lineWidth = Math.max(1.2, 1.8 * scale);
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(gx, gy, grooveW, grooveH, gr);
+        else ctx.rect(gx, gy, grooveW, grooveH);
+        ctx.fill();
+        ctx.stroke();
+
+        // C. Veta de agua/cristal bioluminiscente brillando dentro de la hondura de la roca
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+
+        // Resplandor turquesa acuático que emana de la hendidura
+        const spreadX = 6.5 * scale;
+        const spreadY = 4.5 * scale;
+        ctx.fillStyle = 'rgba(0, 242, 254, 0.34)';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(gx - spreadX, gy - spreadY, grooveW + spreadX * 2, grooveH + spreadY * 2, gr + spreadY);
+        else ctx.rect(gx - spreadX, gy - spreadY, grooveW + spreadX * 2, grooveH + spreadY * 2);
+        ctx.fill();
+
+        // Halo cian cristalino dentro del surco
+        const innerW = grooveW * 0.92;
+        const innerH = Math.max(4.2, grooveH * 0.64);
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.88)';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(cx - innerW * 0.5, cyGroove - innerH * 0.5, innerW, innerH, innerH * 0.5);
+        else ctx.rect(cx - innerW * 0.5, cyGroove - innerH * 0.5, innerW, innerH);
+        ctx.fill();
+
+        // Núcleo incandescente blanco puro en el corazón de la hondura
+        const coreW = grooveW * 0.84;
+        const coreH = Math.max(2.6, grooveH * 0.36);
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(cx - coreW * 0.5, cyGroove - coreH * 0.5, coreW, coreH, coreH * 0.5);
+        else ctx.rect(cx - coreW * 0.5, cyGroove - coreH * 0.5, coreW, coreH);
+        ctx.fill();
+
+        ctx.restore();
+      }
+    } else {
+      // HONDURA DE FLECHA SWIPE TALLADA EN LA ROCA (Surco direccional esculpido a cincel con energía acuática brillante)
+      const dir = String(swipeDir || 'up').toLowerCase();
+      const arrowSpanW = Math.min(keyW * 0.34, 34 * scale);
+      const arrowSpanH = Math.min(keyH * 0.28, 16 * scale);
+
+      const traceArrowPath = (offsetX, offsetY) => {
+        ctx.beginPath();
+        if (dir === 'left') {
+          ctx.moveTo(cx + arrowSpanW * 0.55 + offsetX, cyGroove - arrowSpanH + offsetY);
+          ctx.lineTo(cx - arrowSpanW * 0.65 + offsetX, cyGroove + offsetY);
+          ctx.lineTo(cx + arrowSpanW * 0.55 + offsetX, cyGroove + arrowSpanH + offsetY);
+        } else if (dir === 'right') {
+          ctx.moveTo(cx - arrowSpanW * 0.55 + offsetX, cyGroove - arrowSpanH + offsetY);
+          ctx.lineTo(cx + arrowSpanW * 0.65 + offsetX, cyGroove + offsetY);
+          ctx.lineTo(cx - arrowSpanW * 0.55 + offsetX, cyGroove + arrowSpanH + offsetY);
+        } else if (dir === 'down') {
+          ctx.moveTo(cx - arrowSpanW + offsetX, cyGroove - arrowSpanH * 0.55 + offsetY);
+          ctx.lineTo(cx + offsetX, cyGroove + arrowSpanH * 0.65 + offsetY);
+          ctx.lineTo(cx + arrowSpanW + offsetX, cyGroove - arrowSpanH * 0.55 + offsetY);
+        } else {
+          ctx.moveTo(cx - arrowSpanW + offsetX, cyGroove + arrowSpanH * 0.55 + offsetY);
+          ctx.lineTo(cx + offsetX, cyGroove - arrowSpanH * 0.65 + offsetY);
+          ctx.lineTo(cx + arrowSpanW + offsetX, cyGroove + arrowSpanH * 0.55 + offsetY);
+        }
+      };
+
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      // 1. Bisel inferior de piedra iluminada de la hondura de flecha
+      ctx.strokeStyle = 'rgba(226, 232, 240, 0.65)';
+      ctx.lineWidth = Math.max(7.5, 13.5 * scale);
+      traceArrowPath(0, 2.0 * scale);
+      ctx.stroke();
+
+      // 2. Cavidad oscura profunda tallada en la roca
+      ctx.strokeStyle = '#090d16';
+      ctx.lineWidth = Math.max(6.5, 11.8 * scale);
+      traceArrowPath(0, 0);
+      ctx.stroke();
+
+      // 3. Interior bioluminiscente turquesa y blanco puro dentro de la hondura de flecha
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = 'rgba(0, 242, 254, 0.85)';
+      ctx.lineWidth = Math.max(4.0, 7.2 * scale);
+      traceArrowPath(0, 0);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = Math.max(2.2, 3.8 * scale);
+      traceArrowPath(0, 0);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    ctx.restore();
+    if (!this._keyRectScratch) {
+      this._keyRectScratch = { cx: 0, cy: 0, w: 0, h: 0 };
+    }
+    this._keyRectScratch.cx = cx;
+    this._keyRectScratch.cy = cyGroove;
+    this._keyRectScratch.w = keyW;
+    this._keyRectScratch.h = keyH;
+    return this._keyRectScratch;
+  }
+
+  // Dibuja un Hold como un Tronco de Madera Flotando en el Río con Corteza, Anillos de Madera, Musgo y Hendidura Luminosa
+  _renderRiverWoodenLogHold(ctx, note, lane, currentTime, pHead, currentTailP, isBeingHeld, maxH3D) {
+    const currentHeadP = isBeingHeld ? 1.0 : pHead;
+    if (currentTailP > 1.25 || currentHeadP < -0.2) return;
+
+    ctx.save();
+    const segments = 10;
+    const stringPoints = this._holdPointsBuffer || [];
+    const timeSec = currentTime * 0.001;
+
+    for (let s = 0; s <= segments; s++) {
+      const frac = s / segments;
+      const pStep = currentTailP + (currentHeadP - currentTailP) * frac;
+      const ptCoord = this.getPerspectiveCoord(lane, pStep, this._coordScratch1);
+
+      // El tronco flota sobre la corriente con un ligero balanceo hidrodinámico
+      const standingEnvelope = Math.sin(Math.PI * frac);
+      const bobX = isBeingHeld
+        ? (Math.sin(timeSec * 26.0 + ptCoord.y * 0.08) * (4.2 * standingEnvelope * ptCoord.scale))
+        : (Math.sin(timeSec * 4.2 + ptCoord.y * 0.03) * (1.8 * standingEnvelope * ptCoord.scale));
+
+      const halfW = Math.max(6, ptCoord.laneW * 0.36);
+
+      let pt = stringPoints[s];
+      if (!pt) {
+        pt = { x: 0, y: 0, scale: 1, laneW: 50, halfW: 20 };
+        stringPoints[s] = pt;
+      }
+      pt.x = ptCoord.x + bobX;
+      pt.y = ptCoord.y;
+      pt.scale = ptCoord.scale;
+      pt.laneW = ptCoord.laneW;
+      pt.halfW = halfW;
+    }
+
+    // 1. Estela de Espuma Blanca de Río a ambos lados del Tronco Flotante
+    ctx.strokeStyle = isBeingHeld ? 'rgba(167, 243, 208, 0.85)' : 'rgba(186, 230, 253, 0.62)';
+    ctx.lineWidth = Math.max(2.2, 4.5 * stringPoints[segments].scale);
+    ctx.beginPath();
+    for (let s = 0; s <= segments; s++) {
+      const pt = stringPoints[s];
+      const foamWave = Math.sin(timeSec * 10.0 + s * 1.3) * (2.5 * pt.scale);
+      if (s === 0) ctx.moveTo(pt.x - pt.halfW - 4 * pt.scale + foamWave, pt.y);
+      else ctx.lineTo(pt.x - pt.halfW - 4 * pt.scale + foamWave, pt.y);
+    }
+    for (let s = 0; s <= segments; s++) {
+      const pt = stringPoints[s];
+      const foamWave = Math.cos(timeSec * 10.0 + s * 1.3) * (2.5 * pt.scale);
+      if (s === 0) ctx.moveTo(pt.x + pt.halfW + 4 * pt.scale + foamWave, pt.y);
+      else ctx.lineTo(pt.x + pt.halfW + 4 * pt.scale + foamWave, pt.y);
+    }
+    ctx.stroke();
+
+    // 2. Cuerpo Cilíndrico 3D del Tronco de Madera (Corteza oscura en los bordes -> Roble cálido -> Lomo iluminado)
+    const barkPad = 3.2;
+    ctx.beginPath();
+    for (let s = 0; s <= segments; s++) {
+      const pt = stringPoints[s];
+      if (s === 0) ctx.moveTo(pt.x - pt.halfW - barkPad, pt.y);
+      else ctx.lineTo(pt.x - pt.halfW - barkPad, pt.y);
+    }
+    for (let s = segments; s >= 0; s--) {
+      const pt = stringPoints[s];
+      ctx.lineTo(pt.x + pt.halfW + barkPad, pt.y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = '#271001';
+    ctx.fill();
+
+    // cilindro intermedio de corteza marrón cedro/roble (#78350f)
+    ctx.beginPath();
+    for (let s = 0; s <= segments; s++) {
+      const pt = stringPoints[s];
+      if (s === 0) ctx.moveTo(pt.x - pt.halfW, pt.y);
+      else ctx.lineTo(pt.x - pt.halfW, pt.y);
+    }
+    for (let s = segments; s >= 0; s--) {
+      const pt = stringPoints[s];
+      ctx.lineTo(pt.x + pt.halfW, pt.y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = '#78350f';
+    ctx.fill();
+
+    // Lomo central cilíndrico iluminado (#b45309)
+    ctx.beginPath();
+    for (let s = 0; s <= segments; s++) {
+      const pt = stringPoints[s];
+      const innerW = pt.halfW * 0.64;
+      if (s === 0) ctx.moveTo(pt.x - innerW, pt.y);
+      else ctx.lineTo(pt.x - innerW, pt.y);
+    }
+    for (let s = segments; s >= 0; s--) {
+      const pt = stringPoints[s];
+      const innerW = pt.halfW * 0.64;
+      ctx.lineTo(pt.x + innerW, pt.y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = '#b45309';
+    ctx.fill();
+
+    // 3. Vetas longitudinales de la corteza de madera y parches de musgo verde de río
+    ctx.strokeStyle = 'rgba(39, 16, 1, 0.65)';
+    ctx.lineWidth = Math.max(1.4, 2.4 * stringPoints[segments].scale);
+    ctx.beginPath();
+    for (let side = -1; side <= 1; side += 2) {
+      for (let s = 0; s <= segments; s++) {
+        const pt = stringPoints[s];
+        const bx = pt.x + side * pt.halfW * 0.48;
+        if (s === 0) ctx.moveTo(bx, pt.y);
+        else ctx.lineTo(bx, pt.y);
+      }
+    }
+    ctx.stroke();
+
+    // Parches de musgo esmeralda sobre el tronco flotante
+    ctx.fillStyle = 'rgba(34, 197, 94, 0.55)';
+    for (let s = 2; s < segments; s += 3) {
+      const pt = stringPoints[s];
+      const side = (s % 2 === 0) ? -1 : 1;
+      ctx.beginPath();
+      ctx.ellipse(pt.x + side * pt.halfW * 0.68, pt.y, 5.5 * pt.scale, 9.5 * pt.scale, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 4. Hondura/Canal Central Tallado en el Tronco con Agua Bioluminiscente Fluyendo
+    ctx.strokeStyle = '#1c0a00';
+    ctx.lineWidth = Math.max(5.0, 9.2 * stringPoints[segments].scale);
+    ctx.beginPath();
+    for (let s = 0; s <= segments; s++) {
+      if (s === 0) ctx.moveTo(stringPoints[s].x, stringPoints[s].y);
+      else ctx.lineTo(stringPoints[s].x, stringPoints[s].y);
+    }
+    ctx.stroke();
+
+    ctx.strokeStyle = isBeingHeld ? '#34d399' : '#00f2fe';
+    ctx.lineWidth = Math.max(3.0, 5.4 * stringPoints[segments].scale);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = Math.max(1.6, 2.6 * stringPoints[segments].scale);
+    ctx.stroke();
+
+    // 5. Corte Transversal de Madera con Anillos en la Cola Superior del Tronco (tailPt)
+    const tailPt = stringPoints[0];
+    const logCapRx = Math.max(8, tailPt.halfW * 1.02);
+    const logCapRy = Math.max(4.5, logCapRx * 0.42);
+    ctx.fillStyle = '#fde68a';
+    ctx.strokeStyle = '#451a03';
+    ctx.lineWidth = Math.max(2.0, 3.2 * tailPt.scale);
+    ctx.beginPath();
+    ctx.ellipse(tailPt.x, tailPt.y, logCapRx, logCapRy, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Anillos concéntricos de crecimiento de la madera
+    ctx.strokeStyle = 'rgba(146, 64, 14, 0.65)';
+    ctx.lineWidth = Math.max(1.0, 1.5 * tailPt.scale);
+    ctx.beginPath();
+    ctx.ellipse(tailPt.x, tailPt.y, logCapRx * 0.65, logCapRy * 0.65, 0, 0, Math.PI * 2);
+    ctx.ellipse(tailPt.x, tailPt.y, logCapRx * 0.32, logCapRy * 0.32, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // 6. CABEZA DEL TRONCO (Frente de madera tallada con Hondura de Timing Cian-Blanca idéntica a las rocas para precisión total)
+    const headPt = stringPoints[segments];
+    const headW = headPt.halfW * 2.12;
+    const headH = Math.min(34 * headPt.scale, maxH3D);
+    const hx = headPt.x - headW * 0.5;
+    const hy = headPt.y - headH * 0.5;
+    const hr = Math.max(5, 9 * headPt.scale);
+
+    // Bloque frontal de madera maciza con corte claro y hondura luminosa central
+    ctx.fillStyle = isBeingHeld ? '#059669' : '#78350f';
+    ctx.strokeStyle = '#fef3c7';
+    ctx.lineWidth = Math.max(1.8, 2.6 * headPt.scale);
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(hx, hy, headW, headH, hr);
+    else ctx.rect(hx, hy, headW, headH);
+    ctx.fill();
+    ctx.stroke();
+
+    // Hondura luminosa horizontal en la cabeza del tronco (línea exacta de timing)
+    const grooveW = headW * 0.72;
+    const grooveH = Math.max(6.0, 9.0 * headPt.scale);
+    ctx.fillStyle = '#090d16';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(headPt.x - grooveW * 0.5, headPt.y - grooveH * 0.5, grooveW, grooveH, grooveH * 0.5);
+    else ctx.rect(headPt.x - grooveW * 0.5, headPt.y - grooveH * 0.5, grooveW, grooveH);
+    ctx.fill();
+
+    ctx.fillStyle = isBeingHeld ? '#6ee7b7' : '#00f2fe';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(headPt.x - grooveW * 0.46, headPt.y - grooveH * 0.32, grooveW * 0.92, grooveH * 0.64, grooveH * 0.32);
+    else ctx.rect(headPt.x - grooveW * 0.46, headPt.y - grooveH * 0.32, grooveW * 0.92, grooveH * 0.64);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(headPt.x - grooveW * 0.40, headPt.y - grooveH * 0.18, grooveW * 0.80, grooveH * 0.36, grooveH * 0.18);
+    else ctx.rect(headPt.x - grooveW * 0.40, headPt.y - grooveH * 0.18, grooveW * 0.80, grooveH * 0.36);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  renderRiverModeOverlay(ctx, currentTime) {
+    if (!this._riverAssetsReady) {
+      this.initRiverModeAssets();
+      this._prepareRiverChoreography();
+    } else if (!this._riverFlowPosTable || this._riverFlowPosTable.length === 0) {
+      this._prepareRiverChoreography();
+    }
+
+    const nowPerf = this._frameNow || performance.now();
+    const dt = Math.min(0.05, Math.max(0.004, (nowPerf - (this._riverLastOverlayNow || nowPerf)) / 1000));
+    this._riverLastOverlayNow = nowPerf;
+
+    const w = this.width || 360;
+    const h = this.height || 640;
+    const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (h * 0.84);
+    const curSpeedMult = this._getRiverSpeedMult(currentTime);
+
+    ctx.save();
+
+    // 1. Detectar impactos recientes en los 3 carriles para disparar Salpicaduras de Agua Cristalina y Saltos de Peces Koi
+    if (!this._riverLastLaneFlash) this._riverLastLaneFlash = [0, 0, 0];
+    for (let l = 0; l < 3; l++) {
+      const ft = (Array.isArray(this.laneFlashTimers) && this.laneFlashTimers[l]) || 0;
+      if (ft > this._riverLastLaneFlash[l] + 0.05) {
+        const hitCoord = this.getPerspectiveCoord(l, 1.0, this._coordScratch0);
+        this._emitRiverSplash(hitCoord.x, hitY - 6, hitCoord.scale, 9, false);
+
+        // En zonas de rápidos o cada varios impactos, un pez Koi salta en arco fuera del agua
+        if (this._riverLeapingFish && this._riverLeapingFish.length < 2 && Math.random() < (curSpeedMult > 1.25 ? 0.28 : 0.12)) {
+          const fromSide = (l === 0) ? -0.15 : ((l === 2) ? 2.15 : (Math.random() < 0.5 ? -0.1 : 2.1));
+          const toLane = Math.max(0.1, Math.min(1.9, l + (fromSide < 1 ? 0.65 : -0.65)));
+          this._riverLeapingFish.push({
+            fromLane: fromSide,
+            toLane: toLane,
+            p: 0.35 + Math.random() * 0.38,
+            age: 0,
+            duration: 0.78,
+            variant: Math.random() < 0.6 ? 0 : 1
+          });
+        }
+      }
+      this._riverLastLaneFlash[l] = ft;
+
+      // Si se está manteniendo pulsado un Tronco de Madera (Hold), emitir espuma de agua continua en la línea de golpeo
+      if (this.activeHolds && this.activeHolds.has(l) && Math.random() < 0.45) {
+        const holdCoord = this.getPerspectiveCoord(l, 1.0, this._coordScratch0);
+        this._emitRiverSplash(holdCoord.x, hitY - 4, holdCoord.scale, 2, true);
+      }
+    }
+
+    // 2. Actualizar y dibujar Peces Koi Saltando fuera del agua en parábola 3D
+    if (this._riverLeapingFish && this._riverLeapingFish.length > 0 && this._riverKoiSprites) {
+      for (let i = this._riverLeapingFish.length - 1; i >= 0; i--) {
+        const lf = this._riverLeapingFish[i];
+        lf.age += dt;
+        if (lf.age >= lf.duration) {
+          const endCoord = this.getPerspectiveCoord(lf.toLane, lf.p, this._coordScratch1);
+          this._emitRiverSplash(endCoord.x, endCoord.y, endCoord.scale, 6, false);
+          this._riverLeapingFish.splice(i, 1);
+          continue;
+        }
+        const u = lf.age / lf.duration;
+        const curLane = lf.fromLane + (lf.toLane - lf.fromLane) * u;
+        const fCoord = this.getPerspectiveCoord(curLane, lf.p, this._coordScratch1);
+        const arcLift = Math.sin(u * Math.PI) * (68 * fCoord.scale);
+        const dirSign = lf.toLane >= lf.fromLane ? 1 : -1;
+        const pitchAng = (dirSign > 0 ? 0 : Math.PI) + dirSign * (0.5 - u) * 1.15;
+
+        // Sombra sobre el agua debajo del pez saltando
+        ctx.fillStyle = 'rgba(2, 18, 32, 0.35)';
+        ctx.beginPath();
+        ctx.ellipse(fCoord.x, fCoord.y, 18 * fCoord.scale, 6 * fCoord.scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        const koiImg = this._riverKoiSprites[lf.variant % this._riverKoiSprites.length];
+        const kw = 58 * fCoord.scale;
+        const kh = 38 * fCoord.scale;
+        ctx.save();
+        ctx.translate(fCoord.x, fCoord.y - arcLift);
+        ctx.rotate(pitchAng);
+        if (dirSign < 0) ctx.scale(1, -1);
+        ctx.drawImage(koiImg, -kw * 0.5, -kh * 0.5, kw, kh);
+        ctx.restore();
+      }
+    }
+
+    // 3. Partículas de Salpicaduras de Agua Cristalina (swap-and-pop O(1) sin GC)
+    if (this._riverSplashes && this._riverSplashes.length > 0) {
+      let sLen = this._riverSplashes.length;
+      for (let i = sLen - 1; i >= 0; i--) {
+        const sp = this._riverSplashes[i];
+        sp.age += dt;
+        if (sp.age >= sp.duration) {
+          this._riverSplashes[i] = this._riverSplashes[sLen - 1];
+          this._riverSplashes.pop();
+          sLen--;
+          if (this._riverSplashPool.length < 100) this._riverSplashPool.push(sp);
+          continue;
+        }
+        const p = sp.age / sp.duration;
+        sp.x += sp.vx * dt;
+        sp.y += sp.vy * dt;
+        sp.vy += 290 * dt; // gravedad de las gotas de agua
+        ctx.globalAlpha = Math.max(0, 1 - p);
+        ctx.fillStyle = sp.color;
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, Math.max(1.2, sp.rad * (1 - p * 0.35)), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1.0;
+    }
+
+    // 4. Medidor HUD de Caudal y Velocidad del Río en Tiempo Real (Muestra cómo los 3 carriles aceleran según la densidad)
+    {
+      const hudW = Math.min(w - 24, 272);
+      const hudH = 30;
+      const hudX = w * 0.5 - hudW * 0.5;
+      const hudY = Math.max(54, h * 0.115);
+
+      let zoneLabel = '🌊 CORRIENTE VIVA';
+      let zoneColor = '#38bdf8';
+      if (curSpeedMult >= 1.45) {
+        zoneLabel = '🌪️ ¡CASCADA EXTREMA!';
+        zoneColor = '#f43f5e';
+      } else if (curSpeedMult >= 1.20) {
+        zoneLabel = '⚡ ¡RÁPIDOS BRAVOS!';
+        zoneColor = '#00f2fe';
+      } else if (curSpeedMult <= 0.88) {
+        zoneLabel = '🪷 AGUAS MANSAS';
+        zoneColor = '#34d399';
+      }
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(4, 24, 38, 0.86)';
+      ctx.strokeStyle = zoneColor;
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(hudX, hudY, hudW, hudH, 15);
+      else ctx.rect(hudX, hudY, hudW, hudH);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.font = '800 10.5px "Outfit", system-ui, sans-serif';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#e0f2fe';
+      ctx.fillText(`${zoneLabel} (${curSpeedMult.toFixed(2)}x)`, hudX + 11, hudY + hudH * 0.5);
+
+      // Barra de caudal líquido animada a la derecha
+      const barX = hudX + 174;
+      const barW = hudW - 184;
+      const barH = 9;
+      const barY = hudY + (hudH - barH) * 0.5;
+      const fillRatio = Math.max(0.08, Math.min(1.0, (curSpeedMult - 0.68) / 0.95));
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(barX, barY, barW, barH, 4.5);
+      else ctx.rect(barX, barY, barW, barH);
+      ctx.fill();
+
+      ctx.fillStyle = zoneColor;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(barX, barY, barW * fillRatio, barH, 4.5);
+      else ctx.rect(barX, barY, barW * fillRatio, barH);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // 5. Cartel luminoso de apertura del Modo Río Rápido
+    if (this._riverBannerTimer > 0 && this._riverBannerText) {
+      this._riverBannerTimer = Math.max(0, this._riverBannerTimer - dt);
+      ctx.globalAlpha = Math.min(1, this._riverBannerTimer * 1.5);
+      const bannerY = h * 0.22;
+      const bw = Math.min(w - 14, 356);
+      const bh = 34;
+
+      ctx.fillStyle = 'rgba(3, 22, 36, 0.94)';
+      ctx.strokeStyle = '#00f2fe';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(w * 0.5 - bw * 0.5, bannerY - bh * 0.5, bw, bh, 12);
+      else ctx.rect(w * 0.5 - bw * 0.5, bannerY - bh * 0.5, bw, bh);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.font = '900 10px "Outfit", system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#7dd3fc';
+      ctx.fillText(this._riverBannerText, w * 0.5, bannerY);
+    }
+
+    ctx.restore();
+  }
+
+  // =========================================================================
   // PSEUDO-3D CONICAL ENGINE (BEATSTAR PERSPECTIVE)
   // =========================================================================
 
@@ -11059,9 +12002,10 @@ class BeatstarEngine {
       const tR_bot = getBoundaryX(3, bottomY);
       const tL_bot = getBoundaryX(0, bottomY);
 
-      // A1. Superficie principal con degradado nacarado 3D (o autopista psicodélica en Modo Setas / asfalto de competición en Modo Carretera)
+      // A1. Superficie principal con degradado nacarado 3D (o autopista psicodélica en Modo Setas / asfalto en Modo Carretera / agua cristalina en Modo Río Rápido)
       const isMushTrack = Boolean(this.isMushroomModeActive || (typeof window !== 'undefined' && window.isMushroomModeActive));
       const isHighwayTrack = Boolean(this.isHighwayModeActive || (typeof window !== 'undefined' && window.isHighwayModeActive));
+      const isRiverTrack = Boolean(this.isRiverModeActive || (typeof window !== 'undefined' && window.isRiverModeActive));
       if (isMushTrack && (!this._mushTrackGrad || this._mushTrackGradH !== bottomY)) {
         this._mushTrackGradH = bottomY;
         const mg = ctx.createLinearGradient(this.width / 2, horizonY, this.width / 2, bottomY);
@@ -11081,25 +12025,39 @@ class BeatstarEngine {
         hg.addColorStop(1.00, '#0f172a');
         this._hwTrackGrad = hg;
       }
+      if (isRiverTrack && (!this._riverTrackGrad || this._riverTrackGradH !== bottomY)) {
+        this._riverTrackGradH = bottomY;
+        const rg = ctx.createLinearGradient(this.width / 2, horizonY, this.width / 2, bottomY);
+        rg.addColorStop(0.00, '#032238');
+        rg.addColorStop(0.25, '#075985');
+        rg.addColorStop(0.55, '#0284c7');
+        rg.addColorStop(0.82, '#0891b2');
+        rg.addColorStop(1.00, '#0e7490');
+        this._riverTrackGrad = rg;
+      }
       ctx.beginPath();
       ctx.moveTo(tL_top, horizonY);
       ctx.lineTo(tR_top, horizonY);
       ctx.lineTo(tR_bot, bottomY);
       ctx.lineTo(tL_bot, bottomY);
       ctx.closePath();
-      ctx.fillStyle = isHighwayTrack
-        ? (this._hwTrackGrad || '#1e293b')
-        : (isMushTrack ? (this._mushTrackGrad || '#2b0952') : (this._trackGrad || '#f8fafc'));
+      ctx.fillStyle = isRiverTrack
+        ? (this._riverTrackGrad || '#0284c7')
+        : (isHighwayTrack
+            ? (this._hwTrackGrad || '#1e293b')
+            : (isMushTrack ? (this._mushTrackGrad || '#2b0952') : (this._trackGrad || '#f8fafc')));
       ctx.fill();
 
       // A2. Sombreado cilíndrico 3D de bordes y brillo central perlado
-      if (this._trackEdgeShadowGrad && !isHighwayTrack) {
+      if (this._trackEdgeShadowGrad && !isHighwayTrack && !isRiverTrack) {
         ctx.fillStyle = this._trackEdgeShadowGrad;
         ctx.fill();
       }
 
-      // A3. Lomo especular 3D en el centro de cada uno de los 3 carriles (o rodadas de neumáticos en asfalto en Modo Carretera)
-      ctx.fillStyle = isHighwayTrack ? 'rgba(255, 255, 255, 0.045)' : 'rgba(255, 255, 255, 0.38)';
+      // A3. Lomo especular 3D en el centro de cada uno de los 3 carriles
+      ctx.fillStyle = isRiverTrack
+        ? 'rgba(125, 211, 252, 0.14)'
+        : (isHighwayTrack ? 'rgba(255, 255, 255, 0.045)' : 'rgba(255, 255, 255, 0.38)');
       ctx.beginPath();
       for (let l = 0; l < 3; l++) {
         const cTopL = getBoundaryX(l + 0.28, horizonY);
@@ -11114,8 +12072,137 @@ class BeatstarEngine {
       }
       ctx.fill();
 
-      // En Modo Carretera: Pianos rojiblancos de circuito en ambos arcenes + líneas discontinuas blancas de autopista en movimiento
-      if (isHighwayTrack) {
+      // En Modo Río Rápido: Corrientes de agua sincronizadas con la velocidad del caudal, peces Koi bajo el agua, nenúfares y orillas rocosas con espuma
+      if (isRiverTrack) {
+        if (!this._riverAssetsReady) {
+          this.initRiverModeAssets();
+          this._prepareRiverChoreography();
+        }
+        const activeTimeMs = cTime >= 0 ? cTime : safePerfNow;
+        const riverFlowPos = this._getRiverFlowPos(activeTimeMs);
+        const riverScroll = ((riverFlowPos * 0.00105) % 1.0 + 1.0) % 1.0;
+        const curSpeed = this._getRiverSpeedMult(activeTimeMs);
+
+        // 1. Peces Koi nadando suavemente bajo la superficie translúcida del río
+        if (this._riverSwimmingKoi && this._riverKoiSprites && this._riverKoiSprites.length > 0) {
+          const dtKoi = 0.016;
+          for (let k = 0; k < this._riverSwimmingKoi.length; k++) {
+            const koi = this._riverSwimmingKoi[k];
+            koi.lane += koi.vx * dtKoi * curSpeed;
+            koi.p += koi.vp * dtKoi * curSpeed;
+            if (koi.lane < 0.18 || koi.lane > 1.82) koi.vx = -koi.vx;
+            if (koi.p < 0.14 || koi.p > 0.88) koi.vp = -koi.vp;
+            const kCoord = this.getPerspectiveCoord(koi.lane, koi.p, this._coordScratch1);
+            const kw = 46 * kCoord.scale;
+            const kh = 30 * kCoord.scale;
+            const ang = Math.atan2(koi.vp * 1.4, koi.vx) + Math.sin(activeTimeMs * 0.009 + koi.phase) * 0.14;
+            ctx.save();
+            ctx.globalAlpha = 0.50;
+            ctx.translate(kCoord.x, kCoord.y);
+            ctx.rotate(ang);
+            ctx.drawImage(this._riverKoiSprites[koi.variant % this._riverKoiSprites.length], -kw * 0.5, -kh * 0.5, kw, kh);
+            ctx.restore();
+          }
+        }
+
+        // 2. Líneas de corriente de agua y espuma blanca (más intensas cuando el río entra en Rápidos de alta densidad)
+        const numWaveStreaks = 16;
+        ctx.lineCap = 'round';
+        for (let wIdx = 0; wIdx < numWaveStreaks; wIdx++) {
+          const u0 = (wIdx / numWaveStreaks + riverScroll) % 1.0;
+          const u1 = Math.min(1.0, u0 + (0.045 + 0.025 * Math.min(1.6, curSpeed)));
+          if (u1 <= u0 + 0.005) continue;
+          const p0 = Math.pow(u0, 1.7);
+          const p1 = Math.pow(u1, 1.7);
+          const y0 = horizonY + (bottomY - horizonY) * p0;
+          const y1 = horizonY + (bottomY - horizonY) * p1;
+          const laneFrac = ((wIdx * 0.618) % 2.6) + 0.2;
+          const sway = Math.sin(u0 * 12.0 + activeTimeMs * 0.004 + wIdx) * 0.06;
+          const x0 = getBoundaryX(laneFrac + sway, y0);
+          const x1 = getBoundaryX(laneFrac - sway, y1);
+
+          const streakAlpha = Math.min(0.68, (0.18 + (curSpeed - 0.7) * 0.28) * Math.sin(u0 * Math.PI));
+          ctx.strokeStyle = (wIdx % 3 === 0)
+            ? `rgba(255, 255, 255, ${streakAlpha.toFixed(2)})`
+            : `rgba(186, 230, 253, ${(streakAlpha * 0.85).toFixed(2)})`;
+          ctx.lineWidth = Math.max(1.2, (1.5 + 2.8 * p0) * (curSpeed > 1.2 ? 1.25 : 1.0));
+          ctx.beginPath();
+          ctx.moveTo(x0, y0);
+          ctx.lineTo(x1, y1);
+          ctx.stroke();
+        }
+
+        // 3. Corrientes divisorias ondulantes de espuma entre los 3 carriles
+        for (let l = 1; l <= 2; l++) {
+          ctx.strokeStyle = 'rgba(224, 242, 254, 0.58)';
+          ctx.lineWidth = 2.2;
+          ctx.beginPath();
+          const steps = 18;
+          for (let s = 0; s <= steps; s++) {
+            const u = s / steps;
+            const p = Math.pow(u, 1.7);
+            const ry = horizonY + (bottomY - horizonY) * p;
+            const rippleX = Math.sin(u * 14.0 - riverScroll * Math.PI * 4 + l * 2.1) * (3.2 * p);
+            const rx = getBoundaryX(l, ry) + rippleX;
+            if (s === 0) ctx.moveTo(rx, ry);
+            else ctx.lineTo(rx, ry);
+          }
+          ctx.stroke();
+        }
+
+        // 4. Orillas rocosas con musgo y espuma de ribera en ambos márgenes del río + Nenúfares con flor de loto
+        const bankRocks = 14;
+        for (let b = 0; b < bankRocks; b++) {
+          const u = ((b / bankRocks) + riverScroll) % 1.0;
+          const p = Math.pow(u, 1.7);
+          const ry = horizonY + (bottomY - horizonY) * p;
+          const sc = 0.45 + 0.55 * p;
+          const rW = (10 + (b % 3) * 4) * sc;
+          const rH = (7 + (b % 2) * 3) * sc;
+
+          for (let side = 0; side < 2; side++) {
+            const bx = getBoundaryX(side === 0 ? 0.05 : 2.95, ry);
+            // Espuma blanca rompiendo contra las rocas de la orilla
+            ctx.fillStyle = 'rgba(224, 242, 254, 0.65)';
+            ctx.beginPath();
+            ctx.ellipse(bx + (side === 0 ? 4 : -4) * sc, ry, rW * 1.15, rH * 1.1, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Canto rodado de río
+            ctx.fillStyle = (b % 2 === 0) ? '#334155' : '#475569';
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = Math.max(1, 1.5 * sc);
+            ctx.beginPath();
+            ctx.ellipse(bx, ry, rW, rH, (side === 0 ? 0.2 : -0.2), 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            if (b % 3 === 0) {
+              ctx.fillStyle = 'rgba(34, 197, 94, 0.65)';
+              ctx.beginPath();
+              ctx.arc(bx, ry - rH * 0.25, rW * 0.45, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+        }
+
+        // Nenúfares flotando suavemente junto a las orillas
+        if (this._riverLilyPads && this._riverLilyPadSprite) {
+          for (let i = 0; i < this._riverLilyPads.length; i++) {
+            const pad = this._riverLilyPads[i];
+            const uPad = (pad.p + riverScroll * 0.5) % 1.0;
+            const pPad = Math.pow(uPad, 1.7);
+            const py = horizonY + (bottomY - horizonY) * pPad;
+            const px = getBoundaryX(pad.side === 0 ? 0.14 : 2.86, py);
+            const pSc = (0.45 + 0.55 * pPad) * 34;
+            ctx.save();
+            ctx.translate(px, py);
+            ctx.rotate(pad.rot + activeTimeMs * 0.0005);
+            ctx.drawImage(this._riverLilyPadSprite, -pSc * 0.5, -pSc * 0.5, pSc, pSc);
+            ctx.restore();
+          }
+        }
+      } else if (isHighwayTrack) {
         const roadScroll = ((cTime >= 0 ? cTime : safePerfNow) * 0.0014) % 1.0;
         const kerbSegs = 18;
         for (let k = 0; k < kerbSegs; k++) {
@@ -12631,6 +13718,8 @@ class BeatstarEngine {
       const isMushroomActive = Boolean((typeof window !== 'undefined' && window.isMushroomModeActive) || this.isMushroomModeActive);
       const isHighwayActive = Boolean((typeof window !== 'undefined' && window.isHighwayModeActive) || this.isHighwayModeActive);
       const isAnnoyingDogActive = Boolean((typeof window !== 'undefined' && window.isAnnoyingDogModeActive) || this.isAnnoyingDogModeActive);
+      const isRiverActive = Boolean((typeof window !== 'undefined' && window.isRiverModeActive) || this.isRiverModeActive);
+      const curRiverFlowPos = isRiverActive ? this._getRiverFlowPos(currentTime) : 0;
 
       if (isHighwayActive) {
         if (!this._hwAssetsReady) {
@@ -12731,9 +13820,13 @@ class BeatstarEngine {
         const isBeingHeld = Boolean(note.holding && !note.holdCompleted);
         const timeUntilHit = noteT - currentTime;
 
-        if (timeUntilHit > 1200 && timeUntilHit > scrollDur) break;
+        if (timeUntilHit > (isRiverActive ? 2400 : 1200) && timeUntilHit > scrollDur * (isRiverActive ? 1.65 : 1.0)) break;
 
-        const pHead = 1.0 - timeUntilHit * invScrollDur;
+        // En Modo Río Rápido, la distancia visual viene dada por el caudal acumulado F(t):
+        // ¡Los 3 carriles aceleran y frenan exactamente al mismo tiempo según la densidad de la sección!
+        const pHead = isRiverActive
+          ? (1.0 - (this._getRiverFlowPos(noteT) - curRiverFlowPos) * invScrollDur)
+          : (1.0 - timeUntilHit * invScrollDur);
         // Para notas hold, no descartar por pHead > 1.25 mientras su cola siga en pantalla
         if (pHead < -0.15 || (!isBeingHeld && note.type !== 'hold' && pHead > 1.25)) continue;
 
@@ -12772,7 +13865,7 @@ class BeatstarEngine {
         const lyricForNote = isKaraokeActive ? note._cleanLyric : null;
 
         // ==========================================
-        // 1. NOTAS HOLD (ONDA SINUSOIDAL + FILAMENTO DE PLASMA)
+        // 1. NOTAS HOLD (ONDA SINUSOIDAL + FILAMENTO DE PLASMA O TRONCO DE MADERA EN MODO RÍO)
         // ==========================================
         if (note.type === 'hold') {
           const rawDur = Number.isFinite(note.duration_ms)
@@ -12784,9 +13877,16 @@ class BeatstarEngine {
           const endT = Number.isFinite(note.end_timestamp_ms) ? note.end_timestamp_ms : (noteT + holdDuration);
 
           let currentHeadP = isBeingHeld ? 1.0 : pHead;
-          let currentTailP = 1.0 - (endT - currentTime) * invScrollDur;
+          let currentTailP = isRiverActive
+            ? (1.0 - (this._getRiverFlowPos(endT) - curRiverFlowPos) * invScrollDur)
+            : (1.0 - (endT - currentTime) * invScrollDur);
 
           if (currentTailP > 1.25 || currentHeadP < -0.2) continue;
+
+          if (isRiverActive) {
+            this._renderRiverWoodenLogHold(ctx, note, lane, currentTime, pHead, currentTailP, isBeingHeld, maxH3D);
+            continue;
+          }
 
           ctx.save();
 
@@ -13015,10 +14115,14 @@ class BeatstarEngine {
           ctx.restore();
         
         // ==========================================
-        // 2. NOTAS SWIPE (DESLIZAMIENTO CON CHEVRÓN + ESTELA DE POLVO ESTELAR)
+        // 2. NOTAS SWIPE (DESLIZAMIENTO CON CHEVRÓN + ESTELA DE POLVO ESTELAR O BALDOSA DE ROCA CON HONDURA DE FLECHA)
         // ==========================================
         } else if (note.type === 'swipe') {
           const h = Math.min((isLarge ? 84 : 32) * coord.scale, maxH3D);
+          if (isRiverActive) {
+            this.drawRiverStoneKey(ctx, drawLane, coord.y, h, coord.scale, false, isLarge, true, note.direction || 'up', lyricForNote, i, currentTime);
+            continue;
+          }
           // Estela aerodinámica de polvo estelar detrás de la tecla Swipe (0 allocs)
           if (pHead > 0.04 && pHead < 1.12) {
             ctx.save();
@@ -13056,10 +14160,14 @@ class BeatstarEngine {
           this.renderVectorChevron(ctx, swipeKey.cx, swipeKey.cy, note.direction || 'up', swipeKey.w, swipeKey.h);
 
         // ==========================================
-        // 3. NOTAS NORMALES (TAP ESTÁNDAR)
+        // 3. NOTAS NORMALES (TAP ESTÁNDAR O BALDOSA DE ROCA FLOTANTE CON HONDURA CENTRAL)
         // ==========================================
         } else {
           const h = Math.min((isLarge ? 80 : 30) * coord.scale * mushHeightMult, maxH3D);
+          if (isRiverActive) {
+            this.drawRiverStoneKey(ctx, drawLane, coord.y, h, coord.scale, false, isLarge, false, 'up', lyricForNote, i, currentTime);
+            continue;
+          }
           if (isAnnoyingDogActive && note._dogBatted) {
             const swipeP = note._dogSwipeP || 0.40;
             const fromL = note._dogFromLane ?? lane;
