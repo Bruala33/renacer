@@ -569,10 +569,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 17,
-    version_name: '2.5.0',
-    release_notes: 'Piano Community Web & Offline Player. Nuevo Modo Río Rápido: Baldosas de roca flotantes con hendiduras luminosas, troncos de madera para los holds, corriente de agua sincronizada en los 3 carriles según la densidad de notas y carpas Koi animadas.',
-    download_url: '/download/apk?v=17.0',
+    version_code: 18,
+    version_name: '2.5.1',
+    release_notes: 'Piano Community Web & Offline Player. Nuevo Modo Río: Baldosas de roca flotantes con hendiduras luminosas, troncos de madera para los holds, corriente de agua sincronizada en los 3 carriles según la densidad de notas y carpas Koi animadas.',
+    download_url: '/download/apk?v=18.0',
   });
 });
 
@@ -1557,11 +1557,28 @@ app.get('/songs/:folder/:file(*)', (req, res) => {
 // ==========================================
 // 6. Static HTML and Web Game Entry Points
 // ==========================================
+function resolveLatestGameHtmlPath() {
+  const indexHtmlPath = path.join(STATIC_DIR, 'index.html');
+  const gameHtmlPath = path.join(STATIC_DIR, 'game.html');
+  try {
+    if (fs.existsSync(indexHtmlPath)) {
+      const idxStat = fs.statSync(indexHtmlPath);
+      const gameStat = fs.existsSync(gameHtmlPath) ? fs.statSync(gameHtmlPath) : null;
+      if (!gameStat || idxStat.mtimeMs >= gameStat.mtimeMs || idxStat.size !== gameStat.size) {
+        fs.copyFileSync(indexHtmlPath, gameHtmlPath);
+      }
+      return indexHtmlPath;
+    }
+  } catch (_) {}
+  return fs.existsSync(indexHtmlPath) ? indexHtmlPath : gameHtmlPath;
+}
+
+// Sincronizar game.html con index.html al iniciar el servidor (evita desajustes en Render)
+resolveLatestGameHtmlPath();
+
 // Serve / and /game.html directly with no-cache headers
 app.get(['/', '/game.html', '/index.html'], (req, res) => {
-  const indexPath = path.join(STATIC_DIR, 'game.html');
-  const fallbackPath = path.join(STATIC_DIR, 'index.html');
-  const fileToServe = fs.existsSync(indexPath) ? indexPath : fallbackPath;
+  const fileToServe = resolveLatestGameHtmlPath();
 
   if (fs.existsSync(fileToServe)) {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -1569,7 +1586,7 @@ app.get(['/', '/game.html', '/index.html'], (req, res) => {
     res.setHeader('Expires', '0');
     return res.sendFile(fileToServe);
   }
-  res.status(404).send('game.html no encontrado.');
+  res.status(404).send('index.html no encontrado.');
 });
 
 // Static assets mounted at /static
@@ -1599,12 +1616,12 @@ app.use(
   })
 );
 
-// 404 fallback to game.html for client-side routing
+// 404 fallback to index.html for client-side routing
 app.use((req, res) => {
-  const indexPath = path.join(STATIC_DIR, 'game.html');
-  if (fs.existsSync(indexPath)) {
+  const fileToServe = resolveLatestGameHtmlPath();
+  if (fs.existsSync(fileToServe)) {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    return res.sendFile(indexPath);
+    return res.sendFile(fileToServe);
   }
   res.status(404).send('Not Found');
 });

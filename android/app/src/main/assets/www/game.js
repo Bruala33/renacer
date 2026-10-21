@@ -644,18 +644,18 @@ class DirectAudioSync {
         this._anchorPerf = now;
         this._anchorAudioMs = currentPredMs;
 
-        if (Math.abs(drift) > 450) {
+        if (Math.abs(drift) > 950) {
           this._anchorAudioMs = hwAudioMs;
           this._lastReturnedMs = hwAudioMs;
           this._clockSkewRate = 1.0;
           this._smoothedDrift = 0;
           currentPredMs = hwAudioMs;
         } else {
-          // Filtro paso-bajo exponencial que absorbe el jitter de cuantización del mixer de audio
-          this._smoothedDrift = (this._smoothedDrift || 0) * 0.86 + drift * 0.14;
-          if (Math.abs(this._smoothedDrift) > 36.0) {
-            // Corrección de frecuencia ultra-suave (±0.35% máx) totalmente imperceptible al ojo a 120Hz
-            this._clockSkewRate = 1.0 + Math.max(-0.0035, Math.min(0.0035, this._smoothedDrift / 4000));
+          // Filtro paso-bajo exponencial que absorbe el jitter de cuantización del mixer de audio sin dar tirones visuales
+          this._smoothedDrift = (this._smoothedDrift || 0) * 0.85 + drift * 0.15;
+          if (Math.abs(this._smoothedDrift) > 28.0) {
+            // Corrección de frecuencia progresiva y suave (±0.65% máx) 100% libre de saltos de fotograma
+            this._clockSkewRate = 1.0 + Math.max(-0.0065, Math.min(0.0065, this._smoothedDrift / 3200));
           } else {
             this._clockSkewRate = 1.0;
           }
@@ -2348,28 +2348,29 @@ class BeatstarEngine {
         const normX = (t.clientX - rect.left) / rect.width;
         const lane = Math.max(0, Math.min(2, (normX * 3) | 0));
 
-        // Guardar origen de toque para el cálculo del swipe
+        const consumed = this.triggerLaneInput(lane, 'tap', null, t.identifier);
+
+        // Guardar origen de toque; si ya consumió una nota tap/hold, bloquear swipe secundario para no tocar 2 notas con 1 dedo
         this.activeTouches.set(t.identifier, {
           startX: t.clientX,
           startY: t.clientY,
           startTime: now,
           lane: lane,
-          swiped: false
+          swiped: false,
+          consumed: Boolean(consumed)
         });
-
-        this.triggerLaneInput(lane, 'tap', null, t.identifier);
       }
     }, { passive: false });
 
-    // ⚡ DETECCIÓN DE DESLIZAMIENTO / FLICK (SWIPE)
+    // ⚡ DETECCIÓN DE DESLIZAMIENTO / FLICK (SWIPE) — Solo si el toque inicial no consumió ya una tecla tap/hold y no estamos en Modo Carretera
     window.addEventListener('touchmove', (e) => {
-      if (this.isPaused || this.isRewinding) return;
+      if (this.isPaused || this.isRewinding || this.isHighwayModeActive) return;
       const now = performance.now();
 
       for (let i = 0; i < e.changedTouches.length; i++) {
         const t = e.changedTouches[i];
         const tData = this.activeTouches.get(t.identifier);
-        if (!tData || tData.swiped) continue;
+        if (!tData || tData.swiped || tData.consumed) continue;
 
         const dx = t.clientX - tData.startX;
         const dy = t.clientY - tData.startY;
@@ -2386,6 +2387,7 @@ class BeatstarEngine {
           }
 
           tData.swiped = true;
+          tData.consumed = true;
           this.triggerLaneInput(tData.lane, 'swipe', direction, t.identifier);
         }
       }
@@ -2418,49 +2420,57 @@ class BeatstarEngine {
       }
     }, { passive: true });
 
-    // ⚡ RATÓN PC CON SOPORTE DE ARRASTRE PARA SWIPE
+    // ⚡ RATÓN PC CON SOPORTE DE ARRASTRE PARA SWIPE (0 reflows de DOM)
     window.addEventListener('mousedown', (e) => {
-      if (performance.now() - (this.lastTouchTime || 0) < 500) return;
+      const now = performance.now();
+      if (now - (this.lastTouchTime || 0) < 500) return;
       if (this.isPaused || this.isRewinding) return;
 
-      const target = document.elementFromPoint(e.clientX, e.clientY);
-      if (target && (target.closest('.hud-pause-btn') || target.closest('button') || target.closest('.modal-overlay'))) {
+      const targetEl = e.target;
+      if (targetEl && targetEl !== this.canvas && targetEl.closest &&
+          (targetEl.closest('.hud-pause-btn') || targetEl.closest('button') || targetEl.closest('.modal-overlay'))) {
         return;
       }
 
-      const rect = this.canvas.getBoundingClientRect();
+      let rect = this._canvasRect;
+      if (!rect || rect.width <= 0) {
+        rect = this.canvas.getBoundingClientRect();
+        this._canvasRect = rect;
+      }
       if (!rect || rect.width <= 0) return;
       if (e.clientX < rect.left || e.clientX > rect.right) return;
 
       const normX = (e.clientX - rect.left) / rect.width;
-      const lane = Math.max(0, Math.min(2, Math.floor(normX * 3)));
+      const lane = Math.max(0, Math.min(2, (normX * 3) | 0));
+
+      const consumed = this.triggerLaneInput(lane, 'tap', null, 'mouse');
 
       this.mouseTouch = {
         startX: e.clientX,
         startY: e.clientY,
-        startTime: performance.now(),
+        startTime: now,
         lane: lane,
-        swiped: false
+        swiped: false,
+        consumed: Boolean(consumed)
       };
-
-      this.triggerLaneInput(lane, 'tap', null, 'mouse');
     });
 
     window.addEventListener('mousemove', (e) => {
-      if (!this.mouseTouch || this.mouseTouch.swiped || this.isPaused || this.isRewinding) return;
+      if (!this.mouseTouch || this.mouseTouch.swiped || this.mouseTouch.consumed || this.isHighwayModeActive || this.isPaused || this.isRewinding) return;
       const dx = e.clientX - this.mouseTouch.startX;
       const dy = e.clientY - this.mouseTouch.startY;
-      const dist = Math.hypot(dx, dy);
+      const distSq = dx * dx + dy * dy;
       const elapsed = performance.now() - this.mouseTouch.startTime;
 
-      if (dist > 18 && elapsed < 500) {
+      if (distSq > 324 && elapsed < 500) {
         let direction = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
         this.mouseTouch.swiped = true;
+        this.mouseTouch.consumed = true;
         this.triggerLaneInput(this.mouseTouch.lane, 'swipe', direction, 'mouse');
       }
     });
 
-    window.addEventListener('mouseup', (e) => {
+    window.addEventListener('mouseup', () => {
       if (this.mouseTouch) {
         this.releaseLaneHold(this.mouseTouch.lane, 'mouse');
         this.mouseTouch = null;
@@ -2813,8 +2823,9 @@ class BeatstarEngine {
       // Micro-holds menores a 220ms se convierten en tap directo (en móvil un hold de 100ms es físicamente un tap)
       const isRealHold = (n.type === 'hold' || rawDur > 220) && rawDur > 220;
       let noteType = isRealHold ? 'hold' : (n.type === 'swipe' ? 'swipe' : 'tap');
-      // Si se detecta que el jugador está en PC (teclado/ratón), convertir automáticamente swipes a notas normales de tap
-      if (this.isPCMode && noteType === 'swipe') {
+      const isHighwayNow = Boolean((typeof window !== 'undefined' && (window.isHighwayModeActive || window.currentGameMode === 'highway')) || this.isHighwayModeActive);
+      // En PC o en Modo Carretera, convertir automáticamente todos los swipes a notas normales de tap
+      if ((this.isPCMode || isHighwayNow) && noteType === 'swipe') {
         noteType = 'tap';
       }
       const finalDur = isRealHold ? Math.max(220, rawDur) : 0;
@@ -2889,8 +2900,28 @@ class BeatstarEngine {
     if (!this._lyricKeySpriteCache) {
       this._lyricKeySpriteCache = new Map();
     }
-    const isKaraokePrewarm = Boolean((typeof window !== 'undefined' && window.isKaraokeModeActive) || this.isKaraokeModeActive);
-    const isMushPrewarm = Boolean((typeof window !== 'undefined' && window.isMushroomModeActive) || this.isMushroomModeActive);
+    // Sincronizar de forma estricta los modos de juego para que ningún estado previo quede residual
+    const curActiveMode = (typeof window !== 'undefined' && window.currentGameMode) ? window.currentGameMode : 'normal';
+    this.isKaraokeModeActive = (curActiveMode === 'karaoke');
+    this.isStormModeActive = (curActiveMode === 'storm');
+    this.isMushroomModeActive = (curActiveMode === 'mushroom');
+    this.isHighwayModeActive = (curActiveMode === 'highway');
+    this.isAnnoyingDogModeActive = (curActiveMode === 'annoying_dog');
+    this.isRiverModeActive = (curActiveMode === 'river');
+    if (typeof window !== 'undefined') {
+      window.isKaraokeModeActive = this.isKaraokeModeActive;
+      window.isStormModeActive = this.isStormModeActive;
+      window.isMushroomModeActive = this.isMushroomModeActive;
+      window.isHighwayModeActive = this.isHighwayModeActive;
+      window.isAnnoyingDogModeActive = this.isAnnoyingDogModeActive;
+      window.isRiverModeActive = this.isRiverModeActive;
+    }
+
+    const isKaraokePrewarm = this.isKaraokeModeActive;
+    const isMushPrewarm = this.isMushroomModeActive;
+    const isHighwayPrewarm = this.isHighwayModeActive;
+    const isDogPrewarm = this.isAnnoyingDogModeActive;
+    const isRiverPrewarm = this.isRiverModeActive;
     for (let i = 0, nLen = this.notes.length; i < nLen; i++) {
       const n = this.notes[i];
       if (n.lyric && !_PROLONG_RE.test(String(n.lyric))) {
@@ -2914,20 +2945,24 @@ class BeatstarEngine {
       } else {
         n._mushFromLane = n.lane;
       }
+      n._dogBatted = false;
+      n._dogFromLane = n.lane;
+      n._dogSwipeP = 0.40;
     }
 
-    const isHighwayPrewarm = Boolean((typeof window !== 'undefined' && window.isHighwayModeActive) || this.isHighwayModeActive);
-    if ((typeof window !== 'undefined' && window.isStormModeActive) || this.isStormModeActive) {
+    if (this.isStormModeActive) {
       this.initStormModeAssets();
     }
+    // Resetear siempre el estado de Setas Alucinógenas al cargar cualquier beatmap
+    this._mushFlipProgress = 0.0;
+    this._mushTargetFlipped = false;
+    this._mushNextFlipTimeMs = 9500;
+    this._mushSafeGraceUntilMs = 0;
+    this._mushInSafeTransition = false;
+    this._mushTransitionClouds = [];
+    this._mushBannerTimer = 0;
     if (isMushPrewarm) {
       this.initMushroomModeAssets();
-      this._mushFlipProgress = 0.0;
-      this._mushTargetFlipped = false;
-      this._mushNextFlipTimeMs = 9500;
-      this._mushSafeGraceUntilMs = 0;
-      this._mushInSafeTransition = false;
-      this._mushTransitionClouds = [];
       this._mushBannerText = '🍄 ¡MODO SETAS ALUCINÓGENAS! 🍄';
       this._mushBannerTimer = 2.6;
     }
@@ -2936,6 +2971,18 @@ class BeatstarEngine {
       this._prepareHighwayTrafficChoreography();
       this._hwBannerText = '🏎️ ¡AUTOPISTA ACTIVA: F1, TESLA ROADSTER Y TRENES! 🚂';
       this._hwBannerTimer = 2.8;
+    }
+    if (isDogPrewarm) {
+      this.initAnnoyingDogModeAssets();
+      this._prepareAnnoyingDogChoreography();
+      this._dogBannerText = '🐶 ¡PERRO MOLESTO: CUIDADO CON LOS ZARPAZOS Y CHULETONES! 🥩';
+      this._dogBannerTimer = 3.0;
+    }
+    if (isRiverPrewarm) {
+      this.initRiverModeAssets();
+      this._prepareRiverChoreography();
+      this._riverBannerText = '🌊 ¡RÍO RÁPIDO: ROCAS FLOTANTES, TRONCOS Y CORRIENTE VIVA! 🪵';
+      this._riverBannerTimer = 3.0;
     }
     this.activeHolds.clear();
     this.activeTouches.clear();
@@ -2950,7 +2997,7 @@ class BeatstarEngine {
     this.lastCelebratedStar = 0;
     this.currentMedalTier = null;
     this.missCount = 0;
-    this.invulnerableUntil = 2400; // Invulnerable during startup grace period
+    this.invulnerableUntil = 0; // Sin auto-completado indebido de notas
     this.stats = { perfectPlus: 0, perfect: 0, great: 0, miss: 0 };
     this.timingStats = { count: 0, sumSignedMs: 0, sumAbsMs: 0, earlyCount: 0, lateCount: 0, exactCount: 0 };
     this.overdriveLevel = 0;
@@ -3419,6 +3466,112 @@ class BeatstarEngine {
   }
 
   triggerLaneInput(lane, inputType = 'tap', swipeDirection = null, touchId = null) {
+    // En Modo Carretera no existen notas swipe
+    if (inputType === 'swipe' && this.isHighwayModeActive) {
+      return false;
+    }
+
+    const nowInput = performance.now();
+    const currentTime = this.getCurrentGameTimeMs(this._frameNow || nowInput);
+    const hitX = (lane + 0.5) * this.laneWidth;
+    const hitY = this.hitLineY;
+
+    // Si este carril ya tiene un Hold activo y llega un nuevo toque, re-vincular el touchId sin disparar fallo ni borrar el hold
+    if (inputType === 'tap' && this.activeHolds.has(lane)) {
+      const existingHold = this.activeHolds.get(lane);
+      if (existingHold && existingHold.note && !existingHold.note.holdCompleted) {
+        existingHold.touchId = touchId;
+        this.laneGlows[lane] = 1.0;
+        return true;
+      }
+    }
+
+    const isMushTiming = Boolean(this.isMushroomModeActive);
+    const HIT_WINDOW = isMushTiming
+      ? ((inputType === 'swipe') ? 370 : 300)
+      : ((inputType === 'swipe') ? 320 : 240);
+
+    // 1. Recolectar notas activas en este carril
+    const laneNotes = [];
+    const nLen = this.notes.length;
+    const startSearchIdx = Math.max(0, (this.firstActiveNoteIndex || 0) - 2);
+    if (!this._lastLaneHitPerf) this._lastLaneHitPerf = [0, 0, 0];
+    const msSinceLastHitInLane = nowInput - (this._lastLaneHitPerf[lane] || 0);
+
+    for (let i = startSearchIdx; i < nLen; i++) {
+      const note = this.notes[i];
+      if (!note || note.missed || note.holdCompleted || note.holding) continue;
+
+      // Permitir re-enganchar un hold que fue soltado temprano mientras su cuerpo sigue pasando por la meta
+      if (note.type === 'hold' && note.hit && note.holdReleasedEarly && inputType === 'tap') {
+        const endT = note.end_timestamp_ms || (note.timestamp_ms + (note.duration_ms || 700));
+        if (currentTime >= note.timestamp_ms && currentTime < endT - 90) {
+          note.holding = true;
+          note.holdReleasedEarly = false;
+          this.activeHolds.set(lane, {
+            note: note,
+            touchId: touchId,
+            startTime: note.timestamp_ms,
+            initialTime: note.timestamp_ms,
+            color: '#ffe082'
+          });
+          this.laneGlows[lane] = 1.0;
+          return true;
+        }
+      }
+
+      if (note.hit) continue;
+      if (note.timestamp_ms - currentTime > HIT_WINDOW + 80) break;
+      const matchesLane = this.isCalibrating || note.lane === lane;
+      if (!matchesLane) continue;
+
+      // Si es un evento de arrastre swipe, SOLO buscar notas que sean realmente de tipo 'swipe'
+      if (inputType === 'swipe' && note.type !== 'swipe') continue;
+
+      const diffFromNote = currentTime - note.timestamp_ms;
+      const absDiff = Math.abs(diffFromNote);
+
+      // Evitar que un doble toque involuntario tras acertar una nota robe prematuramente otra nota o un hold que aún viene lejos (>115ms antes)
+      if (inputType === 'tap' && msSinceLastHitInLane < 95 && diffFromNote < -115) {
+        continue;
+      }
+
+      if (absDiff <= HIT_WINDOW) {
+        laneNotes.push({ note, absDiff, diff: diffFromNote, time: note.timestamp_ms });
+      }
+    }
+
+    // ⚡ Si es swipe y no hubo nota swipe en el carril de inicio, buscar nota swipe activa en carriles adyacentes
+    if (inputType === 'swipe' && laneNotes.length === 0) {
+      for (let i = startSearchIdx; i < nLen; i++) {
+        const note = this.notes[i];
+        if (!note || note.hit || note.missed || note.holdCompleted || note.holding) continue;
+        if (note.timestamp_ms - currentTime > HIT_WINDOW + 80) break;
+        if (note.type !== 'swipe') continue;
+        const diffFromNote = currentTime - note.timestamp_ms;
+        const absDiff = Math.abs(diffFromNote);
+        if (absDiff <= HIT_WINDOW) {
+          laneNotes.push({ note, absDiff, diff: diffFromNote, time: note.timestamp_ms });
+        }
+      }
+    }
+
+    // Si fue un movimiento de dedo (swipe) pero no había ninguna nota swipe esperando, ignorar silenciosamente sin penalizar ni tocar otra tecla
+    if (inputType === 'swipe' && laneNotes.length === 0) {
+      return false;
+    }
+
+    if (laneNotes.length > 1) {
+      laneNotes.sort((a, b) => a.time - b.time);
+    }
+
+    // Si es un tap pero la nota frontal es un SWIPE, no consumir el toque aún: dejar que touchmove valide el deslizamiento
+    if (inputType === 'tap' && laneNotes.length > 0 && laneNotes[0].note.type === 'swipe') {
+      this.laneGlows[lane] = 0.65;
+      return false;
+    }
+
+    // Efectos visuales de pulsación de carril
     if (!this.borderEqLeftSurges) this.borderEqLeftSurges = new Float32Array(16);
     if (!this.borderEqRightSurges) this.borderEqRightSurges = new Float32Array(16);
     const rowCount = 12;
@@ -3445,23 +3598,16 @@ class BeatstarEngine {
     this.laneGlows[lane] = 1.0;
     if (this.laneFlashTimers) this.laneFlashTimers[lane] = 0.28;
     if (this.laneFlashColors) this.laneFlashColors[lane] = this.getJudgeGlowColor('perfectPlus');
-    const nowInput = performance.now();
     if (this.lanePressAnim) this.lanePressAnim[lane] = nowInput;
-    const currentTime = this.getCurrentGameTimeMs(this._frameNow || nowInput);
 
-    const hitX = (lane + 0.5) * this.laneWidth;
-    const hitY = this.hitLineY;
-
-    // Palette per lane (pre-allocated para 0 GC)
     if (!this._laneBurstPalettes) {
       this._laneBurstPalettes = [
-        { c1: '#00f2fe', c2: '#3b82f6', alt: '#39ff14' }, // Lane 0: Electric Cyan / Lime
-        { c1: '#ff007f', c2: '#a855f7', alt: '#ffe600' }, // Lane 1: Hot Magenta / Royal Purple
-        { c1: '#fbbf24', c2: '#ff3300', alt: '#ff007f' }  // Lane 2: Radiant Gold / Crimson
+        { c1: '#00f2fe', c2: '#3b82f6', alt: '#39ff14' },
+        { c1: '#ff007f', c2: '#a855f7', alt: '#ffe600' },
+        { c1: '#fbbf24', c2: '#ff3300', alt: '#ff007f' }
       ];
     }
     const p = this._laneBurstPalettes[lane % 3];
-
     const effect = this.normalizeEffectId(this.activeEffect);
     this.activeEffect = effect;
 
@@ -3497,52 +3643,8 @@ class BeatstarEngine {
       color: p.c1
     });
 
-    const isMushTiming = Boolean(this.isMushroomModeActive || (typeof window !== 'undefined' && window.isMushroomModeActive));
-    // ⚡ En Modo Setas Alucinógenas el timing está facilitado (300ms tap / 370ms swipe) pero tocar a destiempo cuenta como fallo
-    const HIT_WINDOW = isMushTiming
-      ? ((inputType === 'swipe') ? 370 : 300)
-      : ((inputType === 'swipe') ? 320 : 240);
-    let closestNote = null;
-    let minDiff = Infinity;
-
-    // 1. Recolectar notas activas en este carril empezando en firstActiveNoteIndex y cortando temprano
-    const laneNotes = [];
-    const nLen = this.notes.length;
-    const startSearchIdx = Math.max(0, (this.firstActiveNoteIndex || 0) - 2);
-    for (let i = startSearchIdx; i < nLen; i++) {
-      const note = this.notes[i];
-      if (!note || note.hit || note.missed || note.holdCompleted || note.holding) continue;
-      if (note.timestamp_ms - currentTime > HIT_WINDOW + 80) break;
-      const matchesLane = this.isCalibrating || note.lane === lane;
-      if (!matchesLane) continue;
-
-      const diffFromNote = currentTime - note.timestamp_ms;
-      const absDiff = Math.abs(diffFromNote);
-      if (absDiff <= HIT_WINDOW) {
-        laneNotes.push({ note, absDiff, diff: diffFromNote, time: note.timestamp_ms });
-      }
-    }
-
-    // ⚡ Si es swipe y no hubo nota exacta en el carril de inicio, buscar nota swipe activa en carriles adyacentes
-    if (inputType === 'swipe' && laneNotes.length === 0) {
-      for (let i = startSearchIdx; i < nLen; i++) {
-        const note = this.notes[i];
-        if (!note || note.hit || note.missed || note.holdCompleted || note.holding) continue;
-        if (note.timestamp_ms - currentTime > HIT_WINDOW + 80) break;
-        if (note.type !== 'swipe') continue;
-        const diffFromNote = currentTime - note.timestamp_ms;
-        const absDiff = Math.abs(diffFromNote);
-        if (absDiff <= HIT_WINDOW) {
-          laneNotes.push({ note, absDiff, diff: diffFromNote, time: note.timestamp_ms });
-        }
-      }
-    }
-
-    if (laneNotes.length > 1) {
-      laneNotes.sort((a, b) => a.time - b.time);
-    }
     const isActivelyPlaying = (this.isRunning || (this.sync && this.sync.isPlaying)) && !this.isPaused && !this.isGameOver && !this.isCountingDown && !this.isCalibrating && !!this.beatmapData;
-    const isProtectedTransition = Boolean(this._mushInSafeTransition || (currentTime < (this.invulnerableUntil || 0)));
+    const isProtectedTransition = Boolean(this.isMushroomModeActive && this._mushInSafeTransition);
 
     if (laneNotes.length === 0) {
       if (this.customBgMode === 'reactive') {
@@ -3551,7 +3653,7 @@ class BeatstarEngine {
       if (this.isCalibrating || isProtectedTransition) {
         this.synth.playClick();
         this.emitKeyHit(hitX, hitY, this.getScoreColor('perfectPlus'), 18);
-        return;
+        return true;
       }
       if (isActivelyPlaying && !this.isProcessingMiss) {
         this.synth.playPunchyArcadeMiss();
@@ -3561,51 +3663,43 @@ class BeatstarEngine {
           lane: lane,
           x: hitX,
           y: hitY,
-          time: performance.now()
+          time: nowInput
         };
         this.handleMiss();
-        return;
+        return true;
       }
       this.synth.playClick();
-      return;
+      return true;
     }
 
-    // La nota frontal es la que está más abajo en la pista (más cercana a la línea de golpeo)
     const frontEntry = laneNotes[0];
     const frontNote = frontEntry.note;
     const isFlippedMush = Boolean(isMushTiming && (this._mushFlipProgress || 0) > 0.5);
+    let closestNote = null;
+    let minDiff = Infinity;
 
     if (inputType === 'tap') {
-      // Si la nota frontal es un SWIPE, el toque inicial (touchstart) NO la falla;
-      // se espera a que handleTouchMove detecte el deslizamiento del dedo.
-      if (frontNote.type === 'swipe') {
-        return;
-      }
       closestNote = frontNote;
       minDiff = frontEntry.absDiff;
     } else if (inputType === 'swipe') {
-      if (frontNote.type === 'swipe') {
-        const targetDir = (frontNote.direction || 'up').toLowerCase();
-        const curDir = (swipeDirection || '').toLowerCase();
-        const flippedTargetDir = isFlippedMush
-          ? (targetDir === 'up' ? 'down' : (targetDir === 'down' ? 'up' : targetDir))
-          : targetDir;
-        if (!curDir || !targetDir || curDir === targetDir || curDir === flippedTargetDir) {
-          closestNote = frontNote;
-          minDiff = frontEntry.absDiff;
-        } else {
-          return;
-        }
-      } else {
-        // Swipe sobre nota normal o hold: se valida fluidamente como acierto
+      const targetDir = (frontNote.direction || 'up').toLowerCase();
+      const curDir = (swipeDirection || '').toLowerCase();
+      const flippedTargetDir = isFlippedMush
+        ? (targetDir === 'up' ? 'down' : (targetDir === 'down' ? 'up' : targetDir))
+        : targetDir;
+      if (!curDir || !targetDir || curDir === targetDir || curDir === flippedTargetDir) {
         closestNote = frontNote;
         minDiff = frontEntry.absDiff;
+      } else {
+        return false;
       }
     }
 
     if (!closestNote) {
-      return;
+      return false;
     }
+
+    this._lastLaneHitPerf[closestNote.lane ?? lane] = nowInput;
 
     if (this.isCalibrating) {
       closestNote.hit = true;
@@ -3614,10 +3708,9 @@ class BeatstarEngine {
       if (this.customBgMode === 'reactive') {
         this.addReactiveBurst(lane, hitX, hitY, jCalib.color);
       }
-      return;
+      return true;
     }
 
-    // Nota tap o notas estándar (cualquier toque o tecla sobre la nota la valida inmediatamente)
     if (closestNote.type === 'tap' || (!closestNote.type || closestNote.type === 'single' || closestNote.type === 'normal')) {
       closestNote.hit = true;
       let j;
@@ -3631,18 +3724,17 @@ class BeatstarEngine {
       if (this.customBgMode === 'reactive') {
         this.addReactiveBurst(lane, hitX, hitY, j.color);
       }
-    } 
-    else if (closestNote.type === 'swipe') {
+      return true;
+    } else if (closestNote.type === 'swipe') {
       const targetDir = (closestNote.direction || 'up').toLowerCase();
       const curDir = (swipeDirection || '').toLowerCase();
       const flippedTargetDir = isFlippedMush
         ? (targetDir === 'up' ? 'down' : (targetDir === 'down' ? 'up' : targetDir))
         : targetDir;
       const isExactSwipe = inputType === 'swipe' && (!curDir || !closestNote.direction || curDir === targetDir || curDir === flippedTargetDir);
-      
+
       if (!isExactSwipe) {
-        // Dirección errónea o toque simple: no valida
-        return;
+        return false;
       }
 
       closestNote.hit = true;
@@ -3655,7 +3747,6 @@ class BeatstarEngine {
       }
       this.emitKeyHit(hitX, hitY, j.color, 26);
 
-      // ANIMACIÓN DE EXPULSIÓN HIPERSÓNICA: La tecla sale disparada hacia esa dirección
       if (!this.activeSwipeLaunches) this.activeSwipeLaunches = [];
       const launchVx = targetDir === 'left' ? -1550 : (targetDir === 'right' ? 1550 : 0);
       const launchVy = targetDir === 'up' ? -1650 : (targetDir === 'down' ? 1450 : 0);
@@ -3667,7 +3758,7 @@ class BeatstarEngine {
         y: hitY,
         dir: targetDir,
         color: j.color || '#00f2fe',
-        startTime: performance.now(),
+        startTime: nowInput,
         duration: 420,
         vx: launchVx,
         vy: launchVy,
@@ -3680,11 +3771,10 @@ class BeatstarEngine {
       if (this.customBgMode === 'reactive') {
         this.addReactiveBurst(lane, hitX, hitY, j.color);
       }
-    } 
-    else if (closestNote.type === 'hold') {
+      return true;
+    } else if (closestNote.type === 'hold') {
       const rawDur = closestNote.duration_ms || 0;
       if (rawDur <= 220) {
-        // Micro-hold se completa inmediatamente como tap seguro
         closestNote.hit = true;
         closestNote.holdCompleted = true;
         let j;
@@ -3697,6 +3787,7 @@ class BeatstarEngine {
         if (this.customBgMode === 'reactive') {
           this.addReactiveBurst(lane, hitX, hitY, j.color);
         }
+        return true;
       } else {
         const prevHold = this.activeHolds.get(lane);
         if (prevHold && prevHold.note && prevHold.note !== closestNote) {
@@ -3704,8 +3795,10 @@ class BeatstarEngine {
           prevHold.note.holdCompleted = true;
           prevHold.note.hit = true;
         }
+        closestNote.hit = true;
         closestNote.holding = true;
         closestNote.missed = false;
+        closestNote.holdReleasedEarly = false;
         let j;
         try {
           j = this.judgeHit(closestNote, minDiff, hitX, hitY);
@@ -3723,6 +3816,7 @@ class BeatstarEngine {
         if (this.customBgMode === 'reactive') {
           this.addReactiveBurst(lane, hitX, hitY, j.color);
         }
+        return true;
       }
     } else {
       closestNote.hit = true;
@@ -3733,6 +3827,7 @@ class BeatstarEngine {
         j = { text: 'GOOD', color: '#9e7b66', points: 25 };
       }
       this.emitKeyHit(hitX, hitY, j.color, 20);
+      return true;
     }
   }
 
@@ -3747,13 +3842,14 @@ class BeatstarEngine {
     const heldDuration = currentTime - active.startTime;
     const totalDuration = endT - active.startTime;
 
-    const isSafeHold = Boolean(this._mushInSafeTransition || (currentTime < (this.invulnerableUntil || 0)));
+    const isSafeHold = Boolean(this.isMushroomModeActive && this._mushInSafeTransition);
 
-    // Acierto completado si se mantuvo al menos el 60% o hasta 180ms del final (o durante transición inmune)
-    if (isSafeHold || currentTime >= endT - 180 || (totalDuration > 0 && (heldDuration / totalDuration) >= 0.60)) {
+    // Acierto completado con bonus si se mantuvo al menos el 50% o hasta 220ms del final
+    if (isSafeHold || currentTime >= endT - 220 || (totalDuration > 0 && (heldDuration / totalDuration) >= 0.50)) {
       note.holdCompleted = true;
       note.hit = true;
       note.holding = false;
+      note.holdReleasedEarly = false;
       this.addScore(450 * this.multiplier);
       if (this.ui && this.ui.onHitBeatPulse) {
         this.ui.onHitBeatPulse(this.combo);
@@ -3762,19 +3858,11 @@ class BeatstarEngine {
       const holdColor = (active.color && active.color !== '#00ff88' && active.color !== '#00f2fe') ? active.color : '#e5b869';
       this.emitKeyHit(hitX, this.hitLineY, holdColor, 30);
     } else {
-      note.missed = true;
+      // Si se suelta antes, NO borrar el hold de la pantalla ni romper la partida por micro-cortes táctiles:
+      // la cabeza ya fue juzgada al tocarla y el cuerpo del hold sigue pasando visualmente (pudiendo re-engancharse)
+      note.hit = true;
       note.holding = false;
-      if (!this.isProcessingMiss && !this.isGameOver && !this.isPaused) {
-        this.synth.playPunchyArcadeMiss();
-        this.addJudgement('HOLD DROP', '#a81b26', lane);
-        this.missHighlight = {
-          type: 'hold_dropped',
-          lane: lane,
-          note: note,
-          time: performance.now()
-        };
-        this.handleMiss();
-      }
+      note.holdReleasedEarly = true;
     }
     this.activeHolds.delete(lane);
   }
@@ -3787,7 +3875,7 @@ class BeatstarEngine {
     let flashColor = '#ffd700';
     let judgeTier = 'great';
 
-    const isMushJudge = Boolean(this.isMushroomModeActive || (typeof window !== 'undefined' && window.isMushroomModeActive));
+    const isMushJudge = Boolean(this.isMushroomModeActive);
     const perfPlusMax = isMushJudge ? 85 : 45;
     const perfMax = isMushJudge ? 155 : 90;
     const greatMax = isMushJudge ? 235 : 170;
@@ -4158,8 +4246,7 @@ class BeatstarEngine {
   }
 
   handleMiss() {
-    const curGameT = this.getCurrentGameTimeMs();
-    if (this._mushInSafeTransition || (curGameT < (this.invulnerableUntil || 0))) {
+    if (this.isMushroomModeActive && this._mushInSafeTransition) {
       return;
     }
     if (this.isProcessingMiss || this.isGameOver || this.isPaused) {
@@ -4688,7 +4775,7 @@ class BeatstarEngine {
     }
 
     // Once a note has passed the hit window (+120ms normal / +185ms en Modo Setas Alucinógenas), it is judged as MISS
-    const isMushUpdate = Boolean(this.isMushroomModeActive || (typeof window !== 'undefined' && window.isMushroomModeActive));
+    const isMushUpdate = Boolean(this.isMushroomModeActive);
     const exitScreenOffsetMs = isMushUpdate ? 185 : 120;
     const notesLen = this.notes.length;
 
@@ -4721,9 +4808,9 @@ class BeatstarEngine {
         break;
       }
 
-      // En Modo Setas Alucinógenas: durante la transición de nube de setas / inversión de gravedad,
+      // En Modo Setas Alucinógenas: ÚNICAMENTE durante la transición de nube de setas (giro de gravedad),
       // auto-completar las notas para que jamás se pueda fallar en mitad del cambio
-      if ((this._mushInSafeTransition || currentTime < (this.invulnerableUntil || 0)) && currentTime >= noteTime - 60) {
+      if (this.isMushroomModeActive && this._mushInSafeTransition && currentTime >= noteTime - 60) {
         note.hit = true;
         note.processed = true;
         if (note.type === 'hold') note.holdCompleted = true;
@@ -4735,7 +4822,7 @@ class BeatstarEngine {
       }
 
       if (currentTime >= 0 && (currentTime - noteTime >= exitScreenOffsetMs)) {
-        if (this._mushInSafeTransition || currentTime < (this.invulnerableUntil || 0)) {
+        if (this.isMushroomModeActive && this._mushInSafeTransition) {
           note.hit = true;
           note.processed = true;
           if (note.type === 'hold') note.holdCompleted = true;
@@ -4882,7 +4969,9 @@ class BeatstarEngine {
       this.isStormModeActive ||
       this.isMushroomModeActive ||
       this.isHighwayModeActive ||
-      (typeof window !== 'undefined' && (window.isStormModeActive || window.isMushroomModeActive || window.isHighwayModeActive))
+      this.isAnnoyingDogModeActive ||
+      this.isRiverModeActive ||
+      (typeof window !== 'undefined' && (window.isStormModeActive || window.isMushroomModeActive || window.isHighwayModeActive || window.isAnnoyingDogModeActive || window.isRiverModeActive))
     );
     const clefMultiplier = (isFeatured ? 2 : 1) * (isStormX2 ? 2 : 1);
     const earnedClefs = Math.max(1, Math.round(baseScoreClefs * diffMultiplier)) * clefMultiplier;
@@ -6320,6 +6409,12 @@ class BeatstarEngine {
     }
     if (this.isHighwayModeActive || (typeof window !== 'undefined' && window.isHighwayModeActive)) {
       this.renderHighwayModeOverlay(this.ctx, currentTime);
+    }
+    if (this.isAnnoyingDogModeActive || (typeof window !== 'undefined' && window.isAnnoyingDogModeActive)) {
+      this.renderAnnoyingDogModeOverlay(this.ctx, currentTime);
+    }
+    if (this.isRiverModeActive || (typeof window !== 'undefined' && window.isRiverModeActive)) {
+      this.renderRiverModeOverlay(this.ctx, currentTime);
     }
     this.renderJudgements();
     this.renderFlyingLyrics(this.ctx, currentTime);
@@ -8529,23 +8624,29 @@ class BeatstarEngine {
 
   _prepareHighwayTrafficChoreography() {
     if (!this.notes || this.notes.length === 0) return;
-    const baseDur = Math.max(1100, this.scrollDurationMs || 1700);
+    // 🏎️ Reducimos la velocidad de todos los vehículos en general (duraciones más amplias en pantalla)
+    // para que la lectura rítmica sea cómoda, fluida y accesible
+    const baseDur = Math.max(2400, (this.scrollDurationMs || 1700) * 1.65);
     const nLen = this.notes.length;
 
     // 1. Asignación inicial de tipos de vehículo y velocidades base:
     // - Holds -> 'steam_train' (locomotora de vapor con vagones)
-    // - Tap/Swipe -> mezcla variada de 'tractor' (lento), 'fiat500' (medio), 'f1' (muy rápido) y 'tesla_roadster' (hiper-rápido volador)
+    // - Tap/Swipe -> mezcla variada de 'tractor' (lento), 'fiat500' (medio), 'f1' (ágil) y 'tesla_roadster' (adelanta volando con pirueta)
     const speedCatalog = {
-      tractor: baseDur * 1.48,
-      fiat500: baseDur * 1.12,
-      steam_train: baseDur * 1.00,
-      f1: baseDur * 0.74,
-      tesla_roadster: baseDur * 0.65
+      tractor: baseDur * 1.35,       // ~3500ms
+      fiat500: baseDur * 1.18,       // ~3050ms
+      steam_train: baseDur * 1.12,   // ~2900ms
+      f1: baseDur * 0.94,            // ~2450ms
+      tesla_roadster: baseDur * 0.86 // ~2250ms
     };
 
     const cycleTypes = ['f1', 'tractor', 'fiat500', 'tesla_roadster', 'fiat500', 'f1', 'tractor', 'tesla_roadster'];
     for (let i = 0; i < nLen; i++) {
       const n = this.notes[i];
+      // En Modo Carretera no hay swipes: cualquier swipe se convierte en tap limpio
+      if (n.type === 'swipe') {
+        n.type = 'tap';
+      }
       n._hwStartLane = n.lane ?? 1;
       n._hwPassLane = n.lane ?? 1;
       n._hwOvertakeP = -1;
@@ -8563,10 +8664,6 @@ class BeatstarEngine {
     }
 
     // 2. Planificador de adelantamientos espectaculares:
-    // Si la nota i (que llega ANTES al Perfect, en T_i) es un coche rápido ('tesla_roadster' o 'f1')
-    // y la nota i+1 (que llega DESPUÉS al Perfect, en T_{i+1}) está a [240ms..860ms] de distancia,
-    // hacemos que i+1 sea un vehículo más lento ('tractor' o 'fiat500') que salió antes por el horizonte.
-    // Así el vehículo rápido i alcanza por detrás a i+1 y lo ADELANTA en mitad de la autopista antes del Perfect!
     for (let i = 0; i < nLen - 1; i++) {
       const fastN = this.notes[i];
       const slowN = this.notes[i + 1];
@@ -8588,30 +8685,24 @@ class BeatstarEngine {
         if (pOvertake >= 0.20 && pOvertake <= 0.72) {
           fastN._hwOvertakeP = pOvertake;
           if (useTesla) {
-            // El Tesla Roadster sale detrás del vehículo lento, enciende sus propulsores de humo blanco,
-            // lo adelanta VOLANDO por encima con una pirueta de 360° y aterriza en su carril real fastN.lane
             fastN._hwStartLane = slowN.lane;
             fastN._hwIsFlyingOvertake = true;
           } else {
-            // El F1 sale detrás del vehículo lento y cambia de carril con intermitentes para adelantarlo sin tocarlo
             if (fastN.lane !== slowN.lane) {
               fastN._hwStartLane = slowN.lane;
             } else {
-              // Mismo carril: el F1 se abre a un carril contiguo despejado para adelantar y vuelve a su carril
               const altLane = (fastN.lane === 1) ? ((i % 2 === 0) ? 0 : 2) : 1;
               fastN._hwPassLane = altLane;
             }
           }
-          i++; // Avanzar pareja ya coreografiada
+          i++;
         }
       }
     }
 
     // 3. Pasada matemática estricta Anti-Solapamiento por carril (Garantía de 0% colisiones en carretera):
-    // Como p(t) es lineal respecto a t, si dos vehículos en el mismo carril mantienen una separación >= minGapP
-    // tanto al nacer en el horizonte como al cruzar la meta (Perfect), jamás pueden solaparse en ningún instante intermedio.
     const lastNoteByLane = [null, null, null];
-    const minGapP = 0.21;
+    const minGapP = 0.22;
     for (let i = 0; i < nLen; i++) {
       const cur = this.notes[i];
       const lane = Math.max(0, Math.min(2, Math.round(cur.lane ?? 1)));
@@ -8624,16 +8715,13 @@ class BeatstarEngine {
         const dt = (cur.timestamp_ms || 0) - (prevEndT || 0);
         const prevDur = prev._hwDurationMs || baseDur;
 
-        // Si el vehículo actual NO está haciendo un adelantamiento aéreo ni por otro carril sobre prev,
-        // limitar su duración para que nunca alcance el parachoques trasero de prev ni nazca encima de él
         const isBypassingPrev = (cur._hwIsFlyingOvertake || cur._hwPassLane !== lane || cur._hwStartLane !== lane);
         if (!isBypassingPrev) {
-          const maxAllowedDur = Math.max(baseDur * 0.58, dt + prevDur * (1.0 - minGapP));
+          const maxAllowedDur = Math.max(baseDur * 0.68, dt + prevDur * (1.0 - minGapP));
           if (cur._hwDurationMs > maxAllowedDur) {
             cur._hwDurationMs = maxAllowedDur;
           }
-          // Y si cur es mucho más rápido que prev pero llega DESPUÉS que prev, no permitir que nazca antes que prev en el mismo carril
-          const minAllowedDur = Math.max(baseDur * 0.58, prevDur - Math.max(0, dt - prevDur * minGapP));
+          const minAllowedDur = Math.max(baseDur * 0.68, prevDur - Math.max(0, dt - prevDur * minGapP));
           if (cur._hwDurationMs < minAllowedDur && dt < prevDur * 0.9) {
             cur._hwDurationMs = minAllowedDur;
           }
@@ -8645,21 +8733,61 @@ class BeatstarEngine {
 
   _emitHighwaySmoke(x, y, vx, vy, rStart, rEnd, color, alpha, duration) {
     if (!this._hwSmokeParticles) this._hwSmokeParticles = [];
-    if (this._hwSmokeParticles.length > 110) return;
-    this._hwSmokeParticles.push({
-      x, y, vx, vy,
-      r: rStart,
-      maxR: rEnd,
-      color: color || '#ffffff',
-      alpha: alpha || 0.75,
-      age: 0,
-      duration: duration || 0.55
-    });
+    if (!this._hwSmokeFreePool) this._hwSmokeFreePool = [];
+    if (this._hwSmokeParticles.length >= 100) return;
+    const sp = this._hwSmokeFreePool.length > 0 ? this._hwSmokeFreePool.pop() : {};
+    sp.x = x;
+    sp.y = y;
+    sp.vx = vx;
+    sp.vy = vy;
+    sp.r = rStart;
+    sp.maxR = rEnd;
+    sp.color = color || '#ffffff';
+    sp.alpha = alpha || 0.75;
+    sp.age = 0;
+    sp.duration = duration || 0.55;
+    this._hwSmokeParticles.push(sp);
+  }
+
+  // Guía láser horizontal de sincronización Perfect+ (elegante, sin texto, alineada al punto exacto p=1.0)
+  _drawHighwayTimingLaserBar(ctx, cx, cy, laneW, scale, pHead, isActiveHold = false, accentHex = '#38bdf8') {
+    const barHalfW = laneW * 0.41;
+    const proximityBoost = Math.max(0, Math.min(1, (pHead - 0.55) / 0.45));
+    const coreH = Math.max(2.2, (2.8 + proximityBoost * 1.4) * scale);
+    const glowH = Math.max(6.0, (9.5 + proximityBoost * 4.5) * scale);
+
+    // 1. Halo suave translúcido (0 shadowBlur para máximo rendimiento GPU)
+    ctx.fillStyle = isActiveHold
+      ? 'rgba(250, 204, 21, 0.34)'
+      : (proximityBoost > 0.5 ? 'rgba(56, 189, 248, 0.32)' : 'rgba(56, 189, 248, 0.18)');
+    ctx.fillRect(cx - barHalfW, cy - glowH * 0.5, barHalfW * 2, glowH);
+
+    // 2. Línea núcleo blanco-diamante en la coordenada exacta de impacto (cy)
+    ctx.fillStyle = isActiveHold ? '#fef08a' : '#ffffff';
+    ctx.fillRect(cx - barHalfW * 0.88, cy - coreH * 0.5, barHalfW * 1.76, coreH);
+
+    // 3. Corchetes de precisión laterales [   ]
+    const tickW = Math.max(3.5, 6.0 * scale);
+    const tickH = Math.max(5.0, 8.5 * scale);
+    ctx.strokeStyle = isActiveHold ? '#facc15' : accentHex;
+    ctx.lineWidth = Math.max(1.5, 2.2 * scale);
+    ctx.beginPath();
+    // Izquierdo
+    ctx.moveTo(cx - barHalfW + tickW, cy - tickH * 0.5);
+    ctx.lineTo(cx - barHalfW, cy - tickH * 0.5);
+    ctx.lineTo(cx - barHalfW, cy + tickH * 0.5);
+    ctx.lineTo(cx - barHalfW + tickW, cy + tickH * 0.5);
+    // Derecho
+    ctx.moveTo(cx + barHalfW - tickW, cy - tickH * 0.5);
+    ctx.lineTo(cx + barHalfW, cy - tickH * 0.5);
+    ctx.lineTo(cx + barHalfW, cy + tickH * 0.5);
+    ctx.lineTo(cx + barHalfW - tickW, cy + tickH * 0.5);
+    ctx.stroke();
   }
 
   _renderHighwaySteamTrainHold(ctx, note, lane, currentTime, pHead, endT, isBeingHeld, maxH3D) {
     if (!this._hwAssetsReady || !this._hwSprites) this.initHighwayModeAssets();
-    const noteDur = note._hwDurationMs || this.scrollDurationMs || 1700;
+    const noteDur = note._hwDurationMs || this.scrollDurationMs || 2900;
     const invNoteDur = 1.0 / noteDur;
 
     const currentHeadP = isBeingHeld ? 1.0 : pHead;
@@ -8672,128 +8800,251 @@ class BeatstarEngine {
 
     ctx.save();
 
-    // 1. Dibujar vía de ferrocarril 3D (balasto, traviesas de madera y raíles de acero) sobre el carril de la carretera
-    const railSteps = 12;
-    const pts = [];
+    // 1. Puntos de perspectiva reutilizados en pool (0 allocs por frame)
+    const railSteps = 16;
+    if (!this._hwRailPtsPool) {
+      this._hwRailPtsPool = [];
+      for (let s = 0; s <= railSteps; s++) {
+        this._hwRailPtsPool.push({ x: 0, y: 0, scale: 1, laneW: 100, p: 0 });
+      }
+    }
+    const pts = this._hwRailPtsPool;
     for (let s = 0; s <= railSteps; s++) {
       const frac = s / railSteps;
       const pStep = visibleTailP + (visibleHeadP - visibleTailP) * frac;
-      const c = this.getPerspectiveCoord(lane, pStep);
-      pts.push({ x: c.x, y: c.y, scale: c.scale, laneW: c.laneW, p: pStep });
+      const c = this.getPerspectiveCoord(lane, pStep, this._coordScratch1);
+      const pt = pts[s];
+      pt.x = c.x;
+      pt.y = c.y;
+      pt.scale = c.scale;
+      pt.laneW = c.laneW;
+      pt.p = pStep;
     }
 
-    // Traviesas de madera de roble a lo largo del tramo del tren
+    // 2. CHASIS CONTINUO DE FERROCARRIL Y CINTA CONDUCTORA DE ENERGÍA HOLD (100% opaco en el núcleo para unir todo el tren)
+    // A. Base oscura acorazada de balasto y acero
+    ctx.beginPath();
+    for (let s = 0; s <= railSteps; s++) {
+      const pt = pts[s];
+      const rOff = pt.laneW * 0.34;
+      if (s === 0) ctx.moveTo(pt.x + rOff, pt.y);
+      else ctx.lineTo(pt.x + rOff, pt.y);
+    }
+    for (let s = railSteps; s >= 0; s--) {
+      const pt = pts[s];
+      const rOff = pt.laneW * 0.34;
+      ctx.lineTo(pt.x - rOff, pt.y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = '#090d16';
+    ctx.fill();
+
+    // B. Franja conductora central continua de alta visibilidad
+    ctx.beginPath();
+    for (let s = 0; s <= railSteps; s++) {
+      const pt = pts[s];
+      const rOff = pt.laneW * 0.25;
+      if (s === 0) ctx.moveTo(pt.x + rOff, pt.y);
+      else ctx.lineTo(pt.x + rOff, pt.y);
+    }
+    for (let s = railSteps; s >= 0; s--) {
+      const pt = pts[s];
+      const rOff = pt.laneW * 0.25;
+      ctx.lineTo(pt.x - rOff, pt.y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = isBeingHeld ? 'rgba(234, 179, 8, 0.58)' : 'rgba(14, 165, 233, 0.42)';
+    ctx.fill();
+
+    // 3. Traviesas densas de madera de roble y acero
     const sleeperSpanP = visibleHeadP - visibleTailP;
-    const numSleepers = Math.max(4, Math.min(26, Math.floor(sleeperSpanP * 24)));
-    ctx.strokeStyle = '#78350f';
+    const numSleepers = Math.max(5, Math.min(32, Math.floor(sleeperSpanP * 28)));
+    ctx.strokeStyle = isBeingHeld ? '#a16207' : '#78350f';
     for (let k = 0; k <= numSleepers; k++) {
       const pSl = visibleTailP + (k / numSleepers) * sleeperSpanP;
       const sc = this.getPerspectiveCoord(lane, pSl, this._coordScratch1);
-      const slHalfW = sc.laneW * 0.34;
-      ctx.lineWidth = Math.max(2.0, 4.5 * sc.scale);
+      const slHalfW = sc.laneW * 0.35;
+      ctx.lineWidth = Math.max(2.2, 4.8 * sc.scale);
       ctx.beginPath();
       ctx.moveTo(sc.x - slHalfW, sc.y);
       ctx.lineTo(sc.x + slHalfW, sc.y);
       ctx.stroke();
     }
 
-    // Dos raíles de acero bruñido
-    ctx.strokeStyle = isBeingHeld ? '#fde047' : '#cbd5e1';
-    ctx.lineWidth = Math.max(2.0, 3.4 * pts[pts.length - 1].scale);
+    // 4. Raíles laterales continuos y tercer riel central de energía Hold
+    ctx.strokeStyle = isBeingHeld ? '#fde047' : '#38bdf8';
+    ctx.lineWidth = Math.max(3.0, 5.4 * pts[railSteps].scale);
     ctx.beginPath();
     for (let s = 0; s <= railSteps; s++) {
       const pt = pts[s];
-      const rOff = pt.laneW * 0.22;
+      const rOff = pt.laneW * 0.24;
       if (s === 0) ctx.moveTo(pt.x - rOff, pt.y);
       else ctx.lineTo(pt.x - rOff, pt.y);
     }
     for (let s = 0; s <= railSteps; s++) {
       const pt = pts[s];
-      const rOff = pt.laneW * 0.22;
+      const rOff = pt.laneW * 0.24;
       if (s === 0) ctx.moveTo(pt.x + rOff, pt.y);
       else ctx.lineTo(pt.x + rOff, pt.y);
     }
     ctx.stroke();
 
-    // 2. Dibujar vagones acoplados desde la cola (currentTailP) hasta justo detrás de la locomotora (currentHeadP)
-    const wagonStepP = 0.165;
-    const availableWagonSpan = Math.max(0, (currentHeadP - 0.13) - currentTailP);
-    const wagonCount = Math.min(10, Math.max(1, Math.round(availableWagonSpan / wagonStepP)));
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = Math.max(1.4, 2.2 * pts[railSteps].scale);
+    ctx.stroke();
+
+    // 5. VAGONES MUY JUNTOS CON FUELLES ARTICULADOS MACIZOS (Sin huecos vacíos: forman un único tren continuo)
+    const headCoord = this.getPerspectiveCoord(lane, Math.min(1.06, currentHeadP), this._coordScratch0);
+    const locoW = Math.min(headCoord.laneW * 0.72, 76 * headCoord.scale);
+    const locoH = locoW * 1.38;
+
+    // Paso corto (0.068) para que cada vagón vaya pegado parachoques con parachoques al siguiente
+    const wagonStepP = 0.068;
+    const firstWagonHeadOffset = 0.068;
+    const availableWagonSpan = Math.max(0, (currentHeadP - firstWagonHeadOffset) - currentTailP);
+    const wagonCount = Math.min(36, Math.max(2, Math.ceil(availableWagonSpan / wagonStepP) + 1));
     const wagonsSprites = this._hwSprites.steam_wagons;
 
+    let prevCenterX = null;
+    let prevCenterY = null;
+    let prevWWidth = 0;
+    let tailBumperCoord = null;
+
     for (let wIdx = wagonCount - 1; wIdx >= 0; wIdx--) {
-      const pWagon = currentHeadP - 0.15 - wIdx * wagonStepP;
-      if (pWagon < -0.08 || pWagon > 1.12) continue;
-      if (pWagon < currentTailP - 0.03) continue;
+      const pWagon = currentHeadP - firstWagonHeadOffset - wIdx * wagonStepP;
+      if (pWagon < -0.06 || pWagon > 1.12) continue;
+      if (pWagon < currentTailP - 0.015) continue;
 
       const wCoord = this.getPerspectiveCoord(lane, pWagon, this._coordScratch1);
       const wWidth = Math.min(wCoord.laneW * 0.66, 68 * wCoord.scale);
-      const wHeight = wWidth * 1.22;
-      const swayX = Math.sin(currentTime * 0.014 + wIdx * 1.4) * (1.8 * wCoord.scale);
+      const wHeight = wWidth * 1.24;
+      const swayX = Math.sin(currentTime * 0.014 + wIdx * 0.9) * (1.2 * wCoord.scale);
+      const curCx = wCoord.x + swayX;
+      const curCy = wCoord.y;
 
-      // Seleccionar sprite de vagón: el primero tras la locomotora es el carbonero (tender), el último el furgón de cola (caboose)
+      if (!tailBumperCoord) {
+        tailBumperCoord = { x: curCx, y: curCy - wHeight * 0.48, scale: wCoord.scale, w: wWidth };
+      }
+
+      // Fuelle articulado macizo (acordeón ferroviario) que une este vagón con el anterior sin dejar hueco de asfalto
+      if (prevCenterX !== null) {
+        const bellowW = Math.min(prevWWidth, wWidth) * 0.56;
+        const topY = Math.min(prevCenterY, curCy);
+        const botY = Math.max(prevCenterY, curCy);
+        const midX = (prevCenterX + curCx) * 0.5;
+
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(midX - bellowW * 0.5, topY, bellowW, Math.max(4, botY - topY));
+
+        ctx.strokeStyle = isBeingHeld ? '#fde047' : '#38bdf8';
+        ctx.lineWidth = Math.max(1.6, 2.6 * wCoord.scale);
+        ctx.strokeRect(midX - bellowW * 0.5, topY, bellowW, Math.max(4, botY - topY));
+      }
+
       let spr = wagonsSprites[1];
       if (wIdx === 0) spr = wagonsSprites[0];
       else if (wIdx === wagonCount - 1) spr = wagonsSprites[3];
       else spr = wagonsSprites[1 + (wIdx % 2)];
 
-      ctx.drawImage(
-        spr,
-        wCoord.x + swayX - wWidth * 0.5,
-        wCoord.y - wHeight * 0.55,
-        wWidth,
-        wHeight
-      );
+      ctx.drawImage(spr, curCx - wWidth * 0.5, curCy - wHeight * 0.50, wWidth, wHeight);
+
+      prevCenterX = curCx;
+      prevCenterY = curCy;
+      prevWWidth = wWidth;
     }
 
-    // 3. Dibujar la Locomotora de Vapor en la cabeza del Hold (currentHeadP)
-    const headCoord = this.getPerspectiveCoord(lane, Math.min(1.06, currentHeadP), this._coordScratch1);
-    const locoW = Math.min(headCoord.laneW * 0.72, 76 * headCoord.scale);
-    const locoH = locoW * 1.42;
-    const chugBounce = isBeingHeld
-      ? Math.sin(currentTime * 0.035) * (2.2 * headCoord.scale)
-      : Math.sin(currentTime * 0.018) * (1.2 * headCoord.scale);
+    // Fuelle articulado entre el primer vagón (carbonero) y la locomotora
+    if (prevCenterX !== null) {
+      const bellowW = Math.min(prevWWidth, locoW) * 0.54;
+      const topY = Math.min(prevCenterY, headCoord.y);
+      const botY = Math.max(prevCenterY, headCoord.y);
+      const midX = (prevCenterX + headCoord.x) * 0.5;
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(midX - bellowW * 0.5, topY, bellowW, Math.max(4, botY - topY));
+      ctx.strokeStyle = isBeingHeld ? '#fde047' : '#38bdf8';
+      ctx.lineWidth = Math.max(1.6, 2.6 * headCoord.scale);
+      ctx.strokeRect(midX - bellowW * 0.5, topY, bellowW, Math.max(4, botY - topY));
+    }
 
-    // Cono de luz dorada del faro delantero de la locomotora sobre la vía
+    // 6. Barra de topes traseros con doble farol rojo luminoso en la cola del último vagón (sin texto)
+    if (tailBumperCoord && currentTailP > -0.05 && currentTailP < 1.10) {
+      const tb = tailBumperCoord;
+      const barW = tb.w * 0.44;
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = Math.max(3.5, 6.0 * tb.scale);
+      ctx.beginPath();
+      ctx.moveTo(tb.x - barW, tb.y);
+      ctx.lineTo(tb.x + barW, tb.y);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = Math.max(2.0, 3.4 * tb.scale);
+      ctx.stroke();
+
+      const lampR = Math.max(2.5, 4.2 * tb.scale);
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.arc(tb.x - barW * 0.65, tb.y, lampR, 0, Math.PI * 2);
+      ctx.arc(tb.x + barW * 0.65, tb.y, lampR, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 7. Locomotora de Vapor en la cabeza del Hold (centrada sobre headCoord.y para que coincida con la guía láser)
+    const chugBounce = isBeingHeld
+      ? Math.sin(currentTime * 0.035) * (2.0 * headCoord.scale)
+      : Math.sin(currentTime * 0.018) * (1.0 * headCoord.scale);
+
+    // Guía láser horizontal de sincronización Perfect+ exactamente en headCoord.y
+    this._drawHighwayTimingLaserBar(ctx, headCoord.x, headCoord.y, headCoord.laneW, headCoord.scale, currentHeadP, isBeingHeld, '#facc15');
+
+    // Cono de luz dorada del faro delantero sobre la vía
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     const beamLen = (isBeingHeld ? 62 : 44) * headCoord.scale;
-    const beamGrad = ctx.createLinearGradient(headCoord.x, headCoord.y, headCoord.x, headCoord.y + beamLen);
-    beamGrad.addColorStop(0.0, isBeingHeld ? 'rgba(254, 240, 138, 0.72)' : 'rgba(254, 240, 138, 0.42)');
+    const frontBumperY = headCoord.y + locoH * 0.36;
+    const beamGrad = ctx.createLinearGradient(headCoord.x, frontBumperY, headCoord.x, frontBumperY + beamLen);
+    beamGrad.addColorStop(0.0, isBeingHeld ? 'rgba(254, 240, 138, 0.78)' : 'rgba(254, 240, 138, 0.45)');
     beamGrad.addColorStop(1.0, 'rgba(254, 240, 138, 0.0)');
     ctx.fillStyle = beamGrad;
     ctx.beginPath();
-    ctx.moveTo(headCoord.x - 8 * headCoord.scale, headCoord.y + 4 * headCoord.scale);
-    ctx.lineTo(headCoord.x + 8 * headCoord.scale, headCoord.y + 4 * headCoord.scale);
-    ctx.lineTo(headCoord.x + 26 * headCoord.scale, headCoord.y + beamLen);
-    ctx.lineTo(headCoord.x - 26 * headCoord.scale, headCoord.y + beamLen);
+    ctx.moveTo(headCoord.x - 9 * headCoord.scale, frontBumperY);
+    ctx.lineTo(headCoord.x + 9 * headCoord.scale, frontBumperY);
+    ctx.lineTo(headCoord.x + 28 * headCoord.scale, frontBumperY + beamLen);
+    ctx.lineTo(headCoord.x - 28 * headCoord.scale, frontBumperY + beamLen);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
 
-    // El morro (apartavacas) de la locomotora se alinea con headCoord.y para que el juicio en hitLineY sea exacto
     ctx.drawImage(
       this._hwSprites.steam_locomotive,
       headCoord.x + chugBounce * 0.4 - locoW * 0.5,
-      headCoord.y - locoH * 0.78,
+      headCoord.y - locoH * 0.50,
       locoW,
       locoH
     );
 
-    // 4. Emitir bocanadas de vapor blanco desde la chimenea de la locomotora
-    if (!note._lastSteamMs || (currentTime - note._lastSteamMs > (isBeingHeld ? 55 : 115))) {
+    // 8. Chispas de rieles si está siendo sostenido (hold activo)
+    if (isBeingHeld) {
+      const sparkY = headCoord.y;
+      const slOff = locoW * 0.42;
+      this._emitHighwaySmoke(headCoord.x - slOff, sparkY, -26 - Math.random() * 20, -14, 2 * headCoord.scale, 5 * headCoord.scale, '#fde047', 0.9, 0.22);
+      this._emitHighwaySmoke(headCoord.x + slOff, sparkY, 26 + Math.random() * 20, -14, 2 * headCoord.scale, 5 * headCoord.scale, '#fde047', 0.9, 0.22);
+    }
+
+    // 9. Bocanadas de vapor blanco continuo desde la chimenea
+    if (!note._lastSteamMs || (currentTime - note._lastSteamMs > (isBeingHeld ? 52 : 110))) {
       note._lastSteamMs = currentTime;
       const stackX = headCoord.x + (Math.random() - 0.5) * 6 * headCoord.scale;
-      const stackY = headCoord.y - locoH * 0.22;
+      const stackY = headCoord.y + locoH * 0.08;
       this._emitHighwaySmoke(
         stackX,
         stackY,
         (Math.random() - 0.5) * 24,
         -38 - Math.random() * 24,
-        6 * headCoord.scale,
-        (isBeingHeld ? 26 : 19) * headCoord.scale,
+        7 * headCoord.scale,
+        (isBeingHeld ? 28 : 20) * headCoord.scale,
         isBeingHeld ? '#fef9c3' : '#f8fafc',
-        isBeingHeld ? 0.85 : 0.65,
+        isBeingHeld ? 0.88 : 0.68,
         0.58
       );
     }
@@ -8815,8 +9066,6 @@ class BeatstarEngine {
     const overtakeP = note._hwOvertakeP ?? -1;
     if (overtakeP > 0) {
       if (note._hwIsFlyingOvertake && vType === 'tesla_roadster') {
-        // El Tesla Roadster sale detrás del coche lento en _hwStartLane, enciende sus propulsores de humo blanco,
-        // se eleva volando sobre el coche delantero haciendo una pirueta completa de 360° y aterriza en su carril real `lane`
         const fStart = Math.max(0.06, overtakeP - 0.24);
         const fEnd = Math.min(0.78, overtakeP + 0.22);
         if (pHead < fStart) {
@@ -8826,13 +9075,11 @@ class BeatstarEngine {
           const smoothU = 0.5 - 0.5 * Math.cos(Math.PI * u);
           visualLane = (note._hwStartLane ?? lane) + (lane - (note._hwStartLane ?? lane)) * smoothU;
           flightLift = Math.sin(Math.PI * u);
-          // Pirueta completa de 360 grados en el aire como el Tesla Roadster SpaceX
           pirouetteAngle = (0.5 - 0.5 * Math.cos(Math.PI * u)) * Math.PI * 2;
         } else {
           visualLane = lane;
         }
       } else if ((note._hwStartLane !== undefined) && note._hwStartLane !== lane) {
-        // Adelantamiento cambiando de carril (_hwStartLane -> lane)
         const sStart = Math.max(0.08, overtakeP - 0.22);
         const sEnd = Math.min(0.74, overtakeP + 0.10);
         if (pHead < sStart) {
@@ -8851,7 +9098,6 @@ class BeatstarEngine {
           visualLane = lane;
         }
       } else if ((note._hwPassLane !== undefined) && note._hwPassLane !== lane) {
-        // Adelantamiento saliendo al carril contiguo libre y volviendo a `lane` antes de p=0.76
         const pStart = Math.max(0.06, overtakeP - 0.24);
         const pEnd = Math.min(0.76, overtakeP + 0.20);
         if (pHead >= pStart && pHead <= pEnd) {
@@ -8868,39 +9114,42 @@ class BeatstarEngine {
     const scale = coord.scale;
     const laneW = coord.laneW;
 
-    // 2. Dimensiones estrictamente contenidas dentro del carril (máx 68% del ancho de carril) para que jamás se toquen lateralmente
+    // 2. Dimensiones contenidas dentro del carril
     let carW = Math.min(laneW * 0.66, 72 * scale);
     let carH = carW * 1.42;
     let sprite = this._hwSprites.f1[0];
+    let laserAccent = '#38bdf8';
 
     if (vType === 'tractor') {
       carW = Math.min(laneW * 0.68, 74 * scale);
       carH = carW * 1.36;
       sprite = this._hwSprites.tractor;
+      laserAccent = '#4ade80';
     } else if (vType === 'fiat500') {
       carW = Math.min(laneW * 0.60, 64 * scale);
       carH = carW * 1.38;
       const fList = this._hwSprites.fiat500;
       sprite = fList[(note._hwVariantIdx || 0) % fList.length];
+      laserAccent = '#facc15';
     } else if (vType === 'f1') {
       carW = Math.min(laneW * 0.66, 72 * scale);
       carH = carW * 1.50;
       const f1List = this._hwSprites.f1;
       sprite = f1List[(note._hwVariantIdx || 0) % f1List.length];
+      laserAccent = '#f87171';
     } else if (vType === 'tesla_roadster') {
       carW = Math.min(laneW * 0.66, 72 * scale);
       carH = carW * 1.42;
       sprite = this._hwSprites.tesla_roadster;
+      laserAccent = '#38bdf8';
     }
 
-    // 3. Efectos de partículas dinámicas por tipo de vehículo (propulsores de humo blanco del Tesla, escape del tractor, chispas del F1)
+    // 3. Centrar el vehículo sobre coord.y (igual que las teclas normales) para que el juicio de impacto sea 100% intuitivo
     const liftOffsetY = flightLift * (46 * scale);
     const drawX = coord.x;
-    // Alinear el parachoques delantero del vehículo con coord.y (para que toque la línea de PERFECT exactamente en pHead = 1.0)
-    const drawCenterY = coord.y - carH * 0.42 - liftOffsetY;
+    const drawCenterY = coord.y - carH * 0.06 - liftOffsetY;
 
     if (vType === 'tesla_roadster') {
-      // Propulsores traseros SpaceX soltando abundante humo blanco
       const smokeInterval = flightLift > 0.05 ? 24 : 52;
       if (!note._lastSmokeMs || (currentTime - note._lastSmokeMs >= smokeInterval)) {
         note._lastSmokeMs = currentTime;
@@ -8930,7 +9179,6 @@ class BeatstarEngine {
         );
       }
     } else if (vType === 'tractor') {
-      // Anillos de humo diésel saliendo por la chimenea vertical del tractor
       if (!note._lastSmokeMs || (currentTime - note._lastSmokeMs >= 135)) {
         note._lastSmokeMs = currentTime;
         this._emitHighwaySmoke(
@@ -8949,20 +9197,23 @@ class BeatstarEngine {
 
     ctx.save();
 
-    // 4. Si el Tesla Roadster está adelantando en pleno vuelo, dibujar su sombra proyectada sobre el asfalto debajo
+    // 4. Guía Láser Horizontal de Sincronización Perfect+ en coord.y (permite clavar el timing con la misma precisión visual que una tecla normal)
+    this._drawHighwayTimingLaserBar(ctx, coord.x, coord.y, laneW, scale, pHead, false, laserAccent);
+
+    // 5. Si el Tesla Roadster está adelantando en pleno vuelo, dibujar su sombra proyectada sobre el asfalto debajo
     if (flightLift > 0.02) {
       ctx.fillStyle = `rgba(0, 0, 0, ${(0.45 * (1 - flightLift * 0.35)).toFixed(2)})`;
       ctx.beginPath();
-      ctx.ellipse(coord.x, coord.y - carH * 0.38, carW * 0.42 * (1 - flightLift * 0.2), carH * 0.44 * (1 - flightLift * 0.2), 0, 0, Math.PI * 2);
+      ctx.ellipse(coord.x, coord.y, carW * 0.42 * (1 - flightLift * 0.2), carH * 0.44 * (1 - flightLift * 0.2), 0, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // 5. Haces de luz de los faros delanteros proyectados hacia delante en el asfalto
+    // 6. Haces de luz de los faros delanteros proyectados hacia delante en el asfalto
     if (flightLift < 0.35) {
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      const beamLen = (vType === 'f1' ? 28 : 42) * scale;
-      const frontY = coord.y - 2 * scale;
+      const beamLen = (vType === 'f1' ? 28 : 40) * scale;
+      const frontY = drawCenterY + carH * 0.42;
       const hGrad = ctx.createLinearGradient(drawX, frontY, drawX, frontY + beamLen);
       const beamCol = (vType === 'tesla_roadster') ? 'rgba(186, 230, 253, 0.46)' : 'rgba(254, 240, 138, 0.36)';
       hGrad.addColorStop(0.0, beamCol);
@@ -8971,20 +9222,19 @@ class BeatstarEngine {
       ctx.beginPath();
       ctx.moveTo(drawX - carW * 0.34, frontY);
       ctx.lineTo(drawX + carW * 0.34, frontY);
-      ctx.lineTo(drawX + carW * 0.56, frontY + beamLen);
-      ctx.lineTo(drawX - carW * 0.56, frontY + beamLen);
+      ctx.lineTo(drawX + carW * 0.54, frontY + beamLen);
+      ctx.lineTo(drawX - carW * 0.54, frontY + beamLen);
       ctx.closePath();
       ctx.fill();
       ctx.restore();
     }
 
-    // 6. Transformación del vehículo (inclinación de volante al adelantar + escala de vuelo + pirueta 360° del Tesla Roadster)
+    // 7. Transformación del vehículo
     const flightScale = 1.0 + flightLift * 0.34;
     ctx.translate(drawX, drawCenterY);
     ctx.rotate(steerAngle + pirouetteAngle);
     ctx.scale(flightScale, flightScale);
 
-    // Chispas de titanio del F1 y llamas de propulsor del Tesla Roadster
     if (vType === 'f1') {
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
@@ -9003,7 +9253,6 @@ class BeatstarEngine {
       }
       ctx.restore();
     } else if (vType === 'tesla_roadster') {
-      // Chorros gemelos de gas frío blanco-cian saliendo de las toberas traseras (y laterales en la pirueta)
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       const jetLen = (flightLift > 0.05 ? 34 : 18) * scale * (0.85 + 0.3 * Math.sin(currentTime * 0.05));
@@ -9023,7 +9272,6 @@ class BeatstarEngine {
         ctx.fill();
       }
       if (flightLift > 0.08) {
-        // Anillo aerodinámico supersónico blanco durante la pirueta aérea
         ctx.strokeStyle = `rgba(255, 255, 255, ${(flightLift * 0.65).toFixed(2)})`;
         ctx.lineWidth = 2.4 * scale;
         ctx.beginPath();
@@ -9033,12 +9281,10 @@ class BeatstarEngine {
       ctx.restore();
     }
 
-    // Dibujar sprite ultra detallado del vehículo
     if (sprite) {
       ctx.drawImage(sprite, -carW * 0.5, -carH * 0.5, carW, carH);
     }
 
-    // Luz rotativa ámbar girando en el techo del Tractor
     if (vType === 'tractor') {
       const rotAng = currentTime * 0.015;
       ctx.save();
@@ -9056,7 +9302,6 @@ class BeatstarEngine {
       ctx.restore();
     }
 
-    // Intermitente ámbar parpadeando cuando un vehículo cambia de carril para adelantar
     if (blinkerSide !== 0 && (Math.floor(currentTime * 0.016) % 2 === 0)) {
       ctx.fillStyle = '#fbbf24';
       const bx = blinkerSide * (carW * 0.44);
@@ -9064,11 +9309,6 @@ class BeatstarEngine {
       ctx.arc(bx, carH * 0.36, 4.2 * scale, 0, Math.PI * 2);
       ctx.arc(bx, -carH * 0.36, 4.2 * scale, 0, Math.PI * 2);
       ctx.fill();
-    }
-
-    // Si la nota es un SWIPE, dibujar chevrón direccional luminoso sobre el techo del vehículo
-    if (note.type === 'swipe') {
-      this.renderVectorChevron(ctx, 0, 4 * scale, note.direction || 'up', carW * 0.88, carH * 0.42);
     }
 
     ctx.restore();
@@ -9085,20 +9325,24 @@ class BeatstarEngine {
 
     ctx.save();
 
-    // 1. Renderizar y actualizar partículas de humo blanco de los propulsores SpaceX del Tesla Roadster,
-    // bocanadas de vapor blanco de las locomotoras y anillos de humo de los tractores
+    // 1. Renderizar y actualizar partículas de humo blanco con eliminación O(1) swap-and-pop (0 tirones de GC)
     if (this._hwSmokeParticles && this._hwSmokeParticles.length > 0) {
-      for (let i = this._hwSmokeParticles.length - 1; i >= 0; i--) {
+      if (!this._hwSmokeFreePool) this._hwSmokeFreePool = [];
+      let len = this._hwSmokeParticles.length;
+      for (let i = len - 1; i >= 0; i--) {
         const sp = this._hwSmokeParticles[i];
         sp.age += dt;
         if (sp.age >= sp.duration) {
-          this._hwSmokeParticles.splice(i, 1);
+          this._hwSmokeParticles[i] = this._hwSmokeParticles[len - 1];
+          this._hwSmokeParticles.pop();
+          len--;
+          if (this._hwSmokeFreePool.length < 120) this._hwSmokeFreePool.push(sp);
           continue;
         }
         const p = sp.age / sp.duration;
         sp.x += sp.vx * dt;
         sp.y += sp.vy * dt;
-        const curR = sp.r + (sp.maxR - sp.r) * (1 - Math.pow(1 - p, 2));
+        const curR = sp.r + (sp.maxR - sp.r) * (1 - (1 - p) * (1 - p));
         const curAlpha = sp.alpha * (1 - p);
 
         ctx.globalAlpha = Math.max(0, Math.min(1, curAlpha));
@@ -9132,6 +9376,2284 @@ class BeatstarEngine {
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#fde047';
       ctx.fillText(this._hwBannerText, w * 0.5, bannerY);
+    }
+
+    ctx.restore();
+  }
+
+  // =========================================================================
+  // MODO PERRO MOLESTO (POMERANIAN ZORRITO MARRÓN CON PECHERA Y COLA BLANCA)
+  // =========================================================================
+
+  initAnnoyingDogModeAssets() {
+    if (this._dogAssetsReady && this._dogSteakSprites && this._dogPoopSprite && this._dogPawPrintSprite) return;
+    this._dogAssetsReady = true;
+    this._dogSteaks = this._dogSteaks || [];
+    this._dogSitSchedule = this._dogSitSchedule || [];
+    this._dogPawPrints = [];
+    this._dogPoops = [];
+    this._dogFxParticles = [];
+    this._dogFxFreePool = [];
+    this._dogState = {
+      lane: 1.0,
+      p: 0.50,
+      vx: 0,
+      vy: 0,
+      pose: 'sitting', // 'sitting' | 'chasing' | 'swiping' | 'eating' | 'zoomies'
+      facingDir: 1,
+      swipeTimer: 0,
+      eatTimer: 0,
+      eatTotalDur: 0.72,
+      eatingSteak: null,
+      lastBiteStage: -1,
+      steaksEaten: 0,
+      maxSteaksForFrenzy: 10,
+      bellyBounceTimer: 0,
+      zoomiesTimer: 0,
+      zoomiesTotalDur: 6.2,
+      lastPoopMs: 0,
+      barkText: '🐶 ¡GUAU! ¡QUIERO CHULETÓN!',
+      barkTimer: 2.2,
+      lastStepMs: 0
+    };
+
+    if (typeof document === 'undefined') return;
+
+    // 1. Tres Sprites de Chuletón T-Bone Gigante y Sabroso (Fase 0: Entero, Fase 1: Medio comido, Fase 2: Hueso T-Bone pelado)
+    this._dogSteakSprites = [];
+    for (let stage = 0; stage < 3; stage++) {
+      const stCvs = document.createElement('canvas');
+      stCvs.width = 168;
+      stCvs.height = 136;
+      const sc = stCvs.getContext('2d');
+      const scx = 84, scy = 68;
+
+      // Halo cálido apetitoso dorado-rubí bajo el chuletón
+      const glowG = sc.createRadialGradient(scx, scy, 12, scx, scy, 74);
+      glowG.addColorStop(0.0, 'rgba(251, 191, 36, 0.72)');
+      glowG.addColorStop(0.55, 'rgba(239, 68, 68, 0.34)');
+      glowG.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+      sc.fillStyle = glowG;
+      sc.beginPath();
+      sc.arc(scx, scy, 74, 0, Math.PI * 2);
+      sc.fill();
+
+      sc.save();
+      sc.translate(scx, scy);
+      sc.rotate(-0.10);
+
+      if (stage < 2) {
+        // Si stage === 1 (primer gran bocado), recortamos dos mordiscos dentados en el lado derecho
+        if (stage === 1) {
+          sc.beginPath();
+          sc.rect(-84, -68, 126, 136);
+          sc.arc(40, -14, 24, 0, Math.PI * 2, true);
+          sc.arc(36, 18, 24, 0, Math.PI * 2, true);
+          sc.clip();
+        }
+
+        // Sombra 3D profunda bajo la pieza de carne
+        sc.fillStyle = 'rgba(0, 0, 0, 0.46)';
+        sc.beginPath();
+        sc.ellipse(0, 10, 58, 37, 0, 0, Math.PI * 2);
+        sc.fill();
+
+        // Corteza gruesa caramelizada a la brasa (#7c2d12) y borde de grasa dorada crujiente (#fef08a)
+        sc.fillStyle = '#7c2d12';
+        sc.strokeStyle = '#fde68a';
+        sc.lineWidth = 4.5;
+        sc.beginPath();
+        sc.ellipse(0, 4, 55, 34, 0, 0, Math.PI * 2);
+        sc.fill();
+        sc.stroke();
+
+        // Carne jugosa rojo rubí con degradado tridimensional
+        const meatGrad = sc.createLinearGradient(-48, -26, 48, 26);
+        meatGrad.addColorStop(0.0, '#991b1b');
+        meatGrad.addColorStop(0.35, '#ef4444');
+        meatGrad.addColorStop(0.7, '#dc2626');
+        meatGrad.addColorStop(1.0, '#7f1d1d');
+        sc.fillStyle = meatGrad;
+        sc.beginPath();
+        sc.ellipse(0, -1, 49, 29, 0, 0, Math.PI * 2);
+        sc.fill();
+
+        // Veteado de grasa infiltrada (Wagyu / T-Bone premium)
+        sc.strokeStyle = 'rgba(254, 243, 199, 0.62)';
+        sc.lineWidth = 2.2;
+        sc.lineCap = 'round';
+        sc.beginPath();
+        sc.moveTo(-34, -8); sc.quadraticCurveTo(-20, -2, -12, -12);
+        sc.moveTo(-26, 10); sc.quadraticCurveTo(-14, 6, -6, 16);
+        sc.moveTo(14, -10); sc.quadraticCurveTo(26, -4, 36, -11);
+        sc.moveTo(12, 8);   sc.quadraticCurveTo(24, 14, 34, 6);
+        sc.stroke();
+
+        // Marcas de parrilla al carbón cruzadas
+        sc.strokeStyle = 'rgba(41, 14, 2, 0.62)';
+        sc.lineWidth = 3.4;
+        for (let g = -30; g <= 30; g += 12) {
+          sc.beginPath();
+          sc.moveTo(g - 10, -20);
+          sc.lineTo(g + 10, 18);
+          sc.stroke();
+        }
+      } else {
+        // Stage 2: Quedan solo trocitos de carne adheridos al hueso antes de tragar
+        sc.fillStyle = '#dc2626';
+        sc.beginPath();
+        sc.arc(-14, -4, 10, 0, Math.PI * 2);
+        sc.arc(12, 5, 9, 0, Math.PI * 2);
+        sc.fill();
+      }
+
+      // Hueso central en T blanco marfil brillante (siempre visible en las 3 fases)
+      sc.strokeStyle = '#78350f';
+      sc.lineWidth = 11.5;
+      sc.lineCap = 'round';
+      sc.lineJoin = 'round';
+      sc.beginPath();
+      sc.moveTo(-32, -9);
+      sc.lineTo(32, -7);
+      sc.moveTo(2, -8);
+      sc.lineTo(-5, 24);
+      sc.stroke();
+
+      sc.strokeStyle = '#fffbeb';
+      sc.lineWidth = 8.0;
+      sc.beginPath();
+      sc.moveTo(-32, -9);
+      sc.lineTo(32, -7);
+      sc.moveTo(2, -8);
+      sc.lineTo(-5, 24);
+      sc.stroke();
+
+      // Medallón de tuétano en el extremo del hueso
+      sc.fillStyle = '#fef3c7';
+      sc.strokeStyle = '#78350f';
+      sc.lineWidth = 2.0;
+      sc.beginPath();
+      sc.arc(-33, -9, 6.5, 0, Math.PI * 2);
+      sc.arc(33, -7, 6.5, 0, Math.PI * 2);
+      sc.arc(-5, 24, 6.0, 0, Math.PI * 2);
+      sc.fill();
+      sc.stroke();
+
+      if (stage === 0) {
+        // Nuez de mantequilla a las finas hierbas fundiéndose y brillo jugoso
+        sc.fillStyle = 'rgba(253, 224, 71, 0.92)';
+        sc.beginPath();
+        sc.ellipse(-15, 5, 12, 8, 0.22, 0, Math.PI * 2);
+        sc.fill();
+        sc.fillStyle = '#16a34a';
+        sc.beginPath();
+        sc.arc(-17, 4, 2.4, 0, Math.PI * 2);
+        sc.arc(-12, 6, 2.0, 0, Math.PI * 2);
+        sc.arc(-15, 8, 1.8, 0, Math.PI * 2);
+        sc.fill();
+
+        // Destellos blancos de jugo brillante
+        sc.fillStyle = 'rgba(255, 255, 255, 0.75)';
+        sc.beginPath();
+        sc.ellipse(18, -12, 8, 3.2, -0.3, 0, Math.PI * 2);
+        sc.fill();
+      }
+
+      sc.restore();
+      this._dogSteakSprites.push(stCvs);
+    }
+    this._dogSteakSprite = this._dogSteakSprites[0];
+
+    // 2. Sprite de Caca Olorosa 3D con Brillo Cartoon (💩)
+    const poopCvs = document.createElement('canvas');
+    poopCvs.width = 96;
+    poopCvs.height = 96;
+    const ppc = poopCvs.getContext('2d');
+    const pcx = 48, pcy = 56;
+
+    // Aura verde-ámbar de hedor cómico alrededor de la caca
+    const stinkGlow = ppc.createRadialGradient(pcx, pcy - 4, 6, pcx, pcy - 4, 44);
+    stinkGlow.addColorStop(0.0, 'rgba(163, 230, 53, 0.38)');
+    stinkGlow.addColorStop(0.6, 'rgba(101, 163, 13, 0.16)');
+    stinkGlow.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+    ppc.fillStyle = stinkGlow;
+    ppc.beginPath();
+    ppc.arc(pcx, pcy - 4, 44, 0, Math.PI * 2);
+    ppc.fill();
+
+    // Sombra en el suelo
+    ppc.fillStyle = 'rgba(15, 23, 42, 0.45)';
+    ppc.beginPath();
+    ppc.ellipse(pcx, pcy + 18, 30, 11, 0, 0, Math.PI * 2);
+    ppc.fill();
+
+    // 3 pisos en espiral de caca estilo cartoon brillante (#451a03 -> #78350f -> #92400e)
+    const coils = [
+      { y: pcy + 10, rx: 26, ry: 10.5 },
+      { y: pcy - 1,  rx: 20, ry: 9.0 },
+      { y: pcy - 11, rx: 13.5, ry: 7.5 }
+    ];
+    for (let c = 0; c < coils.length; c++) {
+      const cl = coils[c];
+      const cg = ppc.createLinearGradient(pcx - cl.rx, cl.y - cl.ry, pcx + cl.rx, cl.y + cl.ry);
+      cg.addColorStop(0.0, '#92400e');
+      cg.addColorStop(0.55, '#713f12');
+      cg.addColorStop(1.0, '#3f1d06');
+      ppc.fillStyle = cg;
+      ppc.strokeStyle = '#271001';
+      ppc.lineWidth = 2.6;
+      ppc.beginPath();
+      ppc.ellipse(pcx, cl.y, cl.rx, cl.ry, 0, 0, Math.PI * 2);
+      ppc.fill();
+      ppc.stroke();
+
+      // Brillo especular cartoon en cada vuelta
+      ppc.fillStyle = 'rgba(254, 243, 199, 0.42)';
+      ppc.beginPath();
+      ppc.ellipse(pcx - cl.rx * 0.42, cl.y - cl.ry * 0.32, cl.rx * 0.25, cl.ry * 0.24, -0.25, 0, Math.PI * 2);
+      ppc.fill();
+    }
+
+    // Punta rizada superior
+    ppc.fillStyle = '#78350f';
+    ppc.strokeStyle = '#271001';
+    ppc.lineWidth = 2.4;
+    ppc.beginPath();
+    ppc.moveTo(pcx - 8, pcy - 15);
+    ppc.quadraticCurveTo(pcx - 2, pcy - 32, pcx + 7, pcy - 28);
+    ppc.quadraticCurveTo(pcx + 3, pcy - 18, pcx + 8, pcy - 15);
+    ppc.closePath();
+    ppc.fill();
+    ppc.stroke();
+
+    this._dogPoopSprite = poopCvs;
+
+    // 3. Sprite de Huella de Patita Dorada (🐾)
+    const pawCvs = document.createElement('canvas');
+    pawCvs.width = 56;
+    pawCvs.height = 56;
+    const pc = pawCvs.getContext('2d');
+    pc.translate(28, 28);
+    pc.fillStyle = '#f59e0b';
+    pc.strokeStyle = '#451a03';
+    pc.lineWidth = 2.2;
+    pc.beginPath();
+    pc.ellipse(0, 6, 11, 8.5, 0, 0, Math.PI * 2);
+    pc.fill();
+    pc.stroke();
+    const toes = [
+      { x: -11, y: -5, a: -0.35 },
+      { x: -4,  y: -10, a: -0.12 },
+      { x: 4,   y: -10, a: 0.12 },
+      { x: 11,  y: -5, a: 0.35 }
+    ];
+    for (let i = 0; i < toes.length; i++) {
+      const t = toes[i];
+      pc.save();
+      pc.translate(t.x, t.y);
+      pc.rotate(t.a);
+      pc.beginPath();
+      pc.ellipse(0, 0, 4.2, 5.8, 0, 0, Math.PI * 2);
+      pc.fill();
+      pc.stroke();
+      pc.restore();
+    }
+    this._dogPawPrintSprite = pawCvs;
+  }
+
+  _prepareAnnoyingDogChoreography() {
+    if (!this.notes || this.notes.length === 0) return;
+    const nLen = this.notes.length;
+    this._dogSteaks = [];
+    this._dogSitSchedule = [];
+    this._dogPoops = [];
+    this._dogPawPrints = [];
+    if (this._dogState) {
+      this._dogState.steaksEaten = 0;
+      this._dogState.zoomiesTimer = 0;
+      this._dogState.eatTimer = 0;
+      this._dogState.eatingSteak = null;
+      this._dogState.bellyBounceTimer = 0;
+      this._dogState.pose = 'sitting';
+    }
+
+    // 1. Seleccionar teclas objetivo que el Pomeranian cambiará de carril de un zarpazo (~38% de taps bien espaciados)
+    // El zarpazo ocurre cuando la tecla va por p ≈ 0.38–0.46, y el chuletón baja más (eatP ≈ 0.56–0.66) para que se vea mucho más tiempo y el perro estorbe de verdad
+    let lastBattedTimeMs = -9999;
+    for (let i = 0; i < nLen; i++) {
+      const n = this.notes[i];
+      n._dogBatted = false;
+      n._dogFromLane = n.lane ?? 1;
+      n._dogSwipeP = 0.40;
+      n._dogSwipeTriggered = false;
+
+      if (!n || n.type === 'hold') continue;
+      const curT = n.timestamp_ms ?? 0;
+      const prevT = i > 0 ? (this.notes[i - 1].timestamp_ms ?? 0) : -9999;
+      const nextT = i + 1 < nLen ? (this.notes[i + 1].timestamp_ms ?? 9999999) : 9999999;
+
+      if (curT > 2000 && (curT - lastBattedTimeMs >= 1350) && (curT - prevT >= 220) && (nextT - curT >= 220)) {
+        const trueLane = Math.max(0, Math.min(2, Math.round(n.lane ?? 1)));
+        let originLane = trueLane === 1 ? ((i % 2 === 0) ? 0 : 2) : 1;
+        n._dogBatted = true;
+        n._dogFromLane = originLane;
+        n._dogSwipeP = 0.38 + (i % 3) * 0.03; // p = 0.38 .. 0.44
+        lastBattedTimeMs = curT;
+
+        // El Chuletón T-Bone baja hasta p = 0.56..0.66 antes de que el perro lo atrape y lo mastique
+        this._dogSteaks.push({
+          id: 'steak_bat_' + i,
+          lane: trueLane,
+          originLane: originLane,
+          hitTimeMs: curT + 220,
+          eatP: Math.min(0.66, n._dogSwipeP + 0.20),
+          eaten: false,
+          beingEaten: false,
+          linkedNoteIdx: i
+        });
+      }
+    }
+
+    // 2. Añadir chuletones frecuentes (cada ~1450ms si hay hueco) para que el jugador vea claramente al perro engordar de 0 a 10 chuletones y entrar en frenesí de cacas
+    const firstT = Math.max(1800, (this.notes[0]?.timestamp_ms || 1800));
+    const lastT = this.lastNoteTime || 60000;
+    let cursorMs = firstT + 600;
+    let stepIdx = 0;
+
+    while (cursorMs < lastT - 1000) {
+      const hasNearbySteak = this._dogSteaks.some(s => Math.abs(s.hitTimeMs - cursorMs) < 1150);
+      if (!hasNearbySteak) {
+        if (stepIdx % 3 !== 2) {
+          const stLane = (stepIdx * 2 + 1) % 3;
+          this._dogSteaks.push({
+            id: 'steak_extra_' + stepIdx,
+            lane: stLane,
+            originLane: stLane,
+            hitTimeMs: cursorMs,
+            eatP: 0.56 + (stepIdx % 3) * 0.05, // Baja hasta p = 0.56..0.66 para verse grande y sabroso
+            eaten: false,
+            beingEaten: false,
+            linkedNoteIdx: -1
+          });
+        } else {
+          // El perro se sienta en medio-bajo de una columna tapando aún más visión cuanto más gordo está
+          const sitLane = (stepIdx + 1) % 3;
+          this._dogSitSchedule.push({
+            startMs: cursorMs - 550,
+            endMs: cursorMs + 1350,
+            lane: sitLane,
+            p: 0.55
+          });
+        }
+      }
+      cursorMs += 1450;
+      stepIdx++;
+    }
+
+    this._dogSteaks.sort((a, b) => a.hitTimeMs - b.hitTimeMs);
+  }
+
+  _emitDogFxParticle(x, y, vx, vy, kind, text, color, size, duration) {
+    if (!this._dogFxParticles) this._dogFxParticles = [];
+    if (!this._dogFxFreePool) this._dogFxFreePool = [];
+    if (this._dogFxParticles.length >= 75) return;
+    const pt = this._dogFxFreePool.length > 0 ? this._dogFxFreePool.pop() : {};
+    pt.x = x;
+    pt.y = y;
+    pt.vx = vx;
+    pt.vy = vy;
+    pt.kind = kind || 'heart';
+    pt.text = text || '';
+    pt.color = color || '#fb7185';
+    pt.size = size || 14;
+    pt.age = 0;
+    pt.duration = duration || 0.65;
+    this._dogFxParticles.push(pt);
+  }
+
+  // Dibujo procedural ultra-detallado del Pomeranian marrón grande tipo zorrito (fiel a las fotos reales del usuario)
+  // Soporta engorde progresivo (chubbyLevel de 0 a 10 chuletones) y animación de devorar el chuletón a bocados en la boca
+  _drawPomeranianDog(ctx, x, y, scale, pose, facingDir, currentTime, swipeProgress = 0, chubbyLevel = 0, eatProgress = 0, bellyBounce = 0) {
+    ctx.save();
+    ctx.translate(x, y);
+
+    const t = currentTime * 0.001;
+    const isRunning = (pose === 'chasing' || pose === 'zoomies');
+    const isZoomies = (pose === 'zoomies');
+    const isSwiping = (pose === 'swiping');
+    const isEating = (pose === 'eating');
+    const isSitting = (pose === 'sitting');
+
+    // Factor de gordura progresivo (de 0 a 10 chuletones): ensancha la barriga y el manto esponjoso hasta hacerlo una bola gigante adorable
+    const fatRatio = Math.max(0, Math.min(1.2, chubbyLevel / 10));
+    const bounceSquash = bellyBounce > 0 ? Math.sin(bellyBounce * Math.PI * 3) * 0.16 : 0;
+    const chubbyMultX = 1.0 + fatRatio * 1.15 + bounceSquash;
+    const chubbyMultY = 1.0 + fatRatio * 0.68 - bounceSquash * 0.5;
+
+    const runFreq = isZoomies ? 28.0 : 17.5;
+    const bobY = isRunning
+      ? -Math.abs(Math.sin(t * runFreq)) * ((isZoomies ? 13.5 : 9.5) * scale)
+      : (isEating ? Math.sin(t * 28.0) * (4.5 * scale) : Math.sin(t * 4.5) * (2.2 * scale));
+    const bodyTilt = isRunning
+      ? (facingDir * (isZoomies ? 0.22 : 0.14) + Math.cos(t * runFreq) * (isZoomies ? 0.12 : 0.06))
+      : (isSwiping ? facingDir * 0.22 : Math.sin(t * 2.8) * 0.04);
+
+    // 1. Sombra elíptica suave sobre la pista bajo el perrito (crece con la barriga)
+    ctx.fillStyle = isSitting ? 'rgba(15, 23, 42, 0.45)' : 'rgba(15, 23, 42, 0.35)';
+    ctx.beginPath();
+    const shRx = (isSitting ? 48 : 42) * chubbyMultX * scale;
+    const shRy = (isSitting ? 22 : 18) * chubbyMultY * scale;
+    ctx.ellipse(0, (26 + fatRatio * 8) * scale, shRx, shRy, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.translate(0, bobY);
+    ctx.rotate(bodyTilt);
+
+    // 2. ENORME COLA PLUMERO BLANCA CREMA ESPONJOSA (rasgo icónico de las fotos 1 y 2)
+    const wagSpeed = (isEating || isSwiping || isZoomies) ? 30.0 : (isRunning ? 20.0 : 9.5);
+    const wagAngle = Math.sin(t * wagSpeed) * (isEating || isZoomies ? 0.44 : 0.26);
+    ctx.save();
+    ctx.translate(-facingDir * (14 + fatRatio * 14) * scale, (-18 - fatRatio * 6) * scale);
+    ctx.rotate(wagAngle - facingDir * 0.18);
+
+    const plumeColors = ['#fde68a', '#fef3c7', '#fffbeb', '#ffffff'];
+    for (let layer = 0; layer < plumeColors.length; layer++) {
+      ctx.fillStyle = plumeColors[layer];
+      const rad = (29 - layer * 3.5) * (1 + fatRatio * 0.25) * scale;
+      ctx.beginPath();
+      for (let k = 0; k < 10; k++) {
+        const ang = (k / 10) * Math.PI * 2;
+        const tuftR = rad * (0.85 + 0.22 * Math.sin(k * 3.1 + layer));
+        const px = Math.cos(ang) * tuftR * 1.12;
+        const py = -12 * scale + Math.sin(ang) * tuftR * 0.92;
+        if (k === 0) ctx.moveTo(px + 7 * scale, py);
+        ctx.arc(px, py, (9.2 - layer * 1.1) * scale, 0, Math.PI * 2);
+      }
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // 3. PATITAS TRASERAS CON CALCETINES BLANCOS (se separan más a medida que engorda la barriga)
+    const legSwing = isRunning ? Math.sin(t * runFreq) * ((isZoomies ? 15 : 11) * scale) : 0;
+    for (let side = -1; side <= 1; side += 2) {
+      const lx = side * (22 * chubbyMultX * 0.88) * scale;
+      const ly = (20 * chubbyMultY + (side * legSwing * 0.45)) * scale;
+      ctx.fillStyle = '#b45309';
+      ctx.beginPath();
+      ctx.ellipse(lx, ly - 5 * scale, (9 + fatRatio * 4) * scale, 11 * scale, side * (0.2 + fatRatio * 0.18), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#78350f';
+      ctx.lineWidth = Math.max(1.2, 1.8 * scale);
+      ctx.beginPath();
+      ctx.ellipse(lx + side * 2 * scale, ly + 4 * scale, 7.8 * scale, 5.4 * scale, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // 4. MANTO ESPONJOSO MARRÓN CANELA / ZORRITO DORADO Y BARRIGA REDONDA GIGANTE
+    const coatLayers = [
+      { col: '#9a3412', rx: 40, ry: 33, yOff: 2 },
+      { col: '#c2410c', rx: 37, ry: 31, yOff: 1 },
+      { col: '#d97706', rx: 34, ry: 28, yOff: 0 },
+      { col: '#f59e0b', rx: 29, ry: 24, yOff: -1 }
+    ];
+    for (let cl = 0; cl < coatLayers.length; cl++) {
+      const L = coatLayers[cl];
+      ctx.fillStyle = L.col;
+      ctx.beginPath();
+      const tufts = 18;
+      for (let i = 0; i < tufts; i++) {
+        const a = (i / tufts) * Math.PI * 2;
+        const tx = Math.cos(a) * L.rx * chubbyMultX * scale;
+        const ty = (L.yOff + fatRatio * 5 + Math.sin(a) * L.ry * chubbyMultY) * scale;
+        const rTuft = (11.8 - cl * 1.3) * (1 + fatRatio * 0.38) * scale;
+        ctx.moveTo(tx + rTuft, ty);
+        ctx.arc(tx, ty, rTuft, 0, Math.PI * 2);
+      }
+      ctx.fill();
+    }
+
+    // 5. GRAN PECHERA Y BARRIGUITA BLANCA ESPONJOSA (crece enormemente con cada chuletón comido)
+    const bibLayers = [
+      { col: '#fef3c7', rx: 23, ry: 20, yOff: 5 },
+      { col: '#fffbeb', rx: 20, ry: 17, yOff: 4 },
+      { col: '#ffffff', rx: 16, ry: 14, yOff: 3 }
+    ];
+    for (let bl = 0; bl < bibLayers.length; bl++) {
+      const B = bibLayers[bl];
+      ctx.fillStyle = B.col;
+      ctx.beginPath();
+      for (let i = 0; i < 14; i++) {
+        const a = (i / 14) * Math.PI * 2;
+        const bx = Math.cos(a) * B.rx * (1.0 + fatRatio * 1.05) * scale;
+        const by = (B.yOff + fatRatio * 6 + Math.sin(a) * B.ry * (1.0 + fatRatio * 0.72)) * scale;
+        const rB = (8.8 - bl * 1.2) * (1 + fatRatio * 0.35) * scale;
+        ctx.moveTo(bx + rB, by);
+        ctx.arc(bx, by, rB, 0, Math.PI * 2);
+      }
+      ctx.fill();
+    }
+
+    // Si está muy gordito (>= 4 chuletones), dibujar líneas curvas de barriga llena adorable
+    if (chubbyLevel >= 4) {
+      ctx.strokeStyle = 'rgba(217, 119, 6, 0.38)';
+      ctx.lineWidth = Math.max(1.5, 2.4 * scale);
+      ctx.beginPath();
+      ctx.arc(0, (8 + fatRatio * 6) * scale, (18 + fatRatio * 18) * scale, 0.25, Math.PI - 0.25);
+      ctx.stroke();
+    }
+
+    // 6. PATITAS DELANTERAS CON CALCETINES BLANCOS (y animación de ZARPAZO o de sujetar el chuletón al comer)
+    for (let side = -1; side <= 1; side += 2) {
+      const isSwipingPaw = isSwiping && (side === (facingDir >= 0 ? 1 : -1));
+      ctx.save();
+      if (isSwipingPaw) {
+        const swipeArc = Math.sin(swipeProgress * Math.PI);
+        const pawX = side * (22 * chubbyMultX * 0.8 + swipeArc * 28) * scale;
+        const pawY = (6 - swipeArc * 22) * scale;
+        ctx.translate(pawX, pawY);
+        ctx.rotate(side * (-0.75 - swipeArc * 0.9));
+
+        ctx.strokeStyle = '#fde047';
+        ctx.lineWidth = Math.max(2.5, 4.5 * scale);
+        ctx.beginPath();
+        ctx.arc(-side * 10 * scale, 4 * scale, 22 * scale, -0.7, 0.9);
+        ctx.stroke();
+
+        ctx.fillStyle = '#d97706';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 8 * scale, 13 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#451a03';
+        ctx.lineWidth = Math.max(1.5, 2.2 * scale);
+        ctx.beginPath();
+        ctx.ellipse(0, 10 * scale, 9.5 * scale, 7.5 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#fb7185';
+        ctx.beginPath();
+        ctx.arc(0, 11 * scale, 3.2 * scale, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (isEating) {
+        // Cuando devora el chuletón, junta las dos patitas delanteras blancas para sujetar el hueso T-Bone
+        const holdX = side * 12 * scale;
+        const holdY = 8 * scale + Math.sin(t * 32.0 + side) * (2.5 * scale);
+        ctx.translate(holdX, holdY);
+        ctx.rotate(-side * 0.45);
+        ctx.fillStyle = '#d97706';
+        ctx.beginPath();
+        ctx.ellipse(0, -3 * scale, 7 * scale, 9 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#451a03';
+        ctx.lineWidth = Math.max(1.4, 2.0 * scale);
+        ctx.beginPath();
+        ctx.ellipse(0, 4 * scale, 7.8 * scale, 5.8 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        const stepY = isRunning ? (side * legSwing) : 0;
+        const fx = side * (14 * (1 + fatRatio * 0.55)) * scale;
+        const fy = (22 * chubbyMultY + stepY * 0.65) * scale;
+        ctx.fillStyle = '#d97706';
+        ctx.beginPath();
+        ctx.ellipse(fx, fy - 5 * scale, 6.8 * scale, 9.5 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#78350f';
+        ctx.lineWidth = Math.max(1.2, 1.8 * scale);
+        ctx.beginPath();
+        ctx.ellipse(fx, fy + 4 * scale, 7.0 * scale, 5.2 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // 7. CABEZA DE ZORRITO POMERANIAN (con mofletes que también se ponen rechonchos al comer y sacudida al masticar el chuletón)
+    ctx.save();
+    const headTilt = isSitting
+      ? Math.sin(t * 3.4) * 0.15
+      : (isEating ? Math.sin(t * 36.0) * 0.24 : (isZoomies ? Math.sin(t * 24.0) * 0.18 : facingDir * 0.08));
+    ctx.translate(0, (-14 - fatRatio * 3) * scale);
+    ctx.rotate(headTilt);
+
+    const cheekFat = 1.0 + fatRatio * 0.26;
+
+    // A. Orejitas triangulares puntiagudas de zorrito
+    for (let side = -1; side <= 1; side += 2) {
+      const earTwitch = Math.sin(t * (isZoomies ? 18.0 : 6.5) + (side > 0 ? 1.2 : 0)) * (isZoomies ? 0.18 : 0.08);
+      ctx.save();
+      ctx.translate(side * 16 * cheekFat * scale, -15 * scale);
+      ctx.rotate(side * 0.24 + earTwitch);
+
+      ctx.fillStyle = '#b45309';
+      ctx.strokeStyle = '#451a03';
+      ctx.lineWidth = Math.max(1.3, 2.0 * scale);
+      ctx.beginPath();
+      ctx.moveTo(-9 * scale, 4 * scale);
+      ctx.lineTo(0, -17 * scale);
+      ctx.lineTo(9 * scale, 4 * scale);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#fde68a';
+      ctx.beginPath();
+      ctx.moveTo(-5 * scale, 2 * scale);
+      ctx.lineTo(0, -11 * scale);
+      ctx.lineTo(5 * scale, 2 * scale);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // B. Mejillas esponjosas de zorrito y cráneo dorado
+    ctx.fillStyle = '#d97706';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 24 * cheekFat * scale, 19 * scale, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#f59e0b';
+    ctx.beginPath();
+    for (let side = -1; side <= 1; side += 2) {
+      ctx.moveTo(side * 22 * cheekFat * scale, 2 * scale);
+      ctx.lineTo(side * 30 * cheekFat * scale, -1 * scale);
+      ctx.lineTo(side * 26 * cheekFat * scale, 7 * scale);
+      ctx.lineTo(side * 31 * cheekFat * scale, 10 * scale);
+      ctx.lineTo(side * 19 * cheekFat * scale, 11 * scale);
+    }
+    ctx.fill();
+
+    ctx.fillStyle = '#fbbf24';
+    ctx.beginPath();
+    ctx.ellipse(0, 1 * scale, 19 * cheekFat * scale, 15.5 * scale, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // C. Cejas expresivas color crema claro
+    ctx.fillStyle = '#fef3c7';
+    ctx.beginPath();
+    ctx.ellipse(-7.5 * scale, -6.5 * scale, 3.8 * scale, 2.0 * scale, -0.2, 0, Math.PI * 2);
+    ctx.ellipse(7.5 * scale, -6.5 * scale, 3.8 * scale, 2.0 * scale, 0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // D. Ojos oscuros brillantes y traviesos (o cerrados de placer al masticar el chuletón)
+    const isBlinking = ((Math.floor(t * 2.2) % 9) === 0) && ((t % 0.45) < 0.11);
+    for (let side = -1; side <= 1; side += 2) {
+      const ex = side * 8.2 * scale;
+      const ey = -2.2 * scale;
+      if (isBlinking || (isEating && Math.sin(t * 28.0) > 0.2)) {
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = Math.max(1.8, 2.6 * scale);
+        ctx.beginPath();
+        ctx.arc(ex, ey, 3.8 * scale, Math.PI + 0.2, Math.PI * 2 - 0.2);
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.arc(ex, ey, (isZoomies ? 4.6 : 4.1) * scale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(ex - 1.3 * scale, ey - 1.4 * scale, 1.5 * scale, 0, Math.PI * 2);
+        ctx.arc(ex + 1.2 * scale, ey + 1.0 * scale, 0.75 * scale, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // E. Hocico cónico de zorrito con comisura negra sonriente y lengüita rosa
+    ctx.fillStyle = '#fef3c7';
+    ctx.beginPath();
+    ctx.ellipse(0, 6.5 * scale, 9.5 * scale, 7.0 * scale, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    const mouthOpen = isEating ? (1.25 + 0.45 * Math.sin(t * 38.0)) : (isZoomies ? 1.2 : (0.85 + 0.18 * Math.sin(t * 11.0)));
+    ctx.fillStyle = '#1e1b4b';
+    ctx.beginPath();
+    ctx.arc(0, 6.8 * scale, 6.2 * scale * mouthOpen, 0.08, Math.PI - 0.08);
+    ctx.fill();
+
+    ctx.fillStyle = '#fb7185';
+    ctx.beginPath();
+    ctx.ellipse(1.5 * scale, (10.5 + Math.sin(t * (isZoomies ? 24.0 : 12.0)) * 1.3) * scale, 3.8 * scale, 4.6 * scale * mouthOpen, 0.15, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = Math.max(1.5, 2.2 * scale);
+    ctx.beginPath();
+    ctx.arc(-3.5 * scale, 5.8 * scale, 4.2 * scale, 0.2, Math.PI * 0.85);
+    ctx.arc(3.5 * scale, 5.8 * scale, 4.2 * scale, Math.PI * 0.15, Math.PI - 0.2);
+    ctx.stroke();
+
+    ctx.fillStyle = '#090d16';
+    ctx.beginPath();
+    ctx.ellipse(0, 3.5 * scale, 4.4 * scale, 3.2 * scale, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.ellipse(-1.2 * scale, 2.6 * scale, 1.5 * scale, 0.9 * scale, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // F. CHULETÓN GIGANTE EN LAS FAUCES DEL PERRO MIENTRAS LO DEVORA A BOCADOS (3 FASES DE MORDISCO)
+    if (isEating && this._dogSteakSprites && this._dogSteakSprites.length === 3) {
+      const biteStage = eatProgress < 0.36 ? 0 : (eatProgress < 0.72 ? 1 : 2);
+      const steakImg = this._dogSteakSprites[biteStage];
+      const chompScale = (1.0 - eatProgress * 0.18) * (1.0 + 0.14 * Math.sin(t * 42.0));
+      const stW = 86 * scale * chompScale;
+      const stH = 68 * scale * chompScale;
+      ctx.save();
+      ctx.translate(0, 15 * scale);
+      ctx.rotate(Math.sin(t * 42.0) * 0.22);
+      ctx.drawImage(steakImg, -stW * 0.5, -stH * 0.5, stW, stH);
+      ctx.restore();
+    }
+
+    ctx.restore(); // Fin cabeza
+    ctx.restore(); // Fin perro
+  }
+
+  // Dibuja una caca olorosa sobre la pista con humo verde ondulante y moscas animadas revoloteando alrededor
+  _drawSmellyPoopWithFlies(ctx, x, y, scale, age, duration, currentTime, seed) {
+    const fadeOut = age > duration - 0.8 ? Math.max(0, (duration - age) / 0.8) : 1.0;
+    const popIn = age < 0.22 ? (0.4 + 0.6 * Math.sin((age / 0.22) * (Math.PI * 0.5))) : 1.0;
+    const t = currentTime * 0.001;
+
+    ctx.save();
+    ctx.globalAlpha = fadeOut;
+    ctx.translate(x, y);
+
+    // 1. Sprite de la caca con ligero latido cómico
+    const squishX = popIn * (1.0 + Math.sin(t * 5.0 + seed) * 0.04);
+    const squishY = popIn * (1.0 - Math.sin(t * 5.0 + seed) * 0.04);
+    const pSize = Math.max(28, 66 * scale);
+    if (this._dogPoopSprite) {
+      ctx.save();
+      ctx.scale(squishX, squishY);
+      ctx.drawImage(this._dogPoopSprite, -pSize * 0.5, -pSize * 0.58, pSize, pSize);
+      ctx.restore();
+    }
+
+    // 2. Tres ondas de hedor verde-lima/ámbar ascendiendo y serpenteando sobre la caca
+    ctx.lineCap = 'round';
+    for (let wIdx = 0; wIdx < 3; wIdx++) {
+      const wavePhase = (t * 1.6 + wIdx * 0.33 + seed * 0.2) % 1.0;
+      const waveAlpha = Math.sin(wavePhase * Math.PI) * 0.72 * fadeOut;
+      const baseX = (wIdx - 1) * 13 * scale;
+      const startY = -12 * scale - wavePhase * 28 * scale;
+      const waveH = 22 * scale;
+
+      ctx.strokeStyle = wIdx % 2 === 0
+        ? `rgba(163, 230, 53, ${waveAlpha.toFixed(3)})`
+        : `rgba(250, 204, 21, ${waveAlpha.toFixed(3)})`;
+      ctx.lineWidth = Math.max(1.8, 3.0 * scale);
+      ctx.beginPath();
+      for (let step = 0; step <= 6; step++) {
+        const frac = step / 6;
+        const wy = startY - frac * waveH;
+        const wx = baseX + Math.sin(frac * Math.PI * 2 + t * 6.5 + wIdx) * (5.5 * scale);
+        if (step === 0) ctx.moveTo(wx, wy);
+        else ctx.lineTo(wx, wy);
+      }
+      ctx.stroke();
+    }
+
+    // 3. Moscas animadas (🪰) describiendo órbitas en 8 (Lissajous) con alitas batiendo a toda velocidad
+    const numFlies = 3 + (seed % 2);
+    for (let f = 0; f < numFlies; f++) {
+      const flySpeed = 4.2 + f * 0.85;
+      const ang = t * flySpeed + f * 2.1 + seed;
+      const orbitRx = (20 + f * 6) * scale;
+      const orbitRy = (11 + f * 3.5) * scale;
+      const fx = Math.cos(ang) * orbitRx;
+      const fy = -22 * scale + Math.sin(ang * 2.0) * orbitRy;
+      const vxDir = -Math.sin(ang) >= 0 ? 1 : -1;
+
+      ctx.save();
+      ctx.translate(fx, fy);
+      ctx.rotate(vxDir * 0.18 + Math.cos(ang * 2.0) * 0.25);
+
+      // Alitas blancas translúcidas batiendo a 45 Hz
+      const wingFlap = Math.sin(t * 55.0 + f * 1.7) * 3.2 * scale;
+      ctx.fillStyle = 'rgba(241, 245, 249, 0.82)';
+      ctx.beginPath();
+      ctx.ellipse(-2.2 * scale, (-3.2 - Math.abs(wingFlap)) * scale, 3.6 * scale, 2.0 * scale, -0.45, 0, Math.PI * 2);
+      ctx.ellipse(2.2 * scale, (-3.2 - Math.abs(wingFlap)) * scale, 3.6 * scale, 2.0 * scale, 0.45, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Cuerpo negro-azulado de la mosca
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 3.8 * scale, 2.5 * scale, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Reflejo verde metálico en el tórax y ojitos rojos diminutos
+      ctx.fillStyle = '#22c55e';
+      ctx.beginPath();
+      ctx.arc(-0.6 * vxDir * scale, -0.4 * scale, 1.4 * scale, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.arc(2.4 * vxDir * scale, -0.5 * scale, 1.1 * scale, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
+  renderAnnoyingDogModeOverlay(ctx, currentTime) {
+    if (!this._dogAssetsReady) {
+      this.initAnnoyingDogModeAssets();
+      this._prepareAnnoyingDogChoreography();
+    } else if (this.notes && this.notes.length > 0 && (!this._dogSteaks || this._dogSteaks.length === 0)) {
+      this._prepareAnnoyingDogChoreography();
+    }
+
+    const nowPerf = this._frameNow || performance.now();
+    const dt = Math.min(0.05, Math.max(0.004, (nowPerf - (this._dogLastOverlayNow || nowPerf)) / 1000));
+    this._dogLastOverlayNow = nowPerf;
+
+    const scrollDur = (Number.isFinite(this.scrollDurationMs) && this.scrollDurationMs > 0) ? this.scrollDurationMs : 1450;
+    const invScrollDur = 1.0 / scrollDur;
+    const w = this.width || 360;
+    const h = this.height || 640;
+    const st = this._dogState;
+
+    ctx.save();
+
+    // 1. Dibujar y actualizar las huellas doradas (🐾) sobre la pista
+    if (this._dogPawPrints && this._dogPawPrints.length > 0) {
+      for (let i = this._dogPawPrints.length - 1; i >= 0; i--) {
+        const fp = this._dogPawPrints[i];
+        fp.age += dt;
+        if (fp.age >= fp.duration) {
+          this._dogPawPrints[i] = this._dogPawPrints[this._dogPawPrints.length - 1];
+          this._dogPawPrints.pop();
+          continue;
+        }
+        const pCoord = this.getPerspectiveCoord(fp.lane, fp.p, this._coordScratch1);
+        const alpha = Math.max(0, (1 - fp.age / fp.duration) * 0.55);
+        const sz = Math.max(12, 24 * pCoord.scale);
+        ctx.globalAlpha = alpha;
+        if (this._dogPawPrintSprite) {
+          ctx.drawImage(this._dogPawPrintSprite, pCoord.x - sz * 0.5, pCoord.y - sz * 0.5, sz, sz);
+        }
+      }
+      ctx.globalAlpha = 1.0;
+    }
+
+    // 2. Dibujar y actualizar el rastro de Cacas Olorosas con Moscas (💩 + 🪰) sobre la pista
+    if (this._dogPoops && this._dogPoops.length > 0) {
+      for (let i = this._dogPoops.length - 1; i >= 0; i--) {
+        const poop = this._dogPoops[i];
+        poop.age += dt;
+        // Las cacas se deslizan suavemente por la pista mientras humean y las moscas revolotean
+        poop.p += dt * 0.045;
+        if (poop.age >= poop.duration || poop.p > 1.08) {
+          this._dogPoops[i] = this._dogPoops[this._dogPoops.length - 1];
+          this._dogPoops.pop();
+          continue;
+        }
+        const poopCoord = this.getPerspectiveCoord(poop.lane, poop.p, this._coordScratch1);
+        this._drawSmellyPoopWithFlies(ctx, poopCoord.x, poopCoord.y, poopCoord.scale, poop.age, poop.duration, currentTime, poop.seed);
+      }
+      ctx.globalAlpha = 1.0;
+    }
+
+    // 3. Buscar teclas que el perro va a golpear con el zarpazo y renderizar los Chuletones T-Bone Gigantes
+    let activeTargetSteak = null;
+    let activeBattedNote = null;
+
+    if (this.notes && this.notes.length > 0) {
+      const startIdx = Math.max(0, this.firstActiveNoteIndex || 0);
+      for (let i = startIdx; i < this.notes.length; i++) {
+        const n = this.notes[i];
+        if (!n || n.hit || n.missed || !n._dogBatted) continue;
+        const timeUntil = (n.timestamp_ms ?? 0) - currentTime;
+        if (timeUntil > scrollDur * 1.1) break;
+        const pN = 1.0 - timeUntil * invScrollDur;
+        if (pN >= 0.12 && pN <= (n._dogSwipeP + 0.10)) {
+          activeBattedNote = { note: n, p: pN };
+          break;
+        }
+      }
+    }
+
+    if (this._dogSteaks && this._dogSteaks.length > 0) {
+      for (let i = 0; i < this._dogSteaks.length; i++) {
+        const stk = this._dogSteaks[i];
+        if (!stk || stk.eaten || stk.beingEaten) continue;
+        const timeUntil = stk.hitTimeMs - currentTime;
+        if (timeUntil > scrollDur * 1.15) break;
+        const pSteak = 1.0 - timeUntil * invScrollDur;
+        if (pSteak > 1.06) {
+          stk.eaten = true;
+          continue;
+        }
+        if (pSteak < -0.08) continue;
+
+        if (!activeTargetSteak && st.zoomiesTimer <= 0 && st.eatTimer <= 0 && pSteak >= 0.05 && pSteak <= stk.eatP + 0.12) {
+          activeTargetSteak = { steak: stk, p: pSteak };
+        }
+
+        const sCoord = this.getPerspectiveCoord(stk.lane, pSteak, this._coordScratch0);
+        // ¡Chuletón mucho más grande, jugoso y llamativo!
+        const pulse = 1.0 + Math.sin(currentTime * 0.012 + i) * 0.06;
+        const sW = Math.min(sCoord.laneW * 0.96, 112 * sCoord.scale) * pulse;
+        const sH = sW * 0.81;
+        const sBob = Math.sin(currentTime * 0.010 + i) * (3.5 * sCoord.scale);
+
+        // Anillo dorado brillante en la pista indicando el objetivo del perrito
+        ctx.strokeStyle = 'rgba(251, 191, 36, 0.55)';
+        ctx.lineWidth = Math.max(1.5, 2.5 * sCoord.scale);
+        ctx.beginPath();
+        ctx.ellipse(sCoord.x, sCoord.y + sH * 0.22, sW * 0.46, sH * 0.24, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        if (this._dogSteakSprite) {
+          ctx.drawImage(this._dogSteakSprite, sCoord.x - sW * 0.5, sCoord.y - sH * 0.5 + sBob, sW, sH);
+        }
+
+        // Volutas de vapor caliente saliendo del chuletón recién hecho
+        const steamAlpha = 0.45 + 0.25 * Math.sin(currentTime * 0.008 + i);
+        ctx.strokeStyle = `rgba(255, 255, 255, ${steamAlpha.toFixed(2)})`;
+        ctx.lineWidth = Math.max(1.4, 2.2 * sCoord.scale);
+        for (let sm = -1; sm <= 1; sm += 2) {
+          const sx = sCoord.x + sm * 14 * sCoord.scale;
+          const sy = sCoord.y - sH * 0.35 + sBob;
+          ctx.beginPath();
+          ctx.moveTo(sx, sy);
+          ctx.quadraticCurveTo(sx + sm * 6 * sCoord.scale, sy - 10 * sCoord.scale, sx - sm * 3 * sCoord.scale, sy - 20 * sCoord.scale);
+          ctx.stroke();
+        }
+
+        // Cuando el Pomeranian alcanza el chuletón (y no está ya en medio de las zoomies), ¡lo agarra con la boca y empieza a devorarlo en 3 bocados!
+        if (st.zoomiesTimer <= 0 && st.eatTimer <= 0 && pSteak >= stk.eatP - 0.03 && Math.abs(st.lane - stk.lane) < 0.65) {
+          stk.beingEaten = true;
+          st.eatingSteak = stk;
+          st.eatTotalDur = 0.72;
+          st.eatTimer = st.eatTotalDur;
+          st.lastBiteStage = -1;
+          st.lane = stk.lane;
+          st.p = Math.min(0.68, Math.max(0.38, pSteak));
+        }
+      }
+    }
+
+    // 4. Lógica de Masticación en 3 Bocados, Engorde de Barriga (0..10) y Frenesí de Cacas Olorosas
+    if (st.bellyBounceTimer > 0) {
+      st.bellyBounceTimer = Math.max(0, st.bellyBounceTimer - dt);
+    }
+
+    if (st.eatTimer > 0) {
+      st.eatTimer = Math.max(0, st.eatTimer - dt);
+      const eatProg = 1.0 - (st.eatTimer / (st.eatTotalDur || 0.72));
+      const biteStage = eatProg < 0.36 ? 0 : (eatProg < 0.72 ? 1 : 2);
+
+      // En cada uno de los 3 bocados, lanzar partículas jugosas de carne, huesitos y sonido visual
+      if (biteStage !== st.lastBiteStage) {
+        st.lastBiteStage = biteStage;
+        const eCoord = this.getPerspectiveCoord(st.lane, st.p, this._coordScratch1);
+        const biteTexts = ['🥩 ¡ÑAM!', '🍖 ¡CHOMP!', '😋 ¡GLUP!'];
+        st.barkText = biteTexts[biteStage] || '🥩 ¡ÑAM!';
+        st.barkTimer = 0.55;
+
+        for (let k = 0; k < 5; k++) {
+          const ang = (k / 5) * Math.PI * 2 + biteStage;
+          this._emitDogFxParticle(
+            eCoord.x,
+            eCoord.y - 8 * eCoord.scale,
+            Math.cos(ang) * (50 + Math.random() * 40),
+            -60 - Math.random() * 45 + Math.sin(ang) * 20,
+            k % 2 === 0 ? 'heart' : 'crumb',
+            k === 0 ? (biteStage === 2 ? '🦴' : '🥩') : (k === 2 ? '❤️' : ''),
+            k % 2 === 0 ? '#ef4444' : '#fde047',
+            (13 + Math.random() * 6) * eCoord.scale,
+            0.62
+          );
+        }
+      }
+
+      // Al terminar el 3er bocado, ¡el chuletón pasa a la barriga y el perro engorda!
+      if (st.eatTimer <= 0) {
+        if (st.eatingSteak) {
+          st.eatingSteak.eaten = true;
+          st.eatingSteak.beingEaten = false;
+          st.eatingSteak = null;
+        }
+        st.steaksEaten = Math.min(st.maxSteaksForFrenzy, (st.steaksEaten || 0) + 1);
+        st.bellyBounceTimer = 0.45;
+
+        if (st.steaksEaten >= st.maxSteaksForFrenzy) {
+          // ¡COMIÓ LOS 10 CHULETONES! Está súper gordo y empieza a correr por toda la pantalla soltando cacas olorosas con moscas
+          st.zoomiesTimer = st.zoomiesTotalDur;
+          st.lastPoopMs = currentTime - 300;
+          st.barkText = '💩 ¡EMPACHO! ¡CORRE QUE ME HAGO CACA! 🪰';
+          st.barkTimer = 2.4;
+          this._dogBannerText = '💩 ¡10/10 CHULETONES! ¡EL POMERANIAN ESTÁ ENORME Y SUELTA CACAS OLOROSAS! 🪰';
+          this._dogBannerTimer = 3.2;
+        } else if (st.steaksEaten >= 8) {
+          st.barkText = `🎈 ¡QUÉ GORDO! (${st.steaksEaten}/10 🥩)`;
+          st.barkTimer = 1.05;
+        } else if (st.steaksEaten >= 5) {
+          st.barkText = `🐶 ¡BARRIGA LLENA! (${st.steaksEaten}/10 🥩)`;
+          st.barkTimer = 0.95;
+        } else {
+          st.barkText = `🥩 ¡QUÉ RICO! (${st.steaksEaten}/10)`;
+          st.barkTimer = 0.85;
+        }
+      }
+    }
+
+    // 5. Máquina de estados de movimiento (Frenesí de Cacas vs Masticando vs Zarpazo vs Perseguir Chuletón vs Sentarse)
+    let targetLane = st.lane;
+    let targetP = st.p;
+    let desiredPose = 'sitting';
+
+    if (st.zoomiesTimer > 0) {
+      // MODO FRENESÍ (ZOOMIES): Corre como loco en zig-zag y ocho por toda la pantalla soltando un rastro de cacas olorosas
+      st.zoomiesTimer = Math.max(0, st.zoomiesTimer - dt);
+      desiredPose = 'zoomies';
+      const zElapsed = st.zoomiesTotalDur - st.zoomiesTimer;
+      targetLane = 1.0 + Math.sin(zElapsed * 6.2) * 1.08;
+      targetP = 0.50 + Math.cos(zElapsed * 4.3) * 0.22;
+
+      // Soltar una caca olorosa con moscas cada ~540ms mientras corre por toda la pista
+      if (currentTime - (st.lastPoopMs || 0) >= 540) {
+        st.lastPoopMs = currentTime;
+        if (this._dogPoops.length < 12) {
+          this._dogPoops.push({
+            lane: Math.max(0.05, Math.min(1.95, st.lane + (Math.random() - 0.5) * 0.16)),
+            p: Math.max(0.22, Math.min(0.78, st.p + 0.04)),
+            age: 0,
+            duration: 5.8,
+            seed: Math.floor(Math.random() * 100)
+          });
+        }
+        const pCoord = this.getPerspectiveCoord(st.lane, st.p, this._coordScratch1);
+        this._emitDogFxParticle(
+          pCoord.x,
+          pCoord.y,
+          (Math.random() - 0.5) * 60,
+          -45 - Math.random() * 30,
+          'text',
+          '💨',
+          '#a3e635',
+          15 * pCoord.scale,
+          0.55
+        );
+      }
+
+      // Al terminar la carrera loca de las cacas, vuelve a su tamaño normal (0/10) y empieza a comer de nuevo
+      if (st.zoomiesTimer <= 0) {
+        st.steaksEaten = 0;
+        st.bellyBounceTimer = 0.45;
+        st.barkText = '✨ ¡UFFF, QUÉ ALIVIO! ¡A COMER MÁS! 🥩';
+        st.barkTimer = 1.8;
+      }
+    } else if (st.eatTimer > 0) {
+      desiredPose = 'eating';
+      targetLane = st.lane;
+      targetP = st.p;
+    } else if (activeBattedNote) {
+      const n = activeBattedNote.note;
+      const pN = activeBattedNote.p;
+      const swipeP = n._dogSwipeP || 0.40;
+      const fromL = n._dogFromLane ?? n.lane;
+      const toL = n.lane ?? 1;
+
+      if (pN < swipeP - 0.02) {
+        targetLane = fromL;
+        targetP = Math.max(0.30, swipeP - 0.02);
+        desiredPose = 'chasing';
+      } else {
+        targetLane = fromL + (toL - fromL) * 0.45;
+        targetP = pN;
+        desiredPose = 'swiping';
+        st.swipeTimer = 0.36;
+        if (!n._dogSwipeTriggered) {
+          n._dogSwipeTriggered = true;
+          st.barkText = '🐾 ¡ZAS!';
+          st.barkTimer = 0.85;
+          const bCoord = this.getPerspectiveCoord(fromL, pN, this._coordScratch1);
+          for (let k = 0; k < 5; k++) {
+            this._emitDogFxParticle(
+              bCoord.x,
+              bCoord.y,
+              (toL - fromL) * (65 + k * 18),
+              -35 - Math.random() * 30,
+              'crumb',
+              '',
+              '#fde047',
+              9 * bCoord.scale,
+              0.45
+            );
+          }
+        }
+      }
+    } else if (activeTargetSteak) {
+      targetLane = activeTargetSteak.steak.lane;
+      // El perro acompaña y persigue al chuletón mientras baja para molestar más tiempo en pantalla
+      targetP = Math.max(0.34, Math.min(activeTargetSteak.steak.eatP, activeTargetSteak.p + 0.06));
+      desiredPose = 'chasing';
+    } else {
+      let sitTarget = null;
+      if (this._dogSitSchedule) {
+        for (let i = 0; i < this._dogSitSchedule.length; i++) {
+          const s = this._dogSitSchedule[i];
+          if (currentTime >= s.startMs && currentTime <= s.endMs) {
+            sitTarget = s;
+            break;
+          }
+        }
+      }
+      if (sitTarget) {
+        targetLane = sitTarget.lane;
+        targetP = sitTarget.p;
+        desiredPose = 'sitting';
+      } else {
+        targetLane = 1.0 + Math.sin(currentTime * 0.0012) * 0.94;
+        targetP = 0.54 + Math.cos(currentTime * 0.0009) * 0.08;
+        desiredPose = 'sitting';
+      }
+    }
+
+    const dLane = targetLane - st.lane;
+    const dP = targetP - st.p;
+    const followSpeed = desiredPose === 'zoomies'
+      ? 11.5
+      : ((desiredPose === 'swiping' || desiredPose === 'chasing') ? 7.8 : 4.2);
+    st.lane += dLane * Math.min(1, dt * followSpeed);
+    st.p += dP * Math.min(1, dt * followSpeed);
+
+    if (Math.abs(dLane) > 0.03) {
+      st.facingDir = dLane > 0 ? 1 : -1;
+    }
+
+    if (st.zoomiesTimer > 0) {
+      st.pose = 'zoomies';
+    } else if (st.eatTimer > 0) {
+      st.pose = 'eating';
+    } else if (st.swipeTimer > 0) {
+      st.swipeTimer = Math.max(0, st.swipeTimer - dt);
+      st.pose = 'swiping';
+    } else if (Math.abs(dLane) > 0.14 || Math.abs(dP) > 0.06) {
+      st.pose = 'chasing';
+    } else {
+      st.pose = 'sitting';
+    }
+
+    // Emitir huellas de patitas al caminar/correr
+    if ((st.pose === 'chasing' || st.pose === 'zoomies') && (currentTime - (st.lastStepMs || 0) > (st.pose === 'zoomies' ? 75 : 130))) {
+      st.lastStepMs = currentTime;
+      if (this._dogPawPrints.length < 22) {
+        this._dogPawPrints.push({
+          lane: st.lane + (Math.random() - 0.5) * 0.14,
+          p: st.p + 0.03,
+          age: 0,
+          duration: 1.15
+        });
+      }
+    }
+
+    // 6. Calcular el nivel de gordura visual (durante las zoomies se va desinflando conforme suelta las cacas)
+    const effectiveChubby = st.zoomiesTimer > 0
+      ? (st.maxSteaksForFrenzy * (st.zoomiesTimer / st.zoomiesTotalDur))
+      : (st.steaksEaten || 0);
+
+    // 7. Dibujar al Pomeranian en la coordenada 3D de la pista
+    const dogCoord = this.getPerspectiveCoord(st.lane, st.p, this._coordScratch0);
+    // Además de ensanchar la barriga, su escala general crece hasta un +58% al comer 10 chuletones, ocupando gran parte de la pantalla
+    const fatScaleBoost = 1.0 + (effectiveChubby / 10) * 0.58;
+    const dogScale = dogCoord.scale * (st.pose === 'sitting' ? 1.48 : 1.38) * fatScaleBoost;
+    const swipeProg = st.swipeTimer > 0 ? (1.0 - st.swipeTimer / 0.36) : 0;
+    const eatProg = st.eatTimer > 0 ? (1.0 - st.eatTimer / (st.eatTotalDur || 0.72)) : 0;
+
+    this._drawPomeranianDog(
+      ctx,
+      dogCoord.x,
+      dogCoord.y,
+      dogScale,
+      st.pose,
+      st.facingDir,
+      currentTime,
+      swipeProg,
+      effectiveChubby,
+      eatProg,
+      st.bellyBounceTimer || 0
+    );
+
+    // Bocadillo expresivo sobre el perrito
+    if (st.barkTimer > 0 && st.barkText) {
+      st.barkTimer = Math.max(0, st.barkTimer - dt);
+      const bAlpha = Math.min(1, st.barkTimer * 2.2);
+      ctx.save();
+      ctx.globalAlpha = bAlpha;
+      const bx = Math.max(85, Math.min(w - 85, dogCoord.x));
+      const by = Math.max(76, dogCoord.y - (52 + effectiveChubby * 2.2) * dogScale);
+      ctx.font = `900 ${Math.max(11, Math.min(16, Math.round(12.5 * dogScale)))}px "Outfit", system-ui, sans-serif`;
+      const tw = ctx.measureText(st.barkText).width + 18;
+      const th = 24 * Math.max(0.85, Math.min(1.25, dogScale));
+
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+      ctx.strokeStyle = st.zoomiesTimer > 0 ? '#a3e635' : '#fbbf24';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(bx - tw * 0.5, by - th * 0.5, tw, th, 11);
+      else ctx.rect(bx - tw * 0.5, by - th * 0.5, tw, th);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = st.zoomiesTimer > 0 ? '#ecfccb' : '#fef08a';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(st.barkText, bx, by);
+      ctx.restore();
+    }
+
+    // 8. Partículas de corazones, bocados de chuletón y zarpazos
+    if (this._dogFxParticles && this._dogFxParticles.length > 0) {
+      let fLen = this._dogFxParticles.length;
+      for (let i = fLen - 1; i >= 0; i--) {
+        const pt = this._dogFxParticles[i];
+        pt.age += dt;
+        if (pt.age >= pt.duration) {
+          this._dogFxParticles[i] = this._dogFxParticles[fLen - 1];
+          this._dogFxParticles.pop();
+          fLen--;
+          if (this._dogFxFreePool.length < 80) this._dogFxFreePool.push(pt);
+          continue;
+        }
+        const p = pt.age / pt.duration;
+        pt.x += pt.vx * dt;
+        pt.y += pt.vy * dt;
+        ctx.globalAlpha = Math.max(0, 1 - p);
+        if (pt.text) {
+          ctx.font = `900 ${Math.round(pt.size)}px system-ui, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(pt.text, pt.x, pt.y);
+        } else {
+          ctx.fillStyle = pt.color;
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, Math.max(2, pt.size * 0.35 * (1 - p * 0.5)), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.globalAlpha = 1.0;
+    }
+
+    // 9. Medidor HUD elegante de "Barriga del Pomeranian (🥩 X / 10)" en la parte superior de la pista
+    {
+      const hudW = Math.min(w - 28, 258);
+      const hudH = 30;
+      const hudX = w * 0.5 - hudW * 0.5;
+      const hudY = Math.max(54, h * 0.115);
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.84)';
+      ctx.strokeStyle = st.zoomiesTimer > 0 ? '#a3e635' : 'rgba(245, 158, 11, 0.75)';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(hudX, hudY, hudW, hudH, 15);
+      else ctx.rect(hudX, hudY, hudW, hudH);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.font = '800 10.5px "Outfit", system-ui, sans-serif';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = st.zoomiesTimer > 0 ? '#bef264' : '#fde68a';
+      const labelTxt = st.zoomiesTimer > 0
+        ? '💩 ¡EMPACHO EN CURSO!'
+        : `🐶 BARRIGA: 🥩 ${st.steaksEaten || 0}/10`;
+      ctx.fillText(labelTxt, hudX + 11, hudY + hudH * 0.5);
+
+      // 10 segmentos visuales de chuletón / barriga a la derecha del pill
+      const segStartX = hudX + 136;
+      const segTotalW = hudW - 146;
+      const segGap = 2.5;
+      const segW = (segTotalW - segGap * 9) / 10;
+      const segH = 10;
+      const segY = hudY + (hudH - segH) * 0.5;
+      const filledCount = st.zoomiesTimer > 0 ? Math.ceil(effectiveChubby) : (st.steaksEaten || 0);
+
+      for (let s = 0; s < 10; s++) {
+        const sx = segStartX + s * (segW + segGap);
+        if (s < filledCount) {
+          ctx.fillStyle = st.zoomiesTimer > 0
+            ? '#84cc16'
+            : (s >= 7 ? '#ef4444' : (s >= 4 ? '#f97316' : '#fbbf24'));
+        } else {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
+        }
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(sx, segY, segW, segH, 3);
+        else ctx.rect(sx, segY, segW, segH);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // 10. Cartel luminoso de apertura o de alerta de Empacho
+    if (this._dogBannerTimer > 0 && this._dogBannerText) {
+      this._dogBannerTimer = Math.max(0, this._dogBannerTimer - dt);
+      ctx.globalAlpha = Math.min(1, this._dogBannerTimer * 1.5);
+      const bannerY = h * 0.22;
+      const bw = Math.min(w - 14, 356);
+      const bh = 34;
+
+      ctx.fillStyle = 'rgba(24, 13, 6, 0.94)';
+      ctx.strokeStyle = st.zoomiesTimer > 0 ? '#a3e635' : '#f59e0b';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(w * 0.5 - bw * 0.5, bannerY - bh * 0.5, bw, bh, 12);
+      else ctx.rect(w * 0.5 - bw * 0.5, bannerY - bh * 0.5, bw, bh);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.font = '900 10px "Outfit", system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = st.zoomiesTimer > 0 ? '#bef264' : '#fde047';
+      ctx.fillText(this._dogBannerText, w * 0.5, bannerY);
+    }
+
+    ctx.restore();
+  }
+
+  // =========================================================================
+  // MODO RÍO RÁPIDO (ROCAS FLOTANTES CON HONDURAS LUMINOSAS, TRONCOS HOLD Y CORRIENTE DINÁMICA POR DENSIDAD)
+  // =========================================================================
+
+  initRiverModeAssets() {
+    if (this._riverAssetsReady && this._riverLilyPadSprite && this._riverKoiSprites) return;
+    this._riverAssetsReady = true;
+    this._riverSplashes = [];
+    this._riverSplashPool = [];
+    this._riverLeapingFish = [];
+    this._riverLastLaneFlash = [0, 0, 0];
+
+    // Peces Koi nadando bajo la superficie cristalina del río
+    this._riverSwimmingKoi = [
+      { lane: 0.35, p: 0.28, vx: 0.18, vp: 0.08, variant: 0, phase: 0.0 },
+      { lane: 1.65, p: 0.52, vx: -0.22, vp: -0.06, variant: 1, phase: 2.1 },
+      { lane: 0.95, p: 0.74, vx: 0.15, vp: 0.09, variant: 0, phase: 4.2 },
+      { lane: 1.25, p: 0.18, vx: -0.19, vp: 0.07, variant: 1, phase: 1.3 }
+    ];
+
+    // Nenúfares esmeralda con flor de loto flotando junto a las orillas
+    this._riverLilyPads = [
+      { side: 0, p: 0.20, rot: 0.2, hasLotus: true },
+      { side: 1, p: 0.44, rot: 1.5, hasLotus: false },
+      { side: 0, p: 0.68, rot: 2.8, hasLotus: true },
+      { side: 1, p: 0.85, rot: 4.1, hasLotus: true }
+    ];
+
+    if (typeof document === 'undefined') return;
+
+    // 1. Sprite de Nenúfar Esmeralda con Flor de Loto Rosa/Blanca (🪷)
+    const lilyCvs = document.createElement('canvas');
+    lilyCvs.width = 88;
+    lilyCvs.height = 88;
+    const lc = lilyCvs.getContext('2d');
+    const lcx = 44, lcy = 44;
+
+    lc.fillStyle = 'rgba(2, 44, 34, 0.38)';
+    lc.beginPath();
+    lc.arc(lcx, lcy + 4, 32, 0.25, Math.PI * 2 - 0.25);
+    lc.lineTo(lcx, lcy + 4);
+    lc.closePath();
+    lc.fill();
+
+    const padGrad = lc.createRadialGradient(lcx - 6, lcy - 6, 4, lcx, lcy, 32);
+    padGrad.addColorStop(0.0, '#4ade80');
+    padGrad.addColorStop(0.65, '#16a34a');
+    padGrad.addColorStop(1.0, '#14532d');
+    lc.fillStyle = padGrad;
+    lc.strokeStyle = '#bbf7d0';
+    lc.lineWidth = 1.8;
+    lc.beginPath();
+    lc.arc(lcx, lcy, 31, 0.28, Math.PI * 2 - 0.28);
+    lc.lineTo(lcx, lcy);
+    lc.closePath();
+    lc.fill();
+    lc.stroke();
+
+    // Nervaduras radiales de la hoja de nenúfar
+    lc.strokeStyle = 'rgba(187, 247, 208, 0.35)';
+    lc.lineWidth = 1.3;
+    for (let a = 0.7; a < Math.PI * 2 - 0.6; a += 0.65) {
+      lc.beginPath();
+      lc.moveTo(lcx, lcy);
+      lc.lineTo(lcx + Math.cos(a) * 26, lcy + Math.sin(a) * 26);
+      lc.stroke();
+    }
+
+    // Flor de loto central
+    for (let p = 0; p < 8; p++) {
+      const ang = (p / 8) * Math.PI * 2;
+      lc.save();
+      lc.translate(lcx, lcy);
+      lc.rotate(ang);
+      lc.fillStyle = (p % 2 === 0) ? '#f472b6' : '#fbcfe8';
+      lc.beginPath();
+      lc.ellipse(10, 0, 9, 4.5, 0, 0, Math.PI * 2);
+      lc.fill();
+      lc.restore();
+    }
+    lc.fillStyle = '#fde047';
+    lc.beginPath();
+    lc.arc(lcx, lcy, 5.2, 0, Math.PI * 2);
+    lc.fill();
+
+    this._riverLilyPadSprite = lilyCvs;
+
+    // 2. Dos Sprites de Peces Koi (Dorado Imperial y Calicó Blanco-Rojo)
+    this._riverKoiSprites = [];
+    const koiPalettes = [
+      { body: '#f97316', spot: '#fde047', fin: '#fffbeb' },
+      { body: '#f8fafc', spot: '#ef4444', fin: '#fed7aa' }
+    ];
+    for (let k = 0; k < koiPalettes.length; k++) {
+      const kp = koiPalettes[k];
+      const kCvs = document.createElement('canvas');
+      kCvs.width = 84;
+      kCvs.height = 56;
+      const kc = kCvs.getContext('2d');
+      kc.translate(42, 28);
+
+      // Aletas pectorales fluidas
+      kc.fillStyle = kp.fin;
+      kc.beginPath();
+      kc.ellipse(4, -13, 9, 4.5, -0.5, 0, Math.PI * 2);
+      kc.ellipse(4, 13, 9, 4.5, 0.5, 0, Math.PI * 2);
+      kc.fill();
+
+      // Cola bifurcada elegante
+      kc.beginPath();
+      kc.moveTo(-14, 0);
+      kc.quadraticCurveTo(-28, -12, -36, -9);
+      kc.quadraticCurveTo(-26, 0, -36, 9);
+      kc.quadraticCurveTo(-28, 12, -14, 0);
+      kc.closePath();
+      kc.fill();
+
+      // Cuerpo ahusado del Koi
+      kc.fillStyle = kp.body;
+      kc.beginPath();
+      kc.ellipse(2, 0, 22, 10.5, 0, 0, Math.PI * 2);
+      kc.fill();
+
+      // Manchas características Kohaku / Yamabuki
+      kc.fillStyle = kp.spot;
+      kc.beginPath();
+      kc.arc(8, -2, 6.5, 0, Math.PI * 2);
+      kc.arc(-5, 3, 5.2, 0, Math.PI * 2);
+      kc.fill();
+
+      // Ojitos
+      kc.fillStyle = '#0f172a';
+      kc.beginPath();
+      kc.arc(18, -4.5, 1.8, 0, Math.PI * 2);
+      kc.arc(18, 4.5, 1.8, 0, Math.PI * 2);
+      kc.fill();
+
+      this._riverKoiSprites.push(kCvs);
+    }
+  }
+
+  // Pre-calcula el mapa de caudal acumulado F(t) según la densidad de notas de cada sección
+  // Así los 3 carriles aceleran en los Rápidos (alta densidad) y se calman en Aguas Mansas (baja densidad) al unísono
+  _prepareRiverChoreography() {
+    const stepMs = 50;
+    const minT = -3000;
+    const maxT = Math.max(60000, (this.lastNoteTime || 60000) + 8000);
+    const numSteps = Math.ceil((maxT - minT) / stepMs) + 1;
+
+    this._riverFlowMinT = minT;
+    this._riverFlowStepMs = stepMs;
+    this._riverFlowPosTable = new Float64Array(numSteps);
+    this._riverSpeedMultTable = new Float32Array(numSteps);
+
+    const notes = this.notes || [];
+    const nLen = notes.length;
+
+    // Primero estimamos la densidad media de la canción para normalizar cualquier dificultad
+    let avgNotesPerSec = 3.0;
+    if (nLen > 4) {
+      const spanSec = Math.max(10, ((notes[nLen - 1].timestamp_ms || 30000) - (notes[0].timestamp_ms || 0)) / 1000);
+      avgNotesPerSec = Math.max(1.4, Math.min(7.5, nLen / spanSec));
+    }
+
+    let cumPos = 0.0;
+    let noteCursor = 0;
+    const winBefore = 1100;
+    const winAfter = 1700;
+    const winDurSec = (winBefore + winAfter) / 1000;
+
+    for (let s = 0; s < numSteps; s++) {
+      const t = minT + s * stepMs;
+      while (noteCursor < nLen && (notes[noteCursor].timestamp_ms ?? 0) < t - winBefore) {
+        noteCursor++;
+      }
+
+      // Contar densidad local ponderada de teclas en torno a `t`
+      let weightedCount = 0;
+      for (let j = noteCursor; j < nLen; j++) {
+        const nt = notes[j].timestamp_ms ?? 0;
+        if (nt > t + winAfter) break;
+        const rel = (nt - (t - winBefore)) / (winBefore + winAfter); // 0..1
+        const w = 0.5 - 0.5 * Math.cos(rel * Math.PI * 2); // Ventana Hann suave
+        weightedCount += (notes[j].type === 'hold' ? 1.35 : 1.0) * (0.45 + 0.55 * w);
+      }
+
+      const localDensity = weightedCount / winDurSec;
+      const densityRatio = localDensity / avgNotesPerSec;
+
+      // Ondulación orgánica de caudal de río + respuesta directa a la densidad de teclas de la sección
+      const riverSwell = Math.sin(t * 0.00095) * 0.11 + Math.cos(t * 0.0021) * 0.06;
+      // Velocidad entre 0.72x (Aguas Mansas) y 1.68x (Rápidos Bravos / Cascada en secciones muy densas)
+      let speedMult = 0.68 + Math.min(0.92, Math.pow(Math.max(0, densityRatio), 1.12) * 0.44) + riverSwell;
+      speedMult = Math.max(0.70, Math.min(1.68, speedMult));
+
+      this._riverSpeedMultTable[s] = speedMult;
+      this._riverFlowPosTable[s] = cumPos;
+      cumPos += speedMult * stepMs;
+    }
+
+    // Suavizado adicional de 5 puntos sobre la velocidad para que los cambios de corriente se sientan ultra fluidos
+    let smoothCum = 0.0;
+    for (let s = 0; s < numSteps; s++) {
+      let sum = 0, cnt = 0;
+      for (let k = -3; k <= 3; k++) {
+        const idx = Math.max(0, Math.min(numSteps - 1, s + k));
+        sum += this._riverSpeedMultTable[idx];
+        cnt++;
+      }
+      const sm = sum / cnt;
+      this._riverSpeedMultTable[s] = sm;
+      this._riverFlowPosTable[s] = smoothCum;
+      smoothCum += sm * stepMs;
+    }
+  }
+
+  // Devuelve la posición acumulada del caudal F(timeMs) en O(1) con interpolación lineal exacta
+  _getRiverFlowPos(timeMs) {
+    if (!this._riverFlowPosTable || this._riverFlowPosTable.length === 0) {
+      this._prepareRiverChoreography();
+    }
+    const table = this._riverFlowPosTable;
+    if (!table || table.length === 0) return timeMs;
+    const minT = this._riverFlowMinT || -3000;
+    const stepMs = this._riverFlowStepMs || 50;
+    const fIdx = (timeMs - minT) / stepMs;
+    if (fIdx <= 0) {
+      return table[0] + (timeMs - minT) * (this._riverSpeedMultTable ? this._riverSpeedMultTable[0] : 1.0);
+    }
+    const maxIdx = table.length - 1;
+    if (fIdx >= maxIdx) {
+      const lastT = minT + maxIdx * stepMs;
+      return table[maxIdx] + (timeMs - lastT) * (this._riverSpeedMultTable ? this._riverSpeedMultTable[maxIdx] : 1.0);
+    }
+    const i0 = Math.floor(fIdx);
+    const frac = fIdx - i0;
+    return table[i0] + (table[i0 + 1] - table[i0]) * frac;
+  }
+
+  // Devuelve el multiplicador instantáneo de velocidad del agua v(timeMs) (ej. 0.72x .. 1.68x)
+  _getRiverSpeedMult(timeMs) {
+    if (!this._riverSpeedMultTable || this._riverSpeedMultTable.length === 0) return 1.0;
+    const minT = this._riverFlowMinT || -3000;
+    const stepMs = this._riverFlowStepMs || 50;
+    const idx = Math.max(0, Math.min(this._riverSpeedMultTable.length - 1, Math.round((timeMs - minT) / stepMs)));
+    return this._riverSpeedMultTable[idx] || 1.0;
+  }
+
+  _emitRiverSplash(x, y, scale, count = 8, isHoldSplash = false) {
+    if (!this._riverSplashes) this._riverSplashes = [];
+    if (!this._riverSplashPool) this._riverSplashPool = [];
+    for (let i = 0; i < count; i++) {
+      if (this._riverSplashes.length >= 90) break;
+      const sp = this._riverSplashPool.length > 0 ? this._riverSplashPool.pop() : {};
+      const ang = -Math.PI * (0.15 + Math.random() * 0.70);
+      const spd = (isHoldSplash ? 55 : 95) + Math.random() * 95;
+      sp.x = x + (Math.random() - 0.5) * 28 * scale;
+      sp.y = y;
+      sp.vx = Math.cos(ang) * spd * scale;
+      sp.vy = Math.sin(ang) * spd * scale;
+      sp.rad = (2.8 + Math.random() * 3.5) * scale;
+      sp.age = 0;
+      sp.duration = 0.34 + Math.random() * 0.24;
+      sp.color = (i % 3 === 0) ? '#ffffff' : ((i % 2 === 0) ? '#7dd3fc' : '#00f2fe');
+      this._riverSplashes.push(sp);
+    }
+  }
+
+  // Dibuja una Baldosa de Roca Flotante en 3D con Hondura Luminosa Tallada (Línea central o Flecha Swipe)
+  drawRiverStoneKey(ctx, laneOrCx, cy, h, scale = 1.0, isPressed = false, isLarge = true, isSwipe = false, swipeDir = 'up', lyricText = null, noteIdx = 0, currentTime = 0) {
+    ctx.save();
+
+    let lane = 0;
+    if (typeof laneOrCx === 'number') {
+      if (laneOrCx <= 2.5) {
+        lane = Math.max(0, Math.min(2, laneOrCx));
+      } else {
+        const laneW = this.width / 3;
+        lane = Math.max(0, Math.min(2, Math.floor(laneOrCx / laneW)));
+      }
+    }
+
+    // Flotabilidad natural sobre la corriente del agua (pequeño balanceo vertical hidrodinámico)
+    const bobOffset = isPressed ? (4.0 * scale) : (Math.sin(currentTime * 0.0055 + noteIdx * 1.9) * 2.0 * scale);
+    const y = cy + bobOffset;
+    const y0 = y - h / 2;
+    const y1 = y0 + h;
+
+    const margin = Math.max(3.2, (isLarge ? 5.2 : 3.6) * scale);
+    const x0Top = this.getLaneBoundaryX(lane, y0) + margin;
+    const x1Top = this.getLaneBoundaryX(lane + 1, y0) - margin;
+    const x0Bot = this.getLaneBoundaryX(lane, y1) + margin;
+    const x1Bot = this.getLaneBoundaryX(lane + 1, y1) - margin;
+
+    const r = Math.max(5, (isLarge ? 12 : 7) * scale);
+    const cx = (x0Top + x1Top + x0Bot + x1Bot) / 4;
+    const cyMid = (y0 + y1) / 2;
+    const keyW = x1Bot - x0Bot;
+    const keyH = y1 - y0;
+
+    // 1. Estela de Espuma Blanca y Onda de Agua rodeando la base de la baldosa de roca flotante
+    const foamExpand = (3.5 + Math.sin(currentTime * 0.009 + noteIdx) * 1.5) * scale;
+    ctx.strokeStyle = 'rgba(186, 230, 253, 0.62)';
+    ctx.lineWidth = Math.max(1.5, 2.8 * scale);
+    tracePerspectiveQuad(
+      ctx,
+      x0Top - foamExpand * 0.7,
+      x1Top + foamExpand * 0.7,
+      x0Bot - foamExpand,
+      x1Bot + foamExpand,
+      y0 - foamExpand * 0.4,
+      y1 + foamExpand * 0.75,
+      r + 3 * scale
+    );
+    ctx.stroke();
+
+    // Sombra sumergida azul abisal bajo la roca
+    ctx.fillStyle = 'rgba(3, 22, 38, 0.55)';
+    const shadowOff = (isLarge ? 5.5 : 3.2) * scale;
+    tracePerspectiveQuad(ctx, x0Top, x1Top, x0Bot, x1Bot, y0 + shadowOff, y1 + shadowOff, r);
+    ctx.fill();
+
+    // 2. Cara Frontal Esculpida en Roca Basáltica Mojada (Grosor 3D de bloque de piedra)
+    const bevelH = Math.max(4, (isLarge ? 11.5 : 6.5) * scale);
+    const yBevelTop = y1 - bevelH;
+    const x0Bev = this.getLaneBoundaryX(lane, yBevelTop) + margin;
+    const x1Bev = this.getLaneBoundaryX(lane + 1, yBevelTop) - margin;
+
+    ctx.fillStyle = isPressed ? '#0f2942' : '#1e293b';
+    tracePerspectiveQuad(ctx, x0Bev, x1Bev, x0Bot, x1Bot, yBevelTop, y1, r);
+    ctx.fill();
+
+    // Grietas verticales de cincelado en el borde frontal de la roca
+    ctx.strokeStyle = 'rgba(15, 23, 42, 0.75)';
+    ctx.lineWidth = Math.max(1.0, 1.6 * scale);
+    ctx.beginPath();
+    for (let f = 1; f <= 3; f++) {
+      const frac = f * 0.25;
+      const fxTop = x0Bev + (x1Bev - x0Bev) * frac;
+      const fxBot = x0Bot + (x1Bot - x0Bot) * frac;
+      ctx.moveTo(fxTop, yBevelTop + 1);
+      ctx.lineTo(fxBot, y1 - 1);
+    }
+    ctx.stroke();
+
+    // 3. Cara Superior de Baldosa de Piedra de Río Tallada (Pizarra/Granito mineral con bisel claro)
+    const rockGrad = ctx.createLinearGradient(cx, y0, cx, yBevelTop);
+    if (isPressed) {
+      rockGrad.addColorStop(0.0, '#38bdf8');
+      rockGrad.addColorStop(0.5, '#0284c7');
+      rockGrad.addColorStop(1.0, '#0369a1');
+    } else if (isSwipe) {
+      // Las rocas Swipe tienen un tono pizarra-azulado mineral distintivo
+      rockGrad.addColorStop(0.0, '#64748b');
+      rockGrad.addColorStop(0.45, '#475569');
+      rockGrad.addColorStop(1.0, '#334155');
+    } else {
+      rockGrad.addColorStop(0.0, '#64748b');
+      rockGrad.addColorStop(0.38, '#475569');
+      rockGrad.addColorStop(1.0, '#293548');
+    }
+    ctx.fillStyle = rockGrad;
+    tracePerspectiveQuad(ctx, x0Top, x1Top, x0Bev, x1Bev, y0, yBevelTop, r);
+    ctx.fill();
+
+    // Facetas minerales y textura de piedra cincelada en las esquinas
+    ctx.strokeStyle = 'rgba(226, 232, 240, 0.28)';
+    ctx.lineWidth = Math.max(1.0, 1.5 * scale);
+    ctx.beginPath();
+    ctx.moveTo(x0Top + r * 0.8, y0 + 3.5 * scale);
+    ctx.lineTo(x1Top - r * 0.8, y0 + 3.5 * scale);
+    ctx.moveTo(x0Top + 6 * scale, y0 + 5 * scale);
+    ctx.lineTo(x0Bev + 5 * scale, yBevelTop - 4 * scale);
+    ctx.moveTo(x1Top - 6 * scale, y0 + 5 * scale);
+    ctx.lineTo(x1Bev - 5 * scale, yBevelTop - 4 * scale);
+    ctx.stroke();
+
+    // Pequeños toques de musgo esmeralda de río en dos esquinas opuestas de la roca
+    if (!isPressed && isLarge) {
+      ctx.fillStyle = 'rgba(34, 197, 94, 0.42)';
+      ctx.beginPath();
+      ctx.arc(x0Top + 9 * scale, y0 + 7 * scale, 4.2 * scale, 0, Math.PI * 2);
+      ctx.arc(x1Bev - 10 * scale, yBevelTop - 6 * scale, 3.8 * scale, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Borde exterior cincelado de la baldosa de roca
+    ctx.strokeStyle = isPressed ? '#e0f2fe' : '#94a3b8';
+    ctx.lineWidth = Math.max(1.3, 1.9 * scale);
+    tracePerspectiveQuad(ctx, x0Top, x1Top, x0Bot, x1Bot, y0, y1, r);
+    ctx.stroke();
+
+    // ===========================================================================
+    // 4. HONDURAS DE LA ROCA (SURCOS PROFUNDOS TALLADOS EN LA PIEDRA CON CRISTAL BIOLUMINISCENTE)
+    // ===========================================================================
+    const cyGroove = (y0 + yBevelTop) * 0.52;
+
+    if (!isSwipe) {
+      if (lyricText) {
+        const sp = this._getLyricKeySprite(lyricText, isPressed);
+        const drawW = Math.min(keyW * 0.94, 132 * scale);
+        const drawH = 42 * (drawW / 132);
+        ctx.drawImage(sp, cx - drawW * 0.5, cyGroove - drawH * 0.5, drawW, drawH);
+      } else {
+        // HONDURA CENTRAL HORIZONTAL TALLADA EN LA ROCA (Misma posición de referencia visual que la línea de las teclas normales)
+        const grooveW = keyW * 0.66;
+        const grooveH = Math.max(7.0, 10.5 * scale);
+        const gx = cx - grooveW * 0.5;
+        const gy = cyGroove - grooveH * 0.5;
+        const gr = grooveH * 0.5;
+
+        // A. Labio inferior iluminado del surco de piedra (efecto de profundidad hundida 3D)
+        ctx.fillStyle = 'rgba(226, 232, 240, 0.55)';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(gx - 1.5 * scale, gy + 1.8 * scale, grooveW + 3 * scale, grooveH, gr);
+        else ctx.rect(gx - 1.5 * scale, gy + 1.8 * scale, grooveW + 3 * scale, grooveH);
+        ctx.fill();
+
+        // B. Cavidad profunda oscura tallada en la roca (#090d16)
+        ctx.fillStyle = '#090d16';
+        ctx.strokeStyle = '#020617';
+        ctx.lineWidth = Math.max(1.2, 1.8 * scale);
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(gx, gy, grooveW, grooveH, gr);
+        else ctx.rect(gx, gy, grooveW, grooveH);
+        ctx.fill();
+        ctx.stroke();
+
+        // C. Veta de agua/cristal bioluminiscente brillando dentro de la hondura de la roca
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+
+        // Resplandor turquesa acuático que emana de la hendidura
+        const spreadX = 6.5 * scale;
+        const spreadY = 4.5 * scale;
+        ctx.fillStyle = 'rgba(0, 242, 254, 0.34)';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(gx - spreadX, gy - spreadY, grooveW + spreadX * 2, grooveH + spreadY * 2, gr + spreadY);
+        else ctx.rect(gx - spreadX, gy - spreadY, grooveW + spreadX * 2, grooveH + spreadY * 2);
+        ctx.fill();
+
+        // Halo cian cristalino dentro del surco
+        const innerW = grooveW * 0.92;
+        const innerH = Math.max(4.2, grooveH * 0.64);
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.88)';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(cx - innerW * 0.5, cyGroove - innerH * 0.5, innerW, innerH, innerH * 0.5);
+        else ctx.rect(cx - innerW * 0.5, cyGroove - innerH * 0.5, innerW, innerH);
+        ctx.fill();
+
+        // Núcleo incandescente blanco puro en el corazón de la hondura
+        const coreW = grooveW * 0.84;
+        const coreH = Math.max(2.6, grooveH * 0.36);
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(cx - coreW * 0.5, cyGroove - coreH * 0.5, coreW, coreH, coreH * 0.5);
+        else ctx.rect(cx - coreW * 0.5, cyGroove - coreH * 0.5, coreW, coreH);
+        ctx.fill();
+
+        ctx.restore();
+      }
+    } else {
+      // HONDURA DE FLECHA SWIPE TALLADA EN LA ROCA (Surco direccional esculpido a cincel con energía acuática brillante)
+      const dir = String(swipeDir || 'up').toLowerCase();
+      const arrowSpanW = Math.min(keyW * 0.34, 34 * scale);
+      const arrowSpanH = Math.min(keyH * 0.28, 16 * scale);
+
+      const traceArrowPath = (offsetX, offsetY) => {
+        ctx.beginPath();
+        if (dir === 'left') {
+          ctx.moveTo(cx + arrowSpanW * 0.55 + offsetX, cyGroove - arrowSpanH + offsetY);
+          ctx.lineTo(cx - arrowSpanW * 0.65 + offsetX, cyGroove + offsetY);
+          ctx.lineTo(cx + arrowSpanW * 0.55 + offsetX, cyGroove + arrowSpanH + offsetY);
+        } else if (dir === 'right') {
+          ctx.moveTo(cx - arrowSpanW * 0.55 + offsetX, cyGroove - arrowSpanH + offsetY);
+          ctx.lineTo(cx + arrowSpanW * 0.65 + offsetX, cyGroove + offsetY);
+          ctx.lineTo(cx - arrowSpanW * 0.55 + offsetX, cyGroove + arrowSpanH + offsetY);
+        } else if (dir === 'down') {
+          ctx.moveTo(cx - arrowSpanW + offsetX, cyGroove - arrowSpanH * 0.55 + offsetY);
+          ctx.lineTo(cx + offsetX, cyGroove + arrowSpanH * 0.65 + offsetY);
+          ctx.lineTo(cx + arrowSpanW + offsetX, cyGroove - arrowSpanH * 0.55 + offsetY);
+        } else {
+          ctx.moveTo(cx - arrowSpanW + offsetX, cyGroove + arrowSpanH * 0.55 + offsetY);
+          ctx.lineTo(cx + offsetX, cyGroove - arrowSpanH * 0.65 + offsetY);
+          ctx.lineTo(cx + arrowSpanW + offsetX, cyGroove + arrowSpanH * 0.55 + offsetY);
+        }
+      };
+
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      // 1. Bisel inferior de piedra iluminada de la hondura de flecha
+      ctx.strokeStyle = 'rgba(226, 232, 240, 0.65)';
+      ctx.lineWidth = Math.max(7.5, 13.5 * scale);
+      traceArrowPath(0, 2.0 * scale);
+      ctx.stroke();
+
+      // 2. Cavidad oscura profunda tallada en la roca
+      ctx.strokeStyle = '#090d16';
+      ctx.lineWidth = Math.max(6.5, 11.8 * scale);
+      traceArrowPath(0, 0);
+      ctx.stroke();
+
+      // 3. Interior bioluminiscente turquesa y blanco puro dentro de la hondura de flecha
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = 'rgba(0, 242, 254, 0.85)';
+      ctx.lineWidth = Math.max(4.0, 7.2 * scale);
+      traceArrowPath(0, 0);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = Math.max(2.2, 3.8 * scale);
+      traceArrowPath(0, 0);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    ctx.restore();
+    if (!this._keyRectScratch) {
+      this._keyRectScratch = { cx: 0, cy: 0, w: 0, h: 0 };
+    }
+    this._keyRectScratch.cx = cx;
+    this._keyRectScratch.cy = cyGroove;
+    this._keyRectScratch.w = keyW;
+    this._keyRectScratch.h = keyH;
+    return this._keyRectScratch;
+  }
+
+  // Dibuja un Hold como un Tronco de Madera Flotando en el Río con Corteza, Anillos de Madera, Musgo y Hendidura Luminosa
+  _renderRiverWoodenLogHold(ctx, note, lane, currentTime, pHead, currentTailP, isBeingHeld, maxH3D) {
+    const currentHeadP = isBeingHeld ? 1.0 : pHead;
+    if (currentTailP > 1.25 || currentHeadP < -0.2) return;
+
+    ctx.save();
+    const segments = 10;
+    const stringPoints = this._holdPointsBuffer || [];
+    const timeSec = currentTime * 0.001;
+
+    for (let s = 0; s <= segments; s++) {
+      const frac = s / segments;
+      const pStep = currentTailP + (currentHeadP - currentTailP) * frac;
+      const ptCoord = this.getPerspectiveCoord(lane, pStep, this._coordScratch1);
+
+      // El tronco flota sobre la corriente con un ligero balanceo hidrodinámico
+      const standingEnvelope = Math.sin(Math.PI * frac);
+      const bobX = isBeingHeld
+        ? (Math.sin(timeSec * 26.0 + ptCoord.y * 0.08) * (4.2 * standingEnvelope * ptCoord.scale))
+        : (Math.sin(timeSec * 4.2 + ptCoord.y * 0.03) * (1.8 * standingEnvelope * ptCoord.scale));
+
+      const halfW = Math.max(6, ptCoord.laneW * 0.36);
+
+      let pt = stringPoints[s];
+      if (!pt) {
+        pt = { x: 0, y: 0, scale: 1, laneW: 50, halfW: 20 };
+        stringPoints[s] = pt;
+      }
+      pt.x = ptCoord.x + bobX;
+      pt.y = ptCoord.y;
+      pt.scale = ptCoord.scale;
+      pt.laneW = ptCoord.laneW;
+      pt.halfW = halfW;
+    }
+
+    // 1. Estela de Espuma Blanca de Río a ambos lados del Tronco Flotante
+    ctx.strokeStyle = isBeingHeld ? 'rgba(167, 243, 208, 0.85)' : 'rgba(186, 230, 253, 0.62)';
+    ctx.lineWidth = Math.max(2.2, 4.5 * stringPoints[segments].scale);
+    ctx.beginPath();
+    for (let s = 0; s <= segments; s++) {
+      const pt = stringPoints[s];
+      const foamWave = Math.sin(timeSec * 10.0 + s * 1.3) * (2.5 * pt.scale);
+      if (s === 0) ctx.moveTo(pt.x - pt.halfW - 4 * pt.scale + foamWave, pt.y);
+      else ctx.lineTo(pt.x - pt.halfW - 4 * pt.scale + foamWave, pt.y);
+    }
+    for (let s = 0; s <= segments; s++) {
+      const pt = stringPoints[s];
+      const foamWave = Math.cos(timeSec * 10.0 + s * 1.3) * (2.5 * pt.scale);
+      if (s === 0) ctx.moveTo(pt.x + pt.halfW + 4 * pt.scale + foamWave, pt.y);
+      else ctx.lineTo(pt.x + pt.halfW + 4 * pt.scale + foamWave, pt.y);
+    }
+    ctx.stroke();
+
+    // 2. Cuerpo Cilíndrico 3D del Tronco de Madera (Corteza oscura en los bordes -> Roble cálido -> Lomo iluminado)
+    const barkPad = 3.2;
+    ctx.beginPath();
+    for (let s = 0; s <= segments; s++) {
+      const pt = stringPoints[s];
+      if (s === 0) ctx.moveTo(pt.x - pt.halfW - barkPad, pt.y);
+      else ctx.lineTo(pt.x - pt.halfW - barkPad, pt.y);
+    }
+    for (let s = segments; s >= 0; s--) {
+      const pt = stringPoints[s];
+      ctx.lineTo(pt.x + pt.halfW + barkPad, pt.y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = '#271001';
+    ctx.fill();
+
+    // cilindro intermedio de corteza marrón cedro/roble (#78350f)
+    ctx.beginPath();
+    for (let s = 0; s <= segments; s++) {
+      const pt = stringPoints[s];
+      if (s === 0) ctx.moveTo(pt.x - pt.halfW, pt.y);
+      else ctx.lineTo(pt.x - pt.halfW, pt.y);
+    }
+    for (let s = segments; s >= 0; s--) {
+      const pt = stringPoints[s];
+      ctx.lineTo(pt.x + pt.halfW, pt.y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = '#78350f';
+    ctx.fill();
+
+    // Lomo central cilíndrico iluminado (#b45309)
+    ctx.beginPath();
+    for (let s = 0; s <= segments; s++) {
+      const pt = stringPoints[s];
+      const innerW = pt.halfW * 0.64;
+      if (s === 0) ctx.moveTo(pt.x - innerW, pt.y);
+      else ctx.lineTo(pt.x - innerW, pt.y);
+    }
+    for (let s = segments; s >= 0; s--) {
+      const pt = stringPoints[s];
+      const innerW = pt.halfW * 0.64;
+      ctx.lineTo(pt.x + innerW, pt.y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = '#b45309';
+    ctx.fill();
+
+    // 3. Vetas longitudinales de la corteza de madera y parches de musgo verde de río
+    ctx.strokeStyle = 'rgba(39, 16, 1, 0.65)';
+    ctx.lineWidth = Math.max(1.4, 2.4 * stringPoints[segments].scale);
+    ctx.beginPath();
+    for (let side = -1; side <= 1; side += 2) {
+      for (let s = 0; s <= segments; s++) {
+        const pt = stringPoints[s];
+        const bx = pt.x + side * pt.halfW * 0.48;
+        if (s === 0) ctx.moveTo(bx, pt.y);
+        else ctx.lineTo(bx, pt.y);
+      }
+    }
+    ctx.stroke();
+
+    // Parches de musgo esmeralda sobre el tronco flotante
+    ctx.fillStyle = 'rgba(34, 197, 94, 0.55)';
+    for (let s = 2; s < segments; s += 3) {
+      const pt = stringPoints[s];
+      const side = (s % 2 === 0) ? -1 : 1;
+      ctx.beginPath();
+      ctx.ellipse(pt.x + side * pt.halfW * 0.68, pt.y, 5.5 * pt.scale, 9.5 * pt.scale, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 4. Hondura/Canal Central Tallado en el Tronco con Agua Bioluminiscente Fluyendo
+    ctx.strokeStyle = '#1c0a00';
+    ctx.lineWidth = Math.max(5.0, 9.2 * stringPoints[segments].scale);
+    ctx.beginPath();
+    for (let s = 0; s <= segments; s++) {
+      if (s === 0) ctx.moveTo(stringPoints[s].x, stringPoints[s].y);
+      else ctx.lineTo(stringPoints[s].x, stringPoints[s].y);
+    }
+    ctx.stroke();
+
+    ctx.strokeStyle = isBeingHeld ? '#34d399' : '#00f2fe';
+    ctx.lineWidth = Math.max(3.0, 5.4 * stringPoints[segments].scale);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = Math.max(1.6, 2.6 * stringPoints[segments].scale);
+    ctx.stroke();
+
+    // 5. Corte Transversal de Madera con Anillos en la Cola Superior del Tronco (tailPt)
+    const tailPt = stringPoints[0];
+    const logCapRx = Math.max(8, tailPt.halfW * 1.02);
+    const logCapRy = Math.max(4.5, logCapRx * 0.42);
+    ctx.fillStyle = '#fde68a';
+    ctx.strokeStyle = '#451a03';
+    ctx.lineWidth = Math.max(2.0, 3.2 * tailPt.scale);
+    ctx.beginPath();
+    ctx.ellipse(tailPt.x, tailPt.y, logCapRx, logCapRy, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Anillos concéntricos de crecimiento de la madera
+    ctx.strokeStyle = 'rgba(146, 64, 14, 0.65)';
+    ctx.lineWidth = Math.max(1.0, 1.5 * tailPt.scale);
+    ctx.beginPath();
+    ctx.ellipse(tailPt.x, tailPt.y, logCapRx * 0.65, logCapRy * 0.65, 0, 0, Math.PI * 2);
+    ctx.ellipse(tailPt.x, tailPt.y, logCapRx * 0.32, logCapRy * 0.32, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // 6. CABEZA DEL TRONCO (Frente de madera tallada con Hondura de Timing Cian-Blanca idéntica a las rocas para precisión total)
+    const headPt = stringPoints[segments];
+    const headW = headPt.halfW * 2.12;
+    const headH = Math.min(34 * headPt.scale, maxH3D);
+    const hx = headPt.x - headW * 0.5;
+    const hy = headPt.y - headH * 0.5;
+    const hr = Math.max(5, 9 * headPt.scale);
+
+    // Bloque frontal de madera maciza con corte claro y hondura luminosa central
+    ctx.fillStyle = isBeingHeld ? '#059669' : '#78350f';
+    ctx.strokeStyle = '#fef3c7';
+    ctx.lineWidth = Math.max(1.8, 2.6 * headPt.scale);
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(hx, hy, headW, headH, hr);
+    else ctx.rect(hx, hy, headW, headH);
+    ctx.fill();
+    ctx.stroke();
+
+    // Hondura luminosa horizontal en la cabeza del tronco (línea exacta de timing)
+    const grooveW = headW * 0.72;
+    const grooveH = Math.max(6.0, 9.0 * headPt.scale);
+    ctx.fillStyle = '#090d16';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(headPt.x - grooveW * 0.5, headPt.y - grooveH * 0.5, grooveW, grooveH, grooveH * 0.5);
+    else ctx.rect(headPt.x - grooveW * 0.5, headPt.y - grooveH * 0.5, grooveW, grooveH);
+    ctx.fill();
+
+    ctx.fillStyle = isBeingHeld ? '#6ee7b7' : '#00f2fe';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(headPt.x - grooveW * 0.46, headPt.y - grooveH * 0.32, grooveW * 0.92, grooveH * 0.64, grooveH * 0.32);
+    else ctx.rect(headPt.x - grooveW * 0.46, headPt.y - grooveH * 0.32, grooveW * 0.92, grooveH * 0.64);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(headPt.x - grooveW * 0.40, headPt.y - grooveH * 0.18, grooveW * 0.80, grooveH * 0.36, grooveH * 0.18);
+    else ctx.rect(headPt.x - grooveW * 0.40, headPt.y - grooveH * 0.18, grooveW * 0.80, grooveH * 0.36);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  renderRiverModeOverlay(ctx, currentTime) {
+    if (!this._riverAssetsReady) {
+      this.initRiverModeAssets();
+      this._prepareRiverChoreography();
+    } else if (!this._riverFlowPosTable || this._riverFlowPosTable.length === 0) {
+      this._prepareRiverChoreography();
+    }
+
+    const nowPerf = this._frameNow || performance.now();
+    const dt = Math.min(0.05, Math.max(0.004, (nowPerf - (this._riverLastOverlayNow || nowPerf)) / 1000));
+    this._riverLastOverlayNow = nowPerf;
+
+    const w = this.width || 360;
+    const h = this.height || 640;
+    const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (h * 0.84);
+    const curSpeedMult = this._getRiverSpeedMult(currentTime);
+
+    ctx.save();
+
+    // 1. Detectar impactos recientes en los 3 carriles para disparar Salpicaduras de Agua Cristalina y Saltos de Peces Koi
+    if (!this._riverLastLaneFlash) this._riverLastLaneFlash = [0, 0, 0];
+    for (let l = 0; l < 3; l++) {
+      const ft = (Array.isArray(this.laneFlashTimers) && this.laneFlashTimers[l]) || 0;
+      if (ft > this._riverLastLaneFlash[l] + 0.05) {
+        const hitCoord = this.getPerspectiveCoord(l, 1.0, this._coordScratch0);
+        this._emitRiverSplash(hitCoord.x, hitY - 6, hitCoord.scale, 9, false);
+
+        // En zonas de rápidos o cada varios impactos, un pez Koi salta en arco fuera del agua
+        if (this._riverLeapingFish && this._riverLeapingFish.length < 2 && Math.random() < (curSpeedMult > 1.25 ? 0.28 : 0.12)) {
+          const fromSide = (l === 0) ? -0.15 : ((l === 2) ? 2.15 : (Math.random() < 0.5 ? -0.1 : 2.1));
+          const toLane = Math.max(0.1, Math.min(1.9, l + (fromSide < 1 ? 0.65 : -0.65)));
+          this._riverLeapingFish.push({
+            fromLane: fromSide,
+            toLane: toLane,
+            p: 0.35 + Math.random() * 0.38,
+            age: 0,
+            duration: 0.78,
+            variant: Math.random() < 0.6 ? 0 : 1
+          });
+        }
+      }
+      this._riverLastLaneFlash[l] = ft;
+
+      // Si se está manteniendo pulsado un Tronco de Madera (Hold), emitir espuma de agua continua en la línea de golpeo
+      if (this.activeHolds && this.activeHolds.has(l) && Math.random() < 0.45) {
+        const holdCoord = this.getPerspectiveCoord(l, 1.0, this._coordScratch0);
+        this._emitRiverSplash(holdCoord.x, hitY - 4, holdCoord.scale, 2, true);
+      }
+    }
+
+    // 2. Actualizar y dibujar Peces Koi Saltando fuera del agua en parábola 3D
+    if (this._riverLeapingFish && this._riverLeapingFish.length > 0 && this._riverKoiSprites) {
+      for (let i = this._riverLeapingFish.length - 1; i >= 0; i--) {
+        const lf = this._riverLeapingFish[i];
+        lf.age += dt;
+        if (lf.age >= lf.duration) {
+          const endCoord = this.getPerspectiveCoord(lf.toLane, lf.p, this._coordScratch1);
+          this._emitRiverSplash(endCoord.x, endCoord.y, endCoord.scale, 6, false);
+          this._riverLeapingFish.splice(i, 1);
+          continue;
+        }
+        const u = lf.age / lf.duration;
+        const curLane = lf.fromLane + (lf.toLane - lf.fromLane) * u;
+        const fCoord = this.getPerspectiveCoord(curLane, lf.p, this._coordScratch1);
+        const arcLift = Math.sin(u * Math.PI) * (68 * fCoord.scale);
+        const dirSign = lf.toLane >= lf.fromLane ? 1 : -1;
+        const pitchAng = (dirSign > 0 ? 0 : Math.PI) + dirSign * (0.5 - u) * 1.15;
+
+        // Sombra sobre el agua debajo del pez saltando
+        ctx.fillStyle = 'rgba(2, 18, 32, 0.35)';
+        ctx.beginPath();
+        ctx.ellipse(fCoord.x, fCoord.y, 18 * fCoord.scale, 6 * fCoord.scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        const koiImg = this._riverKoiSprites[lf.variant % this._riverKoiSprites.length];
+        const kw = 58 * fCoord.scale;
+        const kh = 38 * fCoord.scale;
+        ctx.save();
+        ctx.translate(fCoord.x, fCoord.y - arcLift);
+        ctx.rotate(pitchAng);
+        if (dirSign < 0) ctx.scale(1, -1);
+        ctx.drawImage(koiImg, -kw * 0.5, -kh * 0.5, kw, kh);
+        ctx.restore();
+      }
+    }
+
+    // 3. Partículas de Salpicaduras de Agua Cristalina (swap-and-pop O(1) sin GC)
+    if (this._riverSplashes && this._riverSplashes.length > 0) {
+      let sLen = this._riverSplashes.length;
+      for (let i = sLen - 1; i >= 0; i--) {
+        const sp = this._riverSplashes[i];
+        sp.age += dt;
+        if (sp.age >= sp.duration) {
+          this._riverSplashes[i] = this._riverSplashes[sLen - 1];
+          this._riverSplashes.pop();
+          sLen--;
+          if (this._riverSplashPool.length < 100) this._riverSplashPool.push(sp);
+          continue;
+        }
+        const p = sp.age / sp.duration;
+        sp.x += sp.vx * dt;
+        sp.y += sp.vy * dt;
+        sp.vy += 290 * dt; // gravedad de las gotas de agua
+        ctx.globalAlpha = Math.max(0, 1 - p);
+        ctx.fillStyle = sp.color;
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, Math.max(1.2, sp.rad * (1 - p * 0.35)), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1.0;
+    }
+
+    // 4. Medidor HUD de Caudal y Velocidad del Río en Tiempo Real (Muestra cómo los 3 carriles aceleran según la densidad)
+    {
+      const hudW = Math.min(w - 24, 272);
+      const hudH = 30;
+      const hudX = w * 0.5 - hudW * 0.5;
+      const hudY = Math.max(54, h * 0.115);
+
+      let zoneLabel = '🌊 CORRIENTE VIVA';
+      let zoneColor = '#38bdf8';
+      if (curSpeedMult >= 1.45) {
+        zoneLabel = '🌪️ ¡CASCADA EXTREMA!';
+        zoneColor = '#f43f5e';
+      } else if (curSpeedMult >= 1.20) {
+        zoneLabel = '⚡ ¡RÁPIDOS BRAVOS!';
+        zoneColor = '#00f2fe';
+      } else if (curSpeedMult <= 0.88) {
+        zoneLabel = '🪷 AGUAS MANSAS';
+        zoneColor = '#34d399';
+      }
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(4, 24, 38, 0.86)';
+      ctx.strokeStyle = zoneColor;
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(hudX, hudY, hudW, hudH, 15);
+      else ctx.rect(hudX, hudY, hudW, hudH);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.font = '800 10.5px "Outfit", system-ui, sans-serif';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#e0f2fe';
+      ctx.fillText(`${zoneLabel} (${curSpeedMult.toFixed(2)}x)`, hudX + 11, hudY + hudH * 0.5);
+
+      // Barra de caudal líquido animada a la derecha
+      const barX = hudX + 174;
+      const barW = hudW - 184;
+      const barH = 9;
+      const barY = hudY + (hudH - barH) * 0.5;
+      const fillRatio = Math.max(0.08, Math.min(1.0, (curSpeedMult - 0.68) / 0.95));
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(barX, barY, barW, barH, 4.5);
+      else ctx.rect(barX, barY, barW, barH);
+      ctx.fill();
+
+      ctx.fillStyle = zoneColor;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(barX, barY, barW * fillRatio, barH, 4.5);
+      else ctx.rect(barX, barY, barW * fillRatio, barH);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // 5. Cartel luminoso de apertura del Modo Río Rápido
+    if (this._riverBannerTimer > 0 && this._riverBannerText) {
+      this._riverBannerTimer = Math.max(0, this._riverBannerTimer - dt);
+      ctx.globalAlpha = Math.min(1, this._riverBannerTimer * 1.5);
+      const bannerY = h * 0.22;
+      const bw = Math.min(w - 14, 356);
+      const bh = 34;
+
+      ctx.fillStyle = 'rgba(3, 22, 36, 0.94)';
+      ctx.strokeStyle = '#00f2fe';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(w * 0.5 - bw * 0.5, bannerY - bh * 0.5, bw, bh, 12);
+      else ctx.rect(w * 0.5 - bw * 0.5, bannerY - bh * 0.5, bw, bh);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.font = '900 10px "Outfit", system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#7dd3fc';
+      ctx.fillText(this._riverBannerText, w * 0.5, bannerY);
     }
 
     ctx.restore();
@@ -9480,9 +12002,10 @@ class BeatstarEngine {
       const tR_bot = getBoundaryX(3, bottomY);
       const tL_bot = getBoundaryX(0, bottomY);
 
-      // A1. Superficie principal con degradado nacarado 3D (o autopista psicodélica en Modo Setas / asfalto de competición en Modo Carretera)
+      // A1. Superficie principal con degradado nacarado 3D (o autopista psicodélica en Modo Setas / asfalto en Modo Carretera / agua cristalina en Modo Río Rápido)
       const isMushTrack = Boolean(this.isMushroomModeActive || (typeof window !== 'undefined' && window.isMushroomModeActive));
       const isHighwayTrack = Boolean(this.isHighwayModeActive || (typeof window !== 'undefined' && window.isHighwayModeActive));
+      const isRiverTrack = Boolean(this.isRiverModeActive || (typeof window !== 'undefined' && window.isRiverModeActive));
       if (isMushTrack && (!this._mushTrackGrad || this._mushTrackGradH !== bottomY)) {
         this._mushTrackGradH = bottomY;
         const mg = ctx.createLinearGradient(this.width / 2, horizonY, this.width / 2, bottomY);
@@ -9502,25 +12025,39 @@ class BeatstarEngine {
         hg.addColorStop(1.00, '#0f172a');
         this._hwTrackGrad = hg;
       }
+      if (isRiverTrack && (!this._riverTrackGrad || this._riverTrackGradH !== bottomY)) {
+        this._riverTrackGradH = bottomY;
+        const rg = ctx.createLinearGradient(this.width / 2, horizonY, this.width / 2, bottomY);
+        rg.addColorStop(0.00, '#032238');
+        rg.addColorStop(0.25, '#075985');
+        rg.addColorStop(0.55, '#0284c7');
+        rg.addColorStop(0.82, '#0891b2');
+        rg.addColorStop(1.00, '#0e7490');
+        this._riverTrackGrad = rg;
+      }
       ctx.beginPath();
       ctx.moveTo(tL_top, horizonY);
       ctx.lineTo(tR_top, horizonY);
       ctx.lineTo(tR_bot, bottomY);
       ctx.lineTo(tL_bot, bottomY);
       ctx.closePath();
-      ctx.fillStyle = isHighwayTrack
-        ? (this._hwTrackGrad || '#1e293b')
-        : (isMushTrack ? (this._mushTrackGrad || '#2b0952') : (this._trackGrad || '#f8fafc'));
+      ctx.fillStyle = isRiverTrack
+        ? (this._riverTrackGrad || '#0284c7')
+        : (isHighwayTrack
+            ? (this._hwTrackGrad || '#1e293b')
+            : (isMushTrack ? (this._mushTrackGrad || '#2b0952') : (this._trackGrad || '#f8fafc')));
       ctx.fill();
 
       // A2. Sombreado cilíndrico 3D de bordes y brillo central perlado
-      if (this._trackEdgeShadowGrad && !isHighwayTrack) {
+      if (this._trackEdgeShadowGrad && !isHighwayTrack && !isRiverTrack) {
         ctx.fillStyle = this._trackEdgeShadowGrad;
         ctx.fill();
       }
 
-      // A3. Lomo especular 3D en el centro de cada uno de los 3 carriles (o rodadas de neumáticos en asfalto en Modo Carretera)
-      ctx.fillStyle = isHighwayTrack ? 'rgba(255, 255, 255, 0.045)' : 'rgba(255, 255, 255, 0.38)';
+      // A3. Lomo especular 3D en el centro de cada uno de los 3 carriles
+      ctx.fillStyle = isRiverTrack
+        ? 'rgba(125, 211, 252, 0.14)'
+        : (isHighwayTrack ? 'rgba(255, 255, 255, 0.045)' : 'rgba(255, 255, 255, 0.38)');
       ctx.beginPath();
       for (let l = 0; l < 3; l++) {
         const cTopL = getBoundaryX(l + 0.28, horizonY);
@@ -9535,8 +12072,137 @@ class BeatstarEngine {
       }
       ctx.fill();
 
-      // En Modo Carretera: Pianos rojiblancos de circuito en ambos arcenes + líneas discontinuas blancas de autopista en movimiento
-      if (isHighwayTrack) {
+      // En Modo Río Rápido: Corrientes de agua sincronizadas con la velocidad del caudal, peces Koi bajo el agua, nenúfares y orillas rocosas con espuma
+      if (isRiverTrack) {
+        if (!this._riverAssetsReady) {
+          this.initRiverModeAssets();
+          this._prepareRiverChoreography();
+        }
+        const activeTimeMs = cTime >= 0 ? cTime : safePerfNow;
+        const riverFlowPos = this._getRiverFlowPos(activeTimeMs);
+        const riverScroll = ((riverFlowPos * 0.00105) % 1.0 + 1.0) % 1.0;
+        const curSpeed = this._getRiverSpeedMult(activeTimeMs);
+
+        // 1. Peces Koi nadando suavemente bajo la superficie translúcida del río
+        if (this._riverSwimmingKoi && this._riverKoiSprites && this._riverKoiSprites.length > 0) {
+          const dtKoi = 0.016;
+          for (let k = 0; k < this._riverSwimmingKoi.length; k++) {
+            const koi = this._riverSwimmingKoi[k];
+            koi.lane += koi.vx * dtKoi * curSpeed;
+            koi.p += koi.vp * dtKoi * curSpeed;
+            if (koi.lane < 0.18 || koi.lane > 1.82) koi.vx = -koi.vx;
+            if (koi.p < 0.14 || koi.p > 0.88) koi.vp = -koi.vp;
+            const kCoord = this.getPerspectiveCoord(koi.lane, koi.p, this._coordScratch1);
+            const kw = 46 * kCoord.scale;
+            const kh = 30 * kCoord.scale;
+            const ang = Math.atan2(koi.vp * 1.4, koi.vx) + Math.sin(activeTimeMs * 0.009 + koi.phase) * 0.14;
+            ctx.save();
+            ctx.globalAlpha = 0.50;
+            ctx.translate(kCoord.x, kCoord.y);
+            ctx.rotate(ang);
+            ctx.drawImage(this._riverKoiSprites[koi.variant % this._riverKoiSprites.length], -kw * 0.5, -kh * 0.5, kw, kh);
+            ctx.restore();
+          }
+        }
+
+        // 2. Líneas de corriente de agua y espuma blanca (más intensas cuando el río entra en Rápidos de alta densidad)
+        const numWaveStreaks = 16;
+        ctx.lineCap = 'round';
+        for (let wIdx = 0; wIdx < numWaveStreaks; wIdx++) {
+          const u0 = (wIdx / numWaveStreaks + riverScroll) % 1.0;
+          const u1 = Math.min(1.0, u0 + (0.045 + 0.025 * Math.min(1.6, curSpeed)));
+          if (u1 <= u0 + 0.005) continue;
+          const p0 = Math.pow(u0, 1.7);
+          const p1 = Math.pow(u1, 1.7);
+          const y0 = horizonY + (bottomY - horizonY) * p0;
+          const y1 = horizonY + (bottomY - horizonY) * p1;
+          const laneFrac = ((wIdx * 0.618) % 2.6) + 0.2;
+          const sway = Math.sin(u0 * 12.0 + activeTimeMs * 0.004 + wIdx) * 0.06;
+          const x0 = getBoundaryX(laneFrac + sway, y0);
+          const x1 = getBoundaryX(laneFrac - sway, y1);
+
+          const streakAlpha = Math.min(0.68, (0.18 + (curSpeed - 0.7) * 0.28) * Math.sin(u0 * Math.PI));
+          ctx.strokeStyle = (wIdx % 3 === 0)
+            ? `rgba(255, 255, 255, ${streakAlpha.toFixed(2)})`
+            : `rgba(186, 230, 253, ${(streakAlpha * 0.85).toFixed(2)})`;
+          ctx.lineWidth = Math.max(1.2, (1.5 + 2.8 * p0) * (curSpeed > 1.2 ? 1.25 : 1.0));
+          ctx.beginPath();
+          ctx.moveTo(x0, y0);
+          ctx.lineTo(x1, y1);
+          ctx.stroke();
+        }
+
+        // 3. Corrientes divisorias ondulantes de espuma entre los 3 carriles
+        for (let l = 1; l <= 2; l++) {
+          ctx.strokeStyle = 'rgba(224, 242, 254, 0.58)';
+          ctx.lineWidth = 2.2;
+          ctx.beginPath();
+          const steps = 18;
+          for (let s = 0; s <= steps; s++) {
+            const u = s / steps;
+            const p = Math.pow(u, 1.7);
+            const ry = horizonY + (bottomY - horizonY) * p;
+            const rippleX = Math.sin(u * 14.0 - riverScroll * Math.PI * 4 + l * 2.1) * (3.2 * p);
+            const rx = getBoundaryX(l, ry) + rippleX;
+            if (s === 0) ctx.moveTo(rx, ry);
+            else ctx.lineTo(rx, ry);
+          }
+          ctx.stroke();
+        }
+
+        // 4. Orillas rocosas con musgo y espuma de ribera en ambos márgenes del río + Nenúfares con flor de loto
+        const bankRocks = 14;
+        for (let b = 0; b < bankRocks; b++) {
+          const u = ((b / bankRocks) + riverScroll) % 1.0;
+          const p = Math.pow(u, 1.7);
+          const ry = horizonY + (bottomY - horizonY) * p;
+          const sc = 0.45 + 0.55 * p;
+          const rW = (10 + (b % 3) * 4) * sc;
+          const rH = (7 + (b % 2) * 3) * sc;
+
+          for (let side = 0; side < 2; side++) {
+            const bx = getBoundaryX(side === 0 ? 0.05 : 2.95, ry);
+            // Espuma blanca rompiendo contra las rocas de la orilla
+            ctx.fillStyle = 'rgba(224, 242, 254, 0.65)';
+            ctx.beginPath();
+            ctx.ellipse(bx + (side === 0 ? 4 : -4) * sc, ry, rW * 1.15, rH * 1.1, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Canto rodado de río
+            ctx.fillStyle = (b % 2 === 0) ? '#334155' : '#475569';
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = Math.max(1, 1.5 * sc);
+            ctx.beginPath();
+            ctx.ellipse(bx, ry, rW, rH, (side === 0 ? 0.2 : -0.2), 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            if (b % 3 === 0) {
+              ctx.fillStyle = 'rgba(34, 197, 94, 0.65)';
+              ctx.beginPath();
+              ctx.arc(bx, ry - rH * 0.25, rW * 0.45, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+        }
+
+        // Nenúfares flotando suavemente junto a las orillas
+        if (this._riverLilyPads && this._riverLilyPadSprite) {
+          for (let i = 0; i < this._riverLilyPads.length; i++) {
+            const pad = this._riverLilyPads[i];
+            const uPad = (pad.p + riverScroll * 0.5) % 1.0;
+            const pPad = Math.pow(uPad, 1.7);
+            const py = horizonY + (bottomY - horizonY) * pPad;
+            const px = getBoundaryX(pad.side === 0 ? 0.14 : 2.86, py);
+            const pSc = (0.45 + 0.55 * pPad) * 34;
+            ctx.save();
+            ctx.translate(px, py);
+            ctx.rotate(pad.rot + activeTimeMs * 0.0005);
+            ctx.drawImage(this._riverLilyPadSprite, -pSc * 0.5, -pSc * 0.5, pSc, pSc);
+            ctx.restore();
+          }
+        }
+      } else if (isHighwayTrack) {
         const roadScroll = ((cTime >= 0 ? cTime : safePerfNow) * 0.0014) % 1.0;
         const kerbSegs = 18;
         for (let k = 0; k < kerbSegs; k++) {
@@ -11051,6 +13717,9 @@ class BeatstarEngine {
       const isKaraokeActive = Boolean((typeof window !== 'undefined' && window.isKaraokeModeActive) || this.isKaraokeModeActive);
       const isMushroomActive = Boolean((typeof window !== 'undefined' && window.isMushroomModeActive) || this.isMushroomModeActive);
       const isHighwayActive = Boolean((typeof window !== 'undefined' && window.isHighwayModeActive) || this.isHighwayModeActive);
+      const isAnnoyingDogActive = Boolean((typeof window !== 'undefined' && window.isAnnoyingDogModeActive) || this.isAnnoyingDogModeActive);
+      const isRiverActive = Boolean((typeof window !== 'undefined' && window.isRiverModeActive) || this.isRiverModeActive);
+      const curRiverFlowPos = isRiverActive ? this._getRiverFlowPos(currentTime) : 0;
 
       if (isHighwayActive) {
         if (!this._hwAssetsReady) {
@@ -11061,9 +13730,14 @@ class BeatstarEngine {
         }
 
         // En Modo Carretera los vehículos tienen distintas velocidades (_hwDurationMs) y se adelantan,
-        // por lo que recolectamos los vehículos visibles y los ordenamos de atrás hacia delante (y los voladores encima)
-        const maxLookaheadMs = scrollDur * 1.65;
-        const visibleHighwayItems = [];
+        // usando un pool pre-asignado para 0 allocs de memoria por fotograma (0 tirones de GC)
+        const maxLookaheadMs = Math.max(5200, scrollDur * 3.4);
+        if (!this._hwVisiblePool) this._hwVisiblePool = [];
+        if (!this._hwVisibleList) this._hwVisibleList = [];
+        const visibleHighwayItems = this._hwVisibleList;
+        visibleHighwayItems.length = 0;
+        let poolIdx = 0;
+
         for (let i = startIdx; i < len; i++) {
           const note = this.notes[i];
           if (!note || note.holdCompleted) continue;
@@ -11080,7 +13754,8 @@ class BeatstarEngine {
 
           const noteDur = note._hwDurationMs || scrollDur;
           const pHead = 1.0 - (timeUntilHit / noteDur);
-          if (pHead < -0.15 || (!isBeingHeld && pHead > 1.22)) continue;
+          // No ocultar holds cuya cabeza ya cruzó p=1.22 mientras su cola (vagones) siga en pantalla
+          if (pHead < -0.15 || (!isBeingHeld && note.type !== 'hold' && pHead > 1.22)) continue;
 
           const isFlyingNow = Boolean(
             note._hwIsFlyingOvertake &&
@@ -11088,18 +13763,24 @@ class BeatstarEngine {
             pHead >= (note._hwOvertakeP - 0.24) &&
             pHead <= (note._hwOvertakeP + 0.22)
           );
-          visibleHighwayItems.push({
-            note,
-            i,
-            lane,
-            noteT,
-            isBeingHeld,
-            pHead,
-            sortOrder: (isFlyingNow ? 10.0 : 0.0) + pHead
-          });
+          let slot = this._hwVisiblePool[poolIdx++];
+          if (!slot) {
+            slot = { note: null, i: 0, lane: 0, noteT: 0, isBeingHeld: false, pHead: 0, sortOrder: 0 };
+            this._hwVisiblePool.push(slot);
+          }
+          slot.note = note;
+          slot.i = i;
+          slot.lane = lane;
+          slot.noteT = noteT;
+          slot.isBeingHeld = isBeingHeld;
+          slot.pHead = pHead;
+          slot.sortOrder = (isFlyingNow ? 10.0 : 0.0) + pHead;
+          visibleHighwayItems.push(slot);
         }
 
-        visibleHighwayItems.sort((a, b) => a.sortOrder - b.sortOrder);
+        if (visibleHighwayItems.length > 1) {
+          visibleHighwayItems.sort((a, b) => a.sortOrder - b.sortOrder);
+        }
 
         for (let k = 0; k < visibleHighwayItems.length; k++) {
           const item = visibleHighwayItems[k];
@@ -11139,12 +13820,17 @@ class BeatstarEngine {
         const isBeingHeld = Boolean(note.holding && !note.holdCompleted);
         const timeUntilHit = noteT - currentTime;
 
-        if (timeUntilHit > 1200 && timeUntilHit > scrollDur) break;
+        if (timeUntilHit > (isRiverActive ? 2400 : 1200) && timeUntilHit > scrollDur * (isRiverActive ? 1.65 : 1.0)) break;
 
-        const pHead = 1.0 - timeUntilHit * invScrollDur;
-        if (pHead < -0.15 || (!isBeingHeld && pHead > 1.25)) continue;
+        // En Modo Río Rápido, la distancia visual viene dada por el caudal acumulado F(t):
+        // ¡Los 3 carriles aceleran y frenan exactamente al mismo tiempo según la densidad de la sección!
+        const pHead = isRiverActive
+          ? (1.0 - (this._getRiverFlowPos(noteT) - curRiverFlowPos) * invScrollDur)
+          : (1.0 - timeUntilHit * invScrollDur);
+        // Para notas hold, no descartar por pHead > 1.25 mientras su cola siga en pantalla
+        if (pHead < -0.15 || (!isBeingHeld && note.type !== 'hold' && pHead > 1.25)) continue;
 
-        // En Modo Setas Alucinógenas: algunas teclas saltan de un carril a otro mientras caen y su grosor/tamaño respira
+        // En Modo Setas Alucinógenas o Modo Perro Molesto (Zarpazo que cambia la tecla de carril):
         let drawLane = lane;
         let mushHeightMult = 1.0;
         if (isMushroomActive && note.type !== 'hold') {
@@ -11158,6 +13844,19 @@ class BeatstarEngine {
             drawLane = Math.max(0, Math.min(2, lane + Math.sin(currentTime * 0.007 + (note._mushPhase || 0)) * 0.11 * (1 - pHead)));
           }
           mushHeightMult = 1.0 + Math.sin(currentTime * 0.009 + (note._mushPhase || 0)) * 0.25;
+        } else if (isAnnoyingDogActive && note._dogBatted && note.type !== 'hold') {
+          const fromL = (note._dogFromLane !== undefined) ? note._dogFromLane : lane;
+          const swipeP = note._dogSwipeP || 0.40;
+          if (pHead < swipeP) {
+            drawLane = fromL;
+          } else if (pHead < swipeP + 0.15) {
+            const u = (pHead - swipeP) / 0.15;
+            // Curva elástica de impacto por el zarpazo del Pomeranian
+            const easeBat = 1 - Math.pow(1 - u, 3);
+            drawLane = fromL + (lane - fromL) * easeBat;
+          } else {
+            drawLane = lane;
+          }
         }
 
         const nextDiff = note.nextSameLaneDiffMs ?? Infinity;
@@ -11166,7 +13865,7 @@ class BeatstarEngine {
         const lyricForNote = isKaraokeActive ? note._cleanLyric : null;
 
         // ==========================================
-        // 1. NOTAS HOLD (ONDA SINUSOIDAL + FILAMENTO DE PLASMA)
+        // 1. NOTAS HOLD (ONDA SINUSOIDAL + FILAMENTO DE PLASMA O TRONCO DE MADERA EN MODO RÍO)
         // ==========================================
         if (note.type === 'hold') {
           const rawDur = Number.isFinite(note.duration_ms)
@@ -11178,9 +13877,16 @@ class BeatstarEngine {
           const endT = Number.isFinite(note.end_timestamp_ms) ? note.end_timestamp_ms : (noteT + holdDuration);
 
           let currentHeadP = isBeingHeld ? 1.0 : pHead;
-          let currentTailP = 1.0 - (endT - currentTime) * invScrollDur;
+          let currentTailP = isRiverActive
+            ? (1.0 - (this._getRiverFlowPos(endT) - curRiverFlowPos) * invScrollDur)
+            : (1.0 - (endT - currentTime) * invScrollDur);
 
           if (currentTailP > 1.25 || currentHeadP < -0.2) continue;
+
+          if (isRiverActive) {
+            this._renderRiverWoodenLogHold(ctx, note, lane, currentTime, pHead, currentTailP, isBeingHeld, maxH3D);
+            continue;
+          }
 
           ctx.save();
 
@@ -11409,10 +14115,14 @@ class BeatstarEngine {
           ctx.restore();
         
         // ==========================================
-        // 2. NOTAS SWIPE (DESLIZAMIENTO CON CHEVRÓN + ESTELA DE POLVO ESTELAR)
+        // 2. NOTAS SWIPE (DESLIZAMIENTO CON CHEVRÓN + ESTELA DE POLVO ESTELAR O BALDOSA DE ROCA CON HONDURA DE FLECHA)
         // ==========================================
         } else if (note.type === 'swipe') {
           const h = Math.min((isLarge ? 84 : 32) * coord.scale, maxH3D);
+          if (isRiverActive) {
+            this.drawRiverStoneKey(ctx, drawLane, coord.y, h, coord.scale, false, isLarge, true, note.direction || 'up', lyricForNote, i, currentTime);
+            continue;
+          }
           // Estela aerodinámica de polvo estelar detrás de la tecla Swipe (0 allocs)
           if (pHead > 0.04 && pHead < 1.12) {
             ctx.save();
@@ -11450,16 +14160,52 @@ class BeatstarEngine {
           this.renderVectorChevron(ctx, swipeKey.cx, swipeKey.cy, note.direction || 'up', swipeKey.w, swipeKey.h);
 
         // ==========================================
-        // 3. NOTAS NORMALES (TAP ESTÁNDAR)
+        // 3. NOTAS NORMALES (TAP ESTÁNDAR O BALDOSA DE ROCA FLOTANTE CON HONDURA CENTRAL)
         // ==========================================
         } else {
           const h = Math.min((isLarge ? 80 : 30) * coord.scale * mushHeightMult, maxH3D);
+          if (isRiverActive) {
+            this.drawRiverStoneKey(ctx, drawLane, coord.y, h, coord.scale, false, isLarge, false, 'up', lyricForNote, i, currentTime);
+            continue;
+          }
+          if (isAnnoyingDogActive && note._dogBatted) {
+            const swipeP = note._dogSwipeP || 0.40;
+            const fromL = note._dogFromLane ?? lane;
+            if (pHead >= swipeP - 0.02 && pHead <= swipeP + 0.24 && fromL !== lane) {
+              const origCoord = this.getPerspectiveCoord(fromL, pHead, this._coordScratch1);
+              const trailAlpha = Math.max(0, 1 - Math.abs(pHead - (swipeP + 0.08)) / 0.16);
+              ctx.save();
+              ctx.strokeStyle = `rgba(251, 191, 36, ${(trailAlpha * 0.85).toFixed(2)})`;
+              ctx.lineWidth = Math.max(2.2, 4.2 * coord.scale);
+              ctx.beginPath();
+              ctx.moveTo(origCoord.x, origCoord.y);
+              ctx.quadraticCurveTo((origCoord.x + coord.x) * 0.5, origCoord.y - 22 * coord.scale, coord.x, coord.y);
+              ctx.stroke();
+
+              // 3 marcas de zarpazo doradas en el punto de golpeo
+              const dirSign = lane > fromL ? 1 : -1;
+              ctx.strokeStyle = `rgba(255, 255, 255, ${(trailAlpha * 0.92).toFixed(2)})`;
+              ctx.lineWidth = Math.max(1.6, 2.8 * coord.scale);
+              ctx.beginPath();
+              for (let cl = -1; cl <= 1; cl++) {
+                const sy = origCoord.y + cl * 7 * coord.scale;
+                ctx.moveTo(origCoord.x - dirSign * 14 * coord.scale, sy - 5 * coord.scale);
+                ctx.lineTo(origCoord.x + dirSign * 18 * coord.scale, sy + 4 * coord.scale);
+              }
+              ctx.stroke();
+              ctx.restore();
+            }
+          }
           const tapKey = this.drawIvoryKey(ctx, drawLane, coord.y, h, coord.scale, false, isLarge, false, lyricForNote);
           // En modo Setas: si la tecla está saltando de carril o es múltiplo de 3, dibujar seta mágica sobre la tecla
           if (isMushroomActive && this._mushSprites && this._mushSprites.length > 0 && ((note._mushFromLane !== undefined && note._mushFromLane !== lane) || (i % 3 === 0))) {
             const spr = this._mushSprites[(note._mushColorIdx || 0) % this._mushSprites.length];
             const mSz = Math.max(16, 30 * coord.scale);
             ctx.drawImage(spr, tapKey.cx - mSz * 0.5, tapKey.cy - mSz * 0.5, mSz, mSz);
+          } else if (isAnnoyingDogActive && note._dogBatted && this._dogPawPrintSprite) {
+            // Sello de huella dorada (🐾) sobre las teclas que el Pomeranian empuja de un zarpazo
+            const pSz = Math.max(16, 28 * coord.scale);
+            ctx.drawImage(this._dogPawPrintSprite, tapKey.cx - pSz * 0.5, tapKey.cy - pSz * 0.5, pSz, pSz);
           }
         }
       }

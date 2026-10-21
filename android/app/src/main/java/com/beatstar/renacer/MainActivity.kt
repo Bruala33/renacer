@@ -154,8 +154,53 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun cleanupWebViewVariationsSeed(ctx: Context = this) {
+        try {
+            val webviewDirs = linkedSetOf<File>()
+            try {
+                webviewDirs.add(ctx.getDir("webview", Context.MODE_PRIVATE))
+            } catch (_: Exception) {
+            }
+            ctx.applicationInfo?.dataDir?.let { dataDir ->
+                webviewDirs.add(File(dataDir, "app_webview"))
+                webviewDirs.add(File(dataDir, "app_webview/Default"))
+            }
+            ctx.filesDir?.parentFile?.let { parent ->
+                webviewDirs.add(File(parent, "app_webview"))
+                webviewDirs.add(File(parent, "app_webview/Default"))
+            }
+
+            val seedNames = listOf(
+                "variations_seed",
+                "variations_seed_new",
+                "variations_seed_temp"
+            )
+            val now = System.currentTimeMillis()
+            for (dir in webviewDirs) {
+                if (!dir.exists()) {
+                    dir.mkdirs()
+                }
+                for (name in seedNames) {
+                    val f = File(dir, name)
+                    if (f.exists()) {
+                        f.delete()
+                    }
+                }
+                // Actualizar variations_stamp para que VariationsSeedLoader active shouldThrottleRequests()
+                // y no solicite semillas sin firma al VariationsSeedServer del emulador.
+                val stamp = File(dir, "variations_stamp")
+                if (!stamp.exists()) {
+                    stamp.createNewFile()
+                }
+                stamp.setLastModified(now)
+            }
+        } catch (_: Exception) {
+        }
+    }
+
     private fun ensureWebViewCacheDirectories() {
         try {
+            cleanupWebViewVariationsSeed(this)
             val roots = listOfNotNull(cacheDir, codeCacheDir)
             val subDirs = listOf(
                 "WebView/Default/HTTP Cache/Code Cache/js",
@@ -172,8 +217,16 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun attachBaseContext(newBase: Context?) {
+        if (newBase != null) {
+            cleanupWebViewVariationsSeed(newBase)
+        }
+        super.attachBaseContext(newBase)
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
+        cleanupWebViewVariationsSeed(this)
         super.onCreate(savedInstanceState)
 
         // Pre-crear jerarquía de directorios de caché de Chromium WebView para evitar errores de simple_backend_impl.cc
@@ -419,7 +472,7 @@ class MainActivity : AppCompatActivity() {
 
         // 9. Limpiar caché de WebView y cargar la versión actualizada del juego
         webView.clearCache(true)
-        webView.loadUrl("https://appassets.androidplatform.net/assets/www/game.html?v=12.0")
+        webView.loadUrl("https://appassets.androidplatform.net/assets/www/game.html?v=18.0")
 
         hideSystemUI()
     }
@@ -485,6 +538,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onPause() {
+        cleanupWebViewVariationsSeed(this)
         super.onPause()
         if (::webView.isInitialized) {
             try {
@@ -498,6 +552,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onStop() {
+        cleanupWebViewVariationsSeed(this)
         super.onStop()
         if (::webView.isInitialized) {
             try {
@@ -511,6 +566,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onResume() {
+        cleanupWebViewVariationsSeed(this)
         super.onResume()
         if (::webView.isInitialized) {
             try {
@@ -525,6 +581,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        cleanupWebViewVariationsSeed(this)
         if (::webView.isInitialized) {
             try {
                 webView.evaluateJavascript("if (typeof window.onAppBackground === 'function') { window.onAppBackground(); }", null)
