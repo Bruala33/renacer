@@ -1720,6 +1720,14 @@
         "combo": 189,
         "accuracy": 35.05348366579936,
         "date": "2026-10-19 20:54:13"
+      },
+      {
+        "name": "Mauricio",
+        "score": 515550,
+        "stars": 2,
+        "combo": 276,
+        "accuracy": 41.07804469941437,
+        "date": "2026-10-21 19:21:35"
       }
     ],
     "top_pereza_como_lo_tienes_tu": [
@@ -2093,14 +2101,14 @@
       "clefs": 169
     },
     {
+      "name": "Mauricio",
+      "total_score": 16463483,
+      "clefs": 148
+    },
+    {
       "name": "Dady cool",
       "total_score": 16121318,
       "clefs": 154
-    },
-    {
-      "name": "Mauricio",
-      "total_score": 15947933,
-      "clefs": 143
     },
     {
       "name": "bubu",
@@ -2213,7 +2221,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 15947933
+        "score": 16463483
       },
       {
         "name": "Dady cool",
