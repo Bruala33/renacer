@@ -1955,6 +1955,16 @@
         "accuracy": 3.5171160872849008,
         "date": "2026-10-21 10:14:22"
       }
+    ],
+    "top_las_ketchup_asereje": [
+      {
+        "name": "Mauricio",
+        "score": 160801,
+        "stars": 3.5,
+        "combo": 91,
+        "accuracy": 9.116178394791564,
+        "date": "2026-10-21 12:51:55"
+      }
     ]
   },
   "global": [
@@ -1980,8 +1990,8 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 5847435,
-      "clefs": 49
+      "total_score": 6008236,
+      "clefs": 50
     },
     {
       "name": "Test",
@@ -2093,7 +2103,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 5847435
+        "score": 6008236
       },
       {
         "name": "Test",
