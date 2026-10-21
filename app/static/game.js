@@ -644,18 +644,18 @@ class DirectAudioSync {
         this._anchorPerf = now;
         this._anchorAudioMs = currentPredMs;
 
-        if (Math.abs(drift) > 450) {
+        if (Math.abs(drift) > 950) {
           this._anchorAudioMs = hwAudioMs;
           this._lastReturnedMs = hwAudioMs;
           this._clockSkewRate = 1.0;
           this._smoothedDrift = 0;
           currentPredMs = hwAudioMs;
         } else {
-          // Filtro paso-bajo exponencial que absorbe el jitter de cuantización del mixer de audio
-          this._smoothedDrift = (this._smoothedDrift || 0) * 0.86 + drift * 0.14;
-          if (Math.abs(this._smoothedDrift) > 36.0) {
-            // Corrección de frecuencia ultra-suave (±0.35% máx) totalmente imperceptible al ojo a 120Hz
-            this._clockSkewRate = 1.0 + Math.max(-0.0035, Math.min(0.0035, this._smoothedDrift / 4000));
+          // Filtro paso-bajo exponencial que absorbe el jitter de cuantización del mixer de audio sin dar tirones visuales
+          this._smoothedDrift = (this._smoothedDrift || 0) * 0.85 + drift * 0.15;
+          if (Math.abs(this._smoothedDrift) > 28.0) {
+            // Corrección de frecuencia progresiva y suave (±0.65% máx) 100% libre de saltos de fotograma
+            this._clockSkewRate = 1.0 + Math.max(-0.0065, Math.min(0.0065, this._smoothedDrift / 3200));
           } else {
             this._clockSkewRate = 1.0;
           }
@@ -2348,28 +2348,29 @@ class BeatstarEngine {
         const normX = (t.clientX - rect.left) / rect.width;
         const lane = Math.max(0, Math.min(2, (normX * 3) | 0));
 
-        // Guardar origen de toque para el cálculo del swipe
+        const consumed = this.triggerLaneInput(lane, 'tap', null, t.identifier);
+
+        // Guardar origen de toque; si ya consumió una nota tap/hold, bloquear swipe secundario para no tocar 2 notas con 1 dedo
         this.activeTouches.set(t.identifier, {
           startX: t.clientX,
           startY: t.clientY,
           startTime: now,
           lane: lane,
-          swiped: false
+          swiped: false,
+          consumed: Boolean(consumed)
         });
-
-        this.triggerLaneInput(lane, 'tap', null, t.identifier);
       }
     }, { passive: false });
 
-    // ⚡ DETECCIÓN DE DESLIZAMIENTO / FLICK (SWIPE)
+    // ⚡ DETECCIÓN DE DESLIZAMIENTO / FLICK (SWIPE) — Solo si el toque inicial no consumió ya una tecla tap/hold y no estamos en Modo Carretera
     window.addEventListener('touchmove', (e) => {
-      if (this.isPaused || this.isRewinding) return;
+      if (this.isPaused || this.isRewinding || this.isHighwayModeActive) return;
       const now = performance.now();
 
       for (let i = 0; i < e.changedTouches.length; i++) {
         const t = e.changedTouches[i];
         const tData = this.activeTouches.get(t.identifier);
-        if (!tData || tData.swiped) continue;
+        if (!tData || tData.swiped || tData.consumed) continue;
 
         const dx = t.clientX - tData.startX;
         const dy = t.clientY - tData.startY;
@@ -2386,6 +2387,7 @@ class BeatstarEngine {
           }
 
           tData.swiped = true;
+          tData.consumed = true;
           this.triggerLaneInput(tData.lane, 'swipe', direction, t.identifier);
         }
       }
@@ -2418,49 +2420,57 @@ class BeatstarEngine {
       }
     }, { passive: true });
 
-    // ⚡ RATÓN PC CON SOPORTE DE ARRASTRE PARA SWIPE
+    // ⚡ RATÓN PC CON SOPORTE DE ARRASTRE PARA SWIPE (0 reflows de DOM)
     window.addEventListener('mousedown', (e) => {
-      if (performance.now() - (this.lastTouchTime || 0) < 500) return;
+      const now = performance.now();
+      if (now - (this.lastTouchTime || 0) < 500) return;
       if (this.isPaused || this.isRewinding) return;
 
-      const target = document.elementFromPoint(e.clientX, e.clientY);
-      if (target && (target.closest('.hud-pause-btn') || target.closest('button') || target.closest('.modal-overlay'))) {
+      const targetEl = e.target;
+      if (targetEl && targetEl !== this.canvas && targetEl.closest &&
+          (targetEl.closest('.hud-pause-btn') || targetEl.closest('button') || targetEl.closest('.modal-overlay'))) {
         return;
       }
 
-      const rect = this.canvas.getBoundingClientRect();
+      let rect = this._canvasRect;
+      if (!rect || rect.width <= 0) {
+        rect = this.canvas.getBoundingClientRect();
+        this._canvasRect = rect;
+      }
       if (!rect || rect.width <= 0) return;
       if (e.clientX < rect.left || e.clientX > rect.right) return;
 
       const normX = (e.clientX - rect.left) / rect.width;
-      const lane = Math.max(0, Math.min(2, Math.floor(normX * 3)));
+      const lane = Math.max(0, Math.min(2, (normX * 3) | 0));
+
+      const consumed = this.triggerLaneInput(lane, 'tap', null, 'mouse');
 
       this.mouseTouch = {
         startX: e.clientX,
         startY: e.clientY,
-        startTime: performance.now(),
+        startTime: now,
         lane: lane,
-        swiped: false
+        swiped: false,
+        consumed: Boolean(consumed)
       };
-
-      this.triggerLaneInput(lane, 'tap', null, 'mouse');
     });
 
     window.addEventListener('mousemove', (e) => {
-      if (!this.mouseTouch || this.mouseTouch.swiped || this.isPaused || this.isRewinding) return;
+      if (!this.mouseTouch || this.mouseTouch.swiped || this.mouseTouch.consumed || this.isHighwayModeActive || this.isPaused || this.isRewinding) return;
       const dx = e.clientX - this.mouseTouch.startX;
       const dy = e.clientY - this.mouseTouch.startY;
-      const dist = Math.hypot(dx, dy);
+      const distSq = dx * dx + dy * dy;
       const elapsed = performance.now() - this.mouseTouch.startTime;
 
-      if (dist > 18 && elapsed < 500) {
+      if (distSq > 324 && elapsed < 500) {
         let direction = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
         this.mouseTouch.swiped = true;
+        this.mouseTouch.consumed = true;
         this.triggerLaneInput(this.mouseTouch.lane, 'swipe', direction, 'mouse');
       }
     });
 
-    window.addEventListener('mouseup', (e) => {
+    window.addEventListener('mouseup', () => {
       if (this.mouseTouch) {
         this.releaseLaneHold(this.mouseTouch.lane, 'mouse');
         this.mouseTouch = null;
@@ -2813,8 +2823,9 @@ class BeatstarEngine {
       // Micro-holds menores a 220ms se convierten en tap directo (en móvil un hold de 100ms es físicamente un tap)
       const isRealHold = (n.type === 'hold' || rawDur > 220) && rawDur > 220;
       let noteType = isRealHold ? 'hold' : (n.type === 'swipe' ? 'swipe' : 'tap');
-      // Si se detecta que el jugador está en PC (teclado/ratón), convertir automáticamente swipes a notas normales de tap
-      if (this.isPCMode && noteType === 'swipe') {
+      const isHighwayNow = Boolean((typeof window !== 'undefined' && (window.isHighwayModeActive || window.currentGameMode === 'highway')) || this.isHighwayModeActive);
+      // En PC o en Modo Carretera, convertir automáticamente todos los swipes a notas normales de tap
+      if ((this.isPCMode || isHighwayNow) && noteType === 'swipe') {
         noteType = 'tap';
       }
       const finalDur = isRealHold ? Math.max(220, rawDur) : 0;
@@ -3434,6 +3445,112 @@ class BeatstarEngine {
   }
 
   triggerLaneInput(lane, inputType = 'tap', swipeDirection = null, touchId = null) {
+    // En Modo Carretera no existen notas swipe
+    if (inputType === 'swipe' && this.isHighwayModeActive) {
+      return false;
+    }
+
+    const nowInput = performance.now();
+    const currentTime = this.getCurrentGameTimeMs(this._frameNow || nowInput);
+    const hitX = (lane + 0.5) * this.laneWidth;
+    const hitY = this.hitLineY;
+
+    // Si este carril ya tiene un Hold activo y llega un nuevo toque, re-vincular el touchId sin disparar fallo ni borrar el hold
+    if (inputType === 'tap' && this.activeHolds.has(lane)) {
+      const existingHold = this.activeHolds.get(lane);
+      if (existingHold && existingHold.note && !existingHold.note.holdCompleted) {
+        existingHold.touchId = touchId;
+        this.laneGlows[lane] = 1.0;
+        return true;
+      }
+    }
+
+    const isMushTiming = Boolean(this.isMushroomModeActive);
+    const HIT_WINDOW = isMushTiming
+      ? ((inputType === 'swipe') ? 370 : 300)
+      : ((inputType === 'swipe') ? 320 : 240);
+
+    // 1. Recolectar notas activas en este carril
+    const laneNotes = [];
+    const nLen = this.notes.length;
+    const startSearchIdx = Math.max(0, (this.firstActiveNoteIndex || 0) - 2);
+    if (!this._lastLaneHitPerf) this._lastLaneHitPerf = [0, 0, 0];
+    const msSinceLastHitInLane = nowInput - (this._lastLaneHitPerf[lane] || 0);
+
+    for (let i = startSearchIdx; i < nLen; i++) {
+      const note = this.notes[i];
+      if (!note || note.missed || note.holdCompleted || note.holding) continue;
+
+      // Permitir re-enganchar un hold que fue soltado temprano mientras su cuerpo sigue pasando por la meta
+      if (note.type === 'hold' && note.hit && note.holdReleasedEarly && inputType === 'tap') {
+        const endT = note.end_timestamp_ms || (note.timestamp_ms + (note.duration_ms || 700));
+        if (currentTime >= note.timestamp_ms && currentTime < endT - 90) {
+          note.holding = true;
+          note.holdReleasedEarly = false;
+          this.activeHolds.set(lane, {
+            note: note,
+            touchId: touchId,
+            startTime: note.timestamp_ms,
+            initialTime: note.timestamp_ms,
+            color: '#ffe082'
+          });
+          this.laneGlows[lane] = 1.0;
+          return true;
+        }
+      }
+
+      if (note.hit) continue;
+      if (note.timestamp_ms - currentTime > HIT_WINDOW + 80) break;
+      const matchesLane = this.isCalibrating || note.lane === lane;
+      if (!matchesLane) continue;
+
+      // Si es un evento de arrastre swipe, SOLO buscar notas que sean realmente de tipo 'swipe'
+      if (inputType === 'swipe' && note.type !== 'swipe') continue;
+
+      const diffFromNote = currentTime - note.timestamp_ms;
+      const absDiff = Math.abs(diffFromNote);
+
+      // Evitar que un doble toque involuntario tras acertar una nota robe prematuramente otra nota o un hold que aún viene lejos (>115ms antes)
+      if (inputType === 'tap' && msSinceLastHitInLane < 95 && diffFromNote < -115) {
+        continue;
+      }
+
+      if (absDiff <= HIT_WINDOW) {
+        laneNotes.push({ note, absDiff, diff: diffFromNote, time: note.timestamp_ms });
+      }
+    }
+
+    // ⚡ Si es swipe y no hubo nota swipe en el carril de inicio, buscar nota swipe activa en carriles adyacentes
+    if (inputType === 'swipe' && laneNotes.length === 0) {
+      for (let i = startSearchIdx; i < nLen; i++) {
+        const note = this.notes[i];
+        if (!note || note.hit || note.missed || note.holdCompleted || note.holding) continue;
+        if (note.timestamp_ms - currentTime > HIT_WINDOW + 80) break;
+        if (note.type !== 'swipe') continue;
+        const diffFromNote = currentTime - note.timestamp_ms;
+        const absDiff = Math.abs(diffFromNote);
+        if (absDiff <= HIT_WINDOW) {
+          laneNotes.push({ note, absDiff, diff: diffFromNote, time: note.timestamp_ms });
+        }
+      }
+    }
+
+    // Si fue un movimiento de dedo (swipe) pero no había ninguna nota swipe esperando, ignorar silenciosamente sin penalizar ni tocar otra tecla
+    if (inputType === 'swipe' && laneNotes.length === 0) {
+      return false;
+    }
+
+    if (laneNotes.length > 1) {
+      laneNotes.sort((a, b) => a.time - b.time);
+    }
+
+    // Si es un tap pero la nota frontal es un SWIPE, no consumir el toque aún: dejar que touchmove valide el deslizamiento
+    if (inputType === 'tap' && laneNotes.length > 0 && laneNotes[0].note.type === 'swipe') {
+      this.laneGlows[lane] = 0.65;
+      return false;
+    }
+
+    // Efectos visuales de pulsación de carril
     if (!this.borderEqLeftSurges) this.borderEqLeftSurges = new Float32Array(16);
     if (!this.borderEqRightSurges) this.borderEqRightSurges = new Float32Array(16);
     const rowCount = 12;
@@ -3460,23 +3577,16 @@ class BeatstarEngine {
     this.laneGlows[lane] = 1.0;
     if (this.laneFlashTimers) this.laneFlashTimers[lane] = 0.28;
     if (this.laneFlashColors) this.laneFlashColors[lane] = this.getJudgeGlowColor('perfectPlus');
-    const nowInput = performance.now();
     if (this.lanePressAnim) this.lanePressAnim[lane] = nowInput;
-    const currentTime = this.getCurrentGameTimeMs(this._frameNow || nowInput);
 
-    const hitX = (lane + 0.5) * this.laneWidth;
-    const hitY = this.hitLineY;
-
-    // Palette per lane (pre-allocated para 0 GC)
     if (!this._laneBurstPalettes) {
       this._laneBurstPalettes = [
-        { c1: '#00f2fe', c2: '#3b82f6', alt: '#39ff14' }, // Lane 0: Electric Cyan / Lime
-        { c1: '#ff007f', c2: '#a855f7', alt: '#ffe600' }, // Lane 1: Hot Magenta / Royal Purple
-        { c1: '#fbbf24', c2: '#ff3300', alt: '#ff007f' }  // Lane 2: Radiant Gold / Crimson
+        { c1: '#00f2fe', c2: '#3b82f6', alt: '#39ff14' },
+        { c1: '#ff007f', c2: '#a855f7', alt: '#ffe600' },
+        { c1: '#fbbf24', c2: '#ff3300', alt: '#ff007f' }
       ];
     }
     const p = this._laneBurstPalettes[lane % 3];
-
     const effect = this.normalizeEffectId(this.activeEffect);
     this.activeEffect = effect;
 
@@ -3512,50 +3622,6 @@ class BeatstarEngine {
       color: p.c1
     });
 
-    const isMushTiming = Boolean(this.isMushroomModeActive);
-    // ⚡ En Modo Setas Alucinógenas el timing está facilitado (300ms tap / 370ms swipe) pero tocar a destiempo cuenta como fallo
-    const HIT_WINDOW = isMushTiming
-      ? ((inputType === 'swipe') ? 370 : 300)
-      : ((inputType === 'swipe') ? 320 : 240);
-    let closestNote = null;
-    let minDiff = Infinity;
-
-    // 1. Recolectar notas activas en este carril empezando en firstActiveNoteIndex y cortando temprano
-    const laneNotes = [];
-    const nLen = this.notes.length;
-    const startSearchIdx = Math.max(0, (this.firstActiveNoteIndex || 0) - 2);
-    for (let i = startSearchIdx; i < nLen; i++) {
-      const note = this.notes[i];
-      if (!note || note.hit || note.missed || note.holdCompleted || note.holding) continue;
-      if (note.timestamp_ms - currentTime > HIT_WINDOW + 80) break;
-      const matchesLane = this.isCalibrating || note.lane === lane;
-      if (!matchesLane) continue;
-
-      const diffFromNote = currentTime - note.timestamp_ms;
-      const absDiff = Math.abs(diffFromNote);
-      if (absDiff <= HIT_WINDOW) {
-        laneNotes.push({ note, absDiff, diff: diffFromNote, time: note.timestamp_ms });
-      }
-    }
-
-    // ⚡ Si es swipe y no hubo nota exacta en el carril de inicio, buscar nota swipe activa en carriles adyacentes
-    if (inputType === 'swipe' && laneNotes.length === 0) {
-      for (let i = startSearchIdx; i < nLen; i++) {
-        const note = this.notes[i];
-        if (!note || note.hit || note.missed || note.holdCompleted || note.holding) continue;
-        if (note.timestamp_ms - currentTime > HIT_WINDOW + 80) break;
-        if (note.type !== 'swipe') continue;
-        const diffFromNote = currentTime - note.timestamp_ms;
-        const absDiff = Math.abs(diffFromNote);
-        if (absDiff <= HIT_WINDOW) {
-          laneNotes.push({ note, absDiff, diff: diffFromNote, time: note.timestamp_ms });
-        }
-      }
-    }
-
-    if (laneNotes.length > 1) {
-      laneNotes.sort((a, b) => a.time - b.time);
-    }
     const isActivelyPlaying = (this.isRunning || (this.sync && this.sync.isPlaying)) && !this.isPaused && !this.isGameOver && !this.isCountingDown && !this.isCalibrating && !!this.beatmapData;
     const isProtectedTransition = Boolean(this.isMushroomModeActive && this._mushInSafeTransition);
 
@@ -3566,7 +3632,7 @@ class BeatstarEngine {
       if (this.isCalibrating || isProtectedTransition) {
         this.synth.playClick();
         this.emitKeyHit(hitX, hitY, this.getScoreColor('perfectPlus'), 18);
-        return;
+        return true;
       }
       if (isActivelyPlaying && !this.isProcessingMiss) {
         this.synth.playPunchyArcadeMiss();
@@ -3576,51 +3642,43 @@ class BeatstarEngine {
           lane: lane,
           x: hitX,
           y: hitY,
-          time: performance.now()
+          time: nowInput
         };
         this.handleMiss();
-        return;
+        return true;
       }
       this.synth.playClick();
-      return;
+      return true;
     }
 
-    // La nota frontal es la que está más abajo en la pista (más cercana a la línea de golpeo)
     const frontEntry = laneNotes[0];
     const frontNote = frontEntry.note;
     const isFlippedMush = Boolean(isMushTiming && (this._mushFlipProgress || 0) > 0.5);
+    let closestNote = null;
+    let minDiff = Infinity;
 
     if (inputType === 'tap') {
-      // Si la nota frontal es un SWIPE, el toque inicial (touchstart) NO la falla;
-      // se espera a que handleTouchMove detecte el deslizamiento del dedo.
-      if (frontNote.type === 'swipe') {
-        return;
-      }
       closestNote = frontNote;
       minDiff = frontEntry.absDiff;
     } else if (inputType === 'swipe') {
-      if (frontNote.type === 'swipe') {
-        const targetDir = (frontNote.direction || 'up').toLowerCase();
-        const curDir = (swipeDirection || '').toLowerCase();
-        const flippedTargetDir = isFlippedMush
-          ? (targetDir === 'up' ? 'down' : (targetDir === 'down' ? 'up' : targetDir))
-          : targetDir;
-        if (!curDir || !targetDir || curDir === targetDir || curDir === flippedTargetDir) {
-          closestNote = frontNote;
-          minDiff = frontEntry.absDiff;
-        } else {
-          return;
-        }
-      } else {
-        // Swipe sobre nota normal o hold: se valida fluidamente como acierto
+      const targetDir = (frontNote.direction || 'up').toLowerCase();
+      const curDir = (swipeDirection || '').toLowerCase();
+      const flippedTargetDir = isFlippedMush
+        ? (targetDir === 'up' ? 'down' : (targetDir === 'down' ? 'up' : targetDir))
+        : targetDir;
+      if (!curDir || !targetDir || curDir === targetDir || curDir === flippedTargetDir) {
         closestNote = frontNote;
         minDiff = frontEntry.absDiff;
+      } else {
+        return false;
       }
     }
 
     if (!closestNote) {
-      return;
+      return false;
     }
+
+    this._lastLaneHitPerf[closestNote.lane ?? lane] = nowInput;
 
     if (this.isCalibrating) {
       closestNote.hit = true;
@@ -3629,10 +3687,9 @@ class BeatstarEngine {
       if (this.customBgMode === 'reactive') {
         this.addReactiveBurst(lane, hitX, hitY, jCalib.color);
       }
-      return;
+      return true;
     }
 
-    // Nota tap o notas estándar (cualquier toque o tecla sobre la nota la valida inmediatamente)
     if (closestNote.type === 'tap' || (!closestNote.type || closestNote.type === 'single' || closestNote.type === 'normal')) {
       closestNote.hit = true;
       let j;
@@ -3646,18 +3703,17 @@ class BeatstarEngine {
       if (this.customBgMode === 'reactive') {
         this.addReactiveBurst(lane, hitX, hitY, j.color);
       }
-    } 
-    else if (closestNote.type === 'swipe') {
+      return true;
+    } else if (closestNote.type === 'swipe') {
       const targetDir = (closestNote.direction || 'up').toLowerCase();
       const curDir = (swipeDirection || '').toLowerCase();
       const flippedTargetDir = isFlippedMush
         ? (targetDir === 'up' ? 'down' : (targetDir === 'down' ? 'up' : targetDir))
         : targetDir;
       const isExactSwipe = inputType === 'swipe' && (!curDir || !closestNote.direction || curDir === targetDir || curDir === flippedTargetDir);
-      
+
       if (!isExactSwipe) {
-        // Dirección errónea o toque simple: no valida
-        return;
+        return false;
       }
 
       closestNote.hit = true;
@@ -3670,7 +3726,6 @@ class BeatstarEngine {
       }
       this.emitKeyHit(hitX, hitY, j.color, 26);
 
-      // ANIMACIÓN DE EXPULSIÓN HIPERSÓNICA: La tecla sale disparada hacia esa dirección
       if (!this.activeSwipeLaunches) this.activeSwipeLaunches = [];
       const launchVx = targetDir === 'left' ? -1550 : (targetDir === 'right' ? 1550 : 0);
       const launchVy = targetDir === 'up' ? -1650 : (targetDir === 'down' ? 1450 : 0);
@@ -3682,7 +3737,7 @@ class BeatstarEngine {
         y: hitY,
         dir: targetDir,
         color: j.color || '#00f2fe',
-        startTime: performance.now(),
+        startTime: nowInput,
         duration: 420,
         vx: launchVx,
         vy: launchVy,
@@ -3695,11 +3750,10 @@ class BeatstarEngine {
       if (this.customBgMode === 'reactive') {
         this.addReactiveBurst(lane, hitX, hitY, j.color);
       }
-    } 
-    else if (closestNote.type === 'hold') {
+      return true;
+    } else if (closestNote.type === 'hold') {
       const rawDur = closestNote.duration_ms || 0;
       if (rawDur <= 220) {
-        // Micro-hold se completa inmediatamente como tap seguro
         closestNote.hit = true;
         closestNote.holdCompleted = true;
         let j;
@@ -3712,6 +3766,7 @@ class BeatstarEngine {
         if (this.customBgMode === 'reactive') {
           this.addReactiveBurst(lane, hitX, hitY, j.color);
         }
+        return true;
       } else {
         const prevHold = this.activeHolds.get(lane);
         if (prevHold && prevHold.note && prevHold.note !== closestNote) {
@@ -3719,8 +3774,10 @@ class BeatstarEngine {
           prevHold.note.holdCompleted = true;
           prevHold.note.hit = true;
         }
+        closestNote.hit = true;
         closestNote.holding = true;
         closestNote.missed = false;
+        closestNote.holdReleasedEarly = false;
         let j;
         try {
           j = this.judgeHit(closestNote, minDiff, hitX, hitY);
@@ -3738,6 +3795,7 @@ class BeatstarEngine {
         if (this.customBgMode === 'reactive') {
           this.addReactiveBurst(lane, hitX, hitY, j.color);
         }
+        return true;
       }
     } else {
       closestNote.hit = true;
@@ -3748,6 +3806,7 @@ class BeatstarEngine {
         j = { text: 'GOOD', color: '#9e7b66', points: 25 };
       }
       this.emitKeyHit(hitX, hitY, j.color, 20);
+      return true;
     }
   }
 
@@ -3764,11 +3823,12 @@ class BeatstarEngine {
 
     const isSafeHold = Boolean(this.isMushroomModeActive && this._mushInSafeTransition);
 
-    // Acierto completado si se mantuvo al menos el 60% o hasta 180ms del final (o durante transición inmune)
-    if (isSafeHold || currentTime >= endT - 180 || (totalDuration > 0 && (heldDuration / totalDuration) >= 0.60)) {
+    // Acierto completado con bonus si se mantuvo al menos el 50% o hasta 220ms del final
+    if (isSafeHold || currentTime >= endT - 220 || (totalDuration > 0 && (heldDuration / totalDuration) >= 0.50)) {
       note.holdCompleted = true;
       note.hit = true;
       note.holding = false;
+      note.holdReleasedEarly = false;
       this.addScore(450 * this.multiplier);
       if (this.ui && this.ui.onHitBeatPulse) {
         this.ui.onHitBeatPulse(this.combo);
@@ -3777,19 +3837,11 @@ class BeatstarEngine {
       const holdColor = (active.color && active.color !== '#00ff88' && active.color !== '#00f2fe') ? active.color : '#e5b869';
       this.emitKeyHit(hitX, this.hitLineY, holdColor, 30);
     } else {
-      note.missed = true;
+      // Si se suelta antes, NO borrar el hold de la pantalla ni romper la partida por micro-cortes táctiles:
+      // la cabeza ya fue juzgada al tocarla y el cuerpo del hold sigue pasando visualmente (pudiendo re-engancharse)
+      note.hit = true;
       note.holding = false;
-      if (!this.isProcessingMiss && !this.isGameOver && !this.isPaused) {
-        this.synth.playPunchyArcadeMiss();
-        this.addJudgement('HOLD DROP', '#a81b26', lane);
-        this.missHighlight = {
-          type: 'hold_dropped',
-          lane: lane,
-          note: note,
-          time: performance.now()
-        };
-        this.handleMiss();
-      }
+      note.holdReleasedEarly = true;
     }
     this.activeHolds.delete(lane);
   }
@@ -8562,6 +8614,10 @@ class BeatstarEngine {
     const cycleTypes = ['f1', 'tractor', 'fiat500', 'tesla_roadster', 'fiat500', 'f1', 'tractor', 'tesla_roadster'];
     for (let i = 0; i < nLen; i++) {
       const n = this.notes[i];
+      // En Modo Carretera no hay swipes: cualquier swipe se convierte en tap limpio
+      if (n.type === 'swipe') {
+        n.type = 'tap';
+      }
       n._hwStartLane = n.lane ?? 1;
       n._hwPassLane = n.lane ?? 1;
       n._hwOvertakeP = -1;
@@ -8579,10 +8635,6 @@ class BeatstarEngine {
     }
 
     // 2. Planificador de adelantamientos espectaculares:
-    // Si la nota i (que llega ANTES al Perfect, en T_i) es un coche rápido ('tesla_roadster' o 'f1')
-    // y la nota i+1 (que llega DESPUÉS al Perfect, en T_{i+1}) está a [240ms..860ms] de distancia,
-    // hacemos que i+1 sea un vehículo más lento ('tractor' o 'fiat500') que salió antes por el horizonte.
-    // Así el vehículo rápido i alcanza por detrás a i+1 y lo ADELANTA en mitad de la autopista antes del Perfect!
     for (let i = 0; i < nLen - 1; i++) {
       const fastN = this.notes[i];
       const slowN = this.notes[i + 1];
@@ -8604,21 +8656,17 @@ class BeatstarEngine {
         if (pOvertake >= 0.20 && pOvertake <= 0.72) {
           fastN._hwOvertakeP = pOvertake;
           if (useTesla) {
-            // El Tesla Roadster sale detrás del vehículo lento, enciende sus propulsores de humo blanco,
-            // lo adelanta VOLANDO por encima con una pirueta de 360° y aterriza en su carril real fastN.lane
             fastN._hwStartLane = slowN.lane;
             fastN._hwIsFlyingOvertake = true;
           } else {
-            // El F1 sale detrás del vehículo lento y cambia de carril con intermitentes para adelantarlo sin tocarlo
             if (fastN.lane !== slowN.lane) {
               fastN._hwStartLane = slowN.lane;
             } else {
-              // Mismo carril: el F1 se abre a un carril contiguo despejado para adelantar y vuelve a su carril
               const altLane = (fastN.lane === 1) ? ((i % 2 === 0) ? 0 : 2) : 1;
               fastN._hwPassLane = altLane;
             }
           }
-          i++; // Avanzar pareja ya coreografiada
+          i++;
         }
       }
     }
@@ -8656,16 +8704,56 @@ class BeatstarEngine {
 
   _emitHighwaySmoke(x, y, vx, vy, rStart, rEnd, color, alpha, duration) {
     if (!this._hwSmokeParticles) this._hwSmokeParticles = [];
-    if (this._hwSmokeParticles.length > 110) return;
-    this._hwSmokeParticles.push({
-      x, y, vx, vy,
-      r: rStart,
-      maxR: rEnd,
-      color: color || '#ffffff',
-      alpha: alpha || 0.75,
-      age: 0,
-      duration: duration || 0.55
-    });
+    if (!this._hwSmokeFreePool) this._hwSmokeFreePool = [];
+    if (this._hwSmokeParticles.length >= 100) return;
+    const sp = this._hwSmokeFreePool.length > 0 ? this._hwSmokeFreePool.pop() : {};
+    sp.x = x;
+    sp.y = y;
+    sp.vx = vx;
+    sp.vy = vy;
+    sp.r = rStart;
+    sp.maxR = rEnd;
+    sp.color = color || '#ffffff';
+    sp.alpha = alpha || 0.75;
+    sp.age = 0;
+    sp.duration = duration || 0.55;
+    this._hwSmokeParticles.push(sp);
+  }
+
+  // Guía láser horizontal de sincronización Perfect+ (elegante, sin texto, alineada al punto exacto p=1.0)
+  _drawHighwayTimingLaserBar(ctx, cx, cy, laneW, scale, pHead, isActiveHold = false, accentHex = '#38bdf8') {
+    const barHalfW = laneW * 0.41;
+    const proximityBoost = Math.max(0, Math.min(1, (pHead - 0.55) / 0.45));
+    const coreH = Math.max(2.2, (2.8 + proximityBoost * 1.4) * scale);
+    const glowH = Math.max(6.0, (9.5 + proximityBoost * 4.5) * scale);
+
+    // 1. Halo suave translúcido (0 shadowBlur para máximo rendimiento GPU)
+    ctx.fillStyle = isActiveHold
+      ? 'rgba(250, 204, 21, 0.34)'
+      : (proximityBoost > 0.5 ? 'rgba(56, 189, 248, 0.32)' : 'rgba(56, 189, 248, 0.18)');
+    ctx.fillRect(cx - barHalfW, cy - glowH * 0.5, barHalfW * 2, glowH);
+
+    // 2. Línea núcleo blanco-diamante en la coordenada exacta de impacto (cy)
+    ctx.fillStyle = isActiveHold ? '#fef08a' : '#ffffff';
+    ctx.fillRect(cx - barHalfW * 0.88, cy - coreH * 0.5, barHalfW * 1.76, coreH);
+
+    // 3. Corchetes de precisión laterales [   ]
+    const tickW = Math.max(3.5, 6.0 * scale);
+    const tickH = Math.max(5.0, 8.5 * scale);
+    ctx.strokeStyle = isActiveHold ? '#facc15' : accentHex;
+    ctx.lineWidth = Math.max(1.5, 2.2 * scale);
+    ctx.beginPath();
+    // Izquierdo
+    ctx.moveTo(cx - barHalfW + tickW, cy - tickH * 0.5);
+    ctx.lineTo(cx - barHalfW, cy - tickH * 0.5);
+    ctx.lineTo(cx - barHalfW, cy + tickH * 0.5);
+    ctx.lineTo(cx - barHalfW + tickW, cy + tickH * 0.5);
+    // Derecho
+    ctx.moveTo(cx + barHalfW - tickW, cy - tickH * 0.5);
+    ctx.lineTo(cx + barHalfW, cy - tickH * 0.5);
+    ctx.lineTo(cx + barHalfW, cy + tickH * 0.5);
+    ctx.lineTo(cx + barHalfW - tickW, cy + tickH * 0.5);
+    ctx.stroke();
   }
 
   _renderHighwaySteamTrainHold(ctx, note, lane, currentTime, pHead, endT, isBeingHeld, maxH3D) {
@@ -8683,236 +8771,242 @@ class BeatstarEngine {
 
     ctx.save();
 
-    // 1. Puntos de perspectiva para el trazado continuo de la vía y el lecho luminoso del Hold
+    // 1. Puntos de perspectiva reutilizados en pool (0 allocs por frame)
     const railSteps = 16;
-    const pts = [];
+    if (!this._hwRailPtsPool) {
+      this._hwRailPtsPool = [];
+      for (let s = 0; s <= railSteps; s++) {
+        this._hwRailPtsPool.push({ x: 0, y: 0, scale: 1, laneW: 100, p: 0 });
+      }
+    }
+    const pts = this._hwRailPtsPool;
     for (let s = 0; s <= railSteps; s++) {
       const frac = s / railSteps;
       const pStep = visibleTailP + (visibleHeadP - visibleTailP) * frac;
-      const c = this.getPerspectiveCoord(lane, pStep);
-      pts.push({ x: c.x, y: c.y, scale: c.scale, laneW: c.laneW, p: pStep });
+      const c = this.getPerspectiveCoord(lane, pStep, this._coordScratch1);
+      const pt = pts[s];
+      pt.x = c.x;
+      pt.y = c.y;
+      pt.scale = c.scale;
+      pt.laneW = c.laneW;
+      pt.p = pStep;
     }
 
-    // 2. ✨ LECHO LUMINOSO DE HOLD (Franja continua ultra visible que conecta todo el tren)
+    // 2. CHASIS CONTINUO DE FERROCARRIL Y CINTA CONDUCTORA DE ENERGÍA HOLD (100% opaco en el núcleo para unir todo el tren)
+    // A. Base oscura acorazada de balasto y acero
     ctx.beginPath();
     for (let s = 0; s <= railSteps; s++) {
       const pt = pts[s];
-      const rOff = pt.laneW * 0.32;
+      const rOff = pt.laneW * 0.34;
       if (s === 0) ctx.moveTo(pt.x + rOff, pt.y);
       else ctx.lineTo(pt.x + rOff, pt.y);
     }
     for (let s = railSteps; s >= 0; s--) {
       const pt = pts[s];
-      const rOff = pt.laneW * 0.32;
+      const rOff = pt.laneW * 0.34;
       ctx.lineTo(pt.x - rOff, pt.y);
     }
     ctx.closePath();
-
-    const holdBedGrad = ctx.createLinearGradient(pts[0].x, pts[0].y, pts[pts.length - 1].x, pts[pts.length - 1].y);
-    if (isBeingHeld) {
-      holdBedGrad.addColorStop(0.0, 'rgba(234, 179, 8, 0.35)');
-      holdBedGrad.addColorStop(0.5, 'rgba(245, 158, 11, 0.52)');
-      holdBedGrad.addColorStop(1.0, 'rgba(251, 191, 36, 0.72)');
-    } else {
-      holdBedGrad.addColorStop(0.0, 'rgba(14, 165, 233, 0.22)');
-      holdBedGrad.addColorStop(0.5, 'rgba(56, 189, 248, 0.38)');
-      holdBedGrad.addColorStop(1.0, 'rgba(2, 132, 199, 0.58)');
-    }
-    ctx.fillStyle = holdBedGrad;
+    ctx.fillStyle = '#090d16';
     ctx.fill();
 
-    // Flechas / impulsos de energía animados a lo largo del lecho para denotar dirección continua
-    const arrowPhase = (currentTime * 0.0028) % 1.0;
-    const numArrows = 6;
-    for (let a = 0; a < numArrows; a++) {
-      const aFrac = (arrowPhase + a / numArrows) % 1.0;
-      const pArr = visibleTailP + (visibleHeadP - visibleTailP) * aFrac;
-      if (pArr > visibleTailP + 0.05 && pArr < visibleHeadP - 0.08) {
-        const ac = this.getPerspectiveCoord(lane, pArr, this._coordScratch1);
-        const aSpan = ac.laneW * 0.20;
-        ctx.strokeStyle = isBeingHeld ? 'rgba(254, 240, 138, 0.85)' : 'rgba(224, 242, 254, 0.75)';
-        ctx.lineWidth = Math.max(1.8, 3.2 * ac.scale);
-        ctx.beginPath();
-        ctx.moveTo(ac.x - aSpan, ac.y - 4 * ac.scale);
-        ctx.lineTo(ac.x, ac.y + 4 * ac.scale);
-        ctx.lineTo(ac.x + aSpan, ac.y - 4 * ac.scale);
-        ctx.stroke();
-      }
+    // B. Franja conductora central continua de alta visibilidad
+    ctx.beginPath();
+    for (let s = 0; s <= railSteps; s++) {
+      const pt = pts[s];
+      const rOff = pt.laneW * 0.25;
+      if (s === 0) ctx.moveTo(pt.x + rOff, pt.y);
+      else ctx.lineTo(pt.x + rOff, pt.y);
     }
+    for (let s = railSteps; s >= 0; s--) {
+      const pt = pts[s];
+      const rOff = pt.laneW * 0.25;
+      ctx.lineTo(pt.x - rOff, pt.y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = isBeingHeld ? 'rgba(234, 179, 8, 0.58)' : 'rgba(14, 165, 233, 0.42)';
+    ctx.fill();
 
-    // 3. Traviesas de madera de roble con refuerzo metálico
+    // 3. Traviesas densas de madera de roble y acero
     const sleeperSpanP = visibleHeadP - visibleTailP;
-    const numSleepers = Math.max(4, Math.min(28, Math.floor(sleeperSpanP * 24)));
+    const numSleepers = Math.max(5, Math.min(32, Math.floor(sleeperSpanP * 28)));
+    ctx.strokeStyle = isBeingHeld ? '#a16207' : '#78350f';
     for (let k = 0; k <= numSleepers; k++) {
       const pSl = visibleTailP + (k / numSleepers) * sleeperSpanP;
       const sc = this.getPerspectiveCoord(lane, pSl, this._coordScratch1);
       const slHalfW = sc.laneW * 0.35;
-      ctx.strokeStyle = isBeingHeld ? '#854d0e' : '#78350f';
-      ctx.lineWidth = Math.max(2.2, 5.0 * sc.scale);
+      ctx.lineWidth = Math.max(2.2, 4.8 * sc.scale);
       ctx.beginPath();
       ctx.moveTo(sc.x - slHalfW, sc.y);
       ctx.lineTo(sc.x + slHalfW, sc.y);
       ctx.stroke();
     }
 
-    // 4. Raíles de acero luminosos (primera pasada con resplandor neón)
+    // 4. Raíles laterales continuos y tercer riel central de energía Hold
     ctx.strokeStyle = isBeingHeld ? '#fde047' : '#38bdf8';
-    ctx.lineWidth = Math.max(3.2, 5.8 * pts[pts.length - 1].scale);
+    ctx.lineWidth = Math.max(3.0, 5.4 * pts[railSteps].scale);
     ctx.beginPath();
     for (let s = 0; s <= railSteps; s++) {
       const pt = pts[s];
-      const rOff = pt.laneW * 0.22;
+      const rOff = pt.laneW * 0.24;
       if (s === 0) ctx.moveTo(pt.x - rOff, pt.y);
       else ctx.lineTo(pt.x - rOff, pt.y);
     }
     for (let s = 0; s <= railSteps; s++) {
       const pt = pts[s];
-      const rOff = pt.laneW * 0.22;
+      const rOff = pt.laneW * 0.24;
       if (s === 0) ctx.moveTo(pt.x + rOff, pt.y);
       else ctx.lineTo(pt.x + rOff, pt.y);
     }
     ctx.stroke();
 
-    // Núcleo blanco brillante en los raíles
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = Math.max(1.4, 2.2 * pts[pts.length - 1].scale);
-    ctx.beginPath();
-    for (let s = 0; s <= railSteps; s++) {
-      const pt = pts[s];
-      const rOff = pt.laneW * 0.22;
-      if (s === 0) ctx.moveTo(pt.x - rOff, pt.y);
-      else ctx.lineTo(pt.x - rOff, pt.y);
-    }
-    for (let s = 0; s <= railSteps; s++) {
-      const pt = pts[s];
-      const rOff = pt.laneW * 0.22;
-      if (s === 0) ctx.moveTo(pt.x + rOff, pt.y);
-      else ctx.lineTo(pt.x + rOff, pt.y);
-    }
+    ctx.lineWidth = Math.max(1.4, 2.2 * pts[railSteps].scale);
     ctx.stroke();
 
-    // 5. Vagones acoplados con cables de enganche luminosos
-    const wagonStepP = 0.165;
-    const availableWagonSpan = Math.max(0, (currentHeadP - 0.13) - currentTailP);
-    const wagonCount = Math.min(10, Math.max(1, Math.round(availableWagonSpan / wagonStepP)));
+    // 5. VAGONES MUY JUNTOS CON FUELLES ARTICULADOS MACIZOS (Sin huecos vacíos: forman un único tren continuo)
+    const headCoord = this.getPerspectiveCoord(lane, Math.min(1.06, currentHeadP), this._coordScratch0);
+    const locoW = Math.min(headCoord.laneW * 0.72, 76 * headCoord.scale);
+    const locoH = locoW * 1.38;
+
+    // Paso corto (0.068) para que cada vagón vaya pegado parachoques con parachoques al siguiente
+    const wagonStepP = 0.068;
+    const firstWagonHeadOffset = 0.068;
+    const availableWagonSpan = Math.max(0, (currentHeadP - firstWagonHeadOffset) - currentTailP);
+    const wagonCount = Math.min(36, Math.max(2, Math.ceil(availableWagonSpan / wagonStepP) + 1));
     const wagonsSprites = this._hwSprites.steam_wagons;
 
-    let prevWagonX = null;
-    let prevWagonY = null;
-    let tailWagonCoord = null;
+    let prevCenterX = null;
+    let prevCenterY = null;
+    let prevWWidth = 0;
+    let tailBumperCoord = null;
 
     for (let wIdx = wagonCount - 1; wIdx >= 0; wIdx--) {
-      const pWagon = currentHeadP - 0.15 - wIdx * wagonStepP;
-      if (pWagon < -0.08 || pWagon > 1.12) continue;
-      if (pWagon < currentTailP - 0.03) continue;
+      const pWagon = currentHeadP - firstWagonHeadOffset - wIdx * wagonStepP;
+      if (pWagon < -0.06 || pWagon > 1.12) continue;
+      if (pWagon < currentTailP - 0.015) continue;
 
       const wCoord = this.getPerspectiveCoord(lane, pWagon, this._coordScratch1);
       const wWidth = Math.min(wCoord.laneW * 0.66, 68 * wCoord.scale);
-      const wHeight = wWidth * 1.22;
-      const swayX = Math.sin(currentTime * 0.014 + wIdx * 1.4) * (1.8 * wCoord.scale);
-      const curWx = wCoord.x + swayX;
-      const curWy = wCoord.y - wHeight * 0.55;
+      const wHeight = wWidth * 1.24;
+      const swayX = Math.sin(currentTime * 0.014 + wIdx * 0.9) * (1.2 * wCoord.scale);
+      const curCx = wCoord.x + swayX;
+      const curCy = wCoord.y;
 
-      if (!tailWagonCoord) {
-        tailWagonCoord = { x: curWx, y: curWy, scale: wCoord.scale, w: wWidth, h: wHeight };
+      if (!tailBumperCoord) {
+        tailBumperCoord = { x: curCx, y: curCy - wHeight * 0.48, scale: wCoord.scale, w: wWidth };
       }
 
-      // Viga de enganche continuo entre vagones
-      if (prevWagonX !== null) {
-        ctx.strokeStyle = isBeingHeld ? '#fef08a' : '#38bdf8';
-        ctx.lineWidth = Math.max(2.0, 3.2 * wCoord.scale);
-        ctx.beginPath();
-        ctx.moveTo(prevWagonX, prevWagonY + wHeight * 0.5);
-        ctx.lineTo(curWx, curWy + wHeight * 0.5);
-        ctx.stroke();
+      // Fuelle articulado macizo (acordeón ferroviario) que une este vagón con el anterior sin dejar hueco de asfalto
+      if (prevCenterX !== null) {
+        const bellowW = Math.min(prevWWidth, wWidth) * 0.56;
+        const topY = Math.min(prevCenterY, curCy);
+        const botY = Math.max(prevCenterY, curCy);
+        const midX = (prevCenterX + curCx) * 0.5;
+
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(midX - bellowW * 0.5, topY, bellowW, Math.max(4, botY - topY));
+
+        ctx.strokeStyle = isBeingHeld ? '#fde047' : '#38bdf8';
+        ctx.lineWidth = Math.max(1.6, 2.6 * wCoord.scale);
+        ctx.strokeRect(midX - bellowW * 0.5, topY, bellowW, Math.max(4, botY - topY));
       }
-      prevWagonX = curWx;
-      prevWagonY = curWy;
 
       let spr = wagonsSprites[1];
       if (wIdx === 0) spr = wagonsSprites[0];
       else if (wIdx === wagonCount - 1) spr = wagonsSprites[3];
       else spr = wagonsSprites[1 + (wIdx % 2)];
 
-      ctx.drawImage(spr, curWx - wWidth * 0.5, curWy, wWidth, wHeight);
+      ctx.drawImage(spr, curCx - wWidth * 0.5, curCy - wHeight * 0.50, wWidth, wHeight);
+
+      prevCenterX = curCx;
+      prevCenterY = curCy;
+      prevWWidth = wWidth;
     }
 
-    // 6. Marcador de cola en el último vagón (FIN HOLD / FAROL ROJO)
-    if (tailWagonCoord && currentTailP > -0.05 && currentTailP < 1.10) {
-      const redGlowR = Math.max(6, 14 * tailWagonCoord.scale);
+    // Fuelle articulado entre el primer vagón (carbonero) y la locomotora
+    if (prevCenterX !== null) {
+      const bellowW = Math.min(prevWWidth, locoW) * 0.54;
+      const topY = Math.min(prevCenterY, headCoord.y);
+      const botY = Math.max(prevCenterY, headCoord.y);
+      const midX = (prevCenterX + headCoord.x) * 0.5;
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(midX - bellowW * 0.5, topY, bellowW, Math.max(4, botY - topY));
+      ctx.strokeStyle = isBeingHeld ? '#fde047' : '#38bdf8';
+      ctx.lineWidth = Math.max(1.6, 2.6 * headCoord.scale);
+      ctx.strokeRect(midX - bellowW * 0.5, topY, bellowW, Math.max(4, botY - topY));
+    }
+
+    // 6. Barra de topes traseros con doble farol rojo luminoso en la cola del último vagón (sin texto)
+    if (tailBumperCoord && currentTailP > -0.05 && currentTailP < 1.10) {
+      const tb = tailBumperCoord;
+      const barW = tb.w * 0.44;
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = Math.max(3.5, 6.0 * tb.scale);
+      ctx.beginPath();
+      ctx.moveTo(tb.x - barW, tb.y);
+      ctx.lineTo(tb.x + barW, tb.y);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = Math.max(2.0, 3.4 * tb.scale);
+      ctx.stroke();
+
+      const lampR = Math.max(2.5, 4.2 * tb.scale);
       ctx.fillStyle = '#ef4444';
       ctx.beginPath();
-      ctx.arc(tailWagonCoord.x, tailWagonCoord.y + 4, Math.max(3, 5 * tailWagonCoord.scale), 0, Math.PI * 2);
+      ctx.arc(tb.x - barW * 0.65, tb.y, lampR, 0, Math.PI * 2);
+      ctx.arc(tb.x + barW * 0.65, tb.y, lampR, 0, Math.PI * 2);
       ctx.fill();
-
-      // Etiqueta flotante FIN HOLD
-      ctx.save();
-      ctx.font = `900 ${Math.max(9, Math.round(11 * tailWagonCoord.scale))}px Inter, system-ui, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      const endText = '🛑 FIN HOLD';
-      const endTw = ctx.measureText(endText).width;
-      const badgeH = 14 * tailWagonCoord.scale;
-      const badgeY = tailWagonCoord.y - 12 * tailWagonCoord.scale;
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
-      ctx.strokeStyle = '#ef4444';
-      ctx.lineWidth = 1.6;
-      ctx.beginPath();
-      ctx.roundRect(tailWagonCoord.x - endTw * 0.5 - 6, badgeY - badgeH * 0.5, endTw + 12, badgeH, 6);
-      ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = '#fca5a5';
-      ctx.fillText(endText, tailWagonCoord.x, badgeY);
-      ctx.restore();
     }
 
-    // 7. Locomotora de Vapor en la cabeza del Hold
-    const headCoord = this.getPerspectiveCoord(lane, Math.min(1.06, currentHeadP), this._coordScratch1);
-    const locoW = Math.min(headCoord.laneW * 0.72, 76 * headCoord.scale);
-    const locoH = locoW * 1.42;
+    // 7. Locomotora de Vapor en la cabeza del Hold (centrada sobre headCoord.y para que coincida con la guía láser)
     const chugBounce = isBeingHeld
-      ? Math.sin(currentTime * 0.035) * (2.2 * headCoord.scale)
-      : Math.sin(currentTime * 0.018) * (1.2 * headCoord.scale);
+      ? Math.sin(currentTime * 0.035) * (2.0 * headCoord.scale)
+      : Math.sin(currentTime * 0.018) * (1.0 * headCoord.scale);
+
+    // Guía láser horizontal de sincronización Perfect+ exactamente en headCoord.y
+    this._drawHighwayTimingLaserBar(ctx, headCoord.x, headCoord.y, headCoord.laneW, headCoord.scale, currentHeadP, isBeingHeld, '#facc15');
 
     // Cono de luz dorada del faro delantero sobre la vía
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    const beamLen = (isBeingHeld ? 68 : 48) * headCoord.scale;
-    const beamGrad = ctx.createLinearGradient(headCoord.x, headCoord.y, headCoord.x, headCoord.y + beamLen);
-    beamGrad.addColorStop(0.0, isBeingHeld ? 'rgba(254, 240, 138, 0.82)' : 'rgba(254, 240, 138, 0.50)');
+    const beamLen = (isBeingHeld ? 62 : 44) * headCoord.scale;
+    const frontBumperY = headCoord.y + locoH * 0.36;
+    const beamGrad = ctx.createLinearGradient(headCoord.x, frontBumperY, headCoord.x, frontBumperY + beamLen);
+    beamGrad.addColorStop(0.0, isBeingHeld ? 'rgba(254, 240, 138, 0.78)' : 'rgba(254, 240, 138, 0.45)');
     beamGrad.addColorStop(1.0, 'rgba(254, 240, 138, 0.0)');
     ctx.fillStyle = beamGrad;
     ctx.beginPath();
-    ctx.moveTo(headCoord.x - 9 * headCoord.scale, headCoord.y + 4 * headCoord.scale);
-    ctx.lineTo(headCoord.x + 9 * headCoord.scale, headCoord.y + 4 * headCoord.scale);
-    ctx.lineTo(headCoord.x + 30 * headCoord.scale, headCoord.y + beamLen);
-    ctx.lineTo(headCoord.x - 30 * headCoord.scale, headCoord.y + beamLen);
+    ctx.moveTo(headCoord.x - 9 * headCoord.scale, frontBumperY);
+    ctx.lineTo(headCoord.x + 9 * headCoord.scale, frontBumperY);
+    ctx.lineTo(headCoord.x + 28 * headCoord.scale, frontBumperY + beamLen);
+    ctx.lineTo(headCoord.x - 28 * headCoord.scale, frontBumperY + beamLen);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
 
-    // Sprite de la locomotora alineado exactamente con la meta
     ctx.drawImage(
       this._hwSprites.steam_locomotive,
       headCoord.x + chugBounce * 0.4 - locoW * 0.5,
-      headCoord.y - locoH * 0.78,
+      headCoord.y - locoH * 0.50,
       locoW,
       locoH
     );
 
     // 8. Chispas de rieles si está siendo sostenido (hold activo)
     if (isBeingHeld) {
-      const sparkY = headCoord.y - 2;
+      const sparkY = headCoord.y;
       const slOff = locoW * 0.42;
       this._emitHighwaySmoke(headCoord.x - slOff, sparkY, -26 - Math.random() * 20, -14, 2 * headCoord.scale, 5 * headCoord.scale, '#fde047', 0.9, 0.22);
       this._emitHighwaySmoke(headCoord.x + slOff, sparkY, 26 + Math.random() * 20, -14, 2 * headCoord.scale, 5 * headCoord.scale, '#fde047', 0.9, 0.22);
     }
 
-    // 9. Bocanadas de vapor blanco continuo
-    if (!note._lastSteamMs || (currentTime - note._lastSteamMs > (isBeingHeld ? 50 : 105))) {
+    // 9. Bocanadas de vapor blanco continuo desde la chimenea
+    if (!note._lastSteamMs || (currentTime - note._lastSteamMs > (isBeingHeld ? 52 : 110))) {
       note._lastSteamMs = currentTime;
       const stackX = headCoord.x + (Math.random() - 0.5) * 6 * headCoord.scale;
-      const stackY = headCoord.y - locoH * 0.22;
+      const stackY = headCoord.y + locoH * 0.08;
       this._emitHighwaySmoke(
         stackX,
         stackY,
@@ -8925,51 +9019,6 @@ class BeatstarEngine {
         0.58
       );
     }
-
-    // 10. 🏷️ DISTINTIVO GIGANTE LUMINOSO: "MANTÉN / HOLD" EN LA CABEZA DEL TREN
-    ctx.save();
-    const badgeScale = Math.max(0.72, headCoord.scale);
-    const holdPulse = 1.0 + Math.sin(currentTime * 0.010) * 0.08;
-    const badgeY = headCoord.y - locoH * 0.88;
-    ctx.translate(headCoord.x, badgeY);
-    ctx.scale(badgeScale * holdPulse, badgeScale * holdPulse);
-
-    ctx.font = '900 13px Inter, system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-
-    const holdLabel = isBeingHeld ? '⚡ ¡SOSTENIENDO! ⚡' : '👆 MANTÉN (HOLD) ⚓';
-    const textW = ctx.measureText(holdLabel).width;
-    const pillW = textW + 20;
-    const pillH = 22;
-
-    // Fondo y borde neón llamativo
-    ctx.fillStyle = isBeingHeld ? 'rgba(20, 14, 2, 0.92)' : 'rgba(3, 20, 36, 0.92)';
-    ctx.strokeStyle = isBeingHeld ? '#facc15' : '#38bdf8';
-    ctx.lineWidth = 2.4;
-    ctx.shadowColor = isBeingHeld ? '#eab308' : '#0284c7';
-    ctx.shadowBlur = 12;
-
-    ctx.beginPath();
-    ctx.roundRect(-pillW * 0.5, -pillH * 0.5, pillW, pillH, 11);
-    ctx.fill();
-    ctx.stroke();
-
-    // Texto brillante
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = isBeingHeld ? '#fef08a' : '#e0f2fe';
-    ctx.fillText(holdLabel, 0, 0);
-
-    // Flecha indicadora hacia la cabina
-    ctx.fillStyle = isBeingHeld ? '#facc15' : '#38bdf8';
-    ctx.beginPath();
-    ctx.moveTo(-5, pillH * 0.5);
-    ctx.lineTo(5, pillH * 0.5);
-    ctx.lineTo(0, pillH * 0.5 + 5);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.restore();
 
     ctx.restore();
   }
@@ -8988,8 +9037,6 @@ class BeatstarEngine {
     const overtakeP = note._hwOvertakeP ?? -1;
     if (overtakeP > 0) {
       if (note._hwIsFlyingOvertake && vType === 'tesla_roadster') {
-        // El Tesla Roadster sale detrás del coche lento en _hwStartLane, enciende sus propulsores de humo blanco,
-        // se eleva volando sobre el coche delantero haciendo una pirueta completa de 360° y aterriza en su carril real `lane`
         const fStart = Math.max(0.06, overtakeP - 0.24);
         const fEnd = Math.min(0.78, overtakeP + 0.22);
         if (pHead < fStart) {
@@ -8999,13 +9046,11 @@ class BeatstarEngine {
           const smoothU = 0.5 - 0.5 * Math.cos(Math.PI * u);
           visualLane = (note._hwStartLane ?? lane) + (lane - (note._hwStartLane ?? lane)) * smoothU;
           flightLift = Math.sin(Math.PI * u);
-          // Pirueta completa de 360 grados en el aire como el Tesla Roadster SpaceX
           pirouetteAngle = (0.5 - 0.5 * Math.cos(Math.PI * u)) * Math.PI * 2;
         } else {
           visualLane = lane;
         }
       } else if ((note._hwStartLane !== undefined) && note._hwStartLane !== lane) {
-        // Adelantamiento cambiando de carril (_hwStartLane -> lane)
         const sStart = Math.max(0.08, overtakeP - 0.22);
         const sEnd = Math.min(0.74, overtakeP + 0.10);
         if (pHead < sStart) {
@@ -9024,7 +9069,6 @@ class BeatstarEngine {
           visualLane = lane;
         }
       } else if ((note._hwPassLane !== undefined) && note._hwPassLane !== lane) {
-        // Adelantamiento saliendo al carril contiguo libre y volviendo a `lane` antes de p=0.76
         const pStart = Math.max(0.06, overtakeP - 0.24);
         const pEnd = Math.min(0.76, overtakeP + 0.20);
         if (pHead >= pStart && pHead <= pEnd) {
@@ -9041,39 +9085,42 @@ class BeatstarEngine {
     const scale = coord.scale;
     const laneW = coord.laneW;
 
-    // 2. Dimensiones estrictamente contenidas dentro del carril (máx 68% del ancho de carril) para que jamás se toquen lateralmente
+    // 2. Dimensiones contenidas dentro del carril
     let carW = Math.min(laneW * 0.66, 72 * scale);
     let carH = carW * 1.42;
     let sprite = this._hwSprites.f1[0];
+    let laserAccent = '#38bdf8';
 
     if (vType === 'tractor') {
       carW = Math.min(laneW * 0.68, 74 * scale);
       carH = carW * 1.36;
       sprite = this._hwSprites.tractor;
+      laserAccent = '#4ade80';
     } else if (vType === 'fiat500') {
       carW = Math.min(laneW * 0.60, 64 * scale);
       carH = carW * 1.38;
       const fList = this._hwSprites.fiat500;
       sprite = fList[(note._hwVariantIdx || 0) % fList.length];
+      laserAccent = '#facc15';
     } else if (vType === 'f1') {
       carW = Math.min(laneW * 0.66, 72 * scale);
       carH = carW * 1.50;
       const f1List = this._hwSprites.f1;
       sprite = f1List[(note._hwVariantIdx || 0) % f1List.length];
+      laserAccent = '#f87171';
     } else if (vType === 'tesla_roadster') {
       carW = Math.min(laneW * 0.66, 72 * scale);
       carH = carW * 1.42;
       sprite = this._hwSprites.tesla_roadster;
+      laserAccent = '#38bdf8';
     }
 
-    // 3. Efectos de partículas dinámicas por tipo de vehículo (propulsores de humo blanco del Tesla, escape del tractor, chispas del F1)
+    // 3. Centrar el vehículo sobre coord.y (igual que las teclas normales) para que el juicio de impacto sea 100% intuitivo
     const liftOffsetY = flightLift * (46 * scale);
     const drawX = coord.x;
-    // Alinear el parachoques delantero del vehículo con coord.y (para que toque la línea de PERFECT exactamente en pHead = 1.0)
-    const drawCenterY = coord.y - carH * 0.42 - liftOffsetY;
+    const drawCenterY = coord.y - carH * 0.06 - liftOffsetY;
 
     if (vType === 'tesla_roadster') {
-      // Propulsores traseros SpaceX soltando abundante humo blanco
       const smokeInterval = flightLift > 0.05 ? 24 : 52;
       if (!note._lastSmokeMs || (currentTime - note._lastSmokeMs >= smokeInterval)) {
         note._lastSmokeMs = currentTime;
@@ -9103,7 +9150,6 @@ class BeatstarEngine {
         );
       }
     } else if (vType === 'tractor') {
-      // Anillos de humo diésel saliendo por la chimenea vertical del tractor
       if (!note._lastSmokeMs || (currentTime - note._lastSmokeMs >= 135)) {
         note._lastSmokeMs = currentTime;
         this._emitHighwaySmoke(
@@ -9122,20 +9168,23 @@ class BeatstarEngine {
 
     ctx.save();
 
-    // 4. Si el Tesla Roadster está adelantando en pleno vuelo, dibujar su sombra proyectada sobre el asfalto debajo
+    // 4. Guía Láser Horizontal de Sincronización Perfect+ en coord.y (permite clavar el timing con la misma precisión visual que una tecla normal)
+    this._drawHighwayTimingLaserBar(ctx, coord.x, coord.y, laneW, scale, pHead, false, laserAccent);
+
+    // 5. Si el Tesla Roadster está adelantando en pleno vuelo, dibujar su sombra proyectada sobre el asfalto debajo
     if (flightLift > 0.02) {
       ctx.fillStyle = `rgba(0, 0, 0, ${(0.45 * (1 - flightLift * 0.35)).toFixed(2)})`;
       ctx.beginPath();
-      ctx.ellipse(coord.x, coord.y - carH * 0.38, carW * 0.42 * (1 - flightLift * 0.2), carH * 0.44 * (1 - flightLift * 0.2), 0, 0, Math.PI * 2);
+      ctx.ellipse(coord.x, coord.y, carW * 0.42 * (1 - flightLift * 0.2), carH * 0.44 * (1 - flightLift * 0.2), 0, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // 5. Haces de luz de los faros delanteros proyectados hacia delante en el asfalto
+    // 6. Haces de luz de los faros delanteros proyectados hacia delante en el asfalto
     if (flightLift < 0.35) {
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      const beamLen = (vType === 'f1' ? 28 : 42) * scale;
-      const frontY = coord.y - 2 * scale;
+      const beamLen = (vType === 'f1' ? 28 : 40) * scale;
+      const frontY = drawCenterY + carH * 0.42;
       const hGrad = ctx.createLinearGradient(drawX, frontY, drawX, frontY + beamLen);
       const beamCol = (vType === 'tesla_roadster') ? 'rgba(186, 230, 253, 0.46)' : 'rgba(254, 240, 138, 0.36)';
       hGrad.addColorStop(0.0, beamCol);
@@ -9144,20 +9193,19 @@ class BeatstarEngine {
       ctx.beginPath();
       ctx.moveTo(drawX - carW * 0.34, frontY);
       ctx.lineTo(drawX + carW * 0.34, frontY);
-      ctx.lineTo(drawX + carW * 0.56, frontY + beamLen);
-      ctx.lineTo(drawX - carW * 0.56, frontY + beamLen);
+      ctx.lineTo(drawX + carW * 0.54, frontY + beamLen);
+      ctx.lineTo(drawX - carW * 0.54, frontY + beamLen);
       ctx.closePath();
       ctx.fill();
       ctx.restore();
     }
 
-    // 6. Transformación del vehículo (inclinación de volante al adelantar + escala de vuelo + pirueta 360° del Tesla Roadster)
+    // 7. Transformación del vehículo
     const flightScale = 1.0 + flightLift * 0.34;
     ctx.translate(drawX, drawCenterY);
     ctx.rotate(steerAngle + pirouetteAngle);
     ctx.scale(flightScale, flightScale);
 
-    // Chispas de titanio del F1 y llamas de propulsor del Tesla Roadster
     if (vType === 'f1') {
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
@@ -9176,7 +9224,6 @@ class BeatstarEngine {
       }
       ctx.restore();
     } else if (vType === 'tesla_roadster') {
-      // Chorros gemelos de gas frío blanco-cian saliendo de las toberas traseras (y laterales en la pirueta)
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       const jetLen = (flightLift > 0.05 ? 34 : 18) * scale * (0.85 + 0.3 * Math.sin(currentTime * 0.05));
@@ -9196,7 +9243,6 @@ class BeatstarEngine {
         ctx.fill();
       }
       if (flightLift > 0.08) {
-        // Anillo aerodinámico supersónico blanco durante la pirueta aérea
         ctx.strokeStyle = `rgba(255, 255, 255, ${(flightLift * 0.65).toFixed(2)})`;
         ctx.lineWidth = 2.4 * scale;
         ctx.beginPath();
@@ -9206,12 +9252,10 @@ class BeatstarEngine {
       ctx.restore();
     }
 
-    // Dibujar sprite ultra detallado del vehículo
     if (sprite) {
       ctx.drawImage(sprite, -carW * 0.5, -carH * 0.5, carW, carH);
     }
 
-    // Luz rotativa ámbar girando en el techo del Tractor
     if (vType === 'tractor') {
       const rotAng = currentTime * 0.015;
       ctx.save();
@@ -9229,7 +9273,6 @@ class BeatstarEngine {
       ctx.restore();
     }
 
-    // Intermitente ámbar parpadeando cuando un vehículo cambia de carril para adelantar
     if (blinkerSide !== 0 && (Math.floor(currentTime * 0.016) % 2 === 0)) {
       ctx.fillStyle = '#fbbf24';
       const bx = blinkerSide * (carW * 0.44);
@@ -9237,11 +9280,6 @@ class BeatstarEngine {
       ctx.arc(bx, carH * 0.36, 4.2 * scale, 0, Math.PI * 2);
       ctx.arc(bx, -carH * 0.36, 4.2 * scale, 0, Math.PI * 2);
       ctx.fill();
-    }
-
-    // Si la nota es un SWIPE, dibujar chevrón direccional luminoso sobre el techo del vehículo
-    if (note.type === 'swipe') {
-      this.renderVectorChevron(ctx, 0, 4 * scale, note.direction || 'up', carW * 0.88, carH * 0.42);
     }
 
     ctx.restore();
@@ -9258,20 +9296,24 @@ class BeatstarEngine {
 
     ctx.save();
 
-    // 1. Renderizar y actualizar partículas de humo blanco de los propulsores SpaceX del Tesla Roadster,
-    // bocanadas de vapor blanco de las locomotoras y anillos de humo de los tractores
+    // 1. Renderizar y actualizar partículas de humo blanco con eliminación O(1) swap-and-pop (0 tirones de GC)
     if (this._hwSmokeParticles && this._hwSmokeParticles.length > 0) {
-      for (let i = this._hwSmokeParticles.length - 1; i >= 0; i--) {
+      if (!this._hwSmokeFreePool) this._hwSmokeFreePool = [];
+      let len = this._hwSmokeParticles.length;
+      for (let i = len - 1; i >= 0; i--) {
         const sp = this._hwSmokeParticles[i];
         sp.age += dt;
         if (sp.age >= sp.duration) {
-          this._hwSmokeParticles.splice(i, 1);
+          this._hwSmokeParticles[i] = this._hwSmokeParticles[len - 1];
+          this._hwSmokeParticles.pop();
+          len--;
+          if (this._hwSmokeFreePool.length < 120) this._hwSmokeFreePool.push(sp);
           continue;
         }
         const p = sp.age / sp.duration;
         sp.x += sp.vx * dt;
         sp.y += sp.vy * dt;
-        const curR = sp.r + (sp.maxR - sp.r) * (1 - Math.pow(1 - p, 2));
+        const curR = sp.r + (sp.maxR - sp.r) * (1 - (1 - p) * (1 - p));
         const curAlpha = sp.alpha * (1 - p);
 
         ctx.globalAlpha = Math.max(0, Math.min(1, curAlpha));
@@ -11234,9 +11276,14 @@ class BeatstarEngine {
         }
 
         // En Modo Carretera los vehículos tienen distintas velocidades (_hwDurationMs) y se adelantan,
-        // por lo que recolectamos los vehículos visibles con lookahead holgado para que nazcan en el horizonte lejanamente
+        // usando un pool pre-asignado para 0 allocs de memoria por fotograma (0 tirones de GC)
         const maxLookaheadMs = Math.max(5200, scrollDur * 3.4);
-        const visibleHighwayItems = [];
+        if (!this._hwVisiblePool) this._hwVisiblePool = [];
+        if (!this._hwVisibleList) this._hwVisibleList = [];
+        const visibleHighwayItems = this._hwVisibleList;
+        visibleHighwayItems.length = 0;
+        let poolIdx = 0;
+
         for (let i = startIdx; i < len; i++) {
           const note = this.notes[i];
           if (!note || note.holdCompleted) continue;
@@ -11253,7 +11300,8 @@ class BeatstarEngine {
 
           const noteDur = note._hwDurationMs || scrollDur;
           const pHead = 1.0 - (timeUntilHit / noteDur);
-          if (pHead < -0.15 || (!isBeingHeld && pHead > 1.22)) continue;
+          // No ocultar holds cuya cabeza ya cruzó p=1.22 mientras su cola (vagones) siga en pantalla
+          if (pHead < -0.15 || (!isBeingHeld && note.type !== 'hold' && pHead > 1.22)) continue;
 
           const isFlyingNow = Boolean(
             note._hwIsFlyingOvertake &&
@@ -11261,18 +11309,24 @@ class BeatstarEngine {
             pHead >= (note._hwOvertakeP - 0.24) &&
             pHead <= (note._hwOvertakeP + 0.22)
           );
-          visibleHighwayItems.push({
-            note,
-            i,
-            lane,
-            noteT,
-            isBeingHeld,
-            pHead,
-            sortOrder: (isFlyingNow ? 10.0 : 0.0) + pHead
-          });
+          let slot = this._hwVisiblePool[poolIdx++];
+          if (!slot) {
+            slot = { note: null, i: 0, lane: 0, noteT: 0, isBeingHeld: false, pHead: 0, sortOrder: 0 };
+            this._hwVisiblePool.push(slot);
+          }
+          slot.note = note;
+          slot.i = i;
+          slot.lane = lane;
+          slot.noteT = noteT;
+          slot.isBeingHeld = isBeingHeld;
+          slot.pHead = pHead;
+          slot.sortOrder = (isFlyingNow ? 10.0 : 0.0) + pHead;
+          visibleHighwayItems.push(slot);
         }
 
-        visibleHighwayItems.sort((a, b) => a.sortOrder - b.sortOrder);
+        if (visibleHighwayItems.length > 1) {
+          visibleHighwayItems.sort((a, b) => a.sortOrder - b.sortOrder);
+        }
 
         for (let k = 0; k < visibleHighwayItems.length; k++) {
           const item = visibleHighwayItems[k];
@@ -11315,7 +11369,8 @@ class BeatstarEngine {
         if (timeUntilHit > 1200 && timeUntilHit > scrollDur) break;
 
         const pHead = 1.0 - timeUntilHit * invScrollDur;
-        if (pHead < -0.15 || (!isBeingHeld && pHead > 1.25)) continue;
+        // Para notas hold, no descartar por pHead > 1.25 mientras su cola siga en pantalla
+        if (pHead < -0.15 || (!isBeingHeld && note.type !== 'hold' && pHead > 1.25)) continue;
 
         // En Modo Setas Alucinógenas: algunas teclas saltan de un carril a otro mientras caen y su grosor/tamaño respira
         let drawLane = lane;

@@ -1708,6 +1708,14 @@
         "combo": 103,
         "accuracy": 11.260121231598776,
         "date": "2026-10-20 08:55:28"
+      },
+      {
+        "name": "Mauricio",
+        "score": 32691,
+        "stars": 3.5,
+        "combo": 14,
+        "accuracy": 2.431996929037557,
+        "date": "2026-10-20 17:55:36"
       }
     ],
     "top_mark_ronson_feat_bruno_mars_uptown_funk": [
@@ -1799,6 +1807,26 @@
         "accuracy": 21.861872513974205,
         "date": "2026-10-20 12:10:03"
       }
+    ],
+    "top_jose_luis_rodriguez_el_puma_culpable_soy_yo": [
+      {
+        "name": "Mauricio",
+        "score": 900,
+        "stars": 3.5,
+        "combo": 2,
+        "accuracy": 0.08947504988234031,
+        "date": "2026-10-20 17:57:11"
+      }
+    ],
+    "top_oasis_wonderwall": [
+      {
+        "name": "Mauricio",
+        "score": 4500,
+        "stars": 3.5,
+        "combo": 7,
+        "accuracy": 0.35216365436311203,
+        "date": "2026-10-20 17:58:05"
+      }
     ]
   },
   "global": [
@@ -1839,7 +1867,7 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 1817000,
+      "total_score": 1856441,
       "clefs": 15
     },
     {
@@ -1941,7 +1969,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 1817000
+        "score": 1856441
       },
       {
         "name": "Darwin67",

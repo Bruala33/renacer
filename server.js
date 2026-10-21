@@ -569,10 +569,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 13,
-    version_name: '2.1.0',
-    release_notes: 'Piano Community Web & Offline Player. Modo Carretera con velocidad reducida y tren hold hiper-visible con lecho luminoso y distintivo HOLD. Corrección estricta de teclas fantasma y márgenes de tiempo.',
-    download_url: '/download/apk?v=13.0',
+    version_code: 14,
+    version_name: '2.2.0',
+    release_notes: 'Piano Community Web & Offline Player. Modo Carretera sin swipes, tren hold continuo con fuelles articulados sin texto, guía láser Perfect+ en cada vehículo y motor de alta fiabilidad 0 tirones.',
+    download_url: '/download/apk?v=14.0',
   });
 });
 
