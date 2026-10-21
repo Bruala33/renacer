@@ -569,10 +569,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 15,
-    version_name: '2.3.0',
-    release_notes: 'Piano Community Web & Offline Player. Nuevo Modo Perro Molesto con Pomeranian zorrito marrón animado que persigue chuletones, empuja teclas de un zarpazo entre carriles y se sienta en las columnas.',
-    download_url: '/download/apk?v=15.0',
+    version_code: 16,
+    version_name: '2.4.0',
+    release_notes: 'Piano Community Web & Offline Player. Mejoras en Modo Perro Molesto: Chuletones T-Bone gigantes con masticación en 3 bocados, engorde progresivo (0 a 10 chuletones) y frenesí de cacas olorosas con moscas animadas.',
+    download_url: '/download/apk?v=16.0',
   });
 });
 

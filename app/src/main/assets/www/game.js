@@ -9373,111 +9373,249 @@ class BeatstarEngine {
   // =========================================================================
 
   initAnnoyingDogModeAssets() {
-    if (this._dogAssetsReady && this._dogSteakSprite && this._dogPawPrintSprite) return;
+    if (this._dogAssetsReady && this._dogSteakSprites && this._dogPoopSprite && this._dogPawPrintSprite) return;
     this._dogAssetsReady = true;
     this._dogSteaks = this._dogSteaks || [];
     this._dogSitSchedule = this._dogSitSchedule || [];
     this._dogPawPrints = [];
+    this._dogPoops = [];
     this._dogFxParticles = [];
     this._dogFxFreePool = [];
     this._dogState = {
       lane: 1.0,
-      p: 0.48,
+      p: 0.50,
       vx: 0,
       vy: 0,
-      pose: 'sitting', // 'sitting' | 'chasing' | 'swiping' | 'eating'
+      pose: 'sitting', // 'sitting' | 'chasing' | 'swiping' | 'eating' | 'zoomies'
       facingDir: 1,
       swipeTimer: 0,
       eatTimer: 0,
-      barkText: '🐶 ¡GUAU!',
-      barkTimer: 1.8,
+      eatTotalDur: 0.72,
+      eatingSteak: null,
+      lastBiteStage: -1,
+      steaksEaten: 0,
+      maxSteaksForFrenzy: 10,
+      bellyBounceTimer: 0,
+      zoomiesTimer: 0,
+      zoomiesTotalDur: 6.2,
+      lastPoopMs: 0,
+      barkText: '🐶 ¡GUAU! ¡QUIERO CHULETÓN!',
+      barkTimer: 2.2,
       lastStepMs: 0
     };
 
     if (typeof document === 'undefined') return;
 
-    // 1. Sprite de Chuletón T-Bone Jugoso (No jugable, objetivo del Pomeranian)
-    const stCvs = document.createElement('canvas');
-    stCvs.width = 120;
-    stCvs.height = 96;
-    const sc = stCvs.getContext('2d');
-    const scx = 60, scy = 48;
+    // 1. Tres Sprites de Chuletón T-Bone Gigante y Sabroso (Fase 0: Entero, Fase 1: Medio comido, Fase 2: Hueso T-Bone pelado)
+    this._dogSteakSprites = [];
+    for (let stage = 0; stage < 3; stage++) {
+      const stCvs = document.createElement('canvas');
+      stCvs.width = 168;
+      stCvs.height = 136;
+      const sc = stCvs.getContext('2d');
+      const scx = 84, scy = 68;
 
-    // Halo cálido apetitoso bajo el chuletón
-    const glowG = sc.createRadialGradient(scx, scy, 8, scx, scy, 50);
-    glowG.addColorStop(0.0, 'rgba(251, 191, 36, 0.55)');
-    glowG.addColorStop(0.6, 'rgba(239, 68, 68, 0.22)');
-    glowG.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
-    sc.fillStyle = glowG;
-    sc.beginPath();
-    sc.arc(scx, scy, 50, 0, Math.PI * 2);
-    sc.fill();
-
-    // Sombra 3D y corteza exterior tostada a la brasa (#7c2d12)
-    sc.fillStyle = 'rgba(0, 0, 0, 0.40)';
-    sc.beginPath();
-    sc.ellipse(scx, scy + 7, 42, 27, -0.12, 0, Math.PI * 2);
-    sc.fill();
-
-    sc.save();
-    sc.translate(scx, scy);
-    sc.rotate(-0.12);
-
-    // Borde exterior de grasa dorada y corteza asada
-    sc.fillStyle = '#7c2d12';
-    sc.strokeStyle = '#fef3c7';
-    sc.lineWidth = 3.2;
-    sc.beginPath();
-    sc.ellipse(0, 3, 40, 25, 0, 0, Math.PI * 2);
-    sc.fill();
-    sc.stroke();
-
-    // Carne jugosa rojo rubí con veteado intramuscular
-    const meatGrad = sc.createLinearGradient(-34, -18, 34, 18);
-    meatGrad.addColorStop(0.0, '#b91c1c');
-    meatGrad.addColorStop(0.5, '#ef4444');
-    meatGrad.addColorStop(1.0, '#991b1b');
-    sc.fillStyle = meatGrad;
-    sc.beginPath();
-    sc.ellipse(0, -1, 35, 21, 0, 0, Math.PI * 2);
-    sc.fill();
-
-    // Marcas de parrilla al carbón
-    sc.strokeStyle = 'rgba(69, 26, 3, 0.55)';
-    sc.lineWidth = 2.6;
-    for (let g = -20; g <= 20; g += 10) {
+      // Halo cálido apetitoso dorado-rubí bajo el chuletón
+      const glowG = sc.createRadialGradient(scx, scy, 12, scx, scy, 74);
+      glowG.addColorStop(0.0, 'rgba(251, 191, 36, 0.72)');
+      glowG.addColorStop(0.55, 'rgba(239, 68, 68, 0.34)');
+      glowG.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+      sc.fillStyle = glowG;
       sc.beginPath();
-      sc.moveTo(g - 8, -14);
-      sc.lineTo(g + 8, 12);
+      sc.arc(scx, scy, 74, 0, Math.PI * 2);
+      sc.fill();
+
+      sc.save();
+      sc.translate(scx, scy);
+      sc.rotate(-0.10);
+
+      if (stage < 2) {
+        // Si stage === 1 (primer gran bocado), recortamos dos mordiscos dentados en el lado derecho
+        if (stage === 1) {
+          sc.beginPath();
+          sc.rect(-84, -68, 126, 136);
+          sc.arc(40, -14, 24, 0, Math.PI * 2, true);
+          sc.arc(36, 18, 24, 0, Math.PI * 2, true);
+          sc.clip();
+        }
+
+        // Sombra 3D profunda bajo la pieza de carne
+        sc.fillStyle = 'rgba(0, 0, 0, 0.46)';
+        sc.beginPath();
+        sc.ellipse(0, 10, 58, 37, 0, 0, Math.PI * 2);
+        sc.fill();
+
+        // Corteza gruesa caramelizada a la brasa (#7c2d12) y borde de grasa dorada crujiente (#fef08a)
+        sc.fillStyle = '#7c2d12';
+        sc.strokeStyle = '#fde68a';
+        sc.lineWidth = 4.5;
+        sc.beginPath();
+        sc.ellipse(0, 4, 55, 34, 0, 0, Math.PI * 2);
+        sc.fill();
+        sc.stroke();
+
+        // Carne jugosa rojo rubí con degradado tridimensional
+        const meatGrad = sc.createLinearGradient(-48, -26, 48, 26);
+        meatGrad.addColorStop(0.0, '#991b1b');
+        meatGrad.addColorStop(0.35, '#ef4444');
+        meatGrad.addColorStop(0.7, '#dc2626');
+        meatGrad.addColorStop(1.0, '#7f1d1d');
+        sc.fillStyle = meatGrad;
+        sc.beginPath();
+        sc.ellipse(0, -1, 49, 29, 0, 0, Math.PI * 2);
+        sc.fill();
+
+        // Veteado de grasa infiltrada (Wagyu / T-Bone premium)
+        sc.strokeStyle = 'rgba(254, 243, 199, 0.62)';
+        sc.lineWidth = 2.2;
+        sc.lineCap = 'round';
+        sc.beginPath();
+        sc.moveTo(-34, -8); sc.quadraticCurveTo(-20, -2, -12, -12);
+        sc.moveTo(-26, 10); sc.quadraticCurveTo(-14, 6, -6, 16);
+        sc.moveTo(14, -10); sc.quadraticCurveTo(26, -4, 36, -11);
+        sc.moveTo(12, 8);   sc.quadraticCurveTo(24, 14, 34, 6);
+        sc.stroke();
+
+        // Marcas de parrilla al carbón cruzadas
+        sc.strokeStyle = 'rgba(41, 14, 2, 0.62)';
+        sc.lineWidth = 3.4;
+        for (let g = -30; g <= 30; g += 12) {
+          sc.beginPath();
+          sc.moveTo(g - 10, -20);
+          sc.lineTo(g + 10, 18);
+          sc.stroke();
+        }
+      } else {
+        // Stage 2: Quedan solo trocitos de carne adheridos al hueso antes de tragar
+        sc.fillStyle = '#dc2626';
+        sc.beginPath();
+        sc.arc(-14, -4, 10, 0, Math.PI * 2);
+        sc.arc(12, 5, 9, 0, Math.PI * 2);
+        sc.fill();
+      }
+
+      // Hueso central en T blanco marfil brillante (siempre visible en las 3 fases)
+      sc.strokeStyle = '#78350f';
+      sc.lineWidth = 11.5;
+      sc.lineCap = 'round';
+      sc.lineJoin = 'round';
+      sc.beginPath();
+      sc.moveTo(-32, -9);
+      sc.lineTo(32, -7);
+      sc.moveTo(2, -8);
+      sc.lineTo(-5, 24);
       sc.stroke();
+
+      sc.strokeStyle = '#fffbeb';
+      sc.lineWidth = 8.0;
+      sc.beginPath();
+      sc.moveTo(-32, -9);
+      sc.lineTo(32, -7);
+      sc.moveTo(2, -8);
+      sc.lineTo(-5, 24);
+      sc.stroke();
+
+      // Medallón de tuétano en el extremo del hueso
+      sc.fillStyle = '#fef3c7';
+      sc.strokeStyle = '#78350f';
+      sc.lineWidth = 2.0;
+      sc.beginPath();
+      sc.arc(-33, -9, 6.5, 0, Math.PI * 2);
+      sc.arc(33, -7, 6.5, 0, Math.PI * 2);
+      sc.arc(-5, 24, 6.0, 0, Math.PI * 2);
+      sc.fill();
+      sc.stroke();
+
+      if (stage === 0) {
+        // Nuez de mantequilla a las finas hierbas fundiéndose y brillo jugoso
+        sc.fillStyle = 'rgba(253, 224, 71, 0.92)';
+        sc.beginPath();
+        sc.ellipse(-15, 5, 12, 8, 0.22, 0, Math.PI * 2);
+        sc.fill();
+        sc.fillStyle = '#16a34a';
+        sc.beginPath();
+        sc.arc(-17, 4, 2.4, 0, Math.PI * 2);
+        sc.arc(-12, 6, 2.0, 0, Math.PI * 2);
+        sc.arc(-15, 8, 1.8, 0, Math.PI * 2);
+        sc.fill();
+
+        // Destellos blancos de jugo brillante
+        sc.fillStyle = 'rgba(255, 255, 255, 0.75)';
+        sc.beginPath();
+        sc.ellipse(18, -12, 8, 3.2, -0.3, 0, Math.PI * 2);
+        sc.fill();
+      }
+
+      sc.restore();
+      this._dogSteakSprites.push(stCvs);
+    }
+    this._dogSteakSprite = this._dogSteakSprites[0];
+
+    // 2. Sprite de Caca Olorosa 3D con Brillo Cartoon (💩)
+    const poopCvs = document.createElement('canvas');
+    poopCvs.width = 96;
+    poopCvs.height = 96;
+    const ppc = poopCvs.getContext('2d');
+    const pcx = 48, pcy = 56;
+
+    // Aura verde-ámbar de hedor cómico alrededor de la caca
+    const stinkGlow = ppc.createRadialGradient(pcx, pcy - 4, 6, pcx, pcy - 4, 44);
+    stinkGlow.addColorStop(0.0, 'rgba(163, 230, 53, 0.38)');
+    stinkGlow.addColorStop(0.6, 'rgba(101, 163, 13, 0.16)');
+    stinkGlow.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+    ppc.fillStyle = stinkGlow;
+    ppc.beginPath();
+    ppc.arc(pcx, pcy - 4, 44, 0, Math.PI * 2);
+    ppc.fill();
+
+    // Sombra en el suelo
+    ppc.fillStyle = 'rgba(15, 23, 42, 0.45)';
+    ppc.beginPath();
+    ppc.ellipse(pcx, pcy + 18, 30, 11, 0, 0, Math.PI * 2);
+    ppc.fill();
+
+    // 3 pisos en espiral de caca estilo cartoon brillante (#451a03 -> #78350f -> #92400e)
+    const coils = [
+      { y: pcy + 10, rx: 26, ry: 10.5 },
+      { y: pcy - 1,  rx: 20, ry: 9.0 },
+      { y: pcy - 11, rx: 13.5, ry: 7.5 }
+    ];
+    for (let c = 0; c < coils.length; c++) {
+      const cl = coils[c];
+      const cg = ppc.createLinearGradient(pcx - cl.rx, cl.y - cl.ry, pcx + cl.rx, cl.y + cl.ry);
+      cg.addColorStop(0.0, '#92400e');
+      cg.addColorStop(0.55, '#713f12');
+      cg.addColorStop(1.0, '#3f1d06');
+      ppc.fillStyle = cg;
+      ppc.strokeStyle = '#271001';
+      ppc.lineWidth = 2.6;
+      ppc.beginPath();
+      ppc.ellipse(pcx, cl.y, cl.rx, cl.ry, 0, 0, Math.PI * 2);
+      ppc.fill();
+      ppc.stroke();
+
+      // Brillo especular cartoon en cada vuelta
+      ppc.fillStyle = 'rgba(254, 243, 199, 0.42)';
+      ppc.beginPath();
+      ppc.ellipse(pcx - cl.rx * 0.42, cl.y - cl.ry * 0.32, cl.rx * 0.25, cl.ry * 0.24, -0.25, 0, Math.PI * 2);
+      ppc.fill();
     }
 
-    // Hueso central en T blanco marfil (T-Bone clásico)
-    sc.strokeStyle = '#fffbeb';
-    sc.lineWidth = 6.2;
-    sc.lineCap = 'round';
-    sc.beginPath();
-    sc.moveTo(-22, -7);
-    sc.lineTo(22, -5);
-    sc.moveTo(2, -6);
-    sc.lineTo(-4, 16);
-    sc.stroke();
+    // Punta rizada superior
+    ppc.fillStyle = '#78350f';
+    ppc.strokeStyle = '#271001';
+    ppc.lineWidth = 2.4;
+    ppc.beginPath();
+    ppc.moveTo(pcx - 8, pcy - 15);
+    ppc.quadraticCurveTo(pcx - 2, pcy - 32, pcx + 7, pcy - 28);
+    ppc.quadraticCurveTo(pcx + 3, pcy - 18, pcx + 8, pcy - 15);
+    ppc.closePath();
+    ppc.fill();
+    ppc.stroke();
 
-    // Nuez de mantequilla a las finas hierbas fundiéndose encima
-    sc.fillStyle = '#fde047';
-    sc.beginPath();
-    sc.ellipse(-12, 4, 8, 5.5, 0.2, 0, Math.PI * 2);
-    sc.fill();
-    sc.fillStyle = '#22c55e';
-    sc.beginPath();
-    sc.arc(-13, 3, 1.8, 0, Math.PI * 2);
-    sc.arc(-10, 5, 1.5, 0, Math.PI * 2);
-    sc.fill();
+    this._dogPoopSprite = poopCvs;
 
-    sc.restore();
-    this._dogSteakSprite = stCvs;
-
-    // 2. Sprite de Huella de Patita Dorada (🐾)
+    // 3. Sprite de Huella de Patita Dorada (🐾)
     const pawCvs = document.createElement('canvas');
     pawCvs.width = 56;
     pawCvs.height = 56;
@@ -9486,12 +9624,10 @@ class BeatstarEngine {
     pc.fillStyle = '#f59e0b';
     pc.strokeStyle = '#451a03';
     pc.lineWidth = 2.2;
-    // Almohadilla central
     pc.beginPath();
     pc.ellipse(0, 6, 11, 8.5, 0, 0, Math.PI * 2);
     pc.fill();
     pc.stroke();
-    // 4 deditos
     const toes = [
       { x: -11, y: -5, a: -0.35 },
       { x: -4,  y: -10, a: -0.12 },
@@ -9517,9 +9653,19 @@ class BeatstarEngine {
     const nLen = this.notes.length;
     this._dogSteaks = [];
     this._dogSitSchedule = [];
+    this._dogPoops = [];
+    this._dogPawPrints = [];
+    if (this._dogState) {
+      this._dogState.steaksEaten = 0;
+      this._dogState.zoomiesTimer = 0;
+      this._dogState.eatTimer = 0;
+      this._dogState.eatingSteak = null;
+      this._dogState.bellyBounceTimer = 0;
+      this._dogState.pose = 'sitting';
+    }
 
-    // 1. Seleccionar teclas objetivo que el Pomeranian cambiará de carril de un zarpazo (~30% de taps bien espaciados)
-    // El zarpazo ocurre cuando la tecla va por p ≈ 0.38–0.44 (~800ms antes de la línea Perfect+), dando tiempo de reacción justo y divertido
+    // 1. Seleccionar teclas objetivo que el Pomeranian cambiará de carril de un zarpazo (~38% de taps bien espaciados)
+    // El zarpazo ocurre cuando la tecla va por p ≈ 0.38–0.46, y el chuletón baja más (eatP ≈ 0.56–0.66) para que se vea mucho más tiempo y el perro estorbe de verdad
     let lastBattedTimeMs = -9999;
     for (let i = 0; i < nLen; i++) {
       const n = this.notes[i];
@@ -9533,60 +9679,61 @@ class BeatstarEngine {
       const prevT = i > 0 ? (this.notes[i - 1].timestamp_ms ?? 0) : -9999;
       const nextT = i + 1 < nLen ? (this.notes[i + 1].timestamp_ms ?? 9999999) : 9999999;
 
-      if (curT > 2400 && (curT - lastBattedTimeMs >= 1650) && (curT - prevT >= 250) && (nextT - curT >= 250)) {
+      if (curT > 2000 && (curT - lastBattedTimeMs >= 1350) && (curT - prevT >= 220) && (nextT - curT >= 220)) {
         const trueLane = Math.max(0, Math.min(2, Math.round(n.lane ?? 1)));
-        // El perro empuja la tecla desde un carril contiguo hacia su carril final (trueLane)
         let originLane = trueLane === 1 ? ((i % 2 === 0) ? 0 : 2) : 1;
         n._dogBatted = true;
         n._dogFromLane = originLane;
-        n._dogSwipeP = 0.37 + (i % 3) * 0.03; // p = 0.37 .. 0.43
+        n._dogSwipeP = 0.38 + (i % 3) * 0.03; // p = 0.38 .. 0.44
         lastBattedTimeMs = curT;
 
-        // Colocar un Chuletón T-Bone no-jugable justo en la trayectoria para que el perro persiga el chuletón y empuje esta tecla a su paso
+        // El Chuletón T-Bone baja hasta p = 0.56..0.66 antes de que el perro lo atrape y lo mastique
         this._dogSteaks.push({
           id: 'steak_bat_' + i,
           lane: trueLane,
           originLane: originLane,
-          hitTimeMs: curT + 140,
-          eatP: Math.min(0.62, n._dogSwipeP + 0.14),
+          hitTimeMs: curT + 220,
+          eatP: Math.min(0.66, n._dogSwipeP + 0.20),
           eaten: false,
+          beingEaten: false,
           linkedNoteIdx: i
         });
       }
     }
 
-    // 2. Añadir chuletones extra entre medias y tramos donde el perro se sienta en una columna tapando la visión
-    const firstT = Math.max(2000, (this.notes[0]?.timestamp_ms || 2000));
+    // 2. Añadir chuletones frecuentes (cada ~1450ms si hay hueco) para que el jugador vea claramente al perro engordar de 0 a 10 chuletones y entrar en frenesí de cacas
+    const firstT = Math.max(1800, (this.notes[0]?.timestamp_ms || 1800));
     const lastT = this.lastNoteTime || 60000;
-    let cursorMs = firstT + 900;
+    let cursorMs = firstT + 600;
     let stepIdx = 0;
 
-    while (cursorMs < lastT - 1200) {
-      const hasNearbySteak = this._dogSteaks.some(s => Math.abs(s.hitTimeMs - cursorMs) < 1500);
+    while (cursorMs < lastT - 1000) {
+      const hasNearbySteak = this._dogSteaks.some(s => Math.abs(s.hitTimeMs - cursorMs) < 1150);
       if (!hasNearbySteak) {
-        if (stepIdx % 2 === 0) {
+        if (stepIdx % 3 !== 2) {
           const stLane = (stepIdx * 2 + 1) % 3;
           this._dogSteaks.push({
             id: 'steak_extra_' + stepIdx,
             lane: stLane,
             originLane: stLane,
             hitTimeMs: cursorMs,
-            eatP: 0.48 + (stepIdx % 3) * 0.05,
+            eatP: 0.56 + (stepIdx % 3) * 0.05, // Baja hasta p = 0.56..0.66 para verse grande y sabroso
             eaten: false,
+            beingEaten: false,
             linkedNoteIdx: -1
           });
         } else {
-          // El perro se sienta orgulloso encima de una columna tapando parcialmente la visión superior/media
+          // El perro se sienta en medio-bajo de una columna tapando aún más visión cuanto más gordo está
           const sitLane = (stepIdx + 1) % 3;
           this._dogSitSchedule.push({
-            startMs: cursorMs - 700,
-            endMs: cursorMs + 1600,
+            startMs: cursorMs - 550,
+            endMs: cursorMs + 1350,
             lane: sitLane,
-            p: 0.50
+            p: 0.55
           });
         }
       }
-      cursorMs += 2400;
+      cursorMs += 1450;
       stepIdx++;
     }
 
@@ -9596,13 +9743,13 @@ class BeatstarEngine {
   _emitDogFxParticle(x, y, vx, vy, kind, text, color, size, duration) {
     if (!this._dogFxParticles) this._dogFxParticles = [];
     if (!this._dogFxFreePool) this._dogFxFreePool = [];
-    if (this._dogFxParticles.length >= 60) return;
+    if (this._dogFxParticles.length >= 75) return;
     const pt = this._dogFxFreePool.length > 0 ? this._dogFxFreePool.pop() : {};
     pt.x = x;
     pt.y = y;
     pt.vx = vx;
     pt.vy = vy;
-    pt.kind = kind || 'heart'; // 'heart' | 'slash' | 'crumb' | 'text'
+    pt.kind = kind || 'heart';
     pt.text = text || '';
     pt.color = color || '#fb7185';
     pt.size = size || 14;
@@ -9611,48 +9758,55 @@ class BeatstarEngine {
     this._dogFxParticles.push(pt);
   }
 
-  // Dibujo procedural ultra-detallado del Pomeranian marrón grande tipo zorrito (fiel a las fotos reales del usuario:
-  // manto canela/dorado esponjoso, gran pechera blanca en el pecho, enorme cola plumero blanca sobre el lomo, calcetines blancos y sonrisa de zorrito)
-  _drawPomeranianDog(ctx, x, y, scale, pose, facingDir, currentTime, swipeProgress = 0) {
+  // Dibujo procedural ultra-detallado del Pomeranian marrón grande tipo zorrito (fiel a las fotos reales del usuario)
+  // Soporta engorde progresivo (chubbyLevel de 0 a 10 chuletones) y animación de devorar el chuletón a bocados en la boca
+  _drawPomeranianDog(ctx, x, y, scale, pose, facingDir, currentTime, swipeProgress = 0, chubbyLevel = 0, eatProgress = 0, bellyBounce = 0) {
     ctx.save();
     ctx.translate(x, y);
 
     const t = currentTime * 0.001;
-    const isRunning = (pose === 'chasing');
+    const isRunning = (pose === 'chasing' || pose === 'zoomies');
+    const isZoomies = (pose === 'zoomies');
     const isSwiping = (pose === 'swiping');
     const isEating = (pose === 'eating');
     const isSitting = (pose === 'sitting');
 
+    // Factor de gordura progresivo (de 0 a 10 chuletones): ensancha la barriga y el manto esponjoso hasta hacerlo una bola gigante adorable
+    const fatRatio = Math.max(0, Math.min(1.2, chubbyLevel / 10));
+    const bounceSquash = bellyBounce > 0 ? Math.sin(bellyBounce * Math.PI * 3) * 0.16 : 0;
+    const chubbyMultX = 1.0 + fatRatio * 1.15 + bounceSquash;
+    const chubbyMultY = 1.0 + fatRatio * 0.68 - bounceSquash * 0.5;
+
+    const runFreq = isZoomies ? 28.0 : 17.5;
     const bobY = isRunning
-      ? -Math.abs(Math.sin(t * 17.0)) * (9.5 * scale)
-      : (isEating ? Math.sin(t * 24.0) * (3.5 * scale) : Math.sin(t * 4.5) * (2.2 * scale));
+      ? -Math.abs(Math.sin(t * runFreq)) * ((isZoomies ? 13.5 : 9.5) * scale)
+      : (isEating ? Math.sin(t * 28.0) * (4.5 * scale) : Math.sin(t * 4.5) * (2.2 * scale));
     const bodyTilt = isRunning
-      ? (facingDir * 0.14 + Math.cos(t * 17.0) * 0.06)
+      ? (facingDir * (isZoomies ? 0.22 : 0.14) + Math.cos(t * runFreq) * (isZoomies ? 0.12 : 0.06))
       : (isSwiping ? facingDir * 0.22 : Math.sin(t * 2.8) * 0.04);
 
-    // 1. Sombra elíptica suave sobre la pista bajo el perrito
-    ctx.fillStyle = isSitting ? 'rgba(15, 23, 42, 0.42)' : 'rgba(15, 23, 42, 0.32)';
+    // 1. Sombra elíptica suave sobre la pista bajo el perrito (crece con la barriga)
+    ctx.fillStyle = isSitting ? 'rgba(15, 23, 42, 0.45)' : 'rgba(15, 23, 42, 0.35)';
     ctx.beginPath();
-    const shRx = (isSitting ? 48 : 42) * scale;
-    const shRy = (isSitting ? 22 : 18) * scale;
-    ctx.ellipse(0, 26 * scale, shRx, shRy, 0, 0, Math.PI * 2);
+    const shRx = (isSitting ? 48 : 42) * chubbyMultX * scale;
+    const shRy = (isSitting ? 22 : 18) * chubbyMultY * scale;
+    ctx.ellipse(0, (26 + fatRatio * 8) * scale, shRx, shRy, 0, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.translate(0, bobY);
     ctx.rotate(bodyTilt);
 
     // 2. ENORME COLA PLUMERO BLANCA CREMA ESPONJOSA (rasgo icónico de las fotos 1 y 2)
-    const wagSpeed = (isEating || isSwiping) ? 26.0 : (isRunning ? 20.0 : 9.5);
-    const wagAngle = Math.sin(t * wagSpeed) * (isEating ? 0.38 : 0.26);
+    const wagSpeed = (isEating || isSwiping || isZoomies) ? 30.0 : (isRunning ? 20.0 : 9.5);
+    const wagAngle = Math.sin(t * wagSpeed) * (isEating || isZoomies ? 0.44 : 0.26);
     ctx.save();
-    ctx.translate(-facingDir * 14 * scale, -18 * scale);
+    ctx.translate(-facingDir * (14 + fatRatio * 14) * scale, (-18 - fatRatio * 6) * scale);
     ctx.rotate(wagAngle - facingDir * 0.18);
 
-    // Múltiples penachos radiales blanco-crema (#fffbeb / #fef3c7) para dar textura de pelo largo esponjoso
     const plumeColors = ['#fde68a', '#fef3c7', '#fffbeb', '#ffffff'];
     for (let layer = 0; layer < plumeColors.length; layer++) {
       ctx.fillStyle = plumeColors[layer];
-      const rad = (28 - layer * 3.5) * scale;
+      const rad = (29 - layer * 3.5) * (1 + fatRatio * 0.25) * scale;
       ctx.beginPath();
       for (let k = 0; k < 10; k++) {
         const ang = (k / 10) * Math.PI * 2;
@@ -9660,34 +9814,31 @@ class BeatstarEngine {
         const px = Math.cos(ang) * tuftR * 1.12;
         const py = -12 * scale + Math.sin(ang) * tuftR * 0.92;
         if (k === 0) ctx.moveTo(px + 7 * scale, py);
-        ctx.arc(px, py, (9 - layer * 1.1) * scale, 0, Math.PI * 2);
+        ctx.arc(px, py, (9.2 - layer * 1.1) * scale, 0, Math.PI * 2);
       }
       ctx.fill();
     }
     ctx.restore();
 
-    // 3. PATITAS TRASERAS CON CALCETINES BLANCOS
-    const legSwing = isRunning ? Math.sin(t * 17.0) * (11 * scale) : 0;
+    // 3. PATITAS TRASERAS CON CALCETINES BLANCOS (se separan más a medida que engorda la barriga)
+    const legSwing = isRunning ? Math.sin(t * runFreq) * ((isZoomies ? 15 : 11) * scale) : 0;
     for (let side = -1; side <= 1; side += 2) {
-      const lx = side * 22 * scale;
-      const ly = (20 + (side * legSwing * 0.45)) * scale;
-      // Muslo marrón dorado
+      const lx = side * (22 * chubbyMultX * 0.88) * scale;
+      const ly = (20 * chubbyMultY + (side * legSwing * 0.45)) * scale;
       ctx.fillStyle = '#b45309';
       ctx.beginPath();
-      ctx.ellipse(lx, ly - 5 * scale, 9 * scale, 11 * scale, side * 0.2, 0, Math.PI * 2);
+      ctx.ellipse(lx, ly - 5 * scale, (9 + fatRatio * 4) * scale, 11 * scale, side * (0.2 + fatRatio * 0.18), 0, Math.PI * 2);
       ctx.fill();
-      // Calcetín blanco (patita blanca)
       ctx.fillStyle = '#ffffff';
       ctx.strokeStyle = '#78350f';
       ctx.lineWidth = Math.max(1.2, 1.8 * scale);
       ctx.beginPath();
-      ctx.ellipse(lx + side * 2 * scale, ly + 4 * scale, 7.5 * scale, 5.2 * scale, 0, 0, Math.PI * 2);
+      ctx.ellipse(lx + side * 2 * scale, ly + 4 * scale, 7.8 * scale, 5.4 * scale, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
     }
 
-    // 4. MANTO ESPONJOSO MARRÓN CANELA / ZORRITO DORADO (Cuerpo y melena leonina)
-    // Silueta exterior festoneada de pelo largo canela-rojizo (#b45309 -> #d97706 -> #f59e0b)
+    // 4. MANTO ESPONJOSO MARRÓN CANELA / ZORRITO DORADO Y BARRIGA REDONDA GIGANTE
     const coatLayers = [
       { col: '#9a3412', rx: 40, ry: 33, yOff: 2 },
       { col: '#c2410c', rx: 37, ry: 31, yOff: 1 },
@@ -9698,19 +9849,19 @@ class BeatstarEngine {
       const L = coatLayers[cl];
       ctx.fillStyle = L.col;
       ctx.beginPath();
-      const tufts = 16;
+      const tufts = 18;
       for (let i = 0; i < tufts; i++) {
         const a = (i / tufts) * Math.PI * 2;
-        const tx = Math.cos(a) * L.rx * scale;
-        const ty = (L.yOff + Math.sin(a) * L.ry) * scale;
-        const rTuft = (11.5 - cl * 1.4) * scale;
+        const tx = Math.cos(a) * L.rx * chubbyMultX * scale;
+        const ty = (L.yOff + fatRatio * 5 + Math.sin(a) * L.ry * chubbyMultY) * scale;
+        const rTuft = (11.8 - cl * 1.3) * (1 + fatRatio * 0.38) * scale;
         ctx.moveTo(tx + rTuft, ty);
         ctx.arc(tx, ty, rTuft, 0, Math.PI * 2);
       }
       ctx.fill();
     }
 
-    // 5. GRAN PECHERA BLANCA ESPONJOSA EN EL PECHO (idéntica a la foto 2 sentado junto al Fiat 500)
+    // 5. GRAN PECHERA Y BARRIGUITA BLANCA ESPONJOSA (crece enormemente con cada chuletón comido)
     const bibLayers = [
       { col: '#fef3c7', rx: 23, ry: 20, yOff: 5 },
       { col: '#fffbeb', rx: 20, ry: 17, yOff: 4 },
@@ -9720,36 +9871,43 @@ class BeatstarEngine {
       const B = bibLayers[bl];
       ctx.fillStyle = B.col;
       ctx.beginPath();
-      for (let i = 0; i < 12; i++) {
-        const a = (i / 12) * Math.PI * 2;
-        const bx = Math.cos(a) * B.rx * scale;
-        const by = (B.yOff + Math.sin(a) * B.ry) * scale;
-        const rB = (8.5 - bl * 1.2) * scale;
+      for (let i = 0; i < 14; i++) {
+        const a = (i / 14) * Math.PI * 2;
+        const bx = Math.cos(a) * B.rx * (1.0 + fatRatio * 1.05) * scale;
+        const by = (B.yOff + fatRatio * 6 + Math.sin(a) * B.ry * (1.0 + fatRatio * 0.72)) * scale;
+        const rB = (8.8 - bl * 1.2) * (1 + fatRatio * 0.35) * scale;
         ctx.moveTo(bx + rB, by);
         ctx.arc(bx, by, rB, 0, Math.PI * 2);
       }
       ctx.fill();
     }
 
-    // 6. PATITAS DELANTERAS CON CALCETINES BLANCOS (y animación de ZARPAZO cuando pose === 'swiping')
+    // Si está muy gordito (>= 4 chuletones), dibujar líneas curvas de barriga llena adorable
+    if (chubbyLevel >= 4) {
+      ctx.strokeStyle = 'rgba(217, 119, 6, 0.38)';
+      ctx.lineWidth = Math.max(1.5, 2.4 * scale);
+      ctx.beginPath();
+      ctx.arc(0, (8 + fatRatio * 6) * scale, (18 + fatRatio * 18) * scale, 0.25, Math.PI - 0.25);
+      ctx.stroke();
+    }
+
+    // 6. PATITAS DELANTERAS CON CALCETINES BLANCOS (y animación de ZARPAZO o de sujetar el chuletón al comer)
     for (let side = -1; side <= 1; side += 2) {
       const isSwipingPaw = isSwiping && (side === (facingDir >= 0 ? 1 : -1));
       ctx.save();
       if (isSwipingPaw) {
         const swipeArc = Math.sin(swipeProgress * Math.PI);
-        const pawX = side * (22 + swipeArc * 28) * scale;
+        const pawX = side * (22 * chubbyMultX * 0.8 + swipeArc * 28) * scale;
         const pawY = (6 - swipeArc * 22) * scale;
         ctx.translate(pawX, pawY);
         ctx.rotate(side * (-0.75 - swipeArc * 0.9));
 
-        // Estela dorada de zarpazo
         ctx.strokeStyle = '#fde047';
         ctx.lineWidth = Math.max(2.5, 4.5 * scale);
         ctx.beginPath();
         ctx.arc(-side * 10 * scale, 4 * scale, 22 * scale, -0.7, 0.9);
         ctx.stroke();
 
-        // Brazo marrón dorado y zarpa blanca extendida
         ctx.fillStyle = '#d97706';
         ctx.beginPath();
         ctx.ellipse(0, 0, 8 * scale, 13 * scale, 0, 0, Math.PI * 2);
@@ -9763,16 +9921,31 @@ class BeatstarEngine {
         ctx.fill();
         ctx.stroke();
 
-        // Almohadillas rosas en la zarpa
         ctx.fillStyle = '#fb7185';
         ctx.beginPath();
         ctx.arc(0, 11 * scale, 3.2 * scale, 0, Math.PI * 2);
         ctx.fill();
+      } else if (isEating) {
+        // Cuando devora el chuletón, junta las dos patitas delanteras blancas para sujetar el hueso T-Bone
+        const holdX = side * 12 * scale;
+        const holdY = 8 * scale + Math.sin(t * 32.0 + side) * (2.5 * scale);
+        ctx.translate(holdX, holdY);
+        ctx.rotate(-side * 0.45);
+        ctx.fillStyle = '#d97706';
+        ctx.beginPath();
+        ctx.ellipse(0, -3 * scale, 7 * scale, 9 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#451a03';
+        ctx.lineWidth = Math.max(1.4, 2.0 * scale);
+        ctx.beginPath();
+        ctx.ellipse(0, 4 * scale, 7.8 * scale, 5.8 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
       } else {
         const stepY = isRunning ? (side * legSwing) : 0;
-        const fx = side * 14 * scale;
-        const fy = (22 + stepY * 0.65) * scale;
-        // Patita delantera marrón canela arriba y calcetín blanco abajo
+        const fx = side * (14 * (1 + fatRatio * 0.55)) * scale;
+        const fy = (22 * chubbyMultY + stepY * 0.65) * scale;
         ctx.fillStyle = '#d97706';
         ctx.beginPath();
         ctx.ellipse(fx, fy - 5 * scale, 6.8 * scale, 9.5 * scale, 0, 0, Math.PI * 2);
@@ -9789,22 +9962,23 @@ class BeatstarEngine {
       ctx.restore();
     }
 
-    // 7. CABEZA DE ZORRITO POMERANIAN (Orejitas puntiagudas, mejillas esponjosas, hocico fino y sonrisa feliz con lengüita rosa)
+    // 7. CABEZA DE ZORRITO POMERANIAN (con mofletes que también se ponen rechonchos al comer y sacudida al masticar el chuletón)
     ctx.save();
     const headTilt = isSitting
       ? Math.sin(t * 3.4) * 0.15
-      : (isEating ? Math.sin(t * 28.0) * 0.12 : facingDir * 0.08);
-    ctx.translate(0, -14 * scale);
+      : (isEating ? Math.sin(t * 36.0) * 0.24 : (isZoomies ? Math.sin(t * 24.0) * 0.18 : facingDir * 0.08));
+    ctx.translate(0, (-14 - fatRatio * 3) * scale);
     ctx.rotate(headTilt);
 
-    // A. Orejitas triangulares puntiagudas de zorrito con movimiento independiente
+    const cheekFat = 1.0 + fatRatio * 0.26;
+
+    // A. Orejitas triangulares puntiagudas de zorrito
     for (let side = -1; side <= 1; side += 2) {
-      const earTwitch = Math.sin(t * 6.5 + (side > 0 ? 1.2 : 0)) * 0.08;
+      const earTwitch = Math.sin(t * (isZoomies ? 18.0 : 6.5) + (side > 0 ? 1.2 : 0)) * (isZoomies ? 0.18 : 0.08);
       ctx.save();
-      ctx.translate(side * 16 * scale, -15 * scale);
+      ctx.translate(side * 16 * cheekFat * scale, -15 * scale);
       ctx.rotate(side * 0.24 + earTwitch);
 
-      // Exterior marrón canela tostado
       ctx.fillStyle = '#b45309';
       ctx.strokeStyle = '#451a03';
       ctx.lineWidth = Math.max(1.3, 2.0 * scale);
@@ -9816,7 +9990,6 @@ class BeatstarEngine {
       ctx.fill();
       ctx.stroke();
 
-      // Interior rosado/crema esponjoso
       ctx.fillStyle = '#fde68a';
       ctx.beginPath();
       ctx.moveTo(-5 * scale, 2 * scale);
@@ -9830,24 +10003,23 @@ class BeatstarEngine {
     // B. Mejillas esponjosas de zorrito y cráneo dorado
     ctx.fillStyle = '#d97706';
     ctx.beginPath();
-    ctx.ellipse(0, 0, 24 * scale, 19 * scale, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, 24 * cheekFat * scale, 19 * scale, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Penachos laterales en los mofletes
     ctx.fillStyle = '#f59e0b';
     ctx.beginPath();
     for (let side = -1; side <= 1; side += 2) {
-      ctx.moveTo(side * 22 * scale, 2 * scale);
-      ctx.lineTo(side * 30 * scale, -1 * scale);
-      ctx.lineTo(side * 26 * scale, 7 * scale);
-      ctx.lineTo(side * 31 * scale, 10 * scale);
-      ctx.lineTo(side * 19 * scale, 11 * scale);
+      ctx.moveTo(side * 22 * cheekFat * scale, 2 * scale);
+      ctx.lineTo(side * 30 * cheekFat * scale, -1 * scale);
+      ctx.lineTo(side * 26 * cheekFat * scale, 7 * scale);
+      ctx.lineTo(side * 31 * cheekFat * scale, 10 * scale);
+      ctx.lineTo(side * 19 * cheekFat * scale, 11 * scale);
     }
     ctx.fill();
 
     ctx.fillStyle = '#fbbf24';
     ctx.beginPath();
-    ctx.ellipse(0, 1 * scale, 19 * scale, 15.5 * scale, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 1 * scale, 19 * cheekFat * scale, 15.5 * scale, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // C. Cejas expresivas color crema claro
@@ -9857,23 +10029,22 @@ class BeatstarEngine {
     ctx.ellipse(7.5 * scale, -6.5 * scale, 3.8 * scale, 2.0 * scale, 0.2, 0, Math.PI * 2);
     ctx.fill();
 
-    // D. Ojos oscuros brillantes y traviesos con doble reflejo cristalino
+    // D. Ojos oscuros brillantes y traviesos (o cerrados de placer al masticar el chuletón)
     const isBlinking = ((Math.floor(t * 2.2) % 9) === 0) && ((t % 0.45) < 0.11);
     for (let side = -1; side <= 1; side += 2) {
       const ex = side * 8.2 * scale;
       const ey = -2.2 * scale;
-      if (isBlinking) {
+      if (isBlinking || (isEating && Math.sin(t * 28.0) > 0.2)) {
         ctx.strokeStyle = '#0f172a';
         ctx.lineWidth = Math.max(1.8, 2.6 * scale);
         ctx.beginPath();
-        ctx.arc(ex, ey, 3.8 * scale, 0.15, Math.PI - 0.15);
+        ctx.arc(ex, ey, 3.8 * scale, Math.PI + 0.2, Math.PI * 2 - 0.2);
         ctx.stroke();
       } else {
         ctx.fillStyle = '#0f172a';
         ctx.beginPath();
-        ctx.arc(ex, ey, 4.1 * scale, 0, Math.PI * 2);
+        ctx.arc(ex, ey, (isZoomies ? 4.6 : 4.1) * scale, 0, Math.PI * 2);
         ctx.fill();
-        // Brillo blanco vivo en los ojos
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
         ctx.arc(ex - 1.3 * scale, ey - 1.4 * scale, 1.5 * scale, 0, Math.PI * 2);
@@ -9882,26 +10053,23 @@ class BeatstarEngine {
       }
     }
 
-    // E. Hocico cónico de zorrito con comisura negra sonriente, dientecitos blancos y lengüita rosa (igual a la foto 2)
+    // E. Hocico cónico de zorrito con comisura negra sonriente y lengüita rosa
     ctx.fillStyle = '#fef3c7';
     ctx.beginPath();
     ctx.ellipse(0, 6.5 * scale, 9.5 * scale, 7.0 * scale, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Boca feliz abierta y lengüita rosa jadeando
-    const mouthOpen = isEating ? (1.1 + 0.35 * Math.sin(t * 32.0)) : (0.85 + 0.18 * Math.sin(t * 11.0));
+    const mouthOpen = isEating ? (1.25 + 0.45 * Math.sin(t * 38.0)) : (isZoomies ? 1.2 : (0.85 + 0.18 * Math.sin(t * 11.0)));
     ctx.fillStyle = '#1e1b4b';
     ctx.beginPath();
     ctx.arc(0, 6.8 * scale, 6.2 * scale * mouthOpen, 0.08, Math.PI - 0.08);
     ctx.fill();
 
-    // Lengüita rosa asomando con alegría
     ctx.fillStyle = '#fb7185';
     ctx.beginPath();
-    ctx.ellipse(1.5 * scale, (10.5 + Math.sin(t * 12.0) * 1.1) * scale, 3.8 * scale, 4.6 * scale * mouthOpen, 0.15, 0, Math.PI * 2);
+    ctx.ellipse(1.5 * scale, (10.5 + Math.sin(t * (isZoomies ? 24.0 : 12.0)) * 1.3) * scale, 3.8 * scale, 4.6 * scale * mouthOpen, 0.15, 0, Math.PI * 2);
     ctx.fill();
 
-    // Comisura oscura sonriente característica de los Pomeranian
     ctx.strokeStyle = '#0f172a';
     ctx.lineWidth = Math.max(1.5, 2.2 * scale);
     ctx.beginPath();
@@ -9909,7 +10077,6 @@ class BeatstarEngine {
     ctx.arc(3.5 * scale, 5.8 * scale, 4.2 * scale, Math.PI * 0.15, Math.PI - 0.2);
     ctx.stroke();
 
-    // Trufa negra brillante en la punta del hocico de zorrito
     ctx.fillStyle = '#090d16';
     ctx.beginPath();
     ctx.ellipse(0, 3.5 * scale, 4.4 * scale, 3.2 * scale, 0, 0, Math.PI * 2);
@@ -9919,8 +10086,113 @@ class BeatstarEngine {
     ctx.ellipse(-1.2 * scale, 2.6 * scale, 1.5 * scale, 0.9 * scale, -0.2, 0, Math.PI * 2);
     ctx.fill();
 
+    // F. CHULETÓN GIGANTE EN LAS FAUCES DEL PERRO MIENTRAS LO DEVORA A BOCADOS (3 FASES DE MORDISCO)
+    if (isEating && this._dogSteakSprites && this._dogSteakSprites.length === 3) {
+      const biteStage = eatProgress < 0.36 ? 0 : (eatProgress < 0.72 ? 1 : 2);
+      const steakImg = this._dogSteakSprites[biteStage];
+      const chompScale = (1.0 - eatProgress * 0.18) * (1.0 + 0.14 * Math.sin(t * 42.0));
+      const stW = 86 * scale * chompScale;
+      const stH = 68 * scale * chompScale;
+      ctx.save();
+      ctx.translate(0, 15 * scale);
+      ctx.rotate(Math.sin(t * 42.0) * 0.22);
+      ctx.drawImage(steakImg, -stW * 0.5, -stH * 0.5, stW, stH);
+      ctx.restore();
+    }
+
     ctx.restore(); // Fin cabeza
     ctx.restore(); // Fin perro
+  }
+
+  // Dibuja una caca olorosa sobre la pista con humo verde ondulante y moscas animadas revoloteando alrededor
+  _drawSmellyPoopWithFlies(ctx, x, y, scale, age, duration, currentTime, seed) {
+    const fadeOut = age > duration - 0.8 ? Math.max(0, (duration - age) / 0.8) : 1.0;
+    const popIn = age < 0.22 ? (0.4 + 0.6 * Math.sin((age / 0.22) * (Math.PI * 0.5))) : 1.0;
+    const t = currentTime * 0.001;
+
+    ctx.save();
+    ctx.globalAlpha = fadeOut;
+    ctx.translate(x, y);
+
+    // 1. Sprite de la caca con ligero latido cómico
+    const squishX = popIn * (1.0 + Math.sin(t * 5.0 + seed) * 0.04);
+    const squishY = popIn * (1.0 - Math.sin(t * 5.0 + seed) * 0.04);
+    const pSize = Math.max(28, 66 * scale);
+    if (this._dogPoopSprite) {
+      ctx.save();
+      ctx.scale(squishX, squishY);
+      ctx.drawImage(this._dogPoopSprite, -pSize * 0.5, -pSize * 0.58, pSize, pSize);
+      ctx.restore();
+    }
+
+    // 2. Tres ondas de hedor verde-lima/ámbar ascendiendo y serpenteando sobre la caca
+    ctx.lineCap = 'round';
+    for (let wIdx = 0; wIdx < 3; wIdx++) {
+      const wavePhase = (t * 1.6 + wIdx * 0.33 + seed * 0.2) % 1.0;
+      const waveAlpha = Math.sin(wavePhase * Math.PI) * 0.72 * fadeOut;
+      const baseX = (wIdx - 1) * 13 * scale;
+      const startY = -12 * scale - wavePhase * 28 * scale;
+      const waveH = 22 * scale;
+
+      ctx.strokeStyle = wIdx % 2 === 0
+        ? `rgba(163, 230, 53, ${waveAlpha.toFixed(3)})`
+        : `rgba(250, 204, 21, ${waveAlpha.toFixed(3)})`;
+      ctx.lineWidth = Math.max(1.8, 3.0 * scale);
+      ctx.beginPath();
+      for (let step = 0; step <= 6; step++) {
+        const frac = step / 6;
+        const wy = startY - frac * waveH;
+        const wx = baseX + Math.sin(frac * Math.PI * 2 + t * 6.5 + wIdx) * (5.5 * scale);
+        if (step === 0) ctx.moveTo(wx, wy);
+        else ctx.lineTo(wx, wy);
+      }
+      ctx.stroke();
+    }
+
+    // 3. Moscas animadas (🪰) describiendo órbitas en 8 (Lissajous) con alitas batiendo a toda velocidad
+    const numFlies = 3 + (seed % 2);
+    for (let f = 0; f < numFlies; f++) {
+      const flySpeed = 4.2 + f * 0.85;
+      const ang = t * flySpeed + f * 2.1 + seed;
+      const orbitRx = (20 + f * 6) * scale;
+      const orbitRy = (11 + f * 3.5) * scale;
+      const fx = Math.cos(ang) * orbitRx;
+      const fy = -22 * scale + Math.sin(ang * 2.0) * orbitRy;
+      const vxDir = -Math.sin(ang) >= 0 ? 1 : -1;
+
+      ctx.save();
+      ctx.translate(fx, fy);
+      ctx.rotate(vxDir * 0.18 + Math.cos(ang * 2.0) * 0.25);
+
+      // Alitas blancas translúcidas batiendo a 45 Hz
+      const wingFlap = Math.sin(t * 55.0 + f * 1.7) * 3.2 * scale;
+      ctx.fillStyle = 'rgba(241, 245, 249, 0.82)';
+      ctx.beginPath();
+      ctx.ellipse(-2.2 * scale, (-3.2 - Math.abs(wingFlap)) * scale, 3.6 * scale, 2.0 * scale, -0.45, 0, Math.PI * 2);
+      ctx.ellipse(2.2 * scale, (-3.2 - Math.abs(wingFlap)) * scale, 3.6 * scale, 2.0 * scale, 0.45, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Cuerpo negro-azulado de la mosca
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 3.8 * scale, 2.5 * scale, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Reflejo verde metálico en el tórax y ojitos rojos diminutos
+      ctx.fillStyle = '#22c55e';
+      ctx.beginPath();
+      ctx.arc(-0.6 * vxDir * scale, -0.4 * scale, 1.4 * scale, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.arc(2.4 * vxDir * scale, -0.5 * scale, 1.1 * scale, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    ctx.restore();
   }
 
   renderAnnoyingDogModeOverlay(ctx, currentTime) {
@@ -9943,7 +10215,7 @@ class BeatstarEngine {
 
     ctx.save();
 
-    // 1. Dibujar y actualizar las huellas doradas (🐾) que el Pomeranian va dejando sobre la pista
+    // 1. Dibujar y actualizar las huellas doradas (🐾) sobre la pista
     if (this._dogPawPrints && this._dogPawPrints.length > 0) {
       for (let i = this._dogPawPrints.length - 1; i >= 0; i--) {
         const fp = this._dogPawPrints[i];
@@ -9964,7 +10236,25 @@ class BeatstarEngine {
       ctx.globalAlpha = 1.0;
     }
 
-    // 2. Renderizar los Chuletones T-Bone No-Jugables que caen por las columnas (objetivo del perro)
+    // 2. Dibujar y actualizar el rastro de Cacas Olorosas con Moscas (💩 + 🪰) sobre la pista
+    if (this._dogPoops && this._dogPoops.length > 0) {
+      for (let i = this._dogPoops.length - 1; i >= 0; i--) {
+        const poop = this._dogPoops[i];
+        poop.age += dt;
+        // Las cacas se deslizan suavemente por la pista mientras humean y las moscas revolotean
+        poop.p += dt * 0.045;
+        if (poop.age >= poop.duration || poop.p > 1.08) {
+          this._dogPoops[i] = this._dogPoops[this._dogPoops.length - 1];
+          this._dogPoops.pop();
+          continue;
+        }
+        const poopCoord = this.getPerspectiveCoord(poop.lane, poop.p, this._coordScratch1);
+        this._drawSmellyPoopWithFlies(ctx, poopCoord.x, poopCoord.y, poopCoord.scale, poop.age, poop.duration, currentTime, poop.seed);
+      }
+      ctx.globalAlpha = 1.0;
+    }
+
+    // 3. Buscar teclas que el perro va a golpear con el zarpazo y renderizar los Chuletones T-Bone Gigantes
     let activeTargetSteak = null;
     let activeBattedNote = null;
 
@@ -9986,59 +10276,180 @@ class BeatstarEngine {
     if (this._dogSteaks && this._dogSteaks.length > 0) {
       for (let i = 0; i < this._dogSteaks.length; i++) {
         const stk = this._dogSteaks[i];
-        if (!stk || stk.eaten) continue;
+        if (!stk || stk.eaten || stk.beingEaten) continue;
         const timeUntil = stk.hitTimeMs - currentTime;
         if (timeUntil > scrollDur * 1.15) break;
         const pSteak = 1.0 - timeUntil * invScrollDur;
-        if (pSteak > 1.05) {
+        if (pSteak > 1.06) {
           stk.eaten = true;
           continue;
         }
         if (pSteak < -0.08) continue;
 
-        if (!activeTargetSteak && pSteak >= 0.08 && pSteak <= stk.eatP + 0.08) {
+        if (!activeTargetSteak && st.zoomiesTimer <= 0 && st.eatTimer <= 0 && pSteak >= 0.05 && pSteak <= stk.eatP + 0.12) {
           activeTargetSteak = { steak: stk, p: pSteak };
         }
 
         const sCoord = this.getPerspectiveCoord(stk.lane, pSteak, this._coordScratch0);
-        const sW = Math.min(sCoord.laneW * 0.68, 72 * sCoord.scale);
-        const sH = sW * 0.80;
-        const sBob = Math.sin(currentTime * 0.010 + i) * (2.5 * sCoord.scale);
+        // ¡Chuletón mucho más grande, jugoso y llamativo!
+        const pulse = 1.0 + Math.sin(currentTime * 0.012 + i) * 0.06;
+        const sW = Math.min(sCoord.laneW * 0.96, 112 * sCoord.scale) * pulse;
+        const sH = sW * 0.81;
+        const sBob = Math.sin(currentTime * 0.010 + i) * (3.5 * sCoord.scale);
+
+        // Anillo dorado brillante en la pista indicando el objetivo del perrito
+        ctx.strokeStyle = 'rgba(251, 191, 36, 0.55)';
+        ctx.lineWidth = Math.max(1.5, 2.5 * sCoord.scale);
+        ctx.beginPath();
+        ctx.ellipse(sCoord.x, sCoord.y + sH * 0.22, sW * 0.46, sH * 0.24, 0, 0, Math.PI * 2);
+        ctx.stroke();
 
         if (this._dogSteakSprite) {
           ctx.drawImage(this._dogSteakSprite, sCoord.x - sW * 0.5, sCoord.y - sH * 0.5 + sBob, sW, sH);
         }
 
-        // Si el Pomeranian alcanza la posición del chuletón, ¡se lo come de un bocado!
-        if (pSteak >= stk.eatP && Math.abs(st.lane - stk.lane) < 0.55) {
-          stk.eaten = true;
-          st.eatTimer = 0.52;
-          st.barkText = '🥩 ¡ÑAM ÑAM!';
-          st.barkTimer = 0.95;
-          for (let hIdx = 0; hIdx < 6; hIdx++) {
-            const ang = (hIdx / 6) * Math.PI * 2;
-            this._emitDogFxParticle(
-              sCoord.x,
-              sCoord.y - 10 * sCoord.scale,
-              Math.cos(ang) * (45 + Math.random() * 35),
-              -55 - Math.random() * 45 + Math.sin(ang) * 20,
-              hIdx % 2 === 0 ? 'heart' : 'crumb',
-              hIdx === 0 ? '❤️' : '',
-              hIdx % 2 === 0 ? '#fb7185' : '#fde047',
-              (12 + Math.random() * 6) * sCoord.scale,
-              0.68
-            );
-          }
+        // Volutas de vapor caliente saliendo del chuletón recién hecho
+        const steamAlpha = 0.45 + 0.25 * Math.sin(currentTime * 0.008 + i);
+        ctx.strokeStyle = `rgba(255, 255, 255, ${steamAlpha.toFixed(2)})`;
+        ctx.lineWidth = Math.max(1.4, 2.2 * sCoord.scale);
+        for (let sm = -1; sm <= 1; sm += 2) {
+          const sx = sCoord.x + sm * 14 * sCoord.scale;
+          const sy = sCoord.y - sH * 0.35 + sBob;
+          ctx.beginPath();
+          ctx.moveTo(sx, sy);
+          ctx.quadraticCurveTo(sx + sm * 6 * sCoord.scale, sy - 10 * sCoord.scale, sx - sm * 3 * sCoord.scale, sy - 20 * sCoord.scale);
+          ctx.stroke();
+        }
+
+        // Cuando el Pomeranian alcanza el chuletón (y no está ya en medio de las zoomies), ¡lo agarra con la boca y empieza a devorarlo en 3 bocados!
+        if (st.zoomiesTimer <= 0 && st.eatTimer <= 0 && pSteak >= stk.eatP - 0.03 && Math.abs(st.lane - stk.lane) < 0.65) {
+          stk.beingEaten = true;
+          st.eatingSteak = stk;
+          st.eatTotalDur = 0.72;
+          st.eatTimer = st.eatTotalDur;
+          st.lastBiteStage = -1;
+          st.lane = stk.lane;
+          st.p = Math.min(0.68, Math.max(0.38, pSteak));
         }
       }
     }
 
-    // 3. Máquina de estados e IA del Pomeranian (Perseguir chuletones, dar zarpazos a las teclas y sentarse en las columnas)
+    // 4. Lógica de Masticación en 3 Bocados, Engorde de Barriga (0..10) y Frenesí de Cacas Olorosas
+    if (st.bellyBounceTimer > 0) {
+      st.bellyBounceTimer = Math.max(0, st.bellyBounceTimer - dt);
+    }
+
+    if (st.eatTimer > 0) {
+      st.eatTimer = Math.max(0, st.eatTimer - dt);
+      const eatProg = 1.0 - (st.eatTimer / (st.eatTotalDur || 0.72));
+      const biteStage = eatProg < 0.36 ? 0 : (eatProg < 0.72 ? 1 : 2);
+
+      // En cada uno de los 3 bocados, lanzar partículas jugosas de carne, huesitos y sonido visual
+      if (biteStage !== st.lastBiteStage) {
+        st.lastBiteStage = biteStage;
+        const eCoord = this.getPerspectiveCoord(st.lane, st.p, this._coordScratch1);
+        const biteTexts = ['🥩 ¡ÑAM!', '🍖 ¡CHOMP!', '😋 ¡GLUP!'];
+        st.barkText = biteTexts[biteStage] || '🥩 ¡ÑAM!';
+        st.barkTimer = 0.55;
+
+        for (let k = 0; k < 5; k++) {
+          const ang = (k / 5) * Math.PI * 2 + biteStage;
+          this._emitDogFxParticle(
+            eCoord.x,
+            eCoord.y - 8 * eCoord.scale,
+            Math.cos(ang) * (50 + Math.random() * 40),
+            -60 - Math.random() * 45 + Math.sin(ang) * 20,
+            k % 2 === 0 ? 'heart' : 'crumb',
+            k === 0 ? (biteStage === 2 ? '🦴' : '🥩') : (k === 2 ? '❤️' : ''),
+            k % 2 === 0 ? '#ef4444' : '#fde047',
+            (13 + Math.random() * 6) * eCoord.scale,
+            0.62
+          );
+        }
+      }
+
+      // Al terminar el 3er bocado, ¡el chuletón pasa a la barriga y el perro engorda!
+      if (st.eatTimer <= 0) {
+        if (st.eatingSteak) {
+          st.eatingSteak.eaten = true;
+          st.eatingSteak.beingEaten = false;
+          st.eatingSteak = null;
+        }
+        st.steaksEaten = Math.min(st.maxSteaksForFrenzy, (st.steaksEaten || 0) + 1);
+        st.bellyBounceTimer = 0.45;
+
+        if (st.steaksEaten >= st.maxSteaksForFrenzy) {
+          // ¡COMIÓ LOS 10 CHULETONES! Está súper gordo y empieza a correr por toda la pantalla soltando cacas olorosas con moscas
+          st.zoomiesTimer = st.zoomiesTotalDur;
+          st.lastPoopMs = currentTime - 300;
+          st.barkText = '💩 ¡EMPACHO! ¡CORRE QUE ME HAGO CACA! 🪰';
+          st.barkTimer = 2.4;
+          this._dogBannerText = '💩 ¡10/10 CHULETONES! ¡EL POMERANIAN ESTÁ ENORME Y SUELTA CACAS OLOROSAS! 🪰';
+          this._dogBannerTimer = 3.2;
+        } else if (st.steaksEaten >= 8) {
+          st.barkText = `🎈 ¡QUÉ GORDO! (${st.steaksEaten}/10 🥩)`;
+          st.barkTimer = 1.05;
+        } else if (st.steaksEaten >= 5) {
+          st.barkText = `🐶 ¡BARRIGA LLENA! (${st.steaksEaten}/10 🥩)`;
+          st.barkTimer = 0.95;
+        } else {
+          st.barkText = `🥩 ¡QUÉ RICO! (${st.steaksEaten}/10)`;
+          st.barkTimer = 0.85;
+        }
+      }
+    }
+
+    // 5. Máquina de estados de movimiento (Frenesí de Cacas vs Masticando vs Zarpazo vs Perseguir Chuletón vs Sentarse)
     let targetLane = st.lane;
-    let targetP = 0.50;
+    let targetP = st.p;
     let desiredPose = 'sitting';
 
-    if (activeBattedNote) {
+    if (st.zoomiesTimer > 0) {
+      // MODO FRENESÍ (ZOOMIES): Corre como loco en zig-zag y ocho por toda la pantalla soltando un rastro de cacas olorosas
+      st.zoomiesTimer = Math.max(0, st.zoomiesTimer - dt);
+      desiredPose = 'zoomies';
+      const zElapsed = st.zoomiesTotalDur - st.zoomiesTimer;
+      targetLane = 1.0 + Math.sin(zElapsed * 6.2) * 1.08;
+      targetP = 0.50 + Math.cos(zElapsed * 4.3) * 0.22;
+
+      // Soltar una caca olorosa con moscas cada ~540ms mientras corre por toda la pista
+      if (currentTime - (st.lastPoopMs || 0) >= 540) {
+        st.lastPoopMs = currentTime;
+        if (this._dogPoops.length < 12) {
+          this._dogPoops.push({
+            lane: Math.max(0.05, Math.min(1.95, st.lane + (Math.random() - 0.5) * 0.16)),
+            p: Math.max(0.22, Math.min(0.78, st.p + 0.04)),
+            age: 0,
+            duration: 5.8,
+            seed: Math.floor(Math.random() * 100)
+          });
+        }
+        const pCoord = this.getPerspectiveCoord(st.lane, st.p, this._coordScratch1);
+        this._emitDogFxParticle(
+          pCoord.x,
+          pCoord.y,
+          (Math.random() - 0.5) * 60,
+          -45 - Math.random() * 30,
+          'text',
+          '💨',
+          '#a3e635',
+          15 * pCoord.scale,
+          0.55
+        );
+      }
+
+      // Al terminar la carrera loca de las cacas, vuelve a su tamaño normal (0/10) y empieza a comer de nuevo
+      if (st.zoomiesTimer <= 0) {
+        st.steaksEaten = 0;
+        st.bellyBounceTimer = 0.45;
+        st.barkText = '✨ ¡UFFF, QUÉ ALIVIO! ¡A COMER MÁS! 🥩';
+        st.barkTimer = 1.8;
+      }
+    } else if (st.eatTimer > 0) {
+      desiredPose = 'eating';
+      targetLane = st.lane;
+      targetP = st.p;
+    } else if (activeBattedNote) {
       const n = activeBattedNote.note;
       const pN = activeBattedNote.p;
       const swipeP = n._dogSwipeP || 0.40;
@@ -10047,10 +10458,9 @@ class BeatstarEngine {
 
       if (pN < swipeP - 0.02) {
         targetLane = fromL;
-        targetP = Math.max(0.28, swipeP - 0.02);
+        targetP = Math.max(0.30, swipeP - 0.02);
         desiredPose = 'chasing';
       } else {
-        // ¡Momento exacto del ZARPAZO! El perro golpea la tecla cambiándola de carril
         targetLane = fromL + (toL - fromL) * 0.45;
         targetP = pN;
         desiredPose = 'swiping';
@@ -10077,10 +10487,10 @@ class BeatstarEngine {
       }
     } else if (activeTargetSteak) {
       targetLane = activeTargetSteak.steak.lane;
-      targetP = Math.max(0.32, Math.min(0.62, activeTargetSteak.steak.eatP));
+      // El perro acompaña y persigue al chuletón mientras baja para molestar más tiempo en pantalla
+      targetP = Math.max(0.34, Math.min(activeTargetSteak.steak.eatP, activeTargetSteak.p + 0.06));
       desiredPose = 'chasing';
     } else {
-      // Comprobar si toca sentarse en una columna tapando la visión
       let sitTarget = null;
       if (this._dogSitSchedule) {
         for (let i = 0; i < this._dogSitSchedule.length; i++) {
@@ -10096,29 +10506,31 @@ class BeatstarEngine {
         targetP = sitTarget.p;
         desiredPose = 'sitting';
       } else {
-        // Paseo curioso por la pista
-        targetLane = 1.0 + Math.sin(currentTime * 0.0011) * 0.92;
-        targetP = 0.48 + Math.cos(currentTime * 0.0009) * 0.08;
+        targetLane = 1.0 + Math.sin(currentTime * 0.0012) * 0.94;
+        targetP = 0.54 + Math.cos(currentTime * 0.0009) * 0.08;
         desiredPose = 'sitting';
       }
     }
 
     const dLane = targetLane - st.lane;
     const dP = targetP - st.p;
-    const followSpeed = (desiredPose === 'swiping' || desiredPose === 'chasing') ? 7.5 : 3.8;
+    const followSpeed = desiredPose === 'zoomies'
+      ? 11.5
+      : ((desiredPose === 'swiping' || desiredPose === 'chasing') ? 7.8 : 4.2);
     st.lane += dLane * Math.min(1, dt * followSpeed);
     st.p += dP * Math.min(1, dt * followSpeed);
 
-    if (Math.abs(dLane) > 0.04) {
+    if (Math.abs(dLane) > 0.03) {
       st.facingDir = dLane > 0 ? 1 : -1;
     }
 
-    if (st.swipeTimer > 0) {
+    if (st.zoomiesTimer > 0) {
+      st.pose = 'zoomies';
+    } else if (st.eatTimer > 0) {
+      st.pose = 'eating';
+    } else if (st.swipeTimer > 0) {
       st.swipeTimer = Math.max(0, st.swipeTimer - dt);
       st.pose = 'swiping';
-    } else if (st.eatTimer > 0) {
-      st.eatTimer = Math.max(0, st.eatTimer - dt);
-      st.pose = 'eating';
     } else if (Math.abs(dLane) > 0.14 || Math.abs(dP) > 0.06) {
       st.pose = 'chasing';
     } else {
@@ -10126,9 +10538,9 @@ class BeatstarEngine {
     }
 
     // Emitir huellas de patitas al caminar/correr
-    if (st.pose === 'chasing' && (currentTime - (st.lastStepMs || 0) > 130)) {
+    if ((st.pose === 'chasing' || st.pose === 'zoomies') && (currentTime - (st.lastStepMs || 0) > (st.pose === 'zoomies' ? 75 : 130))) {
       st.lastStepMs = currentTime;
-      if (this._dogPawPrints.length < 18) {
+      if (this._dogPawPrints.length < 22) {
         this._dogPawPrints.push({
           lane: st.lane + (Math.random() - 0.5) * 0.14,
           p: st.p + 0.03,
@@ -10138,43 +10550,62 @@ class BeatstarEngine {
       }
     }
 
-    // 4. Dibujar al Pomeranian en la coordenada 3D de la pista
+    // 6. Calcular el nivel de gordura visual (durante las zoomies se va desinflando conforme suelta las cacas)
+    const effectiveChubby = st.zoomiesTimer > 0
+      ? (st.maxSteaksForFrenzy * (st.zoomiesTimer / st.zoomiesTotalDur))
+      : (st.steaksEaten || 0);
+
+    // 7. Dibujar al Pomeranian en la coordenada 3D de la pista
     const dogCoord = this.getPerspectiveCoord(st.lane, st.p, this._coordScratch0);
-    // Escala generosa para que al sentarse encima de una columna tape de verdad esa zona de visión de forma simpática
-    const dogScale = dogCoord.scale * (st.pose === 'sitting' ? 1.48 : 1.36);
+    // Además de ensanchar la barriga, su escala general crece hasta un +58% al comer 10 chuletones, ocupando gran parte de la pantalla
+    const fatScaleBoost = 1.0 + (effectiveChubby / 10) * 0.58;
+    const dogScale = dogCoord.scale * (st.pose === 'sitting' ? 1.48 : 1.38) * fatScaleBoost;
     const swipeProg = st.swipeTimer > 0 ? (1.0 - st.swipeTimer / 0.36) : 0;
+    const eatProg = st.eatTimer > 0 ? (1.0 - st.eatTimer / (st.eatTotalDur || 0.72)) : 0;
 
-    this._drawPomeranianDog(ctx, dogCoord.x, dogCoord.y, dogScale, st.pose, st.facingDir, currentTime, swipeProg);
+    this._drawPomeranianDog(
+      ctx,
+      dogCoord.x,
+      dogCoord.y,
+      dogScale,
+      st.pose,
+      st.facingDir,
+      currentTime,
+      swipeProg,
+      effectiveChubby,
+      eatProg,
+      st.bellyBounceTimer || 0
+    );
 
-    // Bocadillo expresivo sobre el perrito ("🐾 ¡ZAS!", "🥩 ¡ÑAM ÑAM!", "🐶 ¡GUAU!")
+    // Bocadillo expresivo sobre el perrito
     if (st.barkTimer > 0 && st.barkText) {
       st.barkTimer = Math.max(0, st.barkTimer - dt);
       const bAlpha = Math.min(1, st.barkTimer * 2.2);
       ctx.save();
       ctx.globalAlpha = bAlpha;
-      const bx = dogCoord.x;
-      const by = dogCoord.y - 52 * dogScale;
-      ctx.font = `900 ${Math.max(11, Math.round(13 * dogScale))}px "Outfit", system-ui, sans-serif`;
-      const tw = ctx.measureText(st.barkText).width + 16;
-      const th = 22 * Math.max(0.8, dogScale);
+      const bx = Math.max(85, Math.min(w - 85, dogCoord.x));
+      const by = Math.max(76, dogCoord.y - (52 + effectiveChubby * 2.2) * dogScale);
+      ctx.font = `900 ${Math.max(11, Math.min(16, Math.round(12.5 * dogScale)))}px "Outfit", system-ui, sans-serif`;
+      const tw = ctx.measureText(st.barkText).width + 18;
+      const th = 24 * Math.max(0.85, Math.min(1.25, dogScale));
 
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
-      ctx.strokeStyle = '#fbbf24';
-      ctx.lineWidth = 2.0;
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+      ctx.strokeStyle = st.zoomiesTimer > 0 ? '#a3e635' : '#fbbf24';
+      ctx.lineWidth = 2.2;
       ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(bx - tw * 0.5, by - th * 0.5, tw, th, 10);
+      if (ctx.roundRect) ctx.roundRect(bx - tw * 0.5, by - th * 0.5, tw, th, 11);
       else ctx.rect(bx - tw * 0.5, by - th * 0.5, tw, th);
       ctx.fill();
       ctx.stroke();
 
-      ctx.fillStyle = '#fef08a';
+      ctx.fillStyle = st.zoomiesTimer > 0 ? '#ecfccb' : '#fef08a';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(st.barkText, bx, by);
       ctx.restore();
     }
 
-    // 5. Partículas de corazones, chispas de chuletón y zarpazos (swap-and-pop O(1) sin GC)
+    // 8. Partículas de corazones, bocados de chuletón y zarpazos
     if (this._dogFxParticles && this._dogFxParticles.length > 0) {
       let fLen = this._dogFxParticles.length;
       for (let i = fLen - 1; i >= 0; i--) {
@@ -10206,16 +10637,68 @@ class BeatstarEngine {
       ctx.globalAlpha = 1.0;
     }
 
-    // 6. Cartel luminoso de apertura del Modo Perro Molesto
+    // 9. Medidor HUD elegante de "Barriga del Pomeranian (🥩 X / 10)" en la parte superior de la pista
+    {
+      const hudW = Math.min(w - 28, 258);
+      const hudH = 30;
+      const hudX = w * 0.5 - hudW * 0.5;
+      const hudY = Math.max(54, h * 0.115);
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.84)';
+      ctx.strokeStyle = st.zoomiesTimer > 0 ? '#a3e635' : 'rgba(245, 158, 11, 0.75)';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(hudX, hudY, hudW, hudH, 15);
+      else ctx.rect(hudX, hudY, hudW, hudH);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.font = '800 10.5px "Outfit", system-ui, sans-serif';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = st.zoomiesTimer > 0 ? '#bef264' : '#fde68a';
+      const labelTxt = st.zoomiesTimer > 0
+        ? '💩 ¡EMPACHO EN CURSO!'
+        : `🐶 BARRIGA: 🥩 ${st.steaksEaten || 0}/10`;
+      ctx.fillText(labelTxt, hudX + 11, hudY + hudH * 0.5);
+
+      // 10 segmentos visuales de chuletón / barriga a la derecha del pill
+      const segStartX = hudX + 136;
+      const segTotalW = hudW - 146;
+      const segGap = 2.5;
+      const segW = (segTotalW - segGap * 9) / 10;
+      const segH = 10;
+      const segY = hudY + (hudH - segH) * 0.5;
+      const filledCount = st.zoomiesTimer > 0 ? Math.ceil(effectiveChubby) : (st.steaksEaten || 0);
+
+      for (let s = 0; s < 10; s++) {
+        const sx = segStartX + s * (segW + segGap);
+        if (s < filledCount) {
+          ctx.fillStyle = st.zoomiesTimer > 0
+            ? '#84cc16'
+            : (s >= 7 ? '#ef4444' : (s >= 4 ? '#f97316' : '#fbbf24'));
+        } else {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
+        }
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(sx, segY, segW, segH, 3);
+        else ctx.rect(sx, segY, segW, segH);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // 10. Cartel luminoso de apertura o de alerta de Empacho
     if (this._dogBannerTimer > 0 && this._dogBannerText) {
       this._dogBannerTimer = Math.max(0, this._dogBannerTimer - dt);
       ctx.globalAlpha = Math.min(1, this._dogBannerTimer * 1.5);
-      const bannerY = h * 0.23;
-      const bw = Math.min(w - 16, 348);
+      const bannerY = h * 0.22;
+      const bw = Math.min(w - 14, 356);
       const bh = 34;
 
-      ctx.fillStyle = 'rgba(24, 13, 6, 0.92)';
-      ctx.strokeStyle = '#f59e0b';
+      ctx.fillStyle = 'rgba(24, 13, 6, 0.94)';
+      ctx.strokeStyle = st.zoomiesTimer > 0 ? '#a3e635' : '#f59e0b';
       ctx.lineWidth = 2.2;
       ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(w * 0.5 - bw * 0.5, bannerY - bh * 0.5, bw, bh, 12);
@@ -10223,10 +10706,10 @@ class BeatstarEngine {
       ctx.fill();
       ctx.stroke();
 
-      ctx.font = '900 10.5px "Outfit", system-ui, sans-serif';
+      ctx.font = '900 10px "Outfit", system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#fde047';
+      ctx.fillStyle = st.zoomiesTimer > 0 ? '#bef264' : '#fde047';
       ctx.fillText(this._dogBannerText, w * 0.5, bannerY);
     }
 
