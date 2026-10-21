@@ -1983,6 +1983,16 @@
         "accuracy": 31.877487562189057,
         "date": "2026-10-21 12:57:24"
       }
+    ],
+    "top_mgo_de_oz_diabulus_in_musica": [
+      {
+        "name": "Test",
+        "score": 250390,
+        "stars": 3.5,
+        "combo": 153,
+        "accuracy": 17.23386755409028,
+        "date": "2026-10-21 16:01:48"
+      }
     ]
   },
   "global": [
@@ -2013,8 +2023,8 @@
     },
     {
       "name": "Test",
-      "total_score": 5476280,
-      "clefs": 44
+      "total_score": 5726670,
+      "clefs": 46
     },
     {
       "name": "Azure",
@@ -2125,7 +2135,7 @@
       },
       {
         "name": "Test",
-        "score": 4946639
+        "score": 5197029
       },
       {
         "name": "Darwin67",
