@@ -1945,6 +1945,16 @@
         "accuracy": 13.182918395573997,
         "date": "2026-10-21 09:36:01"
       }
+    ],
+    "top_man_mariposa_traicionera": [
+      {
+        "name": "Test",
+        "score": 55136,
+        "stars": 3.5,
+        "combo": 51,
+        "accuracy": 3.5171160872849008,
+        "date": "2026-10-21 10:14:22"
+      }
     ]
   },
   "global": [
@@ -1975,7 +1985,7 @@
     },
     {
       "name": "Test",
-      "total_score": 5421144,
+      "total_score": 5476280,
       "clefs": 44
     },
     {
@@ -2087,7 +2097,7 @@
       },
       {
         "name": "Test",
-        "score": 4891503
+        "score": 4946639
       },
       {
         "name": "Darwin67",
