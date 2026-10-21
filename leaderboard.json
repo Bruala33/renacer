@@ -2049,6 +2049,16 @@
         "accuracy": 3.882004024997352,
         "date": "2026-10-21 17:38:04"
       }
+    ],
+    "top_rfaga_mentirosa": [
+      {
+        "name": "Mauricio",
+        "score": 1040193,
+        "stars": 5,
+        "combo": 504,
+        "accuracy": 97.67373073531857,
+        "date": "2026-10-21 17:57:31"
+      }
     ]
   },
   "global": [
@@ -2069,8 +2079,8 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 13395459,
-      "clefs": 119
+      "total_score": 14435652,
+      "clefs": 129
     },
     {
       "name": "bubu",
@@ -2183,7 +2193,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 13395459
+        "score": 14435652
       },
       {
         "name": "Dady cool",
