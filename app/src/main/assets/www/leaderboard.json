@@ -1540,6 +1540,14 @@
     ],
     "top_justin_bieber_what_do_you_mean": [
       {
+        "name": "Mauricio",
+        "score": 1799965,
+        "stars": 5,
+        "combo": 845,
+        "accuracy": 98.17125217139943,
+        "date": "2026-10-21 13:03:17"
+      },
+      {
         "name": "Test",
         "score": 117300,
         "stars": 3.5,
@@ -1955,6 +1963,26 @@
         "accuracy": 3.5171160872849008,
         "date": "2026-10-21 10:14:22"
       }
+    ],
+    "top_las_ketchup_asereje": [
+      {
+        "name": "Mauricio",
+        "score": 970523,
+        "stars": 2,
+        "combo": 479,
+        "accuracy": 55.02118024296052,
+        "date": "2026-10-21 12:54:12"
+      }
+    ],
+    "top_fools_garden_lemon_tree": [
+      {
+        "name": "Mauricio",
+        "score": 358813,
+        "stars": 1,
+        "combo": 97,
+        "accuracy": 31.877487562189057,
+        "date": "2026-10-21 12:57:24"
+      }
     ]
   },
   "global": [
@@ -1974,14 +2002,14 @@
       "clefs": 154
     },
     {
+      "name": "Mauricio",
+      "total_score": 10937502,
+      "clefs": 96
+    },
+    {
       "name": "bubu",
       "total_score": 10570609,
       "clefs": 100
-    },
-    {
-      "name": "Mauricio",
-      "total_score": 5847435,
-      "clefs": 49
     },
     {
       "name": "Test",
@@ -2093,7 +2121,7 @@
       },
       {
         "name": "Mauricio",
-        "score": 5847435
+        "score": 10937502
       },
       {
         "name": "Test",
