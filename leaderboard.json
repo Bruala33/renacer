@@ -2851,7 +2851,7 @@
         "stars": 3,
         "combo": 154,
         "accuracy": 72.74446245272826,
-        "date": "2026-10-22 21:02:27"
+        "date": "2026-10-22 21:02:36"
       }
     ]
   },
@@ -2888,8 +2888,8 @@
     },
     {
       "name": "Niggerman",
-      "total_score": 7274206,
-      "clefs": 61
+      "total_score": 7678156,
+      "clefs": 65
     },
     {
       "name": "Azure",
@@ -3019,7 +3019,7 @@
       },
       {
         "name": "Niggerman",
-        "score": 7274206
+        "score": 7678156
       },
       {
         "name": "fer",
