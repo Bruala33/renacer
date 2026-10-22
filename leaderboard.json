@@ -548,6 +548,14 @@
         "date": "2026-09-20 20:13:46"
       },
       {
+        "name": "Mauricio",
+        "score": 696,
+        "stars": 5,
+        "combo": 1,
+        "accuracy": 98.02816901408451,
+        "date": "2026-10-22 13:27:34"
+      },
+      {
         "name": "Test",
         "score": 579,
         "stars": 4,
@@ -2386,7 +2394,7 @@
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 36138987,
+      "total_score": 36139683,
       "clefs": 333
     },
     {
@@ -2525,7 +2533,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 36138987
+        "score": 36139683
       },
       {
         "name": "Dady cool",
