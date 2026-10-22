@@ -1723,11 +1723,11 @@
     "osu_897364": [
       {
         "name": "Mauricio",
-        "score": 546525,
-        "stars": 1,
-        "combo": 287,
-        "accuracy": 38.44571066793289,
-        "date": "2026-10-22 09:40:39"
+        "score": 813900,
+        "stars": 2,
+        "combo": 418,
+        "accuracy": 48.76426709804979,
+        "date": "2026-10-22 09:42:30"
       },
       {
         "name": "Dady cool",
@@ -2309,14 +2309,14 @@
   },
   "global": [
     {
-      "name": "Rocky",
-      "total_score": 27808030,
+      "name": "Mauricio",
+      "total_score": 28323845,
       "clefs": 260
     },
     {
-      "name": "Mauricio",
-      "total_score": 27509945,
-      "clefs": 252
+      "name": "Rocky",
+      "total_score": 27808030,
+      "clefs": 260
     },
     {
       "name": "Jocomomolo",
@@ -2449,7 +2449,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 27509945
+        "score": 28323845
       },
       {
         "name": "Dady cool",
