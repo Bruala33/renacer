@@ -2637,6 +2637,16 @@
         "accuracy": 28.254788468979754,
         "date": "2026-10-22 18:48:44"
       }
+    ],
+    "bs_4ae40": [
+      {
+        "name": "Niggerman",
+        "score": 197700,
+        "stars": 1,
+        "combo": 139,
+        "accuracy": 28.27112827112827,
+        "date": "2026-10-22 18:51:48"
+      }
     ]
   },
   "global": [
@@ -2681,14 +2691,14 @@
       "clefs": 39
     },
     {
+      "name": "Niggerman",
+      "total_score": 3899544,
+      "clefs": 32
+    },
+    {
       "name": "bobon",
       "total_score": 3845429,
       "clefs": 33
-    },
-    {
-      "name": "Niggerman",
-      "total_score": 3701844,
-      "clefs": 31
     },
     {
       "name": "MasterPianist",
@@ -2802,7 +2812,7 @@
       },
       {
         "name": "Niggerman",
-        "score": 3701844
+        "score": 3899544
       },
       {
         "name": "Darwin67",
