@@ -2487,15 +2487,15 @@
         "stars": 5,
         "combo": 140,
         "accuracy": 99.23619701803503,
-        "date": "2026-10-22 16:42:17"
+        "date": "2026-10-22 16:42:26"
       }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 43088778,
-      "clefs": 398
+      "total_score": 43332645,
+      "clefs": 400
     },
     {
       "name": "Rocky",
@@ -2633,7 +2633,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 43088778
+        "score": 43332645
       },
       {
         "name": "Dady cool",
