@@ -2671,11 +2671,11 @@
     "osu_353373": [
       {
         "name": "Niggerman",
-        "score": 62901,
+        "score": 75265,
         "stars": 1,
-        "combo": 53,
-        "accuracy": 27.963456921845825,
-        "date": "2026-10-22 18:56:29"
+        "combo": 61,
+        "accuracy": 33.460033786787584,
+        "date": "2026-10-22 18:59:07"
       }
     ]
   },
@@ -2717,7 +2717,7 @@
     },
     {
       "name": "Niggerman",
-      "total_score": 4396020,
+      "total_score": 4471285,
       "clefs": 35
     },
     {
@@ -2838,7 +2838,7 @@
       },
       {
         "name": "Niggerman",
-        "score": 4396020
+        "score": 4471285
       },
       {
         "name": "fer",
