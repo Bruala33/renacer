@@ -1722,20 +1722,20 @@
     ],
     "osu_897364": [
       {
+        "name": "Mauricio",
+        "score": 546525,
+        "stars": 1,
+        "combo": 287,
+        "accuracy": 38.44571066793289,
+        "date": "2026-10-22 09:40:39"
+      },
+      {
         "name": "Dady cool",
         "score": 545625,
         "stars": 1,
         "combo": 189,
         "accuracy": 35.05348366579936,
         "date": "2026-10-19 20:54:13"
-      },
-      {
-        "name": "Mauricio",
-        "score": 515550,
-        "stars": 2,
-        "combo": 276,
-        "accuracy": 41.07804469941437,
-        "date": "2026-10-21 19:21:35"
       }
     ],
     "top_pereza_como_lo_tienes_tu": [
@@ -2315,8 +2315,8 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 26963420,
-      "clefs": 247
+      "total_score": 27509945,
+      "clefs": 252
     },
     {
       "name": "Jocomomolo",
@@ -2449,7 +2449,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 26963420
+        "score": 27509945
       },
       {
         "name": "Dady cool",
