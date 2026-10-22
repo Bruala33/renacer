@@ -2795,6 +2795,16 @@
         "accuracy": 75.75238169103294,
         "date": "2026-10-22 20:48:56"
       }
+    ],
+    "osu_966619": [
+      {
+        "name": "pelosombra40",
+        "score": 26234,
+        "stars": 3.5,
+        "combo": 32,
+        "accuracy": 9.86251724643511,
+        "date": "2026-10-22 20:51:30"
+      }
     ]
   },
   "global": [
@@ -2884,6 +2894,11 @@
       "clefs": 1
     },
     {
+      "name": "pelosombra40",
+      "total_score": 51117,
+      "clefs": 0
+    },
+    {
       "name": "U",
       "total_score": 30185,
       "clefs": 0
@@ -2891,11 +2906,6 @@
     {
       "name": ".",
       "total_score": 24975,
-      "clefs": 0
-    },
-    {
-      "name": "pelosombra40",
-      "total_score": 24883,
       "clefs": 0
     },
     {
@@ -2976,12 +2986,12 @@
         "score": 190261
       },
       {
-        "name": "U",
-        "score": 30185
+        "name": "pelosombra40",
+        "score": 51117
       },
       {
-        "name": "pelosombra40",
-        "score": 24883
+        "name": "U",
+        "score": 30185
       },
       {
         "name": "Camaleon",
