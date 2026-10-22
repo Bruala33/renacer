@@ -2513,11 +2513,11 @@
     "osu_2282097": [
       {
         "name": "Mauricio",
-        "score": 29094,
-        "stars": 3.5,
-        "combo": 30,
-        "accuracy": 11.74390583562407,
-        "date": "2026-10-22 17:40:54"
+        "score": 52120,
+        "stars": 1,
+        "combo": 47,
+        "accuracy": 21.03843995850438,
+        "date": "2026-10-22 18:03:57"
       }
     ],
     "top_coti_y_andrs_calamaro_nada_fue_un_error": [
@@ -2554,7 +2554,7 @@
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 45793032,
+      "total_score": 45845152,
       "clefs": 423
     },
     {
@@ -2698,7 +2698,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 45793032
+        "score": 45845152
       },
       {
         "name": "Dady cool",
