@@ -520,6 +520,10 @@ class OsuManiaParser {
     const timingPoints = [];
     const allTimingPoints = [];
     const hitObjectsRaw = [];
+    let taikoKatToggle = 0;
+    let taikoDonToggle = 0;
+    let stdPrevCol = -1;
+    let stdPrevTime = -9999;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
@@ -566,14 +570,40 @@ class OsuManiaParser {
       } else if (currentSection === 'HitObjects') {
         const parts = line.split(',');
         if (parts.length >= 4) {
-          const x = parseInt(parts[0], 10);
+          const x = parseInt(parts[0], 10) || 0;
+          const y = parseInt(parts[1], 10) || 0;
           const time = parseInt(parts[2], 10);
           const type = parseInt(parts[3], 10);
-          
+          const hitSound = parts.length > 4 ? (parseInt(parts[4], 10) || 0) : 0;
+
           const effectiveColumns = mode === 3 ? Math.max(3, Math.min(9, circleSize)) : 4;
-          const originalLane = Math.max(0, Math.min(effectiveColumns - 1, Math.floor((x * effectiveColumns) / 512)));
+          let originalLane = 0;
+
+          if (mode === 3) {
+            // osu!mania: columna directa por coordenada X
+            originalLane = Math.max(0, Math.min(effectiveColumns - 1, Math.floor((x * effectiveColumns) / 512)));
+          } else if (mode === 1) {
+            // osu!taiko: Don (centro: carriles 1 y 2) vs Kat (borde: carriles 0 y 3)
+            const isKat = (hitSound & 2) !== 0 || (hitSound & 8) !== 0;
+            if (isKat) {
+              originalLane = (taikoKatToggle++ % 2 === 0) ? 0 : 3;
+            } else {
+              originalLane = (taikoDonToggle++ % 2 === 0) ? 1 : 2;
+            }
+          } else {
+            // osu!standard / osu!catch: combinar posición (X, Y) para repartir por los 4 carriles y evitar pilas en el mismo carril
+            const normPos = Math.max(0, Math.min(0.999, ((x / 512) * 0.78) + ((y / 384) * 0.22)));
+            originalLane = Math.floor(normPos * effectiveColumns);
+            if (originalLane === stdPrevCol && (time - stdPrevTime) > 15 && (time - stdPrevTime) < 260) {
+              originalLane = (originalLane + 1 + ((x + y) % (effectiveColumns - 1))) % effectiveColumns;
+            }
+            stdPrevCol = originalLane;
+            stdPrevTime = time;
+          }
+
           const isManiaHold = (type & 128) !== 0;
           const isSlider = (type & 2) !== 0;
+          const isSpinner = (type & 8) !== 0;
           let endTime = time;
           let isHold = false;
 
@@ -581,6 +611,12 @@ class OsuManiaParser {
             const endPart = parts[5].split(':')[0];
             endTime = parseInt(endPart, 10) || (time + 400);
             isHold = true;
+          } else if (isSpinner && parts.length >= 6) {
+            const spinEnd = parseInt(parts[5].split(':')[0], 10) || 0;
+            if (spinEnd > time + 180) {
+              endTime = Math.min(time + 5000, spinEnd);
+              isHold = true;
+            }
           } else if (isSlider && parts.length >= 8) {
             const slides = Math.max(1, parseInt(parts[6], 10) || 1);
             const pixelLength = parseFloat(parts[7]) || 0;
@@ -619,6 +655,20 @@ class OsuManiaParser {
             duration_ms: (isHold && duration >= 140) ? duration : null,
             end_timestamp_ms: (isHold && duration >= 140) ? endTime : null
           });
+
+          // En osu!taiko, las notas Finisher grandes (hitSound & 4) con espacio suficiente generan acorde doble
+          if (mode === 1 && (hitSound & 4) !== 0 && !isHold) {
+            const partnerLane = originalLane === 0 ? 3 : (originalLane === 3 ? 0 : (originalLane === 1 ? 2 : 1));
+            hitObjectsRaw.push({
+              originalLane: partnerLane,
+              sourceKeys: effectiveColumns,
+              timestamp_ms: time,
+              original_timestamp: time,
+              type: 'tap',
+              duration_ms: null,
+              end_timestamp_ms: null
+            });
+          }
         }
       }
     }
@@ -1483,6 +1533,92 @@ class PackageUnpacker {
       parsedBeatmap = chosen.parsedData;
       targetAudioName = parsedBeatmap.audioFilename;
 
+    } else if (
+      fileType === 'beatsaver' ||
+      files.some(f => {
+        const lower = f.toLowerCase();
+        return lower === 'info.dat' || lower.endsWith('/info.dat') || lower.endsWith('\\info.dat');
+      })
+    ) {
+      log(5, 'Paquete Beat Saber (Info.dat) detectado', 'Extrayendo metadatos y dificultades...', 'info');
+      const infoPath = files.find(f => {
+        const lower = f.toLowerCase();
+        return lower === 'info.dat' || lower.endsWith('/info.dat') || lower.endsWith('\\info.dat');
+      });
+      let infoJson = {};
+      if (infoPath) {
+        try {
+          infoJson = JSON.parse(await zip.file(infoPath).async('text'));
+        } catch (e) {}
+      }
+
+      const bsDiffList = BeatSaberParser.extractDifficultiesFromInfo(infoJson, files);
+      const parsedDiffs = [];
+      for (const dMeta of bsDiffList) {
+        const matchFile = files.find(f => {
+          const lower = f.toLowerCase();
+          const targetLower = dMeta.file.toLowerCase();
+          return lower === targetLower || lower.endsWith('/' + targetLower) || lower.endsWith('\\' + targetLower);
+        });
+        if (!matchFile) continue;
+        try {
+          const datTxt = await zip.file(matchFile).async('text');
+          const datJson = JSON.parse(datTxt);
+          const parsed = BeatSaberParser.parse(datJson, infoJson, dMeta, 3, 'hard');
+          if (parsed && parsed.notes && parsed.notes.length > 0) {
+            parsedDiffs.push({
+              id: dMeta.id,
+              name: dMeta.name,
+              stars: parsed.stars,
+              notesCount: parsed.notes.length,
+              label: `${dMeta.name} (${parsed.stars.toFixed(1)}★)`,
+              file: matchFile,
+              parsedData: parsed
+            });
+          }
+        } catch (e) {}
+      }
+
+      // Fallback si Info.dat no listaba los archivos .dat estándar
+      if (parsedDiffs.length === 0) {
+        const datFiles = files.filter(f => {
+          const lower = f.toLowerCase();
+          return lower.endsWith('.dat') && !lower.endsWith('info.dat') && !lower.includes('audioclip');
+        });
+        for (const df of datFiles) {
+          try {
+            const datJson = JSON.parse(await zip.file(df).async('text'));
+            const baseName = df.split('/').pop().replace(/\.dat$/i, '');
+            const parsed = BeatSaberParser.parse(datJson, infoJson, { id: baseName, name: baseName }, 3, 'hard');
+            if (parsed && parsed.notes && parsed.notes.length > 0) {
+              parsedDiffs.push({
+                id: baseName,
+                name: baseName,
+                stars: parsed.stars,
+                notesCount: parsed.notes.length,
+                label: `${baseName} (${parsed.stars.toFixed(1)}★)`,
+                file: df,
+                parsedData: parsed
+              });
+            }
+          } catch (e) {}
+        }
+      }
+
+      if (parsedDiffs.length > 0) {
+        parsedDiffs.sort((a, b) => a.stars - b.stars);
+        extractedDiffs = parsedDiffs;
+        let chosen = parsedDiffs.find(d => d.id === selectedDiffId || d.name === selectedDiffId);
+        if (!chosen && selectedDiffId) {
+          chosen = parsedDiffs.find(d => d.name.toLowerCase().includes(String(selectedDiffId).toLowerCase()) || d.id.toLowerCase().includes(String(selectedDiffId).toLowerCase()));
+        }
+        if (!chosen) {
+          chosen = parsedDiffs[Math.floor(parsedDiffs.length / 2)] || parsedDiffs[0];
+        }
+        parsedBeatmap = chosen.parsedData;
+        targetAudioName = parsedBeatmap.audioFilename;
+      }
+
     } else if (files.some(f => f.toLowerCase().endsWith('.chart'))) {
       const chartFile = files.find(f => f.toLowerCase().endsWith('.chart'));
       log(5, 'Notas Clone Hero (.chart) en ZIP', `Archivo: ${chartFile}`, 'info');
@@ -1525,7 +1661,7 @@ class PackageUnpacker {
     }
 
     if (!parsedBeatmap) {
-      log(5, 'Formato no reconocido', 'No se encontraron notas válidas (.osu, .chart, .mid)', 'error');
+      log(5, 'Formato no reconocido', 'No se encontraron notas válidas (.osu, Info.dat, .chart, .mid)', 'error');
       throw new Error('Formato de mapa de ritmo no reconocido en el paquete.');
     }
 
@@ -1544,7 +1680,7 @@ class PackageUnpacker {
     if (!audioFileEntry) {
       const audioPath = files.find(f => {
         const lower = f.toLowerCase();
-        return lower.endsWith('.mp3') || lower.endsWith('.ogg') || lower.endsWith('.opus') || lower.endsWith('.wav') || lower.endsWith('.m4a');
+        return lower.endsWith('.mp3') || lower.endsWith('.ogg') || lower.endsWith('.egg') || lower.endsWith('.opus') || lower.endsWith('.wav') || lower.endsWith('.m4a');
       });
       if (audioPath) {
         audioFileEntry = zip.file(audioPath);
@@ -1553,14 +1689,14 @@ class PackageUnpacker {
 
     if (!audioFileEntry) {
       log(5, 'Audio no encontrado en ZIP', 'No se encontró archivo de audio', 'error');
-      throw new Error('No se encontró archivo de audio (.mp3, .ogg, .wav) dentro del paquete.');
+      throw new Error('No se encontró archivo de audio (.mp3, .ogg, .egg, .wav) dentro del paquete.');
     }
 
     log(5, 'Pista de audio cargada', `Archivo: ${audioFileEntry.name}`, 'info');
     const audioArrayBuffer = await audioFileEntry.async('arraybuffer');
     const audioName = audioFileEntry.name || 'audio.mp3';
     const ext = audioName.split('.').pop().toLowerCase();
-    const mime = ext === 'ogg' || ext === 'opus' ? 'audio/ogg' : (ext === 'wav' ? 'audio/wav' : 'audio/mpeg');
+    const mime = (ext === 'ogg' || ext === 'egg' || ext === 'opus') ? 'audio/ogg' : (ext === 'wav' ? 'audio/wav' : 'audio/mpeg');
     audioBlob = new Blob([audioArrayBuffer], { type: mime });
     const audioUrl = URL.createObjectURL(audioBlob);
 
@@ -2120,9 +2256,184 @@ class UltraStarParser {
   }
 }
 
+class BeatSaberParser {
+  static extractDifficultiesFromInfo(infoJson, files = []) {
+    const diffs = [];
+    if (!infoJson || typeof infoJson !== 'object') return diffs;
+
+    const sets = infoJson._difficultyBeatmapSets || infoJson.difficultyBeatmapSets || [];
+    for (const set of sets) {
+      const charName = set._beatmapCharacteristicName || set.beatmapCharacteristicName || 'Standard';
+      const bmaps = set._difficultyBeatmaps || set.difficultyBeatmaps || [];
+      for (const b of bmaps) {
+        const diffName = b._difficulty || b.difficulty || 'Normal';
+        const fileName = b._beatmapFilename || b.beatmapFilename || b.beatmapDataFilename || '';
+        const rank = b._difficultyRank || b.difficultyRank || 3;
+        const label = charName === 'Standard' ? diffName : `${diffName} (${charName})`;
+        if (fileName) {
+          diffs.push({
+            id: diffName,
+            name: label,
+            file: fileName,
+            rank: rank
+          });
+        }
+      }
+    }
+    return diffs;
+  }
+
+  static parse(datJson, infoJson = {}, diffMeta = {}, targetLanes = 3, densityMode = 'hard') {
+    const bpm = parseFloat(infoJson._beatsPerMinute || infoJson.audio?.bpm || datJson._beatsPerMinute || 120) || 120;
+    const offsetSec = parseFloat(infoJson._songTimeOffset || infoJson.audio?.songTimeOffset || 0) || 0;
+    const offsetMs = Math.round(offsetSec * 1000);
+    const title = infoJson._songName || infoJson.song?.title || 'Beat Saber Track';
+    const artist = infoJson._songAuthorName || infoJson.song?.author || 'BeatSaver Artist';
+    const creator = infoJson._levelAuthorName || infoJson.song?.subTitle || 'BeatSaver Mapper';
+    const audioFilename = infoJson._songFilename || infoJson.audio?.songFilename || 'song.egg';
+    const difficultyName = diffMeta.name || diffMeta.id || 'Expert';
+
+    const beatToMs = (beat) => Math.max(0, Math.round((beat * 60000) / bpm) + offsetMs);
+
+    // Extraer notas en formato v2 (_notes), v3 (colorNotes) o v4 (colorNotes + colorNotesData)
+    const rawColorNotes = [];
+    if (Array.isArray(datJson._notes)) {
+      for (const n of datJson._notes) {
+        if (!n || (n._type !== 0 && n._type !== 1)) continue; // Ignorar bombas (_type === 3)
+        rawColorNotes.push({
+          beat: parseFloat(n._time) || 0,
+          x: Math.max(0, Math.min(3, parseInt(n._lineIndex, 10) || 0)),
+          y: parseInt(n._lineLayer, 10) || 0,
+          c: parseInt(n._type, 10) || 0,
+          d: parseInt(n._cutDirection, 10) ?? 8
+        });
+      }
+    } else if (Array.isArray(datJson.colorNotes)) {
+      const notesData = Array.isArray(datJson.colorNotesData) ? datJson.colorNotesData : null;
+      for (const n of datJson.colorNotes) {
+        if (!n) continue;
+        const meta = (notesData && typeof n.i === 'number' && notesData[n.i]) ? notesData[n.i] : {};
+        const beat = parseFloat(n.b ?? n.time ?? 0) || 0;
+        const x = Math.max(0, Math.min(3, parseInt(n.x ?? meta.x ?? 0, 10) || 0));
+        const y = parseInt(n.y ?? meta.y ?? 0, 10) || 0;
+        const c = parseInt(n.c ?? meta.c ?? 0, 10) || 0;
+        const d = parseInt(n.d ?? meta.d ?? 8, 10);
+        rawColorNotes.push({ beat, x, y, c, d: Number.isNaN(d) ? 8 : d });
+      }
+    }
+
+    // Extraer sliders / arcos (holds) en v2 (_sliders), v3 (sliders / burstSliders) o v4 (arcs)
+    const holdIntervalsByKey = new Map();
+    const rawHolds = [];
+    const registerSlider = (startBeat, tailBeat, x) => {
+      if (!Number.isFinite(startBeat) || !Number.isFinite(tailBeat) || tailBeat <= startBeat) return;
+      const startMs = beatToMs(startBeat);
+      const endMs = beatToMs(tailBeat);
+      const dur = endMs - startMs;
+      if (dur >= 140 && dur <= 8000) {
+        const laneX = Math.max(0, Math.min(3, parseInt(x, 10) || 0));
+        holdIntervalsByKey.set(`${laneX}_${ Math.round(startBeat * 100) }`, endMs);
+        rawHolds.push({ startMs, endMs, x: laneX });
+      }
+    };
+
+    if (Array.isArray(datJson.sliders)) {
+      for (const s of datJson.sliders) {
+        if (s) registerSlider(parseFloat(s.b), parseFloat(s.tb), s.x);
+      }
+    }
+    if (Array.isArray(datJson.burstSliders)) {
+      for (const s of datJson.burstSliders) {
+        if (s) registerSlider(parseFloat(s.b), parseFloat(s.tb), s.x);
+      }
+    }
+    if (Array.isArray(datJson._sliders)) {
+      for (const s of datJson._sliders) {
+        if (s) registerSlider(parseFloat(s._headTime), parseFloat(s._tailTime), s._headLineIndex);
+      }
+    }
+
+    rawColorNotes.sort((a, b) => a.beat - b.beat);
+
+    const hitObjectsRaw = [];
+    const usedHoldStarts = new Set();
+
+    for (let i = 0; i < rawColorNotes.length; i++) {
+      const n = rawColorNotes[i];
+      const timeMs = beatToMs(n.beat);
+      const key = `${n.x}_${Math.round(n.beat * 100)}`;
+      let endTimeMs = holdIntervalsByKey.get(key) || null;
+      if (endTimeMs) {
+        usedHoldStarts.add(key);
+      }
+
+      const duration = endTimeMs ? Math.max(0, endTimeMs - timeMs) : 0;
+      const isHold = duration >= 140;
+
+      hitObjectsRaw.push({
+        originalLane: n.x,
+        sourceKeys: 4,
+        timestamp_ms: timeMs,
+        original_timestamp: timeMs,
+        type: isHold ? 'hold' : 'tap',
+        duration_ms: isHold ? duration : null,
+        end_timestamp_ms: isHold ? endTimeMs : null,
+        bsCutDirection: n.d,
+        bsLayer: n.y
+      });
+    }
+
+    // Añadir arcos independientes que no coincidían exactamente con una nota base
+    for (const h of rawHolds) {
+      const dur = h.endMs - h.startMs;
+      if (dur >= 160) {
+        const alreadyCovered = hitObjectsRaw.some(o => o.originalLane === h.x && Math.abs(o.timestamp_ms - h.startMs) < 35);
+        if (!alreadyCovered) {
+          hitObjectsRaw.push({
+            originalLane: h.x,
+            sourceKeys: 4,
+            timestamp_ms: h.startMs,
+            original_timestamp: h.startMs,
+            type: 'hold',
+            duration_ms: dur,
+            end_timestamp_ms: h.endMs
+          });
+        }
+      }
+    }
+
+    hitObjectsRaw.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
+
+    // Estimar estrellas según densidad de notas por segundo (NPS)
+    let durationSec = 120;
+    if (hitObjectsRaw.length >= 2) {
+      durationSec = Math.max(15, (hitObjectsRaw[hitObjectsRaw.length - 1].timestamp_ms - hitObjectsRaw[0].timestamp_ms) / 1000);
+    }
+    const nps = hitObjectsRaw.length / durationSec;
+    const estimatedStars = Math.max(1.2, Math.min(9.5, Math.round((1.2 + nps * 0.85) * 10) / 10));
+
+    const finalNotes = LaneRemapper.resolveCollisions(hitObjectsRaw, 4, Math.round(bpm), estimatedStars, densityMode, targetLanes);
+
+    return {
+      audioFilename,
+      audioLeadIn: 0,
+      title,
+      artist,
+      creator,
+      difficultyName,
+      stars: estimatedStars,
+      bpm: Math.round(bpm),
+      keys: 4,
+      rawNotes: hitObjectsRaw,
+      notes: finalNotes
+    };
+  }
+}
+
 // Export to global window scope
 window.LaneRemapper = LaneRemapper;
 window.OsuManiaParser = OsuManiaParser;
+window.BeatSaberParser = BeatSaberParser;
 window.SongIniParser = SongIniParser;
 window.ArchiveHelper = ArchiveHelper;
 window.CloneHeroParser = CloneHeroParser;

@@ -1163,6 +1163,42 @@ app.get(['/api/v1/download/clonehero/:md5', '/api/v1/clonehero/download/:md5'], 
   res.status(502).json({ error: 'No se pudo descargar la canción de Clone Hero' });
 });
 
+app.get(['/api/v1/download/beatsaver/:hash', '/api/v1/beatsaver/download/:hash'], async (req, res) => {
+  const hash = (req.params.hash || '').toString().toLowerCase().trim();
+  if (!hash || !/^[a-f0-9]{32,64}$/.test(hash)) {
+    return res.status(400).json({ error: 'Hash de BeatSaver inválido' });
+  }
+
+  const bsUrl = `https://cdn.beatsaver.com/${hash}.zip`;
+  try {
+    const resp = await fetch(bsUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+        'Accept': '*/*'
+      },
+      signal: AbortSignal.timeout(20000)
+    });
+
+    if (resp.ok) {
+      const ct = resp.headers.get('content-type') || 'application/zip';
+      const cl = resp.headers.get('content-length');
+      res.setHeader('Content-Type', ct);
+      if (cl) res.setHeader('Content-Length', cl);
+      res.setHeader('Content-Disposition', `attachment; filename="${hash}.zip"`);
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+
+      const { Readable } = await import('stream');
+      Readable.fromWeb(resp.body).pipe(res);
+      return;
+    }
+  } catch (err) {
+    console.warn(`[Proxy Download] BeatSaver ZIP ${hash} falló:`, err.message);
+  }
+
+  res.status(502).json({ error: 'No se pudo descargar el mapa de BeatSaver' });
+});
+
 // Rate track
 app.post('/api/v1/community/charts/:id/rate', (req, res) => {
   const id = req.params.id;
@@ -1522,18 +1558,24 @@ app.get(['/api/search', '/api/v1/search', '/api/v1/search/community'], async (re
     }
   }
 
-  // 2. Query osu! Mania (Catboy)
-  try {
-    const encoded = encodeURIComponent(q);
-    const catboyResp = await fetch(`https://catboy.best/api/v2/search?q=${encoded}&m=3`, {
+  // 2. Query osu! (Todos los modos: Standard, Taiko y Mania) y BeatSaver en paralelo
+  const encoded = encodeURIComponent(q);
+  const [catboyRes, bsRes] = await Promise.allSettled([
+    fetch(`https://catboy.best/api/v2/search?q=${encoded}`, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
-      signal: AbortSignal.timeout(4000),
-    });
+      signal: AbortSignal.timeout(4200),
+    }).then(r => r.ok ? r.json() : null),
+    fetch(`https://api.beatsaver.com/search/text/0?q=${encoded}&sortOrder=Relevance`, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(4200),
+    }).then(r => r.ok ? r.json() : null)
+  ]);
 
-    if (catboyResp.ok) {
-      const data = await catboyResp.json();
+  if (catboyRes.status === 'fulfilled' && catboyRes.value) {
+    try {
+      const data = catboyRes.value;
       const items = Array.isArray(data) ? data : data?.data || [];
-      for (const item of items.slice(0, 10)) {
+      for (const item of items.slice(0, 14)) {
         const setId = item.id;
         if (!setId) continue;
 
@@ -1543,13 +1585,18 @@ app.get(['/api/search', '/api/v1/search', '/api/v1/search/community'], async (re
         const covers = item.covers || {};
         const thumbnail = covers.card || covers.cover || `https://assets.ppy.sh/beatmaps/${setId}/covers/card.jpg`;
 
-        const diffs = (item.beatmaps || []).map((b) => ({
-          id: b.id,
-          name: b.version || 'Mania',
-          stars: Math.round((b.difficulty_rating || 3.5) * 10) / 10,
-          notes_count: (b.count_circles || 0) + (b.count_sliders || 0) || 100,
-          bpm: b.bpm || item.bpm || 120,
-        }));
+        const diffs = (item.beatmaps || []).map((b) => {
+          const modeNum = b.mode_int ?? b.mode ?? 0;
+          const modeTag = (modeNum === 3 || modeNum === 'mania') ? 'Mania' : ((modeNum === 1 || modeNum === 'taiko') ? 'Taiko' : 'Std');
+          const baseName = b.version || 'Normal';
+          return {
+            id: String(b.id),
+            name: `${baseName} [${modeTag}]`,
+            stars: Math.round((b.difficulty_rating || 3.5) * 10) / 10,
+            notes_count: (b.count_circles || 0) + (b.count_sliders || 0) || 100,
+            bpm: b.bpm || item.bpm || 120,
+          };
+        });
 
         results.push({
           id: `osu_${setId}`,
@@ -1562,16 +1609,79 @@ app.get(['/api/search', '/api/v1/search', '/api/v1/search/community'], async (re
           notes_count: diffs[0]?.notes_count || 100,
           thumbnail,
           source: 'osu',
-          source_name: 'osu! Mania',
+          source_name: 'osu!',
+          source_badge: '[osu!]',
+          source_color: '#ff007f',
           download_url: `/api/v1/download/osu/${setId}`,
           direct_download_url: `https://api.nerinyan.moe/d/${setId}?noVideo=true`,
           fallback_download_url: `https://dl.nerinyan.moe/v2/d/${setId}?noVideo=true`,
           difficulties: diffs,
         });
       }
-    }
-  } catch (err) {
-    // Non-blocking fallback
+    } catch (_) {}
+  }
+
+  if (bsRes.status === 'fulfilled' && bsRes.value) {
+    try {
+      const docs = Array.isArray(bsRes.value?.docs) ? bsRes.value.docs : [];
+      for (const doc of docs.slice(0, 12)) {
+        const bsId = doc.id;
+        const latestVer = Array.isArray(doc.versions) && doc.versions.length > 0 ? doc.versions[0] : null;
+        if (!bsId || !latestVer) continue;
+        const hash = String(latestVer.hash || '').toLowerCase();
+        const directZipUrl = latestVer.downloadURL || (hash ? `https://cdn.beatsaver.com/${hash}.zip` : '');
+        if (!directZipUrl) continue;
+
+        const meta = doc.metadata || {};
+        const title = meta.songName || doc.name || 'Sin título';
+        const artist = meta.songAuthorName || 'Artista BeatSaver';
+        const creator = meta.levelAuthorName || doc.uploader?.name || 'BeatSaver Mapper';
+        const bpm = Math.round(parseFloat(meta.bpm || 120) || 120);
+        const thumbnail = latestVer.coverURL || (hash ? `https://cdn.beatsaver.com/${hash}.jpg` : '');
+
+        const rawDiffs = Array.isArray(latestVer.diffs) ? latestVer.diffs : [];
+        const diffs = rawDiffs
+          .filter(d => !d.characteristic || d.characteristic === 'Standard' || rawDiffs.length <= 2)
+          .map(d => {
+            const nps = parseFloat(d.nps || 2.5) || 2.5;
+            const stars = d.stars
+              ? Math.round(parseFloat(d.stars) * 10) / 10
+              : Math.max(1.2, Math.min(9.5, Math.round((1.2 + nps * 0.85) * 10) / 10));
+            const dName = d.difficulty || 'Normal';
+            return {
+              id: dName,
+              name: dName,
+              stars: stars,
+              notes_count: d.notes || 150,
+              bpm: bpm,
+              label: `${dName} (${stars.toFixed(1)}★)`
+            };
+          });
+
+        if (diffs.length > 0) {
+          diffs.sort((a, b) => a.stars - b.stars);
+          results.push({
+            id: `bs_${bsId}`,
+            bs_hash: hash,
+            title,
+            artist,
+            creator_name: creator,
+            bpm,
+            difficulty_name: diffs[Math.floor(diffs.length / 2)]?.name || 'Normal',
+            stars: diffs[Math.floor(diffs.length / 2)]?.stars || 3.5,
+            notes_count: diffs[Math.floor(diffs.length / 2)]?.notes_count || 150,
+            thumbnail,
+            source: 'beatsaver',
+            source_name: 'BeatSaver',
+            source_badge: '[BeatSaver]',
+            source_color: '#00d2ff',
+            download_url: hash ? `/api/v1/download/beatsaver/${hash}` : directZipUrl,
+            direct_download_url: directZipUrl,
+            difficulties: diffs,
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   for (const item of results) {
