@@ -1806,6 +1806,14 @@
         "combo": 3,
         "accuracy": 0.06426276329882184,
         "date": "2026-10-20 09:09:56"
+      },
+      {
+        "name": "pelosombra40",
+        "score": 11700,
+        "stars": 3.5,
+        "combo": 18,
+        "accuracy": 0.5871769585739128,
+        "date": "2026-10-22 20:53:56"
       }
     ],
     "top_paulina_rubio_yo_no_soy_esa_mujer": [
@@ -2915,7 +2923,7 @@
     },
     {
       "name": "pelosombra40",
-      "total_score": 57583,
+      "total_score": 69283,
       "clefs": 0
     },
     {
@@ -3007,7 +3015,7 @@
       },
       {
         "name": "pelosombra40",
-        "score": 57583
+        "score": 69283
       },
       {
         "name": "U",
