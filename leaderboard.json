@@ -2785,6 +2785,16 @@
         "accuracy": 0.0420038024494849,
         "date": "2026-10-22 20:48:55"
       }
+    ],
+    "osu_1738188": [
+      {
+        "name": "Niggerman",
+        "score": 293014,
+        "stars": 4,
+        "combo": 128,
+        "accuracy": 75.75238169103294,
+        "date": "2026-10-22 20:48:56"
+      }
     ]
   },
   "global": [
@@ -2820,8 +2830,8 @@
     },
     {
       "name": "Niggerman",
-      "total_score": 5775178,
-      "clefs": 47
+      "total_score": 6068192,
+      "clefs": 49
     },
     {
       "name": "Azure",
@@ -2951,7 +2961,7 @@
       },
       {
         "name": "Niggerman",
-        "score": 5775178
+        "score": 6068192
       },
       {
         "name": "fer",
