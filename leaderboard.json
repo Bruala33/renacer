@@ -2805,6 +2805,16 @@
         "accuracy": 9.86251724643511,
         "date": "2026-10-22 20:51:30"
       }
+    ],
+    "osu_1781183": [
+      {
+        "name": "pelosombra40",
+        "score": 6466,
+        "stars": 3.5,
+        "combo": 14,
+        "accuracy": 0.2567513371638229,
+        "date": "2026-10-22 20:53:10"
+      }
     ]
   },
   "global": [
@@ -2895,7 +2905,7 @@
     },
     {
       "name": "pelosombra40",
-      "total_score": 51117,
+      "total_score": 57583,
       "clefs": 0
     },
     {
@@ -2987,7 +2997,7 @@
       },
       {
         "name": "pelosombra40",
-        "score": 51117
+        "score": 57583
       },
       {
         "name": "U",
