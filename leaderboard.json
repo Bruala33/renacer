@@ -2667,6 +2667,16 @@
         "accuracy": 3.4346988355533217,
         "date": "2026-10-22 18:53:41"
       }
+    ],
+    "osu_353373": [
+      {
+        "name": "Niggerman",
+        "score": 62901,
+        "stars": 1,
+        "combo": 53,
+        "accuracy": 27.963456921845825,
+        "date": "2026-10-22 18:56:29"
+      }
     ]
   },
   "global": [
@@ -2707,7 +2717,7 @@
     },
     {
       "name": "Niggerman",
-      "total_score": 4333119,
+      "total_score": 4396020,
       "clefs": 35
     },
     {
@@ -2828,7 +2838,7 @@
       },
       {
         "name": "Niggerman",
-        "score": 4333119
+        "score": 4396020
       },
       {
         "name": "fer",
