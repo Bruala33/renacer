@@ -2499,13 +2499,23 @@
         "accuracy": 31.440456534632833,
         "date": "2026-10-22 16:45:57"
       }
+    ],
+    "bs_3d4f7": [
+      {
+        "name": "Mauricio",
+        "score": 1039125,
+        "stars": 5,
+        "combo": 465,
+        "accuracy": 93.05110927041125,
+        "date": "2026-10-22 16:49:21"
+      }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 43685688,
-      "clefs": 403
+      "total_score": 44724813,
+      "clefs": 413
     },
     {
       "name": "Rocky",
@@ -2643,7 +2653,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 43685688
+        "score": 44724813
       },
       {
         "name": "Dady cool",
