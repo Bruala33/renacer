@@ -5387,11 +5387,17 @@
       }
 
       if (engine) {
-        try { engine.stop(); } catch (e) { console.error('Error stopping engine:', e); }
+        try {
+          engine.stop();
+          engine.beatmapData = null;
+          engine.currentAudioSource = null;
+        } catch (e) { console.error('Error stopping engine:', e); }
       }
       window.isGameLoadingOrActive = false;
       window.currentActiveBeatmap = null;
       currentActiveBeatmap = null;
+      currentActiveAudioBlob = null;
+      window.pendingGameToStart = null;
       window.currentFeaturedSongX2 = false;
       window._launchingFromSlot = false;
 
@@ -5442,7 +5448,10 @@
         return;
       }
 
-      renderCurrentLibrarySubtab();
+      // Solo reconstruir y deserializar la Biblioteca desde IndexedDB si el usuario está en la pestaña Biblioteca
+      if (typeof currentActiveTab !== 'undefined' && currentActiveTab === 'library') {
+        renderCurrentLibrarySubtab();
+      }
       if (typeof resumeMenuAmbientMusic === 'function') resumeMenuAmbientMusic();
     };
 
@@ -9316,10 +9325,8 @@ function stopPianoCameraLoop() {
             }
 
             if (arrayBuffer) {
-              if (window._osuOszMemCache.size >= 8) {
-                const firstKey = window._osuOszMemCache.keys().next().value;
-                window._osuOszMemCache.delete(firstKey);
-              }
+              // Limitar caché en RAM a 1 paquete temporal y liberarlo tras guardar en IndexedDB
+              window._osuOszMemCache.clear();
               window._osuOszMemCache.set(osuSetId, arrayBuffer);
             }
           }
@@ -9330,6 +9337,8 @@ function stopPianoCameraLoop() {
 
           loadStatus.innerText = 'Parseando notas a 3 carriles...';
           const unpackedData = await PackageUnpacker.unpack(arrayBuffer, 'osz', diffId);
+          arrayBuffer = null;
+          window._osuOszMemCache.clear();
           currentActiveAudioBlob = unpackedData.audioBlob;
           unpackedData.id = chartItem.id;
           if (!unpackedData.metadata) unpackedData.metadata = {};
@@ -10033,11 +10042,14 @@ function stopPianoCameraLoop() {
       const idLower = String(beatmapData.id || beatmapData.communityChartId || beatmapData.metadata?.id || '').toLowerCase();
       const isOsuOrCloneHero = (
         srcLower.includes('osu') ||
+        srcLower.includes('beatsaver') ||
+        srcLower.includes('beat saber') ||
         srcLower.includes('catboy') ||
         srcLower.includes('clonehero') ||
         srcLower.includes('clone hero') ||
         srcLower.includes('enchor') ||
         idLower.startsWith('osu_') ||
+        idLower.startsWith('bs_') ||
         idLower.startsWith('ch_') ||
         Boolean(beatmapData.sng_url) ||
         Boolean(beatmapData.osz_url) ||
@@ -10081,11 +10093,13 @@ function stopPianoCameraLoop() {
       const songBpm = Number(beatmapData.bpm) || 120;
       const targetNumLanes = window.isFourLanesModeActive ? 4 : 3;
       const sourceKeys = Number(beatmapData.keys || beatmapData.metadata?.source_keys || beatmapData.unpackedData?.metadata?.source_keys || (srcLower.includes('clone') ? 5 : 4));
-      const activeDensityMode = (window.engine && window.engine.difficultyDensityMode) || localStorage.getItem('beatstar_map_density') || localStorage.getItem('difficultyDensityMode') || 'hard';
+      const baseDensityPref = (window.engine && window.engine.difficultyDensityMode) || localStorage.getItem('beatstar_map_density') || localStorage.getItem('difficultyDensityMode') || 'hard';
+      const isStormNow = Boolean(window.currentGameMode === 'storm' || window.isStormModeActive);
+      const activeDensityMode = (isStormNow && baseDensityPref === 'hard') ? 'extreme' : baseDensityPref;
 
       let resolvedNotes = [];
       if (isOsuOrCloneHero && typeof LaneRemapper !== 'undefined') {
-        // Mapeo directo de alta precisión para osu! y Clone Hero (CERO relleno de pausas y timestamps exactos)
+        // Mapeo directo de alta precisión para osu!, BeatSaver y Clone Hero (CERO relleno de pausas y timestamps exactos)
         const baseChartNotes = rawSourceNotes || rawNotes;
         const remapped = LaneRemapper.resolveCollisions(
           baseChartNotes,
@@ -10226,12 +10240,22 @@ function stopPianoCameraLoop() {
       if (resultsList) {
         resultsList.innerHTML = '';
       }
+      const libList = document.getElementById('libraryTracksList');
+      if (libList) {
+        libList.innerHTML = '';
+      }
 
-      // Parar música, cámara de piano y física de tragaperras
+      // Parar música, cámara de piano, ruleta de Las Vegas y física de tragaperras
       if (typeof stopPianoCameraLoop === 'function') stopPianoCameraLoop();
       if (typeof detenerPaginacionPiano === 'function') detenerPaginacionPiano();
       if (typeof stopCasinoMusic === 'function') stopCasinoMusic();
       if (typeof closeGranFortuna === 'function') closeGranFortuna();
+      if (window.vegasRouletteInstance && typeof window.vegasRouletteInstance.stopIdleLoop === 'function') {
+        try { window.vegasRouletteInstance.stopIdleLoop(); } catch (_) {}
+      }
+      if (window._gameModeLedAnimId) {
+        try { cancelAnimationFrame(window._gameModeLedAnimId); window._gameModeLedAnimId = null; } catch (_) {}
+      }
       window.isCasinoActive = false;
       window.isReelLoopActive = false;
 

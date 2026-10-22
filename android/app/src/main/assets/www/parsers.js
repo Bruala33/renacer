@@ -1607,7 +1607,6 @@ class PackageUnpacker {
 
       if (parsedDiffs.length > 0) {
         parsedDiffs.sort((a, b) => a.stars - b.stars);
-        extractedDiffs = parsedDiffs;
         let chosen = parsedDiffs.find(d => d.id === selectedDiffId || d.name === selectedDiffId);
         if (!chosen && selectedDiffId) {
           chosen = parsedDiffs.find(d => d.name.toLowerCase().includes(String(selectedDiffId).toLowerCase()) || d.id.toLowerCase().includes(String(selectedDiffId).toLowerCase()));
@@ -1617,6 +1616,14 @@ class PackageUnpacker {
         }
         parsedBeatmap = chosen.parsedData;
         targetAudioName = parsedBeatmap.audioFilename;
+        // Liberar referencias pesadas a JSZip (file) y arrays de notas de otras dificultades (parsedData)
+        extractedDiffs = parsedDiffs.map(d => ({
+          id: d.id,
+          name: d.name,
+          stars: d.stars,
+          keys: d.keys,
+          label: d.label
+        }));
       }
 
     } else if (files.some(f => f.toLowerCase().endsWith('.chart'))) {
@@ -1698,7 +1705,6 @@ class PackageUnpacker {
     const ext = audioName.split('.').pop().toLowerCase();
     const mime = (ext === 'ogg' || ext === 'egg' || ext === 'opus') ? 'audio/ogg' : (ext === 'wav' ? 'audio/wav' : 'audio/mpeg');
     audioBlob = new Blob([audioArrayBuffer], { type: mime });
-    const audioUrl = URL.createObjectURL(audioBlob);
 
     log(5, 'Parseo completado con éxito', `${parsedBeatmap.notes.length} notas mapeadas a 3 carriles`, 'success');
     return {
@@ -1717,7 +1723,7 @@ class PackageUnpacker {
       rawNotes: parsedBeatmap.rawNotes || parsedBeatmap.notes,
       notes: parsedBeatmap.notes,
       audioBlob: audioBlob,
-      audioUrl: audioUrl,
+      audioUrl: null,
       availableDifficulties: extractedDiffs
     };
   }
@@ -1761,6 +1767,21 @@ class IndexedDBStorage {
       const tx = db.transaction(this.STORE_SAVED, 'readwrite');
       const store = tx.objectStore(this.STORE_SAVED);
 
+      // Evitar duplicar audioBlob y arrays gigantes dentro de chartData
+      const cleanChartData = beatmapData ? {
+        id: beatmapData.id || chartItem.id,
+        title: beatmapData.title || chartItem.title,
+        artist: beatmapData.artist || chartItem.artist,
+        creator: beatmapData.creator || chartItem.creator,
+        bpm: beatmapData.bpm || (beatmapData.metadata && beatmapData.metadata.bpm) || 120,
+        keys: beatmapData.keys || (beatmapData.metadata && beatmapData.metadata.source_keys) || 4,
+        source: beatmapData.source || chartItem.source,
+        source_name: beatmapData.source_name || chartItem.source_name,
+        metadata: beatmapData.metadata,
+        notes: beatmapData.notes,
+        rawNotes: beatmapData.rawNotes || null
+      } : null;
+
       const record = {
         id: chartItem.id,
         title: chartItem.title,
@@ -1773,9 +1794,9 @@ class IndexedDBStorage {
         download_url: chartItem.download_url || chartItem.direct_download_url || '',
         md5: chartItem.md5 || '',
         diff_id: chartItem.diff_id || '',
-        metadata: beatmapData.metadata,
-        notes: beatmapData.notes,
-        chartData: beatmapData,
+        metadata: beatmapData ? beatmapData.metadata : null,
+        notes: beatmapData ? beatmapData.notes : [],
+        chartData: cleanChartData,
         audioBlob: audioBlob,
         savedAt: Date.now()
       };

@@ -523,6 +523,8 @@ class DirectAudioSync {
     }
     this._anchorPerf = 0;
     this._anchorAudioMs = 0;
+    this._interpolatedMs = 0;
+    this._lastFrameNow = 0;
   }
 
   play() {
@@ -538,13 +540,23 @@ class DirectAudioSync {
       this.audioElement.muted = this.muted;
       this.audioElement.volume = this.muted ? 0 : this.volume;
 
+      const now = performance.now();
+      const rawSec = (this.audioElement && !isNaN(this.audioElement.currentTime)) ? this.audioElement.currentTime : 0;
+      if (!this.isPlaying) {
+        this.isPlaying = true;
+        this._interpolatedMs = Math.max(this._interpolatedMs || 0, rawSec * 1000);
+        this._lastReturnedMs = this._interpolatedMs;
+        this._lastFrameNow = now;
+        this._lastSyncCheck = now;
+        this._clockSkewRate = 1.0;
+        this._smoothedDrift = 0;
+        this._lastRawAudioTime = rawSec;
+      }
+
       const p = this.audioElement.play();
       if (p && typeof p.then === 'function') {
         return p.then(() => {
           this.isPlaying = true;
-          this._anchorAudioMs = (this.audioElement.currentTime || 0) * 1000;
-          this._anchorPerf = performance.now();
-          this._lastSyncCheck = this._anchorPerf;
         }).catch(err => {
           if (err.name === 'NotAllowedError') this.showUnlockPrompt();
         });
@@ -558,6 +570,7 @@ class DirectAudioSync {
   pause() {
     this.isPlaying = false;
     this._anchorPerf = 0;
+    this._lastFrameNow = 0;
     try {
       this.audioElement.pause();
     } catch (e) {}
@@ -565,10 +578,15 @@ class DirectAudioSync {
 
   seekTo(seconds) {
     const sec = Math.max(0, parseFloat(seconds) || 0);
+    const ms = sec * 1000;
     this._anchorPerf = 0;
-    this._anchorAudioMs = sec * 1000;
-    this._lastReturnedMs = sec * 1000;
+    this._anchorAudioMs = ms;
+    this._interpolatedMs = ms;
+    this._lastReturnedMs = ms;
+    this._lastFrameNow = 0;
     this._lastRawAudioTime = -1;
+    this._clockSkewRate = 1.0;
+    this._smoothedDrift = 0;
     try {
       if (this.audioElement.readyState >= 1) {
         this.audioElement.currentTime = sec;
@@ -577,7 +595,7 @@ class DirectAudioSync {
   }
 
   // ==========================================
-  // RELOJ PLL 100% LINEAL, MONÓTONO Y CONTINUO ANCLADO AL VSYNC (0 TIRONES A 120 FPS)
+  // RELOJ PLL 100% LINEAL, MONÓTONO Y CONTINUO INTEGRADO POR DELTA VSYNC (0 TIRONES A 120 FPS)
   // ==========================================
   getCurrentTimeMs(frameNow) {
     const now = (frameNow !== undefined && frameNow !== null) ? frameNow : performance.now();
@@ -590,7 +608,7 @@ class DirectAudioSync {
         if (!this._fallbackAnchor) this._fallbackAnchor = now;
         return (now - this._fallbackAnchor) * (this.playbackRate || 1.0);
       }
-      return this._anchorAudioMs || 0;
+      return this._interpolatedMs || this._anchorAudioMs || 0;
     }
 
     // Si ya se calculó para este mismo VSync frameNow, devolver en O(1)
@@ -601,21 +619,25 @@ class DirectAudioSync {
     this._fallbackAnchor = null;
     const rate = this.playbackRate || 1.0;
 
-    if (!this._anchorPerf) {
+    if (!this._lastFrameNow) {
       const rawSec = (this.audioElement && !isNaN(this.audioElement.currentTime)) ? this.audioElement.currentTime : 0;
-      this._anchorPerf = now;
-      this._anchorAudioMs = rawSec * 1000;
-      this._lastReturnedMs = this._anchorAudioMs;
+      this._lastFrameNow = now;
+      this._interpolatedMs = Math.max(this._interpolatedMs || 0, rawSec * 1000);
+      this._lastReturnedMs = this._interpolatedMs;
       this._lastSyncCheck = now;
       this._clockSkewRate = 1.0;
       this._smoothedDrift = 0;
       this._lastRawAudioTime = rawSec;
       this._cachedFrameNow = frameNow;
-      return this._anchorAudioMs;
+      return this._interpolatedMs;
     }
 
-    const elapsed = Math.max(0, now - this._anchorPerf);
-    let currentPredMs = this._anchorAudioMs + elapsed * rate * (this._clockSkewRate || 1.0);
+    // Avance puro por delta de frame VSync (garantiza que la velocidad nunca salte hacia atrás ni se congele)
+    const rawDtMs = now - this._lastFrameNow;
+    const dtMs = rawDtMs > 0 ? Math.min(50.0, rawDtMs) : 0;
+    this._lastFrameNow = now;
+
+    this._interpolatedMs += dtMs * rate * (this._clockSkewRate || 1.0);
 
     // Muestrear deriva cada 250ms filtrando el escalón de cuantización del buffer de audio (21-46ms en Android)
     if (now - this._lastSyncCheck >= 250) {
@@ -624,23 +646,19 @@ class DirectAudioSync {
       if (rawSec !== this._lastRawAudioTime && rawSec > 0) {
         this._lastRawAudioTime = rawSec;
         const hwAudioMs = rawSec * 1000;
-        const drift = hwAudioMs - currentPredMs;
-
-        this._anchorPerf = now;
-        this._anchorAudioMs = currentPredMs;
+        const drift = hwAudioMs - this._interpolatedMs;
 
         if (Math.abs(drift) > 950) {
-          this._anchorAudioMs = hwAudioMs;
+          this._interpolatedMs = hwAudioMs;
           this._lastReturnedMs = hwAudioMs;
           this._clockSkewRate = 1.0;
           this._smoothedDrift = 0;
-          currentPredMs = hwAudioMs;
         } else {
           // Filtro paso-bajo exponencial que absorbe el jitter de cuantización del mixer de audio sin dar tirones visuales
-          this._smoothedDrift = (this._smoothedDrift || 0) * 0.85 + drift * 0.15;
-          if (Math.abs(this._smoothedDrift) > 28.0) {
-            // Corrección de frecuencia progresiva y suave (±0.65% máx) 100% libre de saltos de fotograma
-            this._clockSkewRate = 1.0 + Math.max(-0.0065, Math.min(0.0065, this._smoothedDrift / 3200));
+          this._smoothedDrift = (this._smoothedDrift || 0) * 0.82 + drift * 0.18;
+          if (Math.abs(this._smoothedDrift) > 18.0) {
+            // Corrección de frecuencia progresiva y suave (±0.75% máx) 100% libre de saltos de posición
+            this._clockSkewRate = 1.0 + Math.max(-0.0075, Math.min(0.0075, this._smoothedDrift / 2600));
           } else {
             this._clockSkewRate = 1.0;
           }
@@ -648,14 +666,10 @@ class DirectAudioSync {
       }
     }
 
-    if (this._lastReturnedMs !== undefined && currentPredMs < this._lastReturnedMs) {
-      currentPredMs = this._lastReturnedMs;
-    } else {
-      this._lastReturnedMs = currentPredMs;
-    }
-
+    this._lastReturnedMs = this._interpolatedMs;
+    this._anchorAudioMs = this._interpolatedMs;
     this._cachedFrameNow = frameNow;
-    return currentPredMs;
+    return this._interpolatedMs;
   }
 }
 
@@ -3392,6 +3406,8 @@ class BeatstarEngine {
     if (this.sync) {
       this.sync._lastRawAudio = -1;
       this.sync._interpolatedTime = 0;
+      this.sync._interpolatedMs = 0;
+      this.sync._lastFrameNow = 0;
       this.sync._lastSyncPerf = performance.now();
     }
     this.activeHolds.clear();
@@ -3402,6 +3418,12 @@ class BeatstarEngine {
     this.flyingLyrics.length = 0;
     this.bgBursts.length = 0;
     this.musicalNotes.length = 0;
+    if (this._mineExplosions) this._mineExplosions.length = 0;
+    if (this._shatteredKeyFragments) this._shatteredKeyFragments.length = 0;
+    if (this._mineFloatingPenalties) this._mineFloatingPenalties.length = 0;
+    if (this._lyricKeySpriteCache && this._lyricKeySpriteCache.size > 160) {
+      this._lyricKeySpriteCache.clear();
+    }
     this.firstActiveNoteIndex = 0;
     this.lastLitSyllableIndex = -1;
     this._lastCurLyricIndex = -1;
@@ -3412,6 +3434,11 @@ class BeatstarEngine {
   }
 
   getCurrentGameTimeMs(frameNow = null) {
+    // Si se invoca desde eventos de input (sin frameNow explícito) mientras el bucle VSync está activo,
+    // devolver en O(1) el timestamp exacto del fotograma actual sin mutar el estado del reloj de audio.
+    if (frameNow === null && this.isRunning && !this.isPaused && Number.isFinite(this._frameGameTimeMs)) {
+      return this._frameGameTimeMs;
+    }
     const fn = (frameNow !== null && Number.isFinite(frameNow)) ? frameNow : (this._frameNow || performance.now());
     if (this.isCountingDown) {
       const elapsed = fn - this.leadInStartTime;
@@ -13081,34 +13108,43 @@ class BeatstarEngine {
         ctx.fill();
       }
 
-      // 4. Esfera blindada de acero pesado de la mina
-      const sphereGrad = ctx.createRadialGradient(
-        cx - mineR * 0.28, cyMid - mineR * 0.25, mineR * 0.10,
-        cx, cyMid, mineR
-      );
-      sphereGrad.addColorStop(0.0, '#64748b');
-      sphereGrad.addColorStop(0.45, '#1e293b');
-      sphereGrad.addColorStop(0.85, '#090d16');
-      sphereGrad.addColorStop(1.0, '#020408');
+      // 4. Esfera blindada de acero pesado de la mina + remaches (pre-renderizada en sprite offscreen con 0 coste por frame)
+      if (!this._mineSphereSprite) {
+        const mCan = document.createElement('canvas');
+        mCan.width = 96;
+        mCan.height = 96;
+        const mCtx = mCan.getContext('2d');
+        const mCx = 48, mCy = 48, mR = 40;
+        const sphereGrad = mCtx.createRadialGradient(
+          mCx - mR * 0.28, mCy - mR * 0.25, mR * 0.10,
+          mCx, mCy, mR
+        );
+        sphereGrad.addColorStop(0.0, '#64748b');
+        sphereGrad.addColorStop(0.45, '#1e293b');
+        sphereGrad.addColorStop(0.85, '#090d16');
+        sphereGrad.addColorStop(1.0, '#020408');
 
-      ctx.fillStyle = sphereGrad;
-      ctx.beginPath();
-      ctx.ellipse(cx, cyMid, mineR, mineR * 0.84, 0, 0, Math.PI * 2);
-      ctx.fill();
+        mCtx.fillStyle = sphereGrad;
+        mCtx.beginPath();
+        mCtx.ellipse(mCx, mCy, mR, mR * 0.84, 0, 0, Math.PI * 2);
+        mCtx.fill();
 
-      ctx.strokeStyle = '#94a3b8';
-      ctx.lineWidth = Math.max(1.0, 1.5 * scale);
-      ctx.stroke();
+        mCtx.strokeStyle = '#94a3b8';
+        mCtx.lineWidth = 2.6;
+        mCtx.stroke();
 
-      // Remaches ecuatoriales de la mina
-      ctx.fillStyle = '#e2e8f0';
-      for (let rv = -2; rv <= 2; rv++) {
-        const rx = cx + rv * (mineR * 0.34);
-        const ry = cyMid + Math.cos(rv * 0.6) * (mineR * 0.12);
-        ctx.beginPath();
-        ctx.arc(rx, ry, Math.max(0.9, 1.3 * scale), 0, Math.PI * 2);
-        ctx.fill();
+        mCtx.fillStyle = '#e2e8f0';
+        for (let rv = -2; rv <= 2; rv++) {
+          const rx = mCx + rv * (mR * 0.34);
+          const ry = mCy + Math.cos(rv * 0.6) * (mR * 0.12);
+          mCtx.beginPath();
+          mCtx.arc(rx, ry, 2.4, 0, Math.PI * 2);
+          mCtx.fill();
+        }
+        this._mineSphereSprite = mCan;
       }
+      const spSize = mineR * (96 / 40);
+      ctx.drawImage(this._mineSphereSprite, cx - spSize * 0.5, cyMid - spSize * 0.5, spSize, spSize);
 
       // 5. Núcleo óptico LED armado (parpadeo de alta visibilidad rojo/amarillo)
       const isBlinkLit = Math.floor(currentTime * 0.012) % 2 === 0;
@@ -13503,77 +13539,37 @@ class BeatstarEngine {
           ctx.drawImage(sp, cx - drawW * 0.5, cyMid - drawH * 0.5, drawW, drawH);
         }
       } else {
-        // Línea blanca neón pura y elegante en su posición original exacta (cyMid) con brillo blanco intenso (0 pasadas de shadowBlur GPU)
+        // Hendidura blanca neón pura pre-renderizada en sprite offscreen (1 sola llamada drawImage en lugar de 4 roundRect + lighter por tecla)
+        if (!this._keyNeonSlitSprite) {
+          const sCan = document.createElement('canvas');
+          sCan.width = 160;
+          sCan.height = 48;
+          const sCtx = sCan.getContext('2d');
+          const bW = 112, bH = 12;
+          const bX = (160 - bW) * 0.5;
+          const bY = (48 - bH) * 0.5;
+          sCtx.globalCompositeOperation = 'lighter';
+
+          const drawLayer = (spX, spY, alpha) => {
+            sCtx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+            sCtx.beginPath();
+            const w = bW + spX * 2;
+            const h = bH + spY * 2;
+            if (sCtx.roundRect) sCtx.roundRect(bX - spX, bY - spY, w, h, h * 0.5);
+            else sCtx.rect(bX - spX, bY - spY, w, h);
+            sCtx.fill();
+          };
+          drawLayer(20, 15, 0.16);
+          drawLayer(9.6, 7.4, 0.42);
+          drawLayer(4.2, 3.2, 0.78);
+          drawLayer(0, 0, 1.0);
+          this._keyNeonSlitSprite = sCan;
+        }
         const slitW = keyW * (nLanes === 4 ? 0.68 : 0.62);
         const slitH = Math.max(4.5, 6.8 * scale);
-        const slitX = cx - slitW / 2;
-        const slitY = cyMid - slitH / 2;
-
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-
-        // 0. Corona exterior difuminada amplia (sustituye exactamente el radio de 18px de shadowBlur sin penalizar la GPU)
-        const wideSpreadX = 11.5 * scale;
-        const wideSpreadY = 8.5 * scale;
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
-        ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(
-            slitX - wideSpreadX,
-            slitY - wideSpreadY,
-            slitW + wideSpreadX * 2,
-            slitH + wideSpreadY * 2,
-            (slitH + wideSpreadY * 2) / 2
-          );
-        } else {
-          ctx.rect(slitX - wideSpreadX, slitY - wideSpreadY, slitW + wideSpreadX * 2, slitH + wideSpreadY * 2);
-        }
-        ctx.fill();
-
-        // 1. Resplandor difuminado exterior blanco neón puro
-        const outerSpreadX = 5.5 * scale;
-        const outerSpreadY = 4.2 * scale;
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.42)';
-        ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(
-            slitX - outerSpreadX,
-            slitY - outerSpreadY,
-            slitW + outerSpreadX * 2,
-            slitH + outerSpreadY * 2,
-            (slitH + outerSpreadY * 2) / 2
-          );
-        } else {
-          ctx.rect(slitX - outerSpreadX, slitY - outerSpreadY, slitW + outerSpreadX * 2, slitH + outerSpreadY * 2);
-        }
-        ctx.fill();
-
-        // 2. Halo intermedio blanco brillante de alta luminosidad
-        const midSpreadX = 2.4 * scale;
-        const midSpreadY = 1.8 * scale;
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
-        ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(
-            slitX - midSpreadX,
-            slitY - midSpreadY,
-            slitW + midSpreadX * 2,
-            slitH + midSpreadY * 2,
-            (slitH + midSpreadY * 2) / 2
-          );
-        } else {
-          ctx.rect(slitX - midSpreadX, slitY - midSpreadY, slitW + midSpreadX * 2, slitH + midSpreadY * 2);
-        }
-        ctx.fill();
-
-        // 3. Núcleo de tubo neón blanco puro incandescente (#ffffff)
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(slitX, slitY, slitW, slitH, slitH / 2);
-        else ctx.rect(slitX, slitY, slitW, slitH);
-        ctx.fill();
-
-        ctx.restore();
+        const drawW = slitW * (160 / 112);
+        const drawH = slitH * (48 / 12);
+        ctx.drawImage(this._keyNeonSlitSprite, cx - drawW * 0.5, cyMid - drawH * 0.5, drawW, drawH);
       }
     }
 
@@ -16272,12 +16268,12 @@ class BeatstarEngine {
           }
 
           // 1. Cinta Hold 100% Opaca y Ultra-Saturada (Máximo contraste sobre la pista blanca 3D)
-          const LANE_HOLD_THEMES = [
+          const LANE_HOLD_THEMES = this._laneHoldThemes || (this._laneHoldThemes = [
             { body: '#0066ff', mid: '#00c8ff', rail: '#0044cc', rim: '#04081c' }, // Carril 0: Azul/Cian Eléctrico Saturado
             { body: '#d9006c', mid: '#ff1a8c', rail: '#99004d', rim: '#1c0412' }, // Carril 1: Magenta/Rubí Neón Saturado
             { body: '#7c00ff', mid: '#b833ff', rail: '#4d0099', rim: '#110420' }, // Carril 2: Violeta/Amatista Eléctrico Saturado
             { body: '#00b862', mid: '#00f5a0', rail: '#007a40', rim: '#041c10' }  // Carril 3: Esmeralda/Lima Eléctrico Saturado
-          ];
+          ]);
           const hTheme = LANE_HOLD_THEMES[lane % LANE_HOLD_THEMES.length];
           const holdCol = isBeingHeld ? '#00d67f' : hTheme.body;
           const holdMid = isBeingHeld ? '#00ff9d' : hTheme.mid;
