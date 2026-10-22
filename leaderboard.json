@@ -2747,12 +2747,22 @@
         "accuracy": 4.703979184546433,
         "date": "2026-10-22 19:51:40"
       }
+    ],
+    "top_avril_lavigne_complicated": [
+      {
+        "name": "Mauricio",
+        "score": 46650,
+        "stars": 3.5,
+        "combo": 48,
+        "accuracy": 3.082854439046053,
+        "date": "2026-10-22 19:52:29"
+      }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 49041241,
+      "total_score": 49087891,
       "clefs": 452
     },
     {
@@ -2896,7 +2906,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 49041241
+        "score": 49087891
       },
       {
         "name": "Dady cool",
