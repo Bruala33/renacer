@@ -2459,6 +2459,16 @@
         "accuracy": 30.258725239186095,
         "date": "2026-10-22 15:37:20"
       }
+    ],
+    "top_jennifer_lopez__pitbull_ven_a_bailar": [
+      {
+        "name": "Test",
+        "score": 45538,
+        "stars": 3.5,
+        "combo": 45,
+        "accuracy": 3.2030149332886926,
+        "date": "2026-10-22 16:16:19"
+      }
     ]
   },
   "global": [
@@ -2489,7 +2499,7 @@
     },
     {
       "name": "Test",
-      "total_score": 9027385,
+      "total_score": 9072923,
       "clefs": 76
     },
     {
@@ -2611,7 +2621,7 @@
       },
       {
         "name": "Test",
-        "score": 8497744
+        "score": 8543282
       },
       {
         "name": "fer",
