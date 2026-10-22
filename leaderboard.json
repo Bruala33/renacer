@@ -2345,12 +2345,22 @@
         "accuracy": 13.285419833434178,
         "date": "2026-10-22 10:25:48"
       }
+    ],
+    "top_alaska_abracadabra": [
+      {
+        "name": "Mauricio",
+        "score": 1050,
+        "stars": 3.5,
+        "combo": 5,
+        "accuracy": 0.05719265755215426,
+        "date": "2026-10-22 11:35:56"
+      }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 34098129,
+      "total_score": 34099179,
       "clefs": 315
     },
     {
@@ -2489,7 +2499,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 34098129
+        "score": 34099179
       },
       {
         "name": "Dady cool",
