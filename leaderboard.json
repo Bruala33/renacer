@@ -514,6 +514,14 @@
     ],
     "top_el_canto_del_loco_la_madre_de_jos": [
       {
+        "name": "Niggerman",
+        "score": 923418,
+        "stars": 3,
+        "combo": 539,
+        "accuracy": 63.68114532796806,
+        "date": "2026-10-22 20:19:37"
+      },
+      {
         "name": "Test",
         "score": 922915,
         "stars": 2,
@@ -2791,14 +2799,14 @@
       "clefs": 76
     },
     {
+      "name": "Niggerman",
+      "total_score": 5775178,
+      "clefs": 47
+    },
+    {
       "name": "Azure",
       "total_score": 5132756,
       "clefs": 43
-    },
-    {
-      "name": "Niggerman",
-      "total_score": 4851760,
-      "clefs": 38
     },
     {
       "name": "fer",
@@ -2918,7 +2926,7 @@
       },
       {
         "name": "Niggerman",
-        "score": 4851760
+        "score": 5775178
       },
       {
         "name": "fer",
