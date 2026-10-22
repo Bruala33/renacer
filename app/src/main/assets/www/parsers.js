@@ -10,40 +10,83 @@
 
 class LaneRemapper {
   /**
-   * Remapea un carril de origen (4K, 5K, 6K, 7K) a 3 carriles fijos (0, 1, 2)
+   * Remapea un carril de origen (4K, 5K, 6K, 7K o X de osu!) a N carriles (3 o 4)
+   * preservando el contorno direccional melódico (izquierda/centro/derecha).
    */
-  static mapTo3K(originalLane, totalLanes = 4) {
+  static mapToLanes(originalLane, totalLanes = 4, targetLanes = 3, prevMappedLane = -1, prevOriginalLane = -1) {
+    const numTarget = targetLanes === 4 ? 4 : 3;
+    const clampedOrig = Math.max(0, Math.min(Math.max(1, totalLanes) - 1, originalLane ?? 0));
+
+    if (numTarget === 4) {
+      if (totalLanes <= 4) {
+        return Math.min(3, Math.max(0, clampedOrig));
+      }
+      if (totalLanes === 5) {
+        // 5K (Clone Hero 0..4) -> 4 carriles (0..3) con preservación de contorno en trastes centrales
+        if (clampedOrig === 0) return 0;
+        if (clampedOrig === 1) return 1;
+        if (clampedOrig === 4) return 3;
+        if (clampedOrig === 3) return prevMappedLane === 3 ? 2 : 3;
+        // clampedOrig === 2 (traste amarillo central)
+        if (prevOriginalLane !== -1 && prevMappedLane !== -1) {
+          if (clampedOrig > prevOriginalLane) return Math.min(3, Math.max(1, prevMappedLane + 1));
+          if (clampedOrig < prevOriginalLane) return Math.max(0, Math.min(2, prevMappedLane - 1));
+        }
+        return prevMappedLane === 1 ? 2 : 1;
+      }
+      const ratio4 = (clampedOrig + 0.5) / totalLanes;
+      return Math.min(3, Math.max(0, Math.floor(ratio4 * 4)));
+    }
+
+    // Modo 3 carriles (0, 1, 2)
     if (totalLanes <= 3) {
-      return Math.min(2, Math.max(0, originalLane));
+      return Math.min(2, Math.max(0, clampedOrig));
     }
     if (totalLanes === 4) {
-      if (originalLane === 0) return 0; // Izquierda
-      if (originalLane === 1 || originalLane === 2) return 1; // Centro
-      return 2; // Derecha
+      if (clampedOrig === 0) return 0;
+      if (clampedOrig === 3) return 2;
+      // Columnas centrales (1 y 2): preservar dirección y alternancia en lugar de colapsar todo al carril 1
+      if (prevOriginalLane !== -1 && prevMappedLane !== -1) {
+        if (clampedOrig > prevOriginalLane && prevMappedLane < 2) return prevMappedLane + 1;
+        if (clampedOrig < prevOriginalLane && prevMappedLane > 0) return prevMappedLane - 1;
+        if (clampedOrig === prevOriginalLane) return prevMappedLane;
+      }
+      if (clampedOrig === 1) return prevMappedLane === 1 ? 0 : 1;
+      return prevMappedLane === 1 ? 2 : 1;
     }
     if (totalLanes === 5) {
-      if (originalLane === 0) return 0;
-      if (originalLane === 1 || originalLane === 2 || originalLane === 3) return 1;
-      return 2;
+      // Clone Hero 5 trastes (0=Verde, 1=Rojo, 2=Amarillo, 3=Azul, 4=Naranja)
+      if (clampedOrig === 0) return 0;
+      if (clampedOrig === 4) return 2;
+      if (clampedOrig === 2) return 1;
+      if (clampedOrig === 1) {
+        if (prevOriginalLane >= 2 && prevMappedLane === 2) return 1;
+        return prevMappedLane === 0 ? 1 : 0;
+      }
+      if (clampedOrig === 3) {
+        if (prevOriginalLane <= 2 && prevMappedLane === 0) return 1;
+        return prevMappedLane === 2 ? 1 : 2;
+      }
     }
     if (totalLanes === 6) {
-      if (originalLane <= 1) return 0;
-      if (originalLane <= 3) return 1;
+      if (clampedOrig <= 1) return 0;
+      if (clampedOrig <= 3) return 1;
       return 2;
     }
-    // 7K y superiores
-    const ratio = (originalLane + 0.5) / totalLanes;
+    const ratio = (clampedOrig + 0.5) / totalLanes;
     if (ratio <= 0.334) return 0;
     if (ratio <= 0.667) return 1;
     return 2;
   }
 
+  static mapTo3K(originalLane, totalLanes = 4, prevMappedLane = -1, prevOriginalLane = -1) {
+    return this.mapToLanes(originalLane, totalLanes, 3, prevMappedLane, prevOriginalLane);
+  }
+
   /**
    * Downsampler Rítmico Inteligente y Balanceador de Dificultad para 2 Pulgares
-   * Soporta 3 Modos de Dificultad General:
-   * - 'hard': Máxima riqueza rítmica, streams y dobles acordes (mínimo gap ~85-90ms)
-   * - 'medium': Filtra ráfagas 1/4 y 1/8 a 1/2, elimina acordes en pasajes rápidos (gap ~115ms)
-   * - 'easy': Cuantización estricta a 1/1 y 1/2, CERO acordes simultáneos, mínimo gap 230ms
+   * IMPORTANTE: Mantiene intacto el timestamp_ms real de cada nota para sincronía exacta con el audio
+   * de osu! y Clone Hero (cero notas fantasma o desplazadas).
    */
   static thinMultiLaneChart(rawNotes, totalLanes = 4, bpm = 120, stars = 3.0, densityMode = 'hard') {
     if (!rawNotes || rawNotes.length === 0) return [];
@@ -54,73 +97,91 @@ class LaneRemapper {
     const quarterBeatMs = beatDurationMs / 4;
     const s = Math.max(1.0, Math.min(10.0, parseFloat(stars) || 3.0));
 
-    // 1. Puntuación de importancia musical para cada nota
-    const scoredNotes = rawNotes.map(n => {
-      const rawT = Number.isFinite(n.timestamp_ms)
-        ? n.timestamp_ms
-        : (Number.isFinite(n.timeMs)
-            ? n.timeMs
-            : (Number.isFinite(n.timestamp) ? n.timestamp : (Number.isFinite(n.time) ? (n.time > 100 ? n.time : n.time * 1000) : 0)));
+    // Normalizar tiempos reales y ordenar primero
+    const normalized = rawNotes.map(n => {
+      const rawT = Number.isFinite(n.original_timestamp)
+        ? n.original_timestamp
+        : (Number.isFinite(n.timestamp_ms)
+            ? n.timestamp_ms
+            : (Number.isFinite(n.timeMs)
+                ? n.timeMs
+                : (Number.isFinite(n.timestamp) ? n.timestamp : (Number.isFinite(n.time) ? (n.time > 100 ? n.time : n.time * 1000) : 0))));
       const t = Math.round(Number.isFinite(rawT) ? rawT : 0);
       const isHold = n.type === 'hold' || (n.duration_ms && n.duration_ms > 140) || (n.duration && n.duration > 0.14) || (n.holdDuration && n.holdDuration > 0.14);
-
-      // Distancia al pulso entero más cercano
-      const wholeRem = ((t % beatDurationMs) + beatDurationMs) % beatDurationMs;
-      const distWhole = Math.min(wholeRem, beatDurationMs - wholeRem);
-
-      // Distancia al medio pulso más cercano
-      const halfRem = ((t % halfBeatMs) + halfBeatMs) % halfBeatMs;
-      const distHalf = Math.min(halfRem, halfBeatMs - halfRem);
-
-      // Distancia al cuarto de pulso
-      const quartRem = ((t % quarterBeatMs) + quarterBeatMs) % quarterBeatMs;
-      const distQuart = Math.min(quartRem, quarterBeatMs - quartRem);
-
-      let score = 10;
-      let snapTime = t;
-
-      if (distWhole <= 55) {
-        score = 100;
-        snapTime = t - wholeRem + (wholeRem > beatDurationMs / 2 ? beatDurationMs : 0);
-      } else if (distHalf <= 45) {
-        score = 75;
-        snapTime = t - halfRem + (halfRem > halfBeatMs / 2 ? halfBeatMs : 0);
-      } else if (distQuart <= 35) {
-        score = 45;
-      }
-
-      if (isHold) score += 30; // Proteger notas sostenidas
-
       return {
         ...n,
         type: isHold ? 'hold' : (n.type || 'tap'),
-        timestamp_ms: Math.round(Number.isFinite(snapTime) ? snapTime : t),
+        timestamp_ms: t,
+        original_timestamp: t,
+        _isHold: isHold
+      };
+    }).sort((a, b) => a.timestamp_ms - b.timestamp_ms);
+
+    // Anclar la rejilla métrica al primer ataque real de la canción
+    const gridAnchorMs = normalized.length > 0 ? normalized[0].timestamp_ms : 0;
+
+    // 1. Puntuación de importancia musical real (sin alterar timestamp_ms)
+    const scoredNotes = normalized.map((n, idx) => {
+      const t = n.timestamp_ms;
+      const relT = Math.max(0, t - gridAnchorMs);
+
+      const wholeRem = ((relT % beatDurationMs) + beatDurationMs) % beatDurationMs;
+      const distWhole = Math.min(wholeRem, beatDurationMs - wholeRem);
+
+      const halfRem = ((relT % halfBeatMs) + halfBeatMs) % halfBeatMs;
+      const distHalf = Math.min(halfRem, halfBeatMs - halfRem);
+
+      const quartRem = ((relT % quarterBeatMs) + quarterBeatMs) % quarterBeatMs;
+      const distQuart = Math.min(quartRem, quarterBeatMs - quartRem);
+
+      let score = 40;
+      if (distWhole <= 60) {
+        score = 100;
+      } else if (distHalf <= 48) {
+        score = 82;
+      } else if (distQuart <= 36) {
+        score = 64;
+      }
+
+      // Inicio de frase musical tras un silencio o respiro (>= 300ms): prioridad máxima para nunca perder el ataque
+      const prevT = idx > 0 ? normalized[idx - 1].timestamp_ms : -Infinity;
+      const nextT = idx + 1 < normalized.length ? normalized[idx + 1].timestamp_ms : Infinity;
+      if (t - prevT >= 300) {
+        score = Math.max(score, 95) + 25;
+      }
+      // Acordes reales compuestos por el mapper en osu!/Clone Hero tienen énfasis rítmico
+      if (Math.abs(t - prevT) <= 18 || Math.abs(nextT - t) <= 18) {
+        score += 18;
+      }
+      if (n._isHold) {
+        score += 35;
+      }
+
+      return {
+        ...n,
+        timestamp_ms: t,
         original_timestamp: t,
         priority: score
       };
     });
 
-    // 2. Ordenar cronológicamente
-    scoredNotes.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
-
-    // 3. Ajuste de parámetros según modo de densidad / dificultad
-    let minEventGap = 90;
+    // 2. Parámetros según modo de densidad / dificultad
+    let minEventGap = 88;
     let maxChordSize = 2;
-    let minChordSpacing = 160;
+    let minChordSpacing = 140;
 
     if (densityMode === 'easy') {
-      minEventGap = 230; // ~230ms mínimo entre notas
-      maxChordSize = 1;  // CERO acordes
+      minEventGap = 220; // ~220ms mínimo entre notas
+      maxChordSize = 1;  // CERO acordes simultáneos
       minChordSpacing = Infinity;
     } else if (densityMode === 'medium') {
-      minEventGap = 130; // ~130ms mínimo entre notas
-      maxChordSize = 2;  // Permitir acordes pero espaciados
-      minChordSpacing = 280; // Sin dobles en ritmos rápidos
-    } else {
-      // Hard (Actual)
-      minEventGap = Math.max(80, Math.min(180, 180 - (s - 1.0) * 14.0));
+      minEventGap = 128; // ~128ms mínimo entre notas (streams divididos limpiamente a la mitad)
       maxChordSize = 2;
-      minChordSpacing = 60;
+      minChordSpacing = 260;
+    } else {
+      minEventGap = Math.max(76, Math.min(165, 165 - (s - 1.0) * 12.5));
+      maxChordSize = 2;
+      minChordSpacing = 90;
     }
 
     const thinned = [];
@@ -131,22 +192,22 @@ class LaneRemapper {
       const n = scoredNotes[i];
       const t = n.timestamp_ms;
 
-      // En modo Fácil: filtrar notas débiles fuera de 1/1 y 1/2
-      if (densityMode === 'easy' && n.priority < 70) {
-        continue;
-      }
-
-      // Manejo de acordes simultáneos (<= 45ms)
-      if (Math.abs(t - lastEventTimestamp) <= 45) {
+      // Manejo de acordes simultáneos reales (<= 32ms)
+      if (Math.abs(t - lastEventTimestamp) <= 32) {
         if (maxChordSize <= 1) {
-          continue; // CERO acordes en Fácil
+          // En Fácil nos quedamos con la nota de mayor prioridad o hold del acorde
+          const lastIdx = thinned.length - 1;
+          if (lastIdx >= 0 && n.priority > thinned[lastIdx].priority) {
+            thinned[lastIdx] = n;
+          }
+          continue;
         }
         if (t - lastChordTimestamp < minChordSpacing) {
-          continue; // Sin acordes consecutivos rápidos en Medio
+          continue;
         }
 
-        const chordNotes = thinned.filter(prev => Math.abs(prev.timestamp_ms - t) <= 45);
-        if (chordNotes.length < maxChordSize && n.priority >= (densityMode === 'medium' ? 75 : 60)) {
+        const chordNotes = thinned.filter(prev => Math.abs(prev.timestamp_ms - t) <= 32);
+        if (chordNotes.length < maxChordSize && n.priority >= (densityMode === 'medium' ? 68 : 50)) {
           thinned.push(n);
           lastChordTimestamp = t;
         }
@@ -155,17 +216,20 @@ class LaneRemapper {
 
       const gap = t - lastEventTimestamp;
       if (gap < minEventGap) {
-        if (n.priority < 70) continue;
+        // Si es inicio de hold muy importante o downbeat muy marcado y el gap es al menos 75% del mínimo, permitir en medium/hard
         if (densityMode === 'easy') continue;
-        if (densityMode === 'medium' && n.priority < 85) continue;
-        if (gap < minEventGap * 0.70) continue;
+        if (densityMode === 'medium') {
+          if (gap < minEventGap * 0.82 || n.priority < 95) continue;
+        } else {
+          if (gap < minEventGap * 0.72 || n.priority < 75) continue;
+        }
       }
 
       // Límite de densidad en ventana móvil de 600ms
       const windowStart = t - 600;
       const notesInRecentWindow = thinned.filter(prev => prev.timestamp_ms >= windowStart);
-      const maxWindowEvents = densityMode === 'easy' ? 2 : (densityMode === 'medium' ? 3 : (s <= 3.0 ? 4 : (s <= 5.0 ? 5 : 6)));
-      if (notesInRecentWindow.length >= maxWindowEvents && n.priority < 90) {
+      const maxWindowEvents = densityMode === 'easy' ? 3 : (densityMode === 'medium' ? 4 : (s <= 3.0 ? 5 : (s <= 5.0 ? 6 : 7)));
+      if (notesInRecentWindow.length >= maxWindowEvents && n.priority < 105) {
         continue;
       }
 
@@ -177,24 +241,26 @@ class LaneRemapper {
   }
 
   /**
-   * Sanitizador Universal para 2 Dedos (2 Pulgares en Móvil)
+   * Sanitizador Universal para 2 Dedos (Soporta 3 o 4 carriles)
    */
-  static sanitizeForTwoFingers(notes, bpm = 120, stars = 3.0, densityMode = 'hard') {
+  static sanitizeForTwoFingers(notes, bpm = 120, stars = 3.0, densityMode = 'hard', targetLanes = 3) {
     if (!notes || notes.length === 0) return [];
+    const numLanes = targetLanes === 4 ? 4 : 3;
+    const maxLaneIdx = numLanes - 1;
 
-    const preThinned = this.thinMultiLaneChart(notes, 3, bpm, stars, densityMode);
+    const preThinned = this.thinMultiLaneChart(notes, numLanes, bpm, stars, densityMode);
     const sorted = [...preThinned].sort((a, b) => a.timestamp_ms - b.timestamp_ms);
 
     const maxChordLimit = densityMode === 'easy' ? 1 : 2;
 
-    // 1. Agrupar en acordes instantáneos (<= 45ms)
+    // 1. Agrupar en acordes instantáneos (<= 35ms)
     const chordGroups = [];
     let currentGroup = [sorted[0]];
 
     for (let i = 1; i < sorted.length; i++) {
       const curr = sorted[i];
       const anchor = currentGroup[0];
-      if (Math.abs(curr.timestamp_ms - anchor.timestamp_ms) <= 45) {
+      if (Math.abs(curr.timestamp_ms - anchor.timestamp_ms) <= 35) {
         currentGroup.push(curr);
       } else {
         chordGroups.push(currentGroup);
@@ -205,19 +271,24 @@ class LaneRemapper {
 
     // 2. En cada acorde: Máximo maxChordLimit notas, cada una en carril distinto
     const pass1Notes = [];
+    const allLaneIndices = numLanes === 4 ? [0, 1, 2, 3] : [0, 1, 2];
+
     for (const group of chordGroups) {
+      // Ordenar el acorde de izquierda a derecha según su carril original para mantener coherencia espacial
+      group.sort((a, b) => (a.originalLane ?? a.lane ?? 0) - (b.originalLane ?? b.lane ?? 0));
       const usedLanes = new Set();
       const kept = [];
 
       for (const n of group) {
         if (kept.length >= maxChordLimit) break;
 
-        let targetLane = Math.max(0, Math.min(2, n.lane ?? 1));
+        let targetLane = Math.max(0, Math.min(maxLaneIdx, n.lane ?? 1));
         if (usedLanes.has(targetLane)) {
-          const candidates = targetLane === 1 ? [0, 2] : (targetLane === 0 ? [1, 2] : [1, 0]);
-          const free = candidates.find(l => !usedLanes.has(l));
-          if (free !== undefined) {
-            targetLane = free;
+          const candidates = allLaneIndices
+            .filter(l => !usedLanes.has(l))
+            .sort((a, b) => Math.abs(a - targetLane) - Math.abs(b - targetLane));
+          if (candidates.length > 0) {
+            targetLane = candidates[0];
           } else {
             continue;
           }
@@ -230,22 +301,25 @@ class LaneRemapper {
       pass1Notes.push(...kept);
     }
 
-    // 3. Anti-Jackhammer estricto
-    const minSameLaneGap = densityMode === 'easy' ? 250 : (densityMode === 'medium' ? 180 : (stars < 5.0 ? 160 : 130));
+    // 3. Anti-Jackhammer (evita ráfagas imposibles en el mismo carril alternando al carril vecino libre)
+    const minSameLaneGap = densityMode === 'easy' ? 240 : (densityMode === 'medium' ? 170 : (stars < 5.0 ? 150 : 125));
     const pass2Notes = [];
-    const laneLastHitTime = [-Infinity, -Infinity, -Infinity];
+    const laneLastHitTime = new Array(numLanes).fill(-Infinity);
 
     for (let i = 0; i < pass1Notes.length; i++) {
       const n = pass1Notes[i];
       const t = n.timestamp_ms;
+      n.lane = Math.max(0, Math.min(maxLaneIdx, n.lane ?? 1));
 
       const lastSameLaneTime = laneLastHitTime[n.lane];
       if (t - lastSameLaneTime < minSameLaneGap && n.type === 'tap') {
-        const candidates = n.lane === 1 ? [0, 2] : (n.lane === 0 ? [1, 2] : [1, 0]);
+        const candidates = allLaneIndices
+          .filter(l => l !== n.lane)
+          .sort((a, b) => Math.abs(a - n.lane) - Math.abs(b - n.lane));
         let alternated = false;
         for (const alt of candidates) {
           if (t - laneLastHitTime[alt] >= minSameLaneGap) {
-            const recentAroundT = pass2Notes.filter(prev => Math.abs(prev.timestamp_ms - t) <= 70);
+            const recentAroundT = pass2Notes.filter(prev => Math.abs(prev.timestamp_ms - t) <= 65);
             const usedLanesAroundT = new Set(recentAroundT.map(r => r.lane));
             if (!usedLanesAroundT.has(alt) && usedLanesAroundT.size < maxChordLimit) {
               n.lane = alt;
@@ -259,7 +333,7 @@ class LaneRemapper {
         }
       }
 
-      const recent = pass2Notes.filter(prev => Math.abs(prev.timestamp_ms - t) <= 70);
+      const recent = pass2Notes.filter(prev => Math.abs(prev.timestamp_ms - t) <= 65);
       const recentLanes = new Set(recent.map(r => r.lane));
       if (!recentLanes.has(n.lane) && recentLanes.size >= maxChordLimit) {
         continue;
@@ -269,21 +343,24 @@ class LaneRemapper {
       pass2Notes.push(n);
     }
 
-    // 4. Regla Estricta de Holds (Solo laterales 0/2 y Cero Solapamiento)
-    return this.enforceStrictLateralHoldsAndAntiOverlap(pass2Notes);
+    // 4. Regla Estricta de Holds (Solo laterales extremos y Cero Solapamiento)
+    return this.enforceStrictLateralHoldsAndAntiOverlap(pass2Notes, numLanes);
   }
 
   /**
    * REGLA ESTRICTA DE HOLDS (SOLO LATERALES Y SIN SOLAPAMIENTO):
-   * 1. Las notas largas NUNCA se generan en el carril central (1). Se reubican en 0 o 2.
-   * 2. Ninguna nota (tap ni hold) puede aparecer en el mismo carril mientras un hold esté activo (+60ms margen).
-   * 3. Dos holds nunca se solapan en el mismo carril.
+   * 1. Las notas largas se ubican en los carriles exteriores (0 o maxLaneIdx) para ergonomía de pulgares.
+   * 2. Ninguna nota puede aparecer en el mismo carril mientras un hold esté activo (+60ms margen).
+   * 3. Nunca hay más de 1 Hold activo a la vez.
    */
-  static enforceStrictLateralHoldsAndAntiOverlap(notes) {
+  static enforceStrictLateralHoldsAndAntiOverlap(notes, targetLanes = 3) {
     if (!notes || notes.length === 0) return [];
+    const numLanes = targetLanes === 4 ? 4 : 3;
+    const maxLaneIdx = numLanes - 1;
+    const allLaneIndices = numLanes === 4 ? [0, 1, 2, 3] : [0, 1, 2];
 
     const sorted = [...notes].sort((a, b) => a.timestamp_ms - b.timestamp_ms);
-    const SAFETY_MARGIN_MS = 60; // Margen de seguridad estricto
+    const SAFETY_MARGIN_MS = 60;
 
     const processedHolds = [];
     const nonHoldNotes = [];
@@ -301,9 +378,6 @@ class LaneRemapper {
       }
     }
 
-    // 1. Asignar Holds estrictamente a carriles laterales (0 o 2) sin solapamiento
-    // 1. Asignar Holds estrictamente a carriles laterales (0 o 2) sin solapamiento
-    // REGLA: Nunca más de 1 Hold activo simultáneamente en ningún carril (1 dedo fijo)
     const finalHolds = [];
     const holdIntervals = []; // { lane, start, end }
 
@@ -311,21 +385,20 @@ class LaneRemapper {
       const start = h.timestamp_ms;
       const end = h.end_timestamp_ms || (start + (h.duration_ms || 600));
 
-      // Comprobar si ya existe CUALQUIER hold activo en ese rango de tiempo
       const anyHoldActive = holdIntervals.some(i => !(end + SAFETY_MARGIN_MS <= i.start || start >= i.end + SAFETY_MARGIN_MS));
 
       if (anyHoldActive) {
-        // Ya hay un hold activo -> degradar a tap para no requerir 2 dedos en holds
         h.type = 'tap';
-        h.lane = (h.lane === 0 || h.lane === 2) ? h.lane : 1;
+        h.lane = Math.max(0, Math.min(maxLaneIdx, h.lane ?? 1));
         h.duration_ms = 0;
         delete h.end_timestamp_ms;
         nonHoldNotes.push(h);
         continue;
       }
 
-      let prefLane = (h.lane === 0 || h.lane === 2) ? h.lane : null;
-      let chosenLane = prefLane !== null ? prefLane : ((Math.floor(start / 1000) % 2 === 0) ? 0 : 2);
+      let chosenLane = (h.lane === 0 || h.lane === maxLaneIdx)
+        ? h.lane
+        : (h.lane < numLanes / 2 ? 0 : maxLaneIdx);
 
       h.lane = chosenLane;
       h.end_timestamp_ms = end;
@@ -338,47 +411,36 @@ class LaneRemapper {
       finalHolds.push(h);
     }
 
-    // 2. Anti-Overlap y Regla Máximo 2 Dedos para Taps/Swipes:
-    // - Si hay un Hold activo en tiempo T, en los otros dos carriles SOLO puede haber como MÁXIMO 1 nota a la vez.
-    // - Ninguna nota puede caer en el mismo carril del Hold mientras esté activo.
     const finalTaps = [];
     for (const n of nonHoldNotes) {
       const t = n.timestamp_ms;
       const activeHold = holdIntervals.find(h => t >= h.start - 40 && t <= h.end + SAFETY_MARGIN_MS);
 
       if (activeHold) {
-        // 1 dedo ya está ocupado sosteniendo el Hold.
-        // En los otros 2 carriles SOLO puede haber como máximo 1 nota en tiempo t.
         const alreadyHasTapDuringHold = finalTaps.some(prev => Math.abs(prev.timestamp_ms - t) <= 60);
         if (alreadyHasTapDuringHold) {
-          // Descartar tercera nota concurrente para respetar estrictamente la regla de máximo 2 dedos
           continue;
         }
 
-        // Elegir el carril libre más idóneo (carril 1 o el lateral opuesto al hold)
-        const freeLanes = [1, activeHold.lane === 0 ? 2 : 0];
-        let targetLane = freeLanes[0];
-        if (n.lane === freeLanes[1]) {
-          targetLane = freeLanes[1];
-        }
+        const freeLanes = allLaneIndices.filter(l => l !== activeHold.lane);
+        let targetLane = freeLanes.includes(n.lane) ? n.lane : freeLanes[0];
 
         n.lane = targetLane;
         finalTaps.push(n);
         continue;
       }
 
-      // No hay hold activo: procesar con anti-solapamiento regular (máx 2 notas simultáneas)
-      let targetLane = Math.max(0, Math.min(2, n.lane ?? 1));
+      let targetLane = Math.max(0, Math.min(maxLaneIdx, n.lane ?? 1));
       const tapConflict = finalTaps.some(prev => prev.lane === targetLane && Math.abs(prev.timestamp_ms - t) <= 45);
       if (tapConflict) {
-        const freeCandidate = [1, 0, 2].find(l => {
+        const freeCandidate = allLaneIndices.find(l => {
           const hasTap = finalTaps.some(prev => prev.lane === l && Math.abs(prev.timestamp_ms - t) <= 45);
           return !hasTap;
         });
         if (freeCandidate !== undefined) {
           const simultaneousCount = finalTaps.filter(prev => Math.abs(prev.timestamp_ms - t) <= 45).length;
           if (simultaneousCount >= 2) {
-            continue; // Descartar para nunca superar 2 dedos
+            continue;
           }
           n.lane = freeCandidate;
         } else {
@@ -396,7 +458,7 @@ class LaneRemapper {
       if (n.type === 'tap' && idx % 22 === 21) {
         n.type = 'swipe';
         if (n.lane === 0) n.direction = 'left';
-        else if (n.lane === 2) n.direction = 'right';
+        else if (n.lane === maxLaneIdx) n.direction = 'right';
         else n.direction = (idx % 2 === 0) ? 'up' : 'down';
       }
     });
@@ -405,44 +467,58 @@ class LaneRemapper {
   }
 
   /**
-   * Resuelve colisiones iniciales y sanitiza para 2 dedos
+   * Resuelve colisiones iniciales y sanitiza para 2 dedos en 3 o 4 carriles
    */
-  static resolveCollisions(rawNotes, totalLanes = 4, bpm = 120, stars = 3.0, densityMode = 'hard') {
+  static resolveCollisions(rawNotes, totalLanes = 4, bpm = 120, stars = 3.0, densityMode = 'hard', targetLanes = 3) {
     if (!rawNotes || rawNotes.length === 0) return [];
+    const numLanes = targetLanes === 4 ? 4 : 3;
 
-    // Paso 1: Poda de canales múltiples en 4K/6K/7K
+    // Paso 1: Poda de canales múltiples manteniendo timestamps exactos
     const thinned = this.thinMultiLaneChart(rawNotes, totalLanes, bpm, stars, densityMode);
 
-    // Paso 2: Mapear carriles a 3K
-    const mapped = thinned.map(n => ({
-      ...n,
-      lane: this.mapTo3K(n.originalLane ?? n.lane, totalLanes)
-    }));
+    // Paso 2: Mapear carriles preservando el contorno melódico entre notas consecutivas
+    let prevMapped = -1;
+    let prevOrig = -1;
+    const mapped = thinned.map(n => {
+      const orig = n.originalLane ?? n.lane ?? 0;
+      const lane = this.mapToLanes(orig, totalLanes, numLanes, prevMapped, prevOrig);
+      prevMapped = lane;
+      prevOrig = orig;
+      return {
+        ...n,
+        originalLane: orig,
+        sourceKeys: totalLanes,
+        lane
+      };
+    });
 
-    // Paso 3: Sanitización universal a 2 dedos + Holds estrictamente laterales y sin solapamiento
-    return this.sanitizeForTwoFingers(mapped, bpm, stars, densityMode);
+    // Paso 3: Sanitización universal a 2 dedos + Holds laterales
+    return this.sanitizeForTwoFingers(mapped, bpm, stars, densityMode, numLanes);
   }
 }
 
 // ==========================================
-// 2. PARSER: OSU! MANIA (.osu)
+// 2. PARSER: OSU! MANIA & OSU! STANDARD (.osu)
 // ==========================================
 
 class OsuManiaParser {
-  static parse(osuText) {
+  static parse(osuText, targetLanes = 3, densityMode = 'hard') {
     const lines = osuText.split(/\r?\n/);
     let currentSection = '';
     
     let audioFilename = 'audio.mp3';
     let audioLeadIn = 0;
+    let mode = 0; // 0 = osu!standard, 3 = osu!mania
     let title = 'Canción';
     let artist = 'Artista';
     let creator = 'osu! Mapper';
     let version = 'Normal';
     let circleSize = 4; // Columns / Keys
     let overallDifficulty = 5;
+    let sliderMultiplier = 1.4;
 
     const timingPoints = [];
+    const allTimingPoints = [];
     const hitObjectsRaw = [];
 
     for (let i = 0; i < lines.length; i++) {
@@ -460,6 +536,7 @@ class OsuManiaParser {
         const val = v.join(':').trim();
         if (key === 'AudioFilename') audioFilename = val;
         if (key === 'AudioLeadIn') audioLeadIn = parseInt(val, 10) || 0;
+        if (key === 'Mode') mode = parseInt(val, 10) || 0;
       } else if (currentSection === 'Metadata') {
         const [k, ...v] = line.split(':');
         const key = k.trim();
@@ -474,14 +551,16 @@ class OsuManiaParser {
         const val = v.join(':').trim();
         if (key === 'CircleSize') circleSize = Math.max(1, parseInt(val, 10) || 4);
         if (key === 'OverallDifficulty') overallDifficulty = parseFloat(val) || 5;
+        if (key === 'SliderMultiplier') sliderMultiplier = parseFloat(val) || 1.4;
       } else if (currentSection === 'TimingPoints') {
         const parts = line.split(',');
         if (parts.length >= 2) {
           const time = parseFloat(parts[0]);
           const beatLength = parseFloat(parts[1]);
-          const uninherited = parts.length > 6 ? parseInt(parts[6], 10) : 1;
+          const uninherited = parts.length > 6 ? parseInt(parts[6], 10) : (beatLength > 0 ? 1 : 0);
+          allTimingPoints.push({ time, beatLength, uninherited });
           if (uninherited === 1 && beatLength > 0) {
-            timingPoints.push({ time, bpm: 60000 / beatLength });
+            timingPoints.push({ time, bpm: 60000 / beatLength, beatLength });
           }
         }
       } else if (currentSection === 'HitObjects') {
@@ -491,30 +570,62 @@ class OsuManiaParser {
           const time = parseInt(parts[2], 10);
           const type = parseInt(parts[3], 10);
           
-          const originalLane = Math.max(0, Math.min(circleSize - 1, Math.floor((x * circleSize) / 512)));
-          const isHold = (type & 128) !== 0;
+          const effectiveColumns = mode === 3 ? Math.max(3, Math.min(9, circleSize)) : 4;
+          const originalLane = Math.max(0, Math.min(effectiveColumns - 1, Math.floor((x * effectiveColumns) / 512)));
+          const isManiaHold = (type & 128) !== 0;
+          const isSlider = (type & 2) !== 0;
           let endTime = time;
+          let isHold = false;
 
-          if (isHold && parts.length >= 6) {
+          if (isManiaHold && parts.length >= 6) {
             const endPart = parts[5].split(':')[0];
             endTime = parseInt(endPart, 10) || (time + 400);
+            isHold = true;
+          } else if (isSlider && parts.length >= 8) {
+            const slides = Math.max(1, parseInt(parts[6], 10) || 1);
+            const pixelLength = parseFloat(parts[7]) || 0;
+            if (pixelLength > 0) {
+              let baseBeatLength = timingPoints.length > 0 ? timingPoints[0].beatLength : 500;
+              let svMult = 1.0;
+              for (const tp of allTimingPoints) {
+                if (tp.time <= time + 5) {
+                  if (tp.uninherited === 1 && tp.beatLength > 0) {
+                    baseBeatLength = tp.beatLength;
+                    svMult = 1.0;
+                  } else if (tp.uninherited === 0 && tp.beatLength < 0) {
+                    svMult = Math.max(0.1, Math.min(10.0, -100.0 / tp.beatLength));
+                  }
+                } else {
+                  break;
+                }
+              }
+              const pxPerBeat = 100 * sliderMultiplier * svMult;
+              const sliderDurationMs = Math.round((pixelLength / pxPerBeat) * baseBeatLength * slides);
+              if (sliderDurationMs >= 180 && sliderDurationMs <= 6000) {
+                endTime = time + sliderDurationMs;
+                isHold = true;
+              }
+            }
           }
 
           const duration = Math.max(0, endTime - time);
 
           hitObjectsRaw.push({
             originalLane: originalLane,
+            sourceKeys: effectiveColumns,
             timestamp_ms: time,
-            type: (isHold && duration >= 80) ? 'hold' : 'tap',
-            duration_ms: (isHold && duration >= 80) ? duration : null,
-            end_timestamp_ms: (isHold && duration >= 80) ? endTime : null
+            original_timestamp: time,
+            type: (isHold && duration >= 140) ? 'hold' : 'tap',
+            duration_ms: (isHold && duration >= 140) ? duration : null,
+            end_timestamp_ms: (isHold && duration >= 140) ? endTime : null
           });
         }
       }
     }
 
     const bpm = timingPoints.length > 0 ? timingPoints[0].bpm : 120;
-    const finalNotes = LaneRemapper.resolveCollisions(hitObjectsRaw, circleSize, Math.round(bpm), overallDifficulty);
+    const effectiveKeys = mode === 3 ? Math.max(3, Math.min(9, circleSize)) : 4;
+    const finalNotes = LaneRemapper.resolveCollisions(hitObjectsRaw, effectiveKeys, Math.round(bpm), overallDifficulty, densityMode, targetLanes);
 
     return {
       audioFilename,
@@ -525,7 +636,8 @@ class OsuManiaParser {
       difficultyName: version,
       stars: Math.max(1.0, Math.min(10.0, overallDifficulty)),
       bpm: Math.round(bpm),
-      keys: circleSize,
+      keys: effectiveKeys,
+      rawNotes: hitObjectsRaw,
       notes: finalNotes
     };
   }
@@ -745,7 +857,9 @@ class CloneHeroParser {
 
       rawNotes.push({
         originalLane: ev.fret,
+        sourceKeys: 5,
         timestamp_ms: Math.max(0, startMs),
+        original_timestamp: Math.max(0, startMs),
         type: isHold ? 'hold' : 'tap',
         duration_ms: duration,
         end_timestamp_ms: isHold ? endMs : null
@@ -763,6 +877,7 @@ class CloneHeroParser {
       stars: 4.5,
       bpm: Math.round(bpms[0].bpm),
       keys: 5,
+      rawNotes: rawNotes,
       notes: finalNotes
     };
   }
@@ -914,7 +1029,9 @@ class MidiChartParser {
       const duration = isHold ? Math.max(0, endMs - startMs) : null;
       return {
         originalLane: ev.fret,
+        sourceKeys: 5,
         timestamp_ms: Math.max(0, startMs),
+        original_timestamp: Math.max(0, startMs),
         type: isHold ? 'hold' : 'tap',
         duration_ms: duration,
         end_timestamp_ms: isHold ? endMs : null
@@ -932,6 +1049,7 @@ class MidiChartParser {
       stars: 4.5,
       bpm: Math.round(tempoEvents[0].bpm),
       keys: 5,
+      rawNotes: rawNotes,
       notes: finalNotes
     };
   }
@@ -1133,8 +1251,10 @@ class PackageUnpacker {
           stars: parsedBeatmap.stars,
           bpm: parsedBeatmap.bpm,
           total_notes: parsedBeatmap.notes.length,
+          source_keys: parsedBeatmap.keys || 5,
           num_lanes: 3
         },
+        rawNotes: parsedBeatmap.rawNotes || parsedBeatmap.notes,
         notes: parsedBeatmap.notes,
         audioBlob: audioBlob,
         audioUrl: audioUrl,
@@ -1235,8 +1355,10 @@ class PackageUnpacker {
           stars: parsedBeatmap.stars,
           bpm: parsedBeatmap.bpm,
           total_notes: parsedBeatmap.notes.length,
+          source_keys: parsedBeatmap.keys || 5,
           num_lanes: 3
         },
+        rawNotes: parsedBeatmap.rawNotes || parsedBeatmap.notes,
         notes: parsedBeatmap.notes,
         audioBlob: audioBlob,
         audioUrl: audioUrl,
@@ -1291,8 +1413,10 @@ class PackageUnpacker {
               stars: parsedBeatmap.stars,
               bpm: parsedBeatmap.bpm,
               total_notes: parsedBeatmap.notes.length,
+              source_keys: parsedBeatmap.keys || 4,
               num_lanes: 3
             },
+            rawNotes: parsedBeatmap.rawNotes || parsedBeatmap.notes,
             notes: parsedBeatmap.notes,
             audioBlob: audioBlob,
             audioUrl: URL.createObjectURL(audioBlob),
@@ -1451,8 +1575,10 @@ class PackageUnpacker {
         stars: parsedBeatmap.stars,
         bpm: parsedBeatmap.bpm,
         total_notes: parsedBeatmap.notes.length,
+        source_keys: parsedBeatmap.keys || 4,
         num_lanes: 3
       },
+      rawNotes: parsedBeatmap.rawNotes || parsedBeatmap.notes,
       notes: parsedBeatmap.notes,
       audioBlob: audioBlob,
       audioUrl: audioUrl,

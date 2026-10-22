@@ -314,6 +314,7 @@ class MainActivity : AppCompatActivity() {
             overScrollMode = View.OVER_SCROLL_NEVER
             isVerticalScrollBarEnabled = false
             isHorizontalScrollBarEnabled = false
+            isSoundEffectsEnabled = false
         }
 
         val settings = webView.settings

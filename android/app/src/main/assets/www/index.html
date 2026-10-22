@@ -2669,6 +2669,11 @@
             <canvas id="gmBtnNormalMainCanvas" class="w-full h-[34px] block"></canvas>
           </button>
 
+          <!-- Botón 1B: MODO 4 CARRILES (Igual que Normal pero con 4 carriles de precisión + Candado LED 1000 Claves) -->
+          <button id="btnModeSelectFourLanes" onclick="confirmGameModeSelection('four_lanes')" class="w-full p-1 rounded-xl bg-[#04050b] border-2 border-[#252b63] hover:border-[#38bdf8] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
+            <canvas id="gmBtnFourLanesMainCanvas" class="w-full h-[34px] block"></canvas>
+          </button>
+
           <!-- Botón 2: MODO KARAOKE (Animación LED Secuencial KA-RA-O-KE en Dorado + Candado LED 1000 Claves) -->
           <button id="btnModeSelectKaraoke" onclick="confirmGameModeSelection('karaoke')" class="w-full p-1 rounded-xl bg-[#070502] border-2 border-[#422c08] hover:border-[#ffd700] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
             <canvas id="gmBtnKaraokeMainCanvas" class="w-full h-[34px] block"></canvas>
@@ -6909,7 +6914,7 @@ window.switchMainTab = switchMainTab;
     window.onAppForeground = handleAppForeground;
 
     function applySelectedGameMode(mode) {
-      const m = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog' || mode === 'river') ? mode : 'normal';
+      const m = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog' || mode === 'river' || mode === 'four_lanes') ? mode : 'normal';
       window.currentGameMode = m;
       window.isKaraokeModeActive = (m === 'karaoke');
       window.isStormModeActive = (m === 'storm');
@@ -6917,6 +6922,7 @@ window.switchMainTab = switchMainTab;
       window.isHighwayModeActive = (m === 'highway');
       window.isAnnoyingDogModeActive = (m === 'annoying_dog');
       window.isRiverModeActive = (m === 'river');
+      window.isFourLanesModeActive = (m === 'four_lanes');
       if (window.engine) {
         window.engine.isKaraokeModeActive = window.isKaraokeModeActive;
         window.engine.isStormModeActive = window.isStormModeActive;
@@ -6924,6 +6930,11 @@ window.switchMainTab = switchMainTab;
         window.engine.isHighwayModeActive = window.isHighwayModeActive;
         window.engine.isAnnoyingDogModeActive = window.isAnnoyingDogModeActive;
         window.engine.isRiverModeActive = window.isRiverModeActive;
+        window.engine.isFourLanesModeActive = window.isFourLanesModeActive;
+        window.engine.numLanes = window.isFourLanesModeActive ? 4 : 3;
+        if (typeof window.engine.initCanvasSize === 'function') {
+          window.engine.initCanvasSize();
+        }
         if (window.isStormModeActive && typeof window.engine.initStormModeAssets === 'function') {
           window.engine.initStormModeAssets();
         }
@@ -9253,10 +9264,16 @@ function stopPianoCameraLoop() {
 
     // ==========================================
     // HUMANIZADOR Y EQUILIBRADOR MUSICAL AVANZADO
-    // Relleno de pausas vocales (Groove BPM) + Notas Dobles (Modo Difícil)
+    // Relleno de pausas vocales (EXCLUSIVO para Top Songs JSON de GitHub) + Soporte 3 y 4 Carriles
     // ==========================================
-    function humanizeAndBalanceBeatmapNotes(rawNotes, bpm = 120, diffLabel = 'Normal') {
+    function humanizeAndBalanceBeatmapNotes(rawNotes, bpm = 120, diffLabel = 'Normal', options = {}) {
       if (!Array.isArray(rawNotes) || rawNotes.length === 0) return [];
+
+      const allowVocalFiller = options.allowVocalFiller !== undefined ? Boolean(options.allowVocalFiller) : false;
+      const preserveOriginalLanes = Boolean(options.preserveOriginalLanes);
+      const numLanes = (options.numLanes === 4 || window.isFourLanesModeActive) ? 4 : 3;
+      const maxLaneIdx = numLanes - 1;
+      const allLanes = numLanes === 4 ? [0, 1, 2, 3] : [0, 1, 2];
 
       const isHard = String(diffLabel).toLowerCase().includes('dif') || 
                      String(diffLabel).toLowerCase().includes('hard') || 
@@ -9288,7 +9305,9 @@ function stopPianoCameraLoop() {
         }
         dur = Math.round(dur);
 
-        const laneVal = Math.max(0, Math.min(2, parseInt(n.lane !== undefined ? n.lane : (n.column !== undefined ? n.column : (n.track !== undefined ? n.track : 0)), 10) || 0));
+        const rawLaneNum = parseInt(n.lane !== undefined ? n.lane : (n.column !== undefined ? n.column : (n.track !== undefined ? n.track : 0)), 10);
+        const hasExplicitLane = Number.isFinite(rawLaneNum);
+        const laneVal = Math.max(0, Math.min(maxLaneIdx, hasExplicitLane ? rawLaneNum : 0));
         const isHold = n.type === 'hold' || n.type === 'long' || dur > 180;
         const typeStr = isHold ? 'hold' : ((n.type === 'swipe' || n.type === 'slide') ? 'swipe' : 'tap');
         const dirStr = n.direction || n.swipeDirection || 'up';
@@ -9299,6 +9318,9 @@ function stopPianoCameraLoop() {
           t,
           dur,
           lane: laneVal,
+          hasExplicitLane,
+          originalLane: n.originalLane !== undefined ? n.originalLane : laneVal,
+          sourceKeys: n.sourceKeys || numLanes,
           type: typeStr,
           direction: dirStr,
           isInst,
@@ -9311,35 +9333,47 @@ function stopPianoCameraLoop() {
 
       parsed.sort((a, b) => a.t - b.t);
 
-      // 8 patrones musicales auténticos para instrumentales (compases de 4 tiempos)
-      const instPatterns = [
-        [0, 1, 2, 1], // Roll progresivo
-        [2, 1, 0, 1], // Roll regresivo
-        [0, 2, 1, 2], // Salto sincopado
-        [2, 0, 1, 0], // Salto invertido
-        [0, 0, 1, 2], // Doble rebote izquierdo
-        [2, 2, 1, 0], // Doble rebote derecho
-        [1, 0, 1, 2], // Ola central
-        [1, 2, 1, 0]  // Caída central
+      // Patrones musicales auténticos para instrumentales (3 o 4 carriles)
+      const instPatterns3 = [
+        [0, 1, 2, 1],
+        [2, 1, 0, 1],
+        [0, 2, 1, 2],
+        [2, 0, 1, 0],
+        [0, 0, 1, 2],
+        [2, 2, 1, 0],
+        [1, 0, 1, 2],
+        [1, 2, 1, 0]
       ];
+      const instPatterns4 = [
+        [0, 1, 2, 3],
+        [3, 2, 1, 0],
+        [0, 2, 1, 3],
+        [3, 1, 2, 0],
+        [0, 1, 3, 2],
+        [3, 2, 0, 1],
+        [1, 0, 2, 3],
+        [2, 3, 1, 0]
+      ];
+      const instPatterns = numLanes === 4 ? instPatterns4 : instPatterns3;
 
-      // 2. RELLENO DE PAUSAS VOCALES (Si el cantante deja de cantar a mitad de canción)
+      // 2. RELLENO DE PAUSAS VOCALES (EXCLUSIVAMENTE para canciones generadas automáticamente de GitHub JSON)
+      // NUNCA rellenar pausas en canciones de osu!, Clone Hero ni Comunidad para evitar notas sin sonido.
       const filledNotes = [];
-      const minSilenceGap = beatMs * 1.5; // Brecha de silencio superior a 1.5 tiempos
+      const minSilenceGap = beatMs * 2.25; // Solo brechas vocales largas reales (> 2.25 pulsos)
       const fillStep = isHard ? (beatMs / 2) : beatMs;
 
       for (let i = 0; i < parsed.length; i++) {
         const cur = parsed[i];
         filledNotes.push(cur);
 
-        if (i < parsed.length - 1) {
+        if (allowVocalFiller && i < parsed.length - 1) {
           const nextN = parsed[i + 1];
-          const curEnd = cur.t + Math.max(80, cur.dur);
+          const curEnd = cur.t + Math.max(100, cur.dur);
           const gap = nextN.t - curEnd;
 
           if (gap > minSilenceGap) {
-            let fillT = curEnd + fillStep;
-            while (fillT < nextN.t - (fillStep * 0.75)) {
+            let fillT = curEnd + Math.max(fillStep, 320);
+            while (fillT < nextN.t - Math.max(fillStep * 0.85, 300)) {
               const patternGroup = Math.floor(fillT / (beatMs * 4)) % instPatterns.length;
               const step = Math.floor(fillT / Math.max(100, beatMs / 2)) % 4;
               const assignedLane = instPatterns[patternGroup][step];
@@ -9349,6 +9383,7 @@ function stopPianoCameraLoop() {
                 t: Math.round(fillT),
                 dur: 0,
                 lane: assignedLane,
+                hasExplicitLane: true,
                 type: 'tap',
                 direction: 'up',
                 isInst: true,
@@ -9364,7 +9399,7 @@ function stopPianoCameraLoop() {
       filledNotes.sort((a, b) => a.t - b.t);
 
       // 3. Asignación ergonómica, anti-martilleo, protección de holds y NOTAS DOBLES
-      const laneOccupiedUntil = [0, 0, 0];
+      const laneOccupiedUntil = new Array(numLanes).fill(0);
       const recentLanes = [];
       const resolved = [];
 
@@ -9376,22 +9411,31 @@ function stopPianoCameraLoop() {
         let t = n.t;
         let dur = n.dur;
         let ty = n.type;
-        let targetLane = n.lane;
+        let targetLane = Math.max(0, Math.min(maxLaneIdx, n.lane));
 
         // A. Selección de carril orgánica
-        if (n.isInst || n.isFiller) {
+        if (preserveOriginalLanes && n.hasExplicitLane && !n.isFiller) {
+          targetLane = Math.max(0, Math.min(maxLaneIdx, n.lane));
+        } else if (n.isInst || n.isFiller) {
           const patternGroup = Math.floor(t / (beatMs * 4)) % instPatterns.length;
           const step = Math.floor(t / Math.max(100, beatMs / 2)) % 4;
           targetLane = instPatterns[patternGroup][step];
         } else {
           if (typeof n.pitch === 'number' && n.pitch > 0) {
-            if (n.pitch < 56) targetLane = 0;
-            else if (n.pitch > 66) targetLane = 2;
-            else targetLane = 1;
+            if (numLanes === 4) {
+              if (n.pitch < 55) targetLane = 0;
+              else if (n.pitch < 61) targetLane = 1;
+              else if (n.pitch < 67) targetLane = 2;
+              else targetLane = 3;
+            } else {
+              if (n.pitch < 56) targetLane = 0;
+              else if (n.pitch > 66) targetLane = 2;
+              else targetLane = 1;
+            }
           } else {
             if (i % 4 === 0) melodyDir = -melodyDir;
             const nextL = melodyLane + melodyDir;
-            if (nextL > 2) { melodyLane = 1; melodyDir = -1; }
+            if (nextL > maxLaneIdx) { melodyLane = Math.max(0, maxLaneIdx - 1); melodyDir = -1; }
             else if (nextL < 0) { melodyLane = 1; melodyDir = 1; }
             else { melodyLane = nextL; }
             targetLane = melodyLane;
@@ -9400,7 +9444,7 @@ function stopPianoCameraLoop() {
 
         // B. Protección: Jamás invadir un carril con Hold activo
         if (laneOccupiedUntil[targetLane] > t) {
-          const freeLanes = [0, 1, 2].filter(l => laneOccupiedUntil[l] <= t);
+          const freeLanes = allLanes.filter(l => laneOccupiedUntil[l] <= t);
           if (freeLanes.length > 0) {
             freeLanes.sort((a, b) => Math.abs(a - targetLane) - Math.abs(b - targetLane));
             targetLane = freeLanes[0];
@@ -9412,11 +9456,10 @@ function stopPianoCameraLoop() {
 
         // C. Regla Anti-Martilleo: Máximo 2 notas consecutivas en el mismo carril
         if (recentLanes.length >= 2 && recentLanes[recentLanes.length - 1] === targetLane && recentLanes[recentLanes.length - 2] === targetLane) {
-          const altLanes = [0, 1, 2].filter(l => l !== targetLane && laneOccupiedUntil[l] <= t);
+          const altLanes = allLanes.filter(l => l !== targetLane && laneOccupiedUntil[l] <= t);
           if (altLanes.length > 0) {
-            if (targetLane === 1) targetLane = (i % 2 === 0) ? 0 : 2;
-            else if (altLanes.includes(1)) targetLane = 1;
-            else targetLane = altLanes[0];
+            altLanes.sort((a, b) => Math.abs(a - targetLane) - Math.abs(b - targetLane));
+            targetLane = altLanes[i % altLanes.length];
           }
         }
 
@@ -9451,7 +9494,7 @@ function stopPianoCameraLoop() {
         let dirStr = n.direction || 'up';
         if (ty === 'swipe') {
           if (targetLane === 0 && dirStr === 'up') dirStr = 'left';
-          else if (targetLane === 2 && dirStr === 'up') dirStr = 'right';
+          else if (targetLane === maxLaneIdx && dirStr === 'up') dirStr = 'right';
         }
 
         resolved.push({
@@ -9459,6 +9502,8 @@ function stopPianoCameraLoop() {
           lane: targetLane,
           column: targetLane,
           track: targetLane,
+          originalLane: n.originalLane !== undefined ? n.originalLane : targetLane,
+          sourceKeys: n.sourceKeys || numLanes,
           time: t / 1000.0,
           timeSec: t / 1000.0,
           timeMs: t,
@@ -9482,14 +9527,14 @@ function stopPianoCameraLoop() {
           processed: false
         });
 
-        // E. NOTAS DOBLES (Dificultad Difícil/Experto) en compases fuertes
-        if (isHard && ty === 'tap' && !isHold) {
+        // E. NOTAS DOBLES (Dificultad Difícil/Experto en Top Songs) en compases fuertes
+        if (allowVocalFiller && isHard && ty === 'tap' && !isHold) {
           const isDownbeat = (Math.abs(t % Math.round(beatMs * 4)) < 80) || (i % 7 === 0);
           if (isDownbeat) {
             let companionLane = -1;
-            if (targetLane === 0) companionLane = 2;
-            else if (targetLane === 2) companionLane = 0;
-            else companionLane = (i % 2 === 0) ? 0 : 2;
+            if (targetLane === 0) companionLane = maxLaneIdx;
+            else if (targetLane === maxLaneIdx) companionLane = 0;
+            else companionLane = (i % 2 === 0) ? 0 : maxLaneIdx;
 
             if (laneOccupiedUntil[companionLane] <= t) {
               resolved.push({
@@ -9497,6 +9542,8 @@ function stopPianoCameraLoop() {
                 lane: companionLane,
                 column: companionLane,
                 track: companionLane,
+                originalLane: companionLane,
+                sourceKeys: numLanes,
                 time: t / 1000.0,
                 timeSec: t / 1000.0,
                 timeMs: t,
@@ -9572,8 +9619,14 @@ function stopPianoCameraLoop() {
         return;
       }
 
-      // 1. Extracción profunda de notas
+      // 1. Extracción profunda de notas y detección de fuente (Top Song vs osu!/Clone Hero/Comunidad)
       let rawNotes = [];
+      const rawSourceNotes = Array.isArray(beatmapData.rawNotes) && beatmapData.rawNotes.length > 0
+        ? beatmapData.rawNotes
+        : (beatmapData.unpackedData && Array.isArray(beatmapData.unpackedData.rawNotes) && beatmapData.unpackedData.rawNotes.length > 0
+            ? beatmapData.unpackedData.rawNotes
+            : null);
+
       if (Array.isArray(beatmapData.notes)) {
         rawNotes = beatmapData.notes;
       } else if (beatmapData.unpackedData && Array.isArray(beatmapData.unpackedData.notes)) {
@@ -9604,14 +9657,28 @@ function stopPianoCameraLoop() {
         }
       }
 
-      // 2. Blindaje numérico, humanización musical, anti-martilleo y protección de Holds
-      const songBpm = Number(beatmapData.bpm) || 120;
-      const resolvedNotes = humanizeAndBalanceBeatmapNotes(rawNotes, songBpm, diffLabel);
-      resolvedNotes.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
+      const srcLower = String(beatmapData.source || beatmapData.source_name || '').toLowerCase();
+      const idLower = String(beatmapData.id || beatmapData.communityChartId || beatmapData.metadata?.id || '').toLowerCase();
+      const isOsuOrCloneHero = (
+        srcLower.includes('osu') ||
+        srcLower.includes('catboy') ||
+        srcLower.includes('clonehero') ||
+        srcLower.includes('clone hero') ||
+        srcLower.includes('enchor') ||
+        idLower.startsWith('osu_') ||
+        idLower.startsWith('ch_') ||
+        Boolean(beatmapData.sng_url) ||
+        Boolean(beatmapData.osz_url) ||
+        Boolean(rawSourceNotes)
+      );
+      const isTopSong = !isOsuOrCloneHero && !beatmapData.is_community && Boolean(
+        beatmapData.is_top_song ||
+        srcLower === 'top_playlist' ||
+        idLower.startsWith('top_') ||
+        (rawLyrics && rawLyrics.length > 0)
+      );
 
-      const resolvedAudioBlob = audioBlob || beatmapData.audioBlob || (beatmapData.unpackedData && beatmapData.unpackedData.audioBlob);
-
-      // 3. Estructura robusta para game.js con velocidad personalizada de música y estrellas
+      // 2. Estructura robusta para game.js con velocidad personalizada de música y estrellas
       let resolvedStars = null;
       if (diffLabel) {
         const sm = String(diffLabel).match(/([0-9]+(?:\.[0-9]+)?)\s*★/);
@@ -9639,6 +9706,68 @@ function stopPianoCameraLoop() {
         else resolvedStars = 3.5;
       }
 
+      const songBpm = Number(beatmapData.bpm) || 120;
+      const targetNumLanes = window.isFourLanesModeActive ? 4 : 3;
+      const sourceKeys = Number(beatmapData.keys || beatmapData.metadata?.source_keys || beatmapData.unpackedData?.metadata?.source_keys || (srcLower.includes('clone') ? 5 : 4));
+      const activeDensityMode = (window.engine && window.engine.difficultyDensityMode) || localStorage.getItem('beatstar_map_density') || localStorage.getItem('difficultyDensityMode') || 'hard';
+
+      let resolvedNotes = [];
+      if (isOsuOrCloneHero && typeof LaneRemapper !== 'undefined') {
+        // Mapeo directo de alta precisión para osu! y Clone Hero (CERO relleno de pausas y timestamps exactos)
+        const baseChartNotes = rawSourceNotes || rawNotes;
+        const remapped = LaneRemapper.resolveCollisions(
+          baseChartNotes,
+          sourceKeys,
+          songBpm,
+          resolvedStars,
+          activeDensityMode,
+          targetNumLanes
+        );
+        resolvedNotes = remapped.map((n, idx) => {
+          const t = Math.round(Number(n.timestamp_ms ?? n.timeMs ?? n.timestamp ?? 0));
+          const dur = Math.round(Number(n.duration_ms ?? 0));
+          const ty = (n.type === 'hold' && dur >= 140) ? 'hold' : (n.type === 'swipe' ? 'swipe' : 'tap');
+          const dirStr = n.direction || n.swipeDirection || 'up';
+          const laneIdx = Math.max(0, Math.min(targetNumLanes - 1, Number(n.lane ?? 0)));
+          return {
+            id: idx,
+            lane: laneIdx,
+            column: laneIdx,
+            track: laneIdx,
+            originalLane: n.originalLane ?? laneIdx,
+            sourceKeys: n.sourceKeys || sourceKeys,
+            time: t / 1000.0,
+            timeSec: t / 1000.0,
+            timeMs: t,
+            timestamp: t,
+            timestamp_ms: t,
+            type: ty,
+            duration: dur / 1000.0,
+            duration_ms: dur,
+            holdDuration: dur / 1000.0,
+            end_timestamp_ms: ty === 'hold' ? (t + dur) : null,
+            direction: dirStr,
+            swipeDirection: dirStr,
+            isInstrumental: false,
+            lyric: null,
+            hit: false,
+            holding: false,
+            holdCompleted: false,
+            missed: false,
+            processed: false
+          };
+        });
+      } else {
+        resolvedNotes = humanizeAndBalanceBeatmapNotes(rawNotes, songBpm, diffLabel, {
+          allowVocalFiller: isTopSong,
+          preserveOriginalLanes: !isTopSong,
+          numLanes: targetNumLanes
+        });
+      }
+      resolvedNotes.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
+
+      const resolvedAudioBlob = audioBlob || beatmapData.audioBlob || (beatmapData.unpackedData && beatmapData.unpackedData.audioBlob);
+
       const songSpeedVal = getSongSpeed(beatmapData.id || (beatmapData.metadata && beatmapData.metadata.id) || beatmapData.communityChartId);
       const rawTrackId = String(beatmapData.communityChartId || beatmapData.id || beatmapData.metadata?.id || '');
       const isFeatured = !!(
@@ -9655,6 +9784,10 @@ function stopPianoCameraLoop() {
         songPlaybackSpeed: songSpeedVal,
         stars: resolvedStars,
         selectedStars: resolvedStars,
+        keys: sourceKeys,
+        rawNotes: isOsuOrCloneHero ? (rawSourceNotes || rawNotes) : null,
+        _remappedForDensity: isOsuOrCloneHero ? activeDensityMode : null,
+        _remappedForLanes: targetNumLanes,
         metadata: {
           ...(beatmapData.metadata || {}),
           id: beatmapData.id || beatmapData.metadata?.id || 'custom_' + Date.now(),
@@ -9662,6 +9795,8 @@ function stopPianoCameraLoop() {
           artist: beatmapData.artist || beatmapData.metadata?.artist || 'Comunidad',
           difficulty_name: diffLabel || beatmapData.metadata?.difficulty_name || 'Normal',
           stars: resolvedStars,
+          source_keys: sourceKeys,
+          num_lanes: targetNumLanes,
           lyrics: rawLyrics,
           is_daily_featured: isFeatured
         },
@@ -9686,7 +9821,7 @@ function stopPianoCameraLoop() {
           id: 'diff_standard',
           name: diffLabel || 'Normal',
           stars: resolvedStars,
-          keys: 3,
+          keys: targetNumLanes,
           notes: resolvedNotes
         }]
       };
@@ -14063,12 +14198,17 @@ function stopPianoCameraLoop() {
         ctx.fill();
       }
 
-      // Chuletón LED delante del perrito (rojo jugoso + hueso T blanco)
+      // Gran Entrecot / Chuletón LED detallado delante del perrito (borde de grasa dorada, hueso T marfil, carne roja veteada y mantequilla a las hierbas)
       const steakCol = dogBaseCol + 10 + (Math.floor(t * 6) % 2);
-      const steakRow = dogRow + 1;
+      const steakRow = dogRow;
       const steakPixels = [
-        { c: 0, r: 1, col: '#ef4444' }, { c: 1, r: 0, col: '#ef4444' }, { c: 1, r: 1, col: '#ffffff' },
-        { c: 1, r: 2, col: '#ffffff' }, { c: 2, r: 1, col: '#dc2626' }, { c: 2, r: 2, col: '#ef4444' }
+        // Borde superior de grasa dorada y corteza tostada
+        { c: 0, r: 0, col: '#fde047' }, { c: 1, r: 0, col: '#f59e0b' }, { c: 2, r: 0, col: '#fffbeb' }, { c: 3, r: 0, col: '#f59e0b' }, { c: 4, r: 0, col: '#fde047' },
+        // Lomo alto (izquierda) + Hueso T central + Solomillo (derecha)
+        { c: 0, r: 1, col: '#f59e0b' }, { c: 1, r: 1, col: '#ef4444' }, { c: 2, r: 1, col: '#ffffff' }, { c: 3, r: 1, col: '#dc2626' }, { c: 4, r: 1, col: '#991b1b' },
+        { c: 0, r: 2, col: '#dc2626' }, { c: 1, r: 2, col: '#fca5a5' }, { c: 2, r: 2, col: '#ffffff' }, { c: 3, r: 2, col: '#22c55e' }, { c: 4, r: 2, col: '#ef4444' },
+        { c: 0, r: 3, col: '#7c2d12' }, { c: 1, r: 3, col: '#dc2626' }, { c: 2, r: 3, col: '#ffffff' }, { c: 3, r: 3, col: '#b91c1c' }, { c: 4, r: 3, col: '#7c2d12' },
+        { c: 1, r: 4, col: '#451a03' }, { c: 2, r: 4, col: '#fef3c7' }, { c: 3, r: 4, col: '#451a03' }
       ];
       for (let sp = 0; sp < steakPixels.length; sp++) {
         const pt = steakPixels[sp];
@@ -14076,8 +14216,8 @@ function stopPianoCameraLoop() {
         ctx.beginPath();
         const lx = offsetX + (steakCol + pt.c) * pitch;
         const ly = offsetY + (steakRow + pt.r) * pitch;
-        ctx.moveTo(lx + dotR * 1.05, ly);
-        ctx.arc(lx, ly, dotR * 1.05, 0, Math.PI * 2);
+        ctx.moveTo(lx + dotR * 1.08, ly);
+        ctx.arc(lx, ly, dotR * 1.08, 0, Math.PI * 2);
         ctx.fill();
       }
 
@@ -14320,6 +14460,132 @@ function stopPianoCameraLoop() {
       }
     }
 
+    // G. Renderizador LED animado para MODO 4 CARRILES (Icono de 4 carriles con notas cayendo + "4 CARRILES" + Candado LED)
+    function _renderFourLanesLedButton(canvas, now, isLocked) {
+      if (!canvas) return;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const cssW = 318;
+      const cssH = 34;
+      const targetW = Math.round(cssW * dpr);
+      const targetH = Math.round(cssH * dpr);
+      if (canvas.width !== targetW || canvas.height !== targetH) {
+        canvas.width = targetW;
+        canvas.height = targetH;
+      }
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      ctx.fillStyle = '#04050b';
+      ctx.fillRect(0, 0, cssW, cssH);
+
+      const pitch = 3.2;
+      const dotR = pitch * 0.37;
+      const cols = Math.floor((cssW - 6) / pitch);
+      const rows = Math.floor((cssH - 4) / pitch);
+      const offsetX = (cssW - cols * pitch) * 0.5 + pitch * 0.5;
+      const offsetY = (cssH - rows * pitch) * 0.5 + pitch * 0.5;
+
+      // 1. Matriz de fondo apagada
+      ctx.fillStyle = '#0c1228';
+      ctx.beginPath();
+      for (let r = 0; r < rows; r++) {
+        const py = offsetY + r * pitch;
+        for (let c = 0; c < cols; c++) {
+          const px = offsetX + c * pitch;
+          ctx.moveTo(px + dotR * 0.72, py);
+          ctx.arc(px, py, dotR * 0.72, 0, Math.PI * 2);
+        }
+      }
+      ctx.fill();
+
+      const t = now * 0.001;
+
+      // 2. Icono LED izquierdo: 4 carriles luminosos con notas bajando en cascada
+      const laneColors = ['#00f2fe', '#a855f7', '#ec4899', '#10b981'];
+      const baseIconCol = 2;
+      for (let l = 0; l < 4; l++) {
+        const laneCol = baseIconCol + l * 3;
+        // Divisores verticales de carril
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath();
+        for (let r = 1; r < rows - 1; r++) {
+          const lx = offsetX + (laneCol + 2) * pitch;
+          const ly = offsetY + r * pitch;
+          ctx.moveTo(lx + dotR * 0.75, ly);
+          ctx.arc(lx, ly, dotR * 0.75, 0, Math.PI * 2);
+        }
+        ctx.fill();
+
+        // Nota cayendo en cada uno de los 4 carriles
+        const noteRow = Math.floor((t * 6.5 + l * 2.1) % (rows - 2)) + 1;
+        ctx.fillStyle = laneColors[l];
+        ctx.beginPath();
+        for (let c = 0; c < 2; c++) {
+          const lx = offsetX + (laneCol + c) * pitch;
+          const ly = offsetY + noteRow * pitch;
+          ctx.moveTo(lx + dotR * 1.15, ly);
+          ctx.arc(lx, ly, dotR * 1.15, 0, Math.PI * 2);
+        }
+        ctx.fill();
+      }
+
+      // 3. Texto LED "4 CARRILES"
+      const label = '4 CARRILES';
+      const textStartCol = isLocked ? 16 : Math.floor((cols - label.length * 6) * 0.5) + 4;
+      const baseTextRow = Math.floor((rows - 7) * 0.5);
+
+      for (let i = 0; i < label.length; i++) {
+        const ch = label[i];
+        if (ch === ' ') continue;
+        const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7[' '];
+        const charCol = i === 0 ? '#00f2fe' : '#60a5fa';
+        const cBase = textStartCol + i * 5.6;
+
+        ctx.fillStyle = charCol;
+        ctx.beginPath();
+        for (let gr = 0; gr < 7; gr++) {
+          const rowBits = glyph[gr];
+          if (!rowBits) continue;
+          for (let gc = 0; gc < 5; gc++) {
+            if ((rowBits >> (4 - gc)) & 1) {
+              const lx = offsetX + Math.round(cBase + gc) * pitch;
+              const ly = offsetY + (baseTextRow + gr) * pitch;
+              ctx.moveTo(lx + dotR * 1.12, ly);
+              ctx.arc(lx, ly, dotR * 1.12, 0, Math.PI * 2);
+            }
+          }
+        }
+        ctx.fill();
+      }
+
+      // 4. Candado LED (@1000) si está bloqueado
+      if (isLocked) {
+        const lockStr = '@1000';
+        const lockStartCol = cols - (lockStr.length * 6) - 1;
+        const lockRow = Math.floor((rows - 7) * 0.5);
+        for (let i = 0; i < lockStr.length; i++) {
+          const ch = lockStr[i];
+          const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7[' '];
+          const isLockIcon = (ch === '@');
+          ctx.fillStyle = isLockIcon ? '#ff4500' : '#ffb300';
+          ctx.beginPath();
+          for (let gr = 0; gr < 7; gr++) {
+            const rowBits = glyph[gr];
+            if (!rowBits) continue;
+            for (let gc = 0; gc < 5; gc++) {
+              if ((rowBits >> (4 - gc)) & 1) {
+                const lx = offsetX + (lockStartCol + i * 6 + gc) * pitch;
+                const ly = offsetY + (lockRow + gr) * pitch;
+                ctx.moveTo(lx + dotR * 1.12, ly);
+                ctx.arc(lx, ly, dotR * 1.12, 0, Math.PI * 2);
+              }
+            }
+          }
+          ctx.fill();
+        }
+      }
+    }
+
     function _renderGameModeStaticLeds(songTitle = 'PISTA', songArtist = '') {
       _currentModalSongTitle = songTitle;
       _currentModalSongArtist = songArtist;
@@ -14379,6 +14645,7 @@ function stopPianoCameraLoop() {
         const highwayLocked = !isGameModeUnlocked('highway');
         const annoyingDogLocked = !isGameModeUnlocked('annoying_dog');
         const riverLocked = !isGameModeUnlocked('river');
+        const fourLanesLocked = !isGameModeUnlocked('four_lanes');
 
         // A. ANIMACIÓN LED MODO KARAOKE: KA -> RA -> O -> KE iluminándose en dorado + Candado LED (@ 1000) si está bloqueado
         const kStep = Math.floor(((now - startTime) % 1900) / 380);
@@ -14495,6 +14762,13 @@ function stopPianoCameraLoop() {
           document.getElementById('gmBtnRiverMainCanvas'),
           now,
           riverLocked
+        );
+
+        // G. ANIMACIÓN LED MODO 4 CARRILES: 4 carriles de neón con cascada de notas + Candado LED
+        _renderFourLanesLedButton(
+          document.getElementById('gmBtnFourLanesMainCanvas'),
+          now,
+          fourLanesLocked
         );
 
         _gameModeLedAnimId = requestAnimationFrame(tick);
@@ -14629,7 +14903,7 @@ function stopPianoCameraLoop() {
     }
 
     function confirmGameModeSelection(mode) {
-      const chosen = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog' || mode === 'river') ? mode : 'normal';
+      const chosen = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog' || mode === 'river' || mode === 'four_lanes') ? mode : 'normal';
 
       // Si el modo no es normal y aún tiene candado LED (1000 Claves para desbloquear):
       if (chosen !== 'normal' && !isGameModeUnlocked(chosen)) {
@@ -14645,7 +14919,9 @@ function stopPianoCameraLoop() {
                         ? 'SETAS ALUCINÓGENAS'
                         : (chosen === 'highway'
                             ? 'CARRETERA'
-                            : (chosen === 'annoying_dog' ? 'PERRO MOLESTO' : 'RÍO'))));
+                            : (chosen === 'annoying_dog'
+                                ? 'PERRO MOLESTO'
+                                : (chosen === 'four_lanes' ? '4 CARRILES' : 'RÍO')))));
               showSuccessToast(`¡Modo ${modeLabel} desbloqueado para siempre! (-1000 𝄞)`);
             }
           }

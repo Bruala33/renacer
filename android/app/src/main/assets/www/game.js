@@ -330,23 +330,8 @@ class HighFidelityAudioPlayer {
   }
 
   playClick(scheduledTime = null) {
-    try {
-      const ctx = this.ensureContext();
-      if (!ctx) return;
-      const t = scheduledTime !== null ? scheduledTime : ctx.currentTime;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(1200, t);
-      osc.frequency.exponentialRampToValueAtTime(300, t + 0.05);
-      gain.gain.setValueAtTime(0.3, t);
-      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.onended = () => { try { osc.disconnect(); gain.disconnect(); } catch (_) {} };
-      osc.start(t);
-      osc.stop(t + 0.05);
-    } catch (e) {}
+    // Sonido de click general desactivado a petición del usuario
+    return;
   }
 
   playMiss(scheduledTime = null) {
@@ -1749,6 +1734,8 @@ class BeatstarEngine {
     this.targetScore = 100000;
     this.missCount = 0;
     this.invulnerableUntil = 0;
+    this.isRunning = false;
+    this.isPaused = true;
     this.isInitialLaunch = true;
     this.isRewinding = false;
     this.isCountingDown = false;
@@ -1801,9 +1788,9 @@ class BeatstarEngine {
     );
     this.audioSync = this.sync;
 
-    this.lanePressAnim = [0, 0, 0];
-    this.laneFlashTimers = [0, 0, 0];
-    this.laneFlashColors = ['#00f5a0', '#00f5a0', '#00f5a0'];
+    this.lanePressAnim = [0, 0, 0, 0];
+    this.laneFlashTimers = [0, 0, 0, 0];
+    this.laneFlashColors = ['#00f5a0', '#00f5a0', '#00f5a0', '#00f5a0'];
     this.lastHitTimePerf = 0;
     this.shakeDuration = 0;
     this.shakeIntensity = 0;
@@ -2252,8 +2239,12 @@ class BeatstarEngine {
     this.width = rect.width || (vpRect ? vpRect.width : 0) || (typeof window !== 'undefined' ? window.innerWidth : 360) || 360;
     this.height = rect.height || (vpRect ? vpRect.height : 0) || (typeof window !== 'undefined' ? window.innerHeight : 640) || 640;
     this._canvasRect = (rect && rect.width > 0) ? rect : (vpRect && vpRect.width > 0 ? vpRect : { left: 0, top: 0, right: this.width, bottom: this.height, width: this.width, height: this.height });
-    this.numLanes = 3;
-    this.laneWidth = this.width / 3;
+    this.isFourLanesModeActive = Boolean(
+      (typeof window !== 'undefined' && (window.isFourLanesModeActive || window.currentGameMode === 'four_lanes')) ||
+      this.isFourLanesModeActive
+    );
+    this.numLanes = this.isFourLanesModeActive ? 4 : 3;
+    this.laneWidth = this.width / this.numLanes;
     this.hitLineY = this.height * 0.82;
 
     // Constantes precalculadas para proyección cónica 3D (Zero-GC en renderNotes y getLaneBoundaryX)
@@ -2262,7 +2253,7 @@ class BeatstarEngine {
     this._perspSpanY = Math.max(1, this._perspHitY - this._perspHorizonY);
     this._perspInvSpanY = 1.0 / this._perspSpanY;
     this._perspMidX = this.width * 0.5;
-    this._perspBaseLaneW = (this.width * 0.94) / 3;
+    this._perspBaseLaneW = (this.width * 0.94) / this.numLanes;
 
     // ⚡ OPTIMIZADO PARA 120 FPS ESTABLES: DPR 1.5 en móviles (ahorra 44% de fill-rate de GPU manteniendo nitidez Retina)
     const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -2356,11 +2347,9 @@ class BeatstarEngine {
 
     // ⚡ ENTRADA TÁCTIL (TOUCH) A NIVEL DE VENTANA SIN REFLOWS DE DOM NI GESTURE DELAY
     window.addEventListener('touchstart', (e) => {
-      if (this.isPaused || this.isRewinding) return;
+      if ((!this.isRunning && !this.isCountingDown && !this.isCalibrating) || this.isPaused || this.isRewinding) return;
       const targetEl = e.target;
-      const isUiTap = targetEl && targetEl !== this.canvas && targetEl.closest &&
-        (targetEl.closest('.hud-pause-btn') || targetEl.closest('button') || targetEl.closest('.modal-overlay'));
-      if (isUiTap) return;
+      if (targetEl !== this.canvas) return;
 
       if (this.isRunning && e.cancelable) {
         e.preventDefault();
@@ -2375,12 +2364,13 @@ class BeatstarEngine {
       }
       if (!rect || rect.width <= 0) return;
 
+      const nLanes = this.numLanes || 3;
       for (let i = 0; i < e.changedTouches.length; i++) {
         const t = e.changedTouches[i];
         if (t.clientX < rect.left || t.clientX > rect.right) continue;
 
         const normX = (t.clientX - rect.left) / rect.width;
-        const lane = Math.max(0, Math.min(2, (normX * 3) | 0));
+        const lane = Math.max(0, Math.min(nLanes - 1, (normX * nLanes) | 0));
 
         const consumed = this.triggerLaneInput(lane, 'tap', null, t.identifier);
 
@@ -2436,8 +2426,9 @@ class BeatstarEngine {
           this.releaseLaneHold(tData.lane, t.identifier);
           this.activeTouches.delete(t.identifier);
         } else if (rect && rect.width > 0) {
+          const nLanes = this.numLanes || 3;
           const normX = (t.clientX - rect.left) / rect.width;
-          const lane = Math.max(0, Math.min(2, (normX * 3) | 0));
+          const lane = Math.max(0, Math.min(nLanes - 1, (normX * nLanes) | 0));
           this.releaseLaneHold(lane, t.identifier);
         }
       }
@@ -2458,13 +2449,10 @@ class BeatstarEngine {
     window.addEventListener('mousedown', (e) => {
       const now = performance.now();
       if (now - (this.lastTouchTime || 0) < 500) return;
-      if (this.isPaused || this.isRewinding) return;
+      if ((!this.isRunning && !this.isCountingDown && !this.isCalibrating) || this.isPaused || this.isRewinding) return;
 
       const targetEl = e.target;
-      if (targetEl && targetEl !== this.canvas && targetEl.closest &&
-          (targetEl.closest('.hud-pause-btn') || targetEl.closest('button') || targetEl.closest('.modal-overlay'))) {
-        return;
-      }
+      if (targetEl !== this.canvas) return;
 
       let rect = this._canvasRect;
       if (!rect || rect.width <= 0) {
@@ -2474,8 +2462,9 @@ class BeatstarEngine {
       if (!rect || rect.width <= 0) return;
       if (e.clientX < rect.left || e.clientX > rect.right) return;
 
+      const nLanes = this.numLanes || 3;
       const normX = (e.clientX - rect.left) / rect.width;
-      const lane = Math.max(0, Math.min(2, (normX * 3) | 0));
+      const lane = Math.max(0, Math.min(nLanes - 1, (normX * nLanes) | 0));
 
       const consumed = this.triggerLaneInput(lane, 'tap', null, 'mouse');
 
@@ -2527,11 +2516,18 @@ class BeatstarEngine {
       if (this.isPaused || this.isRewinding || this.isCountingDown) return;
 
       const k = (e.key || '').toLowerCase();
-      const kb = this.pcKeybinds || { 0: 'd', 1: 'f', 2: 'j' };
+      const kb = this.pcKeybinds || { 0: 'd', 1: 'f', 2: 'j', 3: 'k' };
 
-      if (k === (kb[0] || 'd') || k === 'a' || k === '1') this.triggerLaneInput(0, 'tap');
-      else if (k === (kb[1] || 'f') || k === 's' || k === ' ' || k === '2') this.triggerLaneInput(1, 'tap');
-      else if (k === (kb[2] || 'j') || k === 'k' || k === '3') this.triggerLaneInput(2, 'tap');
+      if ((this.numLanes || 3) === 4) {
+        if (k === (kb[0] || 'd') || k === 'a' || k === '1') this.triggerLaneInput(0, 'tap');
+        else if (k === (kb[1] || 'f') || k === 's' || k === '2') this.triggerLaneInput(1, 'tap');
+        else if (k === (kb[2] || 'j') || k === '3') this.triggerLaneInput(2, 'tap');
+        else if (k === (kb[3] || 'k') || k === 'l' || k === '4') this.triggerLaneInput(3, 'tap');
+      } else {
+        if (k === (kb[0] || 'd') || k === 'a' || k === '1') this.triggerLaneInput(0, 'tap');
+        else if (k === (kb[1] || 'f') || k === 's' || k === ' ' || k === '2') this.triggerLaneInput(1, 'tap');
+        else if (k === (kb[2] || 'j') || k === 'k' || k === '3') this.triggerLaneInput(2, 'tap');
+      }
 
       const handleArrowSwipe = (dir) => {
         const currentTime = this.getCurrentGameTimeMs(this._frameNow);
@@ -2554,7 +2550,7 @@ class BeatstarEngine {
           }
         }
         if (targetLane === -1) {
-          targetLane = (dir === 'left' ? 0 : dir === 'right' ? 2 : 1);
+          targetLane = (dir === 'left' ? 0 : dir === 'right' ? ((this.numLanes || 3) - 1) : 1);
         }
         this.triggerLaneInput(targetLane, 'swipe', dir);
       };
@@ -2568,11 +2564,18 @@ class BeatstarEngine {
     window.addEventListener('keyup', (e) => {
       if (this.isPaused || this.isRewinding || this.isCountingDown) return;
       const k = (e.key || '').toLowerCase();
-      const kb = this.pcKeybinds || { 0: 'd', 1: 'f', 2: 'j' };
+      const kb = this.pcKeybinds || { 0: 'd', 1: 'f', 2: 'j', 3: 'k' };
 
-      if (k === (kb[0] || 'd') || k === 'a' || k === '1') this.releaseLaneHold(0);
-      else if (k === (kb[1] || 'f') || k === 's' || k === ' ' || k === '2') this.releaseLaneHold(1);
-      else if (k === (kb[2] || 'j') || k === 'k' || k === '3') this.releaseLaneHold(2);
+      if ((this.numLanes || 3) === 4) {
+        if (k === (kb[0] || 'd') || k === 'a' || k === '1') this.releaseLaneHold(0);
+        else if (k === (kb[1] || 'f') || k === 's' || k === '2') this.releaseLaneHold(1);
+        else if (k === (kb[2] || 'j') || k === '3') this.releaseLaneHold(2);
+        else if (k === (kb[3] || 'k') || k === 'l' || k === '4') this.releaseLaneHold(3);
+      } else {
+        if (k === (kb[0] || 'd') || k === 'a' || k === '1') this.releaseLaneHold(0);
+        else if (k === (kb[1] || 'f') || k === 's' || k === ' ' || k === '2') this.releaseLaneHold(1);
+        else if (k === (kb[2] || 'j') || k === 'k' || k === '3') this.releaseLaneHold(2);
+      }
     });
   }
 
@@ -2625,8 +2628,12 @@ class BeatstarEngine {
       this.ui.onSongLoaded(beatmapData.metadata || beatmapData, this.activeSongPalette);
     }
     this.currentAudioSource = audioBlobOrUrl || (beatmapData && beatmapData.audio_blob_url) || null;
-    this.numLanes = 3;
-    this.laneGlows = [0, 0, 0];
+    this.isFourLanesModeActive = Boolean(
+      (typeof window !== 'undefined' && (window.isFourLanesModeActive || window.currentGameMode === 'four_lanes')) ||
+      this.isFourLanesModeActive
+    );
+    this.numLanes = this.isFourLanesModeActive ? 4 : 3;
+    this.laneGlows = [0, 0, 0, 0];
     this.fxRipples = [];
     this.bgBursts = [];
     this.musicalNotes = [];
@@ -2746,7 +2753,8 @@ class BeatstarEngine {
       if (!Number.isFinite(rawDur) || rawDur < 0) rawDur = 0;
       rawDur = Math.round(rawDur);
 
-      const laneVal = Math.max(0, Math.min(2, parseInt(n.lane ?? n.column ?? n.track ?? 0, 10) || 0));
+      const maxLaneIdx = (this.numLanes || 3) - 1;
+      const laneVal = Math.max(0, Math.min(maxLaneIdx, parseInt(n.lane ?? n.column ?? n.track ?? 0, 10) || 0));
       const isHold = n.type === 'hold' || n.type === 'long' || rawDur > 0;
       const typeStr = isHold ? 'hold' : ((n.type === 'swipe' || n.type === 'slide') ? 'swipe' : 'tap');
 
@@ -2795,9 +2803,33 @@ class BeatstarEngine {
     const baseDensityMode = (typeof localStorage !== 'undefined' ? localStorage.getItem('beatstar_map_density') : null) || 'hard';
     const densityMode = (isStormActive && baseDensityMode === 'hard') ? 'extreme' : baseDensityMode;
     const effectiveStars = isStormActive ? Math.min(10.0, (diffStars || 3.5) + 1.2) : diffStars;
-    const sanitizedNotes = (!isCommunity && typeof LaneRemapper !== 'undefined' && LaneRemapper.sanitizeForTwoFingers)
-      ? LaneRemapper.sanitizeForTwoFingers(rawNotes, this.bpm, effectiveStars, densityMode)
-      : rawNotes;
+    let sanitizedNotes = rawNotes;
+    if (!isCommunity && typeof LaneRemapper !== 'undefined') {
+      if (
+        this.beatmapData &&
+        this.beatmapData._remappedForDensity === densityMode &&
+        this.beatmapData._remappedForLanes === this.numLanes
+      ) {
+        // Ya fue remapeado desde las notas crudas con la densidad y número de carriles exactos
+        sanitizedNotes = rawNotes;
+      } else if (
+        this.beatmapData &&
+        Array.isArray(this.beatmapData.rawNotes) &&
+        this.beatmapData.rawNotes.length > 0 &&
+        LaneRemapper.resolveCollisions
+      ) {
+        sanitizedNotes = LaneRemapper.resolveCollisions(
+          this.beatmapData.rawNotes,
+          Number(this.beatmapData.keys || 4),
+          this.bpm,
+          effectiveStars,
+          densityMode,
+          this.numLanes
+        );
+      } else if (LaneRemapper.sanitizeForTwoFingers) {
+        sanitizedNotes = LaneRemapper.sanitizeForTwoFingers(rawNotes, this.bpm, effectiveStars, densityMode, this.numLanes);
+      }
+    }
 
     // Set dynamic base scroll duration based on difficulty stars curve
     const baseScroll = this.computeDynamicScrollDuration(effectiveStars, sanitizedNotes);
@@ -2806,7 +2838,7 @@ class BeatstarEngine {
     // Apply the active note speed multiplier to the dynamic scroll duration (+12% velocidad eléctrica en Modo Tormenta)
     const speedMult = Math.max(0.5, Math.min(2.5, this.noteSpeedMultiplier || 1.0)) * (isStormActive ? 1.12 : 1.0);
     this.scrollDurationMs = Math.round(baseScroll / speedMult);
-    console.log(`[BeatstarEngine] Diff: ${effectiveStars}★ ("${dNameRaw}") | BaseScroll: ${baseScroll}ms | Mult: ${speedMult}x -> Final: ${this.scrollDurationMs}ms`);
+    console.log(`[BeatstarEngine] Diff: ${effectiveStars}★ ("${dNameRaw}") | Lanes: ${this.numLanes} | BaseScroll: ${baseScroll}ms | Mult: ${speedMult}x -> Final: ${this.scrollDurationMs}ms`);
 
     // Apply custom song playback rate if provided
     const songRate = Math.max(0.5, Math.min(2.0, parseFloat(this.beatmapData.songPlaybackSpeed) || 1.0));
@@ -2840,12 +2872,12 @@ class BeatstarEngine {
     }
 
     const cleanedNotes = [];
-    const lastLaneHitTime = [-Infinity, -Infinity, -Infinity];
+    const lastLaneHitTime = [-Infinity, -Infinity, -Infinity, -Infinity];
 
     for (const n of notesPool) {
       const rawT = Number.isFinite(n.timestamp_ms) ? n.timestamp_ms : (n.timeMs || (n.time * 1000) || 0);
       const adjustedTime = Math.round(rawT);
-      const laneVal = Math.max(0, Math.min(2, parseInt(n.lane ?? n.column ?? n.track ?? 0, 10) || 0));
+      const laneVal = Math.max(0, Math.min((this.numLanes || 3) - 1, parseInt(n.lane ?? n.column ?? n.track ?? 0, 10) || 0));
 
       // Mantener todas las notas del beatmap sin descartar ninguna
       lastLaneHitTime[laneVal] = adjustedTime;
@@ -3609,13 +3641,14 @@ class BeatstarEngine {
     if (!this.borderEqLeftSurges) this.borderEqLeftSurges = new Float32Array(16);
     if (!this.borderEqRightSurges) this.borderEqRightSurges = new Float32Array(16);
     const rowCount = 12;
+    const lastLaneIdx = (this.numLanes || 3) - 1;
     if (lane === 0) {
       this.borderSurgeL = 1.0;
       this.borderSurgeR = Math.max(this.borderSurgeR || 0, 0.35);
       for (let i = 0; i < rowCount; i++) {
         this.borderEqLeftSurges[i] = Math.min(1.0, (this.borderEqLeftSurges[i] || 0) * 0.4 + 0.55 + Math.random() * 0.35);
       }
-    } else if (lane === 2) {
+    } else if (lane === lastLaneIdx) {
       this.borderSurgeR = 1.0;
       this.borderSurgeL = Math.max(this.borderSurgeL || 0, 0.35);
       for (let i = 0; i < rowCount; i++) {
@@ -3638,10 +3671,11 @@ class BeatstarEngine {
       this._laneBurstPalettes = [
         { c1: '#00f2fe', c2: '#3b82f6', alt: '#39ff14' },
         { c1: '#ff007f', c2: '#a855f7', alt: '#ffe600' },
-        { c1: '#fbbf24', c2: '#ff3300', alt: '#ff007f' }
+        { c1: '#fbbf24', c2: '#ff3300', alt: '#ff007f' },
+        { c1: '#39ff14', c2: '#00f5a0', alt: '#00f2fe' }
       ];
     }
-    const p = this._laneBurstPalettes[lane % 3];
+    const p = this._laneBurstPalettes[lane % this._laneBurstPalettes.length];
     const isRiverInput = Boolean(this.isRiverModeActive || (typeof window !== 'undefined' && window.isRiverModeActive));
     const effect = isRiverInput ? 'river_splash' : this.normalizeEffectId(this.activeEffect);
     if (!isRiverInput) this.activeEffect = effect;
@@ -3696,7 +3730,6 @@ class BeatstarEngine {
         this.addReactiveBurst(lane, hitX, hitY, this.getScoreColor('perfectPlus'));
       }
       if (this.isCalibrating || isProtectedTransition) {
-        this.synth.playClick();
         this.emitKeyHit(hitX, hitY, this.getScoreColor('perfectPlus'), 18);
         return true;
       }
@@ -3713,7 +3746,6 @@ class BeatstarEngine {
         this.handleMiss();
         return true;
       }
-      this.synth.playClick();
       return true;
     }
 
@@ -9608,150 +9640,247 @@ class BeatstarEngine {
       zoomiesTimer: 0,
       zoomiesTotalDur: 6.2,
       lastPoopMs: 0,
-      barkText: '🐶 ¡GUAU! ¡QUIERO CHULETÓN!',
+      barkText: '🐶 ¡GUAU! ¡QUIERO ENTRECOT!',
       barkTimer: 2.2,
       lastStepMs: 0
     };
 
     if (typeof document === 'undefined') return;
 
-    // 1. Tres Sprites de Chuletón T-Bone Gigante y Sabroso (Fase 0: Entero, Fase 1: Medio comido, Fase 2: Hueso T-Bone pelado)
+    // 1. Tres Sprites de GRAN ENTRECOT / CHULETÓN T-BONE GOURMET ULTRA DETALLADO
+    // (Fase 0: Entrecot entero recién hecho, Fase 1: Medio devorado con mordiscos, Fase 2: Hueso en T de marfil pelado)
     this._dogSteakSprites = [];
     for (let stage = 0; stage < 3; stage++) {
       const stCvs = document.createElement('canvas');
-      stCvs.width = 168;
-      stCvs.height = 136;
+      stCvs.width = 220;
+      stCvs.height = 176;
       const sc = stCvs.getContext('2d');
-      const scx = 84, scy = 68;
+      const scx = 110, scy = 90;
 
-      // Halo cálido apetitoso dorado-rubí bajo el chuletón
-      const glowG = sc.createRadialGradient(scx, scy, 12, scx, scy, 74);
-      glowG.addColorStop(0.0, 'rgba(251, 191, 36, 0.72)');
-      glowG.addColorStop(0.55, 'rgba(239, 68, 68, 0.34)');
+      // Halo cálido apetitoso dorado-rubí bajo el gran entrecot
+      const glowG = sc.createRadialGradient(scx, scy, 16, scx, scy, 98);
+      glowG.addColorStop(0.0, 'rgba(251, 191, 36, 0.78)');
+      glowG.addColorStop(0.50, 'rgba(239, 68, 68, 0.40)');
       glowG.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
       sc.fillStyle = glowG;
       sc.beginPath();
-      sc.arc(scx, scy, 74, 0, Math.PI * 2);
+      sc.arc(scx, scy, 98, 0, Math.PI * 2);
       sc.fill();
 
       sc.save();
       sc.translate(scx, scy);
-      sc.rotate(-0.10);
+      sc.rotate(-0.08);
+
+      // Función auxiliar que traza la silueta anatómica real de un Gran Entrecot / Chuletón (forma arriñonada ancha con punta de lomo y solomillo)
+      const traceEntrecotPath = (ctx, yOff = 0, scale = 1.0) => {
+        ctx.beginPath();
+        ctx.moveTo(-72 * scale, (-14 + yOff) * scale);
+        // Lomo superior convexo con capa de grasa dorada
+        ctx.bezierCurveTo(-76 * scale, (-44 + yOff) * scale, -22 * scale, (-54 + yOff) * scale, 26 * scale, (-46 + yOff) * scale);
+        // Punta derecha redondeada del entrecot
+        ctx.bezierCurveTo(68 * scale, (-38 + yOff) * scale, 82 * scale, (-6 + yOff) * scale, 70 * scale, (24 + yOff) * scale);
+        // Curva inferior con hendidura natural del hueso central
+        ctx.bezierCurveTo(56 * scale, (48 + yOff) * scale, 16 * scale, (46 + yOff) * scale, -4 * scale, (36 + yOff) * scale);
+        // Lóbulo izquierdo del solomillo
+        ctx.bezierCurveTo(-28 * scale, (46 + yOff) * scale, -68 * scale, (32 + yOff) * scale, -72 * scale, (-14 + yOff) * scale);
+        ctx.closePath();
+      };
 
       if (stage < 2) {
-        // Si stage === 1 (primer gran bocado), recortamos dos mordiscos dentados en el lado derecho
+        // Si stage === 1 (primer gran bocado del perro), recortamos dos mordiscos dentados grandes en el lado derecho
         if (stage === 1) {
           sc.beginPath();
-          sc.rect(-84, -68, 126, 136);
-          sc.arc(40, -14, 24, 0, Math.PI * 2, true);
-          sc.arc(36, 18, 24, 0, Math.PI * 2, true);
+          sc.rect(-110, -90, 160, 176);
+          sc.arc(52, -16, 32, 0, Math.PI * 2, true);
+          sc.arc(46, 22, 30, 0, Math.PI * 2, true);
           sc.clip();
         }
 
-        // Sombra 3D profunda bajo la pieza de carne
-        sc.fillStyle = 'rgba(0, 0, 0, 0.46)';
-        sc.beginPath();
-        sc.ellipse(0, 10, 58, 37, 0, 0, Math.PI * 2);
+        // 1A. Sombra proyectada 3D sobre la pista
+        sc.fillStyle = 'rgba(0, 0, 0, 0.55)';
+        traceEntrecotPath(sc, 16, 1.03);
         sc.fill();
 
-        // Corteza gruesa caramelizada a la brasa (#7c2d12) y borde de grasa dorada crujiente (#fef08a)
-        sc.fillStyle = '#7c2d12';
-        sc.strokeStyle = '#fde68a';
-        sc.lineWidth = 4.5;
-        sc.beginPath();
-        sc.ellipse(0, 4, 55, 34, 0, 0, Math.PI * 2);
-        sc.fill();
-        sc.stroke();
+        // 1B. Pared lateral 3D gruesa de corteza asada a la parrilla (grosor de chuletón de 4 dedos)
+        const sideGrad = sc.createLinearGradient(-74, -20, 74, 48);
+        sideGrad.addColorStop(0.0, '#451a03');
+        sideGrad.addColorStop(0.45, '#78350f');
+        sideGrad.addColorStop(0.8, '#571e05');
+        sideGrad.addColorStop(1.0, '#290e02');
+        sc.fillStyle = sideGrad;
+        for (let d = 12; d >= 1; d -= 2) {
+          traceEntrecotPath(sc, d, 1.0);
+          sc.fill();
+        }
 
-        // Carne jugosa rojo rubí con degradado tridimensional
-        const meatGrad = sc.createLinearGradient(-48, -26, 48, 26);
-        meatGrad.addColorStop(0.0, '#991b1b');
-        meatGrad.addColorStop(0.35, '#ef4444');
-        meatGrad.addColorStop(0.7, '#dc2626');
-        meatGrad.addColorStop(1.0, '#7f1d1d');
-        sc.fillStyle = meatGrad;
-        sc.beginPath();
-        sc.ellipse(0, -1, 49, 29, 0, 0, Math.PI * 2);
-        sc.fill();
-
-        // Veteado de grasa infiltrada (Wagyu / T-Bone premium)
-        sc.strokeStyle = 'rgba(254, 243, 199, 0.62)';
-        sc.lineWidth = 2.2;
-        sc.lineCap = 'round';
-        sc.beginPath();
-        sc.moveTo(-34, -8); sc.quadraticCurveTo(-20, -2, -12, -12);
-        sc.moveTo(-26, 10); sc.quadraticCurveTo(-14, 6, -6, 16);
-        sc.moveTo(14, -10); sc.quadraticCurveTo(26, -4, 36, -11);
-        sc.moveTo(12, 8);   sc.quadraticCurveTo(24, 14, 34, 6);
-        sc.stroke();
-
-        // Marcas de parrilla al carbón cruzadas
-        sc.strokeStyle = 'rgba(41, 14, 2, 0.62)';
-        sc.lineWidth = 3.4;
-        for (let g = -30; g <= 30; g += 12) {
+        // Textura vertical de sellado de parrilla en el canto grueso 3D de la carne
+        sc.strokeStyle = 'rgba(24, 8, 1, 0.65)';
+        sc.lineWidth = 2.4;
+        for (let sx = -58; sx <= 58; sx += 14) {
           sc.beginPath();
-          sc.moveTo(g - 10, -20);
-          sc.lineTo(g + 10, 18);
+          sc.moveTo(sx, 28);
+          sc.lineTo(sx - 2, 44);
           sc.stroke();
         }
-      } else {
-        // Stage 2: Quedan solo trocitos de carne adheridos al hueso antes de tragar
-        sc.fillStyle = '#dc2626';
+
+        // 1C. Borde exterior de grasa infiltrada dorada y crujiente (típica cobertura de grasa del Entrecot)
+        const fatRimGrad = sc.createLinearGradient(-74, -50, 74, 30);
+        fatRimGrad.addColorStop(0.0, '#fef08a');
+        fatRimGrad.addColorStop(0.35, '#fde047');
+        fatRimGrad.addColorStop(0.70, '#facc15');
+        fatRimGrad.addColorStop(1.0, '#eab308');
+        sc.fillStyle = fatRimGrad;
+        traceEntrecotPath(sc, 0, 1.0);
+        sc.fill();
+        sc.strokeStyle = '#92400e';
+        sc.lineWidth = 2.6;
+        sc.stroke();
+
+        // 1D. Superficie interior de carne roja jugosa al punto (Medium-Rare Ruby)
+        const meatGrad = sc.createRadialGradient(-8, -6, 8, 0, 0, 72);
+        meatGrad.addColorStop(0.0, '#f43f5e'); // Centro tierno jugoso rosado-rubí
+        meatGrad.addColorStop(0.45, '#e11d48');
+        meatGrad.addColorStop(0.78, '#be123c');
+        meatGrad.addColorStop(1.0, '#7f1d1d'); // Borde caramelizado Maillard
+        sc.fillStyle = meatGrad;
+        traceEntrecotPath(sc, 1, 0.89);
+        sc.fill();
+
+        // 1E. Ojo de grasa nacarada intramuscular y veteado Wagyu hiper-detallado en ambos músculos
+        sc.save();
+        traceEntrecotPath(sc, 1, 0.88);
+        sc.clip();
+
+        // Venas principales de veteado blanco-crema
+        sc.strokeStyle = 'rgba(254, 249, 195, 0.82)';
+        sc.lineWidth = 2.5;
+        sc.lineCap = 'round';
         sc.beginPath();
-        sc.arc(-14, -4, 10, 0, Math.PI * 2);
-        sc.arc(12, 5, 9, 0, Math.PI * 2);
+        // Lado izquierdo (Solomillo)
+        sc.moveTo(-56, -14); sc.quadraticCurveTo(-36, -6, -20, -24);
+        sc.moveTo(-42, -9);  sc.quadraticCurveTo(-30, 6, -22, 16);
+        sc.moveTo(-54, 12);  sc.quadraticCurveTo(-36, 18, -18, 6);
+        // Lado derecho (Lomo alto del Entrecot)
+        sc.moveTo(8, -28);   sc.quadraticCurveTo(28, -14, 52, -22);
+        sc.moveTo(26, -18);  sc.quadraticCurveTo(38, -2, 58, -4);
+        sc.moveTo(10, 8);    sc.quadraticCurveTo(32, 18, 56, 10);
+        sc.moveTo(28, 14);   sc.quadraticCurveTo(40, 28, 48, 24);
+        sc.stroke();
+
+        // Venas secundarias finas de infiltración
+        sc.strokeStyle = 'rgba(254, 240, 138, 0.55)';
+        sc.lineWidth = 1.4;
+        sc.beginPath();
+        sc.moveTo(-48, -28); sc.lineTo(-32, -18);
+        sc.moveTo(-34, 22);  sc.lineTo(-16, 20);
+        sc.moveTo(16, -6);   sc.lineTo(42, 4);
+        sc.moveTo(18, 24);   sc.lineTo(36, 18);
+        sc.stroke();
+
+        // 1F. Marcas de parrilla al carbón en rombo (Char-Grill Crosshatch) bien marcadas
+        sc.strokeStyle = 'rgba(28, 10, 2, 0.68)';
+        sc.lineWidth = 4.0;
+        for (let g = -64; g <= 64; g += 15) {
+          sc.beginPath();
+          sc.moveTo(g - 18, -46);
+          sc.lineTo(g + 18, 42);
+          sc.stroke();
+        }
+        sc.strokeStyle = 'rgba(41, 14, 3, 0.46)';
+        sc.lineWidth = 3.0;
+        for (let g = -64; g <= 64; g += 18) {
+          sc.beginPath();
+          sc.moveTo(g + 18, -46);
+          sc.lineTo(g - 18, 42);
+          sc.stroke();
+        }
+        sc.restore();
+      } else {
+        // Stage 2: Quedan solo hebras de carne asada adheridas al hueso en T antes de tragar
+        sc.fillStyle = '#be123c';
+        sc.beginPath();
+        sc.arc(-16, -6, 13, 0, Math.PI * 2);
+        sc.arc(14, 7, 11, 0, Math.PI * 2);
+        sc.arc(-6, 16, 9, 0, Math.PI * 2);
         sc.fill();
       }
 
-      // Hueso central en T blanco marfil brillante (siempre visible en las 3 fases)
-      sc.strokeStyle = '#78350f';
-      sc.lineWidth = 11.5;
+      // 1G. Hueso anatómico en T blanco marfil con medallón de tuétano (separa el lomo del solomillo)
       sc.lineCap = 'round';
       sc.lineJoin = 'round';
-      sc.beginPath();
-      sc.moveTo(-32, -9);
-      sc.lineTo(32, -7);
-      sc.moveTo(2, -8);
-      sc.lineTo(-5, 24);
-      sc.stroke();
-
-      sc.strokeStyle = '#fffbeb';
-      sc.lineWidth = 8.0;
-      sc.beginPath();
-      sc.moveTo(-32, -9);
-      sc.lineTo(32, -7);
-      sc.moveTo(2, -8);
-      sc.lineTo(-5, 24);
-      sc.stroke();
-
-      // Medallón de tuétano en el extremo del hueso
-      sc.fillStyle = '#fef3c7';
+      // Contorno tostado del hueso
       sc.strokeStyle = '#78350f';
-      sc.lineWidth = 2.0;
+      sc.lineWidth = 14.0;
       sc.beginPath();
-      sc.arc(-33, -9, 6.5, 0, Math.PI * 2);
-      sc.arc(33, -7, 6.5, 0, Math.PI * 2);
-      sc.arc(-5, 24, 6.0, 0, Math.PI * 2);
+      sc.moveTo(-36, -24);
+      sc.quadraticCurveTo(-4, -18, 32, -22);
+      sc.moveTo(-4, -20);
+      sc.quadraticCurveTo(-8, 6, -12, 34);
+      sc.stroke();
+
+      // Hueso blanco marfil brillante
+      sc.strokeStyle = '#fffbeb';
+      sc.lineWidth = 9.5;
+      sc.beginPath();
+      sc.moveTo(-36, -24);
+      sc.quadraticCurveTo(-4, -18, 32, -22);
+      sc.moveTo(-4, -20);
+      sc.quadraticCurveTo(-8, 6, -12, 34);
+      sc.stroke();
+
+      // Anillo de tuétano vertebral en la intersección de la T
+      sc.fillStyle = '#fef3c7';
+      sc.strokeStyle = '#92400e';
+      sc.lineWidth = 2.4;
+      sc.beginPath();
+      sc.arc(-5, -19, 9.5, 0, Math.PI * 2);
       sc.fill();
       sc.stroke();
+      sc.fillStyle = '#b91c1c';
+      sc.beginPath();
+      sc.arc(-5, -19, 4.5, 0, Math.PI * 2);
+      sc.fill();
 
       if (stage === 0) {
-        // Nuez de mantequilla a las finas hierbas fundiéndose y brillo jugoso
-        sc.fillStyle = 'rgba(253, 224, 71, 0.92)';
+        // 1H. Medallón de mantequilla Maître d'Hôtel fundiéndose + Ramita de romero fresco + Escamas de sal Maldon
+        sc.fillStyle = 'rgba(254, 240, 138, 0.42)';
         sc.beginPath();
-        sc.ellipse(-15, 5, 12, 8, 0.22, 0, Math.PI * 2);
-        sc.fill();
-        sc.fillStyle = '#16a34a';
-        sc.beginPath();
-        sc.arc(-17, 4, 2.4, 0, Math.PI * 2);
-        sc.arc(-12, 6, 2.0, 0, Math.PI * 2);
-        sc.arc(-15, 8, 1.8, 0, Math.PI * 2);
+        sc.ellipse(22, -2, 24, 15, 0.15, 0, Math.PI * 2);
         sc.fill();
 
-        // Destellos blancos de jugo brillante
-        sc.fillStyle = 'rgba(255, 255, 255, 0.75)';
+        sc.fillStyle = '#fde047';
+        sc.strokeStyle = '#ca8a04';
+        sc.lineWidth = 1.8;
         sc.beginPath();
-        sc.ellipse(18, -12, 8, 3.2, -0.3, 0, Math.PI * 2);
+        sc.ellipse(20, -4, 14, 9.5, 0.20, 0, Math.PI * 2);
+        sc.fill();
+        sc.stroke();
+
+        // Ramita de romero fresco sobre el entrecot
+        sc.strokeStyle = '#15803d';
+        sc.lineWidth = 2.4;
+        sc.beginPath();
+        sc.moveTo(6, -10);
+        sc.quadraticCurveTo(22, -4, 36, 4);
+        sc.stroke();
+        sc.fillStyle = '#22c55e';
+        for (let lf = 0; lf < 5; lf++) {
+          const lx = 10 + lf * 5.5;
+          const ly = -8 + lf * 2.4;
+          sc.beginPath();
+          sc.ellipse(lx, ly - 3.5, 4.2, 1.7, -0.5, 0, Math.PI * 2);
+          sc.ellipse(lx, ly + 3.5, 4.2, 1.7, 0.5, 0, Math.PI * 2);
+          sc.fill();
+        }
+
+        // Destellos especulares húmedos de jugo y cristales de sal en escamas
+        sc.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        sc.beginPath();
+        sc.ellipse(-34, -22, 9, 3.4, -0.25, 0, Math.PI * 2);
+        sc.ellipse(38, -20, 8, 3.0, 0.25, 0, Math.PI * 2);
+        sc.arc(-26, 12, 2.2, 0, Math.PI * 2);
+        sc.arc(32, 16, 2.0, 0, Math.PI * 2);
+        sc.arc(44, -6, 1.8, 0, Math.PI * 2);
         sc.fill();
       }
 
@@ -10300,8 +10429,8 @@ class BeatstarEngine {
       const biteStage = eatProgress < 0.36 ? 0 : (eatProgress < 0.72 ? 1 : 2);
       const steakImg = this._dogSteakSprites[biteStage];
       const chompScale = (1.0 - eatProgress * 0.18) * (1.0 + 0.14 * Math.sin(t * 42.0));
-      const stW = 86 * scale * chompScale;
-      const stH = 68 * scale * chompScale;
+      const stW = 98 * scale * chompScale;
+      const stH = 78 * scale * chompScale;
       ctx.save();
       ctx.translate(0, 15 * scale);
       ctx.rotate(Math.sin(t * 42.0) * 0.22);
@@ -10500,10 +10629,10 @@ class BeatstarEngine {
         }
 
         const sCoord = this.getPerspectiveCoord(stk.lane, pSteak, this._coordScratch0);
-        // ¡Chuletón mucho más grande, jugoso y llamativo!
+        // ¡Gran Entrecot detallado mucho más grande, jugoso y reconocible!
         const pulse = 1.0 + Math.sin(currentTime * 0.012 + i) * 0.06;
-        const sW = Math.min(sCoord.laneW * 0.96, 112 * sCoord.scale) * pulse;
-        const sH = sW * 0.81;
+        const sW = Math.min(sCoord.laneW * 1.08, 138 * sCoord.scale) * pulse;
+        const sH = sW * 0.80;
         const sBob = Math.sin(currentTime * 0.010 + i) * (3.5 * sCoord.scale);
 
         // Anillo dorado brillante en la pista indicando el objetivo del perrito
@@ -12272,11 +12401,12 @@ class BeatstarEngine {
     const spanY = this._perspSpanY || ((Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84)) - horizonY);
     const y = horizonY + spanY * pCurved;
 
-    const baseLaneW = this._perspBaseLaneW || ((this.width * 0.94) / 3);
+    const nLanes = this.numLanes || 3;
+    const baseLaneW = this._perspBaseLaneW || ((this.width * 0.94) / nLanes);
     const scale = 0.50 + 0.50 * pCurved;
     const laneW = baseLaneW * scale;
     const midX = this._perspMidX || (this.width * 0.5);
-    const x = midX + (lane - 1) * laneW;
+    const x = midX + (lane - (nLanes - 1) * 0.5) * laneW;
 
     if (out) {
       out.x = x;
@@ -12290,25 +12420,27 @@ class BeatstarEngine {
   }
 
   getLaneBoundaryX(lineIdx, yTarget) {
+    const nLanes = this.numLanes || 3;
     const horizonY = this._perspHorizonY || 12;
     const invSpanY = this._perspInvSpanY || (1.0 / ((Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84)) - horizonY));
     const midX = this._perspMidX || (this.width * 0.5);
-    const baseLaneW = this._perspBaseLaneW || ((this.width * 0.94) / 3);
+    const baseLaneW = this._perspBaseLaneW || ((this.width * 0.94) / nLanes);
     const t = (yTarget - horizonY) * invSpanY;
     const scale = 0.50 + 0.50 * t;
-    return midX + (lineIdx - 1.5) * (baseLaneW * scale);
+    return midX + (lineIdx - nLanes * 0.5) * (baseLaneW * scale);
   }
 
   drawIvoryKey(ctx, laneOrCx, cy, h, scale = 1.0, isPressed = false, isLarge = true, isSwipe = false, lyricText = null) {
     ctx.save();
 
+    const nLanes = this.numLanes || 3;
     let lane = 0;
     if (typeof laneOrCx === 'number') {
-      if (laneOrCx <= 2.5) {
-        lane = Math.max(0, Math.min(2, laneOrCx));
+      if (laneOrCx <= nLanes - 0.5) {
+        lane = Math.max(0, Math.min(nLanes - 1, laneOrCx));
       } else {
-        const laneW = this.width / 3;
-        lane = Math.max(0, Math.min(2, Math.floor(laneOrCx / laneW)));
+        const laneW = this.width / nLanes;
+        lane = Math.max(0, Math.min(nLanes - 1, Math.floor(laneOrCx / laneW)));
       }
     }
 
@@ -12594,13 +12726,14 @@ class BeatstarEngine {
 
     ctx.save();
 
+    const nLanes = this.numLanes || 3;
     if (is3D) {
       const getBoundaryX = (lineIdx, yTarget) => this.getLaneBoundaryX(lineIdx, yTarget);
 
       // 1. AUTOPISTA 3D BLANCA NACARADA DE ALTA GAMA CON VOLUMEN CILÍNDRICO Y SOMBRA DIFUMINADA EN EL HORIZONTE
       const tL_top = getBoundaryX(0, horizonY);
-      const tR_top = getBoundaryX(3, horizonY);
-      const tR_bot = getBoundaryX(3, bottomY);
+      const tR_top = getBoundaryX(nLanes, horizonY);
+      const tR_bot = getBoundaryX(nLanes, bottomY);
       const tL_bot = getBoundaryX(0, bottomY);
 
       // A1. Superficie principal con degradado nacarado 3D (o autopista psicodélica en Modo Setas / asfalto en Modo Carretera / agua cristalina en Modo Río Rápido)
@@ -12656,12 +12789,12 @@ class BeatstarEngine {
         ctx.fill();
       }
 
-      // A3. Lomo especular 3D en el centro de cada uno de los 3 carriles
+      // A3. Lomo especular 3D en el centro de cada uno de los carriles
       ctx.fillStyle = isRiverTrack
         ? 'rgba(125, 211, 252, 0.16)'
         : (isHighwayTrack ? 'rgba(255, 255, 255, 0.045)' : 'rgba(255, 255, 255, 0.38)');
       ctx.beginPath();
-      for (let l = 0; l < 3; l++) {
+      for (let l = 0; l < nLanes; l++) {
         const cTopL = getBoundaryX(l + 0.28, horizonY);
         const cTopR = getBoundaryX(l + 0.72, horizonY);
         const cBotR = getBoundaryX(l + 0.72, bottomY);
@@ -12951,10 +13084,10 @@ class BeatstarEngine {
         ctx.lineTo(tL_bot, bottomY);
         ctx.closePath();
         // Borde interior derecho
-        ctx.moveTo(getBoundaryX(2.86, horizonY), horizonY);
+        ctx.moveTo(getBoundaryX(nLanes - 0.14, horizonY), horizonY);
         ctx.lineTo(tR_top, horizonY);
         ctx.lineTo(tR_bot, bottomY);
-        ctx.lineTo(getBoundaryX(2.86, bottomY), bottomY);
+        ctx.lineTo(getBoundaryX(nLanes - 0.14, bottomY), bottomY);
         ctx.closePath();
         ctx.fill();
 
@@ -12968,7 +13101,7 @@ class BeatstarEngine {
           ctx.lineWidth = 0.8 + p * 0.7;
           ctx.beginPath();
           ctx.moveTo(getBoundaryX(0, ry) + 2, ry);
-          ctx.lineTo(getBoundaryX(3, ry) - 2, ry);
+          ctx.lineTo(getBoundaryX(nLanes, ry) - 2, ry);
           ctx.stroke();
         }
 
@@ -12976,7 +13109,7 @@ class BeatstarEngine {
         ctx.strokeStyle = 'rgba(51, 65, 85, 0.34)';
         ctx.lineWidth = 2.4;
         ctx.beginPath();
-        for (let l = 1; l <= 2; l++) {
+        for (let l = 1; l < nLanes; l++) {
           ctx.moveTo(getBoundaryX(l, horizonY), horizonY);
           ctx.lineTo(getBoundaryX(l, bottomY), bottomY);
         }
@@ -12985,7 +13118,7 @@ class BeatstarEngine {
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
         ctx.lineWidth = 1.2;
         ctx.beginPath();
-        for (let l = 1; l <= 2; l++) {
+        for (let l = 1; l < nLanes; l++) {
           ctx.moveTo(getBoundaryX(l, horizonY) + 1.4, horizonY);
           ctx.lineTo(getBoundaryX(l, bottomY) + 1.8, bottomY);
         }
@@ -12996,7 +13129,7 @@ class BeatstarEngine {
       if (this._trackHorizonShadowGrad) {
         const shadowEndY = horizonY + (hitY - horizonY) * 0.30;
         const sL_bot = getBoundaryX(0, shadowEndY);
-        const sR_bot = getBoundaryX(3, shadowEndY);
+        const sR_bot = getBoundaryX(nLanes, shadowEndY);
         ctx.save();
         ctx.fillStyle = this._trackHorizonShadowGrad;
         ctx.beginPath();
@@ -13010,13 +13143,13 @@ class BeatstarEngine {
       }
 
       // 2. RESPLANDOR DIFUMINADO EN EL CARRIL AL TOCAR UNA TECLA (Color exacto de PERFECT+, PERFECT, GREAT, GOOD - 0 Gradient Allocs por frame)
-      const hitGradCacheKey = `${this.width}_${hitY}_${horizonY}`;
+      const hitGradCacheKey = `${this.width}_${hitY}_${horizonY}_${nLanes}`;
       if (!this._laneTapGradCache || this._laneTapGradCacheKey !== hitGradCacheKey) {
         this._laneTapGradCache = new Map();
         this._laneTapGradCacheKey = hitGradCacheKey;
       }
 
-      for (let l = 0; l < 3; l++) {
+      for (let l = 0; l < nLanes; l++) {
         const flashTimer = (Array.isArray(this.laneFlashTimers) && this.laneFlashTimers[l]) || 0;
         const isHolding = this.activeHolds.has(l);
         const glow = this.laneGlows[l] || 0;
@@ -13337,8 +13470,8 @@ class BeatstarEngine {
         const normLx = -dyL / lenL;
         const normLy = dxL / lenL;
 
-        const tRx_top = getBoundaryX(3, horizonY);
-        const tRx_bot = getBoundaryX(3, bottomY);
+        const tRx_top = getBoundaryX(nLanes, horizonY);
+        const tRx_bot = getBoundaryX(nLanes, bottomY);
         const dyR = bottomY - horizonY;
         const dxR = tRx_bot - tRx_top;
         const lenR = Math.hypot(dxR, dyR) || 1;
@@ -13422,8 +13555,8 @@ class BeatstarEngine {
               const y0 = horizonY + (bottomY - horizonY) * p0;
               const y1 = horizonY + (bottomY - horizonY) * p1;
               const yMid = (y0 + y1) * 0.5;
-              const x0 = getBoundaryX(isLeft ? 0 : 3, y0);
-              const x1 = getBoundaryX(isLeft ? 0 : 3, y1);
+              const x0 = getBoundaryX(isLeft ? 0 : nLanes, y0);
+              const x1 = getBoundaryX(isLeft ? 0 : nLanes, y1);
               const xMid = (x0 + x1) * 0.5;
               const flicker = 0.55 + 0.30 * Math.sin(f * 2.1 - timeSec * 11.5 + side * 1.7) + 0.20 * Math.cos(f * 3.7 - timeSec * 7.8);
               const reach = (18 + 38 * p0) * flicker * (1.0 + beatPulse * 0.35 + sideSurge * 0.45);
@@ -13450,8 +13583,8 @@ class BeatstarEngine {
               const y0 = horizonY + (bottomY - horizonY) * p0;
               const y1 = horizonY + (bottomY - horizonY) * p1;
               const yMid = (y0 + y1) * 0.5;
-              const x0 = getBoundaryX(isLeft ? 0 : 3, y0);
-              const x1 = getBoundaryX(isLeft ? 0 : 3, y1);
+              const x0 = getBoundaryX(isLeft ? 0 : nLanes, y0);
+              const x1 = getBoundaryX(isLeft ? 0 : nLanes, y1);
               const xMid = (x0 + x1) * 0.5;
               const flicker = 0.55 + 0.30 * Math.sin(f * 2.1 - timeSec * 11.5 + side * 1.7) + 0.20 * Math.cos(f * 3.7 - timeSec * 7.8);
               const reach = (18 + 38 * p0) * flicker * (1.0 + beatPulse * 0.35 + sideSurge * 0.45);
@@ -13474,7 +13607,7 @@ class BeatstarEngine {
             for (let k = 0; k < numSpikes; k++) {
               const p = Math.pow(k / (numSpikes - 1), 1.22);
               const yBase = horizonY + (bottomY - horizonY) * p;
-              const xBase = getBoundaryX(isLeft ? 0 : 3, yBase);
+              const xBase = getBoundaryX(isLeft ? 0 : nLanes, yBase);
               const pulseWave = 0.6 + 0.4 * Math.sin(p * 10 - timeSec * 5.5 + side);
               const spikeLen = (16 + 34 * p) * pulseWave * (1 + beatPulse * 0.3 + sideSurge * 0.4);
               const halfW = 5 + 9 * p;
@@ -13498,7 +13631,7 @@ class BeatstarEngine {
             for (let k = 0; k <= steps; k++) {
               const p = k / steps;
               const yPos = horizonY + (bottomY - horizonY) * p;
-              const xRail = getBoundaryX(isLeft ? 0 : 3, yPos);
+              const xRail = getBoundaryX(isLeft ? 0 : nLanes, yPos);
               const jag = (10 + 26 * p) * (0.45 + 0.55 * Math.abs(Math.sin(k * 4.3 - timeSec * 24 + side * 2))) * (1 + sideSurge * 0.45);
               const lx = xRail + nX * jag;
               const ly = yPos + nY * jag;
@@ -13526,7 +13659,7 @@ class BeatstarEngine {
               for (let k = 0; k <= steps; k++) {
                 const p = k / steps;
                 const yPos = horizonY + (bottomY - horizonY) * p;
-                const xRail = getBoundaryX(isLeft ? 0 : 3, yPos);
+                const xRail = getBoundaryX(isLeft ? 0 : nLanes, yPos);
                 const wave = 0.55 + 0.45 * Math.sin(p * 11.0 - timeSec * (4.5 + ribbon * 2.2) + ribbon * 1.9 + side);
                 const offset = (12 + 34 * p) * wave * (1 + beatPulse * 0.3 + sideSurge * 0.4);
                 const rx = xRail + nX * offset;
@@ -13551,7 +13684,7 @@ class BeatstarEngine {
               const p = Math.pow(((k / numNodes) + (timeSec * 0.18) % (1 / numNodes)), 1.25);
               if (p > 1.0) continue;
               const yPos = horizonY + (bottomY - horizonY) * p;
-              const xRail = getBoundaryX(isLeft ? 0 : 3, yPos);
+              const xRail = getBoundaryX(isLeft ? 0 : nLanes, yPos);
               const distOut = (16 + 32 * p) * (0.65 + 0.35 * Math.sin(k * 2.7 + timeSec * 5)) * (1 + sideSurge * 0.35);
               const nx = xRail + nX * distOut;
               const ny = yPos + nY * distOut;
@@ -13608,7 +13741,7 @@ class BeatstarEngine {
           const railWAtY = railTopW + (railBotW - railTopW) * p;
           const railGap = 4.5 + 3.5 * p;
           const xStartL = getBoundaryX(0, yPos) - railWAtY - railGap;
-          const xStartR = getBoundaryX(3, yPos) + railWAtY + railGap;
+          const xStartR = getBoundaryX(nLanes, yPos) + railWAtY + railGap;
 
           const maxWingReach = Math.max(12, Math.min(this.width * 0.21, xStartL - 6));
 
@@ -13736,8 +13869,8 @@ class BeatstarEngine {
         ctx.beginPath();
         ctx.moveTo(getBoundaryX(0, pulseY0), pulseY0);
         ctx.lineTo(getBoundaryX(0, pulseY1), pulseY1);
-        ctx.moveTo(getBoundaryX(3, pulseY0), pulseY0);
-        ctx.lineTo(getBoundaryX(3, pulseY1), pulseY1);
+        ctx.moveTo(getBoundaryX(nLanes, pulseY0), pulseY0);
+        ctx.lineTo(getBoundaryX(nLanes, pulseY1), pulseY1);
         ctx.stroke();
 
         ctx.restore();
@@ -13747,7 +13880,7 @@ class BeatstarEngine {
       // ==========================================
       // 2D NEÓN CLÁSICO (Modo Plano)
       // ==========================================
-      const laneW = this.width / 3;
+      const laneW = this.width / nLanes;
 
       ctx.fillStyle = this._trackGrad || '#ffffff';
       ctx.fillRect(0, 0, this.width, this.height);
@@ -13756,7 +13889,7 @@ class BeatstarEngine {
         ctx.fillRect(0, 0, this.width, this.height);
       }
 
-      for (let l = 1; l <= 2; l++) {
+      for (let l = 1; l < nLanes; l++) {
         const lx = l * laneW;
         ctx.save();
         ctx.strokeStyle = 'rgba(30, 41, 59, 0.28)';
@@ -13768,7 +13901,7 @@ class BeatstarEngine {
         ctx.restore();
       }
 
-      for (let l = 0; l < 3; l++) {
+      for (let l = 0; l < nLanes; l++) {
         const isHolding = this.activeHolds.has(l);
         const flashTimer = (Array.isArray(this.laneFlashTimers) && this.laneFlashTimers[l]) || 0;
         const glow = this.laneGlows[l] || 0;
@@ -14293,10 +14426,11 @@ class BeatstarEngine {
         }
 
         // 1. FALDÓN ESCÉNICO INFERIOR EN PERSPECTIVA CÓNICA CON REJILLA ACÚSTICA 3D
+        const nLanes = this.numLanes || 3;
         const apL_top = this.getLaneBoundaryX(0, yDeckBot);
-        const apR_top = this.getLaneBoundaryX(3, yDeckBot);
+        const apR_top = this.getLaneBoundaryX(nLanes, yDeckBot);
         const apL_bot = this.getLaneBoundaryX(0, bottomY);
-        const apR_bot = this.getLaneBoundaryX(3, bottomY);
+        const apR_bot = this.getLaneBoundaryX(nLanes, bottomY);
         ctx.fillStyle = s.apronGrad;
         ctx.beginPath();
         ctx.moveTo(apL_top - 14, yDeckBot);
@@ -14310,7 +14444,7 @@ class BeatstarEngine {
         ctx.strokeStyle = `rgba(${laserRgb.r}, ${laserRgb.g}, ${laserRgb.b}, 0.22)`;
         ctx.lineWidth = 1.4;
         ctx.beginPath();
-        for (let l = 1; l <= 2; l++) {
+        for (let l = 1; l < nLanes; l++) {
           ctx.moveTo(this.getLaneBoundaryX(l, yDeckBot), yDeckBot);
           ctx.lineTo(this.getLaneBoundaryX(l, bottomY), bottomY);
         }
@@ -14318,7 +14452,7 @@ class BeatstarEngine {
           const ry = yDeckBot + (bottomY - yDeckBot) * (r * 0.26);
           if (ry < bottomY) {
             ctx.moveTo(this.getLaneBoundaryX(0, ry) - 8, ry);
-            ctx.lineTo(this.getLaneBoundaryX(3, ry) + 8, ry);
+            ctx.lineTo(this.getLaneBoundaryX(nLanes, ry) + 8, ry);
           }
         }
         ctx.stroke();
@@ -14327,15 +14461,15 @@ class BeatstarEngine {
         const chMarginTop = 12;
         const chMarginBot = 16;
         const chL_top = this.getLaneBoundaryX(0, yDeckTop) - chMarginTop;
-        const chR_top = this.getLaneBoundaryX(3, yDeckTop) + chMarginTop;
+        const chR_top = this.getLaneBoundaryX(nLanes, yDeckTop) + chMarginTop;
         const chL_bot = this.getLaneBoundaryX(0, yDeckBot) - chMarginBot;
-        const chR_bot = this.getLaneBoundaryX(3, yDeckBot) + chMarginBot;
+        const chR_bot = this.getLaneBoundaryX(nLanes, yDeckBot) + chMarginBot;
 
         // A. Pared frontal extruida del puente (3D Front Lip)
         const lipH = isLarge ? 10 : 7;
         const yLipBot = yDeckBot + lipH;
         const chL_lip = this.getLaneBoundaryX(0, yLipBot) - (chMarginBot + 2);
-        const chR_lip = this.getLaneBoundaryX(3, yLipBot) + (chMarginBot + 2);
+        const chR_lip = this.getLaneBoundaryX(nLanes, yLipBot) + (chMarginBot + 2);
         ctx.fillStyle = s.deckLipGrad;
         this._traceQuadOn(ctx, chL_bot, chR_bot, chL_lip, chR_lip, yDeckBot - 2, yLipBot, 10);
         ctx.fill();
@@ -14372,7 +14506,7 @@ class BeatstarEngine {
         const maxSink = isLarge ? 7.0 : 4.5;
         const cornerRad = isLarge ? 10 : 6;
 
-        for (let l = 0; l < 3; l++) {
+        for (let l = 0; l < nLanes; l++) {
           const elapsedPress = nowPerf - (this.lanePressAnim ? (this.lanePressAnim[l] || 0) : 0);
           const isTapping = elapsedPress >= 0 && elapsedPress < 260;
           let tapWave = 0;
@@ -14496,15 +14630,15 @@ class BeatstarEngine {
           ctx.stroke();
         }
 
-        // 4. BANDA HOLOGRÁFICA CONTINUA PERFECT+ EN PERSPECTIVA CÓNICA (Atraviesa los 3 carriles)
+        // 4. BANDA HOLOGRÁFICA CONTINUA PERFECT+ EN PERSPECTIVA CÓNICA (Atraviesa todos los carriles)
         const bandHalfH = isLarge ? 12.5 : 8.5;
         const yBandTop = hitY - bandHalfH;
         const yBandBot = hitY + bandHalfH;
         const bandOuterMargin = 4;
         const bandL_top = this.getLaneBoundaryX(0, yBandTop) - bandOuterMargin;
-        const bandR_top = this.getLaneBoundaryX(3, yBandTop) + bandOuterMargin;
+        const bandR_top = this.getLaneBoundaryX(nLanes, yBandTop) + bandOuterMargin;
         const bandL_bot = this.getLaneBoundaryX(0, yBandBot) - bandOuterMargin;
-        const bandR_bot = this.getLaneBoundaryX(3, yBandBot) + bandOuterMargin;
+        const bandR_bot = this.getLaneBoundaryX(nLanes, yBandBot) + bandOuterMargin;
 
         ctx.save();
         // Lente acrílica translúcida continua de la ventana Perfect+
@@ -14534,9 +14668,9 @@ class BeatstarEngine {
             const rTop = row === 0 ? yBandTop + 1 : midBandY;
             const rBot = row === 0 ? midBandY : yBandBot - 1;
             const xL0 = this.getLaneBoundaryX(0, rTop);
-            const xR0 = this.getLaneBoundaryX(3, rTop);
+            const xR0 = this.getLaneBoundaryX(nLanes, rTop);
             const xL1 = this.getLaneBoundaryX(0, rBot);
-            const xR1 = this.getLaneBoundaryX(3, rBot);
+            const xR1 = this.getLaneBoundaryX(nLanes, rBot);
             for (let col = 0; col < checkCols; col++) {
               const f0 = col / checkCols;
               const f1 = (col + 1) / checkCols;
@@ -14570,7 +14704,7 @@ class BeatstarEngine {
         ctx.restore();
 
         // 5. NÚCLEOS DE PRECISIÓN PERFECT+, CORCHETES Y ANIMACIONES ESPECTACULARES POR CARRIL
-        for (let l = 0; l < 3; l++) {
+        for (let l = 0; l < nLanes; l++) {
           const elapsedPress = nowPerf - (this.lanePressAnim ? (this.lanePressAnim[l] || 0) : 0);
           const isTapping = elapsedPress >= 0 && elapsedPress < 260;
           const shockProgress = isTapping ? (elapsedPress / 260) : 0;
@@ -14835,9 +14969,9 @@ class BeatstarEngine {
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
         const lineL = this.getLaneBoundaryX(0, hitY) - 12;
-        const lineR = this.getLaneBoundaryX(3, hitY) + 12;
+        const lineR = this.getLaneBoundaryX(nLanes, hitY) + 12;
 
-        // Haz láser continuo que une los 3 carriles y los emisores exteriores
+        // Haz láser continuo que une los carriles y los emisores exteriores
         ctx.strokeStyle = `rgba(${laserRgb.r}, ${laserRgb.g}, ${laserRgb.b}, ${(0.48 + beatPulse * 0.32).toFixed(3)})`;
         ctx.lineWidth = 2.6;
         ctx.beginPath();
@@ -14845,8 +14979,8 @@ class BeatstarEngine {
         ctx.lineTo(lineR, hitY);
         ctx.stroke();
 
-        // Nodos divisores luminosos sobre las separaciones de carril (l = 1, 2)
-        for (let div = 1; div <= 2; div++) {
+        // Nodos divisores luminosos sobre las separaciones de carril
+        for (let div = 1; div < nLanes; div++) {
           const divX = this.getLaneBoundaryX(div, hitY);
           ctx.fillStyle = '#ffffff';
           ctx.beginPath();
@@ -15052,7 +15186,8 @@ class BeatstarEngine {
         if (note.missed && !note.holding) continue;
         if (note.processed && !note.holding) continue;
 
-        const lane = Math.max(0, Math.min(2, Math.round(note.lane ?? 0)));
+        const maxLaneIdx = (this.numLanes || 3) - 1;
+        const lane = Math.max(0, Math.min(maxLaneIdx, Math.round(note.lane ?? 0)));
         const noteT = note.timestamp_ms ?? note.timeMs ?? 0;
         const isBeingHeld = Boolean(note.holding && !note.holdCompleted);
         const timeUntilHit = noteT - currentTime;
@@ -15161,9 +15296,10 @@ class BeatstarEngine {
           const LANE_HOLD_THEMES = [
             { body: '#0066ff', mid: '#00c8ff', rail: '#0044cc', rim: '#04081c' }, // Carril 0: Azul/Cian Eléctrico Saturado
             { body: '#d9006c', mid: '#ff1a8c', rail: '#99004d', rim: '#1c0412' }, // Carril 1: Magenta/Rubí Neón Saturado
-            { body: '#7c00ff', mid: '#b833ff', rail: '#4d0099', rim: '#110420' }  // Carril 2: Violeta/Amatista Eléctrico Saturado
+            { body: '#7c00ff', mid: '#b833ff', rail: '#4d0099', rim: '#110420' }, // Carril 2: Violeta/Amatista Eléctrico Saturado
+            { body: '#00b862', mid: '#00f5a0', rail: '#007a40', rim: '#041c10' }  // Carril 3: Esmeralda/Lima Eléctrico Saturado
           ];
-          const hTheme = LANE_HOLD_THEMES[lane % 3];
+          const hTheme = LANE_HOLD_THEMES[lane % LANE_HOLD_THEMES.length];
           const holdCol = isBeingHeld ? '#00d67f' : hTheme.body;
           const holdMid = isBeingHeld ? '#00ff9d' : hTheme.mid;
           const holdGlow = isBeingHeld ? '#00a862' : hTheme.rail;
