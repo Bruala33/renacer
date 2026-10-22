@@ -2295,6 +2295,16 @@
         "accuracy": 2.7480014590294526,
         "date": "2026-10-22 02:59:08"
       }
+    ],
+    "top_michael_jackson_thriller": [
+      {
+        "name": "Mauricio",
+        "score": 755762,
+        "stars": 2,
+        "combo": 234,
+        "accuracy": 41.98934379323181,
+        "date": "2026-10-22 09:39:15"
+      }
     ]
   },
   "global": [
@@ -2305,8 +2315,8 @@
     },
     {
       "name": "Mauricio",
-      "total_score": 26207658,
-      "clefs": 240
+      "total_score": 26963420,
+      "clefs": 247
     },
     {
       "name": "Jocomomolo",
@@ -2439,7 +2449,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 26207658
+        "score": 26963420
       },
       {
         "name": "Dady cool",
