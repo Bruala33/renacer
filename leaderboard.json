@@ -2349,19 +2349,19 @@
     "top_alaska_abracadabra": [
       {
         "name": "Mauricio",
-        "score": 1050,
-        "stars": 3.5,
-        "combo": 5,
-        "accuracy": 0.05719265755215426,
-        "date": "2026-10-22 11:35:56"
+        "score": 476250,
+        "stars": 1,
+        "combo": 230,
+        "accuracy": 25.94095538972711,
+        "date": "2026-10-22 11:37:38"
       }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 34099179,
-      "clefs": 315
+      "total_score": 34575429,
+      "clefs": 319
     },
     {
       "name": "Rocky",
@@ -2499,7 +2499,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 34099179
+        "score": 34575429
       },
       {
         "name": "Dady cool",
