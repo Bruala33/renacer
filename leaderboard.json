@@ -2419,12 +2419,22 @@
         "accuracy": 59.309416330086314,
         "date": "2026-10-22 13:36:51"
       }
+    ],
+    "top_merche_eras_tu": [
+      {
+        "name": "Mauricio",
+        "score": 13950,
+        "stars": 3.5,
+        "combo": 20,
+        "accuracy": 0.9345187094665071,
+        "date": "2026-10-22 14:16:43"
+      }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 42465015,
+      "total_score": 42478965,
       "clefs": 393
     },
     {
@@ -2563,7 +2573,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 42465015
+        "score": 42478965
       },
       {
         "name": "Dady cool",
