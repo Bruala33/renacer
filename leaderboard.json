@@ -2394,10 +2394,10 @@
       {
         "name": "Mauricio",
         "score": 1564326,
-        "stars": 5,
-        "combo": 722,
-        "accuracy": 99.20324182409679,
-        "date": "2026-10-22 13:33:11"
+        "stars": 3.5,
+        "combo": 17,
+        "accuracy": 0.5136693111123795,
+        "date": "2026-10-22 14:16:43"
       }
     ],
     "top_seguridad_social_quiero_tener_tu_presencia": [
@@ -2424,8 +2424,8 @@
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 40900689,
-      "clefs": 378
+      "total_score": 42465015,
+      "clefs": 393
     },
     {
       "name": "Rocky",
@@ -2563,7 +2563,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 40900689
+        "score": 42465015
       },
       {
         "name": "Dady cool",
