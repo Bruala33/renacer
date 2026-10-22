@@ -2329,19 +2329,19 @@
     "clonehero_340124": [
       {
         "name": "Mauricio",
-        "score": 514693,
-        "stars": 2,
-        "combo": 258,
-        "accuracy": 40.98079760370146,
-        "date": "2026-10-22 10:07:12"
+        "score": 1082970,
+        "stars": 4,
+        "combo": 302,
+        "accuracy": 86.22805124779347,
+        "date": "2026-10-22 10:09:48"
       }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 31932189,
-      "clefs": 295
+      "total_score": 33015159,
+      "clefs": 305
     },
     {
       "name": "Rocky",
@@ -2479,7 +2479,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 31932189
+        "score": 33015159
       },
       {
         "name": "Dady cool",
