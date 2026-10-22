@@ -2270,10 +2270,10 @@
       {
         "name": "fer",
         "score": 619507,
-        "stars": 3,
-        "combo": 278,
-        "accuracy": 68.22463768115942,
-        "date": "2026-10-22 02:53:26"
+        "stars": 3.5,
+        "combo": 126,
+        "accuracy": 19.5255715607242,
+        "date": "2026-10-22 02:55:59"
       }
     ]
   },
@@ -2320,8 +2320,8 @@
     },
     {
       "name": "fer",
-      "total_score": 1616405,
-      "clefs": 15
+      "total_score": 2235912,
+      "clefs": 21
     },
     {
       "name": "MasterPianist",
@@ -2431,7 +2431,7 @@
       },
       {
         "name": "fer",
-        "score": 1616405
+        "score": 2235912
       },
       {
         "name": "Darwin67",
