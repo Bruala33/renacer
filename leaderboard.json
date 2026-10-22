@@ -2469,12 +2469,22 @@
         "accuracy": 3.2030149332886926,
         "date": "2026-10-22 16:16:19"
       }
+    ],
+    "top_31_minutos_el_dinosaurio_anacleto": [
+      {
+        "name": "Mauricio",
+        "score": 29121,
+        "stars": 3.5,
+        "combo": 33,
+        "accuracy": 3.430120179651087,
+        "date": "2026-10-22 16:39:59"
+      }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 42815790,
+      "total_score": 42844911,
       "clefs": 396
     },
     {
@@ -2613,7 +2623,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 42815790
+        "score": 42844911
       },
       {
         "name": "Dady cool",
