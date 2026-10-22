@@ -2335,6 +2335,16 @@
         "accuracy": 86.22805124779347,
         "date": "2026-10-22 10:10:08"
       }
+    ],
+    "top_soraya_mi_mundo_sin_ti": [
+      {
+        "name": "Test",
+        "score": 189049,
+        "stars": 3.5,
+        "combo": 141,
+        "accuracy": 13.285419833434178,
+        "date": "2026-10-22 10:25:48"
+      }
     ]
   },
   "global": [
@@ -2365,8 +2375,8 @@
     },
     {
       "name": "Test",
-      "total_score": 7957981,
-      "clefs": 67
+      "total_score": 8147030,
+      "clefs": 68
     },
     {
       "name": "Azure",
@@ -2487,7 +2497,7 @@
       },
       {
         "name": "Test",
-        "score": 7428340
+        "score": 7617389
       },
       {
         "name": "fer",
