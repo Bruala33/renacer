@@ -2737,12 +2737,22 @@
         "accuracy": 81.90430596838256,
         "date": "2026-10-22 19:50:20"
       }
+    ],
+    "top_francisca_valenzuela_muleta": [
+      {
+        "name": "Mauricio",
+        "score": 69061,
+        "stars": 3.5,
+        "combo": 62,
+        "accuracy": 4.703979184546433,
+        "date": "2026-10-22 19:51:40"
+      }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 48972180,
+      "total_score": 49041241,
       "clefs": 452
     },
     {
@@ -2886,7 +2896,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 48972180
+        "score": 49041241
       },
       {
         "name": "Dady cool",
