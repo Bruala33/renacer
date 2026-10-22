@@ -2265,6 +2265,16 @@
         "accuracy": 0.2104008135498124,
         "date": "2026-10-22 02:49:26"
       }
+    ],
+    "osu_1216461": [
+      {
+        "name": "fer",
+        "score": 619507,
+        "stars": 3,
+        "combo": 278,
+        "accuracy": 68.22463768115942,
+        "date": "2026-10-22 02:53:26"
+      }
     ]
   },
   "global": [
@@ -2310,8 +2320,8 @@
     },
     {
       "name": "fer",
-      "total_score": 996898,
-      "clefs": 9
+      "total_score": 1616405,
+      "clefs": 15
     },
     {
       "name": "MasterPianist",
@@ -2421,7 +2431,7 @@
       },
       {
         "name": "fer",
-        "score": 996898
+        "score": 1616405
       },
       {
         "name": "Darwin67",
