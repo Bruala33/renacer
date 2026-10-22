@@ -1181,14 +1181,9 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" class="text-amber-300"><circle cx="12" cy="9" r="6"/><path d="M9 15h6l1.5 6h-9L9 15z"/><circle cx="10" cy="8" r="1" fill="currentColor"/><circle cx="14" cy="10" r="1" fill="currentColor"/><path d="M12 18h.01"/></svg>
           </button>
 
-          <!-- Las Vegas Casino Daily Streak Roulette Button -->
-          <button id="btnOpenDailyRoulette" onclick="openDailyRouletteModal()" class="relative h-8 px-2 rounded-xl bg-gradient-to-b from-amber-500/30 to-red-950/60 border border-amber-400/60 hover:border-amber-300 active:scale-95 text-amber-200 flex items-center gap-1 transition cursor-pointer flex-shrink-0 shadow-[0_0_12px_rgba(245,158,11,0.3)]" title="Ruleta Diaria Las Vegas">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" class="text-amber-300 flex-shrink-0">
-              <circle cx="12" cy="12" r="9.5" stroke="currentColor" stroke-width="2"/>
-              <circle cx="12" cy="12" r="3" fill="currentColor"/>
-              <path d="M12 2.5v6.5M12 15v6.5M2.5 12h6.5M15 12h6.5M5.3 5.3l4.6 4.6M14.1 14.1l4.6 4.6M18.7 5.3l-4.6 4.6M9.9 14.1l-4.6 4.6" stroke="currentColor" stroke-width="1.5"/>
-            </svg>
-            <span id="headerStreakCount" class="text-[10px] font-black font-mono text-amber-300 leading-none">🔥1</span>
+          <!-- Las Vegas Casino Daily Streak Roulette Button (Compact Emoji-only Icon Button) -->
+          <button id="btnOpenDailyRoulette" onclick="openDailyRouletteModal()" class="relative w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-400/50 hover:border-amber-300 active:scale-95 flex items-center justify-center transition cursor-pointer flex-shrink-0 shadow-[0_0_10px_rgba(245,158,11,0.25)]" title="Ruleta Diaria Las Vegas">
+            <span class="text-[16px] leading-none select-none">🎰</span>
             <span id="headerRouletteReadyDot" class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-black shadow-[0_0_8px_#34d399] animate-ping"></span>
             <span id="headerRouletteReadyDotSolid" class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-black"></span>
           </button>
@@ -2121,59 +2116,60 @@
 
     <!-- Layer 10B: Ruleta de Casino Las Vegas - Sistema de Rachas Diarias (Ultra-Detallada y Limpia) -->
     <div id="dailyRouletteModal" class="modal-overlay !p-0">
-      <div class="relative w-full h-full overflow-hidden select-none flex flex-col justify-between" style="background: radial-gradient(circle at 50% 48%, #093524 0%, #051c13 52%, #040908 100%);">
+      <div class="relative w-full h-full overflow-hidden select-none flex flex-col justify-between" style="background: radial-gradient(circle at 50% 50%, #0b4a32 0%, #06291b 45%, #16070c 82%, #050204 100%);">
 
         <!-- Full-Screen Interactive 2D/3D Casino Roulette Canvas -->
         <canvas id="casinoRouletteCanvas" class="absolute inset-0 w-full h-full block cursor-pointer"></canvas>
 
-        <!-- Minimal Top Bar: Exit + Streak Chips Strip + Wallet Pill -->
-        <div class="relative z-20 pt-3 px-3 flex flex-col gap-2.5 pointer-events-none">
+        <!-- Minimal Top Bar: Exit + Neon Streak Badge + Wallet Pill + 3D Casino Chips Strip -->
+        <div class="relative z-20 pt-3.5 px-3.5 flex flex-col gap-2 pointer-events-none">
           <div class="flex items-center justify-between gap-2">
-            <button onclick="closeDailyRouletteModal()" class="pointer-events-auto w-9 h-9 rounded-full bg-black/75 hover:bg-black/95 backdrop-blur-md border border-amber-400/40 text-amber-200 font-black text-sm flex items-center justify-center shadow-xl transition active:scale-90 cursor-pointer" title="Cerrar">
+            <button onclick="closeDailyRouletteModal()" class="pointer-events-auto w-9 h-9 rounded-full bg-gradient-to-b from-[#2b0912] to-[#0d0306] hover:brightness-125 border-2 border-[#f59e0b]/70 text-[#fde047] font-black text-sm flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.45)] transition active:scale-90 cursor-pointer" title="Cerrar">
               ✕
             </button>
 
-            <!-- Active Streak Flame Pill -->
-            <div class="pointer-events-auto flex items-center gap-2 px-3.5 py-1 rounded-full bg-black/80 backdrop-blur-md border border-amber-400/55 shadow-[0_0_20px_rgba(245,158,11,0.28)]">
-              <span class="text-sm leading-none">🔥</span>
-              <span id="rouletteStreakDayBadge" class="text-[11px] font-black uppercase tracking-widest text-amber-300 font-mono">DÍA 1</span>
-              <span id="rouletteStreakMultBadge" class="px-1.5 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-yellow-500 text-stone-950 font-black text-[10px] font-mono leading-none shadow">x1.0</span>
+            <!-- Active Streak Vegas Neon Marquee Pill -->
+            <div class="pointer-events-auto flex items-center gap-2 px-4 py-1 rounded-full bg-gradient-to-b from-[#29060e]/95 via-[#120307]/95 to-[#080103]/95 border-2 border-[#fbbf24] shadow-[0_0_24px_rgba(251,191,36,0.5),inset_0_0_12px_rgba(220,38,38,0.45)]">
+              <span class="text-sm leading-none drop-shadow-[0_0_6px_rgba(251,146,60,0.9)]">🔥</span>
+              <span id="rouletteStreakDayBadge" class="text-[11px] font-black uppercase tracking-[0.16em] text-[#fef08a] font-mono drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]">DÍA 1</span>
+              <span id="rouletteStreakMultBadge" class="px-2 py-0.5 rounded-full bg-gradient-to-b from-[#fef08a] via-[#f59e0b] to-[#b45309] border border-white/80 text-[#1c0a02] font-black text-[10px] font-mono leading-none shadow-[0_0_10px_rgba(251,191,36,0.8)]">x1.0</span>
             </div>
 
             <!-- Claves Counter Pill -->
-            <div class="pointer-events-auto flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-amber-400/45 shadow-xl text-xs font-mono">
-              <span class="text-amber-400 text-sm leading-none">𝄞</span>
-              <span id="rouletteClefsDisplay" class="text-amber-300 font-black">100</span>
+            <div class="pointer-events-auto flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-gradient-to-b from-[#1f1204]/95 to-[#0a0602]/95 border-2 border-[#fbbf24]/75 shadow-[0_0_16px_rgba(251,191,36,0.35)] text-xs font-mono">
+              <span class="text-[#fde047] text-sm leading-none drop-shadow-[0_0_6px_rgba(253,224,71,0.8)]">𝄞</span>
+              <span id="rouletteClefsDisplay" class="text-[#fef08a] font-black">100</span>
             </div>
           </div>
 
-          <!-- 7-Day Casino Chip Streak Progression Bar (Minimalist Visual Chips) -->
-          <div id="rouletteStreakChipsRow" class="pointer-events-auto mx-auto flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-2xl bg-black/65 backdrop-blur-md border border-amber-500/30 shadow-lg max-w-[356px] w-full">
+          <!-- 7-Day Las Vegas 3D Casino Chips Streak Progression Bar -->
+          <div id="rouletteStreakChipsRow" class="pointer-events-auto mx-auto flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-full bg-black/75 backdrop-blur-md border border-[#fbbf24]/45 shadow-[0_6px_24px_rgba(0,0,0,0.75),inset_0_0_14px_rgba(251,191,36,0.18)] max-w-[358px] w-full">
           </div>
         </div>
 
-        <!-- Bottom Action Area: Spin Button / Cooldown / Win Pill -->
+        <!-- Bottom Action Area: Vegas Neon Spin Button / Cooldown / Jackpot Win Pill -->
         <div class="relative z-20 pb-6 px-4 flex flex-col items-center justify-end pointer-events-none">
           <!-- Floating Prize Celebration Pill (Hidden until ball lands) -->
-          <div id="rouletteWinFloatingPill" class="hidden pointer-events-auto mb-3 px-6 py-3.5 rounded-3xl bg-black/90 border-2 border-amber-400 shadow-[0_0_45px_rgba(251,191,36,0.65)] backdrop-blur-xl flex flex-col items-center gap-2.5 transform transition-all duration-300">
+          <div id="rouletteWinFloatingPill" class="hidden pointer-events-auto mb-2 px-7 py-4 rounded-3xl bg-gradient-to-b from-[#2b0710]/95 via-[#120307]/95 to-[#050102]/95 border-2 border-[#fde047] shadow-[0_0_55px_rgba(251,191,36,0.85),inset_0_0_25px_rgba(245,158,11,0.35)] backdrop-blur-xl flex flex-col items-center gap-3 transform transition-all duration-300">
             <div class="flex items-center gap-2">
-              <span id="rouletteWinAmountText" class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white via-amber-200 to-amber-500 font-mono tracking-tight drop-shadow-[0_2px_10px_rgba(251,191,36,0.8)]">+100 𝄞</span>
+              <span id="rouletteWinAmountText" class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white via-[#fef08a] to-[#f59e0b] font-mono tracking-tight drop-shadow-[0_2px_14px_rgba(251,191,36,0.95)]">+100 𝄞</span>
             </div>
-            <button onclick="claimAndCloseDailyRoulette()" class="px-8 py-2.5 rounded-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:brightness-110 active:scale-95 text-stone-950 font-black text-xs uppercase tracking-widest shadow-[0_0_20px_rgba(251,191,36,0.6)] cursor-pointer transition">
+            <button onclick="claimAndCloseDailyRoulette()" class="px-9 py-2.5 rounded-full bg-gradient-to-b from-[#fef08a] via-[#f59e0b] to-[#b45309] border-2 border-white hover:brightness-110 active:scale-95 text-[#1c0802] font-black text-xs uppercase tracking-[0.2em] shadow-[0_0_25px_rgba(251,191,36,0.85)] cursor-pointer transition">
               RECOGER 𝄞
             </button>
           </div>
 
-          <!-- Primary Spin Button -->
-          <button id="btnSpinDailyRoulette" onclick="triggerDailyRouletteSpin()" class="pointer-events-auto px-10 py-3.5 rounded-full bg-gradient-to-b from-[#ffe57f] via-[#d4af37] to-[#8c6214] border-2 border-[#fff6cc] text-[#1a0f02] font-black text-sm uppercase tracking-[0.18em] shadow-[0_0_30px_rgba(212,175,55,0.65),inset_0_2px_4px_rgba(255,255,255,0.8)] active:scale-95 transition cursor-pointer flex items-center gap-2.5">
-            <span class="text-base leading-none">🎰</span>
-            <span>GIRAR</span>
+          <!-- Primary Las Vegas Marquee Spin Button -->
+          <button id="btnSpinDailyRoulette" onclick="triggerDailyRouletteSpin()" class="pointer-events-auto relative px-11 py-3.5 rounded-full bg-gradient-to-b from-[#dc2626] via-[#991b1b] to-[#450a0a] border-[3px] border-[#fde047] text-[#fef08a] font-black text-sm uppercase tracking-[0.22em] shadow-[0_0_35px_rgba(251,191,36,0.75),0_0_18px_rgba(220,38,38,0.85),inset_0_2px_6px_rgba(255,255,255,0.65)] hover:brightness-110 active:scale-95 transition cursor-pointer flex items-center gap-3">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#fef08a] shadow-[0_0_10px_#fef08a] animate-ping"></span>
+            <span class="drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">GIRAR RULETA</span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#fef08a] shadow-[0_0_10px_#fef08a] animate-ping"></span>
           </button>
 
           <!-- Cooldown Pill when already spun today -->
-          <div id="rouletteCooldownPill" class="hidden pointer-events-auto px-5 py-2.5 rounded-full bg-black/80 border border-amber-500/40 backdrop-blur-md flex items-center gap-2 shadow-xl">
-            <span class="text-amber-400 text-xs">⏱</span>
-            <span id="rouletteCooldownTimer" class="font-mono font-black text-xs text-amber-200 tracking-wider">23:59:59</span>
+          <div id="rouletteCooldownPill" class="hidden pointer-events-auto px-6 py-2.5 rounded-full bg-gradient-to-b from-[#1a0a0e]/90 to-[#080305]/95 border-2 border-[#fbbf24]/55 backdrop-blur-md flex items-center gap-2.5 shadow-[0_0_24px_rgba(0,0,0,0.85)]">
+            <span class="text-[#fde047] text-xs animate-pulse">⏱</span>
+            <span id="rouletteCooldownTimer" class="font-mono font-black text-xs text-[#fef08a] tracking-[0.18em]">23:59:59</span>
           </div>
         </div>
 
@@ -16247,20 +16243,26 @@ function stopPianoCameraLoop() {
     const VEGAS_STREAK_STORAGE_KEY = 'vegas_daily_streak_count_v1';
     const VEGAS_LAST_SPIN_DATE_KEY = 'vegas_daily_last_spin_date_v1';
 
-    // Base prizes (Day 1) around the 12 roulette pockets (alternating red/black/emerald + 24K Gold Jackpot)
+    // Base prizes (Day 1) around the 18 Las Vegas casino roulette pockets
     const ROULETTE_BASE_POCKETS = [
-      { baseClefs: 200, color: 'gold',    weight: 5  }, // 0: 24K GOLD JACKPOT
-      { baseClefs: 45,  color: 'red',     weight: 12 },
-      { baseClefs: 70,  color: 'black',   weight: 10 },
-      { baseClefs: 55,  color: 'red',     weight: 11 },
-      { baseClefs: 95,  color: 'black',   weight: 8  },
-      { baseClefs: 50,  color: 'red',     weight: 12 },
-      { baseClefs: 125, color: 'emerald', weight: 6  }, // 6: EMERALD BONUS
-      { baseClefs: 60,  color: 'black',   weight: 10 },
-      { baseClefs: 85,  color: 'red',     weight: 9  },
-      { baseClefs: 50,  color: 'black',   weight: 11 },
-      { baseClefs: 110, color: 'red',     weight: 7  },
-      { baseClefs: 65,  color: 'black',   weight: 9  }
+      { num: '777', baseClefs: 250, color: 'gold',    weight: 4  }, // 0: 24K GOLD JACKPOT
+      { num: '32',  baseClefs: 45,  color: 'red',     weight: 11 },
+      { num: '15',  baseClefs: 70,  color: 'black',   weight: 9  },
+      { num: '19',  baseClefs: 55,  color: 'red',     weight: 10 },
+      { num: '4',   baseClefs: 90,  color: 'black',   weight: 8  },
+      { num: '21',  baseClefs: 50,  color: 'red',     weight: 11 },
+      { num: '2',   baseClefs: 80,  color: 'black',   weight: 8  },
+      { num: '25',  baseClefs: 60,  color: 'red',     weight: 10 },
+      { num: '17',  baseClefs: 110, color: 'black',   weight: 6  },
+      { num: '0',   baseClefs: 150, color: 'emerald', weight: 5  }, // 9: EMERALD ZERO BONUS
+      { num: '34',  baseClefs: 50,  color: 'red',     weight: 11 },
+      { num: '6',   baseClefs: 75,  color: 'black',   weight: 9  },
+      { num: '27',  baseClefs: 60,  color: 'red',     weight: 10 },
+      { num: '13',  baseClefs: 95,  color: 'black',   weight: 7  },
+      { num: '36',  baseClefs: 55,  color: 'red',     weight: 10 },
+      { num: '11',  baseClefs: 85,  color: 'black',   weight: 8  },
+      { num: '30',  baseClefs: 120, color: 'red',     weight: 6  },
+      { num: '8',   baseClefs: 65,  color: 'black',   weight: 9  }
     ];
 
     function getLocalCalendarDateStr(dateObj = new Date()) {
@@ -16306,6 +16308,7 @@ function stopPianoCameraLoop() {
       const mult = getStreakMultiplier(effectiveStreak);
       const pockets = ROULETTE_BASE_POCKETS.map((p, idx) => ({
         index: idx,
+        num: p.num,
         color: p.color,
         weight: p.weight,
         clefs: Math.max(10, Math.round((p.baseClefs * mult) / 5) * 5)
@@ -16357,21 +16360,21 @@ function stopPianoCameraLoop() {
           const isPast = (dNum < curDay) || (!st.canSpinToday && isCurrent);
           if (isCurrent) {
             html += `
-              <div class="flex-1 py-1 px-1 rounded-xl bg-gradient-to-b from-amber-300 via-amber-500 to-amber-700 border-2 border-white shadow-[0_0_14px_rgba(251,191,36,0.85)] flex flex-col items-center justify-center scale-105 transition">
-                <span class="text-[8.5px] font-black text-stone-950 font-mono leading-none">D${dNum}</span>
-                <span class="text-[9.5px] font-black text-stone-950 font-mono leading-tight">${mLabel}</span>
+              <div class="w-10 h-10 rounded-full bg-gradient-to-b from-[#fef08a] via-[#f59e0b] to-[#92400e] border-[2.5px] border-dashed border-white shadow-[0_0_16px_rgba(251,191,36,0.95)] flex flex-col items-center justify-center scale-110 transition flex-shrink-0">
+                <span class="text-[8px] font-black text-[#1c0a02] font-mono leading-none">D${dNum}</span>
+                <span class="text-[9px] font-black text-[#1c0a02] font-mono leading-tight">${mLabel}</span>
               </div>`;
           } else if (isPast) {
             html += `
-              <div class="flex-1 py-1 px-1 rounded-xl bg-emerald-950/90 border border-emerald-400/60 flex flex-col items-center justify-center opacity-90">
-                <span class="text-[8px] font-bold text-emerald-300 font-mono leading-none">D${dNum}</span>
-                <span class="text-[9px] font-black text-emerald-400 leading-tight">✓</span>
+              <div class="w-9 h-9 rounded-full bg-gradient-to-b from-[#065f46] to-[#022c22] border-2 border-dashed border-[#34d399]/80 shadow-[0_0_8px_rgba(16,185,129,0.35)] flex flex-col items-center justify-center flex-shrink-0">
+                <span class="text-[7.5px] font-bold text-emerald-200 font-mono leading-none">D${dNum}</span>
+                <span class="text-[9px] font-black text-emerald-300 leading-tight">✓</span>
               </div>`;
           } else {
             html += `
-              <div class="flex-1 py-1 px-1 rounded-xl bg-white/5 border border-white/15 flex flex-col items-center justify-center opacity-65">
-                <span class="text-[8px] font-bold text-amber-200/70 font-mono leading-none">D${dNum}</span>
-                <span class="text-[8.5px] font-bold text-amber-400/80 font-mono leading-tight">${mLabel}</span>
+              <div class="w-9 h-9 rounded-full bg-gradient-to-b from-[#290910] to-[#110306] border-2 border-dashed border-[#fbbf24]/35 flex flex-col items-center justify-center opacity-75 flex-shrink-0">
+                <span class="text-[7.5px] font-bold text-amber-200/75 font-mono leading-none">D${dNum}</span>
+                <span class="text-[8px] font-bold text-[#fde047]/90 font-mono leading-tight">${mLabel}</span>
               </div>`;
           }
         }
@@ -16402,14 +16405,17 @@ function stopPianoCameraLoop() {
         this.dpr = 1;
 
         this.wheelAngle = 0;
-        this.wheelSpeed = 0.24; // rad/s idle rotation
+        this.wheelSpeed = 0.22; // rad/s idle rotation
         this.state = 'IDLE'; // IDLE | SPINNING | CELEBRATING
         this.spinElapsed = 0;
-        this.spinDuration = 5.8;
+        this.spinDuration = 6.0;
 
         this.ballAngle = 0;
-        this.ballRadiusFrac = 0.78; // 0.78 = outer track, 0.50 = pocket rest
+        this.ballRadiusFrac = 0.505; // 0.81 = outer track, 0.505 = pocket rest
         this.ballBounceOffset = 0;
+        this.ballSpeedEstimate = 0;
+        this.ballTrail = [];
+
         this.winningPocketIdx = 0;
         this.pendingRewardClefs = 0;
         this.winGlowAlpha = 0;
@@ -16417,12 +16423,12 @@ function stopPianoCameraLoop() {
         this.sparks = [];
         this.confetti = [];
         this.ambientDust = [];
-        for (let i = 0; i < 28; i++) {
+        for (let i = 0; i < 34; i++) {
           this.ambientDust.push({
             x: Math.random(),
             y: Math.random(),
-            r: 1.0 + Math.random() * 2.2,
-            vy: -0.015 - Math.random() * 0.025,
+            r: 0.9 + Math.random() * 2.4,
+            vy: -0.012 - Math.random() * 0.025,
             phase: Math.random() * Math.PI * 2
           });
         }
@@ -16480,20 +16486,20 @@ function stopPianoCameraLoop() {
           this._ensureAudio();
           if (!this.audioCtx) return;
           const notes = isJackpot
-            ? [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98]
-            : [523.25, 659.25, 783.99, 1046.50];
+            ? [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98, 2093.00]
+            : [523.25, 659.25, 783.99, 1046.50, 1318.51];
           notes.forEach((n, idx) => {
-            const now = this.audioCtx.currentTime + idx * 0.085;
+            const now = this.audioCtx.currentTime + idx * 0.08;
             const osc = this.audioCtx.createOscillator();
             const gain = this.audioCtx.createGain();
             osc.type = 'sine';
             osc.frequency.setValueAtTime(n, now);
             gain.gain.setValueAtTime(0.12, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.48);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.52);
             osc.connect(gain);
             gain.connect(this.audioCtx.destination);
             osc.start(now);
-            osc.stop(now + 0.5);
+            osc.stop(now + 0.55);
           });
         } catch (_) {}
       }
@@ -16542,67 +16548,70 @@ function stopPianoCameraLoop() {
         this.pendingRewardClefs = clefsPrize;
         this.onSpinComplete = onComplete;
         this.spinElapsed = 0;
-        this.spinDuration = 5.6;
+        this.spinDuration = 6.0;
         this.winGlowAlpha = 0;
         this.lastTickPocket = -1;
         this.lastDeflectorHit = -1;
+        this.ballTrail = [];
 
-        const numPockets = 12;
+        const numPockets = ROULETTE_BASE_POCKETS.length;
         const sliceAngle = (Math.PI * 2) / numPockets;
         const targetPocketLocalAngle = (winIdx + 0.5) * sliceAngle;
 
         this.startWheelAngle = this.wheelAngle % (Math.PI * 2);
         const extraWheelTurns = (4 + Math.floor(Math.random() * 2)) * Math.PI * 2;
-        // Landing position: winning pocket sits near top (-Math.PI / 2)
-        const desiredFinalWheelAngle = -Math.PI / 2 - targetPocketLocalAngle + extraWheelTurns + (Math.random() - 0.5) * 0.18;
+        // Landing position: winning pocket aligns near the top 12-o'clock Las Vegas Crown (-Math.PI / 2)
+        const desiredFinalWheelAngle = -Math.PI / 2 - targetPocketLocalAngle + extraWheelTurns + (Math.random() - 0.5) * 0.08;
         this.totalWheelDelta = desiredFinalWheelAngle - this.startWheelAngle;
         if (this.totalWheelDelta < Math.PI * 6) this.totalWheelDelta += Math.PI * 8;
 
         this.finalBallWorldAngle = this.startWheelAngle + this.totalWheelDelta + targetPocketLocalAngle;
-        // Ball spins counter-clockwise (negative delta) for 7 full turns before locking into pocket
-        this.startBallAngle = this.finalBallWorldAngle + Math.PI * 2 * 7.0;
+        // Ball orbits counter-clockwise for 7.5 turns before dropping into the winning pocket
+        this.startBallAngle = this.finalBallWorldAngle + Math.PI * 2 * 7.5;
       }
 
-      emitSparkBurst(x, y, color = '#fde047', count = 10) {
+      emitSparkBurst(x, y, color = '#fde047', count = 12) {
         for (let i = 0; i < count; i++) {
           const ang = Math.random() * Math.PI * 2;
-          const spd = 45 + Math.random() * 130;
+          const spd = 50 + Math.random() * 145;
           this.sparks.push({
             x,
             y,
             vx: Math.cos(ang) * spd,
             vy: Math.sin(ang) * spd,
-            r: 1.6 + Math.random() * 2.4,
+            r: 1.5 + Math.random() * 2.5,
             age: 0,
-            dur: 0.35 + Math.random() * 0.30,
+            dur: 0.35 + Math.random() * 0.32,
             color
           });
         }
       }
 
       emitWinCelebration(cx, cy, wheelR) {
-        const colors = ['#ffd700', '#fde047', '#34d399', '#ff1a75', '#ffffff', '#f59e0b'];
-        for (let i = 0; i < 65; i++) {
+        const colors = ['#ffd700', '#fde047', '#34d399', '#ef4444', '#ffffff', '#f59e0b', '#fb7185'];
+        for (let i = 0; i < 80; i++) {
           const ang = Math.random() * Math.PI * 2;
-          const spd = 80 + Math.random() * 260;
+          const spd = 85 + Math.random() * 280;
           this.confetti.push({
-            x: cx + Math.cos(ang) * (wheelR * 0.25),
-            y: cy + Math.sin(ang) * (wheelR * 0.25),
+            x: cx + Math.cos(ang) * (wheelR * 0.22),
+            y: cy + Math.sin(ang) * (wheelR * 0.22),
             vx: Math.cos(ang) * spd,
-            vy: Math.sin(ang) * spd - 90,
+            vy: Math.sin(ang) * spd - 105,
             rot: Math.random() * Math.PI * 2,
-            vRot: (Math.random() - 0.5) * 10,
+            vRot: (Math.random() - 0.5) * 11,
             w: 6 + Math.random() * 6,
             h: 4 + Math.random() * 4,
             age: 0,
-            dur: 1.5 + Math.random() * 1.1,
+            dur: 1.6 + Math.random() * 1.2,
             color: colors[i % colors.length]
           });
         }
       }
 
       update(dt, now) {
-        // Ambient dust
+        const numPockets = ROULETTE_BASE_POCKETS.length;
+        const sliceAngle = (Math.PI * 2) / numPockets;
+
         for (let i = 0; i < this.ambientDust.length; i++) {
           const d = this.ambientDust[i];
           d.y += d.vy * dt;
@@ -16612,98 +16621,104 @@ function stopPianoCameraLoop() {
           }
         }
 
+        const prevBallAngle = this.ballAngle;
+
         if (this.state === 'IDLE') {
           this.wheelAngle = (this.wheelAngle + this.wheelSpeed * dt) % (Math.PI * 2);
-          const sliceAngle = (Math.PI * 2) / 12;
           this.ballAngle = this.wheelAngle + (this.winningPocketIdx + 0.5) * sliceAngle;
-          this.ballRadiusFrac = 0.51;
+          this.ballRadiusFrac = 0.495;
           this.ballBounceOffset = 0;
+          this.ballTrail = [];
         } else if (this.state === 'SPINNING') {
           this.spinElapsed += dt;
           const t = Math.min(1.0, this.spinElapsed / this.spinDuration);
 
-          // Smooth quintic ease-out for wheel rotation
-          const wheelEase = 1 - Math.pow(1 - t, 3.2);
+          const wheelEase = 1 - Math.pow(1 - t, 3.25);
           this.wheelAngle = this.startWheelAngle + this.totalWheelDelta * wheelEase;
 
-          // Ball trajectory:
-          // t in [0..0.52]: fast outer track orbit
-          // t in [0.52..0.76]: spirals down sloped track & hits diamond deflectors
-          // t in [0.76..0.96]: bounces across pocket frets and settles into winning pocket
-          const ballEase = 1 - Math.pow(1 - t, 3.85);
+          const ballEase = 1 - Math.pow(1 - t, 3.9);
           let curBallAngle = this.startBallAngle + (this.finalBallWorldAngle - this.startBallAngle) * ballEase;
 
           if (t < 0.52) {
-            this.ballRadiusFrac = 0.805;
+            this.ballRadiusFrac = 0.815;
             this.ballBounceOffset = 0;
-            // Subtle rolling ticks
-            const step = Math.floor(Math.abs(curBallAngle) / (Math.PI / 4));
+            const step = Math.floor(Math.abs(curBallAngle) / (Math.PI / 5));
             if (step !== this.lastDeflectorHit) {
               this.lastDeflectorHit = step;
-              this.playTickSound(920 + (step % 3) * 60, 0.04, 0.018);
+              this.playTickSound(960 + (step % 3) * 65, 0.04, 0.018);
             }
-          } else if (t < 0.76) {
-            const u = (t - 0.52) / 0.24; // 0 -> 1
+          } else if (t < 0.77) {
+            const u = (t - 0.52) / 0.25;
             const dropEase = u * u * (3 - 2 * u);
-            this.ballRadiusFrac = 0.805 - (0.805 - 0.55) * dropEase;
-            // Deflector impacts around u = 0.25, 0.55, 0.82
-            const defBounce = Math.abs(Math.sin(u * Math.PI * 3.0)) * (1 - u) * 0.045;
+            this.ballRadiusFrac = 0.815 - (0.815 - 0.545) * dropEase;
+            const defBounce = Math.abs(Math.sin(u * Math.PI * 3.0)) * (1 - u) * 0.048;
             this.ballRadiusFrac += defBounce;
-            curBallAngle += Math.sin(u * Math.PI * 6.0) * 0.055 * (1 - u);
+            curBallAngle += Math.sin(u * Math.PI * 6.0) * 0.058 * (1 - u);
 
             const defIdx = Math.floor(u * 4);
             if (defIdx !== this.lastDeflectorHit) {
               this.lastDeflectorHit = defIdx;
-              this.playTickSound(1680 - defIdx * 90, 0.09, 0.032);
+              this.playTickSound(1740 - defIdx * 95, 0.095, 0.032);
               const cx = this.width * 0.5;
-              const cy = this.height * 0.49;
-              const wheelR = Math.min(this.width * 0.44, this.height * 0.31, 185);
+              const cy = this.height * 0.50;
+              const wheelR = Math.min(this.width * 0.445, this.height * 0.315, 190);
               const rPx = wheelR * this.ballRadiusFrac;
-              this.emitSparkBurst(cx + Math.cos(curBallAngle) * rPx, cy + Math.sin(curBallAngle) * rPx, '#fde047', 7);
+              this.emitSparkBurst(cx + Math.cos(curBallAngle) * rPx, cy + Math.sin(curBallAngle) * rPx, '#fef08a', 9);
             }
           } else {
-            const u = (t - 0.76) / 0.24; // 0 -> 1 pocket settling with 4 damped fret bounces
+            const u = (t - 0.77) / 0.23;
             const bounce = Math.abs(Math.sin(u * Math.PI * 3.5)) * Math.pow(1 - u, 1.85);
-            this.ballRadiusFrac = 0.51 + bounce * 0.065;
-            this.ballBounceOffset = bounce * 7.5;
-            // Sync final angle strictly with the moving winning pocket
-            const sliceAngle = (Math.PI * 2) / 12;
+            this.ballRadiusFrac = 0.495 + bounce * 0.068;
+            this.ballBounceOffset = bounce * 8.0;
+
             const livePocketWorldAngle = this.wheelAngle + (this.winningPocketIdx + 0.5) * sliceAngle;
             const lockBlend = Math.pow(u, 1.6);
-            const angularJitter = Math.sin(u * Math.PI * 5.0) * (1 - u) * 0.09;
+            const angularJitter = Math.sin(u * Math.PI * 5.0) * (1 - u) * 0.085;
             curBallAngle = curBallAngle * (1 - lockBlend) + (livePocketWorldAngle + angularJitter) * lockBlend;
 
-            const fretStep = Math.floor(u * 5);
-            if (fretStep !== this.lastTickPocket && fretStep < 5) {
+            const fretStep = Math.floor(u * 6);
+            if (fretStep !== this.lastTickPocket && fretStep < 6) {
               this.lastTickPocket = fretStep;
-              this.playTickSound(1320 - fretStep * 110, 0.10 * (1 - u * 0.5), 0.026);
+              this.playTickSound(1380 - fretStep * 105, 0.10 * (1 - u * 0.5), 0.025);
             }
           }
 
           this.ballAngle = curBallAngle;
+          this.ballSpeedEstimate = Math.abs(this.ballAngle - prevBallAngle) / Math.max(0.001, dt);
+
+          // Record motion blur trail when spinning fast
+          if (t < 0.82) {
+            this.ballTrail.unshift({
+              angle: this.ballAngle,
+              rFrac: this.ballRadiusFrac,
+              bounce: this.ballBounceOffset
+            });
+            if (this.ballTrail.length > 9) this.ballTrail.pop();
+          } else if (this.ballTrail.length > 0) {
+            this.ballTrail.pop();
+          }
 
           if (t >= 1.0) {
             this.state = 'CELEBRATING';
             this.winGlowAlpha = 1.0;
+            this.ballTrail = [];
             const cx = this.width * 0.5;
-            const cy = this.height * 0.49;
-            const wheelR = Math.min(this.width * 0.44, this.height * 0.31, 185);
+            const cy = this.height * 0.50;
+            const wheelR = Math.min(this.width * 0.445, this.height * 0.315, 190);
             this.emitWinCelebration(cx, cy, wheelR);
-            this.playWinFanfare(this.winningPocketIdx === 0);
+            this.playWinFanfare(this.winningPocketIdx === 0 || this.winningPocketIdx === 9);
             if (typeof this.onSpinComplete === 'function') {
               this.onSpinComplete(this.winningPocketIdx, this.pendingRewardClefs);
             }
           }
         } else if (this.state === 'CELEBRATING') {
-          this.wheelAngle = (this.wheelAngle + 0.18 * dt) % (Math.PI * 2);
-          const sliceAngle = (Math.PI * 2) / 12;
+          this.wheelAngle = (this.wheelAngle + 0.16 * dt) % (Math.PI * 2);
           this.ballAngle = this.wheelAngle + (this.winningPocketIdx + 0.5) * sliceAngle;
-          this.ballRadiusFrac = 0.51;
+          this.ballRadiusFrac = 0.495;
           this.ballBounceOffset = 0;
-          this.winGlowAlpha = 0.65 + 0.35 * Math.sin(now * 0.008);
+          this.winGlowAlpha = 0.65 + 0.35 * Math.sin(now * 0.009);
         }
 
-        // Update sparks
         for (let i = this.sparks.length - 1; i >= 0; i--) {
           const sp = this.sparks[i];
           sp.age += dt;
@@ -16715,7 +16730,6 @@ function stopPianoCameraLoop() {
           sp.y += sp.vy * dt;
         }
 
-        // Update confetti
         for (let i = this.confetti.length - 1; i >= 0; i--) {
           const cf = this.confetti[i];
           cf.age += dt;
@@ -16730,28 +16744,105 @@ function stopPianoCameraLoop() {
         }
       }
 
+      _drawStarFlare(ctx, x, y, radius, alpha, rotOffset = 0) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rotOffset);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#ffffff';
+        for (let s = 0; s < 2; s++) {
+          ctx.rotate(s * Math.PI * 0.5);
+          ctx.beginPath();
+          ctx.moveTo(0, -radius);
+          ctx.quadraticCurveTo(radius * 0.12, -radius * 0.12, radius, 0);
+          ctx.quadraticCurveTo(radius * 0.12, radius * 0.12, 0, radius);
+          ctx.quadraticCurveTo(-radius * 0.12, radius * 0.12, -radius, 0);
+          ctx.quadraticCurveTo(-radius * 0.12, -radius * 0.12, 0, -radius);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      _draw3DCasinoChip(ctx, x, y, r, mainColor, accentColor, label) {
+        ctx.save();
+        // Drop shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+        ctx.beginPath();
+        ctx.arc(x + 2, y + 3.5, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Outer chip body
+        ctx.fillStyle = mainColor;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 6 White/Gold edge stripes
+        ctx.strokeStyle = accentColor;
+        ctx.lineWidth = r * 0.26;
+        ctx.setLineDash([r * 0.34, r * 0.34]);
+        ctx.beginPath();
+        ctx.arc(x, y, r * 0.85, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Inner medallion
+        ctx.fillStyle = '#11070a';
+        ctx.strokeStyle = '#fde047';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(x, y, r * 0.62, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        if (label) {
+          ctx.fillStyle = '#fef08a';
+          ctx.font = `900 ${Math.max(7, Math.round(r * 0.52))}px "Montserrat", system-ui, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(label, x, y + 0.5);
+        }
+        ctx.restore();
+      }
+
       render(now) {
         const ctx = this.ctx;
         if (!ctx) return;
         const w = this.width;
         const h = this.height;
         const cx = w * 0.5;
-        const cy = h * 0.49;
-        const wheelR = Math.min(w * 0.44, h * 0.32, 188);
+        const cy = h * 0.505;
+        const wheelR = Math.min(w * 0.445, h * 0.315, 192);
         const st = getDailyRouletteState();
         const pockets = st.pockets;
+        const numPockets = pockets.length;
         const timeSec = (now || performance.now()) * 0.001;
 
         ctx.clearRect(0, 0, w, h);
 
-        // 1. LAS VEGAS CASINO FELT TABLE RAYS & GOLDEN BOKEH DUST
+        // =====================================================================
+        // 1. LAS VEGAS CASINO STAGE, SPOTLIGHTS, FELT TABLE & CORNER CHIPS
+        // =====================================================================
         ctx.save();
-        const numRays = 16;
+        // Sweeping Vegas Golden Stage Spotlights from top corners
+        const spotSwing1 = Math.sin(timeSec * 0.9) * 0.18;
+        const spotSwing2 = Math.cos(timeSec * 0.85) * 0.18;
+        const spotGrad1 = ctx.createRadialGradient(cx + spotSwing1 * w, cy - wheelR * 0.3, 10, cx, cy, Math.max(w, h) * 0.72);
+        spotGrad1.addColorStop(0.0, 'rgba(251, 191, 36, 0.14)');
+        spotGrad1.addColorStop(0.45, 'rgba(16, 185, 129, 0.06)');
+        spotGrad1.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = spotGrad1;
+        ctx.fillRect(0, 0, w, h);
+
+        // Rotating Sunburst Rays behind the wheel
+        const numRays = 24;
+        ctx.save();
         ctx.translate(cx, cy);
         for (let i = 0; i < numRays; i++) {
-          const a0 = (i / numRays) * Math.PI * 2 + timeSec * 0.04;
-          const a1 = a0 + (Math.PI / numRays) * 0.65;
-          ctx.fillStyle = (i % 2 === 0) ? 'rgba(212, 175, 55, 0.038)' : 'rgba(16, 185, 129, 0.028)';
+          const a0 = (i / numRays) * Math.PI * 2 + timeSec * 0.05 + spotSwing2 * 0.1;
+          const a1 = a0 + (Math.PI / numRays) * 0.6;
+          ctx.fillStyle = (i % 2 === 0) ? 'rgba(251, 191, 36, 0.045)' : 'rgba(220, 38, 38, 0.028)';
           ctx.beginPath();
           ctx.moveTo(0, 0);
           ctx.arc(0, 0, Math.max(w, h) * 0.85, a0, a1);
@@ -16760,139 +16851,255 @@ function stopPianoCameraLoop() {
         }
         ctx.restore();
 
-        // Ornamental Casino Table Gold Arch Ring
-        ctx.save();
-        ctx.strokeStyle = 'rgba(212, 175, 55, 0.18)';
-        ctx.lineWidth = 1.5;
+        // Casino Table Gold Betting Layout Rings & Corner Filigree Lines
+        ctx.strokeStyle = 'rgba(251, 191, 36, 0.26)';
+        ctx.lineWidth = 1.6;
         ctx.beginPath();
-        ctx.arc(cx, cy, wheelR * 1.11, 0, Math.PI * 2);
+        ctx.arc(cx, cy, wheelR * 1.155, 0, Math.PI * 2);
         ctx.stroke();
-        ctx.setLineDash([5, 7]);
-        ctx.beginPath();
-        ctx.arc(cx, cy, wheelR * 1.15, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
 
-        // Floating Golden Bokeh Dust
-        ctx.save();
+        ctx.strokeStyle = 'rgba(251, 191, 36, 0.14)';
+        ctx.lineWidth = 1.0;
+        ctx.setLineDash([6, 6]);
+        ctx.beginPath();
+        ctx.arc(cx, cy, wheelR * 1.205, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Decorative Stacked 3D Las Vegas Casino Chips on the Emerald Felt Table
+        const chipR = Math.max(13, wheelR * 0.082);
+        this._draw3DCasinoChip(ctx, cx - wheelR * 0.96, cy - wheelR * 0.94, chipR, '#dc2626', '#ffffff', '𝄞');
+        this._draw3DCasinoChip(ctx, cx - wheelR * 0.92, cy - wheelR * 0.98, chipR, '#b45309', '#fef08a', 'VIP');
+        this._draw3DCasinoChip(ctx, cx + wheelR * 0.95, cy - wheelR * 0.95, chipR, '#047857', '#fef08a', '777');
+        this._draw3DCasinoChip(ctx, cx - wheelR * 0.96, cy + wheelR * 0.94, chipR, '#1e293b', '#f59e0b', '𝄞');
+        this._draw3DCasinoChip(ctx, cx + wheelR * 0.93, cy + wheelR * 0.95, chipR, '#991b1b', '#fef08a', 'x3');
+        this._draw3DCasinoChip(ctx, cx + wheelR * 0.97, cy + wheelR * 0.90, chipR, '#d97706', '#ffffff', '𝄞');
+
+        // Perimeter Las Vegas Neon Tube & Chasing Marquee Border along screen edges
+        const padM = 8;
+        ctx.strokeStyle = 'rgba(220, 38, 38, 0.45)';
+        ctx.lineWidth = 3.5;
+        ctx.strokeRect(padM, padM, w - padM * 2, h - padM * 2);
+        ctx.strokeStyle = 'rgba(253, 224, 71, 0.65)';
+        ctx.lineWidth = 1.3;
+        ctx.strokeRect(padM + 3, padM + 3, w - (padM + 3) * 2, h - (padM + 3) * 2);
+
+        // Floating Golden Bokeh Sparkles
         for (let i = 0; i < this.ambientDust.length; i++) {
           const d = this.ambientDust[i];
-          const alpha = 0.20 + 0.22 * Math.sin(timeSec * 2.2 + d.phase);
-          ctx.fillStyle = `rgba(253, 224, 71, ${alpha.toFixed(3)})`;
+          const alpha = 0.24 + 0.26 * Math.sin(timeSec * 2.5 + d.phase);
+          ctx.fillStyle = `rgba(254, 240, 138, ${alpha.toFixed(3)})`;
           ctx.beginPath();
           ctx.arc(d.x * w, d.y * h, d.r, 0, Math.PI * 2);
           ctx.fill();
         }
         ctx.restore();
 
-        // 2. DEEP 3D DROP SHADOW & OUTER MAHOGANY / 24K GOLD CASINO BOWL
+        // =====================================================================
+        // 2. OUTER LAS VEGAS MARQUEE BEZEL & 36 CHASING INCANDESCENT BULBS
+        // =====================================================================
         ctx.save();
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.68)';
+        // Deep 3D Table Drop Shadow under Roulette Bowl
+        const shadowGrad = ctx.createRadialGradient(cx, cy + 14, wheelR * 0.75, cx, cy + 14, wheelR * 1.16);
+        shadowGrad.addColorStop(0.0, 'rgba(0, 0, 0, 0.88)');
+        shadowGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.55)');
+        shadowGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = shadowGrad;
         ctx.beginPath();
-        ctx.arc(cx, cy + 12, wheelR * 1.05, 0, Math.PI * 2);
+        ctx.arc(cx, cy + 14, wheelR * 1.16, 0, Math.PI * 2);
         ctx.fill();
 
-        // Outer Brass Rim Bezel
-        const outerGoldGrad = ctx.createLinearGradient(cx - wheelR, cy - wheelR, cx + wheelR, cy + wheelR);
-        outerGoldGrad.addColorStop(0.0, '#fff6cc');
-        outerGoldGrad.addColorStop(0.25, '#d4af37');
-        outerGoldGrad.addColorStop(0.5, '#785109');
-        outerGoldGrad.addColorStop(0.75, '#f59e0b');
-        outerGoldGrad.addColorStop(1.0, '#4a3004');
-        ctx.fillStyle = outerGoldGrad;
+        // Outer Scalloped Crimson & 24K Gold Las Vegas Marquee Ring (Radius 1.095)
+        const marqueeOuterR = wheelR * 1.095;
+        const marqueeGrad = ctx.createLinearGradient(cx - marqueeOuterR, cy - marqueeOuterR, cx + marqueeOuterR, cy + marqueeOuterR);
+        marqueeGrad.addColorStop(0.0, '#fffbeb');
+        marqueeGrad.addColorStop(0.2, '#f59e0b');
+        marqueeGrad.addColorStop(0.45, '#78350f');
+        marqueeGrad.addColorStop(0.7, '#fde047');
+        marqueeGrad.addColorStop(1.0, '#451a03');
+        ctx.fillStyle = marqueeGrad;
         ctx.beginPath();
-        ctx.arc(cx, cy, wheelR * 1.03, 0, Math.PI * 2);
+        ctx.arc(cx, cy, marqueeOuterR, 0, Math.PI * 2);
         ctx.fill();
 
-        // Polished Royal Mahogany Wood Rim
-        const woodGrad = ctx.createRadialGradient(cx - wheelR * 0.25, cy - wheelR * 0.25, wheelR * 0.65, cx, cy, wheelR);
-        woodGrad.addColorStop(0.0, '#6e2214');
-        woodGrad.addColorStop(0.55, '#451209');
-        woodGrad.addColorStop(0.88, '#260804');
-        woodGrad.addColorStop(1.0, '#140402');
-        ctx.fillStyle = woodGrad;
+        // Crimson Velvet Neon Channel Trench (Radius 1.068)
+        const trenchGrad = ctx.createRadialGradient(cx, cy, wheelR * 0.98, cx, cy, wheelR * 1.068);
+        trenchGrad.addColorStop(0.0, '#1f0408');
+        trenchGrad.addColorStop(0.5, '#5c0917');
+        trenchGrad.addColorStop(0.85, '#30040b');
+        trenchGrad.addColorStop(1.0, '#fde047');
+        ctx.fillStyle = trenchGrad;
         ctx.beginPath();
-        ctx.arc(cx, cy, wheelR * 0.985, 0, Math.PI * 2);
+        ctx.arc(cx, cy, wheelR * 1.068, 0, Math.PI * 2);
         ctx.fill();
 
-        // 24 Chasing Las Vegas Marquee Bulbs along the Mahogany Rim
-        const numBulbs = 24;
-        const bulbRingR = wheelR * 0.925;
-        const chaseSpeed = this.state === 'SPINNING' ? 14 : (this.state === 'CELEBRATING' ? 20 : 4);
-        const chaseIdx = Math.floor(timeSec * chaseSpeed);
+        // Neon Ruby Ring inside the Marquee Channel
+        ctx.strokeStyle = 'rgba(251, 113, 133, 0.65)';
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        ctx.arc(cx, cy, wheelR * 1.028, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // 36 Chasing Las Vegas Marquee Bulbs with Warm Bloom & Star Cross Flares
+        const numBulbs = 36;
+        const bulbRingR = wheelR * 1.028;
+        const chaseSpeed = this.state === 'SPINNING' ? 18 : (this.state === 'CELEBRATING' ? 24 : 5.5);
+        const chaseStep = Math.floor(timeSec * chaseSpeed);
+
         for (let b = 0; b < numBulbs; b++) {
-          const ang = (b / numBulbs) * Math.PI * 2;
+          const ang = (b / numBulbs) * Math.PI * 2 - Math.PI * 0.5;
           const bx = cx + Math.cos(ang) * bulbRingR;
           const by = cy + Math.sin(ang) * bulbRingR;
-          const isLit = this.state === 'CELEBRATING'
-            ? ((b + chaseIdx) % 2 === 0)
-            : ((b - chaseIdx) % 3 === 0);
 
-          // Brass socket
-          ctx.fillStyle = '#785109';
+          let isPrimaryLit = false;
+          let isWarmLit = false;
+          if (this.state === 'CELEBRATING') {
+            isPrimaryLit = ((b + chaseStep) % 2 === 0);
+            isWarmLit = !isPrimaryLit;
+          } else if (this.state === 'SPINNING') {
+            const mod = ((b - chaseStep) % 6 + 6) % 6;
+            isPrimaryLit = (mod === 0 || mod === 1);
+            isWarmLit = (mod === 2);
+          } else {
+            const mod = ((b - chaseStep) % 4 + 4) % 4;
+            isPrimaryLit = (mod === 0);
+            isWarmLit = (mod === 1);
+          }
+
+          // Brass reflector cup
+          ctx.fillStyle = '#451a03';
+          ctx.strokeStyle = '#d97706';
+          ctx.lineWidth = 1.0;
           ctx.beginPath();
-          ctx.arc(bx, by, wheelR * 0.025, 0, Math.PI * 2);
+          ctx.arc(bx, by, wheelR * 0.024, 0, Math.PI * 2);
           ctx.fill();
+          ctx.stroke();
 
-          if (isLit) {
-            ctx.fillStyle = 'rgba(253, 224, 71, 0.35)';
+          if (isPrimaryLit) {
+            // Outer warm incandescent bloom
+            const bloom = ctx.createRadialGradient(bx, by, 0, bx, by, wheelR * 0.068);
+            bloom.addColorStop(0.0, 'rgba(255, 255, 255, 0.95)');
+            bloom.addColorStop(0.35, 'rgba(254, 240, 138, 0.75)');
+            bloom.addColorStop(0.7, 'rgba(245, 158, 11, 0.28)');
+            bloom.addColorStop(1.0, 'rgba(245, 158, 11, 0)');
+            ctx.fillStyle = bloom;
             ctx.beginPath();
-            ctx.arc(bx, by, wheelR * 0.048, 0, Math.PI * 2);
+            ctx.arc(bx, by, wheelR * 0.068, 0, Math.PI * 2);
             ctx.fill();
 
+            // Hot white-gold filament core
             ctx.fillStyle = '#ffffff';
             ctx.beginPath();
-            ctx.arc(bx, by, wheelR * 0.018, 0, Math.PI * 2);
+            ctx.arc(bx, by, wheelR * 0.017, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Sparkling 4-Point Vegas Star Flare on every other primary bulb
+            if (b % 2 === (chaseStep % 2)) {
+              this._drawStarFlare(ctx, bx, by, wheelR * 0.055, 0.82, timeSec * 1.2 + b);
+            }
+          } else if (isWarmLit) {
+            ctx.fillStyle = 'rgba(251, 191, 36, 0.35)';
+            ctx.beginPath();
+            ctx.arc(bx, by, wheelR * 0.036, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#fde047';
+            ctx.beginPath();
+            ctx.arc(bx, by, wheelR * 0.015, 0, Math.PI * 2);
             ctx.fill();
           } else {
-            ctx.fillStyle = '#4a3219';
+            ctx.fillStyle = '#78350f';
             ctx.beginPath();
-            ctx.arc(bx, by, wheelR * 0.016, 0, Math.PI * 2);
+            ctx.arc(bx, by, wheelR * 0.013, 0, Math.PI * 2);
             ctx.fill();
           }
         }
 
-        // Inner Sloped Ball Track (Cazoleta Interior)
-        const trackGrad = ctx.createRadialGradient(cx, cy, wheelR * 0.68, cx, cy, wheelR * 0.875);
-        trackGrad.addColorStop(0.0, '#0a0504');
-        trackGrad.addColorStop(0.45, '#2b140d');
-        trackGrad.addColorStop(0.85, '#170a06');
-        trackGrad.addColorStop(1.0, '#d4af37');
+        // =====================================================================
+        // 3. 3D HIGH-GLOSS LACQUERED BURL MAHOGANY BOWL & BALL TRACK
+        // =====================================================================
+        // Machined Brass Inner Rim Dividing Marquee from Mahogany Bowl (Radius 0.985)
+        const rimBrassGrad = ctx.createLinearGradient(cx - wheelR, cy - wheelR, cx + wheelR, cy + wheelR);
+        rimBrassGrad.addColorStop(0.0, '#fef08a');
+        rimBrassGrad.addColorStop(0.35, '#d97706');
+        rimBrassGrad.addColorStop(0.7, '#78350f');
+        rimBrassGrad.addColorStop(1.0, '#fde047');
+        ctx.fillStyle = rimBrassGrad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, wheelR * 0.985, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Rich Burl Mahogany Wood Rim (Radius 0.962)
+        const woodGrad = ctx.createRadialGradient(cx - wheelR * 0.28, cy - wheelR * 0.28, wheelR * 0.55, cx, cy, wheelR * 0.962);
+        woodGrad.addColorStop(0.0, '#852817');
+        woodGrad.addColorStop(0.45, '#59160b');
+        woodGrad.addColorStop(0.82, '#2d0904');
+        woodGrad.addColorStop(1.0, '#140301');
+        ctx.fillStyle = woodGrad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, wheelR * 0.962, 0, Math.PI * 2);
+        ctx.fill();
+
+        // High-Gloss Clear-Coat Curved Glass Specular Highlight on Mahogany Rim
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 245, 225, 0.28)';
+        ctx.lineWidth = wheelR * 0.036;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(cx, cy, wheelR * 0.922, -Math.PI * 0.86, -Math.PI * 0.42);
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(251, 191, 36, 0.14)';
+        ctx.lineWidth = wheelR * 0.024;
+        ctx.beginPath();
+        ctx.arc(cx, cy, wheelR * 0.922, Math.PI * 0.12, Math.PI * 0.48);
+        ctx.stroke();
+        ctx.restore();
+
+        // Sunken Sloped Rosewood Ball Track (Radius 0.875)
+        const trackGrad = ctx.createRadialGradient(cx, cy, wheelR * 0.69, cx, cy, wheelR * 0.875);
+        trackGrad.addColorStop(0.0, '#090302');
+        trackGrad.addColorStop(0.32, '#260d07');
+        trackGrad.addColorStop(0.75, '#3b150c');
+        trackGrad.addColorStop(0.93, '#140502');
+        trackGrad.addColorStop(1.0, '#f59e0b');
         ctx.fillStyle = trackGrad;
         ctx.beginPath();
         ctx.arc(cx, cy, wheelR * 0.875, 0, Math.PI * 2);
         ctx.fill();
 
-        // Subtle Ball Track Groove Line
-        ctx.strokeStyle = 'rgba(255, 235, 160, 0.22)';
-        ctx.lineWidth = 1.4;
+        // Polished Chrome & Gold Ball Track Lip & Running Groove
+        ctx.strokeStyle = 'rgba(254, 240, 138, 0.32)';
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.arc(cx, cy, wheelR * 0.805, 0, Math.PI * 2);
+        ctx.arc(cx, cy, wheelR * 0.815, 0, Math.PI * 2);
         ctx.stroke();
 
-        // 8 Authentic Brass Diamond Deflectors (Canoas) on the Ball Track
+        // 8 Sculpted 3D Faceted Brass Diamond Deflectors (Alternating Horizontal & Vertical Canoes)
         const numDeflectors = 8;
-        const defR = wheelR * 0.745;
+        const defR = wheelR * 0.752;
         for (let d = 0; d < numDeflectors; d++) {
           const dAng = (d / numDeflectors) * Math.PI * 2;
           ctx.save();
           ctx.translate(cx + Math.cos(dAng) * defR, cy + Math.sin(dAng) * defR);
           ctx.rotate(dAng);
-          const dw = wheelR * 0.032;
-          const dh = wheelR * 0.068;
+          // Alternate radial vs tangential canoe orientation like real casino wheels
+          const isRadial = (d % 2 === 0);
+          const dw = isRadial ? wheelR * 0.044 : wheelR * 0.028;
+          const dh = isRadial ? wheelR * 0.028 : wheelR * 0.066;
 
-          ctx.fillStyle = 'rgba(0,0,0,0.55)';
+          // Cast shadow
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
           ctx.beginPath();
           ctx.moveTo(0, -dh + 2);
-          ctx.lineTo(dw + 1, 2);
+          ctx.lineTo(dw + 1.5, 2);
           ctx.lineTo(0, dh + 2);
-          ctx.lineTo(-dw + 1, 2);
+          ctx.lineTo(-dw + 1.5, 2);
           ctx.closePath();
           ctx.fill();
 
-          ctx.fillStyle = (d % 2 === 0) ? '#f59e0b' : '#fde047';
-          ctx.strokeStyle = '#fffbeb';
-          ctx.lineWidth = 1.0;
+          // Base gold diamond
+          ctx.fillStyle = '#d97706';
           ctx.beginPath();
           ctx.moveTo(0, -dh);
           ctx.lineTo(dw, 0);
@@ -16900,34 +17107,57 @@ function stopPianoCameraLoop() {
           ctx.lineTo(-dw, 0);
           ctx.closePath();
           ctx.fill();
+
+          // Upper specular facet
+          ctx.fillStyle = '#fef08a';
+          ctx.beginPath();
+          ctx.moveTo(0, -dh);
+          ctx.lineTo(dw, 0);
+          ctx.lineTo(0, 0);
+          ctx.lineTo(-dw * 0.5, -dh * 0.5);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 0.9;
+          ctx.beginPath();
+          ctx.moveTo(0, -dh);
+          ctx.lineTo(dw, 0);
+          ctx.lineTo(0, dh);
+          ctx.lineTo(-dw, 0);
+          ctx.closePath();
           ctx.stroke();
           ctx.restore();
         }
         ctx.restore();
 
-        // 3. SPINNING ROULETTE ROTOR (12 POCKETS + FRETS + RADIAL CLEF PRIZES)
-        const rotorR = wheelR * 0.695;
-        const pocketInnerR = wheelR * 0.33;
-        const sliceAngle = (Math.PI * 2) / 12;
+        // =====================================================================
+        // 4. SPINNING 18-POCKET LAS VEGAS ROTOR (FRETS + PRIZE RING + NUMBER RING + ANISOTROPIC CONE)
+        // =====================================================================
+        const rotorR = wheelR * 0.692;
+        const numberRingOuterR = wheelR * 0.562;
+        const pocketInnerR = wheelR * 0.435;
+        const coneInnerR = wheelR * 0.255;
+        const sliceAngle = (Math.PI * 2) / numPockets;
 
         ctx.save();
         ctx.translate(cx, cy);
         ctx.rotate(this.wheelAngle);
 
-        // Outer metallic rotor ring
-        ctx.strokeStyle = '#fbbf24';
-        ctx.lineWidth = 3.0;
+        // Deep Bowl Shadow around Rotor Perimeter
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.75)';
+        ctx.lineWidth = 5.0;
         ctx.beginPath();
-        ctx.arc(0, 0, rotorR, 0, Math.PI * 2);
+        ctx.arc(0, 0, rotorR + 2, 0, Math.PI * 2);
         ctx.stroke();
 
-        for (let i = 0; i < 12; i++) {
+        for (let i = 0; i < numPockets; i++) {
           const p = pockets[i];
           const a0 = i * sliceAngle;
           const a1 = a0 + sliceAngle;
           const aMid = a0 + sliceAngle * 0.5;
 
-          // Pocket fill gradient
+          // Full Pocket Sector (from pocketInnerR to rotorR)
           ctx.beginPath();
           ctx.moveTo(Math.cos(a0) * pocketInnerR, Math.sin(a0) * pocketInnerR);
           ctx.arc(0, 0, rotorR, a0, a1);
@@ -16937,170 +17167,356 @@ function stopPianoCameraLoop() {
 
           if (p.color === 'gold') {
             const gGrad = ctx.createRadialGradient(0, 0, pocketInnerR, 0, 0, rotorR);
-            gGrad.addColorStop(0.0, '#b45309');
-            gGrad.addColorStop(0.55, '#f59e0b');
-            gGrad.addColorStop(1.0, '#fde047');
+            gGrad.addColorStop(0.0, '#92400e');
+            gGrad.addColorStop(0.5, '#f59e0b');
+            gGrad.addColorStop(1.0, '#fef08a');
             ctx.fillStyle = gGrad;
           } else if (p.color === 'emerald') {
             const eGrad = ctx.createRadialGradient(0, 0, pocketInnerR, 0, 0, rotorR);
             eGrad.addColorStop(0.0, '#064e3b');
-            eGrad.addColorStop(0.6, '#047857');
+            eGrad.addColorStop(0.55, '#059669');
             eGrad.addColorStop(1.0, '#10b981');
             ctx.fillStyle = eGrad;
           } else if (p.color === 'red') {
             const rGrad = ctx.createRadialGradient(0, 0, pocketInnerR, 0, 0, rotorR);
             rGrad.addColorStop(0.0, '#450a0a');
-            rGrad.addColorStop(0.65, '#991b1b');
+            rGrad.addColorStop(0.55, '#991b1b');
             rGrad.addColorStop(1.0, '#dc2626');
             ctx.fillStyle = rGrad;
           } else {
             const bGrad = ctx.createRadialGradient(0, 0, pocketInnerR, 0, 0, rotorR);
             bGrad.addColorStop(0.0, '#020617');
-            bGrad.addColorStop(0.65, '#0f172a');
+            bGrad.addColorStop(0.6, '#0f172a');
             bGrad.addColorStop(1.0, '#1e293b');
             ctx.fillStyle = bGrad;
           }
           ctx.fill();
 
-          // Winning pocket highlight glow
+          // Winning pocket celebration pulse
           if (this.state === 'CELEBRATING' && i === this.winningPocketIdx) {
             ctx.save();
-            ctx.fillStyle = `rgba(253, 224, 71, ${(this.winGlowAlpha * 0.48).toFixed(3)})`;
+            ctx.fillStyle = `rgba(254, 240, 138, ${(this.winGlowAlpha * 0.55).toFixed(3)})`;
             ctx.fill();
             ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2.6;
+            ctx.lineWidth = 2.5;
             ctx.stroke();
             ctx.restore();
           }
 
-          // Deep 3D Recessed Pocket Well (where the ball lands at radius ~0.51 * wheelR)
-          const wellR0 = wheelR * 0.445;
-          const wellR1 = wheelR * 0.565;
-          const padA = 0.032;
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.36)';
+          // Deep 3D Recessed Ball Pocket Well (between pocketInnerR and numberRingOuterR, where ball rests at ~0.495 * wheelR)
+          const wellR0 = pocketInnerR + wheelR * 0.014;
+          const wellR1 = numberRingOuterR - wheelR * 0.012;
+          const padA = 0.025;
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.42)';
           ctx.beginPath();
           ctx.arc(0, 0, wellR1, a0 + padA, a1 - padA);
           ctx.arc(0, 0, wellR0, a1 - padA, a0 + padA, true);
           ctx.closePath();
           ctx.fill();
 
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
-          ctx.lineWidth = 1.0;
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.20)';
+          ctx.lineWidth = 0.9;
           ctx.stroke();
 
-          // Raised Brass Fret Divider Line
-          ctx.strokeStyle = '#fde68a';
-          ctx.lineWidth = 2.0;
+          // 3D Raised Brass/Chrome Fret Divider with side shadow
+          ctx.strokeStyle = 'rgba(0, 0, 0, 0.65)';
+          ctx.lineWidth = 2.6;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a0 + 0.008) * pocketInnerR, Math.sin(a0 + 0.008) * pocketInnerR);
+          ctx.lineTo(Math.cos(a0 + 0.008) * rotorR, Math.sin(a0 + 0.008) * rotorR);
+          ctx.stroke();
+
+          ctx.strokeStyle = '#fef08a';
+          ctx.lineWidth = 1.7;
           ctx.beginPath();
           ctx.moveTo(Math.cos(a0) * pocketInnerR, Math.sin(a0) * pocketInnerR);
           ctx.lineTo(Math.cos(a0) * rotorR, Math.sin(a0) * rotorR);
           ctx.stroke();
 
-          // Clean Radial Prize Number + Clef on Outer Rotor Ring
+          // Outer Ring Label: Clef Prize Amount (e.g. "250𝄞")
           ctx.save();
-          const textR = wheelR * 0.632;
-          ctx.translate(Math.cos(aMid) * textR, Math.sin(aMid) * textR);
+          const prizeTextR = (numberRingOuterR + rotorR) * 0.505;
+          ctx.translate(Math.cos(aMid) * prizeTextR, Math.sin(aMid) * prizeTextR);
           ctx.rotate(aMid + Math.PI * 0.5);
-          const fontSize = Math.max(10, Math.round(wheelR * 0.068));
-          ctx.font = `900 ${fontSize}px "Montserrat", system-ui, sans-serif`;
+          const prizeFontSize = Math.max(8.5, Math.round(wheelR * 0.052));
+          ctx.font = `900 ${prizeFontSize}px "Montserrat", system-ui, sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillStyle = (p.color === 'gold') ? '#1c0f02' : '#ffffff';
-          if (p.color !== 'gold') {
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
-            ctx.lineWidth = 2.5;
+          if (p.color === 'gold') {
+            ctx.fillStyle = '#1c0a02';
+          } else {
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.88)';
+            ctx.lineWidth = 2.2;
             ctx.strokeText(`${p.clefs}𝄞`, 0, 0);
+            ctx.fillStyle = '#ffffff';
           }
           ctx.fillText(`${p.clefs}𝄞`, 0, 0);
           ctx.restore();
+
+          // Inner Pocket Number Badge (Classic Las Vegas Roulette Numbering: "777", "32", "15", "0"...)
+          ctx.save();
+          const numTextR = (wellR0 + wellR1) * 0.5;
+          ctx.translate(Math.cos(aMid) * numTextR, Math.sin(aMid) * numTextR);
+          ctx.rotate(aMid + Math.PI * 0.5);
+          const numFontSize = Math.max(7.5, Math.round(wheelR * 0.044));
+          ctx.font = `800 ${numFontSize}px "Montserrat", system-ui, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = (p.color === 'gold') ? '#fef08a' : 'rgba(254, 240, 138, 0.88)';
+          ctx.fillText(p.num, 0, 0);
+          ctx.restore();
         }
 
-        // Inner Gold Ring around Pocket Wells
+        // Concentric Machined Gold Rings separating Outer Prize Ring & Inner Pocket Wells
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 2.6;
+        ctx.beginPath();
+        ctx.arc(0, 0, rotorR, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#fde047';
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        ctx.arc(0, 0, numberRingOuterR, 0, Math.PI * 2);
+        ctx.stroke();
+
         ctx.strokeStyle = '#fbbf24';
         ctx.lineWidth = 2.4;
         ctx.beginPath();
-        ctx.arc(0, 0, wheelR * 0.57, 0, Math.PI * 2);
+        ctx.arc(0, 0, pocketInnerR, 0, Math.PI * 2);
         ctx.stroke();
 
-        // 4. 3D CENTER BRASS TURRET / CAPSTAN WITH 4 ROTATING ARMS
-        const turretR = pocketInnerR;
-        const turretGrad = ctx.createRadialGradient(-turretR * 0.25, -turretR * 0.25, turretR * 0.08, 0, 0, turretR);
-        turretGrad.addColorStop(0.0, '#fffbeb');
-        turretGrad.addColorStop(0.32, '#f59e0b');
-        turretGrad.addColorStop(0.72, '#92400e');
+        // =====================================================================
+        // 5. ANISOTROPIC BRUSHED-GOLD INNER CONE (APRON) & 3D CENTRAL TURRET
+        // =====================================================================
+        // Base Metallic Cone (from coneInnerR to pocketInnerR)
+        const coneGrad = ctx.createRadialGradient(0, 0, coneInnerR, 0, 0, pocketInnerR);
+        coneGrad.addColorStop(0.0, '#451a03');
+        coneGrad.addColorStop(0.45, '#92400e');
+        coneGrad.addColorStop(0.8, '#d97706');
+        coneGrad.addColorStop(1.0, '#78350f');
+        ctx.fillStyle = coneGrad;
+        ctx.beginPath();
+        ctx.arc(0, 0, pocketInnerR - 1, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Anisotropic Brushed-Metal Conical Specular Sheen Wedges (gliding light bands)
+        for (let sheen = 0; sheen < 2; sheen++) {
+          const baseA = sheen * Math.PI - this.wheelAngle * 0.35 - Math.PI * 0.35;
+          ctx.fillStyle = 'rgba(254, 240, 138, 0.22)';
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.arc(0, 0, pocketInnerR - 2, baseA - 0.32, baseA + 0.32);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.arc(0, 0, pocketInnerR - 2, baseA - 0.11, baseA + 0.11);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        // Subtle Radial Spokes etched into the Gold Cone
+        ctx.strokeStyle = 'rgba(254, 240, 138, 0.22)';
+        ctx.lineWidth = 1.0;
+        for (let i = 0; i < numPockets; i++) {
+          const a = i * sliceAngle;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a) * coneInnerR, Math.sin(a) * coneInnerR);
+          ctx.lineTo(Math.cos(a) * pocketInnerR, Math.sin(a) * pocketInnerR);
+          ctx.stroke();
+        }
+
+        // 3D Spun-Brass Central Turret Base Collar
+        const turretR = coneInnerR;
+        const turretGrad = ctx.createRadialGradient(-turretR * 0.28, -turretR * 0.28, turretR * 0.06, 0, 0, turretR);
+        turretGrad.addColorStop(0.0, '#ffffff');
+        turretGrad.addColorStop(0.28, '#fef08a');
+        turretGrad.addColorStop(0.62, '#d97706');
         turretGrad.addColorStop(1.0, '#451a03');
         ctx.fillStyle = turretGrad;
         ctx.beginPath();
         ctx.arc(0, 0, turretR, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.strokeStyle = '#fde68a';
+        ctx.strokeStyle = '#fef08a';
         ctx.lineWidth = 2.2;
         ctx.stroke();
 
-        // 4 Chrome/Brass Turret Spokes & Finial Spheres
+        // 4 Sculpted 3D Capstan Arms & Chrome/Gold Spherical Finials
         for (let arm = 0; arm < 4; arm++) {
           const armAng = (arm * Math.PI) / 2;
-          const armLen = turretR * 0.78;
-          ctx.strokeStyle = '#fffbeb';
-          ctx.lineWidth = 3.6;
+          const armLen = turretR * 1.18;
+          const ax = Math.cos(armAng) * armLen;
+          const ay = Math.sin(armAng) * armLen;
+
+          // Arm shadow
+          ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
+          ctx.lineWidth = 5.0;
+          ctx.lineCap = 'round';
           ctx.beginPath();
-          ctx.moveTo(0, 0);
-          ctx.lineTo(Math.cos(armAng) * armLen, Math.sin(armAng) * armLen);
+          ctx.moveTo(2, 3);
+          ctx.lineTo(ax + 2, ay + 3);
           ctx.stroke();
 
-          ctx.fillStyle = '#fde047';
+          // Sculpted gold arm shaft
+          ctx.strokeStyle = '#fef08a';
+          ctx.lineWidth = 3.8;
           ctx.beginPath();
-          ctx.arc(Math.cos(armAng) * armLen, Math.sin(armAng) * armLen, turretR * 0.11, 0, Math.PI * 2);
+          ctx.moveTo(0, 0);
+          ctx.lineTo(ax, ay);
+          ctx.stroke();
+
+          // 3D Spherical Finial Ball at end of each Capstan Arm
+          const finR = turretR * 0.16;
+          const finGrad = ctx.createRadialGradient(ax - finR * 0.3, ay - finR * 0.3, finR * 0.1, ax, ay, finR);
+          finGrad.addColorStop(0.0, '#ffffff');
+          finGrad.addColorStop(0.45, '#fde047');
+          finGrad.addColorStop(1.0, '#92400e');
+          ctx.fillStyle = finGrad;
+          ctx.beginPath();
+          ctx.arc(ax, ay, finR, 0, Math.PI * 2);
           ctx.fill();
         }
 
         ctx.restore();
 
-        // Center Non-Rotating Medallion Cap (Shows Streak Multiplier cleanly)
+        // =====================================================================
+        // 6. CENTER LAS VEGAS RUBY & GOLD MULTIPLIER CROWN MEDALLION
+        // =====================================================================
         ctx.save();
-        const capR = wheelR * 0.165;
-        ctx.fillStyle = '#090d16';
-        ctx.strokeStyle = '#fde047';
-        ctx.lineWidth = 2.5;
+        const capR = wheelR * 0.158;
+        const capGrad = ctx.createRadialGradient(cx - capR * 0.25, cy - capR * 0.25, capR * 0.1, cx, cy, capR);
+        capGrad.addColorStop(0.0, '#7f1d1d');
+        capGrad.addColorStop(0.65, '#3b0710');
+        capGrad.addColorStop(1.0, '#110205');
+        ctx.fillStyle = capGrad;
+        ctx.strokeStyle = '#fef08a';
+        ctx.lineWidth = 2.8;
         ctx.beginPath();
         ctx.arc(cx, cy, capR, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
 
+        // Inner dotted gold bezel inside center medallion
+        ctx.strokeStyle = 'rgba(254, 240, 138, 0.55)';
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([2.5, 2.5]);
+        ctx.beginPath();
+        ctx.arc(cx, cy, capR * 0.82, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.font = `900 ${Math.max(11, Math.round(capR * 0.62))}px "Montserrat", system-ui, sans-serif`;
-        ctx.fillStyle = '#fde047';
+        ctx.fillStyle = '#fef08a';
         ctx.fillText(`x${st.mult % 1 === 0 ? st.mult.toFixed(1) : st.mult}`, cx, cy + 1);
         ctx.restore();
 
-        // 5. 3D IVORY ROULETTE BALL WITH SPECULAR HIGHLIGHT & MOTION SHADOW
+        // =====================================================================
+        // 7. TOP 12-O'CLOCK LAS VEGAS MARQUEE CROWN & RUBY POINTER ASSEMBLY
+        // =====================================================================
+        ctx.save();
+        const crownY = cy - wheelR * 1.075;
+        const crownW = wheelR * 0.36;
+        const crownH = wheelR * 0.13;
+
+        // Drop shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+        ctx.beginPath();
+        ctx.roundRect(cx - crownW * 0.5, crownY - crownH * 0.5 + 3, crownW, crownH, 10);
+        ctx.fill();
+
+        // Crimson & Gold Marquee Arch Plaque
+        const plaqueGrad = ctx.createLinearGradient(cx, crownY - crownH * 0.5, cx, crownY + crownH * 0.5);
+        plaqueGrad.addColorStop(0.0, '#991b1b');
+        plaqueGrad.addColorStop(0.5, '#450a0a');
+        plaqueGrad.addColorStop(1.0, '#1f0408');
+        ctx.fillStyle = plaqueGrad;
+        ctx.strokeStyle = '#fef08a';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.roundRect(cx - crownW * 0.5, crownY - crownH * 0.5, crownW, crownH, 10);
+        ctx.fill();
+        ctx.stroke();
+
+        // Golden Pointer Tip pointing toward top pocket
+        ctx.fillStyle = '#fef08a';
+        ctx.strokeStyle = '#92400e';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(cx - wheelR * 0.045, crownY + crownH * 0.45);
+        ctx.lineTo(cx + wheelR * 0.045, crownY + crownH * 0.45);
+        ctx.lineTo(cx, crownY + crownH * 0.45 + wheelR * 0.075);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // 5 Mini Chasing LED Bulbs inside Top Crown
+        for (let k = -2; k <= 2; k++) {
+          const lx = cx + k * (crownW * 0.17);
+          const ly = crownY;
+          const lit = ((k + 2 + chaseStep) % 2 === 0);
+          ctx.fillStyle = lit ? '#ffffff' : '#fde047';
+          ctx.beginPath();
+          ctx.arc(lx, ly, lit ? 3.2 : 2.2, 0, Math.PI * 2);
+          ctx.fill();
+          if (lit) {
+            this._drawStarFlare(ctx, lx, ly, 7.5, 0.85, timeSec * 2 + k);
+          }
+        }
+        ctx.restore();
+
+        // =====================================================================
+        // 8. 3D IVORY ROULETTE BALL WITH COMET MOTION TRAIL & SPECULAR HIGHLIGHT
+        // =====================================================================
         const ballDist = wheelR * this.ballRadiusFrac;
         const bx = cx + Math.cos(this.ballAngle) * ballDist;
         const by = cy + Math.sin(this.ballAngle) * ballDist - this.ballBounceOffset;
-        const ballRad = Math.max(6.5, wheelR * 0.044) * (1 + this.ballBounceOffset * 0.015);
+        const ballRad = Math.max(6.2, wheelR * 0.042) * (1 + this.ballBounceOffset * 0.015);
+
+        // Motion blur comet trail when spinning rapidly
+        if (this.ballTrail.length > 1) {
+          ctx.save();
+          for (let i = 0; i < this.ballTrail.length; i++) {
+            const tr = this.ballTrail[i];
+            const frac = 1 - (i + 1) / (this.ballTrail.length + 1);
+            const td = wheelR * tr.rFrac;
+            const tx = cx + Math.cos(tr.angle) * td;
+            const ty = cy + Math.sin(tr.angle) * td - tr.bounce;
+            ctx.fillStyle = `rgba(255, 255, 255, ${(frac * 0.28).toFixed(3)})`;
+            ctx.beginPath();
+            ctx.arc(tx, ty, ballRad * (0.45 + frac * 0.45), 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
 
         ctx.save();
-        // Ball shadow
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.58)';
+        // Ball drop shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
         ctx.beginPath();
-        ctx.arc(bx + 2.5, by + 3.5 + this.ballBounceOffset * 0.6, ballRad * 1.05, 0, Math.PI * 2);
+        ctx.arc(bx + 2.5, by + 3.5 + this.ballBounceOffset * 0.6, ballRad * 1.06, 0, Math.PI * 2);
         ctx.fill();
 
         // Ivory Pearl 3D Sphere Gradient
-        const bSphereGrad = ctx.createRadialGradient(bx - ballRad * 0.35, by - ballRad * 0.35, ballRad * 0.1, bx, by, ballRad);
+        const bSphereGrad = ctx.createRadialGradient(bx - ballRad * 0.35, by - ballRad * 0.35, ballRad * 0.08, bx, by, ballRad);
         bSphereGrad.addColorStop(0.0, '#ffffff');
-        bSphereGrad.addColorStop(0.55, '#f8fafc');
-        bSphereGrad.addColorStop(0.85, '#cbd5e1');
-        bSphereGrad.addColorStop(1.0, '#64748b');
+        bSphereGrad.addColorStop(0.5, '#f8fafc');
+        bSphereGrad.addColorStop(0.82, '#cbd5e1');
+        bSphereGrad.addColorStop(1.0, '#475569');
         ctx.fillStyle = bSphereGrad;
         ctx.beginPath();
         ctx.arc(bx, by, ballRad, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
 
-        // 6. SPARKS & WIN CONFETTI
+        // =====================================================================
+        // 9. DEFLECTOR SPARKS & JACKPOT WIN CONFETTI
+        // =====================================================================
         if (this.sparks.length > 0) {
           ctx.save();
           for (let i = 0; i < this.sparks.length; i++) {
