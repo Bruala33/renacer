@@ -2775,6 +2775,16 @@
         "accuracy": 17.76986591924854,
         "date": "2026-10-22 20:48:02"
       }
+    ],
+    "osu_2603897": [
+      {
+        "name": "pelosombra40",
+        "score": 1425,
+        "stars": 3.5,
+        "combo": 6,
+        "accuracy": 0.0420038024494849,
+        "date": "2026-10-22 20:48:55"
+      }
     ]
   },
   "global": [
@@ -2875,7 +2885,7 @@
     },
     {
       "name": "pelosombra40",
-      "total_score": 23458,
+      "total_score": 24883,
       "clefs": 0
     },
     {
@@ -2961,7 +2971,7 @@
       },
       {
         "name": "pelosombra40",
-        "score": 23458
+        "score": 24883
       },
       {
         "name": "Camaleon",
