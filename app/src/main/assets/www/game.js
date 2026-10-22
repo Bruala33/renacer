@@ -2248,12 +2248,17 @@ class BeatstarEngine {
     this.hitLineY = this.height * 0.82;
 
     // Constantes precalculadas para proyección cónica 3D (Zero-GC en renderNotes y getLaneBoundaryX)
+    // En 4 carriles abrimos la anchura base al 98.5% y el horizonte al 64% para carriles mucho más anchos y cómodos
     this._perspHorizonY = 12;
     this._perspHitY = this.hitLineY;
     this._perspSpanY = Math.max(1, this._perspHitY - this._perspHorizonY);
     this._perspInvSpanY = 1.0 / this._perspSpanY;
     this._perspMidX = this.width * 0.5;
-    this._perspBaseLaneW = (this.width * 0.94) / this.numLanes;
+    this._perspCachedLanes = this.numLanes;
+    const widthFactor = (this.numLanes === 4) ? 0.985 : 0.94;
+    this._perspBaseLaneW = (this.width * widthFactor) / this.numLanes;
+    this._perspMinScale = (this.numLanes === 4) ? 0.64 : 0.50;
+    this._perspCurveExp = (this.numLanes === 4) ? 1.48 : 1.70;
 
     // ⚡ OPTIMIZADO PARA 120 FPS ESTABLES: DPR 1.5 en móviles (ahorra 44% de fill-rate de GPU manteniendo nitidez Retina)
     const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -2364,13 +2369,11 @@ class BeatstarEngine {
       }
       if (!rect || rect.width <= 0) return;
 
-      const nLanes = this.numLanes || 3;
       for (let i = 0; i < e.changedTouches.length; i++) {
         const t = e.changedTouches[i];
         if (t.clientX < rect.left || t.clientX > rect.right) continue;
 
-        const normX = (t.clientX - rect.left) / rect.width;
-        const lane = Math.max(0, Math.min(nLanes - 1, (normX * nLanes) | 0));
+        const lane = this.resolveTouchLane(t.clientX, t.clientY, rect, true);
 
         const consumed = this.triggerLaneInput(lane, 'tap', null, t.identifier);
 
@@ -2426,9 +2429,7 @@ class BeatstarEngine {
           this.releaseLaneHold(tData.lane, t.identifier);
           this.activeTouches.delete(t.identifier);
         } else if (rect && rect.width > 0) {
-          const nLanes = this.numLanes || 3;
-          const normX = (t.clientX - rect.left) / rect.width;
-          const lane = Math.max(0, Math.min(nLanes - 1, (normX * nLanes) | 0));
+          const lane = this.resolveTouchLane(t.clientX, t.clientY, rect, false);
           this.releaseLaneHold(lane, t.identifier);
         }
       }
@@ -2462,9 +2463,7 @@ class BeatstarEngine {
       if (!rect || rect.width <= 0) return;
       if (e.clientX < rect.left || e.clientX > rect.right) return;
 
-      const nLanes = this.numLanes || 3;
-      const normX = (e.clientX - rect.left) / rect.width;
-      const lane = Math.max(0, Math.min(nLanes - 1, (normX * nLanes) | 0));
+      const lane = this.resolveTouchLane(e.clientX, e.clientY, rect, true);
 
       const consumed = this.triggerLaneInput(lane, 'tap', null, 'mouse');
 
@@ -3531,6 +3530,85 @@ class BeatstarEngine {
     }
   }
 
+  /**
+   * Mapea coordenadas físicas (clientX, clientY) al carril exacto en perspectiva 3D
+   * con asistencia magnética inteligente en los bordes de carril (evita fallos al rozar el carril vecino en 4 carriles).
+   */
+  resolveTouchLane(clientX, clientY, rect, useMagnetism = true) {
+    const nLanes = this.numLanes || 3;
+    const w = (rect && rect.width > 0) ? rect.width : (this.width || 360);
+    const h = (rect && rect.height > 0) ? rect.height : (this.height || 640);
+    const localX = clientX - (rect ? rect.left : 0);
+    const localY = clientY - (rect ? rect.top : 0);
+
+    let rawLane = 0;
+    let laneFrac = 0.5;
+
+    if (this.visualDimension !== '2d' && typeof this.getLaneBoundaryX === 'function') {
+      const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (h * 0.82);
+      const refY = Math.max(hitY - 95, Math.min(h, Number.isFinite(localY) ? localY : hitY));
+      const leftEdge = this.getLaneBoundaryX(0, refY);
+      const rightEdge = this.getLaneBoundaryX(nLanes, refY);
+      const spanW = Math.max(1, rightEdge - leftEdge);
+      const exactPos = ((localX - leftEdge) / spanW) * nLanes;
+      rawLane = Math.max(0, Math.min(nLanes - 1, Math.floor(exactPos)));
+      laneFrac = Math.max(0, Math.min(1, exactPos - rawLane));
+    } else {
+      const normX = localX / Math.max(1, w);
+      const exactPos = normX * nLanes;
+      rawLane = Math.max(0, Math.min(nLanes - 1, Math.floor(exactPos)));
+      laneFrac = Math.max(0, Math.min(1, exactPos - rawLane));
+    }
+
+    if (!useMagnetism || !this.isRunning || this.isPaused || this.isCalibrating || !Array.isArray(this.notes) || this.notes.length === 0) {
+      return rawLane;
+    }
+
+    // Margen de asistencia magnética en los bordes del carril (más generoso en modo 4 carriles)
+    const borderZone = (nLanes === 4) ? 0.36 : 0.22;
+    let candidateNeighbor = -1;
+    if (laneFrac < borderZone && rawLane > 0) {
+      candidateNeighbor = rawLane - 1;
+    } else if (laneFrac > (1.0 - borderZone) && rawLane < nLanes - 1) {
+      candidateNeighbor = rawLane + 1;
+    }
+
+    if (candidateNeighbor === -1) return rawLane;
+
+    const currentTime = this.getCurrentGameTimeMs(this._frameNow || performance.now());
+    const hitWindow = this.isMushroomModeActive ? 300 : 240;
+    const startSearchIdx = Math.max(0, (this.firstActiveNoteIndex || 0) - 2);
+    const nLen = this.notes.length;
+
+    const hasActiveTargetInLane = (targetL) => {
+      if (this.activeHolds && this.activeHolds.has(targetL)) return true;
+      for (let i = startSearchIdx; i < nLen; i++) {
+        const note = this.notes[i];
+        if (!note || note.missed || note.holdCompleted || note.holding) continue;
+        if (note.type === 'hold' && note.hit && note.holdReleasedEarly) {
+          const endT = note.end_timestamp_ms || (note.timestamp_ms + (note.duration_ms || 700));
+          if (note.lane === targetL && currentTime >= note.timestamp_ms && currentTime < endT - 90) return true;
+        }
+        if (note.hit) continue;
+        if (note.timestamp_ms - currentTime > hitWindow + 60) break;
+        if (note.lane === targetL && Math.abs(currentTime - note.timestamp_ms) <= hitWindow) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    const rawHasNote = hasActiveTargetInLane(rawLane);
+    if (rawHasNote) return rawLane;
+
+    const neighborHasNote = hasActiveTargetInLane(candidateNeighbor);
+    if (neighborHasNote) {
+      return candidateNeighbor;
+    }
+
+    return rawLane;
+  }
+
   triggerLaneInput(lane, inputType = 'tap', swipeDirection = null, touchId = null) {
     // En Modo Carretera no existen notas swipe
     if (inputType === 'swipe' && this.isHighwayModeActive) {
@@ -3539,8 +3617,10 @@ class BeatstarEngine {
 
     const nowInput = performance.now();
     const currentTime = this.getCurrentGameTimeMs(this._frameNow || nowInput);
-    const hitX = (lane + 0.5) * this.laneWidth;
     const hitY = this.hitLineY;
+    const hitX = (this.visualDimension !== '2d' && typeof this.getLaneBoundaryX === 'function')
+      ? (this.getLaneBoundaryX(lane, hitY) + this.getLaneBoundaryX(lane + 1, hitY)) * 0.5
+      : (lane + 0.5) * this.laneWidth;
 
     // Si este carril ya tiene un Hold activo y llega un nuevo toque, re-vincular el touchId sin disparar fallo ni borrar el hold
     if (inputType === 'tap' && this.activeHolds.has(lane)) {
@@ -3561,7 +3641,7 @@ class BeatstarEngine {
     const laneNotes = [];
     const nLen = this.notes.length;
     const startSearchIdx = Math.max(0, (this.firstActiveNoteIndex || 0) - 2);
-    if (!this._lastLaneHitPerf) this._lastLaneHitPerf = [0, 0, 0];
+    if (!this._lastLaneHitPerf) this._lastLaneHitPerf = [0, 0, 0, 0];
     const msSinceLastHitInLane = nowInput - (this._lastLaneHitPerf[lane] || 0);
 
     for (let i = startSearchIdx; i < nLen; i++) {
@@ -12395,15 +12475,22 @@ class BeatstarEngine {
 
   getPerspectiveCoord(lane, p, out = null) {
     // p: 0.0 at horizon, 1.0 at hit line (y = hitLineY)
+    const nLanes = this.numLanes || 3;
+    const isFour = (nLanes === 4);
+    const curveExp = isFour ? 1.48 : 1.70;
+    const minScale = isFour ? 0.64 : 0.50;
+    const widthFactor = isFour ? 0.985 : 0.94;
+
     const pClamped = p < -0.25 ? -0.25 : (p > 1.4 ? 1.4 : p);
-    const pCurved = pClamped >= 0 ? Math.pow(pClamped, 1.7) : -Math.pow(-pClamped, 1.7);
+    const pCurved = pClamped >= 0 ? Math.pow(pClamped, curveExp) : -Math.pow(-pClamped, curveExp);
     const horizonY = this._perspHorizonY || 12;
     const spanY = this._perspSpanY || ((Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84)) - horizonY);
     const y = horizonY + spanY * pCurved;
 
-    const nLanes = this.numLanes || 3;
-    const baseLaneW = this._perspBaseLaneW || ((this.width * 0.94) / nLanes);
-    const scale = 0.50 + 0.50 * pCurved;
+    const baseLaneW = (this._perspBaseLaneW && this._perspCachedLanes === nLanes)
+      ? this._perspBaseLaneW
+      : ((this.width * widthFactor) / nLanes);
+    const scale = minScale + (1.0 - minScale) * pCurved;
     const laneW = baseLaneW * scale;
     const midX = this._perspMidX || (this.width * 0.5);
     const x = midX + (lane - (nLanes - 1) * 0.5) * laneW;
@@ -12421,12 +12508,17 @@ class BeatstarEngine {
 
   getLaneBoundaryX(lineIdx, yTarget) {
     const nLanes = this.numLanes || 3;
+    const isFour = (nLanes === 4);
+    const minScale = isFour ? 0.64 : 0.50;
+    const widthFactor = isFour ? 0.985 : 0.94;
     const horizonY = this._perspHorizonY || 12;
     const invSpanY = this._perspInvSpanY || (1.0 / ((Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84)) - horizonY));
     const midX = this._perspMidX || (this.width * 0.5);
-    const baseLaneW = this._perspBaseLaneW || ((this.width * 0.94) / nLanes);
+    const baseLaneW = (this._perspBaseLaneW && this._perspCachedLanes === nLanes)
+      ? this._perspBaseLaneW
+      : ((this.width * widthFactor) / nLanes);
     const t = (yTarget - horizonY) * invSpanY;
-    const scale = 0.50 + 0.50 * t;
+    const scale = minScale + (1.0 - minScale) * t;
     return midX + (lineIdx - nLanes * 0.5) * (baseLaneW * scale);
   }
 
@@ -12449,14 +12541,14 @@ class BeatstarEngine {
     const y0 = y - h / 2;
     const y1 = y0 + h;
 
-    const margin = Math.max(3.0, (isLarge ? 5.0 : 3.5) * scale);
+    const margin = Math.max(1.8, (nLanes === 4 ? (isLarge ? 2.6 : 2.0) : (isLarge ? 5.0 : 3.5)) * scale);
 
     const x0Top = this.getLaneBoundaryX(lane, y0) + margin;
     const x1Top = this.getLaneBoundaryX(lane + 1, y0) - margin;
     const x0Bot = this.getLaneBoundaryX(lane, y1) + margin;
     const x1Bot = this.getLaneBoundaryX(lane + 1, y1) - margin;
 
-    const r = Math.max(4, (isLarge ? 10 : 6) * scale);
+    const r = Math.max(4, (nLanes === 4 ? (isLarge ? 8 : 5) : (isLarge ? 10 : 6)) * scale);
 
     const palette = this.activeSongPalette || (typeof SONG_COLOR_PALETTES !== 'undefined' ? SONG_COLOR_PALETTES.classic : { primary: '#ff00aa', secondary: '#ffffff', glow: '#ff00aa' });
     const glowColor = palette ? (palette.glow || palette.primary) : '#ff00aa';
@@ -12525,7 +12617,7 @@ class BeatstarEngine {
         }
       } else {
         // Línea blanca neón pura y elegante en su posición original exacta (cyMid) con brillo blanco intenso (0 pasadas de shadowBlur GPU)
-        const slitW = keyW * 0.62;
+        const slitW = keyW * (nLanes === 4 ? 0.68 : 0.62);
         const slitH = Math.max(4.5, 6.8 * scale);
         const slitX = cx - slitW / 2;
         const slitY = cyMid - slitH / 2;
@@ -13481,7 +13573,7 @@ class BeatstarEngine {
         // --- CAPA 1: AURA DIFUMINADA VOLUMÉTRICA LATERAL FIEL AL TEMA DEL EFECTO (Pre-cacheada: 0 allocs/frame) ---
         const auraSpanTop = 34 + beatPulse * 12;
         const auraSpanBot = 82 + beatPulse * 24;
-        const borderCacheKey = `${this.width}_${this.height}_${fx}`;
+        const borderCacheKey = `${this.width}_${this.height}_${fx}_${nLanes}`;
         if (!this._borderGradCache || this._borderGradCache.key !== borderCacheKey) {
           const primaryWingCol = theme.cInner;
           const midWingCol = theme.cMid;
@@ -14458,8 +14550,8 @@ class BeatstarEngine {
         ctx.stroke();
 
         // 2. CONSOLA / CHASIS 3D EN PERSPECTIVA CÓNICA CON LABIO FRONTAL EXTRUIDO
-        const chMarginTop = 12;
-        const chMarginBot = 16;
+        const chMarginTop = (nLanes === 4) ? 5 : 12;
+        const chMarginBot = (nLanes === 4) ? 7 : 16;
         const chL_top = this.getLaneBoundaryX(0, yDeckTop) - chMarginTop;
         const chR_top = this.getLaneBoundaryX(nLanes, yDeckTop) + chMarginTop;
         const chL_bot = this.getLaneBoundaryX(0, yDeckBot) - chMarginBot;
@@ -14501,10 +14593,10 @@ class BeatstarEngine {
         const wellHalfH = padH * 0.46;
         const yWellTop = hitY - wellHalfH;
         const yWellBot = hitY + wellHalfH;
-        const wellMargin = isLarge ? 3.8 : 2.8;
-        const plateMargin = isLarge ? 6.2 : 4.4;
+        const wellMargin = (nLanes === 4) ? (isLarge ? 2.0 : 1.5) : (isLarge ? 3.8 : 2.8);
+        const plateMargin = (nLanes === 4) ? (isLarge ? 3.4 : 2.5) : (isLarge ? 6.2 : 4.4);
         const maxSink = isLarge ? 7.0 : 4.5;
-        const cornerRad = isLarge ? 10 : 6;
+        const cornerRad = (nLanes === 4) ? (isLarge ? 8 : 5) : (isLarge ? 10 : 6);
 
         for (let l = 0; l < nLanes; l++) {
           const elapsedPress = nowPerf - (this.lanePressAnim ? (this.lanePressAnim[l] || 0) : 0);
@@ -14732,7 +14824,7 @@ class BeatstarEngine {
           const perfY = hitY + currentSink * 0.55;
           const cBandTop = perfY - (isLarge ? 10.5 : 7.5);
           const cBandBot = perfY + (isLarge ? 10.5 : 7.5);
-          const bandInset = plateMargin + 3.5;
+          const bandInset = plateMargin + ((nLanes === 4) ? 2.0 : 3.5);
 
           // Expansión elástica de los corchetes al impactar
           const brkRecoil = (isTapping ? Math.sin(Math.min(1, shockProgress * 2.2) * Math.PI) * 4.5 : 0) + (isHolding ? 2.5 : 0);
@@ -15278,7 +15370,7 @@ class BeatstarEngine {
               : (Math.sin(timeSec * 6.0 + ptCoord.y * 0.05) * (1.2 * standingEnvelope * ptCoord.scale));
 
             const wave = Math.sin((ptCoord.y * 0.04) - (currentTime * 0.008)) * (2.4 * ptCoord.scale);
-            const halfW = Math.max(4, (ptCoord.laneW * 0.40) + wave);
+            const halfW = Math.max(4, (ptCoord.laneW * ((this.numLanes === 4) ? 0.44 : 0.40)) + wave);
 
             let pt = stringPoints[s];
             if (!pt) {
@@ -15484,7 +15576,8 @@ class BeatstarEngine {
 
           // Cabeza del Hold
           const headPt = stringPoints[segments];
-          const headH = Math.min((isLarge ? 80 : 30) * headPt.scale, maxH3D);
+          const baseHoldKeyH = (this.numLanes === 4) ? (isLarge ? 64 : 28) : (isLarge ? 80 : 30);
+          const headH = Math.min(baseHoldKeyH * headPt.scale, maxH3D);
           this.drawIvoryKey(ctx, lane, headPt.y, headH, headPt.scale, isBeingHeld, isLarge, false, lyricForNote);
 
           ctx.restore();
@@ -15493,7 +15586,8 @@ class BeatstarEngine {
         // 2. NOTAS SWIPE (DESLIZAMIENTO CON CHEVRÓN + ESTELA DE POLVO ESTELAR O BALDOSA DE ROCA CON HONDURA DE FLECHA)
         // ==========================================
         } else if (note.type === 'swipe') {
-          const h = Math.min((isLarge ? 84 : 32) * coord.scale, maxH3D);
+          const baseSwipeKeyH = (this.numLanes === 4) ? (isLarge ? 68 : 30) : (isLarge ? 84 : 32);
+          const h = Math.min(baseSwipeKeyH * coord.scale, maxH3D);
           if (isRiverActive) {
             this.drawRiverStoneKey(ctx, drawLane, coord.y, h, coord.scale, false, isLarge, true, note.direction || 'up', lyricForNote, i, currentTime);
             continue;
@@ -15538,7 +15632,8 @@ class BeatstarEngine {
         // 3. NOTAS NORMALES (TAP ESTÁNDAR O BALDOSA DE ROCA FLOTANTE CON HONDURA CENTRAL)
         // ==========================================
         } else {
-          const h = Math.min((isLarge ? 80 : 30) * coord.scale * mushHeightMult, maxH3D);
+          const baseTapKeyH = (this.numLanes === 4) ? (isLarge ? 64 : 28) : (isLarge ? 80 : 30);
+          const h = Math.min(baseTapKeyH * coord.scale * mushHeightMult, maxH3D);
           if (isRiverActive) {
             this.drawRiverStoneKey(ctx, drawLane, coord.y, h, coord.scale, false, isLarge, false, 'up', lyricForNote, i, currentTime);
             continue;
