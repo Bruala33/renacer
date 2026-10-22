@@ -2833,6 +2833,16 @@
         "accuracy": 63.13863729038779,
         "date": "2026-10-22 20:53:27"
       }
+    ],
+    "bs_196c3": [
+      {
+        "name": "pelosombra40",
+        "score": 39750,
+        "stars": 3,
+        "combo": 44,
+        "accuracy": 62.20657276995305,
+        "date": "2026-10-22 20:55:09"
+      }
     ]
   },
   "global": [
@@ -2923,7 +2933,7 @@
     },
     {
       "name": "pelosombra40",
-      "total_score": 69283,
+      "total_score": 109033,
       "clefs": 0
     },
     {
@@ -3015,7 +3025,7 @@
       },
       {
         "name": "pelosombra40",
-        "score": 69283
+        "score": 109033
       },
       {
         "name": "U",
