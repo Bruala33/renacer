@@ -2657,6 +2657,16 @@
         "accuracy": 4.244742201002789,
         "date": "2026-10-22 18:53:05"
       }
+    ],
+    "bs_1afde": [
+      {
+        "name": "Niggerman",
+        "score": 61500,
+        "stars": 3.5,
+        "combo": 57,
+        "accuracy": 3.4346988355533217,
+        "date": "2026-10-22 18:53:41"
+      }
     ]
   },
   "global": [
@@ -2696,14 +2706,14 @@
       "clefs": 43
     },
     {
+      "name": "Niggerman",
+      "total_score": 4333119,
+      "clefs": 35
+    },
+    {
       "name": "fer",
       "total_score": 4321969,
       "clefs": 39
-    },
-    {
-      "name": "Niggerman",
-      "total_score": 4271619,
-      "clefs": 35
     },
     {
       "name": "bobon",
@@ -2817,12 +2827,12 @@
         "score": 8543282
       },
       {
-        "name": "fer",
-        "score": 4321969
+        "name": "Niggerman",
+        "score": 4333119
       },
       {
-        "name": "Niggerman",
-        "score": 4271619
+        "name": "fer",
+        "score": 4321969
       },
       {
         "name": "Darwin67",
