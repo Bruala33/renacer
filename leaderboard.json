@@ -2557,7 +2557,7 @@
         "stars": 3,
         "combo": 227,
         "accuracy": 65.35097469814231,
-        "date": "2026-10-22 18:11:26"
+        "date": "2026-10-22 18:11:35"
       }
     ]
   },
@@ -2609,8 +2609,8 @@
     },
     {
       "name": "Niggerman",
-      "total_score": 1302183,
-      "clefs": 11
+      "total_score": 1866588,
+      "clefs": 16
     },
     {
       "name": "MasterPianist",
@@ -2724,7 +2724,7 @@
       },
       {
         "name": "Niggerman",
-        "score": 1302183
+        "score": 1866588
       },
       {
         "name": "Darwin67",
