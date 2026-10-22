@@ -78,5 +78,31 @@ def sync_assets():
                     os.makedirs(os.path.dirname(d), exist_ok=True)
                     shutil.copy2(s, d)
 
+def sync_built_apk():
+    built_candidates = [
+        os.path.join(ROOT_DIR, 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk'),
+        os.path.join(ROOT_DIR, 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk'),
+        os.path.join(ROOT_DIR, '.build-outputs', 'app-debug.apk'),
+        os.path.join(ROOT_DIR, 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk'),
+    ]
+    existing = [p for p in built_candidates if os.path.isfile(p) and os.path.getsize(p) > 100000]
+    if not existing:
+        return
+    newest_apk = max(existing, key=lambda p: os.path.getmtime(p))
+    apk_destinations = [
+        os.path.join(ROOT_DIR, 'PianoCommunity.apk'),
+        os.path.join(STATIC_DIR, 'PianoCommunity.apk'),
+        os.path.join(STATIC_DIR, 'downloads', 'PianoCommunity.apk'),
+    ]
+    for dst in apk_destinations:
+        try:
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            if os.path.abspath(newest_apk) != os.path.abspath(dst):
+                shutil.copy2(newest_apk, dst)
+                print(f'[APK SYNC] Updated {dst} from {newest_apk} ({os.path.getsize(dst)} bytes)')
+        except Exception as e:
+            print(f'[APK SYNC WARNING] {dst}: {e}')
+
 if __name__ == '__main__':
     sync_assets()
+    sync_built_apk()

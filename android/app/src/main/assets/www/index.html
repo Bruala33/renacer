@@ -1181,9 +1181,35 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" class="text-amber-300"><circle cx="12" cy="9" r="6"/><path d="M9 15h6l1.5 6h-9L9 15z"/><circle cx="10" cy="8" r="1" fill="currentColor"/><circle cx="14" cy="10" r="1" fill="currentColor"/><path d="M12 18h.01"/></svg>
           </button>
 
-          <!-- Las Vegas Casino Daily Streak Roulette Button (Compact Emoji-only Icon Button) -->
-          <button id="btnOpenDailyRoulette" onclick="openDailyRouletteModal()" class="relative w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-400/50 hover:border-amber-300 active:scale-95 flex items-center justify-center transition cursor-pointer flex-shrink-0 shadow-[0_0_10px_rgba(245,158,11,0.25)]" title="Ruleta Diaria Las Vegas">
-            <span class="text-[16px] leading-none select-none">🎰</span>
+          <!-- Las Vegas Casino Daily Streak Roulette Button (Golden Roulette Wheel Icon Only) -->
+          <button id="btnOpenDailyRoulette" onclick="openDailyRouletteModal()" class="relative w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-400/50 hover:border-amber-300 active:scale-95 flex items-center justify-center transition cursor-pointer flex-shrink-0 shadow-[0_0_12px_rgba(245,158,11,0.35)]" title="Ruleta Diaria Las Vegas">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="drop-shadow-[0_0_5px_rgba(251,191,36,0.85)]">
+              <defs>
+                <radialGradient id="hdrRoulGold" cx="35%" cy="30%" r="70%">
+                  <stop offset="0%" stop-color="#fef08a"/>
+                  <stop offset="50%" stop-color="#f59e0b"/>
+                  <stop offset="100%" stop-color="#92400e"/>
+                </radialGradient>
+              </defs>
+              <!-- Aro exterior de oro macizo -->
+              <circle cx="12" cy="12" r="10.2" fill="#140707" stroke="url(#hdrRoulGold)" stroke-width="2.2"/>
+              <!-- Sectores de ruleta (rojo casino, negro y verde cero) -->
+              <path d="M12 2.9 A9.1 9.1 0 0 1 18.4 5.6 L12 12 Z" fill="#dc2626"/>
+              <path d="M18.4 5.6 A9.1 9.1 0 0 1 21.1 12 L12 12 Z" fill="#18181b"/>
+              <path d="M21.1 12 A9.1 9.1 0 0 1 18.4 18.4 L12 12 Z" fill="#dc2626"/>
+              <path d="M18.4 18.4 A9.1 9.1 0 0 1 12 21.1 L12 12 Z" fill="#18181b"/>
+              <path d="M12 21.1 A9.1 9.1 0 0 1 5.6 18.4 L12 12 Z" fill="#dc2626"/>
+              <path d="M5.6 18.4 A9.1 9.1 0 0 1 2.9 12 L12 12 Z" fill="#18181b"/>
+              <path d="M2.9 12 A9.1 9.1 0 0 1 5.6 5.6 L12 12 Z" fill="#dc2626"/>
+              <path d="M5.6 5.6 A9.1 9.1 0 0 1 12 2.9 L12 12 Z" fill="#10b981"/>
+              <!-- Radios dorados y anillo interior -->
+              <circle cx="12" cy="12" r="6.2" stroke="#fde047" stroke-width="0.9" stroke-opacity="0.85"/>
+              <path d="M12 2.5v19M2.5 12h19M5.3 5.3l13.4 13.4M18.7 5.3L5.3 18.7" stroke="#fbbf24" stroke-width="1.15" stroke-linecap="round"/>
+              <!-- Bola de marfil y torreta central dorada -->
+              <circle cx="16.2" cy="7.2" r="1.35" fill="#ffffff" stroke="#fde047" stroke-width="0.4"/>
+              <circle cx="12" cy="12" r="3.1" fill="url(#hdrRoulGold)" stroke="#fef08a" stroke-width="0.9"/>
+              <circle cx="12" cy="12" r="1.1" fill="#ffffff"/>
+            </svg>
             <span id="headerRouletteReadyDot" class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-black shadow-[0_0_8px_#34d399] animate-ping"></span>
             <span id="headerRouletteReadyDotSolid" class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-black"></span>
           </button>
@@ -2771,6 +2797,11 @@
           <!-- Botón 7: MODO RÍO RÁPIDO (Rocas flotantes con honduras luminosas, troncos de madera Hold y corriente dinámica según densidad + Candado LED 1000 Claves) -->
           <button id="btnModeSelectRiver" onclick="confirmGameModeSelection('river')" class="w-full p-1 rounded-xl bg-[#02080d] border-2 border-[#0d4a63] hover:border-[#00f2fe] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
             <canvas id="gmBtnRiverMainCanvas" class="w-full h-[38px] block"></canvas>
+          </button>
+
+          <!-- Botón 8: MODO BUSCAMINAS (Teclas trampa con minas camufladas, memoria y explosiones realistas + Candado LED 1000 Claves) -->
+          <button id="btnModeSelectMinesweeper" onclick="confirmGameModeSelection('minesweeper')" class="w-full p-1 rounded-xl bg-[#0b0303] border-2 border-[#5c1414] hover:border-[#ef4444] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
+            <canvas id="gmBtnMinesweeperMainCanvas" class="w-full h-[38px] block"></canvas>
           </button>
         </div>
 
@@ -6985,7 +7016,7 @@ window.switchMainTab = switchMainTab;
     window.onAppForeground = handleAppForeground;
 
     function applySelectedGameMode(mode) {
-      const m = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog' || mode === 'river' || mode === 'four_lanes') ? mode : 'normal';
+      const m = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog' || mode === 'river' || mode === 'four_lanes' || mode === 'minesweeper') ? mode : 'normal';
       window.currentGameMode = m;
       window.isKaraokeModeActive = (m === 'karaoke');
       window.isStormModeActive = (m === 'storm');
@@ -6994,6 +7025,7 @@ window.switchMainTab = switchMainTab;
       window.isAnnoyingDogModeActive = (m === 'annoying_dog');
       window.isRiverModeActive = (m === 'river');
       window.isFourLanesModeActive = (m === 'four_lanes');
+      window.isMinesweeperModeActive = (m === 'minesweeper');
       if (window.engine) {
         window.engine.isKaraokeModeActive = window.isKaraokeModeActive;
         window.engine.isStormModeActive = window.isStormModeActive;
@@ -7002,6 +7034,7 @@ window.switchMainTab = switchMainTab;
         window.engine.isAnnoyingDogModeActive = window.isAnnoyingDogModeActive;
         window.engine.isRiverModeActive = window.isRiverModeActive;
         window.engine.isFourLanesModeActive = window.isFourLanesModeActive;
+        window.engine.isMinesweeperModeActive = window.isMinesweeperModeActive;
         window.engine.numLanes = window.isFourLanesModeActive ? 4 : 3;
         if (typeof window.engine.initCanvasSize === 'function') {
           window.engine.initCanvasSize();
@@ -7040,6 +7073,8 @@ window.switchMainTab = switchMainTab;
     window.isHighwayModeActive = false;
     window.isAnnoyingDogModeActive = false;
     window.isRiverModeActive = false;
+    window.isFourLanesModeActive = false;
+    window.isMinesweeperModeActive = false;
     try { localStorage.setItem('isKaraokeModeActive', '0'); } catch (_) {}
 
     document.addEventListener('visibilitychange', () => {
@@ -14660,6 +14695,173 @@ function stopPianoCameraLoop() {
       }
     }
 
+    function _renderMinesweeperLedButton(canvas, now, isLocked) {
+      if (!canvas) return;
+      const cssW = 318;
+      const cssH = 38;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const targetW = Math.round(cssW * dpr);
+      const targetH = Math.round(cssH * dpr);
+      if (canvas.width !== targetW || canvas.height !== targetH) {
+        canvas.width = targetW;
+        canvas.height = targetH;
+      }
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      ctx.fillStyle = '#090202';
+      ctx.fillRect(0, 0, cssW, cssH);
+
+      const pitch = 3.2;
+      const dotR = pitch * 0.37;
+      const cols = Math.floor((cssW - 6) / pitch);
+      const rows = Math.floor((cssH - 4) / pitch);
+      const offsetX = (cssW - cols * pitch) * 0.5 + pitch * 0.5;
+      const offsetY = (cssH - rows * pitch) * 0.5 + pitch * 0.5;
+
+      // 1. Matriz de fondo apagada en rojo oscuro táctico
+      ctx.fillStyle = '#1f0707';
+      ctx.beginPath();
+      for (let r = 0; r < rows; r++) {
+        const py = offsetY + r * pitch;
+        for (let c = 0; c < cols; c++) {
+          const px = offsetX + c * pitch;
+          ctx.moveTo(px + dotR * 0.72, py);
+          ctx.arc(px, py, dotR * 0.72, 0, Math.PI * 2);
+        }
+      }
+      ctx.fill();
+
+      const t = now * 0.001;
+      const cycle = (t % 3.2) / 3.2; // 0..0.45: Mina visible | 0.45..0.72: Camuflada | 0.72..1.0: ¡Explosión LED!
+
+      // 2. Icono LED izquierdo: Tecla con Mina Naval -> Camuflaje -> Explosión
+      const mCol = 7;
+      const mRow = Math.floor(rows * 0.5);
+      if (cycle < 0.72) {
+        // Marco de la tecla LED
+        ctx.fillStyle = '#94a3b8';
+        ctx.beginPath();
+        for (let dc = -5; dc <= 5; dc++) {
+          for (let dr = -4; dr <= 4; dr++) {
+            if (Math.abs(dc) === 5 || Math.abs(dr) === 4) {
+              const px = offsetX + (mCol + dc) * pitch;
+              const py = offsetY + (mRow + dr) * pitch;
+              ctx.moveTo(px + dotR, py);
+              ctx.arc(px, py, dotR, 0, Math.PI * 2);
+            }
+          }
+        }
+        ctx.fill();
+
+        if (cycle < 0.45) {
+          // Mina naval visible con pinchos y núcleo rojo parpadeante
+          const blink = Math.floor(t * 8) % 2 === 0;
+          ctx.fillStyle = '#475569';
+          ctx.beginPath();
+          const spikes = [[-2, 0], [2, 0], [0, -2], [0, 2], [-2, -2], [2, -2], [-2, 2], [2, 2], [-1, 0], [1, 0], [0, -1], [0, 1]];
+          for (const [sc, sr] of spikes) {
+            const px = offsetX + (mCol + sc) * pitch;
+            const py = offsetY + (mRow + sr) * pitch;
+            ctx.moveTo(px + dotR * 1.15, py);
+            ctx.arc(px, py, dotR * 1.15, 0, Math.PI * 2);
+          }
+          ctx.fill();
+
+          ctx.fillStyle = blink ? '#ff1e1e' : '#fbbf24';
+          ctx.beginPath();
+          const corePx = offsetX + mCol * pitch;
+          const corePy = offsetY + mRow * pitch;
+          ctx.arc(corePx, corePy, dotR * 1.45, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          // Compuerta cerrada: parece una tecla normal con hendidura blanca
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          for (let dc = -3; dc <= 3; dc++) {
+            const px = offsetX + (mCol + dc) * pitch;
+            const py = offsetY + mRow * pitch;
+            ctx.moveTo(px + dotR * 1.15, py);
+            ctx.arc(px, py, dotR * 1.15, 0, Math.PI * 2);
+          }
+          ctx.fill();
+        }
+      } else {
+        // Onda expansiva de explosión LED
+        const expP = (cycle - 0.72) / 0.28;
+        const rad = 1.5 + expP * 5.0;
+        for (let dc = -6; dc <= 6; dc++) {
+          for (let dr = -4; dr <= 4; dr++) {
+            const dist = Math.hypot(dc, dr);
+            if (Math.abs(dist - rad) < 1.35) {
+              ctx.fillStyle = dist < rad * 0.65 ? '#fde047' : '#ff3b00';
+              ctx.beginPath();
+              const px = offsetX + (mCol + dc) * pitch;
+              const py = offsetY + (mRow + dr) * pitch;
+              ctx.arc(px, py, dotR * 1.25, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+        }
+      }
+
+      // 3. Texto LED "BUSCAMINAS"
+      const label = 'BUSCAMINAS';
+      const textStartCol = isLocked ? 15 : Math.floor((cols - label.length * 5.6) * 0.5) + 5;
+      const baseTextRow = Math.floor((rows - 7) * 0.5);
+
+      for (let i = 0; i < label.length; i++) {
+        const ch = label[i];
+        if (ch === ' ') continue;
+        const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7[' '];
+        const charCol = (i < 5) ? '#ff4500' : '#fbbf24';
+        const cBase = textStartCol + i * 5.5;
+
+        ctx.fillStyle = charCol;
+        ctx.beginPath();
+        for (let gr = 0; gr < 7; gr++) {
+          const rowBits = glyph[gr];
+          if (!rowBits) continue;
+          for (let gc = 0; gc < 5; gc++) {
+            if ((rowBits >> (4 - gc)) & 1) {
+              const lx = offsetX + Math.round(cBase + gc) * pitch;
+              const ly = offsetY + (baseTextRow + gr) * pitch;
+              ctx.moveTo(lx + dotR * 1.12, ly);
+              ctx.arc(lx, ly, dotR * 1.12, 0, Math.PI * 2);
+            }
+          }
+        }
+        ctx.fill();
+      }
+
+      // 4. Candado LED (@1000) si está bloqueado
+      if (isLocked) {
+        const lockStr = '@1000';
+        const lockStartCol = cols - (lockStr.length * 6) - 1;
+        const lockRow = Math.floor((rows - 7) * 0.5);
+        for (let i = 0; i < lockStr.length; i++) {
+          const ch = lockStr[i];
+          const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7[' '];
+          const isLockIcon = (ch === '@');
+          ctx.fillStyle = isLockIcon ? '#ff4500' : '#ffb300';
+          ctx.beginPath();
+          for (let gr = 0; gr < 7; gr++) {
+            const rowBits = glyph[gr];
+            if (!rowBits) continue;
+            for (let gc = 0; gc < 5; gc++) {
+              if ((rowBits >> (4 - gc)) & 1) {
+                const lx = offsetX + (lockStartCol + i * 6 + gc) * pitch;
+                const ly = offsetY + (lockRow + gr) * pitch;
+                ctx.moveTo(lx + dotR * 1.12, ly);
+                ctx.arc(lx, ly, dotR * 1.12, 0, Math.PI * 2);
+              }
+            }
+          }
+          ctx.fill();
+        }
+      }
+    }
+
     function _renderGameModeStaticLeds(songTitle = 'PISTA', songArtist = '') {
       _currentModalSongTitle = songTitle;
       _currentModalSongArtist = songArtist;
@@ -14720,6 +14922,7 @@ function stopPianoCameraLoop() {
         const annoyingDogLocked = !isGameModeUnlocked('annoying_dog');
         const riverLocked = !isGameModeUnlocked('river');
         const fourLanesLocked = !isGameModeUnlocked('four_lanes');
+        const minesweeperLocked = !isGameModeUnlocked('minesweeper');
 
         // A. ANIMACIÓN LED MODO KARAOKE: KA -> RA -> O -> KE iluminándose en dorado + Candado LED (@ 1000) si está bloqueado
         const kStep = Math.floor(((now - startTime) % 1900) / 380);
@@ -14843,6 +15046,13 @@ function stopPianoCameraLoop() {
           document.getElementById('gmBtnFourLanesMainCanvas'),
           now,
           fourLanesLocked
+        );
+
+        // H. ANIMACIÓN LED MODO BUSCAMINAS: Mina naval dentro de la tecla, camuflaje y explosión LED + Candado LED
+        _renderMinesweeperLedButton(
+          document.getElementById('gmBtnMinesweeperMainCanvas'),
+          now,
+          minesweeperLocked
         );
 
         _gameModeLedAnimId = requestAnimationFrame(tick);
@@ -14977,7 +15187,7 @@ function stopPianoCameraLoop() {
     }
 
     function confirmGameModeSelection(mode) {
-      const chosen = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog' || mode === 'river' || mode === 'four_lanes') ? mode : 'normal';
+      const chosen = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog' || mode === 'river' || mode === 'four_lanes' || mode === 'minesweeper') ? mode : 'normal';
 
       // Si el modo no es normal y aún tiene candado LED (1000 Claves para desbloquear):
       if (chosen !== 'normal' && !isGameModeUnlocked(chosen)) {
@@ -14995,7 +15205,9 @@ function stopPianoCameraLoop() {
                             ? 'CARRETERA'
                             : (chosen === 'annoying_dog'
                                 ? 'PERRO MOLESTO'
-                                : (chosen === 'four_lanes' ? '4 CARRILES' : 'RÍO')))));
+                                : (chosen === 'four_lanes'
+                                    ? '4 CARRILES'
+                                    : (chosen === 'minesweeper' ? 'BUSCAMINAS' : 'RÍO'))))));
               showSuccessToast(`¡Modo ${modeLabel} desbloqueado para siempre! (-1000 𝄞)`);
             }
           }

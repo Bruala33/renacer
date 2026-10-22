@@ -623,6 +623,7 @@ app.all(['/download/apk', '/api/v1/app/download_apk', '/PianoCommunity.apk', '/d
   }
 
   if (validApks.length > 0) {
+    validApks.sort((a, b) => b.stat.mtimeMs - a.stat.mtimeMs);
     const { apkPath, stat } = validApks[0];
     res.setHeader('Content-Type', 'application/vnd.android.package-archive');
     res.setHeader('Content-Disposition', 'attachment; filename="PianoCommunity.apk"');

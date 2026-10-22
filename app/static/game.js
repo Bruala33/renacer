@@ -1658,7 +1658,7 @@ class BeatstarEngine {
     this.notes = [];
     this.activeHolds = new Map();
     this.activeTouches = new Map();
-    this.laneGlows = [0, 0, 0];
+    this.laneGlows = [0, 0, 0, 0];
     this.fxRipples = [];
     this.bgBursts = [];
     this.musicalNotes = [];
@@ -2599,6 +2599,7 @@ class BeatstarEngine {
     let simCombo = 0;
     let simScore = 0;
     for (const n of notes) {
+      if (!n || n.isMine) continue;
       simCombo++;
       let mult = 1;
       if (simCombo >= 100) mult = 5;
@@ -2973,6 +2974,7 @@ class BeatstarEngine {
     this.isHighwayModeActive = (curActiveMode === 'highway');
     this.isAnnoyingDogModeActive = (curActiveMode === 'annoying_dog');
     this.isRiverModeActive = (curActiveMode === 'river');
+    this.isMinesweeperModeActive = (curActiveMode === 'minesweeper');
     if (typeof window !== 'undefined') {
       window.isKaraokeModeActive = this.isKaraokeModeActive;
       window.isStormModeActive = this.isStormModeActive;
@@ -2980,6 +2982,16 @@ class BeatstarEngine {
       window.isHighwayModeActive = this.isHighwayModeActive;
       window.isAnnoyingDogModeActive = this.isAnnoyingDogModeActive;
       window.isRiverModeActive = this.isRiverModeActive;
+      window.isMinesweeperModeActive = this.isMinesweeperModeActive;
+    }
+
+    // En Modo Buscaminas: inyectar teclas extra trampa (Minas) asincrónicas en huecos libres
+    this._mineExplosions = [];
+    this._shatteredKeyFragments = [];
+    this._mineFloatingPenalties = [];
+    this._mineShakeIntensity = 0;
+    if (this.isMinesweeperModeActive) {
+      this._injectMinesweeperNotes();
     }
 
     const isKaraokePrewarm = this.isKaraokeModeActive;
@@ -3584,7 +3596,7 @@ class BeatstarEngine {
       if (this.activeHolds && this.activeHolds.has(targetL)) return true;
       for (let i = startSearchIdx; i < nLen; i++) {
         const note = this.notes[i];
-        if (!note || note.missed || note.holdCompleted || note.holding) continue;
+        if (!note || note.isMine || note.missed || note.holdCompleted || note.holding) continue;
         if (note.type === 'hold' && note.hit && note.holdReleasedEarly) {
           const endT = note.end_timestamp_ms || (note.timestamp_ms + (note.duration_ms || 700));
           if (note.lane === targetL && currentTime >= note.timestamp_ms && currentTime < endT - 90) return true;
@@ -3865,6 +3877,11 @@ class BeatstarEngine {
       if (this.customBgMode === 'reactive') {
         this.addReactiveBurst(lane, hitX, hitY, jCalib.color);
       }
+      return true;
+    }
+
+    if (closestNote.isMine) {
+      this.triggerMineExplosion(closestNote, hitX, hitY, currentTime);
       return true;
     }
 
@@ -4979,6 +4996,13 @@ class BeatstarEngine {
       }
 
       if (currentTime >= 0 && (currentTime - noteTime >= exitScreenOffsetMs)) {
+        if (note.isMine) {
+          // ¡Mina esquivada con éxito! No penalizar ni cortar el combo
+          note.hit = true;
+          note.processed = true;
+          this._emitMineDodgedFeedback(note.lane);
+          continue;
+        }
         if (this.isMushroomModeActive && this._mushInSafeTransition) {
           note.hit = true;
           note.processed = true;
@@ -5066,7 +5090,7 @@ class BeatstarEngine {
     }
     this.sync.pause();
 
-    const totalNotes = (this.notes && this.notes.length) || 0;
+    const totalNotes = (this.notes && this.notes.filter(n => n && !n.isMine).length) || 0;
     const maxScore = Math.max(1, this.maxPossibleScore || 1);
     const scorePct = Math.min(100.0, Math.max(0.0, (this.score / maxScore) * 100));
 
@@ -5128,7 +5152,8 @@ class BeatstarEngine {
       this.isHighwayModeActive ||
       this.isAnnoyingDogModeActive ||
       this.isRiverModeActive ||
-      (typeof window !== 'undefined' && (window.isStormModeActive || window.isMushroomModeActive || window.isHighwayModeActive || window.isAnnoyingDogModeActive || window.isRiverModeActive))
+      this.isMinesweeperModeActive ||
+      (typeof window !== 'undefined' && (window.isStormModeActive || window.isMushroomModeActive || window.isHighwayModeActive || window.isAnnoyingDogModeActive || window.isRiverModeActive || window.isMinesweeperModeActive))
     );
     const clefMultiplier = (isFeatured ? 2 : 1) * (isStormX2 ? 2 : 1);
     const earnedClefs = Math.max(1, Math.round(baseScoreClefs * diffMultiplier)) * clefMultiplier;
@@ -5244,11 +5269,15 @@ class BeatstarEngine {
       this.atmosphereShiftProgress = Math.min(1.0, this.atmosphereShiftProgress + dt * 1.8);
     }
 
-    for (let l = 0; l < 3; l++) {
+    const maxGlowLanes = Math.max(4, this.numLanes || 3);
+    for (let l = 0; l < maxGlowLanes; l++) {
       this.laneGlows[l] = Math.max(0, (this.laneGlows[l] || 0) - dt * 4.0);
-      if (this.laneFlashTimers[l] > 0) {
+      if (this.laneFlashTimers && this.laneFlashTimers[l] > 0) {
         this.laneFlashTimers[l] = Math.max(0, this.laneFlashTimers[l] - dt);
       }
+    }
+    if (this.isMinesweeperModeActive || (this._mineExplosions && this._mineExplosions.length > 0) || (this._shatteredKeyFragments && this._shatteredKeyFragments.length > 0)) {
+      this.updateMinesweeperEffects(dt);
     }
 
     for (let i = this.judgements.length - 1; i >= 0; i--) {
@@ -6669,6 +6698,15 @@ class BeatstarEngine {
     const currentTime = this.getCurrentGameTimeMs(this._frameNow);
     const isMushActive = Boolean(this.isMushroomModeActive || (typeof window !== 'undefined' && window.isMushroomModeActive));
 
+    const hasMineShake = (this._mineShakeIntensity && this._mineShakeIntensity > 0.15);
+    if (hasMineShake) {
+      this.ctx.save();
+      const sMag = this._mineShakeIntensity;
+      const sx = (Math.random() - 0.5) * 2.0 * sMag;
+      const sy = (Math.random() - 0.5) * 2.0 * sMag;
+      this.ctx.translate(sx, sy);
+    }
+
     this.renderBackgroundFX(currentTime);
     if (isMushActive) {
       this._beginMushroomWorldTransform(this.ctx, currentTime);
@@ -6696,6 +6734,12 @@ class BeatstarEngine {
     }
     if (this.isRiverModeActive || (typeof window !== 'undefined' && window.isRiverModeActive)) {
       this.renderRiverModeOverlay(this.ctx, currentTime);
+    }
+    if (this.isMinesweeperModeActive || (typeof window !== 'undefined' && window.isMinesweeperModeActive) || (this._mineExplosions && this._mineExplosions.length > 0)) {
+      this.renderMinesweeperOverlay(this.ctx, currentTime);
+    }
+    if (hasMineShake) {
+      this.ctx.restore();
     }
     this.renderJudgements();
     this.renderFlyingLyrics(this.ctx, currentTime);
@@ -12470,6 +12514,849 @@ class BeatstarEngine {
   }
 
   // =========================================================================
+  // MODO BUSCAMINAS (MINESWEEPER RHYTHM & MEMORY ENGINE)
+  // =========================================================================
+
+  _injectMinesweeperNotes() {
+    if (!this.notes || this.notes.length === 0) return;
+    const realNotes = this.notes.filter(n => n && !n.isMine);
+    if (realNotes.length === 0) return;
+
+    const nLanes = this.numLanes || 3;
+    const firstT = Math.max(2400, (realNotes[0].timestamp_ms || 2000) + 600);
+    const lastT = (realNotes[realNotes.length - 1].end_timestamp_ms || realNotes[realNotes.length - 1].timestamp_ms || 0) - 1200;
+    if (lastT <= firstT) return;
+
+    const isLaneBusyAt = (lane, tMs, marginMs = 265) => {
+      for (let i = 0; i < realNotes.length; i++) {
+        const rn = realNotes[i];
+        const rtStart = rn.timestamp_ms || 0;
+        const rtEnd = rn.end_timestamp_ms || rtStart;
+        if (rtStart - tMs > marginMs + 400) break;
+        if (rn.lane === lane) {
+          if (tMs >= (rtStart - marginMs) && tMs <= (rtEnd + marginMs)) {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+
+    const countBusyLanesAt = (tMs, marginMs = 175) => {
+      let busy = 0;
+      for (let l = 0; l < nLanes; l++) {
+        if (isLaneBusyAt(l, tMs, marginMs)) busy++;
+      }
+      return busy;
+    };
+
+    const mineNotes = [];
+    let cursorMs = firstT + 400 + Math.random() * 900;
+    let mineIdx = 0;
+
+    while (cursorMs < lastT) {
+      // Las minas son teclas extra aleatorias (no tienen por qué ir sincronizadas con el pulso musical)
+      const jitterMs = Math.round((Math.random() - 0.5) * 420);
+      const candidateTime = Math.max(2200, Math.round(cursorMs + jitterMs));
+
+      // Garantizar que no se bloqueen todos los carriles a la vez
+      if (countBusyLanesAt(candidateTime, 180) < nLanes - 1) {
+        // Probar carriles en orden aleatorio
+        const lanesOrder = [];
+        for (let l = 0; l < nLanes; l++) lanesOrder.push(l);
+        for (let i = lanesOrder.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const tmp = lanesOrder[i];
+          lanesOrder[i] = lanesOrder[j];
+          lanesOrder[j] = tmp;
+        }
+
+        let chosenLane = -1;
+        for (const l of lanesOrder) {
+          if (!isLaneBusyAt(l, candidateTime, 280)) {
+            chosenLane = l;
+            break;
+          }
+        }
+
+        if (chosenLane !== -1) {
+          mineNotes.push({
+            id: `mine_${mineIdx++}_${candidateTime}`,
+            lane: chosenLane,
+            column: chosenLane,
+            track: chosenLane,
+            type: 'tap',
+            isMine: true,
+            time: candidateTime / 1000,
+            timeMs: candidateTime,
+            timestamp_ms: candidateTime,
+            duration_ms: 0,
+            holdDuration: 0,
+            end_timestamp_ms: null,
+            lyric: null,
+            hit: false,
+            holding: false,
+            holdCompleted: false,
+            missed: false,
+            processed: false,
+            _mineSeed: Math.random() * 100
+          });
+        }
+      }
+
+      // Siguiente mina entre 1.65s y 3.25s después
+      cursorMs += 1650 + Math.random() * 1600;
+    }
+
+    if (mineNotes.length > 0) {
+      const combined = [...realNotes, ...mineNotes].sort((a, b) => a.timestamp_ms - b.timestamp_ms);
+      const cLen = combined.length;
+      for (let i = 0; i < cLen; i++) {
+        const curN = combined[i];
+        let diff = Infinity;
+        const maxJ = Math.min(cLen, i + 40);
+        for (let j = i + 1; j < maxJ; j++) {
+          const nextN = combined[j];
+          if (nextN.timestamp_ms - curN.timestamp_ms > 3000) break;
+          if (nextN.lane === curN.lane && nextN.timestamp_ms > curN.timestamp_ms) {
+            diff = nextN.timestamp_ms - curN.timestamp_ms;
+            break;
+          }
+        }
+        curN.nextSameLaneDiffMs = diff;
+      }
+      this.notes = combined;
+      console.log(`[Buscaminas] Inyectadas ${mineNotes.length} teclas trampa con minas camuflables.`);
+    }
+  }
+
+  _emitMineDodgedFeedback(lane) {
+    const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
+    const coord = this.getPerspectiveCoord(lane, 1.0, this._coordScratch0);
+    if (!this._mineFloatingPenalties) this._mineFloatingPenalties = [];
+    this._mineFloatingPenalties.push({
+      x: coord.x,
+      y: hitY - 18,
+      vy: -42,
+      text: '✓ MINA ESQUIVADA',
+      color: '#10b981',
+      age: 0,
+      duration: 0.72,
+      scale: 0.86
+    });
+  }
+
+  playMineExplosionSound() {
+    try {
+      const ctx = (this.synth && this.synth.audioCtx)
+        ? this.synth.audioCtx
+        : null;
+      if (!ctx) return;
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+      const now = ctx.currentTime;
+
+      // 1. Onda de choque sub-grave sísmica (Impacto de artillería 125Hz -> 20Hz)
+      const subOsc = ctx.createOscillator();
+      const subGain = ctx.createGain();
+      subOsc.type = 'triangle';
+      subOsc.frequency.setValueAtTime(135, now);
+      subOsc.frequency.exponentialRampToValueAtTime(34, now + 0.18);
+      subOsc.frequency.exponentialRampToValueAtTime(18, now + 0.75);
+      subGain.gain.setValueAtTime(0.95, now);
+      subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.82);
+      subOsc.connect(subGain);
+      subGain.connect(ctx.destination);
+      subOsc.start(now);
+      subOsc.stop(now + 0.84);
+
+      // 2. Punch medio saturado de detonación metálica
+      const punchOsc = ctx.createOscillator();
+      const punchGain = ctx.createGain();
+      punchOsc.type = 'sawtooth';
+      punchOsc.frequency.setValueAtTime(240, now);
+      punchOsc.frequency.exponentialRampToValueAtTime(28, now + 0.32);
+      punchGain.gain.setValueAtTime(0.55, now);
+      punchGain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+      punchOsc.connect(punchGain);
+      punchGain.connect(ctx.destination);
+      punchOsc.start(now);
+      punchOsc.stop(now + 0.36);
+
+      // 3. Explosión pirotécnica de banda ancha + metralla de teclas destruidas (Ruido filtrado)
+      const bufLen = Math.floor(ctx.sampleRate * 1.15);
+      const noiseBuf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+      const data = noiseBuf.getChannelData(0);
+      for (let i = 0; i < bufLen; i++) {
+        const t = i / bufLen;
+        const crackle = (Math.random() < 0.04) ? (Math.random() * 2 - 1) * 1.8 : 0;
+        data[i] = ((Math.random() * 2 - 1) * Math.pow(1 - t, 1.35)) + crackle * (1 - t);
+      }
+
+      const noiseSrc = ctx.createBufferSource();
+      noiseSrc.buffer = noiseBuf;
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(3400, now);
+      filter.frequency.exponentialRampToValueAtTime(240, now + 0.95);
+
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.92, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 1.10);
+
+      noiseSrc.connect(filter);
+      filter.connect(noiseGain);
+      noiseGain.connect(ctx.destination);
+      noiseSrc.start(now);
+      noiseSrc.stop(now + 1.12);
+    } catch (_) {}
+  }
+
+  triggerMineExplosion(mineNote, hitX, hitY, currentTime) {
+    if (!mineNote) return;
+    mineNote.hit = true;
+    mineNote.processed = true;
+
+    this.playMineExplosionSound();
+
+    const scrollDur = (Number.isFinite(this.scrollDurationMs) && this.scrollDurationMs > 0) ? this.scrollDurationMs : 1400;
+    const invScrollDur = 1.0 / scrollDur;
+    const isLarge = (this.keyStyle !== 'compact');
+    const curMult = Math.max(1, this.multiplier || 1);
+
+    if (!this._shatteredKeyFragments) this._shatteredKeyFragments = [];
+    if (!this._mineFloatingPenalties) this._mineFloatingPenalties = [];
+    if (!this._mineExplosions) this._mineExplosions = [];
+
+    let totalLostPoints = 0;
+    let destroyedRealNotes = 0;
+
+    const spawnKeyShatterAt = (kx, ky, kScale, isMineTarget, notePoints) => {
+      const shardCount = isMineTarget ? 14 : 9;
+      for (let s = 0; s < shardCount; s++) {
+        const ang = (s / shardCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.45;
+        const distFromBlast = Math.hypot(kx - hitX, ky - hitY);
+        const blastDirX = distFromBlast > 8 ? (kx - hitX) / distFromBlast : Math.cos(ang);
+        const blastDirY = distFromBlast > 8 ? (ky - hitY) / distFromBlast : Math.sin(ang);
+        const speed = (180 + Math.random() * 340) * (isMineTarget ? 1.25 : 1.0);
+        this._shatteredKeyFragments.push({
+          x: kx + (Math.random() - 0.5) * 28 * kScale,
+          y: ky + (Math.random() - 0.5) * 18 * kScale,
+          vx: Math.cos(ang) * speed * 0.65 + blastDirX * speed * 0.75,
+          vy: Math.sin(ang) * speed * 0.65 + blastDirY * speed * 0.55 - (120 + Math.random() * 160),
+          rot: Math.random() * Math.PI * 2,
+          rotSpeed: (Math.random() - 0.5) * 18,
+          w: (12 + Math.random() * 18) * kScale,
+          h: (8 + Math.random() * 14) * kScale,
+          age: 0,
+          duration: 0.75 + Math.random() * 0.40,
+          isMineShard: isMineTarget,
+          rimColor: isMineTarget ? (s % 2 === 0 ? '#ff3b00' : '#fde047') : (s % 3 === 0 ? '#00f2fe' : '#ffffff'),
+          bodyColor: isMineTarget ? '#27120b' : '#161924'
+        });
+      }
+
+      if (!isMineTarget && notePoints > 0) {
+        this._mineFloatingPenalties.push({
+          x: kx,
+          y: ky - 8,
+          vy: -65 - Math.random() * 25,
+          text: `-${notePoints}`,
+          color: '#ff3b30',
+          age: 0,
+          duration: 0.95,
+          scale: Math.max(0.85, Math.min(1.25, kScale * 1.15))
+        });
+      }
+    };
+
+    // Fragmentar la propia tecla mina en el epicentro
+    spawnKeyShatterAt(hitX, hitY, 1.0, true, 0);
+
+    // Buscar y destruir TODAS las teclas visibles actualmente en pantalla
+    const startIdx = Math.max(0, (this.firstActiveNoteIndex || 0) - 2);
+    const nLen = this.notes.length;
+    for (let i = startIdx; i < nLen; i++) {
+      const n = this.notes[i];
+      if (!n || n === mineNote || n.holdCompleted) continue;
+      if (n.hit && !n.holding) continue;
+      if (n.missed || n.processed) continue;
+
+      const noteT = n.timestamp_ms ?? n.timeMs ?? 0;
+      const timeUntilHit = noteT - currentTime;
+      const pHead = 1.0 - (timeUntilHit * invScrollDur);
+
+      if (timeUntilHit > scrollDur * 1.05 && !n.holding) break;
+
+      const isVisibleOnScreen = (pHead >= -0.04 && pHead <= 1.12) || Boolean(n.holding);
+      if (!isVisibleOnScreen) continue;
+
+      // Destruir esta tecla en pantalla sin provocar Game Over ni Miss
+      n.hit = true;
+      n.processed = true;
+      n.holdCompleted = true;
+      n.holding = false;
+      if (this.activeHolds && this.activeHolds.has(n.lane)) {
+        const activeH = this.activeHolds.get(n.lane);
+        if (activeH && activeH.note === n) {
+          this.activeHolds.delete(n.lane);
+        }
+      }
+
+      const clampedP = Math.max(0.04, Math.min(1.0, pHead));
+      const nCoord = this.getPerspectiveCoord(n.lane ?? 0, clampedP, this._coordScratch1);
+
+      let noteWorth = 0;
+      if (!n.isMine) {
+        destroyedRealNotes++;
+        if (n.type === 'hold') {
+          const durSec = Math.max(0.2, (n.duration_ms || 600) / 1000);
+          noteWorth = (450 + Math.round(260 * durSec)) * curMult;
+        } else {
+          noteWorth = 450 * curMult;
+        }
+        totalLostPoints += noteWorth;
+      }
+
+      spawnKeyShatterAt(nCoord.x, nCoord.y, nCoord.scale, Boolean(n.isMine), noteWorth);
+    }
+
+    // Si no había ninguna otra tecla visible en ese instante exacto, penalizar el valor base de la explosión
+    if (totalLostPoints === 0) {
+      totalLostPoints = 450 * curMult;
+    }
+
+    // Restar los puntos de todas las teclas explotadas y reiniciar el combo a 0 (¡No pierdes la partida!)
+    this.score = Math.max(0, (this.score || 0) - totalLostPoints);
+    this.displayScore = this.score;
+    this.combo = 0;
+    this.streakCount = 0;
+    this.multiplier = 1;
+
+    if (this.ui && typeof this.ui.onScoreUpdate === 'function') {
+      this.ui.onScoreUpdate(this.score, this.combo, this.stars, this.multiplier, null, 0);
+    }
+
+    // Iluminar todos los carriles en rojo incandescente de onda expansiva
+    const maxL = Math.max(4, this.numLanes || 3);
+    for (let l = 0; l < maxL; l++) {
+      this.laneGlows[l] = 1.0;
+      if (this.laneFlashTimers) this.laneFlashTimers[l] = 0.48;
+      if (this.laneFlashColors) this.laneFlashColors[l] = '#ff2a00';
+    }
+
+    // Sacudida sísmica de cámara
+    this._mineShakeIntensity = 24.0;
+
+    // Crear explosión volumétrica ultra-realista en el epicentro
+    const fireballs = [];
+    for (let f = 0; f < 28; f++) {
+      const ang = Math.random() * Math.PI * 2;
+      const distSpd = (25 + Math.random() * 240);
+      const isCore = f < 8;
+      fireballs.push({
+        x: hitX + (Math.random() - 0.5) * 18,
+        y: hitY + (Math.random() - 0.5) * 14,
+        vx: Math.cos(ang) * distSpd,
+        vy: Math.sin(ang) * distSpd * 0.75 - (45 + Math.random() * 135),
+        r0: isCore ? (22 + Math.random() * 24) : (14 + Math.random() * 26),
+        rMax: isCore ? (68 + Math.random() * 55) : (48 + Math.random() * 64),
+        delay: isCore ? 0 : Math.random() * 0.08,
+        turbulence: (Math.random() - 0.5) * 6.0,
+        isSmokePlume: f >= 18
+      });
+    }
+
+    const sparks = [];
+    for (let sp = 0; sp < 46; sp++) {
+      const ang = Math.random() * Math.PI * 2;
+      const spd = 220 + Math.random() * 580;
+      sparks.push({
+        x: hitX,
+        y: hitY,
+        vx: Math.cos(ang) * spd,
+        vy: Math.sin(ang) * spd - (90 + Math.random() * 180),
+        len: 10 + Math.random() * 18,
+        size: 1.8 + Math.random() * 2.6,
+        color: sp % 3 === 0 ? '#ffffff' : (sp % 3 === 1 ? '#fde047' : '#ff4500')
+      });
+    }
+
+    this._mineExplosions.push({
+      x: hitX,
+      y: hitY,
+      age: 0,
+      duration: 1.25,
+      lostPoints: totalLostPoints,
+      destroyedNotes: destroyedRealNotes,
+      fireballs,
+      sparks
+    });
+
+    // Texto flotante gigante del impacto de la mina
+    this._mineFloatingPenalties.push({
+      x: this.width * 0.5,
+      y: hitY - 76,
+      vy: -38,
+      text: `💥 ¡BOOM! -${totalLostPoints.toLocaleString()} PTS`,
+      color: '#fde047',
+      stroke: '#991b1b',
+      age: 0,
+      duration: 1.35,
+      scale: 1.32,
+      isHeadline: true
+    });
+
+    this.addJudgement(`💥 -${totalLostPoints} PTS`, '#ff3b00', mineNote.lane ?? 1);
+  }
+
+  updateMinesweeperEffects(dt) {
+    if (this._mineShakeIntensity > 0) {
+      this._mineShakeIntensity = Math.max(0, this._mineShakeIntensity - dt * 42.0);
+    }
+
+    if (this._mineExplosions && this._mineExplosions.length > 0) {
+      for (let i = this._mineExplosions.length - 1; i >= 0; i--) {
+        const exp = this._mineExplosions[i];
+        exp.age += dt;
+        if (exp.age >= exp.duration) {
+          this._mineExplosions.splice(i, 1);
+          continue;
+        }
+        for (let f = 0; f < exp.fireballs.length; f++) {
+          const fb = exp.fireballs[f];
+          if (exp.age < fb.delay) continue;
+          fb.x += fb.vx * dt;
+          fb.y += fb.vy * dt;
+          fb.vx *= (1 - dt * 2.8);
+          fb.vy *= (1 - dt * 2.2);
+          fb.vy -= 38 * dt; // Flotabilidad térmica ascendente del humo/fuego
+        }
+        for (let s = 0; s < exp.sparks.length; s++) {
+          const sp = exp.sparks[s];
+          sp.x += sp.vx * dt;
+          sp.y += sp.vy * dt;
+          sp.vy += 680 * dt; // Gravedad balística
+          sp.vx *= (1 - dt * 1.4);
+        }
+      }
+    }
+
+    if (this._shatteredKeyFragments && this._shatteredKeyFragments.length > 0) {
+      for (let i = this._shatteredKeyFragments.length - 1; i >= 0; i--) {
+        const sh = this._shatteredKeyFragments[i];
+        sh.age += dt;
+        if (sh.age >= sh.duration) {
+          this._shatteredKeyFragments.splice(i, 1);
+          continue;
+        }
+        sh.x += sh.vx * dt;
+        sh.y += sh.vy * dt;
+        sh.vy += 620 * dt;
+        sh.rot += sh.rotSpeed * dt;
+      }
+    }
+
+    if (this._mineFloatingPenalties && this._mineFloatingPenalties.length > 0) {
+      for (let i = this._mineFloatingPenalties.length - 1; i >= 0; i--) {
+        const fp = this._mineFloatingPenalties[i];
+        fp.age += dt;
+        if (fp.age >= fp.duration) {
+          this._mineFloatingPenalties.splice(i, 1);
+          continue;
+        }
+        fp.y += fp.vy * dt;
+        fp.vy *= (1 - dt * 2.4);
+      }
+    }
+  }
+
+  renderMinesweeperKey(ctx, note, lane, cy, h, scale, pHead, isLarge, currentTime) {
+    // 1. Dibujar siempre la tecla base 3D (para que al camuflarse sea 100% idéntica a una tecla normal)
+    const tapKey = this.drawIvoryKey(ctx, lane, cy, h, scale, false, isLarge, false, null);
+
+    // Fases de memoria y camuflaje de la mina dentro de la tecla:
+    // - pHead <= 0.36: Mina naval/táctica 100% visible dentro de una cámara blindada abierta en la tecla
+    // - 0.36 < pHead < 0.56: Animación ultra chula de compuertas de titanio cerrándose + escáner láser holográfico
+    // - pHead >= 0.56: 100% camuflada como una tecla normal (¡toca recordarla!)
+    const REVEAL_END_P = 0.36;
+    const CAMO_END_P = 0.56;
+
+    if (pHead >= CAMO_END_P) {
+      return tapKey;
+    }
+
+    const camoProgress = pHead <= REVEAL_END_P
+      ? 0.0
+      : Math.max(0.0, Math.min(1.0, (pHead - REVEAL_END_P) / (CAMO_END_P - REVEAL_END_P)));
+
+    // Easing cúbico suave para el cierre mecánico de las compuertas
+    const shutterClose = camoProgress < 0.5
+      ? 4 * camoProgress * camoProgress * camoProgress
+      : 1 - Math.pow(-2 * camoProgress + 2, 3) / 2;
+
+    const cx = tapKey.cx;
+    const cyMid = tapKey.cy;
+    const keyW = tapKey.w;
+    const keyH = tapKey.h;
+
+    const nLanes = this.numLanes || 3;
+    const margin = Math.max(2.2, (nLanes === 4 ? (isLarge ? 3.5 : 2.6) : (isLarge ? 6.5 : 4.5)) * scale);
+    const bevelH = Math.max(3, (isLarge ? 9 : 5) * scale);
+    const y0 = cy - h * 0.5 + 2.2 * scale;
+    const y1 = cy + h * 0.5 - bevelH - 1.5 * scale;
+    const x0Top = this.getLaneBoundaryX(lane, y0) + margin;
+    const x1Top = this.getLaneBoundaryX(lane + 1, y0) - margin;
+    const x0Bot = this.getLaneBoundaryX(lane, y1) + margin;
+    const x1Bot = this.getLaneBoundaryX(lane + 1, y1) - margin;
+    const cornerR = Math.max(3, (isLarge ? 7 : 4) * scale);
+
+    ctx.save();
+
+    // A. CÁMARA INTERNA ABIERTA DE LA TECLA Y MINA TÁCTICA 3D (Mientras no esté 100% cerrada la compuerta)
+    if (shutterClose < 0.99) {
+      // Fondo oscuro acorazado de la cavidad interior de la tecla
+      ctx.fillStyle = '#090406';
+      tracePerspectiveQuad(ctx, x0Top, x1Top, x0Bot, x1Bot, y0, y1, cornerR);
+      ctx.fill();
+
+      // Borde interior de peligro rojo/ámbar pulsante
+      const pulse = 0.5 + 0.5 * Math.sin(currentTime * 0.018 + (note._mineSeed || 0));
+      ctx.strokeStyle = `rgba(239, 68, 68, ${(0.75 + pulse * 0.25) * (1 - shutterClose * 0.7)})`;
+      ctx.lineWidth = Math.max(1.5, 2.4 * scale);
+      tracePerspectiveQuad(ctx, x0Top, x1Top, x0Bot, x1Bot, y0, y1, cornerR);
+      ctx.stroke();
+
+      // Rejilla/bandas diagonales de advertencia en las esquinas internas de la tecla
+      const innerW = (x1Bot - x0Bot);
+      const innerH = Math.max(8, y1 - y0);
+      ctx.fillStyle = `rgba(245, 158, 11, ${(0.28 * (1 - shutterClose)).toFixed(3)})`;
+      ctx.fillRect(cx - innerW * 0.42, cyMid - innerH * 0.36, innerW * 0.84, innerH * 0.72);
+
+      // Escala de la mina dentro de la tecla (sobredimensionada ligeramente en el horizonte para máxima visibilidad)
+      const mineScale = (1.0 - shutterClose * 0.35) * Math.max(0.72, scale * 1.18);
+      const mineR = Math.min(keyW * 0.31, Math.max(keyH * 0.42, 13.5 * mineScale));
+
+      // 1. Onda de radar/sonar roja expandiéndose desde la mina dentro de la tecla
+      const sonarP = ((currentTime * 0.0028 + (note._mineSeed || 0)) % 1.0);
+      const sonarR = mineR * (0.85 + sonarP * 1.15);
+      ctx.strokeStyle = `rgba(255, 42, 42, ${((1 - sonarP) * 0.90 * (1 - shutterClose)).toFixed(3)})`;
+      ctx.lineWidth = Math.max(1.4, 2.2 * scale);
+      ctx.beginPath();
+      ctx.ellipse(cx, cyMid, sonarR, sonarR * 0.78, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // 2. Halo incandescente rojo/naranja detrás del cuerpo de la mina para que destaque muchísimo
+      ctx.fillStyle = `rgba(220, 38, 38, ${(0.42 * (1 - shutterClose)).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.ellipse(cx, cyMid, mineR * 1.38, mineR * 1.05, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 3. 8 Espoletas / Pinchos cónicos metálicos de contacto alrededor de la mina naval
+      const numSpikes = 8;
+      const rotAngle = currentTime * 0.0016 + (note._mineSeed || 0);
+      for (let sp = 0; sp < numSpikes; sp++) {
+        const a = rotAngle + (sp / numSpikes) * Math.PI * 2;
+        const cosA = Math.cos(a);
+        const sinA = Math.sin(a) * 0.82; // Escorzo 3D
+        const baseR = mineR * 0.78;
+        const tipR = mineR * 1.36;
+        const perpX = -sinA * (mineR * 0.20);
+        const perpY = cosA * (mineR * 0.20);
+
+        ctx.fillStyle = '#cbd5e1';
+        ctx.beginPath();
+        ctx.moveTo(cx + cosA * baseR - perpX, cyMid + sinA * baseR - perpY);
+        ctx.lineTo(cx + cosA * tipR, cyMid + sinA * tipR);
+        ctx.lineTo(cx + cosA * baseR + perpX, cyMid + sinA * baseR + perpY);
+        ctx.closePath();
+        ctx.fill();
+
+        // Punta roja detonadora en cada pincho
+        ctx.fillStyle = pulse > 0.45 ? '#ff1e1e' : '#f97316';
+        ctx.beginPath();
+        ctx.arc(cx + cosA * tipR, cyMid + sinA * tipR, Math.max(1.5, mineR * 0.14), 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 4. Esfera blindada de acero pesado de la mina
+      const sphereGrad = ctx.createRadialGradient(
+        cx - mineR * 0.28, cyMid - mineR * 0.25, mineR * 0.10,
+        cx, cyMid, mineR
+      );
+      sphereGrad.addColorStop(0.0, '#64748b');
+      sphereGrad.addColorStop(0.45, '#1e293b');
+      sphereGrad.addColorStop(0.85, '#090d16');
+      sphereGrad.addColorStop(1.0, '#020408');
+
+      ctx.fillStyle = sphereGrad;
+      ctx.beginPath();
+      ctx.ellipse(cx, cyMid, mineR, mineR * 0.84, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = Math.max(1.0, 1.5 * scale);
+      ctx.stroke();
+
+      // Remaches ecuatoriales de la mina
+      ctx.fillStyle = '#e2e8f0';
+      for (let rv = -2; rv <= 2; rv++) {
+        const rx = cx + rv * (mineR * 0.34);
+        const ry = cyMid + Math.cos(rv * 0.6) * (mineR * 0.12);
+        ctx.beginPath();
+        ctx.arc(rx, ry, Math.max(0.9, 1.3 * scale), 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 5. Núcleo óptico LED armado (parpadeo de alta visibilidad rojo/amarillo)
+      const isBlinkLit = Math.floor(currentTime * 0.012) % 2 === 0;
+      const coreR = mineR * 0.44;
+      ctx.fillStyle = isBlinkLit ? '#ff0022' : '#f59e0b';
+      ctx.beginPath();
+      ctx.ellipse(cx, cyMid, coreR, coreR * 0.85, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(cx - coreR * 0.22, cyMid - coreR * 0.20, Math.max(1.2, coreR * 0.35), 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // B. ANIMACIÓN DE COMPUERTAS BLINDADAS DE CAMUFLAJE + ESCÁNER LÁSER HOLOGRÁFICO (0.36 < pHead < 0.56)
+    if (camoProgress > 0.0) {
+      const topSpan = x1Top - x0Top;
+      const botSpan = x1Bot - x0Bot;
+      const halfClose = shutterClose * 0.5;
+
+      // Compuerta izquierda deslizándose hacia el centro
+      const lTopR = x0Top + topSpan * halfClose;
+      const lBotR = x0Bot + botSpan * halfClose;
+      ctx.fillStyle = '#1a1d28';
+      ctx.beginPath();
+      ctx.moveTo(x0Top, y0);
+      ctx.lineTo(lTopR, y0);
+      ctx.lineTo(lBotR, y1);
+      ctx.lineTo(x0Bot, y1);
+      ctx.closePath();
+      ctx.fill();
+
+      // Compuerta derecha deslizándose hacia el centro
+      const rTopL = x1Top - topSpan * halfClose;
+      const rBotL = x1Bot - botSpan * halfClose;
+      ctx.beginPath();
+      ctx.moveTo(rTopL, y0);
+      ctx.lineTo(x1Top, y0);
+      ctx.lineTo(x1Bot, y1);
+      ctx.lineTo(rBotL, y1);
+      ctx.closePath();
+      ctx.fill();
+
+      // Bordes de titanio y haz de escáner láser en la unión de las compuertas
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const seamAlpha = Math.sin(camoProgress * Math.PI);
+      ctx.strokeStyle = `rgba(0, 242, 254, ${(seamAlpha * 0.95).toFixed(3)})`;
+      ctx.lineWidth = Math.max(1.8, 3.2 * scale);
+      ctx.beginPath();
+      ctx.moveTo(lTopR, y0);
+      ctx.lineTo(lBotR, y1);
+      ctx.moveTo(rTopL, y0);
+      ctx.lineTo(rBotL, y1);
+      ctx.stroke();
+
+      // Materialización progresiva de la hendidura de luz blanca normal a medida que se cierra
+      if (shutterClose > 0.35) {
+        const slitReveal = (shutterClose - 0.35) / 0.65;
+        const slitW = keyW * (nLanes === 4 ? 0.68 : 0.62) * slitReveal;
+        const slitH = Math.max(4.5, 6.8 * scale);
+        ctx.fillStyle = `rgba(255, 255, 255, ${(slitReveal * 0.95).toFixed(3)})`;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(cx - slitW * 0.5, cyMid - slitH * 0.5, slitW, slitH, slitH * 0.5);
+        else ctx.rect(cx - slitW * 0.5, cyMid - slitH * 0.5, slitW, slitH);
+        ctx.fill();
+      }
+
+      // Destello de bloqueo táctico cuando las compuertas hacen "CLACK" en el centro (camoProgress ~ 0.85..1.0)
+      if (camoProgress > 0.72) {
+        const lockFlash = Math.sin(((camoProgress - 0.72) / 0.28) * Math.PI);
+        const fRad = (10 + (1 - lockFlash) * 16) * scale;
+        ctx.strokeStyle = `rgba(255, 255, 255, ${(lockFlash * 0.92).toFixed(3)})`;
+        ctx.lineWidth = 2.0 * scale;
+        ctx.beginPath();
+        ctx.moveTo(cx, cyMid - fRad * 0.75);
+        ctx.lineTo(cx + fRad, cyMid);
+        ctx.lineTo(cx, cyMid + fRad * 0.75);
+        ctx.lineTo(cx - fRad, cyMid);
+        ctx.closePath();
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    ctx.restore();
+    return tapKey;
+  }
+
+  renderMinesweeperOverlay(ctx, currentTime) {
+    if (!ctx) return;
+
+    // 1. Renderizar fragmentos 3D de todas las teclas destruidas por la onda expansiva
+    if (this._shatteredKeyFragments && this._shatteredKeyFragments.length > 0) {
+      ctx.save();
+      for (let i = 0; i < this._shatteredKeyFragments.length; i++) {
+        const sh = this._shatteredKeyFragments[i];
+        const p = Math.max(0, Math.min(1, sh.age / sh.duration));
+        const alpha = Math.max(0, 1 - Math.pow(p, 1.6));
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(sh.x, sh.y);
+        ctx.rotate(sh.rot);
+        const tiltScaleY = 0.35 + 0.65 * Math.abs(Math.cos(sh.rot * 1.7));
+        ctx.scale(1.0, tiltScaleY);
+
+        ctx.fillStyle = sh.bodyColor;
+        ctx.strokeStyle = sh.rimColor;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.moveTo(-sh.w * 0.5, -sh.h * 0.4);
+        ctx.lineTo(sh.w * 0.45, -sh.h * 0.5);
+        ctx.lineTo(sh.w * 0.5, sh.h * 0.35);
+        ctx.lineTo(-sh.w * 0.35, sh.h * 0.5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+
+    // 2. Renderizar explosión volumétrica ultra-realista (Flash térmico + Ondas de Choque + Bola de Fuego + Humo + Metralla)
+    if (this._mineExplosions && this._mineExplosions.length > 0) {
+      for (let i = 0; i < this._mineExplosions.length; i++) {
+        const exp = this._mineExplosions[i];
+        const p = Math.max(0, Math.min(1, exp.age / exp.duration));
+        const invP = 1 - p;
+
+        ctx.save();
+
+        // A. Flash térmico inicial en toda la pantalla y el epicentro (primeros 140ms)
+        if (exp.age < 0.16) {
+          const flashA = (1 - exp.age / 0.16) * 0.55;
+          ctx.fillStyle = `rgba(255, 190, 90, ${flashA.toFixed(3)})`;
+          ctx.fillRect(0, 0, this.width, this.height);
+        }
+
+        // B. Doble Onda de Choque Supersónica (Mach Shockwave Rings) en perspectiva
+        const shockP1 = Math.min(1, exp.age / 0.52);
+        if (shockP1 < 1) {
+          const r1 = 24 + Math.pow(shockP1, 0.55) * Math.max(this.width, this.height) * 0.78;
+          const a1 = (1 - shockP1) * 0.92;
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.strokeStyle = `rgba(255, 230, 140, ${a1.toFixed(3)})`;
+          ctx.lineWidth = Math.max(2, (1 - shockP1) * 14);
+          ctx.beginPath();
+          ctx.ellipse(exp.x, exp.y, r1, r1 * 0.68, 0, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.strokeStyle = `rgba(255, 69, 0, ${(a1 * 0.75).toFixed(3)})`;
+          ctx.lineWidth = Math.max(1.5, (1 - shockP1) * 24);
+          ctx.beginPath();
+          ctx.ellipse(exp.x, exp.y, r1 * 0.86, r1 * 0.58, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // C. Columnas de humo denso oscuro (debajo/alrededor del núcleo ígneo)
+        for (let f = 0; f < exp.fireballs.length; f++) {
+          const fb = exp.fireballs[f];
+          if (exp.age < fb.delay) continue;
+          const localP = Math.min(1, (exp.age - fb.delay) / (exp.duration - fb.delay));
+          const curR = fb.r0 + (fb.rMax - fb.r0) * Math.pow(localP, 0.6);
+          if (fb.isSmokePlume || localP > 0.35) {
+            const smokeAlpha = fb.isSmokePlume
+              ? Math.sin(localP * Math.PI) * 0.68
+              : Math.max(0, (1 - localP) * 0.52);
+            ctx.fillStyle = `rgba(24, 20, 18, ${smokeAlpha.toFixed(3)})`;
+            ctx.beginPath();
+            ctx.arc(fb.x, fb.y, curR * 1.12, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
+        // D. Bola de Fuego Volumétrica Multi-Capa (Blanco incandescente -> Amarillo -> Naranja -> Carmesí)
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (let f = 0; f < exp.fireballs.length; f++) {
+          const fb = exp.fireballs[f];
+          if (fb.isSmokePlume || exp.age < fb.delay) continue;
+          const localP = Math.min(1, (exp.age - fb.delay) / ((exp.duration * 0.72) - fb.delay));
+          if (localP >= 1) continue;
+          const curR = fb.r0 + (fb.rMax - fb.r0) * Math.pow(localP, 0.5);
+          const fireA = Math.pow(1 - localP, 1.35) * 0.88;
+
+          let col = '#ff4500';
+          if (localP < 0.22) col = '#ffffff';
+          else if (localP < 0.45) col = '#fde047';
+          else if (localP < 0.72) col = '#ff5500';
+          else col = '#dc2626';
+
+          ctx.globalAlpha = fireA;
+          ctx.fillStyle = col;
+          ctx.beginPath();
+          ctx.arc(fb.x, fb.y, curR, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // E. Chispas balísticas de alta velocidad con estelas incandescentes
+        ctx.globalAlpha = Math.max(0, invP);
+        for (let s = 0; s < exp.sparks.length; s++) {
+          const sp = exp.sparks[s];
+          ctx.strokeStyle = sp.color;
+          ctx.lineWidth = sp.size * invP;
+          ctx.beginPath();
+          ctx.moveTo(sp.x, sp.y);
+          ctx.lineTo(sp.x - sp.vx * 0.032, sp.y - sp.vy * 0.032);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        ctx.restore();
+      }
+    }
+
+    // 3. Renderizar textos flotantes de penalización de puntos por cada tecla explotada
+    if (this._mineFloatingPenalties && this._mineFloatingPenalties.length > 0) {
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (let i = 0; i < this._mineFloatingPenalties.length; i++) {
+        const fp = this._mineFloatingPenalties[i];
+        const p = Math.max(0, Math.min(1, fp.age / fp.duration));
+        const alpha = p < 0.15 ? (p / 0.15) : Math.max(0, 1 - (p - 0.15) / 0.85);
+        const popScale = (fp.scale || 1.0) * (p < 0.12 ? (0.7 + (p / 0.12) * 0.45) : 1.0);
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(fp.x, fp.y);
+        ctx.scale(popScale, popScale);
+        ctx.font = fp.isHeadline
+          ? '900 24px "Outfit", system-ui, sans-serif'
+          : '900 18px "Outfit", system-ui, sans-serif';
+        ctx.strokeStyle = fp.stroke || '#090202';
+        ctx.lineWidth = fp.isHeadline ? 6.0 : 4.5;
+        ctx.strokeText(fp.text, 0, 0);
+        ctx.fillStyle = fp.color || '#ff3b30';
+        ctx.fillText(fp.text, 0, 0);
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+  }
+
+  // =========================================================================
   // PSEUDO-3D CONICAL ENGINE (BEATSTAR PERSPECTIVE)
   // =========================================================================
 
@@ -15665,6 +16552,10 @@ class BeatstarEngine {
               ctx.stroke();
               ctx.restore();
             }
+          }
+          if (note.isMine) {
+            this.renderMinesweeperKey(ctx, note, drawLane, coord.y, h, coord.scale, pHead, isLarge, currentTime);
+            continue;
           }
           const tapKey = this.drawIvoryKey(ctx, drawLane, coord.y, h, coord.scale, false, isLarge, false, lyricForNote);
           // En modo Setas: si la tecla está saltando de carril o es múltiplo de 3, dibujar seta mágica sobre la tecla
