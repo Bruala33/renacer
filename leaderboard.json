@@ -2519,6 +2519,16 @@
         "accuracy": 11.74390583562407,
         "date": "2026-10-22 17:40:54"
       }
+    ],
+    "top_coti_y_andrs_calamaro_nada_fue_un_error": [
+      {
+        "name": "Niggerman",
+        "score": 682486,
+        "stars": 3,
+        "combo": 401,
+        "accuracy": 67.32842245037078,
+        "date": "2026-10-22 17:47:21"
+      }
     ]
   },
   "global": [
@@ -2566,6 +2576,11 @@
       "name": "bobon",
       "total_score": 3845429,
       "clefs": 33
+    },
+    {
+      "name": "Niggerman",
+      "total_score": 682486,
+      "clefs": 6
     },
     {
       "name": "MasterPianist",
@@ -2676,6 +2691,10 @@
       {
         "name": "fer",
         "score": 4321969
+      },
+      {
+        "name": "Niggerman",
+        "score": 682486
       },
       {
         "name": "Darwin67",
