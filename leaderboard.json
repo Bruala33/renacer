@@ -2363,13 +2363,23 @@
         "accuracy": 25.94095538972711,
         "date": "2026-10-22 11:37:38"
       }
+    ],
+    "top_village_people_ymca": [
+      {
+        "name": "Mauricio",
+        "score": 705438,
+        "stars": 2,
+        "combo": 344,
+        "accuracy": 53.29748123658001,
+        "date": "2026-10-22 12:29:00"
+      }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 34950087,
-      "clefs": 322
+      "total_score": 35655525,
+      "clefs": 329
     },
     {
       "name": "Rocky",
@@ -2507,7 +2517,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 34950087
+        "score": 35655525
       },
       {
         "name": "Dady cool",
