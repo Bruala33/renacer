@@ -2677,6 +2677,16 @@
         "accuracy": 33.460033786787584,
         "date": "2026-10-22 18:59:07"
       }
+    ],
+    "top_maldita_nerea_con_los_delinquentes_el_secreto_de_las_tortugas": [
+      {
+        "name": "Niggerman",
+        "score": 377775,
+        "stars": 1,
+        "combo": 107,
+        "accuracy": 21.196461785771398,
+        "date": "2026-10-22 19:01:03"
+      }
     ]
   },
   "global": [
@@ -2717,8 +2727,8 @@
     },
     {
       "name": "Niggerman",
-      "total_score": 4471285,
-      "clefs": 35
+      "total_score": 4849060,
+      "clefs": 38
     },
     {
       "name": "fer",
@@ -2838,7 +2848,7 @@
       },
       {
         "name": "Niggerman",
-        "score": 4471285
+        "score": 4849060
       },
       {
         "name": "fer",
