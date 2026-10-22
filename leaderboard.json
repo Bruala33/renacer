@@ -745,11 +745,11 @@
       },
       {
         "name": "Mauricio",
-        "score": 8625,
-        "stars": 3.5,
-        "combo": 14,
-        "accuracy": 0.7246041980836844,
-        "date": "2026-10-22 11:37:48"
+        "score": 366033,
+        "stars": 1,
+        "combo": 201,
+        "accuracy": 30.75119402170032,
+        "date": "2026-10-22 11:38:47"
       }
     ],
     "top_chayanne_caprichosa": [
@@ -2368,8 +2368,8 @@
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 34584054,
-      "clefs": 319
+      "total_score": 34950087,
+      "clefs": 322
     },
     {
       "name": "Rocky",
@@ -2507,7 +2507,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 34584054
+        "score": 34950087
       },
       {
         "name": "Dady cool",
