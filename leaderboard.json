@@ -2389,13 +2389,23 @@
         "accuracy": 53.29748123658001,
         "date": "2026-10-22 12:29:00"
       }
+    ],
+    "top_celia_cruz_la_vida_es_un_carnaval": [
+      {
+        "name": "Mauricio",
+        "score": 1564326,
+        "stars": 5,
+        "combo": 722,
+        "accuracy": 99.20324182409679,
+        "date": "2026-10-22 13:32:28"
+      }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 36140379,
-      "clefs": 333
+      "total_score": 37704705,
+      "clefs": 348
     },
     {
       "name": "Rocky",
@@ -2533,7 +2543,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 36140379
+        "score": 37704705
       },
       {
         "name": "Dady cool",
