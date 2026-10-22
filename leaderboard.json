@@ -2539,6 +2539,16 @@
         "accuracy": 0.6909737230190388,
         "date": "2026-10-22 17:56:05"
       }
+    ],
+    "top_camarn_soy_gitano": [
+      {
+        "name": "Niggerman",
+        "score": 48306,
+        "stars": 3.5,
+        "combo": 50,
+        "accuracy": 2.606980875879949,
+        "date": "2026-10-22 17:58:48"
+      }
     ]
   },
   "global": [
@@ -2589,7 +2599,7 @@
     },
     {
       "name": "Niggerman",
-      "total_score": 689472,
+      "total_score": 737778,
       "clefs": 6
     },
     {
@@ -2704,7 +2714,7 @@
       },
       {
         "name": "Niggerman",
-        "score": 689472
+        "score": 737778
       },
       {
         "name": "Darwin67",
