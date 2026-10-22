@@ -2711,19 +2711,19 @@
     "bs_3d93a": [
       {
         "name": "Mauricio",
-        "score": 3600,
+        "score": 123600,
         "stars": 3.5,
-        "combo": 9,
-        "accuracy": 0.1959594255122842,
-        "date": "2026-10-22 19:42:39"
+        "combo": 92,
+        "accuracy": 9.723058043352568,
+        "date": "2026-10-22 19:43:19"
       }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 45857102,
-      "clefs": 423
+      "total_score": 45980702,
+      "clefs": 424
     },
     {
       "name": "Rocky",
@@ -2866,7 +2866,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 45857102
+        "score": 45980702
       },
       {
         "name": "Dady cool",
