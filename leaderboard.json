@@ -2627,6 +2627,16 @@
         "accuracy": 2.684214703314727,
         "date": "2026-10-22 18:44:22"
       }
+    ],
+    "osu_700218": [
+      {
+        "name": "Niggerman",
+        "score": 140198,
+        "stars": 1,
+        "combo": 108,
+        "accuracy": 28.254788468979754,
+        "date": "2026-10-22 18:48:44"
+      }
     ]
   },
   "global": [
@@ -2677,8 +2687,8 @@
     },
     {
       "name": "Niggerman",
-      "total_score": 3561646,
-      "clefs": 30
+      "total_score": 3701844,
+      "clefs": 31
     },
     {
       "name": "MasterPianist",
@@ -2792,7 +2802,7 @@
       },
       {
         "name": "Niggerman",
-        "score": 3561646
+        "score": 3701844
       },
       {
         "name": "Darwin67",
