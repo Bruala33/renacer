@@ -1087,7 +1087,7 @@
         "stars": 5,
         "combo": 144,
         "accuracy": 98.09675311763202,
-        "date": "2026-10-22 13:26:57"
+        "date": "2026-10-22 13:27:18"
       }
     ],
     "top_cecilia_la_incomparable_bao_de_mar_a_medianoche": [
@@ -2386,8 +2386,8 @@
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 35897256,
-      "clefs": 331
+      "total_score": 36138987,
+      "clefs": 333
     },
     {
       "name": "Rocky",
@@ -2525,7 +2525,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 35897256
+        "score": 36138987
       },
       {
         "name": "Dady cool",
