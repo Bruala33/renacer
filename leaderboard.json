@@ -2295,9 +2295,9 @@
         "name": "fer",
         "score": 619507,
         "stars": 3.5,
-        "combo": 81,
-        "accuracy": 12.53718428385367,
-        "date": "2026-10-22 13:34:41"
+        "combo": 58,
+        "accuracy": 6.684092187881791,
+        "date": "2026-10-22 13:35:25"
       }
     ],
     "osu_2349825": [
@@ -2438,13 +2438,13 @@
       "clefs": 43
     },
     {
-      "name": "bobon",
-      "total_score": 3845429,
-      "clefs": 33
+      "name": "fer",
+      "total_score": 4247079,
+      "clefs": 39
     },
     {
-      "name": "fer",
-      "total_score": 3627572,
+      "name": "bobon",
+      "total_score": 3845429,
       "clefs": 33
     },
     {
@@ -2555,7 +2555,7 @@
       },
       {
         "name": "fer",
-        "score": 3627572
+        "score": 4247079
       },
       {
         "name": "Darwin67",
