@@ -2647,6 +2647,16 @@
         "accuracy": 28.27112827112827,
         "date": "2026-10-22 18:51:48"
       }
+    ],
+    "bs_2d943": [
+      {
+        "name": "Niggerman",
+        "score": 372075,
+        "stars": 3.5,
+        "combo": 219,
+        "accuracy": 4.244742201002789,
+        "date": "2026-10-22 18:53:05"
+      }
     ]
   },
   "global": [
@@ -2692,8 +2702,8 @@
     },
     {
       "name": "Niggerman",
-      "total_score": 3899544,
-      "clefs": 32
+      "total_score": 4271619,
+      "clefs": 35
     },
     {
       "name": "bobon",
@@ -2812,7 +2822,7 @@
       },
       {
         "name": "Niggerman",
-        "score": 3899544
+        "score": 4271619
       },
       {
         "name": "Darwin67",
