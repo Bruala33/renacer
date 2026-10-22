@@ -2404,10 +2404,10 @@
       {
         "name": "Mauricio",
         "score": 543886,
-        "stars": 3.5,
-        "combo": 18,
-        "accuracy": 0.649895178197065,
-        "date": "2026-10-22 13:37:13"
+        "stars": 1,
+        "combo": 260,
+        "accuracy": 24.834667664297292,
+        "date": "2026-10-22 13:38:26"
       }
     ],
     "osu_370713": [
@@ -2424,8 +2424,8 @@
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 40356803,
-      "clefs": 373
+      "total_score": 40900689,
+      "clefs": 378
     },
     {
       "name": "Rocky",
@@ -2563,7 +2563,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 40356803
+        "score": 40900689
       },
       {
         "name": "Dady cool",
