@@ -2489,13 +2489,23 @@
         "accuracy": 99.23619701803503,
         "date": "2026-10-22 16:42:26"
       }
+    ],
+    "osu_2613759": [
+      {
+        "name": "Mauricio",
+        "score": 353043,
+        "stars": 1,
+        "combo": 192,
+        "accuracy": 31.440456534632833,
+        "date": "2026-10-22 16:45:57"
+      }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 43332645,
-      "clefs": 400
+      "total_score": 43685688,
+      "clefs": 403
     },
     {
       "name": "Rocky",
@@ -2633,7 +2643,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 43332645
+        "score": 43685688
       },
       {
         "name": "Dady cool",
