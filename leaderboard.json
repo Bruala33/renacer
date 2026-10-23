@@ -3433,6 +3433,16 @@
         "accuracy": 11.846820878874004,
         "date": "2026-10-23 16:51:18"
       }
+    ],
+    "top_lady_gaga_feat_colby_odonis_just_dance": [
+      {
+        "name": "Libay",
+        "score": 927394,
+        "stars": 2,
+        "combo": 523,
+        "accuracy": 59.14532727207792,
+        "date": "2026-10-23 16:54:24"
+      }
     ]
   },
   "global": [
@@ -3498,8 +3508,8 @@
     },
     {
       "name": "Libay",
-      "total_score": 1149168,
-      "clefs": 2
+      "total_score": 2076562,
+      "clefs": 11
     },
     {
       "name": "MasterPianist",
@@ -3640,7 +3650,7 @@
       },
       {
         "name": "Libay",
-        "score": 1149168
+        "score": 2076562
       },
       {
         "name": "Darwin67",
