@@ -3493,6 +3493,16 @@
         "accuracy": 4.542094996096786,
         "date": "2026-10-23 17:00:16"
       }
+    ],
+    "top_the_beatles_love_me_do": [
+      {
+        "name": "Libay",
+        "score": 9900,
+        "stars": 3.5,
+        "combo": 18,
+        "accuracy": 1.8198094530829225,
+        "date": "2026-10-23 17:00:37"
+      }
     ]
   },
   "global": [
@@ -3558,7 +3568,7 @@
     },
     {
       "name": "Libay",
-      "total_score": 3308940,
+      "total_score": 3318840,
       "clefs": 20
     },
     {
@@ -3700,7 +3710,7 @@
       },
       {
         "name": "Libay",
-        "score": 3308940
+        "score": 3318840
       },
       {
         "name": "Darwin67",
