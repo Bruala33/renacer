@@ -3503,6 +3503,16 @@
         "accuracy": 1.8198094530829225,
         "date": "2026-10-23 17:00:37"
       }
+    ],
+    "top_jose_mota_y_edurne_la_cancion_del_verano": [
+      {
+        "name": "Libay",
+        "score": 447725,
+        "stars": 2,
+        "combo": 247,
+        "accuracy": 45.349481452520415,
+        "date": "2026-10-23 17:04:28"
+      }
     ]
   },
   "global": [
@@ -3568,8 +3578,8 @@
     },
     {
       "name": "Libay",
-      "total_score": 3318840,
-      "clefs": 20
+      "total_score": 3766565,
+      "clefs": 24
     },
     {
       "name": "MasterPianist",
@@ -3710,7 +3720,7 @@
       },
       {
         "name": "Libay",
-        "score": 3318840
+        "score": 3766565
       },
       {
         "name": "Darwin67",
