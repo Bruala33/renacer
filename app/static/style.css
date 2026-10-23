@@ -4900,3 +4900,133 @@ body {
   box-shadow: 0 0 12px rgba(212, 175, 55, 0.5), inset 0 1px 0 #ffffff !important;
 }
 
+/* 7. Clean 2-Column Tragaperras & Destacadas Bar in Descubrir (Never Overflows) */
+.vegas-discover-slot-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.vegas-discover-slot-grid .btn-vegas-led {
+  width: 100% !important;
+  min-width: 0 !important;
+  padding: 10px 8px !important;
+  font-size: 10.5px !important;
+  letter-spacing: 0.05em !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  border-radius: 14px !important;
+}
+
+/* 8. Elegant In-Place YouTube -> Catalog Matcher Drawer / Modal */
+.yt-matcher-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9850;
+  background: rgba(5, 3, 8, 0.82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 10px;
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+
+@media (min-width: 500px) {
+  .yt-matcher-overlay {
+    align-items: center;
+  }
+}
+
+.yt-matcher-overlay.open {
+  display: flex !important;
+  opacity: 1;
+}
+
+.yt-matcher-sheet {
+  width: 100%;
+  max-width: 410px;
+  max-height: 82dvh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(165deg, #211612 0%, #130d18 55%, #09060d 100%);
+  border: 2px solid rgba(212, 175, 55, 0.68);
+  border-radius: 22px;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.96),
+              0 0 28px rgba(212, 175, 55, 0.22),
+              inset 0 1px 1px rgba(255, 240, 195, 0.4);
+  overflow: hidden;
+  animation: ytSheetSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes ytSheetSlideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(28px) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes ytMatchCardIn {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.yt-match-card {
+  position: relative;
+  background: linear-gradient(155deg, #fdfbf7 0%, #f4ecdc 65%, #e6d9c3 100%);
+  border: 1.5px solid rgba(197, 160, 89, 0.85);
+  border-left: 7px solid #991b1b;
+  border-bottom: 3px solid #9a8467;
+  border-radius: 8px 14px 14px 8px;
+  padding: 9px 10px;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.6), inset 0 1px 0 #ffffff;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
+  animation: ytMatchCardIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.yt-match-card.best-match {
+  border-left-color: #d97706;
+  border-color: #d4af37;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.7), 0 0 14px rgba(212, 175, 55, 0.35), inset 0 1px 0 #ffffff;
+}
+
+.yt-match-card:active {
+  transform: translateY(1.5px) scale(0.99);
+}
+
+.yt-match-diff-pill {
+  padding: 4px 8px;
+  border-radius: 9999px;
+  font-size: 9.5px;
+  font-weight: 800;
+  background: #1b130c;
+  color: #f3d791;
+  border: 1px solid rgba(212, 175, 55, 0.55);
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.yt-match-diff-pill:hover,
+.yt-match-diff-pill:active {
+  background: linear-gradient(135deg, #f3d791 0%, #b8860b 100%);
+  color: #120b04;
+  border-color: #ffffff;
+}
+
+
