@@ -2943,6 +2943,16 @@
         "accuracy": 1.0910463554473486,
         "date": "2026-10-23 09:03:49"
       }
+    ],
+    "bs_391b1": [
+      {
+        "name": "FAZTL",
+        "score": 543783,
+        "stars": 1,
+        "combo": 222,
+        "accuracy": 35.80341611348945,
+        "date": "2026-10-23 09:07:30"
+      }
     ]
   },
   "global": [
@@ -2998,8 +3008,8 @@
     },
     {
       "name": "FAZTL",
-      "total_score": 858251,
-      "clefs": 6
+      "total_score": 1402034,
+      "clefs": 11
     },
     {
       "name": "MasterPianist",
@@ -3122,7 +3132,7 @@
       },
       {
         "name": "FAZTL",
-        "score": 858251
+        "score": 1402034
       },
       {
         "name": "Darwin67",
