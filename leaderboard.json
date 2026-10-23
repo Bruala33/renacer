@@ -3133,6 +3133,16 @@
         "accuracy": 83.59795880488589,
         "date": "2026-10-23 10:32:07"
       }
+    ],
+    "osu_195520": [
+      {
+        "name": "FAZTL",
+        "score": 145548,
+        "stars": 1,
+        "combo": 108,
+        "accuracy": 26.788238412156197,
+        "date": "2026-10-23 10:33:10"
+      }
     ]
   },
   "global": [
@@ -3168,8 +3178,8 @@
     },
     {
       "name": "FAZTL",
-      "total_score": 8428163,
-      "clefs": 70
+      "total_score": 8573711,
+      "clefs": 71
     },
     {
       "name": "Niggerman",
@@ -3309,12 +3319,12 @@
         "score": 12366565
       },
       {
-        "name": "Test",
-        "score": 8546882
+        "name": "FAZTL",
+        "score": 8573711
       },
       {
-        "name": "FAZTL",
-        "score": 8428163
+        "name": "Test",
+        "score": 8546882
       },
       {
         "name": "Niggerman",
