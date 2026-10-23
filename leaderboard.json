@@ -3483,6 +3483,16 @@
         "accuracy": 25.10280417103492,
         "date": "2026-10-23 16:59:37"
       }
+    ],
+    "top_james_morrison_feat_nelly_furtado_broken_strings": [
+      {
+        "name": "Libay",
+        "score": 52482,
+        "stars": 3.5,
+        "combo": 50,
+        "accuracy": 4.542094996096786,
+        "date": "2026-10-23 17:00:16"
+      }
     ]
   },
   "global": [
@@ -3548,7 +3558,7 @@
     },
     {
       "name": "Libay",
-      "total_score": 3256458,
+      "total_score": 3308940,
       "clefs": 20
     },
     {
@@ -3690,7 +3700,7 @@
       },
       {
         "name": "Libay",
-        "score": 3256458
+        "score": 3308940
       },
       {
         "name": "Darwin67",
