@@ -3403,6 +3403,16 @@
         "accuracy": 4.672604716631542,
         "date": "2026-10-23 16:47:29"
       }
+    ],
+    "top_david_bisbal_quin_me_iba_a_decir": [
+      {
+        "name": "Libay",
+        "score": 57300,
+        "stars": 3.5,
+        "combo": 61,
+        "accuracy": 3.1213655565754315,
+        "date": "2026-10-23 16:48:10"
+      }
     ]
   },
   "global": [
@@ -3468,7 +3478,7 @@
     },
     {
       "name": "Libay",
-      "total_score": 816209,
+      "total_score": 873509,
       "clefs": 0
     },
     {
@@ -3610,7 +3620,7 @@
       },
       {
         "name": "Libay",
-        "score": 816209
+        "score": 873509
       },
       {
         "name": "Darwin67",
