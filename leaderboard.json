@@ -3173,12 +3173,22 @@
         "accuracy": 0.09445432430248922,
         "date": "2026-10-23 11:13:09"
       }
+    ],
+    "top_raphael_escandalo": [
+      {
+        "name": "Mauricio",
+        "score": 25200,
+        "stars": 3.5,
+        "combo": 30,
+        "accuracy": 1.2611129321626335,
+        "date": "2026-10-23 11:49:46"
+      }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 49087891,
+      "total_score": 49113091,
       "clefs": 452
     },
     {
@@ -3342,7 +3352,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 49087891
+        "score": 49113091
       },
       {
         "name": "Dady cool",
