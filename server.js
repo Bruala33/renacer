@@ -569,10 +569,123 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 19,
-    version_name: '2.6.0',
-    release_notes: 'Piano Community Web & Offline Player. Modo Río renovado al completo: focas ultra realistas, agua multicapa con olitas reactivas a la velocidad, orillas rocosas vivas, cascada y poza bajo la zona Perfect, ondas de agua al tocar y descarga APK verificada.',
-    download_url: '/download/apk?v=19.0',
+    version_code: 20,
+    version_name: '2.7.0',
+    release_notes: 'Piano Community Grand Piano Las Vegas Edition (v2.7). Rediseño integral de Descubrir, Mi Bóveda Musical, Consola Acústica de Ajustes e Importador Directo de Playlists de YouTube con reproducción en 1 toque.',
+    download_url: '/download/apk?v=20.0',
+  });
+});
+
+app.get(['/api/v1/youtube/playlist', '/api/youtube/playlist'], async (req, res) => {
+  const rawId = String(req.query.id || req.query.list || '').trim();
+  const listMatch = rawId.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+  const cleanId = listMatch ? listMatch[1] : rawId.replace(/^VL/, '').split('&')[0].trim();
+  if (!cleanId) {
+    return res.status(400).json({ error: 'Missing playlist id' });
+  }
+
+  let playlistTitle = 'Playlist de YouTube';
+  const tracks = [];
+  const seen = new Set();
+
+  // 1. Try YouTube Official Innertube browse API from backend (no CORS restrictions)
+  try {
+    const browseId = cleanId.startsWith('VL') ? cleanId : `VL${cleanId}`;
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 6500);
+    const ytRes = await fetch('https://www.youtube.com/youtubei/v1/browse', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      },
+      body: JSON.stringify({
+        context: {
+          client: { clientName: 'WEB', clientVersion: '2.20240726.00.00', hl: 'es', gl: 'ES' },
+        },
+        browseId,
+      }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(tid);
+
+    if (ytRes.ok) {
+      const data = await ytRes.json();
+      const hdrTitle =
+        data?.header?.playlistHeaderRenderer?.title?.simpleText ||
+        data?.header?.playlistHeaderRenderer?.title?.runs?.[0]?.text ||
+        data?.metadata?.playlistMetadataRenderer?.title ||
+        data?.microformat?.microformatDataRenderer?.title;
+      if (hdrTitle) playlistTitle = String(hdrTitle).replace(/ - YouTube$/, '').trim();
+
+      function walkNode(node, depth = 0) {
+        if (!node || depth > 18) return;
+        if (node.playlistVideoRenderer && node.playlistVideoRenderer.videoId) {
+          const v = node.playlistVideoRenderer;
+          const vid = v.videoId;
+          if (!seen.has(vid)) {
+            seen.add(vid);
+            tracks.push({
+              id: vid,
+              title: v.title?.runs?.[0]?.text || v.title?.simpleText || `Pista #${tracks.length + 1}`,
+              artist: v.shortBylineText?.runs?.[0]?.text || v.longBylineText?.runs?.[0]?.text || 'YouTube',
+              thumbnail: `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`,
+              duration_seconds: Number(v.lengthSeconds) || 0,
+            });
+          }
+        }
+        if (Array.isArray(node)) {
+          for (const c of node) walkNode(c, depth + 1);
+        } else if (typeof node === 'object') {
+          for (const k of Object.keys(node)) {
+            if (k !== 'trackingParams' && k !== 'responseContext') walkNode(node[k], depth + 1);
+          }
+        }
+      }
+      walkNode(data);
+    }
+  } catch (e) {}
+
+  // 2. Fallback to YouTube XML RSS feed if Innertube returned empty
+  if (tracks.length === 0) {
+    try {
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), 5000);
+      const xmlRes = await fetch(`https://www.youtube.com/feeds/videos.xml?playlist_id=${encodeURIComponent(cleanId)}`, {
+        signal: ctrl.signal,
+      });
+      clearTimeout(tid);
+      if (xmlRes.ok) {
+        const xml = await xmlRes.text();
+        const titleMatch = xml.match(/<title>([^<]+)<\/title>/);
+        if (titleMatch && titleMatch[1]) playlistTitle = titleMatch[1];
+        const entryRegex = /<entry>([\s\S]*?)<\/entry>/g;
+        let m;
+        while ((m = entryRegex.exec(xml)) !== null) {
+          const block = m[1];
+          const vid = (block.match(/<yt:videoId>([^<]+)<\/yt:videoId>/) || [])[1];
+          const t = (block.match(/<title>([^<]+)<\/title>/) || [])[1] || 'Pista';
+          const a = (block.match(/<name>([^<]+)<\/name>/) || [])[1] || 'YouTube';
+          if (vid && !seen.has(vid)) {
+            seen.add(vid);
+            tracks.push({
+              id: vid,
+              title: t,
+              artist: a,
+              thumbnail: `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`,
+              duration_seconds: 0,
+            });
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  return res.json({
+    id: cleanId,
+    title: playlistTitle,
+    item_count: tracks.length,
+    tracks,
   });
 });
 
