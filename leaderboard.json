@@ -3383,6 +3383,16 @@
         "accuracy": 0.3327666962608676,
         "date": "2026-10-23 16:46:21"
       }
+    ],
+    "top_sber_arrepentido": [
+      {
+        "name": "Libay",
+        "score": 5484,
+        "stars": 3.5,
+        "combo": 10,
+        "accuracy": 0.44813733726011906,
+        "date": "2026-10-23 16:46:49"
+      }
     ]
   },
   "global": [
@@ -3448,7 +3458,7 @@
     },
     {
       "name": "Libay",
-      "total_score": 745030,
+      "total_score": 750514,
       "clefs": 0
     },
     {
@@ -3590,7 +3600,7 @@
       },
       {
         "name": "Libay",
-        "score": 745030
+        "score": 750514
       },
       {
         "name": "Darwin67",
