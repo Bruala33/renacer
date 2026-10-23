@@ -3601,6 +3601,16 @@
         "accuracy": 11.263186542309588,
         "date": "2026-10-23 21:38:57"
       }
+    ],
+    "top_ella_baila_sola_despidete": [
+      {
+        "name": "Jacques",
+        "score": 26700,
+        "stars": 3.5,
+        "combo": 34,
+        "accuracy": 1.5784787721208726,
+        "date": "2026-10-23 23:13:04"
+      }
     ]
   },
   "global": [
@@ -3720,6 +3730,11 @@
       "clefs": 0
     },
     {
+      "name": "Jacques",
+      "total_score": 26700,
+      "clefs": 0
+    },
+    {
       "name": ".",
       "total_score": 24975,
       "clefs": 0
@@ -3834,6 +3849,10 @@
       {
         "name": "U",
         "score": 30185
+      },
+      {
+        "name": "Jacques",
+        "score": 26700
       },
       {
         "name": "Camaleon",
