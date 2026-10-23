@@ -3423,6 +3423,16 @@
         "accuracy": 10.714393001265032,
         "date": "2026-10-23 16:49:38"
       }
+    ],
+    "top_rata_blanca_la_leyenda_del_hada_y_el_mago": [
+      {
+        "name": "Libay",
+        "score": 211459,
+        "stars": 3.5,
+        "combo": 151,
+        "accuracy": 11.846820878874004,
+        "date": "2026-10-23 16:51:18"
+      }
     ]
   },
   "global": [
@@ -3488,8 +3498,8 @@
     },
     {
       "name": "Libay",
-      "total_score": 937709,
-      "clefs": 0
+      "total_score": 1149168,
+      "clefs": 2
     },
     {
       "name": "MasterPianist",
@@ -3630,7 +3640,7 @@
       },
       {
         "name": "Libay",
-        "score": 937709
+        "score": 1149168
       },
       {
         "name": "Darwin67",
