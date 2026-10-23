@@ -3413,6 +3413,16 @@
         "accuracy": 3.1213655565754315,
         "date": "2026-10-23 16:48:10"
       }
+    ],
+    "top_jordi_vila_dragon_ball": [
+      {
+        "name": "Libay",
+        "score": 64200,
+        "stars": 3.5,
+        "combo": 63,
+        "accuracy": 10.714393001265032,
+        "date": "2026-10-23 16:49:38"
+      }
     ]
   },
   "global": [
@@ -3478,7 +3488,7 @@
     },
     {
       "name": "Libay",
-      "total_score": 873509,
+      "total_score": 937709,
       "clefs": 0
     },
     {
@@ -3620,7 +3630,7 @@
       },
       {
         "name": "Libay",
-        "score": 873509
+        "score": 937709
       },
       {
         "name": "Darwin67",
