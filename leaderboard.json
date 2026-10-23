@@ -3458,10 +3458,10 @@
       {
         "name": "Libay",
         "score": 345439,
-        "stars": 1,
-        "combo": 216,
-        "accuracy": 23.176965743695995,
-        "date": "2026-10-23 16:56:20"
+        "stars": 3.5,
+        "combo": 33,
+        "accuracy": 1.514652374699837,
+        "date": "2026-10-23 16:56:48"
       }
     ]
   },
@@ -3528,8 +3528,8 @@
     },
     {
       "name": "Libay",
-      "total_score": 2451401,
-      "clefs": 14
+      "total_score": 2796840,
+      "clefs": 17
     },
     {
       "name": "MasterPianist",
@@ -3670,7 +3670,7 @@
       },
       {
         "name": "Libay",
-        "score": 2451401
+        "score": 2796840
       },
       {
         "name": "Darwin67",
