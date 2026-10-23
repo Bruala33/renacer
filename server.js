@@ -327,6 +327,15 @@ function loadRatingsFromDisk() {
   }
 }
 
+function isTestOrDummyChart(title, artist, id) {
+  const t = String(title || '').trim().toLowerCase();
+  const a = String(artist || '').trim().toLowerCase();
+  const i = String(id || '').trim().toLowerCase();
+  if (i === 'comm_cyber_frenzy' || i === 'comm_galaxy_anthem' || i === 'comm_moonlight_flow' || i === 'comm_1788622108_2296' || i === 'comm_1789045500_1819') return true;
+  if (t === 'unit test song' || t === 'test' || t === 'test miniatura' || t === 'nueva pista' || a === 'tester') return true;
+  return false;
+}
+
 // Helper to seed community charts from disk
 function seedCommunityCharts() {
   const seedItems = [
@@ -343,10 +352,10 @@ function seedCommunityCharts() {
       stars: 4.0,
       scroll_duration_ms: 1550,
       notes_count: 404,
-      rating_avg: 5.0,
-      votes_count: 142,
+      rating_avg: 0,
+      votes_count: 0,
       sync_avg: 100.0,
-      sync_votes_count: 142,
+      sync_votes_count: 0,
       created_at: '2026-03-01 10:00:00',
     },
     {
@@ -362,10 +371,10 @@ function seedCommunityCharts() {
       stars: 3.5,
       scroll_duration_ms: 1600,
       notes_count: 130,
-      rating_avg: 5.0,
-      votes_count: 48,
+      rating_avg: 0,
+      votes_count: 0,
       sync_avg: 100.0,
-      sync_votes_count: 48,
+      sync_votes_count: 0,
       created_at: '2026-01-01 12:00:00',
     },
     {
@@ -381,68 +390,11 @@ function seedCommunityCharts() {
       stars: 5.5,
       scroll_duration_ms: 1300,
       notes_count: 250,
-      rating_avg: 4.9,
-      votes_count: 35,
-      sync_avg: 98.0,
-      sync_votes_count: 35,
+      rating_avg: 0,
+      votes_count: 0,
+      sync_avg: 100.0,
+      sync_votes_count: 0,
       created_at: '2026-01-05 15:30:00',
-    },
-    {
-      id: 'comm_cyber_frenzy',
-      folder: 'comm_cyber_frenzy',
-      title: 'Cyber Frenzy',
-      artist: 'SynthRider',
-      creator_id: 'creator_synth',
-      creator_name: 'SynthRider',
-      bpm: 140.0,
-      offset_ms: 0,
-      difficulty_name: 'Experto',
-      stars: 6.0,
-      scroll_duration_ms: 1200,
-      notes_count: 120,
-      rating_avg: 4.8,
-      votes_count: 28,
-      sync_avg: 99.0,
-      sync_votes_count: 28,
-      created_at: '2026-01-10 18:00:00',
-    },
-    {
-      id: 'comm_galaxy_anthem',
-      folder: 'comm_galaxy_anthem',
-      title: 'Galaxy Anthem',
-      artist: 'Kowalski',
-      creator_id: 'creator_kowalski',
-      creator_name: 'Kowalski',
-      bpm: 128.0,
-      offset_ms: 0,
-      difficulty_name: 'Difícil',
-      stars: 4.5,
-      scroll_duration_ms: 1400,
-      notes_count: 120,
-      rating_avg: 4.7,
-      votes_count: 22,
-      sync_avg: 97.0,
-      sync_votes_count: 22,
-      created_at: '2026-01-12 20:00:00',
-    },
-    {
-      id: 'comm_moonlight_flow',
-      folder: 'comm_moonlight_flow',
-      title: 'Moonlight Flow',
-      artist: 'Nocturne',
-      creator_id: 'creator_nocturne',
-      creator_name: 'Nocturne',
-      bpm: 110.0,
-      offset_ms: 0,
-      difficulty_name: 'Fácil',
-      stars: 2.5,
-      scroll_duration_ms: 1600,
-      notes_count: 95,
-      rating_avg: 4.8,
-      votes_count: 18,
-      sync_avg: 99.0,
-      sync_votes_count: 18,
-      created_at: '2026-01-15 10:00:00',
     },
   ];
 
@@ -457,40 +409,6 @@ function seedCommunityCharts() {
       chart_filename: 'chart.json',
     };
     communityCharts.set(item.id, chartData);
-
-    // Initial sample leaderboard
-    chartScores.set(item.id, [
-      {
-        rank: 1,
-        player_name: 'killer',
-        score: 121983,
-        max_combo: item.notes_count,
-        stars: item.stars,
-        accuracy_pct: 96.8,
-        medal_tier: 'diamond',
-        created_at: '2026-02-01 10:00:00',
-      },
-      {
-        rank: 2,
-        player_name: 'Fernando',
-        score: 954032,
-        max_combo: Math.floor(item.notes_count * 0.9),
-        stars: item.stars,
-        accuracy_pct: 88.2,
-        medal_tier: 'platinum',
-        created_at: '2026-02-02 11:30:00',
-      },
-      {
-        rank: 3,
-        player_name: 'Lidia',
-        score: 9122233,
-        max_combo: Math.floor(item.notes_count * 0.85),
-        stars: item.stars,
-        accuracy_pct: 96.5,
-        medal_tier: 'gold',
-        created_at: '2026-02-03 14:00:00',
-      },
-    ]);
   }
 
   // Also scan community directory for any user-uploaded songs
@@ -506,6 +424,8 @@ function seedCommunityCharts() {
             const data = JSON.parse(raw);
             const title = data.title || data.metadata?.title || folder.replace(/^comm_/, '');
             const artist = data.artist || data.metadata?.artist || 'Comunidad';
+            if (isTestOrDummyChart(title, artist, folder)) continue;
+
             const bpm = parseFloat(data.bpm || data.metadata?.bpm || 120);
             const stars = parseFloat(data.stars || data.metadata?.stars || 3.5);
             const difficulty_name = data.difficulty_name || data.metadata?.difficulty || 'Normal';
@@ -522,10 +442,10 @@ function seedCommunityCharts() {
               stars,
               scroll_duration_ms: data.scrollDurationMs || 1400,
               notes_count: data.notes?.length || 100,
-              rating_avg: 5.0,
-              votes_count: 5,
+              rating_avg: 0,
+              votes_count: 0,
               sync_avg: 100.0,
-              sync_votes_count: 5,
+              sync_votes_count: 0,
               created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
               source: 'community',
               source_name: '🌍 Comunidad',
@@ -569,11 +489,103 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 20,
-    version_name: '2.7.0',
-    release_notes: 'Piano Community Grand Piano Las Vegas Edition (v2.7). Rediseño integral de Descubrir, Mi Bóveda Musical, Consola Acústica de Ajustes e Importador Directo de Playlists de YouTube con reproducción en 1 toque.',
-    download_url: '/download/apk?v=20.0',
+    version_code: 21,
+    version_name: '2.8.0',
+    release_notes: 'Piano Community v2.8: Buscador real de canciones y playlists de YouTube en Descubrir, paginación completa para playlists grandes (200+ canciones), corrección visual de pestañas en móvil y rotación real de canciones destacadas en la Tragaperras.',
+    download_url: '/download/apk?v=21.0',
   });
+});
+
+const YT_CLIENT_VERSION = '2.20261022.01.00';
+
+app.get(['/api/v1/youtube/search_playlists', '/api/youtube/search_playlists'], async (req, res) => {
+  const q = String(req.query.q || req.query.query || '').trim();
+  if (!q) {
+    return res.status(400).json({ error: 'Missing search query' });
+  }
+
+  const results = [];
+  const seen = new Set();
+
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 7500);
+    const ytRes = await fetch('https://www.youtube.com/youtubei/v1/search?prettyPrint=false', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      },
+      body: JSON.stringify({
+        context: {
+          client: { clientName: 'WEB', clientVersion: YT_CLIENT_VERSION, hl: 'es', gl: 'ES' },
+        },
+        query: q,
+        params: 'EgIQAw%3D%3D',
+      }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(tid);
+
+    if (ytRes.ok) {
+      const data = await ytRes.json();
+      function walkSearch(node, depth = 0) {
+        if (!node || depth > 24) return;
+        if (node.lockupViewModel && node.lockupViewModel.contentId) {
+          const vm = node.lockupViewModel;
+          const id = String(vm.contentId).replace(/^VL/, '');
+          if (
+            (vm.contentType === 'LOCKUP_CONTENT_TYPE_PLAYLIST' || id.startsWith('PL') || id.startsWith('OLAK5uy_')) &&
+            !seen.has(id)
+          ) {
+            seen.add(id);
+            const title = vm.metadata?.lockupMetadataViewModel?.title?.content || 'Playlist';
+            const rows = vm.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows || [];
+            const author = rows[0]?.metadataParts?.[0]?.text?.content || 'YouTube';
+            const thumbSources =
+              vm.contentImage?.collectionThumbnailViewModel?.primaryThumbnail?.thumbnailViewModel?.image?.sources ||
+              vm.contentImage?.thumbnailViewModel?.image?.sources ||
+              [];
+            const thumb = thumbSources[thumbSources.length - 1]?.url || thumbSources[0]?.url || './app_logo.png';
+            const badgeText =
+              vm.contentImage?.collectionThumbnailViewModel?.primaryThumbnail?.thumbnailViewModel?.overlays?.[0]
+                ?.thumbnailOverlayBadgeViewModel?.thumbnailBadges?.[0]?.thumbnailBadgeViewModel?.text || 'Playlist';
+            results.push({
+              playlistId: id,
+              title,
+              author,
+              videoCount: badgeText,
+              thumbnail: thumb,
+            });
+          }
+        } else if (node.playlistRenderer && node.playlistRenderer.playlistId) {
+          const pl = node.playlistRenderer;
+          const id = pl.playlistId;
+          if (!seen.has(id)) {
+            seen.add(id);
+            const title = pl.title?.simpleText || pl.title?.runs?.[0]?.text || 'Playlist';
+            const author = pl.shortBylineText?.runs?.[0]?.text || pl.longBylineText?.runs?.[0]?.text || 'YouTube';
+            const count = pl.videoCount || pl.itemCount || pl.videoCountText?.runs?.[0]?.text || 'Playlist';
+            const firstVid = pl.navigationEndpoint?.watchEndpoint?.videoId || '';
+            const thumb =
+              pl.thumbnails?.[0]?.thumbnails?.[0]?.url ||
+              (firstVid ? `https://i.ytimg.com/vi/${firstVid}/hqdefault.jpg` : './app_logo.png');
+            results.push({ playlistId: id, title, author, videoCount: `${count} temas`, thumbnail: thumb });
+          }
+        }
+        if (Array.isArray(node)) {
+          for (const c of node) walkSearch(c, depth + 1);
+        } else if (typeof node === 'object') {
+          for (const k of Object.keys(node)) {
+            if (k !== 'trackingParams' && k !== 'responseContext') walkSearch(node[k], depth + 1);
+          }
+        }
+      }
+      walkSearch(data);
+    }
+  } catch (e) {}
+
+  return res.json({ query: q, results: results.slice(0, 24) });
 });
 
 app.get(['/api/v1/youtube/playlist', '/api/youtube/playlist'], async (req, res) => {
@@ -588,12 +600,87 @@ app.get(['/api/v1/youtube/playlist', '/api/youtube/playlist'], async (req, res) 
   const tracks = [];
   const seen = new Set();
 
-  // 1. Try YouTube Official Innertube browse API from backend (no CORS restrictions)
+  function parseBrowsePage(data) {
+    let nextToken = null;
+    const hdrTitle =
+      data?.header?.pageHeaderRenderer?.pageTitle ||
+      data?.header?.pageHeaderRenderer?.content?.pageHeaderViewModel?.title?.dynamicTextViewModel?.text?.content ||
+      data?.header?.playlistHeaderRenderer?.title?.simpleText ||
+      data?.header?.playlistHeaderRenderer?.title?.runs?.[0]?.text ||
+      data?.metadata?.playlistMetadataRenderer?.title ||
+      data?.microformat?.microformatDataRenderer?.title;
+    if (hdrTitle && playlistTitle === 'Playlist de YouTube') {
+      playlistTitle = String(hdrTitle).replace(/ - YouTube$/, '').trim();
+    }
+
+    function walkNode(node, depth = 0) {
+      if (!node || depth > 26) return;
+      if (
+        node.lockupViewModel &&
+        node.lockupViewModel.contentId &&
+        (node.lockupViewModel.contentType === 'LOCKUP_CONTENT_TYPE_VIDEO' ||
+          String(node.lockupViewModel.contentId).length === 11)
+      ) {
+        const vm = node.lockupViewModel;
+        const vid = String(vm.contentId);
+        if (!seen.has(vid)) {
+          seen.add(vid);
+          const title = vm.metadata?.lockupMetadataViewModel?.title?.content || `Pista #${tracks.length + 1}`;
+          const artist =
+            vm.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows?.[0]
+              ?.metadataParts?.[0]?.text?.content || 'YouTube';
+          tracks.push({
+            id: vid,
+            title,
+            artist,
+            thumbnail: `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`,
+            duration_seconds: 0,
+          });
+        }
+      } else if (node.playlistVideoRenderer && node.playlistVideoRenderer.videoId) {
+        const v = node.playlistVideoRenderer;
+        const vid = v.videoId;
+        if (!seen.has(vid)) {
+          seen.add(vid);
+          tracks.push({
+            id: vid,
+            title: v.title?.runs?.[0]?.text || v.title?.simpleText || `Pista #${tracks.length + 1}`,
+            artist: v.shortBylineText?.runs?.[0]?.text || v.longBylineText?.runs?.[0]?.text || 'YouTube',
+            thumbnail: `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`,
+            duration_seconds: Number(v.lengthSeconds) || 0,
+          });
+        }
+      }
+      if (node.continuationItemViewModel) {
+        const t = node.continuationItemViewModel?.continuationCommand?.innertubeCommand?.continuationCommand?.token;
+        if (t && !nextToken) nextToken = t;
+      }
+      if (node.continuationItemRenderer) {
+        const t =
+          node.continuationItemRenderer?.continuationEndpoint?.continuationCommand?.token ||
+          node.continuationItemRenderer?.continuationEndpoint?.commandExecutorCommand?.commands?.find(
+            c => c.continuationCommand
+          )?.continuationCommand?.token;
+        if (t && !nextToken) nextToken = t;
+      }
+      if (Array.isArray(node)) {
+        for (const c of node) walkNode(c, depth + 1);
+      } else if (typeof node === 'object') {
+        for (const k of Object.keys(node)) {
+          if (k !== 'trackingParams' && k !== 'responseContext') walkNode(node[k], depth + 1);
+        }
+      }
+    }
+    walkNode(data);
+    return nextToken;
+  }
+
+  // 1. Try YouTube Official Innertube browse API with multi-page continuation (supports 200-500+ songs)
   try {
     const browseId = cleanId.startsWith('VL') ? cleanId : `VL${cleanId}`;
     const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 6500);
-    const ytRes = await fetch('https://www.youtube.com/youtubei/v1/browse', {
+    const tid = setTimeout(() => ctrl.abort(), 7500);
+    const ytRes = await fetch('https://www.youtube.com/youtubei/v1/browse?prettyPrint=false', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -601,7 +688,7 @@ app.get(['/api/v1/youtube/playlist', '/api/youtube/playlist'], async (req, res) 
       },
       body: JSON.stringify({
         context: {
-          client: { clientName: 'WEB', clientVersion: '2.20240726.00.00', hl: 'es', gl: 'ES' },
+          client: { clientName: 'WEB', clientVersion: YT_CLIENT_VERSION, hl: 'es', gl: 'ES' },
         },
         browseId,
       }),
@@ -611,42 +698,39 @@ app.get(['/api/v1/youtube/playlist', '/api/youtube/playlist'], async (req, res) 
 
     if (ytRes.ok) {
       const data = await ytRes.json();
-      const hdrTitle =
-        data?.header?.playlistHeaderRenderer?.title?.simpleText ||
-        data?.header?.playlistHeaderRenderer?.title?.runs?.[0]?.text ||
-        data?.metadata?.playlistMetadataRenderer?.title ||
-        data?.microformat?.microformatDataRenderer?.title;
-      if (hdrTitle) playlistTitle = String(hdrTitle).replace(/ - YouTube$/, '').trim();
-
-      function walkNode(node, depth = 0) {
-        if (!node || depth > 18) return;
-        if (node.playlistVideoRenderer && node.playlistVideoRenderer.videoId) {
-          const v = node.playlistVideoRenderer;
-          const vid = v.videoId;
-          if (!seen.has(vid)) {
-            seen.add(vid);
-            tracks.push({
-              id: vid,
-              title: v.title?.runs?.[0]?.text || v.title?.simpleText || `Pista #${tracks.length + 1}`,
-              artist: v.shortBylineText?.runs?.[0]?.text || v.longBylineText?.runs?.[0]?.text || 'YouTube',
-              thumbnail: `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`,
-              duration_seconds: Number(v.lengthSeconds) || 0,
-            });
-          }
-        }
-        if (Array.isArray(node)) {
-          for (const c of node) walkNode(c, depth + 1);
-        } else if (typeof node === 'object') {
-          for (const k of Object.keys(node)) {
-            if (k !== 'trackingParams' && k !== 'responseContext') walkNode(node[k], depth + 1);
-          }
+      let continuationToken = parseBrowsePage(data);
+      let page = 1;
+      while (continuationToken && page < 5 && tracks.length < 500) {
+        page++;
+        try {
+          const cCtrl = new AbortController();
+          const cTid = setTimeout(() => cCtrl.abort(), 6000);
+          const contRes = await fetch('https://www.youtube.com/youtubei/v1/browse?prettyPrint=false', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            },
+            body: JSON.stringify({
+              context: {
+                client: { clientName: 'WEB', clientVersion: YT_CLIENT_VERSION, hl: 'es', gl: 'ES' },
+              },
+              continuation: continuationToken,
+            }),
+            signal: cCtrl.signal,
+          });
+          clearTimeout(cTid);
+          if (!contRes.ok) break;
+          const contData = await contRes.json();
+          continuationToken = parseBrowsePage(contData);
+        } catch (_) {
+          break;
         }
       }
-      walkNode(data);
     }
   } catch (e) {}
 
-  // 2. Fallback to YouTube XML RSS feed if Innertube returned empty
+  // 2. Fallback to YouTube XML RSS feed only if Innertube returned empty
   if (tracks.length === 0) {
     try {
       const ctrl = new AbortController();
@@ -817,12 +901,16 @@ app.all(['/api/proxy', '/api/v1/download/proxy'], async (req, res) => {
 // ==========================================
 // 3. Community Endpoints
 // ==========================================
-// Featured daily tracks - Filtradas por valoraciones de las últimas 48h
+// Featured daily tracks - Rotación diaria real y valoraciones verificadas (sin votos falsos)
 app.get('/api/v1/community/featured', (req, res) => {
   const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
   const now = Date.now();
 
-  const chartsWithStats = Array.from(communityCharts.values()).map(chart => {
+  const validCharts = Array.from(communityCharts.values()).filter(
+    c => !isTestOrDummyChart(c.title, c.artist, c.id)
+  );
+
+  const chartsWithStats = validCharts.map(chart => {
     const ratings = chartRatings.get(chart.id) || [];
     const recentRatings = ratings.filter(r => (now - (r.timestamp || 0)) <= TWENTY_FOUR_HOURS_MS);
 
@@ -833,23 +921,73 @@ app.get('/api/v1/community/featured', (req, res) => {
         ...chart,
         rating_avg: avgStars,
         votes_count: recentRatings.length,
-        has_recent_votes: true
+        has_recent_votes: true,
       };
     }
+    const allStars = ratings.reduce((sum, r) => sum + (r.rating || 5), 0);
+    const allAvg = ratings.length > 0 ? Math.round((allStars / ratings.length) * 10) / 10 : 0;
     return {
       ...chart,
-      has_recent_votes: false
+      rating_avg: allAvg,
+      votes_count: ratings.length,
+      has_recent_votes: false,
     };
   });
 
-  // Priorizar estrictamente canciones con votos en las últimas 24h; si hay menos de 3, complementar con las mejor valoradas en general
-  chartsWithStats.sort((a, b) => {
-    if (a.has_recent_votes && !b.has_recent_votes) return -1;
-    if (!a.has_recent_votes && b.has_recent_votes) return 1;
-    return (b.rating_avg || 0) - (a.rating_avg || 0) || (b.votes_count || 0) - (a.votes_count || 0);
-  });
+  // Load real catalog_top.json to rotate daily across 100+ songs
+  let catalogSongs = [];
+  try {
+    const catPath = path.join(STATIC_DIR, 'songs', 'catalog_top.json');
+    if (fs.existsSync(catPath)) {
+      const rawCat = JSON.parse(fs.readFileSync(catPath, 'utf-8'));
+      if (Array.isArray(rawCat)) {
+        catalogSongs = rawCat.map(s => {
+          const fullId = String(s.id).startsWith('top_') ? s.id : `top_${s.id}`;
+          const rList = chartRatings.get(fullId) || [];
+          const tot = rList.reduce((acc, r) => acc + (r.rating || 5), 0);
+          return {
+            id: fullId,
+            title: s.title,
+            artist: s.artist,
+            difficulty_name: s.difficulty_name || 'Media',
+            stars: s.stars || 4.0,
+            is_top_song: true,
+            is_community: false,
+            source: 'catalog',
+            source_name: 'Catálogo Oficial',
+            cover_url: s.cover_url || s.thumbnail || './app_logo.png',
+            thumbnail: s.cover_url || s.thumbnail || './app_logo.png',
+            rating_avg: rList.length > 0 ? Math.round((tot / rList.length) * 10) / 10 : 0,
+            votes_count: rList.length,
+            has_recent_votes: rList.some(r => (now - (r.timestamp || 0)) <= TWENTY_FOUR_HOURS_MS),
+          };
+        });
+      }
+    }
+  } catch (_) {}
 
-  res.json(chartsWithStats.slice(0, 6));
+  const allPool = [...chartsWithStats, ...catalogSongs];
+  const ratedRecent = allPool
+    .filter(s => s.has_recent_votes && s.votes_count > 0)
+    .sort((a, b) => (b.rating_avg || 0) - (a.rating_avg || 0) || (b.votes_count || 0) - (a.votes_count || 0));
+
+  const d = new Date();
+  const daySeed = d.getFullYear() * 372 + (d.getMonth() + 1) * 31 + d.getDate();
+  const rotatedPool = allPool.filter(s => !ratedRecent.some(r => r.id === s.id));
+  const selected = [...ratedRecent];
+
+  if (rotatedPool.length > 0) {
+    const step = Math.max(1, Math.floor(rotatedPool.length / 6));
+    for (let i = 0; i < 6 && selected.length < 6; i++) {
+      const idx = (daySeed * 7 + i * step + i * 13) % rotatedPool.length;
+      const pick = rotatedPool[idx];
+      if (pick && !selected.some(ex => ex.id === pick.id)) {
+        selected.push(pick);
+      }
+    }
+  }
+
+  res.json(selected.slice(0, 6));
 });
 
 function normalizeSearchText(str) {

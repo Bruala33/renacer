@@ -903,22 +903,50 @@
 
   async function refreshFeaturedSongsPool() {
     try {
+      const isDummy = (s) => {
+        if (!s) return true;
+        const id = String(s.id || '').toLowerCase();
+        const title = String(s.title || '').trim().toLowerCase();
+        return id.startsWith('comm_galaxy') || id.startsWith('comm_cyber') || id.startsWith('comm_moonlight') ||
+               id.startsWith('comm_1788622108') || id.startsWith('comm_1789045500') ||
+               title.includes('unit test') || title === 'test' || title === 'prueba';
+      };
+
       let songs = [];
-      if (window.TOP_SONGS_CATALOG && Array.isArray(window.TOP_SONGS_CATALOG) && window.TOP_SONGS_CATALOG.length > 0) {
-        const c = window.TOP_SONGS_CATALOG;
+      if (typeof window.loadDailyFeaturedSongs === 'function') {
+        try {
+          const daily = await window.loadDailyFeaturedSongs();
+          if (Array.isArray(daily) && daily.length > 0) {
+            songs = daily.filter(s => !isDummy(s)).slice(0, 3).map(s => ({
+              ...s,
+              stars: s.stars || 4.0,
+              cover_url: s.cover_url || s.thumbnail || './app_logo.png',
+              thumbnail: s.cover_url || s.thumbnail || './app_logo.png'
+            }));
+          }
+        } catch (_) {}
+      }
+      if (songs.length < 6 && window.TOP_SONGS_CATALOG && Array.isArray(window.TOP_SONGS_CATALOG) && window.TOP_SONGS_CATALOG.length > 0) {
+        const c = window.TOP_SONGS_CATALOG.filter(s => !isDummy(s));
         const now = new Date();
-        const daySeed = now.getDate() + (now.getMonth() * 31);
-        const idx1 = daySeed % c.length;
-        const idx2 = (daySeed + 13) % c.length;
-        const idx3 = (daySeed + 29) % c.length;
-        songs = [c[idx1], c[idx2], c[idx3]].filter(Boolean).map(s => ({
-          ...s,
-          id: s.id.startsWith('top_') ? s.id : `top_${s.id}`,
-          is_top_song: true,
-          stars: s.stars || 4.0,
-          cover_url: s.cover_url || s.thumbnail || './app_logo.png',
-          thumbnail: s.cover_url || s.thumbnail || './app_logo.png'
-        }));
+        const daySeed = now.getFullYear() * 372 + (now.getMonth() + 1) * 31 + now.getDate();
+        const step = Math.max(1, Math.floor(c.length / 6));
+        for (let i = 0; i < c.length && songs.length < 6; i++) {
+          const pick = c[(daySeed * 7 + i * step + i * 13) % c.length];
+          if (pick) {
+            const fullId = String(pick.id).startsWith('top_') ? pick.id : `top_${pick.id}`;
+            if (!songs.some(ex => ex.id === fullId)) {
+              songs.push({
+                ...pick,
+                id: fullId,
+                is_top_song: true,
+                stars: pick.stars || 4.0,
+                cover_url: pick.cover_url || pick.thumbnail || './app_logo.png',
+                thumbnail: pick.cover_url || pick.thumbnail || './app_logo.png'
+              });
+            }
+          }
+        }
       }
       if (songs.length > 0) {
         featuredSongsReelPool = songs;

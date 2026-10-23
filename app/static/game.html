@@ -1339,137 +1339,85 @@
         </div>
       </div>
 
-      <!-- TAB 2: Discover View (Vintage Las Vegas Lounge & Spotify-Style Curated Collections) -->
-      <div id="tabDiscoverSection" class="hidden space-y-3 pb-6" style="display: none;">
+      <!-- TAB 2: Discover View (Clean Real Song & YouTube Playlist Finder) -->
+      <div id="tabDiscoverSection" class="hidden space-y-2.5 pb-6" style="display: none;">
 
-        <!-- 1. Gran Fortuna 1977 Las Vegas Marquee Banner -->
-        <div class="vegas-marquee-panel">
-          <div class="vegas-bulb-trim">
-            <div class="vegas-bulb-dots">
-              <span class="vegas-bulb"></span><span class="vegas-bulb"></span><span class="vegas-bulb"></span><span class="vegas-bulb"></span>
-            </div>
-            <span class="text-[8.5px] font-black tracking-[0.22em] text-[#f3d791] uppercase font-serif">★ LAS VEGAS LOUNGE • EST. 1977 ★</span>
-            <div class="vegas-bulb-dots">
-              <span class="vegas-bulb"></span><span class="vegas-bulb"></span><span class="vegas-bulb"></span><span class="vegas-bulb"></span>
-            </div>
+        <!-- 1. Compact Slot Machine Bar (Canciones Destacadas viven en la Tragaperras) -->
+        <div class="vegas-marquee-panel p-2.5 flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="text-base">🎰</span>
+            <span class="text-xs font-black text-[#fff6d6] font-serif truncate" data-i18n="slot_title">Gran Fortuna</span>
           </div>
-          <div class="p-3 space-y-2.5">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2.5">
-                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500/30 to-red-900/50 border border-amber-400/60 flex items-center justify-center text-lg shadow-md">
-                  🎰
-                </div>
-                <div>
-                  <h3 class="text-xs font-black text-[#fff6d6] uppercase tracking-wider font-serif" data-i18n="slot_title">Gran Fortuna 1977</h3>
-                  <p class="text-[9.5px] text-[#d8c39e] font-semibold tracking-wide" data-i18n="slot_sub">Casino Mecánico & Desafíos VIP</p>
-                </div>
-              </div>
-              <span class="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/30 to-yellow-700/40 text-[#fff3c4] border border-amber-300/70 text-[9.5px] font-black tracking-wider shadow-sm">
-                777 VIP
-              </span>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2 pt-0.5">
-              <button id="btnSlotBet" onclick="openGranFortuna('bet')" class="btn-vegas-led py-2.5 text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer">
-                <span>🎰</span>
-                <span data-i18n="slot_btn_bet">Apostar Claves</span>
-              </button>
-              <button id="btnSlotFeatured" onclick="openGranFortuna('featured')" class="btn-vegas-led py-2.5 text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer">
-                <span>★</span>
-                <span data-i18n="slot_btn_featured">Ruleta Destacada</span>
-              </button>
-            </div>
+          <div class="flex items-center gap-1.5 flex-shrink-0">
+            <button id="btnSlotBet" onclick="openGranFortuna('bet')" class="btn-vegas-led px-2.5 py-1.5 text-[10px] font-black flex items-center gap-1 cursor-pointer">
+              <span>🎰</span>
+              <span data-i18n="slot_btn_bet">Apostar</span>
+            </button>
+            <button id="btnSlotFeatured" onclick="openGranFortuna('featured')" class="btn-vegas-led px-2.5 py-1.5 text-[10px] font-black flex items-center gap-1 cursor-pointer">
+              <span>★</span>
+              <span data-i18n="slot_btn_featured">Destacadas x2</span>
+            </button>
           </div>
         </div>
 
-        <!-- 2. Cartelera Estelar x2 Claves (Canciones Destacadas del Día en Vivo) -->
-        <div class="vegas-marquee-panel p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-1.5">
-              <span class="text-amber-300 text-sm">♛</span>
-              <div>
-                <h3 class="text-[11px] font-black text-[#fff6d6] uppercase tracking-wider font-serif" data-i18n="disc_daily_title_caps">Cartelera Estelar del Día</h3>
-                <p class="text-[9px] text-[#cbb894]">Las pistas mejor valoradas hoy por los pianistas</p>
-              </div>
+        <!-- 2. Real Song & YouTube Playlist Search Hub -->
+        <div class="vegas-marquee-panel p-2.5 space-y-2">
+          <!-- Mode Toggle: Canciones Reales vs Playlists de YouTube + Pegar URL -->
+          <div class="flex items-center justify-between gap-1.5">
+            <div class="grid grid-cols-2 gap-1 bg-black/60 p-1 rounded-xl border border-[#c5a059]/35 flex-1">
+              <button id="btnDiscoverModeSongs" type="button" onclick="setDiscoverSearchMode('songs')" class="py-1.5 px-2 rounded-lg text-[10px] font-black transition cursor-pointer bg-gradient-to-r from-[#d4af37] to-[#996515] text-[#0c0804] shadow">
+                🎵 Canciones
+              </button>
+              <button id="btnDiscoverModePlaylists" type="button" onclick="setDiscoverSearchMode('playlists')" class="py-1.5 px-2 rounded-lg text-[10px] font-black transition cursor-pointer text-[#cbb894] hover:text-white">
+                💿 Playlists YT
+              </button>
             </div>
-            <span data-i18n="disc_x2_clefs" class="px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider bg-amber-500/25 text-amber-200 border border-amber-400/60">
-              ★ BONUS x2 𝄞
-            </span>
-          </div>
-          <div id="dailyFeaturedListContainer" class="space-y-2 pt-0.5">
-            <!-- Injected by loadDailyFeaturedSongs() -->
-          </div>
-        </div>
-
-        <!-- 3. Estudio de Importación YouTube Music & Buscador tipo Spotify -->
-        <div class="vegas-marquee-panel p-3 space-y-2.5">
-          <div class="flex items-center justify-between gap-2">
-            <div class="min-w-0">
-              <p class="text-xs font-black text-[#fff6d6] flex items-center gap-1.5 font-serif">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" class="text-[#e5b869] flex-shrink-0"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
-                <span data-i18n="disc_yt_title">Explorador de Playlists & Álbumes</span>
-              </p>
-              <p class="text-[9.5px] text-[#cbb894] truncate" data-i18n="disc_yt_sub">Busca cualquier género o importa una URL directa de YouTube</p>
-            </div>
-            <button onclick="openYTMusicModal()" class="px-2.5 py-1.5 bg-gradient-to-r from-[#d4af37] to-[#996515] text-[#0c0804] rounded-xl text-[10px] font-black flex items-center gap-1 cursor-pointer transition active:scale-95 flex-shrink-0 shadow-md">
+            <button onclick="openYTMusicModal()" class="px-2.5 py-2 bg-[#1b1209] hover:bg-[#2a1c0e] border border-[#c5a059]/55 text-[#f3d791] rounded-xl text-[10px] font-black flex items-center gap-1 cursor-pointer transition active:scale-95 flex-shrink-0" title="Pegar enlace directo de YouTube">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-              <span data-i18n="disc_paste_url">Pegar URL</span>
+              <span>URL</span>
             </button>
           </div>
 
           <!-- Search Input -->
-          <div class="flex items-center gap-2">
-            <div class="relative flex-1">
+          <div class="flex items-center gap-1.5">
+            <div class="relative flex-1 min-w-0">
               <input 
                 id="discoverPlaylistSearchInput" 
                 type="text" 
-                data-i18n-placeholder="disc_search_ph"
-                placeholder="Buscar playlists, artistas o géneros (ej. Queen, Jazz, Anime, Phonk)..." 
+                placeholder="Buscar canción, artista o playlist..." 
                 onkeydown="if(event.key==='Enter') executeDiscoverPlaylistSearch()"
-                class="w-full pl-8 pr-3 py-2 bg-black/75 border border-[#c5a059]/40 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#f3d791] transition"
+                class="w-full pl-8 pr-7 py-2 bg-black/80 border border-[#c5a059]/45 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#f3d791] transition"
               >
-              <svg width="14" height="14" class="search-icon-svg w-3.5 h-3.5 text-[#c5a059] absolute left-2.5 top-2.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              <svg width="13" height="13" class="w-3.5 h-3.5 text-[#c5a059] absolute left-2.5 top-2.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              <button onclick="clearDiscoverSearchResults()" class=" absolute right-2 top-2 text-gray-400 hover:text-white text-xs font-bold px-1 cursor-pointer" title="Limpiar">✕</button>
             </div>
             <button 
               id="btnDiscoverSearch" 
               onclick="executeDiscoverPlaylistSearch()" 
-              class="px-3.5 py-2 bg-gradient-to-r from-pink-500 to-purple-600 font-black rounded-xl text-xs text-white shadow-lg transition active:scale-95 flex items-center gap-1 cursor-pointer flex-shrink-0"
+              class="px-3.5 py-2 bg-gradient-to-r from-[#d4af37] to-[#996515] font-black rounded-xl text-xs text-[#0c0804] shadow-lg transition active:scale-95 flex items-center gap-1 cursor-pointer flex-shrink-0"
             >
               <span id="discoverSearchBtnText" data-i18n="search_btn">Buscar</span>
-              <svg width="14" height="14" id="discoverSearchSpinner" class="hidden animate-spin w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+              <svg width="14" height="14" id="discoverSearchSpinner" class="hidden animate-spin w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
             </button>
           </div>
 
-          <!-- Quick Spotify-style Mood & Genre Filter Pills -->
+          <!-- Quick Genre Chips -->
           <div class="vegas-pill-scroll" id="discoverGenrePills">
-            <button type="button" onclick="quickSearchDiscoverGenre('Grandes Clásicos Piano & Sinfónico', this)" class="vegas-genre-pill">🎹 Piano & Clásica</button>
-            <button type="button" onclick="quickSearchDiscoverGenre('Las Vegas Jazz & Crooners Frank Sinatra Elvis', this)" class="vegas-genre-pill">🍸 Vegas Lounge</button>
-            <button type="button" onclick="quickSearchDiscoverGenre('Classic Rock & Heavy Metal Legends', this)" class="vegas-genre-pill">🎸 Rock & Metal</button>
-            <button type="button" onclick="quickSearchDiscoverGenre('Pop Hits & Latin Anthems', this)" class="vegas-genre-pill">✨ Top Pop & Hits</button>
-            <button type="button" onclick="quickSearchDiscoverGenre('EDM Phonk & Synthwave Hits', this)" class="vegas-genre-pill">⚡ Phonk & Electro</button>
-            <button type="button" onclick="quickSearchDiscoverGenre('Anime Openings & Video Game OST', this)" class="vegas-genre-pill">🎌 Anime & Gaming</button>
-            <button type="button" onclick="quickSearchDiscoverGenre('Baladas Románticas en Español Clásicos', this)" class="vegas-genre-pill">🌹 Baladas</button>
+            <button type="button" onclick="quickSearchDiscoverGenre('', this)" class="vegas-genre-pill active">🔥 Todo</button>
+            <button type="button" onclick="quickSearchDiscoverGenre('Piano Clasica Beethoven Chopin', this)" class="vegas-genre-pill">🎹 Piano</button>
+            <button type="button" onclick="quickSearchDiscoverGenre('Queen Rock Metal Nirvana', this)" class="vegas-genre-pill">🎸 Rock</button>
+            <button type="button" onclick="quickSearchDiscoverGenre('Pop Hits The Weeknd Dua Lipa', this)" class="vegas-genre-pill">✨ Pop</button>
+            <button type="button" onclick="quickSearchDiscoverGenre('Phonk Drift Electronic', this)" class="vegas-genre-pill">⚡ Phonk</button>
+            <button type="button" onclick="quickSearchDiscoverGenre('Anime Opening OST', this)" class="vegas-genre-pill">🎌 Anime</button>
+            <button type="button" onclick="quickSearchDiscoverGenre('Frank Sinatra Elvis Jazz', this)" class="vegas-genre-pill">🍸 Jazz</button>
+            <button type="button" onclick="quickSearchDiscoverGenre('Camilo Sesto Soda Stereo Español', this)" class="vegas-genre-pill">🌹 Español</button>
           </div>
         </div>
 
-        <!-- Dynamic Search Results Grid for Searched Playlists -->
-        <div id="discoverSearchResultsContainer" class="hidden space-y-2.5">
-          <div class="flex items-center justify-between px-1">
-            <h3 class="text-xs font-black text-[#f3d791] flex items-center gap-1.5 font-serif">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <span data-i18n="disc_search_results">Playlists Encontradas</span>
-            </h3>
-            <button onclick="clearDiscoverSearchResults()" class="px-2 py-0.5 rounded-lg bg-white/10 text-[10px] text-[#f3d791] font-bold hover:bg-white/20 cursor-pointer" data-i18n="disc_close">✕ Cerrar</button>
-          </div>
-          <div class="grid grid-cols-1 gap-2.5" id="discoverSearchResultsGrid">
-            <!-- Injected dynamically -->
-          </div>
-        </div>
-
-        <!-- Import Progress Bar Overlay (if importing) -->
+        <!-- Import Progress Bar (when importing a playlist) -->
         <div id="discoverImportProgress" class="hidden p-2.5 bg-black/80 border border-[#c5a059]/60 rounded-xl space-y-1.5">
           <div class="flex items-center justify-between text-[10px]">
-            <span id="discoverImportStatusText" class="font-bold text-[#f3d791]">Descargando y mapeando colección...</span>
+            <span id="discoverImportStatusText" class="font-bold text-[#f3d791]">Importando playlist...</span>
             <span id="discoverImportPercent" class="font-mono text-amber-300 font-black">0%</span>
           </div>
           <div class="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
@@ -1477,310 +1425,96 @@
           </div>
         </div>
 
-        <!-- Section Title: Colecciones Oficiales de Gala (Estilo Spotify / Vinilo) -->
-        <div class="flex items-center justify-between pt-1 px-1">
-          <h3 class="text-xs font-black text-[#fff6d6] flex items-center gap-1.5 font-serif tracking-wide">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" class="text-[#d4af37] inline"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
-            <span data-i18n="disc_featured_playlists">Colecciones Oficiales de Gala</span>
-          </h3>
-          <span class="text-[9.5px] font-bold text-[#c5a059]">1 Clic • Guardar y Jugar</span>
-        </div>
-
-        <!-- Curated Playlists Grid (8 Rich Collections) -->
-        <div class="grid grid-cols-1 gap-2.5" id="curatedPlaylistsGrid">
-          <!-- 1. Leyendas del Rock & Heavy Metal -->
-          <div class="vegas-playlist-card flex items-center justify-between gap-3">
-            <div class="flex items-center gap-3 min-w-0 flex-1">
-              <div class="vegas-vinyl-sleeve">
-                <img src="https://i.ytimg.com/vi/fJ9rUzIMcZQ/hqdefault.jpg" alt="Rock" class="w-full h-full object-cover" loading="lazy">
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-1.5">
-                  <span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-[#f3d791] border border-amber-400/40 uppercase">Rock & Metal</span>
-                  <span class="text-[8.5px] font-bold text-[#cbb894]">20 <span data-i18n="disc_tracks">Temas</span></span>
-                </div>
-                <h3 class="text-xs font-black text-[#fff6d6] truncate mt-0.5 font-serif">Rock Clásico & Heavy Metal</h3>
-                <p class="text-[10px] text-[#b8a990] truncate">Queen, AC/DC, Metallica, Nirvana, Linkin Park, Guns N' Roses</p>
-              </div>
-            </div>
-            <button onclick="importCuratedPlaylist('PLMC9KNkIncKtPzgY-5fP50P4GvB_b4_0d', 'Rock Clásico & Heavy Metal')" class="vegas-play-fab" title="Importar y Abrir Playlist">
-              ▶
-            </button>
-          </div>
-
-          <!-- 2. Las Vegas Crooners, Jazz & Soul -->
-          <div class="vegas-playlist-card flex items-center justify-between gap-3">
-            <div class="flex items-center gap-3 min-w-0 flex-1">
-              <div class="vegas-vinyl-sleeve">
-                <img src="https://i.ytimg.com/vi/qQzdAsjWGPg/hqdefault.jpg" alt="Vegas" class="w-full h-full object-cover" loading="lazy">
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-1.5">
-                  <span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-[#f3d791] border border-amber-400/40 uppercase">Vegas 1977</span>
-                  <span class="text-[8.5px] font-bold text-[#cbb894]">16 <span data-i18n="disc_tracks">Temas</span></span>
-                </div>
-                <h3 class="text-xs font-black text-[#fff6d6] truncate mt-0.5 font-serif">Las Vegas Lounge, Jazz & Soul</h3>
-                <p class="text-[10px] text-[#b8a990] truncate">Frank Sinatra, Elvis Presley, Nina Simone, Ray Charles, Louis Armstrong</p>
-              </div>
-            </div>
-            <button onclick="importCuratedPlaylist('PL_VEGAS_LOUNGE_1977', 'Las Vegas Lounge, Jazz & Soul')" class="vegas-play-fab" title="Importar y Abrir Playlist">
-              ▶
-            </button>
-          </div>
-
-          <!-- 3. Maestros del Piano de Cola & Clásica -->
-          <div class="vegas-playlist-card flex items-center justify-between gap-3">
-            <div class="flex items-center gap-3 min-w-0 flex-1">
-              <div class="vegas-vinyl-sleeve">
-                <img src="https://i.ytimg.com/vi/4Tr0otuiQuU/hqdefault.jpg" alt="Piano" class="w-full h-full object-cover" loading="lazy">
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-1.5">
-                  <span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-[#f3d791] border border-amber-400/40 uppercase">Virtuoso</span>
-                  <span class="text-[8.5px] font-bold text-[#cbb894]">16 <span data-i18n="disc_tracks">Temas</span></span>
-                </div>
-                <h3 class="text-xs font-black text-[#fff6d6] truncate mt-0.5 font-serif">Maestros del Piano & Sinfónica</h3>
-                <p class="text-[10px] text-[#b8a990] truncate">Beethoven, Chopin, Mozart, Vivaldi, Liszt, Yiruma, Ludovico Einaudi</p>
-              </div>
-            </div>
-            <button onclick="importCuratedPlaylist('PL_GRAND_PIANO_MASTERS', 'Maestros del Piano & Sinfónica')" class="vegas-play-fab" title="Importar y Abrir Playlist">
-              ▶
-            </button>
-          </div>
-
-          <!-- 4. Top Éxitos Globales & Pop Latino -->
-          <div class="vegas-playlist-card flex items-center justify-between gap-3">
-            <div class="flex items-center gap-3 min-w-0 flex-1">
-              <div class="vegas-vinyl-sleeve">
-                <img src="https://i.ytimg.com/vi/4NRXx6U8ABQ/hqdefault.jpg" alt="Pop" class="w-full h-full object-cover" loading="lazy">
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-1.5">
-                  <span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-[#f3d791] border border-amber-400/40 uppercase">Top Hits</span>
-                  <span class="text-[8.5px] font-bold text-[#cbb894]">20 <span data-i18n="disc_tracks">Temas</span></span>
-                </div>
-                <h3 class="text-xs font-black text-[#fff6d6] truncate mt-0.5 font-serif">Top Éxitos Globales & Pop Latino</h3>
-                <p class="text-[10px] text-[#b8a990] truncate">The Weeknd, Dua Lipa, Bad Bunny, Billie Eilish, Bruno Mars, Shakira</p>
-              </div>
-            </div>
-            <button onclick="importCuratedPlaylist('PLrEnWoR732-Dbg4wY_wU601EaTz2v4c5d', 'Top Éxitos Globales & Pop Latino')" class="vegas-play-fab" title="Importar y Abrir Playlist">
-              ▶
-            </button>
-          </div>
-
-          <!-- 5. Electrónica, EDM & Drift Phonk -->
-          <div class="vegas-playlist-card flex items-center justify-between gap-3">
-            <div class="flex items-center gap-3 min-w-0 flex-1">
-              <div class="vegas-vinyl-sleeve">
-                <img src="https://i.ytimg.com/vi/60ItHLz5WEA/hqdefault.jpg" alt="EDM" class="w-full h-full object-cover" loading="lazy">
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-1.5">
-                  <span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-[#f3d791] border border-amber-400/40 uppercase">EDM & Phonk</span>
-                  <span class="text-[8.5px] font-bold text-[#cbb894]">20 <span data-i18n="disc_tracks">Temas</span></span>
-                </div>
-                <h3 class="text-xs font-black text-[#fff6d6] truncate mt-0.5 font-serif">Electrónica, EDM & Phonk</h3>
-                <p class="text-[10px] text-[#b8a990] truncate">Avicii, Alan Walker, Kordhell, DVRST, Skrillex, TheFatRat, Daft Punk</p>
-              </div>
-            </div>
-            <button onclick="importCuratedPlaylist('PLDIoUOhQQPlXr6373oT_gM_n3V7kE9e6b', 'Electrónica, EDM & Phonk')" class="vegas-play-fab" title="Importar y Abrir Playlist">
-              ▶
-            </button>
-          </div>
-
-          <!-- 6. Gaming & Anime Soundtracks -->
-          <div class="vegas-playlist-card flex items-center justify-between gap-3">
-            <div class="flex items-center gap-3 min-w-0 flex-1">
-              <div class="vegas-vinyl-sleeve">
-                <img src="https://i.ytimg.com/vi/wDGhu8-4N-4/hqdefault.jpg" alt="Anime" class="w-full h-full object-cover" loading="lazy">
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-1.5">
-                  <span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-[#f3d791] border border-amber-400/40 uppercase">Anime & OST</span>
-                  <span class="text-[8.5px] font-bold text-[#cbb894]">20 <span data-i18n="disc_tracks">Temas</span></span>
-                </div>
-                <h3 class="text-xs font-black text-[#fff6d6] truncate mt-0.5 font-serif">Gaming & Anime Soundtracks</h3>
-                <p class="text-[10px] text-[#b8a990] truncate">Demon Slayer, Undertale, Attack on Titan, Naruto, Persona 5, DOOM</p>
-              </div>
-            </div>
-            <button onclick="importCuratedPlaylist('PLFPg_IUxqnZN3mQy8bQ8k8kL7eZ9w6kL7', 'Gaming & Anime Soundtracks')" class="vegas-play-fab" title="Importar y Abrir Playlist">
-              ▶
-            </button>
-          </div>
-
-          <!-- 7. Joyas en Español, Baladas & Leyendas -->
-          <div class="vegas-playlist-card flex items-center justify-between gap-3">
-            <div class="flex items-center gap-3 min-w-0 flex-1">
-              <div class="vegas-vinyl-sleeve">
-                <img src="./covers/camilo_sesto.jpg" onerror="this.src='https://i.ytimg.com/vi/fJ9rUzIMcZQ/hqdefault.jpg'" alt="Clásicos ES" class="w-full h-full object-cover" loading="lazy">
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-1.5">
-                  <span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-[#f3d791] border border-amber-400/40 uppercase">Gala Hispana</span>
-                  <span class="text-[8.5px] font-bold text-[#cbb894]">16 <span data-i18n="disc_tracks">Temas</span></span>
-                </div>
-                <h3 class="text-xs font-black text-[#fff6d6] truncate mt-0.5 font-serif">Clásicos en Español & Baladas de Oro</h3>
-                <p class="text-[10px] text-[#b8a990] truncate">Camilo Sesto, Soda Stereo, Héroes del Silencio, Nino Bravo, Luis Miguel</p>
-              </div>
-            </div>
-            <button onclick="importCuratedPlaylist('PL_LATIN_GOLD_BALLADS', 'Clásicos en Español & Baladas de Oro')" class="vegas-play-fab" title="Importar y Abrir Playlist">
-              ▶
-            </button>
-          </div>
-
-          <!-- 8. Speed & Hardcore Beats (Pro Mania) -->
-          <div class="vegas-playlist-card flex items-center justify-between gap-3">
-            <div class="flex items-center gap-3 min-w-0 flex-1">
-              <div class="vegas-vinyl-sleeve">
-                <img src="https://i.ytimg.com/vi/0jgrCKhxE1s/hqdefault.jpg" alt="Pro Mania" class="w-full h-full object-cover" loading="lazy">
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-1.5">
-                  <span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-[#f3d791] border border-amber-400/40 uppercase">Pro Mania</span>
-                  <span class="text-[8.5px] font-bold text-[#cbb894]">15 <span data-i18n="disc_tracks">Temas</span></span>
-                </div>
-                <h3 class="text-xs font-black text-[#fff6d6] truncate mt-0.5 font-serif">Speed & Hardcore Beats</h3>
-                <p class="text-[10px] text-[#b8a990] truncate">Camellia, DragonForce, xi, Kobaryo, t+pazolite, USAO (200+ BPM)</p>
-              </div>
-            </div>
-            <button onclick="importCuratedPlaylist('PLrEnWoR732-DN60m_18p_k_XoJ6Z3d3vH', 'Speed & Hardcore Beats')" class="vegas-play-fab" title="Importar y Abrir Playlist">
-              ▶
-            </button>
+        <!-- Dynamic Search Results Container -->
+        <div id="discoverSearchResultsContainer" class="space-y-2">
+          <div class="grid grid-cols-1 gap-2" id="discoverSearchResultsGrid">
+            <!-- Injected dynamically with real songs or real YouTube playlists -->
           </div>
         </div>
+
+        <!-- Curated Playlists Fallback Grid (Hidden when showing songs, shown in playlist mode if no query) -->
+        <div class="hidden grid grid-cols-1 gap-2" id="curatedPlaylistsGrid"></div>
       </div>
 
-      <!-- TAB 2: Library Section (Bóveda Musical Steinway & Las Vegas) -->
-      <div id="tabLibrarySection" class="hidden space-y-3 pb-6" style="display: none;">
-        
-        <!-- Vegas Library Vault Header Banner -->
-        <div class="vegas-marquee-panel p-3.5 space-y-2.5">
-          <div class="flex items-center justify-between gap-2">
-            <div>
-              <div class="flex items-center gap-1.5">
-                <span class="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-[0.2em] bg-gradient-to-r from-[#f3d791] to-[#b38632] text-[#1a0d04] shadow">STEINWAY VAULT</span>
-                <span class="text-[9px] font-mono text-[#e5b869]/90 uppercase tracking-widest">COLECCIÓN PRIVADA</span>
-              </div>
-              <h2 class="text-sm font-black text-[#fff6d6] font-serif tracking-wide mt-0.5">Mi Bóveda Musical</h2>
-            </div>
-            <button onclick="openYTMusicModal()" class="px-3 py-1.5 rounded-xl bg-gradient-to-b from-[#d93838] via-[#a31621] to-[#6b0d14] border border-[#f3d791]/70 text-[#fff6d6] font-black text-[10px] uppercase tracking-wider flex items-center gap-1.5 shadow-lg cursor-pointer transition active:scale-95">
-              <span>▶</span>
-              <span>+ Importar YouTube</span>
-            </button>
-          </div>
-          <div class="vegas-bulb-trim"></div>
-        </div>
+      <!-- TAB 3: Library Section (Clean & Compact Mobile Layout) -->
+      <div id="tabLibrarySection" class="hidden space-y-2.5 pb-6" style="display: none;">
 
-        <!-- Library Sub-Navigation Tabs with Live Counters -->
+        <!-- Library Sub-Navigation Tabs (Strict 3-Column Grid - Never Overflows) -->
         <div class="subnav-tabs">
-          <div id="subtabDownloadsBtn" onclick="switchLibrarySubtab('downloads')" class="subnav-tab active flex items-center justify-center gap-1.5">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-[#c5a059]"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span data-i18n="subtab_downloads">Descargas</span>
-            <span id="libCountDownloadsBadge" class="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-black bg-black/35 text-[#f3d791] border border-[#c5a059]/40">0</span>
+          <div id="subtabDownloadsBtn" onclick="switchLibrarySubtab('downloads')" class="subnav-tab active flex items-center justify-center gap-1 min-w-0">
+            <span class="truncate" data-i18n="subtab_downloads">Descargas</span>
+            <span id="libCountDownloadsBadge" class="px-1.5 py-0.2 rounded-full text-[8.5px] font-mono font-black bg-black/45 text-[#f3d791] border border-[#c5a059]/40 flex-shrink-0">0</span>
           </div>
-          <div id="subtabFavoritesBtn" onclick="switchLibrarySubtab('favorites')" class="subnav-tab flex items-center justify-center gap-1.5">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" class="text-[#c5a059]"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-            <span data-i18n="subtab_favorites">Favoritos</span>
-            <span id="libCountFavoritesBadge" class="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-black bg-black/35 text-[#f3d791] border border-[#c5a059]/40">0</span>
+          <div id="subtabFavoritesBtn" onclick="switchLibrarySubtab('favorites')" class="subnav-tab flex items-center justify-center gap-1 min-w-0">
+            <span class="truncate" data-i18n="subtab_favorites">Favoritos</span>
+            <span id="libCountFavoritesBadge" class="px-1.5 py-0.2 rounded-full text-[8.5px] font-mono font-black bg-black/45 text-[#f3d791] border border-[#c5a059]/40 flex-shrink-0">0</span>
           </div>
-          <div id="subtabPlaylistsBtn" onclick="switchLibrarySubtab('playlists')" class="subnav-tab flex items-center justify-center gap-1.5">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-[#c5a059]"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-            <span data-i18n="subtab_playlists">Mis Playlists</span>
-            <span id="libCountPlaylistsBadge" class="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-black bg-black/35 text-[#f3d791] border border-[#c5a059]/40">0</span>
+          <div id="subtabPlaylistsBtn" onclick="switchLibrarySubtab('playlists')" class="subnav-tab flex items-center justify-center gap-1 min-w-0">
+            <span class="truncate" data-i18n="subtab_playlists">Playlists</span>
+            <span id="libCountPlaylistsBadge" class="px-1.5 py-0.2 rounded-full text-[8.5px] font-mono font-black bg-black/45 text-[#f3d791] border border-[#c5a059]/40 flex-shrink-0">0</span>
           </div>
         </div>
 
         <!-- Subtab 1: Downloads Container -->
-        <div id="subtabDownloadsContainer" class="space-y-2.5">
-          <div class="vegas-vault-bar flex items-center justify-between gap-2">
-            <div>
-              <p class="text-xs font-black text-[#fff6d6] font-serif flex items-center gap-1.5">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-[#e5b869]"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-                <span data-i18n="lib_downloads_title">Canciones en Memoria Offline</span>
-              </p>
-              <p class="text-[9.5px] text-[#cbb894]" data-i18n="lib_downloads_sub">Listas para tocar al instante sin conexión</p>
-            </div>
-            <button onclick="playRandomLibraryTrack()" class="px-3 py-1.5 bg-gradient-to-b from-[#f3d791] via-[#d4a84f] to-[#9b6f23] text-[#1c1004] border border-[#fff6d6] rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition active:scale-95 shadow-md" title="Reproducción aleatoria">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+        <div id="subtabDownloadsContainer" class="space-y-2">
+          <div class="flex items-center justify-end">
+            <button onclick="playRandomLibraryTrack()" class="px-3 py-1.5 bg-gradient-to-b from-[#f3d791] via-[#d4a84f] to-[#9b6f23] text-[#1c1004] border border-[#fff6d6] rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition active:scale-95 shadow-md">
+              <span>🔀</span>
               <span data-i18n="shuffle">Aleatorio</span>
             </button>
           </div>
-          <div id="libraryTracksList" class="space-y-2.5">
+          <div id="libraryTracksList" class="space-y-2">
             <!-- Injected dynamically from IndexedDB -->
           </div>
         </div>
 
         <!-- Subtab 2: Favorites Container -->
-        <div id="subtabFavoritesContainer" class="hidden space-y-2.5">
-          <div class="vegas-vault-bar flex items-center justify-between gap-2">
-            <div>
-              <p class="text-xs font-black text-[#fff6d6] font-serif flex items-center gap-1.5">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" class="text-[#e5b869]"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-                <span data-i18n="lib_fav_title">Partituras Favoritas</span>
-              </p>
-              <p class="text-[9.5px] text-[#cbb894]" data-i18n="lib_fav_sub">Tu selección personal de gala marcada con corazón</p>
-            </div>
-          </div>
-          <div id="favoritesTracksList" class="space-y-2.5">
+        <div id="subtabFavoritesContainer" class="hidden space-y-2">
+          <div id="favoritesTracksList" class="space-y-2">
             <!-- Injected dynamically -->
           </div>
         </div>
 
         <!-- Subtab 3: Playlists Container -->
         <div id="subtabPlaylistsContainer" class="hidden space-y-2.5">
-          <div id="playlistsVaultHeaderBar" class="vegas-vault-bar flex items-center justify-between gap-2 flex-wrap">
-            <div>
-              <p class="text-xs font-black text-[#fff6d6] font-serif flex items-center gap-1.5">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-[#e5b869]"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-                <span data-i18n="lib_pl_title">Mis Álbumes & Playlists</span>
-              </p>
-              <p class="text-[9.5px] text-[#cbb894]" data-i18n="lib_pl_sub">Toca cualquier canción para jugarla en el piano al instante</p>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <button onclick="createNewEmptyPlaylistPrompt()" class="px-2.5 py-1.5 bg-[#1b1209] hover:bg-[#2a1c0e] border border-[#c5a059]/60 text-[#f3d791] rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer transition active:scale-95">
-                <span>+ Nueva</span>
-              </button>
-              <button onclick="openYTMusicModal()" class="px-2.5 py-1.5 bg-gradient-to-b from-[#d93838] to-[#8a121c] border border-[#f3d791]/70 text-[#fff6d6] rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer transition active:scale-95 shadow">
-                <span>+ YouTube</span>
-              </button>
-            </div>
+          <div id="playlistsVaultHeaderBar" class="flex items-center justify-between gap-2">
+            <button onclick="createNewEmptyPlaylistPrompt()" class="flex-1 py-2 bg-[#1b1209] hover:bg-[#2a1c0e] border border-[#c5a059]/60 text-[#f3d791] rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer transition active:scale-95">
+              <span>+ Nueva Playlist</span>
+            </button>
+            <button onclick="openYTMusicModal()" class="flex-1 py-2 bg-gradient-to-b from-[#d93838] to-[#8a121c] border border-[#f3d791]/70 text-[#fff6d6] rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer transition active:scale-95 shadow">
+              <span>+ Importar YouTube</span>
+            </button>
           </div>
           
-          <div id="playlistsList" class="space-y-2.5">
+          <div id="playlistsList" class="space-y-2">
             <!-- Playlists injected dynamically -->
           </div>
 
-          <!-- Inside Playlist View (Spotify-Style Las Vegas Album View with 1-Click Direct Play) -->
-          <div id="selectedPlaylistView" class="hidden space-y-3 pt-1">
+          <!-- Inside Playlist View -->
+          <div id="selectedPlaylistView" class="hidden space-y-2.5 pt-0.5">
             <div class="vegas-playlist-hero">
-              <div class="flex items-center justify-between gap-2 mb-2.5">
+              <div class="flex items-center justify-between gap-2 mb-2">
                 <button onclick="closePlaylistDetailView()" class="px-2.5 py-1 rounded-full bg-black/50 border border-[#c5a059]/50 text-[10px] font-black text-[#f3d791] flex items-center gap-1 hover:bg-black/80 cursor-pointer transition">
-                  <span>←</span> <span data-i18n="lib_pl_back">Volver a Mis Playlists</span>
+                  <span>←</span> <span data-i18n="lib_pl_back">Playlists</span>
                 </button>
                 <span id="selectedPlaylistCountBadge" class="px-2.5 py-0.5 rounded-full bg-[#c5a059]/20 border border-[#c5a059]/50 text-[9px] font-mono font-black text-[#f3d791]">0 PISTAS</span>
               </div>
-              <div class="flex items-center gap-3.5">
-                <div class="vegas-vinyl-sleeve shrink-0" style="width:68px;height:68px;">
+              <div class="flex items-center gap-3">
+                <div class="vegas-vinyl-sleeve shrink-0" style="width:52px;height:52px;">
                   <img id="selectedPlaylistCoverImg" src="./app_logo.png" onerror="this.src='./app_logo.png'" alt="Cover" class="w-full h-full object-cover">
                 </div>
                 <div class="flex-1 min-w-0">
-                  <span class="text-[8.5px] font-mono font-black uppercase tracking-[0.2em] text-[#e5b869]">ÁLBUM INTERACTIVO • 1-CLICK PLAY</span>
-                  <h3 id="selectedPlaylistTitle" class="text-base font-black text-[#fff6d6] font-serif truncate mt-0.5">Playlist</h3>
-                  <p id="selectedPlaylistSubtitle" class="text-[10px] text-[#cbb894] truncate">Pulsa ▶ en cualquier tecla para tocar la canción directamente</p>
+                  <h3 id="selectedPlaylistTitle" class="text-sm font-black text-[#fff6d6] font-serif truncate">Playlist</h3>
+                  <p id="selectedPlaylistSubtitle" class="text-[10px] text-[#cbb894] truncate"></p>
                 </div>
-              </div>
-              <div class="flex items-center gap-2 mt-3 pt-2.5 border-t border-[#c5a059]/25">
-                <button id="btnPlayAllSelectedPlaylist" onclick="playEntirePlaylistShuffled()" class="flex-1 py-2 rounded-xl bg-gradient-to-b from-[#f3d791] via-[#d4a84f] to-[#9b6f23] border border-[#fff6d6] text-[#1c1004] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg cursor-pointer transition active:scale-95">
-                  <span>▶</span> <span>Tocar Playlist Ahora</span>
-                </button>
-                <button onclick="switchMainTab('discover')" class="px-3 py-2 rounded-xl bg-black/50 hover:bg-black/75 border border-[#c5a059]/45 text-[#f3d791] font-bold text-[10px] uppercase tracking-wider cursor-pointer transition">
-                  + Explorar Más
+                <button id="btnPlayAllSelectedPlaylist" onclick="playEntirePlaylistShuffled()" class="px-3 py-2 rounded-xl bg-gradient-to-b from-[#f3d791] via-[#d4a84f] to-[#9b6f23] border border-[#fff6d6] text-[#1c1004] font-black text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-lg cursor-pointer transition active:scale-95 flex-shrink-0">
+                  <span>▶</span> <span>Aleatorio</span>
                 </button>
               </div>
             </div>
 
-            <div id="playlistTracksContainer" class="space-y-2.5">
-              <!-- Tracks of playlist injected dynamically as 3D Piano Keys with 1-click direct play -->
+            <div id="playlistTracksContainer" class="space-y-2">
+              <!-- Tracks of playlist injected dynamically -->
             </div>
           </div>
         </div>
@@ -6189,6 +5923,9 @@ function switchMainTab(tab) {
     if (typeof loadDailyFeaturedSongs === 'function') {
       loadDailyFeaturedSongs();
     }
+    if (typeof window.initDiscoverFeed === 'function') {
+      window.initDiscoverFeed();
+    }
   } else if (tab === 'library') {
     if (libraryTabBtn) libraryTabBtn.classList.add('active');
     if (librarySection) {
@@ -7394,8 +7131,8 @@ window.switchMainTab = switchMainTab;
     //  PIISTAS HISTÓRICAS COMUNITARIAS (100% REALES Y JUGABLES)
     // ==========================================
     const GLOBAL_COMMUNITY_FALLBACKS = [
-      { id: 'comm_camilo_sesto', title: '¿Quieres ser mi amante?', artist: 'Camilo Sesto', creator_id: 'creator_javar61', creator_name: 'JaVar61', bpm: 76, difficulty_name: 'Media', stars: 4.0, notes_count: 528, rating_avg: 5.0, votes_count: 142, sync_avg: 100.0, is_community: true, source: 'community', source_name: 'Comunidad UltraStar', thumbnail: './covers/camilo_sesto.jpg', cover_url: './covers/camilo_sesto.jpg' },
-      { id: 'comm_renacer', title: 'Renacer', artist: 'Piano Community', creator_id: 'creator_piano_comm', creator_name: 'Piano Community', bpm: 100, difficulty_name: 'Normal', stars: 3.5, notes_count: 203, rating_avg: 5.0, votes_count: 184, sync_avg: 100.0, is_community: true, source: 'community', source_name: 'Piano Community', thumbnail: './app_logo.png', cover_url: './app_logo.png' }
+      { id: 'comm_camilo_sesto', title: '¿Quieres ser mi amante?', artist: 'Camilo Sesto', creator_id: 'creator_javar61', creator_name: 'JaVar61', bpm: 76, difficulty_name: 'Media', stars: 4.0, notes_count: 528, rating_avg: 0, votes_count: 0, sync_avg: 100.0, is_community: true, source: 'community', source_name: 'Comunidad UltraStar', thumbnail: './covers/camilo_sesto.jpg', cover_url: './covers/camilo_sesto.jpg' },
+      { id: 'comm_renacer', title: 'Renacer', artist: 'Piano Community', creator_id: 'creator_piano_comm', creator_name: 'Piano Community', bpm: 100, difficulty_name: 'Normal', stars: 3.5, notes_count: 203, rating_avg: 0, votes_count: 0, sync_avg: 100.0, is_community: true, source: 'community', source_name: 'Piano Community', thumbnail: './app_logo.png', cover_url: './app_logo.png' }
     ];
 
     function fisherYatesShuffle(array) {
@@ -11615,28 +11352,75 @@ function stopPianoCameraLoop() {
         .replace(/'/g, '&#039;');
     }
 
+    window.discoverSearchMode = 'songs'; // 'songs' | 'playlists'
+    window.discoverSongsCache = [];
+
+    window.setDiscoverSearchMode = function(mode) {
+      window.discoverSearchMode = mode === 'playlists' ? 'playlists' : 'songs';
+      const btnSongs = document.getElementById('discoverModeSongsBtn');
+      const btnPlaylists = document.getElementById('discoverModePlaylistsBtn');
+      const input = document.getElementById('discoverPlaylistSearchInput');
+
+      if (btnSongs && btnPlaylists) {
+        if (window.discoverSearchMode === 'songs') {
+          btnSongs.classList.add('active');
+          btnSongs.style.background = 'linear-gradient(135deg, #f3d791, #b8860b)';
+          btnSongs.style.color = '#120b04';
+          btnPlaylists.classList.remove('active');
+          btnPlaylists.style.background = 'rgba(0,0,0,0.45)';
+          btnPlaylists.style.color = '#cbb894';
+          if (input) input.placeholder = 'Buscar canción o artista (ej. Queen, Anime, Chopin)...';
+        } else {
+          btnPlaylists.classList.add('active');
+          btnPlaylists.style.background = 'linear-gradient(135deg, #f3d791, #b8860b)';
+          btnPlaylists.style.color = '#120b04';
+          btnSongs.classList.remove('active');
+          btnSongs.style.background = 'rgba(0,0,0,0.45)';
+          btnSongs.style.color = '#cbb894';
+          if (input) input.placeholder = 'Buscar playlist en YouTube o pegar enlace...';
+        }
+      }
+      executeDiscoverPlaylistSearch(true);
+    };
+
+    window.initDiscoverFeed = function() {
+      const grid = document.getElementById('discoverSearchResultsGrid');
+      if (grid && grid.children.length === 0) {
+        executeDiscoverPlaylistSearch(true);
+      }
+    };
+
     window.quickSearchDiscoverGenre = function(query, btnEl) {
       document.querySelectorAll('#discoverGenrePillsRow .vegas-genre-pill').forEach(el => el.classList.remove('active'));
       if (btnEl) btnEl.classList.add('active');
-      if (!query) {
-        clearDiscoverSearchResults();
+      const input = document.getElementById('discoverPlaylistSearchInput');
+      if (input) input.value = query || '';
+      executeDiscoverPlaylistSearch(true);
+    };
+
+    window.playDiscoverSongByIdx = function(idx) {
+      const song = window.discoverSongsCache && window.discoverSongsCache[idx];
+      if (!song) return;
+      if (song.is_community || String(song.id || '').startsWith('comm_')) {
+        playCommunitySong(song.id, false);
         return;
       }
-      const input = document.getElementById('discoverPlaylistSearchInput');
-      if (input) input.value = query;
-      executeDiscoverPlaylistSearch();
+      if (!searchResultsCache) searchResultsCache = [];
+      const exIdx = searchResultsCache.findIndex(c => c.id === song.id);
+      if (exIdx >= 0) searchResultsCache[exIdx] = { ...searchResultsCache[exIdx], ...song };
+      else searchResultsCache.push(song);
+
+      const diffObj = Array.isArray(song.difficulties) && song.difficulties.length > 0
+        ? song.difficulties[Math.floor(song.difficulties.length / 2)]
+        : { id: song.diff_id || 'diff_standard', name: song.difficulty_name || 'Normal' };
+      downloadAndPlaySong(song.id, diffObj.id, diffObj.name);
     };
-      
-    window.executeDiscoverPlaylistSearch = async function() {
+
+    window.executeDiscoverPlaylistSearch = async function(allowEmpty = false) {
       const input = document.getElementById('discoverPlaylistSearchInput');
       const q = input ? input.value.trim() : '';
-      if (!q) {
-        showErrorToast('Por favor escribe un género, artista o álbum (ej. Jazz, Chopin, Rock, Anime).');
-        return;
-      }
 
-      // Si el usuario pegó directamente una URL de playlist de YouTube en el buscador de Descubrir, impórtala directo
-      if (q.includes('list=') || q.startsWith('PL') || q.startsWith('OLAK5uy_')) {
+      if (q && (q.includes('list=') || q.startsWith('PL') || q.startsWith('OLAK5uy_'))) {
         importCuratedPlaylist(q, 'Playlist Importada de YouTube');
         return;
       }
@@ -11645,133 +11429,203 @@ function stopPianoCameraLoop() {
       const spinner = document.getElementById('discoverSearchSpinner');
       const container = document.getElementById('discoverSearchResultsContainer');
       const grid = document.getElementById('discoverSearchResultsGrid');
+      const titleLabel = document.getElementById('discoverResultsTitleLabel');
 
       if (btnText) btnText.innerText = '...';
       if (spinner) spinner.classList.remove('hidden');
+      if (container) container.classList.remove('hidden');
 
       const myWorker = (u) => `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(u)}`;
-      let foundPlaylists = [];
 
-      // Extractor recursivo universal de listas de reproducción
-      function extractPlaylists(obj, results = [], depth = 0) {
-        if (!obj || depth > 12) return results;
+      try {
+        // ==========================================
+        // MODO 1: BUSCADOR REAL DE CANCIONES JUGABLES
+        // ==========================================
+        if (window.discoverSearchMode !== 'playlists') {
+          if (titleLabel) titleLabel.innerText = q ? `Canciones: "${q}"` : 'Canciones para Jugar';
+          let songs = [];
+          const seenIds = new Set();
+          const addSong = (s) => {
+            if (!s || !s.id || seenIds.has(s.id)) return;
+            if (/unit test|^test$/i.test(String(s.title || '').trim())) return;
+            seenIds.add(s.id);
+            songs.push(s);
+          };
 
-        if (obj.playlistRenderer && obj.playlistRenderer.playlistId) {
-          const pl = obj.playlistRenderer;
-          const title = pl.title?.simpleText || pl.title?.runs?.[0]?.text || 'Playlist';
-          const author = pl.shortBylineText?.runs?.[0]?.text || pl.longBylineText?.runs?.[0]?.text || 'YouTube';
-          const count = pl.videoCount || pl.itemCount || (pl.videoCountText?.runs?.[0]?.text) || 'Playlist';
-          const firstVid = pl.navigationEndpoint?.watchEndpoint?.videoId || '';
-          const thumb = (pl.thumbnails && pl.thumbnails[0]?.thumbnails?.[0]?.url) || (firstVid ? `https://i.ytimg.com/vi/${firstVid}/hqdefault.jpg` : './app_logo.png');
-          results.push({ playlistId: pl.playlistId, title, author, videoCount: count, thumbnail: thumb });
-        } else if (obj.lockupViewModel && obj.lockupViewModel.contentId && (obj.lockupViewModel.contentType === 'LOCKUP_CONTENT_TYPE_PLAYLIST' || String(obj.lockupViewModel.contentId).startsWith('PL') || String(obj.lockupViewModel.contentId).startsWith('RD') || String(obj.lockupViewModel.contentId).startsWith('VL'))) {
-          const vm = obj.lockupViewModel;
-          const title = vm.metadata?.lockupMetadataViewModel?.title?.content || 'Playlist';
-          const author = vm.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows?.[0]?.metadataParts?.[0]?.text?.content || 'YouTube';
-          const count = vm.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows?.[1]?.metadataParts?.[0]?.text?.content || 'Playlist';
-          const thumb = vm.image?.thumbnailViewModel?.image?.sources?.[0]?.url || './app_logo.png';
-          results.push({ playlistId: String(vm.contentId).replace(/^VL/, ''), title, author, videoCount: count, thumbnail: thumb });
-        } else if (obj.url && String(obj.url).includes('list=') && (obj.name || obj.title)) {
-          const plId = (obj.url.split('list=')[1] || '').split('&')[0];
-          if (plId) {
-            results.push({
-              playlistId: plId,
-              title: obj.name || obj.title || 'Playlist',
-              author: obj.uploaderName || obj.author || 'YouTube',
-              videoCount: obj.videos || obj.videoCount || 'Playlist',
-              thumbnail: obj.thumbnail || './app_logo.png'
-            });
-          }
-        }
+          const allTop = typeof getFormattedTopSongsCatalog === 'function' ? getFormattedTopSongsCatalog() : [];
+          if (!q) {
+            for (const fb of GLOBAL_COMMUNITY_FALLBACKS) addSong(fb);
+            const shuffledTop = fisherYatesShuffle(allTop);
+            for (const s of shuffledTop.slice(0, 24)) addSong(s);
+          } else {
+            const qLow = q.toLowerCase();
+            for (const fb of GLOBAL_COMMUNITY_FALLBACKS) {
+              if (`${fb.title} ${fb.artist}`.toLowerCase().includes(qLow)) addSong(fb);
+            }
+            for (const s of allTop) {
+              if (`${s.title} ${s.artist}`.toLowerCase().includes(qLow)) addSong(s);
+            }
 
-        if (Array.isArray(obj)) {
-          for (const item of obj) extractPlaylists(item, results, depth + 1);
-        } else if (typeof obj === 'object') {
-          for (const k of Object.keys(obj)) {
-            if (k !== 'trackingParams' && k !== 'clickTrackingParams') {
-              extractPlaylists(obj[k], results, depth + 1);
+            if (grid && songs.length === 0) {
+              grid.innerHTML = `<div class="p-6 text-center text-xs text-[#f3d791]">Buscando canciones para "${escapeHtml(q)}"...</div>`;
+            }
+
+            // Búsqueda en vivo en Catboy osu!mania + BeatSaver
+            const [catRes, bsRes] = await Promise.allSettled([
+              fetch(`https://catboy.best/api/v2/search?q=${encodeURIComponent(q)}&m=3&limit=18`).then(r => r.ok ? r.json() : []),
+              fetch(`https://api.beatsaver.com/search/text/0?q=${encodeURIComponent(q)}&sortOrder=Relevance`).then(r => r.ok ? r.json() : {})
+            ]);
+
+            if (catRes.status === 'fulfilled' && Array.isArray(catRes.value)) {
+              for (const item of catRes.value.slice(0, 14)) {
+                const setId = item.id;
+                if (!setId) continue;
+                const beatmaps = Array.isArray(item.beatmaps) ? item.beatmaps : [];
+                const diffs = beatmaps.map(b => ({
+                  id: String(b.id),
+                  name: b.version || 'Normal',
+                  stars: Math.round((parseFloat(b.difficulty_rating) || 3.5) * 10) / 10,
+                  keys: 4
+                }));
+                addSong({
+                  id: `osu_${setId}`,
+                  source: 'osu',
+                  source_name: 'osu!',
+                  title: item.title || 'Canción',
+                  artist: item.artist || 'Artista',
+                  thumbnail: `https://assets.ppy.sh/beatmaps/${setId}/covers/list.jpg`,
+                  download_url: `/api/v1/download/osu/${setId}`,
+                  direct_download_url: `https://catboy.best/d/${setId}`,
+                  fallback_download_url: `https://dl.nerinyan.moe/v2/d/${setId}?noVideo=true`,
+                  stars: diffs[0]?.stars || 3.5,
+                  difficulties: diffs.length > 0 ? diffs : [{ id: 'default', name: 'Normal', stars: 3.5, keys: 4 }]
+                });
+              }
+            }
+
+            if (bsRes.status === 'fulfilled' && Array.isArray(bsRes.value?.docs)) {
+              for (const doc of bsRes.value.docs.slice(0, 10)) {
+                const latestVer = Array.isArray(doc.versions) ? doc.versions[0] : null;
+                if (!doc.id || !latestVer) continue;
+                const hash = String(latestVer.hash || '').toLowerCase();
+                const directZipUrl = latestVer.downloadURL || (hash ? `https://cdn.beatsaver.com/${hash}.zip` : '');
+                if (!directZipUrl) continue;
+                addSong({
+                  id: `bs_${doc.id}`,
+                  bs_hash: hash,
+                  source: 'beatsaver',
+                  source_name: 'BeatSaver',
+                  title: doc.metadata?.songName || doc.name || 'Canción',
+                  artist: doc.metadata?.songAuthorName || 'Artista',
+                  thumbnail: latestVer.coverURL || './app_logo.png',
+                  download_url: hash ? `/api/v1/download/beatsaver/${hash}` : directZipUrl,
+                  direct_download_url: directZipUrl,
+                  stars: 3.5,
+                  difficulties: [{ id: 'Normal', name: 'Normal', stars: 3.5, keys: 4 }]
+                });
+              }
             }
           }
-        }
-        return results;
-      }
 
-      // 1. Coincidencias locales en base curada
-      const qTerms = q.toLowerCase().split(' ').filter(Boolean);
-      for (const [plId, data] of Object.entries(CURATED_PLAYLIST_DATABASE)) {
-        const haystack = `${data.title} ${data.tracks.map(t => `${t.title} ${t.artist}`).join(' ')}`.toLowerCase();
-        if (qTerms.some(term => haystack.includes(term))) {
-          foundPlaylists.push({
-            playlistId: plId,
-            title: data.title,
-            author: 'Edición Especial Steinway',
-            videoCount: `${data.tracks.length} temas`,
-            thumbnail: data.tracks[0]?.id ? `https://i.ytimg.com/vi/${data.tracks[0].id}/hqdefault.jpg` : './app_logo.png'
-          });
-        }
-      }
-
-      // 2. API Oficial Innertube de YouTube vía Worker
-      try {
-        const innertubeUrl = myWorker('https://www.youtube.com/youtubei/v1/search');
-        const ctrl = new AbortController();
-        const tid = setTimeout(() => ctrl.abort(), 7000);
-        const resp = await fetch(innertubeUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            context: {
-              client: { clientName: 'WEB', clientVersion: '2.20240726.00.00', hl: 'es', gl: 'ES' }
-            },
-            query: q,
-            params: 'EgIQAw%3D%3D'
-          }),
-          signal: ctrl.signal
-        });
-        clearTimeout(tid);
-
-        if (resp.ok) {
-          const data = await resp.json();
-          foundPlaylists = foundPlaylists.concat(extractPlaylists(data));
-        }
-      } catch (err) {
-        console.warn('[Search] Innertube API aviso:', err.message);
-      }
-
-      // 3. Instancias Piped / Invidious si aún no hay suficientes resultados
-      if (foundPlaylists.length < 2) {
-        const fallbackEndpoints = [
-          `https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(q)}&filter=playlists`,
-          `https://invidious.nerdvpn.de/api/v1/search?q=${encodeURIComponent(q)}&type=playlist`
-        ];
-        for (const endpoint of fallbackEndpoints) {
-          try {
-            const ctrl = new AbortController();
-            const tid = setTimeout(() => ctrl.abort(), 4000);
-            const res = await fetch(myWorker(endpoint), { signal: ctrl.signal });
-            clearTimeout(tid);
-            if (res.ok) {
-              const data = await res.json();
-              const items = Array.isArray(data) ? data : (data.items || []);
-              foundPlaylists = foundPlaylists.concat(extractPlaylists(items));
-              if (foundPlaylists.length > 3) break;
-            }
-          } catch (e) {}
-        }
-      }
-
-      // 4. Renderizado en pantalla con estética Las Vegas Vinyl Sleeve
-      try {
-        if (!foundPlaylists || foundPlaylists.length === 0) {
-          if (container) container.classList.remove('hidden');
+          window.discoverSongsCache = songs.slice(0, 24);
           if (grid) {
-            grid.innerHTML = `
-              <div class="vegas-setting-plate p-4 text-center text-xs text-[#cbb894]">
-                No se encontraron playlists para "${escapeHtml(q)}". Prueba con otro artista o género.
-              </div>
-            `;
+            if (window.discoverSongsCache.length === 0) {
+              grid.innerHTML = `<div class="vegas-setting-plate p-4 text-center text-xs text-[#cbb894]">No se encontraron canciones para "${escapeHtml(q)}".</div>`;
+            } else {
+              grid.innerHTML = window.discoverSongsCache.map((s, idx) => {
+                const thumb = s.thumbnail || s.cover_url || './app_logo.png';
+                const starsVal = Number(s.stars || s.difficulties?.[0]?.stars || 3.5).toFixed(1);
+                return `
+                  <div onclick="playDiscoverSongByIdx(${idx})" class="vegas-playlist-card flex items-center justify-between gap-2.5 cursor-pointer">
+                    <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                      <img src="${thumb}" onerror="this.onerror=null; this.src='./app_logo.png';" alt="" class="w-11 h-11 rounded-lg object-cover border border-amber-500/30 flex-shrink-0" loading="lazy">
+                      <div class="flex-1 min-w-0">
+                        <h3 class="text-xs font-black text-[#fff6d6] truncate font-serif">${escapeHtml(s.title || 'Canción')}</h3>
+                        <p class="text-[10px] text-[#cbb894] truncate">${escapeHtml(s.artist || 'Artista')} · <span class="text-amber-300">★${starsVal}</span></p>
+                      </div>
+                    </div>
+                    <button type="button" class="vegas-play-fab flex-shrink-0" title="Jugar">▶</button>
+                  </div>
+                `;
+              }).join('');
+            }
           }
           return;
+        }
+
+        // ==========================================
+        // MODO 2: BUSCADOR REAL DE PLAYLISTS YOUTUBE
+        // ==========================================
+        const searchQuery = q || 'Piano Greatest Hits';
+        if (titleLabel) titleLabel.innerText = `Playlists YouTube: "${searchQuery}"`;
+        let foundPlaylists = [];
+
+        function extractPlaylists(obj, results = [], depth = 0) {
+          if (!obj || depth > 14) return results;
+          if (obj.playlistRenderer && obj.playlistRenderer.playlistId) {
+            const pl = obj.playlistRenderer;
+            const title = pl.title?.simpleText || pl.title?.runs?.[0]?.text || 'Playlist';
+            const author = pl.shortBylineText?.runs?.[0]?.text || pl.longBylineText?.runs?.[0]?.text || 'YouTube';
+            const count = pl.videoCount || pl.itemCount || pl.videoCountText?.runs?.[0]?.text || 'Playlist';
+            const thumb = pl.thumbnails?.[0]?.thumbnails?.slice(-1)?.[0]?.url || './app_logo.png';
+            results.push({ playlistId: pl.playlistId, title, author, videoCount: `${count} canciones`, thumbnail: thumb });
+          } else if (obj.lockupViewModel && obj.lockupViewModel.contentId && (obj.lockupViewModel.contentType === 'LOCKUP_CONTENT_TYPE_PLAYLIST' || String(obj.lockupViewModel.contentId).startsWith('PL') || String(obj.lockupViewModel.contentId).startsWith('OLAK5uy_'))) {
+            const vm = obj.lockupViewModel;
+            const title = vm.metadata?.lockupMetadataViewModel?.title?.content || 'Playlist';
+            const rows = vm.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows || [];
+            const author = rows[0]?.metadataParts?.[0]?.text?.content || 'YouTube';
+            const badgeText = vm.contentImage?.collectionThumbnailViewModel?.primaryThumbnail?.thumbnailViewModel?.overlays?.[0]?.thumbnailOverlayBadgeViewModel?.thumbnailBadges?.[0]?.thumbnailBadgeViewModel?.text;
+            const count = badgeText || rows[1]?.metadataParts?.[0]?.text?.content || 'Playlist';
+            const sources = vm.contentImage?.collectionThumbnailViewModel?.primaryThumbnail?.thumbnailViewModel?.image?.sources || vm.image?.thumbnailViewModel?.image?.sources || [];
+            const thumb = (sources.length > 0 ? sources[sources.length - 1].url : '') || './app_logo.png';
+            results.push({ playlistId: String(vm.contentId).replace(/^VL/, ''), title, author, videoCount: count, thumbnail: thumb });
+          }
+          if (Array.isArray(obj)) {
+            for (const item of obj) extractPlaylists(item, results, depth + 1);
+          } else if (typeof obj === 'object') {
+            for (const k of Object.keys(obj)) {
+              if (k !== 'trackingParams' && k !== 'clickTrackingParams') extractPlaylists(obj[k], results, depth + 1);
+            }
+          }
+          return results;
+        }
+
+        // 2a. Servidor propio (/api/v1/youtube/search_playlists)
+        try {
+          const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
+          const ctrl = new AbortController();
+          const tid = setTimeout(() => ctrl.abort(), 5500);
+          const r = await fetch(`${baseUrl}/api/v1/youtube/search_playlists?q=${encodeURIComponent(searchQuery)}`, { signal: ctrl.signal });
+          clearTimeout(tid);
+          if (r.ok) {
+            const d = await r.json();
+            if (Array.isArray(d.playlists)) foundPlaylists = foundPlaylists.concat(d.playlists);
+          }
+        } catch (_) {}
+
+        // 2b. YouTube Innertube Search directo vía Worker con clientVersion 2026
+        if (foundPlaylists.length < 4) {
+          try {
+            const ctrl = new AbortController();
+            const tid = setTimeout(() => ctrl.abort(), 6500);
+            const resp = await fetch(myWorker('https://www.youtube.com/youtubei/v1/search?prettyPrint=false'), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                context: {
+                  client: { clientName: 'WEB', clientVersion: '2.20261022.01.00', hl: 'es', gl: 'ES' }
+                },
+                query: searchQuery,
+                params: 'EgIQAw%3D%3D'
+              }),
+              signal: ctrl.signal
+            });
+            clearTimeout(tid);
+            if (resp.ok) {
+              const data = await resp.json();
+              foundPlaylists = foundPlaylists.concat(extractPlaylists(data));
+            }
+          } catch (_) {}
         }
 
         const seen = new Set();
@@ -11781,34 +11635,29 @@ function stopPianoCameraLoop() {
           return true;
         });
 
-        if (container) container.classList.remove('hidden');
         if (grid) {
-          grid.innerHTML = uniquePlaylists.slice(0, 18).map(pl => {
-            const safeTitle = String(pl.title || 'Playlist').replace(/'/g, '').replace(/"/g, '');
-            return `
-              <div class="vegas-playlist-card flex items-center justify-between gap-3">
-                <div onclick="importCuratedPlaylist('${escapeHtml(pl.playlistId)}', '${escapeHtml(safeTitle)}')" class="flex items-center gap-3 min-w-0 flex-1 cursor-pointer">
-                  <div class="vegas-vinyl-sleeve">
-                    <img src="${pl.thumbnail}" onerror="this.onerror=null; this.src='./app_logo.png';" alt="Playlist" class="w-full h-full object-cover" loading="lazy">
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-1.5">
-                      <span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-[#f3d791] border border-amber-400/40 uppercase">YouTube LP</span>
-                      <span class="text-[8.5px] font-bold text-[#cbb894]">${escapeHtml(String(pl.videoCount || 'Álbum'))}</span>
+          if (uniquePlaylists.length === 0) {
+            grid.innerHTML = `<div class="vegas-setting-plate p-4 text-center text-xs text-[#cbb894]">No se encontraron playlists para "${escapeHtml(searchQuery)}".</div>`;
+          } else {
+            grid.innerHTML = uniquePlaylists.slice(0, 18).map(pl => {
+              const safeTitle = String(pl.title || 'Playlist').replace(/'/g, '').replace(/"/g, '');
+              return `
+                <div onclick="importCuratedPlaylist('${escapeHtml(pl.playlistId)}', '${escapeHtml(safeTitle)}')" class="vegas-playlist-card flex items-center justify-between gap-2.5 cursor-pointer">
+                  <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                    <img src="${pl.thumbnail}" onerror="this.onerror=null; this.src='./app_logo.png';" alt="" class="w-11 h-11 rounded-lg object-cover border border-amber-500/30 flex-shrink-0" loading="lazy">
+                    <div class="flex-1 min-w-0">
+                      <h3 class="text-xs font-black text-[#fff6d6] truncate font-serif">${escapeHtml(pl.title)}</h3>
+                      <p class="text-[10px] text-[#cbb894] truncate">${escapeHtml(pl.author || 'YouTube')} · <span class="text-amber-300">${escapeHtml(String(pl.videoCount || 'Playlist'))}</span></p>
                     </div>
-                    <h3 class="text-xs font-black text-[#fff6d6] truncate mt-0.5 font-serif" title="${escapeHtml(pl.title)}">${escapeHtml(pl.title)}</h3>
-                    <p class="text-[10px] text-[#b8a990] truncate">${escapeHtml(pl.author || 'YouTube Music')}</p>
                   </div>
+                  <button type="button" class="vegas-play-fab flex-shrink-0" title="Importar Playlist">▶</button>
                 </div>
-                <button onclick="importCuratedPlaylist('${escapeHtml(pl.playlistId)}', '${escapeHtml(safeTitle)}')" class="vegas-play-fab" title="Importar y Abrir Playlist">
-                  ▶
-                </button>
-              </div>
-            `;
-          }).join('');
+              `;
+            }).join('');
+          }
         }
       } catch (err) {
-        showErrorToast('Error procesando playlists: ' + err.message);
+        showErrorToast('Error en búsqueda: ' + err.message);
       } finally {
         if (btnText) btnText.innerText = 'Buscar';
         if (spinner) spinner.classList.add('hidden');
@@ -11816,10 +11665,9 @@ function stopPianoCameraLoop() {
     };
 
     window.clearDiscoverSearchResults = function() {
-      const container = document.getElementById('discoverSearchResultsContainer');
       const input = document.getElementById('discoverPlaylistSearchInput');
-      if (container) container.classList.add('hidden');
       if (input) input.value = '';
+      executeDiscoverPlaylistSearch(true);
     };
 
     async function parseYouTubePlaylistClient(playlistInput, onProgress) {
@@ -11848,97 +11696,18 @@ function stopPianoCameraLoop() {
         return { id: cleanId, title: item.title, tracks };
       }
 
-      // 2. Método Principal: API Oficial YouTube Innertube (/youtubei/v1/browse con VL<playlistId>)
+      // 2. Backend propio (/api/v1/youtube/playlist con paginación multi-página hasta 500 temas)
       try {
-        if (onProgress) onProgress(28, 'Conectando con YouTube Innertube API...');
-        const browseId = cleanId.startsWith('VL') ? cleanId : `VL${cleanId}`;
+        if (onProgress) onProgress(22, 'Descargando lista completa de canciones...');
+        const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
         const ctrl = new AbortController();
-        const tid = setTimeout(() => ctrl.abort(), 7500);
-        const resp = await fetch(myWorker('https://www.youtube.com/youtubei/v1/browse'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            context: {
-              client: { clientName: 'WEB', clientVersion: '2.20240726.00.00', hl: 'es', gl: 'ES' }
-            },
-            browseId
-          }),
-          signal: ctrl.signal
-        });
-        clearTimeout(tid);
-
-        if (resp.ok) {
-          const data = await resp.json();
-          const extracted = [];
-          const seenVids = new Set();
-
-          const hdrTitle =
-            data?.header?.playlistHeaderRenderer?.title?.simpleText ||
-            data?.header?.playlistHeaderRenderer?.title?.runs?.[0]?.text ||
-            data?.metadata?.playlistMetadataRenderer?.title ||
-            data?.microformat?.microformatDataRenderer?.title;
-          if (hdrTitle) playlistTitle = String(hdrTitle).replace(/ - YouTube$/, '').trim();
-
-          function walkBrowse(node, depth = 0) {
-            if (!node || depth > 18) return;
-            if (node.playlistVideoRenderer && node.playlistVideoRenderer.videoId) {
-              const v = node.playlistVideoRenderer;
-              const vid = v.videoId;
-              if (!seenVids.has(vid)) {
-                seenVids.add(vid);
-                const tText = v.title?.runs?.[0]?.text || v.title?.simpleText || `Pista #${extracted.length + 1}`;
-                const aText = v.shortBylineText?.runs?.[0]?.text || v.longBylineText?.runs?.[0]?.text || 'YouTube';
-                extracted.push({
-                  id: vid,
-                  title: tText,
-                  artist: aText,
-                  thumbnail: `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`,
-                  duration_seconds: Number(v.lengthSeconds) || 0
-                });
-              }
-            } else if (node.playlistPanelVideoRenderer && node.playlistPanelVideoRenderer.videoId) {
-              const v = node.playlistPanelVideoRenderer;
-              const vid = v.videoId;
-              if (!seenVids.has(vid)) {
-                seenVids.add(vid);
-                extracted.push({
-                  id: vid,
-                  title: v.title?.simpleText || v.title?.runs?.[0]?.text || `Pista #${extracted.length + 1}`,
-                  artist: v.shortBylineText?.runs?.[0]?.text || 'YouTube',
-                  thumbnail: `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`,
-                  duration_seconds: 0
-                });
-              }
-            }
-            if (Array.isArray(node)) {
-              for (const child of node) walkBrowse(child, depth + 1);
-            } else if (typeof node === 'object') {
-              for (const k of Object.keys(node)) {
-                if (k !== 'trackingParams' && k !== 'responseContext') walkBrowse(node[k], depth + 1);
-              }
-            }
-          }
-          walkBrowse(data);
-
-          if (extracted.length > 0) {
-            if (onProgress) onProgress(95, `¡${extracted.length} canciones extraídas de YouTube!`);
-            return { id: cleanId, title: playlistTitle, tracks: extracted.slice(0, 300) };
-          }
-        }
-      } catch (e) {
-        console.warn('[Playlist] Innertube browse aviso:', e.message);
-      }
-
-      // 3. Backend local /api/v1/youtube/playlist
-      try {
-        if (onProgress) onProgress(45, 'Consultando servidor musical...');
-        const ctrl = new AbortController();
-        const tid = setTimeout(() => ctrl.abort(), 5000);
-        const localRes = await fetch(`/api/v1/youtube/playlist?id=${encodeURIComponent(cleanId)}`, { signal: ctrl.signal });
+        const tid = setTimeout(() => ctrl.abort(), 9000);
+        const localRes = await fetch(`${baseUrl}/api/v1/youtube/playlist?id=${encodeURIComponent(cleanId)}`, { signal: ctrl.signal });
         clearTimeout(tid);
         if (localRes.ok) {
           const localData = await localRes.json();
           if (localData && Array.isArray(localData.tracks) && localData.tracks.length > 0) {
+            if (onProgress) onProgress(95, `¡${localData.tracks.length} canciones extraídas!`);
             return {
               id: cleanId,
               title: localData.title || playlistTitle,
@@ -11953,6 +11722,107 @@ function stopPianoCameraLoop() {
           }
         }
       } catch (e) {}
+
+      // 3. API Oficial YouTube Innertube (/youtubei/v1/browse con paginación de hasta 500 pistas)
+      try {
+        if (onProgress) onProgress(35, 'Conectando con YouTube Innertube API...');
+        const browseId = cleanId.startsWith('VL') ? cleanId : `VL${cleanId}`;
+        const extracted = [];
+        const seenVids = new Set();
+        let nextTokens = [];
+
+        function walkBrowse(node, depth = 0) {
+          if (!node || depth > 22) return;
+          if (node.playlistVideoRenderer && node.playlistVideoRenderer.videoId) {
+            const v = node.playlistVideoRenderer;
+            const vid = v.videoId;
+            if (!seenVids.has(vid)) {
+              seenVids.add(vid);
+              extracted.push({
+                id: vid,
+                title: v.title?.runs?.[0]?.text || v.title?.simpleText || `Pista #${extracted.length + 1}`,
+                artist: v.shortBylineText?.runs?.[0]?.text || v.longBylineText?.runs?.[0]?.text || 'YouTube',
+                thumbnail: `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`,
+                duration_seconds: Number(v.lengthSeconds) || 0
+              });
+            }
+          } else if (node.lockupViewModel && node.lockupViewModel.contentId && /^[a-zA-Z0-9_-]{11}$/.test(node.lockupViewModel.contentId)) {
+            const vm = node.lockupViewModel;
+            const vid = vm.contentId;
+            if (!seenVids.has(vid)) {
+              seenVids.add(vid);
+              const title = vm.metadata?.lockupMetadataViewModel?.title?.content || `Pista #${extracted.length + 1}`;
+              const artist = vm.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows?.[0]?.metadataParts?.[0]?.text?.content || 'YouTube';
+              extracted.push({
+                id: vid,
+                title,
+                artist,
+                thumbnail: `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`,
+                duration_seconds: 0
+              });
+            }
+          } else if (node.continuationItemViewModel?.continuationCommand?.innertubeCommand?.continuationCommand?.token) {
+            nextTokens.push(node.continuationItemViewModel.continuationCommand.innertubeCommand.continuationCommand.token);
+          } else if (node.continuationItemRenderer?.continuationEndpoint?.continuationCommand?.token) {
+            nextTokens.push(node.continuationItemRenderer.continuationEndpoint.continuationCommand.token);
+          }
+          if (Array.isArray(node)) {
+            for (const child of node) walkBrowse(child, depth + 1);
+          } else if (typeof node === 'object') {
+            for (const k of Object.keys(node)) {
+              if (k !== 'trackingParams' && k !== 'responseContext') walkBrowse(node[k], depth + 1);
+            }
+          }
+        }
+
+        let contToken = null;
+        for (let page = 0; page < 5; page++) {
+          const payload = {
+            context: {
+              client: { clientName: 'WEB', clientVersion: '2.20261022.01.00', hl: 'es', gl: 'ES' }
+            }
+          };
+          if (page === 0) payload.browseId = browseId;
+          else if (contToken) payload.continuation = contToken;
+          else break;
+
+          const ctrl = new AbortController();
+          const tid = setTimeout(() => ctrl.abort(), 7500);
+          const resp = await fetch(myWorker('https://www.youtube.com/youtubei/v1/browse?prettyPrint=false'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            signal: ctrl.signal
+          });
+          clearTimeout(tid);
+          if (!resp.ok) break;
+
+          const data = await resp.json();
+          if (page === 0) {
+            const hdrTitle =
+              data?.header?.pageHeaderRenderer?.pageTitle ||
+              data?.header?.playlistHeaderRenderer?.title?.simpleText ||
+              data?.header?.playlistHeaderRenderer?.title?.runs?.[0]?.text ||
+              data?.metadata?.playlistMetadataRenderer?.title ||
+              data?.microformat?.microformatDataRenderer?.title;
+            if (hdrTitle) playlistTitle = String(hdrTitle).replace(/ - YouTube$/, '').trim();
+          }
+          nextTokens = [];
+          walkBrowse(data);
+          if (onProgress && extracted.length > 0) {
+            onProgress(Math.min(90, 40 + page * 12), `Cargadas ${extracted.length} canciones...`);
+          }
+          contToken = nextTokens[0] || null;
+          if (!contToken || extracted.length >= 500) break;
+        }
+
+        if (extracted.length > 0) {
+          if (onProgress) onProgress(95, `¡${extracted.length} canciones extraídas de YouTube!`);
+          return { id: cleanId, title: playlistTitle, tracks: extracted.slice(0, 500) };
+        }
+      } catch (e) {
+        console.warn('[Playlist] Innertube browse aviso:', e.message);
+      }
 
       // Helper para consultar endpoints con multi-proxy
       async function tryFetchJson(url, timeoutMs = 5000) {
@@ -12363,18 +12233,24 @@ function stopPianoCameraLoop() {
 
     async function loadDailyFeaturedSongs() {
       let candidateSongs = [];
+      const isDummyOrTest = (id, title) => {
+        const sId = String(id || '').toLowerCase();
+        const sTitle = String(title || '').trim().toLowerCase();
+        return sId.startsWith('comm_galaxy') || sId.startsWith('comm_cyber') || sId.startsWith('comm_moonlight') ||
+               sId.startsWith('comm_1788622108') || sId.startsWith('comm_1789045500') ||
+               sTitle.includes('unit test') || sTitle === 'test' || sTitle === 'prueba';
+      };
 
-      // 1. Cargar todas las canciones calificadas localmente
+      // 1. Cargar todas las canciones calificadas localmente y limpiar entradas de prueba
       try {
         const ratingsStore = JSON.parse(localStorage.getItem('beatstar_song_ratings') || '{}');
-        // Purgar semillas ficticias legacy
-        ['comm_galaxy_anthem', 'comm_cyber_frenzy', 'comm_moonlight_flow', 'comm_moonlight_drill'].forEach(k => {
-          if (ratingsStore[k]) delete ratingsStore[k];
-        });
+        for (const [k, v] of Object.entries(ratingsStore)) {
+          if (isDummyOrTest(k, v?.title)) delete ratingsStore[k];
+        }
         localStorage.setItem('beatstar_song_ratings', JSON.stringify(ratingsStore));
 
         for (const [id, r] of Object.entries(ratingsStore)) {
-          if (r && r.count > 0 && !id.startsWith('comm_galaxy') && !id.startsWith('comm_cyber') && !id.startsWith('comm_moonlight')) {
+          if (r && r.count > 0 && !isDummyOrTest(id, r.title)) {
             candidateSongs.push({
               id: r.id || id,
               title: r.title || 'Canción',
@@ -12382,7 +12258,7 @@ function stopPianoCameraLoop() {
               difficulty_name: r.difficulty_name || 'Normal',
               stars: r.stars || 3.5,
               rating_avg: r.avgStars || 5.0,
-              votes_count: r.count || 1,
+              votes_count: r.count || 0,
               sync_avg: r.avgSync || 100,
               lastRated: Number(r.lastRated) || 0,
               is_community: !!r.is_community,
@@ -12399,10 +12275,11 @@ function stopPianoCameraLoop() {
       function buildTopRated(candidates) {
         const now = Date.now();
         const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
-        const recentRated = candidates.filter(s => (s.votes_count > 0) && (now - (s.lastRated || 0) <= TWENTY_FOUR_HOURS));
+        const cleanCandidates = candidates.filter(s => s && !isDummyOrTest(s.id, s.title));
+        const recentRated = cleanCandidates.filter(s => (s.votes_count > 0) && (now - (s.lastRated || 0) <= TWENTY_FOUR_HOURS));
         recentRated.sort((a, b) => (b.rating_avg - a.rating_avg) || ((b.votes_count || 0) - (a.votes_count || 0)));
 
-        const allTimeRated = candidates.filter(s => s.votes_count > 0);
+        const allTimeRated = cleanCandidates.filter(s => s.votes_count > 0);
         allTimeRated.sort((a, b) => (b.rating_avg - a.rating_avg) || ((b.votes_count || 0) - (a.votes_count || 0)));
 
         let list = [];
@@ -12416,27 +12293,35 @@ function stopPianoCameraLoop() {
             if (!list.some(ex => ex.id === s.id)) list.push(s);
           }
         }
-        if (list.length < 3 && typeof GLOBAL_COMMUNITY_FALLBACKS !== 'undefined') {
-          for (const fb of GLOBAL_COMMUNITY_FALLBACKS) {
-            if (list.length >= 3) break;
-            if (!list.some(ex => ex.id === fb.id)) {
-              list.push({
-                ...fb,
-                rating_avg: fb.rating_avg || 5.0,
-                votes_count: fb.votes_count || 1
-              });
+        // Rotación diaria real sobre el catálogo completo para la Tragaperras
+        if (list.length < 3) {
+          const allTop = typeof getFormattedTopSongsCatalog === 'function' ? getFormattedTopSongsCatalog() : [];
+          const pool = [...allTop, ...(typeof GLOBAL_COMMUNITY_FALLBACKS !== 'undefined' ? GLOBAL_COMMUNITY_FALLBACKS : [])]
+            .filter(s => s && !isDummyOrTest(s.id, s.title));
+          if (pool.length > 0) {
+            const dayKey = new Date().toISOString().slice(0, 10);
+            let dayHash = 0;
+            for (let i = 0; i < dayKey.length; i++) dayHash = ((dayHash << 5) - dayHash) + dayKey.charCodeAt(i);
+            dayHash = Math.abs(dayHash);
+            for (let offset = 0; offset < pool.length && list.length < 3; offset++) {
+              const pick = pool[(dayHash + offset * 7) % pool.length];
+              if (pick && !list.some(ex => ex.id === pick.id)) {
+                list.push({
+                  ...pick,
+                  rating_avg: pick.votes_count > 0 ? pick.rating_avg : 0,
+                  votes_count: pick.votes_count || 0
+                });
+              }
             }
           }
         }
         return list;
       }
 
-      // RENDER INMEDIATO (0ms): Construir y renderizar con canciones locales / oficiales de inmediato
       const initialTop = buildTopRated(candidateSongs);
       dailyFeaturedSongsList = initialTop;
       renderDailyFeaturedCards(initialTop);
 
-      // ASÍNCRONO EN SEGUNDO PLANO: Consultar nube con abort controller de 2.5 segundos
       (async () => {
         try {
           const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
@@ -12450,7 +12335,7 @@ function stopPianoCameraLoop() {
               const cloudData = Array.isArray(resJson) ? resJson : (resJson.featured || (resJson.id ? [resJson] : []));
               if (Array.isArray(cloudData) && cloudData.length > 0) {
                 for (const cs of cloudData) {
-                  if (cs && cs.votes_count > 0 && !cs.id.startsWith('comm_galaxy') && !cs.id.startsWith('comm_cyber')) {
+                  if (cs && !isDummyOrTest(cs.id, cs.title)) {
                     const existingIdx = candidateSongs.findIndex(s => s.id === cs.id);
                     const songObj = {
                       ...cs,
@@ -12458,8 +12343,8 @@ function stopPianoCameraLoop() {
                       is_community: !!cs.is_community,
                       source: cs.source || (cs.is_community ? 'community' : (cs.id.startsWith('osu_') ? 'osu' : 'catalog')),
                       source_name: cs.source_name || (cs.is_community ? 'Comunidad' : (cs.id.startsWith('osu_') ? 'osu!' : 'Catálogo')),
-                      rating_avg: cs.rating_avg || 5.0,
-                      votes_count: cs.votes_count || 1
+                      rating_avg: cs.votes_count > 0 ? (cs.rating_avg || 5.0) : 0,
+                      votes_count: cs.votes_count || 0
                     };
                     if (existingIdx >= 0) candidateSongs[existingIdx] = { ...candidateSongs[existingIdx], ...songObj };
                     else candidateSongs.push(songObj);
@@ -13177,7 +13062,7 @@ function stopPianoCameraLoop() {
 
       // Pistas históricas recuperadas de versiones anteriores y nube
       const HISTORICAL_COMMUNITY_FALLBACKS = typeof GLOBAL_COMMUNITY_FALLBACKS !== 'undefined' ? GLOBAL_COMMUNITY_FALLBACKS : [
-        { id: 'comm_renacer', title: 'Renacer', artist: 'Piano Community', creator_id: 'creator_piano_comm', creator_name: 'Piano Community', bpm: 100, difficulty_name: 'Normal', stars: 3.5, notes_count: 203, rating_avg: 5.0, votes_count: 184, sync_avg: 100.0, is_community: true, source: 'community', source_name: 'Piano Community', thumbnail: './app_logo.png' }
+        { id: 'comm_renacer', title: 'Renacer', artist: 'Piano Community', creator_id: 'creator_piano_comm', creator_name: 'Piano Community', bpm: 100, difficulty_name: 'Normal', stars: 3.5, notes_count: 203, rating_avg: 0, votes_count: 0, sync_avg: 100.0, is_community: true, source: 'community', source_name: 'Piano Community', thumbnail: './app_logo.png' }
       ];
 
       for (const fb of HISTORICAL_COMMUNITY_FALLBACKS) {
