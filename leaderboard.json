@@ -3023,6 +3023,16 @@
         "accuracy": 0.5525772747613501,
         "date": "2026-10-23 09:28:52"
       }
+    ],
+    "top_frank_sinatra_fly_me_to_the_moon": [
+      {
+        "name": "FAZTL",
+        "score": 231068,
+        "stars": 1,
+        "combo": 172,
+        "accuracy": 37.50568100660945,
+        "date": "2026-10-23 09:34:38"
+      }
     ]
   },
   "global": [
@@ -3063,8 +3073,8 @@
     },
     {
       "name": "FAZTL",
-      "total_score": 5263908,
-      "clefs": 44
+      "total_score": 5494976,
+      "clefs": 46
     },
     {
       "name": "Azure",
@@ -3208,7 +3218,7 @@
       },
       {
         "name": "FAZTL",
-        "score": 5263908
+        "score": 5494976
       },
       {
         "name": "fer",
