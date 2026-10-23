@@ -2953,6 +2953,16 @@
         "accuracy": 35.80341611348945,
         "date": "2026-10-23 09:07:30"
       }
+    ],
+    "top_blink_182_i_miss_you": [
+      {
+        "name": "Hola31m",
+        "score": 147986,
+        "stars": 3.5,
+        "combo": 127,
+        "accuracy": 12.11429114050469,
+        "date": "2026-10-23 09:09:45"
+      }
     ]
   },
   "global": [
@@ -3052,6 +3062,11 @@
       "clefs": 0
     },
     {
+      "name": "Hola31m",
+      "total_score": 147986,
+      "clefs": 1
+    },
+    {
       "name": "U",
       "total_score": 30185,
       "clefs": 0
@@ -3147,6 +3162,10 @@
         "score": 148783
       },
       {
+        "name": "Hola31m",
+        "score": 147986
+      },
+      {
         "name": "U",
         "score": 30185
       },
@@ -3169,6 +3188,12 @@
       "Camaleon",
       "Mauricio",
       "Test"
+    ],
+    "faztl": [
+      "Hola31m"
+    ],
+    "rnc_csaj0z": [
+      "Hola31m"
     ]
   }
 }
