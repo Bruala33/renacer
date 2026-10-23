@@ -3313,6 +3313,16 @@
         "accuracy": 0.38580246913580246,
         "date": "2026-10-23 15:37:42"
       }
+    ],
+    "bs_333d8": [
+      {
+        "name": "Libay",
+        "score": 13200,
+        "stars": 3.5,
+        "combo": 20,
+        "accuracy": 1.983322064457967,
+        "date": "2026-10-23 15:39:40"
+      }
     ]
   },
   "global": [
@@ -3408,7 +3418,7 @@
     },
     {
       "name": "Libay",
-      "total_score": 255466,
+      "total_score": 268666,
       "clefs": 0
     },
     {
@@ -3519,12 +3529,12 @@
         "score": 4321969
       },
       {
-        "name": "Darwin67",
-        "score": 265556
+        "name": "Libay",
+        "score": 268666
       },
       {
-        "name": "Libay",
-        "score": 255466
+        "name": "Darwin67",
+        "score": 265556
       },
       {
         "name": "bori",
