@@ -3083,6 +3083,16 @@
         "accuracy": 0.26247101882500473,
         "date": "2026-10-23 10:22:24"
       }
+    ],
+    "clonehero_355727": [
+      {
+        "name": "FAZTL",
+        "score": 202039,
+        "stars": 3.5,
+        "combo": 154,
+        "accuracy": 14.841632881534474,
+        "date": "2026-10-23 10:23:50"
+      }
     ]
   },
   "global": [
@@ -3123,8 +3133,8 @@
     },
     {
       "name": "FAZTL",
-      "total_score": 6437654,
-      "clefs": 52
+      "total_score": 6639693,
+      "clefs": 54
     },
     {
       "name": "Azure",
@@ -3268,7 +3278,7 @@
       },
       {
         "name": "FAZTL",
-        "score": 6437654
+        "score": 6639693
       },
       {
         "name": "fer",
