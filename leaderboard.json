@@ -3131,7 +3131,7 @@
         "stars": 4,
         "combo": 408,
         "accuracy": 83.59795880488589,
-        "date": "2026-10-23 10:31:11"
+        "date": "2026-10-23 10:32:07"
       }
     ]
   },
@@ -3167,14 +3167,14 @@
       "clefs": 76
     },
     {
+      "name": "FAZTL",
+      "total_score": 8428163,
+      "clefs": 70
+    },
+    {
       "name": "Niggerman",
       "total_score": 8327060,
       "clefs": 71
-    },
-    {
-      "name": "FAZTL",
-      "total_score": 7716522,
-      "clefs": 63
     },
     {
       "name": "Azure",
@@ -3313,12 +3313,12 @@
         "score": 8546882
       },
       {
-        "name": "Niggerman",
-        "score": 8327060
+        "name": "FAZTL",
+        "score": 8428163
       },
       {
-        "name": "FAZTL",
-        "score": 7716522
+        "name": "Niggerman",
+        "score": 8327060
       },
       {
         "name": "fer",
