@@ -3163,6 +3163,16 @@
         "accuracy": 9.13409295538514,
         "date": "2026-10-23 10:09:36"
       }
+    ],
+    "osu_2530610": [
+      {
+        "name": "FAZTL",
+        "score": 102971,
+        "stars": 1,
+        "combo": 45,
+        "accuracy": 20.570050760407284,
+        "date": "2026-10-23 10:11:24"
+      }
     ]
   },
   "global": [
@@ -3203,8 +3213,8 @@
     },
     {
       "name": "FAZTL",
-      "total_score": 7717891,
-      "clefs": 58
+      "total_score": 7820862,
+      "clefs": 59
     },
     {
       "name": "Azure",
@@ -3348,7 +3358,7 @@
       },
       {
         "name": "FAZTL",
-        "score": 7717891
+        "score": 7820862
       },
       {
         "name": "fer",
