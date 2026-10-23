@@ -2949,9 +2949,9 @@
         "name": "FAZTL",
         "score": 543783,
         "stars": 3.5,
-        "combo": 9,
-        "accuracy": 0.12345256327026169,
-        "date": "2026-10-23 09:13:52"
+        "combo": 58,
+        "accuracy": 2.8955716413331034,
+        "date": "2026-10-23 09:14:30"
       }
     ],
     "top_blink_182_i_miss_you": [
@@ -3022,14 +3022,14 @@
       "clefs": 39
     },
     {
+      "name": "FAZTL",
+      "total_score": 4120949,
+      "clefs": 36
+    },
+    {
       "name": "bobon",
       "total_score": 3845429,
       "clefs": 33
-    },
-    {
-      "name": "FAZTL",
-      "total_score": 3577166,
-      "clefs": 31
     },
     {
       "name": "MasterPianist",
@@ -3162,7 +3162,7 @@
       },
       {
         "name": "FAZTL",
-        "score": 3577166
+        "score": 4120949
       },
       {
         "name": "Darwin67",
