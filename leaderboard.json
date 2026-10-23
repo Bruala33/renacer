@@ -3309,9 +3309,9 @@
         "name": "Libay",
         "score": 92100,
         "stars": 3.5,
-        "combo": 11,
-        "accuracy": 0.38580246913580246,
-        "date": "2026-10-23 15:37:42"
+        "combo": 32,
+        "accuracy": 1.4109347442680775,
+        "date": "2026-10-23 16:38:26"
       }
     ],
     "bs_333d8": [
@@ -3427,6 +3427,11 @@
       "clefs": 1
     },
     {
+      "name": "Libay",
+      "total_score": 434178,
+      "clefs": 0
+    },
+    {
       "name": "`pc",
       "total_score": 367612,
       "clefs": 1
@@ -3435,11 +3440,6 @@
       "name": "Darwin67",
       "total_score": 354658,
       "clefs": 2
-    },
-    {
-      "name": "Libay",
-      "total_score": 342078,
-      "clefs": 0
     },
     {
       "name": "bori",
@@ -3550,7 +3550,7 @@
       },
       {
         "name": "Libay",
-        "score": 342078
+        "score": 434178
       },
       {
         "name": "Darwin67",
