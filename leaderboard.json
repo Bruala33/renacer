@@ -3453,6 +3453,16 @@
         "accuracy": 2.290865058697573,
         "date": "2026-10-23 16:54:55"
       }
+    ],
+    "top_tiziano_ferro_y_amaia_montero_el_regalo_mas_grande": [
+      {
+        "name": "Libay",
+        "score": 345439,
+        "stars": 1,
+        "combo": 216,
+        "accuracy": 23.176965743695995,
+        "date": "2026-10-23 16:56:20"
+      }
     ]
   },
   "global": [
@@ -3518,8 +3528,8 @@
     },
     {
       "name": "Libay",
-      "total_score": 2105962,
-      "clefs": 11
+      "total_score": 2451401,
+      "clefs": 14
     },
     {
       "name": "MasterPianist",
@@ -3660,7 +3670,7 @@
       },
       {
         "name": "Libay",
-        "score": 2105962
+        "score": 2451401
       },
       {
         "name": "Darwin67",
