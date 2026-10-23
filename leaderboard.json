@@ -3237,11 +3237,11 @@
     "clonehero_603147": [
       {
         "name": "Laaleplo",
-        "score": 331335,
-        "stars": 2,
-        "combo": 134,
-        "accuracy": 47.16962329503312,
-        "date": "2026-10-23 13:44:30"
+        "score": 454473,
+        "stars": 3,
+        "combo": 87,
+        "accuracy": 64.90774554652141,
+        "date": "2026-10-23 13:52:32"
       }
     ],
     "top_the_weeknd_ft_daft_punk_starboy": [
@@ -3313,8 +3313,8 @@
     },
     {
       "name": "Laaleplo",
-      "total_score": 3351029,
-      "clefs": 31
+      "total_score": 3805502,
+      "clefs": 35
     },
     {
       "name": "MasterPianist",
@@ -3451,7 +3451,7 @@
       },
       {
         "name": "Laaleplo",
-        "score": 3351029
+        "score": 3805502
       },
       {
         "name": "Darwin67",
