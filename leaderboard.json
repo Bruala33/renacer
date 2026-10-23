@@ -2987,11 +2987,11 @@
     "bs_48936": [
       {
         "name": "FAZTL",
-        "score": 19045,
+        "score": 108670,
         "stars": 3.5,
-        "combo": 32,
-        "accuracy": 2.0223547451270223,
-        "date": "2026-10-23 09:17:49"
+        "combo": 88,
+        "accuracy": 11.539474410761539,
+        "date": "2026-10-23 10:21:59"
       }
     ],
     "bs_488b6": [
@@ -3113,8 +3113,8 @@
     },
     {
       "name": "FAZTL",
-      "total_score": 6328984,
-      "clefs": 51
+      "total_score": 6437654,
+      "clefs": 52
     },
     {
       "name": "Azure",
@@ -3258,7 +3258,7 @@
       },
       {
         "name": "FAZTL",
-        "score": 6328984
+        "score": 6437654
       },
       {
         "name": "fer",
