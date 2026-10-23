@@ -3233,6 +3233,16 @@
         "accuracy": 2.6002268458624864,
         "date": "2026-10-23 13:40:14"
       }
+    ],
+    "clonehero_603147": [
+      {
+        "name": "Laaleplo",
+        "score": 331335,
+        "stars": 2,
+        "combo": 134,
+        "accuracy": 47.16962329503312,
+        "date": "2026-10-23 13:44:30"
+      }
     ]
   },
   "global": [
@@ -3293,8 +3303,8 @@
     },
     {
       "name": "Laaleplo",
-      "total_score": 2200769,
-      "clefs": 20
+      "total_score": 2532104,
+      "clefs": 23
     },
     {
       "name": "MasterPianist",
@@ -3431,7 +3441,7 @@
       },
       {
         "name": "Laaleplo",
-        "score": 2200769
+        "score": 2532104
       },
       {
         "name": "Darwin67",
