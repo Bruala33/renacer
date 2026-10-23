@@ -3363,6 +3363,16 @@
         "accuracy": 9.99630450849963,
         "date": "2026-10-23 16:40:05"
       }
+    ],
+    "top_las_supremas_de_mostoles_eres_un_enfermo": [
+      {
+        "name": "Libay",
+        "score": 93450,
+        "stars": 3.5,
+        "combo": 81,
+        "accuracy": 4.674650339156012,
+        "date": "2026-10-23 16:43:22"
+      }
     ]
   },
   "global": [
@@ -3427,6 +3437,11 @@
       "clefs": 33
     },
     {
+      "name": "Libay",
+      "total_score": 621528,
+      "clefs": 0
+    },
+    {
       "name": "MasterPianist",
       "total_score": 600000,
       "clefs": 6
@@ -3439,11 +3454,6 @@
     {
       "name": "BeatMaster",
       "total_score": 547200,
-      "clefs": 0
-    },
-    {
-      "name": "Libay",
-      "total_score": 528078,
       "clefs": 0
     },
     {
@@ -3570,7 +3580,7 @@
       },
       {
         "name": "Libay",
-        "score": 528078
+        "score": 621528
       },
       {
         "name": "Darwin67",
