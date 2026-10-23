@@ -3193,6 +3193,16 @@
         "accuracy": 80.10008281725472,
         "date": "2026-10-23 13:08:49"
       }
+    ],
+    "top_vanilla_ice_ice_ice_baby": [
+      {
+        "name": "Laaleplo",
+        "score": 19350,
+        "stars": 3.5,
+        "combo": 27,
+        "accuracy": 0.876188457949067,
+        "date": "2026-10-23 13:18:53"
+      }
     ]
   },
   "global": [
@@ -3253,7 +3263,7 @@
     },
     {
       "name": "Laaleplo",
-      "total_score": 2007888,
+      "total_score": 2027238,
       "clefs": 20
     },
     {
@@ -3391,7 +3401,7 @@
       },
       {
         "name": "Laaleplo",
-        "score": 2007888
+        "score": 2027238
       },
       {
         "name": "Darwin67",
