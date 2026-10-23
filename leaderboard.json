@@ -3117,11 +3117,11 @@
     "clonehero_526755": [
       {
         "name": "FAZTL",
-        "score": 13650,
+        "score": 213741,
         "stars": 3.5,
-        "combo": 21,
-        "accuracy": 0.6775202263364273,
-        "date": "2026-10-23 09:49:53"
+        "combo": 87,
+        "accuracy": 10.609073311162952,
+        "date": "2026-10-23 09:51:34"
       }
     ],
     "clonehero_524385": [
@@ -3173,8 +3173,8 @@
     },
     {
       "name": "FAZTL",
-      "total_score": 6621219,
-      "clefs": 52
+      "total_score": 6834960,
+      "clefs": 54
     },
     {
       "name": "Azure",
@@ -3318,7 +3318,7 @@
       },
       {
         "name": "FAZTL",
-        "score": 6621219
+        "score": 6834960
       },
       {
         "name": "fer",
