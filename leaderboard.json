@@ -2937,11 +2937,11 @@
     "osu_2078225": [
       {
         "name": "FAZTL",
-        "score": 21591,
+        "score": 182874,
         "stars": 3.5,
-        "combo": 29,
-        "accuracy": 1.0910463554473486,
-        "date": "2026-10-23 09:03:49"
+        "combo": 59,
+        "accuracy": 9.467115603237811,
+        "date": "2026-10-23 09:57:43"
       }
     ],
     "bs_391b1": [
@@ -3193,8 +3193,8 @@
     },
     {
       "name": "FAZTL",
-      "total_score": 7228700,
-      "clefs": 56
+      "total_score": 7411574,
+      "clefs": 57
     },
     {
       "name": "Azure",
@@ -3338,7 +3338,7 @@
       },
       {
         "name": "FAZTL",
-        "score": 7228700
+        "score": 7411574
       },
       {
         "name": "fer",
