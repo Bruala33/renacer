@@ -2963,6 +2963,16 @@
         "accuracy": 12.11429114050469,
         "date": "2026-10-23 09:09:45"
       }
+    ],
+    "top_luis_miguel_ahora_te_puedes_marchar": [
+      {
+        "name": "3105M",
+        "score": 8400,
+        "stars": 3.5,
+        "combo": 18,
+        "accuracy": 0.9208951100469657,
+        "date": "2026-10-23 09:11:23"
+      }
     ]
   },
   "global": [
@@ -3082,6 +3092,11 @@
       "clefs": 0
     },
     {
+      "name": "3105M",
+      "total_score": 8400,
+      "clefs": 0
+    },
+    {
       "name": "Papa",
       "total_score": 7626,
       "clefs": 0
@@ -3174,6 +3189,10 @@
         "score": 17550
       },
       {
+        "name": "3105M",
+        "score": 8400
+      },
+      {
         "name": "PixToPix",
         "score": 1500
       }
@@ -3190,10 +3209,12 @@
       "Test"
     ],
     "faztl": [
-      "Hola31m"
+      "Hola31m",
+      "3105M"
     ],
     "rnc_csaj0z": [
-      "Hola31m"
+      "Hola31m",
+      "3105M"
     ]
   }
 }
