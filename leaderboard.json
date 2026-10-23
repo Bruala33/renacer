@@ -2957,9 +2957,9 @@
         "name": "FAZTL",
         "score": 543783,
         "stars": 3.5,
-        "combo": 79,
-        "accuracy": 6.214042383404815,
-        "date": "2026-10-23 14:15:47"
+        "combo": 87,
+        "accuracy": 6.861658069978839,
+        "date": "2026-10-23 21:35:07"
       }
     ],
     "top_blink_182_i_miss_you": [
@@ -3605,6 +3605,11 @@
       "clefs": 154
     },
     {
+      "name": "FAZTL",
+      "total_score": 10625762,
+      "clefs": 87
+    },
+    {
       "name": "bubu",
       "total_score": 10570609,
       "clefs": 100
@@ -3613,11 +3618,6 @@
       "name": "Niggerman",
       "total_score": 10122226,
       "clefs": 87
-    },
-    {
-      "name": "FAZTL",
-      "total_score": 10081979,
-      "clefs": 82
     },
     {
       "name": "Test",
@@ -3772,12 +3772,12 @@
         "score": 12366565
       },
       {
-        "name": "Niggerman",
-        "score": 10122226
+        "name": "FAZTL",
+        "score": 10625762
       },
       {
-        "name": "FAZTL",
-        "score": 10081979
+        "name": "Niggerman",
+        "score": 10122226
       },
       {
         "name": "Test",
