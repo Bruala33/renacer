@@ -3533,6 +3533,16 @@
         "accuracy": 9.70739918686887,
         "date": "2026-10-23 17:08:37"
       }
+    ],
+    "osu_1625371": [
+      {
+        "name": "Seri",
+        "score": 1875,
+        "stars": 3.5,
+        "combo": 4,
+        "accuracy": 0.060865616185644345,
+        "date": "2026-10-23 19:16:17"
+      }
     ]
   },
   "global": [
@@ -3692,6 +3702,11 @@
       "clefs": 0
     },
     {
+      "name": "Seri",
+      "total_score": 1875,
+      "clefs": 0
+    },
+    {
       "name": "PixToPix",
       "total_score": 1500,
       "clefs": 0
@@ -3769,6 +3784,10 @@
       {
         "name": "3105M",
         "score": 8400
+      },
+      {
+        "name": "Seri",
+        "score": 1875
       },
       {
         "name": "PixToPix",
