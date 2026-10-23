@@ -3323,13 +3323,23 @@
         "accuracy": 1.983322064457967,
         "date": "2026-10-23 15:39:40"
       }
+    ],
+    "top_3ballmty_el_bebeto__amrica_sierra_intntalo": [
+      {
+        "name": "Mauricio",
+        "score": 347910,
+        "stars": 1,
+        "combo": 194,
+        "accuracy": 25.364157298455886,
+        "date": "2026-10-23 15:44:26"
+      }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 50672703,
-      "clefs": 466
+      "total_score": 51020613,
+      "clefs": 469
     },
     {
       "name": "Rocky",
@@ -3502,7 +3512,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 50672703
+        "score": 51020613
       },
       {
         "name": "Dady cool",
