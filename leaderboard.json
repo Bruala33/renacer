@@ -2853,6 +2853,16 @@
         "accuracy": 72.74446245272826,
         "date": "2026-10-22 21:02:36"
       }
+    ],
+    "top_daddy_yankee_llamado_de_emergencia": [
+      {
+        "name": "Niggerman",
+        "score": 41721,
+        "stars": 3.5,
+        "combo": 41,
+        "accuracy": 3.0884723976246278,
+        "date": "2026-10-23 05:44:35"
+      }
     ]
   },
   "global": [
@@ -2888,7 +2898,7 @@
     },
     {
       "name": "Niggerman",
-      "total_score": 7678156,
+      "total_score": 7719877,
       "clefs": 65
     },
     {
@@ -3019,7 +3029,7 @@
       },
       {
         "name": "Niggerman",
-        "score": 7678156
+        "score": 7719877
       },
       {
         "name": "fer",
