@@ -3203,6 +3203,16 @@
         "accuracy": 0.876188457949067,
         "date": "2026-10-23 13:18:53"
       }
+    ],
+    "top_lana_del_rey_born_to_die": [
+      {
+        "name": "Laaleplo",
+        "score": 99506,
+        "stars": 3.5,
+        "combo": 84,
+        "accuracy": 5.098669967877754,
+        "date": "2026-10-23 13:21:34"
+      }
     ]
   },
   "global": [
@@ -3263,7 +3273,7 @@
     },
     {
       "name": "Laaleplo",
-      "total_score": 2027238,
+      "total_score": 2126744,
       "clefs": 20
     },
     {
@@ -3401,7 +3411,7 @@
       },
       {
         "name": "Laaleplo",
-        "score": 2027238
+        "score": 2126744
       },
       {
         "name": "Darwin67",
