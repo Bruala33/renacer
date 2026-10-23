@@ -2903,6 +2903,16 @@
         "accuracy": 0.08922600665719932,
         "date": "2026-10-23 08:52:33"
       }
+    ],
+    "osu_436314": [
+      {
+        "name": "FAZTL",
+        "score": 316359,
+        "stars": 4,
+        "combo": 214,
+        "accuracy": 76.50040262224361,
+        "date": "2026-10-23 08:55:45"
+      }
     ]
   },
   "global": [
@@ -2972,6 +2982,11 @@
       "clefs": 0
     },
     {
+      "name": "FAZTL",
+      "total_score": 462335,
+      "clefs": 3
+    },
+    {
       "name": "Layla",
       "total_score": 437350,
       "clefs": 1
@@ -2994,11 +3009,6 @@
     {
       "name": "pelosombra40",
       "total_score": 148783,
-      "clefs": 0
-    },
-    {
-      "name": "FAZTL",
-      "total_score": 145976,
       "clefs": 0
     },
     {
@@ -3081,6 +3091,10 @@
         "score": 4321969
       },
       {
+        "name": "FAZTL",
+        "score": 462335
+      },
+      {
         "name": "Darwin67",
         "score": 265556
       },
@@ -3091,10 +3105,6 @@
       {
         "name": "pelosombra40",
         "score": 148783
-      },
-      {
-        "name": "FAZTL",
-        "score": 145976
       },
       {
         "name": "U",
