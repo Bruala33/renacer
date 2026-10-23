@@ -3343,6 +3343,16 @@
         "accuracy": 7.73291873125021,
         "date": "2026-10-23 16:36:37"
       }
+    ],
+    "bs_2dce7": [
+      {
+        "name": "Libay",
+        "score": 12750,
+        "stars": 3.5,
+        "combo": 23,
+        "accuracy": 1.3371086990718892,
+        "date": "2026-10-23 16:39:27"
+      }
     ]
   },
   "global": [
@@ -3422,14 +3432,14 @@
       "clefs": 0
     },
     {
+      "name": "Libay",
+      "total_score": 446928,
+      "clefs": 0
+    },
+    {
       "name": "Layla",
       "total_score": 437350,
       "clefs": 1
-    },
-    {
-      "name": "Libay",
-      "total_score": 434178,
-      "clefs": 0
     },
     {
       "name": "`pc",
@@ -3550,7 +3560,7 @@
       },
       {
         "name": "Libay",
-        "score": 434178
+        "score": 446928
       },
       {
         "name": "Darwin67",
