@@ -1362,6 +1362,7 @@
               type="text" 
               placeholder="Buscar playlists en YouTube o pegar URL..." 
               onkeydown="if(event.key==='Enter') executeDiscoverPlaylistSearch()"
+              oninput="if(!this.value.trim()) executeDiscoverPlaylistSearch(true)"
               class="unified-search-input"
             >
             <button 
@@ -1494,9 +1495,11 @@
                   type="text"
                   placeholder="Filtrar entre las canciones de esta playlist..."
                   oninput="filterOpenedPlaylistTracks(this.value)"
+                  onkeyup="filterOpenedPlaylistTracks(this.value)"
+                  onsearch="filterOpenedPlaylistTracks(this.value)"
                   class="unified-search-input"
                 >
-                <button type="button" onclick="const inp=document.getElementById('playlistInternalFilterInput'); if(inp){inp.value=''; filterOpenedPlaylistTracks('');}" class="unified-search-filter-btn" title="Limpiar filtro">✕</button>
+                <button type="button" onclick="clearOpenedPlaylistFilter()" class="unified-search-filter-btn" title="Limpiar filtro">✕</button>
               </div>
             </div>
 
@@ -5858,6 +5861,7 @@
       } else if (subtab === 'playlists') {
         subtabPlaylistsBtn.classList.add('active');
         playlistsCont.classList.remove('hidden');
+        if (typeof closePlaylistDetailView === 'function') closePlaylistDetailView();
         renderPlaylistsSubtab();
       }
     }
@@ -7812,28 +7816,32 @@ window.switchMainTab = switchMainTab;
     }
     window.executeSearch = executeSearch;
     function getSongCoverFallback(title = '', artist = '') {
-      const t = String(title || '');
-      const a = String(artist || '');
-      const initials = ((a ? a[0] : 'P') + (t ? t[0] : 'C')).toUpperCase();
-      const colors = [
-        ['#4a154b', '#1a0b2e'],
-        ['#1e3a8a', '#0f172a'],
-        ['#831843', '#3b0764'],
-        ['#7c2d12', '#451a03'],
-        ['#065f46', '#022c22'],
-        ['#92400e', '#451a03'],
-        ['#1e293b', '#090d16']
-      ];
-      let charCode = 0;
-      for (let i = 0; i < t.length; i++) charCode += t.charCodeAt(i);
-      for (let i = 0; i < a.length; i++) charCode += a.charCodeAt(i);
-      const [c1, c2] = colors[Math.abs(charCode) % colors.length];
-      const gid = 'g_' + (Math.abs(charCode) % 997);
-      const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='${gid}' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='${c1}'/><stop offset='100%' stop-color='${c2}'/></linearGradient></defs><circle cx='50' cy='50' r='50' fill='url(#${gid})'/><circle cx='50' cy='50' r='46' fill='none' stroke='#c5a059' stroke-width='1.5' stroke-dasharray='2,3'/><circle cx='50' cy='50' r='20' fill='#111111' stroke='#d4af37' stroke-width='1'/><circle cx='50' cy='50' r='5' fill='#d4af37'/><text x='50' y='54' font-size='12' font-weight='900' font-family='sans-serif' fill='#ffd700' text-anchor='middle' dominant-baseline='middle'>${initials}</text></svg>`;
       try {
+        const t = String(title || '').replace(/[\uD800-\uDFFF]/g, '');
+        const a = String(artist || '').replace(/[\uD800-\uDFFF]/g, '');
+        const firstAlpha = (str, fb) => {
+          const m = str.match(/[A-Za-z0-9ÁÉÍÓÚÑÜáéíóúñü]/);
+          return m ? m[0].toUpperCase() : fb;
+        };
+        const initials = firstAlpha(a, 'P') + firstAlpha(t, 'C');
+        const colors = [
+          ['#4a154b', '#1a0b2e'],
+          ['#1e3a8a', '#0f172a'],
+          ['#831843', '#3b0764'],
+          ['#7c2d12', '#451a03'],
+          ['#065f46', '#022c22'],
+          ['#92400e', '#451a03'],
+          ['#1e293b', '#090d16']
+        ];
+        let charCode = 0;
+        for (let i = 0; i < t.length; i++) charCode += t.charCodeAt(i);
+        for (let i = 0; i < a.length; i++) charCode += a.charCodeAt(i);
+        const [c1, c2] = colors[Math.abs(charCode) % colors.length];
+        const gid = 'g_' + (Math.abs(charCode) % 997);
+        const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='${gid}' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='${c1}'/><stop offset='100%' stop-color='${c2}'/></linearGradient></defs><circle cx='50' cy='50' r='50' fill='url(#${gid})'/><circle cx='50' cy='50' r='46' fill='none' stroke='#c5a059' stroke-width='1.5' stroke-dasharray='2,3'/><circle cx='50' cy='50' r='20' fill='#111111' stroke='#d4af37' stroke-width='1'/><circle cx='50' cy='50' r='5' fill='#d4af37'/><text x='50' y='54' font-size='12' font-weight='900' font-family='sans-serif' fill='#ffd700' text-anchor='middle' dominant-baseline='middle'>${initials}</text></svg>`;
         return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
       } catch (_) {
-        return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+        return './app_logo.png';
       }
     }
     window.getSongCoverFallback = getSongCoverFallback;
@@ -10817,9 +10825,12 @@ function stopPianoCameraLoop() {
     };
 
     async function openPlaylistDetailView(playlistId) {
+      const tracksCont = document.getElementById('playlistTracksContainer');
+      if (tracksCont) tracksCont.innerHTML = '';
+
       const pl = await IndexedDBStorage.getPlaylist(playlistId);
       if (!pl) return;
-      currentOpenedPlaylistId = playlistId;
+      currentOpenedPlaylistId = pl.id;
 
       const listEl = document.getElementById('playlistsList');
       const vaultHeaderEl = document.getElementById('playlistsVaultHeaderBar');
@@ -10830,15 +10841,19 @@ function stopPianoCameraLoop() {
       if (detailView) detailView.classList.remove('hidden');
 
       const titleEl = document.getElementById('selectedPlaylistTitle');
-      if (titleEl) titleEl.innerText = pl.title;
+      if (titleEl) titleEl.innerText = pl.title || 'Playlist';
 
-      const tracks = pl.tracks || [];
+      const rawTracks = Array.isArray(pl.tracks) ? pl.tracks : [];
+      const tracks = rawTracks.map((tr, idx) => ({ ...tr, _origIdx: idx }));
+
       const countBadge = document.getElementById('selectedPlaylistCountBadge');
       if (countBadge) countBadge.innerText = `${tracks.length} PISTAS`;
 
       const coverImg = document.getElementById('selectedPlaylistCoverImg');
       if (coverImg) {
-        const firstThumb = tracks[0]?.thumbnail || (tracks[0]?.id && String(tracks[0].id).length === 11 ? `https://i.ytimg.com/vi/${tracks[0].id}/hqdefault.jpg` : './app_logo.png');
+        const firstThumb = (tracks[0]?.thumbnail && typeof tracks[0].thumbnail === 'string')
+          ? tracks[0].thumbnail
+          : (tracks[0]?.id && String(tracks[0].id).length === 11 ? `https://i.ytimg.com/vi/${tracks[0].id}/hqdefault.jpg` : './app_logo.png');
         coverImg.src = firstThumb;
       }
 
@@ -10849,11 +10864,27 @@ function stopPianoCameraLoop() {
       renderOpenedPlaylistTracksList(tracks, pl.id);
     }
 
+    window.currentRenderedPlaylistTracks = [];
+    window.openPlaylistTrackMatcherByIndex = function(renderedIdx) {
+      const tr = (window.currentRenderedPlaylistTracks || [])[renderedIdx];
+      if (!tr) return;
+      const rawTitle = String(tr.title || `Pista #${renderedIdx + 1}`);
+      const rawArtist = Array.isArray(tr.artists) ? tr.artists.join(', ') : String(tr.artist || 'YouTube');
+      const fallbackCover = getSongCoverFallback(rawTitle, rawArtist);
+      const thumbUrl = (typeof tr.thumbnail === 'string' && tr.thumbnail.trim())
+        ? tr.thumbnail
+        : (tr.id && String(tr.id).length === 11 ? `https://i.ytimg.com/vi/${tr.id}/hqdefault.jpg` : fallbackCover);
+      openPlaylistTrackMatcher(rawTitle, rawArtist, thumbUrl);
+    };
+
     function renderOpenedPlaylistTracksList(tracks, playlistId) {
       const tracksCont = document.getElementById('playlistTracksContainer');
       if (!tracksCont) return;
 
-      if (!tracks || tracks.length === 0) {
+      const safeList = Array.isArray(tracks) ? tracks : [];
+      window.currentRenderedPlaylistTracks = safeList;
+
+      if (safeList.length === 0) {
         tracksCont.innerHTML = `
           <div class="vegas-setting-plate p-6 text-center space-y-2">
             <p class="text-xs font-bold text-[#fff6d6]">No hay canciones para mostrar.</p>
@@ -10862,47 +10893,52 @@ function stopPianoCameraLoop() {
         return;
       }
 
-      const keysHtml = tracks.map((tr, idx) => {
-        const rawTitle = tr.title || `Pista #${idx + 1}`;
-        const rawArtist = Array.isArray(tr.artists) ? tr.artists.join(', ') : (tr.artist || 'YouTube');
-        const safeTitle = rawTitle.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        const safeArtist = rawArtist.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        const fallbackCover = getSongCoverFallback(rawTitle, rawArtist);
-        const thumbUrl = (tr.thumbnail && tr.thumbnail.trim()) ? tr.thumbnail : (tr.id && String(tr.id).length === 11 ? `https://i.ytimg.com/vi/${tr.id}/hqdefault.jpg` : fallbackCover);
-        const safeThumb = String(thumbUrl).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        const displayIdx = tr._origIdx !== undefined ? tr._origIdx + 1 : idx + 1;
+      const safePlId = String(playlistId || currentOpenedPlaylistId || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const keysHtml = safeList.map((tr, idx) => {
+        try {
+          const rawTitle = String(tr?.title || `Pista #${idx + 1}`);
+          const rawArtist = Array.isArray(tr?.artists) ? tr.artists.join(', ') : String(tr?.artist || 'YouTube');
+          const fallbackCover = getSongCoverFallback(rawTitle, rawArtist);
+          const thumbUrl = (typeof tr?.thumbnail === 'string' && tr.thumbnail.trim())
+            ? tr.thumbnail
+            : (tr?.id && String(tr.id).length === 11 ? `https://i.ytimg.com/vi/${tr.id}/hqdefault.jpg` : fallbackCover);
+          const displayIdx = tr?._origIdx !== undefined ? tr._origIdx + 1 : idx + 1;
+          const safeTrackId = String(tr?.id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
-        return `
-          <div class="piano-key-row flex flex-col">
-            <div class="flex items-stretch w-full max-w-full overflow-hidden">
-              <!-- White Ivory Key Body (Opens Elegant In-Place Catalog Matcher Modal) -->
-              <div onclick="openPlaylistTrackMatcher('${safeTitle}', '${safeArtist}', '${safeThumb}')" class="piano-white-key flex-1 min-w-0 overflow-hidden cursor-pointer" title="Ver versiones jugables de ${escapeHtml(rawTitle)}">
-                <div class="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
-                  <span class="text-[9px] font-mono font-black text-[#8e755a] w-5 text-center flex-shrink-0">${displayIdx}</span>
-                  <div class="piano-key-thumb relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-[#c5a059] shadow-sm flex items-center justify-center bg-stone-900">
-                    <img src="${thumbUrl}" alt="" class="w-full h-full object-cover rounded-full" loading="lazy" onerror="this.onerror=null; this.src='${fallbackCover}';">
+          return `
+            <div class="piano-key-row flex flex-col">
+              <div class="flex items-stretch w-full max-w-full overflow-hidden">
+                <!-- White Ivory Key Body (Opens Elegant In-Place Catalog Matcher Modal) -->
+                <div onclick="openPlaylistTrackMatcherByIndex(${idx})" class="piano-white-key flex-1 min-w-0 overflow-hidden cursor-pointer" title="Ver versiones jugables de ${escapeHtml(rawTitle)}">
+                  <div class="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
+                    <span class="text-[9px] font-mono font-black text-[#8e755a] w-5 text-center flex-shrink-0">${displayIdx}</span>
+                    <div class="piano-key-thumb relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-[#c5a059] shadow-sm flex items-center justify-center bg-stone-900">
+                      <img src="${escapeHtml(thumbUrl)}" alt="" class="w-full h-full object-cover rounded-full" loading="lazy" onerror="this.onerror=null; this.src='${fallbackCover}';">
+                    </div>
+                    <div class="min-w-0 flex-1 flex flex-col justify-center overflow-hidden">
+                      <h3 class="text-xs font-black text-[#17131d] truncate font-serif leading-tight">${escapeHtml(rawTitle)}</h3>
+                      <p class="text-[10px] text-[#5a422d] font-semibold truncate leading-tight mt-0.5">${escapeHtml(rawArtist)}</p>
+                    </div>
                   </div>
-                  <div class="min-w-0 flex-1 flex flex-col justify-center overflow-hidden">
-                    <h3 class="text-xs font-black text-[#17131d] truncate font-serif leading-tight">${escapeHtml(rawTitle)}</h3>
-                    <p class="text-[10px] text-[#5a422d] font-semibold truncate leading-tight mt-0.5">${escapeHtml(rawArtist)}</p>
+                  <div class="flex items-center gap-1 flex-shrink-0 ml-1.5">
+                    <button onclick="event.stopPropagation(); removeTrackFromPlaylistAction('${safePlId}', '${safeTrackId}')" class="w-6 h-6 rounded-full hover:bg-black/10 text-[#8e755a] hover:text-red-700 text-[10px] font-bold flex items-center justify-center cursor-pointer transition" title="Quitar de la playlist">✕</button>
                   </div>
                 </div>
-                <div class="flex items-center gap-1 flex-shrink-0 ml-1.5">
-                  <button onclick="event.stopPropagation(); removeTrackFromPlaylistAction('${playlistId}', '${tr.id}')" class="w-6 h-6 rounded-full hover:bg-black/10 text-[#8e755a] hover:text-red-700 text-[10px] font-bold flex items-center justify-center cursor-pointer transition" title="Quitar de la playlist">✕</button>
-                </div>
-              </div>
 
-              <!-- Fixed 3D Ebony Black Play Key -->
-              <div 
-                onclick="openPlaylistTrackMatcher('${safeTitle}', '${safeArtist}', '${safeThumb}')" 
-                class="piano-black-play-key flex-shrink-0 w-12 min-w-[48px]" 
-                title="Elegir versión y jugar"
-              >
-                <span class="play-arrow-gold">▶</span>
+                <!-- Fixed 3D Ebony Black Play Key -->
+                <div 
+                  onclick="openPlaylistTrackMatcherByIndex(${idx})" 
+                  class="piano-black-play-key flex-shrink-0 w-12 min-w-[48px]" 
+                  title="Elegir versión y jugar"
+                >
+                  <span class="play-arrow-gold">▶</span>
+                </div>
               </div>
             </div>
-          </div>
-        `;
+          `;
+        } catch (_) {
+          return '';
+        }
       }).join('');
 
       tracksCont.innerHTML = `
@@ -10913,15 +10949,30 @@ function stopPianoCameraLoop() {
       `;
     }
 
-    window.filterOpenedPlaylistTracks = function(query) {
-      const all = Array.isArray(window.currentOpenedPlaylistTracks) ? window.currentOpenedPlaylistTracks : [];
-      const q = String(query || '').trim().toLowerCase();
+    window.clearOpenedPlaylistFilter = function() {
+      const inp = document.getElementById('playlistInternalFilterInput');
+      if (inp) inp.value = '';
+      window.filterOpenedPlaylistTracks('');
+    };
+
+    window.filterOpenedPlaylistTracks = async function(query) {
+      let all = Array.isArray(window.currentOpenedPlaylistTracks) ? window.currentOpenedPlaylistTracks : [];
+      if (all.length === 0 && currentOpenedPlaylistId) {
+        try {
+          const pl = await IndexedDBStorage.getPlaylist(currentOpenedPlaylistId);
+          if (pl && Array.isArray(pl.tracks)) {
+            all = pl.tracks.map((tr, idx) => ({ ...tr, _origIdx: idx }));
+            window.currentOpenedPlaylistTracks = all;
+          }
+        } catch (_) {}
+      }
+      const q = String(query ?? '').trim().toLowerCase();
       if (!q) {
         renderOpenedPlaylistTracksList(all, currentOpenedPlaylistId);
         return;
       }
       const filtered = all
-        .map((tr, i) => ({ ...tr, _origIdx: i }))
+        .map((tr, i) => ({ ...tr, _origIdx: tr._origIdx !== undefined ? tr._origIdx : i }))
         .filter(tr => {
           const t = String(tr.title || '').toLowerCase();
           const a = String(Array.isArray(tr.artists) ? tr.artists.join(' ') : (tr.artist || '')).toLowerCase();
@@ -11083,6 +11134,19 @@ function stopPianoCameraLoop() {
       return score;
     }
 
+    function renderYtMatcherLoadingState() {
+      const listEl = document.getElementById('ytMatcherResultsList');
+      const statusBadge = document.getElementById('ytMatcherStatusBadge');
+      if (statusBadge) statusBadge.innerText = 'Buscando mejores versiones...';
+      if (!listEl) return;
+      listEl.innerHTML = `
+        <div class="vegas-setting-plate p-5 text-center space-y-2.5">
+          <div class="w-7 h-7 mx-auto rounded-full border-2 border-[#f3d791] border-t-transparent animate-spin"></div>
+          <p class="text-xs font-bold text-[#fff6d6] font-serif">Buscando versiones jugables en el catálogo...</p>
+        </div>
+      `;
+    }
+
     function renderYtMatcherModalCards(optionsList, isSearchingCloud = false) {
       const listEl = document.getElementById('ytMatcherResultsList');
       const statusBadge = document.getElementById('ytMatcherStatusBadge');
@@ -11099,15 +11163,18 @@ function stopPianoCameraLoop() {
       if (!optionsList || optionsList.length === 0) {
         listEl.innerHTML = `
           <div class="vegas-setting-plate p-5 text-center space-y-2">
-            <p class="text-xs font-bold text-[#fff6d6]">Buscando opciones en el catálogo...</p>
-            <p class="text-[10px] text-[#cbb894]">Puedes ajustar el título en la barra superior para buscar otra variante.</p>
+            <p class="text-xs font-bold text-[#fff6d6]">No se encontraron versiones exactas.</p>
+            <p class="text-[10px] text-[#cbb894]">Puedes ajustar el nombre en la barra superior para buscar otra variante.</p>
           </div>
         `;
         return;
       }
 
       listEl.innerHTML = optionsList.map((item, idx) => {
-        const thumb = item.thumbnail || item.cover_url || getSongCoverFallback(item.title, item.artist);
+        const fbCover = getSongCoverFallback(item.title, item.artist);
+        const thumb = (typeof item.thumbnail === 'string' && item.thumbnail.trim() && item.thumbnail !== './app_logo.png')
+          ? item.thumbnail
+          : ((typeof item.cover_url === 'string' && item.cover_url.trim() && item.cover_url !== './app_logo.png') ? item.cover_url : fbCover);
         const isBest = idx === 0 && (item._matchScore || 0) >= 75;
         const badgeText = item._isOfflineSaved
           ? '⚡ En Memoria'
@@ -11140,12 +11207,12 @@ function stopPianoCameraLoop() {
           <div
             onclick="playMatchedCatalogOption(${idx}, -1)"
             class="yt-match-card ${isBest ? 'best-match' : ''} cursor-pointer"
-            style="animation-delay: ${Math.min(idx * 35, 240)}ms;"
+            style="animation-delay: ${Math.min(idx * 18, 90)}ms;"
           >
             <div class="flex items-center justify-between gap-2.5">
               <div class="flex items-center gap-2.5 min-w-0 flex-1">
                 <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-[#b45309] bg-[#140e06] flex-shrink-0 shadow">
-                  <img src="${thumb}" onerror="this.onerror=null; this.src='./app_logo.png';" alt="" class="w-full h-full object-cover" loading="lazy">
+                  <img src="${escapeHtml(thumb)}" onerror="this.onerror=null; this.src='${fbCover}';" alt="" class="w-full h-full object-cover" loading="lazy">
                 </div>
                 <div class="min-w-0 flex-1">
                   <div class="flex items-center gap-1.5 flex-wrap">
@@ -11245,12 +11312,15 @@ function stopPianoCameraLoop() {
         customInp.value = coreArtist ? `${coreTitle} ${coreArtist}`.trim() : coreTitle;
       }
 
-      if (modal) {
+      if (modal && !modal.classList.contains('open')) {
         modal.style.display = 'flex';
         modal.classList.add('open');
       }
 
-      // 1. FASE INSTANTÁNEA (0ms): Puntuar todo nuestro catálogo local + oficial + comunidad
+      // Mostrar indicador de carga limpio para evitar doble renderizado / parpadeo
+      renderYtMatcherLoadingState();
+
+      // 1. Puntuar nuestro catálogo local + oficial + comunidad
       const candidateMap = new Map();
       const registerCandidate = (song, extraBoost = 0) => {
         if (!song || !song.id) return;
@@ -11286,20 +11356,24 @@ function stopPianoCameraLoop() {
           .slice(0, 16);
       };
 
-      renderYtMatcherModalCards(getSortedTopCandidates(), true);
-
-      // 2. FASE EN VIVO PARALELA (~400ms): Buscar en Catboy osu!mania, Nerinyan, BeatSaver y Servidor
+      // 2. Buscar en paralelo en Catboy osu!mania, Nerinyan, BeatSaver y Servidor con timeout ágil y renderizar UNA sola vez sin parpadeo
       const primaryQuery = (coreArtist && coreArtist.toLowerCase() !== 'youtube')
         ? `${coreTitle} ${coreArtist}`.trim()
         : coreTitle;
       const queriesToRun = Array.from(new Set([primaryQuery, coreTitle, coreArtist].filter(q => q && q.length >= 2))).slice(0, 2);
       const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
 
+      const fetchWithFastTimeout = (url, ms = 1350) => {
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), ms);
+        return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(tid));
+      };
+
       const fetchTasks = [];
       for (const qStr of queriesToRun) {
         // Catboy osu!mania
         fetchTasks.push(
-          fetch(`https://catboy.best/api/v2/search?q=${encodeURIComponent(qStr)}&m=3&limit=12`)
+          fetchWithFastTimeout(`https://catboy.best/api/v2/search?q=${encodeURIComponent(qStr)}&m=3&limit=12`)
             .then(r => r.ok ? r.json() : [])
             .then(arr => {
               if (!Array.isArray(arr)) return;
@@ -11332,7 +11406,7 @@ function stopPianoCameraLoop() {
 
         // Nerinyan osu!mania
         fetchTasks.push(
-          fetch(`https://api.nerinyan.moe/search?q=${encodeURIComponent(qStr)}&m=3`)
+          fetchWithFastTimeout(`https://api.nerinyan.moe/search?q=${encodeURIComponent(qStr)}&m=3`)
             .then(r => r.ok ? r.json() : [])
             .then(arr => {
               if (!Array.isArray(arr)) return;
@@ -11366,7 +11440,7 @@ function stopPianoCameraLoop() {
       // BeatSaver & Backend propio con la consulta principal
       if (primaryQuery) {
         fetchTasks.push(
-          fetch(`https://api.beatsaver.com/search/text/0?q=${encodeURIComponent(primaryQuery)}&sortOrder=Relevance`)
+          fetchWithFastTimeout(`https://api.beatsaver.com/search/text/0?q=${encodeURIComponent(primaryQuery)}&sortOrder=Relevance`)
             .then(r => r.ok ? r.json() : {})
             .then(bs => {
               if (!Array.isArray(bs?.docs)) return;
@@ -11395,7 +11469,7 @@ function stopPianoCameraLoop() {
         );
 
         fetchTasks.push(
-          fetch(`${baseUrl}/api/v1/search?q=${encodeURIComponent(primaryQuery)}`)
+          fetchWithFastTimeout(`${baseUrl}/api/v1/search?q=${encodeURIComponent(primaryQuery)}`)
             .then(r => r.ok ? r.json() : {})
             .then(srv => {
               const items = Array.isArray(srv?.items) ? srv.items : (Array.isArray(srv) ? srv : []);
@@ -11878,8 +11952,9 @@ function stopPianoCameraLoop() {
           clearTimeout(tid);
           if (r.ok) {
             const d = await r.json();
-            if (Array.isArray(d.playlists)) {
-              foundPlaylists = q ? d.playlists.concat(foundPlaylists) : foundPlaylists.concat(d.playlists);
+            const srvPls = Array.isArray(d.playlists) ? d.playlists : (Array.isArray(d.results) ? d.results : []);
+            if (srvPls.length > 0) {
+              foundPlaylists = q ? srvPls.concat(foundPlaylists) : foundPlaylists.concat(srvPls);
             }
           }
         } catch (_) {}
@@ -11942,8 +12017,8 @@ function stopPianoCameraLoop() {
       const myWorker = (u) => `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(u)}`;
       let playlistTitle = 'Playlist de YouTube';
 
-      // 1. Base curada instantánea (SOLO para álbumes internos PL_*, para que las playlists reales de YouTube carguen sus 200+ canciones reales)
-      if (cleanId.startsWith('PL_') && CURATED_PLAYLIST_DATABASE[cleanId]) {
+      // 1. Base curada instantánea para las colecciones internas
+      if (CURATED_PLAYLIST_DATABASE[cleanId]) {
         const item = CURATED_PLAYLIST_DATABASE[cleanId];
         const tracks = item.tracks.map((t, idx) => ({
           id: t.id || `yt_${cleanId}_${idx}`,

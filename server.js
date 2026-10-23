@@ -585,7 +585,8 @@ app.get(['/api/v1/youtube/search_playlists', '/api/youtube/search_playlists'], a
     }
   } catch (e) {}
 
-  return res.json({ query: q, results: results.slice(0, 24) });
+  const sliced = results.slice(0, 24);
+  return res.json({ query: q, results: sliced, playlists: sliced });
 });
 
 app.get(['/api/v1/youtube/playlist', '/api/youtube/playlist'], async (req, res) => {
