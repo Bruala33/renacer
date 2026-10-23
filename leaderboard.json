@@ -3253,6 +3253,16 @@
         "accuracy": 35.51587301587302,
         "date": "2026-10-23 13:48:06"
       }
+    ],
+    "top_gorillaz_feel_good_inc": [
+      {
+        "name": "Laaleplo",
+        "score": 168300,
+        "stars": 3.5,
+        "combo": 128,
+        "accuracy": 8.582990583189476,
+        "date": "2026-10-23 13:58:35"
+      }
     ]
   },
   "global": [
@@ -3307,14 +3317,14 @@
       "clefs": 39
     },
     {
+      "name": "Laaleplo",
+      "total_score": 3973802,
+      "clefs": 36
+    },
+    {
       "name": "bobon",
       "total_score": 3845429,
       "clefs": 33
-    },
-    {
-      "name": "Laaleplo",
-      "total_score": 3805502,
-      "clefs": 35
     },
     {
       "name": "MasterPianist",
@@ -3451,7 +3461,7 @@
       },
       {
         "name": "Laaleplo",
-        "score": 3805502
+        "score": 3973802
       },
       {
         "name": "Darwin67",
