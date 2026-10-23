@@ -3473,6 +3473,16 @@
         "accuracy": 7.460656910375249,
         "date": "2026-10-23 16:57:41"
       }
+    ],
+    "top_adele_when_we_were_young": [
+      {
+        "name": "Libay",
+        "score": 379518,
+        "stars": 1,
+        "combo": 216,
+        "accuracy": 25.10280417103492,
+        "date": "2026-10-23 16:59:37"
+      }
     ]
   },
   "global": [
@@ -3538,8 +3548,8 @@
     },
     {
       "name": "Libay",
-      "total_score": 2876940,
-      "clefs": 17
+      "total_score": 3256458,
+      "clefs": 20
     },
     {
       "name": "MasterPianist",
@@ -3680,7 +3690,7 @@
       },
       {
         "name": "Libay",
-        "score": 2876940
+        "score": 3256458
       },
       {
         "name": "Darwin67",
