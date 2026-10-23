@@ -3619,7 +3619,7 @@
         "stars": 3,
         "combo": 119,
         "accuracy": 74.40798964953338,
-        "date": "2026-10-23 23:40:25"
+        "date": "2026-10-23 23:40:29"
       }
     ]
   },
@@ -3650,14 +3650,14 @@
       "clefs": 91
     },
     {
+      "name": "Niggerman",
+      "total_score": 10802004,
+      "clefs": 93
+    },
+    {
       "name": "bubu",
       "total_score": 10570609,
       "clefs": 100
-    },
-    {
-      "name": "Niggerman",
-      "total_score": 10462115,
-      "clefs": 90
     },
     {
       "name": "Test",
@@ -3822,7 +3822,7 @@
       },
       {
         "name": "Niggerman",
-        "score": 10462115
+        "score": 10802004
       },
       {
         "name": "Test",
