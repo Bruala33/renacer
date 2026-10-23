@@ -3017,11 +3017,11 @@
     "clonehero_354550": [
       {
         "name": "FAZTL",
-        "score": 9150,
+        "score": 13122,
         "stars": 3.5,
-        "combo": 17,
-        "accuracy": 0.5525772747613501,
-        "date": "2026-10-23 09:28:52"
+        "combo": 24,
+        "accuracy": 0.8787920593951457,
+        "date": "2026-10-23 10:06:52"
       }
     ],
     "top_frank_sinatra_fly_me_to_the_moon": [
@@ -3193,7 +3193,7 @@
     },
     {
       "name": "FAZTL",
-      "total_score": 7436924,
+      "total_score": 7450046,
       "clefs": 57
     },
     {
@@ -3338,7 +3338,7 @@
       },
       {
         "name": "FAZTL",
-        "score": 7436924
+        "score": 7450046
       },
       {
         "name": "fer",
