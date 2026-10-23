@@ -3103,6 +3103,16 @@
         "accuracy": 1.0003560419760673,
         "date": "2026-10-23 09:47:24"
       }
+    ],
+    "top_enanitos_verdes_la_muralla_verde": [
+      {
+        "name": "FAZTL",
+        "score": 254914,
+        "stars": 1,
+        "combo": 132,
+        "accuracy": 31.132975325815742,
+        "date": "2026-10-23 09:49:34"
+      }
     ]
   },
   "global": [
@@ -3143,8 +3153,8 @@
     },
     {
       "name": "FAZTL",
-      "total_score": 6337355,
-      "clefs": 50
+      "total_score": 6592269,
+      "clefs": 52
     },
     {
       "name": "Azure",
@@ -3288,7 +3298,7 @@
       },
       {
         "name": "FAZTL",
-        "score": 6337355
+        "score": 6592269
       },
       {
         "name": "fer",
