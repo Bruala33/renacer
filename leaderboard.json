@@ -3443,6 +3443,16 @@
         "accuracy": 59.14532727207792,
         "date": "2026-10-23 16:54:24"
       }
+    ],
+    "top_natalino_desde_que_te_vi": [
+      {
+        "name": "Libay",
+        "score": 29400,
+        "stars": 3.5,
+        "combo": 44,
+        "accuracy": 2.290865058697573,
+        "date": "2026-10-23 16:54:55"
+      }
     ]
   },
   "global": [
@@ -3508,7 +3518,7 @@
     },
     {
       "name": "Libay",
-      "total_score": 2076562,
+      "total_score": 2105962,
       "clefs": 11
     },
     {
@@ -3650,7 +3660,7 @@
       },
       {
         "name": "Libay",
-        "score": 2076562
+        "score": 2105962
       },
       {
         "name": "Darwin67",
