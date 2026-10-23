@@ -3183,6 +3183,16 @@
         "accuracy": 1.2611129321626335,
         "date": "2026-10-23 11:49:46"
       }
+    ],
+    "top_shakira_loba": [
+      {
+        "name": "Laaleplo",
+        "score": 1003944,
+        "stars": 4,
+        "combo": 477,
+        "accuracy": 80.10008281725472,
+        "date": "2026-10-23 13:08:44"
+      }
     ]
   },
   "global": [
@@ -3240,6 +3250,11 @@
       "name": "bobon",
       "total_score": 3845429,
       "clefs": 33
+    },
+    {
+      "name": "Laaleplo",
+      "total_score": 1003944,
+      "clefs": 10
     },
     {
       "name": "MasterPianist",
@@ -3373,6 +3388,10 @@
       {
         "name": "fer",
         "score": 4321969
+      },
+      {
+        "name": "Laaleplo",
+        "score": 1003944
       },
       {
         "name": "Darwin67",
