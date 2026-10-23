@@ -2577,11 +2577,11 @@
     "osu_2484025": [
       {
         "name": "Niggerman",
-        "score": 564405,
+        "score": 607183,
         "stars": 3,
-        "combo": 227,
-        "accuracy": 65.35097469814231,
-        "date": "2026-10-22 18:11:35"
+        "combo": 284,
+        "accuracy": 70.30412712527732,
+        "date": "2026-10-23 05:50:25"
       }
     ],
     "osu_2619753": [
@@ -2898,8 +2898,8 @@
     },
     {
       "name": "Niggerman",
-      "total_score": 7719877,
-      "clefs": 65
+      "total_score": 8327060,
+      "clefs": 71
     },
     {
       "name": "Azure",
@@ -3029,7 +3029,7 @@
       },
       {
         "name": "Niggerman",
-        "score": 7719877
+        "score": 8327060
       },
       {
         "name": "fer",
