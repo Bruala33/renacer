@@ -3309,9 +3309,9 @@
         "name": "Libay",
         "score": 92100,
         "stars": 3.5,
-        "combo": 82,
-        "accuracy": 6.768077601410935,
-        "date": "2026-10-23 15:31:26"
+        "combo": 11,
+        "accuracy": 0.38580246913580246,
+        "date": "2026-10-23 15:37:42"
       }
     ]
   },
@@ -3407,14 +3407,14 @@
       "clefs": 2
     },
     {
+      "name": "Libay",
+      "total_score": 255466,
+      "clefs": 0
+    },
+    {
       "name": "bori",
       "total_score": 190261,
       "clefs": 1
-    },
-    {
-      "name": "Libay",
-      "total_score": 163366,
-      "clefs": 0
     },
     {
       "name": "pelosombra40",
@@ -3523,12 +3523,12 @@
         "score": 265556
       },
       {
-        "name": "bori",
-        "score": 190261
+        "name": "Libay",
+        "score": 255466
       },
       {
-        "name": "Libay",
-        "score": 163366
+        "name": "bori",
+        "score": 190261
       },
       {
         "name": "pelosombra40",
