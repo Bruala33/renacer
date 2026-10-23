@@ -2536,6 +2536,14 @@
     ],
     "osu_2282097": [
       {
+        "name": "Niggerman",
+        "score": 223330,
+        "stars": 5,
+        "combo": 131,
+        "accuracy": 90.1480198759168,
+        "date": "2026-10-23 21:19:49"
+      },
+      {
         "name": "Mauricio",
         "score": 52120,
         "stars": 1,
@@ -3603,8 +3611,8 @@
     },
     {
       "name": "Niggerman",
-      "total_score": 8327060,
-      "clefs": 71
+      "total_score": 8550390,
+      "clefs": 73
     },
     {
       "name": "Azure",
@@ -3758,12 +3766,12 @@
         "score": 9220576
       },
       {
-        "name": "Test",
-        "score": 8546882
+        "name": "Niggerman",
+        "score": 8550390
       },
       {
-        "name": "Niggerman",
-        "score": 8327060
+        "name": "Test",
+        "score": 8546882
       },
       {
         "name": "Laaleplo",
