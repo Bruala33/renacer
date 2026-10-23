@@ -3213,13 +3213,23 @@
         "accuracy": 5.098669967877754,
         "date": "2026-10-23 13:21:34"
       }
+    ],
+    "top_polanski_y_el_ardor_ataque_preventivo_de_la_urss": [
+      {
+        "name": "Mauricio",
+        "score": 779806,
+        "stars": 5,
+        "combo": 378,
+        "accuracy": 98.21481649411824,
+        "date": "2026-10-23 13:35:11"
+      }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 49113091,
-      "clefs": 452
+      "total_score": 49892897,
+      "clefs": 459
     },
     {
       "name": "Rocky",
@@ -3387,7 +3397,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 49113091
+        "score": 49892897
       },
       {
         "name": "Dady cool",
