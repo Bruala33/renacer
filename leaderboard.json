@@ -3543,6 +3543,16 @@
         "accuracy": 0.060865616185644345,
         "date": "2026-10-23 19:16:17"
       }
+    ],
+    "osu_2529394": [
+      {
+        "name": "Seri",
+        "score": 7425,
+        "stars": 3.5,
+        "combo": 18,
+        "accuracy": 0.9433578712256157,
+        "date": "2026-10-23 19:17:10"
+      }
     ]
   },
   "global": [
@@ -3672,6 +3682,11 @@
       "clefs": 0
     },
     {
+      "name": "Seri",
+      "total_score": 9300,
+      "clefs": 0
+    },
+    {
       "name": "3105M",
       "total_score": 8400,
       "clefs": 0
@@ -3699,11 +3714,6 @@
     {
       "name": "Ghapin",
       "total_score": 1950,
-      "clefs": 0
-    },
-    {
-      "name": "Seri",
-      "total_score": 1875,
       "clefs": 0
     },
     {
@@ -3782,12 +3792,12 @@
         "score": 17550
       },
       {
-        "name": "3105M",
-        "score": 8400
+        "name": "Seri",
+        "score": 9300
       },
       {
-        "name": "Seri",
-        "score": 1875
+        "name": "3105M",
+        "score": 8400
       },
       {
         "name": "PixToPix",
