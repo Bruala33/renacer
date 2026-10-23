@@ -3393,6 +3393,16 @@
         "accuracy": 0.44813733726011906,
         "date": "2026-10-23 16:46:49"
       }
+    ],
+    "top_malu_ni_un_segundo": [
+      {
+        "name": "Libay",
+        "score": 65695,
+        "stars": 3.5,
+        "combo": 64,
+        "accuracy": 4.672604716631542,
+        "date": "2026-10-23 16:47:29"
+      }
     ]
   },
   "global": [
@@ -3458,7 +3468,7 @@
     },
     {
       "name": "Libay",
-      "total_score": 750514,
+      "total_score": 816209,
       "clefs": 0
     },
     {
@@ -3600,7 +3610,7 @@
       },
       {
         "name": "Libay",
-        "score": 750514
+        "score": 816209
       },
       {
         "name": "Darwin67",
