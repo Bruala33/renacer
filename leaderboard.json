@@ -3263,6 +3263,16 @@
         "accuracy": 8.582990583189476,
         "date": "2026-10-23 13:58:35"
       }
+    ],
+    "clonehero_365396": [
+      {
+        "name": "Laaleplo",
+        "score": 451650,
+        "stars": 3.5,
+        "combo": 216,
+        "accuracy": 9.23915322593018,
+        "date": "2026-10-23 14:00:11"
+      }
     ]
   },
   "global": [
@@ -3312,14 +3322,14 @@
       "clefs": 43
     },
     {
+      "name": "Laaleplo",
+      "total_score": 4425452,
+      "clefs": 40
+    },
+    {
       "name": "fer",
       "total_score": 4321969,
       "clefs": 39
-    },
-    {
-      "name": "Laaleplo",
-      "total_score": 3973802,
-      "clefs": 36
     },
     {
       "name": "bobon",
@@ -3456,12 +3466,12 @@
         "score": 8327060
       },
       {
-        "name": "fer",
-        "score": 4321969
+        "name": "Laaleplo",
+        "score": 4425452
       },
       {
-        "name": "Laaleplo",
-        "score": 3973802
+        "name": "fer",
+        "score": 4321969
       },
       {
         "name": "Darwin67",
