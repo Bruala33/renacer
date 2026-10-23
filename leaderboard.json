@@ -3523,6 +3523,16 @@
         "accuracy": 17.101947523091415,
         "date": "2026-10-23 17:06:52"
       }
+    ],
+    "top_beatriz_luengo__yotuel_como_tu_no_hay_2": [
+      {
+        "name": "Libay",
+        "score": 152070,
+        "stars": 3.5,
+        "combo": 109,
+        "accuracy": 9.70739918686887,
+        "date": "2026-10-23 17:08:37"
+      }
     ]
   },
   "global": [
@@ -3583,8 +3593,8 @@
     },
     {
       "name": "Libay",
-      "total_score": 3994398,
-      "clefs": 26
+      "total_score": 4146468,
+      "clefs": 27
     },
     {
       "name": "bobon",
@@ -3730,7 +3740,7 @@
       },
       {
         "name": "Libay",
-        "score": 3994398
+        "score": 4146468
       },
       {
         "name": "Darwin67",
