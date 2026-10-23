@@ -2911,7 +2911,7 @@
         "stars": 4,
         "combo": 214,
         "accuracy": 76.50040262224361,
-        "date": "2026-10-23 08:55:45"
+        "date": "2026-10-23 08:55:52"
       }
     ]
   },
@@ -2967,6 +2967,11 @@
       "clefs": 33
     },
     {
+      "name": "FAZTL",
+      "total_score": 778694,
+      "clefs": 6
+    },
+    {
       "name": "MasterPianist",
       "total_score": 600000,
       "clefs": 6
@@ -2980,11 +2985,6 @@
       "name": "BeatMaster",
       "total_score": 547200,
       "clefs": 0
-    },
-    {
-      "name": "FAZTL",
-      "total_score": 462335,
-      "clefs": 3
     },
     {
       "name": "Layla",
@@ -3092,7 +3092,7 @@
       },
       {
         "name": "FAZTL",
-        "score": 462335
+        "score": 778694
       },
       {
         "name": "Darwin67",
