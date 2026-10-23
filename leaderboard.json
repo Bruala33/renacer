@@ -3283,6 +3283,16 @@
         "accuracy": 0.34646150710755597,
         "date": "2026-10-23 15:25:34"
       }
+    ],
+    "top_vicente_fernndez_el_ltimo_beso": [
+      {
+        "name": "Libay",
+        "score": 38494,
+        "stars": 3.5,
+        "combo": 43,
+        "accuracy": 4.067073860064513,
+        "date": "2026-10-23 15:26:22"
+      }
     ]
   },
   "global": [
@@ -3392,6 +3402,11 @@
       "clefs": 1
     },
     {
+      "name": "Libay",
+      "total_score": 43594,
+      "clefs": 0
+    },
+    {
       "name": "U",
       "total_score": 30185,
       "clefs": 0
@@ -3419,11 +3434,6 @@
     {
       "name": "Elpapu",
       "total_score": 6750,
-      "clefs": 0
-    },
-    {
-      "name": "Libay",
-      "total_score": 5100,
       "clefs": 0
     },
     {
@@ -3505,6 +3515,10 @@
         "score": 147986
       },
       {
+        "name": "Libay",
+        "score": 43594
+      },
+      {
         "name": "U",
         "score": 30185
       },
@@ -3515,10 +3529,6 @@
       {
         "name": "3105M",
         "score": 8400
-      },
-      {
-        "name": "Libay",
-        "score": 5100
       },
       {
         "name": "PixToPix",
