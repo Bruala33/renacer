@@ -3243,6 +3243,16 @@
         "accuracy": 47.16962329503312,
         "date": "2026-10-23 13:44:30"
       }
+    ],
+    "top_the_weeknd_ft_daft_punk_starboy": [
+      {
+        "name": "Laaleplo",
+        "score": 818925,
+        "stars": 1,
+        "combo": 200,
+        "accuracy": 35.51587301587302,
+        "date": "2026-10-23 13:48:06"
+      }
     ]
   },
   "global": [
@@ -3303,8 +3313,8 @@
     },
     {
       "name": "Laaleplo",
-      "total_score": 2532104,
-      "clefs": 23
+      "total_score": 3351029,
+      "clefs": 31
     },
     {
       "name": "MasterPianist",
@@ -3441,7 +3451,7 @@
       },
       {
         "name": "Laaleplo",
-        "score": 2532104
+        "score": 3351029
       },
       {
         "name": "Darwin67",
