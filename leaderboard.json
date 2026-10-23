@@ -2585,11 +2585,11 @@
     "osu_2484025": [
       {
         "name": "Niggerman",
-        "score": 607183,
-        "stars": 3,
-        "combo": 284,
-        "accuracy": 70.30412712527732,
-        "date": "2026-10-23 05:50:25"
+        "score": 751943,
+        "stars": 4,
+        "combo": 312,
+        "accuracy": 87.06550786659442,
+        "date": "2026-10-23 21:25:57"
       }
     ],
     "osu_2619753": [
@@ -3600,6 +3600,11 @@
       "clefs": 100
     },
     {
+      "name": "Niggerman",
+      "total_score": 9370283,
+      "clefs": 80
+    },
+    {
       "name": "FAZTL",
       "total_score": 9220576,
       "clefs": 76
@@ -3608,11 +3613,6 @@
       "name": "Test",
       "total_score": 9076523,
       "clefs": 76
-    },
-    {
-      "name": "Niggerman",
-      "total_score": 8618340,
-      "clefs": 73
     },
     {
       "name": "Azure",
@@ -3762,12 +3762,12 @@
         "score": 12366565
       },
       {
-        "name": "FAZTL",
-        "score": 9220576
+        "name": "Niggerman",
+        "score": 9370283
       },
       {
-        "name": "Niggerman",
-        "score": 8618340
+        "name": "FAZTL",
+        "score": 9220576
       },
       {
         "name": "Test",
