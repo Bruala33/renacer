@@ -3513,6 +3513,16 @@
         "accuracy": 45.349481452520415,
         "date": "2026-10-23 17:04:28"
       }
+    ],
+    "top_vicentico_y_valeria_bertuccelli_no_te_apartes_de_m": [
+      {
+        "name": "Libay",
+        "score": 227833,
+        "stars": 3.5,
+        "combo": 148,
+        "accuracy": 17.101947523091415,
+        "date": "2026-10-23 17:06:52"
+      }
     ]
   },
   "global": [
@@ -3572,14 +3582,14 @@
       "clefs": 39
     },
     {
+      "name": "Libay",
+      "total_score": 3994398,
+      "clefs": 26
+    },
+    {
       "name": "bobon",
       "total_score": 3845429,
       "clefs": 33
-    },
-    {
-      "name": "Libay",
-      "total_score": 3766565,
-      "clefs": 24
     },
     {
       "name": "MasterPianist",
@@ -3720,7 +3730,7 @@
       },
       {
         "name": "Libay",
-        "score": 3766565
+        "score": 3994398
       },
       {
         "name": "Darwin67",
