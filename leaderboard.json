@@ -3191,7 +3191,7 @@
         "stars": 4,
         "combo": 477,
         "accuracy": 80.10008281725472,
-        "date": "2026-10-23 13:08:44"
+        "date": "2026-10-23 13:08:49"
       }
     ]
   },
@@ -3253,8 +3253,8 @@
     },
     {
       "name": "Laaleplo",
-      "total_score": 1003944,
-      "clefs": 10
+      "total_score": 2007888,
+      "clefs": 20
     },
     {
       "name": "MasterPianist",
@@ -3391,7 +3391,7 @@
       },
       {
         "name": "Laaleplo",
-        "score": 1003944
+        "score": 2007888
       },
       {
         "name": "Darwin67",
