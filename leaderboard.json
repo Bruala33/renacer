@@ -2949,9 +2949,9 @@
         "name": "FAZTL",
         "score": 543783,
         "stars": 3.5,
-        "combo": 58,
-        "accuracy": 2.8955716413331034,
-        "date": "2026-10-23 09:14:30"
+        "combo": 17,
+        "accuracy": 0.7110867644367074,
+        "date": "2026-10-23 09:14:47"
       }
     ],
     "top_blink_182_i_miss_you": [
@@ -3017,14 +3017,14 @@
       "clefs": 43
     },
     {
+      "name": "FAZTL",
+      "total_score": 4664732,
+      "clefs": 41
+    },
+    {
       "name": "fer",
       "total_score": 4321969,
       "clefs": 39
-    },
-    {
-      "name": "FAZTL",
-      "total_score": 4120949,
-      "clefs": 36
     },
     {
       "name": "bobon",
@@ -3157,12 +3157,12 @@
         "score": 8327060
       },
       {
-        "name": "fer",
-        "score": 4321969
+        "name": "FAZTL",
+        "score": 4664732
       },
       {
-        "name": "FAZTL",
-        "score": 4120949
+        "name": "fer",
+        "score": 4321969
       },
       {
         "name": "Darwin67",
