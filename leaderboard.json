@@ -3063,6 +3063,16 @@
         "accuracy": 8.411360717869268,
         "date": "2026-10-23 09:38:44"
       }
+    ],
+    "top_ricky_martin_livin_la_vida_loca": [
+      {
+        "name": "FAZTL",
+        "score": 129488,
+        "stars": 3.5,
+        "combo": 107,
+        "accuracy": 10.125315321373668,
+        "date": "2026-10-23 10:19:21"
+      }
     ]
   },
   "global": [
@@ -3103,8 +3113,8 @@
     },
     {
       "name": "FAZTL",
-      "total_score": 6130346,
-      "clefs": 50
+      "total_score": 6259834,
+      "clefs": 51
     },
     {
       "name": "Azure",
@@ -3248,7 +3258,7 @@
       },
       {
         "name": "FAZTL",
-        "score": 6130346
+        "score": 6259834
       },
       {
         "name": "fer",
