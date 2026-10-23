@@ -3611,6 +3611,16 @@
         "accuracy": 1.5784787721208726,
         "date": "2026-10-23 23:13:04"
       }
+    ],
+    "osu_1329102": [
+      {
+        "name": "Niggerman",
+        "score": 339889,
+        "stars": 3,
+        "combo": 119,
+        "accuracy": 74.40798964953338,
+        "date": "2026-10-23 23:40:25"
+      }
     ]
   },
   "global": [
@@ -3646,8 +3656,8 @@
     },
     {
       "name": "Niggerman",
-      "total_score": 10122226,
-      "clefs": 87
+      "total_score": 10462115,
+      "clefs": 90
     },
     {
       "name": "Test",
@@ -3812,7 +3822,7 @@
       },
       {
         "name": "Niggerman",
-        "score": 10122226
+        "score": 10462115
       },
       {
         "name": "Test",
