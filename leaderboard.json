@@ -2985,11 +2985,11 @@
     "bs_2ad54": [
       {
         "name": "FAZTL",
-        "score": 37950,
-        "stars": 3.5,
-        "combo": 43,
-        "accuracy": 6.8341437061048085,
-        "date": "2026-10-23 09:15:08"
+        "score": 384225,
+        "stars": 3,
+        "combo": 153,
+        "accuracy": 69.19232847109672,
+        "date": "2026-10-23 21:34:24"
       }
     ],
     "bs_48936": [
@@ -3616,8 +3616,8 @@
     },
     {
       "name": "FAZTL",
-      "total_score": 9313529,
-      "clefs": 76
+      "total_score": 9697754,
+      "clefs": 79
     },
     {
       "name": "Test",
@@ -3777,7 +3777,7 @@
       },
       {
         "name": "FAZTL",
-        "score": 9313529
+        "score": 9697754
       },
       {
         "name": "Test",
