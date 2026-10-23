@@ -3279,9 +3279,9 @@
         "name": "Libay",
         "score": 5100,
         "stars": 3.5,
-        "combo": 12,
-        "accuracy": 0.34646150710755597,
-        "date": "2026-10-23 15:25:34"
+        "combo": 8,
+        "accuracy": 0.14652321346339015,
+        "date": "2026-10-23 16:44:18"
       }
     ],
     "top_vicente_fernndez_el_ltimo_beso": [
@@ -3438,7 +3438,7 @@
     },
     {
       "name": "Libay",
-      "total_score": 689930,
+      "total_score": 695030,
       "clefs": 0
     },
     {
@@ -3580,7 +3580,7 @@
       },
       {
         "name": "Libay",
-        "score": 689930
+        "score": 695030
       },
       {
         "name": "Darwin67",
