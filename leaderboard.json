@@ -3223,6 +3223,16 @@
         "accuracy": 98.21481649411824,
         "date": "2026-10-23 13:35:31"
       }
+    ],
+    "top_los_del_ro_macarena": [
+      {
+        "name": "Laaleplo",
+        "score": 74025,
+        "stars": 3.5,
+        "combo": 62,
+        "accuracy": 2.6002268458624864,
+        "date": "2026-10-23 13:40:14"
+      }
     ]
   },
   "global": [
@@ -3283,7 +3293,7 @@
     },
     {
       "name": "Laaleplo",
-      "total_score": 2126744,
+      "total_score": 2200769,
       "clefs": 20
     },
     {
@@ -3421,7 +3431,7 @@
       },
       {
         "name": "Laaleplo",
-        "score": 2126744
+        "score": 2200769
       },
       {
         "name": "Darwin67",
