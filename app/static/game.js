@@ -14211,12 +14211,20 @@ class BeatstarEngine {
         }
 
         // C. Hendiduras divisorias de carril grabadas en 3D (Sombra de surco + Bisel especular blanco)
+        // En Modo Espejo activo, las líneas rectas se detienen donde empieza la torsión 3D de los carriles
+        const mirrorP = (this.isMirrorModeActive || (typeof window !== 'undefined' && window.isMirrorModeActive))
+          ? (this._mirrorPhaseProgress || 0)
+          : 0;
+        const straightEndY = mirrorP > 0.05
+          ? (horizonY + (hitY - horizonY) * 0.30)
+          : bottomY;
+
         ctx.strokeStyle = 'rgba(51, 65, 85, 0.34)';
         ctx.lineWidth = 2.4;
         ctx.beginPath();
         for (let l = 1; l < nLanes; l++) {
           ctx.moveTo(getBoundaryX(l, horizonY), horizonY);
-          ctx.lineTo(getBoundaryX(l, bottomY), bottomY);
+          ctx.lineTo(getBoundaryX(l, straightEndY), straightEndY);
         }
         ctx.stroke();
 
@@ -14225,9 +14233,21 @@ class BeatstarEngine {
         ctx.beginPath();
         for (let l = 1; l < nLanes; l++) {
           ctx.moveTo(getBoundaryX(l, horizonY) + 1.4, horizonY);
-          ctx.lineTo(getBoundaryX(l, bottomY) + 1.8, bottomY);
+          ctx.lineTo(getBoundaryX(l, straightEndY) + 1.8, straightEndY);
         }
         ctx.stroke();
+
+        if (mirrorP > 0.05 && mirrorP < 0.99) {
+          const restAlpha = (1 - mirrorP);
+          ctx.strokeStyle = `rgba(51, 65, 85, ${(0.34 * restAlpha).toFixed(3)})`;
+          ctx.lineWidth = 2.4;
+          ctx.beginPath();
+          for (let l = 1; l < nLanes; l++) {
+            ctx.moveTo(getBoundaryX(l, straightEndY), straightEndY);
+            ctx.lineTo(getBoundaryX(l, bottomY), bottomY);
+          }
+          ctx.stroke();
+        }
       }
 
       // D. SOMBRA 3D DIFUMINADA AL FINAL DE LA PISTA (Horizonte profundo sin bloques negros)
@@ -14324,6 +14344,11 @@ class BeatstarEngine {
 
           ctx.restore();
         }
+      }
+
+      // 2B. MODO ESPEJO (OJEPSƎ): CRUCE TRIDIMENSIONAL DE CARRILES EN LA PISTA (S-Curve Highway Weave)
+      if (this.isMirrorModeActive || (typeof window !== 'undefined' && window.isMirrorModeActive)) {
+        this.renderMirrorTrackWeave(ctx, cTime, horizonY, hitY, bottomY);
       }
 
       if (isRiverTrack) {
@@ -16781,9 +16806,9 @@ class BeatstarEngine {
         }
       }
       const targetProg = inMirrorNow ? 1.0 : 0.0;
-      this._mirrorPhaseProgress = (this._mirrorPhaseProgress || 0) + (targetProg - (this._mirrorPhaseProgress || 0)) * Math.min(1, dt * 6.5);
+      this._mirrorPhaseProgress = (this._mirrorPhaseProgress || 0) + (targetProg - (this._mirrorPhaseProgress || 0)) * Math.min(1, dt * 4.2);
       if (this._mirrorFlipWave > 0) {
-        this._mirrorFlipWave = Math.max(0, this._mirrorFlipWave - dt * 1.85);
+        this._mirrorFlipWave = Math.max(0, this._mirrorFlipWave - dt * 1.6);
       }
       if (this._mirrorCrossBeams && this._mirrorCrossBeams.length > 0) {
         for (let i = this._mirrorCrossBeams.length - 1; i >= 0; i--) {
@@ -16796,332 +16821,311 @@ class BeatstarEngine {
       }
     }
 
-    // Dibuja una tecla reflejada en Modo Espejo:
-    // 1. La tecla cae por su carril visual original convertida en un Prisma de Cristal/Plata Espejo con el número del botón opuesto ("PULSA 3" o "PULSA 1").
-    // 2. Proyecta un Gemelo Holográfico translúcido en el carril opuesto unido por un Haz Láser a través del Espejo Central.
+    // Dibuja en el suelo de la autopista 3D la animación de cruce de los carriles exteriores (Carril 1 <-> Carril 3):
+    // Los carriles izquierdo y derecho se curvan y entrelazan físicamente en una "X" tridimensional hacia los botones opuestos
+    renderMirrorTrackWeave(ctx, currentTime, horizonY, hitY, bottomY) {
+      const rawP = this._mirrorPhaseProgress || 0;
+      const flipWave = this._mirrorFlipWave || 0;
+      if (rawP <= 0.005 && flipWave <= 0.005) return;
+
+      // Curva suave cubic-in-out para que el cruce y descruce de los carriles en la pista sea fluido y cinematográfico
+      const easeP = rawP < 0.5
+        ? 4 * rawP * rawP * rawP
+        : 1 - Math.pow(-2 * rawP + 2, 3) / 2;
+
+      const t = (currentTime >= 0 ? currentTime : performance.now()) * 0.001;
+      const yCrossStart = horizonY + (hitY - horizonY) * 0.30;
+      const yCrossEnd = hitY;
+      const spanCrossY = Math.max(10, yCrossEnd - yCrossStart);
+      const steps = 22;
+
+      ctx.save();
+
+      // Para cada uno de los dos carriles exteriores (0: Izquierdo -> Derecho en Cian, 2: Derecho -> Izquierdo en Magenta/Ámbar)
+      const streams = [
+        {
+          startLane: 0,
+          endLane: 2,
+          colMain: '#00f2fe',
+          colCore: '#e0f2fe',
+          rgb: '0, 242, 254'
+        },
+        {
+          startLane: 2,
+          endLane: 0,
+          colMain: '#ff2a85',
+          colCore: '#ffe4e6',
+          rgb: '255, 42, 133'
+        }
+      ];
+
+      for (let sIdx = 0; sIdx < 2; sIdx++) {
+        const st = streams[sIdx];
+        const laneDelta = (st.endLane - st.startLane) * easeP;
+
+        // 1. Alfombra luminosa 3D del carril curvándose hacia el receptor opuesto
+        ctx.beginPath();
+        for (let i = 0; i <= steps; i++) {
+          const u = i / steps;
+          const sCurve = u * u * (3 - 2 * u);
+          const vLane = st.startLane + laneDelta * sCurve;
+          const y = yCrossStart + spanCrossY * u;
+          const xL = this.getLaneBoundaryX(vLane + 0.08, y);
+          if (i === 0) ctx.moveTo(xL, y);
+          else ctx.lineTo(xL, y);
+        }
+        for (let i = steps; i >= 0; i--) {
+          const u = i / steps;
+          const sCurve = u * u * (3 - 2 * u);
+          const vLane = st.startLane + laneDelta * sCurve;
+          const y = yCrossStart + spanCrossY * u;
+          const xR = this.getLaneBoundaryX(vLane + 0.92, y);
+          ctx.lineTo(xR, y);
+        }
+        ctx.closePath();
+
+        const ribbonGrad = ctx.createLinearGradient(0, yCrossStart, 0, yCrossEnd);
+        ribbonGrad.addColorStop(0.0, `rgba(${st.rgb}, 0.0)`);
+        ribbonGrad.addColorStop(0.25, `rgba(${st.rgb}, ${(0.14 * easeP).toFixed(3)})`);
+        ribbonGrad.addColorStop(0.65, `rgba(${st.rgb}, ${(0.24 * easeP).toFixed(3)})`);
+        ribbonGrad.addColorStop(1.0, `rgba(${st.rgb}, ${(0.34 * easeP).toFixed(3)})`);
+        ctx.fillStyle = ribbonGrad;
+        ctx.fill();
+
+        // 2. Raíles laterales de neón del carril cruzado en perspectiva 3D
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        const railGrad = ctx.createLinearGradient(0, yCrossStart, 0, yCrossEnd);
+        railGrad.addColorStop(0.0, `rgba(${st.rgb}, 0.0)`);
+        railGrad.addColorStop(0.20, `rgba(${st.rgb}, ${(0.55 * easeP).toFixed(3)})`);
+        railGrad.addColorStop(1.0, `rgba(${st.rgb}, ${(0.90 * easeP).toFixed(3)})`);
+        ctx.strokeStyle = railGrad;
+        ctx.lineWidth = 2.6;
+        ctx.beginPath();
+        for (let i = 0; i <= steps; i++) {
+          const u = i / steps;
+          const sCurve = u * u * (3 - 2 * u);
+          const vLane = st.startLane + laneDelta * sCurve;
+          const y = yCrossStart + spanCrossY * u;
+          const xL = this.getLaneBoundaryX(vLane + 0.08, y);
+          if (i === 0) ctx.moveTo(xL, y);
+          else ctx.lineTo(xL, y);
+        }
+        for (let i = 0; i <= steps; i++) {
+          const u = i / steps;
+          const sCurve = u * u * (3 - 2 * u);
+          const vLane = st.startLane + laneDelta * sCurve;
+          const y = yCrossStart + spanCrossY * u;
+          const xR = this.getLaneBoundaryX(vLane + 0.92, y);
+          if (i === 0) ctx.moveTo(xR, y);
+          else ctx.lineTo(xR, y);
+        }
+        ctx.stroke();
+
+        // 3. Chevrons de flujo luminoso viajando por dentro del carril cruzado hacia el botón opuesto
+        const numChevrons = 5;
+        const flowSpeed = (t * 1.45) % 1.0;
+        for (let c = 0; c < numChevrons; c++) {
+          const uChev = ((c / numChevrons) + flowSpeed) % 1.0;
+          if (uChev < 0.08 || uChev > 0.95) continue;
+          const sCurve = uChev * uChev * (3 - 2 * uChev);
+          const sCurveNext = Math.min(1, uChev + 0.04) * Math.min(1, uChev + 0.04) * (3 - 2 * Math.min(1, uChev + 0.04));
+          const vLane = st.startLane + laneDelta * sCurve;
+          const vLaneNext = st.startLane + laneDelta * sCurveNext;
+
+          const yC = yCrossStart + spanCrossY * uChev;
+          const yNext = yCrossStart + spanCrossY * Math.min(1, uChev + 0.04);
+          const xCenter = this.getLaneBoundaryX(vLane + 0.5, yC);
+          const xNext = this.getLaneBoundaryX(vLaneNext + 0.5, yNext);
+          const laneWAtY = this.getLaneBoundaryX(vLane + 0.78, yC) - this.getLaneBoundaryX(vLane + 0.22, yC);
+
+          const angle = Math.atan2(yNext - yC, xNext - xCenter) - Math.PI * 0.5;
+          const chevAlpha = Math.sin(uChev * Math.PI) * easeP * 0.78;
+          if (chevAlpha <= 0.02) continue;
+
+          ctx.save();
+          ctx.translate(xCenter, yC);
+          ctx.rotate(angle);
+          ctx.strokeStyle = `rgba(255, 255, 255, ${chevAlpha.toFixed(3)})`;
+          ctx.lineWidth = Math.max(1.5, 2.6 * (0.4 + 0.6 * uChev));
+          const hw = laneWAtY * 0.36;
+          const hh = Math.max(4, 9 * (0.4 + 0.6 * uChev));
+          ctx.beginPath();
+          ctx.moveTo(-hw, -hh);
+          ctx.lineTo(0, hh * 0.6);
+          ctx.lineTo(hw, -hh);
+          ctx.stroke();
+          ctx.restore();
+        }
+        ctx.restore();
+      }
+
+      // 4. Nodo luminoso 3D en el punto central de intersección ("X") y halo cromático en los receptores cruzados
+      if (easeP > 0.08) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        const crossMidY = yCrossStart + spanCrossY * 0.50;
+        const crossMidX = this.getLaneBoundaryX(1.5, crossMidY);
+        const nexusR = Math.max(24, (this.getLaneBoundaryX(2, crossMidY) - this.getLaneBoundaryX(1, crossMidY)) * 0.65);
+        const pulse = 0.85 + 0.15 * Math.sin(t * 6.0);
+
+        const nexGrad = ctx.createRadialGradient(crossMidX, crossMidY, 2, crossMidX, crossMidY, nexusR * pulse);
+        nexGrad.addColorStop(0.0, `rgba(255, 255, 255, ${(0.55 * easeP).toFixed(3)})`);
+        nexGrad.addColorStop(0.38, `rgba(0, 242, 254, ${(0.32 * easeP).toFixed(3)})`);
+        nexGrad.addColorStop(0.72, `rgba(255, 42, 133, ${(0.18 * easeP).toFixed(3)})`);
+        nexGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = nexGrad;
+        ctx.beginPath();
+        ctx.arc(crossMidX, crossMidY, nexusR * pulse, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Resplandor cromático en la base de los dos receptores exteriores (Izquierdo = Magenta del carril 3, Derecho = Cian del carril 1)
+        const padLeftCx = (this.getLaneBoundaryX(0, hitY) + this.getLaneBoundaryX(1, hitY)) * 0.5;
+        const padRightCx = (this.getLaneBoundaryX(2, hitY) + this.getLaneBoundaryX(3, hitY)) * 0.5;
+        const padW = (this.getLaneBoundaryX(1, hitY) - this.getLaneBoundaryX(0, hitY)) * 0.42;
+
+        ctx.strokeStyle = `rgba(255, 42, 133, ${(0.72 * easeP).toFixed(3)})`;
+        ctx.lineWidth = 3.2;
+        ctx.beginPath();
+        ctx.moveTo(padLeftCx - padW, hitY);
+        ctx.lineTo(padLeftCx + padW, hitY);
+        ctx.stroke();
+
+        ctx.strokeStyle = `rgba(0, 242, 254, ${(0.72 * easeP).toFixed(3)})`;
+        ctx.lineWidth = 3.2;
+        ctx.beginPath();
+        ctx.moveTo(padRightCx - padW, hitY);
+        ctx.lineTo(padRightCx + padW, hitY);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 5. Onda de choque cristalina en la pista justo en el instante en que los carriles se cruzan o descruzan
+      if (flipWave > 0.02) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        const waveY = horizonY + (hitY - horizonY) * (1.0 - flipWave * 0.75);
+        const wL = this.getLaneBoundaryX(0, waveY);
+        const wR = this.getLaneBoundaryX(3, waveY);
+        ctx.strokeStyle = `rgba(56, 189, 248, ${(flipWave * 0.75).toFixed(3)})`;
+        ctx.lineWidth = 4.5 * flipWave;
+        ctx.beginPath();
+        ctx.moveTo(wL, waveY);
+        ctx.lineTo(wR, waveY);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    // Dibuja la nota reflejada manteniendo la tecla 100% limpia y original,
+    // pero proyectando por el suelo de la pista una estela curva de energía que guía la vista desde la tecla hacia el botón opuesto
     renderMirrorReflectedNote(ctx, note, drawLane, coord, h, isLarge, isSwipe, swipeDir, lyricForNote, pHead, currentTime) {
       const oppLane = 2 - drawLane;
-      const oppCoord = this.getPerspectiveCoord(oppLane, pHead, this._coordScratch2 || (this._coordScratch2 = {}));
       const scale = coord.scale;
-      const midX = this.width * 0.5;
-      const cy = coord.y - h * 0.48;
+      const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
+      const horizonY = 12;
 
-      ctx.save();
-      // A. Haz láser de reflexión conectando la tecla real con su reflejo al otro lado del espejo central
-      ctx.globalCompositeOperation = 'lighter';
-      const pulse = 0.65 + 0.35 * Math.sin(currentTime * 0.012 + (note.timestamp_ms || 0) * 0.01);
-      const beamGrad = ctx.createLinearGradient(coord.x, cy, oppCoord.x, cy);
-      if (drawLane === 0) {
-        beamGrad.addColorStop(0.0, `rgba(0, 242, 254, ${(0.78 * pulse).toFixed(2)})`);
-        beamGrad.addColorStop(0.5, `rgba(255, 255, 255, ${(0.95 * pulse).toFixed(2)})`);
-        beamGrad.addColorStop(1.0, `rgba(232, 121, 249, ${(0.82 * pulse).toFixed(2)})`);
-      } else {
-        beamGrad.addColorStop(0.0, `rgba(232, 121, 249, ${(0.82 * pulse).toFixed(2)})`);
-        beamGrad.addColorStop(0.5, `rgba(255, 255, 255, ${(0.95 * pulse).toFixed(2)})`);
-        beamGrad.addColorStop(1.0, `rgba(0, 242, 254, ${(0.78 * pulse).toFixed(2)})`);
+      // 1. Estela guía curva sobre la pista (desde la base de la tecla hacia el receptor opuesto)
+      if (pHead > 0.12 && pHead < 1.06) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        const isLeftNote = (drawLane === 0);
+        const rgb = isLeftNote ? '0, 242, 254' : '255, 42, 133';
+        const startY = Math.min(hitY, coord.y);
+        const endY = hitY;
+
+        if (endY > startY + 4) {
+          const segs = 12;
+          ctx.beginPath();
+          for (let s = 0; s <= segs; s++) {
+            const u = s / segs;
+            // Curva suave desde el carril actual de la tecla (drawLane) hasta el centro del botón opuesto (oppLane)
+            const easeU = u * u * (3 - 2 * u);
+            const curV = drawLane + (oppLane - drawLane) * easeU;
+            const py = startY + (endY - startY) * u;
+            const px = this.getLaneBoundaryX
+              ? (this.getLaneBoundaryX(curV, py) + this.getLaneBoundaryX(curV + 1, py)) * 0.5
+              : ((curV + 0.5) * (this.width / 3));
+            if (s === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          const trailAlpha = Math.min(0.92, Math.max(0.18, pHead * 0.95));
+          ctx.strokeStyle = `rgba(${rgb}, ${trailAlpha.toFixed(3)})`;
+          ctx.lineWidth = Math.max(2.4, 5.2 * scale);
+          ctx.stroke();
+
+          ctx.strokeStyle = `rgba(255, 255, 255, ${(trailAlpha * 0.85).toFixed(3)})`;
+          ctx.lineWidth = Math.max(1.2, 2.0 * scale);
+          ctx.stroke();
+        }
+
+        // Anillo receptor sincronizado en el botón opuesto que se contrae a medida que la tecla llega a la meta
+        if (pHead > 0.35 && pHead <= 1.05 && this.getLaneBoundaryX) {
+          const approach = Math.max(0, Math.min(1, (pHead - 0.35) / 0.65));
+          const bL = this.getLaneBoundaryX(oppLane, hitY) + 8;
+          const bR = this.getLaneBoundaryX(oppLane + 1, hitY) - 8;
+          const targetCx = (bL + bR) * 0.5;
+          const halfW = (bR - bL) * 0.46 * (1.35 - 0.35 * approach);
+          const halfH = (isLarge ? 12 : 8.5) * (1.35 - 0.35 * approach);
+
+          ctx.strokeStyle = `rgba(${rgb}, ${(0.35 + approach * 0.60).toFixed(3)})`;
+          ctx.lineWidth = 2.4;
+          ctx.beginPath();
+          if (ctx.roundRect) {
+            ctx.roundRect(targetCx - halfW, hitY - halfH, halfW * 2, halfH * 2, 6);
+          } else {
+            ctx.rect(targetCx - halfW, hitY - halfH, halfW * 2, halfH * 2);
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
       }
-      ctx.strokeStyle = beamGrad;
-      ctx.lineWidth = Math.max(2.0, 4.2 * scale);
-      ctx.setLineDash([Math.max(5, 10 * scale), Math.max(4, 7 * scale)]);
-      ctx.lineDashOffset = -currentTime * 0.08;
-      ctx.beginPath();
-      ctx.moveTo(coord.x, cy);
-      ctx.lineTo(oppCoord.x, cy);
-      ctx.stroke();
-      ctx.setLineDash([]);
 
-      // Nodo de refracción brillante justo en el eje del espejo central (carril central)
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(midX, cy, Math.max(3.2, 6.2 * scale), 0, Math.PI * 2);
-      ctx.fill();
-
-      // B. Silueta Fantasma Holográfica en el carril opuesto (donde tienes que pulsar)
-      const ghostW = oppCoord.laneW * 0.82;
-      const ghostH = h * 0.88;
-      const gx = oppCoord.x - ghostW * 0.5;
-      const gy = oppCoord.y - ghostH;
-      ctx.fillStyle = drawLane === 0 ? 'rgba(232, 121, 249, 0.24)' : 'rgba(0, 242, 254, 0.24)';
-      ctx.strokeStyle = drawLane === 0 ? 'rgba(240, 171, 252, 0.82)' : 'rgba(125, 211, 252, 0.82)';
-      ctx.lineWidth = Math.max(1.6, 2.8 * scale);
-      ctx.beginPath();
-      if (ctx.roundRect) {
-        ctx.roundRect(gx, gy, ghostW, ghostH, Math.max(5, 10 * scale));
-      } else {
-        ctx.rect(gx, gy, ghostW, ghostH);
-      }
-      ctx.fill();
-      ctx.stroke();
-
-      // Etiqueta "PULSA AQUÍ" en el fantasma receptor del carril opuesto
-      if (scale > 0.36) {
-        ctx.font = `900 ${Math.max(10, Math.round(16 * scale))}px "Outfit", sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#ffffff';
-        const targetBtnNum = oppLane + 1; // 3 o 1
-        ctx.fillText(`⚡ PULSA ${targetBtnNum}`, oppCoord.x, gy + ghostH * 0.5);
-      }
-      ctx.restore();
-
-      // C. Tecla Principal de Cristal de Espejo Cromado en su carril de caída
+      // 2. Dibujar la tecla con su diseño limpio original (sin degradados morados ni iconos encima)
       const keyRect = this.drawIvoryKey(ctx, drawLane, coord.y, h, scale, false, isLarge, isSwipe, lyricForNote);
-      ctx.save();
-      const kw = keyRect.w * 0.90;
-      const kh = keyRect.h * 0.78;
-      const kx = keyRect.cx - kw * 0.5;
-      const ky = keyRect.cy - kh * 0.5;
 
-      // Recubrimiento metálico de espejo (cromo cian-violeta)
-      const chromeGrad = ctx.createLinearGradient(kx, ky, kx + kw, ky + kh);
-      chromeGrad.addColorStop(0.0, 'rgba(226, 232, 240, 0.92)');
-      chromeGrad.addColorStop(0.35, 'rgba(56, 189, 248, 0.88)');
-      chromeGrad.addColorStop(0.68, 'rgba(232, 121, 249, 0.88)');
-      chromeGrad.addColorStop(1.0, 'rgba(255, 255, 255, 0.95)');
-      ctx.fillStyle = chromeGrad;
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = Math.max(1.8, 3.0 * scale);
+      // Sutil filo luminoso perimetral del color del carril cruzado para identificarla con elegancia
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = (drawLane === 0) ? 'rgba(0, 242, 254, 0.78)' : 'rgba(255, 42, 133, 0.78)';
+      ctx.lineWidth = Math.max(1.5, 2.4 * scale);
       ctx.beginPath();
       if (ctx.roundRect) {
-        ctx.roundRect(kx, ky, kw, kh, Math.max(5, 9 * scale));
+        ctx.roundRect(keyRect.cx - keyRect.w * 0.48, keyRect.cy - keyRect.h * 0.46, keyRect.w * 0.96, keyRect.h * 0.92, Math.max(5, 9 * scale));
       } else {
-        ctx.rect(kx, ky, kw, kh);
+        ctx.rect(keyRect.cx - keyRect.w * 0.48, keyRect.cy - keyRect.h * 0.46, keyRect.w * 0.96, keyRect.h * 0.92);
       }
-      ctx.fill();
       ctx.stroke();
-
-      // Insignia reflectante en la tecla indicando el botón opuesto a pulsar ("⇄ 3" o "1 ⇄")
-      if (scale > 0.32) {
-        const badgeText = (drawLane === 0) ? '🪞 ⇄ 3' : '1 ⇄ 🪞';
-        ctx.font = `900 ${Math.max(11, Math.round(18 * scale))}px "Outfit", sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.strokeStyle = '#090d16';
-        ctx.lineWidth = Math.max(2.5, 4.2 * scale);
-        ctx.strokeText(badgeText, keyRect.cx, keyRect.cy);
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(badgeText, keyRect.cx, keyRect.cy);
-      }
+      ctx.restore();
 
       if (isSwipe) {
         this.renderVectorChevron(ctx, keyRect.cx, keyRect.cy, swipeDir, keyRect.w, keyRect.h);
       }
-      ctx.restore();
     }
 
-    // Dibuja los Espejos Dimensionales flotantes por el fondo/laterales, el Eje de Espejo Central,
-    // los haces láser cruzados y la animación de inversión en el tablero de teclas (1 <-> 3)
+    // Dibuja únicamente el destello de energía cruzada cuando se acierta una tecla en modo espejo
     renderMirrorModeOverlay(ctx, currentTime) {
-      const w = this.width;
-      const h = this.height;
-      if (!w || !h) return;
-      const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (h * 0.84);
-      const horizonY = 12;
-      const phaseP = this._mirrorPhaseProgress || 0;
-      const flipWave = this._mirrorFlipWave || 0;
-      const t = (currentTime || performance.now()) * 0.001;
-
+      if (!this._mirrorCrossBeams || this._mirrorCrossBeams.length === 0) return;
+      const midX = this.width * 0.5;
       ctx.save();
-
-      // 1. ESPEJOS DIMENSIONALES FLOTANTES EN LOS LATERALES DE LA PISTA (Perspectiva 3D)
-      const mirrorDepths = [0.22, 0.50, 0.78];
-      for (let m = 0; m < mirrorDepths.length; m++) {
-        const p = ((mirrorDepths[m] + t * 0.08) % 0.86) + 0.10;
-        const y = horizonY + (hitY - horizonY) * p;
-        const s = 0.38 + p * 0.68;
-        const leftEdgeX = this.getLaneBoundaryX ? this.getLaneBoundaryX(0, y) : w * 0.12;
-        const rightEdgeX = this.getLaneBoundaryX ? this.getLaneBoundaryX(3, y) : w * 0.88;
-        const mw = Math.max(14, 28 * s);
-        const mh = Math.max(28, 62 * s);
-
-        for (let side = 0; side < 2; side++) {
-          const isLeft = (side === 0);
-          const mx = isLeft ? (leftEdgeX - mw * 1.15 - 8 * s) : (rightEdgeX + mw * 1.15 + 8 * s);
-          const tilt = isLeft ? -0.18 : 0.18;
-
-          ctx.save();
-          ctx.translate(mx, y);
-          ctx.rotate(tilt + Math.sin(t * 2.2 + m) * 0.05);
-
-          // Marco biselado de plata cromada y cristal de espejo
-          const glassGrad = ctx.createLinearGradient(-mw * 0.5, -mh * 0.5, mw * 0.5, mh * 0.5);
-          glassGrad.addColorStop(0.0, `rgba(56, 189, 248, ${(0.28 + phaseP * 0.32).toFixed(2)})`);
-          glassGrad.addColorStop(0.5, `rgba(226, 232, 240, ${(0.45 + phaseP * 0.35).toFixed(2)})`);
-          glassGrad.addColorStop(1.0, `rgba(232, 121, 249, ${(0.28 + phaseP * 0.35).toFixed(2)})`);
-
-          ctx.fillStyle = glassGrad;
-          ctx.strokeStyle = phaseP > 0.2 ? '#f0abfc' : '#94a3b8';
-          ctx.lineWidth = Math.max(1.5, 2.6 * s);
-          ctx.beginPath();
-          if (ctx.roundRect) {
-            ctx.roundRect(-mw * 0.5, -mh * 0.5, mw, mh, 6 * s);
-          } else {
-            ctx.rect(-mw * 0.5, -mh * 0.5, mw, mh);
-          }
-          ctx.fill();
-          ctx.stroke();
-
-          // Brillo diagonal de espejo
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.72)';
-          ctx.lineWidth = Math.max(1.0, 1.8 * s);
-          ctx.beginPath();
-          ctx.moveTo(-mw * 0.28, -mh * 0.32);
-          ctx.lineTo(mw * 0.24, -mh * 0.05);
-          ctx.moveTo(-mw * 0.18, mh * 0.08);
-          ctx.lineTo(mw * 0.28, mh * 0.32);
-          ctx.stroke();
-          ctx.restore();
-        }
-      }
-
-      // 2. EJE CENTRAL DE ESPEJO VERTICAL Y ONDA DE GIRO DIMENSIONAL (Cuando el Modo Espejo está reflejando)
-      const midX = w * 0.5;
-      if (phaseP > 0.02 || flipWave > 0.02) {
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        const axisAlpha = Math.max(phaseP * 0.85, flipWave);
-        const axisGrad = ctx.createLinearGradient(midX, horizonY, midX, hitY);
-        axisGrad.addColorStop(0.0, 'rgba(56, 189, 248, 0.0)');
-        axisGrad.addColorStop(0.2, `rgba(56, 189, 248, ${(axisAlpha * 0.65).toFixed(2)})`);
-        axisGrad.addColorStop(0.6, `rgba(255, 255, 255, ${(axisAlpha * 0.90).toFixed(2)})`);
-        axisGrad.addColorStop(1.0, `rgba(232, 121, 249, ${(axisAlpha * 0.85).toFixed(2)})`);
-
-        ctx.strokeStyle = axisGrad;
-        ctx.lineWidth = 3.5 + phaseP * 2.5;
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < this._mirrorCrossBeams.length; i++) {
+        const b = this._mirrorCrossBeams[i];
+        const prog = Math.min(1, b.age / b.duration);
+        const alpha = (1 - prog) * 0.88;
+        ctx.strokeStyle = `rgba(0, 242, 254, ${alpha.toFixed(2)})`;
+        ctx.lineWidth = 4.2 * (1 - prog * 0.5);
         ctx.beginPath();
-        ctx.moveTo(midX, horizonY + 20);
-        ctx.lineTo(midX, hitY);
+        ctx.moveTo(b.fromX, b.y);
+        ctx.quadraticCurveTo(midX, b.y - 28 * Math.sin(prog * Math.PI), b.toX, b.y);
         ctx.stroke();
 
-        // Onda expansiva horizontal al activarse/desactivarse la ventana de espejo
-        if (flipWave > 0.02) {
-          const waveW = (1.0 - flipWave) * (w * 0.48);
-          ctx.strokeStyle = `rgba(240, 171, 252, ${(flipWave * 0.85).toFixed(2)})`;
-          ctx.lineWidth = 4.0 * flipWave;
-          ctx.beginPath();
-          ctx.moveTo(midX - waveW, horizonY + 40);
-          ctx.lineTo(midX - waveW, hitY);
-          ctx.moveTo(midX + waveW, horizonY + 40);
-          ctx.lineTo(midX + waveW, hitY);
-          ctx.stroke();
-        }
-        ctx.restore();
-      }
-
-      // 3. ANIMACIÓN EN EL TABLERO DE TECLAS (RECEPTORES 1 ⇄ 3 REFLEJADOS)
-      const xLane0 = this.getLaneBoundaryX
-        ? (this.getLaneBoundaryX(0, hitY) + this.getLaneBoundaryX(1, hitY)) * 0.5
-        : w * 0.166;
-      const xLane1 = this.getLaneBoundaryX
-        ? (this.getLaneBoundaryX(1, hitY) + this.getLaneBoundaryX(2, hitY)) * 0.5
-        : w * 0.50;
-      const xLane2 = this.getLaneBoundaryX
-        ? (this.getLaneBoundaryX(2, hitY) + this.getLaneBoundaryX(3, hitY)) * 0.5
-        : w * 0.833;
-
-      // Arco de espejo luminoso conectando el botón izquierdo (1) y el botón derecho (3) bajo el tablero
-      if (phaseP > 0.05) {
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        const arcY = hitY + 26;
-        const bridgeGrad = ctx.createLinearGradient(xLane0, hitY, xLane2, hitY);
-        bridgeGrad.addColorStop(0.0, `rgba(0, 242, 254, ${(0.78 * phaseP).toFixed(2)})`);
-        bridgeGrad.addColorStop(0.5, `rgba(255, 255, 255, ${(0.92 * phaseP).toFixed(2)})`);
-        bridgeGrad.addColorStop(1.0, `rgba(232, 121, 249, ${(0.78 * phaseP).toFixed(2)})`);
-        ctx.strokeStyle = bridgeGrad;
-        ctx.lineWidth = 3.2;
-        ctx.beginPath();
-        ctx.moveTo(xLane0, hitY + 6);
-        ctx.quadraticCurveTo(xLane1, arcY + Math.sin(t * 6) * 5, xLane2, hitY + 6);
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      // Insignias en los 3 botones del tablero para que se vea claramente cuándo 1 y 3 están invertidos
-      const padBadges = [
-        { x: xLane0, label: phaseP > 0.5 ? '🪞 3' : '1', color: phaseP > 0.5 ? '#f0abfc' : '#38bdf8' },
-        { x: xLane1, label: '2', color: '#94a3b8' },
-        { x: xLane2, label: phaseP > 0.5 ? '1 🪞' : '3', color: phaseP > 0.5 ? '#38bdf8' : '#f0abfc' }
-      ];
-      ctx.save();
-      ctx.font = '900 15px "Outfit", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      for (let b = 0; b < padBadges.length; b++) {
-        const pb = padBadges[b];
-        const by = hitY + 20;
-        ctx.fillStyle = 'rgba(4, 7, 15, 0.86)';
-        ctx.strokeStyle = pb.color;
+        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha.toFixed(2)})`;
         ctx.lineWidth = 1.8;
-        ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(pb.x - 24, by - 11, 48, 22, 7);
-        } else {
-          ctx.rect(pb.x - 24, by - 11, 48, 22);
-        }
-        ctx.fill();
         ctx.stroke();
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(pb.label, pb.x, by);
       }
-      ctx.restore();
-
-      // 4. HACES LÁSER DE IMPACTO REFLEJADO (Cuando aciertas una tecla espejo pulsando el carril opuesto)
-      if (this._mirrorCrossBeams && this._mirrorCrossBeams.length > 0) {
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        for (let i = 0; i < this._mirrorCrossBeams.length; i++) {
-          const b = this._mirrorCrossBeams[i];
-          const prog = Math.min(1, b.age / b.duration);
-          const alpha = (1 - prog) * 0.95;
-          ctx.strokeStyle = `rgba(240, 171, 252, ${alpha.toFixed(2)})`;
-          ctx.lineWidth = 5.5 * (1 - prog * 0.5);
-          ctx.beginPath();
-          ctx.moveTo(b.fromX, b.y);
-          ctx.quadraticCurveTo(midX, b.y - 42 * Math.sin(prog * Math.PI), b.toX, b.y);
-          ctx.stroke();
-
-          ctx.strokeStyle = `rgba(255, 255, 255, ${alpha.toFixed(2)})`;
-          ctx.lineWidth = 2.2;
-          ctx.stroke();
-        }
-        ctx.restore();
-      }
-
-      // 5. CARTEL HOLOGRÁFICO SUPERIOR DURANTE LA FASE DE ESPEJO ACTIVA ("🪞 OJEPSƎ · 1 ⇄ 3 🪞")
-      if (phaseP > 0.08) {
-        ctx.save();
-        ctx.globalAlpha = Math.min(1, phaseP * 1.15);
-        const bannerY = 112;
-        const bw = 248;
-        const bh = 30;
-        const bx = midX - bw * 0.5;
-        const by = bannerY - bh * 0.5;
-
-        const bg = ctx.createLinearGradient(bx, by, bx + bw, by);
-        bg.addColorStop(0.0, 'rgba(8, 20, 38, 0.92)');
-        bg.addColorStop(0.5, 'rgba(30, 41, 59, 0.95)');
-        bg.addColorStop(1.0, 'rgba(46, 16, 65, 0.92)');
-        ctx.fillStyle = bg;
-        ctx.strokeStyle = '#38bdf8';
-        ctx.lineWidth = 2.0;
-        ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(bx, by, bw, bh, 10);
-        } else {
-          ctx.rect(bx, by, bw, bh);
-        }
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.font = '900 13px "Outfit", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText('🪞 OJEPSƎ ACTIVO · CARRIL 1 ⇄ 3 🪞', midX, bannerY);
-        ctx.restore();
-      }
-
       ctx.restore();
     }
 
