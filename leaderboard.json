@@ -3889,15 +3889,15 @@
         "stars": 5,
         "combo": 625,
         "accuracy": 98.6526268115942,
-        "date": "2026-10-24 07:33:20"
+        "date": "2026-10-24 07:33:41"
       }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 52327563,
-      "clefs": 482
+      "total_score": 53634513,
+      "clefs": 495
     },
     {
       "name": "Rocky",
@@ -4085,7 +4085,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 52327563
+        "score": 53634513
       },
       {
         "name": "FAZTL",
