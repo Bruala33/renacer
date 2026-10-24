@@ -3827,11 +3827,11 @@
     "comm_1788769406_7797": [
       {
         "name": "Libay",
-        "score": 95025,
+        "score": 150000,
         "stars": 3.5,
-        "combo": 85,
-        "accuracy": 6.304026217849631,
-        "date": "2026-10-24 05:21:48"
+        "combo": 120,
+        "accuracy": 9.951106894790264,
+        "date": "2026-10-24 05:22:33"
       }
     ]
   },
@@ -3878,8 +3878,8 @@
     },
     {
       "name": "Libay",
-      "total_score": 7114558,
-      "clefs": 50
+      "total_score": 7264558,
+      "clefs": 51
     },
     {
       "name": "Azure",
@@ -4047,7 +4047,7 @@
       },
       {
         "name": "Libay",
-        "score": 7114558
+        "score": 7264558
       },
       {
         "name": "Laaleplo",
