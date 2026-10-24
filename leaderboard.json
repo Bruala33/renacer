@@ -3333,9 +3333,9 @@
         "name": "Libay",
         "score": 92100,
         "stars": 3.5,
-        "combo": 32,
-        "accuracy": 1.4109347442680775,
-        "date": "2026-10-23 16:38:26"
+        "combo": 40,
+        "accuracy": 2.320326278659612,
+        "date": "2026-10-24 03:58:08"
       }
     ],
     "bs_333d8": [
@@ -3781,14 +3781,14 @@
       "clefs": 41
     },
     {
+      "name": "Libay",
+      "total_score": 4374318,
+      "clefs": 28
+    },
+    {
       "name": "fer",
       "total_score": 4321969,
       "clefs": 39
-    },
-    {
-      "name": "Libay",
-      "total_score": 4282218,
-      "clefs": 28
     },
     {
       "name": "bobon",
@@ -3944,12 +3944,12 @@
         "score": 4841199
       },
       {
-        "name": "fer",
-        "score": 4321969
+        "name": "Libay",
+        "score": 4374318
       },
       {
-        "name": "Libay",
-        "score": 4282218
+        "name": "fer",
+        "score": 4321969
       },
       {
         "name": "Jacques",
