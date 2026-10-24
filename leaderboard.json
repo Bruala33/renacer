@@ -3865,11 +3865,11 @@
     "top_taylor_swift_i_knew_you_were_trouble": [
       {
         "name": "Libay",
-        "score": 11898,
-        "stars": 3.5,
-        "combo": 23,
-        "accuracy": 0.8533467214143551,
-        "date": "2026-10-24 05:26:48"
+        "score": 666550,
+        "stars": 2,
+        "combo": 352,
+        "accuracy": 47.80620752720948,
+        "date": "2026-10-24 05:29:29"
       }
     ]
   },
@@ -3916,8 +3916,8 @@
     },
     {
       "name": "Libay",
-      "total_score": 7439656,
-      "clefs": 51
+      "total_score": 8106206,
+      "clefs": 57
     },
     {
       "name": "Azure",
@@ -4085,7 +4085,7 @@
       },
       {
         "name": "Libay",
-        "score": 7439656
+        "score": 8106206
       },
       {
         "name": "Laaleplo",
