@@ -6919,11 +6919,20 @@ window.switchMainTab = switchMainTab;
 
     async function toggleFavoriteSong(songId, songObj = null) {
       let targetObj = songObj;
-      if (!targetObj) {
-        targetObj = searchResultsCache.find(s => s.id === songId);
+      if (!targetObj && Array.isArray(searchResultsCache)) {
+        targetObj = searchResultsCache.find(s => s && String(s.id) === String(songId));
       }
-      if (!targetObj) {
-        targetObj = await IndexedDBStorage.getChart(songId);
+      if (!targetObj && typeof IndexedDBStorage !== 'undefined') {
+        targetObj = await IndexedDBStorage.getChart(songId).catch(() => null);
+      }
+      if (!targetObj && typeof IndexedDBStorage !== 'undefined' && typeof IndexedDBStorage.getAllFavorites === 'function') {
+        const favs = await IndexedDBStorage.getAllFavorites().catch(() => []);
+        targetObj = (favs || []).find(f => f && String(f.id) === String(songId)) || null;
+      }
+      if (!targetObj && typeof getFormattedTopSongsCatalog === 'function') {
+        const topList = getFormattedTopSongsCatalog() || [];
+        const rawLookupId = String(songId || '').replace(/^top_/, '');
+        targetObj = topList.find(s => s && (String(s.id) === String(songId) || String(s.raw_id) === rawLookupId)) || null;
       }
       if (!targetObj) return;
 
@@ -6952,13 +6961,18 @@ window.switchMainTab = switchMainTab;
     }
 
     async function openAddToPlaylistModal(songId) {
-      let song = searchResultsCache.find(s => s.id === songId);
-      if (!song) {
-        song = await IndexedDBStorage.getChart(songId);
+      let song = Array.isArray(searchResultsCache) ? searchResultsCache.find(s => s && String(s.id) === String(songId)) : null;
+      if (!song && typeof IndexedDBStorage !== 'undefined') {
+        song = await IndexedDBStorage.getChart(songId).catch(() => null);
       }
-      if (!song) {
-        const favs = await IndexedDBStorage.getAllFavorites();
-        song = favs.find(f => f.id === songId);
+      if (!song && typeof IndexedDBStorage !== 'undefined') {
+        const favs = await IndexedDBStorage.getAllFavorites().catch(() => []);
+        song = (favs || []).find(f => f && String(f.id) === String(songId));
+      }
+      if (!song && typeof getFormattedTopSongsCatalog === 'function') {
+        const topList = getFormattedTopSongsCatalog() || [];
+        const rawLookupId = String(songId || '').replace(/^top_/, '');
+        song = topList.find(s => s && (String(s.id) === String(songId) || String(s.raw_id) === rawLookupId)) || null;
       }
       if (!song) return;
 
@@ -9989,32 +10003,81 @@ function stopPianoCameraLoop() {
         engine.sync.unlockAudio();
       }
 
-      // Enrutamiento prioritario para Canciones Top (CDN Oficial)
-      if (typeof chartId === 'string' && (chartId.startsWith('top_') || (window.TOP_SONGS_CATALOG && window.TOP_SONGS_CATALOG.some(s => s.id === chartId)))) {
-        playTopSong(chartId, diffName);
-        return;
-      }
-
-      if (typeof chartId === 'string' && (chartId.startsWith('comm_') || chartId.startsWith('custom_') || chartId.toLowerCase().includes('camilo'))) {
-        const targetCommId = chartId.startsWith('comm_') ? chartId : ('comm_' + chartId);
-        playCommunitySong(targetCommId);
-        return;
-      }
       let chartItem = null;
       if (searchResultsCache && chartId) {
-        chartItem = searchResultsCache.find(c => String(c.id) === String(chartId));
+        chartItem = searchResultsCache.find(c => c && String(c.id) === String(chartId));
       }
       if (!chartItem && itemIndex !== null && searchResultsCache && searchResultsCache[itemIndex]) {
         chartItem = searchResultsCache[itemIndex];
       }
+      if (!chartItem && Array.isArray(window.currentSearchResultsList) && chartId) {
+        chartItem = window.currentSearchResultsList.find(c => c && String(c.id) === String(chartId));
+      }
+      if (!chartItem && typeof IndexedDBStorage !== 'undefined') {
+        try {
+          chartItem = await IndexedDBStorage.getChart(chartId);
+        } catch (_) {}
+      }
+      if (!chartItem && typeof IndexedDBStorage !== 'undefined' && typeof IndexedDBStorage.getAllFavorites === 'function') {
+        try {
+          const favs = await IndexedDBStorage.getAllFavorites();
+          const targetSlug = String(chartId || '').toLowerCase().replace(/[\s\-_]+/g, '');
+          chartItem = (favs || []).find(f => {
+            if (!f) return false;
+            if (String(f.id) === String(chartId)) return true;
+            const fSlug = String(f.id || '').toLowerCase().replace(/[\s\-_]+/g, '');
+            const tSlug = String(f.title || '').toLowerCase().replace(/[\s\-_]+/g, '');
+            return (fSlug && fSlug === targetSlug) || (tSlug && tSlug === targetSlug);
+          }) || null;
+        } catch (_) {}
+      }
+      if (!chartItem && typeof IndexedDBStorage !== 'undefined' && typeof IndexedDBStorage.getAllPlaylists === 'function') {
+        try {
+          const pls = await IndexedDBStorage.getAllPlaylists();
+          for (const pl of (pls || [])) {
+            const foundTrack = (pl?.tracks || []).find(t => t && String(t.id) === String(chartId));
+            if (foundTrack) {
+              chartItem = foundTrack;
+              break;
+            }
+          }
+        } catch (_) {}
+      }
+      if (!chartItem && typeof getFormattedTopSongsCatalog === 'function') {
+        const topList = getFormattedTopSongsCatalog() || [];
+        const rawLookupId = String(chartId || '').replace(/^top_/, '');
+        chartItem = topList.find(s => s && (String(s.id) === String(chartId) || String(s.raw_id) === rawLookupId)) || null;
+      }
+      if (!chartItem && Array.isArray(GLOBAL_COMMUNITY_FALLBACKS)) {
+        chartItem = GLOBAL_COMMUNITY_FALLBACKS.find(c => c && String(c.id) === String(chartId)) || null;
+      }
 
-      if (chartItem && (chartItem.is_community || chartItem.source === 'community')) {
-        playCommunitySong(chartItem.id || chartId);
+      // Enrutamiento prioritario para Canciones Top (CDN Oficial)
+      const rawTopCandidate = String(chartItem?.id || chartId || '').replace(/^top_/, '');
+      const isTopSongCandidate = (
+        (typeof chartId === 'string' && chartId.startsWith('top_')) ||
+        Boolean(chartItem && (
+          chartItem.is_top_song ||
+          chartItem.source === 'top_playlist' ||
+          String(chartItem.id || '').startsWith('top_') ||
+          (chartItem.chart_url && String(chartItem.chart_url).endsWith('.json'))
+        )) ||
+        Boolean(window.TOP_SONGS_CATALOG && window.TOP_SONGS_CATALOG.some(s => s.id === chartId || s.id === rawTopCandidate))
+      );
+      if (isTopSongCandidate) {
+        playTopSong(chartItem?.id || chartId, diffName, chartItem);
         return;
       }
 
-      if (!chartItem) {
-        chartItem = await IndexedDBStorage.getChart(chartId);
+      const isCommCandidate = (
+        (typeof chartId === 'string' && (chartId.startsWith('comm_') || chartId.startsWith('custom_') || chartId.toLowerCase().includes('camilo'))) ||
+        Boolean(chartItem && (chartItem.is_community || chartItem.source === 'community'))
+      );
+      if (isCommCandidate) {
+        const rawCommId = String(chartItem?.id || chartId);
+        const targetCommId = (rawCommId.startsWith('comm_') || rawCommId.startsWith('custom_')) ? rawCommId : ('comm_' + rawCommId);
+        playCommunitySong(targetCommId);
+        return;
       }
 
       if (!chartItem) {
@@ -10061,7 +10124,7 @@ function stopPianoCameraLoop() {
 
       try {
         let cached = await IndexedDBStorage.getChart(chartId);
-        if (cached && cached.audioBlob) {
+        if (cached && cached.audioBlob && ((Array.isArray(cached.notes) && cached.notes.length > 0) || (cached.chartData && Array.isArray(cached.chartData.notes) && cached.chartData.notes.length > 0))) {
           loadStatus.innerText = 'Cargando mapa desde memoria local...';
 
           // Extraer estrellas de la dificultad seleccionada
@@ -10098,16 +10161,45 @@ function stopPianoCameraLoop() {
         // ==========================================
         // 1. FLUJO ULTRARRÁPIDO PARALELO PARA OSU! MANIA (CARRERA SIMULTÁNEA DE MIRRORS)
         // ==========================================
-        const isOsuTrack = chartItem.source === 'osu' || chartItem.source === 'catboy' || (chartItem.id && String(chartItem.id).startsWith('osu_'));
+        const srcLower = String(chartItem.source || chartItem.source_name || '').toLowerCase();
+        const dlUrlStr = String(chartItem.download_url || chartItem.direct_download_url || '');
+        const isOsuTrack = (
+          srcLower.includes('osu') ||
+          srcLower.includes('catboy') ||
+          srcLower.includes('nerinyan') ||
+          srcLower.includes('sayobot') ||
+          (chartItem.id && String(chartItem.id).startsWith('osu_')) ||
+          dlUrlStr.includes('/osu/') ||
+          dlUrlStr.includes('catboy.best') ||
+          dlUrlStr.includes('nerinyan.moe') ||
+          dlUrlStr.includes('sayobot.cn')
+        );
         if (isOsuTrack) {
           const term = document.getElementById('diagnosticTerminal');
           if (term) term.classList.add('hidden');
           loadStatus.innerText = 'Descargando beatmap de osu! a máxima velocidad...';
 
-          const osuSetId = String(chartItem.id || '').replace(/^osu_/, '').trim();
+          let osuSetId = String(chartItem.id || '').replace(/^osu_/, '').trim();
+          if (!/^\d+$/.test(osuSetId) && dlUrlStr) {
+            const mOsu = dlUrlStr.match(/\/(?:osu|d|mini)\/(\d+)/i);
+            if (mOsu) osuSetId = mOsu[1];
+          }
           const myWorker = (u) => `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(u)}`;
           const cfWorker2 = (u) => `https://tight-breeze-969f.p1822994.workers.dev/?url=${encodeURIComponent(u)}`;
           const apiBase = (typeof getApiBaseUrl === 'function') ? getApiBaseUrl() : '';
+
+          if (!/^\d+$/.test(osuSetId) && chartItem.title) {
+            try {
+              const qOsu = `${chartItem.title} ${chartItem.artist || ''}`.trim();
+              const searchRes = await fetch(`https://catboy.best/api/v2/search?q=${encodeURIComponent(qOsu)}&limit=5`);
+              if (searchRes.ok) {
+                const sArr = await searchRes.json();
+                if (Array.isArray(sArr) && sArr.length > 0 && sArr[0].id) {
+                  osuSetId = String(sArr[0].id);
+                }
+              }
+            } catch (_) {}
+          }
 
           if (!window._osuOszMemCache) window._osuOszMemCache = new Map();
           let arrayBuffer = window._osuOszMemCache.get(osuSetId) || null;
@@ -10222,7 +10314,11 @@ function stopPianoCameraLoop() {
         // ==========================================
         // 1b. FLUJO ULTRARRÁPIDO PARALELO PARA BEATSAVER (BEAT SABER ZIP CDN)
         // ==========================================
-        const isBeatSaverTrack = chartItem.source === 'beatsaver' || (chartItem.id && String(chartItem.id).startsWith('bs_'));
+        const isBeatSaverTrack = (
+          srcLower.includes('beatsaver') ||
+          (chartItem.id && String(chartItem.id).startsWith('bs_')) ||
+          dlUrlStr.includes('beatsaver')
+        );
         if (isBeatSaverTrack) {
           const term = document.getElementById('diagnosticTerminal');
           if (term) term.classList.add('hidden');
@@ -10233,8 +10329,9 @@ function stopPianoCameraLoop() {
           let bsHash = String(chartItem.bs_hash || '').toLowerCase().trim();
           let directUrl = chartItem.direct_download_url || '';
 
-          if (!bsHash && directUrl && directUrl.includes('cdn.beatsaver.com/')) {
-            const m = directUrl.match(/([a-f0-9]{40})\.zip/i);
+          if (!bsHash && (directUrl || chartItem.download_url)) {
+            const combinedBsUrl = `${directUrl} ${chartItem.download_url || ''}`;
+            const m = combinedBsUrl.match(/([a-f0-9]{40})/i);
             if (m) bsHash = m[1].toLowerCase();
           }
 
@@ -10246,6 +10343,22 @@ function stopPianoCameraLoop() {
               if (mapRes.ok) {
                 const mapJson = await mapRes.json();
                 const ver = Array.isArray(mapJson?.versions) ? mapJson.versions[0] : null;
+                if (ver) {
+                  bsHash = String(ver.hash || '').toLowerCase();
+                  directUrl = ver.downloadURL || (bsHash ? `https://cdn.beatsaver.com/${bsHash}.zip` : '');
+                }
+              }
+            } catch (_) {}
+          }
+
+          if (!directUrl && !bsHash && chartItem.title) {
+            try {
+              const qBs = `${chartItem.title} ${chartItem.artist || ''}`.trim();
+              const bsSearchRes = await fetch(`https://api.beatsaver.com/search/text/0?q=${encodeURIComponent(qBs)}&sortOrder=Relevance`);
+              if (bsSearchRes.ok) {
+                const bsData = await bsSearchRes.json();
+                const firstDoc = Array.isArray(bsData?.docs) ? bsData.docs[0] : null;
+                const ver = firstDoc && Array.isArray(firstDoc.versions) ? firstDoc.versions[0] : null;
                 if (ver) {
                   bsHash = String(ver.hash || '').toLowerCase();
                   directUrl = ver.downloadURL || (bsHash ? `https://cdn.beatsaver.com/${bsHash}.zip` : '');
@@ -10328,17 +10441,33 @@ function stopPianoCameraLoop() {
         let rawTargetUrl = chartItem.sng_url || chartItem.direct_download_url || chartItem.download_url || '';
         VisualLogger.step(1, 'URL de mapa obtenida', rawTargetUrl || '(Sin URL directa)', 'info');
 
+        if (!chartItem.md5 && rawTargetUrl) {
+          const md5Match = String(rawTargetUrl).match(/([a-f0-9]{32})/i);
+          if (md5Match) {
+            chartItem.md5 = md5Match[1].toLowerCase();
+          }
+        }
+
         // Auto-resolución de hash MD5 si faltaba en metadatos
         if (!chartItem.md5 && chartItem.title) {
+          const searchBody = JSON.stringify({ search: `${chartItem.title} ${chartItem.artist || ''}`.trim(), page: 1, source: 'website' });
           try {
-            const searchResp = await fetch('https://api.enchor.us/search', {
+            let searchResp = await fetch('https://api.enchor.us/search', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ search: `${chartItem.title} ${chartItem.artist || ''}`.trim(), page: 1, source: 'website' })
-            }).then(r => r.ok ? r.json() : null);
+              body: searchBody
+            }).then(r => r.ok ? r.json() : null).catch(() => null);
+            if (!searchResp) {
+              searchResp = await fetch(myWorker('https://api.enchor.us/search'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: searchBody
+              }).then(r => r.ok ? r.json() : null).catch(() => null);
+            }
             const foundSongs = searchResp?.data || searchResp?.songs || [];
-            if (foundSongs.length > 0 && foundSongs[0].md5) {
-              chartItem.md5 = foundSongs[0].md5;
+            if (foundSongs.length > 0) {
+              if (foundSongs[0].md5) chartItem.md5 = foundSongs[0].md5;
+              if (!chartItem.drive_id && foundSongs[0].driveFileId) chartItem.drive_id = foundSongs[0].driveFileId;
             }
           } catch (_) {}
         }
@@ -10355,18 +10484,22 @@ function stopPianoCameraLoop() {
         }
 
         // Prioridad 2: Enlace directo que no sea de Google Drive
-        if (rawTargetUrl && !rawTargetUrl.includes('drive.google') && !rawTargetUrl.includes('docs.google') && !downloadCandidates.includes(rawTargetUrl)) {
+        if (rawTargetUrl && !rawTargetUrl.includes('drive.google') && !rawTargetUrl.includes('docs.google') && !rawTargetUrl.startsWith('/api/v1/download/gdrive/') && !downloadCandidates.includes(rawTargetUrl)) {
           downloadCandidates.push(rawTargetUrl);
-          downloadCandidates.push(myWorker(rawTargetUrl));
+          if (rawTargetUrl.startsWith('http')) {
+            downloadCandidates.push(myWorker(rawTargetUrl));
+          }
         }
 
         // Prioridad 3: Archivo individual de Google Drive (SOLO si no es carpeta)
         let driveFileId = chartItem.drive_id || '';
-        if (!driveFileId && rawTargetUrl && (rawTargetUrl.includes('id=') || rawTargetUrl.includes('/d/'))) {
+        if (!driveFileId && rawTargetUrl) {
           if (rawTargetUrl.includes('id=')) {
             driveFileId = rawTargetUrl.split('id=')[1].split('&')[0];
           } else if (rawTargetUrl.includes('/d/')) {
             driveFileId = rawTargetUrl.split('/d/')[1].split('/')[0];
+          } else if (rawTargetUrl.includes('/gdrive/')) {
+            driveFileId = rawTargetUrl.split('/gdrive/')[1].split(/[/?#]/)[0];
           }
         }
 
@@ -11531,9 +11664,9 @@ function stopPianoCameraLoop() {
           const primaryDiff = hasDiffs ? item.difficulties[0] : null;
           const starsNum = primaryDiff?.stars || item.stars || 3.5;
 
-          const defaultPlayAction = hasDiffs
-            ? `downloadAndPlaySong('${item.id}', '${item.difficulties[0].id}', '${(item.difficulties[0].name || 'Normal').replace(/'/g, "\\'")}')`
-            : `playSavedLibraryChart('${item.id}')`;
+          const defaultDiffId = hasDiffs ? item.difficulties[0].id : (item.diff_id || 'default');
+          const defaultDiffName = (hasDiffs ? (item.difficulties[0].name || 'Normal') : (item.difficulty_name || item.metadata?.difficulty_name || 'Normal')).replace(/'/g, "\\'");
+          const defaultPlayAction = `downloadAndPlaySong('${item.id}', '${defaultDiffId}', '${defaultDiffName}')`;
 
           const diffChipsHtml = hasDiffs ? item.difficulties.map(diff => {
             const cleanName = (diff.name || 'Normal').replace(/\[\d+K\]\s*/gi, '').replace(/^\[[^\]]+\]\s*/, '').trim() || 'Normal';
@@ -12410,8 +12543,11 @@ function stopPianoCameraLoop() {
       try {
         const item = await IndexedDBStorage.getChart(chartId);
         if (!item || !item.audioBlob) {
-          showErrorToast('Canción no encontrada en almacenamiento.');
-          return;
+          return downloadAndPlaySong(
+            chartId,
+            item?.diff_id || (item?.difficulties && item.difficulties[0]?.id) || 'default',
+            item?.metadata?.difficulty_name || item?.difficulty_name || (item?.difficulties && item.difficulties[0]?.name) || 'Normal'
+          );
         }
         currentActiveChartItem = item;
         currentActiveAudioBlob = item.audioBlob;
@@ -14648,7 +14784,7 @@ function stopPianoCameraLoop() {
     }
     window.getFormattedTopSongsCatalog = getFormattedTopSongsCatalog;
 
-    async function playTopSong(songId, targetDiff = 'Normal') {
+    async function playTopSong(songId, targetDiff = 'Normal', fallbackMeta = null) {
       window.isGameLoadingOrActive = true;
       if (typeof stopCasinoMusic === 'function') stopCasinoMusic();
       if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
@@ -14661,7 +14797,24 @@ function stopPianoCameraLoop() {
 
       const rawId = String(songId).replace(/^top_/, '');
       const catalog = window.TOP_SONGS_CATALOG || [];
-      const songMeta = catalog.find(s => s.id === rawId || s.id === songId) || {
+      let foundMeta = catalog.find(s => s.id === rawId || s.id === songId) || fallbackMeta;
+      if (!foundMeta && typeof IndexedDBStorage !== 'undefined' && typeof IndexedDBStorage.getAllFavorites === 'function') {
+        try {
+          const favs = await IndexedDBStorage.getAllFavorites();
+          foundMeta = (favs || []).find(f => f && (f.id === songId || f.id === `top_${rawId}` || f.id === rawId)) || null;
+        } catch (_) {}
+      }
+      const songMeta = foundMeta ? {
+        id: rawId,
+        title: foundMeta.title || rawId,
+        artist: foundMeta.artist || 'Canción Top',
+        bpm: Number(foundMeta.bpm) || 120,
+        total_notes: Number(foundMeta.total_notes) || 300,
+        chart_url: foundMeta.chart_url || `${rawId}.json`,
+        audio_url: foundMeta.audio_url || `${rawId}.mp3`,
+        cover_url: foundMeta.cover_url || foundMeta.thumbnail || './app_logo.png',
+        thumbnail: foundMeta.thumbnail || foundMeta.cover_url || './app_logo.png'
+      } : {
         id: rawId,
         title: rawId,
         artist: 'Canción Top',
@@ -14864,6 +15017,12 @@ function stopPianoCameraLoop() {
               source: 'top_playlist',
               source_name: 'Canciones Top',
               is_top_song: true,
+              chart_url: chartFilename,
+              audio_url: audioFilename,
+              difficulties: [
+                { id: 'diff_normal', name: 'Normal', stars: starsVal, keys: 3 },
+                { id: 'diff_hard', name: 'Difícil', stars: Math.min(7.5, +(starsVal + 1.5).toFixed(1)), keys: 3 }
+              ],
               thumbnail: songMeta.cover_url || songMeta.thumbnail || './app_logo.png'
             };
             await IndexedDBStorage.saveChart(itemToSave, chartData, audioBlob);
