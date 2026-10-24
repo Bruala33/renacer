@@ -3727,6 +3727,16 @@
         "accuracy": 7.624053030834872,
         "date": "2026-10-24 03:57:03"
       }
+    ],
+    "top_melendi_piratas_del_bar_caribe": [
+      {
+        "name": "Libay",
+        "score": 232075,
+        "stars": 3.5,
+        "combo": 149,
+        "accuracy": 13.608499749027775,
+        "date": "2026-10-24 04:55:33"
+      }
     ]
   },
   "global": [
@@ -3772,8 +3782,8 @@
     },
     {
       "name": "Libay",
-      "total_score": 5491828,
-      "clefs": 38
+      "total_score": 5723903,
+      "clefs": 40
     },
     {
       "name": "Azure",
@@ -3941,7 +3951,7 @@
       },
       {
         "name": "Libay",
-        "score": 5491828
+        "score": 5723903
       },
       {
         "name": "Laaleplo",
