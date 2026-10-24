@@ -3205,9 +3205,9 @@
         "name": "Jacques",
         "score": 192089,
         "stars": 3.5,
-        "combo": 162,
-        "accuracy": 15.325899460810206,
-        "date": "2026-10-24 02:18:57"
+        "combo": 14,
+        "accuracy": 0.5049878274829558,
+        "date": "2026-10-24 02:19:30"
       }
     ],
     "top_vanilla_ice_ice_ice_baby": [
@@ -3738,6 +3738,11 @@
       "clefs": 1
     },
     {
+      "name": "Jacques",
+      "total_score": 410878,
+      "clefs": 2
+    },
+    {
       "name": "`pc",
       "total_score": 367612,
       "clefs": 1
@@ -3746,11 +3751,6 @@
       "name": "Darwin67",
       "total_score": 354658,
       "clefs": 2
-    },
-    {
-      "name": "Jacques",
-      "total_score": 218789,
-      "clefs": 1
     },
     {
       "name": "bori",
@@ -3869,12 +3869,12 @@
         "score": 4146468
       },
       {
-        "name": "Darwin67",
-        "score": 265556
+        "name": "Jacques",
+        "score": 410878
       },
       {
-        "name": "Jacques",
-        "score": 218789
+        "name": "Darwin67",
+        "score": 265556
       },
       {
         "name": "bori",
