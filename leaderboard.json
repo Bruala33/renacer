@@ -3205,11 +3205,11 @@
     "top_vanilla_ice_ice_ice_baby": [
       {
         "name": "Laaleplo",
-        "score": 19350,
+        "score": 110369,
         "stars": 3.5,
-        "combo": 27,
-        "accuracy": 0.876188457949067,
-        "date": "2026-10-23 13:18:53"
+        "combo": 65,
+        "accuracy": 2.0642867449960547,
+        "date": "2026-10-24 01:13:28"
       }
     ],
     "top_lana_del_rey_born_to_die": [
@@ -3671,8 +3671,8 @@
     },
     {
       "name": "Laaleplo",
-      "total_score": 4425452,
-      "clefs": 40
+      "total_score": 4535821,
+      "clefs": 41
     },
     {
       "name": "fer",
@@ -3830,7 +3830,7 @@
       },
       {
         "name": "Laaleplo",
-        "score": 4425452
+        "score": 4535821
       },
       {
         "name": "fer",
