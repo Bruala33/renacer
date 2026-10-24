@@ -16748,46 +16748,69 @@ class BeatstarEngine {
       if (!Array.isArray(this.notes) || this.notes.length === 0) return;
 
       // Crear ventanas periódicas de Dimensión Espejo:
-      // Primeros 4.2s normales para calentar, luego alterna ~6.8s de Espejo ("OJEPSƎ") y ~5.8s normales
+      // Primeros 4.2s normales para calentar, luego alterna ~6.8s de Espejo ("OJEPSƎ") y ~5.6s normales
       let maxTimeMs = 0;
       for (let i = 0; i < this.notes.length; i++) {
         const t = this.notes[i].timestamp_ms ?? this.notes[i].timeMs ?? 0;
         if (t > maxTimeMs) maxTimeMs = t;
       }
 
+      const rawWindows = [];
       let cursorMs = 4200;
       while (cursorMs < maxTimeMs + 2000) {
         const winStart = cursorMs;
         const winEnd = cursorMs + 6800;
-        this._mirrorWindows.push({ startMs: winStart, endMs: winEnd });
+        rawWindows.push({ startMs: winStart, endMs: winEnd, notes: [] });
         cursorMs = winEnd + 5600;
       }
 
-      // Etiquetar las notas de los carriles exteriores (0 = izquierdo, 2 = derecho) que caen dentro de una ventana Espejo
+      // Resetear e identificar las notas afectadas dentro de cada ventana Espejo
       for (let i = 0; i < this.notes.length; i++) {
         const n = this.notes[i];
         if (!n) continue;
         n._isMirrored = false;
+        n._isMirrorStartKey = false;
+        n._isMirrorEndKey = false;
         n._mirrorTargetLane = n.lane;
         if (n.isMine || (n.lane !== 0 && n.lane !== 2)) continue;
         const nt = n.timestamp_ms ?? n.timeMs ?? 0;
-        for (let w = 0; w < this._mirrorWindows.length; w++) {
-          const win = this._mirrorWindows[w];
-          // Margen de seguridad de 260ms en los bordes de la ventana para que nunca pille a mitad de transición
+        for (let w = 0; w < rawWindows.length; w++) {
+          const win = rawWindows[w];
           if (nt >= win.startMs + 260 && nt <= win.endMs - 260) {
             n._isMirrored = true;
             n._mirrorTargetLane = 2 - n.lane;
+            win.notes.push(n);
             break;
           }
         }
+      }
+
+      // Ajustar cada ventana exactamente a su tecla de inicio y su tecla final para que se vea con total precisión dónde empieza y termina el efecto
+      for (let w = 0; w < rawWindows.length; w++) {
+        const win = rawWindows[w];
+        if (win.notes.length === 0) continue;
+        win.notes.sort((a, b) => ((a.timestamp_ms ?? a.timeMs ?? 0) - (b.timestamp_ms ?? b.timeMs ?? 0)));
+        const firstNote = win.notes[0];
+        const lastNote = win.notes[win.notes.length - 1];
+        firstNote._isMirrorStartKey = true;
+        lastNote._isMirrorEndKey = true;
+        const firstT = firstNote.timestamp_ms ?? firstNote.timeMs ?? win.startMs;
+        const lastT = lastNote.timestamp_ms ?? lastNote.timeMs ?? win.endMs;
+        this._mirrorWindows.push({
+          startMs: firstT,
+          endMs: lastT,
+          firstNote,
+          lastNote
+        });
       }
     }
 
     _isMirrorWindowActiveAt(timeMs) {
       if (!this._mirrorWindows || this._mirrorWindows.length === 0) return false;
+      const approach = this.approachTimeMs || 1600;
       for (let i = 0; i < this._mirrorWindows.length; i++) {
         const w = this._mirrorWindows[i];
-        if (timeMs >= w.startMs && timeMs <= w.endMs) return true;
+        if (timeMs >= w.startMs - approach * 0.85 && timeMs <= w.endMs + 140) return true;
       }
       return false;
     }
@@ -16806,7 +16829,7 @@ class BeatstarEngine {
         }
       }
       const targetProg = inMirrorNow ? 1.0 : 0.0;
-      this._mirrorPhaseProgress = (this._mirrorPhaseProgress || 0) + (targetProg - (this._mirrorPhaseProgress || 0)) * Math.min(1, dt * 4.2);
+      this._mirrorPhaseProgress = (this._mirrorPhaseProgress || 0) + (targetProg - (this._mirrorPhaseProgress || 0)) * Math.min(1, dt * 4.5);
       if (this._mirrorFlipWave > 0) {
         this._mirrorFlipWave = Math.max(0, this._mirrorFlipWave - dt * 1.6);
       }
@@ -16822,26 +16845,54 @@ class BeatstarEngine {
     }
 
     // Dibuja en el suelo de la autopista 3D la animación de cruce de los carriles exteriores (Carril 1 <-> Carril 3):
-    // Los carriles izquierdo y derecho se curvan y entrelazan físicamente en una "X" tridimensional hacia los botones opuestos
+    // Las dos corrientes de luz nacen directamente en la tecla de inicio, descienden con ella hasta los receptores opuestos y se cierran exactamente tras la última tecla afectada
     renderMirrorTrackWeave(ctx, currentTime, horizonY, hitY, bottomY) {
       const rawP = this._mirrorPhaseProgress || 0;
       const flipWave = this._mirrorFlipWave || 0;
       if (rawP <= 0.005 && flipWave <= 0.005) return;
 
-      // Curva suave cubic-in-out para que el cruce y descruce de los carriles en la pista sea fluido y cinematográfico
       const easeP = rawP < 0.5
         ? 4 * rawP * rawP * rawP
         : 1 - Math.pow(-2 * rawP + 2, 3) / 2;
 
       const t = (currentTime >= 0 ? currentTime : performance.now()) * 0.001;
-      const yCrossStart = horizonY + (hitY - horizonY) * 0.30;
+      const yCrossStart = horizonY + (hitY - horizonY) * 0.24;
       const yCrossEnd = hitY;
       const spanCrossY = Math.max(10, yCrossEnd - yCrossStart);
-      const steps = 22;
 
+      // Calcular el tramo vertical exacto comprendido entre la primera tecla afectada y la última tecla afectada de la ventana activa
+      let activeWin = null;
+      const approach = this.approachTimeMs || 1600;
+      if (this._mirrorWindows) {
+        for (let i = 0; i < this._mirrorWindows.length; i++) {
+          const w = this._mirrorWindows[i];
+          if (currentTime >= w.startMs - approach && currentTime <= w.endMs + 260) {
+            activeWin = w;
+            break;
+          }
+        }
+      }
+
+      // uMin = cola del efecto (sigue a la última tecla cuando ya va bajando), uMax = frente del efecto (cae con la primera tecla hasta llegar a hitY)
+      let uMin = 0.0;
+      let uMax = 1.0;
+      if (activeWin) {
+        const pFirst = 1 - ((activeWin.startMs - currentTime) / approach);
+        const pLast = 1 - ((activeWin.endMs - currentTime) / approach);
+        const yFirst = (pFirst >= 1.0) ? hitY : this.getPerspectiveCoord(0, Math.max(0, pFirst), this._coordScratch1).y;
+        const yLast = (pLast <= 0.0) ? horizonY : this.getPerspectiveCoord(0, Math.min(1.05, pLast), this._coordScratch2).y;
+
+        if (yFirst < yCrossStart) return;
+        uMax = Math.max(0.0, Math.min(1.0, (yFirst - yCrossStart) / spanCrossY));
+        if (yLast > yCrossStart) {
+          uMin = Math.max(0.0, Math.min(1.0, (yLast - yCrossStart) / spanCrossY));
+        }
+        if (uMax <= uMin + 0.01) return;
+      }
+
+      const steps = 22;
       ctx.save();
 
-      // Para cada uno de los dos carriles exteriores (0: Izquierdo -> Derecho en Cian, 2: Derecho -> Izquierdo en Magenta/Ámbar)
       const streams = [
         {
           startLane: 0,
@@ -16863,10 +16914,10 @@ class BeatstarEngine {
         const st = streams[sIdx];
         const laneDelta = (st.endLane - st.startLane) * easeP;
 
-        // 1. Alfombra luminosa 3D del carril curvándose hacia el receptor opuesto
+        // 1. Alfombra luminosa 3D del carril curvándose hacia el receptor opuesto (acotada entre la tecla inicial y la final)
         ctx.beginPath();
         for (let i = 0; i <= steps; i++) {
-          const u = i / steps;
+          const u = uMin + (uMax - uMin) * (i / steps);
           const sCurve = u * u * (3 - 2 * u);
           const vLane = st.startLane + laneDelta * sCurve;
           const y = yCrossStart + spanCrossY * u;
@@ -16875,7 +16926,7 @@ class BeatstarEngine {
           else ctx.lineTo(xL, y);
         }
         for (let i = steps; i >= 0; i--) {
-          const u = i / steps;
+          const u = uMin + (uMax - uMin) * (i / steps);
           const sCurve = u * u * (3 - 2 * u);
           const vLane = st.startLane + laneDelta * sCurve;
           const y = yCrossStart + spanCrossY * u;
@@ -16885,25 +16936,25 @@ class BeatstarEngine {
         ctx.closePath();
 
         const ribbonGrad = ctx.createLinearGradient(0, yCrossStart, 0, yCrossEnd);
-        ribbonGrad.addColorStop(0.0, `rgba(${st.rgb}, 0.0)`);
-        ribbonGrad.addColorStop(0.25, `rgba(${st.rgb}, ${(0.14 * easeP).toFixed(3)})`);
-        ribbonGrad.addColorStop(0.65, `rgba(${st.rgb}, ${(0.24 * easeP).toFixed(3)})`);
-        ribbonGrad.addColorStop(1.0, `rgba(${st.rgb}, ${(0.34 * easeP).toFixed(3)})`);
+        ribbonGrad.addColorStop(0.0, `rgba(${st.rgb}, ${(0.12 * easeP).toFixed(3)})`);
+        ribbonGrad.addColorStop(0.35, `rgba(${st.rgb}, ${(0.22 * easeP).toFixed(3)})`);
+        ribbonGrad.addColorStop(0.75, `rgba(${st.rgb}, ${(0.32 * easeP).toFixed(3)})`);
+        ribbonGrad.addColorStop(1.0, `rgba(${st.rgb}, ${(0.40 * easeP).toFixed(3)})`);
         ctx.fillStyle = ribbonGrad;
         ctx.fill();
 
-        // 2. Raíles laterales de neón del carril cruzado en perspectiva 3D
+        // 2. Dos líneas de luz láser intensas por carril que "pintan" e iluminan las teclas al pasar
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
         const railGrad = ctx.createLinearGradient(0, yCrossStart, 0, yCrossEnd);
-        railGrad.addColorStop(0.0, `rgba(${st.rgb}, 0.0)`);
-        railGrad.addColorStop(0.20, `rgba(${st.rgb}, ${(0.55 * easeP).toFixed(3)})`);
-        railGrad.addColorStop(1.0, `rgba(${st.rgb}, ${(0.90 * easeP).toFixed(3)})`);
+        railGrad.addColorStop(0.0, `rgba(${st.rgb}, ${(0.45 * easeP).toFixed(3)})`);
+        railGrad.addColorStop(0.25, `rgba(${st.rgb}, ${(0.80 * easeP).toFixed(3)})`);
+        railGrad.addColorStop(1.0, `rgba(${st.rgb}, ${(0.98 * easeP).toFixed(3)})`);
         ctx.strokeStyle = railGrad;
-        ctx.lineWidth = 2.6;
+        ctx.lineWidth = 3.2;
         ctx.beginPath();
         for (let i = 0; i <= steps; i++) {
-          const u = i / steps;
+          const u = uMin + (uMax - uMin) * (i / steps);
           const sCurve = u * u * (3 - 2 * u);
           const vLane = st.startLane + laneDelta * sCurve;
           const y = yCrossStart + spanCrossY * u;
@@ -16912,7 +16963,7 @@ class BeatstarEngine {
           else ctx.lineTo(xL, y);
         }
         for (let i = 0; i <= steps; i++) {
-          const u = i / steps;
+          const u = uMin + (uMax - uMin) * (i / steps);
           const sCurve = u * u * (3 - 2 * u);
           const vLane = st.startLane + laneDelta * sCurve;
           const y = yCrossStart + spanCrossY * u;
@@ -16922,25 +16973,31 @@ class BeatstarEngine {
         }
         ctx.stroke();
 
+        // Filamento central blanco incandescente en ambas líneas de luz
+        ctx.strokeStyle = `rgba(255, 255, 255, ${(0.70 * easeP).toFixed(3)})`;
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+
         // 3. Chevrons de flujo luminoso viajando por dentro del carril cruzado hacia el botón opuesto
         const numChevrons = 5;
         const flowSpeed = (t * 1.45) % 1.0;
         for (let c = 0; c < numChevrons; c++) {
           const uChev = ((c / numChevrons) + flowSpeed) % 1.0;
-          if (uChev < 0.08 || uChev > 0.95) continue;
+          if (uChev < Math.max(0.06, uMin) || uChev > Math.min(0.96, uMax)) continue;
           const sCurve = uChev * uChev * (3 - 2 * uChev);
-          const sCurveNext = Math.min(1, uChev + 0.04) * Math.min(1, uChev + 0.04) * (3 - 2 * Math.min(1, uChev + 0.04));
+          const uNext = Math.min(1, uChev + 0.04);
+          const sCurveNext = uNext * uNext * (3 - 2 * uNext);
           const vLane = st.startLane + laneDelta * sCurve;
           const vLaneNext = st.startLane + laneDelta * sCurveNext;
 
           const yC = yCrossStart + spanCrossY * uChev;
-          const yNext = yCrossStart + spanCrossY * Math.min(1, uChev + 0.04);
+          const yNext = yCrossStart + spanCrossY * uNext;
           const xCenter = this.getLaneBoundaryX(vLane + 0.5, yC);
           const xNext = this.getLaneBoundaryX(vLaneNext + 0.5, yNext);
           const laneWAtY = this.getLaneBoundaryX(vLane + 0.78, yC) - this.getLaneBoundaryX(vLane + 0.22, yC);
 
           const angle = Math.atan2(yNext - yC, xNext - xCenter) - Math.PI * 0.5;
-          const chevAlpha = Math.sin(uChev * Math.PI) * easeP * 0.78;
+          const chevAlpha = Math.sin(uChev * Math.PI) * easeP * 0.82;
           if (chevAlpha <= 0.02) continue;
 
           ctx.save();
@@ -16961,7 +17018,7 @@ class BeatstarEngine {
       }
 
       // 4. Nodo luminoso 3D en el punto central de intersección ("X") y halo cromático en los receptores cruzados
-      if (easeP > 0.08) {
+      if (easeP > 0.08 && uMax >= 0.5 && uMin <= 0.5) {
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
         const crossMidY = yCrossStart + spanCrossY * 0.50;
@@ -16979,20 +17036,19 @@ class BeatstarEngine {
         ctx.arc(crossMidX, crossMidY, nexusR * pulse, 0, Math.PI * 2);
         ctx.fill();
 
-        // Resplandor cromático en la base de los dos receptores exteriores (Izquierdo = Magenta del carril 3, Derecho = Cian del carril 1)
         const padLeftCx = (this.getLaneBoundaryX(0, hitY) + this.getLaneBoundaryX(1, hitY)) * 0.5;
         const padRightCx = (this.getLaneBoundaryX(2, hitY) + this.getLaneBoundaryX(3, hitY)) * 0.5;
         const padW = (this.getLaneBoundaryX(1, hitY) - this.getLaneBoundaryX(0, hitY)) * 0.42;
 
-        ctx.strokeStyle = `rgba(255, 42, 133, ${(0.72 * easeP).toFixed(3)})`;
-        ctx.lineWidth = 3.2;
+        ctx.strokeStyle = `rgba(255, 42, 133, ${(0.76 * easeP).toFixed(3)})`;
+        ctx.lineWidth = 3.4;
         ctx.beginPath();
         ctx.moveTo(padLeftCx - padW, hitY);
         ctx.lineTo(padLeftCx + padW, hitY);
         ctx.stroke();
 
-        ctx.strokeStyle = `rgba(0, 242, 254, ${(0.72 * easeP).toFixed(3)})`;
-        ctx.lineWidth = 3.2;
+        ctx.strokeStyle = `rgba(0, 242, 254, ${(0.76 * easeP).toFixed(3)})`;
+        ctx.lineWidth = 3.4;
         ctx.beginPath();
         ctx.moveTo(padRightCx - padW, hitY);
         ctx.lineTo(padRightCx + padW, hitY);
@@ -17000,39 +17056,27 @@ class BeatstarEngine {
         ctx.restore();
       }
 
-      // 5. Onda de choque cristalina en la pista justo en el instante en que los carriles se cruzan o descruzan
-      if (flipWave > 0.02) {
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        const waveY = horizonY + (hitY - horizonY) * (1.0 - flipWave * 0.75);
-        const wL = this.getLaneBoundaryX(0, waveY);
-        const wR = this.getLaneBoundaryX(3, waveY);
-        ctx.strokeStyle = `rgba(56, 189, 248, ${(flipWave * 0.75).toFixed(3)})`;
-        ctx.lineWidth = 4.5 * flipWave;
-        ctx.beginPath();
-        ctx.moveTo(wL, waveY);
-        ctx.lineTo(wR, waveY);
-        ctx.stroke();
-        ctx.restore();
-      }
-
       ctx.restore();
     }
 
-    // Dibuja la nota reflejada manteniendo la tecla 100% limpia y original,
-    // pero proyectando por el suelo de la pista una estela curva de energía que guía la vista desde la tecla hacia el botón opuesto
+    // Dibuja cada tecla afectada por el espejo:
+    // - Si es la PRIMERA tecla del efecto (_isMirrorStartKey), dos rayos de luz caen desde arriba directamente sobre la tecla encendiéndola.
+    // - Todas las teclas afectadas (_isMirrored) se van pintando e iluminando progresivamente de forma animada con el color de las dos líneas de luz (Cian en carril 1 -> botón 3, Magenta en carril 3 -> botón 1).
     renderMirrorReflectedNote(ctx, note, drawLane, coord, h, isLarge, isSwipe, swipeDir, lyricForNote, pHead, currentTime) {
       const oppLane = 2 - drawLane;
       const scale = coord.scale;
       const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
       const horizonY = 12;
+      const isLeftNote = (drawLane === 0);
+      const rgb = isLeftNote ? '0, 242, 254' : '255, 42, 133';
+      const hexMain = isLeftNote ? '#00f2fe' : '#ff2a85';
+      const hexDeep = isLeftNote ? '#0369a1' : '#9d174d';
+      const tSec = (currentTime >= 0 ? currentTime : performance.now()) * 0.001;
 
-      // 1. Estela guía curva sobre la pista (desde la base de la tecla hacia el receptor opuesto)
-      if (pHead > 0.12 && pHead < 1.06) {
+      // 1. Estela guía curva sobre la pista (desde la tecla hacia el botón opuesto)
+      if (pHead > 0.10 && pHead < 1.06) {
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
-        const isLeftNote = (drawLane === 0);
-        const rgb = isLeftNote ? '0, 242, 254' : '255, 42, 133';
         const startY = Math.min(hitY, coord.y);
         const endY = hitY;
 
@@ -17041,7 +17085,6 @@ class BeatstarEngine {
           ctx.beginPath();
           for (let s = 0; s <= segs; s++) {
             const u = s / segs;
-            // Curva suave desde el carril actual de la tecla (drawLane) hasta el centro del botón opuesto (oppLane)
             const easeU = u * u * (3 - 2 * u);
             const curV = drawLane + (oppLane - drawLane) * easeU;
             const py = startY + (endY - startY) * u;
@@ -17051,27 +17094,27 @@ class BeatstarEngine {
             if (s === 0) ctx.moveTo(px, py);
             else ctx.lineTo(px, py);
           }
-          const trailAlpha = Math.min(0.92, Math.max(0.18, pHead * 0.95));
+          const trailAlpha = Math.min(0.94, Math.max(0.20, pHead * 0.96));
           ctx.strokeStyle = `rgba(${rgb}, ${trailAlpha.toFixed(3)})`;
-          ctx.lineWidth = Math.max(2.4, 5.2 * scale);
+          ctx.lineWidth = Math.max(2.6, 5.5 * scale);
           ctx.stroke();
 
-          ctx.strokeStyle = `rgba(255, 255, 255, ${(trailAlpha * 0.85).toFixed(3)})`;
-          ctx.lineWidth = Math.max(1.2, 2.0 * scale);
+          ctx.strokeStyle = `rgba(255, 255, 255, ${(trailAlpha * 0.88).toFixed(3)})`;
+          ctx.lineWidth = Math.max(1.2, 2.1 * scale);
           ctx.stroke();
         }
 
-        // Anillo receptor sincronizado en el botón opuesto que se contrae a medida que la tecla llega a la meta
-        if (pHead > 0.35 && pHead <= 1.05 && this.getLaneBoundaryX) {
-          const approach = Math.max(0, Math.min(1, (pHead - 0.35) / 0.65));
+        // Anillo receptor sincronizado en el botón opuesto
+        if (pHead > 0.30 && pHead <= 1.05 && this.getLaneBoundaryX) {
+          const approach = Math.max(0, Math.min(1, (pHead - 0.30) / 0.70));
           const bL = this.getLaneBoundaryX(oppLane, hitY) + 8;
           const bR = this.getLaneBoundaryX(oppLane + 1, hitY) - 8;
           const targetCx = (bL + bR) * 0.5;
           const halfW = (bR - bL) * 0.46 * (1.35 - 0.35 * approach);
           const halfH = (isLarge ? 12 : 8.5) * (1.35 - 0.35 * approach);
 
-          ctx.strokeStyle = `rgba(${rgb}, ${(0.35 + approach * 0.60).toFixed(3)})`;
-          ctx.lineWidth = 2.4;
+          ctx.strokeStyle = `rgba(${rgb}, ${(0.38 + approach * 0.62).toFixed(3)})`;
+          ctx.lineWidth = 2.6;
           ctx.beginPath();
           if (ctx.roundRect) {
             ctx.roundRect(targetCx - halfW, hitY - halfH, halfW * 2, halfH * 2, 6);
@@ -17083,22 +17126,131 @@ class BeatstarEngine {
         ctx.restore();
       }
 
-      // 2. Dibujar la tecla con su diseño limpio original (sin degradados morados ni iconos encima)
+      // 2. Dibujar la base 3D de la tecla
       const keyRect = this.drawIvoryKey(ctx, drawLane, coord.y, h, scale, false, isLarge, isSwipe, lyricForNote);
 
-      // Sutil filo luminoso perimetral del color del carril cruzado para identificarla con elegancia
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.strokeStyle = (drawLane === 0) ? 'rgba(0, 242, 254, 0.78)' : 'rgba(255, 42, 133, 0.78)';
-      ctx.lineWidth = Math.max(1.5, 2.4 * scale);
-      ctx.beginPath();
-      if (ctx.roundRect) {
-        ctx.roundRect(keyRect.cx - keyRect.w * 0.48, keyRect.cy - keyRect.h * 0.46, keyRect.w * 0.96, keyRect.h * 0.92, Math.max(5, 9 * scale));
-      } else {
-        ctx.rect(keyRect.cx - keyRect.w * 0.48, keyRect.cy - keyRect.h * 0.46, keyRect.w * 0.96, keyRect.h * 0.92);
+      // 3. PINTADO E ILUMINACIÓN ANIMADA DE LA TECLA POR LAS DOS LÍNEAS DE LUZ
+      // A medida que la tecla baja (pHead de 0.04 a 0.36), las dos líneas de luz la van "pintando" de abajo arriba con su color neón
+      const paintProg = Math.max(0.0, Math.min(1.0, (pHead - 0.03) / 0.32));
+      if (paintProg > 0.01) {
+        const kx = keyRect.cx - keyRect.w * 0.485;
+        const ky = keyRect.cy - keyRect.h * 0.47;
+        const kw = keyRect.w * 0.97;
+        const kh = keyRect.h * 0.94;
+        const kr = Math.max(5, 9 * scale);
+        const paintedH = kh * paintProg;
+        const paintTopY = ky + kh - paintedH;
+
+        ctx.save();
+        // Recortar a la silueta redondeada de la tecla hasta la línea donde va pintando el haz de luz
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(kx, ky, kw, kh, kr);
+        } else {
+          ctx.rect(kx, ky, kw, kh);
+        }
+        ctx.clip();
+
+        // Baño de luz cromática animada (Cian para carril 1 -> 3, Magenta para carril 3 -> 1)
+        const pulseGlow = 0.78 + 0.18 * Math.sin(tSec * 9.0 - pHead * 6.0);
+        const fillGrad = ctx.createLinearGradient(kx, paintTopY, kx + kw, ky + kh);
+        fillGrad.addColorStop(0.0, `rgba(${rgb}, ${(0.84 * pulseGlow).toFixed(3)})`);
+        fillGrad.addColorStop(0.5, isLeftNote ? `rgba(56, 189, 248, ${(0.72 * pulseGlow).toFixed(3)})` : `rgba(244, 63, 94, ${(0.72 * pulseGlow).toFixed(3)})`);
+        fillGrad.addColorStop(1.0, `rgba(${rgb}, ${(0.92 * pulseGlow).toFixed(3)})`);
+        ctx.fillStyle = fillGrad;
+        ctx.fillRect(kx, paintTopY, kw, paintedH);
+
+        // Onda de barrido de luz diagonal que recorre la tecla iluminada
+        const wavePhase = ((tSec * 1.9 + pHead * 2.2) % 1.0);
+        const sheenX = kx - kw * 0.3 + (kw * 1.6) * wavePhase;
+        const sheenGrad = ctx.createLinearGradient(sheenX - kw * 0.25, ky, sheenX + kw * 0.25, ky + kh);
+        sheenGrad.addColorStop(0.0, 'rgba(255, 255, 255, 0.0)');
+        sheenGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.52)');
+        sheenGrad.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
+        ctx.fillStyle = sheenGrad;
+        ctx.fillRect(kx, paintTopY, kw, paintedH);
+
+        // Línea láser incandescente de "pintado" en el frente de avance (mientras se está pintando la tecla)
+        if (paintProg < 0.99) {
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = Math.max(2.0, 3.4 * scale);
+          ctx.beginPath();
+          ctx.moveTo(kx, paintTopY);
+          ctx.lineTo(kx + kw, paintTopY);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // Dos filamentos de luz en los bordes izquierdo y derecho de la tecla (las 2 líneas de luz abrazando y pintando la tecla)
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.strokeStyle = hexMain;
+        ctx.lineWidth = Math.max(2.2, 3.8 * scale);
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(kx, ky, kw, kh, kr);
+        } else {
+          ctx.rect(kx, ky, kw, kh);
+        }
+        ctx.stroke();
+
+        // Puntos de contacto de las dos líneas de luz en los laterales de la tecla
+        const dotR = Math.max(2.5, 4.8 * scale);
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(kx, paintTopY + paintedH * 0.3, dotR, 0, Math.PI * 2);
+        ctx.arc(kx + kw, paintTopY + paintedH * 0.3, dotR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
       }
-      ctx.stroke();
-      ctx.restore();
+
+      // 4. EFECTO DE CAÍDA DE LUZ SOBRE LA TECLA DE INICIO (_isMirrorStartKey) Y CIERRE EN LA TECLA FINAL (_isMirrorEndKey)
+      if (note._isMirrorStartKey && pHead > 0.01 && pHead < 1.05) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        const beamTopY = Math.max(horizonY, keyRect.cy - Math.max(55, 135 * scale));
+        const leftEdgeX = keyRect.cx - keyRect.w * 0.46;
+        const rightEdgeX = keyRect.cx + keyRect.w * 0.46;
+
+        // Dos haces de luz descendiendo desde el cielo directamente sobre los dos flancos de la tecla de inicio
+        const beamGrad = ctx.createLinearGradient(0, beamTopY, 0, keyRect.cy);
+        beamGrad.addColorStop(0.0, `rgba(${rgb}, 0.0)`);
+        beamGrad.addColorStop(0.45, `rgba(${rgb}, 0.65)`);
+        beamGrad.addColorStop(1.0, 'rgba(255, 255, 255, 0.98)');
+
+        ctx.strokeStyle = beamGrad;
+        ctx.lineWidth = Math.max(2.4, 4.8 * scale);
+        ctx.beginPath();
+        ctx.moveTo(keyRect.cx - keyRect.w * 0.18, beamTopY);
+        ctx.lineTo(leftEdgeX, keyRect.cy);
+        ctx.moveTo(keyRect.cx + keyRect.w * 0.18, beamTopY);
+        ctx.lineTo(rightEdgeX, keyRect.cy);
+        ctx.stroke();
+
+        // Destello prismático de impacto sobre la corona de la tecla de inicio
+        const flareR = Math.max(10, 24 * scale) * (0.85 + 0.20 * Math.sin(tSec * 14.0));
+        const flareGrad = ctx.createRadialGradient(keyRect.cx, keyRect.cy, 1, keyRect.cx, keyRect.cy, flareR);
+        flareGrad.addColorStop(0.0, 'rgba(255, 255, 255, 0.98)');
+        flareGrad.addColorStop(0.45, `rgba(${rgb}, 0.85)`);
+        flareGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = flareGrad;
+        ctx.beginPath();
+        ctx.arc(keyRect.cx, keyRect.cy, flareR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      } else if (note._isMirrorEndKey && pHead > 0.02 && pHead < 1.05) {
+        // Sello luminoso superior en la última tecla afectada indicando que ahí se cierra el caudal de luz
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        const topEdgeY = keyRect.cy - keyRect.h * 0.48;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = Math.max(2.2, 3.6 * scale);
+        ctx.beginPath();
+        ctx.moveTo(keyRect.cx - keyRect.w * 0.46, topEdgeY);
+        ctx.lineTo(keyRect.cx + keyRect.w * 0.46, topEdgeY);
+        ctx.stroke();
+        ctx.restore();
+      }
 
       if (isSwipe) {
         this.renderVectorChevron(ctx, keyRect.cx, keyRect.cy, swipeDir, keyRect.w, keyRect.h);

@@ -1981,6 +1981,10 @@
   let slotCountdownTimerInterval = null;
 
   function openGranFortuna(mode = 'bet', fromLoading = false) {
+    if (mode === 'featured' && typeof window.openDailyVideoPoker === 'function') {
+      window.openDailyVideoPoker();
+      return;
+    }
     unlockAllSlotAudio();
     window.isSlotActiveDuringLoad = !!fromLoading;
 

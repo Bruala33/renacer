@@ -1046,6 +1046,211 @@ app.get('/api/v1/community/featured', (req, res) => {
   res.json(selected.slice(0, 6));
 });
 
+// ==========================================
+// 3B. DAILY VIDEO POKER ("CANCIÓN DEL DÍA" - LAS VEGAS CASINO)
+// Canción fija + Modo fijo + Dificultad fija para todo el mundo + Bote acumulado de Claves apostadas
+// ==========================================
+const dailyPokerStateByDay = new Map();
+
+const DAILY_POKER_MODES = [
+  { id: 'mirror', label: 'OJEPSƎ', short: 'OJEPSƎ', icon: '🪞', color: '#00f2fe' },
+  { id: 'river', label: 'RÍO', short: 'RÍO', icon: '🌊', color: '#38bdf8' },
+  { id: 'mushrooms', label: 'SETAS', short: 'SETAS', icon: '🍄', color: '#e879f9' },
+  { id: 'minesweeper', label: 'MINAS', short: 'MINAS', icon: '💣', color: '#ef4444' },
+  { id: 'storm', label: 'TORMENTA', short: 'TORMENTA', icon: '⚡', color: '#a855f7' },
+  { id: 'annoying_dog', label: 'PERRO', short: 'PERRO', icon: '🐶', color: '#fbbf24' },
+  { id: 'classic', label: 'CLÁSICO', short: 'CLÁSICO', icon: '🎹', color: '#f59e0b' }
+];
+
+// Tabla de pagos estilo "Jotas o Mejor" (5 niveles de apuesta: 10, 25, 50, 100, 200 Claves)
+const DAILY_POKER_BETS = [10, 25, 50, 100, 200];
+const DAILY_POKER_PAYTABLE = [
+  { rank: 1, hand: 'ESCALERA REAL', badge: '👑 #1', fixed: [40, 100, 200, 400, 900], potShare: [0.15, 0.30, 0.50, 0.75, 1.00] },
+  { rank: 2, hand: 'ESCALERA COLOR', badge: '🥈 #2', fixed: [25, 60, 125, 250, 500], potShare: [0.08, 0.15, 0.22, 0.30, 0.40] },
+  { rank: 3, hand: 'POKER', badge: '🥉 #3', fixed: [18, 45, 90, 180, 360], potShare: [0.05, 0.08, 0.12, 0.18, 0.25] },
+  { rank: 4, hand: 'FULL', badge: '♠️ #4', fixed: [12, 30, 60, 120, 240], potShare: [0, 0, 0.05, 0.08, 0.12] },
+  { rank: 5, hand: 'COLOR', badge: '♥️ #5', fixed: [10, 25, 50, 100, 200], potShare: [0, 0, 0, 0.04, 0.08] },
+  { rank: 10, hand: 'JOTAS O MEJOR', badge: '♣️ TOP 10', fixed: [6, 15, 30, 60, 120], potShare: [0, 0, 0, 0, 0] }
+];
+
+function getOrCreateDailyPokerState() {
+  const now = new Date();
+  const dayKey = now.toISOString().slice(0, 10);
+  if (dailyPokerStateByDay.has(dayKey)) {
+    return dailyPokerStateByDay.get(dayKey);
+  }
+
+  const daySeed = now.getUTCFullYear() * 372 + (now.getUTCMonth() + 1) * 31 + now.getUTCDate();
+  let catalogSongs = [];
+  try {
+    const catPath = path.join(STATIC_DIR, 'songs', 'catalog_top.json');
+    if (fs.existsSync(catPath)) {
+      const rawCat = JSON.parse(fs.readFileSync(catPath, 'utf-8'));
+      if (Array.isArray(rawCat) && rawCat.length > 0) {
+        catalogSongs = rawCat;
+      }
+    }
+  } catch (_) {}
+
+  const rawSong = catalogSongs.length > 0
+    ? catalogSongs[(daySeed * 19 + 7) % catalogSongs.length]
+    : {
+        id: 'david_bustamante_abrazame_muy_fuerte',
+        title: 'Abrázame Muy Fuerte',
+        artist: 'David Bustamante',
+        bpm: 126,
+        total_notes: 420,
+        cover_url: './app_logo.png'
+      };
+
+  const cleanRawId = String(rawSong.id || 'david_bustamante_abrazame_muy_fuerte').replace(/^top_/, '');
+  const fullSongId = `top_${cleanRawId}`;
+  const modeObj = DAILY_POKER_MODES[(daySeed * 11 + 3) % DAILY_POKER_MODES.length];
+  const difficulty = (daySeed % 2 === 0) ? 'Difícil' : 'Normal';
+  const totalNotes = Number(rawSong.total_notes) || 380;
+  const stars = difficulty === 'Difícil'
+    ? Math.min(7.2, Math.max(4.5, +(3.8 + (totalNotes / 150)).toFixed(1)))
+    : Math.min(3.6, Math.max(2.0, +(1.7 + (totalNotes / 260)).toFixed(1)));
+
+  // Semilla inicial de rankings con las mejores puntuaciones reales de esa canción si existen
+  const initialRankings = [];
+  const existingChartScores = chartScores.get(fullSongId) || chartScores.get(cleanRawId) || [];
+  for (const s of existingChartScores.slice(0, 10)) {
+    const pName = s.player_name || s.name || s.username;
+    const pScore = Number(s.score) || 0;
+    if (pName && pScore > 0 && !initialRankings.some(r => r.player_name.toLowerCase() === String(pName).toLowerCase())) {
+      initialRankings.push({
+        player_name: String(pName),
+        avatar_url: s.avatar_url || null,
+        score: pScore,
+        bet_tier: 3,
+        timestamp: s.timestamp || Date.now()
+      });
+    }
+  }
+  initialRankings.sort((a, b) => b.score - a.score);
+
+  const state = {
+    dayKey,
+    daySeed,
+    song: {
+      id: fullSongId,
+      raw_id: cleanRawId,
+      title: rawSong.title || cleanRawId,
+      artist: rawSong.artist || 'Artista',
+      bpm: Number(rawSong.bpm) || 120,
+      total_notes: totalNotes,
+      stars,
+      cover_url: rawSong.cover_url || rawSong.thumbnail || './app_logo.png',
+      chart_url: rawSong.chart_url || `${cleanRawId}.json`,
+      audio_url: rawSong.audio_url || `${cleanRawId}.mp3`
+    },
+    mode: modeObj,
+    difficulty,
+    potClefs: 150 + initialRankings.length * 35,
+    rankings: initialRankings
+  };
+
+  dailyPokerStateByDay.set(dayKey, state);
+  return state;
+}
+
+app.get('/api/v1/daily-poker', (req, res) => {
+  const state = getOrCreateDailyPokerState();
+  res.json({
+    success: true,
+    dayKey: state.dayKey,
+    song: state.song,
+    mode: state.mode,
+    difficulty: state.difficulty,
+    potClefs: state.potClefs,
+    bets: DAILY_POKER_BETS,
+    paytable: DAILY_POKER_PAYTABLE,
+    rankings: state.rankings.slice(0, 15).map((r, i) => ({ ...r, rank: i + 1 }))
+  });
+});
+
+app.post('/api/v1/daily-poker/wager', (req, res) => {
+  const state = getOrCreateDailyPokerState();
+  const betTier = Math.max(1, Math.min(5, Number(req.body?.bet_tier) || 1));
+  const wagerClefs = DAILY_POKER_BETS[betTier - 1] || 10;
+  state.potClefs = Math.max(100, (state.potClefs || 150) + wagerClefs);
+  res.json({
+    success: true,
+    bet_tier: betTier,
+    wagerClefs,
+    potClefs: state.potClefs
+  });
+});
+
+app.post('/api/v1/daily-poker/submit', (req, res) => {
+  const state = getOrCreateDailyPokerState();
+  const rawName = String(req.body?.player_name || req.body?.username || 'Jugador').trim().slice(0, 28) || 'Jugador';
+  const avatarUrl = req.body?.avatar_url || null;
+  const score = Math.max(0, Math.round(Number(req.body?.score) || 0));
+  const betTier = Math.max(1, Math.min(5, Number(req.body?.bet_tier) || 1));
+
+  if (score > 0) {
+    const existingIdx = state.rankings.findIndex(r => r.player_name.toLowerCase() === rawName.toLowerCase());
+    if (existingIdx >= 0) {
+      if (score >= state.rankings[existingIdx].score) {
+        state.rankings[existingIdx].score = score;
+        state.rankings[existingIdx].bet_tier = betTier;
+        state.rankings[existingIdx].avatar_url = avatarUrl || state.rankings[existingIdx].avatar_url;
+        state.rankings[existingIdx].timestamp = Date.now();
+      }
+    } else {
+      state.rankings.push({
+        player_name: rawName,
+        avatar_url: avatarUrl,
+        score,
+        bet_tier: betTier,
+        timestamp: Date.now()
+      });
+    }
+    state.rankings.sort((a, b) => b.score - a.score);
+  }
+
+  const achievedIdx = state.rankings.findIndex(r => r.player_name.toLowerCase() === rawName.toLowerCase() && r.score >= score);
+  const rank = achievedIdx >= 0 ? (achievedIdx + 1) : (state.rankings.length + 1);
+
+  let matchedRow = null;
+  if (score >= 5000) {
+    if (rank === 1) matchedRow = DAILY_POKER_PAYTABLE[0];
+    else if (rank === 2) matchedRow = DAILY_POKER_PAYTABLE[1];
+    else if (rank === 3) matchedRow = DAILY_POKER_PAYTABLE[2];
+    else if (rank === 4) matchedRow = DAILY_POKER_PAYTABLE[3];
+    else if (rank === 5) matchedRow = DAILY_POKER_PAYTABLE[4];
+    else if (rank <= 10) matchedRow = DAILY_POKER_PAYTABLE[5];
+  }
+
+  let fixedWin = 0;
+  let potWin = 0;
+  let handName = 'SIN PREMIO';
+  if (matchedRow) {
+    handName = matchedRow.hand;
+    fixedWin = matchedRow.fixed[betTier - 1] || 0;
+    const share = matchedRow.potShare[betTier - 1] || 0;
+    if (share > 0 && state.potClefs > 0) {
+      potWin = Math.round(state.potClefs * share);
+      state.potClefs = Math.max(100, state.potClefs - Math.round(potWin * 0.65));
+    }
+  }
+  const totalWin = fixedWin + potWin;
+
+  res.json({
+    success: true,
+    rank,
+    handName,
+    bet_tier: betTier,
+    fixedWin,
+    potWin,
+    totalWin,
+    potClefs: state.potClefs,
+    rankings: state.rankings.slice(0, 15).map((r, i) => ({ ...r, rank: i + 1 }))
+  });
+});
+
 function normalizeSearchText(str) {
   return String(str || '')
     .normalize('NFD')
