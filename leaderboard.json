@@ -3237,9 +3237,9 @@
         "name": "Laaleplo",
         "score": 98742,
         "stars": 3.5,
-        "combo": 62,
-        "accuracy": 2.001268538194225,
-        "date": "2026-10-24 01:30:12"
+        "combo": 25,
+        "accuracy": 0.46026263323826416,
+        "date": "2026-10-24 01:36:18"
       }
     ],
     "clonehero_603147": [
@@ -3691,7 +3691,7 @@
     },
     {
       "name": "Laaleplo",
-      "total_score": 4742457,
+      "total_score": 4841199,
       "clefs": 41
     },
     {
@@ -3850,7 +3850,7 @@
       },
       {
         "name": "Laaleplo",
-        "score": 4742457
+        "score": 4841199
       },
       {
         "name": "fer",
