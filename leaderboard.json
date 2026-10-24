@@ -3785,7 +3785,7 @@
         "stars": 3,
         "combo": 184,
         "accuracy": 74.32738577547005,
-        "date": "2026-10-24 05:16:19"
+        "date": "2026-10-24 05:16:22"
       }
     ]
   },
@@ -3832,8 +3832,8 @@
     },
     {
       "name": "Libay",
-      "total_score": 6306707,
-      "clefs": 45
+      "total_score": 6756187,
+      "clefs": 49
     },
     {
       "name": "Azure",
@@ -4001,7 +4001,7 @@
       },
       {
         "name": "Libay",
-        "score": 6306707
+        "score": 6756187
       },
       {
         "name": "Laaleplo",
