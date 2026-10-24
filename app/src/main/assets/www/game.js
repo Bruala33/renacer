@@ -2989,6 +2989,7 @@ class BeatstarEngine {
     this.isAnnoyingDogModeActive = (curActiveMode === 'annoying_dog');
     this.isRiverModeActive = (curActiveMode === 'river');
     this.isMinesweeperModeActive = (curActiveMode === 'minesweeper');
+    this.isMirrorModeActive = (curActiveMode === 'mirror');
     if (typeof window !== 'undefined') {
       window.isKaraokeModeActive = this.isKaraokeModeActive;
       window.isStormModeActive = this.isStormModeActive;
@@ -2997,6 +2998,7 @@ class BeatstarEngine {
       window.isAnnoyingDogModeActive = this.isAnnoyingDogModeActive;
       window.isRiverModeActive = this.isRiverModeActive;
       window.isMinesweeperModeActive = this.isMinesweeperModeActive;
+      window.isMirrorModeActive = this.isMirrorModeActive;
     }
 
     // En Modo Buscaminas: inyectar teclas extra trampa (Minas) asincrónicas en huecos libres
@@ -3074,6 +3076,15 @@ class BeatstarEngine {
       this._prepareRiverChoreography();
       this._riverBannerText = '';
       this._riverBannerTimer = 0;
+    }
+    this._mirrorWindows = [];
+    this._mirrorCrossBeams = [];
+    this._mirrorPhaseProgress = 0;
+    this._mirrorFlipWave = 0;
+    this._lastMirrorActiveState = false;
+    if (this.isMirrorModeActive) {
+      this.initMirrorModeAssets();
+      this._prepareMirrorChoreography();
     }
     this.activeHolds.clear();
     this.activeTouches.clear();
@@ -3191,6 +3202,12 @@ class BeatstarEngine {
 
   // ⚡ OPTIMIZADO: Pausa vídeo de fondo + bucle para evitar decodificación en menús
   pause() {
+    if (!this.isCountingDown && !this.isGameOver && !this.isCalibrating && this.sync) {
+      const curSec = (this.sync.getCurrentTimeMs() || 0) / 1000;
+      if (curSec > 0) {
+        this.lastPauseSongTimeSec = curSec;
+      }
+    }
     this.isPaused = true;
     this.isRunning = false;
     this.sync.pause();
@@ -3219,6 +3236,80 @@ class BeatstarEngine {
     }
     this.sync.play();
     this.startLoop();
+  }
+
+  resumeFromPause() {
+    if (!this.beatmapData || this.isGameOver || this.isCalibrating || this.isCountingDown) {
+      this.resume();
+      return;
+    }
+    const pauseTimeSec = (Number.isFinite(this.lastPauseSongTimeSec) && this.lastPauseSongTimeSec > 0)
+      ? this.lastPauseSongTimeSec
+      : ((this.sync.getCurrentTimeMs() || 0) / 1000);
+
+    if (pauseTimeSec <= 0.35) {
+      this.resume();
+      return;
+    }
+
+    try {
+      this.synth.playAnalogTapeRewind();
+    } catch (e) {}
+
+    const pauseTimeMs = pauseTimeSec * 1000;
+    const fromTimeMs = pauseTimeMs + this.latencyOffsetMs;
+    const rewindTargetSec = Math.max(0, pauseTimeSec - 2.0);
+    const rewindTargetMs = rewindTargetSec * 1000;
+    const toTimeMs = rewindTargetMs + this.latencyOffsetMs;
+
+    this.sync.pause();
+    this.sync.seekTo(rewindTargetSec);
+
+    // Despejar las notas en el tramo inmediato de reanudación (como al revivir tras fallar)
+    // para que el jugador tenga tiempo de reacción al quitar el pause y nunca muera al instante
+    const clearThresholdMs = Math.max(pauseTimeMs + 60, rewindTargetMs + 1600);
+    for (const note of this.notes) {
+      const noteTime = note.timestamp_ms || 0;
+      if (noteTime <= clearThresholdMs) {
+        note.hit = true;
+        note.missed = false;
+        note.processed = true;
+        note.holding = false;
+        note.holdCompleted = true;
+      } else {
+        note.hit = false;
+        note.missed = false;
+        note.processed = false;
+        note.holding = false;
+        note.holdCompleted = false;
+        note.missHighlight = false;
+      }
+    }
+
+    this.firstActiveNoteIndex = 0;
+    this.lastLitSyllableIndex = -1;
+    this.activeHolds.clear();
+    this.activeTouches.clear();
+    this.judgements = [];
+    this.fxRipples = [];
+    this.bgBursts = [];
+    this.isProcessingMiss = false;
+    this.missHighlight = null;
+    this.lastMissTimePerf = performance.now();
+    this.invulnerableUntil = pauseTimeMs + this.latencyOffsetMs + 2500;
+
+    if (this.ui && this.ui.onShowRewindBadge) {
+      this.ui.onShowRewindBadge();
+    }
+
+    this.isPaused = false;
+    this.isGameOver = false;
+    this.isCountingDown = false;
+    this.initCanvasSize();
+
+    this.animateRewind(fromTimeMs, toTimeMs, 600, () => {
+      this.resume();
+    });
   }
 
   renderRewindVFX(progress) {
@@ -3624,13 +3715,16 @@ class BeatstarEngine {
       for (let i = startSearchIdx; i < nLen; i++) {
         const note = this.notes[i];
         if (!note || note.isMine || note.missed || note.holdCompleted || note.holding) continue;
+        const reqL = (this.isMirrorModeActive && note._isMirrored && (note.lane === 0 || note.lane === 2))
+          ? (2 - note.lane)
+          : note.lane;
         if (note.type === 'hold' && note.hit && note.holdReleasedEarly) {
           const endT = note.end_timestamp_ms || (note.timestamp_ms + (note.duration_ms || 700));
-          if (note.lane === targetL && currentTime >= note.timestamp_ms && currentTime < endT - 90) return true;
+          if (reqL === targetL && currentTime >= note.timestamp_ms && currentTime < endT - 90) return true;
         }
         if (note.hit) continue;
         if (note.timestamp_ms - currentTime > hitWindow + 60) break;
-        if (note.lane === targetL && Math.abs(currentTime - note.timestamp_ms) <= hitWindow) {
+        if (reqL === targetL && Math.abs(currentTime - note.timestamp_ms) <= hitWindow) {
           return true;
         }
       }
@@ -3687,10 +3781,14 @@ class BeatstarEngine {
       const note = this.notes[i];
       if (!note || note.missed || note.holdCompleted || note.holding) continue;
 
+      const requiredInputLane = (this.isMirrorModeActive && note._isMirrored && (note.lane === 0 || note.lane === 2))
+        ? (2 - note.lane)
+        : note.lane;
+
       // Permitir re-enganchar un hold que fue soltado temprano mientras su cuerpo sigue pasando por la meta
       if (note.type === 'hold' && note.hit && note.holdReleasedEarly && inputType === 'tap') {
         const endT = note.end_timestamp_ms || (note.timestamp_ms + (note.duration_ms || 700));
-        if (currentTime >= note.timestamp_ms && currentTime < endT - 90) {
+        if (requiredInputLane === lane && currentTime >= note.timestamp_ms && currentTime < endT - 90) {
           note.holding = true;
           note.holdReleasedEarly = false;
           this.activeHolds.set(lane, {
@@ -3701,13 +3799,14 @@ class BeatstarEngine {
             color: '#ffe082'
           });
           this.laneGlows[lane] = 1.0;
+          if (note.lane !== lane) this.laneGlows[note.lane] = 1.0;
           return true;
         }
       }
 
       if (note.hit) continue;
       if (note.timestamp_ms - currentTime > HIT_WINDOW + 80) break;
-      const matchesLane = this.isCalibrating || note.lane === lane;
+      const matchesLane = this.isCalibrating || requiredInputLane === lane;
       if (!matchesLane) continue;
 
       // Si es un evento de arrastre swipe, SOLO buscar notas que sean realmente de tipo 'swipe'
@@ -3895,7 +3994,31 @@ class BeatstarEngine {
       return false;
     }
 
-    this._lastLaneHitPerf[closestNote.lane ?? lane] = nowInput;
+    this._lastLaneHitPerf[lane] = nowInput;
+    if (closestNote.lane !== undefined) {
+      this._lastLaneHitPerf[closestNote.lane] = nowInput;
+    }
+    // En Modo Espejo (OJEPSƎ): si se acertó una tecla reflejada (pulsando el carril opuesto),
+    // iluminar también el carril visual de la nota y disparar un haz láser de reflexión cruzada
+    if (this.isMirrorModeActive && closestNote._isMirrored && closestNote.lane !== lane) {
+      const visLane = closestNote.lane;
+      this.laneGlows[visLane] = 1.0;
+      if (this.laneFlashTimers) this.laneFlashTimers[visLane] = 0.30;
+      if (this.laneFlashColors) this.laneFlashColors[visLane] = '#e879f9';
+      if (this.lanePressAnim) this.lanePressAnim[visLane] = nowInput;
+      const visHitX = (this.visualDimension !== '2d' && typeof this.getLaneBoundaryX === 'function')
+        ? (this.getLaneBoundaryX(visLane, hitY) + this.getLaneBoundaryX(visLane + 1, hitY)) * 0.5
+        : (visLane + 0.5) * this.laneWidth;
+      if (!this._mirrorCrossBeams) this._mirrorCrossBeams = [];
+      this._mirrorCrossBeams.push({
+        fromX: hitX,
+        toX: visHitX,
+        y: hitY,
+        age: 0,
+        duration: 0.38
+      });
+      this.emitKeyHit(visHitX, hitY, '#38bdf8', 20);
+    }
 
     if (this.isCalibrating) {
       closestNote.hit = true;
@@ -5180,7 +5303,8 @@ class BeatstarEngine {
       this.isAnnoyingDogModeActive ||
       this.isRiverModeActive ||
       this.isMinesweeperModeActive ||
-      (typeof window !== 'undefined' && (window.isStormModeActive || window.isMushroomModeActive || window.isHighwayModeActive || window.isAnnoyingDogModeActive || window.isRiverModeActive || window.isMinesweeperModeActive))
+      this.isMirrorModeActive ||
+      (typeof window !== 'undefined' && (window.isStormModeActive || window.isMushroomModeActive || window.isHighwayModeActive || window.isAnnoyingDogModeActive || window.isRiverModeActive || window.isMinesweeperModeActive || window.isMirrorModeActive))
     );
     const clefMultiplier = (isFeatured ? 2 : 1) * (isStormX2 ? 2 : 1);
     const earnedClefs = Math.max(1, Math.round(baseScoreClefs * diffMultiplier)) * clefMultiplier;
@@ -5305,6 +5429,9 @@ class BeatstarEngine {
     }
     if (this.isMinesweeperModeActive || (this._mineExplosions && this._mineExplosions.length > 0) || (this._shatteredKeyFragments && this._shatteredKeyFragments.length > 0)) {
       this.updateMinesweeperEffects(dt);
+    }
+    if (this.isMirrorModeActive || (typeof window !== 'undefined' && window.isMirrorModeActive)) {
+      this.updateMirrorModeEffects(dt);
     }
 
     for (let i = this.judgements.length - 1; i >= 0; i--) {
@@ -6764,6 +6891,9 @@ class BeatstarEngine {
     }
     if (this.isMinesweeperModeActive || (typeof window !== 'undefined' && window.isMinesweeperModeActive) || (this._mineExplosions && this._mineExplosions.length > 0)) {
       this.renderMinesweeperOverlay(this.ctx, currentTime);
+    }
+    if (this.isMirrorModeActive || (typeof window !== 'undefined' && window.isMirrorModeActive)) {
+      this.renderMirrorModeOverlay(this.ctx, currentTime);
     }
     if (hasMineShake) {
       this.ctx.restore();
@@ -16461,7 +16591,11 @@ class BeatstarEngine {
           const headPt = stringPoints[segments];
           const baseHoldKeyH = (this.numLanes === 4) ? (isLarge ? 64 : 28) : (isLarge ? 80 : 30);
           const headH = Math.min(baseHoldKeyH * headPt.scale, maxH3D);
-          this.drawIvoryKey(ctx, lane, headPt.y, headH, headPt.scale, isBeingHeld, isLarge, false, lyricForNote);
+          if (this.isMirrorModeActive && note._isMirrored) {
+            this.renderMirrorReflectedNote(ctx, note, lane, headPt, headH, isLarge, false, 'up', lyricForNote, pHead, currentTime);
+          } else {
+            this.drawIvoryKey(ctx, lane, headPt.y, headH, headPt.scale, isBeingHeld, isLarge, false, lyricForNote);
+          }
 
           ctx.restore();
         
@@ -16508,8 +16642,12 @@ class BeatstarEngine {
             }
             ctx.restore();
           }
-          const swipeKey = this.drawIvoryKey(ctx, drawLane, coord.y, h * mushHeightMult, coord.scale, false, isLarge, true, lyricForNote);
-          this.renderVectorChevron(ctx, swipeKey.cx, swipeKey.cy, note.direction || 'up', swipeKey.w, swipeKey.h);
+          if (this.isMirrorModeActive && note._isMirrored) {
+            this.renderMirrorReflectedNote(ctx, note, drawLane, coord, h * mushHeightMult, isLarge, true, note.direction || 'up', lyricForNote, pHead, currentTime);
+          } else {
+            const swipeKey = this.drawIvoryKey(ctx, drawLane, coord.y, h * mushHeightMult, coord.scale, false, isLarge, true, lyricForNote);
+            this.renderVectorChevron(ctx, swipeKey.cx, swipeKey.cy, note.direction || 'up', swipeKey.w, swipeKey.h);
+          }
 
         // ==========================================
         // 3. NOTAS NORMALES (TAP ESTÁNDAR O BALDOSA DE ROCA FLOTANTE CON HONDURA CENTRAL)
@@ -16553,6 +16691,10 @@ class BeatstarEngine {
             this.renderMinesweeperKey(ctx, note, drawLane, coord.y, h, coord.scale, pHead, isLarge, currentTime);
             continue;
           }
+          if (this.isMirrorModeActive && note._isMirrored) {
+            this.renderMirrorReflectedNote(ctx, note, drawLane, coord, h, isLarge, false, 'up', lyricForNote, pHead, currentTime);
+            continue;
+          }
           const tapKey = this.drawIvoryKey(ctx, drawLane, coord.y, h, coord.scale, false, isLarge, false, lyricForNote);
           // En modo Setas: si la tecla está saltando de carril o es múltiplo de 3, dibujar seta mágica sobre la tecla
           if (isMushroomActive && this._mushSprites && this._mushSprites.length > 0 && ((note._mushFromLane !== undefined && note._mushFromLane !== lane) || (i % 3 === 0))) {
@@ -16566,6 +16708,421 @@ class BeatstarEngine {
           }
         }
       }
+    }
+
+    // =========================================================================
+    // MODO ESPEJO ("OJEPSƎ"): COREOGRAFÍA DIMENSIONAL, TECLAS REFLEJADAS Y ESPEJOS 3D
+    // =========================================================================
+    initMirrorModeAssets() {
+      this._mirrorAssetsReady = true;
+      if (!this._mirrorCrossBeams) this._mirrorCrossBeams = [];
+    }
+
+    _prepareMirrorChoreography() {
+      this._mirrorWindows = [];
+      if (!Array.isArray(this.notes) || this.notes.length === 0) return;
+
+      // Crear ventanas periódicas de Dimensión Espejo:
+      // Primeros 4.2s normales para calentar, luego alterna ~6.8s de Espejo ("OJEPSƎ") y ~5.8s normales
+      let maxTimeMs = 0;
+      for (let i = 0; i < this.notes.length; i++) {
+        const t = this.notes[i].timestamp_ms ?? this.notes[i].timeMs ?? 0;
+        if (t > maxTimeMs) maxTimeMs = t;
+      }
+
+      let cursorMs = 4200;
+      while (cursorMs < maxTimeMs + 2000) {
+        const winStart = cursorMs;
+        const winEnd = cursorMs + 6800;
+        this._mirrorWindows.push({ startMs: winStart, endMs: winEnd });
+        cursorMs = winEnd + 5600;
+      }
+
+      // Etiquetar las notas de los carriles exteriores (0 = izquierdo, 2 = derecho) que caen dentro de una ventana Espejo
+      for (let i = 0; i < this.notes.length; i++) {
+        const n = this.notes[i];
+        if (!n) continue;
+        n._isMirrored = false;
+        n._mirrorTargetLane = n.lane;
+        if (n.isMine || (n.lane !== 0 && n.lane !== 2)) continue;
+        const nt = n.timestamp_ms ?? n.timeMs ?? 0;
+        for (let w = 0; w < this._mirrorWindows.length; w++) {
+          const win = this._mirrorWindows[w];
+          // Margen de seguridad de 260ms en los bordes de la ventana para que nunca pille a mitad de transición
+          if (nt >= win.startMs + 260 && nt <= win.endMs - 260) {
+            n._isMirrored = true;
+            n._mirrorTargetLane = 2 - n.lane;
+            break;
+          }
+        }
+      }
+    }
+
+    _isMirrorWindowActiveAt(timeMs) {
+      if (!this._mirrorWindows || this._mirrorWindows.length === 0) return false;
+      for (let i = 0; i < this._mirrorWindows.length; i++) {
+        const w = this._mirrorWindows[i];
+        if (timeMs >= w.startMs && timeMs <= w.endMs) return true;
+      }
+      return false;
+    }
+
+    updateMirrorModeEffects(dt) {
+      const currentTime = this.getCurrentGameTimeMs(this._frameNow || performance.now());
+      const inMirrorNow = this._isMirrorWindowActiveAt(currentTime);
+      if (inMirrorNow !== this._lastMirrorActiveState) {
+        this._lastMirrorActiveState = inMirrorNow;
+        this._mirrorFlipWave = 1.0;
+        if (this.synth && typeof this.synth.playPianoChime === 'function') {
+          try {
+            const actx = this.synth.ensureContext();
+            if (actx) this.synth.playPianoChime(actx.currentTime);
+          } catch (_) {}
+        }
+      }
+      const targetProg = inMirrorNow ? 1.0 : 0.0;
+      this._mirrorPhaseProgress = (this._mirrorPhaseProgress || 0) + (targetProg - (this._mirrorPhaseProgress || 0)) * Math.min(1, dt * 6.5);
+      if (this._mirrorFlipWave > 0) {
+        this._mirrorFlipWave = Math.max(0, this._mirrorFlipWave - dt * 1.85);
+      }
+      if (this._mirrorCrossBeams && this._mirrorCrossBeams.length > 0) {
+        for (let i = this._mirrorCrossBeams.length - 1; i >= 0; i--) {
+          const b = this._mirrorCrossBeams[i];
+          b.age += dt;
+          if (b.age >= b.duration) {
+            this._mirrorCrossBeams.splice(i, 1);
+          }
+        }
+      }
+    }
+
+    // Dibuja una tecla reflejada en Modo Espejo:
+    // 1. La tecla cae por su carril visual original convertida en un Prisma de Cristal/Plata Espejo con el número del botón opuesto ("PULSA 3" o "PULSA 1").
+    // 2. Proyecta un Gemelo Holográfico translúcido en el carril opuesto unido por un Haz Láser a través del Espejo Central.
+    renderMirrorReflectedNote(ctx, note, drawLane, coord, h, isLarge, isSwipe, swipeDir, lyricForNote, pHead, currentTime) {
+      const oppLane = 2 - drawLane;
+      const oppCoord = this.getPerspectiveCoord(oppLane, pHead, this._coordScratch2 || (this._coordScratch2 = {}));
+      const scale = coord.scale;
+      const midX = this.width * 0.5;
+      const cy = coord.y - h * 0.48;
+
+      ctx.save();
+      // A. Haz láser de reflexión conectando la tecla real con su reflejo al otro lado del espejo central
+      ctx.globalCompositeOperation = 'lighter';
+      const pulse = 0.65 + 0.35 * Math.sin(currentTime * 0.012 + (note.timestamp_ms || 0) * 0.01);
+      const beamGrad = ctx.createLinearGradient(coord.x, cy, oppCoord.x, cy);
+      if (drawLane === 0) {
+        beamGrad.addColorStop(0.0, `rgba(0, 242, 254, ${(0.78 * pulse).toFixed(2)})`);
+        beamGrad.addColorStop(0.5, `rgba(255, 255, 255, ${(0.95 * pulse).toFixed(2)})`);
+        beamGrad.addColorStop(1.0, `rgba(232, 121, 249, ${(0.82 * pulse).toFixed(2)})`);
+      } else {
+        beamGrad.addColorStop(0.0, `rgba(232, 121, 249, ${(0.82 * pulse).toFixed(2)})`);
+        beamGrad.addColorStop(0.5, `rgba(255, 255, 255, ${(0.95 * pulse).toFixed(2)})`);
+        beamGrad.addColorStop(1.0, `rgba(0, 242, 254, ${(0.78 * pulse).toFixed(2)})`);
+      }
+      ctx.strokeStyle = beamGrad;
+      ctx.lineWidth = Math.max(2.0, 4.2 * scale);
+      ctx.setLineDash([Math.max(5, 10 * scale), Math.max(4, 7 * scale)]);
+      ctx.lineDashOffset = -currentTime * 0.08;
+      ctx.beginPath();
+      ctx.moveTo(coord.x, cy);
+      ctx.lineTo(oppCoord.x, cy);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Nodo de refracción brillante justo en el eje del espejo central (carril central)
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(midX, cy, Math.max(3.2, 6.2 * scale), 0, Math.PI * 2);
+      ctx.fill();
+
+      // B. Silueta Fantasma Holográfica en el carril opuesto (donde tienes que pulsar)
+      const ghostW = oppCoord.laneW * 0.82;
+      const ghostH = h * 0.88;
+      const gx = oppCoord.x - ghostW * 0.5;
+      const gy = oppCoord.y - ghostH;
+      ctx.fillStyle = drawLane === 0 ? 'rgba(232, 121, 249, 0.24)' : 'rgba(0, 242, 254, 0.24)';
+      ctx.strokeStyle = drawLane === 0 ? 'rgba(240, 171, 252, 0.82)' : 'rgba(125, 211, 252, 0.82)';
+      ctx.lineWidth = Math.max(1.6, 2.8 * scale);
+      ctx.beginPath();
+      if (ctx.roundRect) {
+        ctx.roundRect(gx, gy, ghostW, ghostH, Math.max(5, 10 * scale));
+      } else {
+        ctx.rect(gx, gy, ghostW, ghostH);
+      }
+      ctx.fill();
+      ctx.stroke();
+
+      // Etiqueta "PULSA AQUÍ" en el fantasma receptor del carril opuesto
+      if (scale > 0.36) {
+        ctx.font = `900 ${Math.max(10, Math.round(16 * scale))}px "Outfit", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#ffffff';
+        const targetBtnNum = oppLane + 1; // 3 o 1
+        ctx.fillText(`⚡ PULSA ${targetBtnNum}`, oppCoord.x, gy + ghostH * 0.5);
+      }
+      ctx.restore();
+
+      // C. Tecla Principal de Cristal de Espejo Cromado en su carril de caída
+      const keyRect = this.drawIvoryKey(ctx, drawLane, coord.y, h, scale, false, isLarge, isSwipe, lyricForNote);
+      ctx.save();
+      const kw = keyRect.w * 0.90;
+      const kh = keyRect.h * 0.78;
+      const kx = keyRect.cx - kw * 0.5;
+      const ky = keyRect.cy - kh * 0.5;
+
+      // Recubrimiento metálico de espejo (cromo cian-violeta)
+      const chromeGrad = ctx.createLinearGradient(kx, ky, kx + kw, ky + kh);
+      chromeGrad.addColorStop(0.0, 'rgba(226, 232, 240, 0.92)');
+      chromeGrad.addColorStop(0.35, 'rgba(56, 189, 248, 0.88)');
+      chromeGrad.addColorStop(0.68, 'rgba(232, 121, 249, 0.88)');
+      chromeGrad.addColorStop(1.0, 'rgba(255, 255, 255, 0.95)');
+      ctx.fillStyle = chromeGrad;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = Math.max(1.8, 3.0 * scale);
+      ctx.beginPath();
+      if (ctx.roundRect) {
+        ctx.roundRect(kx, ky, kw, kh, Math.max(5, 9 * scale));
+      } else {
+        ctx.rect(kx, ky, kw, kh);
+      }
+      ctx.fill();
+      ctx.stroke();
+
+      // Insignia reflectante en la tecla indicando el botón opuesto a pulsar ("⇄ 3" o "1 ⇄")
+      if (scale > 0.32) {
+        const badgeText = (drawLane === 0) ? '🪞 ⇄ 3' : '1 ⇄ 🪞';
+        ctx.font = `900 ${Math.max(11, Math.round(18 * scale))}px "Outfit", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.strokeStyle = '#090d16';
+        ctx.lineWidth = Math.max(2.5, 4.2 * scale);
+        ctx.strokeText(badgeText, keyRect.cx, keyRect.cy);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(badgeText, keyRect.cx, keyRect.cy);
+      }
+
+      if (isSwipe) {
+        this.renderVectorChevron(ctx, keyRect.cx, keyRect.cy, swipeDir, keyRect.w, keyRect.h);
+      }
+      ctx.restore();
+    }
+
+    // Dibuja los Espejos Dimensionales flotantes por el fondo/laterales, el Eje de Espejo Central,
+    // los haces láser cruzados y la animación de inversión en el tablero de teclas (1 <-> 3)
+    renderMirrorModeOverlay(ctx, currentTime) {
+      const w = this.width;
+      const h = this.height;
+      if (!w || !h) return;
+      const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (h * 0.84);
+      const horizonY = 12;
+      const phaseP = this._mirrorPhaseProgress || 0;
+      const flipWave = this._mirrorFlipWave || 0;
+      const t = (currentTime || performance.now()) * 0.001;
+
+      ctx.save();
+
+      // 1. ESPEJOS DIMENSIONALES FLOTANTES EN LOS LATERALES DE LA PISTA (Perspectiva 3D)
+      const mirrorDepths = [0.22, 0.50, 0.78];
+      for (let m = 0; m < mirrorDepths.length; m++) {
+        const p = ((mirrorDepths[m] + t * 0.08) % 0.86) + 0.10;
+        const y = horizonY + (hitY - horizonY) * p;
+        const s = 0.38 + p * 0.68;
+        const leftEdgeX = this.getLaneBoundaryX ? this.getLaneBoundaryX(0, y) : w * 0.12;
+        const rightEdgeX = this.getLaneBoundaryX ? this.getLaneBoundaryX(3, y) : w * 0.88;
+        const mw = Math.max(14, 28 * s);
+        const mh = Math.max(28, 62 * s);
+
+        for (let side = 0; side < 2; side++) {
+          const isLeft = (side === 0);
+          const mx = isLeft ? (leftEdgeX - mw * 1.15 - 8 * s) : (rightEdgeX + mw * 1.15 + 8 * s);
+          const tilt = isLeft ? -0.18 : 0.18;
+
+          ctx.save();
+          ctx.translate(mx, y);
+          ctx.rotate(tilt + Math.sin(t * 2.2 + m) * 0.05);
+
+          // Marco biselado de plata cromada y cristal de espejo
+          const glassGrad = ctx.createLinearGradient(-mw * 0.5, -mh * 0.5, mw * 0.5, mh * 0.5);
+          glassGrad.addColorStop(0.0, `rgba(56, 189, 248, ${(0.28 + phaseP * 0.32).toFixed(2)})`);
+          glassGrad.addColorStop(0.5, `rgba(226, 232, 240, ${(0.45 + phaseP * 0.35).toFixed(2)})`);
+          glassGrad.addColorStop(1.0, `rgba(232, 121, 249, ${(0.28 + phaseP * 0.35).toFixed(2)})`);
+
+          ctx.fillStyle = glassGrad;
+          ctx.strokeStyle = phaseP > 0.2 ? '#f0abfc' : '#94a3b8';
+          ctx.lineWidth = Math.max(1.5, 2.6 * s);
+          ctx.beginPath();
+          if (ctx.roundRect) {
+            ctx.roundRect(-mw * 0.5, -mh * 0.5, mw, mh, 6 * s);
+          } else {
+            ctx.rect(-mw * 0.5, -mh * 0.5, mw, mh);
+          }
+          ctx.fill();
+          ctx.stroke();
+
+          // Brillo diagonal de espejo
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.72)';
+          ctx.lineWidth = Math.max(1.0, 1.8 * s);
+          ctx.beginPath();
+          ctx.moveTo(-mw * 0.28, -mh * 0.32);
+          ctx.lineTo(mw * 0.24, -mh * 0.05);
+          ctx.moveTo(-mw * 0.18, mh * 0.08);
+          ctx.lineTo(mw * 0.28, mh * 0.32);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+
+      // 2. EJE CENTRAL DE ESPEJO VERTICAL Y ONDA DE GIRO DIMENSIONAL (Cuando el Modo Espejo está reflejando)
+      const midX = w * 0.5;
+      if (phaseP > 0.02 || flipWave > 0.02) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        const axisAlpha = Math.max(phaseP * 0.85, flipWave);
+        const axisGrad = ctx.createLinearGradient(midX, horizonY, midX, hitY);
+        axisGrad.addColorStop(0.0, 'rgba(56, 189, 248, 0.0)');
+        axisGrad.addColorStop(0.2, `rgba(56, 189, 248, ${(axisAlpha * 0.65).toFixed(2)})`);
+        axisGrad.addColorStop(0.6, `rgba(255, 255, 255, ${(axisAlpha * 0.90).toFixed(2)})`);
+        axisGrad.addColorStop(1.0, `rgba(232, 121, 249, ${(axisAlpha * 0.85).toFixed(2)})`);
+
+        ctx.strokeStyle = axisGrad;
+        ctx.lineWidth = 3.5 + phaseP * 2.5;
+        ctx.beginPath();
+        ctx.moveTo(midX, horizonY + 20);
+        ctx.lineTo(midX, hitY);
+        ctx.stroke();
+
+        // Onda expansiva horizontal al activarse/desactivarse la ventana de espejo
+        if (flipWave > 0.02) {
+          const waveW = (1.0 - flipWave) * (w * 0.48);
+          ctx.strokeStyle = `rgba(240, 171, 252, ${(flipWave * 0.85).toFixed(2)})`;
+          ctx.lineWidth = 4.0 * flipWave;
+          ctx.beginPath();
+          ctx.moveTo(midX - waveW, horizonY + 40);
+          ctx.lineTo(midX - waveW, hitY);
+          ctx.moveTo(midX + waveW, horizonY + 40);
+          ctx.lineTo(midX + waveW, hitY);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      // 3. ANIMACIÓN EN EL TABLERO DE TECLAS (RECEPTORES 1 ⇄ 3 REFLEJADOS)
+      const xLane0 = this.getLaneBoundaryX
+        ? (this.getLaneBoundaryX(0, hitY) + this.getLaneBoundaryX(1, hitY)) * 0.5
+        : w * 0.166;
+      const xLane1 = this.getLaneBoundaryX
+        ? (this.getLaneBoundaryX(1, hitY) + this.getLaneBoundaryX(2, hitY)) * 0.5
+        : w * 0.50;
+      const xLane2 = this.getLaneBoundaryX
+        ? (this.getLaneBoundaryX(2, hitY) + this.getLaneBoundaryX(3, hitY)) * 0.5
+        : w * 0.833;
+
+      // Arco de espejo luminoso conectando el botón izquierdo (1) y el botón derecho (3) bajo el tablero
+      if (phaseP > 0.05) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        const arcY = hitY + 26;
+        const bridgeGrad = ctx.createLinearGradient(xLane0, hitY, xLane2, hitY);
+        bridgeGrad.addColorStop(0.0, `rgba(0, 242, 254, ${(0.78 * phaseP).toFixed(2)})`);
+        bridgeGrad.addColorStop(0.5, `rgba(255, 255, 255, ${(0.92 * phaseP).toFixed(2)})`);
+        bridgeGrad.addColorStop(1.0, `rgba(232, 121, 249, ${(0.78 * phaseP).toFixed(2)})`);
+        ctx.strokeStyle = bridgeGrad;
+        ctx.lineWidth = 3.2;
+        ctx.beginPath();
+        ctx.moveTo(xLane0, hitY + 6);
+        ctx.quadraticCurveTo(xLane1, arcY + Math.sin(t * 6) * 5, xLane2, hitY + 6);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Insignias en los 3 botones del tablero para que se vea claramente cuándo 1 y 3 están invertidos
+      const padBadges = [
+        { x: xLane0, label: phaseP > 0.5 ? '🪞 3' : '1', color: phaseP > 0.5 ? '#f0abfc' : '#38bdf8' },
+        { x: xLane1, label: '2', color: '#94a3b8' },
+        { x: xLane2, label: phaseP > 0.5 ? '1 🪞' : '3', color: phaseP > 0.5 ? '#38bdf8' : '#f0abfc' }
+      ];
+      ctx.save();
+      ctx.font = '900 15px "Outfit", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (let b = 0; b < padBadges.length; b++) {
+        const pb = padBadges[b];
+        const by = hitY + 20;
+        ctx.fillStyle = 'rgba(4, 7, 15, 0.86)';
+        ctx.strokeStyle = pb.color;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(pb.x - 24, by - 11, 48, 22, 7);
+        } else {
+          ctx.rect(pb.x - 24, by - 11, 48, 22);
+        }
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(pb.label, pb.x, by);
+      }
+      ctx.restore();
+
+      // 4. HACES LÁSER DE IMPACTO REFLEJADO (Cuando aciertas una tecla espejo pulsando el carril opuesto)
+      if (this._mirrorCrossBeams && this._mirrorCrossBeams.length > 0) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (let i = 0; i < this._mirrorCrossBeams.length; i++) {
+          const b = this._mirrorCrossBeams[i];
+          const prog = Math.min(1, b.age / b.duration);
+          const alpha = (1 - prog) * 0.95;
+          ctx.strokeStyle = `rgba(240, 171, 252, ${alpha.toFixed(2)})`;
+          ctx.lineWidth = 5.5 * (1 - prog * 0.5);
+          ctx.beginPath();
+          ctx.moveTo(b.fromX, b.y);
+          ctx.quadraticCurveTo(midX, b.y - 42 * Math.sin(prog * Math.PI), b.toX, b.y);
+          ctx.stroke();
+
+          ctx.strokeStyle = `rgba(255, 255, 255, ${alpha.toFixed(2)})`;
+          ctx.lineWidth = 2.2;
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      // 5. CARTEL HOLOGRÁFICO SUPERIOR DURANTE LA FASE DE ESPEJO ACTIVA ("🪞 OJEPSƎ · 1 ⇄ 3 🪞")
+      if (phaseP > 0.08) {
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, phaseP * 1.15);
+        const bannerY = 112;
+        const bw = 248;
+        const bh = 30;
+        const bx = midX - bw * 0.5;
+        const by = bannerY - bh * 0.5;
+
+        const bg = ctx.createLinearGradient(bx, by, bx + bw, by);
+        bg.addColorStop(0.0, 'rgba(8, 20, 38, 0.92)');
+        bg.addColorStop(0.5, 'rgba(30, 41, 59, 0.95)');
+        bg.addColorStop(1.0, 'rgba(46, 16, 65, 0.92)');
+        ctx.fillStyle = bg;
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(bx, by, bw, bh, 10);
+        } else {
+          ctx.rect(bx, by, bw, bh);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = '900 13px "Outfit", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('🪞 OJEPSƎ ACTIVO · CARRIL 1 ⇄ 3 🪞', midX, bannerY);
+        ctx.restore();
+      }
+
+      ctx.restore();
     }
 
     renderJudgements() {

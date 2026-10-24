@@ -115,11 +115,20 @@ function buildConsolidatedLeaderboardJson() {
   };
 }
 
-async function syncLeaderboardToGithub() {
+// Límite anti-rate-limit para evitar superar los 100 deployments/día de Vercel:
+// La memoria RAM y el archivo local leaderboard.json se actualizan al instante (0ms),
+// pero el commit remoto a GitHub se agrupa como máximo 1 vez cada 3 horas (máx 8 commits/día)
+// o al apagarse el servidor (SIGTERM/SIGINT).
+const GITHUB_SYNC_MIN_INTERVAL_MS = parseInt(process.env.GITHUB_SYNC_INTERVAL_MS || String(3 * 60 * 60 * 1000), 10);
+let lastGithubLeaderboardSyncTime = 0;
+let lastSyncedGithubLeaderboardJson = '';
+let scheduledGithubSyncTimer = null;
+
+async function syncLeaderboardToGithub(forceImmediate = false) {
   const consolidated = buildConsolidatedLeaderboardJson();
   const jsonStr = JSON.stringify(consolidated, null, 2);
 
-  // Always save locally to leaderboard.json
+  // Always save locally to leaderboard.json immediately
   try {
     fs.writeFileSync(GITHUB_LEADERBOARD_FILE, jsonStr, 'utf-8');
   } catch (e) {
@@ -127,9 +136,38 @@ async function syncLeaderboardToGithub() {
   }
 
   if (!GITHUB_TOKEN) return;
+
+  // Si el contenido no ha cambiado respecto al último commit en GitHub, no hacer commit
+  if (jsonStr === lastSyncedGithubLeaderboardJson) {
+    return;
+  }
+
+  const now = Date.now();
+  const elapsed = now - lastGithubLeaderboardSyncTime;
+
+  if (!forceImmediate && lastGithubLeaderboardSyncTime > 0 && elapsed < GITHUB_SYNC_MIN_INTERVAL_MS) {
+    if (!scheduledGithubSyncTimer) {
+      const remainingMs = Math.max(10000, GITHUB_SYNC_MIN_INTERVAL_MS - elapsed);
+      scheduledGithubSyncTimer = setTimeout(() => {
+        scheduledGithubSyncTimer = null;
+        syncLeaderboardToGithub(true).catch(() => {});
+      }, remainingMs);
+      if (typeof scheduledGithubSyncTimer.unref === 'function') {
+        scheduledGithubSyncTimer.unref();
+      }
+      console.log(`[Server] GitHub leaderboard commit batched (next commit in ${Math.round(remainingMs / 60000)} min to prevent Vercel deployment limit).`);
+    }
+    return;
+  }
+
   if (isSyncingToGithub) {
     pendingGithubSync = true;
     return;
+  }
+
+  if (scheduledGithubSyncTimer) {
+    clearTimeout(scheduledGithubSyncTimer);
+    scheduledGithubSyncTimer = null;
   }
 
   isSyncingToGithub = true;
@@ -137,7 +175,7 @@ async function syncLeaderboardToGithub() {
     const base64Content = Buffer.from(jsonStr).toString('base64');
     const apiUrl = `https://api.github.com/repos/${GITHUB_REPO}/contents/leaderboard.json`;
     const payload = {
-      message: `Update online leaderboards [skip ci]`,
+      message: `Update online leaderboards [skip ci] [vercel skip]`,
       content: base64Content,
       branch: GITHUB_BRANCH
     };
@@ -159,7 +197,9 @@ async function syncLeaderboardToGithub() {
     if (res.ok) {
       const data = await res.json();
       githubLeaderboardSha = data?.content?.sha || githubLeaderboardSha;
-      console.log('[Server] Online leaderboard successfully persisted to GitHub.');
+      lastGithubLeaderboardSyncTime = Date.now();
+      lastSyncedGithubLeaderboardJson = jsonStr;
+      console.log('[Server] Online leaderboard successfully persisted to GitHub (batched).');
     } else {
       const errTxt = await res.text();
       console.warn('[Server] GitHub leaderboard commit returned:', res.status, errTxt);
@@ -170,10 +210,23 @@ async function syncLeaderboardToGithub() {
     isSyncingToGithub = false;
     if (pendingGithubSync) {
       pendingGithubSync = false;
-      syncLeaderboardToGithub().catch(() => {});
+      syncLeaderboardToGithub(false).catch(() => {});
     }
   }
 }
+
+// Volcar cualquier cambio pendiente de leaderboard a GitHub antes de apagar el contenedor
+['SIGTERM', 'SIGINT'].forEach(sig => {
+  process.on(sig, () => {
+    if (scheduledGithubSyncTimer) {
+      clearTimeout(scheduledGithubSyncTimer);
+      scheduledGithubSyncTimer = null;
+      syncLeaderboardToGithub(true).finally(() => process.exit(0));
+    } else {
+      process.exit(0);
+    }
+  });
+});
 
 async function loadLeaderboardFromGithub() {
   if (GITHUB_TOKEN) {
@@ -192,6 +245,8 @@ async function loadLeaderboardFromGithub() {
         if (data.content) {
           const raw = Buffer.from(data.content, 'base64').toString('utf-8');
           fs.writeFileSync(GITHUB_LEADERBOARD_FILE, raw, 'utf-8');
+          lastSyncedGithubLeaderboardJson = raw;
+          lastGithubLeaderboardSyncTime = Date.now();
           applyLeaderboardJson(JSON.parse(raw));
           console.log('[Server] Loaded leaderboard.json directly from GitHub API.');
           return;
@@ -2059,16 +2114,19 @@ app.listen(PORT, HOST, () => {
 // =======================================================
 // PERSISTENCIA DE CANCIONES COMUNITARIAS EN GITHUB
 // =======================================================
+let lastSyncedCommunityChartsJson = '';
+
 async function syncCommunityChartsToGithub() {
   if (!GITHUB_TOKEN) return;
   try {
     const list = Array.from(communityCharts.values()).filter(c => !c.id.startsWith('comm_camilo') && !c.id.startsWith('comm_renacer'));
     const jsonStr = JSON.stringify(list, null, 2);
+    if (jsonStr === lastSyncedCommunityChartsJson) return;
     const base64Content = Buffer.from(jsonStr).toString('base64');
     const apiUrl = `https://api.github.com/repos/${GITHUB_REPO}/contents/community_charts.json`;
     
     const payload = {
-      message: `Update community charts [skip ci]`,
+      message: `Update community charts [skip ci] [vercel skip]`,
       content: base64Content,
       branch: GITHUB_BRANCH
     };
@@ -2087,6 +2145,7 @@ async function syncCommunityChartsToGithub() {
     if (res.ok) {
       const data = await res.json();
       githubCommunitySha = data?.content?.sha || githubCommunitySha;
+      lastSyncedCommunityChartsJson = jsonStr;
       console.log('[Server] Community charts persisted to GitHub.');
     }
   } catch (err) {

@@ -1,6 +1,7 @@
 {
   "version": 2,
   "cleanUrls": true,
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ':!leaderboard.json' ':!community_charts.json'",
   "rewrites": [
     { "source": "/api/v1/app/download_apk", "destination": "/app/static/downloads/PianoCommunity.apk" },
     { "source": "/download/apk", "destination": "/app/static/downloads/PianoCommunity.apk" },

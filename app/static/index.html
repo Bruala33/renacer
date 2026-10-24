@@ -2748,6 +2748,11 @@
           <button id="btnModeSelectMinesweeper" onclick="confirmGameModeSelection('minesweeper')" class="w-full p-1 rounded-xl bg-[#0b0303] border-2 border-[#5c1414] hover:border-[#ef4444] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
             <canvas id="gmBtnMinesweeperMainCanvas" class="w-full h-[38px] block"></canvas>
           </button>
+
+          <!-- Botón 9: MODO ESPEJO / OJEPSƎ (Reflejo dimensional: teclas del carril 1 se pulsan con el 3 y viceversa + Candado LED 1000 Claves) -->
+          <button id="btnModeSelectMirror" onclick="confirmGameModeSelection('mirror')" class="w-full p-1 rounded-xl bg-[#04070e] border-2 border-[#475569] hover:border-[#38bdf8] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
+            <canvas id="gmBtnMirrorMainCanvas" class="w-full h-[38px] block"></canvas>
+          </button>
         </div>
 
         <!-- Pie de pantalla LED: Cancelar + ¿Quieres más claves? -->
@@ -4571,7 +4576,13 @@
       const curtain = document.getElementById('gameCurtain');
       if (curtain) curtain.classList.add('revealed');
 
-      if (engine) engine.resume();
+      if (engine) {
+        if (typeof engine.resumeFromPause === 'function') {
+          engine.resumeFromPause();
+        } else {
+          engine.resume();
+        }
+      }
     };
 
     window.restartGame = function() {
@@ -7068,7 +7079,7 @@ window.switchMainTab = switchMainTab;
     window.onAppForeground = handleAppForeground;
 
     function applySelectedGameMode(mode) {
-      const m = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog' || mode === 'river' || mode === 'four_lanes' || mode === 'minesweeper') ? mode : 'normal';
+      const m = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog' || mode === 'river' || mode === 'four_lanes' || mode === 'minesweeper' || mode === 'mirror') ? mode : 'normal';
       window.currentGameMode = m;
       window.isKaraokeModeActive = (m === 'karaoke');
       window.isStormModeActive = (m === 'storm');
@@ -7078,6 +7089,7 @@ window.switchMainTab = switchMainTab;
       window.isRiverModeActive = (m === 'river');
       window.isFourLanesModeActive = (m === 'four_lanes');
       window.isMinesweeperModeActive = (m === 'minesweeper');
+      window.isMirrorModeActive = (m === 'mirror');
       if (window.engine) {
         window.engine.isKaraokeModeActive = window.isKaraokeModeActive;
         window.engine.isStormModeActive = window.isStormModeActive;
@@ -7087,6 +7099,7 @@ window.switchMainTab = switchMainTab;
         window.engine.isRiverModeActive = window.isRiverModeActive;
         window.engine.isFourLanesModeActive = window.isFourLanesModeActive;
         window.engine.isMinesweeperModeActive = window.isMinesweeperModeActive;
+        window.engine.isMirrorModeActive = window.isMirrorModeActive;
         window.engine.numLanes = window.isFourLanesModeActive ? 4 : 3;
         if (typeof window.engine.initCanvasSize === 'function') {
           window.engine.initCanvasSize();
@@ -7105,6 +7118,9 @@ window.switchMainTab = switchMainTab;
         }
         if (window.isRiverModeActive && typeof window.engine.initRiverModeAssets === 'function') {
           window.engine.initRiverModeAssets();
+        }
+        if (window.isMirrorModeActive && typeof window.engine.initMirrorModeAssets === 'function') {
+          window.engine.initMirrorModeAssets();
         }
       }
       try { localStorage.setItem('isKaraokeModeActive', '0'); } catch (_) {}
@@ -7127,6 +7143,7 @@ window.switchMainTab = switchMainTab;
     window.isRiverModeActive = false;
     window.isFourLanesModeActive = false;
     window.isMinesweeperModeActive = false;
+    window.isMirrorModeActive = false;
     try { localStorage.setItem('isKaraokeModeActive', '0'); } catch (_) {}
 
     document.addEventListener('visibilitychange', () => {
@@ -14622,6 +14639,8 @@ function stopPianoCameraLoop() {
       'C': [0x0E, 0x11, 0x10, 0x10, 0x10, 0x11, 0x0E],
       'D': [0x1E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x1E],
       'E': [0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x1F],
+      'Ǝ': [0x1F, 0x01, 0x01, 0x0F, 0x01, 0x01, 0x1F],
+      'ɘ': [0x1F, 0x01, 0x01, 0x0F, 0x01, 0x01, 0x1F],
       'F': [0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x10],
       'G': [0x0E, 0x11, 0x10, 0x17, 0x11, 0x11, 0x0F],
       'H': [0x11, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11],
@@ -15978,6 +15997,184 @@ function stopPianoCameraLoop() {
       }
     }
 
+    // Dibuja el botón LED de "OJEPSƎ" (Modo Espejo) con palabra invertida, eje de espejo central y reflejo cromado
+    function _renderMirrorLedButton(canvas, now, isLocked) {
+      if (!canvas) return;
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const widthCss = 318;
+      const heightCss = 40;
+      if (canvas.width !== Math.round(widthCss * dpr) || canvas.height !== Math.round(heightCss * dpr)) {
+        canvas.width = Math.round(widthCss * dpr);
+        canvas.height = Math.round(heightCss * dpr);
+      }
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      ctx.fillStyle = '#03060c';
+      ctx.fillRect(0, 0, widthCss, heightCss);
+
+      const pitch = 2.65;
+      const cols = Math.floor((widthCss - 4) / pitch);
+      const rows = Math.floor((heightCss - 2) / pitch);
+      const offsetX = (widthCss - cols * pitch) * 0.5 + pitch * 0.5;
+      const offsetY = (heightCss - rows * pitch) * 0.5 + pitch * 0.5;
+      const dotR = pitch * 0.38;
+
+      // 1. Matriz de bombillas apagadas en tono plata/azul espejo
+      ctx.fillStyle = '#0d1829';
+      ctx.beginPath();
+      for (let r = 0; r < rows; r++) {
+        const py = offsetY + r * pitch;
+        for (let c = 0; c < cols; c++) {
+          const px = offsetX + c * pitch;
+          ctx.moveTo(px + dotR * 0.74, py);
+          ctx.arc(px, py, dotR * 0.74, 0, Math.PI * 2);
+        }
+      }
+      ctx.fill();
+
+      const t = now * 0.001;
+      const litMap = new Map();
+      const setLed = (c, r, color) => {
+        const ic = Math.round(c);
+        const ir = Math.round(r);
+        if (ic >= 0 && ic < cols && ir >= 0 && ir < rows) {
+          litMap.set(ir * cols + ic, color);
+        }
+      };
+
+      // 2. Mini-escena izquierda: Espejo dimensional reflejando carril 1 <-> carril 3
+      const mirrorAxisCol = 15;
+      for (let r = 1; r < rows - 1; r++) {
+        const shimmer = Math.sin(t * 7 + r * 0.7) > 0;
+        setLed(mirrorAxisCol, r, shimmer ? '#ffffff' : '#38bdf8');
+      }
+      // Marco superior e inferior del espejo
+      for (let c = 3; c <= 27; c++) {
+        if (c % 2 === 0) {
+          setLed(c, 0, '#94a3b8');
+          setLed(c, rows - 1, '#94a3b8');
+        }
+      }
+      // Tecla cayendo en el lado izquierdo (carril 1) y su reflejo simétrico en el lado derecho (carril 3)
+      const fallRow = 2 + Math.floor(((t * 6.5) % (rows - 5)));
+      for (let dc = -3; dc <= 3; dc++) {
+        setLed(8 + dc, fallRow, '#00f2fe');
+        setLed(8 + dc, fallRow + 1, '#ffffff');
+        // Reflejo especular al otro lado del espejo (columna 22)
+        setLed(22 - dc, fallRow, '#e879f9');
+        setLed(22 - dc, fallRow + 1, '#f0abfc');
+      }
+      // Haz láser cruzado de reflexión entre la tecla y su reflejo a través del espejo
+      const beamPhase = (Math.sin(t * 5.0) + 1) * 0.5;
+      for (let s = 0; s <= 6; s++) {
+        const bc = 9 + s * 2;
+        const br = Math.round(fallRow + (s - 3) * (beamPhase - 0.5) * 1.2);
+        setLed(bc, br, s === 3 ? '#ffffff' : '#7dd3fc');
+      }
+
+      // 3. Texto principal escrito al revés: "OJEPSƎ" con reflejo de agua/espejo debajo y barrido metálico
+      const label = 'OJEPSƎ';
+      const startCol = isLocked ? 33 : 42;
+      const textRow = 2;
+      const gleamCol = ((t * 28) % 52) - 6;
+
+      for (let i = 0; i < label.length; i++) {
+        const ch = label[i];
+        const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7['E'];
+        const charCol = startCol + i * 7;
+
+        for (let gr = 0; gr < 7; gr++) {
+          const rowBits = glyph[gr];
+          if (!rowBits) continue;
+          for (let gc = 0; gc < 5; gc++) {
+            // Invertir horizontalmente cada glifo excepto la 'Ǝ' que ya está invertida en su matriz
+            const bitCol = (ch === 'O' || ch === 'Ǝ') ? (4 - gc) : gc;
+            if ((rowBits >> bitCol) & 1) {
+              const lc = charCol + gc;
+              const lr = textRow + gr;
+              const distToGleam = Math.abs((lc - startCol) - gleamCol);
+              const isGleam = distToGleam < 3.2;
+              const mainCol = isGleam
+                ? '#ffffff'
+                : (ch === 'Ǝ' ? '#f0abfc' : (gr < 3 ? '#e2e8f0' : '#38bdf8'));
+              setLed(lc, lr, mainCol);
+
+              // Sombra de reflejo invertido bajo la palabra (filas 10..13)
+              const reflRow = textRow + 7 + (6 - gr);
+              if (reflRow < rows && (6 - gr) < 4) {
+                setLed(lc, reflRow, '#1e3a5f');
+              }
+            }
+          }
+        }
+      }
+
+      // Renderizar todos los LEDs encendidos
+      const byColor = new Map();
+      for (const [idx, col] of litMap.entries()) {
+        if (!byColor.has(col)) byColor.set(col, []);
+        byColor.get(col).push(idx);
+      }
+      for (const [col, indices] of byColor.entries()) {
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        for (let i = 0; i < indices.length; i++) {
+          const idx = indices[i];
+          const r = Math.floor(idx / cols);
+          const c = idx % cols;
+          const lx = offsetX + c * pitch;
+          const ly = offsetY + r * pitch;
+          ctx.moveTo(lx + dotR * 1.08, ly);
+          ctx.arc(lx, ly, dotR * 1.08, 0, Math.PI * 2);
+        }
+        ctx.fill();
+
+        if (col === '#ffffff' || col === '#00f2fe' || col === '#f0abfc' || col === '#38bdf8') {
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          const coreR = dotR * 0.42;
+          for (let i = 0; i < indices.length; i++) {
+            const idx = indices[i];
+            const r = Math.floor(idx / cols);
+            const c = idx % cols;
+            const lx = offsetX + c * pitch;
+            const ly = offsetY + r * pitch;
+            ctx.moveTo(lx + coreR, ly);
+            ctx.arc(lx, ly, coreR, 0, Math.PI * 2);
+          }
+          ctx.fill();
+        }
+      }
+
+      // 4. Candado LED (@1000) si está bloqueado
+      if (isLocked) {
+        const lockStr = '@1000';
+        const lockStartCol = cols - (lockStr.length * 6) - 1;
+        const lockRow = Math.floor((rows - 7) * 0.5);
+        for (let i = 0; i < lockStr.length; i++) {
+          const ch = lockStr[i];
+          const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7[' '];
+          const isLockIcon = (ch === '@');
+          ctx.fillStyle = isLockIcon ? '#ff4500' : '#ffb300';
+          ctx.beginPath();
+          for (let gr = 0; gr < 7; gr++) {
+            const rowBits = glyph[gr];
+            if (!rowBits) continue;
+            for (let gc = 0; gc < 5; gc++) {
+              if ((rowBits >> (4 - gc)) & 1) {
+                const lx = offsetX + (lockStartCol + i * 6 + gc) * pitch;
+                const ly = offsetY + (lockRow + gr) * pitch;
+                ctx.moveTo(lx + dotR * 1.12, ly);
+                ctx.arc(lx, ly, dotR * 1.12, 0, Math.PI * 2);
+              }
+            }
+          }
+          ctx.fill();
+        }
+      }
+    }
+
     function _renderGameModeStaticLeds(songTitle = 'PISTA', songArtist = '') {
       _currentModalSongTitle = songTitle;
       _currentModalSongArtist = songArtist;
@@ -16039,6 +16236,7 @@ function stopPianoCameraLoop() {
         const riverLocked = !isGameModeUnlocked('river');
         const fourLanesLocked = !isGameModeUnlocked('four_lanes');
         const minesweeperLocked = !isGameModeUnlocked('minesweeper');
+        const mirrorLocked = !isGameModeUnlocked('mirror');
 
         // A. ANIMACIÓN LED MODO KARAOKE: KA -> RA -> O -> KE iluminándose en dorado + Candado LED (@ 1000) si está bloqueado
         const kStep = Math.floor(((now - startTime) % 1900) / 380);
@@ -16169,6 +16367,13 @@ function stopPianoCameraLoop() {
           document.getElementById('gmBtnMinesweeperMainCanvas'),
           now,
           minesweeperLocked
+        );
+
+        // I. ANIMACIÓN LED MODO ESPEJO (OJEPSƎ): Eje de espejo central, teclas reflejadas 1 <-> 3 y palabra OJEPSƎ + Candado LED
+        _renderMirrorLedButton(
+          document.getElementById('gmBtnMirrorMainCanvas'),
+          now,
+          mirrorLocked
         );
 
         _gameModeLedAnimId = requestAnimationFrame(tick);
@@ -16306,7 +16511,7 @@ function stopPianoCameraLoop() {
     }
 
     function confirmGameModeSelection(mode) {
-      const chosen = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog' || mode === 'river' || mode === 'four_lanes' || mode === 'minesweeper') ? mode : 'normal';
+      const chosen = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog' || mode === 'river' || mode === 'four_lanes' || mode === 'minesweeper' || mode === 'mirror') ? mode : 'normal';
 
       // Si el modo no es normal y aún tiene candado LED (1000 Claves para desbloquear):
       if (chosen !== 'normal' && !isGameModeUnlocked(chosen)) {
@@ -16326,7 +16531,9 @@ function stopPianoCameraLoop() {
                                 ? 'PERRO MOLESTO'
                                 : (chosen === 'four_lanes'
                                     ? '4 CARRILES'
-                                    : (chosen === 'minesweeper' ? 'BUSCAMINAS' : 'RÍO'))))));
+                                    : (chosen === 'minesweeper'
+                                        ? 'BUSCAMINAS'
+                                        : (chosen === 'mirror' ? 'ESPEJO (OJEPSƎ)' : 'RÍO')))))));
               showSuccessToast(`¡Modo ${modeLabel} desbloqueado para siempre! (-1000 𝄞)`);
             }
           }
