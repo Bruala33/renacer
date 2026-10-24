@@ -3757,6 +3757,16 @@
         "accuracy": 0.16084039104320072,
         "date": "2026-10-24 05:05:31"
       }
+    ],
+    "top_taylor_swift_love_story": [
+      {
+        "name": "Libay",
+        "score": 109174,
+        "stars": 3.5,
+        "combo": 88,
+        "accuracy": 7.8194900650203625,
+        "date": "2026-10-24 05:08:50"
+      }
     ]
   },
   "global": [
@@ -3802,8 +3812,8 @@
     },
     {
       "name": "Libay",
-      "total_score": 5740703,
-      "clefs": 40
+      "total_score": 5849877,
+      "clefs": 41
     },
     {
       "name": "Azure",
@@ -3971,7 +3981,7 @@
       },
       {
         "name": "Libay",
-        "score": 5740703
+        "score": 5849877
       },
       {
         "name": "Laaleplo",
