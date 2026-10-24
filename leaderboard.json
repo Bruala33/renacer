@@ -138,6 +138,14 @@
         "combo": 110,
         "accuracy": 96.5,
         "date": "2026-02-03 14:00:00"
+      },
+      {
+        "name": "Libay",
+        "score": 68250,
+        "stars": 3.5,
+        "combo": 69,
+        "accuracy": 18.07587896444415,
+        "date": "2026-10-24 05:23:53"
       }
     ],
     "comm_impuestos": [
@@ -3878,7 +3886,7 @@
     },
     {
       "name": "Libay",
-      "total_score": 7264558,
+      "total_score": 7332808,
       "clefs": 51
     },
     {
@@ -4047,7 +4055,7 @@
       },
       {
         "name": "Libay",
-        "score": 7264558
+        "score": 7332808
       },
       {
         "name": "Laaleplo",
