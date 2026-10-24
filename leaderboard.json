@@ -3707,6 +3707,16 @@
         "accuracy": 16.054183670646676,
         "date": "2026-10-24 03:06:05"
       }
+    ],
+    "osu_2585094": [
+      {
+        "name": "holo",
+        "score": 137701,
+        "stars": 1,
+        "combo": 85,
+        "accuracy": 26.852873841161628,
+        "date": "2026-10-24 03:15:30"
+      }
     ]
   },
   "global": [
@@ -3823,6 +3833,11 @@
     {
       "name": "Hola31m",
       "total_score": 147986,
+      "clefs": 1
+    },
+    {
+      "name": "holo",
+      "total_score": 137701,
       "clefs": 1
     },
     {
@@ -3945,6 +3960,10 @@
       {
         "name": "Hola31m",
         "score": 147986
+      },
+      {
+        "name": "holo",
+        "score": 137701
       },
       {
         "name": "U",
