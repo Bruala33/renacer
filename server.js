@@ -1062,15 +1062,15 @@ const DAILY_POKER_MODES = [
   { id: 'classic', label: 'CLÁSICO', short: 'CLÁSICO', icon: '🎹', color: '#f59e0b' }
 ];
 
-// Tabla de pagos estilo "Jotas o Mejor" (5 niveles de apuesta: 10, 25, 50, 100, 200 Claves)
-const DAILY_POKER_BETS = [10, 25, 50, 100, 200];
+// Tabla de pagos del Bote Acumulado (3 niveles de apuesta: 10, 25, 50 Claves -> 30%, 65%, 100% de la cuota del bote)
+const DAILY_POKER_BETS = [10, 25, 50];
+const DAILY_POKER_TIER_FACTORS = [0.30, 0.65, 1.00];
 const DAILY_POKER_PAYTABLE = [
-  { rank: 1, hand: 'ESCALERA REAL', badge: '👑 #1', fixed: [40, 100, 200, 400, 900], potShare: [0.15, 0.30, 0.50, 0.75, 1.00] },
-  { rank: 2, hand: 'ESCALERA COLOR', badge: '🥈 #2', fixed: [25, 60, 125, 250, 500], potShare: [0.08, 0.15, 0.22, 0.30, 0.40] },
-  { rank: 3, hand: 'POKER', badge: '🥉 #3', fixed: [18, 45, 90, 180, 360], potShare: [0.05, 0.08, 0.12, 0.18, 0.25] },
-  { rank: 4, hand: 'FULL', badge: '♠️ #4', fixed: [12, 30, 60, 120, 240], potShare: [0, 0, 0.05, 0.08, 0.12] },
-  { rank: 5, hand: 'COLOR', badge: '♥️ #5', fixed: [10, 25, 50, 100, 200], potShare: [0, 0, 0, 0.04, 0.08] },
-  { rank: 10, hand: 'JOTAS O MEJOR', badge: '♣️ TOP 10', fixed: [6, 15, 30, 60, 120], potShare: [0, 0, 0, 0, 0] }
+  { rank: 1, hand: 'ESCALERA REAL', badge: '👑 #1', baseShare: 0.50 },
+  { rank: 2, hand: 'ESCALERA COLOR', badge: '🥈 #2', baseShare: 0.25 },
+  { rank: 3, hand: 'POKER', badge: '🥉 #3', baseShare: 0.15 },
+  { rank: 4, hand: 'FULL', badge: '♠️ #4', baseShare: 0.06 },
+  { rank: 5, hand: 'COLOR', badge: '♥️ #5', baseShare: 0.04 }
 ];
 
 function getOrCreateDailyPokerState() {
@@ -1123,7 +1123,7 @@ function getOrCreateDailyPokerState() {
         player_name: String(pName),
         avatar_url: s.avatar_url || null,
         score: pScore,
-        bet_tier: 3,
+        bet_tier: 2,
         timestamp: s.timestamp || Date.now()
       });
     }
@@ -1147,7 +1147,7 @@ function getOrCreateDailyPokerState() {
     },
     mode: modeObj,
     difficulty,
-    potClefs: 150 + initialRankings.length * 35,
+    potClefs: 100 + initialRankings.length * 25,
     rankings: initialRankings
   };
 
@@ -1172,9 +1172,9 @@ app.get('/api/v1/daily-poker', (req, res) => {
 
 app.post('/api/v1/daily-poker/wager', (req, res) => {
   const state = getOrCreateDailyPokerState();
-  const betTier = Math.max(1, Math.min(5, Number(req.body?.bet_tier) || 1));
+  const betTier = Math.max(1, Math.min(3, Number(req.body?.bet_tier) || 1));
   const wagerClefs = DAILY_POKER_BETS[betTier - 1] || 10;
-  state.potClefs = Math.max(100, (state.potClefs || 150) + wagerClefs);
+  state.potClefs = Math.max(100, (state.potClefs || 100) + wagerClefs);
   res.json({
     success: true,
     bet_tier: betTier,
@@ -1188,7 +1188,7 @@ app.post('/api/v1/daily-poker/submit', (req, res) => {
   const rawName = String(req.body?.player_name || req.body?.username || 'Jugador').trim().slice(0, 28) || 'Jugador';
   const avatarUrl = req.body?.avatar_url || null;
   const score = Math.max(0, Math.round(Number(req.body?.score) || 0));
-  const betTier = Math.max(1, Math.min(5, Number(req.body?.bet_tier) || 1));
+  const betTier = Math.max(1, Math.min(3, Number(req.body?.bet_tier) || 1));
 
   if (score > 0) {
     const existingIdx = state.rankings.findIndex(r => r.player_name.toLowerCase() === rawName.toLowerCase());
@@ -1215,37 +1215,26 @@ app.post('/api/v1/daily-poker/submit', (req, res) => {
   const rank = achievedIdx >= 0 ? (achievedIdx + 1) : (state.rankings.length + 1);
 
   let matchedRow = null;
-  if (score >= 5000) {
-    if (rank === 1) matchedRow = DAILY_POKER_PAYTABLE[0];
-    else if (rank === 2) matchedRow = DAILY_POKER_PAYTABLE[1];
-    else if (rank === 3) matchedRow = DAILY_POKER_PAYTABLE[2];
-    else if (rank === 4) matchedRow = DAILY_POKER_PAYTABLE[3];
-    else if (rank === 5) matchedRow = DAILY_POKER_PAYTABLE[4];
-    else if (rank <= 10) matchedRow = DAILY_POKER_PAYTABLE[5];
+  if (score >= 1000 && rank >= 1 && rank <= 5) {
+    matchedRow = DAILY_POKER_PAYTABLE[rank - 1];
   }
 
-  let fixedWin = 0;
   let potWin = 0;
-  let handName = 'SIN PREMIO';
+  let handName = 'FUERA DEL TOP 5';
   if (matchedRow) {
     handName = matchedRow.hand;
-    fixedWin = matchedRow.fixed[betTier - 1] || 0;
-    const share = matchedRow.potShare[betTier - 1] || 0;
-    if (share > 0 && state.potClefs > 0) {
-      potWin = Math.round(state.potClefs * share);
-      state.potClefs = Math.max(100, state.potClefs - Math.round(potWin * 0.65));
-    }
+    const tierFactor = DAILY_POKER_TIER_FACTORS[betTier - 1] || 0.30;
+    potWin = Math.max(5, Math.round(state.potClefs * matchedRow.baseShare * tierFactor));
   }
-  const totalWin = fixedWin + potWin;
 
   res.json({
     success: true,
     rank,
     handName,
     bet_tier: betTier,
-    fixedWin,
+    fixedWin: 0,
     potWin,
-    totalWin,
+    totalWin: potWin,
     potClefs: state.potClefs,
     rankings: state.rankings.slice(0, 15).map((r, i) => ({ ...r, rank: i + 1 }))
   });

@@ -3353,7 +3353,7 @@
         width: 100vw;
         height: 100dvh;
         z-index: 9995;
-        background: radial-gradient(circle at 50% 50%, #160c04 0%, #080401 75%, #000000 100%);
+        background: radial-gradient(circle at 50% 50%, #140b03 0%, #070301 75%, #000000 100%);
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -3367,66 +3367,54 @@
       .vp-cabinet {
         position: relative;
         width: 100%;
-        max-width: 520px;
+        max-width: 500px;
         height: 100dvh;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
         background:
           linear-gradient(90deg,
-            #422a04 0px,
+            #3b2304 0px,
             #9c6f16 5px,
-            #f7df8b 10px,
-            #b88722 15px,
-            #211408 17px,
-            #2c1a0b calc(100% - 17px),
-            #b88722 calc(100% - 15px),
-            #f7df8b calc(100% - 10px),
+            #f7df8b 9px,
+            #b88722 14px,
+            #1e1207 16px,
+            #261709 calc(100% - 16px),
+            #b88722 calc(100% - 14px),
+            #f7df8b calc(100% - 9px),
             #9c6f16 calc(100% - 5px),
-            #422a04 100%
+            #3b2304 100%
           );
         border-top: 4px solid #f7df8b;
-        border-bottom: 5px solid #3b2404;
+        border-bottom: 5px solid #291802;
         box-shadow: 0 0 60px rgba(0,0,0,0.98), inset 0 0 24px rgba(0,0,0,0.85);
-        padding: 6px 14px 8px 14px;
-        gap: 6px;
+        padding: 6px 13px 6px 13px;
+        gap: 5px;
         overflow: hidden;
-      }
-
-      /* Remaches metálicos en las esquinas del mueble */
-      .vp-corner-rivet {
-        width: 8px;
-        height: 8px;
-        border-radius: 999px;
-        background: radial-gradient(circle at 35% 35%, #fffbeb 0%, #d97706 60%, #451a03 100%);
-        border: 1px solid #291502;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.9);
       }
 
       /* 1. Marquesina Superior Iluminada estilo Las Vegas Vintage */
       .vp-marquee {
         position: relative;
         flex-shrink: 0;
-        background:
-          radial-gradient(ellipse at 50% 35%, #3b1d06 0%, #1a0b02 65%, #090401 100%);
-        border: 3px solid #eab308;
-        border-radius: 12px;
-        padding: 6px 10px;
+        background: radial-gradient(ellipse at 50% 35%, #3b1d06 0%, #180a02 68%, #090401 100%);
+        border: 2.5px solid #eab308;
+        border-radius: 11px;
+        padding: 5px 10px;
         display: flex;
         align-items: center;
         justify-content: space-between;
         box-shadow:
-          inset 0 0 22px rgba(0,0,0,0.95),
+          inset 0 0 20px rgba(0,0,0,0.95),
           inset 0 1px 0 rgba(254,240,138,0.6),
-          0 4px 10px rgba(0,0,0,0.75);
+          0 3px 8px rgba(0,0,0,0.75);
       }
-      /* Tira de bombillas cálidas de casino en la marquesina */
       .vp-marquee::before {
         content: '';
         position: absolute;
         top: 2px;
-        left: 10px;
-        right: 10px;
+        left: 12px;
+        right: 12px;
         height: 4px;
         background-image: radial-gradient(circle, #fef08a 1.5px, #f59e0b 2.5px, transparent 3px);
         background-size: 14px 4px;
@@ -3436,21 +3424,21 @@
       .vp-marquee-title {
         font-family: Georgia, 'Times New Roman', serif;
         font-weight: 900;
-        font-size: clamp(16px, 4.6vw, 23px);
+        font-size: clamp(15px, 4.4vw, 21px);
         letter-spacing: 0.05em;
         text-transform: uppercase;
         background: linear-gradient(180deg, #fffbeb 0%, #fde047 38%, #d97706 78%, #fef08a 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        filter: drop-shadow(0 2px 0 #3b1800) drop-shadow(0 0 10px rgba(245,158,11,0.55));
+        filter: drop-shadow(0 2px 0 #3b1800) drop-shadow(0 0 8px rgba(245,158,11,0.5));
         line-height: 1.05;
       }
       .vp-marquee-sub {
         font-family: Impact, 'Arial Black', sans-serif;
-        font-size: clamp(10px, 2.8vw, 13px);
-        letter-spacing: 0.16em;
+        font-size: clamp(9.5px, 2.5vw, 12px);
+        letter-spacing: 0.14em;
         color: #60a5fa;
-        text-shadow: -1px -1px 0 #ffffff, 1px -1px 0 #ffffff, -1px 1px 0 #ffffff, 1px 1px 0 #ffffff, 0 0 10px rgba(59,130,246,0.95);
+        text-shadow: -1px -1px 0 #ffffff, 1px -1px 0 #ffffff, -1px 1px 0 #ffffff, 1px 1px 0 #ffffff, 0 0 8px rgba(59,130,246,0.9);
         line-height: 1;
       }
 
@@ -3458,19 +3446,19 @@
       .vp-meters-bar {
         flex-shrink: 0;
         display: grid;
-        grid-template-columns: 1fr 1fr 1.28fr;
+        grid-template-columns: 1fr 1fr 1.25fr;
         gap: 6px;
-        background: linear-gradient(180deg, #36240c 0%, #1b1105 100%);
-        border: 2.5px solid #ca8a04;
-        border-radius: 10px;
-        padding: 5px 7px;
-        box-shadow: inset 0 3px 8px rgba(0,0,0,0.95), 0 2px 6px rgba(0,0,0,0.65);
+        background: linear-gradient(180deg, #32210b 0%, #170e04 100%);
+        border: 2px solid #ca8a04;
+        border-radius: 9px;
+        padding: 4px 6px;
+        box-shadow: inset 0 3px 8px rgba(0,0,0,0.95), 0 2px 5px rgba(0,0,0,0.65);
       }
       .vp-meter-box {
-        background: linear-gradient(180deg, #17120c 0%, #090704 100%);
-        border: 1.5px solid #a16207;
-        border-radius: 7px;
-        padding: 3px 5px;
+        background: linear-gradient(180deg, #140f0a 0%, #080603 100%);
+        border: 1.5px solid #925606;
+        border-radius: 6px;
+        padding: 2.5px 5px;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -3478,13 +3466,13 @@
         box-shadow: inset 0 2px 6px rgba(0,0,0,0.95);
       }
       .vp-meter-label {
-        font-size: 8.5px;
+        font-size: 8px;
         font-weight: 900;
         color: #fde68a;
-        letter-spacing: 0.08em;
+        letter-spacing: 0.07em;
         text-transform: uppercase;
         line-height: 1.1;
-        margin-bottom: 2px;
+        margin-bottom: 1.5px;
       }
       .vp-led-screen {
         width: 100%;
@@ -3495,11 +3483,11 @@
         font-weight: 900;
         color: #ff2e2e;
         text-shadow: 0 0 8px #ff0000, 0 0 2px #fca5a5;
-        font-size: clamp(13px, 3.6vw, 16px);
+        font-size: clamp(12.5px, 3.4vw, 15px);
         line-height: 1.15;
-        padding: 2px 4px;
+        padding: 1.5px 4px;
         text-align: center;
-        letter-spacing: 0.06em;
+        letter-spacing: 0.05em;
       }
       .vp-led-screen.vp-led-amber {
         background: #170d02;
@@ -3508,17 +3496,15 @@
         text-shadow: 0 0 8px #f59e0b, 0 0 2px #fef08a;
       }
 
-      /* 3. Monitor CRT Curvo de Ancho Completo (100% de ancho, sin recortes) */
+      /* 3. Monitor CRT Curvo de Ancho Completo */
       .vp-crt-bezel {
         flex: 1;
         min-height: 0;
-        background: linear-gradient(180deg, #1f1b16 0%, #0d0b08 100%);
-        border: 4px solid #b4831e;
-        border-radius: 16px;
-        padding: 5px;
-        box-shadow:
-          inset 0 0 18px #000000,
-          0 4px 12px rgba(0,0,0,0.85);
+        background: linear-gradient(180deg, #1c1813 0%, #0a0806 100%);
+        border: 3.5px solid #b4831e;
+        border-radius: 14px;
+        padding: 4px;
+        box-shadow: inset 0 0 16px #000000, 0 4px 10px rgba(0,0,0,0.85);
         display: flex;
         flex-direction: column;
       }
@@ -3526,31 +3512,29 @@
         position: relative;
         flex: 1;
         min-height: 0;
-        background:
-          radial-gradient(circle at 50% 42%, #0025e8 0%, #0018b5 58%, #000e7a 100%);
-        border: 3px solid #3b4cca;
-        border-radius: 12px;
-        padding: 7px 8px;
+        background: radial-gradient(circle at 50% 42%, #0022d8 0%, #00159e 60%, #000b66 100%);
+        border: 2.5px solid #3b4cca;
+        border-radius: 10px;
+        padding: 6px 7px;
         box-shadow:
-          inset 0 0 32px rgba(0, 0, 0, 0.78),
-          inset 0 2px 12px rgba(96, 165, 250, 0.25);
+          inset 0 0 28px rgba(0, 0, 0, 0.78),
+          inset 0 2px 10px rgba(96, 165, 250, 0.22);
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        gap: 6px;
+        gap: 5px;
         overflow: hidden;
       }
-      /* Líneas de escaneo CRT auténticas + reflejo de cristal curvo */
       .vp-crt-screen::after {
         content: '';
         position: absolute;
         inset: 0;
         background:
-          linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 40%),
+          linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 40%),
           repeating-linear-gradient(
             0deg,
-            rgba(0, 0, 0, 0.16) 0px,
-            rgba(0, 0, 0, 0.16) 1px,
+            rgba(0, 0, 0, 0.14) 0px,
+            rgba(0, 0, 0, 0.14) 1px,
             transparent 1px,
             transparent 3px
           );
@@ -3558,28 +3542,14 @@
         z-index: 15;
       }
 
-      /* Cabecera dentro del CRT: Canción del Día Fija + Modo + Dificultad */
-      .vp-song-header-strip {
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        background: linear-gradient(90deg, rgba(0, 8, 65, 0.92) 0%, rgba(0, 18, 115, 0.92) 50%, rgba(0, 8, 65, 0.92) 100%);
-        border: 2px solid #facc15;
-        border-radius: 9px;
-        padding: 5px 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.55);
-      }
-
-      /* Tabla de Pagos y Ranking en Vivo (Ancho 100% con 6 columnas perfectamente visibles) */
+      /* Tabla de Pagos y Ranking en Vivo: 4 Columnas Claras (PUESTO/JUGADOR + 3 Niveles de Apuesta al Bote) */
       .vp-paytable-wrap {
         flex-shrink: 0;
-        border: 2.5px solid #facc15;
-        border-radius: 8px;
-        background: rgba(0, 9, 74, 0.94);
+        border: 2px solid #facc15;
+        border-radius: 7px;
+        background: rgba(0, 8, 64, 0.94);
         overflow: hidden;
-        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.65);
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.65);
       }
       .vp-paytable {
         width: 100%;
@@ -3587,12 +3557,12 @@
         border-collapse: collapse;
         font-family: 'Courier New', monospace, sans-serif;
         font-weight: 900;
-        font-size: clamp(10px, 2.65vw, 12.5px);
-        line-height: 1.22;
+        font-size: clamp(10.5px, 2.8vw, 13px);
+        line-height: 1.25;
       }
       .vp-paytable th,
       .vp-paytable td {
-        padding: 3.5px 3px;
+        padding: 3.5px 4px;
         border-right: 1.5px solid #eab308;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -3600,11 +3570,11 @@
       }
       .vp-paytable th:first-child,
       .vp-paytable td:first-child {
-        width: 38%;
+        width: 49%;
       }
       .vp-paytable th:not(:first-child),
       .vp-paytable td:not(:first-child) {
-        width: 12.4%;
+        width: 17%;
         text-align: center;
       }
       .vp-paytable th:last-child,
@@ -3612,7 +3582,7 @@
         border-right: none;
       }
       .vp-paytable tr {
-        border-bottom: 1px solid rgba(250, 204, 21, 0.28);
+        border-bottom: 1px solid rgba(250, 204, 21, 0.25);
       }
       .vp-paytable tr:last-child {
         border-bottom: none;
@@ -3623,156 +3593,176 @@
         text-shadow: 0 0 6px rgba(254, 240, 138, 0.95);
       }
 
-      /* Fila de 5 Naipes Grandes Vintage en el CRT */
+      /* Tira Digital Misteriosa en el CRT (No desvela nada hasta girar las cartas) */
+      .vp-mystery-strip {
+        flex-shrink: 0;
+        background: rgba(0, 6, 48, 0.92);
+        border: 1.5px solid #60a5fa;
+        border-radius: 6px;
+        padding: 3.5px 7px;
+        font-family: 'Courier New', monospace;
+        font-weight: 900;
+        font-size: clamp(9.5px, 2.5vw, 11.5px);
+        color: #bae6fd;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+      }
+
+      /* 3 Naipes Grandes de Póker Vintage (Anchos, Claros, Boca Abajo por Defecto) */
       .vp-cards-row {
         flex: 1;
         min-height: 0;
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
-        gap: 6px;
-        align-items: center;
-        perspective: 900px;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 9px;
+        align-items: stretch;
+        perspective: 1000px;
         padding: 2px 0;
       }
       .vp-card-slot {
         position: relative;
         width: 100%;
         height: 100%;
-        max-height: 138px;
-        min-height: 96px;
+        min-height: 112px;
+        max-height: 162px;
         cursor: pointer;
         transform-style: preserve-3d;
-        transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+        transition: transform 0.52s cubic-bezier(0.22, 1, 0.36, 1);
       }
       .vp-card-slot.flipped {
         transform: rotateY(180deg);
       }
-      .vp-card-slot.held-glow {
-        filter: drop-shadow(0 0 8px rgba(250, 204, 21, 0.85));
-      }
       .vp-card-face {
         position: absolute;
         inset: 0;
-        border-radius: 8px;
+        border-radius: 9px;
         backface-visibility: hidden;
         -webkit-backface-visibility: hidden;
         overflow: hidden;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.8);
+        box-shadow: 0 5px 12px rgba(0,0,0,0.85);
       }
-      /* Dorso Rojo Clásico "Casino 𝄞" */
+      /* Dorso Rojo Clásico "CASINO 𝄞" (rotateY(0deg) para que NUNCA salga invertido) */
       .vp-card-back {
-        background: linear-gradient(135deg, #b91c1c 0%, #7f1d1d 55%, #450a0a 100%);
-        border: 2.5px solid #fef9c3;
+        transform: rotateY(0deg);
+        background: linear-gradient(135deg, #991b1b 0%, #7f1d1d 52%, #450a0a 100%);
+        border: 2.5px solid #fef08a;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 4px;
+        padding: 5px;
       }
       .vp-card-back-inner {
         width: 100%;
         height: 100%;
-        border: 1.5px solid #facc15;
-        border-radius: 5px;
+        border: 1.5px solid #eab308;
+        border-radius: 6px;
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
+        justify-content: space-between;
+        padding: 6px 4px;
         background:
-          radial-gradient(circle, rgba(250,204,21,0.2) 0%, transparent 72%),
-          repeating-linear-gradient(45deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 3px, transparent 3px, transparent 6px);
+          radial-gradient(circle, rgba(250,204,21,0.22) 0%, transparent 72%),
+          repeating-linear-gradient(45deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 4px, transparent 4px, transparent 8px);
       }
-      .vp-card-back-script {
-        font-family: Georgia, serif;
-        font-style: italic;
+      .vp-card-back-emblem {
+        width: 36px;
+        height: 36px;
+        border-radius: 999px;
+        background: radial-gradient(circle, #fef08a 0%, #ca8a04 100%);
+        border: 2px solid #ffffff;
+        color: #7f1d1d;
         font-weight: 900;
-        color: #fde047;
-        font-size: clamp(11px, 2.8vw, 14px);
-        text-shadow: 0 2px 4px #000;
-        transform: rotate(-35deg);
-        white-space: nowrap;
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.75);
       }
-      /* Cara Delantera Marfil Vintage de Carta de Póker */
+      /* Cara Delantera Marfil Vintage (rotateY(180deg) oculta hasta girar la carta) */
       .vp-card-front {
         transform: rotateY(180deg);
-        background: linear-gradient(180deg, #fffdf7 0%, #f5efe0 100%);
+        background: linear-gradient(180deg, #fffdf9 0%, #f5eedc 100%);
         border: 2.5px solid #d4af37;
         color: #0f172a;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        padding: 4px;
+        padding: 5px 6px;
         box-shadow: inset 0 0 0 1px rgba(180, 131, 30, 0.35);
       }
-      .vp-card-badge-top {
+      .vp-card-badge-bottom {
         background: #0f172a;
         color: #facc15;
         font-family: 'Courier New', monospace;
         font-weight: 900;
-        font-size: clamp(7.5px, 2vw, 9px);
+        font-size: 9px;
         text-align: center;
-        padding: 1px 2px;
-        border-radius: 3px;
-        letter-spacing: 0.04em;
+        padding: 2px 4px;
+        border-radius: 4px;
+        letter-spacing: 0.05em;
         text-transform: uppercase;
       }
 
-      /* 4. Consola Inferior Inclinada en 3D con Botones Físicos de Arcade/Casino */
+      /* 4. Consola Inferior Metálica Vintage con Botones Biselados Auténticos de Casino */
       .vp-deck-shelf {
         flex-shrink: 0;
-        background: linear-gradient(180deg, #e5c158 0%, #b88b22 45%, #6e4e08 100%);
-        border: 3px solid #fef08a;
-        border-radius: 12px;
-        padding: 7px 8px 9px 8px;
+        background: linear-gradient(180deg, #2b2118 0%, #17110b 60%, #0c0905 100%);
+        border: 2.5px solid #d4af37;
+        border-radius: 11px;
+        padding: 6px 8px;
         box-shadow:
-          0 -4px 14px rgba(0,0,0,0.75),
-          inset 0 3px 6px rgba(255,255,255,0.65);
+          0 -3px 12px rgba(0,0,0,0.85),
+          inset 0 1px 0 rgba(254,240,138,0.45);
         display: flex;
         flex-direction: column;
         gap: 6px;
       }
 
-      /* Fila superior de 5 botones metálicos HOLD / GIRAR CARTA alineados con las 5 cartas */
+      /* 3 Botones Metálicos Cromados de Retener/Girar bajo las 3 Cartas */
       .vp-hold-buttons-grid {
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
-        gap: 6px;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
       }
       .vp-btn-hold {
-        background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 55%, #94a3b8 100%);
-        color: #0f172a;
-        border: 2px solid #f8fafc;
+        background: linear-gradient(180deg, #fffbeb 0%, #fde68a 45%, #ca8a04 100%);
+        color: #1c1002;
+        border: 1.5px solid #ffffff;
         border-radius: 6px;
-        padding: 4px 2px;
-        font-family: Impact, 'Arial Black', sans-serif;
-        font-size: clamp(8.5px, 2.2vw, 10.5px);
+        padding: 4.5px 4px;
+        font-family: 'Courier New', monospace, sans-serif;
+        font-weight: 900;
+        font-size: clamp(9.5px, 2.5vw, 11px);
         letter-spacing: 0.04em;
         text-transform: uppercase;
         text-align: center;
-        box-shadow: 0 4px 0 #1e293b, 0 5px 8px rgba(0,0,0,0.7);
+        box-shadow: 0 3px 0 #5c3a04, 0 4px 7px rgba(0,0,0,0.8);
         cursor: pointer;
-        transition: transform 0.08s ease, box-shadow 0.08s ease;
+        transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.12s;
       }
       .vp-btn-hold:active {
-        transform: translateY(3px);
-        box-shadow: 0 1px 0 #1e293b, 0 2px 4px rgba(0,0,0,0.7);
+        transform: translateY(2px);
+        box-shadow: 0 1px 0 #5c3a04, 0 2px 3px rgba(0,0,0,0.8);
       }
 
-      /* Fila principal de 4 grandes pulsadores luminosos de Casino */
+      /* Barra de Botones Acrílicos Retroiluminados con Bisel Cromado (Proporción Horizontal de Máquina Real) */
       .vp-main-buttons-grid {
         display: grid;
-        grid-template-columns: 0.9fr 1.05fr 1.05fr 1.6fr;
+        grid-template-columns: 0.95fr 0.95fr 1.85fr;
         gap: 7px;
         align-items: stretch;
       }
       .vp-phys-btn {
         position: relative;
-        border-radius: 9px;
-        padding: 8px 4px;
-        font-family: Impact, 'Arial Black', sans-serif;
-        font-size: clamp(11px, 3vw, 14px);
-        line-height: 1.05;
-        letter-spacing: 0.04em;
+        height: 42px;
+        border-radius: 7px;
+        padding: 4px 6px;
+        font-family: 'Courier New', monospace, sans-serif;
+        font-weight: 900;
         text-transform: uppercase;
         text-align: center;
         cursor: pointer;
@@ -3782,113 +3772,128 @@
         justify-content: center;
         transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.12s;
         user-select: none;
+        /* Bisel exterior metálico de cromo/latón */
+        outline: 2px solid #94a3b8;
+        outline-offset: -1px;
       }
       .vp-phys-btn:active {
-        transform: translateY(4px);
+        transform: translateY(3px);
       }
 
-      /* Botón Rojo SALIR */
-      .vp-btn-red {
-        background: linear-gradient(180deg, #f87171 0%, #dc2626 55%, #991b1b 100%);
-        color: #ffffff;
-        text-shadow: 0 1px 2px #450a0a;
-        border: 2px solid #fecaca;
-        box-shadow: 0 5px 0 #450a0a, 0 7px 12px rgba(0,0,0,0.8);
-      }
-      .vp-btn-red:active {
-        box-shadow: 0 1px 0 #450a0a, 0 2px 5px rgba(0,0,0,0.8);
-      }
-
-      /* Botón Azul/Plata APUESTA + */
+      /* Pulsador Acrílico Ámbar Clásico (CAMBIAR APUESTA) */
       .vp-btn-bet {
-        background: linear-gradient(180deg, #e0f2fe 0%, #38bdf8 50%, #0284c7 100%);
-        color: #082f49;
-        text-shadow: 0 1px 0 rgba(255,255,255,0.6);
-        border: 2px solid #bae6fd;
-        box-shadow: 0 5px 0 #0c4a6e, 0 7px 12px rgba(0,0,0,0.8);
+        background: radial-gradient(ellipse at 50% 35%, #fef08a 0%, #f59e0b 65%, #92400e 100%);
+        color: #1f0d02;
+        border: 1.5px solid #fffbeb;
+        box-shadow: 0 4px 0 #451a03, 0 5px 10px rgba(0,0,0,0.85), inset 0 1px 4px rgba(255,255,255,0.8);
       }
       .vp-btn-bet:active {
-        box-shadow: 0 1px 0 #0c4a6e, 0 2px 5px rgba(0,0,0,0.8);
+        box-shadow: 0 1px 0 #451a03, 0 2px 4px rgba(0,0,0,0.85);
       }
 
-      /* Botón Ámbar APUESTA MÁX */
+      /* Pulsador Acrílico Rubí Clásico (APUESTA MÁX 50𝄞) */
       .vp-btn-max {
-        background: linear-gradient(180deg, #fef08a 0%, #f59e0b 55%, #b45309 100%);
-        color: #271001;
-        text-shadow: 0 1px 0 rgba(255,255,255,0.65);
-        border: 2px solid #fef9c3;
-        box-shadow: 0 5px 0 #451a03, 0 7px 12px rgba(0,0,0,0.8);
+        background: radial-gradient(ellipse at 50% 35%, #fca5a5 0%, #dc2626 60%, #7f1d1d 100%);
+        color: #ffffff;
+        text-shadow: 0 1px 2px #450a0a;
+        border: 1.5px solid #fee2e2;
+        box-shadow: 0 4px 0 #450a0a, 0 5px 10px rgba(0,0,0,0.85), inset 0 1px 4px rgba(255,255,255,0.55);
       }
       .vp-btn-max:active {
-        box-shadow: 0 1px 0 #451a03, 0 2px 5px rgba(0,0,0,0.8);
+        box-shadow: 0 1px 0 #450a0a, 0 2px 4px rgba(0,0,0,0.85);
       }
 
-      /* Botón Gigante Esmeralda/Oro REPARTIR / JUGAR */
+      /* Pulsador Principal Retroiluminado Dorado/Esmeralda (GIRAR Y JUGAR - 1 OPORTUNIDAD) */
       .vp-btn-deal {
-        background: linear-gradient(180deg, #6ee7b7 0%, #10b981 48%, #047857 100%);
-        color: #ffffff;
-        text-shadow: 0 2px 3px #022c22;
-        border: 2.5px solid #a7f3d0;
-        box-shadow: 0 5px 0 #022c22, 0 0 18px rgba(16, 185, 129, 0.7), 0 7px 12px rgba(0,0,0,0.85);
+        background: radial-gradient(ellipse at 50% 35%, #fef9c3 0%, #facc15 52%, #ca8a04 100%);
+        color: #090d16;
+        border: 2px solid #ffffff;
+        box-shadow: 0 4px 0 #5c3a04, 0 0 14px rgba(250, 204, 21, 0.6), 0 5px 10px rgba(0,0,0,0.85);
       }
       .vp-btn-deal:active {
-        box-shadow: 0 1px 0 #022c22, 0 2px 6px rgba(0,0,0,0.85);
+        box-shadow: 0 1px 0 #5c3a04, 0 2px 4px rgba(0,0,0,0.85);
+      }
+      .vp-btn-deal.vp-btn-locked {
+        background: linear-gradient(180deg, #475569 0%, #1e293b 100%);
+        color: #cbd5e1;
+        border-color: #64748b;
+        box-shadow: 0 3px 0 #0f172a;
+      }
+
+      /* 5. Bandeja Metálica Inferior de Salida de Monedas / Claves (Hopper Chute) */
+      .vp-coin-tray {
+        position: relative;
+        background: linear-gradient(180deg, #090a0f 0%, #1e293b 50%, #0f172a 100%);
+        border: 2px solid #64748b;
+        border-radius: 8px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 10px;
+        box-shadow: inset 0 4px 8px rgba(0,0,0,0.95);
+        overflow: hidden;
+      }
+      .vp-coin-slot-mouth {
+        width: 68px;
+        height: 12px;
+        background: #020617;
+        border: 1.5px solid #475569;
+        border-radius: 4px;
+        box-shadow: inset 0 2px 5px #000, 0 1px 0 rgba(255,255,255,0.25);
       }
     </style>
 
     <div id="dailyVideoPokerModal" class="vp-modal-backdrop hidden" style="display: none;">
+      <!-- Lienzo a pantalla completa para la lluvia de Claves (𝄞) saliendo de la máquina al cobrar el premio del día anterior -->
+      <canvas id="vpCoinCascadeCanvas" class="fixed inset-0 w-full h-full pointer-events-none" style="z-index: 10020;"></canvas>
+
       <div class="vp-cabinet">
 
         <!-- 1. MARQUESINA SUPERIOR ILUMINADA DE CASINO VINTAGE -->
         <div class="vp-marquee">
-          <!-- Abanico izquierdo de naipes vintage -->
           <div class="flex items-center -space-x-2 flex-shrink-0 pl-0.5">
-            <div class="w-7 h-10 bg-[#fffdf7] rounded border-2 border-amber-500 shadow-md flex flex-col justify-between p-0.5 text-slate-900 font-black text-[9px] -rotate-12">
+            <div class="w-6 h-9 bg-[#fffdf7] rounded border border-amber-500 shadow flex flex-col justify-between p-0.5 text-slate-900 font-black text-[8px] -rotate-12">
               <span>A♠</span>
-              <span class="self-center text-xs">♠</span>
+              <span class="self-center text-[10px]">♠</span>
             </div>
-            <div class="w-7 h-10 bg-[#fffdf7] rounded border-2 border-amber-500 shadow-md flex flex-col justify-between p-0.5 text-red-600 font-black text-[9px] rotate-6">
+            <div class="w-6 h-9 bg-[#fffdf7] rounded border border-amber-500 shadow flex flex-col justify-between p-0.5 text-red-600 font-black text-[8px] rotate-6">
               <span>K♥</span>
-              <span class="self-center text-xs">♥</span>
+              <span class="self-center text-[10px]">♥</span>
             </div>
           </div>
 
-          <!-- Título Central Iluminado -->
           <div class="flex flex-col items-center text-center px-1 min-w-0">
             <div class="vp-marquee-title">CANCIÓN DEL DÍA</div>
             <div class="flex items-center gap-2 mt-0.5">
               <span class="vp-marquee-sub">VIDEO POKER</span>
-              <span id="vpCountdownBadge" class="text-[10px] font-mono font-black text-amber-300 bg-black/90 px-2 py-0.5 rounded border border-amber-400/60 shadow-inner">23:59:59</span>
+              <span id="vpCountdownBadge" class="text-[9.5px] font-mono font-black text-amber-300 bg-black/90 px-2 py-0.5 rounded border border-amber-400/60">23:59:59</span>
             </div>
           </div>
 
-          <!-- Botón de Cierre Metálico Vintage -->
-          <button type="button" onclick="closeDailyVideoPoker()" class="w-8 h-8 rounded-lg bg-gradient-to-b from-red-600 to-red-900 border-2 border-amber-300 text-amber-100 font-black text-sm flex items-center justify-center shadow-lg active:scale-95 cursor-pointer flex-shrink-0" title="Cerrar máquina">
+          <button type="button" onclick="closeDailyVideoPoker()" class="w-8 h-8 rounded-lg bg-gradient-to-b from-stone-700 to-stone-900 border-2 border-amber-400 text-amber-200 font-black text-xs flex items-center justify-center shadow-lg active:scale-95 cursor-pointer flex-shrink-0" title="Salir">
             ✕
           </button>
         </div>
 
-        <!-- 2. BARRA HORIZONTAL DE CONTADORES LED DE 7 SEGMENTOS (100% VISIBLE Y CLARA) -->
+        <!-- 2. BARRA HORIZONTAL DE CONTADORES LED DE 7 SEGMENTOS -->
         <div class="vp-meters-bar">
-          <!-- Contador 1: Tus Claves Disponibles -->
           <div class="vp-meter-box">
             <div class="vp-meter-label">TUS CLAVES 𝄞</div>
             <div id="vpCreditsLed" class="vp-led-screen">0000</div>
           </div>
 
-          <!-- Contador 2: Bote Acumulado Hoy -->
           <div class="vp-meter-box">
             <div class="vp-meter-label">BOTE HOY 𝄞</div>
             <div id="vpHeaderPotLed" class="vp-led-screen vp-led-amber">0150</div>
           </div>
 
-          <!-- Contador 3: Selector de Apuesta con Botones [-] y [+] -->
           <div class="vp-meter-box">
-            <div class="vp-meter-label">TU APUESTA AL BOTE</div>
+            <div class="vp-meter-label">TU APUESTA</div>
             <div class="flex items-center justify-between gap-1 w-full">
-              <button type="button" onclick="stepDailyPokerBet(-1)" class="w-6 h-6 bg-gradient-to-b from-amber-200 to-amber-500 text-black font-black text-sm rounded border border-amber-100 shadow active:scale-95 cursor-pointer flex items-center justify-center leading-none">−</button>
-              <div id="vpBetStepLed" class="vp-led-screen flex-1 text-center px-1">200𝄞</div>
-              <button type="button" onclick="stepDailyPokerBet(1)" class="w-6 h-6 bg-gradient-to-b from-amber-200 to-amber-500 text-black font-black text-sm rounded border border-amber-100 shadow active:scale-95 cursor-pointer flex items-center justify-center leading-none">+</button>
+              <button type="button" onclick="stepDailyPokerBet(-1)" class="w-6 h-6 bg-gradient-to-b from-amber-200 to-amber-500 text-black font-black text-xs rounded border border-amber-100 shadow active:scale-95 cursor-pointer flex items-center justify-center leading-none">−</button>
+              <div id="vpBetStepLed" class="vp-led-screen flex-1 text-center px-1">50𝄞</div>
+              <button type="button" onclick="stepDailyPokerBet(1)" class="w-6 h-6 bg-gradient-to-b from-amber-200 to-amber-500 text-black font-black text-xs rounded border border-amber-100 shadow active:scale-95 cursor-pointer flex items-center justify-center leading-none">+</button>
             </div>
           </div>
         </div>
@@ -3897,184 +3902,182 @@
         <div class="vp-crt-bezel">
           <div class="vp-crt-screen">
 
-            <!-- A. CABECERA DE LA CANCIÓN DEL DÍA Y CONDICIONES FIJAS (TEXTO GRANDE Y LEGIBLE) -->
-            <div class="vp-song-header-strip">
-              <img id="vpCardSongImg" src="./app_logo.png" alt="Portada" class="w-11 h-11 rounded-lg object-cover border-2 border-amber-400 shadow-md flex-shrink-0">
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-1.5">
-                  <span class="bg-amber-400 text-slate-950 font-black text-[8.5px] px-1.5 py-0.5 rounded uppercase tracking-wider flex-shrink-0">HOY FIJO</span>
-                  <div id="vpCardSongTitle" class="text-xs sm:text-sm font-black text-white truncate drop-shadow">Cargando canción...</div>
+            <!-- OVERLAY DE PREMIO DEL DÍA ANTERIOR (Se muestra automáticamente dentro del CRT al entrar al día siguiente) -->
+            <div id="vpYesterdayPayoutOverlay" class="hidden absolute inset-0 z-30 bg-blue-950/95 flex flex-col items-center justify-between p-4 text-center border-2 border-yellow-400 rounded-lg">
+              <div class="text-[10px] font-mono font-black text-cyan-300 tracking-widest uppercase bg-blue-900/80 px-3 py-1 rounded-full border border-cyan-400/50">
+                🎰 RESULTADO DEL TORNEO DIARIO FINALIZADO
+              </div>
+              <div class="my-auto flex flex-col items-center gap-1.5">
+                <div id="vpPayoutSongLabel" class="text-xs font-bold text-amber-200">Canción de ayer</div>
+                <div id="vpPayoutRankBadge" class="text-2xl sm:text-3xl font-black text-yellow-300 drop-shadow-[0_2px_8px_rgba(250,204,21,0.9)]">
+                  👑 PUESTO #1
                 </div>
-                <div class="flex items-center justify-between gap-2 mt-1">
-                  <div id="vpCardSongArtist" class="text-[10.5px] font-bold text-cyan-200 truncate">—</div>
-                  <div class="flex items-center gap-1 flex-shrink-0">
-                    <span id="vpBannerMode" class="text-[9.5px] font-black bg-cyan-400/20 text-cyan-200 border border-cyan-400/60 px-1.5 py-0.5 rounded">🪞 OJEPSƎ</span>
-                    <span id="vpBannerDiff" class="text-[9.5px] font-black bg-amber-400/20 text-amber-200 border border-amber-400/60 px-1.5 py-0.5 rounded">DIFÍCIL</span>
-                  </div>
+                <div id="vpPayoutScoreLabel" class="text-xs font-mono font-bold text-white bg-black/50 px-3 py-0.5 rounded border border-white/20">
+                  0 PTS
+                </div>
+                <div class="mt-2 px-5 py-2 rounded-xl bg-gradient-to-b from-amber-400 to-amber-600 border-2 border-yellow-200 text-slate-950 shadow-xl">
+                  <div class="text-[9px] font-black uppercase tracking-wider">PREMIO DEL BOTE</div>
+                  <div id="vpPayoutClefsAmount" class="text-2xl font-mono font-black">+100 𝄞</div>
                 </div>
               </div>
+              <button type="button" onclick="claimYesterdayDailyPokerReward()" class="w-full py-2.5 rounded-lg bg-gradient-to-b from-emerald-400 to-emerald-600 border-2 border-emerald-200 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg active:scale-95 cursor-pointer">
+                💰 COBRAR CLAVES DE LA MÁQUINA
+              </button>
             </div>
 
-            <!-- B. TABLA DE PREMIOS Y RANKING EN VIVO (6 COLUMNAS AL 100% SIN CORTES) -->
+            <!-- A. TABLA DE PREMIOS Y RANKING EN VIVO (4 COLUMNAS CLARAS: PUESTO/JUGADOR + 3 NIVELES DE APUESTA AL BOTE) -->
             <div class="vp-paytable-wrap">
               <table class="vp-paytable">
                 <thead>
                   <tr class="bg-blue-950 text-amber-300 text-[9.5px] border-b-2 border-yellow-400">
-                    <th class="text-left pl-2">RANKING EN VIVO</th>
-                    <th id="vpColHead1" class="cursor-pointer hover:bg-blue-800/60" onclick="setDailyPokerBetTier(1)">10𝄞</th>
-                    <th id="vpColHead2" class="cursor-pointer hover:bg-blue-800/60" onclick="setDailyPokerBetTier(2)">25𝄞</th>
-                    <th id="vpColHead3" class="cursor-pointer hover:bg-blue-800/60" onclick="setDailyPokerBetTier(3)">50𝄞</th>
-                    <th id="vpColHead4" class="cursor-pointer hover:bg-blue-800/60" onclick="setDailyPokerBetTier(4)">100𝄞</th>
-                    <th id="vpColHead5" class="cursor-pointer hover:bg-blue-800/60 vp-col-active" onclick="setDailyPokerBetTier(5)">200𝄞</th>
+                    <th class="text-left pl-2">RANKING · % DEL BOTE</th>
+                    <th id="vpColHead1" class="cursor-pointer hover:bg-blue-800/60" onclick="setDailyPokerBetTier(1)">10𝄞<div class="text-[7.5px] text-cyan-200 font-normal">30%</div></th>
+                    <th id="vpColHead2" class="cursor-pointer hover:bg-blue-800/60" onclick="setDailyPokerBetTier(2)">25𝄞<div class="text-[7.5px] text-cyan-200 font-normal">65%</div></th>
+                    <th id="vpColHead3" class="cursor-pointer hover:bg-blue-800/60 vp-col-active" onclick="setDailyPokerBetTier(3)">MÁX 50𝄞<div class="text-[7.5px] text-yellow-200 font-normal">100% BOTE</div></th>
                   </tr>
                 </thead>
                 <tbody id="vpPaytableBody">
-                  <!-- Filas inyectadas dinámicamente con el ranking real y premios Fijo + Bote -->
+                  <!-- Filas Top 1 a Top 5 inyectadas dinámicamente -->
                 </tbody>
               </table>
             </div>
 
-            <!-- C. LAS 5 CARTAS DE PÓKER VINTAGE (DISEÑO LIMPIO, ICONOS GRANDES, CERO SOLAPAMIENTO) -->
+            <!-- B. TIRA DIGITAL DE ESTADO DE REVELACIÓN (SIN SPOILERS HASTA GIRAR LAS CARTAS) -->
+            <div class="vp-mystery-strip">
+              <span id="vpMysteryStatusText" class="truncate">🃏 CARTAS SECRETAS · TÓCALAS PARA REVELAR EL RETO</span>
+              <span id="vpAttemptsBadge" class="bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded text-[8.5px] font-black flex-shrink-0">1 INTENTO HOY</span>
+            </div>
+
+            <!-- C. LAS 3 GRANDES CARTAS MISTERIOSAS DE PÓKER (EMPIEZAN BOCA ABAJO SIN DESVELAR NADA) -->
             <div class="vp-cards-row" id="vpCardsContainer">
 
-              <!-- Carta 1: A♠ CANCIÓN FIJA -->
-              <div class="vp-card-slot flipped" id="vpCard0" onclick="toggleDailyPokerCardFlip(0)">
+              <!-- CARTA 1: A♠ CANCIÓN SECRETA DEL DÍA -->
+              <div class="vp-card-slot" id="vpCard0" onclick="toggleDailyPokerCardFlip(0)">
+                <!-- Dorso boca abajo -->
                 <div class="vp-card-face vp-card-back">
                   <div class="vp-card-back-inner">
-                    <span class="vp-card-back-script">Casino 𝄞</span>
+                    <div class="text-[9px] font-mono font-black text-amber-200 tracking-widest">CARTA 1</div>
+                    <div class="vp-card-back-emblem">🎵</div>
+                    <div class="text-center">
+                      <div class="text-[10px] font-black text-yellow-300 uppercase tracking-wider">¿CANCIÓN?</div>
+                      <div class="text-[8px] font-bold text-amber-200/90 mt-0.5">TOCA PARA GIRAR</div>
+                    </div>
                   </div>
                 </div>
+                <!-- Cara frontal revelada -->
                 <div class="vp-card-face vp-card-front">
-                  <div class="flex justify-between items-center text-[11px] font-black text-slate-900 leading-none">
+                  <div class="flex justify-between items-center text-xs font-black text-slate-900 leading-none">
                     <span>A</span><span>♠</span>
                   </div>
-                  <div class="flex-1 flex flex-col items-center justify-center text-center my-0.5">
-                    <img id="vpCardMiniCover" src="./app_logo.png" alt="" class="w-10 h-10 rounded-full object-cover border-2 border-amber-500 shadow">
+                  <div class="flex-1 flex flex-col items-center justify-center text-center px-0.5 my-0.5 overflow-hidden">
+                    <img id="vpCardSongImg" src="./app_logo.png" alt="Portada" class="w-12 h-12 rounded-lg object-cover border-2 border-amber-500 shadow mb-1 flex-shrink-0">
+                    <div id="vpCardSongTitle" class="text-[10px] font-black text-slate-950 leading-tight line-clamp-2 w-full">Canción</div>
+                    <div id="vpCardSongArtist" class="text-[8.5px] font-bold text-slate-600 truncate w-full mt-0.5">Artista</div>
                   </div>
-                  <div class="vp-card-badge-top">CANCIÓN</div>
+                  <div class="vp-card-badge-bottom">CANCIÓN FIJA</div>
                 </div>
               </div>
 
-              <!-- Carta 2: K♥ MODO FIJO -->
-              <div class="vp-card-slot flipped" id="vpCard1" onclick="toggleDailyPokerCardFlip(1)">
+              <!-- CARTA 2: K♥ MODO SECRETO DEL DÍA -->
+              <div class="vp-card-slot" id="vpCard1" onclick="toggleDailyPokerCardFlip(1)">
+                <!-- Dorso boca abajo -->
                 <div class="vp-card-face vp-card-back">
                   <div class="vp-card-back-inner">
-                    <span class="vp-card-back-script">Casino 𝄞</span>
+                    <div class="text-[9px] font-mono font-black text-amber-200 tracking-widest">CARTA 2</div>
+                    <div class="vp-card-back-emblem">🕹️</div>
+                    <div class="text-center">
+                      <div class="text-[10px] font-black text-yellow-300 uppercase tracking-wider">¿MODO?</div>
+                      <div class="text-[8px] font-bold text-amber-200/90 mt-0.5">TOCA PARA GIRAR</div>
+                    </div>
                   </div>
                 </div>
+                <!-- Cara frontal revelada -->
                 <div class="vp-card-face vp-card-front">
-                  <div class="flex justify-between items-center text-[11px] font-black text-red-600 leading-none">
+                  <div class="flex justify-between items-center text-xs font-black text-red-600 leading-none">
                     <span>K</span><span>♥</span>
                   </div>
-                  <div class="flex-1 flex flex-col items-center justify-center text-center my-0.5">
-                    <div id="vpCardModeIcon" class="text-2xl leading-none mb-1">🪞</div>
-                    <div id="vpCardModeName" class="text-[8.5px] font-black text-slate-950 bg-cyan-200 border border-cyan-600 px-1 rounded truncate max-w-full">OJEPSƎ</div>
+                  <div class="flex-1 flex flex-col items-center justify-center text-center px-1 my-0.5">
+                    <div id="vpCardModeIcon" class="text-3xl leading-none mb-1.5">🪞</div>
+                    <div id="vpCardModeName" class="text-[10px] font-black text-slate-950 bg-cyan-200 border border-cyan-600 px-2 py-0.5 rounded uppercase tracking-wide">OJEPSƎ</div>
+                    <div id="vpCardModeDesc" class="text-[8px] font-bold text-slate-600 leading-tight mt-1">Carriles cruzados</div>
                   </div>
-                  <div class="vp-card-badge-top">MODO</div>
+                  <div class="vp-card-badge-bottom" style="background:#7f1d1d;color:#fef08a;">MODO FIJO</div>
                 </div>
               </div>
 
-              <!-- Carta 3: Q♣ NIVEL FIJO -->
-              <div class="vp-card-slot flipped" id="vpCard2" onclick="toggleDailyPokerCardFlip(2)">
+              <!-- CARTA 3: Q♣ DIFICULTAD SECRETA DEL DÍA -->
+              <div class="vp-card-slot" id="vpCard2" onclick="toggleDailyPokerCardFlip(2)">
+                <!-- Dorso boca abajo -->
                 <div class="vp-card-face vp-card-back">
                   <div class="vp-card-back-inner">
-                    <span class="vp-card-back-script">Casino 𝄞</span>
+                    <div class="text-[9px] font-mono font-black text-amber-200 tracking-widest">CARTA 3</div>
+                    <div class="vp-card-back-emblem">⚡</div>
+                    <div class="text-center">
+                      <div class="text-[10px] font-black text-yellow-300 uppercase tracking-wider">¿NIVEL?</div>
+                      <div class="text-[8px] font-bold text-amber-200/90 mt-0.5">TOCA PARA GIRAR</div>
+                    </div>
                   </div>
                 </div>
+                <!-- Cara frontal revelada -->
                 <div class="vp-card-face vp-card-front">
-                  <div class="flex justify-between items-center text-[11px] font-black text-slate-900 leading-none">
+                  <div class="flex justify-between items-center text-xs font-black text-slate-900 leading-none">
                     <span>Q</span><span>♣</span>
                   </div>
-                  <div class="flex-1 flex flex-col items-center justify-center text-center my-0.5">
-                    <div id="vpCardDiffStars" class="text-amber-500 text-[11px] font-black tracking-tighter leading-none mb-1">★★★★</div>
-                    <div id="vpCardDiffName" class="text-[8.5px] font-black text-white bg-slate-900 px-1 py-0.5 rounded uppercase">DIFÍCIL</div>
-                    <div id="vpCardBpm" class="hidden">120 BPM</div>
+                  <div class="flex-1 flex flex-col items-center justify-center text-center px-1 my-0.5">
+                    <div id="vpCardDiffStars" class="text-amber-500 text-sm font-black tracking-tight leading-none mb-1.5">★★★★</div>
+                    <div id="vpCardDiffName" class="text-[10px] font-black text-white bg-slate-900 px-2.5 py-0.5 rounded uppercase tracking-wider">DIFÍCIL</div>
+                    <div id="vpCardBpm" class="text-[8.5px] font-mono font-black text-slate-700 mt-1">120 BPM · 1.0x</div>
                   </div>
-                  <div class="vp-card-badge-top">NIVEL</div>
-                </div>
-              </div>
-
-              <!-- Carta 4: J♦ BOTE ACUMULADO -->
-              <div class="vp-card-slot flipped held-glow" id="vpCard3" onclick="toggleDailyPokerCardFlip(3)">
-                <div class="vp-card-face vp-card-back">
-                  <div class="vp-card-back-inner">
-                    <span class="vp-card-back-script">Casino 𝄞</span>
-                  </div>
-                </div>
-                <div class="vp-card-face vp-card-front bg-gradient-to-b from-amber-50 to-amber-100">
-                  <div class="flex justify-between items-center text-[11px] font-black text-red-600 leading-none">
-                    <span>J</span><span>♦</span>
-                  </div>
-                  <div class="flex-1 flex flex-col items-center justify-center text-center my-0.5">
-                    <div class="text-xl font-black text-amber-600 leading-none">𝄞</div>
-                    <div id="vpCardPotVal" class="text-[11px] font-black text-red-700 font-mono leading-tight mt-0.5">+150</div>
-                  </div>
-                  <div class="vp-card-badge-top" style="background:#b91c1c;color:#fef08a;">BOTE</div>
-                </div>
-              </div>
-
-              <!-- Carta 5: 10♠ TU RÉCORD HOY -->
-              <div class="vp-card-slot flipped" id="vpCard4" onclick="toggleDailyPokerCardFlip(4)">
-                <div class="vp-card-face vp-card-back">
-                  <div class="vp-card-back-inner">
-                    <span class="vp-card-back-script">Casino 𝄞</span>
-                  </div>
-                </div>
-                <div class="vp-card-face vp-card-front">
-                  <div class="flex justify-between items-center text-[11px] font-black text-slate-900 leading-none">
-                    <span>10</span><span>♠</span>
-                  </div>
-                  <div class="flex-1 flex flex-col items-center justify-center text-center my-0.5">
-                    <div id="vpCardMyRank" class="text-base font-black text-indigo-700 leading-none">—</div>
-                    <div id="vpCardMyScore" class="text-[8px] font-mono font-black text-slate-700 mt-0.5 truncate max-w-full">SIN JUGAR</div>
-                    <div id="vpCardMaxWin" class="hidden"></div>
-                  </div>
-                  <div class="vp-card-badge-top">TU TOP</div>
+                  <div class="vp-card-badge-bottom">NIVEL FIJO</div>
                 </div>
               </div>
 
             </div>
 
-            <!-- D. BARRA INFERIOR CRT: RESUMEN CLARO DE APUESTA Y PREMIO #1 -->
-            <div class="flex items-center justify-between bg-blue-950/95 border border-yellow-400/50 rounded-lg px-2.5 py-1 text-[10.5px] font-mono font-black text-white flex-shrink-0">
-              <div>APUESTA: <span id="vpCrtBetVal" class="text-yellow-300">200 𝄞</span></div>
-              <div>BOTE: <span id="vpCrtPotVal" class="text-amber-300">150 𝄞</span></div>
-              <div>PREMIO #1: <span id="vpCrtWinVal" class="text-emerald-300">1050 𝄞</span></div>
+            <!-- D. BARRA INFERIOR CRT: TU RÉCORD HOY + RESUMEN DE BOTE Y PREMIO #1 -->
+            <div class="flex items-center justify-between bg-blue-950/95 border border-yellow-400/60 rounded-lg px-2.5 py-1 text-[10px] font-mono font-black text-white flex-shrink-0">
+              <div>TU PUESTO: <span id="vpCardMyRank" class="text-cyan-300">—</span> <span id="vpCardMyScore" class="text-amber-200/90">(SIN JUGAR)</span></div>
+              <div>SI QUEDAS #1 GANAS: <span id="vpCrtWinVal" class="text-emerald-300">+100 𝄞</span></div>
             </div>
 
           </div>
         </div>
 
-        <!-- 4. CONSOLA INFERIOR INCLINADA DE MANDOS FÍSICOS DE CASINO -->
+        <!-- 4. CONSOLA METÁLICA DE PULSADORES DE CASINO + BANDEJA DE SALIDA DE CLAVES -->
         <div class="vp-deck-shelf">
-          <!-- Fila de 5 Botones Metálicos bajo cada carta -->
+          <!-- 3 Botones Metálicos para Revelar cada Carta -->
           <div class="vp-hold-buttons-grid">
-            <button type="button" onclick="toggleDailyPokerCardFlip(0)" class="vp-btn-hold">CANCIÓN</button>
-            <button type="button" onclick="toggleDailyPokerCardFlip(1)" class="vp-btn-hold">MODO</button>
-            <button type="button" onclick="toggleDailyPokerCardFlip(2)" class="vp-btn-hold">NIVEL</button>
-            <button type="button" onclick="toggleDailyPokerCardFlip(3)" class="vp-btn-hold">BOTE</button>
-            <button type="button" onclick="toggleDailyPokerCardFlip(4)" class="vp-btn-hold">TU TOP</button>
+            <button type="button" id="vpBtnHold0" onclick="toggleDailyPokerCardFlip(0)" class="vp-btn-hold">GIRAR CARTA 1</button>
+            <button type="button" id="vpBtnHold1" onclick="toggleDailyPokerCardFlip(1)" class="vp-btn-hold">GIRAR CARTA 2</button>
+            <button type="button" id="vpBtnHold2" onclick="toggleDailyPokerCardFlip(2)" class="vp-btn-hold">GIRAR CARTA 3</button>
           </div>
 
-          <!-- Fila Principal de 4 Pulsadores Arcade Grandes y Legibles -->
+          <!-- 3 Botones Acrílicos Retroiluminados de Casino (Proporción Horizontal Clásica) -->
           <div class="vp-main-buttons-grid">
-            <button type="button" onclick="closeDailyVideoPoker()" class="vp-phys-btn vp-btn-red">
-              <span>SALIR</span>
-            </button>
-
             <button type="button" onclick="stepDailyPokerBet(1, true)" class="vp-phys-btn vp-btn-bet">
-              <span>SUBIR</span>
-              <span class="text-[9px] font-mono font-black">APUESTA</span>
+              <span class="text-[10.5px] leading-none">CAMBIAR</span>
+              <span class="text-[9px] leading-none mt-0.5">APUESTA</span>
             </button>
 
-            <button type="button" onclick="setDailyPokerBetTier(5)" class="vp-phys-btn vp-btn-max">
-              <span>APUESTA</span>
-              <span class="text-[9px] font-mono font-black">MÁX 200𝄞</span>
+            <button type="button" onclick="setDailyPokerBetTier(3)" class="vp-phys-btn vp-btn-max">
+              <span class="text-[10.5px] leading-none">APUESTA MÁX</span>
+              <span class="text-[9px] text-yellow-200 leading-none mt-0.5">50 𝄞 (100%)</span>
             </button>
 
             <button type="button" id="vpBtnDealPlay" onclick="dealAndPlayDailyVideoPoker()" class="vp-phys-btn vp-btn-deal">
-              <span class="text-sm sm:text-base tracking-wider">REPARTIR · JUGAR</span>
-              <span class="text-[9px] font-mono font-black text-emerald-950 bg-amber-300 px-2 rounded mt-0.5">ENTRAR AL RANKING</span>
+              <span id="vpBtnDealMainText" class="text-xs sm:text-sm leading-none tracking-wide">REVELAR Y JUGAR</span>
+              <span id="vpBtnDealSubText" class="text-[8.5px] font-bold text-amber-950 leading-none mt-0.5">1 SOLA OPORTUNIDAD HOY</span>
+            </button>
+          </div>
+
+          <!-- Bandeja Metálica Inferior de Salida de Monedas / Claves (Por donde salen las Claves al día siguiente) -->
+          <div class="vp-coin-tray" id="vpCoinTrayElement">
+            <div class="flex items-center gap-1.5">
+              <div class="vp-coin-slot-mouth"></div>
+              <span class="text-[8.5px] font-mono font-black text-amber-300/90 uppercase tracking-wider">BANDEJA DE PAGO · CLAVES 𝄞</span>
+            </div>
+            <button type="button" id="vpTestNextDayBtn" onclick="simulateNextDayDailyPokerPayout()" class="hidden text-[8px] font-mono font-black bg-amber-400/20 hover:bg-amber-400/35 text-amber-300 border border-amber-400/50 px-2 py-0.5 rounded cursor-pointer">
+              PROBAR COBRO DÍA SIGUIENTE 𝄞
             </button>
           </div>
         </div>
@@ -5266,11 +5269,25 @@
         modal.classList.add('open');
       }
 
-      const currentRate = (engine && engine.songPlaybackRate) ? engine.songPlaybackRate : 1.0;
+      const isCompetitiveDaily = Boolean(window._isPlayingDailyVideoPoker);
+      const currentRate = isCompetitiveDaily ? 1.0 : ((engine && engine.songPlaybackRate) ? engine.songPlaybackRate : 1.0);
+      if (isCompetitiveDaily && engine && engine.songPlaybackRate !== 1.0) {
+        engine.setSongPlaybackSpeed(1.0);
+      }
       const pSpeed = document.getElementById('pauseSongSpeedVal');
-      if (pSpeed) pSpeed.innerText = `${currentRate.toFixed(2)}x`;
+      if (pSpeed) {
+        pSpeed.innerText = isCompetitiveDaily ? '🔒 1.0x FIJO' : `${currentRate.toFixed(2)}x`;
+      }
       const pSlider = document.getElementById('pauseSongSpeedSlider');
-      if (pSlider) pSlider.value = currentRate;
+      if (pSlider) {
+        pSlider.value = currentRate;
+        pSlider.disabled = isCompetitiveDaily;
+        pSlider.style.opacity = isCompetitiveDaily ? '0.4' : '1';
+      }
+      const btnRestart = document.getElementById('btnRestartGame');
+      if (btnRestart) {
+        btnRestart.style.display = isCompetitiveDaily ? 'none' : 'flex';
+      }
 
       const offsetVal = document.getElementById('pauseOffsetVal');
       const offsetSlider = document.getElementById('pauseOffsetSlider');
@@ -5283,6 +5300,14 @@
     };
 
     window.onPauseSongSpeedChange = function(val) {
+      if (window._isPlayingDailyVideoPoker) {
+        if (engine) engine.setSongPlaybackSpeed(1.0);
+        const valEl = document.getElementById('pauseSongSpeedVal');
+        if (valEl) valEl.innerText = '🔒 1.0x FIJO';
+        const sliderEl = document.getElementById('pauseSongSpeedSlider');
+        if (sliderEl) sliderEl.value = 1.0;
+        return;
+      }
       const s = Math.max(0.5, Math.min(2.0, Math.round(parseFloat(val) * 20) / 20));
       const songId = currentActiveBeatmap?.metadata?.id || currentActiveBeatmap?.id;
       if (songId) {
@@ -13514,30 +13539,37 @@ function stopPianoCameraLoop() {
     }
 
     // =========================================================================
-    // LAS VEGAS VIDEO POKER: "CANCIÓN DEL DÍA" (CANCION + MODO + NIVEL FIJOS & BOTE DE CLAVES)
+    // LAS VEGAS VIDEO POKER: "CANCIÓN DEL DÍA"
+    // - 3 Cartas Secretas Boca Abajo (Canción + Modo + Nivel no se revelan hasta girarlas)
+    // - 1 Sola Oportunidad al Día
+    // - Bote Común Transparente (100% de las apuestas de los jugadores se reparten entre el Top 5: 50%, 25%, 15%, 6%, 4%)
+    // - Ceremonia al Día Siguiente con Lluvia de Claves (𝄞) saliendo de la bandeja de la máquina
     // =========================================================================
-    const VP_BETS = [10, 25, 50, 100, 200];
+    const VP_BETS = [10, 25, 50];
+    // Multiplicador del premio del Bote según tu apuesta: 10𝄞 -> 30%, 25𝄞 -> 65%, 50𝄞 (MÁX) -> 100% del premio de tu puesto
+    const VP_BET_POT_MULT = [0.30, 0.65, 1.00];
+    // El 100% del Bote del Día se reparte entre el Top 5:
     const VP_PAYTABLE = [
-      { rank: 1, hand: 'ESCALERA REAL', badge: '👑 #1', fixed: [40, 100, 200, 400, 900], potShare: [0.15, 0.30, 0.50, 0.75, 1.00] },
-      { rank: 2, hand: 'ESCALERA COLOR', badge: '🥈 #2', fixed: [25, 60, 125, 250, 500], potShare: [0.08, 0.15, 0.22, 0.30, 0.40] },
-      { rank: 3, hand: 'POKER', badge: '🥉 #3', fixed: [18, 45, 90, 180, 360], potShare: [0.05, 0.08, 0.12, 0.18, 0.25] },
-      { rank: 4, hand: 'FULL', badge: '♠️ #4', fixed: [12, 30, 60, 120, 240], potShare: [0, 0, 0.05, 0.08, 0.12] },
-      { rank: 5, hand: 'COLOR', badge: '♥️ #5', fixed: [10, 25, 50, 100, 200], potShare: [0, 0, 0, 0.04, 0.08] },
-      { rank: 10, hand: 'JOTAS O MEJOR', badge: '♣️ TOP 10', fixed: [6, 15, 30, 60, 120], potShare: [0, 0, 0, 0, 0] }
+      { rank: 1, hand: 'ESCALERA REAL', badge: '#1', sharePct: 50, potShare: 0.50 },
+      { rank: 2, hand: 'POKER',         badge: '#2', sharePct: 25, potShare: 0.25 },
+      { rank: 3, hand: 'FULL HOUSE',    badge: '#3', sharePct: 15, potShare: 0.15 },
+      { rank: 4, hand: 'COLOR',         badge: '#4', sharePct: 6,  potShare: 0.06 },
+      { rank: 5, hand: 'ESCALERA',      badge: '#5', sharePct: 4,  potShare: 0.04 }
     ];
     const VP_MODES = [
-      { id: 'mirror', label: 'OJEPSƎ', icon: '🪞', bg: 'bg-cyan-100 border-cyan-500 text-cyan-950' },
-      { id: 'river', label: 'RÍO', icon: '🌊', bg: 'bg-sky-100 border-sky-500 text-sky-950' },
-      { id: 'mushrooms', label: 'SETAS', icon: '🍄', bg: 'bg-fuchsia-100 border-fuchsia-500 text-fuchsia-950' },
-      { id: 'minesweeper', label: 'MINAS', icon: '💣', bg: 'bg-red-100 border-red-500 text-red-950' },
-      { id: 'storm', label: 'TORMENTA', icon: '⚡', bg: 'bg-purple-100 border-purple-500 text-purple-950' },
-      { id: 'annoying_dog', label: 'PERRO', icon: '🐶', bg: 'bg-amber-100 border-amber-500 text-amber-950' },
-      { id: 'classic', label: 'CLÁSICO', icon: '🎹', bg: 'bg-yellow-100 border-yellow-500 text-yellow-950' }
+      { id: 'mirror',       label: 'OJEPSƎ',   desc: 'Carriles 1 y 3 cruzados', icon: '🪞', bg: 'bg-cyan-100 border-cyan-500 text-cyan-950' },
+      { id: 'river',        label: 'RÍO',      desc: 'Corriente en movimiento', icon: '🌊', bg: 'bg-sky-100 border-sky-500 text-sky-950' },
+      { id: 'mushrooms',    label: 'SETAS',    desc: 'Efecto psicodélico',      icon: '🍄', bg: 'bg-fuchsia-100 border-fuchsia-500 text-fuchsia-950' },
+      { id: 'minesweeper',  label: 'MINAS',    desc: 'Esquiva teclas bomba',    icon: '💣', bg: 'bg-red-100 border-red-500 text-red-950' },
+      { id: 'storm',        label: 'TORMENTA', desc: 'Relámpagos en pista',     icon: '⚡', bg: 'bg-purple-100 border-purple-500 text-purple-950' },
+      { id: 'annoying_dog', label: 'PERRO',    desc: 'Zarpazos traviesos',      icon: '🐶', bg: 'bg-amber-100 border-amber-500 text-amber-950' },
+      { id: 'classic',      label: 'CLÁSICO',  desc: 'Precisión pura',          icon: '🎹', bg: 'bg-yellow-100 border-yellow-500 text-yellow-950' }
     ];
 
-    let vpCurrentBetTier = 5; // 1..5 (Por defecto Apuesta Max 200𝄞 como en las máquinas de Las Vegas)
+    let vpCurrentBetTier = 3; // 1 (10𝄞), 2 (25𝄞), 3 (50𝄞 MÁX)
     let vpCurrentState = null;
     let vpCountdownTimer = null;
+    let vpPendingPayoutData = null;
 
     function playVpArcadeSound(type) {
       try {
@@ -13552,25 +13584,25 @@ function stopPianoCameraLoop() {
           const osc = actx.createOscillator();
           const g = actx.createGain();
           osc.type = 'square';
-          osc.frequency.setValueAtTime(520 + vpCurrentBetTier * 110, now);
-          g.gain.setValueAtTime(0.11, now);
-          g.gain.exponentialRampToValueAtTime(0.001, now + 0.065);
+          osc.frequency.setValueAtTime(480 + vpCurrentBetTier * 140, now);
+          g.gain.setValueAtTime(0.10, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
           osc.connect(g);
           g.connect(actx.destination);
           osc.start(now);
-          osc.stop(now + 0.065);
+          osc.stop(now + 0.06);
         } else if (type === 'flip') {
           const osc = actx.createOscillator();
           const g = actx.createGain();
           osc.type = 'triangle';
-          osc.frequency.setValueAtTime(920, now);
-          osc.frequency.exponentialRampToValueAtTime(320, now + 0.045);
+          osc.frequency.setValueAtTime(880, now);
+          osc.frequency.exponentialRampToValueAtTime(340, now + 0.05);
           g.gain.setValueAtTime(0.14, now);
-          g.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
           osc.connect(g);
           g.connect(actx.destination);
           osc.start(now);
-          osc.stop(now + 0.045);
+          osc.stop(now + 0.05);
         } else if (type === 'deal' || type === 'max') {
           const notes = [523.25, 659.25, 783.99, 1046.5];
           notes.forEach((f, idx) => {
@@ -13578,15 +13610,52 @@ function stopPianoCameraLoop() {
             const g = actx.createGain();
             osc.type = 'square';
             osc.frequency.setValueAtTime(f, now + idx * 0.055);
-            g.gain.setValueAtTime(0.11, now + idx * 0.055);
+            g.gain.setValueAtTime(0.10, now + idx * 0.055);
             g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.055 + 0.12);
             osc.connect(g);
             g.connect(actx.destination);
             osc.start(now + idx * 0.055);
             osc.stop(now + idx * 0.055 + 0.12);
           });
+        } else if (type === 'coindrop') {
+          const osc = actx.createOscillator();
+          const g = actx.createGain();
+          osc.type = 'sine';
+          const baseF = 1350 + Math.random() * 450;
+          osc.frequency.setValueAtTime(baseF, now);
+          osc.frequency.setValueAtTime(baseF * 1.42, now + 0.03);
+          g.gain.setValueAtTime(0.12, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+          osc.connect(g);
+          g.connect(actx.destination);
+          osc.start(now);
+          osc.stop(now + 0.14);
         }
       } catch (_) {}
+    }
+
+    function getDailyPokerEntryRecord(dayKey) {
+      try {
+        return JSON.parse(localStorage.getItem(`beatstar_daily_poker_entry_${dayKey}`) || 'null');
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function saveDailyPokerEntryRecord(dayKey, record) {
+      if (!dayKey || !record) return;
+      try {
+        localStorage.setItem(`beatstar_daily_poker_entry_${dayKey}`, JSON.stringify(record));
+        localStorage.setItem('beatstar_daily_poker_last_entry_day', dayKey);
+      } catch (_) {}
+    }
+
+    function computeDailyPokerPrize(potClefs, rank, betTier) {
+      const row = VP_PAYTABLE.find(r => r.rank === rank);
+      if (!row) return 0;
+      const tierIdx = Math.max(0, Math.min(2, (Number(betTier) || 3) - 1));
+      const mult = VP_BET_POT_MULT[tierIdx] || 1.0;
+      return Math.max(5, Math.round(potClefs * row.potShare * mult));
     }
 
     function getLocalDeterministicDailyPokerState() {
@@ -13611,15 +13680,15 @@ function stopPianoCameraLoop() {
       const difficulty = (daySeed % 2 === 0) ? 'Difícil' : 'Normal';
       const totalNotes = Number(rawSong.total_notes) || 380;
       const stars = difficulty === 'Difícil'
-        ? Math.min(7.2, Math.max(4.5, +(3.8 + (totalNotes / 150)).toFixed(1)))
-        : Math.min(3.6, Math.max(2.0, +(1.7 + (totalNotes / 260)).toFixed(1)));
+        ? Math.min(5, Math.max(4, Math.round(3.8 + (totalNotes / 180))))
+        : Math.min(3, Math.max(2, Math.round(1.8 + (totalNotes / 260))));
 
-      let localPot = 150;
+      let localPot = 100; // Base inicial del Bote Común del día (100 𝄞 + apuestas reales de jugadores)
       let localRankings = [];
       try {
         const saved = JSON.parse(localStorage.getItem(`beatstar_daily_poker_${dayKey}`) || 'null');
         if (saved) {
-          if (Number(saved.potClefs) > 150) localPot = Number(saved.potClefs);
+          if (Number(saved.potClefs) >= 100) localPot = Number(saved.potClefs);
           if (Array.isArray(saved.rankings)) localRankings = saved.rankings;
         }
       } catch (_) {}
@@ -13677,7 +13746,7 @@ function stopPianoCameraLoop() {
               },
               mode: modeMatch,
               difficulty: data.difficulty || localState.difficulty,
-              potClefs: Math.max(localState.potClefs || 150, Number(data.potClefs) || 150),
+              potClefs: Math.max(localState.potClefs || 100, Number(data.potClefs) || 100),
               rankings: Array.isArray(data.rankings) && data.rankings.length > 0 ? data.rankings : localState.rankings
             };
             saveLocalDailyPokerState(vpCurrentState);
@@ -13685,47 +13754,46 @@ function stopPianoCameraLoop() {
           }
         }
       } catch (_) {}
+    }
 
-      // También sincronizar puntuaciones reales del leaderboard de esta canción si aún hay pocos jugadores hoy
-      if (vpCurrentState && vpCurrentState.song) {
-        try {
-          const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
-          const lbRes = await fetch(`${baseUrl}/api/v1/community/charts/${encodeURIComponent(vpCurrentState.song.id)}/leaderboard`);
-          if (lbRes.ok) {
-            const lbData = await lbRes.json();
-            const rows = Array.isArray(lbData) ? lbData : (lbData.leaderboard || lbData.scores || []);
-            if (Array.isArray(rows) && rows.length > 0) {
-              const existingNames = new Set((vpCurrentState.rankings || []).map(r => String(r.player_name || '').toLowerCase()));
-              for (const s of rows) {
-                const pName = s.player_name || s.name || s.username;
-                const pScore = Number(s.score) || 0;
-                if (pName && pScore > 0 && !existingNames.has(String(pName).toLowerCase())) {
-                  vpCurrentState.rankings.push({
-                    player_name: String(pName),
-                    score: pScore,
-                    bet_tier: 3
-                  });
-                  existingNames.add(String(pName).toLowerCase());
-                }
-              }
-              vpCurrentState.rankings.sort((a, b) => b.score - a.score);
-              saveLocalDailyPokerState(vpCurrentState);
-              renderDailyVideoPokerUI();
-            }
-          }
-        } catch (_) {}
+    function updateMysteryStatusBar() {
+      if (!vpCurrentState) return;
+      const c0 = document.getElementById('vpCard0')?.classList.contains('flipped');
+      const c1 = document.getElementById('vpCard1')?.classList.contains('flipped');
+      const c2 = document.getElementById('vpCard2')?.classList.contains('flipped');
+      const statusEl = document.getElementById('vpMysteryStatusText');
+      if (!statusEl) return;
+
+      for (let i = 0; i < 3; i++) {
+        const btnH = document.getElementById(`vpBtnHold${i}`);
+        const isFl = document.getElementById(`vpCard${i}`)?.classList.contains('flipped');
+        if (btnH) {
+          btnH.textContent = isFl ? `✓ CARTA ${i + 1}` : `GIRAR CARTA ${i + 1}`;
+        }
+      }
+
+      if (!c0 && !c1 && !c2) {
+        statusEl.textContent = '🃏 CARTAS SECRETAS · TÓCALAS PARA DESCUBRIR EL RETO';
+      } else {
+        const parts = [];
+        parts.push(c0 ? `🎵 ${vpCurrentState.song.title}` : '🎵 ???');
+        parts.push(c1 ? `${vpCurrentState.mode?.icon || '🪞'} ${vpCurrentState.mode?.label || 'OJEPSƎ'}` : '🕹️ ???');
+        parts.push(c2 ? `⚡ ${vpCurrentState.difficulty}` : '⚡ ???');
+        statusEl.textContent = parts.join(' · ');
       }
     }
 
     function renderDailyVideoPokerUI() {
       if (!vpCurrentState) vpCurrentState = getLocalDeterministicDailyPokerState();
       const st = vpCurrentState;
-      const pot = Math.max(100, Math.round(Number(st.potClefs) || 150));
-      const wager = VP_BETS[vpCurrentBetTier - 1] || 10;
+      const pot = Math.max(100, Math.round(Number(st.potClefs) || 100));
+      const wager = VP_BETS[vpCurrentBetTier - 1] || 50;
       const clefsNow = Math.max(0, Math.floor(typeof userClefs !== 'undefined' ? userClefs : 0));
+      const todayEntry = getDailyPokerEntryRecord(st.dayKey);
+      const hasPlayedToday = Boolean(todayEntry && todayEntry.played);
 
-      // 1. Actualizar cabeceras de columnas de apuesta (1..5)
-      for (let col = 1; col <= 5; col++) {
+      // 1. Actualizar cabeceras de las 3 columnas de apuesta (10𝄞, 25𝄞, MÁX 50𝄞)
+      for (let col = 1; col <= 3; col++) {
         const th = document.getElementById(`vpColHead${col}`);
         if (th) {
           if (col === vpCurrentBetTier) th.classList.add('vp-col-active');
@@ -13733,23 +13801,16 @@ function stopPianoCameraLoop() {
         }
       }
 
-      // 2. Renderizar las 6 filas de la tabla de pagos + ranking en vivo
+      // 2. Renderizar las 5 filas del Top 5 con reparto exacto del 100% del Bote (50%, 25%, 15%, 6%, 4%)
       const tbody = document.getElementById('vpPaytableBody');
       if (tbody) {
         const rankings = st.rankings || [];
-        const shortRanks = ['#1', '#2', '#3', '#4', '#5', 'T10'];
         let html = '';
         VP_PAYTABLE.forEach((row, rIdx) => {
-          let playerEntry = null;
-          if (row.rank <= 5) {
-            playerEntry = rankings[row.rank - 1] || null;
-          } else {
-            playerEntry = rankings[5] || rankings[rankings.length - 1] || null;
-          }
-
+          const playerEntry = rankings[row.rank - 1] || null;
           const pName = playerEntry
-            ? escapeHtml(String(playerEntry.player_name || 'Jugador').slice(0, 10))
-            : 'LIBRE';
+            ? escapeHtml(String(playerEntry.player_name || 'Jugador').slice(0, 11))
+            : 'VACANTE';
           const pScore = playerEntry && playerEntry.score > 0
             ? `${Math.round(playerEntry.score / 1000)}k`
             : '—';
@@ -13759,19 +13820,19 @@ function stopPianoCameraLoop() {
             : (rIdx === 1 ? 'text-amber-200' : (rIdx === 2 ? 'text-orange-200' : 'text-yellow-400/95'));
 
           let colsHtml = '';
-          for (let c = 0; c < 5; c++) {
+          for (let c = 0; c < 3; c++) {
             const isSel = (c + 1) === vpCurrentBetTier;
-            const totalPrize = Math.round(row.fixed[c] + pot * (row.potShare[c] || 0));
-            colsHtml += `<td class="text-center font-mono ${isSel ? 'vp-col-active' : ''}">${totalPrize}</td>`;
+            const prizeClefs = computeDailyPokerPrize(pot, row.rank, c + 1);
+            colsHtml += `<td class="text-center font-mono ${isSel ? 'vp-col-active' : ''}">+${prizeClefs}𝄞</td>`;
           }
 
           html += `
             <tr class="${rowColor}">
-              <td class="pl-1.5 pr-1">
+              <td class="pl-2 pr-1">
                 <div class="flex items-center justify-between gap-1 min-w-0">
-                  <span class="font-black text-amber-300 flex-shrink-0">${shortRanks[rIdx] || row.badge}</span>
-                  <span class="text-[9.5px] text-cyan-200 font-bold truncate flex-1">${pName}</span>
-                  <span class="text-[9px] text-amber-300 font-mono flex-shrink-0">${pScore}</span>
+                  <span class="font-black text-amber-300 flex-shrink-0">${row.badge} <span class="text-[8.5px] text-amber-400/80">(${row.sharePct}%)</span></span>
+                  <span class="text-[10px] text-cyan-200 font-bold truncate flex-1 text-center">${pName}</span>
+                  <span class="text-[9.5px] text-amber-300 font-mono flex-shrink-0">${pScore}</span>
                 </div>
               </td>
               ${colsHtml}
@@ -13781,35 +13842,27 @@ function stopPianoCameraLoop() {
         tbody.innerHTML = html;
       }
 
-      // 3. Actualizar cabecera CRT y las 5 Cartas de Póker de la Canción del Día
+      // 3. Rellenar el interior de las 3 Cartas (solo se ven cuando el jugador las gira)
       const coverSrc = st.song.cover_url || './app_logo.png';
       const songImg = document.getElementById('vpCardSongImg');
       if (songImg) {
         songImg.src = coverSrc;
         songImg.onerror = function() { this.src = './app_logo.png'; };
       }
-      const miniCover = document.getElementById('vpCardMiniCover');
-      if (miniCover) {
-        miniCover.src = coverSrc;
-        miniCover.onerror = function() { this.src = './app_logo.png'; };
-      }
       const songTitle = document.getElementById('vpCardSongTitle');
       if (songTitle) songTitle.textContent = st.song.title || 'Canción';
       const songArtist = document.getElementById('vpCardSongArtist');
       if (songArtist) songArtist.textContent = st.song.artist || 'Artista';
-
-      const bannerMode = document.getElementById('vpBannerMode');
-      if (bannerMode) bannerMode.textContent = `${st.mode?.icon || '🪞'} ${st.mode?.label || 'OJEPSƎ'}`;
-      const bannerDiff = document.getElementById('vpBannerDiff');
-      if (bannerDiff) bannerDiff.textContent = st.difficulty || 'DIFÍCIL';
 
       const modeIcon = document.getElementById('vpCardModeIcon');
       if (modeIcon) modeIcon.textContent = st.mode?.icon || '🪞';
       const modeName = document.getElementById('vpCardModeName');
       if (modeName) {
         modeName.textContent = st.mode?.label || 'OJEPSƎ';
-        modeName.className = `text-[8.5px] font-black tracking-tight px-1 py-0.5 rounded border truncate max-w-full ${st.mode?.bg || 'bg-cyan-100 border-cyan-500 text-cyan-950'}`;
+        modeName.className = `text-[10px] font-black px-2 py-0.5 rounded border uppercase tracking-wide ${st.mode?.bg || 'bg-cyan-100 border-cyan-500 text-cyan-950'}`;
       }
+      const modeDesc = document.getElementById('vpCardModeDesc');
+      if (modeDesc) modeDesc.textContent = st.mode?.desc || 'Modo especial';
 
       const diffStars = document.getElementById('vpCardDiffStars');
       const starCount = Math.max(2, Math.min(5, Math.round(Number(st.song.stars) || 4)));
@@ -13817,35 +13870,27 @@ function stopPianoCameraLoop() {
       const diffName = document.getElementById('vpCardDiffName');
       if (diffName) diffName.textContent = st.difficulty || 'DIFÍCIL';
       const bpmEl = document.getElementById('vpCardBpm');
-      if (bpmEl) bpmEl.textContent = `${st.song.bpm || 120} BPM`;
+      if (bpmEl) bpmEl.textContent = `${st.song.bpm || 120} BPM · 1.0x`;
 
-      const cardPotVal = document.getElementById('vpCardPotVal');
-      if (cardPotVal) cardPotVal.textContent = `+${pot}`;
-
-      // Tu puesto hoy
+      // 4. Tu puesto hoy + Estado de 1 Sola Oportunidad
       const myName = String((typeof currentUser !== 'undefined' && currentUser?.username) || localStorage.getItem('beatstar_player_name') || 'Jugador').trim().toLowerCase();
       const myIdx = (st.rankings || []).findIndex(r => String(r.player_name || '').trim().toLowerCase() === myName);
       const myRankEl = document.getElementById('vpCardMyRank');
       const myScoreEl = document.getElementById('vpCardMyScore');
       if (myIdx >= 0) {
         if (myRankEl) myRankEl.textContent = `#${myIdx + 1}`;
-        if (myScoreEl) myScoreEl.textContent = `${Math.round(Number(st.rankings[myIdx].score || 0) / 1000)}k PTS`;
+        if (myScoreEl) myScoreEl.textContent = `(${Math.round(Number(st.rankings[myIdx].score || 0) / 1000)}k PTS)`;
+      } else if (hasPlayedToday) {
+        if (myRankEl) myRankEl.textContent = 'JUGADO';
+        if (myScoreEl) myScoreEl.textContent = `(${Math.round(Number(todayEntry.score || 0) / 1000)}k PTS)`;
       } else {
         if (myRankEl) myRankEl.textContent = '—';
-        if (myScoreEl) myScoreEl.textContent = 'JUEGA HOY';
+        if (myScoreEl) myScoreEl.textContent = '(1 OPORTUNIDAD)';
       }
 
-      const top1Prize = Math.round(VP_PAYTABLE[0].fixed[vpCurrentBetTier - 1] + pot * VP_PAYTABLE[0].potShare[vpCurrentBetTier - 1]);
-      const cardMaxWin = document.getElementById('vpCardMaxWin');
-      if (cardMaxWin) cardMaxWin.textContent = `#1: +${top1Prize} 𝄞`;
-
-      // 4. Actualizar barra inferior CRT y pantallas LED de 7 segmentos superiores
-      const crtBet = document.getElementById('vpCrtBetVal');
-      if (crtBet) crtBet.textContent = `${wager} 𝄞`;
-      const crtPot = document.getElementById('vpCrtPotVal');
-      if (crtPot) crtPot.textContent = `${pot} 𝄞`;
+      const top1Prize = computeDailyPokerPrize(pot, 1, vpCurrentBetTier);
       const crtWin = document.getElementById('vpCrtWinVal');
-      if (crtWin) crtWin.textContent = `${top1Prize} 𝄞`;
+      if (crtWin) crtWin.textContent = `+${top1Prize} 𝄞`;
 
       const creditsLed = document.getElementById('vpCreditsLed');
       if (creditsLed) creditsLed.textContent = String(clefsNow).padStart(4, '0');
@@ -13853,12 +13898,41 @@ function stopPianoCameraLoop() {
       if (headerPotLed) headerPotLed.textContent = String(pot).padStart(4, '0');
       const betStepLed = document.getElementById('vpBetStepLed');
       if (betStepLed) betStepLed.textContent = `${wager}𝄞`;
+
+      // Actualizar estado del botón principal según si ya gastó su 1 intento de hoy
+      const dealBtn = document.getElementById('vpBtnDealPlay');
+      const dealMainTxt = document.getElementById('vpBtnDealMainText');
+      const dealSubTxt = document.getElementById('vpBtnDealSubText');
+      const attemptsBadge = document.getElementById('vpAttemptsBadge');
+      const testNextDayBtn = document.getElementById('vpTestNextDayBtn');
+
+      if (hasPlayedToday) {
+        if (dealBtn) dealBtn.classList.add('vp-btn-locked');
+        if (dealMainTxt) dealMainTxt.textContent = '✓ YA JUGASTE HOY';
+        if (dealSubTxt) dealSubTxt.textContent = 'PREMIOS MAÑANA AL ENTRAR';
+        if (attemptsBadge) {
+          attemptsBadge.textContent = '0 INTENTOS HOY';
+          attemptsBadge.className = 'bg-slate-700 text-slate-200 px-1.5 py-0.5 rounded text-[8.5px] font-black flex-shrink-0';
+        }
+        if (testNextDayBtn) testNextDayBtn.classList.remove('hidden');
+      } else {
+        if (dealBtn) dealBtn.classList.remove('vp-btn-locked');
+        if (dealMainTxt) dealMainTxt.textContent = `JUGAR (${wager} 𝄞)`;
+        if (dealSubTxt) dealSubTxt.textContent = '1 SOLA OPORTUNIDAD HOY';
+        if (attemptsBadge) {
+          attemptsBadge.textContent = '1 INTENTO HOY';
+          attemptsBadge.className = 'bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded text-[8.5px] font-black flex-shrink-0';
+        }
+        if (testNextDayBtn) testNextDayBtn.classList.add('hidden');
+      }
+
+      updateMysteryStatusBar();
     }
 
     function setDailyPokerBetTier(tier) {
-      const clamped = Math.max(1, Math.min(5, Number(tier) || 1));
+      const clamped = Math.max(1, Math.min(3, Number(tier) || 3));
       vpCurrentBetTier = clamped;
-      playVpArcadeSound(clamped === 5 ? 'max' : 'bet');
+      playVpArcadeSound(clamped === 3 ? 'max' : 'bet');
       renderDailyVideoPokerUI();
     }
     window.setDailyPokerBetTier = setDailyPokerBetTier;
@@ -13866,10 +13940,10 @@ function stopPianoCameraLoop() {
     function stepDailyPokerBet(delta, wrapAround = false) {
       let next = vpCurrentBetTier + delta;
       if (wrapAround) {
-        if (next > 5) next = 1;
-        if (next < 1) next = 5;
+        if (next > 3) next = 1;
+        if (next < 1) next = 3;
       } else {
-        next = Math.max(1, Math.min(5, next));
+        next = Math.max(1, Math.min(3, next));
       }
       setDailyPokerBetTier(next);
     }
@@ -13880,6 +13954,7 @@ function stopPianoCameraLoop() {
       if (!el) return;
       playVpArcadeSound('flip');
       el.classList.toggle('flipped');
+      updateMysteryStatusBar();
     }
     window.toggleDailyPokerCardFlip = toggleDailyPokerCardFlip;
 
@@ -13895,29 +13970,228 @@ function stopPianoCameraLoop() {
       badge.textContent = `${h}:${m}:${s}`;
     }
 
+    // Animación física de Claves (𝄞) y monedas de oro saliendo a chorro de la bandeja de la máquina
+    function triggerVpCoinCascadeAnimation(clefsWon) {
+      const canvas = document.getElementById('vpCoinCascadeCanvas');
+      const tray = document.getElementById('vpCoinTrayElement');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const trayRect = tray ? tray.getBoundingClientRect() : { left: canvas.width * 0.35, width: canvas.width * 0.3, top: canvas.height * 0.90 };
+      const originX = trayRect.left + trayRect.width * 0.32;
+      const originY = trayRect.top + 12;
+
+      const count = Math.min(60, Math.max(28, Math.round(clefsWon * 0.6)));
+      const particles = [];
+      for (let i = 0; i < count; i++) {
+        const angle = -Math.PI * (0.25 + Math.random() * 0.50);
+        const speed = 420 + Math.random() * 520;
+        particles.push({
+          x: originX + (Math.random() - 0.5) * 44,
+          y: originY,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 140,
+          rot: Math.random() * Math.PI * 2,
+          vRot: (Math.random() - 0.5) * 9,
+          radius: 13 + Math.random() * 6,
+          delay: i * 0.032,
+          active: false,
+          done: false
+        });
+      }
+
+      let lastT = performance.now();
+      let elapsed = 0;
+
+      function stepCascade(now) {
+        const dt = Math.min(0.05, (now - lastT) * 0.001);
+        lastT = now;
+        elapsed += dt;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        let anyAlive = false;
+        for (let i = 0; i < particles.length; i++) {
+          const p = particles[i];
+          if (p.done) continue;
+          if (elapsed < p.delay) {
+            anyAlive = true;
+            continue;
+          }
+          if (!p.active) {
+            p.active = true;
+            if (i % 2 === 0) playVpArcadeSound('coindrop');
+          }
+          p.vy += 980 * dt;
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.rot += p.vRot * dt;
+
+          if (p.y > canvas.height + 40) {
+            p.done = true;
+            continue;
+          }
+          anyAlive = true;
+
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.rot);
+
+          // Moneda de oro con Clave de Sol (𝄞)
+          ctx.fillStyle = '#facc15';
+          ctx.strokeStyle = '#fef08a';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(0, 0, p.radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#78350f';
+          ctx.font = `900 ${Math.round(p.radius * 1.15)}px serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('𝄞', 0, 1);
+          ctx.restore();
+        }
+
+        if (anyAlive && elapsed < 5.0) {
+          requestAnimationFrame(stepCascade);
+        } else {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+      requestAnimationFrame(stepCascade);
+    }
+
+    function checkAndShowYesterdayDailyPokerPayout() {
+      const now = new Date();
+      const todayKey = now.toISOString().slice(0, 10);
+      const lastEntryDay = localStorage.getItem('beatstar_daily_poker_last_entry_day') || '';
+      if (!lastEntryDay || lastEntryDay >= todayKey) return false;
+
+      const prevEntry = getDailyPokerEntryRecord(lastEntryDay);
+      if (!prevEntry || !prevEntry.played || prevEntry.claimed) return false;
+
+      let prevPot = Math.max(100, Number(prevEntry.potClefs) || 150);
+      let prevRank = Number(prevEntry.rank) || 1;
+      try {
+        const savedDay = JSON.parse(localStorage.getItem(`beatstar_daily_poker_${lastEntryDay}`) || 'null');
+        if (savedDay) {
+          if (Number(savedDay.potClefs) > prevPot) prevPot = Number(savedDay.potClefs);
+          if (Array.isArray(savedDay.rankings) && savedDay.rankings.length > 0) {
+            const pName = String(prevEntry.playerName || 'Jugador').toLowerCase();
+            const rIdx = savedDay.rankings.findIndex(r => String(r.player_name || '').toLowerCase() === pName);
+            if (rIdx >= 0) prevRank = rIdx + 1;
+          }
+        }
+      } catch (_) {}
+
+      const prizeClefs = prevRank <= 5
+        ? computeDailyPokerPrize(prevPot, prevRank, prevEntry.betTier || 3)
+        : 0;
+
+      vpPendingPayoutData = {
+        dayKey: lastEntryDay,
+        songTitle: prevEntry.songTitle || 'Canción del Día',
+        rank: prevRank,
+        score: Number(prevEntry.score) || 0,
+        prizeClefs
+      };
+
+      const overlay = document.getElementById('vpYesterdayPayoutOverlay');
+      if (overlay) {
+        const songLbl = document.getElementById('vpPayoutSongLabel');
+        if (songLbl) songLbl.textContent = `${vpPendingPayoutData.songTitle} (${lastEntryDay})`;
+        const rankBadge = document.getElementById('vpPayoutRankBadge');
+        if (rankBadge) rankBadge.textContent = prevRank <= 3 ? `👑 PUESTO #${prevRank}` : `PUESTO #${prevRank}`;
+        const scoreLbl = document.getElementById('vpPayoutScoreLabel');
+        if (scoreLbl) scoreLbl.textContent = `${vpPendingPayoutData.score.toLocaleString()} PTS`;
+        const clefsAmt = document.getElementById('vpPayoutClefsAmount');
+        if (clefsAmt) clefsAmt.textContent = `+${prizeClefs} 𝄞`;
+        overlay.classList.remove('hidden');
+      }
+      return true;
+    }
+
+    function claimYesterdayDailyPokerReward() {
+      const overlay = document.getElementById('vpYesterdayPayoutOverlay');
+      if (overlay) overlay.classList.add('hidden');
+      if (!vpPendingPayoutData) return;
+
+      const data = vpPendingPayoutData;
+      vpPendingPayoutData = null;
+
+      const prevEntry = getDailyPokerEntryRecord(data.dayKey);
+      if (prevEntry) {
+        prevEntry.claimed = true;
+        saveDailyPokerEntryRecord(data.dayKey, prevEntry);
+      }
+
+      if (data.prizeClefs > 0) {
+        if (typeof addClefs === 'function') addClefs(data.prizeClefs);
+        triggerVpCoinCascadeAnimation(data.prizeClefs);
+        renderDailyVideoPokerUI();
+        if (typeof showSuccessToast === 'function') {
+          showSuccessToast(`🎰 ¡La máquina ha pagado +${data.prizeClefs} 𝄞 por tu Puesto #${data.rank}!`);
+        }
+      }
+    }
+    window.claimYesterdayDailyPokerReward = claimYesterdayDailyPokerReward;
+
+    // Permite probar al instante la animación de cobro del día siguiente con salida de Claves de la máquina
+    function simulateNextDayDailyPokerPayout() {
+      if (!vpCurrentState) vpCurrentState = getLocalDeterministicDailyPokerState();
+      const st = vpCurrentState;
+      const todayEntry = getDailyPokerEntryRecord(st.dayKey) || { score: 85000, betTier: vpCurrentBetTier };
+      const myName = String((typeof currentUser !== 'undefined' && currentUser?.username) || localStorage.getItem('beatstar_player_name') || 'Jugador').trim().toLowerCase();
+      const rIdx = (st.rankings || []).findIndex(r => String(r.player_name || '').trim().toLowerCase() === myName);
+      const myRank = rIdx >= 0 ? (rIdx + 1) : 1;
+      const prizeClefs = computeDailyPokerPrize(st.potClefs || 150, Math.min(5, myRank), todayEntry.betTier || vpCurrentBetTier);
+
+      vpPendingPayoutData = {
+        dayKey: st.dayKey,
+        songTitle: st.song.title,
+        rank: myRank,
+        score: Number(todayEntry.score) || 92400,
+        prizeClefs
+      };
+
+      const overlay = document.getElementById('vpYesterdayPayoutOverlay');
+      if (overlay) {
+        document.getElementById('vpPayoutSongLabel').textContent = `${st.song.title} (TORNEO FINALIZADO)`;
+        document.getElementById('vpPayoutRankBadge').textContent = `👑 PUESTO #${myRank}`;
+        document.getElementById('vpPayoutScoreLabel').textContent = `${vpPendingPayoutData.score.toLocaleString()} PTS`;
+        document.getElementById('vpPayoutClefsAmount').textContent = `+${prizeClefs} 𝄞`;
+        overlay.classList.remove('hidden');
+      }
+      playVpArcadeSound('deal');
+    }
+    window.simulateNextDayDailyPokerPayout = simulateNextDayDailyPokerPayout;
+
     function openDailyVideoPoker() {
       const modal = document.getElementById('dailyVideoPokerModal');
       if (!modal) return;
       modal.classList.remove('hidden');
       modal.style.display = 'flex';
 
-      // Animación de reparto de las 5 cartas (empiezan boca abajo mostrando el dorso rojo "Casino 𝄞" y se giran una a una)
-      for (let i = 0; i < 5; i++) {
+      if (!vpCurrentState) vpCurrentState = getLocalDeterministicDailyPokerState();
+      const todayEntry = getDailyPokerEntryRecord(vpCurrentState.dayKey);
+      const hasPlayedToday = Boolean(todayEntry && todayEntry.played);
+
+      // Si AÚN NO ha jugado hoy, las 3 cartas aparecen BOCA ABAJO para mantener el misterio hasta que las gire
+      for (let i = 0; i < 3; i++) {
         const c = document.getElementById(`vpCard${i}`);
-        if (c) c.classList.remove('flipped');
-      }
-      playVpArcadeSound('deal');
-      for (let i = 0; i < 5; i++) {
-        setTimeout(() => {
-          const c = document.getElementById(`vpCard${i}`);
-          if (c) {
-            c.classList.add('flipped');
-            playVpArcadeSound('flip');
-          }
-        }, 140 + i * 115);
+        if (c) {
+          if (hasPlayedToday) c.classList.add('flipped');
+          else c.classList.remove('flipped');
+        }
       }
 
+      playVpArcadeSound('deal');
       syncDailyVideoPokerState();
+      checkAndShowYesterdayDailyPokerPayout();
+
       updateDailyPokerCountdown();
       if (vpCountdownTimer) clearInterval(vpCountdownTimer);
       vpCountdownTimer = setInterval(updateDailyPokerCountdown, 1000);
@@ -13939,13 +14213,39 @@ function stopPianoCameraLoop() {
 
     async function dealAndPlayDailyVideoPoker() {
       if (!vpCurrentState) vpCurrentState = getLocalDeterministicDailyPokerState();
-      const wager = VP_BETS[vpCurrentBetTier - 1] || 10;
+      const st = vpCurrentState;
+      const existingEntry = getDailyPokerEntryRecord(st.dayKey);
+      if (existingEntry && existingEntry.played) {
+        if (typeof showErrorToast === 'function') {
+          showErrorToast('🔒 Ya has jugado tu única oportunidad de hoy. ¡Vuelve mañana para cobrar tu premio del Bote!');
+        }
+        return;
+      }
+
+      // Si alguna de las 3 cartas sigue boca abajo, primero girarlas en cascada (1-2-3) para que descubra qué le ha tocado y pueda pulsar JUGAR
+      const c0 = document.getElementById('vpCard0');
+      const c1 = document.getElementById('vpCard1');
+      const c2 = document.getElementById('vpCard2');
+      const anyHidden = (c0 && !c0.classList.contains('flipped')) || (c1 && !c1.classList.contains('flipped')) || (c2 && !c2.classList.contains('flipped'));
+      if (anyHidden) {
+        [c0, c1, c2].forEach((cardEl, idx) => {
+          setTimeout(() => {
+            if (cardEl && !cardEl.classList.contains('flipped')) {
+              cardEl.classList.add('flipped');
+              playVpArcadeSound('flip');
+              updateMysteryStatusBar();
+            }
+          }, idx * 180);
+        });
+        return;
+      }
+
+      const wager = VP_BETS[vpCurrentBetTier - 1] || 50;
       const availableClefs = Math.max(0, Math.floor(typeof userClefs !== 'undefined' ? userClefs : 0));
 
       if (availableClefs < wager) {
-        // Si tiene para un nivel de apuesta menor, ajustarlo automáticamente o avisar
         let affordableTier = 0;
-        for (let t = 5; t >= 1; t--) {
+        for (let t = 3; t >= 1; t--) {
           if (availableClefs >= VP_BETS[t - 1]) {
             affordableTier = t;
             break;
@@ -13954,51 +14254,73 @@ function stopPianoCameraLoop() {
         if (affordableTier > 0) {
           vpCurrentBetTier = affordableTier;
           renderDailyVideoPokerUI();
-          showErrorToast(`Apuesta ajustada a tu saldo disponible (${VP_BETS[affordableTier - 1]} 𝄞). Pulsa REPARTIR de nuevo.`);
+          showErrorToast(`Apuesta ajustada a tu saldo (${VP_BETS[affordableTier - 1]} 𝄞). Pulsa JUGAR de nuevo.`);
           return;
         } else {
-          showErrorToast(`Necesitas al menos ${VP_BETS[0]} 𝄞 Claves para apostar en la Canción del Día.`);
+          showErrorToast(`Necesitas al menos ${VP_BETS[0]} 𝄞 Claves para entrar al Bote de la Canción del Día.`);
           return;
         }
       }
 
-      // 1. Cobrar las Claves apostadas y sumarlas directamente al BOTE acumulado
+      // 1. Cobrar la apuesta y sumarla íntegramente al BOTE HOY
       if (typeof spendClefs === 'function') {
         spendClefs(wager);
       } else if (typeof addClefs === 'function') {
         addClefs(-wager);
       }
-      vpCurrentState.potClefs = Math.max(100, (Number(vpCurrentState.potClefs) || 150) + wager);
-      saveLocalDailyPokerState(vpCurrentState);
+      st.potClefs = Math.max(100, (Number(st.potClefs) || 100) + wager);
+      saveLocalDailyPokerState(st);
+
+      // Registrar inmediatamente que ya ha usado su 1 OPORTUNIDAD DIARIA de hoy
+      const pName = String((typeof currentUser !== 'undefined' && currentUser?.username) || localStorage.getItem('beatstar_player_name') || 'Jugador').trim() || 'Jugador';
+      saveDailyPokerEntryRecord(st.dayKey, {
+        dayKey: st.dayKey,
+        played: true,
+        claimed: false,
+        betTier: vpCurrentBetTier,
+        wager,
+        score: 0,
+        rank: 1,
+        potClefs: st.potClefs,
+        songTitle: st.song.title,
+        playerName: pName
+      });
+
       renderDailyVideoPokerUI();
       playVpArcadeSound('deal');
 
-      // Notificar apuesta al servidor para engordar el bote global
+      // Notificar apuesta al servidor para engordar el bote común
       try {
         const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
         fetch(`${baseUrl}/api/v1/daily-poker/wager`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ bet_tier: vpCurrentBetTier })
+          body: JSON.stringify({ bet_tier: vpCurrentBetTier, wager })
         }).catch(() => {});
       } catch (_) {}
 
-      // 2. Fijar condiciones iguales para todos (Canción + Modo + Dificultad fijos)
+      // 2. Fijar condiciones competitivas idénticas para todos (Velocidad 1.0x bloqueada, Modo fijo, Dificultad fija)
       window._isPlayingDailyVideoPoker = true;
       window._dailyPokerActiveBetTier = vpCurrentBetTier;
       window._dailyPokerActiveWager = wager;
       window._modeAlreadyChosenForThisLaunch = true;
       if (typeof applySelectedGameMode === 'function') {
-        applySelectedGameMode(vpCurrentState.mode?.id || 'mirror');
+        applySelectedGameMode(st.mode?.id || 'mirror');
+      }
+      if (engine && typeof engine.setSongPlaybackSpeed === 'function') {
+        engine.setSongPlaybackSpeed(1.0);
       }
 
       closeDailyVideoPoker();
       if (typeof showSuccessToast === 'function') {
-        showSuccessToast(`🃏 Apuesta de ${wager} 𝄞 añadida al Bote (${vpCurrentState.potClefs} 𝄞). ¡Suerte!`);
+        showSuccessToast(`🃏 Entrada de ${wager} 𝄞 añadida al Bote (${st.potClefs} 𝄞). ¡1 Sola Oportunidad!`);
       }
 
-      // 3. Lanzar la Canción del Día con la dificultad fija
-      await playTopSong(vpCurrentState.song.raw_id || vpCurrentState.song.id, vpCurrentState.difficulty || 'Difícil');
+      // 3. Lanzar la Canción del Día a velocidad fija 1.0x
+      await playTopSong(st.song.raw_id || st.song.id, st.difficulty || 'Difícil');
+      if (engine && typeof engine.setSongPlaybackSpeed === 'function') {
+        engine.setSongPlaybackSpeed(1.0);
+      }
     }
     window.dealAndPlayDailyVideoPoker = dealAndPlayDailyVideoPoker;
 
@@ -14007,43 +14329,29 @@ function stopPianoCameraLoop() {
       window._isPlayingDailyVideoPoker = false;
 
       if (!vpCurrentState) vpCurrentState = getLocalDeterministicDailyPokerState();
-      const betTier = Math.max(1, Math.min(5, Number(window._dailyPokerActiveBetTier) || vpCurrentBetTier || 1));
+      const st = vpCurrentState;
+      const betTier = Math.max(1, Math.min(3, Number(window._dailyPokerActiveBetTier) || vpCurrentBetTier || 3));
       const pName = String((typeof currentUser !== 'undefined' && currentUser?.username) || localStorage.getItem('beatstar_player_name') || 'Jugador').trim() || 'Jugador';
       const cleanScore = Math.max(0, Math.round(Number(score) || 0));
 
-      // Actualizar ranking local de inmediato
-      if (!Array.isArray(vpCurrentState.rankings)) vpCurrentState.rankings = [];
-      const exIdx = vpCurrentState.rankings.findIndex(r => String(r.player_name || '').toLowerCase() === pName.toLowerCase());
+      // Actualizar ranking en vivo de hoy
+      if (!Array.isArray(st.rankings)) st.rankings = [];
+      const exIdx = st.rankings.findIndex(r => String(r.player_name || '').toLowerCase() === pName.toLowerCase());
       if (exIdx >= 0) {
-        if (cleanScore >= vpCurrentState.rankings[exIdx].score) {
-          vpCurrentState.rankings[exIdx].score = cleanScore;
-          vpCurrentState.rankings[exIdx].bet_tier = betTier;
+        if (cleanScore >= st.rankings[exIdx].score) {
+          st.rankings[exIdx].score = cleanScore;
+          st.rankings[exIdx].bet_tier = betTier;
         }
       } else if (cleanScore > 0) {
-        vpCurrentState.rankings.push({ player_name: pName, score: cleanScore, bet_tier: betTier });
+        st.rankings.push({ player_name: pName, score: cleanScore, bet_tier: betTier });
       }
-      vpCurrentState.rankings.sort((a, b) => b.score - a.score);
+      st.rankings.sort((a, b) => b.score - a.score);
 
-      const rankIdx = vpCurrentState.rankings.findIndex(r => String(r.player_name || '').toLowerCase() === pName.toLowerCase());
-      let rank = rankIdx >= 0 ? (rankIdx + 1) : (vpCurrentState.rankings.length + 1);
-      let pot = Math.max(100, Number(vpCurrentState.potClefs) || 150);
+      const rankIdx = st.rankings.findIndex(r => String(r.player_name || '').toLowerCase() === pName.toLowerCase());
+      let rank = rankIdx >= 0 ? (rankIdx + 1) : (st.rankings.length + 1);
+      let pot = Math.max(100, Number(st.potClefs) || 100);
 
-      let matchedRow = null;
-      if (cleanScore >= 5000) {
-        if (rank === 1) matchedRow = VP_PAYTABLE[0];
-        else if (rank === 2) matchedRow = VP_PAYTABLE[1];
-        else if (rank === 3) matchedRow = VP_PAYTABLE[2];
-        else if (rank === 4) matchedRow = VP_PAYTABLE[3];
-        else if (rank === 5) matchedRow = VP_PAYTABLE[4];
-        else if (rank <= 10) matchedRow = VP_PAYTABLE[5];
-      }
-
-      let fixedWin = matchedRow ? (matchedRow.fixed[betTier - 1] || 0) : 0;
-      let potWin = matchedRow ? Math.round(pot * (matchedRow.potShare[betTier - 1] || 0)) : 0;
-      let totalWin = fixedWin + potWin;
-      let handName = matchedRow ? matchedRow.hand : 'SIN PREMIO';
-
-      // Intentar sincronizar con el servidor en vivo
+      // Sincronizar puntuación con el servidor
       try {
         const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
         const res = await fetch(`${baseUrl}/api/v1/daily-poker/submit`, {
@@ -14060,34 +14368,38 @@ function stopPianoCameraLoop() {
           const data = await res.json();
           if (data && data.success) {
             rank = data.rank || rank;
-            handName = data.handName || handName;
-            totalWin = Number.isFinite(data.totalWin) ? data.totalWin : totalWin;
-            vpCurrentState.potClefs = data.potClefs || pot;
-            if (Array.isArray(data.rankings)) vpCurrentState.rankings = data.rankings;
+            st.potClefs = data.potClefs || pot;
+            if (Array.isArray(data.rankings)) st.rankings = data.rankings;
           }
         }
-      } catch (_) {
-        if (potWin > 0) {
-          vpCurrentState.potClefs = Math.max(100, pot - Math.round(potWin * 0.65));
+      } catch (_) {}
+
+      saveLocalDailyPokerState(st);
+
+      // Guardar el resultado en el registro del jugador para pagarle el Bote en la máquina al entrar al día siguiente
+      saveDailyPokerEntryRecord(st.dayKey, {
+        dayKey: st.dayKey,
+        played: true,
+        claimed: false,
+        betTier,
+        wager: VP_BETS[betTier - 1] || 50,
+        score: cleanScore,
+        rank,
+        potClefs: st.potClefs,
+        songTitle: st.song.title,
+        playerName: pName
+      });
+
+      const projectedPrize = rank <= 5 ? computeDailyPokerPrize(st.potClefs, rank, betTier) : 0;
+      setTimeout(() => {
+        if (typeof showSuccessToast === 'function') {
+          if (rank <= 5) {
+            showSuccessToast(`🃏 ¡Puesto #${rank} provisional (${cleanScore.toLocaleString()} pts)! Premio estimado mañana: +${projectedPrize} 𝄞`);
+          } else {
+            showSuccessToast(`🃏 Puesto #${rank} registrado (${cleanScore.toLocaleString()} pts). ¡Mañana verás el resultado final en la máquina!`);
+          }
         }
-      }
-
-      saveLocalDailyPokerState(vpCurrentState);
-
-      if (totalWin > 0 && typeof addClefs === 'function') {
-        addClefs(totalWin);
-        setTimeout(() => {
-          if (typeof showSuccessToast === 'function') {
-            showSuccessToast(`🃏 ¡PUESTO #${rank} (${handName})! GANAS +${totalWin} 𝄞 DEL VIDEOPOKER`);
-          }
-        }, 700);
-      } else {
-        setTimeout(() => {
-          if (typeof showErrorToast === 'function') {
-            showErrorToast(`🃏 Puesto #${rank} en la Canción del Día. ¡Supera el Top 10 para llevarte el Bote!`);
-          }
-        }, 700);
-      }
+      }, 700);
     }
     window.handleDailyVideoPokerGameEnd = handleDailyVideoPokerGameEnd;
 
@@ -20505,12 +20817,22 @@ function stopPianoCameraLoop() {
     }
 
     function checkAndAutoOpenDailyRoulette() {
-      const savedNickname = localStorage.getItem('beatstar_player_nickname') || '';
-      if (!savedNickname || savedNickname.trim() === '') return;
-      const st = getDailyRouletteState();
+      // No abrir la ruleta de golpe al entrar al juego para no ser invasivo;
+      // solo actualizar el indicador del botón en la cabecera.
       updateDailyRouletteHeaderUI();
-      if (st.canSpinToday) {
-        openDailyRouletteModal();
+
+      // Si el jugador participó el día anterior en la Canción del Día (Video Poker) y aún no ha cobrado su premio,
+      // abrir automáticamente la máquina de Video Poker para mostrar su puesto y lanzar las Claves (𝄞) desde la máquina.
+      if (typeof checkAndShowYesterdayDailyPokerPayout === 'function') {
+        const now = new Date();
+        const todayKey = now.toISOString().slice(0, 10);
+        const lastEntryDay = localStorage.getItem('beatstar_daily_poker_last_entry_day') || '';
+        if (lastEntryDay && lastEntryDay < todayKey) {
+          const prevEntry = getDailyPokerEntryRecord(lastEntryDay);
+          if (prevEntry && prevEntry.played && !prevEntry.claimed) {
+            openDailyVideoPoker();
+          }
+        }
       }
     }
 
