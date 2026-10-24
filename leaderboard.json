@@ -1112,6 +1112,14 @@
         "combo": 144,
         "accuracy": 98.09675311763202,
         "date": "2026-10-22 13:27:18"
+      },
+      {
+        "name": "Libay",
+        "score": 121901,
+        "stars": 2,
+        "combo": 99,
+        "accuracy": 49.468592368345234,
+        "date": "2026-10-24 05:20:51"
       }
     ],
     "top_cecilia_la_incomparable_bao_de_mar_a_medianoche": [
@@ -3860,8 +3868,8 @@
     },
     {
       "name": "Libay",
-      "total_score": 6897632,
-      "clefs": 49
+      "total_score": 7019533,
+      "clefs": 50
     },
     {
       "name": "Azure",
@@ -4029,7 +4037,7 @@
       },
       {
         "name": "Libay",
-        "score": 6897632
+        "score": 7019533
       },
       {
         "name": "Laaleplo",
