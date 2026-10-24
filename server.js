@@ -1254,7 +1254,7 @@ app.post('/api/v1/daily-poker/submit', (req, res) => {
 
   const isTest = rawName.toLowerCase() === 'test' || rawName.toLowerCase() === 'tester' || rawName.toLowerCase() === 'prueba' || rawName.toLowerCase() === 'dummy';
 
-  if (score > 0 && !isTest) {
+  if (!isTest) {
     const existingIdx = state.rankings.findIndex(r => r.player_name.toLowerCase() === rawName.toLowerCase());
     if (existingIdx >= 0) {
       if (score >= state.rankings[existingIdx].score) {
