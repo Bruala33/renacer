@@ -3842,6 +3842,92 @@
         border-radius: 4px;
         box-shadow: inset 0 2px 5px #000, 0 1px 0 rgba(255,255,255,0.25);
       }
+
+      /* 6. Pantalla CRT Vintage de Cobro del Torneo Diario Finalizado (100% Opaca y Estética Las Vegas) */
+      .vp-crt-payout-screen {
+        position: absolute;
+        inset: 0;
+        z-index: 35;
+        background:
+          repeating-linear-gradient(
+            0deg,
+            rgba(0, 0, 0, 0.22) 0px,
+            rgba(0, 0, 0, 0.22) 1px,
+            transparent 1px,
+            transparent 3px
+          ),
+          radial-gradient(circle at 50% 32%, #0c2461 0%, #05103a 58%, #020617 100%);
+        border: 2.5px solid #facc15;
+        border-radius: 8px;
+        box-shadow:
+          inset 0 0 0 2px #1d4ed8,
+          inset 0 0 32px rgba(0, 0, 0, 0.92),
+          0 0 25px rgba(0, 0, 0, 0.95);
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: center;
+        text-align: center;
+      }
+      .vp-payout-marquee-bar {
+        width: 100%;
+        background: linear-gradient(90deg, #450a0a 0%, #991b1b 50%, #450a0a 100%);
+        border: 1.5px solid #facc15;
+        border-radius: 6px;
+        padding: 5px 8px;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.75), inset 0 1px 0 rgba(254, 240, 138, 0.45);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+      }
+      .vp-payout-led-box {
+        width: 100%;
+        max-width: 268px;
+        background: linear-gradient(180deg, #271705 0%, #120a02 100%);
+        border: 2px solid #facc15;
+        border-radius: 10px;
+        padding: 8px 12px;
+        box-shadow:
+          0 6px 18px rgba(0, 0, 0, 0.85),
+          inset 0 0 0 1.5px rgba(251, 191, 36, 0.25);
+      }
+      .vp-payout-led-readout {
+        background: #080203;
+        border: 2px solid #78350f;
+        border-radius: 7px;
+        padding: 6px 12px;
+        margin-top: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        box-shadow: inset 0 3px 10px rgba(0,0,0,0.98);
+      }
+      .vp-payout-cashout-btn {
+        width: 100%;
+        background: radial-gradient(ellipse at 50% 30%, #fef9c3 0%, #facc15 50%, #ca8a04 100%);
+        color: #090d16;
+        border: 2px solid #ffffff;
+        outline: 2px solid #94a3b8;
+        outline-offset: -1px;
+        border-radius: 8px;
+        padding: 9px 12px;
+        font-family: 'Courier New', monospace, sans-serif;
+        font-weight: 900;
+        text-transform: uppercase;
+        box-shadow:
+          0 4px 0 #5c3a04,
+          0 0 18px rgba(250, 204, 21, 0.65),
+          0 6px 14px rgba(0, 0, 0, 0.9);
+        cursor: pointer;
+        transition: transform 0.08s ease, box-shadow 0.08s ease;
+      }
+      .vp-payout-cashout-btn:active {
+        transform: translateY(3px);
+        box-shadow: 0 1px 0 #5c3a04, 0 2px 5px rgba(0, 0, 0, 0.9);
+      }
     </style>
 
     <div id="dailyVideoPokerModal" class="vp-modal-backdrop hidden" style="display: none;">
@@ -3902,26 +3988,57 @@
         <div class="vp-crt-bezel">
           <div class="vp-crt-screen">
 
-            <!-- OVERLAY DE PREMIO DEL DÍA ANTERIOR (Se muestra automáticamente dentro del CRT al entrar al día siguiente) -->
-            <div id="vpYesterdayPayoutOverlay" class="hidden absolute inset-0 z-30 bg-blue-950/95 flex flex-col items-center justify-between p-4 text-center border-2 border-yellow-400 rounded-lg">
-              <div class="text-[10px] font-mono font-black text-cyan-300 tracking-widest uppercase bg-blue-900/80 px-3 py-1 rounded-full border border-cyan-400/50">
-                🎰 RESULTADO DEL TORNEO DIARIO FINALIZADO
+            <!-- PANTALLA CRT DE COBRO DEL DÍA ANTERIOR (100% opaca, estilo Jackpot Video Poker Las Vegas, solo aparece al día siguiente real) -->
+            <div id="vpYesterdayPayoutOverlay" class="hidden vp-crt-payout-screen">
+              <!-- Cabecera Marquesina Retro de Cierre de Torneo -->
+              <div class="vp-payout-marquee-bar">
+                <span class="w-2 h-2 rounded-full bg-yellow-300 shadow-[0_0_6px_#fde047]"></span>
+                <span class="text-[10px] font-mono font-black tracking-[0.14em] text-yellow-300 uppercase" style="text-shadow: 0 1px 2px #000;">
+                  ★ TORNEO DIARIO FINALIZADO ★
+                </span>
+                <span class="w-2 h-2 rounded-full bg-yellow-300 shadow-[0_0_6px_#fde047]"></span>
               </div>
-              <div class="my-auto flex flex-col items-center gap-1.5">
-                <div id="vpPayoutSongLabel" class="text-xs font-bold text-amber-200">Canción de ayer</div>
-                <div id="vpPayoutRankBadge" class="text-2xl sm:text-3xl font-black text-yellow-300 drop-shadow-[0_2px_8px_rgba(250,204,21,0.9)]">
-                  👑 PUESTO #1
+
+              <!-- Bloque Central: Abanico de Cartas Ganadoras + Puesto + Canción y Puntos -->
+              <div class="flex flex-col items-center justify-center gap-1.5 w-full my-auto py-1">
+                <!-- Mini Abanico de Escalera Real de Casino -->
+                <div class="flex items-center justify-center -space-x-1.5 mb-0.5">
+                  <div class="w-6 h-8 bg-[#fffdf7] rounded border border-amber-500 shadow flex flex-col justify-between p-0.5 text-slate-900 font-black text-[7px] -rotate-12"><span>10</span><span class="self-center text-[9px]">♠</span></div>
+                  <div class="w-6 h-8 bg-[#fffdf7] rounded border border-amber-500 shadow flex flex-col justify-between p-0.5 text-red-600 font-black text-[7px] -rotate-6"><span>J</span><span class="self-center text-[9px]">♥</span></div>
+                  <div class="w-6 h-8 bg-[#fffdf7] rounded border border-amber-500 shadow flex flex-col justify-between p-0.5 text-slate-900 font-black text-[7px] z-10 scale-105"><span>Q</span><span class="self-center text-[9px]">♣</span></div>
+                  <div class="w-6 h-8 bg-[#fffdf7] rounded border border-amber-500 shadow flex flex-col justify-between p-0.5 text-red-600 font-black text-[7px] rotate-6"><span>K</span><span class="self-center text-[9px]">♦</span></div>
+                  <div class="w-6 h-8 bg-[#fffdf7] rounded border border-amber-500 shadow flex flex-col justify-between p-0.5 text-slate-900 font-black text-[7px] rotate-12"><span>A</span><span class="self-center text-[9px]">♠</span></div>
                 </div>
-                <div id="vpPayoutScoreLabel" class="text-xs font-mono font-bold text-white bg-black/50 px-3 py-0.5 rounded border border-white/20">
-                  0 PTS
+
+                <!-- Puesto Alcanzado -->
+                <div id="vpPayoutRankBadge" class="text-2xl sm:text-3xl font-mono font-black tracking-wider text-yellow-300 uppercase" style="text-shadow: 0 2px 0 #78350f, 0 0 14px rgba(250, 204, 21, 0.85);">
+                  PUESTO #1
                 </div>
-                <div class="mt-2 px-5 py-2 rounded-xl bg-gradient-to-b from-amber-400 to-amber-600 border-2 border-yellow-200 text-slate-950 shadow-xl">
-                  <div class="text-[9px] font-black uppercase tracking-wider">PREMIO DEL BOTE</div>
-                  <div id="vpPayoutClefsAmount" class="text-2xl font-mono font-black">+100 𝄞</div>
+
+                <!-- Placa Metálica de Canción y Puntuación -->
+                <div class="w-full max-w-[268px] bg-blue-950/90 border border-cyan-400/50 rounded-md px-3 py-1 flex items-center justify-between gap-2 shadow-inner">
+                  <span id="vpPayoutSongLabel" class="text-[10px] font-mono font-bold text-amber-200 truncate">Canción del Día</span>
+                  <span id="vpPayoutScoreLabel" class="text-[10px] font-mono font-black text-cyan-300 bg-black/60 px-2 py-0.5 rounded border border-cyan-400/30 flex-shrink-0">0 PTS</span>
+                </div>
+
+                <!-- Contador LED de 7 Segmentos de Premio del Bote (Sin solapamientos) -->
+                <div class="vp-payout-led-box mt-1">
+                  <div class="text-[9px] font-mono font-black tracking-[0.18em] text-amber-300 uppercase">
+                    PREMIO DEL BOTE ACUMULADO
+                  </div>
+                  <div class="vp-payout-led-readout">
+                    <span id="vpPayoutClefsAmount" class="text-2xl sm:text-3xl font-mono font-black tracking-wider text-[#fde047]" style="text-shadow: 0 0 12px rgba(250, 204, 21, 0.9);">+100</span>
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/20 border border-amber-400/60 text-amber-300 font-serif font-black text-lg leading-none">
+                      𝄞 <span class="text-[8.5px] font-mono tracking-widest uppercase">CLAVES</span>
+                    </span>
+                  </div>
                 </div>
               </div>
-              <button type="button" onclick="claimYesterdayDailyPokerReward()" class="w-full py-2.5 rounded-lg bg-gradient-to-b from-emerald-400 to-emerald-600 border-2 border-emerald-200 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg active:scale-95 cursor-pointer">
-                💰 COBRAR CLAVES DE LA MÁQUINA
+
+              <!-- Botón Físico Retroiluminado de Casino para Dispensar Claves -->
+              <button type="button" onclick="claimYesterdayDailyPokerReward()" class="vp-payout-cashout-btn">
+                <div class="text-xs sm:text-sm tracking-wider leading-none">COBRAR PREMIO EN BANDEJA 𝄞</div>
+                <div class="text-[8.5px] font-bold text-amber-950 tracking-widest mt-1 leading-none">DISPENSAR CLAVES POR LA RANURA INFERIOR</div>
               </button>
             </div>
 
@@ -4076,9 +4193,7 @@
               <div class="vp-coin-slot-mouth"></div>
               <span class="text-[8.5px] font-mono font-black text-amber-300/90 uppercase tracking-wider">BANDEJA DE PAGO · CLAVES 𝄞</span>
             </div>
-            <button type="button" id="vpTestNextDayBtn" onclick="simulateNextDayDailyPokerPayout()" class="hidden text-[8px] font-mono font-black bg-amber-400/20 hover:bg-amber-400/35 text-amber-300 border border-amber-400/50 px-2 py-0.5 rounded cursor-pointer">
-              PROBAR COBRO DÍA SIGUIENTE 𝄞
-            </button>
+            <span class="text-[8px] font-mono font-bold text-slate-400 uppercase tracking-wider">PAGO AUTOMÁTICO AL CIERRE</span>
           </div>
         </div>
 
@@ -13904,7 +14019,6 @@ function stopPianoCameraLoop() {
       const dealMainTxt = document.getElementById('vpBtnDealMainText');
       const dealSubTxt = document.getElementById('vpBtnDealSubText');
       const attemptsBadge = document.getElementById('vpAttemptsBadge');
-      const testNextDayBtn = document.getElementById('vpTestNextDayBtn');
 
       if (hasPlayedToday) {
         if (dealBtn) dealBtn.classList.add('vp-btn-locked');
@@ -13914,7 +14028,6 @@ function stopPianoCameraLoop() {
           attemptsBadge.textContent = '0 INTENTOS HOY';
           attemptsBadge.className = 'bg-slate-700 text-slate-200 px-1.5 py-0.5 rounded text-[8.5px] font-black flex-shrink-0';
         }
-        if (testNextDayBtn) testNextDayBtn.classList.remove('hidden');
       } else {
         if (dealBtn) dealBtn.classList.remove('vp-btn-locked');
         if (dealMainTxt) dealMainTxt.textContent = `JUGAR (${wager} 𝄞)`;
@@ -13923,7 +14036,6 @@ function stopPianoCameraLoop() {
           attemptsBadge.textContent = '1 INTENTO HOY';
           attemptsBadge.className = 'bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded text-[8.5px] font-black flex-shrink-0';
         }
-        if (testNextDayBtn) testNextDayBtn.classList.add('hidden');
       }
 
       updateMysteryStatusBar();
@@ -14069,6 +14181,7 @@ function stopPianoCameraLoop() {
       const todayKey = now.toISOString().slice(0, 10);
       const lastEntryDay = localStorage.getItem('beatstar_daily_poker_last_entry_day') || '';
       if (!lastEntryDay || lastEntryDay >= todayKey) return false;
+      if (localStorage.getItem(`beatstar_daily_poker_claimed_${lastEntryDay}`) === '1') return false;
 
       const prevEntry = getDailyPokerEntryRecord(lastEntryDay);
       if (!prevEntry || !prevEntry.played || prevEntry.claimed) return false;
@@ -14102,13 +14215,13 @@ function stopPianoCameraLoop() {
       const overlay = document.getElementById('vpYesterdayPayoutOverlay');
       if (overlay) {
         const songLbl = document.getElementById('vpPayoutSongLabel');
-        if (songLbl) songLbl.textContent = `${vpPendingPayoutData.songTitle} (${lastEntryDay})`;
+        if (songLbl) songLbl.textContent = `🎵 ${vpPendingPayoutData.songTitle}`;
         const rankBadge = document.getElementById('vpPayoutRankBadge');
-        if (rankBadge) rankBadge.textContent = prevRank <= 3 ? `👑 PUESTO #${prevRank}` : `PUESTO #${prevRank}`;
+        if (rankBadge) rankBadge.textContent = prevRank <= 3 ? `★ PUESTO #${prevRank} ★` : `PUESTO #${prevRank}`;
         const scoreLbl = document.getElementById('vpPayoutScoreLabel');
         if (scoreLbl) scoreLbl.textContent = `${vpPendingPayoutData.score.toLocaleString()} PTS`;
         const clefsAmt = document.getElementById('vpPayoutClefsAmount');
-        if (clefsAmt) clefsAmt.textContent = `+${prizeClefs} 𝄞`;
+        if (clefsAmt) clefsAmt.textContent = `+${prizeClefs}`;
         overlay.classList.remove('hidden');
       }
       return true;
@@ -14122,6 +14235,12 @@ function stopPianoCameraLoop() {
       const data = vpPendingPayoutData;
       vpPendingPayoutData = null;
 
+      const todayKey = new Date().toISOString().slice(0, 10);
+      if (!data.dayKey || data.dayKey >= todayKey) return;
+      if (localStorage.getItem(`beatstar_daily_poker_claimed_${data.dayKey}`) === '1') return;
+
+      // Bloqueo permanente e inmediato del día liquidado antes de abonar Claves
+      localStorage.setItem(`beatstar_daily_poker_claimed_${data.dayKey}`, '1');
       const prevEntry = getDailyPokerEntryRecord(data.dayKey);
       if (prevEntry) {
         prevEntry.claimed = true;
@@ -14138,36 +14257,6 @@ function stopPianoCameraLoop() {
       }
     }
     window.claimYesterdayDailyPokerReward = claimYesterdayDailyPokerReward;
-
-    // Permite probar al instante la animación de cobro del día siguiente con salida de Claves de la máquina
-    function simulateNextDayDailyPokerPayout() {
-      if (!vpCurrentState) vpCurrentState = getLocalDeterministicDailyPokerState();
-      const st = vpCurrentState;
-      const todayEntry = getDailyPokerEntryRecord(st.dayKey) || { score: 85000, betTier: vpCurrentBetTier };
-      const myName = String((typeof currentUser !== 'undefined' && currentUser?.username) || localStorage.getItem('beatstar_player_name') || 'Jugador').trim().toLowerCase();
-      const rIdx = (st.rankings || []).findIndex(r => String(r.player_name || '').trim().toLowerCase() === myName);
-      const myRank = rIdx >= 0 ? (rIdx + 1) : 1;
-      const prizeClefs = computeDailyPokerPrize(st.potClefs || 150, Math.min(5, myRank), todayEntry.betTier || vpCurrentBetTier);
-
-      vpPendingPayoutData = {
-        dayKey: st.dayKey,
-        songTitle: st.song.title,
-        rank: myRank,
-        score: Number(todayEntry.score) || 92400,
-        prizeClefs
-      };
-
-      const overlay = document.getElementById('vpYesterdayPayoutOverlay');
-      if (overlay) {
-        document.getElementById('vpPayoutSongLabel').textContent = `${st.song.title} (TORNEO FINALIZADO)`;
-        document.getElementById('vpPayoutRankBadge').textContent = `👑 PUESTO #${myRank}`;
-        document.getElementById('vpPayoutScoreLabel').textContent = `${vpPendingPayoutData.score.toLocaleString()} PTS`;
-        document.getElementById('vpPayoutClefsAmount').textContent = `+${prizeClefs} 𝄞`;
-        overlay.classList.remove('hidden');
-      }
-      playVpArcadeSound('deal');
-    }
-    window.simulateNextDayDailyPokerPayout = simulateNextDayDailyPokerPayout;
 
     function openDailyVideoPoker() {
       const modal = document.getElementById('dailyVideoPokerModal');
