@@ -3677,6 +3677,16 @@
         "accuracy": 11.266534322432348,
         "date": "2026-10-24 02:59:02"
       }
+    ],
+    "osu_1228363": [
+      {
+        "name": "FAZTL",
+        "score": 669452,
+        "stars": 4,
+        "combo": 380,
+        "accuracy": 82.93138561709338,
+        "date": "2026-10-24 03:02:49"
+      }
     ]
   },
   "global": [
@@ -3702,8 +3712,8 @@
     },
     {
       "name": "FAZTL",
-      "total_score": 11407467,
-      "clefs": 92
+      "total_score": 12076919,
+      "clefs": 98
     },
     {
       "name": "Niggerman",
@@ -3874,7 +3884,7 @@
       },
       {
         "name": "FAZTL",
-        "score": 11407467
+        "score": 12076919
       },
       {
         "name": "Niggerman",
