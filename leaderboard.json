@@ -3341,11 +3341,11 @@
     "bs_333d8": [
       {
         "name": "Libay",
-        "score": 13200,
+        "score": 24750,
         "stars": 3.5,
-        "combo": 20,
-        "accuracy": 1.983322064457967,
-        "date": "2026-10-23 15:39:40"
+        "combo": 28,
+        "accuracy": 3.7187288708586883,
+        "date": "2026-10-24 04:00:47"
       }
     ],
     "top_3ballmty_el_bebeto__amrica_sierra_intntalo": [
@@ -3782,7 +3782,7 @@
     },
     {
       "name": "Libay",
-      "total_score": 4392168,
+      "total_score": 4416918,
       "clefs": 28
     },
     {
@@ -3945,7 +3945,7 @@
       },
       {
         "name": "Libay",
-        "score": 4392168
+        "score": 4416918
       },
       {
         "name": "fer",
