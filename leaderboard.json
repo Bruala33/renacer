@@ -3205,9 +3205,9 @@
         "name": "Jacques",
         "score": 192089,
         "stars": 3.5,
-        "combo": 14,
-        "accuracy": 0.5049878274829558,
-        "date": "2026-10-24 02:19:30"
+        "combo": 19,
+        "accuracy": 0.7871869075469606,
+        "date": "2026-10-24 02:21:02"
       }
     ],
     "top_vanilla_ice_ice_ice_baby": [
@@ -3718,6 +3718,11 @@
       "clefs": 33
     },
     {
+      "name": "Jacques",
+      "total_score": 602967,
+      "clefs": 3
+    },
+    {
       "name": "MasterPianist",
       "total_score": 600000,
       "clefs": 6
@@ -3736,11 +3741,6 @@
       "name": "Layla",
       "total_score": 437350,
       "clefs": 1
-    },
-    {
-      "name": "Jacques",
-      "total_score": 410878,
-      "clefs": 2
     },
     {
       "name": "`pc",
@@ -3870,7 +3870,7 @@
       },
       {
         "name": "Jacques",
-        "score": 410878
+        "score": 602967
       },
       {
         "name": "Darwin67",
