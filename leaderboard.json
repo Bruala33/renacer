@@ -3861,6 +3861,16 @@
         "accuracy": 1.8204714430324005,
         "date": "2026-10-24 05:26:04"
       }
+    ],
+    "top_taylor_swift_i_knew_you_were_trouble": [
+      {
+        "name": "Libay",
+        "score": 11898,
+        "stars": 3.5,
+        "combo": 23,
+        "accuracy": 0.8533467214143551,
+        "date": "2026-10-24 05:26:48"
+      }
     ]
   },
   "global": [
@@ -3906,7 +3916,7 @@
     },
     {
       "name": "Libay",
-      "total_score": 7427758,
+      "total_score": 7439656,
       "clefs": 51
     },
     {
@@ -4075,7 +4085,7 @@
       },
       {
         "name": "Libay",
-        "score": 7427758
+        "score": 7439656
       },
       {
         "name": "Laaleplo",
