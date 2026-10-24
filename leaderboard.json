@@ -3594,6 +3594,34 @@
         "accuracy": 98.6526268115942,
         "date": "2026-10-24 07:33:41"
       }
+    ],
+    "top_juan_gabriel_abrzame_muy_fuerte": [
+      {
+        "name": "Test",
+        "score": 56945,
+        "stars": 3.5,
+        "combo": 20,
+        "accuracy": 0.5374166382200761,
+        "date": "2026-10-24 19:53:41"
+      },
+      {
+        "name": "Pirata",
+        "score": 19500,
+        "stars": 3.5,
+        "combo": 30,
+        "accuracy": 0.9703355967862485,
+        "date": "2026-10-24 19:57:30"
+      }
+    ],
+    "top_mecano_t": [
+      {
+        "name": "Antoniobarfe",
+        "score": 50577,
+        "stars": 3.5,
+        "combo": 31,
+        "accuracy": 4.8771338726334905,
+        "date": "2026-10-24 22:01:11"
+      }
     ]
   },
   "global": [
@@ -3713,6 +3741,16 @@
       "clefs": 1
     },
     {
+      "name": "Test",
+      "total_score": 56945,
+      "clefs": 0
+    },
+    {
+      "name": "Antoniobarfe",
+      "total_score": 50577,
+      "clefs": 0
+    },
+    {
       "name": "U",
       "total_score": 30185,
       "clefs": 0
@@ -3720,6 +3758,11 @@
     {
       "name": ".",
       "total_score": 24975,
+      "clefs": 0
+    },
+    {
+      "name": "Pirata",
+      "total_score": 19500,
       "clefs": 0
     },
     {
@@ -3834,8 +3877,20 @@
         "score": 137701
       },
       {
+        "name": "Test",
+        "score": 56945
+      },
+      {
+        "name": "Antoniobarfe",
+        "score": 50577
+      },
+      {
         "name": "U",
         "score": 30185
+      },
+      {
+        "name": "Pirata",
+        "score": 19500
       },
       {
         "name": "Camaleon",
@@ -3854,6 +3909,27 @@
         "score": 1500
       }
     ]
+  },
+  "daily_poker": {
+    "2026-10-24": {
+      "dayKey": "2026-10-24",
+      "potClefs": 175,
+      "wageredPlayers": [
+        "vp_mvmtlh6c_z0bes8a9"
+      ],
+      "rankings": [
+        {
+          "player_id": "vp_mvmtlh6c_z0bes8a9",
+          "player_name": "Pirata",
+          "avatar_url": null,
+          "score": 19500,
+          "accuracy": 82.9,
+          "bet_tier": 2,
+          "wager": 25,
+          "timestamp": 1792871850968
+        }
+      ]
+    }
   },
   "referrals": {
     "mauricio": [
