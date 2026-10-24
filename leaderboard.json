@@ -3361,11 +3361,11 @@
     "bs_388f3": [
       {
         "name": "Libay",
-        "score": 73412,
-        "stars": 3.5,
-        "combo": 65,
-        "accuracy": 7.73291873125021,
-        "date": "2026-10-23 16:36:37"
+        "score": 537455,
+        "stars": 2,
+        "combo": 165,
+        "accuracy": 56.61330350220785,
+        "date": "2026-10-24 04:04:59"
       }
     ],
     "bs_2dce7": [
@@ -3776,14 +3776,14 @@
       "clefs": 43
     },
     {
+      "name": "Libay",
+      "total_score": 4954373,
+      "clefs": 33
+    },
+    {
       "name": "Laaleplo",
       "total_score": 4841199,
       "clefs": 41
-    },
-    {
-      "name": "Libay",
-      "total_score": 4416918,
-      "clefs": 28
     },
     {
       "name": "fer",
@@ -3940,12 +3940,12 @@
         "score": 8546882
       },
       {
-        "name": "Laaleplo",
-        "score": 4841199
+        "name": "Libay",
+        "score": 4954373
       },
       {
-        "name": "Libay",
-        "score": 4416918
+        "name": "Laaleplo",
+        "score": 4841199
       },
       {
         "name": "fer",
