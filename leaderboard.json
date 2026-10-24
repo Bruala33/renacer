@@ -3717,6 +3717,16 @@
         "accuracy": 26.852873841161628,
         "date": "2026-10-24 03:15:30"
       }
+    ],
+    "top_patricio_rey_y_sus_redonditos_de_ricota_jijiji": [
+      {
+        "name": "Libay",
+        "score": 135750,
+        "stars": 3.5,
+        "combo": 101,
+        "accuracy": 7.624053030834872,
+        "date": "2026-10-24 03:57:03"
+      }
     ]
   },
   "global": [
@@ -3777,8 +3787,8 @@
     },
     {
       "name": "Libay",
-      "total_score": 4146468,
-      "clefs": 27
+      "total_score": 4282218,
+      "clefs": 28
     },
     {
       "name": "bobon",
@@ -3939,7 +3949,7 @@
       },
       {
         "name": "Libay",
-        "score": 4146468
+        "score": 4282218
       },
       {
         "name": "Jacques",
