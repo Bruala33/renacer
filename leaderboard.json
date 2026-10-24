@@ -3365,7 +3365,7 @@
         "stars": 2,
         "combo": 165,
         "accuracy": 56.61330350220785,
-        "date": "2026-10-24 04:04:59"
+        "date": "2026-10-24 04:05:13"
       }
     ],
     "bs_2dce7": [
@@ -3771,14 +3771,14 @@
       "clefs": 76
     },
     {
+      "name": "Libay",
+      "total_score": 5491828,
+      "clefs": 38
+    },
+    {
       "name": "Azure",
       "total_score": 5132756,
       "clefs": 43
-    },
-    {
-      "name": "Libay",
-      "total_score": 4954373,
-      "clefs": 33
     },
     {
       "name": "Laaleplo",
@@ -3941,7 +3941,7 @@
       },
       {
         "name": "Libay",
-        "score": 4954373
+        "score": 5491828
       },
       {
         "name": "Laaleplo",
