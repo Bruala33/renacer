@@ -3621,6 +3621,16 @@
         "accuracy": 74.40798964953338,
         "date": "2026-10-23 23:40:29"
       }
+    ],
+    "top_ariana_grande_feat_nicki_minaj_side_to_side": [
+      {
+        "name": "Laaleplo",
+        "score": 23250,
+        "stars": 3.5,
+        "combo": 36,
+        "accuracy": 1.127109330574622,
+        "date": "2026-10-24 01:16:27"
+      }
     ]
   },
   "global": [
@@ -3671,7 +3681,7 @@
     },
     {
       "name": "Laaleplo",
-      "total_score": 4535821,
+      "total_score": 4559071,
       "clefs": 41
     },
     {
@@ -3830,7 +3840,7 @@
       },
       {
         "name": "Laaleplo",
-        "score": 4535821
+        "score": 4559071
       },
       {
         "name": "fer",
