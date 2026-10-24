@@ -3871,6 +3871,16 @@
         "accuracy": 47.80620752720948,
         "date": "2026-10-24 05:29:29"
       }
+    ],
+    "top_marc_anthony_el_cantante": [
+      {
+        "name": "Libay",
+        "score": 153267,
+        "stars": 3.5,
+        "combo": 111,
+        "accuracy": 6.576311941343659,
+        "date": "2026-10-24 05:31:02"
+      }
     ]
   },
   "global": [
@@ -3916,8 +3926,8 @@
     },
     {
       "name": "Libay",
-      "total_score": 8106206,
-      "clefs": 57
+      "total_score": 8259473,
+      "clefs": 58
     },
     {
       "name": "Azure",
@@ -4085,7 +4095,7 @@
       },
       {
         "name": "Libay",
-        "score": 8106206
+        "score": 8259473
       },
       {
         "name": "Laaleplo",
