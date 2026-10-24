@@ -544,10 +544,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 21,
-    version_name: '2.8.0',
-    release_notes: 'Piano Community v2.8: Buscador real de canciones y playlists de YouTube en Descubrir, paginación completa para playlists grandes (200+ canciones), corrección visual de pestañas en móvil y rotación real de canciones destacadas en la Tragaperras.',
-    download_url: '/download/apk?v=21.0',
+    version_code: 23,
+    version_name: '2.9.0',
+    release_notes: 'Piano Community v2.9: Video Poker Canción del Día vintage Las Vegas, modo espejo optimizado y reproducción/redescarga automática de canciones en Favoritos y Playlists.',
+    download_url: '/download/apk?v=23.0',
   });
 });
 

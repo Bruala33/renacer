@@ -11,8 +11,8 @@ android {
         applicationId = "com.beatstar.renacer"
         minSdk = 24
         targetSdk = 35
-        versionCode = 22
-        versionName = "2.8.1"
+        versionCode = 23
+        versionName = "2.9.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -64,3 +64,24 @@ dependencies {
     implementation("androidx.webkit:webkit:1.12.0")
     implementation("androidx.activity:activity-ktx:1.9.3")
 }
+
+tasks.matching { it.name == "packageDebug" || it.name == "assembleDebug" }.configureEach {
+    doLast {
+        val builtApk = file("${project.buildDir}/outputs/apk/debug/app-debug.apk")
+        if (builtApk.exists() && builtApk.length() > 100000L) {
+            val targets = listOf(
+                file("${rootDir}/PianoCommunity.apk"),
+                file("${rootDir}/app/static/PianoCommunity.apk"),
+                file("${rootDir}/app/static/downloads/PianoCommunity.apk"),
+                file("${rootDir}/.build-outputs/app-debug.apk")
+            )
+            for (dst in targets) {
+                try {
+                    dst.parentFile?.mkdirs()
+                    builtApk.copyTo(dst, overwrite = true)
+                } catch (_: Exception) {}
+            }
+        }
+    }
+}
+
