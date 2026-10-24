@@ -3200,6 +3200,14 @@
         "combo": 477,
         "accuracy": 80.10008281725472,
         "date": "2026-10-23 13:08:49"
+      },
+      {
+        "name": "Jacques",
+        "score": 192089,
+        "stars": 3.5,
+        "combo": 162,
+        "accuracy": 15.325899460810206,
+        "date": "2026-10-24 02:18:57"
       }
     ],
     "top_vanilla_ice_ice_ice_baby": [
@@ -3740,6 +3748,11 @@
       "clefs": 2
     },
     {
+      "name": "Jacques",
+      "total_score": 218789,
+      "clefs": 1
+    },
+    {
       "name": "bori",
       "total_score": 190261,
       "clefs": 1
@@ -3757,11 +3770,6 @@
     {
       "name": "U",
       "total_score": 30185,
-      "clefs": 0
-    },
-    {
-      "name": "Jacques",
-      "total_score": 26700,
       "clefs": 0
     },
     {
@@ -3865,6 +3873,10 @@
         "score": 265556
       },
       {
+        "name": "Jacques",
+        "score": 218789
+      },
+      {
         "name": "bori",
         "score": 190261
       },
@@ -3879,10 +3891,6 @@
       {
         "name": "U",
         "score": 30185
-      },
-      {
-        "name": "Jacques",
-        "score": 26700
       },
       {
         "name": "Camaleon",
