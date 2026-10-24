@@ -3205,9 +3205,9 @@
         "name": "Jacques",
         "score": 192089,
         "stars": 3.5,
-        "combo": 19,
-        "accuracy": 0.7871869075469606,
-        "date": "2026-10-24 02:21:02"
+        "combo": 6,
+        "accuracy": 0.12377152634386172,
+        "date": "2026-10-24 02:21:58"
       }
     ],
     "top_vanilla_ice_ice_ice_baby": [
@@ -3719,8 +3719,8 @@
     },
     {
       "name": "Jacques",
-      "total_score": 602967,
-      "clefs": 3
+      "total_score": 795056,
+      "clefs": 4
     },
     {
       "name": "MasterPianist",
@@ -3870,7 +3870,7 @@
       },
       {
         "name": "Jacques",
-        "score": 602967
+        "score": 795056
       },
       {
         "name": "Darwin67",
