@@ -39,6 +39,7 @@ const chartScores = new Map();
 const chartRatings = new Map();
 const followedCreators = new Set();
 const players = new Map();
+const dailyPokerStateByDay = new Map();
 
 // Helper to compute ISO Week ID (AAAA-WSS)
 function getIsoWeekId(date = new Date()) {
@@ -105,6 +106,21 @@ function buildConsolidatedLeaderboardJson() {
     }
   }
 
+  // 4. Canción del Día (Video Poker): Conservar los últimos 7 días con bote y clasificación verificada
+  const dailyPokerObj = {};
+  const recentDayKeys = Array.from(dailyPokerStateByDay.keys()).sort().slice(-7);
+  for (const dKey of recentDayKeys) {
+    const st = dailyPokerStateByDay.get(dKey);
+    if (st && typeof st === 'object') {
+      dailyPokerObj[dKey] = {
+        dayKey: st.dayKey || dKey,
+        potClefs: Math.max(150, Number(st.potClefs) || 150),
+        wageredPlayers: Array.isArray(st.wageredPlayers) ? st.wageredPlayers.slice(0, 200) : [],
+        rankings: (Array.isArray(st.rankings) ? st.rankings : []).slice(0, 50)
+      };
+    }
+  }
+
   return {
     songs: songsObj,
     global: globalList,
@@ -112,6 +128,7 @@ function buildConsolidatedLeaderboardJson() {
       week_id: currentWeek,
       players: weeklyList
     },
+    daily_poker: dailyPokerObj,
     referrals: referralsObj
   };
 }
@@ -336,6 +353,41 @@ function applyLeaderboardJson(data) {
     for (const [refKey, friendList] of Object.entries(data.referrals)) {
       if (Array.isArray(friendList)) {
         friendList.forEach(fName => registerReferralHelper(refKey, fName));
+      }
+    }
+  }
+
+  // Restaurar estado persistente de Canción del Día (Video Poker)
+  if (data.daily_poker && typeof data.daily_poker === 'object') {
+    for (const [dKey, savedDay] of Object.entries(data.daily_poker)) {
+      if (!savedDay || typeof savedDay !== 'object') continue;
+      const existing = dailyPokerStateByDay.get(dKey);
+      const incomingRankings = (Array.isArray(savedDay.rankings) ? savedDay.rankings : []).filter(r => {
+        const nm = String(r.player_name || '').trim().toLowerCase();
+        return nm && nm !== 'test' && nm !== 'tester' && nm !== 'prueba' && nm !== 'dummy';
+      });
+      if (existing) {
+        existing.potClefs = Math.max(150, Number(existing.potClefs) || 150, Number(savedDay.potClefs) || 150);
+        const wSet = new Set([...(existing.wageredPlayers || []), ...(savedDay.wageredPlayers || [])]);
+        existing.wageredPlayers = Array.from(wSet);
+        const rMap = new Map();
+        for (const r of [...(existing.rankings || []), ...incomingRankings]) {
+          const pKey = String(r.player_id || r.player_name || '').trim().toLowerCase();
+          if (!pKey) continue;
+          const prev = rMap.get(pKey);
+          if (!prev || (Number(r.score) || 0) > (Number(prev.score) || 0)) {
+            rMap.set(pKey, r);
+          }
+        }
+        existing.rankings = Array.from(rMap.values()).sort((a, b) => (b.score || 0) - (a.score || 0));
+      } else {
+        dailyPokerStateByDay.set(dKey, {
+          dayKey: dKey,
+          potClefs: Math.max(150, Number(savedDay.potClefs) || 150),
+          wageredPlayers: Array.isArray(savedDay.wageredPlayers) ? savedDay.wageredPlayers : [],
+          rankings: incomingRankings.sort((a, b) => (b.score || 0) - (a.score || 0)),
+          _needsHydration: true
+        });
       }
     }
   }
@@ -1102,9 +1154,9 @@ app.get('/api/v1/community/featured', (req, res) => {
 
 // ==========================================
 // 3B. DAILY VIDEO POKER ("CANCIÓN DEL DÍA" - LAS VEGAS CASINO)
-// Canción fija + Modo fijo + Dificultad fija para todo el mundo + Bote acumulado de Claves apostadas
+// Canción fija + Modo fijo + Dificultad fija para todo el mundo + Bote común real de Claves apostadas
 // ==========================================
-const dailyPokerStateByDay = new Map();
+const DAILY_POKER_BASE_POT = 150;
 
 const DAILY_POKER_MODES = [
   { id: 'mirror', label: 'OJEPSƎ', short: 'OJEPSƎ', icon: '🪞', color: '#00f2fe' },
@@ -1116,25 +1168,42 @@ const DAILY_POKER_MODES = [
   { id: 'classic', label: 'CLÁSICO', short: 'CLÁSICO', icon: '🎹', color: '#f59e0b' }
 ];
 
-// Tabla de pagos del Bote Acumulado (3 niveles de apuesta: 10, 25, 50 Claves -> 30%, 65%, 100% de la cuota del bote)
+// Tabla de pagos del Bote Acumulado: Tier 0 (0𝄞 cortesía -> 15%), Tier 1 (10𝄞 -> 30%), Tier 2 (25𝄞 -> 65%), Tier 3 (50𝄞 MÁX -> 100%)
 const DAILY_POKER_BETS = [10, 25, 50];
-const DAILY_POKER_TIER_FACTORS = [0.30, 0.65, 1.00];
+const DAILY_POKER_TIER_FACTORS = { 0: 0.15, 1: 0.30, 2: 0.65, 3: 1.00 };
+const DAILY_POKER_TIER_WAGERS = { 0: 0, 1: 10, 2: 25, 3: 50 };
 const DAILY_POKER_PAYTABLE = [
   { rank: 1, hand: 'ESCALERA REAL', badge: '👑 #1', baseShare: 0.50 },
-  { rank: 2, hand: 'ESCALERA COLOR', badge: '🥈 #2', baseShare: 0.25 },
-  { rank: 3, hand: 'POKER', badge: '🥉 #3', baseShare: 0.15 },
-  { rank: 4, hand: 'FULL', badge: '♠️ #4', baseShare: 0.06 },
-  { rank: 5, hand: 'COLOR', badge: '♥️ #5', baseShare: 0.04 }
+  { rank: 2, hand: 'POKER', badge: '🥈 #2', baseShare: 0.25 },
+  { rank: 3, hand: 'FULL HOUSE', badge: '🥉 #3', baseShare: 0.15 },
+  { rank: 4, hand: 'COLOR', badge: '♠️ #4', baseShare: 0.06 },
+  { rank: 5, hand: 'ESCALERA', badge: '♥️ #5', baseShare: 0.04 }
 ];
 
-function getOrCreateDailyPokerState() {
+function normalizeValidDayKey(rawDay) {
+  if (typeof rawDay === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDay.trim())) {
+    return rawDay.trim();
+  }
+  return new Date().toISOString().slice(0, 10);
+}
+
+function computeDaySeedFromKey(dayKey) {
+  const parts = dayKey.split('-').map(n => parseInt(n, 10));
+  if (parts.length === 3 && parts.every(Number.isFinite)) {
+    return parts[0] * 372 + parts[1] * 31 + parts[2];
+  }
   const now = new Date();
-  const dayKey = now.toISOString().slice(0, 10);
-  if (dailyPokerStateByDay.has(dayKey)) {
-    return dailyPokerStateByDay.get(dayKey);
+  return now.getUTCFullYear() * 372 + (now.getUTCMonth() + 1) * 31 + now.getUTCDate();
+}
+
+function getOrCreateDailyPokerState(requestedDayKey) {
+  const dayKey = normalizeValidDayKey(requestedDayKey);
+  const existing = dailyPokerStateByDay.get(dayKey);
+  if (existing && !existing._needsHydration && existing.song && existing.mode) {
+    return existing;
   }
 
-  const daySeed = now.getUTCFullYear() * 372 + (now.getUTCMonth() + 1) * 31 + now.getUTCDate();
+  const daySeed = computeDaySeedFromKey(dayKey);
   let catalogSongs = [];
   try {
     const catPath = path.join(STATIC_DIR, 'songs', 'catalog_top.json');
@@ -1163,28 +1232,8 @@ function getOrCreateDailyPokerState() {
   const difficulty = (daySeed % 2 === 0) ? 'Difícil' : 'Normal';
   const totalNotes = Number(rawSong.total_notes) || 380;
   const stars = difficulty === 'Difícil'
-    ? Math.min(7.2, Math.max(4.5, +(3.8 + (totalNotes / 150)).toFixed(1)))
-    : Math.min(3.6, Math.max(2.0, +(1.7 + (totalNotes / 260)).toFixed(1)));
-
-  // Semilla inicial de rankings con las mejores puntuaciones reales de esa canción si existen
-  const initialRankings = [];
-  const existingChartScores = chartScores.get(fullSongId) || chartScores.get(cleanRawId) || [];
-  for (const s of existingChartScores.slice(0, 10)) {
-    const pName = s.player_name || s.name || s.username;
-    const pScore = Number(s.score) || 0;
-    const cleanLower = String(pName || '').trim().toLowerCase();
-    if (!cleanLower || cleanLower === 'test' || cleanLower === 'tester' || cleanLower === 'prueba' || cleanLower === 'dummy') continue;
-    if (pName && pScore > 0 && !initialRankings.some(r => r.player_name.toLowerCase() === cleanLower)) {
-      initialRankings.push({
-        player_name: String(pName),
-        avatar_url: s.avatar_url || null,
-        score: pScore,
-        bet_tier: 2,
-        timestamp: s.timestamp || Date.now()
-      });
-    }
-  }
-  initialRankings.sort((a, b) => b.score - a.score);
+    ? Math.min(5, Math.max(4, Math.round(3.8 + (totalNotes / 180))))
+    : Math.min(3, Math.max(2, Math.round(1.8 + (totalNotes / 260))));
 
   const state = {
     dayKey,
@@ -1203,8 +1252,9 @@ function getOrCreateDailyPokerState() {
     },
     mode: modeObj,
     difficulty,
-    potClefs: 100 + initialRankings.length * 25,
-    rankings: initialRankings
+    potClefs: existing ? Math.max(DAILY_POKER_BASE_POT, Number(existing.potClefs) || DAILY_POKER_BASE_POT) : DAILY_POKER_BASE_POT,
+    wageredPlayers: existing && Array.isArray(existing.wageredPlayers) ? existing.wageredPlayers : [],
+    rankings: existing && Array.isArray(existing.rankings) ? existing.rankings : []
   };
 
   dailyPokerStateByDay.set(dayKey, state);
@@ -1212,80 +1262,124 @@ function getOrCreateDailyPokerState() {
   return state;
 }
 
+function isDummyPokerPlayerName(name) {
+  const nm = String(name || '').trim().toLowerCase();
+  return !nm || nm === 'test' || nm === 'tester' || nm === 'prueba' || nm === 'dummy';
+}
+
 app.get('/api/v1/daily-poker', (req, res) => {
-  const state = getOrCreateDailyPokerState();
-  state.rankings = (state.rankings || []).filter(r => {
-    const nm = String(r.player_name || '').trim().toLowerCase();
-    return nm && nm !== 'test' && nm !== 'tester' && nm !== 'prueba' && nm !== 'dummy';
-  });
+  const requestedDay = req.query?.day ? String(req.query.day) : undefined;
+  const state = getOrCreateDailyPokerState(requestedDay);
+  state.rankings = (state.rankings || []).filter(r => !isDummyPokerPlayerName(r.player_name));
+  state.rankings.sort((a, b) => (b.score || 0) - (a.score || 0) || (a.timestamp || 0) - (b.timestamp || 0));
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.json({
     success: true,
     dayKey: state.dayKey,
     song: state.song,
     mode: state.mode,
     difficulty: state.difficulty,
-    potClefs: state.potClefs,
+    potClefs: Math.max(DAILY_POKER_BASE_POT, Number(state.potClefs) || DAILY_POKER_BASE_POT),
     bets: DAILY_POKER_BETS,
     paytable: DAILY_POKER_PAYTABLE,
-    rankings: state.rankings.slice(0, 20).map((r, i) => ({ ...r, rank: i + 1 }))
+    rankings: state.rankings.slice(0, 50).map((r, i) => ({ ...r, rank: i + 1 }))
   });
 });
 
 app.post('/api/v1/daily-poker/wager', (req, res) => {
-  const state = getOrCreateDailyPokerState();
-  const betTier = Math.max(1, Math.min(3, Number(req.body?.bet_tier) || 1));
-  const wagerClefs = DAILY_POKER_BETS[betTier - 1] || 10;
-  state.potClefs = Math.max(100, (state.potClefs || 100) + wagerClefs);
-  saveDailyPokerStateToDisk();
+  const state = getOrCreateDailyPokerState(req.body?.day_key || req.body?.dayKey);
+  const rawTier = Number(req.body?.bet_tier);
+  const betTier = Number.isFinite(rawTier) ? Math.max(0, Math.min(3, Math.round(rawTier))) : 3;
+  const wagerClefs = DAILY_POKER_TIER_WAGERS[betTier] ?? 50;
+
+  const rawPlayerId = String(req.body?.player_id || '').trim().slice(0, 48);
+  const rawName = String(req.body?.player_name || req.body?.username || 'Jugador').trim().slice(0, 28) || 'Jugador';
+  const playerWagerKey = (rawPlayerId || rawName).toLowerCase();
+
+  if (!Array.isArray(state.wageredPlayers)) state.wageredPlayers = [];
+  const alreadyWagered = Boolean(playerWagerKey && state.wageredPlayers.includes(playerWagerKey));
+
+  if (!alreadyWagered && !isDummyPokerPlayerName(rawName)) {
+    if (playerWagerKey) state.wageredPlayers.push(playerWagerKey);
+    state.potClefs = Math.max(DAILY_POKER_BASE_POT, (Number(state.potClefs) || DAILY_POKER_BASE_POT) + wagerClefs);
+    saveDailyPokerStateToDisk();
+    syncLeaderboardToGithub().catch(() => {});
+  }
+
   res.json({
     success: true,
+    dayKey: state.dayKey,
     bet_tier: betTier,
     wagerClefs,
-    potClefs: state.potClefs
+    alreadyWagered,
+    potClefs: Math.max(DAILY_POKER_BASE_POT, Number(state.potClefs) || DAILY_POKER_BASE_POT)
   });
 });
 
 app.post('/api/v1/daily-poker/submit', (req, res) => {
-  const state = getOrCreateDailyPokerState();
+  const state = getOrCreateDailyPokerState(req.body?.day_key || req.body?.dayKey);
+  const rawPlayerId = String(req.body?.player_id || '').trim().slice(0, 48);
   const rawName = String(req.body?.player_name || req.body?.username || req.body?.nickname || 'Jugador').trim().slice(0, 28) || 'Jugador';
   const avatarUrl = req.body?.avatar_url || null;
   const score = Math.max(0, Math.round(Number(req.body?.score) || 0));
-  const betTier = Math.max(1, Math.min(3, Number(req.body?.bet_tier) || 1));
+  const accuracy = Math.max(0, Math.min(100, Number(req.body?.accuracy) || 100));
+  const rawTier = Number(req.body?.bet_tier);
+  const betTier = Number.isFinite(rawTier) ? Math.max(0, Math.min(3, Math.round(rawTier))) : 3;
+  const wagerClefs = DAILY_POKER_TIER_WAGERS[betTier] ?? 50;
 
-  const isTest = rawName.toLowerCase() === 'test' || rawName.toLowerCase() === 'tester' || rawName.toLowerCase() === 'prueba' || rawName.toLowerCase() === 'dummy';
+  if (!isDummyPokerPlayerName(rawName)) {
+    // Garantizar que la apuesta del jugador esté sumada al bote (por si /wager falló en arranque en frío u offline)
+    const playerWagerKey = (rawPlayerId || rawName).toLowerCase();
+    if (!Array.isArray(state.wageredPlayers)) state.wageredPlayers = [];
+    if (playerWagerKey && !state.wageredPlayers.includes(playerWagerKey)) {
+      state.wageredPlayers.push(playerWagerKey);
+      state.potClefs = Math.max(DAILY_POKER_BASE_POT, (Number(state.potClefs) || DAILY_POKER_BASE_POT) + wagerClefs);
+    }
 
-  if (!isTest) {
-    const existingIdx = state.rankings.findIndex(r => r.player_name.toLowerCase() === rawName.toLowerCase());
+    if (!Array.isArray(state.rankings)) state.rankings = [];
+    const existingIdx = state.rankings.findIndex(r => {
+      if (rawPlayerId && r.player_id && r.player_id === rawPlayerId) return true;
+      return String(r.player_name || '').trim().toLowerCase() === rawName.toLowerCase();
+    });
+
     if (existingIdx >= 0) {
-      if (score >= state.rankings[existingIdx].score) {
-        state.rankings[existingIdx].score = score;
-        state.rankings[existingIdx].bet_tier = betTier;
-        state.rankings[existingIdx].avatar_url = avatarUrl || state.rankings[existingIdx].avatar_url;
-        state.rankings[existingIdx].timestamp = Date.now();
+      const prev = state.rankings[existingIdx];
+      prev.player_name = rawName;
+      if (rawPlayerId) prev.player_id = rawPlayerId;
+      if (score >= (Number(prev.score) || 0)) {
+        prev.score = score;
+        prev.accuracy = accuracy;
+        prev.bet_tier = betTier;
+        prev.wager = wagerClefs;
+        prev.avatar_url = avatarUrl || prev.avatar_url || null;
+        prev.timestamp = prev.timestamp || Date.now();
       }
     } else {
       state.rankings.push({
+        player_id: rawPlayerId || undefined,
         player_name: rawName,
         avatar_url: avatarUrl,
         score,
+        accuracy,
         bet_tier: betTier,
+        wager: wagerClefs,
         timestamp: Date.now()
       });
     }
   }
 
-  // Purge any test accounts and sort descending
-  state.rankings = (state.rankings || []).filter(r => {
-    const nm = String(r.player_name || '').trim().toLowerCase();
-    return nm && nm !== 'test' && nm !== 'tester' && nm !== 'prueba' && nm !== 'dummy';
-  });
-  state.rankings.sort((a, b) => b.score - a.score);
+  // Purge any test accounts and sort descending by score (tie-break: earlier timestamp)
+  state.rankings = (state.rankings || []).filter(r => !isDummyPokerPlayerName(r.player_name));
+  state.rankings.sort((a, b) => (b.score || 0) - (a.score || 0) || (a.timestamp || 0) - (b.timestamp || 0));
 
-  const achievedIdx = state.rankings.findIndex(r => r.player_name.toLowerCase() === rawName.toLowerCase() && r.score >= score);
+  const achievedIdx = state.rankings.findIndex(r => {
+    if (rawPlayerId && r.player_id && r.player_id === rawPlayerId) return true;
+    return String(r.player_name || '').trim().toLowerCase() === rawName.toLowerCase();
+  });
   const rank = achievedIdx >= 0 ? (achievedIdx + 1) : (state.rankings.length + 1);
 
   let matchedRow = null;
-  if (score >= 1000 && rank >= 1 && rank <= 5) {
+  if (rank >= 1 && rank <= 5) {
     matchedRow = DAILY_POKER_PAYTABLE[rank - 1];
   }
 
@@ -1293,22 +1387,25 @@ app.post('/api/v1/daily-poker/submit', (req, res) => {
   let handName = 'FUERA DEL TOP 5';
   if (matchedRow) {
     handName = matchedRow.hand;
-    const tierFactor = DAILY_POKER_TIER_FACTORS[betTier - 1] || 0.30;
+    const tierFactor = DAILY_POKER_TIER_FACTORS[betTier] ?? 0.30;
     potWin = Math.max(5, Math.round(state.potClefs * matchedRow.baseShare * tierFactor));
   }
 
   saveDailyPokerStateToDisk();
+  syncLeaderboardToGithub().catch(() => {});
 
   res.json({
     success: true,
+    dayKey: state.dayKey,
     rank,
     handName,
     bet_tier: betTier,
+    wager: wagerClefs,
     fixedWin: 0,
     potWin,
     totalWin: potWin,
-    potClefs: state.potClefs,
-    rankings: state.rankings.slice(0, 20).map((r, i) => ({ ...r, rank: i + 1 }))
+    potClefs: Math.max(DAILY_POKER_BASE_POT, Number(state.potClefs) || DAILY_POKER_BASE_POT),
+    rankings: state.rankings.slice(0, 50).map((r, i) => ({ ...r, rank: i + 1 }))
   });
 });
 
