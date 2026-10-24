@@ -50,14 +50,6 @@
         "date": "2026-02-01 10:00:00"
       },
       {
-        "name": "Test",
-        "score": 105557,
-        "stars": 3.5,
-        "combo": 59,
-        "accuracy": 4.38767468974771,
-        "date": "2026-09-23 13:38:23"
-      },
-      {
         "name": "MasterPianist",
         "score": 100000,
         "stars": 4,
@@ -350,14 +342,6 @@
     ],
     "comm_1788622108_2296": [
       {
-        "name": "Test",
-        "score": 1092,
-        "stars": 5,
-        "combo": 1,
-        "accuracy": 98.17629179331307,
-        "date": "2026-10-20 08:57:44"
-      },
-      {
         "name": "Mozart 2.0",
         "score": 669,
         "stars": 5,
@@ -500,25 +484,9 @@
         "combo": 706,
         "accuracy": 81.63546868626737,
         "date": "2026-09-20 19:13:27"
-      },
-      {
-        "name": "Test",
-        "score": 265570,
-        "stars": 1,
-        "combo": 173,
-        "accuracy": 23.877470284655914,
-        "date": "2026-10-20 08:57:02"
       }
     ],
     "osu_2069233": [
-      {
-        "name": "Test",
-        "score": 330975,
-        "stars": 3.5,
-        "combo": 133,
-        "accuracy": 15.724211651523248,
-        "date": "2026-10-21 16:04:49"
-      },
       {
         "name": "Jocomomolo",
         "score": 171600,
@@ -536,14 +504,6 @@
         "combo": 539,
         "accuracy": 63.68114532796806,
         "date": "2026-10-22 20:19:37"
-      },
-      {
-        "name": "Test",
-        "score": 922915,
-        "stars": 2,
-        "combo": 422,
-        "accuracy": 58.48971107350863,
-        "date": "2026-10-21 17:29:23"
       },
       {
         "name": "Jocomomolo",
@@ -578,14 +538,6 @@
         "combo": 1,
         "accuracy": 98.02816901408451,
         "date": "2026-10-22 13:27:46"
-      },
-      {
-        "name": "Test",
-        "score": 579,
-        "stars": 4,
-        "combo": 1,
-        "accuracy": 81.54929577464789,
-        "date": "2026-10-20 08:58:08"
       }
     ],
     "top_manolo_garcia_a_san_fernando": [
@@ -756,16 +708,7 @@
         "date": "2026-09-20 21:42:40"
       }
     ],
-    "top_el_arrebato_una_noche_con_arte": [
-      {
-        "name": "Test",
-        "score": 55650,
-        "stars": 3.5,
-        "combo": 56,
-        "accuracy": 2.5776717579350836,
-        "date": "2026-09-20 22:04:46"
-      }
-    ],
+    "top_el_arrebato_una_noche_con_arte": [],
     "top_estopa_cacho_a_cacho": [
       {
         "name": "Rocky",
@@ -1106,14 +1049,6 @@
         "date": "2026-10-18 09:42:50"
       },
       {
-        "name": "Test",
-        "score": 252841,
-        "stars": 3.5,
-        "combo": 52,
-        "accuracy": 15.344911766757342,
-        "date": "2026-10-19 07:48:05"
-      },
-      {
         "name": "Mauricio",
         "score": 241731,
         "stars": 5,
@@ -1230,46 +1165,10 @@
         "date": "2026-10-15 23:37:43"
       }
     ],
-    "top_the_beatles_hey_jude": [
-      {
-        "name": "Test",
-        "score": 90843,
-        "stars": 3.5,
-        "combo": 70,
-        "accuracy": 5.482751690368746,
-        "date": "2026-10-17 09:39:46"
-      }
-    ],
-    "top_las_grecas_te_estoy_amando_locamente": [
-      {
-        "name": "Test",
-        "score": 25800,
-        "stars": 3.5,
-        "combo": 34,
-        "accuracy": 1.8077532528399582,
-        "date": "2026-10-17 10:24:23"
-      }
-    ],
-    "top_david_bisbal_feat_knaan_waving_flag": [
-      {
-        "name": "Test",
-        "score": 1800,
-        "stars": 3.5,
-        "combo": 5,
-        "accuracy": 0.12085200664686037,
-        "date": "2026-10-17 13:30:17"
-      }
-    ],
-    "top_leona_lewis_better_in_time": [
-      {
-        "name": "Test",
-        "score": 155641,
-        "stars": 3.5,
-        "combo": 122,
-        "accuracy": 10.125823807634005,
-        "date": "2026-10-17 13:33:30"
-      }
-    ],
+    "top_the_beatles_hey_jude": [],
+    "top_las_grecas_te_estoy_amando_locamente": [],
+    "top_david_bisbal_feat_knaan_waving_flag": [],
+    "top_leona_lewis_better_in_time": [],
     "custom_1792245309361": [
       {
         "name": "Azure",
@@ -1518,26 +1417,8 @@
         "date": "2026-10-18 09:44:39"
       }
     ],
-    "top_abba_sos": [
-      {
-        "name": "Test",
-        "score": 8850,
-        "stars": 3.5,
-        "combo": 16,
-        "accuracy": 0.4327531018862168,
-        "date": "2026-10-18 10:33:20"
-      }
-    ],
-    "top_backstreet_boys_larger_than_life": [
-      {
-        "name": "Test",
-        "score": 59700,
-        "stars": 3.5,
-        "combo": 56,
-        "accuracy": 3.6542034050809953,
-        "date": "2026-10-18 10:46:51"
-      }
-    ],
+    "top_abba_sos": [],
+    "top_backstreet_boys_larger_than_life": [],
     "top_paulina_rubio_ni_una_sola_palabra": [
       {
         "name": "Dady cool",
@@ -1608,16 +1489,7 @@
         "date": "2026-10-19 01:27:37"
       }
     ],
-    "top_estopa_partiendo_la_pana": [
-      {
-        "name": "Test",
-        "score": 1521161,
-        "stars": 4,
-        "combo": 485,
-        "accuracy": 88.02061451582996,
-        "date": "2026-10-19 09:46:57"
-      }
-    ],
+    "top_estopa_partiendo_la_pana": [],
     "top_justin_bieber_what_do_you_mean": [
       {
         "name": "Mauricio",
@@ -1626,36 +1498,10 @@
         "combo": 845,
         "accuracy": 98.17125217139943,
         "date": "2026-10-21 13:03:17"
-      },
-      {
-        "name": "Test",
-        "score": 117300,
-        "stars": 3.5,
-        "combo": 93,
-        "accuracy": 6.39761766462412,
-        "date": "2026-10-19 09:48:00"
       }
     ],
-    "top_madonna_vogue": [
-      {
-        "name": "Test",
-        "score": 8550,
-        "stars": 3.5,
-        "combo": 15,
-        "accuracy": 0.41925225991678705,
-        "date": "2026-10-19 10:10:23"
-      }
-    ],
-    "osu_2125241": [
-      {
-        "name": "Test",
-        "score": 299470,
-        "stars": 5,
-        "combo": 179,
-        "accuracy": 92.92807050207907,
-        "date": "2026-10-19 10:13:18"
-      }
-    ],
+    "top_madonna_vogue": [],
+    "osu_2125241": [],
     "top_caf_quijano_la_taberna_del_buda": [
       {
         "name": "Dady cool",
@@ -1676,16 +1522,7 @@
         "date": "2026-10-19 15:57:38"
       }
     ],
-    "top_jonas_brothers_when_you_look_me_in_the_eyes": [
-      {
-        "name": "Test",
-        "score": 65974,
-        "stars": 3.5,
-        "combo": 58,
-        "accuracy": 3.4373811421813047,
-        "date": "2026-10-19 16:32:53"
-      }
-    ],
+    "top_jonas_brothers_when_you_look_me_in_the_eyes": [],
     "top_chayanne_completamente_enamorados": [
       {
         "name": "Dady cool",
@@ -1696,16 +1533,7 @@
         "date": "2026-10-19 16:33:48"
       }
     ],
-    "top_roy_orbison_desconocido": [
-      {
-        "name": "Test",
-        "score": 46621,
-        "stars": 3.5,
-        "combo": 48,
-        "accuracy": 3.5256359356082347,
-        "date": "2026-10-19 16:34:33"
-      }
-    ],
+    "top_roy_orbison_desconocido": [],
     "top_la_sonora_de_tommy_rey_la_aranita": [
       {
         "name": "Dady cool",
@@ -1805,14 +1633,6 @@
       }
     ],
     "top_mana_clavado_en_un_bar": [
-      {
-        "name": "Test",
-        "score": 151359,
-        "stars": 3.5,
-        "combo": 103,
-        "accuracy": 11.260121231598776,
-        "date": "2026-10-20 08:55:28"
-      },
       {
         "name": "Mauricio",
         "score": 32691,
@@ -1940,26 +1760,8 @@
         "date": "2026-10-20 17:58:05"
       }
     ],
-    "top_el_sueno_de_morfeo_demasiado_tarde": [
-      {
-        "name": "Test",
-        "score": 39264,
-        "stars": 3.5,
-        "combo": 37,
-        "accuracy": 4.159216291111243,
-        "date": "2026-10-20 18:57:00"
-      }
-    ],
-    "top_efecto_pasillo_pan_y_mantequilla": [
-      {
-        "name": "Test",
-        "score": 126784,
-        "stars": 3.5,
-        "combo": 96,
-        "accuracy": 8.382889870101705,
-        "date": "2026-10-20 18:57:42"
-      }
-    ],
+    "top_el_sueno_de_morfeo_demasiado_tarde": [],
+    "top_efecto_pasillo_pan_y_mantequilla": [],
     "top_seguridad_social_me_siento_bien": [
       {
         "name": "Mauricio",
@@ -1970,16 +1772,7 @@
         "date": "2026-10-20 18:59:13"
       }
     ],
-    "top_ricardo_arjona_mujeres": [
-      {
-        "name": "Test",
-        "score": 4650,
-        "stars": 3.5,
-        "combo": 10,
-        "accuracy": 0.28297632674820034,
-        "date": "2026-10-20 19:12:06"
-      }
-    ],
+    "top_ricardo_arjona_mujeres": [],
     "top_los_autnticos_decadentes_el_dinero_no_es_todo": [
       {
         "name": "Mauricio",
@@ -2050,16 +1843,7 @@
         "date": "2026-10-21 09:36:01"
       }
     ],
-    "top_man_mariposa_traicionera": [
-      {
-        "name": "Test",
-        "score": 55136,
-        "stars": 3.5,
-        "combo": 51,
-        "accuracy": 3.5171160872849008,
-        "date": "2026-10-21 10:14:22"
-      }
-    ],
+    "top_man_mariposa_traicionera": [],
     "top_las_ketchup_asereje": [
       {
         "name": "Mauricio",
@@ -2080,36 +1864,9 @@
         "date": "2026-10-21 12:57:24"
       }
     ],
-    "top_mgo_de_oz_diabulus_in_musica": [
-      {
-        "name": "Test",
-        "score": 250390,
-        "stars": 3.5,
-        "combo": 153,
-        "accuracy": 17.23386755409028,
-        "date": "2026-10-21 16:01:48"
-      }
-    ],
-    "top_mgo_de_oz_fiesta_pagana": [
-      {
-        "name": "Test",
-        "score": 817596,
-        "stars": 1,
-        "combo": 311,
-        "accuracy": 24.120259671678472,
-        "date": "2026-10-21 16:03:42"
-      }
-    ],
-    "top_azcar_moreno_bandido": [
-      {
-        "name": "Test",
-        "score": 148200,
-        "stars": 3.5,
-        "combo": 105,
-        "accuracy": 15.424726398451282,
-        "date": "2026-10-21 17:30:27"
-      }
-    ],
+    "top_mgo_de_oz_diabulus_in_musica": [],
+    "top_mgo_de_oz_fiesta_pagana": [],
+    "top_azcar_moreno_bandido": [],
     "top_michael_jackson_billie_jean": [
       {
         "name": "Mauricio",
@@ -2140,16 +1897,7 @@
         "date": "2026-10-21 17:57:44"
       }
     ],
-    "osu_50092": [
-      {
-        "name": "Test",
-        "score": 11625,
-        "stars": 3.5,
-        "combo": 18,
-        "accuracy": 2.5072791976706568,
-        "date": "2026-10-21 19:17:47"
-      }
-    ],
+    "osu_50092": [],
     "osu_1281116": [
       {
         "name": "Mauricio",
@@ -2416,16 +2164,7 @@
         "date": "2026-10-22 10:10:08"
       }
     ],
-    "top_soraya_mi_mundo_sin_ti": [
-      {
-        "name": "Test",
-        "score": 189049,
-        "stars": 3.5,
-        "combo": 141,
-        "accuracy": 13.285419833434178,
-        "date": "2026-10-22 10:25:48"
-      }
-    ],
+    "top_soraya_mi_mundo_sin_ti": [],
     "top_alaska_abracadabra": [
       {
         "name": "Mauricio",
@@ -2486,26 +2225,8 @@
         "date": "2026-10-22 14:16:43"
       }
     ],
-    "osu_1819909": [
-      {
-        "name": "Test",
-        "score": 465243,
-        "stars": 3.5,
-        "combo": 258,
-        "accuracy": 9.592678732695804,
-        "date": "2026-10-22 15:32:37"
-      }
-    ],
-    "osu_1833939": [
-      {
-        "name": "Test",
-        "score": 415112,
-        "stars": 1,
-        "combo": 216,
-        "accuracy": 29.280975675132346,
-        "date": "2026-10-22 15:33:44"
-      }
-    ],
+    "osu_1819909": [],
+    "osu_1833939": [],
     "osu_1225138": [
       {
         "name": "Mauricio",
@@ -2516,16 +2237,7 @@
         "date": "2026-10-22 15:37:20"
       }
     ],
-    "top_jennifer_lopez__pitbull_ven_a_bailar": [
-      {
-        "name": "Test",
-        "score": 45538,
-        "stars": 3.5,
-        "combo": 45,
-        "accuracy": 3.2030149332886926,
-        "date": "2026-10-22 16:16:19"
-      }
-    ],
+    "top_jennifer_lopez__pitbull_ven_a_bailar": [],
     "top_31_minutos_el_dinosaurio_anacleto": [
       {
         "name": "Mauricio",
@@ -3114,16 +2826,7 @@
         "date": "2026-10-23 10:19:21"
       }
     ],
-    "top_haash_lo_aprendi_de_ti": [
-      {
-        "name": "Test",
-        "score": 3600,
-        "stars": 3.5,
-        "combo": 8,
-        "accuracy": 0.26247101882500473,
-        "date": "2026-10-23 10:22:24"
-      }
-    ],
+    "top_haash_lo_aprendi_de_ti": [],
     "clonehero_355727": [
       {
         "name": "FAZTL",
@@ -3930,11 +3633,6 @@
       "clefs": 100
     },
     {
-      "name": "Test",
-      "total_score": 9076523,
-      "clefs": 76
-    },
-    {
       "name": "Libay",
       "total_score": 8259473,
       "clefs": 58
@@ -4098,10 +3796,6 @@
       {
         "name": "Niggerman",
         "score": 10802004
-      },
-      {
-        "name": "Test",
-        "score": 8546882
       },
       {
         "name": "Libay",

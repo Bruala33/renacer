@@ -13972,6 +13972,15 @@ function stopPianoCameraLoop() {
       } catch (_) {}
     }
 
+    function getDailyPokerPlayerNickname() {
+      return String(
+        (typeof currentUser !== 'undefined' && (currentUser?.username || currentUser?.nickname)) ||
+        localStorage.getItem('beatstar_player_nickname') ||
+        localStorage.getItem('beatstar_player_name') ||
+        'Jugador'
+      ).trim();
+    }
+
     async function syncDailyVideoPokerState() {
       const localState = getLocalDeterministicDailyPokerState();
       if (!vpCurrentState || vpCurrentState.dayKey !== localState.dayKey) {
@@ -13986,6 +13995,29 @@ function stopPianoCameraLoop() {
           const data = await res.json();
           if (data && data.song) {
             const modeMatch = VP_MODES.find(m => m.id === data.mode?.id) || localState.mode;
+            const rawRankings = (Array.isArray(data.rankings) ? data.rankings : [])
+              .filter(r => {
+                const n = String(r.player_name || '').trim().toLowerCase();
+                return n && n !== 'test' && n !== 'tester' && n !== 'prueba' && n !== 'dummy';
+              });
+            const todayEntry = getDailyPokerEntryRecord(data.dayKey || localState.dayKey);
+            const myNick = getDailyPokerPlayerNickname();
+            if (todayEntry && todayEntry.played && todayEntry.score > 0) {
+              const myIdx = rawRankings.findIndex(r => String(r.player_name || '').trim().toLowerCase() === myNick.toLowerCase());
+              if (myIdx >= 0) {
+                if (todayEntry.score > rawRankings[myIdx].score) {
+                  rawRankings[myIdx].score = todayEntry.score;
+                }
+              } else {
+                rawRankings.push({
+                  player_name: myNick,
+                  score: todayEntry.score,
+                  bet_tier: todayEntry.betTier || 3,
+                  timestamp: Date.now()
+                });
+              }
+              rawRankings.sort((a, b) => b.score - a.score);
+            }
             vpCurrentState = {
               dayKey: data.dayKey || localState.dayKey,
               song: {
@@ -13998,7 +14030,7 @@ function stopPianoCameraLoop() {
               mode: modeMatch,
               difficulty: data.difficulty || localState.difficulty,
               potClefs: Math.max(localState.potClefs || 100, Number(data.potClefs) || 100),
-              rankings: Array.isArray(data.rankings) && data.rankings.length > 0 ? data.rankings : localState.rankings
+              rankings: rawRankings.length > 0 ? rawRankings : localState.rankings
             };
             saveLocalDailyPokerState(vpCurrentState);
             renderDailyVideoPokerUI();
@@ -14055,20 +14087,52 @@ function stopPianoCameraLoop() {
       // 2. Renderizar las 5 filas del Top 5 con reparto exacto del 100% del Bote (50%, 25%, 15%, 6%, 4%)
       const tbody = document.getElementById('vpPaytableBody');
       if (tbody) {
-        const rankings = st.rankings || [];
+        const myNick = getDailyPokerPlayerNickname();
+        const myNickLower = myNick.toLowerCase();
+        let rankings = (st.rankings || []).filter(r => {
+          const n = String(r.player_name || '').trim().toLowerCase();
+          return n && n !== 'test' && n !== 'tester' && n !== 'prueba' && n !== 'dummy';
+        });
+
+        if (todayEntry && todayEntry.played && todayEntry.score > 0) {
+          const exIdx = rankings.findIndex(r => String(r.player_name || '').trim().toLowerCase() === myNickLower);
+          if (exIdx >= 0) {
+            if (todayEntry.score > (rankings[exIdx].score || 0)) {
+              rankings[exIdx].score = todayEntry.score;
+            }
+          } else {
+            rankings.push({
+              player_name: myNick,
+              score: todayEntry.score,
+              bet_tier: todayEntry.betTier || vpCurrentBetTier
+            });
+          }
+          rankings.sort((a, b) => b.score - a.score);
+        }
+
+        const myRankInFull = rankings.findIndex(r => String(r.player_name || '').trim().toLowerCase() === myNickLower);
+        const myFullRankNum = myRankInFull >= 0 ? (myRankInFull + 1) : null;
+
         let html = '';
         VP_PAYTABLE.forEach((row, rIdx) => {
           const playerEntry = rankings[row.rank - 1] || null;
-          const pName = playerEntry
-            ? escapeHtml(String(playerEntry.player_name || 'Jugador').slice(0, 11))
-            : 'VACANTE';
+          const isMe = playerEntry && String(playerEntry.player_name || '').trim().toLowerCase() === myNickLower;
+          let pName = 'VACANTE';
+          if (playerEntry) {
+            const rawNm = String(playerEntry.player_name || 'Jugador').slice(0, 11);
+            pName = isMe ? `${escapeHtml(rawNm)} (Tú)` : escapeHtml(rawNm);
+          }
           const pScore = playerEntry && playerEntry.score > 0
             ? `${Math.round(playerEntry.score / 1000)}k`
             : '—';
 
-          const rowColor = rIdx === 0
+          let rowColor = rIdx === 0
             ? 'text-yellow-300 bg-yellow-400/10'
             : (rIdx === 1 ? 'text-amber-200' : (rIdx === 2 ? 'text-orange-200' : 'text-yellow-400/95'));
+
+          if (isMe) {
+            rowColor = 'text-cyan-200 bg-cyan-500/25 border-l-2 border-cyan-400 font-bold';
+          }
 
           let colsHtml = '';
           for (let c = 0; c < 3; c++) {
@@ -14082,14 +14146,34 @@ function stopPianoCameraLoop() {
               <td class="pl-2 pr-1">
                 <div class="flex items-center justify-between gap-1 min-w-0">
                   <span class="font-black text-amber-300 flex-shrink-0">${row.badge} <span class="text-[8.5px] text-amber-400/80">(${row.sharePct}%)</span></span>
-                  <span class="text-[10px] text-cyan-200 font-bold truncate flex-1 text-center">${pName}</span>
-                  <span class="text-[9.5px] text-amber-300 font-mono flex-shrink-0">${pScore}</span>
+                  <span class="text-[10px] ${isMe ? 'text-cyan-300 font-black' : 'text-cyan-200 font-bold'} truncate flex-1 text-center">${pName}</span>
+                  <span class="text-[9.5px] ${isMe ? 'text-cyan-300 font-bold' : 'text-amber-300'} font-mono flex-shrink-0">${pScore}</span>
                 </div>
               </td>
               ${colsHtml}
             </tr>
           `;
         });
+
+        // Si el usuario jugó hoy y quedó fuera del Top 5, mostrar SIEMPRE su fila fija al pie de la tabla
+        if (myFullRankNum && myFullRankNum > 5 && todayEntry && todayEntry.played) {
+          const myScoreK = `${Math.round(Number(todayEntry.score || 0) / 1000)}k`;
+          html += `
+            <tr class="bg-cyan-950/80 text-cyan-200 border-t border-cyan-500/40">
+              <td class="pl-2 pr-1 py-1">
+                <div class="flex items-center justify-between gap-1 min-w-0">
+                  <span class="font-black text-cyan-300 text-[9px] flex-shrink-0">#${myFullRankNum}</span>
+                  <span class="text-[10px] text-cyan-300 font-black truncate flex-1 text-center">${escapeHtml(myNick)} (Tú)</span>
+                  <span class="text-[9.5px] text-cyan-300 font-mono flex-shrink-0">${myScoreK}</span>
+                </div>
+              </td>
+              <td colspan="3" class="text-center font-mono text-[8.5px] text-cyan-400 py-1">
+                FUERA DEL TOP 5 · ${todayEntry.score.toLocaleString()} PTS
+              </td>
+            </tr>
+          `;
+        }
+
         tbody.innerHTML = html;
       }
 
@@ -14124,15 +14208,17 @@ function stopPianoCameraLoop() {
       if (bpmEl) bpmEl.textContent = `${st.song.bpm || 120} BPM · 1.0x`;
 
       // 4. Tu puesto hoy + Estado de 1 Sola Oportunidad
-      const myName = String((typeof currentUser !== 'undefined' && currentUser?.username) || localStorage.getItem('beatstar_player_name') || 'Jugador').trim().toLowerCase();
-      const myIdx = (st.rankings || []).findIndex(r => String(r.player_name || '').trim().toLowerCase() === myName);
+      const myNick = getDailyPokerPlayerNickname();
+      const myNickLower = myNick.toLowerCase();
+      const myIdx = (st.rankings || []).findIndex(r => String(r.player_name || '').trim().toLowerCase() === myNickLower);
       const myRankEl = document.getElementById('vpCardMyRank');
       const myScoreEl = document.getElementById('vpCardMyScore');
       if (myIdx >= 0) {
         if (myRankEl) myRankEl.textContent = `#${myIdx + 1}`;
         if (myScoreEl) myScoreEl.textContent = `(${Math.round(Number(st.rankings[myIdx].score || 0) / 1000)}k PTS)`;
       } else if (hasPlayedToday) {
-        if (myRankEl) myRankEl.textContent = 'JUGADO';
+        const fallbackRank = todayEntry.rank ? `#${todayEntry.rank}` : 'JUGADO';
+        if (myRankEl) myRankEl.textContent = fallbackRank;
         if (myScoreEl) myScoreEl.textContent = `(${Math.round(Number(todayEntry.score || 0) / 1000)}k PTS)`;
       } else {
         if (myRankEl) myRankEl.textContent = '—';
@@ -14497,7 +14583,7 @@ function stopPianoCameraLoop() {
       saveLocalDailyPokerState(st);
 
       // Registrar inmediatamente que ya ha usado su 1 OPORTUNIDAD DIARIA de hoy
-      const pName = String((typeof currentUser !== 'undefined' && currentUser?.username) || localStorage.getItem('beatstar_player_name') || 'Jugador').trim() || 'Jugador';
+      const pName = getDailyPokerPlayerNickname();
       saveDailyPokerEntryRecord(st.dayKey, {
         dayKey: st.dayKey,
         played: true,
@@ -14556,19 +14642,24 @@ function stopPianoCameraLoop() {
       if (!vpCurrentState) vpCurrentState = getLocalDeterministicDailyPokerState();
       const st = vpCurrentState;
       const betTier = Math.max(1, Math.min(3, Number(window._dailyPokerActiveBetTier) || vpCurrentBetTier || 3));
-      const pName = String((typeof currentUser !== 'undefined' && currentUser?.username) || localStorage.getItem('beatstar_player_name') || 'Jugador').trim() || 'Jugador';
+      const pName = getDailyPokerPlayerNickname();
       const cleanScore = Math.max(0, Math.round(Number(score) || 0));
 
       // Actualizar ranking en vivo de hoy
       if (!Array.isArray(st.rankings)) st.rankings = [];
+      st.rankings = st.rankings.filter(r => {
+        const nm = String(r.player_name || '').trim().toLowerCase();
+        return nm && nm !== 'test' && nm !== 'tester' && nm !== 'prueba' && nm !== 'dummy';
+      });
       const exIdx = st.rankings.findIndex(r => String(r.player_name || '').toLowerCase() === pName.toLowerCase());
       if (exIdx >= 0) {
-        if (cleanScore >= st.rankings[exIdx].score) {
+        if (cleanScore >= (st.rankings[exIdx].score || 0)) {
           st.rankings[exIdx].score = cleanScore;
           st.rankings[exIdx].bet_tier = betTier;
+          st.rankings[exIdx].timestamp = Date.now();
         }
       } else if (cleanScore > 0) {
-        st.rankings.push({ player_name: pName, score: cleanScore, bet_tier: betTier });
+        st.rankings.push({ player_name: pName, score: cleanScore, bet_tier: betTier, timestamp: Date.now() });
       }
       st.rankings.sort((a, b) => b.score - a.score);
 
@@ -14594,7 +14685,20 @@ function stopPianoCameraLoop() {
           if (data && data.success) {
             rank = data.rank || rank;
             st.potClefs = data.potClefs || pot;
-            if (Array.isArray(data.rankings)) st.rankings = data.rankings;
+            if (Array.isArray(data.rankings)) {
+              let srvRankings = data.rankings.filter(r => {
+                const nm = String(r.player_name || '').trim().toLowerCase();
+                return nm && nm !== 'test' && nm !== 'tester' && nm !== 'prueba' && nm !== 'dummy';
+              });
+              const myInSrv = srvRankings.findIndex(r => String(r.player_name || '').toLowerCase() === pName.toLowerCase());
+              if (myInSrv >= 0) {
+                if (cleanScore > srvRankings[myInSrv].score) srvRankings[myInSrv].score = cleanScore;
+              } else if (cleanScore > 0) {
+                srvRankings.push({ player_name: pName, score: cleanScore, bet_tier: betTier, timestamp: Date.now() });
+              }
+              srvRankings.sort((a, b) => b.score - a.score);
+              st.rankings = srvRankings;
+            }
           }
         }
       } catch (_) {}
@@ -14614,6 +14718,7 @@ function stopPianoCameraLoop() {
         songTitle: st.song.title,
         playerName: pName
       });
+      renderDailyVideoPokerUI();
 
       const projectedPrize = rank <= 5 ? computeDailyPokerPrize(st.potClefs, rank, betTier) : 0;
       setTimeout(() => {
@@ -16378,7 +16483,10 @@ function stopPianoCameraLoop() {
           const res = await fetch(`${baseUrl}/api/v1/community/charts/${encodeURIComponent(chartId)}/leaderboard`);
           if (res.ok) {
             const data = await res.json();
-            rows = data.leaderboard || [];
+            rows = (data.leaderboard || []).filter(r => {
+              const nm = String(r.player_name || r.name || '').trim().toLowerCase();
+              return nm && nm !== 'test' && nm !== 'tester' && nm !== 'prueba' && nm !== 'dummy';
+            });
           }
         }
       } catch (err) {
@@ -18680,7 +18788,10 @@ function stopPianoCameraLoop() {
           const res = await fetch(`${baseUrl}/api/v1/community/charts/${chartId}/leaderboard`);
           if (res.ok) {
             const data = await res.json();
-            rows = data.leaderboard || [];
+            rows = (data.leaderboard || []).filter(r => {
+              const nm = String(r.player_name || r.name || '').trim().toLowerCase();
+              return nm && nm !== 'test' && nm !== 'tester' && nm !== 'prueba' && nm !== 'dummy';
+            });
           }
         }
       } catch (err) {

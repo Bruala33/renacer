@@ -21,6 +21,7 @@ const SONGS_DIR = path.join(STATIC_DIR, 'songs');
 const SCORES_FILE = path.join(__dirname, 'app', 'uploads', 'leaderboard_scores.json');
 const RATINGS_FILE = path.join(__dirname, 'app', 'uploads', 'chart_ratings.json');
 const GITHUB_LEADERBOARD_FILE = path.join(__dirname, 'leaderboard.json');
+const DAILY_POKER_STATE_FILE = path.join(__dirname, 'app', 'uploads', 'daily_poker_state.json');
 
 // GitHub API Persistence Configuration
 const GITHUB_REPO = process.env.GITHUB_REPOSITORY || 'Bruala33/renacer';
@@ -274,19 +275,29 @@ function applyLeaderboardJson(data) {
   if (data.songs && typeof data.songs === 'object') {
     for (const [id, list] of Object.entries(data.songs)) {
       if (!Array.isArray(list)) continue;
-      const formatted = list.map((item, idx) => ({
-        rank: idx + 1,
-        chart_id: id,
-        player_name: item.name || item.player_name || 'Jugador',
-        score: parseInt(item.score, 10) || 0,
-        max_combo: parseInt(item.combo || item.max_combo, 10) || 0,
-        stars: parseFloat(item.stars) || 3.5,
-        accuracy_pct: parseFloat(item.accuracy || item.accuracy_pct) || 100.0,
-        created_at: item.date || item.created_at || new Date().toISOString()
-      }));
+      const formatted = list
+        .filter(item => {
+          const nm = (item.name || item.player_name || '').trim().toLowerCase();
+          return nm && nm !== 'test' && nm !== 'tester' && nm !== 'prueba' && nm !== 'dummy' && nm !== 'test user';
+        })
+        .map((item, idx) => ({
+          rank: idx + 1,
+          chart_id: id,
+          player_name: item.name || item.player_name || 'Jugador',
+          score: parseInt(item.score, 10) || 0,
+          max_combo: parseInt(item.combo || item.max_combo, 10) || 0,
+          stars: parseFloat(item.stars) || 3.5,
+          accuracy_pct: parseFloat(item.accuracy || item.accuracy_pct) || 100.0,
+          created_at: item.date || item.created_at || new Date().toISOString()
+        }));
       const existing = chartScores.get(id) || [];
       const mergedMap = new Map();
-      existing.forEach(e => mergedMap.set((e.player_name || '').trim().toLowerCase(), e));
+      existing.forEach(e => {
+        const k = (e.player_name || '').trim().toLowerCase();
+        if (k && k !== 'test' && k !== 'tester' && k !== 'prueba' && k !== 'dummy') {
+          mergedMap.set(k, e);
+        }
+      });
       formatted.forEach(f => {
         const key = (f.player_name || '').trim().toLowerCase();
         if (!mergedMap.has(key) || f.score > (mergedMap.get(key).score || 0)) {
@@ -298,11 +309,13 @@ function applyLeaderboardJson(data) {
       chartScores.set(id, combined.slice(0, 50));
     }
   }
-// Restaurar acumulador Global
+  // Restaurar acumulador Global
   if (Array.isArray(data.global)) {
     data.global.forEach(p => {
       const key = (p.name || '').trim().toLowerCase();
-      if (key) playerGlobalAccumulator.set(key, { name: p.name, total_score: p.total_score || 0, clefs: p.clefs || 0 });
+      if (key && key !== 'test' && key !== 'tester' && key !== 'prueba' && key !== 'dummy') {
+        playerGlobalAccumulator.set(key, { name: p.name, total_score: p.total_score || 0, clefs: p.clefs || 0 });
+      }
     });
   }
 
@@ -311,7 +324,9 @@ function applyLeaderboardJson(data) {
     const weekMap = new Map();
     data.weekly.players.forEach(p => {
       const key = (p.name || '').trim().toLowerCase();
-      if (key) weekMap.set(key, { name: p.name, score: p.score || 0 });
+      if (key && key !== 'test' && key !== 'tester' && key !== 'prueba' && key !== 'dummy') {
+        weekMap.set(key, { name: p.name, score: p.score || 0 });
+      }
     });
     playerWeeklyAccumulator.set(data.weekly.week_id, weekMap);
   }
@@ -345,12 +360,50 @@ function loadScoresFromDisk() {
       const raw = fs.readFileSync(SCORES_FILE, 'utf-8');
       const obj = JSON.parse(raw);
       for (const [id, scores] of Object.entries(obj)) {
-        chartScores.set(id, scores);
+        const cleaned = (scores || []).filter(s => {
+          const nm = String(s.player_name || s.name || '').trim().toLowerCase();
+          return nm && nm !== 'test' && nm !== 'tester' && nm !== 'prueba' && nm !== 'dummy';
+        });
+        chartScores.set(id, cleaned);
       }
       console.log(`[Server] Loaded persistent scores for ${chartScores.size} charts.`);
     }
   } catch (err) {
     console.warn('[Server] Could not load scores from disk:', err.message);
+  }
+}
+
+function saveDailyPokerStateToDisk() {
+  try {
+    fs.mkdirSync(path.dirname(DAILY_POKER_STATE_FILE), { recursive: true });
+    const obj = {};
+    for (const [k, v] of dailyPokerStateByDay.entries()) {
+      obj[k] = v;
+    }
+    fs.writeFileSync(DAILY_POKER_STATE_FILE, JSON.stringify(obj, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('[Server] Could not save daily poker state to disk:', err.message);
+  }
+}
+
+function loadDailyPokerStateFromDisk() {
+  try {
+    if (fs.existsSync(DAILY_POKER_STATE_FILE)) {
+      const raw = fs.readFileSync(DAILY_POKER_STATE_FILE, 'utf-8');
+      const obj = JSON.parse(raw);
+      for (const [k, v] of Object.entries(obj)) {
+        if (v && Array.isArray(v.rankings)) {
+          v.rankings = v.rankings.filter(r => {
+            const nm = String(r.player_name || '').trim().toLowerCase();
+            return nm && nm !== 'test' && nm !== 'tester' && nm !== 'prueba' && nm !== 'dummy';
+          });
+        }
+        dailyPokerStateByDay.set(k, v);
+      }
+      console.log(`[Server] Loaded persistent daily poker state for ${dailyPokerStateByDay.size} days.`);
+    }
+  } catch (err) {
+    console.warn('[Server] Could not load daily poker state from disk:', err.message);
   }
 }
 
@@ -523,6 +576,7 @@ function seedCommunityCharts() {
 seedCommunityCharts();
 loadScoresFromDisk();
 loadRatingsFromDisk();
+loadDailyPokerStateFromDisk();
 loadLeaderboardFromGithub().catch(() => {});
 
 // ==========================================
@@ -1118,7 +1172,9 @@ function getOrCreateDailyPokerState() {
   for (const s of existingChartScores.slice(0, 10)) {
     const pName = s.player_name || s.name || s.username;
     const pScore = Number(s.score) || 0;
-    if (pName && pScore > 0 && !initialRankings.some(r => r.player_name.toLowerCase() === String(pName).toLowerCase())) {
+    const cleanLower = String(pName || '').trim().toLowerCase();
+    if (!cleanLower || cleanLower === 'test' || cleanLower === 'tester' || cleanLower === 'prueba' || cleanLower === 'dummy') continue;
+    if (pName && pScore > 0 && !initialRankings.some(r => r.player_name.toLowerCase() === cleanLower)) {
       initialRankings.push({
         player_name: String(pName),
         avatar_url: s.avatar_url || null,
@@ -1152,11 +1208,16 @@ function getOrCreateDailyPokerState() {
   };
 
   dailyPokerStateByDay.set(dayKey, state);
+  saveDailyPokerStateToDisk();
   return state;
 }
 
 app.get('/api/v1/daily-poker', (req, res) => {
   const state = getOrCreateDailyPokerState();
+  state.rankings = (state.rankings || []).filter(r => {
+    const nm = String(r.player_name || '').trim().toLowerCase();
+    return nm && nm !== 'test' && nm !== 'tester' && nm !== 'prueba' && nm !== 'dummy';
+  });
   res.json({
     success: true,
     dayKey: state.dayKey,
@@ -1166,7 +1227,7 @@ app.get('/api/v1/daily-poker', (req, res) => {
     potClefs: state.potClefs,
     bets: DAILY_POKER_BETS,
     paytable: DAILY_POKER_PAYTABLE,
-    rankings: state.rankings.slice(0, 15).map((r, i) => ({ ...r, rank: i + 1 }))
+    rankings: state.rankings.slice(0, 20).map((r, i) => ({ ...r, rank: i + 1 }))
   });
 });
 
@@ -1175,6 +1236,7 @@ app.post('/api/v1/daily-poker/wager', (req, res) => {
   const betTier = Math.max(1, Math.min(3, Number(req.body?.bet_tier) || 1));
   const wagerClefs = DAILY_POKER_BETS[betTier - 1] || 10;
   state.potClefs = Math.max(100, (state.potClefs || 100) + wagerClefs);
+  saveDailyPokerStateToDisk();
   res.json({
     success: true,
     bet_tier: betTier,
@@ -1185,12 +1247,14 @@ app.post('/api/v1/daily-poker/wager', (req, res) => {
 
 app.post('/api/v1/daily-poker/submit', (req, res) => {
   const state = getOrCreateDailyPokerState();
-  const rawName = String(req.body?.player_name || req.body?.username || 'Jugador').trim().slice(0, 28) || 'Jugador';
+  const rawName = String(req.body?.player_name || req.body?.username || req.body?.nickname || 'Jugador').trim().slice(0, 28) || 'Jugador';
   const avatarUrl = req.body?.avatar_url || null;
   const score = Math.max(0, Math.round(Number(req.body?.score) || 0));
   const betTier = Math.max(1, Math.min(3, Number(req.body?.bet_tier) || 1));
 
-  if (score > 0) {
+  const isTest = rawName.toLowerCase() === 'test' || rawName.toLowerCase() === 'tester' || rawName.toLowerCase() === 'prueba' || rawName.toLowerCase() === 'dummy';
+
+  if (score > 0 && !isTest) {
     const existingIdx = state.rankings.findIndex(r => r.player_name.toLowerCase() === rawName.toLowerCase());
     if (existingIdx >= 0) {
       if (score >= state.rankings[existingIdx].score) {
@@ -1208,8 +1272,14 @@ app.post('/api/v1/daily-poker/submit', (req, res) => {
         timestamp: Date.now()
       });
     }
-    state.rankings.sort((a, b) => b.score - a.score);
   }
+
+  // Purge any test accounts and sort descending
+  state.rankings = (state.rankings || []).filter(r => {
+    const nm = String(r.player_name || '').trim().toLowerCase();
+    return nm && nm !== 'test' && nm !== 'tester' && nm !== 'prueba' && nm !== 'dummy';
+  });
+  state.rankings.sort((a, b) => b.score - a.score);
 
   const achievedIdx = state.rankings.findIndex(r => r.player_name.toLowerCase() === rawName.toLowerCase() && r.score >= score);
   const rank = achievedIdx >= 0 ? (achievedIdx + 1) : (state.rankings.length + 1);
@@ -1227,6 +1297,8 @@ app.post('/api/v1/daily-poker/submit', (req, res) => {
     potWin = Math.max(5, Math.round(state.potClefs * matchedRow.baseShare * tierFactor));
   }
 
+  saveDailyPokerStateToDisk();
+
   res.json({
     success: true,
     rank,
@@ -1236,7 +1308,7 @@ app.post('/api/v1/daily-poker/submit', (req, res) => {
     potWin,
     totalWin: potWin,
     potClefs: state.potClefs,
-    rankings: state.rankings.slice(0, 15).map((r, i) => ({ ...r, rank: i + 1 }))
+    rankings: state.rankings.slice(0, 20).map((r, i) => ({ ...r, rank: i + 1 }))
   });
 });
 
