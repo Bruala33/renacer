@@ -3685,7 +3685,7 @@
         "stars": 4,
         "combo": 380,
         "accuracy": 82.93138561709338,
-        "date": "2026-10-24 03:02:49"
+        "date": "2026-10-24 03:02:50"
       }
     ]
   },
@@ -3712,8 +3712,8 @@
     },
     {
       "name": "FAZTL",
-      "total_score": 12076919,
-      "clefs": 98
+      "total_score": 12746371,
+      "clefs": 104
     },
     {
       "name": "Niggerman",
@@ -3879,12 +3879,12 @@
         "score": 51020613
       },
       {
-        "name": "Dady cool",
-        "score": 12366565
+        "name": "FAZTL",
+        "score": 12746371
       },
       {
-        "name": "FAZTL",
-        "score": 12076919
+        "name": "Dady cool",
+        "score": 12366565
       },
       {
         "name": "Niggerman",
