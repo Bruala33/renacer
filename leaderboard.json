@@ -3881,13 +3881,23 @@
         "accuracy": 6.576311941343659,
         "date": "2026-10-24 05:31:02"
       }
+    ],
+    "bs_ac6a": [
+      {
+        "name": "Mauricio",
+        "score": 1306950,
+        "stars": 5,
+        "combo": 625,
+        "accuracy": 98.6526268115942,
+        "date": "2026-10-24 07:33:20"
+      }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 51020613,
-      "clefs": 469
+      "total_score": 52327563,
+      "clefs": 482
     },
     {
       "name": "Rocky",
@@ -4075,7 +4085,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 51020613
+        "score": 52327563
       },
       {
         "name": "FAZTL",
