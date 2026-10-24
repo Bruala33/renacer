@@ -3747,6 +3747,16 @@
         "accuracy": 78.43137254901961,
         "date": "2026-10-24 04:57:31"
       }
+    ],
+    "clonehero_373701": [
+      {
+        "name": "Libay",
+        "score": 4800,
+        "stars": 3.5,
+        "combo": 12,
+        "accuracy": 0.16084039104320072,
+        "date": "2026-10-24 05:05:31"
+      }
     ]
   },
   "global": [
@@ -3792,7 +3802,7 @@
     },
     {
       "name": "Libay",
-      "total_score": 5735903,
+      "total_score": 5740703,
       "clefs": 40
     },
     {
@@ -3961,7 +3971,7 @@
       },
       {
         "name": "Libay",
-        "score": 5735903
+        "score": 5740703
       },
       {
         "name": "Laaleplo",
