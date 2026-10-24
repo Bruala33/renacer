@@ -3787,6 +3787,16 @@
         "accuracy": 74.32738577547005,
         "date": "2026-10-24 05:16:22"
       }
+    ],
+    "top_dyango_el_primer_beso": [
+      {
+        "name": "Libay",
+        "score": 58690,
+        "stars": 3.5,
+        "combo": 57,
+        "accuracy": 6.5242572529419744,
+        "date": "2026-10-24 05:17:56"
+      }
     ]
   },
   "global": [
@@ -3832,7 +3842,7 @@
     },
     {
       "name": "Libay",
-      "total_score": 6756187,
+      "total_score": 6814877,
       "clefs": 49
     },
     {
@@ -4001,7 +4011,7 @@
       },
       {
         "name": "Libay",
-        "score": 6756187
+        "score": 6814877
       },
       {
         "name": "Laaleplo",
