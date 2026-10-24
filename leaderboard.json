@@ -2228,6 +2228,14 @@
     ],
     "top_nirvana_smells_like_teen_spirit": [
       {
+        "name": "FAZTL",
+        "score": 132099,
+        "stars": 3.5,
+        "combo": 104,
+        "accuracy": 7.038946824910068,
+        "date": "2026-10-24 02:52:52"
+      },
+      {
         "name": "bori",
         "score": 103699,
         "stars": 3.5,
@@ -3674,8 +3682,8 @@
     },
     {
       "name": "FAZTL",
-      "total_score": 11210198,
-      "clefs": 91
+      "total_score": 11342297,
+      "clefs": 92
     },
     {
       "name": "Niggerman",
@@ -3846,7 +3854,7 @@
       },
       {
         "name": "FAZTL",
-        "score": 11210198
+        "score": 11342297
       },
       {
         "name": "Niggerman",
