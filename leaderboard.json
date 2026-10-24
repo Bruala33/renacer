@@ -3851,6 +3851,16 @@
         "accuracy": 2.29011928876885,
         "date": "2026-10-24 05:25:17"
       }
+    ],
+    "top_orishas_que_pasa": [
+      {
+        "name": "Libay",
+        "score": 33900,
+        "stars": 3.5,
+        "combo": 41,
+        "accuracy": 1.8204714430324005,
+        "date": "2026-10-24 05:26:04"
+      }
     ]
   },
   "global": [
@@ -3896,7 +3906,7 @@
     },
     {
       "name": "Libay",
-      "total_score": 7393858,
+      "total_score": 7427758,
       "clefs": 51
     },
     {
@@ -4065,7 +4075,7 @@
       },
       {
         "name": "Libay",
-        "score": 7393858
+        "score": 7427758
       },
       {
         "name": "Laaleplo",
