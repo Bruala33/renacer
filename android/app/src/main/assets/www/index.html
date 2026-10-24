@@ -3345,358 +3345,434 @@
       </div>
     </div>
 
-    <!-- MODAL LAS VEGAS VIDEO POKER: "CANCIÓN DEL DÍA - JOTAS O MEJOR" -->
+    <!-- MODAL LAS VEGAS VIDEO POKER A PANTALLA COMPLETA: "CANCIÓN DEL DÍA - VIDEO POKER" -->
     <style>
       .vp-modal-backdrop {
         position: fixed;
         inset: 0;
+        width: 100vw;
+        height: 100dvh;
         z-index: 9995;
-        background: radial-gradient(circle at 50% 45%, #073b1e 0%, #021a0c 68%, #010804 100%);
+        background: radial-gradient(circle at 50% 50%, #160c04 0%, #080401 75%, #000000 100%);
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
-        padding: 6px;
-        overflow-y: auto;
+        justify-content: stretch;
+        padding: 0;
+        overflow: hidden;
         user-select: none;
       }
+
+      /* Mueble Arcade/Casino Vintage a Pantalla Completa Vertical */
       .vp-cabinet {
         position: relative;
         width: 100%;
-        max-width: 680px;
-        background: linear-gradient(180deg, #f5dc82 0%, #d4ab39 28%, #9e7619 72%, #684b09 100%);
-        border: 3px solid #fbe89c;
-        border-radius: 16px 16px 10px 10px;
-        box-shadow: 0 22px 60px rgba(0,0,0,0.92), inset 0 2px 6px rgba(255,255,255,0.65);
-        padding: 8px 14px 0 14px;
+        max-width: 520px;
+        height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        background:
+          linear-gradient(90deg,
+            #422a04 0px,
+            #9c6f16 5px,
+            #f7df8b 10px,
+            #b88722 15px,
+            #211408 17px,
+            #2c1a0b calc(100% - 17px),
+            #b88722 calc(100% - 15px),
+            #f7df8b calc(100% - 10px),
+            #9c6f16 calc(100% - 5px),
+            #422a04 100%
+          );
+        border-top: 4px solid #f7df8b;
+        border-bottom: 5px solid #3b2404;
+        box-shadow: 0 0 60px rgba(0,0,0,0.98), inset 0 0 24px rgba(0,0,0,0.85);
+        padding: 6px 14px 8px 14px;
+        gap: 6px;
+        overflow: hidden;
       }
-      /* Pilares cilíndricos laterales de oro cepillado */
-      .vp-cabinet::before,
-      .vp-cabinet::after {
-        content: '';
-        position: absolute;
-        top: 4px;
-        bottom: 34px;
-        width: 10px;
-        background: linear-gradient(90deg, #5e4206 0%, #f7e08a 45%, #c79c2b 75%, #4a3304 100%);
-        border-radius: 6px;
-        box-shadow: inset 0 0 4px rgba(0,0,0,0.6);
-        z-index: 5;
-      }
-      .vp-cabinet::before { left: 2px; }
-      .vp-cabinet::after { right: 2px; }
 
-      /* Marquesina superior estilo JOTAS O MEJOR */
+      /* Remaches metálicos en las esquinas del mueble */
+      .vp-corner-rivet {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: radial-gradient(circle at 35% 35%, #fffbeb 0%, #d97706 60%, #451a03 100%);
+        border: 1px solid #291502;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.9);
+      }
+
+      /* 1. Marquesina Superior Iluminada estilo Las Vegas Vintage */
       .vp-marquee {
         position: relative;
-        background: radial-gradient(ellipse at 50% 50%, #26221e 0%, #0b0908 75%, #000000 100%);
-        border: 3px solid #cda333;
-        border-radius: 10px;
+        flex-shrink: 0;
+        background:
+          radial-gradient(ellipse at 50% 35%, #3b1d06 0%, #1a0b02 65%, #090401 100%);
+        border: 3px solid #eab308;
+        border-radius: 12px;
         padding: 6px 10px;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        overflow: hidden;
-        box-shadow: inset 0 0 18px rgba(0,0,0,0.95), 0 3px 8px rgba(0,0,0,0.6);
-        margin-bottom: 7px;
+        box-shadow:
+          inset 0 0 22px rgba(0,0,0,0.95),
+          inset 0 1px 0 rgba(254,240,138,0.6),
+          0 4px 10px rgba(0,0,0,0.75);
+      }
+      /* Tira de bombillas cálidas de casino en la marquesina */
+      .vp-marquee::before {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 10px;
+        right: 10px;
+        height: 4px;
+        background-image: radial-gradient(circle, #fef08a 1.5px, #f59e0b 2.5px, transparent 3px);
+        background-size: 14px 4px;
+        opacity: 0.85;
+        pointer-events: none;
       }
       .vp-marquee-title {
         font-family: Georgia, 'Times New Roman', serif;
         font-weight: 900;
-        font-size: clamp(15px, 3.8vw, 24px);
-        letter-spacing: 0.06em;
+        font-size: clamp(16px, 4.6vw, 23px);
+        letter-spacing: 0.05em;
         text-transform: uppercase;
-        background: linear-gradient(180deg, #fff6b3 0%, #f3c644 45%, #b88214 85%, #fbe285 100%);
+        background: linear-gradient(180deg, #fffbeb 0%, #fde047 38%, #d97706 78%, #fef08a 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        filter: drop-shadow(0 2px 0 #3b2600) drop-shadow(0 4px 6px rgba(0,0,0,0.85));
+        filter: drop-shadow(0 2px 0 #3b1800) drop-shadow(0 0 10px rgba(245,158,11,0.55));
         line-height: 1.05;
       }
       .vp-marquee-sub {
         font-family: Impact, 'Arial Black', sans-serif;
-        font-size: clamp(10px, 2.3vw, 13px);
+        font-size: clamp(10px, 2.8vw, 13px);
         letter-spacing: 0.16em;
-        color: #5271ff;
-        text-shadow: -1px -1px 0 #ffffff, 1px -1px 0 #ffffff, -1px 1px 0 #ffffff, 1px 1px 0 #ffffff, 0 2px 8px rgba(59,130,246,0.9);
+        color: #60a5fa;
+        text-shadow: -1px -1px 0 #ffffff, 1px -1px 0 #ffffff, -1px 1px 0 #ffffff, 1px 1px 0 #ffffff, 0 0 10px rgba(59,130,246,0.95);
         line-height: 1;
-        margin-top: 2px;
       }
 
-      /* Cuerpo central: Monitor CRT Azul a la izquierda + Panel de Créditos/Moneda a la derecha */
-      .vp-body-grid {
+      /* 2. Panel Horizontal de Contadores LED de 7 Segmentos (Latón Empotrado) */
+      .vp-meters-bar {
+        flex-shrink: 0;
         display: grid;
-        grid-template-columns: 1fr 122px;
-        gap: 7px;
-        background: #0c0a06;
-        border: 3px solid #8c6918;
+        grid-template-columns: 1fr 1fr 1.28fr;
+        gap: 6px;
+        background: linear-gradient(180deg, #36240c 0%, #1b1105 100%);
+        border: 2.5px solid #ca8a04;
         border-radius: 10px;
-        padding: 6px;
-        box-shadow: inset 0 0 14px #000;
+        padding: 5px 7px;
+        box-shadow: inset 0 3px 8px rgba(0,0,0,0.95), 0 2px 6px rgba(0,0,0,0.65);
       }
-      @media (max-width: 480px) {
-        .vp-body-grid {
-          grid-template-columns: 1fr 96px;
-          gap: 5px;
-          padding: 4px;
-        }
+      .vp-meter-box {
+        background: linear-gradient(180deg, #17120c 0%, #090704 100%);
+        border: 1.5px solid #a16207;
+        border-radius: 7px;
+        padding: 3px 5px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        box-shadow: inset 0 2px 6px rgba(0,0,0,0.95);
+      }
+      .vp-meter-label {
+        font-size: 8.5px;
+        font-weight: 900;
+        color: #fde68a;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        line-height: 1.1;
+        margin-bottom: 2px;
+      }
+      .vp-led-screen {
+        width: 100%;
+        background: #180202;
+        border: 1.5px solid #450a0a;
+        border-radius: 4px;
+        font-family: 'Courier New', monospace;
+        font-weight: 900;
+        color: #ff2e2e;
+        text-shadow: 0 0 8px #ff0000, 0 0 2px #fca5a5;
+        font-size: clamp(13px, 3.6vw, 16px);
+        line-height: 1.15;
+        padding: 2px 4px;
+        text-align: center;
+        letter-spacing: 0.06em;
+      }
+      .vp-led-screen.vp-led-amber {
+        background: #170d02;
+        border-color: #543205;
+        color: #fbbf24;
+        text-shadow: 0 0 8px #f59e0b, 0 0 2px #fef08a;
       }
 
-      /* Monitor CRT Azul Clásico de Video Poker */
+      /* 3. Monitor CRT Curvo de Ancho Completo (100% de ancho, sin recortes) */
+      .vp-crt-bezel {
+        flex: 1;
+        min-height: 0;
+        background: linear-gradient(180deg, #1f1b16 0%, #0d0b08 100%);
+        border: 4px solid #b4831e;
+        border-radius: 16px;
+        padding: 5px;
+        box-shadow:
+          inset 0 0 18px #000000,
+          0 4px 12px rgba(0,0,0,0.85);
+        display: flex;
+        flex-direction: column;
+      }
       .vp-crt-screen {
         position: relative;
-        background: linear-gradient(180deg, #0014a8 0%, #0019d4 50%, #00108f 100%);
-        border: 3px solid #222a68;
-        border-radius: 10px;
-        padding: 6px;
-        box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.72), 0 0 8px rgba(0, 38, 255, 0.4);
+        flex: 1;
+        min-height: 0;
+        background:
+          radial-gradient(circle at 50% 42%, #0025e8 0%, #0018b5 58%, #000e7a 100%);
+        border: 3px solid #3b4cca;
+        border-radius: 12px;
+        padding: 7px 8px;
+        box-shadow:
+          inset 0 0 32px rgba(0, 0, 0, 0.78),
+          inset 0 2px 12px rgba(96, 165, 250, 0.25);
         display: flex;
         flex-direction: column;
         justify-content: space-between;
+        gap: 6px;
         overflow: hidden;
       }
+      /* Líneas de escaneo CRT auténticas + reflejo de cristal curvo */
       .vp-crt-screen::after {
         content: '';
         position: absolute;
         inset: 0;
-        background: repeating-linear-gradient(
-          0deg,
-          rgba(0, 0, 0, 0.13) 0px,
-          rgba(0, 0, 0, 0.13) 1px,
-          transparent 1px,
-          transparent 3px
-        );
+        background:
+          linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 40%),
+          repeating-linear-gradient(
+            0deg,
+            rgba(0, 0, 0, 0.16) 0px,
+            rgba(0, 0, 0, 0.16) 1px,
+            transparent 1px,
+            transparent 3px
+          );
         pointer-events: none;
-        z-index: 10;
+        z-index: 15;
       }
 
-      /* Tabla de Pagos y Ranking en Vivo (Borde Amarillo/Oro con 5 columnas de Apuesta) */
-      .vp-paytable-wrap {
+      /* Cabecera dentro del CRT: Canción del Día Fija + Modo + Dificultad */
+      .vp-song-header-strip {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        background: linear-gradient(90deg, rgba(0, 8, 65, 0.92) 0%, rgba(0, 18, 115, 0.92) 50%, rgba(0, 8, 65, 0.92) 100%);
         border: 2px solid #facc15;
-        border-radius: 7px;
-        background: rgba(0, 10, 85, 0.92);
+        border-radius: 9px;
+        padding: 5px 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.55);
+      }
+
+      /* Tabla de Pagos y Ranking en Vivo (Ancho 100% con 6 columnas perfectamente visibles) */
+      .vp-paytable-wrap {
+        flex-shrink: 0;
+        border: 2.5px solid #facc15;
+        border-radius: 8px;
+        background: rgba(0, 9, 74, 0.94);
         overflow: hidden;
-        box-shadow: 0 0 10px rgba(250, 204, 21, 0.25);
-        margin-bottom: 6px;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.65);
       }
       .vp-paytable {
         width: 100%;
+        table-layout: fixed;
         border-collapse: collapse;
         font-family: 'Courier New', monospace, sans-serif;
-        font-weight: 800;
-        font-size: clamp(8.5px, 1.85vw, 11px);
+        font-weight: 900;
+        font-size: clamp(10px, 2.65vw, 12.5px);
         line-height: 1.22;
       }
       .vp-paytable th,
       .vp-paytable td {
-        padding: 2.5px 4px;
-        border-right: 1px solid #eab308;
+        padding: 3.5px 3px;
+        border-right: 1.5px solid #eab308;
+        overflow: hidden;
+        text-overflow: ellipsis;
         white-space: nowrap;
+      }
+      .vp-paytable th:first-child,
+      .vp-paytable td:first-child {
+        width: 38%;
+      }
+      .vp-paytable th:not(:first-child),
+      .vp-paytable td:not(:first-child) {
+        width: 12.4%;
+        text-align: center;
       }
       .vp-paytable th:last-child,
       .vp-paytable td:last-child {
         border-right: none;
       }
       .vp-paytable tr {
-        border-bottom: 1px solid rgba(250, 204, 21, 0.22);
+        border-bottom: 1px solid rgba(250, 204, 21, 0.28);
       }
       .vp-paytable tr:last-child {
         border-bottom: none;
       }
       .vp-col-active {
-        background: linear-gradient(180deg, #990808 0%, #6e0404 100%) !important;
+        background: linear-gradient(180deg, #dc2626 0%, #991b1b 100%) !important;
         color: #fef08a !important;
-        text-shadow: 0 0 6px rgba(254, 240, 138, 0.85);
+        text-shadow: 0 0 6px rgba(254, 240, 138, 0.95);
       }
 
-      /* Fila de 5 Cartas de Casino en la mitad inferior del CRT */
+      /* Fila de 5 Naipes Grandes Vintage en el CRT */
       .vp-cards-row {
+        flex: 1;
+        min-height: 0;
         display: grid;
         grid-template-columns: repeat(5, 1fr);
-        gap: 5px;
-        margin: 4px 0;
-        perspective: 800px;
+        gap: 6px;
+        align-items: center;
+        perspective: 900px;
+        padding: 2px 0;
       }
       .vp-card-slot {
         position: relative;
         width: 100%;
-        aspect-ratio: 0.68;
+        height: 100%;
+        max-height: 138px;
+        min-height: 96px;
         cursor: pointer;
         transform-style: preserve-3d;
-        transition: transform 0.48s cubic-bezier(0.22, 1, 0.36, 1);
+        transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
       }
       .vp-card-slot.flipped {
         transform: rotateY(180deg);
       }
       .vp-card-slot.held-glow {
-        filter: drop-shadow(0 0 8px #facc15);
+        filter: drop-shadow(0 0 8px rgba(250, 204, 21, 0.85));
       }
       .vp-card-face {
         position: absolute;
         inset: 0;
-        border-radius: 6px;
+        border-radius: 8px;
         backface-visibility: hidden;
         -webkit-backface-visibility: hidden;
         overflow: hidden;
-        box-shadow: 0 3px 7px rgba(0,0,0,0.65);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.8);
       }
-      /* Dorso Rojo Clásico "Casino 𝄞" igual a la imagen de referencia */
+      /* Dorso Rojo Clásico "Casino 𝄞" */
       .vp-card-back {
-        background: linear-gradient(135deg, #b91c1c 0%, #881313 55%, #630808 100%);
-        border: 2.5px solid #f8fafc;
+        background: linear-gradient(135deg, #b91c1c 0%, #7f1d1d 55%, #450a0a 100%);
+        border: 2.5px solid #fef9c3;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 3px;
+        padding: 4px;
       }
       .vp-card-back-inner {
         width: 100%;
         height: 100%;
         border: 1.5px solid #facc15;
-        border-radius: 4px;
+        border-radius: 5px;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        background: radial-gradient(circle, rgba(250,204,21,0.14) 0%, transparent 75%);
+        background:
+          radial-gradient(circle, rgba(250,204,21,0.2) 0%, transparent 72%),
+          repeating-linear-gradient(45deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 3px, transparent 3px, transparent 6px);
       }
       .vp-card-back-script {
         font-family: Georgia, serif;
         font-style: italic;
         font-weight: 900;
         color: #fde047;
-        font-size: clamp(9px, 2vw, 13px);
-        text-shadow: 0 1px 3px #000;
-        transform: rotate(-90deg);
+        font-size: clamp(11px, 2.8vw, 14px);
+        text-shadow: 0 2px 4px #000;
+        transform: rotate(-35deg);
         white-space: nowrap;
-        letter-spacing: 0.03em;
       }
-      /* Cara Delantera Blanca de Carta de Póker */
+      /* Cara Delantera Marfil Vintage de Carta de Póker */
       .vp-card-front {
         transform: rotateY(180deg);
-        background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
-        border: 2px solid #e2e8f0;
+        background: linear-gradient(180deg, #fffdf7 0%, #f5efe0 100%);
+        border: 2.5px solid #d4af37;
         color: #0f172a;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        padding: 3px;
+        padding: 4px;
+        box-shadow: inset 0 0 0 1px rgba(180, 131, 30, 0.35);
       }
-      .vp-hold-tag {
-        position: absolute;
-        top: -7px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: #facc15;
-        color: #000;
-        font-weight: 900;
-        font-size: 7.5px;
-        padding: 0.5px 4px;
-        border-radius: 3px;
-        border: 1px solid #000;
-        z-index: 20;
-        letter-spacing: 0.05em;
-        display: none;
-      }
-      .vp-card-slot.held-glow .vp-hold-tag {
-        display: block;
-      }
-
-      /* Panel Lateral Derecho: CRÉDITOS, VALOR APUESTA, LOGO CASINO, INSERTA MONEDA */
-      .vp-right-panel {
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        gap: 5px;
-      }
-      .vp-meter-box {
-        background: linear-gradient(180deg, #27221a 0%, #120f0b 100%);
-        border: 2px solid #cda333;
-        border-radius: 6px;
-        padding: 3px 4px;
-        text-align: center;
-        box-shadow: inset 0 2px 6px rgba(0,0,0,0.9);
-      }
-      .vp-meter-label {
-        font-size: 8px;
-        font-weight: 900;
-        color: #f3d478;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        margin-bottom: 2px;
-      }
-      .vp-led-screen {
-        background: #1a0303;
-        border: 1.5px solid #450a0a;
-        border-radius: 4px;
+      .vp-card-badge-top {
+        background: #0f172a;
+        color: #facc15;
         font-family: 'Courier New', monospace;
         font-weight: 900;
-        color: #ff2a2a;
-        text-shadow: 0 0 8px #ff0000;
-        font-size: clamp(12px, 2.5vw, 15px);
-        padding: 2px 4px;
-        letter-spacing: 0.08em;
-      }
-
-      /* Flecha Azul/Oro INSERTA CLAVES y Ranura de Moneda */
-      .vp-insert-arrow {
-        position: relative;
-        background: linear-gradient(180deg, #0018a8 0%, #000d6b 100%);
-        border: 2px solid #facc15;
-        border-radius: 6px;
-        padding: 4px 2px 8px 2px;
+        font-size: clamp(7.5px, 2vw, 9px);
         text-align: center;
-        clip-path: polygon(10% 0%, 90% 0%, 90% 62%, 100% 62%, 50% 100%, 0% 62%, 10% 62%);
-        cursor: pointer;
-        transition: transform 0.12s, filter 0.12s;
-      }
-      .vp-insert-arrow:active {
-        transform: translateY(2px);
-        filter: brightness(1.25);
-      }
-      .vp-coin-slot-bezel {
-        width: 58px;
-        height: 22px;
-        margin: 0 auto;
-        border-radius: 50% / 40%;
-        background: radial-gradient(circle at 40% 35%, #9ca3af 0%, #4b5563 60%, #1f2937 100%);
-        border: 2px solid #374151;
-        box-shadow: 0 3px 6px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-      }
-      .vp-coin-slot-slit {
-        width: 4px;
-        height: 13px;
-        background: #030712;
-        border-radius: 2px;
-        box-shadow: inset 0 0 2px #000, 1px 0 0 rgba(255,255,255,0.35);
+        padding: 1px 2px;
+        border-radius: 3px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
       }
 
-      /* Consola Inferior Inclinada en 3D con los 9 Botones Físicos de Video Poker */
+      /* 4. Consola Inferior Inclinada en 3D con Botones Físicos de Arcade/Casino */
       .vp-deck-shelf {
-        margin: 6px -14px 0 -14px;
-        padding: 8px 10px 12px 10px;
-        background: linear-gradient(180deg, #e5c158 0%, #b88b22 58%, #78560a 100%);
-        border-top: 3px solid #fef08a;
-        border-radius: 6px 6px 10px 10px;
-        box-shadow: 0 -4px 12px rgba(0,0,0,0.55), inset 0 3px 6px rgba(255,255,255,0.5);
+        flex-shrink: 0;
+        background: linear-gradient(180deg, #e5c158 0%, #b88b22 45%, #6e4e08 100%);
+        border: 3px solid #fef08a;
+        border-radius: 12px;
+        padding: 7px 8px 9px 8px;
+        box-shadow:
+          0 -4px 14px rgba(0,0,0,0.75),
+          inset 0 3px 6px rgba(255,255,255,0.65);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
       }
-      .vp-deck-buttons-row {
+
+      /* Fila superior de 5 botones metálicos HOLD / GIRAR CARTA alineados con las 5 cartas */
+      .vp-hold-buttons-grid {
         display: grid;
-        grid-template-columns: 1.05fr repeat(5, 1fr) 1.15fr 1.25fr 1.35fr;
-        gap: 4px;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 6px;
+      }
+      .vp-btn-hold {
+        background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 55%, #94a3b8 100%);
+        color: #0f172a;
+        border: 2px solid #f8fafc;
+        border-radius: 6px;
+        padding: 4px 2px;
+        font-family: Impact, 'Arial Black', sans-serif;
+        font-size: clamp(8.5px, 2.2vw, 10.5px);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        text-align: center;
+        box-shadow: 0 4px 0 #1e293b, 0 5px 8px rgba(0,0,0,0.7);
+        cursor: pointer;
+        transition: transform 0.08s ease, box-shadow 0.08s ease;
+      }
+      .vp-btn-hold:active {
+        transform: translateY(3px);
+        box-shadow: 0 1px 0 #1e293b, 0 2px 4px rgba(0,0,0,0.7);
+      }
+
+      /* Fila principal de 4 grandes pulsadores luminosos de Casino */
+      .vp-main-buttons-grid {
+        display: grid;
+        grid-template-columns: 0.9fr 1.05fr 1.05fr 1.6fr;
+        gap: 7px;
         align-items: stretch;
       }
       .vp-phys-btn {
         position: relative;
-        border-radius: 6px;
-        padding: 6px 2px;
+        border-radius: 9px;
+        padding: 8px 4px;
         font-family: Impact, 'Arial Black', sans-serif;
-        font-size: clamp(7.5px, 1.75vw, 10.5px);
+        font-size: clamp(11px, 3vw, 14px);
         line-height: 1.05;
+        letter-spacing: 0.04em;
         text-transform: uppercase;
         text-align: center;
         cursor: pointer;
@@ -3708,104 +3784,148 @@
         user-select: none;
       }
       .vp-phys-btn:active {
-        transform: translateY(3px);
+        transform: translateY(4px);
       }
-      /* Botón Rojo Izquierdo (SALIR / COBRAR) */
+
+      /* Botón Rojo SALIR */
       .vp-btn-red {
-        background: linear-gradient(180deg, #ef4444 0%, #b91c1c 70%, #7f1d1d 100%);
-        color: #1a0202;
-        border: 2px solid #fca5a5;
-        box-shadow: 0 5px 0 #450a0a, 0 7px 10px rgba(0,0,0,0.75);
+        background: linear-gradient(180deg, #f87171 0%, #dc2626 55%, #991b1b 100%);
+        color: #ffffff;
+        text-shadow: 0 1px 2px #450a0a;
+        border: 2px solid #fecaca;
+        box-shadow: 0 5px 0 #450a0a, 0 7px 12px rgba(0,0,0,0.8);
       }
       .vp-btn-red:active {
-        box-shadow: 0 2px 0 #450a0a, 0 3px 5px rgba(0,0,0,0.75);
+        box-shadow: 0 1px 0 #450a0a, 0 2px 5px rgba(0,0,0,0.8);
       }
-      /* 5 Botones Blancos/Cromo (RETENER / CARTAS) */
-      .vp-btn-hold {
-        background: linear-gradient(180deg, #ffffff 0%, #dbeafe 65%, #93c5fd 100%);
-        color: #0f172a;
-        border: 2px solid #f8fafc;
-        box-shadow: 0 5px 0 #1e293b, 0 7px 10px rgba(0,0,0,0.75);
+
+      /* Botón Azul/Plata APUESTA + */
+      .vp-btn-bet {
+        background: linear-gradient(180deg, #e0f2fe 0%, #38bdf8 50%, #0284c7 100%);
+        color: #082f49;
+        text-shadow: 0 1px 0 rgba(255,255,255,0.6);
+        border: 2px solid #bae6fd;
+        box-shadow: 0 5px 0 #0c4a6e, 0 7px 12px rgba(0,0,0,0.8);
       }
-      .vp-btn-hold:active {
-        box-shadow: 0 2px 0 #1e293b, 0 3px 5px rgba(0,0,0,0.75);
+      .vp-btn-bet:active {
+        box-shadow: 0 1px 0 #0c4a6e, 0 2px 5px rgba(0,0,0,0.8);
       }
-      /* 3 Botones Grandes de Acción Derecha (APUESTA, APUESTA MAX, REPARTIR) */
-      .vp-btn-action {
-        background: linear-gradient(180deg, #ffffff 0%, #e0f2fe 55%, #7dd3fc 100%);
-        color: #090d16;
-        border: 2px solid #ffffff;
-        box-shadow: 0 6px 0 #0f172a, 0 8px 12px rgba(0,0,0,0.85);
-        padding: 8px 3px;
+
+      /* Botón Ámbar APUESTA MÁX */
+      .vp-btn-max {
+        background: linear-gradient(180deg, #fef08a 0%, #f59e0b 55%, #b45309 100%);
+        color: #271001;
+        text-shadow: 0 1px 0 rgba(255,255,255,0.65);
+        border: 2px solid #fef9c3;
+        box-shadow: 0 5px 0 #451a03, 0 7px 12px rgba(0,0,0,0.8);
       }
-      .vp-btn-action.vp-btn-deal {
-        background: linear-gradient(180deg, #fef9c3 0%, #fde047 55%, #eab308 100%);
-        border-color: #ffffff;
-        box-shadow: 0 6px 0 #713f12, 0 0 14px rgba(250, 204, 21, 0.7);
+      .vp-btn-max:active {
+        box-shadow: 0 1px 0 #451a03, 0 2px 5px rgba(0,0,0,0.8);
       }
-      .vp-btn-action:active {
-        box-shadow: 0 2px 0 #0f172a, 0 3px 6px rgba(0,0,0,0.85);
+
+      /* Botón Gigante Esmeralda/Oro REPARTIR / JUGAR */
+      .vp-btn-deal {
+        background: linear-gradient(180deg, #6ee7b7 0%, #10b981 48%, #047857 100%);
+        color: #ffffff;
+        text-shadow: 0 2px 3px #022c22;
+        border: 2.5px solid #a7f3d0;
+        box-shadow: 0 5px 0 #022c22, 0 0 18px rgba(16, 185, 129, 0.7), 0 7px 12px rgba(0,0,0,0.85);
+      }
+      .vp-btn-deal:active {
+        box-shadow: 0 1px 0 #022c22, 0 2px 6px rgba(0,0,0,0.85);
       }
     </style>
 
     <div id="dailyVideoPokerModal" class="vp-modal-backdrop hidden" style="display: none;">
       <div class="vp-cabinet">
 
-        <!-- 1. MARQUESINA SUPERIOR ("CANCIÓN DEL DÍA - VIDEO POKER") CON CARTAS DE JOTAS -->
+        <!-- 1. MARQUESINA SUPERIOR ILUMINADA DE CASINO VINTAGE -->
         <div class="vp-marquee">
-          <!-- Abanico izquierdo de cartas J♣ y J♠ -->
-          <div class="flex items-center -space-x-2 flex-shrink-0 pl-1">
-            <div class="w-7 h-10 bg-white rounded border border-gray-400 shadow flex flex-col justify-between p-0.5 text-black font-black text-[9px] -rotate-12">
-              <span>J♣</span>
-              <span class="self-center text-xs">♣</span>
+          <!-- Abanico izquierdo de naipes vintage -->
+          <div class="flex items-center -space-x-2 flex-shrink-0 pl-0.5">
+            <div class="w-7 h-10 bg-[#fffdf7] rounded border-2 border-amber-500 shadow-md flex flex-col justify-between p-0.5 text-slate-900 font-black text-[9px] -rotate-12">
+              <span>A♠</span>
+              <span class="self-center text-xs">♠</span>
             </div>
-            <div class="w-7 h-10 bg-white rounded border border-gray-400 shadow flex flex-col justify-between p-0.5 text-red-600 font-black text-[9px] rotate-6">
-              <span>J♥</span>
+            <div class="w-7 h-10 bg-[#fffdf7] rounded border-2 border-amber-500 shadow-md flex flex-col justify-between p-0.5 text-red-600 font-black text-[9px] rotate-6">
+              <span>K♥</span>
               <span class="self-center text-xs">♥</span>
             </div>
           </div>
 
-          <!-- Título Central -->
-          <div class="flex flex-col items-center text-center px-1">
+          <!-- Título Central Iluminado -->
+          <div class="flex flex-col items-center text-center px-1 min-w-0">
             <div class="vp-marquee-title">CANCIÓN DEL DÍA</div>
             <div class="flex items-center gap-2 mt-0.5">
               <span class="vp-marquee-sub">VIDEO POKER</span>
-              <span id="vpCountdownBadge" class="text-[9px] font-mono font-bold text-amber-300 bg-black/80 px-1.5 py-0.5 rounded border border-amber-500/40">23:59:59</span>
+              <span id="vpCountdownBadge" class="text-[10px] font-mono font-black text-amber-300 bg-black/90 px-2 py-0.5 rounded border border-amber-400/60 shadow-inner">23:59:59</span>
             </div>
           </div>
 
-          <!-- Abanico derecho de cartas J♦ y J♠ + Botón X discreto -->
-          <div class="flex items-center gap-1.5 flex-shrink-0">
-            <div class="flex items-center -space-x-2 pr-0.5">
-              <div class="w-7 h-10 bg-white rounded border border-gray-400 shadow flex flex-col justify-between p-0.5 text-red-600 font-black text-[9px] -rotate-6">
-                <span>J♦</span>
-                <span class="self-center text-xs">♦</span>
-              </div>
-              <div class="w-7 h-10 bg-white rounded border border-gray-400 shadow flex flex-col justify-between p-0.5 text-black font-black text-[9px] rotate-12">
-                <span>J♠</span>
-                <span class="self-center text-xs">♠</span>
-              </div>
+          <!-- Botón de Cierre Metálico Vintage -->
+          <button type="button" onclick="closeDailyVideoPoker()" class="w-8 h-8 rounded-lg bg-gradient-to-b from-red-600 to-red-900 border-2 border-amber-300 text-amber-100 font-black text-sm flex items-center justify-center shadow-lg active:scale-95 cursor-pointer flex-shrink-0" title="Cerrar máquina">
+            ✕
+          </button>
+        </div>
+
+        <!-- 2. BARRA HORIZONTAL DE CONTADORES LED DE 7 SEGMENTOS (100% VISIBLE Y CLARA) -->
+        <div class="vp-meters-bar">
+          <!-- Contador 1: Tus Claves Disponibles -->
+          <div class="vp-meter-box">
+            <div class="vp-meter-label">TUS CLAVES 𝄞</div>
+            <div id="vpCreditsLed" class="vp-led-screen">0000</div>
+          </div>
+
+          <!-- Contador 2: Bote Acumulado Hoy -->
+          <div class="vp-meter-box">
+            <div class="vp-meter-label">BOTE HOY 𝄞</div>
+            <div id="vpHeaderPotLed" class="vp-led-screen vp-led-amber">0150</div>
+          </div>
+
+          <!-- Contador 3: Selector de Apuesta con Botones [-] y [+] -->
+          <div class="vp-meter-box">
+            <div class="vp-meter-label">TU APUESTA AL BOTE</div>
+            <div class="flex items-center justify-between gap-1 w-full">
+              <button type="button" onclick="stepDailyPokerBet(-1)" class="w-6 h-6 bg-gradient-to-b from-amber-200 to-amber-500 text-black font-black text-sm rounded border border-amber-100 shadow active:scale-95 cursor-pointer flex items-center justify-center leading-none">−</button>
+              <div id="vpBetStepLed" class="vp-led-screen flex-1 text-center px-1">200𝄞</div>
+              <button type="button" onclick="stepDailyPokerBet(1)" class="w-6 h-6 bg-gradient-to-b from-amber-200 to-amber-500 text-black font-black text-sm rounded border border-amber-100 shadow active:scale-95 cursor-pointer flex items-center justify-center leading-none">+</button>
             </div>
           </div>
         </div>
 
-        <!-- 2. CUERPO CENTRAL: PANTALLA CRT AZUL (IZQUIERDA) + MÓDULO DE CRÉDITOS Y MONEDA (DERECHA) -->
-        <div class="vp-body-grid">
-
-          <!-- PANTALLA CRT AZUL -->
+        <!-- 3. MONITOR CRT CURVO DE ANCHO COMPLETO -->
+        <div class="vp-crt-bezel">
           <div class="vp-crt-screen">
 
-            <!-- TABLA DE PREMIOS POR RANKING Y CLASIFICACIÓN EN VIVO (5 Columnas de Apuesta) -->
+            <!-- A. CABECERA DE LA CANCIÓN DEL DÍA Y CONDICIONES FIJAS (TEXTO GRANDE Y LEGIBLE) -->
+            <div class="vp-song-header-strip">
+              <img id="vpCardSongImg" src="./app_logo.png" alt="Portada" class="w-11 h-11 rounded-lg object-cover border-2 border-amber-400 shadow-md flex-shrink-0">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-1.5">
+                  <span class="bg-amber-400 text-slate-950 font-black text-[8.5px] px-1.5 py-0.5 rounded uppercase tracking-wider flex-shrink-0">HOY FIJO</span>
+                  <div id="vpCardSongTitle" class="text-xs sm:text-sm font-black text-white truncate drop-shadow">Cargando canción...</div>
+                </div>
+                <div class="flex items-center justify-between gap-2 mt-1">
+                  <div id="vpCardSongArtist" class="text-[10.5px] font-bold text-cyan-200 truncate">—</div>
+                  <div class="flex items-center gap-1 flex-shrink-0">
+                    <span id="vpBannerMode" class="text-[9.5px] font-black bg-cyan-400/20 text-cyan-200 border border-cyan-400/60 px-1.5 py-0.5 rounded">🪞 OJEPSƎ</span>
+                    <span id="vpBannerDiff" class="text-[9.5px] font-black bg-amber-400/20 text-amber-200 border border-amber-400/60 px-1.5 py-0.5 rounded">DIFÍCIL</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- B. TABLA DE PREMIOS Y RANKING EN VIVO (6 COLUMNAS AL 100% SIN CORTES) -->
             <div class="vp-paytable-wrap">
               <table class="vp-paytable">
                 <thead>
-                  <tr class="bg-blue-950/90 text-amber-300 text-[8.5px] border-b border-yellow-400">
-                    <th class="text-left pl-1.5">PUESTO · JUGADOR</th>
-                    <th id="vpColHead1" class="text-center cursor-pointer" onclick="setDailyPokerBetTier(1)">10𝄞</th>
-                    <th id="vpColHead2" class="text-center cursor-pointer" onclick="setDailyPokerBetTier(2)">25𝄞</th>
-                    <th id="vpColHead3" class="text-center cursor-pointer" onclick="setDailyPokerBetTier(3)">50𝄞</th>
-                    <th id="vpColHead4" class="text-center cursor-pointer" onclick="setDailyPokerBetTier(4)">100𝄞</th>
-                    <th id="vpColHead5" class="text-center cursor-pointer vp-col-active" onclick="setDailyPokerBetTier(5)">200𝄞</th>
+                  <tr class="bg-blue-950 text-amber-300 text-[9.5px] border-b-2 border-yellow-400">
+                    <th class="text-left pl-2">RANKING EN VIVO</th>
+                    <th id="vpColHead1" class="cursor-pointer hover:bg-blue-800/60" onclick="setDailyPokerBetTier(1)">10𝄞</th>
+                    <th id="vpColHead2" class="cursor-pointer hover:bg-blue-800/60" onclick="setDailyPokerBetTier(2)">25𝄞</th>
+                    <th id="vpColHead3" class="cursor-pointer hover:bg-blue-800/60" onclick="setDailyPokerBetTier(3)">50𝄞</th>
+                    <th id="vpColHead4" class="cursor-pointer hover:bg-blue-800/60" onclick="setDailyPokerBetTier(4)">100𝄞</th>
+                    <th id="vpColHead5" class="cursor-pointer hover:bg-blue-800/60 vp-col-active" onclick="setDailyPokerBetTier(5)">200𝄞</th>
                   </tr>
                 </thead>
                 <tbody id="vpPaytableBody">
@@ -3814,191 +3934,147 @@
               </table>
             </div>
 
-            <!-- LAS 5 CARTAS DE LA PARTIDA DIARIA FIJA -->
+            <!-- C. LAS 5 CARTAS DE PÓKER VINTAGE (DISEÑO LIMPIO, ICONOS GRANDES, CERO SOLAPAMIENTO) -->
             <div class="vp-cards-row" id="vpCardsContainer">
-              <!-- Carta 1: Canción del Día -->
+
+              <!-- Carta 1: A♠ CANCIÓN FIJA -->
               <div class="vp-card-slot flipped" id="vpCard0" onclick="toggleDailyPokerCardFlip(0)">
-                <div class="vp-hold-tag">FIJA</div>
                 <div class="vp-card-face vp-card-back">
                   <div class="vp-card-back-inner">
                     <span class="vp-card-back-script">Casino 𝄞</span>
                   </div>
                 </div>
                 <div class="vp-card-face vp-card-front">
-                  <div class="flex justify-between items-center text-[9px] font-black text-slate-900 leading-none">
-                    <span>A♠</span><span>CANCIÓN</span>
+                  <div class="flex justify-between items-center text-[11px] font-black text-slate-900 leading-none">
+                    <span>A</span><span>♠</span>
                   </div>
-                  <div class="flex-1 flex flex-col items-center justify-center text-center overflow-hidden my-0.5">
-                    <img id="vpCardSongImg" src="./app_logo.png" alt="" class="w-9 h-9 sm:w-11 sm:h-11 rounded object-cover border border-amber-500 shadow-sm mb-0.5">
-                    <div id="vpCardSongTitle" class="text-[8px] font-black text-slate-900 leading-tight line-clamp-2 px-0.5">Cargando...</div>
+                  <div class="flex-1 flex flex-col items-center justify-center text-center my-0.5">
+                    <img id="vpCardMiniCover" src="./app_logo.png" alt="" class="w-10 h-10 rounded-full object-cover border-2 border-amber-500 shadow">
                   </div>
-                  <div class="text-[7.5px] font-bold text-slate-500 truncate text-center" id="vpCardSongArtist">—</div>
+                  <div class="vp-card-badge-top">CANCIÓN</div>
                 </div>
               </div>
 
-              <!-- Carta 2: Modo de Juego Fijo -->
+              <!-- Carta 2: K♥ MODO FIJO -->
               <div class="vp-card-slot flipped" id="vpCard1" onclick="toggleDailyPokerCardFlip(1)">
-                <div class="vp-hold-tag">FIJO</div>
                 <div class="vp-card-face vp-card-back">
                   <div class="vp-card-back-inner">
                     <span class="vp-card-back-script">Casino 𝄞</span>
                   </div>
                 </div>
                 <div class="vp-card-face vp-card-front">
-                  <div class="flex justify-between items-center text-[9px] font-black text-red-600 leading-none">
-                    <span>K♥</span><span>MODO</span>
+                  <div class="flex justify-between items-center text-[11px] font-black text-red-600 leading-none">
+                    <span>K</span><span>♥</span>
                   </div>
-                  <div class="flex-1 flex flex-col items-center justify-center text-center">
-                    <div id="vpCardModeIcon" class="text-xl sm:text-2xl leading-none mb-0.5">🪞</div>
-                    <div id="vpCardModeName" class="text-[9px] font-black tracking-tight text-slate-900 px-1 py-0.5 rounded bg-cyan-100 border border-cyan-400">OJEPSƎ</div>
+                  <div class="flex-1 flex flex-col items-center justify-center text-center my-0.5">
+                    <div id="vpCardModeIcon" class="text-2xl leading-none mb-1">🪞</div>
+                    <div id="vpCardModeName" class="text-[8.5px] font-black text-slate-950 bg-cyan-200 border border-cyan-600 px-1 rounded truncate max-w-full">OJEPSƎ</div>
                   </div>
-                  <div class="text-[7px] font-bold text-red-600 text-center uppercase">IGUAL TODOS</div>
+                  <div class="vp-card-badge-top">MODO</div>
                 </div>
               </div>
 
-              <!-- Carta 3: Dificultad Fija -->
+              <!-- Carta 3: Q♣ NIVEL FIJO -->
               <div class="vp-card-slot flipped" id="vpCard2" onclick="toggleDailyPokerCardFlip(2)">
-                <div class="vp-hold-tag">FIJA</div>
                 <div class="vp-card-face vp-card-back">
                   <div class="vp-card-back-inner">
                     <span class="vp-card-back-script">Casino 𝄞</span>
                   </div>
                 </div>
                 <div class="vp-card-face vp-card-front">
-                  <div class="flex justify-between items-center text-[9px] font-black text-slate-900 leading-none">
-                    <span>Q♣</span><span>NIVEL</span>
+                  <div class="flex justify-between items-center text-[11px] font-black text-slate-900 leading-none">
+                    <span>Q</span><span>♣</span>
                   </div>
-                  <div class="flex-1 flex flex-col items-center justify-center text-center">
-                    <div id="vpCardDiffStars" class="text-amber-500 text-xs font-black tracking-tighter leading-none mb-1">★★★★★</div>
-                    <div id="vpCardDiffName" class="text-[9px] font-black text-white bg-slate-900 px-1.5 py-0.5 rounded uppercase">DIFÍCIL</div>
+                  <div class="flex-1 flex flex-col items-center justify-center text-center my-0.5">
+                    <div id="vpCardDiffStars" class="text-amber-500 text-[11px] font-black tracking-tighter leading-none mb-1">★★★★</div>
+                    <div id="vpCardDiffName" class="text-[8.5px] font-black text-white bg-slate-900 px-1 py-0.5 rounded uppercase">DIFÍCIL</div>
+                    <div id="vpCardBpm" class="hidden">120 BPM</div>
                   </div>
-                  <div id="vpCardBpm" class="text-[7.5px] font-mono font-bold text-slate-600 text-center">120 BPM</div>
+                  <div class="vp-card-badge-top">NIVEL</div>
                 </div>
               </div>
 
-              <!-- Carta 4: Bote Acumulado de Claves Apostadas -->
+              <!-- Carta 4: J♦ BOTE ACUMULADO -->
               <div class="vp-card-slot flipped held-glow" id="vpCard3" onclick="toggleDailyPokerCardFlip(3)">
-                <div class="vp-hold-tag">BOTE</div>
                 <div class="vp-card-face vp-card-back">
                   <div class="vp-card-back-inner">
                     <span class="vp-card-back-script">Casino 𝄞</span>
                   </div>
                 </div>
                 <div class="vp-card-face vp-card-front bg-gradient-to-b from-amber-50 to-amber-100">
-                  <div class="flex justify-between items-center text-[9px] font-black text-red-600 leading-none">
-                    <span>J♦</span><span>BOTE</span>
+                  <div class="flex justify-between items-center text-[11px] font-black text-red-600 leading-none">
+                    <span>J</span><span>♦</span>
                   </div>
-                  <div class="flex-1 flex flex-col items-center justify-center text-center">
-                    <div class="text-lg sm:text-xl font-black text-amber-600 leading-none">𝄞</div>
-                    <div id="vpCardPotVal" class="text-[11px] sm:text-xs font-black text-red-700 font-mono leading-tight">+150 𝄞</div>
+                  <div class="flex-1 flex flex-col items-center justify-center text-center my-0.5">
+                    <div class="text-xl font-black text-amber-600 leading-none">𝄞</div>
+                    <div id="vpCardPotVal" class="text-[11px] font-black text-red-700 font-mono leading-tight mt-0.5">+150</div>
                   </div>
-                  <div class="text-[7px] font-black text-amber-900 text-center uppercase">APUESTAS</div>
+                  <div class="vp-card-badge-top" style="background:#b91c1c;color:#fef08a;">BOTE</div>
                 </div>
               </div>
 
-              <!-- Carta 5: Tu Puesto / Récord Hoy -->
+              <!-- Carta 5: 10♠ TU RÉCORD HOY -->
               <div class="vp-card-slot flipped" id="vpCard4" onclick="toggleDailyPokerCardFlip(4)">
-                <div class="vp-hold-tag">TÚ</div>
                 <div class="vp-card-face vp-card-back">
                   <div class="vp-card-back-inner">
                     <span class="vp-card-back-script">Casino 𝄞</span>
                   </div>
                 </div>
                 <div class="vp-card-face vp-card-front">
-                  <div class="flex justify-between items-center text-[9px] font-black text-slate-900 leading-none">
-                    <span>10♠</span><span>TU TOP</span>
+                  <div class="flex justify-between items-center text-[11px] font-black text-slate-900 leading-none">
+                    <span>10</span><span>♠</span>
                   </div>
-                  <div class="flex-1 flex flex-col items-center justify-center text-center">
-                    <div id="vpCardMyRank" class="text-sm sm:text-base font-black text-indigo-700 leading-none">—</div>
-                    <div id="vpCardMyScore" class="text-[8px] font-mono font-bold text-slate-700 mt-0.5">SIN JUGAR</div>
+                  <div class="flex-1 flex flex-col items-center justify-center text-center my-0.5">
+                    <div id="vpCardMyRank" class="text-base font-black text-indigo-700 leading-none">—</div>
+                    <div id="vpCardMyScore" class="text-[8px] font-mono font-black text-slate-700 mt-0.5 truncate max-w-full">SIN JUGAR</div>
+                    <div id="vpCardMaxWin" class="hidden"></div>
                   </div>
-                  <div id="vpCardMaxWin" class="text-[7.5px] font-black text-emerald-700 text-center">GANA: 0 𝄞</div>
+                  <div class="vp-card-badge-top">TU TOP</div>
                 </div>
               </div>
+
             </div>
 
-            <!-- BARRA INFERIOR CRT: APUESTA · BOTE · GANA -->
-            <div class="flex items-center justify-between bg-blue-950/90 border border-blue-400/40 rounded px-2 py-1 text-[9.5px] sm:text-[10.5px] font-mono font-black text-white mt-0.5">
-              <div>APUESTA <span id="vpCrtBetVal" class="text-yellow-300">200 𝄞</span></div>
-              <div>BOTE <span id="vpCrtPotVal" class="text-amber-300">150 𝄞</span></div>
-              <div>PREMIO #1 <span id="vpCrtWinVal" class="text-emerald-300">1050 𝄞</span></div>
-            </div>
-
-          </div>
-
-          <!-- PANEL DERECHO: CRÉDITOS (CLAVES), VALOR APUESTA, LOGO CASINO, RANURA MONEDA -->
-          <div class="vp-right-panel">
-
-            <!-- CRÉDITOS -->
-            <div class="vp-meter-box">
-              <div class="vp-meter-label">CRÉDITOS 𝄞</div>
-              <div id="vpCreditsLed" class="vp-led-screen">0000</div>
-            </div>
-
-            <!-- VALOR APUESTA -->
-            <div class="vp-meter-box">
-              <div class="vp-meter-label">VALOR APUESTA</div>
-              <div class="flex items-center justify-between gap-1">
-                <button type="button" onclick="stepDailyPokerBet(-1)" class="w-5 h-6 bg-gradient-to-b from-slate-200 to-slate-400 text-black font-black text-xs rounded border border-white active:scale-95 cursor-pointer">-</button>
-                <div id="vpBetStepLed" class="vp-led-screen flex-1 text-center text-xs px-0.5">200𝄞</div>
-                <button type="button" onclick="stepDailyPokerBet(1)" class="w-5 h-6 bg-gradient-to-b from-slate-200 to-slate-400 text-black font-black text-xs rounded border border-white active:scale-95 cursor-pointer">+</button>
-              </div>
-            </div>
-
-            <!-- EMBLEMA CASINO.𝄞 CON DADOS ROJOS -->
-            <div class="flex flex-col items-center justify-center py-0.5">
-              <div class="text-sm leading-none mb-0.5">🎲</div>
-              <div class="font-serif italic font-black text-amber-300 text-xs sm:text-sm leading-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Casino.𝄞</div>
-              <div class="text-[8px] text-amber-400 tracking-widest mt-0.5">♠ ♥ ♣ ♦</div>
-            </div>
-
-            <!-- FLECHA INSERTA CLAVES + RANURA DE MONEDA -->
-            <div class="flex flex-col items-center gap-1">
-              <div class="vp-insert-arrow w-full" onclick="stepDailyPokerBet(1)" title="Subir apuesta al bote">
-                <div class="text-[8px] font-black text-yellow-300 leading-tight uppercase">APUESTA<br>AL BOTE</div>
-              </div>
-              <div class="vp-coin-slot-bezel" onclick="stepDailyPokerBet(1)" title="Insertar Claves">
-                <div class="vp-coin-slot-slit"></div>
-              </div>
+            <!-- D. BARRA INFERIOR CRT: RESUMEN CLARO DE APUESTA Y PREMIO #1 -->
+            <div class="flex items-center justify-between bg-blue-950/95 border border-yellow-400/50 rounded-lg px-2.5 py-1 text-[10.5px] font-mono font-black text-white flex-shrink-0">
+              <div>APUESTA: <span id="vpCrtBetVal" class="text-yellow-300">200 𝄞</span></div>
+              <div>BOTE: <span id="vpCrtPotVal" class="text-amber-300">150 𝄞</span></div>
+              <div>PREMIO #1: <span id="vpCrtWinVal" class="text-emerald-300">1050 𝄞</span></div>
             </div>
 
           </div>
-
         </div>
 
-        <!-- 3. CONSOLA INFERIOR INCLINADA CON LOS 9 BOTONES FÍSICOS DE VIDEO POKER -->
+        <!-- 4. CONSOLA INFERIOR INCLINADA DE MANDOS FÍSICOS DE CASINO -->
         <div class="vp-deck-shelf">
-          <div class="vp-deck-buttons-row">
+          <!-- Fila de 5 Botones Metálicos bajo cada carta -->
+          <div class="vp-hold-buttons-grid">
+            <button type="button" onclick="toggleDailyPokerCardFlip(0)" class="vp-btn-hold">CANCIÓN</button>
+            <button type="button" onclick="toggleDailyPokerCardFlip(1)" class="vp-btn-hold">MODO</button>
+            <button type="button" onclick="toggleDailyPokerCardFlip(2)" class="vp-btn-hold">NIVEL</button>
+            <button type="button" onclick="toggleDailyPokerCardFlip(3)" class="vp-btn-hold">BOTE</button>
+            <button type="button" onclick="toggleDailyPokerCardFlip(4)" class="vp-btn-hold">TU TOP</button>
+          </div>
+
+          <!-- Fila Principal de 4 Pulsadores Arcade Grandes y Legibles -->
+          <div class="vp-main-buttons-grid">
             <button type="button" onclick="closeDailyVideoPoker()" class="vp-phys-btn vp-btn-red">
               <span>SALIR</span>
             </button>
 
-            <button type="button" onclick="toggleDailyPokerCardFlip(0)" class="vp-phys-btn vp-btn-hold">
-              <span>CANCIÓN</span>
-            </button>
-            <button type="button" onclick="toggleDailyPokerCardFlip(1)" class="vp-phys-btn vp-btn-hold">
-              <span>MODO</span>
-            </button>
-            <button type="button" onclick="toggleDailyPokerCardFlip(2)" class="vp-phys-btn vp-btn-hold">
-              <span>NIVEL</span>
-            </button>
-            <button type="button" onclick="toggleDailyPokerCardFlip(3)" class="vp-phys-btn vp-btn-hold">
-              <span>BOTE</span>
-            </button>
-            <button type="button" onclick="toggleDailyPokerCardFlip(4)" class="vp-phys-btn vp-btn-hold">
-              <span>TU TOP</span>
+            <button type="button" onclick="stepDailyPokerBet(1, true)" class="vp-phys-btn vp-btn-bet">
+              <span>SUBIR</span>
+              <span class="text-[9px] font-mono font-black">APUESTA</span>
             </button>
 
-            <button type="button" onclick="stepDailyPokerBet(1, true)" class="vp-phys-btn vp-btn-action">
+            <button type="button" onclick="setDailyPokerBetTier(5)" class="vp-phys-btn vp-btn-max">
               <span>APUESTA</span>
+              <span class="text-[9px] font-mono font-black">MÁX 200𝄞</span>
             </button>
-            <button type="button" onclick="setDailyPokerBetTier(5)" class="vp-phys-btn vp-btn-action">
-              <span>APUESTA</span>
-              <span>MAX</span>
-            </button>
-            <button type="button" id="vpBtnDealPlay" onclick="dealAndPlayDailyVideoPoker()" class="vp-phys-btn vp-btn-action vp-btn-deal">
-              <span>REPARTIR</span>
-              <span class="text-[7px] font-mono font-black text-red-900">JUGAR</span>
+
+            <button type="button" id="vpBtnDealPlay" onclick="dealAndPlayDailyVideoPoker()" class="vp-phys-btn vp-btn-deal">
+              <span class="text-sm sm:text-base tracking-wider">REPARTIR · JUGAR</span>
+              <span class="text-[9px] font-mono font-black text-emerald-950 bg-amber-300 px-2 rounded mt-0.5">ENTRAR AL RANKING</span>
             </button>
           </div>
         </div>
@@ -13661,6 +13737,7 @@ function stopPianoCameraLoop() {
       const tbody = document.getElementById('vpPaytableBody');
       if (tbody) {
         const rankings = st.rankings || [];
+        const shortRanks = ['#1', '#2', '#3', '#4', '#5', 'T10'];
         let html = '';
         VP_PAYTABLE.forEach((row, rIdx) => {
           let playerEntry = null;
@@ -13671,30 +13748,30 @@ function stopPianoCameraLoop() {
           }
 
           const pName = playerEntry
-            ? escapeHtml(String(playerEntry.player_name || 'Jugador').slice(0, 11))
-            : 'VACANTE';
+            ? escapeHtml(String(playerEntry.player_name || 'Jugador').slice(0, 10))
+            : 'LIBRE';
           const pScore = playerEntry && playerEntry.score > 0
             ? `${Math.round(playerEntry.score / 1000)}k`
             : '—';
 
           const rowColor = rIdx === 0
-            ? 'text-yellow-300'
-            : (rIdx === 1 ? 'text-amber-200' : (rIdx === 2 ? 'text-orange-200' : 'text-yellow-400/90'));
+            ? 'text-yellow-300 bg-yellow-400/10'
+            : (rIdx === 1 ? 'text-amber-200' : (rIdx === 2 ? 'text-orange-200' : 'text-yellow-400/95'));
 
           let colsHtml = '';
           for (let c = 0; c < 5; c++) {
             const isSel = (c + 1) === vpCurrentBetTier;
             const totalPrize = Math.round(row.fixed[c] + pot * (row.potShare[c] || 0));
-            colsHtml += `<td class="text-right font-mono ${isSel ? 'vp-col-active' : ''}">${totalPrize}</td>`;
+            colsHtml += `<td class="text-center font-mono ${isSel ? 'vp-col-active' : ''}">${totalPrize}</td>`;
           }
 
           html += `
             <tr class="${rowColor}">
               <td class="pl-1.5 pr-1">
-                <div class="flex items-center justify-between gap-1">
-                  <span class="font-black">${row.badge}</span>
-                  <span class="text-[8px] text-cyan-200 font-bold truncate max-w-[78px]">${pName}</span>
-                  <span class="text-[8px] text-amber-300 font-mono">${pScore}</span>
+                <div class="flex items-center justify-between gap-1 min-w-0">
+                  <span class="font-black text-amber-300 flex-shrink-0">${shortRanks[rIdx] || row.badge}</span>
+                  <span class="text-[9.5px] text-cyan-200 font-bold truncate flex-1">${pName}</span>
+                  <span class="text-[9px] text-amber-300 font-mono flex-shrink-0">${pScore}</span>
                 </div>
               </td>
               ${colsHtml}
@@ -13704,23 +13781,34 @@ function stopPianoCameraLoop() {
         tbody.innerHTML = html;
       }
 
-      // 3. Actualizar las 5 Cartas de Póker de la Canción del Día
+      // 3. Actualizar cabecera CRT y las 5 Cartas de Póker de la Canción del Día
+      const coverSrc = st.song.cover_url || './app_logo.png';
       const songImg = document.getElementById('vpCardSongImg');
       if (songImg) {
-        songImg.src = st.song.cover_url || './app_logo.png';
+        songImg.src = coverSrc;
         songImg.onerror = function() { this.src = './app_logo.png'; };
+      }
+      const miniCover = document.getElementById('vpCardMiniCover');
+      if (miniCover) {
+        miniCover.src = coverSrc;
+        miniCover.onerror = function() { this.src = './app_logo.png'; };
       }
       const songTitle = document.getElementById('vpCardSongTitle');
       if (songTitle) songTitle.textContent = st.song.title || 'Canción';
       const songArtist = document.getElementById('vpCardSongArtist');
       if (songArtist) songArtist.textContent = st.song.artist || 'Artista';
 
+      const bannerMode = document.getElementById('vpBannerMode');
+      if (bannerMode) bannerMode.textContent = `${st.mode?.icon || '🪞'} ${st.mode?.label || 'OJEPSƎ'}`;
+      const bannerDiff = document.getElementById('vpBannerDiff');
+      if (bannerDiff) bannerDiff.textContent = st.difficulty || 'DIFÍCIL';
+
       const modeIcon = document.getElementById('vpCardModeIcon');
       if (modeIcon) modeIcon.textContent = st.mode?.icon || '🪞';
       const modeName = document.getElementById('vpCardModeName');
       if (modeName) {
         modeName.textContent = st.mode?.label || 'OJEPSƎ';
-        modeName.className = `text-[8.5px] font-black tracking-tight px-1 py-0.5 rounded border ${st.mode?.bg || 'bg-cyan-100 border-cyan-500 text-cyan-950'}`;
+        modeName.className = `text-[8.5px] font-black tracking-tight px-1 py-0.5 rounded border truncate max-w-full ${st.mode?.bg || 'bg-cyan-100 border-cyan-500 text-cyan-950'}`;
       }
 
       const diffStars = document.getElementById('vpCardDiffStars');
@@ -13732,7 +13820,7 @@ function stopPianoCameraLoop() {
       if (bpmEl) bpmEl.textContent = `${st.song.bpm || 120} BPM`;
 
       const cardPotVal = document.getElementById('vpCardPotVal');
-      if (cardPotVal) cardPotVal.textContent = `+${pot} 𝄞`;
+      if (cardPotVal) cardPotVal.textContent = `+${pot}`;
 
       // Tu puesto hoy
       const myName = String((typeof currentUser !== 'undefined' && currentUser?.username) || localStorage.getItem('beatstar_player_name') || 'Jugador').trim().toLowerCase();
@@ -13741,17 +13829,17 @@ function stopPianoCameraLoop() {
       const myScoreEl = document.getElementById('vpCardMyScore');
       if (myIdx >= 0) {
         if (myRankEl) myRankEl.textContent = `#${myIdx + 1}`;
-        if (myScoreEl) myScoreEl.textContent = `${Number(st.rankings[myIdx].score || 0).toLocaleString()}`;
+        if (myScoreEl) myScoreEl.textContent = `${Math.round(Number(st.rankings[myIdx].score || 0) / 1000)}k PTS`;
       } else {
         if (myRankEl) myRankEl.textContent = '—';
-        if (myScoreEl) myScoreEl.textContent = 'SIN JUGAR';
+        if (myScoreEl) myScoreEl.textContent = 'JUEGA HOY';
       }
 
       const top1Prize = Math.round(VP_PAYTABLE[0].fixed[vpCurrentBetTier - 1] + pot * VP_PAYTABLE[0].potShare[vpCurrentBetTier - 1]);
       const cardMaxWin = document.getElementById('vpCardMaxWin');
       if (cardMaxWin) cardMaxWin.textContent = `#1: +${top1Prize} 𝄞`;
 
-      // 4. Actualizar barra inferior CRT y pantallas LED de 7 segmentos a la derecha
+      // 4. Actualizar barra inferior CRT y pantallas LED de 7 segmentos superiores
       const crtBet = document.getElementById('vpCrtBetVal');
       if (crtBet) crtBet.textContent = `${wager} 𝄞`;
       const crtPot = document.getElementById('vpCrtPotVal');
@@ -13761,6 +13849,8 @@ function stopPianoCameraLoop() {
 
       const creditsLed = document.getElementById('vpCreditsLed');
       if (creditsLed) creditsLed.textContent = String(clefsNow).padStart(4, '0');
+      const headerPotLed = document.getElementById('vpHeaderPotLed');
+      if (headerPotLed) headerPotLed.textContent = String(pot).padStart(4, '0');
       const betStepLed = document.getElementById('vpBetStepLed');
       if (betStepLed) betStepLed.textContent = `${wager}𝄞`;
     }
