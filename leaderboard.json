@@ -626,6 +626,14 @@
         "combo": 462,
         "accuracy": 78.68603571247715,
         "date": "2026-09-20 20:49:10"
+      },
+      {
+        "name": "Mauricio",
+        "score": 854754,
+        "stars": 2,
+        "combo": 425,
+        "accuracy": 52.173514961627696,
+        "date": "2026-10-25 10:25:40"
       }
     ],
     "comm_1789937559769_269": [
@@ -3597,14 +3605,6 @@
     ],
     "top_juan_gabriel_abrzame_muy_fuerte": [
       {
-        "name": "Test",
-        "score": 56945,
-        "stars": 3.5,
-        "combo": 20,
-        "accuracy": 0.5374166382200761,
-        "date": "2026-10-24 19:53:41"
-      },
-      {
         "name": "Pirata",
         "score": 19500,
         "stars": 3.5,
@@ -3622,13 +3622,59 @@
         "accuracy": 4.8771338726334905,
         "date": "2026-10-24 22:01:11"
       }
+    ],
+    "top_system_of_a_down_byob": [
+      {
+        "name": "Test",
+        "score": 212849,
+        "stars": 3.5,
+        "combo": 137,
+        "accuracy": 11.706462041405375,
+        "date": "2026-10-25 09:56:10"
+      }
+    ],
+    "top_la_quinta_estacion_algo_mas": [
+      {
+        "name": "Test",
+        "score": 1420265,
+        "stars": 4,
+        "combo": 597,
+        "accuracy": 88.44357761001542,
+        "date": "2026-10-25 10:57:05"
+      },
+      {
+        "name": "Ubuntu",
+        "score": 140200,
+        "stars": 3.5,
+        "combo": 103,
+        "accuracy": 8.730616878486876,
+        "date": "2026-10-25 11:00:17"
+      },
+      {
+        "name": "Mauricio",
+        "score": 103064,
+        "stars": 3.5,
+        "combo": 71,
+        "accuracy": 6.418062039688811,
+        "date": "2026-10-25 09:59:03"
+      }
+    ],
+    "top_amaral_morira_por_vos": [
+      {
+        "name": "Mauricio",
+        "score": 1146262,
+        "stars": 5,
+        "combo": 523,
+        "accuracy": 98.84423518861051,
+        "date": "2026-10-25 10:04:36"
+      }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 53634513,
-      "clefs": 495
+      "total_score": 56884855,
+      "clefs": 526
     },
     {
       "name": "Rocky",
@@ -3686,6 +3732,11 @@
       "clefs": 33
     },
     {
+      "name": "Test",
+      "total_score": 3053379,
+      "clefs": 30
+    },
+    {
       "name": "Jacques",
       "total_score": 795056,
       "clefs": 4
@@ -3736,14 +3787,14 @@
       "clefs": 1
     },
     {
-      "name": "holo",
-      "total_score": 137701,
+      "name": "Ubuntu",
+      "total_score": 140200,
       "clefs": 1
     },
     {
-      "name": "Test",
-      "total_score": 56945,
-      "clefs": 0
+      "name": "holo",
+      "total_score": 137701,
+      "clefs": 1
     },
     {
       "name": "Antoniobarfe",
@@ -3826,7 +3877,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 53634513
+        "score": 56884855
       },
       {
         "name": "FAZTL",
@@ -3853,6 +3904,10 @@
         "score": 4321969
       },
       {
+        "name": "Test",
+        "score": 3053379
+      },
+      {
         "name": "Jacques",
         "score": 795056
       },
@@ -3873,12 +3928,12 @@
         "score": 147986
       },
       {
-        "name": "holo",
-        "score": 137701
+        "name": "Ubuntu",
+        "score": 140200
       },
       {
-        "name": "Test",
-        "score": 56945
+        "name": "holo",
+        "score": 137701
       },
       {
         "name": "Antoniobarfe",
@@ -3927,6 +3982,36 @@
           "bet_tier": 2,
           "wager": 25,
           "timestamp": 1792871850968
+        }
+      ]
+    },
+    "2026-10-25": {
+      "dayKey": "2026-10-25",
+      "potClefs": 250,
+      "wageredPlayers": [
+        "vp_mvnnmr4q_atju9jg7",
+        "vp_mvnptw2k_jyqm0lxl"
+      ],
+      "rankings": [
+        {
+          "player_id": "vp_mvnptw2k_jyqm0lxl",
+          "player_name": "Ubuntu",
+          "avatar_url": null,
+          "score": 140200,
+          "accuracy": 93.46,
+          "bet_tier": 3,
+          "wager": 50,
+          "timestamp": 1792926017093
+        },
+        {
+          "player_id": "vp_mvnnmr4q_atju9jg7",
+          "player_name": "Mauricio",
+          "avatar_url": null,
+          "score": 103064,
+          "accuracy": 96.45,
+          "bet_tier": 3,
+          "wager": 50,
+          "timestamp": 1792922343201
         }
       ]
     }
