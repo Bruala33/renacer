@@ -650,10 +650,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 23,
-    version_name: '2.9.0',
-    release_notes: 'Piano Community v2.9: Video Poker Canción del Día vintage Las Vegas, modo espejo optimizado y reproducción/redescarga automática de canciones en Favoritos y Playlists.',
-    download_url: '/download/apk?v=23.0',
+    version_code: 24,
+    version_name: '3.0.0',
+    release_notes: 'Piano Community v3.0: Nuevo modo ECO (Doble golpe con rebote corto en parábola), descarga de paquete APK optimizada y Video Poker Las Vegas.',
+    download_url: '/download/apk?v=24.0',
   });
 });
 
@@ -957,14 +957,14 @@ function isCompleteZipApk(filePath, fileSize) {
   }
 }
 
-app.all(['/download/apk', '/api/v1/app/download_apk', '/PianoCommunity.apk', '/downloads/PianoCommunity.apk', '/HyperRhythm.apk'], (req, res) => {
+app.all(['/download/apk', '/api/v1/app/download_apk', '/PianoCommunity.apk', '/static/PianoCommunity.apk', '/downloads/PianoCommunity.apk', '/HyperRhythm.apk'], (req, res) => {
   const apkCandidates = [
     path.join(__dirname, 'PianoCommunity.apk'),
     path.join(STATIC_DIR, 'downloads', 'PianoCommunity.apk'),
     path.join(STATIC_DIR, 'PianoCommunity.apk'),
-    path.join(__dirname, '.build-outputs', 'app-debug.apk'),
     path.join(__dirname, 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk'),
     path.join(__dirname, 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk'),
+    path.join(__dirname, '.build-outputs', 'app-debug.apk'),
     path.join(__dirname, 'android', 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk'),
     path.join(__dirname, 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk'),
     path.join(__dirname, 'downloads', 'PianoCommunity.apk'),
@@ -986,15 +986,27 @@ app.all(['/download/apk', '/api/v1/app/download_apk', '/PianoCommunity.apk', '/d
     const { apkPath, stat } = validApks[0];
     res.setHeader('Content-Type', 'application/vnd.android.package-archive');
     res.setHeader('Content-Disposition', 'attachment; filename="PianoCommunity.apk"');
-    res.setHeader('Content-Length', stat.size);
-    res.setHeader('Accept-Ranges', 'bytes');
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, Content-Length, Accept-Ranges');
     if (req.method === 'HEAD') {
+      res.setHeader('Content-Length', stat.size);
+      res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Cache-Control', 'private, max-age=0, must-revalidate');
       return res.status(200).end();
     }
-    return fs.createReadStream(apkPath).pipe(res);
+    return res.sendFile(apkPath, {
+      maxAge: 0,
+      lastModified: true,
+      etag: true,
+      acceptRanges: true,
+      cacheControl: false,
+      headers: {
+        'Content-Type': 'application/vnd.android.package-archive',
+        'Content-Disposition': 'attachment; filename="PianoCommunity.apk"',
+        'Cache-Control': 'private, max-age=0, must-revalidate',
+        'X-Content-Type-Options': 'nosniff'
+      }
+    });
   }
 
   return res.status(404).json({
@@ -1160,6 +1172,7 @@ const DAILY_POKER_BASE_POT = 150;
 
 const DAILY_POKER_MODES = [
   { id: 'mirror', label: 'OJEPSƎ', short: 'OJEPSƎ', icon: '🪞', color: '#00f2fe' },
+  { id: 'echo', label: 'ECO', short: 'ECO', icon: '((•))', color: '#10b981' },
   { id: 'river', label: 'RÍO', short: 'RÍO', icon: '🌊', color: '#38bdf8' },
   { id: 'mushrooms', label: 'SETAS', short: 'SETAS', icon: '🍄', color: '#e879f9' },
   { id: 'minesweeper', label: 'MINAS', short: 'MINAS', icon: '💣', color: '#ef4444' },

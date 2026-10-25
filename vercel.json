@@ -5,6 +5,8 @@
   "rewrites": [
     { "source": "/api/v1/app/download_apk", "destination": "/app/static/downloads/PianoCommunity.apk" },
     { "source": "/download/apk", "destination": "/app/static/downloads/PianoCommunity.apk" },
+    { "source": "/PianoCommunity.apk", "destination": "/app/static/downloads/PianoCommunity.apk" },
+    { "source": "/static/PianoCommunity.apk", "destination": "/app/static/downloads/PianoCommunity.apk" },
     { "source": "/downloads/(.*)", "destination": "/app/static/downloads/$1" },
     { "source": "/api/proxy", "destination": "/api/proxy.js" }
   ],
@@ -13,7 +15,9 @@
       "source": "/(.*)\\.apk",
       "headers": [
         { "key": "Content-Type", "value": "application/vnd.android.package-archive" },
-        { "key": "Content-Disposition", "value": "attachment; filename=\"PianoCommunity.apk\"" }
+        { "key": "Content-Disposition", "value": "attachment; filename=\"PianoCommunity.apk\"" },
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
       ]
     }
   ]

@@ -79,9 +79,10 @@ def sync_assets():
                     shutil.copy2(s, d)
 
 def sync_built_apk():
+    import subprocess
     built_candidates = [
-        os.path.join(ROOT_DIR, 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk'),
         os.path.join(ROOT_DIR, 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk'),
+        os.path.join(ROOT_DIR, 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk'),
         os.path.join(ROOT_DIR, '.build-outputs', 'app-debug.apk'),
         os.path.join(ROOT_DIR, 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk'),
     ]
@@ -89,6 +90,30 @@ def sync_built_apk():
     if not existing:
         return
     newest_apk = max(existing, key=lambda p: os.path.getmtime(p))
+    keystore_path = os.path.join(ROOT_DIR, 'debug.keystore')
+    apksigner_candidates = [
+        '/opt/android/sdk/build-tools/36.0.0/apksigner',
+        '/opt/android/sdk/build-tools/35.0.0/apksigner',
+        '/opt/android/sdk/build-tools/34.0.0/apksigner',
+    ]
+    apksigner_bin = next((b for b in apksigner_candidates if os.path.isfile(b)), None)
+    if apksigner_bin and os.path.isfile(keystore_path):
+        try:
+            subprocess.run([
+                apksigner_bin, 'sign',
+                '--ks', keystore_path,
+                '--ks-key-alias', 'androiddebugkey',
+                '--ks-pass', 'pass:android',
+                '--key-pass', 'pass:android',
+                '--v1-signing-enabled', 'true',
+                '--v2-signing-enabled', 'true',
+                '--v3-signing-enabled', 'true',
+                newest_apk
+            ], check=True)
+            print(f'[APK SIGN] Signed {newest_apk} with v1+v2+v3 schemes.')
+        except Exception as e:
+            print(f'[APK SIGN WARNING] {e}')
+
     apk_destinations = [
         os.path.join(ROOT_DIR, 'PianoCommunity.apk'),
         os.path.join(STATIC_DIR, 'PianoCommunity.apk'),

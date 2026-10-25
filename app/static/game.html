@@ -1739,14 +1739,14 @@
                 </svg>
                 <span class="text-[#f3d791]" data-i18n="apk_card_title">App Oficial Android (APK):</span>
               </span>
-              <span class="vegas-console-pill">v2.9</span>
+              <span class="vegas-console-pill">v3.0</span>
             </div>
             <p class="text-[10px] text-[#cbb894] leading-tight" data-i18n="apk_card_desc">
               Instala la edición Grand Piano Las Vegas en tu móvil para jugar a pantalla completa, vibración háptica y modo 100% offline.
             </p>
-            <a href="/download/apk?v=23.0" onclick="this.href='/download/apk?v=23.0&t=' + Date.now()" download="PianoCommunity.apk" class="w-full py-2.5 bg-gradient-to-b from-[#f3d791] via-[#d4a84f] to-[#9b6f23] hover:brightness-110 border border-[#fff6d6] text-[#1c1004] font-black rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg transition active:scale-95 cursor-pointer">
+            <a href="/download/apk?v=24.0" onclick="return window.downloadOfficialApk(event, this)" download="PianoCommunity.apk" class="w-full py-2.5 bg-gradient-to-b from-[#f3d791] via-[#d4a84f] to-[#9b6f23] hover:brightness-110 border border-[#fff6d6] text-[#1c1004] font-black rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg transition active:scale-95 cursor-pointer">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              <span data-i18n="apk_card_btn">DESCARGAR APK ANDROID (v2.9)</span>
+              <span data-i18n="apk_card_btn">DESCARGAR APK ANDROID (v3.0)</span>
             </a>
           </div>
 
@@ -2205,9 +2205,9 @@
           <p data-i18n="onboarding_apk_hint" class="text-[10px] text-amber-300/90 leading-tight">
             💡 Recuerda que también puedes descargar la app nativa para Android en cualquier momento desde <b>Ajustes ⚙️</b>.
           </p>
-          <a href="/download/apk?v=23.0" onclick="this.href='/download/apk?v=23.0&t=' + Date.now()" download="PianoCommunity.apk" class="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 rounded-xl text-amber-300 text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer">
+          <a href="/download/apk?v=24.0" onclick="return window.downloadOfficialApk(event, this)" download="PianoCommunity.apk" class="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 rounded-xl text-amber-300 text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="text-amber-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span data-i18n="onboarding_apk_btn">Descargar App (APK Android v2.9)</span>
+            <span data-i18n="onboarding_apk_btn">Descargar App (APK Android v3.0)</span>
           </a>
         </div>
       </div>
@@ -2705,7 +2705,7 @@
         </div>
 
         <!-- Pantalla Gigante Retro de Selección de Modos (Sin texto innecesario, solo píxeles grandes y candados LED) -->
-        <div class="p-2 bg-[#030201] border-[3px] border-[#1c160e] rounded-xl my-1.5 shadow-[inset_0_0_28px_rgba(0,0,0,1)] space-y-1.5">
+        <div class="p-2 bg-[#030201] border-[3px] border-[#1c160e] rounded-xl my-1.5 shadow-[inset_0_0_28px_rgba(0,0,0,1)] space-y-1.5 max-h-[68vh] overflow-y-auto overscroll-contain">
           <!-- Botón 1: MODO NORMAL (LED Estático Clásico - Siempre desbloqueado) -->
           <button id="btnModeSelectNormal" onclick="confirmGameModeSelection('normal')" class="w-full p-1 rounded-xl bg-[#060503] border-2 border-[#1d3b2a] hover:border-[#00f5a0] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
             <canvas id="gmBtnNormalMainCanvas" class="w-full h-[34px] block"></canvas>
@@ -2754,6 +2754,11 @@
           <!-- Botón 9: MODO ESPEJO / OJEPSƎ (Reflejo dimensional: teclas del carril 1 se pulsan con el 3 y viceversa + Candado LED 1000 Claves) -->
           <button id="btnModeSelectMirror" onclick="confirmGameModeSelection('mirror')" class="w-full p-1 rounded-xl bg-[#04070e] border-2 border-[#475569] hover:border-[#38bdf8] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
             <canvas id="gmBtnMirrorMainCanvas" class="w-full h-[38px] block"></canvas>
+          </button>
+
+          <!-- Botón 10: MODO ECO (Doble golpe con rebote corto en parábola a 1 o 2 pulsos + Candado LED 1000 Claves) -->
+          <button id="btnModeSelectEcho" onclick="confirmGameModeSelection('echo')" class="w-full p-1 rounded-xl bg-[#020b08] border-2 border-[#0f5c43] hover:border-[#10b981] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
+            <canvas id="gmBtnEchoMainCanvas" class="w-full h-[38px] block"></canvas>
           </button>
         </div>
 
@@ -4453,9 +4458,9 @@
 
   </div> <!-- End of game-viewport -->
 
-  <script src="./parsers.js?v=23.0"></script>
-  <script src="./game.js?v=23.0"></script>
-  <script src="./slot_machine.js?v=23.0"></script>
+  <script src="./parsers.js?v=24.0"></script>
+  <script src="./game.js?v=24.0"></script>
+  <script src="./slot_machine.js?v=24.0"></script>
   <script src="./gachapon_3d.js?v=1.0"></script>
   <script src="./songs/comm_camilo_sesto/chart.js"></script>
   <script src="./songs/renacer/chart.js"></script>
@@ -6630,19 +6635,49 @@
     }
 
     function performAppUpdate() {
-      const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
-      let targetUrl = appUpdateDownloadUrl;
-      if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
-        targetUrl = baseUrl + (targetUrl.startsWith('/') ? targetUrl : '/' + targetUrl);
+      window.downloadOfficialApk(null, null);
+      closeAppUpdateModal();
+    }
+
+    function downloadOfficialApk(event, anchorEl) {
+      if (event && typeof event.preventDefault === 'function') {
+        event.preventDefault();
       }
+      const ts = Date.now();
+      const host = (window.location && window.location.hostname) ? window.location.hostname : '';
+      const isStaticOnly = host.includes('itch.io') || host.includes('hwcdn.net') || host.includes('github.io') || host.includes('netlify.app');
+      const base = isStaticOnly ? DEFAULT_CLOUD_SERVER : '';
+      const targetUrl = `${base}/download/apk?v=24.0&t=${ts}`;
 
       if (window.AndroidNative && typeof window.AndroidNative.openBrowser === 'function') {
         window.AndroidNative.openBrowser(targetUrl);
-      } else {
-        window.open(targetUrl, '_blank');
+        return false;
       }
-      closeAppUpdateModal();
+
+      const inIframe = (() => {
+        try { return window.self !== window.top; } catch (_) { return true; }
+      })();
+
+      if (inIframe) {
+        const win = window.open(targetUrl, '_blank', 'noopener');
+        if (!win) {
+          window.location.href = targetUrl;
+        }
+        return false;
+      }
+
+      const tempLink = document.createElement('a');
+      tempLink.href = targetUrl;
+      tempLink.setAttribute('download', 'PianoCommunity.apk');
+      tempLink.style.display = 'none';
+      document.body.appendChild(tempLink);
+      tempLink.click();
+      setTimeout(() => {
+        try { tempLink.remove(); } catch (_) {}
+      }, 1500);
+      return false;
     }
+    window.downloadOfficialApk = downloadOfficialApk;
 
     document.addEventListener('DOMContentLoaded', async () => {
       const activeLang = getLanguage();
@@ -8269,7 +8304,8 @@ window.switchMainTab = switchMainTab;
     window.onAppForeground = handleAppForeground;
 
     function applySelectedGameMode(mode) {
-      const m = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog' || mode === 'river' || mode === 'four_lanes' || mode === 'minesweeper' || mode === 'mirror') ? mode : 'normal';
+      const normalized = mode === 'mushrooms' ? 'mushroom' : (mode === 'classic' ? 'normal' : mode);
+      const m = (normalized === 'karaoke' || normalized === 'storm' || normalized === 'mushroom' || normalized === 'highway' || normalized === 'annoying_dog' || normalized === 'river' || normalized === 'four_lanes' || normalized === 'minesweeper' || normalized === 'mirror' || normalized === 'echo') ? normalized : 'normal';
       window.currentGameMode = m;
       window.isKaraokeModeActive = (m === 'karaoke');
       window.isStormModeActive = (m === 'storm');
@@ -8280,6 +8316,7 @@ window.switchMainTab = switchMainTab;
       window.isFourLanesModeActive = (m === 'four_lanes');
       window.isMinesweeperModeActive = (m === 'minesweeper');
       window.isMirrorModeActive = (m === 'mirror');
+      window.isEchoModeActive = (m === 'echo');
       if (window.engine) {
         window.engine.isKaraokeModeActive = window.isKaraokeModeActive;
         window.engine.isStormModeActive = window.isStormModeActive;
@@ -8290,6 +8327,7 @@ window.switchMainTab = switchMainTab;
         window.engine.isFourLanesModeActive = window.isFourLanesModeActive;
         window.engine.isMinesweeperModeActive = window.isMinesweeperModeActive;
         window.engine.isMirrorModeActive = window.isMirrorModeActive;
+        window.engine.isEchoModeActive = window.isEchoModeActive;
         window.engine.numLanes = window.isFourLanesModeActive ? 4 : 3;
         if (typeof window.engine.initCanvasSize === 'function') {
           window.engine.initCanvasSize();
@@ -8312,6 +8350,9 @@ window.switchMainTab = switchMainTab;
         if (window.isMirrorModeActive && typeof window.engine.initMirrorModeAssets === 'function') {
           window.engine.initMirrorModeAssets();
         }
+        if (window.isEchoModeActive && typeof window.engine.initEchoModeAssets === 'function') {
+          window.engine.initEchoModeAssets();
+        }
       }
       try { localStorage.setItem('isKaraokeModeActive', '0'); } catch (_) {}
     }
@@ -8333,6 +8374,8 @@ window.switchMainTab = switchMainTab;
     window.isRiverModeActive = false;
     window.isFourLanesModeActive = false;
     window.isMinesweeperModeActive = false;
+    window.isMirrorModeActive = false;
+    window.isEchoModeActive = false;
     window.isMirrorModeActive = false;
     try { localStorage.setItem('isKaraokeModeActive', '0'); } catch (_) {}
 
@@ -14138,6 +14181,7 @@ function stopPianoCameraLoop() {
     ];
     const VP_MODES = [
       { id: 'mirror',       label: 'OJEPSƎ',   desc: 'Carriles 1 y 3 cruzados', icon: '🪞', bg: 'bg-cyan-100 border-cyan-500 text-cyan-950' },
+      { id: 'echo',         label: 'ECO',      desc: 'Doble golpe con rebote',  icon: '((•))', bg: 'bg-emerald-100 border-emerald-500 text-emerald-950' },
       { id: 'river',        label: 'RÍO',      desc: 'Corriente en movimiento', icon: '🌊', bg: 'bg-sky-100 border-sky-500 text-sky-950' },
       { id: 'mushrooms',    label: 'SETAS',    desc: 'Efecto psicodélico',      icon: '🍄', bg: 'bg-fuchsia-100 border-fuchsia-500 text-fuchsia-950' },
       { id: 'minesweeper',  label: 'MINAS',    desc: 'Esquiva teclas bomba',    icon: '💣', bg: 'bg-red-100 border-red-500 text-red-950' },
@@ -19073,6 +19117,164 @@ function stopPianoCameraLoop() {
       }
     }
 
+    function _renderEchoLedButton(canvas, now, isLocked) {
+      if (!canvas) return;
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const widthCss = 318;
+      const heightCss = 40;
+      if (canvas.width !== Math.round(widthCss * dpr) || canvas.height !== Math.round(heightCss * dpr)) {
+        canvas.width = Math.round(widthCss * dpr);
+        canvas.height = Math.round(heightCss * dpr);
+      }
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      ctx.fillStyle = '#020906';
+      ctx.fillRect(0, 0, widthCss, heightCss);
+
+      const pitch = 2.65;
+      const cols = Math.floor((widthCss - 4) / pitch);
+      const rows = Math.floor((heightCss - 2) / pitch);
+      const offsetX = (widthCss - cols * pitch) * 0.5 + pitch * 0.5;
+      const offsetY = (heightCss - rows * pitch) * 0.5 + pitch * 0.5;
+      const dotR = pitch * 0.38;
+
+      ctx.fillStyle = '#09241b';
+      ctx.beginPath();
+      for (let r = 0; r < rows; r++) {
+        const py = offsetY + r * pitch;
+        for (let c = 0; c < cols; c++) {
+          const px = offsetX + c * pitch;
+          ctx.moveTo(px + dotR * 0.74, py);
+          ctx.arc(px, py, dotR * 0.74, 0, Math.PI * 2);
+        }
+      }
+      ctx.fill();
+
+      const t = now * 0.001;
+      const litMap = new Map();
+      const setLed = (c, r, color) => {
+        const ic = Math.round(c);
+        const ir = Math.round(r);
+        if (ic >= 0 && ic < cols && ir >= 0 && ir < rows) {
+          litMap.set(ir * cols + ic, color);
+        }
+      };
+
+      // Mini-escena izquierda: Barra inferior + Tecla que rebota en parábola corta hacia el carril vecino
+      const barRow = rows - 2;
+      for (let c = 3; c <= 29; c++) {
+        setLed(c, barRow, (c === 9 || c === 23) ? '#34d399' : '#065f46');
+      }
+      // Arco punteado de la parábola entre col 9 y col 23
+      for (let s = 0; s <= 10; s++) {
+        const uArc = s / 10;
+        const ac = 9 + uArc * 14;
+        const ar = barRow - 1 - Math.round(4 * uArc * (1 - uArc) * 8);
+        if (s % 2 === 0) setLed(ac, ar, '#0d9488');
+      }
+      // Tecla rebotando sobre la parábola
+      const uBounce = (t * 1.35) % 1.0;
+      const bCol = Math.round(9 + uBounce * 14);
+      const bRow = Math.round((barRow - 1) - 4 * uBounce * (1 - uBounce) * 8);
+      for (let dc = -2; dc <= 2; dc++) {
+        setLed(bCol + dc, bRow, '#10b981');
+        setLed(bCol + dc, bRow - 1, '#ffffff');
+      }
+      // Ondas acústicas concéntricas en el impacto
+      if (uBounce < 0.22 || uBounce > 0.82) {
+        const ringCol = uBounce < 0.22 ? 9 : 23;
+        setLed(ringCol - 4, barRow - 1, '#6ee7b7');
+        setLed(ringCol + 4, barRow - 1, '#6ee7b7');
+        setLed(ringCol - 3, barRow - 2, '#38bdf8');
+        setLed(ringCol + 3, barRow - 2, '#38bdf8');
+      }
+
+      // Texto principal "ECO" con doble eco luminoso a la derecha
+      const label = 'ECO';
+      const startCol = isLocked ? 38 : 48;
+      const textRow = 4;
+      const wavePhase = (t * 6.0) % (Math.PI * 2);
+
+      for (let i = 0; i < label.length; i++) {
+        const ch = label[i];
+        const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7['E'];
+        const charCol = startCol + i * 9;
+        for (let gr = 0; gr < 7; gr++) {
+          const rowBits = glyph[gr];
+          if (!rowBits) continue;
+          for (let gc = 0; gc < 5; gc++) {
+            if ((rowBits >> (4 - gc)) & 1) {
+              const lc = charCol + gc;
+              const lr = textRow + gr;
+              setLed(lc + 2, lr, '#065f46');
+              setLed(lc + 1, lr, '#0d9488');
+              setLed(lc, lr, gr < 2 ? '#ffffff' : '#34d399');
+            }
+          }
+        }
+      }
+
+      // Dos ondas de sonido (( )) a la derecha de "ECO"
+      const waveBaseCol = startCol + label.length * 9 + 2;
+      for (let w = 0; w < 2; w++) {
+        const litWave = Math.sin(wavePhase - w * 1.4) > -0.2;
+        const wCol = litWave ? (w === 0 ? '#6ee7b7' : '#38bdf8') : '#064e3b';
+        const cW = waveBaseCol + w * 4;
+        setLed(cW, textRow + 1, wCol);
+        setLed(cW + 1, textRow + 2, wCol);
+        setLed(cW + 1, textRow + 3, wCol);
+        setLed(cW + 1, textRow + 4, wCol);
+        setLed(cW, textRow + 5, wCol);
+      }
+
+      const byColor = new Map();
+      for (const [idx, col] of litMap.entries()) {
+        if (!byColor.has(col)) byColor.set(col, []);
+        byColor.get(col).push(idx);
+      }
+      for (const [col, indices] of byColor.entries()) {
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        for (let i = 0; i < indices.length; i++) {
+          const idx = indices[i];
+          const r = Math.floor(idx / cols);
+          const c = idx % cols;
+          const lx = offsetX + c * pitch;
+          const ly = offsetY + r * pitch;
+          ctx.moveTo(lx + dotR * 1.08, ly);
+          ctx.arc(lx, ly, dotR * 1.08, 0, Math.PI * 2);
+        }
+        ctx.fill();
+      }
+
+      if (isLocked) {
+        const lockStr = '@1000';
+        const lockStartCol = cols - (lockStr.length * 6) - 1;
+        const lockRow = Math.floor((rows - 7) * 0.5);
+        for (let i = 0; i < lockStr.length; i++) {
+          const ch = lockStr[i];
+          const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7[' '];
+          const isLockIcon = (ch === '@');
+          ctx.fillStyle = isLockIcon ? '#ff4500' : '#ffb300';
+          ctx.beginPath();
+          for (let gr = 0; gr < 7; gr++) {
+            const rowBits = glyph[gr];
+            if (!rowBits) continue;
+            for (let gc = 0; gc < 5; gc++) {
+              if ((rowBits >> (4 - gc)) & 1) {
+                const lx = offsetX + (lockStartCol + i * 6 + gc) * pitch;
+                const ly = offsetY + (lockRow + gr) * pitch;
+                ctx.moveTo(lx + dotR * 1.12, ly);
+                ctx.arc(lx, ly, dotR * 1.12, 0, Math.PI * 2);
+              }
+            }
+          }
+          ctx.fill();
+        }
+      }
+    }
+
     function _renderGameModeStaticLeds(songTitle = 'PISTA', songArtist = '') {
       _currentModalSongTitle = songTitle;
       _currentModalSongArtist = songArtist;
@@ -19135,6 +19337,7 @@ function stopPianoCameraLoop() {
         const fourLanesLocked = !isGameModeUnlocked('four_lanes');
         const minesweeperLocked = !isGameModeUnlocked('minesweeper');
         const mirrorLocked = !isGameModeUnlocked('mirror');
+        const echoLocked = !isGameModeUnlocked('echo');
 
         // A. ANIMACIÓN LED MODO KARAOKE: KA -> RA -> O -> KE iluminándose en dorado + Candado LED (@ 1000) si está bloqueado
         const kStep = Math.floor(((now - startTime) % 1900) / 380);
@@ -19274,6 +19477,13 @@ function stopPianoCameraLoop() {
           mirrorLocked
         );
 
+        // J. ANIMACIÓN LED MODO ECO: Rebote parabólico corto de onda acústica + Candado LED
+        _renderEchoLedButton(
+          document.getElementById('gmBtnEchoMainCanvas'),
+          now,
+          echoLocked
+        );
+
         _gameModeLedAnimId = requestAnimationFrame(tick);
       };
 
@@ -19409,7 +19619,7 @@ function stopPianoCameraLoop() {
     }
 
     function confirmGameModeSelection(mode) {
-      const chosen = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog' || mode === 'river' || mode === 'four_lanes' || mode === 'minesweeper' || mode === 'mirror') ? mode : 'normal';
+      const chosen = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog' || mode === 'river' || mode === 'four_lanes' || mode === 'minesweeper' || mode === 'mirror' || mode === 'echo') ? mode : 'normal';
 
       // Si el modo no es normal y aún tiene candado LED (1000 Claves para desbloquear):
       if (chosen !== 'normal' && !isGameModeUnlocked(chosen)) {
@@ -19431,7 +19641,9 @@ function stopPianoCameraLoop() {
                                     ? '4 CARRILES'
                                     : (chosen === 'minesweeper'
                                         ? 'BUSCAMINAS'
-                                        : (chosen === 'mirror' ? 'ESPEJO (OJEPSƎ)' : 'RÍO')))))));
+                                        : (chosen === 'mirror'
+                                            ? 'ESPEJO (OJEPSƎ)'
+                                            : (chosen === 'echo' ? 'ECO (DOBLE GOLPE)' : 'RÍO'))))))));
               showSuccessToast(`¡Modo ${modeLabel} desbloqueado para siempre! (-1000 𝄞)`);
             }
           }

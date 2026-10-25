@@ -2995,6 +2995,7 @@ class BeatstarEngine {
     this.isRiverModeActive = (curActiveMode === 'river');
     this.isMinesweeperModeActive = (curActiveMode === 'minesweeper');
     this.isMirrorModeActive = (curActiveMode === 'mirror');
+    this.isEchoModeActive = (curActiveMode === 'echo');
     if (typeof window !== 'undefined') {
       window.isKaraokeModeActive = this.isKaraokeModeActive;
       window.isStormModeActive = this.isStormModeActive;
@@ -3004,6 +3005,7 @@ class BeatstarEngine {
       window.isRiverModeActive = this.isRiverModeActive;
       window.isMinesweeperModeActive = this.isMinesweeperModeActive;
       window.isMirrorModeActive = this.isMirrorModeActive;
+      window.isEchoModeActive = this.isEchoModeActive;
     }
 
     // En Modo Buscaminas: inyectar teclas extra trampa (Minas) asincrónicas en huecos libres
@@ -3013,6 +3015,13 @@ class BeatstarEngine {
     this._mineShakeIntensity = 0;
     if (this.isMinesweeperModeActive) {
       this._injectMinesweeperNotes();
+    }
+
+    // En Modo ECO (Doble golpe con rebote corto): preparar parejas rítmicas de rebote a 1 o 2 pulsos
+    this._echoRipples = [];
+    if (this.isEchoModeActive) {
+      this.initEchoModeAssets();
+      this._prepareEchoChoreography();
     }
 
     const isKaraokePrewarm = this.isKaraokeModeActive;
@@ -3720,6 +3729,14 @@ class BeatstarEngine {
       for (let i = startSearchIdx; i < nLen; i++) {
         const note = this.notes[i];
         if (!note || note.isMine || note.missed || note.holdCompleted || note.holding) continue;
+        if (this.isEchoModeActive && note._isEchoRebound) {
+          if (!note._echoBounceLaunched && currentTime < (note._echoSourceTimeMs || 0) + 50) continue;
+          if (note._echoBounceLaunched) {
+            const lT = note._echoLaunchTimeMs || note._echoSourceTimeMs || 0;
+            const uB = (currentTime - lT) / Math.max(180, note.timestamp_ms - lT);
+            if (uB < 0.50) continue;
+          }
+        }
         const reqL = (this.isMirrorModeActive && note._isMirrored && (note.lane === 0 || note.lane === 2))
           ? (2 - note.lane)
           : note.lane;
@@ -3785,6 +3802,14 @@ class BeatstarEngine {
     for (let i = startSearchIdx; i < nLen; i++) {
       const note = this.notes[i];
       if (!note || note.missed || note.holdCompleted || note.holding) continue;
+      if (this.isEchoModeActive && note._isEchoRebound) {
+        if (!note._echoBounceLaunched && currentTime < (note._echoSourceTimeMs || 0) + 50) continue;
+        if (note._echoBounceLaunched) {
+          const lT = note._echoLaunchTimeMs || note._echoSourceTimeMs || 0;
+          const uB = (currentTime - lT) / Math.max(180, note.timestamp_ms - lT);
+          if (uB < 0.50) continue;
+        }
+      }
 
       const requiredInputLane = (this.isMirrorModeActive && note._isMirrored && (note.lane === 0 || note.lane === 2))
         ? (2 - note.lane)
@@ -4049,6 +4074,13 @@ class BeatstarEngine {
 
     if (closestNote.type === 'tap' || (!closestNote.type || closestNote.type === 'single' || closestNote.type === 'normal')) {
       closestNote.hit = true;
+      if (this.isEchoModeActive) {
+        if (closestNote._isEchoSource && closestNote._echoTargetNote) {
+          this._launchEchoRebound(closestNote, currentTime, hitX, hitY, false);
+        } else if (closestNote._isEchoRebound) {
+          this._triggerEchoReboundHitFX(closestNote, hitX, hitY);
+        }
+      }
       let j;
       try {
         j = this.judgeHit(closestNote, minDiff, hitX, hitY);
@@ -5148,6 +5180,12 @@ class BeatstarEngine {
         break;
       }
 
+      // En Modo ECO: si la tecla muelle original alcanzó la barra inferior y aún no lanzó su rebote, activarlo a tiempo
+      if (this.isEchoModeActive && note._isEchoSource && note._echoTargetNote && !note._echoTargetNote._echoBounceLaunched && currentTime >= noteTime + 45) {
+        const fallbackHitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
+        this._launchEchoRebound(note, noteTime, null, fallbackHitY, true);
+      }
+
       // En Modo Setas Alucinógenas: ÚNICAMENTE durante la transición de nube de setas (giro de gravedad),
       // auto-completar las notas para que jamás se pueda fallar en mitad del cambio
       if (this.isMushroomModeActive && this._mushInSafeTransition && currentTime >= noteTime - 60) {
@@ -5320,7 +5358,8 @@ class BeatstarEngine {
       this.isRiverModeActive ||
       this.isMinesweeperModeActive ||
       this.isMirrorModeActive ||
-      (typeof window !== 'undefined' && (window.isStormModeActive || window.isMushroomModeActive || window.isHighwayModeActive || window.isAnnoyingDogModeActive || window.isRiverModeActive || window.isMinesweeperModeActive || window.isMirrorModeActive))
+      this.isEchoModeActive ||
+      (typeof window !== 'undefined' && (window.isStormModeActive || window.isMushroomModeActive || window.isHighwayModeActive || window.isAnnoyingDogModeActive || window.isRiverModeActive || window.isMinesweeperModeActive || window.isMirrorModeActive || window.isEchoModeActive))
     );
     const clefMultiplier = (isFeatured ? 2 : 1) * (isStormX2 ? 2 : 1);
     const earnedClefs = Math.max(1, Math.round(baseScoreClefs * diffMultiplier)) * clefMultiplier;
@@ -5448,6 +5487,9 @@ class BeatstarEngine {
     }
     if (this.isMirrorModeActive || (typeof window !== 'undefined' && window.isMirrorModeActive)) {
       this.updateMirrorModeEffects(dt);
+    }
+    if (this.isEchoModeActive || (typeof window !== 'undefined' && window.isEchoModeActive)) {
+      this.updateEchoModeEffects(dt);
     }
 
     for (let i = this.judgements.length - 1; i >= 0; i--) {
@@ -6910,6 +6952,9 @@ class BeatstarEngine {
     }
     if (this.isMirrorModeActive || (typeof window !== 'undefined' && window.isMirrorModeActive)) {
       this.renderMirrorModeOverlay(this.ctx, currentTime);
+    }
+    if (this.isEchoModeActive || (typeof window !== 'undefined' && window.isEchoModeActive)) {
+      this.renderEchoModeOverlay(this.ctx, currentTime);
     }
     if (hasMineShake) {
       this.ctx.restore();
@@ -13641,17 +13686,25 @@ class BeatstarEngine {
       ctx.fillStyle = isPressed ? '#0284c7' : '#075985';
     } else if (mirrorSide === 'pink') {
       ctx.fillStyle = isPressed ? '#be185d' : '#831843';
+    } else if (mirrorSide === 'echo_source') {
+      ctx.fillStyle = isPressed ? '#047857' : '#064e3b';
+    } else if (mirrorSide === 'echo_rebound') {
+      ctx.fillStyle = isPressed ? '#0369a1' : '#0f766e';
     } else {
       ctx.fillStyle = isPressed ? '#22222a' : (isMushKey ? '#230b36' : '#141419');
     }
     tracePerspectiveQuad(ctx, x0Bev, x1Bev, x0Bot, x1Bot, yBevelTop, y1, r);
     ctx.fill();
 
-    // 3. Cara Superior en acabado pulido 3D (Cian eléctrico o Rosa neón en Modo Espejo, sin rectángulos superpuestos)
+    // 3. Cara Superior en acabado pulido 3D (Cian eléctrico, Rosa neón o Esmeralda Acústico en Modo ECO)
     if (mirrorSide === 'cyan') {
       ctx.fillStyle = isPressed ? '#38bdf8' : '#0891b2';
     } else if (mirrorSide === 'pink') {
       ctx.fillStyle = isPressed ? '#f472b6' : '#db2777';
+    } else if (mirrorSide === 'echo_source') {
+      ctx.fillStyle = isPressed ? '#34d399' : '#0d9488';
+    } else if (mirrorSide === 'echo_rebound') {
+      ctx.fillStyle = isPressed ? '#67e8f9' : '#10b981';
     } else {
       ctx.fillStyle = isPressed ? '#45e69e' : (isMushKey ? '#2d124d' : '#1a1d28');
     }
@@ -13665,7 +13718,11 @@ class BeatstarEngine {
       ? '#67e8f9'
       : (mirrorSide === 'pink'
         ? '#f9a8d4'
-        : (isMushKey ? mushRimColors[Math.floor((cy * 0.03 + (this._frameNow || 0) * 0.006)) & 3] : '#3e4252'));
+        : (mirrorSide === 'echo_source'
+          ? '#5eead4'
+          : (mirrorSide === 'echo_rebound'
+            ? '#a7f3d0'
+            : (isMushKey ? mushRimColors[Math.floor((cy * 0.03 + (this._frameNow || 0) * 0.006)) & 3] : '#3e4252'))));
     ctx.strokeStyle = isPressed ? '#ffffff' : rimCol;
     ctx.lineWidth = Math.max(1.2, (isPressed || mirrorSide ? 2.2 : (isMushKey ? 2.1 : 1.4)) * scale);
     tracePerspectiveQuad(ctx, x0Top, x1Top, x0Bot, x1Bot, y0, y1, r);
@@ -16235,7 +16292,7 @@ class BeatstarEngine {
       while (this.firstActiveNoteIndex < len) {
         const pastN = this.notes[this.firstActiveNoteIndex];
         if (!pastN) { this.firstActiveNoteIndex++; continue; }
-        const pastT = pastN.end_timestamp_ms || pastN.timestamp_ms || pastN.timeMs || 0;
+        const pastT = (pastN._echoTargetNote ? pastN._echoTargetNote.timestamp_ms : 0) || pastN.end_timestamp_ms || pastN.timestamp_ms || pastN.timeMs || 0;
         if ((pastN.hit || pastN.missed || pastN.processed || pastN.holdCompleted) && !pastN.holding && (currentTime - pastT > 400)) {
           this.firstActiveNoteIndex++;
         } else {
@@ -16249,6 +16306,7 @@ class BeatstarEngine {
       const isHighwayActive = Boolean((typeof window !== 'undefined' && window.isHighwayModeActive) || this.isHighwayModeActive);
       const isAnnoyingDogActive = Boolean((typeof window !== 'undefined' && window.isAnnoyingDogModeActive) || this.isAnnoyingDogModeActive);
       const isRiverActive = Boolean((typeof window !== 'undefined' && window.isRiverModeActive) || this.isRiverModeActive);
+      const isEchoActive = Boolean((typeof window !== 'undefined' && window.isEchoModeActive) || this.isEchoModeActive);
       const curRiverFlowPos = isRiverActive ? this._getRiverFlowPos(currentTime) : 0;
 
       if (isHighwayActive) {
@@ -16350,6 +16408,19 @@ class BeatstarEngine {
         const noteT = note.timestamp_ms ?? note.timeMs ?? 0;
         const isBeingHeld = Boolean(note.holding && !note.holdCompleted);
         const timeUntilHit = noteT - currentTime;
+
+        if (isEchoActive && note._isEchoRebound) {
+          if (!note._echoBounceLaunched) {
+            if (currentTime >= (note._echoSourceTimeMs || 0) + 45) {
+              this._launchEchoRebound(note._echoSourceNote || { lane: note._echoFromLane ?? lane, timestamp_ms: note._echoSourceTimeMs || (noteT - 450), _echoTargetNote: note }, note._echoSourceTimeMs || (noteT - 450), null, hitY, true);
+            } else {
+              continue;
+            }
+          }
+          const lyricEcho = isKaraokeActive ? note._cleanLyric : null;
+          this.renderEchoBouncingNote(ctx, note, currentTime, hitY, isLarge, lyricEcho);
+          continue;
+        }
 
         if (timeUntilHit > (isRiverActive ? 2400 : 1200) && timeUntilHit > scrollDur * (isRiverActive ? 1.65 : 1.0)) break;
 
@@ -16749,6 +16820,10 @@ class BeatstarEngine {
             this.renderMirrorReflectedNote(ctx, note, drawLane, coord, h, isLarge, false, 'up', lyricForNote, pHead, currentTime);
             continue;
           }
+          if (isEchoActive && note._isEchoSource) {
+            this.renderEchoSourceKey(ctx, note, drawLane, coord, h, isLarge, lyricForNote, pHead, currentTime);
+            continue;
+          }
           const tapKey = this.drawIvoryKey(ctx, drawLane, coord.y, h, coord.scale, false, isLarge, false, lyricForNote);
           // En modo Setas: si la tecla está saltando de carril o es múltiplo de 3, dibujar seta mágica sobre la tecla
           if (isMushroomActive && this._mushSprites && this._mushSprites.length > 0 && ((note._mushFromLane !== undefined && note._mushFromLane !== lane) || (i % 3 === 0))) {
@@ -17048,6 +17123,513 @@ class BeatstarEngine {
 
         ctx.strokeStyle = `rgba(255, 255, 255, ${alpha.toFixed(2)})`;
         ctx.lineWidth = 1.8;
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // =========================================================================
+    // MODO ECO ("DOBLE GOLPE CON REBOTE CORTO"): ONDA ACÚSTICA Y PARÁBOLA 1/4 PANTALLA
+    // =========================================================================
+    initEchoModeAssets() {
+      if (!this._echoRipples) this._echoRipples = [];
+      if (this._echoWaveSprites) return;
+
+      // Pre-renderizar emblemas de onda acústica / muelle en offscreen canvas (0 allocs en el bucle de renderizado)
+      const buildEchoBadge = (dirDelta, isRebound) => {
+        const c = document.createElement('canvas');
+        c.width = 128;
+        c.height = 52;
+        const g = c.getContext('2d');
+        const cx = 64;
+        const cy = 26;
+
+        // Halo suave central
+        const rad = g.createRadialGradient(cx, cy, 2, cx, cy, 34);
+        rad.addColorStop(0, isRebound ? 'rgba(255, 255, 255, 0.55)' : 'rgba(167, 243, 208, 0.45)');
+        rad.addColorStop(0.55, isRebound ? 'rgba(56, 189, 248, 0.22)' : 'rgba(16, 185, 129, 0.18)');
+        rad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        g.fillStyle = rad;
+        g.fillRect(0, 0, 128, 52);
+
+        // Espiral / muelle armónico central horizontal + núcleo acústico
+        g.strokeStyle = isRebound ? '#e0f2fe' : '#a7f3d0';
+        g.lineWidth = 2.2;
+        g.lineCap = 'round';
+        g.lineJoin = 'round';
+
+        // 2 pares de arcos de onda acústica concéntricos (( • ))
+        for (let ring = 1; ring <= 2; ring++) {
+          const r = ring === 1 ? 10.5 : 17.5;
+          g.strokeStyle = ring === 1 ? '#ffffff' : (isRebound ? '#7dd3fc' : '#6ee7b7');
+          g.lineWidth = ring === 1 ? 2.5 : 2.0;
+          // Arco izquierdo
+          g.beginPath();
+          g.arc(cx - 2, cy, r, Math.PI * 0.68, Math.PI * 1.32);
+          g.stroke();
+          // Arco derecho
+          g.beginPath();
+          g.arc(cx + 2, cy, r, -Math.PI * 0.32, Math.PI * 0.32);
+          g.stroke();
+        }
+
+        // Bobina de muelle elástico en el centro
+        g.strokeStyle = '#ffffff';
+        g.lineWidth = 2.1;
+        g.beginPath();
+        g.moveTo(cx - 6, cy + 4);
+        g.lineTo(cx + 6, cy + 2);
+        g.lineTo(cx - 5, cy - 1);
+        g.lineTo(cx + 5, cy - 4);
+        g.stroke();
+
+        // Punto focal brillante
+        g.fillStyle = '#ffffff';
+        g.beginPath();
+        g.arc(cx, cy, 3.2, 0, Math.PI * 2);
+        g.fill();
+
+        // Indicador direccional sutil si el rebote cae en el carril adyacente (izquierda o derecha)
+        if (dirDelta !== 0 && !isRebound) {
+          const arrowX = dirDelta < 0 ? (cx - 30) : (cx + 30);
+          const sign = dirDelta < 0 ? -1 : 1;
+          g.strokeStyle = '#ffffff';
+          g.lineWidth = 2.6;
+          g.beginPath();
+          g.moveTo(arrowX - sign * 4, cy - 6);
+          g.lineTo(arrowX + sign * 3, cy);
+          g.lineTo(arrowX - sign * 4, cy + 6);
+          g.stroke();
+        }
+        return c;
+      };
+
+      this._echoWaveSprites = {
+        same: buildEchoBadge(0, false),
+        left: buildEchoBadge(-1, false),
+        right: buildEchoBadge(1, false),
+        rebound: buildEchoBadge(0, true)
+      };
+    }
+
+    _prepareEchoChoreography() {
+      if (!Array.isArray(this.notes) || this.notes.length === 0) return;
+
+      // Filtrar notas previas que fuesen inyectadas por ECO en un reinicio
+      const baseNotes = this.notes.filter(n => n && !n._isSyntheticEchoRebound);
+      for (let i = 0; i < baseNotes.length; i++) {
+        const n = baseNotes[i];
+        n._isEchoSource = false;
+        n._isEchoRebound = false;
+        n._echoTargetNote = null;
+        n._echoSourceNote = null;
+        n._echoFromLane = n.lane;
+        n._echoSourceTimeMs = 0;
+        n._echoBeats = 1;
+        n._echoBounceLaunched = false;
+        n._echoLaunchTimeMs = 0;
+      }
+
+      const nLanes = this.numLanes || 3;
+      const rawBpm = Math.max(68, Math.min(188, Number(this.bpm || this.beatmapData?.metadata?.bpm || this.beatmapData?.bpm || 120)));
+      let beatMs = Math.round(60000 / rawBpm);
+      if (beatMs < 330) beatMs *= 2;
+      else if (beatMs > 660) beatMs = Math.round(beatMs * 0.5);
+
+      const isTapCandidate = (n) => {
+        if (!n || n.isMine || n._isEchoSource || n._isEchoRebound) return false;
+        const t = n.type || 'tap';
+        return (t === 'tap' || t === 'single' || t === 'normal');
+      };
+
+      const isLaneBusyAt = (lane, tMs, marginMs = 255) => {
+        for (let i = 0; i < baseNotes.length; i++) {
+          const rn = baseNotes[i];
+          if (!rn) continue;
+          const rtStart = rn.timestamp_ms ?? rn.timeMs ?? 0;
+          const rtEnd = rn.end_timestamp_ms || rtStart;
+          if (rtStart - tMs > marginMs + 350) break;
+          if (rn.lane === lane && tMs >= (rtStart - marginMs) && tMs <= (rtEnd + marginMs)) {
+            return true;
+          }
+        }
+        return false;
+      };
+
+      const countBusyLanesAt = (tMs, marginMs = 185) => {
+        let busy = 0;
+        for (let l = 0; l < nLanes; l++) {
+          if (isLaneBusyAt(l, tMs, marginMs)) busy++;
+        }
+        return busy;
+      };
+
+      const syntheticRebounds = [];
+      const lastSongNoteT = (baseNotes[baseNotes.length - 1]?.timestamp_ms ?? 0) - 900;
+      let nextAllowedEchoMs = 2100;
+      let echoPairIdx = 0;
+
+      for (let i = 0; i < baseNotes.length; i++) {
+        const src = baseNotes[i];
+        if (!isTapCandidate(src)) continue;
+        const srcT = src.timestamp_ms ?? src.timeMs ?? 0;
+        if (srcT < nextAllowedEchoMs || srcT > lastSongNoteT) continue;
+
+        // Evitar convertir acordes simultáneos en tecla muelle para que el pulso sea cristalino
+        const prevT = i > 0 ? (baseNotes[i - 1].timestamp_ms ?? -9999) : -9999;
+        const nextImmediateT = (i + 1 < baseNotes.length) ? (baseNotes[i + 1].timestamp_ms ?? 99999999) : 99999999;
+        if (Math.abs(srcT - prevT) < 90 || Math.abs(nextImmediateT - srcT) < 90) continue;
+
+        // 1. Intentar enlazar con una nota tap real existente 1 o 2 pulsos musicales después en el mismo carril o adyacente
+        let linkedExisting = null;
+        for (let j = i + 1; j < baseNotes.length; j++) {
+          const cand = baseNotes[j];
+          if (!cand) continue;
+          const candT = cand.timestamp_ms ?? cand.timeMs ?? 0;
+          const dt = candT - srcT;
+          if (dt < 310) continue;
+          if (dt > 980) break;
+          if (!isTapCandidate(cand)) continue;
+
+          const laneDist = Math.abs((cand.lane ?? 0) - (src.lane ?? 0));
+          if (laneDist > 1) continue;
+
+          const near1Beat = Math.abs(dt - beatMs) <= beatMs * 0.34;
+          const near2Beats = Math.abs(dt - beatMs * 2) <= beatMs * 0.32;
+          if (!near1Beat && !near2Beats) continue;
+
+          // Verificar que no haya una nota intermedia estorbando en el carril origen o destino
+          let blockedBetween = false;
+          for (let k = i + 1; k < j; k++) {
+            const midN = baseNotes[k];
+            if (midN && (midN.lane === src.lane || midN.lane === cand.lane)) {
+              blockedBetween = true;
+              break;
+            }
+          }
+          if (!blockedBetween) {
+            linkedExisting = cand;
+            break;
+          }
+        }
+
+        if (linkedExisting) {
+          const rebT = linkedExisting.timestamp_ms ?? linkedExisting.timeMs ?? (srcT + beatMs);
+          const dt = rebT - srcT;
+          src._isEchoSource = true;
+          src._echoTargetNote = linkedExisting;
+          linkedExisting._isEchoRebound = true;
+          linkedExisting._echoSourceNote = src;
+          linkedExisting._echoFromLane = src.lane;
+          linkedExisting._echoSourceTimeMs = srcT;
+          linkedExisting._echoBeats = (dt > beatMs * 1.45) ? 2 : 1;
+          linkedExisting._echoBounceLaunched = false;
+          linkedExisting._echoLaunchTimeMs = 0;
+          echoPairIdx++;
+          nextAllowedEchoMs = rebT + 1350 + (echoPairIdx % 3) * 320;
+          continue;
+        }
+
+        // 2. Si hay hueco musical tras src, generar rebote de contratiempo exactamente 1 o 2 pulsos después
+        const beats = (beatMs < 380) ? 2 : (((echoPairIdx % 3) === 2 && beatMs <= 470) ? 2 : 1);
+        const reboundDt = Math.max(350, Math.min(880, Math.round(beatMs * beats)));
+        const reboundTime = srcT + reboundDt;
+        if (reboundTime > lastSongNoteT) continue;
+        if (countBusyLanesAt(reboundTime, 190) >= nLanes - 1) continue;
+
+        // Alternar entre el mismo carril y el carril de al lado para crear el contratiempo rítmico
+        const preferAdjacent = (echoPairIdx % 2 === 0);
+        const adjLanes = [];
+        if (src.lane > 0) adjLanes.push(src.lane - 1);
+        if (src.lane < nLanes - 1) adjLanes.push(src.lane + 1);
+        if ((echoPairIdx & 1) && adjLanes.length > 1) adjLanes.reverse();
+
+        const candidateLanes = preferAdjacent ? [...adjLanes, src.lane] : [src.lane, ...adjLanes];
+        let chosenLane = -1;
+        for (let cIdx = 0; cIdx < candidateLanes.length; cIdx++) {
+          const l = candidateLanes[cIdx];
+          if (!isLaneBusyAt(l, reboundTime, 275)) {
+            chosenLane = l;
+            break;
+          }
+        }
+
+        if (chosenLane !== -1) {
+          const rebNote = {
+            id: `echo_reb_${echoPairIdx}_${reboundTime}`,
+            lane: chosenLane,
+            column: chosenLane,
+            track: chosenLane,
+            type: 'tap',
+            isMine: false,
+            time: reboundTime / 1000,
+            timeMs: reboundTime,
+            timestamp_ms: reboundTime,
+            duration_ms: 0,
+            holdDuration: 0,
+            end_timestamp_ms: null,
+            lyric: null,
+            _cleanLyric: null,
+            hit: false,
+            holding: false,
+            holdCompleted: false,
+            missed: false,
+            processed: false,
+            _isSyntheticEchoRebound: true,
+            _isEchoRebound: true,
+            _echoSourceNote: src,
+            _echoFromLane: src.lane,
+            _echoSourceTimeMs: srcT,
+            _echoBeats: beats,
+            _echoBounceLaunched: false,
+            _echoLaunchTimeMs: 0
+          };
+          src._isEchoSource = true;
+          src._echoTargetNote = rebNote;
+          syntheticRebounds.push(rebNote);
+          echoPairIdx++;
+          nextAllowedEchoMs = reboundTime + 1350 + (echoPairIdx % 3) * 320;
+        }
+      }
+
+      if (syntheticRebounds.length > 0) {
+        const combined = [...baseNotes, ...syntheticRebounds].sort((a, b) => (a.timestamp_ms ?? 0) - (b.timestamp_ms ?? 0));
+        const cLen = combined.length;
+        for (let i = 0; i < cLen; i++) {
+          const curN = combined[i];
+          let diff = Infinity;
+          const maxJ = Math.min(cLen, i + 40);
+          for (let j = i + 1; j < maxJ; j++) {
+            const nextN = combined[j];
+            if ((nextN.timestamp_ms ?? 0) - (curN.timestamp_ms ?? 0) > 3000) break;
+            if (nextN.lane === curN.lane && (nextN.timestamp_ms ?? 0) > (curN.timestamp_ms ?? 0)) {
+              diff = (nextN.timestamp_ms ?? 0) - (curN.timestamp_ms ?? 0);
+              break;
+            }
+          }
+          curN.nextSameLaneDiffMs = diff;
+        }
+        this.notes = combined;
+        this.lastNoteTime = combined.length > 0
+          ? Math.max(...combined.map(n => n.end_timestamp_ms || n.timestamp_ms || 0))
+          : 0;
+      } else {
+        this.notes = baseNotes;
+      }
+    }
+
+    _launchEchoRebound(sourceNote, currentTime, hitX, hitY, isFallback = false) {
+      if (!sourceNote || !sourceNote._echoTargetNote) return;
+      const reb = sourceNote._echoTargetNote;
+      if (reb._echoBounceLaunched) return;
+
+      reb._echoBounceLaunched = true;
+      const targetT = reb.timestamp_ms ?? reb.timeMs ?? (currentTime + 450);
+      reb._echoLaunchTimeMs = Math.min(currentTime, targetT - 200);
+
+      const srcLane = sourceNote.lane ?? 0;
+      const dstLane = reb.lane ?? srcLane;
+      const yBar = Number.isFinite(hitY) ? hitY : (Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84));
+      const xStart = Number.isFinite(hitX)
+        ? hitX
+        : ((this.visualDimension !== '2d' && typeof this.getLaneBoundaryX === 'function')
+            ? (this.getLaneBoundaryX(srcLane, yBar) + this.getLaneBoundaryX(srcLane + 1, yBar)) * 0.5
+            : (srcLane + 0.5) * (this.laneWidth || (this.width / (this.numLanes || 3))));
+
+      if (!this._echoRipples) this._echoRipples = [];
+      if (this._echoRipples.length >= 8) this._echoRipples.shift();
+      this._echoRipples.push({
+        x: xStart,
+        y: yBar,
+        age: 0,
+        duration: 0.36,
+        maxRadius: Math.max(46, (this.laneWidth || 100) * 0.56),
+        color: '#34d399'
+      });
+
+      if (!isFallback) {
+        this._playEchoSpringSound(srcLane, dstLane, reb._echoBeats || 1, false);
+      }
+    }
+
+    _triggerEchoReboundHitFX(reboundNote, hitX, hitY) {
+      const lane = reboundNote?.lane ?? 0;
+      if (!this._echoRipples) this._echoRipples = [];
+      if (this._echoRipples.length >= 8) this._echoRipples.shift();
+      this._echoRipples.push({
+        x: hitX,
+        y: hitY,
+        age: 0,
+        duration: 0.42,
+        maxRadius: Math.max(58, (this.laneWidth || 100) * 0.68),
+        color: '#38bdf8'
+      });
+      this._playEchoSpringSound(lane, lane, 1, true);
+    }
+
+    _playEchoSpringSound(fromLane, toLane, beats = 1, isSecondHit = false) {
+      try {
+        if (this.synth && this.synth.isMuted) return;
+        const actx = (this.synth && typeof this.synth.ensureContext === 'function') ? this.synth.ensureContext() : null;
+        if (!actx) return;
+        const now = actx.currentTime;
+        const osc = actx.createOscillator();
+        const gain = actx.createGain();
+        osc.type = 'sine';
+        const baseFreqs = [523.25, 659.25, 783.99, 987.77];
+        const f0 = baseFreqs[Math.abs(fromLane) % baseFreqs.length];
+        const f1 = baseFreqs[Math.abs(toLane) % baseFreqs.length] * (isSecondHit ? 1.5 : 1.25);
+
+        osc.frequency.setValueAtTime(f0, now);
+        osc.frequency.exponentialRampToValueAtTime(f1, now + (isSecondHit ? 0.085 : 0.11));
+
+        gain.gain.setValueAtTime(0.065, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + (isSecondHit ? 0.11 : 0.13));
+
+        osc.connect(gain);
+        gain.connect(actx.destination);
+        osc.start(now);
+        osc.stop(now + (isSecondHit ? 0.115 : 0.135));
+      } catch (_) {}
+    }
+
+    updateEchoModeEffects(dt) {
+      if (!this._echoRipples || this._echoRipples.length === 0) return;
+      for (let i = this._echoRipples.length - 1; i >= 0; i--) {
+        const r = this._echoRipples[i];
+        r.age += dt;
+        if (r.age >= r.duration) {
+          this._echoRipples.splice(i, 1);
+        }
+      }
+    }
+
+    renderEchoSourceKey(ctx, note, drawLane, coord, h, isLarge, lyricForNote, pHead, currentTime) {
+      if (!this._echoWaveSprites) this.initEchoModeAssets();
+      const keyRect = this.drawIvoryKey(ctx, drawLane, coord.y, h, coord.scale, false, isLarge, false, lyricForNote, 'echo_source');
+      if (!lyricForNote && this._echoWaveSprites) {
+        const targetL = note._echoTargetNote ? (note._echoTargetNote.lane ?? drawLane) : drawLane;
+        const delta = Math.round(targetL - drawLane);
+        const spr = delta < 0 ? this._echoWaveSprites.left : (delta > 0 ? this._echoWaveSprites.right : this._echoWaveSprites.same);
+        const pulse = 1.0 + 0.07 * Math.sin(currentTime * 0.014 + (note.timestamp_ms || 0) * 0.01);
+        const w = Math.min(keyRect.w * 0.86, 84 * coord.scale) * pulse;
+        const bh = w * (52 / 128);
+        ctx.drawImage(spr, keyRect.cx - w * 0.5, keyRect.cy - bh * 0.5, w, bh);
+      }
+    }
+
+    renderEchoBouncingNote(ctx, note, currentTime, hitY, isLarge, lyricForNote) {
+      if (!this._echoWaveSprites) this.initEchoModeAssets();
+      const launchT = note._echoLaunchTimeMs || note._echoSourceTimeMs || (note.timestamp_ms - 450);
+      const targetT = note.timestamp_ms ?? note.timeMs ?? (launchT + 450);
+      const flightDur = Math.max(180, targetT - launchT);
+      const u = (currentTime - launchT) / flightDur;
+      if (u < -0.05 || u > 1.24) return;
+
+      const fromLane = note._echoFromLane ?? note.lane ?? 0;
+      const toLane = note.lane ?? fromLane;
+      const uClamped = Math.max(0, Math.min(1, u));
+      // Interpolación horizontal suave hacia el mismo carril o el carril de al lado
+      const curLane = fromLane + (toLane - fromLane) * (uClamped * (2 - uClamped));
+
+      // Parábola corta con gravedad: sube exactamente 1/4 de la pantalla (0.25 * height) en el ápice (u = 0.5) y cae en u = 1.0
+      const peakRisePx = this.height * 0.25;
+      const parabola = (u <= 1.0)
+        ? (4.0 * u * (1.0 - u))
+        : (-2.15 * (u - 1.0));
+      const curY = hitY - peakRisePx * parabola;
+
+      const xFrom = (this.visualDimension !== '2d' && typeof this.getLaneBoundaryX === 'function')
+        ? (this.getLaneBoundaryX(fromLane, hitY) + this.getLaneBoundaryX(fromLane + 1, hitY)) * 0.5
+        : (fromLane + 0.5) * this.laneWidth;
+      const xTo = (this.visualDimension !== '2d' && typeof this.getLaneBoundaryX === 'function')
+        ? (this.getLaneBoundaryX(toLane, hitY) + this.getLaneBoundaryX(toLane + 1, hitY)) * 0.5
+        : (toLane + 0.5) * this.laneWidth;
+
+      ctx.save();
+      // 1. Arco guía parabólico minimalista y diana acústica en el carril receptor de aterrizaje
+      if (u <= 1.05) {
+        const arcAlpha = Math.max(0.08, (1.0 - Math.max(0, u - 0.85) * 4.5) * 0.46);
+        ctx.strokeStyle = `rgba(52, 211, 153, ${arcAlpha.toFixed(2)})`;
+        ctx.lineWidth = 2.0;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(xFrom, hitY);
+        ctx.quadraticCurveTo((xFrom + xTo) * 0.5, hitY - peakRisePx * 2.0, xTo, hitY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Diana de onda acústica en el receptor de destino que se contrae al compás de la caída
+        const landRx = Math.max(16, (this.laneWidth || 96) * (0.18 + 0.22 * (1.0 - uClamped)));
+        const landRy = landRx * 0.50;
+        const landAlpha = 0.30 + 0.60 * uClamped;
+        ctx.strokeStyle = uClamped > 0.82 ? `rgba(255, 255, 255, ${landAlpha.toFixed(2)})` : `rgba(56, 189, 248, ${landAlpha.toFixed(2)})`;
+        ctx.lineWidth = uClamped > 0.82 ? 2.8 : 2.0;
+        ctx.beginPath();
+        if (ctx.ellipse) {
+          ctx.ellipse(xTo, hitY, landRx, landRy, 0, 0, Math.PI * 2);
+        } else {
+          ctx.arc(xTo, hitY, landRy, 0, Math.PI * 2);
+        }
+        ctx.stroke();
+      }
+
+      // 2. Dos ondas sónicas ligeras de estela detrás de la tecla en pleno rebote (0 allocs)
+      for (let wIdx = 1; wIdx <= 2; wIdx++) {
+        const uTrail = uClamped - wIdx * 0.065;
+        if (uTrail <= 0.02 || uTrail >= 0.98) continue;
+        const trailLane = fromLane + (toLane - fromLane) * (uTrail * (2 - uTrail));
+        const trailY = hitY - peakRisePx * (4.0 * uTrail * (1.0 - uTrail));
+        const trailX = (this.visualDimension !== '2d' && typeof this.getLaneBoundaryX === 'function')
+          ? (this.getLaneBoundaryX(trailLane, trailY) + this.getLaneBoundaryX(trailLane + 1, trailY)) * 0.5
+          : (trailLane + 0.5) * this.laneWidth;
+        const trailAlpha = (0.34 - wIdx * 0.11);
+        ctx.strokeStyle = wIdx === 1 ? `rgba(167, 243, 208, ${trailAlpha.toFixed(2)})` : `rgba(56, 189, 248, ${trailAlpha.toFixed(2)})`;
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        if (ctx.ellipse) {
+          ctx.ellipse(trailX, trailY, 22 - wIdx * 4, 8 - wIdx * 1.5, 0, 0, Math.PI * 2);
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // 3. Dibujar la tecla en rebote con ligera perspectiva y elasticidad de muelle
+      const horizonY = 12;
+      const tPersp = Math.max(0.25, Math.min(1.12, (curY - horizonY) / Math.max(1, hitY - horizonY)));
+      const minScale = (this.numLanes === 4) ? 0.25 : 0.22;
+      const bounceScale = (minScale + (1.0 - minScale) * tPersp) * (1.0 + 0.08 * parabola);
+      const baseTapKeyH = (this.numLanes === 4) ? (isLarge ? 64 : 28) : (isLarge ? 80 : 30);
+      const keyH = baseTapKeyH * bounceScale;
+
+      const keyRect = this.drawIvoryKey(ctx, curLane, curY, keyH, bounceScale, false, isLarge, false, lyricForNote, 'echo_rebound');
+      if (!lyricForNote && this._echoWaveSprites && this._echoWaveSprites.rebound) {
+        const w = Math.min(keyRect.w * 0.86, 86 * bounceScale);
+        const bh = w * (52 / 128);
+        ctx.drawImage(this._echoWaveSprites.rebound, keyRect.cx - w * 0.5, keyRect.cy - bh * 0.5, w, bh);
+      }
+    }
+
+    renderEchoModeOverlay(ctx, currentTime) {
+      if (!this._echoRipples || this._echoRipples.length === 0) return;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < this._echoRipples.length; i++) {
+        const r = this._echoRipples[i];
+        const p = Math.min(1, r.age / r.duration);
+        const alpha = (1 - p) * 0.82;
+        const rx = 14 + (r.maxRadius - 14) * (1 - (1 - p) * (1 - p));
+        const ry = rx * 0.52;
+        ctx.strokeStyle = r.color === '#38bdf8'
+          ? `rgba(56, 189, 248, ${alpha.toFixed(2)})`
+          : `rgba(52, 211, 153, ${alpha.toFixed(2)})`;
+        ctx.lineWidth = 2.8 * (1 - p * 0.5);
+        ctx.beginPath();
+        if (ctx.ellipse) {
+          ctx.ellipse(r.x, r.y, rx, ry, 0, 0, Math.PI * 2);
+        } else {
+          ctx.arc(r.x, r.y, ry, 0, Math.PI * 2);
+        }
         ctx.stroke();
       }
       ctx.restore();

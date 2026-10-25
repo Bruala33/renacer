@@ -11,8 +11,8 @@ android {
         applicationId = "com.beatstar.renacer"
         minSdk = 24
         targetSdk = 35
-        versionCode = 23
-        versionName = "2.9.0"
+        versionCode = 24
+        versionName = "3.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -65,15 +65,20 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.9.3")
 }
 
-tasks.matching { it.name == "packageDebug" || it.name == "assembleDebug" }.configureEach {
+tasks.matching { it.name == "assembleDebug" || it.name == "assembleRelease" }.configureEach {
     doLast {
-        val builtApk = file("${project.buildDir}/outputs/apk/debug/app-debug.apk")
+        val releaseApk = file("${project.buildDir}/outputs/apk/release/app-release.apk")
+        val debugApk = file("${project.buildDir}/outputs/apk/debug/app-debug.apk")
+        val builtApk = if (releaseApk.exists() && releaseApk.length() > 100000L && releaseApk.lastModified() >= debugApk.lastModified()) {
+            releaseApk
+        } else {
+            debugApk
+        }
         if (builtApk.exists() && builtApk.length() > 100000L) {
             val targets = listOf(
                 file("${rootDir}/PianoCommunity.apk"),
                 file("${rootDir}/app/static/PianoCommunity.apk"),
-                file("${rootDir}/app/static/downloads/PianoCommunity.apk"),
-                file("${rootDir}/.build-outputs/app-debug.apk")
+                file("${rootDir}/app/static/downloads/PianoCommunity.apk")
             )
             for (dst in targets) {
                 try {
