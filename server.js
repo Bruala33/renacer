@@ -757,7 +757,7 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
   res.json({
     status: 'healthy',
     service: 'Piano Community Rhythm Engine',
-    version: '3.1.0',
+    version: '3.1.1',
     num_lanes: 3,
     sources: ['osu! Mania', 'Clone Hero'],
   });
@@ -765,10 +765,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 25,
-    version_name: '3.1.0',
-    release_notes: 'Piano Community v3.1: Nueva calidad Trascendental (Singularidad Astral: Serafín del Crono), física exacta de trampilla 3D Gachapon, modo ECO y optimización extrema de ancho de banda.',
-    download_url: '/download/apk?v=25.0',
+    version_code: 26,
+    version_name: '3.1.1',
+    release_notes: 'Piano Community v3.1.1: Efecto Trascendental con iluminación volumétrica ultra-difuminada, teclas con núcleo de nebulosa y aura suave, física exacta de trampilla 3D y ahorro de ancho de banda.',
+    download_url: '/download/apk?v=26.0',
   });
 });
 
