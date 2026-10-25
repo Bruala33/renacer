@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
+import zlib from 'zlib';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -14,6 +15,120 @@ const HOST = process.env.HOST || '0.0.0.0';
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// ============================================================================
+// RENDER BANDWIDTH SAVER: NATIVE BROTLI / GZIP COMPRESSION + ETAG 304 CACHE
+// Reduces HTML/JS/CSS/JSON outbound transfer by ~85% and 100% on 304 hits
+// ============================================================================
+const STATIC_COMPRESSED_CACHE = new Map();
+const MAX_COMPRESSED_CACHE_ENTRIES = 32;
+
+function getMimeTypeForStatic(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === '.html') return 'text/html; charset=utf-8';
+  if (ext === '.js') return 'application/javascript; charset=utf-8';
+  if (ext === '.css') return 'text/css; charset=utf-8';
+  if (ext === '.json') return 'application/json; charset=utf-8';
+  if (ext === '.svg') return 'image/svg+xml; charset=utf-8';
+  return 'application/octet-stream';
+}
+
+function serveCompressedTextFile(req, res, filePath, cacheControl = 'public, max-age=0, must-revalidate') {
+  try {
+    if (!fs.existsSync(filePath)) return false;
+    const stat = fs.statSync(filePath);
+    if (!stat.isFile()) return false;
+
+    const etag = `W/"${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}"`;
+    res.setHeader('ETag', etag);
+    res.setHeader('Cache-Control', cacheControl);
+    res.setHeader('Vary', 'Accept-Encoding');
+
+    const ifNoneMatch = req.headers['if-none-match'];
+    if (ifNoneMatch && (ifNoneMatch === etag || ifNoneMatch.includes(etag))) {
+      res.status(304).end();
+      return true;
+    }
+
+    const contentType = getMimeTypeForStatic(filePath);
+    res.setHeader('Content-Type', contentType);
+
+    if (req.method === 'HEAD') {
+      res.status(200).end();
+      return true;
+    }
+
+    let entry = STATIC_COMPRESSED_CACHE.get(filePath);
+    if (!entry || entry.mtimeMs !== stat.mtimeMs || entry.size !== stat.size) {
+      const rawBuf = fs.readFileSync(filePath);
+      const gzipBuf = zlib.gzipSync(rawBuf, { level: 6 });
+      let brBuf = null;
+      try {
+        brBuf = zlib.brotliCompressSync(rawBuf, {
+          params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 5 }
+        });
+      } catch (_) {}
+      entry = { mtimeMs: stat.mtimeMs, size: stat.size, rawBuf, gzipBuf, brBuf };
+      if (STATIC_COMPRESSED_CACHE.size >= MAX_COMPRESSED_CACHE_ENTRIES) {
+        const oldestKey = STATIC_COMPRESSED_CACHE.keys().next().value;
+        STATIC_COMPRESSED_CACHE.delete(oldestKey);
+      }
+      STATIC_COMPRESSED_CACHE.set(filePath, entry);
+    }
+
+    const acceptEnc = String(req.headers['accept-encoding'] || '').toLowerCase();
+    if (entry.brBuf && acceptEnc.includes('br')) {
+      res.setHeader('Content-Encoding', 'br');
+      res.setHeader('Content-Length', String(entry.brBuf.byteLength));
+      res.status(200).end(entry.brBuf);
+      return true;
+    }
+    if (entry.gzipBuf && acceptEnc.includes('gzip')) {
+      res.setHeader('Content-Encoding', 'gzip');
+      res.setHeader('Content-Length', String(entry.gzipBuf.byteLength));
+      res.status(200).end(entry.gzipBuf);
+      return true;
+    }
+
+    res.setHeader('Content-Length', String(entry.rawBuf.byteLength));
+    res.status(200).end(entry.rawBuf);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+// Automatically compress JSON API responses larger than 1 KB
+app.use((req, res, next) => {
+  const origJson = res.json.bind(res);
+  res.json = function (body) {
+    try {
+      const jsonStr = JSON.stringify(body);
+      const rawLen = Buffer.byteLength(jsonStr, 'utf-8');
+      if (rawLen > 1024 && !res.getHeader('Content-Encoding')) {
+        const acceptEnc = String(req.headers['accept-encoding'] || '').toLowerCase();
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('Vary', 'Accept-Encoding');
+        if (acceptEnc.includes('br')) {
+          const compressed = zlib.brotliCompressSync(Buffer.from(jsonStr, 'utf-8'), {
+            params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 4 }
+          });
+          res.setHeader('Content-Encoding', 'br');
+          res.setHeader('Content-Length', String(compressed.byteLength));
+          return res.end(compressed);
+        }
+        if (acceptEnc.includes('gzip')) {
+          const compressed = zlib.gzipSync(Buffer.from(jsonStr, 'utf-8'), { level: 6 });
+          res.setHeader('Content-Encoding', 'gzip');
+          res.setHeader('Content-Length', String(compressed.byteLength));
+          return res.end(compressed);
+        }
+      }
+    } catch (_) {}
+    return origJson(body);
+  };
+  next();
+});
 
 const STATIC_DIR = path.join(__dirname, 'app', 'static');
 const COMMUNITY_DIR = path.join(__dirname, 'app', 'uploads', 'community');
@@ -642,7 +757,7 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
   res.json({
     status: 'healthy',
     service: 'Piano Community Rhythm Engine',
-    version: '3.0.0',
+    version: '3.1.0',
     num_lanes: 3,
     sources: ['osu! Mania', 'Clone Hero'],
   });
@@ -650,10 +765,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 24,
-    version_name: '3.0.0',
-    release_notes: 'Piano Community v3.0: Nuevo modo ECO (Doble golpe con rebote corto en parábola), descarga de paquete APK optimizada y Video Poker Las Vegas.',
-    download_url: '/download/apk?v=24.0',
+    version_code: 25,
+    version_name: '3.1.0',
+    release_notes: 'Piano Community v3.1: Nueva calidad Trascendental (Singularidad Astral: Serafín del Crono), física exacta de trampilla 3D Gachapon, modo ECO y optimización extrema de ancho de banda.',
+    download_url: '/download/apk?v=25.0',
   });
 });
 
@@ -957,7 +1072,33 @@ function isCompleteZipApk(filePath, fileSize) {
   }
 }
 
-app.all(['/download/apk', '/api/v1/app/download_apk', '/PianoCommunity.apk', '/static/PianoCommunity.apk', '/downloads/PianoCommunity.apk', '/HyperRhythm.apk'], (req, res) => {
+let cachedGithubApkProbe = { checkedAt: 0, validUrl: null, remoteSize: 0 };
+
+async function getVerifiedGithubCdnApkUrl(expectedLocalSize) {
+  const now = Date.now();
+  if (now - cachedGithubApkProbe.checkedAt < 300000) {
+    if (cachedGithubApkProbe.validUrl && Math.abs(cachedGithubApkProbe.remoteSize - expectedLocalSize) < 512000) {
+      return cachedGithubApkProbe.validUrl;
+    }
+    return null;
+  }
+  const rawUrl = `https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}/PianoCommunity.apk`;
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 2200);
+    const headRes = await fetch(rawUrl, { method: 'HEAD', signal: ctrl.signal });
+    clearTimeout(tid);
+    const cl = parseInt(headRes.headers.get('content-length') || '0', 10);
+    if (headRes.ok && cl > 10000000 && Math.abs(cl - expectedLocalSize) < 512000) {
+      cachedGithubApkProbe = { checkedAt: now, validUrl: rawUrl, remoteSize: cl };
+      return rawUrl;
+    }
+  } catch (_) {}
+  cachedGithubApkProbe = { checkedAt: now, validUrl: null, remoteSize: 0 };
+  return null;
+}
+
+app.all(['/download/apk', '/api/v1/app/download_apk', '/PianoCommunity.apk', '/static/PianoCommunity.apk', '/downloads/PianoCommunity.apk', '/HyperRhythm.apk'], async (req, res) => {
   const apkCandidates = [
     path.join(__dirname, 'PianoCommunity.apk'),
     path.join(STATIC_DIR, 'downloads', 'PianoCommunity.apk'),
@@ -984,18 +1125,36 @@ app.all(['/download/apk', '/api/v1/app/download_apk', '/PianoCommunity.apk', '/s
   if (validApks.length > 0) {
     validApks.sort((a, b) => b.stat.mtimeMs - a.stat.mtimeMs);
     const { apkPath, stat } = validApks[0];
+    const etag = `"apk-${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}"`;
+
+    if (req.headers['if-none-match'] === etag) {
+      return res.status(304).end();
+    }
+
+    // Offload 30.7 MB APK transfer to GitHub's free Fastly CDN when hosted on Render and verified up-to-date
+    const hostHdr = String(req.headers.host || '').toLowerCase();
+    const isOnRender = Boolean(process.env.RENDER || hostHdr.includes('onrender.com'));
+    if (isOnRender && req.method === 'GET' && !req.query.local && !req.headers.range) {
+      const cdnUrl = await getVerifiedGithubCdnApkUrl(stat.size);
+      if (cdnUrl) {
+        res.setHeader('Cache-Control', 'public, max-age=300');
+        return res.redirect(302, cdnUrl);
+      }
+    }
+
     res.setHeader('Content-Type', 'application/vnd.android.package-archive');
     res.setHeader('Content-Disposition', 'attachment; filename="PianoCommunity.apk"');
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, Content-Length, Accept-Ranges');
+    res.setHeader('ETag', etag);
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, Content-Length, Accept-Ranges, ETag');
     if (req.method === 'HEAD') {
       res.setHeader('Content-Length', stat.size);
       res.setHeader('Accept-Ranges', 'bytes');
-      res.setHeader('Cache-Control', 'private, max-age=0, must-revalidate');
+      res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
       return res.status(200).end();
     }
     return res.sendFile(apkPath, {
-      maxAge: 0,
+      maxAge: 3600000,
       lastModified: true,
       etag: true,
       acceptRanges: true,
@@ -1003,7 +1162,7 @@ app.all(['/download/apk', '/api/v1/app/download_apk', '/PianoCommunity.apk', '/s
       headers: {
         'Content-Type': 'application/vnd.android.package-archive',
         'Content-Disposition': 'attachment; filename="PianoCommunity.apk"',
-        'Cache-Control': 'private, max-age=0, must-revalidate',
+        'Cache-Control': 'public, max-age=3600, must-revalidate',
         'X-Content-Type-Options': 'nosniff'
       }
     });
@@ -1721,7 +1880,7 @@ app.get('/api/v1/community/charts/:id/audio', (req, res) => {
 // 4b. Proxies de Descarga Robusta Ultrarrápida (osu! y Clone Hero)
 // ==========================================
 const OSU_OSZ_LRU_CACHE = new Map();
-const OSU_OSZ_LRU_MAX = 12;
+const OSU_OSZ_LRU_MAX = 4;
 
 app.get(['/api/v1/download/osu/:setId', '/api/v1/osu/download/:setId'], async (req, res) => {
   const rawId = (req.params.setId || '').toString().replace(/^osu_/, '').trim();
@@ -2399,10 +2558,12 @@ app.get('/songs/:folder/:file(*)', (req, res) => {
       if (file.endsWith('.mp3')) {
         res.setHeader('Accept-Ranges', 'bytes');
         res.setHeader('Content-Type', 'audio/mpeg');
-      } else if (file.endsWith('.json')) {
-        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+        return res.sendFile(p);
+      } else if (file.endsWith('.json') || file.endsWith('.js')) {
+        if (serveCompressedTextFile(req, res, p, 'public, max-age=3600, must-revalidate')) return;
       }
-      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.setHeader('Cache-Control', 'public, max-age=604800');
       return res.sendFile(p);
     }
   }
@@ -2432,52 +2593,51 @@ function resolveLatestGameHtmlPath() {
 // Sincronizar game.html con index.html al iniciar el servidor (evita desajustes en Render)
 resolveLatestGameHtmlPath();
 
-// Serve / and /game.html directly with no-cache headers
+// Serve /, /game.html, /index.html with Brotli/Gzip + ETag 304 Not Modified
 app.get(['/', '/game.html', '/index.html'], (req, res) => {
   const fileToServe = resolveLatestGameHtmlPath();
-
-  if (fs.existsSync(fileToServe)) {
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    return res.sendFile(fileToServe);
+  if (serveCompressedTextFile(req, res, fileToServe, 'public, max-age=0, must-revalidate')) {
+    return;
   }
   res.status(404).send('index.html no encontrado.');
 });
 
+// Intercept compressible text assets (.js, .css, .html, .json, .svg) before express.static
+app.use((req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+  const cleanPath = req.path.replace(/^\/static\//, '/');
+  const ext = path.extname(cleanPath).toLowerCase();
+  if (ext === '.js' || ext === '.css' || ext === '.html' || ext === '.json' || ext === '.svg') {
+    const candidate = path.join(STATIC_DIR, cleanPath);
+    if (candidate.startsWith(STATIC_DIR) && serveCompressedTextFile(req, res, candidate, 'public, max-age=0, must-revalidate')) {
+      return;
+    }
+  }
+  next();
+});
+
+const staticCacheHeaders = (res, filePath) => {
+  const lower = filePath.toLowerCase();
+  if (lower.endsWith('.css') || lower.endsWith('.js') || lower.endsWith('.html')) {
+    res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+  } else if (lower.endsWith('.mp3') || lower.endsWith('.ogg') || lower.endsWith('.wav') || lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.webp') || lower.endsWith('.woff2') || lower.endsWith('.ttf')) {
+    res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+  } else {
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+  }
+};
+
 // Static assets mounted at /static
-app.use(
-  '/static',
-  express.static(STATIC_DIR, {
-    setHeaders: (res, filePath) => {
-      if (filePath.endsWith('.css') || filePath.endsWith('.js') || filePath.endsWith('.html') || filePath.endsWith('.apk')) {
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      } else {
-        res.setHeader('Cache-Control', 'public, max-age=3600');
-      }
-    },
-  })
-);
+app.use('/static', express.static(STATIC_DIR, { etag: true, lastModified: true, setHeaders: staticCacheHeaders }));
 
 // Root fallback static file serving (for /style.css, /game.js, /favicon.ico, etc.)
-app.use(
-  express.static(STATIC_DIR, {
-    setHeaders: (res, filePath) => {
-      if (filePath.endsWith('.css') || filePath.endsWith('.js') || filePath.endsWith('.html') || filePath.endsWith('.apk')) {
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      } else {
-        res.setHeader('Cache-Control', 'public, max-age=3600');
-      }
-    },
-  })
-);
+app.use(express.static(STATIC_DIR, { etag: true, lastModified: true, setHeaders: staticCacheHeaders }));
 
 // 404 fallback to index.html for client-side routing
 app.use((req, res) => {
   const fileToServe = resolveLatestGameHtmlPath();
-  if (fs.existsSync(fileToServe)) {
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    return res.sendFile(fileToServe);
+  if (serveCompressedTextFile(req, res, fileToServe, 'public, max-age=0, must-revalidate')) {
+    return;
   }
   res.status(404).send('Not Found');
 });

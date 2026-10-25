@@ -1950,7 +1950,8 @@ class BeatstarEngine {
       'dragon_fire',
       'aurora_borealis',
       'supernova_burst',
-      'quantum_prism'
+      'quantum_prism',
+      'astral_transcendence'
     ]);
     if (validIds.has(rawId)) return rawId;
     return LEGACY_MAP[rawId] || 'solar_inferno';
@@ -2006,42 +2007,57 @@ class BeatstarEngine {
       dragon_fire: ['#fde047', '#34d399', '#10b981', '#059669', '#a7f3d0'],
       aurora_borealis: ['#2dd4bf', '#34d399', '#38bdf8', '#c084fc', '#f472b6'],
       supernova_burst: ['#ffffff', '#fde047', '#ff007f', '#00f2fe', '#a855f7'],
-      quantum_prism: ['#39ff14', '#00f2fe', '#a855f7', '#ffffff', '#fde047']
+      quantum_prism: ['#39ff14', '#00f2fe', '#a855f7', '#ffffff', '#fde047'],
+      astral_transcendence: ['#ffffff', '#fde047', '#00f2fe', '#ff007f', '#a855f7', '#39ff14']
     };
 
     const pal = paletteByFx[fx] || paletteByFx.solar_inferno;
-    for (let i = 0; i < count; i++) {
+    const isTranscendent = (fx === 'astral_transcendence');
+    const effCount = isTranscendent ? Math.min(34, count + 8) : count;
+
+    for (let i = 0; i < effCount; i++) {
       const p = this.particles.spawnParticle();
       if (!p) break;
 
-      const isRising = (fx === 'solar_inferno' || fx === 'dragon_fire' || fx === 'aurora_borealis');
-      const angle = isRising
-        ? (-Math.PI / 2 + (Math.random() - 0.5) * 1.35)
-        : (Math.random() * Math.PI * 2);
-      const speed = 95 + Math.random() * 250;
+      const isRising = (fx === 'solar_inferno' || fx === 'dragon_fire' || fx === 'aurora_borealis' || isTranscendent);
+      const angle = isTranscendent
+        ? (i * 2.3999632) // Golden-angle phyllotaxis harmonic spiral
+        : (isRising
+            ? (-Math.PI / 2 + (Math.random() - 0.5) * 1.35)
+            : (Math.random() * Math.PI * 2));
+      const speed = isTranscendent ? (115 + (i % 5) * 52) : (95 + Math.random() * 250);
 
       p.x = x + (Math.random() - 0.5) * 20;
       p.y = y + (Math.random() - 0.5) * 8;
       p.vx = Math.cos(angle) * speed;
-      p.vy = Math.sin(angle) * speed - (isRising ? 75 : 30);
-      p.gravity = isRising ? -95 : (fx === 'grand_fireworks' || fx === 'asteroid_impact' ? 280 : 45);
+      p.vy = Math.sin(angle) * speed - (isRising ? 85 : 30);
+      p.gravity = isTranscendent ? -65 : (isRising ? -95 : (fx === 'grand_fireworks' || fx === 'asteroid_impact' ? 280 : 45));
       p.drag = 0.94;
-      p.radius = 2.6 + Math.random() * 4.2;
+      p.radius = (isTranscendent ? 3.0 : 2.6) + Math.random() * 4.2;
       p.color = pal[i % pal.length];
       p.alpha = 1.0;
-      p.decay = 2.1 + Math.random() * 1.2;
+      p.decay = 2.0 + Math.random() * 1.1;
       p.type = (i % 2 === 0) ? 'glitter_star' : 'diamond_spark';
       p.rotation = Math.random() * Math.PI * 2;
-      p.rotSpeed = (Math.random() - 0.5) * 12;
+      p.rotSpeed = (Math.random() - 0.5) * 14;
       p.scaleX = 1;
       p.scaleY = 1;
     }
 
-    if (fx === 'zeus_lightning' || fx === 'cyber_neon' || fx === 'supernova_burst') {
+    if (fx === 'zeus_lightning' || fx === 'cyber_neon' || fx === 'supernova_burst' || isTranscendent) {
       const w = this.width || 360;
       const h = this.height || 740;
-      this.particles.spawnLightningArc(x + (Math.random() - 0.5) * 90, h * 0.16, x, y, pal[1]);
-      this.particles.spawnLightningArc(x - 65, y - 35, x + 65, y - 10, pal[2]);
+      if (isTranscendent) {
+        // Connect the floating Horizon Seraphim Crown directly to the struck key with twin celestial arcs
+        this.particles.spawnLightningArc(w * 0.5, h * 0.11, x, y, '#00f2fe');
+        this.particles.spawnLightningArc(x - 78, y - 24, x + 78, y - 24, '#fde047');
+        if (this.combo > 0 && this.combo % 15 === 0) {
+          this._transcendentResonancePulse = 1.0;
+        }
+      } else {
+        this.particles.spawnLightningArc(x + (Math.random() - 0.5) * 90, h * 0.16, x, y, pal[1]);
+        this.particles.spawnLightningArc(x - 65, y - 35, x + 65, y - 10, pal[2]);
+      }
     }
   }
 
@@ -5669,6 +5685,15 @@ class BeatstarEngine {
         cOuter: '#a855f7',
         cDeep: '#0f172a',
         blocks: ['#1e1b4b', '#581c87', '#7e22ce', '#0369a1', '#00f2fe', '#22c55e', '#39ff14']
+      },
+      astral_transcendence: {
+        id: 'astral_transcendence',
+        cCore: '#ffffff',
+        cInner: '#fde047',
+        cMid: '#00f2fe',
+        cOuter: '#ff007f',
+        cDeep: '#2e1065',
+        blocks: ['#1e1b4b', '#4c1d95', '#be185d', '#ff007f', '#a855f7', '#00f2fe', '#fde047']
       }
     };
     return THEMES[fx] || THEMES.solar_inferno;
@@ -5906,6 +5931,37 @@ class BeatstarEngine {
           ctx.globalAlpha = 0.82;
           ctx.strokeRect(-cSz * 0.5, -cSz * 0.5, cSz, cSz);
           ctx.restore();
+        } else if (fx === 'astral_transcendence') {
+          // Constelaciones Astrales Sagradas conectando las puntas del ecualizador + Astrolabios Giratorios
+          if (prevPeakX !== null) {
+            ctx.strokeStyle = i % 2 === 0 ? '#00f2fe' : '#fde047';
+            ctx.lineWidth = 2.0;
+            ctx.globalAlpha = 0.78;
+            ctx.beginPath();
+            ctx.moveTo(prevPeakX, prevPeakY);
+            ctx.lineTo(peakX + dirSign * 5, y);
+            ctx.stroke();
+          }
+          if (i % 2 === 0) {
+            const astR = 5.5 + effectiveDrive * 6.5;
+            const ax = peakX + dirSign * 6;
+            ctx.save();
+            ctx.translate(ax, y);
+            ctx.rotate(timeSec * 3.2 + i);
+            ctx.strokeStyle = '#fde047';
+            ctx.lineWidth = 1.5;
+            ctx.globalAlpha = 0.90;
+            ctx.beginPath();
+            ctx.moveTo(0, -astR);
+            ctx.lineTo(astR, 0);
+            ctx.lineTo(0, astR);
+            ctx.lineTo(-astR, 0);
+            ctx.closePath();
+            ctx.stroke();
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(-1.5, -1.5, 3, 3);
+            ctx.restore();
+          }
         }
 
         prevPeakX = peakX;
@@ -6885,6 +6941,103 @@ class BeatstarEngine {
         ctx.fillRect(-sz * 0.5, -sz * 0.5, sz, sz);
         ctx.restore();
       }
+    }
+
+    // 13. SINGULARIDAD ASTRAL: SERAFÍN DEL CRONO (CALIDAD TRASCENDENTAL - 0 Gradient Allocs, 120 FPS)
+    else if (fx === 'astral_transcendence') {
+      const pillarH = (165 + p * 185) * s;
+
+      // A. Pilar Catedralicio Prismático (3 haces concéntricos: Magenta -> Cian -> Oro Blanco)
+      ctx.fillStyle = `rgba(255, 0, 127, ${(a * 0.26).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.moveTo(x - 46 * s * a, y);
+      ctx.lineTo(x - 16 * s * a, y - pillarH);
+      ctx.lineTo(x + 16 * s * a, y - pillarH);
+      ctx.lineTo(x + 46 * s * a, y);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = `rgba(0, 242, 254, ${(a * 0.38).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.moveTo(x - 28 * s * a, y);
+      ctx.lineTo(x - 8 * s * a, y - pillarH * 1.08);
+      ctx.lineTo(x + 8 * s * a, y - pillarH * 1.08);
+      ctx.lineTo(x + 28 * s * a, y);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = `rgba(253, 224, 71, ${(a * 0.68).toFixed(3)})`;
+      ctx.fillRect(x - 7 * s * a, y - pillarH * 0.95, 14 * s * a, pillarH * 0.95);
+
+      // B. 6 Alas de Serafín Desplegándose Simétricamente desde el Punto de Impacto
+      const wingCols = ['#fde047', '#00f2fe', '#ff007f'];
+      for (let pair = 0; pair < 3; pair++) {
+        const wingSpan = (48 + pair * 24 + p * (72 + pair * 18)) * s;
+        const wingLift = (32 + pair * 28 + p * (55 + pair * 22)) * s;
+        ctx.fillStyle = wingCols[pair];
+        ctx.globalAlpha = a * (0.88 - pair * 0.16);
+        ctx.beginPath();
+        for (let dir = -1; dir <= 1; dir += 2) {
+          const tipX = x + dir * wingSpan;
+          const tipY = y - wingLift;
+          const ctrlX1 = x + dir * wingSpan * 0.42;
+          const ctrlY1 = y - wingLift * 1.18;
+          const ctrlX2 = x + dir * wingSpan * 0.58;
+          const ctrlY2 = y - wingLift * 0.28;
+          ctx.moveTo(x, y - pair * 8 * s);
+          ctx.quadraticCurveTo(ctrlX1, ctrlY1, tipX, tipY);
+          ctx.quadraticCurveTo(ctrlX2, ctrlY2, x, y + 4 * s - pair * 6 * s);
+        }
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // C. Doble Astrolabio Giroscópico Sagrado en Perspectiva 3D sobre la Pista
+      for (let ringIdx = 0; ringIdx < 2; ringIdx++) {
+        const rx = (30 + ringIdx * 22 + p * (68 + ringIdx * 24)) * s;
+        const ry = rx * 0.44;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(1, 0.44);
+        ctx.rotate((ringIdx === 0 ? 1 : -1) * (nowMs * 0.004 + p * 3.6 + seed));
+        ctx.strokeStyle = ringIdx === 0 ? '#fde047' : '#00f2fe';
+        ctx.lineWidth = (4.2 - ringIdx * 1.2) * s * a;
+        ctx.globalAlpha = a * 0.95;
+        ctx.beginPath();
+        ctx.arc(0, 0, rx, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Estrella octogonal inscrita en el astrolabio
+        const sq = rx * 0.707;
+        ctx.lineWidth = 2.0 * s * a;
+        ctx.strokeRect(-sq, -sq, sq * 2, sq * 2);
+        ctx.rotate(Math.PI / 4);
+        ctx.strokeStyle = '#ffffff';
+        ctx.strokeRect(-sq, -sq, sq * 2, sq * 2);
+        ctx.restore();
+      }
+
+      // D. Corona de Relojería Astral y Estrella de 8 Puntas Ascendente
+      const crownY = y - (24 + p * 92) * s;
+      const starR = (26 + (1 - p) * 20) * s;
+      ctx.save();
+      ctx.translate(x, crownY);
+      ctx.rotate(-p * 2.4 + seed);
+      ctx.globalAlpha = a;
+      for (let sp = 0; sp < 8; sp++) {
+        ctx.save();
+        ctx.rotate((sp * Math.PI) / 4);
+        const len = (sp % 2 === 0) ? starR * 1.45 : starR * 0.85;
+        ctx.fillStyle = (sp % 2 === 0) ? '#ffffff' : (sp % 4 === 1 ? '#00f2fe' : '#fde047');
+        ctx.beginPath();
+        ctx.moveTo(0, -3.5 * s);
+        ctx.lineTo(len, 0);
+        ctx.lineTo(0, 3.5 * s);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
     }
 
     ctx.restore();
@@ -13682,6 +13835,8 @@ class BeatstarEngine {
     const x0Bev = this.getLaneBoundaryX(lane, yBevelTop) + margin;
     const x1Bev = this.getLaneBoundaryX(lane + 1, yBevelTop) - margin;
 
+    const isTranscendentKey = !mirrorSide && !isMushKey && (this.activeEffect === 'astral_transcendence');
+
     if (mirrorSide === 'cyan') {
       ctx.fillStyle = isPressed ? '#0284c7' : '#075985';
     } else if (mirrorSide === 'pink') {
@@ -13690,13 +13845,15 @@ class BeatstarEngine {
       ctx.fillStyle = isPressed ? '#047857' : '#064e3b';
     } else if (mirrorSide === 'echo_rebound') {
       ctx.fillStyle = isPressed ? '#0369a1' : '#0f766e';
+    } else if (isTranscendentKey) {
+      ctx.fillStyle = isPressed ? '#0284c7' : (lane === 1 ? '#3b0764' : '#1e1b4b');
     } else {
       ctx.fillStyle = isPressed ? '#22222a' : (isMushKey ? '#230b36' : '#141419');
     }
     tracePerspectiveQuad(ctx, x0Bev, x1Bev, x0Bot, x1Bot, yBevelTop, y1, r);
     ctx.fill();
 
-    // 3. Cara Superior en acabado pulido 3D (Cian eléctrico, Rosa neón o Esmeralda Acústico en Modo ECO)
+    // 3. Cara Superior en acabado pulido 3D (Cian eléctrico, Rosa neón, Esmeralda ECO o Reliquia Astral Trascendental)
     if (mirrorSide === 'cyan') {
       ctx.fillStyle = isPressed ? '#38bdf8' : '#0891b2';
     } else if (mirrorSide === 'pink') {
@@ -13705,15 +13862,18 @@ class BeatstarEngine {
       ctx.fillStyle = isPressed ? '#34d399' : '#0d9488';
     } else if (mirrorSide === 'echo_rebound') {
       ctx.fillStyle = isPressed ? '#67e8f9' : '#10b981';
+    } else if (isTranscendentKey) {
+      ctx.fillStyle = isPressed ? '#38bdf8' : '#130926';
     } else {
       ctx.fillStyle = isPressed ? '#45e69e' : (isMushKey ? '#2d124d' : '#1a1d28');
     }
     tracePerspectiveQuad(ctx, x0Top, x1Top, x0Bev, x1Bev, y0, yBevelTop, r);
     ctx.fill();
 
-    // 4. Borde metálico nítido
+    // 4. Borde metálico nítido (Con iridiscencia Oro/Cian/Magenta en modo Trascendental)
     ctx.save();
     const mushRimColors = ['#ff00ff', '#00ff88', '#00f2fe', '#ffee00'];
+    const transRimColors = ['#00f2fe', '#fde047', '#ff007f'];
     const rimCol = mirrorSide === 'cyan'
       ? '#67e8f9'
       : (mirrorSide === 'pink'
@@ -13722,14 +13882,25 @@ class BeatstarEngine {
           ? '#5eead4'
           : (mirrorSide === 'echo_rebound'
             ? '#a7f3d0'
-            : (isMushKey ? mushRimColors[Math.floor((cy * 0.03 + (this._frameNow || 0) * 0.006)) & 3] : '#3e4252'))));
+            : (isTranscendentKey
+              ? transRimColors[lane % 3]
+              : (isMushKey ? mushRimColors[Math.floor((cy * 0.03 + (this._frameNow || 0) * 0.006)) & 3] : '#3e4252')))));
     ctx.strokeStyle = isPressed ? '#ffffff' : rimCol;
-    ctx.lineWidth = Math.max(1.2, (isPressed || mirrorSide ? 2.2 : (isMushKey ? 2.1 : 1.4)) * scale);
+    ctx.lineWidth = Math.max(1.2, (isPressed || mirrorSide || isTranscendentKey ? 2.3 : (isMushKey ? 2.1 : 1.4)) * scale);
     tracePerspectiveQuad(ctx, x0Top, x1Top, x0Bot, x1Bot, y0, y1, r);
     ctx.stroke();
 
+    // Filigrana interior dorada exclusiva para teclas Trascendentales
+    if (isTranscendentKey && isLarge) {
+      const inPad = 3.2 * scale;
+      ctx.strokeStyle = 'rgba(253, 224, 71, 0.52)';
+      ctx.lineWidth = Math.max(0.9, 1.2 * scale);
+      tracePerspectiveQuad(ctx, x0Top + inPad, x1Top - inPad, x0Bev + inPad, x1Bev - inPad, y0 + inPad * 0.7, yBevelTop - inPad * 0.7, Math.max(2, r - 2));
+      ctx.stroke();
+    }
+
     // Destello de bisel reflectante superior
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.40)';
+    ctx.strokeStyle = isTranscendentKey ? 'rgba(253, 224, 71, 0.75)' : 'rgba(255, 255, 255, 0.40)';
     ctx.lineWidth = Math.max(0.8, 1.1 * scale);
     ctx.beginPath();
     ctx.moveTo(x0Top + r, y0 + 0.8);
@@ -13738,7 +13909,7 @@ class BeatstarEngine {
     ctx.restore();
 
     // ===========================================================================
-    // 5. Hendidura de Luz Central incandescente O Palabra Grabada en Relieve
+    // 5. Hendidura de Luz Central incandescente, Reliquia Astral O Palabra Grabada
     // ===========================================================================
     if (!isSwipe) {
       if (lyricText) {
@@ -13754,6 +13925,65 @@ class BeatstarEngine {
         } else {
           ctx.drawImage(sp, cx - drawW * 0.5, cyMid - drawH * 0.5, drawW, drawH);
         }
+      } else if (isTranscendentKey) {
+        // Emblema de Serafín & Astrolabio Prismático pre-renderizado en offscreen canvas (1 sola llamada drawImage = 120 FPS!)
+        if (!this._transcendentKeyCoreSprite) {
+          const tCan = document.createElement('canvas');
+          tCan.width = 160;
+          tCan.height = 56;
+          const tCtx = tCan.getContext('2d');
+          const midX = 80, midY = 28;
+          tCtx.globalCompositeOperation = 'lighter';
+
+          // Halo prismático cian-magenta-oro
+          const g = tCtx.createLinearGradient(16, midY, 144, midY);
+          g.addColorStop(0.0, 'rgba(0, 242, 254, 0)');
+          g.addColorStop(0.2, 'rgba(0, 242, 254, 0.78)');
+          g.addColorStop(0.5, 'rgba(253, 224, 71, 0.95)');
+          g.addColorStop(0.8, 'rgba(255, 0, 127, 0.78)');
+          g.addColorStop(1.0, 'rgba(255, 0, 127, 0)');
+          tCtx.fillStyle = g;
+          tCtx.beginPath();
+          if (tCtx.roundRect) tCtx.roundRect(16, midY - 6, 128, 12, 6);
+          else tCtx.rect(16, midY - 6, 128, 12);
+          tCtx.fill();
+
+          // Filamento central blanco puro
+          tCtx.fillStyle = '#ffffff';
+          tCtx.beginPath();
+          if (tCtx.roundRect) tCtx.roundRect(28, midY - 2.5, 104, 5, 2.5);
+          else tCtx.rect(28, midY - 2.5, 104, 5);
+          tCtx.fill();
+
+          // Anillo de astrolabio dorado central y diamante sagrado
+          tCtx.strokeStyle = '#fde047';
+          tCtx.lineWidth = 2.0;
+          tCtx.beginPath();
+          tCtx.ellipse(midX, midY, 18, 11, 0, 0, Math.PI * 2);
+          tCtx.stroke();
+
+          tCtx.fillStyle = '#ffffff';
+          tCtx.beginPath();
+          tCtx.moveTo(midX, midY - 9);
+          tCtx.lineTo(midX + 11, midY);
+          tCtx.lineTo(midX, midY + 9);
+          tCtx.lineTo(midX - 11, midY);
+          tCtx.closePath();
+          tCtx.fill();
+
+          // Dos gemas laterales cian
+          tCtx.fillStyle = '#00f2fe';
+          tCtx.beginPath();
+          tCtx.arc(midX - 34, midY, 3.2, 0, Math.PI * 2);
+          tCtx.arc(midX + 34, midY, 3.2, 0, Math.PI * 2);
+          tCtx.fill();
+
+          this._transcendentKeyCoreSprite = tCan;
+        }
+        const slitW = keyW * (nLanes === 4 ? 0.74 : 0.70);
+        const drawW = slitW * (160 / 116);
+        const drawH = Math.max(14, 26 * scale);
+        ctx.drawImage(this._transcendentKeyCoreSprite, cx - drawW * 0.5, cyMid - drawH * 0.5, drawW, drawH);
       } else {
         // Hendidura blanca neón pura pre-renderizada en sprite offscreen (1 sola llamada drawImage en lugar de 4 roundRect + lighter por tecla)
         if (!this._keyNeonSlitSprite) {
@@ -14926,6 +15156,131 @@ class BeatstarEngine {
               }
             }
           }
+        } else if (fx === 'astral_transcendence') {
+          // TRIPLE HÉLICE CELESTIAL EN PERSPECTIVA 3D + PORTALES DE ASTROLABIO EN LOS LATERALES DE LA PISTA
+          const strandCols = ['#fde047', '#00f2fe', '#ff007f'];
+          for (let side = 0; side < 2; side++) {
+            const isLeft = side === 0;
+            const nX = isLeft ? normLx : normRx;
+            const nY = isLeft ? normLy : normRy;
+            const sideSurge = isLeft ? surgeL : surgeR;
+
+            for (let strand = 0; strand < 3; strand++) {
+              ctx.beginPath();
+              const steps = 24;
+              for (let k = 0; k <= steps; k++) {
+                const p = k / steps;
+                const yPos = horizonY + (bottomY - horizonY) * p;
+                const xRail = getBoundaryX(isLeft ? 0 : nLanes, yPos);
+                const phase = p * 12.0 - timeSec * 5.2 + (strand * Math.PI * 2) / 3 + side * 1.5;
+                const wave = 0.55 + 0.45 * Math.sin(phase);
+                const offset = (14 + 42 * p) * wave * (1 + beatPulse * 0.35 + sideSurge * 0.45);
+                const rx = xRail + nX * offset;
+                const ry = yPos + nY * offset;
+                if (k === 0) ctx.moveTo(rx, ry);
+                else ctx.lineTo(rx, ry);
+              }
+              ctx.strokeStyle = strandCols[strand];
+              ctx.lineWidth = strand === 0 ? 4.2 : 2.6;
+              ctx.stroke();
+            }
+
+            // Portales romboidales sagrados ascendiendo por el borde exterior de la pista
+            const numRunes = 10;
+            for (let rIdx = 1; rIdx < numRunes; rIdx++) {
+              const p = Math.pow(((rIdx / numRunes) + (timeSec * 0.14) % (1 / numRunes)), 1.22);
+              if (p > 1.0) continue;
+              const yPos = horizonY + (bottomY - horizonY) * p;
+              const xRail = getBoundaryX(isLeft ? 0 : nLanes, yPos);
+              const distOut = (22 + 38 * p) * (1 + beatPulse * 0.25 + sideSurge * 0.35);
+              const rx = xRail + nX * distOut;
+              const ry = yPos + nY * distOut;
+              const sz = (5 + 8 * p) * (1 + beatPulse * 0.3);
+
+              ctx.strokeStyle = rIdx % 2 === 0 ? '#fde047' : '#00f2fe';
+              ctx.lineWidth = 1.8;
+              ctx.beginPath();
+              ctx.moveTo(rx, ry - sz);
+              ctx.lineTo(rx + sz, ry);
+              ctx.lineTo(rx, ry + sz);
+              ctx.lineTo(rx - sz, ry);
+              ctx.closePath();
+              ctx.stroke();
+            }
+          }
+
+          // EXTRA EXCLUSIVO CALIDAD TRASCENDENTAL: CORONA DEL SERAFÍN EN EL HORIZONTE + ONDA DE RESONANCIA EN COMBOS
+          if (!this._transcendentCrownSprite) {
+            const cCan = document.createElement('canvas');
+            cCan.width = 140;
+            cCan.height = 140;
+            const cCtx = cCan.getContext('2d');
+            const cMid = 70;
+            cCtx.globalCompositeOperation = 'lighter';
+
+            const rg = cCtx.createRadialGradient(cMid, cMid, 4, cMid, cMid, 64);
+            rg.addColorStop(0.0, 'rgba(255, 255, 255, 0.92)');
+            rg.addColorStop(0.35, 'rgba(0, 242, 254, 0.48)');
+            rg.addColorStop(0.7, 'rgba(168, 85, 247, 0.22)');
+            rg.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+            cCtx.fillStyle = rg;
+            cCtx.fillRect(0, 0, 140, 140);
+
+            cCtx.strokeStyle = '#fde047';
+            cCtx.lineWidth = 2.2;
+            cCtx.beginPath();
+            cCtx.arc(cMid, cMid, 42, 0, Math.PI * 2);
+            cCtx.stroke();
+
+            cCtx.strokeStyle = '#00f2fe';
+            cCtx.lineWidth = 1.6;
+            cCtx.beginPath();
+            cCtx.arc(cMid, cMid, 54, 0, Math.PI * 2);
+            cCtx.stroke();
+
+            for (let s = 0; s < 8; s++) {
+              const a = (s * Math.PI) / 4;
+              const rOut = s % 2 === 0 ? 58 : 36;
+              cCtx.strokeStyle = s % 2 === 0 ? '#fde047' : '#ff007f';
+              cCtx.beginPath();
+              cCtx.moveTo(cMid + Math.cos(a) * 14, cMid + Math.sin(a) * 14);
+              cCtx.lineTo(cMid + Math.cos(a) * rOut, cMid + Math.sin(a) * rOut);
+              cCtx.stroke();
+            }
+            this._transcendentCrownSprite = cCan;
+          }
+
+          const crownX = this.width * 0.5;
+          const crownY = horizonY + 22;
+          const crownSz = (72 + beatPulse * 14);
+          ctx.save();
+          ctx.translate(crownX, crownY);
+          ctx.rotate(timeSec * 0.85);
+          ctx.globalAlpha = 0.85 + beatPulse * 0.15;
+          ctx.drawImage(this._transcendentCrownSprite, -crownSz * 0.5, -crownSz * 0.5, crownSz, crownSz);
+          ctx.restore();
+
+          // Onda de Resonancia Dimensional que recorre toda la pista en los combos de racha
+          if (this._transcendentResonancePulse && this._transcendentResonancePulse > 0.01) {
+            const rp = 1.0 - this._transcendentResonancePulse;
+            this._transcendentResonancePulse = Math.max(0, this._transcendentResonancePulse - 0.028 * frameScale);
+            const waveY = horizonY + (hitY - horizonY) * Math.pow(rp, 1.25);
+            const wL = getBoundaryX(0, waveY) - 18;
+            const wR = getBoundaryX(nLanes, waveY) + 18;
+            ctx.strokeStyle = `rgba(253, 224, 71, ${(this._transcendentResonancePulse * 0.88).toFixed(3)})`;
+            ctx.lineWidth = 4.5;
+            ctx.beginPath();
+            ctx.moveTo(wL, waveY);
+            ctx.quadraticCurveTo(crownX, waveY + 14, wR, waveY);
+            ctx.stroke();
+
+            ctx.strokeStyle = `rgba(0, 242, 254, ${(this._transcendentResonancePulse * 0.72).toFixed(3)})`;
+            ctx.lineWidth = 2.4;
+            ctx.beginPath();
+            ctx.moveTo(wL + 8, waveY - 8);
+            ctx.quadraticCurveTo(crownX, waveY + 4, wR - 8, waveY - 8);
+            ctx.stroke();
+          }
         }
 
         // --- CAPA 3: ECUALIZADOR RÍTMICO LATERAL HORIZONTAL EN PERSPECTIVA 3D (Beatstar Original Stage Wings) ---
@@ -16044,6 +16399,15 @@ class BeatstarEngine {
           ctx.lineTo(cx - irx, perfY);
           ctx.closePath();
           ctx.fill();
+
+          // Emblema extra en el Altar Perfect+ exclusivo cuando Singularidad Astral (Trascendental) está equipado
+          if (this.activeEffect === 'astral_transcendence') {
+            ctx.strokeStyle = `rgba(253, 224, 71, ${(0.68 + beatPulse * 0.30).toFixed(3)})`;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.ellipse(cx, perfY, rx * 1.75, ry * 1.65, 0, 0, Math.PI * 2);
+            ctx.stroke();
+          }
 
           // D. ANIMACIÓN DE IMPACTO: Doble Onda de Choque Trapezoidal 3D + Barrido de Luz Ascendente + Destello Anamórfico
           if (isTapping && shockProgress > 0 && shockProgress < 1.0) {

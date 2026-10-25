@@ -4458,10 +4458,10 @@
 
   </div> <!-- End of game-viewport -->
 
-  <script src="./parsers.js?v=24.0"></script>
-  <script src="./game.js?v=24.0"></script>
-  <script src="./slot_machine.js?v=24.0"></script>
-  <script src="./gachapon_3d.js?v=1.0"></script>
+  <script src="./parsers.js?v=25.0"></script>
+  <script src="./game.js?v=25.0"></script>
+  <script src="./slot_machine.js?v=25.0"></script>
+  <script src="./gachapon_3d.js?v=25.0"></script>
   <script src="./songs/comm_camilo_sesto/chart.js"></script>
   <script src="./songs/renacer/chart.js"></script>
   <script src="./songs/catalog_top.js"></script>
@@ -4554,6 +4554,12 @@
         name: 'Explosión Supernova',
         desc: 'Colapso estelar hipermasivo con destello de difracción de 8 puntas y onda de plasma cósmico.',
         rarity: 'legendary'
+      },
+      {
+        id: 'astral_transcendence',
+        name: 'Singularidad Astral: Serafín del Crono',
+        desc: 'Reliquia Trascendental Ultra-Rara: Transforma las teclas 3D en obsidiana y oro astral, invoca la Corona del Serafín en el horizonte, hélices triples laterales, ondas de resonancia en combos y explosión catedralicia.',
+        rarity: 'transcendent'
       }
     ];
 
@@ -4937,6 +4943,21 @@
           ctx.strokeRect(w * 0.20, hitY - 10, w * 0.60, 20);
           ctx.restore();
 
+          // Si es el efecto Trascendental, dibujar también la Corona Astral en el horizonte y una Tecla Reliquia descendiendo
+          if (reward.id === 'astral_transcendence') {
+            const tSec = (now - startPerf) * 0.001;
+            ctx.save();
+            ctx.translate(w * 0.5, 22);
+            ctx.rotate(tSec * 0.8);
+            ctx.strokeStyle = 'rgba(253, 224, 71, 0.85)';
+            ctx.lineWidth = 1.4;
+            ctx.strokeRect(-10, -10, 20, 20);
+            ctx.rotate(Math.PI / 4);
+            ctx.strokeStyle = 'rgba(0, 242, 254, 0.85)';
+            ctx.strokeRect(-10, -10, 20, 20);
+            ctx.restore();
+          }
+
           // Ciclo continuo del efecto ganado (1.5s por explosión)
           const cycle = ((now - startPerf) % 720) / 720;
           const alpha = Math.max(0.08, 1.0 - Math.pow(cycle, 1.25));
@@ -5082,15 +5103,35 @@
 
     function rollGachaponReward() {
       const unownedEffects = KEY_EFFECTS.filter(e => !unlockedEffects.includes(e.id));
+      let pullsSinceTranscendent = parseInt(localStorage.getItem('beatstar_gacha_pulls_since_transcendent') || '0', 10) || 0;
+      pullsSinceTranscendent++;
+      localStorage.setItem('beatstar_gacha_pulls_since_transcendent', String(pullsSinceTranscendent));
+
+      const unownedTranscendent = unownedEffects.find(e => getEffectRarity(e) === 'transcendent');
+      // Garantía de piedad extrema en la tirada 45 si aún no se ha conseguido el efecto Trascendental
+      if (unownedTranscendent && pullsSinceTranscendent >= 45) {
+        localStorage.setItem('beatstar_gacha_pulls_since_transcendent', '0');
+        return {
+          type: 'key_effect',
+          id: unownedTranscendent.id,
+          rarity: 'transcendent',
+          isNew: true,
+          title: unownedTranscendent.name,
+          desc: unownedTranscendent.desc
+        };
+      }
 
       // Si quedan efectos por desbloquear, 45% de probabilidad de obtener un efecto nuevo;
       // el 55% restante (o 100% si ya tienes todos los efectos) otorga Claves con media 80.
       if (unownedEffects.length > 0 && Math.random() < 0.45) {
+        // El nivel 'transcendent' tiene peso 4 sobre 100 dentro de la tabla de efectos (~1.8% real por tirada),
+        // y nunca cae por descarte de pool salvo que se acierte su peso o sea el único pendiente con tirada exitosa.
         const rarityWeights = [
-          { id: 'legendary', w: 16 },
-          { id: 'epic',      w: 28 },
-          { id: 'rare',      w: 34 },
-          { id: 'classic',   w: 22 }
+          { id: 'transcendent', w: 4 },
+          { id: 'legendary',    w: 15 },
+          { id: 'epic',         w: 27 },
+          { id: 'rare',         w: 33 },
+          { id: 'classic',      w: 21 }
         ];
         let rnd = Math.random() * 100;
         let chosenRarity = 'rare';
@@ -5102,8 +5143,22 @@
           rnd -= item.w;
         }
         const matching = unownedEffects.filter(e => getEffectRarity(e) === chosenRarity);
-        const pool = matching.length > 0 ? matching : unownedEffects;
+        const nonTranscendentUnowned = unownedEffects.filter(e => getEffectRarity(e) !== 'transcendent');
+        let pool = matching;
+        if (pool.length === 0) {
+          // No regalar el efecto Trascendental como fallback cuando solo falta ese, salvo que toque su rareza real (w: 4) o una sub-tirada de 12%
+          if (nonTranscendentUnowned.length > 0) {
+            pool = nonTranscendentUnowned;
+          } else if (chosenRarity === 'transcendent' || Math.random() < 0.12) {
+            pool = unownedEffects;
+          } else {
+            return rollClavesPrizeWithMean80();
+          }
+        }
         const ef = pool[Math.floor(Math.random() * pool.length)];
+        if (getEffectRarity(ef) === 'transcendent') {
+          localStorage.setItem('beatstar_gacha_pulls_since_transcendent', '0');
+        }
         return {
           type: 'key_effect',
           id: ef.id,
@@ -5324,16 +5379,24 @@
           `;
         }
 
+        const isTranscendent = rarityKey === 'transcendent';
+        const cardExtraStyle = isTranscendent
+          ? 'border: 1px solid rgba(253, 224, 71, 0.65); background: linear-gradient(135deg, rgba(46, 16, 101, 0.55) 0%, rgba(15, 23, 42, 0.85) 50%, rgba(6, 78, 99, 0.55) 100%); box-shadow: 0 0 22px rgba(244, 114, 182, 0.22), inset 0 0 14px rgba(253, 224, 71, 0.14);'
+          : '';
+        const badgeExtraStyle = isTranscendent
+          ? 'background: linear-gradient(135deg, #fde047 0%, #f472b6 50%, #00f2fe 100%); color: #090314; border-color: #ffffff;'
+          : `color:${tier.cssColor}`;
+
         return `
-          <div class="fx-shop-card ${isActive ? 'active-theme' : ''} ${!isUnlocked ? 'opacity-80' : ''}">
+          <div class="fx-shop-card ${isActive ? 'active-theme' : ''} ${!isUnlocked ? 'opacity-85' : ''}" style="${cardExtraStyle}">
             <div class="space-y-2">
               <div class="flex items-center justify-between gap-1">
                 <p class="text-xs font-black text-white flex items-center gap-1.5">
-                  <span style="color:${tier.cssColor}">●</span> ${effectName}
+                  <span style="color:${tier.cssColor}">${isTranscendent ? '❖' : '●'}</span> ${effectName}
                 </p>
-                <span class="px-1.5 py-0.5 rounded bg-black/60 border border-white/15 text-[8px] font-black uppercase" style="color:${tier.cssColor}">${tier.label}</span>
+                <span class="px-1.5 py-0.5 rounded bg-black/60 border border-white/15 text-[8px] font-black uppercase" style="${badgeExtraStyle}">${tier.label}</span>
               </div>
-              <p class="text-[10px] text-gray-300 leading-tight">${effectDesc}</p>
+              <p class="text-[10px] ${isTranscendent ? 'text-amber-100/95 font-medium' : 'text-gray-300'} leading-tight">${effectDesc}</p>
               <div class="flex items-center justify-end pt-1.5 border-t border-white/10 gap-2">
                 <button onclick="launchEffectDemo('${effect.id}')" class="px-3 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/35 text-cyan-300 font-black text-xs border border-cyan-400/40 transition active:scale-95 cursor-pointer flex items-center gap-1">
                   <span>▶</span> Probar
@@ -10543,24 +10606,24 @@ function stopPianoCameraLoop() {
           let lastOsuErr = null;
 
           if (!arrayBuffer) {
-            // Nivel 1: Carrera paralela simultánea entre los CDNs sin vídeo más rápidos (el primero que responda aborta el resto al instante)
+            // Nivel 1: Carrera paralela simultánea entre los CDNs directos sin vídeo (0 bytes de gasto de ancho de banda en Render)
             const fastParallelUrls = [
               `https://catboy.best/d/${osuSetId}n`,
               `https://api.nerinyan.moe/d/${osuSetId}?noVideo=true`,
               `https://osu.direct/api/d/${osuSetId}?noVideo=1`,
-              `${apiBase}/api/v1/download/osu/${osuSetId}`,
               myWorker(`https://catboy.best/d/${osuSetId}n`),
               myWorker(`https://api.nerinyan.moe/d/${osuSetId}?noVideo=true`)
             ];
 
-            // Nivel 2: Respaldo paralelo secundario si los principales tardan o bloquean CORS
+            // Nivel 2: Respaldo paralelo secundario (incluye proxy de servidor solo si todos los CDNs directos fallan)
             const fallbackParallelUrls = [
               `https://txy1.sayobot.cn/beatmaps/download/mini/${osuSetId}`,
               `https://dl.nerinyan.moe/v2/d/${osuSetId}?noVideo=true`,
               cfWorker2(`https://api.nerinyan.moe/d/${osuSetId}?noVideo=true`),
               myWorker(`https://txy1.sayobot.cn/beatmaps/download/mini/${osuSetId}`),
               `https://catboy.best/d/${osuSetId}`,
-              `https://dl.sayobot.cn/beatmaps/download/mini/${osuSetId}`
+              `https://dl.sayobot.cn/beatmaps/download/mini/${osuSetId}`,
+              `${apiBase}/api/v1/download/osu/${osuSetId}`
             ];
 
             const validateOszBuffer = (b) => {
@@ -10705,38 +10768,48 @@ function stopPianoCameraLoop() {
           }
 
           const candidateUrls = [];
+          const fallbackServerUrls = [];
           if (directUrl) candidateUrls.push(directUrl);
           if (bsHash) {
             const cdnUrl = `https://cdn.beatsaver.com/${bsHash}.zip`;
             if (!candidateUrls.includes(cdnUrl)) candidateUrls.push(cdnUrl);
-            candidateUrls.push(`${apiBase}/api/v1/download/beatsaver/${bsHash}`);
             candidateUrls.push(myWorker(cdnUrl));
+            fallbackServerUrls.push(`${apiBase}/api/v1/download/beatsaver/${bsHash}`);
           } else if (directUrl) {
             candidateUrls.push(myWorker(directUrl));
           }
 
-          const controllers = candidateUrls.map(() => new AbortController());
-          const timer = setTimeout(() => {
-            controllers.forEach(c => { try { c.abort(); } catch (_) {} });
-          }, 12000);
+          const fetchBsZipFromBatch = async (urls, timeoutMs) => {
+            const controllers = urls.map(() => new AbortController());
+            const timer = setTimeout(() => {
+              controllers.forEach(c => { try { c.abort(); } catch (_) {} });
+            }, timeoutMs);
+            try {
+              const buf = await Promise.any(urls.map(async (u, idx) => {
+                const r = await fetch(u, { signal: controllers[idx].signal });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                const b = await r.arrayBuffer();
+                if (!b || b.byteLength < 5000) throw new Error('ZIP vacío o incompleto');
+                const u8 = new Uint8Array(b, 0, 2);
+                if (u8[0] !== 0x50 || u8[1] !== 0x4B) throw new Error('Respuesta no es un ZIP válido');
+                controllers.forEach((c, i) => { if (i !== idx) { try { c.abort(); } catch (_) {} } });
+                return b;
+              }));
+              clearTimeout(timer);
+              return buf;
+            } catch (e) {
+              clearTimeout(timer);
+              return null;
+            }
+          };
 
-          let arrayBuffer = null;
-          try {
-            arrayBuffer = await Promise.any(candidateUrls.map(async (u, idx) => {
-              const r = await fetch(u, { signal: controllers[idx].signal });
-              if (!r.ok) throw new Error('HTTP ' + r.status);
-              const b = await r.arrayBuffer();
-              if (!b || b.byteLength < 5000) throw new Error('ZIP vacío o incompleto');
-              const u8 = new Uint8Array(b, 0, 2);
-              if (u8[0] !== 0x50 || u8[1] !== 0x4B) throw new Error('Respuesta no es un ZIP válido');
-              controllers.forEach((c, i) => { if (i !== idx) { try { c.abort(); } catch (_) {} } });
-              return b;
-            }));
-          } catch (bsDlErr) {
-            clearTimeout(timer);
+          let arrayBuffer = await fetchBsZipFromBatch(candidateUrls, 9500);
+          if (!arrayBuffer && fallbackServerUrls.length > 0) {
+            arrayBuffer = await fetchBsZipFromBatch(fallbackServerUrls, 11000);
+          }
+          if (!arrayBuffer) {
             throw new Error('No se pudo descargar el mapa desde BeatSaver CDN.');
           }
-          clearTimeout(timer);
 
           loadStatus.innerText = 'Parseando notas de Beat Saber...';
           const unpackedData = await PackageUnpacker.unpack(arrayBuffer, 'beatsaver', diffId);

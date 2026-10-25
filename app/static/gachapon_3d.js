@@ -47,6 +47,15 @@
       cssColor: '#fde047',
       badgeBg: 'linear-gradient(135deg, #f59e0b, #fef08a, #d97706)',
       badgeText: '#1c1917'
+    },
+    transcendent: {
+      id: 'transcendent',
+      label: '❖ TRASCENDENTAL ❖',
+      shellHex: 0x110726,
+      glowHex: 0x00f2fe,
+      cssColor: '#00f2fe',
+      badgeBg: 'linear-gradient(135deg, #00f2fe 0%, #a855f7 38%, #ff007f 72%, #fde047 100%)',
+      badgeText: '#ffffff'
     }
   };
 
@@ -178,22 +187,23 @@
         classic: [523.25, 659.25, 783.99, 1046.50],
         rare: [587.33, 739.99, 880.00, 1174.66, 1479.98],
         epic: [523.25, 659.25, 783.99, 987.77, 1318.51, 1567.98],
-        legendary: [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98, 2093.00]
+        legendary: [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98, 2093.00],
+        transcendent: [523.25, 659.25, 783.99, 987.77, 1174.66, 1567.98, 1975.53, 2349.32, 2637.02]
       };
       const notes = chords[rarity] || chords.classic;
       notes.forEach((freq, i) => {
-        const t = now + 0.05 + i * 0.055;
+        const t = now + 0.04 + i * (rarity === 'transcendent' ? 0.045 : 0.055);
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-        osc.type = i % 2 === 0 ? 'triangle' : 'sine';
+        osc.type = rarity === 'transcendent' ? (i % 3 === 0 ? 'sawtooth' : 'triangle') : (i % 2 === 0 ? 'triangle' : 'sine');
         osc.frequency.setValueAtTime(freq, t);
         gain.gain.setValueAtTime(0.001, t);
-        gain.gain.linearRampToValueAtTime(0.20 * vol, t + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0008, t + 0.68);
+        gain.gain.linearRampToValueAtTime((rarity === 'transcendent' ? 0.24 : 0.20) * vol, t + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0008, t + (rarity === 'transcendent' ? 0.95 : 0.68));
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start(t);
-        osc.stop(t + 0.72);
+        osc.stop(t + (rarity === 'transcendent' ? 1.0 : 0.72));
       });
     }
   }
@@ -683,39 +693,39 @@
       chuteHousingRight.position.set(0.305, 0, 0);
       chuteGroup.add(chuteHousingRight);
 
-      // Deep dark interior recess placed at z = 0.13 (z_world = 1.41, well outside lowerSkirt!)
+      // Deep dark interior recess placed inside the chute housing behind the door
       const chuteDarkRecess = new THREE.Mesh(
-        new THREE.BoxGeometry(0.50, 0.46, 0.06),
+        new THREE.BoxGeometry(0.50, 0.48, 0.06),
         this.castIronMat
       );
-      chuteDarkRecess.position.set(0, -0.02, 0.12);
+      chuteDarkRecess.position.set(0, -0.02, -0.08);
       chuteGroup.add(chuteDarkRecess);
 
-      // Hinged Chrome Chute Flap Door inside the chrome housing
+      // Hinged Chrome Chute Flap Door inside the chrome housing (Hinged at top y=-1.21, z=1.44, length=0.25)
       this.chuteFlapPivot = new THREE.Group();
-      this.chuteFlapPivot.position.set(0, -1.24, 1.44);
+      this.chuteFlapPivot.position.set(0, -1.21, 1.44);
       this.machineRoot.add(this.chuteFlapPivot);
 
       const chuteFlap = new THREE.Mesh(
-        new THREE.BoxGeometry(0.46, 0.36, 0.04),
+        new THREE.BoxGeometry(0.46, 0.25, 0.032),
         this.chromeMat
       );
-      chuteFlap.position.set(0, -0.18, 0);
+      chuteFlap.position.set(0, -0.125, 0);
       this.chuteFlapPivot.add(chuteFlap);
 
-      // Curved Chrome & Brass Collection Tray below the flap
+      // Curved Chrome & Brass Collection Tray below the flap (Extended forward to cradle the ball clear of the door arc)
       const trayGroup = new THREE.Group();
-      trayGroup.position.set(0, -1.74, 1.46);
+      trayGroup.position.set(0, -1.75, 1.55);
       this.machineRoot.add(trayGroup);
 
       const trayFloor = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.44, 0.38, 0.12, 32),
+        new THREE.CylinderGeometry(0.48, 0.42, 0.12, 32),
         this.chromeMat
       );
       trayGroup.add(trayFloor);
 
       const trayLip = new THREE.Mesh(
-        new THREE.TorusGeometry(0.43, 0.05, 16, 32, Math.PI * 1.15),
+        new THREE.TorusGeometry(0.47, 0.05, 16, 32, Math.PI * 1.15),
         this.brassMat
       );
       trayLip.rotation.x = Math.PI / 2;
@@ -947,6 +957,25 @@
       topRim.rotation.x = Math.PI / 2;
       this.activeTopHalf.add(topShell, topRim);
       this.activeCapsuleRig.add(this.activeTopHalf);
+
+      // Exclusive 3D Gyroscopic Celestial Halo for Transcendent Rarity Capsules
+      this.transcendentHaloGroup = new THREE.Group();
+      this.transcendentHaloGroup.visible = false;
+
+      const outerHaloMat = new THREE.MeshBasicMaterial({ color: 0xfde047 });
+      const innerHaloMat = new THREE.MeshBasicMaterial({ color: 0x00f2fe });
+
+      this.haloRing1 = new THREE.Mesh(
+        new THREE.TorusGeometry(r * 1.42, 0.014, 12, 48),
+        outerHaloMat
+      );
+      this.haloRing2 = new THREE.Mesh(
+        new THREE.TorusGeometry(r * 1.62, 0.012, 12, 48),
+        innerHaloMat
+      );
+      this.haloRing2.rotation.x = Math.PI / 3;
+      this.transcendentHaloGroup.add(this.haloRing1, this.haloRing2);
+      this.activeCapsuleRig.add(this.transcendentHaloGroup);
     }
 
     _buildBurstParticles() {
@@ -1095,6 +1124,13 @@
 
       const tier = RARITY_TIERS[this.pendingReward.rarity] || RARITY_TIERS.classic;
       this.activeBottomMat.color.setHex(tier.shellHex);
+      if (this.pendingReward.rarity === 'transcendent') {
+        this.activeBottomMat.emissive = new THREE.Color(0x7e22ce);
+        this.activeBottomMat.emissiveIntensity = 0.45;
+      } else {
+        this.activeBottomMat.emissive = new THREE.Color(0x000000);
+        this.activeBottomMat.emissiveIntensity = 0;
+      }
       this.prizeLight.color.setHex(tier.glowHex);
 
       let lowestIdx = 0;
@@ -1124,6 +1160,7 @@
       this._wakeTimer = 0;
       this.activeCapsuleRig.visible = false;
       this.activeCapsuleRig.scale.set(1, 1, 1);
+      if (this.transcendentHaloGroup) this.transcendentHaloGroup.visible = false;
       this.activeTopHalf.position.set(0, 0, 0);
       this.activeTopHalf.rotation.set(0, 0, 0);
       this.activeBottomHalf.position.set(0, 0, 0);
@@ -1373,7 +1410,9 @@
           }
           this.activeCapsuleRig.visible = true;
           this.activeCapsuleRig.scale.set(1, 1, 1);
-          this.activeCapsuleRig.position.set(0, -1.25, 1.32);
+          // Start completely inside the dark chute alcove behind the closed flap door (z=1.15 + r=0.23 = 1.38 < 1.424)
+          this.activeCapsuleRig.position.set(0, -1.32, 1.15);
+          if (this.transcendentHaloGroup) this.transcendentHaloGroup.visible = false;
           this.activeTopHalf.position.set(0, 0, 0);
           this.activeTopHalf.rotation.set(0, 0, 0);
           this.activeBottomHalf.position.set(0, 0, 0);
@@ -1390,42 +1429,79 @@
         }
       }
 
-      // PHASE 2: BALL VISIBLY PUSHES OPEN CHROME FLAP DOOR & DROPS INTO TRAY
+      // PHASE 2: BALL PHYSICALLY CONTACTS AND PUSHES OPEN CHROME FLAP DOOR WITH ZERO CLIPPING
       else if (this.state === 'BALL_DROP_CHUTE') {
         this.stateTimer += dt;
         this._stepCapsulePhysics(dt, false, true);
 
-        const p = Math.min(1.0, this.stateTimer / 0.72);
-        let yPos = -1.25;
-        let zPos = 1.32;
+        const p = Math.min(1.0, this.stateTimer / 0.84);
+        let yPos = -1.32;
+        let zPos = 1.15;
+
+        // 1. Capsule trajectory down the chute ramp and into the front basin of the tray
+        if (p < 0.14) {
+          // Approaching the back face of the closed door inside the chute
+          const t = p / 0.14;
+          yPos = -1.32 + (-1.36 - -1.32) * t;
+          zPos = 1.15 + (1.20 - 1.15) * t;
+        } else if (p < 0.62) {
+          // Rolling through the doorway and dropping onto the front collection tray
+          const t = (p - 0.14) / 0.48;
+          const easeOut = 1 - Math.pow(1 - t, 2.1);
+          yPos = -1.36 + (-1.53 - -1.36) * Math.pow(t, 1.35);
+          zPos = 1.20 + (1.84 - 1.20) * easeOut;
+        } else {
+          // Settling in the front cradle of the tray with a subtle cushioned bounce
+          const t = (p - 0.62) / 0.38;
+          const bounce = Math.sin(t * Math.PI * 2.0) * Math.exp(-t * 3.5) * 0.045;
+          yPos = -1.53 + Math.abs(bounce);
+          zPos = 1.84 + (1.86 - 1.84) * t;
+        }
+
+        // 2. Exact Rigid-Body Contact Kinematics for the Hinged Flap Door (Zero Mesh Penetration!)
+        // Hinge is at (yH = -1.21, zH = 1.44), flap length L = 0.25, safe clearance radius rSafe = 0.23 + 0.022 = 0.252
+        const yH = -1.21;
+        const zH = 1.44;
+        const L = 0.25;
+        const rSafe = this.capsuleRadius * 1.15 + 0.024;
         let flapAngle = 0;
 
-        if (p < 0.45) {
-          const t = p / 0.45;
-          const easeIn = t * t;
-          yPos = -1.25 + (-1.56 - -1.25) * easeIn;
-          zPos = 1.32 + (1.46 - 1.32) * t;
-          flapAngle = -Math.sin(t * Math.PI * 0.5) * 1.05;
-        } else if (p < 0.78) {
-          const t = (p - 0.45) / 0.33;
-          yPos = -1.56 + (-1.62 - -1.56) * t + Math.sin(t * Math.PI) * 0.14;
-          zPos = 1.46 + (1.52 - 1.46) * t;
-          flapAngle = -1.05 * (1 - t * 0.75);
-        } else {
-          const t = (p - 0.78) / 0.22;
-          yPos = -1.62 + Math.sin(t * Math.PI) * 0.05;
-          zPos = 1.52;
-          flapAngle = -0.26 * (1 - t);
+        if (p >= 0.12 && p < 0.64) {
+          const dy = yPos - yH;
+          const dz = zPos - zH;
+          const dist = Math.hypot(dy, dz);
+          const alpha = Math.atan2(dz, Math.max(0.01, -dy));
+          let thetaContact = 0;
+
+          if (dist <= Math.hypot(L, rSafe)) {
+            // Sphere is pressing against the flat inner face of the flap
+            const spread = Math.asin(Math.min(0.99, rSafe / Math.max(0.01, dist)));
+            thetaContact = Math.max(0, alpha + spread);
+          } else if (dist < L + rSafe) {
+            // Sphere is passing under the bottom tip of the flap (Law of Cosines exact tip clearance)
+            const cosDelta = (L * L + dist * dist - rSafe * rSafe) / (2 * L * dist);
+            const delta = Math.acos(Math.max(-1, Math.min(1, cosDelta)));
+            thetaContact = Math.max(0, alpha + delta);
+          }
+          flapAngle = -Math.min(1.42, thetaContact);
+        } else if (p >= 0.64) {
+          // Ball has completely cleared the swing arc (dist > L + rSafe); door drops shut with damped clack
+          const tClose = (p - 0.64) / 0.36;
+          const dampedSwing = Math.max(0, Math.cos(tClose * Math.PI * 1.65) * Math.exp(-tClose * 4.2));
+          flapAngle = -0.38 * dampedSwing;
         }
 
         this.chuteFlapPivot.rotation.x = flapAngle;
         this.activeCapsuleRig.position.set(0, yPos, zPos);
-        this.activeCapsuleRig.rotation.x += dt * 11.0;
+        this.activeCapsuleRig.rotation.x += dt * 10.5;
 
         if (p >= 1.0) {
           this.chuteFlapPivot.rotation.x = 0;
           this.state = 'CAPSULE_PRESENT';
           this.stateTimer = 0;
+          if (this.transcendentHaloGroup && this.pendingReward && this.pendingReward.rarity === 'transcendent') {
+            this.transcendentHaloGroup.visible = true;
+          }
 
           this.targetCamPos.set(0, -0.05, 6.8);
           this.targetLookAt.set(0, -0.10, 1.8);
@@ -1442,15 +1518,22 @@
 
         this.activeCapsuleRig.position.set(
           Math.sin(p * Math.PI * 10) * 0.03 * p,
-          -1.62 + (0.05 - -1.62) * ease,
-          1.52 + (3.20 - 1.52) * ease
+          -1.53 + (0.05 - -1.53) * ease,
+          1.86 + (3.20 - 1.86) * ease
         );
         const sc = 1.0 + 0.55 * ease;
         this.activeCapsuleRig.scale.set(sc, sc, sc);
         this.activeCapsuleRig.rotation.x = (1 - ease) * 0.5;
         this.activeCapsuleRig.rotation.y = ease * Math.PI * 2;
 
-        this.prizeLight.intensity = ease * 2.2;
+        if (this.transcendentHaloGroup && this.transcendentHaloGroup.visible) {
+          this.haloRing1.rotation.x += dt * 4.5;
+          this.haloRing1.rotation.y += dt * 3.2;
+          this.haloRing2.rotation.y -= dt * 5.0;
+          this.haloRing2.rotation.z += dt * 3.8;
+        }
+
+        this.prizeLight.intensity = ease * (this.pendingReward && this.pendingReward.rarity === 'transcendent' ? 3.4 : 2.2);
 
         if (p >= 1.0) {
           this.state = 'CAPSULE_BURST_OPEN';
@@ -1479,6 +1562,13 @@
 
         this.activeBottomHalf.position.set(0, -easeOut * 0.78, 0);
         this.activeBottomHalf.rotation.x = easeOut * 0.42;
+
+        if (this.transcendentHaloGroup && this.transcendentHaloGroup.visible) {
+          this.haloRing1.rotation.x += dt * 2.8;
+          this.haloRing1.rotation.y += dt * 2.2;
+          this.haloRing2.rotation.y -= dt * 3.4;
+          this.haloRing2.rotation.z += dt * 2.6;
+        }
 
         this.prizeLight.intensity = 2.4 + Math.sin(this.stateTimer * 6.0) * 0.5;
       }
