@@ -873,6 +873,14 @@
         "date": "2026-10-19 19:22:28"
       },
       {
+        "name": "Mauricio",
+        "score": 1377585,
+        "stars": 3.5,
+        "combo": 61,
+        "accuracy": 4.091528728835364,
+        "date": "2026-10-25 20:48:11"
+      },
+      {
         "name": "Rocky",
         "score": 662653,
         "stars": 2,
@@ -2956,11 +2964,11 @@
     "top_vanilla_ice_ice_ice_baby": [
       {
         "name": "Laaleplo",
-        "score": 110369,
+        "score": 207171,
         "stars": 3.5,
-        "combo": 65,
-        "accuracy": 2.0642867449960547,
-        "date": "2026-10-24 01:13:28"
+        "combo": 193,
+        "accuracy": 11.113256827804625,
+        "date": "2026-10-25 19:33:27"
       }
     ],
     "top_lana_del_rey_born_to_die": [
@@ -2988,9 +2996,9 @@
         "name": "Laaleplo",
         "score": 98742,
         "stars": 3.5,
-        "combo": 25,
-        "accuracy": 0.46026263323826416,
-        "date": "2026-10-24 01:36:18"
+        "combo": 62,
+        "accuracy": 3.146875826579254,
+        "date": "2026-10-25 19:23:15"
       }
     ],
     "clonehero_603147": [
@@ -3376,11 +3384,11 @@
     "top_ariana_grande_feat_nicki_minaj_side_to_side": [
       {
         "name": "Laaleplo",
-        "score": 40244,
+        "score": 130647,
         "stars": 3.5,
-        "combo": 60,
-        "accuracy": 2.0308687610862854,
-        "date": "2026-10-24 01:29:39"
+        "combo": 28,
+        "accuracy": 0.6358450052103966,
+        "date": "2026-10-25 19:20:33"
       }
     ],
     "clonehero_406834": [
@@ -3651,13 +3659,33 @@
         "accuracy": 98.84423518861051,
         "date": "2026-10-25 10:04:36"
       }
+    ],
+    "osu_1586603": [
+      {
+        "name": "Laaleplo",
+        "score": 3750,
+        "stars": 3.5,
+        "combo": 12,
+        "accuracy": 0.23034426332219082,
+        "date": "2026-10-25 19:18:31"
+      }
+    ],
+    "bs_5202d": [
+      {
+        "name": "Laaleplo",
+        "score": 514425,
+        "stars": 1,
+        "combo": 199,
+        "accuracy": 37.67853219072732,
+        "date": "2026-10-25 19:40:20"
+      }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 56884855,
-      "clefs": 526
+      "total_score": 62396395,
+      "clefs": 578
     },
     {
       "name": "Rocky",
@@ -3695,14 +3723,14 @@
       "clefs": 61
     },
     {
+      "name": "Laaleplo",
+      "total_score": 5795934,
+      "clefs": 49
+    },
+    {
       "name": "Azure",
       "total_score": 5132756,
       "clefs": 43
-    },
-    {
-      "name": "Laaleplo",
-      "total_score": 4841199,
-      "clefs": 41
     },
     {
       "name": "fer",
@@ -3855,7 +3883,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 56884855
+        "score": 62396395
       },
       {
         "name": "FAZTL",
@@ -3875,7 +3903,7 @@
       },
       {
         "name": "Laaleplo",
-        "score": 4841199
+        "score": 5795934
       },
       {
         "name": "fer",
