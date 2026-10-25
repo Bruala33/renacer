@@ -3068,9 +3068,9 @@
         "name": "Libay",
         "score": 92100,
         "stars": 3.5,
-        "combo": 40,
-        "accuracy": 2.320326278659612,
-        "date": "2026-10-24 03:58:08"
+        "combo": 44,
+        "accuracy": 6.685405643738977,
+        "date": "2026-10-25 17:11:23"
       }
     ],
     "bs_333d8": [
@@ -3106,11 +3106,11 @@
     "bs_2dce7": [
       {
         "name": "Libay",
-        "score": 17850,
-        "stars": 3.5,
-        "combo": 26,
-        "accuracy": 1.8719521787006448,
-        "date": "2026-10-24 03:58:35"
+        "score": 341850,
+        "stars": 1,
+        "combo": 142,
+        "accuracy": 35.85024382570395,
+        "date": "2026-10-25 17:41:14"
       }
     ],
     "bs_2f671": [
@@ -3623,25 +3623,8 @@
         "date": "2026-10-24 22:01:11"
       }
     ],
-    "top_system_of_a_down_byob": [
-      {
-        "name": "Test",
-        "score": 212849,
-        "stars": 3.5,
-        "combo": 137,
-        "accuracy": 11.706462041405375,
-        "date": "2026-10-25 09:56:10"
-      }
-    ],
+    "top_system_of_a_down_byob": [],
     "top_la_quinta_estacion_algo_mas": [
-      {
-        "name": "Test",
-        "score": 1420265,
-        "stars": 4,
-        "combo": 597,
-        "accuracy": 88.44357761001542,
-        "date": "2026-10-25 10:57:05"
-      },
       {
         "name": "Ubuntu",
         "score": 140200,
@@ -3708,8 +3691,8 @@
     },
     {
       "name": "Libay",
-      "total_score": 8259473,
-      "clefs": 58
+      "total_score": 8693423,
+      "clefs": 61
     },
     {
       "name": "Azure",
@@ -3730,11 +3713,6 @@
       "name": "bobon",
       "total_score": 3845429,
       "clefs": 33
-    },
-    {
-      "name": "Test",
-      "total_score": 3053379,
-      "clefs": 30
     },
     {
       "name": "Jacques",
@@ -3893,7 +3871,7 @@
       },
       {
         "name": "Libay",
-        "score": 8259473
+        "score": 8693423
       },
       {
         "name": "Laaleplo",
@@ -3902,10 +3880,6 @@
       {
         "name": "fer",
         "score": 4321969
-      },
-      {
-        "name": "Test",
-        "score": 3053379
       },
       {
         "name": "Jacques",
