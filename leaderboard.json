@@ -494,6 +494,14 @@
         "combo": 116,
         "accuracy": 8.152503117762338,
         "date": "2026-09-20 19:14:28"
+      },
+      {
+        "name": "Mauricio",
+        "score": 140475,
+        "stars": 3.5,
+        "combo": 47,
+        "accuracy": 15.584782994585957,
+        "date": "2026-10-26 13:00:10"
       }
     ],
     "top_el_canto_del_loco_la_madre_de_jos": [
@@ -504,6 +512,14 @@
         "combo": 539,
         "accuracy": 63.68114532796806,
         "date": "2026-10-22 20:19:37"
+      },
+      {
+        "name": "Mauricio",
+        "score": 436714,
+        "stars": 3,
+        "combo": 163,
+        "accuracy": 66.18282666020065,
+        "date": "2026-10-26 13:04:09"
       },
       {
         "name": "Jocomomolo",
@@ -879,6 +895,14 @@
         "combo": 282,
         "accuracy": 47.92120607724778,
         "date": "2026-09-21 09:04:14"
+      },
+      {
+        "name": "Llois1",
+        "score": 105118,
+        "stars": 3.5,
+        "combo": 92,
+        "accuracy": 6.686700007506142,
+        "date": "2026-10-26 12:16:44"
       }
     ],
     "osu_1741783": [
@@ -1188,6 +1212,14 @@
       }
     ],
     "top_linkin_park_in_the_end": [
+      {
+        "name": "Llois1",
+        "score": 217802,
+        "stars": 1,
+        "combo": 170,
+        "accuracy": 22.039093228151092,
+        "date": "2026-10-26 12:02:08"
+      },
       {
         "name": "Rocky",
         "score": 3600,
@@ -1987,6 +2019,14 @@
       }
     ],
     "top_system_of_a_down_chop_suey": [
+      {
+        "name": "Llois1",
+        "score": 82725,
+        "stars": 3.5,
+        "combo": 93,
+        "accuracy": 5.534629485910028,
+        "date": "2026-10-26 12:06:35"
+      },
       {
         "name": "bori",
         "score": 6825,
@@ -3623,25 +3663,8 @@
         "date": "2026-10-24 22:01:11"
       }
     ],
-    "top_system_of_a_down_byob": [
-      {
-        "name": "Test",
-        "score": 212849,
-        "stars": 3.5,
-        "combo": 137,
-        "accuracy": 11.706462041405375,
-        "date": "2026-10-25 09:56:10"
-      }
-    ],
+    "top_system_of_a_down_byob": [],
     "top_la_quinta_estacion_algo_mas": [
-      {
-        "name": "Test",
-        "score": 1420265,
-        "stars": 4,
-        "combo": 597,
-        "accuracy": 88.44357761001542,
-        "date": "2026-10-25 10:57:05"
-      },
       {
         "name": "Ubuntu",
         "score": 140200,
@@ -3668,13 +3691,173 @@
         "accuracy": 98.84423518861051,
         "date": "2026-10-25 10:04:36"
       }
+    ],
+    "top_chayanne_torero": [
+      {
+        "name": "Test",
+        "score": 346171,
+        "stars": 3.5,
+        "combo": 150,
+        "accuracy": 14.863088836077997,
+        "date": "2026-10-26 11:50:25"
+      }
+    ],
+    "osu_584749": [
+      {
+        "name": "Llois1",
+        "score": 20025,
+        "stars": 3.5,
+        "combo": 29,
+        "accuracy": 1.4733776658754696,
+        "date": "2026-10-26 11:52:38"
+      }
+    ],
+    "top_fito_y_fitipaldis_soldadito_marinero": [
+      {
+        "name": "Llois1",
+        "score": 65100,
+        "stars": 3.5,
+        "combo": 78,
+        "accuracy": 4.191403566491692,
+        "date": "2026-10-26 12:00:11"
+      }
+    ],
+    "top_shakira_ft_freshlyground_waka_waka_esto_es_africa": [
+      {
+        "name": "Llois1",
+        "score": 52274,
+        "stars": 3.5,
+        "combo": 63,
+        "accuracy": 3.7489412758620935,
+        "date": "2026-10-26 12:05:21"
+      }
+    ],
+    "top_spice_girls_wannabe": [
+      {
+        "name": "Laaleplo",
+        "score": 327610,
+        "stars": 1,
+        "combo": 289,
+        "accuracy": 32.94006217799961,
+        "date": "2026-10-26 12:10:58"
+      }
+    ],
+    "osu_45896": [
+      {
+        "name": "Llois1",
+        "score": 7350,
+        "stars": 3.5,
+        "combo": 18,
+        "accuracy": 0.5213782829984571,
+        "date": "2026-10-26 12:07:28"
+      }
+    ],
+    "osu_801977": [
+      {
+        "name": "Mauricio",
+        "score": 303740,
+        "stars": 1,
+        "combo": 174,
+        "accuracy": 22.722767129415935,
+        "date": "2026-10-26 12:11:08"
+      }
+    ],
+    "osu_21936": [
+      {
+        "name": "Llois1",
+        "score": 49800,
+        "stars": 3.5,
+        "combo": 52,
+        "accuracy": 16.809275479722547,
+        "date": "2026-10-26 12:10:02"
+      }
+    ],
+    "osu_932557": [
+      {
+        "name": "Laaleplo",
+        "score": 48827,
+        "stars": 3.5,
+        "combo": 56,
+        "accuracy": 7.3894205085286995,
+        "date": "2026-10-26 12:12:35"
+      }
+    ],
+    "osu_1740979": [
+      {
+        "name": "Mauricio",
+        "score": 71687,
+        "stars": 3.5,
+        "combo": 67,
+        "accuracy": 7.968321013727561,
+        "date": "2026-10-26 12:56:06"
+      }
+    ],
+    "osu_1641083": [
+      {
+        "name": "Mauricio",
+        "score": 116762,
+        "stars": 3.5,
+        "combo": 87,
+        "accuracy": 3.0726639956316077,
+        "date": "2026-10-26 13:08:26"
+      }
+    ],
+    "osu_937527": [
+      {
+        "name": "Mauricio",
+        "score": 394147,
+        "stars": 1,
+        "combo": 219,
+        "accuracy": 21.13121342285909,
+        "date": "2026-10-26 13:12:09"
+      }
+    ],
+    "osu_998321": [
+      {
+        "name": "Mauricio",
+        "score": 234459,
+        "stars": 3.5,
+        "combo": 29,
+        "accuracy": 0.9161665749802856,
+        "date": "2026-10-26 13:23:27"
+      }
+    ],
+    "top_mecano_hijo_de_la_luna": [
+      {
+        "name": "Mauricio",
+        "score": 337290,
+        "stars": 2,
+        "combo": 189,
+        "accuracy": 54.408194539662055,
+        "date": "2026-10-26 13:27:14"
+      }
+    ],
+    "top_los_rebeldes_mediterraneo": [
+      {
+        "name": "Mauricio",
+        "score": 149348,
+        "stars": 3.5,
+        "combo": 74,
+        "accuracy": 13.531477528476735,
+        "date": "2026-10-26 13:28:38"
+      }
+    ],
+    "top_arctic_monkeys_do_i_wanna_know": [
+      {
+        "name": "Laaleplo",
+        "score": 63150,
+        "stars": 3.5,
+        "combo": 60,
+        "accuracy": 2.825159533157486,
+        "date": "2026-10-26 13:36:03"
+      }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 56884855,
-      "clefs": 526
+      "total_score": 60039478,
+      "clefs": 548
     },
     {
       "name": "Rocky",
@@ -3712,14 +3895,14 @@
       "clefs": 58
     },
     {
+      "name": "Laaleplo",
+      "total_score": 5607980,
+      "clefs": 46
+    },
+    {
       "name": "Azure",
       "total_score": 5132756,
       "clefs": 43
-    },
-    {
-      "name": "Laaleplo",
-      "total_score": 4841199,
-      "clefs": 41
     },
     {
       "name": "fer",
@@ -3732,9 +3915,9 @@
       "clefs": 33
     },
     {
-      "name": "Test",
-      "total_score": 3053379,
-      "clefs": 30
+      "name": "Llois1",
+      "total_score": 869748,
+      "clefs": 3
     },
     {
       "name": "Jacques",
@@ -3770,6 +3953,11 @@
       "name": "Darwin67",
       "total_score": 354658,
       "clefs": 2
+    },
+    {
+      "name": "Test",
+      "total_score": 346171,
+      "clefs": 3
     },
     {
       "name": "bori",
@@ -3875,31 +4063,111 @@
   "weekly": {
     "week_id": "2026-W44",
     "clean_v2": true,
-    "players": []
+    "players": [
+      {
+        "name": "Mauricio",
+        "score": 3154623
+      },
+      {
+        "name": "Llois1",
+        "score": 869748
+      },
+      {
+        "name": "Laaleplo",
+        "score": 766781
+      },
+      {
+        "name": "Test",
+        "score": 346171
+      }
+    ]
   },
   "weekly_history": {
     "2026-W43": [
-      { "name": "Mauricio", "score": 56884855 },
-      { "name": "FAZTL", "score": 12861589 },
-      { "name": "Dady cool", "score": 12366565 },
-      { "name": "Niggerman", "score": 10802004 },
-      { "name": "Libay", "score": 8259473 },
-      { "name": "Laaleplo", "score": 4841199 },
-      { "name": "fer", "score": 4321969 },
-      { "name": "Jacques", "score": 795056 },
-      { "name": "Darwin67", "score": 265556 },
-      { "name": "bori", "score": 190261 },
-      { "name": "pelosombra40", "score": 148783 },
-      { "name": "Hola31m", "score": 147986 },
-      { "name": "Ubuntu", "score": 140200 },
-      { "name": "holo", "score": 137701 },
-      { "name": "Antoniobarfe", "score": 50577 },
-      { "name": "U", "score": 30185 },
-      { "name": "Pirata", "score": 19500 },
-      { "name": "Camaleon", "score": 17550 },
-      { "name": "Seri", "score": 12450 },
-      { "name": "3105M", "score": 8400 },
-      { "name": "PixToPix", "score": 1500 }
+      {
+        "name": "Mauricio",
+        "score": 56884855
+      },
+      {
+        "name": "FAZTL",
+        "score": 12861589
+      },
+      {
+        "name": "Dady cool",
+        "score": 12366565
+      },
+      {
+        "name": "Niggerman",
+        "score": 10802004
+      },
+      {
+        "name": "Libay",
+        "score": 8259473
+      },
+      {
+        "name": "Laaleplo",
+        "score": 4841199
+      },
+      {
+        "name": "fer",
+        "score": 4321969
+      },
+      {
+        "name": "Jacques",
+        "score": 795056
+      },
+      {
+        "name": "Darwin67",
+        "score": 265556
+      },
+      {
+        "name": "bori",
+        "score": 190261
+      },
+      {
+        "name": "pelosombra40",
+        "score": 148783
+      },
+      {
+        "name": "Hola31m",
+        "score": 147986
+      },
+      {
+        "name": "Ubuntu",
+        "score": 140200
+      },
+      {
+        "name": "holo",
+        "score": 137701
+      },
+      {
+        "name": "Antoniobarfe",
+        "score": 50577
+      },
+      {
+        "name": "U",
+        "score": 30185
+      },
+      {
+        "name": "Pirata",
+        "score": 19500
+      },
+      {
+        "name": "Camaleon",
+        "score": 17550
+      },
+      {
+        "name": "Seri",
+        "score": 12450
+      },
+      {
+        "name": "3105M",
+        "score": 8400
+      },
+      {
+        "name": "PixToPix",
+        "score": 1500
+      }
     ]
   },
   "daily_poker": {
