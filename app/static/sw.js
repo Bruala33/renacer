@@ -1,4 +1,4 @@
-const CACHE_NAME = 'beatstar-v5';
+const CACHE_NAME = 'beatstar-v6';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();

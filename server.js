@@ -806,10 +806,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 33,
-    version_name: '3.2.5',
-    release_notes: 'Piano Community v3.2.5: Eliminado el anillo circular central que palpitaba en el modo Pulso y reducidas al mínimo las restricciones de mapeo en la dificultad Extrema para conservar las ráfagas rápidas, rebotes de slider y acordes dobles reales.',
-    download_url: '/download/apk?v=33.0',
+    version_code: 34,
+    version_name: '3.3.0',
+    release_notes: 'Piano Community v3.3.0: Coreografia ritmica osu! v2.0 optimizada, soporte completo para 5 dificultades dinamicas (Easy, Medium, Hard, Extreme, Impossible), supernovas, swipes tactiles calibrados y latencia minima a 120 FPS.',
+    download_url: '/download/apk?v=34.0',
   });
 });
 

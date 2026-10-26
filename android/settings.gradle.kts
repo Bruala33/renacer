@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Beatstar Renacer"
+rootProject.name = "Piano Community"
 include(":app")
