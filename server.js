@@ -241,6 +241,7 @@ function buildConsolidatedLeaderboardJson() {
     global: globalList,
     weekly: {
       week_id: currentWeek,
+      clean_v2: true,
       players: weeklyList
     },
     daily_poker: dailyPokerObj,
@@ -451,16 +452,23 @@ function applyLeaderboardJson(data) {
     });
   }
 
-  // Restaurar acumulador Semanal
+  // Restaurar acumulador Semanal (descartar puntos de 2026-W44 previos al parche clean_v2 que arrastraban bestScore antiguo y doble guardado)
   if (data.weekly && data.weekly.week_id && Array.isArray(data.weekly.players)) {
-    const weekMap = new Map();
-    data.weekly.players.forEach(p => {
-      const key = (p.name || '').trim().toLowerCase();
-      if (key && key !== 'test' && key !== 'tester' && key !== 'prueba' && key !== 'dummy') {
-        weekMap.set(key, { name: p.name, score: p.score || 0 });
-      }
-    });
-    playerWeeklyAccumulator.set(data.weekly.week_id, weekMap);
+    const normWeekId = String(data.weekly.week_id).replace('_', '-');
+    const isCorruptedPreFixW44 = (normWeekId === '2026-W44' && !data.weekly.clean_v2);
+    if (!isCorruptedPreFixW44) {
+      const weekMap = new Map();
+      data.weekly.players.forEach(p => {
+        const key = (p.name || '').trim().toLowerCase();
+        if (key && key !== 'test' && key !== 'tester' && key !== 'prueba' && key !== 'dummy') {
+          weekMap.set(key, { name: p.name, score: p.score || 0 });
+        }
+      });
+      playerWeeklyAccumulator.set(normWeekId, weekMap);
+    } else {
+      playerWeeklyAccumulator.set('2026-W44', new Map());
+      setTimeout(() => { syncLeaderboardToGithub(true).catch(() => {}); }, 1500);
+    }
   }
 
   // Restaurar referidos verificados por enlace
@@ -757,7 +765,7 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
   res.json({
     status: 'healthy',
     service: 'Piano Community Rhythm Engine',
-    version: '3.1.1',
+    version: '3.1.2',
     num_lanes: 3,
     sources: ['osu! Mania', 'Clone Hero'],
   });
@@ -765,10 +773,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 26,
-    version_name: '3.1.1',
-    release_notes: 'Piano Community v3.1.1: Efecto Trascendental con iluminación volumétrica ultra-difuminada, teclas con núcleo de nebulosa y aura suave, física exacta de trampilla 3D y ahorro de ancho de banda.',
-    download_url: '/download/apk?v=26.0',
+    version_code: 27,
+    version_name: '3.1.2',
+    release_notes: 'Piano Community v3.1.2: Corrección del reinicio semanal a 0 puntos exactos, eliminación de arrastre de récords antiguos al torneo semanal y mejoras visuales Trascendentales.',
+    download_url: '/download/apk?v=27.0',
   });
 });
 
@@ -2108,18 +2116,21 @@ app.post('/api/v1/community/charts/:id/score', (req, res) => {
   };
 
   const cleanName = (player_name || 'Jugador Anónimo').trim();
-  const parsedScore = parseInt(score, 10) || 0;
+  const parsedBestScore = parseInt(score, 10) || 0;
+  const parsedSessionScore = (req.body.session_score !== undefined && req.body.session_score !== null)
+    ? Math.max(0, parseInt(req.body.session_score, 10) || 0)
+    : parsedBestScore;
   newEntry.player_name = cleanName;
-  newEntry.score = parsedScore;
+  newEntry.score = parsedBestScore;
 
   const existingIdx = currentScores.findIndex(
     s => (s.player_name || '').trim().toLowerCase() === cleanName.toLowerCase()
   );
   if (existingIdx >= 0) {
-    if (parsedScore >= (currentScores[existingIdx].score || 0)) {
+    if (parsedBestScore > (currentScores[existingIdx].score || 0)) {
       currentScores[existingIdx] = newEntry;
     }
-  } else {
+  } else if (parsedBestScore > 0) {
     currentScores.push(newEntry);
   }
 
@@ -2129,22 +2140,24 @@ app.post('/api/v1/community/charts/:id/score', (req, res) => {
   const isRecord = newEntry.rank === 1;
   chartScores.set(id, currentScores.slice(0, 50));
 
-  // 1. Sumar puntuación al acumulador Global
   const pKey = cleanName.toLowerCase();
-  const globalData = playerGlobalAccumulator.get(pKey) || { name: cleanName, total_score: 0, clefs: 0 };
-  globalData.total_score += parsedScore;
-  globalData.clefs += Math.floor(parsedScore * 0.00001);
-  playerGlobalAccumulator.set(pKey, globalData);
+  if (parsedSessionScore > 0) {
+    // 1. Sumar únicamente la puntuación real de esta partida al acumulador Global
+    const globalData = playerGlobalAccumulator.get(pKey) || { name: cleanName, total_score: 0, clefs: 0 };
+    globalData.total_score += parsedSessionScore;
+    globalData.clefs += Math.floor(parsedSessionScore * 0.00001);
+    playerGlobalAccumulator.set(pKey, globalData);
 
-  // 2. Sumar puntuación al torneo Semanal
-  const curWeek = getIsoWeekId();
-  if (!playerWeeklyAccumulator.has(curWeek)) {
-    playerWeeklyAccumulator.set(curWeek, new Map());
+    // 2. Sumar únicamente la puntuación real de esta partida al torneo Semanal activo
+    const curWeek = getIsoWeekId();
+    if (!playerWeeklyAccumulator.has(curWeek)) {
+      playerWeeklyAccumulator.set(curWeek, new Map());
+    }
+    const weekMap = playerWeeklyAccumulator.get(curWeek);
+    const weeklyData = weekMap.get(pKey) || { name: cleanName, score: 0 };
+    weeklyData.score += parsedSessionScore;
+    weekMap.set(pKey, weeklyData);
   }
-  const weekMap = playerWeeklyAccumulator.get(curWeek);
-  const weeklyData = weekMap.get(pKey) || { name: cleanName, score: 0 };
-  weeklyData.score += parsedScore;
-  weekMap.set(pKey, weeklyData);
 
   // 3. Registrar referido únicamente si el jugador entró con el enlace de invitación (?ref=... o ?code=...)
   const referredBy = String(req.body.referred_by || '').trim().toLowerCase();
@@ -2292,14 +2305,15 @@ app.get([
   '/api/v1/community/leaderboards/weekly'
 ], (req, res) => {
   const currentWeek = getIsoWeekId();
-  const requestedWeek = (req.query && req.query.week_id) ? String(req.query.week_id) : currentWeek;
+  const requestedWeek = (req.query && req.query.week_id)
+    ? String(req.query.week_id).replace('_', '-')
+    : currentWeek;
   let weekMap = playerWeeklyAccumulator.get(requestedWeek);
-  if ((!weekMap || weekMap.size === 0) && playerWeeklyAccumulator.size > 0) {
-    // Si la semana recién empieza o se solicita la última con actividad, usar la semana registrada más reciente
-    const allWeeks = Array.from(playerWeeklyAccumulator.keys()).sort();
-    const fallbackWeek = allWeeks[allWeeks.length - 1];
-    if (requestedWeek !== currentWeek || (weekMap === undefined)) {
-      weekMap = playerWeeklyAccumulator.get(fallbackWeek);
+  // Cuando se consulta la semana en curso (requestedWeek === currentWeek), jamás arrastrar puntos de semanas anteriores.
+  if (requestedWeek !== currentWeek && (!weekMap || weekMap.size === 0) && playerWeeklyAccumulator.size > 0) {
+    const pastWeeks = Array.from(playerWeeklyAccumulator.keys()).filter(w => w !== currentWeek).sort();
+    if (pastWeeks.length > 0) {
+      weekMap = playerWeeklyAccumulator.get(pastWeeks[pastWeeks.length - 1]);
     }
   }
   weekMap = weekMap || new Map();

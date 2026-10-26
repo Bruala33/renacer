@@ -4458,10 +4458,10 @@
 
   </div> <!-- End of game-viewport -->
 
-  <script src="./parsers.js?v=26.0"></script>
-  <script src="./game.js?v=26.0"></script>
-  <script src="./slot_machine.js?v=26.0"></script>
-  <script src="./gachapon_3d.js?v=26.0"></script>
+  <script src="./parsers.js?v=27.0"></script>
+  <script src="./game.js?v=27.0"></script>
+  <script src="./slot_machine.js?v=27.0"></script>
+  <script src="./gachapon_3d.js?v=27.0"></script>
   <script src="./songs/comm_camilo_sesto/chart.js"></script>
   <script src="./songs/renacer/chart.js"></script>
   <script src="./songs/catalog_top.js"></script>
@@ -4711,12 +4711,16 @@
         isNewRecord = true;
       }
 
-      // Acumular puntos en el historial del Torneo Semanal local (garantiza premio al finalizar la semana incluso offline)
+      // Acumular puntos en el historial del Torneo Semanal local (solo puntos jugados en esta sesion real)
+      const sessionScore = Math.max(0, Math.round(score || 0));
       try {
         const curWeek = typeof getCurrentUtcWeekId === 'function' ? getCurrentUtcWeekId() : 'current_week';
         const weeklyHist = JSON.parse(localStorage.getItem('beatstar_weekly_history') || '{}');
-        const prevEntry = weeklyHist[curWeek] || { score: 0, songsPlayed: 0, maxCombo: 0, stars: 0, accuracyPct: 0, medalTier: null };
-        prevEntry.score = (prevEntry.score || 0) + Math.max(0, Math.round(score || 0));
+        let prevEntry = weeklyHist[curWeek];
+        if (!prevEntry || !prevEntry.v2Clean) {
+          prevEntry = { score: 0, songsPlayed: 0, maxCombo: 0, stars: 0, accuracyPct: 0, medalTier: null, v2Clean: true };
+        }
+        prevEntry.score = (prevEntry.score || 0) + sessionScore;
         prevEntry.songsPlayed = (prevEntry.songsPlayed || 0) + 1;
         prevEntry.maxCombo = Math.max(prevEntry.maxCombo || 0, maxCombo || 0);
         prevEntry.stars = Math.max(prevEntry.stars || 0, stars || 0);
@@ -4724,6 +4728,7 @@
         if (medalTier === 'platinum' || (!prevEntry.medalTier && medalTier)) {
           prevEntry.medalTier = medalTier;
         }
+        prevEntry.v2Clean = true;
         prevEntry.updatedAt = Date.now();
         weeklyHist[curWeek] = prevEntry;
         localStorage.setItem('beatstar_weekly_history', JSON.stringify(weeklyHist));
@@ -4736,7 +4741,7 @@
         }
       } catch (e) {}
 
-      // Enviar record a la clasificacion online si hay servidor configurado
+      // Enviar record y puntuacion de sesion a la clasificacion online si hay servidor configurado
       try {
         const baseUrl = getApiBaseUrl();
         if (baseUrl) {
@@ -4749,6 +4754,7 @@
             body: JSON.stringify({
               player_name: playerName,
               score: bestScore,
+              session_score: sessionScore,
               max_combo: maxCombo,
               stars: stars,
               accuracy_pct: accuracyPct,
@@ -5807,7 +5813,10 @@
       const curtain = document.getElementById('gameCurtain');
       if (curtain) curtain.classList.add('revealed');
 
-      if (engine) engine.restart();
+      if (engine) {
+        engine._scoreAlreadySaved = false;
+        engine.restart();
+      }
     };
 
     window.restartFromPenalty = function() {
@@ -5830,7 +5839,10 @@
       const curtain = document.getElementById('gameCurtain');
       if (curtain) curtain.classList.add('revealed');
 
-      if (engine) engine.restart();
+      if (engine) {
+        engine._scoreAlreadySaved = false;
+        engine.restart();
+      }
     };
 
     // =========================================================================
@@ -6536,9 +6548,10 @@
         curtain.classList.add('revealed');
       }
 
-      // Guardar puntuación alcanzada al salir (como si se hubiera terminado la canción)
-      if (engine && currentActiveBeatmap && (engine.score > 0 || (engine.stats && (engine.stats.perfectPlus || engine.stats.perfect || engine.stats.great || engine.stats.good)))) {
+      // Guardar puntuación alcanzada al salir solo si no se guardó ya en onGameEnd
+      if (engine && !engine._scoreAlreadySaved && currentActiveBeatmap && (engine.score > 0 || (engine.stats && (engine.stats.perfectPlus || engine.stats.perfect || engine.stats.great || engine.stats.good)))) {
         try {
+          engine._scoreAlreadySaved = true;
           const songId = currentActiveBeatmap?.communityChartId || currentActiveBeatmap?.metadata?.id || currentActiveBeatmap?.id || 'song';
           const maxScore = Math.max(1, engine.maxPossibleScore || 1);
           const scorePct = Math.min(100.0, (engine.score / maxScore) * 100);
@@ -6710,7 +6723,7 @@
       const host = (window.location && window.location.hostname) ? window.location.hostname : '';
       const isStaticOnly = host.includes('itch.io') || host.includes('hwcdn.net') || host.includes('github.io') || host.includes('netlify.app');
       const base = isStaticOnly ? DEFAULT_CLOUD_SERVER : '';
-      const targetUrl = `${base}/download/apk?v=24.0&t=${ts}`;
+      const targetUrl = `${base}/download/apk?v=27.0&t=${ts}`;
 
       if (window.AndroidNative && typeof window.AndroidNative.openBrowser === 'function') {
         window.AndroidNative.openBrowser(targetUrl);
@@ -7062,6 +7075,7 @@
           if (earnedMedals) {
             addMedals(earnedMedals.silver || 0, earnedMedals.gold || 0, earnedMedals.platinum || 0);
           }
+          if (engine) engine._scoreAlreadySaved = true;
           const songId = currentActiveBeatmap?.communityChartId || currentActiveBeatmap?.metadata?.id || currentActiveBeatmap?.id || 'song';
           const isNewRecord = saveHighscore(songId, score, stars, maxCombo, finalMedal, scorePct);
           if (window._isPlayingDailyVideoPoker && typeof window.handleDailyVideoPokerGameEnd === 'function') {
@@ -11731,6 +11745,7 @@ function stopPianoCameraLoop() {
           engine.sync.unlockAudio();
           engine.sync.setVolume(1.0, false);
         }
+        if (engine) engine._scoreAlreadySaved = false;
         engine.loadBeatmap(finalBeatmap, resolvedAudioBlob);
         if (engine && engine.beatmapData) {
           engine.beatmapData.is_daily_featured = isFeatured;
@@ -20095,23 +20110,12 @@ function stopPianoCameraLoop() {
       const nickname = localStorage.getItem('beatstar_player_nickname') || 'TU';
       const weeklyHist = JSON.parse(localStorage.getItem('beatstar_weekly_history') || '{}');
       let localWeekEntry = weeklyHist[curWeek];
-      if (!localWeekEntry) {
-        const highscores = JSON.parse(localStorage.getItem('beatstar_highscores') || '{}');
-        let sumLocal = 0;
-        let songsCount = 0;
-        for (const k in highscores) {
-          if (highscores[k] && highscores[k].score) {
-            sumLocal += highscores[k].score;
-            songsCount++;
-          }
-        }
-        if (sumLocal > 0) {
-          localWeekEntry = { score: sumLocal, songsPlayed: songsCount };
-          weeklyHist[curWeek] = localWeekEntry;
-          localStorage.setItem('beatstar_weekly_history', JSON.stringify(weeklyHist));
-        }
+      if (localWeekEntry && !localWeekEntry.v2Clean) {
+        delete weeklyHist[curWeek];
+        localStorage.setItem('beatstar_weekly_history', JSON.stringify(weeklyHist));
+        localWeekEntry = null;
       }
-      if (localWeekEntry && localWeekEntry.score > 0) {
+      if (localWeekEntry && localWeekEntry.v2Clean && localWeekEntry.score > 0) {
         rows.push({
           player_name: nickname,
           score: localWeekEntry.score

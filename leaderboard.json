@@ -873,14 +873,6 @@
         "date": "2026-10-19 19:22:28"
       },
       {
-        "name": "Mauricio",
-        "score": 1377585,
-        "stars": 3.5,
-        "combo": 61,
-        "accuracy": 4.091528728835364,
-        "date": "2026-10-25 20:48:11"
-      },
-      {
         "name": "Rocky",
         "score": 662653,
         "stars": 2,
@@ -1996,14 +1988,6 @@
     ],
     "top_system_of_a_down_chop_suey": [
       {
-        "name": "Libay",
-        "score": 237750,
-        "stars": 3.5,
-        "combo": 148,
-        "accuracy": 18.335287040750224,
-        "date": "2026-10-26 01:31:03"
-      },
-      {
         "name": "bori",
         "score": 6825,
         "stars": 3.5,
@@ -2754,10 +2738,10 @@
       {
         "name": "FAZTL",
         "score": 384225,
-        "stars": 1,
+        "stars": 3,
         "combo": 153,
-        "accuracy": 37.60129659643436,
-        "date": "2026-10-26 05:11:15"
+        "accuracy": 69.19232847109672,
+        "date": "2026-10-23 21:34:30"
       }
     ],
     "bs_48936": [
@@ -2972,11 +2956,11 @@
     "top_vanilla_ice_ice_ice_baby": [
       {
         "name": "Laaleplo",
-        "score": 207171,
+        "score": 110369,
         "stars": 3.5,
-        "combo": 193,
-        "accuracy": 11.113256827804625,
-        "date": "2026-10-25 19:33:27"
+        "combo": 65,
+        "accuracy": 2.0642867449960547,
+        "date": "2026-10-24 01:13:28"
       }
     ],
     "top_lana_del_rey_born_to_die": [
@@ -3004,9 +2988,9 @@
         "name": "Laaleplo",
         "score": 98742,
         "stars": 3.5,
-        "combo": 62,
-        "accuracy": 3.146875826579254,
-        "date": "2026-10-25 19:23:15"
+        "combo": 25,
+        "accuracy": 0.46026263323826416,
+        "date": "2026-10-24 01:36:18"
       }
     ],
     "clonehero_603147": [
@@ -3084,9 +3068,9 @@
         "name": "Libay",
         "score": 92100,
         "stars": 3.5,
-        "combo": 76,
-        "accuracy": 5.627204585537919,
-        "date": "2026-10-26 00:58:13"
+        "combo": 40,
+        "accuracy": 2.320326278659612,
+        "date": "2026-10-24 03:58:08"
       }
     ],
     "bs_333d8": [
@@ -3094,9 +3078,9 @@
         "name": "Libay",
         "score": 24750,
         "stars": 3.5,
-        "combo": 21,
-        "accuracy": 2.005859815190444,
-        "date": "2026-10-26 00:58:48"
+        "combo": 28,
+        "accuracy": 3.7187288708586883,
+        "date": "2026-10-24 04:00:47"
       }
     ],
     "top_3ballmty_el_bebeto__amrica_sierra_intntalo": [
@@ -3122,11 +3106,11 @@
     "bs_2dce7": [
       {
         "name": "Libay",
-        "score": 341850,
+        "score": 17850,
         "stars": 3.5,
-        "combo": 65,
-        "accuracy": 7.833883907503539,
-        "date": "2026-10-26 00:59:18"
+        "combo": 26,
+        "accuracy": 1.8719521787006448,
+        "date": "2026-10-24 03:58:35"
       }
     ],
     "bs_2f671": [
@@ -3202,11 +3186,11 @@
     "top_rata_blanca_la_leyenda_del_hada_y_el_mago": [
       {
         "name": "Libay",
-        "score": 978590,
-        "stars": 2,
-        "combo": 545,
-        "accuracy": 54.824719893016194,
-        "date": "2026-10-26 01:29:26"
+        "score": 211459,
+        "stars": 3.5,
+        "combo": 151,
+        "accuracy": 11.846820878874004,
+        "date": "2026-10-23 16:51:18"
       }
     ],
     "top_lady_gaga_feat_colby_odonis_just_dance": [
@@ -3392,11 +3376,11 @@
     "top_ariana_grande_feat_nicki_minaj_side_to_side": [
       {
         "name": "Laaleplo",
-        "score": 130647,
+        "score": 40244,
         "stars": 3.5,
-        "combo": 28,
-        "accuracy": 0.6358450052103966,
-        "date": "2026-10-25 19:20:33"
+        "combo": 60,
+        "accuracy": 2.0308687610862854,
+        "date": "2026-10-24 01:29:39"
       }
     ],
     "clonehero_406834": [
@@ -3639,8 +3623,25 @@
         "date": "2026-10-24 22:01:11"
       }
     ],
-    "top_system_of_a_down_byob": [],
+    "top_system_of_a_down_byob": [
+      {
+        "name": "Test",
+        "score": 212849,
+        "stars": 3.5,
+        "combo": 137,
+        "accuracy": 11.706462041405375,
+        "date": "2026-10-25 09:56:10"
+      }
+    ],
     "top_la_quinta_estacion_algo_mas": [
+      {
+        "name": "Test",
+        "score": 1420265,
+        "stars": 4,
+        "combo": 597,
+        "accuracy": 88.44357761001542,
+        "date": "2026-10-25 10:57:05"
+      },
       {
         "name": "Ubuntu",
         "score": 140200,
@@ -3667,313 +3668,13 @@
         "accuracy": 98.84423518861051,
         "date": "2026-10-25 10:04:36"
       }
-    ],
-    "osu_1586603": [
-      {
-        "name": "Laaleplo",
-        "score": 3750,
-        "stars": 3.5,
-        "combo": 12,
-        "accuracy": 0.23034426332219082,
-        "date": "2026-10-25 19:18:31"
-      }
-    ],
-    "bs_5202d": [
-      {
-        "name": "Laaleplo",
-        "score": 514425,
-        "stars": 1,
-        "combo": 199,
-        "accuracy": 37.67853219072732,
-        "date": "2026-10-25 19:40:20"
-      }
-    ],
-    "osu_905323": [
-      {
-        "name": "Calipo08",
-        "score": 20432,
-        "stars": 4,
-        "combo": 25,
-        "accuracy": 84.9636140251394,
-        "date": "2026-10-25 23:09:22"
-      }
-    ],
-    "top_spice_girls_wannabe": [
-      {
-        "name": "Laaleplo",
-        "score": 163597,
-        "stars": 3.5,
-        "combo": 78,
-        "accuracy": 6.056322167301451,
-        "date": "2026-10-26 00:50:47"
-      }
-    ],
-    "top_linkin_park_bleed_it_out": [
-      {
-        "name": "Libay",
-        "score": 1104397,
-        "stars": 5,
-        "combo": 567,
-        "accuracy": 91.41678186227847,
-        "date": "2026-10-26 01:02:46"
-      }
-    ],
-    "top_linkin_park_castle_of_glass": [
-      {
-        "name": "Libay",
-        "score": 222900,
-        "stars": 3.5,
-        "combo": 165,
-        "accuracy": 19.077942252635093,
-        "date": "2026-10-26 01:07:01"
-      }
-    ],
-    "clonehero_355290": [
-      {
-        "name": "Libay",
-        "score": 1950,
-        "stars": 3.5,
-        "combo": 4,
-        "accuracy": 0.07695206675493134,
-        "date": "2026-10-26 01:08:08"
-      }
-    ],
-    "top_enrique_iglesias_ft_wisin_duele_el_corazn": [
-      {
-        "name": "Libay",
-        "score": 176445,
-        "stars": 3.5,
-        "combo": 127,
-        "accuracy": 12.546352424191786,
-        "date": "2026-10-26 01:09:25"
-      }
-    ],
-    "top_juanes_fijate_bien": [
-      {
-        "name": "Libay",
-        "score": 9000,
-        "stars": 3.5,
-        "combo": 16,
-        "accuracy": 0.48927934588787897,
-        "date": "2026-10-26 01:09:53"
-      }
-    ],
-    "osu_78129": [
-      {
-        "name": "Libay",
-        "score": 85615,
-        "stars": 3.5,
-        "combo": 66,
-        "accuracy": 7.05111575063519,
-        "date": "2026-10-26 01:11:57"
-      }
-    ],
-    "osu_309236": [
-      {
-        "name": "Libay",
-        "score": 151200,
-        "stars": 1,
-        "combo": 113,
-        "accuracy": 21.346886912325285,
-        "date": "2026-10-26 01:15:36"
-      }
-    ],
-    "osu_24880": [
-      {
-        "name": "Libay",
-        "score": 20597,
-        "stars": 3.5,
-        "combo": 16,
-        "accuracy": 0.7487081993671404,
-        "date": "2026-10-26 01:19:44"
-      }
-    ],
-    "osu_30054": [
-      {
-        "name": "Libay",
-        "score": 588402,
-        "stars": 4,
-        "combo": 298,
-        "accuracy": 77.28362890324343,
-        "date": "2026-10-26 01:23:20"
-      }
-    ],
-    "osu_30303": [
-      {
-        "name": "Libay",
-        "score": 90498,
-        "stars": 3.5,
-        "combo": 75,
-        "accuracy": 17.36265928913208,
-        "date": "2026-10-26 01:24:00"
-      }
-    ],
-    "clonehero_703857": [
-      {
-        "name": "Libay",
-        "score": 268090,
-        "stars": 3.5,
-        "combo": 142,
-        "accuracy": 10.862985134862448,
-        "date": "2026-10-26 01:36:36"
-      }
-    ],
-    "bs_637f": [
-      {
-        "name": "Libay",
-        "score": 871875,
-        "stars": 2,
-        "combo": 478,
-        "accuracy": 53.242649079417426,
-        "date": "2026-10-26 01:39:54"
-      }
-    ],
-    "top_amaral_toda_la_noche_en_la_calle": [
-      {
-        "name": "Libay",
-        "score": 111626,
-        "stars": 3.5,
-        "combo": 99,
-        "accuracy": 7.054003004204243,
-        "date": "2026-10-26 01:41:21"
-      }
-    ],
-    "osu_205500": [
-      {
-        "name": "Libay",
-        "score": 94736,
-        "stars": 3.5,
-        "combo": 73,
-        "accuracy": 19.79113351536207,
-        "date": "2026-10-26 01:43:22"
-      }
-    ],
-    "osu_389518": [
-      {
-        "name": "Libay",
-        "score": 283501,
-        "stars": 1,
-        "combo": 153,
-        "accuracy": 28.605547539527986,
-        "date": "2026-10-26 01:45:13"
-      }
-    ],
-    "clonehero_377669": [
-      {
-        "name": "Libay",
-        "score": 45825,
-        "stars": 3.5,
-        "combo": 42,
-        "accuracy": 0.8299127742261124,
-        "date": "2026-10-26 01:52:50"
-      }
-    ],
-    "clonehero_406592": [
-      {
-        "name": "Libay",
-        "score": 31575,
-        "stars": 3.5,
-        "combo": 43,
-        "accuracy": 1.5823815656932658,
-        "date": "2026-10-26 01:50:44"
-      }
-    ],
-    "clonehero_372301": [
-      {
-        "name": "Libay",
-        "score": 30541,
-        "stars": 3.5,
-        "combo": 31,
-        "accuracy": 0.8771282371764402,
-        "date": "2026-10-26 01:51:22"
-      }
-    ],
-    "top_juanes_gotas_de_agua_dulce": [
-      {
-        "name": "Libay",
-        "score": 171512,
-        "stars": 3.5,
-        "combo": 78,
-        "accuracy": 11.667054407525166,
-        "date": "2026-10-26 02:09:28"
-      }
-    ],
-    "osu_639305": [
-      {
-        "name": "Eduardo",
-        "score": 44976,
-        "stars": 3.5,
-        "combo": 50,
-        "accuracy": 2.4812140825008098,
-        "date": "2026-10-26 03:43:56"
-      }
-    ],
-    "top_31_minutos_re": [
-      {
-        "name": "NekoChaos",
-        "score": 101100,
-        "stars": 1,
-        "combo": 82,
-        "accuracy": 21.486454607473714,
-        "date": "2026-10-26 03:46:07"
-      }
-    ],
-    "top_mariah_carey_hero": [
-      {
-        "name": "Eduardo",
-        "score": 7050,
-        "stars": 3.5,
-        "combo": 22,
-        "accuracy": 0.5414089534449736,
-        "date": "2026-10-26 03:45:11"
-      }
-    ],
-    "osu_17837": [
-      {
-        "name": "Eduardo",
-        "score": 24387,
-        "stars": 3.5,
-        "combo": 29,
-        "accuracy": 5.043951270967342,
-        "date": "2026-10-26 03:48:36"
-      }
-    ],
-    "osu_1377050": [
-      {
-        "name": "Eduardo",
-        "score": 319233,
-        "stars": 4,
-        "combo": 186,
-        "accuracy": 88.6445615019146,
-        "date": "2026-10-26 04:07:58"
-      }
-    ],
-    "osu_1400138": [
-      {
-        "name": "Eduardo",
-        "score": 692096,
-        "stars": 4,
-        "combo": 219,
-        "accuracy": 81.57324957126946,
-        "date": "2026-10-26 04:12:52"
-      }
-    ],
-    "osu_1424532": [
-      {
-        "name": "Eduardo",
-        "score": 224083,
-        "stars": 5,
-        "combo": 135,
-        "accuracy": 93.8968690288626,
-        "date": "2026-10-26 04:14:30"
-      }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 62396395,
-      "clefs": 578
+      "total_score": 56884855,
+      "clefs": 526
     },
     {
       "name": "Rocky",
@@ -3986,19 +3687,14 @@
       "clefs": 169
     },
     {
-      "name": "Libay",
-      "total_score": 16423901,
-      "clefs": 123
-    },
-    {
       "name": "Dady cool",
       "total_score": 16121318,
       "clefs": 154
     },
     {
       "name": "FAZTL",
-      "total_score": 13245814,
-      "clefs": 108
+      "total_score": 12861589,
+      "clefs": 105
     },
     {
       "name": "Niggerman",
@@ -4011,14 +3707,19 @@
       "clefs": 100
     },
     {
-      "name": "Laaleplo",
-      "total_score": 6123128,
-      "clefs": 51
+      "name": "Libay",
+      "total_score": 8259473,
+      "clefs": 58
     },
     {
       "name": "Azure",
       "total_score": 5132756,
       "clefs": 43
+    },
+    {
+      "name": "Laaleplo",
+      "total_score": 4841199,
+      "clefs": 41
     },
     {
       "name": "fer",
@@ -4031,9 +3732,9 @@
       "clefs": 33
     },
     {
-      "name": "Eduardo",
-      "total_score": 2585720,
-      "clefs": 22
+      "name": "Test",
+      "total_score": 3053379,
+      "clefs": 30
     },
     {
       "name": "Jacques",
@@ -4094,16 +3795,6 @@
       "name": "holo",
       "total_score": 137701,
       "clefs": 1
-    },
-    {
-      "name": "NekoChaos",
-      "total_score": 110025,
-      "clefs": 1
-    },
-    {
-      "name": "Calipo08",
-      "total_score": 61296,
-      "clefs": 0
     },
     {
       "name": "Antoniobarfe",
@@ -4183,28 +3874,8 @@
   ],
   "weekly": {
     "week_id": "2026-W44",
-    "players": [
-      {
-        "name": "Libay",
-        "score": 7730478
-      },
-      {
-        "name": "Eduardo",
-        "score": 2585720
-      },
-      {
-        "name": "FAZTL",
-        "score": 384225
-      },
-      {
-        "name": "Laaleplo",
-        "score": 327194
-      },
-      {
-        "name": "NekoChaos",
-        "score": 110025
-      }
-    ]
+    "clean_v2": true,
+    "players": []
   },
   "daily_poker": {
     "2026-10-24": {
