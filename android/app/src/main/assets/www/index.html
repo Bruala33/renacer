@@ -4463,10 +4463,10 @@
 
   </div> <!-- End of game-viewport -->
 
-  <script src="./parsers.js?v=28.0"></script>
-  <script src="./game.js?v=28.0"></script>
-  <script src="./slot_machine.js?v=28.0"></script>
-  <script src="./gachapon_3d.js?v=28.0"></script>
+  <script src="./parsers.js?v=29.0"></script>
+  <script src="./game.js?v=29.0"></script>
+  <script src="./slot_machine.js?v=29.0"></script>
+  <script src="./gachapon_3d.js?v=29.0"></script>
   <script src="./songs/comm_camilo_sesto/chart.js"></script>
   <script src="./songs/renacer/chart.js"></script>
   <script src="./songs/catalog_top.js"></script>
@@ -6728,7 +6728,7 @@
       const host = (window.location && window.location.hostname) ? window.location.hostname : '';
       const isStaticOnly = host.includes('itch.io') || host.includes('hwcdn.net') || host.includes('github.io') || host.includes('netlify.app');
       const base = isStaticOnly ? DEFAULT_CLOUD_SERVER : '';
-      const targetUrl = `${base}/download/apk?v=28.0&t=${ts}`;
+      const targetUrl = `${base}/download/apk?v=29.0&t=${ts}`;
 
       if (window.AndroidNative && typeof window.AndroidNative.openBrowser === 'function') {
         window.AndroidNative.openBrowser(targetUrl);
