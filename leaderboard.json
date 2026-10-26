@@ -3106,11 +3106,11 @@
     "bs_2926b": [
       {
         "name": "Libay",
-        "score": 92100,
+        "score": 129600,
         "stars": 3.5,
-        "combo": 40,
-        "accuracy": 2.320326278659612,
-        "date": "2026-10-24 03:58:08"
+        "combo": 113,
+        "accuracy": 9.523809523809524,
+        "date": "2026-10-26 16:38:09"
       }
     ],
     "bs_333d8": [
@@ -3692,16 +3692,7 @@
         "date": "2026-10-25 10:04:36"
       }
     ],
-    "top_chayanne_torero": [
-      {
-        "name": "Test",
-        "score": 346171,
-        "stars": 3.5,
-        "combo": 150,
-        "accuracy": 14.863088836077997,
-        "date": "2026-10-26 11:50:25"
-      }
-    ],
+    "top_chayanne_torero": [],
     "osu_584749": [
       {
         "name": "Llois1",
@@ -3851,12 +3842,182 @@
         "accuracy": 2.825159533157486,
         "date": "2026-10-26 13:36:03"
       }
+    ],
+    "osu_2642789": [
+      {
+        "name": "Laaleplo",
+        "score": 357825,
+        "stars": 3.5,
+        "combo": 257,
+        "accuracy": 12.026518334285619,
+        "date": "2026-10-26 15:28:54"
+      }
+    ],
+    "clonehero_453753": [
+      {
+        "name": "Laaleplo",
+        "score": 12956,
+        "stars": 3.5,
+        "combo": 20,
+        "accuracy": 0.8657175579762147,
+        "date": "2026-10-26 15:47:33"
+      }
+    ],
+    "clonehero_377669": [
+      {
+        "name": "Libay",
+        "score": 58650,
+        "stars": 3.5,
+        "combo": 52,
+        "accuracy": 1.4232276084316227,
+        "date": "2026-10-26 15:56:57"
+      }
+    ],
+    "osu_30303": [
+      {
+        "name": "Libay",
+        "score": 90498,
+        "stars": 3.5,
+        "combo": 64,
+        "accuracy": 14.180905640974478,
+        "date": "2026-10-26 15:59:11"
+      }
+    ],
+    "osu_91769": [
+      {
+        "name": "Laaleplo",
+        "score": 825,
+        "stars": 3.5,
+        "combo": 4,
+        "accuracy": 0.021407442005293476,
+        "date": "2026-10-26 16:37:00"
+      }
+    ],
+    "osu_2284926": [
+      {
+        "name": "Laaleplo",
+        "score": 194618,
+        "stars": 1,
+        "combo": 110,
+        "accuracy": 26.626261244313714,
+        "date": "2026-10-26 16:42:50"
+      }
+    ],
+    "top_katy_perry_dark_horse": [
+      {
+        "name": "Mauricio",
+        "score": 29456,
+        "stars": 3.5,
+        "combo": 36,
+        "accuracy": 2.788195226673381,
+        "date": "2026-10-26 16:49:03"
+      }
+    ],
+    "bs_4e666": [
+      {
+        "name": "Laaleplo",
+        "score": 1048575,
+        "stars": 3,
+        "combo": 694,
+        "accuracy": 70.84726867335563,
+        "date": "2026-10-26 16:49:28"
+      }
+    ],
+    "bs_4ef84": [
+      {
+        "name": "Laaleplo",
+        "score": 330614,
+        "stars": 1,
+        "combo": 186,
+        "accuracy": 25.2883445249534,
+        "date": "2026-10-26 16:51:10"
+      }
+    ],
+    "top_salome_vivo_cantando": [
+      {
+        "name": "`pc",
+        "score": 13725,
+        "stars": 3.5,
+        "combo": 22,
+        "accuracy": 2.5924498793023334,
+        "date": "2026-10-26 16:54:24"
+      }
+    ],
+    "osu_1440745": [
+      {
+        "name": "Laaleplo",
+        "score": 744049,
+        "stars": 3,
+        "combo": 197,
+        "accuracy": 67.59123079704253,
+        "date": "2026-10-26 16:54:40"
+      }
+    ],
+    "bs_43a64": [
+      {
+        "name": "Laaleplo",
+        "score": 259125,
+        "stars": 3.5,
+        "combo": 152,
+        "accuracy": 15.038739444589536,
+        "date": "2026-10-26 16:58:04"
+      }
+    ],
+    "osu_1648863": [
+      {
+        "name": "Laaleplo",
+        "score": 482303,
+        "stars": 2,
+        "combo": 261,
+        "accuracy": 55.185114414289686,
+        "date": "2026-10-26 17:01:58"
+      }
+    ],
+    "clonehero_391826": [
+      {
+        "name": "Libay",
+        "score": 25965,
+        "stars": 3.5,
+        "combo": 27,
+        "accuracy": 0.8896577670052608,
+        "date": "2026-10-26 17:44:55"
+      }
+    ],
+    "bs_2e8ac": [
+      {
+        "name": "Libay",
+        "score": 39900,
+        "stars": 3.5,
+        "combo": 43,
+        "accuracy": 2.096634350122172,
+        "date": "2026-10-26 17:45:27"
+      }
+    ],
+    "bs_48cbb": [
+      {
+        "name": "Libay",
+        "score": 308025,
+        "stars": 3.5,
+        "combo": 192,
+        "accuracy": 18.56830683445106,
+        "date": "2026-10-26 17:46:35"
+      }
+    ],
+    "osu_99778": [
+      {
+        "name": "Laaleplo",
+        "score": 992,
+        "stars": 3.5,
+        "combo": 1,
+        "accuracy": 0.22814195397144083,
+        "date": "2026-10-26 17:48:12"
+      }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 60039478,
+      "total_score": 60068934,
       "clefs": 548
     },
     {
@@ -3880,6 +4041,11 @@
       "clefs": 105
     },
     {
+      "name": "Laaleplo",
+      "total_score": 11004536,
+      "clefs": 94
+    },
+    {
       "name": "Niggerman",
       "total_score": 10802004,
       "clefs": 93
@@ -3891,13 +4057,8 @@
     },
     {
       "name": "Libay",
-      "total_score": 8259473,
-      "clefs": 58
-    },
-    {
-      "name": "Laaleplo",
-      "total_score": 5607980,
-      "clefs": 46
+      "total_score": 9186809,
+      "clefs": 62
     },
     {
       "name": "Azure",
@@ -3946,18 +4107,13 @@
     },
     {
       "name": "`pc",
-      "total_score": 367612,
+      "total_score": 381337,
       "clefs": 1
     },
     {
       "name": "Darwin67",
       "total_score": 354658,
       "clefs": 2
-    },
-    {
-      "name": "Test",
-      "total_score": 346171,
-      "clefs": 3
     },
     {
       "name": "bori",
@@ -4065,20 +4221,24 @@
     "clean_v2": true,
     "players": [
       {
+        "name": "Laaleplo",
+        "score": 6163337
+      },
+      {
         "name": "Mauricio",
-        "score": 3154623
+        "score": 3184079
+      },
+      {
+        "name": "Libay",
+        "score": 927336
       },
       {
         "name": "Llois1",
         "score": 869748
       },
       {
-        "name": "Laaleplo",
-        "score": 766781
-      },
-      {
-        "name": "Test",
-        "score": 346171
+        "name": "`pc",
+        "score": 13725
       }
     ]
   },
@@ -4219,6 +4379,12 @@
           "timestamp": 1792922343201
         }
       ]
+    },
+    "2026-10-26": {
+      "dayKey": "2026-10-26",
+      "potClefs": 150,
+      "wageredPlayers": [],
+      "rankings": []
     }
   },
   "referrals": {
