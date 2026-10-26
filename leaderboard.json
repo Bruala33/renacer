@@ -1971,11 +1971,11 @@
     "top_antonio_flores_no_dudara": [
       {
         "name": "Mauricio",
-        "score": 6750,
-        "stars": 3.5,
-        "combo": 12,
-        "accuracy": 0.5913531035086951,
-        "date": "2026-10-21 20:01:49"
+        "score": 763821,
+        "stars": 5,
+        "combo": 219,
+        "accuracy": 100,
+        "date": "2026-10-26 20:08:14"
       }
     ],
     "top_taxi_quiero_un_camino": [
@@ -3856,11 +3856,11 @@
     "clonehero_453753": [
       {
         "name": "Laaleplo",
-        "score": 12956,
+        "score": 71834,
         "stars": 3.5,
-        "combo": 20,
-        "accuracy": 0.8657175579762147,
-        "date": "2026-10-26 15:47:33"
+        "combo": 59,
+        "accuracy": 4.799934783857935,
+        "date": "2026-10-26 20:00:17"
       }
     ],
     "clonehero_377669": [
@@ -4012,13 +4012,143 @@
         "accuracy": 0.22814195397144083,
         "date": "2026-10-26 17:48:12"
       }
+    ],
+    "bs_34d29": [
+      {
+        "name": "Mauricio",
+        "score": 208755,
+        "stars": 2,
+        "combo": 136,
+        "accuracy": 42.01992753623188,
+        "date": "2026-10-26 19:10:43"
+      }
+    ],
+    "osu_1096914": [
+      {
+        "name": "Mauricio",
+        "score": 24395,
+        "stars": 1,
+        "combo": 27,
+        "accuracy": 39.28341384863124,
+        "date": "2026-10-26 19:46:32"
+      }
+    ],
+    "osu_1158642": [
+      {
+        "name": "Mauricio",
+        "score": 36106,
+        "stars": 4,
+        "combo": 25,
+        "accuracy": 82.62242562929062,
+        "date": "2026-10-26 19:48:52"
+      }
+    ],
+    "osu_2157266": [
+      {
+        "name": "Mauricio",
+        "score": 179785,
+        "stars": 3.5,
+        "combo": 108,
+        "accuracy": 6.650710534931166,
+        "date": "2026-10-26 19:49:57"
+      }
+    ],
+    "top_elvis_crespo_suavemente": [
+      {
+        "name": "Mauricio",
+        "score": 269562,
+        "stars": 1,
+        "combo": 78,
+        "accuracy": 24.1871140597549,
+        "date": "2026-10-26 19:59:17"
+      }
+    ],
+    "top_pesadilla_antes_de_navidad_esto_es_halloween": [
+      {
+        "name": "Mauricio",
+        "score": 214800,
+        "stars": 3.5,
+        "combo": 146,
+        "accuracy": 17.656487608400806,
+        "date": "2026-10-26 20:13:04"
+      }
+    ],
+    "osu_1752837": [
+      {
+        "name": "Laaleplo",
+        "score": 23885,
+        "stars": 3.5,
+        "combo": 11,
+        "accuracy": 0.1269093051715542,
+        "date": "2026-10-26 20:41:53"
+      }
+    ],
+    "osu_2056659": [
+      {
+        "name": "Mauricio",
+        "score": 141200,
+        "stars": 3.5,
+        "combo": 79,
+        "accuracy": 8.929361917409725,
+        "date": "2026-10-26 21:15:17"
+      }
+    ],
+    "bs_4a0ce": [
+      {
+        "name": "Mauricio",
+        "score": 168260,
+        "stars": 3.5,
+        "combo": 95,
+        "accuracy": 11.21319192778134,
+        "date": "2026-10-26 21:17:48"
+      }
+    ],
+    "osu_725748": [
+      {
+        "name": "Mauricio",
+        "score": 577618,
+        "stars": 3,
+        "combo": 158,
+        "accuracy": 64.68866191820096,
+        "date": "2026-10-26 21:21:46"
+      }
+    ],
+    "top_el_fary_el_toro_guapo": [
+      {
+        "name": "Mauricio",
+        "score": 1870345,
+        "stars": 5,
+        "combo": 888,
+        "accuracy": 96.70953504220824,
+        "date": "2026-10-26 21:26:03"
+      }
+    ],
+    "top_miguel_bos_estuve_a_punto_de": [
+      {
+        "name": "Mauricio",
+        "score": 122442,
+        "stars": 3.5,
+        "combo": 35,
+        "accuracy": 11.939259376270671,
+        "date": "2026-10-26 21:49:32"
+      }
+    ],
+    "top_mgo_de_oz_la_ltima_cena": [
+      {
+        "name": "Mauricio",
+        "score": 1107947,
+        "stars": 4,
+        "combo": 208,
+        "accuracy": 82.95500149745433,
+        "date": "2026-10-26 21:57:35"
+      }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 60068934,
-      "clefs": 548
+      "total_score": 66636852,
+      "clefs": 605
     },
     {
       "name": "Rocky",
@@ -4042,7 +4172,7 @@
     },
     {
       "name": "Laaleplo",
-      "total_score": 11004536,
+      "total_score": 11100255,
       "clefs": 94
     },
     {
@@ -4221,12 +4351,12 @@
     "clean_v2": true,
     "players": [
       {
-        "name": "Laaleplo",
-        "score": 6163337
+        "name": "Mauricio",
+        "score": 9751997
       },
       {
-        "name": "Mauricio",
-        "score": 3184079
+        "name": "Laaleplo",
+        "score": 6259056
       },
       {
         "name": "Libay",
