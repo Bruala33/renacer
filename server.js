@@ -806,10 +806,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 29,
-    version_name: '3.2.1',
-    release_notes: 'Piano Community v3.2.1: Modo OSU! MANIA 2.0 optimizado al 100% para 2 pulgares en vertical (exclusión mutua por fases con margen de 0.5s, zona ergonómica 45%-70% Y, separación mínima de 120px sin solapes, Approach Circle +25% más legible, notas Mania gigantes y efectos neón difuminados reactivos al BPM).',
-    download_url: '/download/apk?v=29.0',
+    version_code: 30,
+    version_name: '3.2.2',
+    release_notes: 'Piano Community v3.2.2: Modo PULSO con cierre uniforme de aros y velocidad de caída constante en carriles (sin notas invisibles ni aceleraciones), nueva zona de impacto inferior en alta definición vectorial (pads prismáticos y ondas armónicas entrelazadas) y botón LED rediseñado.',
+    download_url: '/download/apk?v=30.0',
   });
 });
 
