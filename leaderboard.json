@@ -2754,10 +2754,10 @@
       {
         "name": "FAZTL",
         "score": 384225,
-        "stars": 3,
+        "stars": 1,
         "combo": 153,
-        "accuracy": 69.19232847109672,
-        "date": "2026-10-23 21:34:30"
+        "accuracy": 37.60129659643436,
+        "date": "2026-10-26 05:11:15"
       }
     ],
     "bs_48936": [
@@ -3897,6 +3897,76 @@
         "accuracy": 11.667054407525166,
         "date": "2026-10-26 02:09:28"
       }
+    ],
+    "osu_639305": [
+      {
+        "name": "Eduardo",
+        "score": 44976,
+        "stars": 3.5,
+        "combo": 50,
+        "accuracy": 2.4812140825008098,
+        "date": "2026-10-26 03:43:56"
+      }
+    ],
+    "top_31_minutos_re": [
+      {
+        "name": "NekoChaos",
+        "score": 101100,
+        "stars": 1,
+        "combo": 82,
+        "accuracy": 21.486454607473714,
+        "date": "2026-10-26 03:46:07"
+      }
+    ],
+    "top_mariah_carey_hero": [
+      {
+        "name": "Eduardo",
+        "score": 7050,
+        "stars": 3.5,
+        "combo": 22,
+        "accuracy": 0.5414089534449736,
+        "date": "2026-10-26 03:45:11"
+      }
+    ],
+    "osu_17837": [
+      {
+        "name": "Eduardo",
+        "score": 24387,
+        "stars": 3.5,
+        "combo": 29,
+        "accuracy": 5.043951270967342,
+        "date": "2026-10-26 03:48:36"
+      }
+    ],
+    "osu_1377050": [
+      {
+        "name": "Eduardo",
+        "score": 319233,
+        "stars": 4,
+        "combo": 186,
+        "accuracy": 88.6445615019146,
+        "date": "2026-10-26 04:07:58"
+      }
+    ],
+    "osu_1400138": [
+      {
+        "name": "Eduardo",
+        "score": 692096,
+        "stars": 4,
+        "combo": 219,
+        "accuracy": 81.57324957126946,
+        "date": "2026-10-26 04:12:52"
+      }
+    ],
+    "osu_1424532": [
+      {
+        "name": "Eduardo",
+        "score": 224083,
+        "stars": 5,
+        "combo": 135,
+        "accuracy": 93.8968690288626,
+        "date": "2026-10-26 04:14:30"
+      }
     ]
   },
   "global": [
@@ -3927,8 +3997,8 @@
     },
     {
       "name": "FAZTL",
-      "total_score": 12861589,
-      "clefs": 105
+      "total_score": 13245814,
+      "clefs": 108
     },
     {
       "name": "Niggerman",
@@ -3959,6 +4029,11 @@
       "name": "bobon",
       "total_score": 3845429,
       "clefs": 33
+    },
+    {
+      "name": "Eduardo",
+      "total_score": 2585720,
+      "clefs": 22
     },
     {
       "name": "Jacques",
@@ -4018,6 +4093,11 @@
     {
       "name": "holo",
       "total_score": 137701,
+      "clefs": 1
+    },
+    {
+      "name": "NekoChaos",
+      "total_score": 110025,
       "clefs": 1
     },
     {
@@ -4109,8 +4189,20 @@
         "score": 7730478
       },
       {
+        "name": "Eduardo",
+        "score": 2585720
+      },
+      {
+        "name": "FAZTL",
+        "score": 384225
+      },
+      {
         "name": "Laaleplo",
         "score": 327194
+      },
+      {
+        "name": "NekoChaos",
+        "score": 110025
       }
     ]
   },
