@@ -92,25 +92,30 @@ def sync_built_apk():
     newest_apk = max(existing, key=lambda p: os.path.getmtime(p))
     keystore_path = os.path.join(ROOT_DIR, 'debug.keystore')
     apksigner_candidates = [
-        '/opt/android/sdk/build-tools/36.0.0/apksigner',
-        '/opt/android/sdk/build-tools/35.0.0/apksigner',
         '/opt/android/sdk/build-tools/34.0.0/apksigner',
+        '/opt/android/sdk/build-tools/35.0.0/apksigner',
+        '/opt/android/sdk/build-tools/36.0.0/apksigner',
     ]
     apksigner_bin = next((b for b in apksigner_candidates if os.path.isfile(b)), None)
     if apksigner_bin and os.path.isfile(keystore_path):
         try:
-            subprocess.run([
-                apksigner_bin, 'sign',
-                '--ks', keystore_path,
-                '--ks-key-alias', 'androiddebugkey',
-                '--ks-pass', 'pass:android',
-                '--key-pass', 'pass:android',
-                '--v1-signing-enabled', 'true',
-                '--v2-signing-enabled', 'true',
-                '--v3-signing-enabled', 'true',
-                newest_apk
-            ], check=True)
-            print(f'[APK SIGN] Signed {newest_apk} with v1+v2+v3 schemes.')
+            # Check if APK is already validly signed by Gradle
+            verify_res = subprocess.run([apksigner_bin, 'verify', newest_apk], capture_output=True, text=True)
+            if verify_res.returncode == 0:
+                print(f'[APK SYNC] {newest_apk} is already validly signed by Gradle.')
+            else:
+                subprocess.run([
+                    apksigner_bin, 'sign',
+                    '--ks', keystore_path,
+                    '--ks-key-alias', 'androiddebugkey',
+                    '--ks-pass', 'pass:android',
+                    '--key-pass', 'pass:android',
+                    '--v1-signing-enabled', 'true',
+                    '--v2-signing-enabled', 'true',
+                    '--v3-signing-enabled', 'false',
+                    newest_apk
+                ], check=True)
+                print(f'[APK SIGN] Signed {newest_apk} with v1+v2 schemes.')
         except Exception as e:
             print(f'[APK SIGN WARNING] {e}')
 
