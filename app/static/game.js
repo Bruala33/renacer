@@ -18535,15 +18535,28 @@ class BeatstarEngine {
       const rawNotes = this.notes;
       const filteredNotes = [];
 
+      const activeDensity = (this.beatmapData && (this.beatmapData.selectedDensityMode || this.beatmapData._remappedForDensity)) || 'hard';
+      const isExtremeOsu = (activeDensity === 'extreme');
+      const isHardOsu = (activeDensity === 'hard' || isExtremeOsu);
+      const isEasyOsu = (activeDensity === 'easy');
+
+      const minOsuGapMs = isEasyOsu ? 230 : (activeDensity === 'medium' ? 160 : (isExtremeOsu ? 58 : 105));
+      const minManiaGapMs = isEasyOsu ? 215 : (activeDensity === 'medium' ? 135 : (isExtremeOsu ? 42 : 80));
+      const minManiaChordSpacingMs = isEasyOsu ? Infinity : (activeDensity === 'medium' ? 240 : (isExtremeOsu ? 55 : 130));
+
       let currentPhase = 'osu';
       let phaseStartTimeMs = rawNotes[0].timestamp_ms ?? rawNotes[0].timeMs ?? 0;
       let targetPhaseDurationMs = 6200; // ~6.2s de aros táctiles -> luego ~4.5s de carriles
       let lastAcceptedEndMs = -99999;
+      let lastManiaEventTimeMs = -99999;
+      let lastManiaChordTimeMs = -99999;
+      let currentManiaChordLanes = new Set();
       let pendingPhaseSwitch = false;
 
       for (let i = 0; i < rawNotes.length; i++) {
         const n = rawNotes[i];
         const tMs = n.timestamp_ms ?? n.timeMs ?? 0;
+        const laneVal = Math.max(0, Math.min(2, Math.round(n.lane ?? 1)));
 
         const elapsedInPhase = tMs - phaseStartTimeMs;
         if (!pendingPhaseSwitch && elapsedInPhase >= targetPhaseDurationMs) {
@@ -18564,13 +18577,39 @@ class BeatstarEngine {
           phaseStartTimeMs = tMs;
           targetPhaseDurationMs = (currentPhase === 'osu') ? 6200 : 4500;
           pendingPhaseSwitch = false;
+          currentManiaChordLanes.clear();
         } else {
-          // Dentro de la misma fase: garantizar separación mínima de lectura entre golpes consecutivos
-          // (evita acordes dobles simultáneos en círculos o notas montadas encima de un slider activo)
-          const minGapSamePhase = (currentPhase === 'osu') ? 225 : 195;
-          if (tMs < lastAcceptedEndMs + minGapSamePhase) {
-            continue;
+          if (currentPhase === 'mania') {
+            // Permitir acordes dobles simultáneos en carriles distintos para Media, Difícil y Extrema
+            if (Math.abs(tMs - lastManiaEventTimeMs) <= 24) {
+              if (
+                !isEasyOsu &&
+                currentManiaChordLanes.size < 2 &&
+                !currentManiaChordLanes.has(laneVal) &&
+                (tMs - lastManiaChordTimeMs >= minManiaChordSpacingMs)
+              ) {
+                currentManiaChordLanes.add(laneVal);
+                lastManiaChordTimeMs = tMs;
+              } else {
+                continue;
+              }
+            } else if (tMs < lastAcceptedEndMs + minManiaGapMs) {
+              continue;
+            } else {
+              currentManiaChordLanes.clear();
+              currentManiaChordLanes.add(laneVal);
+              lastManiaEventTimeMs = tMs;
+            }
+          } else {
+            if (tMs < lastAcceptedEndMs + minOsuGapMs) {
+              continue;
+            }
           }
+        }
+
+        if (currentPhase === 'mania' && currentManiaChordLanes.size === 0) {
+          currentManiaChordLanes.add(laneVal);
+          lastManiaEventTimeMs = tMs;
         }
 
         n._osuPhaseGroup = currentPhase;
@@ -18585,7 +18624,23 @@ class BeatstarEngine {
           n.holdDuration = 0;
           n._osuPreliminaryEndMs = tMs;
         } else {
-          const effDur = (n.type === 'hold' && holdDur >= 240) ? Math.min(holdDur, 820) : 0;
+          // En Difícil y Extrema, acortar o convertir en círculo cualquier hold que taparía notas rápidas siguientes
+          let nextRawT = Infinity;
+          for (let j = i + 1; j < rawNotes.length; j++) {
+            const candT = rawNotes[j].timestamp_ms ?? rawNotes[j].timeMs ?? 0;
+            if (candT > tMs + 30) {
+              nextRawT = candT;
+              break;
+            }
+          }
+          const maxHoldBeforeNext = isHardOsu ? Math.max(0, nextRawT - tMs - minOsuGapMs - 20) : 820;
+          const clampedHold = Math.min(holdDur, 820, maxHoldBeforeNext);
+          const effDur = (n.type === 'hold' && clampedHold >= 240) ? clampedHold : 0;
+          if (effDur === 0 && n.type === 'hold') {
+            n.type = 'tap';
+            n.duration_ms = 0;
+            n.holdDuration = 0;
+          }
           n._osuPreliminaryEndMs = tMs + effDur;
         }
 
@@ -19319,19 +19374,6 @@ class BeatstarEngine {
         ctx.strokeStyle = `rgba(${beatRgb}, ${(beatPulse * 0.28).toFixed(3)})`;
         ctx.lineWidth = 10 + beatPulse * 10;
         ctx.strokeRect(0, 0, w, h);
-      }
-
-      // Onda de choque circular concéntrica expandiéndose desde el centro al ritmo exacto del BPM
-      const waveExpandR = 28 + beatFrac * (w * 0.58);
-      const waveAlpha = Math.pow(Math.max(0, 1.0 - beatFrac), 1.65) * 0.34;
-      if (waveAlpha > 0.01) {
-        ctx.strokeStyle = (Math.abs(beatIndex) % 2 === 0)
-          ? `rgba(0, 242, 254, ${waveAlpha.toFixed(3)})`
-          : `rgba(232, 121, 249, ${waveAlpha.toFixed(3)})`;
-        ctx.lineWidth = 2.6 * (1.0 - beatFrac * 0.5);
-        ctx.beginPath();
-        ctx.arc(centerStageX, centerStageY, waveExpandR, 0, Math.PI * 2);
-        ctx.stroke();
       }
 
       // 3. Nebulosas Difuminadas Reactivas al BPM en la Zona Ergonómica de Pulgares (45% a 70% Y)

@@ -179,9 +179,9 @@ class LaneRemapper {
       maxChordSize = 2;
       minChordSpacing = 260;
     } else if (densityMode === 'extreme') {
-      minEventGap = 58;  // Conserva los streams reales rápidos de la canción sin inventar notas
+      minEventGap = 24;  // Mínimas restricciones: conserva prácticamente el 100% de las ráfagas reales del mapa
       maxChordSize = 2;
-      minChordSpacing = 65;
+      minChordSpacing = 24;
     } else {
       minEventGap = Math.max(76, Math.min(165, 165 - (s - 1.0) * 12.5));
       maxChordSize = 2;
@@ -211,7 +211,7 @@ class LaneRemapper {
         }
 
         const chordNotes = thinned.filter(prev => Math.abs(prev.timestamp_ms - t) <= 32);
-        const minChordPrio = densityMode === 'medium' ? 68 : (densityMode === 'extreme' ? 40 : 50);
+        const minChordPrio = densityMode === 'medium' ? 68 : (densityMode === 'extreme' ? 0 : 50);
         if (chordNotes.length < maxChordSize && n.priority >= minChordPrio) {
           thinned.push(n);
           lastChordTimestamp = t;
@@ -226,28 +226,56 @@ class LaneRemapper {
         if (densityMode === 'medium') {
           if (gap < minEventGap * 0.82 || n.priority < 95) continue;
         } else if (densityMode === 'extreme') {
-          if (gap < minEventGap * 0.72 || n.priority < 58) continue;
+          if (gap < 18) continue;
         } else {
           if (gap < minEventGap * 0.72 || n.priority < 75) continue;
         }
       }
 
-      // Límite de densidad en ventana móvil de 600ms
-      const windowStart = t - 600;
-      const notesInRecentWindow = thinned.filter(prev => prev.timestamp_ms >= windowStart);
-      const maxWindowEvents = densityMode === 'easy'
-        ? 3
-        : (densityMode === 'medium'
-            ? 4
-            : (densityMode === 'extreme'
-                ? 9
-                : (s <= 3.0 ? 5 : (s <= 5.0 ? 6 : 7))));
-      if (notesInRecentWindow.length >= maxWindowEvents && n.priority < 105) {
-        continue;
+      // Límite de densidad en ventana móvil de 600ms (en Extrema se eliminan topes restrictivos)
+      if (densityMode !== 'extreme') {
+        const windowStart = t - 600;
+        const notesInRecentWindow = thinned.filter(prev => prev.timestamp_ms >= windowStart);
+        const maxWindowEvents = densityMode === 'easy'
+          ? 3
+          : (densityMode === 'medium'
+              ? 4
+              : (s <= 3.0 ? 5 : (s <= 5.0 ? 6 : 7)));
+        if (notesInRecentWindow.length >= maxWindowEvents && n.priority < 105) {
+          continue;
+        }
       }
 
       lastEventTimestamp = t;
       thinned.push(n);
+
+      // En Extrema: si una nota real cae en pulso fuerte (priority >= 80) y no forma parte ya de un acorde simultáneo,
+      // potenciar el golpe con acorde doble de 2 pulgares en ese mismo timestamp exacto
+      const nextRaw = (i + 1 < scoredNotes.length) ? scoredNotes[i + 1] : null;
+      const isSimultaneousWithNext = nextRaw && Math.abs(nextRaw.timestamp_ms - t) <= 32;
+      if (
+        densityMode === 'extreme' &&
+        !isSimultaneousWithNext &&
+        n.type !== 'hold' &&
+        !(n.duration_ms && n.duration_ms > 140) &&
+        n.priority >= 80 &&
+        (t - lastChordTimestamp >= 145) &&
+        (!nextRaw || (nextRaw.timestamp_ms - t >= 85))
+      ) {
+        const origLane = n.originalLane ?? n.lane ?? 0;
+        const maxOrig = Math.max(2, (totalLanes || 4) - 1);
+        const partnerOrig = origLane <= Math.floor(maxOrig / 2) ? maxOrig : 0;
+        thinned.push({
+          ...n,
+          originalLane: partnerOrig,
+          lane: partnerOrig,
+          type: 'tap',
+          duration_ms: null,
+          end_timestamp_ms: null,
+          _isExtremeChordCompanion: true
+        });
+        lastChordTimestamp = t;
+      }
     }
 
     return thinned;
@@ -320,7 +348,7 @@ class LaneRemapper {
       : (densityMode === 'medium'
           ? 170
           : (densityMode === 'extreme'
-              ? 105
+              ? 52
               : (stars < 5.0 ? 150 : 125)));
     const pass2Notes = [];
     const laneLastHitTime = new Array(numLanes).fill(-Infinity);
@@ -338,7 +366,7 @@ class LaneRemapper {
         let alternated = false;
         for (const alt of candidates) {
           if (t - laneLastHitTime[alt] >= minSameLaneGap) {
-            const recentAroundT = pass2Notes.filter(prev => Math.abs(prev.timestamp_ms - t) <= 65);
+            const recentAroundT = pass2Notes.filter(prev => Math.abs(prev.timestamp_ms - t) <= 24);
             const usedLanesAroundT = new Set(recentAroundT.map(r => r.lane));
             if (!usedLanesAroundT.has(alt) && usedLanesAroundT.size < maxChordLimit) {
               n.lane = alt;
@@ -348,11 +376,14 @@ class LaneRemapper {
           }
         }
         if (!alternated) {
-          continue;
+          // En Extrema no descartar notas rápidas si hay al menos 40ms de separación
+          if (densityMode !== 'extreme' || (t - lastSameLaneTime < 40)) {
+            continue;
+          }
         }
       }
 
-      const recent = pass2Notes.filter(prev => Math.abs(prev.timestamp_ms - t) <= 65);
+      const recent = pass2Notes.filter(prev => Math.abs(prev.timestamp_ms - t) <= 24);
       const recentLanes = new Set(recent.map(r => r.lane));
       if (!recentLanes.has(n.lane) && recentLanes.size >= maxChordLimit) {
         continue;
@@ -363,7 +394,7 @@ class LaneRemapper {
     }
 
     // 4. Regla Estricta de Holds (Solo laterales extremos y Cero Solapamiento)
-    return this.enforceStrictLateralHoldsAndAntiOverlap(pass2Notes, numLanes);
+    return this.enforceStrictLateralHoldsAndAntiOverlap(pass2Notes, numLanes, densityMode);
   }
 
   /**
@@ -372,14 +403,15 @@ class LaneRemapper {
    * 2. Ninguna nota puede aparecer en el mismo carril mientras un hold esté activo (+60ms margen).
    * 3. Nunca hay más de 1 Hold activo a la vez.
    */
-  static enforceStrictLateralHoldsAndAntiOverlap(notes, targetLanes = 3) {
+  static enforceStrictLateralHoldsAndAntiOverlap(notes, targetLanes = 3, densityMode = 'hard') {
     if (!notes || notes.length === 0) return [];
     const numLanes = targetLanes === 4 ? 4 : 3;
     const maxLaneIdx = numLanes - 1;
     const allLaneIndices = numLanes === 4 ? [0, 1, 2, 3] : [0, 1, 2];
+    const isExtreme = (densityMode === 'extreme');
 
     const sorted = [...notes].sort((a, b) => a.timestamp_ms - b.timestamp_ms);
-    const SAFETY_MARGIN_MS = 60;
+    const SAFETY_MARGIN_MS = isExtreme ? 35 : 60;
 
     const processedHolds = [];
     const nonHoldNotes = [];
@@ -402,7 +434,26 @@ class LaneRemapper {
 
     for (const h of processedHolds) {
       const start = h.timestamp_ms;
-      const end = h.end_timestamp_ms || (start + (h.duration_ms || 600));
+      let end = h.end_timestamp_ms || (start + (h.duration_ms || 600));
+
+      // En Extrema: si un hold taparía ráfagas rápidas o acordes dobles siguientes, acortarlo o convertirlo en tap
+      if (isExtreme) {
+        for (let k = 0; k < nonHoldNotes.length; k++) {
+          const nt = nonHoldNotes[k].timestamp_ms;
+          if (nt > start + 35 && nt <= end + SAFETY_MARGIN_MS) {
+            end = Math.min(end, nt - SAFETY_MARGIN_MS - 10);
+            break;
+          }
+        }
+        if (end - start < 220) {
+          h.type = 'tap';
+          h.lane = Math.max(0, Math.min(maxLaneIdx, h.lane ?? 1));
+          h.duration_ms = 0;
+          delete h.end_timestamp_ms;
+          nonHoldNotes.push(h);
+          continue;
+        }
+      }
 
       const anyHoldActive = holdIntervals.some(i => !(end + SAFETY_MARGIN_MS <= i.start || start >= i.end + SAFETY_MARGIN_MS));
 
@@ -430,13 +481,16 @@ class LaneRemapper {
       finalHolds.push(h);
     }
 
+    nonHoldNotes.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
+
     const finalTaps = [];
+    const conflictWindowMs = isExtreme ? 22 : 45;
     for (const n of nonHoldNotes) {
       const t = n.timestamp_ms;
-      const activeHold = holdIntervals.find(h => t >= h.start - 40 && t <= h.end + SAFETY_MARGIN_MS);
+      const activeHold = holdIntervals.find(h => t >= h.start - 30 && t <= h.end + SAFETY_MARGIN_MS);
 
       if (activeHold) {
-        const alreadyHasTapDuringHold = finalTaps.some(prev => Math.abs(prev.timestamp_ms - t) <= 60);
+        const alreadyHasTapDuringHold = finalTaps.some(prev => Math.abs(prev.timestamp_ms - t) <= (isExtreme ? 28 : 60));
         if (alreadyHasTapDuringHold) {
           continue;
         }
@@ -450,14 +504,14 @@ class LaneRemapper {
       }
 
       let targetLane = Math.max(0, Math.min(maxLaneIdx, n.lane ?? 1));
-      const tapConflict = finalTaps.some(prev => prev.lane === targetLane && Math.abs(prev.timestamp_ms - t) <= 45);
+      const tapConflict = finalTaps.some(prev => prev.lane === targetLane && Math.abs(prev.timestamp_ms - t) <= conflictWindowMs);
       if (tapConflict) {
         const freeCandidate = allLaneIndices.find(l => {
-          const hasTap = finalTaps.some(prev => prev.lane === l && Math.abs(prev.timestamp_ms - t) <= 45);
+          const hasTap = finalTaps.some(prev => prev.lane === l && Math.abs(prev.timestamp_ms - t) <= conflictWindowMs);
           return !hasTap;
         });
         if (freeCandidate !== undefined) {
-          const simultaneousCount = finalTaps.filter(prev => Math.abs(prev.timestamp_ms - t) <= 45).length;
+          const simultaneousCount = finalTaps.filter(prev => Math.abs(prev.timestamp_ms - t) <= conflictWindowMs).length;
           if (simultaneousCount >= 2) {
             continue;
           }
@@ -736,9 +790,9 @@ class LaneRemapper {
         });
       }
 
-      // 4. Extrema (Solo para canciones con altísima densidad real de notas >= 585 donde hay ráfagas naturales)
-      if (rawNotesCount >= 585 && naturalDensity >= 5.25) {
-        const extStars = Math.max(5.4, Math.min(6.9, Math.round((5.35 + Math.min(1.55, (naturalDensity - 5.0) * 0.38)) * 10) / 10));
+      // 4. Extrema (Disponible para canciones con alta densidad real de notas >= 340 o naturalDensity >= 3.35)
+      if (rawNotesCount >= 340 || naturalDensity >= 3.35) {
+        const extStars = Math.max(5.4, Math.min(7.2, Math.round((5.35 + Math.min(1.85, Math.max(0, naturalDensity - 3.2) * 0.42)) * 10) / 10));
         standardized.push({
           id: 'extreme',
           sourceDiffId: 'extreme',
@@ -804,11 +858,11 @@ class LaneRemapper {
         });
       }
 
-      // 3. Difícil (Disponible si el mapa real supera 3.4★)
-      if (maxRawStars >= 3.4) {
+      // 3. Difícil (Disponible si el mapa real supera 3.2★)
+      if (maxRawStars >= 3.2) {
         const hardSource = pickClosestRawDiff(4.6);
         const hardSrcId = this.extractSourceDiffId(hardSource.sourceDiffId || hardSource.id || 'default');
-        const hardBase = Math.min(maxRawStars, Math.max(3.4, parseFloat(hardSource.stars) || 4.4));
+        const hardBase = Math.min(maxRawStars, Math.max(3.2, parseFloat(hardSource.stars) || 4.4));
         const hardStars = Math.max(3.8, Math.min(5.2, Math.round((3.75 + Math.min(1.45, (hardBase - 3.0) * 0.44 * tempoFactor)) * 10) / 10));
         standardized.push({
           id: `hard::${hardSrcId}`,
@@ -821,10 +875,10 @@ class LaneRemapper {
         });
       }
 
-      // 4. Extrema (Disponible solo si la canción tiene un mapa denso real >= 4.5★ en origen)
-      if (maxRawStars >= 4.5) {
+      // 4. Extrema (Disponible si la canción tiene un mapa real >= 3.6★ en origen)
+      if (maxRawStars >= 3.6) {
         const extSrcId = this.extractSourceDiffId(maxRawDiff.sourceDiffId || maxRawDiff.id || 'default');
-        const extStars = Math.max(5.4, Math.min(7.5, Math.round((5.35 + Math.min(2.15, (maxRawStars - 4.3) * 0.48 * tempoFactor)) * 10) / 10));
+        const extStars = Math.max(5.4, Math.min(7.5, Math.round((5.35 + Math.min(2.15, Math.max(0, maxRawStars - 3.5) * 0.48 * tempoFactor)) * 10) / 10));
         standardized.push({
           id: `extreme::${extSrcId}`,
           sourceDiffId: extSrcId,
@@ -987,8 +1041,24 @@ class OsuManiaParser {
                 }
               }
               const pxPerBeat = 100 * sliderMultiplier * svMult;
-              const sliderDurationMs = Math.round((pixelLength / pxPerBeat) * baseBeatLength * slides);
-              if (sliderDurationMs >= 180 && sliderDurationMs <= 6000) {
+              const singleSlideMs = Math.round((pixelLength / pxPerBeat) * baseBeatLength);
+              const sliderDurationMs = singleSlideMs * slides;
+              if (slides >= 2 && singleSlideMs >= 75 && sliderDurationMs <= 6000) {
+                // En sliders con rebote (repeat sliders), emitir los golpes rítmicos reales de cada rebote del mapper
+                for (let sIdx = 1; sIdx <= slides; sIdx++) {
+                  const repTime = time + sIdx * singleSlideMs;
+                  const repLane = (originalLane + sIdx) % effectiveColumns;
+                  hitObjectsRaw.push({
+                    originalLane: repLane,
+                    sourceKeys: effectiveColumns,
+                    timestamp_ms: repTime,
+                    original_timestamp: repTime,
+                    type: 'tap',
+                    duration_ms: null,
+                    end_timestamp_ms: null
+                  });
+                }
+              } else if (sliderDurationMs >= 340 && sliderDurationMs <= 6000) {
                 endTime = time + sliderDurationMs;
                 isHold = true;
               }
@@ -1007,8 +1077,8 @@ class OsuManiaParser {
             end_timestamp_ms: (isHold && duration >= 140) ? endTime : null
           });
 
-          // En osu!taiko, las notas Finisher grandes (hitSound & 4) con espacio suficiente generan acorde doble
-          if (mode === 1 && (hitSound & 4) !== 0 && !isHold) {
+          // En osu!standard y osu!taiko, las notas con acento fuerte (Finish=4 o Clap=8) generan acorde doble real
+          if ((mode === 0 || mode === 1) && ((hitSound & 4) !== 0 || (hitSound & 8) !== 0) && !isHold) {
             const partnerLane = originalLane === 0 ? 3 : (originalLane === 3 ? 0 : (originalLane === 1 ? 2 : 1));
             hitObjectsRaw.push({
               originalLane: partnerLane,

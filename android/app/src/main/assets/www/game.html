@@ -4435,8 +4435,8 @@
 
   </div> <!-- End of game-viewport -->
 
-  <script src="./parsers.js?v=32.0"></script>
-  <script src="./game.js?v=32.0"></script>
+  <script src="./parsers.js?v=33.0"></script>
+  <script src="./game.js?v=33.0"></script>
   <script src="./slot_machine.js?v=29.0"></script>
   <script src="./gachapon_3d.js?v=29.0"></script>
   <script src="./songs/comm_camilo_sesto/chart.js"></script>
@@ -6689,7 +6689,7 @@
       const host = (window.location && window.location.hostname) ? window.location.hostname : '';
       const isStaticOnly = host.includes('itch.io') || host.includes('hwcdn.net') || host.includes('github.io') || host.includes('netlify.app');
       const base = isStaticOnly ? DEFAULT_CLOUD_SERVER : '';
-      const targetUrl = `${base}/download/apk?v=32.0&t=${ts}`;
+      const targetUrl = `${base}/download/apk?v=33.0&t=${ts}`;
 
       if (window.AndroidNative && typeof window.AndroidNative.openBrowser === 'function') {
         window.AndroidNative.openBrowser(targetUrl);
@@ -11119,8 +11119,8 @@ function stopPianoCameraLoop() {
       parsedRaw.sort((a, b) => a.t - b.t);
 
       // 1b. Filtrado rítmico al pulso según la dificultad elegida (CERO invención de notas fuera de tiempo)
-      const minNoteGapMs = densityMode === 'easy' ? 230 : (densityMode === 'medium' ? 140 : (densityMode === 'extreme' ? 54 : 85));
-      const maxWinNotes = densityMode === 'easy' ? 3 : (densityMode === 'medium' ? 4 : (densityMode === 'extreme' ? 9 : 6));
+      const minNoteGapMs = densityMode === 'easy' ? 230 : (densityMode === 'medium' ? 140 : (densityMode === 'extreme' ? 22 : 85));
+      const maxWinNotes = densityMode === 'easy' ? 3 : (densityMode === 'medium' ? 4 : (densityMode === 'extreme' ? 24 : 6));
       const anchorT = parsedRaw.length > 0 ? parsedRaw[0].t : 0;
       const parsed = [];
       for (let i = 0; i < parsedRaw.length; i++) {
@@ -11145,19 +11145,23 @@ function stopPianoCameraLoop() {
               parsed[parsed.length - 1] = cur;
             }
             continue;
-          } else if (gap < minNoteGapMs * 0.72 && !isHold && !isPhraseStart) {
+          } else if (!isExtreme && gap < minNoteGapMs * 0.72 && !isHold && !isPhraseStart) {
+            continue;
+          } else if (isExtreme && gap < 18 && cur.lane === prev.lane) {
             continue;
           }
         }
 
-        const winStart = cur.t - 600;
-        let recentCount = 0;
-        for (let k = parsed.length - 1; k >= 0; k--) {
-          if (parsed[k].t >= winStart) recentCount++;
-          else break;
-        }
-        if (recentCount >= maxWinNotes && !isHold && !isPhraseStart) {
-          continue;
+        if (!isExtreme) {
+          const winStart = cur.t - 600;
+          let recentCount = 0;
+          for (let k = parsed.length - 1; k >= 0; k--) {
+            if (parsed[k].t >= winStart) recentCount++;
+            else break;
+          }
+          if (recentCount >= maxWinNotes && !isHold && !isPhraseStart) {
+            continue;
+          }
         }
         parsed.push(cur);
       }
@@ -11293,13 +11297,15 @@ function stopPianoCameraLoop() {
         }
 
         // D. Ventana de liberación para notas sostenidas (Hold)
+        const holdBufferMs = isExtreme ? 85 : 160;
+        const tapOccupiedMs = isExtreme ? 38 : 90;
         const isHold = (ty === 'hold' || dur > 180);
         if (isHold && dur > 0) {
           let maxDur = dur;
           for (let j = i + 1; j < Math.min(i + 25, filledNotes.length); j++) {
             const nextN = filledNotes[j];
             if (nextN.t > t) {
-              const gap = nextN.t - t - 160;
+              const gap = nextN.t - t - holdBufferMs;
               if (gap < maxDur) maxDur = Math.max(0, gap);
               break;
             }
@@ -11307,14 +11313,14 @@ function stopPianoCameraLoop() {
           if (maxDur >= 200) {
             dur = maxDur;
             ty = 'hold';
-            laneOccupiedUntil[targetLane] = t + dur + 160;
+            laneOccupiedUntil[targetLane] = t + dur + holdBufferMs;
           } else {
             ty = 'tap';
             dur = 0;
-            laneOccupiedUntil[targetLane] = t + 100;
+            laneOccupiedUntil[targetLane] = t + tapOccupiedMs;
           }
         } else {
-          laneOccupiedUntil[targetLane] = t + 90;
+          laneOccupiedUntil[targetLane] = t + tapOccupiedMs;
         }
 
         recentLanes.push(targetLane);
@@ -11357,10 +11363,10 @@ function stopPianoCameraLoop() {
         });
 
         // E. NOTAS DOBLES EN ATAQUES REALES DE PULSO FUERTE (Difícil y Extrema, sin inventar tiempos fuera de ritmo)
-        if (allowVocalFiller && isHard && !n.isFiller && ty === 'tap' && !isHold) {
-          const minDoubleSpacing = isExtreme ? 185 : 280;
+        if ((allowVocalFiller || isExtreme) && isHard && !n.isFiller && ty === 'tap' && !isHold) {
+          const minDoubleSpacing = isExtreme ? 115 : 280;
           const isDownbeat = isExtreme
-            ? ((Math.abs(t % Math.round(beatMs * 2)) < 75) || (i % 4 === 0))
+            ? ((Math.abs(t % Math.round(beatMs)) < 75) || (i % 3 === 0))
             : ((Math.abs(t % Math.round(beatMs * 4)) < 80) || (i % 7 === 0));
           if (isDownbeat && (t - lastDoubleCompanionTime >= minDoubleSpacing)) {
             let companionLane = -1;
@@ -11395,7 +11401,7 @@ function stopPianoCameraLoop() {
                 processed: false,
                 isDoubleCompanion: true
               });
-              laneOccupiedUntil[companionLane] = t + 90;
+              laneOccupiedUntil[companionLane] = t + tapOccupiedMs;
               lastDoubleCompanionTime = t;
             }
           }
