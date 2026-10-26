@@ -2888,7 +2888,9 @@ class BeatstarEngine {
       ((typeof LaneRemapper !== 'undefined' && LaneRemapper.inferDensityModeFromDiff)
         ? LaneRemapper.inferDensityModeFromDiff(dNameRaw, diffStars)
         : 'hard');
-    const densityMode = (isStormActive && (baseDensityMode === 'hard' || baseDensityMode === 'extreme')) ? 'extreme' : baseDensityMode;
+    const densityMode = baseDensityMode === 'impossible'
+      ? 'impossible'
+      : ((isStormActive && (baseDensityMode === 'hard' || baseDensityMode === 'extreme')) ? 'extreme' : baseDensityMode);
     const effectiveStars = isStormActive ? Math.min(10.0, (diffStars || 3.5) + 1.2) : diffStars;
     let sanitizedNotes = rawNotes;
     if (!isCommunity && typeof LaneRemapper !== 'undefined') {
@@ -18220,7 +18222,7 @@ class BeatstarEngine {
     }
 
     // =========================================================================
-    // MODO PULSO OSU! (HÍBRIDO OSU! CLÁSICO + OSU!MANIA ADAPTADO A MÓVIL)
+    // MODO PULSO OSU! v2.0 (COREOGRAFÍA HUMANA + FLUJO DINÁMICO + SUPERNOVAS)
     // =========================================================================
     initOsuHybridModeAssets() {
       this._osuHitBursts = [];
@@ -18228,16 +18230,23 @@ class BeatstarEngine {
       this._osuTimingTicks = [];
       this._osuSynapseBolts = [];
       this._osuCursorTrails = [];
+      this._osuMiniOrbs = [];
+      this._osuShockwaves = [];
       this._osuActivePointers = new Map();
       this._osuLastTimingMs = 0;
+      this._osuEnergyLevel = 0;
+      this._osuComboBreakFlash = 0;
+      this._osuWeaveBlend = 0.2;
+      this._osuBgParallax = { x: 0, y: 0, vx: 0, vy: 0 };
       this._osuEqLevels = this._osuEqLevels || new Float32Array(28);
-      this._osuBokehSeeds = this._osuBokehSeeds || Array.from({ length: 24 }, (_, i) => ({
+      this._osuBokehSeeds = this._osuBokehSeeds || Array.from({ length: 26 }, (_, i) => ({
         nx: ((i * 37 + 13) % 100) / 100,
         ny: ((i * 53 + 29) % 100) / 100,
-        r: 18 + (i % 6) * 11,
+        r: 16 + (i % 6) * 10,
+        depth: 0.4 + (i % 5) * 0.22,
         speed: 0.014 + (i % 4) * 0.006,
         phase: i * 1.17,
-        colorIdx: i % 4
+        colorIdx: i % 5
       }));
 
       this._osuComboPalettes = [
@@ -18276,11 +18285,21 @@ class BeatstarEngine {
           glow: 'rgba(251, 191, 36, 0.62)',
           core: '#2e1b05',
           coreInner: '#633b0a'
-        }  // Oro Solar
+        }, // Oro Solar
+        {
+          primary: '#10b981',
+          secondary: '#6ee7b7',
+          rim: '#d1fae5',
+          glowRgb: '16, 185, 129',
+          glow: 'rgba(16, 185, 129, 0.62)',
+          core: '#05291e',
+          coreInner: '#0b523b'
+        }  // Esmeralda Cibernético
       ];
 
-      this._osuLaserLinks = this._osuLaserLinks || [];
-      if (this._osuReceptorSprites && this._osuGlowSprites) return;
+      this._osuLaserLinks = [];
+      if (typeof document === 'undefined') return;
+      if (this._osuReceptorSprites && this._osuGlowSprites && this._osuGlowSprites.length >= 5) return;
 
       // 1. Pre-renderizar Sprites de Resplandor Difuminado Gaussiano en Alta Resolución (320x320)
       this._osuGlowSprites = this._osuComboPalettes.map((pal) => {
@@ -18289,7 +18308,7 @@ class BeatstarEngine {
         c.height = 320;
         const g = c.getContext('2d');
         const grad = g.createRadialGradient(160, 160, 4, 160, 160, 156);
-        grad.addColorStop(0.00, `rgba(255, 255, 255, 0.92)`);
+        grad.addColorStop(0.00, 'rgba(255, 255, 255, 0.92)');
         grad.addColorStop(0.18, `rgba(${pal.glowRgb}, 0.74)`);
         grad.addColorStop(0.45, `rgba(${pal.glowRgb}, 0.34)`);
         grad.addColorStop(0.74, `rgba(${pal.glowRgb}, 0.10)`);
@@ -18299,69 +18318,7 @@ class BeatstarEngine {
         return c;
       });
 
-      // 2. Pre-renderizar Cuerpos de Hit Circle Cristalinos con Halo Difuminado Integrado
-      this._osuCircleSprites = this._osuComboPalettes.map((pal) => {
-        const c = document.createElement('canvas');
-        c.width = 180;
-        c.height = 180;
-        const g = c.getContext('2d');
-        const cx = 90;
-        const cy = 90;
-        const baseR = 46;
-
-        // Halo exterior multicapa ultra difuminado
-        const outerGlow = g.createRadialGradient(cx, cy, baseR * 0.55, cx, cy, 88);
-        outerGlow.addColorStop(0.00, `rgba(${pal.glowRgb}, 0.82)`);
-        outerGlow.addColorStop(0.38, `rgba(${pal.glowRgb}, 0.42)`);
-        outerGlow.addColorStop(0.72, `rgba(${pal.glowRgb}, 0.12)`);
-        outerGlow.addColorStop(1.00, `rgba(${pal.glowRgb}, 0.00)`);
-        g.fillStyle = outerGlow;
-        g.fillRect(0, 0, 180, 180);
-
-        // Cuerpo interior de cristal oscuro con gradiente radial profundo
-        const bodyGrad = g.createRadialGradient(cx - 10, cy - 12, 4, cx, cy, baseR);
-        bodyGrad.addColorStop(0.00, pal.coreInner);
-        bodyGrad.addColorStop(0.68, pal.core);
-        bodyGrad.addColorStop(1.00, '#07030f');
-        g.fillStyle = bodyGrad;
-        g.beginPath();
-        g.arc(cx, cy, baseR, 0, Math.PI * 2);
-        g.fill();
-
-        // Anillo interior de energía neón
-        g.strokeStyle = pal.primary;
-        g.lineWidth = 6.2;
-        g.beginPath();
-        g.arc(cx, cy, baseR * 0.88, 0, Math.PI * 2);
-        g.stroke();
-
-        // Segundo anillo interior sutil
-        g.strokeStyle = `rgba(${pal.glowRgb}, 0.45)`;
-        g.lineWidth = 2.0;
-        g.beginPath();
-        g.arc(cx, cy, baseR * 0.72, 0, Math.PI * 2);
-        g.stroke();
-
-        // Borde exterior blanco puro de alta precisión
-        g.strokeStyle = '#ffffff';
-        g.lineWidth = 3.2;
-        g.beginPath();
-        g.arc(cx, cy, baseR, 0, Math.PI * 2);
-        g.stroke();
-
-        // Brillo especular superior (efecto cristal curvado)
-        const specGrad = g.createLinearGradient(cx, cy - baseR, cx, cy);
-        specGrad.addColorStop(0.00, 'rgba(255, 255, 255, 0.42)');
-        specGrad.addColorStop(1.00, 'rgba(255, 255, 255, 0.00)');
-        g.fillStyle = specGrad;
-        g.beginPath();
-        g.ellipse(cx, cy - baseR * 0.46, baseR * 0.64, baseR * 0.30, 0, 0, Math.PI * 2);
-        g.fill();
-
-        return c;
-      });
-
-      // 3. Pre-renderizar los 3 Nodos Receptores Orbitales de la línea Mania inferior con difusión intensa
+      // 2. Pre-renderizar los 3 Nodos Receptores Orbitales de la línea Mania inferior
       const configs = [
         { glowRgb: '0, 242, 254', ring: '#bae6fd', accent: '#00f2fe', core: '#06243b', shape: 'star' },
         { glowRgb: '192, 132, 252', ring: '#f3e8ff', accent: '#c084fc', core: '#270c54', shape: 'diamond' },
@@ -18376,24 +18333,21 @@ class BeatstarEngine {
         const cx = 80;
         const cy = 80;
 
-        // Halo multicapa difuminado exterior
         const rad = g.createRadialGradient(cx, cy, 6, cx, cy, 76);
-        rad.addColorStop(0.00, `rgba(255, 255, 255, 0.75)`);
+        rad.addColorStop(0.00, 'rgba(255, 255, 255, 0.75)');
         rad.addColorStop(0.24, `rgba(${cfg.glowRgb}, 0.65)`);
         rad.addColorStop(0.55, `rgba(${cfg.glowRgb}, 0.26)`);
-        rad.addColorStop(0.82, `rgba(251, 191, 36, 0.08)`);
+        rad.addColorStop(0.82, 'rgba(251, 191, 36, 0.08)');
         rad.addColorStop(1.00, 'rgba(0, 0, 0, 0)');
         g.fillStyle = rad;
         g.fillRect(0, 0, 160, 160);
 
-        // Anillo exterior de precisión con muescas de mira
         g.strokeStyle = cfg.ring;
         g.lineWidth = 3.0;
         g.beginPath();
         g.arc(cx, cy, 31, 0, Math.PI * 2);
         g.stroke();
 
-        // 4 muescas cardinales luminosas
         g.strokeStyle = '#ffffff';
         g.lineWidth = 2.6;
         for (let a = 0; a < 4; a++) {
@@ -18404,13 +18358,11 @@ class BeatstarEngine {
           g.stroke();
         }
 
-        // Disco interior oscuro
         g.fillStyle = cfg.core;
         g.beginPath();
         g.arc(cx, cy, 26, 0, Math.PI * 2);
         g.fill();
 
-        // Emblema geométrico central
         g.strokeStyle = '#ffffff';
         g.fillStyle = cfg.accent;
         g.lineWidth = 2.2;
@@ -18444,62 +18396,9 @@ class BeatstarEngine {
         g.fill();
         g.stroke();
 
-        // Núcleo blanco brillante
         g.fillStyle = '#ffffff';
         g.beginPath();
         g.arc(cx, cy, 4.8, 0, Math.PI * 2);
-        g.fill();
-
-        return c;
-      });
-
-      // 4. Pre-renderizar las Notas Mania Gigantes (Orbes Hiper-Visibles con Halo Difuminado para cada uno de los 3 carriles)
-      this._osuManiaNoteSprites = configs.map((cfg) => {
-        const c = document.createElement('canvas');
-        c.width = 156;
-        c.height = 156;
-        const g = c.getContext('2d');
-        const cx = 78;
-        const cy = 78;
-        const orbR = 32;
-
-        // Resplandor difuminado exterior intenso
-        const glow = g.createRadialGradient(cx, cy, 4, cx, cy, 74);
-        glow.addColorStop(0.00, '#ffffff');
-        glow.addColorStop(0.22, `rgba(${cfg.glowRgb}, 0.92)`);
-        glow.addColorStop(0.54, `rgba(${cfg.glowRgb}, 0.38)`);
-        glow.addColorStop(1.00, `rgba(${cfg.glowRgb}, 0.00)`);
-        g.fillStyle = glow;
-        g.fillRect(0, 0, 156, 156);
-
-        // Cuerpo del orbe Mania
-        g.fillStyle = cfg.core;
-        g.beginPath();
-        g.arc(cx, cy, orbR, 0, Math.PI * 2);
-        g.fill();
-
-        // Anillo neón grueso
-        g.strokeStyle = cfg.accent;
-        g.lineWidth = 6.5;
-        g.beginPath();
-        g.arc(cx, cy, orbR * 0.82, 0, Math.PI * 2);
-        g.stroke();
-
-        // Borde blanco exterior nítido
-        g.strokeStyle = '#ffffff';
-        g.lineWidth = 3.4;
-        g.beginPath();
-        g.arc(cx, cy, orbR, 0, Math.PI * 2);
-        g.stroke();
-
-        // Núcleo energético brillante
-        const innerGrad = g.createRadialGradient(cx, cy, 1, cx, cy, orbR * 0.56);
-        innerGrad.addColorStop(0.0, '#ffffff');
-        innerGrad.addColorStop(0.55, cfg.ring);
-        innerGrad.addColorStop(1.0, cfg.accent);
-        g.fillStyle = innerGrad;
-        g.beginPath();
-        g.arc(cx, cy, orbR * 0.52, 0, Math.PI * 2);
         g.fill();
 
         return c;
@@ -18509,174 +18408,445 @@ class BeatstarEngine {
     _prepareOsuHybridChoreography() {
       if (!Array.isArray(this.notes) || this.notes.length === 0) return;
 
-      // Si venimos de otro modo especial en un reinicio, limpiar notas sintéticas previas
-      this.notes = this.notes.filter(n => n && !n._isSyntheticEchoRebound && !n.isMine);
+      // Limpiar notas sintéticas previas y ordenar estrictamente por timestamp
+      this.notes = this.notes
+        .filter(n => n && !n._isSyntheticEchoRebound && !n.isMine)
+        .sort((a, b) => ((a.timestamp_ms ?? a.timeMs ?? 0) - (b.timestamp_ms ?? b.timeMs ?? 0)));
       if (this.notes.length === 0) return;
 
-      const rawBpm = Math.max(70, Math.min(180, Number(this.bpm || this.beatmapData?.metadata?.bpm || this.beatmapData?.bpm || 120)));
-      // Tiempo de cierre 100% constante y uniforme para todos los aros (+25% más amplio para lectura cómoda)
-      const baseApproachMs = Math.max(760, Math.min(960, Math.round(1120 - (rawBpm - 90) * 1.8)));
-      const approachMs = Math.round(baseApproachMs * 1.25); // ~950ms - 1200ms uniforme
-      // Tiempo de caída 100% constante y uniforme para todas las notas de los 3 carriles inferiores
-      const maniaFallMs = 1120;
-      this._osuApproachDurationMs = approachMs;
-      this._osuManiaFallDurationMs = maniaFallMs;
-
-      // =========================================================================
-      // REGLA 1: EXCLUSIÓN MUTUA ESTRICTA CON VELOCIDAD 100% UNIFORME
-      // - Para que una nota de carril (Mania) NO empiece a caer hasta 0.5s después de terminar
-      //   el último círculo/slider, su timestamp de impacto debe ser >= lastEndMs + 500 + maniaFallMs.
-      // - Para que un círculo/slider NO aparezca en pantalla hasta 0.5s después de la última nota
-      //   de carril, su timestamp de impacto debe ser >= lastEndMs + 500 + approachMs.
-      // - Las notas que caigan dentro de ese colchón de transición se descartan de this.notes
-      //   para que jamás sean invisibles ni provoquen fallos fantasma ni cambien su velocidad.
-      // =========================================================================
-      const PHASE_PAUSE_BUFFER_MS = 500;
-      const rawNotes = this.notes;
-      const filteredNotes = [];
+      const rawBpm = Math.max(70, Math.min(220, Number(this.bpm || this.beatmapData?.metadata?.bpm || this.beatmapData?.bpm || 124)));
+      let normBpm = rawBpm;
+      while (normBpm > 168) normBpm *= 0.5;
+      while (normBpm < 82) normBpm *= 2.0;
+      const beatMs = 60000 / normBpm;
 
       const activeDensity = (this.beatmapData && (this.beatmapData.selectedDensityMode || this.beatmapData._remappedForDensity)) || 'hard';
-      const isExtremeOsu = (activeDensity === 'extreme');
+      const isImpossible = (activeDensity === 'impossible');
+      const isExtremeOsu = (activeDensity === 'extreme' || isImpossible);
       const isHardOsu = (activeDensity === 'hard' || isExtremeOsu);
       const isEasyOsu = (activeDensity === 'easy');
 
-      const minOsuGapMs = isEasyOsu ? 230 : (activeDensity === 'medium' ? 160 : (isExtremeOsu ? 58 : 105));
-      const minManiaGapMs = isEasyOsu ? 215 : (activeDensity === 'medium' ? 135 : (isExtremeOsu ? 42 : 80));
-      const minManiaChordSpacingMs = isEasyOsu ? Infinity : (activeDensity === 'medium' ? 240 : (isExtremeOsu ? 55 : 130));
+      const userSpeed = Math.max(0.65, Math.min(2.0, Number(this.noteSpeedMultiplier) || 1.0));
+      const baseApproachMs = Math.round(Math.max(680, Math.min(980, 1040 - (normBpm - 90) * 1.6)) / Math.pow(userSpeed, 0.45));
+      const maniaFallMs = Math.round((isImpossible ? 820 : (isExtremeOsu ? 920 : 1040)) / Math.pow(userSpeed, 0.55));
+      this._osuApproachDurationMs = baseApproachMs;
+      this._osuManiaFallDurationMs = maniaFallMs;
 
-      let currentPhase = 'osu';
-      let phaseStartTimeMs = rawNotes[0].timestamp_ms ?? rawNotes[0].timeMs ?? 0;
-      let targetPhaseDurationMs = 6200; // ~6.2s de aros táctiles -> luego ~4.5s de carriles
-      let lastAcceptedEndMs = -99999;
-      let lastManiaEventTimeMs = -99999;
-      let lastManiaChordTimeMs = -99999;
-      let currentManiaChordLanes = new Set();
-      let pendingPhaseSwitch = false;
+      // =========================================================================
+      // PASO 1: SANITIZACIÓN ERGONÓMICA POR NIVEL (RESPETANDO RAFAGAS Y ACORDES DOBLES)
+      // =========================================================================
+      const minSingleGapMs = isEasyOsu ? 220 : (activeDensity === 'medium' ? 150 : (activeDensity === 'hard' ? 92 : (isImpossible ? 36 : 56)));
+      const minChordGapMs = isEasyOsu ? Infinity : (activeDensity === 'medium' ? 680 : (activeDensity === 'hard' ? 360 : (isImpossible ? 120 : 210)));
 
-      for (let i = 0; i < rawNotes.length; i++) {
-        const n = rawNotes[i];
+      const sanitized = [];
+      let lastEventT = -99999;
+      let lastChordT = -99999;
+      let chordLanes = new Set();
+
+      for (let i = 0; i < this.notes.length; i++) {
+        const n = this.notes[i];
         const tMs = n.timestamp_ms ?? n.timeMs ?? 0;
         const laneVal = Math.max(0, Math.min(2, Math.round(n.lane ?? 1)));
 
-        const elapsedInPhase = tMs - phaseStartTimeMs;
-        if (!pendingPhaseSwitch && elapsedInPhase >= targetPhaseDurationMs) {
-          pendingPhaseSwitch = true;
+        if (Math.abs(tMs - lastEventT) <= 22) {
+          if (
+            !isEasyOsu &&
+            chordLanes.size < 2 &&
+            !chordLanes.has(laneVal) &&
+            (tMs - lastChordT >= minChordGapMs)
+          ) {
+            chordLanes.add(laneVal);
+            n.timestamp_ms = lastEventT;
+            n.timeMs = lastEventT;
+            n.time = lastEventT / 1000;
+            lastChordT = lastEventT;
+            sanitized.push(n);
+          }
+          continue;
         }
 
-        if (pendingPhaseSwitch) {
-          const nextPhase = (currentPhase === 'osu') ? 'mania' : 'osu';
-          const nextLookaheadMs = (nextPhase === 'mania') ? maniaFallMs : approachMs;
-          // La primera nota de la nueva fase debe aparecer en pantalla (tMs - nextLookaheadMs)
-          // al menos 500ms después de que haya terminado por completo la última nota de la fase anterior
-          const requiredHitTimeMs = lastAcceptedEndMs + PHASE_PAUSE_BUFFER_MS + nextLookaheadMs;
-          if (tMs < requiredHitTimeMs) {
-            // Descartar limpiamente las notas del hueco de transición para que no existan ni fallen
-            continue;
-          }
-          currentPhase = nextPhase;
-          phaseStartTimeMs = tMs;
-          targetPhaseDurationMs = (currentPhase === 'osu') ? 6200 : 4500;
-          pendingPhaseSwitch = false;
-          currentManiaChordLanes.clear();
+        if (tMs - lastEventT < minSingleGapMs) continue;
+
+        chordLanes.clear();
+        chordLanes.add(laneVal);
+        lastEventT = tMs;
+        sanitized.push(n);
+      }
+
+      if (sanitized.length === 0) return;
+
+      // =========================================================================
+      // PASO 2: ANÁLISIS DE DENSIDAD LOCAL Y SEGMENTACIÓN EN FRASES MUSICALES REALES
+      // - Evita borrar compases enteros.
+      // - Separa ráfagas intensas (> 3.8 NPS) en bloques limpios ('pure_osu' / 'pure_mania').
+      // - Permite intercalado orgánico ('hybrid_weave') SOLO en frases de densidad moderada
+      //   para que las teclas inferiores y los círculos superiores bailen juntos sin saturar.
+      // =========================================================================
+      const rawLen = sanitized.length;
+      const localNpsArr = new Float32Array(rawLen);
+      let wStart = 0;
+      let wEnd = 0;
+      for (let i = 0; i < rawLen; i++) {
+        const t = sanitized[i].timestamp_ms ?? 0;
+        while (wStart < i && t - (sanitized[wStart].timestamp_ms ?? 0) > 650) wStart++;
+        while (wEnd + 1 < rawLen && (sanitized[wEnd + 1].timestamp_ms ?? 0) - t <= 650) wEnd++;
+        localNpsArr[i] = (wEnd - wStart + 1) / 1.30;
+      }
+
+      const phrases = [];
+      let pStart = 0;
+      for (let i = 1; i < rawLen; i++) {
+        const curT = sanitized[i].timestamp_ms ?? 0;
+        const prevT = sanitized[i - 1].timestamp_ms ?? 0;
+        const dt = curT - prevT;
+        const pDur = curT - (sanitized[pStart].timestamp_ms ?? 0);
+        const isChordSame = (dt <= 22);
+        if (!isChordSame && ((dt >= 350 && pDur >= 2500) || (dt >= 210 && pDur >= 4400) || pDur >= 6500)) {
+          phrases.push({ start: pStart, end: i - 1 });
+          pStart = i;
+        }
+      }
+      phrases.push({ start: pStart, end: rawLen - 1 });
+
+      const motifs = ['ARC_SWEEP', 'SYMMETRIC_DANCE', 'DIAMOND_CLOCK', 'WAVE_CASCADE', 'ACCENT_CROSS_JUMP'];
+      let prevMode = 'pure_osu';
+      let consecutiveOsuPhrases = 0;
+
+      for (let pIdx = 0; pIdx < phrases.length; pIdx++) {
+        const ph = phrases[pIdx];
+        const count = ph.end - ph.start + 1;
+        const startT = sanitized[ph.start].timestamp_ms ?? 0;
+        const endT = sanitized[ph.end].timestamp_ms ?? startT;
+        const durSec = Math.max(0.8, (endT - startT) / 1000);
+        const avgNps = count / durSec;
+        let peakNps = 0;
+        for (let k = ph.start; k <= ph.end; k++) {
+          if (localNpsArr[k] > peakNps) peakNps = localNpsArr[k];
+        }
+        const prevEndT = pIdx > 0 ? (sanitized[phrases[pIdx - 1].end].timestamp_ms ?? 0) : -9999;
+        const boundaryGapMs = startT - prevEndT;
+
+        let chosenMode = 'pure_osu';
+        if (pIdx === 0) {
+          chosenMode = 'pure_osu';
+        } else if (peakNps >= 5.6 && boundaryGapMs < 240) {
+          // Si estamos en mitad de un stream salvaje sin respiro musical, mantener el modo actual para lectura limpia
+          chosenMode = prevMode === 'hybrid_weave' ? 'pure_osu' : prevMode;
+        } else if (
+          !isEasyOsu &&
+          count >= 5 &&
+          avgNps >= 1.15 &&
+          avgNps <= 3.65 &&
+          peakNps <= 4.25 &&
+          (pIdx % 3 === 1 || (prevMode === 'pure_osu' && pIdx % 4 === 2))
+        ) {
+          // Intercalado orgánico: solo cuando NO hay 20 teclas amontonadas en poco tiempo
+          chosenMode = 'hybrid_weave';
+        } else if (prevMode === 'pure_osu' && consecutiveOsuPhrases >= 1 && boundaryGapMs >= 165) {
+          chosenMode = 'pure_mania';
+        } else if (prevMode === 'pure_mania' && boundaryGapMs >= 165) {
+          chosenMode = 'pure_osu';
         } else {
-          if (currentPhase === 'mania') {
-            // Permitir acordes dobles simultáneos en carriles distintos para Media, Difícil y Extrema
-            if (Math.abs(tMs - lastManiaEventTimeMs) <= 24) {
-              if (
-                !isEasyOsu &&
-                currentManiaChordLanes.size < 2 &&
-                !currentManiaChordLanes.has(laneVal) &&
-                (tMs - lastManiaChordTimeMs >= minManiaChordSpacingMs)
-              ) {
-                currentManiaChordLanes.add(laneVal);
-                lastManiaChordTimeMs = tMs;
-              } else {
-                continue;
-              }
-            } else if (tMs < lastAcceptedEndMs + minManiaGapMs) {
-              continue;
-            } else {
-              currentManiaChordLanes.clear();
-              currentManiaChordLanes.add(laneVal);
-              lastManiaEventTimeMs = tMs;
-            }
+          chosenMode = (pIdx % 3 === 2) ? 'pure_mania' : 'pure_osu';
+        }
+
+        ph.mode = chosenMode;
+        ph.avgNps = avgNps;
+        ph.peakNps = peakNps;
+        ph.motif = motifs[(pIdx + Math.round(avgNps)) % motifs.length];
+        if (chosenMode === 'pure_osu') consecutiveOsuPhrases++;
+        else consecutiveOsuPhrases = 0;
+        prevMode = chosenMode;
+      }
+
+      // Asignar grupo ('osu' vs 'mania') nota por nota respetando transiciones suaves sin borrar compases
+      const finalNotes = [];
+      let lastAcceptedRole = null;
+      let lastAcceptedEndT = -99999;
+
+      for (let pIdx = 0; pIdx < phrases.length; pIdx++) {
+        const ph = phrases[pIdx];
+        let weaveRunCount = 0;
+        let weaveSubRole = (pIdx % 2 === 0) ? 'mania' : 'osu';
+
+        for (let i = ph.start; i <= ph.end; i++) {
+          const n = sanitized[i];
+          const tMs = n.timestamp_ms ?? 0;
+          const prevRawT = i > 0 ? (sanitized[i - 1].timestamp_ms ?? -9999) : -9999;
+          const nextRawT = (i + 1 < rawLen) ? (sanitized[i + 1].timestamp_ms ?? 99999999) : 99999999;
+          const isSimultaneousWithPrev = Math.abs(tMs - prevRawT) <= 22;
+          const isSimultaneousWithNext = Math.abs(nextRawT - tMs) <= 22;
+
+          let subRole = 'osu';
+          if (ph.mode === 'pure_mania') {
+            subRole = 'mania';
+          } else if (ph.mode === 'pure_osu') {
+            subRole = 'osu';
           } else {
-            if (tMs < lastAcceptedEndMs + minOsuGapMs) {
+            // MODO INTERCALADO ('hybrid_weave'): alterna pequeños motivos de 1-3 teclas de piano y 1-3 círculos superiores
+            if (isSimultaneousWithPrev && finalNotes.length > 0) {
+              subRole = finalNotes[finalNotes.length - 1]._osuPhaseGroup;
+            } else if (isSimultaneousWithNext) {
+              subRole = (tMs - lastAcceptedEndT >= 270) ? 'osu' : 'mania';
+              weaveSubRole = subRole;
+              weaveRunCount = 1;
+            } else {
+              const dtFromLast = tMs - lastAcceptedEndT;
+              const targetRun = weaveSubRole === 'mania' ? 2 : 3;
+              if (weaveRunCount >= targetRun && dtFromLast >= 205) {
+                weaveSubRole = (weaveSubRole === 'mania') ? 'osu' : 'mania';
+                weaveRunCount = 1;
+              } else {
+                weaveRunCount++;
+              }
+              subRole = weaveSubRole;
+            }
+          }
+
+          // Micro-respiro visual (210ms) únicamente en el instante exacto de cambio entre carril inferior y aro superior
+          if (
+            lastAcceptedRole &&
+            lastAcceptedRole !== subRole &&
+            !isSimultaneousWithPrev &&
+            (tMs - lastAcceptedEndT < 205)
+          ) {
+            if (ph.mode === 'hybrid_weave') {
+              // En intercalado, mantener el sub-rol anterior si las dos notas van muy pegadas
+              subRole = lastAcceptedRole;
+            } else if (tMs - lastAcceptedEndT < 135) {
+              // Si hay un choque pegado justo en la frontera de fase, omitir solo esa nota fronteriza
               continue;
             }
           }
-        }
 
-        if (currentPhase === 'mania' && currentManiaChordLanes.size === 0) {
-          currentManiaChordLanes.add(laneVal);
-          lastManiaEventTimeMs = tMs;
-        }
+          n._osuPhaseGroup = subRole;
+          n._osuPhraseMode = ph.mode;
+          n._osuMotif = ph.motif;
+          n._osuLocalNps = localNpsArr[i];
 
-        n._osuPhaseGroup = currentPhase;
+          const holdDur = Number.isFinite(n.duration_ms) && n.duration_ms > 0
+            ? n.duration_ms
+            : (Number.isFinite(n.holdDuration) ? (n.holdDuration > 50 ? n.holdDuration : n.holdDuration * 1000) : 0);
 
-        const holdDur = Number.isFinite(n.duration_ms) && n.duration_ms > 0
-          ? n.duration_ms
-          : (Number.isFinite(n.holdDuration) ? (n.holdDuration > 50 ? n.holdDuration : n.holdDuration * 1000) : 0);
-
-        if (currentPhase === 'mania') {
-          n.type = 'tap';
-          n.duration_ms = 0;
-          n.holdDuration = 0;
-          n._osuPreliminaryEndMs = tMs;
-        } else {
-          // En Difícil y Extrema, acortar o convertir en círculo cualquier hold que taparía notas rápidas siguientes
-          let nextRawT = Infinity;
-          for (let j = i + 1; j < rawNotes.length; j++) {
-            const candT = rawNotes[j].timestamp_ms ?? rawNotes[j].timeMs ?? 0;
-            if (candT > tMs + 30) {
-              nextRawT = candT;
-              break;
-            }
-          }
-          const maxHoldBeforeNext = isHardOsu ? Math.max(0, nextRawT - tMs - minOsuGapMs - 20) : 820;
-          const clampedHold = Math.min(holdDur, 820, maxHoldBeforeNext);
-          const effDur = (n.type === 'hold' && clampedHold >= 240) ? clampedHold : 0;
-          if (effDur === 0 && n.type === 'hold') {
+          if (subRole === 'mania') {
             n.type = 'tap';
             n.duration_ms = 0;
             n.holdDuration = 0;
+            n._osuPreliminaryEndMs = tMs;
+          } else {
+            let nextDiffT = Infinity;
+            for (let j = i + 1; j < rawLen; j++) {
+              const candT = sanitized[j].timestamp_ms ?? 0;
+              if (candT > tMs + 28) {
+                nextDiffT = candT;
+                break;
+              }
+            }
+            const maxHold = Math.max(0, nextDiffT - tMs - (isHardOsu ? 150 : 190));
+            const clampedHold = Math.min(holdDur, 780, maxHold);
+            const effDur = (n.type === 'hold' && clampedHold >= 230 && !isSimultaneousWithPrev && !isSimultaneousWithNext) ? clampedHold : 0;
+            if (effDur === 0 && n.type === 'hold') {
+              n.type = 'tap';
+              n.duration_ms = 0;
+              n.holdDuration = 0;
+            }
+            n._osuPreliminaryEndMs = tMs + effDur;
           }
-          n._osuPreliminaryEndMs = tMs + effDur;
-        }
 
-        lastAcceptedEndMs = Math.max(lastAcceptedEndMs, n._osuPreliminaryEndMs);
-        filteredNotes.push(n);
+          lastAcceptedRole = subRole;
+          lastAcceptedEndT = Math.max(lastAcceptedEndT, n._osuPreliminaryEndMs);
+          finalNotes.push(n);
+        }
       }
 
-      this.notes = filteredNotes;
+      this.notes = finalNotes;
       const notes = this.notes;
       const nLen = notes.length;
       this.totalNotes = nLen;
       if (nLen === 0) return;
 
       // =========================================================================
-      // REGLAS 2 Y 3: ZONA ERGONÓMICA DE PULGARES (45% A 70% EJE Y) +
-      // PROHIBIDO SOLAPAR CÍRCULOS (MÍNIMO 120PX ENTRE CENTROS) +
-      // ALTERNANCIA IZQUIERDA / DERECHA PARA DOS PULGARES
+      // PASO 3: VELOCIDAD DE CIERRE ADAPTATIVA (DYNAMIC AR) + LÍMITE ANTI-SATURACIÓN
+      // - A mayor densidad de notas en poco tiempo, más rápido se cierra el aro.
+      // - Orden de aparición estrictamente monótono y tope máximo de 4-5 círculos a la vez.
+      // =========================================================================
+      const minArFloorMs = Math.round((isImpossible ? 395 : (isExtremeOsu ? 445 : (isHardOsu ? 515 : (isEasyOsu ? 720 : 610)))) / Math.pow(userSpeed, 0.45));
+      const osuIndices = [];
+      for (let i = 0; i < nLen; i++) {
+        if (notes[i]._osuPhaseGroup !== 'mania') osuIndices.push(i);
+      }
+
+      for (let k = 0; k < osuIndices.length; k++) {
+        const idx = osuIndices[k];
+        const n = notes[idx];
+        const tMs = n.timestamp_ms ?? 0;
+
+        let localOsuCount = 1;
+        for (let b = k - 1; b >= 0; b--) {
+          if (tMs - (notes[osuIndices[b]].timestamp_ms ?? 0) <= 520) localOsuCount++;
+          else break;
+        }
+        for (let f = k + 1; f < osuIndices.length; f++) {
+          if ((notes[osuIndices[f]].timestamp_ms ?? 0) - tMs <= 630) localOsuCount++;
+          else break;
+        }
+        const osuNps = localOsuCount / 1.15;
+
+        let prevOsuDt = 9999;
+        for (let b = k - 1; b >= 0; b--) {
+          const dt = tMs - (notes[osuIndices[b]].timestamp_ms ?? 0);
+          if (dt > 24) { prevOsuDt = dt; break; }
+        }
+        let nextOsuDt = 9999;
+        for (let f = k + 1; f < osuIndices.length; f++) {
+          const dt = (notes[osuIndices[f]].timestamp_ms ?? 0) - tMs;
+          if (dt > 24) { nextOsuDt = dt; break; }
+        }
+        const minNeighborDt = Math.min(prevOsuDt, nextOsuDt);
+
+        let targetAr = baseApproachMs - Math.max(0, osuNps - 1.6) * 76;
+        if (minNeighborDt < 230) {
+          targetAr = Math.min(targetAr, 335 + minNeighborDt * 1.42);
+        }
+        n._osuApproachMs = Math.round(Math.max(minArFloorMs, Math.min(baseApproachMs, targetAr)));
+      }
+
+      // Garantizar aparición monótona y que jamás se acumulen más de 4 círculos futuros visibles a la vez
+      let lastSpawnT = -999999;
+      let lastNoteT = -999999;
+      for (let k = 0; k < osuIndices.length; k++) {
+        const n = notes[osuIndices[k]];
+        const tMs = n.timestamp_ms ?? 0;
+        if (Math.abs(tMs - lastNoteT) <= 22 && k > 0) {
+          n._osuApproachMs = notes[osuIndices[k - 1]]._osuApproachMs;
+          continue;
+        }
+        let spawnT = tMs - n._osuApproachMs;
+        if (spawnT < lastSpawnT + 26) {
+          spawnT = Math.min(tMs - 365, lastSpawnT + 26);
+          n._osuApproachMs = Math.max(365, Math.round(tMs - spawnT));
+        }
+        lastSpawnT = tMs - n._osuApproachMs;
+        lastNoteT = tMs;
+      }
+
+      // Limitar concurrencia máxima en pantalla: en el instante tA no pueden haber aparecido ya > 4 notas posteriores
+      for (let k = 0; k < osuIndices.length; k++) {
+        const nA = notes[osuIndices[k]];
+        const tA = nA.timestamp_ms ?? 0;
+        let distinctFutureRank = 0;
+        let prevFutureT = tA;
+        for (let f = k + 1; f < osuIndices.length; f++) {
+          const nB = notes[osuIndices[f]];
+          const tB = nB.timestamp_ms ?? 0;
+          if (tB - prevFutureT > 24) {
+            distinctFutureRank++;
+            prevFutureT = tB;
+          }
+          if (distinctFutureRank >= 4) {
+            const minAllowedSpawnB = tA + (distinctFutureRank - 3) * 38;
+            const curSpawnB = tB - nB._osuApproachMs;
+            if (curSpawnB < minAllowedSpawnB) {
+              nB._osuApproachMs = Math.max(365, Math.round(tB - minAllowedSpawnB));
+            }
+          }
+          if (distinctFutureRank >= 9) break;
+        }
+      }
+
+      // =========================================================================
+      // PASO 4: MOTOR DE FLOW HUMANO 2D + MECÁNICAS ORIGINALES
+      // - Motivos espaciales humanos (Arcos, Espejo, Diamante, Cascada, Saltos de Acento)
+      // - Numeración limpia 1..5 (prohibido llegar a 9 números en pantalla)
+      // - Supernovas Gigantes ('nova'), Swipes reales ('swipe'), Sliders reales ('slider') y Gemelos ('twin')
       // =========================================================================
       const refW = Math.max(360, this.width || 360);
       const refH = Math.max(640, this.height || 640);
-      const MIN_DIST_PX = 126; // >= 120px estricto entre centros de círculos
-      const MIN_NORM_Y = 0.45; // 45% del eje Y
-      const MAX_NORM_Y = 0.70; // 70% del eje Y
-      const MIN_NORM_X = 0.17;
-      const MAX_NORM_X = 0.83;
+      const MIN_NORM_X = 0.16;
+      const MAX_NORM_X = 0.84;
 
-      const clampY = (val) => Math.max(MIN_NORM_Y, Math.min(MAX_NORM_Y, val));
       const clampX = (val) => Math.max(MIN_NORM_X, Math.min(MAX_NORM_X, val));
+      const clampYForNote = (val, isWeave) => {
+        const minY = isWeave ? 0.29 : 0.36;
+        const maxY = isWeave ? 0.49 : 0.69;
+        return Math.max(minY, Math.min(maxY, val));
+      };
 
+      const placedOsuNodes = [];
       let phraseColorIdx = 0;
-      let comboNum = 1;
-      let thumbSide = -1; // -1 = Pulgar Izquierdo [0.18..0.40], +1 = Pulgar Derecho [0.60..0.82]
-      const placedOsuNodes = []; // Historial de nodos 2D para garantizar distancia >= 126px
+      let comboNum = 0;
+      let flowX = 0.30;
+      let flowY = 0.52;
+      let flowAngle = 0.35;
+      let arcTurnSign = 1;
+      let motifStep = 0;
+      let lastNovaTimeMs = -9999;
+      let lastSwipeTimeMs = -9999;
+      let lastTwinTimeMs = -9999;
+
+      const resolveCleanPosition = (targetX, targetY, tMs, endT, appMs, minDistPx, isWeave, avoidManiaLane) => {
+        const cX = clampX(targetX);
+        const cY = clampYForNote(targetY, isWeave);
+        const mySpawnT = tMs - appMs;
+
+        const obstacles = [];
+        for (let b = placedOsuNodes.length - 1; b >= 0; b--) {
+          const obs = placedOsuNodes[b];
+          const isImmediate = (b === placedOsuNodes.length - 1);
+          const timeOverlap = (mySpawnT <= obs.endT + 230) && (obs.spawnT <= endT + 230);
+          if (isImmediate || timeOverlap) {
+            obstacles.push(obs);
+          }
+          if (obstacles.length >= 6 && (tMs - obs.endT > 1500)) break;
+        }
+
+        const evalPenalty = (px, py) => {
+          let minD = 99999;
+          for (let o = 0; o < obstacles.length; o++) {
+            const obs = obstacles[o];
+            const req = obs.isNova ? Math.max(minDistPx, 134) : minDistPx;
+            const d0 = Math.hypot((px - obs.x) * refW, (py - obs.y) * refH) - (req - minDistPx);
+            const d1 = Math.hypot((px - obs.endX) * refW, (py - obs.endY) * refH) - (req - minDistPx);
+            const dMid = Math.hypot((px - (obs.x + obs.endX) * 0.5) * refW, (py - (obs.y + obs.endY) * 0.5) * refH) - (req - minDistPx);
+            const d = Math.min(d0, d1, dMid);
+            if (d < minD) minD = d;
+          }
+          if (avoidManiaLane >= 0) {
+            const laneNormX = avoidManiaLane === 0 ? 0.20 : (avoidManiaLane === 1 ? 0.50 : 0.80);
+            if (Math.abs(px - laneNormX) < 0.16 && py > 0.44) {
+              minD = Math.min(minD, 82);
+            }
+          }
+          return minD;
+        };
+
+        const directDist = evalPenalty(cX, cY);
+        if (directDist >= minDistPx) return { x: cX, y: cY };
+
+        let best = { x: cX, y: cY };
+        let bestDist = directDist;
+        const radii = [0.22, 0.32, 0.44];
+        for (let rIdx = 0; rIdx < radii.length; rIdx++) {
+          const rad = radii[rIdx];
+          for (let aIdx = 0; aIdx < 10; aIdx++) {
+            const ang = flowAngle + (aIdx * Math.PI * 2) / 10;
+            const tx = clampX(cX + Math.cos(ang) * rad);
+            const ty = clampYForNote(cY + Math.sin(ang) * (rad * 0.68), isWeave);
+            const d = evalPenalty(tx, ty);
+            if (d >= minDistPx) return { x: tx, y: ty };
+            if (d > bestDist) {
+              bestDist = d;
+              best = { x: tx, y: ty };
+            }
+          }
+        }
+        return best;
+      };
 
       for (let i = 0; i < nLen; i++) {
         const n = notes[i];
+        if (n._osuTwinAssigned) continue;
+
         const tMs = n.timestamp_ms ?? n.timeMs ?? 0;
         const prevN = i > 0 ? notes[i - 1] : null;
         const nextN = (i + 1 < nLen) ? notes[i + 1] : null;
@@ -18685,199 +18855,327 @@ class BeatstarEngine {
         const dtPrev = tMs - prevT;
         const dtNext = nextT - tMs;
 
-        const switchedPhase = (!prevN || prevN._osuPhaseGroup !== n._osuPhaseGroup);
-        if (i === 0 || switchedPhase || dtPrev > 900 || (comboNum >= 8 && dtPrev > 240)) {
-          if (i > 0) phraseColorIdx = (phraseColorIdx + 1) % 4;
+        const motifChanged = (!prevN || prevN._osuMotif !== n._osuMotif || prevN._osuPhaseGroup !== n._osuPhaseGroup);
+        const maxPhraseCombo = (n._osuMotif === 'DIAMOND_CLOCK' || n._osuMotif === 'SYMMETRIC_DANCE') ? 4 : 5;
+
+        if (
+          i === 0 ||
+          motifChanged ||
+          dtPrev > 520 ||
+          comboNum >= maxPhraseCombo ||
+          (prevN && (prevN._osuRole === 'nova' || prevN._osuRole === 'slider'))
+        ) {
+          if (i > 0) phraseColorIdx = (phraseColorIdx + 1) % 5;
           comboNum = 1;
+          if (motifChanged) {
+            motifStep = 0;
+            arcTurnSign = -arcTurnSign;
+          }
         } else {
           comboNum++;
         }
 
         n._osuComboNum = comboNum;
         n._osuPaletteIdx = phraseColorIdx;
-        n._osuApproachMs = approachMs;
+        n._osuApproachMs = n._osuApproachMs || baseApproachMs;
         n._osuLaunchTarget = null;
         n._osuPrevCircle = null;
+        n._osuNextCircle = null;
         n._osuSliderTicks = null;
         n._osuSliderRepeats = 1;
         n._osuSliderActive = false;
-        n._osuSpinnerProgress = 0;
+        n._osuSliderBroken = false;
+        n._osuPendingSwipe = null;
+        n._osuTwinPartner = null;
         n._osuLastTickIdx = -1;
 
         const lane = Math.max(0, Math.min(2, Math.round(n.lane ?? 1)));
 
-        // FASE MANIA: Notas grandes que caen por los 3 carriles inferiores (sin círculos arriba)
+        // A. NOTA DE CARRIL INFERIOR (MANIA)
         if (n._osuPhaseGroup === 'mania') {
           n._osuRole = 'mania';
-          n._osuNormX = lane === 0 ? 0.22 : (lane === 1 ? 0.50 : 0.78);
+          n._osuNormX = lane === 0 ? 0.20 : (lane === 1 ? 0.50 : 0.80);
           n._osuNormY = 0.82;
           n.end_timestamp_ms = tMs;
           continue;
         }
 
-        // FASE OSU! (2D ARRIBA EN ZONA DE PULGARES 45% - 70% Y):
-        // Alternar pulgar izquierdo (-1) y derecho (+1) en cada nota
-        thumbSide = -thumbSide;
+        const isWeave = (n._osuPhraseMode === 'hybrid_weave');
+        let nearbyManiaLane = -1;
+        if (isWeave) {
+          if (prevN && prevN._osuPhaseGroup === 'mania' && dtPrev < 480) nearbyManiaLane = prevN.lane ?? 1;
+          else if (nextN && nextN._osuPhaseGroup === 'mania' && dtNext < 480) nearbyManiaLane = nextN.lane ?? 1;
+        }
+
+        // B. ACORDE SINÁPTICO DOBLE ('twin'): Dos círculos simultáneos enlazados por rayo de plasma
+        if (
+          nextN &&
+          nextN._osuPhaseGroup !== 'mania' &&
+          Math.abs(nextT - tMs) <= 22 &&
+          (tMs - lastTwinTimeMs >= 1600)
+        ) {
+          const twinY = clampYForNote(isWeave ? 0.38 : (0.46 + Math.sin(i * 0.9) * 0.09), isWeave);
+          const leftPos = resolveCleanPosition(0.24, twinY, tMs, tMs, n._osuApproachMs, 108, isWeave, nearbyManiaLane);
+          const rightPos = resolveCleanPosition(0.76, twinY, tMs, tMs, n._osuApproachMs, 108, isWeave, nearbyManiaLane);
+
+          n._osuRole = 'twin';
+          n._osuNormX = leftPos.x;
+          n._osuNormY = leftPos.y;
+          n.end_timestamp_ms = tMs;
+
+          nextN._osuTwinAssigned = true;
+          nextN._osuRole = 'twin';
+          nextN._osuComboNum = comboNum;
+          nextN._osuPaletteIdx = phraseColorIdx;
+          nextN._osuApproachMs = n._osuApproachMs;
+          nextN._osuNormX = rightPos.x;
+          nextN._osuNormY = rightPos.y;
+          nextN.end_timestamp_ms = nextT;
+
+          n._osuTwinPartner = nextN;
+          nextN._osuTwinPartner = n;
+          lastTwinTimeMs = tMs;
+
+          placedOsuNodes.push({
+            x: leftPos.x, y: leftPos.y, endX: leftPos.x, endY: leftPos.y,
+            spawnT: tMs - n._osuApproachMs, endT: tMs, isNova: false
+          });
+          placedOsuNodes.push({
+            x: rightPos.x, y: rightPos.y, endX: rightPos.x, endY: rightPos.y,
+            spawnT: nextT - nextN._osuApproachMs, endT: nextT, isNova: false
+          });
+          flowX = rightPos.x;
+          flowY = rightPos.y;
+          continue;
+        }
+
+        // C. CALCULAR POSICIÓN CON FLOW HUMANO SEGÚN EL MOTIVO DE LA FRASE
+        const motif = n._osuMotif || 'ARC_SWEEP';
+        const centerY = isWeave ? 0.39 : 0.52;
+        const ampY = isWeave ? 0.08 : 0.13;
+        let candX = flowX;
+        let candY = flowY;
+
+        if (dtPrev < 128) {
+          // En ráfagas ultra rápidas (> 7.8 NPS), alternar pulgar izquierdo/derecho en arco suave para no cansar un solo dedo
+          const targetSide = (flowX < 0.50) ? 1 : -1;
+          candX = targetSide < 0 ? (0.25 + (motifStep % 3) * 0.05) : (0.75 - (motifStep % 3) * 0.05);
+          candY = centerY + Math.sin(motifStep * 0.65) * (ampY * 0.85);
+          flowAngle = Math.atan2(candY - flowY, candX - flowX);
+        } else if (motif === 'SYMMETRIC_DANCE') {
+          // Espejo humano 2+2: pequeño gesto en un lado y respuesta simétrica en el opuesto
+          const pairSide = (Math.floor(motifStep / 2) % 2 === 0) ? -1 : 1;
+          const subIdx = motifStep % 2;
+          const xOffset = subIdx === 0 ? 0.27 : 0.18;
+          candX = 0.50 + pairSide * xOffset;
+          candY = centerY + (subIdx === 0 ? -ampY * 0.65 : ampY * 0.65) * (pairSide < 0 ? 1 : -1);
+          flowAngle = Math.atan2(candY - flowY, candX - flowX);
+        } else if (motif === 'DIAMOND_CLOCK') {
+          // Geometría rítmica en rombo de 4 tiempos
+          const pts = [
+            { x: 0.23, y: centerY },
+            { x: 0.50, y: centerY - ampY * 0.92 },
+            { x: 0.77, y: centerY },
+            { x: 0.50, y: centerY + ampY * 0.92 }
+          ];
+          const pt = pts[motifStep % 4];
+          candX = pt.x + Math.sin(i * 0.7) * 0.03;
+          candY = pt.y;
+          flowAngle = Math.atan2(candY - flowY, candX - flowX);
+        } else if (motif === 'WAVE_CASCADE') {
+          // Serpentina fluida de lado a lado con momento continuo
+          const phase = motifStep * 0.72;
+          candX = 0.50 + Math.sin(phase) * 0.30;
+          candY = centerY + Math.cos(phase * 0.65) * ampY;
+          flowAngle = Math.atan2(candY - flowY, candX - flowX);
+        } else if (motif === 'ACCENT_CROSS_JUMP' && dtPrev >= 250) {
+          // Saltos amplios intencionados en acentos musicales
+          const crossSide = flowX < 0.50 ? 1 : -1;
+          candX = crossSide > 0 ? (0.72 + (i % 3) * 0.04) : (0.28 - (i % 3) * 0.04);
+          candY = (flowY > centerY) ? (centerY - ampY * 0.78) : (centerY + ampY * 0.78);
+          flowAngle = Math.atan2(candY - flowY, candX - flowX);
+        } else {
+          // ARC_SWEEP: Curvatura vectorial orgánica estilo mapper profesional de osu!
+          const stepPx = Math.max(122, Math.min(235, 108 + dtPrev * 0.36));
+          flowAngle += arcTurnSign * (0.46 + (i % 3) * 0.08);
+          let nx = flowX + (Math.cos(flowAngle) * stepPx) / refW;
+          let ny = flowY + (Math.sin(flowAngle) * stepPx * 0.82) / refH;
+          if (nx < MIN_NORM_X + 0.04 || nx > MAX_NORM_X - 0.04) {
+            flowAngle = Math.PI - flowAngle;
+            arcTurnSign = -arcTurnSign;
+            nx = flowX + (Math.cos(flowAngle) * stepPx) / refW;
+          }
+          const minY = isWeave ? 0.30 : 0.37;
+          const maxY = isWeave ? 0.48 : 0.68;
+          if (ny < minY || ny > maxY) {
+            flowAngle = -flowAngle;
+            ny = flowY + (Math.sin(flowAngle) * stepPx * 0.78) / refH;
+          }
+          candX = nx;
+          candY = ny;
+        }
+        motifStep++;
 
         const holdDur = Number.isFinite(n.duration_ms) && n.duration_ms > 0
           ? n.duration_ms
           : (Number.isFinite(n.holdDuration) ? (n.holdDuration > 50 ? n.holdDuration : n.holdDuration * 1000) : 0);
+        const maxPossibleDur = Math.max(0, nextT - tMs - (nextN && nextN._osuPhaseGroup === 'mania' ? 230 : 155));
 
-        // Comprobar que el siguiente cambio a Mania no quede a menos de 500ms si creamos un slider
-        const nextIsMania = (nextN && nextN._osuPhaseGroup === 'mania');
-        const maxAllowedEndMs = nextIsMania ? (nextT - (PHASE_PAUSE_BUFFER_MS + maniaFallMs)) : (nextT - 190);
-        const maxPossibleDur = Math.max(0, maxAllowedEndMs - tMs);
+        // 1. SUPERNOVA GIGANTE ('nova'): Explota en mini-orbes coleccionables en clímax musicales
+        const novaCooldownMs = isImpossible ? 3200 : (isExtremeOsu ? 3700 : 4500);
+        const wantNova = (
+          dtNext >= 340 &&
+          dtPrev >= 145 &&
+          (tMs - lastNovaTimeMs >= novaCooldownMs) &&
+          (comboNum >= 3 || dtPrev >= 360) &&
+          !(n.type === 'hold' && holdDur >= 280)
+        );
 
-        // Función auxiliar para encontrar una posición (normX, normY) en la zona [0.45..0.70] Y
-        // que esté garantizadamente a >= 126px de todos los círculos recientes/visibles
-        const pickNonOverlappingThumbPos = (prefSide, seedIdx) => {
-          // Recopilar obstáculos activos (el círculo inmediatamente anterior + cualquiera dentro de approachMs + 300ms)
-          const obstacles = [];
-          for (let k = placedOsuNodes.length - 1; k >= 0; k--) {
-            const obs = placedOsuNodes[k];
-            const isImmediatePrev = (k === placedOsuNodes.length - 1);
-            if (isImmediatePrev || (tMs - obs.endT <= approachMs + 320)) {
-              obstacles.push(obs);
-            }
-            if (obstacles.length >= 5) break;
-          }
+        if (wantNova) {
+          const novaPos = resolveCleanPosition(
+            clampX(candX * 0.75 + 0.50 * 0.25),
+            clampYForNote(candY, isWeave),
+            tMs,
+            tMs + 320,
+            n._osuApproachMs,
+            134,
+            isWeave,
+            nearbyManiaLane
+          );
+          n._osuRole = 'nova';
+          n._osuMiniOrbCount = isEasyOsu ? 3 : (isHardOsu ? 5 : 4);
+          n._osuNormX = novaPos.x;
+          n._osuNormY = novaPos.y;
+          n.end_timestamp_ms = tMs;
+          lastNovaTimeMs = tMs;
+          flowX = novaPos.x;
+          flowY = novaPos.y;
 
-          // Generar candidatos priorizando el lado del pulgar correspondiente (Izquierda: 0.18..0.39, Derecha: 0.61..0.82)
-          const candidates = [];
-          const ySlots = [0.46, 0.52, 0.58, 0.64, 0.69];
-          const leftXSlots = [0.19, 0.26, 0.33, 0.39];
-          const rightXSlots = [0.81, 0.74, 0.67, 0.61];
-          const primaryX = prefSide < 0 ? leftXSlots : rightXSlots;
-          const secondaryX = prefSide < 0 ? rightXSlots : leftXSlots;
+          placedOsuNodes.push({
+            x: novaPos.x, y: novaPos.y, endX: novaPos.x, endY: novaPos.y,
+            spawnT: tMs - n._osuApproachMs, endT: tMs + 280, isNova: true
+          });
+          continue;
+        }
 
-          // Ordenar candidatos de forma musicalmente variada pero determinista
-          for (let pass = 0; pass < 2; pass++) {
-            const xList = pass === 0 ? primaryX : secondaryX;
-            for (let yi = 0; yi < ySlots.length; yi++) {
-              for (let xi = 0; xi < xList.length; xi++) {
-                const idxY = (yi + seedIdx * 2) % ySlots.length;
-                const idxX = (xi + seedIdx) % xList.length;
-                const cx = clampX(xList[idxX] + Math.sin(seedIdx * 1.7 + xi) * 0.015);
-                const cy = clampY(ySlots[idxY] + Math.cos(seedIdx * 1.3 + yi) * 0.012);
-                candidates.push({ x: cx, y: cy });
-              }
-            }
-          }
+        // 2. SLIDER CURVO REAL ('slider'): Exige mantener pulsado y seguir la bola hasta el final
+        const wantSlider = (
+          (n.type === 'hold' && holdDur >= 230) ||
+          (dtNext >= 520 && dtPrev >= 195 && (motifStep % 5 === 3))
+        );
 
-          let bestCand = candidates[0];
-          let bestMinDist = -1;
-
-          for (let cIdx = 0; cIdx < candidates.length; cIdx++) {
-            const cand = candidates[cIdx];
-            let minDistPx = 99999;
-            for (let o = 0; o < obstacles.length; o++) {
-              const obs = obstacles[o];
-              const dStart = Math.hypot((cand.x - obs.x) * refW, (cand.y - obs.y) * refH);
-              const dEnd = Math.hypot((cand.x - obs.endX) * refW, (cand.y - obs.endY) * refH);
-              const d = Math.min(dStart, dEnd);
-              if (d < minDistPx) minDistPx = d;
-            }
-            if (minDistPx >= MIN_DIST_PX) {
-              return cand;
-            }
-            if (minDistPx > bestMinDist) {
-              bestMinDist = minDistPx;
-              bestCand = cand;
-            }
-          }
-          return bestCand;
-        };
-
-        const chosenPos = pickNonOverlappingThumbPos(thumbSide, i);
-
-        // 1. SLIDER ERGONÓMICO EN ZONA DE PULGARES (45% - 70% Y)
-        const wantSlider = (n.type === 'hold' && holdDur >= 240) || (dtNext >= 540 && dtPrev >= 240 && (i % 5 === 2));
-        if (wantSlider && maxPossibleDur >= 300) {
-          const rawSliderDur = (n.type === 'hold' && holdDur >= 240)
-            ? Math.min(holdDur, 850)
-            : Math.min(Math.max(340, Math.round(dtNext * 0.62)), 720);
+        if (wantSlider && maxPossibleDur >= 270) {
+          const rawSliderDur = (n.type === 'hold' && holdDur >= 230)
+            ? Math.min(holdDur, 820)
+            : Math.min(Math.max(310, Math.round(dtNext * 0.60)), 690);
           const sliderDur = Math.min(rawSliderDur, maxPossibleDur);
+          const startPos = resolveCleanPosition(candX, candY, tMs, tMs + sliderDur, n._osuApproachMs, 120, isWeave, nearbyManiaLane);
 
           n._osuRole = 'slider';
+          n.type = 'hold';
+          n.duration_ms = sliderDur;
           n._osuSliderDurationMs = sliderDur;
           n.end_timestamp_ms = tMs + sliderDur;
 
-          const startX = chosenPos.x;
-          const startY = chosenPos.y;
+          const dirSignX = startPos.x < 0.50 ? 1 : -1;
+          const dirSignY = startPos.y > centerY ? -1 : 1;
+          const spanX = 0.24 + (Math.min(sliderDur, 760) / 760) * 0.14;
+          const spanY = (isWeave ? 0.05 : 0.08) + (Math.min(sliderDur, 760) / 760) * 0.05;
+          const endX = clampX(startPos.x + dirSignX * spanX);
+          const endY = clampYForNote(startPos.y + dirSignY * spanY, isWeave);
 
-          // El extremo final del Slider cruza suavemente hacia la mitad opuesta dentro del 45%..70% Y
-          const dirSignX = startX < 0.50 ? 1 : -1;
-          const dirSignY = startY > 0.57 ? -1 : 1;
-          const spanX = 0.28 + (Math.min(sliderDur, 800) / 800) * 0.12;
-          const spanY = 0.08 + (Math.min(sliderDur, 800) / 800) * 0.06;
-          const endX = clampX(startX + dirSignX * spanX);
-          const endY = clampY(startY + dirSignY * spanY);
+          const midX = (startPos.x + endX) * 0.5;
+          const midY = (startPos.y + endY) * 0.5;
+          const curveFactor = (i % 3 === 0) ? 0.0 : ((i % 2 === 0) ? 0.36 : -0.36);
+          const perpX = -(endY - startPos.y) * curveFactor;
+          const perpY = (endX - startPos.x) * curveFactor;
 
-          const isCurved = (i % 2 === 1);
-          const midX = (startX + endX) * 0.5;
-          const midY = (startY + endY) * 0.5;
-          const perpX = -(endY - startY) * (isCurved ? 0.38 : 0.0);
-          const perpY = (endX - startX) * (isCurved ? 0.38 : 0.0);
-
-          n._osuNormX = startX;
-          n._osuNormY = startY;
+          n._osuNormX = startPos.x;
+          n._osuNormY = startPos.y;
           n._osuEndNormX = endX;
           n._osuEndNormY = endY;
           n._osuCtrlNormX = clampX(midX + perpX);
-          n._osuCtrlNormY = clampY(midY + perpY);
+          n._osuCtrlNormY = clampYForNote(midY + perpY, isWeave);
+          n._osuSliderRepeats = (sliderDur >= 620 && (maxPossibleDur - sliderDur >= 140)) ? 2 : 1;
 
-          n._osuSliderRepeats = (sliderDur >= 660 && (maxAllowedEndMs - (tMs + sliderDur) >= 160)) ? 2 : 1;
-
-          const numTicks = Math.max(2, Math.min(5, Math.floor(sliderDur / 160)));
+          const numTicks = Math.max(2, Math.min(4, Math.floor(sliderDur / 155)));
           const ticks = [];
           for (let tk = 1; tk <= numTicks; tk++) {
             ticks.push({ u: tk / (numTicks + 1), hit: false });
           }
           n._osuSliderTicks = ticks;
 
-          const finalEndX = (n._osuSliderRepeats === 2) ? startX : endX;
-          const finalEndY = (n._osuSliderRepeats === 2) ? startY : endY;
+          const finalEndX = (n._osuSliderRepeats === 2) ? startPos.x : endX;
+          const finalEndY = (n._osuSliderRepeats === 2) ? startPos.y : endY;
           placedOsuNodes.push({
-            x: startX,
-            y: startY,
-            endX: finalEndX,
-            endY: finalEndY,
-            startT: tMs,
-            endT: tMs + sliderDur
+            x: startPos.x, y: startPos.y, endX: finalEndX, endY: finalEndY,
+            spawnT: tMs - n._osuApproachMs, endT: tMs + sliderDur, isNova: false
           });
-          // Actualizar thumbSide según donde terminó el slider para que el siguiente círculo salga en el pulgar opuesto
-          thumbSide = finalEndX < 0.50 ? -1 : 1;
+          flowX = finalEndX;
+          flowY = finalEndY;
+          flowAngle = Math.atan2(endY - startPos.y, endX - startPos.x);
           continue;
         }
 
-        // 2. CÍRCULO NUMERADO DE PRECISIÓN OSU! (Alternando Izquierda / Derecha, distancia >= 126px, Y en 45%..70%)
-        const isFastStream = (dtPrev <= 260 || dtNext <= 260);
-        n._osuRole = isFastStream ? 'stream' : 'circle';
+        // 3. SWIPE DIRECCIONAL REAL ('swipe') O CÍRCULO DE FLOW ('stream' / 'circle')
+        const chosenPos = resolveCleanPosition(candX, candY, tMs, tMs, n._osuApproachMs, 116, isWeave, nearbyManiaLane);
+        const swipeCooldownMs = isEasyOsu ? 3200 : (isHardOsu ? 1250 : 1850);
+        const wantSwipe = (
+          dtNext >= 205 &&
+          dtPrev >= 140 &&
+          (tMs - lastSwipeTimeMs >= swipeCooldownMs) &&
+          ((motifStep % 4 === 2) || (dtNext >= 360 && comboNum === 2))
+        );
+
+        if (wantSwipe) {
+          n._osuRole = 'swipe';
+          n._osuSwipeAngle = chosenPos.x < 0.50 ? 0 : Math.PI; // Refinado abajo hacia el siguiente círculo real
+          lastSwipeTimeMs = tMs;
+        } else {
+          const isFastStream = (dtPrev <= 215 || dtNext <= 215);
+          n._osuRole = isFastStream ? 'stream' : 'circle';
+        }
+
         n._osuNormX = chosenPos.x;
         n._osuNormY = chosenPos.y;
         n.end_timestamp_ms = tMs;
+        flowX = chosenPos.x;
+        flowY = chosenPos.y;
 
         placedOsuNodes.push({
-          x: chosenPos.x,
-          y: chosenPos.y,
-          endX: chosenPos.x,
-          endY: chosenPos.y,
-          startT: tMs,
-          endT: tMs
+          x: chosenPos.x, y: chosenPos.y, endX: chosenPos.x, endY: chosenPos.y,
+          spawnT: tMs - n._osuApproachMs, endT: tMs, isNova: false
         });
       }
 
       this._osuFirstBeatOffsetMs = notes[0].timestamp_ms ?? notes[0].timeMs ?? 0;
 
-      // Enlazar líneas guía (Follow-Points y Rayo de Enlace) ÚNICAMENTE entre círculos/sliders consecutivos de la misma fase
-      for (let i = 1; i < nLen; i++) {
+      // PASO 5: ORIENTAR SWIPES Y LÍNEAS GUÍA (FOLLOW-POINTS) HACIA EL SIGUIENTE OBJETIVO REAL PARA FLOW NATURAL
+      let prevOsuObj = null;
+      for (let i = 0; i < nLen; i++) {
         const cur = notes[i];
-        const prev = notes[i - 1];
-        const dt = (cur.timestamp_ms ?? 0) - (prev.end_timestamp_ms ?? prev.timestamp_ms ?? 0);
-        if (cur._osuRole !== 'mania' && prev._osuRole !== 'mania' && dt >= 20 && dt <= 1250) {
-          cur._osuPrevCircle = prev;
-          prev._osuNextCircle = cur;
+        if (cur._osuRole === 'mania') continue;
+
+        if (prevOsuObj && cur._osuTwinPartner !== prevOsuObj) {
+          const dt = (cur.timestamp_ms ?? 0) - (prevOsuObj.end_timestamp_ms ?? prevOsuObj.timestamp_ms ?? 0);
+          if (dt >= 22 && dt <= 1350) {
+            cur._osuPrevCircle = prevOsuObj;
+            prevOsuObj._osuNextCircle = cur;
+          }
+          if (prevOsuObj._osuRole === 'swipe') {
+            const dx = ((cur._osuNormX ?? 0.5) - (prevOsuObj._osuNormX ?? 0.5)) * refW;
+            const dy = ((cur._osuNormY ?? 0.5) - (prevOsuObj._osuNormY ?? 0.5)) * refH;
+            if (Math.hypot(dx, dy) >= 35) {
+              prevOsuObj._osuSwipeAngle = Math.atan2(dy, dx);
+            } else {
+              prevOsuObj._osuSwipeAngle = (prevOsuObj._osuNormX ?? 0.5) < 0.5 ? -0.25 : (Math.PI + 0.25);
+            }
+          }
         }
+        prevOsuObj = cur;
+      }
+      if (prevOsuObj && prevOsuObj._osuRole === 'swipe' && typeof prevOsuObj._osuSwipeAngle !== 'number') {
+        prevOsuObj._osuSwipeAngle = (prevOsuObj._osuNormX ?? 0.5) < 0.5 ? 0 : Math.PI;
       }
     }
 
@@ -18906,7 +19204,7 @@ class BeatstarEngine {
       }
       return {
         x: (note._osuNormX ?? 0.5) * w,
-        y: Math.max(0.45, Math.min(0.70, note._osuNormY ?? 0.56)) * h
+        y: Math.max(0.26, Math.min(0.72, note._osuNormY ?? 0.52)) * h
       };
     }
 
@@ -18925,11 +19223,11 @@ class BeatstarEngine {
         u = u <= 0.5 ? (u * 2.0) : (2.0 - u * 2.0);
       }
       const x0 = (note._osuNormX ?? 0.3) * w;
-      const y0 = Math.max(0.45, Math.min(0.70, note._osuNormY ?? 0.55)) * h;
+      const y0 = Math.max(0.26, Math.min(0.72, note._osuNormY ?? 0.52)) * h;
       const cx = (note._osuCtrlNormX ?? 0.5) * w;
-      const cy = Math.max(0.45, Math.min(0.70, note._osuCtrlNormY ?? 0.55)) * h;
+      const cy = Math.max(0.24, Math.min(0.73, note._osuCtrlNormY ?? 0.52)) * h;
       const x1 = (note._osuEndNormX ?? 0.7) * w;
-      const y1 = Math.max(0.45, Math.min(0.70, note._osuEndNormY ?? 0.60)) * h;
+      const y1 = Math.max(0.26, Math.min(0.72, note._osuEndNormY ?? 0.56)) * h;
       const inv = 1 - u;
       return {
         x: inv * inv * x0 + 2 * inv * u * cx + u * u * x1,
@@ -18939,19 +19237,34 @@ class BeatstarEngine {
     }
 
     handleOsuHybridPointerDown(x, y, lane, pointerId) {
-      if (!this._osuReceptorSprites) this.initOsuHybridModeAssets();
+      if (!this._osuComboPalettes) this.initOsuHybridModeAssets();
       const nowPerf = performance.now();
       const currentTime = this.getCurrentGameTimeMs(this._frameNow || nowPerf);
-      this._osuActivePointers.set(pointerId, { x, y, downTime: nowPerf });
+      this._osuActivePointers.set(pointerId, {
+        x,
+        y,
+        startX: x,
+        startY: y,
+        prevX: x,
+        prevY: y,
+        vx: 0,
+        vy: 0,
+        downTime: nowPerf,
+        lastMovePerf: nowPerf,
+        downGameTime: currentTime
+      });
 
       this._pushOsuCursorTrail(x, y);
+
+      // Recoger cualquier Mini-Orbe de Supernova bajo el toque sin bloquear notas reales cercanas
+      const collectedMini = this._collectOsuMiniOrbsAt(x, y, currentTime);
 
       const w = this.width || 360;
       const h = this.height || 640;
       const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (h * 0.82);
       const circleR = Math.max(32, Math.min(45, w * 0.098));
       const HIT_WINDOW_EARLY = 275;
-      const HIT_WINDOW_LATE = 255; // Margen generoso cuando desaparecen los círculos para que siga siendo válido
+      const HIT_WINDOW_LATE = 255;
 
       const startIdx = Math.max(0, (this.firstActiveNoteIndex || 0) - 2);
       const nLen = this.notes.length;
@@ -18963,7 +19276,7 @@ class BeatstarEngine {
         const note = this.notes[i];
         if (!note || note.hit || note.missed || note.holdCompleted || note.holding) continue;
         const noteT = note.timestamp_ms ?? note.timeMs ?? 0;
-        const diffMs = currentTime - noteT; // < 0 early, > 0 late
+        const diffMs = currentTime - noteT;
         const absDiff = Math.abs(diffMs);
         if (noteT - currentTime > HIT_WINDOW_EARLY + 80) break;
         if (diffMs < -HIT_WINDOW_EARLY || diffMs > HIT_WINDOW_LATE) continue;
@@ -18971,7 +19284,7 @@ class BeatstarEngine {
         if (note._osuRole === 'mania') {
           const maniaX = this._getOsuManiaLaneX(note.lane ?? 1, w);
           const distToMania = Math.hypot(x - maniaX, y - hitY);
-          const sameLaneTap = (note.lane === lane && y >= h * 0.64);
+          const sameLaneTap = (note.lane === lane && y >= h * 0.62);
           if (sameLaneTap || distToMania <= circleR * 2.65) {
             const prio = absDiff + (sameLaneTap ? 0 : distToMania * 0.32);
             if (prio < bestPriorityScore) {
@@ -18982,12 +19295,19 @@ class BeatstarEngine {
         } else {
           const pos = this._getOsuNoteScreenPos(note);
           const dist = Math.hypot(x - pos.x, y - pos.y);
-          // Radio táctil ergonómico generoso para pulgares en vertical (incluyendo margen al desaparecer)
-          const directHit = (dist <= Math.max(96, circleR * 2.55));
+          const hitRadMult = note._osuRole === 'nova' ? 3.20 : 2.55;
+          const directHit = (dist <= Math.max(note._osuRole === 'nova' ? 118 : 96, circleR * hitRadMult));
           const thumbSideMatch = ((x < w * 0.5 && pos.x < w * 0.5) || (x >= w * 0.5 && pos.x >= w * 0.5));
-          const ergonomicThumbAssist = (thumbSideMatch && diffMs >= -185 && diffMs <= HIT_WINDOW_LATE && dist <= w * 0.44);
+          const ergonomicThumbAssist = (
+            note._osuRole !== 'twin' &&
+            thumbSideMatch &&
+            diffMs >= -180 &&
+            diffMs <= HIT_WINDOW_LATE &&
+            dist <= w * 0.40 &&
+            y <= h * 0.76
+          );
           if (directHit || ergonomicThumbAssist) {
-            const prio = absDiff * 1.10 + dist * 0.40;
+            const prio = absDiff * 1.08 + dist * 0.42;
             if (prio < bestPriorityScore) {
               bestPriorityScore = prio;
               bestNote = note;
@@ -18998,9 +19318,11 @@ class BeatstarEngine {
 
       if (bestNote) {
         const pos = this._getOsuNoteScreenPos(bestNote);
-        this._triggerOsuNoteHit(bestNote, currentTime, pos.x, pos.y, pointerId);
+        this._triggerOsuNoteHit(bestNote, currentTime, pos.x, pos.y, pointerId, x, y);
         return true;
       }
+
+      if (collectedMini) return true;
 
       if (y >= h * 0.68 && lane >= 0 && lane < 3) {
         this.laneGlows[lane] = 1.0;
@@ -19011,54 +19333,325 @@ class BeatstarEngine {
 
     handleOsuHybridPointerMove(x, y, pointerId) {
       if (!this._osuActivePointers) return;
-      const pState = this._osuActivePointers.get(pointerId);
+      const nowPerf = performance.now();
+      let pState = this._osuActivePointers.get(pointerId);
       if (pState) {
+        const dtPerf = Math.max(4, nowPerf - (pState.lastMovePerf || nowPerf));
+        const instVx = (x - pState.x) / dtPerf;
+        const instVy = (y - pState.y) / dtPerf;
+        pState.prevX = pState.x;
+        pState.prevY = pState.y;
+        pState.vx = pState.vx * 0.35 + instVx * 0.65;
+        pState.vy = pState.vy * 0.35 + instVy * 0.65;
         pState.x = x;
         pState.y = y;
+        pState.lastMovePerf = nowPerf;
       } else {
-        this._osuActivePointers.set(pointerId, { x, y, downTime: performance.now() });
+        pState = {
+          x, y, startX: x, startY: y, prevX: x, prevY: y,
+          vx: 0, vy: 0, downTime: nowPerf, lastMovePerf: nowPerf,
+          downGameTime: this.getCurrentGameTimeMs(this._frameNow || nowPerf)
+        };
+        this._osuActivePointers.set(pointerId, pState);
       }
 
       this._pushOsuCursorTrail(x, y);
 
-      const currentTime = this.getCurrentGameTimeMs(this._frameNow || performance.now());
+      if (this._osuBgParallax) {
+        this._osuBgParallax.vx = Math.max(-45, Math.min(45, (this._osuBgParallax.vx || 0) + (pState.vx || 0) * 6.5));
+        this._osuBgParallax.vy = Math.max(-45, Math.min(45, (this._osuBgParallax.vy || 0) + (pState.vy || 0) * 6.5));
+      }
+
+      const currentTime = this.getCurrentGameTimeMs(this._frameNow || nowPerf);
+      this._collectOsuMiniOrbsAt(x, y, currentTime);
+
       const w = this.width || 360;
       const circleR = Math.max(32, Math.min(45, w * 0.098));
       const startIdx = Math.max(0, (this.firstActiveNoteIndex || 0) - 2);
       const nLen = this.notes.length;
+      const pointerSpeed = Math.hypot(pState.vx || 0, pState.vy || 0);
 
       for (let i = startIdx; i < nLen; i++) {
         const note = this.notes[i];
-        if (!note || note.hit || note.missed || note.holdCompleted) continue;
+        if (!note || note.missed || note.holdCompleted) continue;
+
+        // 1. Validar gesto de Swipe pendiente sobre este puntero
+        if (note._osuPendingSwipe && note._osuPendingSwipe.pointerId === pointerId) {
+          const pend = note._osuPendingSwipe;
+          const dx = x - pend.startX;
+          const dy = y - pend.startY;
+          const dragDist = Math.hypot(dx, dy);
+          if (dragDist >= 22) {
+            const dragAng = Math.atan2(dy, dx);
+            const targetAng = note._osuSwipeAngle ?? 0;
+            const angDiff = Math.abs(Math.atan2(Math.sin(dragAng - targetAng), Math.cos(dragAng - targetAng)));
+            const pos = this._getOsuNoteScreenPos(note);
+            if (angDiff <= 1.28) {
+              note._osuPendingSwipe = null;
+              note.holding = false;
+              this._completeOsuSwipeHit(note, pend.touchGameTime, pos.x, pos.y, pend.absDiff, targetAng);
+            } else if (dragDist >= 36 && angDiff >= 1.82) {
+              note._osuPendingSwipe = null;
+              note.holding = false;
+              note.hit = true;
+              note.processed = true;
+              this._penalizeBadOsuAction(note, pos.x, pos.y, '¡DIRECCIÓN! -COMBO', 55);
+            }
+          }
+          continue;
+        }
+
+        if (note.hit || note.holding) continue;
 
         const noteT = note.timestamp_ms ?? note.timeMs ?? 0;
         const diffMs = currentTime - noteT;
         if (noteT - currentTime > 185) break;
 
-        if ((note._osuRole === 'stream' || note._osuRole === 'circle') && diffMs >= -145 && diffMs <= 250) {
+        // 2. Swipe al vuelo (Fly-through Swipe): si el dedo ya viene deslizando rápido en la dirección de la flecha
+        if (note._osuRole === 'swipe' && diffMs >= -155 && diffMs <= 235 && pointerSpeed >= 0.36) {
           const pos = this._getOsuNoteScreenPos(note);
           const dist = Math.hypot(x - pos.x, y - pos.y);
-          if (dist <= Math.max(74, circleR * 2.0)) {
-            this._triggerOsuNoteHit(note, currentTime, pos.x, pos.y, pointerId);
+          if (dist <= Math.max(78, circleR * 2.08)) {
+            const moveAng = Math.atan2(pState.vy, pState.vx);
+            const targetAng = note._osuSwipeAngle ?? 0;
+            const angDiff = Math.abs(Math.atan2(Math.sin(moveAng - targetAng), Math.cos(moveAng - targetAng)));
+            if (angDiff <= 1.28) {
+              this._completeOsuSwipeHit(note, currentTime, pos.x, pos.y, Math.abs(diffMs), targetAng);
+            }
+          }
+          continue;
+        }
+
+        // 3. Barrido fluido en ráfagas rápidas ('stream')
+        if (note._osuRole === 'stream' && diffMs >= -135 && diffMs <= 225) {
+          const pos = this._getOsuNoteScreenPos(note);
+          const dist = Math.hypot(x - pos.x, y - pos.y);
+          if (dist <= Math.max(72, circleR * 1.94)) {
+            this._triggerOsuNoteHit(note, currentTime, pos.x, pos.y, pointerId, x, y);
           }
         }
       }
     }
 
     handleOsuHybridPointerUp(pointerId) {
+      const pState = this._osuActivePointers ? this._osuActivePointers.get(pointerId) : null;
+      if (pState && Array.isArray(this.notes)) {
+        const startIdx = Math.max(0, (this.firstActiveNoteIndex || 0) - 2);
+        for (let i = startIdx; i < this.notes.length; i++) {
+          const note = this.notes[i];
+          if (!note) continue;
+          const noteT = note.timestamp_ms ?? 0;
+          if (noteT - (pState.downGameTime || 0) > 600) break;
+
+          if (note._osuPendingSwipe && note._osuPendingSwipe.pointerId === pointerId) {
+            const pend = note._osuPendingSwipe;
+            const dx = pState.x - pend.startX;
+            const dy = pState.y - pend.startY;
+            const dragDist = Math.hypot(dx, dy);
+            const pos = this._getOsuNoteScreenPos(note);
+            note._osuPendingSwipe = null;
+            note.holding = false;
+
+            if (dragDist >= 18) {
+              const dragAng = Math.atan2(dy, dx);
+              const targetAng = note._osuSwipeAngle ?? 0;
+              const angDiff = Math.abs(Math.atan2(Math.sin(dragAng - targetAng), Math.cos(dragAng - targetAng)));
+              if (angDiff <= 1.32) {
+                this._completeOsuSwipeHit(note, pend.touchGameTime, pos.x, pos.y, pend.absDiff, targetAng);
+              } else {
+                note.hit = true;
+                note.processed = true;
+                this._penalizeBadOsuAction(note, pos.x, pos.y, '¡DIRECCIÓN! -COMBO', 55);
+              }
+            } else {
+              // Solo hizo click sin deslizar -> rompe el combo y da muchos menos puntos
+              note.hit = true;
+              note.processed = true;
+              this._penalizeBadOsuAction(note, pos.x, pos.y, '¡DESLIZA! -COMBO', 65);
+            }
+          }
+        }
+      }
+
       if (this._osuActivePointers) {
         this._osuActivePointers.delete(pointerId);
       }
     }
 
+    _collectOsuMiniOrbsAt(x, y, currentTime) {
+      if (!this._osuMiniOrbs || this._osuMiniOrbs.length === 0) return false;
+      let collectedAny = false;
+      for (let i = this._osuMiniOrbs.length - 1; i >= 0; i--) {
+        const orb = this._osuMiniOrbs[i];
+        if (orb.collected) continue;
+        const dist = Math.hypot(x - orb.curX, y - orb.curY);
+        if (dist <= orb.collectRadius) {
+          orb.collected = true;
+          collectedAny = true;
+
+          this.combo = (this.combo || 0) + 1;
+          if (this.combo > (this.maxCombo || 0)) this.maxCombo = this.combo;
+          if (this.combo >= 100) this.multiplier = 5;
+          else if (this.combo >= 50) this.multiplier = 4;
+          else if (this.combo >= 25) this.multiplier = 3;
+          else if (this.combo >= 10) this.multiplier = 2;
+
+          const gain = 180 * (this.multiplier || 1);
+          this.addScore(gain);
+          this._osuEnergyLevel = Math.min(1.0, (this._osuEnergyLevel || 0) + 0.16);
+          this._playOsuHitSound('mini_orb', (orb.orderIdx || 0) + 2);
+          this._spawnOsuHitBurst(orb.curX, orb.curY, orb.color || '#fde047', gain, '✦ ORBE', 3);
+
+          if (orb.batch) {
+            orb.batch.collected++;
+            if (orb.batch.collected >= orb.batch.total && !orb.batch.completed) {
+              orb.batch.completed = true;
+              const bonus = 800 * (this.multiplier || 1);
+              this.addScore(bonus);
+              this._osuEnergyLevel = 1.0;
+              this._playOsuHitSound('supernova_clear', 6);
+              this._spawnOsuHitBurst(orb.curX, orb.curY, '#fde047', bonus, '¡SUPERNOVA!', 3);
+              if (this._osuShockwaves) {
+                if (this._osuShockwaves.length >= 4) this._osuShockwaves.shift();
+                this._osuShockwaves.push({
+                  x: orb.curX,
+                  y: orb.curY,
+                  age: 0,
+                  duration: 0.72,
+                  maxR: Math.max(this.width || 360, this.height || 640) * 0.85,
+                  rgb: '251, 191, 36'
+                });
+              }
+            }
+          }
+          this._osuMiniOrbs.splice(i, 1);
+        }
+      }
+      return collectedAny;
+    }
+
+    _detonateOsuSupernova(note, hitX, hitY, pal) {
+      const w = this.width || 360;
+      const h = this.height || 640;
+      const count = Math.max(3, Math.min(5, note._osuMiniOrbCount || 4));
+      let centerAngle = (hitX < w * 0.50) ? -0.15 : (Math.PI + 0.15);
+      if (note._osuNextCircle) {
+        const nextPos = this._getOsuNoteScreenPos(note._osuNextCircle);
+        const dx = nextPos.x - hitX;
+        const dy = nextPos.y - hitY;
+        if (Math.hypot(dx, dy) > 40) {
+          centerAngle = Math.atan2(dy, dx);
+        }
+      }
+
+      const batch = { total: count, collected: 0, completed: false };
+      const spreadRad = Math.min(Math.PI * 0.78, count * 0.34);
+      if (!this._osuMiniOrbs) this._osuMiniOrbs = [];
+      if (this._osuMiniOrbs.length > 14) {
+        this._osuMiniOrbs.splice(0, this._osuMiniOrbs.length - 14);
+      }
+
+      for (let k = 0; k < count; k++) {
+        const frac = count > 1 ? (k / (count - 1)) - 0.5 : 0;
+        const ang = centerAngle + frac * spreadRad;
+        const dist = 70 + (k % 2) * 20 + Math.min(24, k * 6);
+        const tx = Math.max(w * 0.12, Math.min(w * 0.88, hitX + Math.cos(ang) * dist));
+        const ty = Math.max(h * 0.24, Math.min(h * 0.73, hitY + Math.sin(ang) * dist));
+        this._osuMiniOrbs.push({
+          originX: hitX,
+          originY: hitY,
+          targetX: tx,
+          targetY: ty,
+          curX: hitX,
+          curY: hitY,
+          radius: 17,
+          collectRadius: 56,
+          age: 0,
+          duration: 0.76,
+          orderIdx: k,
+          color: k % 2 === 0 ? '#fde047' : (pal?.primary || '#ff2a85'),
+          glowRgb: k % 2 === 0 ? '251, 191, 36' : (pal?.glowRgb || '255, 42, 133'),
+          batch,
+          collected: false
+        });
+      }
+
+      if (!this._osuShockwaves) this._osuShockwaves = [];
+      if (this._osuShockwaves.length >= 4) this._osuShockwaves.shift();
+      this._osuShockwaves.push({
+        x: hitX,
+        y: hitY,
+        age: 0,
+        duration: 0.68,
+        maxR: Math.max(w, h) * 0.78,
+        rgb: '255, 42, 133'
+      });
+    }
+
+    _completeOsuSwipeHit(note, hitTimeMs, hitX, hitY, absDiff, swipeAngle) {
+      note.hit = true;
+      note.holding = false;
+      note.processed = true;
+      note._osuPendingSwipe = null;
+
+      const palIdx = (note._osuPaletteIdx || 0) % this._osuComboPalettes.length;
+      const pal = this._osuComboPalettes[palIdx] || { primary: '#10b981', glowRgb: '16, 185, 129' };
+
+      this.judgeHit(note, absDiff, hitX, hitY, 'SWIPE');
+      const bonus = 160 * (this.multiplier || 1);
+      this.addScore(bonus);
+      this._osuEnergyLevel = Math.min(1.0, (this._osuEnergyLevel || 0) + 0.26);
+
+      if (this._osuBgParallax) {
+        this._osuBgParallax.vx += Math.cos(swipeAngle) * 34;
+        this._osuBgParallax.vy += Math.sin(swipeAngle) * 28;
+      }
+
+      this._playOsuHitSound('swipe', note._osuComboNum || 1);
+      this._triggerOsuStageReaction(hitX, hitY, note.lane ?? 1, '#10b981');
+
+      if (note._osuNextCircle && !note._osuNextCircle.hit && note._osuNextCircle._osuRole !== 'mania') {
+        const nextPos = this._getOsuNoteScreenPos(note._osuNextCircle);
+        if (!this._osuLaserLinks) this._osuLaserLinks = [];
+        if (this._osuLaserLinks.length >= 6) this._osuLaserLinks.shift();
+        this._osuLaserLinks.push({
+          x0: hitX,
+          y0: hitY,
+          x1: nextPos.x,
+          y1: nextPos.y,
+          color: '#10b981',
+          glowRgb: '16, 185, 129',
+          age: 0,
+          duration: 0.36
+        });
+      }
+
+      const ptsPopup = (absDiff <= 62 ? 610 : 420) * (this.multiplier || 1);
+      this._spawnOsuHitBurst(hitX, hitY, '#10b981', ptsPopup, '⚡ SWIPE!', 4);
+      this.emitKeyHit(hitX, hitY, '#10b981', 22);
+    }
+
+    _penalizeBadOsuAction(note, x, y, reasonLabel, partialPts = 60) {
+      this.combo = 0;
+      this.streakCount = 0;
+      this.multiplier = 1;
+      this.stats.good = (this.stats.good || 0) + 1;
+      this._osuComboBreakFlash = 1.0;
+      this._osuEnergyLevel = Math.max(0, (this._osuEnergyLevel || 0) * 0.35);
+
+      this.addScore(Math.max(10, Math.round(partialPts)));
+      this._playOsuHitSound('break', 1);
+      this.triggerScreenShake(3.2, 70);
+      this._spawnOsuHitBurst(x, y, '#ff2a55', Math.round(partialPts), reasonLabel || '¡MAL SWIPE! -COMBO', 2);
+    }
+
     _pushOsuCursorTrail(x, y) {
       if (!this._osuCursorTrails) this._osuCursorTrails = [];
-      if (this._osuCursorTrails.length >= 24) this._osuCursorTrails.shift();
+      if (this._osuCursorTrails.length >= 26) this._osuCursorTrails.shift();
       this._osuCursorTrails.push({ x, y, age: 0, maxAge: 0.25 });
     }
 
     _triggerOsuStageReaction(hitX, hitY, lane, color) {
-      // Activar los ecualizadores laterales y ondas del escenario para que todo el juego lata al ritmo de cada toque
       if (!this.borderEqLeftSurges) this.borderEqLeftSurges = new Float32Array(16);
       if (!this.borderEqRightSurges) this.borderEqRightSurges = new Float32Array(16);
       const isLeft = hitX < (this.width || 360) * 0.5;
@@ -19093,17 +19686,50 @@ class BeatstarEngine {
       }
     }
 
-    _triggerOsuNoteHit(note, currentTime, hitX, hitY, pointerId) {
+    _triggerOsuNoteHit(note, currentTime, hitX, hitY, pointerId, touchX = hitX, touchY = hitY) {
       const noteT = note.timestamp_ms ?? note.timeMs ?? 0;
       const signedDiffMs = Math.round(currentTime - noteT);
       const absDiff = Math.abs(signedDiffMs);
 
-      note.hit = true;
       const lane = Math.max(0, Math.min(2, Math.round(note.lane ?? 1)));
-      const palIdx = (note._osuPaletteIdx || 0) % 4;
+      const palLen = (this._osuComboPalettes && this._osuComboPalettes.length) || 5;
+      const palIdx = (note._osuPaletteIdx || 0) % palLen;
       const pal = (this._osuComboPalettes && this._osuComboPalettes[palIdx]) || { primary: '#00f2fe', rim: '#ffffff', glowRgb: '0, 242, 254' };
 
-      // Solo encender el haz del carril inferior cuando se toca una nota de carril (evita parpadeos fuera de BPM al tocar aros arriba)
+      // 1. Si es un SWIPE direccional: exigir que el jugador deslice realmente el dedo en la dirección indicada
+      if (note._osuRole === 'swipe') {
+        const pState = this._osuActivePointers ? this._osuActivePointers.get(pointerId) : null;
+        const speed = pState ? Math.hypot(pState.vx || 0, pState.vy || 0) : 0;
+        const targetAng = note._osuSwipeAngle ?? 0;
+        if (pState && speed >= 0.38) {
+          const moveAng = Math.atan2(pState.vy, pState.vx);
+          const angDiff = Math.abs(Math.atan2(Math.sin(moveAng - targetAng), Math.cos(moveAng - targetAng)));
+          if (angDiff <= 1.28) {
+            this._completeOsuSwipeHit(note, currentTime, hitX, hitY, absDiff, targetAng);
+            return;
+          }
+        }
+        // Abrir ventana corta (165ms) para completar el flick; si suelta sin deslizar perderá el combo
+        note.holding = true;
+        note._osuPendingSwipe = {
+          pointerId,
+          startX: touchX,
+          startY: touchY,
+          touchGameTime: currentTime,
+          touchPerfTime: performance.now(),
+          absDiff
+        };
+        return;
+      }
+
+      note.hit = true;
+      this._osuEnergyLevel = Math.min(1.0, (this._osuEnergyLevel || 0) + (note._osuRole === 'nova' ? 0.42 : 0.16));
+
+      if (this._osuBgParallax) {
+        const w = this.width || 360;
+        this._osuBgParallax.vx += ((hitX - w * 0.5) / w) * 14;
+      }
+
       if (note._osuRole === 'mania') {
         this.laneGlows[lane] = 1.0;
         this.laneFlashTimers[lane] = 0.22;
@@ -19119,21 +19745,43 @@ class BeatstarEngine {
         color: absDiff <= 55 ? '#00f2fe' : (absDiff <= 120 ? '#34d399' : '#fbbf24')
       });
 
+      // 2. SLIDER REAL: La cabeza solo da puntuación inicial reducida; el grueso del combo y puntos exige mantener y seguir la bola
       if (note._osuRole === 'slider') {
         note.holding = true;
         note._osuSliderActive = true;
         note._osuPointerId = pointerId;
-        this.judgeHit(note, absDiff, hitX, hitY, null);
+        note._osuOffTrackMs = 0;
+        note._osuHeadAbsDiff = absDiff;
+        const headPts = Math.round(95 * (this.multiplier || 1));
+        this.addScore(headPts);
         this._playOsuHitSound('normal', note._osuComboNum || 1);
+        this._triggerOsuStageReaction(hitX, hitY, lane, pal.primary);
+        this._spawnOsuHitBurst(hitX, hitY, pal.primary, headPts, '¡SÍGUELO!', palIdx);
+        this.emitKeyHit(hitX, hitY, pal.primary, 14);
+        return;
+      }
+
+      // 3. SUPERNOVA GIGANTE ('nova') / ACORDE SINÁPTICO ('twin') / CÍRCULO NORMAL
+      note.processed = true;
+      this.judgeHit(note, absDiff, hitX, hitY, note._osuRole === 'nova' ? 'NOVA' : null);
+
+      if (note._osuRole === 'nova') {
+        this._playOsuHitSound('nova', note._osuComboNum || 1);
+        this._detonateOsuSupernova(note, hitX, hitY, pal);
+      } else if (note._osuRole === 'twin' && note._osuTwinPartner && note._osuTwinPartner.hit && !note._osuTwinBonusPaid) {
+        note._osuTwinBonusPaid = true;
+        note._osuTwinPartner._osuTwinBonusPaid = true;
+        const synBonus = 340 * (this.multiplier || 1);
+        this.addScore(synBonus);
+        this._playOsuHitSound('finish', (note._osuComboNum || 1) + 2);
+        const p2 = this._getOsuNoteScreenPos(note._osuTwinPartner);
+        this._spawnOsuHitBurst((hitX + p2.x) * 0.5, (hitY + p2.y) * 0.5, '#fde047', synBonus, '⚡ ¡SINAPSIS!', 3);
       } else {
-        note.processed = true;
-        this.judgeHit(note, absDiff, hitX, hitY, null);
         this._playOsuHitSound(note._osuRole === 'stream' ? 'whistle' : 'normal', note._osuComboNum || 1);
       }
 
       this._triggerOsuStageReaction(hitX, hitY, lane, pal.primary);
 
-      // Efecto especial PULSO: Rayo de enlace plasmático que viaja del círculo golpeado al siguiente círculo activo
       if (note._osuNextCircle && !note._osuNextCircle.hit && note._osuNextCircle._osuRole !== 'mania') {
         const nextPos = this._getOsuNoteScreenPos(note._osuNextCircle);
         if (!this._osuLaserLinks) this._osuLaserLinks = [];
@@ -19150,30 +19798,32 @@ class BeatstarEngine {
         });
       }
 
-      const ptsPopup = absDiff <= 60 ? (720 + ((note._osuComboNum || 1) * 2)) : (absDiff <= 125 ? 300 : 150);
-      const judgeLabel = absDiff <= 60 ? 'PERFECT+' : (absDiff <= 125 ? 'PERFECT' : (absDiff <= 220 ? 'GREAT' : 'GOOD'));
-      this._spawnOsuHitBurst(hitX, hitY, pal.primary, ptsPopup, judgeLabel, palIdx);
-      this.emitKeyHit(hitX, hitY, pal.primary, 20);
+      const ptsPopup = (absDiff <= 62 ? 450 : (absDiff <= 130 ? 300 : 150)) * (this.multiplier || 1);
+      const judgeLabel = note._osuRole === 'nova'
+        ? '💥 ¡EXPLOSIÓN!'
+        : (absDiff <= 62 ? 'PERFECT+' : (absDiff <= 130 ? 'PERFECT' : (absDiff <= 220 ? 'GREAT' : 'GOOD')));
+      this._spawnOsuHitBurst(hitX, hitY, note._osuRole === 'nova' ? '#fde047' : pal.primary, ptsPopup, judgeLabel, palIdx);
+      this.emitKeyHit(hitX, hitY, pal.primary, note._osuRole === 'nova' ? 28 : 20);
     }
 
     _spawnOsuHitBurst(x, y, color, scoreGain, label, palIdx = 1) {
       if (!this._osuHitBursts) this._osuHitBursts = [];
-      // Evitar cualquier duplicado si dos eventos ocurren en la misma coordenada en el mismo instante
       for (let i = this._osuHitBursts.length - 1; i >= 0; i--) {
         const ex = this._osuHitBursts[i];
-        if (ex.age < 0.06 && Math.hypot(ex.x - x, ex.y - y) < 36) {
+        if (ex.age < 0.05 && Math.hypot(ex.x - x, ex.y - y) < 30 && ex.label === label) {
           this._osuHitBursts.splice(i, 1);
         }
       }
-      if (this._osuHitBursts.length >= 12) this._osuHitBursts.shift();
+      if (this._osuHitBursts.length >= 14) this._osuHitBursts.shift();
 
       const sparks = [];
-      for (let s = 0; s < 8; s++) {
-        const ang = (s / 8) * Math.PI * 2 + (Math.random() - 0.5) * 0.35;
+      const sparkCount = String(label || '').includes('SUPERNOVA') || String(label || '').includes('EXPLOSIÓN') ? 12 : 8;
+      for (let s = 0; s < sparkCount; s++) {
+        const ang = (s / sparkCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.35;
         sparks.push({
           ang,
-          speed: 65 + Math.random() * 85,
-          r: 2.2 + Math.random() * 2.0
+          speed: 70 + Math.random() * 95,
+          r: 2.3 + Math.random() * 2.1
         });
       }
 
@@ -19183,10 +19833,10 @@ class BeatstarEngine {
         color,
         label,
         scoreGain,
-        palIdx: palIdx % 4,
+        palIdx: palIdx % 5,
         sparks,
         age: 0,
-        duration: 0.52
+        duration: 0.54
       });
     }
 
@@ -19197,11 +19847,75 @@ class BeatstarEngine {
         if (!actx) return;
         const now = actx.currentTime;
 
-        const osc = actx.createOscillator();
-        const gain = actx.createGain();
-        const scaleNotes = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
+        const scaleNotes = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5, 1174.66, 1318.51];
         const baseFreq = scaleNotes[(Math.max(1, comboNum) - 1) % scaleNotes.length];
 
+        if (kind === 'break') {
+          const osc = actx.createOscillator();
+          const gain = actx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(210, now);
+          osc.frequency.exponentialRampToValueAtTime(88, now + 0.14);
+          gain.gain.setValueAtTime(0.085, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+          osc.connect(gain);
+          gain.connect(actx.destination);
+          osc.start(now);
+          osc.stop(now + 0.16);
+          return;
+        }
+
+        if (kind === 'mini_orb' || kind === 'supernova_clear') {
+          const osc = actx.createOscillator();
+          const gain = actx.createGain();
+          osc.type = 'sine';
+          const f0 = kind === 'supernova_clear' ? 1046.5 : baseFreq * 1.5;
+          osc.frequency.setValueAtTime(f0, now);
+          osc.frequency.exponentialRampToValueAtTime(f0 * 1.45, now + 0.08);
+          gain.gain.setValueAtTime(0.075, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+          osc.connect(gain);
+          gain.connect(actx.destination);
+          osc.start(now);
+          osc.stop(now + 0.095);
+          return;
+        }
+
+        if (kind === 'swipe') {
+          const osc = actx.createOscillator();
+          const gain = actx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(baseFreq * 0.9, now);
+          osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.9, now + 0.075);
+          gain.gain.setValueAtTime(0.085, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.085);
+          osc.connect(gain);
+          gain.connect(actx.destination);
+          osc.start(now);
+          osc.stop(now + 0.09);
+          return;
+        }
+
+        if (kind === 'nova') {
+          for (let hIdx = 0; hIdx < 2; hIdx++) {
+            const osc = actx.createOscillator();
+            const gain = actx.createGain();
+            osc.type = hIdx === 0 ? 'triangle' : 'sine';
+            const f = hIdx === 0 ? baseFreq : baseFreq * 1.5;
+            osc.frequency.setValueAtTime(f * 1.25, now);
+            osc.frequency.exponentialRampToValueAtTime(f * 0.65, now + 0.14);
+            gain.gain.setValueAtTime(0.075, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+            osc.connect(gain);
+            gain.connect(actx.destination);
+            osc.start(now);
+            osc.stop(now + 0.16);
+          }
+          return;
+        }
+
+        const osc = actx.createOscillator();
+        const gain = actx.createGain();
         if (kind === 'tick') {
           osc.type = 'triangle';
           osc.frequency.setValueAtTime(1320, now);
@@ -19230,6 +19944,10 @@ class BeatstarEngine {
     updateOsuHybridNotesAndSliders(dt, currentTime) {
       const startIdx = Math.max(0, (this.firstActiveNoteIndex || 0) - 2);
       const nLen = this.notes.length;
+      const w = this.width || 360;
+      const circleR = Math.max(32, Math.min(45, w * 0.098));
+      const trackRadius = Math.max(94, circleR * 2.45);
+      const nowPerf = performance.now();
 
       if (this._osuEqLevels) {
         for (let i = 0; i < this._osuEqLevels.length; i++) {
@@ -19241,46 +19959,117 @@ class BeatstarEngine {
         const note = this.notes[i];
         if (!note || note.missed || note.holdCompleted) continue;
         const noteT = note.timestamp_ms ?? note.timeMs ?? 0;
-        if (noteT - currentTime > 600) break;
+        if (noteT - currentTime > 650) break;
 
+        // 1. Expiración de Swipe pendiente si el jugador dejó el dedo quieto sin hacer el gesto de deslizamiento
+        if (note._osuPendingSwipe) {
+          const pend = note._osuPendingSwipe;
+          const elapsedGame = currentTime - pend.touchGameTime;
+          const elapsedPerf = nowPerf - pend.touchPerfTime;
+          if (elapsedGame >= 170 || elapsedPerf >= 180) {
+            const pState = this._osuActivePointers ? this._osuActivePointers.get(pend.pointerId) : null;
+            const dragDist = pState ? Math.hypot(pState.x - pend.startX, pState.y - pend.startY) : 0;
+            const pos = this._getOsuNoteScreenPos(note);
+            note._osuPendingSwipe = null;
+            note.holding = false;
+            if (pState && dragDist >= 20) {
+              const dragAng = Math.atan2(pState.y - pend.startY, pState.x - pend.startX);
+              const targetAng = note._osuSwipeAngle ?? 0;
+              const angDiff = Math.abs(Math.atan2(Math.sin(dragAng - targetAng), Math.cos(dragAng - targetAng)));
+              if (angDiff <= 1.30) {
+                this._completeOsuSwipeHit(note, pend.touchGameTime, pos.x, pos.y, pend.absDiff, targetAng);
+                continue;
+              }
+            }
+            note.hit = true;
+            note.processed = true;
+            this._penalizeBadOsuAction(note, pos.x, pos.y, '¡DESLIZA! -COMBO', 65);
+          }
+          continue;
+        }
+
+        // 2. Seguimiento real de Slider: exige mantener el dedo pulsado y dentro del radio de la bola en movimiento
         if (note._osuRole === 'slider' && note.holding) {
           const dur = Math.max(180, note._osuSliderDurationMs || note.duration_ms || 500);
           const endT = note.end_timestamp_ms || (noteT + dur);
           const uRaw = Math.max(0, Math.min(1, (currentTime - noteT) / dur));
-
           const ballPos = this._evalOsuSliderPoint(note, uRaw);
-          this.addScore(Math.round(280 * dt * (this.multiplier || 1)));
 
-          if (Array.isArray(note._osuSliderTicks)) {
-            for (let tk = 0; tk < note._osuSliderTicks.length; tk++) {
-              const tick = note._osuSliderTicks[tk];
-              if (!tick.hit && uRaw >= tick.u) {
-                tick.hit = true;
-                this.combo = (this.combo || 0) + 1;
-                if (this.combo > (this.maxCombo || 0)) this.maxCombo = this.combo;
-                this.addScore(150 * (this.multiplier || 1));
-                this._playOsuHitSound('tick', (note._osuComboNum || 1) + tk);
-                this._triggerOsuStageReaction(ballPos.x, ballPos.y, note.lane ?? 1, '#00f2fe');
-              }
+          let hasAnyFinger = false;
+          let minFingerDist = Infinity;
+          if (this._osuActivePointers && this._osuActivePointers.size > 0) {
+            hasAnyFinger = true;
+            for (const p of this._osuActivePointers.values()) {
+              const d = Math.hypot(p.x - ballPos.x, p.y - ballPos.y);
+              if (d < minFingerDist) minFingerDist = d;
             }
           }
 
-          if (note._osuSliderRepeats === 2 && !note._osuReboundTriggered && uRaw >= 0.50) {
-            note._osuReboundTriggered = true;
-            this._playOsuHitSound('whistle', note._osuComboNum || 1);
-            this._spawnOsuHitBurst(ballPos.x, ballPos.y, '#00f2fe', 350, 'REVERSE!', 1);
+          const isTrackingBall = hasAnyFinger && (minFingerDist <= trackRadius);
+          if (isTrackingBall) {
+            note._osuOffTrackMs = Math.max(0, (note._osuOffTrackMs || 0) - dt * 1800);
+            this._osuEnergyLevel = Math.min(1.0, (this._osuEnergyLevel || 0) + dt * 0.45);
+            this.addScore(Math.round(230 * dt * (this.multiplier || 1)));
+
+            if (Array.isArray(note._osuSliderTicks)) {
+              for (let tk = 0; tk < note._osuSliderTicks.length; tk++) {
+                const tick = note._osuSliderTicks[tk];
+                if (!tick.hit && uRaw >= tick.u) {
+                  tick.hit = true;
+                  this.combo = (this.combo || 0) + 1;
+                  if (this.combo > (this.maxCombo || 0)) this.maxCombo = this.combo;
+                  this.addScore(115 * (this.multiplier || 1));
+                  this._playOsuHitSound('tick', (note._osuComboNum || 1) + tk);
+                  this._triggerOsuStageReaction(ballPos.x, ballPos.y, note.lane ?? 1, '#00f2fe');
+                }
+              }
+            }
+
+            if (note._osuSliderRepeats === 2 && !note._osuReboundTriggered && uRaw >= 0.50) {
+              note._osuReboundTriggered = true;
+              this._playOsuHitSound('whistle', note._osuComboNum || 1);
+              this._spawnOsuHitBurst(ballPos.x, ballPos.y, '#00f2fe', 280, 'REVERSE!', 1);
+            }
+          } else {
+            // Si soltó el dedo o no siguió el recorrido del slider: penalizar si aún no estaba prácticamente terminado
+            if (uRaw >= 0.90 && (note._osuOffTrackMs || 0) < 90) {
+              note.holdCompleted = true;
+              note.holding = false;
+              note.processed = true;
+              const palLen = (this._osuComboPalettes && this._osuComboPalettes.length) || 5;
+              const palIdx = (note._osuPaletteIdx || 0) % palLen;
+              const pal = (this._osuComboPalettes && this._osuComboPalettes[palIdx]) || { primary: '#00f2fe' };
+              this.judgeHit(note, Math.min(58, note._osuHeadAbsDiff || 32), ballPos.x, ballPos.y, 'SLIDER');
+              this._playOsuHitSound('finish', note._osuComboNum || 1);
+              this._triggerOsuStageReaction(ballPos.x, ballPos.y, note.lane ?? 1, pal.primary);
+              this._spawnOsuHitBurst(ballPos.x, ballPos.y, pal.primary, 450 * (this.multiplier || 1), 'PERFECT+', palIdx);
+              this.emitKeyHit(ballPos.x, ballPos.y, pal.primary, 22);
+              continue;
+            }
+
+            note._osuOffTrackMs = (note._osuOffTrackMs || 0) + dt * 1000 * (hasAnyFinger ? 1.0 : 2.1);
+            if (note._osuOffTrackMs >= 105) {
+              note.holding = false;
+              note.processed = true;
+              note._osuSliderBroken = true;
+              note._osuBrokenUntilMs = currentTime + 320;
+              const reason = !hasAnyFinger ? '¡SOLTASTE! -COMBO' : '¡SÍGUELO! -COMBO';
+              this._penalizeBadOsuAction(note, ballPos.x, ballPos.y, reason, 35);
+              continue;
+            }
           }
 
           if (currentTime >= endT) {
             note.holdCompleted = true;
             note.holding = false;
             note.processed = true;
-            const palIdx = (note._osuPaletteIdx || 0) % 4;
+            const palLen = (this._osuComboPalettes && this._osuComboPalettes.length) || 5;
+            const palIdx = (note._osuPaletteIdx || 0) % palLen;
             const pal = (this._osuComboPalettes && this._osuComboPalettes[palIdx]) || { primary: '#00f2fe' };
-            this.addScore(500 * (this.multiplier || 1));
+            this.judgeHit(note, Math.min(58, note._osuHeadAbsDiff || 32), ballPos.x, ballPos.y, 'SLIDER');
             this._playOsuHitSound('finish', note._osuComboNum || 1);
             this._triggerOsuStageReaction(ballPos.x, ballPos.y, note.lane ?? 1, pal.primary);
-            this._spawnOsuHitBurst(ballPos.x, ballPos.y, pal.primary, 722, 'PERFECT+', palIdx);
+            this._spawnOsuHitBurst(ballPos.x, ballPos.y, pal.primary, 450 * (this.multiplier || 1), 'PERFECT+', palIdx);
             this.emitKeyHit(ballPos.x, ballPos.y, pal.primary, 24);
           }
         }
@@ -19288,6 +20077,56 @@ class BeatstarEngine {
     }
 
     updateOsuHybridEffects(dt) {
+      this._osuEnergyLevel = Math.max(0, (this._osuEnergyLevel || 0) - dt * 0.55);
+      this._osuComboBreakFlash = Math.max(0, (this._osuComboBreakFlash || 0) - dt * 2.8);
+
+      if (this._osuBgParallax) {
+        const p = this._osuBgParallax;
+        p.x += p.vx * dt * 12;
+        p.y += p.vy * dt * 12;
+        p.x = Math.max(-28, Math.min(28, p.x));
+        p.y = Math.max(-22, Math.min(22, p.y));
+        const damp = Math.exp(-dt * 5.2);
+        p.vx *= damp;
+        p.vy *= damp;
+        p.x *= Math.exp(-dt * 2.6);
+        p.y *= Math.exp(-dt * 2.6);
+      }
+
+      if (this._osuMiniOrbs) {
+        for (let i = this._osuMiniOrbs.length - 1; i >= 0; i--) {
+          const orb = this._osuMiniOrbs[i];
+          orb.age += dt;
+          if (orb.age >= orb.duration) {
+            this._osuMiniOrbs.splice(i, 1);
+            continue;
+          }
+          const p = Math.min(1, orb.age / 0.24);
+          const easeOut = 1 - Math.pow(1 - p, 2.8);
+          orb.curX = orb.originX + (orb.targetX - orb.originX) * easeOut;
+          orb.curY = orb.originY + (orb.targetY - orb.originY) * easeOut + Math.sin(orb.age * 9.0 + orb.orderIdx) * 3.5;
+
+          // También permitir recoger mini-orbes manteniendo el dedo apoyado sobre su trayectoria de expansión
+          if (this._osuActivePointers && this._osuActivePointers.size > 0) {
+            for (const ptr of this._osuActivePointers.values()) {
+              if (Math.hypot(ptr.x - orb.curX, ptr.y - orb.curY) <= orb.collectRadius * 0.85) {
+                this._collectOsuMiniOrbsAt(ptr.x, ptr.y, 0);
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      if (this._osuShockwaves) {
+        for (let i = this._osuShockwaves.length - 1; i >= 0; i--) {
+          this._osuShockwaves[i].age += dt;
+          if (this._osuShockwaves[i].age >= this._osuShockwaves[i].duration) {
+            this._osuShockwaves.splice(i, 1);
+          }
+        }
+      }
+
       if (this._osuHitBursts) {
         for (let i = this._osuHitBursts.length - 1; i >= 0; i--) {
           this._osuHitBursts[i].age += dt;
@@ -19323,92 +20162,203 @@ class BeatstarEngine {
     }
 
     renderOsuHybridPlayfield(ctx, currentTime) {
-      if (!this._osuReceptorSprites) this.initOsuHybridModeAssets();
+      if (!this._osuComboPalettes) this.initOsuHybridModeAssets();
       const w = this.width || 360;
       const h = this.height || 640;
       const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (h * 0.82);
       const tSec = (Number.isFinite(currentTime) ? currentTime : 0) * 0.001;
 
-      // Pulso 100% sincronizado al BPM real y al primer tiempo del compás de la canción
-      const { beatPulse, beatFrac, beatIndex } = this._getOsuBpmPulse(currentTime);
+      const { beatPulse, beatIndex } = this._getOsuBpmPulse(currentTime);
+      const combo = this.combo || 0;
+      const energy = Math.min(1.0, (this._osuEnergyLevel || 0) + beatPulse * 0.25);
+      const px = this._osuBgParallax ? (this._osuBgParallax.x || 0) : 0;
+      const py = this._osuBgParallax ? (this._osuBgParallax.y || 0) : 0;
+      const breakFlash = this._osuComboBreakFlash || 0;
 
-      // Detectar qué fase está activa ahora mismo ('osu' arriba o 'mania' abajo)
-      let activePhase = 'osu';
+      // Detectar qué modo de frase está activo ('pure_osu', 'pure_mania' o 'hybrid_weave') en los próximos 950ms
+      let hasUpcomingOsu = false;
+      let hasUpcomingMania = false;
       const startIdx = Math.min(this.firstActiveNoteIndex || 0, Math.max(0, this.notes.length - 1));
       for (let i = startIdx; i < this.notes.length; i++) {
         const n = this.notes[i];
         if (!n || n.hit || n.missed || n.holdCompleted) continue;
-        activePhase = (n._osuRole === 'mania') ? 'mania' : 'osu';
-        break;
+        const dt = (n.timestamp_ms ?? 0) - currentTime;
+        if (dt > 980) break;
+        if (n._osuRole === 'mania') hasUpcomingMania = true;
+        else hasUpcomingOsu = true;
       }
+
+      const activePhase = (hasUpcomingOsu && hasUpcomingMania)
+        ? 'hybrid_weave'
+        : (hasUpcomingMania ? 'mania' : 'osu');
       this._osuCurrentActivePhase = activePhase;
+
+      const targetManiaVis = activePhase === 'mania' ? 1.0 : (activePhase === 'hybrid_weave' ? 0.78 : 0.22);
+      this._osuWeaveBlend = (this._osuWeaveBlend ?? 0.22) + (targetManiaVis - (this._osuWeaveBlend ?? 0.22)) * 0.12;
+      const maniaAlphaMult = this._osuWeaveBlend;
+
+      // Paleta dinámica evolutiva por nivel de Combo (0..19 -> 20..49 -> 50..99 -> 100+ KIAI OVERDRIVE)
+      const comboTier = combo >= 100 ? 3 : (combo >= 50 ? 2 : (combo >= 20 ? 1 : 0));
+      const tierThemes = [
+        { top: 'rgba(8, 4, 18, 0.68)', mid: 'rgba(16, 6, 30, 0.58)', rgbA: '0, 242, 254', rgbB: '183, 108, 253' },
+        { top: 'rgba(14, 4, 26, 0.66)', mid: 'rgba(28, 7, 38, 0.56)', rgbA: '255, 42, 133', rgbB: '0, 242, 254' },
+        { top: 'rgba(5, 20, 24, 0.66)', mid: 'rgba(12, 26, 36, 0.56)', rgbA: '16, 185, 129', rgbB: '251, 191, 36' },
+        { top: 'rgba(24, 8, 28, 0.62)', mid: 'rgba(36, 12, 32, 0.52)', rgbA: '251, 191, 36', rgbB: '255, 42, 133' }
+      ];
+      const theme = tierThemes[comboTier];
 
       ctx.save();
 
-      // 1. Velo atmosférico translúcido con destello rítmico estrictamente al ritmo del BPM
+      // 1. Velo espacial profundo de alto contraste (garantiza visibilidad perfecta en móvil)
       const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
-      bgGrad.addColorStop(0.00, 'rgba(9, 4, 18, 0.62)');
-      bgGrad.addColorStop(0.45, 'rgba(18, 6, 30, 0.54)');
-      bgGrad.addColorStop(0.75, 'rgba(26, 8, 34, 0.60)');
-      bgGrad.addColorStop(1.00, 'rgba(6, 2, 12, 0.82)');
+      bgGrad.addColorStop(0.00, theme.top);
+      bgGrad.addColorStop(0.48, theme.mid);
+      bgGrad.addColorStop(0.78, 'rgba(18, 6, 28, 0.66)');
+      bgGrad.addColorStop(1.00, 'rgba(5, 2, 12, 0.86)');
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, w, h);
 
-      // 2. Pulso Estroboscópico Suave y Ondas de Resonancia Armónica al Ritmo del BPM
       ctx.globalCompositeOperation = 'lighter';
-      const centerStageX = w * 0.50;
-      const centerStageY = h * 0.57;
+      const centerStageX = w * 0.50 + px * 0.45;
+      const centerStageY = h * 0.50 + py * 0.45;
 
-      // Destello ambiental de pantalla sincronizado exactamente al golpe de cada beat del BPM
+      // 2. Horizonte Retícula 3D Reactivo (se despierta a partir de Combo 20 o alta energía)
+      if (comboTier >= 1 || energy > 0.45) {
+        const gridAlpha = (comboTier >= 1 ? 0.13 : 0.06) + beatPulse * 0.09;
+        const horizonY = h * 0.34 + py * 0.30;
+        ctx.strokeStyle = `rgba(${theme.rgbA}, ${gridAlpha.toFixed(3)})`;
+        ctx.lineWidth = 1.1;
+        ctx.beginPath();
+        for (let g = -4; g <= 4; g++) {
+          const topX = w * 0.50 + g * (w * 0.06) + px * 0.35;
+          const botX = w * 0.50 + g * (w * 0.24) + px * 0.90;
+          ctx.moveTo(topX, horizonY);
+          ctx.lineTo(botX, hitY);
+        }
+        const scrollFrac = (tSec * (1.2 + comboTier * 0.35)) % 1;
+        for (let r = 0; r < 5; r++) {
+          const u = (r + scrollFrac) / 5;
+          const gy = horizonY + Math.pow(u, 1.8) * (hitY - horizonY);
+          ctx.moveTo(0, gy);
+          ctx.lineTo(w, gy);
+        }
+        ctx.stroke();
+      }
+
+      // 3. Astrolabio Armónico Giratorio (Combo 50+) y Rayos Warp KIAI (Combo 100+)
+      if (comboTier >= 2) {
+        const ringR = Math.min(w, h) * (0.31 + beatPulse * 0.025);
+        const rot = tSec * (0.45 + comboTier * 0.22);
+        ctx.save();
+        ctx.translate(centerStageX, centerStageY);
+        ctx.rotate(rot);
+        ctx.strokeStyle = `rgba(${theme.rgbB}, ${(0.16 + beatPulse * 0.14).toFixed(3)})`;
+        ctx.lineWidth = 1.8;
+        for (let a = 0; a < 3; a++) {
+          const a0 = (a * Math.PI * 2) / 3;
+          ctx.beginPath();
+          ctx.arc(0, 0, ringR, a0, a0 + 1.35);
+          ctx.stroke();
+        }
+        ctx.rotate(-rot * 1.8);
+        ctx.strokeStyle = `rgba(${theme.rgbA}, ${(0.14 + energy * 0.12).toFixed(3)})`;
+        ctx.beginPath();
+        for (let v = 0; v < 6; v++) {
+          const va = (v * Math.PI) / 3;
+          const vx = Math.cos(va) * ringR * 0.76;
+          const vy = Math.sin(va) * ringR * 0.76;
+          if (v === 0) ctx.moveTo(vx, vy);
+          else ctx.lineTo(vx, vy);
+        }
+        ctx.closePath();
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      if (comboTier >= 3) {
+        // Modo KIAI (100+ Combo): Auroras superiores + destellos radiales de hiperespacio
+        const aurGrad = ctx.createLinearGradient(0, 0, w, h * 0.36);
+        aurGrad.addColorStop(0.00, `rgba(251, 191, 36, ${(0.12 + beatPulse * 0.12).toFixed(3)})`);
+        aurGrad.addColorStop(0.50, `rgba(255, 42, 133, ${(0.14 + beatPulse * 0.12).toFixed(3)})`);
+        aurGrad.addColorStop(1.00, 'rgba(0, 242, 254, 0)');
+        ctx.fillStyle = aurGrad;
+        ctx.fillRect(0, 0, w, h * 0.38);
+
+        ctx.strokeStyle = `rgba(253, 224, 71, ${(0.15 + beatPulse * 0.16).toFixed(3)})`;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        for (let k = 0; k < 10; k++) {
+          const ang = (k / 10) * Math.PI * 2 + tSec * 0.3;
+          const rIn = 60 + ((tSec * 140 + k * 29) % 120);
+          const rOut = rIn + 38 + beatPulse * 24;
+          ctx.moveTo(centerStageX + Math.cos(ang) * rIn, centerStageY + Math.sin(ang) * rIn);
+          ctx.lineTo(centerStageX + Math.cos(ang) * rOut, centerStageY + Math.sin(ang) * rOut);
+        }
+        ctx.stroke();
+      }
+
+      // 4. Pulso ambiental sincronizado al BPM + Ondas de Choque de Supernovas
       if (beatPulse > 0.02) {
         const isEvenBeat = (Math.abs(beatIndex) % 2 === 0);
-        const beatRgb = isEvenBeat ? '0, 242, 254' : '232, 121, 249';
+        const beatRgb = isEvenBeat ? theme.rgbA : theme.rgbB;
         const stageFlashGrad = ctx.createRadialGradient(centerStageX, centerStageY, 10, centerStageX, centerStageY, Math.max(w, h) * 0.72);
-        stageFlashGrad.addColorStop(0.00, `rgba(${beatRgb}, ${(beatPulse * 0.16).toFixed(3)})`);
-        stageFlashGrad.addColorStop(0.55, `rgba(${beatRgb}, ${(beatPulse * 0.08).toFixed(3)})`);
+        stageFlashGrad.addColorStop(0.00, `rgba(${beatRgb}, ${(beatPulse * (0.13 + comboTier * 0.03)).toFixed(3)})`);
+        stageFlashGrad.addColorStop(0.55, `rgba(${beatRgb}, ${(beatPulse * 0.07).toFixed(3)})`);
         stageFlashGrad.addColorStop(1.00, 'rgba(0, 0, 0, 0)');
         ctx.fillStyle = stageFlashGrad;
         ctx.fillRect(0, 0, w, h);
 
-        // Viñeta luminosa perimetral latiendo al compás del BPM
-        ctx.strokeStyle = `rgba(${beatRgb}, ${(beatPulse * 0.28).toFixed(3)})`;
-        ctx.lineWidth = 10 + beatPulse * 10;
+        ctx.strokeStyle = `rgba(${beatRgb}, ${(beatPulse * (0.24 + comboTier * 0.06)).toFixed(3)})`;
+        ctx.lineWidth = 8 + beatPulse * 10;
         ctx.strokeRect(0, 0, w, h);
       }
 
-      // 3. Nebulosas Difuminadas Reactivas al BPM en la Zona Ergonómica de Pulgares (45% a 70% Y)
-      if (this._osuGlowSprites && this._osuGlowSprites.length >= 4) {
-        const nebSize = Math.max(w, h) * (0.60 + beatPulse * 0.16);
-        const leftNebX = w * (0.28 + Math.sin(tSec * 0.7) * 0.05);
-        const rightNebX = w * (0.72 + Math.cos(tSec * 0.8) * 0.05);
+      if (this._osuShockwaves && this._osuShockwaves.length > 0) {
+        for (let s = 0; s < this._osuShockwaves.length; s++) {
+          const sw = this._osuShockwaves[s];
+          const u = Math.min(1, sw.age / sw.duration);
+          const ease = 1 - Math.pow(1 - u, 2.5);
+          const alpha = (1 - u) * 0.48;
+          ctx.strokeStyle = `rgba(${sw.rgb}, ${alpha.toFixed(3)})`;
+          ctx.lineWidth = 10 * (1 - u * 0.65);
+          ctx.beginPath();
+          ctx.arc(sw.x, sw.y, 24 + ease * sw.maxR, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
 
-        ctx.globalAlpha = 0.18 + beatPulse * 0.18;
-        ctx.drawImage(this._osuGlowSprites[0], leftNebX - nebSize * 0.5, centerStageY - nebSize * 0.5, nebSize, nebSize);
-        ctx.drawImage(this._osuGlowSprites[1], rightNebX - nebSize * 0.5, centerStageY - nebSize * 0.5, nebSize, nebSize);
+      // 5. Nebulosas y Partículas Bokeh con Paralaje Táctil 3D
+      if (this._osuGlowSprites && this._osuGlowSprites.length >= 5) {
+        const nebSize = Math.max(w, h) * (0.56 + beatPulse * 0.14);
+        const leftNebX = w * (0.27 + Math.sin(tSec * 0.7) * 0.05) + px * 0.6;
+        const rightNebX = w * (0.73 + Math.cos(tSec * 0.8) * 0.05) + px * 0.6;
+
+        ctx.globalAlpha = 0.16 + beatPulse * 0.14;
+        ctx.drawImage(this._osuGlowSprites[comboTier % 5], leftNebX - nebSize * 0.5, centerStageY - nebSize * 0.5, nebSize, nebSize);
+        ctx.drawImage(this._osuGlowSprites[(comboTier + 1) % 5], rightNebX - nebSize * 0.5, centerStageY - nebSize * 0.5, nebSize, nebSize);
 
         if (this._osuBokehSeeds) {
           for (let i = 0; i < this._osuBokehSeeds.length; i++) {
             const b = this._osuBokehSeeds[i];
-            const bx = ((b.nx + Math.sin(tSec * 0.45 + b.phase) * 0.06 + 1) % 1) * w;
-            const by = ((b.ny - tSec * b.speed + 10) % 1) * (hitY - 10);
-            const bSize = b.r * (2.1 + beatPulse * 0.85);
-            const gSpr = this._osuGlowSprites[b.colorIdx % 4];
-            ctx.globalAlpha = 0.14 + beatPulse * 0.14;
+            const depth = b.depth || 0.6;
+            const bx = ((b.nx + Math.sin(tSec * 0.45 + b.phase) * 0.05 + 1) % 1) * w + px * depth;
+            const by = ((b.ny - tSec * b.speed * (1 + comboTier * 0.25) + 10) % 1) * (hitY - 10) + py * depth;
+            const bSize = b.r * (1.9 + beatPulse * 0.75);
+            const gSpr = this._osuGlowSprites[b.colorIdx % 5];
+            ctx.globalAlpha = 0.12 + beatPulse * 0.12;
             ctx.drawImage(gSpr, bx - bSize * 0.5, by - bSize * 0.5, bSize, bSize);
           }
         }
       }
 
-      // 4. Marco Táctico Difuminado de la Zona Ergonómica de Pulgares (45% a 70% Y)
-      const zoneTopY = h * 0.43;
-      const zoneBotY = h * 0.72;
-      const isOsuPhase = (activePhase === 'osu');
-
-      if (isOsuPhase) {
-        ctx.globalAlpha = 0.24 + beatPulse * 0.22;
-        ctx.strokeStyle = '#00f2fe';
-        ctx.lineWidth = 1.8;
-        const brkW = 16;
+      // 6. Marco Táctico Sutil de la Zona Táctil Superior (se adapta a modo puro o intercalado)
+      if (activePhase === 'osu' || activePhase === 'hybrid_weave') {
+        const zoneTopY = h * (activePhase === 'hybrid_weave' ? 0.25 : 0.33);
+        const zoneBotY = h * (activePhase === 'hybrid_weave' ? 0.53 : 0.72);
+        ctx.globalAlpha = 0.20 + beatPulse * 0.18;
+        ctx.strokeStyle = activePhase === 'hybrid_weave' ? '#fde047' : '#00f2fe';
+        ctx.lineWidth = 1.6;
+        const brkW = 15;
         const leftX = w * 0.06;
         const rightX = w * 0.94;
         ctx.beginPath();
@@ -19425,18 +20375,9 @@ class BeatstarEngine {
         ctx.lineTo(rightX, zoneBotY);
         ctx.lineTo(rightX - brkW, zoneBotY);
         ctx.stroke();
-
-        ctx.strokeStyle = `rgba(183, 108, 253, ${(0.12 + beatPulse * 0.12).toFixed(3)})`;
-        ctx.setLineDash([6, 10]);
-        ctx.beginPath();
-        ctx.moveTo(w * 0.50, zoneTopY + 12);
-        ctx.lineTo(w * 0.50, zoneBotY - 12);
-        ctx.stroke();
-        ctx.setLineDash([]);
       }
 
-      // 5. Pistas de los 3 Carriles Inferiores (suaves y continuas al ritmo del BPM, sin saltos bruscos)
-      const maniaAlphaMult = (activePhase === 'mania') ? 1.0 : 0.26;
+      // 7. Pistas de los 3 Carriles Inferiores con transición suave en intercalado
       const laneTopY = hitY - h * 0.54;
       const laneColors = ['0, 242, 254', '192, 132, 252', '251, 191, 36'];
 
@@ -19466,11 +20407,19 @@ class BeatstarEngine {
         ctx.stroke();
       }
 
+      // 8. Flash carmesí reactivo cuando se rompe el combo por mal swipe o soltar slider
+      if (breakFlash > 0.02) {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeStyle = `rgba(255, 42, 85, ${(breakFlash * 0.55).toFixed(3)})`;
+        ctx.lineWidth = 14 * breakFlash;
+        ctx.strokeRect(0, 0, w, h);
+      }
+
       ctx.restore();
     }
 
     renderOsuHybridHitLine(ctx, currentTime) {
-      if (!this._osuReceptorSprites) this.initOsuHybridModeAssets();
+      if (!this._osuComboPalettes) this.initOsuHybridModeAssets();
       const w = this.width || 360;
       const h = this.height || 640;
       const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (h * 0.82);
@@ -19480,16 +20429,12 @@ class BeatstarEngine {
 
       ctx.save();
 
-      // =========================================================================
-      // ZONA DE IMPACTO CRISTAL HD (Vectorial de Alta Definición, sin bloques pixelados)
-      // =========================================================================
       const deckLeft = w * 0.05;
       const deckRight = w * 0.95;
       const deckW = deckRight - deckLeft;
       const deckTop = hitY - 22;
       const deckH = 44;
 
-      // 1. Plataforma translúcida de cristal de obsidiana bajo los 3 núcleos
       const deckGrad = ctx.createLinearGradient(0, deckTop, 0, deckTop + deckH);
       deckGrad.addColorStop(0.00, 'rgba(14, 7, 30, 0.00)');
       deckGrad.addColorStop(0.50, 'rgba(20, 10, 42, 0.72)');
@@ -19497,7 +20442,6 @@ class BeatstarEngine {
       ctx.fillStyle = deckGrad;
       ctx.fillRect(deckLeft, deckTop, deckW, deckH);
 
-      // 2. Doble Onda Armónica Sinusoidal de Alta Definición (Cian + Magenta)
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
 
@@ -19528,7 +20472,6 @@ class BeatstarEngine {
         ctx.stroke();
       }
 
-      // Filamento láser central de precisión sub-píxel
       const laserGrad = ctx.createLinearGradient(deckLeft, hitY, deckRight, hitY);
       laserGrad.addColorStop(0.00, 'rgba(255, 255, 255, 0)');
       laserGrad.addColorStop(0.12, 'rgba(224, 242, 254, 0.92)');
@@ -19543,7 +20486,6 @@ class BeatstarEngine {
       ctx.stroke();
       ctx.restore();
 
-      // 3. Los 3 Núcleos Prismáticos de Impacto (Renderizado Vectorial HD Nativo en el Canvas)
       const padConfigs = [
         { rgb: '0, 242, 254', primary: '#00f2fe', light: '#e0f2fe', core: '#051929' },
         { rgb: '192, 132, 252', primary: '#c084fc', light: '#f3e8ff', core: '#1d093d' },
@@ -19561,7 +20503,6 @@ class BeatstarEngine {
 
         ctx.save();
 
-        // A. Halo radial difuminado suave de alta resolución
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
         const auraR = r * (2.3 + flashNorm * 0.8);
@@ -19575,13 +20516,11 @@ class BeatstarEngine {
         ctx.fill();
         ctx.restore();
 
-        // B. Anillo exterior de cristal oscuro biselado
         ctx.fillStyle = cfg.core;
         ctx.beginPath();
         ctx.arc(lx, hitY, r, 0, Math.PI * 2);
         ctx.fill();
 
-        // C. Anillo luminoso principal + 2 arcos orbitales giratorios en alta definición
         ctx.strokeStyle = cfg.primary;
         ctx.lineWidth = 3.2;
         ctx.beginPath();
@@ -19594,7 +20533,6 @@ class BeatstarEngine {
         ctx.arc(lx, hitY, r, 0, Math.PI * 2);
         ctx.stroke();
 
-        // Arcos de energía rotatorios exteriores
         const rotAng = tSec * (lane === 1 ? -1.8 : 1.8) + lane;
         ctx.strokeStyle = cfg.light;
         ctx.lineWidth = 2.4;
@@ -19605,7 +20543,6 @@ class BeatstarEngine {
           ctx.stroke();
         }
 
-        // D. Cristal geométrico central nítido (Octágono/Prisma de precisión)
         ctx.save();
         ctx.translate(lx, hitY);
         ctx.rotate(-rotAng * 0.5);
@@ -19638,7 +20575,6 @@ class BeatstarEngine {
         ctx.restore();
       }
 
-      // 4. Cápsula Inferior de Telemetría HD (Precisión + Medidor de Milisegundos, sin texto de fase)
       const barY = Math.min(h - 20, hitY + 46);
       const barHalfW = Math.min(108, w * 0.27);
       const midX = w * 0.50;
@@ -19710,7 +20646,7 @@ class BeatstarEngine {
     }
 
     renderOsuHybridNotes(ctx, currentTime) {
-      if (!this._osuReceptorSprites) this.initOsuHybridModeAssets();
+      if (!this._osuComboPalettes) this.initOsuHybridModeAssets();
       const len = this.notes.length;
       if (len === 0) return;
 
@@ -19722,7 +20658,7 @@ class BeatstarEngine {
         const pastN = this.notes[this.firstActiveNoteIndex];
         if (!pastN) { this.firstActiveNoteIndex++; continue; }
         const pastT = pastN.end_timestamp_ms || pastN.timestamp_ms || pastN.timeMs || 0;
-        if ((pastN.hit || pastN.missed || pastN.processed || pastN.holdCompleted) && !pastN.holding && (currentTime - pastT > 360)) {
+        if ((pastN.hit || pastN.missed || pastN.processed || pastN.holdCompleted) && !pastN.holding && (currentTime - pastT > 380)) {
           this.firstActiveNoteIndex++;
         } else {
           break;
@@ -19733,61 +20669,109 @@ class BeatstarEngine {
       const w = this.width || 360;
       const h = this.height || 640;
       const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (h * 0.82);
-      const approachMs = this._osuApproachDurationMs || 1100;
-      const maniaFallMs = this._osuManiaFallDurationMs || 1120;
-      const circleR = Math.max(34, Math.min(45, w * 0.098));
+      const defaultApproachMs = this._osuApproachDurationMs || 960;
+      const maniaFallMs = this._osuManiaFallDurationMs || 1020;
+      const maxScanHorizonMs = Math.max(defaultApproachMs, maniaFallMs) + 80;
+      const circleR = Math.max(33, Math.min(44, w * 0.096));
       const { beatPulse } = this._getOsuBpmPulse(currentTime);
 
       const visibleNotes = [];
       let nextImmediateCircle = null;
+      let visibleOsuCircleCount = 0;
+      const MAX_VISIBLE_OSU_CIRCLES = 5; // Tope estricto anti-saturación visual en móvil
 
       for (let i = startIdx; i < len; i++) {
         const note = this.notes[i];
         if (!note || note.holdCompleted) continue;
-        if (note.hit && !note.holding) continue;
+
+        const isBrokenSliderVisible = Boolean(note._osuSliderBroken && currentTime < (note._osuBrokenUntilMs || 0));
+        if (note.hit && !note.holding && !isBrokenSliderVisible) continue;
         if (note.missed && !note.holding) continue;
 
         const noteT = note.timestamp_ms ?? note.timeMs ?? 0;
         const timeUntil = noteT - currentTime;
-        const lookahead = note._osuRole === 'mania' ? maniaFallMs : approachMs;
-        if (timeUntil > lookahead) break;
+        if (timeUntil > maxScanHorizonMs) break;
 
-        if (!nextImmediateCircle && !note.hit && note._osuRole !== 'mania') {
-          nextImmediateCircle = note;
+        const lookahead = note._osuRole === 'mania' ? maniaFallMs : (note._osuApproachMs || defaultApproachMs);
+        if (timeUntil > lookahead) continue;
+
+        if (note._osuRole !== 'mania') {
+          const isTwinDuplicateSlot = Boolean(note._osuTwinPartner && visibleNotes.includes(note._osuTwinPartner));
+          if (!note.holding && !isBrokenSliderVisible && !isTwinDuplicateSlot) {
+            if (visibleOsuCircleCount >= MAX_VISIBLE_OSU_CIRCLES) continue;
+            visibleOsuCircleCount++;
+          }
+          if (!nextImmediateCircle && !note.hit) {
+            nextImmediateCircle = note;
+          }
         }
         visibleNotes.push(note);
       }
 
       ctx.save();
 
-      // 1. DIBUJAR LÍNEAS GUÍA LUMINOSAS (FOLLOW-POINTS) ENTRE CÍRCULOS CONSECUTIVOS
+      // 1. DIBUJAR LÍNEAS GUÍA LUMINOSAS (FOLLOW-POINTS) Y ENLACES SINÁPTICOS ENTRE GEMELOS
       for (let i = 0; i < visibleNotes.length; i++) {
         const note = visibleNotes[i];
+
+        // A. Rayo de plasma entre Acordes Gemelos Simultáneos ('twin')
+        if (
+          note._osuRole === 'twin' &&
+          note._osuTwinPartner &&
+          !note.hit &&
+          !note._osuTwinPartner.hit &&
+          (note._osuNormX ?? 0) < (note._osuTwinPartner._osuNormX ?? 1)
+        ) {
+          const pA = this._getOsuNoteScreenPos(note);
+          const pB = this._getOsuNoteScreenPos(note._osuTwinPartner);
+          const midX = (pA.x + pB.x) * 0.5;
+          const midY = (pA.y + pB.y) * 0.5 + Math.sin(currentTime * 0.018) * 7;
+
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.strokeStyle = 'rgba(251, 191, 36, 0.52)';
+          ctx.lineWidth = 7.5;
+          ctx.beginPath();
+          ctx.moveTo(pA.x, pA.y);
+          ctx.quadraticCurveTo(midX, midY, pB.x, pB.y);
+          ctx.stroke();
+
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2.4;
+          ctx.beginPath();
+          ctx.moveTo(pA.x, pA.y);
+          ctx.quadraticCurveTo(midX, midY, pB.x, pB.y);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // B. Follow-points direccionales entre objetivos consecutivos
         const prev = note._osuPrevCircle;
         if (!prev || note.hit || note._osuRole === 'mania' || prev._osuRole === 'mania') continue;
 
+        const noteAppMs = note._osuApproachMs || defaultApproachMs;
         const noteT = note.timestamp_ms ?? 0;
         const prevT = prev.end_timestamp_ms ?? prev.timestamp_ms ?? 0;
-        if (currentTime < prevT - approachMs * 0.65 || currentTime > noteT) continue;
+        if (currentTime < prevT - noteAppMs * 0.65 || currentTime > noteT) continue;
 
         const p0 = (prev._osuRole === 'slider' && prev._osuSliderRepeats !== 2)
-          ? { x: (prev._osuEndNormX ?? prev._osuNormX ?? 0.5) * w, y: (prev._osuEndNormY ?? prev._osuNormY ?? 0.56) * h }
+          ? { x: (prev._osuEndNormX ?? prev._osuNormX ?? 0.5) * w, y: Math.max(0.26, Math.min(0.72, prev._osuEndNormY ?? prev._osuNormY ?? 0.52)) * h }
           : this._getOsuNoteScreenPos(prev);
         const p1 = this._getOsuNoteScreenPos(note);
         const dist = Math.hypot(p1.x - p0.x, p1.y - p0.y);
-        if (dist < circleR * 1.4) continue;
+        if (dist < circleR * 1.45) continue;
 
         const ux = (p1.x - p0.x) / dist;
         const uy = (p1.y - p0.y) / dist;
-        const startX = p0.x + ux * (circleR * 0.88);
-        const startY = p0.y + uy * (circleR * 0.88);
-        const endX = p1.x - ux * (circleR * 0.88);
-        const endY = p1.y - uy * (circleR * 0.88);
+        const startX = p0.x + ux * (circleR * 0.90);
+        const startY = p0.y + uy * (circleR * 0.90);
+        const endX = p1.x - ux * (circleR * 0.90);
+        const endY = p1.y - uy * (circleR * 0.90);
 
-        const linkProgress = Math.max(0, Math.min(1, (currentTime - (prevT - 260)) / Math.max(120, noteT - prevT)));
-        ctx.strokeStyle = 'rgba(125, 211, 252, 0.50)';
-        ctx.lineWidth = 2.4;
-        ctx.setLineDash([6, 7]);
+        const linkProgress = Math.max(0, Math.min(1, (currentTime - (prevT - 220)) / Math.max(100, noteT - prevT)));
+        ctx.strokeStyle = 'rgba(125, 211, 252, 0.46)';
+        ctx.lineWidth = 2.2;
+        ctx.setLineDash([5, 7]);
         ctx.beginPath();
         ctx.moveTo(startX, startY);
         ctx.lineTo(endX, endY);
@@ -19798,23 +20782,24 @@ class BeatstarEngine {
         const py = startY + (endY - startY) * linkProgress;
         ctx.fillStyle = '#00f2fe';
         ctx.beginPath();
-        ctx.arc(px, py, 5.2, 0, Math.PI * 2);
+        ctx.arc(px, py, 4.8, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.arc(px, py, 3.0, 0, Math.PI * 2);
+        ctx.arc(px, py, 2.6, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      // 2. DIBUJAR NOTAS EN ORDEN INVERSO (Velocidad 100% constante y renderizado Vectorial HD nativo)
+      // 2. DIBUJAR NOTAS EN ORDEN INVERSO (Las más cercanas al impacto siempre encima y legibles)
+      const palLen = this._osuComboPalettes.length;
       for (let i = visibleNotes.length - 1; i >= 0; i--) {
         const note = visibleNotes[i];
         const noteT = note.timestamp_ms ?? note.timeMs ?? 0;
         const timeUntil = noteT - currentTime;
-        const palIdx = (note._osuPaletteIdx || 0) % 4;
+        const palIdx = (note._osuPaletteIdx || 0) % palLen;
         const pal = this._osuComboPalettes[palIdx];
 
-        // A. NOTA DE CARRIL GIGANTE EN VECTORIAL HD CAYENDO A VELOCIDAD 100% CONSTANTE (maniaFallMs = 1120ms)
+        // A. NOTA DE CARRIL INFERIOR (MANIA)
         if (note._osuRole === 'mania') {
           const pMania = 1.0 - (timeUntil / maniaFallMs);
           if (pMania < 0 || pMania > 1.24) continue;
@@ -19823,7 +20808,6 @@ class BeatstarEngine {
           const curY = startY + (hitY - startY) * Math.min(1.05, pMania);
           const lane = Math.max(0, Math.min(2, Math.round(note.lane ?? 1)));
           const lx = this._getOsuManiaLaneX(lane, w);
-          // Radio base constante para que el cierre del anillo sea 100% lineal y uniforme
           const orbR = Math.max(28, Math.min(35, w * 0.080));
           const lateGraceFade = pMania > 1.0 ? Math.max(0.15, 1.0 - (pMania - 1.0) / 0.24) : 1.0;
 
@@ -19835,8 +20819,7 @@ class BeatstarEngine {
           const lRgb = laneColors[lane];
           const lHex = laneHex[lane];
 
-          // Estela de cometa superior
-          const tailLen = 92 * (0.45 + 0.55 * Math.min(1, pMania));
+          const tailLen = 90 * (0.45 + 0.55 * Math.min(1, pMania));
           const tailGrad = ctx.createLinearGradient(lx, curY - tailLen, lx, curY);
           tailGrad.addColorStop(0.00, `rgba(${lRgb}, 0)`);
           tailGrad.addColorStop(0.55, `rgba(${lRgb}, 0.36)`);
@@ -19845,14 +20828,13 @@ class BeatstarEngine {
           ctx.save();
           ctx.globalCompositeOperation = 'lighter';
           ctx.strokeStyle = tailGrad;
-          ctx.lineWidth = orbR * 1.42;
+          ctx.lineWidth = orbR * 1.40;
           ctx.lineCap = 'round';
           ctx.beginPath();
           ctx.moveTo(lx, curY - tailLen);
           ctx.lineTo(lx, curY);
           ctx.stroke();
 
-          // Halo radial nativo en HD
           const mGlow = ctx.createRadialGradient(lx, curY, orbR * 0.25, lx, curY, orbR * 2.15);
           mGlow.addColorStop(0.00, `rgba(${lRgb}, 0.65)`);
           mGlow.addColorStop(0.50, `rgba(${lRgb}, 0.24)`);
@@ -19863,7 +20845,6 @@ class BeatstarEngine {
           ctx.fill();
           ctx.restore();
 
-          // Cuerpo vectorial de alta resolución del Orbe Mania
           ctx.fillStyle = laneCore[lane];
           ctx.beginPath();
           ctx.arc(lx, curY, orbR, 0, Math.PI * 2);
@@ -19890,7 +20871,6 @@ class BeatstarEngine {
           ctx.arc(lx, curY, orbR * 0.50, 0, Math.PI * 2);
           ctx.fill();
 
-          // Anillo exterior cerrándose a velocidad 100% constante
           const ringScale = 1.0 + Math.max(0, 1.0 - pMania) * 1.35;
           ctx.strokeStyle = pMania >= 0.88 ? '#ffffff' : `rgba(${lRgb}, 0.78)`;
           ctx.lineWidth = pMania >= 0.88 ? 2.8 : 2.2;
@@ -19902,66 +20882,71 @@ class BeatstarEngine {
           continue;
         }
 
-        // B. CÍRCULOS NUMERADOS Y SLIDERS EN ALTA DEFINICIÓN VECTORIAL CON CIERRE 100% CONSTANTE
-        // pRaw va linealmente de 0.0 (cuando aparece a tMs - approachMs) a 1.0 (en tMs exacto) y hasta ~1.24 en el margen extra
-        const pRaw = 1.0 - (timeUntil / approachMs);
+        // B. OBJETOS 2D CON VELOCIDAD DE CIERRE ADAPTATIVA (_osuApproachMs)
+        const noteAppMs = note._osuApproachMs || defaultApproachMs;
+        const pRaw = 1.0 - (timeUntil / noteAppMs);
         if (pRaw < 0) continue;
 
-        // Margen de gracia tras cerrarse el aro (0 < currentTime - noteT <= 255ms): el círculo permanece válido mientras se desvanece suavemente
+        const isBrokenSlider = Boolean(note._osuSliderBroken);
         const lateElapsedMs = Math.max(0, currentTime - noteT);
         const lateGraceFrac = Math.min(1.0, lateElapsedMs / 255);
         const fadeInAlpha = Math.min(1.0, pRaw * 3.8);
-        const fadeOutAlpha = ( !note.holding && lateElapsedMs > 0 ) ? Math.max(0.22, 1.0 - lateGraceFrac * 0.78) : 1.0;
+        const fadeOutAlpha = isBrokenSlider
+          ? Math.max(0, ((note._osuBrokenUntilMs || 0) - currentTime) / 320) * 0.55
+          : ((!note.holding && lateElapsedMs > 0) ? Math.max(0.22, 1.0 - lateGraceFrac * 0.78) : 1.0);
         const fadeAlpha = fadeInAlpha * fadeOutAlpha;
         const pos = this._getOsuNoteScreenPos(note);
 
         ctx.save();
         ctx.globalAlpha = fadeAlpha;
 
-        // C. CUERPO DE SLIDER EN ALTA DEFINICIÓN
+        // C. CUERPO DE SLIDER CURVO CON FEEDBACK DE SEGUIMIENTO REAL
         if (note._osuRole === 'slider') {
           const x0 = (note._osuNormX ?? 0.3) * w;
-          const y0 = Math.max(0.45, Math.min(0.70, note._osuNormY ?? 0.55)) * h;
+          const y0 = Math.max(0.26, Math.min(0.72, note._osuNormY ?? 0.52)) * h;
           const cx = (note._osuCtrlNormX ?? 0.5) * w;
-          const cy = Math.max(0.45, Math.min(0.70, note._osuCtrlNormY ?? 0.55)) * h;
+          const cy = Math.max(0.24, Math.min(0.73, note._osuCtrlNormY ?? 0.52)) * h;
           const x1 = (note._osuEndNormX ?? 0.7) * w;
-          const y1 = Math.max(0.45, Math.min(0.70, note._osuEndNormY ?? 0.60)) * h;
+          const y1 = Math.max(0.26, Math.min(0.72, note._osuEndNormY ?? 0.56)) * h;
+
+          const trackStrokeColor = isBrokenSlider ? '#ff2a55' : pal.primary;
+          const trackGlowRgb = isBrokenSlider ? '255, 42, 85' : pal.glowRgb;
 
           ctx.lineCap = 'round';
           ctx.lineJoin = 'round';
 
           ctx.save();
           ctx.globalCompositeOperation = 'lighter';
-          ctx.strokeStyle = `rgba(${pal.glowRgb}, ${(0.34 * fadeAlpha).toFixed(3)})`;
-          ctx.lineWidth = circleR * 2.40;
+          ctx.strokeStyle = `rgba(${trackGlowRgb}, ${(0.34 * fadeAlpha).toFixed(3)})`;
+          ctx.lineWidth = circleR * 2.38;
           ctx.beginPath();
           ctx.moveTo(x0, y0);
           ctx.quadraticCurveTo(cx, cy, x1, y1);
           ctx.stroke();
           ctx.restore();
 
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = circleR * 1.90;
+          ctx.strokeStyle = isBrokenSlider ? 'rgba(255, 120, 140, 0.75)' : '#ffffff';
+          ctx.lineWidth = circleR * 1.88;
           ctx.beginPath();
           ctx.moveTo(x0, y0);
           ctx.quadraticCurveTo(cx, cy, x1, y1);
           ctx.stroke();
 
-          ctx.strokeStyle = pal.primary;
-          ctx.lineWidth = circleR * 1.72;
+          ctx.strokeStyle = trackStrokeColor;
+          ctx.lineWidth = circleR * 1.70;
           ctx.beginPath();
           ctx.moveTo(x0, y0);
           ctx.quadraticCurveTo(cx, cy, x1, y1);
           ctx.stroke();
 
           ctx.strokeStyle = 'rgba(10, 5, 20, 0.94)';
-          ctx.lineWidth = circleR * 1.48;
+          ctx.lineWidth = circleR * 1.46;
           ctx.beginPath();
           ctx.moveTo(x0, y0);
           ctx.quadraticCurveTo(cx, cy, x1, y1);
           ctx.stroke();
 
-          ctx.strokeStyle = `rgba(${pal.glowRgb}, 0.58)`;
+          ctx.strokeStyle = `rgba(${trackGlowRgb}, 0.58)`;
           ctx.lineWidth = 2.8;
           ctx.setLineDash([8, 8]);
           ctx.beginPath();
@@ -19970,7 +20955,7 @@ class BeatstarEngine {
           ctx.stroke();
           ctx.setLineDash([]);
 
-          if (Array.isArray(note._osuSliderTicks)) {
+          if (Array.isArray(note._osuSliderTicks) && !isBrokenSlider) {
             for (let tk = 0; tk < note._osuSliderTicks.length; tk++) {
               const tick = note._osuSliderTicks[tk];
               if (tick.hit) continue;
@@ -19982,13 +20967,13 @@ class BeatstarEngine {
             }
           }
 
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.88)';
+          ctx.strokeStyle = isBrokenSlider ? '#ff2a55' : 'rgba(255, 255, 255, 0.88)';
           ctx.lineWidth = 2.8;
           ctx.beginPath();
           ctx.arc(x1, y1, circleR * 0.78, 0, Math.PI * 2);
           ctx.stroke();
 
-          if (note._osuSliderRepeats === 2 && !note._osuReboundTriggered) {
+          if (note._osuSliderRepeats === 2 && !note._osuReboundTriggered && !isBrokenSlider) {
             const angBack = Math.atan2(cy - y1, cx - x1);
             ctx.save();
             ctx.translate(x1, y1);
@@ -20003,31 +20988,33 @@ class BeatstarEngine {
             ctx.restore();
           }
 
-          if (note.holding) {
+          if (note.holding && !isBrokenSlider) {
             const dur = Math.max(180, note._osuSliderDurationMs || 500);
             const uRaw = Math.max(0, Math.min(1, (currentTime - noteT) / dur));
             const ballPos = this._evalOsuSliderPoint(note, uRaw);
+            const isSlipping = (note._osuOffTrackMs || 0) > 25;
 
             ctx.save();
             ctx.globalCompositeOperation = 'lighter';
-            const bGlow = ctx.createRadialGradient(ballPos.x, ballPos.y, circleR * 0.2, ballPos.x, ballPos.y, circleR * 2.2);
-            bGlow.addColorStop(0.0, `rgba(${pal.glowRgb}, 0.75)`);
-            bGlow.addColorStop(0.5, `rgba(${pal.glowRgb}, 0.28)`);
-            bGlow.addColorStop(1.0, `rgba(${pal.glowRgb}, 0)`);
+            const bGlow = ctx.createRadialGradient(ballPos.x, ballPos.y, circleR * 0.2, ballPos.x, ballPos.y, circleR * 2.25);
+            const ballRgb = isSlipping ? '255, 65, 108' : pal.glowRgb;
+            bGlow.addColorStop(0.0, `rgba(${ballRgb}, 0.78)`);
+            bGlow.addColorStop(0.5, `rgba(${ballRgb}, 0.28)`);
+            bGlow.addColorStop(1.0, `rgba(${ballRgb}, 0)`);
             ctx.fillStyle = bGlow;
             ctx.beginPath();
-            ctx.arc(ballPos.x, ballPos.y, circleR * 2.2, 0, Math.PI * 2);
+            ctx.arc(ballPos.x, ballPos.y, circleR * 2.25, 0, Math.PI * 2);
             ctx.fill();
             ctx.restore();
 
-            const followR = circleR * (1.52 + beatPulse * 0.14);
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2.8;
+            const followR = circleR * (isSlipping ? 1.85 : (1.58 + beatPulse * 0.14));
+            ctx.strokeStyle = isSlipping ? '#ff4d6d' : '#ffffff';
+            ctx.lineWidth = isSlipping ? 3.4 : 2.8;
             ctx.beginPath();
             ctx.arc(ballPos.x, ballPos.y, followR, 0, Math.PI * 2);
             ctx.stroke();
 
-            ctx.fillStyle = pal.primary;
+            ctx.fillStyle = isSlipping ? '#ff2a55' : pal.primary;
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 3.4;
             ctx.beginPath();
@@ -20040,29 +21027,84 @@ class BeatstarEngine {
             ctx.arc(ballPos.x, ballPos.y, 4.5, 0, Math.PI * 2);
             ctx.fill();
           }
+
+          if (isBrokenSlider) {
+            ctx.restore();
+            continue;
+          }
         }
 
-        // D. HIT CIRCLE VECTORIAL EN ALTA RESOLUCIÓN NATIVA + ANILLO DE CIERRE A VELOCIDAD 100% CONSTANTE
+        // D. HIT CIRCLE / SUPERNOVA GIGANTE ('nova') / SWIPE DIRECCIONAL ('swipe') / GEMELO ('twin')
         if (!note.holding) {
-          const isImmediate = (note === nextImmediateCircle);
-          // Radio del círculo 100% fijo y constante para que el anillo de cierre no tenga jamás oscilaciones de velocidad
-          const drawR = circleR;
+          const isImmediate = (note === nextImmediateCircle) ||
+            Boolean(nextImmediateCircle && note._osuTwinPartner === nextImmediateCircle);
+          const isNova = (note._osuRole === 'nova');
+          const isSwipe = (note._osuRole === 'swipe');
+          const isTwin = (note._osuRole === 'twin');
+          const drawR = isNova ? (circleR * 1.40) : circleR;
 
-          // 1. Halo radial difuminado nativo en resolución retina (sin bitmaps escalados)
+          const activeGlowRgb = isNova ? '251, 191, 36' : (isSwipe ? '16, 185, 129' : pal.glowRgb);
+          const activePrimary = isNova ? '#fbbf24' : (isSwipe ? '#10b981' : pal.primary);
+          const activeCoreInner = isNova ? '#7c1d42' : (isSwipe ? '#0b523b' : pal.coreInner);
+          const activeCore = isNova ? '#2e0819' : (isSwipe ? '#042419' : pal.core);
+
+          // 1. Halo radial difuminado
           ctx.save();
           ctx.globalCompositeOperation = 'lighter';
-          const haloMult = isImmediate ? (2.25 + beatPulse * 0.25) : 1.85;
-          const haloGrad = ctx.createRadialGradient(pos.x, pos.y, drawR * 0.35, pos.x, pos.y, drawR * haloMult);
-          haloGrad.addColorStop(0.00, `rgba(${pal.glowRgb}, ${isImmediate ? 0.68 : 0.48})`);
-          haloGrad.addColorStop(0.48, `rgba(${pal.glowRgb}, ${isImmediate ? 0.28 : 0.18})`);
-          haloGrad.addColorStop(1.00, `rgba(${pal.glowRgb}, 0)`);
+          const haloMult = isNova ? (2.45 + beatPulse * 0.30) : (isImmediate ? (2.20 + beatPulse * 0.24) : 1.82);
+          const haloGrad = ctx.createRadialGradient(pos.x, pos.y, drawR * 0.32, pos.x, pos.y, drawR * haloMult);
+          haloGrad.addColorStop(0.00, `rgba(${activeGlowRgb}, ${isImmediate || isNova ? 0.72 : 0.48})`);
+          haloGrad.addColorStop(0.48, `rgba(${activeGlowRgb}, ${isImmediate || isNova ? 0.30 : 0.18})`);
+          haloGrad.addColorStop(1.00, `rgba(${activeGlowRgb}, 0)`);
           ctx.fillStyle = haloGrad;
           ctx.beginPath();
           ctx.arc(pos.x, pos.y, drawR * haloMult, 0, Math.PI * 2);
           ctx.fill();
           ctx.restore();
 
-          // 2. Cuerpo interior cristalino en alta definición vectorial
+          // Corona solar giratoria exclusiva de las SUPERNOVAS GIGANTES ('nova')
+          if (isNova) {
+            ctx.save();
+            ctx.translate(pos.x, pos.y);
+            ctx.rotate(currentTime * 0.0022);
+            ctx.strokeStyle = 'rgba(253, 224, 71, 0.85)';
+            ctx.fillStyle = 'rgba(255, 42, 133, 0.65)';
+            ctx.lineWidth = 2.0;
+            ctx.beginPath();
+            for (let sp = 0; sp < 16; sp++) {
+              const rSp = (sp % 2 === 0) ? (drawR * 1.24) : (drawR * 1.02);
+              const ang = (sp * Math.PI) / 8;
+              const sx = Math.cos(ang) * rSp;
+              const sy = Math.sin(ang) * rSp;
+              if (sp === 0) ctx.moveTo(sx, sy);
+              else ctx.lineTo(sx, sy);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+          }
+
+          // Pista de flecha exterior ultra visible para los SWIPES DIRECCIONALES ('swipe')
+          if (isSwipe) {
+            const sAng = note._osuSwipeAngle ?? 0;
+            const pulseShift = ((currentTime * 0.006) % 1) * 14;
+            ctx.save();
+            ctx.translate(pos.x, pos.y);
+            ctx.rotate(sAng);
+            ctx.strokeStyle = '#6ee7b7';
+            ctx.fillStyle = '#fde047';
+            ctx.lineWidth = 3.2;
+            const tipX = drawR + 22 + pulseShift;
+            ctx.beginPath();
+            ctx.moveTo(drawR + 6 + pulseShift * 0.5, -13);
+            ctx.lineTo(tipX, 0);
+            ctx.lineTo(drawR + 6 + pulseShift * 0.5, 13);
+            ctx.stroke();
+            ctx.restore();
+          }
+
+          // 2. Cuerpo interior cristalino
           const bodyGrad = ctx.createRadialGradient(
             pos.x - drawR * 0.24,
             pos.y - drawR * 0.28,
@@ -20071,29 +21113,26 @@ class BeatstarEngine {
             pos.y,
             drawR
           );
-          bodyGrad.addColorStop(0.00, pal.coreInner);
-          bodyGrad.addColorStop(0.68, pal.core);
+          bodyGrad.addColorStop(0.00, activeCoreInner);
+          bodyGrad.addColorStop(0.68, activeCore);
           bodyGrad.addColorStop(1.00, '#07030f');
           ctx.fillStyle = bodyGrad;
           ctx.beginPath();
           ctx.arc(pos.x, pos.y, drawR, 0, Math.PI * 2);
           ctx.fill();
 
-          // Anillo interior de color de combo nítido
-          ctx.strokeStyle = pal.primary;
-          ctx.lineWidth = 5.2;
+          ctx.strokeStyle = activePrimary;
+          ctx.lineWidth = isNova ? 6.4 : 5.2;
           ctx.beginPath();
           ctx.arc(pos.x, pos.y, drawR * 0.87, 0, Math.PI * 2);
           ctx.stroke();
 
-          // Anillo interior fino secundario
-          ctx.strokeStyle = `rgba(${pal.glowRgb}, 0.52)`;
-          ctx.lineWidth = 1.8;
+          ctx.strokeStyle = isTwin ? 'rgba(253, 224, 71, 0.80)' : `rgba(${activeGlowRgb}, 0.52)`;
+          ctx.lineWidth = isTwin ? 2.6 : 1.8;
           ctx.beginPath();
           ctx.arc(pos.x, pos.y, drawR * 0.71, 0, Math.PI * 2);
           ctx.stroke();
 
-          // Brillo especular de lente de cristal en la parte superior
           const specGrad = ctx.createLinearGradient(pos.x, pos.y - drawR, pos.x, pos.y);
           specGrad.addColorStop(0.00, 'rgba(255, 255, 255, 0.40)');
           specGrad.addColorStop(1.00, 'rgba(255, 255, 255, 0.00)');
@@ -20102,58 +21141,76 @@ class BeatstarEngine {
           ctx.ellipse(pos.x, pos.y - drawR * 0.44, drawR * 0.62, drawR * 0.28, 0, 0, Math.PI * 2);
           ctx.fill();
 
-          // Borde exterior blanco puro ultra nítido
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 3.0;
+          ctx.strokeStyle = isNova ? '#fde047' : '#ffffff';
+          ctx.lineWidth = isNova ? 3.6 : 3.0;
           ctx.beginPath();
           ctx.arc(pos.x, pos.y, drawR, 0, Math.PI * 2);
           ctx.stroke();
 
-          // 3. Retícula táctica giratoria en el círculo inmediato
-          if (isImmediate) {
-            const retRot = currentTime * 0.0024;
+          // 3. Contenido central según tipo: Triple Chevron en Swipe, Estrella Nuclear en Supernova, o Número 1..5
+          if (isSwipe) {
+            const sAng = note._osuSwipeAngle ?? 0;
+            const animPhase = (currentTime * 0.0055) % 1;
             ctx.save();
             ctx.translate(pos.x, pos.y);
-            ctx.rotate(retRot);
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.72)';
-            ctx.lineWidth = 1.8;
-            for (let m = 0; m < 4; m++) {
-              const a = (m * Math.PI) / 2;
+            ctx.rotate(sAng);
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            for (let c = -1; c <= 1; c++) {
+              const cxOff = c * 10 + (animPhase - 0.5) * 8;
+              ctx.strokeStyle = c === 1 ? '#fde047' : '#ffffff';
+              ctx.lineWidth = c === 1 ? 3.8 : 3.0;
               ctx.beginPath();
-              ctx.moveTo(Math.cos(a) * (drawR * 0.56), Math.sin(a) * (drawR * 0.56));
-              ctx.lineTo(Math.cos(a) * (drawR * 0.84), Math.sin(a) * (drawR * 0.84));
+              ctx.moveTo(cxOff - 6, -10);
+              ctx.lineTo(cxOff + 5, 0);
+              ctx.lineTo(cxOff - 6, 10);
               ctx.stroke();
             }
             ctx.restore();
+          } else {
+            if (isImmediate) {
+              const retRot = currentTime * 0.0024;
+              ctx.save();
+              ctx.translate(pos.x, pos.y);
+              ctx.rotate(retRot);
+              ctx.strokeStyle = 'rgba(255, 255, 255, 0.72)';
+              ctx.lineWidth = 1.8;
+              for (let m = 0; m < 4; m++) {
+                const a = (m * Math.PI) / 2;
+                ctx.beginPath();
+                ctx.moveTo(Math.cos(a) * (drawR * 0.56), Math.sin(a) * (drawR * 0.56));
+                ctx.lineTo(Math.cos(a) * (drawR * 0.84), Math.sin(a) * (drawR * 0.84));
+                ctx.stroke();
+              }
+              ctx.restore();
+            }
+
+            ctx.fillStyle = isNova ? '#fef08a' : '#ffffff';
+            ctx.strokeStyle = 'rgba(7, 3, 15, 0.88)';
+            ctx.lineWidth = 4.2;
+            ctx.font = `900 ${Math.round(drawR * (isNova ? 0.68 : 0.78))}px "Outfit", system-ui, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const centerLabel = isNova ? `★${note._osuComboNum || 1}` : String(note._osuComboNum || 1);
+            ctx.strokeText(centerLabel, pos.x, pos.y + 1);
+            ctx.fillText(centerLabel, pos.x, pos.y + 1);
           }
 
-          // 4. Número de combo grande y ultra legible en el centro del círculo (1, 2, 3...)
-          ctx.fillStyle = '#ffffff';
-          ctx.strokeStyle = 'rgba(7, 3, 15, 0.88)';
-          ctx.lineWidth = 4.2;
-          ctx.font = `900 ${Math.round(drawR * 0.80)}px "Outfit", system-ui, sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          const numStr = String(note._osuComboNum || 1);
-          ctx.strokeText(numStr, pos.x, pos.y + 1);
-          ctx.fillText(numStr, pos.x, pos.y + 1);
-
-          // 5. Anillo de Aproximación (Approach Circle) cerrándose a velocidad 100% constante y uniforme
-          // Desde pRaw = 0.0 (radio = 2.65 * drawR) hasta pRaw = 1.0 (radio = 1.00 * drawR), velocidad dR/dt constante
+          // 4. Anillo de Aproximación cerrándose exactamente según _osuApproachMs adaptativo
           const clampedLinear = Math.max(0.0, Math.min(1.0, pRaw));
-          const appScale = 1.0 + (1.0 - clampedLinear) * 1.65;
+          const appScale = 1.0 + (1.0 - clampedLinear) * (isNova ? 1.48 : 1.62);
           const appRadius = drawR * appScale;
           const isReadyNow = (pRaw >= 0.85);
 
-          // Capa exterior difuminada del Approach Circle
-          ctx.strokeStyle = isReadyNow ? 'rgba(0, 242, 254, 0.62)' : `rgba(${pal.glowRgb}, 0.45)`;
-          ctx.lineWidth = isReadyNow ? 8.0 : 5.8;
+          ctx.strokeStyle = isReadyNow
+            ? (isSwipe ? 'rgba(16, 185, 129, 0.72)' : 'rgba(0, 242, 254, 0.65)')
+            : `rgba(${activeGlowRgb}, 0.48)`;
+          ctx.lineWidth = isReadyNow ? 8.0 : 5.6;
           ctx.beginPath();
           ctx.arc(pos.x, pos.y, appRadius, 0, Math.PI * 2);
           ctx.stroke();
 
-          // Núcleo nítido vectorial del Approach Circle
-          ctx.strokeStyle = isReadyNow ? '#ffffff' : pal.rim;
+          ctx.strokeStyle = isReadyNow ? '#ffffff' : (isNova ? '#fde047' : pal.rim);
           ctx.lineWidth = isReadyNow ? 3.2 : 2.5;
           ctx.beginPath();
           ctx.arc(pos.x, pos.y, appRadius, 0, Math.PI * 2);
@@ -20169,7 +21226,58 @@ class BeatstarEngine {
     renderOsuHybridOverlay(ctx, currentTime) {
       ctx.save();
 
-      // 0. Rayo de Enlace Energético (Laser Chain Surge) entre el círculo recién tocado y el siguiente objetivo
+      // 0. MINI-ORBES COLECCIONABLES DE SUPERNOVA (Explotan en abanico y suman puntos + combo al rozarlos)
+      if (this._osuMiniOrbs && this._osuMiniOrbs.length > 0) {
+        for (let i = 0; i < this._osuMiniOrbs.length; i++) {
+          const orb = this._osuMiniOrbs[i];
+          if (orb.collected) continue;
+          const lifeU = Math.min(1, orb.age / orb.duration);
+          const fade = lifeU > 0.72 ? Math.max(0, 1 - (lifeU - 0.72) / 0.28) : 1.0;
+          const pulseR = orb.radius * (1.0 + Math.sin(orb.age * 16 + orb.orderIdx) * 0.12);
+
+          ctx.save();
+          ctx.globalAlpha = fade;
+
+          // Filamento estelar desde el núcleo de la Supernova
+          if (orb.age < 0.30) {
+            ctx.strokeStyle = `rgba(${orb.glowRgb}, ${((1 - orb.age / 0.30) * 0.55).toFixed(2)})`;
+            ctx.lineWidth = 2.0;
+            ctx.beginPath();
+            ctx.moveTo(orb.originX, orb.originY);
+            ctx.lineTo(orb.curX, orb.curY);
+            ctx.stroke();
+          }
+
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          const g = ctx.createRadialGradient(orb.curX, orb.curY, 2, orb.curX, orb.curY, pulseR * 2.4);
+          g.addColorStop(0.0, 'rgba(255, 255, 255, 0.95)');
+          g.addColorStop(0.35, `rgba(${orb.glowRgb}, 0.72)`);
+          g.addColorStop(1.0, `rgba(${orb.glowRgb}, 0)`);
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(orb.curX, orb.curY, pulseR * 2.4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+
+          ctx.fillStyle = orb.color || '#fde047';
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2.4;
+          ctx.beginPath();
+          ctx.arc(orb.curX, orb.curY, pulseR, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(orb.curX, orb.curY, pulseR * 0.42, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.restore();
+        }
+      }
+
+      // 1. Rayo de Enlace Energético (Laser Chain Surge) entre el círculo recién tocado y el siguiente objetivo
       if (this._osuLaserLinks && this._osuLaserLinks.length > 0) {
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
@@ -20199,7 +21307,6 @@ class BeatstarEngine {
           ctx.lineTo(ex, ey);
           ctx.stroke();
 
-          // Anillo de fijación de objetivo en el destino del rayo
           const lockR = 38 * (1.25 - 0.25 * headP);
           ctx.strokeStyle = `rgba(0, 242, 254, ${(alpha * 0.65).toFixed(3)})`;
           ctx.lineWidth = 2.4;
@@ -20210,7 +21317,7 @@ class BeatstarEngine {
         ctx.restore();
       }
 
-      // 1. Estela luminosa difuminada del dedo al deslizar por ráfagas y sliders
+      // 2. Estela luminosa difuminada del dedo al deslizar por ráfagas, swipes y mini-orbes
       if (this._osuCursorTrails && this._osuCursorTrails.length > 1) {
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
@@ -20236,23 +21343,25 @@ class BeatstarEngine {
         ctx.restore();
       }
 
-      // 2. Explosiones de impacto con Doble Onda de Choque Cromática + Anillo Radar + Chispas + Único Juicio Localizado
+      // 3. Explosiones de impacto y avisos tácticos de penalización (-COMBO)
       if (this._osuHitBursts && this._osuHitBursts.length > 0) {
         for (let i = 0; i < this._osuHitBursts.length; i++) {
           const hb = this._osuHitBursts[i];
           const p = Math.min(1, hb.age / hb.duration);
           const easeOut = 1 - Math.pow(1 - p, 2.4);
           const alpha = Math.max(0, 1 - p);
-          const rad = 28 + easeOut * 48;
+          const lbl = String(hb.label || 'PERFECT');
+          const isPenalty = lbl === 'MISS' || lbl.includes('-COMBO');
+          const isSuper = lbl.includes('SUPERNOVA') || lbl.includes('EXPLOSIÓN') || lbl.includes('SINAPSIS');
+          const rad = (isSuper ? 34 : 26) + easeOut * (isSuper ? 64 : 46);
 
           ctx.save();
 
-          // A. Destello radial difuminado nativo en modo aditivo ('lighter')
           ctx.save();
           ctx.globalCompositeOperation = 'lighter';
-          const bloomR = rad * 1.95;
+          const bloomR = rad * 1.92;
           const bGrad = ctx.createRadialGradient(hb.x, hb.y, 4, hb.x, hb.y, bloomR);
-          const bRgb = hb.label === 'MISS' ? '255, 42, 85' : '0, 242, 254';
+          const bRgb = isPenalty ? '255, 42, 85' : (isSuper ? '251, 191, 36' : '0, 242, 254');
           bGrad.addColorStop(0.00, `rgba(255, 255, 255, ${(alpha * 0.78).toFixed(3)})`);
           bGrad.addColorStop(0.35, `rgba(${bRgb}, ${(alpha * 0.52).toFixed(3)})`);
           bGrad.addColorStop(1.00, `rgba(${bRgb}, 0)`);
@@ -20261,8 +21370,7 @@ class BeatstarEngine {
           ctx.arc(hb.x, hb.y, bloomR, 0, Math.PI * 2);
           ctx.fill();
 
-          // Segunda onda de choque cromática (Magenta) expandiéndose a mayor velocidad
-          if (hb.label !== 'MISS') {
+          if (!isPenalty) {
             ctx.strokeStyle = `rgba(232, 121, 249, ${(alpha * 0.65).toFixed(3)})`;
             ctx.lineWidth = 3.2 * (1 - p * 0.5);
             ctx.beginPath();
@@ -20273,8 +21381,7 @@ class BeatstarEngine {
 
           ctx.globalAlpha = alpha;
 
-          // B. Anillo radar de impacto con muescas interiores y chispas radiales
-          ctx.strokeStyle = hb.label === 'MISS' ? '#ff2a55' : '#ffffff';
+          ctx.strokeStyle = isPenalty ? '#ff2a55' : (isSuper ? '#fde047' : '#ffffff');
           ctx.lineWidth = 2.6 * (1 - p * 0.4);
           ctx.beginPath();
           ctx.arc(hb.x, hb.y, rad, 0, Math.PI * 2);
@@ -20289,7 +21396,7 @@ class BeatstarEngine {
             ctx.stroke();
           }
 
-          if (hb.sparks && hb.label !== 'MISS') {
+          if (hb.sparks && lbl !== 'MISS') {
             ctx.fillStyle = hb.color || '#00f2fe';
             for (let s = 0; s < hb.sparks.length; s++) {
               const sp = hb.sparks[s];
@@ -20301,28 +21408,25 @@ class BeatstarEngine {
             }
           }
 
-          // C. Texto de puntos "+722" flotante (solo en aciertos)
           if (hb.scoreGain > 0) {
             ctx.font = '800 13px "Outfit", system-ui, sans-serif';
             ctx.strokeStyle = '#070312';
             ctx.lineWidth = 3.5;
             ctx.textAlign = 'right';
-            const scoreX = hb.x - rad * 0.55;
+            const scoreX = hb.x - rad * 0.45;
             const scoreY = hb.y - rad * 0.42 - easeOut * 14;
             ctx.strokeText(`+${hb.scoreGain}`, scoreX, scoreY);
-            ctx.fillStyle = '#6ee7b7';
+            ctx.fillStyle = isPenalty ? '#fda4af' : '#6ee7b7';
             ctx.fillText(`+${hb.scoreGain}`, scoreX, scoreY);
           }
 
-          // D. Etiqueta única "PERFECT+" / "PERFECT" / "GREAT" / "MISS" nítida sobre el objetivo
-          ctx.font = '900 16px "Outfit", system-ui, sans-serif';
+          ctx.font = `900 ${isPenalty || isSuper ? 15 : 16}px "Outfit", system-ui, sans-serif`;
           ctx.textAlign = 'center';
           ctx.strokeStyle = '#070312';
           ctx.lineWidth = 4.5;
           const labelY = hb.y - rad * 0.72 - easeOut * 12;
-          const lbl = hb.label || 'PERFECT';
           ctx.strokeText(lbl, hb.x, labelY);
-          ctx.fillStyle = lbl === 'MISS' ? '#ff4d6d' : (lbl === 'PERFECT+' ? '#fde047' : '#7dd3fc');
+          ctx.fillStyle = isPenalty ? '#ff4d6d' : (isSuper || lbl === 'PERFECT+' ? '#fde047' : '#7dd3fc');
           ctx.fillText(lbl, hb.x, labelY);
 
           ctx.restore();

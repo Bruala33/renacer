@@ -2543,6 +2543,38 @@ body {
   box-shadow: 0 2px 8px rgba(197, 160, 89, 0.45) !important;
 }
 
+.piano-diff-chip.tier-extreme {
+  border-color: rgba(249, 115, 22, 0.5) !important;
+  color: #fed7aa !important;
+}
+
+.piano-diff-chip.tier-extreme.active {
+  background: linear-gradient(135deg, #ea580c, #f59e0b) !important;
+  border-color: #fdba74 !important;
+  color: #120905 !important;
+  box-shadow: 0 2px 10px rgba(249, 115, 22, 0.55) !important;
+}
+
+.piano-diff-chip.tier-impossible {
+  background: linear-gradient(135deg, rgba(88, 12, 45, 0.85), rgba(46, 16, 101, 0.88)) !important;
+  border-color: rgba(255, 30, 86, 0.65) !important;
+  color: #ff9ebb !important;
+  text-shadow: 0 0 8px rgba(255, 30, 86, 0.45);
+}
+
+.piano-diff-chip.tier-impossible:hover {
+  border-color: #ff1e56 !important;
+  background: linear-gradient(135deg, rgba(136, 19, 55, 0.92), rgba(76, 29, 149, 0.92)) !important;
+}
+
+.piano-diff-chip.tier-impossible.active {
+  background: linear-gradient(135deg, #ff1e56, #a855f7) !important;
+  border-color: #fda4af !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
+  box-shadow: 0 0 14px rgba(255, 30, 86, 0.65), 0 0 24px rgba(168, 85, 247, 0.35) !important;
+}
+
 /* Register Rail Toggle (.register-rail) - Clean 2-Option Selector */
 .register-rail {
   display: flex;

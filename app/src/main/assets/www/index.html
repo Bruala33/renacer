@@ -1296,10 +1296,11 @@
               <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Dificultad</span>
               <select id="targetDiffSelect" onchange="setTargetDifficulty(this.value)" class="w-full bg-[#191222] text-[#e2b963] border border-[#c5a059]/40 rounded-lg p-2 text-xs font-bold outline-none cursor-pointer">
                 <option value="all">Todas las Dificultades</option>
-                <option value="2">Fácil (1.0★ - 2.5★)</option>
-                <option value="3">Media (2.5★ - 4.5★)</option>
-                <option value="5">Difícil (4.5★ - 6.5★)</option>
-                <option value="7">Experto (6.5★+)</option>
+                <option value="easy">Fácil (1.2★ - 2.3★)</option>
+                <option value="medium">Media (2.4★ - 3.7★)</option>
+                <option value="hard">Difícil (3.8★ - 5.3★)</option>
+                <option value="extreme">Extrema (5.4★ - 7.4★)</option>
+                <option value="impossible">💀 Imposible (7.6★ - 10.0★ • Solo Maps)</option>
               </select>
             </div>
           </div>
@@ -7936,18 +7937,103 @@ window.switchMainTab = switchMainTab;
 
     let currentTargetDifficulty = 'all';
 
-    function setTargetDifficulty(val) {
-      currentTargetDifficulty = val === 'all' ? 'all' : parseFloat(val);
+    function normalizeTargetDifficultyTier(val) {
+      if (val === undefined || val === null || val === '' || val === 'all' || val === 'Todas') return 'all';
+      const s = String(val).trim().toLowerCase();
+      if (s === 'easy' || s === '2' || s.includes('fácil') || s.includes('facil')) return 'easy';
+      if (s === 'medium' || s === '3' || s.includes('media') || s.includes('normal')) return 'medium';
+      if (s === 'hard' || s === '5' || s.includes('difícil') || s.includes('dificil')) return 'hard';
+      if (s === 'impossible' || s === '9' || s.includes('imposible')) return 'impossible';
+      if (s === 'extreme' || s === '7' || s.includes('extrema') || s.includes('experto')) return 'extreme';
+      const num = parseFloat(s);
+      if (Number.isFinite(num)) {
+        if (num <= 2.35) return 'easy';
+        if (num <= 3.75) return 'medium';
+        if (num <= 5.35) return 'hard';
+        if (num <= 7.45) return 'extreme';
+        return 'impossible';
+      }
+      return 'all';
+    }
+    window.normalizeTargetDifficultyTier = normalizeTargetDifficultyTier;
+
+    function updateActiveSearchFilterBadge() {
+      const badge = document.getElementById('activeFilterBadge');
+      if (!badge) return;
+      const isCommunityOnly = Boolean(document.getElementById('filterOnlyCommunity')?.checked);
+      const isTopOnly = Boolean(document.getElementById('filterOnlyTopSongs')?.checked);
+      const topCount = (window.TOP_SONGS_CATALOG && window.TOP_SONGS_CATALOG.length) ? window.TOP_SONGS_CATALOG.length : 90;
+      const baseText = isCommunityOnly ? 'Comunidad' : (isTopOnly ? `Top ${topCount}` : 'Global');
+      const tier = normalizeTargetDifficultyTier(currentTargetDifficulty);
+      const tierLabels = {
+        easy: 'Fácil',
+        medium: 'Media',
+        hard: 'Difícil',
+        extreme: 'Extrema',
+        impossible: '💀 Imposible'
+      };
+      badge.innerText = tier !== 'all' && tierLabels[tier] ? `${baseText} • ${tierLabels[tier]}` : baseText;
+    }
+
+    let _impossiblePoolFetchPromise = null;
+    async function ensureImpossibleMapsInCatalog() {
+      if (_impossiblePoolFetchPromise) return _impossiblePoolFetchPromise;
+      _impossiblePoolFetchPromise = (async () => {
+        try {
+          const queries = [
+            withTimeout(searchOsuMania('camellia'), 8500, 'osu!'),
+            withTimeout(searchOsuMania('xi'), 8500, 'osu!'),
+            withTimeout(searchBeatSaver('expert+'), 8500, 'BeatSaver')
+          ];
+          const settled = await Promise.allSettled(queries);
+          const fetched = [];
+          for (const r of settled) {
+            if (r.status === 'fulfilled' && Array.isArray(r.value)) {
+              fetched.push(...r.value);
+            }
+          }
+          if (fetched.length > 0) {
+            const shuffled = typeof fisherYatesShuffle === 'function' ? fisherYatesShuffle(fetched) : fetched;
+            if (!Array.isArray(searchResultsCache)) searchResultsCache = [];
+            for (const item of shuffled) {
+              if (item && item.id && !searchResultsCache.some(x => x.id === item.id)) {
+                if (typeof LaneRemapper !== 'undefined' && typeof LaneRemapper.normalizeSongDifficulties === 'function') {
+                  LaneRemapper.normalizeSongDifficulties(item);
+                }
+                searchResultsCache.push(item);
+              }
+            }
+          }
+        } catch (_) {
+        } finally {
+          _impossiblePoolFetchPromise = null;
+        }
+      })();
+      return _impossiblePoolFetchPromise;
+    }
+
+    async function setTargetDifficulty(val) {
+      const tier = normalizeTargetDifficultyTier(val);
+      currentTargetDifficulty = tier;
 
       const sel = document.getElementById('targetDiffSelect');
-      if (sel && sel.value !== String(val)) {
-        sel.value = String(val);
+      if (sel && sel.value !== tier) {
+        sel.value = tier;
       }
 
-      const diffMap = { '2': 'Fácil', '3': 'Media', '5': 'Difícil', '7': 'Extrema', 'all': 'Todas' };
+      const diffMap = {
+        easy: 'Fácil',
+        medium: 'Media',
+        hard: 'Difícil',
+        extreme: 'Extrema',
+        impossible: 'Imposible',
+        all: 'Todas'
+      };
       if (typeof communityDiffFilter !== 'undefined') {
-        communityDiffFilter = diffMap[String(val)] || 'Todas';
+        communityDiffFilter = diffMap[tier] || 'Todas';
       }
+
+      updateActiveSearchFilterBadge();
 
       const isCommunityOnly = Boolean(document.getElementById('filterOnlyCommunity')?.checked);
       if (isCommunityOnly) {
@@ -7955,10 +8041,35 @@ window.switchMainTab = switchMainTab;
         return;
       }
 
-      // Re-sort and render results immediately if cache exists
+      const q = (document.getElementById('searchInput')?.value || '').trim();
+      const isTopOnly = Boolean(document.getElementById('filterOnlyTopSongs')?.checked) || Boolean(window.isKaraokeModeActive);
+
+      // Si el usuario elige "Imposible" sin búsqueda activa y aún hay pocos mapas extremos cargados en el lote aleatorio inicial, hidratar mapas de osu!/BeatSaver automáticamente
+      if (tier === 'impossible' && !q && !isTopOnly) {
+        const currentMatches = filterAndSortItemsByDifficulty(searchResultsCache || [], 'impossible', false);
+        if (currentMatches.length > 0) {
+          renderSearchResults(currentMatches, []);
+        } else {
+          const resultsList = document.getElementById('resultsList');
+          if (resultsList) {
+            resultsList.innerHTML = `<div class="p-6 text-center text-xs text-rose-300 glass-card animate-pulse">Buscando mapas 💀 Imposibles de osu! y BeatSaver...</div>`;
+          }
+        }
+        if (currentMatches.length < 12) {
+          await ensureImpossibleMapsInCatalog();
+          if (normalizeTargetDifficultyTier(currentTargetDifficulty) === 'impossible' && !(document.getElementById('searchInput')?.value || '').trim()) {
+            const refreshed = filterAndSortItemsByDifficulty(searchResultsCache || [], 'impossible', false);
+            renderSearchResults(refreshed, []);
+          }
+        }
+        return;
+      }
+
       if (searchResultsCache && searchResultsCache.length > 0) {
-        const sorted = sortItemsByTargetDifficulty(searchResultsCache, currentTargetDifficulty);
-        renderSearchResults(sorted, []);
+        const filtered = filterAndSortItemsByDifficulty(searchResultsCache, currentTargetDifficulty, Boolean(q));
+        renderSearchResults(filtered, []);
+      } else {
+        executeSearch();
       }
     }
 
@@ -7976,11 +8087,8 @@ window.switchMainTab = switchMainTab;
       if (isCommunityOnly && topCheck && topCheck.checked) {
         topCheck.checked = false;
       }
-      const badge = document.getElementById('activeFilterBadge');
       const commSort = document.getElementById('commSortButtons');
-      if (badge) {
-        const topCount = (window.TOP_SONGS_CATALOG && window.TOP_SONGS_CATALOG.length) ? window.TOP_SONGS_CATALOG.length : 90; badge.innerText = isCommunityOnly ? 'Comunidad' : (topCheck?.checked ? `Top ${topCount}` : 'Global');
-      }
+      updateActiveSearchFilterBadge();
       if (commSort) {
         if (isCommunityOnly) {
           commSort.classList.remove('hidden');
@@ -8003,11 +8111,7 @@ window.switchMainTab = switchMainTab;
           commSort.classList.remove('flex');
         }
       }
-      const topCount = (window.TOP_SONGS_CATALOG && window.TOP_SONGS_CATALOG.length) ? window.TOP_SONGS_CATALOG.length : 90;
-      const badge = document.getElementById('activeFilterBadge');
-      if (badge) {
-        badge.innerText = isTopOnly ? `Top ${topCount}` : (commCheck?.checked ? 'Comunidad' : 'Global');
-      }
+      updateActiveSearchFilterBadge();
       if (isTopOnly && typeof fetchAndSyncTopSongsCatalog === 'function') {
         fetchAndSyncTopSongsCatalog(false);
       }
@@ -8026,34 +8130,36 @@ window.switchMainTab = switchMainTab;
       }
     });
 
-    function sortItemsByTargetDifficulty(items, target) {
+    function filterAndSortItemsByDifficulty(items, target, preserveRelevance = false) {
       if (!items || items.length === 0) return [];
       if (typeof LaneRemapper !== 'undefined' && typeof LaneRemapper.normalizeSongDifficulties === 'function') {
         for (const it of items) {
           if (it) LaneRemapper.normalizeSongDifficulties(it);
         }
       }
-      if (target === 'all') return [...items];
-
-      const targetNum = parseFloat(target);
-      const targetTier = targetNum <= 2.3 ? 'easy' : (targetNum <= 3.7 ? 'medium' : (targetNum >= 5.4 ? 'extreme' : 'hard'));
-      return [...items].sort((a, b) => {
-        const diffsA = a.difficulties || [];
-        const hasExactTierA = diffsA.some(d => d.densityMode === targetTier) ? 0 : 1;
-        const minDistA = diffsA.length > 0 ? Math.min(...diffsA.map(d => Math.abs((d.stars || 3.0) - targetNum))) : 99;
-
-        const diffsB = b.difficulties || [];
-        const hasExactTierB = diffsB.some(d => d.densityMode === targetTier) ? 0 : 1;
-        const minDistB = diffsB.length > 0 ? Math.min(...diffsB.map(d => Math.abs((d.stars || 3.0) - targetNum))) : 99;
-
-        if (hasExactTierA !== hasExactTierB) {
-          return hasExactTierA - hasExactTierB;
+      const targetTier = normalizeTargetDifficultyTier(target);
+      if (targetTier === 'all') {
+        if (preserveRelevance) {
+          return [...items].sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
         }
-        if (Math.abs(minDistA - minDistB) > 0.05) {
-          return minDistA - minDistB;
-        }
-        return 0;
+        return [...items];
+      }
+
+      // Filtrado estricto: solo mostrar canciones que posean realmente la categoría seleccionada
+      const filtered = items.filter(it => {
+        if (!it || !Array.isArray(it.difficulties)) return false;
+        return it.difficulties.some(d => d.densityMode === targetTier);
       });
+
+      if (preserveRelevance) {
+        return filtered.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
+      }
+      return filtered;
+    }
+    window.filterAndSortItemsByDifficulty = filterAndSortItemsByDifficulty;
+
+    function sortItemsByTargetDifficulty(items, target) {
+      return filterAndSortItemsByDifficulty(items, target, false);
     }
 
     function withTimeout(promise, ms = 12000, name = 'Servicio') {
@@ -8735,15 +8841,32 @@ window.switchMainTab = switchMainTab;
 
       // Aleatorizar el lote obtenido con Fisher-Yates
       const shuffledBatch = fisherYatesShuffle(fetchedSongs);
+      if (typeof LaneRemapper !== 'undefined' && typeof LaneRemapper.normalizeSongDifficulties === 'function') {
+        for (const it of shuffledBatch) {
+          if (it) LaneRemapper.normalizeSongDifficulties(it);
+        }
+      }
 
       if (!isAppend) {
         searchResultsCache = shuffledBatch;
-        renderSearchResults(shuffledBatch, []);
+        const activeTier = normalizeTargetDifficultyTier(currentTargetDifficulty);
+        if (activeTier === 'impossible') {
+          let impMatches = filterAndSortItemsByDifficulty(searchResultsCache, 'impossible', false);
+          if (impMatches.length < 12) {
+            await ensureImpossibleMapsInCatalog();
+            impMatches = filterAndSortItemsByDifficulty(searchResultsCache, 'impossible', false);
+          }
+          renderSearchResults(impMatches, []);
+        } else {
+          const initialFiltered = filterAndSortItemsByDifficulty(searchResultsCache, activeTier, false);
+          renderSearchResults(initialFiltered, []);
+        }
       } else {
         if (shuffledBatch.length > 0) {
           searchResultsCache.push(...shuffledBatch);
-          if (Array.isArray(window.currentSearchResultsList)) {
-            window.currentSearchResultsList.push(...shuffledBatch);
+          const filteredAppended = filterAndSortItemsByDifficulty(shuffledBatch, currentTargetDifficulty, false);
+          if (Array.isArray(window.currentSearchResultsList) && filteredAppended.length > 0) {
+            window.currentSearchResultsList.push(...filteredAppended);
             renderSearchResultsPage(window.currentCatalogPage || 1);
           }
         } else {
@@ -8914,19 +9037,9 @@ window.switchMainTab = switchMainTab;
             .filter(s => s.relevanceScore >= 35);
           list.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
         }
-        if (typeof currentTargetDifficulty !== 'undefined' && currentTargetDifficulty !== 'all') {
-          const targetNum = parseFloat(currentTargetDifficulty);
-          list = list.filter(s => {
-            const diffStars = s.difficulties?.[0]?.stars || s.stars || 3.5;
-            if (targetNum === 2) return diffStars <= 2.5;
-            if (targetNum === 3) return diffStars > 2.5 && diffStars <= 4.5;
-            if (targetNum === 5) return diffStars > 4.5 && diffStars <= 6.5;
-            if (targetNum === 7) return diffStars > 6.5;
-            return true;
-          });
-        }
         searchResultsCache = list;
-        renderSearchResults(list, []);
+        const filteredTop = filterAndSortItemsByDifficulty(list, currentTargetDifficulty, Boolean(q));
+        renderSearchResults(filteredTop, []);
         if (btnText) btnText.innerText = 'Buscar';
         if (spinner) spinner.classList.add('hidden');
         return;
@@ -8959,7 +9072,8 @@ window.switchMainTab = switchMainTab;
                 list.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
               }
               searchResultsCache = list;
-              renderSearchResults(list, []);
+              const filteredComm = filterAndSortItemsByDifficulty(list, currentTargetDifficulty, Boolean(q));
+              renderSearchResults(filteredComm, []);
               if (btnText) btnText.innerText = 'Buscar';
               if (spinner) spinner.classList.add('hidden');
               return;
@@ -8988,7 +9102,8 @@ window.switchMainTab = switchMainTab;
           filtered.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
         }
         searchResultsCache = filtered;
-        renderSearchResults(searchResultsCache, []);
+        const filteredFallback = filterAndSortItemsByDifficulty(filtered, currentTargetDifficulty, Boolean(q));
+        renderSearchResults(filteredFallback, []);
 
         if (btnText) btnText.innerText = 'Buscar';
         if (spinner) spinner.classList.add('hidden');
@@ -9033,14 +9148,12 @@ window.switchMainTab = switchMainTab;
               }
             }
             console.log(`[Search] Servidor backend entregó ${data.length} canciones (+${localCommunityMatches.length} comunitarias).`);
-            let sortedItems = combined;
             if (q) {
-              sortedItems.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
-            } else {
-              sortedItems = sortItemsByTargetDifficulty(combined, currentTargetDifficulty);
+              combined.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
             }
-            searchResultsCache = sortedItems;
-            renderSearchResults(sortedItems, []);
+            searchResultsCache = combined;
+            const filteredItems = filterAndSortItemsByDifficulty(combined, currentTargetDifficulty, Boolean(q));
+            renderSearchResults(filteredItems, []);
             if (btnText) btnText.innerText = 'Buscar';
             if (spinner) spinner.classList.add('hidden');
             return;
@@ -9108,14 +9221,12 @@ window.switchMainTab = switchMainTab;
 
         console.log(`[Search] Total unificado: ${allItems.length} canciones encontradas.`);
 
-        let sortedItems = allItems;
         if (q) {
-          sortedItems.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
-        } else {
-          sortedItems = sortItemsByTargetDifficulty(allItems, currentTargetDifficulty);
+          allItems.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
         }
-        searchResultsCache = sortedItems;
-        renderSearchResults(sortedItems, failedApis);
+        searchResultsCache = allItems;
+        const filteredItems = filterAndSortItemsByDifficulty(allItems, currentTargetDifficulty, Boolean(q));
+        renderSearchResults(filteredItems, failedApis);
 
       } catch (err) {
         resultsList.innerHTML = `<div class="p-5 text-center text-xs text-red-400 glass-card">Error general en la búsqueda: ${err.message}</div>`;
@@ -9156,7 +9267,7 @@ window.switchMainTab = switchMainTab;
     }
     window.getSongCoverFallback = getSongCoverFallback;
 
-    function buildSongCardHtml(item, idx, targetNum = null) {
+    function buildSongCardHtml(item, idx, targetTierOrNum = null) {
       if (typeof LaneRemapper !== 'undefined' && typeof LaneRemapper.normalizeSongDifficulties === 'function') {
         LaneRemapper.normalizeSongDifficulties(item);
       }
@@ -9168,35 +9279,34 @@ window.switchMainTab = switchMainTab;
       const fallbackCover = getSongCoverFallback(item.title, item.artist);
       const initialCover = (item.thumbnail && typeof item.thumbnail === 'string' && item.thumbnail.trim() && item.thumbnail !== './app_logo.png') ? item.thumbnail : fallbackCover;
 
-      // Seleccionar dificultad principal (la más cercana al filtro activo o Difícil/Media por defecto)
+      const resolvedTargetTier = normalizeTargetDifficultyTier(targetTierOrNum !== null ? targetTierOrNum : currentTargetDifficulty);
+
+      // Seleccionar dificultad principal (la exacta del filtro activo o Difícil/Media por defecto)
       let primaryDiff = null;
       if (item.difficulties && item.difficulties.length > 0) {
-        if (targetNum !== null) {
-          let minDiff = Infinity;
-          for (const d of item.difficulties) {
-            const dist = Math.abs((d.stars || 3.0) - targetNum);
-            if (dist < minDiff) {
-              minDiff = dist;
-              primaryDiff = d;
-            }
-          }
-        } else {
+        if (resolvedTargetTier !== 'all') {
+          primaryDiff = item.difficulties.find(d => d.densityMode === resolvedTargetTier) || null;
+        }
+        if (!primaryDiff) {
           primaryDiff = item.difficulties.find(d => d.densityMode === 'hard') ||
                         item.difficulties.find(d => d.densityMode === 'medium') ||
                         item.difficulties[item.difficulties.length - 1];
         }
         if (!primaryDiff) primaryDiff = item.difficulties[0];
       } else {
-        primaryDiff = { id: 'medium', name: 'Media', stars: cStars };
+        primaryDiff = { id: 'medium', name: 'Media', stars: cStars, densityMode: 'medium' };
       }
 
       const primaryStarsText = primaryDiff.stars ? `${primaryDiff.stars.toFixed(1)}★` : '';
+      const isPrimaryImpossible = primaryDiff.densityMode === 'impossible';
 
       const diffChipsHtml = (item.difficulties || []).map(diff => {
         const cleanName = (diff.name || 'Media').replace(/\[\d+K\]\s*/gi, '').replace(/^\[[^\]]+\]\s*/, '').trim() || 'Media';
+        const displayChipName = (diff.densityMode === 'impossible' && !cleanName.includes('💀')) ? `💀 ${cleanName}` : cleanName;
         const starsText = diff.stars ? `${diff.stars.toFixed(1)}★` : '';
         const isPrimary = diff.id === primaryDiff.id;
-        const chipClass = isPrimary ? 'piano-diff-chip active' : 'piano-diff-chip';
+        const tierCss = diff.densityMode ? ` tier-${diff.densityMode}` : '';
+        const chipClass = `piano-diff-chip${tierCss}${isPrimary ? ' active' : ''}`;
 
         return `
           <button 
@@ -9204,7 +9314,7 @@ window.switchMainTab = switchMainTab;
             class="${chipClass}" 
             title="Jugar dificultad ${cleanName}"
           >
-            <span>${cleanName}</span>
+            <span>${displayChipName}</span>
             ${starsText ? `<span class="font-mono text-[9.5px] opacity-90">${starsText}</span>` : ''}
           </button>
         `;
@@ -9230,7 +9340,7 @@ window.switchMainTab = switchMainTab;
               </div>
               <!-- Single Star Metric & Accordion Arrow -->
               <div class="flex items-center gap-1.5 flex-shrink-0 ml-1.5">
-                <span class="text-[11px] font-black text-[#9c7329] font-mono whitespace-nowrap">★ ${(primaryDiff.stars || 3.5).toFixed(1)}</span>
+                <span class="text-[11px] font-black ${isPrimaryImpossible ? 'text-[#e11d48]' : 'text-[#9c7329]'} font-mono whitespace-nowrap">${isPrimaryImpossible ? '💀' : '★'} ${(primaryDiff.stars || 3.5).toFixed(1)}</span>
                 <span id="accordionArrow_${sId}" class="text-[9px] text-[#8e755a] transition-transform duration-200">▼</span>
               </div>
             </div>
@@ -9345,9 +9455,9 @@ function detenerPaginacionPiano() {
       const totalPages = Math.max(1, Math.ceil(items.length / CATALOG_PAGE_SIZE));
       const startIndex = (page - 1) * CATALOG_PAGE_SIZE;
       const pageItems = items.slice(startIndex, startIndex + CATALOG_PAGE_SIZE);
-      const targetNum = window.currentTargetDiffNum;
+      const targetTier = window.currentTargetDiffTier || currentTargetDifficulty;
 
-      const cardsHtml = pageItems.map((item, idx) => buildSongCardHtml(item, startIndex + idx, targetNum)).join('');
+      const cardsHtml = pageItems.map((item, idx) => buildSongCardHtml(item, startIndex + idx, targetTier)).join('');
 
       container.innerHTML = `
         <div class="piano-keyboard-bed" id="pianoKeyboardBed">
@@ -10260,19 +10370,29 @@ function stopPianoCameraLoop() {
           `;
         }
 
+        const activeTier = normalizeTargetDifficultyTier(currentTargetDifficulty);
+        const isImpossibleFilter = activeTier === 'impossible';
+        const emptyTitle = isImpossibleFilter
+          ? 'No hay mapas 💀 Imposibles en esta vista'
+          : t('cat_empty_title', 'No se encontraron canciones para esta búsqueda');
+        const emptySub = isImpossibleFilter
+          ? 'La categoría Imposible (7.6★ - 10.0★) es exclusiva para mapas de alta densidad de osu!, BeatSaver y Clone Hero. Desmarca "Canciones Top" o busca artistas como Camellia, xi, DragonForce o t+pazolite.'
+          : t('cat_empty_sub', 'Prueba con palabras clave en inglés, nombre de artista o títulos populares.');
+
         container.innerHTML = `
           ${partialWarnHtml}
-          <div class="p-8 text-center text-xs text-gray-400 glass-card space-y-1">
-            <p class="font-bold text-sm text-gray-300">${t('cat_empty_title', 'No se encontraron canciones para esta búsqueda')}</p>
-            <p class="text-[10px] text-gray-500">${t('cat_empty_sub', 'Prueba con palabras clave en inglés, nombre de artista o títulos populares.')}</p>
+          <div class="p-8 text-center text-xs text-gray-400 glass-card space-y-1.5">
+            <p class="font-bold text-sm ${isImpossibleFilter ? 'text-rose-300' : 'text-gray-300'}">${emptyTitle}</p>
+            <p class="text-[10.5px] text-gray-400 max-w-[300px] mx-auto leading-relaxed">${emptySub}</p>
           </div>
         `;
         return;
       }
 
-      const targetNum = currentTargetDifficulty !== 'all' ? parseFloat(currentTargetDifficulty) : null;
+      const targetTier = normalizeTargetDifficultyTier(currentTargetDifficulty);
       window.currentSearchResultsList = items;
-      window.currentTargetDiffNum = targetNum;
+      window.currentTargetDiffTier = targetTier;
+      window.currentTargetDiffNum = null;
       window.currentCatalogPage = 1;
       renderSearchResultsPage(1);
     }
@@ -10510,7 +10630,7 @@ function stopPianoCameraLoop() {
           loadStatus.innerText = 'Cargando mapa desde memoria local...';
 
           const reqDensity = (typeof LaneRemapper !== 'undefined' && LaneRemapper.inferDensityModeFromDiff)
-            ? LaneRemapper.inferDensityModeFromDiff(diffName || diffId)
+            ? LaneRemapper.inferDensityModeFromDiff(diffId || diffName)
             : 'hard';
           const standardTierName = (typeof LaneRemapper !== 'undefined' && LaneRemapper.getStandardTierName)
             ? LaneRemapper.getStandardTierName(reqDensity)
@@ -10518,9 +10638,12 @@ function stopPianoCameraLoop() {
 
           // Si el paquete tenía múltiples dificultades (.osz / BeatSaver), activar el rawNotes correspondiente al tier elegido
           const tierMap = cached.tierRawNotes || (cached.chartData && cached.chartData.tierRawNotes) || null;
-          if (tierMap && Array.isArray(tierMap[reqDensity]) && tierMap[reqDensity].length > 0) {
-            cached.rawNotes = tierMap[reqDensity];
-            if (cached.chartData) cached.chartData.rawNotes = tierMap[reqDensity];
+          const tierNotesCandidate = tierMap
+            ? (tierMap[reqDensity] || (reqDensity === 'impossible' ? tierMap.extreme : null))
+            : null;
+          if (Array.isArray(tierNotesCandidate) && tierNotesCandidate.length > 0) {
+            cached.rawNotes = tierNotesCandidate;
+            if (cached.chartData) cached.chartData.rawNotes = tierNotesCandidate;
           } else if (!cached.rawNotes && cached.chartData && Array.isArray(cached.chartData.rawNotes)) {
             cached.rawNotes = cached.chartData.rawNotes;
           }
@@ -10693,6 +10816,11 @@ function stopPianoCameraLoop() {
             ? targetDiff.stars
             : (Number.isFinite(chartItem.stars) ? chartItem.stars : ((chartItem.difficulties && chartItem.difficulties[0]?.stars) || 3.5));
           unpackedData.metadata.stars = selectedStars;
+          unpackedData.selectedStars = selectedStars;
+          unpackedData.selectedDensityMode = (targetDiff && targetDiff.densityMode) ||
+            ((typeof LaneRemapper !== 'undefined' && LaneRemapper.inferDensityModeFromDiff)
+              ? LaneRemapper.inferDensityModeFromDiff(diffId || diffName, selectedStars)
+              : 'hard');
           unpackedData.communityChartId = chartItem.id;
           unpackedData.source = chartItem.source || 'osu';
           unpackedData.source_name = chartItem.source_name || 'osu!';
@@ -10823,6 +10951,11 @@ function stopPianoCameraLoop() {
             ? targetDiff.stars
             : (Number.isFinite(chartItem.stars) ? chartItem.stars : ((chartItem.difficulties && chartItem.difficulties[0]?.stars) || 3.5));
           unpackedData.metadata.stars = selectedStars;
+          unpackedData.selectedStars = selectedStars;
+          unpackedData.selectedDensityMode = (targetDiff && targetDiff.densityMode) ||
+            ((typeof LaneRemapper !== 'undefined' && LaneRemapper.inferDensityModeFromDiff)
+              ? LaneRemapper.inferDensityModeFromDiff(diffId || diffName, selectedStars)
+              : 'hard');
           unpackedData.communityChartId = chartItem.id;
           unpackedData.source = 'beatsaver';
           unpackedData.source_name = 'BeatSaver';
@@ -11003,6 +11136,11 @@ function stopPianoCameraLoop() {
             ? targetDiff.stars
             : (Number.isFinite(chartItem.stars) ? chartItem.stars : ((chartItem.difficulties && chartItem.difficulties[0]?.stars) || 3.5));
           unpackedData.metadata.stars = selectedStars;
+          unpackedData.selectedStars = selectedStars;
+          unpackedData.selectedDensityMode = (targetDiff && targetDiff.densityMode) ||
+            ((typeof LaneRemapper !== 'undefined' && LaneRemapper.inferDensityModeFromDiff)
+              ? LaneRemapper.inferDensityModeFromDiff(diffId || diffName, selectedStars)
+              : 'hard');
         unpackedData.communityChartId = chartItem.id;
         unpackedData.source = chartItem.source || 'clonehero';
         unpackedData.source_name = chartItem.source_name || 'Clone Hero';
@@ -11054,14 +11192,17 @@ function stopPianoCameraLoop() {
           ? LaneRemapper.inferDensityModeFromDiff(diffLabel)
           : (String(diffLabel).toLowerCase().includes('fácil') || String(diffLabel).toLowerCase().includes('easy')
               ? 'easy'
-              : (String(diffLabel).toLowerCase().includes('extrema') || String(diffLabel).toLowerCase().includes('extreme')
-                  ? 'extreme'
-                  : (String(diffLabel).toLowerCase().includes('dif') || String(diffLabel).toLowerCase().includes('hard')
-                      ? 'hard'
-                      : 'medium'))));
+              : (String(diffLabel).toLowerCase().includes('imposible') || String(diffLabel).toLowerCase().includes('impossible')
+                  ? 'impossible'
+                  : (String(diffLabel).toLowerCase().includes('extrema') || String(diffLabel).toLowerCase().includes('extreme')
+                      ? 'extreme'
+                      : (String(diffLabel).toLowerCase().includes('dif') || String(diffLabel).toLowerCase().includes('hard')
+                          ? 'hard'
+                          : 'medium')))));
 
-      const isHard = (densityMode === 'hard' || densityMode === 'extreme');
-      const isExtreme = (densityMode === 'extreme');
+      const isImpossible = (densityMode === 'impossible');
+      const isExtreme = (densityMode === 'extreme' || isImpossible);
+      const isHard = (densityMode === 'hard' || isExtreme);
 
       // Normalizar BPM efectivo para cálculo rítmico
       let effBpm = Number(bpm) || 120;
@@ -11118,9 +11259,21 @@ function stopPianoCameraLoop() {
 
       parsedRaw.sort((a, b) => a.t - b.t);
 
-      // 1b. Filtrado rítmico al pulso según la dificultad elegida (CERO invención de notas fuera de tiempo)
-      const minNoteGapMs = densityMode === 'easy' ? 230 : (densityMode === 'medium' ? 140 : (densityMode === 'extreme' ? 22 : 85));
-      const maxWinNotes = densityMode === 'easy' ? 3 : (densityMode === 'medium' ? 4 : (densityMode === 'extreme' ? 24 : 6));
+      // 1b. Filtrado rítmico al pulso según la dificultad elegida (5 niveles: easy, medium, hard, extreme intermedio, impossible)
+      const minNoteGapMs = densityMode === 'easy'
+        ? 230
+        : (densityMode === 'medium'
+            ? 140
+            : (densityMode === 'hard'
+                ? 88
+                : (densityMode === 'extreme' ? 54 : 22)));
+      const maxWinNotes = densityMode === 'easy'
+        ? 3
+        : (densityMode === 'medium'
+            ? 4
+            : (densityMode === 'hard'
+                ? 6
+                : (densityMode === 'extreme' ? 9 : 26)));
       const anchorT = parsedRaw.length > 0 ? parsedRaw[0].t : 0;
       const parsed = [];
       for (let i = 0; i < parsedRaw.length; i++) {
@@ -11145,14 +11298,14 @@ function stopPianoCameraLoop() {
               parsed[parsed.length - 1] = cur;
             }
             continue;
-          } else if (!isExtreme && gap < minNoteGapMs * 0.72 && !isHold && !isPhraseStart) {
+          } else if (!isImpossible && gap < minNoteGapMs * 0.75 && !isHold && !isPhraseStart) {
             continue;
-          } else if (isExtreme && gap < 18 && cur.lane === prev.lane) {
+          } else if (isImpossible && gap < 18 && cur.lane === prev.lane) {
             continue;
           }
         }
 
-        if (!isExtreme) {
+        if (!isImpossible) {
           const winStart = cur.t - 600;
           let recentCount = 0;
           for (let k = parsed.length - 1; k >= 0; k--) {
@@ -11297,8 +11450,8 @@ function stopPianoCameraLoop() {
         }
 
         // D. Ventana de liberación para notas sostenidas (Hold)
-        const holdBufferMs = isExtreme ? 85 : 160;
-        const tapOccupiedMs = isExtreme ? 38 : 90;
+        const holdBufferMs = isImpossible ? 75 : (isExtreme ? 105 : 160);
+        const tapOccupiedMs = isImpossible ? 32 : (isExtreme ? 54 : 90);
         const isHold = (ty === 'hold' || dur > 180);
         if (isHold && dur > 0) {
           let maxDur = dur;
@@ -11362,12 +11515,14 @@ function stopPianoCameraLoop() {
           processed: false
         });
 
-        // E. NOTAS DOBLES EN ATAQUES REALES DE PULSO FUERTE (Difícil y Extrema, sin inventar tiempos fuera de ritmo)
+        // E. NOTAS DOBLES EN ATAQUES REALES DE PULSO FUERTE (Difícil, Extrema e Imposible, sin inventar tiempos fuera de ritmo)
         if ((allowVocalFiller || isExtreme) && isHard && !n.isFiller && ty === 'tap' && !isHold) {
-          const minDoubleSpacing = isExtreme ? 115 : 280;
-          const isDownbeat = isExtreme
+          const minDoubleSpacing = isImpossible ? 95 : (isExtreme ? 175 : 280);
+          const isDownbeat = isImpossible
             ? ((Math.abs(t % Math.round(beatMs)) < 75) || (i % 3 === 0))
-            : ((Math.abs(t % Math.round(beatMs * 4)) < 80) || (i % 7 === 0));
+            : (isExtreme
+                ? ((Math.abs(t % Math.round(beatMs * 2)) < 75) || (i % 5 === 0))
+                : ((Math.abs(t % Math.round(beatMs * 4)) < 80) || (i % 7 === 0)));
           if (isDownbeat && (t - lastDoubleCompanionTime >= minDoubleSpacing)) {
             let companionLane = -1;
             if (targetLane === 0) companionLane = maxLaneIdx;
@@ -11543,12 +11698,13 @@ function stopPianoCameraLoop() {
       }
       if (resolvedStars === null) {
         const dName = ((diffLabel || beatmapData.metadata?.difficulty_name || beatmapData.difficulty_name || '') + '').toLowerCase();
-        if (dName.includes('fácil') || dName.includes('easy') || dName.includes('beginner')) resolvedStars = 1.5;
-        else if (dName.includes('media') || dName.includes('medium') || dName.includes('normal')) resolvedStars = 3.5;
-        else if (dName.includes('difícil') || dName.includes('hard')) resolvedStars = 5.5;
-        else if (dName.includes('extrema') || dName.includes('extreme') || dName.includes('expert')) resolvedStars = 7.5;
-        else if (dName.includes('insana') || dName.includes('insane') || dName.includes('master')) resolvedStars = 9.5;
-        else resolvedStars = 3.5;
+        if (dName.includes('fácil') || dName.includes('easy') || dName.includes('beginner')) resolvedStars = 1.6;
+        else if (dName.includes('media') || dName.includes('medium') || dName.includes('normal')) resolvedStars = 3.0;
+        else if (dName.includes('difícil') || dName.includes('hard')) resolvedStars = 4.5;
+        else if (dName.includes('imposible') || dName.includes('impossible')) resolvedStars = 8.8;
+        else if (dName.includes('extrema') || dName.includes('extreme') || dName.includes('expert')) resolvedStars = 6.4;
+        else if (dName.includes('insana') || dName.includes('insane') || dName.includes('master')) resolvedStars = 8.6;
+        else resolvedStars = 3.2;
       }
 
       const songBpm = Number(beatmapData.bpm) || 120;
@@ -11559,15 +11715,20 @@ function stopPianoCameraLoop() {
           ? LaneRemapper.inferDensityModeFromDiff(diffLabel || beatmapData.metadata?.difficulty_name || beatmapData.difficulty_name, resolvedStars)
           : 'hard');
       const isStormNow = Boolean(window.currentGameMode === 'storm' || window.isStormModeActive);
-      const activeDensityMode = (isStormNow && (baseDensityPref === 'hard' || baseDensityPref === 'extreme')) ? 'extreme' : baseDensityPref;
+      const activeDensityMode = baseDensityPref === 'impossible'
+        ? 'impossible'
+        : ((isStormNow && (baseDensityPref === 'hard' || baseDensityPref === 'extreme')) ? 'extreme' : baseDensityPref);
       const standardDiffLabel = (typeof LaneRemapper !== 'undefined' && LaneRemapper.getStandardTierName)
         ? LaneRemapper.getStandardTierName(baseDensityPref)
         : (diffLabel || beatmapData.metadata?.difficulty_name || 'Media');
 
       // Seleccionar rawNotes específico del tier si el paquete multi-dificultad (.osz / BeatSaver) lo incluye
       const tierRawMap = beatmapData.tierRawNotes || (beatmapData.unpackedData && beatmapData.unpackedData.tierRawNotes) || null;
-      const activeTierRawNotes = (tierRawMap && Array.isArray(tierRawMap[activeDensityMode]) && tierRawMap[activeDensityMode].length > 0)
-        ? tierRawMap[activeDensityMode]
+      const tierRawCandidate = tierRawMap
+        ? (tierRawMap[activeDensityMode] || (activeDensityMode === 'impossible' ? tierRawMap.extreme : null))
+        : null;
+      const activeTierRawNotes = (Array.isArray(tierRawCandidate) && tierRawCandidate.length > 0)
+        ? tierRawCandidate
         : rawSourceNotes;
 
       let resolvedNotes = [];
@@ -12099,11 +12260,13 @@ function stopPianoCameraLoop() {
 
           const diffChipsHtml = hasDiffs ? item.difficulties.map(diff => {
             const cleanName = (diff.name || 'Media').replace(/\[\d+K\]\s*/gi, '').replace(/^\[[^\]]+\]\s*/, '').trim() || 'Media';
+            const displayChipName = (diff.densityMode === 'impossible' && !cleanName.includes('💀')) ? `💀 ${cleanName}` : cleanName;
             const starsText = diff.stars ? `${diff.stars.toFixed(1)}★` : '';
             const isPrimary = diff.id === primaryDiff.id;
+            const tierCss = diff.densityMode ? ` tier-${diff.densityMode}` : '';
             return `
-              <button onclick="playSavedLibraryChart('${item.id}', '${diff.id}', '${cleanName.replace(/'/g, "\\'")}')" class="piano-diff-chip ${isPrimary ? 'active' : ''}" title="Jugar dificultad ${cleanName}">
-                <span>${cleanName}</span>
+              <button onclick="playSavedLibraryChart('${item.id}', '${diff.id}', '${cleanName.replace(/'/g, "\\'")}')" class="piano-diff-chip${tierCss} ${isPrimary ? 'active' : ''}" title="Jugar dificultad ${cleanName}">
+                <span>${displayChipName}</span>
                 ${starsText ? `<span class="font-mono text-[9.5px] opacity-90">${starsText}</span>` : ''}
               </button>
             `;
@@ -12226,11 +12389,13 @@ function stopPianoCameraLoop() {
 
           const diffChipsHtml = hasDiffs ? item.difficulties.map(diff => {
             const cleanName = (diff.name || 'Media').replace(/\[\d+K\]\s*/gi, '').replace(/^\[[^\]]+\]\s*/, '').trim() || 'Media';
+            const displayChipName = (diff.densityMode === 'impossible' && !cleanName.includes('💀')) ? `💀 ${cleanName}` : cleanName;
             const starsText = diff.stars ? `${diff.stars.toFixed(1)}★` : '';
             const isPrimary = primaryDiff && diff.id === primaryDiff.id;
+            const tierCss = diff.densityMode ? ` tier-${diff.densityMode}` : '';
             return `
-              <button onclick="downloadAndPlaySong('${item.id}', '${diff.id}', '${cleanName.replace(/'/g, "\\'")}')" class="piano-diff-chip ${isPrimary ? 'active' : ''}" title="Jugar dificultad ${cleanName}">
-                <span>${cleanName}</span>
+              <button onclick="downloadAndPlaySong('${item.id}', '${diff.id}', '${cleanName.replace(/'/g, "\\'")}')" class="piano-diff-chip${tierCss} ${isPrimary ? 'active' : ''}" title="Jugar dificultad ${cleanName}">
+                <span>${displayChipName}</span>
                 ${starsText ? `<span class="font-mono text-[9.5px] opacity-90">${starsText}</span>` : ''}
               </button>
             `;
@@ -13107,15 +13272,18 @@ function stopPianoCameraLoop() {
           );
         }
         const reqDensity = (typeof LaneRemapper !== 'undefined' && LaneRemapper.inferDensityModeFromDiff)
-          ? LaneRemapper.inferDensityModeFromDiff(diffName || diffId || item.metadata?.difficulty_name || item.difficulty_name)
+          ? LaneRemapper.inferDensityModeFromDiff(diffId || diffName || item.metadata?.difficulty_name || item.difficulty_name)
           : 'hard';
         const standardName = (typeof LaneRemapper !== 'undefined' && LaneRemapper.getStandardTierName)
           ? LaneRemapper.getStandardTierName(reqDensity)
           : (diffName || item.metadata?.difficulty_name || 'Media');
         const tierMap = item.tierRawNotes || (item.chartData && item.chartData.tierRawNotes) || null;
-        if (tierMap && Array.isArray(tierMap[reqDensity]) && tierMap[reqDensity].length > 0) {
-          item.rawNotes = tierMap[reqDensity];
-          if (item.chartData) item.chartData.rawNotes = tierMap[reqDensity];
+        const tierCandidate = tierMap
+          ? (tierMap[reqDensity] || (reqDensity === 'impossible' ? tierMap.extreme : null))
+          : null;
+        if (Array.isArray(tierCandidate) && tierCandidate.length > 0) {
+          item.rawNotes = tierCandidate;
+          if (item.chartData) item.chartData.rawNotes = tierCandidate;
         } else if (!item.rawNotes && item.chartData && Array.isArray(item.chartData.rawNotes)) {
           item.rawNotes = item.chartData.rawNotes;
         }
