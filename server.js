@@ -236,6 +236,20 @@ function buildConsolidatedLeaderboardJson() {
     }
   }
 
+  // 5. Historial de semanas anteriores del Torneo Semanal (últimas 6 semanas para entrega exacta de premios)
+  const weeklyHistoryObj = {};
+  const recentWeekIds = Array.from(playerWeeklyAccumulator.keys()).sort().slice(-6);
+  for (const wId of recentWeekIds) {
+    if (wId === currentWeek) continue;
+    const wMap = playerWeeklyAccumulator.get(wId);
+    if (wMap && wMap.size > 0) {
+      weeklyHistoryObj[wId] = Array.from(wMap.values())
+        .sort((a, b) => (b.score || 0) - (a.score || 0))
+        .slice(0, 100)
+        .map(p => ({ name: p.name || p.player_name || 'Jugador', score: p.score || 0 }));
+    }
+  }
+
   return {
     songs: songsObj,
     global: globalList,
@@ -244,6 +258,7 @@ function buildConsolidatedLeaderboardJson() {
       clean_v2: true,
       players: weeklyList
     },
+    weekly_history: weeklyHistoryObj,
     daily_poker: dailyPokerObj,
     referrals: referralsObj
   };
@@ -450,6 +465,24 @@ function applyLeaderboardJson(data) {
         playerGlobalAccumulator.set(key, { name: p.name, total_score: p.total_score || 0, clefs: p.clefs || 0 });
       }
     });
+  }
+
+  // Restaurar historial de semanas anteriores (permite verificar el puesto real al reclamar premios de la semana terminada)
+  if (data.weekly_history && typeof data.weekly_history === 'object') {
+    for (const [rawWId, list] of Object.entries(data.weekly_history)) {
+      if (!Array.isArray(list)) continue;
+      const normWId = String(rawWId).replace('_', '-');
+      const wMap = new Map();
+      list.forEach(p => {
+        const key = (p.name || p.player_name || '').trim().toLowerCase();
+        if (key && key !== 'test' && key !== 'tester' && key !== 'prueba' && key !== 'dummy') {
+          wMap.set(key, { name: p.name || p.player_name, score: p.score || 0 });
+        }
+      });
+      if (wMap.size > 0) {
+        playerWeeklyAccumulator.set(normWId, wMap);
+      }
+    }
   }
 
   // Restaurar acumulador Semanal (descartar puntos de 2026-W44 previos al parche clean_v2 que arrastraban bestScore antiguo y doble guardado)
@@ -773,10 +806,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 27,
-    version_name: '3.1.2',
-    release_notes: 'Piano Community v3.1.2: Corrección del reinicio semanal a 0 puntos exactos, eliminación de arrastre de récords antiguos al torneo semanal y mejoras visuales Trascendentales.',
-    download_url: '/download/apk?v=27.0',
+    version_code: 28,
+    version_name: '3.2.0',
+    release_notes: 'Piano Community v3.2.0: Nuevo Modo PULSO OSU! (Híbrido Osu! Clásico + Mania con Círculos de Aproximación, Sliders Curvos con Rebote y Ráfagas Deslizables) y corrección de entrega de premios semanales según puesto real.',
+    download_url: '/download/apk?v=28.0',
   });
 });
 

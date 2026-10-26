@@ -2760,6 +2760,11 @@
           <button id="btnModeSelectEcho" onclick="confirmGameModeSelection('echo')" class="w-full p-1 rounded-xl bg-[#020b08] border-2 border-[#0f5c43] hover:border-[#10b981] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
             <canvas id="gmBtnEchoMainCanvas" class="w-full h-[38px] block"></canvas>
           </button>
+
+          <!-- Botón 11: MODO PULSO OSU! + MANIA (Círculos con anillo de aproximación, Sliders con rebote, Ráfagas deslizables y 3 Nodos Mania + Candado LED 1000 Claves) -->
+          <button id="btnModeSelectOsuHybrid" onclick="confirmGameModeSelection('osu_hybrid')" class="w-full p-1 rounded-xl bg-[#0b0414] border-2 border-[#7e22ce] hover:border-[#e879f9] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
+            <canvas id="gmBtnOsuHybridMainCanvas" class="w-full h-[38px] block"></canvas>
+          </button>
         </div>
 
         <!-- Pie de pantalla LED: Cancelar + ¿Quieres más claves? -->
@@ -4458,10 +4463,10 @@
 
   </div> <!-- End of game-viewport -->
 
-  <script src="./parsers.js?v=27.0"></script>
-  <script src="./game.js?v=27.0"></script>
-  <script src="./slot_machine.js?v=27.0"></script>
-  <script src="./gachapon_3d.js?v=27.0"></script>
+  <script src="./parsers.js?v=28.0"></script>
+  <script src="./game.js?v=28.0"></script>
+  <script src="./slot_machine.js?v=28.0"></script>
+  <script src="./gachapon_3d.js?v=28.0"></script>
   <script src="./songs/comm_camilo_sesto/chart.js"></script>
   <script src="./songs/renacer/chart.js"></script>
   <script src="./songs/catalog_top.js"></script>
@@ -6723,7 +6728,7 @@
       const host = (window.location && window.location.hostname) ? window.location.hostname : '';
       const isStaticOnly = host.includes('itch.io') || host.includes('hwcdn.net') || host.includes('github.io') || host.includes('netlify.app');
       const base = isStaticOnly ? DEFAULT_CLOUD_SERVER : '';
-      const targetUrl = `${base}/download/apk?v=27.0&t=${ts}`;
+      const targetUrl = `${base}/download/apk?v=28.0&t=${ts}`;
 
       if (window.AndroidNative && typeof window.AndroidNative.openBrowser === 'function') {
         window.AndroidNative.openBrowser(targetUrl);
@@ -8382,7 +8387,7 @@ window.switchMainTab = switchMainTab;
 
     function applySelectedGameMode(mode) {
       const normalized = mode === 'mushrooms' ? 'mushroom' : (mode === 'classic' ? 'normal' : mode);
-      const m = (normalized === 'karaoke' || normalized === 'storm' || normalized === 'mushroom' || normalized === 'highway' || normalized === 'annoying_dog' || normalized === 'river' || normalized === 'four_lanes' || normalized === 'minesweeper' || normalized === 'mirror' || normalized === 'echo') ? normalized : 'normal';
+      const m = (normalized === 'karaoke' || normalized === 'storm' || normalized === 'mushroom' || normalized === 'highway' || normalized === 'annoying_dog' || normalized === 'river' || normalized === 'four_lanes' || normalized === 'minesweeper' || normalized === 'mirror' || normalized === 'echo' || normalized === 'osu_hybrid') ? normalized : 'normal';
       window.currentGameMode = m;
       window.isKaraokeModeActive = (m === 'karaoke');
       window.isStormModeActive = (m === 'storm');
@@ -8394,6 +8399,7 @@ window.switchMainTab = switchMainTab;
       window.isMinesweeperModeActive = (m === 'minesweeper');
       window.isMirrorModeActive = (m === 'mirror');
       window.isEchoModeActive = (m === 'echo');
+      window.isOsuHybridModeActive = (m === 'osu_hybrid');
       if (window.engine) {
         window.engine.isKaraokeModeActive = window.isKaraokeModeActive;
         window.engine.isStormModeActive = window.isStormModeActive;
@@ -8405,6 +8411,7 @@ window.switchMainTab = switchMainTab;
         window.engine.isMinesweeperModeActive = window.isMinesweeperModeActive;
         window.engine.isMirrorModeActive = window.isMirrorModeActive;
         window.engine.isEchoModeActive = window.isEchoModeActive;
+        window.engine.isOsuHybridModeActive = window.isOsuHybridModeActive;
         window.engine.numLanes = window.isFourLanesModeActive ? 4 : 3;
         if (typeof window.engine.initCanvasSize === 'function') {
           window.engine.initCanvasSize();
@@ -8430,6 +8437,9 @@ window.switchMainTab = switchMainTab;
         if (window.isEchoModeActive && typeof window.engine.initEchoModeAssets === 'function') {
           window.engine.initEchoModeAssets();
         }
+        if (window.isOsuHybridModeActive && typeof window.engine.initOsuHybridModeAssets === 'function') {
+          window.engine.initOsuHybridModeAssets();
+        }
       }
       try { localStorage.setItem('isKaraokeModeActive', '0'); } catch (_) {}
     }
@@ -8453,7 +8463,7 @@ window.switchMainTab = switchMainTab;
     window.isMinesweeperModeActive = false;
     window.isMirrorModeActive = false;
     window.isEchoModeActive = false;
-    window.isMirrorModeActive = false;
+    window.isOsuHybridModeActive = false;
     try { localStorage.setItem('isKaraokeModeActive', '0'); } catch (_) {}
 
     document.addEventListener('visibilitychange', () => {
@@ -14268,6 +14278,7 @@ function stopPianoCameraLoop() {
       { rank: 5, hand: 'ESCALERA',      badge: '#5', sharePct: 4,  potShare: 0.04 }
     ];
     const VP_MODES = [
+      { id: 'osu_hybrid',   label: 'OSU! MANIA', desc: 'Círculos, sliders y carriles', icon: '(1)', bg: 'bg-purple-100 border-purple-500 text-purple-950' },
       { id: 'mirror',       label: 'OJEPSƎ',   desc: 'Carriles 1 y 3 cruzados', icon: '🪞', bg: 'bg-cyan-100 border-cyan-500 text-cyan-950' },
       { id: 'echo',         label: 'ECO',      desc: 'Doble golpe con rebote',  icon: '((•))', bg: 'bg-emerald-100 border-emerald-500 text-emerald-950' },
       { id: 'river',        label: 'RÍO',      desc: 'Corriente en movimiento', icon: '🌊', bg: 'bg-sky-100 border-sky-500 text-sky-950' },
@@ -19363,6 +19374,153 @@ function stopPianoCameraLoop() {
       }
     }
 
+    function _renderOsuHybridLedButton(canvas, now, isLocked) {
+      if (!canvas) return;
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const widthCss = 318;
+      const heightCss = 40;
+      if (canvas.width !== Math.round(widthCss * dpr) || canvas.height !== Math.round(heightCss * dpr)) {
+        canvas.width = Math.round(widthCss * dpr);
+        canvas.height = Math.round(heightCss * dpr);
+      }
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      ctx.fillStyle = '#07020d';
+      ctx.fillRect(0, 0, widthCss, heightCss);
+
+      const pitch = 2.65;
+      const cols = Math.floor((widthCss - 4) / pitch);
+      const rows = Math.floor((heightCss - 2) / pitch);
+      const offsetX = (widthCss - cols * pitch) * 0.5 + pitch * 0.5;
+      const offsetY = (heightCss - rows * pitch) * 0.5 + pitch * 0.5;
+      const dotR = pitch * 0.38;
+
+      ctx.fillStyle = '#1c0b2b';
+      ctx.beginPath();
+      for (let r = 0; r < rows; r++) {
+        const py = offsetY + r * pitch;
+        for (let c = 0; c < cols; c++) {
+          const px = offsetX + c * pitch;
+          ctx.moveTo(px + dotR * 0.74, py);
+          ctx.arc(px, py, dotR * 0.74, 0, Math.PI * 2);
+        }
+      }
+      ctx.fill();
+
+      const t = now * 0.001;
+      const litMap = new Map();
+      const setLed = (c, r, color) => {
+        const ic = Math.round(c);
+        const ir = Math.round(r);
+        if (ic >= 0 && ic < cols && ir >= 0 && ir < rows) {
+          litMap.set(ir * cols + ic, color);
+        }
+      };
+
+      // Mini-escena izquierda: Círculo Osu! #1 con anillo de aproximación + Slider diagonal con bola
+      const cx = 10;
+      const cy = 6;
+      const appPhase = 1.0 - ((t * 1.4) % 1.0);
+      const appR = 3.2 + appPhase * 2.8;
+      for (let a = 0; a < 16; a++) {
+        const ang = (a * Math.PI * 2) / 16;
+        setLed(cx + Math.cos(ang) * 3.2, cy + Math.sin(ang) * 3.2, '#e879f9');
+        setLed(cx + Math.cos(ang) * appR, cy + Math.sin(ang) * appR, appPhase < 0.25 ? '#ffffff' : '#38bdf8');
+      }
+      // Número "1" dentro del círculo
+      setLed(cx, cy - 1, '#ffffff');
+      setLed(cx, cy, '#ffffff');
+      setLed(cx, cy + 1, '#ffffff');
+
+      // Tubo de Slider diagonal (col 18..28) + Bola deslizándose
+      const uBall = Math.abs(((t * 1.2) % 2.0) - 1.0);
+      for (let s = 0; s <= 10; s++) {
+        const u = s / 10;
+        const sc = 18 + u * 10;
+        const sr = 9 - u * 5;
+        setLed(sc, sr - 1, '#a855f7');
+        setLed(sc, sr + 1, '#a855f7');
+      }
+      const ballC = 18 + uBall * 10;
+      const ballR = 9 - uBall * 5;
+      setLed(ballC, ballR, '#ffffff');
+      setLed(ballC + 1, ballR, '#38bdf8');
+
+      // Línea Mania inferior con 3 nodos brillantes
+      const maniaRow = rows - 2;
+      for (let c = 3; c <= 29; c++) {
+        setLed(c, maniaRow, (c === 7 || c === 16 || c === 25) ? '#fbbf24' : '#581c87');
+      }
+
+      // Texto principal "OSU! MANIA"
+      const label = isLocked ? 'OSU!+M' : 'OSU! MANIA';
+      const startCol = 34;
+      const textRow = 4;
+      for (let i = 0; i < label.length; i++) {
+        const ch = label[i];
+        const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7[' '];
+        const charCol = startCol + i * 6;
+        for (let gr = 0; gr < 7; gr++) {
+          const rowBits = glyph[gr];
+          if (!rowBits) continue;
+          for (let gc = 0; gc < 5; gc++) {
+            if ((rowBits >> (4 - gc)) & 1) {
+              const lc = charCol + gc;
+              const lr = textRow + gr;
+              setLed(lc, lr, i < 4 ? (gr < 2 ? '#ffffff' : '#e879f9') : (gr < 2 ? '#e0f2fe' : '#38bdf8'));
+            }
+          }
+        }
+      }
+
+      const byColor = new Map();
+      for (const [idx, col] of litMap.entries()) {
+        if (!byColor.has(col)) byColor.set(col, []);
+        byColor.get(col).push(idx);
+      }
+      for (const [col, indices] of byColor.entries()) {
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        for (let i = 0; i < indices.length; i++) {
+          const idx = indices[i];
+          const r = Math.floor(idx / cols);
+          const c = idx % cols;
+          const lx = offsetX + c * pitch;
+          const ly = offsetY + r * pitch;
+          ctx.moveTo(lx + dotR * 1.08, ly);
+          ctx.arc(lx, ly, dotR * 1.08, 0, Math.PI * 2);
+        }
+        ctx.fill();
+      }
+
+      if (isLocked) {
+        const lockStr = '@1000';
+        const lockStartCol = cols - (lockStr.length * 6) - 1;
+        const lockRow = Math.floor((rows - 7) * 0.5);
+        for (let i = 0; i < lockStr.length; i++) {
+          const ch = lockStr[i];
+          const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7[' '];
+          const isLockIcon = (ch === '@');
+          ctx.fillStyle = isLockIcon ? '#ff4500' : '#ffb300';
+          ctx.beginPath();
+          for (let gr = 0; gr < 7; gr++) {
+            const rowBits = glyph[gr];
+            if (!rowBits) continue;
+            for (let gc = 0; gc < 5; gc++) {
+              if ((rowBits >> (4 - gc)) & 1) {
+                const lx = offsetX + (lockStartCol + i * 6 + gc) * pitch;
+                const ly = offsetY + (lockRow + gr) * pitch;
+                ctx.moveTo(lx + dotR * 1.12, ly);
+                ctx.arc(lx, ly, dotR * 1.12, 0, Math.PI * 2);
+              }
+            }
+          }
+          ctx.fill();
+        }
+      }
+    }
+
     function _renderGameModeStaticLeds(songTitle = 'PISTA', songArtist = '') {
       _currentModalSongTitle = songTitle;
       _currentModalSongArtist = songArtist;
@@ -19426,6 +19584,7 @@ function stopPianoCameraLoop() {
         const minesweeperLocked = !isGameModeUnlocked('minesweeper');
         const mirrorLocked = !isGameModeUnlocked('mirror');
         const echoLocked = !isGameModeUnlocked('echo');
+        const osuHybridLocked = !isGameModeUnlocked('osu_hybrid');
 
         // A. ANIMACIÓN LED MODO KARAOKE: KA -> RA -> O -> KE iluminándose en dorado + Candado LED (@ 1000) si está bloqueado
         const kStep = Math.floor(((now - startTime) % 1900) / 380);
@@ -19572,6 +19731,13 @@ function stopPianoCameraLoop() {
           echoLocked
         );
 
+        // K. ANIMACIÓN LED MODO PULSO OSU! + MANIA: Círculo #1 con anillo de aproximación, Slider diagonal y línea Mania
+        _renderOsuHybridLedButton(
+          document.getElementById('gmBtnOsuHybridMainCanvas'),
+          now,
+          osuHybridLocked
+        );
+
         _gameModeLedAnimId = requestAnimationFrame(tick);
       };
 
@@ -19707,7 +19873,7 @@ function stopPianoCameraLoop() {
     }
 
     function confirmGameModeSelection(mode) {
-      const chosen = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog' || mode === 'river' || mode === 'four_lanes' || mode === 'minesweeper' || mode === 'mirror' || mode === 'echo') ? mode : 'normal';
+      const chosen = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog' || mode === 'river' || mode === 'four_lanes' || mode === 'minesweeper' || mode === 'mirror' || mode === 'echo' || mode === 'osu_hybrid') ? mode : 'normal';
 
       // Si el modo no es normal y aún tiene candado LED (1000 Claves para desbloquear):
       if (chosen !== 'normal' && !isGameModeUnlocked(chosen)) {
@@ -19731,7 +19897,9 @@ function stopPianoCameraLoop() {
                                         ? 'BUSCAMINAS'
                                         : (chosen === 'mirror'
                                             ? 'ESPEJO (OJEPSƎ)'
-                                            : (chosen === 'echo' ? 'ECO (DOBLE GOLPE)' : 'RÍO'))))))));
+                                            : (chosen === 'echo'
+                                                ? 'ECO (DOBLE GOLPE)'
+                                                : (chosen === 'osu_hybrid' ? 'PULSO OSU! + MANIA' : 'RÍO')))))))));
               showSuccessToast(`¡Modo ${modeLabel} desbloqueado para siempre! (-1000 𝄞)`);
             }
           }
@@ -20332,29 +20500,27 @@ function stopPianoCameraLoop() {
       const currentWeek = getCurrentUtcWeekId();
       const lastClaimedWeek = localStorage.getItem('beatstar_last_claimed_week');
       const weeklyHist = JSON.parse(localStorage.getItem('beatstar_weekly_history') || '{}');
-      const highscores = JSON.parse(localStorage.getItem('beatstar_highscores') || '{}');
 
-      let totalHistoricalScore = 0;
-      for (const k in highscores) {
-        if (highscores[k] && highscores[k].score) totalHistoricalScore += highscores[k].score;
-      }
-
+      // Si es la primera vez que se registra la semana actual, simplemente sincronizar sin regalar un falso Puesto #1 (+1000 claves)
       if (!lastClaimedWeek) {
         localStorage.setItem('beatstar_last_claimed_week', currentWeek);
-        if (totalHistoricalScore > 0 && !localStorage.getItem('beatstar_vegas_weekly_ceremony_seen_v1')) {
-          localStorage.setItem('beatstar_vegas_weekly_ceremony_seen_v1', 'true');
-          setTimeout(() => {
-            openWeeklyPrizeCeremony(1, totalHistoricalScore, 1000, currentWeek, true);
-          }, 900);
-        }
         return;
       }
 
       if (lastClaimedWeek !== currentWeek) {
-        let rank = 1;
-        let total = 10;
-        let weeklyScore = (weeklyHist[lastClaimedWeek] && weeklyHist[lastClaimedWeek].score) || totalHistoricalScore;
-        const nickname = (localStorage.getItem('beatstar_player_nickname') || 'TU').trim();
+        const nickname = (localStorage.getItem('beatstar_player_nickname') || '').trim();
+        if (!nickname || nickname.toLowerCase() === 'tu' || nickname.toLowerCase() === 'jugador') {
+          localStorage.setItem('beatstar_last_claimed_week', currentWeek);
+          return;
+        }
+
+        const localEntry = weeklyHist[lastClaimedWeek];
+        const localVerifiedScore = (localEntry && localEntry.score > 0) ? Number(localEntry.score) : 0;
+
+        let verifiedRank = -1;
+        let verifiedScore = 0;
+        let totalPlayers = 10;
+        let serverResponded = false;
 
         try {
           const baseUrl = getApiBaseUrl();
@@ -20362,13 +20528,27 @@ function stopPianoCameraLoop() {
             const res = await fetch(`${baseUrl}/api/v1/community/leaderboards/weekly?week_id=${encodeURIComponent(lastClaimedWeek)}`);
             if (res.ok) {
               const data = await res.json();
-              const weeklyList = data.weekly_leaderboard || [];
+              const weeklyList = Array.isArray(data.weekly_leaderboard) ? data.weekly_leaderboard : [];
+              serverResponded = true;
               if (weeklyList.length > 0) {
-                total = Math.max(10, weeklyList.length);
-                const myEntry = weeklyList.find(e => (e.player_name || e.name || '').trim().toLowerCase() === nickname.toLowerCase());
-                if (myEntry) {
-                  rank = myEntry.rank || (weeklyList.indexOf(myEntry) + 1);
-                  weeklyScore = Math.max(weeklyScore, myEntry.score || 0);
+                totalPlayers = Math.max(10, weeklyList.length);
+                const nickLower = nickname.toLowerCase();
+                const foundIdx = weeklyList.findIndex(e => (e.player_name || e.name || '').trim().toLowerCase() === nickLower);
+                if (foundIdx >= 0) {
+                  const myEntry = weeklyList[foundIdx];
+                  verifiedRank = myEntry.rank || (foundIdx + 1);
+                  verifiedScore = Number(myEntry.score || myEntry.total_score || 0);
+                } else if (localVerifiedScore > 0) {
+                  // Si jugó en la semana cerrada pero no estaba en el top cacheado, calcular su puesto real frente a la tabla del servidor
+                  let higherCount = 0;
+                  for (let i = 0; i < weeklyList.length; i++) {
+                    if ((Number(weeklyList[i].score || weeklyList[i].total_score || 0)) > localVerifiedScore) {
+                      higherCount++;
+                    }
+                  }
+                  verifiedRank = higherCount + 1;
+                  verifiedScore = localVerifiedScore;
+                  totalPlayers = Math.max(10, weeklyList.length + 1);
                 }
               }
             }
@@ -20377,20 +20557,20 @@ function stopPianoCameraLoop() {
           console.warn('Error verificando recompensas semanales:', e);
         }
 
-        localStorage.setItem('beatstar_last_claimed_week', currentWeek);
-        localStorage.setItem('beatstar_vegas_weekly_ceremony_seen_v1', 'true');
-
-        if (weeklyScore > 0) {
-          const rewardClefs = computeWeeklyRewardForRank(rank, total);
-          setTimeout(() => {
-            openWeeklyPrizeCeremony(rank, weeklyScore, rewardClefs, lastClaimedWeek, true);
-          }, 800);
+        // Solo marcar como reclamada cuando el servidor respondió o si sabemos que no participó esa semana
+        if (serverResponded || localVerifiedScore <= 0) {
+          localStorage.setItem('beatstar_last_claimed_week', currentWeek);
         }
-      } else if (totalHistoricalScore > 0 && !localStorage.getItem('beatstar_vegas_weekly_ceremony_seen_v1')) {
-        localStorage.setItem('beatstar_vegas_weekly_ceremony_seen_v1', 'true');
-        setTimeout(() => {
-          openWeeklyPrizeCeremony(1, totalHistoricalScore, 1000, currentWeek, true);
-        }, 900);
+
+        // Entregar únicamente el premio correspondiente a su puesto real verificado (jamás asumir rank = 1 por defecto)
+        if (verifiedRank >= 1 && verifiedScore > 0) {
+          const rewardClefs = computeWeeklyRewardForRank(verifiedRank, totalPlayers);
+          if (rewardClefs > 0) {
+            setTimeout(() => {
+              openWeeklyPrizeCeremony(verifiedRank, verifiedScore, rewardClefs, lastClaimedWeek, true);
+            }, 800);
+          }
+        }
       }
     }
 
