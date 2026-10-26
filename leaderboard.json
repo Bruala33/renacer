@@ -3679,6 +3679,16 @@
         "accuracy": 37.67853219072732,
         "date": "2026-10-25 19:40:20"
       }
+    ],
+    "osu_905323": [
+      {
+        "name": "Calipo08",
+        "score": 20432,
+        "stars": 4,
+        "combo": 25,
+        "accuracy": 84.9636140251394,
+        "date": "2026-10-25 23:09:22"
+      }
     ]
   },
   "global": [
@@ -3803,6 +3813,11 @@
       "clefs": 1
     },
     {
+      "name": "Calipo08",
+      "total_score": 61296,
+      "clefs": 0
+    },
+    {
       "name": "Antoniobarfe",
       "total_score": 50577,
       "clefs": 0
@@ -3879,93 +3894,8 @@
     }
   ],
   "weekly": {
-    "week_id": "2026-W43",
-    "players": [
-      {
-        "name": "Mauricio",
-        "score": 62396395
-      },
-      {
-        "name": "FAZTL",
-        "score": 12861589
-      },
-      {
-        "name": "Dady cool",
-        "score": 12366565
-      },
-      {
-        "name": "Niggerman",
-        "score": 10802004
-      },
-      {
-        "name": "Libay",
-        "score": 8693423
-      },
-      {
-        "name": "Laaleplo",
-        "score": 5795934
-      },
-      {
-        "name": "fer",
-        "score": 4321969
-      },
-      {
-        "name": "Jacques",
-        "score": 795056
-      },
-      {
-        "name": "Darwin67",
-        "score": 265556
-      },
-      {
-        "name": "bori",
-        "score": 190261
-      },
-      {
-        "name": "pelosombra40",
-        "score": 148783
-      },
-      {
-        "name": "Hola31m",
-        "score": 147986
-      },
-      {
-        "name": "Ubuntu",
-        "score": 140200
-      },
-      {
-        "name": "holo",
-        "score": 137701
-      },
-      {
-        "name": "Antoniobarfe",
-        "score": 50577
-      },
-      {
-        "name": "U",
-        "score": 30185
-      },
-      {
-        "name": "Pirata",
-        "score": 19500
-      },
-      {
-        "name": "Camaleon",
-        "score": 17550
-      },
-      {
-        "name": "Seri",
-        "score": 12450
-      },
-      {
-        "name": "3105M",
-        "score": 8400
-      },
-      {
-        "name": "PixToPix",
-        "score": 1500
-      }
-    ]
+    "week_id": "2026-W44",
+    "players": []
   },
   "daily_poker": {
     "2026-10-24": {
