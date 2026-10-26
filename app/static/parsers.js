@@ -171,13 +171,17 @@ class LaneRemapper {
     let minChordSpacing = 140;
 
     if (densityMode === 'easy') {
-      minEventGap = 220; // ~220ms mínimo entre notas
+      minEventGap = 225; // ~225ms mínimo entre notas
       maxChordSize = 1;  // CERO acordes simultáneos
       minChordSpacing = Infinity;
     } else if (densityMode === 'medium') {
-      minEventGap = 128; // ~128ms mínimo entre notas (streams divididos limpiamente a la mitad)
+      minEventGap = 132; // ~132ms mínimo entre notas (streams divididos limpiamente a la mitad)
       maxChordSize = 2;
       minChordSpacing = 260;
+    } else if (densityMode === 'extreme') {
+      minEventGap = 58;  // Conserva los streams reales rápidos de la canción sin inventar notas
+      maxChordSize = 2;
+      minChordSpacing = 65;
     } else {
       minEventGap = Math.max(76, Math.min(165, 165 - (s - 1.0) * 12.5));
       maxChordSize = 2;
@@ -207,7 +211,8 @@ class LaneRemapper {
         }
 
         const chordNotes = thinned.filter(prev => Math.abs(prev.timestamp_ms - t) <= 32);
-        if (chordNotes.length < maxChordSize && n.priority >= (densityMode === 'medium' ? 68 : 50)) {
+        const minChordPrio = densityMode === 'medium' ? 68 : (densityMode === 'extreme' ? 40 : 50);
+        if (chordNotes.length < maxChordSize && n.priority >= minChordPrio) {
           thinned.push(n);
           lastChordTimestamp = t;
         }
@@ -216,10 +221,12 @@ class LaneRemapper {
 
       const gap = t - lastEventTimestamp;
       if (gap < minEventGap) {
-        // Si es inicio de hold muy importante o downbeat muy marcado y el gap es al menos 75% del mínimo, permitir en medium/hard
+        // Si es inicio de hold muy importante o downbeat muy marcado y el gap es al menos 75% del mínimo, permitir en medium/hard/extreme
         if (densityMode === 'easy') continue;
         if (densityMode === 'medium') {
           if (gap < minEventGap * 0.82 || n.priority < 95) continue;
+        } else if (densityMode === 'extreme') {
+          if (gap < minEventGap * 0.72 || n.priority < 58) continue;
         } else {
           if (gap < minEventGap * 0.72 || n.priority < 75) continue;
         }
@@ -228,7 +235,13 @@ class LaneRemapper {
       // Límite de densidad en ventana móvil de 600ms
       const windowStart = t - 600;
       const notesInRecentWindow = thinned.filter(prev => prev.timestamp_ms >= windowStart);
-      const maxWindowEvents = densityMode === 'easy' ? 3 : (densityMode === 'medium' ? 4 : (s <= 3.0 ? 5 : (s <= 5.0 ? 6 : 7)));
+      const maxWindowEvents = densityMode === 'easy'
+        ? 3
+        : (densityMode === 'medium'
+            ? 4
+            : (densityMode === 'extreme'
+                ? 9
+                : (s <= 3.0 ? 5 : (s <= 5.0 ? 6 : 7))));
       if (notesInRecentWindow.length >= maxWindowEvents && n.priority < 105) {
         continue;
       }
@@ -302,7 +315,13 @@ class LaneRemapper {
     }
 
     // 3. Anti-Jackhammer (evita ráfagas imposibles en el mismo carril alternando al carril vecino libre)
-    const minSameLaneGap = densityMode === 'easy' ? 240 : (densityMode === 'medium' ? 170 : (stars < 5.0 ? 150 : 125));
+    const minSameLaneGap = densityMode === 'easy'
+      ? 240
+      : (densityMode === 'medium'
+          ? 170
+          : (densityMode === 'extreme'
+              ? 105
+              : (stars < 5.0 ? 150 : 125)));
     const pass2Notes = [];
     const laneLastHitTime = new Array(numLanes).fill(-Infinity);
 
@@ -494,6 +513,338 @@ class LaneRemapper {
 
     // Paso 3: Sanitización universal a 2 dedos + Holds laterales
     return this.sanitizeForTwoFingers(mapped, bpm, stars, densityMode, numLanes);
+  }
+
+  /**
+   * Infiere el tier de densidad ('easy', 'medium', 'hard', 'extreme') a partir de ID/nombre/estrellas
+   */
+  static inferDensityModeFromDiff(diffIdOrName, stars = null) {
+    const raw = String(diffIdOrName || '').toLowerCase().trim();
+    if (raw.startsWith('easy::') || raw === 'easy' || raw === 'tier_easy' || raw === 'diff_easy' || raw.includes('fácil') || raw.includes('facil') || raw.includes('beginner')) {
+      return 'easy';
+    }
+    if (raw.startsWith('medium::') || raw === 'medium' || raw === 'tier_medium' || raw === 'diff_normal' || raw === 'diff_medium' || raw.includes('media') || raw.includes('medio') || raw.includes('normal') || raw.includes('medium')) {
+      return 'medium';
+    }
+    if (raw.startsWith('extreme::') || raw === 'extreme' || raw === 'tier_extreme' || raw === 'diff_extreme' || raw.includes('extrema') || raw.includes('extremo') || raw.includes('extreme') || raw.includes('insana') || raw.includes('insane') || raw.includes('expert+')) {
+      return 'extreme';
+    }
+    if (raw.startsWith('hard::') || raw === 'hard' || raw === 'tier_hard' || raw === 'diff_hard' || raw.includes('difícil') || raw.includes('dificil') || raw.includes('hard') || raw.includes('expert')) {
+      return 'hard';
+    }
+    const s = parseFloat(stars);
+    if (Number.isFinite(s)) {
+      if (s <= 2.35) return 'easy';
+      if (s <= 3.75) return 'medium';
+      if (s >= 5.35) return 'extreme';
+    }
+    return 'hard';
+  }
+
+  static extractSourceDiffId(diffId) {
+    const raw = String(diffId || '').trim();
+    if (raw.includes('::')) {
+      return raw.split('::').slice(1).join('::');
+    }
+    return raw;
+  }
+
+  static getStandardTierName(densityMode) {
+    if (densityMode === 'easy') return 'Fácil';
+    if (densityMode === 'medium') return 'Media';
+    if (densityMode === 'extreme') return 'Extrema';
+    return 'Difícil';
+  }
+
+  /**
+   * Calcula las estrellas reales y objetivas (1.2★ a 7.5★) de un chart jugable de 2 pulgares.
+   * Garantiza que todas las canciones con el mismo número de estrellas tengan una exigencia física equivalente.
+   */
+  static calculateObjectiveStars(notes, bpm = 120, densityMode = null, fallbackStars = null) {
+    const mode = densityMode || this.inferDensityModeFromDiff('', fallbackStars);
+    if (!Array.isArray(notes) || notes.length < 8) {
+      if (mode === 'easy') return 1.6;
+      if (mode === 'medium') return 2.9;
+      if (mode === 'extreme') return 5.8;
+      return 4.2;
+    }
+
+    const valid = notes
+      .filter(n => n && !n.isMine)
+      .map(n => {
+        const t = Number.isFinite(n.timestamp_ms)
+          ? n.timestamp_ms
+          : (Number.isFinite(n.timeMs) ? n.timeMs : (Number.isFinite(n.timestamp) ? n.timestamp : (Number.isFinite(n.time) ? (n.time > 100 ? n.time : n.time * 1000) : 0)));
+        const dur = Number.isFinite(n.duration_ms) ? n.duration_ms : (Number.isFinite(n.holdDuration) ? n.holdDuration * 1000 : 0);
+        return { t: Math.round(t), isHold: n.type === 'hold' || dur >= 180 };
+      })
+      .sort((a, b) => a.t - b.t);
+
+    if (valid.length < 8) return mode === 'easy' ? 1.5 : 3.0;
+
+    // Agrupar notas simultáneas (<= 35ms) en eventos rítmicos reales
+    const events = [];
+    let curGroup = [valid[0]];
+    for (let i = 1; i < valid.length; i++) {
+      if (Math.abs(valid[i].t - curGroup[0].t) <= 35) {
+        curGroup.push(valid[i]);
+      } else {
+        events.push(curGroup);
+        curGroup = [valid[i]];
+      }
+    }
+    if (curGroup.length > 0) events.push(curGroup);
+
+    const spanSec = Math.max(18, (events[events.length - 1][0].t - events[0][0].t) / 1000);
+    const eventCount = events.length;
+    const avgEps = eventCount / spanSec;
+
+    let chordEvents = 0;
+    let holdNotes = 0;
+    let fastGaps = 0;
+    let burstGaps = 0;
+
+    for (let i = 0; i < events.length; i++) {
+      const g = events[i];
+      if (g.length >= 2) chordEvents++;
+      for (const item of g) {
+        if (item.isHold) holdNotes++;
+      }
+      if (i > 0) {
+        const gap = g[0].t - events[i - 1][0].t;
+        if (gap < 145) fastGaps++;
+        if (gap < 95) burstGaps++;
+      }
+    }
+
+    // Densidad pico sostenida en ventanas de 4 segundos (percentil 85)
+    const windowEpsList = [];
+    let leftIdx = 0;
+    for (let rightIdx = 0; rightIdx < events.length; rightIdx++) {
+      const rightT = events[rightIdx][0].t;
+      while (leftIdx < rightIdx && rightT - events[leftIdx][0].t > 4000) {
+        leftIdx++;
+      }
+      if (rightT - events[0][0].t >= 3000) {
+        windowEpsList.push((rightIdx - leftIdx + 1) / 4.0);
+      }
+    }
+    windowEpsList.sort((a, b) => a - b);
+    const p85Eps = windowEpsList.length > 0
+      ? windowEpsList[Math.min(windowEpsList.length - 1, Math.floor(windowEpsList.length * 0.85))]
+      : avgEps * 1.25;
+
+    const chordRatio = chordEvents / Math.max(1, eventCount);
+    const holdRatio = holdNotes / Math.max(1, valid.length);
+    const fastRatio = fastGaps / Math.max(1, eventCount - 1);
+    const burstRatio = burstGaps / Math.max(1, eventCount - 1);
+
+    const rawStars = 0.65 + (avgEps * 0.56) + (p85Eps * 0.34) + (chordRatio * 1.15) + (holdRatio * 0.35) + (fastRatio * 1.05) + (burstRatio * 1.25);
+
+    // Calibrar dentro de la banda física real del tier elegido para consistencia total entre catálogos
+    let finalStars = rawStars;
+    if (mode === 'easy') {
+      finalStars = Math.max(1.2, Math.min(2.3, 1.15 + (rawStars - 1.0) * 0.42));
+    } else if (mode === 'medium') {
+      finalStars = Math.max(2.4, Math.min(3.6, 2.35 + (rawStars - 1.8) * 0.48));
+    } else if (mode === 'hard') {
+      finalStars = Math.max(3.8, Math.min(5.2, 3.7 + (rawStars - 2.6) * 0.52));
+    } else if (mode === 'extreme') {
+      finalStars = Math.max(5.4, Math.min(7.5, 5.3 + (rawStars - 3.6) * 0.58));
+    }
+
+    return Math.round(finalStars * 10) / 10;
+  }
+
+  /**
+   * Normaliza las dificultades de cualquier canción del catálogo a { Fácil, Media, Difícil, Extrema }
+   * exponiendo ÚNICAMENTE las dificultades que las notas reales de la canción soportan sin inventar notas.
+   */
+  static normalizeSongDifficulties(item) {
+    if (!item || typeof item !== 'object') return [];
+    if (item._diffsNormalized && Array.isArray(item.difficulties) && item.difficulties.length > 0) {
+      return item.difficulties;
+    }
+
+    const srcLower = String(item.source || item.source_name || '').toLowerCase();
+    const idStr = String(item.id || '');
+    const isTopOrComm = Boolean(
+      item.is_top_song ||
+      item.is_community ||
+      srcLower === 'top_playlist' ||
+      srcLower === 'community' ||
+      idStr.startsWith('top_') ||
+      idStr.startsWith('comm_') ||
+      idStr.startsWith('custom_')
+    );
+
+    let effBpm = Number(item.bpm || item.metadata?.bpm) || 120;
+    while (effBpm > 195) effBpm /= 2;
+    while (effBpm < 75) effBpm *= 2;
+    const tempoFactor = Math.max(0.85, Math.min(1.22, effBpm / 120));
+
+    const standardized = [];
+
+    if (isTopOrComm) {
+      const rawNotesCount = Number(
+        item.total_notes ||
+        item.notes_count ||
+        (Array.isArray(item.notes) ? item.notes.length : 0) ||
+        item.metadata?.total_notes ||
+        340
+      );
+      // Índice objetivo de densidad natural de la canción según sus notas reales y tempo
+      const naturalDensity = (rawNotesCount / 108) * (0.76 + 0.24 * tempoFactor);
+
+      // 1. Fácil (Siempre disponible, filtra suavemente las notas reales a tempo)
+      const easyStars = Math.max(1.2, Math.min(2.2, Math.round((1.25 + Math.min(0.95, naturalDensity * 0.16)) * 10) / 10));
+      standardized.push({
+        id: 'easy',
+        sourceDiffId: 'easy',
+        densityMode: 'easy',
+        name: 'Fácil',
+        stars: easyStars,
+        keys: 3,
+        label: `Fácil (${easyStars.toFixed(1)}★)`
+      });
+
+      // 2. Media (Solo si la canción tiene suficientes notas reales para nivel intermedio: >= 200 notas)
+      if (rawNotesCount >= 200 || naturalDensity >= 2.15) {
+        const medStars = Math.max(2.5, Math.min(3.6, Math.round((2.4 + Math.min(1.2, (naturalDensity - 1.7) * 0.30)) * 10) / 10));
+        standardized.push({
+          id: 'medium',
+          sourceDiffId: 'medium',
+          densityMode: 'medium',
+          name: 'Media',
+          stars: medStars,
+          keys: 3,
+          label: `Media (${medStars.toFixed(1)}★)`
+        });
+      }
+
+      // 3. Difícil (Solo si la canción tiene ritmo real suficiente sin inventar rellenos artificiales: >= 325 notas)
+      if (rawNotesCount >= 325 || naturalDensity >= 3.25) {
+        const hardStars = Math.max(3.8, Math.min(5.1, Math.round((3.75 + Math.min(1.35, (naturalDensity - 2.9) * 0.36)) * 10) / 10));
+        standardized.push({
+          id: 'hard',
+          sourceDiffId: 'hard',
+          densityMode: 'hard',
+          name: 'Difícil',
+          stars: hardStars,
+          keys: 3,
+          label: `Difícil (${hardStars.toFixed(1)}★)`
+        });
+      }
+
+      // 4. Extrema (Solo para canciones con altísima densidad real de notas >= 585 donde hay ráfagas naturales)
+      if (rawNotesCount >= 585 && naturalDensity >= 5.25) {
+        const extStars = Math.max(5.4, Math.min(6.9, Math.round((5.35 + Math.min(1.55, (naturalDensity - 5.0) * 0.38)) * 10) / 10));
+        standardized.push({
+          id: 'extreme',
+          sourceDiffId: 'extreme',
+          densityMode: 'extreme',
+          name: 'Extrema',
+          stars: extStars,
+          keys: 3,
+          label: `Extrema (${extStars.toFixed(1)}★)`
+        });
+      }
+    } else {
+      // Canciones de mapeo (osu!, BeatSaver, Clone Hero)
+      const rawDiffs = Array.isArray(item.difficulties) && item.difficulties.length > 0
+        ? [...item.difficulties].sort((a, b) => (parseFloat(a.stars) || 3.0) - (parseFloat(b.stars) || 3.0))
+        : [{ id: 'default', name: 'Normal', stars: parseFloat(item.stars) || 4.2, keys: 4 }];
+
+      const minRawStars = Math.max(0.8, parseFloat(rawDiffs[0]?.stars) || 2.0);
+      const maxRawDiff = rawDiffs[rawDiffs.length - 1];
+      const maxRawStars = Math.max(minRawStars, parseFloat(maxRawDiff?.stars) || 4.2);
+
+      const pickClosestRawDiff = (targetStar) => {
+        let best = rawDiffs[0];
+        let bestDist = Infinity;
+        for (const d of rawDiffs) {
+          const s = parseFloat(d.stars) || 3.0;
+          const dist = Math.abs(s - targetStar);
+          if (dist < bestDist) {
+            bestDist = dist;
+            best = d;
+          }
+        }
+        return best || maxRawDiff;
+      };
+
+      // 1. Fácil (Siempre disponible)
+      const easySource = pickClosestRawDiff(1.8);
+      const easySrcId = this.extractSourceDiffId(easySource.sourceDiffId || easySource.id || 'default');
+      const easyStars = Math.max(1.2, Math.min(2.2, Math.round((1.25 + Math.min(0.95, minRawStars * 0.22 * tempoFactor)) * 10) / 10));
+      standardized.push({
+        id: `easy::${easySrcId}`,
+        sourceDiffId: easySrcId,
+        densityMode: 'easy',
+        name: 'Fácil',
+        stars: easyStars,
+        keys: easySource.keys || 4,
+        label: `Fácil (${easyStars.toFixed(1)}★)`
+      });
+
+      // 2. Media (Disponible si el mapa real supera 2.2★)
+      if (maxRawStars >= 2.2) {
+        const medSource = pickClosestRawDiff(3.2);
+        const medSrcId = this.extractSourceDiffId(medSource.sourceDiffId || medSource.id || 'default');
+        const medBase = Math.min(maxRawStars, Math.max(2.2, parseFloat(medSource.stars) || 3.0));
+        const medStars = Math.max(2.5, Math.min(3.6, Math.round((2.4 + Math.min(1.2, (medBase - 1.6) * 0.36 * tempoFactor)) * 10) / 10));
+        standardized.push({
+          id: `medium::${medSrcId}`,
+          sourceDiffId: medSrcId,
+          densityMode: 'medium',
+          name: 'Media',
+          stars: medStars,
+          keys: medSource.keys || 4,
+          label: `Media (${medStars.toFixed(1)}★)`
+        });
+      }
+
+      // 3. Difícil (Disponible si el mapa real supera 3.4★)
+      if (maxRawStars >= 3.4) {
+        const hardSource = pickClosestRawDiff(4.6);
+        const hardSrcId = this.extractSourceDiffId(hardSource.sourceDiffId || hardSource.id || 'default');
+        const hardBase = Math.min(maxRawStars, Math.max(3.4, parseFloat(hardSource.stars) || 4.4));
+        const hardStars = Math.max(3.8, Math.min(5.2, Math.round((3.75 + Math.min(1.45, (hardBase - 3.0) * 0.44 * tempoFactor)) * 10) / 10));
+        standardized.push({
+          id: `hard::${hardSrcId}`,
+          sourceDiffId: hardSrcId,
+          densityMode: 'hard',
+          name: 'Difícil',
+          stars: hardStars,
+          keys: hardSource.keys || 4,
+          label: `Difícil (${hardStars.toFixed(1)}★)`
+        });
+      }
+
+      // 4. Extrema (Disponible solo si la canción tiene un mapa denso real >= 4.5★ en origen)
+      if (maxRawStars >= 4.5) {
+        const extSrcId = this.extractSourceDiffId(maxRawDiff.sourceDiffId || maxRawDiff.id || 'default');
+        const extStars = Math.max(5.4, Math.min(7.5, Math.round((5.35 + Math.min(2.15, (maxRawStars - 4.3) * 0.48 * tempoFactor)) * 10) / 10));
+        standardized.push({
+          id: `extreme::${extSrcId}`,
+          sourceDiffId: extSrcId,
+          densityMode: 'extreme',
+          name: 'Extrema',
+          stars: extStars,
+          keys: maxRawDiff.keys || 4,
+          label: `Extrema (${extStars.toFixed(1)}★)`
+        });
+      }
+    }
+
+    item.difficulties = standardized;
+    item._diffsNormalized = true;
+    const defaultDiff = standardized.find(d => d.densityMode === 'hard') || standardized[standardized.length - 1];
+    if (defaultDiff) {
+      item.stars = defaultDiff.stars;
+      item.difficulty_name = defaultDiff.name;
+    }
+    return standardized;
   }
 }
 
@@ -1027,6 +1378,7 @@ class MidiChartParser {
           const isNoteOn = msgType === 0x90 && vel > 0;
 
           // Target guitar track notes (Expert: 96-100, Hard: 84-88, Medium: 72-76, Easy: 60-64)
+          // Siempre capturamos también Expert (96-100) como respaldo si la pista inferior está vacía
           const basePitch = (chosenDiff.includes('Hard') ? 84 : (chosenDiff.includes('Medium') ? 72 : (chosenDiff.includes('Easy') ? 60 : 96)));
           if (pitch >= basePitch && pitch <= basePitch + 4) {
             const fret = pitch - basePitch;
@@ -1037,6 +1389,16 @@ class MidiChartParser {
               const durationTicks = currentTick - startTick;
               noteEvents.push({ tick: startTick, fret, length: durationTicks });
               activeNotes.delete(fret);
+            }
+          } else if (basePitch !== 96 && pitch >= 96 && pitch <= 100) {
+            const expKey = 10 + (pitch - 96);
+            if (isNoteOn) {
+              activeNotes.set(expKey, currentTick);
+            } else if (activeNotes.has(expKey)) {
+              const startTick = activeNotes.get(expKey);
+              const durationTicks = currentTick - startTick;
+              noteEvents.push({ tick: startTick, fret: pitch - 96, length: durationTicks, _isFallbackExpert: true });
+              activeNotes.delete(expKey);
             }
           }
         } else if (msgType === 0xC0 || msgType === 0xD0) {
@@ -1050,6 +1412,9 @@ class MidiChartParser {
       }
       pos = trackEnd;
     }
+
+    const primaryEvents = noteEvents.filter(e => !e._isFallbackExpert);
+    const activeNoteEvents = primaryEvents.length >= 15 ? primaryEvents : noteEvents;
 
     tempoEvents.sort((a, b) => a.tick - b.tick);
     const tickToMs = (targetTick) => {
@@ -1072,7 +1437,7 @@ class MidiChartParser {
       return accumulatedMs;
     };
 
-    const rawNotes = noteEvents.map(ev => {
+    const rawNotes = activeNoteEvents.map(ev => {
       const startMs = tickToMs(ev.tick);
       const isHold = ev.length > resolution / 4;
       const endMs = isHold ? tickToMs(ev.tick + ev.length) : startMs;
@@ -1521,17 +1886,42 @@ class PackageUnpacker {
       const candidates = playableDiffs.length > 0 ? playableDiffs : extractedDiffs.filter(d => d.notesCount > 0);
       const finalPool = candidates.length > 0 ? candidates : extractedDiffs;
 
-      finalPool.sort((a, b) => a.stars - b.stars);
-      let chosen = finalPool.find(d => d.id === selectedDiffId || d.name === selectedDiffId);
-      if (!chosen && selectedDiffId) {
-        chosen = finalPool.find(d => d.name.toLowerCase().includes(String(selectedDiffId).toLowerCase()) || d.file.toLowerCase().includes(String(selectedDiffId).toLowerCase()));
+      finalPool.sort((a, b) => (a.notesCount || 0) - (b.notesCount || 0) || a.stars - b.stars);
+      const reqDensity = LaneRemapper.inferDensityModeFromDiff(selectedDiffId);
+      const cleanDiffId = LaneRemapper.extractSourceDiffId(selectedDiffId);
+
+      // Construir mapa ligero de rawNotes por tier (easy, medium, hard, extreme) a partir de los .osu reales del paquete
+      const pickPoolByFraction = (frac) => finalPool[Math.min(finalPool.length - 1, Math.max(0, Math.round((finalPool.length - 1) * frac)))];
+      const easyEntry = finalPool[0].notesCount >= 45 ? finalPool[0] : finalPool[finalPool.length - 1];
+      const medEntry = pickPoolByFraction(0.45);
+      const hardEntry = finalPool.length <= 2 ? finalPool[finalPool.length - 1] : pickPoolByFraction(0.75);
+      const extEntry = finalPool[finalPool.length - 1];
+
+      const tierRawNotes = {
+        easy: easyEntry.parsedData.rawNotes || easyEntry.parsedData.notes,
+        medium: medEntry.parsedData.rawNotes || medEntry.parsedData.notes,
+        hard: hardEntry.parsedData.rawNotes || hardEntry.parsedData.notes,
+        extreme: extEntry.parsedData.rawNotes || extEntry.parsedData.notes
+      };
+
+      let chosen = finalPool.find(d => d.id === cleanDiffId || d.name === cleanDiffId);
+      if (!chosen && cleanDiffId && !['easy', 'medium', 'hard', 'extreme'].includes(cleanDiffId.toLowerCase())) {
+        chosen = finalPool.find(d => d.name.toLowerCase().includes(String(cleanDiffId).toLowerCase()) || d.file.toLowerCase().includes(String(cleanDiffId).toLowerCase()));
       }
       if (!chosen) {
-        chosen = finalPool[Math.floor(finalPool.length / 2)] || finalPool[0];
+        chosen = reqDensity === 'easy' ? easyEntry : (reqDensity === 'medium' ? medEntry : (reqDensity === 'extreme' ? extEntry : hardEntry));
       }
 
       parsedBeatmap = chosen.parsedData;
+      parsedBeatmap.tierRawNotes = tierRawNotes;
       targetAudioName = parsedBeatmap.audioFilename;
+      extractedDiffs = finalPool.map(d => ({
+        id: d.id,
+        name: d.name,
+        stars: d.stars,
+        notesCount: d.notesCount,
+        label: d.label
+      }));
 
     } else if (
       fileType === 'beatsaver' ||
@@ -1606,15 +1996,31 @@ class PackageUnpacker {
       }
 
       if (parsedDiffs.length > 0) {
-        parsedDiffs.sort((a, b) => a.stars - b.stars);
-        let chosen = parsedDiffs.find(d => d.id === selectedDiffId || d.name === selectedDiffId);
-        if (!chosen && selectedDiffId) {
-          chosen = parsedDiffs.find(d => d.name.toLowerCase().includes(String(selectedDiffId).toLowerCase()) || d.id.toLowerCase().includes(String(selectedDiffId).toLowerCase()));
+        parsedDiffs.sort((a, b) => (a.notesCount || 0) - (b.notesCount || 0) || a.stars - b.stars);
+        const reqDensity = LaneRemapper.inferDensityModeFromDiff(selectedDiffId);
+        const cleanDiffId = LaneRemapper.extractSourceDiffId(selectedDiffId);
+        const pickBsByFraction = (frac) => parsedDiffs[Math.min(parsedDiffs.length - 1, Math.max(0, Math.round((parsedDiffs.length - 1) * frac)))];
+        const easyBs = parsedDiffs[0].notesCount >= 40 ? parsedDiffs[0] : parsedDiffs[parsedDiffs.length - 1];
+        const medBs = pickBsByFraction(0.45);
+        const hardBs = parsedDiffs.length <= 2 ? parsedDiffs[parsedDiffs.length - 1] : pickBsByFraction(0.75);
+        const extBs = parsedDiffs[parsedDiffs.length - 1];
+
+        const tierRawNotes = {
+          easy: easyBs.parsedData.rawNotes || easyBs.parsedData.notes,
+          medium: medBs.parsedData.rawNotes || medBs.parsedData.notes,
+          hard: hardBs.parsedData.rawNotes || hardBs.parsedData.notes,
+          extreme: extBs.parsedData.rawNotes || extBs.parsedData.notes
+        };
+
+        let chosen = parsedDiffs.find(d => d.id === cleanDiffId || d.name === cleanDiffId);
+        if (!chosen && cleanDiffId && !['easy', 'medium', 'hard', 'extreme'].includes(cleanDiffId.toLowerCase())) {
+          chosen = parsedDiffs.find(d => d.name.toLowerCase().includes(String(cleanDiffId).toLowerCase()) || d.id.toLowerCase().includes(String(cleanDiffId).toLowerCase()));
         }
         if (!chosen) {
-          chosen = parsedDiffs[Math.floor(parsedDiffs.length / 2)] || parsedDiffs[0];
+          chosen = reqDensity === 'easy' ? easyBs : (reqDensity === 'medium' ? medBs : (reqDensity === 'extreme' ? extBs : hardBs));
         }
         parsedBeatmap = chosen.parsedData;
+        parsedBeatmap.tierRawNotes = tierRawNotes;
         targetAudioName = parsedBeatmap.audioFilename;
         // Liberar referencias pesadas a JSZip (file) y arrays de notas de otras dificultades (parsedData)
         extractedDiffs = parsedDiffs.map(d => ({
@@ -1721,6 +2127,7 @@ class PackageUnpacker {
         num_lanes: 3
       },
       rawNotes: parsedBeatmap.rawNotes || parsedBeatmap.notes,
+      tierRawNotes: parsedBeatmap.tierRawNotes || null,
       notes: parsedBeatmap.notes,
       audioBlob: audioBlob,
       audioUrl: null,
@@ -1779,7 +2186,8 @@ class IndexedDBStorage {
         source_name: beatmapData.source_name || chartItem.source_name,
         metadata: beatmapData.metadata,
         notes: beatmapData.notes,
-        rawNotes: beatmapData.rawNotes || null
+        rawNotes: beatmapData.rawNotes || null,
+        tierRawNotes: beatmapData.tierRawNotes || null
       } : null;
 
       const record = {

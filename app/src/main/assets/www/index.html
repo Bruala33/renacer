@@ -708,20 +708,6 @@
         });
       }
 
-      // Actualizar opciones de densidad en Ajustes
-      const densOpts = [
-        { val: 'easy', key: 'diff_easy' },
-        { val: 'medium', key: 'diff_medium' },
-        { val: 'hard', key: 'diff_hard' }
-      ];
-      const densSelect = document.getElementById('settingsMapDensitySelect');
-      if (densSelect) {
-        Array.from(densSelect.options).forEach(opt => {
-          const found = densOpts.find(d => d.val === opt.value);
-          if (found) opt.text = t(found.key);
-        });
-      }
-
       updateLanguageButtonsUI(selectedLang);
 
       if (typeof setTargetDifficulty === 'function' && typeof currentTargetDifficulty !== 'undefined') {
@@ -1799,33 +1785,19 @@
             </div>
           </div>
 
-          <!-- 1. Velocidad de Caída de Notas & 2. Densidad -->
-          <div class="grid grid-cols-2 gap-2">
-            <div class="vegas-setting-plate p-2.5 space-y-1.5">
-              <div class="flex items-center justify-between text-[11px]">
-                <span data-i18n="settings_note_speed" class="font-bold text-[#fff6d6]">Caída Notas:</span>
-                <span id="settingsNoteSpeedVal" class="vegas-console-pill">1.0x</span>
-              </div>
-              <select id="settingsNoteSpeedSelect" onchange="updateNoteSpeed(this.value)" class="w-full bg-[#090503] border border-[#c5a059]/40 rounded-lg text-[11px] text-[#f3d791] font-bold p-1.5 cursor-pointer outline-none">
-                <option value="0.8">0.8x (Relajado)</option>
-                <option value="1.0" selected>1.0x (Estándar)</option>
-                <option value="1.2">1.2x (Rápido)</option>
-                <option value="1.4">1.4x (Concierto)</option>
-                <option value="1.8">1.8x (Virtuoso)</option>
-              </select>
+          <!-- 1. Velocidad de Caída de Notas -->
+          <div class="vegas-setting-plate p-3 space-y-1.5">
+            <div class="flex items-center justify-between text-xs">
+              <span data-i18n="settings_note_speed" class="font-bold text-[#fff6d6]">Caída Notas:</span>
+              <span id="settingsNoteSpeedVal" class="vegas-console-pill">1.0x</span>
             </div>
-
-            <div class="vegas-setting-plate p-2.5 space-y-1.5">
-              <div class="flex items-center justify-between text-[11px]">
-                <span data-i18n="settings_density" class="font-bold text-[#fff6d6]">Dificultad:</span>
-                <span id="settingsMapDensityVal" class="vegas-console-pill">Difícil</span>
-              </div>
-              <select id="settingsMapDensitySelect" onchange="updateMapDensity(this.value)" class="w-full bg-[#090503] border border-[#c5a059]/40 rounded-lg text-[11px] text-[#f3d791] font-bold p-1.5 cursor-pointer outline-none">
-                <option value="easy">Fácil</option>
-                <option value="medium">Medio</option>
-                <option value="hard" selected>Difícil</option>
-              </select>
-            </div>
+            <select id="settingsNoteSpeedSelect" onchange="updateNoteSpeed(this.value)" class="w-full bg-[#090503] border border-[#c5a059]/40 rounded-lg text-xs text-[#f3d791] font-bold p-1.5 cursor-pointer outline-none">
+              <option value="0.8">0.8x (Relajado)</option>
+              <option value="1.0" selected>1.0x (Estándar)</option>
+              <option value="1.2">1.2x (Rápido)</option>
+              <option value="1.4">1.4x (Concierto)</option>
+              <option value="1.8">1.8x (Virtuoso)</option>
+            </select>
           </div>
 
           <!-- Nickname del Jugador / Creador -->
@@ -2711,6 +2683,11 @@
             <canvas id="gmBtnNormalMainCanvas" class="w-full h-[34px] block"></canvas>
           </button>
 
+          <!-- Botón 2: MODO PULSO (Gratuito 0 Claves - Aros táctiles, deslizadores y carriles por fases) -->
+          <button id="btnModeSelectOsuHybrid" onclick="confirmGameModeSelection('osu_hybrid')" class="w-full p-1 rounded-xl bg-[#040711] border-2 border-[#0284c7] hover:border-[#38bdf8] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
+            <canvas id="gmBtnOsuHybridMainCanvas" class="w-full h-[34px] block"></canvas>
+          </button>
+
           <!-- Botón 1B: MODO 4 CARRILES (Igual que Normal pero con 4 carriles de precisión + Candado LED 1000 Claves) -->
           <button id="btnModeSelectFourLanes" onclick="confirmGameModeSelection('four_lanes')" class="w-full p-1 rounded-xl bg-[#04050b] border-2 border-[#252b63] hover:border-[#38bdf8] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
             <canvas id="gmBtnFourLanesMainCanvas" class="w-full h-[34px] block"></canvas>
@@ -2759,11 +2736,6 @@
           <!-- Botón 10: MODO ECO (Doble golpe con rebote corto en parábola a 1 o 2 pulsos + Candado LED 1000 Claves) -->
           <button id="btnModeSelectEcho" onclick="confirmGameModeSelection('echo')" class="w-full p-1 rounded-xl bg-[#020b08] border-2 border-[#0f5c43] hover:border-[#10b981] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
             <canvas id="gmBtnEchoMainCanvas" class="w-full h-[38px] block"></canvas>
-          </button>
-
-          <!-- Botón 11: MODO PULSO (Aros táctiles, deslizadores y carriles por fases + Candado LED 1000 Claves) -->
-          <button id="btnModeSelectOsuHybrid" onclick="confirmGameModeSelection('osu_hybrid')" class="w-full p-1 rounded-xl bg-[#060814] border-2 border-[#0284c7] hover:border-[#38bdf8] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
-            <canvas id="gmBtnOsuHybridMainCanvas" class="w-full h-[38px] block"></canvas>
           </button>
         </div>
 
@@ -4463,8 +4435,8 @@
 
   </div> <!-- End of game-viewport -->
 
-  <script src="./parsers.js?v=29.0"></script>
-  <script src="./game.js?v=30.0"></script>
+  <script src="./parsers.js?v=32.0"></script>
+  <script src="./game.js?v=32.0"></script>
   <script src="./slot_machine.js?v=29.0"></script>
   <script src="./gachapon_3d.js?v=29.0"></script>
   <script src="./songs/comm_camilo_sesto/chart.js"></script>
@@ -5588,18 +5560,7 @@
       equipKeyEffect(effectId);
     };
 
-    window.updateMapDensity = function(val) {
-      const mode = ['easy', 'medium', 'hard'].includes(val) ? val : 'hard';
-      localStorage.setItem('beatstar_map_density', mode);
-      const valEl = document.getElementById('settingsMapDensityVal');
-      if (valEl) {
-        valEl.innerText = mode === 'easy' ? 'Fácil' : (mode === 'medium' ? 'Medio' : 'Difícil');
-        valEl.className = `font-mono font-bold ${mode === 'easy' ? 'text-emerald-400' : (mode === 'medium' ? 'text-amber-400' : 'text-cyan-400')}`;
-      }
-      const selectEl = document.getElementById('settingsMapDensitySelect');
-      if (selectEl) selectEl.value = mode;
-      showSuccessToast(`Dificultad de mapa: ${mode === 'easy' ? 'Fácil (Principiante)' : (mode === 'medium' ? 'Medio (Intermedio)' : 'Difícil (Actual)')}`);
-    };
+    window.updateMapDensity = function() {};
 
     window.updateNoteSpeed = function(val) {
       const mult = parseFloat(val) || 1.0;
@@ -6728,7 +6689,7 @@
       const host = (window.location && window.location.hostname) ? window.location.hostname : '';
       const isStaticOnly = host.includes('itch.io') || host.includes('hwcdn.net') || host.includes('github.io') || host.includes('netlify.app');
       const base = isStaticOnly ? DEFAULT_CLOUD_SERVER : '';
-      const targetUrl = `${base}/download/apk?v=29.0&t=${ts}`;
+      const targetUrl = `${base}/download/apk?v=32.0&t=${ts}`;
 
       if (window.AndroidNative && typeof window.AndroidNative.openBrowser === 'function') {
         window.AndroidNative.openBrowser(targetUrl);
@@ -6804,9 +6765,6 @@
       const speedVal = document.getElementById('settingsNoteSpeedVal');
       if (speedSelect) speedSelect.value = savedSpeed;
       if (speedVal) speedVal.innerText = `${savedSpeed}x`;
-
-      const savedDensity = localStorage.getItem('beatstar_map_density') || 'hard';
-      updateMapDensity(savedDensity);
 
       const canvas = document.getElementById('gameCanvas');
       engine = new BeatstarEngine(canvas, {
@@ -8070,16 +8028,27 @@ window.switchMainTab = switchMainTab;
 
     function sortItemsByTargetDifficulty(items, target) {
       if (!items || items.length === 0) return [];
+      if (typeof LaneRemapper !== 'undefined' && typeof LaneRemapper.normalizeSongDifficulties === 'function') {
+        for (const it of items) {
+          if (it) LaneRemapper.normalizeSongDifficulties(it);
+        }
+      }
       if (target === 'all') return [...items];
 
       const targetNum = parseFloat(target);
+      const targetTier = targetNum <= 2.3 ? 'easy' : (targetNum <= 3.7 ? 'medium' : (targetNum >= 5.4 ? 'extreme' : 'hard'));
       return [...items].sort((a, b) => {
-        const diffsA = (a.difficulties || []).map(d => d.stars || 3.0);
-        const minDistA = diffsA.length > 0 ? Math.min(...diffsA.map(s => Math.abs(s - targetNum))) : 99;
+        const diffsA = a.difficulties || [];
+        const hasExactTierA = diffsA.some(d => d.densityMode === targetTier) ? 0 : 1;
+        const minDistA = diffsA.length > 0 ? Math.min(...diffsA.map(d => Math.abs((d.stars || 3.0) - targetNum))) : 99;
 
-        const diffsB = (b.difficulties || []).map(d => d.stars || 3.0);
-        const minDistB = diffsB.length > 0 ? Math.min(...diffsB.map(s => Math.abs(s - targetNum))) : 99;
+        const diffsB = b.difficulties || [];
+        const hasExactTierB = diffsB.some(d => d.densityMode === targetTier) ? 0 : 1;
+        const minDistB = diffsB.length > 0 ? Math.min(...diffsB.map(d => Math.abs((d.stars || 3.0) - targetNum))) : 99;
 
+        if (hasExactTierA !== hasExactTierB) {
+          return hasExactTierA - hasExactTierB;
+        }
         if (Math.abs(minDistA - minDistB) > 0.05) {
           return minDistA - minDistB;
         }
@@ -9188,6 +9157,9 @@ window.switchMainTab = switchMainTab;
     window.getSongCoverFallback = getSongCoverFallback;
 
     function buildSongCardHtml(item, idx, targetNum = null) {
+      if (typeof LaneRemapper !== 'undefined' && typeof LaneRemapper.normalizeSongDifficulties === 'function') {
+        LaneRemapper.normalizeSongDifficulties(item);
+      }
       const hs = highscores[item.id];
       const isFav = favoriteIdsSet.has(item.id);
       const sId = safeSongId(item.id);
@@ -9196,11 +9168,9 @@ window.switchMainTab = switchMainTab;
       const fallbackCover = getSongCoverFallback(item.title, item.artist);
       const initialCover = (item.thumbnail && typeof item.thumbnail === 'string' && item.thumbnail.trim() && item.thumbnail !== './app_logo.png') ? item.thumbnail : fallbackCover;
 
-      // Find primary difficulty (closest to target filter or balanced 3.5★)
+      // Seleccionar dificultad principal (la más cercana al filtro activo o Difícil/Media por defecto)
       let primaryDiff = null;
-      if (isComm) {
-        primaryDiff = { id: 'community', name: item.difficulty_name || 'Normal', stars: cStars };
-      } else if (item.difficulties && item.difficulties.length > 0) {
+      if (item.difficulties && item.difficulties.length > 0) {
         if (targetNum !== null) {
           let minDiff = Infinity;
           for (const d of item.difficulties) {
@@ -9211,32 +9181,26 @@ window.switchMainTab = switchMainTab;
             }
           }
         } else {
-          let minDiff = Infinity;
-          for (const d of item.difficulties) {
-            const dist = Math.abs((d.stars || 3.5) - 3.5);
-            if (dist < minDiff) {
-              minDiff = dist;
-              primaryDiff = d;
-            }
-          }
+          primaryDiff = item.difficulties.find(d => d.densityMode === 'hard') ||
+                        item.difficulties.find(d => d.densityMode === 'medium') ||
+                        item.difficulties[item.difficulties.length - 1];
         }
         if (!primaryDiff) primaryDiff = item.difficulties[0];
       } else {
-        primaryDiff = { id: 'default', name: 'Normal', stars: 3.5 };
+        primaryDiff = { id: 'medium', name: 'Media', stars: cStars };
       }
 
       const primaryStarsText = primaryDiff.stars ? `${primaryDiff.stars.toFixed(1)}★` : '';
-      const hasMultipleDiffs = Array.isArray(item.difficulties) && item.difficulties.length > 1;
 
       const diffChipsHtml = (item.difficulties || []).map(diff => {
-        const cleanName = (diff.name || 'Normal').replace(/\[\d+K\]\s*/gi, '').replace(/^\[[^\]]+\]\s*/, '').trim() || 'Normal';
+        const cleanName = (diff.name || 'Media').replace(/\[\d+K\]\s*/gi, '').replace(/^\[[^\]]+\]\s*/, '').trim() || 'Media';
         const starsText = diff.stars ? `${diff.stars.toFixed(1)}★` : '';
         const isPrimary = diff.id === primaryDiff.id;
         const chipClass = isPrimary ? 'piano-diff-chip active' : 'piano-diff-chip';
 
         return `
           <button 
-            onclick="${isComm ? `playCommunitySong('${item.id}')` : `downloadAndPlaySong('${item.id}', '${diff.id}', '${cleanName.replace(/'/g, "\\'")}', ${idx})`}" 
+            onclick="${isComm ? `playCommunitySong('${item.id}', false, '${cleanName.replace(/'/g, "\\'")}')` : `downloadAndPlaySong('${item.id}', '${diff.id}', '${cleanName.replace(/'/g, "\\'")}', ${idx})`}" 
             class="${chipClass}" 
             title="Jugar dificultad ${cleanName}"
           >
@@ -9273,9 +9237,9 @@ window.switchMainTab = switchMainTab;
 
             <!-- Fixed 3D Ebony Black Play Key (INDESTRUCTIBLE & ALWAYS VISIBLE) -->
             <div 
-              onclick="${isComm ? `playCommunitySong('${item.id}')` : `downloadAndPlaySong('${item.id}', '${primaryDiff.id}', '${primaryDiff.name.replace(/'/g, "\\'")}', ${idx})`}" 
+              onclick="${isComm ? `playCommunitySong('${item.id}', false, '${primaryDiff.name.replace(/'/g, "\\'")}')` : `downloadAndPlaySong('${item.id}', '${primaryDiff.id}', '${primaryDiff.name.replace(/'/g, "\\'")}', ${idx})`}" 
               class="piano-black-play-key flex-shrink-0 w-12 min-w-[48px]" 
-              title="${isComm ? t('play') : `Jugar ${primaryDiff.name} (${primaryStarsText})`}"
+              title="Jugar ${primaryDiff.name} (${primaryStarsText})"
             >
               <span class="play-arrow-gold">▶</span>
             </div>
@@ -9284,25 +9248,15 @@ window.switchMainTab = switchMainTab;
           <!-- Soundboard Accordion ("Caja de Resonancia") -->
           <div id="pianoAccordion_${sId}" class="piano-soundboard-accordion">
             <div class="p-2.5 space-y-2">
-              ${isComm ? `
-                <div class="flex items-center justify-between gap-2 flex-wrap">
-                  <div class="flex items-center gap-1.5">
-                    <span class="text-[9px] font-bold text-[#c5a059] uppercase tracking-wider">Creador:</span>
-                    <span class="text-[9.5px] text-amber-300 font-bold">${escapeHtml(item.creator_name || 'Comunidad')}</span>
-                  </div>
-                  <div class="flex items-center gap-1.5">
-                    <span class="text-[9px] font-bold text-[#c5a059] uppercase tracking-wider">Dificultad:</span>
-                    <span class="piano-diff-chip active">${item.difficulty_name || 'Normal'} ${cStars.toFixed(1)}★</span>
-                  </div>
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-[9px] font-bold text-[#c5a059] uppercase tracking-wider">Dificultades Disponibles</span>
+                  ${isComm ? `<span class="text-[9px] font-bold text-amber-300">Creador: ${escapeHtml(item.creator_name || 'Comunidad')}</span>` : ''}
                 </div>
-              ` : `
-                <div>
-                  <span class="text-[9px] font-bold text-[#c5a059] uppercase tracking-wider block mb-1">Dificultades Disponibles</span>
-                  <div class="flex items-center gap-1.5 flex-wrap">
-                    ${diffChipsHtml}
-                  </div>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  ${diffChipsHtml}
                 </div>
-              `}
+              </div>
 
               <div class="flex items-center justify-between gap-2 pt-1.5 border-t border-white/5 text-[11px]">
                 <div class="flex items-center gap-2">
@@ -10504,7 +10458,7 @@ function stopPianoCameraLoop() {
       if (isCommCandidate) {
         const rawCommId = String(chartItem?.id || chartId);
         const targetCommId = (rawCommId.startsWith('comm_') || rawCommId.startsWith('custom_')) ? rawCommId : ('comm_' + rawCommId);
-        playCommunitySong(targetCommId);
+        playCommunitySong(targetCommId, false, diffName);
         return;
       }
 
@@ -10555,10 +10509,28 @@ function stopPianoCameraLoop() {
         if (cached && cached.audioBlob && ((Array.isArray(cached.notes) && cached.notes.length > 0) || (cached.chartData && Array.isArray(cached.chartData.notes) && cached.chartData.notes.length > 0))) {
           loadStatus.innerText = 'Cargando mapa desde memoria local...';
 
+          const reqDensity = (typeof LaneRemapper !== 'undefined' && LaneRemapper.inferDensityModeFromDiff)
+            ? LaneRemapper.inferDensityModeFromDiff(diffName || diffId)
+            : 'hard';
+          const standardTierName = (typeof LaneRemapper !== 'undefined' && LaneRemapper.getStandardTierName)
+            ? LaneRemapper.getStandardTierName(reqDensity)
+            : (diffName || 'Difícil');
+
+          // Si el paquete tenía múltiples dificultades (.osz / BeatSaver), activar el rawNotes correspondiente al tier elegido
+          const tierMap = cached.tierRawNotes || (cached.chartData && cached.chartData.tierRawNotes) || null;
+          if (tierMap && Array.isArray(tierMap[reqDensity]) && tierMap[reqDensity].length > 0) {
+            cached.rawNotes = tierMap[reqDensity];
+            if (cached.chartData) cached.chartData.rawNotes = tierMap[reqDensity];
+          } else if (!cached.rawNotes && cached.chartData && Array.isArray(cached.chartData.rawNotes)) {
+            cached.rawNotes = cached.chartData.rawNotes;
+          }
+
+          cached.selectedDensityMode = reqDensity;
+
           // Extraer estrellas de la dificultad seleccionada
           let selectedStars = null;
           if (chartItem && Array.isArray(chartItem.difficulties)) {
-            const match = chartItem.difficulties.find(d => d.id === diffId || d.name === diffName);
+            const match = chartItem.difficulties.find(d => d.id === diffId || d.name === diffName || d.densityMode === reqDensity);
             if (match && Number.isFinite(match.stars)) {
               selectedStars = match.stars;
             }
@@ -10574,14 +10546,12 @@ function stopPianoCameraLoop() {
             if (!cached.metadata) cached.metadata = {};
             cached.metadata.stars = selectedStars;
           }
-          if (diffName) {
-            if (!cached.metadata) cached.metadata = {};
-            cached.metadata.difficulty_name = diffName;
-          }
+          if (!cached.metadata) cached.metadata = {};
+          cached.metadata.difficulty_name = standardTierName;
 
           setTimeout(() => {
             overlay.classList.remove('active');
-            startGame(cached, cached.audioBlob, diffName);
+            startGame(cached, cached.audioBlob, standardTierName);
           }, 200);
           return;
         }
@@ -11079,18 +11049,29 @@ function stopPianoCameraLoop() {
       const maxLaneIdx = numLanes - 1;
       const allLanes = numLanes === 4 ? [0, 1, 2, 3] : [0, 1, 2];
 
-      const isHard = String(diffLabel).toLowerCase().includes('dif') || 
-                     String(diffLabel).toLowerCase().includes('hard') || 
-                     String(diffLabel).toLowerCase().includes('exp');
+      const densityMode = options.densityMode ||
+        ((typeof LaneRemapper !== 'undefined' && LaneRemapper.inferDensityModeFromDiff)
+          ? LaneRemapper.inferDensityModeFromDiff(diffLabel)
+          : (String(diffLabel).toLowerCase().includes('fácil') || String(diffLabel).toLowerCase().includes('easy')
+              ? 'easy'
+              : (String(diffLabel).toLowerCase().includes('extrema') || String(diffLabel).toLowerCase().includes('extreme')
+                  ? 'extreme'
+                  : (String(diffLabel).toLowerCase().includes('dif') || String(diffLabel).toLowerCase().includes('hard')
+                      ? 'hard'
+                      : 'medium'))));
+
+      const isHard = (densityMode === 'hard' || densityMode === 'extreme');
+      const isExtreme = (densityMode === 'extreme');
 
       // Normalizar BPM efectivo para cálculo rítmico
       let effBpm = Number(bpm) || 120;
       while (effBpm > 240) effBpm /= 2;
       while (effBpm < 80) effBpm *= 2;
       const beatMs = (60000.0 / effBpm);
+      const halfBeatMs = beatMs / 2;
 
       // 1. Parsing robusto y ordenamiento
-      const parsed = [];
+      const parsedRaw = [];
       for (let idx = 0; idx < rawNotes.length; idx++) {
         const n = rawNotes[idx];
         let rawT = n.timestamp_ms !== undefined ? n.timestamp_ms : (n.timeMs !== undefined ? n.timeMs : (n.timestamp !== undefined ? n.timestamp : (n.time !== undefined ? n.time : 0)));
@@ -11117,7 +11098,7 @@ function stopPianoCameraLoop() {
         const dirStr = n.direction || n.swipeDirection || 'up';
         const isInst = Boolean(n.isInstrumental || n.is_instrumental);
 
-        parsed.push({
+        parsedRaw.push({
           idx,
           t,
           dur,
@@ -11135,7 +11116,51 @@ function stopPianoCameraLoop() {
         });
       }
 
-      parsed.sort((a, b) => a.t - b.t);
+      parsedRaw.sort((a, b) => a.t - b.t);
+
+      // 1b. Filtrado rítmico al pulso según la dificultad elegida (CERO invención de notas fuera de tiempo)
+      const minNoteGapMs = densityMode === 'easy' ? 230 : (densityMode === 'medium' ? 140 : (densityMode === 'extreme' ? 54 : 85));
+      const maxWinNotes = densityMode === 'easy' ? 3 : (densityMode === 'medium' ? 4 : (densityMode === 'extreme' ? 9 : 6));
+      const anchorT = parsedRaw.length > 0 ? parsedRaw[0].t : 0;
+      const parsed = [];
+      for (let i = 0; i < parsedRaw.length; i++) {
+        const cur = parsedRaw[i];
+        const prev = parsed.length > 0 ? parsed[parsed.length - 1] : null;
+        if (!prev) {
+          parsed.push(cur);
+          continue;
+        }
+        const gap = cur.t - prev.t;
+        const isPhraseStart = (i > 0 && (cur.t - parsedRaw[i - 1].t) >= 320);
+        const isHold = cur.type === 'hold' || cur.dur > 180;
+
+        if (gap < minNoteGapMs) {
+          if (densityMode === 'easy' || densityMode === 'medium') {
+            // Conservar siempre la nota que tenga hold o que caiga más exacta sobre el pulso musical
+            const relCur = Math.abs(cur.t - anchorT) % halfBeatMs;
+            const distCur = Math.min(relCur, halfBeatMs - relCur);
+            const relPrev = Math.abs(prev.t - anchorT) % halfBeatMs;
+            const distPrev = Math.min(relPrev, halfBeatMs - relPrev);
+            if ((isHold && prev.type !== 'hold') || (distCur + 15 < distPrev && prev.type !== 'hold')) {
+              parsed[parsed.length - 1] = cur;
+            }
+            continue;
+          } else if (gap < minNoteGapMs * 0.72 && !isHold && !isPhraseStart) {
+            continue;
+          }
+        }
+
+        const winStart = cur.t - 600;
+        let recentCount = 0;
+        for (let k = parsed.length - 1; k >= 0; k--) {
+          if (parsed[k].t >= winStart) recentCount++;
+          else break;
+        }
+        if (recentCount >= maxWinNotes && !isHold && !isPhraseStart) {
+          continue;
+        }
+        parsed.push(cur);
+      }
 
       // Patrones musicales auténticos para instrumentales (3 o 4 carriles)
       const instPatterns3 = [
@@ -11160,11 +11185,10 @@ function stopPianoCameraLoop() {
       ];
       const instPatterns = numLanes === 4 ? instPatterns4 : instPatterns3;
 
-      // 2. RELLENO DE PAUSAS VOCALES (EXCLUSIVAMENTE para canciones generadas automáticamente de GitHub JSON)
-      // NUNCA rellenar pausas en canciones de osu!, Clone Hero ni Comunidad para evitar notas sin sonido.
+      // 2. PUENTES INSTRUMENTALES LARGOS (EXCLUSIVO para pausas largas en Top Songs JSON, NUNCA subdivide el pulso)
       const filledNotes = [];
-      const minSilenceGap = beatMs * 2.25; // Solo brechas vocales largas reales (> 2.25 pulsos)
-      const fillStep = isHard ? (beatMs / 2) : beatMs;
+      const minSilenceGap = densityMode === 'easy' ? (beatMs * 3.5) : (beatMs * 2.5);
+      const fillStep = densityMode === 'easy' ? (beatMs * 2) : beatMs;
 
       for (let i = 0; i < parsed.length; i++) {
         const cur = parsed[i];
@@ -11176,8 +11200,8 @@ function stopPianoCameraLoop() {
           const gap = nextN.t - curEnd;
 
           if (gap > minSilenceGap) {
-            let fillT = curEnd + Math.max(fillStep, 320);
-            while (fillT < nextN.t - Math.max(fillStep * 0.85, 300)) {
+            let fillT = curEnd + Math.max(fillStep, 360);
+            while (fillT < nextN.t - Math.max(fillStep * 0.85, 340)) {
               const patternGroup = Math.floor(fillT / (beatMs * 4)) % instPatterns.length;
               const step = Math.floor(fillT / Math.max(100, beatMs / 2)) % 4;
               const assignedLane = instPatterns[patternGroup][step];
@@ -11209,6 +11233,7 @@ function stopPianoCameraLoop() {
 
       let melodyLane = 1;
       let melodyDir = 1;
+      let lastDoubleCompanionTime = -Infinity;
 
       for (let i = 0; i < filledNotes.length; i++) {
         const n = filledNotes[i];
@@ -11331,10 +11356,13 @@ function stopPianoCameraLoop() {
           processed: false
         });
 
-        // E. NOTAS DOBLES (Dificultad Difícil/Experto en Top Songs) en compases fuertes
-        if (allowVocalFiller && isHard && ty === 'tap' && !isHold) {
-          const isDownbeat = (Math.abs(t % Math.round(beatMs * 4)) < 80) || (i % 7 === 0);
-          if (isDownbeat) {
+        // E. NOTAS DOBLES EN ATAQUES REALES DE PULSO FUERTE (Difícil y Extrema, sin inventar tiempos fuera de ritmo)
+        if (allowVocalFiller && isHard && !n.isFiller && ty === 'tap' && !isHold) {
+          const minDoubleSpacing = isExtreme ? 185 : 280;
+          const isDownbeat = isExtreme
+            ? ((Math.abs(t % Math.round(beatMs * 2)) < 75) || (i % 4 === 0))
+            : ((Math.abs(t % Math.round(beatMs * 4)) < 80) || (i % 7 === 0));
+          if (isDownbeat && (t - lastDoubleCompanionTime >= minDoubleSpacing)) {
             let companionLane = -1;
             if (targetLane === 0) companionLane = maxLaneIdx;
             else if (targetLane === maxLaneIdx) companionLane = 0;
@@ -11368,6 +11396,7 @@ function stopPianoCameraLoop() {
                 isDoubleCompanion: true
               });
               laneOccupiedUntil[companionLane] = t + 90;
+              lastDoubleCompanionTime = t;
             }
           }
         }
@@ -11519,14 +11548,26 @@ function stopPianoCameraLoop() {
       const songBpm = Number(beatmapData.bpm) || 120;
       const targetNumLanes = window.isFourLanesModeActive ? 4 : 3;
       const sourceKeys = Number(beatmapData.keys || beatmapData.metadata?.source_keys || beatmapData.unpackedData?.metadata?.source_keys || (srcLower.includes('clone') ? 5 : 4));
-      const baseDensityPref = (window.engine && window.engine.difficultyDensityMode) || localStorage.getItem('beatstar_map_density') || localStorage.getItem('difficultyDensityMode') || 'hard';
+      const baseDensityPref = beatmapData.selectedDensityMode ||
+        ((typeof LaneRemapper !== 'undefined' && LaneRemapper.inferDensityModeFromDiff)
+          ? LaneRemapper.inferDensityModeFromDiff(diffLabel || beatmapData.metadata?.difficulty_name || beatmapData.difficulty_name, resolvedStars)
+          : 'hard');
       const isStormNow = Boolean(window.currentGameMode === 'storm' || window.isStormModeActive);
-      const activeDensityMode = (isStormNow && baseDensityPref === 'hard') ? 'extreme' : baseDensityPref;
+      const activeDensityMode = (isStormNow && (baseDensityPref === 'hard' || baseDensityPref === 'extreme')) ? 'extreme' : baseDensityPref;
+      const standardDiffLabel = (typeof LaneRemapper !== 'undefined' && LaneRemapper.getStandardTierName)
+        ? LaneRemapper.getStandardTierName(baseDensityPref)
+        : (diffLabel || beatmapData.metadata?.difficulty_name || 'Media');
+
+      // Seleccionar rawNotes específico del tier si el paquete multi-dificultad (.osz / BeatSaver) lo incluye
+      const tierRawMap = beatmapData.tierRawNotes || (beatmapData.unpackedData && beatmapData.unpackedData.tierRawNotes) || null;
+      const activeTierRawNotes = (tierRawMap && Array.isArray(tierRawMap[activeDensityMode]) && tierRawMap[activeDensityMode].length > 0)
+        ? tierRawMap[activeDensityMode]
+        : rawSourceNotes;
 
       let resolvedNotes = [];
       if (isOsuOrCloneHero && typeof LaneRemapper !== 'undefined') {
         // Mapeo directo de alta precisión para osu!, BeatSaver y Clone Hero (CERO relleno de pausas y timestamps exactos)
-        const baseChartNotes = rawSourceNotes || rawNotes;
+        const baseChartNotes = activeTierRawNotes || rawNotes;
         const remapped = LaneRemapper.resolveCollisions(
           baseChartNotes,
           sourceKeys,
@@ -11570,13 +11611,19 @@ function stopPianoCameraLoop() {
           };
         });
       } else {
-        resolvedNotes = humanizeAndBalanceBeatmapNotes(rawNotes, songBpm, diffLabel, {
+        resolvedNotes = humanizeAndBalanceBeatmapNotes(rawNotes, songBpm, standardDiffLabel, {
           allowVocalFiller: isTopSong,
           preserveOriginalLanes: !isTopSong,
-          numLanes: targetNumLanes
+          numLanes: targetNumLanes,
+          densityMode: activeDensityMode
         });
       }
       resolvedNotes.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
+
+      // Calcular las estrellas reales y objetivas a partir de las notas jugables finales
+      if (typeof LaneRemapper !== 'undefined' && typeof LaneRemapper.calculateObjectiveStars === 'function') {
+        resolvedStars = LaneRemapper.calculateObjectiveStars(resolvedNotes, songBpm, activeDensityMode, resolvedStars);
+      }
 
       const resolvedAudioBlob = audioBlob || beatmapData.audioBlob || (beatmapData.unpackedData && beatmapData.unpackedData.audioBlob);
 
@@ -11598,16 +11645,18 @@ function stopPianoCameraLoop() {
         songPlaybackSpeed: songSpeedVal,
         stars: resolvedStars,
         selectedStars: resolvedStars,
+        selectedDensityMode: activeDensityMode,
         keys: sourceKeys,
-        rawNotes: isOsuOrCloneHero ? (rawSourceNotes || rawNotes) : null,
-        _remappedForDensity: isOsuOrCloneHero ? activeDensityMode : null,
+        rawNotes: isOsuOrCloneHero ? (activeTierRawNotes || rawNotes) : null,
+        tierRawNotes: tierRawMap,
+        _remappedForDensity: activeDensityMode,
         _remappedForLanes: targetNumLanes,
         metadata: {
           ...(beatmapData.metadata || {}),
           id: beatmapData.id || beatmapData.metadata?.id || 'custom_' + Date.now(),
           title: beatmapData.title || beatmapData.metadata?.title || 'Canción Creada',
           artist: beatmapData.artist || beatmapData.metadata?.artist || 'Comunidad',
-          difficulty_name: diffLabel || beatmapData.metadata?.difficulty_name || 'Normal',
+          difficulty_name: standardDiffLabel,
           stars: resolvedStars,
           source_keys: sourceKeys,
           num_lanes: targetNumLanes,
@@ -11633,7 +11682,7 @@ function stopPianoCameraLoop() {
         notes: resolvedNotes,
         difficulties: [{
           id: 'diff_standard',
-          name: diffLabel || 'Normal',
+          name: standardDiffLabel,
           stars: resolvedStars,
           keys: targetNumLanes,
           notes: resolvedNotes
@@ -12024,16 +12073,35 @@ function stopPianoCameraLoop() {
         }
 
         const cardsHtml = savedCharts.map(item => {
+          if (typeof LaneRemapper !== 'undefined' && typeof LaneRemapper.normalizeSongDifficulties === 'function') {
+            LaneRemapper.normalizeSongDifficulties(item);
+          }
           const hs = highscores[item.id];
           const isFav = favoriteIdsSet.has(item.id);
           const sId = safeSongId(item.id);
 
-          const diffName = item.metadata?.difficulty_name || item.difficulty_name || 'Normal';
-          const starsVal = Number.isFinite(item.metadata?.stars) ? item.metadata.stars : (Number.isFinite(item.stars) ? item.stars : 3.5);
+          const hasDiffs = Array.isArray(item.difficulties) && item.difficulties.length > 0;
+          const primaryDiff = hasDiffs
+            ? (item.difficulties.find(d => d.densityMode === 'hard') || item.difficulties[item.difficulties.length - 1])
+            : { id: 'medium', name: item.metadata?.difficulty_name || item.difficulty_name || 'Media', stars: Number.isFinite(item.metadata?.stars) ? item.metadata.stars : (Number.isFinite(item.stars) ? item.stars : 3.2) };
+          const diffName = primaryDiff.name || 'Media';
+          const starsVal = Number.isFinite(primaryDiff.stars) ? primaryDiff.stars : 3.2;
           const safeTitle = (item.title || t('unknown_song', 'Canción')).replace(/'/g, "\\'");
           const safeArtist = (item.artist || t('unknown_artist', 'Artista')).replace(/'/g, "\\'");
           const fallbackCover = getSongCoverFallback(item.title, item.artist);
           const initialCover = (item.thumbnail && typeof item.thumbnail === 'string' && item.thumbnail.trim() && item.thumbnail !== './app_logo.png') ? item.thumbnail : fallbackCover;
+
+          const diffChipsHtml = hasDiffs ? item.difficulties.map(diff => {
+            const cleanName = (diff.name || 'Media').replace(/\[\d+K\]\s*/gi, '').replace(/^\[[^\]]+\]\s*/, '').trim() || 'Media';
+            const starsText = diff.stars ? `${diff.stars.toFixed(1)}★` : '';
+            const isPrimary = diff.id === primaryDiff.id;
+            return `
+              <button onclick="playSavedLibraryChart('${item.id}', '${diff.id}', '${cleanName.replace(/'/g, "\\'")}')" class="piano-diff-chip ${isPrimary ? 'active' : ''}" title="Jugar dificultad ${cleanName}">
+                <span>${cleanName}</span>
+                ${starsText ? `<span class="font-mono text-[9.5px] opacity-90">${starsText}</span>` : ''}
+              </button>
+            `;
+          }).join('') : '';
 
           return `
             <div class="piano-key-row flex flex-col">
@@ -12063,7 +12131,7 @@ function stopPianoCameraLoop() {
 
                 <!-- Fixed 3D Ebony Black Play Key (INDESTRUCTIBLE & ALWAYS VISIBLE) -->
                 <div 
-                  onclick="playSavedLibraryChart('${item.id}')" 
+                  onclick="playSavedLibraryChart('${item.id}', '${primaryDiff.id}', '${diffName.replace(/'/g, "\\'")}')" 
                   class="piano-black-play-key flex-shrink-0 w-12 min-w-[48px]" 
                   title="${t('play')}"
                 >
@@ -12074,6 +12142,14 @@ function stopPianoCameraLoop() {
               <!-- Soundboard Accordion ("Caja de Resonancia") -->
               <div id="pianoAccordion_${sId}" class="piano-soundboard-accordion">
                 <div class="p-2.5 space-y-2">
+                  ${hasDiffs ? `
+                    <div>
+                      <span class="text-[9px] font-bold text-[#c5a059] uppercase tracking-wider block mb-1">Dificultades Disponibles</span>
+                      <div class="flex items-center gap-1.5 flex-wrap">
+                        ${diffChipsHtml}
+                      </div>
+                    </div>
+                  ` : ''}
                   <div class="flex items-center justify-between gap-2 pt-1 text-[11px]">
                     <div class="flex items-center gap-2">
                       <span class="text-[9.5px] text-gray-400 font-bold uppercase tracking-wider">Tempo:</span>
@@ -12127,21 +12203,27 @@ function stopPianoCameraLoop() {
         }
 
         const cardsHtml = favs.map(item => {
+          if (typeof LaneRemapper !== 'undefined' && typeof LaneRemapper.normalizeSongDifficulties === 'function') {
+            LaneRemapper.normalizeSongDifficulties(item);
+          }
           const hs = highscores[item.id];
           const hasDiffs = Array.isArray(item.difficulties) && item.difficulties.length > 0;
           const sId = safeSongId(item.id);
-          const primaryDiff = hasDiffs ? item.difficulties[0] : null;
+          const primaryDiff = hasDiffs
+            ? (item.difficulties.find(d => d.densityMode === 'hard') || item.difficulties[item.difficulties.length - 1])
+            : null;
           const starsNum = primaryDiff?.stars || item.stars || 3.5;
 
-          const defaultDiffId = hasDiffs ? item.difficulties[0].id : (item.diff_id || 'default');
-          const defaultDiffName = (hasDiffs ? (item.difficulties[0].name || 'Normal') : (item.difficulty_name || item.metadata?.difficulty_name || 'Normal')).replace(/'/g, "\\'");
+          const defaultDiffId = primaryDiff ? primaryDiff.id : (item.diff_id || 'default');
+          const defaultDiffName = (primaryDiff ? (primaryDiff.name || 'Media') : (item.difficulty_name || item.metadata?.difficulty_name || 'Media')).replace(/'/g, "\\'");
           const defaultPlayAction = `downloadAndPlaySong('${item.id}', '${defaultDiffId}', '${defaultDiffName}')`;
 
           const diffChipsHtml = hasDiffs ? item.difficulties.map(diff => {
-            const cleanName = (diff.name || 'Normal').replace(/\[\d+K\]\s*/gi, '').replace(/^\[[^\]]+\]\s*/, '').trim() || 'Normal';
+            const cleanName = (diff.name || 'Media').replace(/\[\d+K\]\s*/gi, '').replace(/^\[[^\]]+\]\s*/, '').trim() || 'Media';
             const starsText = diff.stars ? `${diff.stars.toFixed(1)}★` : '';
+            const isPrimary = primaryDiff && diff.id === primaryDiff.id;
             return `
-              <button onclick="downloadAndPlaySong('${item.id}', '${diff.id}', '${cleanName.replace(/'/g, "\\'")}')" class="piano-diff-chip active" title="Jugar dificultad ${cleanName}">
+              <button onclick="downloadAndPlaySong('${item.id}', '${diff.id}', '${cleanName.replace(/'/g, "\\'")}')" class="piano-diff-chip ${isPrimary ? 'active' : ''}" title="Jugar dificultad ${cleanName}">
                 <span>${cleanName}</span>
                 ${starsText ? `<span class="font-mono text-[9.5px] opacity-90">${starsText}</span>` : ''}
               </button>
@@ -13008,19 +13090,33 @@ function stopPianoCameraLoop() {
       openPlaylistTrackMatcher(songTitle, songArtist || '');
     }
 
-    async function playSavedLibraryChart(chartId) {
+    async function playSavedLibraryChart(chartId, diffId = null, diffName = null) {
       try {
         const item = await IndexedDBStorage.getChart(chartId);
         if (!item || !item.audioBlob) {
           return downloadAndPlaySong(
             chartId,
-            item?.diff_id || (item?.difficulties && item.difficulties[0]?.id) || 'default',
-            item?.metadata?.difficulty_name || item?.difficulty_name || (item?.difficulties && item.difficulties[0]?.name) || 'Normal'
+            diffId || item?.diff_id || (item?.difficulties && item.difficulties[0]?.id) || 'default',
+            diffName || item?.metadata?.difficulty_name || item?.difficulty_name || (item?.difficulties && item.difficulties[0]?.name) || 'Media'
           );
         }
+        const reqDensity = (typeof LaneRemapper !== 'undefined' && LaneRemapper.inferDensityModeFromDiff)
+          ? LaneRemapper.inferDensityModeFromDiff(diffName || diffId || item.metadata?.difficulty_name || item.difficulty_name)
+          : 'hard';
+        const standardName = (typeof LaneRemapper !== 'undefined' && LaneRemapper.getStandardTierName)
+          ? LaneRemapper.getStandardTierName(reqDensity)
+          : (diffName || item.metadata?.difficulty_name || 'Media');
+        const tierMap = item.tierRawNotes || (item.chartData && item.chartData.tierRawNotes) || null;
+        if (tierMap && Array.isArray(tierMap[reqDensity]) && tierMap[reqDensity].length > 0) {
+          item.rawNotes = tierMap[reqDensity];
+          if (item.chartData) item.chartData.rawNotes = tierMap[reqDensity];
+        } else if (!item.rawNotes && item.chartData && Array.isArray(item.chartData.rawNotes)) {
+          item.rawNotes = item.chartData.rawNotes;
+        }
+        item.selectedDensityMode = reqDensity;
         currentActiveChartItem = item;
         currentActiveAudioBlob = item.audioBlob;
-        startGame(item, item.audioBlob, item.metadata?.difficulty_name);
+        startGame(item, item.audioBlob, standardName);
       } catch (err) {
         showErrorToast('Error cargando canción: ' + err.message);
       }
@@ -15901,15 +15997,12 @@ function stopPianoCameraLoop() {
 
     function getFormattedTopSongsCatalog() {
       const catalog = window.TOP_SONGS_CATALOG || [];
-      return catalog.map((song, idx) => {
+      return catalog.map((song) => {
         const rawNotes = Number(song.total_notes) || 350;
-        // Calibración justa de estrellas (Normal: 2.2★ - 3.4★ | Difícil: 5.0★ - 6.8★)
-        const normalStars = Math.min(3.5, Math.max(1.8, +(1.6 + (rawNotes / 280)).toFixed(1)));
-        const hardStars = Math.min(7.5, Math.max(4.5, +(3.8 + (rawNotes / 150)).toFixed(1)));
         const songId = `top_${song.id}`;
         const artwork = song.cover_url || song.thumbnail || getSongCoverFallback(song.title, song.artist);
 
-        return {
+        const formatted = {
           id: songId,
           raw_id: song.id,
           title: song.title || 'Canción',
@@ -15917,8 +16010,8 @@ function stopPianoCameraLoop() {
           bpm: Number(song.bpm) || 120,
           total_notes: rawNotes,
           notes_count: rawNotes,
-          stars: normalStars,
-          difficulty_name: 'Normal',
+          stars: 3.2,
+          difficulty_name: 'Media',
           source: 'top_playlist',
           source_name: 'Canciones Top',
           is_top_song: true,
@@ -15926,21 +16019,12 @@ function stopPianoCameraLoop() {
           audio_url: song.audio_url || `${song.id}.mp3`,
           thumbnail: artwork,
           cover_url: artwork,
-          difficulties: [
-            {
-              id: 'diff_normal',
-              name: 'Normal',
-              stars: normalStars,
-              keys: 3
-            },
-            {
-              id: 'diff_hard',
-              name: 'Difícil',
-              stars: hardStars,
-              keys: 3
-            }
-          ]
+          difficulties: []
         };
+        if (typeof LaneRemapper !== 'undefined' && typeof LaneRemapper.normalizeSongDifficulties === 'function') {
+          LaneRemapper.normalizeSongDifficulties(formatted);
+        }
+        return formatted;
       });
     }
     window.getFormattedTopSongsCatalog = getFormattedTopSongsCatalog;
@@ -16693,7 +16777,7 @@ function stopPianoCameraLoop() {
       }
     }
 
-    async function playCommunitySong(chartId, isDailyFeatured = false) {
+    async function playCommunitySong(chartId, isDailyFeatured = false, targetDiff = null) {
       window.isGameLoadingOrActive = true;
       if (typeof stopCasinoMusic === 'function') stopCasinoMusic();
       if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
@@ -16783,7 +16867,7 @@ function stopPianoCameraLoop() {
           }
 
           if (overlay) overlay.classList.remove('active');
-          startGame(bData, foundAudio, bData.difficulty_name || 'Normal');
+          startGame(bData, foundAudio, targetDiff || bData.difficulty_name || 'Media');
           return;
         }
 
@@ -16844,7 +16928,7 @@ function stopPianoCameraLoop() {
             cData.source = 'community';
             cData.communityChartId = chartId;
             if (overlay) overlay.classList.remove('active');
-            startGame(cData, aBlob, cData.metadata?.difficulty_name || 'Normal');
+            startGame(cData, aBlob, targetDiff || cData.metadata?.difficulty_name || 'Media');
             return;
           }
         } catch (fastStaticErr) {
@@ -16866,7 +16950,7 @@ function stopPianoCameraLoop() {
               cData.source = 'community';
               cData.communityChartId = chartId;
               if (overlay) overlay.classList.remove('active');
-              startGame(cData, localItem.audioBlob, cData.metadata?.difficulty_name || 'Normal');
+              startGame(cData, localItem.audioBlob, targetDiff || cData.metadata?.difficulty_name || 'Media');
               return;
             }
           } catch (e) {}
@@ -16885,7 +16969,7 @@ function stopPianoCameraLoop() {
             cData.source = 'community';
             cData.communityChartId = chartId;
             if (overlay) overlay.classList.remove('active');
-            startGame(cData, found.audioBlob, cData.metadata?.difficulty_name || 'Normal');
+            startGame(cData, found.audioBlob, targetDiff || cData.metadata?.difficulty_name || 'Media');
             return;
           }
         } catch (e) {}
@@ -18010,14 +18094,14 @@ function stopPianoCameraLoop() {
     function _getUnlockedGameModesMap() {
       try {
         const raw = JSON.parse(localStorage.getItem('beatstar_unlocked_game_modes_v1') || '{}');
-        return Object.assign({ normal: true }, raw);
+        return Object.assign({ normal: true, osu_hybrid: true }, raw);
       } catch (_) {
-        return { normal: true };
+        return { normal: true, osu_hybrid: true };
       }
     }
 
     function isGameModeUnlocked(mode) {
-      if (!mode || mode === 'normal') return true;
+      if (!mode || mode === 'normal' || mode === 'osu_hybrid') return true;
       const map = _getUnlockedGameModesMap();
       return Boolean(map[mode]);
     }
@@ -19382,7 +19466,7 @@ function stopPianoCameraLoop() {
       if (!canvas) return;
       const dpr = Math.min(2, window.devicePixelRatio || 1);
       const widthCss = 318;
-      const heightCss = 40;
+      const heightCss = 34;
       if (canvas.width !== Math.round(widthCss * dpr) || canvas.height !== Math.round(heightCss * dpr)) {
         canvas.width = Math.round(widthCss * dpr);
         canvas.height = Math.round(heightCss * dpr);
@@ -19393,14 +19477,14 @@ function stopPianoCameraLoop() {
       ctx.fillStyle = '#04060e';
       ctx.fillRect(0, 0, widthCss, heightCss);
 
-      const pitch = 2.65;
+      const pitch = 3.55;
       const cols = Math.floor((widthCss - 4) / pitch);
       const rows = Math.floor((heightCss - 2) / pitch);
       const offsetX = (widthCss - cols * pitch) * 0.5 + pitch * 0.5;
       const offsetY = (heightCss - rows * pitch) * 0.5 + pitch * 0.5;
       const dotR = pitch * 0.38;
 
-      ctx.fillStyle = '#0c1528';
+      ctx.fillStyle = '#0c162b';
       ctx.beginPath();
       for (let r = 0; r < rows; r++) {
         const py = offsetY + r * pitch;
@@ -19422,33 +19506,28 @@ function stopPianoCameraLoop() {
         }
       };
 
-      // Icono minimalista a la izquierda: Aro concéntrico de pulso cerrándose con precisión
-      const cx = 15;
-      const cy = 7;
+      // Aro concéntrico limpio a la izquierda cerrándose a velocidad constante
+      const cx = 19;
+      const cy = Math.floor(rows * 0.5);
       const pulsePhase = 1.0 - ((t * 1.15) % 1.0);
-      const outerR = 3.2 + pulsePhase * 2.6;
-      for (let a = 0; a < 20; a++) {
-        const ang = (a * Math.PI * 2) / 20;
-        setLed(cx + Math.cos(ang) * 3.1, cy + Math.sin(ang) * 3.1, '#38bdf8');
+      const outerR = 2.1 + pulsePhase * 1.9;
+      for (let a = 0; a < 16; a++) {
+        const ang = (a * Math.PI * 2) / 16;
+        setLed(cx + Math.cos(ang) * 2.1, cy + Math.sin(ang) * 2.1, '#38bdf8');
         if (a % 2 === 0) {
           setLed(cx + Math.cos(ang) * outerR, cy + Math.sin(ang) * outerR, pulsePhase < 0.25 ? '#ffffff' : '#e879f9');
         }
       }
-      // Punto central limpio
       setLed(cx, cy, '#ffffff');
-      setLed(cx - 1, cy, '#7dd3fc');
-      setLed(cx + 1, cy, '#7dd3fc');
-      setLed(cx, cy - 1, '#7dd3fc');
-      setLed(cx, cy + 1, '#7dd3fc');
 
-      // Texto limpio y espaciado "PULSO"
+      // Texto central grande y nítido "PULSO" (mismo tamaño LED que NORMAL)
       const label = 'PULSO';
-      const startCol = isLocked ? 34 : 42;
-      const textRow = 4;
+      const startCol = 31;
+      const textRow = Math.max(0, Math.floor((rows - 7) * 0.5));
       for (let i = 0; i < label.length; i++) {
         const ch = label[i];
         const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7[' '];
-        const charCol = startCol + i * 8;
+        const charCol = startCol + i * 7;
         for (let gr = 0; gr < 7; gr++) {
           const rowBits = glyph[gr];
           if (!rowBits) continue;
@@ -19456,7 +19535,6 @@ function stopPianoCameraLoop() {
             if ((rowBits >> (4 - gc)) & 1) {
               const lc = charCol + gc;
               const lr = textRow + gr;
-              setLed(lc + 1, lr, '#0369a1');
               setLed(lc, lr, gr < 2 ? '#ffffff' : (gr < 5 ? '#38bdf8' : '#e879f9'));
             }
           }
@@ -19481,32 +19559,6 @@ function stopPianoCameraLoop() {
           ctx.arc(lx, ly, dotR * 1.08, 0, Math.PI * 2);
         }
         ctx.fill();
-      }
-
-      if (isLocked) {
-        const lockStr = '@1000';
-        const lockStartCol = cols - (lockStr.length * 6) - 1;
-        const lockRow = Math.floor((rows - 7) * 0.5);
-        for (let i = 0; i < lockStr.length; i++) {
-          const ch = lockStr[i];
-          const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7[' '];
-          const isLockIcon = (ch === '@');
-          ctx.fillStyle = isLockIcon ? '#ff4500' : '#ffb300';
-          ctx.beginPath();
-          for (let gr = 0; gr < 7; gr++) {
-            const rowBits = glyph[gr];
-            if (!rowBits) continue;
-            for (let gc = 0; gc < 5; gc++) {
-              if ((rowBits >> (4 - gc)) & 1) {
-                const lx = offsetX + (lockStartCol + i * 6 + gc) * pitch;
-                const ly = offsetY + (lockRow + gr) * pitch;
-                ctx.moveTo(lx + dotR * 1.12, ly);
-                ctx.arc(lx, ly, dotR * 1.12, 0, Math.PI * 2);
-              }
-            }
-          }
-          ctx.fill();
-        }
       }
     }
 
@@ -19864,8 +19916,8 @@ function stopPianoCameraLoop() {
     function confirmGameModeSelection(mode) {
       const chosen = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog' || mode === 'river' || mode === 'four_lanes' || mode === 'minesweeper' || mode === 'mirror' || mode === 'echo' || mode === 'osu_hybrid') ? mode : 'normal';
 
-      // Si el modo no es normal y aún tiene candado LED (1000 Claves para desbloquear):
-      if (chosen !== 'normal' && !isGameModeUnlocked(chosen)) {
+      // Si el modo no es normal ni pulso y aún tiene candado LED (1000 Claves para desbloquear):
+      if (chosen !== 'normal' && chosen !== 'osu_hybrid' && !isGameModeUnlocked(chosen)) {
         if (typeof userClefs === 'number' && userClefs >= GAME_MODE_UNLOCK_COST) {
           if (typeof deductClefs === 'function' && deductClefs(GAME_MODE_UNLOCK_COST)) {
             _setGameModeUnlocked(chosen);
