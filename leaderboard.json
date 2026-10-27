@@ -2020,6 +2020,14 @@
     ],
     "top_system_of_a_down_chop_suey": [
       {
+        "name": "Libay",
+        "score": 237750,
+        "stars": 3.5,
+        "combo": 103,
+        "accuracy": 5.328965580880317,
+        "date": "2026-10-27 15:26:53"
+      },
+      {
         "name": "Llois1",
         "score": 82725,
         "stars": 3.5,
@@ -2180,14 +2188,6 @@
         "combo": 234,
         "accuracy": 41.98934379323181,
         "date": "2026-10-22 09:39:15"
-      },
-      {
-        "name": "Test",
-        "score": 25625,
-        "stars": 3.5,
-        "combo": 25,
-        "accuracy": 1.2217420014637066,
-        "date": "2026-10-27 11:57:24"
       }
     ],
     "osu_923490": [
@@ -3114,11 +3114,11 @@
     "bs_2926b": [
       {
         "name": "Libay",
-        "score": 181500,
-        "stars": 3.5,
-        "combo": 119,
-        "accuracy": 13.337742504409173,
-        "date": "2026-10-27 03:09:19"
+        "score": 348000,
+        "stars": 1,
+        "combo": 175,
+        "accuracy": 25.573192239858905,
+        "date": "2026-10-27 15:31:31"
       }
     ],
     "bs_333d8": [
@@ -3154,21 +3154,21 @@
     "bs_2dce7": [
       {
         "name": "Libay",
-        "score": 17850,
-        "stars": 3.5,
-        "combo": 26,
-        "accuracy": 1.8719521787006448,
-        "date": "2026-10-24 03:58:35"
+        "score": 669225,
+        "stars": 3,
+        "combo": 285,
+        "accuracy": 70.18247601069687,
+        "date": "2026-10-27 15:35:49"
       }
     ],
     "bs_2f671": [
       {
         "name": "Libay",
-        "score": 81150,
-        "stars": 3.5,
-        "combo": 72,
-        "accuracy": 9.99630450849963,
-        "date": "2026-10-23 16:40:05"
+        "score": 193650,
+        "stars": 1,
+        "combo": 153,
+        "accuracy": 24.395313681027968,
+        "date": "2026-10-27 15:14:43"
       }
     ],
     "top_las_supremas_de_mostoles_eres_un_enfermo": [
@@ -3324,11 +3324,11 @@
     "top_vicentico_y_valeria_bertuccelli_no_te_apartes_de_m": [
       {
         "name": "Libay",
-        "score": 227833,
-        "stars": 3.5,
-        "combo": 148,
-        "accuracy": 17.101947523091415,
-        "date": "2026-10-23 17:06:52"
+        "score": 339192,
+        "stars": 1,
+        "combo": 236,
+        "accuracy": 27.111133491112344,
+        "date": "2026-10-27 15:47:11"
       }
     ],
     "top_beatriz_luengo__yotuel_como_tu_no_hay_2": [
@@ -3584,11 +3584,11 @@
     "comm_1789044866_4266": [
       {
         "name": "Libay",
-        "score": 6150,
+        "score": 14025,
         "stars": 3.5,
-        "combo": 14,
-        "accuracy": 1.172143020507738,
-        "date": "2026-10-24 05:20:00"
+        "combo": 23,
+        "accuracy": 2.673057863840817,
+        "date": "2026-10-27 15:24:11"
       }
     ],
     "comm_1788769406_7797": [
@@ -3604,11 +3604,11 @@
     "bs_5925": [
       {
         "name": "Libay",
-        "score": 61050,
+        "score": 167850,
         "stars": 3.5,
-        "combo": 64,
-        "accuracy": 2.29011928876885,
-        "date": "2026-10-24 05:25:17"
+        "combo": 87,
+        "accuracy": 6.30174015881061,
+        "date": "2026-10-27 15:17:53"
       }
     ],
     "top_orishas_que_pasa": [
@@ -3994,11 +3994,11 @@
     "bs_2e8ac": [
       {
         "name": "Libay",
-        "score": 39900,
+        "score": 103650,
         "stars": 3.5,
-        "combo": 43,
-        "accuracy": 2.096634350122172,
-        "date": "2026-10-26 17:45:27"
+        "combo": 98,
+        "accuracy": 5.446520059903839,
+        "date": "2026-10-27 15:42:29"
       }
     ],
     "bs_48cbb": [
@@ -4161,26 +4161,8 @@
         "date": "2026-10-27 07:33:53"
       }
     ],
-    "top_juan_luis_guerra_la_bilirrubina": [
-      {
-        "name": "Test",
-        "score": 5690,
-        "stars": 3.5,
-        "combo": 13,
-        "accuracy": 0.37040894710117567,
-        "date": "2026-10-27 11:55:48"
-      }
-    ],
-    "top_la_quinta_estacion_daria": [
-      {
-        "name": "Test",
-        "score": 5850,
-        "stars": 3.5,
-        "combo": 11,
-        "accuracy": 0.604172820278725,
-        "date": "2026-10-27 11:56:07"
-      }
-    ],
+    "top_juan_luis_guerra_la_bilirrubina": [],
+    "top_la_quinta_estacion_daria": [],
     "top_estopa_vino_tinto": [
       {
         "name": "Mauricio",
@@ -4240,18 +4222,103 @@
         "accuracy": 44.06175703102348,
         "date": "2026-10-27 14:19:04"
       }
+    ],
+    "clonehero_355290": [
+      {
+        "name": "Libay",
+        "score": 6075,
+        "stars": 3.5,
+        "combo": 15,
+        "accuracy": 0.24540050776697656,
+        "date": "2026-10-27 15:43:46"
+      }
+    ],
+    "bs_637f": [
+      {
+        "name": "Libay",
+        "score": 871875,
+        "stars": 3.5,
+        "combo": 177,
+        "accuracy": 16.05752496106989,
+        "date": "2026-10-27 15:03:23"
+      }
+    ],
+    "osu_18677": [
+      {
+        "name": "Libay",
+        "score": 102350,
+        "stars": 3.5,
+        "combo": 95,
+        "accuracy": 13.186680100288342,
+        "date": "2026-10-27 15:04:47"
+      }
+    ],
+    "osu_28723": [
+      {
+        "name": "Libay",
+        "score": 92912,
+        "stars": 3.5,
+        "combo": 84,
+        "accuracy": 11.970696839061947,
+        "date": "2026-10-27 15:05:44"
+      }
+    ],
+    "top_madonna_la_isla_bonita": [
+      {
+        "name": "Mauricio",
+        "score": 398420,
+        "stars": 1,
+        "combo": 152,
+        "accuracy": 33.79711551348848,
+        "date": "2026-10-27 15:11:01"
+      }
+    ],
+    "clonehero_372301": [
+      {
+        "name": "Libay",
+        "score": 53944,
+        "stars": 3.5,
+        "combo": 46,
+        "accuracy": 1.5552853725502973,
+        "date": "2026-10-27 15:20:24"
+      }
+    ],
+    "clonehero_406592": [
+      {
+        "name": "Libay",
+        "score": 91118,
+        "stars": 3.5,
+        "combo": 55,
+        "accuracy": 4.650277379415233,
+        "date": "2026-10-27 15:22:25"
+      }
+    ],
+    "top_justin_timberlake_mirrors": [
+      {
+        "name": "Llois",
+        "score": 37650,
+        "stars": 3.5,
+        "combo": 48,
+        "accuracy": 1.5619172627742224,
+        "date": "2026-10-27 15:26:16"
+      }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 70341348,
-      "clefs": 638
+      "total_score": 70739768,
+      "clefs": 641
     },
     {
       "name": "Rocky",
       "total_score": 27808030,
       "clefs": 260
+    },
+    {
+      "name": "Libay",
+      "total_score": 20288905,
+      "clefs": 150
     },
     {
       "name": "Jocomomolo",
@@ -4282,11 +4349,6 @@
       "name": "bubu",
       "total_score": 10570609,
       "clefs": 100
-    },
-    {
-      "name": "Libay",
-      "total_score": 9368309,
-      "clefs": 63
     },
     {
       "name": "Azure",
@@ -4374,8 +4436,8 @@
       "clefs": 0
     },
     {
-      "name": "Test",
-      "total_score": 37165,
+      "name": "Llois",
+      "total_score": 37650,
       "clefs": 0
     },
     {
@@ -4455,23 +4517,23 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 13456493
+        "score": 13854913
+      },
+      {
+        "name": "Libay",
+        "score": 12029432
       },
       {
         "name": "Laaleplo",
         "score": 6259056
       },
       {
-        "name": "Libay",
-        "score": 1108836
-      },
-      {
         "name": "Llois1",
         "score": 869748
       },
       {
-        "name": "Test",
-        "score": 37165
+        "name": "Llois",
+        "score": 37650
       },
       {
         "name": "`pc",
