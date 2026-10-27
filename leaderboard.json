@@ -1472,11 +1472,11 @@
     "osu_2307716": [
       {
         "name": "Darwin67",
-        "score": 18691,
-        "stars": 3.5,
-        "combo": 20,
-        "accuracy": 0.4804262163109969,
-        "date": "2026-10-18 17:08:06"
+        "score": 315297,
+        "stars": 3,
+        "combo": 237,
+        "accuracy": 68.74637513681814,
+        "date": "2026-10-27 21:45:02"
       }
     ],
     "osu_2563028": [
@@ -4376,6 +4376,11 @@
       "clefs": 4
     },
     {
+      "name": "Darwin67",
+      "total_score": 669955,
+      "clefs": 5
+    },
+    {
       "name": "MasterPianist",
       "total_score": 600000,
       "clefs": 6
@@ -4399,11 +4404,6 @@
       "name": "`pc",
       "total_score": 381337,
       "clefs": 1
-    },
-    {
-      "name": "Darwin67",
-      "total_score": 354658,
-      "clefs": 2
     },
     {
       "name": "bori",
@@ -4530,6 +4530,10 @@
       {
         "name": "Llois1",
         "score": 869748
+      },
+      {
+        "name": "Darwin67",
+        "score": 315297
       },
       {
         "name": "Llois",
