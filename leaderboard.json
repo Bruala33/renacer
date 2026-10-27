@@ -2180,6 +2180,14 @@
         "combo": 234,
         "accuracy": 41.98934379323181,
         "date": "2026-10-22 09:39:15"
+      },
+      {
+        "name": "Test",
+        "score": 25625,
+        "stars": 3.5,
+        "combo": 25,
+        "accuracy": 1.2217420014637066,
+        "date": "2026-10-27 11:57:24"
       }
     ],
     "osu_923490": [
@@ -4026,11 +4034,11 @@
     "osu_1096914": [
       {
         "name": "Mauricio",
-        "score": 24395,
-        "stars": 1,
-        "combo": 27,
-        "accuracy": 39.28341384863124,
-        "date": "2026-10-26 19:46:32"
+        "score": 40250,
+        "stars": 3,
+        "combo": 41,
+        "accuracy": 64.81481481481481,
+        "date": "2026-10-27 13:06:57"
       }
     ],
     "osu_1158642": [
@@ -4152,13 +4160,93 @@
         "accuracy": 86.5669755891315,
         "date": "2026-10-27 07:33:53"
       }
+    ],
+    "top_juan_luis_guerra_la_bilirrubina": [
+      {
+        "name": "Test",
+        "score": 5690,
+        "stars": 3.5,
+        "combo": 13,
+        "accuracy": 0.37040894710117567,
+        "date": "2026-10-27 11:55:48"
+      }
+    ],
+    "top_la_quinta_estacion_daria": [
+      {
+        "name": "Test",
+        "score": 5850,
+        "stars": 3.5,
+        "combo": 11,
+        "accuracy": 0.604172820278725,
+        "date": "2026-10-27 11:56:07"
+      }
+    ],
+    "top_estopa_vino_tinto": [
+      {
+        "name": "Mauricio",
+        "score": 24240,
+        "stars": 3.5,
+        "combo": 19,
+        "accuracy": 1.4122746711101273,
+        "date": "2026-10-27 13:05:31"
+      }
+    ],
+    "top_salom_vivo_cantando": [
+      {
+        "name": "Mauricio",
+        "score": 93448,
+        "stars": 3.5,
+        "combo": 69,
+        "accuracy": 14.065232769909239,
+        "date": "2026-10-27 13:06:18"
+      }
+    ],
+    "osu_1479377": [
+      {
+        "name": "Mauricio",
+        "score": 838245,
+        "stars": 2,
+        "combo": 136,
+        "accuracy": 48.021826931339696,
+        "date": "2026-10-27 13:59:33"
+      }
+    ],
+    "bs_110e2": [
+      {
+        "name": "Mauricio",
+        "score": 459450,
+        "stars": 1,
+        "combo": 243,
+        "accuracy": 30.90193704600484,
+        "date": "2026-10-27 14:15:31"
+      }
+    ],
+    "osu_1798030": [
+      {
+        "name": "Mauricio",
+        "score": 367932,
+        "stars": 1,
+        "combo": 155,
+        "accuracy": 23.66097840793921,
+        "date": "2026-10-27 14:16:56"
+      }
+    ],
+    "top_backstreet_boys_as_long_as_you_love_me": [
+      {
+        "name": "Mauricio",
+        "score": 455907,
+        "stars": 2,
+        "combo": 232,
+        "accuracy": 44.06175703102348,
+        "date": "2026-10-27 14:19:04"
+      }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 68061876,
-      "clefs": 619
+      "total_score": 70341348,
+      "clefs": 638
     },
     {
       "name": "Rocky",
@@ -4286,6 +4374,11 @@
       "clefs": 0
     },
     {
+      "name": "Test",
+      "total_score": 37165,
+      "clefs": 0
+    },
+    {
       "name": "U",
       "total_score": 30185,
       "clefs": 0
@@ -4362,7 +4455,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 11177021
+        "score": 13456493
       },
       {
         "name": "Laaleplo",
@@ -4375,6 +4468,10 @@
       {
         "name": "Llois1",
         "score": 869748
+      },
+      {
+        "name": "Test",
+        "score": 37165
       },
       {
         "name": "`pc",
@@ -4528,9 +4625,22 @@
     },
     "2026-10-27": {
       "dayKey": "2026-10-27",
-      "potClefs": 150,
-      "wageredPlayers": [],
-      "rankings": []
+      "potClefs": 200,
+      "wageredPlayers": [
+        "vp_mvnnmr4q_atju9jg7"
+      ],
+      "rankings": [
+        {
+          "player_id": "vp_mvnnmr4q_atju9jg7",
+          "player_name": "Mauricio",
+          "avatar_url": null,
+          "score": 455907,
+          "accuracy": 96.81,
+          "bet_tier": 3,
+          "wager": 50,
+          "timestamp": 1793110744650
+        }
+      ]
     }
   },
   "referrals": {
