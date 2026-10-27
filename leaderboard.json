@@ -3106,11 +3106,11 @@
     "bs_2926b": [
       {
         "name": "Libay",
-        "score": 129600,
+        "score": 181500,
         "stars": 3.5,
-        "combo": 113,
-        "accuracy": 9.523809523809524,
-        "date": "2026-10-26 16:38:09"
+        "combo": 119,
+        "accuracy": 13.337742504409173,
+        "date": "2026-10-27 03:09:19"
       }
     ],
     "bs_333d8": [
@@ -4187,8 +4187,8 @@
     },
     {
       "name": "Libay",
-      "total_score": 9186809,
-      "clefs": 62
+      "total_score": 9368309,
+      "clefs": 63
     },
     {
       "name": "Azure",
@@ -4360,7 +4360,7 @@
       },
       {
         "name": "Libay",
-        "score": 927336
+        "score": 1108836
       },
       {
         "name": "Llois1",
