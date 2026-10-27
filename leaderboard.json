@@ -4142,13 +4142,23 @@
         "accuracy": 82.95500149745433,
         "date": "2026-10-26 21:57:35"
       }
+    ],
+    "top_fito_y_fitipaldis_me_equivocara_otra_vez": [
+      {
+        "name": "Mauricio",
+        "score": 1425024,
+        "stars": 4,
+        "combo": 331,
+        "accuracy": 86.5669755891315,
+        "date": "2026-10-27 07:33:53"
+      }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 66636852,
-      "clefs": 605
+      "total_score": 68061876,
+      "clefs": 619
     },
     {
       "name": "Rocky",
@@ -4352,7 +4362,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 9751997
+        "score": 11177021
       },
       {
         "name": "Laaleplo",
@@ -4512,6 +4522,12 @@
     },
     "2026-10-26": {
       "dayKey": "2026-10-26",
+      "potClefs": 150,
+      "wageredPlayers": [],
+      "rankings": []
+    },
+    "2026-10-27": {
+      "dayKey": "2026-10-27",
       "potClefs": 150,
       "wageredPlayers": [],
       "rankings": []
