@@ -1099,7 +1099,7 @@
         <!-- Spacer Left to keep score perfectly centered -->
         <div class="w-8 flex-shrink-0"></div>
 
-        <!-- Center: Gas Station Mechanical Odometer Scoreboard (7 Digits + Combo Slot Badge) -->
+        <!-- Center: Gas Station Mechanical Odometer Scoreboard (7 Digits + Combo Slot Badge) OR Pulse Mode Vintage Hearts + Combo -->
         <div class="flex-1 flex items-center justify-center gap-1.5">
           <div id="hudScoreRollers" class="hud-gas-odometer" aria-label="Puntuación">
             <div class="hud-odometer-drum"><div class="roller-strip" id="rollerDigit6"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div></div>
@@ -1114,6 +1114,13 @@
           <!-- Multiplicador / Combo estilo máquina tragaperras / gasolinera ("x3") -->
           <div id="hudSlotComboBadge" class="hud-gas-combo-badge" title="Multiplicador">
             <span class="slot-prefix">x</span><span id="hudGasMultiplierVal">1</span>
+          </div>
+
+          <!-- HUD Exclusivo Modo Pulso: 5 Corazones de Píxeles Vintage + Contador Vintage de Combo (en vez de Puntos) -->
+          <div id="hudPulseModeContainer" class="hidden items-center justify-center gap-2 px-2 py-1 rounded-xl bg-[#070503]/95 border-2 border-[#b45309] shadow-[0_4px_14px_rgba(0,0,0,0.85),inset_0_0_10px_rgba(0,0,0,0.95)]">
+            <canvas id="hudPulseHeartsCanvas" width="118" height="24" class="h-[24px] w-[118px] block" title="5 Vidas Modo Pulso"></canvas>
+            <div class="w-[1.5px] h-5 bg-[#78350f]/70"></div>
+            <canvas id="hudPulseComboCanvas" width="112" height="24" class="h-[24px] w-[112px] block" title="Contador Vintage de Combo"></canvas>
           </div>
 
           <span id="hudScore" class="hidden">0</span>
@@ -2684,9 +2691,9 @@
             <canvas id="gmBtnNormalMainCanvas" class="w-full h-[34px] block"></canvas>
           </button>
 
-          <!-- Botón 2: MODO PULSO (Gratuito 0 Claves - Aros táctiles, deslizadores y carriles por fases) -->
+          <!-- Botón 2: MODO PULSO (Gratuito 0 Claves - Aros táctiles, deslizadores y carriles por fases + Bonus X3 Claves) -->
           <button id="btnModeSelectOsuHybrid" onclick="confirmGameModeSelection('osu_hybrid')" class="w-full p-1 rounded-xl bg-[#040711] border-2 border-[#0284c7] hover:border-[#38bdf8] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
-            <canvas id="gmBtnOsuHybridMainCanvas" class="w-full h-[34px] block"></canvas>
+            <canvas id="gmBtnOsuHybridMainCanvas" class="w-full h-[48px] block"></canvas>
           </button>
 
           <!-- Botón 1B: MODO 4 CARRILES (Igual que Normal pero con 4 carriles de precisión + Candado LED 1000 Claves) -->
@@ -5833,6 +5840,9 @@
       return typewriterAudioCtx;
     }
 
+    let _cachedTwStrikeBuffers = null;
+    let _cachedTwReturnBuffer = null;
+
     function playTypewriterKeyStrike(isSpace = false) {
       try {
         const ctx = getTypewriterAudioContext();
@@ -5849,18 +5859,22 @@
         oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
         osc.connect(oscGain);
         oscGain.connect(ctx.destination);
+        osc.onended = () => { try { osc.disconnect(); oscGain.disconnect(); } catch (_) {} };
         osc.start(now);
         osc.stop(now + 0.05);
 
-        // 2. Ruido filtrado de impacto de cinta y caucho
-        const bufferSize = Math.floor(ctx.sampleRate * 0.035);
-        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-          data[i] = Math.random() * 2 - 1;
+        // 2. Ruido filtrado de impacto de cinta y caucho (reutilizando AudioBuffer cacheado)
+        if (!_cachedTwStrikeBuffers || _cachedTwStrikeBuffers.sampleRate !== ctx.sampleRate) {
+          const bufferSize = Math.floor(ctx.sampleRate * 0.035);
+          const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+          }
+          _cachedTwStrikeBuffers = buffer;
         }
         const noise = ctx.createBufferSource();
-        noise.buffer = buffer;
+        noise.buffer = _cachedTwStrikeBuffers;
 
         const filter = ctx.createBiquadFilter();
         filter.type = 'bandpass';
@@ -5874,7 +5888,9 @@
         noise.connect(filter);
         filter.connect(noiseGain);
         noiseGain.connect(ctx.destination);
+        noise.onended = () => { try { noise.disconnect(); filter.disconnect(); noiseGain.disconnect(); } catch (_) {} };
         noise.start(now);
+        noise.stop(now + 0.036);
 
         // 3. Clic mecánico del trinquete de escape
         const clickOsc = ctx.createOscillator();
@@ -5885,6 +5901,7 @@
         clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.016);
         clickOsc.connect(clickGain);
         clickGain.connect(ctx.destination);
+        clickOsc.onended = () => { try { clickOsc.disconnect(); clickGain.disconnect(); } catch (_) {} };
         clickOsc.start(now + 0.006);
         clickOsc.stop(now + 0.02);
       } catch (err) {
@@ -5907,6 +5924,7 @@
           g.gain.exponentialRampToValueAtTime(0.001, t + 0.022);
           osc.connect(g);
           g.connect(ctx.destination);
+          osc.onended = () => { try { osc.disconnect(); g.disconnect(); } catch (_) {} };
           osc.start(t);
           osc.stop(t + 0.025);
         }
@@ -5930,6 +5948,7 @@
         osc1.connect(gain);
         osc2.connect(gain);
         gain.connect(ctx.destination);
+        osc1.onended = () => { try { osc1.disconnect(); osc2.disconnect(); gain.disconnect(); } catch (_) {} };
         osc1.start(now);
         osc2.start(now);
         osc1.stop(now + 0.8);
@@ -5942,14 +5961,17 @@
         const ctx = getTypewriterAudioContext();
         if (!ctx) return;
         const now = ctx.currentTime;
-        const bufferSize = Math.floor(ctx.sampleRate * 0.16);
-        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-          data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+        if (!_cachedTwReturnBuffer || _cachedTwReturnBuffer.sampleRate !== ctx.sampleRate) {
+          const bufferSize = Math.floor(ctx.sampleRate * 0.16);
+          const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+          }
+          _cachedTwReturnBuffer = buffer;
         }
         const noise = ctx.createBufferSource();
-        noise.buffer = buffer;
+        noise.buffer = _cachedTwReturnBuffer;
         const filter = ctx.createBiquadFilter();
         filter.type = 'bandpass';
         filter.frequency.setValueAtTime(1200, now);
@@ -5961,7 +5983,9 @@
         noise.connect(filter);
         filter.connect(gain);
         gain.connect(ctx.destination);
+        noise.onended = () => { try { noise.disconnect(); filter.disconnect(); gain.disconnect(); } catch (_) {} };
         noise.start(now);
+        noise.stop(now + 0.165);
       } catch (e) {}
     }
 
@@ -5979,6 +6003,7 @@
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
         osc.connect(gain);
         gain.connect(ctx.destination);
+        osc.onended = () => { try { osc.disconnect(); gain.disconnect(); } catch (_) {} };
         osc.start(now);
         osc.stop(now + 0.16);
       } catch (e) {}
@@ -6202,7 +6227,7 @@
     }
 
     window.triggerVintageResultsScreen = triggerVintageResultsScreen;
-    function triggerVintageResultsScreen(score, maxCombo, stars, stats, earnedClefs, isNewRecord, finalMedal, scorePct) {
+    function triggerVintageResultsScreen(score, maxCombo, stars, stats, earnedClefs, isNewRecord, finalMedal, scorePct, accuracyPct = null) {
       clearResultsTypewriterSequences();
       try { getTypewriterAudioContext(); } catch(_) {}
 
@@ -6253,9 +6278,23 @@
         songCaption.innerText = `• OPUS: ${title.toUpperCase().slice(0, 24)}`;
       }
 
-      const safePct = (typeof scorePct === 'number' && Number.isFinite(scorePct)) ? scorePct : 100.0; const displayScorePct = Math.min(100.0, Math.max(0.0, safePct));
+      const ppCnt = stats?.perfectPlus ?? 0;
+      const pCnt = stats?.perfect ?? 0;
+      const gCnt = stats?.great ?? 0;
+      const goodCnt = stats?.good ?? 0;
+      const mCnt = stats?.miss ?? 0;
+      const totJ = ppCnt + pCnt + gCnt + goodCnt + mCnt;
+      const computedAcc = totJ > 0
+        ? (((ppCnt * 100) + (pCnt * 80) + (gCnt * 50) + (goodCnt * 25)) / (totJ * 100)) * 100
+        : ((typeof scorePct === 'number' && Number.isFinite(scorePct)) ? scorePct : 100.0);
+      let displayAccPct = (typeof accuracyPct === 'number' && Number.isFinite(accuracyPct))
+        ? Math.min(100.0, Math.max(0.0, accuracyPct))
+        : Math.min(100.0, Math.max(0.0, computedAcc));
+      if (mCnt > 0 || pCnt > 0 || gCnt > 0 || goodCnt > 0) {
+        displayAccPct = Math.min(99.9, displayAccPct);
+      }
       const accEl = document.getElementById('resParchmentAccuracy');
-      if (accEl) accEl.innerText = `${displayScorePct.toFixed(1)}%`;
+      if (accEl) accEl.innerText = `${displayAccPct.toFixed(1)}%`;
 
       const comboEl = document.getElementById('resParchmentCombo');
       if (comboEl) comboEl.innerText = maxCombo;
@@ -6363,19 +6402,21 @@
         resKeyboard.style.display = 'flex';
       }
 
-      // 5. Recompensa en rojo: desglose mecanografiado exacto (puntuación * 0.00001 * dificultad) con multiplicador X2 si es destacada
+      // 5. Recompensa en rojo: desglose mecanografiado exacto (puntuación * 0.00001 * dificultad) con multiplicador X3 en Pulso o X2 si es destacada
       delay += 240;
       const isFeatured2X = !!(currentActiveBeatmap?.is_daily_featured || currentActiveBeatmap?.metadata?.is_daily_featured || engine?.beatmapData?.is_daily_featured);
+      const isPulse3X = Boolean(window.isOsuHybridModeActive || (engine && engine.isOsuHybridModeActive));
       const rawStars = Number(currentActiveBeatmap?.metadata?.stars || currentActiveBeatmap?.stars || stars || 3.0);
       const diffStarsClamped = Math.min(7, Math.max(1, Math.round(rawStars * 10) / 10));
       const baseScoreClefs = Math.floor((score || 0) * 0.00001);
-      let totalCalculatedClefs = Math.max(1, Math.round(baseScoreClefs * diffStarsClamped));
-      if (isFeatured2X) {
-        totalCalculatedClefs = totalCalculatedClefs * 2;
-      }
-      const rewardStr = isFeatured2X 
-        ? `${baseScoreClefs} × ${diffStarsClamped}★ × 2X = +${totalCalculatedClefs}`
-        : `${baseScoreClefs} × ${diffStarsClamped}★ = +${totalCalculatedClefs}`;
+      const totalCalculatedClefs = (typeof earnedClefs === 'number' && earnedClefs > 0)
+        ? earnedClefs
+        : Math.max(1, Math.round(baseScoreClefs * diffStarsClamped)) * (isFeatured2X ? 2 : 1) * (isPulse3X ? 3 : 1);
+      let bonusTag = '';
+      if (isPulse3X && isFeatured2X) bonusTag = ' × 3X × 2X';
+      else if (isPulse3X) bonusTag = ' × 3X';
+      else if (isFeatured2X) bonusTag = ' × 2X';
+      const rewardStr = `${baseScoreClefs} × ${diffStarsClamped}★${bonusTag} = +${totalCalculatedClefs}`;
 
       for (let i = 0; i < rewardStr.length; i++) {
         const c = rewardStr[i];
@@ -6529,11 +6570,12 @@
           
           const isNewRecord = saveHighscore(songId, engine.score, engine.stars || 0, engine.maxCombo || 0, engine.currentMedalTier || null, scorePct);
 
-          // Otorgar claves de sol por estrellas conseguidas hasta ese momento (X2 si es Modo Tormenta o Destacada Diaria)
+          // Otorgar claves de sol por estrellas conseguidas hasta ese momento (X3 en Modo Pulso, X2 si es Modo Tormenta o Destacada Diaria)
           const isFeat = !!(currentActiveBeatmap?.is_daily_featured || currentActiveBeatmap?.metadata?.is_daily_featured || (engine && engine.beatmapData?.is_daily_featured));
-          const isStorm = Boolean(window.isStormModeActive || (engine && engine.isStormModeActive));
+          const isPulse3X = Boolean(window.isOsuHybridModeActive || (engine && engine.isOsuHybridModeActive));
+          const isStorm = !isPulse3X && Boolean(window.isStormModeActive || (engine && engine.isStormModeActive));
           const baseEarned = Math.min(15, (engine.stars || 0) * 3);
-          const earnedClefs = baseEarned * (isFeat ? 2 : 1) * (isStorm ? 2 : 1);
+          const earnedClefs = baseEarned * (isFeat ? 2 : 1) * (isPulse3X ? 3 : (isStorm ? 2 : 1));
           if (earnedClefs > 0 && typeof addClefs === 'function') {
             addClefs(earnedClefs);
           }
@@ -6840,33 +6882,43 @@
             }
           }
 
-          const nowPerf = performance.now();
-          const scoreInt = Math.floor(score);
-          if (hud.lastScoreFloor !== scoreInt && (scoreInt === 0 || nowPerf - hud.lastScoreDomPerf > 75)) {
-            hud.lastScoreDomPerf = nowPerf;
-            hud.lastScoreFloor = scoreInt;
-            const scoreStr = String(Math.min(9999999, Math.max(0, scoreInt))).padStart(7, '0');
-            for (let d = 0; d < 7; d++) {
-              if (hud.lastDigits[d] !== scoreStr[d]) {
-                hud.lastDigits[d] = scoreStr[d];
-                const strip = hud.rollerDigits[d];
-                if (strip) {
-                  const digitVal = parseInt(scoreStr[d], 10) || 0;
-                  strip.style.transform = 'translate3d(0,-' + (digitVal * 24) + 'px,0)';
+          const isPulseHud = Boolean(window.isOsuHybridModeActive || (engine && engine.isOsuHybridModeActive));
+          if (isPulseHud) {
+            if (hud.lastCombo !== combo) {
+              hud.lastCombo = combo;
+              if (typeof window.updatePulseModeHud === 'function') {
+                window.updatePulseModeHud(combo, engine ? (engine.osuLives ?? 5) : 5, engine ? (engine.osuMaxLives || 5) : 5, false);
+              }
+            }
+          } else {
+            const nowPerf = performance.now();
+            const scoreInt = Math.floor(score);
+            if (hud.lastScoreFloor !== scoreInt && (scoreInt === 0 || nowPerf - hud.lastScoreDomPerf > 75)) {
+              hud.lastScoreDomPerf = nowPerf;
+              hud.lastScoreFloor = scoreInt;
+              const scoreStr = String(Math.min(9999999, Math.max(0, scoreInt))).padStart(7, '0');
+              for (let d = 0; d < 7; d++) {
+                if (hud.lastDigits[d] !== scoreStr[d]) {
+                  hud.lastDigits[d] = scoreStr[d];
+                  const strip = hud.rollerDigits[d];
+                  if (strip) {
+                    const digitVal = parseInt(scoreStr[d], 10) || 0;
+                    strip.style.transform = 'translate3d(0,-' + (digitVal * 24) + 'px,0)';
+                  }
                 }
               }
             }
-          }
 
-          if (hud.lastMultiplier !== multiplier) {
-            hud.lastMultiplier = multiplier;
-            if (hud.gasMultVal) hud.gasMultVal.textContent = multiplier || 1;
-            if (hud.gasBadge) {
-              hud.gasBadge.className = 'hud-gas-combo-badge ' + (multiplier >= 4 ? 'max-mult' : (multiplier >= 3 ? 'high-mult' : (multiplier >= 2 ? 'med-mult' : '')));
-            }
-            if (hud.multEl) {
-              hud.multEl.textContent = multiplier + 'x';
-              hud.multEl.className = 'multiplier-badge ' + (multiplier >= 2 ? ('x' + multiplier) : '');
+            if (hud.lastMultiplier !== multiplier) {
+              hud.lastMultiplier = multiplier;
+              if (hud.gasMultVal) hud.gasMultVal.textContent = multiplier || 1;
+              if (hud.gasBadge) {
+                hud.gasBadge.className = 'hud-gas-combo-badge ' + (multiplier >= 4 ? 'max-mult' : (multiplier >= 3 ? 'high-mult' : (multiplier >= 2 ? 'med-mult' : '')));
+              }
+              if (hud.multEl) {
+                hud.multEl.textContent = multiplier + 'x';
+                hud.multEl.className = 'multiplier-badge ' + (multiplier >= 2 ? ('x' + multiplier) : '');
+              }
             }
           }
 
@@ -9677,13 +9729,16 @@ function detenerPaginacionPiano() {
           voiceNodes.push(subReinforcement);
         }
 
-        const hammerBuffer = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * 0.018), this.ctx.sampleRate);
-        const hammerData = hammerBuffer.getChannelData(0);
-        for (let i = 0; i < hammerData.length; i++) {
-          hammerData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.003));
+        if (!this._cachedHammerBuffer || this._cachedHammerBuffer.sampleRate !== this.ctx.sampleRate) {
+          const hammerBuffer = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * 0.018), this.ctx.sampleRate);
+          const hammerData = hammerBuffer.getChannelData(0);
+          for (let i = 0; i < hammerData.length; i++) {
+            hammerData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.003));
+          }
+          this._cachedHammerBuffer = hammerBuffer;
         }
         const hammer = this.ctx.createBufferSource();
-        hammer.buffer = hammerBuffer;
+        hammer.buffer = this._cachedHammerBuffer;
         const hammerFilter = this.ctx.createBiquadFilter();
         hammerFilter.type = 'bandpass';
         hammerFilter.frequency.setValueAtTime(isBass ? 360 : 1800, now);
@@ -9695,12 +9750,14 @@ function detenerPaginacionPiano() {
         hammerFilter.connect(hammerGain);
         hammerGain.connect(filter);
         hammer.start(now);
-        voiceNodes.push(hammer);
+        hammer.stop(now + 0.02);
+        voiceNodes.push(hammer, hammerFilter, hammerGain, filter);
 
         const panner = this.ctx.createStereoPanner ? this.ctx.createStereoPanner() : null;
         if (panner) {
           const pan = ((keyIndex - 1) / 87) * 1.1 - 0.55;
           panner.pan.setValueAtTime(pan, now);
+          voiceNodes.push(panner);
         }
 
         filter.connect(voiceGain);
@@ -9716,7 +9773,11 @@ function detenerPaginacionPiano() {
         setTimeout(() => {
           const idx = this.activeVoices.indexOf(voiceRecord);
           if (idx !== -1) this.activeVoices.splice(idx, 1);
-        }, duration * 1000);
+          try { voiceGain.disconnect(); } catch (_) {}
+          for (let nIdx = 0; nIdx < voiceNodes.length; nIdx++) {
+            try { voiceNodes[nIdx].disconnect(); } catch (_) {}
+          }
+        }, duration * 1000 + 40);
       }
     }
 
@@ -11942,6 +12003,16 @@ function stopPianoCameraLoop() {
         }
       });
 
+      if (typeof soundEngine !== 'undefined' && soundEngine && soundEngine.ctx && soundEngine.ctx.state === 'running') {
+        try { soundEngine.ctx.suspend().catch(() => {}); } catch (_) {}
+      }
+      if (typeof typewriterAudioCtx !== 'undefined' && typewriterAudioCtx && typewriterAudioCtx.state === 'running') {
+        try { typewriterAudioCtx.suspend().catch(() => {}); } catch (_) {}
+      }
+      if (window._vpAudioCtx && window._vpAudioCtx.state === 'running') {
+        try { window._vpAudioCtx.suspend().catch(() => {}); } catch (_) {}
+      }
+
       const hudScore = document.getElementById('hudScore');
       if (hudScore) hudScore.innerText = '0';
       const hudCombo = document.getElementById('hudCombo');
@@ -11968,6 +12039,30 @@ function stopPianoCameraLoop() {
         el.classList.remove('unlocked');
         el.querySelectorAll('.star-shockwave').forEach(sw => sw.remove());
       });
+
+      // Alternar entre el marcador de puntos normal y el HUD Vintage de Modo Pulso (5 Corazones + Combo Vintage)
+      const isPulseStart = Boolean(window.isOsuHybridModeActive || window.currentGameMode === 'osu_hybrid');
+      const scoreRollersEl = document.getElementById('hudScoreRollers');
+      const slotComboBadgeEl = document.getElementById('hudSlotComboBadge');
+      const pulseHudContainerEl = document.getElementById('hudPulseModeContainer');
+      if (isPulseStart) {
+        if (scoreRollersEl) scoreRollersEl.classList.add('hidden');
+        if (slotComboBadgeEl) slotComboBadgeEl.classList.add('hidden');
+        if (pulseHudContainerEl) {
+          pulseHudContainerEl.classList.remove('hidden');
+          pulseHudContainerEl.classList.add('flex');
+        }
+        if (typeof window.updatePulseModeHud === 'function') {
+          window.updatePulseModeHud(0, 5, 5, false);
+        }
+      } else {
+        if (scoreRollersEl) scoreRollersEl.classList.remove('hidden');
+        if (slotComboBadgeEl) slotComboBadgeEl.classList.remove('hidden');
+        if (pulseHudContainerEl) {
+          pulseHudContainerEl.classList.add('hidden');
+          pulseHudContainerEl.classList.remove('flex');
+        }
+      }
 
       // 5. Cargar en el motor de juego de forma segura
       try {
@@ -12014,12 +12109,15 @@ function stopPianoCameraLoop() {
       const resMaxComboEl = document.getElementById('resMaxCombo');
       if (resMaxComboEl) resMaxComboEl.innerText = maxCombo;
       
-      // Recompensas de Claves de Sol (con multiplicador x2 en Modo Tormenta y/o Canción Destacada Diaria)
+      // Recompensas de Claves de Sol (X3 exclusivo en Modo Pulso, X2 en Modo Tormenta y/o Canción Destacada Diaria)
       const isDailyFeat = !!(currentActiveBeatmap?.is_daily_featured || currentActiveBeatmap?.metadata?.is_daily_featured || engine?.beatmapData?.is_daily_featured);
-      const isStorm = Boolean(window.isStormModeActive || (engine && engine.isStormModeActive));
+      const isPulse3X = Boolean(window.isOsuHybridModeActive || (engine && engine.isOsuHybridModeActive));
+      const isStorm = !isPulse3X && Boolean(window.isStormModeActive || (engine && engine.isStormModeActive));
       const resEarnedClefsEl = document.getElementById('resEarnedClefs');
       if (resEarnedClefsEl) {
-        if (isStorm && isDailyFeat) resEarnedClefsEl.innerText = `${earnedClefs} (¡x4 Tormenta + Diario!)`;
+        if (isPulse3X && isDailyFeat) resEarnedClefsEl.innerText = `${earnedClefs} (¡x6 Bonus Pulso X3 + Diario!)`;
+        else if (isPulse3X) resEarnedClefsEl.innerText = `${earnedClefs} (¡x3 Bonus Dificultad Pulso!)`;
+        else if (isStorm && isDailyFeat) resEarnedClefsEl.innerText = `${earnedClefs} (¡x4 Tormenta + Diario!)`;
         else if (isStorm) resEarnedClefsEl.innerText = `${earnedClefs} (¡x2 Modo Tormenta!)`;
         else if (isDailyFeat) resEarnedClefsEl.innerText = `${earnedClefs} (¡x2 Diario!)`;
         else resEarnedClefsEl.innerText = earnedClefs;
@@ -12027,9 +12125,26 @@ function stopPianoCameraLoop() {
       updateUserWalletDisplay();
 
       // Porcentaje de puntuación real alcanzado sobre la máxima teórica (rige estrellas y medallas):
-      const safePct = (typeof scorePct === 'number' && Number.isFinite(scorePct)) ? scorePct : 100.0; const displayScorePct = Math.min(100.0, Math.max(0.0, safePct));
+      const safePct = (typeof scorePct === 'number' && Number.isFinite(scorePct)) ? scorePct : 100.0;
+      const displayScorePct = Math.min(100.0, Math.max(0.0, safePct));
+      const ppCnt = stats?.perfectPlus ?? 0;
+      const pCnt = stats?.perfect ?? 0;
+      const gCnt = stats?.great ?? 0;
+      const goodCnt = stats?.good ?? 0;
+      const mCnt = stats?.miss ?? 0;
+      const totJudged = ppCnt + pCnt + gCnt + goodCnt + mCnt;
+      const totDenom = Math.max(1, totalNotes || 0, totJudged);
+      const fallbackAcc = totDenom > 0
+        ? (((ppCnt * 100) + (pCnt * 80) + (gCnt * 50) + (goodCnt * 25)) / (totDenom * 100)) * 100
+        : displayScorePct;
+      let displayAccuracyPct = (typeof accuracyPct === 'number' && Number.isFinite(accuracyPct))
+        ? Math.min(100.0, Math.max(0.0, accuracyPct))
+        : Math.min(100.0, Math.max(0.0, fallbackAcc));
+      if (mCnt > 0 || pCnt > 0 || gCnt > 0 || goodCnt > 0 || ppCnt < totDenom) {
+        displayAccuracyPct = Math.min(99.9, displayAccuracyPct);
+      }
       const resAccuracyPctEl = document.getElementById('resAccuracyPct');
-      if (resAccuracyPctEl) resAccuracyPctEl.innerText = `${displayScorePct.toFixed(1)}%`;
+      if (resAccuracyPctEl) resAccuracyPctEl.innerText = `${displayAccuracyPct.toFixed(1)}%`;
 
       const badgeStatus = document.getElementById('resBadgeStatus');
       if (badgeStatus) {
@@ -12196,7 +12311,7 @@ function stopPianoCameraLoop() {
       }
 
       // Desencadenar animación analógica y sonido de máquina de escribir vintage
-      triggerVintageResultsScreen(score, maxCombo, stars, stats, earnedClefs, isNewRecord, finalMedal, scorePct);
+      triggerVintageResultsScreen(score, maxCombo, stars, stats, earnedClefs, isNewRecord, finalMedal, scorePct, displayAccuracyPct);
     }
 
     function restartCurrentSong() {
@@ -12938,11 +13053,15 @@ function stopPianoCameraLoop() {
               ? '≈ Muy Parecida'
               : (item.source_name || 'Catálogo Piano');
 
-        const diffs = Array.isArray(item.difficulties) && item.difficulties.length > 0
+        const rawDiffs = Array.isArray(item.difficulties) && item.difficulties.length > 0
           ? item.difficulties
           : [{ id: item.diff_id || 'default', name: item.difficulty_name || 'Normal', stars: item.stars || 3.5 }];
+        const diffs = (typeof LaneRemapper !== 'undefined' && typeof LaneRemapper.normalizeSongDifficulties === 'function')
+          ? LaneRemapper.normalizeSongDifficulties(rawDiffs, item.id || item.title)
+          : rawDiffs;
+        item.difficulties = diffs;
 
-        const diffPillsHtml = diffs.slice(0, 4).map((d, dIdx) => {
+        const diffPillsHtml = diffs.slice(0, 5).map((d, dIdx) => {
           const starsNum = Number(d.stars || item.stars || 3.5).toFixed(1);
           const dName = escapeHtml(d.name || 'Normal');
           return `
@@ -12997,8 +13116,24 @@ function stopPianoCameraLoop() {
 
       closePlaylistTrackMatcher();
 
+      const rawDiffs = Array.isArray(item.difficulties) && item.difficulties.length > 0
+        ? item.difficulties
+        : [{ id: item.diff_id || 'default', name: item.difficulty_name || 'Normal', stars: item.stars || 3.5 }];
+      const diffs = (typeof LaneRemapper !== 'undefined' && typeof LaneRemapper.normalizeSongDifficulties === 'function')
+        ? LaneRemapper.normalizeSongDifficulties(rawDiffs, item.id || item.title)
+        : rawDiffs;
+      item.difficulties = diffs;
+
+      let chosenDiff = diffs[0];
+      if (diffIdx >= 0 && diffs[diffIdx]) {
+        chosenDiff = diffs[diffIdx];
+      } else {
+        const sorted = [...diffs].sort((a, b) => Math.abs((a.stars || 3.5) - currentTargetDifficulty) - Math.abs((b.stars || 3.5) - currentTargetDifficulty));
+        chosenDiff = sorted[0] || diffs[0];
+      }
+
       if (item._isOfflineSaved && item.id) {
-        playSavedLibraryChart(item.id);
+        playSavedLibraryChart(item.id, chosenDiff?.densityMode || null, chosenDiff?.name || null, chosenDiff?.stars || null);
         return;
       }
 
@@ -13013,18 +13148,6 @@ function stopPianoCameraLoop() {
         searchResultsCache[existingIdx] = { ...searchResultsCache[existingIdx], ...item };
       } else {
         searchResultsCache.unshift(item);
-      }
-
-      const diffs = Array.isArray(item.difficulties) && item.difficulties.length > 0
-        ? item.difficulties
-        : [{ id: item.diff_id || 'default', name: item.difficulty_name || 'Normal', stars: item.stars || 3.5 }];
-
-      let chosenDiff = diffs[0];
-      if (diffIdx >= 0 && diffs[diffIdx]) {
-        chosenDiff = diffs[diffIdx];
-      } else {
-        const sorted = [...diffs].sort((a, b) => Math.abs((a.stars || 3.5) - currentTargetDifficulty) - Math.abs((b.stars || 3.5) - currentTargetDifficulty));
-        chosenDiff = sorted[0] || diffs[0];
       }
 
       downloadAndPlaySong(item.id, chosenDiff.id, chosenDiff.name || 'Normal');
@@ -13074,7 +13197,7 @@ function stopPianoCameraLoop() {
       // Mostrar indicador de carga limpio para evitar doble renderizado / parpadeo
       renderYtMatcherLoadingState();
 
-      // 1. Puntuar nuestro catálogo local + oficial + comunidad
+      // 1. Puntuar nuestro catálogo local + oficial + comunidad (normalizando las 5 dificultades: Fácil, Media, Difícil, Extrema, Imposible)
       const candidateMap = new Map();
       const registerCandidate = (song, extraBoost = 0) => {
         if (!song || !song.id) return;
@@ -13082,7 +13205,13 @@ function stopPianoCameraLoop() {
         const sc = scoreCatalogCandidate(song, coreTitle, coreArtist) + extraBoost;
         const prev = candidateMap.get(song.id);
         if (!prev || sc > prev._matchScore) {
-          candidateMap.set(song.id, { ...song, _matchScore: sc });
+          const baseDiffs = Array.isArray(song.difficulties) && song.difficulties.length > 0
+            ? song.difficulties
+            : [{ id: song.diff_id || 'default', name: song.difficulty_name || 'Normal', stars: song.stars || 3.5 }];
+          const normDiffs = (typeof LaneRemapper !== 'undefined' && typeof LaneRemapper.normalizeSongDifficulties === 'function')
+            ? LaneRemapper.normalizeSongDifficulties(baseDiffs, song.id || song.title)
+            : baseDiffs;
+          candidateMap.set(song.id, { ...song, difficulties: normDiffs, _matchScore: sc });
         }
       };
 
@@ -13090,7 +13219,10 @@ function stopPianoCameraLoop() {
         const savedCharts = await IndexedDBStorage.getAllCharts();
         if (Array.isArray(savedCharts)) {
           for (const c of savedCharts) {
-            if (c && c.audioBlob) registerCandidate({ ...c, _isOfflineSaved: true }, 10);
+            if (c && c.audioBlob) {
+              const { audioBlob, notes, rawNotes, tierRawNotes, unpackedData, ...lightChart } = c;
+              registerCandidate({ ...lightChart, _isOfflineSaved: true }, 10);
+            }
           }
         }
       } catch (_) {}
@@ -14591,6 +14723,7 @@ function stopPianoCameraLoop() {
           g.gain.exponentialRampToValueAtTime(0.001, now + 0.065);
           osc.connect(g);
           g.connect(actx.destination);
+          osc.onended = () => { try { osc.disconnect(); g.disconnect(); } catch (_) {} };
           osc.start(now);
           osc.stop(now + 0.065);
         } else if (type === 'flip') {
@@ -14603,6 +14736,7 @@ function stopPianoCameraLoop() {
           g.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
           osc.connect(g);
           g.connect(actx.destination);
+          osc.onended = () => { try { osc.disconnect(); g.disconnect(); } catch (_) {} };
           osc.start(now);
           osc.stop(now + 0.055);
         } else if (type === 'deal' || type === 'max') {
@@ -14616,6 +14750,7 @@ function stopPianoCameraLoop() {
             g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.055 + 0.12);
             osc.connect(g);
             g.connect(actx.destination);
+            osc.onended = () => { try { osc.disconnect(); g.disconnect(); } catch (_) {} };
             osc.start(now + idx * 0.055);
             osc.stop(now + idx * 0.055 + 0.12);
           });
@@ -14630,6 +14765,7 @@ function stopPianoCameraLoop() {
           g.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
           osc.connect(g);
           g.connect(actx.destination);
+          osc.onended = () => { try { osc.disconnect(); g.disconnect(); } catch (_) {} };
           osc.start(now);
           osc.stop(now + 0.14);
         }
@@ -19636,11 +19772,187 @@ function stopPianoCameraLoop() {
       }
     }
 
+    // Mini fuente LED 3x5 ultra legible para el letrero vintage animado de bonus y el contador vintage de Modo Pulso
+    const LED_MINI_FONT_3X5 = {
+      'A': [0b010, 0b101, 0b111, 0b101, 0b101],
+      'B': [0b110, 0b101, 0b110, 0b101, 0b110],
+      'C': [0b011, 0b100, 0b100, 0b100, 0b011],
+      'D': [0b110, 0b101, 0b101, 0b101, 0b110],
+      'E': [0b111, 0b100, 0b110, 0b100, 0b111],
+      'F': [0b111, 0b100, 0b110, 0b100, 0b100],
+      'I': [0b111, 0b010, 0b010, 0b010, 0b111],
+      'L': [0b100, 0b100, 0b100, 0b100, 0b111],
+      'M': [0b101, 0b111, 0b111, 0b101, 0b101],
+      'N': [0b111, 0b101, 0b101, 0b101, 0b101],
+      'O': [0b111, 0b101, 0b101, 0b101, 0b111],
+      'S': [0b011, 0b100, 0b010, 0b001, 0b110],
+      'T': [0b111, 0b010, 0b010, 0b010, 0b010],
+      'U': [0b101, 0b101, 0b101, 0b101, 0b111],
+      'V': [0b101, 0b101, 0b101, 0b101, 0b010],
+      'X': [0b101, 0b101, 0b010, 0b101, 0b101],
+      '0': [0b111, 0b101, 0b101, 0b101, 0b111],
+      '1': [0b010, 0b110, 0b010, 0b010, 0b111],
+      '2': [0b111, 0b001, 0b111, 0b100, 0b111],
+      '3': [0b111, 0b001, 0b011, 0b001, 0b111],
+      '4': [0b101, 0b101, 0b111, 0b001, 0b001],
+      '5': [0b111, 0b100, 0b111, 0b001, 0b111],
+      '6': [0b111, 0b100, 0b111, 0b101, 0b111],
+      '7': [0b111, 0b001, 0b010, 0b010, 0b010],
+      '8': [0b111, 0b101, 0b111, 0b101, 0b111],
+      '9': [0b111, 0b101, 0b111, 0b001, 0b111],
+      ' ': [0, 0, 0, 0, 0]
+    };
+
+    // Renderizador de los 5 Corazones de Píxeles Vintage + Contador Vintage de Combo para el Modo Pulso
+    window.updatePulseModeHud = function(combo = 0, lives = 5, maxLives = 5, justLostHeart = false) {
+      const heartsCanvas = document.getElementById('hudPulseHeartsCanvas');
+      if (heartsCanvas) {
+        const dpr = Math.min(2, window.devicePixelRatio || 1);
+        const wCss = 118;
+        const hCss = 24;
+        if (heartsCanvas.width !== Math.round(wCss * dpr) || heartsCanvas.height !== Math.round(hCss * dpr)) {
+          heartsCanvas.width = Math.round(wCss * dpr);
+          heartsCanvas.height = Math.round(hCss * dpr);
+        }
+        const hCtx = heartsCanvas.getContext('2d');
+        hCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        hCtx.clearRect(0, 0, wCss, hCss);
+
+        // Matriz 9x8 de Corazón de Píxeles Vintage (0: vacío, 1: borde oscuro vintage, 2: relleno LED carmesí/rubí, 3: brillo píxel blanco/ámbar)
+        const HEART_PIXEL_GRID = [
+          [0,1,1,0,0,0,1,1,0],
+          [1,2,3,1,0,1,2,2,1],
+          [1,3,2,2,1,2,2,2,1],
+          [1,2,2,2,2,2,2,2,1],
+          [0,1,2,2,2,2,2,1,0],
+          [0,0,1,2,2,2,1,0,0],
+          [0,0,0,1,2,1,0,0,0],
+          [0,0,0,0,1,0,0,0,0]
+        ];
+        const pxSize = 2.2;
+        const heartW = 9 * pxSize;
+        const gap = 3.6;
+        const startX = (wCss - (maxLives * heartW + (maxLives - 1) * gap)) * 0.5;
+        const startY = (hCss - 8 * pxSize) * 0.5;
+
+        for (let hIdx = 0; hIdx < maxLives; hIdx++) {
+          const isAlive = hIdx < lives;
+          const isJustBroken = justLostHeart && (hIdx === lives);
+          const hx = startX + hIdx * (heartW + gap);
+
+          for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 9; c++) {
+              const cell = HEART_PIXEL_GRID[r][c];
+              if (!cell) continue;
+              const x = hx + c * pxSize;
+              const y = startY + r * pxSize;
+              if (isAlive) {
+                hCtx.fillStyle = cell === 1 ? '#450a0a' : (cell === 3 ? '#fde047' : '#ff1e42');
+              } else if (isJustBroken) {
+                hCtx.fillStyle = cell === 1 ? '#7f1d1d' : '#fbbf24';
+              } else {
+                hCtx.fillStyle = cell === 1 ? '#1c140d' : '#2e1d16';
+              }
+              hCtx.fillRect(x, y, pxSize - 0.25, pxSize - 0.25);
+            }
+          }
+        }
+      }
+
+      const comboCanvas = document.getElementById('hudPulseComboCanvas');
+      if (comboCanvas) {
+        const dpr = Math.min(2, window.devicePixelRatio || 1);
+        const wCss = 112;
+        const hCss = 24;
+        if (comboCanvas.width !== Math.round(wCss * dpr) || comboCanvas.height !== Math.round(hCss * dpr)) {
+          comboCanvas.width = Math.round(wCss * dpr);
+          comboCanvas.height = Math.round(hCss * dpr);
+        }
+        const cCtx = comboCanvas.getContext('2d');
+        cCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        cCtx.fillStyle = '#050402';
+        cCtx.fillRect(0, 0, wCss, hCss);
+
+        const pitch = 2.4;
+        const cols = Math.floor((wCss - 4) / pitch);
+        const rows = Math.floor((hCss - 2) / pitch);
+        const offX = (wCss - cols * pitch) * 0.5 + pitch * 0.5;
+        const offY = (hCss - rows * pitch) * 0.5 + pitch * 0.5;
+        const dotR = pitch * 0.39;
+
+        // Fondo de matriz LED vintage apagada
+        cCtx.fillStyle = '#1c150b';
+        cCtx.beginPath();
+        for (let r = 0; r < rows; r++) {
+          const py = offY + r * pitch;
+          for (let c = 0; c < cols; c++) {
+            const px = offX + c * pitch;
+            cCtx.moveTo(px + dotR * 0.72, py);
+            cCtx.arc(px, py, dotR * 0.72, 0, Math.PI * 2);
+          }
+        }
+        cCtx.fill();
+
+        const lit = new Map();
+        const setDot = (c, r, col) => {
+          if (c >= 0 && c < cols && r >= 0 && r < rows) lit.set(r * cols + c, col);
+        };
+
+        // Texto izquierdo "CMB" en píxeles vintage 3x5
+        const tag = 'CMB';
+        const tagRow = Math.max(0, Math.floor((rows - 5) * 0.5));
+        for (let i = 0; i < tag.length; i++) {
+          const g = LED_MINI_FONT_3X5[tag[i]];
+          if (!g) continue;
+          const baseC = 1 + i * 4;
+          for (let gr = 0; gr < 5; gr++) {
+            for (let gc = 0; gc < 3; gc++) {
+              if ((g[gr] >> (2 - gc)) & 1) {
+                setDot(baseC + gc, tagRow + gr, '#f59e0b');
+              }
+            }
+          }
+        }
+
+        // Contador numérico de 4 dígitos LED grandes 5x7 ("0000")
+        const comboStr = String(Math.min(9999, Math.max(0, Math.floor(combo || 0)))).padStart(4, '0');
+        const digRow = Math.max(0, Math.floor((rows - 7) * 0.5));
+        const digStartCol = 15;
+        for (let i = 0; i < 4; i++) {
+          const ch = comboStr[i];
+          const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7['0'];
+          const baseC = digStartCol + i * 7;
+          const isLeadingZero = (combo === 0 && i < 3) || (combo > 0 && i < 4 - String(combo).length);
+          const activeCol = isLeadingZero ? '#4d3818' : (combo >= 50 ? '#38bdf8' : '#fde047');
+          for (let gr = 0; gr < 7; gr++) {
+            const rowBits = glyph[gr];
+            if (!rowBits) continue;
+            for (let gc = 0; gc < 5; gc++) {
+              if ((rowBits >> (4 - gc)) & 1) {
+                setDot(baseC + gc, digRow + gr, activeCol);
+              }
+            }
+          }
+        }
+
+        for (const [idx, col] of lit.entries()) {
+          const r = Math.floor(idx / cols);
+          const c = idx % cols;
+          const lx = offX + c * pitch;
+          const ly = offY + r * pitch;
+          cCtx.fillStyle = col;
+          cCtx.beginPath();
+          cCtx.arc(lx, ly, dotR * 1.08, 0, Math.PI * 2);
+          cCtx.fill();
+        }
+      }
+    };
+
     function _renderOsuHybridLedButton(canvas, now, isLocked) {
       if (!canvas) return;
       const dpr = Math.min(2, window.devicePixelRatio || 1);
       const widthCss = 318;
-      const heightCss = 34;
+      const heightCss = 48;
       if (canvas.width !== Math.round(widthCss * dpr) || canvas.height !== Math.round(heightCss * dpr)) {
         canvas.width = Math.round(widthCss * dpr);
         canvas.height = Math.round(heightCss * dpr);
@@ -19651,7 +19963,7 @@ function stopPianoCameraLoop() {
       ctx.fillStyle = '#04060e';
       ctx.fillRect(0, 0, widthCss, heightCss);
 
-      const pitch = 3.55;
+      const pitch = 3.45;
       const cols = Math.floor((widthCss - 4) / pitch);
       const rows = Math.floor((heightCss - 2) / pitch);
       const offsetX = (widthCss - cols * pitch) * 0.5 + pitch * 0.5;
@@ -19680,24 +19992,24 @@ function stopPianoCameraLoop() {
         }
       };
 
-      // Aro concéntrico limpio a la izquierda cerrándose a velocidad constante
-      const cx = 19;
-      const cy = Math.floor(rows * 0.5);
+      // Aro concéntrico limpio a la izquierda en la franja superior
+      const cx = 17;
+      const cy = 3;
       const pulsePhase = 1.0 - ((t * 1.15) % 1.0);
-      const outerR = 2.1 + pulsePhase * 1.9;
+      const outerR = 1.9 + pulsePhase * 1.6;
       for (let a = 0; a < 16; a++) {
         const ang = (a * Math.PI * 2) / 16;
-        setLed(cx + Math.cos(ang) * 2.1, cy + Math.sin(ang) * 2.1, '#38bdf8');
+        setLed(cx + Math.cos(ang) * 1.9, cy + Math.sin(ang) * 1.9, '#38bdf8');
         if (a % 2 === 0) {
           setLed(cx + Math.cos(ang) * outerR, cy + Math.sin(ang) * outerR, pulsePhase < 0.25 ? '#ffffff' : '#e879f9');
         }
       }
       setLed(cx, cy, '#ffffff');
 
-      // Texto central grande y nítido "PULSO" (mismo tamaño LED que NORMAL)
+      // Texto central grande y nítido "PULSO" en la mitad superior (filas 0..6)
       const label = 'PULSO';
       const startCol = 31;
-      const textRow = Math.max(0, Math.floor((rows - 7) * 0.5));
+      const textRow = 0;
       for (let i = 0; i < label.length; i++) {
         const ch = label[i];
         const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7[' '];
@@ -19711,6 +20023,33 @@ function stopPianoCameraLoop() {
               const lr = textRow + gr;
               setLed(lc, lr, gr < 2 ? '#ffffff' : (gr < 5 ? '#38bdf8' : '#e879f9'));
             }
+          }
+        }
+      }
+
+      // Mensaje LED Vintage animado de IZQUIERDA A DERECHA justo debajo del nombre del modo: "X3 CLAVES BONUS DIFICULTAD"
+      const marqueeMsg = 'X3 CLAVES BONUS DIFICULTAD     ';
+      const charStride = 4; // 3 cols + 1 espacio
+      const totalMarqueeCols = marqueeMsg.length * charStride;
+      const subRow = 8; // Filas 8..12 (5 filas de alto)
+      // Desplazamiento de izquierda a derecha (+t)
+      const scrollShift = Math.floor(t * 18) % totalMarqueeCols;
+
+      for (let screenCol = 1; screenCol < cols - 1; screenCol++) {
+        const msgCol = ((screenCol - scrollShift) % totalMarqueeCols + totalMarqueeCols) % totalMarqueeCols;
+        const charIdx = Math.floor(msgCol / charStride);
+        const gc = msgCol % charStride;
+        if (gc >= 3) continue;
+        const ch = marqueeMsg[charIdx];
+        const miniGlyph = LED_MINI_FONT_3X5[ch];
+        if (!miniGlyph) continue;
+        const isX3Highlight = (charIdx === 0 || charIdx === 1);
+        for (let gr = 0; gr < 5; gr++) {
+          if ((miniGlyph[gr] >> (2 - gc)) & 1) {
+            const ledColor = isX3Highlight
+              ? (gr === 0 ? '#ffffff' : '#38bdf8')
+              : (gr < 2 ? '#fde047' : '#ffb300');
+            setLed(screenCol, subRow + gr, ledColor);
           }
         }
       }

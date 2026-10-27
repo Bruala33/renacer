@@ -2920,6 +2920,13 @@ class BeatstarEngine {
       }
     }
 
+    // Liberar arrays pesados intermedios del objeto beatmapData activo para evitar retención de memoria tras varias canciones
+    if (this.beatmapData) {
+      delete this.beatmapData.rawNotes;
+      delete this.beatmapData.tierRawNotes;
+      delete this.beatmapData.unpackedData;
+    }
+
     // Set dynamic base scroll duration based on difficulty stars curve
     const baseScroll = this.computeDynamicScrollDuration(effectiveStars, sanitizedNotes);
     this.baseScrollDurationMs = baseScroll;
@@ -3191,12 +3198,18 @@ class BeatstarEngine {
     this.lastCelebratedStar = 0;
     this.currentMedalTier = null;
     this.missCount = 0;
+    this.osuMaxLives = 5;
+    this.osuLives = 5;
+    this._osuHeartLossFlash = 0;
     this.invulnerableUntil = 0; // Sin auto-completado indebido de notas
-    this.stats = { perfectPlus: 0, perfect: 0, great: 0, miss: 0 };
+    this.stats = { perfectPlus: 0, perfect: 0, great: 0, good: 0, miss: 0 };
     this.timingStats = { count: 0, sumSignedMs: 0, sumAbsMs: 0, earlyCount: 0, lateCount: 0, exactCount: 0 };
     this.overdriveLevel = 0;
     this.overdriveFlash = 0;
     this._wasOverdrive = false;
+    if (typeof window !== 'undefined' && typeof window.updatePulseModeHud === 'function') {
+      window.updatePulseModeHud(0, this.osuLives, this.osuMaxLives, false);
+    }
     
     if (this.discoBall) {
       this.discoBall.active = false;
@@ -3533,6 +3546,14 @@ class BeatstarEngine {
     // 2.5s invulnerability grace period
     this.invulnerableUntil = failTimeMs + this.latencyOffsetMs + 2500;
 
+    // En Modo Pulso: restaurar los 5 corazones al pagar para continuar
+    this.osuMaxLives = 5;
+    this.osuLives = 5;
+    this._osuHeartLossFlash = 0;
+    if (typeof window !== 'undefined' && typeof window.updatePulseModeHud === 'function') {
+      window.updatePulseModeHud(this.combo || 0, this.osuLives, this.osuMaxLives, false);
+    }
+
     if (this.ui && this.ui.onShowRewindBadge) {
       this.ui.onShowRewindBadge();
     }
@@ -3594,18 +3615,49 @@ class BeatstarEngine {
     }
     this.activeHolds.clear();
     this.activeTouches.clear();
-    this.notes.length = 0;
+    if (this.activeSwipeDrags) this.activeSwipeDrags.clear();
+    if (Array.isArray(this.notes)) {
+      for (let i = 0; i < this.notes.length; i++) {
+        const n = this.notes[i];
+        if (n) {
+          n._osuPrevCircle = null;
+          n._osuNextCircle = null;
+          n._osuTwinPartner = null;
+          n._echoTargetNote = null;
+          n._echoSourceNote = null;
+        }
+      }
+      this.notes.length = 0;
+    }
     this.judgements.length = 0;
     this.fxRipples.length = 0;
     this.flyingLyrics.length = 0;
     this.bgBursts.length = 0;
     this.musicalNotes.length = 0;
+    if (this.particles && typeof this.particles.reset === 'function') {
+      this.particles.reset();
+    }
     if (this._mineExplosions) this._mineExplosions.length = 0;
     if (this._shatteredKeyFragments) this._shatteredKeyFragments.length = 0;
     if (this._mineFloatingPenalties) this._mineFloatingPenalties.length = 0;
-    if (this._lyricKeySpriteCache && this._lyricKeySpriteCache.size > 160) {
+    if (this._echoRipples) this._echoRipples.length = 0;
+    if (this._mirrorWindows) this._mirrorWindows.length = 0;
+    if (this._mirrorCrossBeams) this._mirrorCrossBeams.length = 0;
+    if (this._osuMiniOrbs) this._osuMiniOrbs.length = 0;
+    if (this._osuShockwaves) this._osuShockwaves.length = 0;
+    if (this._osuHitBursts) this._osuHitBursts.length = 0;
+    if (this._osuTimingTicks) this._osuTimingTicks.length = 0;
+    if (this._osuCursorTrails) this._osuCursorTrails.length = 0;
+    if (this._osuLaserLinks) this._osuLaserLinks.length = 0;
+    if (this._osuActivePointers) this._osuActivePointers.clear();
+    if (this._lyricKeySpriteCache && this._lyricKeySpriteCache.size > 0) {
+      for (const c of this._lyricKeySpriteCache.values()) {
+        if (c) { c.width = 0; c.height = 0; }
+      }
       this._lyricKeySpriteCache.clear();
     }
+    this.cachedCustomBgImg = null;
+    this.cachedCustomBgSrc = null;
     this.firstActiveNoteIndex = 0;
     this.lastLitSyllableIndex = -1;
     this._lastCurLyricIndex = -1;
@@ -4739,7 +4791,24 @@ class BeatstarEngine {
       this.ui.onScoreUpdate(this.score, this.combo, this.stars, this.multiplier, this.currentMedalTier, scorePct, accuracyPct);
     }
 
-    // SIEMPRE pausar y mostrar pantalla de muerte si hay notas cargadas
+    const isOsuMode = Boolean(this.isOsuHybridModeActive || (typeof window !== 'undefined' && window.isOsuHybridModeActive));
+    if (isOsuMode) {
+      const maxLives = this.osuMaxLives || 5;
+      if (typeof this.osuLives !== 'number') this.osuLives = maxLives;
+      this.osuLives = Math.max(0, this.osuLives - 1);
+      this._osuHeartLossFlash = 1.0;
+      this._osuComboBreakFlash = 1.0;
+      if (typeof window !== 'undefined' && typeof window.updatePulseModeHud === 'function') {
+        window.updatePulseModeHud(this.combo, this.osuLives, maxLives, true);
+      }
+      // Si aún le quedan corazones (fallos 1 a 4), continuar la partida sin saltar a la pantalla de muerte
+      if (this.osuLives > 0) {
+        this.isProcessingMiss = false;
+        return;
+      }
+    }
+
+    // SIEMPRE pausar y mostrar pantalla de muerte si hay notas cargadas (o al 5º fallo en Modo Pulso)
     const hasActiveGame = this.notes && this.notes.length > 0;
     if (hasActiveGame) {
       const penaltyCost = Math.pow(2, this.missCount);
@@ -5391,11 +5460,21 @@ class BeatstarEngine {
     const maxScore = Math.max(1, this.maxPossibleScore || 1);
     const scorePct = Math.min(100.0, Math.max(0.0, (this.score / maxScore) * 100));
 
-    // Precisión de impacto física:
-    const totalJudged = (this.stats.perfectPlus || 0) + (this.stats.perfect || 0) + (this.stats.great || 0) + (this.stats.good || 0) + (this.stats.miss || 0);
-    const accuracyPct = totalJudged > 0
-      ? Math.min(100.0, Math.max(0.0, (((this.stats.perfectPlus * 100) + (this.stats.perfect * 80) + (this.stats.great * 50) + ((this.stats.good || 0) * 25)) / (totalJudged * 100)) * 100))
+    // Precisión de impacto física real sobre el total de notas de la canción y notas juzgadas:
+    const ppCount = this.stats.perfectPlus || 0;
+    const pCount = this.stats.perfect || 0;
+    const gCount = this.stats.great || 0;
+    const goodCount = this.stats.good || 0;
+    const missCountStat = this.stats.miss || 0;
+    const totalJudged = ppCount + pCount + gCount + goodCount + missCountStat;
+    const totalDenom = Math.max(1, totalNotes, totalJudged);
+    const weightedHits = (ppCount * 100) + (pCount * 80) + (gCount * 50) + (goodCount * 25);
+    let accuracyPct = totalDenom > 0
+      ? Math.min(100.0, Math.max(0.0, (weightedHits / (totalDenom * 100)) * 100))
       : 100.0;
+    if (missCountStat > 0 || pCount > 0 || gCount > 0 || goodCount > 0 || ppCount < totalDenom) {
+      accuracyPct = Math.min(99.9, accuracyPct);
+    }
 
     // La evaluación de estrellas y medallas se rige ESTRICTAMENTE por scorePct:
     // 5★: >= 90% | 4★: >= 75% | 3★: >= 60% | 2★: >= 40% | 1★: >= 20%
@@ -5434,7 +5513,7 @@ class BeatstarEngine {
     }
     this.currentMedalTier = finalMedal;
 
-    // Claves (Clefs) según fórmula solicitada: puntuación * 0.00001 * dificultad (estrellas, máximo x7) con x2 en destacadas
+    // Claves (Clefs) según fórmula solicitada: puntuación * 0.00001 * dificultad (estrellas, máximo x7) con x2 en destacadas y X3 EXCLUSIVO en Modo Pulso
     const rawDiffStars = Number(this.beatmapData?.metadata?.stars || this.beatmapData?.stars || this.stars || 3.0);
     const diffMultiplier = Math.min(7, Math.max(1, Math.round(rawDiffStars * 10) / 10));
     const baseScoreClefs = Math.floor((this.score || 0) * 0.00001);
@@ -5443,7 +5522,11 @@ class BeatstarEngine {
       this.beatmapData?.metadata?.is_daily_featured || 
       (typeof window !== 'undefined' && (window.currentActiveBeatmap?.is_daily_featured || window.currentActiveBeatmap?.metadata?.is_daily_featured || window.currentFeaturedSongX2))
     );
-    const isStormX2 = Boolean(
+    const isPulseX3 = Boolean(
+      this.isOsuHybridModeActive ||
+      (typeof window !== 'undefined' && window.isOsuHybridModeActive)
+    );
+    const isStormX2 = !isPulseX3 && Boolean(
       this.isStormModeActive ||
       this.isMushroomModeActive ||
       this.isHighwayModeActive ||
@@ -5452,10 +5535,10 @@ class BeatstarEngine {
       this.isMinesweeperModeActive ||
       this.isMirrorModeActive ||
       this.isEchoModeActive ||
-      this.isOsuHybridModeActive ||
-      (typeof window !== 'undefined' && (window.isStormModeActive || window.isMushroomModeActive || window.isHighwayModeActive || window.isAnnoyingDogModeActive || window.isRiverModeActive || window.isMinesweeperModeActive || window.isMirrorModeActive || window.isEchoModeActive || window.isOsuHybridModeActive))
+      (typeof window !== 'undefined' && (window.isStormModeActive || window.isMushroomModeActive || window.isHighwayModeActive || window.isAnnoyingDogModeActive || window.isRiverModeActive || window.isMinesweeperModeActive || window.isMirrorModeActive || window.isEchoModeActive))
     );
-    const clefMultiplier = (isFeatured ? 2 : 1) * (isStormX2 ? 2 : 1);
+    const modeClefMult = isPulseX3 ? 3 : (isStormX2 ? 2 : 1);
+    const clefMultiplier = (isFeatured ? 2 : 1) * modeClefMult;
     const earnedClefs = Math.max(1, Math.round(baseScoreClefs * diffMultiplier)) * clefMultiplier;
 
     // Consumir inmediatamente el multiplicador x2 de tragaperras para que NO afecte a partidas posteriores
@@ -8112,6 +8195,7 @@ class BeatstarEngine {
       gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.52);
       osc.connect(gain);
       gain.connect(ctx.destination);
+      osc.onended = () => { try { osc.disconnect(); gain.disconnect(); } catch (_) {} };
       osc.start(now);
       osc.stop(now + 0.54);
     } catch (_) {}
@@ -13241,6 +13325,7 @@ class BeatstarEngine {
       subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.82);
       subOsc.connect(subGain);
       subGain.connect(ctx.destination);
+      subOsc.onended = () => { try { subOsc.disconnect(); subGain.disconnect(); } catch (_) {} };
       subOsc.start(now);
       subOsc.stop(now + 0.84);
 
@@ -13254,21 +13339,25 @@ class BeatstarEngine {
       punchGain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
       punchOsc.connect(punchGain);
       punchGain.connect(ctx.destination);
+      punchOsc.onended = () => { try { punchOsc.disconnect(); punchGain.disconnect(); } catch (_) {} };
       punchOsc.start(now);
       punchOsc.stop(now + 0.36);
 
-      // 3. Explosión pirotécnica de banda ancha + metralla de teclas destruidas (Ruido filtrado)
-      const bufLen = Math.floor(ctx.sampleRate * 1.15);
-      const noiseBuf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
-      const data = noiseBuf.getChannelData(0);
-      for (let i = 0; i < bufLen; i++) {
-        const t = i / bufLen;
-        const crackle = (Math.random() < 0.04) ? (Math.random() * 2 - 1) * 1.8 : 0;
-        data[i] = ((Math.random() * 2 - 1) * Math.pow(1 - t, 1.35)) + crackle * (1 - t);
+      // 3. Explosión pirotécnica de banda ancha + metralla de teclas destruidas (Ruido filtrado cacheado)
+      if (!this._mineNoiseBuffer || this._mineNoiseBuffer.sampleRate !== ctx.sampleRate) {
+        const bufLen = Math.floor(ctx.sampleRate * 1.15);
+        const noiseBuf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+        const data = noiseBuf.getChannelData(0);
+        for (let i = 0; i < bufLen; i++) {
+          const t = i / bufLen;
+          const crackle = (Math.random() < 0.04) ? (Math.random() * 2 - 1) * 1.8 : 0;
+          data[i] = ((Math.random() * 2 - 1) * Math.pow(1 - t, 1.35)) + crackle * (1 - t);
+        }
+        this._mineNoiseBuffer = noiseBuf;
       }
 
       const noiseSrc = ctx.createBufferSource();
-      noiseSrc.buffer = noiseBuf;
+      noiseSrc.buffer = this._mineNoiseBuffer;
 
       const filter = ctx.createBiquadFilter();
       filter.type = 'lowpass';
@@ -13282,6 +13371,7 @@ class BeatstarEngine {
       noiseSrc.connect(filter);
       filter.connect(noiseGain);
       noiseGain.connect(ctx.destination);
+      noiseSrc.onended = () => { try { noiseSrc.disconnect(); filter.disconnect(); noiseGain.disconnect(); } catch (_) {} };
       noiseSrc.start(now);
       noiseSrc.stop(now + 1.12);
     } catch (_) {}
@@ -18074,6 +18164,7 @@ class BeatstarEngine {
 
         osc.connect(gain);
         gain.connect(actx.destination);
+        osc.onended = () => { try { osc.disconnect(); gain.disconnect(); } catch (_) {} };
         osc.start(now);
         osc.stop(now + (isSecondHit ? 0.115 : 0.135));
       } catch (_) {}
@@ -18299,7 +18390,7 @@ class BeatstarEngine {
 
       this._osuLaserLinks = [];
       if (typeof document === 'undefined') return;
-      if (this._osuReceptorSprites && this._osuGlowSprites && this._osuGlowSprites.length >= 5) return;
+      if (this._osuReceptorSprites && this._osuGlowSprites && this._osuGlowSprites.length >= 5 && this._osuPenaltyGlowSprite && this._osuBodySprites) return;
 
       // 1. Pre-renderizar Sprites de Resplandor Difuminado Gaussiano en Alta Resolución (320x320)
       this._osuGlowSprites = this._osuComboPalettes.map((pal) => {
@@ -18316,6 +18407,54 @@ class BeatstarEngine {
         g.fillStyle = grad;
         g.fillRect(0, 0, 320, 320);
         return c;
+      });
+
+      // Sprite de resplandor carmesí para penalizaciones/roturas (0 createRadialGradient por frame)
+      {
+        const pc = document.createElement('canvas');
+        pc.width = 256;
+        pc.height = 256;
+        const pg = pc.getContext('2d');
+        const pGrad = pg.createRadialGradient(128, 128, 4, 128, 128, 124);
+        pGrad.addColorStop(0.00, 'rgba(255, 255, 255, 0.85)');
+        pGrad.addColorStop(0.32, 'rgba(255, 42, 85, 0.58)');
+        pGrad.addColorStop(1.00, 'rgba(255, 42, 85, 0)');
+        pg.fillStyle = pGrad;
+        pg.fillRect(0, 0, 256, 256);
+        this._osuPenaltyGlowSprite = pc;
+      }
+
+      // Pre-renderizar cuerpos interiores cristalinos 3D de los círculos (5 paletas + nova + swipe)
+      const bodyConfigs = [
+        ...this._osuComboPalettes.map(p => ({ coreInner: p.coreInner, core: p.core })),
+        { coreInner: '#7c1d42', core: '#2e0819' }, // 5: Nova
+        { coreInner: '#0b523b', core: '#042419' }  // 6: Swipe
+      ];
+      this._osuBodySprites = bodyConfigs.map((cfg) => {
+        const bc = document.createElement('canvas');
+        bc.width = 160;
+        bc.height = 160;
+        const bg = bc.getContext('2d');
+        const r = 74;
+        const cx = 80;
+        const cy = 80;
+        const bGrad = bg.createRadialGradient(cx - r * 0.24, cy - r * 0.28, r * 0.08, cx, cy, r);
+        bGrad.addColorStop(0.00, cfg.coreInner);
+        bGrad.addColorStop(0.68, cfg.core);
+        bGrad.addColorStop(1.00, '#07030f');
+        bg.fillStyle = bGrad;
+        bg.beginPath();
+        bg.arc(cx, cy, r, 0, Math.PI * 2);
+        bg.fill();
+
+        const sGrad = bg.createLinearGradient(cx, cy - r, cx, cy);
+        sGrad.addColorStop(0.00, 'rgba(255, 255, 255, 0.40)');
+        sGrad.addColorStop(1.00, 'rgba(255, 255, 255, 0.00)');
+        bg.fillStyle = sGrad;
+        bg.beginPath();
+        bg.ellipse(cx, cy - r * 0.44, r * 0.62, r * 0.28, 0, 0, Math.PI * 2);
+        bg.fill();
+        return bc;
       });
 
       // 2. Pre-renderizar los 3 Nodos Receptores Orbitales de la línea Mania inferior
@@ -19635,7 +19774,7 @@ class BeatstarEngine {
       this.combo = 0;
       this.streakCount = 0;
       this.multiplier = 1;
-      this.stats.good = (this.stats.good || 0) + 1;
+      this.stats.miss = (this.stats.miss || 0) + 1;
       this._osuComboBreakFlash = 1.0;
       this._osuEnergyLevel = Math.max(0, (this._osuEnergyLevel || 0) * 0.35);
 
@@ -19643,6 +19782,40 @@ class BeatstarEngine {
       this._playOsuHitSound('break', 1);
       this.triggerScreenShake(3.2, 70);
       this._spawnOsuHitBurst(x, y, '#ff2a55', Math.round(partialPts), reasonLabel || '¡MAL SWIPE! -COMBO', 2);
+
+      // En Modo Pulso: restar 1 corazón al fallar swipe o soltar slider, y al 5º fallo saltar a pantalla de muerte
+      const maxLives = this.osuMaxLives || 5;
+      if (typeof this.osuLives !== 'number') this.osuLives = maxLives;
+      if (!note || !note._osuHeartDeducted) {
+        if (note) note._osuHeartDeducted = true;
+        this.osuLives = Math.max(0, this.osuLives - 1);
+        this._osuHeartLossFlash = 1.0;
+        if (typeof window !== 'undefined' && typeof window.updatePulseModeHud === 'function') {
+          window.updatePulseModeHud(0, this.osuLives, maxLives, true);
+        }
+        if (this.osuLives <= 0 && !this.isProcessingMiss && !this.isGameOver && !this.isPaused) {
+          this.isProcessingMiss = true;
+          this.lastMissTimePerf = performance.now();
+          this.lastFailSongTimeSec = (this.sync.getCurrentTimeMs() || 0) / 1000;
+          const penaltyCost = Math.pow(2, this.missCount);
+          this.missCount++;
+          if (this.sync && this.sync.pause) {
+            try { this.sync.pause(); } catch (e) {}
+          }
+          setTimeout(() => {
+            this.pause();
+            try {
+              if (this.ui && typeof this.ui.onMissPenalty === 'function') {
+                this.ui.onMissPenalty(penaltyCost, this.missCount, this.score);
+              } else {
+                this.isProcessingMiss = false;
+              }
+            } catch (err) {
+              this.isProcessingMiss = false;
+            }
+          }, 1000);
+        }
+      }
     }
 
     _pushOsuCursorTrail(x, y) {
@@ -19860,6 +20033,7 @@ class BeatstarEngine {
           gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
           osc.connect(gain);
           gain.connect(actx.destination);
+          osc.onended = () => { try { osc.disconnect(); gain.disconnect(); } catch (_) {} };
           osc.start(now);
           osc.stop(now + 0.16);
           return;
@@ -19876,6 +20050,7 @@ class BeatstarEngine {
           gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
           osc.connect(gain);
           gain.connect(actx.destination);
+          osc.onended = () => { try { osc.disconnect(); gain.disconnect(); } catch (_) {} };
           osc.start(now);
           osc.stop(now + 0.095);
           return;
@@ -19891,6 +20066,7 @@ class BeatstarEngine {
           gain.gain.exponentialRampToValueAtTime(0.001, now + 0.085);
           osc.connect(gain);
           gain.connect(actx.destination);
+          osc.onended = () => { try { osc.disconnect(); gain.disconnect(); } catch (_) {} };
           osc.start(now);
           osc.stop(now + 0.09);
           return;
@@ -19908,6 +20084,7 @@ class BeatstarEngine {
             gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
             osc.connect(gain);
             gain.connect(actx.destination);
+            osc.onended = () => { try { osc.disconnect(); gain.disconnect(); } catch (_) {} };
             osc.start(now);
             osc.stop(now + 0.16);
           }
@@ -19924,6 +20101,7 @@ class BeatstarEngine {
           gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
           osc.connect(gain);
           gain.connect(actx.destination);
+          osc.onended = () => { try { osc.disconnect(); gain.disconnect(); } catch (_) {} };
           osc.start(now);
           osc.stop(now + 0.045);
           return;
@@ -19936,6 +20114,7 @@ class BeatstarEngine {
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
         osc.connect(gain);
         gain.connect(actx.destination);
+        osc.onended = () => { try { osc.disconnect(); gain.disconnect(); } catch (_) {} };
         osc.start(now);
         osc.stop(now + 0.095);
       } catch (_) {}
@@ -20209,13 +20388,19 @@ class BeatstarEngine {
 
       ctx.save();
 
-      // 1. Velo espacial profundo de alto contraste (garantiza visibilidad perfecta en móvil)
-      const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
-      bgGrad.addColorStop(0.00, theme.top);
-      bgGrad.addColorStop(0.48, theme.mid);
-      bgGrad.addColorStop(0.78, 'rgba(18, 6, 28, 0.66)');
-      bgGrad.addColorStop(1.00, 'rgba(5, 2, 12, 0.86)');
-      ctx.fillStyle = bgGrad;
+      // 1. Velo espacial profundo de alto contraste (gradiente cacheado por altura y tier)
+      if (!this._osuBgGradCache || this._osuBgGradH !== h) {
+        this._osuBgGradH = h;
+        this._osuBgGradCache = tierThemes.map((th) => {
+          const g = ctx.createLinearGradient(0, 0, 0, h);
+          g.addColorStop(0.00, th.top);
+          g.addColorStop(0.48, th.mid);
+          g.addColorStop(0.78, 'rgba(18, 6, 28, 0.66)');
+          g.addColorStop(1.00, 'rgba(5, 2, 12, 0.86)');
+          return g;
+        });
+      }
+      ctx.fillStyle = this._osuBgGradCache[comboTier];
       ctx.fillRect(0, 0, w, h);
 
       ctx.globalCompositeOperation = 'lighter';
@@ -20277,12 +20462,19 @@ class BeatstarEngine {
 
       if (comboTier >= 3) {
         // Modo KIAI (100+ Combo): Auroras superiores + destellos radiales de hiperespacio
-        const aurGrad = ctx.createLinearGradient(0, 0, w, h * 0.36);
-        aurGrad.addColorStop(0.00, `rgba(251, 191, 36, ${(0.12 + beatPulse * 0.12).toFixed(3)})`);
-        aurGrad.addColorStop(0.50, `rgba(255, 42, 133, ${(0.14 + beatPulse * 0.12).toFixed(3)})`);
-        aurGrad.addColorStop(1.00, 'rgba(0, 242, 254, 0)');
-        ctx.fillStyle = aurGrad;
+        if (!this._osuAurGradCache || this._osuAurGradW !== w || this._osuAurGradH !== h) {
+          this._osuAurGradW = w;
+          this._osuAurGradH = h;
+          const ag = ctx.createLinearGradient(0, 0, w, h * 0.36);
+          ag.addColorStop(0.00, 'rgba(251, 191, 36, 0.22)');
+          ag.addColorStop(0.50, 'rgba(255, 42, 133, 0.24)');
+          ag.addColorStop(1.00, 'rgba(0, 242, 254, 0)');
+          this._osuAurGradCache = ag;
+        }
+        ctx.globalAlpha = Math.min(1, 0.55 + beatPulse * 0.45);
+        ctx.fillStyle = this._osuAurGradCache;
         ctx.fillRect(0, 0, w, h * 0.38);
+        ctx.globalAlpha = 1.0;
 
         ctx.strokeStyle = `rgba(253, 224, 71, ${(0.15 + beatPulse * 0.16).toFixed(3)})`;
         ctx.lineWidth = 1.6;
@@ -20297,16 +20489,17 @@ class BeatstarEngine {
         ctx.stroke();
       }
 
-      // 4. Pulso ambiental sincronizado al BPM + Ondas de Choque de Supernovas
+      // 4. Pulso ambiental sincronizado al BPM + Ondas de Choque de Supernovas (usando sprite pre-renderizado)
       if (beatPulse > 0.02) {
         const isEvenBeat = (Math.abs(beatIndex) % 2 === 0);
         const beatRgb = isEvenBeat ? theme.rgbA : theme.rgbB;
-        const stageFlashGrad = ctx.createRadialGradient(centerStageX, centerStageY, 10, centerStageX, centerStageY, Math.max(w, h) * 0.72);
-        stageFlashGrad.addColorStop(0.00, `rgba(${beatRgb}, ${(beatPulse * (0.13 + comboTier * 0.03)).toFixed(3)})`);
-        stageFlashGrad.addColorStop(0.55, `rgba(${beatRgb}, ${(beatPulse * 0.07).toFixed(3)})`);
-        stageFlashGrad.addColorStop(1.00, 'rgba(0, 0, 0, 0)');
-        ctx.fillStyle = stageFlashGrad;
-        ctx.fillRect(0, 0, w, h);
+        if (this._osuGlowSprites && this._osuGlowSprites.length >= 5) {
+          const flashSize = Math.max(w, h) * 1.44;
+          const sprIdx = isEvenBeat ? 1 : (comboTier === 3 ? 3 : 0);
+          ctx.globalAlpha = Math.min(1, beatPulse * (0.20 + comboTier * 0.04));
+          ctx.drawImage(this._osuGlowSprites[sprIdx], centerStageX - flashSize * 0.5, centerStageY - flashSize * 0.5, flashSize, flashSize);
+          ctx.globalAlpha = 1.0;
+        }
 
         ctx.strokeStyle = `rgba(${beatRgb}, ${(beatPulse * (0.24 + comboTier * 0.06)).toFixed(3)})`;
         ctx.lineWidth = 8 + beatPulse * 10;
@@ -20377,35 +20570,44 @@ class BeatstarEngine {
         ctx.stroke();
       }
 
-      // 7. Pistas de los 3 Carriles Inferiores con transición suave en intercalado
+      // 7. Pistas de los 3 Carriles Inferiores con transición suave en intercalado (gradientes cacheados)
       const laneTopY = hitY - h * 0.54;
       const laneColors = ['0, 242, 254', '192, 132, 252', '251, 191, 36'];
+      if (!this._osuLaneGradsCache || this._osuLaneGradsH !== h || this._osuLaneGradsHitY !== hitY) {
+        this._osuLaneGradsH = h;
+        this._osuLaneGradsHitY = hitY;
+        this._osuLaneGradsCache = laneColors.map((rgb) => {
+          const bg = ctx.createLinearGradient(0, laneTopY, 0, hitY);
+          bg.addColorStop(0.00, `rgba(${rgb}, 0)`);
+          bg.addColorStop(0.55, `rgba(${rgb}, 0.22)`);
+          bg.addColorStop(1.00, `rgba(${rgb}, 0.52)`);
+          const rg = ctx.createLinearGradient(0, laneTopY, 0, hitY);
+          rg.addColorStop(0.00, `rgba(${rgb}, 0)`);
+          rg.addColorStop(1.00, `rgba(${rgb}, 0.90)`);
+          return { beamGrad: bg, railGrad: rg };
+        });
+      }
 
       for (let lane = 0; lane < 3; lane++) {
         const lx = this._getOsuManiaLaneX(lane, w);
         const flash = this.laneFlashTimers ? (this.laneFlashTimers[lane] || 0) : 0;
         const flashNorm = Math.min(1.0, flash / 0.22);
-        const rgb = laneColors[lane];
+        const cachedLane = this._osuLaneGradsCache[lane];
 
         const beamW = (w * 0.18) * (1.0 + flashNorm * 0.30 + beatPulse * 0.14);
-        const beamGrad = ctx.createLinearGradient(lx, laneTopY, lx, hitY);
-        beamGrad.addColorStop(0.00, `rgba(${rgb}, 0)`);
-        beamGrad.addColorStop(0.55, `rgba(${rgb}, ${((0.04 + flashNorm * 0.14 + beatPulse * 0.04) * maniaAlphaMult).toFixed(3)})`);
-        beamGrad.addColorStop(1.00, `rgba(${rgb}, ${((0.16 + flashNorm * 0.30 + beatPulse * 0.14) * maniaAlphaMult).toFixed(3)})`);
-        ctx.globalAlpha = 1.0;
-        ctx.fillStyle = beamGrad;
+        ctx.globalAlpha = Math.min(1.0, (0.35 + flashNorm * 0.55 + beatPulse * 0.25) * maniaAlphaMult);
+        ctx.fillStyle = cachedLane.beamGrad;
         ctx.fillRect(lx - beamW * 0.5, laneTopY, beamW, hitY - laneTopY);
 
-        const railGrad = ctx.createLinearGradient(lx, laneTopY, lx, hitY);
-        railGrad.addColorStop(0.00, `rgba(${rgb}, 0)`);
-        railGrad.addColorStop(1.00, `rgba(${rgb}, ${((0.40 + flashNorm * 0.45 + beatPulse * 0.28) * maniaAlphaMult).toFixed(3)})`);
-        ctx.strokeStyle = railGrad;
+        ctx.globalAlpha = Math.min(1.0, (0.48 + flashNorm * 0.45 + beatPulse * 0.28) * maniaAlphaMult);
+        ctx.strokeStyle = cachedLane.railGrad;
         ctx.lineWidth = 2.0 + flashNorm * 1.8 + beatPulse * 0.6;
         ctx.beginPath();
         ctx.moveTo(lx, laneTopY);
         ctx.lineTo(lx, hitY);
         ctx.stroke();
       }
+      ctx.globalAlpha = 1.0;
 
       // 8. Flash carmesí reactivo cuando se rompe el combo por mal swipe o soltar slider
       if (breakFlash > 0.02) {
@@ -20435,22 +20637,39 @@ class BeatstarEngine {
       const deckTop = hitY - 22;
       const deckH = 44;
 
-      const deckGrad = ctx.createLinearGradient(0, deckTop, 0, deckTop + deckH);
-      deckGrad.addColorStop(0.00, 'rgba(14, 7, 30, 0.00)');
-      deckGrad.addColorStop(0.50, 'rgba(20, 10, 42, 0.72)');
-      deckGrad.addColorStop(1.00, 'rgba(8, 3, 18, 0.00)');
-      ctx.fillStyle = deckGrad;
+      if (!this._osuDeckGradCache || this._osuDeckGradW !== w || this._osuDeckGradHitY !== hitY) {
+        this._osuDeckGradW = w;
+        this._osuDeckGradHitY = hitY;
+        const dg = ctx.createLinearGradient(0, deckTop, 0, deckTop + deckH);
+        dg.addColorStop(0.00, 'rgba(14, 7, 30, 0.00)');
+        dg.addColorStop(0.50, 'rgba(20, 10, 42, 0.72)');
+        dg.addColorStop(1.00, 'rgba(8, 3, 18, 0.00)');
+        this._osuDeckGradCache = dg;
+
+        const hb = ctx.createLinearGradient(0, hitY - 16, 0, hitY + 16);
+        hb.addColorStop(0.00, 'rgba(0, 242, 254, 0)');
+        hb.addColorStop(0.50, 'rgba(0, 242, 254, 0.44)');
+        hb.addColorStop(1.00, 'rgba(183, 108, 253, 0)');
+        this._osuHorizBloomCache = hb;
+
+        const lg = ctx.createLinearGradient(deckLeft, hitY, deckRight, hitY);
+        lg.addColorStop(0.00, 'rgba(255, 255, 255, 0)');
+        lg.addColorStop(0.12, 'rgba(224, 242, 254, 0.92)');
+        lg.addColorStop(0.50, '#ffffff');
+        lg.addColorStop(0.88, 'rgba(243, 232, 255, 0.92)');
+        lg.addColorStop(1.00, 'rgba(255, 255, 255, 0)');
+        this._osuLaserGradCache = lg;
+      }
+      ctx.fillStyle = this._osuDeckGradCache;
       ctx.fillRect(deckLeft, deckTop, deckW, deckH);
 
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
 
-      const horizBloom = ctx.createLinearGradient(0, hitY - 16, 0, hitY + 16);
-      horizBloom.addColorStop(0.00, 'rgba(0, 242, 254, 0)');
-      horizBloom.addColorStop(0.50, `rgba(0, 242, 254, ${(0.22 + beatPulse * 0.22).toFixed(3)})`);
-      horizBloom.addColorStop(1.00, 'rgba(183, 108, 253, 0)');
-      ctx.fillStyle = horizBloom;
+      ctx.globalAlpha = 0.50 + beatPulse * 0.50;
+      ctx.fillStyle = this._osuHorizBloomCache;
       ctx.fillRect(deckLeft, hitY - 16, deckW, 32);
+      ctx.globalAlpha = 1.0;
 
       const waveSegments = 36;
       const segW = deckW / waveSegments;
@@ -20472,13 +20691,7 @@ class BeatstarEngine {
         ctx.stroke();
       }
 
-      const laserGrad = ctx.createLinearGradient(deckLeft, hitY, deckRight, hitY);
-      laserGrad.addColorStop(0.00, 'rgba(255, 255, 255, 0)');
-      laserGrad.addColorStop(0.12, 'rgba(224, 242, 254, 0.92)');
-      laserGrad.addColorStop(0.50, '#ffffff');
-      laserGrad.addColorStop(0.88, 'rgba(243, 232, 255, 0.92)');
-      laserGrad.addColorStop(1.00, 'rgba(255, 255, 255, 0)');
-      ctx.strokeStyle = laserGrad;
+      ctx.strokeStyle = this._osuLaserGradCache;
       ctx.lineWidth = 2.2 + beatPulse * 0.9;
       ctx.beginPath();
       ctx.moveTo(deckLeft, hitY);
@@ -20487,9 +20700,9 @@ class BeatstarEngine {
       ctx.restore();
 
       const padConfigs = [
-        { rgb: '0, 242, 254', primary: '#00f2fe', light: '#e0f2fe', core: '#051929' },
-        { rgb: '192, 132, 252', primary: '#c084fc', light: '#f3e8ff', core: '#1d093d' },
-        { rgb: '251, 191, 36', primary: '#fbbf24', light: '#fef3c7', core: '#2e1503' }
+        { rgb: '0, 242, 254', primary: '#00f2fe', light: '#e0f2fe', core: '#051929', glowIdx: 1 },
+        { rgb: '192, 132, 252', primary: '#c084fc', light: '#f3e8ff', core: '#1d093d', glowIdx: 0 },
+        { rgb: '251, 191, 36', primary: '#fbbf24', light: '#fef3c7', core: '#2e1503', glowIdx: 3 }
       ];
       const basePadR = Math.max(25, Math.min(33, w * 0.074));
 
@@ -20503,18 +20716,14 @@ class BeatstarEngine {
 
         ctx.save();
 
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        const auraR = r * (2.3 + flashNorm * 0.8);
-        const auraGrad = ctx.createRadialGradient(lx, hitY, r * 0.25, lx, hitY, auraR);
-        auraGrad.addColorStop(0.00, `rgba(${cfg.rgb}, ${(0.55 + flashNorm * 0.40).toFixed(2)})`);
-        auraGrad.addColorStop(0.48, `rgba(${cfg.rgb}, ${(0.22 + flashNorm * 0.22).toFixed(2)})`);
-        auraGrad.addColorStop(1.00, `rgba(${cfg.rgb}, 0)`);
-        ctx.fillStyle = auraGrad;
-        ctx.beginPath();
-        ctx.arc(lx, hitY, auraR, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
+        if (this._osuGlowSprites && this._osuGlowSprites[cfg.glowIdx]) {
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          const auraR = r * (2.3 + flashNorm * 0.8);
+          ctx.globalAlpha = Math.min(1, 0.65 + flashNorm * 0.35);
+          ctx.drawImage(this._osuGlowSprites[cfg.glowIdx], lx - auraR, hitY - auraR, auraR * 2, auraR * 2);
+          ctx.restore();
+        }
 
         ctx.fillStyle = cfg.core;
         ctx.beginPath();
@@ -20819,30 +21028,24 @@ class BeatstarEngine {
           const lRgb = laneColors[lane];
           const lHex = laneHex[lane];
 
+          const laneGlowIdx = [1, 0, 3][lane];
           const tailLen = 90 * (0.45 + 0.55 * Math.min(1, pMania));
-          const tailGrad = ctx.createLinearGradient(lx, curY - tailLen, lx, curY);
-          tailGrad.addColorStop(0.00, `rgba(${lRgb}, 0)`);
-          tailGrad.addColorStop(0.55, `rgba(${lRgb}, 0.36)`);
-          tailGrad.addColorStop(1.00, `rgba(${lRgb}, 0.88)`);
 
           ctx.save();
           ctx.globalCompositeOperation = 'lighter';
-          ctx.strokeStyle = tailGrad;
-          ctx.lineWidth = orbR * 1.40;
+          ctx.strokeStyle = `rgba(${lRgb}, 0.42)`;
+          ctx.lineWidth = orbR * 1.32;
           ctx.lineCap = 'round';
           ctx.beginPath();
-          ctx.moveTo(lx, curY - tailLen);
+          ctx.moveTo(lx, curY - tailLen * 0.65);
           ctx.lineTo(lx, curY);
           ctx.stroke();
 
-          const mGlow = ctx.createRadialGradient(lx, curY, orbR * 0.25, lx, curY, orbR * 2.15);
-          mGlow.addColorStop(0.00, `rgba(${lRgb}, 0.65)`);
-          mGlow.addColorStop(0.50, `rgba(${lRgb}, 0.24)`);
-          mGlow.addColorStop(1.00, `rgba(${lRgb}, 0)`);
-          ctx.fillStyle = mGlow;
-          ctx.beginPath();
-          ctx.arc(lx, curY, orbR * 2.15, 0, Math.PI * 2);
-          ctx.fill();
+          if (this._osuGlowSprites && this._osuGlowSprites[laneGlowIdx]) {
+            const gR = orbR * 2.15;
+            ctx.globalAlpha = lateGraceFade * 0.82;
+            ctx.drawImage(this._osuGlowSprites[laneGlowIdx], lx - gR, curY - gR, gR * 2, gR * 2);
+          }
           ctx.restore();
 
           ctx.fillStyle = laneCore[lane];
@@ -20862,13 +21065,13 @@ class BeatstarEngine {
           ctx.arc(lx, curY, orbR, 0, Math.PI * 2);
           ctx.stroke();
 
-          const coreGrad = ctx.createRadialGradient(lx, curY, 1, lx, curY, orbR * 0.52);
-          coreGrad.addColorStop(0.00, '#ffffff');
-          coreGrad.addColorStop(0.65, lHex);
-          coreGrad.addColorStop(1.00, laneCore[lane]);
-          ctx.fillStyle = coreGrad;
+          ctx.fillStyle = lHex;
           ctx.beginPath();
-          ctx.arc(lx, curY, orbR * 0.50, 0, Math.PI * 2);
+          ctx.arc(lx, curY, orbR * 0.48, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(lx, curY, orbR * 0.22, 0, Math.PI * 2);
           ctx.fill();
 
           const ringScale = 1.0 + Math.max(0, 1.0 - pMania) * 1.35;
@@ -20996,15 +21199,12 @@ class BeatstarEngine {
 
             ctx.save();
             ctx.globalCompositeOperation = 'lighter';
-            const bGlow = ctx.createRadialGradient(ballPos.x, ballPos.y, circleR * 0.2, ballPos.x, ballPos.y, circleR * 2.25);
-            const ballRgb = isSlipping ? '255, 65, 108' : pal.glowRgb;
-            bGlow.addColorStop(0.0, `rgba(${ballRgb}, 0.78)`);
-            bGlow.addColorStop(0.5, `rgba(${ballRgb}, 0.28)`);
-            bGlow.addColorStop(1.0, `rgba(${ballRgb}, 0)`);
-            ctx.fillStyle = bGlow;
-            ctx.beginPath();
-            ctx.arc(ballPos.x, ballPos.y, circleR * 2.25, 0, Math.PI * 2);
-            ctx.fill();
+            const bGlowR = circleR * 2.25;
+            const bSpr = isSlipping ? this._osuPenaltyGlowSprite : (this._osuGlowSprites && this._osuGlowSprites[palIdx]);
+            if (bSpr) {
+              ctx.globalAlpha = fadeAlpha * 0.90;
+              ctx.drawImage(bSpr, ballPos.x - bGlowR, ballPos.y - bGlowR, bGlowR * 2, bGlowR * 2);
+            }
             ctx.restore();
 
             const followR = circleR * (isSlipping ? 1.85 : (1.58 + beatPulse * 0.14));
@@ -21048,18 +21248,17 @@ class BeatstarEngine {
           const activeCoreInner = isNova ? '#7c1d42' : (isSwipe ? '#0b523b' : pal.coreInner);
           const activeCore = isNova ? '#2e0819' : (isSwipe ? '#042419' : pal.core);
 
-          // 1. Halo radial difuminado
+          // 1. Halo radial difuminado (usando sprite pre-renderizado: 0 createRadialGradient por nota)
           ctx.save();
           ctx.globalCompositeOperation = 'lighter';
           const haloMult = isNova ? (2.45 + beatPulse * 0.30) : (isImmediate ? (2.20 + beatPulse * 0.24) : 1.82);
-          const haloGrad = ctx.createRadialGradient(pos.x, pos.y, drawR * 0.32, pos.x, pos.y, drawR * haloMult);
-          haloGrad.addColorStop(0.00, `rgba(${activeGlowRgb}, ${isImmediate || isNova ? 0.72 : 0.48})`);
-          haloGrad.addColorStop(0.48, `rgba(${activeGlowRgb}, ${isImmediate || isNova ? 0.30 : 0.18})`);
-          haloGrad.addColorStop(1.00, `rgba(${activeGlowRgb}, 0)`);
-          ctx.fillStyle = haloGrad;
-          ctx.beginPath();
-          ctx.arc(pos.x, pos.y, drawR * haloMult, 0, Math.PI * 2);
-          ctx.fill();
+          const haloR = drawR * haloMult;
+          const glowSprIdx = isNova ? 3 : (isSwipe ? 4 : palIdx);
+          const glowSpr = this._osuGlowSprites && this._osuGlowSprites[glowSprIdx];
+          if (glowSpr) {
+            ctx.globalAlpha = fadeAlpha * (isImmediate || isNova ? 0.85 : 0.58);
+            ctx.drawImage(glowSpr, pos.x - haloR, pos.y - haloR, haloR * 2, haloR * 2);
+          }
           ctx.restore();
 
           // Corona solar giratoria exclusiva de las SUPERNOVAS GIGANTES ('nova')
@@ -21104,22 +21303,19 @@ class BeatstarEngine {
             ctx.restore();
           }
 
-          // 2. Cuerpo interior cristalino
-          const bodyGrad = ctx.createRadialGradient(
-            pos.x - drawR * 0.24,
-            pos.y - drawR * 0.28,
-            drawR * 0.08,
-            pos.x,
-            pos.y,
-            drawR
-          );
-          bodyGrad.addColorStop(0.00, activeCoreInner);
-          bodyGrad.addColorStop(0.68, activeCore);
-          bodyGrad.addColorStop(1.00, '#07030f');
-          ctx.fillStyle = bodyGrad;
-          ctx.beginPath();
-          ctx.arc(pos.x, pos.y, drawR, 0, Math.PI * 2);
-          ctx.fill();
+          // 2. Cuerpo interior cristalino (usando sprite pre-renderizado: 0 createRadialGradient/createLinearGradient)
+          const bodySprIdx = isNova ? 5 : (isSwipe ? 6 : palIdx);
+          const bodySpr = this._osuBodySprites && this._osuBodySprites[bodySprIdx];
+          if (bodySpr) {
+            const bScale = drawR / 74;
+            const bDrawSize = 160 * bScale;
+            ctx.drawImage(bodySpr, pos.x - bDrawSize * 0.5, pos.y - bDrawSize * 0.5, bDrawSize, bDrawSize);
+          } else {
+            ctx.fillStyle = activeCore;
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, drawR, 0, Math.PI * 2);
+            ctx.fill();
+          }
 
           ctx.strokeStyle = activePrimary;
           ctx.lineWidth = isNova ? 6.4 : 5.2;
@@ -21132,14 +21328,6 @@ class BeatstarEngine {
           ctx.beginPath();
           ctx.arc(pos.x, pos.y, drawR * 0.71, 0, Math.PI * 2);
           ctx.stroke();
-
-          const specGrad = ctx.createLinearGradient(pos.x, pos.y - drawR, pos.x, pos.y);
-          specGrad.addColorStop(0.00, 'rgba(255, 255, 255, 0.40)');
-          specGrad.addColorStop(1.00, 'rgba(255, 255, 255, 0.00)');
-          ctx.fillStyle = specGrad;
-          ctx.beginPath();
-          ctx.ellipse(pos.x, pos.y - drawR * 0.44, drawR * 0.62, drawR * 0.28, 0, 0, Math.PI * 2);
-          ctx.fill();
 
           ctx.strokeStyle = isNova ? '#fde047' : '#ffffff';
           ctx.lineWidth = isNova ? 3.6 : 3.0;
@@ -21248,17 +21436,14 @@ class BeatstarEngine {
             ctx.stroke();
           }
 
-          ctx.save();
-          ctx.globalCompositeOperation = 'lighter';
-          const g = ctx.createRadialGradient(orb.curX, orb.curY, 2, orb.curX, orb.curY, pulseR * 2.4);
-          g.addColorStop(0.0, 'rgba(255, 255, 255, 0.95)');
-          g.addColorStop(0.35, `rgba(${orb.glowRgb}, 0.72)`);
-          g.addColorStop(1.0, `rgba(${orb.glowRgb}, 0)`);
-          ctx.fillStyle = g;
-          ctx.beginPath();
-          ctx.arc(orb.curX, orb.curY, pulseR * 2.4, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
+          if (this._osuGlowSprites && this._osuGlowSprites[3]) {
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            const orbGlowR = pulseR * 2.4;
+            ctx.globalAlpha = fade * 0.90;
+            ctx.drawImage(this._osuGlowSprites[3], orb.curX - orbGlowR, orb.curY - orbGlowR, orbGlowR * 2, orbGlowR * 2);
+            ctx.restore();
+          }
 
           ctx.fillStyle = orb.color || '#fde047';
           ctx.strokeStyle = '#ffffff';
@@ -21360,17 +21545,16 @@ class BeatstarEngine {
           ctx.save();
           ctx.globalCompositeOperation = 'lighter';
           const bloomR = rad * 1.92;
-          const bGrad = ctx.createRadialGradient(hb.x, hb.y, 4, hb.x, hb.y, bloomR);
-          const bRgb = isPenalty ? '255, 42, 85' : (isSuper ? '251, 191, 36' : '0, 242, 254');
-          bGrad.addColorStop(0.00, `rgba(255, 255, 255, ${(alpha * 0.78).toFixed(3)})`);
-          bGrad.addColorStop(0.35, `rgba(${bRgb}, ${(alpha * 0.52).toFixed(3)})`);
-          bGrad.addColorStop(1.00, `rgba(${bRgb}, 0)`);
-          ctx.fillStyle = bGrad;
-          ctx.beginPath();
-          ctx.arc(hb.x, hb.y, bloomR, 0, Math.PI * 2);
-          ctx.fill();
+          const hbSpr = isPenalty
+            ? this._osuPenaltyGlowSprite
+            : (this._osuGlowSprites && this._osuGlowSprites[isSuper ? 3 : 1]);
+          if (hbSpr) {
+            ctx.globalAlpha = alpha * 0.85;
+            ctx.drawImage(hbSpr, hb.x - bloomR, hb.y - bloomR, bloomR * 2, bloomR * 2);
+          }
 
           if (!isPenalty) {
+            ctx.globalAlpha = 1.0;
             ctx.strokeStyle = `rgba(232, 121, 249, ${(alpha * 0.65).toFixed(3)})`;
             ctx.lineWidth = 3.2 * (1 - p * 0.5);
             ctx.beginPath();
@@ -21489,12 +21673,20 @@ class BeatstarEngine {
 
         try {
           this.update(dt, now);
+          if (!this.isRunning || this.isPaused || this.isRewinding) {
+            this.animFrameId = null;
+            return;
+          }
           this.render(now);
         } catch (err) {
           console.error('Error inside render loop:', err);
         }
 
-        this.animFrameId = requestAnimationFrame(loop);
+        if (this.isRunning && !this.isPaused && !this.isRewinding) {
+          this.animFrameId = requestAnimationFrame(loop);
+        } else {
+          this.animFrameId = null;
+        }
       };
       this.animFrameId = requestAnimationFrame(loop);
     }
