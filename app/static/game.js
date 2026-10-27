@@ -370,10 +370,9 @@ class DirectAudioSync {
     
     this.volume = 1.0;
     this.muted = false;
-    this.audioElement.muted = false;
-    this.audioElement.volume = 1.0;
     this._blobUrl = null;
-    
+    this._audioToken = 0;
+
     this.onReady = onReady;
     this.onEnded = onEnded;
     this.onError = onError;
@@ -382,59 +381,77 @@ class DirectAudioSync {
     this.isLoaded = false;
     this.duration = 0;
     this.playbackRate = 1.0;
-    
+
     // Anclaje de alta precisión con corrección de deriva suave (PLL sin saltos)
     this._anchorPerf = 0;
     this._anchorAudioMs = 0;
     this._lastSyncCheck = 0;
     this._clockSkewRate = 1.0;
     this._lastRawAudioTime = -1;
+    this._interpolatedMs = 0;
+    this._lastReturnedMs = 0;
+    this._lastFrameNow = 0;
+    this._cachedFrameNow = -1;
+
+    this._bindAudioElement(this.audioElement, this._audioToken);
+  }
+
+  _bindAudioElement(el, token) {
+    if (!el) return;
+    el.preload = 'auto';
+    el.crossOrigin = 'anonymous';
+    el.muted = this.muted;
+    el.volume = this.muted ? 0 : this.volume;
 
     const enforceSpeedAndPitch = () => {
-      if (this.audioElement) {
-        try {
-          this.audioElement.defaultPlaybackRate = this.playbackRate;
-          this.audioElement.playbackRate = this.playbackRate;
-          this.audioElement.preservesPitch = true;
-        } catch (e) {}
-      }
+      if (token !== this._audioToken || !this.audioElement) return;
+      try {
+        this.audioElement.defaultPlaybackRate = this.playbackRate;
+        this.audioElement.playbackRate = this.playbackRate;
+        this.audioElement.preservesPitch = true;
+      } catch (e) {}
     };
 
-    this.audioElement.addEventListener('canplaythrough', () => {
+    el.addEventListener('canplaythrough', () => {
+      if (token !== this._audioToken) return;
       this.isLoaded = true;
-      this.duration = this.audioElement.duration || 0;
+      this.duration = el.duration || 0;
       enforceSpeedAndPitch();
       if (this.onReady) this.onReady();
     });
 
-    this.audioElement.addEventListener('playing', () => {
+    el.addEventListener('playing', () => {
+      if (token !== this._audioToken) return;
       this.isPlaying = true;
       enforceSpeedAndPitch();
-      const rawSec = this.audioElement.currentTime || 0;
+      const rawSec = el.currentTime || 0;
       this._anchorAudioMs = rawSec * 1000;
       this._anchorPerf = performance.now();
-      this._lastSyncCheck = this._anchorPerf;
       this._clockSkewRate = 1.0;
       this._lastRawAudioTime = rawSec;
       const toast = document.getElementById('audioUnlockToast');
       if (toast) toast.classList.remove('show');
     });
 
-    this.audioElement.addEventListener('pause', () => {
+    el.addEventListener('pause', () => {
+      if (token !== this._audioToken) return;
+      if (el.ended) return;
       this.isPlaying = false;
       this._anchorPerf = 0;
       this._clockSkewRate = 1.0;
     });
 
-    this.audioElement.addEventListener('ended', () => {
+    el.addEventListener('ended', () => {
+      if (token !== this._audioToken) return;
       this.isPlaying = false;
       this._anchorPerf = 0;
       this._clockSkewRate = 1.0;
       if (this.onEnded) this.onEnded();
     });
 
-    this.audioElement.addEventListener('error', (e) => {
-      if (this.audioElement.src && this.onError) {
+    el.addEventListener('error', () => {
+      if (token !== this._audioToken) return;
+      if (el.src && this.onError) {
         this.onError('Error en la reproducción de audio.');
       }
     });
@@ -510,28 +527,53 @@ class DirectAudioSync {
     }
     this.isLoaded = false;
     this.isPlaying = false;
-    this.audioElement.loop = false;
-    if (url) {
-      this.audioElement.src = url;
-      if (this.playbackRate !== 1.0) {
-        this.audioElement.playbackRate = this.playbackRate;
-      }
-      this.audioElement.load();
-    } else {
-      this.audioElement.removeAttribute('src');
-      this.audioElement.load();
+    this.duration = 0;
+
+    // Retirar limpiamente el elemento de audio anterior y crear una instancia nueva para evitar degradación del decodificador en la 2ª canción
+    this._audioToken = (this._audioToken || 0) + 1;
+    const prevEl = this.audioElement;
+    if (prevEl) {
+      try {
+        prevEl.pause();
+        prevEl.removeAttribute('src');
+        prevEl.load();
+      } catch (e) {}
     }
+
+    if (url) {
+      const freshEl = new Audio();
+      this.audioElement = freshEl;
+      this._bindAudioElement(freshEl, this._audioToken);
+      freshEl.loop = false;
+      freshEl.src = url;
+      if (this.playbackRate !== 1.0) {
+        try {
+          freshEl.defaultPlaybackRate = this.playbackRate;
+          freshEl.playbackRate = this.playbackRate;
+        } catch (e) {}
+      }
+      freshEl.load();
+    } else if (!this.audioElement) {
+      this.audioElement = new Audio();
+      this._bindAudioElement(this.audioElement, this._audioToken);
+    }
+
     this._anchorPerf = 0;
     this._anchorAudioMs = 0;
     this._interpolatedMs = 0;
+    this._lastReturnedMs = 0;
     this._lastFrameNow = 0;
+    this._cachedFrameNow = -1;
+    this._lastRawAudioTime = -1;
+    this._clockSkewRate = 1.0;
+    this._smoothedDrift = 0;
   }
 
   play() {
     if (typeof window !== 'undefined' && typeof window.pauseMenuAmbientMusic === 'function') {
       try { window.pauseMenuAmbientMusic(); } catch (_) {}
     }
-    if (!this.audioElement.src) return Promise.resolve();
+    if (!this.audioElement || !this.audioElement.src) return Promise.resolve();
     if (window.engine && (window.engine.isPaused || window.engine.isProcessingMiss || window.engine.isGameOver || !window.engine.isRunning || window.engine.isCountingDown)) {
       return Promise.resolve();
     }
@@ -540,14 +582,14 @@ class DirectAudioSync {
       this.audioElement.muted = this.muted;
       this.audioElement.volume = this.muted ? 0 : this.volume;
 
-      const now = performance.now();
       const rawSec = (this.audioElement && !isNaN(this.audioElement.currentTime)) ? this.audioElement.currentTime : 0;
       if (!this.isPlaying) {
         this.isPlaying = true;
         this._interpolatedMs = Math.max(this._interpolatedMs || 0, rawSec * 1000);
         this._lastReturnedMs = this._interpolatedMs;
-        this._lastFrameNow = now;
-        this._lastSyncCheck = now;
+        // _lastFrameNow se inicializa a 0 para que el primer VSync requestAnimationFrame fije el origen en el dominio de reloj VSync puro
+        this._lastFrameNow = 0;
+        this._cachedFrameNow = -1;
         this._clockSkewRate = 1.0;
         this._smoothedDrift = 0;
         this._lastRawAudioTime = rawSec;
@@ -558,7 +600,7 @@ class DirectAudioSync {
         return p.then(() => {
           this.isPlaying = true;
         }).catch(err => {
-          if (err.name === 'NotAllowedError') this.showUnlockPrompt();
+          if (err && err.name === 'NotAllowedError') this.showUnlockPrompt();
         });
       }
       return Promise.resolve();
@@ -571,8 +613,9 @@ class DirectAudioSync {
     this.isPlaying = false;
     this._anchorPerf = 0;
     this._lastFrameNow = 0;
+    this._cachedFrameNow = -1;
     try {
-      this.audioElement.pause();
+      if (this.audioElement) this.audioElement.pause();
     } catch (e) {}
   }
 
@@ -584,11 +627,12 @@ class DirectAudioSync {
     this._interpolatedMs = ms;
     this._lastReturnedMs = ms;
     this._lastFrameNow = 0;
+    this._cachedFrameNow = -1;
     this._lastRawAudioTime = -1;
     this._clockSkewRate = 1.0;
     this._smoothedDrift = 0;
     try {
-      if (this.audioElement.readyState >= 1) {
+      if (this.audioElement && this.audioElement.readyState >= 1) {
         this.audioElement.currentTime = sec;
       }
     } catch (e) {}
@@ -598,33 +642,61 @@ class DirectAudioSync {
   // RELOJ PLL 100% LINEAL, MONÓTONO Y CONTINUO INTEGRADO POR DELTA VSYNC (0 TIRONES A 120 FPS)
   // ==========================================
   getCurrentTimeMs(frameNow) {
-    const now = (frameNow !== undefined && frameNow !== null) ? frameNow : performance.now();
-
-    if (!this.isPlaying) {
+    // Si se consulta sin frameNow (desde eventos táctiles, handleMiss, pause, etc.), devolver la última marca interpolada sin alterar _lastFrameNow
+    if (frameNow === undefined || frameNow === null) {
+      if (Number.isFinite(this._lastReturnedMs) && this._lastReturnedMs > 0) {
+        return this._lastReturnedMs;
+      }
+      if (Number.isFinite(this._interpolatedMs) && this._interpolatedMs > 0) {
+        return this._interpolatedMs;
+      }
       if (this.audioElement && !isNaN(this.audioElement.currentTime) && this.audioElement.currentTime > 0) {
         return this.audioElement.currentTime * 1000;
       }
-      if (window.engine && window.engine.isRunning && !window.engine.isPaused && !window.engine.isCountingDown) {
-        if (!this._fallbackAnchor) this._fallbackAnchor = now;
-        return (now - this._fallbackAnchor) * (this.playbackRate || 1.0);
-      }
-      return this._interpolatedMs || this._anchorAudioMs || 0;
+      return this._anchorAudioMs || 0;
     }
 
-    // Si ya se calculó para este mismo VSync frameNow, devolver en O(1)
-    if (frameNow !== undefined && frameNow !== null && this._cachedFrameNow === frameNow) {
+    // Si el elemento de audio está reproduciendo realmente pero un evento asíncrono desactivó isPlaying, restaurarlo de inmediato
+    if (!this.isPlaying && this.audioElement && !this.audioElement.paused && !this.audioElement.ended) {
+      this.isPlaying = true;
+    }
+
+    if (!this.isPlaying) {
+      if (window.engine && window.engine.isRunning && !window.engine.isPaused && !window.engine.isCountingDown && !window.engine.isProcessingMiss) {
+        // Si la partida está en curso esperando a que el decodificador de audio arranque tras la cuenta atrás, avanzar suavemente por VSync
+        const rate = this.playbackRate || 1.0;
+        if (!this._lastFrameNow) {
+          this._lastFrameNow = frameNow;
+          this._cachedFrameNow = frameNow;
+          return this._interpolatedMs || 0;
+        }
+        if (this._cachedFrameNow === frameNow) {
+          return this._lastReturnedMs || this._interpolatedMs || 0;
+        }
+        const rawDtMs = frameNow - this._lastFrameNow;
+        const dtMs = rawDtMs > 0 ? Math.min(34.0, rawDtMs) : 0;
+        this._lastFrameNow = frameNow;
+        this._cachedFrameNow = frameNow;
+        this._interpolatedMs = (this._interpolatedMs || 0) + dtMs * rate;
+        this._lastReturnedMs = this._interpolatedMs;
+        return this._interpolatedMs;
+      }
+      return this._lastReturnedMs || this._interpolatedMs || this._anchorAudioMs || 0;
+    }
+
+    // Si ya se calculó para este mismo VSync frameNow (ej. update() y luego render()), devolver en O(1)
+    if (this._cachedFrameNow === frameNow) {
       return this._lastReturnedMs;
     }
 
-    this._fallbackAnchor = null;
     const rate = this.playbackRate || 1.0;
 
     if (!this._lastFrameNow) {
       const rawSec = (this.audioElement && !isNaN(this.audioElement.currentTime)) ? this.audioElement.currentTime : 0;
-      this._lastFrameNow = now;
+      this._lastFrameNow = frameNow;
       this._interpolatedMs = Math.max(this._interpolatedMs || 0, rawSec * 1000);
       this._lastReturnedMs = this._interpolatedMs;
-      this._lastSyncCheck = now;
+      this._lastSyncCheck = frameNow;
       this._clockSkewRate = 1.0;
       this._smoothedDrift = 0;
       this._lastRawAudioTime = rawSec;
@@ -633,15 +705,16 @@ class DirectAudioSync {
     }
 
     // Avance puro por delta de frame VSync (garantiza que la velocidad nunca salte hacia atrás ni se congele)
-    const rawDtMs = now - this._lastFrameNow;
-    const dtMs = rawDtMs > 0 ? Math.min(50.0, rawDtMs) : 0;
-    this._lastFrameNow = now;
+    const rawDtMs = frameNow - this._lastFrameNow;
+    const dtMs = rawDtMs > 0 ? Math.min(42.0, rawDtMs) : 0;
+    this._lastFrameNow = frameNow;
+    this._cachedFrameNow = frameNow;
 
     this._interpolatedMs += dtMs * rate * (this._clockSkewRate || 1.0);
 
     // Muestrear deriva cada 250ms filtrando el escalón de cuantización del buffer de audio (21-46ms en Android)
-    if (now - this._lastSyncCheck >= 250) {
-      this._lastSyncCheck = now;
+    if (frameNow - this._lastSyncCheck >= 250) {
+      this._lastSyncCheck = frameNow;
       const rawSec = this.audioElement ? this.audioElement.currentTime : 0;
       if (rawSec !== this._lastRawAudioTime && rawSec > 0) {
         this._lastRawAudioTime = rawSec;
@@ -655,10 +728,10 @@ class DirectAudioSync {
           this._smoothedDrift = 0;
         } else {
           // Filtro paso-bajo exponencial que absorbe el jitter de cuantización del mixer de audio sin dar tirones visuales
-          this._smoothedDrift = (this._smoothedDrift || 0) * 0.82 + drift * 0.18;
+          this._smoothedDrift = (this._smoothedDrift || 0) * 0.84 + drift * 0.16;
           if (Math.abs(this._smoothedDrift) > 18.0) {
-            // Corrección de frecuencia progresiva y suave (±0.75% máx) 100% libre de saltos de posición
-            this._clockSkewRate = 1.0 + Math.max(-0.0075, Math.min(0.0075, this._smoothedDrift / 2600));
+            // Corrección de frecuencia progresiva y suave (±0.65% máx) 100% libre de saltos de posición
+            this._clockSkewRate = 1.0 + Math.max(-0.0065, Math.min(0.0065, this._smoothedDrift / 2800));
           } else {
             this._clockSkewRate = 1.0;
           }
@@ -3198,6 +3271,11 @@ class BeatstarEngine {
     this.lastCelebratedStar = 0;
     this.currentMedalTier = null;
     this.missCount = 0;
+    this._lastUiScoreTime = 0;
+    this._lastUiScoreFloor = -1;
+    this._lastUiMult = -1;
+    this._lastUiCombo = -1;
+    this._lastUiMedal = null;
     this.osuMaxLives = 5;
     this.osuLives = 5;
     this._osuHeartLossFlash = 0;
@@ -3245,7 +3323,6 @@ class BeatstarEngine {
     }
 
     this.sync.seekTo(0);
-    this.sync.pause();
 
     if (this.ui && typeof this.ui.onScoreUpdate === 'function') {
       this.ui.onScoreUpdate(this.score, this.combo, this.stars, this.multiplier, null, 0);
@@ -3254,10 +3331,12 @@ class BeatstarEngine {
       this.ui.onSongLoaded(beatmapData.metadata, this.activeSongPalette);
     }
 
-    // Configuración del margen de entrada Lead-In: Reloj corre desde -LEAD_IN_TIME hasta 0
+    // Configuración del margen de entrada Lead-In: Reloj corre desde -LEAD_IN_TIME hasta 0 anclado estrictamente al primer VSync frameNow
     this.isCountingDown = true;
     this.leadInDurationMs = LEAD_IN_TIME;
-    this.leadInStartTime = performance.now();
+    this.leadInStartTime = 0;
+    this._frameNow = 0;
+    this._frameGameTimeMs = -LEAD_IN_TIME;
     this.isRunning = true;
     this.isPaused = false;
     this.invulnerableUntil = 2400; // Protección post-arranque
@@ -3668,20 +3747,21 @@ class BeatstarEngine {
   }
 
   getCurrentGameTimeMs(frameNow = null) {
-    // Si se invoca desde eventos de input (sin frameNow explícito) mientras el bucle VSync está activo,
-    // devolver en O(1) el timestamp exacto del fotograma actual sin mutar el estado del reloj de audio.
-    if (frameNow === null && this.isRunning && !this.isPaused && Number.isFinite(this._frameGameTimeMs)) {
+    // Si se invoca desde eventos de input, render() o lógica auxiliar mientras el bucle VSync está activo y ya calculó este frame,
+    // devolver en O(1) el timestamp exacto del fotograma actual sin mutar jamás el reloj de audio.
+    if (this.isRunning && !this.isPaused && Number.isFinite(this._frameGameTimeMs) && (frameNow === null || frameNow === this._lastUpdatedFrameNow)) {
       return this._frameGameTimeMs;
     }
     const fn = (frameNow !== null && Number.isFinite(frameNow)) ? frameNow : (this._frameNow || performance.now());
     if (this.isCountingDown) {
-      const elapsed = fn - this.leadInStartTime;
+      if (!this.leadInStartTime) this.leadInStartTime = fn;
+      const elapsed = Math.max(0, fn - this.leadInStartTime);
       return Math.min(0, elapsed - this.leadInDurationMs);
     }
     if (this.isCalibrating) {
       return (fn - this.calibrationStartTime) + this.latencyOffsetMs;
     }
-    return this.sync.getCurrentTimeMs(fn) + this.latencyOffsetMs;
+    return this.sync.getCurrentTimeMs(frameNow) + this.latencyOffsetMs;
   }
 
   handleTouchStart(e) {
@@ -4737,9 +4817,11 @@ class BeatstarEngine {
       : 100.0;
 
     const nowPerf = this._frameNow || performance.now();
-    const stateChanged = (this.stars !== prevStars) || (this._lastUiMult !== this.multiplier) || (this._lastUiCombo !== this.combo) || (this._lastUiMedal !== this.currentMedalTier);
-    if (stateChanged || !this._lastUiScoreTime || (nowPerf - this._lastUiScoreTime >= 50)) {
+    const scoreFloor = Math.floor(this.score);
+    const stateChanged = (this._lastUiScoreFloor !== scoreFloor) || (this.stars !== prevStars) || (this._lastUiMult !== this.multiplier) || (this._lastUiCombo !== this.combo) || (this._lastUiMedal !== this.currentMedalTier);
+    if (stateChanged) {
       this._lastUiScoreTime = nowPerf;
+      this._lastUiScoreFloor = scoreFloor;
       this._lastUiMult = this.multiplier;
       this._lastUiCombo = this.combo;
       this._lastUiMedal = this.currentMedalTier;
@@ -4765,6 +4847,8 @@ class BeatstarEngine {
     this.combo = 0;
     this.streakCount = 0;
     this.multiplier = 1;
+    this._lastUiCombo = 0;
+    this._lastUiMult = 1;
     this.stats.miss++;
     
     const maxScore = Math.max(1, this.maxPossibleScore || 1);
@@ -5131,14 +5215,16 @@ class BeatstarEngine {
     }
   }
 
-    update(dt, frameNow) {
+  update(dt, frameNow) {
     this._frameNow = frameNow || performance.now();
     this._frameDt = dt || 0.00833;
     if (this.isPaused || this.isRewinding) return;
 
-    // ⚡ Reloj único por frame: se calcula una sola vez y se reutiliza en render()
+    // ⚡ Reloj único por frame: se calcula una sola vez en update() y se reutiliza en render() e inputs
+    this._lastUpdatedFrameNow = null;
     let currentTime = this.getCurrentGameTimeMs(this._frameNow);
     this._frameGameTimeMs = currentTime;
+    this._lastUpdatedFrameNow = this._frameNow;
 
     if (this.isCalibrating) {
       const now = this._frameNow;
@@ -5192,6 +5278,7 @@ class BeatstarEngine {
     }
 
     if (this.isCountingDown) {
+      if (!this.leadInStartTime) this.leadInStartTime = this._frameNow;
       const elapsed = this._frameNow - this.leadInStartTime;
       if (elapsed >= this.leadInDurationMs) {
         this.isCountingDown = false;
@@ -5203,8 +5290,10 @@ class BeatstarEngine {
           : 0;
         this.sync.seekTo(startSec);
         this.sync.play();
+        this._lastUpdatedFrameNow = null;
         currentTime = this.getCurrentGameTimeMs(this._frameNow);
         this._frameGameTimeMs = currentTime;
+        this._lastUpdatedFrameNow = this._frameNow;
       }
     }
 
@@ -19910,6 +19999,9 @@ class BeatstarEngine {
       }
 
       this._osuLastTimingMs = Math.max(-99, Math.min(99, signedDiffMs));
+      if (this.ui && typeof this.ui.onTimingOffset === 'function') {
+        this.ui.onTimingOffset(signedDiffMs);
+      }
       if (!this._osuTimingTicks) this._osuTimingTicks = [];
       if (this._osuTimingTicks.length >= 18) this._osuTimingTicks.shift();
       this._osuTimingTicks.push({
@@ -19918,13 +20010,21 @@ class BeatstarEngine {
         color: absDiff <= 55 ? '#00f2fe' : (absDiff <= 120 ? '#34d399' : '#fbbf24')
       });
 
-      // 2. SLIDER REAL: La cabeza solo da puntuación inicial reducida; el grueso del combo y puntos exige mantener y seguir la bola
+      // 2. SLIDER REAL: La cabeza cuenta como acierto en el combo y exige mantener y seguir la bola
       if (note._osuRole === 'slider') {
         note.holding = true;
         note._osuSliderActive = true;
         note._osuPointerId = pointerId;
         note._osuOffTrackMs = 0;
         note._osuHeadAbsDiff = absDiff;
+        this.combo++;
+        if (this.combo > this.maxCombo) this.maxCombo = this.combo;
+        this.streakCount = (this.streakCount || 0) + 1;
+        if (this.streakCount >= 30) this.multiplier = 5;
+        else if (this.streakCount >= 20) this.multiplier = 4;
+        else if (this.streakCount >= 10) this.multiplier = 3;
+        else if (this.streakCount >= 5) this.multiplier = 2;
+        else this.multiplier = 1;
         const headPts = Math.round(95 * (this.multiplier || 1));
         this.addScore(headPts);
         this._playOsuHitSound('normal', note._osuComboNum || 1);
@@ -20197,6 +20297,12 @@ class BeatstarEngine {
                   tick.hit = true;
                   this.combo = (this.combo || 0) + 1;
                   if (this.combo > (this.maxCombo || 0)) this.maxCombo = this.combo;
+                  this.streakCount = (this.streakCount || 0) + 1;
+                  if (this.streakCount >= 30) this.multiplier = 5;
+                  else if (this.streakCount >= 20) this.multiplier = 4;
+                  else if (this.streakCount >= 10) this.multiplier = 3;
+                  else if (this.streakCount >= 5) this.multiplier = 2;
+                  else this.multiplier = 1;
                   this.addScore(115 * (this.multiplier || 1));
                   this._playOsuHitSound('tick', (note._osuComboNum || 1) + tk);
                   this._triggerOsuStageReaction(ballPos.x, ballPos.y, note.lane ?? 1, '#00f2fe');

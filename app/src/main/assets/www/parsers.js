@@ -2342,9 +2342,11 @@ class IndexedDBStorage {
   static STORE_FAVORITES = 'favorites';
   static STORE_PLAYLISTS = 'playlists';
   static DB_VERSION = 2;
+  static _dbPromise = null;
 
   static openDB() {
-    return new Promise((resolve, reject) => {
+    if (this._dbPromise) return this._dbPromise;
+    this._dbPromise = new Promise((resolve, reject) => {
       const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
       request.onupgradeneeded = (e) => {
         const db = e.target.result;
@@ -2358,9 +2360,18 @@ class IndexedDBStorage {
           db.createObjectStore(this.STORE_PLAYLISTS, { keyPath: 'id' });
         }
       };
-      request.onsuccess = (e) => resolve(e.target.result);
-      request.onerror = (e) => reject(e.target.error);
+      request.onsuccess = (e) => {
+        const db = e.target.result;
+        db.onclose = () => { this._dbPromise = null; };
+        db.onversionchange = () => { db.close(); this._dbPromise = null; };
+        resolve(db);
+      };
+      request.onerror = (e) => {
+        this._dbPromise = null;
+        reject(e.target.error);
+      };
     });
+    return this._dbPromise;
   }
 
   // --- Saved Offline Charts ---
@@ -2370,7 +2381,8 @@ class IndexedDBStorage {
       const tx = db.transaction(this.STORE_SAVED, 'readwrite');
       const store = tx.objectStore(this.STORE_SAVED);
 
-      // Evitar duplicar audioBlob y arrays gigantes dentro de chartData
+      // Evitar duplicar audioBlob y arrays gigantes dentro de chartData para no saturar RAM ni provocar tirones de GC al iniciar la partida
+      const baseNotes = beatmapData ? (beatmapData.notes || []) : [];
       const cleanChartData = beatmapData ? {
         id: beatmapData.id || chartItem.id,
         title: beatmapData.title || chartItem.title,
@@ -2381,9 +2393,7 @@ class IndexedDBStorage {
         source: beatmapData.source || chartItem.source,
         source_name: beatmapData.source_name || chartItem.source_name,
         metadata: beatmapData.metadata,
-        notes: beatmapData.notes,
-        rawNotes: beatmapData.rawNotes || null,
-        tierRawNotes: beatmapData.tierRawNotes || null
+        rawNotes: beatmapData.rawNotes || null
       } : null;
 
       const record = {
@@ -2411,7 +2421,7 @@ class IndexedDBStorage {
         chart_url: chartItem.chart_url || '',
         audio_url: chartItem.audio_url || '',
         metadata: beatmapData ? beatmapData.metadata : null,
-        notes: beatmapData ? beatmapData.notes : [],
+        notes: baseNotes,
         chartData: cleanChartData,
         audioBlob: audioBlob,
         savedAt: Date.now()
@@ -2424,6 +2434,7 @@ class IndexedDBStorage {
   }
 
   static async getChart(chartId) {
+    if (!chartId) return null;
     const db = await this.openDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(this.STORE_SAVED, 'readonly');
@@ -2431,23 +2442,23 @@ class IndexedDBStorage {
       const req = store.get(chartId);
       req.onsuccess = () => {
         if (req.result) return resolve(req.result);
-        // Búsqueda tolerante por id de metadatos o por slug de título normalizado
-        const allReq = store.getAll();
-        allReq.onsuccess = () => {
-          const all = allReq.result || [];
+        // Usar getAllKeys() en lugar de getAll() para NO deserializar todos los audioBlobs de la base de datos en RAM
+        if (typeof store.getAllKeys !== 'function') return resolve(null);
+        const keysReq = store.getAllKeys();
+        keysReq.onsuccess = () => {
+          const keys = keysReq.result || [];
           const targetSlug = String(chartId || '').toLowerCase().replace(/[\s\-_]+/g, '');
-          const match = all.find(c => {
-            if (!c) return false;
-            if (c.id === chartId) return true;
-            if (c.metadata && c.metadata.id === chartId) return true;
-            const cSlug = String(c.title || '').toLowerCase().replace(/[\s\-_]+/g, '');
-            const idSlug = String(c.id || '').toLowerCase().replace(/[\s\-_]+/g, '');
-            return (cSlug && (cSlug === targetSlug || targetSlug.includes(cSlug))) ||
-                   (idSlug && (idSlug === targetSlug || targetSlug.includes(idSlug)));
+          if (!targetSlug) return resolve(null);
+          const matchedKey = keys.find(k => {
+            const kSlug = String(k || '').toLowerCase().replace(/[\s\-_]+/g, '');
+            return kSlug && (kSlug === targetSlug || kSlug.includes(targetSlug) || targetSlug.includes(kSlug));
           });
-          resolve(match || null);
+          if (!matchedKey) return resolve(null);
+          const subReq = store.get(matchedKey);
+          subReq.onsuccess = () => resolve(subReq.result || null);
+          subReq.onerror = () => resolve(null);
         };
-        allReq.onerror = () => resolve(null);
+        keysReq.onerror = () => resolve(null);
       };
       req.onerror = (e) => reject(e.target.error);
     });

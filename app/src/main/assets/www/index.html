@@ -1116,11 +1116,9 @@
             <span class="slot-prefix">x</span><span id="hudGasMultiplierVal">1</span>
           </div>
 
-          <!-- HUD Exclusivo Modo Pulso: 5 Corazones de Píxeles Vintage + Contador Vintage de Combo (en vez de Puntos) -->
-          <div id="hudPulseModeContainer" class="hidden items-center justify-center gap-2 px-2 py-1 rounded-xl bg-[#070503]/95 border-2 border-[#b45309] shadow-[0_4px_14px_rgba(0,0,0,0.85),inset_0_0_10px_rgba(0,0,0,0.95)]">
-            <canvas id="hudPulseHeartsCanvas" width="118" height="24" class="h-[24px] w-[118px] block" title="5 Vidas Modo Pulso"></canvas>
-            <div class="w-[1.5px] h-5 bg-[#78350f]/70"></div>
-            <canvas id="hudPulseComboCanvas" width="112" height="24" class="h-[24px] w-[112px] block" title="Contador Vintage de Combo"></canvas>
+          <!-- HUD Exclusivo Modo Pulso (Arriba Centrado): 5 Corazones de Píxeles Vintage -->
+          <div id="hudPulseModeContainer" style="display: none;" class="items-center justify-center px-3 py-1 rounded-xl bg-[#070503]/95 border-2 border-[#b45309] shadow-[0_4px_14px_rgba(0,0,0,0.85),inset_0_0_10px_rgba(0,0,0,0.95)]">
+            <canvas id="hudPulseHeartsCanvas" width="132" height="24" class="h-[24px] w-[132px] block" title="5 Vidas Modo Pulso"></canvas>
           </div>
 
           <span id="hudScore" class="hidden">0</span>
@@ -1142,6 +1140,11 @@
           <div id="liveCalibDot" class="w-2 h-2 rounded-full bg-emerald-400" style="position: absolute; left: 50%; transform: translate3d(-50%, 0, 0);"></div>
         </div>
         <span id="liveCalibMsText" class="text-[8px] font-mono font-black text-emerald-300 w-7 text-right">0ms</span>
+      </div>
+
+      <!-- Contador Vintage Pixelado de Combo (Exclusivo Modo Pulso, justo debajo de la barra EARLY / ms) -->
+      <div id="hudPulseComboContainer" style="display: none;" class="mx-auto mt-1.5 items-center justify-center px-2.5 py-0.5 rounded-lg bg-[#070503]/95 border border-[#b45309]/90 shadow-[0_3px_10px_rgba(0,0,0,0.85),inset_0_0_8px_rgba(0,0,0,0.95)]">
+        <canvas id="hudPulseComboCanvas" width="96" height="24" class="h-[24px] w-[96px] block" title="Contador Vintage de Combo"></canvas>
       </div>
 
       <!-- Karaoke Live Teleprompter (Visible exclusively in Modo Karaoke) -->
@@ -6883,48 +6886,45 @@
           }
 
           const isPulseHud = Boolean(window.isOsuHybridModeActive || (engine && engine.isOsuHybridModeActive));
-          if (isPulseHud) {
-            if (hud.lastCombo !== combo) {
-              hud.lastCombo = combo;
-              if (typeof window.updatePulseModeHud === 'function') {
-                window.updatePulseModeHud(combo, engine ? (engine.osuLives ?? 5) : 5, engine ? (engine.osuMaxLives || 5) : 5, false);
-              }
+          if (isPulseHud && hud.lastCombo !== combo) {
+            if (typeof window.updatePulseModeHud === 'function') {
+              window.updatePulseModeHud(combo, engine ? (engine.osuLives ?? 5) : 5, engine ? (engine.osuMaxLives || 5) : 5, false);
             }
-          } else {
-            const nowPerf = performance.now();
-            const scoreInt = Math.floor(score);
-            if (hud.lastScoreFloor !== scoreInt && (scoreInt === 0 || nowPerf - hud.lastScoreDomPerf > 75)) {
-              hud.lastScoreDomPerf = nowPerf;
-              hud.lastScoreFloor = scoreInt;
-              const scoreStr = String(Math.min(9999999, Math.max(0, scoreInt))).padStart(7, '0');
-              for (let d = 0; d < 7; d++) {
-                if (hud.lastDigits[d] !== scoreStr[d]) {
-                  hud.lastDigits[d] = scoreStr[d];
-                  const strip = hud.rollerDigits[d];
-                  if (strip) {
-                    const digitVal = parseInt(scoreStr[d], 10) || 0;
-                    strip.style.transform = 'translate3d(0,-' + (digitVal * 24) + 'px,0)';
-                  }
-                }
-              }
-            }
+          }
 
-            if (hud.lastMultiplier !== multiplier) {
-              hud.lastMultiplier = multiplier;
-              if (hud.gasMultVal) hud.gasMultVal.textContent = multiplier || 1;
-              if (hud.gasBadge) {
-                hud.gasBadge.className = 'hud-gas-combo-badge ' + (multiplier >= 4 ? 'max-mult' : (multiplier >= 3 ? 'high-mult' : (multiplier >= 2 ? 'med-mult' : '')));
-              }
-              if (hud.multEl) {
-                hud.multEl.textContent = multiplier + 'x';
-                hud.multEl.className = 'multiplier-badge ' + (multiplier >= 2 ? ('x' + multiplier) : '');
+          const scoreInt = Math.floor(score);
+          if (hud.lastScoreFloor !== scoreInt) {
+            hud.lastScoreFloor = scoreInt;
+            if (hud.scoreEl) hud.scoreEl.textContent = String(scoreInt);
+            const scoreStr = String(Math.min(9999999, Math.max(0, scoreInt))).padStart(7, '0');
+            for (let d = 0; d < 7; d++) {
+              if (hud.lastDigits[d] !== scoreStr[d]) {
+                hud.lastDigits[d] = scoreStr[d];
+                const strip = hud.rollerDigits[d];
+                if (strip) {
+                  const digitVal = parseInt(scoreStr[d], 10) || 0;
+                  strip.style.transform = 'translate3d(0,-' + (digitVal * 24) + 'px,0)';
+                }
               }
             }
           }
 
-          if (hud.comboEl && hud.lastCombo !== combo) {
+          const safeMult = multiplier || 1;
+          if (hud.lastMultiplier !== safeMult) {
+            hud.lastMultiplier = safeMult;
+            if (hud.gasMultVal) hud.gasMultVal.textContent = String(safeMult);
+            if (hud.gasBadge) {
+              hud.gasBadge.className = 'hud-gas-combo-badge ' + (safeMult >= 4 ? 'max-mult' : (safeMult >= 3 ? 'high-mult' : (safeMult >= 2 ? 'med-mult' : '')));
+            }
+            if (hud.multEl) {
+              hud.multEl.textContent = safeMult + 'x';
+              hud.multEl.className = 'multiplier-badge ' + (safeMult >= 2 ? ('x' + safeMult) : '');
+            }
+          }
+
+          if (hud.lastCombo !== combo) {
             hud.lastCombo = combo;
-            hud.comboEl.textContent = 'COMBO ' + combo;
+            if (hud.comboEl) hud.comboEl.textContent = 'COMBO ' + combo;
           }
         },
         onStarUnlocked: (starNum, isPlatinum) => {
@@ -8318,7 +8318,11 @@ window.switchMainTab = switchMainTab;
         return true;
       }
       const overlay = document.getElementById('globalLoadingOverlay');
-      if (window.isGameLoadingOrActive && overlay && overlay.classList.contains('active')) {
+      if (window.isGameLoadingOrActive || (overlay && overlay.classList.contains('active'))) {
+        return true;
+      }
+      const modeModal = document.getElementById('gameModeSelectModal');
+      if (modeModal && !modeModal.classList.contains('hidden') && modeModal.style.display !== 'none') {
         return true;
       }
       return false;
@@ -12026,6 +12030,27 @@ function stopPianoCameraLoop() {
         hudMult.innerText = '1x';
         hudMult.className = 'multiplier-badge';
       }
+      const hudGasMultVal = document.getElementById('hudGasMultiplierVal');
+      if (hudGasMultVal) hudGasMultVal.textContent = '1';
+      const slotComboBadgeEl = document.getElementById('hudSlotComboBadge');
+      if (slotComboBadgeEl) {
+        slotComboBadgeEl.className = 'hud-gas-combo-badge';
+      }
+      for (let d = 0; d < 7; d++) {
+        const strip = document.getElementById('rollerDigit' + d);
+        if (strip) strip.style.transform = 'translate3d(0,0px,0)';
+      }
+      if (window._cachedHud) {
+        window._cachedHud.lastStars = -1;
+        window._cachedHud.lastMultiplier = -1;
+        window._cachedHud.lastMedalTier = '';
+        window._cachedHud.lastScoreFloor = -1;
+        window._cachedHud.lastCombo = -1;
+        window._cachedHud.lastPctQuant = -1;
+        window._cachedHud.lastPlatPhase = false;
+        window._cachedHud.lastScoreDomPerf = 0;
+        window._cachedHud.lastDigits = ['', '', '', '', '', '', ''];
+      }
       const fillEl = document.getElementById('hudProgressFill');
       if (fillEl) {
         fillEl.style.width = '0%';
@@ -12040,34 +12065,29 @@ function stopPianoCameraLoop() {
         el.querySelectorAll('.star-shockwave').forEach(sw => sw.remove());
       });
 
-      // Alternar entre el marcador de puntos normal y el HUD Vintage de Modo Pulso (5 Corazones + Combo Vintage)
+      // Alternar entre el marcador de puntos normal y el HUD Vintage de Modo Pulso (5 Corazones arriba centrados + Combo Vintage debajo de barra EARLY)
       const isPulseStart = Boolean(window.isOsuHybridModeActive || window.currentGameMode === 'osu_hybrid');
       const scoreRollersEl = document.getElementById('hudScoreRollers');
-      const slotComboBadgeEl = document.getElementById('hudSlotComboBadge');
       const pulseHudContainerEl = document.getElementById('hudPulseModeContainer');
+      const pulseComboContainerEl = document.getElementById('hudPulseComboContainer');
       if (isPulseStart) {
-        if (scoreRollersEl) scoreRollersEl.classList.add('hidden');
-        if (slotComboBadgeEl) slotComboBadgeEl.classList.add('hidden');
-        if (pulseHudContainerEl) {
-          pulseHudContainerEl.classList.remove('hidden');
-          pulseHudContainerEl.classList.add('flex');
-        }
+        if (scoreRollersEl) scoreRollersEl.style.display = 'none';
+        if (slotComboBadgeEl) slotComboBadgeEl.style.display = 'none';
+        if (pulseHudContainerEl) pulseHudContainerEl.style.display = 'inline-flex';
+        if (pulseComboContainerEl) pulseComboContainerEl.style.display = 'flex';
         if (typeof window.updatePulseModeHud === 'function') {
           window.updatePulseModeHud(0, 5, 5, false);
         }
       } else {
-        if (scoreRollersEl) scoreRollersEl.classList.remove('hidden');
-        if (slotComboBadgeEl) slotComboBadgeEl.classList.remove('hidden');
-        if (pulseHudContainerEl) {
-          pulseHudContainerEl.classList.add('hidden');
-          pulseHudContainerEl.classList.remove('flex');
-        }
+        if (scoreRollersEl) scoreRollersEl.style.display = '';
+        if (slotComboBadgeEl) slotComboBadgeEl.style.display = '';
+        if (pulseHudContainerEl) pulseHudContainerEl.style.display = 'none';
+        if (pulseComboContainerEl) pulseComboContainerEl.style.display = 'none';
       }
 
       // 5. Cargar en el motor de juego de forma segura
       try {
         if (engine && engine.sync) {
-          engine.sync.unlockAudio();
           engine.sync.setVolume(1.0, false);
         }
         if (engine) engine._scoreAlreadySaved = false;
@@ -19803,12 +19823,12 @@ function stopPianoCameraLoop() {
       ' ': [0, 0, 0, 0, 0]
     };
 
-    // Renderizador de los 5 Corazones de Píxeles Vintage + Contador Vintage de Combo para el Modo Pulso
+    // Renderizador de los 5 Corazones de Píxeles Vintage (arriba centrados) + Contador Vintage de Combo (debajo de barra EARLY)
     window.updatePulseModeHud = function(combo = 0, lives = 5, maxLives = 5, justLostHeart = false) {
       const heartsCanvas = document.getElementById('hudPulseHeartsCanvas');
       if (heartsCanvas) {
         const dpr = Math.min(2, window.devicePixelRatio || 1);
-        const wCss = 118;
+        const wCss = 132;
         const hCss = 24;
         if (heartsCanvas.width !== Math.round(wCss * dpr) || heartsCanvas.height !== Math.round(hCss * dpr)) {
           heartsCanvas.width = Math.round(wCss * dpr);
@@ -19829,9 +19849,9 @@ function stopPianoCameraLoop() {
           [0,0,0,1,2,1,0,0,0],
           [0,0,0,0,1,0,0,0,0]
         ];
-        const pxSize = 2.2;
+        const pxSize = 2.4;
         const heartW = 9 * pxSize;
-        const gap = 3.6;
+        const gap = 4.2;
         const startX = (wCss - (maxLives * heartW + (maxLives - 1) * gap)) * 0.5;
         const startY = (hCss - 8 * pxSize) * 0.5;
 
@@ -19862,7 +19882,7 @@ function stopPianoCameraLoop() {
       const comboCanvas = document.getElementById('hudPulseComboCanvas');
       if (comboCanvas) {
         const dpr = Math.min(2, window.devicePixelRatio || 1);
-        const wCss = 112;
+        const wCss = 96;
         const hCss = 24;
         if (comboCanvas.width !== Math.round(wCss * dpr) || comboCanvas.height !== Math.round(hCss * dpr)) {
           comboCanvas.width = Math.round(wCss * dpr);
@@ -19873,77 +19893,53 @@ function stopPianoCameraLoop() {
         cCtx.fillStyle = '#050402';
         cCtx.fillRect(0, 0, wCss, hCss);
 
-        const pitch = 2.4;
+        const pitch = 2.6;
         const cols = Math.floor((wCss - 4) / pitch);
         const rows = Math.floor((hCss - 2) / pitch);
         const offX = (wCss - cols * pitch) * 0.5 + pitch * 0.5;
         const offY = (hCss - rows * pitch) * 0.5 + pitch * 0.5;
-        const dotR = pitch * 0.39;
+        const dotSize = pitch * 0.76;
 
-        // Fondo de matriz LED vintage apagada
-        cCtx.fillStyle = '#1c150b';
-        cCtx.beginPath();
+        // Fondo de matriz de píxeles LED vintage apagada (sin asignaciones de memoria)
+        cCtx.fillStyle = '#1b140a';
         for (let r = 0; r < rows; r++) {
-          const py = offY + r * pitch;
+          const py = offY + r * pitch - dotSize * 0.5;
           for (let c = 0; c < cols; c++) {
-            const px = offX + c * pitch;
-            cCtx.moveTo(px + dotR * 0.72, py);
-            cCtx.arc(px, py, dotR * 0.72, 0, Math.PI * 2);
-          }
-        }
-        cCtx.fill();
-
-        const lit = new Map();
-        const setDot = (c, r, col) => {
-          if (c >= 0 && c < cols && r >= 0 && r < rows) lit.set(r * cols + c, col);
-        };
-
-        // Texto izquierdo "CMB" en píxeles vintage 3x5
-        const tag = 'CMB';
-        const tagRow = Math.max(0, Math.floor((rows - 5) * 0.5));
-        for (let i = 0; i < tag.length; i++) {
-          const g = LED_MINI_FONT_3X5[tag[i]];
-          if (!g) continue;
-          const baseC = 1 + i * 4;
-          for (let gr = 0; gr < 5; gr++) {
-            for (let gc = 0; gc < 3; gc++) {
-              if ((g[gr] >> (2 - gc)) & 1) {
-                setDot(baseC + gc, tagRow + gr, '#f59e0b');
-              }
-            }
+            const px = offX + c * pitch - dotSize * 0.5;
+            cCtx.fillRect(px, py, dotSize, dotSize);
           }
         }
 
-        // Contador numérico de 4 dígitos LED grandes 5x7 ("0000")
-        const comboStr = String(Math.min(9999, Math.max(0, Math.floor(combo || 0)))).padStart(4, '0');
+        // Número de teclas seguidas sin fallar (0, 1, 2, 3...) centrado con números pixelados vintage 5x7
+        const safeCombo = Math.max(0, Math.floor(combo || 0));
+        const comboStr = String(Math.min(99999, safeCombo));
+        const numDigits = comboStr.length;
+        const totalDigitCols = numDigits * 5 + (numDigits - 1) * 2;
+        const digStartCol = Math.max(0, Math.floor((cols - totalDigitCols) * 0.5));
         const digRow = Math.max(0, Math.floor((rows - 7) * 0.5));
-        const digStartCol = 15;
-        for (let i = 0; i < 4; i++) {
+        const activeCol = safeCombo === 0 ? '#b45309' : (safeCombo >= 50 ? '#38bdf8' : (safeCombo >= 20 ? '#4ade80' : '#fde047'));
+        const litSize = pitch * 0.86;
+
+        cCtx.fillStyle = activeCol;
+        for (let i = 0; i < numDigits; i++) {
           const ch = comboStr[i];
           const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7['0'];
           const baseC = digStartCol + i * 7;
-          const isLeadingZero = (combo === 0 && i < 3) || (combo > 0 && i < 4 - String(combo).length);
-          const activeCol = isLeadingZero ? '#4d3818' : (combo >= 50 ? '#38bdf8' : '#fde047');
           for (let gr = 0; gr < 7; gr++) {
             const rowBits = glyph[gr];
             if (!rowBits) continue;
             for (let gc = 0; gc < 5; gc++) {
               if ((rowBits >> (4 - gc)) & 1) {
-                setDot(baseC + gc, digRow + gr, activeCol);
+                const c = baseC + gc;
+                const r = digRow + gr;
+                if (c >= 0 && c < cols && r >= 0 && r < rows) {
+                  const lx = offX + c * pitch - litSize * 0.5;
+                  const ly = offY + r * pitch - litSize * 0.5;
+                  cCtx.fillRect(lx, ly, litSize, litSize);
+                }
               }
             }
           }
-        }
-
-        for (const [idx, col] of lit.entries()) {
-          const r = Math.floor(idx / cols);
-          const c = idx % cols;
-          const lx = offX + c * pitch;
-          const ly = offY + r * pitch;
-          cCtx.fillStyle = col;
-          cCtx.beginPath();
-          cCtx.arc(lx, ly, dotR * 1.08, 0, Math.PI * 2);
-          cCtx.fill();
         }
       }
     };
