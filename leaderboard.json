@@ -4333,42 +4333,55 @@
         "date": "2026-10-28 00:16:24"
       }
     ],
-    "top_abba_dancing_queen": [
+    "top_abba_dancing_queen": [],
+    "top_amaral_kamikaze": [],
+    "osu_2644394": [],
+    "top_michael_jackson_bad": [
       {
-        "name": "Test",
-        "score": 3450,
-        "stars": 3.5,
-        "combo": 6,
-        "accuracy": 0.3299900716030631,
-        "date": "2026-10-28 14:50:07"
+        "name": "Mauricio",
+        "score": 1644558,
+        "stars": 4,
+        "combo": 511,
+        "accuracy": 83.91150034287953,
+        "date": "2026-10-28 18:21:06"
       }
     ],
-    "top_amaral_kamikaze": [
+    "osu_2644393": [
       {
-        "name": "Test",
-        "score": 510493,
-        "stars": 2,
-        "combo": 156,
-        "accuracy": 58.24028640238943,
-        "date": "2026-10-28 14:53:42"
+        "name": "Mauricio",
+        "score": 251403,
+        "stars": 3.5,
+        "combo": 116,
+        "accuracy": 10.061037835293892,
+        "date": "2026-10-28 18:22:18"
       }
     ],
-    "osu_2644394": [
+    "bs_7c05": [
       {
-        "name": "Test",
-        "score": 30347,
+        "name": "Mauricio",
+        "score": 43330,
         "stars": 3.5,
-        "combo": 37,
-        "accuracy": 0.5264889138405499,
-        "date": "2026-10-28 16:08:18"
+        "combo": 41,
+        "accuracy": 1.2236483528896795,
+        "date": "2026-10-28 18:23:51"
+      }
+    ],
+    "bs_15b16": [
+      {
+        "name": "Mauricio",
+        "score": 452625,
+        "stars": 3.5,
+        "combo": 218,
+        "accuracy": 12.245353461569678,
+        "date": "2026-10-28 18:25:17"
       }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 70739768,
-      "clefs": 641
+      "total_score": 73131684,
+      "clefs": 663
     },
     {
       "name": "Rocky",
@@ -4454,11 +4467,6 @@
       "name": "BeatMaster",
       "total_score": 547200,
       "clefs": 0
-    },
-    {
-      "name": "Test",
-      "total_score": 544290,
-      "clefs": 5
     },
     {
       "name": "Layla",
@@ -4581,12 +4589,12 @@
     "clean_v2": true,
     "players": [
       {
-        "name": "Libay",
-        "score": 14379800
+        "name": "Mauricio",
+        "score": 16246829
       },
       {
-        "name": "Mauricio",
-        "score": 13854913
+        "name": "Libay",
+        "score": 14379800
       },
       {
         "name": "Laaleplo",
@@ -4599,10 +4607,6 @@
       {
         "name": "Llois1",
         "score": 869748
-      },
-      {
-        "name": "Test",
-        "score": 544290
       },
       {
         "name": "Llois",
