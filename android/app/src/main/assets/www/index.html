@@ -8691,7 +8691,7 @@ window.switchMainTab = switchMainTab;
         window.engine.isEchoModeActive = window.isEchoModeActive;
         window.engine.isOsuHybridModeActive = window.isOsuHybridModeActive;
         window.engine.isCruceModeActive = window.isCruceModeActive;
-        window.engine.numLanes = window.isFourLanesModeActive ? 4 : 3;
+        window.engine.numLanes = (window.isFourLanesModeActive || window.isCruceModeActive) ? 4 : 3;
         if (typeof window.engine.initCanvasSize === 'function') {
           window.engine.initCanvasSize();
         }
@@ -11407,7 +11407,7 @@ function stopPianoCameraLoop() {
 
       const allowVocalFiller = options.allowVocalFiller !== undefined ? Boolean(options.allowVocalFiller) : false;
       const preserveOriginalLanes = Boolean(options.preserveOriginalLanes);
-      const numLanes = (options.numLanes === 4 || window.isFourLanesModeActive) ? 4 : 3;
+      const numLanes = (options.numLanes === 4 || window.isFourLanesModeActive || window.isCruceModeActive) ? 4 : 3;
       const maxLaneIdx = numLanes - 1;
       const allLanes = numLanes === 4 ? [0, 1, 2, 3] : [0, 1, 2];
 
@@ -11623,33 +11623,40 @@ function stopPianoCameraLoop() {
         let ty = n.type;
         let targetLane = Math.max(0, Math.min(maxLaneIdx, n.lane));
 
-        // A. Selección de carril orgánica
-        if (preserveOriginalLanes && n.hasExplicitLane && !n.isFiller) {
-          targetLane = Math.max(0, Math.min(maxLaneIdx, n.lane));
+        // A. Selección de carril orgánica basada en el ritmo real y contorno melódico (CERO escaleras repetitivas)
+        if ((preserveOriginalLanes || n.hasExplicitLane) && !n.isFiller && n.lane !== undefined) {
+          if (numLanes === 4 && (n.sourceKeys || 3) <= 3) {
+            const prevT = i > 0 ? filledNotes[i - 1].t : 0;
+            const dtRhythm = Math.max(0, t - prevT);
+            const isSyncopated = (dtRhythm > 110 && dtRhythm < beatMs * 0.82);
+            if (n.lane === 0) targetLane = isSyncopated ? 1 : 0;
+            else if (n.lane >= 2) targetLane = isSyncopated ? 2 : 3;
+            else targetLane = ((Math.round(t / Math.max(80, halfBeatMs)) + i) % 2 === 0) ? 1 : 2;
+          } else {
+            targetLane = Math.max(0, Math.min(maxLaneIdx, n.lane));
+          }
         } else if (n.isInst || n.isFiller) {
           const patternGroup = Math.floor(t / (beatMs * 4)) % instPatterns.length;
           const step = Math.floor(t / Math.max(100, beatMs / 2)) % 4;
           targetLane = instPatterns[patternGroup][step];
-        } else {
-          if (typeof n.pitch === 'number' && n.pitch > 0) {
-            if (numLanes === 4) {
-              if (n.pitch < 55) targetLane = 0;
-              else if (n.pitch < 61) targetLane = 1;
-              else if (n.pitch < 67) targetLane = 2;
-              else targetLane = 3;
-            } else {
-              if (n.pitch < 56) targetLane = 0;
-              else if (n.pitch > 66) targetLane = 2;
-              else targetLane = 1;
-            }
+        } else if (typeof n.pitch === 'number' && n.pitch > 0) {
+          if (numLanes === 4) {
+            if (n.pitch < 55) targetLane = 0;
+            else if (n.pitch < 61) targetLane = 1;
+            else if (n.pitch < 67) targetLane = 2;
+            else targetLane = 3;
           } else {
-            if (i % 4 === 0) melodyDir = -melodyDir;
-            const nextL = melodyLane + melodyDir;
-            if (nextL > maxLaneIdx) { melodyLane = Math.max(0, maxLaneIdx - 1); melodyDir = -1; }
-            else if (nextL < 0) { melodyLane = 1; melodyDir = 1; }
-            else { melodyLane = nextL; }
-            targetLane = melodyLane;
+            if (n.pitch < 56) targetLane = 0;
+            else if (n.pitch > 66) targetLane = 2;
+            else targetLane = 1;
           }
+        } else {
+          const prevT = i > 0 ? filledNotes[i - 1].t : 0;
+          const dtRhythm = Math.max(0, t - prevT);
+          const beatIdx = Math.floor(t / Math.max(120, halfBeatMs));
+          const syncJump = (dtRhythm <= halfBeatMs * 0.75) ? 1 : ((dtRhythm >= beatMs * 1.15) ? 2 : 3);
+          melodyLane = (melodyLane + syncJump + (beatIdx % 2)) % numLanes;
+          targetLane = melodyLane;
         }
 
         // B. Protección: Jamás invadir un carril con Hold activo
@@ -11932,7 +11939,7 @@ function stopPianoCameraLoop() {
       }
 
       const songBpm = Number(beatmapData.bpm) || 120;
-      const targetNumLanes = window.isFourLanesModeActive ? 4 : 3;
+      const targetNumLanes = (window.isFourLanesModeActive || window.isCruceModeActive) ? 4 : 3;
       const sourceKeys = Number(beatmapData.keys || beatmapData.metadata?.source_keys || beatmapData.unpackedData?.metadata?.source_keys || (srcLower.includes('clone') ? 5 : 4));
       const baseDensityPref = beatmapData.selectedDensityMode ||
         ((typeof LaneRemapper !== 'undefined' && LaneRemapper.inferDensityModeFromDiff)
