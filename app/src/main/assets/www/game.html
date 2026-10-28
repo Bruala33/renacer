@@ -2699,9 +2699,9 @@
             <canvas id="gmBtnOsuHybridMainCanvas" class="w-full h-[48px] block"></canvas>
           </button>
 
-          <!-- Botón 2B: MODO TUBO 3D (Cilindro 3D con rotación reactiva, Holds trapezoidales/deslizantes y Teclas Nucleares de apertura) -->
-          <button id="btnModeSelectTube" onclick="confirmGameModeSelection('tube')" class="w-full p-1 rounded-xl bg-[#04030c] border-2 border-[#7c3aed] hover:border-[#22d3ee] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
-            <canvas id="gmBtnTubeMainCanvas" class="w-full h-[40px] block"></canvas>
+          <!-- Botón 2B: MODO CRUCE (Línea de juicio viva estilo Phigros, haces cruzados, Drag Notes en ola y Holds anchos) -->
+          <button id="btnModeSelectCruce" onclick="confirmGameModeSelection('cruce')" class="w-full p-1 rounded-xl bg-[#030710] border-2 border-[#06b6d4] hover:border-[#fde047] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
+            <canvas id="gmBtnCruceMainCanvas" class="w-full h-[40px] block"></canvas>
           </button>
 
           <!-- Botón 1B: MODO 4 CARRILES (Igual que Normal pero con 4 carriles de precisión + Candado LED 1000 Claves) -->
@@ -8660,7 +8660,7 @@ window.switchMainTab = switchMainTab;
 
     function applySelectedGameMode(mode) {
       const normalized = mode === 'mushrooms' ? 'mushroom' : (mode === 'classic' ? 'normal' : mode);
-      const m = (normalized === 'karaoke' || normalized === 'storm' || normalized === 'mushroom' || normalized === 'highway' || normalized === 'annoying_dog' || normalized === 'river' || normalized === 'four_lanes' || normalized === 'minesweeper' || normalized === 'mirror' || normalized === 'echo' || normalized === 'osu_hybrid' || normalized === 'tube') ? normalized : 'normal';
+      const m = (normalized === 'karaoke' || normalized === 'storm' || normalized === 'mushroom' || normalized === 'highway' || normalized === 'annoying_dog' || normalized === 'river' || normalized === 'four_lanes' || normalized === 'minesweeper' || normalized === 'mirror' || normalized === 'echo' || normalized === 'osu_hybrid' || normalized === 'cruce') ? normalized : 'normal';
       window.currentGameMode = m;
       window.isKaraokeModeActive = (m === 'karaoke');
       window.isStormModeActive = (m === 'storm');
@@ -8673,7 +8673,7 @@ window.switchMainTab = switchMainTab;
       window.isMirrorModeActive = (m === 'mirror');
       window.isEchoModeActive = (m === 'echo');
       window.isOsuHybridModeActive = (m === 'osu_hybrid');
-      window.isTubeModeActive = (m === 'tube');
+      window.isCruceModeActive = (m === 'cruce');
       const liveCalibEl = document.getElementById('liveCalibHud');
       if (liveCalibEl) {
         liveCalibEl.style.display = window.isOsuHybridModeActive ? 'none' : '';
@@ -8690,8 +8690,7 @@ window.switchMainTab = switchMainTab;
         window.engine.isMirrorModeActive = window.isMirrorModeActive;
         window.engine.isEchoModeActive = window.isEchoModeActive;
         window.engine.isOsuHybridModeActive = window.isOsuHybridModeActive;
-        window.engine.isTubeModeActive = window.isTubeModeActive;
-        window.engine.tubeCurvature = window.isTubeModeActive ? 1.0 : 0.0;
+        window.engine.isCruceModeActive = window.isCruceModeActive;
         window.engine.numLanes = window.isFourLanesModeActive ? 4 : 3;
         if (typeof window.engine.initCanvasSize === 'function') {
           window.engine.initCanvasSize();
@@ -8720,8 +8719,8 @@ window.switchMainTab = switchMainTab;
         if (window.isOsuHybridModeActive && typeof window.engine.initOsuHybridModeAssets === 'function') {
           window.engine.initOsuHybridModeAssets();
         }
-        if (window.isTubeModeActive && typeof window.engine.initTubeModeAssets === 'function') {
-          window.engine.initTubeModeAssets();
+        if (window.isCruceModeActive && typeof window.engine.initCruceModeAssets === 'function') {
+          window.engine.initCruceModeAssets();
         }
       }
       try { localStorage.setItem('isKaraokeModeActive', '0'); } catch (_) {}
@@ -8747,6 +8746,7 @@ window.switchMainTab = switchMainTab;
     window.isMirrorModeActive = false;
     window.isEchoModeActive = false;
     window.isOsuHybridModeActive = false;
+    window.isCruceModeActive = false;
     try { localStorage.setItem('isKaraokeModeActive', '0'); } catch (_) {}
 
     document.addEventListener('visibilitychange', () => {
@@ -14864,7 +14864,7 @@ function stopPianoCameraLoop() {
       { rank: 5, hand: 'ESCALERA',      badge: '#5', sharePct: 4,  potShare: 0.04 }
     ];
     const VP_MODES = [
-      { id: 'tube',         label: 'TUBO',     desc: 'Túnel cilíndrico 3D reactivo', icon: '(O)', bg: 'bg-violet-100 border-violet-500 text-violet-950' },
+      { id: 'cruce',        label: 'CRUCE',    desc: 'Haz de juicio vivo y notas en ola', icon: '><', bg: 'bg-cyan-100 border-cyan-500 text-cyan-950' },
       { id: 'osu_hybrid',   label: 'PULSO',    desc: 'Aros táctiles y carriles por fases', icon: '(•)', bg: 'bg-sky-100 border-sky-500 text-sky-950' },
       { id: 'mirror',       label: 'OJEPSƎ',   desc: 'Carriles 1 y 3 cruzados', icon: '🪞', bg: 'bg-cyan-100 border-cyan-500 text-cyan-950' },
       { id: 'echo',         label: 'ECO',      desc: 'Doble golpe con rebote',  icon: '((•))', bg: 'bg-emerald-100 border-emerald-500 text-emerald-950' },
@@ -18585,14 +18585,14 @@ function stopPianoCameraLoop() {
     function _getUnlockedGameModesMap() {
       try {
         const raw = JSON.parse(localStorage.getItem('beatstar_unlocked_game_modes_v1') || '{}');
-        return Object.assign({ normal: true, osu_hybrid: true, tube: true }, raw);
+        return Object.assign({ normal: true, osu_hybrid: true, cruce: true }, raw);
       } catch (_) {
-        return { normal: true, osu_hybrid: true, tube: true };
+        return { normal: true, osu_hybrid: true, cruce: true };
       }
     }
 
     function isGameModeUnlocked(mode) {
-      if (!mode || mode === 'normal' || mode === 'osu_hybrid' || mode === 'tube') return true;
+      if (!mode || mode === 'normal' || mode === 'osu_hybrid' || mode === 'cruce') return true;
       const map = _getUnlockedGameModesMap();
       return Boolean(map[mode]);
     }
@@ -20274,7 +20274,7 @@ function stopPianoCameraLoop() {
       }
     }
 
-    function _renderTubeLedButton(canvas, now, isLocked) {
+    function _renderCruceLedButton(canvas, now, isLocked) {
       if (!canvas) return;
       const dpr = Math.min(2, window.devicePixelRatio || 1);
       const widthCss = 318;
@@ -20286,7 +20286,7 @@ function stopPianoCameraLoop() {
       const ctx = canvas.getContext('2d');
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      ctx.fillStyle = '#04030c';
+      ctx.fillStyle = '#03060e';
       ctx.fillRect(0, 0, widthCss, heightCss);
 
       const pitch = 3.45;
@@ -20296,7 +20296,7 @@ function stopPianoCameraLoop() {
       const offsetY = (heightCss - rows * pitch) * 0.5 + pitch * 0.5;
       const dotR = pitch * 0.38;
 
-      ctx.fillStyle = '#130d26';
+      ctx.fillStyle = '#0d1b2e';
       ctx.beginPath();
       for (let r = 0; r < rows; r++) {
         const py = offsetY + r * pitch;
@@ -20318,24 +20318,30 @@ function stopPianoCameraLoop() {
         }
       };
 
-      // Icono izquierdo: Túnel cilíndrico 3D con anillos concéntricos avanzando y rotación de carriles
-      const cxL = 16;
-      const cyL = Math.floor(rows * 0.5);
-      const ringPhase = (t * 1.8) % 1.0;
-      const rInner = 1.6 + ringPhase * 1.8;
-      const rOuter = 3.6 + ringPhase * 1.4;
-      for (let a = 0; a < 16; a++) {
-        const ang = (a * Math.PI * 2) / 16 + Math.sin(t * 2.2) * 0.45;
-        setLed(cxL + Math.cos(ang) * rOuter, cyL + Math.sin(ang) * (rOuter * 0.85), a % 2 === 0 ? '#22d3ee' : '#a855f7');
-        if (a % 2 === 0) {
-          setLed(cxL + Math.cos(ang) * rInner, cyL + Math.sin(ang) * (rInner * 0.85), '#fde047');
-        }
+      // Icono izquierdo: Haz de juicio inclinándose dinámicamente + haces cruzados en X + nodos brillantes
+      const cxL = 15;
+      const cyL = Math.floor(rows * 0.55);
+      const tilt = Math.sin(t * 2.6) * 0.36;
+      // Haces guía cruzados en X al fondo
+      for (let s = -9; s <= 9; s += 2) {
+        setLed(cxL + s, Math.floor(rows * 0.5) + s * 0.42, '#1e40af');
+        setLed(cxL + s, Math.floor(rows * 0.5) - s * 0.42, '#0369a1');
       }
-      setLed(cxL, cyL, '#ffffff');
+      // Línea de juicio viva inclinada con 4 nodos receptores
+      for (let s = -10; s <= 10; s++) {
+        const lx = cxL + s * Math.cos(tilt);
+        const ly = cyL + s * Math.sin(tilt);
+        const isNode = (s === -8 || s === -3 || s === 3 || s === 8);
+        setLed(lx, ly, isNode ? '#ffffff' : '#00f2fe');
+      }
+      // Notas cayendo perpendicularmente hacia la línea (Tap cian y Drag dorada)
+      const noteDrop = ((t * 4.5) % 1.0) * 5.0;
+      setLed(cxL - 4, 1 + noteDrop, '#38bdf8');
+      setLed(cxL + 4, 2 + ((noteDrop + 2.5) % 5.0), '#fde047');
 
-      // Texto central grande "TUBO" en matriz 5x7 con destello cromático de cilindro 3D
-      const label = 'TUBO';
-      const startCol = 32;
+      // Texto central grande "CRUCE" en matriz 5x7 con destello cian/oro estilo Phigros
+      const label = 'CRUCE';
+      const startCol = 29;
       const textRow = Math.max(0, Math.floor((rows - 7) * 0.5));
       for (let i = 0; i < label.length; i++) {
         const ch = label[i];
@@ -20348,22 +20354,23 @@ function stopPianoCameraLoop() {
             if ((rowBits >> (4 - gc)) & 1) {
               const lc = charCol + gc;
               const lr = textRow + gr;
-              const col = gr < 2 ? '#ffffff' : (gr < 5 ? '#22d3ee' : '#c084fc');
+              const col = gr < 2 ? '#ffffff' : (gr < 5 ? '#00f2fe' : '#fde047');
               setLed(lc, lr, col);
             }
           }
         }
       }
 
-      // Icono derecho: Trapecio / Hold deslizante + pulso nuclear
-      const cxR = 73;
-      for (let r = 2; r < rows - 2; r++) {
-        const span = 1 + Math.floor(((r - 2) / Math.max(1, rows - 5)) * 3);
-        setLed(cxR - span, r, '#22d3ee');
-        setLed(cxR + span, r, '#f43f5e');
-        if (r === Math.floor(rows * 0.5)) {
-          setLed(cxR, r, '#fde047');
-        }
+      // Icono derecho: Ráfaga de Drag Notes amarillas en ola/zigzag cruzando el haz de luz
+      const cxR = 75;
+      for (let r = 1; r < rows - 1; r++) {
+        const waveX = cxR + Math.sin(r * 0.75 - t * 6.0) * 4.2;
+        setLed(waveX - 1, r, '#fde047');
+        setLed(waveX, r, '#ffffff');
+        setLed(waveX + 1, r, '#f59e0b');
+      }
+      for (let s = -7; s <= 7; s++) {
+        setLed(cxR + s, Math.floor(rows * 0.72) - s * Math.sin(tilt) * 0.5, '#00f2fe');
       }
 
       const byColor = new Map();
@@ -20604,9 +20611,9 @@ function stopPianoCameraLoop() {
           osuHybridLocked
         );
 
-        // L. ANIMACIÓN LED MODO TUBO 3D: Túnel cilíndrico con rotación y anillos concéntricos
-        _renderTubeLedButton(
-          document.getElementById('gmBtnTubeMainCanvas'),
+        // L. ANIMACIÓN LED MODO CRUCE: Línea de juicio viva, haces cruzados en X y Drag Notes en ola
+        _renderCruceLedButton(
+          document.getElementById('gmBtnCruceMainCanvas'),
           now,
           false
         );
@@ -20746,10 +20753,10 @@ function stopPianoCameraLoop() {
     }
 
     function confirmGameModeSelection(mode) {
-      const chosen = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog' || mode === 'river' || mode === 'four_lanes' || mode === 'minesweeper' || mode === 'mirror' || mode === 'echo' || mode === 'osu_hybrid' || mode === 'tube') ? mode : 'normal';
+      const chosen = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog' || mode === 'river' || mode === 'four_lanes' || mode === 'minesweeper' || mode === 'mirror' || mode === 'echo' || mode === 'osu_hybrid' || mode === 'cruce') ? mode : 'normal';
 
-      // Si el modo no es normal, pulso ni tubo y aún tiene candado LED (1000 Claves para desbloquear):
-      if (chosen !== 'normal' && chosen !== 'osu_hybrid' && chosen !== 'tube' && !isGameModeUnlocked(chosen)) {
+      // Si el modo no es normal, pulso ni cruce y aún tiene candado LED (1000 Claves para desbloquear):
+      if (chosen !== 'normal' && chosen !== 'osu_hybrid' && chosen !== 'cruce' && !isGameModeUnlocked(chosen)) {
         if (typeof userClefs === 'number' && userClefs >= GAME_MODE_UNLOCK_COST) {
           if (typeof deductClefs === 'function' && deductClefs(GAME_MODE_UNLOCK_COST)) {
             _setGameModeUnlocked(chosen);
@@ -20772,8 +20779,8 @@ function stopPianoCameraLoop() {
                                             ? 'ESPEJO (OJEPSƎ)'
                                             : (chosen === 'echo'
                                                 ? 'ECO (DOBLE GOLPE)'
-                                                : (chosen === 'tube'
-                                                    ? 'TUBO 3D'
+                                                : (chosen === 'cruce'
+                                                    ? 'CRUCE'
                                                     : (chosen === 'osu_hybrid' ? 'PULSO' : 'RÍO'))))))))));
               showSuccessToast(`¡Modo ${modeLabel} desbloqueado para siempre! (-1000 𝄞)`);
             }
