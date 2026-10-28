@@ -4332,6 +4332,36 @@
         "accuracy": 5.233127312835708,
         "date": "2026-10-28 00:16:24"
       }
+    ],
+    "top_abba_dancing_queen": [
+      {
+        "name": "Test",
+        "score": 3450,
+        "stars": 3.5,
+        "combo": 6,
+        "accuracy": 0.3299900716030631,
+        "date": "2026-10-28 14:50:07"
+      }
+    ],
+    "top_amaral_kamikaze": [
+      {
+        "name": "Test",
+        "score": 510493,
+        "stars": 2,
+        "combo": 156,
+        "accuracy": 58.24028640238943,
+        "date": "2026-10-28 14:53:42"
+      }
+    ],
+    "osu_2644394": [
+      {
+        "name": "Test",
+        "score": 30347,
+        "stars": 3.5,
+        "combo": 37,
+        "accuracy": 0.5264889138405499,
+        "date": "2026-10-28 16:08:18"
+      }
     ]
   },
   "global": [
@@ -4424,6 +4454,11 @@
       "name": "BeatMaster",
       "total_score": 547200,
       "clefs": 0
+    },
+    {
+      "name": "Test",
+      "total_score": 544290,
+      "clefs": 5
     },
     {
       "name": "Layla",
@@ -4564,6 +4599,10 @@
       {
         "name": "Llois1",
         "score": 869748
+      },
+      {
+        "name": "Test",
+        "score": 544290
       },
       {
         "name": "Llois",
