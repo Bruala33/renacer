@@ -3693,6 +3693,7 @@ class BeatstarEngine {
           n._osuTwinPartner = null;
           n._echoTargetNote = null;
           n._echoSourceNote = null;
+          n._cruceChordPartner = null;
         }
       }
       this.notes.length = 0;
@@ -4059,6 +4060,7 @@ class BeatstarEngine {
       }
 
       if (note.hit) continue;
+      if (isCruceActive && note._isCruceDrag) continue;
       if (note.timestamp_ms - currentTime > HIT_WINDOW + 80) break;
 
       // Soporte para Dynamic Mesh Holds (startLane / startWidth) y ergonomía táctil generosa en Modo CRUCE
@@ -4222,9 +4224,10 @@ class BeatstarEngine {
       if (this.customBgMode === 'reactive') {
         this.addReactiveBurst(lane, hitX, hitY, this.getScoreColor('perfectPlus'));
       }
-      if (this.isCalibrating || isProtectedTransition) {
-        this.emitKeyHit(hitX, hitY, this.getScoreColor('perfectPlus'), 18);
-        return true;
+      // En Modo CRUCE nunca se penaliza por apoyar o mantener el dedo en un carril sin Tap Notes (permite sostener/deslizar para Drag Notes amarillas sin recibir MISS)
+      if (this.isCalibrating || isProtectedTransition || isCruceActive) {
+        this.emitKeyHit(hitX, hitY, isCruceActive ? '#fde047' : this.getScoreColor('perfectPlus'), isCruceActive ? 8 : 18);
+        return false;
       }
       if (isActivelyPlaying && !this.isProcessingMiss) {
         this.synth.playPunchyArcadeMiss();
@@ -5459,16 +5462,17 @@ class BeatstarEngine {
       }
     }
 
-    // Once a note has passed the hit window (+120ms normal / +255ms de margen en Modo PULSO / +185ms en Modo Setas Alucinógenas), it is judged as MISS
+    // Once a note has passed the hit window (+120ms normal / +255ms de margen en Modo PULSO / +210ms en Modo CRUCE / +185ms en Modo Setas Alucinógenas), it is judged as MISS
     const isMushUpdate = Boolean(this.isMushroomModeActive);
     const isOsuUpdate = Boolean(this.isOsuHybridModeActive || (typeof window !== 'undefined' && window.isOsuHybridModeActive));
-    const exitScreenOffsetMs = isMushUpdate ? 185 : (isOsuUpdate ? 255 : 120);
+    const isCruceUpdate = Boolean(this.isCruceModeActive || (typeof window !== 'undefined' && window.isCruceModeActive));
+    const exitScreenOffsetMs = isMushUpdate ? 185 : (isOsuUpdate ? 255 : (isCruceUpdate ? 210 : 120));
     const notesLen = this.notes.length;
 
     if (isOsuUpdate) {
       this.updateOsuHybridNotesAndSliders(dt, currentTime);
     }
-    if (this.isCruceModeActive || (typeof window !== 'undefined' && window.isCruceModeActive)) {
+    if (isCruceUpdate) {
       this.updateCruceModeAndAutoDrags(dt, currentTime);
     }
 
@@ -5517,6 +5521,34 @@ class BeatstarEngine {
         const autoY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
         this.judgeHit(note, 10, autoX, autoY, '🍄');
         this.emitKeyHit(autoX, autoY, '#ff00ff', 14);
+        continue;
+      }
+
+      // En Modo CRUCE: si una Drag Note amarilla llega a la línea mientras el jugador mantiene cualquier dedo en pantalla (o en buffer reciente), atraparla automáticamente como PERFECT+
+      if (isCruceUpdate && note._isCruceDrag && currentTime >= noteTime - 40) {
+        const hasFingerNow = Boolean(
+          (this.activeTouches && this.activeTouches.size > 0) ||
+          this.mouseTouch ||
+          (this._cruceAnyFingerActiveUntil && currentTime <= this._cruceAnyFingerActiveUntil)
+        );
+        if (hasFingerNow && typeof this._completeCruceDragCatch === 'function') {
+          this._completeCruceDragCatch(note, currentTime);
+          continue;
+        }
+      }
+
+      // En Modo CRUCE: durante un cambio mayor de posición/orientación de la línea de juicio, proteger al jugador auto-validando la nota en el cruce
+      if (isCruceUpdate && this._cruceInTransition && currentTime >= noteTime - 35) {
+        note.hit = true;
+        note.processed = true;
+        if (note.type === 'hold') note.holdCompleted = true;
+        const cCoord = (typeof this.getCruceNoteScreenCoord === 'function')
+          ? this.getCruceNoteScreenCoord(note, currentTime)
+          : { x: (this.width || 360) * 0.5, y: (this.height || 640) * 0.5 };
+        this.judgeHit(note, 0, cCoord.x, cCoord.y, null);
+        if (typeof this._triggerCruceNoteHitFX === 'function') {
+          this._triggerCruceNoteHitFX(note, cCoord.x, cCoord.y, note._isCruceDrag ? '#fde047' : '#00f2fe');
+        }
         continue;
       }
 
@@ -22072,16 +22104,15 @@ class BeatstarEngine {
 
     // ============================================================================
     // MODO 'CRUCE' (PHIGROS DYNAMIC JUDGMENT BEAM MODULE) — MÓDULO REUTILIZABLE
-    // 1. Ritmo Real de la Canción (CERO escaleras repetitivas): Acordes dobles, saltos, notas largas/Holds y ritmos sincopados reales.
-    // 2. Proporción Estricta: ~70% Tap Notes (Azules/Cian sin línea amarilla), ~15% Holds Anchos (Rectángulos azules largos de energía), ~15% Drag Notes (Amarillas conectadas SOLO en redobles/ráfagas cortas de 1-2 compases máx).
-    // 3. Deslizamiento Real por Láseres Diagonales: Cada nota nace arriba en el emisor de uno de los láseres diagonales (esquina superior izquierda -> centro-derecha o viceversa) y viaja siguiendo el ángulo exacto del láser hasta su nodo receptor.
-    // 4. Coreografía Valiente estilo Phigros (CERO balanceo de barco): Giros decididos de 25°-30° en golpes fuertes/compases, subida a mitad de pantalla (Y=50%) en estribillos, inversión arriba del todo (Y=18%) con notas subiendo, y golpes a los bordes izquierdo/derecho (X=12%/88%) con notas moviéndose literalmente horizontales.
+    // 1. Ritmo Real de la Canción (CERO escaleras repetitivas): Acordes dobles unidos por arco eléctrico, saltos, notas largas/Holds y acentos de compás.
+    // 2. Proporción Estricta: ~70% Tap Notes (Azules/Cian), ~15% Holds Anchos (Rectángulos azules largos), ~15% Drag Notes (Amarillas conectadas en ráfagas cortas sin penalización por mantener el dedo).
+    // 3. 6 Formaciones Dinámicas de Rayos Láser a Pantalla Completa: Los rayos atraviesan toda la pantalla hasta abajo del todo sin cortes y cambian de geometría (Abanico, Cascada Izq/Der, Embudo Vórtice, Cruce Gemelo, Portal X) al ritmo de las secciones musicales.
+    // 4. Coreografía Musical Intuitiva y Justa: Los cambios de ángulo y altura ocurren ÚNICAMENTE en silencios, cierres de frase o drops de compás (jamás en medio de ráfagas densas), con línea holográfica de pre-aviso anticipado y detección táctil sin desvío lateral.
     // ============================================================================
     initCruceModeAssets() {
       const w = this.width || 360;
       const h = this.height || 640;
 
-      // Estado vivo de la línea de juicio principal (basado en keyframes secos de compás/golpe, sin balanceo senoidal de barco)
       this._cruceLineState = {
         cx: w * 0.5,
         cy: h * 0.78,
@@ -22097,16 +22128,27 @@ class BeatstarEngine {
         spanW: Math.max(260, w * 0.88),
         travelDistPx: Math.max(380, h * 0.76),
         diagFactor: 1.0,
+        flowDir: 1.0,
+        originsU: [-0.15, -0.05, 0.05, 0.15],
+        formationName: 'ABANICO PRISMA',
         beatKickPx: 0,
         orientation: 'BOTTOM_DYNAMIC',
         inTransition: false,
         transitionProgress: 1.0,
         transitionArrowAngle: Math.PI * 0.5,
-        transitionLabel: ''
+        transitionLabel: '',
+        previewActive: false,
+        previewCx: w * 0.5,
+        previewCy: h * 0.78,
+        previewAngle: 0,
+        previewAlpha: 0,
+        previewLabel: ''
       };
       this._cruceInTransition = false;
+      this._cruceAnyFingerActiveUntil = 0;
+      this._cruceSlotDragBufferUntil = [0, 0, 0, 0];
 
-      // 4 Nodos receptores brillantes integrados sobre la línea de juicio
+      // 4 Nodos receptores brillantes integrados sobre la línea de juicio (Orden fijo Izquierda -> Derecha para memoria muscular de 2 pulgares)
       const baseNormalizedU = [-0.375, -0.125, 0.125, 0.375];
       this._cruceNodes = [];
       for (let i = 0; i < 4; i++) {
@@ -22120,18 +22162,51 @@ class BeatstarEngine {
         });
       }
 
-      // 4 Láseres Diagonales Cruzados en 'X':
-      // Cada láser nace arriba en el extremo opuesto (originU en localY = -travelDist)
-      // y viaja en diagonal hasta impactar exactamente en su nodo receptor (targetU en localY = 0):
-      // - Láser 0 (Nodo 0, Izquierda -0.375): Nace arriba centro-derecha (+0.32) -> viaja hacia abajo-izquierda (-0.375)
-      // - Láser 1 (Nodo 1, Centro-Izquierda -0.125): Nace en esquina superior derecha (+0.56) -> viaja hacia centro-izquierda (-0.125)
-      // - Láser 2 (Nodo 2, Centro-Derecha +0.125): Nace en esquina superior izquierda (-0.56) -> viaja hacia centro-derecha (+0.125)
-      // - Láser 3 (Nodo 3, Derecha +0.375): Nace arriba centro-izquierda (-0.32) -> viaja hacia abajo-derecha (+0.375)
+      // 6 Formaciones Dinámicas de Rayos Láser para variar las diagonales en cada sección musical
+      this._cruceLaserFormations = [
+        {
+          id: 'PRISM_FAN',
+          name: 'ABANICO PRISMA',
+          originsU: [-0.15, -0.05, 0.05, 0.15],
+          colors: ['56, 189, 248', '0, 242, 254', '0, 242, 254', '56, 189, 248']
+        },
+        {
+          id: 'METEOR_LEFT',
+          name: 'CASCADA DIAGONAL IZQ',
+          originsU: [-0.66, -0.40, -0.14, 0.12],
+          colors: ['0, 242, 254', '56, 189, 248', '125, 211, 252', '168, 85, 247']
+        },
+        {
+          id: 'METEOR_RIGHT',
+          name: 'CASCADA DIAGONAL DER',
+          originsU: [-0.12, 0.14, 0.40, 0.66],
+          colors: ['168, 85, 247', '125, 211, 252', '56, 189, 248', '0, 242, 254']
+        },
+        {
+          id: 'VORTEX_FUNNEL',
+          name: 'EMBUDO VÓRTICE',
+          originsU: [-0.68, -0.25, 0.25, 0.68],
+          colors: ['168, 85, 247', '0, 242, 254', '0, 242, 254', '168, 85, 247']
+        },
+        {
+          id: 'TWIN_XCROSS',
+          name: 'DOBLE CRUCE GEMELO',
+          originsU: [-0.125, -0.375, 0.375, 0.125],
+          colors: ['236, 72, 153', '0, 242, 254', '0, 242, 254', '236, 72, 153']
+        },
+        {
+          id: 'CENTER_PORTAL',
+          name: 'PORTAL CRUZADO X',
+          originsU: [-0.46, 0.18, -0.18, 0.46],
+          colors: ['56, 189, 248', '253, 224, 71', '253, 224, 71', '56, 189, 248']
+        }
+      ];
+
       this._cruceCrossBeams = [
-        { id: 0, slotIdx: 0, originU: 0.32,  targetU: -0.375, color: '#38bdf8', rgb: '56, 189, 248', flash: 0, activeLoad: 0 },
-        { id: 1, slotIdx: 1, originU: 0.56,  targetU: -0.125, color: '#00f2fe', rgb: '0, 242, 254',  flash: 0, activeLoad: 0 },
-        { id: 2, slotIdx: 2, originU: -0.56, targetU: 0.125,  color: '#00f2fe', rgb: '0, 242, 254',  flash: 0, activeLoad: 0 },
-        { id: 3, slotIdx: 3, originU: -0.32, targetU: 0.375,  color: '#a855f7', rgb: '168, 85, 247', flash: 0, activeLoad: 0 }
+        { id: 0, slotIdx: 0, originU: -0.15, curOriginU: -0.15, targetU: -0.375, color: '#38bdf8', rgb: '56, 189, 248', flash: 0, activeLoad: 0 },
+        { id: 1, slotIdx: 1, originU: -0.05, curOriginU: -0.05, targetU: -0.125, color: '#00f2fe', rgb: '0, 242, 254',  flash: 0, activeLoad: 0 },
+        { id: 2, slotIdx: 2, originU: 0.05,  curOriginU: 0.05,  targetU: 0.125,  color: '#00f2fe', rgb: '0, 242, 254',  flash: 0, activeLoad: 0 },
+        { id: 3, slotIdx: 3, originU: 0.15,  curOriginU: 0.15,  targetU: 0.375,  color: '#a855f7', rgb: '168, 85, 247', flash: 0, activeLoad: 0 }
       ];
 
       this._cruceKeyframes = [];
@@ -22153,11 +22228,11 @@ class BeatstarEngine {
     }
 
     /**
-     * Prepara la coreografía completa del modo CRUCE respetando las 4 reglas fundamentales:
-     * 1. Ritmo real de la canción sin escaleras artificiales (acordes dobles, saltos, síncopas y Holds reales).
-     * 2. Proporción exacta: ~70% Tap Notes (Azules/Cian), ~15% Holds Anchos (Rectángulos azules largos), ~15% Drag Notes (Amarillas en ráfagas cortas de 1-2 compases máx).
-     * 3. Vinculación de cada nota a su Láser Diagonal real (desde originU arriba hasta targetU en el nodo receptor).
-     * 4. Generación de Keyframes coreografiados estilo Phigros (giros secos de 25°-30° en golpes fuertes/compases, subida a Y=50% en estribillos, inversión arriba Y=18%, y golpes a los bordes izquierdo X=12% y derecho X=88% con notas horizontales).
+     * Prepara la coreografía completa del modo CRUCE:
+     * 1. Ritmo real de la canción con acordes dobles conectados por arco eléctrico y notas acentuadas en inicios de compás.
+     * 2. Proporción exacta: ~70% Tap Notes (Azules/Cian), ~15% Holds Anchos (Rectángulos azules largos), ~15% Drag Notes (Amarillas en ráfagas cortas).
+     * 3. 6 Formaciones Dinámicas de Rayos Láser que cambian la geometría diagonal en cada frase musical.
+     * 4. Cambios de ángulo y altura sincronizados EXCLUSIVAMENTE con silencios, cierres de frase o drops de compás (jamás en medio de alta densidad de notas).
      */
     _prepareCruceModeChoreography() {
       if (!Array.isArray(this.notes) || this.notes.length === 0) return;
@@ -22174,16 +22249,14 @@ class BeatstarEngine {
       const measureMs = beatMs * 4;
 
       const slotBaseU = [-0.375, -0.125, 0.125, 0.375];
-      const beamOriginsU = [0.32, 0.56, -0.56, -0.32];
 
       // -------------------------------------------------------------------------
-      // PASO 1: RITMO REAL DE LA CANCIÓN (CERO ESCALERAS REPETITIVAS + ACORDES DOBLES)
+      // PASO 1: RITMO REAL DE LA CANCIÓN + VARIEDAD DE PATRONES RÍTMICOS Y ACORDES
       // -------------------------------------------------------------------------
       let notes = this.notes;
       let len = notes.length;
       const origLanes = Math.max(3, this.numLanes || 4);
 
-      // Normalizar cualquier swipe residual a tap (en Cruce no hay flechas de swipe; las notas rápidas seleccionadas serán Drag)
       for (let i = 0; i < len; i++) {
         const n = notes[i];
         if (!n) continue;
@@ -22193,14 +22266,14 @@ class BeatstarEngine {
         }
       }
 
-      // Mapear cada nota a uno de los 4 nodos receptores (0..3) preservando saltos reales, síncopas y acordes dobles
-      const nonStairPatterns = [
-        [0, 2, 1, 3],
-        [3, 1, 2, 0],
-        [1, 3, 0, 2],
-        [2, 0, 3, 1],
-        [0, 3, 1, 2],
-        [3, 0, 2, 1]
+      // Patrones musicales variados por frase (evita tanto las escaleras monótonas como repetir siempre el mismo carril)
+      const phrasePatterns = [
+        [0, 2, 1, 3, 2, 0, 3, 1],
+        [3, 1, 2, 0, 1, 3, 0, 2],
+        [0, 3, 1, 2, 0, 2, 3, 1],
+        [1, 2, 0, 3, 2, 1, 3, 0],
+        [0, 1, 3, 2, 1, 0, 2, 3],
+        [3, 2, 0, 1, 2, 3, 1, 0]
       ];
 
       for (let i = 0; i < len; i++) {
@@ -22210,36 +22283,40 @@ class BeatstarEngine {
         const prev = i > 0 ? notes[i - 1] : null;
         const prevT = prev ? (prev.timestamp_ms || 0) : -9999;
         const dtPrev = tMs - prevT;
+        const phraseIdx = Math.floor(tMs / Math.max(800, measureMs * 2));
+        const pat = phrasePatterns[phraseIdx % phrasePatterns.length];
 
         let slot4 = Math.max(0, Math.min(3, Math.round(n.lane ?? n.originalLane ?? 1)));
         if (origLanes <= 3) {
           const rawL = Math.max(0, Math.min(2, Math.round(n.originalLane ?? n.lane ?? 1)));
-          const isSyncopated = (dtPrev > 90 && dtPrev < beatMs * 0.80);
+          const isSyncopated = (dtPrev > 90 && dtPrev < beatMs * 0.78);
           if (rawL === 0) slot4 = isSyncopated ? 1 : 0;
           else if (rawL === 2) slot4 = isSyncopated ? 2 : 3;
-          else slot4 = ((Math.floor(tMs / Math.max(100, halfBeatMs)) + i) % 2 === 0) ? 1 : 2;
+          else slot4 = pat[i % pat.length];
         }
 
-        // Si forma parte de un acorde simultáneo (<= 35ms), garantizar dos slots bien separados para 2 pulgares ([0,2], [1,3], [0,3])
+        // Si es un acorde simultáneo (<= 35ms), separar limpiamente entre mano izquierda (0,1) y mano derecha (2,3)
         if (prev && Math.abs(dtPrev) <= 35) {
           const prevSlot = prev._cruceSlot ?? prev.lane ?? 0;
-          if (slot4 === prevSlot) {
-            const chordPairs = { 0: 2, 1: 3, 2: 0, 3: 1 };
-            slot4 = chordPairs[prevSlot] ?? ((prevSlot + 2) % 4);
+          if (slot4 === prevSlot || (slot4 < 2 && prevSlot < 2) || (slot4 >= 2 && prevSlot >= 2)) {
+            slot4 = (prevSlot < 2) ? (2 + (prevSlot % 2)) : (prevSlot - 2);
           }
-        } else if (i >= 3) {
-          // Romper cualquier escalera artificial 0-1-2-3 o 3-2-1-0 heredada para evitar bucles repetitivos en zigzag
-          const s0 = notes[i - 3]._cruceSlot ?? 0;
+        } else if (i >= 2) {
           const s1 = notes[i - 2]._cruceSlot ?? 0;
           const s2 = notes[i - 1]._cruceSlot ?? 0;
-          const isAscendingStair = (s0 === 0 && s1 === 1 && s2 === 2 && slot4 === 3);
-          const isDescendingStair = (s0 === 3 && s1 === 2 && s2 === 1 && slot4 === 0);
-          const isPingPongZigzag = (i >= 4 && (notes[i - 4]._cruceSlot === slot4) && ((s1 - s0) === (s2 - s1)));
-          if (isAscendingStair || isDescendingStair || isPingPongZigzag) {
-            const pat = nonStairPatterns[Math.floor(tMs / Math.max(400, measureMs)) % nonStairPatterns.length];
-            slot4 = pat[i % 4];
-            if (slot4 === s2 && dtPrev < 180) {
-              slot4 = (slot4 + 2) % 4;
+          // Evitar repetir 3 veces el mismo carril salvo que sea un jack lento deliberado (> 380ms)
+          if (slot4 === s2 && s2 === s1 && dtPrev < 380) {
+            slot4 = pat[(i + 1) % pat.length];
+            if (slot4 === s2) slot4 = (slot4 + 2) % 4;
+          }
+          // Romper cualquier escalera repetitiva heredada
+          if (i >= 3) {
+            const s0 = notes[i - 3]._cruceSlot ?? 0;
+            const isAsc = (s0 === 0 && s1 === 1 && s2 === 2 && slot4 === 3);
+            const isDesc = (s0 === 3 && s1 === 2 && s2 === 1 && slot4 === 0);
+            if (isAsc || isDesc) {
+              slot4 = pat[i % pat.length];
+              if (slot4 === s2 && dtPrev < 200) slot4 = (slot4 + 2) % 4;
             }
           }
         }
@@ -22248,17 +22325,17 @@ class BeatstarEngine {
         n.lane = slot4;
       }
 
-      // Si el mapa tiene pocos acordes dobles nativos, potenciar los golpes fuertes de compás con acordes dobles reales (2 notas a la vez)
+      // Potenciar golpes fuertes de compás con acordes dobles reales conectados (mano izquierda + mano derecha)
       let existingChords = 0;
       for (let i = 1; i < len; i++) {
         if (Math.abs((notes[i].timestamp_ms || 0) - (notes[i - 1].timestamp_ms || 0)) <= 35) {
           existingChords++;
         }
       }
-      if (existingChords < Math.floor(len * 0.06)) {
+      const firstNoteT = notes[0] ? (notes[0].timestamp_ms || 0) : 0;
+      if (existingChords < Math.floor(len * 0.08)) {
         const augmentedNotes = [];
         let lastInjectedChordMs = -9999;
-        const firstNoteT = notes[0] ? (notes[0].timestamp_ms || 0) : 0;
         for (let i = 0; i < len; i++) {
           const n = notes[i];
           augmentedNotes.push(n);
@@ -22269,11 +22346,11 @@ class BeatstarEngine {
           const dtPrev = tMs - prevT;
           const dtNext = nextT - tMs;
           const relBeat = ((tMs - firstNoteT) % beatMs + beatMs) % beatMs;
-          const onStrongBeat = (relBeat <= 55 || (beatMs - relBeat) <= 55);
+          const onStrongBeat = (relBeat <= 60 || (beatMs - relBeat) <= 60);
 
-          if (onStrongBeat && dtPrev >= 240 && dtNext >= 220 && (tMs - lastInjectedChordMs) >= Math.max(1800, measureMs * 0.95)) {
+          if (onStrongBeat && dtPrev >= 240 && dtNext >= 220 && (tMs - lastInjectedChordMs) >= Math.max(1650, measureMs * 0.90)) {
             const baseSlot = n._cruceSlot ?? n.lane ?? 0;
-            const partnerSlot = (baseSlot === 0) ? 2 : (baseSlot === 1 ? 3 : (baseSlot === 2 ? 0 : 1));
+            const partnerSlot = (baseSlot < 2) ? (baseSlot + 2) : (baseSlot - 2);
             augmentedNotes.push({
               ...n,
               id: len + augmentedNotes.length,
@@ -22306,12 +22383,10 @@ class BeatstarEngine {
 
       // -------------------------------------------------------------------------
       // PASO 2: PROPORCIÓN EXACTA DE TIPOS DE NOTAS:
-      // - ~15% Holds Anchos (Rectángulos azules largos: respeta todos los Holds de la canción + completa hasta ~15% en notas sostenidas)
-      // - ~15% Drag Notes (Amarillas conectadas SOLO en ráfagas cortas/redobles de 1-2 compases máximo)
-      // - ~70% Tap Notes (Azules/Cian del ritmo real y batería, sin línea amarilla)
+      // - ~15% Holds Anchos (Rectángulos azules largos)
+      // - ~15% Drag Notes (Amarillas conectadas en ráfagas cortas fluidas)
+      // - ~70% Tap Notes (Azules/Cian del ritmo real + acentos de compás)
       // -------------------------------------------------------------------------
-
-      // 2A. Garantizar ~15% de Holds Anchos respetando todos los Holds originales de la canción
       let holdCount = 0;
       for (let i = 0; i < len; i++) {
         if (notes[i] && notes[i].type === 'hold') {
@@ -22329,11 +22404,9 @@ class BeatstarEngine {
           const nextT = notes[i + 1].timestamp_ms || 99999999;
           const dtPrev = tMs - prevT;
           const dtNext = nextT - tMs;
-          // No convertir notas que sean parte de un acorde simultáneo ni que tengan otra nota pegada detrás (< 290ms)
           if (dtPrev <= 55 || dtNext < 290) continue;
           holdCandidates.push({ idx: i, dtNext, tMs });
         }
-        // Ordenar candidatos priorizando los huecos rítmicos más largos y distribuirlos por toda la canción
         holdCandidates.sort((a, b) => b.dtNext - a.dtNext);
         const acceptedHoldTimes = [];
         for (let i = 0; i < len; i++) {
@@ -22357,7 +22430,7 @@ class BeatstarEngine {
         }
       }
 
-      // Inicializar todas las notas como NO-Drag (Azules/Cian por defecto)
+      // Inicializar todas las notas como Tap/Hold Azul/Cian y detectar parejas de acordes simultáneos
       for (let i = 0; i < len; i++) {
         const n = notes[i];
         if (!n) continue;
@@ -22367,12 +22440,15 @@ class BeatstarEngine {
         n._isCruceDrag = false;
         n._cruceDragBurstId = 0;
         n._cruceTargetU = slotBaseU[slot4];
-        n._cruceOriginU = beamOriginsU[slot4];
         n._cruceLocalU = slotBaseU[slot4];
         n._crossBeamId = slot4;
+        n._cruceChordPartner = null;
+
+        // Marcar notas que caen exactamente en el inicio de un compás (Downbeat Accent) para darles pulso cromático especial
+        const relMeasure = (((n.timestamp_ms || 0) - firstNoteT) % measureMs + measureMs) % measureMs;
+        n._isCruceAccent = (relMeasure <= 50 || (measureMs - relMeasure) <= 50);
 
         if (n.type === 'hold') {
-          // Holds Anchos: bloques rectangulares azules largos de energía
           n.startLane = slot4;
           n.endLane = slot4;
           n.startWidth = 1.48;
@@ -22381,9 +22457,21 @@ class BeatstarEngine {
         }
       }
 
-      // 2B. Seleccionar ~15% de Drag Notes (Amarillas) EXCLUSIVAMENTE en ráfagas rápidas / redobles cortos (4 a 6 notas, máx 1-2 compases)
+      // Vincular parejas de acordes simultáneos para dibujar el Arco Eléctrico Sincronizado entre ellas
+      for (let i = 0; i < len - 1; i++) {
+        const a = notes[i];
+        const b = notes[i + 1];
+        if (!a || !b || a.type === 'hold' || b.type === 'hold') continue;
+        if (Math.abs((b.timestamp_ms || 0) - (a.timestamp_ms || 0)) <= 35 && a._cruceSlot !== b._cruceSlot) {
+          a._cruceChordPartner = b;
+          b._cruceChordPartner = a;
+          i++; // avanzar pareja
+        }
+      }
+
+      // Seleccionar ~15% de Drag Notes (Amarillas) en ráfagas rápidas / redobles cortos (4 a 6 notas)
       const targetDragCount = Math.round(len * 0.15);
-      const maxBurstNotes = 5;
+      const maxBurstNotes = 6;
       const minBurstNotes = 4;
       const maxBurstDurationMs = Math.min(2200, measureMs * 1.65);
       const candidateBursts = [];
@@ -22393,20 +22481,12 @@ class BeatstarEngine {
         let sumDt = 0;
         for (let k = 0; k < maxBurstNotes && (i + k) < len; k++) {
           const cur = notes[i + k];
-          if (!cur || cur.type === 'hold') break;
+          if (!cur || cur.type === 'hold' || cur._cruceChordPartner) break;
           if (k > 0) {
             const prev = notes[i + k - 1];
             const dt = (cur.timestamp_ms || 0) - (prev.timestamp_ms || 0);
-            // Evitar incluir acordes simultáneos o pausas largas dentro de un redoble Drag
             if (dt <= 35 || dt > 380) break;
             sumDt += dt;
-          }
-          // Tampoco incluir una nota si tiene un compañero de acorde simultáneo justo al lado
-          const nextAdj = (i + k + 1 < len) ? notes[i + k + 1] : null;
-          const prevAdj = (i + k - 1 >= 0) ? notes[i + k - 1] : null;
-          if ((nextAdj && Math.abs((nextAdj.timestamp_ms || 0) - (cur.timestamp_ms || 0)) <= 35) ||
-              (prevAdj && Math.abs((cur.timestamp_ms || 0) - (prevAdj.timestamp_ms || 0)) <= 35)) {
-            break;
           }
           validLen++;
         }
@@ -22426,17 +22506,16 @@ class BeatstarEngine {
         }
       }
 
-      // Priorizar las ráfagas más veloces de la canción (menor avgDt) y espaciarlas para que se sientan especiales
       candidateBursts.sort((a, b) => a.avgDt - b.avgDt);
       const usedNoteIndices = new Set();
-      const selectedBurstCenters = [];
+      const selectedBurstWindows = [];
       let currentDragCount = 0;
       let burstIdCounter = 1;
-      const minBurstCooldownMs = Math.max(3600, measureMs * 2.0);
+      const minBurstCooldownMs = Math.max(3400, measureMs * 1.8);
 
       for (let b = 0; b < candidateBursts.length && currentDragCount < targetDragCount; b++) {
         const burst = candidateBursts[b];
-        if (currentDragCount + burst.count > targetDragCount + 2) continue;
+        if (currentDragCount + burst.count > targetDragCount + 3) continue;
 
         let overlaps = false;
         for (let idx = burst.startIdx; idx <= burst.endIdx; idx++) {
@@ -22448,50 +22527,64 @@ class BeatstarEngine {
         if (overlaps) continue;
 
         const centerMs = (burst.startTimeMs + burst.endTimeMs) * 0.5;
-        if (selectedBurstCenters.some(cMs => Math.abs(cMs - centerMs) < minBurstCooldownMs)) {
+        if (selectedBurstWindows.some(w => Math.abs(w.centerMs - centerMs) < minBurstCooldownMs)) {
           continue;
         }
 
         const thisBurstId = burstIdCounter++;
+        // Hacer que cada ráfaga de Drag Notes forme un barrido suave y natural de deslizar con un dedo
+        const sweepStartSlot = notes[burst.startIdx]._cruceSlot ?? 0;
+        const sweepDir = (sweepStartSlot <= 1) ? 1 : -1;
         for (let idx = burst.startIdx; idx <= burst.endIdx; idx++) {
           usedNoteIndices.add(idx);
           const n = notes[idx];
           n._isCruceDrag = true;
           n._cruceDragBurstId = thisBurstId;
+          const stepInBurst = idx - burst.startIdx;
+          const smoothSlot = Math.max(0, Math.min(3, sweepStartSlot + sweepDir * (stepInBurst % 4)));
+          n._cruceSlot = smoothSlot;
+          n.lane = smoothSlot;
+          n._cruceTargetU = slotBaseU[smoothSlot];
         }
-        selectedBurstCenters.push(centerMs);
+        selectedBurstWindows.push({
+          centerMs,
+          startMs: burst.startTimeMs - 250,
+          endMs: burst.endTimeMs + 250
+        });
         currentDragCount += burst.count;
       }
 
       // -------------------------------------------------------------------------
-      // PASO 4: COREOGRAFÍA VALIENTE DE LA LÍNEA DE JUICIO ESTILO PHIGROS
-      // (Cero balanceo de barco: snaps decididos de 25°-30° en golpes fuertes/compases,
-      // subida a mitad de pantalla Y=50% en estribillos, inversión arriba Y=18% en pausas/secciones,
-      // y golpes secos al borde izquierdo X=12% y derecho X=88% con notas literalmente horizontales)
+      // PASO 3: DETECTOR MUSICAL DE SILENCIOS, DROPS Y CIERRES DE FRASE
+      // Garantiza que los cambios de ángulo, altura y formación de rayos láser ocurran
+      // SIEMPRE al ritmo de la música (en silencios, cierres de Hold o inicios limpios de compás)
+      // y JAMÁS en medio de una ráfaga densa de notas.
       // -------------------------------------------------------------------------
       this._cruceKeyframes = [];
       const firstNoteMs = notes[0] ? (notes[0].timestamp_ms || 1600) : 1600;
       const lastNoteMs = notes[len - 1] ? (notes[len - 1].end_timestamp_ms || notes[len - 1].timestamp_ms || 60000) : 60000;
       const deg = Math.PI / 180;
 
-      // Keyframe inicial estable en la parte inferior antes del primer golpe fuerte
+      // Keyframe inicial en la base con formación Abanico Prisma
       this._cruceKeyframes.push({
         timeMs: -5000,
-        transDurMs: 300,
-        mode: 'BOTTOM_FLAT',
+        transDurMs: 320,
+        mode: 'BASE_PRISM_FAN',
         cxRatio: 0.50,
         cyRatio: 0.80,
         angleRad: 0,
         spanWRatio: 0.88,
-        travelRatio: 0.76,
+        travelRatio: 0.78,
         diagFactor: 1.0,
+        flowDir: 1.0,
+        formationIdx: 0,
         isMajorFlip: false,
         arrowAngle: Math.PI * 0.5,
-        label: 'FLUJO PRINCIPAL'
+        label: 'ABANICO PRISMA'
       });
 
-      // Detectar todas las pausas reales >= 820ms (o tras un Hold largo) para clavar inversiones arriba del todo (Y = 18%) o bordes
-      const pauseWindows = [];
+      // Recolectar puntos musicales seguros para cambiar de estado (huecos >= 260ms y fuera de ráfagas Drag)
+      const safeMusicalAnchors = [];
       for (let i = 1; i < len; i++) {
         const prev = notes[i - 1];
         const curr = notes[i];
@@ -22499,129 +22592,219 @@ class BeatstarEngine {
           ? (prev.end_timestamp_ms || ((prev.timestamp_ms || 0) + (prev.duration_ms || 500)))
           : (prev.timestamp_ms || 0);
         const currStart = curr.timestamp_ms || 0;
-        const gap = currStart - prevEnd;
-        if (gap >= 820 && currStart > firstNoteMs + 2200) {
-          pauseWindows.push({ startMs: prevEnd + 80, endMs: currStart, gapMs: gap });
+        const gapBefore = currStart - prevEnd;
+        if (currStart < firstNoteMs + 2200 || currStart > lastNoteMs - 1400) continue;
+
+        // No cambiar nunca en medio de una ráfaga de Drag Notes amarillas
+        const inDragBurst = selectedBurstWindows.some(w => currStart >= w.startMs && currStart <= w.endMs);
+        if (inDragBurst) continue;
+
+        // Comprobar densidad inmediatamente posterior (evitar cambiar si las 3 notas siguientes están a < 140ms)
+        const next1 = (i + 1 < len) ? (notes[i + 1].timestamp_ms || 99999999) : 99999999;
+        const dtAfter = next1 - currStart;
+        if (gapBefore < 250 && dtAfter < 170) continue;
+
+        const relMeasure = ((currStart - firstNoteT) % measureMs + measureMs) % measureMs;
+        const isDownbeat = (relMeasure <= 85 || (measureMs - relMeasure) <= 85);
+        const isHalfMeasure = Math.abs(relMeasure - measureMs * 0.5) <= 85;
+        const isSilence = (gapBefore >= 550);
+        const isBigSilence = (gapBefore >= 850);
+
+        if (isSilence || (gapBefore >= 260 && (isDownbeat || isHalfMeasure)) || gapBefore >= 400) {
+          safeMusicalAnchors.push({
+            noteIdx: i,
+            timeMs: currStart,
+            gapBeforeMs: gapBefore,
+            isBigSilence,
+            isSilence,
+            isDownbeat: isDownbeat || isHalfMeasure
+          });
         }
       }
 
-      // Secuencia variada y espectacular de poses Phigros que recorre toda la canción sin repetirse de forma monótona
-      const choreoStages = [
-        // 1. Golpe fuerte en base: inclinación decidida a +27°
-        { mode: 'BOTTOM_TILT_R', cxRatio: 0.50, cyRatio: 0.76, angleRad: 27 * deg, spanWRatio: 0.88, travelRatio: 0.74, diagFactor: 1.0, isMajorFlip: false, arrowAngle: Math.PI * 0.5, label: 'IMPACTO +27°' },
-        // 2. Cambio de compás: latigazo seco a -28°
-        { mode: 'BOTTOM_TILT_L', cxRatio: 0.50, cyRatio: 0.74, angleRad: -28 * deg, spanWRatio: 0.88, travelRatio: 0.72, diagFactor: 1.0, isMajorFlip: false, arrowAngle: Math.PI * 0.5, label: 'IMPACTO -28°' },
-        // 3. Subida decidida a la mitad de la pantalla (Y = 50%) para estribillo con inclinación +26°
-        { mode: 'MID_CHORUS_R', cxRatio: 0.50, cyRatio: 0.50, angleRad: 26 * deg, spanWRatio: 0.90, travelRatio: 0.54, diagFactor: 1.0, isMajorFlip: true, arrowAngle: Math.PI * 0.5, label: 'ESTRIBILLO: CENTRO +26°' },
-        // 4. En mitad de pantalla (Y = 48%): golpe de compás a -30°
-        { mode: 'MID_CHORUS_L', cxRatio: 0.50, cyRatio: 0.48, angleRad: -30 * deg, spanWRatio: 0.90, travelRatio: 0.54, diagFactor: 1.0, isMajorFlip: false, arrowAngle: Math.PI * 0.5, label: 'CRUCE CENTRAL -30°' },
-        // 5. Golpe al Borde Derecho de la pantalla (X = 88%): notas se mueven LITERALMENTE HORIZONTALES de izquierda a derecha
-        { mode: 'RIGHT_BORDER_HORIZ', cxRatio: 0.88, cyRatio: 0.50, angleRad: -90 * deg, spanWRatio: 0.70, travelRatio: 0.82, diagFactor: 0.0, isMajorFlip: true, arrowAngle: 0, label: 'BORDE DERECHO: FLUJO HORIZONTAL' },
-        // 6. Subida Arriba del Todo (Y = 18%): inversión total con notas subiendo de abajo hacia arriba
-        { mode: 'TOP_INVERTED', cxRatio: 0.50, cyRatio: 0.18, angleRad: 180 * deg, spanWRatio: 0.88, travelRatio: 0.78, diagFactor: 1.0, isMajorFlip: true, arrowAngle: -Math.PI * 0.5, label: 'INVERSIÓN SUPERIOR: ASCENSO' },
-        // 7. Arriba del todo (Y = 20%) con inclinación valiente de +25°
-        { mode: 'TOP_INVERTED_TILT', cxRatio: 0.50, cyRatio: 0.20, angleRad: (180 + 25) * deg, spanWRatio: 0.88, travelRatio: 0.76, diagFactor: 1.0, isMajorFlip: false, arrowAngle: -Math.PI * 0.5, label: 'ASCENSO DIAGONAL' },
-        // 8. Golpe al Borde Izquierdo de la pantalla (X = 12%): notas se mueven LITERALMENTE HORIZONTALES de derecha a izquierda
-        { mode: 'LEFT_BORDER_HORIZ', cxRatio: 0.12, cyRatio: 0.50, angleRad: 90 * deg, spanWRatio: 0.70, travelRatio: 0.82, diagFactor: 0.0, isMajorFlip: true, arrowAngle: Math.PI, label: 'BORDE IZQUIERDO: FLUJO HORIZONTAL' },
-        // 9. Clímax Diagonal a mitad de pantalla (Y = 50%, +30°)
-        { mode: 'CLIMAX_SLASH_R', cxRatio: 0.50, cyRatio: 0.50, angleRad: 30 * deg, spanWRatio: 0.92, travelRatio: 0.56, diagFactor: 1.0, isMajorFlip: true, arrowAngle: Math.PI * 0.5, label: 'CLÍMAX DIAGONAL +30°' },
-        // 10. Retorno con golpe en base a -26°
-        { mode: 'BOTTOM_RETURN_L', cxRatio: 0.50, cyRatio: 0.78, angleRad: -26 * deg, spanWRatio: 0.88, travelRatio: 0.76, diagFactor: 1.0, isMajorFlip: true, arrowAngle: Math.PI * 0.5, label: 'IMPACTO BASE -26°' }
+      // Catálogo de Escenas Coreográficas Musicales (Combina posición de la línea + ángulo + formación de láseres diagonales)
+      // NOTA CLAVE DE JUGABILIDAD: `angleRad` se mantiene dentro de [-24°, +24°] y en `TOP_ASCENT` se invierte `flowDir = -1.0`
+      // en lugar de rotar 180°, para que el carril 0 SIEMPRE esté a la izquierda y el carril 3 SIEMPRE a la derecha (100% intuitivo con 2 pulgares).
+      const musicalScenes = [
+        // 0: Inclinación derecha con Cascada Diagonal Izquierda (\)
+        {
+          mode: 'TILT_RIGHT_CASCADE',
+          cxRatio: 0.50, cyRatio: 0.77, angleRad: 18 * deg,
+          spanWRatio: 0.88, travelRatio: 0.76, diagFactor: 1.0, flowDir: 1.0,
+          formationIdx: 1, isMajorFlip: false, arrowAngle: Math.PI * 0.5,
+          label: 'CASCADA LÁSER IZQUIERDA'
+        },
+        // 1: Inclinación izquierda con Cascada Diagonal Derecha (/)
+        {
+          mode: 'TILT_LEFT_CASCADE',
+          cxRatio: 0.50, cyRatio: 0.76, angleRad: -18 * deg,
+          spanWRatio: 0.88, travelRatio: 0.76, diagFactor: 1.0, flowDir: 1.0,
+          formationIdx: 2, isMajorFlip: false, arrowAngle: Math.PI * 0.5,
+          label: 'CASCADA LÁSER DERECHA'
+        },
+        // 2: Subida de Estribillo al Centro (Y = 54%) con Embudo Vórtice
+        {
+          mode: 'CHORUS_CENTER_VORTEX',
+          cxRatio: 0.50, cyRatio: 0.54, angleRad: 15 * deg,
+          spanWRatio: 0.92, travelRatio: 0.56, diagFactor: 1.0, flowDir: 1.0,
+          formationIdx: 3, isMajorFlip: true, arrowAngle: Math.PI * 0.5,
+          label: 'ESTRIBILLO: VÓRTICE CENTRAL'
+        },
+        // 3: Estribillo en Centro (Y = 52%) con Doble Cruce Gemelo (X en cada mano)
+        {
+          mode: 'CHORUS_TWIN_XCROSS',
+          cxRatio: 0.50, cyRatio: 0.52, angleRad: -16 * deg,
+          spanWRatio: 0.92, travelRatio: 0.56, diagFactor: 1.0, flowDir: 1.0,
+          formationIdx: 4, isMajorFlip: false, arrowAngle: Math.PI * 0.5,
+          label: 'DOBLE CRUCE GEMELO'
+        },
+        // 4: Barrido Diagonal desde el Borde Izquierdo hacia la Derecha
+        {
+          mode: 'SWEEP_FROM_LEFT',
+          cxRatio: 0.54, cyRatio: 0.70, angleRad: -22 * deg,
+          spanWRatio: 0.88, travelRatio: 0.74, diagFactor: 1.15, flowDir: 1.0,
+          formationIdx: 1, isMajorFlip: true, arrowAngle: Math.PI * 0.25,
+          label: 'BARRIDO DIAGONAL OESTE'
+        },
+        // 5: Portal Cruzado Central en Base con ángulo valiente (+22°)
+        {
+          mode: 'PORTAL_CROSS_R',
+          cxRatio: 0.50, cyRatio: 0.76, angleRad: 22 * deg,
+          spanWRatio: 0.90, travelRatio: 0.76, diagFactor: 1.0, flowDir: 1.0,
+          formationIdx: 5, isMajorFlip: false, arrowAngle: Math.PI * 0.5,
+          label: 'PORTAL HIPERESPACIO'
+        },
+        // 6: Barrido Diagonal desde el Borde Derecho hacia la Izquierda
+        {
+          mode: 'SWEEP_FROM_RIGHT',
+          cxRatio: 0.46, cyRatio: 0.70, angleRad: 22 * deg,
+          spanWRatio: 0.88, travelRatio: 0.74, diagFactor: 1.15, flowDir: 1.0,
+          formationIdx: 2, isMajorFlip: true, arrowAngle: Math.PI * 0.75,
+          label: 'BARRIDO DIAGONAL ESTE'
+        },
+        // 7: Retorno de Precisión en Abanico Prisma
+        {
+          mode: 'BASE_PRISM_RETURN',
+          cxRatio: 0.50, cyRatio: 0.79, angleRad: -12 * deg,
+          spanWRatio: 0.88, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0,
+          formationIdx: 0, isMajorFlip: false, arrowAngle: Math.PI * 0.5,
+          label: 'ABANICO PRISMA'
+        }
       ];
 
-      let cursorMs = firstNoteMs + Math.max(1500, measureMs * 0.85);
-      let stageIdx = 0;
+      // Escena especial para silencios largos (>= 800ms): Subida Arriba (Y = 22%) con flujo ascendente (sin invertir izquierda/derecha)
+      const topAscentScene = {
+        mode: 'TOP_ASCENT_FLOW',
+        cxRatio: 0.50, cyRatio: 0.22, angleRad: 0,
+        spanWRatio: 0.88, travelRatio: 0.74, diagFactor: 0.85, flowDir: -1.0,
+        formationIdx: 0, isMajorFlip: true, arrowAngle: -Math.PI * 0.5,
+        label: 'INVERSIÓN VERTICAL: ASCENSO'
+      };
 
-      while (cursorMs < lastNoteMs - 1200) {
-        // Comprobar si hay una pausa de ~1 segundo cerca para forzar la subida arriba del todo (Y = 18%)
-        let matchedPause = null;
-        for (let p = 0; p < pauseWindows.length; p++) {
-          const pw = pauseWindows[p];
-          if (!pw.used && pw.startMs >= cursorMs - 900 && pw.startMs <= cursorMs + 1600) {
-            matchedPause = pw;
-            pw.used = true;
-            break;
-          }
-        }
+      const minSectionDurationMs = Math.max(3600, measureMs * 1.9);
+      let lastKeyframeMs = firstNoteMs;
+      let sceneCounter = 0;
 
-        let stage;
-        let triggerTimeMs = cursorMs;
-        if (matchedPause) {
-          triggerTimeMs = matchedPause.startMs;
-          stage = choreoStages[5]; // TOP_INVERTED (Y = 18%, caída de abajo hacia arriba)
+      for (let a = 0; a < safeMusicalAnchors.length; a++) {
+        const anchor = safeMusicalAnchors[a];
+        if (anchor.timeMs - lastKeyframeMs < minSectionDurationMs) continue;
+
+        let chosenScene;
+        if (anchor.isBigSilence && (sceneCounter % 3 === 1)) {
+          chosenScene = topAscentScene;
         } else {
-          stage = choreoStages[stageIdx % choreoStages.length];
-          stageIdx++;
-          // Anclar el cambio exactamente al golpe fuerte (nota real) más cercano a cursorMs
-          let bestNoteT = cursorMs;
-          let minDiff = Infinity;
-          for (let i = 0; i < len; i++) {
-            const nt = notes[i].timestamp_ms || 0;
-            const d = Math.abs(nt - cursorMs);
-            if (d < minDiff && d <= 420) {
-              minDiff = d;
-              bestNoteT = nt;
-            }
-            if (nt > cursorMs + 450) break;
-          }
-          triggerTimeMs = bestNoteT;
+          chosenScene = musicalScenes[sceneCounter % musicalScenes.length];
         }
+        sceneCounter++;
 
-        const isMajor = Boolean(stage.isMajorFlip);
-        const transDur = isMajor ? 360 : 210;
+        // Iniciar la transición ligeramente antes del golpe (en mitad del silencio previo) para que al llegar la nota la línea ya esté asentada
+        const leadShiftMs = Math.min(280, Math.max(0, Math.round((anchor.gapBeforeMs - 140) * 0.5)));
+        const triggerTimeMs = anchor.timeMs - leadShiftMs;
+        const isMajor = Boolean(chosenScene.isMajorFlip);
+        const transDur = isMajor ? 420 : 280;
 
         this._cruceKeyframes.push({
           timeMs: triggerTimeMs,
           transDurMs: transDur,
-          mode: stage.mode,
-          cxRatio: stage.cxRatio,
-          cyRatio: stage.cyRatio,
-          angleRad: stage.angleRad,
-          spanWRatio: stage.spanWRatio,
-          travelRatio: stage.travelRatio,
-          diagFactor: stage.diagFactor,
+          mode: chosenScene.mode,
+          cxRatio: chosenScene.cxRatio,
+          cyRatio: chosenScene.cyRatio,
+          angleRad: chosenScene.angleRad,
+          spanWRatio: chosenScene.spanWRatio,
+          travelRatio: chosenScene.travelRatio,
+          diagFactor: chosenScene.diagFactor,
+          flowDir: chosenScene.flowDir,
+          formationIdx: chosenScene.formationIdx,
           isMajorFlip: isMajor,
-          arrowAngle: stage.arrowAngle,
-          label: stage.label
+          arrowAngle: chosenScene.arrowAngle,
+          label: chosenScene.label
         });
 
-        // En modos de borde horizontal o inversión superior, mantener durante ~2 compases (3.2s - 4.2s); en giros secos de compás cambiar cada 1-1.5 compases (2.0s - 2.8s)
-        const stepMs = (stage.diagFactor === 0.0 || stage.cyRatio <= 0.25)
-          ? Math.max(3200, measureMs * 1.8)
-          : Math.max(2100, measureMs * 1.25);
-        cursorMs = triggerTimeMs + stepMs;
+        lastKeyframeMs = anchor.timeMs;
       }
 
-      // Recalcular puntuación máxima teórica tras los ajustes de Holds y acordes
+      // Fallback si la canción es un stream continuo sin silencios >= 260ms: anclar cambios suavemente cada 2 compases exactos
+      if (this._cruceKeyframes.length <= 1) {
+        let cursorMs = firstNoteMs + measureMs * 2;
+        let idx = 0;
+        while (cursorMs < lastNoteMs - 1800) {
+          const sc = musicalScenes[idx % musicalScenes.length];
+          idx++;
+          this._cruceKeyframes.push({
+            timeMs: cursorMs,
+            transDurMs: 340,
+            mode: sc.mode,
+            cxRatio: sc.cxRatio,
+            cyRatio: sc.cyRatio,
+            angleRad: sc.angleRad,
+            spanWRatio: sc.spanWRatio,
+            travelRatio: sc.travelRatio,
+            diagFactor: sc.diagFactor,
+            flowDir: sc.flowDir,
+            formationIdx: sc.formationIdx,
+            isMajorFlip: Boolean(sc.isMajorFlip),
+            arrowAngle: sc.arrowAngle,
+            label: sc.label
+          });
+          cursorMs += Math.max(4000, measureMs * 2);
+        }
+      }
+
       this.maxPossibleScore = this.computeMaxPossibleScore(this.notes);
       this.targetScore = this.maxPossibleScore;
     }
 
     /**
-     * Evalúa una pose de keyframe en coordenadas de pantalla `(cx, cy, angle, spanW, travelDistPx, diagFactor)`.
+     * Evalúa una pose de keyframe en coordenadas de pantalla `(cx, cy, angle, spanW, travelDistPx, diagFactor, flowDir, originsU)`.
      */
     _evalCruceKeyframePose(kf, w, h, out) {
-      const isHorizontalBorder = (kf.diagFactor === 0.0);
-      out.cx = w * kf.cxRatio;
-      out.cy = h * kf.cyRatio;
-      out.angle = kf.angleRad;
-      out.spanW = isHorizontalBorder
-        ? Math.max(240, Math.min(h * 0.72, w * 1.15))
-        : Math.max(250, w * (kf.spanWRatio || 0.88));
-      out.travelDistPx = isHorizontalBorder
-        ? Math.max(280, w * (kf.travelRatio || 0.82))
-        : Math.max(340, h * (kf.travelRatio || 0.74));
+      const formations = this._cruceLaserFormations || [];
+      const fIdx = Math.max(0, Math.min(formations.length - 1, kf.formationIdx || 0));
+      const form = formations[fIdx] || {
+        name: 'ABANICO PRISMA',
+        originsU: [-0.15, -0.05, 0.05, 0.15],
+        colors: ['56, 189, 248', '0, 242, 254', '0, 242, 254', '56, 189, 248']
+      };
+
+      out.cx = w * (kf.cxRatio ?? 0.50);
+      out.cy = h * (kf.cyRatio ?? 0.78);
+      out.angle = kf.angleRad || 0;
+      out.spanW = Math.max(250, w * (kf.spanWRatio || 0.88));
+      out.travelDistPx = Math.max(360, h * (kf.travelRatio || 0.76));
       out.diagFactor = (kf.diagFactor !== undefined) ? kf.diagFactor : 1.0;
+      out.flowDir = (kf.flowDir !== undefined) ? kf.flowDir : 1.0;
+      out.originsU = form.originsU;
+      out.colors = form.colors;
+      out.formationName = form.name;
       out.arrowAngle = kf.arrowAngle ?? (Math.PI * 0.5);
-      out.label = kf.label || 'FLUJO CRUCE';
-      out.mode = kf.mode || 'BOTTOM_FLAT';
+      out.label = kf.label || form.name;
+      out.mode = kf.mode || 'BASE_PRISM_FAN';
       return out;
     }
 
     /**
-     * Devuelve el estado geométrico actual de la Línea de Juicio Principal Viva.
-     * Usa interpolación rápida y decidida (quintic ease-out) en los golpes de compás y mantiene la postura
-     * firme sin el balanceo senoidal de un barco.
+     * Devuelve el estado geométrico actual de la Línea de Juicio Principal Viva y de los 4 Rayos Láser,
+     * incluyendo el pre-aviso holográfico 850ms antes de cualquier cambio importante.
      */
     getCruceLineState(currentTime = null) {
       if (!this._cruceLineState) {
@@ -22644,7 +22827,9 @@ class BeatstarEngine {
         st.spanW = Math.max(250, w * 0.88);
         st.travelDistPx = Math.max(360, h * 0.76);
         st.diagFactor = 1.0;
+        st.flowDir = 1.0;
         st.inTransition = false;
+        st.previewActive = false;
         this._cruceInTransition = false;
         return st;
       }
@@ -22660,18 +22845,20 @@ class BeatstarEngine {
 
       const curKf = kfs[activeIdx];
       const prevKf = activeIdx > 0 ? kfs[activeIdx - 1] : curKf;
+      const nextKf = (activeIdx + 1 < kfs.length) ? kfs[activeIdx + 1] : null;
+
       const poseTo = this._crucePoseScratchTo || (this._crucePoseScratchTo = {});
       this._evalCruceKeyframePose(curKf, w, h, poseTo);
 
       const elapsed = cTime - curKf.timeMs;
-      const dur = Math.max(120, curKf.transDurMs || 240);
+      const dur = Math.max(180, curKf.transDurMs || 300);
 
       if (activeIdx > 0 && elapsed >= 0 && elapsed < dur) {
         const poseFrom = this._crucePoseScratchFrom || (this._crucePoseScratchFrom = {});
         this._evalCruceKeyframePose(prevKf, w, h, poseFrom);
         const rawU = Math.max(0, Math.min(1, elapsed / dur));
-        // Curva quintic ease-out ultra decidida (latigazo rápido al inicio y bloqueo limpio sin oscilación de barco)
-        const snapU = 1.0 - Math.pow(1.0 - rawU, 4);
+        // Curva smooth cubic out: movimiento decidido en el beat pero fluido para la vista
+        const snapU = 1.0 - Math.pow(1.0 - rawU, 3);
 
         let dAng = poseTo.angle - poseFrom.angle;
         while (dAng > Math.PI) dAng -= Math.PI * 2;
@@ -22683,7 +22870,22 @@ class BeatstarEngine {
         st.spanW = poseFrom.spanW + (poseTo.spanW - poseFrom.spanW) * snapU;
         st.travelDistPx = poseFrom.travelDistPx + (poseTo.travelDistPx - poseFrom.travelDistPx) * snapU;
         st.diagFactor = poseFrom.diagFactor + (poseTo.diagFactor - poseFrom.diagFactor) * snapU;
-        st.inTransition = Boolean(curKf.isMajorFlip);
+        st.flowDir = poseFrom.flowDir + (poseTo.flowDir - poseFrom.flowDir) * snapU;
+
+        if (!st.originsU) st.originsU = [-0.15, -0.05, 0.05, 0.15];
+        for (let b = 0; b < 4; b++) {
+          const fromO = poseFrom.originsU ? poseFrom.originsU[b] : 0;
+          const toO = poseTo.originsU ? poseTo.originsU[b] : 0;
+          st.originsU[b] = fromO + (toO - fromO) * snapU;
+          if (this._cruceCrossBeams && this._cruceCrossBeams[b]) {
+            this._cruceCrossBeams[b].curOriginU = st.originsU[b];
+            if (poseTo.colors && poseTo.colors[b]) {
+              this._cruceCrossBeams[b].rgb = poseTo.colors[b];
+            }
+          }
+        }
+
+        st.inTransition = true;
         st.transitionProgress = rawU;
         st.transitionArrowAngle = poseTo.arrowAngle;
         st.transitionLabel = poseTo.label;
@@ -22694,11 +22896,40 @@ class BeatstarEngine {
         st.spanW = poseTo.spanW;
         st.travelDistPx = poseTo.travelDistPx;
         st.diagFactor = poseTo.diagFactor;
-        // Mantener protección anti-miss unos 260ms extra tras un salto grande de borde/inversión
-        st.inTransition = Boolean(curKf.isMajorFlip && elapsed >= 0 && elapsed < dur + 260);
+        st.flowDir = poseTo.flowDir;
+
+        if (!st.originsU) st.originsU = [-0.15, -0.05, 0.05, 0.15];
+        for (let b = 0; b < 4; b++) {
+          st.originsU[b] = poseTo.originsU ? poseTo.originsU[b] : 0;
+          if (this._cruceCrossBeams && this._cruceCrossBeams[b]) {
+            this._cruceCrossBeams[b].curOriginU = st.originsU[b];
+            if (poseTo.colors && poseTo.colors[b]) {
+              this._cruceCrossBeams[b].rgb = poseTo.colors[b];
+            }
+          }
+        }
+
+        // Protección anti-miss extendida (420ms tras finalizar cualquier cambio de posición/ángulo)
+        st.inTransition = Boolean(activeIdx > 0 && elapsed >= 0 && elapsed < dur + 420);
         st.transitionProgress = 1.0;
         st.transitionArrowAngle = poseTo.arrowAngle;
         st.transitionLabel = poseTo.label;
+      }
+
+      // Pre-aviso visual anticipado (Ghost Target Line) 850ms antes del próximo cambio importante
+      if (nextKf && (nextKf.timeMs - cTime) > 0 && (nextKf.timeMs - cTime) <= 850) {
+        const poseNext = this._crucePoseScratchNext || (this._crucePoseScratchNext = {});
+        this._evalCruceKeyframePose(nextKf, w, h, poseNext);
+        const timeToNext = nextKf.timeMs - cTime;
+        st.previewActive = true;
+        st.previewCx = poseNext.cx;
+        st.previewCy = poseNext.cy;
+        st.previewAngle = poseNext.angle;
+        st.previewAlpha = Math.sin((1.0 - timeToNext / 850) * Math.PI);
+        st.previewLabel = poseNext.label;
+      } else {
+        st.previewActive = false;
+        st.previewAlpha = 0;
       }
 
       st.targetCx = st.cx;
@@ -22714,31 +22945,34 @@ class BeatstarEngine {
     }
 
     /**
-     * Proyecta una coordenada de pantalla `(screenX, screenY)` al sistema de coordenadas local
-     * de la línea de juicio viva:
-     * - `localX`: posición a lo largo del haz de juicio (px desde el centro)
-     * - `localY`: distancia perpendicular a la línea de juicio (px; 0 = exactamente sobre la línea)
-     * - `u`: posición normalizada (-0.5 a +0.5)
-     * - `slot`: índice del nodo receptor más cercano (0..3)
+     * Proyecta una coordenada de pantalla `(screenX, screenY)` al sistema de la línea de juicio viva,
+     * evitando el desplazamiento lateral parásito (`dy * sinA`) cuando el jugador pulsa con los pulgares
+     * en la parte baja de la pantalla mientras la línea está inclinada o elevada.
      */
     projectScreenToCruceLine(screenX, screenY, currentTime = null, out = null) {
       const target = out || this._cruceScratchProj || (this._cruceScratchProj = { localX: 0, localY: 0, u: 0, slot: 0 });
       const st = this.getCruceLineState(currentTime);
+      const w = Math.max(1, this.width || 360);
+      const spanW = Math.max(180, st.spanW);
+
       const dx = screenX - st.cx;
       const dy = screenY - st.cy;
-      const cosA = st.cosA;
-      const sinA = st.sinA;
+      const rawLocalY = -dx * st.sinA + dy * st.cosA;
 
-      const localX = dx * cosA + dy * sinA;
-      const localY = -dx * sinA + dy * cosA;
-      const spanW = Math.max(180, st.spanW);
-      const u = localX / spanW;
+      // Si el dedo toca directamente cerca de la línea (|rawLocalY| <= 85px), usar proyección geométrica directa;
+      // si toca desde la zona ergonómica de pulgares más abajo, atenuar `dy * sinA` para que la columna horizontal nunca se desplace de carril.
+      const clampedDy = Math.max(-70, Math.min(70, dy));
+      const ergonomicLocalX = dx * st.cosA + clampedDy * st.sinA;
+      const screenNormU = (screenX / w) - 0.5;
+      const blendedU = (Math.abs(rawLocalY) <= 85)
+        ? (ergonomicLocalX / spanW)
+        : (screenNormU * 0.65 + (ergonomicLocalX / spanW) * 0.35);
 
-      let bestSlot = Math.max(0, Math.min(3, Math.floor((u + 0.5) * 4)));
+      let bestSlot = Math.max(0, Math.min(3, Math.floor((blendedU + 0.5) * 4)));
       if (this._cruceNodes && this._cruceNodes.length === 4) {
         let minDist = Infinity;
         for (let i = 0; i < 4; i++) {
-          const d = Math.abs(u - this._cruceNodes[i].curU);
+          const d = Math.abs(blendedU - this._cruceNodes[i].curU);
           if (d < minDist) {
             minDist = d;
             bestSlot = i;
@@ -22746,9 +22980,9 @@ class BeatstarEngine {
         }
       }
 
-      target.localX = localX;
-      target.localY = localY;
-      target.u = u;
+      target.localX = blendedU * spanW;
+      target.localY = rawLocalY;
+      target.u = blendedU;
       target.slot = bestSlot;
       return target;
     }
@@ -22776,21 +23010,20 @@ class BeatstarEngine {
     }
 
     /**
-     * Calcula la coordenada `localX` de una nota en el progreso `progress` (0.0 = origen del láser arriba, 1.0 = nodo receptor en la línea).
-     * REGLA 3: Cada nota nace exactamente en el origen superior de su láser diagonal (`originU`) y se desliza
-     * siguiendo el ángulo exacto de ese láser hasta chocar con su nodo receptor (`targetU`) cuando `progress = 1.0`.
-     * En modos de borde lateral (`diagFactor = 0.0`), `effectiveOriginU = targetU` y las notas viajan literalmente horizontales.
+     * Calcula la coordenada `localX` de una nota en el progreso `progress` (0.0 = origen del láser, 1.0 = nodo receptor en la línea).
+     * Usa la geometría viva actual del rayo láser asignado (`st.originsU[slot]`) para que las diagonales cambien
+     * dinámicamente a lo largo de la canción y la nota siempre viaje pegada a su rayo de luz.
      */
     getCruceNoteLocalX(note, progress = 1.0) {
       const st = this._cruceLineState || this.getCruceLineState();
       const spanW = Math.max(200, st.spanW);
       const slot = Math.max(0, Math.min(3, Math.round(note._cruceSlot ?? note.lane ?? 1)));
       const targetU = Number.isFinite(note._cruceTargetU) ? note._cruceTargetU : (-0.375 + slot * 0.25);
-      const baseOriginU = Number.isFinite(note._cruceOriginU)
-        ? note._cruceOriginU
-        : (slot === 0 ? 0.32 : (slot === 1 ? 0.56 : (slot === 2 ? -0.56 : -0.32)));
+      const liveOriginU = (st.originsU && Number.isFinite(st.originsU[slot]))
+        ? st.originsU[slot]
+        : (-0.15 + slot * 0.10);
       const diagFactor = (st.diagFactor !== undefined) ? st.diagFactor : 1.0;
-      const effectiveOriginU = targetU + (baseOriginU - targetU) * diagFactor;
+      const effectiveOriginU = targetU + (liveOriginU - targetU) * diagFactor;
       const currentU = effectiveOriginU + (targetU - effectiveOriginU) * progress;
       return currentU * spanW;
     }
@@ -22801,19 +23034,19 @@ class BeatstarEngine {
     }
 
     /**
-     * Calcula la posición `localX` de un segmento de Hold Ancho en el progreso de caída `progress` (0.0 arriba -> 1.0 línea),
-     * deslizándose también por el ángulo exacto de su láser diagonal.
+     * Calcula la posición `localX` de un segmento de Hold Ancho en el progreso `progress`,
+     * deslizándose exactamente por el ángulo actual de su láser diagonal.
      */
     getCruceHoldLocalX(note, uHold = 0, progress = 1.0) {
       const st = this._cruceLineState || this.getCruceLineState();
       const spanW = Math.max(200, st.spanW);
       const slot = Math.max(0, Math.min(3, Math.round(note._cruceSlot ?? note.lane ?? 1)));
       const targetU = Number.isFinite(note._cruceTargetU) ? note._cruceTargetU : (-0.375 + slot * 0.25);
-      const baseOriginU = Number.isFinite(note._cruceOriginU)
-        ? note._cruceOriginU
-        : (slot === 0 ? 0.32 : (slot === 1 ? 0.56 : (slot === 2 ? -0.56 : -0.32)));
+      const liveOriginU = (st.originsU && Number.isFinite(st.originsU[slot]))
+        ? st.originsU[slot]
+        : (-0.15 + slot * 0.10);
       const diagFactor = (st.diagFactor !== undefined) ? st.diagFactor : 1.0;
-      const effectiveOriginU = targetU + (baseOriginU - targetU) * diagFactor;
+      const effectiveOriginU = targetU + (liveOriginU - targetU) * diagFactor;
       const currentU = effectiveOriginU + (targetU - effectiveOriginU) * progress;
       return currentU * spanW;
     }
@@ -22824,47 +23057,56 @@ class BeatstarEngine {
     }
 
     /**
-     * Detección táctil ergonómica en Modo CRUCE:
-     * Soporta tanto tocar directamente sobre la línea de juicio (incluso cuando sube a Y=50%, Y=18% o va a los bordes X=12%/88%)
-     * como tocar cómodamente con los pulgares.
+     * Detección táctil intuitiva de doble espacio (Nodo en Línea + Columnas de Pulgares):
+     * Permite tocar tanto sobre la línea de juicio como en la parte inferior de la pantalla con 2 pulgares,
+     * sin que la inclinación de la línea desvíe el toque al carril equivocado.
      */
     resolveCruceTouchLane(localX, localY, w, h, useMagnetism = true) {
       const currentTime = this.getCurrentGameTimeMs(this._frameNow || performance.now());
       const proj = this.projectScreenToCruceLine(localX, localY, currentTime);
       const st = this._cruceLineState;
       const spanW = Math.max(200, st ? st.spanW : w * 0.88);
+      const colSlot = Math.max(0, Math.min(3, Math.floor((localX / Math.max(1, w)) * 4)));
 
       if (!useMagnetism || !this.isRunning || this.isPaused || !Array.isArray(this.notes)) {
         return proj.slot;
       }
 
-      const hitWindow = 255;
+      const hitWindow = 275;
       const startIdx = Math.max(0, (this.firstActiveNoteIndex || 0) - 2);
       const nLen = this.notes.length;
       let bestSlot = proj.slot;
       let bestScore = Infinity;
-      const maxLateralCatchPx = Math.max(96, spanW * 0.36);
+      const maxLateralCatchPx = Math.max(115, spanW * 0.42);
       const thumbNormLocalX = ((localX / Math.max(1, w)) - 0.5) * spanW;
 
       for (let i = startIdx; i < nLen; i++) {
         const note = this.notes[i];
         if (!note || note.hit || note.missed || note.holdCompleted || note.holding) continue;
+        // Ignorar Drag Notes en la selección de Tap para que un Tap busque siempre la nota Azul/Hold que requiere pulsación
+        if (note._isCruceDrag) continue;
+
         const dtMs = note.timestamp_ms - currentTime;
-        if (dtMs > hitWindow + 65) break;
+        if (dtMs > hitWindow + 75) break;
         const absTime = Math.abs(dtMs);
         if (absTime > hitWindow) continue;
 
+        const noteSlot = note._cruceSlot ?? note.lane ?? 0;
         const noteLocalX = (note.type === 'hold')
           ? this.getCruceHoldLocalX(note, 0, 1.0)
           : this.getCruceNoteLocalX(note, 1.0);
-        const lateralDist = Math.min(Math.abs(proj.localX - noteLocalX), Math.abs(thumbNormLocalX - noteLocalX));
-        const extraHalfW = (note.type === 'hold') ? (spanW * 0.16 * (note.startWidth || 1.5)) : 0;
+        const lateralDist = Math.min(
+          Math.abs(proj.localX - noteLocalX),
+          Math.abs(thumbNormLocalX - noteLocalX),
+          Math.abs(colSlot - noteSlot) * (spanW * 0.24)
+        );
+        const extraHalfW = (note.type === 'hold') ? (spanW * 0.18 * (note.startWidth || 1.5)) : 0;
 
         if (lateralDist <= maxLateralCatchPx + extraHalfW) {
-          const score = absTime + lateralDist * 0.52;
+          const score = absTime + lateralDist * 0.42;
           if (score < bestScore) {
             bestScore = score;
-            bestSlot = note._cruceSlot ?? note.lane ?? proj.slot;
+            bestSlot = noteSlot;
           }
         }
       }
@@ -22875,17 +23117,29 @@ class BeatstarEngine {
       const currentTime = this.getCurrentGameTimeMs(this._frameNow || performance.now());
       const proj = this.projectScreenToCruceLine(localX, localY, currentTime);
       const targetSlot = (lane >= 0 && lane <= 3) ? lane : proj.slot;
+
+      // Activar buffer de captura para Drag Notes amarillas (evita fallar si el jugador apoya el dedo un instante antes)
+      this._cruceAnyFingerActiveUntil = currentTime + 380;
+      if (!this._cruceSlotDragBufferUntil) this._cruceSlotDragBufferUntil = [0, 0, 0, 0];
+      this._cruceSlotDragBufferUntil[targetSlot] = currentTime + 380;
+      if (targetSlot > 0) this._cruceSlotDragBufferUntil[targetSlot - 1] = currentTime + 340;
+      if (targetSlot < 3) this._cruceSlotDragBufferUntil[targetSlot + 1] = currentTime + 340;
+
       if (this._cruceNodes && this._cruceNodes[targetSlot]) {
         this._cruceNodes[targetSlot].flash = 1.0;
       }
-      // Si el toque cae sobre una Drag Note amarilla en ventana, atraparla también al pulsar
-      this._checkAndCatchCruceDragNotesAtFinger(proj.localX, proj.localY, currentTime, localX);
-      return this.triggerLaneInput(targetSlot, 'tap', null, touchId);
+
+      // 1. Si hay una Drag Note amarilla en ventana, atraparla como PERFECT+
+      const caughtDrag = this._checkAndCatchCruceDragNotesAtFinger(proj.localX, proj.localY, currentTime, localX);
+
+      // 2. Intentar validar también cualquier Tap Note o Hold Ancho azul (triggerLaneInput nunca da MISS por toque vacío en modo CRUCE)
+      const caughtTapOrHold = this.triggerLaneInput(targetSlot, 'tap', null, touchId);
+      return Boolean(caughtDrag || caughtTapOrHold);
     }
 
     /**
-     * Al deslizar el dedo por la pantalla en Modo CRUCE, atrapa instantáneamente cualquier Drag/Catch Note
-     * amarilla que esté cruzando la línea de juicio cerca del dedo.
+     * Al mover o mantener el dedo por la pantalla en Modo CRUCE, mantiene cargado el buffer magnético
+     * y atrapa instantáneamente cualquier Drag Note amarilla como PERFECT+.
      */
     handleCrucePointerMove(localX, localY, touchId, tData) {
       const currentTime = this.getCurrentGameTimeMs(this._frameNow || performance.now());
@@ -22893,28 +23147,29 @@ class BeatstarEngine {
       if (tData) {
         tData.lane = proj.slot;
       }
-      if (Math.abs(proj.localY) <= 185) {
-        this.laneGlows[proj.slot] = Math.max(this.laneGlows[proj.slot] || 0, 0.78);
-        if (this._cruceNodes && this._cruceNodes[proj.slot]) {
-          this._cruceNodes[proj.slot].flash = Math.max(this._cruceNodes[proj.slot].flash || 0, 0.72);
-        }
+      this._cruceAnyFingerActiveUntil = currentTime + 380;
+      if (!this._cruceSlotDragBufferUntil) this._cruceSlotDragBufferUntil = [0, 0, 0, 0];
+      this._cruceSlotDragBufferUntil[proj.slot] = currentTime + 380;
+      if (proj.slot > 0) this._cruceSlotDragBufferUntil[proj.slot - 1] = currentTime + 340;
+      if (proj.slot < 3) this._cruceSlotDragBufferUntil[proj.slot + 1] = currentTime + 340;
+
+      this.laneGlows[proj.slot] = Math.max(this.laneGlows[proj.slot] || 0, 0.80);
+      if (this._cruceNodes && this._cruceNodes[proj.slot]) {
+        this._cruceNodes[proj.slot].flash = Math.max(this._cruceNodes[proj.slot].flash || 0, 0.75);
       }
       this._checkAndCatchCruceDragNotesAtFinger(proj.localX, proj.localY, currentTime, localX);
     }
 
     /**
      * Valida automáticamente las Drag / Catch Notes amarillas como PERFECT+ (lanzando partículas cuadradas doradas)
-     * cuando cualquiera de los dedos del jugador está apoyado cerca de esa zona al cruzar la nota.
+     * cuando el jugador mantiene o desliza el dedo en la pantalla.
      */
     _checkAndCatchCruceDragNotesAtFinger(fingerLocalX, fingerLocalY, currentTime, rawScreenX = null) {
       if (!Array.isArray(this.notes) || this.notes.length === 0) return false;
 
       const st = this._cruceLineState || this.getCruceLineState(currentTime);
-      const isBorderOrTop = (st.diagFactor === 0.0 || st.cy < (this.height || 640) * 0.35);
-      if (!isBorderOrTop && Math.abs(fingerLocalY) > 175) return false;
-
       const spanW = Math.max(200, st.spanW);
-      const catchLateralRadius = Math.max(88, spanW * 0.29);
+      const catchLateralRadius = Math.max(125, spanW * 0.44);
       const thumbNormLocalX = Number.isFinite(rawScreenX)
         ? (((rawScreenX / Math.max(1, this.width || 360)) - 0.5) * spanW)
         : fingerLocalX;
@@ -22926,8 +23181,8 @@ class BeatstarEngine {
         const note = this.notes[i];
         if (!note || note.hit || note.missed || !note._isCruceDrag) continue;
         const dtMs = note.timestamp_ms - currentTime;
-        if (dtMs > 85) break;
-        if (dtMs <= 68 && dtMs >= -120) {
+        if (dtMs > 110) break;
+        if (dtMs <= 95 && dtMs >= -165) {
           const noteLocalX = this.getCruceNoteLocalX(note, 1.0);
           const dist = Math.min(Math.abs(fingerLocalX - noteLocalX), Math.abs(thumbNormLocalX - noteLocalX));
           if (dist <= catchLateralRadius) {
@@ -22949,7 +23204,7 @@ class BeatstarEngine {
       const hitY = hitCoord.y;
 
       this.laneGlows[slot] = 1.0;
-      if (this.laneFlashTimers) this.laneFlashTimers[slot] = 0.26;
+      if (this.laneFlashTimers) this.laneFlashTimers[slot] = 0.28;
       if (this.laneFlashColors) this.laneFlashColors[slot] = '#fde047';
 
       try {
@@ -22957,7 +23212,7 @@ class BeatstarEngine {
       } catch (_) {}
 
       this._triggerCruceNoteHitFX(note, hitX, hitY, '#fde047');
-      this.emitKeyHit(hitX, hitY, '#fde047', 22);
+      this.emitKeyHit(hitX, hitY, '#fde047', 20);
     }
 
     _spawnCruceSquareParticles(x, y, color = '#fde047', count = 14) {
@@ -22985,9 +23240,10 @@ class BeatstarEngine {
 
     _triggerCruceNoteHitFX(note, hitX, hitY, color = '#00f2fe') {
       const slot = Math.max(0, Math.min(3, Math.round(note._cruceSlot ?? note.lane ?? 1)));
+      const fxCol = note._isCruceAccent ? '#a855f7' : color;
       if (this._cruceNodes && this._cruceNodes[slot]) {
         this._cruceNodes[slot].flash = 1.0;
-        this._cruceNodes[slot].pulseColor = color;
+        this._cruceNodes[slot].pulseColor = fxCol;
       }
       if (this._cruceCrossBeams && this._cruceCrossBeams[slot]) {
         this._cruceCrossBeams[slot].flash = 1.0;
@@ -22999,11 +23255,14 @@ class BeatstarEngine {
         : this.getCruceNoteLocalX(note, 1.0);
       this._cruceHitPillars.push({
         localX: localX,
-        width: note._isCruceDrag ? 48 : 64,
+        width: note._isCruceDrag ? 50 : (note._isCruceAccent ? 76 : 64),
         alpha: 0.95,
-        color: color
+        color: fxCol
       });
-      this._spawnCruceSquareParticles(hitX, hitY, color, note._isCruceDrag ? 18 : 12);
+      this._spawnCruceSquareParticles(hitX, hitY, fxCol, note._isCruceDrag ? 18 : (note._isCruceAccent ? 16 : 12));
+      if (note._isCruceAccent) {
+        this.addScore(250 * (this.multiplier || 1));
+      }
     }
 
     /**
@@ -23020,6 +23279,7 @@ class BeatstarEngine {
 
       // Recolectar todos los punteros activos y auto-validar las Drag Notes amarillas que cruzan la línea
       if (this.activeTouches && this.activeTouches.size > 0) {
+        this._cruceAnyFingerActiveUntil = currentTime + 260;
         for (const [, tData] of this.activeTouches.entries()) {
           if (!tData || !Number.isFinite(tData.curX)) continue;
           const proj = this.projectScreenToCruceLine(tData.curX, tData.curY, currentTime);
@@ -23027,13 +23287,33 @@ class BeatstarEngine {
         }
       }
       if (this.mouseTouch && Number.isFinite(this.mouseTouch.curX)) {
+        this._cruceAnyFingerActiveUntil = currentTime + 260;
         const proj = this.projectScreenToCruceLine(this.mouseTouch.curX, this.mouseTouch.curY, currentTime);
         this._checkAndCatchCruceDragNotesAtFinger(proj.localX, proj.localY, currentTime, this.mouseTouch.curX);
       }
 
-      // Guardar estela luminosa cada vez que la línea de juicio da un golpe de ángulo o viaja por la pantalla
+      // Además, validar cualquier Drag Note cuyo slot tenga buffer táctil activo
+      if (this._cruceSlotDragBufferUntil && Array.isArray(this.notes)) {
+        const startIdx = Math.max(0, (this.firstActiveNoteIndex || 0) - 2);
+        const nLen = this.notes.length;
+        for (let i = startIdx; i < nLen; i++) {
+          const note = this.notes[i];
+          if (!note || note.hit || note.missed || !note._isCruceDrag) continue;
+          const dtMs = note.timestamp_ms - currentTime;
+          if (dtMs > 85) break;
+          if (dtMs <= 75 && dtMs >= -165) {
+            const slot = Math.max(0, Math.min(3, Math.round(note._cruceSlot ?? note.lane ?? 1)));
+            if (currentTime <= (this._cruceSlotDragBufferUntil[slot] || 0) ||
+                currentTime <= (this._cruceAnyFingerActiveUntil || 0)) {
+              this._completeCruceDragCatch(note, currentTime);
+            }
+          }
+        }
+      }
+
+      // Guardar estela luminosa cada vez que la línea de juicio cambia de ángulo o viaja por la pantalla
       const movedDist = Math.hypot(st.cx - prevCx, st.cy - prevCy) + Math.abs(st.angle - prevAngle) * 180;
-      if (movedDist > 2.2 || st.inTransition) {
+      if (movedDist > 2.2) {
         if (!this._lastCruceTrailTime || (currentTime - this._lastCruceTrailTime >= 22)) {
           this._lastCruceTrailTime = currentTime;
           if (this._cruceLineTrail.length >= 16) this._cruceLineTrail.shift();
@@ -23051,7 +23331,6 @@ class BeatstarEngine {
     updateCruceModeEffects(dt) {
       if (!this._cruceLineState) return;
 
-      // Actualizar flash de los 4 nodos receptores
       if (this._cruceNodes) {
         for (let i = 0; i < this._cruceNodes.length; i++) {
           const nd = this._cruceNodes[i];
@@ -23061,7 +23340,6 @@ class BeatstarEngine {
         }
       }
 
-      // Decaimiento de destellos en los 4 láseres diagonales
       if (this._cruceCrossBeams) {
         for (let i = 0; i < this._cruceCrossBeams.length; i++) {
           const b = this._cruceCrossBeams[i];
@@ -23069,7 +23347,6 @@ class BeatstarEngine {
         }
       }
 
-      // Decaimiento de estelas de la línea de juicio
       if (this._cruceLineTrail && this._cruceLineTrail.length > 0) {
         for (let i = this._cruceLineTrail.length - 1; i >= 0; i--) {
           this._cruceLineTrail[i].alpha -= dt * 2.4;
@@ -23079,7 +23356,6 @@ class BeatstarEngine {
         }
       }
 
-      // Decaimiento de pilares de luz de impacto
       if (this._cruceHitPillars && this._cruceHitPillars.length > 0) {
         for (let i = this._cruceHitPillars.length - 1; i >= 0; i--) {
           this._cruceHitPillars[i].alpha -= dt * 4.2;
@@ -23089,7 +23365,6 @@ class BeatstarEngine {
         }
       }
 
-      // Simulación de partículas cuadradas doradas y cian
       if (this._cruceSquareParticles && this._cruceSquareParticles.length > 0) {
         for (let i = this._cruceSquareParticles.length - 1; i >= 0; i--) {
           const sp = this._cruceSquareParticles[i];
@@ -23107,8 +23382,8 @@ class BeatstarEngine {
     }
 
     /**
-     * Renderiza el fondo atmosférico con rejilla de profundidad y los 4 Láseres Diagonales Cruzados
-     * desde sus emisores superiores (`effectiveOriginU`) hasta los 4 nodos receptores (`targetU`).
+     * Renderiza el fondo atmosférico con rejilla de profundidad y los 4 Rayos Láser Diagonales Dinámicos
+     * extendidos de borde a borde de la pantalla (hasta abajo del todo sin ningún corte).
      */
     renderCrucePlayfield(ctx, currentTime) {
       if (!this._cruceLineState) {
@@ -23142,74 +23417,84 @@ class BeatstarEngine {
       ctx.translate(st.cx, st.cy);
       ctx.rotate(st.angle);
 
-      const halfSpan = st.spanW * 0.56;
+      const halfSpan = Math.max(w, h) * 0.95;
       const travelDist = st.travelDistPx || 460;
       const diagFactor = (st.diagFactor !== undefined) ? st.diagFactor : 1.0;
+      const flowDir = (st.flowDir !== undefined) ? st.flowDir : 1.0;
 
-      // 2A. Líneas horizontales de compás acercándose a la línea de juicio
+      // 2A. Líneas horizontales rítmicas de compás atravesando toda la pantalla
       ctx.strokeStyle = `rgba(56, 189, 248, ${(0.09 + beatPulse * 0.06).toFixed(3)})`;
       ctx.lineWidth = 1.0;
       ctx.beginPath();
       const gridScroll = (audioTime * 0.85) % 1.0;
-      for (let r = 1; r <= 6; r++) {
+      for (let r = -2; r <= 7; r++) {
         const uGrid = ((r - gridScroll) / 6);
-        const gy = -uGrid * travelDist;
+        const gy = -uGrid * travelDist * flowDir;
         ctx.moveTo(-halfSpan, gy);
         ctx.lineTo(halfSpan, gy);
       }
       ctx.stroke();
 
-      // 3. LOS 4 LÁSERES DIAGONALES REALES POR LOS QUE SE DESLIZAN LAS NOTAS (Regla 3)
-      // Cada láser conecta el emisor de origen en `localY = -travelDist` con su nodo receptor en `localY = 0`
+      // 3. LOS 4 RAYOS LÁSER DIAGONALES DINÁMICOS QUE ATRAVIESAN TODA LA PANTALLA HASTA ABAJO DEL TODO SIN CORTE
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       if (this._cruceCrossBeams) {
+        // Prolongar el rayo desde muy por encima del borde superior (`pStart = -0.95`) hasta muy por debajo del borde inferior (`pEnd = +2.85`)
+        const pStart = -0.95;
+        const pEnd = 2.85;
         for (let bIdx = 0; bIdx < this._cruceCrossBeams.length; bIdx++) {
           const beam = this._cruceCrossBeams[bIdx];
           const targetU = beam.targetU;
-          const effOriginU = targetU + (beam.originU - targetU) * diagFactor;
+          const liveOrigU = (st.originsU && Number.isFinite(st.originsU[bIdx])) ? st.originsU[bIdx] : beam.originU;
+          const effOriginU = targetU + (liveOrigU - targetU) * diagFactor;
 
           const xOrigin = effOriginU * st.spanW;
-          const yOrigin = -travelDist;
+          const yOrigin = -travelDist * flowDir;
           const xTarget = targetU * st.spanW;
           const yTarget = 0;
-          // Prolongar ligeramente el láser más allá de la línea de juicio para efecto de haz cruzado
-          const xPast = xTarget + (xTarget - xOrigin) * 0.14;
-          const yPast = travelDist * 0.14;
+
+          const dxRay = xTarget - xOrigin;
+          const dyRay = yTarget - yOrigin;
+
+          const xFarStart = xOrigin + dxRay * pStart;
+          const yFarStart = yOrigin + dyRay * pStart;
+          const xFarEnd = xOrigin + dxRay * pEnd;
+          const yFarEnd = yOrigin + dyRay * pEnd;
 
           const flash = Math.max(beam.flash || 0, this.laneGlows[bIdx] || 0);
-          const beamAlpha = Math.min(0.98, 0.34 + beatPulse * 0.26 + flash * 0.40);
+          const beamAlpha = Math.min(0.98, 0.36 + beatPulse * 0.24 + flash * 0.40);
 
-          // Halo ancho exterior de neón del láser diagonal
-          ctx.strokeStyle = `rgba(${beam.rgb}, ${(beamAlpha * 0.45).toFixed(3)})`;
-          ctx.lineWidth = 7.5 + beatPulse * 3.0 + flash * 5.0;
+          // Halo exterior ancho continuo de borde a borde (llega hasta abajo del todo de la pantalla sin corte)
+          ctx.strokeStyle = `rgba(${beam.rgb}, ${(beamAlpha * 0.44).toFixed(3)})`;
+          ctx.lineWidth = 8.0 + beatPulse * 3.0 + flash * 5.0;
           ctx.beginPath();
-          ctx.moveTo(xOrigin, yOrigin);
-          ctx.lineTo(xPast, yPast);
+          ctx.moveTo(xFarStart, yFarStart);
+          ctx.lineTo(xFarEnd, yFarEnd);
           ctx.stroke();
 
-          // Núcleo láser incandescente por donde viajan las notas
-          ctx.strokeStyle = `rgba(255, 255, 255, ${(beamAlpha * 0.88).toFixed(3)})`;
-          ctx.lineWidth = 2.0 + beatPulse * 0.8 + flash * 1.4;
+          // Segundo halo medio de neón continuo hasta el fondo de la pantalla
+          ctx.strokeStyle = `rgba(${beam.rgb}, ${(beamAlpha * 0.72).toFixed(3)})`;
+          ctx.lineWidth = 3.6 + beatPulse * 1.4 + flash * 2.4;
           ctx.beginPath();
-          ctx.moveTo(xOrigin, yOrigin);
-          ctx.lineTo(xTarget, yTarget);
+          ctx.moveTo(xFarStart, yFarStart);
+          ctx.lineTo(xFarEnd, yFarEnd);
           ctx.stroke();
 
-          // Portal Emisor Superior del Láser (donde nacen las notas arriba)
-          const portalR = 7.5 + beatPulse * 2.5 + flash * 3.0;
-          ctx.fillStyle = `rgba(${beam.rgb}, 0.92)`;
+          // Núcleo láser blanco incandescente continuo de extremo a extremo de la pantalla
+          ctx.strokeStyle = `rgba(255, 255, 255, ${(beamAlpha * 0.86).toFixed(3)})`;
+          ctx.lineWidth = 1.8 + beatPulse * 0.7 + flash * 1.3;
           ctx.beginPath();
-          ctx.moveTo(xOrigin, yOrigin - portalR);
-          ctx.lineTo(xOrigin + portalR * 1.2, yOrigin);
-          ctx.lineTo(xOrigin, yOrigin + portalR);
-          ctx.lineTo(xOrigin - portalR * 1.2, yOrigin);
-          ctx.closePath();
-          ctx.fill();
+          ctx.moveTo(xFarStart, yFarStart);
+          ctx.lineTo(xFarEnd, yFarEnd);
+          ctx.stroke();
 
-          ctx.fillStyle = '#ffffff';
+          // Pulso de onda luminosa viajando por el rayo láser al ritmo del BPM
+          const pulseP = beatFraction;
+          const pxWave = xOrigin + dxRay * pulseP;
+          const pyWave = yOrigin + dyRay * pulseP;
+          ctx.fillStyle = `rgba(255, 255, 255, ${(0.55 * (1 - pulseP * 0.5)).toFixed(3)})`;
           ctx.beginPath();
-          ctx.arc(xOrigin, yOrigin, 3.2, 0, Math.PI * 2);
+          ctx.arc(pxWave, pyWave, 3.5 + beatPulse * 2.0, 0, Math.PI * 2);
           ctx.fill();
         }
       }
@@ -23218,11 +23503,13 @@ class BeatstarEngine {
       if (this._cruceHitPillars && this._cruceHitPillars.length > 0) {
         for (let i = 0; i < this._cruceHitPillars.length; i++) {
           const pil = this._cruceHitPillars[i];
-          const pGrad = ctx.createLinearGradient(pil.localX, 15, pil.localX, -travelDist * 0.55);
+          const pGrad = ctx.createLinearGradient(pil.localX, 60 * flowDir, pil.localX, -travelDist * 0.65 * flowDir);
           pGrad.addColorStop(0.0, hexToRgba(pil.color, pil.alpha * 0.58));
           pGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
           ctx.fillStyle = pGrad;
-          ctx.fillRect(pil.localX - pil.width * 0.5, -travelDist * 0.55, pil.width, travelDist * 0.55 + 15);
+          const yMin = Math.min(60 * flowDir, -travelDist * 0.65 * flowDir);
+          const yH = Math.abs(travelDist * 0.65 + 60);
+          ctx.fillRect(pil.localX - pil.width * 0.5, yMin, pil.width, yH);
         }
       }
       ctx.restore();
@@ -23232,7 +23519,8 @@ class BeatstarEngine {
     }
 
     /**
-     * Renderiza la Línea de Juicio Principal Viva y sus 4 nodos receptores brillantes.
+     * Renderiza la Línea de Juicio Principal Viva, la línea holográfica de pre-aviso (1 compás antes de moverse)
+     * y sus 4 nodos receptores brillantes.
      */
     renderCruceHitLine(ctx, currentTime) {
       if (!this._cruceLineState) {
@@ -23241,7 +23529,7 @@ class BeatstarEngine {
       const st = this.getCruceLineState(currentTime);
       const w = this.width || 360;
       const h = this.height || 640;
-      const fullBeamHalfW = Math.max(w, h) * 0.85;
+      const fullBeamHalfW = Math.hypot(w, h) * 1.15;
       const activeHalfW = st.spanW * 0.5;
 
       const songBpm = (this.beatmapData && this.beatmapData.bpm) ? Math.max(40, this.beatmapData.bpm) : 128;
@@ -23255,7 +23543,24 @@ class BeatstarEngine {
 
       ctx.save();
 
-      // 1. Estelas luminosas de la línea de juicio cuando pega un latigazo de ángulo o viaja a Y=50%, Y=18% o bordes
+      // 0. Línea Holográfica de Pre-Aviso (Ghost Target Line) 850ms antes de que la línea salte o cambie de ángulo
+      if (st.previewActive && st.previewAlpha > 0.04) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.translate(st.previewCx, st.previewCy);
+        ctx.rotate(st.previewAngle);
+        ctx.strokeStyle = `rgba(253, 224, 71, ${(st.previewAlpha * 0.48).toFixed(3)})`;
+        ctx.lineWidth = 3.0;
+        ctx.setLineDash([12, 8]);
+        ctx.beginPath();
+        ctx.moveTo(-activeHalfW, 0);
+        ctx.lineTo(activeHalfW, 0);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+      }
+
+      // 1. Estelas luminosas de la línea de juicio cuando viaja por la pantalla
       if (this._cruceLineTrail && this._cruceLineTrail.length > 0) {
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
@@ -23264,7 +23569,7 @@ class BeatstarEngine {
           ctx.save();
           ctx.translate(tr.cx, tr.cy);
           ctx.rotate(tr.angle);
-          ctx.strokeStyle = `rgba(0, 242, 254, ${(tr.alpha * 0.52).toFixed(3)})`;
+          ctx.strokeStyle = `rgba(0, 242, 254, ${(tr.alpha * 0.50).toFixed(3)})`;
           ctx.lineWidth = 5.5;
           ctx.beginPath();
           ctx.moveTo(-tr.spanW * 0.58, 0);
@@ -23316,7 +23621,7 @@ class BeatstarEngine {
       ctx.fill();
       ctx.stroke();
 
-      // 4 Nodos Receptores Brillantes donde terminan exactamente los 4 láseres diagonales
+      // 4 Nodos Receptores Brillantes donde se cruzan los 4 rayos láser con la línea de juicio
       if (this._cruceNodes) {
         for (let i = 0; i < 4; i++) {
           const nd = this._cruceNodes[i];
@@ -23359,10 +23664,10 @@ class BeatstarEngine {
     }
 
     /**
-     * Renderiza todas las notas del modo CRUCE deslizándose por sus respectivos láseres diagonales:
-     * - ~70% Tap Notes: Barras azules/cian con bordes blancos luminosos (SIN línea amarilla).
-     * - ~15% Holds Anchos: Rectángulos azules largos de energía que se mantienen pulsados.
-     * - ~15% Drag Notes: Barras amarillas conectadas SOLO dentro de su ráfaga corta (`_cruceDragBurstId`).
+     * Renderiza todas las notas del modo CRUCE deslizándose por sus respectivos rayos láser diagonales:
+     * - ~70% Tap Notes (Azules/Cian) + Arco Eléctrico Sincronizado en Acordes Dobles + Halo en Downbeats.
+     * - ~15% Holds Anchos (Rectángulos azules largos de energía).
+     * - ~15% Drag Notes (Amarillas conectadas dentro de su ráfaga corta).
      */
     renderCruceNotes(ctx, currentTime) {
       if (!this._cruceLineState) {
@@ -23375,6 +23680,7 @@ class BeatstarEngine {
       const scrollDur = (Number.isFinite(this.scrollDurationMs) && this.scrollDurationMs > 0) ? this.scrollDurationMs : 1350;
       const invScrollDur = 1.0 / scrollDur;
       const travelDist = st.travelDistPx || 440;
+      const flowDir = (st.flowDir !== undefined) ? st.flowDir : 1.0;
       const slotW = st.spanW * 0.235;
       const startIdx = Math.max(0, this.firstActiveNoteIndex || 0);
 
@@ -23385,8 +23691,8 @@ class BeatstarEngine {
       // 1. Hilo guía dorado traslúcido EXCLUSIVO para notas dentro de la misma ráfaga corta de Drag Notes (`_cruceDragBurstId`)
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.strokeStyle = 'rgba(253, 224, 71, 0.52)';
-      ctx.lineWidth = 3.2;
+      ctx.strokeStyle = 'rgba(253, 224, 71, 0.56)';
+      ctx.lineWidth = 3.4;
       ctx.beginPath();
       let prevDragPt = null;
       for (let i = startIdx; i < len; i++) {
@@ -23404,7 +23710,7 @@ class BeatstarEngine {
         const p = 1.0 - (dt * invScrollDur);
         if (p < 0.0) continue;
         const lx = this.getCruceNoteLocalX(n, p);
-        const ly = -(1.0 - p) * travelDist;
+        const ly = -(1.0 - p) * travelDist * flowDir;
         if (prevDragPt && prevDragPt.burstId === n._cruceDragBurstId) {
           ctx.moveTo(prevDragPt.x, prevDragPt.y);
           ctx.lineTo(lx, ly);
@@ -23414,7 +23720,7 @@ class BeatstarEngine {
       ctx.stroke();
       ctx.restore();
 
-      // 2. Dibujar Holds Anchos (Rectángulos Azules Largos de Energía) deslizándose por el láser diagonal
+      // 2. Dibujar Holds Anchos (Rectángulos Azules Largos de Energía) deslizándose por su rayo láser
       for (let i = startIdx; i < len; i++) {
         const note = this.notes[i];
         if (!note || note.missed || note.holdCompleted || note.type !== 'hold') continue;
@@ -23432,10 +23738,51 @@ class BeatstarEngine {
         if (pHead <= 0.01 || pHead <= pTail + 0.004) continue;
 
         const isBeingHeld = Boolean(note.holding && !note.holdReleasedEarly);
-        this._drawCruceWideHoldLocal(ctx, note, currentTime, noteT, holdDur, pHead, pTail, isBeingHeld, travelDist, slotW);
+        this._drawCruceWideHoldLocal(ctx, note, currentTime, noteT, holdDur, pHead, pTail, isBeingHeld, travelDist * flowDir, slotW);
       }
 
-      // 3. Dibujar Tap Notes (70% Azules/Cian) y Drag Notes (15% Amarillas en ráfagas puntuales) deslizándose por su láser diagonal
+      // 3. Dibujar Arcos Eléctricos Sincronizados entre Acordes Dobles simultáneos (lectura intuitiva para 2 pulgares)
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = startIdx; i < len; i++) {
+        const n = this.notes[i];
+        if (!n || n.hit || n.missed || n.type === 'hold' || !n._cruceChordPartner) continue;
+        const partner = n._cruceChordPartner;
+        if (partner.hit || partner.missed || (partner.id < n.id)) continue;
+
+        const dt = n.timestamp_ms - currentTime;
+        if (dt > scrollDur * 1.05) break;
+        if (dt < -90) continue;
+        const p = 1.0 - (dt * invScrollDur);
+        if (p < 0.0) continue;
+
+        const x1 = this.getCruceNoteLocalX(n, p);
+        const x2 = this.getCruceNoteLocalX(partner, p);
+        const yChord = -(1.0 - p) * travelDist * flowDir;
+        const midX = (x1 + x2) * 0.5;
+
+        ctx.strokeStyle = 'rgba(0, 242, 254, 0.72)';
+        ctx.lineWidth = 4.0;
+        ctx.beginPath();
+        ctx.moveTo(x1, yChord);
+        ctx.lineTo(x2, yChord);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(x1, yChord);
+        ctx.lineTo(x2, yChord);
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(midX, yChord, 3.8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+
+      // 4. Dibujar Tap Notes (70% Azules/Cian) y Drag Notes (15% Amarillas) deslizándose por su rayo láser
       for (let i = startIdx; i < len; i++) {
         const note = this.notes[i];
         if (!note || note.hit || note.missed || note.type === 'hold') continue;
@@ -23448,16 +23795,17 @@ class BeatstarEngine {
         if (progress < 0.0) continue;
 
         const localX = this.getCruceNoteLocalX(note, progress);
-        const localY = -(1.0 - progress) * travelDist;
+        const localY = -(1.0 - progress) * travelDist * flowDir;
 
-        // Estela brillante sobre el láser diagonal detrás de la nota para enfatizar su deslizamiento por el haz
         if (progress > 0.04 && progress < 1.0) {
           const tailP = Math.max(0, progress - 0.11);
           const tailX = this.getCruceNoteLocalX(note, tailP);
-          const tailY = -(1.0 - tailP) * travelDist;
+          const tailY = -(1.0 - tailP) * travelDist * flowDir;
           ctx.save();
           ctx.globalCompositeOperation = 'lighter';
-          ctx.strokeStyle = note._isCruceDrag ? 'rgba(253, 224, 71, 0.65)' : 'rgba(0, 242, 254, 0.65)';
+          ctx.strokeStyle = note._isCruceDrag
+            ? 'rgba(253, 224, 71, 0.68)'
+            : (note._isCruceAccent ? 'rgba(168, 85, 247, 0.72)' : 'rgba(0, 242, 254, 0.65)');
           ctx.lineWidth = 4.2;
           ctx.beginPath();
           ctx.moveTo(tailX, tailY);
@@ -23477,30 +23825,30 @@ class BeatstarEngine {
     }
 
     /**
-     * Dibuja una Tap Note (Azul/Cian con bordes blancos luminosos) enganchada a su láser diagonal.
+     * Dibuja una Tap Note (Azul/Cian con bordes blancos luminosos y acento cromático en inicios de compás) enganchada a su láser diagonal.
      */
     _drawCruceTapNoteLocal(ctx, note, localX, localY, slotW) {
-      const barW = Math.max(66, slotW * 0.92);
-      const barH = 22;
+      const isAccent = Boolean(note._isCruceAccent || note._cruceChordPartner);
+      const barW = Math.max(66, slotW * (isAccent ? 0.96 : 0.92));
+      const barH = isAccent ? 24 : 22;
       const halfW = barW * 0.5;
       const halfH = barH * 0.5;
+      const glowCol = note._cruceChordPartner ? '#38bdf8' : (note._isCruceAccent ? '#a855f7' : '#00f2fe');
 
       ctx.save();
       ctx.translate(localX, localY);
 
-      // 1. Resplandor exterior Azul/Cian neón
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.shadowColor = '#00f2fe';
+      ctx.shadowColor = glowCol;
       ctx.shadowBlur = 14;
-      ctx.fillStyle = 'rgba(0, 242, 254, 0.30)';
+      ctx.fillStyle = note._isCruceAccent ? 'rgba(168, 85, 247, 0.34)' : 'rgba(0, 242, 254, 0.30)';
       ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(-halfW - 3, -halfH - 2, barW + 6, barH + 4, 7);
       else ctx.rect(-halfW - 3, -halfH - 2, barW + 6, barH + 4);
       ctx.fill();
       ctx.restore();
 
-      // 2. Cuerpo oscuro traslúcido de obsidiana azulada con borde blanco puro
       ctx.fillStyle = 'rgba(6, 16, 36, 0.92)';
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2.4;
@@ -23510,19 +23858,17 @@ class BeatstarEngine {
       ctx.fill();
       ctx.stroke();
 
-      // 3. Borde interior cian eléctrico
-      ctx.strokeStyle = '#00f2fe';
-      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = glowCol;
+      ctx.lineWidth = 1.7;
       ctx.strokeRect(-halfW + 3, -halfH + 3, barW - 6, barH - 6);
 
-      // 4. Núcleo central incandescente blanco/cian + anillo de anclaje al láser diagonal
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(-halfW * 0.68, -2.5, barW * 0.68, 5.0);
       ctx.beginPath();
       ctx.arc(0, 0, 4.2, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.fillStyle = '#38bdf8';
+      ctx.fillStyle = glowCol;
       ctx.fillRect(-halfW + 4, -halfH + 4, 7, barH - 8);
       ctx.fillRect(halfW - 11, -halfH + 4, 7, barH - 8);
 
@@ -23530,11 +23876,11 @@ class BeatstarEngine {
     }
 
     /**
-     * Dibuja una Drag / Catch Note (Barra Amarilla/Dorada) para ráfagas puntuales.
+     * Dibuja una Drag / Catch Note (Barra Amarilla/Dorada que se atrapa manteniendo o deslizando el dedo) para ráfagas puntuales.
      */
     _drawCruceDragNoteLocal(ctx, note, localX, localY, slotW) {
-      const barW = Math.max(60, slotW * 0.84);
-      const barH = 18;
+      const barW = Math.max(62, slotW * 0.86);
+      const barH = 19;
       const halfW = barW * 0.5;
       const halfH = barH * 0.5;
 
@@ -23572,7 +23918,7 @@ class BeatstarEngine {
     /**
      * Dibuja un Hold Ancho (Rectángulo Azul Largo de Energía) deslizándose siguiendo el ángulo exacto de su láser diagonal.
      */
-    _drawCruceWideHoldLocal(ctx, note, currentTime, noteT, holdDur, pHead, pTail, isBeingHeld, travelDist, slotW) {
+    _drawCruceWideHoldLocal(ctx, note, currentTime, noteT, holdDur, pHead, pTail, isBeingHeld, signedTravelDist, slotW) {
       const steps = 10;
       const leftPts = this._cruceHoldLeftPts || (this._cruceHoldLeftPts = []);
       const rightPts = this._cruceHoldRightPts || (this._cruceHoldRightPts = []);
@@ -23585,7 +23931,7 @@ class BeatstarEngine {
         const uHold = Math.max(0, Math.min(1, (tAtSeg - noteT) / Math.max(1, holdDur)));
         const mesh = this.getHoldMeshStateAt(note, uHold);
         const cx = this.getCruceHoldLocalX(note, uHold, p);
-        const cy = -(1.0 - p) * travelDist;
+        const cy = -(1.0 - p) * signedTravelDist;
         const halfW = Math.max(40, slotW * Math.max(1.3, mesh.width) * 0.46);
         leftPts.push({ x: cx - halfW, y: cy });
         rightPts.push({ x: cx + halfW, y: cy });
@@ -23593,7 +23939,6 @@ class BeatstarEngine {
 
       if (leftPts.length < 2) return;
 
-      // Rectángulo azul/cian largo de energía (incluso al mantenerlo pulsado brilla en cian eléctrico y blanco)
       const borderCol = isBeingHeld ? '#7dd3fc' : '#00f2fe';
       const innerRgb = isBeingHeld ? '56, 189, 248' : '0, 242, 254';
 
@@ -23619,7 +23964,6 @@ class BeatstarEngine {
       ctx.lineWidth = isBeingHeld ? 3.6 : 2.5;
       ctx.stroke();
 
-      // Espina dorsal energética azul/blanca siguiendo el ángulo del láser diagonal
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = isBeingHeld ? 2.8 : 1.7;
       ctx.beginPath();
@@ -23632,7 +23976,6 @@ class BeatstarEngine {
       ctx.stroke();
       ctx.restore();
 
-      // Cabezal ancho azul/blanco luminoso del Hold
       const headIdx = leftPts.length - 1;
       const headCx = (leftPts[headIdx].x + rightPts[headIdx].x) * 0.5;
       const headCy = leftPts[headIdx].y;
@@ -23655,7 +23998,7 @@ class BeatstarEngine {
     }
 
     /**
-     * Renderiza las partículas cuadradas y las flechas indicadoras de dirección durante los saltos de la línea.
+     * Renderiza las partículas cuadradas y el aviso rítmico anticipado cuando cambia la formación de láseres o la línea.
      */
     renderCruceModeOverlay(ctx, currentTime) {
       if (!this._cruceLineState) return;
@@ -23682,30 +24025,22 @@ class BeatstarEngine {
         }
       }
 
-      if (st.inTransition) {
-        const pulse = 0.55 + 0.45 * Math.sin(currentTime * 0.016);
+      if (st.previewActive && st.previewAlpha > 0.08) {
         ctx.save();
-        ctx.translate(w * 0.5, h * 0.48);
-        ctx.rotate(st.transitionArrowAngle);
-
-        for (let a = -1; a <= 1; a++) {
-          const offset = a * 26 + ((currentTime * 0.14) % 26);
-          ctx.strokeStyle = `rgba(0, 242, 254, ${(pulse * (1 - Math.abs(a) * 0.25)).toFixed(3)})`;
-          ctx.lineWidth = 4.0;
-          ctx.beginPath();
-          ctx.moveTo(offset - 14, -22);
-          ctx.lineTo(offset + 6, 0);
-          ctx.lineTo(offset - 14, 22);
-          ctx.stroke();
-        }
+        ctx.font = '900 12px "Outfit", system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = `rgba(253, 224, 71, ${(st.previewAlpha * 0.85).toFixed(3)})`;
+        ctx.fillText(`PRÓXIMO COMPÁS: ${st.previewLabel || 'CAMBIO DE FLUJO'}`, w * 0.5, h * 0.14);
         ctx.restore();
-
+      } else if (st.inTransition && st.transitionProgress < 0.95) {
+        const pulse = 0.55 + 0.45 * Math.sin(currentTime * 0.016);
         ctx.save();
         ctx.font = '900 13px "Outfit", system-ui, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = `rgba(0, 242, 254, ${(0.78 + pulse * 0.22).toFixed(3)})`;
-        ctx.fillText(st.transitionLabel || 'CAMBIO DE FLUJO', w * 0.5, h * 0.40);
+        ctx.fillStyle = `rgba(0, 242, 254, ${(0.75 + pulse * 0.25).toFixed(3)})`;
+        ctx.fillText(st.transitionLabel || 'CAMBIO DE FLUJO', w * 0.5, h * 0.14);
         ctx.restore();
       }
 
