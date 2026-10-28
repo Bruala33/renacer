@@ -1482,11 +1482,11 @@
     "osu_2563028": [
       {
         "name": "Darwin67",
-        "score": 1800,
+        "score": 27525,
         "stars": 3.5,
-        "combo": 4,
-        "accuracy": 0.0658544616397761,
-        "date": "2026-10-18 17:03:56"
+        "combo": 8,
+        "accuracy": 0.1359238826257296,
+        "date": "2026-10-27 21:52:00"
       }
     ],
     "osu_2632579": [
@@ -1502,11 +1502,11 @@
     "top_dragon_ball_la_fantstica_aventura": [
       {
         "name": "Darwin67",
-        "score": 30225,
+        "score": 35325,
         "stars": 3.5,
-        "combo": 40,
-        "accuracy": 7.115012499823449,
-        "date": "2026-10-18 17:10:55"
+        "combo": 50,
+        "accuracy": 6.4122345253222,
+        "date": "2026-10-27 21:53:00"
       }
     ],
     "osu_1550712": [
@@ -3884,11 +3884,11 @@
     "osu_30303": [
       {
         "name": "Libay",
-        "score": 90498,
+        "score": 100063,
         "stars": 3.5,
-        "combo": 64,
-        "accuracy": 14.180905640974478,
-        "date": "2026-10-26 15:59:11"
+        "combo": 85,
+        "accuracy": 19.197769856222493,
+        "date": "2026-10-27 22:35:34"
       }
     ],
     "osu_91769": [
@@ -4302,6 +4302,36 @@
         "accuracy": 1.5619172627742224,
         "date": "2026-10-27 15:26:16"
       }
+    ],
+    "osu_591797": [
+      {
+        "name": "Libay",
+        "score": 1896,
+        "stars": 3.5,
+        "combo": 4,
+        "accuracy": 0.4365263918883451,
+        "date": "2026-10-28 00:12:12"
+      }
+    ],
+    "top_ray_charles_hit_the_road_jack": [
+      {
+        "name": "Libay",
+        "score": 470269,
+        "stars": 4,
+        "combo": 261,
+        "accuracy": 89.85848696077532,
+        "date": "2026-10-28 00:15:12"
+      }
+    ],
+    "osu_1149040": [
+      {
+        "name": "Libay",
+        "score": 64146,
+        "stars": 3.5,
+        "combo": 64,
+        "accuracy": 5.233127312835708,
+        "date": "2026-10-28 00:16:24"
+      }
     ]
   },
   "global": [
@@ -4317,8 +4347,8 @@
     },
     {
       "name": "Libay",
-      "total_score": 20288905,
-      "clefs": 150
+      "total_score": 22639273,
+      "clefs": 169
     },
     {
       "name": "Jocomomolo",
@@ -4366,6 +4396,11 @@
       "clefs": 33
     },
     {
+      "name": "Darwin67",
+      "total_score": 1628955,
+      "clefs": 13
+    },
+    {
       "name": "Llois1",
       "total_score": 869748,
       "clefs": 3
@@ -4374,11 +4409,6 @@
       "name": "Jacques",
       "total_score": 795056,
       "clefs": 4
-    },
-    {
-      "name": "Darwin67",
-      "total_score": 669955,
-      "clefs": 5
     },
     {
       "name": "MasterPianist",
@@ -4516,24 +4546,24 @@
     "clean_v2": true,
     "players": [
       {
-        "name": "Mauricio",
-        "score": 13854913
+        "name": "Libay",
+        "score": 14379800
       },
       {
-        "name": "Libay",
-        "score": 12029432
+        "name": "Mauricio",
+        "score": 13854913
       },
       {
         "name": "Laaleplo",
         "score": 6259056
       },
       {
-        "name": "Llois1",
-        "score": 869748
+        "name": "Darwin67",
+        "score": 1274297
       },
       {
-        "name": "Darwin67",
-        "score": 315297
+        "name": "Llois1",
+        "score": 869748
       },
       {
         "name": "Llois",
