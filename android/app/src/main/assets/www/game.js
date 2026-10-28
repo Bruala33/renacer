@@ -913,33 +913,17 @@ class ParticleSystem {
       p.scaleY = 1;
     }
 
-    if (Math.random() < 0.60) {
+    if (Math.random() < 0.22) {
       const sw = this.spawnShockwave();
       if (sw) {
         sw.x = x;
         sw.y = y;
         sw.radius = 6;
-        sw.maxRadius = 45;
-        sw.growth = 26.0;
+        sw.maxRadius = 42;
+        sw.growth = 25.0;
         sw.color = color;
-        sw.alpha = 0.85;
-        sw.decay = 4.2;
-        sw.lineWidth = 2.0;
-      }
-    }
-
-    // Micro-onda expansiva de choque de contacto en el receptor
-    if (Math.random() < 0.45) {
-      const sw = this.spawnShockwave();
-      if (sw) {
-        sw.x = x;
-        sw.y = y;
-        sw.radius = 4;
-        sw.maxRadius = 38;
-        sw.growth = 24.0;
-        sw.color = color;
-        sw.alpha = 0.90;
-        sw.decay = 5.5;
+        sw.alpha = 0.80;
+        sw.decay = 4.6;
         sw.lineWidth = 2.0;
       }
     }
@@ -1587,60 +1571,26 @@ class ParticleSystem {
       ctx.fillStyle = p.color;
 
       if (p.type === 'glitter_star') {
-        // Estrella diamante ✦ de 4 puntas ultra-brillante
-        ctx.save();
-        ctx.translate(p.x, p.y);
-        ctx.rotate(p.rotation);
-        const rOuter = Math.max(2.0, p.radius * 2.2);
-        const rInner = rOuter * 0.22;
-        ctx.beginPath();
-        for (let pt = 0; pt < 8; pt++) {
-          const rCur = (pt % 2 === 0) ? rOuter : rInner;
-          const aCur = (pt / 8) * Math.PI * 2;
-          const px = Math.cos(aCur) * rCur;
-          const py = Math.sin(aCur) * rCur;
-          if (pt === 0) ctx.moveTo(px, py);
-          else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
-        ctx.fillStyle = p.color;
-        ctx.fill();
-
-        // Núcleo blanco diamantino
+        const rOuter = Math.max(2.0, p.radius * 2.0);
+        const rInner = rOuter * 0.26;
+        ctx.fillRect(p.x - rOuter, p.y - rInner, rOuter * 2, rInner * 2);
+        ctx.fillRect(p.x - rInner, p.y - rOuter, rInner * 2, rOuter * 2);
         ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(0, 0, rInner * 1.2, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
+        ctx.fillRect(p.x - rInner, p.y - rInner, rInner * 2, rInner * 2);
       } else if (p.type === 'diamond_spark') {
-        // Micro-diamante facetado ◆
-        ctx.save();
-        ctx.translate(p.x, p.y);
-        ctx.rotate(p.rotation);
-        const dW = p.radius * 1.6;
-        const dH = p.radius * 2.2;
+        const dW = p.radius * 1.5;
+        const dH = p.radius * 2.0;
         ctx.beginPath();
-        ctx.moveTo(0, -dH);
-        ctx.lineTo(dW, 0);
-        ctx.lineTo(0, dH);
-        ctx.lineTo(-dW, 0);
+        ctx.moveTo(p.x, p.y - dH);
+        ctx.lineTo(p.x + dW, p.y);
+        ctx.lineTo(p.x, p.y + dH);
+        ctx.lineTo(p.x - dW, p.y);
         ctx.closePath();
-        ctx.fillStyle = p.color;
         ctx.fill();
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 0.8;
-        ctx.stroke();
-        ctx.restore();
       } else if (p.type === 'paint_drop') {
-        // Render stylized tear/droplet of paint
-        ctx.save();
-        ctx.translate(p.x, p.y);
-        ctx.rotate(p.rotation);
-        ctx.scale(p.scaleX, p.scaleY);
         ctx.beginPath();
-        ctx.arc(0, 0, p.radius, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
         ctx.fill();
-        ctx.restore();
       } else if (p.type === 'fire_ember') {
         const r = p.radius * (0.6 + p.alpha * 0.4);
         ctx.fillRect(p.x - r, p.y - r, r * 2, r * 2);
@@ -2086,7 +2036,7 @@ class BeatstarEngine {
 
     const pal = paletteByFx[fx] || paletteByFx.solar_inferno;
     const isTranscendent = (fx === 'astral_transcendence');
-    const effCount = isTranscendent ? Math.min(22, count + 2) : count;
+    const effCount = Math.min(12, isTranscendent ? count + 2 : count);
 
     for (let i = 0; i < effCount; i++) {
       const p = this.particles.spawnParticle();
@@ -2497,7 +2447,7 @@ class BeatstarEngine {
 
     // ⚡ DETECCIÓN DE DESLIZAMIENTO / FLICK (SWIPE) — Y SEGUIMIENTO DE SLIDERS / RÁFAGAS EN MODO OSU! HÍBRIDO
     window.addEventListener('touchmove', (e) => {
-      if (this.isPaused || this.isRewinding || this.isHighwayModeActive) return;
+      if ((!this.isRunning && !this.isCountingDown && !this.isCalibrating) || this.isPaused || this.isRewinding || this.isHighwayModeActive || this.activeTouches.size === 0) return;
       const now = performance.now();
       const isOsuMode = Boolean(this.isOsuHybridModeActive || (typeof window !== 'undefined' && window.isOsuHybridModeActive));
       const rect = this._canvasRect || (this.canvas ? this.canvas.getBoundingClientRect() : null);
@@ -4150,8 +4100,8 @@ class BeatstarEngine {
       }
     }
 
-    if (this.bgBursts.length >= 4) this.bgBursts.shift();
-    if (this.fxRipples.length >= 4) this.fxRipples.shift();
+    if (this.bgBursts.length >= 2) this.bgBursts.shift();
+    if (this.fxRipples.length >= 3) this.fxRipples.shift();
 
     this.bgBursts.push({
       type: effect,
@@ -5491,9 +5441,9 @@ class BeatstarEngine {
       const holdColor = (active.color && active.color !== '#00ff88' && active.color !== '#00f2fe') ? active.color : '#ffe082';
       this.laneFlashTimers[lane] = 0.11;
 
-      if (!active._lastSparkTime || (this._frameNow - active._lastSparkTime >= 22)) {
+      if (!active._lastSparkTime || (this._frameNow - active._lastSparkTime >= 45)) {
         active._lastSparkTime = this._frameNow;
-        this.particles.emitHoldSparks(hitX, hitY, holdColor, 2);
+        this.particles.emitHoldSparks(hitX, hitY, holdColor, 1);
       }
       this.addScore(Math.round(260 * dt * this.multiplier));
 
@@ -5508,7 +5458,7 @@ class BeatstarEngine {
         note.hit = true;
         note.holding = false;
         this.activeHolds.delete(lane);
-        this.emitKeyHit(hitX, hitY, holdColor, 35);
+        this.emitKeyHit(hitX, hitY, holdColor, 14);
         this.addJudgement('HOLD CLEAR!', '#ffe082');
       }
     }
@@ -19564,9 +19514,18 @@ class BeatstarEngine {
       const nowPerf = performance.now();
       let pState = this._osuActivePointers.get(pointerId);
       if (pState) {
-        const dtPerf = Math.max(4, nowPerf - (pState.lastMovePerf || nowPerf));
-        const instVx = (x - pState.x) / dtPerf;
-        const instVy = (y - pState.y) / dtPerf;
+        const dxMove = x - pState.x;
+        const dyMove = y - pState.y;
+        const dtRaw = nowPerf - (pState.lastMovePerf || nowPerf);
+        // Ignorar micro-temblores sub-píxel de 240Hz cuando el dedo está quieto manteniendo un slider/hold
+        if ((dxMove * dxMove + dyMove * dyMove) < 4.0 && dtRaw < 12) {
+          pState.x = x;
+          pState.y = y;
+          return;
+        }
+        const dtPerf = Math.max(4, dtRaw);
+        const instVx = dxMove / dtPerf;
+        const instVy = dyMove / dtPerf;
         pState.prevX = pState.x;
         pState.prevY = pState.y;
         pState.vx = pState.vx * 0.35 + instVx * 0.65;

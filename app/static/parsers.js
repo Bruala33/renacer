@@ -841,7 +841,7 @@ class LaneRemapper {
         });
       }
 
-      // 4. Extrema (Techo máximo de canciones Karaoke/Top/Comunidad: 5.4★ - 7.3★, equiparada al nuevo Extrema intermedio de osu!)
+      // 4. Extrema (5.4★ - 7.3★, equiparada al Extrema intermedio de osu!)
       if (rawNotesCount >= 340 || naturalDensity >= 3.35) {
         const extStars = Math.max(5.4, Math.min(7.3, Math.round((5.4 + Math.min(1.85, Math.max(0, naturalDensity - 3.2) * 0.42)) * 10) / 10));
         standardized.push({
@@ -852,6 +852,21 @@ class LaneRemapper {
           stars: extStars,
           keys: 3,
           label: `Extrema (${extStars.toFixed(1)}★)`
+        });
+      }
+
+      // 5. Imposible (7.6★ - 9.4★) para canciones Top/Comunidad de alta densidad real (>= 385 notas o alta velocidad)
+      if (rawNotesCount >= 385 || naturalDensity >= 3.60) {
+        const impStars = Math.max(7.6, Math.min(9.4, Math.round((7.6 + Math.min(1.8, Math.max(0, naturalDensity - 3.5) * 0.55)) * 10) / 10));
+        standardized.push({
+          id: 'impossible',
+          sourceDiffId: 'impossible',
+          densityMode: 'impossible',
+          name: 'Imposible',
+          stars: impStars,
+          keys: 3,
+          isImpossibleTier: true,
+          label: `Imposible (${impStars.toFixed(1)}★)`
         });
       }
     } else {
@@ -981,19 +996,19 @@ class LaneRemapper {
         });
       }
 
-      // 5. IMPOSIBLE (7.6★ - 10.0★): EXCLUSIVA para mapas salvajes de osu!, BeatSaver y Clone Hero con densidad extrema real
+      // 5. IMPOSIBLE (7.6★ - 10.0★): Para mapas exigentes de osu!, BeatSaver y Clone Hero
       const qualifiesForImpossible = (
-        maxRawStars >= 5.1 ||
-        maxRawNps >= 6.2 ||
-        (maxRawStars >= 4.8 && maxRawNotes >= 650) ||
-        (maxRawStars >= 4.85 && effBpm >= 175)
+        maxRawStars >= 4.0 ||
+        maxRawNps >= 4.2 ||
+        maxRawNotes >= 380 ||
+        (maxRawStars >= 3.6 && effBpm >= 150)
       );
       if (qualifiesForImpossible) {
         const impSrcId = this.extractSourceDiffId(maxRawDiff.sourceDiffId || maxRawDiff.id || 'default');
-        const noteBonus = maxRawNotes >= 700 ? Math.min(0.65, (maxRawNotes - 700) / 1400) : 0;
+        const noteBonus = maxRawNotes >= 550 ? Math.min(0.65, (maxRawNotes - 550) / 1400) : 0;
         const impStars = Math.max(
           7.6,
-          Math.min(10.0, Math.round((7.6 + Math.min(2.4, (Math.max(0, maxRawStars - 4.9) * 0.58 * tempoFactor) + noteBonus)) * 10) / 10)
+          Math.min(10.0, Math.round((7.6 + Math.min(2.4, (Math.max(0, maxRawStars - 4.0) * 0.52 * tempoFactor) + noteBonus)) * 10) / 10)
         );
         standardized.push({
           id: `impossible::${impSrcId}`,

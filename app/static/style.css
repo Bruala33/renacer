@@ -605,10 +605,13 @@ body {
 }
 
 .hud-progress-fill {
+  width: 100%;
   height: 100%;
   border-radius: 4px;
   background: linear-gradient(90deg, #c5a059 0%, #e5b869 75%, #fff0c2 100%);
-  will-change: width;
+  transform-origin: left center;
+  transform: scaleX(0);
+  will-change: transform;
 }
 
 /* Platinum Phase: Iridescent white/cyan liquid fill */
@@ -740,7 +743,7 @@ body {
 .roller-strip {
   display: flex;
   flex-direction: column;
-  transition: transform 0.22s cubic-bezier(0.18, 0.89, 0.32, 1.25);
+  transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .roller-strip span {
@@ -2993,8 +2996,12 @@ body {
 .roller-strip {
   display: flex;
   flex-direction: column;
-  transition: transform 0.35s cubic-bezier(0.15, 0.9, 0.2, 1.05);
+  transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
+}
+#rollerDigit0,
+#rollerDigit1 {
+  transition: transform 0.06s linear;
 }
 .roller-strip span {
   height: 24px;
