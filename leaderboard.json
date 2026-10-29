@@ -4395,6 +4395,166 @@
         "accuracy": 4.945264133661454,
         "date": "2026-10-29 02:23:24"
       }
+    ],
+    "osu_1760174": [
+      {
+        "name": "aelec",
+        "score": 466132,
+        "stars": 2,
+        "combo": 232,
+        "accuracy": 57.37976741924484,
+        "date": "2026-10-29 03:33:35"
+      }
+    ],
+    "osu_2610401": [
+      {
+        "name": "aelec",
+        "score": 82606,
+        "stars": 3.5,
+        "combo": 70,
+        "accuracy": 5.401132455440624,
+        "date": "2026-10-29 03:36:21"
+      }
+    ],
+    "osu_2579541": [
+      {
+        "name": "aelec",
+        "score": 14491,
+        "stars": 3.5,
+        "combo": 21,
+        "accuracy": 0.7881677479429644,
+        "date": "2026-10-29 03:38:11"
+      }
+    ],
+    "osu_2561480": [
+      {
+        "name": "aelec",
+        "score": 27900,
+        "stars": 3.5,
+        "combo": 37,
+        "accuracy": 1.5033947623666344,
+        "date": "2026-10-29 03:39:08"
+      }
+    ],
+    "osu_2605027": [
+      {
+        "name": "aelec",
+        "score": 881289,
+        "stars": 5,
+        "combo": 411,
+        "accuracy": 99.53051908303839,
+        "date": "2026-10-29 03:46:34"
+      }
+    ],
+    "osu_2574539": [
+      {
+        "name": "aelec",
+        "score": 1500,
+        "stars": 3.5,
+        "combo": 4,
+        "accuracy": 0.22885215388018829,
+        "date": "2026-10-29 03:52:01"
+      }
+    ],
+    "bs_54d4c": [
+      {
+        "name": "aelec",
+        "score": 68850,
+        "stars": 3.5,
+        "combo": 66,
+        "accuracy": 10.039370078740157,
+        "date": "2026-10-29 03:55:02"
+      }
+    ],
+    "osu_2558583": [
+      {
+        "name": "aelec",
+        "score": 80335,
+        "stars": 3.5,
+        "combo": 75,
+        "accuracy": 13.651735037215785,
+        "date": "2026-10-29 03:56:09"
+      }
+    ],
+    "osu_334812": [
+      {
+        "name": "aelec",
+        "score": 1350,
+        "stars": 3.5,
+        "combo": 4,
+        "accuracy": 0.20658469589967637,
+        "date": "2026-10-29 03:56:39"
+      }
+    ],
+    "osu_212975": [
+      {
+        "name": "aelec",
+        "score": 81620,
+        "stars": 2,
+        "combo": 67,
+        "accuracy": 44.44904316382212,
+        "date": "2026-10-29 03:57:46"
+      }
+    ],
+    "osu_83466": [
+      {
+        "name": "aelec",
+        "score": 8925,
+        "stars": 3.5,
+        "combo": 16,
+        "accuracy": 1.6610831937465103,
+        "date": "2026-10-29 03:58:37"
+      }
+    ],
+    "osu_239616": [
+      {
+        "name": "aelec",
+        "score": 119315,
+        "stars": 4,
+        "combo": 89,
+        "accuracy": 84.59596854815267,
+        "date": "2026-10-29 04:01:16"
+      }
+    ],
+    "osu_224087": [
+      {
+        "name": "aelec",
+        "score": 55742,
+        "stars": 3.5,
+        "combo": 63,
+        "accuracy": 11.386258949454096,
+        "date": "2026-10-29 04:02:55"
+      }
+    ],
+    "osu_314199": [
+      {
+        "name": "aelec",
+        "score": 4200,
+        "stars": 3.5,
+        "combo": 10,
+        "accuracy": 0.5575467941059339,
+        "date": "2026-10-29 04:03:28"
+      }
+    ],
+    "osu_357822": [
+      {
+        "name": "aelec",
+        "score": 3509,
+        "stars": 3.5,
+        "combo": 9,
+        "accuracy": 0.16471572338085477,
+        "date": "2026-10-29 04:04:53"
+      }
+    ],
+    "top_maluma_el_perdedor": [
+      {
+        "name": "Siro",
+        "score": 26850,
+        "stars": 3.5,
+        "combo": 28,
+        "accuracy": 1.396898728744118,
+        "date": "2026-10-29 05:52:16"
+      }
     ]
   },
   "global": [
@@ -4457,6 +4617,11 @@
       "name": "bobon",
       "total_score": 3845429,
       "clefs": 33
+    },
+    {
+      "name": "aelec",
+      "total_score": 1919054,
+      "clefs": 13
     },
     {
       "name": "Darwin67",
@@ -4536,6 +4701,11 @@
     {
       "name": "U",
       "total_score": 30185,
+      "clefs": 0
+    },
+    {
+      "name": "Siro",
+      "total_score": 26850,
       "clefs": 0
     },
     {
@@ -4626,6 +4796,10 @@
         "score": 6357798
       },
       {
+        "name": "aelec",
+        "score": 1919054
+      },
+      {
         "name": "Darwin67",
         "score": 1274297
       },
@@ -4636,6 +4810,10 @@
       {
         "name": "Llois",
         "score": 37650
+      },
+      {
+        "name": "Siro",
+        "score": 26850
       },
       {
         "name": "Ballsaxk",
