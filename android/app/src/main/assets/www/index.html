@@ -2704,6 +2704,11 @@
             <canvas id="gmBtnCruceMainCanvas" class="w-full h-[40px] block"></canvas>
           </button>
 
+          <!-- Botón 2C: MODO SPLIT / PISTA VIVA (Pista 3D de 4 carriles con colapso 1-4, Split asimétrico, Ping-Pong y Holds trapezoidales) -->
+          <button id="btnModeSelectSplit" onclick="confirmGameModeSelection('split')" class="w-full p-1 rounded-xl bg-[#04080f] border-2 border-[#10b981] hover:border-[#38bdf8] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
+            <canvas id="gmBtnSplitMainCanvas" class="w-full h-[40px] block"></canvas>
+          </button>
+
           <!-- Botón 1B: MODO 4 CARRILES (Igual que Normal pero con 4 carriles de precisión + Candado LED 1000 Claves) -->
           <button id="btnModeSelectFourLanes" onclick="confirmGameModeSelection('four_lanes')" class="w-full p-1 rounded-xl bg-[#04050b] border-2 border-[#252b63] hover:border-[#38bdf8] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
             <canvas id="gmBtnFourLanesMainCanvas" class="w-full h-[34px] block"></canvas>
@@ -8660,7 +8665,7 @@ window.switchMainTab = switchMainTab;
 
     function applySelectedGameMode(mode) {
       const normalized = mode === 'mushrooms' ? 'mushroom' : (mode === 'classic' ? 'normal' : mode);
-      const m = (normalized === 'karaoke' || normalized === 'storm' || normalized === 'mushroom' || normalized === 'highway' || normalized === 'annoying_dog' || normalized === 'river' || normalized === 'four_lanes' || normalized === 'minesweeper' || normalized === 'mirror' || normalized === 'echo' || normalized === 'osu_hybrid' || normalized === 'cruce') ? normalized : 'normal';
+      const m = (normalized === 'karaoke' || normalized === 'storm' || normalized === 'mushroom' || normalized === 'highway' || normalized === 'annoying_dog' || normalized === 'river' || normalized === 'four_lanes' || normalized === 'minesweeper' || normalized === 'mirror' || normalized === 'echo' || normalized === 'osu_hybrid' || normalized === 'cruce' || normalized === 'split') ? normalized : 'normal';
       window.currentGameMode = m;
       window.isKaraokeModeActive = (m === 'karaoke');
       window.isStormModeActive = (m === 'storm');
@@ -8674,6 +8679,7 @@ window.switchMainTab = switchMainTab;
       window.isEchoModeActive = (m === 'echo');
       window.isOsuHybridModeActive = (m === 'osu_hybrid');
       window.isCruceModeActive = (m === 'cruce');
+      window.isSplitModeActive = (m === 'split');
       const liveCalibEl = document.getElementById('liveCalibHud');
       if (liveCalibEl) {
         liveCalibEl.style.display = window.isOsuHybridModeActive ? 'none' : '';
@@ -8691,7 +8697,8 @@ window.switchMainTab = switchMainTab;
         window.engine.isEchoModeActive = window.isEchoModeActive;
         window.engine.isOsuHybridModeActive = window.isOsuHybridModeActive;
         window.engine.isCruceModeActive = window.isCruceModeActive;
-        window.engine.numLanes = (window.isFourLanesModeActive || window.isCruceModeActive) ? 4 : 3;
+        window.engine.isSplitModeActive = window.isSplitModeActive;
+        window.engine.numLanes = (window.isFourLanesModeActive || window.isCruceModeActive || window.isSplitModeActive) ? 4 : 3;
         if (typeof window.engine.initCanvasSize === 'function') {
           window.engine.initCanvasSize();
         }
@@ -8722,6 +8729,9 @@ window.switchMainTab = switchMainTab;
         if (window.isCruceModeActive && typeof window.engine.initCruceModeAssets === 'function') {
           window.engine.initCruceModeAssets();
         }
+        if (window.isSplitModeActive && typeof window.engine.initSplitModeAssets === 'function') {
+          window.engine.initSplitModeAssets();
+        }
       }
       try { localStorage.setItem('isKaraokeModeActive', '0'); } catch (_) {}
     }
@@ -8747,6 +8757,7 @@ window.switchMainTab = switchMainTab;
     window.isEchoModeActive = false;
     window.isOsuHybridModeActive = false;
     window.isCruceModeActive = false;
+    window.isSplitModeActive = false;
     try { localStorage.setItem('isKaraokeModeActive', '0'); } catch (_) {}
 
     document.addEventListener('visibilitychange', () => {
@@ -11407,7 +11418,7 @@ function stopPianoCameraLoop() {
 
       const allowVocalFiller = options.allowVocalFiller !== undefined ? Boolean(options.allowVocalFiller) : false;
       const preserveOriginalLanes = Boolean(options.preserveOriginalLanes);
-      const numLanes = (options.numLanes === 4 || window.isFourLanesModeActive || window.isCruceModeActive) ? 4 : 3;
+      const numLanes = (options.numLanes === 4 || window.isFourLanesModeActive || window.isCruceModeActive || window.isSplitModeActive) ? 4 : 3;
       const maxLaneIdx = numLanes - 1;
       const allLanes = numLanes === 4 ? [0, 1, 2, 3] : [0, 1, 2];
 
@@ -11939,7 +11950,7 @@ function stopPianoCameraLoop() {
       }
 
       const songBpm = Number(beatmapData.bpm) || 120;
-      const targetNumLanes = (window.isFourLanesModeActive || window.isCruceModeActive) ? 4 : 3;
+      const targetNumLanes = (window.isFourLanesModeActive || window.isCruceModeActive || window.isSplitModeActive) ? 4 : 3;
       const sourceKeys = Number(beatmapData.keys || beatmapData.metadata?.source_keys || beatmapData.unpackedData?.metadata?.source_keys || (srcLower.includes('clone') ? 5 : 4));
       const baseDensityPref = beatmapData.selectedDensityMode ||
         ((typeof LaneRemapper !== 'undefined' && LaneRemapper.inferDensityModeFromDiff)
@@ -14871,6 +14882,7 @@ function stopPianoCameraLoop() {
       { rank: 5, hand: 'ESCALERA',      badge: '#5', sharePct: 4,  potShare: 0.04 }
     ];
     const VP_MODES = [
+      { id: 'split',        label: 'SPLIT',    desc: 'Pista 3D viva con division y ping-pong', icon: '||', bg: 'bg-emerald-100 border-emerald-500 text-emerald-950' },
       { id: 'cruce',        label: 'CRUCE',    desc: 'Haz de juicio vivo y notas en ola', icon: '><', bg: 'bg-cyan-100 border-cyan-500 text-cyan-950' },
       { id: 'osu_hybrid',   label: 'PULSO',    desc: 'Aros táctiles y carriles por fases', icon: '(•)', bg: 'bg-sky-100 border-sky-500 text-sky-950' },
       { id: 'mirror',       label: 'OJEPSƎ',   desc: 'Carriles 1 y 3 cruzados', icon: '🪞', bg: 'bg-cyan-100 border-cyan-500 text-cyan-950' },
@@ -18592,14 +18604,14 @@ function stopPianoCameraLoop() {
     function _getUnlockedGameModesMap() {
       try {
         const raw = JSON.parse(localStorage.getItem('beatstar_unlocked_game_modes_v1') || '{}');
-        return Object.assign({ normal: true, osu_hybrid: true, cruce: true }, raw);
+        return Object.assign({ normal: true, osu_hybrid: true, cruce: true, split: true }, raw);
       } catch (_) {
-        return { normal: true, osu_hybrid: true, cruce: true };
+        return { normal: true, osu_hybrid: true, cruce: true, split: true };
       }
     }
 
     function isGameModeUnlocked(mode) {
-      if (!mode || mode === 'normal' || mode === 'osu_hybrid' || mode === 'cruce') return true;
+      if (!mode || mode === 'normal' || mode === 'osu_hybrid' || mode === 'cruce' || mode === 'split') return true;
       const map = _getUnlockedGameModesMap();
       return Boolean(map[mode]);
     }
@@ -20401,6 +20413,134 @@ function stopPianoCameraLoop() {
       }
     }
 
+    function _renderSplitLedButton(canvas, now, isLocked) {
+      if (!canvas) return;
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const widthCss = 318;
+      const heightCss = 40;
+      if (canvas.width !== Math.round(widthCss * dpr) || canvas.height !== Math.round(heightCss * dpr)) {
+        canvas.width = Math.round(widthCss * dpr);
+        canvas.height = Math.round(heightCss * dpr);
+      }
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      ctx.fillStyle = '#03080c';
+      ctx.fillRect(0, 0, widthCss, heightCss);
+
+      const pitch = 3.45;
+      const cols = Math.floor((widthCss - 4) / pitch);
+      const rows = Math.floor((heightCss - 2) / pitch);
+      const offsetX = (widthCss - cols * pitch) * 0.5 + pitch * 0.5;
+      const offsetY = (heightCss - rows * pitch) * 0.5 + pitch * 0.5;
+      const dotR = pitch * 0.38;
+
+      ctx.fillStyle = '#0b1e24';
+      ctx.beginPath();
+      for (let r = 0; r < rows; r++) {
+        const py = offsetY + r * pitch;
+        for (let c = 0; c < cols; c++) {
+          const px = offsetX + c * pitch;
+          ctx.moveTo(px + dotR * 0.72, py);
+          ctx.arc(px, py, dotR * 0.72, 0, Math.PI * 2);
+        }
+      }
+      ctx.fill();
+
+      const t = now * 0.001;
+      const litMap = new Map();
+      const setLed = (c, r, color) => {
+        const ic = Math.round(c);
+        const ir = Math.round(r);
+        if (ic >= 0 && ic < cols && ir >= 0 && ir < rows) {
+          litMap.set(ir * cols + ic, color);
+        }
+      };
+
+      // Icono izquierdo: Pista 3D abriendose por la mitad con lineas de juicio desfasadas y bola Ping-Pong
+      const splitAnim = (Math.sin(t * 2.4) * 0.5 + 0.5);
+      const gapCols = Math.round(1 + splitAnim * 3);
+      const cxL = 14;
+      for (let r = 1; r < rows - 1; r++) {
+        const persp = 0.55 + 0.45 * (r / Math.max(1, rows - 1));
+        const subW = Math.max(2, Math.round(4 * persp));
+        const lEdge = cxL - gapCols - subW;
+        const lInner = cxL - gapCols;
+        const rInner = cxL + gapCols;
+        const rEdge = cxL + gapCols + subW;
+        setLed(lEdge, r, '#38bdf8');
+        setLed(lInner, r, '#00f5a0');
+        setLed(rInner, r, '#00f5a0');
+        setLed(rEdge, r, '#38bdf8');
+      }
+      // Lineas de juicio a distinta altura (Y-offset asimetrico)
+      for (let c = cxL - gapCols - 4; c <= cxL - gapCols; c++) {
+        setLed(c, rows - 2, '#ffffff');
+      }
+      for (let c = cxL + gapCols; c <= cxL + gapCols + 4; c++) {
+        setLed(c, rows - 4, '#fde047');
+      }
+      // Arco parabolico de Ping-Pong saltando el abismo central
+      const pongPhase = (t * 2.2) % 1.0;
+      const pongX = (cxL - gapCols - 2) + ((cxL + gapCols + 2) - (cxL - gapCols - 2)) * pongPhase;
+      const pongY = (rows - 3) - Math.sin(pongPhase * Math.PI) * 5.0;
+      setLed(pongX, pongY, '#ffffff');
+      setLed(pongX - 1, pongY, '#00f5a0');
+
+      // Texto central "SPLIT" en matriz 5x7 con degradado blanco/esmeralda/cian
+      const label = 'SPLIT';
+      const startCol = 30;
+      const textRow = Math.max(0, Math.floor((rows - 7) * 0.5));
+      for (let i = 0; i < label.length; i++) {
+        const ch = label[i];
+        const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7[' '];
+        const charCol = startCol + i * 7;
+        for (let gr = 0; gr < 7; gr++) {
+          const rowBits = glyph[gr];
+          if (!rowBits) continue;
+          for (let gc = 0; gc < 5; gc++) {
+            if ((rowBits >> (4 - gc)) & 1) {
+              const lc = charCol + gc;
+              const lr = textRow + gr;
+              const col = gr < 2 ? '#ffffff' : (gr < 5 ? '#00f5a0' : '#38bdf8');
+              setLed(lc, lr, col);
+            }
+          }
+        }
+      }
+
+      // Icono derecho: Hold trapezoidal ensanchandose de 1 a 3 carriles
+      const cxR = 76;
+      for (let r = 1; r < rows - 1; r++) {
+        const p = r / Math.max(1, rows - 2);
+        const halfTrap = Math.round(1 + p * 4.5);
+        for (let dx = -halfTrap; dx <= halfTrap; dx++) {
+          const isBorder = Math.abs(dx) === halfTrap || r === rows - 2;
+          setLed(cxR + dx, r, isBorder ? '#00f5a0' : '#0284c7');
+        }
+      }
+
+      const byColor = new Map();
+      for (const [idx, col] of litMap.entries()) {
+        if (!byColor.has(col)) byColor.set(col, []);
+        byColor.get(col).push(idx);
+      }
+      for (const [col, indices] of byColor.entries()) {
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        for (let i = 0; i < indices.length; i++) {
+          const idx = indices[i];
+          const r = Math.floor(idx / cols);
+          const c = idx % cols;
+          const lx = offsetX + c * pitch;
+          const ly = offsetY + r * pitch;
+          ctx.moveTo(lx + dotR * 1.08, ly);
+          ctx.arc(lx, ly, dotR * 1.08, 0, Math.PI * 2);
+        }
+        ctx.fill();
+      }
+    }
+
     function _renderGameModeStaticLeds(songTitle = 'PISTA', songArtist = '') {
       _currentModalSongTitle = songTitle;
       _currentModalSongArtist = songArtist;
@@ -20625,6 +20765,13 @@ function stopPianoCameraLoop() {
           false
         );
 
+        // M. ANIMACIÓN LED MODO SPLIT (PISTA VIVA): Pista 3D con Split central, Ping-Pong y Hold trapezoidal
+        _renderSplitLedButton(
+          document.getElementById('gmBtnSplitMainCanvas'),
+          now,
+          false
+        );
+
         _gameModeLedAnimId = requestAnimationFrame(tick);
       };
 
@@ -20760,10 +20907,10 @@ function stopPianoCameraLoop() {
     }
 
     function confirmGameModeSelection(mode) {
-      const chosen = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog' || mode === 'river' || mode === 'four_lanes' || mode === 'minesweeper' || mode === 'mirror' || mode === 'echo' || mode === 'osu_hybrid' || mode === 'cruce') ? mode : 'normal';
+      const chosen = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog' || mode === 'river' || mode === 'four_lanes' || mode === 'minesweeper' || mode === 'mirror' || mode === 'echo' || mode === 'osu_hybrid' || mode === 'cruce' || mode === 'split') ? mode : 'normal';
 
-      // Si el modo no es normal, pulso ni cruce y aún tiene candado LED (1000 Claves para desbloquear):
-      if (chosen !== 'normal' && chosen !== 'osu_hybrid' && chosen !== 'cruce' && !isGameModeUnlocked(chosen)) {
+      // Si el modo no es normal, pulso, cruce ni split y aún tiene candado LED (1000 Claves para desbloquear):
+      if (chosen !== 'normal' && chosen !== 'osu_hybrid' && chosen !== 'cruce' && chosen !== 'split' && !isGameModeUnlocked(chosen)) {
         if (typeof userClefs === 'number' && userClefs >= GAME_MODE_UNLOCK_COST) {
           if (typeof deductClefs === 'function' && deductClefs(GAME_MODE_UNLOCK_COST)) {
             _setGameModeUnlocked(chosen);
@@ -20786,9 +20933,11 @@ function stopPianoCameraLoop() {
                                             ? 'ESPEJO (OJEPSƎ)'
                                             : (chosen === 'echo'
                                                 ? 'ECO (DOBLE GOLPE)'
-                                                : (chosen === 'cruce'
-                                                    ? 'CRUCE'
-                                                    : (chosen === 'osu_hybrid' ? 'PULSO' : 'RÍO'))))))))));
+                                                : (chosen === 'split'
+                                                    ? 'SPLIT'
+                                                    : (chosen === 'cruce'
+                                                        ? 'CRUCE'
+                                                        : (chosen === 'osu_hybrid' ? 'PULSO' : 'RÍO')))))))))));
               showSuccessToast(`¡Modo ${modeLabel} desbloqueado para siempre! (-1000 𝄞)`);
             }
           }
