@@ -4332,13 +4332,286 @@
         "accuracy": 5.233127312835708,
         "date": "2026-10-28 00:16:24"
       }
+    ],
+    "top_abba_dancing_queen": [],
+    "top_amaral_kamikaze": [],
+    "osu_2644394": [],
+    "top_michael_jackson_bad": [
+      {
+        "name": "Mauricio",
+        "score": 1644558,
+        "stars": 4,
+        "combo": 511,
+        "accuracy": 83.91150034287953,
+        "date": "2026-10-28 18:21:06"
+      }
+    ],
+    "osu_2644393": [
+      {
+        "name": "Mauricio",
+        "score": 251403,
+        "stars": 3.5,
+        "combo": 116,
+        "accuracy": 10.061037835293892,
+        "date": "2026-10-28 18:22:18"
+      }
+    ],
+    "bs_7c05": [
+      {
+        "name": "Mauricio",
+        "score": 43330,
+        "stars": 3.5,
+        "combo": 41,
+        "accuracy": 1.2236483528896795,
+        "date": "2026-10-28 18:23:51"
+      }
+    ],
+    "bs_15b16": [
+      {
+        "name": "Mauricio",
+        "score": 452625,
+        "stars": 3.5,
+        "combo": 218,
+        "accuracy": 12.245353461569678,
+        "date": "2026-10-28 18:25:17"
+      }
+    ],
+    "bs_2ecfe": [
+      {
+        "name": "Ballsaxk",
+        "score": 4050,
+        "stars": 3.5,
+        "combo": 10,
+        "accuracy": 0.10734732824427481,
+        "date": "2026-10-29 02:20:01"
+      }
+    ],
+    "osu_213402": [
+      {
+        "name": "Ballsaxk",
+        "score": 17925,
+        "stars": 3.5,
+        "combo": 38,
+        "accuracy": 4.945264133661454,
+        "date": "2026-10-29 02:23:24"
+      }
+    ],
+    "osu_1760174": [
+      {
+        "name": "aelec",
+        "score": 466132,
+        "stars": 2,
+        "combo": 232,
+        "accuracy": 57.37976741924484,
+        "date": "2026-10-29 03:33:35"
+      }
+    ],
+    "osu_2610401": [
+      {
+        "name": "aelec",
+        "score": 82606,
+        "stars": 3.5,
+        "combo": 70,
+        "accuracy": 5.401132455440624,
+        "date": "2026-10-29 03:36:21"
+      }
+    ],
+    "osu_2579541": [
+      {
+        "name": "aelec",
+        "score": 14491,
+        "stars": 3.5,
+        "combo": 21,
+        "accuracy": 0.7881677479429644,
+        "date": "2026-10-29 03:38:11"
+      }
+    ],
+    "osu_2561480": [
+      {
+        "name": "aelec",
+        "score": 27900,
+        "stars": 3.5,
+        "combo": 37,
+        "accuracy": 1.5033947623666344,
+        "date": "2026-10-29 03:39:08"
+      }
+    ],
+    "osu_2605027": [
+      {
+        "name": "aelec",
+        "score": 881289,
+        "stars": 5,
+        "combo": 411,
+        "accuracy": 99.53051908303839,
+        "date": "2026-10-29 03:46:34"
+      }
+    ],
+    "osu_2574539": [
+      {
+        "name": "aelec",
+        "score": 1500,
+        "stars": 3.5,
+        "combo": 4,
+        "accuracy": 0.22885215388018829,
+        "date": "2026-10-29 03:52:01"
+      }
+    ],
+    "bs_54d4c": [
+      {
+        "name": "aelec",
+        "score": 68850,
+        "stars": 3.5,
+        "combo": 66,
+        "accuracy": 10.039370078740157,
+        "date": "2026-10-29 03:55:02"
+      }
+    ],
+    "osu_2558583": [
+      {
+        "name": "aelec",
+        "score": 80335,
+        "stars": 3.5,
+        "combo": 75,
+        "accuracy": 13.651735037215785,
+        "date": "2026-10-29 03:56:09"
+      }
+    ],
+    "osu_334812": [
+      {
+        "name": "aelec",
+        "score": 1350,
+        "stars": 3.5,
+        "combo": 4,
+        "accuracy": 0.20658469589967637,
+        "date": "2026-10-29 03:56:39"
+      }
+    ],
+    "osu_212975": [
+      {
+        "name": "aelec",
+        "score": 81620,
+        "stars": 2,
+        "combo": 67,
+        "accuracy": 44.44904316382212,
+        "date": "2026-10-29 03:57:46"
+      }
+    ],
+    "osu_83466": [
+      {
+        "name": "aelec",
+        "score": 8925,
+        "stars": 3.5,
+        "combo": 16,
+        "accuracy": 1.6610831937465103,
+        "date": "2026-10-29 03:58:37"
+      }
+    ],
+    "osu_239616": [
+      {
+        "name": "aelec",
+        "score": 119315,
+        "stars": 4,
+        "combo": 89,
+        "accuracy": 84.59596854815267,
+        "date": "2026-10-29 04:01:16"
+      }
+    ],
+    "osu_224087": [
+      {
+        "name": "aelec",
+        "score": 55742,
+        "stars": 3.5,
+        "combo": 63,
+        "accuracy": 11.386258949454096,
+        "date": "2026-10-29 04:02:55"
+      }
+    ],
+    "osu_314199": [
+      {
+        "name": "aelec",
+        "score": 4200,
+        "stars": 3.5,
+        "combo": 10,
+        "accuracy": 0.5575467941059339,
+        "date": "2026-10-29 04:03:28"
+      }
+    ],
+    "osu_357822": [
+      {
+        "name": "aelec",
+        "score": 3509,
+        "stars": 3.5,
+        "combo": 9,
+        "accuracy": 0.16471572338085477,
+        "date": "2026-10-29 04:04:53"
+      }
+    ],
+    "top_maluma_el_perdedor": [
+      {
+        "name": "Siro",
+        "score": 26850,
+        "stars": 3.5,
+        "combo": 28,
+        "accuracy": 1.396898728744118,
+        "date": "2026-10-29 05:52:16"
+      }
+    ],
+    "osu_580138": [
+      {
+        "name": "Siro",
+        "score": 87494,
+        "stars": 3.5,
+        "combo": 73,
+        "accuracy": 12.304260941347543,
+        "date": "2026-10-29 05:54:51"
+      }
+    ],
+    "osu_2531437": [
+      {
+        "name": "Siro",
+        "score": 181494,
+        "stars": 2,
+        "combo": 132,
+        "accuracy": 48.08768940949545,
+        "date": "2026-10-29 05:58:40"
+      }
+    ],
+    "osu_2466258": [
+      {
+        "name": "Siro",
+        "score": 113787,
+        "stars": 3.5,
+        "combo": 112,
+        "accuracy": 4.490447631965379,
+        "date": "2026-10-29 06:00:38"
+      }
+    ],
+    "osu_2333754": [
+      {
+        "name": "Siro",
+        "score": 107461,
+        "stars": 3.5,
+        "combo": 89,
+        "accuracy": 10.395652169707006,
+        "date": "2026-10-29 06:01:56"
+      }
+    ],
+    "osu_1982182": [
+      {
+        "name": "Siro",
+        "score": 222167,
+        "stars": 2,
+        "combo": 193,
+        "accuracy": 58.71484712579582,
+        "date": "2026-10-29 06:04:58"
+      }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 70739768,
-      "clefs": 641
+      "total_score": 73131684,
+      "clefs": 663
     },
     {
       "name": "Rocky",
@@ -4367,7 +4640,7 @@
     },
     {
       "name": "Laaleplo",
-      "total_score": 11100255,
+      "total_score": 11198997,
       "clefs": 94
     },
     {
@@ -4396,6 +4669,11 @@
       "clefs": 33
     },
     {
+      "name": "aelec",
+      "total_score": 1919054,
+      "clefs": 13
+    },
+    {
       "name": "Darwin67",
       "total_score": 1628955,
       "clefs": 13
@@ -4409,6 +4687,11 @@
       "name": "Jacques",
       "total_score": 795056,
       "clefs": 4
+    },
+    {
+      "name": "Siro",
+      "total_score": 747653,
+      "clefs": 5
     },
     {
       "name": "MasterPianist",
@@ -4481,6 +4764,11 @@
       "clefs": 0
     },
     {
+      "name": "Ballsaxk",
+      "total_score": 21975,
+      "clefs": 0
+    },
+    {
       "name": "Pirata",
       "total_score": 19500,
       "clefs": 0
@@ -4546,16 +4834,20 @@
     "clean_v2": true,
     "players": [
       {
+        "name": "Mauricio",
+        "score": 16246829
+      },
+      {
         "name": "Libay",
         "score": 14379800
       },
       {
-        "name": "Mauricio",
-        "score": 13854913
+        "name": "Laaleplo",
+        "score": 6357798
       },
       {
-        "name": "Laaleplo",
-        "score": 6259056
+        "name": "aelec",
+        "score": 1919054
       },
       {
         "name": "Darwin67",
@@ -4566,8 +4858,16 @@
         "score": 869748
       },
       {
+        "name": "Siro",
+        "score": 747653
+      },
+      {
         "name": "Llois",
         "score": 37650
+      },
+      {
+        "name": "Ballsaxk",
+        "score": 21975
       },
       {
         "name": "`pc",
