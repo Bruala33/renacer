@@ -4375,6 +4375,26 @@
         "accuracy": 12.245353461569678,
         "date": "2026-10-28 18:25:17"
       }
+    ],
+    "bs_2ecfe": [
+      {
+        "name": "Ballsaxk",
+        "score": 4050,
+        "stars": 3.5,
+        "combo": 10,
+        "accuracy": 0.10734732824427481,
+        "date": "2026-10-29 02:20:01"
+      }
+    ],
+    "osu_213402": [
+      {
+        "name": "Ballsaxk",
+        "score": 17925,
+        "stars": 3.5,
+        "combo": 38,
+        "accuracy": 4.945264133661454,
+        "date": "2026-10-29 02:23:24"
+      }
     ]
   },
   "global": [
@@ -4524,6 +4544,11 @@
       "clefs": 0
     },
     {
+      "name": "Ballsaxk",
+      "total_score": 21975,
+      "clefs": 0
+    },
+    {
       "name": "Pirata",
       "total_score": 19500,
       "clefs": 0
@@ -4611,6 +4636,10 @@
       {
         "name": "Llois",
         "score": 37650
+      },
+      {
+        "name": "Ballsaxk",
+        "score": 21975
       },
       {
         "name": "`pc",
