@@ -5714,7 +5714,8 @@ class BeatstarEngine {
 
       // En Modo CRUCE o Modo LOCURA: si una Drag Note amarilla (o nota bajo Escudo Anti-Frustración) llega a la línea mientras el jugador mantiene cualquier dedo en pantalla, atraparla automáticamente como PERFECT+
       const isShieldCatchNow = Boolean(isMadnessUpdate && this._madnessShieldUntilMs && currentTime <= this._madnessShieldUntilMs);
-      if ((isCruceUpdate || isMadnessUpdate) && (note._isCruceDrag || isShieldCatchNow) && currentTime >= noteTime - 40) {
+      const isCruceNoteNow = (!isMadnessUpdate && isCruceUpdate) || (isMadnessUpdate && note._madnessPhase === 'cruce');
+      if (isCruceNoteNow && (note._isCruceDrag || isShieldCatchNow) && currentTime >= noteTime - 40) {
         const hasFingerNow = Boolean(
           (this.activeTouches && this.activeTouches.size > 0) ||
           this.mouseTouch ||
@@ -5724,14 +5725,28 @@ class BeatstarEngine {
           this._completeCruceDragCatch(note, currentTime);
           continue;
         }
+      } else if (isShieldCatchNow && note._madnessPhase !== 'pulso' && currentTime >= noteTime - 35) {
+        const hasFingerNow = Boolean(
+          (this.activeTouches && this.activeTouches.size > 0) ||
+          this.mouseTouch ||
+          (this._cruceAnyFingerActiveUntil && currentTime <= this._cruceAnyFingerActiveUntil)
+        );
+        if (hasFingerNow && note.type !== 'hold') {
+          note.hit = true;
+          note.processed = true;
+          const ptHit = this.getPerspectiveCoord(note.lane ?? 1, 1.0, this._coordScratch0);
+          this.judgeHit(note, 0, ptHit.x, ptHit.y, note.type === 'swipe' ? 'SWIPE' : null);
+          this.emitKeyHit(ptHit.x, ptHit.y, '#00f2fe', 16);
+          continue;
+        }
       }
 
-      // En Modo CRUCE o Modo LOCURA: durante un cambio mayor de fase/orientación, proteger al jugador auto-validando la nota en el cruce
-      if ((isCruceUpdate || isMadnessUpdate) && (this._cruceInTransition || (isMadnessUpdate && this._madnessInMorphTransition)) && currentTime >= noteTime - 35) {
+      // En Modo CRUCE: durante un giro/salto activo de la línea de juicio de Cruce, proteger al jugador auto-validando la nota de Cruce
+      if (isCruceNoteNow && this._cruceInTransition && currentTime >= noteTime - 35) {
         note.hit = true;
         note.processed = true;
         if (note.type === 'hold') note.holdCompleted = true;
-        const cCoord = (note._madnessPhase === 'cruce' && typeof this.getCruceNoteScreenCoord === 'function')
+        const cCoord = (typeof this.getCruceNoteScreenCoord === 'function')
           ? this.getCruceNoteScreenCoord(note, currentTime)
           : { x: (this.width || 360) * 0.5, y: Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height || 640) * 0.82 };
         this.judgeHit(note, 0, cCoord.x, cCoord.y, null);
@@ -5766,7 +5781,12 @@ class BeatstarEngine {
         };
 
         this.synth.playPunchyArcadeMiss();
-        if (this.isOsuHybridModeActive || (typeof window !== 'undefined' && window.isOsuHybridModeActive)) {
+        const isPulsoMiss = Boolean(
+          this.isOsuHybridModeActive ||
+          (typeof window !== 'undefined' && window.isOsuHybridModeActive) ||
+          (isMadnessUpdate && note._madnessPhase === 'pulso')
+        );
+        if (isPulsoMiss) {
           const missPos = this._getOsuNoteScreenPos ? this._getOsuNoteScreenPos(note) : { x: (this.width || 360) * 0.5, y: (this.height || 640) * 0.55 };
           if (typeof this._spawnOsuHitBurst === 'function') {
             this._spawnOsuHitBurst(missPos.x, missPos.y, '#ff2a55', 0, 'MISS');
@@ -5785,7 +5805,7 @@ class BeatstarEngine {
     if (isSplitHoldCheck && this.dynamicHighwayController) {
       this.dynamicHighwayController.update(currentTime, dt);
     }
-    const nLanesHold = (isCruceHoldCheck || isSplitHoldCheck) ? 4 : (this.numLanes || 3);
+    const nLanesHold = (isCruceHoldCheck || isSplitHoldCheck || isMadnessUpdate) ? 4 : (this.numLanes || 3);
     for (const [lane, active] of this.activeHolds.entries()) {
       const note = active.note;
       const startT = note.timestamp_ms || active.initialTime || active.startTime;
@@ -5798,12 +5818,14 @@ class BeatstarEngine {
       let hitX = (curLane + 0.5) * this.laneWidth;
       let curHitY = (typeof this.getLaneHitY === 'function') ? this.getLaneHitY(curLane) : hitY;
       let baseLaneSpanPx = this.laneWidth;
-      if (isCruceHoldCheck && typeof this.getCruceHoldScreenPoint === 'function') {
+      const isNoteCruceHold = isCruceHoldCheck || (isMadnessUpdate && note._madnessPhase === 'cruce');
+      const isNoteSplitHold = isSplitHoldCheck || (isMadnessUpdate && note._madnessPhase !== 'cruce');
+      if (isNoteCruceHold && typeof this.getCruceHoldScreenPoint === 'function') {
         const cHoldPt = this.getCruceHoldScreenPoint(note, uNow, currentTime, this._cruceHoldCheckScratch || (this._cruceHoldCheckScratch = {}));
         hitX = cHoldPt.x;
         curHitY = cHoldPt.y;
         baseLaneSpanPx = cHoldPt.slotW || (this.width * 0.22);
-      } else if (isSplitHoldCheck) {
+      } else if (isNoteSplitHold) {
         const ptHold = this.getPerspectiveCoord(curLane, 1.0, this._coordScratch1);
         hitX = ptHold.x;
         curHitY = ptHold.y;
@@ -6155,13 +6177,14 @@ class BeatstarEngine {
     if (this.isMirrorModeActive || (typeof window !== 'undefined' && window.isMirrorModeActive)) {
       this.updateMirrorModeEffects(dt);
     }
-    if (this.isEchoModeActive || (typeof window !== 'undefined' && window.isEchoModeActive)) {
+    const isMadnessFx = Boolean(this.isMadnessModeActive || (typeof window !== 'undefined' && window.isMadnessModeActive));
+    if (this.isEchoModeActive || isMadnessFx || (typeof window !== 'undefined' && window.isEchoModeActive)) {
       this.updateEchoModeEffects(dt);
     }
-    if (this.isOsuHybridModeActive || (typeof window !== 'undefined' && window.isOsuHybridModeActive)) {
+    if (this.isOsuHybridModeActive || isMadnessFx || (typeof window !== 'undefined' && window.isOsuHybridModeActive)) {
       this.updateOsuHybridEffects(dt);
     }
-    if (this.isCruceModeActive || (typeof window !== 'undefined' && window.isCruceModeActive)) {
+    if (this.isCruceModeActive || isMadnessFx || (typeof window !== 'undefined' && window.isCruceModeActive)) {
       this.updateCruceModeEffects(dt);
     }
 
@@ -21085,9 +21108,9 @@ class BeatstarEngine {
         : (hasUpcomingMania ? 'mania' : 'osu');
       this._osuCurrentActivePhase = activePhase;
 
-      const targetManiaVis = activePhase === 'mania' ? 1.0 : (activePhase === 'hybrid_weave' ? 0.78 : 0.22);
+      const targetManiaVis = this.isMadnessModeActive ? 0.0 : (activePhase === 'mania' ? 1.0 : (activePhase === 'hybrid_weave' ? 0.78 : 0.22));
       this._osuWeaveBlend = (this._osuWeaveBlend ?? 0.22) + (targetManiaVis - (this._osuWeaveBlend ?? 0.22)) * 0.12;
-      const maniaAlphaMult = this._osuWeaveBlend;
+      const maniaAlphaMult = this.isMadnessModeActive ? 0.0 : this._osuWeaveBlend;
 
       // Paleta dinámica evolutiva por nivel de Combo (0..19 -> 20..49 -> 50..99 -> 100+ KIAI OVERDRIVE)
       const comboTier = combo >= 100 ? 3 : (combo >= 50 ? 2 : (combo >= 20 ? 1 : 0));
@@ -21572,7 +21595,7 @@ class BeatstarEngine {
       const len = this.notes.length;
       if (len === 0) return;
 
-      if (!this.notes[0]._osuRole) {
+      if (!this.notes[0]._osuRole && !this.isMadnessModeActive) {
         this._prepareOsuHybridChoreography();
       }
 
@@ -23759,7 +23782,8 @@ class BeatstarEngine {
 
       // Guardar estela luminosa cada vez que la línea de juicio cambia de ángulo o viaja por la pantalla
       const movedDist = Math.hypot(st.cx - prevCx, st.cy - prevCy) + Math.abs(st.angle - prevAngle) * 180;
-      if (movedDist > 2.2) {
+      const cruceVisibleNow = !this.isMadnessModeActive || (this._madnessCruceAlpha || 0) > 0.12;
+      if (movedDist > 2.2 && cruceVisibleNow) {
         if (!this._lastCruceTrailTime || (currentTime - this._lastCruceTrailTime >= 22)) {
           this._lastCruceTrailTime = currentTime;
           if (this._cruceLineTrail.length >= 16) this._cruceLineTrail.shift();
@@ -26671,7 +26695,8 @@ class SongChoreographyAnalyzer {
     while (effBpm < 75) effBpm *= 2.0;
     const beatMs = 60000 / effBpm;
     const barMs = beatMs * 4;
-    const windowMs = Math.max(3200, Math.min(5600, barMs * 2));
+    // Ventanas musicales amplias (3 a 4 compases, ~6.4s a 9.2s) para que cada modo se disfrute con fluidez y sentido musical
+    const windowMs = Math.max(6400, Math.min(9200, barMs * 4));
 
     if (!Array.isArray(notes) || notes.length === 0) {
       return {
@@ -26700,7 +26725,7 @@ class SongChoreographyAnalyzer {
     // 1. Analizar ventanas musicales (NPS, saltos de energía > +35%, asimetría Hold+Tap, alternancia Izquierda-Derecha y puentes melódicos)
     const windows = [];
     let cursor = firstT;
-    while (cursor < lastT + 1000) {
+    while (cursor < lastT + 800) {
       const wEnd = cursor + windowMs;
       let count = 0;
       let holdCount = 0;
@@ -26760,7 +26785,7 @@ class SongChoreographyAnalyzer {
     for (let i = 0; i < windows.length; i++) avgNps += windows[i].nps;
     avgNps = windows.length > 0 ? (avgNps / windows.length) : 2.5;
 
-    // 2. Asignar el modo óptimo a cada ventana según la música real (NUNCA por temporizador fijo y sin repetir el mismo modo largo tiempo)
+    // 2. Asignar el modo óptimo a cada ventana según la música real garantizando variedad entre los modos
     const rawModes = [];
     for (let i = 0; i < windows.length; i++) {
       const w = windows[i];
@@ -26773,21 +26798,17 @@ class SongChoreographyAnalyzer {
         continue;
       }
 
-      // Drop o Estribillo Explosivo (salto de densidad > +35% o pico alto de NPS) -> CRUCE (o SPLIT si ya estábamos en CRUCE)
-      if ((npsJump >= 0.35 || w.nps >= avgNps * 1.24) && prevMode !== 'cruce') {
+      if ((npsJump >= 0.35 || w.nps >= avgNps * 1.22) && prevMode !== 'cruce') {
         rawModes.push('cruce');
-      } else if ((w.asymmetricHoldTap || w.altRatio >= 0.56) && prevMode !== 'split') {
-        // Asimetría de manos o diálogo Izquierda-Derecha -> SPLIT con Ping-Pong
+      } else if ((w.asymmetricHoldTap || w.altRatio >= 0.54) && prevMode !== 'split') {
         rawModes.push('split');
-      } else if ((w.nps <= avgNps * 0.78 || w.holdCount >= 2) && prevMode !== 'pulso' && i >= 2) {
-        // Puente melódico / solo vocal -> PULSO (Círculos espaciales numerados y Sliders)
+      } else if ((w.nps <= avgNps * 0.82 || w.holdCount >= 2) && prevMode !== 'pulso') {
         rawModes.push('pulso');
       } else {
-        // Verso rítmico -> rotar limpiamente para garantizar que los 5 modos brillen en la partida
-        const fallbackOrder = ['highway', 'split', 'cruce', 'pulso'];
+        const cycleOrder = ['split', 'cruce', 'pulso', 'highway'];
         let picked = 'highway';
-        for (let f = 0; f < fallbackOrder.length; f++) {
-          const cand = fallbackOrder[(i + f) % fallbackOrder.length];
+        for (let f = 0; f < cycleOrder.length; f++) {
+          const cand = cycleOrder[(i + f) % cycleOrder.length];
           if (cand !== prevMode) {
             picked = cand;
             break;
@@ -26797,17 +26818,16 @@ class SongChoreographyAnalyzer {
       }
     }
 
-    // 3. Agrupar ventanas contiguas y alinear cada frontera de fase a una Ventana Segura de Transición (hueco > 350ms, final de compás o Nota Ancla)
+    // 3. Alinear cada frontera de fase al hueco rítmico más amplio cerca de w.startMs (±950ms)
     const phases = [];
     for (let i = 0; i < windows.length; i++) {
       const w = windows[i];
       const m = rawModes[i];
-      if (phases.length > 0 && phases[phases.length - 1].mode === m && (w.endMs - phases[phases.length - 1].startMs) < 9500) {
+      if (phases.length > 0 && phases[phases.length - 1].mode === m && (w.endMs - phases[phases.length - 1].startMs) < 11000) {
         phases[phases.length - 1].endMs = w.endMs;
       } else {
         let boundaryT = i === 0 ? -10000 : w.startMs;
         if (i > 0) {
-          // Buscar el hueco rítmico más limpio cerca de w.startMs (±900ms) para la Nota Ancla
           let bestGapT = w.startMs;
           let bestGapScore = -1;
           for (let nIdx = 1; nIdx < notes.length; nIdx++) {
@@ -26815,8 +26835,8 @@ class SongChoreographyAnalyzer {
             const curN = notes[nIdx];
             const tPrevEnd = prevN.end_timestamp_ms || prevN.timestamp_ms || 0;
             const tCur = curN.timestamp_ms || 0;
-            if (tCur < w.startMs - 850) continue;
-            if (tCur > w.startMs + 850) break;
+            if (tCur < w.startMs - 950) continue;
+            if (tCur > w.startMs + 950) break;
             const gap = tCur - tPrevEnd;
             if (gap > bestGapScore) {
               bestGapScore = gap;
@@ -26839,34 +26859,19 @@ class SongChoreographyAnalyzer {
       phases[phases.length - 1].endMs = lastT + 5000;
     }
 
-    // 4. Seleccionar de 2 a 3 momentos estelares para 'Stop & Go' (justo antes de un Drop/cambio fuerte) y 2 a 3 'Echo Notes'
+    // 4. Seleccionar de 2 a 3 momentos para 'Stop & Go' (en plena frase activa, nunca durante el cambio de modo)
     const stopAndGoMoments = [];
-    for (let p = 1; p < phases.length && stopAndGoMoments.length < 3; p++) {
+    for (let p = 0; p < phases.length && stopAndGoMoments.length < 3; p++) {
       const ph = phases[p];
-      if (ph.mode === 'cruce' || ph.mode === 'split' || p % 2 === 1) {
-        const beatSnap = ph.startMs;
-        if (beatSnap > firstT + 2500 && beatSnap < lastT - 2500) {
+      if (ph.mode === 'highway' || ph.mode === 'split') {
+        const midPhaseT = Math.max(firstT + 2800, ph.startMs + (ph.endMs - ph.startMs) * 0.52);
+        if (midPhaseT < ph.endMs - 1800 && midPhaseT < lastT - 2500) {
           stopAndGoMoments.push({
-            triggerMs: beatSnap - beatMs * 0.65,
-            releaseMs: beatSnap,
+            triggerMs: midPhaseT - beatMs * 0.60,
+            releaseMs: midPhaseT,
             beatMs
           });
         }
-      }
-    }
-
-    const echoSourceIndices = [];
-    let lastEchoT = firstT + 2000;
-    for (let i = 2; i < notes.length - 2 && echoSourceIndices.length < 3; i++) {
-      const n = notes[i];
-      if (!n || n.isMine || n.type !== 'tap') continue;
-      const nt = n.timestamp_ms ?? 0;
-      if (nt - lastEchoT < Math.max(8500, (lastT - firstT) * 0.26)) continue;
-      const prevT = notes[i - 1].end_timestamp_ms || notes[i - 1].timestamp_ms || 0;
-      const nextT = notes[i + 1].timestamp_ms || 999999;
-      if (nt - prevT >= 220 && nextT - nt >= Math.max(360, beatMs * 0.85)) {
-        echoSourceIndices.push(i);
-        lastEchoT = nt;
       }
     }
 
@@ -26877,7 +26882,7 @@ class SongChoreographyAnalyzer {
       introType,
       phases,
       stopAndGoMoments,
-      echoSourceIndices
+      echoSourceIndices: []
     };
   }
 }
@@ -26898,7 +26903,7 @@ Object.assign(BeatstarEngine.prototype, {
     this._madnessShieldUntilMs = -5000;
     this._madnessInMorphTransition = false;
     this._madnessMorphStartMs = -5000;
-    this._madnessMorphDurMs = 750;
+    this._madnessMorphDurMs = 700;
     this._madnessFromMode = 'highway';
     this._madnessToMode = 'highway';
     this._madnessHighwayAlpha = 1.0;
@@ -26910,27 +26915,134 @@ Object.assign(BeatstarEngine.prototype, {
     if (!Array.isArray(this.notes) || this.notes.length === 0) return;
     const songBpm = Number(this.bpm || this.beatmapData?.bpm) || 120;
 
-    // 1. Pre-configurar geometrías de apoyo (Cruce y Pulso) sobre las notas antes de etiquetar cada nota con su fase real
-    this._prepareCruceModeChoreography();
-    this._prepareOsuHybridChoreography();
+    // 1. Limpiar cualquier nota sintética previa y normalizar las notas base a 4 carriles (0..3) sin que los generadores se pisen entre sí
+    const rawNotes = this.notes
+      .filter((n) => n && !n._isCruceChordCompanion && !n._isSplitPingPongRebound && !n._isSyntheticEchoRebound && !n.isMine)
+      .sort((a, b) => (a.timestamp_ms ?? 0) - (b.timestamp_ms ?? 0));
+
+    let maxRawLane = 0;
+    for (let i = 0; i < rawNotes.length; i++) {
+      const l = Math.round(rawNotes[i].lane ?? 0);
+      if (l > maxRawLane) maxRawLane = l;
+    }
+
+    const cleanNotes = [];
+    for (let i = 0; i < rawNotes.length; i++) {
+      const n = rawNotes[i];
+      const nt = Number(n.timestamp_ms ?? n.timeMs ?? 0);
+      let lane4 = Math.max(0, Math.min(3, Math.round(n.lane ?? 0)));
+      if (maxRawLane <= 2) {
+        if (lane4 === 0) lane4 = (i % 2 === 0) ? 0 : 1;
+        else if (lane4 === 1) lane4 = (i % 2 === 0) ? 1 : 2;
+        else lane4 = (i % 2 === 0) ? 3 : 2;
+      }
+      n.lane = lane4;
+      n.timestamp_ms = nt;
+      if (n.type === 'hold') {
+        const dur = Math.max(240, Number(n.duration_ms) || ((n.end_timestamp_ms || nt) - nt) || 500);
+        n.duration_ms = dur;
+        n.end_timestamp_ms = nt + dur;
+      } else {
+        n.type = (n.type === 'swipe') ? 'swipe' : 'tap';
+        n.duration_ms = 0;
+        n.end_timestamp_ms = nt;
+      }
+
+      // Resetear todas las banderas de modos previos
+      n._madnessPhase = 'highway';
+      n._isMadnessAnchor = false;
+      n._isCruceDrag = false;
+      n._cruceDragBurstId = null;
+      n._cruceChordPartner = null;
+      n._isCruceAccent = false;
+      n._isPingPongServe = false;
+      n._isPingPongBounce = false;
+      n._isSplitPingPongRebound = false;
+      n._splitPingPongTarget = null;
+      n._isEchoSource = false;
+      n._isEchoRebound = false;
+      n._echoTargetNote = null;
+      n._echoSourceNote = null;
+      n._osuRole = null;
+      n._osuPrevCircle = null;
+      n._osuNextCircle = null;
+      n._osuTwinPartner = null;
+      n.meshKeyframes = null;
+
+      // Evitar notas duplicadas en el mismo instante y carril
+      if (cleanNotes.length > 0) {
+        const prev = cleanNotes[cleanNotes.length - 1];
+        if (Math.abs(nt - prev.timestamp_ms) < 28 && prev.lane === n.lane) {
+          continue;
+        }
+      }
+      cleanNotes.push(n);
+    }
+
+    // 2. Analizar el guion musical sobre el beatmap limpio
+    const plan = SongChoreographyAnalyzer.analyze(cleanNotes, songBpm, this.beatmapData);
+    this._madnessPlan = plan;
+    const beatMs = plan.beatMs || 500;
+    const barMs = plan.barMs || 2000;
+
+    // 3. Despejar una Ventana Limpia de Transición (~480ms) en cada frontera entre fases para que NUNCA se solapen notas de dos modos distintos
+    const filteredNotes = [];
+    for (let i = 0; i < cleanNotes.length; i++) {
+      const n = cleanNotes[i];
+      const nt = n.timestamp_ms;
+      let droppedAtBoundary = false;
+
+      for (let p = 1; p < plan.phases.length; p++) {
+        const bMs = plan.phases[p].startMs;
+        // Si la nota cae justo en la costura del cambio de modo [-220ms, +250ms], suprimirla para que el Cross-Morph sea 100% limpio
+        if (nt >= bMs - 220 && nt <= bMs + 250) {
+          droppedAtBoundary = true;
+          break;
+        }
+        // Si un Hold empieza antes de la frontera y se alarga dentro del nuevo modo, recortarlo 240ms antes de la frontera
+        if (n.type === 'hold' && nt < bMs - 220 && n.end_timestamp_ms > bMs - 240) {
+          const newEnd = bMs - 240;
+          if (newEnd - nt >= 240) {
+            n.end_timestamp_ms = newEnd;
+            n.duration_ms = newEnd - nt;
+          } else {
+            n.type = 'tap';
+            n.duration_ms = 0;
+            n.end_timestamp_ms = nt;
+          }
+        }
+      }
+      if (!droppedAtBoundary) {
+        filteredNotes.push(n);
+      }
+    }
+
+    // 4. Asignar cada nota a su fase (`_madnessPhase`)
+    for (let i = 0; i < filteredNotes.length; i++) {
+      const n = filteredNotes[i];
+      const nt = n.timestamp_ms;
+      let mode = plan.phases[0]?.mode || 'highway';
+      for (let p = 0; p < plan.phases.length; p++) {
+        if (nt >= plan.phases[p].startMs && nt < plan.phases[p].endMs) {
+          mode = plan.phases[p].mode;
+          break;
+        }
+      }
+      n._madnessPhase = mode;
+    }
+
+    // 5. Configurar DynamicHighwayController (Secciones 3D, Intros A/B, Puentes Colapsados y Split Asimétrico)
     if (!this.dynamicHighwayController) {
       this.dynamicHighwayController = new DynamicHighwayController(this);
     }
-    this.dynamicHighwayController.buildChoreography(this.notes, songBpm);
-
-    // 2. Ejecutar SongChoreographyAnalyzer para obtener el guion musical real de la canción
-    const plan = SongChoreographyAnalyzer.analyze(this.notes, songBpm, this.beatmapData);
-    this._madnessPlan = plan;
-
-    // 3. Configurar las secciones de DynamicHighwayController según el guion de LOCURA (incluyendo Intros A, B y C)
     const ctrl = this.dynamicHighwayController;
+    ctrl.reset(this);
     ctrl.sections = [];
-    const firstNoteT = this.notes[0]?.timestamp_ms ?? 0;
-    const beatMs = plan.beatMs || 500;
+    const firstNoteT = filteredNotes[0]?.timestamp_ms ?? 0;
+    const introSpan = Math.max(2400, beatMs * 8);
 
-    if (plan.introType === 'A') {
-      // Intro A (Progresiva): Empieza con 1 carril central estrecho y en cada golpe fuerte abre 1 carril más (1 -> 2 -> 3 -> 4 carriles)
-      const introSpan = Math.max(2400, beatMs * 8);
+    if (plan.introType === 'A' && plan.phases[0]?.mode === 'highway') {
+      // Intro A (Progresiva): 1 -> 2 -> 3 -> 4 carriles
       const stepDur = introSpan / 4;
       const collapseSteps = [1.0, 0.65, 0.32, 0.0];
       for (let s = 0; s < 4; s++) {
@@ -26947,84 +27059,344 @@ Object.assign(BeatstarEngine.prototype, {
       ctrl.collapseMorph = 1.0;
       ctrl.targetCollapseMorph = 1.0;
       ctrl._collapseStartVal = 1.0;
-    } else if (plan.introType === 'B') {
-      // Intro B (Giro de Cámara): Empieza con la pista 3D vista en ángulo inclinado y hace un barrido de cámara al entrar la batería
-      ctrl.cameraTiltRad = (9.5 * Math.PI) / 180.0;
-      ctrl.targetCameraTiltRad = (9.5 * Math.PI) / 180.0;
+    } else if (plan.introType === 'B' && plan.phases[0]?.mode === 'highway') {
+      // Intro B (Giro de Cámara): inclinación 3D en arranque
+      ctrl.cameraTiltRad = (8.5 * Math.PI) / 180.0;
+      ctrl.targetCameraTiltRad = (8.5 * Math.PI) / 180.0;
       ctrl._tiltReleaseTimeMs = firstNoteT + beatMs * 4;
-      ctrl.pitchMorph = 1.85;
+      ctrl.pitchMorph = 1.75;
       ctrl.targetPitchLevel = 1.0;
-      ctrl._pitchStartVal = 1.85;
+      ctrl._pitchStartVal = 1.75;
       ctrl._pitchTransStartMs = firstNoteT;
       ctrl._pitchTransDurMs = Math.max(700, beatMs * 4);
     }
 
     for (let p = 0; p < plan.phases.length; p++) {
       const ph = plan.phases[p];
-      if (plan.introType === 'A' && p === 0) continue;
       const isSplitPhase = (ph.mode === 'split');
       const isCollapsedBridge = (ph.mode === 'highway' && p > 0 && (p % 3 === 2));
-      ctrl.sections.push({
-        startMs: ph.startMs,
-        endMs: ph.endMs,
-        collapse: isCollapsedBridge ? 0.68 : 0.0,
-        split: isSplitPhase ? 1.0 : 0.0,
-        leftRaise: isSplitPhase ? (ph.dominantSide === 'left' ? 1.0 : 0.0) : 0.0,
-        rightRaise: isSplitPhase ? (ph.dominantSide === 'right' ? 1.0 : 0.0) : 0.0,
-        nps: ph.nps || 3.0
-      });
+      const secStart = (plan.introType === 'A' && p === 0 && ph.mode === 'highway')
+        ? Math.min(ph.endMs, firstNoteT + introSpan)
+        : ph.startMs;
+      if (secStart < ph.endMs) {
+        ctrl.sections.push({
+          startMs: secStart,
+          endMs: ph.endMs,
+          collapse: isCollapsedBridge ? 0.68 : 0.0,
+          split: isSplitPhase ? 1.0 : 0.0,
+          leftRaise: isSplitPhase ? (ph.dominantSide === 'left' ? 1.0 : 0.0) : 0.0,
+          rightRaise: isSplitPhase ? (ph.dominantSide === 'right' ? 1.0 : 0.0) : 0.0,
+          nps: ph.nps || 3.0
+        });
+      }
     }
 
-    // 4. Etiquetar cada nota con su fase exacta (`note._madnessPhase`) para el Doble Buffer de Notas en Vuelo
-    // y limpiar banderas incompatibles entre fases para que ninguna nota salte ni falle injustamente
-    for (let i = 0; i < this.notes.length; i++) {
-      const n = this.notes[i];
-      if (!n) continue;
-      const nt = n.timestamp_ms ?? 0;
-      let assignedMode = 'highway';
-      for (let p = 0; p < plan.phases.length; p++) {
-        const ph = plan.phases[p];
-        if (nt >= ph.startMs && nt < ph.endMs) {
-          assignedMode = ph.mode;
+    // 6. Configurar notas por cada fase de forma 100% aislada (sin contaminar las demás fases)
+    const injectedPingPongNotes = [];
+
+    // 6A. Fases HIGHWAY y SPLIT (Carriles 3D, Holds Trapezoidales, Swipes de Cámara 10-Lane y Ping-Pong en Split)
+    let lastSwipeT = -5000;
+    let swipeDirToggle = 0;
+    let lastPingPongEndT = -5000;
+
+    for (let i = 0; i < filteredNotes.length; i++) {
+      const n = filteredNotes[i];
+      if (n._madnessPhase !== 'highway' && n._madnessPhase !== 'split') continue;
+      const nt = n.timestamp_ms;
+
+      // Si estamos en tramo colapsado (Intro A primeros pasos o puente colapsado), centrar carril y evitar acordes dobles invisibles
+      let secCollapse = 0;
+      for (let s = 0; s < ctrl.sections.length; s++) {
+        if (nt >= ctrl.sections[s].startMs && nt < ctrl.sections[s].endMs) {
+          secCollapse = ctrl.sections[s].collapse || 0;
           break;
         }
       }
-      n._madnessPhase = assignedMode;
-
-      if (assignedMode !== 'cruce') {
-        n._isCruceDrag = false;
-        n._cruceDragBurstId = null;
-        n._cruceChordPartner = null;
-      }
-      if (assignedMode !== 'split') {
-        n._isPingPongServe = false;
-        n._isPingPongBounce = false;
-        n._isSplitPingPongRebound = false;
-        n._splitPingPongTarget = null;
-      }
-      if (assignedMode === 'pulso') {
-        if (!n._osuRole || n._osuRole === 'mania') {
-          n._osuRole = (n.type === 'hold' && (n.duration_ms || 0) >= 260) ? 'slider' : 'circle';
+      if (secCollapse >= 0.45) {
+        n.lane = (secCollapse >= 0.85) ? 1 : (n.lane <= 1 ? 1 : 2);
+        if (i > 0 && Math.abs(nt - filteredNotes[i - 1].timestamp_ms) < 55) {
+          n._dropDuplicateCollapsed = true;
+          continue;
         }
-        n._osuComboNum = ((i % 4) + 1);
+      }
+
+      if (n.type === 'hold') {
+        n.startLane = n.lane;
+        n.startWidth = 1.0;
+        const shiftDir = n.lane <= 1 ? 1 : -1;
+        const targetEndLane = secCollapse >= 0.45 ? n.lane : Math.max(0, Math.min(3, n.lane + shiftDir));
+        n.endLane = (n.duration_ms >= 520 && secCollapse < 0.35) ? targetEndLane : n.lane;
+        n.endWidth = (n.duration_ms >= 650 && secCollapse < 0.35) ? 1.35 : 1.0;
+        n.meshKeyframes = [
+          { u: 0.0, lane: n.startLane, width: n.startWidth },
+          { u: 1.0, lane: n.endLane, width: n.endWidth }
+        ];
+        continue;
+      }
+
+      // En fases SPLIT: generar rally de Ping-Pong jugable (1 saque -> 1 o 2 rebotes laterales) cuando hay espacio limpio
+      if (n._madnessPhase === 'split' && nt > lastPingPongEndT + 1400) {
+        const nextN = filteredNotes[i + 1];
+        const gapToNext = nextN ? (nextN.timestamp_ms - nt) : 9999;
+        if (gapToNext >= Math.max(520, beatMs * 1.15)) {
+          const hopMs = Math.max(290, Math.min(540, Math.round(beatMs)));
+          if (nt + hopMs < (nextN ? nextN.timestamp_ms - 190 : nt + 2000)) {
+            const startSideLeft = (n.lane <= 1);
+            n.lane = startSideLeft ? 0 : 3;
+            n.type = 'tap';
+            n._isPingPongServe = true;
+            const rebLane = startSideLeft ? 3 : 0;
+            const rebT = nt + hopMs;
+            const rebNote = {
+              id: 800000 + i * 2,
+              lane: rebLane,
+              type: 'tap',
+              timestamp_ms: rebT,
+              end_timestamp_ms: rebT,
+              duration_ms: 0,
+              hit: false,
+              missed: false,
+              holding: false,
+              processed: false,
+              holdCompleted: false,
+              _madnessPhase: 'split',
+              _isPingPongBounce: true,
+              _isSplitPingPongRebound: true,
+              _pingPongSourceNote: n,
+              _pingPongSourceTimeMs: nt,
+              _pingPongFromLane: n.lane,
+              _pingPongLaunched: false
+            };
+            n._splitPingPongTarget = rebNote;
+            injectedPingPongNotes.push(rebNote);
+            lastPingPongEndT = rebT;
+            continue;
+          }
+        }
+      }
+
+      // Swipes de barrido de cámara 10-Lane espaciados con limpieza en fases Highway/Split
+      if (secCollapse < 0.30 && nt - lastSwipeT >= Math.max(2600, barMs * 1.5)) {
+        const prevT = i > 0 ? filteredNotes[i - 1].timestamp_ms : -9999;
+        const nextT = (i + 1 < filteredNotes.length) ? filteredNotes[i + 1].timestamp_ms : 999999;
+        if (nt - prevT >= 220 && nextT - nt >= 260) {
+          const dirs = ['left', 'right', 'up', 'down'];
+          const dir = dirs[swipeDirToggle % dirs.length];
+          swipeDirToggle++;
+          n.type = 'swipe';
+          n.direction = dir;
+          n.swipeDirection = dir;
+          lastSwipeT = nt;
+        }
       }
     }
 
-    // 5. Configurar Notas Ancla (Anchor Notes) en el último golpe antes de cada transición de fase
+    // 6B. Fases CRUCE (70% Tap Cian, 15% Wide Holds, 15% Olas Cortas de Drag Amarillas + Keyframes de Línea Viva)
+    this._cruceKeyframes = [
+      {
+        startMs: -10000,
+        transDurMs: 100,
+        mode: 'BASE_PRISM_FAN',
+        cxRatio: 0.50,
+        cyRatio: 0.80,
+        angleRad: 0.0,
+        spanWRatio: 0.90,
+        travelRatio: 0.78,
+        diagFactor: 1.0,
+        flowDir: 1.0,
+        formationIdx: 0,
+        isMajorFlip: false,
+        arrowAngle: Math.PI * 0.5,
+        label: 'ABANICO PRISMA'
+      }
+    ];
+
+    const crucePoses = [
+      { mode: 'BASE_PRISM_FAN', cxRatio: 0.50, cyRatio: 0.78, angleRad: 0.0, diagFactor: 1.0, flowDir: 1.0, formationIdx: 0 },
+      { mode: 'TILT_LEFT_GROOVE', cxRatio: 0.50, cyRatio: 0.74, angleRad: (-13 * Math.PI) / 180, diagFactor: 0.92, flowDir: 1.0, formationIdx: 2 },
+      { mode: 'TILT_RIGHT_GROOVE', cxRatio: 0.50, cyRatio: 0.74, angleRad: (13 * Math.PI) / 180, diagFactor: 0.92, flowDir: 1.0, formationIdx: 3 },
+      { mode: 'MID_ELEVATED', cxRatio: 0.50, cyRatio: 0.62, angleRad: (-8 * Math.PI) / 180, diagFactor: 1.05, flowDir: 1.0, formationIdx: 1 }
+    ];
+
+    let dragBurstCounter = 1;
+    for (let p = 0; p < plan.phases.length; p++) {
+      const ph = plan.phases[p];
+      if (ph.mode !== 'cruce') continue;
+
+      // Añadir poses rítmicas de la línea de juicio dentro de esta fase Cruce
+      const stepMs = Math.max(2400, barMs * 1.5);
+      let kCursor = ph.startMs;
+      let poseStep = 0;
+      while (kCursor < ph.endMs - 900) {
+        const pose = crucePoses[(p + poseStep) % crucePoses.length];
+        this._cruceKeyframes.push({
+          startMs: kCursor,
+          transDurMs: Math.min(620, Math.round(beatMs * 1.1)),
+          mode: pose.mode,
+          cxRatio: pose.cxRatio,
+          cyRatio: pose.cyRatio,
+          angleRad: pose.angleRad,
+          spanWRatio: 0.90,
+          travelRatio: 0.78,
+          diagFactor: pose.diagFactor,
+          flowDir: pose.flowDir,
+          formationIdx: pose.formationIdx,
+          isMajorFlip: false,
+          arrowAngle: (Math.PI * 0.5) + pose.angleRad,
+          label: 'CRUCE'
+        });
+        kCursor += stepMs;
+        poseStep++;
+      }
+
+      // Recolectar las notas de esta fase Cruce
+      const phaseCruceNotes = [];
+      for (let i = 0; i < filteredNotes.length; i++) {
+        if (filteredNotes[i]._madnessPhase === 'cruce' &&
+            filteredNotes[i].timestamp_ms >= ph.startMs &&
+            filteredNotes[i].timestamp_ms < ph.endMs) {
+          phaseCruceNotes.push(filteredNotes[i]);
+        }
+      }
+
+      const targetCentersU = [-0.375, -0.125, 0.125, 0.375];
+      let prevSlot = 1;
+      for (let cIdx = 0; cIdx < phaseCruceNotes.length; cIdx++) {
+        const cn = phaseCruceNotes[cIdx];
+        let slot = Math.max(0, Math.min(3, Math.round(cn.lane ?? (cIdx % 4))));
+        if (cIdx > 0 && slot === prevSlot && (cn.timestamp_ms - phaseCruceNotes[cIdx - 1].timestamp_ms) < 280) {
+          slot = (slot + 1) % 4;
+        }
+        prevSlot = slot;
+        cn.lane = slot;
+        cn._cruceSlot = slot;
+        cn._cruceTargetU = targetCentersU[slot];
+        cn._cruceSpawnU = -0.15 + slot * 0.10;
+        cn._cruceFormationIdx = (p % 4);
+        cn._isCruceAccent = (cIdx % 4 === 0);
+
+        if (cn.type === 'swipe') {
+          cn.type = 'tap';
+        }
+      }
+
+      // Convertir una breve ráfaga (~15% de las notas de la fase) en una ola conectada de Drag Notes amarillas
+      if (phaseCruceNotes.length >= 6) {
+        const waveStart = Math.floor(phaseCruceNotes.length * 0.45);
+        const waveLen = Math.min(4, Math.max(3, Math.floor(phaseCruceNotes.length * 0.18)));
+        const burstId = dragBurstCounter++;
+        for (let w = 0; w < waveLen && (waveStart + w) < phaseCruceNotes.length; w++) {
+          const dn = phaseCruceNotes[waveStart + w];
+          if (dn.type === 'hold') continue;
+          const waveSlot = w % 4;
+          dn.lane = waveSlot;
+          dn._cruceSlot = waveSlot;
+          dn._cruceTargetU = targetCentersU[waveSlot];
+          dn._cruceSpawnU = -0.15 + waveSlot * 0.10;
+          dn.type = 'tap';
+          dn._isCruceDrag = true;
+          dn._cruceDragBurstId = burstId;
+          dn._cruceSlideDir = 1;
+        }
+      }
+    }
+
+    // 6C. Fases PULSO (Círculos espaciales 2D numerados 1..4 y Sliders curvados, enlazados SOLO dentro de la misma fase)
+    const ergonomicAnchors = [
+      { x: 0.24, y: 0.38 },
+      { x: 0.76, y: 0.38 },
+      { x: 0.74, y: 0.60 },
+      { x: 0.26, y: 0.60 },
+      { x: 0.50, y: 0.34 },
+      { x: 0.32, y: 0.50 },
+      { x: 0.68, y: 0.50 },
+      { x: 0.50, y: 0.62 }
+    ];
+
+    for (let p = 0; p < plan.phases.length; p++) {
+      const ph = plan.phases[p];
+      if (ph.mode !== 'pulso') continue;
+
+      let prevPulsoNote = null;
+      let comboCounter = 0;
+      let paletteIdx = p % 5;
+
+      for (let i = 0; i < filteredNotes.length; i++) {
+        const n = filteredNotes[i];
+        if (n._madnessPhase !== 'pulso' || n.timestamp_ms < ph.startMs || n.timestamp_ms >= ph.endMs) continue;
+
+        // Evitar notas simultáneas demasiado pegadas en Pulso (< 130ms)
+        if (prevPulsoNote && (n.timestamp_ms - prevPulsoNote.timestamp_ms) < 130) {
+          n._dropDuplicateCollapsed = true;
+          continue;
+        }
+
+        const anchor = ergonomicAnchors[(comboCounter + p * 2) % ergonomicAnchors.length];
+        const normX = Math.max(0.18, Math.min(0.82, anchor.x));
+        const normY = Math.max(0.30, Math.min(0.66, anchor.y));
+
+        n._osuNormX = normX;
+        n._osuNormY = normY;
+        n._osuComboNum = (comboCounter % 4) + 1;
+        if (n._osuComboNum === 1 && comboCounter > 0) {
+          paletteIdx = (paletteIdx + 1) % 5;
+        }
+        n._osuPaletteIdx = paletteIdx;
+        n._osuApproachMs = 950;
+
+        if (n.type === 'hold' && (n.duration_ms || 0) >= 280) {
+          n._osuRole = 'slider';
+          const dur = Math.min(900, Math.max(280, n.duration_ms || 480));
+          n.duration_ms = dur;
+          n.end_timestamp_ms = n.timestamp_ms + dur;
+          n._osuSliderDurationMs = dur;
+          n._osuSliderRepeats = 1;
+          const endX = normX < 0.5 ? Math.min(0.80, normX + 0.24) : Math.max(0.20, normX - 0.24);
+          const endY = normY < 0.48 ? Math.min(0.64, normY + 0.14) : Math.max(0.32, normY - 0.14);
+          n._osuEndNormX = endX;
+          n._osuEndNormY = endY;
+          n._osuCtrlNormX = (normX + endX) * 0.5;
+          n._osuCtrlNormY = Math.max(0.28, Math.min(0.68, (normY + endY) * 0.5 - 0.08));
+          n._osuSliderTicks = [{ u: 0.5, hit: false }];
+        } else {
+          n.type = 'tap';
+          n.duration_ms = 0;
+          n.end_timestamp_ms = n.timestamp_ms;
+          n._osuRole = 'circle';
+        }
+
+        // Enlazar follow-points ÚNICAMENTE con el círculo previo de ESTA MISMA fase Pulso
+        if (prevPulsoNote && (n.timestamp_ms - (prevPulsoNote.end_timestamp_ms || prevPulsoNote.timestamp_ms)) <= 1350) {
+          n._osuPrevCircle = prevPulsoNote;
+          prevPulsoNote._osuNextCircle = n;
+        }
+
+        prevPulsoNote = n;
+        comboCounter++;
+      }
+    }
+
+    // 7. Combinar notas filtradas + rebotes Ping-Pong de las fases Split y ordenar cronológicamente
+    const finalNotes = filteredNotes
+      .filter((n) => !n._dropDuplicateCollapsed)
+      .concat(injectedPingPongNotes)
+      .sort((a, b) => (a.timestamp_ms ?? 0) - (b.timestamp_ms ?? 0));
+
+    // 8. Configurar Notas Ancla (Anchor Notes) en el último golpe antes de cada transición de fase
     for (let p = 1; p < plan.phases.length; p++) {
       const boundaryMs = plan.phases[p].startMs;
       let anchorNote = null;
-      for (let i = 0; i < this.notes.length; i++) {
-        const n = this.notes[i];
+      for (let i = 0; i < finalNotes.length; i++) {
+        const n = finalNotes[i];
         if (!n || n.isMine) continue;
         const nt = n.timestamp_ms ?? 0;
-        if (nt <= boundaryMs && nt >= boundaryMs - 900) {
+        if (nt <= boundaryMs - 200 && nt >= boundaryMs - 1100) {
           anchorNote = n;
         } else if (nt > boundaryMs) {
           break;
         }
       }
-      if (anchorNote && !anchorNote._isPingPongBounce && anchorNote._madnessPhase !== 'pulso') {
+      if (anchorNote && !anchorNote._isPingPongBounce && (anchorNote._madnessPhase === 'highway' || anchorNote._madnessPhase === 'split')) {
         anchorNote._isMadnessAnchor = true;
         if (anchorNote.type === 'tap') {
           anchorNote.type = 'swipe';
@@ -27034,17 +27406,18 @@ Object.assign(BeatstarEngine.prototype, {
       }
     }
 
-    // 6. Configurar 2 a 3 Echo Notes (Rebote hacia atrás 1 pulso al darles PERFECT+) en secciones de Pista 3D / Split
-    if (Array.isArray(plan.echoSourceIndices)) {
-      for (let e = 0; e < plan.echoSourceIndices.length; e++) {
-        const idx = plan.echoSourceIndices[e];
-        const srcNote = this.notes[idx];
-        const targetNote = this.notes[idx + 1];
-        if (!srcNote || !targetNote) continue;
-        if (srcNote._madnessPhase !== 'highway' && srcNote._madnessPhase !== 'split') continue;
-        if (targetNote._madnessPhase !== 'highway' && targetNote._madnessPhase !== 'split') continue;
-        if (srcNote.type !== 'tap' || targetNote.type !== 'tap') continue;
-
+    // 9. Configurar 2 Echo Notes en fases Highway / Split con hueco limpio
+    let echoCount = 0;
+    let lastEchoMs = firstNoteT + 2500;
+    for (let i = 1; i < finalNotes.length - 1 && echoCount < 2; i++) {
+      const srcNote = finalNotes[i];
+      const targetNote = finalNotes[i + 1];
+      if (!srcNote || !targetNote) continue;
+      if (srcNote._madnessPhase !== 'highway' || targetNote._madnessPhase !== 'highway') continue;
+      if (srcNote.type !== 'tap' || targetNote.type !== 'tap') continue;
+      if (srcNote._isPingPongServe || srcNote._isPingPongBounce || targetNote._isPingPongBounce) continue;
+      const dtNext = targetNote.timestamp_ms - srcNote.timestamp_ms;
+      if (srcNote.timestamp_ms - lastEchoMs >= 9000 && dtNext >= 340 && dtNext <= 780) {
         srcNote._isEchoSource = true;
         srcNote._echoTargetNote = targetNote;
         targetNote._isEchoRebound = true;
@@ -27052,8 +27425,29 @@ Object.assign(BeatstarEngine.prototype, {
         targetNote._echoSourceTimeMs = srcNote.timestamp_ms;
         targetNote._echoFromLane = srcNote.lane;
         targetNote._echoBounceLaunched = false;
+        lastEchoMs = targetNote.timestamp_ms;
+        echoCount++;
       }
     }
+
+    // Recalcular nextSameLaneDiffMs para el renderizador 3D
+    for (let i = 0; i < finalNotes.length; i++) {
+      const curN = finalNotes[i];
+      curN.id = i + 1;
+      let diff = Infinity;
+      for (let j = i + 1; j < Math.min(finalNotes.length, i + 30); j++) {
+        const nextN = finalNotes[j];
+        if (nextN.lane === curN.lane && nextN.timestamp_ms > curN.timestamp_ms) {
+          diff = nextN.timestamp_ms - curN.timestamp_ms;
+          break;
+        }
+      }
+      curN.nextSameLaneDiffMs = diff;
+    }
+
+    this.notes = finalNotes;
+    this.maxPossibleScore = this.computeMaxPossibleScore(this.notes);
+    this.targetScore = this.maxPossibleScore;
 
     // Inicializar opacidades de arranque según la primera fase
     const startMode = plan.phases[0]?.mode || 'highway';
@@ -27084,13 +27478,11 @@ Object.assign(BeatstarEngine.prototype, {
         const noteT = note.timestamp_ms ?? 0;
         if (noteT >= m.releaseMs && noteT <= m.releaseMs + scrollDurMs * 0.95) {
           if (currentTimeMs < m.releaseMs) {
-            // Fase STOP: las notas en vuelo frenan suavemente y quedan suspendidas vibrando con glow intenso
             const freezeTime = m.triggerMs + (currentTimeMs - m.triggerMs) * 0.14;
             const frozenP = 1.0 - ((noteT - freezeTime) / Math.max(1, scrollDurMs));
-            const jitter = Math.sin(currentTimeMs * 0.045 + (note.id || 0)) * 0.008;
+            const jitter = Math.sin(currentTimeMs * 0.045 + (note.id || 0)) * 0.006;
             return Math.max(0, Math.min(0.92, frozenP + jitter));
           } else {
-            // Fase GO: salen disparadas hacia adelante y cruzan la línea de juicio en su timestamp_ms exacto
             const uGo = Math.min(1.0, (currentTimeMs - m.releaseMs) / Math.max(60, noteT - m.releaseMs));
             const frozenEndT = m.triggerMs + (m.releaseMs - m.triggerMs) * 0.14;
             const frozenP = 1.0 - ((noteT - frozenEndT) / Math.max(1, scrollDurMs));
@@ -27110,7 +27502,7 @@ Object.assign(BeatstarEngine.prototype, {
     const plan = this._madnessPlan;
     if (!plan) return;
 
-    // 1. Detectar cambio de fase coreográfica y activar Cross-Morphing de 750ms + Escudo Anti-Frustración de 1000ms
+    // 1. Detectar cambio de fase coreográfica y activar Cross-Morphing de 680ms + Escudo Anti-Frustración de 1000ms
     let foundIdx = 0;
     for (let i = 0; i < plan.phases.length; i++) {
       if (currentTime >= plan.phases[i].startMs && currentTime < plan.phases[i].endMs) {
@@ -27129,9 +27521,18 @@ Object.assign(BeatstarEngine.prototype, {
         this._madnessFromMode = prevMode;
         this._madnessToMode = nextMode;
         this._madnessMorphStartMs = currentTime;
-        this._madnessMorphDurMs = 760;
+        this._madnessMorphDurMs = 680;
         this._madnessInMorphTransition = true;
         this._madnessShieldUntilMs = currentTime + 1000;
+
+        // Limpiar partículas o pilares residuales del modo saliente para que la transición visual sea impecable
+        if (prevMode === 'cruce' && nextMode !== 'cruce') {
+          if (this._cruceHitPillars) this._cruceHitPillars.length = 0;
+          if (this._cruceLineTrail) this._cruceLineTrail.length = 0;
+        }
+        if (prevMode === 'pulso' && nextMode !== 'pulso') {
+          if (this._osuLaserLinks) this._osuLaserLinks.length = 0;
+        }
 
         // Si salimos o entramos entre Pista 3D y un modo 2D (Cruce / Pulso), plegar o desplegar el ángulo 3D fluidamente
         if (this.dynamicHighwayController) {
@@ -27139,19 +27540,19 @@ Object.assign(BeatstarEngine.prototype, {
             this.dynamicHighwayController._pitchStartVal = this.dynamicHighwayController.pitchMorph;
             this.dynamicHighwayController.targetPitchLevel = 0.0;
             this.dynamicHighwayController._pitchTransStartMs = currentTime;
-            this.dynamicHighwayController._pitchTransDurMs = 720;
+            this.dynamicHighwayController._pitchTransDurMs = 660;
           } else if (prevMode === 'cruce' || prevMode === 'pulso') {
             this.dynamicHighwayController._pitchStartVal = 0.0;
             this.dynamicHighwayController.pitchMorph = 0.0;
             this.dynamicHighwayController.targetPitchLevel = 1.0;
             this.dynamicHighwayController._pitchTransStartMs = currentTime;
-            this.dynamicHighwayController._pitchTransDurMs = 760;
+            this.dynamicHighwayController._pitchTransDurMs = 680;
           }
         }
       }
     }
 
-    // 2. Interpolar pesos de Cross-Morphing con easeInOutCubic (600ms-900ms)
+    // 2. Interpolar pesos de Cross-Morphing con easeInOutCubic
     const elapsedMorph = currentTime - this._madnessMorphStartMs;
     if (this._madnessInMorphTransition && elapsedMorph >= 0 && elapsedMorph < this._madnessMorphDurMs) {
       const u = elapsedMorph / Math.max(1, this._madnessMorphDurMs);
@@ -27223,6 +27624,12 @@ Object.assign(BeatstarEngine.prototype, {
       this.renderSplitHitLine3D(ctx, cTime, nowPerf, audioTime, beatPulse, laserCol, accentCol, laserRgb, accentRgb);
       ctx.restore();
     }
+    if (this._madnessCruceAlpha > 0.02) {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, this._madnessCruceAlpha));
+      this.renderCruceHitLine(ctx, cTime);
+      ctx.restore();
+    }
   },
 
   renderMadnessModeOverlay(ctx, currentTime) {
@@ -27245,19 +27652,22 @@ Object.assign(BeatstarEngine.prototype, {
     const currentTime = this.getCurrentGameTimeMs(this._frameNow || performance.now());
     this._cruceAnyFingerActiveUntil = currentTime + 220;
 
-    // 1. Verificar primero si hay un Círculo o Slider de PULSO activo cerca del toque (o en vuelo en el Dual Buffer)
     const startIdx = Math.max(0, (this.firstActiveNoteIndex || 0) - 2);
     const nLen = this.notes ? this.notes.length : 0;
     let hasActivePulsoTarget = false;
+    let hasActiveCruceTarget = false;
     for (let i = startIdx; i < nLen; i++) {
       const n = this.notes[i];
       if (!n || n.hit || n.missed || n.holdCompleted) continue;
-      if ((n.timestamp_ms - currentTime) > 1100) break;
+      if ((n.timestamp_ms - currentTime) > 1050) break;
       if (n._madnessPhase === 'pulso') {
         hasActivePulsoTarget = true;
-        break;
+      } else if (n._madnessPhase === 'cruce' && Math.abs(n.timestamp_ms - currentTime) <= 320) {
+        hasActiveCruceTarget = true;
       }
     }
+
+    // 1. Verificar primero si hay un Círculo o Slider de PULSO activo cerca del toque (o en vuelo en el Dual Buffer)
     if (hasActivePulsoTarget) {
       const hitPulso = this.handleOsuHybridPointerDown(localX, localY, lane, pointerId);
       if (hitPulso) return true;
@@ -27265,7 +27675,7 @@ Object.assign(BeatstarEngine.prototype, {
 
     // 2. Si estamos en fase CRUCE (o hay notas de Cruce en la ventana inmediata), delegar a Cruce
     const activePhase = this.getActiveMadnessPhase(currentTime);
-    if (activePhase === 'cruce') {
+    if (activePhase === 'cruce' || hasActiveCruceTarget) {
       const hitCruce = this.handleCrucePointerDown(localX, localY, lane, pointerId);
       if (hitCruce) return true;
     }
