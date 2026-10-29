@@ -2689,6 +2689,11 @@
 
         <!-- Pantalla Gigante Retro de Selección de Modos (Sin texto innecesario, solo píxeles grandes y candados LED) -->
         <div class="p-2 bg-[#030201] border-[3px] border-[#1c160e] rounded-xl my-1.5 shadow-[inset_0_0_28px_rgba(0,0,0,1)] space-y-1.5 max-h-[68vh] overflow-y-auto overscroll-contain">
+          <!-- Botón Estrella Destacado: MODO LOCURA (Fusión Coreográfica Total: 4 Carriles 3D + Split + Cruce + Pulso + 5 Corazones + Bonus X3) -->
+          <button id="btnModeSelectLocura" onclick="confirmGameModeSelection('locura')" class="w-full p-1 rounded-xl bg-[#07030f] border-2 border-[#f43f5e] hover:border-[#fde047] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[0_0_18px_rgba(244,63,94,0.35),inset_0_0_14px_rgba(0,0,0,0.95)]">
+            <canvas id="gmBtnLocuraMainCanvas" class="w-full h-[50px] block"></canvas>
+          </button>
+
           <!-- Botón 1: MODO NORMAL (LED Estático Clásico - Siempre desbloqueado) -->
           <button id="btnModeSelectNormal" onclick="confirmGameModeSelection('normal')" class="w-full p-1 rounded-xl bg-[#060503] border-2 border-[#1d3b2a] hover:border-[#00f5a0] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
             <canvas id="gmBtnNormalMainCanvas" class="w-full h-[34px] block"></canvas>
@@ -6896,7 +6901,11 @@
             }
           }
 
-          const isPulseHud = Boolean(window.isOsuHybridModeActive || (engine && engine.isOsuHybridModeActive));
+          const isPulseHud = Boolean(
+            window.isOsuHybridModeActive ||
+            window.isMadnessModeActive ||
+            (engine && (engine.isOsuHybridModeActive || engine.isMadnessModeActive))
+          );
           const comboChanged = (hud.lastCombo !== combo);
           if (comboChanged) {
             hud.lastCombo = combo;
@@ -8665,7 +8674,7 @@ window.switchMainTab = switchMainTab;
 
     function applySelectedGameMode(mode) {
       const normalized = mode === 'mushrooms' ? 'mushroom' : (mode === 'classic' ? 'normal' : mode);
-      const m = (normalized === 'karaoke' || normalized === 'storm' || normalized === 'mushroom' || normalized === 'highway' || normalized === 'annoying_dog' || normalized === 'river' || normalized === 'four_lanes' || normalized === 'minesweeper' || normalized === 'mirror' || normalized === 'echo' || normalized === 'osu_hybrid' || normalized === 'cruce' || normalized === 'split') ? normalized : 'normal';
+      const m = (normalized === 'karaoke' || normalized === 'storm' || normalized === 'mushroom' || normalized === 'highway' || normalized === 'annoying_dog' || normalized === 'river' || normalized === 'four_lanes' || normalized === 'minesweeper' || normalized === 'mirror' || normalized === 'echo' || normalized === 'osu_hybrid' || normalized === 'cruce' || normalized === 'split' || normalized === 'locura') ? normalized : 'normal';
       window.currentGameMode = m;
       window.isKaraokeModeActive = (m === 'karaoke');
       window.isStormModeActive = (m === 'storm');
@@ -8680,9 +8689,10 @@ window.switchMainTab = switchMainTab;
       window.isOsuHybridModeActive = (m === 'osu_hybrid');
       window.isCruceModeActive = (m === 'cruce');
       window.isSplitModeActive = (m === 'split');
+      window.isMadnessModeActive = (m === 'locura');
       const liveCalibEl = document.getElementById('liveCalibHud');
       if (liveCalibEl) {
-        liveCalibEl.style.display = window.isOsuHybridModeActive ? 'none' : '';
+        liveCalibEl.style.display = (window.isOsuHybridModeActive || window.isMadnessModeActive) ? 'none' : '';
       }
       if (window.engine) {
         window.engine.isKaraokeModeActive = window.isKaraokeModeActive;
@@ -8698,7 +8708,8 @@ window.switchMainTab = switchMainTab;
         window.engine.isOsuHybridModeActive = window.isOsuHybridModeActive;
         window.engine.isCruceModeActive = window.isCruceModeActive;
         window.engine.isSplitModeActive = window.isSplitModeActive;
-        window.engine.numLanes = (window.isFourLanesModeActive || window.isCruceModeActive || window.isSplitModeActive) ? 4 : 3;
+        window.engine.isMadnessModeActive = window.isMadnessModeActive;
+        window.engine.numLanes = (window.isFourLanesModeActive || window.isCruceModeActive || window.isSplitModeActive || window.isMadnessModeActive) ? 4 : 3;
         if (typeof window.engine.initCanvasSize === 'function') {
           window.engine.initCanvasSize();
         }
@@ -8732,6 +8743,9 @@ window.switchMainTab = switchMainTab;
         if (window.isSplitModeActive && typeof window.engine.initSplitModeAssets === 'function') {
           window.engine.initSplitModeAssets();
         }
+        if (window.isMadnessModeActive && typeof window.engine.initMadnessModeAssets === 'function') {
+          window.engine.initMadnessModeAssets();
+        }
       }
       try { localStorage.setItem('isKaraokeModeActive', '0'); } catch (_) {}
     }
@@ -8758,6 +8772,7 @@ window.switchMainTab = switchMainTab;
     window.isOsuHybridModeActive = false;
     window.isCruceModeActive = false;
     window.isSplitModeActive = false;
+    window.isMadnessModeActive = false;
     try { localStorage.setItem('isKaraokeModeActive', '0'); } catch (_) {}
 
     document.addEventListener('visibilitychange', () => {
@@ -11950,7 +11965,7 @@ function stopPianoCameraLoop() {
       }
 
       const songBpm = Number(beatmapData.bpm) || 120;
-      const targetNumLanes = (window.isFourLanesModeActive || window.isCruceModeActive || window.isSplitModeActive) ? 4 : 3;
+      const targetNumLanes = (window.isFourLanesModeActive || window.isCruceModeActive || window.isSplitModeActive || window.isMadnessModeActive) ? 4 : 3;
       const sourceKeys = Number(beatmapData.keys || beatmapData.metadata?.source_keys || beatmapData.unpackedData?.metadata?.source_keys || (srcLower.includes('clone') ? 5 : 4));
       const baseDensityPref = beatmapData.selectedDensityMode ||
         ((typeof LaneRemapper !== 'undefined' && LaneRemapper.inferDensityModeFromDiff)
@@ -12243,8 +12258,13 @@ function stopPianoCameraLoop() {
         el.querySelectorAll('.star-shockwave').forEach(sw => sw.remove());
       });
 
-      // Alternar entre el marcador de puntos normal y el HUD Vintage de Modo Pulso (5 Corazones arriba centrados + Combo Vintage debajo de barra EARLY)
-      const isPulseStart = Boolean(window.isOsuHybridModeActive || window.currentGameMode === 'osu_hybrid');
+      // Alternar entre el marcador de puntos normal y el HUD Vintage de Modo Pulso / Modo Locura (5 Corazones arriba centrados + Combo Vintage debajo de barra EARLY)
+      const isPulseStart = Boolean(
+        window.isOsuHybridModeActive ||
+        window.isMadnessModeActive ||
+        window.currentGameMode === 'osu_hybrid' ||
+        window.currentGameMode === 'locura'
+      );
       const scoreRollersEl = document.getElementById('hudScoreRollers');
       const pulseHudContainerEl = document.getElementById('hudPulseModeContainer');
       const pulseComboContainerEl = document.getElementById('hudPulseComboContainer');
@@ -14882,6 +14902,7 @@ function stopPianoCameraLoop() {
       { rank: 5, hand: 'ESCALERA',      badge: '#5', sharePct: 4,  potShare: 0.04 }
     ];
     const VP_MODES = [
+      { id: 'locura',       label: 'LOCURA',   desc: 'Coreografia total: 3D, Split, Cruce y Pulso', icon: 'X5', bg: 'bg-rose-100 border-rose-500 text-rose-950' },
       { id: 'split',        label: 'SPLIT',    desc: 'Pista 3D viva con division y ping-pong', icon: '||', bg: 'bg-emerald-100 border-emerald-500 text-emerald-950' },
       { id: 'cruce',        label: 'CRUCE',    desc: 'Haz de juicio vivo y notas en ola', icon: '><', bg: 'bg-cyan-100 border-cyan-500 text-cyan-950' },
       { id: 'osu_hybrid',   label: 'PULSO',    desc: 'Aros táctiles y carriles por fases', icon: '(•)', bg: 'bg-sky-100 border-sky-500 text-sky-950' },
@@ -18604,14 +18625,14 @@ function stopPianoCameraLoop() {
     function _getUnlockedGameModesMap() {
       try {
         const raw = JSON.parse(localStorage.getItem('beatstar_unlocked_game_modes_v1') || '{}');
-        return Object.assign({ normal: true, osu_hybrid: true, cruce: true, split: true }, raw);
+        return Object.assign({ normal: true, osu_hybrid: true, cruce: true, split: true, locura: true }, raw);
       } catch (_) {
-        return { normal: true, osu_hybrid: true, cruce: true, split: true };
+        return { normal: true, osu_hybrid: true, cruce: true, split: true, locura: true };
       }
     }
 
     function isGameModeUnlocked(mode) {
-      if (!mode || mode === 'normal' || mode === 'osu_hybrid' || mode === 'cruce' || mode === 'split') return true;
+      if (!mode || mode === 'normal' || mode === 'osu_hybrid' || mode === 'cruce' || mode === 'split' || mode === 'locura') return true;
       const map = _getUnlockedGameModesMap();
       return Boolean(map[mode]);
     }
@@ -20541,6 +20562,161 @@ function stopPianoCameraLoop() {
       }
     }
 
+    function _renderLocuraLedButton(canvas, now, isLocked) {
+      if (!canvas) return;
+      const widthCss = 318;
+      const heightCss = 50;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const targetW = Math.round(widthCss * dpr);
+      const targetH = Math.round(heightCss * dpr);
+      if (canvas.width !== targetW || canvas.height !== targetH) {
+        canvas.width = targetW;
+        canvas.height = targetH;
+      }
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = '#06020d';
+      ctx.fillRect(0, 0, widthCss, heightCss);
+
+      const pitch = 3.35;
+      const cols = Math.floor((widthCss - 4) / pitch);
+      const rows = Math.floor((heightCss - 2) / pitch);
+      const offsetX = (widthCss - cols * pitch) * 0.5 + pitch * 0.5;
+      const offsetY = (heightCss - rows * pitch) * 0.5 + pitch * 0.5;
+      const dotR = pitch * 0.39;
+
+      ctx.fillStyle = '#190a29';
+      ctx.beginPath();
+      for (let r = 0; r < rows; r++) {
+        const py = offsetY + r * pitch;
+        for (let c = 0; c < cols; c++) {
+          const px = offsetX + c * pitch;
+          ctx.moveTo(px + dotR * 0.72, py);
+          ctx.arc(px, py, dotR * 0.72, 0, Math.PI * 2);
+        }
+      }
+      ctx.fill();
+
+      const t = now * 0.001;
+      const litMap = new Map();
+      const setLed = (c, r, color) => {
+        const ic = Math.round(c);
+        const ir = Math.round(r);
+        if (ic >= 0 && ic < cols && ir >= 0 && ir < rows) {
+          litMap.set(ir * cols + ic, color);
+        }
+      };
+
+      // Icono izquierdo: Pista 3D morfando entre Split + Cruce + Pulso
+      const phaseCycle = (t * 0.85) % 3.0;
+      const cxL = 13;
+      const cyL = Math.floor(rows * 0.5);
+      if (phaseCycle < 1.0) {
+        // Pista 3D + Split + Ping-Pong
+        for (let r = 2; r < rows - 2; r++) {
+          const w = 2 + Math.floor((r / rows) * 5);
+          setLed(cxL - w - 1, r, '#38bdf8');
+          setLed(cxL - 1, r, '#00f5a0');
+          setLed(cxL + 1, r, '#00f5a0');
+          setLed(cxL + w + 1, r, '#f43f5e');
+        }
+        const arcP = (t * 2.6) % 1.0;
+        const px = (cxL - 5) + 10 * arcP;
+        const py = (rows - 4) - Math.sin(arcP * Math.PI) * 6;
+        setLed(px, py, '#fde047');
+      } else if (phaseCycle < 2.0) {
+        // Cruce: Haz giratorio + lasers diagonales
+        const ang = Math.sin(t * 3.2) * 0.55;
+        for (let d = -9; d <= 9; d++) {
+          setLed(cxL + Math.cos(ang) * d, cyL + Math.sin(ang) * d, '#fde047');
+        }
+        for (let r = 1; r < rows - 1; r++) {
+          setLed(cxL - 6 + Math.floor(r * 0.8), r, '#00f5a0');
+          setLed(cxL + 6 - Math.floor(r * 0.8), r, '#f43f5e');
+        }
+      } else {
+        // Pulso: Circulo espacial con aro de aproximacion
+        const ringR = 3.2 + (1.0 - ((t * 2.0) % 1.0)) * 3.2;
+        for (let a = 0; a < 16; a++) {
+          const rad = (a / 16) * Math.PI * 2;
+          setLed(cxL + Math.cos(rad) * ringR, cyL + Math.sin(rad) * ringR, '#38bdf8');
+          setLed(cxL + Math.cos(rad) * 2.6, cyL + Math.sin(rad) * 2.6, '#f43f5e');
+        }
+        setLed(cxL, cyL, '#ffffff');
+      }
+
+      // Texto central "LOCURA" en matriz 5x7 con pulso neón multicolor
+      const label = 'LOCURA';
+      const startCol = 25;
+      const textRow = 2;
+      const palette = ['#ffffff', '#fde047', '#f43f5e', '#38bdf8', '#00f5a0'];
+      const colorShift = Math.floor(t * 6);
+      for (let i = 0; i < label.length; i++) {
+        const ch = label[i];
+        const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7[' '];
+        const charCol = startCol + i * 7;
+        for (let gr = 0; gr < 7; gr++) {
+          const rowBits = glyph[gr];
+          if (!rowBits) continue;
+          for (let gc = 0; gc < 5; gc++) {
+            if ((rowBits >> (4 - gc)) & 1) {
+              const lc = charCol + gc;
+              const lr = textRow + gr;
+              const col = gr === 0 ? '#ffffff' : palette[(i + gr + colorShift) % palette.length];
+              setLed(lc, lr, col);
+            }
+          }
+        }
+      }
+
+      // Sub-barra LED inferior: 5 mini indicadores de modos fusionados + insignia X3
+      const subRow = rows - 3;
+      const barColors = ['#00f5a0', '#38bdf8', '#fde047', '#f43f5e', '#c084fc'];
+      for (let m = 0; m < 5; m++) {
+        const active = Math.floor((t * 4) % 5) === m;
+        const bc = 26 + m * 8;
+        for (let k = 0; k < 6; k++) {
+          setLed(bc + k, subRow, active ? '#ffffff' : barColors[m]);
+        }
+      }
+
+      // Derecha: Insignia LED "X3" brillante y corazón de 5 vidas
+      const x3Col = cols - 17;
+      const x3Glyphs = ['X', '3'];
+      for (let i = 0; i < x3Glyphs.length; i++) {
+        const glyph = LED_FONT_5X7[x3Glyphs[i]];
+        if (!glyph) continue;
+        for (let gr = 0; gr < 7; gr++) {
+          const rowBits = glyph[gr];
+          for (let gc = 0; gc < 5; gc++) {
+            if ((rowBits >> (4 - gc)) & 1) {
+              setLed(x3Col + i * 6 + gc, textRow + gr, gr < 2 ? '#ffffff' : '#fde047');
+            }
+          }
+        }
+      }
+
+      const byColor = new Map();
+      for (const [idx, col] of litMap.entries()) {
+        if (!byColor.has(col)) byColor.set(col, []);
+        byColor.get(col).push(idx);
+      }
+      for (const [col, indices] of byColor.entries()) {
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        for (let i = 0; i < indices.length; i++) {
+          const idx = indices[i];
+          const r = Math.floor(idx / cols);
+          const c = idx % cols;
+          const lx = offsetX + c * pitch;
+          const ly = offsetY + r * pitch;
+          ctx.moveTo(lx + dotR * 1.1, ly);
+          ctx.arc(lx, ly, dotR * 1.1, 0, Math.PI * 2);
+        }
+        ctx.fill();
+      }
+    }
+
     function _renderGameModeStaticLeds(songTitle = 'PISTA', songArtist = '') {
       _currentModalSongTitle = songTitle;
       _currentModalSongArtist = songArtist;
@@ -20772,6 +20948,13 @@ function stopPianoCameraLoop() {
           false
         );
 
+        // N. ANIMACIÓN LED MODO LOCURA (MODO ESTRELLA): Fusión de los 5 modos + X3
+        _renderLocuraLedButton(
+          document.getElementById('gmBtnLocuraMainCanvas'),
+          now,
+          false
+        );
+
         _gameModeLedAnimId = requestAnimationFrame(tick);
       };
 
@@ -20907,10 +21090,10 @@ function stopPianoCameraLoop() {
     }
 
     function confirmGameModeSelection(mode) {
-      const chosen = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog' || mode === 'river' || mode === 'four_lanes' || mode === 'minesweeper' || mode === 'mirror' || mode === 'echo' || mode === 'osu_hybrid' || mode === 'cruce' || mode === 'split') ? mode : 'normal';
+      const chosen = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog' || mode === 'river' || mode === 'four_lanes' || mode === 'minesweeper' || mode === 'mirror' || mode === 'echo' || mode === 'osu_hybrid' || mode === 'cruce' || mode === 'split' || mode === 'locura') ? mode : 'normal';
 
-      // Si el modo no es normal, pulso, cruce ni split y aún tiene candado LED (1000 Claves para desbloquear):
-      if (chosen !== 'normal' && chosen !== 'osu_hybrid' && chosen !== 'cruce' && chosen !== 'split' && !isGameModeUnlocked(chosen)) {
+      // Si el modo no es normal, pulso, cruce, split ni locura y aún tiene candado LED (1000 Claves para desbloquear):
+      if (chosen !== 'normal' && chosen !== 'osu_hybrid' && chosen !== 'cruce' && chosen !== 'split' && chosen !== 'locura' && !isGameModeUnlocked(chosen)) {
         if (typeof userClefs === 'number' && userClefs >= GAME_MODE_UNLOCK_COST) {
           if (typeof deductClefs === 'function' && deductClefs(GAME_MODE_UNLOCK_COST)) {
             _setGameModeUnlocked(chosen);
@@ -20933,11 +21116,13 @@ function stopPianoCameraLoop() {
                                             ? 'ESPEJO (OJEPSƎ)'
                                             : (chosen === 'echo'
                                                 ? 'ECO (DOBLE GOLPE)'
-                                                : (chosen === 'split'
-                                                    ? 'SPLIT'
-                                                    : (chosen === 'cruce'
-                                                        ? 'CRUCE'
-                                                        : (chosen === 'osu_hybrid' ? 'PULSO' : 'RÍO')))))))))));
+                                                : (chosen === 'locura'
+                                                    ? 'LOCURA'
+                                                    : (chosen === 'split'
+                                                        ? 'SPLIT'
+                                                        : (chosen === 'cruce'
+                                                            ? 'CRUCE'
+                                                            : (chosen === 'osu_hybrid' ? 'PULSO' : 'RÍO'))))))))))));
               showSuccessToast(`¡Modo ${modeLabel} desbloqueado para siempre! (-1000 𝄞)`);
             }
           }
