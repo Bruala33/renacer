@@ -4555,6 +4555,56 @@
         "accuracy": 1.396898728744118,
         "date": "2026-10-29 05:52:16"
       }
+    ],
+    "osu_580138": [
+      {
+        "name": "Siro",
+        "score": 87494,
+        "stars": 3.5,
+        "combo": 73,
+        "accuracy": 12.304260941347543,
+        "date": "2026-10-29 05:54:51"
+      }
+    ],
+    "osu_2531437": [
+      {
+        "name": "Siro",
+        "score": 181494,
+        "stars": 2,
+        "combo": 132,
+        "accuracy": 48.08768940949545,
+        "date": "2026-10-29 05:58:40"
+      }
+    ],
+    "osu_2466258": [
+      {
+        "name": "Siro",
+        "score": 113787,
+        "stars": 3.5,
+        "combo": 112,
+        "accuracy": 4.490447631965379,
+        "date": "2026-10-29 06:00:38"
+      }
+    ],
+    "osu_2333754": [
+      {
+        "name": "Siro",
+        "score": 107461,
+        "stars": 3.5,
+        "combo": 89,
+        "accuracy": 10.395652169707006,
+        "date": "2026-10-29 06:01:56"
+      }
+    ],
+    "osu_1982182": [
+      {
+        "name": "Siro",
+        "score": 222167,
+        "stars": 2,
+        "combo": 193,
+        "accuracy": 58.71484712579582,
+        "date": "2026-10-29 06:04:58"
+      }
     ]
   },
   "global": [
@@ -4639,6 +4689,11 @@
       "clefs": 4
     },
     {
+      "name": "Siro",
+      "total_score": 747653,
+      "clefs": 5
+    },
+    {
       "name": "MasterPianist",
       "total_score": 600000,
       "clefs": 6
@@ -4701,11 +4756,6 @@
     {
       "name": "U",
       "total_score": 30185,
-      "clefs": 0
-    },
-    {
-      "name": "Siro",
-      "total_score": 26850,
       "clefs": 0
     },
     {
@@ -4808,12 +4858,12 @@
         "score": 869748
       },
       {
-        "name": "Llois",
-        "score": 37650
+        "name": "Siro",
+        "score": 747653
       },
       {
-        "name": "Siro",
-        "score": 26850
+        "name": "Llois",
+        "score": 37650
       },
       {
         "name": "Ballsaxk",
