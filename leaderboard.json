@@ -4605,13 +4605,63 @@
         "accuracy": 58.71484712579582,
         "date": "2026-10-29 06:04:58"
       }
+    ],
+    "top_spice_girls_say_youll_be_there": [
+      {
+        "name": "Test",
+        "score": 632496,
+        "stars": 2,
+        "combo": 118,
+        "accuracy": 49.41757214034523,
+        "date": "2026-10-29 12:37:26"
+      }
+    ],
+    "top_luis_miguel_la_chica_del_bikini_azul": [
+      {
+        "name": "Mauricio",
+        "score": 166861,
+        "stars": 3.5,
+        "combo": 94,
+        "accuracy": 19.02837932457983,
+        "date": "2026-10-29 14:04:20"
+      }
+    ],
+    "top_michael_jackson_ben": [
+      {
+        "name": "Mauricio",
+        "score": 2550,
+        "stars": 3.5,
+        "combo": 6,
+        "accuracy": 0.5406494153565636,
+        "date": "2026-10-29 14:12:45"
+      }
+    ],
+    "osu_2644890": [
+      {
+        "name": "Mauricio",
+        "score": 136783,
+        "stars": 3.5,
+        "combo": 59,
+        "accuracy": 5.4861501611155274,
+        "date": "2026-10-29 14:14:16"
+      }
+    ],
+    "top_nino_bravo_noelia": [
+      {
+        "name": "Mauricio",
+        "score": 440889,
+        "stars": 1,
+        "combo": 121,
+        "accuracy": 36.90395775316336,
+        "date": "2026-10-29 14:17:50"
+      }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 73131684,
-      "clefs": 663
+      "total_score": 74339483,
+      "clefs": 673
     },
     {
       "name": "Rocky",
@@ -4692,6 +4742,11 @@
       "name": "Siro",
       "total_score": 747653,
       "clefs": 5
+    },
+    {
+      "name": "Test",
+      "total_score": 632496,
+      "clefs": 6
     },
     {
       "name": "MasterPianist",
@@ -4835,7 +4890,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 16246829
+        "score": 17454628
       },
       {
         "name": "Libay",
@@ -4860,6 +4915,10 @@
       {
         "name": "Siro",
         "score": 747653
+      },
+      {
+        "name": "Test",
+        "score": 632496
       },
       {
         "name": "Llois",
