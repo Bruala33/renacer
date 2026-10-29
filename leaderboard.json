@@ -777,6 +777,14 @@
         "combo": 346,
         "accuracy": 40.40119259529522,
         "date": "2026-09-20 22:12:54"
+      },
+      {
+        "name": "Siro",
+        "score": 46231,
+        "stars": 3.5,
+        "combo": 48,
+        "accuracy": 2.121936901396556,
+        "date": "2026-10-29 18:19:18"
       }
     ],
     "top_rosalia_despecha": [
@@ -4606,16 +4614,7 @@
         "date": "2026-10-29 06:04:58"
       }
     ],
-    "top_spice_girls_say_youll_be_there": [
-      {
-        "name": "Test",
-        "score": 632496,
-        "stars": 2,
-        "combo": 118,
-        "accuracy": 49.41757214034523,
-        "date": "2026-10-29 12:37:26"
-      }
-    ],
+    "top_spice_girls_say_youll_be_there": [],
     "top_luis_miguel_la_chica_del_bikini_azul": [
       {
         "name": "Mauricio",
@@ -4729,6 +4728,11 @@
       "clefs": 13
     },
     {
+      "name": "Siro",
+      "total_score": 888950,
+      "clefs": 5
+    },
+    {
       "name": "Llois1",
       "total_score": 869748,
       "clefs": 3
@@ -4737,16 +4741,6 @@
       "name": "Jacques",
       "total_score": 795056,
       "clefs": 4
-    },
-    {
-      "name": "Siro",
-      "total_score": 747653,
-      "clefs": 5
-    },
-    {
-      "name": "Test",
-      "total_score": 632496,
-      "clefs": 6
     },
     {
       "name": "MasterPianist",
@@ -4909,16 +4903,12 @@
         "score": 1274297
       },
       {
+        "name": "Siro",
+        "score": 888950
+      },
+      {
         "name": "Llois1",
         "score": 869748
-      },
-      {
-        "name": "Siro",
-        "score": 747653
-      },
-      {
-        "name": "Test",
-        "score": 632496
       },
       {
         "name": "Llois",
