@@ -1552,6 +1552,14 @@
     "osu_2125241": [],
     "top_caf_quijano_la_taberna_del_buda": [
       {
+        "name": "Mauricio",
+        "score": 1790793,
+        "stars": 4,
+        "combo": 452,
+        "accuracy": 89.64273915002252,
+        "date": "2026-10-29 20:31:24"
+      },
+      {
         "name": "Dady cool",
         "score": 1738180,
         "stars": 5,
@@ -3247,6 +3255,14 @@
         "combo": 151,
         "accuracy": 11.846820878874004,
         "date": "2026-10-23 16:51:18"
+      },
+      {
+        "name": "Siro",
+        "score": 8400,
+        "stars": 3.5,
+        "combo": 18,
+        "accuracy": 0.43902125437779976,
+        "date": "2026-10-29 20:18:35"
       }
     ],
     "top_lady_gaga_feat_colby_odonis_just_dance": [
@@ -4654,13 +4670,103 @@
         "accuracy": 36.90395775316336,
         "date": "2026-10-29 14:17:50"
       }
+    ],
+    "top_jarabe_de_palo_bonito": [
+      {
+        "name": "Mauricio",
+        "score": 179530,
+        "stars": 3.5,
+        "combo": 62,
+        "accuracy": 7.574114778235757,
+        "date": "2026-10-29 19:27:26"
+      }
+    ],
+    "top_hombres_g_devulveme_a_mi_chica": [
+      {
+        "name": "Siro",
+        "score": 759703,
+        "stars": 4,
+        "combo": 444,
+        "accuracy": 75.00513393650505,
+        "date": "2026-10-29 20:17:44"
+      }
+    ],
+    "osu_1675494": [
+      {
+        "name": "Siro",
+        "score": 46523,
+        "stars": 3.5,
+        "combo": 51,
+        "accuracy": 3.3566329630115974,
+        "date": "2026-10-29 20:20:03"
+      }
+    ],
+    "top_hombres_g_marta_tiene_un_marcapasos": [
+      {
+        "name": "Mauricio",
+        "score": 315060,
+        "stars": 4,
+        "combo": 128,
+        "accuracy": 77.51831175126036,
+        "date": "2026-10-29 20:34:05"
+      }
+    ],
+    "osu_2622288": [
+      {
+        "name": "Mauricio",
+        "score": 6675,
+        "stars": 3.5,
+        "combo": 12,
+        "accuracy": 0.39356151056867433,
+        "date": "2026-10-29 20:35:28"
+      }
+    ],
+    "bs_21f76": [
+      {
+        "name": "Mauricio",
+        "score": 94500,
+        "stars": 3.5,
+        "combo": 69,
+        "accuracy": 4.873520538407983,
+        "date": "2026-10-29 20:40:22"
+      }
+    ],
+    "bs_511f2": [
+      {
+        "name": "Mauricio",
+        "score": 520164,
+        "stars": 1,
+        "combo": 195,
+        "accuracy": 25.922784425318575,
+        "date": "2026-10-29 20:42:52"
+      }
+    ],
+    "top_camilo_sesto_mi_mundo_tu": [
+      {
+        "name": "Mauricio",
+        "score": 128114,
+        "stars": 3.5,
+        "combo": 48,
+        "accuracy": 10.571752986338266,
+        "date": "2026-10-29 20:45:34"
+      }
+    ],
+    "top_camilo_sesto_con_el_viento_a_tu_favor": [
+      {
+        "name": "Mauricio",
+        "score": 611884,
+        "stars": 3,
+        "combo": 167,
+        "accuracy": 72.84818987932529,
+        "date": "2026-10-29 20:49:07"
+      }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 74339483,
-      "clefs": 673
+      "total_score": 78900849,
+      "clefs": 714
     },
     {
       "name": "Rocky",
@@ -4723,14 +4829,14 @@
       "clefs": 13
     },
     {
+      "name": "Siro",
+      "total_score": 1703576,
+      "clefs": 12
+    },
+    {
       "name": "Darwin67",
       "total_score": 1628955,
       "clefs": 13
-    },
-    {
-      "name": "Siro",
-      "total_score": 888950,
-      "clefs": 5
     },
     {
       "name": "Llois1",
@@ -4884,7 +4990,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 17454628
+        "score": 22015994
       },
       {
         "name": "Libay",
@@ -4899,12 +5005,12 @@
         "score": 1919054
       },
       {
-        "name": "Darwin67",
-        "score": 1274297
+        "name": "Siro",
+        "score": 1703576
       },
       {
-        "name": "Siro",
-        "score": 888950
+        "name": "Darwin67",
+        "score": 1274297
       },
       {
         "name": "Llois1",
