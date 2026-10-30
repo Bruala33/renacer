@@ -4111,11 +4111,12 @@ class BeatstarEngine {
       }
 
       const noteIsCruce = Boolean(isCruceActive && (!isMadnessActive || note._madnessPhase === 'cruce'));
+      const maxLaneIdx = (this.numLanes || 3) - 1;
+      const isMirrorNoteActive = Boolean((this.isMirrorModeActive || isMadnessActive) && note._isMirrored);
+      const mirrorTargetLane = Number.isFinite(note._mirrorTargetLane) ? note._mirrorTargetLane : (maxLaneIdx - (note.lane ?? 0));
       const requiredInputLane = noteIsCruce
         ? (note._cruceSlot ?? note.lane ?? 0)
-        : ((this.isMirrorModeActive && note._isMirrored && (note.lane === 0 || note.lane === 2))
-            ? (2 - note.lane)
-            : note.lane);
+        : (isMirrorNoteActive ? mirrorTargetLane : note.lane);
 
       // Permitir re-enganchar un hold que fue soltado temprano mientras su cuerpo sigue pasando por la meta (incluyendo Dynamic Mesh Holds interpolados)
       if (note.type === 'hold' && note.hit && note.holdReleasedEarly && inputType === 'tap') {
@@ -4149,7 +4150,10 @@ class BeatstarEngine {
 
       // Soporte para Dynamic Mesh Holds (startLane / startWidth) y ergonomía táctil generosa en Modo CRUCE o Escudo Anti-Frustración (+35%)
       let matchesLane = (this.isCalibrating || requiredInputLane === lane);
-      if (!matchesLane && (isCruceActive || isShieldActive)) {
+      if (!matchesLane && isMadnessActive && isMirrorNoteActive && note.lane === lane) {
+        matchesLane = true;
+      }
+      if (!matchesLane && !note.isMine && (isCruceActive || isShieldActive)) {
         if (Math.abs(lane - requiredInputLane) <= 1) {
           matchesLane = true;
         }
@@ -4386,17 +4390,19 @@ class BeatstarEngine {
     if (closestNote.lane !== undefined) {
       this._lastLaneHitPerf[closestNote.lane] = nowInput;
     }
-    // En Modo Espejo (OJEPSƎ): si se acertó una tecla reflejada (pulsando el carril opuesto),
+    // En Modo Espejo (OJEPSƎ) o Fase Espejo de LOCURA: si se acertó una tecla reflejada,
     // iluminar también el carril visual de la nota y disparar un haz láser de reflexión cruzada
-    if (this.isMirrorModeActive && closestNote._isMirrored && closestNote.lane !== lane) {
+    if ((this.isMirrorModeActive || isMadnessActive) && closestNote._isMirrored && closestNote.lane !== lane) {
       const visLane = closestNote.lane;
       this.laneGlows[visLane] = 1.0;
       if (this.laneFlashTimers) this.laneFlashTimers[visLane] = 0.30;
       if (this.laneFlashColors) this.laneFlashColors[visLane] = '#e879f9';
       if (this.lanePressAnim) this.lanePressAnim[visLane] = nowInput;
-      const visHitX = (this.visualDimension !== '2d' && typeof this.getLaneBoundaryX === 'function')
-        ? (this.getLaneBoundaryX(visLane, hitY) + this.getLaneBoundaryX(visLane + 1, hitY)) * 0.5
-        : (visLane + 0.5) * this.laneWidth;
+      const visHitX = (typeof this.getLaneLeftX === 'function' && typeof this.getLaneRightX === 'function')
+        ? (this.getLaneLeftX(visLane, hitY) + this.getLaneRightX(visLane, hitY)) * 0.5
+        : ((this.visualDimension !== '2d' && typeof this.getLaneBoundaryX === 'function')
+            ? (this.getLaneBoundaryX(visLane, hitY) + this.getLaneBoundaryX(visLane + 1, hitY)) * 0.5
+            : (visLane + 0.5) * this.laneWidth);
       if (!this._mirrorCrossBeams) this._mirrorCrossBeams = [];
       this._mirrorCrossBeams.push({
         fromX: hitX,
@@ -4665,8 +4671,15 @@ class BeatstarEngine {
     let flashColor = '#ffd700';
     let judgeTier = 'great';
 
-    const isMushJudge = Boolean(this.isMushroomModeActive);
-    const isOsuJudge = Boolean(this.isOsuHybridModeActive || (typeof window !== 'undefined' && window.isOsuHybridModeActive));
+    const isMushJudge = Boolean(
+      this.isMushroomModeActive ||
+      (this.isMadnessModeActive && note && (note._madnessPhase === 'mushroom' || note._isMadnessMushroom))
+    );
+    const isOsuJudge = Boolean(
+      this.isOsuHybridModeActive ||
+      (typeof window !== 'undefined' && window.isOsuHybridModeActive) ||
+      (this.isMadnessModeActive && note && (note._madnessPhase === 'pulso' || note._osuRole))
+    );
     const perfPlusMax = isMushJudge ? 85 : (isOsuJudge ? 62 : 45);
     const perfMax = isMushJudge ? 155 : (isOsuJudge ? 130 : 90);
     const greatMax = isMushJudge ? 235 : (isOsuJudge ? 220 : 170);
@@ -4724,7 +4737,7 @@ class BeatstarEngine {
       else if (signedDiff > 15) this.timingStats.lateCount++;
       else this.timingStats.exactCount++;
 
-      if (this.ui && typeof this.ui.onTimingOffset === 'function' && !this.isOsuHybridModeActive) {
+      if (this.ui && typeof this.ui.onTimingOffset === 'function' && !isOsuJudge) {
         this.ui.onTimingOffset(signedDiff, judgeTier);
       }
     }
@@ -4746,7 +4759,7 @@ class BeatstarEngine {
     const noteLane = (note && typeof note.lane === 'number') ? note.lane : 1;
 
     // Resplandor difuminado de carril con el color exacto del juicio (en PULSO solo ilumina carril en notas Mania)
-    if (!this.isOsuHybridModeActive || (note && note._osuRole === 'mania')) {
+    if (!isOsuJudge || (note && note._osuRole === 'mania')) {
       this.laneFlashTimers[noteLane] = flashDuration;
       this.laneFlashColors[noteLane] = flashColor;
       this.laneGlows[noteLane] = 1.0;
@@ -4779,7 +4792,9 @@ class BeatstarEngine {
     if (this.multiplier > prevMult) {
       const midX = this.width / 2;
       const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height * 0.84);
-      this.addRipple(midX, hitY, '#ffd700', 320);
+      if (!isOsuJudge) {
+        this.addRipple(midX, hitY, '#ffd700', 320);
+      }
 
       // Explosión 3D cinemática luminosa sin oscurecer jamás la pantalla
       if (this.multiplier === 2) {
@@ -4791,16 +4806,16 @@ class BeatstarEngine {
       } else if (this.multiplier >= 5) {
         this.triggerComboExplosion('5X DIAMANTE', '¡APOTEOSIS TOTAL!', '#ffffff', '#ffffff', 2.0);
       }
-    } else {
+    } else if (!isOsuJudge) {
       this.checkComboMilestone(this.combo);
     }
 
-    if (diffMs <= 90 && !this.isOsuHybridModeActive) {
+    if (diffMs <= 90 && !isOsuJudge) {
       this.spawnMusicalNotes(x, y, color, diffMs <= 45 ? 2 : 1);
     }
     
     this.addScore(points * this.multiplier);
-    if (text && String(text).trim().length > 0 && !this.isOsuHybridModeActive) {
+    if (text && String(text).trim().length > 0 && !isOsuJudge) {
       this.addJudgement(text, color, noteLane);
     }
     return { text, color, points };
@@ -5713,9 +5728,9 @@ class BeatstarEngine {
       }
 
       // En Modo CRUCE o Modo LOCURA: si una Drag Note amarilla (o nota bajo Escudo Anti-Frustración) llega a la línea mientras el jugador mantiene cualquier dedo en pantalla, atraparla automáticamente como PERFECT+
-      const isShieldCatchNow = Boolean(isMadnessUpdate && this._madnessShieldUntilMs && currentTime <= this._madnessShieldUntilMs);
+      const isShieldCatchNow = Boolean(isMadnessUpdate && this._madnessShieldUntilMs && currentTime <= this._madnessShieldUntilMs && !note.isMine);
       const isCruceNoteNow = (!isMadnessUpdate && isCruceUpdate) || (isMadnessUpdate && note._madnessPhase === 'cruce');
-      if (isCruceNoteNow && (note._isCruceDrag || isShieldCatchNow) && currentTime >= noteTime - 40) {
+      if (isCruceNoteNow && !note.isMine && (note._isCruceDrag || isShieldCatchNow) && currentTime >= noteTime - 40) {
         const hasFingerNow = Boolean(
           (this.activeTouches && this.activeTouches.size > 0) ||
           this.mouseTouch ||
@@ -5725,7 +5740,7 @@ class BeatstarEngine {
           this._completeCruceDragCatch(note, currentTime);
           continue;
         }
-      } else if (isShieldCatchNow && note._madnessPhase !== 'pulso' && currentTime >= noteTime - 35) {
+      } else if (isShieldCatchNow && !note.isMine && note._madnessPhase !== 'pulso' && currentTime >= noteTime - 35) {
         const hasFingerNow = Boolean(
           (this.activeTouches && this.activeTouches.size > 0) ||
           this.mouseTouch ||
@@ -5846,9 +5861,12 @@ class BeatstarEngine {
         (note._isDynamicMeshHold && (Math.abs((note.endLane ?? note.lane) - (note.startLane ?? note.lane)) > 0.15 || Math.abs((note.endWidth ?? 1) - (note.startWidth ?? 1)) > 0.15))
       );
       if (isDynamicSlidingOrWide && active.touchId !== null && active.touchId !== undefined) {
+        const isSplitOrMadnessHold = Boolean(isSplitHoldCheck || isMadnessUpdate);
         const allowedHalfW = isCruceHoldCheck
-          ? Math.max(84, (baseLaneSpanPx * Math.max(1.35, curWidth) * 0.72) + 80)
-          : Math.max(44, (baseLaneSpanPx * curWidth * 0.5) + 80);
+          ? Math.max(88, (baseLaneSpanPx * Math.max(1.35, curWidth) * 0.72) + 84)
+          : (isSplitOrMadnessHold
+              ? Math.max(135, (this.width || 360) * 0.42)
+              : Math.max(48, (baseLaneSpanPx * curWidth * 0.5) + 80));
 
         let anyFingerInside = false;
         let hasAnyActivePointer = false;
@@ -6171,13 +6189,13 @@ class BeatstarEngine {
         this.laneFlashTimers[l] = Math.max(0, this.laneFlashTimers[l] - dt);
       }
     }
-    if (this.isMinesweeperModeActive || (this._mineExplosions && this._mineExplosions.length > 0) || (this._shatteredKeyFragments && this._shatteredKeyFragments.length > 0)) {
+    const isMadnessFx = Boolean(this.isMadnessModeActive || (typeof window !== 'undefined' && window.isMadnessModeActive));
+    if (this.isMinesweeperModeActive || isMadnessFx || (this._mineExplosions && this._mineExplosions.length > 0) || (this._shatteredKeyFragments && this._shatteredKeyFragments.length > 0)) {
       this.updateMinesweeperEffects(dt);
     }
-    if (this.isMirrorModeActive || (typeof window !== 'undefined' && window.isMirrorModeActive)) {
+    if (this.isMirrorModeActive || isMadnessFx || (typeof window !== 'undefined' && window.isMirrorModeActive)) {
       this.updateMirrorModeEffects(dt);
     }
-    const isMadnessFx = Boolean(this.isMadnessModeActive || (typeof window !== 'undefined' && window.isMadnessModeActive));
     if (this.isEchoModeActive || isMadnessFx || (typeof window !== 'undefined' && window.isEchoModeActive)) {
       this.updateEchoModeEffects(dt);
     }
@@ -14215,10 +14233,11 @@ class BeatstarEngine {
     const bevelH = Math.max(3, (isLarge ? 9 : 5) * scale);
     const y0 = cy - h * 0.5 + 2.2 * scale;
     const y1 = cy + h * 0.5 - bevelH - 1.5 * scale;
-    const x0Top = this.getLaneBoundaryX(lane, y0) + margin;
-    const x1Top = this.getLaneBoundaryX(lane + 1, y0) - margin;
-    const x0Bot = this.getLaneBoundaryX(lane, y1) + margin;
-    const x1Bot = this.getLaneBoundaryX(lane + 1, y1) - margin;
+    const useDynamicBounds = Boolean((this.isSplitModeActive || this.isMadnessModeActive) && this.dynamicHighwayController);
+    const x0Top = (useDynamicBounds ? this.getLaneLeftX(lane, y0) : this.getLaneBoundaryX(lane, y0)) + margin;
+    const x1Top = (useDynamicBounds ? this.getLaneRightX(lane, y0) : this.getLaneBoundaryX(lane + 1, y0)) - margin;
+    const x0Bot = (useDynamicBounds ? this.getLaneLeftX(lane, y1) : this.getLaneBoundaryX(lane, y1)) + margin;
+    const x1Bot = (useDynamicBounds ? this.getLaneRightX(lane, y1) : this.getLaneBoundaryX(lane + 1, y1)) - margin;
     const cornerR = Math.max(3, (isLarge ? 7 : 4) * scale);
 
     ctx.save();
@@ -17776,10 +17795,12 @@ class BeatstarEngine {
         // Para notas hold, no descartar por pHead > 1.25 mientras su cola siga en pantalla
         if (pHead < -0.15 || (!isBeingHeld && note.type !== 'hold' && pHead > 1.25)) continue;
 
-        // En Modo Setas Alucinógenas o Modo Perro Molesto (Zarpazo que cambia la tecla de carril):
+        // En Modo Setas Alucinógenas (o Fase Setas de LOCURA) o Modo Perro Molesto (Zarpazo que cambia la tecla de carril):
         let drawLane = lane;
         let mushHeightMult = 1.0;
-        if (isMushroomActive && note.type !== 'hold') {
+        const isNoteMushroom = Boolean(isMushroomActive || (isMadnessRender && (note._madnessPhase === 'mushroom' || note._isMadnessMushroom)));
+        if (isNoteMushroom && note.type !== 'hold') {
+          const maxLIdx = (this.numLanes || 3) - 1;
           const fromL = (note._mushFromLane !== undefined) ? note._mushFromLane : lane;
           if (fromL !== lane && pHead < 0.54) {
             const swapT = Math.max(0, Math.min(1, (pHead - 0.06) / 0.46));
@@ -17787,9 +17808,9 @@ class BeatstarEngine {
             drawLane = fromL + (lane - fromL) * easeSwap;
           } else if (pHead < 0.72) {
             // Oscilación ebria sutil del carril antes de llegar a la zona de golpeo
-            drawLane = Math.max(0, Math.min(2, lane + Math.sin(currentTime * 0.007 + (note._mushPhase || 0)) * 0.11 * (1 - pHead)));
+            drawLane = Math.max(0, Math.min(maxLIdx, lane + Math.sin(currentTime * 0.007 + (note._mushPhase || 0)) * 0.11 * (1 - pHead)));
           }
-          mushHeightMult = 1.0 + Math.sin(currentTime * 0.009 + (note._mushPhase || 0)) * 0.25;
+          mushHeightMult = 1.0 + Math.sin(currentTime * 0.009 + (note._mushPhase || 0)) * 0.22;
         } else if (isAnnoyingDogActive && note._dogBatted && note.type !== 'hold') {
           const fromL = (note._dogFromLane !== undefined) ? note._dogFromLane : lane;
           const swipeP = note._dogSwipeP || 0.40;
@@ -18078,13 +18099,13 @@ class BeatstarEngine {
 
           ctx.restore();
 
-          // Cabeza del Hold (con soporte para traslación y escalado horizontal en Dynamic Mesh Holds)
+          // Cabeza del Hold (con soporte para traslación y escalado horizontal en todos los Holds de carril móvil o ancho variable)
           const headPt = stringPoints[segments];
           const baseHoldKeyH = (this.numLanes === 4) ? (isLarge ? 64 : 28) : (isLarge ? 80 : 30);
           const headH = Math.min(baseHoldKeyH * headPt.scale, maxH3D);
-          if (this.isMirrorModeActive && note._isMirrored) {
+          if ((this.isMirrorModeActive || isMadnessRender) && note._isMirrored) {
             this.renderMirrorReflectedNote(ctx, note, lane, headPt, headH, isLarge, false, 'up', lyricForNote, pHead, currentTime);
-          } else if (note._isDynamicMeshHold && (Math.abs(headPt.meshLane - lane) > 0.04 || Math.abs(headPt.meshWidth - 1.0) > 0.05)) {
+          } else if (Math.abs((headPt.meshLane ?? lane) - lane) > 0.02 || Math.abs((headPt.meshWidth ?? 1.0) - 1.0) > 0.04) {
             const origCoord = this.getPerspectiveCoord(lane, currentHeadP, this._coordScratch0);
             ctx.save();
             ctx.translate(headPt.x, headPt.y);
@@ -18141,7 +18162,7 @@ class BeatstarEngine {
             }
             ctx.restore();
           }
-          if (this.isMirrorModeActive && note._isMirrored) {
+          if ((this.isMirrorModeActive || isMadnessRender) && note._isMirrored) {
             this.renderMirrorReflectedNote(ctx, note, drawLane, coord, h * mushHeightMult, isLarge, true, note.direction || 'up', lyricForNote, pHead, currentTime);
           } else {
             const swipeKey = this.drawIvoryKey(ctx, drawLane, coord.y, h * mushHeightMult, coord.scale, false, isLarge, true, lyricForNote);
@@ -18190,7 +18211,7 @@ class BeatstarEngine {
             this.renderMinesweeperKey(ctx, note, drawLane, coord.y, h, coord.scale, pHead, isLarge, currentTime);
             continue;
           }
-          if (this.isMirrorModeActive && note._isMirrored) {
+          if ((this.isMirrorModeActive || isMadnessRender) && note._isMirrored) {
             this.renderMirrorReflectedNote(ctx, note, drawLane, coord, h, isLarge, false, 'up', lyricForNote, pHead, currentTime);
             continue;
           }
@@ -18202,8 +18223,8 @@ class BeatstarEngine {
           if (isSplitPingPong && (note._isPingPongServe || note._splitPingPongTarget) && !note._isSplitPingPongRebound && !note._isPingPongBounce && this.dynamicHighwayController) {
             this.dynamicHighwayController.renderPingPongServeBadge(ctx, note, tapKey, coord.scale, currentTime);
           }
-          // En modo Setas: si la tecla está saltando de carril o es múltiplo de 3, dibujar seta mágica sobre la tecla
-          if (isMushroomActive && this._mushSprites && this._mushSprites.length > 0 && ((note._mushFromLane !== undefined && note._mushFromLane !== lane) || (i % 3 === 0))) {
+          // En modo Setas (o Fase Setas de LOCURA): si la tecla está saltando de carril o es múltiplo de 3, dibujar seta mágica sobre la tecla
+          if (isNoteMushroom && this._mushSprites && this._mushSprites.length > 0 && ((note._mushFromLane !== undefined && note._mushFromLane !== lane) || (i % 3 === 0))) {
             const spr = this._mushSprites[(note._mushColorIdx || 0) % this._mushSprites.length];
             const mSz = Math.max(16, 30 * coord.scale);
             ctx.drawImage(spr, tapKey.cx - mSz * 0.5, tapKey.cy - mSz * 0.5, mSz, mSz);
@@ -18478,9 +18499,10 @@ class BeatstarEngine {
       ctx.restore();
     }
 
-    // Dibuja cada tecla afectada por el espejo cambiando directamente el color 3D nativo de la propia tecla (Cian en carril 1 -> botón 3, Rosa en carril 3 -> botón 1) sin rectángulos superpuestos y a 60 FPS
+    // Dibuja cada tecla afectada por el espejo cambiando directamente el color 3D nativo de la propia tecla (Cian en lado izquierdo -> botón derecho, Rosa en lado derecho -> botón izquierdo) sin rectángulos superpuestos y a 60 FPS
     renderMirrorReflectedNote(ctx, note, drawLane, coord, h, isLarge, isSwipe, swipeDir, lyricForNote, pHead, currentTime) {
-      const mirrorSide = (drawLane === 0) ? 'cyan' : 'pink';
+      const midLane = ((this.numLanes || 3) - 1) * 0.5;
+      const mirrorSide = (drawLane < midLane) ? 'cyan' : 'pink';
       const keyRect = this.drawIvoryKey(ctx, drawLane, coord.y, h, coord.scale, false, isLarge, isSwipe, lyricForNote, mirrorSide);
       if (isSwipe) {
         this.renderVectorChevron(ctx, keyRect.cx, keyRect.cy, swipeDir, keyRect.w, keyRect.h);
@@ -20484,8 +20506,7 @@ class BeatstarEngine {
       }
 
       const ptsPopup = (absDiff <= 62 ? 610 : 420) * (this.multiplier || 1);
-      this._spawnOsuHitBurst(hitX, hitY, '#10b981', ptsPopup, '⚡ SWIPE!', 4);
-      this.emitKeyHit(hitX, hitY, '#10b981', 22);
+      this._spawnOsuHitBurst(hitX, hitY, '#10b981', ptsPopup, 'SWIPE!', 4);
     }
 
     _penalizeBadOsuAction(note, x, y, reasonLabel, partialPts = 60) {
@@ -20499,7 +20520,7 @@ class BeatstarEngine {
       this.addScore(Math.max(10, Math.round(partialPts)));
       this._playOsuHitSound('break', 1);
       this.triggerScreenShake(3.2, 70);
-      this._spawnOsuHitBurst(x, y, '#ff2a55', Math.round(partialPts), reasonLabel || '¡MAL SWIPE! -COMBO', 2);
+      this._spawnOsuHitBurst(x, y, '#ff2a55', Math.round(partialPts), reasonLabel || 'MAL SWIPE! -COMBO', 2);
 
       // En Modo Pulso: restar 1 corazón al fallar swipe o soltar slider, y al 5º fallo saltar a pantalla de muerte
       const maxLives = this.osuMaxLives || 5;
@@ -20658,8 +20679,7 @@ class BeatstarEngine {
         this.addScore(headPts);
         this._playOsuHitSound('normal', note._osuComboNum || 1);
         this._triggerOsuStageReaction(hitX, hitY, lane, pal.primary);
-        this._spawnOsuHitBurst(hitX, hitY, pal.primary, headPts, '¡SÍGUELO!', palIdx);
-        this.emitKeyHit(hitX, hitY, pal.primary, 14);
+        this._spawnOsuHitBurst(hitX, hitY, pal.primary, headPts, 'SIGUELO!', palIdx);
         return;
       }
 
@@ -20677,7 +20697,7 @@ class BeatstarEngine {
         this.addScore(synBonus);
         this._playOsuHitSound('finish', (note._osuComboNum || 1) + 2);
         const p2 = this._getOsuNoteScreenPos(note._osuTwinPartner);
-        this._spawnOsuHitBurst((hitX + p2.x) * 0.5, (hitY + p2.y) * 0.5, '#fde047', synBonus, '⚡ ¡SINAPSIS!', 3);
+        this._spawnOsuHitBurst((hitX + p2.x) * 0.5, (hitY + p2.y) * 0.5, '#fde047', synBonus, 'SINAPSIS!', 3);
       } else {
         this._playOsuHitSound(note._osuRole === 'stream' ? 'whistle' : 'normal', note._osuComboNum || 1);
       }
@@ -20702,10 +20722,9 @@ class BeatstarEngine {
 
       const ptsPopup = (absDiff <= 62 ? 450 : (absDiff <= 130 ? 300 : 150)) * (this.multiplier || 1);
       const judgeLabel = note._osuRole === 'nova'
-        ? '💥 ¡EXPLOSIÓN!'
+        ? 'EXPLOSION!'
         : (absDiff <= 62 ? 'PERFECT+' : (absDiff <= 130 ? 'PERFECT' : (absDiff <= 220 ? 'GREAT' : 'GOOD')));
       this._spawnOsuHitBurst(hitX, hitY, note._osuRole === 'nova' ? '#fde047' : pal.primary, ptsPopup, judgeLabel, palIdx);
-      this.emitKeyHit(hitX, hitY, pal.primary, note._osuRole === 'nova' ? 28 : 20);
     }
 
     _spawnOsuHitBurst(x, y, color, scoreGain, label, palIdx = 1) {
@@ -24098,18 +24117,23 @@ class BeatstarEngine {
 
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.shadowColor = st.inTransition ? '#fde047' : '#00f2fe';
-      ctx.shadowBlur = 18 + beatPulse * 8;
+
+      ctx.strokeStyle = st.inTransition ? 'rgba(253, 224, 71, 0.32)' : 'rgba(0, 242, 254, 0.32)';
+      ctx.lineWidth = 15.0 + beatPulse * 4.5;
+      ctx.beginPath();
+      ctx.moveTo(-fullBeamHalfW, 0);
+      ctx.lineTo(fullBeamHalfW, 0);
+      ctx.stroke();
 
       ctx.strokeStyle = st.inTransition ? 'rgba(253, 224, 71, 0.88)' : 'rgba(0, 242, 254, 0.88)';
-      ctx.lineWidth = 7.0 + beatPulse * 2.5;
+      ctx.lineWidth = 6.5 + beatPulse * 2.2;
       ctx.beginPath();
       ctx.moveTo(-fullBeamHalfW, 0);
       ctx.lineTo(fullBeamHalfW, 0);
       ctx.stroke();
 
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2.8 + beatPulse * 1.0;
+      ctx.lineWidth = 2.6 + beatPulse * 0.9;
       ctx.beginPath();
       ctx.moveTo(-fullBeamHalfW, 0);
       ctx.lineTo(fullBeamHalfW, 0);
@@ -24139,10 +24163,19 @@ class BeatstarEngine {
 
           ctx.save();
           ctx.globalCompositeOperation = 'lighter';
-          ctx.shadowColor = nodeCol;
-          ctx.shadowBlur = 14 + flash * 10;
           ctx.strokeStyle = nodeCol;
-          ctx.lineWidth = 2.6 + flash * 1.8;
+          ctx.lineWidth = 5.2 + flash * 3.0;
+          ctx.globalAlpha = 0.34 + flash * 0.36;
+          ctx.beginPath();
+          ctx.moveTo(0, -nodeR * 1.15);
+          ctx.lineTo(nodeR * 1.4, 0);
+          ctx.lineTo(0, nodeR * 1.15);
+          ctx.lineTo(-nodeR * 1.4, 0);
+          ctx.closePath();
+          ctx.stroke();
+          ctx.globalAlpha = 1.0;
+
+          ctx.lineWidth = 2.5 + flash * 1.6;
           ctx.beginPath();
           ctx.moveTo(0, -nodeR);
           ctx.lineTo(nodeR * 1.25, 0);
@@ -24438,12 +24471,10 @@ class BeatstarEngine {
 
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.shadowColor = glowCol;
-      ctx.shadowBlur = Math.max(6, 14 * scale);
       ctx.fillStyle = note._isCruceAccent ? 'rgba(168, 85, 247, 0.34)' : 'rgba(0, 242, 254, 0.30)';
       ctx.beginPath();
-      const padX = 3 * scale;
-      const padY = 2 * scale;
+      const padX = 4.5 * scale;
+      const padY = 3.2 * scale;
       if (ctx.roundRect) ctx.roundRect(-halfW - padX, -halfH - padY, barW + padX * 2, barH + padY * 2, Math.max(3, 7 * scale));
       else ctx.rect(-halfW - padX, -halfH - padY, barW + padX * 2, barH + padY * 2);
       ctx.fill();
@@ -24493,19 +24524,17 @@ class BeatstarEngine {
       ctx.save();
       ctx.translate(localX, localY);
 
-      // 1. Halo exterior dorado de deslizamiento
+      // 1. Halo exterior dorado de deslizamiento (0 shadowBlur para 60 FPS bloqueados)
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.shadowColor = '#f59e0b';
-      ctx.shadowBlur = Math.max(8, 16 * scale);
-      ctx.fillStyle = 'rgba(251, 191, 36, 0.34)';
+      ctx.fillStyle = 'rgba(251, 191, 36, 0.36)';
       ctx.beginPath();
-      ctx.moveTo(-halfW + wingTip, -halfH - 2 * scale);
-      ctx.lineTo(halfW - wingTip, -halfH - 2 * scale);
-      ctx.lineTo(halfW + 3 * scale, 0);
-      ctx.lineTo(halfW - wingTip, halfH + 2 * scale);
-      ctx.lineTo(-halfW + wingTip, halfH + 2 * scale);
-      ctx.lineTo(-halfW - 3 * scale, 0);
+      ctx.moveTo(-halfW + wingTip, -halfH - 3.5 * scale);
+      ctx.lineTo(halfW - wingTip, -halfH - 3.5 * scale);
+      ctx.lineTo(halfW + 4.5 * scale, 0);
+      ctx.lineTo(halfW - wingTip, halfH + 3.5 * scale);
+      ctx.lineTo(-halfW + wingTip, halfH + 3.5 * scale);
+      ctx.lineTo(-halfW - 4.5 * scale, 0);
       ctx.closePath();
       ctx.fill();
 
@@ -24609,10 +24638,12 @@ class BeatstarEngine {
 
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.shadowColor = isBeingHeld ? '#fde047' : '#00f2fe';
-      ctx.shadowBlur = isBeingHeld ? 18 : 11;
       ctx.strokeStyle = borderCol;
-      ctx.lineWidth = isBeingHeld ? 3.6 : 2.5;
+      ctx.lineWidth = isBeingHeld ? 6.5 : 4.6;
+      ctx.globalAlpha = 0.32;
+      ctx.stroke();
+      ctx.globalAlpha = 1.0;
+      ctx.lineWidth = isBeingHeld ? 3.2 : 2.3;
       ctx.stroke();
 
       // Nervaduras transversales de energía en perspectiva dentro del Hold
@@ -24794,10 +24825,13 @@ class BeatstarEngine {
         }
       }
 
-      // 3. Mapear la coordenada física X a los 4 carriles dinámicos respetando el Split central y la altura Y de cada sub-pista
-      let rawLane = 0;
+      // 3. Mapear la coordenada física X a los carriles abiertos (4, 3 o 2 carriles) respetando el Split central y la altura Y de cada sub-pista
+      const laneWeights = ctrl.laneWeights || [1, 1, 1, 1];
+      let rawLane = -1;
       let minDist = Infinity;
       for (let l = 0; l < 4; l++) {
+        if (laneWeights[l] < 0.08) continue;
+        if (rawLane < 0) rawLane = l;
         const laneHitY = this.getLaneHitY(l);
         const refY = Number.isFinite(localY)
           ? Math.max(laneHitY - 90, Math.min(h, localY))
@@ -24815,6 +24849,7 @@ class BeatstarEngine {
           rawLane = l;
         }
       }
+      if (rawLane < 0) rawLane = 1;
 
       if (!useMagnetism || !this.isRunning || this.isPaused || this.isCalibrating || nLen === 0) {
         return rawLane;
@@ -24871,19 +24906,35 @@ class BeatstarEngine {
       const nLanes = 4;
       const splitMorph = ctrl ? ctrl.splitMorph : 0;
       const collapseMorph = ctrl ? ctrl.collapseMorph : 0;
-      const isSplitOpen = splitMorph > 0.025;
+      const isSplitOpen = splitMorph > 0.025 && collapseMorph < 0.35;
       const horizonY = ctrl ? ctrl.getEffectiveHorizonY(baseHorizonY) : baseHorizonY;
+      const laneWeights = (ctrl && ctrl.laneWeights) ? ctrl.laneWeights : [1, 1, 1, 1];
 
-      // 0. ESCENARIO PROFUNDO DE 10 CARRILES (Sub-rejilla 3D sutil bajo la autopista)
+      let firstOpenLane = 0;
+      let lastOpenLane = 3;
+      for (let l = 0; l < 4; l++) {
+        if (laneWeights[l] > 0.03) {
+          firstOpenLane = l;
+          break;
+        }
+      }
+      for (let l = 3; l >= 0; l--) {
+        if (laneWeights[l] > 0.03) {
+          lastOpenLane = l;
+          break;
+        }
+      }
+
+      // 0. ESCENARIO PROFUNDO (Sub-rejilla 3D sutil bajo la autopista, 0 allocs)
       ctx.save();
       const stageHalfSpanTop = this.width * (ctrl ? (0.34 + 0.16 * (1 - Math.min(1, ctrl.pitchMorph * 0.4))) : 0.42);
-      const stageHalfSpanBot = this.width * 1.18;
+      const stageHalfSpanBot = this.width * 1.15;
       const stageMidX = this.width * 0.5;
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.08)';
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.07)';
       ctx.lineWidth = 1.0;
       ctx.beginPath();
-      for (let sl = -5; sl <= 5; sl++) {
-        const frac = sl / 5;
+      for (let sl = -4; sl <= 4; sl++) {
+        const frac = sl / 4;
         const sxTop = stageMidX + frac * stageHalfSpanTop;
         const sxBot = stageMidX + frac * stageHalfSpanBot;
         ctx.moveTo(sxTop, horizonY);
@@ -24892,62 +24943,54 @@ class BeatstarEngine {
       ctx.stroke();
       ctx.restore();
 
-      // 0B. ESCENARIO MULTICARRIL DE 10 CARRILES Y MOVIMIENTO FLUIDO DE CÁMARA EN SWIPES LATERALES
-      // Cuando el jugador hace un Swipe Lateral (Izquierda o Derecha), la cámara se desplaza suavemente por el escenario multicarril:
-      // aparece un carril nuevo desde ese lateral mientras los carriles centrales se deslizan 1 posición y el carril del extremo opuesto sale de la vista sin temblores.
-      if (ctrl && collapseMorph < 0.30) {
-        const drawStageExtensionLane = (extLaneIdx, alphaVal) => {
-          if (alphaVal <= 0.015) return;
-          const refHitY = this.getLaneHitY(extLaneIdx < 0 ? 0 : 3);
-          const extBotY = Math.min(bottomY, refHitY + 115);
-          const topB = ctrl.getLaneBoundsAtY(extLaneIdx, horizonY, true);
-          const botB = ctrl.getLaneBoundsAtY(extLaneIdx, extBotY, true);
+      // 0B. ANIMACIÓN DEL CARRIL QUE SE VA CON LA TECLA AL HACER SWIPE IZQUIERDA / DERECHA
+      if (ctrl && ctrl.flyingAwayLanes && ctrl.flyingAwayLanes.length > 0) {
+        for (let f = 0; f < ctrl.flyingAwayLanes.length; f++) {
+          const fl = ctrl.flyingAwayLanes[f];
+          const u = Math.max(0, Math.min(1, (cTime - fl.startTimeMs) / Math.max(1, fl.durationMs)));
+          if (u >= 1) continue;
+          const easeOut = 1 - Math.pow(1 - u, 3);
+          const alpha = (1 - u) * 0.78;
+          const shiftX = fl.dir * easeOut * (this.width * 0.44);
+          const subBotY = Math.min(bottomY, hitY + 110);
 
           ctx.save();
-          ctx.globalAlpha = Math.max(0, Math.min(1, alphaVal));
+          ctx.globalAlpha = alpha;
           ctx.beginPath();
-          ctx.moveTo(topB.left, horizonY);
-          ctx.lineTo(topB.right, horizonY);
-          ctx.lineTo(botB.right, extBotY);
-          ctx.lineTo(botB.left, extBotY);
+          ctx.moveTo(fl.topLeft + shiftX * 0.65, horizonY);
+          ctx.lineTo(fl.topRight + shiftX * 0.65, horizonY);
+          ctx.lineTo(fl.botRight + shiftX, subBotY);
+          ctx.lineTo(fl.botLeft + shiftX, subBotY);
           ctx.closePath();
           ctx.fillStyle = this._trackGrad || '#f8fafc';
           ctx.fill();
-
-          ctx.strokeStyle = `rgba(56, 189, 248, ${(0.55 * alphaVal).toFixed(3)})`;
-          ctx.lineWidth = 1.6;
+          ctx.strokeStyle = '#00f5a0';
+          ctx.lineWidth = 2.4;
           ctx.stroke();
           ctx.restore();
-        };
-
-        // Carriles vecinos sutiles del escenario de 10 carriles (-2, -1 a la izquierda y 4, 5 a la derecha)
-        drawStageExtensionLane(-2, 0.06);
-        drawStageExtensionLane(-1, 0.13);
-        drawStageExtensionLane(4, 0.13);
-        drawStageExtensionLane(5, 0.06);
-
-        // Durante el barrido de cámara lateral (slideProgress 0.0 -> 1.0):
-        // - Swipe Izquierda (camSlideDir > 0): la cámara mira a la izquierda -> el carril -1 entra emergiendo hasta opacidad 1.0 y el carril 3 sale desvaneciéndose
-        // - Swipe Derecha (camSlideDir < 0): la cámara mira a la derecha -> el carril 4 entra emergiendo hasta opacidad 1.0 y el carril 0 sale desvaneciéndose
-        if (ctrl._camSlideActive && ctrl._camSlideProgress > 0.005) {
-          const sp = ctrl._camSlideProgress;
-          if (ctrl._camSlideDir > 0) {
-            drawStageExtensionLane(-1, 0.18 + 0.82 * sp);
-          } else if (ctrl._camSlideDir < 0) {
-            drawStageExtensionLane(4, 0.18 + 0.82 * sp);
-          }
         }
       }
 
-      // Helper que dibuja una sección 3D blanca/traslúcida (toda la pista cuando está unida, o cada sub-pista Izquierda/Derecha cuando está en Split)
+      // Helper que dibuja una sección 3D blanca/traslúcida (toda la pista activa unida sin solapamientos, o cada sub-pista Izquierda/Derecha cuando está en Split)
       const drawSubHighwaySurface = (laneStart, laneEnd, subHitY) => {
-        const subBotY = Math.min(bottomY, subHitY + 115);
-        const tL_top = this.getLaneLeftX(laneStart, horizonY);
-        const tR_top = this.getLaneRightX(laneEnd, horizonY);
-        const tR_bot = this.getLaneRightX(laneEnd, subBotY);
-        const tL_bot = this.getLaneLeftX(laneStart, subBotY);
+        let effStart = -1;
+        let effEnd = -1;
+        for (let l = laneStart; l <= laneEnd; l++) {
+          if (laneWeights[l] > 0.02 || collapseMorph > 0.5) {
+            if (effStart === -1) effStart = l;
+            effEnd = l;
+          }
+        }
+        if (effStart === -1) return;
 
-        // A1. Superficie principal blanca nacarada 3D (sin degradado central fijo que oscurezca media pista al abrirse en Split)
+        const subBotY = Math.min(bottomY, subHitY + 115);
+        const tL_top = this.getLaneLeftX(effStart, horizonY);
+        const tR_top = this.getLaneRightX(effEnd, horizonY);
+        const tR_bot = this.getLaneRightX(effEnd, subBotY);
+        const tL_bot = this.getLaneLeftX(effStart, subBotY);
+        if (tR_bot - tL_bot < 2) return;
+
+        // A1. Superficie principal blanca nacarada 3D (1 único polígono continuo por sub-pista: CERO superposición al ensanchar o estrechar)
         ctx.beginPath();
         ctx.moveTo(tL_top, horizonY);
         ctx.lineTo(tR_top, horizonY);
@@ -24957,15 +25000,17 @@ class BeatstarEngine {
         ctx.fillStyle = this._trackGrad || '#f8fafc';
         ctx.fill();
 
-        // A2. Lomo especular 3D en el centro de cada carril
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.38)';
+        // A2. Lomo especular 3D en el centro de cada carril abierto
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.34)';
         ctx.beginPath();
-        for (let l = laneStart; l <= laneEnd; l++) {
-          if (collapseMorph > 0.85 && l > laneStart) break;
-          const lTop = this.getLaneLeftX(l, horizonY);
-          const rTop = this.getLaneRightX(l, horizonY);
-          const lBot = this.getLaneLeftX(l, subBotY);
-          const rBot = this.getLaneRightX(l, subBotY);
+        for (let l = effStart; l <= effEnd; l++) {
+          if (collapseMorph > 0.75 && l > effStart) break;
+          if (collapseMorph <= 0.75 && laneWeights[l] <= 0.05) continue;
+          const lTop = collapseMorph > 0.75 ? tL_top : this.getLaneLeftX(l, horizonY);
+          const rTop = collapseMorph > 0.75 ? tR_top : this.getLaneRightX(l, horizonY);
+          const lBot = collapseMorph > 0.75 ? tL_bot : this.getLaneLeftX(l, subBotY);
+          const rBot = collapseMorph > 0.75 ? tR_bot : this.getLaneRightX(l, subBotY);
+          if (rBot - lBot < 4) continue;
           const cTopL = lTop + (rTop - lTop) * 0.28;
           const cTopR = lTop + (rTop - lTop) * 0.72;
           const cBotL = lBot + (rBot - lBot) * 0.28;
@@ -24978,7 +25023,7 @@ class BeatstarEngine {
         }
         ctx.fill();
 
-        // A3. Oclusión ambiental interna en los bordes propios de la sub-pista
+        // A3. Oclusión ambiental interna en los bordes exteriores de la sub-pista
         const aoTopW = Math.max(2, (tR_top - tL_top) * 0.06);
         const aoBotW = Math.max(5, (tR_bot - tL_bot) * 0.06);
         ctx.fillStyle = 'rgba(30, 41, 59, 0.14)';
@@ -24995,28 +25040,33 @@ class BeatstarEngine {
         ctx.closePath();
         ctx.fill();
 
-        // B. Líneas de compás en perspectiva (se adaptan dinámicamente al ángulo 2D / 3D / Hiper-3D)
-        const numRungs = 20;
-        const rungExp = ctrl ? ctrl.getEffectiveCurveExp() : 2.15;
+        // B. Líneas de compás en perspectiva (1 solo path agrupado para 60 FPS sin tirones)
+        const numRungs = 16;
+        const rungExp = ctrl ? ctrl.getEffectiveCurveExp() : 2.0;
+        ctx.strokeStyle = 'rgba(71, 85, 105, 0.13)';
+        ctx.lineWidth = 1.1;
+        ctx.beginPath();
         for (let r = 2; r < numRungs; r++) {
           const p = Math.pow(r / numRungs, rungExp);
           const ry = horizonY + (subBotY - horizonY) * p;
-          const rungAlpha = Math.min(0.16, p * 0.18);
-          ctx.strokeStyle = `rgba(71, 85, 105, ${rungAlpha.toFixed(3)})`;
-          ctx.lineWidth = 0.8 + p * 0.7;
-          ctx.beginPath();
-          ctx.moveTo(this.getLaneLeftX(laneStart, ry) + 2, ry);
-          ctx.lineTo(this.getLaneRightX(laneEnd, ry) - 2, ry);
-          ctx.stroke();
+          ctx.moveTo(this.getLaneLeftX(effStart, ry) + 2, ry);
+          ctx.lineTo(this.getLaneRightX(effEnd, ry) - 2, ry);
         }
+        ctx.stroke();
 
-        // C. Hendiduras divisorias de carril grabadas en 3D (se desvanecen suavemente cuando la pista se colapsa a 1 solo carril estrecho)
-        const divAlpha = Math.max(0, 1.0 - collapseMorph * 1.15);
+        // C. Hendiduras divisorias de carril grabadas en 3D (solo entre carriles abiertos y se desvanecen en 1 carril)
+        const divAlpha = Math.max(0, 1.0 - collapseMorph * 1.25);
         if (divAlpha > 0.02) {
           ctx.strokeStyle = `rgba(51, 65, 85, ${(0.34 * divAlpha).toFixed(3)})`;
-          ctx.lineWidth = 2.4;
+          ctx.lineWidth = 2.2;
           ctx.beginPath();
-          for (let l = laneStart; l < laneEnd; l++) {
+          for (let l = effStart; l < effEnd; l++) {
+            if (laneWeights[l] <= 0.06) continue;
+            let hasOpenRight = false;
+            for (let k = l + 1; k <= effEnd; k++) {
+              if (laneWeights[k] > 0.06) { hasOpenRight = true; break; }
+            }
+            if (!hasOpenRight) continue;
             const divTop = this.getLaneRightX(l, horizonY);
             const divBot = this.getLaneRightX(l, subBotY);
             ctx.moveTo(divTop, horizonY);
@@ -25024,14 +25074,20 @@ class BeatstarEngine {
           }
           ctx.stroke();
 
-          ctx.strokeStyle = `rgba(255, 255, 255, ${(0.85 * divAlpha).toFixed(3)})`;
-          ctx.lineWidth = 1.2;
+          ctx.strokeStyle = `rgba(255, 255, 255, ${(0.82 * divAlpha).toFixed(3)})`;
+          ctx.lineWidth = 1.1;
           ctx.beginPath();
-          for (let l = laneStart; l < laneEnd; l++) {
+          for (let l = effStart; l < effEnd; l++) {
+            if (laneWeights[l] <= 0.06) continue;
+            let hasOpenRight = false;
+            for (let k = l + 1; k <= effEnd; k++) {
+              if (laneWeights[k] > 0.06) { hasOpenRight = true; break; }
+            }
+            if (!hasOpenRight) continue;
             const divTop = this.getLaneRightX(l, horizonY);
             const divBot = this.getLaneRightX(l, subBotY);
-            ctx.moveTo(divTop + 1.4, horizonY);
-            ctx.lineTo(divBot + 1.8, subBotY);
+            ctx.moveTo(divTop + 1.3, horizonY);
+            ctx.lineTo(divBot + 1.6, subBotY);
           }
           ctx.stroke();
         }
@@ -25039,8 +25095,8 @@ class BeatstarEngine {
         // D. Sombra 3D difuminada al final de la pista (horizonte profundo)
         if (this._trackHorizonShadowGrad) {
           const shadowEndY = horizonY + (subHitY - horizonY) * 0.30;
-          const sL_bot = this.getLaneLeftX(laneStart, shadowEndY);
-          const sR_bot = this.getLaneRightX(laneEnd, shadowEndY);
+          const sL_bot = this.getLaneLeftX(effStart, shadowEndY);
+          const sR_bot = this.getLaneRightX(effEnd, shadowEndY);
           ctx.save();
           ctx.fillStyle = this._trackHorizonShadowGrad;
           ctx.beginPath();
@@ -25058,11 +25114,17 @@ class BeatstarEngine {
         drawSubHighwaySurface(0, 1, this.getLaneHitY(0));
         drawSubHighwaySurface(2, 3, this.getLaneHitY(2));
       } else {
-        drawSubHighwaySurface(0, 3, this.getLaneHitY(0));
+        drawSubHighwaySurface(firstOpenLane, lastOpenLane, this.getLaneHitY(firstOpenLane));
       }
 
-      // 2. RESPLANDOR DIFUMINADO EN EL CARRIL AL TOCAR UNA TECLA
+      // 1B. TEJIDO ESPEJO EN FASE ESPEJO DE MODO LOCURA
+      if (this.isMadnessModeActive && (this._mirrorPhaseProgress || 0) > 0.01 && typeof this.renderMirrorTrackWeave === 'function') {
+        this.renderMirrorTrackWeave(ctx, cTime, horizonY, hitY, bottomY);
+      }
+
+      // 2. RESPLANDOR DIFUMINADO EN EL CARRIL AL TOCAR UNA TECLA (Cero createLinearGradient por frame para evitar tirones de GC)
       for (let l = 0; l < nLanes; l++) {
+        if (collapseMorph <= 0.5 && laneWeights[l] <= 0.05) continue;
         const flashTimer = (Array.isArray(this.laneFlashTimers) && this.laneFlashTimers[l]) || 0;
         const isHolding = this.activeHolds.has(l);
         const glow = this.laneGlows[l] || 0;
@@ -25070,22 +25132,17 @@ class BeatstarEngine {
           const flashCol = (Array.isArray(this.laneFlashColors) && this.laneFlashColors[l]) || this.getJudgeGlowColor('perfectPlus');
           const rgb = hexToRgb(flashCol);
           const intensity = isHolding ? 0.88 : Math.min(1.0, Math.max(flashTimer / 0.28, glow * 0.75));
-          const easeGlow = Math.pow(intensity, 0.85);
+          const easeGlow = Math.pow(intensity, 0.85) * (collapseMorph > 0.5 ? 1.0 : laneWeights[l]);
           const laneHitY = this.getLaneHitY(l);
-          const auraTopY = horizonY + (laneHitY - horizonY) * 0.22;
-          const auraBotY = laneHitY + 30;
-          const aL_top = this.getLaneLeftX(l, auraTopY);
-          const aR_top = this.getLaneRightX(l, auraTopY);
-          const aL_bot = this.getLaneLeftX(l, auraBotY);
-          const aR_bot = this.getLaneRightX(l, auraBotY);
+          const auraTopY = horizonY + (laneHitY - horizonY) * 0.28;
+          const auraBotY = laneHitY + 26;
+          const aL_top = collapseMorph > 0.65 ? this.getLaneLeftX(firstOpenLane, auraTopY) : this.getLaneLeftX(l, auraTopY);
+          const aR_top = collapseMorph > 0.65 ? this.getLaneRightX(lastOpenLane, auraTopY) : this.getLaneRightX(l, auraTopY);
+          const aL_bot = collapseMorph > 0.65 ? this.getLaneLeftX(firstOpenLane, auraBotY) : this.getLaneLeftX(l, auraBotY);
+          const aR_bot = collapseMorph > 0.65 ? this.getLaneRightX(lastOpenLane, auraBotY) : this.getLaneRightX(l, auraBotY);
 
           ctx.save();
-          ctx.globalAlpha = easeGlow;
-          const vGrad = ctx.createLinearGradient(0, auraBotY, 0, auraTopY);
-          vGrad.addColorStop(0.00, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.62)`);
-          vGrad.addColorStop(0.35, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.32)`);
-          vGrad.addColorStop(1.00, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.00)`);
-          ctx.fillStyle = vGrad;
+          ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(0.34 * easeGlow).toFixed(3)})`;
           ctx.beginPath();
           ctx.moveTo(aL_top, auraTopY);
           ctx.lineTo(aR_top, auraTopY);
@@ -25097,13 +25154,13 @@ class BeatstarEngine {
         }
       }
 
-      // 3. BISEL METÁLICO 3D Y GUÍAS LÁSER EN LOS BORDES EXTERIORES E INTERIORES (SIN CLAMPING A 0..width PARA JAMÁS INVERTIR EL POLÍGONO SOBRE LA PISTA)
+      // 3. BISEL METÁLICO 3D Y GUÍAS LÁSER EN LOS BORDES EXTERIORES E INTERIORES
       const railTopW = 5.0;
       const railBotW = 14.0;
-      const outerL_top = this.getLaneLeftX(0, horizonY);
-      const outerR_top = this.getLaneRightX(3, horizonY);
-      const outerL_bot = this.getLaneLeftX(0, bottomY);
-      const outerR_bot = this.getLaneRightX(3, bottomY);
+      const outerL_top = this.getLaneLeftX(firstOpenLane, horizonY);
+      const outerR_top = this.getLaneRightX(lastOpenLane, horizonY);
+      const outerL_bot = this.getLaneLeftX(firstOpenLane, bottomY);
+      const outerR_bot = this.getLaneRightX(lastOpenLane, bottomY);
 
       ctx.save();
       ctx.fillStyle = '#0d1322';
@@ -25121,12 +25178,14 @@ class BeatstarEngine {
       ctx.fill();
 
       if (isSplitOpen) {
-        const innerL_top = this.getLaneRightX(1, horizonY);
-        const innerR_top = this.getLaneLeftX(2, horizonY);
-        const leftBotY = Math.min(bottomY, this.getLaneHitY(1) + 115);
-        const rightBotY = Math.min(bottomY, this.getLaneHitY(2) + 115);
-        const innerL_bot = this.getLaneRightX(1, leftBotY);
-        const innerR_bot = this.getLaneLeftX(2, rightBotY);
+        const leftEndLane = laneWeights[1] > 0.05 ? 1 : 0;
+        const rightStartLane = laneWeights[2] > 0.05 ? 2 : 3;
+        const innerL_top = this.getLaneRightX(leftEndLane, horizonY);
+        const innerR_top = this.getLaneLeftX(rightStartLane, horizonY);
+        const leftBotY = Math.min(bottomY, this.getLaneHitY(leftEndLane) + 115);
+        const rightBotY = Math.min(bottomY, this.getLaneHitY(rightStartLane) + 115);
+        const innerL_bot = this.getLaneRightX(leftEndLane, leftBotY);
+        const innerR_bot = this.getLaneLeftX(rightStartLane, rightBotY);
         const gapBot = Math.max(0, innerR_bot - innerL_bot);
         const innerRailW = Math.max(0, Math.min(8.0, gapBot * 0.28));
 
@@ -25165,7 +25224,7 @@ class BeatstarEngine {
       ctx.restore();
 
       // 4. FOCOS DE ESCENARIO LATERALES Y ECUALIZADOR RÍTMICO 3D (Beatstar Stage Wings pegadas a los bordes exteriores vivos)
-      const numRibs = 34;
+      const numRibs = 30;
       const bpmSpeed = (normBpm / 60) * Math.PI * 2;
       const theme = this.getEffectBorderTheme(this.activeEffect);
       const frameScale = Math.min(2.5, (this._frameDt || 0.00833) * 60);
@@ -25187,12 +25246,12 @@ class BeatstarEngine {
 
       if (!this._ribScratch) {
         this._ribScratch = {
-          y: new Float32Array(numRibs),
-          xStartL: new Float32Array(numRibs),
-          lenL: new Float32Array(numRibs),
-          xStartR: new Float32Array(numRibs),
-          lenR: new Float32Array(numRibs),
-          p: new Float32Array(numRibs)
+          y: new Float32Array(34),
+          xStartL: new Float32Array(34),
+          lenL: new Float32Array(34),
+          xStartR: new Float32Array(34),
+          lenR: new Float32Array(34),
+          p: new Float32Array(34)
         };
       }
       const rs = this._ribScratch;
@@ -25203,8 +25262,8 @@ class BeatstarEngine {
         const yPos = startY + spanRhythmY * p;
         const railWAtY = railTopW + (railBotW - railTopW) * p;
         const railGap = 4.5 + 3.5 * p;
-        const xStartL = this.getLaneLeftX(0, yPos) - railWAtY - railGap;
-        const xStartR = this.getLaneRightX(3, yPos) + railWAtY + railGap;
+        const xStartL = this.getLaneLeftX(firstOpenLane, yPos) - railWAtY - railGap;
+        const xStartR = this.getLaneRightX(lastOpenLane, yPos) + railWAtY + railGap;
         const maxWingReach = Math.max(12, Math.min(this.width * 0.21, xStartL - 6, (this.width - xStartR) - 6));
 
         const cascadeWave = 0.5 + 0.5 * Math.sin(p * 10.5 - audioTime * bpmSpeed);
@@ -25283,18 +25342,29 @@ class BeatstarEngine {
       const ctrl = this.dynamicHighwayController;
       const splitMorph = ctrl ? ctrl.splitMorph : 0;
       const collapseMorph = ctrl ? ctrl.collapseMorph : 0;
-      const isSplitOpen = splitMorph > 0.025;
+      const isSplitOpen = splitMorph > 0.025 && collapseMorph < 0.35;
+      const laneWeights = (ctrl && ctrl.laneWeights) ? ctrl.laneWeights : [1, 1, 1, 1];
 
       const renderSubDeck = (laneStart, laneEnd, subHitY) => {
+        let effStart = -1;
+        let effEnd = -1;
+        for (let l = laneStart; l <= laneEnd; l++) {
+          if (laneWeights[l] > 0.03 || collapseMorph > 0.55) {
+            if (effStart === -1) effStart = l;
+            effEnd = l;
+          }
+        }
+        if (effStart === -1) return;
+
         const yDeckTop = subHitY - padH * 0.56;
         const yDeckBot = subHitY + padH * 0.60;
         const subBotY = Math.min(bottomY, yDeckBot + 95);
 
         // 1. Faldón escénico inferior de la sub-pista
-        const apL_top = this.getLaneLeftX(laneStart, yDeckBot);
-        const apR_top = this.getLaneRightX(laneEnd, yDeckBot);
-        const apL_bot = this.getLaneLeftX(laneStart, subBotY);
-        const apR_bot = this.getLaneRightX(laneEnd, subBotY);
+        const apL_top = this.getLaneLeftX(effStart, yDeckBot);
+        const apR_top = this.getLaneRightX(effEnd, yDeckBot);
+        const apL_bot = this.getLaneLeftX(effStart, subBotY);
+        const apR_bot = this.getLaneRightX(effEnd, subBotY);
         ctx.fillStyle = s.apronGrad;
         ctx.beginPath();
         ctx.moveTo(apL_top - 8, yDeckBot);
@@ -25307,15 +25377,15 @@ class BeatstarEngine {
         // 2. Chasis 3D de la sub-pista con labio frontal extruido
         const chMarginTop = 5;
         const chMarginBot = 7;
-        const chL_top = this.getLaneLeftX(laneStart, yDeckTop) - chMarginTop;
-        const chR_top = this.getLaneRightX(laneEnd, yDeckTop) + chMarginTop;
-        const chL_bot = this.getLaneLeftX(laneStart, yDeckBot) - chMarginBot;
-        const chR_bot = this.getLaneRightX(laneEnd, yDeckBot) + chMarginBot;
+        const chL_top = this.getLaneLeftX(effStart, yDeckTop) - chMarginTop;
+        const chR_top = this.getLaneRightX(effEnd, yDeckTop) + chMarginTop;
+        const chL_bot = this.getLaneLeftX(effStart, yDeckBot) - chMarginBot;
+        const chR_bot = this.getLaneRightX(effEnd, yDeckBot) + chMarginBot;
 
         const lipH = isLarge ? 10 : 7;
         const yLipBot = yDeckBot + lipH;
-        const chL_lip = this.getLaneLeftX(laneStart, yLipBot) - (chMarginBot + 2);
-        const chR_lip = this.getLaneRightX(laneEnd, yLipBot) + (chMarginBot + 2);
+        const chL_lip = this.getLaneLeftX(effStart, yLipBot) - (chMarginBot + 2);
+        const chR_lip = this.getLaneRightX(effEnd, yLipBot) + (chMarginBot + 2);
         ctx.fillStyle = s.deckLipGrad;
         this._traceQuadOn(ctx, chL_bot, chR_bot, chL_lip, chR_lip, yDeckBot - 2, yLipBot, 10);
         ctx.fill();
@@ -25330,7 +25400,7 @@ class BeatstarEngine {
         ctx.lineWidth = 2.0;
         ctx.stroke();
 
-        // 3. Receptores mecánicos 3D por carril
+        // 3. Receptores mecánicos 3D por carril activo (CERO superposición al ensanchar o estrechar)
         const wellHalfH = padH * 0.46;
         const yWellTop = subHitY - wellHalfH;
         const yWellBot = subHitY + wellHalfH;
@@ -25338,15 +25408,18 @@ class BeatstarEngine {
         const plateMargin = isLarge ? 3.4 : 2.5;
         const maxSink = isLarge ? 7.0 : 4.5;
         const cornerRad = isLarge ? 8 : 5;
+        const singleMerged = collapseMorph > 0.65;
 
-        for (let l = laneStart; l <= laneEnd; l++) {
-          if (collapseMorph > 0.85 && l > laneStart) break;
+        for (let l = effStart; l <= effEnd; l++) {
+          if (singleMerged && l > effStart) break;
+          if (!singleMerged && laneWeights[l] <= 0.08) continue;
+
           let elapsedPress = nowPerf - (this.lanePressAnim ? (this.lanePressAnim[l] || 0) : 0);
           let isHolding = this.activeHolds.has(l);
           let flashTimer = (Array.isArray(this.laneFlashTimers) && this.laneFlashTimers[l]) || 0;
           let glow = this.laneGlows[l] || 0;
           let laneFlashCol = (Array.isArray(this.laneFlashColors) && this.laneFlashColors[l]) || laserCol;
-          if (collapseMorph > 0.65) {
+          if (singleMerged) {
             for (let k = 0; k < 4; k++) {
               const epK = nowPerf - (this.lanePressAnim ? (this.lanePressAnim[k] || 0) : 0);
               if (epK >= 0 && epK < elapsedPress) elapsedPress = epK;
@@ -25376,10 +25449,11 @@ class BeatstarEngine {
           ));
           const activeRgb = isActive ? hexToRgb(laneFlashCol) : laserRgb;
 
-          const wL_top = collapseMorph > 0.85 ? this.getLaneLeftX(0, yWellTop) + wellMargin : this.getLaneLeftX(l, yWellTop) + wellMargin;
-          const wR_top = collapseMorph > 0.85 ? this.getLaneRightX(3, yWellTop) - wellMargin : this.getLaneRightX(l, yWellTop) - wellMargin;
-          const wL_bot = collapseMorph > 0.85 ? this.getLaneLeftX(0, yWellBot) + wellMargin : this.getLaneLeftX(l, yWellBot) + wellMargin;
-          const wR_bot = collapseMorph > 0.85 ? this.getLaneRightX(3, yWellBot) - wellMargin : this.getLaneRightX(l, yWellBot) - wellMargin;
+          const wL_top = singleMerged ? this.getLaneLeftX(effStart, yWellTop) + wellMargin : this.getLaneLeftX(l, yWellTop) + wellMargin;
+          const wR_top = singleMerged ? this.getLaneRightX(effEnd, yWellTop) - wellMargin : this.getLaneRightX(l, yWellTop) - wellMargin;
+          const wL_bot = singleMerged ? this.getLaneLeftX(effStart, yWellBot) + wellMargin : this.getLaneLeftX(l, yWellBot) + wellMargin;
+          const wR_bot = singleMerged ? this.getLaneRightX(effEnd, yWellBot) - wellMargin : this.getLaneRightX(l, yWellBot) - wellMargin;
+          if (wR_bot - wL_bot < 6) continue;
 
           ctx.fillStyle = s.wellGrad;
           this._traceQuadOn(ctx, wL_top, wR_top, wL_bot, wR_bot, yWellTop, yWellBot, cornerRad);
@@ -25396,12 +25470,12 @@ class BeatstarEngine {
           const bevelH = Math.max(3.5, (isLarge ? 8.5 : 5.0) - Math.max(0, currentSink * 0.70));
           const yBevelTop = yPlateBot - bevelH;
 
-          const pL_top = collapseMorph > 0.85 ? this.getLaneLeftX(0, yPlateTop) + plateMargin : this.getLaneLeftX(l, yPlateTop) + plateMargin;
-          const pR_top = collapseMorph > 0.85 ? this.getLaneRightX(3, yPlateTop) - plateMargin : this.getLaneRightX(l, yPlateTop) - plateMargin;
-          const pL_bev = collapseMorph > 0.85 ? this.getLaneLeftX(0, yBevelTop) + plateMargin : this.getLaneLeftX(l, yBevelTop) + plateMargin;
-          const pR_bev = collapseMorph > 0.85 ? this.getLaneRightX(3, yBevelTop) - plateMargin : this.getLaneRightX(l, yBevelTop) - plateMargin;
-          const pL_bot = collapseMorph > 0.85 ? this.getLaneLeftX(0, yPlateBot) + plateMargin : this.getLaneLeftX(l, yPlateBot) + plateMargin;
-          const pR_bot = collapseMorph > 0.85 ? this.getLaneRightX(3, yPlateBot) - plateMargin : this.getLaneRightX(l, yPlateBot) - plateMargin;
+          const pL_top = singleMerged ? this.getLaneLeftX(effStart, yPlateTop) + plateMargin : this.getLaneLeftX(l, yPlateTop) + plateMargin;
+          const pR_top = singleMerged ? this.getLaneRightX(effEnd, yPlateTop) - plateMargin : this.getLaneRightX(l, yPlateTop) - plateMargin;
+          const pL_bev = singleMerged ? this.getLaneLeftX(effStart, yBevelTop) + plateMargin : this.getLaneLeftX(l, yBevelTop) + plateMargin;
+          const pR_bev = singleMerged ? this.getLaneRightX(effEnd, yBevelTop) - plateMargin : this.getLaneRightX(l, yBevelTop) - plateMargin;
+          const pL_bot = singleMerged ? this.getLaneLeftX(effStart, yPlateBot) + plateMargin : this.getLaneLeftX(l, yPlateBot) + plateMargin;
+          const pR_bot = singleMerged ? this.getLaneRightX(effEnd, yPlateBot) - plateMargin : this.getLaneRightX(l, yPlateBot) - plateMargin;
           const plateRad = Math.max(4, cornerRad - 2);
 
           ctx.fillStyle = isActive
@@ -25435,10 +25509,10 @@ class BeatstarEngine {
         const bandHalfH = isLarge ? 12.5 : 8.5;
         const yBandTop = subHitY - bandHalfH;
         const yBandBot = subHitY + bandHalfH;
-        const bandL_top = this.getLaneLeftX(laneStart, yBandTop) - 4;
-        const bandR_top = this.getLaneRightX(laneEnd, yBandTop) + 4;
-        const bandL_bot = this.getLaneLeftX(laneStart, yBandBot) - 4;
-        const bandR_bot = this.getLaneRightX(laneEnd, yBandBot) + 4;
+        const bandL_top = this.getLaneLeftX(effStart, yBandTop) - 4;
+        const bandR_top = this.getLaneRightX(effEnd, yBandTop) + 4;
+        const bandL_bot = this.getLaneLeftX(effStart, yBandBot) - 4;
+        const bandR_bot = this.getLaneRightX(effEnd, yBandBot) + 4;
 
         ctx.save();
         ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
@@ -25456,9 +25530,11 @@ class BeatstarEngine {
         ctx.stroke();
         ctx.restore();
 
-        // 5. Núcleos de precisión PERFECT+, corchetes y diamantes por carril
-        for (let l = laneStart; l <= laneEnd; l++) {
-          if (collapseMorph > 0.85 && l > laneStart) break;
+        // 5. Núcleos de precisión PERFECT+, corchetes y diamantes por carril activo
+        for (let l = effStart; l <= effEnd; l++) {
+          if (singleMerged && l > effStart) break;
+          if (!singleMerged && laneWeights[l] <= 0.12) continue;
+
           const elapsedPress = nowPerf - (this.lanePressAnim ? (this.lanePressAnim[l] || 0) : 0);
           const isTapping = elapsedPress >= 0 && elapsedPress < 260;
           const isHolding = this.activeHolds.has(l);
@@ -25479,10 +25555,11 @@ class BeatstarEngine {
           const cBandBot = perfY + (isLarge ? 10.5 : 7.5);
           const bandInset = (isLarge ? 3.4 : 2.5) + 2.0;
 
-          const bL_top = collapseMorph > 0.85 ? this.getLaneLeftX(0, cBandTop) + bandInset : this.getLaneLeftX(l, cBandTop) + bandInset;
-          const bR_top = collapseMorph > 0.85 ? this.getLaneRightX(3, cBandTop) - bandInset : this.getLaneRightX(l, cBandTop) - bandInset;
-          const bL_bot = collapseMorph > 0.85 ? this.getLaneLeftX(0, cBandBot) + bandInset : this.getLaneLeftX(l, cBandBot) + bandInset;
-          const bR_bot = collapseMorph > 0.85 ? this.getLaneRightX(3, cBandBot) - bandInset : this.getLaneRightX(l, cBandBot) - bandInset;
+          const bL_top = singleMerged ? this.getLaneLeftX(effStart, cBandTop) + bandInset : this.getLaneLeftX(l, cBandTop) + bandInset;
+          const bR_top = singleMerged ? this.getLaneRightX(effEnd, cBandTop) - bandInset : this.getLaneRightX(l, cBandTop) - bandInset;
+          const bL_bot = singleMerged ? this.getLaneLeftX(effStart, cBandBot) + bandInset : this.getLaneLeftX(l, cBandBot) + bandInset;
+          const bR_bot = singleMerged ? this.getLaneRightX(effEnd, cBandBot) - bandInset : this.getLaneRightX(l, cBandBot) - bandInset;
+          if (bR_bot - bL_bot < 6) continue;
           const cx = (bL_top + bR_top + bL_bot + bR_bot) * 0.25;
 
           ctx.save();
@@ -25542,8 +25619,8 @@ class BeatstarEngine {
         // 6. Emisores láser laterales de la sub-pista
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
-        const lineL = this.getLaneLeftX(laneStart, subHitY) - 10;
-        const lineR = this.getLaneRightX(laneEnd, subHitY) + 10;
+        const lineL = this.getLaneLeftX(effStart, subHitY) - 10;
+        const lineR = this.getLaneRightX(effEnd, subHitY) + 10;
         ctx.strokeStyle = `rgba(${laserRgb.r}, ${laserRgb.g}, ${laserRgb.b}, ${(0.48 + beatPulse * 0.32).toFixed(3)})`;
         ctx.lineWidth = 2.4;
         ctx.beginPath();
@@ -25665,21 +25742,21 @@ class DynamicHighwayController {
 
   reset(engine) {
     this.engine = engine;
-    // 1. Width Morph (1.0 = 1 único carril central estrecho en puentes/intros suaves, 0.0 = 4 carriles abiertos)
+    // 1. Width Morph (1.0 = 1 único carril central estrecho en puentes/intros suaves, 0.0 = carriles abiertos)
     this.collapseMorph = 0.0;
     this.targetCollapseMorph = 0.0;
     this._collapseStartVal = 0.0;
     this._collapseTransStartMs = -5000;
-    this._collapseTransDurMs = 950;
+    this._collapseTransDurMs = 900;
 
-    // 2. Split-Lane Asimétrico (0.0 = pista unida, 1.0 = dividida por la mitad en Sub-pista Izquierda [0,1] y Derecha [2,3])
+    // 2. Split-Lane Asimétrico (0.0 = pista unida, 1.0 = dividida por la mitad en Sub-pista Izquierda y Derecha)
     this.splitMorph = 0.0;
     this.targetSplitMorph = 0.0;
     this._splitStartVal = 0.0;
     this._splitTransStartMs = -5000;
-    this._splitTransDurMs = 950;
+    this._splitTransDurMs = 900;
 
-    // 3. Y-Offset Desacoplado (0.0 a 1.0 = sube un 12% de la altura de la pantalla la línea de juicio de la sub-pista activa)
+    // 3. Y-Offset Desacoplado (0.0 a 1.0 = sube un 10% de la altura de la pantalla la línea de juicio de la sub-pista activa)
     this.leftRaiseMorph = 0.0;
     this.rightRaiseMorph = 0.0;
     this.targetLeftRaise = 0.0;
@@ -25687,17 +25764,17 @@ class DynamicHighwayController {
     this._leftRaiseStartVal = 0.0;
     this._rightRaiseStartVal = 0.0;
     this._raiseTransStartMs = -5000;
-    this._raiseTransDurMs = 900;
+    this._raiseTransDurMs = 850;
 
-    // 4. Desplazamiento de Cámara por Carril en Swipes Laterales ('10-Lane' Viewport Shift: aparece 1 carril nuevo por el lado del swipe y desaparece el del extremo opuesto de forma fluida sin saltos en t=0)
-    this.camSlideOffset = 0.0;
-    this._camSlideActive = false;
-    this._camSlideDir = 0; // +1 = cámara se mueve a la izquierda (entra carril izquierdo -1, sale el 3); -1 = cámara se mueve a la derecha (entra carril derecho 4, sale el 0)
-    this._camSlideProgress = 0.0;
-    this._camSlideStartMs = -5000;
-    this._camSlideDurMs = 520;
-    this._outgoingGhostLane = null;
-    this._ghostFadeAlpha = 0.0;
+    // 4. Pesos Dinámicos por Carril (Swipes Izquierda/Derecha se llevan el carril entero: 4 -> 3 -> 2 carriles centrados, y los Holds los reabren fluidamente)
+    this.laneWeights = [1.0, 1.0, 1.0, 1.0];
+    this.targetLaneWeights = [1.0, 1.0, 1.0, 1.0];
+    this._laneStartWeights = [1.0, 1.0, 1.0, 1.0];
+    this._laneTransStartMs = [-5000, -5000, -5000, -5000];
+    this._laneTransDurMs = 520;
+    this.flyingAwayLanes = [];
+    this.laneEvents = [];
+
     this.cameraPanX = 0.0;
     this.targetCameraPanX = 0.0;
     this.cameraTiltRad = 0.0;
@@ -25705,12 +25782,11 @@ class DynamicHighwayController {
     this._tiltReleaseTimeMs = 0;
 
     // 5. Control de Ángulo Vertical 2D <-> 3D <-> Hiper-3D mediante Swipes Arriba/Abajo
-    // pitchMorph: 0.0 = Vista 2D Plana (Swipe Arriba), 1.0 = Perspectiva 3D Estándar, 2.0..3.0 = Hiper-3D Extremo (Swipes Abajo consecutivos: las teclas salen hacia la cara del jugador)
     this.pitchMorph = 1.0;
     this.targetPitchLevel = 1.0;
     this._pitchStartVal = 1.0;
     this._pitchTransStartMs = -5000;
-    this._pitchTransDurMs = 680;
+    this._pitchTransDurMs = 640;
 
     // 6. Secciones coreografiadas al ritmo de la canción y arcos guía de Ping-Pong
     this.sections = [];
@@ -25721,46 +25797,96 @@ class DynamicHighwayController {
     this._coordScratch = { x: 0, y: 0, scale: 1, laneW: 50, pCurved: 0 };
   }
 
+  getOpenLaneCount() {
+    let count = 0;
+    for (let l = 0; l < 4; l++) {
+      if (this.targetLaneWeights[l] > 0.5) count++;
+    }
+    return count;
+  }
+
+  setLaneOpen(laneIdx, isOpen, currentTimeMs, durMs = 520) {
+    if (laneIdx < 0 || laneIdx > 3) return;
+    const targetVal = isOpen ? 1.0 : 0.0;
+    if (Math.abs(this.targetLaneWeights[laneIdx] - targetVal) < 0.01) return;
+    this._laneStartWeights[laneIdx] = this.laneWeights[laneIdx];
+    this.targetLaneWeights[laneIdx] = targetVal;
+    this._laneTransStartMs[laneIdx] = Number.isFinite(currentTimeMs) ? currentTimeMs : 0;
+    this._laneTransDurMs = Math.max(260, durMs);
+  }
+
+  closeLaneWithSwipe(laneIdx, dirSign, currentTimeMs) {
+    const cTime = Number.isFinite(currentTimeMs) ? currentTimeMs : 0;
+    // Determinar el carril lateral abierto que se desprende con el swipe (sin bajar nunca de 2 carriles abiertos)
+    let targetLane = laneIdx;
+    if (targetLane < 0 || targetLane > 3 || this.targetLaneWeights[targetLane] < 0.5) {
+      if (dirSign < 0) {
+        targetLane = this.targetLaneWeights[0] > 0.5 ? 0 : (this.targetLaneWeights[3] > 0.5 ? 3 : -1);
+      } else {
+        targetLane = this.targetLaneWeights[3] > 0.5 ? 3 : (this.targetLaneWeights[0] > 0.5 ? 0 : -1);
+      }
+    }
+    if (targetLane < 0 || this.getOpenLaneCount() <= 2) return;
+
+    const eng = this.engine;
+    const horizonY = this.getEffectiveHorizonY(eng ? eng._perspHorizonY : 12);
+    const bottomY = (eng ? eng.height : 640) + 30;
+    const topB = this.getLaneBoundsAtY(targetLane, horizonY);
+    const topLeft = topB.left;
+    const topRight = topB.right;
+    const botB = this.getLaneBoundsAtY(targetLane, bottomY);
+    const botLeft = botB.left;
+    const botRight = botB.right;
+
+    this.flyingAwayLanes.push({
+      lane: targetLane,
+      dir: dirSign < 0 ? -1 : 1,
+      startTimeMs: cTime,
+      durationMs: 520,
+      topLeft,
+      topRight,
+      botLeft,
+      botRight
+    });
+
+    this.setLaneOpen(targetLane, false, cTime, 500);
+    this.targetCameraTiltRad = (dirSign < 0 ? -1 : 1) * (2.0 * Math.PI) / 180.0;
+    this._tiltReleaseTimeMs = cTime + 460;
+  }
+
   getEffectiveHorizonY(baseHorizonY = 12) {
     const h = (this.engine && this.engine.height) ? this.engine.height : 640;
     const p = this.pitchMorph;
     if (p <= 1.0) {
-      // 0.0 (2D Plano) -> -14px arriba; 1.0 (3D Estándar) -> baseHorizonY (12px)
       return -14 + (baseHorizonY - (-14)) * p;
     }
-    // 1.0 -> 3.0 (Hiper-3D): el horizonte baja hacia el centro para inclinar la autopista hacia la cámara
     const extra = Math.min(2.0, p - 1.0) / 2.0;
-    return baseHorizonY + (h * 0.23 - baseHorizonY) * extra;
+    return baseHorizonY + (h * 0.22 - baseHorizonY) * extra;
   }
 
   getEffectiveMinScale() {
     const p = this.pitchMorph;
     if (p <= 1.0) {
-      // 0.0 (2D Plano) -> 0.96 (carriles paralelos); 1.0 (3D Estándar) -> 0.62
       return 0.96 + (0.62 - 0.96) * p;
     }
-    // 1.0 -> 3.0 (Hiper-3D): punto de fuga más profundo (0.62 -> 0.24)
     const extra = Math.min(2.0, p - 1.0) / 2.0;
-    return 0.62 - (0.62 - 0.24) * extra;
+    return 0.62 - (0.62 - 0.26) * extra;
   }
 
   getEffectiveMaxScale() {
     const p = this.pitchMorph;
     if (p <= 1.0) return 1.0;
-    // En Hiper-3D (p > 1.0), la base inferior se ensancha ligeramente (hasta 1.24x) para que las teclas parezcan salir de la pantalla
     const extra = Math.min(2.0, p - 1.0) / 2.0;
-    return 1.0 + 0.24 * extra;
+    return 1.0 + 0.22 * extra;
   }
 
   getEffectiveCurveExp() {
     const p = this.pitchMorph;
     if (p <= 1.0) {
-      // 0.0 (2D velocidad lineal 1.0) -> 1.0 (3D exponencial 1.48)
       return 1.0 + 0.48 * p;
     }
-    // 1.0 -> 3.0 (Hiper-3D): aceleración de perspectiva agresiva hacia la cámara (hasta 2.38)
     const extra = Math.min(2.0, p - 1.0) / 2.0;
-    return 1.48 + (2.38 - 1.48) * extra;
+    return 1.48 + (2.28 - 1.48) * extra;
   }
 
   buildChoreography(notes, bpm = 120) {
@@ -25771,12 +25897,12 @@ class DynamicHighwayController {
     while (effBpm > 190) effBpm *= 0.5;
     while (effBpm < 75) effBpm *= 2.0;
     const beatMs = 60000 / effBpm;
-    const phraseMs = Math.max(2600, Math.min(4400, beatMs * 8));
+    const phraseMs = Math.max(3200, Math.min(5200, beatMs * 8));
 
     const firstNoteT = notes[0].timestamp_ms ?? 0;
     const lastNoteT = notes[notes.length - 1].end_timestamp_ms || notes[notes.length - 1].timestamp_ms || 60000;
 
-    // 1. Analizar densidad real por frases musicales para que el modo NO sea repetitivo ni empiece siempre igual
+    // 1. Analizar densidad real por frases musicales (usando Split de forma moderada ~25% de la canción para no abusar)
     let cursorT = firstNoteT;
     let phraseIdx = 0;
     const rawPhrases = [];
@@ -25807,12 +25933,10 @@ class DynamicHighwayController {
       phraseIdx++;
     }
 
-    // Calcular densidad media de la canción para distinguir intros/puentes suaves de estribillos y drops
     let avgNps = 0;
     for (let i = 0; i < rawPhrases.length; i++) avgNps += rawPhrases[i].nps;
     avgNps = rawPhrases.length > 0 ? (avgNps / rawPhrases.length) : 2.5;
 
-    // Semilla determinista por canción para variar la coreografía inicial entre canciones
     const songSeed = Math.abs(Math.round((firstNoteT * 0.13) + notes.length * 7 + effBpm * 3)) % 3;
     let prevFormation = '';
 
@@ -25823,36 +25947,30 @@ class DynamicHighwayController {
       let leftRaise = 0.0;
       let rightRaise = 0.0;
 
-      const isCalmPhrase = p.nps < Math.max(1.45, avgNps * 0.62);
-      const isHighEnergy = p.nps >= avgNps * 1.05;
+      const isCalmPhrase = p.nps < Math.max(1.40, avgNps * 0.58);
+      const isStrongChorus = p.nps >= avgNps * 1.15;
 
       if (idx === 0) {
-        // Variar el arranque según la energía real de la intro y la semilla de la canción
         if (isCalmPhrase && songSeed === 0) {
           collapse = 1.0;
           split = 0.0;
           prevFormation = 'single';
-        } else if (songSeed === 1 && !isCalmPhrase) {
-          collapse = 0.0;
-          split = 1.0;
-          rightRaise = 1.0;
-          prevFormation = 'split_r';
         } else {
           collapse = 0.0;
           split = 0.0;
           prevFormation = 'quad';
         }
-      } else if (isCalmPhrase && prevFormation !== 'single' && (idx % 3 === 2)) {
-        // Puente melódico suave: convergencia fluida a 1 único carril central
+      } else if (isCalmPhrase && prevFormation !== 'single' && (idx % 5 === 3)) {
+        // Puente melódico suave ocasional: convergencia limpia a 1 único carril central
         collapse = 1.0;
         split = 0.0;
         prevFormation = 'single';
-      } else if (isHighEnergy || (idx % 2 === 1 && prevFormation !== 'split_l' && prevFormation !== 'split_r')) {
-        // Frase rítmica / estribillo: apertura en Split-Lane 2+2 con desfase de altura Y según mano dominante
+      } else if (isStrongChorus && prevFormation !== 'split_l' && prevFormation !== 'split_r' && (idx % 3 === 1)) {
+        // Usar Split de forma selectiva (solo en estribillos potentes, nunca dos seguidos)
         collapse = 0.0;
         split = 1.0;
         const rightDom = (p.countRight > p.countLeft) || (p.countRight === p.countLeft && (idx % 2 === 1));
-        if (rightDom && prevFormation !== 'split_r') {
+        if (rightDom) {
           rightRaise = 1.0;
           leftRaise = 0.0;
           prevFormation = 'split_r';
@@ -25862,16 +25980,9 @@ class DynamicHighwayController {
           prevFormation = 'split_l';
         }
       } else {
-        // Autopista de 4 carriles abiertos para secuencias de velocidad y rallies de Ping-Pong
         collapse = 0.0;
-        split = (idx % 4 === 2) ? 1.0 : 0.0;
-        if (split > 0.5) {
-          leftRaise = (idx % 2 === 0) ? 1.0 : 0.0;
-          rightRaise = 1.0 - leftRaise;
-          prevFormation = leftRaise > 0.5 ? 'split_l' : 'split_r';
-        } else {
-          prevFormation = 'quad';
-        }
+        split = 0.0;
+        prevFormation = 'quad';
       }
 
       this.sections.push({
@@ -25885,7 +25996,6 @@ class DynamicHighwayController {
       });
     }
 
-    // Inicializar estado de arranque con la primera sección de la canción
     if (this.sections.length > 0) {
       const s0 = this.sections[0];
       this.collapseMorph = s0.collapse;
@@ -25902,9 +26012,7 @@ class DynamicHighwayController {
       this._rightRaiseStartVal = s0.rightRaise;
     }
 
-    // 2. ELIMINAR NOTAS DOBLES/APILADAS EN SECCIONES DE 1 CARRIL (y márgenes de transición ±650ms)
-    // Cuando los 4 carriles convergen en 1 solo carril, dos notas simultáneas o separadas por < 125ms se superponen visualmente
-    // pareciendo una sola tecla a la que habría que darle dos veces. Las fusionamos limpiamente en una única tecla.
+    // 2. Eliminar notas dobles/apiladas en secciones de 1 carril
     const isNearSingleLane = (tMs) => {
       for (let s = 0; s < this.sections.length; s++) {
         const sec = this.sections[s];
@@ -25922,7 +26030,6 @@ class DynamicHighwayController {
       const tCur = cur.timestamp_ms ?? 0;
       const tPrev = prev.timestamp_ms ?? 0;
       if (Math.abs(tCur - tPrev) < 125 && isNearSingleLane(tCur)) {
-        // Conservar los Holds si alguno de los dos lo es
         if (cur.type === 'hold' && prev.type !== 'hold') {
           notes.splice(i - 1, 1);
         } else {
@@ -25931,34 +26038,29 @@ class DynamicHighwayController {
       }
     }
 
-    // En secciones de 1 carril, centrar el carril lógico de los Holds para que su malla sea limpia
     for (let i = 0; i < notes.length; i++) {
       const n = notes[i];
       if (!n || n.isMine) continue;
       if (isNearSingleLane(n.timestamp_ms ?? 0)) {
         n.startWidth = 1.0;
         n.endWidth = 1.0;
-        n.startLane = n.lane ?? 1;
-        n.endLane = n.lane ?? 1;
+        n.startLane = 1;
+        n.endLane = 1;
+        n.lane = 1;
+        n.meshKeyframes = null;
       }
     }
 
-    // 3. RALLIES DE PING-PONG REALES ENTRE LOS CARRILES LATERALES EXTERIORES (Carril 3 Derecha <-> Carril 0 Izquierda)
-    // En frases rítmicas de 4 carriles o Split, seleccionamos secuencias al pulso de la música donde:
-    // - La nota inicial cae por un lateral (ej. carril 3 derecho) con insignia 'PING'.
-    // - Al darle a la tecla, la siguiente nota salta físicamente rebotando en parábola hacia el lateral opuesto (carril 0 izquierdo),
-    //   y al volver a darle en la izquierda rebota de vuelta a la derecha (3 -> 0 -> 3 -> 0).
-    // - Se limpian las notas intermedias de relleno durante el peloteo para que sea 100% jugable, limpio, justo y muy divertido.
-    let nextRallyAllowedT = firstNoteT + 2200;
+    // 3. Rallies de Ping-Pong entre carriles laterales (cuando los 4 carriles están abiertos)
+    let nextRallyAllowedT = firstNoteT + 2600;
     for (let s = 0; s < this.sections.length; s++) {
       const sec = this.sections[s];
-      if (sec.collapse > 0.35) continue; // No hacer Ping-Pong lateral cuando hay 1 solo carril
+      if (sec.collapse > 0.35) continue;
 
-      const rallyStartSearchT = Math.max(sec.startMs + 350, nextRallyAllowedT);
-      const rallyEndSearchT = sec.endMs - 650;
+      const rallyStartSearchT = Math.max(sec.startMs + 400, nextRallyAllowedT);
+      const rallyEndSearchT = sec.endMs - 700;
       if (rallyEndSearchT <= rallyStartSearchT + 900) continue;
 
-      // Buscar un grupo de 3 a 5 golpes rítmicos espaciados entre 310ms y 760ms
       for (let i = 0; i < notes.length - 3; i++) {
         const n0 = notes[i];
         if (!n0 || n0.isMine || n0.type === 'hold') continue;
@@ -25966,15 +26068,14 @@ class DynamicHighwayController {
         if (t0 < rallyStartSearchT) continue;
         if (t0 > rallyEndSearchT) break;
 
-        // Intentar encadenar de 3 a 5 impactos al pulso de la canción
         const chainIndices = [i];
         let lastT = t0;
-        for (let j = i + 1; j < notes.length && chainIndices.length < 5; j++) {
+        for (let j = i + 1; j < notes.length && chainIndices.length < 4; j++) {
           const cand = notes[j];
           if (!cand || cand.isMine) continue;
           const dt = (cand.timestamp_ms ?? 0) - lastT;
-          if (dt < 300) continue; // Saltar subdivisiones demasiado rápidas (las limpiaremos si el rally es válido)
-          if (dt >= 300 && dt <= 780 && cand.type !== 'hold' && !isNearSingleLane(cand.timestamp_ms ?? 0)) {
+          if (dt < 310) continue;
+          if (dt >= 310 && dt <= 760 && cand.type !== 'hold' && !isNearSingleLane(cand.timestamp_ms ?? 0)) {
             chainIndices.push(j);
             lastT = cand.timestamp_ms ?? 0;
           } else {
@@ -25983,7 +26084,6 @@ class DynamicHighwayController {
         }
 
         if (chainIndices.length >= 3) {
-          // Construir el peloteo de Ping-Pong: Derecha (3) -> Izquierda (0) -> Derecha (3) -> Izquierda (0)
           const firstIdx = chainIndices[0];
           const lastIdx = chainIndices[chainIndices.length - 1];
           const keepSet = new Set(chainIndices);
@@ -25997,6 +26097,7 @@ class DynamicHighwayController {
             noteObj.endLane = sideLane;
             noteObj.startWidth = 1.0;
             noteObj.endWidth = 1.0;
+            noteObj.meshKeyframes = null;
             if (step === 0) {
               noteObj._isPingPongServe = true;
               noteObj._pingPongRallyLen = chainIndices.length;
@@ -26014,99 +26115,192 @@ class DynamicHighwayController {
             sideLane = (sideLane === 3) ? 0 : 3;
           }
 
-          // Eliminar notas intermedias de relleno entre el primer y último golpe del peloteo para que no estorben
           for (let k = lastIdx - 1; k > firstIdx; k--) {
             if (!keepSet.has(k)) {
               notes.splice(k, 1);
             }
           }
 
-          nextRallyAllowedT = (notes[firstIdx].timestamp_ms ?? t0) + 4600;
+          nextRallyAllowedT = (notes[firstIdx].timestamp_ms ?? t0) + 5600;
           break;
         }
       }
     }
 
-    // 4. COLOCAR SWIPES MUSICALES CON SENTIDO (Izquierda/Derecha para cambiar carril de cámara, Arriba para 2D, Abajo para 3D / Hiper-3D)
-    // Limpiar swipes aleatorios previos salvo los que estén bien aislados, y colocar swipes en inicios de frase/drops
+    // 4. COREOGRAFÍA DE SWIPES LATERALES (4 -> 3 -> 2 CARRILES) Y REAPERTURA CON HOLDS (2 -> 3 -> 4 CARRILES)
+    // - Al hacer un Swipe Izquierda (carril 0) o Derecha (carril 3), ese carril entero se va con la tecla y la cámara centra los 3 carriles restantes.
+    // - Al siguiente Swipe lateral en el otro extremo, pasa a 2 carriles centrales (carriles 1 y 2).
+    // - Cuando llega un Hold (o creamos uno musicalmente), el Hold se desplaza hacia el carril cerrado y lo vuelve a desplegar fluidamente.
     for (let i = 0; i < notes.length; i++) {
       const n = notes[i];
-      if (n && (n._isPingPongServe || n._isPingPongBounce) && n.type === 'swipe') {
+      if (!n) continue;
+      if (n.type === 'swipe') {
         n.type = 'tap';
+        delete n.direction;
+        delete n.swipeDirection;
+      }
+      if (n.type === 'hold' && !isNearSingleLane(n.timestamp_ms ?? 0)) {
+        n.startLane = n.lane ?? 1;
+        n.endLane = n.lane ?? 1;
+        n.startWidth = 1.0;
+        n.endWidth = 1.0;
+        n.meshKeyframes = null;
       }
     }
 
-    let lastSwipeT = -Infinity;
-    let simPitchState = 1; // 0 = 2D, 1 = 3D, 2 = Hiper-3D, 3 = Ultra-3D
-    let lateralToggle = 0;
+    const simOpen = [true, true, true, true];
+    let lastEventT = firstNoteT + 1400;
+    let simPitchState = 1; // 0 = 2D, 1 = 3D, 2 = Hiper-3D
 
-    for (let s = 0; s < this.sections.length; s++) {
-      const sec = this.sections[s];
-      if (sec.collapse > 0.35) continue; // No meter swipes complejos cuando hay 1 solo carril
+    const countSimOpen = () => (simOpen[0] ? 1 : 0) + (simOpen[1] ? 1 : 0) + (simOpen[2] ? 1 : 0) + (simOpen[3] ? 1 : 0);
+    const remapToOpenLane = (l) => {
+      if (simOpen[l]) return l;
+      if (l === 0) return simOpen[1] ? 1 : 2;
+      if (l === 3) return simOpen[2] ? 2 : 1;
+      return simOpen[1] ? 1 : 2;
+    };
 
-      // Buscar hasta 2 puntos musicales claros dentro de la frase (el arranque de la frase y la mitad de la frase)
-      const targetTimes = [sec.startMs + beatMs * 1.0, sec.startMs + (sec.endMs - sec.startMs) * 0.52];
-      for (let tIdx = 0; tIdx < targetTimes.length; tIdx++) {
-        const targetT = targetTimes[tIdx];
-        if (targetT < firstNoteT + 1200 || targetT - lastSwipeT < 2100) continue;
+    for (let i = 0; i < notes.length; i++) {
+      const n = notes[i];
+      if (!n || n.isMine) continue;
+      const nt = n.timestamp_ms ?? 0;
 
-        // Buscar la nota tap más cercana a targetT que tenga espacio libre antes y después
-        let bestNote = null;
-        let bestDist = 420;
-        for (let i = 0; i < notes.length; i++) {
-          const cand = notes[i];
-          if (!cand || cand.isMine || cand.type !== 'tap') continue;
-          if (cand._isPingPongServe || cand._isPingPongBounce) continue;
-          const nt = cand.timestamp_ms ?? 0;
-          const dist = Math.abs(nt - targetT);
-          if (dist > bestDist) {
-            if (nt > targetT + bestDist) break;
+      if (isNearSingleLane(nt)) {
+        n.lane = 1;
+        n.startLane = 1;
+        n.endLane = 1;
+        continue;
+      }
+
+      const inSplitSec = this.isSplitActiveAtTime(nt);
+
+      // Si una nota de Ping-Pong necesita los carriles 0 y 3, asegurarse de que estén abiertos
+      if (n._isPingPongServe || n._isPingPongBounce) {
+        if (!simOpen[0]) {
+          simOpen[0] = true;
+          this.laneEvents.push({ timeMs: Math.max(0, nt - 700), lane: 0, open: true, durMs: 500 });
+        }
+        if (!simOpen[3]) {
+          simOpen[3] = true;
+          this.laneEvents.push({ timeMs: Math.max(0, nt - 700), lane: 3, open: true, durMs: 500 });
+        }
+        continue;
+      }
+
+      // Reasignar la nota a uno de los carriles actualmente abiertos (para que nunca caigan notas en carriles que se han ido)
+      n.lane = remapToOpenLane(n.lane ?? 1);
+      if (n.type === 'hold') {
+        n.startLane = n.lane;
+        n.endLane = n.lane;
+      }
+
+      const prevN = notes[i - 1];
+      const nextN = notes[i + 1];
+      const gapPrev = prevN ? (nt - (prevN.end_timestamp_ms || prevN.timestamp_ms || 0)) : 999;
+      const gapNext = nextN ? ((nextN.timestamp_ms || 0) - nt) : 999;
+      const openCount = countSimOpen();
+
+      // A) Si hay algún carril cerrado (3 o 2 carriles) y llega un Hold suficientemente largo (o una nota con hueco tras 2.2s),
+      // hacer que este Hold termine en el carril cerrado para que el carril vuelva a aparecer fluidamente con el Hold
+      if (openCount < 4 && (nt - lastEventT >= 2100)) {
+        const closedLane = !simOpen[0] ? 0 : (!simOpen[3] ? 3 : -1);
+        const canConvertTapToHold = (n.type === 'tap' && gapNext >= 560 && !inSplitSec);
+        if (closedLane !== -1 && (n.type === 'hold' || canConvertTapToHold)) {
+          if (canConvertTapToHold) {
+            n.type = 'hold';
+            n.duration_ms = Math.min(680, Math.round(gapNext * 0.72));
+            n.end_timestamp_ms = nt + n.duration_ms;
+          }
+          const startL = (closedLane === 0) ? 1 : 2;
+          // Evitar cruzar el abismo central si estamos en Split: 1->0 está en el sub-deck izquierdo, 2->3 en el derecho
+          n.lane = startL;
+          n.startLane = startL;
+          n.endLane = closedLane;
+          n.startWidth = 1.0;
+          n.endWidth = 1.0;
+          n._reopensLane = closedLane;
+          n.meshKeyframes = [
+            { u: 0.0, lane: startL, width: 1.0 },
+            { u: 1.0, lane: closedLane, width: 1.0 }
+          ];
+          simOpen[closedLane] = true;
+          this.laneEvents.push({
+            timeMs: nt + Math.max(80, (n.duration_ms || 480) * 0.18),
+            lane: closedLane,
+            open: true,
+            durMs: Math.min(580, Math.max(340, n.duration_ms || 480))
+          });
+          lastEventT = n.end_timestamp_ms || (nt + 500);
+          continue;
+        }
+      }
+
+      // B) Si estamos en 4 o 3 carriles y toca un Swipe Lateral, colocar el swipe en el borde (carril 0 o 3) para que ese carril se vaya con la tecla (4 -> 3 -> 2 carriles)
+      if (!inSplitSec && n.type === 'tap' && gapPrev >= 190 && gapNext >= 240 && (nt - lastEventT >= 2400)) {
+        if (openCount >= 3 && ((i + songSeed) % 3 !== 2)) {
+          let closeLane = -1;
+          if (simOpen[3] && simOpen[0]) {
+            closeLane = (n.lane <= 1) ? 0 : 3;
+          } else if (simOpen[0]) {
+            closeLane = 0;
+          } else if (simOpen[3]) {
+            closeLane = 3;
+          }
+          if (closeLane !== -1) {
+            n.lane = closeLane;
+            n.type = 'swipe';
+            const swipeDir = (closeLane === 0) ? 'left' : 'right';
+            n.direction = swipeDir;
+            n.swipeDirection = swipeDir;
+            n._closesLane = closeLane;
+            simOpen[closeLane] = false;
+            this.laneEvents.push({
+              timeMs: nt,
+              lane: closeLane,
+              open: false,
+              durMs: 500,
+              flyDir: closeLane === 0 ? -1 : 1
+            });
+            lastEventT = nt;
             continue;
           }
-          const prevN = notes[i - 1];
-          const nextN = notes[i + 1];
-          const gapPrev = prevN ? (nt - (prevN.end_timestamp_ms || prevN.timestamp_ms || 0)) : 999;
-          const gapNext = nextN ? ((nextN.timestamp_ms || 0) - nt) : 999;
-          if (gapPrev >= 190 && gapNext >= 230) {
-            bestDist = dist;
-            bestNote = cand;
-          }
-        }
-
-        if (bestNote) {
-          bestNote.type = 'swipe';
-          let chosenDir = 'left';
-
-          if (tIdx === 0) {
-            // Al inicio de frase/drop, alternar cambios de cámara 2D / 3D / Hiper-3D (Arriba / Abajo) con Swipes Laterales
-            if (simPitchState === 0) {
-              // Si estábamos en 2D plano, un Swipe Abajo nos devuelve a 3D con impacto en el drop
-              chosenDir = 'down';
-              simPitchState = 1;
-            } else if (s % 4 === 1 && simPitchState < 3) {
-              // Ya estamos en 3D -> Swipe Abajo aumenta aún más el ángulo 3D (Hiper-3D: las teclas salen hacia la cámara)
-              chosenDir = 'down';
-              simPitchState++;
-            } else if (s % 4 === 2 && simPitchState >= 2) {
-              // Subir un segundo nivel más de Hiper-3D o pasar a vista 2D táctica
-              chosenDir = (simPitchState < 3) ? 'down' : 'up';
-              simPitchState = (chosenDir === 'down') ? (simPitchState + 1) : 0;
-            } else if (s % 4 === 3) {
-              // Swipe Arriba pasa la pista a vista 2D superior limpia
-              chosenDir = 'up';
-              simPitchState = 0;
-            } else {
-              chosenDir = (lateralToggle++ % 2 === 0) ? 'left' : 'right';
-            }
+        } else {
+          // Swipe vertical (Arriba -> 2D, Abajo -> 3D / Hiper-3D) en inicios de frase
+          n.type = 'swipe';
+          let vDir = 'down';
+          if (simPitchState === 0) {
+            vDir = 'down';
+            simPitchState = 1;
+          } else if (simPitchState === 1 && (i % 2 === 0)) {
+            vDir = 'down';
+            simPitchState = 2;
           } else {
-            // En mitad de frase, usar Swipes Laterales (Izquierda / Derecha) que mueven la cámara 1 carril haciendo aparecer un carril nuevo por ese lado
-            chosenDir = (bestNote.lane <= 1) ? 'left' : ((bestNote.lane >= 2) ? 'right' : ((lateralToggle++ % 2 === 0) ? 'left' : 'right'));
+            vDir = 'up';
+            simPitchState = 0;
           }
-
-          bestNote.direction = chosenDir;
-          bestNote.swipeDirection = chosenDir;
-          lastSwipeT = bestNote.timestamp_ms ?? targetT;
+          n.direction = vDir;
+          n.swipeDirection = vDir;
+          lastEventT = nt;
+          continue;
         }
+      }
+
+      // C) Para Holds normales: que NO crucen nunca el abismo central en Split y solo unos pocos (~20%) hagan diagonal suave dentro de la misma mitad
+      if (n.type === 'hold') {
+        n.startLane = n.lane;
+        n.startWidth = 1.0;
+        if (!inSplitSec && (n.duration_ms || 0) >= 650 && (i % 5 === 0)) {
+          const targetEnd = (n.lane === 0 && simOpen[1]) ? 1 : ((n.lane === 3 && simOpen[2]) ? 2 : n.lane);
+          n.endLane = targetEnd;
+          n.endWidth = 1.25;
+        } else {
+          n.endLane = n.lane;
+          n.endWidth = 1.0;
+        }
+        n.meshKeyframes = [
+          { u: 0.0, lane: n.startLane, width: n.startWidth },
+          { u: 1.0, lane: n.endLane, width: n.endWidth }
+        ];
       }
     }
   }
@@ -26131,17 +26325,12 @@ class DynamicHighwayController {
     return false;
   }
 
-  _smoothElasticLerp(startVal, targetVal, elapsedMs, durationMs) {
+  _smoothLerp(startVal, targetVal, elapsedMs, durationMs) {
     if (elapsedMs <= 0) return startVal;
     if (elapsedMs >= durationMs) return targetVal;
     const u = elapsedMs / Math.max(1, durationMs);
-    const delta = targetVal - startVal;
-    if (startVal > targetVal && Math.abs(delta) > 0.3) {
-      const easeOutBack = 1 - Math.pow(1 - u, 3) + Math.sin(u * Math.PI) * 0.05;
-      return Math.max(0, Math.min(1, startVal + delta * Math.min(1.0, easeOutBack)));
-    }
     const smooth = u * u * (3 - 2 * u);
-    return startVal + delta * smooth;
+    return startVal + (targetVal - startVal) * smooth;
   }
 
   update(currentTimeMs, dt = 0.016) {
@@ -26165,13 +26354,13 @@ class DynamicHighwayController {
         this._collapseStartVal = this.collapseMorph;
         this.targetCollapseMorph = sec.collapse;
         this._collapseTransStartMs = cTime;
-        this._collapseTransDurMs = 950;
+        this._collapseTransDurMs = 900;
       }
       if (Math.abs(sec.split - this.targetSplitMorph) > 0.01) {
         this._splitStartVal = this.splitMorph;
         this.targetSplitMorph = sec.split;
         this._splitTransStartMs = cTime;
-        this._splitTransDurMs = 950;
+        this._splitTransDurMs = 900;
       }
       if (Math.abs(sec.leftRaise - this.targetLeftRaise) > 0.01 || Math.abs(sec.rightRaise - this.targetRightRaise) > 0.01) {
         this._leftRaiseStartVal = this.leftRaiseMorph;
@@ -26179,37 +26368,68 @@ class DynamicHighwayController {
         this.targetLeftRaise = sec.leftRaise;
         this.targetRightRaise = sec.rightRaise;
         this._raiseTransStartMs = cTime;
-        this._raiseTransDurMs = 900;
+        this._raiseTransDurMs = 850;
       }
     }
 
-    // 2. Interpolar fluidamente Width Morph (1..4 carriles), Split-Lane y alturas Y-Offset (12%)
-    this.collapseMorph = this._smoothElasticLerp(
+    // 2. Ejecutar eventos programados de apertura/cierre de carril (si un swipe pasó sin ser golpeado o un hold reabre carril)
+    for (let i = 0; i < this.laneEvents.length; i++) {
+      const ev = this.laneEvents[i];
+      if (!ev._triggered && cTime >= ev.timeMs + (ev.open ? 0 : 140)) {
+        ev._triggered = true;
+        if (ev.open) {
+          this.setLaneOpen(ev.lane, true, cTime, ev.durMs || 520);
+        } else if (this.targetLaneWeights[ev.lane] > 0.5) {
+          this.closeLaneWithSwipe(ev.lane, ev.flyDir || (ev.lane === 0 ? -1 : 1), cTime);
+        }
+      }
+    }
+
+    // 3. Interpolar fluidamente Width Morph (1..4 carriles), Split-Lane y alturas Y-Offset
+    this.collapseMorph = this._smoothLerp(
       this._collapseStartVal,
       this.targetCollapseMorph,
       cTime - this._collapseTransStartMs,
       this._collapseTransDurMs
     );
-    this.splitMorph = this._smoothElasticLerp(
+    this.splitMorph = this._smoothLerp(
       this._splitStartVal,
       this.targetSplitMorph,
       cTime - this._splitTransStartMs,
       this._splitTransDurMs
     );
-    this.leftRaiseMorph = this._smoothElasticLerp(
+    this.leftRaiseMorph = this._smoothLerp(
       this._leftRaiseStartVal,
       this.targetLeftRaise,
       cTime - this._raiseTransStartMs,
       this._raiseTransDurMs
     );
-    this.rightRaiseMorph = this._smoothElasticLerp(
+    this.rightRaiseMorph = this._smoothLerp(
       this._rightRaiseStartVal,
       this.targetRightRaise,
       cTime - this._raiseTransStartMs,
       this._raiseTransDurMs
     );
 
-    // 3. Interpolar transición de ángulo 2D <-> 3D <-> Hiper-3D (Swipes Arriba / Abajo)
+    // 4. Interpolar pesos de carriles individuales (4 <-> 3 <-> 2 carriles centrados con fluidez)
+    for (let l = 0; l < 4; l++) {
+      this.laneWeights[l] = this._smoothLerp(
+        this._laneStartWeights[l],
+        this.targetLaneWeights[l],
+        cTime - this._laneTransStartMs[l],
+        this._laneTransDurMs
+      );
+    }
+
+    // Limpiar carriles desprendidos cuya animación ya terminó
+    for (let i = this.flyingAwayLanes.length - 1; i >= 0; i--) {
+      const fl = this.flyingAwayLanes[i];
+      if (cTime - fl.startTimeMs > (fl.durationMs || 520) + 60) {
+        this.flyingAwayLanes.splice(i, 1);
+      }
+    }
+
+    // 5. Interpolar transición de ángulo 2D <-> 3D <-> Hiper-3D (Swipes Arriba / Abajo)
     const pitchElapsed = cTime - this._pitchTransStartMs;
     if (pitchElapsed <= 0) {
       this.pitchMorph = this._pitchStartVal;
@@ -26221,29 +26441,13 @@ class DynamicHighwayController {
       this.pitchMorph = this._pitchStartVal + (this.targetPitchLevel - this._pitchStartVal) * easeCubic;
     }
 
-    // 4. Interpolar desplazamiento fluido de cámara de 0.0 a 1.0 carril en Swipes Laterales (CERO salto brusco en t=0 y CERO salto al completar el paso de 1 carril)
-    const slideElapsed = cTime - this._camSlideStartMs;
-    if (this._camSlideActive && slideElapsed >= 0 && slideElapsed < this._camSlideDurMs) {
-      const us = slideElapsed / Math.max(1, this._camSlideDurMs);
-      const easeInOut = us < 0.5 ? (4 * us * us * us) : (1 - Math.pow(-2 * us + 2, 3) / 2);
-      this._camSlideProgress = easeInOut;
-      this.camSlideOffset = this._camSlideDir * easeInOut;
-      this._ghostFadeAlpha = Math.max(0, 1.0 - easeInOut);
-    } else {
-      this._camSlideActive = false;
-      this._camSlideProgress = 0.0;
-      this.camSlideOffset = 0.0;
-      this._ghostFadeAlpha = 0.0;
-      this._outgoingGhostLane = null;
-    }
-
     if (cTime >= this._tiltReleaseTimeMs) {
       this.targetCameraTiltRad = 0;
     }
     const tiltLerp = 1.0 - Math.exp(-5.0 * safeDt);
     this.cameraTiltRad += (this.targetCameraTiltRad - this.cameraTiltRad) * tiltLerp;
 
-    // 5. Limpiar arcos guía de Ping-Pong ya aterrizados y disparar destello en el receptor lateral de destino
+    // 6. Limpiar arcos guía de Ping-Pong ya aterrizados
     for (let i = this.pingPongBalls.length - 1; i >= 0; i--) {
       const b = this.pingPongBalls[i];
       if (cTime >= b.endTimeMs && !b.landedFxTriggered) {
@@ -26268,45 +26472,29 @@ class DynamicHighwayController {
     const dir = (direction || 'up').toLowerCase();
 
     if (dir === 'up') {
-      // Swipe Arriba -> Pone la autopista en vista 2D superior plana
       this._pitchStartVal = this.pitchMorph;
       this.targetPitchLevel = 0.0;
-      this._pitchTransStartMs = cTime;
-      this._pitchTransDurMs = 640;
-      return;
-    }
-
-    if (dir === 'down') {
-      // Swipe Abajo -> Si estaba en 2D vuelve a 3D; si ya estaba en 3D, aumenta aún más el ángulo 3D (Hiper-3D: las teclas salen hacia la pantalla)
-      this._pitchStartVal = this.pitchMorph;
-      if (this.targetPitchLevel < 0.8) {
-        this.targetPitchLevel = 1.0;
-      } else {
-        this.targetPitchLevel = Math.min(3.0, Math.round(this.targetPitchLevel) + 1.0);
-      }
       this._pitchTransStartMs = cTime;
       this._pitchTransDurMs = 620;
       return;
     }
 
-    // Swipe Izquierda / Derecha -> La cámara se desplaza fluidamente (0.0 -> 1.0 carril) hacia ese lado:
-    // aparece un carril nuevo desde ese lateral, los 3 carriles interiores se deslizan 1 posición y el del extremo opuesto sale de la vista sin temblor.
-    this._camSlideActive = true;
-    this._camSlideProgress = 0.0;
-    this.camSlideOffset = 0.0;
-    if (dir === 'left') {
-      this._camSlideDir = 1.0;
-      this._outgoingGhostLane = 3;
-      this.targetCameraTiltRad = -(2.4 * Math.PI) / 180.0;
-    } else {
-      this._camSlideDir = -1.0;
-      this._outgoingGhostLane = 0;
-      this.targetCameraTiltRad = (2.4 * Math.PI) / 180.0;
+    if (dir === 'down') {
+      this._pitchStartVal = this.pitchMorph;
+      if (this.targetPitchLevel < 0.8) {
+        this.targetPitchLevel = 1.0;
+      } else {
+        this.targetPitchLevel = Math.min(2.5, Math.round(this.targetPitchLevel) + 1.0);
+      }
+      this._pitchTransStartMs = cTime;
+      this._pitchTransDurMs = 600;
+      return;
     }
-    this._camSlideStartMs = cTime;
-    this._camSlideDurMs = 520;
-    this._ghostFadeAlpha = 1.0;
-    this._tiltReleaseTimeMs = cTime + 520;
+
+    // Swipe Izquierda / Derecha: el carril entero se desprende y vuela en esa dirección (4 -> 3 -> 2 carriles)
+    // y la cámara centra de forma fluida los carriles restantes
+    const closeTarget = (lane === 0 || lane === 3) ? lane : (dir === 'left' ? 0 : 3);
+    this.closeLaneWithSwipe(closeTarget, dir === 'left' ? -1 : 1, cTime);
   }
 
   launchPingPongRebound(sourceNote, targetNote, currentTimeMs, hitX, hitY) {
@@ -26348,6 +26536,15 @@ class DynamicHighwayController {
     const targetNote = note._splitPingPongTarget;
     if (targetNote && !targetNote._pingPongLaunched) {
       this.launchPingPongRebound(note, targetNote, currentTimeMs, hitX, hitY);
+    }
+    // Si este Hold termina en un tercer o cuarto carril que estaba cerrado, desplegar ese carril fluidamente
+    if (note._reopensLane !== undefined && note._reopensLane >= 0 && note._reopensLane <= 3) {
+      this.setLaneOpen(note._reopensLane, true, currentTimeMs, Math.min(560, Math.max(340, note.duration_ms || 480)));
+    } else if (note.type === 'hold' && Number.isFinite(note.endLane)) {
+      const endL = Math.round(note.endLane);
+      if (endL >= 0 && endL <= 3 && this.targetLaneWeights[endL] < 0.5) {
+        this.setLaneOpen(endL, true, currentTimeMs, Math.min(560, Math.max(340, note.duration_ms || 480)));
+      }
     }
   }
 
@@ -26396,7 +26593,7 @@ class DynamicHighwayController {
     ctx.restore();
   }
 
-  renderPingPongBouncingNote(ctx, note, currentTimeMs, isLargeKey, lyricText = null) {
+  renderPingPongBouncingNote(ctx, note, currentTimeMs, isLargeKey) {
     if (!note || (!note._isPingPongBounce && !note._isSplitPingPongRebound) || !this.engine) return false;
     const cTime = Number.isFinite(currentTimeMs) ? currentTimeMs : 0;
 
@@ -26420,7 +26617,6 @@ class DynamicHighwayController {
     const toBounds = this.getLaneBoundsAtY(toLane, toY);
     const toX = toBounds.center;
 
-    // Parábola física 3D de lado a lado: la propia tecla rebota en el aire hacia el lateral opuesto
     const clampedU = Math.min(1.0, u);
     const invU = 1.0 - clampedU;
     const distX = Math.abs(toX - fromX);
@@ -26442,7 +26638,6 @@ class DynamicHighwayController {
     const spinDir = (toLane < fromLane) ? -1 : 1;
     const tiltAngle = spinDir * Math.sin(clampedU * Math.PI) * 0.24;
 
-    // 1. Anillo de aterrizaje magnético en el carril lateral de destino
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     const targetPulse = Math.max(0.15, 1.0 - Math.abs(1.0 - u) * 1.4);
@@ -26460,7 +26655,6 @@ class DynamicHighwayController {
     }
     ctx.stroke();
 
-    // 2. Estela de energía neón detrás de la tecla que rebota
     const trailSteps = 10;
     const uTrailStart = Math.max(0, clampedU - 0.30);
     ctx.strokeStyle = ringCol;
@@ -26478,7 +26672,6 @@ class DynamicHighwayController {
     ctx.stroke();
     ctx.restore();
 
-    // 3. Dibujar la propia tecla 3D oscura con núcleo brillante volando y rebotando hacia el otro lateral
     ctx.save();
     ctx.translate(curX, curY);
     ctx.rotate(tiltAngle);
@@ -26501,14 +26694,12 @@ class DynamicHighwayController {
     else ctx.rect(-hw + 3.5, -hh + 3.5, drawW - 7, drawH - 7);
     ctx.stroke();
 
-    // Núcleo incandescente central de la tecla
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     if (ctx.roundRect) ctx.roundRect(-hw * 0.58, -3.2, drawW * 0.58, 6.4, 3);
     else ctx.rect(-hw * 0.58, -3.2, drawW * 0.58, 6.4);
     ctx.fill();
 
-    // Insignia PONG sobre la tecla en vuelo
     ctx.fillStyle = '#fde047';
     ctx.font = `900 ${Math.max(9, Math.round(10 * toBounds.scale))}px "Outfit", system-ui, sans-serif`;
     ctx.textAlign = 'center';
@@ -26524,8 +26715,7 @@ class DynamicHighwayController {
     const hitY = Number.isFinite(baseHitY) ? baseHitY : (h * 0.82);
     if (this.splitMorph <= 0.005) return hitY;
 
-    // En Split-Lane, desacoplar la altura Y de las líneas de juicio un 12% de la altura de la pantalla
-    const maxOffsetPx = h * 0.12 * this.splitMorph;
+    const maxOffsetPx = h * 0.10 * this.splitMorph;
     const lVal = Number.isFinite(lane) ? lane : 0;
     let raiseFactor = 0;
     if (lVal <= 1.0) {
@@ -26553,48 +26743,101 @@ class DynamicHighwayController {
     const t = Math.max(-0.25, (yTarget - horizonY) * invSpanY);
     const scale = minScale + (maxScale - minScale) * t;
 
-    const splitCompact = 1.0 - 0.12 * this.splitMorph;
-    const baseLaneW = ((w * 0.88) / 4) * splitCompact;
-    const laneW = baseLaneW * scale;
+    const splitCompact = 1.0 - 0.10 * this.splitMorph;
+    const baseSingleW = ((w * 0.88) / 4) * splitCompact * scale;
 
-    // Abismo oscuro central entre Sub-pista Izquierda (0,1) y Sub-pista Derecha (2,3)
-    const splitGap = this.splitMorph * (baseLaneW * 0.78) * scale;
+    // Abismo oscuro central entre Sub-pista Izquierda (0,1) y Sub-pista Derecha (2,3), escalado por (1 - collapseMorph)
+    const spread = Math.max(0, Math.min(1, 1.0 - this.collapseMorph));
+    const splitGap = this.splitMorph * spread * (baseSingleW * 0.72);
 
-    // Inclinación sutil en eje Z durante el cambio de carril por Swipe Lateral
-    const tiltShiftX = Math.sin(this.cameraTiltRad) * (yTarget - h * 0.45) * 0.38;
-    const clampedMidX = w * 0.5 + tiltShiftX;
+    const tiltShiftX = Math.sin(this.cameraTiltRad) * (yTarget - h * 0.45) * 0.34;
+    const midX = w * 0.5 + tiltShiftX;
+
+    // Partición exacta SIN SOLAPAMIENTO:
+    // - Cuando collapseMorph == 0: cada carril abierto tiene anchura = baseSingleW * laneWeights[i], y el conjunto de carriles abiertos (4, 3 o 2) queda centrado exactamente en midX.
+    // - Cuando collapseMorph == 1: el ancho total de la autopista es 1 carril (baseSingleW), y los 4 carriles particionan [midX - baseSingleW/2, midX + baseSingleW/2] de forma adyacente (right(i) === left(i+1)), por lo que NUNCA se superponen las 4 pistas al ensancharse.
+    const w0 = Math.max(0.0, this.laneWeights[0]);
+    const w1 = Math.max(0.0, this.laneWeights[1]);
+    const w2 = Math.max(0.0, this.laneWeights[2]);
+    const w3 = Math.max(0.0, this.laneWeights[3]);
+    const sumW = Math.max(0.25, w0 + w1 + w2 + w3);
+
+    // En 3 carriles o 2 carriles, escalar ligeramente cada carril (como el modo clásico de 3 carriles) para aprovechar la pantalla con elegancia
+    const openScaleBoost = sumW < 3.9 ? (1.0 + (4.0 - sumW) * 0.09 * spread) : 1.0;
+    const totalTrackW = baseSingleW * (1.0 + (sumW * openScaleBoost - 1.0) * spread);
+
+    const leftSum = w0 + w1;
+    const rightSum = w2 + w3;
+    const leftRatio = leftSum / sumW;
+    const rightRatio = rightSum / sumW;
+    const leftTrackW = totalTrackW * leftRatio;
+    const rightTrackW = totalTrackW * rightRatio;
+
+    const totalOuterSpan = leftTrackW + splitGap + rightTrackW;
+    const outerLeft = midX - totalOuterSpan * 0.5;
+    const leftDeckRight = outerLeft + leftTrackW;
+    const rightDeckLeft = leftDeckRight + splitGap;
+
+    const l0W = leftSum > 0.0001 ? leftTrackW * (w0 / leftSum) : 0;
+    const l1W = leftTrackW - l0W;
+    const l2W = rightSum > 0.0001 ? rightTrackW * (w2 / rightSum) : 0;
+    const l3W = rightTrackW - l2W;
+
+    const lefts = [
+      outerLeft,
+      outerLeft + l0W,
+      rightDeckLeft,
+      rightDeckLeft + l2W
+    ];
+    const rights = [
+      outerLeft + l0W,
+      leftDeckRight,
+      rightDeckLeft + l2W,
+      rightDeckLeft + rightTrackW
+    ];
 
     const rawL = Number.isFinite(lane) ? lane : 0;
-    const lVal = allowGhost ? Math.max(-3.5, Math.min(6.5, rawL)) : Math.max(0, Math.min(3, rawL));
-    const spread = 1.0 - this.collapseMorph;
+    const clampedL = Math.max(0, Math.min(3, rawL));
+    const idx0 = Math.min(3, Math.max(0, Math.floor(clampedL)));
+    const idx1 = Math.min(3, idx0 + 1);
+    const frac = clampedL - idx0;
 
-    // Desplazamiento fluido de 1 carril en Swipes Laterales (camSlideOffset anima suavemente de 0.0 a ±1.0)
-    const effectiveLanePos = (lVal - 1.5) + this.camSlideOffset * spread;
+    // Para las notas (que siempre deben tener el grosor de una tecla normal aunque la pista esté en 1 solo carril),
+    // interpolamos su centro dentro de la autopista pero mantenemos el ancho de tecla individual si estamos colapsados
+    const segLeft = lefts[idx0] + (lefts[idx1] - lefts[idx0]) * frac;
+    const segRight = rights[idx0] + (rights[idx1] - rights[idx0]) * frac;
+    const segCenter = (segLeft + segRight) * 0.5;
+    const segW = Math.max(0, segRight - segLeft);
 
-    let splitSign = 0;
-    if (lVal <= 1.0) splitSign = -1.0;
-    else if (lVal >= 2.0) splitSign = 1.0;
-    else splitSign = (lVal - 1.5) * 2.0;
-
-    const splitOffset = splitSign * (splitGap * 0.5) * spread;
-    const laneCenterOffset = effectiveLanePos * laneW * spread;
-    const center = clampedMidX + laneCenterOffset + splitOffset;
+    // En modo 1 carril (collapseMorph > 0), las notas conservan el ancho del carril único central (totalTrackW) y su centro se funde con midX
+    const effCenter = segCenter * spread + midX * (1.0 - spread);
+    const effWidth = segW * spread + totalTrackW * (1.0 - spread);
 
     const out = allowGhost ? this._ghostBoundsScratch : this._boundsScratch;
-    out.left = center - laneW * 0.5;
-    out.right = center + laneW * 0.5;
-    out.center = center;
-    out.width = laneW;
+    if (allowGhost) {
+      // Usado para bordes exactos de los polígonos de carril
+      out.left = segLeft;
+      out.right = segRight;
+      out.center = segCenter;
+      out.width = segW;
+      out.scale = scale;
+      return out;
+    }
+
+    out.left = effCenter - effWidth * 0.5;
+    out.right = effCenter + effWidth * 0.5;
+    out.center = effCenter;
+    out.width = effWidth;
     out.scale = scale;
     return out;
   }
 
   getLaneLeftX(lane, yTarget) {
-    return this.getLaneBoundsAtY(lane, yTarget).left;
+    return this.getLaneBoundsAtY(lane, yTarget, true).left;
   }
 
   getLaneRightX(lane, yTarget) {
-    return this.getLaneBoundsAtY(lane, yTarget).right;
+    return this.getLaneBoundsAtY(lane, yTarget, true).right;
   }
 
   getBoundaryLineX(lineIdx, yTarget) {
@@ -26620,7 +26863,7 @@ class DynamicHighwayController {
     const pCurved = pClamped >= 0 ? Math.pow(pClamped, curveExp) : -Math.pow(-pClamped, curveExp);
     const y = horizonY + spanY * pCurved;
 
-    const b = this.getLaneBoundsAtY(lane, y);
+    const b = this.getLaneBoundsAtY(lane, y, false);
     const target = out || this._coordScratch;
     const hyperBoost = this.pitchMorph > 1.0
       ? (1.0 + Math.max(0, pCurved) * 0.22 * (this.pitchMorph - 1.0))
@@ -26643,8 +26886,6 @@ class DynamicHighwayController {
 
     for (let i = 0; i < this.pingPongBalls.length; i++) {
       const b = this.pingPongBalls[i];
-      const totalDur = Math.max(60, b.endTimeMs - b.startTimeMs);
-      const u = Math.max(0, Math.min(1, (cTime - b.startTimeMs) / totalDur));
       const fadeOut = cTime > b.endTimeMs ? Math.max(0, 1 - (cTime - b.endTimeMs) / 140) : 1.0;
       if (fadeOut <= 0.01) continue;
 
@@ -26674,19 +26915,16 @@ class DynamicHighwayController {
 }
 
 // ============================================================================
-// MODO ESTRELLA 'LOCURA' — MOTOR COREOGRÁFICO MUSICAL Y FUSIÓN DE 5 MODOS
+// MODO ESTRELLA 'LOCURA' — MOTOR COREOGRÁFICO MUSICAL Y FUSIÓN DE TODOS LOS MODOS
 // Fusiona en una misma partida:
-// (1) Pista 3D Clásica (4 CARRILES + paneo de cámara 10-Lane + Holds trapezoidales)
-// (2) Pista Colapsada de 1-2 carriles con expansión elástica (Width Morph)
-// (3) Modo SPLIT (Abismo central, Y-Offset 12%, Ping-Pong jugable entre laterales)
+// (1) Pista 3D Clásica + Reducción/Reapertura de Carriles (4 -> 3 -> 2 carriles con Swipes y Holds)
+// (2) Pista Colapsada de 1 carril con expansión fluida sin solapamientos (Width Morph)
+// (3) Modo SPLIT (Abismo central moderado, Y-Offset 10%, Ping-Pong jugable entre laterales)
 // (4) Modo CRUCE (Línea de juicio 2D giratoria Phigros, láseres diagonales, olas Drag)
 // (5) Modo PULSO (Círculos espaciales numerados 1..4 y Sliders conectados)
-// Incluye:
-// - SongChoreographyAnalyzer (detección real de Drops, Estribillos, Asimetrías y Puentes)
-// - Intros A (Progresiva 1->2->3->4), B (Giro de Cámara 3D), C (Pulso Espacial)
-// - Nota Ancla (Anchor Note) + Cross-Morphing de 600ms-900ms + Dual Note Buffer en Vuelo
-// - Efectos rítmicos especiales: Stop & Go (suspensión en el aire) y Echo Notes (rebote 1 beat)
-// - Escudo Anti-Frustración (+35% hitbox y captura por arrastre durante 1000ms tras transición)
+// (6) Modo ESPEJO (En las zonas más tranquilas/fáciles: teclas reflejadas OJEPSƎ que cruzan al carril simétrico)
+// (7) Modo BUSCAMINAS (Tramos tácticos con minas navales que se esquivan para ganar +250 ESQUIVADA)
+// (8) Modo SETAS ALUCINÓGENAS (Tramos psicodélicos con teclas-seta saltarinas y esporas de neón)
 // ============================================================================
 class SongChoreographyAnalyzer {
   static analyze(notes, bpm = 120, beatmapData = null) {
@@ -26695,8 +26933,7 @@ class SongChoreographyAnalyzer {
     while (effBpm < 75) effBpm *= 2.0;
     const beatMs = 60000 / effBpm;
     const barMs = beatMs * 4;
-    // Ventanas musicales amplias (3 a 4 compases, ~6.4s a 9.2s) para que cada modo se disfrute con fluidez y sentido musical
-    const windowMs = Math.max(6400, Math.min(9200, barMs * 4));
+    const windowMs = Math.max(6200, Math.min(8800, barMs * 4));
 
     if (!Array.isArray(notes) || notes.length === 0) {
       return {
@@ -26713,7 +26950,6 @@ class SongChoreographyAnalyzer {
     const firstT = notes[0].timestamp_ms ?? 0;
     const lastT = notes[notes.length - 1].end_timestamp_ms || notes[notes.length - 1].timestamp_ms || 60000;
 
-    // Semilla determinista única basada en la estructura real de la canción para elegir Intro A, B o C
     const titleStr = String(beatmapData?.title || beatmapData?.metadata?.title || '');
     let hash = notes.length * 17 + Math.round(effBpm * 13) + Math.round(firstT * 0.1);
     for (let c = 0; c < titleStr.length; c++) {
@@ -26722,7 +26958,6 @@ class SongChoreographyAnalyzer {
     const introTypes = ['A', 'B', 'C'];
     const introType = introTypes[Math.abs(hash) % 3];
 
-    // 1. Analizar ventanas musicales (NPS, saltos de energía > +35%, asimetría Hold+Tap, alternancia Izquierda-Derecha y puentes melódicos)
     const windows = [];
     let cursor = firstT;
     while (cursor < lastT + 800) {
@@ -26785,27 +27020,48 @@ class SongChoreographyAnalyzer {
     for (let i = 0; i < windows.length; i++) avgNps += windows[i].nps;
     avgNps = windows.length > 0 ? (avgNps / windows.length) : 2.5;
 
-    // 2. Asignar el modo óptimo a cada ventana según la música real garantizando variedad entre los modos
+    // 2. Asignar modos con gran variedad y sin abusar de Split (máximo 1 o 2 veces por canción),
+    // colocando Modo Espejo en zonas más fáciles/tranquilas e incluyendo Buscaminas y Setas Alucinógenas
     const rawModes = [];
+    let splitUsedCount = 0;
+    let mirrorUsedCount = 0;
+    let minesUsedCount = 0;
+    let mushroomUsedCount = 0;
+
     for (let i = 0; i < windows.length; i++) {
       const w = windows[i];
       const prevW = i > 0 ? windows[i - 1] : w;
       const npsJump = prevW.nps > 0.4 ? ((w.nps - prevW.nps) / prevW.nps) : 0;
       const prevMode = i > 0 ? rawModes[i - 1] : '';
+      const isEasyZone = w.nps <= avgNps * 0.92;
 
       if (i === 0) {
         rawModes.push(introType === 'C' ? 'pulso' : 'highway');
         continue;
       }
 
-      if ((npsJump >= 0.35 || w.nps >= avgNps * 1.22) && prevMode !== 'cruce') {
+      if (isEasyZone && mirrorUsedCount < 2 && prevMode !== 'mirror' && (i % 3 === 1 || w.nps <= avgNps * 0.78)) {
+        // Modo Espejo en las zonas más fáciles de la canción (sin abusar, máximo 1-2 fases)
+        rawModes.push('mirror');
+        mirrorUsedCount++;
+      } else if ((npsJump >= 0.35 || w.nps >= avgNps * 1.18) && prevMode !== 'cruce') {
         rawModes.push('cruce');
-      } else if ((w.asymmetricHoldTap || w.altRatio >= 0.54) && prevMode !== 'split') {
+      } else if (mushroomUsedCount < 2 && prevMode !== 'mushroom' && (i % 4 === 2)) {
+        // Fase de Setas Alucinógenas (teclas-seta con salto lateral y esporas psicodélicas)
+        rawModes.push('mushroom');
+        mushroomUsedCount++;
+      } else if (minesUsedCount < 2 && prevMode !== 'minesweeper' && w.nps >= avgNps * 0.80 && (i % 4 === 3)) {
+        // Fase de Buscaminas (minas navales intercaladas que otorgan +250 ESQUIVADA)
+        rawModes.push('minesweeper');
+        minesUsedCount++;
+      } else if ((w.asymmetricHoldTap || w.altRatio >= 0.56) && prevMode !== 'split' && splitUsedCount < 2) {
+        // Modo Split usado con moderación (máximo 2 veces en toda la canción)
         rawModes.push('split');
-      } else if ((w.nps <= avgNps * 0.82 || w.holdCount >= 2) && prevMode !== 'pulso') {
+        splitUsedCount++;
+      } else if ((w.nps <= avgNps * 0.88 || w.holdCount >= 2) && prevMode !== 'pulso') {
         rawModes.push('pulso');
       } else {
-        const cycleOrder = ['split', 'cruce', 'pulso', 'highway'];
+        const cycleOrder = ['highway', 'pulso', 'cruce', 'mushroom', 'minesweeper', 'mirror'];
         let picked = 'highway';
         for (let f = 0; f < cycleOrder.length; f++) {
           const cand = cycleOrder[(i + f) % cycleOrder.length];
@@ -26818,12 +27074,33 @@ class SongChoreographyAnalyzer {
       }
     }
 
+    // Garantizar que si la canción tiene suficientes secciones, aparezcan Espejo, Buscaminas y Setas al menos 1 vez
+    if (rawModes.length >= 4) {
+      if (!rawModes.includes('mirror')) {
+        let easiestIdx = 1;
+        let minNps = Infinity;
+        for (let i = 1; i < windows.length; i++) {
+          if (windows[i].nps < minNps) {
+            minNps = windows[i].nps;
+            easiestIdx = i;
+          }
+        }
+        rawModes[easiestIdx] = 'mirror';
+      }
+      if (!rawModes.includes('mushroom') && rawModes.length >= 5) {
+        rawModes[Math.min(rawModes.length - 1, 2)] = 'mushroom';
+      }
+      if (!rawModes.includes('minesweeper') && rawModes.length >= 6) {
+        rawModes[Math.min(rawModes.length - 1, 4)] = 'minesweeper';
+      }
+    }
+
     // 3. Alinear cada frontera de fase al hueco rítmico más amplio cerca de w.startMs (±950ms)
     const phases = [];
     for (let i = 0; i < windows.length; i++) {
       const w = windows[i];
       const m = rawModes[i];
-      if (phases.length > 0 && phases[phases.length - 1].mode === m && (w.endMs - phases[phases.length - 1].startMs) < 11000) {
+      if (phases.length > 0 && phases[phases.length - 1].mode === m && (w.endMs - phases[phases.length - 1].startMs) < 10500) {
         phases[phases.length - 1].endMs = w.endMs;
       } else {
         let boundaryT = i === 0 ? -10000 : w.startMs;
@@ -26859,11 +27136,11 @@ class SongChoreographyAnalyzer {
       phases[phases.length - 1].endMs = lastT + 5000;
     }
 
-    // 4. Seleccionar de 2 a 3 momentos para 'Stop & Go' (en plena frase activa, nunca durante el cambio de modo)
+    // 4. Seleccionar hasta 2 momentos para 'Stop & Go'
     const stopAndGoMoments = [];
-    for (let p = 0; p < phases.length && stopAndGoMoments.length < 3; p++) {
+    for (let p = 0; p < phases.length && stopAndGoMoments.length < 2; p++) {
       const ph = phases[p];
-      if (ph.mode === 'highway' || ph.mode === 'split') {
+      if (ph.mode === 'highway') {
         const midPhaseT = Math.max(firstT + 2800, ph.startMs + (ph.endMs - ph.startMs) * 0.52);
         if (midPhaseT < ph.endMs - 1800 && midPhaseT < lastT - 2500) {
           stopAndGoMoments.push({
@@ -26887,6 +27164,11 @@ class SongChoreographyAnalyzer {
   }
 }
 
+// Helper para identificar si una fase de Modo Locura utiliza la autopista 3D
+function is3DMadnessPhase(mode) {
+  return mode === 'highway' || mode === 'split' || mode === 'mirror' || mode === 'minesweeper' || mode === 'mushroom';
+}
+
 // Métodos de instancia en BeatstarEngine para el Modo Estrella 'LOCURA'
 Object.assign(BeatstarEngine.prototype, {
   initMadnessModeAssets() {
@@ -26898,6 +27180,9 @@ Object.assign(BeatstarEngine.prototype, {
     this.initCruceModeAssets();
     this.initOsuHybridModeAssets();
     this.initEchoModeAssets();
+    if (typeof this.initMushroomModeAssets === 'function') {
+      this.initMushroomModeAssets();
+    }
     this._madnessPlan = null;
     this._madnessActivePhaseIdx = -1;
     this._madnessShieldUntilMs = -5000;
@@ -26915,7 +27200,7 @@ Object.assign(BeatstarEngine.prototype, {
     if (!Array.isArray(this.notes) || this.notes.length === 0) return;
     const songBpm = Number(this.bpm || this.beatmapData?.bpm) || 120;
 
-    // 1. Limpiar cualquier nota sintética previa y normalizar las notas base a 4 carriles (0..3) sin que los generadores se pisen entre sí
+    // 1. Limpiar cualquier nota sintética previa y normalizar las notas base a 4 carriles (0..3)
     const rawNotes = this.notes
       .filter((n) => n && !n._isCruceChordCompanion && !n._isSplitPingPongRebound && !n._isSyntheticEchoRebound && !n.isMine)
       .sort((a, b) => (a.timestamp_ms ?? 0) - (b.timestamp_ms ?? 0));
@@ -26948,7 +27233,6 @@ Object.assign(BeatstarEngine.prototype, {
         n.end_timestamp_ms = nt;
       }
 
-      // Resetear todas las banderas de modos previos
       n._madnessPhase = 'highway';
       n._isMadnessAnchor = false;
       n._isCruceDrag = false;
@@ -26967,9 +27251,12 @@ Object.assign(BeatstarEngine.prototype, {
       n._osuPrevCircle = null;
       n._osuNextCircle = null;
       n._osuTwinPartner = null;
+      n._isMirrored = false;
+      n._mirrorTriggered = false;
+      n._isMadnessMushroom = false;
+      n.isMine = false;
       n.meshKeyframes = null;
 
-      // Evitar notas duplicadas en el mismo instante y carril
       if (cleanNotes.length > 0) {
         const prev = cleanNotes[cleanNotes.length - 1];
         if (Math.abs(nt - prev.timestamp_ms) < 28 && prev.lane === n.lane) {
@@ -26985,7 +27272,7 @@ Object.assign(BeatstarEngine.prototype, {
     const beatMs = plan.beatMs || 500;
     const barMs = plan.barMs || 2000;
 
-    // 3. Despejar una Ventana Limpia de Transición (~480ms) en cada frontera entre fases para que NUNCA se solapen notas de dos modos distintos
+    // 3. Despejar una Ventana Limpia de Transición (~480ms) en cada frontera entre fases
     const filteredNotes = [];
     for (let i = 0; i < cleanNotes.length; i++) {
       const n = cleanNotes[i];
@@ -26994,12 +27281,10 @@ Object.assign(BeatstarEngine.prototype, {
 
       for (let p = 1; p < plan.phases.length; p++) {
         const bMs = plan.phases[p].startMs;
-        // Si la nota cae justo en la costura del cambio de modo [-220ms, +250ms], suprimirla para que el Cross-Morph sea 100% limpio
         if (nt >= bMs - 220 && nt <= bMs + 250) {
           droppedAtBoundary = true;
           break;
         }
-        // Si un Hold empieza antes de la frontera y se alarga dentro del nuevo modo, recortarlo 240ms antes de la frontera
         if (n.type === 'hold' && nt < bMs - 220 && n.end_timestamp_ms > bMs - 240) {
           const newEnd = bMs - 240;
           if (newEnd - nt >= 240) {
@@ -27031,7 +27316,7 @@ Object.assign(BeatstarEngine.prototype, {
       n._madnessPhase = mode;
     }
 
-    // 5. Configurar DynamicHighwayController (Secciones 3D, Intros A/B, Puentes Colapsados y Split Asimétrico)
+    // 5. Configurar DynamicHighwayController (Secciones 3D, Intros A/B, Puentes Colapsados y Split Moderado)
     if (!this.dynamicHighwayController) {
       this.dynamicHighwayController = new DynamicHighwayController(this);
     }
@@ -27041,8 +27326,7 @@ Object.assign(BeatstarEngine.prototype, {
     const firstNoteT = filteredNotes[0]?.timestamp_ms ?? 0;
     const introSpan = Math.max(2400, beatMs * 8);
 
-    if (plan.introType === 'A' && plan.phases[0]?.mode === 'highway') {
-      // Intro A (Progresiva): 1 -> 2 -> 3 -> 4 carriles
+    if (plan.introType === 'A' && is3DMadnessPhase(plan.phases[0]?.mode)) {
       const stepDur = introSpan / 4;
       const collapseSteps = [1.0, 0.65, 0.32, 0.0];
       for (let s = 0; s < 4; s++) {
@@ -27059,14 +27343,13 @@ Object.assign(BeatstarEngine.prototype, {
       ctrl.collapseMorph = 1.0;
       ctrl.targetCollapseMorph = 1.0;
       ctrl._collapseStartVal = 1.0;
-    } else if (plan.introType === 'B' && plan.phases[0]?.mode === 'highway') {
-      // Intro B (Giro de Cámara): inclinación 3D en arranque
-      ctrl.cameraTiltRad = (8.5 * Math.PI) / 180.0;
-      ctrl.targetCameraTiltRad = (8.5 * Math.PI) / 180.0;
+    } else if (plan.introType === 'B' && is3DMadnessPhase(plan.phases[0]?.mode)) {
+      ctrl.cameraTiltRad = (7.5 * Math.PI) / 180.0;
+      ctrl.targetCameraTiltRad = (7.5 * Math.PI) / 180.0;
       ctrl._tiltReleaseTimeMs = firstNoteT + beatMs * 4;
-      ctrl.pitchMorph = 1.75;
+      ctrl.pitchMorph = 1.65;
       ctrl.targetPitchLevel = 1.0;
-      ctrl._pitchStartVal = 1.75;
+      ctrl._pitchStartVal = 1.65;
       ctrl._pitchTransStartMs = firstNoteT;
       ctrl._pitchTransDurMs = Math.max(700, beatMs * 4);
     }
@@ -27074,15 +27357,15 @@ Object.assign(BeatstarEngine.prototype, {
     for (let p = 0; p < plan.phases.length; p++) {
       const ph = plan.phases[p];
       const isSplitPhase = (ph.mode === 'split');
-      const isCollapsedBridge = (ph.mode === 'highway' && p > 0 && (p % 3 === 2));
-      const secStart = (plan.introType === 'A' && p === 0 && ph.mode === 'highway')
+      const isCollapsedBridge = (ph.mode === 'highway' && p > 0 && (p % 4 === 3));
+      const secStart = (plan.introType === 'A' && p === 0 && is3DMadnessPhase(ph.mode))
         ? Math.min(ph.endMs, firstNoteT + introSpan)
         : ph.startMs;
       if (secStart < ph.endMs) {
         ctrl.sections.push({
           startMs: secStart,
           endMs: ph.endMs,
-          collapse: isCollapsedBridge ? 0.68 : 0.0,
+          collapse: isCollapsedBridge ? 0.85 : 0.0,
           split: isSplitPhase ? 1.0 : 0.0,
           leftRaise: isSplitPhase ? (ph.dominantSide === 'left' ? 1.0 : 0.0) : 0.0,
           rightRaise: isSplitPhase ? (ph.dominantSide === 'right' ? 1.0 : 0.0) : 0.0,
@@ -27091,20 +27374,27 @@ Object.assign(BeatstarEngine.prototype, {
       }
     }
 
-    // 6. Configurar notas por cada fase de forma 100% aislada (sin contaminar las demás fases)
-    const injectedPingPongNotes = [];
+    // 6. Configurar notas por cada fase
+    const injectedExtraNotes = [];
 
-    // 6A. Fases HIGHWAY y SPLIT (Carriles 3D, Holds Trapezoidales, Swipes de Cámara 10-Lane y Ping-Pong en Split)
+    // 6A. Fases 3D: HIGHWAY, SPLIT, MIRROR, MINESWEEPER y MUSHROOM
     let lastSwipeT = -5000;
-    let swipeDirToggle = 0;
     let lastPingPongEndT = -5000;
+    const simOpen = [true, true, true, true];
+    const countSimOpen = () => (simOpen[0] ? 1 : 0) + (simOpen[1] ? 1 : 0) + (simOpen[2] ? 1 : 0) + (simOpen[3] ? 1 : 0);
+    const remapToOpen = (l) => {
+      if (simOpen[l]) return l;
+      if (l === 0) return simOpen[1] ? 1 : 2;
+      if (l === 3) return simOpen[2] ? 2 : 1;
+      return simOpen[1] ? 1 : 2;
+    };
 
     for (let i = 0; i < filteredNotes.length; i++) {
       const n = filteredNotes[i];
-      if (n._madnessPhase !== 'highway' && n._madnessPhase !== 'split') continue;
+      const phMode = n._madnessPhase;
+      if (!is3DMadnessPhase(phMode)) continue;
       const nt = n.timestamp_ms;
 
-      // Si estamos en tramo colapsado (Intro A primeros pasos o puente colapsado), centrar carril y evitar acordes dobles invisibles
       let secCollapse = 0;
       for (let s = 0; s < ctrl.sections.length; s++) {
         if (nt >= ctrl.sections[s].startMs && nt < ctrl.sections[s].endMs) {
@@ -27113,9 +27403,151 @@ Object.assign(BeatstarEngine.prototype, {
         }
       }
       if (secCollapse >= 0.45) {
-        n.lane = (secCollapse >= 0.85) ? 1 : (n.lane <= 1 ? 1 : 2);
-        if (i > 0 && Math.abs(nt - filteredNotes[i - 1].timestamp_ms) < 55) {
+        n.lane = 1;
+        n.startLane = 1;
+        n.endLane = 1;
+        if (i > 0 && Math.abs(nt - filteredNotes[i - 1].timestamp_ms) < 95) {
           n._dropDuplicateCollapsed = true;
+          continue;
+        }
+        continue;
+      }
+
+      // En fases Split, Mirror, Minesweeper o Mushroom asegurarnos de que los 4 carriles estén abiertos
+      if (phMode !== 'highway' && countSimOpen() < 4) {
+        if (!simOpen[0]) {
+          simOpen[0] = true;
+          ctrl.laneEvents.push({ timeMs: Math.max(0, nt - 600), lane: 0, open: true, durMs: 480 });
+        }
+        if (!simOpen[3]) {
+          simOpen[3] = true;
+          ctrl.laneEvents.push({ timeMs: Math.max(0, nt - 600), lane: 3, open: true, durMs: 480 });
+        }
+      }
+
+      n.lane = remapToOpen(n.lane ?? 1);
+
+      // FASE ESPEJO (en zonas más tranquilas): las notas de los carriles exteriores (0 y 3) llevan insignia OJEPSƎ y se cruzan al carril simétrico opuesto
+      if (phMode === 'mirror') {
+        if (n.type === 'swipe') n.type = 'tap';
+        if (n.type === 'hold') {
+          n.startLane = n.lane;
+          n.endLane = n.lane;
+          n.startWidth = 1.0;
+          n.endWidth = 1.0;
+          n.meshKeyframes = null;
+          continue;
+        }
+        if ((n.lane === 0 || n.lane === 3) && (i % 2 === 0)) {
+          n._isMirrored = true;
+          n._mirrorOriginalLane = n.lane;
+          n._mirrorTargetLane = 3 - n.lane;
+          n._mirrorCurrentDrawLane = n.lane;
+          n._mirrorAnimProgress = 0;
+          n._mirrorTriggered = false;
+        }
+        continue;
+      }
+
+      // FASE SETAS ALUCINÓGENAS: teclas con setas luminiscentes que saltan al carril vecino a mitad de caída
+      if (phMode === 'mushroom') {
+        if (n.type === 'swipe') n.type = 'tap';
+        if (n.type === 'hold') {
+          n.startLane = n.lane;
+          n.endLane = n.lane;
+          n.startWidth = 1.0;
+          n.endWidth = 1.0;
+          n.meshKeyframes = null;
+          continue;
+        }
+        n._isMadnessMushroom = true;
+        n._mushColorIdx = i % 3;
+        n._mushPhase = (i * 1.15) % (Math.PI * 2);
+        if (i % 2 === 0) {
+          const fromL = n.lane;
+          const toL = fromL <= 1 ? (fromL + 1) : (fromL - 1);
+          n._mushFromLane = fromL;
+          n.lane = toL;
+          n._mushCurrentLane = fromL;
+          n._mushSwitchProgress = 0;
+          n._mushSwitched = false;
+        } else {
+          n._mushFromLane = n.lane;
+          n._mushCurrentLane = n.lane;
+          n._mushSwitchProgress = 1;
+          n._mushSwitched = true;
+        }
+        continue;
+      }
+
+      // FASE BUSCAMINAS: inyectar minas navales en carriles libres junto a notas con espacio limpio
+      if (phMode === 'minesweeper') {
+        if (n.type === 'hold') {
+          n.startLane = n.lane;
+          n.endLane = n.lane;
+          n.startWidth = 1.0;
+          n.endWidth = 1.0;
+          n.meshKeyframes = null;
+          continue;
+        }
+        if (i % 3 === 1) {
+          const mineLane = (n.lane + 2) % 4;
+          injectedExtraNotes.push({
+            id: 850000 + i,
+            lane: mineLane,
+            type: 'tap',
+            isMine: true,
+            _shutterSeed: i * 1.7,
+            timestamp_ms: nt,
+            end_timestamp_ms: nt,
+            duration_ms: 0,
+            hit: false,
+            missed: false,
+            holding: false,
+            processed: false,
+            holdCompleted: false,
+            _madnessPhase: 'minesweeper'
+          });
+        }
+        continue;
+      }
+
+      // FASES HIGHWAY y SPLIT: Swipes laterales que se llevan el carril (4->3->2) y Holds que reabren el carril (2->3->4)
+      const prevT = i > 0 ? (filteredNotes[i - 1].end_timestamp_ms || filteredNotes[i - 1].timestamp_ms) : -9999;
+      const nextT = (i + 1 < filteredNotes.length) ? filteredNotes[i + 1].timestamp_ms : 999999;
+      const gapPrev = nt - prevT;
+      const gapNext = nextT - nt;
+      const openCount = countSimOpen();
+
+      // Si hay un carril cerrado y llega un Hold en Highway, hacer que el Hold termine en ese carril cerrado para reabrirlo
+      if (phMode === 'highway' && openCount < 4 && (nt - lastSwipeT >= 1900)) {
+        const closedL = !simOpen[0] ? 0 : (!simOpen[3] ? 3 : -1);
+        const canMakeHold = (n.type === 'tap' && gapNext >= 540);
+        if (closedL !== -1 && (n.type === 'hold' || canMakeHold)) {
+          if (canMakeHold) {
+            n.type = 'hold';
+            n.duration_ms = Math.min(650, Math.round(gapNext * 0.72));
+            n.end_timestamp_ms = nt + n.duration_ms;
+          }
+          const startL = closedL === 0 ? 1 : 2;
+          n.lane = startL;
+          n.startLane = startL;
+          n.endLane = closedL;
+          n.startWidth = 1.0;
+          n.endWidth = 1.0;
+          n._reopensLane = closedL;
+          n.meshKeyframes = [
+            { u: 0.0, lane: startL, width: 1.0 },
+            { u: 1.0, lane: closedL, width: 1.0 }
+          ];
+          simOpen[closedL] = true;
+          ctrl.laneEvents.push({
+            timeMs: nt + 90,
+            lane: closedL,
+            open: true,
+            durMs: Math.min(560, Math.max(340, n.duration_ms || 480))
+          });
+          lastSwipeT = n.end_timestamp_ms;
           continue;
         }
       }
@@ -27123,10 +27555,9 @@ Object.assign(BeatstarEngine.prototype, {
       if (n.type === 'hold') {
         n.startLane = n.lane;
         n.startWidth = 1.0;
-        const shiftDir = n.lane <= 1 ? 1 : -1;
-        const targetEndLane = secCollapse >= 0.45 ? n.lane : Math.max(0, Math.min(3, n.lane + shiftDir));
-        n.endLane = (n.duration_ms >= 520 && secCollapse < 0.35) ? targetEndLane : n.lane;
-        n.endWidth = (n.duration_ms >= 650 && secCollapse < 0.35) ? 1.35 : 1.0;
+        // En Split NUNCA cruzar el abismo central (0,1 vs 2,3), mantener el Hold recto y limpio
+        n.endLane = n.lane;
+        n.endWidth = 1.0;
         n.meshKeyframes = [
           { u: 0.0, lane: n.startLane, width: n.startWidth },
           { u: 1.0, lane: n.endLane, width: n.endWidth }
@@ -27134,13 +27565,11 @@ Object.assign(BeatstarEngine.prototype, {
         continue;
       }
 
-      // En fases SPLIT: generar rally de Ping-Pong jugable (1 saque -> 1 o 2 rebotes laterales) cuando hay espacio limpio
-      if (n._madnessPhase === 'split' && nt > lastPingPongEndT + 1400) {
-        const nextN = filteredNotes[i + 1];
-        const gapToNext = nextN ? (nextN.timestamp_ms - nt) : 9999;
-        if (gapToNext >= Math.max(520, beatMs * 1.15)) {
-          const hopMs = Math.max(290, Math.min(540, Math.round(beatMs)));
-          if (nt + hopMs < (nextN ? nextN.timestamp_ms - 190 : nt + 2000)) {
+      // En fases SPLIT: generar rally de Ping-Pong jugable cuando hay espacio limpio
+      if (phMode === 'split' && nt > lastPingPongEndT + 1800) {
+        if (gapNext >= Math.max(540, beatMs * 1.15)) {
+          const hopMs = Math.max(300, Math.min(540, Math.round(beatMs)));
+          if (nt + hopMs < nextT - 200) {
             const startSideLeft = (n.lane <= 1);
             n.lane = startSideLeft ? 0 : 3;
             n.type = 'tap';
@@ -27168,24 +27597,31 @@ Object.assign(BeatstarEngine.prototype, {
               _pingPongLaunched: false
             };
             n._splitPingPongTarget = rebNote;
-            injectedPingPongNotes.push(rebNote);
+            injectedExtraNotes.push(rebNote);
             lastPingPongEndT = rebT;
             continue;
           }
         }
       }
 
-      // Swipes de barrido de cámara 10-Lane espaciados con limpieza en fases Highway/Split
-      if (secCollapse < 0.30 && nt - lastSwipeT >= Math.max(2600, barMs * 1.5)) {
-        const prevT = i > 0 ? filteredNotes[i - 1].timestamp_ms : -9999;
-        const nextT = (i + 1 < filteredNotes.length) ? filteredNotes[i + 1].timestamp_ms : 999999;
-        if (nt - prevT >= 220 && nextT - nt >= 260) {
-          const dirs = ['left', 'right', 'up', 'down'];
-          const dir = dirs[swipeDirToggle % dirs.length];
-          swipeDirToggle++;
+      // En Highway: Swipes laterales que cierran el carril (4 -> 3 -> 2 carriles)
+      if (phMode === 'highway' && openCount >= 3 && (nt - lastSwipeT >= Math.max(2400, barMs * 1.3)) && gapPrev >= 200 && gapNext >= 250) {
+        const closeL = simOpen[3] && simOpen[0] ? (n.lane <= 1 ? 0 : 3) : (simOpen[0] ? 0 : (simOpen[3] ? 3 : -1));
+        if (closeL !== -1) {
+          n.lane = closeL;
           n.type = 'swipe';
+          const dir = closeL === 0 ? 'left' : 'right';
           n.direction = dir;
           n.swipeDirection = dir;
+          n._closesLane = closeL;
+          simOpen[closeL] = false;
+          ctrl.laneEvents.push({
+            timeMs: nt,
+            lane: closeL,
+            open: false,
+            durMs: 500,
+            flyDir: closeL === 0 ? -1 : 1
+          });
           lastSwipeT = nt;
         }
       }
@@ -27223,7 +27659,6 @@ Object.assign(BeatstarEngine.prototype, {
       const ph = plan.phases[p];
       if (ph.mode !== 'cruce') continue;
 
-      // Añadir poses rítmicas de la línea de juicio dentro de esta fase Cruce
       const stepMs = Math.max(2400, barMs * 1.5);
       let kCursor = ph.startMs;
       let poseStep = 0;
@@ -27249,7 +27684,6 @@ Object.assign(BeatstarEngine.prototype, {
         poseStep++;
       }
 
-      // Recolectar las notas de esta fase Cruce
       const phaseCruceNotes = [];
       for (let i = 0; i < filteredNotes.length; i++) {
         if (filteredNotes[i]._madnessPhase === 'cruce' &&
@@ -27280,7 +27714,6 @@ Object.assign(BeatstarEngine.prototype, {
         }
       }
 
-      // Convertir una breve ráfaga (~15% de las notas de la fase) en una ola conectada de Drag Notes amarillas
       if (phaseCruceNotes.length >= 6) {
         const waveStart = Math.floor(phaseCruceNotes.length * 0.45);
         const waveLen = Math.min(4, Math.max(3, Math.floor(phaseCruceNotes.length * 0.18)));
@@ -27301,7 +27734,7 @@ Object.assign(BeatstarEngine.prototype, {
       }
     }
 
-    // 6C. Fases PULSO (Círculos espaciales 2D numerados 1..4 y Sliders curvados, enlazados SOLO dentro de la misma fase)
+    // 6C. Fases PULSO (Círculos espaciales 2D numerados 1..4 y Sliders curvados)
     const ergonomicAnchors = [
       { x: 0.24, y: 0.38 },
       { x: 0.76, y: 0.38 },
@@ -27325,7 +27758,6 @@ Object.assign(BeatstarEngine.prototype, {
         const n = filteredNotes[i];
         if (n._madnessPhase !== 'pulso' || n.timestamp_ms < ph.startMs || n.timestamp_ms >= ph.endMs) continue;
 
-        // Evitar notas simultáneas demasiado pegadas en Pulso (< 130ms)
         if (prevPulsoNote && (n.timestamp_ms - prevPulsoNote.timestamp_ms) < 130) {
           n._dropDuplicateCollapsed = true;
           continue;
@@ -27365,7 +27797,6 @@ Object.assign(BeatstarEngine.prototype, {
           n._osuRole = 'circle';
         }
 
-        // Enlazar follow-points ÚNICAMENTE con el círculo previo de ESTA MISMA fase Pulso
         if (prevPulsoNote && (n.timestamp_ms - (prevPulsoNote.end_timestamp_ms || prevPulsoNote.timestamp_ms)) <= 1350) {
           n._osuPrevCircle = prevPulsoNote;
           prevPulsoNote._osuNextCircle = n;
@@ -27376,10 +27807,10 @@ Object.assign(BeatstarEngine.prototype, {
       }
     }
 
-    // 7. Combinar notas filtradas + rebotes Ping-Pong de las fases Split y ordenar cronológicamente
+    // 7. Combinar notas filtradas + rebotes Ping-Pong + minas Buscaminas y ordenar cronológicamente
     const finalNotes = filteredNotes
       .filter((n) => !n._dropDuplicateCollapsed)
-      .concat(injectedPingPongNotes)
+      .concat(injectedExtraNotes)
       .sort((a, b) => (a.timestamp_ms ?? 0) - (b.timestamp_ms ?? 0));
 
     // 8. Configurar Notas Ancla (Anchor Notes) en el último golpe antes de cada transición de fase
@@ -27406,13 +27837,13 @@ Object.assign(BeatstarEngine.prototype, {
       }
     }
 
-    // 9. Configurar 2 Echo Notes en fases Highway / Split con hueco limpio
+    // 9. Configurar 2 Echo Notes en fases Highway con hueco limpio
     let echoCount = 0;
     let lastEchoMs = firstNoteT + 2500;
     for (let i = 1; i < finalNotes.length - 1 && echoCount < 2; i++) {
       const srcNote = finalNotes[i];
       const targetNote = finalNotes[i + 1];
-      if (!srcNote || !targetNote) continue;
+      if (!srcNote || !targetNote || srcNote.isMine || targetNote.isMine) continue;
       if (srcNote._madnessPhase !== 'highway' || targetNote._madnessPhase !== 'highway') continue;
       if (srcNote.type !== 'tap' || targetNote.type !== 'tap') continue;
       if (srcNote._isPingPongServe || srcNote._isPingPongBounce || targetNote._isPingPongBounce) continue;
@@ -27430,7 +27861,6 @@ Object.assign(BeatstarEngine.prototype, {
       }
     }
 
-    // Recalcular nextSameLaneDiffMs para el renderizador 3D
     for (let i = 0; i < finalNotes.length; i++) {
       const curN = finalNotes[i];
       curN.id = i + 1;
@@ -27449,11 +27879,10 @@ Object.assign(BeatstarEngine.prototype, {
     this.maxPossibleScore = this.computeMaxPossibleScore(this.notes);
     this.targetScore = this.maxPossibleScore;
 
-    // Inicializar opacidades de arranque según la primera fase
     const startMode = plan.phases[0]?.mode || 'highway';
     this._madnessFromMode = startMode;
     this._madnessToMode = startMode;
-    this._madnessHighwayAlpha = (startMode === 'highway' || startMode === 'split') ? 1.0 : 0.0;
+    this._madnessHighwayAlpha = is3DMadnessPhase(startMode) ? 1.0 : 0.0;
     this._madnessCruceAlpha = (startMode === 'cruce') ? 1.0 : 0.0;
     this._madnessPulsoAlpha = (startMode === 'pulso') ? 1.0 : 0.0;
   },
@@ -27502,7 +27931,6 @@ Object.assign(BeatstarEngine.prototype, {
     const plan = this._madnessPlan;
     if (!plan) return;
 
-    // 1. Detectar cambio de fase coreográfica y activar Cross-Morphing de 680ms + Escudo Anti-Frustración de 1000ms
     let foundIdx = 0;
     for (let i = 0; i < plan.phases.length; i++) {
       if (currentTime >= plan.phases[i].startMs && currentTime < plan.phases[i].endMs) {
@@ -27525,7 +27953,6 @@ Object.assign(BeatstarEngine.prototype, {
         this._madnessInMorphTransition = true;
         this._madnessShieldUntilMs = currentTime + 1000;
 
-        // Limpiar partículas o pilares residuales del modo saliente para que la transición visual sea impecable
         if (prevMode === 'cruce' && nextMode !== 'cruce') {
           if (this._cruceHitPillars) this._cruceHitPillars.length = 0;
           if (this._cruceLineTrail) this._cruceLineTrail.length = 0;
@@ -27534,7 +27961,6 @@ Object.assign(BeatstarEngine.prototype, {
           if (this._osuLaserLinks) this._osuLaserLinks.length = 0;
         }
 
-        // Si salimos o entramos entre Pista 3D y un modo 2D (Cruce / Pulso), plegar o desplegar el ángulo 3D fluidamente
         if (this.dynamicHighwayController) {
           if (nextMode === 'cruce' || nextMode === 'pulso') {
             this.dynamicHighwayController._pitchStartVal = this.dynamicHighwayController.pitchMorph;
@@ -27548,17 +27974,21 @@ Object.assign(BeatstarEngine.prototype, {
             this.dynamicHighwayController._pitchTransStartMs = currentTime;
             this.dynamicHighwayController._pitchTransDurMs = 680;
           }
+          // Asegurar que al entrar en Mirror, Minesweeper, Mushroom o Split los 4 carriles estén desplegados
+          if (nextMode === 'mirror' || nextMode === 'minesweeper' || nextMode === 'mushroom' || nextMode === 'split') {
+            this.dynamicHighwayController.setLaneOpen(0, true, currentTime, 480);
+            this.dynamicHighwayController.setLaneOpen(3, true, currentTime, 480);
+          }
         }
       }
     }
 
-    // 2. Interpolar pesos de Cross-Morphing con easeInOutCubic
     const elapsedMorph = currentTime - this._madnessMorphStartMs;
     if (this._madnessInMorphTransition && elapsedMorph >= 0 && elapsedMorph < this._madnessMorphDurMs) {
       const u = elapsedMorph / Math.max(1, this._madnessMorphDurMs);
       const ease = u < 0.5 ? (4 * u * u * u) : (1 - Math.pow(-2 * u + 2, 3) / 2);
-      const fromH = (this._madnessFromMode === 'highway' || this._madnessFromMode === 'split') ? 1.0 : 0.0;
-      const toH = (this._madnessToMode === 'highway' || this._madnessToMode === 'split') ? 1.0 : 0.0;
+      const fromH = is3DMadnessPhase(this._madnessFromMode) ? 1.0 : 0.0;
+      const toH = is3DMadnessPhase(this._madnessToMode) ? 1.0 : 0.0;
       const fromC = (this._madnessFromMode === 'cruce') ? 1.0 : 0.0;
       const toC = (this._madnessToMode === 'cruce') ? 1.0 : 0.0;
       const fromP = (this._madnessFromMode === 'pulso') ? 1.0 : 0.0;
@@ -27570,12 +28000,21 @@ Object.assign(BeatstarEngine.prototype, {
     } else {
       this._madnessInMorphTransition = false;
       const curM = this.getActiveMadnessPhase(currentTime);
-      this._madnessHighwayAlpha = (curM === 'highway' || curM === 'split') ? 1.0 : 0.0;
+      this._madnessHighwayAlpha = is3DMadnessPhase(curM) ? 1.0 : 0.0;
       this._madnessCruceAlpha = (curM === 'cruce') ? 1.0 : 0.0;
       this._madnessPulsoAlpha = (curM === 'pulso') ? 1.0 : 0.0;
     }
 
-    // 3. Actualizar los 3 subsistemas en paralelo para que las notas en vuelo de cualquier fase sigan vivas
+    const curPhase = this.getActiveMadnessPhase(currentTime);
+    const targetMirrorProg = (curPhase === 'mirror') ? 1.0 : 0.0;
+    this._mirrorPhaseProgress = (this._mirrorPhaseProgress || 0) + (targetMirrorProg - (this._mirrorPhaseProgress || 0)) * Math.min(1, dt * 4.5);
+
+    if (curPhase === 'mushroom' && typeof this.updateMushroomHallucination === 'function') {
+      this.updateMushroomHallucination(dt, currentTime);
+    } else if (this._mushWarpIntensity) {
+      this._mushWarpIntensity *= Math.max(0, 1 - dt * 4.0);
+    }
+
     if (this.dynamicHighwayController) {
       this.dynamicHighwayController.update(currentTime, dt);
     }
@@ -27600,6 +28039,14 @@ Object.assign(BeatstarEngine.prototype, {
     if (this._madnessHighwayAlpha > 0.02) {
       ctx.save();
       ctx.globalAlpha = Math.max(0, Math.min(1, this._madnessHighwayAlpha));
+      const curPhase = this.getActiveMadnessPhase(currentTime);
+      if (curPhase === 'mushroom' && (this._mushSwayX || this._mushTiltRad)) {
+        const cx = this.width * 0.5;
+        const cy = this.height * 0.52;
+        ctx.translate(cx + (this._mushSwayX || 0) * 0.55, cy);
+        ctx.rotate((this._mushTiltRad || 0) * 0.55);
+        ctx.translate(-cx, -cy);
+      }
       this.renderSplitHighway3D(ctx, currentTime, horizonY, hitY, bottomY, beatPulse, normBpm, audioTime, beatFraction, safePerfNow);
       ctx.restore();
     }
@@ -27637,6 +28084,12 @@ Object.assign(BeatstarEngine.prototype, {
     this.renderEchoModeOverlay(ctx, currentTime);
     this.renderCruceModeOverlay(ctx, currentTime);
     this.renderOsuHybridOverlay(ctx, currentTime);
+    const curPhase = this.getActiveMadnessPhase(currentTime);
+    if (curPhase === 'mirror' && typeof this.renderMirrorModeOverlay === 'function') {
+      this.renderMirrorModeOverlay(ctx, currentTime);
+    } else if (curPhase === 'mushroom' && typeof this.renderMushroomModeOverlay === 'function') {
+      this.renderMushroomModeOverlay(ctx, currentTime);
+    }
   },
 
   resolveMadnessTouchLane(localX, localY, w, h, useMagnetism = true) {
@@ -27656,6 +28109,7 @@ Object.assign(BeatstarEngine.prototype, {
     const nLen = this.notes ? this.notes.length : 0;
     let hasActivePulsoTarget = false;
     let hasActiveCruceTarget = false;
+    let hasActiveHighwayTarget = false;
     for (let i = startIdx; i < nLen; i++) {
       const n = this.notes[i];
       if (!n || n.hit || n.missed || n.holdCompleted) continue;
@@ -27664,23 +28118,33 @@ Object.assign(BeatstarEngine.prototype, {
         hasActivePulsoTarget = true;
       } else if (n._madnessPhase === 'cruce' && Math.abs(n.timestamp_ms - currentTime) <= 320) {
         hasActiveCruceTarget = true;
+      } else if (is3DMadnessPhase(n._madnessPhase) && Math.abs(n.timestamp_ms - currentTime) <= 260) {
+        hasActiveHighwayTarget = true;
       }
     }
 
-    // 1. Verificar primero si hay un Círculo o Slider de PULSO activo cerca del toque (o en vuelo en el Dual Buffer)
-    if (hasActivePulsoTarget) {
+    const activePhase = this.getActiveMadnessPhase(currentTime);
+
+    // 1. Verificar primero si hay un Círculo o Slider de PULSO activo
+    if (activePhase === 'pulso' || hasActivePulsoTarget) {
       const hitPulso = this.handleOsuHybridPointerDown(localX, localY, lane, pointerId);
       if (hitPulso) return true;
+      // Si estamos en plena fase PULSO y no hay notas residuales de 3D en ventana inmediata, NO disparar carriles de abajo (evita fuegos y efectos de teclas en Pulso)
+      if (activePhase === 'pulso' && !hasActiveHighwayTarget) {
+        return true;
+      }
     }
 
     // 2. Si estamos en fase CRUCE (o hay notas de Cruce en la ventana inmediata), delegar a Cruce
-    const activePhase = this.getActiveMadnessPhase(currentTime);
     if (activePhase === 'cruce' || hasActiveCruceTarget) {
       const hitCruce = this.handleCrucePointerDown(localX, localY, lane, pointerId);
       if (hitCruce) return true;
+      if (activePhase === 'cruce' && !hasActiveHighwayTarget) {
+        return true;
+      }
     }
 
-    // 3. Resolver en la autopista 3D / Split
+    // 3. Resolver en la autopista 3D / Split / Mirror / Minesweeper / Mushroom
     const rect = this._canvasRect || { left: 0, top: 0, width: this.width || 360, height: this.height || 640 };
     const splitLane = this.resolveSplitTouchLane(localX, localY, rect.width, rect.height, true);
     return this.triggerLaneInput(splitLane, 'tap', null, pointerId);

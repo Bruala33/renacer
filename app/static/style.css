@@ -710,7 +710,7 @@ body {
 }
 
 .hud-gas-odometer {
-  display: flex !important;
+  display: flex;
   flex-direction: row !important;
   align-items: center !important;
   justify-content: center !important;
@@ -761,7 +761,7 @@ body {
 
 /* Slot Machine / Gas Station Combo Multiplier Badge ("x3") */
 .hud-gas-combo-badge {
-  display: flex !important;
+  display: flex;
   flex-direction: row !important;
   align-items: center !important;
   justify-content: center !important;
