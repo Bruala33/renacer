@@ -1097,10 +1097,10 @@
       <!-- Center Score & Top-Right Pause Button Row (Floating Clean HUD) -->
       <div class="hud-minimal-row">
         <!-- Spacer Left to keep score perfectly centered -->
-        <div class="w-8 flex-shrink-0"></div>
+        <div class="w-9 flex-shrink-0"></div>
 
         <!-- Center: Gas Station Mechanical Odometer Scoreboard (7 Digits + Combo Slot Badge) OR Pulse Mode Vintage Hearts + Combo -->
-        <div class="flex-1 flex items-center justify-center gap-1.5">
+        <div class="flex-1 min-w-0 flex items-center justify-center gap-1.5 pointer-events-none">
           <div id="hudScoreRollers" class="hud-gas-odometer" aria-label="Puntuación">
             <div class="hud-odometer-drum"><div class="roller-strip" id="rollerDigit6"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div></div>
             <div class="hud-odometer-drum"><div class="roller-strip" id="rollerDigit5"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div></div>
@@ -1116,24 +1116,24 @@
             <span class="slot-prefix">x</span><span id="hudGasMultiplierVal">1</span>
           </div>
 
-          <!-- HUD Exclusivo Modo Pulso (Arriba Centrado): 5 Corazones de Píxeles Vintage -->
-          <div id="hudPulseModeContainer" style="display: none;" class="items-center justify-center px-3 py-1 rounded-xl bg-[#070503]/95 border-2 border-[#b45309] shadow-[0_4px_14px_rgba(0,0,0,0.85),inset_0_0_10px_rgba(0,0,0,0.95)]">
-            <canvas id="hudPulseHeartsCanvas" width="132" height="24" class="h-[24px] w-[132px] block" title="5 Vidas Modo Pulso"></canvas>
+          <!-- HUD Exclusivo Modo Pulso / Modo Locura (Arriba Centrado): 5 Corazones de Píxeles Vintage -->
+          <div id="hudPulseModeContainer" style="display: none;" class="items-center justify-center px-2.5 py-1 rounded-xl bg-[#070503]/95 border-2 border-[#b45309] shadow-[0_4px_14px_rgba(0,0,0,0.85),inset_0_0_10px_rgba(0,0,0,0.95)] pointer-events-none">
+            <canvas id="hudPulseHeartsCanvas" width="132" height="24" class="h-[22px] w-[122px] block pointer-events-none" title="5 Vidas Modo Pulso"></canvas>
           </div>
 
           <span id="hudScore" class="hidden">0</span>
         </div>
 
-        <!-- Right: Pause Button -->
-        <div class="w-8 flex-shrink-0 flex justify-end">
-          <button id="btnPauseGame" onclick="event.stopPropagation(); openPauseModal()" ontouchend="event.stopPropagation(); openPauseModal()" class="hud-pause-btn pointer-events-auto" title="Pausar Partida">
-            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+        <!-- Right: Pause Button (Always unobstructed with high z-index) -->
+        <div class="w-9 flex-shrink-0 flex justify-end relative z-50 pointer-events-auto">
+          <button id="btnPauseGame" onclick="event.stopPropagation(); openPauseModal()" ontouchend="event.stopPropagation(); event.preventDefault(); openPauseModal()" class="hud-pause-btn pointer-events-auto relative z-50" title="Pausar Partida">
+            <svg class="w-4 h-4 pointer-events-none" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
           </button>
         </div>
       </div>
 
       <!-- Micro-Indicador de Calibración en Vivo (Early / 0ms / Late) -->
-      <div id="liveCalibrationPill" class="mx-auto mt-1 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/80 border border-white/15 shadow-[0_0_12px_rgba(0,0,0,0.65)] transition-opacity duration-300 opacity-85" style="width: 146px; height: 18px;">
+      <div id="liveCalibrationPill" class="mx-auto mt-1 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/80 border border-white/15 shadow-[0_0_12px_rgba(0,0,0,0.65)] transition-opacity duration-300 opacity-85 pointer-events-none" style="width: 146px; height: 18px;">
         <span class="text-[7.5px] font-mono font-bold text-cyan-300/90 tracking-tighter">EARLY</span>
         <div class="relative flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden flex items-center">
           <div class="absolute left-1/2 top-0 bottom-0 w-[1.5px] -translate-x-1/2 bg-white/75"></div>
@@ -1143,8 +1143,8 @@
       </div>
 
       <!-- Contador Vintage Pixelado de Combo (Exclusivo Modo Pulso, justo debajo de la barra EARLY / ms) -->
-      <div id="hudPulseComboContainer" style="display: none;" class="mx-auto mt-1.5 items-center justify-center px-2.5 py-0.5 rounded-lg bg-[#070503]/95 border border-[#b45309]/90 shadow-[0_3px_10px_rgba(0,0,0,0.85),inset_0_0_8px_rgba(0,0,0,0.95)]">
-        <canvas id="hudPulseComboCanvas" width="96" height="24" class="h-[24px] w-[96px] block" title="Contador Vintage de Combo"></canvas>
+      <div id="hudPulseComboContainer" style="display: none;" class="mx-auto mt-1.5 items-center justify-center px-2.5 py-0.5 rounded-lg bg-[#070503]/95 border border-[#b45309]/90 shadow-[0_3px_10px_rgba(0,0,0,0.85),inset_0_0_8px_rgba(0,0,0,0.95)] pointer-events-none">
+        <canvas id="hudPulseComboCanvas" width="96" height="24" class="h-[24px] w-[96px] block pointer-events-none" title="Contador Vintage de Combo"></canvas>
       </div>
 
       <!-- Karaoke Live Teleprompter (Visible exclusively in Modo Karaoke) -->
@@ -12269,16 +12269,16 @@ function stopPianoCameraLoop() {
       const pulseHudContainerEl = document.getElementById('hudPulseModeContainer');
       const pulseComboContainerEl = document.getElementById('hudPulseComboContainer');
       if (isPulseStart) {
-        if (scoreRollersEl) scoreRollersEl.style.display = 'none';
-        if (slotComboBadgeEl) slotComboBadgeEl.style.display = 'none';
+        if (scoreRollersEl) scoreRollersEl.style.setProperty('display', 'none', 'important');
+        if (slotComboBadgeEl) slotComboBadgeEl.style.setProperty('display', 'none', 'important');
         if (pulseHudContainerEl) pulseHudContainerEl.style.display = 'inline-flex';
         if (pulseComboContainerEl) pulseComboContainerEl.style.display = 'flex';
         if (typeof window.updatePulseModeHud === 'function') {
           window.updatePulseModeHud(0, 5, 5, false);
         }
       } else {
-        if (scoreRollersEl) scoreRollersEl.style.display = '';
-        if (slotComboBadgeEl) slotComboBadgeEl.style.display = '';
+        if (scoreRollersEl) scoreRollersEl.style.removeProperty('display');
+        if (slotComboBadgeEl) slotComboBadgeEl.style.removeProperty('display');
         if (pulseHudContainerEl) pulseHudContainerEl.style.display = 'none';
         if (pulseComboContainerEl) pulseComboContainerEl.style.display = 'none';
       }
