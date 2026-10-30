@@ -4791,54 +4791,18 @@
         "date": "2026-10-30 00:10:43"
       }
     ],
-    "top_los_prisioneros_la_voz_de_los_80": [
-      {
-        "name": "Test",
-        "score": 1061088,
-        "stars": 3,
-        "combo": 175,
-        "accuracy": 61.07097285876508,
-        "date": "2026-10-30 11:32:54"
-      }
-    ],
-    "osu_2558723": [
-      {
-        "name": "Test",
-        "score": 26565,
-        "stars": 3.5,
-        "combo": 18,
-        "accuracy": 1.1536517322364124,
-        "date": "2026-10-30 11:34:37"
-      }
-    ],
-    "osu_2558509": [
-      {
-        "name": "Test",
-        "score": 20235,
-        "stars": 3.5,
-        "combo": 17,
-        "accuracy": 0.1830620348247589,
-        "date": "2026-10-30 11:35:04"
-      }
-    ],
-    "osu_87243": [
-      {
-        "name": "Test",
-        "score": 33500,
-        "stars": 3.5,
-        "combo": 22,
-        "accuracy": 0.15018919355127952,
-        "date": "2026-10-30 11:35:57"
-      }
-    ],
+    "top_los_prisioneros_la_voz_de_los_80": [],
+    "osu_2558723": [],
+    "osu_2558509": [],
+    "osu_87243": [],
     "osu_48672": [
       {
         "name": "Test",
-        "score": 4725,
-        "stars": 3.5,
-        "combo": 8,
-        "accuracy": 0.1182288936402864,
-        "date": "2026-10-30 11:58:26"
+        "score": 611125,
+        "stars": 1,
+        "combo": 199,
+        "accuracy": 22.466096367559857,
+        "date": "2026-10-30 14:59:08"
       }
     ]
   },
@@ -4919,11 +4883,6 @@
       "clefs": 13
     },
     {
-      "name": "Test",
-      "total_score": 1148813,
-      "clefs": 10
-    },
-    {
       "name": "Llois1",
       "total_score": 869748,
       "clefs": 3
@@ -4932,6 +4891,11 @@
       "name": "Jacques",
       "total_score": 795056,
       "clefs": 4
+    },
+    {
+      "name": "Test",
+      "total_score": 611125,
+      "clefs": 6
     },
     {
       "name": "MasterPianist",
@@ -5098,12 +5062,12 @@
         "score": 1274297
       },
       {
-        "name": "Test",
-        "score": 1148813
-      },
-      {
         "name": "Llois1",
         "score": 869748
+      },
+      {
+        "name": "Test",
+        "score": 611125
       },
       {
         "name": "Llois",
