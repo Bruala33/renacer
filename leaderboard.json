@@ -4795,14 +4795,15 @@
     "osu_2558723": [],
     "osu_2558509": [],
     "osu_87243": [],
-    "osu_48672": [
+    "osu_48672": [],
+    "bs_2b4b2": [
       {
         "name": "Test",
-        "score": 611125,
-        "stars": 1,
-        "combo": 199,
-        "accuracy": 22.466096367559857,
-        "date": "2026-10-30 14:59:08"
+        "score": 146600,
+        "stars": 3.5,
+        "combo": 91,
+        "accuracy": 13.212027811949406,
+        "date": "2026-10-30 20:39:29"
       }
     ]
   },
@@ -4893,11 +4894,6 @@
       "clefs": 4
     },
     {
-      "name": "Test",
-      "total_score": 611125,
-      "clefs": 6
-    },
-    {
       "name": "MasterPianist",
       "total_score": 600000,
       "clefs": 6
@@ -4935,6 +4931,11 @@
     {
       "name": "Hola31m",
       "total_score": 147986,
+      "clefs": 1
+    },
+    {
+      "name": "Test",
+      "total_score": 146600,
       "clefs": 1
     },
     {
@@ -5067,7 +5068,7 @@
       },
       {
         "name": "Test",
-        "score": 611125
+        "score": 146600
       },
       {
         "name": "Llois",
