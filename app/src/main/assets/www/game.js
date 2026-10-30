@@ -4378,18 +4378,17 @@ class BeatstarEngine {
 
     const isActivelyPlaying = (this.isRunning || (this.sync && this.sync.isPlaying)) && !this.isPaused && !this.isGameOver && !this.isCountingDown && !this.isCalibrating && !!this.beatmapData;
     const isProtectedTransition = Boolean(
-      (this.isMushroomModeActive && this._mushInSafeTransition) ||
+      ((this.isMushroomModeActive || isMadnessActive) && this._mushInSafeTransition) ||
       (isCruceActive && this._cruceInTransition) ||
-      isShieldActive ||
-      isMadnessActive
+      isShieldActive
     );
 
     if (laneNotes.length === 0) {
       if (this.customBgMode === 'reactive') {
         this.addReactiveBurst(lane, hitX, hitY, this.getScoreColor('perfectPlus'));
       }
-      // En Modo CRUCE o LOCURA nunca se penaliza por apoyar o mantener el dedo en un carril vacío (permite sostener/deslizar para Drag Notes y transiciones)
-      if (this.isCalibrating || isProtectedTransition || isCruceActive || isSplitActive) {
+      // En Modo CRUCE nunca se penaliza por apoyar o mantener el dedo en un carril vacío (permite sostener/deslizar para Drag Notes y transiciones)
+      if (this.isCalibrating || isProtectedTransition || isCruceActive) {
         this.emitKeyHit(hitX, hitY, isCruceActive ? '#fde047' : this.getScoreColor('perfectPlus'), isCruceActive ? 8 : 14);
         return false;
       }
@@ -5726,7 +5725,8 @@ class BeatstarEngine {
     while (this.firstActiveNoteIndex < notesLen) {
       const pastN = this.notes[this.firstActiveNoteIndex];
       if (!pastN) { this.firstActiveNoteIndex++; continue; }
-      const pastT = pastN.end_timestamp_ms || pastN.timestamp_ms || pastN.timeMs || 0;
+      const baseNoteT = pastN.timestamp_ms || pastN.timeMs || 0;
+      const pastT = pastN.end_timestamp_ms || (pastN.type === 'hold' ? (baseNoteT + (pastN.duration_ms || 700)) : baseNoteT);
       if (currentTime - pastT > 450) {
         pastN.holding = false;
         pastN.processed = true;
@@ -5796,13 +5796,35 @@ class BeatstarEngine {
       }
 
       // En Modo CRUCE: durante un giro/salto activo de la línea de juicio de Cruce, proteger al jugador auto-validando la nota de Cruce
+      // Para los Holds: enganchar la cabeza sin marcar holdCompleted para que el cuerpo del Hold NO desaparezca al cambiar la línea de Perfect
       if (isCruceNoteNow && this._cruceInTransition && currentTime >= noteTime - 35) {
-        note.hit = true;
-        note.processed = true;
-        if (note.type === 'hold') note.holdCompleted = true;
         const cCoord = (typeof this.getCruceNoteScreenCoord === 'function')
           ? this.getCruceNoteScreenCoord(note, currentTime)
           : { x: (this.width || 360) * 0.5, y: Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height || 640) * 0.82 };
+        note.hit = true;
+        if (note.type === 'hold') {
+          note.holding = true;
+          note.missed = false;
+          note.holdReleasedEarly = false;
+          note.holdCompleted = false;
+          const holdSlotKey = note._cruceSlot ?? note.lane ?? 0;
+          let activeTouchId = 'cruce_auto';
+          if (this.activeTouches && this.activeTouches.size > 0) {
+            activeTouchId = this.activeTouches.keys().next().value;
+          } else if (this.isMouseDown) {
+            activeTouchId = 'mouse';
+          }
+          this.activeHolds.set(holdSlotKey, {
+            note: note,
+            touchId: activeTouchId,
+            startTime: currentTime,
+            initialTime: noteTime,
+            color: '#00f2fe',
+            outsideGraceMs: 0
+          });
+        } else {
+          note.processed = true;
+        }
         this.judgeHit(note, 0, cCoord.x, cCoord.y, null);
         if (typeof this._triggerCruceNoteHitFX === 'function') {
           this._triggerCruceNoteHitFX(note, cCoord.x, cCoord.y, note._isCruceDrag ? '#fde047' : '#00f2fe');
@@ -5895,14 +5917,14 @@ class BeatstarEngine {
       // Mientras el jugador mantenga al menos un dedo pulsado dentro del rango horizontal actual del trapecio (con ±80px de margen de cortesía),
       // el Hold se mantiene activo y otorga su HOLD CLEAR! al terminar sin dar fallos injustos.
       const isDynamicSlidingOrWide = Boolean(
-        isCruceHoldCheck ||
+        isNoteCruceHold ||
         isSplitHoldCheck ||
         (note._isDynamicMeshHold && (Math.abs((note.endLane ?? note.lane) - (note.startLane ?? note.lane)) > 0.15 || Math.abs((note.endWidth ?? 1) - (note.startWidth ?? 1)) > 0.15))
       );
       if (isDynamicSlidingOrWide && active.touchId !== null && active.touchId !== undefined) {
         const isSplitOrMadnessHold = Boolean(isSplitHoldCheck || isMadnessUpdate);
-        const allowedHalfW = isCruceHoldCheck
-          ? Math.max(88, (baseLaneSpanPx * Math.max(1.35, curWidth) * 0.72) + 84)
+        const allowedHalfW = isNoteCruceHold
+          ? Math.max(96, (baseLaneSpanPx * Math.max(1.35, curWidth) * 0.78) + 92)
           : (isSplitOrMadnessHold
               ? Math.max(135, (this.width || 360) * 0.42)
               : Math.max(48, (baseLaneSpanPx * curWidth * 0.5) + 80));
@@ -5913,7 +5935,10 @@ class BeatstarEngine {
         const checkPtrInside = (pObj) => {
           if (!pObj || !Number.isFinite(pObj.curX)) return false;
           hasAnyActivePointer = true;
-          if (isCruceHoldCheck && typeof this.projectScreenToCruceLine === 'function') {
+          if (isNoteCruceHold && this._cruceInTransition) {
+            return true;
+          }
+          if (isNoteCruceHold && typeof this.projectScreenToCruceLine === 'function') {
             const proj = this.projectScreenToCruceLine(pObj.curX, pObj.curY ?? curHitY, currentTime, this._cruceHoldProjScratch || (this._cruceHoldProjScratch = {}));
             const holdLocalX = this.getCruceHoldLocalX ? this.getCruceHoldLocalX(note, uNow, 1.0) : 0;
             const cSpanW = (this._cruceLineState && this._cruceLineState.spanW) ? this._cruceLineState.spanW : (this.width * 0.88);
@@ -5942,6 +5967,10 @@ class BeatstarEngine {
           anyFingerInside = true;
           active.touchId = 'mouse';
         }
+        if (isNoteCruceHold && this._cruceInTransition && (hasAnyActivePointer || active.touchId === 'cruce_auto')) {
+          anyFingerInside = true;
+          hasAnyActivePointer = true;
+        }
 
         if (hasAnyActivePointer) {
           if (!anyFingerInside) {
@@ -5967,7 +5996,7 @@ class BeatstarEngine {
         }
       }
 
-      const holdColor = isCruceHoldCheck
+      const holdColor = isNoteCruceHold
         ? '#00f2fe'
         : ((active.color && active.color !== '#00ff88' && active.color !== '#00f2fe') ? active.color : '#ffe082');
       if (curWidth <= 1.15) {
@@ -5985,7 +6014,7 @@ class BeatstarEngine {
       if (!active._lastSparkTime || (this._frameNow - active._lastSparkTime >= 45)) {
         active._lastSparkTime = this._frameNow;
         this.particles.emitHoldSparks(hitX, curHitY, holdColor, 1);
-        if (isCruceHoldCheck && typeof this._spawnCruceSquareParticles === 'function') {
+        if (isNoteCruceHold && typeof this._spawnCruceSquareParticles === 'function') {
           this._spawnCruceSquareParticles(hitX, curHitY, '#00f2fe', 3);
         }
       }
@@ -9120,12 +9149,12 @@ class BeatstarEngine {
     const wasFlipped = (this._mushFlipProgress || 0) > 0.5;
     const cloudPalette = ['#ff00ff', '#00ff88', '#00f2fe', '#ffee00', '#b833ff'];
 
-    // Activar ventana de protección segura durante todo el giro de la pista (tanto en Setas Alucinógenas como en Modo Locura)
-    this._mushSafeGraceUntilMs = cTime + 2900;
+    // Activar ventana de protección ágil y corta durante el giro rápido de la pista (0.62s) para no comerse toda la fase en Modo Locura
+    this._mushSafeGraceUntilMs = cTime + 880;
     this._mushInSafeTransition = true;
-    this.invulnerableUntil = Math.max(this.invulnerableUntil || 0, cTime + 2900);
+    this.invulnerableUntil = Math.max(this.invulnerableUntil || 0, cTime + 880);
     this._mushBannerText = this._mushTargetFlipped ? 'PISTA INVERTIDA' : 'GRAVEDAD NORMAL';
-    this._mushBannerTimer = 2.6;
+    this._mushBannerTimer = 1.25;
 
     // 1. Completar holds activos limpiamente sin fallo
     if (this.activeHolds && this.activeHolds.size > 0) {
@@ -9140,8 +9169,8 @@ class BeatstarEngine {
       this.activeHolds.clear();
     }
 
-    // 2. Hacer explotar y desaparecer TODAS las teclas en pantalla y las que caerían durante el giro,
-    // convirtiendo cada tecla en una explosión de fragmentos y Nube de Setas Alucinógenas
+    // 2. Hacer explotar únicamente las notas inmediatas atrapadas en el giro corto (<= 820ms),
+    // dejando intacto el resto de la fase para que el jugador disfrute las notas invertidas
     const notesLen = this.notes ? this.notes.length : 0;
     const startIdx = Math.max(0, (this.firstActiveNoteIndex || 0) - 2);
     let dissolvedCount = 0;
@@ -9151,9 +9180,9 @@ class BeatstarEngine {
       if (!n || n.hit || n.missed || n.processed || n.holdCompleted) continue;
       const nTime = n.timestamp_ms ?? n.timeMs ?? 0;
       const dtNote = nTime - cTime;
-      if (dtNote > 2650) break;
+      if (dtNote > 820) break;
 
-      if (dtNote >= -420 && dtNote <= 2650) {
+      if (dtNote >= -260 && dtNote <= 820) {
         const pRaw = Math.max(0.08, Math.min(0.95, 1.0 - (dtNote / scrollDur)));
         const coord = this.getPerspectiveCoord(n.lane ?? 1, pRaw);
         const screenX = coord.x;
@@ -9161,7 +9190,7 @@ class BeatstarEngine {
         const burstCol = cloudPalette[i % cloudPalette.length];
 
         // Explosión luminosa de la tecla + fragmentos 3D
-        this.emitKeyHit(screenX, screenY, burstCol, 18);
+        this.emitKeyHit(screenX, screenY, burstCol, 14);
         for (let f = 0; f < 4; f++) {
           const fAng = (f / 4) * Math.PI * 2 + (i * 0.5);
           this._shatteredKeyFragments.push({
@@ -9175,27 +9204,27 @@ class BeatstarEngine {
             vRot: (f % 2 === 0 ? 1 : -1) * 5.2,
             color: burstCol,
             age: 0,
-            maxAge: 0.65
+            maxAge: 0.48
           });
         }
 
         // Nube de humo psicodélica + seta brotando en la posición exacta de la tecla desaparecida
-        for (let k = 0; k < 3; k++) {
-          const ang = (k / 3) * Math.PI * 2 + (i * 0.7);
+        for (let k = 0; k < 2; k++) {
+          const ang = (k / 2) * Math.PI * 2 + (i * 0.7);
           this._mushTransitionClouds.push({
             x: screenX + Math.cos(ang) * 10,
             y: screenY + Math.sin(ang) * 8,
-            vx: Math.cos(ang) * (28 + (k * 16)),
-            vy: Math.sin(ang) * (24 + (k * 12)) - 18,
-            r: 22 + (k % 2) * 14,
-            maxR: 54 + (k % 3) * 18,
+            vx: Math.cos(ang) * (32 + (k * 16)),
+            vy: Math.sin(ang) * (26 + (k * 12)) - 18,
+            r: 20 + (k % 2) * 12,
+            maxR: 48 + (k % 2) * 16,
             color: cloudPalette[(i + k) % cloudPalette.length],
             age: 0,
-            duration: 1.35 + (k * 0.18),
+            duration: 0.72 + (k * 0.12),
             isMushroomSprite: (k === 0),
             spriteIdx: (i + k) % 4,
             rot: (k - 1) * 0.25,
-            rotSpeed: (k % 2 === 0 ? 1 : -1) * 2.2
+            rotSpeed: (k % 2 === 0 ? 1 : -1) * 2.4
           });
         }
 
@@ -9214,25 +9243,25 @@ class BeatstarEngine {
       this.addScore(dissolvedCount * 350 * (this.multiplier || 1));
     }
 
-    // 3. Gran Nube Central de Setas que envuelve la pista durante el giro de cámara
-    for (let c = 0; c < 18; c++) {
-      const frac = c / 18;
+    // 3. Nube Central de Setas rápida y compacta durante el giro de cámara (0.75s)
+    for (let c = 0; c < 12; c++) {
+      const frac = c / 12;
       const angle = frac * Math.PI * 2;
-      const dist = 18 + (c % 4) * 28;
+      const dist = 16 + (c % 4) * 24;
       this._mushTransitionClouds.push({
         x: w * 0.5 + Math.cos(angle) * dist,
-        y: h * (0.25 + (c % 5) * 0.12),
-        vx: Math.cos(angle) * (42 + (c % 3) * 22),
-        vy: Math.sin(angle) * 30 - 12,
-        r: 28 + (c % 3) * 16,
-        maxR: 68 + (c % 4) * 22,
+        y: h * (0.28 + (c % 4) * 0.13),
+        vx: Math.cos(angle) * (48 + (c % 3) * 22),
+        vy: Math.sin(angle) * 34 - 12,
+        r: 24 + (c % 3) * 14,
+        maxR: 58 + (c % 3) * 18,
         color: cloudPalette[c % cloudPalette.length],
         age: 0,
-        duration: 1.55 + (c % 3) * 0.2,
+        duration: 0.78 + (c % 3) * 0.12,
         isMushroomSprite: (c % 2 === 0),
         spriteIdx: c % 4,
         rot: Math.sin(c) * 0.4,
-        rotSpeed: (c % 2 === 0 ? 1 : -1) * 2.6
+        rotSpeed: (c % 2 === 0 ? 1 : -1) * 2.8
       });
     }
   }
@@ -9250,25 +9279,25 @@ class BeatstarEngine {
       this._mushBannerText = this._mushTargetFlipped
         ? 'NUBE DE SETAS: PERFECT ARRIBA!'
         : 'NUBE DE SETAS: PERFECT ABAJO!';
-      this._mushBannerTimer = 2.8;
-      this._mushSafeGraceUntilMs = currentTime + 2900;
+      this._mushBannerTimer = 1.35;
+      this._mushSafeGraceUntilMs = currentTime + 880;
       this._mushInSafeTransition = true;
-      this.invulnerableUntil = Math.max(this.invulnerableUntil || 0, currentTime + 2900);
+      this.invulnerableUntil = Math.max(this.invulnerableUntil || 0, currentTime + 880);
       this._triggerMushroomCloudTransition(currentTime);
     }
 
     const targetP = this._mushTargetFlipped ? 1.0 : 0.0;
     const curP = this._mushFlipProgress || 0.0;
     if (Math.abs(targetP - curP) > 0.001) {
-      const step = dt / 1.55; // Transición suave y elegante de 1.55s mientras la nube de setas limpia la pista
+      const step = dt / 0.62; // Transición ágil de 0.62s para que el giro termine rápido y queden muchas notas por jugar
       if (curP < targetP) {
         this._mushFlipProgress = Math.min(1.0, curP + step);
       } else {
         this._mushFlipProgress = Math.max(0.0, curP - step);
       }
-      this._mushSafeGraceUntilMs = Math.max(this._mushSafeGraceUntilMs || 0, currentTime + 1150);
+      this._mushSafeGraceUntilMs = Math.max(this._mushSafeGraceUntilMs || 0, currentTime + 280);
       this._mushInSafeTransition = true;
-      this.invulnerableUntil = Math.max(this.invulnerableUntil || 0, currentTime + 1150);
+      this.invulnerableUntil = Math.max(this.invulnerableUntil || 0, currentTime + 280);
     } else {
       this._mushFlipProgress = targetP;
       this._mushInSafeTransition = currentTime < (this._mushSafeGraceUntilMs || 0);
@@ -18426,7 +18455,9 @@ class BeatstarEngine {
 
     updateMirrorModeEffects(dt) {
       const currentTime = this.getCurrentGameTimeMs(this._frameNow || performance.now());
-      const inMirrorNow = this._isMirrorWindowActiveAt(currentTime);
+      const inMirrorNow = this.isMadnessModeActive
+        ? (typeof this.getActiveMadnessPhase === 'function' && this.getActiveMadnessPhase(currentTime) === 'mirror')
+        : this._isMirrorWindowActiveAt(currentTime);
       if (inMirrorNow !== this._lastMirrorActiveState) {
         this._lastMirrorActiveState = inMirrorNow;
         this._mirrorFlipWave = 1.0;
@@ -18472,15 +18503,14 @@ class BeatstarEngine {
       const steps = 18;
       ctx.save();
 
-      // Los carriles exteriores (0 <-> 3) cruzan en el tramo medio-alto (u: 0.08 -> 0.56) para que se vea claramente
-      // cómo el carril izquierdo del todo llega al derecho del todo y baja por el carril 3 hasta el receptor derecho,
-      // mientras los carriles interiores (1 <-> 2) cruzan en el tramo medio-bajo (u: 0.24 -> 0.70) sin apelotonarse en el centro.
+      // Los carriles exteriores (0 <-> 3) cruzan de extremo a extremo (carril 0 arriba -> carril 3 abajo y carril 3 arriba -> carril 0 abajo),
+      // mientras los carriles interiores (1 <-> 2) cruzan entre las dos posiciones centrales (1 <-> 2), cubriendo los 4 receptores completos.
       const streams = (lastLane === 3)
         ? [
-            { startLane: 0, endLane: 3, uStart: 0.08, uSpan: 0.48, inset: 0.08, rgb: '6, 182, 212', railHex: '#22d3ee' },
-            { startLane: 3, endLane: 0, uStart: 0.08, uSpan: 0.48, inset: 0.08, rgb: '236, 72, 153', railHex: '#f472b6' },
-            { startLane: 1, endLane: 2, uStart: 0.24, uSpan: 0.46, inset: 0.12, rgb: '56, 189, 248', railHex: '#38bdf8' },
-            { startLane: 2, endLane: 1, uStart: 0.24, uSpan: 0.46, inset: 0.12, rgb: '217, 70, 239', railHex: '#e879f9' }
+            { startLane: 0, endLane: 3, uStart: 0.08, uSpan: 0.54, inset: 0.07, rgb: '6, 182, 212', railHex: '#22d3ee' },
+            { startLane: 3, endLane: 0, uStart: 0.08, uSpan: 0.54, inset: 0.07, rgb: '236, 72, 153', railHex: '#f472b6' },
+            { startLane: 1, endLane: 2, uStart: 0.22, uSpan: 0.50, inset: 0.10, rgb: '56, 189, 248', railHex: '#38bdf8' },
+            { startLane: 2, endLane: 1, uStart: 0.22, uSpan: 0.50, inset: 0.10, rgb: '217, 70, 239', railHex: '#e879f9' }
           ]
         : [
             { startLane: 0, endLane: lastLane, uStart: 0.10, uSpan: 0.58, inset: 0.07, rgb: '6, 182, 212', railHex: '#22d3ee' },
@@ -18489,7 +18519,8 @@ class BeatstarEngine {
 
       const getStreamEdgesAtY = (st, u, y) => {
         const remap = Math.max(0, Math.min(1, (u - st.uStart) / st.uSpan));
-        const sCurve = (remap * remap * (3 - 2 * remap)) * easeP;
+        // La curva geométrica SIEMPRE va del 100% del carril origen (arriba) al 100% del carril destino reflejado (abajo)
+        const sCurve = remap * remap * (3 - 2 * remap);
         const sL = (typeof this.getLaneLeftX === 'function')
           ? this.getLaneLeftX(st.startLane, y)
           : this.getLaneBoundaryX(st.startLane, y);
@@ -26696,6 +26727,92 @@ class DynamicHighwayController {
     }
   }
 
+  _drawTennisBallSphere(ctx, x, y, radius, spinAngle = 0) {
+    const r = Math.max(8, radius);
+    ctx.save();
+    ctx.translate(x, y);
+
+    // 1. Sombra proyectada y halo neón de pelota de tenis
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.34)';
+    ctx.beginPath();
+    if (ctx.ellipse) {
+      ctx.ellipse(0, r * 0.82, r * 0.86, r * 0.32, 0, 0, Math.PI * 2);
+    } else {
+      ctx.arc(0, r * 0.82, r * 0.55, 0, Math.PI * 2);
+    }
+    ctx.fill();
+
+    // 2. Esfera principal con textura de fieltro amarillo-lima óptico de tenis
+    const ballGrad = ctx.createRadialGradient(-r * 0.32, -r * 0.34, r * 0.10, 0, 0, r);
+    ballGrad.addColorStop(0.0, '#f7fee7');
+    ballGrad.addColorStop(0.24, '#d9f99d');
+    ballGrad.addColorStop(0.62, '#a3e635');
+    ballGrad.addColorStop(0.88, '#65a30d');
+    ballGrad.addColorStop(1.0, '#3f6212');
+
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fillStyle = ballGrad;
+    ctx.fill();
+
+    // 3. Recorte circular para las costuras blancas curvas de la pelota de tenis y textura de fieltro
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(0, 0, r - 0.6, 0, Math.PI * 2);
+    ctx.clip();
+
+    ctx.rotate(spinAngle);
+
+    // Textura sutil de pelusa/fieltro
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
+    ctx.lineWidth = Math.max(1.0, r * 0.06);
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.76, -0.8, 1.4);
+    ctx.stroke();
+
+    // Costuras curvas características de pelota de tenis (sombra + canal blanco de goma)
+    const seamLW = Math.max(2.0, r * 0.18);
+    ctx.lineCap = 'round';
+
+    ctx.strokeStyle = 'rgba(54, 83, 20, 0.55)';
+    ctx.lineWidth = seamLW + 1.8;
+    ctx.beginPath();
+    ctx.arc(-r * 0.78, 0, r * 0.68, -Math.PI * 0.44, Math.PI * 0.44);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(r * 0.78, 0, r * 0.68, Math.PI * 0.56, Math.PI * 1.44);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = seamLW;
+    ctx.beginPath();
+    ctx.arc(-r * 0.78, 0, r * 0.68, -Math.PI * 0.44, Math.PI * 0.44);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(r * 0.78, 0, r * 0.68, Math.PI * 0.56, Math.PI * 1.44);
+    ctx.stroke();
+
+    ctx.restore();
+
+    // 4. Contorno exterior nítido y brillo especular superior
+    ctx.strokeStyle = '#bef264';
+    ctx.lineWidth = Math.max(1.4, r * 0.09);
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.38)';
+    ctx.beginPath();
+    if (ctx.ellipse) {
+      ctx.ellipse(-r * 0.28, -r * 0.32, r * 0.28, r * 0.15, -0.45, 0, Math.PI * 2);
+    } else {
+      ctx.arc(-r * 0.28, -r * 0.32, r * 0.2, 0, Math.PI * 2);
+    }
+    ctx.fill();
+
+    ctx.restore();
+  }
+
   renderPingPongServeBadge(ctx, note, tapKeyOrX, scaleOrY, currentTimeOrW, drawHOpt, scaleOpt) {
     if (!note || (!note._isPingPongServe && !note._splitPingPongTarget)) return;
     let x = 0;
@@ -26703,12 +26820,14 @@ class DynamicHighwayController {
     let drawW = 56;
     let drawH = 34;
     let scale = 1.0;
+    let cTime = 0;
     if (tapKeyOrX && typeof tapKeyOrX === 'object') {
       x = tapKeyOrX.cx ?? 0;
       y = tapKeyOrX.cy ?? 0;
       drawW = tapKeyOrX.w ?? 56;
       drawH = tapKeyOrX.h ?? 34;
       scale = Number.isFinite(scaleOrY) ? scaleOrY : 1.0;
+      cTime = Number.isFinite(currentTimeOrW) ? currentTimeOrW : 0;
     } else {
       x = Number(tapKeyOrX) || 0;
       y = Number(scaleOrY) || 0;
@@ -26716,28 +26835,61 @@ class DynamicHighwayController {
       drawH = Number(drawHOpt) || 34;
       scale = Number.isFinite(scaleOpt) ? scaleOpt : 1.0;
     }
-    const toRight = (note.lane ?? 0) <= 1;
+
+    // Textura de fieltro de pelota de tenis sobre la tecla + costuras blancas curvas + pelota de tenis 3D giratoria (SIN TEXTO)
+    const hw = drawW * 0.48;
+    const hh = drawH * 0.46;
+    const cornerR = Math.max(5, Math.min(12, hh * 0.65));
+
     ctx.save();
-    ctx.translate(x, y - drawH * 0.62);
-    const pillW = Math.max(46, drawW * 0.68);
-    const pillH = Math.max(15, 18 * scale);
-    ctx.fillStyle = 'rgba(7, 14, 28, 0.92)';
-    ctx.strokeStyle = '#00f5a0';
-    ctx.lineWidth = Math.max(1.2, 1.8 * scale);
+    ctx.translate(x, y);
+
+    // Recubrimiento de fieltro verde-lima óptico sobre la cara de la tecla
+    const feltGrad = ctx.createLinearGradient(-hw, -hh, hw, hh);
+    feltGrad.addColorStop(0.0, '#d9f99d');
+    feltGrad.addColorStop(0.45, '#a3e635');
+    feltGrad.addColorStop(1.0, '#4d7c0f');
+    ctx.fillStyle = feltGrad;
+    ctx.strokeStyle = '#ecfccb';
+    ctx.lineWidth = Math.max(1.5, 2.2 * scale);
+
     ctx.beginPath();
-    if (ctx.roundRect) {
-      ctx.roundRect(-pillW * 0.5, -pillH * 0.5, pillW, pillH, pillH * 0.5);
-    } else {
-      ctx.rect(-pillW * 0.5, -pillH * 0.5, pillW, pillH);
-    }
+    if (ctx.roundRect) ctx.roundRect(-hw, -hh, hw * 2, hh * 2, cornerR);
+    else ctx.rect(-hw, -hh, hw * 2, hh * 2);
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = '#fde047';
-    ctx.font = `900 ${Math.max(9, Math.round(10.5 * scale))}px "Outfit", system-ui, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(toRight ? 'PING >>' : '<< PING', 0, 0.5);
+    // Costuras blancas curvas de pelota de tenis integradas en la textura de la tecla
+    ctx.save();
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(-hw + 1, -hh + 1, hw * 2 - 2, hh * 2 - 2, Math.max(3, cornerR - 1));
+    else ctx.rect(-hw + 1, -hh + 1, hw * 2 - 2, hh * 2 - 2);
+    ctx.clip();
+
+    ctx.strokeStyle = 'rgba(54, 83, 20, 0.48)';
+    ctx.lineWidth = Math.max(3.2, 4.8 * scale);
+    ctx.beginPath();
+    ctx.arc(-hw * 0.82, 0, hh * 1.18, -Math.PI * 0.48, Math.PI * 0.48);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(hw * 0.82, 0, hh * 1.18, Math.PI * 0.52, Math.PI * 1.48);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = Math.max(2.0, 3.0 * scale);
+    ctx.beginPath();
+    ctx.arc(-hw * 0.82, 0, hh * 1.18, -Math.PI * 0.48, Math.PI * 0.48);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(hw * 0.82, 0, hh * 1.18, Math.PI * 0.52, Math.PI * 1.48);
+    ctx.stroke();
+    ctx.restore();
+
+    // Pelota de tenis 3D esférica en el centro de la tecla
+    const ballR = Math.max(9, Math.min(drawW * 0.28, drawH * 0.58));
+    const spin = (cTime * 0.006) % (Math.PI * 2);
+    this._drawTennisBallSphere(ctx, 0, -ballR * 0.12, ballR, spin);
+
     ctx.restore();
   }
 
@@ -26778,21 +26930,18 @@ class DynamicHighwayController {
       curY += (u - 1.0) * 210;
     }
 
-    const apexBoost = 1.0 + 0.24 * Math.sin(clampedU * Math.PI);
+    const apexBoost = 1.0 + 0.28 * Math.sin(clampedU * Math.PI);
     const baseLaneW = toBounds.width;
     const drawW = Math.max(34, baseLaneW * 0.94 * apexBoost);
-    const baseTapH = isLargeKey ? 64 : 32;
-    const drawH = Math.max(22, baseTapH * toBounds.scale * apexBoost);
     const spinDir = (toLane < fromLane) ? -1 : 1;
-    const tiltAngle = spinDir * Math.sin(clampedU * Math.PI) * 0.24;
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     const targetPulse = Math.max(0.15, 1.0 - Math.abs(1.0 - u) * 1.4);
-    const ringCol = (toLane === 0) ? '#00f5a0' : '#38bdf8';
+    const ringCol = '#a3e635';
     ctx.strokeStyle = ringCol;
     ctx.lineWidth = 2.8;
-    ctx.globalAlpha = 0.42 + targetPulse * 0.52;
+    ctx.globalAlpha = 0.45 + targetPulse * 0.52;
     const ringW = Math.max(22, toBounds.width * (0.44 + 0.34 * (1.0 - clampedU * 0.4)));
     const ringH = ringW * 0.42;
     ctx.beginPath();
@@ -26805,9 +26954,9 @@ class DynamicHighwayController {
 
     const trailSteps = 10;
     const uTrailStart = Math.max(0, clampedU - 0.30);
-    ctx.strokeStyle = ringCol;
+    ctx.strokeStyle = '#bef264';
     ctx.lineWidth = Math.max(4, drawW * 0.22);
-    ctx.globalAlpha = 0.48;
+    ctx.globalAlpha = 0.50;
     ctx.beginPath();
     for (let s = 0; s <= trailSteps; s++) {
       const tu = uTrailStart + (clampedU - uTrailStart) * (s / trailSteps);
@@ -26820,40 +26969,10 @@ class DynamicHighwayController {
     ctx.stroke();
     ctx.restore();
 
-    ctx.save();
-    ctx.translate(curX, curY);
-    ctx.rotate(tiltAngle);
-
-    const hw = drawW * 0.5;
-    const hh = drawH * 0.5;
-    ctx.fillStyle = '#090e1c';
-    ctx.strokeStyle = '#fde047';
-    ctx.lineWidth = 2.6;
-    ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(-hw, -hh, drawW, drawH, 8);
-    else ctx.rect(-hw, -hh, drawW, drawH);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.strokeStyle = ringCol;
-    ctx.lineWidth = 1.6;
-    ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(-hw + 3.5, -hh + 3.5, drawW - 7, drawH - 7, 5);
-    else ctx.rect(-hw + 3.5, -hh + 3.5, drawW - 7, drawH - 7);
-    ctx.stroke();
-
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(-hw * 0.58, -3.2, drawW * 0.58, 6.4, 3);
-    else ctx.rect(-hw * 0.58, -3.2, drawW * 0.58, 6.4);
-    ctx.fill();
-
-    ctx.fillStyle = '#fde047';
-    ctx.font = `900 ${Math.max(9, Math.round(10 * toBounds.scale))}px "Outfit", system-ui, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(toLane === 0 ? '<< PONG' : 'PONG >>', 0, -hh - 9);
-    ctx.restore();
+    // Pelota de tenis 3D girando a toda velocidad en pleno bote parabólico (SIN TEXTO)
+    const ballRadius = Math.max(14, Math.min(30, baseLaneW * 0.33 * apexBoost));
+    const spinAngle = spinDir * u * Math.PI * 3.5;
+    this._drawTennisBallSphere(ctx, curX, curY, ballRadius, spinAngle);
 
     return true;
   }
@@ -28263,11 +28382,11 @@ Object.assign(BeatstarEngine.prototype, {
     this._osuManiaVisibility = (this._osuManiaVisibility ?? 0) + (this._osuTargetManiaVisibility - (this._osuManiaVisibility ?? 0)) * Math.min(1, dt * 5.0);
 
     if (curPhase === 'mushroom') {
-      // Invertir la gravedad (teclas de abajo a arriba) en la segunda mitad de la fase de Setas Alucinógenas,
-      // haciendo explotar las teclas en pantalla con una transición segura
+      // Invertir la gravedad (teclas de abajo a arriba) a partir del 32% de la fase con transición corta (0.62s)
+      // para que el jugador disfrute toda la sección invertida sin perder notas al final de la fase
       if (activePhaseObj) {
         const phaseProgress = (currentTime - activePhaseObj.startMs) / Math.max(1, activePhaseObj.endMs - activePhaseObj.startMs);
-        const wantFlip = (phaseProgress >= 0.42 && phaseProgress <= 0.88);
+        const wantFlip = (phaseProgress >= 0.32);
         if (wantFlip !== Boolean(this._mushTargetFlipped)) {
           this._mushTargetFlipped = wantFlip;
           if (typeof this._triggerMushroomCloudTransition === 'function') {
