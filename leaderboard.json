@@ -4836,6 +4836,16 @@
         "accuracy": 0.7930052867019113,
         "date": "2026-10-31 03:20:46"
       }
+    ],
+    "top_bacilos_solo_un_segundo": [
+      {
+        "name": "Test",
+        "score": 907719,
+        "stars": 4,
+        "combo": 272,
+        "accuracy": 77.29971855214023,
+        "date": "2026-10-31 07:34:16"
+      }
     ]
   },
   "global": [
@@ -4913,6 +4923,11 @@
       "name": "Darwin67",
       "total_score": 1628955,
       "clefs": 13
+    },
+    {
+      "name": "Test",
+      "total_score": 907719,
+      "clefs": 9
     },
     {
       "name": "Llois1",
@@ -5092,6 +5107,10 @@
       {
         "name": "Darwin67",
         "score": 1274297
+      },
+      {
+        "name": "Test",
+        "score": 907719
       },
       {
         "name": "Llois1",
