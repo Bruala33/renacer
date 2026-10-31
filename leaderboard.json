@@ -4826,6 +4826,16 @@
         "accuracy": 4.011958069275446,
         "date": "2026-10-31 01:22:25"
       }
+    ],
+    "bs_3aac2": [
+      {
+        "name": "Vamp",
+        "score": 8775,
+        "stars": 3.5,
+        "combo": 17,
+        "accuracy": 0.7930052867019113,
+        "date": "2026-10-31 03:20:46"
+      }
     ]
   },
   "global": [
@@ -4966,7 +4976,7 @@
     },
     {
       "name": "VAMP",
-      "total_score": 51361,
+      "total_score": 60136,
       "clefs": 0
     },
     {
@@ -5089,7 +5099,7 @@
       },
       {
         "name": "VAMP",
-        "score": 51361
+        "score": 60136
       },
       {
         "name": "Llois",
