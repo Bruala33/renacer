@@ -6423,7 +6423,11 @@
       // 5. Recompensa en rojo: desglose mecanografiado exacto (puntuación * 0.00001 * dificultad) con multiplicador X3 en Pulso o X2 si es destacada
       delay += 240;
       const isFeatured2X = !!(currentActiveBeatmap?.is_daily_featured || currentActiveBeatmap?.metadata?.is_daily_featured || engine?.beatmapData?.is_daily_featured);
-      const isPulse3X = Boolean(window.isOsuHybridModeActive || (engine && engine.isOsuHybridModeActive));
+      const isPulse3X = Boolean(
+        window.isOsuHybridModeActive ||
+        window.isMadnessModeActive ||
+        (engine && (engine.isOsuHybridModeActive || engine.isMadnessModeActive))
+      );
       const rawStars = Number(currentActiveBeatmap?.metadata?.stars || currentActiveBeatmap?.stars || stars || 3.0);
       const diffStarsClamped = Math.min(7, Math.max(1, Math.round(rawStars * 10) / 10));
       const baseScoreClefs = Math.floor((score || 0) * 0.00001);
@@ -6590,7 +6594,11 @@
 
           // Otorgar claves de sol por estrellas conseguidas hasta ese momento (X3 en Modo Pulso, X2 si es Modo Tormenta o Destacada Diaria)
           const isFeat = !!(currentActiveBeatmap?.is_daily_featured || currentActiveBeatmap?.metadata?.is_daily_featured || (engine && engine.beatmapData?.is_daily_featured));
-          const isPulse3X = Boolean(window.isOsuHybridModeActive || (engine && engine.isOsuHybridModeActive));
+          const isPulse3X = Boolean(
+            window.isOsuHybridModeActive ||
+            window.isMadnessModeActive ||
+            (engine && (engine.isOsuHybridModeActive || engine.isMadnessModeActive))
+          );
           const isStorm = !isPulse3X && Boolean(window.isStormModeActive || (engine && engine.isStormModeActive));
           const baseEarned = Math.min(15, (engine.stars || 0) * 3);
           const earnedClefs = baseEarned * (isFeat ? 2 : 1) * (isPulse3X ? 3 : (isStorm ? 2 : 1));
@@ -12327,14 +12335,16 @@ function stopPianoCameraLoop() {
       const resMaxComboEl = document.getElementById('resMaxCombo');
       if (resMaxComboEl) resMaxComboEl.innerText = maxCombo;
       
-      // Recompensas de Claves de Sol (X3 exclusivo en Modo Pulso, X2 en Modo Tormenta y/o Canción Destacada Diaria)
+      // Recompensas de Claves de Sol (X3 en Modo Pulso y Modo Locura, X2 en Modo Tormenta y/o Canción Destacada Diaria)
       const isDailyFeat = !!(currentActiveBeatmap?.is_daily_featured || currentActiveBeatmap?.metadata?.is_daily_featured || engine?.beatmapData?.is_daily_featured);
-      const isPulse3X = Boolean(window.isOsuHybridModeActive || (engine && engine.isOsuHybridModeActive));
+      const isMadness3X = Boolean(window.isMadnessModeActive || (engine && engine.isMadnessModeActive));
+      const isPulse3X = Boolean(isMadness3X || window.isOsuHybridModeActive || (engine && engine.isOsuHybridModeActive));
       const isStorm = !isPulse3X && Boolean(window.isStormModeActive || (engine && engine.isStormModeActive));
       const resEarnedClefsEl = document.getElementById('resEarnedClefs');
       if (resEarnedClefsEl) {
-        if (isPulse3X && isDailyFeat) resEarnedClefsEl.innerText = `${earnedClefs} (¡x6 Bonus Pulso X3 + Diario!)`;
-        else if (isPulse3X) resEarnedClefsEl.innerText = `${earnedClefs} (¡x3 Bonus Dificultad Pulso!)`;
+        const mode3XName = isMadness3X ? 'Locura' : 'Pulso';
+        if (isPulse3X && isDailyFeat) resEarnedClefsEl.innerText = `${earnedClefs} (¡x6 Bonus ${mode3XName} X3 + Diario!)`;
+        else if (isPulse3X) resEarnedClefsEl.innerText = `${earnedClefs} (¡x3 Bonus Dificultad ${mode3XName}!)`;
         else if (isStorm && isDailyFeat) resEarnedClefsEl.innerText = `${earnedClefs} (¡x4 Tormenta + Diario!)`;
         else if (isStorm) resEarnedClefsEl.innerText = `${earnedClefs} (¡x2 Modo Tormenta!)`;
         else if (isDailyFeat) resEarnedClefsEl.innerText = `${earnedClefs} (¡x2 Diario!)`;
@@ -18625,14 +18635,14 @@ function stopPianoCameraLoop() {
     function _getUnlockedGameModesMap() {
       try {
         const raw = JSON.parse(localStorage.getItem('beatstar_unlocked_game_modes_v1') || '{}');
-        return Object.assign({ normal: true, osu_hybrid: true, cruce: true, split: true, locura: true }, raw);
+        return Object.assign({ normal: true, osu_hybrid: true, split: true, locura: true }, raw);
       } catch (_) {
-        return { normal: true, osu_hybrid: true, cruce: true, split: true, locura: true };
+        return { normal: true, osu_hybrid: true, split: true, locura: true };
       }
     }
 
     function isGameModeUnlocked(mode) {
-      if (!mode || mode === 'normal' || mode === 'osu_hybrid' || mode === 'cruce' || mode === 'split' || mode === 'locura') return true;
+      if (!mode || mode === 'normal' || mode === 'osu_hybrid' || mode === 'split' || mode === 'locura') return true;
       const map = _getUnlockedGameModesMap();
       return Boolean(map[mode]);
     }
@@ -20381,7 +20391,7 @@ function stopPianoCameraLoop() {
 
       // Texto central grande "CRUCE" en matriz 5x7 con destello cian/oro estilo Phigros
       const label = 'CRUCE';
-      const startCol = 29;
+      const startCol = isLocked ? 25 : 29;
       const textRow = Math.max(0, Math.floor((rows - 7) * 0.5));
       for (let i = 0; i < label.length; i++) {
         const ch = label[i];
@@ -20401,16 +20411,18 @@ function stopPianoCameraLoop() {
         }
       }
 
-      // Icono derecho: Ráfaga de Drag Notes amarillas en ola/zigzag cruzando el haz de luz
-      const cxR = 75;
-      for (let r = 1; r < rows - 1; r++) {
-        const waveX = cxR + Math.sin(r * 0.75 - t * 6.0) * 4.2;
-        setLed(waveX - 1, r, '#fde047');
-        setLed(waveX, r, '#ffffff');
-        setLed(waveX + 1, r, '#f59e0b');
-      }
-      for (let s = -7; s <= 7; s++) {
-        setLed(cxR + s, Math.floor(rows * 0.72) - s * Math.sin(tilt) * 0.5, '#00f2fe');
+      // Icono derecho: Ráfaga de Drag Notes amarillas en ola/zigzag cruzando el haz de luz (solo si no tapa el candado)
+      if (!isLocked) {
+        const cxR = 75;
+        for (let r = 1; r < rows - 1; r++) {
+          const waveX = cxR + Math.sin(r * 0.75 - t * 6.0) * 4.2;
+          setLed(waveX - 1, r, '#fde047');
+          setLed(waveX, r, '#ffffff');
+          setLed(waveX + 1, r, '#f59e0b');
+        }
+        for (let s = -7; s <= 7; s++) {
+          setLed(cxR + s, Math.floor(rows * 0.72) - s * Math.sin(tilt) * 0.5, '#00f2fe');
+        }
       }
 
       const byColor = new Map();
@@ -20431,6 +20443,33 @@ function stopPianoCameraLoop() {
           ctx.arc(lx, ly, dotR * 1.08, 0, Math.PI * 2);
         }
         ctx.fill();
+      }
+
+      // Candado LED (@1000) si está bloqueado
+      if (isLocked) {
+        const lockStr = '@1000';
+        const lockStartCol = cols - (lockStr.length * 6) - 1;
+        const lockRow = Math.floor((rows - 7) * 0.5);
+        for (let i = 0; i < lockStr.length; i++) {
+          const ch = lockStr[i];
+          const glyph = LED_FONT_5X7[ch] || LED_FONT_5X7[' '];
+          const isLockIcon = (ch === '@');
+          ctx.fillStyle = isLockIcon ? '#ff4500' : '#ffb300';
+          ctx.beginPath();
+          for (let gr = 0; gr < 7; gr++) {
+            const rowBits = glyph[gr];
+            if (!rowBits) continue;
+            for (let gc = 0; gc < 5; gc++) {
+              if ((rowBits >> (4 - gc)) & 1) {
+                const lx = offsetX + (lockStartCol + i * 6 + gc) * pitch;
+                const ly = offsetY + (lockRow + gr) * pitch;
+                ctx.moveTo(lx + dotR * 1.12, ly);
+                ctx.arc(lx, ly, dotR * 1.12, 0, Math.PI * 2);
+              }
+            }
+          }
+          ctx.fill();
+        }
       }
     }
 
@@ -20645,10 +20684,10 @@ function stopPianoCameraLoop() {
         setLed(cxL, cyL, '#ffffff');
       }
 
-      // Texto central "LOCURA" en matriz 5x7 con pulso neón multicolor
+      // Texto central "LOCURA" en la mitad superior (filas 0..6) con pulso neón multicolor
       const label = 'LOCURA';
-      const startCol = 25;
-      const textRow = 2;
+      const startCol = 28;
+      const textRow = 0;
       const palette = ['#ffffff', '#fde047', '#f43f5e', '#38bdf8', '#00f5a0'];
       const colorShift = Math.floor(t * 6);
       for (let i = 0; i < label.length; i++) {
@@ -20669,29 +20708,28 @@ function stopPianoCameraLoop() {
         }
       }
 
-      // Sub-barra LED inferior: 5 mini indicadores de modos fusionados + insignia X3
-      const subRow = rows - 3;
-      const barColors = ['#00f5a0', '#38bdf8', '#fde047', '#f43f5e', '#c084fc'];
-      for (let m = 0; m < 5; m++) {
-        const active = Math.floor((t * 4) % 5) === m;
-        const bc = 26 + m * 8;
-        for (let k = 0; k < 6; k++) {
-          setLed(bc + k, subRow, active ? '#ffffff' : barColors[m]);
-        }
-      }
+      // Mensaje LED Vintage animado de IZQUIERDA A DERECHA debajo del nombre (idéntico al de Modo Pulso): "X3 CLAVES BONUS DIFICULTAD"
+      const marqueeMsg = 'X3 CLAVES BONUS DIFICULTAD     ';
+      const charStride = 4; // 3 cols + 1 espacio
+      const totalMarqueeCols = marqueeMsg.length * charStride;
+      const subRow = 8; // Filas 8..12 (5 filas de alto)
+      const scrollShift = Math.floor(t * 18) % totalMarqueeCols;
 
-      // Derecha: Insignia LED "X3" brillante y corazón de 5 vidas
-      const x3Col = cols - 17;
-      const x3Glyphs = ['X', '3'];
-      for (let i = 0; i < x3Glyphs.length; i++) {
-        const glyph = LED_FONT_5X7[x3Glyphs[i]];
-        if (!glyph) continue;
-        for (let gr = 0; gr < 7; gr++) {
-          const rowBits = glyph[gr];
-          for (let gc = 0; gc < 5; gc++) {
-            if ((rowBits >> (4 - gc)) & 1) {
-              setLed(x3Col + i * 6 + gc, textRow + gr, gr < 2 ? '#ffffff' : '#fde047');
-            }
+      for (let screenCol = 1; screenCol < cols - 1; screenCol++) {
+        const msgCol = ((screenCol - scrollShift) % totalMarqueeCols + totalMarqueeCols) % totalMarqueeCols;
+        const charIdx = Math.floor(msgCol / charStride);
+        const gc = msgCol % charStride;
+        if (gc >= 3) continue;
+        const ch = marqueeMsg[charIdx];
+        const miniGlyph = LED_MINI_FONT_3X5[ch];
+        if (!miniGlyph) continue;
+        const isX3Highlight = (charIdx === 0 || charIdx === 1);
+        for (let gr = 0; gr < 5; gr++) {
+          if ((miniGlyph[gr] >> (2 - gc)) & 1) {
+            const ledColor = isX3Highlight
+              ? (gr === 0 ? '#ffffff' : '#f43f5e')
+              : (gr < 2 ? '#fde047' : '#ffb300');
+            setLed(screenCol, subRow + gr, ledColor);
           }
         }
       }
@@ -20781,6 +20819,7 @@ function stopPianoCameraLoop() {
         const mirrorLocked = !isGameModeUnlocked('mirror');
         const echoLocked = !isGameModeUnlocked('echo');
         const osuHybridLocked = !isGameModeUnlocked('osu_hybrid');
+        const cruceLocked = !isGameModeUnlocked('cruce');
 
         // A. ANIMACIÓN LED MODO KARAOKE: KA -> RA -> O -> KE iluminándose en dorado + Candado LED (@ 1000) si está bloqueado
         const kStep = Math.floor(((now - startTime) % 1900) / 380);
@@ -20934,11 +20973,11 @@ function stopPianoCameraLoop() {
           osuHybridLocked
         );
 
-        // L. ANIMACIÓN LED MODO CRUCE: Línea de juicio viva, haces cruzados en X y Drag Notes en ola
+        // L. ANIMACIÓN LED MODO CRUCE: Línea de juicio viva, haces cruzados en X y Drag Notes en ola + Candado LED (@ 1000) si está bloqueado
         _renderCruceLedButton(
           document.getElementById('gmBtnCruceMainCanvas'),
           now,
-          false
+          cruceLocked
         );
 
         // M. ANIMACIÓN LED MODO SPLIT (PISTA VIVA): Pista 3D con Split central, Ping-Pong y Hold trapezoidal
@@ -21092,8 +21131,8 @@ function stopPianoCameraLoop() {
     function confirmGameModeSelection(mode) {
       const chosen = (mode === 'karaoke' || mode === 'storm' || mode === 'mushroom' || mode === 'highway' || mode === 'annoying_dog' || mode === 'river' || mode === 'four_lanes' || mode === 'minesweeper' || mode === 'mirror' || mode === 'echo' || mode === 'osu_hybrid' || mode === 'cruce' || mode === 'split' || mode === 'locura') ? mode : 'normal';
 
-      // Si el modo no es normal, pulso, cruce, split ni locura y aún tiene candado LED (1000 Claves para desbloquear):
-      if (chosen !== 'normal' && chosen !== 'osu_hybrid' && chosen !== 'cruce' && chosen !== 'split' && chosen !== 'locura' && !isGameModeUnlocked(chosen)) {
+      // Si el modo no es normal, pulso, split ni locura y aún tiene candado LED (1000 Claves para desbloquear):
+      if (chosen !== 'normal' && chosen !== 'osu_hybrid' && chosen !== 'split' && chosen !== 'locura' && !isGameModeUnlocked(chosen)) {
         if (typeof userClefs === 'number' && userClefs >= GAME_MODE_UNLOCK_COST) {
           if (typeof deductClefs === 'function' && deductClefs(GAME_MODE_UNLOCK_COST)) {
             _setGameModeUnlocked(chosen);
