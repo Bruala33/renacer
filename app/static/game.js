@@ -24646,9 +24646,9 @@ class BeatstarEngine {
 
       const baseScrollDur = (Number.isFinite(this.scrollDurationMs) && this.scrollDurationMs > 0) ? this.scrollDurationMs : 1400;
       const absSinA = Math.abs(st.sinA || 0);
-      const isHorizontalFlow = (st.orientation === 'CENTER_VERTICAL_BILATERAL' || absSinA > 0.65);
+      const isBilateralVertical = (st.orientation === 'CENTER_VERTICAL_BILATERAL' || absSinA > 0.65);
       // Solo reducir la velocidad de forma moderada cuando las teclas viajan en horizontal; en vertical/diagonal mantener la velocidad original
-      const scrollDur = isHorizontalFlow
+      const scrollDur = isBilateralVertical
         ? Math.round(baseScrollDur * 1.28)
         : baseScrollDur;
       const invScrollDur = 1.0 / scrollDur;
@@ -26116,6 +26116,10 @@ class BeatstarEngine {
           this.render(now);
         } catch (err) {
           console.error('Error inside render loop:', err);
+          if (this.ctx && typeof this.ctx.setTransform === 'function') {
+            const dpr = this.dpr || (typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1;
+            this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          }
         }
 
         if (this.isRunning && !this.isPaused && !this.isRewinding) {
