@@ -4837,22 +4837,33 @@
         "date": "2026-10-31 03:20:46"
       }
     ],
-    "top_bacilos_solo_un_segundo": [
+    "top_bacilos_solo_un_segundo": [],
+    "osu_1511613": [
       {
-        "name": "Test",
-        "score": 907719,
+        "name": "Mauricio",
+        "score": 315984,
         "stars": 4,
-        "combo": 272,
-        "accuracy": 77.29971855214023,
-        "date": "2026-10-31 07:34:16"
+        "combo": 152,
+        "accuracy": 78.08012019016931,
+        "date": "2026-10-31 15:49:15"
+      }
+    ],
+    "osu_1801156": [
+      {
+        "name": "Mauricio",
+        "score": 700664,
+        "stars": 3,
+        "combo": 136,
+        "accuracy": 60.92433759747351,
+        "date": "2026-10-31 15:53:33"
       }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 78900849,
-      "clefs": 714
+      "total_score": 79917497,
+      "clefs": 724
     },
     {
       "name": "Rocky",
@@ -4923,11 +4934,6 @@
       "name": "Darwin67",
       "total_score": 1628955,
       "clefs": 13
-    },
-    {
-      "name": "Test",
-      "total_score": 907719,
-      "clefs": 9
     },
     {
       "name": "Llois1",
@@ -5086,7 +5092,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 22015994
+        "score": 23032642
       },
       {
         "name": "Libay",
@@ -5107,10 +5113,6 @@
       {
         "name": "Darwin67",
         "score": 1274297
-      },
-      {
-        "name": "Test",
-        "score": 907719
       },
       {
         "name": "Llois1",
