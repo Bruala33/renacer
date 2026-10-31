@@ -27472,9 +27472,9 @@ class SongChoreographyAnalyzer {
           if (targetT < lastStopT + 4200 || targetT > ph.endMs - 1400 || targetT > lastT - 2000) continue;
           // Buscar una nota real cerca de targetT para que la caída tras la parada en seco encaje en el pulso exacto de la canción
           let anchorNoteT = null;
-          for (let ni = 1; ni < sorted.length; ni++) {
-            const nt = sorted[ni].timestamp_ms ?? sorted[ni].timeMs ?? 0;
-            const prevNt = sorted[ni - 1].timestamp_ms ?? sorted[ni - 1].timeMs ?? 0;
+          for (let ni = 1; ni < notes.length; ni++) {
+            const nt = notes[ni].timestamp_ms ?? notes[ni].timeMs ?? 0;
+            const prevNt = notes[ni - 1].timestamp_ms ?? notes[ni - 1].timeMs ?? 0;
             if (nt >= targetT - 600 && nt <= targetT + 600 && (nt - prevNt) >= 220) {
               anchorNoteT = nt;
               break;

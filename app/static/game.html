@@ -20646,47 +20646,9 @@ function stopPianoCameraLoop() {
         }
       };
 
-      // Icono izquierdo: Pista 3D morfando entre Split + Cruce + Pulso
-      const phaseCycle = (t * 0.85) % 3.0;
-      const cxL = 13;
-      const cyL = Math.floor(rows * 0.5);
-      if (phaseCycle < 1.0) {
-        // Pista 3D + Split + Ping-Pong
-        for (let r = 2; r < rows - 2; r++) {
-          const w = 2 + Math.floor((r / rows) * 5);
-          setLed(cxL - w - 1, r, '#38bdf8');
-          setLed(cxL - 1, r, '#00f5a0');
-          setLed(cxL + 1, r, '#00f5a0');
-          setLed(cxL + w + 1, r, '#f43f5e');
-        }
-        const arcP = (t * 2.6) % 1.0;
-        const px = (cxL - 5) + 10 * arcP;
-        const py = (rows - 4) - Math.sin(arcP * Math.PI) * 6;
-        setLed(px, py, '#fde047');
-      } else if (phaseCycle < 2.0) {
-        // Cruce: Haz giratorio + lasers diagonales
-        const ang = Math.sin(t * 3.2) * 0.55;
-        for (let d = -9; d <= 9; d++) {
-          setLed(cxL + Math.cos(ang) * d, cyL + Math.sin(ang) * d, '#fde047');
-        }
-        for (let r = 1; r < rows - 1; r++) {
-          setLed(cxL - 6 + Math.floor(r * 0.8), r, '#00f5a0');
-          setLed(cxL + 6 - Math.floor(r * 0.8), r, '#f43f5e');
-        }
-      } else {
-        // Pulso: Circulo espacial con aro de aproximacion
-        const ringR = 3.2 + (1.0 - ((t * 2.0) % 1.0)) * 3.2;
-        for (let a = 0; a < 16; a++) {
-          const rad = (a / 16) * Math.PI * 2;
-          setLed(cxL + Math.cos(rad) * ringR, cyL + Math.sin(rad) * ringR, '#38bdf8');
-          setLed(cxL + Math.cos(rad) * 2.6, cyL + Math.sin(rad) * 2.6, '#f43f5e');
-        }
-        setLed(cxL, cyL, '#ffffff');
-      }
-
-      // Texto central "LOCURA" en la mitad superior (filas 0..6) con pulso neón multicolor
+      // Texto central "LOCURA" en la mitad superior (filas 0..6) con pulso neón multicolor, sin icono lateral que solape el X3
       const label = 'LOCURA';
-      const startCol = 28;
+      const startCol = Math.floor((cols - (label.length * 7 - 2)) * 0.5);
       const textRow = 0;
       const palette = ['#ffffff', '#fde047', '#f43f5e', '#38bdf8', '#00f5a0'];
       const colorShift = Math.floor(t * 6);
