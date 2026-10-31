@@ -9194,7 +9194,7 @@ class BeatstarEngine {
         const burstCol = cloudPalette[i % cloudPalette.length];
 
         // Explosión luminosa de la tecla + fragmentos 3D
-        this.emitKeyHit(screenX, screenY, burstCol, 14);
+        this.emitKeyHit(screenX, screenY, burstCol, 10);
         for (let f = 0; f < 4; f++) {
           const fAng = (f / 4) * Math.PI * 2 + (i * 0.5);
           this._shatteredKeyFragments.push({
@@ -9205,10 +9205,11 @@ class BeatstarEngine {
             w: 14,
             h: 10,
             rot: fAng,
-            vRot: (f % 2 === 0 ? 1 : -1) * 5.2,
-            color: burstCol,
+            rotSpeed: (f % 2 === 0 ? 1 : -1) * 5.2,
+            bodyColor: burstCol,
+            rimColor: '#ffffff',
             age: 0,
-            maxAge: 0.48
+            duration: 0.48
           });
         }
 
@@ -9320,13 +9321,14 @@ class BeatstarEngine {
     const tSec = currentTime * 0.001;
     const flipEase = 0.5 - 0.5 * Math.cos(Math.PI * (this._mushFlipProgress || 0));
     const flipSin = Math.sin(Math.PI * flipEase);
+    const env = this.isMadnessModeActive ? Math.max(0, Math.min(1, this._mushWorldEnvelope ?? 1.0)) : 1.0;
 
-    // Balanceo de cámara ebria + rotación suave durante la transición de gravedad
-    const camRoll = Math.sin(tSec * 1.45) * 0.052 + Math.cos(tSec * 0.82) * 0.025 + flipSin * 0.18;
-    const camScaleX = (1.0 + Math.sin(tSec * 2.15) * 0.036) * (1.0 - flipSin * 0.12);
-    const rawScaleY = (1.0 - 2.0 * flipEase) * (1.0 + Math.cos(tSec * 1.85) * 0.03);
+    // Balanceo de cámara ebria suavizado con envolvente continua + rotación suave durante la transición de gravedad
+    const camRoll = (Math.sin(tSec * 1.45) * 0.052 + Math.cos(tSec * 0.82) * 0.025) * env + flipSin * 0.18;
+    const camScaleX = (1.0 + Math.sin(tSec * 2.15) * 0.036 * env) * (1.0 - flipSin * 0.12);
+    const rawScaleY = (1.0 - 2.0 * flipEase) * (1.0 + Math.cos(tSec * 1.85) * 0.03 * env);
     const safeScaleY = Math.abs(rawScaleY) < 0.07 ? (rawScaleY < 0 ? -0.07 : 0.07) : rawScaleY;
-    const swayX = Math.sin(tSec * 1.15) * 11;
+    const swayX = Math.sin(tSec * 1.15) * 11 * env;
 
     ctx.save();
     ctx.translate(w * 0.5 + swayX, midTrackY);
@@ -18257,7 +18259,15 @@ class BeatstarEngine {
           ctx.restore();
         
         // ==========================================
-        // 2. NOTAS SWIPE (DESLIZAMIENTO CON CHEVRÓN + ESTELA DE POLVO ESTELAR O BALDOSA DE ROCA CON HONDURA DE FLECHA)
+        // 2. PELOTA DE TENIS PING-PONG (CAE DESDE ARRIBA COMO BOLA DE TENIS 3D ANTES DE REBOTAR)
+        // ==========================================
+        } else if (isSplitPingPong && (note._isPingPongServe || note._splitPingPongTarget) && !note._isSplitPingPongRebound && !note._isPingPongBounce && this.dynamicHighwayController) {
+          const baseTapKeyH = (this.numLanes === 4) ? (isLarge ? 64 : 28) : (isLarge ? 80 : 30);
+          const h = Math.min(baseTapKeyH * coord.scale * mushHeightMult, maxH3D);
+          this.dynamicHighwayController.renderPingPongServeBadge(ctx, note, drawLane, coord, h, coord.scale, pHead, currentTime);
+
+        // ==========================================
+        // 2B. NOTAS SWIPE (DESLIZAMIENTO CON CHEVRÓN + ESTELA DE POLVO ESTELAR O BALDOSA DE ROCA CON HONDURA DE FLECHA)
         // ==========================================
         } else if (note.type === 'swipe') {
           const baseSwipeKeyH = (this.numLanes === 4) ? (isLarge ? 68 : 30) : (isLarge ? 84 : 32);
@@ -18354,10 +18364,6 @@ class BeatstarEngine {
           }
           if ((isEchoActive || isMadnessRender) && note._isEchoSource) {
             this.renderEchoSourceKey(ctx, note, drawLane, coord, h, isLarge, lyricForNote, pHead, currentTime);
-            continue;
-          }
-          if (isSplitPingPong && (note._isPingPongServe || note._splitPingPongTarget) && !note._isSplitPingPongRebound && !note._isPingPongBounce && this.dynamicHighwayController) {
-            this.dynamicHighwayController.renderPingPongServeBadge(ctx, note, drawLane, coord, h, coord.scale, pHead, currentTime);
             continue;
           }
           const tapKey = this.drawIvoryKey(ctx, drawLane, coord.y, h, coord.scale, false, isLarge, false, lyricForNote);
@@ -21795,6 +21801,21 @@ class BeatstarEngine {
       const defaultApproachMs = this._osuApproachDurationMs || 960;
       const maniaFallMs = this._osuManiaFallDurationMs || 1020;
       const maxScanHorizonMs = Math.max(defaultApproachMs, maniaFallMs) + 80;
+
+      if (this.isMadnessModeActive) {
+        let hasAnyPulsoInFlight = false;
+        for (let i = startIdx; i < len; i++) {
+          const n = this.notes[i];
+          if (!n || n.missed || n.holdCompleted) continue;
+          if ((n.timestamp_ms - currentTime) > maxScanHorizonMs) break;
+          if (n._madnessPhase === 'pulso' && (!n.hit || n.holding || (n._osuSliderBroken && currentTime < (n._osuBrokenUntilMs || 0)))) {
+            hasAnyPulsoInFlight = true;
+            break;
+          }
+        }
+        if (!hasAnyPulsoInFlight) return;
+      }
+
       const circleR = Math.max(33, Math.min(44, w * 0.096));
       const { beatPulse } = this._getOsuBpmPulse(currentTime);
 
@@ -26277,77 +26298,77 @@ class DynamicHighwayController {
       }
     }
 
-    // Rallies de Ping-Pong entre carriles extremos (0 y 3) en secciones de 4 carriles
-    let nextRallyAllowedT = firstNoteT + 2600;
+    // Rallies de Ping-Pong predecibles entre carriles extremos (0 y 3):
+    // Siempre 1 pelota de tenis 3D que cae desde arriba del todo + 1 rebote parabólico limpio al carril opuesto
+    let nextRallyAllowedT = firstNoteT + 2200;
     for (let s = 0; s < this.sections.length; s++) {
       const sec = this.sections[s];
       if (sec.collapse > 0.35) continue;
 
-      const rallyStartSearchT = Math.max(sec.startMs + 400, nextRallyAllowedT);
-      const rallyEndSearchT = sec.endMs - 700;
-      if (rallyEndSearchT <= rallyStartSearchT + 900) continue;
+      const rallyStartSearchT = Math.max(sec.startMs + 350, nextRallyAllowedT);
+      const rallyEndSearchT = sec.endMs - 650;
+      if (rallyEndSearchT <= rallyStartSearchT + 700) continue;
 
-      for (let i = 0; i < notes.length - 3; i++) {
+      for (let i = 0; i < notes.length - 1; i++) {
         const n0 = notes[i];
-        if (!n0 || n0.isMine || n0.type === 'hold') continue;
+        const n1 = notes[i + 1];
+        if (!n0 || !n1 || n0.isMine || n1.isMine || n0.type === 'hold' || n1.type === 'hold') continue;
         const t0 = n0.timestamp_ms ?? 0;
+        const t1 = n1.timestamp_ms ?? 0;
         if (t0 < rallyStartSearchT) continue;
         if (t0 > rallyEndSearchT) break;
 
-        const chainIndices = [i];
-        let lastT = t0;
-        for (let j = i + 1; j < notes.length && chainIndices.length < 4; j++) {
-          const cand = notes[j];
-          if (!cand || cand.isMine) continue;
-          const dt = (cand.timestamp_ms ?? 0) - lastT;
-          if (dt < 310) continue;
-          if (dt >= 310 && dt <= 760 && cand.type !== 'hold' && !isNearSingleLane(cand.timestamp_ms ?? 0)) {
-            chainIndices.push(j);
-            lastT = cand.timestamp_ms ?? 0;
-          } else {
-            break;
-          }
-        }
+        const dt = t1 - t0;
+        if (dt >= 310 && dt <= 720 && !isNearSingleLane(t0) && !isNearSingleLane(t1)) {
+          const serveLane = ((s + i) % 2 === 0) ? 3 : 0;
+          const rebLane = (serveLane === 3) ? 0 : 3;
 
-        if (chainIndices.length >= 3) {
-          const firstIdx = chainIndices[0];
-          const lastIdx = chainIndices[chainIndices.length - 1];
-          const keepSet = new Set(chainIndices);
-
-          let sideLane = ((s + firstIdx) % 2 === 0) ? 3 : 0;
-          for (let step = 0; step < chainIndices.length; step++) {
-            const noteObj = notes[chainIndices[step]];
-            noteObj.type = 'tap';
-            noteObj.lane = sideLane;
-            noteObj.startLane = sideLane;
-            noteObj.endLane = sideLane;
-            noteObj.startWidth = 1.0;
-            noteObj.endWidth = 1.0;
-            noteObj.meshKeyframes = null;
-            if (step === 0) {
-              noteObj._isPingPongServe = true;
-              noteObj._pingPongRallyLen = chainIndices.length;
-            } else {
-              const prevNoteObj = notes[chainIndices[step - 1]];
-              noteObj._isPingPongBounce = true;
-              noteObj._isSplitPingPongRebound = true;
-              noteObj._pingPongRallyStep = step;
-              noteObj._pingPongFromLane = prevNoteObj.lane;
-              noteObj._pingPongSourceTimeMs = prevNoteObj.timestamp_ms ?? 0;
-              noteObj._pingPongSourceNote = prevNoteObj;
-              noteObj._pingPongLaunched = false;
-              prevNoteObj._splitPingPongTarget = noteObj;
+          // Verificar que los carriles de saque y recepción estén despejados para que nunca se elimine la pelota
+          let lanesClear = true;
+          for (let k = Math.max(0, i - 4); k < Math.min(notes.length, i + 6); k++) {
+            if (k === i || k === i + 1) continue;
+            const other = notes[k];
+            if (!other) continue;
+            const ot = other.timestamp_ms ?? 0;
+            const oEnd = other.end_timestamp_ms || ot;
+            if (other.lane === serveLane && t0 >= ot - 240 && t0 <= oEnd + 240) {
+              lanesClear = false;
+              break;
             }
-            sideLane = (sideLane === 3) ? 0 : 3;
-          }
-
-          for (let k = lastIdx - 1; k > firstIdx; k--) {
-            if (!keepSet.has(k)) {
-              notes.splice(k, 1);
+            if (other.lane === rebLane && t1 >= ot - 240 && t1 <= oEnd + 240) {
+              lanesClear = false;
+              break;
             }
           }
+          if (!lanesClear) continue;
 
-          nextRallyAllowedT = (notes[firstIdx].timestamp_ms ?? t0) + 5600;
+          n0.type = 'tap';
+          n0.lane = serveLane;
+          n0.startLane = serveLane;
+          n0.endLane = serveLane;
+          n0.startWidth = 1.0;
+          n0.endWidth = 1.0;
+          n0.meshKeyframes = null;
+          n0._isPingPongServe = true;
+          n0._pingPongRallyLen = 2;
+          n0._splitPingPongTarget = n1;
+
+          n1.type = 'tap';
+          n1.lane = rebLane;
+          n1.startLane = rebLane;
+          n1.endLane = rebLane;
+          n1.startWidth = 1.0;
+          n1.endWidth = 1.0;
+          n1.meshKeyframes = null;
+          n1._isPingPongBounce = true;
+          n1._isSplitPingPongRebound = true;
+          n1._pingPongRallyStep = 1;
+          n1._pingPongFromLane = serveLane;
+          n1._pingPongSourceTimeMs = t0;
+          n1._pingPongSourceNote = n0;
+          n1._pingPongLaunched = false;
+
+          nextRallyAllowedT = t1 + 4200;
           break;
         }
       }
@@ -26512,7 +26533,8 @@ class DynamicHighwayController {
 
       const nt = n.timestamp_ms ?? 0;
       const inSingle = this.isCollapsedAtTime(nt);
-      const activeMaxL = inSingle ? 1 : this.getExpectedLaneCountAtTime(nt);
+      const isPingPong = Boolean(n._isPingPongServe || n._isPingPongBounce || n._isSplitPingPongRebound);
+      const activeMaxL = inSingle ? 1 : (isPingPong ? 4 : this.getExpectedLaneCountAtTime(nt));
       let l = Math.max(0, Math.min(activeMaxL - 1, Math.round(n.lane ?? 0)));
       n.lane = l;
       if (n.type === 'hold' && !n._reopensToCount && !n._targetLaneCountAfterHold) {
@@ -26520,9 +26542,15 @@ class DynamicHighwayController {
         n.endLane = l;
       }
 
+      // Nunca eliminar una pelota de tenis de saque ni su rebote para que jamás haya rebotes huérfanos
+      if (isPingPong) {
+        lastEndByLane[l] = Math.max(lastEndByLane[l], nt);
+        continue;
+      }
+
       const minGapMs = 165;
       if (nt - lastEndByLane[l] < minGapMs) {
-        if (inSingle || n._isPingPongBounce || n._isPingPongServe || n._isMirrored) {
+        if (inSingle || n._isMirrored) {
           n._dropDuplicateCollapsed = true;
           continue;
         }
@@ -26557,6 +26585,22 @@ class DynamicHighwayController {
     for (let i = notes.length - 1; i >= 0; i--) {
       if (notes[i] && notes[i]._dropDuplicateCollapsed) {
         notes.splice(i, 1);
+      }
+    }
+
+    // Garantía de integridad Ping-Pong: ninguna nota de rebote puede existir sin su pelota de tenis de saque cayendo desde arriba
+    const noteSet = new Set(notes);
+    for (let i = 0; i < notes.length; i++) {
+      const n = notes[i];
+      if (!n) continue;
+      if ((n._isPingPongBounce || n._isSplitPingPongRebound) && (!n._pingPongSourceNote || !noteSet.has(n._pingPongSourceNote))) {
+        n._isPingPongBounce = false;
+        n._isSplitPingPongRebound = false;
+        n._pingPongSourceNote = null;
+      }
+      if (n._isPingPongServe && (!n._splitPingPongTarget || !noteSet.has(n._splitPingPongTarget))) {
+        n._isPingPongServe = false;
+        n._splitPingPongTarget = null;
       }
     }
   }
@@ -26906,7 +26950,7 @@ class DynamicHighwayController {
   }
 
   renderPingPongServeBadge(ctx, note, laneOrKey, coordOrScale, hOpt, scaleOpt, pHeadOpt, currentTimeOpt) {
-    if (!note || (!note._isPingPongServe && !note._splitPingPongTarget)) return;
+    if (!note || (!note._isPingPongServe && !note._splitPingPongTarget && !note._isEchoSource)) return;
     let x = 0;
     let y = 0;
     let drawW = 56;
@@ -26914,9 +26958,10 @@ class DynamicHighwayController {
     let scale = 1.0;
     let pHead = 0.5;
     let cTime = 0;
+    let drawLane = note.lane ?? 0;
 
     if (typeof laneOrKey === 'number' && coordOrScale && typeof coordOrScale === 'object') {
-      const drawLane = laneOrKey;
+      drawLane = laneOrKey;
       const coord = coordOrScale;
       y = coord.y ?? 0;
       scale = Number.isFinite(scaleOpt) ? scaleOpt : (coord.scale ?? 1.0);
@@ -26947,19 +26992,56 @@ class DynamicHighwayController {
       scale = Number.isFinite(pHeadOpt) ? pHeadOpt : 1.0;
     }
 
-    // La nota de saque Ping-Pong cae directamente como una gran Pelota de Tenis 3D esférica girando y botando sobre el carril
-    const ballR = Math.max(13, Math.min(drawW * 0.42, Math.max(22, drawH * 0.66)));
+    // 0. Arco guía anticipado hacia el carril destino de rebote para que el bote sea 100% predecible antes de golpear
+    const targetNote = note._splitPingPongTarget || note._echoTargetNote;
+    const targetLane = targetNote ? (targetNote.lane ?? (drawLane === 0 ? 3 : 0)) : (drawLane === 0 ? 3 : 0);
+    if (this.engine && pHead >= 0.14 && targetLane !== drawLane) {
+      const previewAlpha = Math.max(0.12, Math.min(0.85, (pHead - 0.14) / 0.65));
+      const hitY = this.getLaneHitY(drawLane, this.engine.hitLineY, this.engine.height);
+      const destHitY = this.getLaneHitY(targetLane, this.engine.hitLineY, this.engine.height);
+      const fromHitX = (this.engine.getLaneLeftX(drawLane, hitY) + this.engine.getLaneRightX(drawLane, hitY)) * 0.5;
+      const destHitX = (this.engine.getLaneLeftX(targetLane, destHitY) + this.engine.getLaneRightX(targetLane, destHitY)) * 0.5;
+      const midX = (fromHitX + destHitX) * 0.5;
+      const peakY = Math.min(hitY, destHitY) - Math.max(78, Math.abs(destHitX - fromHitX) * 0.42);
+
+      ctx.save();
+      ctx.globalAlpha = previewAlpha * 0.68;
+      ctx.strokeStyle = '#a3e635';
+      ctx.lineWidth = 2.4;
+      if (ctx.setLineDash) ctx.setLineDash([7, 6]);
+      ctx.beginPath();
+      ctx.moveTo(fromHitX, hitY);
+      ctx.quadraticCurveTo(midX, peakY, destHitX, destHitY);
+      ctx.stroke();
+      if (ctx.setLineDash) ctx.setLineDash([]);
+
+      // Diana anticipada en el carril receptor donde caerá el rebote
+      const pulseR = 14 + Math.sin(cTime * 0.012) * 3;
+      ctx.strokeStyle = '#bef264';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      if (ctx.ellipse) {
+        ctx.ellipse(destHitX, destHitY, pulseR * 1.25, pulseR * 0.48, 0, 0, Math.PI * 2);
+      } else {
+        ctx.arc(destHitX, destHitY, pulseR * 0.8, 0, Math.PI * 2);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // La nota de saque Ping-Pong cae desde el principio (pHead = 0.0) como una Pelota de Tenis 3D esférica grande y brillante
+    const ballR = Math.max(15, Math.min(drawW * 0.46, Math.max(24, drawH * 0.72)));
     const bounceWave = Math.abs(Math.sin(pHead * Math.PI * 3.0));
-    const liftY = -bounceWave * Math.min(18, ballR * 0.48) * Math.max(0.25, 1.0 - pHead * 0.65);
+    const liftY = -bounceWave * Math.min(18, ballR * 0.46) * Math.max(0.25, 1.0 - pHead * 0.65);
     const spin = (cTime * 0.0085 + pHead * 5.2) % (Math.PI * 2);
 
     ctx.save();
     ctx.translate(x, y);
 
     // 1. Anillo diana de pista de tenis sobre el suelo del carril
-    const targetRx = Math.max(14, ballR * 1.18);
-    const targetRy = Math.max(5.5, ballR * 0.44);
-    ctx.strokeStyle = 'rgba(163, 230, 53, 0.85)';
+    const targetRx = Math.max(15, ballR * 1.20);
+    const targetRy = Math.max(6.0, ballR * 0.46);
+    ctx.strokeStyle = 'rgba(163, 230, 53, 0.90)';
     ctx.lineWidth = Math.max(1.8, 2.5 * scale);
     ctx.beginPath();
     if (ctx.ellipse) {
@@ -26969,24 +27051,24 @@ class DynamicHighwayController {
     }
     ctx.stroke();
 
-    ctx.fillStyle = 'rgba(132, 204, 22, 0.22)';
+    ctx.fillStyle = 'rgba(132, 204, 22, 0.25)';
     ctx.fill();
 
     // 2. Estela aerodinámica verde-lima detrás de la pelota que cae
-    const wakeLen = Math.max(20, ballR * 1.9);
+    const wakeLen = Math.max(22, ballR * 2.0);
     const wakeGrad = ctx.createLinearGradient(0, liftY - wakeLen, 0, liftY);
     wakeGrad.addColorStop(0.0, 'rgba(163, 230, 53, 0)');
-    wakeGrad.addColorStop(1.0, 'rgba(190, 242, 100, 0.42)');
+    wakeGrad.addColorStop(1.0, 'rgba(190, 242, 100, 0.46)');
     ctx.fillStyle = wakeGrad;
     ctx.beginPath();
-    ctx.moveTo(-ballR * 0.65, liftY);
-    ctx.lineTo(-ballR * 0.22, liftY - wakeLen);
-    ctx.lineTo(ballR * 0.22, liftY - wakeLen);
-    ctx.lineTo(ballR * 0.65, liftY);
+    ctx.moveTo(-ballR * 0.68, liftY);
+    ctx.lineTo(-ballR * 0.24, liftY - wakeLen);
+    ctx.lineTo(ballR * 0.24, liftY - wakeLen);
+    ctx.lineTo(ballR * 0.68, liftY);
     ctx.closePath();
     ctx.fill();
 
-    // 3. Pelota de tenis 3D esférica con costuras blancas girando mientras cae
+    // 3. Pelota de tenis 3D esférica con costuras blancas girando desde lo alto del carril
     this._drawTennisBallSphere(ctx, 0, liftY - ballR * 0.18, ballR, spin);
 
     ctx.restore();
@@ -27457,45 +27539,8 @@ class SongChoreographyAnalyzer {
       phases[phases.length - 1].endMs = lastT + 5000;
     }
 
-    // 4. Seleccionar momentos musicales para 'Stop & Go' (Parada en seco en el aire y caída a tiempo con el golpe musical)
+    // 4. Mantener el reloj global de scroll 100% continuo para evitar tirones de congelación/salto
     const stopAndGoMoments = [];
-    let lastStopT = firstT + 2000;
-    for (let p = 0; p < phases.length && stopAndGoMoments.length < 6; p++) {
-      const ph = phases[p];
-      if (ph.mode === 'highway' || ph.mode === 'split' || ph.mode === 'minesweeper' || ph.mode === 'cruce') {
-        const candidates = [
-          ph.startMs + (ph.endMs - ph.startMs) * 0.36,
-          ph.startMs + (ph.endMs - ph.startMs) * 0.72
-        ];
-        for (let c = 0; c < candidates.length && stopAndGoMoments.length < 6; c++) {
-          const targetT = candidates[c];
-          if (targetT < lastStopT + 4200 || targetT > ph.endMs - 1400 || targetT > lastT - 2000) continue;
-          // Buscar una nota real cerca de targetT para que la caída tras la parada en seco encaje en el pulso exacto de la canción
-          let anchorNoteT = null;
-          for (let ni = 1; ni < notes.length; ni++) {
-            const nt = notes[ni].timestamp_ms ?? notes[ni].timeMs ?? 0;
-            const prevNt = notes[ni - 1].timestamp_ms ?? notes[ni - 1].timeMs ?? 0;
-            if (nt >= targetT - 600 && nt <= targetT + 600 && (nt - prevNt) >= 220) {
-              anchorNoteT = nt;
-              break;
-            }
-          }
-          const hitBeatT = anchorNoteT !== null ? anchorNoteT : targetT;
-          const freezeDur = Math.max(220, Math.min(320, Math.round(beatMs * 0.55)));
-          const dropDur = Math.max(170, Math.min(240, Math.round(beatMs * 0.40)));
-          const startFreezeMs = hitBeatT - freezeDur - dropDur;
-          if (startFreezeMs > firstT + 1800 && startFreezeMs > ph.startMs + 900) {
-            stopAndGoMoments.push({
-              startFreezeMs,
-              endFreezeMs: hitBeatT - dropDur,
-              endCatchupMs: hitBeatT,
-              beatMs
-            });
-            lastStopT = hitBeatT;
-          }
-        }
-      }
-    }
 
     return {
       bpm: effBpm,
@@ -27744,9 +27789,11 @@ Object.assign(BeatstarEngine.prototype, {
       const nt = n.timestamp_ms;
 
       let secBaseLanes = 4;
+      let secEndMs = nt + 5000;
       for (let s = 0; s < ctrl.sections.length; s++) {
         if (nt >= ctrl.sections[s].startMs && nt < ctrl.sections[s].endMs) {
           secBaseLanes = ctrl.sections[s].baseLanes || 4;
+          secEndMs = ctrl.sections[s].endMs;
           break;
         }
       }
@@ -27773,7 +27820,7 @@ Object.assign(BeatstarEngine.prototype, {
       if (phMode === 'mushroom') {
         if (simLanes !== 3) {
           simLanes = 3;
-          ctrl.laneEvents.push({ timeMs: Math.max(0, (n._madnessPhaseStartMs || nt) - 900), targetCount: 3, open: true, durMs: 380 });
+          ctrl.laneEvents.push({ timeMs: Math.max(0, (n._madnessPhaseStartMs || nt) - 240), targetCount: 3, open: true, durMs: 360 });
         }
         prev3DPhaseMode = phMode;
         n.lane = Math.max(0, Math.min(2, n.lane % 3));
@@ -27814,10 +27861,10 @@ Object.assign(BeatstarEngine.prototype, {
       }
 
       // Al iniciar cualquier fase de 4 carriles (Highway, Split, Mirror o Minesweeper), asegurar que los 4 carriles
-      // ya estén abiertos 1200ms antes para que las teclas caigan directamente en 4 carriles sin desdoblarse de 3 a 4 en el aire
+      // se abran en la ventana limpia de transición (-240ms) sin interrumpir la fase anterior
       if ((phMode !== prev3DPhaseMode || phMode !== 'highway') && simLanes !== 4 && secBaseLanes === 4) {
         simLanes = 4;
-        ctrl.laneEvents.push({ timeMs: Math.max(0, (n._madnessPhaseStartMs || nt) - 1200), targetCount: 4, open: true, durMs: 360 });
+        ctrl.laneEvents.push({ timeMs: Math.max(0, (n._madnessPhaseStartMs || nt) - 240), targetCount: 4, open: true, durMs: 340 });
       }
       prev3DPhaseMode = phMode;
 
@@ -27898,15 +27945,15 @@ Object.assign(BeatstarEngine.prototype, {
       const gapPrev = nt - prevT;
       const gapNext = nextT - nt;
 
-      if (phMode === 'highway' && secBaseLanes === 4 && simLanes < 4 && (nt - lastSwipeT >= 1850)) {
-        const canMakeHold = (n.type === 'tap' && gapNext >= 520);
+      if (phMode === 'highway' && secBaseLanes === 4 && simLanes < 4 && (nt - lastSwipeT >= 1650 || nt > secEndMs - 1400)) {
+        const canMakeHold = (n.type === 'tap' && gapNext >= 480);
         if (n.type === 'hold' || canMakeHold) {
           if (canMakeHold) {
             n.type = 'hold';
             n.duration_ms = Math.min(640, Math.round(gapNext * 0.72));
             n.end_timestamp_ms = nt + n.duration_ms;
           }
-          const newCount = Math.min(4, simLanes + 1);
+          const newCount = (nt > secEndMs - 1400) ? 4 : Math.min(4, simLanes + 1);
           const startL = Math.max(0, Math.min(simLanes - 1, simLanes - 1));
           const endL = newCount - 1;
           n.lane = startL;
@@ -27944,41 +27991,63 @@ Object.assign(BeatstarEngine.prototype, {
         continue;
       }
 
-      // En fases SPLIT: generar rally de Ping-Pong jugable con Pelota de Tenis 3D o Swipes normales que NO quitan carriles
+      // En fases SPLIT: generar rally de Ping-Pong jugable con Pelota de Tenis 3D cayendo desde arriba + rebote parabólico predecible
       if (phMode === 'split') {
-        if (nt > lastPingPongEndT + 1800 && gapNext >= Math.max(540, beatMs * 1.15)) {
-          const hopMs = Math.max(300, Math.min(540, Math.round(beatMs)));
-          if (nt + hopMs < nextT - 200) {
+        if (nt > lastPingPongEndT + 1850 && gapPrev >= 240 && gapNext >= Math.max(540, beatMs * 1.15)) {
+          const hopMs = Math.max(320, Math.min(540, Math.round(beatMs)));
+          if (nt + hopMs < nextT - 220) {
             const startSideLeft = (n.lane <= 1);
-            n.lane = startSideLeft ? 0 : 3;
-            n.type = 'tap';
-            n._isPingPongServe = true;
+            const serveLane = startSideLeft ? 0 : 3;
             const rebLane = startSideLeft ? 3 : 0;
             const rebT = nt + hopMs;
-            const rebNote = {
-              id: 800000 + i * 2,
-              lane: rebLane,
-              type: 'tap',
-              timestamp_ms: rebT,
-              end_timestamp_ms: rebT,
-              duration_ms: 0,
-              hit: false,
-              missed: false,
-              holding: false,
-              processed: false,
-              holdCompleted: false,
-              _madnessPhase: 'split',
-              _isPingPongBounce: true,
-              _isSplitPingPongRebound: true,
-              _pingPongSourceNote: n,
-              _pingPongSourceTimeMs: nt,
-              _pingPongFromLane: n.lane,
-              _pingPongLaunched: false
-            };
-            n._splitPingPongTarget = rebNote;
-            injectedExtraNotes.push(rebNote);
-            lastPingPongEndT = rebT;
-            continue;
+
+            // Verificar que ni el carril de caída (serveLane) ni el de rebote (rebLane) tengan notas cercanas
+            let lanesClear = true;
+            for (let k = Math.max(0, i - 4); k < Math.min(filteredNotes.length, i + 5); k++) {
+              if (k === i) continue;
+              const otherN = filteredNotes[k];
+              if (!otherN) continue;
+              const ot = otherN.timestamp_ms ?? 0;
+              const oEnd = otherN.end_timestamp_ms || ot;
+              if (otherN.lane === serveLane && nt >= ot - 260 && nt <= oEnd + 260) {
+                lanesClear = false;
+                break;
+              }
+              if (otherN.lane === rebLane && rebT >= ot - 260 && rebT <= oEnd + 260) {
+                lanesClear = false;
+                break;
+              }
+            }
+
+            if (lanesClear) {
+              n.lane = serveLane;
+              n.type = 'tap';
+              n._isPingPongServe = true;
+              const rebNote = {
+                id: 800000 + i * 2,
+                lane: rebLane,
+                type: 'tap',
+                timestamp_ms: rebT,
+                end_timestamp_ms: rebT,
+                duration_ms: 0,
+                hit: false,
+                missed: false,
+                holding: false,
+                processed: false,
+                holdCompleted: false,
+                _madnessPhase: 'split',
+                _isPingPongBounce: true,
+                _isSplitPingPongRebound: true,
+                _pingPongSourceNote: n,
+                _pingPongSourceTimeMs: nt,
+                _pingPongFromLane: serveLane,
+                _pingPongLaunched: false
+              };
+              n._splitPingPongTarget = rebNote;
+              injectedExtraNotes.push(rebNote);
+              lastPingPongEndT = rebT;
+              continue;
+            }
           }
         }
         if (n.type === 'tap' && (nt - lastSwipeT >= 2200) && gapPrev >= 200 && gapNext >= 240) {
@@ -27993,8 +28062,8 @@ Object.assign(BeatstarEngine.prototype, {
         }
       }
 
-      // En Highway: Swipes laterales que cierran un carril (4 -> 3 -> 2 carriles)
-      if (phMode === 'highway' && secBaseLanes === 4 && simLanes >= 3 && (nt - lastSwipeT >= Math.max(2300, barMs * 1.25)) && gapPrev >= 200 && gapNext >= 240) {
+      // En Highway: Swipes laterales que cierran un carril (4 -> 3 -> 2 carriles), solo lejos del final de la fase
+      if (phMode === 'highway' && secBaseLanes === 4 && simLanes >= 3 && (nt < secEndMs - 2200) && (nt - lastSwipeT >= Math.max(2300, barMs * 1.25)) && gapPrev >= 200 && gapNext >= 240) {
         const swipeEdgeRight = (simLanes === 4) ? (n.lane >= 2) : true;
         const swipeLane = swipeEdgeRight ? (simLanes - 1) : 0;
         const newCount = Math.max(2, simLanes - 1);
@@ -28643,7 +28712,7 @@ Object.assign(BeatstarEngine.prototype, {
     // Aplicar filtro estricto anti-solapamientos en todas las fases 3D
     ctrl._enforceNoOverlappingNotes(finalNotes);
 
-    // 8. Configurar Notas Ancla (Anchor Notes) en el último golpe antes de cada transición de fase
+    // 8. Configurar Notas Ancla (Anchor Notes) en el último golpe antes de cada transición de fase (nunca sobre una pelota de tenis)
     for (let p = 1; p < plan.phases.length; p++) {
       const boundaryMs = plan.phases[p].startMs;
       let anchorNote = null;
@@ -28657,7 +28726,15 @@ Object.assign(BeatstarEngine.prototype, {
           break;
         }
       }
-      if (anchorNote && !anchorNote._isPingPongBounce && (anchorNote._madnessPhase === 'highway' || anchorNote._madnessPhase === 'split')) {
+      if (
+        anchorNote &&
+        !anchorNote._isPingPongBounce &&
+        !anchorNote._isPingPongServe &&
+        !anchorNote._splitPingPongTarget &&
+        !anchorNote._isEchoSource &&
+        !anchorNote._isEchoRebound &&
+        (anchorNote._madnessPhase === 'highway' || anchorNote._madnessPhase === 'split')
+      ) {
         anchorNote._isMadnessAnchor = true;
         if (anchorNote.type === 'tap') {
           anchorNote.type = 'swipe';
@@ -28667,7 +28744,7 @@ Object.assign(BeatstarEngine.prototype, {
       }
     }
 
-    // 9. Configurar 2 Echo Notes en fases Highway con hueco limpio
+    // 9. Configurar Pelotas de Tenis en fases Highway de 4 carriles: siempre caen desde arriba como Pelota de Tenis 3D y rebotan al carril opuesto
     let echoCount = 0;
     let lastEchoMs = firstNoteT + 2500;
     for (let i = 1; i < finalNotes.length - 1 && echoCount < 2; i++) {
@@ -28676,16 +28753,25 @@ Object.assign(BeatstarEngine.prototype, {
       if (!srcNote || !targetNote || srcNote.isMine || targetNote.isMine) continue;
       if (srcNote._madnessPhase !== 'highway' || targetNote._madnessPhase !== 'highway') continue;
       if (srcNote.type !== 'tap' || targetNote.type !== 'tap') continue;
+      if (srcNote._isMadnessAnchor || targetNote._isMadnessAnchor) continue;
       if (srcNote._isPingPongServe || srcNote._isPingPongBounce || targetNote._isPingPongBounce) continue;
+      if (ctrl.getExpectedLaneCountAtTime(srcNote.timestamp_ms) < 4 || ctrl.getExpectedLaneCountAtTime(targetNote.timestamp_ms) < 4) continue;
       const dtNext = targetNote.timestamp_ms - srcNote.timestamp_ms;
-      if (srcNote.timestamp_ms - lastEchoMs >= 9000 && dtNext >= 340 && dtNext <= 780) {
-        srcNote._isEchoSource = true;
-        srcNote._echoTargetNote = targetNote;
-        targetNote._isEchoRebound = true;
-        targetNote._echoSourceNote = srcNote;
-        targetNote._echoSourceTimeMs = srcNote.timestamp_ms;
-        targetNote._echoFromLane = srcNote.lane;
-        targetNote._echoBounceLaunched = false;
+      if (srcNote.timestamp_ms - lastEchoMs >= 8500 && dtNext >= 340 && dtNext <= 720) {
+        const serveLane = (echoCount % 2 === 0) ? 0 : 3;
+        const rebLane = (serveLane === 0) ? 3 : 0;
+        srcNote.lane = serveLane;
+        srcNote._isPingPongServe = true;
+        srcNote._splitPingPongTarget = targetNote;
+
+        targetNote.lane = rebLane;
+        targetNote._isPingPongBounce = true;
+        targetNote._isSplitPingPongRebound = true;
+        targetNote._pingPongSourceNote = srcNote;
+        targetNote._pingPongSourceTimeMs = srcNote.timestamp_ms;
+        targetNote._pingPongFromLane = serveLane;
+        targetNote._pingPongLaunched = false;
+
         lastEchoMs = targetNote.timestamp_ms;
         echoCount++;
       }
@@ -28731,27 +28817,9 @@ Object.assign(BeatstarEngine.prototype, {
   },
 
   /**
-   * Tiempo de scroll para Modo LOCURA: mantiene velocidad constante 1.0x pero ejecuta
-   * paradas en seco dramáticas ('Beat-Stop') en momentos de la canción y después cae a tiempo con el golpe musical.
+   * Tiempo de scroll para Modo LOCURA: 100% continuo para garantizar fluidez total sin tirones ni congelaciones.
    */
   getMadnessScrollTimeMs(currentTimeMs) {
-    if (!this._madnessPlan || !Array.isArray(this._madnessPlan.stopAndGoMoments)) {
-      return currentTimeMs;
-    }
-    const moments = this._madnessPlan.stopAndGoMoments;
-    for (let i = 0; i < moments.length; i++) {
-      const m = moments[i];
-      if (currentTimeMs >= m.startFreezeMs && currentTimeMs < m.endCatchupMs) {
-        if (currentTimeMs < m.endFreezeMs) {
-          // Parada en seco total: las teclas en vuelo se congelan en el sitio
-          return m.startFreezeMs;
-        }
-        // Caída acelerada suave (cubic in-out) que aterriza exactamente en el tiempo real m.endCatchupMs
-        const u = (currentTimeMs - m.endFreezeMs) / Math.max(1, m.endCatchupMs - m.endFreezeMs);
-        const ease = u < 0.5 ? (2 * u * u) : (1 - Math.pow(-2 * u + 2, 2) / 2);
-        return m.startFreezeMs + (m.endCatchupMs - m.startFreezeMs) * ease;
-      }
-    }
     return currentTimeMs;
   },
 
@@ -28784,7 +28852,7 @@ Object.assign(BeatstarEngine.prototype, {
         this._madnessFromMode = prevMode;
         this._madnessToMode = nextMode;
         this._madnessMorphStartMs = currentTime;
-        this._madnessMorphDurMs = 680;
+        this._madnessMorphDurMs = 520;
         this._madnessInMorphTransition = true;
         this._madnessShieldUntilMs = -5000;
 
@@ -28796,36 +28864,28 @@ Object.assign(BeatstarEngine.prototype, {
           if (this._osuLaserLinks) this._osuLaserLinks.length = 0;
         }
         if (prevMode === 'mushroom' && nextMode !== 'mushroom') {
-          if (this._mushTargetFlipped) {
-            this._mushTargetFlipped = false;
-            if (typeof this._triggerMushroomCloudTransition === 'function') {
-              this._triggerMushroomCloudTransition(currentTime);
-            }
-          }
+          this._mushTargetFlipped = false;
         }
 
         if (this.dynamicHighwayController) {
           const ctrl = this.dynamicHighwayController;
-          if (nextMode === 'cruce' || nextMode === 'pulso') {
-            ctrl._pitchStartVal = ctrl.pitchMorph;
-            ctrl.targetPitchLevel = 0.0;
+          // Mantener la perspectiva 3D estable (pitchMorph = 1.0) durante transiciones con Cruce/Pulso
+          // para que las notas ya en vuelo al entrar a una fase 3D nunca cambien de curva Y ni den tirones
+          if (nextMode === 'cruce' || nextMode === 'pulso' || prevMode === 'cruce' || prevMode === 'pulso') {
+            ctrl._pitchStartVal = 1.0;
+            ctrl.pitchMorph = 1.0;
+            ctrl.targetPitchLevel = 1.0;
             ctrl._pitchTransStartMs = currentTime;
-            ctrl._pitchTransDurMs = 660;
-            // Mientras la autopista 3D está oculta en Cruce o Pulso, dejarla pre-alineada a 4 carriles
-            // para que al pasar a Buscaminas/Highway/Espejo/Split nunca caigan teclas en 3 carriles desdoblándose a 4
+            ctrl._pitchTransDurMs = 10;
+          }
+          if (nextMode === 'cruce' || nextMode === 'pulso') {
             ctrl.targetLaneCount = 4;
             ctrl.visualLaneCount = 4.0;
             ctrl._laneCountStartVal = 4.0;
-          } else if (prevMode === 'cruce' || prevMode === 'pulso') {
-            ctrl._pitchStartVal = 0.0;
-            ctrl.pitchMorph = 0.0;
-            ctrl.targetPitchLevel = 1.0;
-            ctrl._pitchTransStartMs = currentTime;
-            ctrl._pitchTransDurMs = 680;
           }
           // Asegurar el número exacto de carriles al entrar en cada modo: 3 para Setas Alucinógenas, 4 inmediatos para modos de 4 carriles
           if (nextMode === 'mushroom') {
-            ctrl.setTargetLaneCount(3, currentTime, 380);
+            ctrl.setTargetLaneCount(3, currentTime, 340);
           } else if (nextMode === 'mirror' || nextMode === 'minesweeper' || nextMode === 'split' || nextMode === 'highway') {
             if (prevMode === 'cruce' || prevMode === 'pulso' || prevMode === 'mushroom') {
               ctrl.targetLaneCount = 4;
@@ -28834,7 +28894,7 @@ Object.assign(BeatstarEngine.prototype, {
               ctrl._laneCountTransStartMs = currentTime;
               ctrl._laneCountTransDurMs = 10;
             } else {
-              ctrl.setTargetLaneCount(4, currentTime, 380);
+              ctrl.setTargetLaneCount(4, currentTime, 340);
             }
           }
         }
@@ -28871,10 +28931,14 @@ Object.assign(BeatstarEngine.prototype, {
     this._osuTargetManiaVisibility = (curPhase === 'pulso') ? 1.0 : 0.0;
     this._osuManiaVisibility = (this._osuManiaVisibility ?? 0) + (this._osuTargetManiaVisibility - (this._osuManiaVisibility ?? 0)) * Math.min(1, dt * 5.0);
 
+    const targetMushEnv = (curPhase === 'mushroom') ? 1.0 : 0.0;
+    this._mushWorldEnvelope = (this._mushWorldEnvelope ?? 0) + (targetMushEnv - (this._mushWorldEnvelope ?? 0)) * Math.min(1, dt * 4.5);
+
     if (curPhase === 'mushroom') {
       if (activePhaseObj) {
         const phaseProgress = (currentTime - activePhaseObj.startMs) / Math.max(1, activePhaseObj.endMs - activePhaseObj.startMs);
-        const wantFlip = (phaseProgress >= 0.32);
+        // Invertir hacia el 26% y regresar antes del 74% para que nunca coincida una inversión con la salida de la fase
+        const wantFlip = (phaseProgress >= 0.26 && phaseProgress <= 0.74);
         if (wantFlip !== Boolean(this._mushTargetFlipped)) {
           this._mushTargetFlipped = wantFlip;
           if (typeof this._triggerMushroomCloudTransition === 'function') {
@@ -28891,7 +28955,7 @@ Object.assign(BeatstarEngine.prototype, {
         this._mushTargetFlipped = false;
       }
       if (this._mushFlipProgress > 0.001) {
-        this._mushFlipProgress = Math.max(0, this._mushFlipProgress - dt * 2.8);
+        this._mushFlipProgress = Math.max(0, this._mushFlipProgress - dt * 3.2);
       }
       if (this._mushWarpIntensity) {
         this._mushWarpIntensity *= Math.max(0, 1 - dt * 4.0);
