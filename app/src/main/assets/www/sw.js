@@ -1,4 +1,4 @@
-const CACHE_NAME = 'beatstar-v6';
+const CACHE_NAME = 'beatstar-v10';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
@@ -12,7 +12,10 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
+  const url = e.request.url || '';
+  const isCodeOrHtml = url.includes('.js') || url.includes('.html') || url.includes('.css') || e.request.mode === 'navigate';
+  const fetchOpts = isCodeOrHtml ? { cache: 'no-cache' } : undefined;
   e.respondWith(
-    fetch(e.request).catch(() => caches.match(e.request))
+    fetch(e.request, fetchOpts).catch(() => caches.match(e.request))
   );
 });

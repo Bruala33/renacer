@@ -5836,11 +5836,22 @@ class BeatstarEngine {
         continue;
       }
 
+      // Cualquier mina que alcance o supere ligeramente la línea de juicio (+35ms) queda inmediatamente esquivada
+      // y jamás puede contarse como MISS al dejarla pasar
+      if (note.isMine && currentTime >= noteTime + 35) {
+        note.hit = true;
+        note.processed = true;
+        note.missed = false;
+        this._emitMineDodgedFeedback(note.lane);
+        continue;
+      }
+
       if (currentTime >= 0 && (currentTime - noteTime >= exitScreenOffsetMs)) {
         if (note.isMine) {
-          // ¡Mina esquivada con éxito! No penalizar ni cortar el combo
+          // Mina esquivada con éxito: no penalizar ni cortar el combo
           note.hit = true;
           note.processed = true;
+          note.missed = false;
           this._emitMineDodgedFeedback(note.lane);
           continue;
         }
@@ -13880,13 +13891,25 @@ class BeatstarEngine {
     const lastT = (realNotes[realNotes.length - 1].end_timestamp_ms || realNotes[realNotes.length - 1].timestamp_ms || 0) - 1200;
     if (lastT <= firstT) return;
 
-    const isLaneBusyAt = (lane, tMs, marginMs = 265) => {
+    const isLaneBusyAt = (lane, tMs, marginMs = 540) => {
       for (let i = 0; i < realNotes.length; i++) {
         const rn = realNotes[i];
         const rtStart = rn.timestamp_ms || 0;
         const rtEnd = rn.end_timestamp_ms || rtStart;
-        if (rtStart - tMs > marginMs + 400) break;
-        if (rn.lane === lane) {
+        if (rtStart - tMs > marginMs + 500) break;
+        // Nunca colocar una mina mientras haya un Hold activo en cualquier carril
+        if (rn.type === 'hold' && tMs >= (rtStart - 380) && tMs <= (rtEnd + 380)) {
+          return true;
+        }
+        // Nunca colocar una mina en el mismo instante que una nota real en otro carril (±180ms)
+        if (tMs >= (rtStart - 180) && tMs <= (rtEnd + 180)) {
+          return true;
+        }
+        const sLane = Number.isFinite(rn.startLane) ? rn.startLane : (rn.lane ?? 0);
+        const eLane = Number.isFinite(rn.endLane) ? rn.endLane : (rn.lane ?? 0);
+        const minL = Math.floor(Math.min(rn.lane ?? 0, sLane, eLane) - ((rn.endWidth || 1) - 1) * 0.5);
+        const maxL = Math.ceil(Math.max(rn.lane ?? 0, sLane, eLane) + ((rn.endWidth || 1) - 1) * 0.5);
+        if (lane >= minL && lane <= maxL) {
           if (tMs >= (rtStart - marginMs) && tMs <= (rtEnd + marginMs)) {
             return true;
           }
@@ -13895,7 +13918,7 @@ class BeatstarEngine {
       return false;
     };
 
-    const countBusyLanesAt = (tMs, marginMs = 175) => {
+    const countBusyLanesAt = (tMs, marginMs = 240) => {
       let busy = 0;
       for (let l = 0; l < nLanes; l++) {
         if (isLaneBusyAt(l, tMs, marginMs)) busy++;
@@ -13913,7 +13936,7 @@ class BeatstarEngine {
       const candidateTime = Math.max(firstT, Math.round(cursorMs + jitterMs));
 
       // Garantizar que no se bloqueen todos los carriles a la vez
-      if (countBusyLanesAt(candidateTime, 180) < nLanes - 1) {
+      if (countBusyLanesAt(candidateTime, 240) < nLanes - 1) {
         // Probar carriles en orden aleatorio
         const lanesOrder = [];
         for (let l = 0; l < nLanes; l++) lanesOrder.push(l);
@@ -13926,7 +13949,7 @@ class BeatstarEngine {
 
         let chosenLane = -1;
         for (const l of lanesOrder) {
-          if (!isLaneBusyAt(l, candidateTime, 420)) {
+          if (!isLaneBusyAt(l, candidateTime, 560)) {
             chosenLane = l;
             break;
           }
@@ -13991,7 +14014,7 @@ class BeatstarEngine {
       x: coord.x,
       y: hitY - 18,
       vy: -42,
-      text: '✓ MINA ESQUIVADA',
+      text: 'MINA ESQUIVADA',
       color: '#10b981',
       age: 0,
       duration: 0.72,
@@ -14268,7 +14291,7 @@ class BeatstarEngine {
       isHeadline: true
     });
 
-    this.addJudgement(`💥 -${totalLostPoints} PTS`, '#ff3b00', mineNote.lane ?? 1);
+    this.addJudgement(`MINA -${totalLostPoints} PTS`, '#ff3b00', mineNote.lane ?? 1);
   }
 
   updateMinesweeperEffects(dt) {
@@ -23339,67 +23362,67 @@ class BeatstarEngine {
       }
 
       const musicalScenes = [
-        // 0: Inclinación derecha con Cascada Diagonal Izquierda (\)
-        {
-          mode: 'TILT_RIGHT_CASCADE',
-          cxRatio: 0.50, cyRatio: 0.77, angleRad: 18 * deg,
-          spanWRatio: 0.88, travelRatio: 0.76, diagFactor: 1.0, flowDir: 1.0,
-          formationIdx: 1, isMajorFlip: false, arrowAngle: Math.PI * 0.5,
-          label: 'CASCADA LASER IZQUIERDA'
-        },
-        // 1: LÍNEA VERTICAL CENTRAL CON FLUJO BILATERAL (Teclas de izquierda a derecha y de derecha a izquierda hacia el centro)
+        // 0: LÍNEA VERTICAL CENTRAL CON FLUJO BILATERAL (Teclas lentas de izquierda a derecha y de derecha a izquierda hacia el centro)
         {
           mode: 'CENTER_VERTICAL_BILATERAL',
           cxRatio: 0.50, cyRatio: 0.52, angleRad: 90 * deg,
-          spanWRatio: 0.88, travelRatio: 0.48, diagFactor: 0.32, flowDir: 1.0,
+          spanWRatio: 0.82, travelRatio: 0.44, diagFactor: 0.25, flowDir: 1.0,
           formationIdx: 0, isMajorFlip: true, arrowAngle: 0,
           label: 'LINEA VERTICAL CENTRAL: FLUJO BILATERAL'
         },
-        // 2: Inclinación izquierda con Cascada Diagonal Derecha (/)
+        // 1: Inclinación derecha con Cascada Diagonal Izquierda (\) y cambio de perspectiva 3D
+        {
+          mode: 'TILT_RIGHT_CASCADE',
+          cxRatio: 0.50, cyRatio: 0.78, angleRad: 18 * deg,
+          spanWRatio: 0.78, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0,
+          formationIdx: 1, isMajorFlip: false, arrowAngle: Math.PI * 0.5,
+          label: 'PERSPECTIVA ROTADA IZQUIERDA'
+        },
+        // 2: Inclinación izquierda con Cascada Diagonal Derecha (/) y cambio de perspectiva 3D
         {
           mode: 'TILT_LEFT_CASCADE',
-          cxRatio: 0.50, cyRatio: 0.76, angleRad: -18 * deg,
-          spanWRatio: 0.88, travelRatio: 0.76, diagFactor: 1.0, flowDir: 1.0,
+          cxRatio: 0.50, cyRatio: 0.78, angleRad: -18 * deg,
+          spanWRatio: 0.78, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0,
           formationIdx: 2, isMajorFlip: false, arrowAngle: Math.PI * 0.5,
-          label: 'CASCADA LASER DERECHA'
+          label: 'PERSPECTIVA ROTADA DERECHA'
         },
-        // 3: Subida de Estribillo al Centro (Y = 54%) con Embudo Vórtice
+        // 3: Subida de Estribillo con Embudo Vórtice y amplio recorrido superior
         {
           mode: 'CHORUS_CENTER_VORTEX',
-          cxRatio: 0.50, cyRatio: 0.54, angleRad: 15 * deg,
-          spanWRatio: 0.92, travelRatio: 0.56, diagFactor: 1.0, flowDir: 1.0,
+          cxRatio: 0.50, cyRatio: 0.70, angleRad: 14 * deg,
+          spanWRatio: 0.78, travelRatio: 0.72, diagFactor: 1.0, flowDir: 1.0,
           formationIdx: 3, isMajorFlip: true, arrowAngle: Math.PI * 0.5,
           label: 'ESTRIBILLO: VORTICE CENTRAL'
         },
-        // 4: Estribillo en Centro (Y = 52%) con Doble Cruce Gemelo (X en cada mano)
-        {
-          mode: 'CHORUS_TWIN_XCROSS',
-          cxRatio: 0.50, cyRatio: 0.52, angleRad: -16 * deg,
-          spanWRatio: 0.92, travelRatio: 0.56, diagFactor: 1.0, flowDir: 1.0,
-          formationIdx: 4, isMajorFlip: false, arrowAngle: Math.PI * 0.5,
-          label: 'DOBLE CRUCE GEMELO'
-        },
-        // 5: LÍNEA VERTICAL CENTRAL CON FLUJO BILATERAL (Vórtice Cruzado)
+        // 4: LÍNEA VERTICAL CENTRAL CON FLUJO BILATERAL (Vórtice Cruzado)
         {
           mode: 'CENTER_VERTICAL_BILATERAL',
           cxRatio: 0.50, cyRatio: 0.52, angleRad: 90 * deg,
-          spanWRatio: 0.88, travelRatio: 0.48, diagFactor: 0.38, flowDir: -1.0,
+          spanWRatio: 0.82, travelRatio: 0.44, diagFactor: 0.28, flowDir: -1.0,
           formationIdx: 3, isMajorFlip: true, arrowAngle: Math.PI,
           label: 'LINEA VERTICAL CENTRAL: FLUJO BILATERAL'
         },
-        // 6: Barrido Diagonal desde el Borde Izquierdo hacia la Derecha
+        // 5: Estribillo con Doble Cruce Gemelo (X en cada mano)
+        {
+          mode: 'CHORUS_TWIN_XCROSS',
+          cxRatio: 0.50, cyRatio: 0.70, angleRad: -14 * deg,
+          spanWRatio: 0.78, travelRatio: 0.72, diagFactor: 1.0, flowDir: 1.0,
+          formationIdx: 4, isMajorFlip: false, arrowAngle: Math.PI * 0.5,
+          label: 'DOBLE CRUCE GEMELO'
+        },
+        // 6: Barrido Diagonal desde el Borde Izquierdo hacia la Derecha con perspectiva compensada
         {
           mode: 'SWEEP_FROM_LEFT',
-          cxRatio: 0.54, cyRatio: 0.70, angleRad: -22 * deg,
-          spanWRatio: 0.88, travelRatio: 0.74, diagFactor: 1.15, flowDir: 1.0,
+          cxRatio: 0.50, cyRatio: 0.76, angleRad: -19 * deg,
+          spanWRatio: 0.76, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0,
           formationIdx: 1, isMajorFlip: true, arrowAngle: Math.PI * 0.25,
           label: 'BARRIDO DIAGONAL OESTE'
         },
-        // 7: Portal Cruzado Central en Base con ángulo (+22°)
+        // 7: Portal Cruzado Central en Base con perspectiva compensada (+19°)
         {
           mode: 'PORTAL_CROSS_R',
-          cxRatio: 0.50, cyRatio: 0.76, angleRad: 22 * deg,
-          spanWRatio: 0.90, travelRatio: 0.76, diagFactor: 1.0, flowDir: 1.0,
+          cxRatio: 0.50, cyRatio: 0.76, angleRad: 19 * deg,
+          spanWRatio: 0.76, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0,
           formationIdx: 5, isMajorFlip: false, arrowAngle: Math.PI * 0.5,
           label: 'PORTAL HIPERESPACIO'
         }
@@ -23408,13 +23431,14 @@ class BeatstarEngine {
       const topAscentScene = {
         mode: 'TOP_ASCENT_FLOW',
         cxRatio: 0.50, cyRatio: 0.22, angleRad: 0,
-        spanWRatio: 0.88, travelRatio: 0.74, diagFactor: 0.85, flowDir: -1.0,
+        spanWRatio: 0.82, travelRatio: 0.74, diagFactor: 0.85, flowDir: -1.0,
         formationIdx: 0, isMajorFlip: true, arrowAngle: -Math.PI * 0.5,
         label: 'INVERSION VERTICAL: ASCENSO'
       };
 
-      const minSectionDurationMs = Math.max(3400, measureMs * 1.75);
-      let lastKeyframeMs = firstNoteMs;
+      // Duración amplia por cada posición de la línea de juicio (~9.2 a 11.5 segundos) para jugar con comodidad sin cambios seguidos
+      const minSectionDurationMs = Math.max(9200, measureMs * 4.5);
+      let lastKeyframeMs = firstNoteMs - 3200;
       let sceneCounter = 0;
 
       for (let a = 0; a < safeMusicalAnchors.length; a++) {
@@ -23422,17 +23446,17 @@ class BeatstarEngine {
         if (anchor.timeMs - lastKeyframeMs < minSectionDurationMs) continue;
 
         let chosenScene;
-        if (anchor.isBigSilence && (sceneCounter % 4 === 2)) {
+        if (anchor.isBigSilence && (sceneCounter % 5 === 3)) {
           chosenScene = topAscentScene;
         } else {
           chosenScene = musicalScenes[sceneCounter % musicalScenes.length];
         }
         sceneCounter++;
 
-        const leadShiftMs = Math.min(280, Math.max(0, Math.round((anchor.gapBeforeMs - 140) * 0.5)));
+        const leadShiftMs = Math.min(340, Math.max(0, Math.round((anchor.gapBeforeMs - 140) * 0.5)));
         const triggerTimeMs = anchor.timeMs - leadShiftMs;
         const isMajor = Boolean(chosenScene.isMajorFlip);
-        const transDur = isMajor ? 420 : 280;
+        const transDur = isMajor ? 580 : 440;
 
         this._cruceKeyframes.push({
           timeMs: triggerTimeMs,
@@ -23455,14 +23479,14 @@ class BeatstarEngine {
       }
 
       if (this._cruceKeyframes.length <= 1) {
-        let cursorMs = firstNoteMs + measureMs * 2;
+        let cursorMs = firstNoteMs + Math.max(5800, measureMs * 2.8);
         let idx = 0;
-        while (cursorMs < lastNoteMs - 1800) {
+        while (cursorMs < lastNoteMs - 2400) {
           const sc = musicalScenes[idx % musicalScenes.length];
           idx++;
           this._cruceKeyframes.push({
             timeMs: cursorMs,
-            transDurMs: 340,
+            transDurMs: 480,
             mode: sc.mode,
             cxRatio: sc.cxRatio,
             cyRatio: sc.cyRatio,
@@ -23476,12 +23500,12 @@ class BeatstarEngine {
             arrowAngle: sc.arrowAngle,
             label: sc.label
           });
-          cursorMs += Math.max(3800, measureMs * 2);
+          cursorMs += Math.max(9400, measureMs * 4.5);
         }
       }
 
       // Asignar dirección bilateral (_cruceBilateralDir: -1 = izquierda a derecha, +1 = derecha a izquierda)
-      // para que cuando la línea de juicio esté vertical en el centro, las teclas viajen desde ambos lados hacia el centro
+      // agrupando en olas de varias notas para que sea cómodo y predecible en pantallas móviles
       let bilateralGroup = 0;
       let prevNoteTime = -9999;
       for (let i = 0; i < allLen; i++) {
@@ -23490,7 +23514,7 @@ class BeatstarEngine {
         if (n._cruceDragBurstId) {
           n._cruceBilateralDir = (n._cruceDragBurstId % 2 === 0) ? 1.0 : -1.0;
         } else {
-          if (nt - prevNoteTime >= Math.max(320, beatMs * 0.72) || (i % 3 === 0 && nt - prevNoteTime > 50)) {
+          if (nt - prevNoteTime >= Math.max(620, beatMs * 1.35) || (i % 5 === 0 && nt - prevNoteTime > 120)) {
             bilateralGroup++;
           }
           n._cruceBilateralDir = (bilateralGroup % 2 === 0) ? 1.0 : -1.0;
@@ -23509,7 +23533,9 @@ class BeatstarEngine {
     }
 
     /**
-     * Evalúa una pose de keyframe en coordenadas de pantalla `(cx, cy, angle, spanW, travelDistPx, diagFactor, flowDir, originsU)`.
+     * Evalúa una pose de keyframe en coordenadas de pantalla `(cx, cy, angle, spanW, travelDistPx, diagFactor, flowDir, originsU)`,
+     * aplicando encuadre adaptativo de perspectiva para que al rotar la línea de juicio los carriles extremos nunca queden
+     * cortados por los bordes laterales del móvil ni demasiado cerca del borde superior.
      */
     _evalCruceKeyframePose(kf, w, h, out) {
       const formations = this._cruceLaserFormations || [];
@@ -23520,11 +23546,40 @@ class BeatstarEngine {
         colors: ['56, 189, 248', '0, 242, 254', '0, 242, 254', '56, 189, 248']
       };
 
-      out.cx = w * (kf.cxRatio ?? 0.50);
-      out.cy = h * (kf.cyRatio ?? 0.78);
-      out.angle = kf.angleRad || 0;
-      out.spanW = Math.max(250, w * (kf.spanWRatio || 0.88));
-      out.travelDistPx = Math.max(360, h * (kf.travelRatio || 0.76));
+      const angle = kf.angleRad || 0;
+      const sinA = Math.sin(angle);
+      const cosA = Math.cos(angle);
+      const absSin = Math.abs(sinA);
+      const absCos = Math.max(0.25, Math.abs(cosA));
+      const isVerticalBilateral = (kf.mode === 'CENTER_VERTICAL_BILATERAL' || absSin > 0.65);
+
+      if (isVerticalBilateral) {
+        out.cx = w * 0.50;
+        out.cy = h * (kf.cyRatio ?? 0.52);
+        out.angle = angle;
+        // En modo vertical central, spanW se extiende verticalmente en el centro de la pantalla sin tocar el HUD superior
+        out.spanW = Math.max(195, Math.min(h * 0.58, w * 1.04));
+        // El recorrido lateral cabe 100% dentro de la mitad del ancho del móvil para que las teclas nazcan dentro de la pantalla
+        out.travelDistPx = Math.max(115, w * 0.44);
+      } else {
+        // Cambio de perspectiva 3D al rotar la línea de juicio:
+        // 1) Compactar spanW proporcionalmente a la rotación para que los 4 receptores queden dentro de [12%..88% W]
+        // 2) Bajar el centro de la línea (tiltDownShift) para que la esquina más alta tenga al menos 72% de pantalla de pista por encima
+        // 3) Desplazar ligeramente el centro en sentido contrario al giro para abrir la diagonal del carril extremo
+        const tiltCompress = 1.0 - Math.min(0.28, absSin * 0.55);
+        const maxSafeSpanW = (w * 0.76) / absCos;
+        const rawSpanW = Math.max(195, w * (kf.spanWRatio || 0.78) * tiltCompress);
+        out.spanW = Math.min(rawSpanW, maxSafeSpanW);
+
+        const baseCy = h * (kf.cyRatio ?? 0.78);
+        const flowDir = (kf.flowDir !== undefined) ? kf.flowDir : 1.0;
+        const tiltDownShift = (flowDir >= 0) ? (absSin * h * 0.11) : (-absSin * h * 0.11);
+        out.cx = w * (kf.cxRatio ?? 0.50) - sinA * (w * 0.055);
+        out.cy = Math.max(h * 0.20, Math.min(h * 0.85, baseCy + tiltDownShift));
+        out.angle = angle;
+        out.travelDistPx = Math.max(360, h * (kf.travelRatio || 0.76));
+      }
+
       out.diagFactor = (kf.diagFactor !== undefined) ? kf.diagFactor : 1.0;
       out.flowDir = (kf.flowDir !== undefined) ? kf.flowDir : 1.0;
       out.originsU = form.originsU;
@@ -23650,8 +23705,8 @@ class BeatstarEngine {
         st.transitionLabel = poseTo.label;
       }
 
-      // Pre-aviso visual anticipado (Ghost Target Line) 850ms antes del próximo cambio importante
-      if (nextKf && (nextKf.timeMs - cTime) > 0 && (nextKf.timeMs - cTime) <= 850) {
+      // Pre-aviso visual anticipado (Ghost Target Line) 1150ms antes del próximo cambio importante
+      if (nextKf && (nextKf.timeMs - cTime) > 0 && (nextKf.timeMs - cTime) <= 1150) {
         const poseNext = this._crucePoseScratchNext || (this._crucePoseScratchNext = {});
         this._evalCruceKeyframePose(nextKf, w, h, poseNext);
         const timeToNext = nextKf.timeMs - cTime;
@@ -23659,7 +23714,7 @@ class BeatstarEngine {
         st.previewCx = poseNext.cx;
         st.previewCy = poseNext.cy;
         st.previewAngle = poseNext.angle;
-        st.previewAlpha = Math.sin((1.0 - timeToNext / 850) * Math.PI);
+        st.previewAlpha = Math.sin((1.0 - timeToNext / 1150) * Math.PI);
         st.previewLabel = poseNext.label;
       } else {
         st.previewActive = false;
@@ -23676,6 +23731,89 @@ class BeatstarEngine {
       st.orientation = curKf.mode;
       this._cruceInTransition = st.inTransition;
       return st;
+    }
+
+    /**
+     * Calcula el origen `(xOrigin, yOrigin)` y el nodo receptor `(xTarget, yTarget)` en coordenadas locales de la línea
+     * para el carril `slotIdx` (0..3), aplicando Compensación de Perspectiva y Encuadre Móvil:
+     * - Cuando la línea rota, el horizonte de salida de los 4 láseres se mantiene centrado dentro del encuadre superior
+     *   de la pantalla (`14%..86% W`, `9% H`) en lugar de salirse por el borde lateral del teléfono, logrando un cambio
+     *   de perspectiva 3D real donde el carril extremo se ve completo y con largo recorrido.
+     * - Cuando la línea es vertical central (`CENTER_VERTICAL_BILATERAL`), los orígenes nacen dentro del margen visible
+     *   izquierdo y derecho de la pantalla para dar máximo tiempo de lectura.
+     */
+    getCruceBeamEndpointsLocal(slotIdx, st = null, noteFlowDir = null, out = null) {
+      const target = out || this._cruceBeamEndScratch || (this._cruceBeamEndScratch = { xOrigin: 0, yOrigin: -360, xTarget: 0, yTarget: 0 });
+      const lineSt = st || this._cruceLineState || this.getCruceLineState();
+      const w = Math.max(240, this.width || 360);
+      const h = Math.max(400, this.height || 640);
+      const bIdx = Math.max(0, Math.min(3, Math.round(slotIdx || 0)));
+      const targetU = (this._cruceCrossBeams && this._cruceCrossBeams[bIdx])
+        ? this._cruceCrossBeams[bIdx].targetU
+        : (-0.375 + bIdx * 0.25);
+      const liveOrigU = (lineSt.originsU && Number.isFinite(lineSt.originsU[bIdx]))
+        ? lineSt.originsU[bIdx]
+        : (-0.15 + bIdx * 0.10);
+      const diagFactor = (lineSt.diagFactor !== undefined) ? lineSt.diagFactor : 1.0;
+      const effOriginU = targetU + (liveOrigU - targetU) * diagFactor;
+      const dir = Number.isFinite(noteFlowDir) ? noteFlowDir : ((lineSt.flowDir !== undefined) ? lineSt.flowDir : 1.0);
+
+      const xTarget = targetU * lineSt.spanW;
+      const yTarget = 0;
+
+      const sinA = lineSt.sinA ?? Math.sin(lineSt.angle || 0);
+      const cosA = lineSt.cosA ?? Math.cos(lineSt.angle || 0);
+
+      if (Math.abs(sinA) > 0.65) {
+        // Modo Vertical Bilateral en el centro de la pantalla: los orígenes nacen dentro del margen izquierdo/derecho visible
+        const latDist = Math.max(115, Math.min(w * 0.44, lineSt.travelDistPx || (w * 0.44)));
+        target.xOrigin = effOriginU * lineSt.spanW;
+        target.yOrigin = -latDist * dir;
+        target.xTarget = xTarget;
+        target.yTarget = yTarget;
+        return target;
+      }
+
+      // Cambio de Perspectiva 3D real cuando la línea de juicio rota o usa cascadas laterales:
+      // El punto de fuga superior se desplaza en sentido opuesto a la inclinación (counter-vanishing point)
+      // y todos los orígenes quedan enmarcados dentro de [20%..80% W] a la altura del horizonte (5.5% H),
+      // garantizando que el carril del extremo elevado tenga un recorrido larguísimo y 100% visible en pantalla.
+      const nodeScrX = lineSt.cx + xTarget * cosA;
+      const nodeScrY = lineSt.cy + xTarget * sinA;
+      const clampedOriginU = Math.max(-0.42, Math.min(0.42, effOriginU * 0.68));
+      const vanishingCenterX = w * 0.50 - sinA * (w * 0.24);
+      const horizonSpreadW = w * (0.48 - Math.min(0.14, Math.abs(sinA) * 0.28));
+      const horizonScrX = vanishingCenterX + clampedOriginU * horizonSpreadW;
+      const desiredScrX = Math.max(w * 0.18, Math.min(w * 0.82, horizonScrX * 0.88 + nodeScrX * 0.12));
+
+      let desiredScrY;
+      if (dir >= 0) {
+        desiredScrY = Math.max(h * 0.055, Math.min(h * 0.11, Math.min(lineSt.cy - lineSt.travelDistPx, nodeScrY - h * 0.58)));
+      } else {
+        desiredScrY = Math.min(h * 0.945, Math.max(h * 0.89, Math.max(lineSt.cy + lineSt.travelDistPx, nodeScrY + h * 0.58)));
+      }
+
+      const dx = desiredScrX - lineSt.cx;
+      const dy = desiredScrY - lineSt.cy;
+      target.xOrigin = dx * cosA + dy * sinA;
+      target.yOrigin = -dx * sinA + dy * cosA;
+      target.xTarget = xTarget;
+      target.yTarget = yTarget;
+      return target;
+    }
+
+    /**
+     * Devuelve la posición `(x, y)` en coordenadas locales de la línea para una nota en el progreso `progress` (0.0..1.0),
+     * siguiendo exactamente el rayo láser con perspectiva compensada de su carril.
+     */
+    getCruceNoteLocalPos(note, progress = 1.0, st = null, noteFlowDir = null, out = null) {
+      const target = out || this._cruceNotePosScratch || (this._cruceNotePosScratch = { x: 0, y: 0 });
+      const lineSt = st || this._cruceLineState || this.getCruceLineState();
+      const slot = Math.max(0, Math.min(3, Math.round(note._cruceSlot ?? note.lane ?? 1)));
+      const ep = this.getCruceBeamEndpointsLocal(slot, lineSt, noteFlowDir);
+      target.x = ep.xOrigin + (ep.xTarget - ep.xOrigin) * progress;
+      target.y = ep.yOrigin + (ep.yTarget - ep.yOrigin) * progress;
+      return target;
     }
 
     /**
@@ -23750,21 +23888,10 @@ class BeatstarEngine {
 
     /**
      * Calcula la coordenada `localX` de una nota en el progreso `progress` (0.0 = origen del láser, 1.0 = nodo receptor en la línea).
-     * Usa la geometría viva actual del rayo láser asignado (`st.originsU[slot]`) para que las diagonales cambien
-     * dinámicamente a lo largo de la canción y la nota siempre viaje pegada a su rayo de luz.
      */
     getCruceNoteLocalX(note, progress = 1.0) {
-      const st = this._cruceLineState || this.getCruceLineState();
-      const spanW = Math.max(200, st.spanW);
-      const slot = Math.max(0, Math.min(3, Math.round(note._cruceSlot ?? note.lane ?? 1)));
-      const targetU = Number.isFinite(note._cruceTargetU) ? note._cruceTargetU : (-0.375 + slot * 0.25);
-      const liveOriginU = (st.originsU && Number.isFinite(st.originsU[slot]))
-        ? st.originsU[slot]
-        : (-0.15 + slot * 0.10);
-      const diagFactor = (st.diagFactor !== undefined) ? st.diagFactor : 1.0;
-      const effectiveOriginU = targetU + (liveOriginU - targetU) * diagFactor;
-      const currentU = effectiveOriginU + (targetU - effectiveOriginU) * progress;
-      return currentU * spanW;
+      const pos = this.getCruceNoteLocalPos(note, progress);
+      return pos.x;
     }
 
     getCruceNoteScreenCoord(note, currentTime = null, out = null) {
@@ -23777,17 +23904,8 @@ class BeatstarEngine {
      * deslizándose exactamente por el ángulo actual de su láser diagonal.
      */
     getCruceHoldLocalX(note, uHold = 0, progress = 1.0) {
-      const st = this._cruceLineState || this.getCruceLineState();
-      const spanW = Math.max(200, st.spanW);
-      const slot = Math.max(0, Math.min(3, Math.round(note._cruceSlot ?? note.lane ?? 1)));
-      const targetU = Number.isFinite(note._cruceTargetU) ? note._cruceTargetU : (-0.375 + slot * 0.25);
-      const liveOriginU = (st.originsU && Number.isFinite(st.originsU[slot]))
-        ? st.originsU[slot]
-        : (-0.15 + slot * 0.10);
-      const diagFactor = (st.diagFactor !== undefined) ? st.diagFactor : 1.0;
-      const effectiveOriginU = targetU + (liveOriginU - targetU) * diagFactor;
-      const currentU = effectiveOriginU + (targetU - effectiveOriginU) * progress;
-      return currentU * spanW;
+      const pos = this.getCruceNoteLocalPos(note, progress);
+      return pos.x;
     }
 
     getCruceHoldScreenPoint(note, uHold = 0, currentTime = null, out = null) {
@@ -24169,37 +24287,59 @@ class BeatstarEngine {
       const travelDist = st.travelDistPx || 460;
       const diagFactor = (st.diagFactor !== undefined) ? st.diagFactor : 1.0;
       const flowDir = (st.flowDir !== undefined) ? st.flowDir : 1.0;
+      const ep0 = this.getCruceBeamEndpointsLocal(0, st, flowDir, this._cruceGridEp0 || (this._cruceGridEp0 = {}));
+      const ep3 = this.getCruceBeamEndpointsLocal(3, st, flowDir, this._cruceGridEp3 || (this._cruceGridEp3 = {}));
 
-      // 2A. Líneas horizontales rítmicas de compás atravesando toda la pantalla
-      ctx.strokeStyle = `rgba(56, 189, 248, ${(0.09 + beatPulse * 0.06).toFixed(3)})`;
-      ctx.lineWidth = 1.0;
+      // 2A. Pista trapezoidal con perspectiva 3D real conectando el horizonte de fuga (ep0..ep3) con la línea de juicio
+      const deckGrad = ctx.createLinearGradient(
+        (ep0.xOrigin + ep3.xOrigin) * 0.5,
+        (ep0.yOrigin + ep3.yOrigin) * 0.5,
+        (ep0.xTarget + ep3.xTarget) * 0.5,
+        0
+      );
+      deckGrad.addColorStop(0.0, 'rgba(14, 165, 233, 0.03)');
+      deckGrad.addColorStop(0.65, `rgba(14, 165, 233, ${(0.09 + beatPulse * 0.04).toFixed(3)})`);
+      deckGrad.addColorStop(1.0, `rgba(56, 189, 248, ${(0.18 + beatPulse * 0.07).toFixed(3)})`);
+      ctx.fillStyle = deckGrad;
       ctx.beginPath();
-      const gridScroll = (audioTime * 0.85) % 1.0;
-      for (let r = -2; r <= 7; r++) {
-        const uGrid = ((r - gridScroll) / 6);
-        const gy = -uGrid * travelDist * flowDir;
-        ctx.moveTo(-halfSpan, gy);
-        ctx.lineTo(halfSpan, gy);
+      ctx.moveTo(ep0.xOrigin, ep0.yOrigin);
+      ctx.lineTo(ep3.xOrigin, ep3.yOrigin);
+      ctx.lineTo(ep3.xTarget, ep3.yTarget);
+      ctx.lineTo(ep0.xTarget, ep0.yTarget);
+      ctx.closePath();
+      ctx.fill();
+
+      // Líneas de compás con perspectiva 3D real conectando los rayos extremos (0 y 3)
+      ctx.strokeStyle = `rgba(56, 189, 248, ${(0.15 + beatPulse * 0.08).toFixed(3)})`;
+      ctx.lineWidth = 1.25;
+      ctx.beginPath();
+      const gridScroll = (audioTime * 0.65) % 1.0;
+      for (let r = 0; r <= 6; r++) {
+        const uGrid = Math.max(0, Math.min(1.15, (r + gridScroll) / 6));
+        const gx0 = ep0.xOrigin + (ep0.xTarget - ep0.xOrigin) * uGrid;
+        const gy0 = ep0.yOrigin + (ep0.yTarget - ep0.yOrigin) * uGrid;
+        const gx3 = ep3.xOrigin + (ep3.xTarget - ep3.xOrigin) * uGrid;
+        const gy3 = ep3.yOrigin + (ep3.yTarget - ep3.yOrigin) * uGrid;
+        const extX = (gx3 - gx0) * 0.14;
+        const extY = (gy3 - gy0) * 0.14;
+        ctx.moveTo(gx0 - extX, gy0 - extY);
+        ctx.lineTo(gx3 + extX, gy3 + extY);
       }
       ctx.stroke();
 
-      // 3. LOS 4 RAYOS LÁSER DIAGONALES DINÁMICOS QUE ATRAVIESAN TODA LA PANTALLA HASTA ABAJO DEL TODO SIN CORTE
+      // 3. LOS 4 RAYOS LÁSER DIAGONALES DINÁMICOS CON PERSPECTIVA COMPENSADA DE BORDE A BORDE
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       if (this._cruceCrossBeams) {
-        // Prolongar el rayo desde muy por encima del borde superior (`pStart = -0.95`) hasta muy por debajo del borde inferior (`pEnd = +2.85`)
         const pStart = -0.95;
         const pEnd = 2.85;
         for (let bIdx = 0; bIdx < this._cruceCrossBeams.length; bIdx++) {
           const beam = this._cruceCrossBeams[bIdx];
-          const targetU = beam.targetU;
-          const liveOrigU = (st.originsU && Number.isFinite(st.originsU[bIdx])) ? st.originsU[bIdx] : beam.originU;
-          const effOriginU = targetU + (liveOrigU - targetU) * diagFactor;
-
-          const xOrigin = effOriginU * st.spanW;
-          const yOrigin = -travelDist * flowDir;
-          const xTarget = targetU * st.spanW;
-          const yTarget = 0;
+          const ep = this.getCruceBeamEndpointsLocal(bIdx, st, flowDir);
+          const xOrigin = ep.xOrigin;
+          const yOrigin = ep.yOrigin;
+          const xTarget = ep.xTarget;
+          const yTarget = ep.yTarget;
 
           const dxRay = xTarget - xOrigin;
           const dyRay = yTarget - yOrigin;
@@ -24247,19 +24387,16 @@ class BeatstarEngine {
         }
       }
 
-      // 4. Haces/Pilares de luz alineados exactamente con la dirección diagonal del rayo láser y onda diamante en el receptor
+      // 4. Haces/Pilares de luz alineados exactamente con la dirección con perspectiva del rayo láser y onda diamante en el receptor
       if (this._cruceHitPillars && this._cruceHitPillars.length > 0) {
         for (let i = 0; i < this._cruceHitPillars.length; i++) {
           const pil = this._cruceHitPillars[i];
           const bIdx = Math.max(0, Math.min(3, pil.slot ?? 1));
-          const targetU = (this._cruceCrossBeams && this._cruceCrossBeams[bIdx]) ? this._cruceCrossBeams[bIdx].targetU : (-0.375 + bIdx * 0.25);
-          const liveOrigU = (st.originsU && Number.isFinite(st.originsU[bIdx])) ? st.originsU[bIdx] : (-0.15 + bIdx * 0.10);
-          const effOriginU = targetU + (liveOrigU - targetU) * diagFactor;
-
-          const xTarget = targetU * st.spanW;
-          const yTarget = 0;
-          const xOrigin = effOriginU * st.spanW;
-          const yOrigin = -travelDist * flowDir;
+          const ep = this.getCruceBeamEndpointsLocal(bIdx, st, flowDir);
+          const xTarget = ep.xTarget;
+          const yTarget = ep.yTarget;
+          const xOrigin = ep.xOrigin;
+          const yOrigin = ep.yOrigin;
 
           const pBeam = 0.55;
           const xTop = xTarget + (xOrigin - xTarget) * pBeam;
@@ -24461,31 +24598,34 @@ class BeatstarEngine {
 
     /**
      * Convierte el progreso temporal lineal `rawP` (0.0 en el origen del rayo, 1.0 en la línea de juicio)
-     * en profundidad con escorzo de perspectiva `pDepth` y factor de escala `scale`,
-     * haciendo que las teclas nazcan compactas en el origen convergente del láser y crezcan fluidamente hacia el receptor.
+     * en profundidad con escorzo de perspectiva `pDepth` y factor de escala `scale`.
+     * Cuando las teclas viajan lateralmente (`isLateral = true`), utiliza una curva suave casi lineal (`exp = 1.05`)
+     * y mayor escala inicial (`0.52`) para que se vean con claridad desde los bordes del móvil y avancen más despacio.
      */
-    _getCruceDepthPosition(rawP, out = null) {
+    _getCruceDepthPosition(rawP, out = null, isLateral = false) {
       const target = out || this._cruceDepthScratch || (this._cruceDepthScratch = { pDepth: 0, scale: 1 });
       const clamped = Math.max(-0.15, Math.min(1.25, rawP));
+      const exp = isLateral ? 1.16 : 1.32;
       let pDepth;
       if (clamped <= 0) {
         pDepth = clamped * 0.65;
       } else if (clamped <= 1.0) {
-        pDepth = Math.pow(clamped, 1.42);
+        pDepth = Math.pow(clamped, exp);
       } else {
-        pDepth = 1.0 + (clamped - 1.0) * 1.38;
+        pDepth = 1.0 + (clamped - 1.0) * 1.15;
       }
-      const scale = Math.max(0.36, Math.min(1.18, 0.38 + 0.62 * pDepth));
+      const minScale = isLateral ? 0.56 : 0.44;
+      const scale = Math.max(0.40, Math.min(1.16, minScale + (1.0 - minScale) * pDepth));
       target.pDepth = pDepth;
       target.scale = scale;
       return target;
     }
 
     /**
-     * Renderiza todas las notas del modo CRUCE deslizándose con perspectiva real por sus respectivos rayos láser diagonales:
-     * - Tap Notes (Azules/Cian) + Arco Eléctrico Sincronizado en Acordes Dobles + Halo en Downbeats.
-     * - Holds Anchos con perspectiva cónica a lo largo del láser y anillo de bloqueo en el receptor.
-     * - Drag Slide Notes (Amarillas/Doradas) unidas por una cinta de plasma dorada con chevrones direccionales de deslizamiento.
+     * Renderiza todas las notas del modo CRUCE deslizándose con perspectiva 3D compensada por sus respectivos rayos láser:
+     * - En modo lateral (`CENTER_VERTICAL_BILATERAL`), las teclas viajan más del doble de lentas (2.20x) para adaptarse al ancho del móvil.
+     * - Cuando la línea de juicio rota o usa cascadas laterales, las teclas reducen su velocidad (1.32x..1.75x) y el punto de fuga
+     *   se desplaza en sentido opuesto al giro para que el carril extremo se vea completo desde arriba.
      */
     renderCruceNotes(ctx, currentTime, madnessFilterOnly = false) {
       if (!this._cruceLineState) {
@@ -24496,11 +24636,15 @@ class BeatstarEngine {
       const len = this.notes ? this.notes.length : 0;
       if (len === 0) return;
 
-      const scrollDur = (Number.isFinite(this.scrollDurationMs) && this.scrollDurationMs > 0) ? this.scrollDurationMs : 1350;
+      const baseScrollDur = (Number.isFinite(this.scrollDurationMs) && this.scrollDurationMs > 0) ? this.scrollDurationMs : 1400;
+      const absSinA = Math.abs(st.sinA || 0);
+      const isBilateralVertical = (st.orientation === 'CENTER_VERTICAL_BILATERAL' || absSinA > 0.65);
+      const mobileSlowFactor = ((this.width || 360) < 540) ? 1.18 : 1.05;
+      const scrollDur = isBilateralVertical
+        ? Math.round(baseScrollDur * 2.20 * mobileSlowFactor)
+        : Math.round(baseScrollDur * (1.26 + absSinA * 0.72) * mobileSlowFactor);
       const invScrollDur = 1.0 / scrollDur;
-      const travelDist = st.travelDistPx || 440;
       const flowDir = (st.flowDir !== undefined) ? st.flowDir : 1.0;
-      const isBilateralVertical = (st.orientation === 'CENTER_VERTICAL_BILATERAL');
       const effTime = (isMadnessCruce && typeof this.getMadnessScrollTimeMs === 'function')
         ? this.getMadnessScrollTimeMs(currentTime)
         : currentTime;
@@ -24553,10 +24697,11 @@ class BeatstarEngine {
         }
         const rawP = 1.0 - (dt * invScrollDur);
         if (rawP < 0.0) continue;
-        const dm = this._getCruceDepthPosition(rawP);
-        const lx = this.getCruceNoteLocalX(n, dm.pDepth);
+        const dm = this._getCruceDepthPosition(rawP, null, isBilateralVertical);
         const noteFlowDir = (isBilateralVertical && Number.isFinite(n._cruceBilateralDir)) ? n._cruceBilateralDir : flowDir;
-        const ly = -(1.0 - dm.pDepth) * travelDist * noteFlowDir;
+        const pos = this.getCruceNoteLocalPos(n, dm.pDepth, st, noteFlowDir);
+        const lx = pos.x;
+        const ly = pos.y;
 
         if (prevDragPt && prevDragPt.burstId === n._cruceDragBurstId) {
           const avgScale = (prevDragPt.scale + dm.scale) * 0.5;
@@ -24626,7 +24771,7 @@ class BeatstarEngine {
         if (rawPHead <= 0.01 || rawPHead <= rawPTail + 0.004) continue;
 
         const noteFlowDir = (isBilateralVertical && Number.isFinite(note._cruceBilateralDir)) ? note._cruceBilateralDir : flowDir;
-        this._drawCruceWideHoldLocal(ctx, note, currentTime, noteT, holdDur, rawPHead, rawPTail, isBeingHeld, travelDist * noteFlowDir, slotW);
+        this._drawCruceWideHoldLocal(ctx, note, currentTime, noteT, holdDur, rawPHead, rawPTail, isBeingHeld, noteFlowDir, slotW, st, isBilateralVertical);
       }
 
       // 3. Dibujar Arcos Eléctricos Sincronizados entre Acordes Dobles simultáneos con perspectiva
@@ -24644,13 +24789,15 @@ class BeatstarEngine {
         const rawP = 1.0 - (dt * invScrollDur);
         if (rawP < 0.0) continue;
 
-        const dm = this._getCruceDepthPosition(rawP);
-        const x1 = this.getCruceNoteLocalX(n, dm.pDepth);
-        const x2 = this.getCruceNoteLocalX(partner, dm.pDepth);
+        const dm = this._getCruceDepthPosition(rawP, null, isBilateralVertical);
         const dir1 = (isBilateralVertical && Number.isFinite(n._cruceBilateralDir)) ? n._cruceBilateralDir : flowDir;
         const dir2 = (isBilateralVertical && Number.isFinite(partner._cruceBilateralDir)) ? partner._cruceBilateralDir : flowDir;
-        const y1 = -(1.0 - dm.pDepth) * travelDist * dir1;
-        const y2 = -(1.0 - dm.pDepth) * travelDist * dir2;
+        const pos1 = this.getCruceNoteLocalPos(n, dm.pDepth, st, dir1, this._cruceChordPos1 || (this._cruceChordPos1 = { x: 0, y: 0 }));
+        const pos2 = this.getCruceNoteLocalPos(partner, dm.pDepth, st, dir2, this._cruceChordPos2 || (this._cruceChordPos2 = { x: 0, y: 0 }));
+        const x1 = pos1.x;
+        const y1 = pos1.y;
+        const x2 = pos2.x;
+        const y2 = pos2.y;
         const midX = (x1 + x2) * 0.5;
         const midY = (y1 + y2) * 0.5;
 
@@ -24688,18 +24835,18 @@ class BeatstarEngine {
         const effRawP = rawP;
         if (effRawP < 0.0) continue;
 
-        const dm = this._getCruceDepthPosition(effRawP);
+        const dm = this._getCruceDepthPosition(effRawP, null, isBilateralVertical);
         const pDepth = dm.pDepth;
         const scale = dm.scale;
-        const localX = this.getCruceNoteLocalX(note, pDepth);
         const noteFlowDir = (isBilateralVertical && Number.isFinite(note._cruceBilateralDir)) ? note._cruceBilateralDir : flowDir;
-        const localY = -(1.0 - pDepth) * travelDist * noteFlowDir;
+        const pos = this.getCruceNoteLocalPos(note, pDepth, st, noteFlowDir);
+        const localX = pos.x;
+        const localY = pos.y;
 
         if (effRawP > 0.04 && effRawP < 1.0) {
           const tailRawP = Math.max(0, effRawP - 0.10);
-          const tailDm = this._getCruceDepthPosition(tailRawP, this._cruceTailDepthScratch || (this._cruceTailDepthScratch = { pDepth: 0, scale: 1 }));
-          const tailX = this.getCruceNoteLocalX(note, tailDm.pDepth);
-          const tailY = -(1.0 - tailDm.pDepth) * travelDist * noteFlowDir;
+          const tailDm = this._getCruceDepthPosition(tailRawP, this._cruceTailDepthScratch || (this._cruceTailDepthScratch = { pDepth: 0, scale: 1 }), isBilateralVertical);
+          const tailPos = this.getCruceNoteLocalPos(note, tailDm.pDepth, st, noteFlowDir, this._cruceTailPosScratch || (this._cruceTailPosScratch = { x: 0, y: 0 }));
           ctx.save();
           ctx.globalCompositeOperation = 'lighter';
           ctx.strokeStyle = note._isCruceDrag
@@ -24707,7 +24854,7 @@ class BeatstarEngine {
             : (note._isCruceAccent ? 'rgba(168, 85, 247, 0.72)' : 'rgba(0, 242, 254, 0.65)');
           ctx.lineWidth = Math.max(2.0, 4.4 * scale);
           ctx.beginPath();
-          ctx.moveTo(tailX, tailY);
+          ctx.moveTo(tailPos.x, tailPos.y);
           ctx.lineTo(localX, localY);
           ctx.stroke();
           ctx.restore();
@@ -24862,7 +25009,7 @@ class BeatstarEngine {
      * Dibuja un Hold Ancho con escorzo de perspectiva cónica a lo largo del ángulo exacto de su láser diagonal,
      * anclando su cabeza al nodo receptor cuando se mantiene pulsado.
      */
-    _drawCruceWideHoldLocal(ctx, note, currentTime, noteT, holdDur, rawPHead, rawPTail, isBeingHeld, signedTravelDist, slotW) {
+    _drawCruceWideHoldLocal(ctx, note, currentTime, noteT, holdDur, rawPHead, rawPTail, isBeingHeld, noteFlowDir, slotW, st = null, isLateral = false) {
       const steps = 12;
       const leftPts = this._cruceHoldLeftPts || (this._cruceHoldLeftPts = []);
       const rightPts = this._cruceHoldRightPts || (this._cruceHoldRightPts = []);
@@ -24874,11 +25021,12 @@ class BeatstarEngine {
 
       for (let s = 0; s <= steps; s++) {
         const rawP = effPTail + (effPHead - effPTail) * (s / steps);
-        const dm = this._getCruceDepthPosition(rawP, this._cruceHoldDepthScratch || (this._cruceHoldDepthScratch = { pDepth: 0, scale: 1 }));
+        const dm = this._getCruceDepthPosition(rawP, this._cruceHoldDepthScratch || (this._cruceHoldDepthScratch = { pDepth: 0, scale: 1 }), isLateral);
         const pDepth = dm.pDepth;
         const segScale = dm.scale;
-        const cx = this.getCruceNoteLocalX(note, pDepth);
-        const cy = -(1.0 - pDepth) * signedTravelDist;
+        const pos = this.getCruceNoteLocalPos(note, pDepth, st, noteFlowDir, this._cruceHoldSegPosScratch || (this._cruceHoldSegPosScratch = { x: 0, y: 0 }));
+        const cx = pos.x;
+        const cy = pos.y;
         const pulseW = isBeingHeld ? (1.0 + 0.06 * Math.sin(currentTime * 0.018 + s * 0.6)) : 1.0;
         const halfW = Math.max(14, slotW * 0.45 * segScale * pulseW);
         leftPts.push({ x: cx - halfW, y: cy, cx, scale: segScale });
@@ -26528,7 +26676,7 @@ class DynamicHighwayController {
     const lastEndByLane = [-99999, -99999, -99999, -99999];
     for (let i = 0; i < notes.length; i++) {
       const n = notes[i];
-      if (!n || n.isMine || n._dropDuplicateCollapsed) continue;
+      if (!n || n._dropDuplicateCollapsed) continue;
       if (n._madnessPhase && !is3DMadnessPhase(n._madnessPhase)) continue;
 
       const nt = n.timestamp_ms ?? 0;
@@ -26537,6 +26685,17 @@ class DynamicHighwayController {
       const activeMaxL = inSingle ? 1 : (isPingPong ? 4 : this.getExpectedLaneCountAtTime(nt));
       let l = Math.max(0, Math.min(activeMaxL - 1, Math.round(n.lane ?? 0)));
       n.lane = l;
+
+      // Si es una mina, registrar su ocupación de carril y comprobar que no choque con una nota real previa
+      if (n.isMine) {
+        if (inSingle || (nt - lastEndByLane[l] < 460)) {
+          n._dropDuplicateCollapsed = true;
+        } else {
+          lastEndByLane[l] = Math.max(lastEndByLane[l], nt + 320);
+        }
+        continue;
+      }
+
       if (n.type === 'hold' && !n._reopensToCount && !n._targetLaneCountAfterHold) {
         n.startLane = l;
         n.endLane = l;
@@ -26580,6 +26739,28 @@ class DynamicHighwayController {
       }
       const nEnd = (n.type === 'hold' && n.end_timestamp_ms) ? n.end_timestamp_ms : nt;
       lastEndByLane[l] = Math.max(lastEndByLane[l], nEnd);
+    }
+
+    // Garantizar que ninguna mina quede cerca (±480ms en el mismo carril o ±180ms en cualquier carril) de una tecla real
+    for (let i = 0; i < notes.length; i++) {
+      const m = notes[i];
+      if (!m || !m.isMine || m._dropDuplicateCollapsed) continue;
+      const mt = m.timestamp_ms ?? 0;
+      for (let j = Math.max(0, i - 10); j < Math.min(notes.length, i + 11); j++) {
+        if (j === i) continue;
+        const rn = notes[j];
+        if (!rn || rn.isMine || rn._dropDuplicateCollapsed) continue;
+        const rtStart = rn.timestamp_ms ?? 0;
+        const rtEnd = (rn.type === 'hold' && rn.end_timestamp_ms) ? rn.end_timestamp_ms : rtStart;
+        if (mt >= rtStart - 180 && mt <= rtEnd + 180) {
+          m._dropDuplicateCollapsed = true;
+          break;
+        }
+        if (rn.lane === m.lane && mt >= rtStart - 480 && mt <= rtEnd + 480) {
+          m._dropDuplicateCollapsed = true;
+          break;
+        }
+      }
     }
 
     for (let i = notes.length - 1; i >= 0; i--) {
@@ -27341,7 +27522,9 @@ class SongChoreographyAnalyzer {
     while (effBpm < 75) effBpm *= 2.0;
     const beatMs = 60000 / effBpm;
     const barMs = beatMs * 4;
-    const windowMs = Math.max(6200, Math.min(8800, barMs * 4));
+    // Ventanas musicales amplias (16.5 a 22.0 segundos, ~10 compases) para que cada modo dentro de Locura
+    // tenga mucha presencia y nunca abrume con demasiados cambios seguidos
+    const windowMs = Math.max(16500, Math.min(22000, barMs * 10));
 
     if (!Array.isArray(notes) || notes.length === 0) {
       return {
@@ -27503,7 +27686,7 @@ class SongChoreographyAnalyzer {
     for (let i = 0; i < windows.length; i++) {
       const w = windows[i];
       const m = rawModes[i];
-      if (phases.length > 0 && phases[phases.length - 1].mode === m && (w.endMs - phases[phases.length - 1].startMs) < 10500) {
+      if (phases.length > 0 && phases[phases.length - 1].mode === m && (w.endMs - phases[phases.length - 1].startMs) < 22000) {
         phases[phases.length - 1].endMs = w.endMs;
       } else {
         let boundaryT = i === 0 ? -10000 : w.startMs;
@@ -27533,6 +27716,13 @@ class SongChoreographyAnalyzer {
           dominantSide: w.dominantSide,
           nps: w.nps
         });
+      }
+    }
+    // Fusionar cualquier fase final demasiado corta (< 11500ms) con la anterior para evitar un cambio fugaz al final
+    if (phases.length >= 2) {
+      const lastPh = phases[phases.length - 1];
+      if (lastT - lastPh.startMs < 11500) {
+        phases.pop();
       }
     }
     if (phases.length > 0) {
@@ -27893,7 +28083,8 @@ Object.assign(BeatstarEngine.prototype, {
         continue;
       }
 
-      // FASE BUSCAMINAS: primeros 2 segundos (2000ms) libres de minas para que dé tiempo a reaccionar tras la transición
+      // FASE BUSCAMINAS: primeros 2 segundos (2000ms) libres de minas; las minas sustituyen notas aisladas o aparecen en huecos limpios
+      // para que jamás haya una nota real oculta detrás ni en el mismo instante que una mina
       if (phMode === 'minesweeper') {
         if (n.type === 'hold') {
           n.startLane = n.lane;
@@ -27904,37 +28095,15 @@ Object.assign(BeatstarEngine.prototype, {
           continue;
         }
         const minesPhaseStartMs = n._madnessPhaseStartMs || 0;
-        if ((nt >= minesPhaseStartMs + 2000) && (i % 3 === 1)) {
-          const mineLane = (n.lane + 2) % 4;
-          let laneClearForMine = true;
-          for (let mCheck = Math.max(0, i - 6); mCheck < Math.min(filteredNotes.length, i + 7); mCheck++) {
-            const otherN = filteredNotes[mCheck];
-            if (!otherN || otherN === n) continue;
-            const oStart = otherN.timestamp_ms ?? 0;
-            const oEnd = otherN.end_timestamp_ms || oStart;
-            if (otherN.lane === mineLane && nt >= oStart - 420 && nt <= oEnd + 420) {
-              laneClearForMine = false;
-              break;
-            }
-          }
-          if (laneClearForMine) {
-            injectedExtraNotes.push({
-              id: 850000 + i,
-              lane: mineLane,
-              type: 'tap',
-              isMine: true,
-              _shutterSeed: i * 1.7,
-              timestamp_ms: nt,
-              end_timestamp_ms: nt,
-              duration_ms: 0,
-              hit: false,
-              missed: false,
-              holding: false,
-              processed: false,
-              holdCompleted: false,
-              _madnessPhase: 'minesweeper'
-            });
-          }
+        const prevMineCheckT = i > 0 ? (filteredNotes[i - 1].end_timestamp_ms || filteredNotes[i - 1].timestamp_ms || -9999) : -9999;
+        const nextMineCheckT = (i + 1 < filteredNotes.length) ? (filteredNotes[i + 1].timestamp_ms || 999999) : 999999;
+        if ((nt >= minesPhaseStartMs + 2000) && (i % 4 === 2) && (nt - prevMineCheckT >= 220) && (nextMineCheckT - nt >= 220)) {
+          n.type = 'tap';
+          n.isMine = true;
+          n._mineSeed = i * 1.7;
+          n._shutterSeed = i * 1.7;
+          n.duration_ms = 0;
+          n.end_timestamp_ms = nt;
         }
         continue;
       }
@@ -28062,8 +28231,8 @@ Object.assign(BeatstarEngine.prototype, {
         }
       }
 
-      // En Highway: Swipes laterales que cierran un carril (4 -> 3 -> 2 carriles), solo lejos del final de la fase
-      if (phMode === 'highway' && secBaseLanes === 4 && simLanes >= 3 && (nt < secEndMs - 2200) && (nt - lastSwipeT >= Math.max(2300, barMs * 1.25)) && gapPrev >= 200 && gapNext >= 240) {
+      // En Highway: Swipes laterales que cierran un carril (4 -> 3 -> 2 carriles), espaciados con calma
+      if (phMode === 'highway' && secBaseLanes === 4 && simLanes >= 3 && (nt < secEndMs - 2600) && (nt - lastSwipeT >= Math.max(4200, barMs * 2.2)) && gapPrev >= 220 && gapNext >= 260) {
         const swipeEdgeRight = (simLanes === 4) ? (n.lane >= 2) : true;
         const swipeLane = swipeEdgeRight ? (simLanes - 1) : 0;
         const newCount = Math.max(2, simLanes - 1);
@@ -28087,7 +28256,7 @@ Object.assign(BeatstarEngine.prototype, {
       }
     }
 
-    // 6B. Fases CRUCE COMPLETAS (Incluye Línea Vertical Central con flujo bilateral izquierda<->derecha y abundantes escaleras de Drag Notes amarillas)
+    // 6B. Fases CRUCE COMPLETAS (Incluye Línea Vertical Central con flujo bilateral lento izquierda<->derecha y perspectiva 3D compensada)
     if (!this._cruceNodes || this._cruceNodes.length !== 4 || !this._cruceLaserFormations) {
       this.initCruceModeAssets();
     }
@@ -28101,7 +28270,7 @@ Object.assign(BeatstarEngine.prototype, {
         cxRatio: 0.50,
         cyRatio: 0.80,
         angleRad: 0.0,
-        spanWRatio: 0.90,
+        spanWRatio: 0.86,
         travelRatio: 0.78,
         diagFactor: 1.0,
         flowDir: 1.0,
@@ -28113,12 +28282,12 @@ Object.assign(BeatstarEngine.prototype, {
     ];
 
     const crucePoses = [
-      { mode: 'TILT_RIGHT_CASCADE', cxRatio: 0.50, cyRatio: 0.76, angleRad: 18 * deg, spanWRatio: 0.88, travelRatio: 0.76, diagFactor: 1.0, flowDir: 1.0, formationIdx: 1, isMajorFlip: false, arrowAngle: Math.PI * 0.5, label: 'CASCADA LASER IZQUIERDA' },
-      { mode: 'CENTER_VERTICAL_BILATERAL', cxRatio: 0.50, cyRatio: 0.52, angleRad: 90 * deg, spanWRatio: 0.88, travelRatio: 0.48, diagFactor: 0.35, flowDir: 1.0, formationIdx: 0, isMajorFlip: true, arrowAngle: 0, label: 'LINEA VERTICAL CENTRAL: FLUJO BILATERAL' },
-      { mode: 'CHORUS_CENTER_VORTEX', cxRatio: 0.50, cyRatio: 0.54, angleRad: -15 * deg, spanWRatio: 0.92, travelRatio: 0.56, diagFactor: 1.0, flowDir: 1.0, formationIdx: 3, isMajorFlip: true, arrowAngle: Math.PI * 0.5, label: 'VORTICE CENTRAL' },
-      { mode: 'TILT_LEFT_CASCADE', cxRatio: 0.50, cyRatio: 0.75, angleRad: -19 * deg, spanWRatio: 0.88, travelRatio: 0.76, diagFactor: 1.0, flowDir: 1.0, formationIdx: 2, isMajorFlip: false, arrowAngle: Math.PI * 0.5, label: 'CASCADA LASER DERECHA' },
-      { mode: 'CHORUS_TWIN_XCROSS', cxRatio: 0.50, cyRatio: 0.52, angleRad: 16 * deg, spanWRatio: 0.92, travelRatio: 0.56, diagFactor: 1.0, flowDir: 1.0, formationIdx: 4, isMajorFlip: true, arrowAngle: Math.PI * 0.5, label: 'DOBLE CRUCE GEMELO' },
-      { mode: 'SWEEP_FROM_LEFT', cxRatio: 0.53, cyRatio: 0.68, angleRad: -22 * deg, spanWRatio: 0.88, travelRatio: 0.72, diagFactor: 1.12, flowDir: 1.0, formationIdx: 5, isMajorFlip: true, arrowAngle: Math.PI * 0.25, label: 'PORTAL HIPERESPACIO' }
+      { mode: 'CENTER_VERTICAL_BILATERAL', cxRatio: 0.50, cyRatio: 0.52, angleRad: 90 * deg, spanWRatio: 0.82, travelRatio: 0.44, diagFactor: 0.25, flowDir: 1.0, formationIdx: 0, isMajorFlip: true, arrowAngle: 0, label: 'LINEA VERTICAL CENTRAL: FLUJO BILATERAL' },
+      { mode: 'TILT_RIGHT_CASCADE', cxRatio: 0.50, cyRatio: 0.78, angleRad: 18 * deg, spanWRatio: 0.78, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0, formationIdx: 1, isMajorFlip: false, arrowAngle: Math.PI * 0.5, label: 'PERSPECTIVA ROTADA IZQUIERDA' },
+      { mode: 'CHORUS_CENTER_VORTEX', cxRatio: 0.50, cyRatio: 0.70, angleRad: -14 * deg, spanWRatio: 0.78, travelRatio: 0.72, diagFactor: 1.0, flowDir: 1.0, formationIdx: 3, isMajorFlip: true, arrowAngle: Math.PI * 0.5, label: 'VORTICE CENTRAL' },
+      { mode: 'TILT_LEFT_CASCADE', cxRatio: 0.50, cyRatio: 0.78, angleRad: -18 * deg, spanWRatio: 0.78, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0, formationIdx: 2, isMajorFlip: false, arrowAngle: Math.PI * 0.5, label: 'PERSPECTIVA ROTADA DERECHA' },
+      { mode: 'CHORUS_TWIN_XCROSS', cxRatio: 0.50, cyRatio: 0.70, angleRad: 14 * deg, spanWRatio: 0.78, travelRatio: 0.72, diagFactor: 1.0, flowDir: 1.0, formationIdx: 4, isMajorFlip: true, arrowAngle: Math.PI * 0.5, label: 'DOBLE CRUCE GEMELO' },
+      { mode: 'SWEEP_FROM_LEFT', cxRatio: 0.50, cyRatio: 0.76, angleRad: -19 * deg, spanWRatio: 0.76, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0, formationIdx: 5, isMajorFlip: true, arrowAngle: Math.PI * 0.25, label: 'PORTAL HIPERESPACIO' }
     ];
 
     const phrasePatterns = [
@@ -28133,21 +28302,22 @@ Object.assign(BeatstarEngine.prototype, {
       const ph = plan.phases[p];
       if (ph.mode !== 'cruce') continue;
 
-      const stepMs = Math.max(1800, Math.min(2350, barMs * 1.10));
+      // Mantener cada posición de la línea de perfect en Modo Cruce durante ~8.2 a 11.0 segundos para evitar cambios frenéticos
+      const stepMs = Math.max(8200, Math.min(11000, barMs * 4.5));
       let kCursor = ph.startMs;
       let poseStep = 0;
-      while (kCursor < ph.endMs - 650) {
-        const pose = crucePoses[(p + poseStep) % crucePoses.length];
+      while (kCursor < ph.endMs - 1800) {
+        const pose = crucePoses[(poseStep) % crucePoses.length];
         this._cruceKeyframes.push({
           timeMs: kCursor,
           startMs: kCursor,
-          transDurMs: pose.isMajorFlip ? 380 : 280,
+          transDurMs: pose.isMajorFlip ? 540 : 400,
           mode: pose.mode,
           cxRatio: pose.cxRatio,
           cyRatio: pose.cyRatio,
           angleRad: pose.angleRad,
-          spanWRatio: pose.spanWRatio || 0.90,
-          travelRatio: pose.travelRatio || 0.76,
+          spanWRatio: pose.spanWRatio || 0.86,
+          travelRatio: pose.travelRatio || 0.74,
           diagFactor: pose.diagFactor,
           flowDir: pose.flowDir,
           formationIdx: pose.formationIdx,
@@ -28188,7 +28358,7 @@ Object.assign(BeatstarEngine.prototype, {
         cn._crossBeamId = slot;
         cn._cruceFormationIdx = (p + Math.floor(cIdx / 5)) % 6;
         cn._isCruceAccent = (cIdx % 4 === 0);
-        cn._cruceBilateralDir = (Math.floor(cIdx / 3) % 2 === 0) ? 1.0 : -1.0;
+        cn._cruceBilateralDir = (Math.floor(cIdx / 5) % 2 === 0) ? 1.0 : -1.0;
 
         if (cn.type === 'swipe') {
           cn.type = 'tap';

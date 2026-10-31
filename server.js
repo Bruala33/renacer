@@ -806,10 +806,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 34,
-    version_name: '3.3.0',
-    release_notes: 'Piano Community v3.3.0: Coreografia ritmica osu! v2.0 optimizada, soporte completo para 5 dificultades dinamicas (Easy, Medium, Hard, Extreme, Impossible), supernovas, swipes tactiles calibrados y latencia minima a 120 FPS.',
-    download_url: '/download/apk?v=34.0',
+    version_code: 37,
+    version_name: '3.7.0',
+    release_notes: 'Piano Community v3.7.0: Modo Cruce con perspectiva 3D compensada al rotar y velocidad lateral suave para movil, fases de Modo Locura mas amplias y fluidas, y Buscaminas 100% libre de falsos Miss.',
+    download_url: '/download/apk?v=37.0',
   });
 });
 
@@ -1172,17 +1172,6 @@ app.all(['/download/apk', '/api/v1/app/download_apk', '/PianoCommunity.apk', '/s
       return res.status(304).end();
     }
 
-    // Offload 30.7 MB APK transfer to GitHub's free Fastly CDN when hosted on Render and verified up-to-date
-    const hostHdr = String(req.headers.host || '').toLowerCase();
-    const isOnRender = Boolean(process.env.RENDER || hostHdr.includes('onrender.com'));
-    if (isOnRender && req.method === 'GET' && !req.query.local && !req.headers.range) {
-      const cdnUrl = await getVerifiedGithubCdnApkUrl(stat.size);
-      if (cdnUrl) {
-        res.setHeader('Cache-Control', 'public, max-age=300');
-        return res.redirect(302, cdnUrl);
-      }
-    }
-
     res.setHeader('Content-Type', 'application/vnd.android.package-archive');
     res.setHeader('Content-Disposition', 'attachment; filename="PianoCommunity.apk"');
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -1191,11 +1180,11 @@ app.all(['/download/apk', '/api/v1/app/download_apk', '/PianoCommunity.apk', '/s
     if (req.method === 'HEAD') {
       res.setHeader('Content-Length', stat.size);
       res.setHeader('Accept-Ranges', 'bytes');
-      res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
       return res.status(200).end();
     }
     return res.sendFile(apkPath, {
-      maxAge: 3600000,
+      maxAge: 0,
       lastModified: true,
       etag: true,
       acceptRanges: true,
@@ -1203,7 +1192,7 @@ app.all(['/download/apk', '/api/v1/app/download_apk', '/PianoCommunity.apk', '/s
       headers: {
         'Content-Type': 'application/vnd.android.package-archive',
         'Content-Disposition': 'attachment; filename="PianoCommunity.apk"',
-        'Cache-Control': 'public, max-age=3600, must-revalidate',
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
         'X-Content-Type-Options': 'nosniff'
       }
     });
