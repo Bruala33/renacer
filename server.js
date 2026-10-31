@@ -806,10 +806,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 37,
-    version_name: '3.7.0',
-    release_notes: 'Piano Community v3.7.0: Modo Cruce con perspectiva 3D compensada al rotar y velocidad lateral suave para movil, fases de Modo Locura mas amplias y fluidas, y Buscaminas 100% libre de falsos Miss.',
-    download_url: '/download/apk?v=37.0',
+    version_code: 38,
+    version_name: '3.8.0',
+    release_notes: 'Piano Community v3.8.0: Velocidad normal en Modo Cruce con ajuste suave exclusivo en notas horizontales, y zona de Perfect invertida en Modo Setas desplazada debajo del marcador.',
+    download_url: '/download/apk?v=38.0',
   });
 });
 

@@ -5263,7 +5263,7 @@ class BeatstarEngine {
       (this.isMushroomModeActive || (typeof window !== 'undefined' && window.isMushroomModeActive) || this.isMadnessModeActive) &&
       (this._mushFlipProgress || 0) > 0.5
     );
-    const startY = isFlippedMush ? ((this.height || 640) * 0.20 + 18) : (baseHitY - 24);
+    const startY = isFlippedMush ? Math.max(265, (this.height || 640) * 0.365) : (baseHitY - 24);
     let posX = this.width / 2;
     if (lane !== null && lane >= 0 && lane < nLanesJudg) {
       if (this.visualDimension !== '2d') {
@@ -9334,15 +9334,23 @@ class BeatstarEngine {
     const flipSin = Math.sin(Math.PI * flipEase);
     const env = this.isMadnessModeActive ? Math.max(0, Math.min(1, this._mushWorldEnvelope ?? 1.0)) : 1.0;
 
+    // Cuando la pista está invertida (al revés), bajamos la zona de Perfect por debajo del marcador de puntuación y corazones (~31% H)
+    // y comprimimos suavemente la escala vertical (-0.80) para que las notas sigan naciendo desde el borde inferior de la pantalla.
+    const invertedScaleMag = 0.80;
+    const invertedHitScreenY = Math.max(230, h * 0.315);
+    const invertedPivotY = invertedHitScreenY + invertedScaleMag * (hitY - midTrackY);
+    const screenPivotY = midTrackY + (invertedPivotY - midTrackY) * flipEase;
+
     // Balanceo de cámara ebria suavizado con envolvente continua + rotación suave durante la transición de gravedad
     const camRoll = (Math.sin(tSec * 1.45) * 0.052 + Math.cos(tSec * 0.82) * 0.025) * env + flipSin * 0.18;
     const camScaleX = (1.0 + Math.sin(tSec * 2.15) * 0.036 * env) * (1.0 - flipSin * 0.12);
-    const rawScaleY = (1.0 - 2.0 * flipEase) * (1.0 + Math.cos(tSec * 1.85) * 0.03 * env);
+    const baseFlipScaleY = 1.0 - (1.0 + invertedScaleMag) * flipEase;
+    const rawScaleY = baseFlipScaleY * (1.0 + Math.cos(tSec * 1.85) * 0.03 * env);
     const safeScaleY = Math.abs(rawScaleY) < 0.07 ? (rawScaleY < 0 ? -0.07 : 0.07) : rawScaleY;
     const swayX = Math.sin(tSec * 1.15) * 11 * env;
 
     ctx.save();
-    ctx.translate(w * 0.5 + swayX, midTrackY);
+    ctx.translate(w * 0.5 + swayX, screenPivotY);
     ctx.rotate(camRoll);
     ctx.scale(camScaleX, safeScaleY);
     ctx.translate(-w * 0.5, -midTrackY);
@@ -23362,21 +23370,21 @@ class BeatstarEngine {
       }
 
       const musicalScenes = [
-        // 0: LÍNEA VERTICAL CENTRAL CON FLUJO BILATERAL (Teclas lentas de izquierda a derecha y de derecha a izquierda hacia el centro)
-        {
-          mode: 'CENTER_VERTICAL_BILATERAL',
-          cxRatio: 0.50, cyRatio: 0.52, angleRad: 90 * deg,
-          spanWRatio: 0.82, travelRatio: 0.44, diagFactor: 0.25, flowDir: 1.0,
-          formationIdx: 0, isMajorFlip: true, arrowAngle: 0,
-          label: 'LINEA VERTICAL CENTRAL: FLUJO BILATERAL'
-        },
-        // 1: Inclinación derecha con Cascada Diagonal Izquierda (\) y cambio de perspectiva 3D
+        // 0: Inclinación derecha con Cascada Diagonal Izquierda (\) y cambio de perspectiva 3D
         {
           mode: 'TILT_RIGHT_CASCADE',
           cxRatio: 0.50, cyRatio: 0.78, angleRad: 18 * deg,
           spanWRatio: 0.78, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0,
           formationIdx: 1, isMajorFlip: false, arrowAngle: Math.PI * 0.5,
           label: 'PERSPECTIVA ROTADA IZQUIERDA'
+        },
+        // 1: LÍNEA VERTICAL CENTRAL CON FLUJO BILATERAL (Teclas de izquierda a derecha y de derecha a izquierda hacia el centro)
+        {
+          mode: 'CENTER_VERTICAL_BILATERAL',
+          cxRatio: 0.50, cyRatio: 0.52, angleRad: 90 * deg,
+          spanWRatio: 0.82, travelRatio: 0.44, diagFactor: 0.25, flowDir: 1.0,
+          formationIdx: 0, isMajorFlip: true, arrowAngle: 0,
+          label: 'LINEA VERTICAL CENTRAL: FLUJO BILATERAL'
         },
         // 2: Inclinación izquierda con Cascada Diagonal Derecha (/) y cambio de perspectiva 3D
         {
@@ -24638,11 +24646,11 @@ class BeatstarEngine {
 
       const baseScrollDur = (Number.isFinite(this.scrollDurationMs) && this.scrollDurationMs > 0) ? this.scrollDurationMs : 1400;
       const absSinA = Math.abs(st.sinA || 0);
-      const isBilateralVertical = (st.orientation === 'CENTER_VERTICAL_BILATERAL' || absSinA > 0.65);
-      const mobileSlowFactor = ((this.width || 360) < 540) ? 1.18 : 1.05;
-      const scrollDur = isBilateralVertical
-        ? Math.round(baseScrollDur * 2.20 * mobileSlowFactor)
-        : Math.round(baseScrollDur * (1.26 + absSinA * 0.72) * mobileSlowFactor);
+      const isHorizontalFlow = (st.orientation === 'CENTER_VERTICAL_BILATERAL' || absSinA > 0.65);
+      // Solo reducir la velocidad de forma moderada cuando las teclas viajan en horizontal; en vertical/diagonal mantener la velocidad original
+      const scrollDur = isHorizontalFlow
+        ? Math.round(baseScrollDur * 1.28)
+        : baseScrollDur;
       const invScrollDur = 1.0 / scrollDur;
       const flowDir = (st.flowDir !== undefined) ? st.flowDir : 1.0;
       const effTime = (isMadnessCruce && typeof this.getMadnessScrollTimeMs === 'function')
@@ -25247,11 +25255,12 @@ class BeatstarEngine {
       // 3. Mapear coordenada X a los carriles activos [0 .. activeCount - 1]
       let rawLane = 0;
       let minDist = Infinity;
+      const isFlippedMushTouch = (this._mushFlipProgress || 0) > 0.5;
       for (let l = 0; l < activeCount; l++) {
         const laneHitY = this.getLaneHitY(l);
-        const refY = Number.isFinite(localY)
-          ? Math.max(laneHitY - 90, Math.min(h, localY))
-          : laneHitY;
+        const refY = isFlippedMushTouch
+          ? laneHitY
+          : (Number.isFinite(localY) ? Math.max(laneHitY - 90, Math.min(h, localY)) : laneHitY);
         const leftX = this.getLaneLeftX(l, refY);
         const rightX = this.getLaneRightX(l, refY);
         if (localX >= leftX && localX <= rightX) {
@@ -28282,8 +28291,8 @@ Object.assign(BeatstarEngine.prototype, {
     ];
 
     const crucePoses = [
-      { mode: 'CENTER_VERTICAL_BILATERAL', cxRatio: 0.50, cyRatio: 0.52, angleRad: 90 * deg, spanWRatio: 0.82, travelRatio: 0.44, diagFactor: 0.25, flowDir: 1.0, formationIdx: 0, isMajorFlip: true, arrowAngle: 0, label: 'LINEA VERTICAL CENTRAL: FLUJO BILATERAL' },
       { mode: 'TILT_RIGHT_CASCADE', cxRatio: 0.50, cyRatio: 0.78, angleRad: 18 * deg, spanWRatio: 0.78, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0, formationIdx: 1, isMajorFlip: false, arrowAngle: Math.PI * 0.5, label: 'PERSPECTIVA ROTADA IZQUIERDA' },
+      { mode: 'CENTER_VERTICAL_BILATERAL', cxRatio: 0.50, cyRatio: 0.52, angleRad: 90 * deg, spanWRatio: 0.82, travelRatio: 0.44, diagFactor: 0.25, flowDir: 1.0, formationIdx: 0, isMajorFlip: true, arrowAngle: 0, label: 'LINEA VERTICAL CENTRAL: FLUJO BILATERAL' },
       { mode: 'CHORUS_CENTER_VORTEX', cxRatio: 0.50, cyRatio: 0.70, angleRad: -14 * deg, spanWRatio: 0.78, travelRatio: 0.72, diagFactor: 1.0, flowDir: 1.0, formationIdx: 3, isMajorFlip: true, arrowAngle: Math.PI * 0.5, label: 'VORTICE CENTRAL' },
       { mode: 'TILT_LEFT_CASCADE', cxRatio: 0.50, cyRatio: 0.78, angleRad: -18 * deg, spanWRatio: 0.78, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0, formationIdx: 2, isMajorFlip: false, arrowAngle: Math.PI * 0.5, label: 'PERSPECTIVA ROTADA DERECHA' },
       { mode: 'CHORUS_TWIN_XCROSS', cxRatio: 0.50, cyRatio: 0.70, angleRad: 14 * deg, spanWRatio: 0.78, travelRatio: 0.72, diagFactor: 1.0, flowDir: 1.0, formationIdx: 4, isMajorFlip: true, arrowAngle: Math.PI * 0.5, label: 'DOBLE CRUCE GEMELO' },
