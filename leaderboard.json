@@ -4796,14 +4796,35 @@
     "osu_2558509": [],
     "osu_87243": [],
     "osu_48672": [],
-    "bs_2b4b2": [
+    "bs_2b4b2": [],
+    "osu_2212368": [
       {
-        "name": "Test",
-        "score": 146600,
+        "name": "VAMP",
+        "score": 16827,
         "stars": 3.5,
-        "combo": 91,
-        "accuracy": 13.212027811949406,
-        "date": "2026-10-30 20:39:29"
+        "combo": 25,
+        "accuracy": 2.2393661051505287,
+        "date": "2026-10-31 01:11:51"
+      }
+    ],
+    "osu_2065215": [
+      {
+        "name": "VAMP",
+        "score": 19707,
+        "stars": 3.5,
+        "combo": 29,
+        "accuracy": 2.6873267324032395,
+        "date": "2026-10-31 01:21:25"
+      }
+    ],
+    "osu_1351408": [
+      {
+        "name": "VAMP",
+        "score": 12427,
+        "stars": 3.5,
+        "combo": 21,
+        "accuracy": 4.011958069275446,
+        "date": "2026-10-31 01:22:25"
       }
     ]
   },
@@ -4934,11 +4955,6 @@
       "clefs": 1
     },
     {
-      "name": "Test",
-      "total_score": 146600,
-      "clefs": 1
-    },
-    {
       "name": "Ubuntu",
       "total_score": 140200,
       "clefs": 1
@@ -4947,6 +4963,11 @@
       "name": "holo",
       "total_score": 137701,
       "clefs": 1
+    },
+    {
+      "name": "VAMP",
+      "total_score": 51361,
+      "clefs": 0
     },
     {
       "name": "Antoniobarfe",
@@ -5067,8 +5088,8 @@
         "score": 869748
       },
       {
-        "name": "Test",
-        "score": 146600
+        "name": "VAMP",
+        "score": 51361
       },
       {
         "name": "Llois",
