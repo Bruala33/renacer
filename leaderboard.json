@@ -4857,6 +4857,16 @@
         "accuracy": 60.92433759747351,
         "date": "2026-10-31 15:53:33"
       }
+    ],
+    "top_miguel_bos_y_bimba_bos_como_un_lobo": [
+      {
+        "name": "Test",
+        "score": 645770,
+        "stars": 2,
+        "combo": 153,
+        "accuracy": 53.38963012446033,
+        "date": "2026-10-31 20:40:35"
+      }
     ]
   },
   "global": [
@@ -4944,6 +4954,11 @@
       "name": "Jacques",
       "total_score": 795056,
       "clefs": 4
+    },
+    {
+      "name": "Test",
+      "total_score": 645770,
+      "clefs": 6
     },
     {
       "name": "MasterPianist",
@@ -5117,6 +5132,10 @@
       {
         "name": "Llois1",
         "score": 869748
+      },
+      {
+        "name": "Test",
+        "score": 645770
       },
       {
         "name": "VAMP",
