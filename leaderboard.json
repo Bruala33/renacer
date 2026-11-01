@@ -645,11 +645,11 @@
       },
       {
         "name": "Mauricio",
-        "score": 854754,
-        "stars": 2,
-        "combo": 425,
-        "accuracy": 52.173514961627696,
-        "date": "2026-10-25 10:25:40"
+        "score": 956409,
+        "stars": 3,
+        "combo": 194,
+        "accuracy": 60.765971884248394,
+        "date": "2026-11-01 14:10:29"
       }
     ],
     "comm_1789937559769_269": [
@@ -4883,8 +4883,8 @@
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 79917497,
-      "clefs": 724
+      "total_score": 80873906,
+      "clefs": 733
     },
     {
       "name": "Rocky",
@@ -5118,7 +5118,7 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 23032642
+        "score": 23989051
       },
       {
         "name": "Libay",
