@@ -645,11 +645,11 @@
       },
       {
         "name": "Mauricio",
-        "score": 854754,
-        "stars": 2,
-        "combo": 425,
-        "accuracy": 52.173514961627696,
-        "date": "2026-10-25 10:25:40"
+        "score": 956409,
+        "stars": 3,
+        "combo": 194,
+        "accuracy": 60.765971884248394,
+        "date": "2026-11-01 14:10:29"
       }
     ],
     "comm_1789937559769_269": [
@@ -777,6 +777,14 @@
         "combo": 346,
         "accuracy": 40.40119259529522,
         "date": "2026-09-20 22:12:54"
+      },
+      {
+        "name": "Siro",
+        "score": 46231,
+        "stars": 3.5,
+        "combo": 48,
+        "accuracy": 2.121936901396556,
+        "date": "2026-10-29 18:19:18"
       }
     ],
     "top_rosalia_despecha": [
@@ -1543,6 +1551,14 @@
     "top_madonna_vogue": [],
     "osu_2125241": [],
     "top_caf_quijano_la_taberna_del_buda": [
+      {
+        "name": "Mauricio",
+        "score": 1790793,
+        "stars": 4,
+        "combo": 452,
+        "accuracy": 89.64273915002252,
+        "date": "2026-10-29 20:31:24"
+      },
       {
         "name": "Dady cool",
         "score": 1738180,
@@ -3114,11 +3130,11 @@
     "bs_2926b": [
       {
         "name": "Libay",
-        "score": 348000,
-        "stars": 1,
-        "combo": 175,
-        "accuracy": 25.573192239858905,
-        "date": "2026-10-27 15:31:31"
+        "score": 793350,
+        "stars": 2,
+        "combo": 330,
+        "accuracy": 58.300264550264544,
+        "date": "2026-10-29 23:59:00"
       }
     ],
     "bs_333d8": [
@@ -3239,6 +3255,14 @@
         "combo": 151,
         "accuracy": 11.846820878874004,
         "date": "2026-10-23 16:51:18"
+      },
+      {
+        "name": "Siro",
+        "score": 8400,
+        "stars": 3.5,
+        "combo": 18,
+        "accuracy": 0.43902125437779976,
+        "date": "2026-10-29 20:18:35"
       }
     ],
     "top_lady_gaga_feat_colby_odonis_just_dance": [
@@ -4605,13 +4629,372 @@
         "accuracy": 58.71484712579582,
         "date": "2026-10-29 06:04:58"
       }
+    ],
+    "top_spice_girls_say_youll_be_there": [],
+    "top_luis_miguel_la_chica_del_bikini_azul": [
+      {
+        "name": "Mauricio",
+        "score": 166861,
+        "stars": 3.5,
+        "combo": 94,
+        "accuracy": 19.02837932457983,
+        "date": "2026-10-29 14:04:20"
+      }
+    ],
+    "top_michael_jackson_ben": [
+      {
+        "name": "Mauricio",
+        "score": 2550,
+        "stars": 3.5,
+        "combo": 6,
+        "accuracy": 0.5406494153565636,
+        "date": "2026-10-29 14:12:45"
+      }
+    ],
+    "osu_2644890": [
+      {
+        "name": "Mauricio",
+        "score": 136783,
+        "stars": 3.5,
+        "combo": 59,
+        "accuracy": 5.4861501611155274,
+        "date": "2026-10-29 14:14:16"
+      }
+    ],
+    "top_nino_bravo_noelia": [
+      {
+        "name": "Mauricio",
+        "score": 440889,
+        "stars": 1,
+        "combo": 121,
+        "accuracy": 36.90395775316336,
+        "date": "2026-10-29 14:17:50"
+      }
+    ],
+    "top_jarabe_de_palo_bonito": [
+      {
+        "name": "Mauricio",
+        "score": 179530,
+        "stars": 3.5,
+        "combo": 62,
+        "accuracy": 7.574114778235757,
+        "date": "2026-10-29 19:27:26"
+      }
+    ],
+    "top_hombres_g_devulveme_a_mi_chica": [
+      {
+        "name": "Siro",
+        "score": 759703,
+        "stars": 4,
+        "combo": 444,
+        "accuracy": 75.00513393650505,
+        "date": "2026-10-29 20:17:44"
+      }
+    ],
+    "osu_1675494": [
+      {
+        "name": "Siro",
+        "score": 46523,
+        "stars": 3.5,
+        "combo": 51,
+        "accuracy": 3.3566329630115974,
+        "date": "2026-10-29 20:20:03"
+      }
+    ],
+    "top_hombres_g_marta_tiene_un_marcapasos": [
+      {
+        "name": "Mauricio",
+        "score": 315060,
+        "stars": 4,
+        "combo": 128,
+        "accuracy": 77.51831175126036,
+        "date": "2026-10-29 20:34:05"
+      }
+    ],
+    "osu_2622288": [
+      {
+        "name": "Mauricio",
+        "score": 6675,
+        "stars": 3.5,
+        "combo": 12,
+        "accuracy": 0.39356151056867433,
+        "date": "2026-10-29 20:35:28"
+      }
+    ],
+    "bs_21f76": [
+      {
+        "name": "Mauricio",
+        "score": 94500,
+        "stars": 3.5,
+        "combo": 69,
+        "accuracy": 4.873520538407983,
+        "date": "2026-10-29 20:40:22"
+      }
+    ],
+    "bs_511f2": [
+      {
+        "name": "Mauricio",
+        "score": 520164,
+        "stars": 1,
+        "combo": 195,
+        "accuracy": 25.922784425318575,
+        "date": "2026-10-29 20:42:52"
+      }
+    ],
+    "top_camilo_sesto_mi_mundo_tu": [
+      {
+        "name": "Mauricio",
+        "score": 128114,
+        "stars": 3.5,
+        "combo": 48,
+        "accuracy": 10.571752986338266,
+        "date": "2026-10-29 20:45:34"
+      }
+    ],
+    "top_camilo_sesto_con_el_viento_a_tu_favor": [
+      {
+        "name": "Mauricio",
+        "score": 611884,
+        "stars": 3,
+        "combo": 167,
+        "accuracy": 72.84818987932529,
+        "date": "2026-10-29 20:49:07"
+      }
+    ],
+    "clonehero_659858": [
+      {
+        "name": "Libay",
+        "score": 16215,
+        "stars": 3.5,
+        "combo": 23,
+        "accuracy": 0.7281144686650337,
+        "date": "2026-10-30 00:01:56"
+      }
+    ],
+    "osu_2301903": [
+      {
+        "name": "Libay",
+        "score": 43875,
+        "stars": 3.5,
+        "combo": 68,
+        "accuracy": 1.8915306848311095,
+        "date": "2026-10-30 12:38:37"
+      }
+    ],
+    "osu_1576250": [
+      {
+        "name": "Libay",
+        "score": 36675,
+        "stars": 1,
+        "combo": 45,
+        "accuracy": 20.579075835367394,
+        "date": "2026-10-30 00:10:43"
+      }
+    ],
+    "top_los_prisioneros_la_voz_de_los_80": [],
+    "osu_2558723": [],
+    "osu_2558509": [],
+    "osu_87243": [],
+    "osu_48672": [],
+    "bs_2b4b2": [],
+    "osu_2212368": [
+      {
+        "name": "VAMP",
+        "score": 16827,
+        "stars": 3.5,
+        "combo": 25,
+        "accuracy": 2.2393661051505287,
+        "date": "2026-10-31 01:11:51"
+      }
+    ],
+    "osu_2065215": [
+      {
+        "name": "VAMP",
+        "score": 19707,
+        "stars": 3.5,
+        "combo": 29,
+        "accuracy": 2.6873267324032395,
+        "date": "2026-10-31 01:21:25"
+      }
+    ],
+    "osu_1351408": [
+      {
+        "name": "VAMP",
+        "score": 12427,
+        "stars": 3.5,
+        "combo": 21,
+        "accuracy": 4.011958069275446,
+        "date": "2026-10-31 01:22:25"
+      }
+    ],
+    "bs_3aac2": [
+      {
+        "name": "Vamp",
+        "score": 8775,
+        "stars": 3.5,
+        "combo": 17,
+        "accuracy": 0.7930052867019113,
+        "date": "2026-10-31 03:20:46"
+      }
+    ],
+    "top_bacilos_solo_un_segundo": [],
+    "osu_1511613": [
+      {
+        "name": "Mauricio",
+        "score": 315984,
+        "stars": 4,
+        "combo": 152,
+        "accuracy": 78.08012019016931,
+        "date": "2026-10-31 15:49:15"
+      }
+    ],
+    "osu_1801156": [
+      {
+        "name": "Mauricio",
+        "score": 700664,
+        "stars": 3,
+        "combo": 136,
+        "accuracy": 60.92433759747351,
+        "date": "2026-10-31 15:53:33"
+      }
+    ],
+    "top_miguel_bos_y_bimba_bos_como_un_lobo": [],
+    "bs_a1fc": [
+      {
+        "name": "Ttuk",
+        "score": 13800,
+        "stars": 3.5,
+        "combo": 21,
+        "accuracy": 0.7508978126020242,
+        "date": "2026-11-01 02:02:14"
+      }
+    ],
+    "osu_1496854": [
+      {
+        "name": "Ttuk",
+        "score": 12276,
+        "stars": 3.5,
+        "combo": 21,
+        "accuracy": 2.398569767782652,
+        "date": "2026-11-01 01:59:56"
+      }
+    ],
+    "bs_f1f5": [
+      {
+        "name": "Davi",
+        "score": 2475,
+        "stars": 3.5,
+        "combo": 8,
+        "accuracy": 0.1149665551839465,
+        "date": "2026-11-01 16:42:12"
+      }
+    ],
+    "bs_13b1a": [
+      {
+        "name": "Davi",
+        "score": 3825,
+        "stars": 3.5,
+        "combo": 12,
+        "accuracy": 0.2796972688384337,
+        "date": "2026-11-01 16:44:01"
+      }
+    ],
+    "bs_22ab6": [
+      {
+        "name": "Davi",
+        "score": 750,
+        "stars": 3.5,
+        "combo": 7,
+        "accuracy": 0.029661268315833184,
+        "date": "2026-11-01 16:44:38"
+      }
+    ],
+    "bs_1c2f0": [
+      {
+        "name": "Davi",
+        "score": 11550,
+        "stars": 3.5,
+        "combo": 21,
+        "accuracy": 0.49847866899721627,
+        "date": "2026-11-01 16:45:25"
+      }
+    ],
+    "osu_2642262": [
+      {
+        "name": "Davi",
+        "score": 900,
+        "stars": 3.5,
+        "combo": 4,
+        "accuracy": 0.5456860486266901,
+        "date": "2026-11-01 16:49:45"
+      }
+    ],
+    "osu_1139421": [
+      {
+        "name": "Davi",
+        "score": 4650,
+        "stars": 3.5,
+        "combo": 10,
+        "accuracy": 2.9845956354300385,
+        "date": "2026-11-01 16:50:02"
+      }
+    ],
+    "osu_1671350": [
+      {
+        "name": "Davi",
+        "score": 12569,
+        "stars": 3.5,
+        "combo": 21,
+        "accuracy": 3.4526330825374063,
+        "date": "2026-11-01 16:50:38"
+      }
+    ],
+    "bs_27b3a": [
+      {
+        "name": "Davi",
+        "score": 1575,
+        "stars": 3.5,
+        "combo": 9,
+        "accuracy": 0.06014779171678983,
+        "date": "2026-11-01 16:51:14"
+      }
+    ],
+    "bs_50461": [
+      {
+        "name": "Davi",
+        "score": 8250,
+        "stars": 3.5,
+        "combo": 21,
+        "accuracy": 0.4651556156968877,
+        "date": "2026-11-01 16:52:31"
+      }
+    ],
+    "bs_32c59": [
+      {
+        "name": "Davi",
+        "score": 1200,
+        "stars": 3.5,
+        "combo": 4,
+        "accuracy": 0.09001710324961743,
+        "date": "2026-11-01 16:53:01"
+      }
+    ],
+    "bs_4fc3": [
+      {
+        "name": "Davi",
+        "score": 19200,
+        "stars": 3.5,
+        "combo": 33,
+        "accuracy": 1.3506383876754247,
+        "date": "2026-11-01 16:53:40"
+      }
     ]
   },
   "global": [
     {
       "name": "Mauricio",
-      "total_score": 73131684,
-      "clefs": 663
+      "total_score": 80873906,
+      "clefs": 733
     },
     {
       "name": "Rocky",
@@ -4620,8 +5003,8 @@
     },
     {
       "name": "Libay",
-      "total_score": 22639273,
-      "clefs": 169
+      "total_score": 23651788,
+      "clefs": 176
     },
     {
       "name": "Jocomomolo",
@@ -4674,6 +5057,11 @@
       "clefs": 13
     },
     {
+      "name": "Siro",
+      "total_score": 1703576,
+      "clefs": 12
+    },
+    {
       "name": "Darwin67",
       "total_score": 1628955,
       "clefs": 13
@@ -4687,11 +5075,6 @@
       "name": "Jacques",
       "total_score": 795056,
       "clefs": 4
-    },
-    {
-      "name": "Siro",
-      "total_score": 747653,
-      "clefs": 5
     },
     {
       "name": "MasterPianist",
@@ -4744,8 +5127,23 @@
       "clefs": 1
     },
     {
+      "name": "Davi",
+      "total_score": 67844,
+      "clefs": 0
+    },
+    {
+      "name": "VAMP",
+      "total_score": 60136,
+      "clefs": 0
+    },
+    {
       "name": "Antoniobarfe",
       "total_score": 50577,
+      "clefs": 0
+    },
+    {
+      "name": "Ttuk",
+      "total_score": 38826,
       "clefs": 0
     },
     {
@@ -4835,11 +5233,11 @@
     "players": [
       {
         "name": "Mauricio",
-        "score": 16246829
+        "score": 23989051
       },
       {
         "name": "Libay",
-        "score": 14379800
+        "score": 15392315
       },
       {
         "name": "Laaleplo",
@@ -4850,6 +5248,10 @@
         "score": 1919054
       },
       {
+        "name": "Siro",
+        "score": 1703576
+      },
+      {
         "name": "Darwin67",
         "score": 1274297
       },
@@ -4858,8 +5260,16 @@
         "score": 869748
       },
       {
-        "name": "Siro",
-        "score": 747653
+        "name": "Davi",
+        "score": 67844
+      },
+      {
+        "name": "VAMP",
+        "score": 60136
+      },
+      {
+        "name": "Ttuk",
+        "score": 38826
       },
       {
         "name": "Llois",

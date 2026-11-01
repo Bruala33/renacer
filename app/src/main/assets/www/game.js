@@ -4621,6 +4621,7 @@ class BeatstarEngine {
       }
 
       closestNote.hit = true;
+      closestNote._splitSwipeTriggered = true;
       if (isSplitActive && this.dynamicHighwayController) {
         this.dynamicHighwayController.onSwipeHit(targetDir, currentTime, closestNote.lane);
         this.dynamicHighwayController.onNoteHit(closestNote, currentTime, hitX, hitY);
@@ -23025,6 +23026,13 @@ class BeatstarEngine {
       this._cruceHitPillars = [];
       this._cruceStrumWaves = [];
       this._crucePickSparks = [];
+      this._cruceBladeTrail = [];
+      this._cruceSlicedHalves = [];
+      this._katanaBladeHeat = 0;
+      this._katanaOverheatUntilMs = 0;
+      this._lastKatanaFingerPos = null;
+      this._crucePitchEnvelope = [];
+      this._cruceLivePitchNorm = 0.5;
       this._cruceStringVib = [
         { amp: 0, freq: 24, phase: 0, bendOffset: 0, lastBendBonusMs: -9999 },
         { amp: 0, freq: 29, phase: 0, bendOffset: 0, lastBendBonusMs: -9999 },
@@ -23046,11 +23054,317 @@ class BeatstarEngine {
     }
 
     /**
+     * Construye el contorno de frecuencia/tono (Grave = 0.0 -> Agudo = 1.0) para que la línea de juicio en
+     * `SPECTRAL_KATANA_SLICE` suba en los tonos agudos y baje en los tonos graves siguiendo la música:
+     * 1. Extrae un contorno melódico/armónico determinista inmediato desde los intervalos y densidad de notas del beatmap.
+     * 2. Si hay fuente de audio disponible (Blob o URL local), decodifica asíncronamente la señal de audio (Zero-Crossing Rate +
+     *    energía de alta frecuencia en ventanas de 60ms) para que la frecuencia real de la canción mueva la línea en vivo.
+     */
+    _buildCruceSpectralPitchEnvelope(notes, bpm = 128) {
+      this._crucePitchEnvelope = [];
+      if (!Array.isArray(notes) || notes.length === 0) return;
+
+      const beatMs = 60000 / Math.max(60, Math.min(200, bpm || 128));
+      const len = notes.length;
+      const rawPoints = [];
+
+      for (let i = 0; i < len; i++) {
+        const n = notes[i];
+        if (!n) continue;
+        const t = n.timestamp_ms ?? 0;
+        const prevT = i > 0 ? (notes[i - 1].timestamp_ms ?? (t - beatMs)) : (t - beatMs);
+        const nextT = (i + 1 < len) ? (notes[i + 1].timestamp_ms ?? (t + beatMs)) : (t + beatMs);
+        const avgGap = Math.max(70, ((t - prevT) + (nextT - t)) * 0.5);
+        // Mayor densidad rítmica / notas más rápidas + carril más alto + acentos equivalen a mayor energía aguda
+        const speedNorm = Math.max(0, Math.min(1, (beatMs * 1.15 - avgGap) / Math.max(120, beatMs * 0.95)));
+        const laneNorm = Math.max(0, Math.min(1, (n._cruceSlot ?? n.lane ?? 1.5) / 3));
+        const phraseWave = 0.5 + 0.38 * Math.sin((t / Math.max(1200, beatMs * 4)) * Math.PI * 2);
+        const rawPitch = Math.max(0.05, Math.min(0.95, speedNorm * 0.42 + laneNorm * 0.30 + phraseWave * 0.28));
+        rawPoints.push({ timeMs: t, pitch: rawPitch });
+      }
+
+      // Suavizado de ventana móvil de 5 puntos para que la línea de frecuencia se deslice orgánicamente sin saltos bruscos
+      for (let i = 0; i < rawPoints.length; i++) {
+        let sum = 0;
+        let weightSum = 0;
+        for (let k = -2; k <= 2; k++) {
+          const idx = Math.max(0, Math.min(rawPoints.length - 1, i + k));
+          const w = (3 - Math.abs(k));
+          sum += rawPoints[idx].pitch * w;
+          weightSum += w;
+        }
+        this._crucePitchEnvelope.push({
+          timeMs: rawPoints[i].timeMs,
+          pitch: sum / Math.max(1, weightSum)
+        });
+      }
+
+      this._analyzeAudioSpectralPitchAsync(this.currentAudioSource);
+    }
+
+    _analyzeAudioSpectralPitchAsync(audioSource) {
+      if (!audioSource || typeof window === 'undefined') return;
+      if (this._lastAnalyzedAudioSource === audioSource && this._cruceAudioPitchSamples) return;
+      this._lastAnalyzedAudioSource = audioSource;
+      this._cruceAudioPitchSamples = null;
+
+      const decodeAndExtract = async () => {
+        try {
+          let arrayBuf = null;
+          if (typeof Blob !== 'undefined' && audioSource instanceof Blob) {
+            arrayBuf = await audioSource.arrayBuffer();
+          } else if (typeof audioSource === 'string' && (audioSource.startsWith('blob:') || audioSource.startsWith('/') || audioSource.startsWith('http'))) {
+            const resp = await fetch(audioSource);
+            if (!resp.ok) return;
+            arrayBuf = await resp.arrayBuffer();
+          }
+          if (!arrayBuf) return;
+
+          const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+          if (!AudioCtxClass) return;
+          const tempCtx = (this.audioSync && this.audioSync.audioCtx) ? this.audioSync.audioCtx : new AudioCtxClass();
+          const audioBuffer = await tempCtx.decodeAudioData(arrayBuf.slice(0));
+          if (!audioBuffer || !audioBuffer.length) return;
+
+          const ch0 = audioBuffer.getChannelData(0);
+          const sr = audioBuffer.sampleRate || 44100;
+          const stepMs = 60;
+          const samplesPerBin = Math.max(256, Math.floor((sr * stepMs) / 1000));
+          const numBins = Math.floor(ch0.length / samplesPerBin);
+          if (numBins < 8) return;
+
+          const rawScores = new Float32Array(numBins);
+          for (let b = 0; b < numBins; b++) {
+            const start = b * samplesPerBin;
+            const end = Math.min(ch0.length - 1, start + samplesPerBin);
+            let zcr = 0;
+            let energy = 1e-7;
+            let diffEnergy = 0;
+            let prevS = ch0[start];
+            // Submuestreo por 2 para analizar una canción completa en < 8ms sin bloquear la UI
+            for (let s = start + 2; s < end; s += 2) {
+              const curS = ch0[s];
+              if ((curS >= 0 && prevS < 0) || (curS < 0 && prevS >= 0)) zcr++;
+              energy += curS * curS;
+              const d = curS - prevS;
+              diffEnergy += d * d;
+              prevS = curS;
+            }
+            const count = Math.max(1, (end - start) >> 1);
+            const rms = Math.sqrt(energy / count);
+            if (rms < 0.008) {
+              rawScores[b] = b > 0 ? rawScores[b - 1] * 0.92 : 0.35;
+            } else {
+              const zcrNorm = zcr / count;
+              const hfRatio = Math.sqrt(diffEnergy / energy);
+              rawScores[b] = zcrNorm * 0.55 + hfRatio * 0.45;
+            }
+          }
+
+          // Normalizar percentiles (P10 .. P90) a [0.0 .. 1.0] y aplicar suavizado temporal de 360ms
+          const sorted = Float32Array.from(rawScores).sort();
+          const pLow = sorted[Math.floor(numBins * 0.10)] || 0.01;
+          const pHigh = Math.max(pLow + 0.001, sorted[Math.floor(numBins * 0.90)] || 0.5);
+          const smoothed = new Float32Array(numBins);
+          for (let b = 0; b < numBins; b++) {
+            let acc = 0;
+            let wSum = 0;
+            for (let k = -3; k <= 3; k++) {
+              const idx = Math.max(0, Math.min(numBins - 1, b + k));
+              const w = 4 - Math.abs(k);
+              const normVal = Math.max(0, Math.min(1, (rawScores[idx] - pLow) / (pHigh - pLow)));
+              acc += normVal * w;
+              wSum += w;
+            }
+            smoothed[b] = acc / Math.max(1, wSum);
+          }
+          if (this._lastAnalyzedAudioSource === audioSource) {
+            this._cruceAudioPitchSamples = { stepMs, values: smoothed };
+          }
+        } catch (_) {
+          // Si CORS o el formato impiden decodeAudioData, getCruceSpectralPitchNorm usa automáticamente _crucePitchEnvelope
+        }
+      };
+      decodeAndExtract();
+    }
+
+    /**
+     * Devuelve la altura espectral normalizada `[0.0 = Grave .. 1.0 = Agudo]` en el instante `timeMs`.
+     */
+    getCruceSpectralPitchNorm(timeMs) {
+      const t = Number.isFinite(timeMs) ? Math.max(0, timeMs) : 0;
+      let audioVal = null;
+      if (this._cruceAudioPitchSamples && this._cruceAudioPitchSamples.values && this._cruceAudioPitchSamples.values.length > 1) {
+        const stepMs = this._cruceAudioPitchSamples.stepMs || 60;
+        const vals = this._cruceAudioPitchSamples.values;
+        const exactIdx = t / stepMs;
+        const i0 = Math.max(0, Math.min(vals.length - 1, Math.floor(exactIdx)));
+        const i1 = Math.max(0, Math.min(vals.length - 1, i0 + 1));
+        const frac = Math.max(0, Math.min(1, exactIdx - i0));
+        audioVal = vals[i0] + (vals[i1] - vals[i0]) * frac;
+      }
+
+      let envVal = 0.5;
+      const env = this._crucePitchEnvelope;
+      if (Array.isArray(env) && env.length > 0) {
+        if (t <= env[0].timeMs) {
+          envVal = env[0].pitch;
+        } else if (t >= env[env.length - 1].timeMs) {
+          envVal = env[env.length - 1].pitch;
+        } else {
+          let lo = 0;
+          let hi = env.length - 1;
+          while (lo <= hi) {
+            const mid = (lo + hi) >> 1;
+            if (env[mid].timeMs < t) lo = mid + 1;
+            else hi = mid - 1;
+          }
+          const idx1 = Math.max(1, Math.min(env.length - 1, lo));
+          const idx0 = idx1 - 1;
+          const p0 = env[idx0];
+          const p1 = env[idx1];
+          const u = (t - p0.timeMs) / Math.max(1, p1.timeMs - p0.timeMs);
+          envVal = p0.pitch + (p1.pitch - p0.pitch) * Math.max(0, Math.min(1, u));
+        }
+      } else {
+        envVal = 0.5 + 0.35 * Math.sin(t * 0.0018) * Math.cos(t * 0.0007);
+      }
+
+      const combined = (audioVal !== null) ? (audioVal * 0.68 + envVal * 0.32) : envVal;
+      return Math.max(0.04, Math.min(0.96, combined));
+    }
+
+    /**
+     * Configura las notas que caen dentro de las ventanas `SPECTRAL_KATANA_SLICE` (tanto en Modo Cruce como en Modo Locura):
+     * - Convierte cada nota en un Orbe de Cristal de Frecuencia (`_isCruceKatana = true`) que sube en arco parabólico
+     *   desde los cañones inferiores hasta alcanzar la Línea de Frecuencia Viva en el beat exacto.
+     * - Asigna un ángulo de corte obligatorio (`_katanaCutDir`: 'H' horizontal, 'V' vertical, 'D1' diagonal /, 'D2' diagonal \)
+     *   para exigir cortes precisos al ritmo de la música.
+     * - Inyecta Bombas de Distorsión Acústica (`isMine = true`, `_isKatanaBomb = true`) en trayectorias cruzadas para que
+     *   no se pueda superar deslizando el dedo a lo loco sin mirar.
+     */
+    _configureCruceKatanaSections(notesArray, beatMs = 460, isMadness = false) {
+      if (!Array.isArray(notesArray) || !Array.isArray(this._cruceKeyframes) || this._cruceKeyframes.length === 0) return [];
+      const kfs = this._cruceKeyframes;
+      const katanaWindows = [];
+      for (let k = 0; k < kfs.length; k++) {
+        if (kfs[k].mode === 'SPECTRAL_KATANA_SLICE') {
+          const startMs = kfs[k].timeMs + 320;
+          const endMs = (k + 1 < kfs.length) ? (kfs[k + 1].timeMs - 360) : (startMs + 12000);
+          if (endMs > startMs + 800) {
+            katanaWindows.push({ startMs, endMs });
+          }
+        }
+      }
+      if (katanaWindows.length === 0) return [];
+
+      const cutDirs = [
+        { code: 'H', angleRad: 0, label: 'CORTE HORIZONTAL' },
+        { code: 'D1', angleRad: -Math.PI * 0.25, label: 'CORTE DIAGONAL' },
+        { code: 'D2', angleRad: Math.PI * 0.25, label: 'CORTE DIAGONAL' },
+        { code: 'V', angleRad: Math.PI * 0.5, label: 'CORTE VERTICAL' }
+      ];
+      const slotBaseU = [-0.375, -0.125, 0.125, 0.375];
+      const injectedBombs = [];
+      let katanaSeq = 0;
+      let lastBombMs = -9999;
+
+      for (let i = 0; i < notesArray.length; i++) {
+        const n = notesArray[i];
+        if (!n || n._dropDuplicateCollapsed) continue;
+        if (isMadness && n._madnessPhase !== 'cruce') continue;
+        const nt = n.timestamp_ms ?? 0;
+
+        let inKatana = false;
+        for (let w = 0; w < katanaWindows.length; w++) {
+          if (nt >= katanaWindows[w].startMs && nt <= katanaWindows[w].endMs) {
+            inKatana = true;
+            break;
+          }
+        }
+        if (!inKatana) continue;
+
+        // Si había un compañero de acorde simultáneo en la misma milésima dentro de Katana, dejar un único orbe limpio para cortar con precisión
+        if (n._isCruceChordCompanion && !n._isCruceDrag) {
+          n._dropDuplicateCollapsed = true;
+          continue;
+        }
+        if (n._cruceChordPartner) {
+          n._cruceChordPartner = null;
+        }
+
+        const slot = Math.max(0, Math.min(3, Math.round(n._cruceSlot ?? n.lane ?? 1)));
+        n.type = 'tap';
+        n.duration_ms = 0;
+        n.holdDuration = 0;
+        n.end_timestamp_ms = nt;
+        n._isDynamicMeshHold = false;
+        n._isCruceDrag = false;
+        n._cruceDragBurstId = 0;
+        n._isCruceHopo = false;
+        n._isCruceKatana = true;
+
+        const prevN = i > 0 ? notesArray[i - 1] : null;
+        const dtPrev = prevN ? (nt - (prevN.timestamp_ms ?? 0)) : 999;
+        // En ráfagas rápidas (< 220ms) mantener el mismo ángulo o alternar diagonal suave; en golpes espaciados variar entre H, D1, D2, V
+        const dirDef = (dtPrev < 220 && prevN && prevN._isCruceKatana && prevN._katanaCutDir)
+          ? cutDirs[(katanaSeq) % 2 === 0 ? 1 : 2]
+          : cutDirs[katanaSeq % cutDirs.length];
+        katanaSeq++;
+
+        n._katanaCutDir = dirDef.code;
+        n._katanaCutAngleRad = dirDef.angleRad;
+        // Lanzamiento parabólico cruzado desde la base para dar sensación real de Fruit Ninja rítmico
+        const launchCrossOffset = ((katanaSeq % 2 === 0) ? 0.14 : -0.14);
+        n._katanaLaunchU = Math.max(-0.42, Math.min(0.42, slotBaseU[slot] + launchCrossOffset));
+        n._katanaPitchNorm = this.getCruceSpectralPitchNorm(nt);
+
+        // Inyectar Bomba de Distorsión Acústica (trampa anti-spam) cada ~3.5 pulsos en un carril opuesto
+        const nextN = (i + 1 < notesArray.length) ? notesArray[i + 1] : null;
+        const dtNext = nextN ? ((nextN.timestamp_ms ?? 999999) - nt) : 999999;
+        if ((katanaSeq % 3 === 2) && (nt - lastBombMs >= Math.max(1350, beatMs * 2.8)) && dtPrev >= 210 && dtNext >= 210) {
+          const bombSlot = (slot <= 1) ? 3 : 0;
+          const bombTimeMs = nt + Math.round(Math.min(180, dtNext * 0.35));
+          injectedBombs.push({
+            id: 970000 + i,
+            lane: bombSlot,
+            column: bombSlot,
+            track: bombSlot,
+            _cruceSlot: bombSlot,
+            _cruceTargetU: slotBaseU[bombSlot],
+            _cruceLocalU: slotBaseU[bombSlot],
+            _cruceSpawnU: slotBaseU[bombSlot],
+            _crossBeamId: bombSlot,
+            _isCruceKatana: true,
+            _isKatanaBomb: true,
+            _katanaLaunchU: -slotBaseU[bombSlot] * 0.65,
+            isMine: true,
+            type: 'tap',
+            time: bombTimeMs / 1000,
+            timeMs: bombTimeMs,
+            timestamp_ms: bombTimeMs,
+            end_timestamp_ms: bombTimeMs,
+            duration_ms: 0,
+            holdDuration: 0,
+            hit: false,
+            holding: false,
+            holdCompleted: false,
+            missed: false,
+            processed: false,
+            _madnessPhase: isMadness ? 'cruce' : undefined
+          });
+          lastBombMs = bombTimeMs;
+        }
+      }
+      return injectedBombs;
+    }
+
+    /**
      * Prepara la coreografía completa del modo CRUCE:
      * 1. Ritmo real de la canción con acordes dobles conectados por arco eléctrico y notas acentuadas en inicios de compás.
      * 2. Proporción exacta: ~70% Tap Notes (Azules/Cian), ~15% Holds Anchos (Rectángulos azules largos), ~15% Drag Notes (Amarillas en ráfagas cortas).
      * 3. 6 Formaciones Dinámicas de Rayos Láser que cambian la geometría diagonal en cada frase musical.
-     * 4. Cambios de ángulo y altura sincronizados EXCLUSIVAMENTE con silencios, cierres de frase o drops de compás (jamás en medio de alta densidad de notas).
+     * 4. Escenas de Corte Espectral Katana (`SPECTRAL_KATANA_SLICE`) donde la línea de juicio sube y baja con la frecuencia de la música (Agudo arriba / Grave abajo) y los orbes se cortan haciendo swipe con precisión sin tocar las Bombas de Distorsión.
      */
     _prepareCruceModeChoreography() {
       if (!Array.isArray(this.notes) || this.notes.length === 0) return;
@@ -23507,13 +23821,13 @@ class BeatstarEngine {
           formationIdx: 1, isMajorFlip: false, arrowAngle: Math.PI * 0.5,
           label: 'PERSPECTIVA ROTADA IZQUIERDA'
         },
-        // 1: LÍNEA VERTICAL A LA DERECHA DEL TODO CON FLUJO IZQUIERDA -> DERECHA
+        // 1: CORTE KATANA ESPECTRAL: La línea sube en tonos AGUDOS y baja en tonos GRAVES; cortar orbes con swipe direccional evitando bombas
         {
-          mode: 'CENTER_VERTICAL_BILATERAL',
-          cxRatio: 0.88, cyRatio: 0.53, angleRad: 90 * deg,
-          spanWRatio: 0.82, travelRatio: 0.82, diagFactor: 0.22, flowDir: 1.0,
+          mode: 'SPECTRAL_KATANA_SLICE',
+          cxRatio: 0.50, cyRatio: 0.56, angleRad: 0,
+          spanWRatio: 0.86, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0,
           formationIdx: 0, isMajorFlip: true, arrowAngle: 0,
-          label: 'MASTIL LATERAL: FLUJO IZQUIERDA A DERECHA'
+          label: 'CORTE KATANA: FRECUENCIA VIVA'
         },
         // 2: Inclinación izquierda con Cascada Diagonal Derecha (/) y cambio de perspectiva 3D
         {
@@ -23531,13 +23845,13 @@ class BeatstarEngine {
           formationIdx: 3, isMajorFlip: true, arrowAngle: Math.PI * 0.5,
           label: 'ESTRIBILLO: VORTICE CENTRAL'
         },
-        // 4: LÍNEA VERTICAL A LA DERECHA DEL TODO CON FLUJO IZQUIERDA -> DERECHA (Mástil Eléctrico)
+        // 4: CORTE KATANA ESPECTRAL: Línea guiada por la frecuencia aguda/grave del audio + corte direccional de orbes
         {
-          mode: 'CENTER_VERTICAL_BILATERAL',
-          cxRatio: 0.88, cyRatio: 0.53, angleRad: 90 * deg,
-          spanWRatio: 0.82, travelRatio: 0.82, diagFactor: 0.25, flowDir: 1.0,
+          mode: 'SPECTRAL_KATANA_SLICE',
+          cxRatio: 0.50, cyRatio: 0.54, angleRad: 0,
+          spanWRatio: 0.86, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0,
           formationIdx: 3, isMajorFlip: true, arrowAngle: 0,
-          label: 'MASTIL LATERAL: FLUJO IZQUIERDA A DERECHA'
+          label: 'CORTE KATANA: FRECUENCIA VIVA'
         },
         // 5: Estribillo con Doble Cruce Gemelo (X en cada mano)
         {
@@ -23641,16 +23955,27 @@ class BeatstarEngine {
         }
       }
 
-      // Asignar dirección horizontal siempre de izquierda a derecha (+1.0) y detectar ligaduras de guitarra Hammer-On / Pull-Off (HO/PO)
-      for (let i = 0; i < allLen; i++) {
-        const n = allCruceNotes[i];
+      // Construir contorno espectral de frecuencias (Grave -> Agudo) y configurar las secciones de Corte Katana
+      this._buildCruceSpectralPitchEnvelope(allCruceNotes, normBpm);
+      const katanaBombs = this._configureCruceKatanaSections(allCruceNotes, beatMs, false);
+      const finalCruceList = allCruceNotes
+        .filter((n) => n && !n._dropDuplicateCollapsed)
+        .concat(katanaBombs)
+        .sort((a, b) => (a.timestamp_ms || 0) - (b.timestamp_ms || 0));
+      this.notes = finalCruceList;
+
+      // Detectar ligaduras de guitarra Hammer-On / Pull-Off (HO/PO) fuera de las secciones Katana
+      for (let i = 0; i < finalCruceList.length; i++) {
+        const n = finalCruceList[i];
         n._cruceBilateralDir = 1.0;
-        if (i > 0) {
-          const prevN = allCruceNotes[i - 1];
+        if (i > 0 && !n._isCruceKatana && !n.isMine) {
+          const prevN = finalCruceList[i - 1];
           const dtHopo = (n.timestamp_ms || 0) - (prevN.timestamp_ms || 0);
           if (
             !n._isCruceDrag &&
             !prevN._isCruceDrag &&
+            !prevN._isCruceKatana &&
+            !prevN.isMine &&
             n.type !== 'hold' &&
             prevN.type !== 'hold' &&
             dtHopo >= 85 &&
@@ -23661,20 +23986,18 @@ class BeatstarEngine {
             n._cruceHopoPrev = prevN;
           }
         }
-      }
-
-      for (let i = 0; i < allLen; i++) {
-        allCruceNotes[i].id = i + 1;
+        n.id = i + 1;
       }
       this.maxPossibleScore = this.computeMaxPossibleScore(this.notes);
       this.targetScore = this.maxPossibleScore;
     }
 
     /**
-     * Evalúa una pose de keyframe en coordenadas de pantalla `(cx, cy, angle, spanW, travelDistPx, diagFactor, flowDir, originsU)`,
-     * situando la línea vertical de juicio a la derecha del todo (`w * 0.88`) cuando las teclas van horizontalmente de izquierda a derecha.
+     * Evalúa una pose de keyframe en coordenadas de pantalla `(cx, cy, angle, spanW, travelDistPx, diagFactor, flowDir, originsU)`.
+     * En el sub-modo `SPECTRAL_KATANA_SLICE`, la altura `cy` de la línea de juicio sube en frecuencias agudas (`h * 0.34`)
+     * y baja en frecuencias graves (`h * 0.78`) siguiendo el espectro real de la canción.
      */
-    _evalCruceKeyframePose(kf, w, h, out) {
+    _evalCruceKeyframePose(kf, w, h, out, cTime = null) {
       const formations = this._cruceLaserFormations || [];
       const fIdx = Math.max(0, Math.min(formations.length - 1, kf.formationIdx || 0));
       const form = formations[fIdx] || {
@@ -23688,14 +24011,17 @@ class BeatstarEngine {
       const cosA = Math.cos(angle);
       const absSin = Math.abs(sinA);
       const absCos = Math.max(0.25, Math.abs(cosA));
-      const isVerticalBilateral = (kf.mode === 'CENTER_VERTICAL_BILATERAL' || absSin > 0.65);
+      const isKatanaSlice = (kf.mode === 'SPECTRAL_KATANA_SLICE');
 
-      if (isVerticalBilateral) {
-        out.cx = w * 0.88;
-        out.cy = h * (kf.cyRatio ?? 0.53);
-        out.angle = Math.PI * 0.5;
-        out.spanW = Math.max(195, Math.min(h * 0.58, w * 1.04));
-        out.travelDistPx = Math.max(210, w * 0.82);
+      if (isKatanaSlice) {
+        const evalTime = Number.isFinite(cTime) ? cTime : (kf.timeMs || 0);
+        const pitchNorm = this.getCruceSpectralPitchNorm(evalTime);
+        out.cx = w * 0.50;
+        // Más agudo (pitchNorm -> 1.0) = línea más alta (h * 0.34); más grave (pitchNorm -> 0.0) = línea más baja (h * 0.78)
+        out.cy = h * (0.78 - pitchNorm * 0.44);
+        out.angle = 0;
+        out.spanW = Math.max(210, Math.min(w * 0.88, w * 0.86));
+        out.travelDistPx = Math.max(280, h - out.cy + 20);
         out.flowDir = 1.0;
       } else {
         const tiltCompress = 1.0 - Math.min(0.28, absSin * 0.55);
@@ -23725,7 +24051,7 @@ class BeatstarEngine {
 
     /**
      * Devuelve el estado geométrico actual de la Línea de Juicio Principal Viva y de los 4 Rayos Láser,
-     * incluyendo el pre-aviso holográfico 850ms antes de cualquier cambio importante.
+     * incluyendo el seguimiento vertical de frecuencias en `SPECTRAL_KATANA_SLICE`.
      */
     getCruceLineState(currentTime = null) {
       if (!this._cruceLineState) {
@@ -23735,6 +24061,10 @@ class BeatstarEngine {
       const w = this.width || 360;
       const h = this.height || 640;
       const cTime = Number.isFinite(currentTime) ? currentTime : this.getCurrentGameTimeMs();
+
+      const targetPitch = this.getCruceSpectralPitchNorm(cTime);
+      if (!Number.isFinite(this._cruceLivePitchNorm)) this._cruceLivePitchNorm = targetPitch;
+      else this._cruceLivePitchNorm += (targetPitch - this._cruceLivePitchNorm) * 0.24;
 
       const kfs = this._cruceKeyframes;
       if (!kfs || kfs.length === 0) {
@@ -23769,14 +24099,14 @@ class BeatstarEngine {
       const nextKf = (activeIdx + 1 < kfs.length) ? kfs[activeIdx + 1] : null;
 
       const poseTo = this._crucePoseScratchTo || (this._crucePoseScratchTo = {});
-      this._evalCruceKeyframePose(curKf, w, h, poseTo);
+      this._evalCruceKeyframePose(curKf, w, h, poseTo, cTime);
 
       const elapsed = cTime - curKf.timeMs;
       const dur = Math.max(180, curKf.transDurMs || 300);
 
       if (activeIdx > 0 && elapsed >= 0 && elapsed < dur) {
         const poseFrom = this._crucePoseScratchFrom || (this._crucePoseScratchFrom = {});
-        this._evalCruceKeyframePose(prevKf, w, h, poseFrom);
+        this._evalCruceKeyframePose(prevKf, w, h, poseFrom, curKf.timeMs);
         const rawU = Math.max(0, Math.min(1, elapsed / dur));
         const snapU = 1.0 - Math.pow(1.0 - rawU, 3);
 
@@ -23811,7 +24141,9 @@ class BeatstarEngine {
         st.transitionLabel = poseTo.label;
       } else {
         st.cx = poseTo.cx;
-        st.cy = poseTo.cy;
+        st.cy = (curKf.mode === 'SPECTRAL_KATANA_SLICE')
+          ? (h * (0.78 - this._cruceLivePitchNorm * 0.44))
+          : poseTo.cy;
         st.angle = poseTo.angle;
         st.spanW = poseTo.spanW;
         st.travelDistPx = poseTo.travelDistPx;
@@ -23837,7 +24169,7 @@ class BeatstarEngine {
 
       if (nextKf && (nextKf.timeMs - cTime) > 0 && (nextKf.timeMs - cTime) <= 1150) {
         const poseNext = this._crucePoseScratchNext || (this._crucePoseScratchNext = {});
-        this._evalCruceKeyframePose(nextKf, w, h, poseNext);
+        this._evalCruceKeyframePose(nextKf, w, h, poseNext, nextKf.timeMs);
         const timeToNext = nextKf.timeMs - cTime;
         st.previewActive = true;
         st.previewCx = poseNext.cx;
@@ -23864,8 +24196,7 @@ class BeatstarEngine {
 
     /**
      * Calcula el origen `(xOrigin, yOrigin)` y el nodo receptor `(xTarget, yTarget)` en coordenadas locales de la línea
-     * para el carril `slotIdx` (0..3). Cuando la línea de juicio está en vertical a la derecha del todo (`Math.abs(sinA) > 0.65`),
-     * todas las teclas nacen en el extremo izquierdo de la pantalla (`w * 0.05`) y viajan de izquierda a derecha hasta `w * 0.88`.
+     * para el carril `slotIdx` (0..3).
      */
     getCruceBeamEndpointsLocal(slotIdx, st = null, noteFlowDir = null, out = null) {
       const target = out || this._cruceBeamEndScratch || (this._cruceBeamEndScratch = { xOrigin: 0, yOrigin: -360, xTarget: 0, yTarget: 0 });
@@ -23889,17 +24220,12 @@ class BeatstarEngine {
       const sinA = lineSt.sinA ?? Math.sin(lineSt.angle || 0);
       const cosA = lineSt.cosA ?? Math.cos(lineSt.angle || 0);
 
-      if (Math.abs(sinA) > 0.65) {
-        // Modo Horizontal (Mástil de guitarra de izquierda a derecha):
-        // Origen siempre en el borde izquierdo de la pantalla (w * 0.05) viajando hacia la línea de juicio a la derecha del todo (w * 0.88)
-        const originScrX = w * 0.05;
-        const originScrY = lineSt.cy + effOriginU * lineSt.spanW;
-        const dx = originScrX - lineSt.cx;
-        const dy = originScrY - lineSt.cy;
-        target.xOrigin = dx * cosA + dy * sinA;
-        target.yOrigin = -dx * sinA + dy * cosA;
+      if (lineSt.orientation === 'SPECTRAL_KATANA_SLICE') {
+        // En Modo Katana Espectral: los cañones inferiores lanzan los orbes desde abajo (h * 0.94) hasta la Línea de Frecuencia Viva
+        target.xOrigin = xTarget * 0.85;
+        target.yOrigin = Math.max(180, (h * 0.94) - lineSt.cy);
         target.xTarget = xTarget;
-        target.yTarget = yTarget;
+        target.yTarget = 0;
         return target;
       }
 
@@ -23928,13 +24254,30 @@ class BeatstarEngine {
     }
 
     /**
-     * Devuelve la posición `(x, y)` en coordenadas locales de la línea para una nota en el progreso `progress` (0.0..1.0),
-     * siguiendo exactamente el rayo láser con perspectiva compensada de su carril.
+     * Devuelve la posición `(x, y)` en coordenadas locales de la línea para una nota en el progreso `progress` (0.0..1.0).
+     * Cuando la nota es un Orbe Katana (`_isCruceKatana`), describe un arco parabólico balístico estilo Fruit Ninja
+     * desde los cañones inferiores hasta alcanzar la Línea de Frecuencia Viva en `progress = 1.0`.
      */
     getCruceNoteLocalPos(note, progress = 1.0, st = null, noteFlowDir = null, out = null) {
       const target = out || this._cruceNotePosScratch || (this._cruceNotePosScratch = { x: 0, y: 0 });
       const lineSt = st || this._cruceLineState || this.getCruceLineState();
       const slot = Math.max(0, Math.min(3, Math.round(note._cruceSlot ?? note.lane ?? 1)));
+      if (note && note._isCruceKatana) {
+        const h = Math.max(400, this.height || 640);
+        const targetU = (this._cruceCrossBeams && this._cruceCrossBeams[slot])
+          ? this._cruceCrossBeams[slot].targetU
+          : (-0.375 + slot * 0.25);
+        const xTarget = targetU * lineSt.spanW;
+        const launchU = Number.isFinite(note._katanaLaunchU) ? note._katanaLaunchU : (targetU * 0.65);
+        const xStart = launchU * lineSt.spanW;
+        const yStart = Math.max(170, (h * 0.95) - lineSt.cy);
+        const u = progress;
+        target.x = xStart + (xTarget - xStart) * u;
+        // Parábola balística que sube desde la base (yStart > 0) y alcanza su ápice/corte sobre la línea de frecuencia (y = 0 en u = 1.0)
+        const arcApexLift = Math.sin(Math.max(0, Math.min(1.15, u)) * Math.PI) * 56;
+        target.y = yStart * (1.0 - u) - arcApexLift;
+        return target;
+      }
       const ep = this.getCruceBeamEndpointsLocal(slot, lineSt, noteFlowDir);
       target.x = ep.xOrigin + (ep.xTarget - ep.xOrigin) * progress;
       target.y = ep.yOrigin + (ep.yTarget - ep.yOrigin) * progress;
@@ -23959,7 +24302,6 @@ class BeatstarEngine {
 
       let blendedU;
       if (Math.abs(st.sinA) > 0.65) {
-        // Línea vertical derecha: proyección directa sobre la altura vertical de las 4 cuerdas
         blendedU = geomLocalX / spanW;
       } else {
         const clampedDy = Math.max(-70, Math.min(70, dy));
@@ -24070,8 +24412,8 @@ class BeatstarEngine {
         const note = this.notes[i];
         if (!note || note.hit || note.missed || note.holdCompleted || note.holding) continue;
         if (this.isMadnessModeActive && note._madnessPhase !== 'cruce') continue;
-        // Ignorar Drag Notes en la selección de Tap para que un Tap busque siempre la nota Azul/Hold que requiere pulsación
-        if (note._isCruceDrag) continue;
+        // Ignorar Drag Notes y Orbes Katana en la selección de Tap puro para que los Orbes Katana requieran deslizar y cortar
+        if (note._isCruceDrag || note._isCruceKatana) continue;
 
         const dtMs = note.timestamp_ms - currentTime;
         if (dtMs > hitWindow + 75) break;
@@ -24105,6 +24447,25 @@ class BeatstarEngine {
       const proj = this.projectScreenToCruceLine(localX, localY, currentTime);
       const targetSlot = (lane >= 0 && lane <= 3) ? lane : proj.slot;
 
+      // Al iniciar un nuevo trazo limpio con el dedo, registrar origen del tajo Katana y disipar parcialmente el calor de hoja
+      this._lastKatanaFingerPos = { x: localX, y: localY, startX: localX, startY: localY, timeMs: currentTime };
+      if (!this._cruceBladeTrail) this._cruceBladeTrail = [];
+      this._cruceBladeTrail.push({
+        x: localX,
+        y: localY,
+        alpha: 1.0,
+        overheated: currentTime < (this._katanaOverheatUntilMs || 0)
+      });
+
+      const st = this._cruceLineState || this.getCruceLineState(currentTime);
+      if (st && st.orientation === 'SPECTRAL_KATANA_SLICE') {
+        // En modo Katana Espectral, exigir corte por swipe (salvo en modo PC con teclado)
+        if (this.isPCMode) {
+          return this._checkAndSliceKatanaOrbsAtFinger(localX, localY, 24, 0, currentTime, true);
+        }
+        return false;
+      }
+
       // Activar buffer de captura para Drag Notes amarillas (evita fallar si el jugador apoya el dedo un instante antes)
       this._cruceAnyFingerActiveUntil = currentTime + 380;
       if (!this._cruceSlotDragBufferUntil) this._cruceSlotDragBufferUntil = [0, 0, 0, 0];
@@ -24125,8 +24486,10 @@ class BeatstarEngine {
     }
 
     /**
-     * Al mover o mantener el dedo por la pantalla en Modo CRUCE, mantiene cargado el buffer magnético
-     * y atrapa instantáneamente cualquier Drag Note amarilla como PERFECT+.
+     * Al mover o deslizar el dedo por la pantalla en Modo CRUCE:
+     * - En `SPECTRAL_KATANA_SLICE`: traza la hoja láser Katana, controla la temperatura anti-spam de la hoja,
+     *   detona Bombas de Distorsión si se tocan y corta en dos mitades los Orbes de Frecuencia que coincidan con el ángulo del tajo.
+     * - En el resto de escenas Cruce: atrapa las Drag Notes amarillas como PERFECT+.
      */
     handleCrucePointerMove(localX, localY, touchId, tData) {
       const currentTime = this.getCurrentGameTimeMs(this._frameNow || performance.now());
@@ -24134,6 +24497,42 @@ class BeatstarEngine {
       if (tData) {
         tData.lane = proj.slot;
       }
+
+      const prevPos = this._lastKatanaFingerPos;
+      const dx = prevPos ? (localX - prevPos.x) : 0;
+      const dy = prevPos ? (localY - prevPos.y) : 0;
+      const stepDist = Math.hypot(dx, dy);
+      if (stepDist >= 3.5) {
+        if (!this._cruceBladeTrail) this._cruceBladeTrail = [];
+        if (this._cruceBladeTrail.length >= 20) this._cruceBladeTrail.shift();
+        this._cruceBladeTrail.push({
+          x: localX,
+          y: localY,
+          alpha: 1.0,
+          overheated: currentTime < (this._katanaOverheatUntilMs || 0)
+        });
+        this._lastKatanaFingerPos = {
+          x: localX,
+          y: localY,
+          startX: prevPos ? prevPos.startX : localX,
+          startY: prevPos ? prevPos.startY : localY,
+          timeMs: currentTime
+        };
+      }
+
+      const st = this._cruceLineState || this.getCruceLineState(currentTime);
+      if (st && st.orientation === 'SPECTRAL_KATANA_SLICE') {
+        if (stepDist >= 6.0) {
+          this._katanaBladeHeat = Math.min(1.05, (this._katanaBladeHeat || 0) + stepDist * 0.00095);
+          if (this._katanaBladeHeat >= 1.0 && currentTime >= (this._katanaOverheatUntilMs || 0)) {
+            this._katanaOverheatUntilMs = currentTime + 460;
+            this._katanaBladeHeat = 0.78;
+            this.addJudgement('FILO CALIENTE!', '#f97316', proj.slot);
+          }
+        }
+        this._checkAndSliceKatanaOrbsAtFinger(localX, localY, dx, dy, currentTime, false);
+      }
+
       this._cruceAnyFingerActiveUntil = currentTime + 380;
       if (!this._cruceSlotDragBufferUntil) this._cruceSlotDragBufferUntil = [0, 0, 0, 0];
       this._cruceSlotDragBufferUntil[proj.slot] = currentTime + 380;
@@ -24145,6 +24544,160 @@ class BeatstarEngine {
         this._cruceNodes[proj.slot].flash = Math.max(this._cruceNodes[proj.slot].flash || 0, 0.75);
       }
       this._checkAndCatchCruceDragNotesAtFinger(proj.localX, proj.localY, currentTime, localX);
+    }
+
+    /**
+     * Valida el corte con Katana sobre los Orbes de Frecuencia (`_isCruceKatana`) y Bombas de Distorsión (`_isKatanaBomb`):
+     * - Si el trazo del dedo corta una Bomba de Distorsión, detona la mina (`triggerMineExplosion`).
+     * - Si la hoja está sobrecalentada por agitar el dedo al azar, rebota sin cortar.
+     * - Si el ángulo y velocidad del swipe cortan un Orbe de Frecuencia cerca de la Línea de Frecuencia Viva,
+     *   parte el orbe en 2 mitades físicas rotatorias, enfría la hoja y reproduce un armónico de katana + guitarra.
+     */
+    _checkAndSliceKatanaOrbsAtFinger(screenX, screenY, dx, dy, currentTime, allowDirectTap = false) {
+      if (!Array.isArray(this.notes) || this.notes.length === 0) return false;
+      const st = this._cruceLineState || this.getCruceLineState(currentTime);
+      const stepSpeed = Math.hypot(dx, dy);
+      const totalSwipeDist = this._lastKatanaFingerPos
+        ? Math.hypot(screenX - (this._lastKatanaFingerPos.startX ?? screenX), screenY - (this._lastKatanaFingerPos.startY ?? screenY))
+        : stepSpeed;
+
+      if (!allowDirectTap && stepSpeed < 4.5 && totalSwipeDist < 14) {
+        return false;
+      }
+
+      const startIdx = Math.max(0, (this.firstActiveNoteIndex || 0) - 2);
+      const nLen = this.notes.length;
+      const scrollDur = (Number.isFinite(this.scrollDurationMs) && this.scrollDurationMs > 0) ? this.scrollDurationMs : 1400;
+      const effTime = (this.isMadnessModeActive && typeof this.getMadnessScrollTimeMs === 'function')
+        ? this.getMadnessScrollTimeMs(currentTime)
+        : currentTime;
+
+      // 1. Comprobar primero si el dedo ha cortado una Bomba de Distorsión Acústica (castigo anti-spam)
+      if (!allowDirectTap && stepSpeed >= 4.5) {
+        for (let i = startIdx; i < nLen; i++) {
+          const bomb = this.notes[i];
+          if (!bomb || bomb.hit || bomb.missed || !bomb.isMine || !bomb._isKatanaBomb) continue;
+          if (this.isMadnessModeActive && bomb._madnessPhase !== 'cruce') continue;
+          const dtBomb = bomb.timestamp_ms - effTime;
+          if (dtBomb > 260) break;
+          if (Math.abs(dtBomb) <= 210) {
+            const rawP = 1.0 - (dtBomb / scrollDur);
+            const posLocal = this.getCruceNoteLocalPos(bomb, Math.max(0, Math.min(1.08, rawP)), st, 1.0);
+            const scrPt = this.cruceLocalToScreen(posLocal.x, posLocal.y, currentTime);
+            const distToBomb = Math.hypot(screenX - scrPt.x, screenY - scrPt.y);
+            if (distToBomb <= 46) {
+              this.triggerMineExplosion(bomb, scrPt.x, scrPt.y, currentTime);
+              return false;
+            }
+          }
+        }
+      }
+
+      // 2. Si la hoja está sobrecalentada por hacer swipes frenéticos en vacío, bloquear el corte
+      if (!allowDirectTap && currentTime < (this._katanaOverheatUntilMs || 0)) {
+        return false;
+      }
+
+      const slashAngle = Math.atan2(dy, dx);
+      let slicedAny = false;
+
+      for (let i = startIdx; i < nLen; i++) {
+        const note = this.notes[i];
+        if (!note || note.hit || note.missed || note.isMine || !note._isCruceKatana) continue;
+        if (this.isMadnessModeActive && note._madnessPhase !== 'cruce') continue;
+        const dtMs = note.timestamp_ms - effTime;
+        if (dtMs > 235) break;
+        if (dtMs <= 215 && dtMs >= -185) {
+          const rawP = 1.0 - (dtMs / scrollDur);
+          const posLocal = this.getCruceNoteLocalPos(note, Math.max(0, Math.min(1.05, rawP)), st, 1.0);
+          const scrPt = this.cruceLocalToScreen(posLocal.x, posLocal.y, currentTime);
+          const dist = Math.hypot(screenX - scrPt.x, screenY - scrPt.y);
+          const hitRadius = allowDirectTap ? 115 : 88;
+          if (dist <= hitRadius) {
+            // Comprobar alineación direccional del tajo con la ranura láser del orbe (eje sin signo: cos(theta - target) >= 0.36)
+            const reqAngle = Number.isFinite(note._katanaCutAngleRad) ? note._katanaCutAngleRad : 0;
+            const axisAlignment = allowDirectTap ? 1.0 : Math.abs(Math.cos(slashAngle - reqAngle));
+            const minAlign = (stepSpeed >= 24) ? 0.28 : 0.38;
+            if (axisAlignment >= minAlign) {
+              this._completeCruceKatanaSlice(note, currentTime, scrPt.x, scrPt.y, reqAngle);
+              slicedAny = true;
+            }
+          }
+        }
+      }
+      return slicedAny;
+    }
+
+    _completeCruceKatanaSlice(note, currentTime, hitX, hitY, cutAngleRad = 0) {
+      if (!note || note.hit || note.missed) return;
+      note.hit = true;
+      note.processed = true;
+      // Enfriar el medidor de calor de la hoja Katana con cada corte limpio
+      this._katanaBladeHeat = Math.max(0, (this._katanaBladeHeat || 0) - 0.44);
+      this._katanaOverheatUntilMs = 0;
+
+      const slot = Math.max(0, Math.min(3, Math.round(note._cruceSlot ?? note.lane ?? 1)));
+      this.laneGlows[slot] = 1.0;
+      if (this.laneFlashTimers) this.laneFlashTimers[slot] = 0.30;
+      if (this.laneFlashColors) this.laneFlashColors[slot] = '#00f2fe';
+
+      const dtAbs = Math.abs((note.timestamp_ms || currentTime) - currentTime);
+      try {
+        this.judgeHit(note, Math.min(18, dtAbs * 0.32), hitX, hitY, 'SLICE!');
+      } catch (_) {}
+
+      const orbColor = note._isCruceAccent ? '#a855f7' : '#00f2fe';
+      note._katanaHalvesSpawned = true;
+      this._spawnKatanaSlicedHalves(hitX, hitY, cutAngleRad, orbColor);
+      this._triggerCruceNoteHitFX(note, hitX, hitY, orbColor);
+      this.playCruceKatanaSlashSynth(slot, this._cruceLivePitchNorm ?? 0.5);
+      this.emitKeyHit(hitX, hitY, '#fde047', 24);
+    }
+
+    _spawnKatanaSlicedHalves(x, y, cutAngleRad = 0, color = '#00f2fe') {
+      if (!this._cruceSlicedHalves) this._cruceSlicedHalves = [];
+      const perpAngle = cutAngleRad + Math.PI * 0.5;
+      for (let side = -1; side <= 1; side += 2) {
+        if (this._cruceSlicedHalves.length >= 24) this._cruceSlicedHalves.shift();
+        const vx = Math.cos(perpAngle) * side * (135 + Math.random() * 55) + (Math.random() - 0.5) * 40;
+        const vy = Math.sin(perpAngle) * side * (115 + Math.random() * 45) - 95;
+        this._cruceSlicedHalves.push({
+          x,
+          y,
+          vx,
+          vy,
+          rot: cutAngleRad,
+          vRot: side * (4.8 + Math.random() * 2.5),
+          radius: 22,
+          side,
+          color,
+          alpha: 1.0
+        });
+      }
+    }
+
+    playCruceKatanaSlashSynth(slot = 0, pitchNorm = 0.5) {
+      try {
+        const ctx = this.audioSync && this.audioSync.audioCtx;
+        if (!ctx || ctx.state !== 'running') return;
+        const now = ctx.currentTime;
+        if (this._lastKatanaAudioTime && (now - this._lastKatanaAudioTime < 0.030)) return;
+        this._lastKatanaAudioTime = now;
+
+        const baseFreq = 260 + pitchNorm * 520 + slot * 45;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(baseFreq * 1.45, now);
+        osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.85, now + 0.095);
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.linearRampToValueAtTime(0.055, now + 0.005);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.11);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.12);
+      } catch (_) {}
     }
 
     /**
@@ -24322,6 +24875,11 @@ class BeatstarEngine {
       const exactCoord = this.getCruceNoteScreenCoord(note, this.getCurrentGameTimeMs(), this._cruceFxCoordScratch || (this._cruceFxCoordScratch = {}));
       const burstX = Number.isFinite(exactCoord.x) ? exactCoord.x : hitX;
       const burstY = Number.isFinite(exactCoord.y) ? exactCoord.y : hitY;
+      if (note._isCruceKatana && !note._katanaHalvesSpawned) {
+        note._katanaHalvesSpawned = true;
+        this._spawnKatanaSlicedHalves(burstX, burstY, note._katanaCutAngleRad || 0, fxCol);
+        this.playCruceKatanaSlashSynth(slot, this._cruceLivePitchNorm ?? 0.5);
+      }
       this._spawnCruceSquareParticles(burstX, burstY, fxCol, note._isCruceDrag ? 18 : (note._isCruceAccent ? 16 : 13));
       if (note._isCruceAccent) {
         this.addScore(250 * (this.multiplier || 1));
@@ -24375,7 +24933,7 @@ class BeatstarEngine {
 
       const movedDist = Math.hypot(st.cx - prevCx, st.cy - prevCy) + Math.abs(st.angle - prevAngle) * 180;
       const cruceVisibleNow = !this.isMadnessModeActive || (this._madnessCruceAlpha || 0) > 0.12;
-      if (movedDist > 2.2 && cruceVisibleNow) {
+      if (movedDist > 2.2 && cruceVisibleNow && st.orientation !== 'SPECTRAL_KATANA_SLICE') {
         if (!this._lastCruceTrailTime || (currentTime - this._lastCruceTrailTime >= 22)) {
           this._lastCruceTrailTime = currentTime;
           if (this._cruceLineTrail.length >= 16) this._cruceLineTrail.shift();
@@ -24392,6 +24950,34 @@ class BeatstarEngine {
 
     updateCruceModeEffects(dt) {
       if (!this._cruceLineState) return;
+
+      // Enfriamiento progresivo del medidor de calor de la hoja Katana
+      if (this._katanaBladeHeat > 0) {
+        this._katanaBladeHeat = Math.max(0, this._katanaBladeHeat - dt * 0.55);
+      }
+
+      if (this._cruceBladeTrail && this._cruceBladeTrail.length > 0) {
+        for (let i = this._cruceBladeTrail.length - 1; i >= 0; i--) {
+          this._cruceBladeTrail[i].alpha -= dt * 5.8;
+          if (this._cruceBladeTrail[i].alpha <= 0.02) {
+            this._cruceBladeTrail.splice(i, 1);
+          }
+        }
+      }
+
+      if (this._cruceSlicedHalves && this._cruceSlicedHalves.length > 0) {
+        for (let i = this._cruceSlicedHalves.length - 1; i >= 0; i--) {
+          const sh = this._cruceSlicedHalves[i];
+          sh.x += sh.vx * dt;
+          sh.y += sh.vy * dt;
+          sh.vy += 420 * dt;
+          sh.rot += sh.vRot * dt;
+          sh.alpha -= dt * 2.2;
+          if (sh.alpha <= 0.02) {
+            this._cruceSlicedHalves.splice(i, 1);
+          }
+        }
+      }
 
       if (this._cruceNodes) {
         for (let i = 0; i < this._cruceNodes.length; i++) {
@@ -24488,6 +25074,85 @@ class BeatstarEngine {
       bgGrad.addColorStop(1.0, 'rgba(2, 4, 12, 0.72)');
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, w, h);
+
+      // Si estamos en CORTE KATANA ESPECTRAL (`SPECTRAL_KATANA_SLICE`), dibujar la Escala Lateral de Frecuencia (AGUDO / MEDIO / GRAVE) y la Barra de Filo
+      if (st.orientation === 'SPECTRAL_KATANA_SLICE') {
+        const pitchNorm = this._cruceLivePitchNorm ?? 0.5;
+        const yHigh = h * 0.34;
+        const yMid = h * 0.56;
+        const yLow = h * 0.78;
+        const railXLeft = 18;
+        const railXRight = w - 18;
+
+        ctx.save();
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        ctx.moveTo(railXLeft, yHigh);
+        ctx.lineTo(railXLeft, yLow);
+        ctx.moveTo(railXRight, yHigh);
+        ctx.lineTo(railXRight, yLow);
+        ctx.stroke();
+
+        // Barras de ecualizador espectral laterales
+        const eqSteps = 14;
+        for (let e = 0; e <= eqSteps; e++) {
+          const uEq = e / eqSteps;
+          const yEq = yLow - uEq * (yLow - yHigh);
+          const distPitch = Math.abs(uEq - pitchNorm);
+          const barAct = Math.max(0.15, 1.0 - distPitch * 2.4);
+          const barLen = 5 + barAct * 11 + beatPulse * 3;
+          ctx.strokeStyle = uEq > 0.66
+            ? `rgba(244, 114, 182, ${(0.30 + barAct * 0.65).toFixed(3)})`
+            : (uEq > 0.33
+                ? `rgba(0, 242, 254, ${(0.30 + barAct * 0.65).toFixed(3)})`
+                : `rgba(168, 85, 247, ${(0.30 + barAct * 0.65).toFixed(3)})`);
+          ctx.lineWidth = 2.2;
+          ctx.beginPath();
+          ctx.moveTo(railXLeft + 3, yEq);
+          ctx.lineTo(railXLeft + 3 + barLen, yEq);
+          ctx.moveTo(railXRight - 3, yEq);
+          ctx.lineTo(railXRight - 3 - barLen, yEq);
+          ctx.stroke();
+        }
+
+        // Etiquetas AGUDO (arriba) y GRAVE (abajo) + lectura de Hz en tiempo real
+        ctx.font = '800 10px "Orbitron", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#f472b6';
+        ctx.fillText('AGUDO', railXLeft + 6, yHigh - 8);
+        ctx.fillStyle = '#a855f7';
+        ctx.fillText('GRAVE', railXLeft + 6, yLow + 14);
+
+        const hzVal = Math.round(140 + pitchNorm * 740);
+        const toneLabel = pitchNorm >= 0.66 ? 'TONO AGUDO' : (pitchNorm <= 0.34 ? 'TONO GRAVE' : 'TONO MEDIO');
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillText(`${toneLabel} · ${hzVal} HZ`, railXRight - 6, yHigh - 8);
+
+        // Medidor de Filo / Temperatura de Katana (evita pasar el modo deslizando a lo loco)
+        const isOverheated = currentTime < (this._katanaOverheatUntilMs || 0);
+        const heatRatio = Math.max(0, Math.min(1, this._katanaBladeHeat || 0));
+        const barW = 136;
+        const barH = 6;
+        const barX = w * 0.5 - barW * 0.5;
+        const barY = Math.max(88, yHigh - 26);
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+        ctx.strokeStyle = isOverheated ? '#ef4444' : 'rgba(56, 189, 248, 0.65)';
+        ctx.lineWidth = 1.4;
+        ctx.fillRect(barX, barY, barW, barH);
+        ctx.strokeRect(barX, barY, barW, barH);
+
+        ctx.fillStyle = isOverheated ? '#ef4444' : (heatRatio > 0.7 ? '#f97316' : '#00f2fe');
+        const fillRatio = isOverheated ? 1.0 : Math.max(0.08, 1.0 - heatRatio);
+        ctx.fillRect(barX + 1, barY + 1, (barW - 2) * fillRatio, barH - 2);
+
+        ctx.textAlign = 'center';
+        ctx.font = '700 9px "Orbitron", sans-serif';
+        ctx.fillStyle = isOverheated ? '#fca5a5' : '#e0f2fe';
+        ctx.fillText(isOverheated ? 'FILO SOBRECALENTADO' : 'FILO KATANA: CORTA AL RITMO', w * 0.5, barY - 4);
+        ctx.restore();
+      }
 
       // 2. Transformar al sistema de coordenadas local de la Línea de Juicio Principal Viva
       ctx.save();
@@ -24775,6 +25440,26 @@ class BeatstarEngine {
       ctx.moveTo(-fullBeamHalfW, 0);
       ctx.lineTo(fullBeamHalfW, 0);
       ctx.stroke();
+
+      // En SPECTRAL_KATANA_SLICE, superponer una onda sinusoidal de frecuencia viva a lo largo de la línea de juicio
+      if (st.orientation === 'SPECTRAL_KATANA_SLICE') {
+        const pitchNorm = this._cruceLivePitchNorm ?? 0.5;
+        const waveCycles = 3 + pitchNorm * 6;
+        const waveAmp = 5.5 + beatPulse * 6.5;
+        ctx.strokeStyle = pitchNorm > 0.62 ? 'rgba(244, 114, 182, 0.85)' : 'rgba(56, 189, 248, 0.85)';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        const waveSteps = 28;
+        for (let s = 0; s <= waveSteps; s++) {
+          const u = s / waveSteps;
+          const wx = -activeHalfW + u * (activeHalfW * 2);
+          const env = Math.sin(u * Math.PI);
+          const wy = Math.sin(u * Math.PI * 2 * waveCycles - currentTime * 0.016) * waveAmp * env;
+          if (s === 0) ctx.moveTo(wx, wy);
+          else ctx.lineTo(wx, wy);
+        }
+        ctx.stroke();
+      }
       ctx.restore();
 
       // Puente metálico de guitarra eléctrica (Guitar Bridge Bar)
@@ -24862,13 +25547,11 @@ class BeatstarEngine {
     /**
      * Convierte el progreso temporal lineal `rawP` (0.0 en el origen del rayo, 1.0 en la línea de juicio)
      * en profundidad con escorzo de perspectiva `pDepth` y factor de escala `scale`.
-     * Cuando las teclas viajan lateralmente (`isLateral = true`), utiliza una curva suave casi lineal (`exp = 1.05`)
-     * y mayor escala inicial (`0.52`) para que se vean con claridad desde los bordes del móvil y avancen más despacio.
      */
     _getCruceDepthPosition(rawP, out = null, isLateral = false) {
       const target = out || this._cruceDepthScratch || (this._cruceDepthScratch = { pDepth: 0, scale: 1 });
       const clamped = Math.max(-0.15, Math.min(1.25, rawP));
-      const exp = isLateral ? 1.16 : 1.32;
+      const exp = isLateral ? 1.12 : 1.32;
       let pDepth;
       if (clamped <= 0) {
         pDepth = clamped * 0.65;
@@ -24877,7 +25560,7 @@ class BeatstarEngine {
       } else {
         pDepth = 1.0 + (clamped - 1.0) * 1.15;
       }
-      const minScale = isLateral ? 0.56 : 0.44;
+      const minScale = isLateral ? 0.58 : 0.44;
       const scale = Math.max(0.40, Math.min(1.16, minScale + (1.0 - minScale) * pDepth));
       target.pDepth = pDepth;
       target.scale = scale;
@@ -24885,10 +25568,8 @@ class BeatstarEngine {
     }
 
     /**
-     * Renderiza todas las notas del modo CRUCE deslizándose con perspectiva 3D compensada por sus respectivos rayos láser:
-     * - En modo lateral (`CENTER_VERTICAL_BILATERAL`), las teclas viajan más del doble de lentas (2.20x) para adaptarse al ancho del móvil.
-     * - Cuando la línea de juicio rota o usa cascadas laterales, las teclas reducen su velocidad (1.32x..1.75x) y el punto de fuga
-     *   se desplaza en sentido opuesto al giro para que el carril extremo se vea completo desde arriba.
+     * Renderiza todas las notas del modo CRUCE deslizándose con perspectiva 3D compensada por sus respectivos rayos láser,
+     * así como los Orbes de Frecuencia y Bombas de Distorsión en el sub-modo `SPECTRAL_KATANA_SLICE`.
      */
     renderCruceNotes(ctx, currentTime, madnessFilterOnly = false) {
       if (!this._cruceLineState) {
@@ -24900,9 +25581,7 @@ class BeatstarEngine {
       if (len === 0) return;
 
       const baseScrollDur = (Number.isFinite(this.scrollDurationMs) && this.scrollDurationMs > 0) ? this.scrollDurationMs : 1400;
-      const absSinA = Math.abs(st.sinA || 0);
-      const isBilateralVertical = (st.orientation === 'CENTER_VERTICAL_BILATERAL' || absSinA > 0.65);
-      // Velocidad normal en todo momento, incluyendo cuando las teclas viajan horizontalmente de izquierda a derecha hacia el borde derecho
+      const isKatanaSlice = (st.orientation === 'SPECTRAL_KATANA_SLICE');
       const scrollDur = baseScrollDur;
       const invScrollDur = 1.0 / scrollDur;
       const flowDir = (st.flowDir !== undefined) ? st.flowDir : 1.0;
@@ -24959,7 +25638,7 @@ class BeatstarEngine {
           }
           const rawP = 1.0 - (dt * invScrollDur);
           if (rawP < 0.0) continue;
-          const dm = this._getCruceDepthPosition(rawP, null, isBilateralVertical);
+          const dm = this._getCruceDepthPosition(rawP, null, isKatanaSlice);
           const pos = this.getCruceNoteLocalPos(n, dm.pDepth, st, flowDir);
           const lx = pos.x;
           const ly = pos.y;
@@ -25019,7 +25698,7 @@ class BeatstarEngine {
         let prevHopoPt = null;
         for (let i = startIdx; i < len; i++) {
           const n = this.notes[i];
-          if (!n || (isMadnessCruce && n._madnessPhase !== 'cruce') || n.type === 'hold' || n._isCruceDrag) {
+          if (!n || (isMadnessCruce && n._madnessPhase !== 'cruce') || n.type === 'hold' || n._isCruceDrag || n._isCruceKatana) {
             prevHopoPt = null;
             continue;
           }
@@ -25040,7 +25719,7 @@ class BeatstarEngine {
           }
           const rawP = 1.0 - (dt * invScrollDur);
           if (rawP < 0.0) continue;
-          const dm = this._getCruceDepthPosition(rawP, null, isBilateralVertical);
+          const dm = this._getCruceDepthPosition(rawP, null, isKatanaSlice);
           const pos = this.getCruceNoteLocalPos(n, dm.pDepth, st, flowDir);
           if (n._isCruceHopo && prevHopoPt && (n.timestamp_ms - prevHopoPt.t) <= 290 && prevHopoPt.lane !== n.lane) {
             const avgScale = (prevHopoPt.scale + dm.scale) * 0.5;
@@ -25075,7 +25754,7 @@ class BeatstarEngine {
           const rawPTail = Math.max(0.0, Math.min(1.0, 1.0 - (dtTail * invScrollDur)));
           if (rawPHead <= 0.01 || rawPHead <= rawPTail + 0.004) continue;
 
-          this._drawCruceWideHoldLocal(ctx, note, currentTime, noteT, holdDur, rawPHead, rawPTail, isBeingHeld, flowDir, slotW, st, isBilateralVertical);
+          this._drawCruceWideHoldLocal(ctx, note, currentTime, noteT, holdDur, rawPHead, rawPTail, isBeingHeld, flowDir, slotW, st, isKatanaSlice);
         }
 
         // 3. Dibujar Arcos Eléctricos Sincronizados entre Acordes Dobles simultáneos (Power Chords) con perspectiva
@@ -25093,7 +25772,7 @@ class BeatstarEngine {
           const rawP = 1.0 - (dt * invScrollDur);
           if (rawP < 0.0) continue;
 
-          const dm = this._getCruceDepthPosition(rawP, null, isBilateralVertical);
+          const dm = this._getCruceDepthPosition(rawP, null, isKatanaSlice);
           const pos1 = this.getCruceNoteLocalPos(n, dm.pDepth, st, flowDir, this._cruceChordPos1 || (this._cruceChordPos1 = { x: 0, y: 0 }));
           const pos2 = this.getCruceNoteLocalPos(partner, dm.pDepth, st, flowDir, this._cruceChordPos2 || (this._cruceChordPos2 = { x: 0, y: 0 }));
           const x1 = pos1.x;
@@ -25124,7 +25803,7 @@ class BeatstarEngine {
         }
         ctx.restore();
 
-        // 4. Dibujar Tap Notes (Azules/Cian + HO/PO nacaradas) y Drag Slide Notes (Amarillas) con perspectiva
+        // 4. Dibujar Tap Notes (Azules/Cian + HO/PO), Drag Slide Notes (Amarillas), Orbes Katana y Bombas de Distorsión
         for (let i = startIdx; i < len; i++) {
           const note = this.notes[i];
           if (!note || (isMadnessCruce && note._madnessPhase !== 'cruce') || note.hit || note.missed || note.type === 'hold') continue;
@@ -25137,22 +25816,24 @@ class BeatstarEngine {
           const effRawP = rawP;
           if (effRawP < 0.0) continue;
 
-          const dm = this._getCruceDepthPosition(effRawP, null, isBilateralVertical);
-          const pDepth = dm.pDepth;
+          const dm = this._getCruceDepthPosition(effRawP, null, Boolean(isKatanaSlice || note._isCruceKatana));
+          const pDepth = note._isCruceKatana ? effRawP : dm.pDepth;
           const scale = dm.scale;
           const pos = this.getCruceNoteLocalPos(note, pDepth, st, flowDir);
           const localX = pos.x;
           const localY = pos.y;
 
           if (effRawP > 0.04 && effRawP < 1.0) {
-            const tailRawP = Math.max(0, effRawP - 0.10);
-            const tailDm = this._getCruceDepthPosition(tailRawP, this._cruceTailDepthScratch || (this._cruceTailDepthScratch = { pDepth: 0, scale: 1 }), isBilateralVertical);
-            const tailPos = this.getCruceNoteLocalPos(note, tailDm.pDepth, st, flowDir, this._cruceTailPosScratch || (this._cruceTailPosScratch = { x: 0, y: 0 }));
+            const tailRawP = Math.max(0, effRawP - 0.12);
+            const tailDm = this._getCruceDepthPosition(tailRawP, this._cruceTailDepthScratch || (this._cruceTailDepthScratch = { pDepth: 0, scale: 1 }), Boolean(isKatanaSlice || note._isCruceKatana));
+            const tailPos = this.getCruceNoteLocalPos(note, note._isCruceKatana ? tailRawP : tailDm.pDepth, st, flowDir, this._cruceTailPosScratch || (this._cruceTailPosScratch = { x: 0, y: 0 }));
             ctx.save();
             ctx.globalCompositeOperation = 'lighter';
-            ctx.strokeStyle = note._isCruceDrag
-              ? 'rgba(253, 224, 71, 0.72)'
-              : (note._isCruceAccent ? 'rgba(168, 85, 247, 0.72)' : 'rgba(0, 242, 254, 0.65)');
+            ctx.strokeStyle = (note.isMine && note._isKatanaBomb)
+              ? 'rgba(239, 68, 68, 0.70)'
+              : (note._isCruceDrag
+                  ? 'rgba(253, 224, 71, 0.72)'
+                  : (note._isCruceAccent ? 'rgba(168, 85, 247, 0.72)' : 'rgba(0, 242, 254, 0.65)'));
             ctx.lineWidth = Math.max(2.0, 4.4 * scale);
             ctx.beginPath();
             ctx.moveTo(tailPos.x, tailPos.y);
@@ -25161,7 +25842,11 @@ class BeatstarEngine {
             ctx.restore();
           }
 
-          if (note._isCruceDrag) {
+          if (note.isMine && note._isKatanaBomb) {
+            this._drawCruceKatanaBombLocal(ctx, note, localX, localY, slotW, scale, currentTime);
+          } else if (note._isCruceKatana) {
+            this._drawCruceKatanaOrbLocal(ctx, note, localX, localY, slotW, scale, currentTime);
+          } else if (note._isCruceDrag) {
             this._drawCruceDragNoteLocal(ctx, note, localX, localY, slotW, scale, currentTime);
           } else {
             this._drawCruceTapNoteLocal(ctx, note, localX, localY, slotW, scale);
@@ -25170,6 +25855,131 @@ class BeatstarEngine {
       } finally {
         ctx.restore();
       }
+    }
+
+    /**
+     * Dibuja un Orbe de Cristal de Frecuencia (`_isCruceKatana`) con su ranura láser de corte direccional (`_katanaCutAngleRad`)
+     * y puntas de flecha gemelas indicando la dirección exacta del swipe para cortarlo sobre la Línea de Frecuencia Viva.
+     */
+    _drawCruceKatanaOrbLocal(ctx, note, localX, localY, slotW, scale = 1.0, currentTime = 0) {
+      const orbR = Math.max(17, Math.min(31, slotW * 0.34 * scale));
+      const cutAngle = Number.isFinite(note._katanaCutAngleRad) ? note._katanaCutAngleRad : 0;
+      const isAccent = Boolean(note._isCruceAccent);
+      const mainCol = isAccent ? '#f472b6' : '#00f2fe';
+      const innerCol = isAccent ? 'rgba(131, 24, 67, 0.92)' : 'rgba(8, 32, 62, 0.92)';
+
+      ctx.save();
+      ctx.translate(localX, localY);
+
+      // 1. Halo exterior octogonal de resonancia
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = isAccent ? 'rgba(244, 114, 182, 0.32)' : 'rgba(0, 242, 254, 0.30)';
+      ctx.beginPath();
+      ctx.arc(0, 0, orbR * 1.28, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // 2. Cuerpo de cristal octogonal facetado
+      ctx.fillStyle = innerCol;
+      ctx.strokeStyle = mainCol;
+      ctx.lineWidth = Math.max(1.8, 2.8 * scale);
+      ctx.beginPath();
+      for (let v = 0; v < 8; v++) {
+        const ang = (v * Math.PI) / 4 + Math.PI * 0.125;
+        const vx = Math.cos(ang) * orbR;
+        const vy = Math.sin(ang) * orbR;
+        if (v === 0) ctx.moveTo(vx, vy);
+        else ctx.lineTo(vx, vy);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // 3. Ranura Láser de Corte Direccional + Flechas de Tajo
+      ctx.save();
+      ctx.rotate(cutAngle);
+      const slashSpan = orbR * 1.48;
+      ctx.strokeStyle = '#fde047';
+      ctx.lineWidth = Math.max(2.2, 3.6 * scale);
+      ctx.beginPath();
+      ctx.moveTo(-slashSpan, 0);
+      ctx.lineTo(slashSpan, 0);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = Math.max(1.2, 1.8 * scale);
+      ctx.beginPath();
+      ctx.moveTo(-slashSpan * 0.85, 0);
+      ctx.lineTo(slashSpan * 0.85, 0);
+      ctx.stroke();
+
+      // Puntas de flecha en ambos extremos de la línea de corte indicando el eje del swipe
+      const ah = Math.max(4.5, 6.8 * scale);
+      ctx.strokeStyle = '#fde047';
+      ctx.lineWidth = Math.max(1.6, 2.4 * scale);
+      ctx.beginPath();
+      ctx.moveTo(slashSpan - ah, -ah * 0.75);
+      ctx.lineTo(slashSpan, 0);
+      ctx.lineTo(slashSpan - ah, ah * 0.75);
+      ctx.moveTo(-slashSpan + ah, -ah * 0.75);
+      ctx.lineTo(-slashSpan, 0);
+      ctx.lineTo(-slashSpan + ah, ah * 0.75);
+      ctx.stroke();
+      ctx.restore();
+
+      // 4. Núcleo incandescente central
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(0, 0, Math.max(3.0, 5.2 * scale), 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    /**
+     * Dibuja una Bomba de Distorsión Acústica (`_isKatanaBomb`, `isMine = true`) con púas giratorias carmesí.
+     * Si el jugador desliza el dedo sin mirar y la corta, explota restando vida y rompiendo el combo.
+     */
+    _drawCruceKatanaBombLocal(ctx, note, localX, localY, slotW, scale = 1.0, currentTime = 0) {
+      const bombR = Math.max(15, Math.min(26, slotW * 0.29 * scale));
+      const spin = currentTime * 0.0045;
+
+      ctx.save();
+      ctx.translate(localX, localY);
+
+      ctx.save();
+      ctx.rotate(spin);
+      ctx.fillStyle = 'rgba(24, 6, 12, 0.96)';
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = Math.max(1.6, 2.5 * scale);
+      ctx.beginPath();
+      const spikes = 10;
+      for (let s = 0; s < spikes * 2; s++) {
+        const r = (s % 2 === 0) ? (bombR * 1.28) : (bombR * 0.78);
+        const a = (s * Math.PI) / spikes;
+        const sx = Math.cos(a) * r;
+        const sy = Math.sin(a) * r;
+        if (s === 0) ctx.moveTo(sx, sy);
+        else ctx.lineTo(sx, sy);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      // Cruz carmesí de peligro (NO CORTAR)
+      const xSize = bombR * 0.46;
+      ctx.strokeStyle = '#fca5a5';
+      ctx.lineWidth = Math.max(2.0, 3.0 * scale);
+      ctx.beginPath();
+      ctx.moveTo(-xSize, -xSize);
+      ctx.lineTo(xSize, xSize);
+      ctx.moveTo(xSize, -xSize);
+      ctx.lineTo(-xSize, xSize);
+      ctx.stroke();
+
+      ctx.restore();
     }
 
     /**
@@ -25457,17 +26267,65 @@ class BeatstarEngine {
     }
 
     /**
-     * Renderiza las partículas cuadradas y el aviso rítmico anticipado cuando cambia la formación de láseres o la línea.
+     * Renderiza las partículas cuadradas, las mitades de cristal cortadas en vuelo y la Estela Láser Katana del dedo.
      */
     renderCruceModeOverlay(ctx, currentTime) {
       if (!this._cruceLineState) return;
       const st = this._cruceLineState;
-      const w = this.width || 360;
-      const h = this.height || 640;
 
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
 
+      // 1. Mitades de Orbes de Frecuencia cortadas en vuelo con física de rotación
+      if (this._cruceSlicedHalves && this._cruceSlicedHalves.length > 0) {
+        for (let i = 0; i < this._cruceSlicedHalves.length; i++) {
+          const sh = this._cruceSlicedHalves[i];
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, Math.min(1, sh.alpha));
+          ctx.translate(sh.x, sh.y);
+          ctx.rotate(sh.rot);
+          ctx.fillStyle = 'rgba(8, 28, 56, 0.90)';
+          ctx.strokeStyle = sh.color || '#00f2fe';
+          ctx.lineWidth = 2.4;
+          ctx.beginPath();
+          if (sh.side < 0) {
+            ctx.arc(0, 0, sh.radius, Math.PI, Math.PI * 2);
+          } else {
+            ctx.arc(0, 0, sh.radius, 0, Math.PI);
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+
+      // 2. Estela de Katana Láser siguiendo el tajo del dedo en SPECTRAL_KATANA_SLICE
+      if (this._cruceBladeTrail && this._cruceBladeTrail.length >= 2) {
+        for (let i = 1; i < this._cruceBladeTrail.length; i++) {
+          const p0 = this._cruceBladeTrail[i - 1];
+          const p1 = this._cruceBladeTrail[i];
+          const alpha = Math.max(0, Math.min(1, p1.alpha));
+          const width = Math.max(1.5, (i / this._cruceBladeTrail.length) * 9.5 * alpha);
+          ctx.strokeStyle = p1.overheated
+            ? `rgba(239, 68, 68, ${(alpha * 0.85).toFixed(3)})`
+            : `rgba(0, 242, 254, ${(alpha * 0.85).toFixed(3)})`;
+          ctx.lineWidth = width;
+          ctx.beginPath();
+          ctx.moveTo(p0.x, p0.y);
+          ctx.lineTo(p1.x, p1.y);
+          ctx.stroke();
+
+          ctx.strokeStyle = `rgba(255, 255, 255, ${(alpha * 0.92).toFixed(3)})`;
+          ctx.lineWidth = Math.max(1.0, width * 0.38);
+          ctx.beginPath();
+          ctx.moveTo(p0.x, p0.y);
+          ctx.lineTo(p1.x, p1.y);
+          ctx.stroke();
+        }
+      }
+
+      // 3. Partículas cuadradas de impacto
       if (this._cruceSquareParticles && this._cruceSquareParticles.length > 0) {
         for (let i = 0; i < this._cruceSquareParticles.length; i++) {
           const sp = this._cruceSquareParticles[i];
@@ -26929,8 +27787,8 @@ class DynamicHighwayController {
         }
       }
 
-      // B) Swipe lateral que desprende un carril extremo (4 -> 3 -> 2 carriles)
-      if (!inSplitSec && n.type === 'tap' && gapPrev >= 200 && gapNext >= 250 && (nt - lastEventT >= 2500)) {
+      // B) Swipe lateral que desprende un carril extremo (4 -> 3 -> 2 carriles), espaciado al menos 4.8s
+      if (!inSplitSec && n.type === 'tap' && gapPrev >= 240 && gapNext >= 280 && (nt - lastEventT >= 4800)) {
         if (simLanes >= 3 && ((i + songSeed) % 3 !== 2)) {
           const isLeft = (i % 2 === 0);
           const closeLane = isLeft ? 0 : (simLanes - 1);
@@ -26982,7 +27840,7 @@ class DynamicHighwayController {
       }
     }
 
-    // 5. Pase final anti-solapamiento estricto: ninguna tecla puede solaparse encima de otra en el mismo carril (< 165ms)
+    // 5. Pase final anti-solapamiento estricto: ninguna tecla puede solaparse encima de otra en el mismo carril
     this._enforceNoOverlappingNotes(notes);
   }
 
@@ -27062,7 +27920,22 @@ class DynamicHighwayController {
       const nt = n.timestamp_ms ?? 0;
       const inSingle = this.isCollapsedAtTime(nt);
       const isPingPong = Boolean(n._isPingPongServe || n._isPingPongBounce || n._isSplitPingPongRebound);
-      const activeMaxL = inSingle ? 1 : (isPingPong ? 4 : this.getExpectedLaneCountAtTime(nt));
+      const isClosingSwipe = Boolean(n.type === 'swipe' && (n._closesToCount || n._targetLaneCountAfterSwipe));
+      // Usar el mínimo de carriles esperados en la ventana visible [nt - 350, nt + 950] para que al estrecharse la pista a 3 o 2 carriles
+      // ninguna nota de los carriles superiores se desplace visualmente encima de otra nota ya presente en el carril inferior
+      const minWindowLanes = Math.min(
+        this.getExpectedLaneCountAtTime(nt - 350),
+        this.getExpectedLaneCountAtTime(nt),
+        this.getExpectedLaneCountAtTime(nt + 450),
+        this.getExpectedLaneCountAtTime(nt + 950)
+      );
+      const activeMaxL = inSingle
+        ? 1
+        : (isPingPong
+            ? 4
+            : (n._madnessPhase === 'mushroom'
+                ? 3
+                : (isClosingSwipe ? this.getExpectedLaneCountAtTime(nt - 60) : minWindowLanes)));
       let l = Math.max(0, Math.min(activeMaxL - 1, Math.round(n.lane ?? 0)));
       n.lane = l;
 
@@ -27087,13 +27960,13 @@ class DynamicHighwayController {
         continue;
       }
 
-      const minGapMs = 165;
+      const minGapMs = 235;
       if (nt - lastEndByLane[l] < minGapMs) {
         if (inSingle || n._isMirrored) {
           n._dropDuplicateCollapsed = true;
           continue;
         }
-        // Buscar un carril libre dentro de los carriles realmente abiertos en ese instante (activeMaxL)
+        // Buscar un carril libre dentro de los carriles realmente abiertos en esa ventana (activeMaxL)
         let foundFree = -1;
         for (let cand = 0; cand < activeMaxL; cand++) {
           if (nt - lastEndByLane[cand] >= minGapMs) {
@@ -27101,7 +27974,7 @@ class DynamicHighwayController {
             break;
           }
         }
-        if (foundFree !== -1 && n.type !== 'swipe') {
+        if (foundFree !== -1 && !isClosingSwipe) {
           n.lane = foundFree;
           l = foundFree;
           if (n.type === 'hold' && !n._reopensToCount && !n._targetLaneCountAfterHold) {
@@ -27112,13 +27985,20 @@ class DynamicHighwayController {
               { u: 1.0, lane: foundFree, width: 1.0 }
             ];
           }
-        } else {
+        } else if (!isClosingSwipe) {
           n._dropDuplicateCollapsed = true;
           continue;
         }
       }
       const nEnd = (n.type === 'hold' && n.end_timestamp_ms) ? n.end_timestamp_ms : nt;
       lastEndByLane[l] = Math.max(lastEndByLane[l], nEnd);
+      // Si esta nota es un swipe que cierra carril, reservar también el carril adyacente (activeMaxL - 2) durante 280ms
+      // para que ninguna nota aparezca pegada mientras el carril extremo se desprende
+      if (isClosingSwipe) {
+        const nextMaxL = Math.max(1, (n._closesToCount || n._targetLaneCountAfterSwipe || (activeMaxL - 1)));
+        const clampedDestLane = Math.max(0, Math.min(nextMaxL - 1, l));
+        lastEndByLane[clampedDestLane] = Math.max(lastEndByLane[clampedDestLane], nt + 280);
+      }
     }
 
     // Garantizar que ninguna mina quede cerca (±480ms en el mismo carril o ±180ms en cualquier carril) de una tecla real
@@ -27356,19 +28236,26 @@ class DynamicHighwayController {
       return;
     }
 
-    // Marcar el evento de carril asociado a este swipe como ejecutado para no restar 2 carriles con 1 solo swipe
+    // Buscar únicamente eventos coreografiados de cierre de carril (ev.flyDir y targetCount válido)
     let forcedTarget = null;
     for (let i = 0; i < this.laneEvents.length; i++) {
       const ev = this.laneEvents[i];
-      if (Math.abs((ev.timeMs || 0) - cTime) <= 450 && ev.flyDir) {
+      if (Math.abs((ev.timeMs || 0) - cTime) <= 450 && ev.flyDir && Number.isFinite(ev.targetCount)) {
         ev._triggered = true;
-        if (Number.isFinite(ev.targetCount)) {
-          forcedTarget = ev.targetCount;
-        }
+        forcedTarget = ev.targetCount;
         break;
       }
     }
-    if (forcedTarget !== null && this.targetLaneCount <= forcedTarget) {
+    // Si este swipe NO es un evento coreografiado de cierre de carril (ej. _isNormalSplitSwipe en Split),
+    // aplicar solo una leve inclinación de cámara sin cerrar ningún carril para que jamás se solapen teclas de 4 carriles en 2 carriles
+    if (forcedTarget === null) {
+      const flyDir = (dir === 'left') ? -1 : 1;
+      const tiltRad = 3.8 * (Math.PI / 180);
+      this.targetCameraTiltRad = flyDir * tiltRad;
+      this._tiltReleaseTimeMs = cTime + 420;
+      return;
+    }
+    if (this.targetLaneCount <= forcedTarget) {
       return;
     }
     this.closeLaneWithSwipe(lane, dir === 'left' ? -1 : 1, cTime, forcedTarget);
@@ -28615,8 +29502,8 @@ Object.assign(BeatstarEngine.prototype, {
         }
       }
 
-      // En Highway: Swipes laterales que cierran un carril (4 -> 3 -> 2 carriles), espaciados con calma
-      if (phMode === 'highway' && secBaseLanes === 4 && simLanes >= 3 && (nt < secEndMs - 2600) && (nt - lastSwipeT >= Math.max(4200, barMs * 2.2)) && gapPrev >= 220 && gapNext >= 260) {
+      // En Highway: Swipes laterales que cierran un carril (4 -> 3 -> 2 carriles), espaciados con amplia calma
+      if (phMode === 'highway' && secBaseLanes === 4 && simLanes >= 3 && (nt < secEndMs - 2800) && (nt - lastSwipeT >= Math.max(5200, barMs * 2.6)) && gapPrev >= 240 && gapNext >= 280) {
         const swipeEdgeRight = (simLanes === 4) ? (n.lane >= 2) : true;
         const swipeLane = swipeEdgeRight ? (simLanes - 1) : 0;
         const newCount = Math.max(2, simLanes - 1);
@@ -28640,7 +29527,7 @@ Object.assign(BeatstarEngine.prototype, {
       }
     }
 
-    // 6B. Fases CRUCE COMPLETAS (Mástil de Guitarra Eléctrica + Línea Vertical Derecha con flujo único izquierda->derecha a velocidad normal)
+    // 6B. Fases CRUCE COMPLETAS (Mástil de Guitarra Eléctrica + Corte Katana de Frecuencia Viva con Bombas Acústicas)
     if (!this._cruceNodes || this._cruceNodes.length !== 4 || !this._cruceLaserFormations) {
       this.initCruceModeAssets();
     }
@@ -28667,7 +29554,7 @@ Object.assign(BeatstarEngine.prototype, {
 
     const crucePoses = [
       { mode: 'TILT_RIGHT_CASCADE', cxRatio: 0.50, cyRatio: 0.78, angleRad: 18 * deg, spanWRatio: 0.78, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0, formationIdx: 1, isMajorFlip: false, arrowAngle: Math.PI * 0.5, label: 'RIFF DIAGONAL IZQUIERDO' },
-      { mode: 'CENTER_VERTICAL_BILATERAL', cxRatio: 0.88, cyRatio: 0.52, angleRad: 90 * deg, spanWRatio: 0.82, travelRatio: 0.82, diagFactor: 0.22, flowDir: 1.0, formationIdx: 0, isMajorFlip: true, arrowAngle: 0, label: 'MASTIL LATERAL: FLUJO IZQUIERDA A DERECHA' },
+      { mode: 'SPECTRAL_KATANA_SLICE', cxRatio: 0.50, cyRatio: 0.50, angleRad: 0.0, spanWRatio: 0.88, travelRatio: 0.68, diagFactor: 0.65, flowDir: 1.0, formationIdx: 0, isMajorFlip: true, arrowAngle: -Math.PI * 0.5, label: 'CORTE KATANA: FRECUENCIA VIVA' },
       { mode: 'CHORUS_CENTER_VORTEX', cxRatio: 0.50, cyRatio: 0.70, angleRad: -14 * deg, spanWRatio: 0.78, travelRatio: 0.72, diagFactor: 1.0, flowDir: 1.0, formationIdx: 3, isMajorFlip: true, arrowAngle: Math.PI * 0.5, label: 'SOLO VORTICE CENTRAL' },
       { mode: 'TILT_LEFT_CASCADE', cxRatio: 0.50, cyRatio: 0.78, angleRad: -18 * deg, spanWRatio: 0.78, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0, formationIdx: 2, isMajorFlip: false, arrowAngle: Math.PI * 0.5, label: 'RIFF DIAGONAL DERECHO' },
       { mode: 'CHORUS_TWIN_XCROSS', cxRatio: 0.50, cyRatio: 0.70, angleRad: 14 * deg, spanWRatio: 0.78, travelRatio: 0.72, diagFactor: 1.0, flowDir: 1.0, formationIdx: 4, isMajorFlip: true, arrowAngle: Math.PI * 0.5, label: 'DOBLE PUENTE DE CUERDAS' },
@@ -28743,7 +29630,6 @@ Object.assign(BeatstarEngine.prototype, {
         cn._crossBeamId = slot;
         cn._cruceFormationIdx = (p + Math.floor(cIdx / 5)) % 6;
         cn._isCruceAccent = (cIdx % 4 === 0);
-        // En el modo horizontal las notas SIEMPRE viajan de izquierda a derecha (+1.0) hacia la línea derecha
         cn._cruceBilateralDir = 1.0;
 
         if (cn.type === 'swipe') {
@@ -28874,6 +29760,17 @@ Object.assign(BeatstarEngine.prototype, {
             }
           }
         }
+      }
+    }
+
+    // Construir envolvente espectral de frecuencias (graves -> agudos) y configurar los tramos de Corte Katana en fases Cruce
+    if (typeof this._buildCruceSpectralPitchEnvelope === 'function') {
+      this._buildCruceSpectralPitchEnvelope(filteredNotes, songBpm);
+    }
+    if (typeof this._configureCruceKatanaSections === 'function') {
+      const madnessKatanaBombs = this._configureCruceKatanaSections(filteredNotes, beatMs, true);
+      if (Array.isArray(madnessKatanaBombs) && madnessKatanaBombs.length > 0) {
+        injectedExtraNotes.push(...madnessKatanaBombs);
       }
     }
 
@@ -29300,6 +30197,7 @@ Object.assign(BeatstarEngine.prototype, {
           anchorNote.type = 'swipe';
           anchorNote.direction = (p % 2 === 0) ? 'up' : 'down';
           anchorNote.swipeDirection = anchorNote.direction;
+          anchorNote._isNormalSplitSwipe = true;
         }
       }
     }
