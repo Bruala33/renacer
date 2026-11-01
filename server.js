@@ -806,10 +806,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 39,
-    version_name: '3.9.0',
-    release_notes: 'Piano Community v3.9.0: Correccion de crash al entrar en fase Cruce y ajustes de velocidad horizontal y Modo Setas.',
-    download_url: '/download/apk?v=39.0',
+    version_code: 40,
+    version_name: '4.0.0',
+    release_notes: 'Piano Community v4.0.0: Reanudar y revivir blindados al final de la cancion, Modo Cruce con mastil de guitarra electrica y flujo lateral izquierdo a derecho.',
+    download_url: '/download/apk?v=40.0',
   });
 });
 
