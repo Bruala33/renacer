@@ -4988,6 +4988,46 @@
         "accuracy": 1.3506383876754247,
         "date": "2026-11-01 16:53:40"
       }
+    ],
+    "top_man_labios_compartidos": [
+      {
+        "name": "Test",
+        "score": 173648,
+        "stars": 3.5,
+        "combo": 105,
+        "accuracy": 7.330551083110367,
+        "date": "2026-11-01 20:29:17"
+      }
+    ],
+    "top_mecano_maquillaje": [
+      {
+        "name": "Test",
+        "score": 444404,
+        "stars": 1,
+        "combo": 147,
+        "accuracy": 34.687789289968265,
+        "date": "2026-11-01 20:32:03"
+      }
+    ],
+    "osu_2646234": [
+      {
+        "name": "Test",
+        "score": 538233,
+        "stars": 1,
+        "combo": 195,
+        "accuracy": 28.446570025432276,
+        "date": "2026-11-01 20:35:10"
+      }
+    ],
+    "top_mocedades_silbame": [
+      {
+        "name": "Test",
+        "score": 103971,
+        "stars": 1,
+        "combo": 47,
+        "accuracy": 21.660940888721296,
+        "date": "2026-11-01 20:37:09"
+      }
     ]
   },
   "global": [
@@ -5065,6 +5105,11 @@
       "name": "Darwin67",
       "total_score": 1628955,
       "clefs": 13
+    },
+    {
+      "name": "Test",
+      "total_score": 1260256,
+      "clefs": 11
     },
     {
       "name": "Llois1",
@@ -5254,6 +5299,10 @@
       {
         "name": "Darwin67",
         "score": 1274297
+      },
+      {
+        "name": "Test",
+        "score": 1260256
       },
       {
         "name": "Llois1",
