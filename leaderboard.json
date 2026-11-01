@@ -4858,14 +4858,25 @@
         "date": "2026-10-31 15:53:33"
       }
     ],
-    "top_miguel_bos_y_bimba_bos_como_un_lobo": [
+    "top_miguel_bos_y_bimba_bos_como_un_lobo": [],
+    "bs_a1fc": [
       {
-        "name": "Test",
-        "score": 645770,
-        "stars": 2,
-        "combo": 153,
-        "accuracy": 53.38963012446033,
-        "date": "2026-10-31 20:40:35"
+        "name": "Ttuk",
+        "score": 13800,
+        "stars": 3.5,
+        "combo": 21,
+        "accuracy": 0.7508978126020242,
+        "date": "2026-11-01 02:02:14"
+      }
+    ],
+    "osu_1496854": [
+      {
+        "name": "Ttuk",
+        "score": 12276,
+        "stars": 3.5,
+        "combo": 21,
+        "accuracy": 2.398569767782652,
+        "date": "2026-11-01 01:59:56"
       }
     ]
   },
@@ -4956,11 +4967,6 @@
       "clefs": 4
     },
     {
-      "name": "Test",
-      "total_score": 645770,
-      "clefs": 6
-    },
-    {
       "name": "MasterPianist",
       "total_score": 600000,
       "clefs": 6
@@ -5018,6 +5024,11 @@
     {
       "name": "Antoniobarfe",
       "total_score": 50577,
+      "clefs": 0
+    },
+    {
+      "name": "Ttuk",
+      "total_score": 38826,
       "clefs": 0
     },
     {
@@ -5134,12 +5145,12 @@
         "score": 869748
       },
       {
-        "name": "Test",
-        "score": 645770
-      },
-      {
         "name": "VAMP",
         "score": 60136
+      },
+      {
+        "name": "Ttuk",
+        "score": 38826
       },
       {
         "name": "Llois",
