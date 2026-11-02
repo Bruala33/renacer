@@ -63,8 +63,8 @@ def sync_built_apk():
     os.makedirs(downloads_dir, exist_ok=True)
     os.makedirs(root_downloads_dir, exist_ok=True)
 
-    # Re-sign with unified app-signing.keystore if available
-    keystore = os.path.join(ROOT_DIR, "app-signing.keystore")
+    # Sign with official debug.keystore to match Gradle debug signature exactly
+    keystore = os.path.join(ROOT_DIR, "debug.keystore")
     apksigner_bin = "/opt/android/sdk/build-tools/36.0.0/apksigner"
     working_apk = os.path.join(ROOT_DIR, "PianoCommunity.apk")
     shutil.copy2(built_apk, working_apk)
@@ -82,7 +82,7 @@ def sync_built_apk():
             ]
             res = subprocess.run(cmd, capture_output=True, text=True)
             if res.returncode == 0:
-                print("Successfully re-signed PianoCommunity.apk with app-signing.keystore")
+                print("Successfully signed PianoCommunity.apk with debug.keystore")
             else:
                 print(f"Warning: apksigner failed ({res.stderr}), using original signature")
         except Exception as e:
