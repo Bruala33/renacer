@@ -806,10 +806,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 40,
-    version_name: '4.0.0',
-    release_notes: 'Piano Community v4.0.0: Reanudar y revivir blindados al final de la cancion, Modo Cruce con mastil de guitarra electrica y flujo lateral izquierdo a derecho.',
-    download_url: '/download/apk?v=40.0',
+    version_code: 46,
+    version_name: '4.6.0',
+    release_notes: 'Piano Community v4.6.0: Cintas esculpidas de lineas seguidas en Fase Arco Voltaico (giros progresivos hasta perpendicular 90°, boomerang, acordeon, surf y helice 180°) y APK actualizado.',
+    download_url: '/download/apk?v=46.0',
   });
 });
 

@@ -6000,6 +6000,28 @@ class BeatstarEngine {
           if (note.type === 'hold') note.holdCompleted = true;
           continue;
         }
+        // Peldaños intermedios de Cintas de Líneas Seguidas (`flow_line` en Fase Arco Voltaico):
+        // premian el seguimiento continuo con el rayo entre dedos; si se escapa un sub-peldaño intermedio,
+        // rompe el combo y avisa sin causar muerte súbita instantánea (los peldaños ancla/final sí exigen acierto real)
+        if (note._isVoltaicFlowSubRung && !note.isMine) {
+          note.missed = true;
+          note.processed = true;
+          this.combo = 0;
+          this.streakCount = 0;
+          this.multiplier = 1;
+          this._lastUiCombo = 0;
+          this._lastUiMult = 1;
+          if (this.ui && typeof this.ui.onScoreUpdate === 'function') {
+            const maxSc = Math.max(1, this.maxPossibleScore || 1);
+            const scPct = Math.min(100.0, (this.score / maxSc) * 100);
+            this.ui.onScoreUpdate(this.score, 0, this.stars, 1, this.currentMedalTier, scPct, 100.0);
+          }
+          if (!this._lastVoltaicFlowSlipMs || (currentTime - this._lastVoltaicFlowSlipMs) > 320) {
+            this._lastVoltaicFlowSlipMs = currentTime;
+            this.addJudgement('¡SIGUE LA FORMA!', '#f59e0b', note.lane);
+          }
+          continue;
+        }
         note.missed = true;
         note.processed = true;
         note.missHighlight = true;
@@ -23132,17 +23154,300 @@ class BeatstarEngine {
       const deg = Math.PI / 180;
       const slotBaseU = [-0.39, -0.13, 0.13, 0.39];
       const injectedMines = [];
+      const injectedFlowRungs = [];
+      const placedRibbons = [];
       const voltaicNotesInPass = [];
       let voltaicSeq = 0;
       let gateCounter = 0;
       let streamIdCounter = 1;
+      let ribbonIdCounter = 1;
       let lastWaveGateMs = -9999;
       let lastThunderClapMs = -9999;
       let lastMineMs = -9999;
       let lastBombWallMs = -9999;
 
+      // Colores cromáticos progresivos para las Cintas de Líneas Seguidas (`flow_line`): Cian -> Menta -> Oro -> Magenta
+      const evalRibbonRungPalette = (uProg, isFinale) => {
+        if (isFinale) return { main: '#f43f5e', sec: '#fde047', rgba: 'rgba(244, 63, 94, 0.30)' };
+        if (uProg < 0.34) return { main: '#00f2fe', sec: '#38bdf8', rgba: 'rgba(0, 242, 254, 0.24)' };
+        if (uProg < 0.67) return { main: '#34d399', sec: '#00f2fe', rgba: 'rgba(52, 211, 153, 0.25)' };
+        return { main: '#fde047', sec: '#f43f5e', rgba: 'rgba(253, 224, 71, 0.26)' };
+      };
+
+      // Generador de los 8 Arquetipos de Cintas Esculpidas de Líneas Seguidas (`flow_line`)
+      // Todas comienzan suavemente en horizontal (0°) para enganchar los dedos con fluidez total y esculpir formas únicas
+      const buildSculptedRibbonSpecs = (archIdx, dirSign) => {
+        const specs = [];
+        const kindIdx = ((archIdx % 8) + 8) % 8;
+        if (kindIdx === 0) {
+          // 0. HELIX_TO_PERPENDICULAR: 0° -> 5° -> 11° -> 19° -> 29° -> 41° -> 54° -> 67° -> 79° -> 90° (¡Perpendicular!)
+          const degs = [0, 5, 11, 19, 29, 41, 54, 67, 79, 90];
+          for (let s = 0; s < degs.length; s++) {
+            const u = s / (degs.length - 1);
+            specs.push({
+              angleDeg: degs[s] * dirSign,
+              widthRatio: 0.78 - 0.33 * Math.sin(u * Math.PI * 0.5),
+              centerU: 0.0,
+              liftY: -0.095 * Math.sin(u * Math.PI * 0.5),
+              spanMode: 'normal',
+              isAnchor: (s === 0 || s === degs.length - 1),
+              archetype: 'HELIX_TO_PERPENDICULAR'
+            });
+          }
+        } else if (kindIdx === 1) {
+          // 1. BOOMERANG_90_RETURN: 0° -> 12° -> 28° -> 48° -> 70° -> 90° (Perpendicular) -> 70° -> 48° -> 28° -> 12° -> 0°
+          const degs = [0, 12, 28, 48, 70, 90, 70, 48, 28, 12, 0];
+          for (let s = 0; s < degs.length; s++) {
+            const u = s / (degs.length - 1);
+            const sinPeak = Math.sin(u * Math.PI);
+            specs.push({
+              angleDeg: degs[s] * dirSign,
+              widthRatio: 0.78 - 0.33 * sinPeak,
+              centerU: 0.0,
+              liftY: -0.095 * sinPeak,
+              spanMode: 'normal',
+              isAnchor: (s === 0 || s === 5 || s === degs.length - 1),
+              archetype: 'BOOMERANG_90_RETURN'
+            });
+          }
+        } else if (kindIdx === 2) {
+          // 2. WINDSHIELD_PENDULUM_FAN: Abanico S-Curve 0° -> +64° -> 0° -> -64° -> 0°
+          const degs = [0, 20, 42, 64, 38, 0, -38, -64, -42, -18, 0];
+          for (let s = 0; s < degs.length; s++) {
+            const absRatio = Math.abs(degs[s]) / 64.0;
+            specs.push({
+              angleDeg: degs[s] * dirSign,
+              widthRatio: 0.75 - 0.22 * absRatio,
+              centerU: 0.05 * Math.sin((s / (degs.length - 1)) * Math.PI * 2) * dirSign,
+              liftY: -0.065 * absRatio,
+              spanMode: 'normal',
+              isAnchor: (s === 0 || s === 3 || s === 7 || s === degs.length - 1),
+              archetype: 'WINDSHIELD_PENDULUM_FAN'
+            });
+          }
+        } else if (kindIdx === 3) {
+          // 3. HOURGLASS_ACCORDION: Reloj de Arena (Pinza al centro y Expansión amplia con onda suave)
+          const widths = [0.84, 0.68, 0.50, 0.34, 0.30, 0.46, 0.66, 0.82, 0.88];
+          const degs = [0, 5, 11, 16, 0, -16, -11, -5, 0];
+          for (let s = 0; s < widths.length; s++) {
+            const wR = widths[s];
+            specs.push({
+              angleDeg: degs[s] * dirSign,
+              widthRatio: wR,
+              centerU: 0.0,
+              liftY: -0.03 * Math.sin((s / (widths.length - 1)) * Math.PI),
+              spanMode: (wR <= 0.35) ? 'pinch' : ((wR >= 0.82) ? 'wide' : 'normal'),
+              isAnchor: (s === 0 || s === 4 || s === widths.length - 1),
+              archetype: 'HOURGLASS_ACCORDION'
+            });
+          }
+        } else if (kindIdx === 4) {
+          // 4. SLALOM_SURF_RAIL: Carril compacto que surfea de lado a lado con peralte dinámico
+          const centers = [0.00, -0.09, -0.19, -0.24, -0.12, 0.06, 0.19, 0.24, 0.12, 0.00];
+          const degs = [0, -9, -19, -25, -10, 10, 21, 25, 11, 0];
+          for (let s = 0; s < centers.length; s++) {
+            specs.push({
+              angleDeg: degs[s] * dirSign,
+              widthRatio: 0.45,
+              centerU: centers[s] * dirSign,
+              liftY: -0.035 * Math.sin((s / (centers.length - 1)) * Math.PI),
+              spanMode: 'normal',
+              isAnchor: (s === 0 || s === 3 || s === 7 || s === centers.length - 1),
+              archetype: 'SLALOM_SURF_RAIL'
+            });
+          }
+        } else if (kindIdx === 5) {
+          // 5. PROPELLER_180_SPIN: Hélice completa de media vuelta continua 0° -> 90° -> 180°
+          const degs = [0, 15, 32, 51, 71, 90, 109, 129, 148, 165, 180];
+          for (let s = 0; s < degs.length; s++) {
+            const u = s / (degs.length - 1);
+            const sinPeak = Math.sin(u * Math.PI);
+            specs.push({
+              angleDeg: degs[s] * dirSign,
+              widthRatio: 0.56 - 0.12 * sinPeak,
+              centerU: 0.0,
+              liftY: -0.10 * sinPeak,
+              spanMode: 'normal',
+              isAnchor: (s === 0 || s === 5 || s === degs.length - 1),
+              archetype: 'PROPELLER_180_SPIN'
+            });
+          }
+        } else if (kindIdx === 6) {
+          // 6. ELEVATOR_WAVE_CREST: Ola ascendente vertical que sube por la pista y regresa meciéndose ±22°
+          const lifts = [0.00, -0.04, -0.09, -0.135, -0.155, -0.13, -0.085, -0.035, 0.00];
+          const degs = [0, 7, 15, 22, 0, -22, -15, -7, 0];
+          for (let s = 0; s < lifts.length; s++) {
+            specs.push({
+              angleDeg: degs[s] * dirSign,
+              widthRatio: 0.74 - 0.08 * Math.sin((s / (lifts.length - 1)) * Math.PI),
+              centerU: 0.0,
+              liftY: lifts[s],
+              spanMode: 'normal',
+              isAnchor: (s === 0 || s === 4 || s === lifts.length - 1),
+              archetype: 'ELEVATOR_WAVE_CREST'
+            });
+          }
+        } else {
+          // 7. DNA_SPIRAL_TWIST: Doble hélice con torsión hasta 78° + respiración de anchura y micro-oscilación
+          const degs = [0, 14, 30, 48, 66, 78, 60, 38, 18, 0];
+          const widths = [0.78, 0.64, 0.48, 0.41, 0.45, 0.44, 0.52, 0.64, 0.74, 0.80];
+          for (let s = 0; s < degs.length; s++) {
+            const u = s / (degs.length - 1);
+            specs.push({
+              angleDeg: degs[s] * dirSign,
+              widthRatio: widths[s],
+              centerU: 0.085 * Math.sin(u * Math.PI * 2) * dirSign,
+              liftY: -0.085 * Math.sin(u * Math.PI),
+              spanMode: 'normal',
+              isAnchor: (s === 0 || s === 5 || s === degs.length - 1),
+              archetype: 'DNA_SPIRAL_TWIST'
+            });
+          }
+        }
+        return specs;
+      };
+
+      const isInsideOrNearRibbon = (tMs, marginMs = 340) => {
+        for (let r = 0; r < placedRibbons.length; r++) {
+          const rb = placedRibbons[r];
+          if (tMs >= rb.startMs - marginMs && tMs <= rb.endMs + marginMs) return true;
+        }
+        return false;
+      };
+
+      // Pre-pase: Planificar entre 1 y 3 Cintas de Líneas Seguidas (`flow_line`) no repetitivas en cada ventana Voltaica
+      const songSeed = Math.abs(Math.round((notesArray.length * 7) + (beatMs * 3)));
+      const permTail = [1, 2, 3, 4, 5, 6, 7];
+      for (let p = 0; p < permTail.length - 1; p++) {
+        const swapIdx = p + ((songSeed + p * 3) % (permTail.length - p));
+        const tmp = permTail[p];
+        permTail[p] = permTail[swapIdx];
+        permTail[swapIdx] = tmp;
+      }
+      // Garantizar que la primera cinta muestre el giro continuo horizontal -> perpendicular (0° -> 5° -> 11° -> ... -> 90°)
+      const archetypeDeck = [0, ...permTail];
+      let deckCursor = 0;
+
+      for (let w = 0; w < voltaicWindows.length; w++) {
+        const win = voltaicWindows[w];
+        const winDur = win.endMs - win.startMs;
+        if (winDur < 2100) continue;
+
+        const targetFracs = (winDur >= 7800)
+          ? [0.14, 0.46, 0.76]
+          : ((winDur >= 4400) ? [0.20, 0.64] : [0.36]);
+        let prevRibEnd = win.startMs + 220;
+
+        for (let f = 0; f < targetFracs.length; f++) {
+          const archIdx = archetypeDeck[deckCursor % archetypeDeck.length];
+          const dirSign = (((deckCursor + songSeed) % 2) === 0) ? 1 : -1;
+          deckCursor++;
+
+          const specs = buildSculptedRibbonSpecs(archIdx, dirSign);
+          const stepMs = Math.max(94, Math.min(122, Math.round(beatMs * 0.24)));
+          const ribDurMs = (specs.length - 1) * stepMs;
+          const idealStart = win.startMs + winDur * targetFracs[f];
+          const minStart = Math.max(win.startMs + 380, prevRibEnd + Math.max(1450, Math.round(beatMs * 3.0)));
+          const maxStart = win.endMs - ribDurMs - 380;
+          if (minStart > maxStart) continue;
+
+          // Anclar el inicio de la cinta al pulso musical real más cercano de la canción
+          let snappedStart = Math.max(minStart, Math.min(maxStart, Math.round(idealStart)));
+          let bestBeatDist = 420;
+          let formationAtRib = 0;
+          for (let ni = 0; ni < notesArray.length; ni++) {
+            const cand = notesArray[ni];
+            if (!cand || cand._dropDuplicateCollapsed || cand.isMine) continue;
+            if (isMadness && cand._madnessPhase !== 'cruce') continue;
+            const ct = cand.timestamp_ms ?? 0;
+            if (ct < minStart || ct > maxStart) continue;
+            const d = Math.abs(ct - idealStart);
+            if (d < bestBeatDist) {
+              bestBeatDist = d;
+              snappedStart = Math.round(ct);
+              formationAtRib = cand._cruceFormationIdx || 0;
+            }
+          }
+
+          const ribEnd = snappedStart + ribDurMs;
+          const maxAbsDeg = specs.reduce((acc, s) => Math.max(acc, Math.abs(s.angleDeg)), 0);
+          const postMarginMs = (maxAbsDeg >= 70) ? 295 : 235;
+
+          // Absorber notas crudas que solapen con la ventana de la cinta esculpida
+          for (let ni = 0; ni < notesArray.length; ni++) {
+            const rawN = notesArray[ni];
+            if (!rawN || rawN._dropDuplicateCollapsed || rawN.isMine) continue;
+            if (isMadness && rawN._madnessPhase !== 'cruce') continue;
+            const rt = rawN.timestamp_ms ?? 0;
+            if (rt >= snappedStart - 175 && rt <= ribEnd + postMarginMs) {
+              rawN._dropDuplicateCollapsed = true;
+            }
+          }
+
+          const curRibbonId = ribbonIdCounter++;
+          let prevRungRef = null;
+          for (let s = 0; s < specs.length; s++) {
+            const sp = specs[s];
+            const uProg = s / Math.max(1, specs.length - 1);
+            const isFinale = (s === specs.length - 1);
+            const pal = evalRibbonRungPalette(uProg, isFinale);
+            const rungT = snappedStart + s * stepMs;
+            const approxSlot = sp.centerU < -0.12 ? 0 : (sp.centerU > 0.12 ? 3 : ((s % 2 === 0) ? 1 : 2));
+            const rungNote = {
+              id: 955000 + curRibbonId * 64 + s,
+              lane: approxSlot,
+              _cruceSlot: approxSlot,
+              _cruceTargetU: sp.centerU,
+              _cruceLocalU: sp.centerU,
+              _cruceSpawnU: sp.centerU * 0.5,
+              _crossBeamId: approxSlot,
+              _cruceFormationIdx: formationAtRib,
+              _cruceBilateralDir: 1.0,
+              type: 'tap',
+              isMine: false,
+              _isVoltaicArc: true,
+              _voltaicBeatMs: beatMs,
+              _voltaicKind: 'flow_line',
+              _voltaicRibbonId: curRibbonId,
+              _voltaicRibbonArchetype: sp.archetype,
+              _voltaicRungIndex: s,
+              _voltaicRibbonLength: specs.length,
+              _isVoltaicRibbonStart: (s === 0),
+              _isVoltaicRibbonFinale: isFinale,
+              _isVoltaicFlowSubRung: !sp.isAnchor,
+              _voltaicPrevRung: prevRungRef,
+              _voltaicFlowAngleRad: sp.angleDeg * deg,
+              _voltaicFlowAngleDeg: sp.angleDeg,
+              _voltaicFlowWidthRatio: sp.widthRatio,
+              _voltaicFlowCenterU: sp.centerU,
+              _voltaicFlowLiftY: sp.liftY,
+              _voltaicFlowSpanMode: sp.spanMode,
+              _voltaicFlowColor: pal.main,
+              _voltaicFlowSecColor: pal.sec,
+              _voltaicFlowGlowRgba: pal.rgba,
+              timestamp_ms: rungT,
+              end_timestamp_ms: rungT,
+              duration_ms: 0,
+              hit: false,
+              missed: false,
+              holding: false,
+              processed: false,
+              holdCompleted: false,
+              _madnessPhase: isMadness ? 'cruce' : undefined
+            };
+            prevRungRef = rungNote;
+            injectedFlowRungs.push(rungNote);
+            voltaicNotesInPass.push(rungNote);
+          }
+
+          placedRibbons.push({ startMs: snappedStart, endMs: ribEnd, ribbonId: curRibbonId });
+          prevRibEnd = ribEnd;
+        }
+      }
+
       // Helper para crear una Línea de 4 Bombas Rojas (`bomb_wall`) a través de los 4 carriles (0, 1, 2, 3)
       const spawnBombWallAt = (wallTimeMs, baseId, formationIdx) => {
+        if (isInsideOrNearRibbon(wallTimeMs, 430)) return false;
         for (let s = 0; s < 4; s++) {
           const wallMine = {
             id: baseId + s,
@@ -23178,6 +23483,7 @@ class BeatstarEngine {
         }
         lastMineMs = wallTimeMs;
         lastBombWallMs = wallTimeMs;
+        return true;
       };
 
       const slalomPatterns = [
@@ -23251,14 +23557,16 @@ class BeatstarEngine {
         // 0. LÍNEA DE 4 BOMBAS ROJAS (`bomb_wall`): obliga sí o sí a soltar al menos un dedo para apagar el rayo
         if (nt >= winStartMs + 850 &&
             nt <= winEndMs - 650 &&
+            !isInsideOrNearRibbon(nt, 430) &&
             (voltaicSeq % 7 === 4) &&
             (nt - lastBombWallMs >= Math.max(2100, beatMs * 4.2)) &&
             (nt - lastMineMs >= Math.max(950, beatMs * 2.0)) &&
             dtPrev >= 170 && dtNext >= 170) {
-          n._dropDuplicateCollapsed = true;
-          spawnBombWallAt(nt, 975000 + i * 8, n._cruceFormationIdx || 0);
-          streamIdCounter++;
-          continue;
+          if (spawnBombWallAt(nt, 975000 + i * 8, n._cruceFormationIdx || 0)) {
+            n._dropDuplicateCollapsed = true;
+            streamIdCounter++;
+            continue;
+          }
         }
 
         voltaicNotesInPass.push(n);
@@ -23285,7 +23593,7 @@ class BeatstarEngine {
             (nt - lastMineMs >= 360) &&
             dtPrev >= 165) {
           gateCounter++;
-          const gateVariant = gateCounter % 6;
+          const gateVariant = gateCounter % 8;
           const tiltSign = ((gateCounter + origSlot) % 2 === 0) ? 1 : -1;
           n._voltaicKind = 'wave_gate';
           n._voltaicGateSign = tiltSign;
@@ -23294,52 +23602,68 @@ class BeatstarEngine {
           n._cruceSpawnU = 0.0;
 
           if (gateVariant === 0) {
-            // Variante A: Inclinación pronunciada (+32° o -32°) — exige adelantar mucho un pulgar respecto al otro
+            // Variante A: Inclinación pronunciada (+34° o -34°) — exige adelantar claramente un pulgar respecto al otro
             n._voltaicGateSubType = 'steep_tilt';
-            n._voltaicGateAngleRad = tiltSign * 32 * deg;
-            n._voltaicGateStartAngleRad = tiltSign * 32 * deg;
-            n._voltaicGateWidthRatio = 0.78;
+            n._voltaicGateAngleRad = tiltSign * 34 * deg;
+            n._voltaicGateStartAngleRad = tiltSign * 34 * deg;
+            n._voltaicGateWidthRatio = 0.76;
             n._voltaicGateCenterU = 0.0;
           } else if (gateVariant === 1) {
             // Variante B: Barra Rotatoria en Caída ('rotating') — gira suavemente desde el ángulo opuesto hasta su ángulo objetivo al impactar
-            const finalAng = tiltSign * 24 * deg;
-            const startAng = -tiltSign * 22 * deg;
+            const finalAng = tiltSign * 28 * deg;
+            const startAng = -tiltSign * 24 * deg;
             n._voltaicGateSubType = 'rotating';
             n._voltaicGateAngleRad = finalAng;
             n._voltaicGateStartAngleRad = startAng;
-            n._voltaicGateWidthRatio = 0.76;
+            n._voltaicGateWidthRatio = 0.74;
             n._voltaicGateCenterU = 0.0;
           } else if (gateVariant === 2) {
-            // Variante C: Barra Desplazada a un Lado ('lateral_shift' izquierda o derecha con inclinación ±22°)
+            // Variante C: Barra Desplazada a un Lado ('lateral_shift' izquierda o derecha con inclinación ±24°)
             const sideSign = (gateCounter % 4 === 2) ? -1 : 1;
             n._voltaicGateSubType = 'lateral_shift';
-            n._voltaicGateAngleRad = sideSign * 22 * deg;
+            n._voltaicGateAngleRad = sideSign * 24 * deg;
             n._voltaicGateStartAngleRad = sideSign * 10 * deg;
             n._voltaicGateWidthRatio = 0.50;
             n._voltaicGateCenterU = sideSign * 0.21;
             n._cruceTargetU = n._voltaicGateCenterU;
             n._cruceLocalU = n._voltaicGateCenterU;
           } else if (gateVariant === 3) {
-            // Variante D: Pinza Compacta ('pinch_gate') — barra corta que exige juntar ambos pulgares e inclinar ±18°
+            // Variante D: Pinza Compacta ('pinch_gate') — barra corta que exige juntar ambos pulgares e inclinar ±20°
             n._voltaicGateSubType = 'pinch_gate';
-            n._voltaicGateAngleRad = tiltSign * 18 * deg;
-            n._voltaicGateStartAngleRad = tiltSign * 18 * deg;
+            n._voltaicGateAngleRad = tiltSign * 20 * deg;
+            n._voltaicGateStartAngleRad = tiltSign * 20 * deg;
             n._voltaicGateWidthRatio = 0.42;
             n._voltaicGateCenterU = 0.0;
           } else if (gateVariant === 4) {
             // Variante E: Puerta Oscilante ('pendulum') — balancea su ángulo y se desliza lateralmente mientras cae
-            const finalAng = tiltSign * 26 * deg;
+            const finalAng = tiltSign * 28 * deg;
             n._voltaicGateSubType = 'rotating';
             n._voltaicGateAngleRad = finalAng;
             n._voltaicGateStartAngleRad = -finalAng * 0.85;
             n._voltaicGateSwayAmpU = 0.14 * tiltSign;
             n._voltaicGateWidthRatio = 0.72;
             n._voltaicGateCenterU = 0.0;
-          } else {
-            // Variante F: Apertura Ancha ('wide_gate') — barra ancha con inclinación media ±15°
+          } else if (gateVariant === 5) {
+            // Variante F: Tajo Diagonal Intenso (±48°) ligeramente elevado para posicionar un pulgar arriba y otro abajo
+            n._voltaicGateSubType = 'steep_tilt';
+            n._voltaicGateAngleRad = tiltSign * 48 * deg;
+            n._voltaicGateStartAngleRad = tiltSign * 22 * deg;
+            n._voltaicGateWidthRatio = 0.62;
+            n._voltaicGateCenterU = 0.0;
+            n._voltaicGateLiftY = -0.05;
+          } else if (gateVariant === 6) {
+            // Variante G: Arco Elevado ('high_bar') — sube ambos pulgares ligeramente hacia arriba con inclinación suave
             n._voltaicGateSubType = 'wide_gate';
-            n._voltaicGateAngleRad = tiltSign * 15 * deg;
-            n._voltaicGateStartAngleRad = tiltSign * 15 * deg;
+            n._voltaicGateAngleRad = tiltSign * 12 * deg;
+            n._voltaicGateStartAngleRad = -tiltSign * 12 * deg;
+            n._voltaicGateWidthRatio = 0.78;
+            n._voltaicGateCenterU = 0.0;
+            n._voltaicGateLiftY = -0.09;
+          } else {
+            // Variante H: Apertura Ancha ('wide_gate') — barra ancha con inclinación media ±16°
+            n._voltaicGateSubType = 'wide_gate';
+            n._voltaicGateAngleRad = tiltSign * 16 * deg;
+            n._voltaicGateStartAngleRad = tiltSign * 16 * deg;
             n._voltaicGateWidthRatio = 0.86;
             n._voltaicGateCenterU = 0.0;
           }
@@ -23394,6 +23718,7 @@ class BeatstarEngine {
           spawnBombWallAt(wallTime, 978000 + i * 8, n._cruceFormationIdx || 0);
           streamIdCounter++;
         } else if (nt >= winStartMs + 700 &&
+            !isInsideOrNearRibbon(nt, 340) &&
             (nt - lastMineMs >= Math.max(1050, beatMs * 2.1)) &&
             (nt - lastWaveGateMs >= 380) &&
             (nt - lastThunderClapMs >= 420)) {
@@ -23432,6 +23757,7 @@ class BeatstarEngine {
       }
 
       // Garantizar que cada ventana de Fase Arco Voltaico tenga al menos 1 o 2 Líneas de 4 Bombas (`bomb_wall`) bien espaciadas
+      // en huecos limpios fuera de las Cintas de Líneas Seguidas (`flow_line`)
       for (let w = 0; w < voltaicWindows.length; w++) {
         const win = voltaicWindows[w];
         const winDur = win.endMs - win.startMs;
@@ -23439,16 +23765,24 @@ class BeatstarEngine {
           (m) => m && m._isVoltaicBombWallLeader && m.timestamp_ms >= win.startMs && m.timestamp_ms <= win.endMs
         );
         if (existingWalls.length === 0 && winDur >= 2600) {
-          const candidateFractions = (winDur >= 5800) ? [0.36, 0.72] : [0.50];
-          for (let c = 0; c < candidateFractions.length; c++) {
-            const wallT = Math.round(win.startMs + winDur * candidateFractions[c]);
+          const maxWallsWanted = (winDur >= 7200) ? 2 : 1;
+          const probeFractions = [0.33, 0.62, 0.48, 0.28, 0.72, 0.56, 0.82];
+          let spawnedInWin = 0;
+          let lastWinWallT = -99999;
+          for (let c = 0; c < probeFractions.length && spawnedInWin < maxWallsWanted; c++) {
+            const wallT = Math.round(win.startMs + winDur * probeFractions[c]);
+            if (wallT - lastWinWallT < 2000 || lastWinWallT - wallT > -2000 && spawnedInWin > 0 && Math.abs(wallT - lastWinWallT) < 2000) continue;
+            if (isInsideOrNearRibbon(wallT, 440)) continue;
             for (let nIdx = 0; nIdx < voltaicNotesInPass.length; nIdx++) {
               const vn = voltaicNotesInPass[nIdx];
-              if (vn && Math.abs((vn.timestamp_ms ?? 0) - wallT) <= 280) {
+              if (vn && vn._voltaicKind !== 'flow_line' && Math.abs((vn.timestamp_ms ?? 0) - wallT) <= 280) {
                 vn._dropDuplicateCollapsed = true;
               }
             }
-            spawnBombWallAt(wallT, 989000 + w * 32 + c * 8, 0);
+            if (spawnBombWallAt(wallT, 989000 + w * 32 + c * 8, 0)) {
+              spawnedInWin++;
+              lastWinWallT = wallT;
+            }
           }
         }
       }
@@ -23456,8 +23790,7 @@ class BeatstarEngine {
       // Pase de verificación matemática de solvabilidad:
       // 1. Si hay una Línea de 4 Bombas (`_isVoltaicBombWall`), garantizar un margen libre de ±250ms sin ninguna nota capturable
       //    para que el jugador siempre pueda soltar los dedos, dejar pasar la línea de bombas y volver a apoyar.
-      // 2. Si hay un Orbe Rojo lateral (`side_dodge`), garantizar que no coincida con `wave_gate` ni `thunder_clap`, y que los
-      //    Nodos Conductores cercanos estén al menos a 2 carriles de distancia.
+      // 2. Ninguna mina coincide jamás con peldaños `flow_line`, `wave_gate` ni `thunder_clap`.
       for (let mIdx = 0; mIdx < voltaicNotesInPass.length; mIdx++) {
         const m = voltaicNotesInPass[mIdx];
         if (!m || !m._isVoltaicMine || m._dropDuplicateCollapsed) continue;
@@ -23468,6 +23801,14 @@ class BeatstarEngine {
           const other = voltaicNotesInPass[nIdx];
           if (!other || other === m || other._isVoltaicMine || other._dropDuplicateCollapsed) continue;
           const dt = Math.abs((other.timestamp_ms ?? 0) - mt);
+
+          if (other._voltaicKind === 'flow_line') {
+            if (dt <= 310) {
+              m._dropDuplicateCollapsed = true;
+              break;
+            }
+            continue;
+          }
 
           if (m._isVoltaicBombWall) {
             if (dt <= 245) {
@@ -23501,7 +23842,9 @@ class BeatstarEngine {
         }
       }
 
-      return injectedMines.filter((mn) => mn && !mn._dropDuplicateCollapsed);
+      const validRungs = injectedFlowRungs.filter((rn) => rn && !rn._dropDuplicateCollapsed);
+      const validMines = injectedMines.filter((mn) => mn && !mn._dropDuplicateCollapsed);
+      return validRungs.concat(validMines);
     }
 
     /**
@@ -24405,18 +24748,24 @@ class BeatstarEngine {
       const slot = Math.max(0, Math.min(3, Math.round(note._cruceSlot ?? note.lane ?? 1)));
       const clampedP = Math.max(0.0, Math.min(1.0, progress));
 
-      if (note && note._isVoltaicArc && (note._voltaicKind === 'wave_gate' || note._voltaicKind === 'thunder_clap')) {
+      if (note && note._isVoltaicArc && (note._voltaicKind === 'wave_gate' || note._voltaicKind === 'thunder_clap' || note._voltaicKind === 'flow_line')) {
         const ep0 = this.getCruceBeamEndpointsLocal(1, lineSt, 1.0, this._cruceVoltaicEpL || (this._cruceVoltaicEpL = {}));
         const ep1 = this.getCruceBeamEndpointsLocal(2, lineSt, 1.0, this._cruceVoltaicEpR || (this._cruceVoltaicEpR = {}));
         const xOrig = (ep0.xOrigin + ep1.xOrigin) * 0.5;
         const yOrig = (ep0.yOrigin + ep1.yOrigin) * 0.5;
+        const h = Math.max(400, this.height || 640);
         let targetX = 0;
-        if (note._voltaicKind === 'wave_gate') {
+        let targetY = 0;
+        if (note._voltaicKind === 'flow_line') {
+          targetX = (note._voltaicFlowCenterU || 0) * lineSt.spanW;
+          targetY = (note._voltaicFlowLiftY || 0) * h;
+        } else if (note._voltaicKind === 'wave_gate') {
           const gp = this._getVoltaicGateLivePose(note, progress);
           targetX = gp.centerU * lineSt.spanW;
+          targetY = (note._voltaicGateLiftY || 0) * h;
         }
         target.x = xOrig * (1.0 - progress) + targetX * progress;
-        target.y = yOrig * (1.0 - progress);
+        target.y = yOrig * (1.0 - progress) + targetY * progress;
         return target;
       }
 
@@ -24640,6 +24989,17 @@ class BeatstarEngine {
     }
 
     /**
+     * Diferencia angular aguda sin dirección (módulo π, rango `[0, π/2]`) entre el rayo entre dos dedos
+     * y una línea objetivo: como un rayo láser no tiene polaridad (`+90°` y `-90°` son la misma recta perpendicular,
+     * y `0°` y `180°` son la misma recta horizontal), evita saltos o falsos fallos al girar hasta perpendicular o 180°.
+     */
+    _voltaicLineAngleDiff(a, b) {
+      let d = ((a - b) % Math.PI + Math.PI) % Math.PI;
+      if (d > Math.PI * 0.5) d = Math.PI - d;
+      return d;
+    }
+
+    /**
      * Actualiza en tiempo real los dos extremos `(x1, y1)` y `(x2, y2)` de El Rayo Entre Pulgares (La Línea de Juicio Viva):
      * - Con 2 dedos en pantalla (`activeTouches >= 2`): el rayo está ENCENDIDO (`rayActive = true`) y une exactamente las coordenadas
      *   `(X1, Y1)` y `(X2, Y2)` de ambos dedos. El jugador puede juntar ambos dedos en un lado (ej. carriles 2-3) para hacer el rayo
@@ -24685,24 +25045,58 @@ class BeatstarEngine {
       let targetY2 = va.y2;
 
       if (pts.length >= 2) {
-        pts.sort((a, b) => a.x - b.x);
-        const pLeft = pts[0];
-        const pRight = pts[pts.length - 1];
-        targetX1 = Math.max(16, Math.min(w - 16, pLeft.x));
-        targetY1 = Math.max(h * 0.25, Math.min(h * 0.95, pLeft.y));
-        targetX2 = Math.max(16, Math.min(w - 16, pRight.x));
-        targetY2 = Math.max(h * 0.25, Math.min(h * 0.95, pRight.y));
-        if (Math.hypot(targetX2 - targetX1, targetY2 - targetY1) < 28) {
-          const midX = (targetX1 + targetX2) * 0.5;
-          targetX1 = Math.max(16, midX - 16);
-          targetX2 = Math.min(w - 16, midX + 16);
+        // Emparejamiento persistente de los 2 dedos sin reordenar bruscamente por X cuando el jugador gira a 90° (perpendicular) o 180°
+        let p1;
+        let p2;
+        if (va._wasTwoFingers) {
+          const pa = pts[0];
+          const pb = pts[1];
+          const costDirect = (pa.x - va.x1) * (pa.x - va.x1) + (pa.y - va.y1) * (pa.y - va.y1) +
+                             (pb.x - va.x2) * (pb.x - va.x2) + (pb.y - va.y2) * (pb.y - va.y2);
+          const costSwapped = (pb.x - va.x1) * (pb.x - va.x1) + (pb.y - va.y1) * (pb.y - va.y1) +
+                              (pa.x - va.x2) * (pa.x - va.x2) + (pa.y - va.y2) * (pa.y - va.y2);
+          if (costDirect <= costSwapped) {
+            p1 = pa;
+            p2 = pb;
+          } else {
+            p1 = pb;
+            p2 = pa;
+          }
+        } else {
+          pts.sort((a, b) => a.x - b.x);
+          p1 = pts[0];
+          p2 = pts[pts.length - 1];
         }
+        targetX1 = Math.max(16, Math.min(w - 16, p1.x));
+        targetY1 = Math.max(h * 0.16, Math.min(h * 0.96, p1.y));
+        targetX2 = Math.max(16, Math.min(w - 16, p2.x));
+        targetY2 = Math.max(h * 0.16, Math.min(h * 0.96, p2.y));
+        const sepDist = Math.hypot(targetX2 - targetX1, targetY2 - targetY1);
+        if (sepDist < 24) {
+          const midX = (targetX1 + targetX2) * 0.5;
+          const midY = (targetY1 + targetY2) * 0.5;
+          const fallbackAng = Number.isFinite(va.angleRad) ? va.angleRad : 0;
+          const ux = sepDist > 0.5 ? ((targetX2 - targetX1) / sepDist) : Math.cos(fallbackAng);
+          const uy = sepDist > 0.5 ? ((targetY2 - targetY1) / sepDist) : Math.sin(fallbackAng);
+          targetX1 = Math.max(16, Math.min(w - 16, midX - ux * 12));
+          targetY1 = Math.max(h * 0.16, Math.min(h * 0.96, midY - uy * 12));
+          targetX2 = Math.max(16, Math.min(w - 16, midX + ux * 12));
+          targetY2 = Math.max(h * 0.16, Math.min(h * 0.96, midY + uy * 12));
+        }
+        if (!va._wasTwoFingers) {
+          va.x1 = targetX1;
+          va.y1 = targetY1;
+          va.x2 = targetX2;
+          va.y2 = targetY2;
+        }
+        va._wasTwoFingers = true;
         va.activeFingerCount = 2;
         va.rayActive = true;
       } else if (pts.length === 1) {
+        va._wasTwoFingers = false;
         const p = pts[0];
         const fx = Math.max(18, Math.min(w - 18, p.x));
-        const fy = Math.max(h * 0.28, Math.min(h * 0.95, p.y));
+        const fy = Math.max(h * 0.18, Math.min(h * 0.95, p.y));
         va.singleX = fx;
         va.singleY = fy;
         const symX = Math.max(18, Math.min(w - 18, w - fx));
@@ -24721,18 +25115,22 @@ class BeatstarEngine {
         // Al levantar uno de los dos dedos, el rayo láser se apaga para esquivar los Orbes Rojos con Espinas
         va.rayActive = false;
       } else if (this.mouseTouch && Number.isFinite(this.mouseTouch.curX) && Number.isFinite(this.mouseTouch.curY)) {
-        // Soporte en PC con ratón: mantener el botón pulsado activa un rayo compacto alrededor del cursor; soltar el botón lo apaga
+        // Soporte en PC con ratón: mantener el botón pulsado activa un rayo alrededor del cursor; subir el cursor rota suavemente hasta 90°
+        va._wasTwoFingers = false;
         const mx = Math.max(24, Math.min(w - 24, this.mouseTouch.curX));
-        const my = Math.max(h * 0.28, Math.min(h * 0.95, this.mouseTouch.curY));
-        const halfSpan = w * 0.20;
-        const tiltDy = (my - restY) * 0.45;
-        targetX1 = Math.max(16, mx - halfSpan);
-        targetY1 = Math.max(h * 0.25, Math.min(h * 0.95, my - tiltDy));
-        targetX2 = Math.min(w - 16, mx + halfSpan);
-        targetY2 = Math.max(h * 0.25, Math.min(h * 0.95, my + tiltDy));
+        const my = Math.max(h * 0.18, Math.min(h * 0.95, this.mouseTouch.curY));
+        const halfSpan = w * 0.21;
+        const mouseAng = Math.max(-Math.PI * 0.5, Math.min(Math.PI * 0.5, ((restY - my) / (h * 0.28)) * (Math.PI * 0.5)));
+        const dxM = Math.cos(mouseAng) * halfSpan;
+        const dyM = Math.sin(mouseAng) * halfSpan;
+        targetX1 = Math.max(16, Math.min(w - 16, mx - dxM));
+        targetY1 = Math.max(h * 0.16, Math.min(h * 0.96, my - dyM));
+        targetX2 = Math.max(16, Math.min(w - 16, mx + dxM));
+        targetY2 = Math.max(h * 0.16, Math.min(h * 0.96, my + dyM));
         va.activeFingerCount = 2;
         va.rayActive = true;
       } else {
+        va._wasTwoFingers = false;
         targetX1 = w * 0.14;
         targetY1 = restY;
         targetX2 = w * 0.86;
@@ -24816,12 +25214,55 @@ class BeatstarEngine {
             this._completeVoltaicNoteCatch(note, currentTime, scrPt.x, scrPt.y);
             caughtAny = true;
           }
+        } else if (kind === 'flow_line') {
+          // Peldaño de Cinta Esculpida de Líneas Seguidas (`flow_line`):
+          // validación ordenada peldaño a peldaño comparando ángulo sin dirección (0°..90°..180°), posición y anchura
+          if (dtMs <= 72 && dtMs >= -190) {
+            if (note._voltaicPrevRung && !note._voltaicPrevRung.hit && !note._voltaicPrevRung.missed && dtMs > 22) {
+              continue;
+            }
+            const targetLocal = this.getCruceNoteLocalPos(
+              note,
+              1.0,
+              st,
+              1.0,
+              this._cruceFlowTargetLocalScratch || (this._cruceFlowTargetLocalScratch = { x: 0, y: 0 })
+            );
+            const targetScr = this.cruceLocalToScreen(
+              targetLocal.x,
+              targetLocal.y,
+              currentTime,
+              this._cruceFlowTargetScrScratch || (this._cruceFlowTargetScrScratch = {})
+            );
+            const targetSegDist = this._segmentPointDistance(va.x1, va.y1, va.x2, va.y2, targetScr.x, targetScr.y);
+            const bestSegDist = Math.min(segDist, targetSegDist);
+            const midDistX = Math.min(Math.abs(rayMidX - scrPt.x), Math.abs(rayMidX - targetScr.x));
+            const midDistY = Math.min(Math.abs(rayMidY - scrPt.y), Math.abs(rayMidY - targetScr.y));
+            const hScreen = Math.max(400, this.height || 640);
+            const midAligned = (midDistX <= Math.max(96, w * 0.29)) && (midDistY <= Math.max(118, hScreen * 0.20));
+
+            const reqAngle = note._voltaicFlowAngleRad || 0;
+            const angleDiff = this._voltaicLineAngleDiff(va.angleRad, reqAngle);
+            const maxAngleTol = note._isVoltaicFlowSubRung ? 0.44 : 0.47;
+
+            let spanOk = true;
+            if (note._voltaicFlowSpanMode === 'pinch') {
+              spanOk = (normSpan <= 0.62);
+            } else if (note._voltaicFlowSpanMode === 'wide') {
+              spanOk = (normSpan >= 0.46);
+            }
+
+            if (bestSegDist <= 86 && midAligned && angleDiff <= maxAngleTol && spanOk) {
+              this._completeVoltaicNoteCatch(note, currentTime, targetScr.x, targetScr.y);
+              caughtAny = true;
+            }
+          }
         } else if (kind === 'wave_gate') {
           if (Math.abs(dtMs) <= 225 && segDist <= 88) {
             const gp = this._getVoltaicGateLivePose(note, rawP);
             const reqAngle = gp.angleRad;
-            const angleDiff = Math.abs(va.angleRad - reqAngle);
-            const isTiltedCorrectly = (angleDiff <= 0.36) || (Math.sign(va.angleRad) === Math.sign(reqAngle) && Math.abs(va.angleRad) >= 0.11);
+            const angleDiff = this._voltaicLineAngleDiff(va.angleRad, reqAngle);
+            const isTiltedCorrectly = (angleDiff <= 0.38) || (Math.abs(reqAngle) <= 0.62 && Math.sign(va.angleRad) === Math.sign(reqAngle) && Math.abs(va.angleRad) >= 0.12);
             let spanOk = true;
             if (gp.subType === 'pinch_gate') {
               spanOk = (normSpan <= 0.64);
@@ -24906,19 +25347,50 @@ class BeatstarEngine {
 
       const slot = Math.max(0, Math.min(3, Math.round(note._cruceSlot ?? note.lane ?? 1)));
       const kind = note._voltaicKind || 'conductor';
-      const fxColor = (kind === 'thunder_clap' || kind === 'wave_gate' || note._voltaicColorType === 'yellow')
-        ? '#fde047'
-        : '#00f2fe';
+      const fxColor = (kind === 'flow_line')
+        ? (note._voltaicFlowColor || '#34d399')
+        : ((kind === 'thunder_clap' || kind === 'wave_gate' || note._voltaicColorType === 'yellow')
+          ? '#fde047'
+          : '#00f2fe');
 
       this.laneGlows[slot] = 1.0;
-      if (this.laneFlashTimers) this.laneFlashTimers[slot] = 0.28;
+      if (this.laneFlashTimers) this.laneFlashTimers[slot] = (kind === 'flow_line') ? 0.18 : 0.28;
       if (this.laneFlashColors) this.laneFlashColors[slot] = fxColor;
 
       try {
         this.judgeHit(note, 0, hitX, hitY, null);
       } catch (_) {}
 
-      if (kind === 'thunder_clap') {
+      if (kind === 'flow_line') {
+        const isFinale = Boolean(note._isVoltaicRibbonFinale);
+        const rungIdx = note._voltaicRungIndex || 0;
+        const rungLen = note._voltaicRibbonLength || 8;
+        this._voltaicFlowGlowColor = fxColor;
+        this._voltaicFlowGlowUntilMs = currentTime + 210;
+        if (this._voltaicArcState) {
+          this._voltaicArcState.clapFlash = Math.max(this._voltaicArcState.clapFlash || 0, isFinale ? 1.0 : 0.52);
+          const va = this._voltaicArcState;
+          this._spawnCruceSquareParticles(va.x1, va.y1, fxColor, isFinale ? 10 : 4);
+          this._spawnCruceSquareParticles(va.x2, va.y2, fxColor, isFinale ? 10 : 4);
+        }
+        this._spawnCruceSquareParticles(hitX, hitY, fxColor, isFinale ? 22 : 8);
+        if (isFinale) {
+          this.addScore(280 * (this.multiplier || 1));
+          if (!this._voltaicClapWaves) this._voltaicClapWaves = [];
+          if (this._voltaicClapWaves.length >= 10) this._voltaicClapWaves.shift();
+          this._voltaicClapWaves.push({
+            x: hitX,
+            y: hitY,
+            radius: 18,
+            maxRadius: 150,
+            alpha: 1.0,
+            color: fxColor
+          });
+        } else {
+          this.addScore(65 * (this.multiplier || 1));
+        }
+        this.playVoltaicFlowRungSynth(rungIdx, rungLen, isFinale);
+      } else if (kind === 'thunder_clap') {
         this.addScore(320 * (this.multiplier || 1));
         this._spawnCruceSquareParticles(hitX, hitY, '#fde047', 26);
         this._spawnCruceSquareParticles(hitX, hitY, '#00f2fe', 16);
@@ -24949,10 +25421,41 @@ class BeatstarEngine {
       }
 
       if (this._cruceStringVib && this._cruceStringVib[slot]) {
-        this._cruceStringVib[slot].amp = (kind === 'thunder_clap') ? 16.0 : 12.0;
+        this._cruceStringVib[slot].amp = (kind === 'thunder_clap' || (kind === 'flow_line' && note._isVoltaicRibbonFinale)) ? 16.0 : 11.0;
         this._cruceStringVib[slot].phase = 0;
       }
-      this.emitKeyHit(hitX, hitY, fxColor, kind === 'thunder_clap' ? 26 : 16);
+      this.emitKeyHit(hitX, hitY, fxColor, (kind === 'thunder_clap' || (kind === 'flow_line' && note._isVoltaicRibbonFinale)) ? 24 : (kind === 'flow_line' ? 11 : 16));
+    }
+
+    /**
+     * Glissando armónico cristalino ascendente al esculpir una Cinta de Líneas Seguidas (`flow_line`):
+     * cada línea sube un grado en escala Lidia brillante y culmina en un acorde de quinta en el peldaño final.
+     */
+    playVoltaicFlowRungSynth(rungIdx = 0, totalRungs = 9, isFinale = false) {
+      try {
+        const ctx = this.audioSync && this.audioSync.audioCtx;
+        if (!ctx || ctx.state !== 'running') return;
+        const now = ctx.currentTime;
+        if (this._lastVoltaicFlowAudioTime && (now - this._lastVoltaicFlowAudioTime < 0.030)) return;
+        this._lastVoltaicFlowAudioTime = now;
+
+        const lydianScale = [261.63, 293.66, 329.63, 369.99, 392.00, 440.00, 493.88, 523.25, 587.33, 659.25, 739.99, 783.99];
+        const idx = Math.max(0, Math.min(lydianScale.length - 1, rungIdx));
+        const f0 = lydianScale[idx];
+
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = isFinale ? 'triangle' : 'sine';
+        osc.frequency.setValueAtTime(f0 * 1.02, now);
+        osc.frequency.exponentialRampToValueAtTime(f0 * (isFinale ? 1.5 : 1.0), now + (isFinale ? 0.16 : 0.085));
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.linearRampToValueAtTime(isFinale ? 0.056 : 0.036, now + 0.004);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + (isFinale ? 0.19 : 0.095));
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + (isFinale ? 0.20 : 0.10));
+      } catch (_) {}
     }
 
     playVoltaicArcSynth(slot = 0, isThunderClap = false, isWaveGate = false) {
@@ -25757,20 +26260,27 @@ class BeatstarEngine {
 
       if (isRayActive || shortFlash > 0.05) {
         const isShorting = shortFlash > 0.15;
-        // 1. Haz central brillante (resplandor ancho cian/dorado o rojo carmesí en cortocircuito)
+        const isFlowSculpting = Boolean(!isShorting && this._voltaicFlowGlowUntilMs && currentTime <= this._voltaicFlowGlowUntilMs);
+        const sculptCol = this._voltaicFlowGlowColor || '#34d399';
+        // 1. Haz central brillante (resplandor ancho cian/dorado, aurora al esculpir líneas seguidas o carmesí en cortocircuito)
         ctx.strokeStyle = isShorting
           ? `rgba(255, 23, 68, ${(0.62 + shortFlash * 0.30) * blendAlpha})`
-          : (clapBoost > 0.25
-            ? `rgba(253, 224, 71, ${(0.44 + beatPulse * 0.20) * blendAlpha})`
-            : `rgba(0, 242, 254, ${(0.46 + beatPulse * 0.18) * blendAlpha})`);
-        ctx.lineWidth = 18.0 + beatPulse * 5.0 + clapBoost * 8.0 + shortFlash * 10.0;
+          : (isFlowSculpting
+            ? sculptCol
+            : (clapBoost > 0.25
+              ? `rgba(253, 224, 71, ${(0.44 + beatPulse * 0.20) * blendAlpha})`
+              : `rgba(0, 242, 254, ${(0.46 + beatPulse * 0.18) * blendAlpha})`));
+        ctx.save();
+        if (isFlowSculpting) ctx.globalAlpha = blendAlpha * 0.45;
+        ctx.lineWidth = 18.0 + beatPulse * 5.0 + clapBoost * 8.0 + shortFlash * 10.0 + (isFlowSculpting ? 6.0 : 0.0);
         ctx.lineCap = 'round';
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
         ctx.stroke();
+        ctx.restore();
 
-        ctx.strokeStyle = isShorting ? '#ff1744' : '#00f2fe';
+        ctx.strokeStyle = isShorting ? '#ff1744' : (isFlowSculpting ? sculptCol : '#00f2fe');
         ctx.lineWidth = 6.8 + beatPulse * 2.4 + clapBoost * 3.5;
         ctx.beginPath();
         ctx.moveTo(x1, y1);
@@ -26155,7 +26665,117 @@ class BeatstarEngine {
         }
         ctx.restore();
 
-        // 4. Dibujar Tap Notes (Azules/Cian + HO/PO), Drag Slide Notes (Amarillas) y los Elementos de FASE ARCO VOLTAICO (incluidas Líneas de 4 Bombas)
+        // 3C. Malla de Seda Aurora 3D para Cintas de Líneas Seguidas (`flow_line` en Fase Arco Voltaico):
+        // une los extremos izquierdo y derecho de cada línea consecutiva (ej. 0° -> 5° -> 11° -> ... -> 90°)
+        // mostrando la torsión tridimensional exacta que los dos pulgares deben esculpir con el rayo
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        let prevFlowNode = null;
+        for (let i = startIdx; i < len; i++) {
+          const fn = this.notes[i];
+          if (!fn || (isMadnessCruce && fn._madnessPhase !== 'cruce') || !fn._isVoltaicArc || fn._voltaicKind !== 'flow_line') {
+            continue;
+          }
+          if (fn.hit || fn.missed) {
+            const dtHit = fn.timestamp_ms - currentTime;
+            if (dtHit >= -130 && dtHit <= 45) {
+              const hitPos = this.getCruceNoteLocalPos(fn, 1.0, st, flowDir, this._cruceFlowMeshHitScratch || (this._cruceFlowMeshHitScratch = { x: 0, y: 0 }));
+              const hitAng = fn._voltaicFlowAngleRad || 0;
+              const hitHalfW = Math.max(30, st.spanW * (fn._voltaicFlowWidthRatio || 0.72) * 0.5);
+              const cosH = Math.cos(hitAng);
+              const sinH = Math.sin(hitAng);
+              prevFlowNode = {
+                ribbonId: fn._voltaicRibbonId,
+                rungIdx: fn._voltaicRungIndex,
+                lx: hitPos.x - cosH * hitHalfW,
+                ly: hitPos.y - sinH * hitHalfW,
+                rx: hitPos.x + cosH * hitHalfW,
+                ry: hitPos.y + sinH * hitHalfW,
+                cx: hitPos.x,
+                cy: hitPos.y,
+                scale: 1.0,
+                col: fn._voltaicFlowColor || '#00f2fe',
+                rgba: fn._voltaicFlowGlowRgba || 'rgba(0, 242, 254, 0.22)'
+              };
+            } else if (prevFlowNode && prevFlowNode.ribbonId === fn._voltaicRibbonId) {
+              prevFlowNode = null;
+            }
+            continue;
+          }
+
+          const dtF = fn.timestamp_ms - effTime;
+          if (dtF > scrollDur * 1.05) break;
+          if (dtF < -150) {
+            prevFlowNode = null;
+            continue;
+          }
+          const rawPF = 1.0 - (dtF * invScrollDur);
+          if (rawPF < 0.0) {
+            prevFlowNode = null;
+            continue;
+          }
+          const dmF = this._getCruceDepthPosition(rawPF, this._cruceFlowMeshDepthScratch || (this._cruceFlowMeshDepthScratch = { pDepth: 0, scale: 1 }), false);
+          const posF = this.getCruceNoteLocalPos(fn, dmF.pDepth, st, flowDir, this._cruceFlowMeshPosScratch || (this._cruceFlowMeshPosScratch = { x: 0, y: 0 }));
+          const angF = fn._voltaicFlowAngleRad || 0;
+          const halfWF = Math.max(28, st.spanW * (fn._voltaicFlowWidthRatio || 0.72) * dmF.scale * 0.5);
+          const cosF = Math.cos(angF);
+          const sinF = Math.sin(angF);
+          const curLX = posF.x - cosF * halfWF;
+          const curLY = posF.y - sinF * halfWF;
+          const curRX = posF.x + cosF * halfWF;
+          const curRY = posF.y + sinF * halfWF;
+
+          if (prevFlowNode && prevFlowNode.ribbonId === fn._voltaicRibbonId && fn._voltaicRungIndex === prevFlowNode.rungIdx + 1) {
+            const avgScale = (prevFlowNode.scale + dmF.scale) * 0.5;
+            // Superficie translúcida de seda de plasma entre los dos peldaños consecutivos
+            ctx.fillStyle = fn._voltaicFlowGlowRgba || 'rgba(0, 242, 254, 0.22)';
+            ctx.globalAlpha = 0.42;
+            ctx.beginPath();
+            ctx.moveTo(prevFlowNode.lx, prevFlowNode.ly);
+            ctx.lineTo(prevFlowNode.rx, prevFlowNode.ry);
+            ctx.lineTo(curRX, curRY);
+            ctx.lineTo(curLX, curLY);
+            ctx.closePath();
+            ctx.fill();
+
+            // Carriles guía laterales luminosos para el pulgar izquierdo y el pulgar derecho
+            ctx.globalAlpha = 0.85;
+            ctx.strokeStyle = fn._voltaicFlowColor || '#00f2fe';
+            ctx.lineWidth = Math.max(1.8, 3.3 * avgScale);
+            ctx.beginPath();
+            ctx.moveTo(prevFlowNode.lx, prevFlowNode.ly);
+            ctx.lineTo(curLX, curLY);
+            ctx.moveTo(prevFlowNode.rx, prevFlowNode.ry);
+            ctx.lineTo(curRX, curRY);
+            ctx.stroke();
+
+            // Eje central sutil de torsión
+            ctx.globalAlpha = 0.38;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = Math.max(1.0, 1.6 * avgScale);
+            ctx.beginPath();
+            ctx.moveTo(prevFlowNode.cx, prevFlowNode.cy);
+            ctx.lineTo(posF.x, posF.y);
+            ctx.stroke();
+          }
+
+          prevFlowNode = {
+            ribbonId: fn._voltaicRibbonId,
+            rungIdx: fn._voltaicRungIndex,
+            lx: curLX,
+            ly: curLY,
+            rx: curRX,
+            ry: curRY,
+            cx: posF.x,
+            cy: posF.y,
+            scale: dmF.scale,
+            col: fn._voltaicFlowColor || '#00f2fe',
+            rgba: fn._voltaicFlowGlowRgba || 'rgba(0, 242, 254, 0.22)'
+          };
+        }
+        ctx.restore();
+
+        // 4. Dibujar Tap Notes (Azules/Cian + HO/PO), Drag Slide Notes (Amarillas) y los Elementos de FASE ARCO VOLTAICO (incluidas Líneas de 4 Bombas y Cintas Esculpidas)
         for (let i = startIdx; i < len; i++) {
           const note = this.notes[i];
           if (!note || (isMadnessCruce && note._madnessPhase !== 'cruce') || note.hit || note.missed || note.type === 'hold') continue;
@@ -26229,6 +26849,8 @@ class BeatstarEngine {
             const kind = note._voltaicKind || 'conductor';
             if (note._isVoltaicMine || kind === 'spiked_orb') {
               this._drawVoltaicSpikedOrbLocal(ctx, note, localX, localY, slotW, scale, currentTime);
+            } else if (kind === 'flow_line') {
+              this._drawVoltaicFlowLineLocal(ctx, note, localX, localY, st.spanW, scale, currentTime, rawP);
             } else if (kind === 'wave_gate') {
               this._drawVoltaicWaveGateLocal(ctx, note, localX, localY, st.spanW, scale, currentTime, rawP);
             } else if (kind === 'thunder_clap') {
@@ -26480,6 +27102,93 @@ class BeatstarEngine {
         ctx.moveTo(halfW * 0.45 + chSz * dirSign, -chSz);
         ctx.lineTo(halfW * 0.45 - chSz * dirSign, 0);
         ctx.lineTo(halfW * 0.45 + chSz * dirSign, chSz);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    /**
+     * Dibuja un peldaño láser estilizado ('flow_line') de una Cinta Esculpida de Líneas Seguidas:
+     * Filamento luminoso esbelto con degradado cromático (Cian -> Menta -> Oro -> Magenta) y Perlas Guía
+     * en ambos extremos para seguir rotaciones continuas (0° -> 5° -> 11° -> ... -> 90° / 180°), acordeones y olas sin saturar la vista.
+     */
+    _drawVoltaicFlowLineLocal(ctx, note, localX, localY, spanW, scale = 1.0, currentTime = 0, rawP = 1.0) {
+      const ang = note._voltaicFlowAngleRad || 0;
+      const widthRatio = note._voltaicFlowWidthRatio || 0.72;
+      const isFinale = Boolean(note._isVoltaicRibbonFinale);
+      const isAnchor = !note._isVoltaicFlowSubRung;
+      const barW = Math.max(58, spanW * widthRatio * scale);
+      const halfW = barW * 0.5;
+      const mainCol = note._voltaicFlowColor || '#00f2fe';
+      const secCol = note._voltaicFlowSecColor || '#fde047';
+      const approachBoost = Math.max(0.0, Math.min(1.0, (rawP - 0.72) / 0.28));
+
+      ctx.save();
+      ctx.translate(localX, localY);
+      ctx.rotate(ang);
+
+      // 1. Halo luminoso esbelto
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = mainCol;
+      ctx.globalAlpha = (isFinale ? 0.52 : 0.30) + approachBoost * 0.24;
+      ctx.lineWidth = (isFinale ? 13.0 : (isAnchor ? 9.5 : 7.0)) * scale;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-halfW, 0);
+      ctx.lineTo(halfW, 0);
+      ctx.stroke();
+      ctx.restore();
+
+      // 2. Filamento láser principal + alma incandescente blanca
+      ctx.strokeStyle = mainCol;
+      ctx.lineWidth = Math.max(2.2, (isFinale ? 5.2 : (isAnchor ? 3.8 : 2.8)) * scale);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-halfW, 0);
+      ctx.lineTo(halfW, 0);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = Math.max(1.2, (isFinale ? 2.4 : 1.5) * scale);
+      ctx.beginPath();
+      ctx.moveTo(-halfW * 0.92, 0);
+      ctx.lineTo(halfW * 0.92, 0);
+      ctx.stroke();
+
+      // 3. Perlas Diana en ambos extremos para guiar la trayectoria exacta de los dos pulgares
+      const pearlR = Math.max(4.8, (isFinale ? 10.2 : (isAnchor ? 8.0 : 6.0)) * scale);
+      ctx.fillStyle = 'rgba(8, 16, 36, 0.90)';
+      ctx.strokeStyle = isFinale ? secCol : mainCol;
+      ctx.lineWidth = Math.max(1.5, (isFinale ? 2.8 : 2.0) * scale);
+      ctx.beginPath();
+      ctx.arc(-halfW, 0, pearlR, 0, Math.PI * 2);
+      ctx.moveTo(halfW + pearlR, 0);
+      ctx.arc(halfW, 0, pearlR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#ffffff';
+      const coreR = Math.max(1.8, (isFinale ? 3.8 : 2.5) * scale);
+      ctx.beginPath();
+      ctx.arc(-halfW, 0, coreR, 0, Math.PI * 2);
+      ctx.arc(halfW, 0, coreR, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 4. Indicador visual sin texto en los puntos clave de Pinza ('pinch') o Expansión ('wide')
+      if (isAnchor && (note._voltaicFlowSpanMode === 'pinch' || note._voltaicFlowSpanMode === 'wide')) {
+        const dirSign = (note._voltaicFlowSpanMode === 'pinch') ? 1 : -1;
+        const chSz = Math.max(3.2, 5.4 * scale);
+        ctx.strokeStyle = secCol;
+        ctx.lineWidth = Math.max(1.3, 2.0 * scale);
+        ctx.beginPath();
+        ctx.moveTo(-halfW * 0.44 - chSz * dirSign, -chSz);
+        ctx.lineTo(-halfW * 0.44 + chSz * dirSign, 0);
+        ctx.lineTo(-halfW * 0.44 - chSz * dirSign, chSz);
+        ctx.moveTo(halfW * 0.44 + chSz * dirSign, -chSz);
+        ctx.lineTo(halfW * 0.44 - chSz * dirSign, 0);
+        ctx.lineTo(halfW * 0.44 + chSz * dirSign, chSz);
         ctx.stroke();
       }
 

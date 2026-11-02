@@ -1,4 +1,4 @@
-const CACHE_NAME = 'beatstar-v15';
+const CACHE_NAME = 'beatstar-v19';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
@@ -13,6 +13,9 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const url = e.request.url || '';
+  if (url.includes('/download/apk') || url.includes('download_apk') || url.includes('.apk')) {
+    return;
+  }
   const isCodeOrHtml = url.includes('.js') || url.includes('.html') || url.includes('.css') || e.request.mode === 'navigate';
   const fetchOpts = isCodeOrHtml ? { cache: 'no-cache' } : undefined;
   e.respondWith(

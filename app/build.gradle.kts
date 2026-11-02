@@ -10,24 +10,38 @@ android {
     applicationId = "com.beatstar.renacer"
     minSdk = 24
     targetSdk = 35
-    versionCode = 45
-    versionName = "4.5.0"
+    versionCode = 46
+    versionName = "4.6.0"
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
   signingConfigs {
-    create("release") {
-      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
-      storeFile = file(keystorePath)
-      storePassword = System.getenv("STORE_PASSWORD")
-      keyAlias = "upload"
-      keyPassword = System.getenv("KEY_PASSWORD")
-    }
     create("debugConfig") {
-      storeFile = file("${rootDir}/debug.keystore")
+      val sharedKs = file("${rootDir}/app-signing.keystore")
+      val repoKs = file("${rootDir}/debug.keystore")
+      storeFile = when {
+        sharedKs.exists() -> sharedKs
+        repoKs.exists() -> repoKs
+        else -> file("${System.getProperty("user.home")}/.android/debug.keystore")
+      }
       storePassword = "android"
       keyAlias = "androiddebugkey"
       keyPassword = "android"
+    }
+    create("release") {
+      val envKs = System.getenv("KEYSTORE_PATH")
+      if (!envKs.isNullOrBlank() && file(envKs).exists()) {
+        storeFile = file(envKs)
+        storePassword = System.getenv("STORE_PASSWORD")
+        keyAlias = "upload"
+        keyPassword = System.getenv("KEY_PASSWORD")
+      } else {
+        val sharedKs = file("${rootDir}/app-signing.keystore")
+        storeFile = if (sharedKs.exists()) sharedKs else file("${System.getProperty("user.home")}/.android/debug.keystore")
+        storePassword = "android"
+        keyAlias = "androiddebugkey"
+        keyPassword = "android"
+      }
     }
   }
 
