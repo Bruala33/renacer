@@ -11,13 +11,8 @@ android {
         applicationId = "com.beatstar.renacer"
         minSdk = 24
         targetSdk = 35
-<<<<<<< HEAD
-        versionCode = 47
-        versionName = "4.7.0"
-=======
-        versionCode = 48
-        versionName = "4.8.0"
->>>>>>> 84b4f1b6fc4fe5b2638d5cfdc8c38f75cef853e2
+        versionCode = 49
+        versionName = "4.9.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -27,7 +22,13 @@ android {
 
     signingConfigs {
         create("debugConfig") {
-            storeFile = file("${rootDir}/../debug.keystore")
+            val sharedKs = file("${rootDir}/../app-signing.keystore")
+            val repoKs = file("${rootDir}/../debug.keystore")
+            storeFile = when {
+                sharedKs.exists() -> sharedKs
+                repoKs.exists() -> repoKs
+                else -> file("${System.getProperty("user.home")}/.android/debug.keystore")
+            }
             storePassword = "android"
             keyAlias = "androiddebugkey"
             keyPassword = "android"

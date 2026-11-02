@@ -1077,17 +1077,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-<<<<<<< HEAD
-    version_code: 47,
-    version_name: '4.7.0',
-    release_notes: 'Piano Community v4.7.0: Respaldo y recuperacion de progreso en la nube, Modo Split (1000 claves), haces laser variados, patrones Drag variados, tamaño uniforme en Modo Cruce y cero solapamientos en pelotas de tenis.',
-    download_url: '/download/apk?v=47.0',
-=======
-    version_code: 48,
-    version_name: '4.8.0',
-    release_notes: 'Piano Community v4.8.0: Sincronizacion directa de APK con cintas esculpidas en Fase Arco Voltaico, resolucion de conflictos de paquete y actualizacion integral.',
-    download_url: '/download/apk?v=48.0',
->>>>>>> 84b4f1b6fc4fe5b2638d5cfdc8c38f75cef853e2
+    version_code: 49,
+    version_name: '4.9.0',
+    release_notes: 'Piano Community v4.9.0: Respaldo y recuperacion de progreso en la nube, Modo Split (1000 claves), haces laser variados, patrones Drag variados, tamaño uniforme en Modo Cruce y cero solapamientos en pelotas de tenis.',
+    download_url: '/download/apk?v=49.0',
   });
 });
 

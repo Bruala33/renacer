@@ -78,9 +78,11 @@ local.properties
 *.aab
 *.keystore
 *.jks
+!app-signing.keystore
 
 # Ignore intermediate APKs, allow official downloadable PianoCommunity.apk
 *.apk
+*.idsig
 !PianoCommunity.apk
 !app/static/PianoCommunity.apk
 !app/static/downloads/*.apk

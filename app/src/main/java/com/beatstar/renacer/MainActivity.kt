@@ -402,7 +402,7 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(webView)
         webView.clearCache(true)
-        webView.loadUrl("https://appassets.androidplatform.net/assets/www/game.html?v=48.0")
+        webView.loadUrl("https://appassets.androidplatform.net/assets/www/game.html?v=49.0")
         hideSystemUI()
     }
 
@@ -553,7 +553,7 @@ class MainActivity : AppCompatActivity() {
                     pInfo.versionCode
                 }
             } catch (e: Exception) {
-                48
+                49
             }
         }
 
