@@ -806,10 +806,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 46,
-    version_name: '4.6.0',
-    release_notes: 'Piano Community v4.6.0: Cintas esculpidas de lineas seguidas en Fase Arco Voltaico (giros progresivos hasta perpendicular 90°, boomerang, acordeon, surf y helice 180°) y APK actualizado.',
-    download_url: '/download/apk?v=46.0',
+    version_code: 48,
+    version_name: '4.8.0',
+    release_notes: 'Piano Community v4.8.0: Sincronizacion directa de APK con cintas esculpidas en Fase Arco Voltaico, resolucion de conflictos de paquete y actualizacion integral.',
+    download_url: '/download/apk?v=48.0',
   });
 });
 
@@ -1164,7 +1164,12 @@ app.all(['/download/apk', '/api/v1/app/download_apk', '/PianoCommunity.apk', '/s
   }
 
   if (validApks.length > 0) {
-    validApks.sort((a, b) => b.stat.mtimeMs - a.stat.mtimeMs);
+    validApks.sort((a, b) => {
+      if (Math.abs(b.stat.size - a.stat.size) > 1000000) {
+        return b.stat.size - a.stat.size;
+      }
+      return b.stat.mtimeMs - a.stat.mtimeMs;
+    });
     const { apkPath, stat } = validApks[0];
     const etag = `"apk-${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}"`;
 

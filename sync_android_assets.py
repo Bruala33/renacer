@@ -59,18 +59,45 @@ def sync_built_apk():
         return False
 
     downloads_dir = os.path.join(STATIC_DIR, "downloads")
+    root_downloads_dir = os.path.join(ROOT_DIR, "downloads")
     os.makedirs(downloads_dir, exist_ok=True)
+    os.makedirs(root_downloads_dir, exist_ok=True)
+
+    # Re-sign with unified app-signing.keystore if available
+    keystore = os.path.join(ROOT_DIR, "app-signing.keystore")
+    apksigner_bin = "/opt/android/sdk/build-tools/36.0.0/apksigner"
+    working_apk = os.path.join(ROOT_DIR, "PianoCommunity.apk")
+    shutil.copy2(built_apk, working_apk)
+
+    if os.path.exists(keystore) and os.path.exists(apksigner_bin):
+        import subprocess
+        try:
+            cmd = [
+                apksigner_bin, "sign",
+                "--ks", keystore,
+                "--ks-pass", "pass:android",
+                "--ks-key-alias", "androiddebugkey",
+                "--key-pass", "pass:android",
+                working_apk
+            ]
+            res = subprocess.run(cmd, capture_output=True, text=True)
+            if res.returncode == 0:
+                print("Successfully re-signed PianoCommunity.apk with app-signing.keystore")
+            else:
+                print(f"Warning: apksigner failed ({res.stderr}), using original signature")
+        except Exception as e:
+            print(f"Signing exception: {e}")
 
     destinations = [
         os.path.join(STATIC_DIR, "PianoCommunity.apk"),
         os.path.join(downloads_dir, "PianoCommunity.apk"),
-        os.path.join(ROOT_DIR, "PianoCommunity.apk"),
+        os.path.join(root_downloads_dir, "PianoCommunity.apk"),
         os.path.join(ROOT_DIR, ".build-outputs", "app-debug.apk"),
     ]
 
     for dst in destinations:
-        shutil.copy2(built_apk, dst)
-        print(f"Synced APK ({os.path.getsize(built_apk)} bytes) -> {dst}")
+        shutil.copy2(working_apk, dst)
+        print(f"Synced APK ({os.path.getsize(working_apk)} bytes) -> {dst}")
     return True
 
 if __name__ == "__main__":
