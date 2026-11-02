@@ -2455,6 +2455,19 @@ class BeatstarEngine {
         const localY = t.clientY - rect.top;
         const lane = this.resolveTouchLane(t.clientX, t.clientY, rect, true);
 
+        // Registrar el dedo en activeTouches antes de procesar el evento para que la Fase Arco Voltaico detecte el 2º dedo al instante
+        const touchEntry = {
+          startX: t.clientX,
+          startY: t.clientY,
+          curX: localX,
+          curY: localY,
+          startTime: now,
+          lane: lane,
+          swiped: false,
+          consumed: false
+        };
+        this.activeTouches.set(t.identifier, touchEntry);
+
         let consumed = false;
         if (this.isMadnessModeActive || (typeof window !== 'undefined' && window.isMadnessModeActive)) {
           consumed = this.handleMadnessPointerDown(localX, localY, lane, t.identifier);
@@ -2465,18 +2478,7 @@ class BeatstarEngine {
         } else {
           consumed = this.triggerLaneInput(lane, 'tap', null, t.identifier);
         }
-
-        // Guardar origen de toque; si ya consumió una nota tap/hold, bloquear swipe secundario para no tocar 2 notas con 1 dedo
-        this.activeTouches.set(t.identifier, {
-          startX: t.clientX,
-          startY: t.clientY,
-          curX: localX,
-          curY: localY,
-          startTime: now,
-          lane: lane,
-          swiped: false,
-          consumed: Boolean(consumed)
-        });
+        touchEntry.consumed = Boolean(consumed);
       }
     }, { passive: false });
 
@@ -2693,7 +2695,10 @@ class BeatstarEngine {
       const k = (e.key || '').toLowerCase();
       const kb = this.pcKeybinds || { 0: 'd', 1: 'f', 2: 'j', 3: 'k' };
 
-      if ((this.numLanes || 3) === 4) {
+      const isFourLaneInput = ((this.numLanes || 3) === 4) ||
+        Boolean(this.isCruceModeActive || this.isSplitModeActive || this.isMadnessModeActive ||
+          (typeof window !== 'undefined' && (window.isCruceModeActive || window.isSplitModeActive || window.isMadnessModeActive)));
+      if (isFourLaneInput) {
         if (k === (kb[0] || 'd') || k === 'a' || k === '1') this.triggerLaneInput(0, 'tap');
         else if (k === (kb[1] || 'f') || k === 's' || k === '2') this.triggerLaneInput(1, 'tap');
         else if (k === (kb[2] || 'j') || k === '3') this.triggerLaneInput(2, 'tap');
@@ -4183,7 +4188,7 @@ class BeatstarEngine {
       (isMadnessActive && this.getActiveMadnessPhase(currentTime) === 'mushroom')
     );
     const isShieldActive = false;
-    const baseTapWin = isMushTiming ? 300 : (isCruceActive ? 255 : 240);
+    const baseTapWin = isMushTiming ? 300 : (isCruceActive ? 215 : 240);
     const HIT_WINDOW = isMushTiming
       ? ((inputType === 'swipe') ? 370 : 300)
       : ((inputType === 'swipe') ? 320 : baseTapWin);
@@ -4262,22 +4267,17 @@ class BeatstarEngine {
       }
 
       if (note.hit) continue;
-      if ((isCruceActive || isMadnessActive) && note._isCruceDrag) continue;
+      if ((isCruceActive || isMadnessActive) && (note._isCruceDrag || note._isVoltaicArc)) continue;
       if (note.timestamp_ms - currentTime > HIT_WINDOW + 80) break;
 
-      // En Modo Espejo (o Fase Espejo de LOCURA), SOLO cuenta como acierto si se pulsa el carril reflejado (requiredInputLane), NUNCA el carril real original
+      // Coincidencia estricta de carril (cada uno de los 4 carriles exige pulsar su carril real)
       let matchesLane = (this.isCalibrating || requiredInputLane === lane || (!isMirrorNoteActive && clampedSplitLane === lane));
-      if (!matchesLane && !note.isMine && !isMirrorNoteActive && noteIsCruce) {
-        if (Math.abs(lane - requiredInputLane) <= 1) {
-          matchesLane = true;
-        }
-      }
       if (!matchesLane && note.type === 'hold' && !isMirrorNoteActive) {
         const rawSLane = Number.isFinite(note.startLane) ? note.startLane : requiredInputLane;
         const sLane = isSplitActive ? Math.max(0, Math.min(activeSplitCount - 1, rawSLane)) : rawSLane;
         const sWidth = Number.isFinite(note.startWidth) ? note.startWidth : 1.0;
         const holdDist = Math.min(Math.abs(lane - sLane), Math.abs(lane - rawSLane));
-        if (holdDist <= (sWidth * 0.5 + (noteIsCruce ? 0.75 : 0.42))) {
+        if (holdDist <= (sWidth * 0.5 + 0.42)) {
           matchesLane = true;
         }
       }
@@ -4489,8 +4489,14 @@ class BeatstarEngine {
       if (this.customBgMode === 'reactive') {
         this.addReactiveBurst(lane, hitX, hitY, this.getScoreColor('perfectPlus'));
       }
-      // En Modo CRUCE nunca se penaliza por apoyar o mantener el dedo en un carril vacío (permite sostener/deslizar para Drag Notes y transiciones)
-      if (this.isCalibrating || isProtectedTransition || isCruceActive) {
+      // En Modo CRUCE sí se penalizan los toques en carriles vacíos o equivocados, EXCEPTO cuando estamos cerca de teclas amarillas (Drag Notes)
+      // o dentro de la Fase Arco Voltaico para permitir mantener y deslizar el dedo sin penalización
+      const isNearCruceYellowOrVoltaic = Boolean(
+        isCruceActive &&
+        typeof this.isNearCruceYellowDragOrVoltaic === 'function' &&
+        this.isNearCruceYellowDragOrVoltaic(currentTime, lane)
+      );
+      if (this.isCalibrating || isProtectedTransition || isNearCruceYellowOrVoltaic) {
         this.emitKeyHit(hitX, hitY, isCruceActive ? '#fde047' : this.getScoreColor('perfectPlus'), isCruceActive ? 8 : 14);
         return false;
       }
@@ -5910,15 +5916,14 @@ class BeatstarEngine {
         continue;
       }
 
-      // En Modo CRUCE o Modo LOCURA: si una Drag Note amarilla llega a la línea mientras el jugador mantiene cualquier dedo en pantalla, atraparla automáticamente como PERFECT+
+      // En Modo CRUCE o Modo LOCURA: si una Drag Note amarilla llega a la línea mientras el jugador mantiene el dedo en ese mismo carril, atraparla como PERFECT+
       const isCruceNoteNow = (!isMadnessUpdate && isCruceUpdate) || (isMadnessUpdate && note._madnessPhase === 'cruce');
       if (isCruceNoteNow && !note.isMine && note._isCruceDrag && currentTime >= noteTime - 40) {
-        const hasFingerNow = Boolean(
-          (this.activeTouches && this.activeTouches.size > 0) ||
-          this.mouseTouch ||
-          (this._cruceAnyFingerActiveUntil && currentTime <= this._cruceAnyFingerActiveUntil)
+        const dragSlot = Math.max(0, Math.min(3, Math.round(note._cruceSlot ?? note.lane ?? 1)));
+        const hasFingerInSlot = Boolean(
+          this._cruceSlotDragBufferUntil && currentTime <= (this._cruceSlotDragBufferUntil[dragSlot] || 0)
         );
-        if (hasFingerNow && typeof this._completeCruceDragCatch === 'function') {
+        if (hasFingerInSlot && typeof this._completeCruceDragCatch === 'function') {
           this._completeCruceDragCatch(note, currentTime);
           continue;
         }
@@ -5926,7 +5931,7 @@ class BeatstarEngine {
 
       // En Modo CRUCE: durante un giro/salto activo de la línea de juicio de Cruce, proteger al jugador auto-validando la nota
       // Para los Holds: enganchar la cabeza sin marcar holdCompleted para que el cuerpo del Hold NO desaparezca al cambiar la línea de Perfect
-      if (isCruceNoteNow && !note._isVoltaicArc && this._cruceInTransition && currentTime >= noteTime - 35) {
+      if (isCruceNoteNow && !note._isVoltaicArc && !note.isMine && this._cruceInTransition && currentTime >= noteTime - 35) {
         const cCoord = (typeof this.getCruceNoteScreenCoord === 'function')
           ? this.getCruceNoteScreenCoord(note, currentTime)
           : { x: (this.width || 360) * 0.5, y: Number.isFinite(this.hitLineY) ? this.hitLineY : (this.height || 640) * 0.82 };
@@ -5961,13 +5966,17 @@ class BeatstarEngine {
         continue;
       }
 
-      // Cualquier mina que alcance o supere ligeramente la línea de juicio (+35ms) queda inmediatamente esquivada
-      // y jamás puede contarse como MISS al dejarla pasar
-      if (note.isMine && currentTime >= noteTime + 35) {
+      // Cualquier mina que supere la zona de impacto queda esquivada sin contar como MISS
+      const minePassOffsetMs = note._isVoltaicMine ? 120 : 35;
+      if (note.isMine && currentTime >= noteTime + minePassOffsetMs) {
         note.hit = true;
         note.processed = true;
         note.missed = false;
-        this._emitMineDodgedFeedback(note.lane);
+        if (note._isVoltaicMine) {
+          this.addScore(250 * (this.multiplier || 1));
+        } else {
+          this._emitMineDodgedFeedback(note.lane);
+        }
         continue;
       }
 
@@ -5978,7 +5987,11 @@ class BeatstarEngine {
           note.hit = true;
           note.processed = true;
           note.missed = false;
-          this._emitMineDodgedFeedback(note.lane);
+          if (note._isVoltaicMine) {
+            this.addScore(250 * (this.multiplier || 1));
+          } else {
+            this._emitMineDodgedFeedback(note.lane);
+          }
           continue;
         }
         if (this.isMushroomModeActive && this._mushInSafeTransition) {
@@ -23086,13 +23099,16 @@ class BeatstarEngine {
     /**
      * Configura las notas que caen dentro de las ventanas `VOLTAIC_ARC_PHASE` ('FASE ARCO VOLTAICO'):
      * Las notas caen de arriba hacia abajo hacia el rayo vivo entre los dos pulgares del jugador
-     * convertidas en tres elementos musicales sincronizados con el mapa de la canción:
-     * 1. Nodos Conductores (`_voltaicKind = 'conductor'`): Esferas de energía cian/amarillas que dan PERFECT+
-     *    simplemente con que el arco eléctrico entre los dos pulgares las intercepte al caer.
-     * 2. Barras de Inclinación (`_voltaicKind = 'wave_gate'`): Barras anchas de luz que caen con una inclinación
-     *    específica (+20° o -20°). El jugador adelanta el pulgar izquierdo o derecho para igualar el ángulo.
-     * 3. Choque Voltaico (`_voltaicKind = 'thunder_clap'`): En los golpes principales del compás, dos anillos
-     *    convergen hacia el centro del rayo. El jugador acerca ambos pulgares hacia el centro para chocar las cargas.
+     * convertidas en cuatro elementos musicales sincronizados con el mapa de la canción:
+     * 1. Nodos Conductores (`_voltaicKind = 'conductor'`): Esferas de energía cian/amarillas agrupadas por lados (izquierda 0-1 o derecha 2-3)
+     *    que dan PERFECT+ cuando el arco eléctrico activo entre los dos pulgares las intercepta al caer.
+     * 2. Orbes Rojos con Espinas (`_voltaicKind = 'spiked_orb'`, `isMine = true`, `_isVoltaicMine = true`):
+     *    Bombas de cortocircuito que caen por los carriles. Si tocan el rayo láser activo que une los dos dedos,
+     *    hacen cortocircuito y restan vida. Se esquivan de dos formas:
+     *    - Levantando 1 dedo medio segundo para "apagar el rayo" cuando caen por el centro en un hueco limpio.
+     *    - Dejando el rayo corto en el lado seguro (ej. carriles 2-3) para atrapar los Nodos Conductores mientras el orbe rojo pasa por el lado opuesto (carril 0).
+     * 3. Barras de Inclinación (`_voltaicKind = 'wave_gate'`): Barras anchas de luz con inclinación +20° o -20°.
+     * 4. Choque Voltaico (`_voltaicKind = 'thunder_clap'`): Dos anillos convergen al centro del rayo al acercar ambos pulgares.
      */
     _configureCruceVoltaicSections(notesArray, beatMs = 460, isMadness = false) {
       if (!Array.isArray(notesArray) || !Array.isArray(this._cruceKeyframes) || this._cruceKeyframes.length === 0) return [];
@@ -23114,9 +23130,12 @@ class BeatstarEngine {
 
       const deg = Math.PI / 180;
       const slotBaseU = [-0.375, -0.125, 0.125, 0.375];
+      const injectedMines = [];
+      const voltaicNotesInPass = [];
       let voltaicSeq = 0;
       let lastWaveGateMs = -9999;
       let lastThunderClapMs = -9999;
+      let lastMineMs = -9999;
 
       for (let i = 0; i < notesArray.length; i++) {
         const n = notesArray[i];
@@ -23125,9 +23144,11 @@ class BeatstarEngine {
         const nt = n.timestamp_ms ?? 0;
 
         let inVoltaic = false;
+        let winStartMs = 0;
         for (let w = 0; w < voltaicWindows.length; w++) {
           if (nt >= voltaicWindows[w].startMs && nt <= voltaicWindows[w].endMs) {
             inVoltaic = true;
+            winStartMs = voltaicWindows[w].startMs;
             break;
           }
         }
@@ -23143,7 +23164,7 @@ class BeatstarEngine {
         }
 
         const wasHold = (n.type === 'hold');
-        const slot = Math.max(0, Math.min(3, Math.round(n._cruceSlot ?? n.lane ?? 1)));
+        const origSlot = Math.max(0, Math.min(3, Math.round(n._cruceSlot ?? n.lane ?? 1)));
         n.type = 'tap';
         n.duration_ms = 0;
         n.holdDuration = 0;
@@ -23151,6 +23172,7 @@ class BeatstarEngine {
         n._isDynamicMeshHold = false;
         n._isCruceDrag = false;
         n._cruceDragBurstId = 0;
+        n._cruceHopo = false;
         n._isCruceHopo = false;
         n._isVoltaicArc = true;
         n._voltaicBeatMs = beatMs;
@@ -23173,10 +23195,32 @@ class BeatstarEngine {
         const dtNext = nextN ? ((nextN.timestamp_ms ?? 999999) - nt) : 999999;
 
         voltaicSeq++;
+        voltaicNotesInPass.push(n);
+
+        // Patrón B1: Orbe Rojo con Espinas central (apagar el rayo levantando 1 dedo medio segundo)
+        // Se coloca únicamente cuando hay ventana amplia antes y después (dtPrev >= 220ms y dtNext >= 220ms)
+        if (nt >= winStartMs + 900 &&
+            (voltaicSeq % 6 === 4) &&
+            (nt - lastMineMs >= Math.max(1250, beatMs * 2.5)) &&
+            dtPrev >= 220 && dtNext >= 220) {
+          const centerSlot = (voltaicSeq % 12 === 4) ? 1 : 2;
+          n.isMine = true;
+          n._isVoltaicMine = true;
+          n._voltaicKind = 'spiked_orb';
+          n._voltaicDodgeMode = 'shutoff';
+          n._cruceSlot = centerSlot;
+          n.lane = centerSlot;
+          n._cruceTargetU = slotBaseU[centerSlot];
+          n._cruceLocalU = slotBaseU[centerSlot];
+          n._cruceSpawnU = slotBaseU[centerSlot] * 0.72;
+          lastMineMs = nt;
+          continue;
+        }
 
         // 1. Choque Voltaico (Thunder Clap en Beats Fuertes): dos anillos convergen hacia el centro del rayo
-        if ((n._isCruceAccent || voltaicSeq % 7 === 0) &&
-            (nt - lastThunderClapMs >= Math.max(1750, beatMs * 3.5)) &&
+        if ((n._isCruceAccent || voltaicSeq % 8 === 0) &&
+            (nt - lastThunderClapMs >= Math.max(1850, beatMs * 3.6)) &&
+            (nt - lastMineMs >= 420) &&
             dtPrev >= 210 && dtNext >= 210) {
           n._voltaicKind = 'thunder_clap';
           n._cruceSlot = 1;
@@ -23189,10 +23233,11 @@ class BeatstarEngine {
         }
 
         // 2. Barras de Inclinación (Wave Gates en Holds/Acordes): caen con inclinación +20° o -20°
-        if ((wasHold || hadChordPartner || voltaicSeq % 4 === 2) &&
-            (nt - lastWaveGateMs >= Math.max(1050, beatMs * 2.1)) &&
-            dtPrev >= 165) {
-          const tiltSign = ((voltaicSeq + slot) % 2 === 0) ? 1 : -1;
+        if ((wasHold || hadChordPartner || voltaicSeq % 5 === 2) &&
+            (nt - lastWaveGateMs >= Math.max(1150, beatMs * 2.2)) &&
+            (nt - lastMineMs >= 380) &&
+            dtPrev >= 175) {
+          const tiltSign = ((voltaicSeq + origSlot) % 2 === 0) ? 1 : -1;
           n._voltaicKind = 'wave_gate';
           n._voltaicGateAngleRad = tiltSign * 20 * deg;
           n._voltaicGateSign = tiltSign;
@@ -23203,16 +23248,133 @@ class BeatstarEngine {
           continue;
         }
 
-        // 3. Nodos Conductores (Notas normales): Esferas de energía cian/amarillas
+        // 3. Nodos Conductores agrupados en ráfagas laterales (Lado Izquierdo slots 0-1 vs Lado Derecho slots 2-3)
+        // para que el jugador deba desplazar el rayo o acortarlo en un lado mientras esquiva Orbes Rojos en el lado opuesto
+        const clusterSideRight = (Math.floor(voltaicSeq / 3) % 2 === 1);
+        const subSlot = voltaicSeq % 2;
+        const assignedSlot = clusterSideRight ? (2 + subSlot) : subSlot;
+        n._cruceSlot = assignedSlot;
+        n.lane = assignedSlot;
         n._voltaicKind = 'conductor';
         n._voltaicColor = (voltaicSeq % 2 === 0) ? '#fde047' : '#00f2fe';
-        const waveOffset = Math.sin(voltaicSeq * 0.85) * 0.08;
-        const targetU = Math.max(-0.40, Math.min(0.40, slotBaseU[slot] + waveOffset));
+        n._voltaicColorType = (voltaicSeq % 2 === 0) ? 'yellow' : 'cyan';
+        const targetU = slotBaseU[assignedSlot];
         n._cruceTargetU = targetU;
         n._cruceLocalU = targetU;
         n._cruceSpawnU = targetU * 0.72;
+
+        // Patrón A: Inyectar Orbe Rojo con Espinas en el carril exterior OPUESTO (slot 0 si las notas caen en 2-3, o slot 3 si las notas caen en 0-1)
+        // Obliga a no dejar los dedos fijos de lado a lado: el jugador recoge los Nodos Conductores en un lado mientras el Orbe Rojo pasa por el otro
+        if (nt >= winStartMs + 750 &&
+            (nt - lastMineMs >= Math.max(1150, beatMs * 2.3)) &&
+            (nt - lastWaveGateMs >= 420) &&
+            (nt - lastThunderClapMs >= 450)) {
+          const oppositeMineSlot = clusterSideRight ? 0 : 3;
+          const mineNote = {
+            id: 970000 + i * 2,
+            lane: oppositeMineSlot,
+            _cruceSlot: oppositeMineSlot,
+            _cruceTargetU: slotBaseU[oppositeMineSlot],
+            _cruceLocalU: slotBaseU[oppositeMineSlot],
+            _cruceSpawnU: slotBaseU[oppositeMineSlot] * 0.72,
+            _crossBeamId: oppositeMineSlot,
+            _cruceFormationIdx: n._cruceFormationIdx || 0,
+            _cruceBilateralDir: 1.0,
+            type: 'tap',
+            isMine: true,
+            _isVoltaicArc: true,
+            _isVoltaicMine: true,
+            _voltaicKind: 'spiked_orb',
+            _voltaicDodgeMode: 'side_dodge',
+            timestamp_ms: nt,
+            end_timestamp_ms: nt,
+            duration_ms: 0,
+            hit: false,
+            missed: false,
+            holding: false,
+            processed: false,
+            holdCompleted: false,
+            _madnessPhase: isMadness ? 'cruce' : undefined
+          };
+          injectedMines.push(mineNote);
+          voltaicNotesInPass.push(mineNote);
+          lastMineMs = nt;
+        } else if (dtNext >= 480 && (nt + dtNext * 0.5 - lastMineMs >= Math.max(1100, beatMs * 2.2))) {
+          // Patrón B2: En un hueco musical >= 480ms, inyectar un Orbe Rojo con Espinas en el centro para apagar el rayo medio segundo
+          const gapMineT = Math.round(nt + dtNext * 0.5);
+          const gapSlot = (voltaicSeq % 2 === 0) ? 1 : 2;
+          const gapMine = {
+            id: 970000 + i * 2 + 1,
+            lane: gapSlot,
+            _cruceSlot: gapSlot,
+            _cruceTargetU: slotBaseU[gapSlot],
+            _cruceLocalU: slotBaseU[gapSlot],
+            _cruceSpawnU: slotBaseU[gapSlot] * 0.72,
+            _crossBeamId: gapSlot,
+            _cruceFormationIdx: n._cruceFormationIdx || 0,
+            _cruceBilateralDir: 1.0,
+            type: 'tap',
+            isMine: true,
+            _isVoltaicArc: true,
+            _isVoltaicMine: true,
+            _voltaicKind: 'spiked_orb',
+            _voltaicDodgeMode: 'shutoff',
+            timestamp_ms: gapMineT,
+            end_timestamp_ms: gapMineT,
+            duration_ms: 0,
+            hit: false,
+            missed: false,
+            holding: false,
+            processed: false,
+            holdCompleted: false,
+            _madnessPhase: isMadness ? 'cruce' : undefined
+          };
+          injectedMines.push(gapMine);
+          voltaicNotesInPass.push(gapMine);
+          lastMineMs = gapMineT;
+        }
       }
-      return [];
+
+      // Pase de verificación matemática de solvabilidad:
+      // Garantizar que ningún Orbe Rojo con Espinas coincida jamás con una Barra de Inclinación / Choque Voltaico,
+      // y que si coincide en el tiempo (±240ms) con un Nodo Conductor, haya al menos 2 carriles de separación limpia
+      for (let mIdx = 0; mIdx < voltaicNotesInPass.length; mIdx++) {
+        const m = voltaicNotesInPass[mIdx];
+        if (!m || !m._isVoltaicMine || m._dropDuplicateCollapsed) continue;
+        const mt = m.timestamp_ms ?? 0;
+        const mSlot = m._cruceSlot ?? m.lane ?? 0;
+
+        for (let nIdx = 0; nIdx < voltaicNotesInPass.length; nIdx++) {
+          const other = voltaicNotesInPass[nIdx];
+          if (!other || other === m || other._isVoltaicMine || other._dropDuplicateCollapsed) continue;
+          const dt = Math.abs((other.timestamp_ms ?? 0) - mt);
+          if (dt > 260) continue;
+
+          if (other._voltaicKind === 'wave_gate' || other._voltaicKind === 'thunder_clap') {
+            m._dropDuplicateCollapsed = true;
+            break;
+          }
+          if (other._voltaicKind === 'conductor') {
+            if (mSlot === 1 || mSlot === 2) {
+              // Los orbes centrales requieren hueco libre para apagar el rayo
+              if (dt < 210) {
+                m._dropDuplicateCollapsed = true;
+                break;
+              }
+            } else {
+              // Los orbes laterales (slot 0 o slot 3) garantizan que los Nodos Conductores cercanos estén en la mitad opuesta
+              const safeSlot = (mSlot === 0) ? (2 + (nIdx % 2)) : (nIdx % 2);
+              other._cruceSlot = safeSlot;
+              other.lane = safeSlot;
+              other._cruceTargetU = slotBaseU[safeSlot];
+              other._cruceLocalU = slotBaseU[safeSlot];
+              other._cruceSpawnU = slotBaseU[safeSlot] * 0.72;
+            }
+          }
+        }
+      }
+
+      return injectedMines.filter((mn) => mn && !mn._dropDuplicateCollapsed);
     }
 
     /**
@@ -23789,8 +23951,11 @@ class BeatstarEngine {
         }
       }
 
-      // Configurar las secciones de FASE ARCO VOLTAICO (Nodos Conductores, Barras de Inclinación y Choque Voltaico)
-      this._configureCruceVoltaicSections(allCruceNotes, beatMs, false);
+      // Configurar las secciones de FASE ARCO VOLTAICO (Nodos Conductores, Orbes Rojos con Espinas, Barras de Inclinación y Choque Voltaico)
+      const voltaicMines = this._configureCruceVoltaicSections(allCruceNotes, beatMs, false);
+      if (Array.isArray(voltaicMines) && voltaicMines.length > 0) {
+        allCruceNotes.push(...voltaicMines);
+      }
       const finalCruceList = allCruceNotes
         .filter((n) => n && !n._dropDuplicateCollapsed)
         .sort((a, b) => (a.timestamp_ms || 0) - (b.timestamp_ms || 0));
@@ -24069,13 +24234,13 @@ class BeatstarEngine {
 
     /**
      * Devuelve la posición `(x, y)` en coordenadas locales de la línea para una nota en el progreso `progress` (0.0..1.0+).
-     * Todas las notas (incluidos los Nodos Conductores, Barras de Inclinación y Choques Voltaicos) caen de arriba hacia abajo.
+     * Todas las notas (incluidos los Nodos Conductores, Orbes Rojos con Espinas, Barras de Inclinación y Choques Voltaicos) caen de arriba hacia abajo.
      */
     getCruceNoteLocalPos(note, progress = 1.0, st = null, noteFlowDir = null, out = null) {
       const target = out || this._cruceNotePosScratch || (this._cruceNotePosScratch = { x: 0, y: 0 });
       const lineSt = st || this._cruceLineState || this.getCruceLineState();
       const slot = Math.max(0, Math.min(3, Math.round(note._cruceSlot ?? note.lane ?? 1)));
-      if (note && note._isVoltaicArc && note._voltaicKind !== 'conductor') {
+      if (note && note._isVoltaicArc && (note._voltaicKind === 'wave_gate' || note._voltaicKind === 'thunder_clap')) {
         const ep0 = this.getCruceBeamEndpointsLocal(1, lineSt, 1.0, this._cruceVoltaicEpL || (this._cruceVoltaicEpL = {}));
         const ep1 = this.getCruceBeamEndpointsLocal(2, lineSt, 1.0, this._cruceVoltaicEpR || (this._cruceVoltaicEpR = {}));
         const xOrig = (ep0.xOrigin + ep1.xOrigin) * 0.5;
@@ -24187,64 +24352,39 @@ class BeatstarEngine {
     }
 
     /**
-     * Detección táctil intuitiva de doble espacio (Nodo en Línea + Columnas de Pulgares):
-     * Permite tocar tanto sobre la línea de juicio como en cualquier punto de las 4 cuerdas.
+     * Detección táctil estricta por carril (0..3) en Modo Cruce:
+     * Cada uno de los 4 carriles exige tocar su propia cuerda/nodo receptor sin redirigir toques de otros carriles.
      */
     resolveCruceTouchLane(localX, localY, w, h, useMagnetism = true) {
       const currentTime = this.getCurrentGameTimeMs(this._frameNow || performance.now());
       const proj = this.projectScreenToCruceLine(localX, localY, currentTime);
-      const st = this._cruceLineState;
-      const spanW = Math.max(200, st ? st.spanW : w * 0.88);
-      const isVerticalRight = Boolean(st && Math.abs(st.sinA) > 0.65);
-      const colSlot = isVerticalRight
-        ? proj.slot
-        : Math.max(0, Math.min(3, Math.floor((localX / Math.max(1, w)) * 4)));
+      return Math.max(0, Math.min(3, proj.slot));
+    }
 
-      if (!useMagnetism || !this.isRunning || this.isPaused || !Array.isArray(this.notes)) {
-        return proj.slot;
+    /**
+     * Indica si el jugador se encuentra dentro de una ventana cercana a teclas amarillas Drag (`_isCruceDrag`)
+     * o dentro de la Fase Arco Voltaico (`VOLTAIC_ARC_PHASE`), donde se permite mantener el dedo pulsado
+     * o recolocar los pulgares sin que cuente como `MISS` por toque en vacío.
+     */
+    isNearCruceYellowDragOrVoltaic(currentTime, lane = null) {
+      const st = this._cruceLineState || this.getCruceLineState(currentTime);
+      if (st && (st.orientation === 'VOLTAIC_ARC_PHASE' || (st.voltaicBlend || 0) > 0.25)) {
+        return true;
       }
-
-      const hitWindow = 275;
-      const startIdx = Math.max(0, (this.firstActiveNoteIndex || 0) - 2);
+      if (!Array.isArray(this.notes) || this.notes.length === 0) return false;
+      const startIdx = Math.max(0, (this.firstActiveNoteIndex || 0) - 4);
       const nLen = this.notes.length;
-      let bestSlot = proj.slot;
-      let bestScore = Infinity;
-      const maxLateralCatchPx = Math.max(115, spanW * 0.42);
-      const thumbNormLocalX = isVerticalRight
-        ? proj.localX
-        : (((localX / Math.max(1, w)) - 0.5) * spanW);
-
       for (let i = startIdx; i < nLen; i++) {
-        const note = this.notes[i];
-        if (!note || note.hit || note.missed || note.holdCompleted || note.holding) continue;
-        if (this.isMadnessModeActive && note._madnessPhase !== 'cruce') continue;
-        if (note._isCruceDrag || note._isVoltaicArc) continue;
-
-        const dtMs = note.timestamp_ms - currentTime;
-        if (dtMs > hitWindow + 75) break;
-        const absTime = Math.abs(dtMs);
-        if (absTime > hitWindow) continue;
-
-        const noteSlot = note._cruceSlot ?? note.lane ?? 0;
-        const noteLocalX = (note.type === 'hold')
-          ? this.getCruceHoldLocalX(note, 0, 1.0)
-          : this.getCruceNoteLocalX(note, 1.0);
-        const lateralDist = Math.min(
-          Math.abs(proj.localX - noteLocalX),
-          Math.abs(thumbNormLocalX - noteLocalX),
-          Math.abs(colSlot - noteSlot) * (spanW * 0.24)
-        );
-        const extraHalfW = (note.type === 'hold') ? (spanW * 0.18 * (note.startWidth || 1.5)) : 0;
-
-        if (lateralDist <= maxLateralCatchPx + extraHalfW) {
-          const score = absTime + lateralDist * 0.42;
-          if (score < bestScore) {
-            bestScore = score;
-            bestSlot = noteSlot;
-          }
+        const n = this.notes[i];
+        if (!n) continue;
+        if (this.isMadnessModeActive && n._madnessPhase !== 'cruce') continue;
+        const dt = n.timestamp_ms - currentTime;
+        if (dt > 340) break;
+        if (dt >= -260 && (n._isCruceDrag || n._isVoltaicArc)) {
+          return true;
         }
       }
-      return bestSlot;
+      return false;
     }
 
     handleCrucePointerDown(localX, localY, lane, touchId) {
@@ -24258,19 +24398,19 @@ class BeatstarEngine {
         return this._checkAndCatchVoltaicNotes(currentTime, true);
       }
 
-      this._cruceAnyFingerActiveUntil = currentTime + 380;
       if (!this._cruceSlotDragBufferUntil) this._cruceSlotDragBufferUntil = [0, 0, 0, 0];
-      this._cruceSlotDragBufferUntil[targetSlot] = currentTime + 380;
-      if (targetSlot > 0) this._cruceSlotDragBufferUntil[targetSlot - 1] = currentTime + 340;
-      if (targetSlot < 3) this._cruceSlotDragBufferUntil[targetSlot + 1] = currentTime + 340;
+      this._cruceSlotDragBufferUntil[targetSlot] = currentTime + 280;
 
       if (this._cruceNodes && this._cruceNodes[targetSlot]) {
         this._cruceNodes[targetSlot].flash = 1.0;
       }
 
       const caughtDrag = this._checkAndCatchCruceDragNotesAtFinger(proj.localX, proj.localY, currentTime, localX);
+      if (caughtDrag) {
+        return true;
+      }
       const caughtTapOrHold = this.triggerLaneInput(targetSlot, 'tap', null, touchId);
-      return Boolean(caughtDrag || caughtTapOrHold);
+      return Boolean(caughtTapOrHold);
     }
 
     handleCrucePointerMove(localX, localY, touchId, tData) {
@@ -24288,11 +24428,8 @@ class BeatstarEngine {
         return;
       }
 
-      this._cruceAnyFingerActiveUntil = currentTime + 380;
       if (!this._cruceSlotDragBufferUntil) this._cruceSlotDragBufferUntil = [0, 0, 0, 0];
-      this._cruceSlotDragBufferUntil[proj.slot] = currentTime + 380;
-      if (proj.slot > 0) this._cruceSlotDragBufferUntil[proj.slot - 1] = currentTime + 340;
-      if (proj.slot < 3) this._cruceSlotDragBufferUntil[proj.slot + 1] = currentTime + 340;
+      this._cruceSlotDragBufferUntil[proj.slot] = currentTime + 280;
 
       this.laneGlows[proj.slot] = Math.max(this.laneGlows[proj.slot] || 0, 0.80);
       if (this._cruceNodes && this._cruceNodes[proj.slot]) {
@@ -24310,7 +24447,7 @@ class BeatstarEngine {
 
     /**
      * Calcula la distancia euclídea mínima entre el segmento del Arco Eléctrico `(x1, y1) -> (x2, y2)`
-     * y el punto `(px, py)` de un Nodo Conductor en caída.
+     * y el punto `(px, py)` de un Nodo Conductor u Orbe Rojo con Espinas en caída.
      */
     _segmentPointDistance(x1, y1, x2, y2, px, py) {
       const vx = x2 - x1;
@@ -24327,10 +24464,11 @@ class BeatstarEngine {
 
     /**
      * Actualiza en tiempo real los dos extremos `(x1, y1)` y `(x2, y2)` de El Rayo Entre Pulgares (La Línea de Juicio Viva):
-     * - Con 2 dedos en pantalla: los dos extremos siguen exactamente las coordenadas `(X1, Y1)` y `(X2, Y2)` de los pulgares.
-     * - Regla de seguridad táctil (1 dedo apoyado): calcula automáticamente el segundo extremo en posición simétrica horizontal
-     *   (y espejo vertical respecto a `Y = 78%` para poder inclinar el rayo con una sola mano o acercarlo al centro para Choque Voltaico).
-     * - Con 0 dedos en pantalla: muestra el rayo en reposo abajo en `Y = 78%` esperando los dedos del jugador.
+     * - Con 2 dedos en pantalla (`activeTouches >= 2`): el rayo está ENCENDIDO (`rayActive = true`) y une exactamente las coordenadas
+     *   `(X1, Y1)` y `(X2, Y2)` de ambos dedos. El jugador puede juntar ambos dedos en un lado (ej. carriles 2-3) para hacer el rayo
+     *   más corto y atrapar las notas de ese lado mientras esquiva los Orbes Rojos con Espinas que caen por el otro lado.
+     * - Al levantar 1 dedo (`activeTouches === 1`) o ambos (`0` dedos): el circuito se abre y el rayo se APAGA al instante (`rayActive = false`),
+     *   dejando pasar las bombas rojas con espinas sin sufrir cortocircuito; al volver a apoyar el segundo dedo, el rayo se enciende en el acto.
      */
     _updateVoltaicArcThumbEndpoints(currentTime = null) {
       const w = Math.max(240, this.width || 360);
@@ -24342,12 +24480,16 @@ class BeatstarEngine {
           y1: restY,
           x2: w * 0.86,
           y2: restY,
+          singleX: w * 0.50,
+          singleY: restY,
           angleRad: 0,
           spanDist: w * 0.72,
           prevSpanDist: w * 0.72,
           pinchVelocity: 0,
           activeFingerCount: 0,
-          clapFlash: 0
+          rayActive: false,
+          clapFlash: 0,
+          shortCircuitFlash: 0
         };
       }
       const va = this._voltaicArcState;
@@ -24359,14 +24501,11 @@ class BeatstarEngine {
           }
         }
       }
-      if (pts.length === 0 && this.mouseTouch && Number.isFinite(this.mouseTouch.curX) && Number.isFinite(this.mouseTouch.curY)) {
-        pts.push({ x: this.mouseTouch.curX, y: this.mouseTouch.curY });
-      }
 
-      let targetX1 = w * 0.14;
-      let targetY1 = restY;
-      let targetX2 = w * 0.86;
-      let targetY2 = restY;
+      let targetX1 = va.x1;
+      let targetY1 = va.y1;
+      let targetX2 = va.x2;
+      let targetY2 = va.y2;
 
       if (pts.length >= 2) {
         pts.sort((a, b) => a.x - b.x);
@@ -24382,35 +24521,50 @@ class BeatstarEngine {
           targetX2 = Math.min(w - 16, midX + 16);
         }
         va.activeFingerCount = 2;
+        va.rayActive = true;
       } else if (pts.length === 1) {
         const p = pts[0];
         const fx = Math.max(18, Math.min(w - 18, p.x));
         const fy = Math.max(h * 0.28, Math.min(h * 0.95, p.y));
+        va.singleX = fx;
+        va.singleY = fy;
         const symX = Math.max(18, Math.min(w - 18, w - fx));
-        const dyFromRest = fy - restY;
-        const symY = Math.max(h * 0.28, Math.min(h * 0.95, restY - dyFromRest));
         if (fx <= symX) {
           targetX1 = fx;
           targetY1 = fy;
           targetX2 = symX;
-          targetY2 = symY;
+          targetY2 = fy;
         } else {
           targetX1 = symX;
-          targetY1 = symY;
+          targetY1 = fy;
           targetX2 = fx;
           targetY2 = fy;
         }
-        if (Math.abs(targetX2 - targetX1) < 44) {
-          const cx = (targetX1 + targetX2) * 0.5;
-          targetX1 = Math.max(18, cx - 24);
-          targetX2 = Math.min(w - 18, cx + 24);
-        }
         va.activeFingerCount = 1;
+        // Al levantar uno de los dos dedos, el rayo láser se apaga para esquivar los Orbes Rojos con Espinas
+        va.rayActive = false;
+      } else if (this.mouseTouch && Number.isFinite(this.mouseTouch.curX) && Number.isFinite(this.mouseTouch.curY)) {
+        // Soporte en PC con ratón: mantener el botón pulsado activa un rayo compacto alrededor del cursor; soltar el botón lo apaga
+        const mx = Math.max(24, Math.min(w - 24, this.mouseTouch.curX));
+        const my = Math.max(h * 0.28, Math.min(h * 0.95, this.mouseTouch.curY));
+        const halfSpan = w * 0.20;
+        const tiltDy = (my - restY) * 0.45;
+        targetX1 = Math.max(16, mx - halfSpan);
+        targetY1 = Math.max(h * 0.25, Math.min(h * 0.95, my - tiltDy));
+        targetX2 = Math.min(w - 16, mx + halfSpan);
+        targetY2 = Math.max(h * 0.25, Math.min(h * 0.95, my + tiltDy));
+        va.activeFingerCount = 2;
+        va.rayActive = true;
       } else {
+        targetX1 = w * 0.14;
+        targetY1 = restY;
+        targetX2 = w * 0.86;
+        targetY2 = restY;
         va.activeFingerCount = 0;
+        va.rayActive = false;
       }
 
-      const lerpRate = (va.activeFingerCount > 0) ? 0.55 : 0.25;
+      const lerpRate = va.rayActive ? 0.65 : 0.35;
       va.x1 += (targetX1 - va.x1) * lerpRate;
       va.y1 += (targetY1 - va.y1) * lerpRate;
       va.x2 += (targetX2 - va.x2) * lerpRate;
@@ -24426,15 +24580,22 @@ class BeatstarEngine {
     }
 
     /**
-     * Valida en tiempo real la intercepción del Arco Eléctrico entre los dos pulgares con los 3 elementos de `FASE ARCO VOLTAICO`:
-     * 1. `conductor` (Nodos Conductores): dan `PERFECT+` simplemente con que el arco eléctrico entre los dos pulgares los intercepte al caer.
-     * 2. `wave_gate` (Barras de Inclinación en Holds/Acordes): caen con inclinación `+20°` o `-20°`; se validan cuando el rayo iguala su ángulo al impactar.
-     * 3. `thunder_clap` (Choque Voltaico en Beats Fuertes): dos anillos convergen al centro del rayo y explotan en partículas cuadradas al acercar los pulgares al centro.
+     * Valida en tiempo real la intercepción del Arco Eléctrico activo (`va.rayActive === true`) con los elementos de `FASE ARCO VOLTAICO`:
+     * - `spiked_orb` (`_isVoltaicMine`): Orbe Rojo con Espinas. Si toca el rayo láser activo que une los dedos, provoca un CORTOCIRCUITO
+     *   y el jugador pierde vida (`handleMiss()`). Si el jugador levanta un dedo (`va.rayActive === false`) o mantiene su rayo en el otro lado,
+     *   la bomba pasa de largo sin hacer daño.
+     * - `conductor`: Nodos Conductores que dan `PERFECT+` cuando el rayo activo los intercepta dentro de su tramo entre los dos pulgares.
+     * - `wave_gate`: Barras de Inclinación (`+20°` o `-20°`) que se validan cuando el rayo activo iguala su inclinación.
+     * - `thunder_clap`: Choque Voltaico en beats fuertes al acercar ambos pulgares hacia el centro.
      */
     _checkAndCatchVoltaicNotes(currentTime, allowDirectTap = false) {
       if (!Array.isArray(this.notes) || this.notes.length === 0) return false;
       const st = this._cruceLineState || this.getCruceLineState(currentTime);
       const va = this._voltaicArcState || this._updateVoltaicArcThumbEndpoints(currentTime);
+      if (!va.rayActive) {
+        return false;
+      }
+
       const w = Math.max(240, this.width || 360);
       const scrollDur = (Number.isFinite(this.scrollDurationMs) && this.scrollDurationMs > 0) ? this.scrollDurationMs : 1400;
       const effTime = (this.isMadnessModeActive && typeof this.getMadnessScrollTimeMs === 'function')
@@ -24449,12 +24610,12 @@ class BeatstarEngine {
 
       for (let i = startIdx; i < nLen; i++) {
         const note = this.notes[i];
-        if (!note || note.hit || note.missed || note.isMine || !note._isVoltaicArc) continue;
+        if (!note || note.hit || note.missed || !note._isVoltaicArc) continue;
         if (this.isMadnessModeActive && note._madnessPhase !== 'cruce') continue;
 
         const dtMs = note.timestamp_ms - effTime;
-        if (dtMs > 280) break;
-        if (dtMs < -185) continue;
+        if (dtMs > 260) break;
+        if (dtMs < -175) continue;
 
         const rawP = 1.0 - (dtMs / scrollDur);
         const dm = this._getCruceDepthPosition(Math.max(0, Math.min(1.18, rawP)), null, false);
@@ -24463,26 +24624,33 @@ class BeatstarEngine {
         const segDist = this._segmentPointDistance(va.x1, va.y1, va.x2, va.y2, scrPt.x, scrPt.y);
         const kind = note._voltaicKind || 'conductor';
 
+        // 0. Orbes Rojos con Espinas (`_isVoltaicMine` / `spiked_orb`): si tocan el rayo láser activo, hacen cortocircuito y quitan vida
+        if (note._isVoltaicMine || kind === 'spiked_orb') {
+          if (Math.abs(dtMs) <= 115 && segDist <= 38) {
+            this._triggerVoltaicShortCircuit(note, currentTime, scrPt.x, scrPt.y);
+          }
+          continue;
+        }
+
         if (kind === 'conductor') {
-          const catchRadius = (va.activeFingerCount > 0) ? 72 : 52;
-          if ((segDist <= catchRadius && Math.abs(dtMs) <= 235) || (Math.abs(dtMs) <= 135 && segDist <= 96)) {
+          if (segDist <= 54 && Math.abs(dtMs) <= 215) {
             this._completeVoltaicNoteCatch(note, currentTime, scrPt.x, scrPt.y);
             caughtAny = true;
           }
         } else if (kind === 'wave_gate') {
-          if (Math.abs(dtMs) <= 220 && segDist <= 88) {
+          if (Math.abs(dtMs) <= 220 && segDist <= 86) {
             const reqAngle = Number.isFinite(note._voltaicGateAngleRad) ? note._voltaicGateAngleRad : 0;
             const angleDiff = Math.abs(va.angleRad - reqAngle);
             const isTiltedCorrectly = (angleDiff <= 0.34) || (Math.sign(va.angleRad) === Math.sign(reqAngle) && Math.abs(va.angleRad) >= 0.11);
-            if (isTiltedCorrectly || allowDirectTap || (va.activeFingerCount === 0 && Math.abs(dtMs) <= 75)) {
+            if (isTiltedCorrectly || allowDirectTap) {
               this._completeVoltaicNoteCatch(note, currentTime, rayMidX, rayMidY);
               caughtAny = true;
             }
           }
         } else if (kind === 'thunder_clap') {
-          if (Math.abs(dtMs) <= 235 && segDist <= 96) {
+          if (Math.abs(dtMs) <= 235 && segDist <= 92) {
             const normSpan = va.spanDist / w;
-            const isPinched = (va.activeFingerCount > 0 && (normSpan <= 0.62 || va.pinchVelocity >= 2.2));
+            const isPinched = (normSpan <= 0.62 || va.pinchVelocity >= 2.2);
             if (isPinched || allowDirectTap) {
               this._completeVoltaicNoteCatch(note, currentTime, rayMidX, rayMidY);
               caughtAny = true;
@@ -24491,6 +24659,45 @@ class BeatstarEngine {
         }
       }
       return caughtAny;
+    }
+
+    /**
+     * Ejecuta el Cortocircuito cuando un Orbe Rojo con Espinas (`_isVoltaicMine`) impacta contra el rayo láser activo:
+     * Destello carmesí en todo el arco eléctrico, onda expansiva de cortocircuito, chispas rojas y pérdida de vida (`handleMiss()`).
+     */
+    _triggerVoltaicShortCircuit(note, currentTime, hitX, hitY) {
+      if (!note || note.hit || note.missed) return;
+      note.hit = true;
+      note.missed = true;
+      note.processed = true;
+
+      const slot = Math.max(0, Math.min(3, Math.round(note._cruceSlot ?? note.lane ?? 1)));
+      if (this._voltaicArcState) {
+        this._voltaicArcState.shortCircuitFlash = 1.0;
+      }
+      this.laneGlows[slot] = 1.0;
+      if (this.laneFlashTimers) this.laneFlashTimers[slot] = 0.42;
+      if (this.laneFlashColors) this.laneFlashColors[slot] = '#ff1744';
+
+      this._spawnCruceSquareParticles(hitX, hitY, '#ff1744', 28);
+      this._spawnCruceSquareParticles(hitX, hitY, '#fde047', 12);
+      if (!this._voltaicClapWaves) this._voltaicClapWaves = [];
+      if (this._voltaicClapWaves.length >= 10) this._voltaicClapWaves.shift();
+      this._voltaicClapWaves.push({
+        x: hitX,
+        y: hitY,
+        radius: 14,
+        maxRadius: 145,
+        alpha: 1.0,
+        color: '#ff1744'
+      });
+
+      if (this.synth && typeof this.synth.playPunchyArcadeMiss === 'function') {
+        this.synth.playPunchyArcadeMiss();
+      }
+      this.addJudgement('MISS', '#ff2a55', slot);
+      this.handleMiss();
+      this.emitKeyHit(hitX, hitY, '#ff1744', 26);
     }
 
     _completeVoltaicNoteCatch(note, currentTime, hitX, hitY) {
@@ -24576,7 +24783,7 @@ class BeatstarEngine {
 
     /**
      * Valida automáticamente las Drag / Catch Notes amarillas como PERFECT+ (lanzando partículas cuadradas doradas)
-     * cuando el jugador mantiene o desliza el dedo en la pantalla.
+     * cuando el jugador mantiene o desliza el dedo sobre el carril correspondiente de la pantalla.
      */
     _checkAndCatchCruceDragNotesAtFinger(fingerLocalX, fingerLocalY, currentTime, rawScreenX = null) {
       if (!Array.isArray(this.notes) || this.notes.length === 0) return false;
@@ -24584,7 +24791,7 @@ class BeatstarEngine {
       const st = this._cruceLineState || this.getCruceLineState(currentTime);
       const spanW = Math.max(200, st.spanW);
       const isVerticalRight = Math.abs(st.sinA || 0) > 0.65;
-      const catchLateralRadius = Math.max(125, spanW * 0.44);
+      const catchLateralRadius = Math.max(46, spanW * 0.17);
       const thumbNormLocalX = (!isVerticalRight && Number.isFinite(rawScreenX))
         ? (((rawScreenX / Math.max(1, this.width || 360)) - 0.5) * spanW)
         : fingerLocalX;
@@ -24766,23 +24973,24 @@ class BeatstarEngine {
       const prevAngle = this._cruceLineState.angle;
       const st = this.getCruceLineState(currentTime);
 
-      // Actualizar extremos del Arco Eléctrico entre pulgares y comprobar captura en tiempo real durante FASE ARCO VOLTAICO
+      // Actualizar extremos del Arco Eléctrico entre pulgares y comprobar captura / cortocircuitos en tiempo real durante FASE ARCO VOLTAICO
       this._updateVoltaicArcThumbEndpoints(currentTime);
       if ((st.voltaicBlend || 0) > 0.15 || st.orientation === 'VOLTAIC_ARC_PHASE') {
         this._checkAndCatchVoltaicNotes(currentTime, false);
       }
 
+      if (!this._cruceSlotDragBufferUntil) this._cruceSlotDragBufferUntil = [0, 0, 0, 0];
       if (this.activeTouches && this.activeTouches.size > 0) {
-        this._cruceAnyFingerActiveUntil = currentTime + 260;
         for (const [, tData] of this.activeTouches.entries()) {
           if (!tData || !Number.isFinite(tData.curX)) continue;
           const proj = this.projectScreenToCruceLine(tData.curX, tData.curY, currentTime);
+          this._cruceSlotDragBufferUntil[proj.slot] = currentTime + 240;
           this._checkAndCatchCruceDragNotesAtFinger(proj.localX, proj.localY, currentTime, tData.curX);
         }
       }
       if (this.mouseTouch && Number.isFinite(this.mouseTouch.curX)) {
-        this._cruceAnyFingerActiveUntil = currentTime + 260;
         const proj = this.projectScreenToCruceLine(this.mouseTouch.curX, this.mouseTouch.curY, currentTime);
+        this._cruceSlotDragBufferUntil[proj.slot] = currentTime + 240;
         this._checkAndCatchCruceDragNotesAtFinger(proj.localX, proj.localY, currentTime, this.mouseTouch.curX);
       }
 
@@ -24797,8 +25005,7 @@ class BeatstarEngine {
           if (dtMs > 85) break;
           if (dtMs <= 75 && dtMs >= -165) {
             const slot = Math.max(0, Math.min(3, Math.round(note._cruceSlot ?? note.lane ?? 1)));
-            if (currentTime <= (this._cruceSlotDragBufferUntil[slot] || 0) ||
-                currentTime <= (this._cruceAnyFingerActiveUntil || 0)) {
+            if (currentTime <= (this._cruceSlotDragBufferUntil[slot] || 0)) {
               this._completeCruceDragCatch(note, currentTime);
             }
           }
@@ -24825,8 +25032,13 @@ class BeatstarEngine {
     updateCruceModeEffects(dt) {
       if (!this._cruceLineState) return;
 
-      if (this._voltaicArcState && this._voltaicArcState.clapFlash > 0) {
-        this._voltaicArcState.clapFlash = Math.max(0, this._voltaicArcState.clapFlash - dt * 3.2);
+      if (this._voltaicArcState) {
+        if (this._voltaicArcState.clapFlash > 0) {
+          this._voltaicArcState.clapFlash = Math.max(0, this._voltaicArcState.clapFlash - dt * 3.2);
+        }
+        if (this._voltaicArcState.shortCircuitFlash > 0) {
+          this._voltaicArcState.shortCircuitFlash = Math.max(0, this._voltaicArcState.shortCircuitFlash - dt * 3.8);
+        }
       }
 
       if (this._voltaicClapWaves && this._voltaicClapWaves.length > 0) {
@@ -25319,9 +25531,11 @@ class BeatstarEngine {
 
     /**
      * Dibuja El Rayo Entre Pulgares (La Línea de Juicio Viva) durante la `FASE ARCO VOLTAICO`:
-     * - Haz central brillante de neón + chispas eléctricas aleatorias en zigzag cuyos extremos siguen `(X1, Y1)` y `(X2, Y2)`.
-     * - Si hay 1 dedo apoyado, el segundo extremo se sitúa automáticamente en posición simétrica horizontal.
-     * - Si no toca la pantalla, muestra el rayo en reposo abajo en `Y = 78%`.
+     * - Cuando los 2 dedos están apoyados (`va.rayActive === true`): dibuja el haz láser central de neón + chispas eléctricas
+     *   en zigzag cuyos extremos siguen exactamente `(X1, Y1)` y `(X2, Y2)` (permitiendo acortar el rayo en un lado de la pantalla
+     *   para esquivar los Orbes Rojos con Espinas del otro lado).
+     * - Cuando el jugador levanta 1 dedo o ambos (`va.rayActive === false`): el rayo láser se apaga visualmente (mostrando los nodos
+     *   aislados en circuito abierto y una tenue línea guía discontinua apagada) para dejar pasar las bombas rojas sin cortocircuito.
      */
     _renderVoltaicThumbArc(ctx, currentTime, blendAlpha = 1.0, beatPulse = 0) {
       const va = this._updateVoltaicArcThumbEndpoints(currentTime);
@@ -25335,76 +25549,97 @@ class BeatstarEngine {
       const nx = -dy / dist;
       const ny = dx / dist;
       const clapBoost = va.clapFlash || 0;
-      const isEngaged = va.activeFingerCount > 0;
+      const shortFlash = va.shortCircuitFlash || 0;
+      const isRayActive = Boolean(va.rayActive);
 
       ctx.save();
       ctx.globalAlpha = blendAlpha;
       ctx.globalCompositeOperation = 'lighter';
 
-      // 1. Haz central brillante (resplandor ancho cian + halo medio + núcleo blanco incandescente)
-      ctx.strokeStyle = clapBoost > 0.25
-        ? `rgba(253, 224, 71, ${(0.42 + beatPulse * 0.20) * blendAlpha})`
-        : `rgba(0, 242, 254, ${(0.36 + beatPulse * 0.18 + (isEngaged ? 0.12 : 0)) * blendAlpha})`;
-      ctx.lineWidth = 18.0 + beatPulse * 5.0 + clapBoost * 8.0;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
-      ctx.stroke();
-
-      ctx.strokeStyle = isEngaged ? '#00f2fe' : 'rgba(56, 189, 248, 0.85)';
-      ctx.lineWidth = 6.5 + beatPulse * 2.4 + clapBoost * 3.5;
-      ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
-      ctx.stroke();
-
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2.6 + beatPulse * 1.0;
-      ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
-      ctx.stroke();
-
-      // 2. Dos filamentos de chispas aleatorias en zigzag recorriendo todo el arco entre ambos pulgares
-      const segments = 14;
-      for (let strand = 0; strand < 2; strand++) {
-        const isGoldStrand = (strand === 1);
-        const maxJitter = (isGoldStrand ? 11.5 : 15.0) * (isEngaged ? 1.22 : 0.72) + beatPulse * 5.5 + clapBoost * 9.0;
-        ctx.strokeStyle = isGoldStrand ? '#fde047' : '#00f2fe';
-        ctx.lineWidth = isGoldStrand ? 2.1 : 2.8;
+      if (isRayActive || shortFlash > 0.05) {
+        const isShorting = shortFlash > 0.15;
+        // 1. Haz central brillante (resplandor ancho cian/dorado o rojo carmesí en cortocircuito)
+        ctx.strokeStyle = isShorting
+          ? `rgba(255, 23, 68, ${(0.62 + shortFlash * 0.30) * blendAlpha})`
+          : (clapBoost > 0.25
+            ? `rgba(253, 224, 71, ${(0.44 + beatPulse * 0.20) * blendAlpha})`
+            : `rgba(0, 242, 254, ${(0.46 + beatPulse * 0.18) * blendAlpha})`);
+        ctx.lineWidth = 18.0 + beatPulse * 5.0 + clapBoost * 8.0 + shortFlash * 10.0;
+        ctx.lineCap = 'round';
         ctx.beginPath();
         ctx.moveTo(x1, y1);
-        for (let s = 1; s < segments; s++) {
-          const u = s / segments;
-          const env = Math.sin(u * Math.PI);
-          const jitter = (Math.random() - 0.5) * 2.0 * maxJitter * env;
-          const px = x1 + dx * u + nx * jitter;
-          const py = y1 + dy * u + ny * jitter;
-          ctx.lineTo(px, py);
-        }
         ctx.lineTo(x2, y2);
         ctx.stroke();
+
+        ctx.strokeStyle = isShorting ? '#ff1744' : '#00f2fe';
+        ctx.lineWidth = 6.8 + beatPulse * 2.4 + clapBoost * 3.5;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.8 + beatPulse * 1.0;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+
+        // 2. Dos filamentos de chispas aleatorias en zigzag recorriendo el arco activo entre ambos pulgares
+        const segments = 14;
+        for (let strand = 0; strand < 2; strand++) {
+          const isSecondStrand = (strand === 1);
+          const maxJitter = (isSecondStrand ? 11.5 : 15.0) * (1.22 + shortFlash * 0.85) + beatPulse * 5.5 + clapBoost * 9.0;
+          ctx.strokeStyle = isShorting
+            ? (isSecondStrand ? '#fde047' : '#ff1744')
+            : (isSecondStrand ? '#fde047' : '#00f2fe');
+          ctx.lineWidth = isSecondStrand ? 2.2 : 2.9;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          for (let s = 1; s < segments; s++) {
+            const u = s / segments;
+            const env = Math.sin(u * Math.PI);
+            const jitter = (Math.random() - 0.5) * 2.0 * maxJitter * env;
+            const px = x1 + dx * u + nx * jitter;
+            const py = y1 + dy * u + ny * jitter;
+            ctx.lineTo(px, py);
+          }
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+        }
+      } else {
+        // Rayo APAGADO (1 dedo o 0 dedos): guía discontinua tenue en circuito abierto (las bombas rojas pasan sin explotar)
+        ctx.save();
+        ctx.setLineDash([8, 12]);
+        ctx.strokeStyle = `rgba(148, 163, 184, ${0.26 * blendAlpha})`;
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        ctx.restore();
       }
 
-      // 3. Nodos de anclaje de plasma en los dos extremos (pulgar izquierdo y pulgar derecho)
+      // 3. Nodos de anclaje de plasma en los dos extremos (o anillo aislado en el dedo único cuando el rayo está apagado)
       const endPts = [
-        { x: x1, y: y1 },
-        { x: x2, y: y2 }
+        { x: x1, y: y1, active: isRayActive || (va.activeFingerCount === 1 && Math.hypot(x1 - (va.singleX || 0), y1 - (va.singleY || 0)) < 24) },
+        { x: x2, y: y2, active: isRayActive || (va.activeFingerCount === 1 && Math.hypot(x2 - (va.singleX || 0), y2 - (va.singleY || 0)) < 24) }
       ];
       for (let e = 0; e < 2; e++) {
         const ep = endPts[e];
-        const ringR = (isEngaged ? 18.0 : 14.0) + beatPulse * 3.5 + clapBoost * 5.0;
+        const ringR = (isRayActive ? 18.5 : (ep.active ? 16.0 : 12.0)) + beatPulse * 3.5 + clapBoost * 5.0;
 
-        ctx.strokeStyle = isEngaged ? '#fde047' : '#00f2fe';
-        ctx.lineWidth = 3.0;
+        ctx.strokeStyle = shortFlash > 0.15
+          ? '#ff1744'
+          : (isRayActive ? '#fde047' : (ep.active ? '#38bdf8' : 'rgba(148, 163, 184, 0.45)'));
+        ctx.lineWidth = isRayActive ? 3.2 : 2.2;
         ctx.beginPath();
         ctx.arc(ep.x, ep.y, ringR, 0, Math.PI * 2);
         ctx.stroke();
 
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = isRayActive ? '#ffffff' : (ep.active ? '#bae6fd' : 'rgba(148, 163, 184, 0.45)');
         ctx.beginPath();
-        ctx.arc(ep.x, ep.y, 5.5 + beatPulse * 1.8, 0, Math.PI * 2);
+        ctx.arc(ep.x, ep.y, isRayActive ? (5.8 + beatPulse * 1.8) : 4.0, 0, Math.PI * 2);
         ctx.fill();
       }
 
@@ -25436,7 +25671,7 @@ class BeatstarEngine {
 
     /**
      * Renderiza todas las notas del modo CRUCE deslizándose con perspectiva 3D compensada por sus respectivos rayos láser,
-     * así como los Nodos Conductores, Barras de Inclinación y Choques Voltaicos de la `FASE ARCO VOLTAICO`.
+     * así como los Nodos Conductores, Orbes Rojos con Espinas, Barras de Inclinación y Choques Voltaicos de la `FASE ARCO VOLTAICO`.
      */
     renderCruceNotes(ctx, currentTime, madnessFilterOnly = false) {
       if (!this._cruceLineState) {
@@ -25669,7 +25904,7 @@ class BeatstarEngine {
         }
         ctx.restore();
 
-        // 4. Dibujar Tap Notes (Azules/Cian + HO/PO), Drag Slide Notes (Amarillas) y los 3 Elementos de FASE ARCO VOLTAICO
+        // 4. Dibujar Tap Notes (Azules/Cian + HO/PO), Drag Slide Notes (Amarillas) y los Elementos de FASE ARCO VOLTAICO (incluidos Orbes Rojos con Espinas)
         for (let i = startIdx; i < len; i++) {
           const note = this.notes[i];
           if (!note || (isMadnessCruce && note._madnessPhase !== 'cruce') || note.hit || note.missed || note.type === 'hold') continue;
@@ -25688,15 +25923,17 @@ class BeatstarEngine {
           const localX = pos.x;
           const localY = pos.y;
 
-          if (rawP > 0.04 && rawP < 1.12 && (!note._isVoltaicArc || note._voltaicKind === 'conductor')) {
+          if (rawP > 0.04 && rawP < 1.12 && (!note._isVoltaicArc || note._voltaicKind === 'conductor' || note._voltaicKind === 'spiked_orb')) {
             const tailRawP = Math.max(0, rawP - 0.10);
             const tailDm = this._getCruceDepthPosition(tailRawP, this._cruceTailDepthScratch || (this._cruceTailDepthScratch = { pDepth: 0, scale: 1 }), false);
             const tailPos = this.getCruceNoteLocalPos(note, tailDm.pDepth, st, flowDir, this._cruceTailPosScratch || (this._cruceTailPosScratch = { x: 0, y: 0 }));
             ctx.save();
             ctx.globalCompositeOperation = 'lighter';
-            ctx.strokeStyle = (note._isVoltaicArc && note._voltaicColorType === 'yellow') || note._isCruceDrag
-              ? 'rgba(253, 224, 71, 0.75)'
-              : (note._isCruceAccent ? 'rgba(168, 85, 247, 0.72)' : 'rgba(0, 242, 254, 0.68)');
+            ctx.strokeStyle = (note._isVoltaicMine || note._voltaicKind === 'spiked_orb')
+              ? 'rgba(255, 23, 68, 0.82)'
+              : ((note._isVoltaicArc && note._voltaicColorType === 'yellow') || note._isCruceDrag
+                ? 'rgba(253, 224, 71, 0.75)'
+                : (note._isCruceAccent ? 'rgba(168, 85, 247, 0.72)' : 'rgba(0, 242, 254, 0.68)'));
             ctx.lineWidth = Math.max(2.0, 4.4 * scale);
             ctx.beginPath();
             ctx.moveTo(tailPos.x, tailPos.y);
@@ -25707,10 +25944,12 @@ class BeatstarEngine {
 
           if (note._isVoltaicArc) {
             const kind = note._voltaicKind || 'conductor';
-            if (kind === 'wave_gate') {
+            if (note._isVoltaicMine || kind === 'spiked_orb') {
+              this._drawVoltaicSpikedOrbLocal(ctx, note, localX, localY, slotW, scale, currentTime);
+            } else if (kind === 'wave_gate') {
               this._drawVoltaicWaveGateLocal(ctx, note, localX, localY, st.spanW, scale, currentTime);
             } else if (kind === 'thunder_clap') {
-              this._drawVoltaicThunderClapLocal(ctx, note, localX, localY, st.spanW, scale, rawP, currentTime);
+              this._drawVoltaicThunderClapLocal(ctx, note, localX, localY, st.spanW, rawP, scale, currentTime);
             } else {
               this._drawVoltaicConductorNodeLocal(ctx, note, localX, localY, slotW, scale, currentTime);
             }
@@ -25723,6 +25962,78 @@ class BeatstarEngine {
       } finally {
         ctx.restore();
       }
+    }
+
+    /**
+     * Dibuja un Orbe Rojo con Espinas (`spiked_orb` / `_isVoltaicMine`) de la Fase Arco Voltaico:
+     * Mina esférica carmesí-neón con 8 espinas afiladas rotatorias y núcleo incandescente de peligro.
+     * Si toca el rayo láser activo entre los pulgares hace cortocircuito y quita vida.
+     */
+    _drawVoltaicSpikedOrbLocal(ctx, note, localX, localY, slotW, scale = 1.0, currentTime = 0) {
+      const coreR = Math.max(12, Math.min(26, slotW * 0.28 * scale));
+      const spikeOuterR = coreR * 1.58;
+      const spikeInnerR = coreR * 0.92;
+      const spin = currentTime * 0.0065 * ((note.id % 2 === 0) ? 1 : -1) + (note.id || 0);
+      const dangerPulse = 1.0 + 0.14 * Math.sin(currentTime * 0.022 + (note.id || 0));
+
+      ctx.save();
+      ctx.translate(localX, localY);
+
+      // 1. Halo de advertencia carmesí pulsante
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = 'rgba(255, 23, 68, 0.38)';
+      ctx.beginPath();
+      ctx.arc(0, 0, coreR * 1.65 * dangerPulse, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // 2. Corona rotatoria de 8 espinas metálicas rojas/naranjas
+      ctx.save();
+      ctx.rotate(spin);
+      const numSpikes = 8;
+      ctx.fillStyle = '#ff1744';
+      ctx.strokeStyle = '#ff9100';
+      ctx.lineWidth = Math.max(1.2, 1.9 * scale);
+      ctx.beginPath();
+      for (let s = 0; s < numSpikes; s++) {
+        const aMid = (s * Math.PI * 2) / numSpikes;
+        const aLeft = aMid - (Math.PI / numSpikes) * 0.52;
+        const aRight = aMid + (Math.PI / numSpikes) * 0.52;
+        if (s === 0) {
+          ctx.moveTo(Math.cos(aLeft) * spikeInnerR, Math.sin(aLeft) * spikeInnerR);
+        } else {
+          ctx.lineTo(Math.cos(aLeft) * spikeInnerR, Math.sin(aLeft) * spikeInnerR);
+        }
+        ctx.lineTo(Math.cos(aMid) * spikeOuterR, Math.sin(aMid) * spikeOuterR);
+        ctx.lineTo(Math.cos(aRight) * spikeInnerR, Math.sin(aRight) * spikeInnerR);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      // 3. Esfera blindada oscura con borde rojo neón
+      ctx.fillStyle = 'rgba(42, 4, 14, 0.96)';
+      ctx.strokeStyle = '#ff2a55';
+      ctx.lineWidth = Math.max(1.8, 2.8 * scale);
+      ctx.beginPath();
+      ctx.arc(0, 0, coreR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // 4. Cruz de peligro interna (X incandescente sin texto)
+      const crossR = coreR * 0.48;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = Math.max(1.6, 2.5 * scale);
+      ctx.beginPath();
+      ctx.moveTo(-crossR, -crossR);
+      ctx.lineTo(crossR, crossR);
+      ctx.moveTo(crossR, -crossR);
+      ctx.lineTo(-crossR, crossR);
+      ctx.stroke();
+
+      ctx.restore();
     }
 
     /**
@@ -29679,9 +29990,14 @@ Object.assign(BeatstarEngine.prototype, {
       }
     }
 
-    // Configurar los tramos de Fase Arco Voltaico ('VOLTAIC_ARC_PHASE') dentro de las fases Cruce del Modo Locura
+    // Configurar los tramos de Fase Arco Voltaico ('VOLTAIC_ARC_PHASE') y sus Orbes Rojos con Espinas dentro de las fases Cruce del Modo Locura
     if (typeof this._configureCruceVoltaicSections === 'function') {
-      this._configureCruceVoltaicSections(filteredNotes, beatMs, true);
+      const madnessVoltaicMines = this._configureCruceVoltaicSections(filteredNotes, beatMs, true);
+      if (Array.isArray(madnessVoltaicMines) && madnessVoltaicMines.length > 0) {
+        for (let m = 0; m < madnessVoltaicMines.length; m++) {
+          injectedExtraNotes.push(madnessVoltaicMines[m]);
+        }
+      }
     }
 
     // 6C. Fases PULSO COMPLETAS: EXACTAMENTE EL MISMO ALGORITMO DE `_prepareOsuHybridChoreography`

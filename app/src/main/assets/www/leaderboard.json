@@ -4988,6 +4988,80 @@
         "accuracy": 1.3506383876754247,
         "date": "2026-11-01 16:53:40"
       }
+    ],
+    "top_man_labios_compartidos": [],
+    "top_mecano_maquillaje": [],
+    "osu_2646234": [],
+    "top_mocedades_silbame": [],
+    "osu_241094": [
+      {
+        "name": "Libay",
+        "score": 81329,
+        "stars": 3.5,
+        "combo": 110,
+        "accuracy": 14.66846304793236,
+        "date": "2026-11-02 00:49:19"
+      }
+    ],
+    "osu_1153734": [
+      {
+        "name": "Libay",
+        "score": 109490,
+        "stars": 1,
+        "combo": 93,
+        "accuracy": 21.462567431940784,
+        "date": "2026-11-02 00:49:51"
+      }
+    ],
+    "bs_384db": [
+      {
+        "name": "Elpianero",
+        "score": 3000,
+        "stars": 3.5,
+        "combo": 7,
+        "accuracy": 12.345679012345679,
+        "date": "2026-11-02 02:35:08"
+      }
+    ],
+    "osu_1245114": [
+      {
+        "name": "Elpianero",
+        "score": 174774,
+        "stars": 2,
+        "combo": 77,
+        "accuracy": 53.11908286046872,
+        "date": "2026-11-02 02:37:33"
+      }
+    ],
+    "osu_1034087": [
+      {
+        "name": "Elpianero",
+        "score": 4947,
+        "stars": 3.5,
+        "combo": 10,
+        "accuracy": 4.137879117386286,
+        "date": "2026-11-02 02:42:01"
+      }
+    ],
+    "osu_1412672": [
+      {
+        "name": "Elpianero",
+        "score": 226229,
+        "stars": 1,
+        "combo": 110,
+        "accuracy": 24.457823770562694,
+        "date": "2026-11-02 02:45:37"
+      }
+    ],
+    "clonehero_403449": [
+      {
+        "name": "Elpianero",
+        "score": 2850,
+        "stars": 3.5,
+        "combo": 9,
+        "accuracy": 0.3544868709257331,
+        "date": "2026-11-02 02:46:23"
+      }
     ]
   },
   "global": [
@@ -5003,8 +5077,8 @@
     },
     {
       "name": "Libay",
-      "total_score": 23651788,
-      "clefs": 176
+      "total_score": 24069107,
+      "clefs": 178
     },
     {
       "name": "Jocomomolo",
@@ -5095,6 +5169,11 @@
       "name": "Layla",
       "total_score": 437350,
       "clefs": 1
+    },
+    {
+      "name": "Elpianero",
+      "total_score": 411800,
+      "clefs": 3
     },
     {
       "name": "`pc",
@@ -5228,60 +5307,16 @@
     }
   ],
   "weekly": {
-    "week_id": "2026-W44",
+    "week_id": "2026-W45",
     "clean_v2": true,
     "players": [
       {
-        "name": "Mauricio",
-        "score": 23989051
-      },
-      {
         "name": "Libay",
-        "score": 15392315
+        "score": 417319
       },
       {
-        "name": "Laaleplo",
-        "score": 6357798
-      },
-      {
-        "name": "aelec",
-        "score": 1919054
-      },
-      {
-        "name": "Siro",
-        "score": 1703576
-      },
-      {
-        "name": "Darwin67",
-        "score": 1274297
-      },
-      {
-        "name": "Llois1",
-        "score": 869748
-      },
-      {
-        "name": "Davi",
-        "score": 67844
-      },
-      {
-        "name": "VAMP",
-        "score": 60136
-      },
-      {
-        "name": "Ttuk",
-        "score": 38826
-      },
-      {
-        "name": "Llois",
-        "score": 37650
-      },
-      {
-        "name": "Ballsaxk",
-        "score": 21975
-      },
-      {
-        "name": "`pc",
-        "score": 13725
+        "name": "Elpianero",
+        "score": 411800
       }
     ]
   },
@@ -5370,6 +5405,60 @@
       {
         "name": "PixToPix",
         "score": 1500
+      }
+    ],
+    "2026-W44": [
+      {
+        "name": "Mauricio",
+        "score": 23989051
+      },
+      {
+        "name": "Libay",
+        "score": 15392315
+      },
+      {
+        "name": "Laaleplo",
+        "score": 6357798
+      },
+      {
+        "name": "aelec",
+        "score": 1919054
+      },
+      {
+        "name": "Siro",
+        "score": 1703576
+      },
+      {
+        "name": "Darwin67",
+        "score": 1274297
+      },
+      {
+        "name": "Llois1",
+        "score": 869748
+      },
+      {
+        "name": "Davi",
+        "score": 67844
+      },
+      {
+        "name": "VAMP",
+        "score": 60136
+      },
+      {
+        "name": "Ttuk",
+        "score": 38826
+      },
+      {
+        "name": "Llois",
+        "score": 37650
+      },
+      {
+        "name": "Ballsaxk",
+        "score": 21975
+      },
+      {
+        "name": "`pc",
+        "score": 13725
       }
     ]
   },
