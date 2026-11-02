@@ -4989,44 +4989,28 @@
         "date": "2026-11-01 16:53:40"
       }
     ],
-    "top_man_labios_compartidos": [
+    "top_man_labios_compartidos": [],
+    "top_mecano_maquillaje": [],
+    "osu_2646234": [],
+    "top_mocedades_silbame": [],
+    "osu_241094": [
       {
-        "name": "Test",
-        "score": 173648,
+        "name": "Libay",
+        "score": 81329,
         "stars": 3.5,
-        "combo": 105,
-        "accuracy": 7.330551083110367,
-        "date": "2026-11-01 20:29:17"
+        "combo": 110,
+        "accuracy": 14.66846304793236,
+        "date": "2026-11-02 00:49:19"
       }
     ],
-    "top_mecano_maquillaje": [
+    "osu_1153734": [
       {
-        "name": "Test",
-        "score": 444404,
+        "name": "Libay",
+        "score": 109490,
         "stars": 1,
-        "combo": 147,
-        "accuracy": 34.687789289968265,
-        "date": "2026-11-01 20:32:03"
-      }
-    ],
-    "osu_2646234": [
-      {
-        "name": "Test",
-        "score": 538233,
-        "stars": 1,
-        "combo": 195,
-        "accuracy": 28.446570025432276,
-        "date": "2026-11-01 20:35:10"
-      }
-    ],
-    "top_mocedades_silbame": [
-      {
-        "name": "Test",
-        "score": 103971,
-        "stars": 1,
-        "combo": 47,
-        "accuracy": 21.660940888721296,
-        "date": "2026-11-01 20:37:09"
+        "combo": 93,
+        "accuracy": 21.462567431940784,
+        "date": "2026-11-02 00:49:51"
       }
     ]
   },
@@ -5043,8 +5027,8 @@
     },
     {
       "name": "Libay",
-      "total_score": 23651788,
-      "clefs": 176
+      "total_score": 24069107,
+      "clefs": 178
     },
     {
       "name": "Jocomomolo",
@@ -5105,11 +5089,6 @@
       "name": "Darwin67",
       "total_score": 1628955,
       "clefs": 13
-    },
-    {
-      "name": "Test",
-      "total_score": 1260256,
-      "clefs": 11
     },
     {
       "name": "Llois1",
@@ -5273,64 +5252,12 @@
     }
   ],
   "weekly": {
-    "week_id": "2026-W44",
+    "week_id": "2026-W45",
     "clean_v2": true,
     "players": [
       {
-        "name": "Mauricio",
-        "score": 23989051
-      },
-      {
         "name": "Libay",
-        "score": 15392315
-      },
-      {
-        "name": "Laaleplo",
-        "score": 6357798
-      },
-      {
-        "name": "aelec",
-        "score": 1919054
-      },
-      {
-        "name": "Siro",
-        "score": 1703576
-      },
-      {
-        "name": "Darwin67",
-        "score": 1274297
-      },
-      {
-        "name": "Test",
-        "score": 1260256
-      },
-      {
-        "name": "Llois1",
-        "score": 869748
-      },
-      {
-        "name": "Davi",
-        "score": 67844
-      },
-      {
-        "name": "VAMP",
-        "score": 60136
-      },
-      {
-        "name": "Ttuk",
-        "score": 38826
-      },
-      {
-        "name": "Llois",
-        "score": 37650
-      },
-      {
-        "name": "Ballsaxk",
-        "score": 21975
-      },
-      {
-        "name": "`pc",
-        "score": 13725
+        "score": 417319
       }
     ]
   },
@@ -5419,6 +5346,60 @@
       {
         "name": "PixToPix",
         "score": 1500
+      }
+    ],
+    "2026-W44": [
+      {
+        "name": "Mauricio",
+        "score": 23989051
+      },
+      {
+        "name": "Libay",
+        "score": 15392315
+      },
+      {
+        "name": "Laaleplo",
+        "score": 6357798
+      },
+      {
+        "name": "aelec",
+        "score": 1919054
+      },
+      {
+        "name": "Siro",
+        "score": 1703576
+      },
+      {
+        "name": "Darwin67",
+        "score": 1274297
+      },
+      {
+        "name": "Llois1",
+        "score": 869748
+      },
+      {
+        "name": "Davi",
+        "score": 67844
+      },
+      {
+        "name": "VAMP",
+        "score": 60136
+      },
+      {
+        "name": "Ttuk",
+        "score": 38826
+      },
+      {
+        "name": "Llois",
+        "score": 37650
+      },
+      {
+        "name": "Ballsaxk",
+        "score": 21975
+      },
+      {
+        "name": "`pc",
+        "score": 13725
       }
     ]
   },
