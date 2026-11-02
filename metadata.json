@@ -1,6 +1,8 @@
 {
   "name": "Piano Community",
-  "description": "Rhythm game supporting osu! Mania and Clone Hero beatmaps with custom editor and community tracks",
+  "description": "Juego rítmico musical multi-modo con mástil de guitarra eléctrica, Fase Arco Voltaico entre pulgares, Pista Viva 3D, Modo Pulso, Modo Eco, Modo Setas y Modo Locura.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

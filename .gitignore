@@ -1,103 +1,18 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-.venv/
-env/
-venv/
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Environment & Credentials
-.env
-.env.*
-!.env.example
-
-# Caches & Storage
-gdrive_cache/
-/downloads/
-/public/
-.cache/
-
-# Archives & Compressed Files
-*.zip
-*.7z
-*.rar
-dist_itch/
-*.tar
-*.gz
-*.osz
-*.sng
-
-# Audio & Media Dumps
-*.wav
-*.mp3
-*.webm
-*.m4a
-*.ogg
-*.flac
-
-# Logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Gemini & Agent internal directories
-.gemini/
-
-# OS & Editor
+*.iml
+.gradle
+.kotlin
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
 .DS_Store
-Thumbs.db
-.vscode/
-.idea/
-
-# Android Build & Gradle Cache
-android/.gradle/
-android/build/
-android/app/build/
-android/captures/
-*.aab
-*.keystore
-*.jks
-
-# Ignore build output APKs, but allow the public downloadable APK for Vercel / GitHub hosting
-*.apk
-!app/static/downloads/*.apk
-!app/static/*.apk
-!downloads/*.apk
-!PianoCommunity.apk
-
-# Archivos específicos a ignorar
-cookies.txt
-cloudflared.exe
-*.exe
-scratch/
-love_man.bin
-*.bin
-
-# Permitir base de datos y uploads comunitarios en Git para persistencia en Render
-!app/data/
-!app/data/**
-!app/data/community/community_backup.json
-!app/uploads/
-!app/uploads/**
-!app/uploads/community/**
-!app/uploads/community/**/*.mp3
-!app/uploads/community/**/*.ogg
-!app/uploads/community/**/*.wav
-!app/static/songs/
-!app/static/songs/**
-!app/static/songs/**/*.mp3
-!app/static/songs/**/*.json
-!app/static/assets/
-!app/static/assets/**
-!app/static/assets/*.mp3
-!app/src/main/assets/www/assets/*.mp3
-!android/app/src/main/assets/www/assets/*.mp3
-!app/src/main/assets/www/songs/**/*.mp3
-!android/app/src/main/assets/www/songs/**/*.mp3
-
-
-
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+.env
+debug.keystore

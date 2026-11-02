@@ -1,92 +1,67 @@
 plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
+  alias(libs.plugins.android.application)
 }
 
 android {
-    namespace = "com.beatstar.renacer"
-    compileSdk = 35
+  namespace = "com.beatstar.renacer"
+  compileSdk = 36
 
-    defaultConfig {
-        applicationId = "com.beatstar.renacer"
-        minSdk = 24
-        targetSdk = 35
-        versionCode = 42
-        versionName = "4.2.0"
+  defaultConfig {
+    applicationId = "com.beatstar.renacer"
+    minSdk = 24
+    targetSdk = 35
+    versionCode = 43
+    versionName = "4.3.0"
+    testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+  }
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        vectorDrawables {
-            useSupportLibrary = true
-        }
+  signingConfigs {
+    create("release") {
+      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
+      storeFile = file(keystorePath)
+      storePassword = System.getenv("STORE_PASSWORD")
+      keyAlias = "upload"
+      keyPassword = System.getenv("KEY_PASSWORD")
     }
-
-    signingConfigs {
-        create("debugConfig") {
-            storeFile = file("${rootDir}/debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
-        }
+    create("debugConfig") {
+      storeFile = file("${rootDir}/debug.keystore")
+      storePassword = "android"
+      keyAlias = "androiddebugkey"
+      keyPassword = "android"
     }
+  }
 
-    buildTypes {
-        debug {
-            signingConfig = signingConfigs.getByName("debugConfig")
-        }
-        release {
-            isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-            signingConfig = signingConfigs.getByName("debugConfig")
-        }
+  buildTypes {
+    release {
+      isCrunchPngs = false
+      isMinifyEnabled = false
+      proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+      signingConfig = signingConfigs.getByName("release")
     }
+    debug {
+      signingConfig = signingConfigs.getByName("debugConfig")
+    }
+  }
 
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
+  compileOptions {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+  }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
+  androidResources {
+    noCompress += listOf("mp3", "ogg", "wav", "m4a", "json", "js", "html", "css", "wasm")
+  }
 
-    buildFeatures {
-        viewBinding = true
-    }
+  dependenciesInfo {
+    includeInApk = false
+    includeInBundle = true
+  }
 }
 
 dependencies {
-    implementation("androidx.core:core-ktx:1.13.1")
-    implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("com.google.android.material:material:1.12.0")
-    implementation("androidx.webkit:webkit:1.12.0")
-    implementation("androidx.activity:activity-ktx:1.9.3")
+  implementation("androidx.core:core-ktx:1.13.1")
+  implementation("androidx.appcompat:appcompat:1.7.0")
+  implementation("com.google.android.material:material:1.12.0")
+  implementation("androidx.activity:activity-ktx:1.9.3")
+  implementation("androidx.webkit:webkit:1.12.0")
 }
-
-tasks.matching { it.name == "assembleDebug" || it.name == "assembleRelease" }.configureEach {
-    doLast {
-        val releaseApk = file("${project.buildDir}/outputs/apk/release/app-release.apk")
-        val debugApk = file("${project.buildDir}/outputs/apk/debug/app-debug.apk")
-        val builtApk = if (releaseApk.exists() && releaseApk.length() > 100000L && releaseApk.lastModified() >= debugApk.lastModified()) {
-            releaseApk
-        } else {
-            debugApk
-        }
-        if (builtApk.exists() && builtApk.length() > 100000L) {
-            val targets = listOf(
-                file("${rootDir}/PianoCommunity.apk"),
-                file("${rootDir}/app/static/PianoCommunity.apk"),
-                file("${rootDir}/app/static/downloads/PianoCommunity.apk")
-            )
-            for (dst in targets) {
-                try {
-                    dst.parentFile?.mkdirs()
-                    builtApk.copyTo(dst, overwrite = true)
-                } catch (_: Exception) {}
-            }
-        }
-    }
-}
-
