@@ -22,21 +22,21 @@ async function sync() {
     });
     console.log(`[GitHub Sync] Clonación exitosa. Sincronizando cambios...`);
 
-    // Sincronizar directorios clave manteniendo la configuración web
+    // Sincronizar directorios clave manteniendo la configuración web y binarios locales
     const syncDirs = ['app/static', 'android', 'assets', 'screenshots'];
     for (const d of syncDirs) {
       const src = path.join(tempDir, d);
       const dest = path.join(process.cwd(), d);
       if (fs.existsSync(src)) {
         console.log(`[GitHub Sync] Actualizando ${d}...`);
-        execSync(`cp -ru "${src}/." "${dest}/" 2>/dev/null || cp -r "${src}/." "${dest}/"`, { stdio: 'inherit' });
+        execSync(`rsync -av --exclude='*.apk' --exclude='*.idsig' "${src}/" "${dest}/" 2>/dev/null || find "${src}" -type f ! -name "*.apk" ! -name "*.idsig" -exec cp --parents -u {} "${process.cwd()}" \\; 2>/dev/null || cp -ru "${src}/." "${dest}/"`, { stdio: 'inherit' });
       }
     }
 
     // Copiar otros archivos sueltos relevantes si existen
     const files = fs.readdirSync(tempDir);
     for (const f of files) {
-      if (['.git', 'node_modules', 'server.js', 'package.json'].includes(f)) continue;
+      if (['.git', 'node_modules', 'server.js', 'package.json', 'PianoCommunity.apk', 'PianoCommunity.apk.idsig'].includes(f)) continue;
       const src = path.join(tempDir, f);
       const dest = path.join(process.cwd(), f);
       if (fs.statSync(src).isFile()) {

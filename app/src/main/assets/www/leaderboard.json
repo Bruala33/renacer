@@ -5062,6 +5062,26 @@
         "accuracy": 0.3544868709257331,
         "date": "2026-11-02 02:46:23"
       }
+    ],
+    "bs_1dcf4": [
+      {
+        "name": "Test",
+        "score": 372611,
+        "stars": 3.5,
+        "combo": 95,
+        "accuracy": 14.768656967837702,
+        "date": "2026-11-02 14:28:12"
+      }
+    ],
+    "osu_2647293": [
+      {
+        "name": "Test",
+        "score": 740798,
+        "stars": 4,
+        "combo": 280,
+        "accuracy": 82.77498061352874,
+        "date": "2026-11-02 14:29:52"
+      }
     ]
   },
   "global": [
@@ -5139,6 +5159,11 @@
       "name": "Darwin67",
       "total_score": 1628955,
       "clefs": 13
+    },
+    {
+      "name": "Test",
+      "total_score": 1113409,
+      "clefs": 10
     },
     {
       "name": "Llois1",
@@ -5310,6 +5335,10 @@
     "week_id": "2026-W45",
     "clean_v2": true,
     "players": [
+      {
+        "name": "Test",
+        "score": 1113409
+      },
       {
         "name": "Libay",
         "score": 417319
