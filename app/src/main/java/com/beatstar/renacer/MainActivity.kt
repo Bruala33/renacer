@@ -402,7 +402,7 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(webView)
         webView.clearCache(true)
-        webView.loadUrl("https://appassets.androidplatform.net/assets/www/game.html?v=43.0")
+        webView.loadUrl("https://appassets.androidplatform.net/assets/www/game.html?v=47.0")
         hideSystemUI()
     }
 
@@ -543,7 +543,19 @@ class MainActivity : AppCompatActivity() {
         }
 
         @JavascriptInterface
-        fun getAppVersionCode(): Int = 43
+        fun getAppVersionCode(): Int {
+            return try {
+                val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    pInfo.longVersionCode.toInt()
+                } else {
+                    @Suppress("DEPRECATION")
+                    pInfo.versionCode
+                }
+            } catch (e: Exception) {
+                47
+            }
+        }
 
         @JavascriptInterface
         fun isAndroidNative(): Boolean = true
