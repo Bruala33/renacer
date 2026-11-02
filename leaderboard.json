@@ -5012,6 +5012,56 @@
         "accuracy": 21.462567431940784,
         "date": "2026-11-02 00:49:51"
       }
+    ],
+    "bs_384db": [
+      {
+        "name": "Elpianero",
+        "score": 3000,
+        "stars": 3.5,
+        "combo": 7,
+        "accuracy": 12.345679012345679,
+        "date": "2026-11-02 02:35:08"
+      }
+    ],
+    "osu_1245114": [
+      {
+        "name": "Elpianero",
+        "score": 174774,
+        "stars": 2,
+        "combo": 77,
+        "accuracy": 53.11908286046872,
+        "date": "2026-11-02 02:37:33"
+      }
+    ],
+    "osu_1034087": [
+      {
+        "name": "Elpianero",
+        "score": 4947,
+        "stars": 3.5,
+        "combo": 10,
+        "accuracy": 4.137879117386286,
+        "date": "2026-11-02 02:42:01"
+      }
+    ],
+    "osu_1412672": [
+      {
+        "name": "Elpianero",
+        "score": 226229,
+        "stars": 1,
+        "combo": 110,
+        "accuracy": 24.457823770562694,
+        "date": "2026-11-02 02:45:37"
+      }
+    ],
+    "clonehero_403449": [
+      {
+        "name": "Elpianero",
+        "score": 2850,
+        "stars": 3.5,
+        "combo": 9,
+        "accuracy": 0.3544868709257331,
+        "date": "2026-11-02 02:46:23"
+      }
     ]
   },
   "global": [
@@ -5119,6 +5169,11 @@
       "name": "Layla",
       "total_score": 437350,
       "clefs": 1
+    },
+    {
+      "name": "Elpianero",
+      "total_score": 411800,
+      "clefs": 3
     },
     {
       "name": "`pc",
@@ -5258,6 +5313,10 @@
       {
         "name": "Libay",
         "score": 417319
+      },
+      {
+        "name": "Elpianero",
+        "score": 411800
       }
     ]
   },
