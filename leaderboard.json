@@ -502,6 +502,14 @@
         "combo": 47,
         "accuracy": 15.584782994585957,
         "date": "2026-10-26 13:00:10"
+      },
+      {
+        "name": "Rocky",
+        "score": 140475,
+        "stars": 3.5,
+        "combo": 47,
+        "accuracy": 15.584782994585957,
+        "date": "2026-11-02T20:58:15.310Z"
       }
     ],
     "top_el_canto_del_loco_la_madre_de_jos": [
@@ -522,20 +530,20 @@
         "date": "2026-10-26 13:04:09"
       },
       {
-        "name": "Jocomomolo",
-        "score": 97950,
+        "name": "Rocky",
+        "score": 436714,
         "stars": 3.5,
-        "combo": 88,
-        "accuracy": 4.505778851129895,
-        "date": "2026-09-20 19:16:08"
+        "combo": 163,
+        "accuracy": 66.18282666020065,
+        "date": "2026-09-26 15:32:19"
       },
       {
-        "name": "Rocky",
-        "score": 97950,
+        "name": "Jocomomolo",
+        "score": 436714,
         "stars": 3.5,
-        "combo": 56,
-        "accuracy": 4.742954976632271,
-        "date": "2026-09-26 15:32:19"
+        "combo": 163,
+        "accuracy": 66.18282666020065,
+        "date": "2026-09-20 19:16:08"
       }
     ],
     "comm_1789045500_1819": [
@@ -554,6 +562,22 @@
         "combo": 1,
         "accuracy": 98.02816901408451,
         "date": "2026-10-22 13:27:46"
+      },
+      {
+        "name": "Rocky",
+        "score": 696,
+        "stars": 5,
+        "combo": 1,
+        "accuracy": 98.02816901408451,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 696,
+        "stars": 5,
+        "combo": 1,
+        "accuracy": 98.02816901408451,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_manolo_garcia_a_san_fernando": [
@@ -564,6 +588,14 @@
         "combo": 719,
         "accuracy": 66.23465898470572,
         "date": "2026-09-20 20:43:25"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 1505994,
+        "stars": 3,
+        "combo": 719,
+        "accuracy": 66.23465898470572,
+        "date": "2026-11-02T20:58:57.812Z"
       },
       {
         "name": "`pc",
@@ -632,6 +664,14 @@
         "combo": 67,
         "accuracy": 8.048266438149941,
         "date": "2026-09-20 20:31:30"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 1460670,
+        "stars": 3.5,
+        "combo": 67,
+        "accuracy": 8.048266438149941,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_david_bustamante_no_soy_un_superman": [
@@ -642,6 +682,14 @@
         "combo": 462,
         "accuracy": 78.68603571247715,
         "date": "2026-09-20 20:49:10"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 1600448,
+        "stars": 4,
+        "combo": 462,
+        "accuracy": 78.68603571247715,
+        "date": "2026-11-02T20:58:57.811Z"
       },
       {
         "name": "Mauricio",
@@ -660,6 +708,14 @@
         "combo": 40,
         "accuracy": 74.48266053523598,
         "date": "2026-09-20 20:54:19"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 31422,
+        "stars": 3,
+        "combo": 40,
+        "accuracy": 74.48266053523598,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "osu_590628": [
@@ -670,6 +726,14 @@
         "combo": 525,
         "accuracy": 91.60280924199904,
         "date": "2026-09-20 20:59:06"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 1322958,
+        "stars": 5,
+        "combo": 525,
+        "accuracy": 91.60280924199904,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "osu_578013": [
@@ -680,6 +744,14 @@
         "combo": 60,
         "accuracy": 3.2691098000086765,
         "date": "2026-09-20 21:00:55"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 72342,
+        "stars": 3.5,
+        "combo": 60,
+        "accuracy": 3.2691098000086765,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_britney_spears_you_drive_me_crazy": [
@@ -700,6 +772,14 @@
         "combo": 153,
         "accuracy": 24.23371092692989,
         "date": "2026-09-20 21:32:23"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 280314,
+        "stars": 1,
+        "combo": 153,
+        "accuracy": 24.23371092692989,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_alvaro_soler_sofia": [
@@ -710,6 +790,14 @@
         "combo": 295,
         "accuracy": 63.85396083485706,
         "date": "2026-09-20 21:39:47"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 986900,
+        "stars": 3,
+        "combo": 295,
+        "accuracy": 63.85396083485706,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_david_bisbal_corazn_latino": [
@@ -720,6 +808,14 @@
         "combo": 120,
         "accuracy": 9.172477014692324,
         "date": "2026-09-20 21:40:43"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 176703,
+        "stars": 3.5,
+        "combo": 120,
+        "accuracy": 9.172477014692324,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_camela_cuando_zarpa_el_amor": [
@@ -730,6 +826,14 @@
         "combo": 342,
         "accuracy": 20.67782259695095,
         "date": "2026-09-20 21:42:40"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 818147,
+        "stars": 1,
+        "combo": 342,
+        "accuracy": 20.67782259695095,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_el_arrebato_una_noche_con_arte": [],
@@ -741,6 +845,14 @@
         "combo": 567,
         "accuracy": 71.07085338481882,
         "date": "2026-09-20 22:07:33"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 1109846,
+        "stars": 3,
+        "combo": 567,
+        "accuracy": 71.07085338481882,
+        "date": "2026-11-02T20:58:57.811Z"
       },
       {
         "name": "Mauricio",
@@ -761,6 +873,14 @@
         "date": "2026-09-20 22:10:27"
       },
       {
+        "name": "Jocomomolo",
+        "score": 924920,
+        "stars": 2,
+        "combo": 475,
+        "accuracy": 40.278621524579705,
+        "date": "2026-11-02T20:58:57.811Z"
+      },
+      {
         "name": "Mauricio",
         "score": 544367,
         "stars": 1,
@@ -779,6 +899,14 @@
         "date": "2026-09-20 22:12:54"
       },
       {
+        "name": "Jocomomolo",
+        "score": 986625,
+        "stars": 2,
+        "combo": 346,
+        "accuracy": 40.40119259529522,
+        "date": "2026-11-02T20:58:57.812Z"
+      },
+      {
         "name": "Siro",
         "score": 46231,
         "stars": 3.5,
@@ -795,6 +923,14 @@
         "combo": 428,
         "accuracy": 90.56613652725963,
         "date": "2026-09-20 22:31:12"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 1383760,
+        "stars": 5,
+        "combo": 428,
+        "accuracy": 90.56613652725963,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_juanes_a_dios_le_pido": [
@@ -805,6 +941,14 @@
         "combo": 97,
         "accuracy": 8.387576316117363,
         "date": "2026-09-20 22:31:59"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 136654,
+        "stars": 3.5,
+        "combo": 97,
+        "accuracy": 8.387576316117363,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_alexandra_stan_mr_saxobeat": [
@@ -815,6 +959,14 @@
         "combo": 219,
         "accuracy": 26.250700469556143,
         "date": "2026-09-20 22:33:20"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 407550,
+        "stars": 1,
+        "combo": 219,
+        "accuracy": 26.250700469556143,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "osu_2528368": [
@@ -825,6 +977,14 @@
         "combo": 125,
         "accuracy": 19.174039144441466,
         "date": "2026-09-21 06:37:51"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 183852,
+        "stars": 3.5,
+        "combo": 125,
+        "accuracy": 19.174039144441466,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "osu_2535592": [
@@ -835,6 +995,14 @@
         "combo": 127,
         "accuracy": 55.55688581333291,
         "date": "2026-09-21 06:38:55"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 208820,
+        "stars": 2,
+        "combo": 127,
+        "accuracy": 55.55688581333291,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "osu_2480900": [
@@ -845,6 +1013,14 @@
         "combo": 188,
         "accuracy": 55.23665659617322,
         "date": "2026-09-21 06:40:37"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 329100,
+        "stars": 2,
+        "combo": 188,
+        "accuracy": 55.23665659617322,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "osu_2559262": [
@@ -855,6 +1031,14 @@
         "combo": 82,
         "accuracy": 19.96646895826954,
         "date": "2026-09-21 06:41:10"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 105635,
+        "stars": 3.5,
+        "combo": 82,
+        "accuracy": 19.96646895826954,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "osu_2559716": [
@@ -865,6 +1049,14 @@
         "combo": 58,
         "accuracy": 11.234177215189874,
         "date": "2026-09-21 06:41:39"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 63900,
+        "stars": 3.5,
+        "combo": 58,
+        "accuracy": 11.234177215189874,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "osu_2487606": [
@@ -875,6 +1067,14 @@
         "combo": 95,
         "accuracy": 16.45239426122601,
         "date": "2026-09-21 06:42:30"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 132450,
+        "stars": 3.5,
+        "combo": 95,
+        "accuracy": 16.45239426122601,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "osu_2566708": [
@@ -885,6 +1085,14 @@
         "combo": 105,
         "accuracy": 21.08247882048228,
         "date": "2026-09-21 06:52:02"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 149039,
+        "stars": 1,
+        "combo": 105,
+        "accuracy": 21.08247882048228,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_fernando_esteso_la_ramona": [
@@ -903,6 +1111,14 @@
         "combo": 282,
         "accuracy": 47.92120607724778,
         "date": "2026-09-21 09:04:14"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 662653,
+        "stars": 2,
+        "combo": 282,
+        "accuracy": 47.92120607724778,
+        "date": "2026-11-02T20:58:57.812Z"
       },
       {
         "name": "Llois1",
@@ -931,6 +1147,14 @@
         "combo": 125,
         "accuracy": 32.04696753153143,
         "date": "2026-09-21 20:09:03"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 335675,
+        "stars": 1,
+        "combo": 125,
+        "accuracy": 32.04696753153143,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_blur_coffee__tv": [
@@ -1049,6 +1273,14 @@
         "combo": 6,
         "accuracy": 0.5466342365175288,
         "date": "2026-09-24 19:18:25"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 2407,
+        "stars": 3.5,
+        "combo": 6,
+        "accuracy": 0.5466342365175288,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_miguel_bose_amante_bandido": [
@@ -1059,6 +1291,14 @@
         "combo": 414,
         "accuracy": 86.42277818407568,
         "date": "2026-09-24 19:23:04"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 1176024,
+        "stars": 4,
+        "combo": 414,
+        "accuracy": 86.42277818407568,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_camaron_soy_gitano": [
@@ -1079,6 +1319,14 @@
         "combo": 181,
         "accuracy": 92.3345190765153,
         "date": "2026-10-11 18:28:53"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 314960,
+        "stars": 5,
+        "combo": 181,
+        "accuracy": 98.09675311763202,
+        "date": "2026-11-02T20:58:57.811Z"
       },
       {
         "name": "Dady cool",
@@ -1113,6 +1361,14 @@
         "combo": 63,
         "accuracy": 8.992474419359176,
         "date": "2026-10-04 18:48:51"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 80932,
+        "stars": 3.5,
+        "combo": 63,
+        "accuracy": 8.992474419359176,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "osu_139291": [
@@ -1235,6 +1491,14 @@
         "combo": 8,
         "accuracy": 0.3527419809989653,
         "date": "2026-10-17 14:31:15"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 3600,
+        "stars": 3.5,
+        "combo": 8,
+        "accuracy": 0.3527419809989653,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "custom_1792249978875": [
@@ -1443,6 +1707,22 @@
         "combo": 22,
         "accuracy": 1.7237435917461135,
         "date": "2026-10-20 10:07:35"
+      },
+      {
+        "name": "Rocky",
+        "score": 15450,
+        "stars": 3.5,
+        "combo": 22,
+        "accuracy": 1.7237435917461135,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 15450,
+        "stars": 3.5,
+        "combo": 22,
+        "accuracy": 1.7237435917461135,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_rosana_el_talisman": [
@@ -1546,6 +1826,22 @@
         "combo": 845,
         "accuracy": 98.17125217139943,
         "date": "2026-10-21 13:03:17"
+      },
+      {
+        "name": "Rocky",
+        "score": 1799965,
+        "stars": 5,
+        "combo": 845,
+        "accuracy": 98.17125217139943,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 1799965,
+        "stars": 5,
+        "combo": 845,
+        "accuracy": 98.17125217139943,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_madonna_vogue": [],
@@ -1558,6 +1854,22 @@
         "combo": 452,
         "accuracy": 89.64273915002252,
         "date": "2026-10-29 20:31:24"
+      },
+      {
+        "name": "Rocky",
+        "score": 1790793,
+        "stars": 4,
+        "combo": 452,
+        "accuracy": 89.64273915002252,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 1790793,
+        "stars": 4,
+        "combo": 452,
+        "accuracy": 89.64273915002252,
+        "date": "2026-11-02T20:58:57.811Z"
       },
       {
         "name": "Dady cool",
@@ -1670,6 +1982,22 @@
         "date": "2026-10-22 09:45:14"
       },
       {
+        "name": "Rocky",
+        "score": 813900,
+        "stars": 3.5,
+        "combo": 166,
+        "accuracy": 16.118450615619665,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 813900,
+        "stars": 3.5,
+        "combo": 166,
+        "accuracy": 16.118450615619665,
+        "date": "2026-11-02T20:58:57.811Z"
+      },
+      {
         "name": "Dady cool",
         "score": 545625,
         "stars": 1,
@@ -1696,6 +2024,22 @@
         "combo": 14,
         "accuracy": 2.431996929037557,
         "date": "2026-10-20 17:55:36"
+      },
+      {
+        "name": "Rocky",
+        "score": 32691,
+        "stars": 3.5,
+        "combo": 14,
+        "accuracy": 2.431996929037557,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 32691,
+        "stars": 3.5,
+        "combo": 14,
+        "accuracy": 2.431996929037557,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_mark_ronson_feat_bruno_mars_uptown_funk": [
@@ -1706,6 +2050,22 @@
         "combo": 3,
         "accuracy": 0.06426276329882184,
         "date": "2026-10-20 09:09:56"
+      },
+      {
+        "name": "Rocky",
+        "score": 401400,
+        "stars": 3.5,
+        "combo": 3,
+        "accuracy": 0.06426276329882184,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 401400,
+        "stars": 3.5,
+        "combo": 3,
+        "accuracy": 0.06426276329882184,
+        "date": "2026-11-02T20:58:57.811Z"
       },
       {
         "name": "pelosombra40",
@@ -1724,6 +2084,22 @@
         "combo": 78,
         "accuracy": 8.163171190775445,
         "date": "2026-10-20 09:10:43"
+      },
+      {
+        "name": "Rocky",
+        "score": 104437,
+        "stars": 3.5,
+        "combo": 78,
+        "accuracy": 8.163171190775445,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 104437,
+        "stars": 3.5,
+        "combo": 78,
+        "accuracy": 8.163171190775445,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_pablo_alboran_no_vaya_a_ser": [
@@ -1744,6 +2120,22 @@
         "combo": 21,
         "accuracy": 2.5806603610362395,
         "date": "2026-10-20 10:12:08"
+      },
+      {
+        "name": "Rocky",
+        "score": 35052,
+        "stars": 3.5,
+        "combo": 21,
+        "accuracy": 2.5806603610362395,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 35052,
+        "stars": 3.5,
+        "combo": 21,
+        "accuracy": 2.5806603610362395,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_los_payasos_de_la_tele_la_gallina_turuleca": [
@@ -1754,6 +2146,22 @@
         "combo": 119,
         "accuracy": 46.0756779126967,
         "date": "2026-10-20 11:23:21"
+      },
+      {
+        "name": "Rocky",
+        "score": 489872,
+        "stars": 2,
+        "combo": 119,
+        "accuracy": 46.0756779126967,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 489872,
+        "stars": 2,
+        "combo": 119,
+        "accuracy": 46.0756779126967,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_madness_our_house": [
@@ -1774,6 +2182,22 @@
         "combo": 23,
         "accuracy": 1.3229882976237102,
         "date": "2026-10-20 11:26:16"
+      },
+      {
+        "name": "Rocky",
+        "score": 16586,
+        "stars": 3.5,
+        "combo": 23,
+        "accuracy": 1.3229882976237102,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 16586,
+        "stars": 3.5,
+        "combo": 23,
+        "accuracy": 1.3229882976237102,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "osu_963422": [
@@ -1784,6 +2208,22 @@
         "combo": 74,
         "accuracy": 10.097619647002881,
         "date": "2026-10-20 12:07:52"
+      },
+      {
+        "name": "Rocky",
+        "score": 90250,
+        "stars": 3.5,
+        "combo": 74,
+        "accuracy": 10.097619647002881,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 90250,
+        "stars": 3.5,
+        "combo": 74,
+        "accuracy": 10.097619647002881,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "osu_2611015": [
@@ -1794,6 +2234,22 @@
         "combo": 86,
         "accuracy": 21.861872513974205,
         "date": "2026-10-20 12:10:03"
+      },
+      {
+        "name": "Rocky",
+        "score": 262553,
+        "stars": 1,
+        "combo": 86,
+        "accuracy": 21.861872513974205,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 262553,
+        "stars": 1,
+        "combo": 86,
+        "accuracy": 21.861872513974205,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_jose_luis_rodriguez_el_puma_culpable_soy_yo": [
@@ -1804,6 +2260,22 @@
         "combo": 2,
         "accuracy": 0.08947504988234031,
         "date": "2026-10-20 17:57:11"
+      },
+      {
+        "name": "Rocky",
+        "score": 900,
+        "stars": 3.5,
+        "combo": 2,
+        "accuracy": 0.08947504988234031,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 900,
+        "stars": 3.5,
+        "combo": 2,
+        "accuracy": 0.08947504988234031,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_oasis_wonderwall": [
@@ -1814,6 +2286,22 @@
         "combo": 7,
         "accuracy": 0.35216365436311203,
         "date": "2026-10-20 17:58:05"
+      },
+      {
+        "name": "Rocky",
+        "score": 4500,
+        "stars": 3.5,
+        "combo": 7,
+        "accuracy": 0.35216365436311203,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 4500,
+        "stars": 3.5,
+        "combo": 7,
+        "accuracy": 0.35216365436311203,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_el_sueno_de_morfeo_demasiado_tarde": [],
@@ -1826,6 +2314,22 @@
         "combo": 88,
         "accuracy": 11.752503388355748,
         "date": "2026-10-20 18:59:13"
+      },
+      {
+        "name": "Rocky",
+        "score": 120617,
+        "stars": 3.5,
+        "combo": 88,
+        "accuracy": 11.752503388355748,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 120617,
+        "stars": 3.5,
+        "combo": 88,
+        "accuracy": 11.752503388355748,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_ricardo_arjona_mujeres": [],
@@ -1837,6 +2341,22 @@
         "combo": 161,
         "accuracy": 14.316610474145747,
         "date": "2026-10-20 19:13:14"
+      },
+      {
+        "name": "Rocky",
+        "score": 272400,
+        "stars": 3.5,
+        "combo": 161,
+        "accuracy": 14.316610474145747,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 272400,
+        "stars": 3.5,
+        "combo": 161,
+        "accuracy": 14.316610474145747,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_david_bisbal_bulera": [
@@ -1847,6 +2367,22 @@
         "combo": 722,
         "accuracy": 93.80428562588396,
         "date": "2026-10-21 21:48:30"
+      },
+      {
+        "name": "Rocky",
+        "score": 1470400,
+        "stars": 5,
+        "combo": 722,
+        "accuracy": 93.80428562588396,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 1470400,
+        "stars": 5,
+        "combo": 722,
+        "accuracy": 93.80428562588396,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_fito_y_fitipaldis_la_casa_por_el_tejado": [
@@ -1857,6 +2393,22 @@
         "combo": 172,
         "accuracy": 29.997925795327856,
         "date": "2026-10-20 19:28:52"
+      },
+      {
+        "name": "Rocky",
+        "score": 462796,
+        "stars": 1,
+        "combo": 172,
+        "accuracy": 29.997925795327856,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 462796,
+        "stars": 1,
+        "combo": 172,
+        "accuracy": 29.997925795327856,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_shawn_mendes_camila_cabello_senorita": [
@@ -1867,6 +2419,22 @@
         "combo": 386,
         "accuracy": 39.42460260707441,
         "date": "2026-10-20 19:30:44"
+      },
+      {
+        "name": "Rocky",
+        "score": 758074,
+        "stars": 1,
+        "combo": 386,
+        "accuracy": 39.42460260707441,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 758074,
+        "stars": 1,
+        "combo": 386,
+        "accuracy": 39.42460260707441,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_manolo_escobar_el_porompompero": [
@@ -1877,6 +2445,22 @@
         "combo": 446,
         "accuracy": 94.27523465152564,
         "date": "2026-10-20 19:33:17"
+      },
+      {
+        "name": "Rocky",
+        "score": 888809,
+        "stars": 5,
+        "combo": 446,
+        "accuracy": 94.27523465152564,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 888809,
+        "stars": 5,
+        "combo": 446,
+        "accuracy": 94.27523465152564,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_don_omar_taboo": [
@@ -1887,6 +2471,22 @@
         "combo": 40,
         "accuracy": 5.861849537845466,
         "date": "2026-10-20 19:35:03"
+      },
+      {
+        "name": "Rocky",
+        "score": 94329,
+        "stars": 3.5,
+        "combo": 40,
+        "accuracy": 5.861849537845466,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 94329,
+        "stars": 3.5,
+        "combo": 40,
+        "accuracy": 5.861849537845466,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_las_machiturras_tirate_un_huaso": [
@@ -1897,6 +2497,22 @@
         "combo": 15,
         "accuracy": 13.182918395573997,
         "date": "2026-10-21 09:36:01"
+      },
+      {
+        "name": "Rocky",
+        "score": 18300,
+        "stars": 3.5,
+        "combo": 15,
+        "accuracy": 13.182918395573997,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 18300,
+        "stars": 3.5,
+        "combo": 15,
+        "accuracy": 13.182918395573997,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_man_mariposa_traicionera": [],
@@ -1908,6 +2524,22 @@
         "combo": 479,
         "accuracy": 55.02118024296052,
         "date": "2026-10-21 12:54:12"
+      },
+      {
+        "name": "Rocky",
+        "score": 970523,
+        "stars": 2,
+        "combo": 479,
+        "accuracy": 55.02118024296052,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 970523,
+        "stars": 2,
+        "combo": 479,
+        "accuracy": 55.02118024296052,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_fools_garden_lemon_tree": [
@@ -1918,6 +2550,22 @@
         "combo": 97,
         "accuracy": 31.877487562189057,
         "date": "2026-10-21 12:57:24"
+      },
+      {
+        "name": "Rocky",
+        "score": 358813,
+        "stars": 1,
+        "combo": 97,
+        "accuracy": 31.877487562189057,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 358813,
+        "stars": 1,
+        "combo": 97,
+        "accuracy": 31.877487562189057,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_mgo_de_oz_diabulus_in_musica": [],
@@ -1931,6 +2579,22 @@
         "combo": 150,
         "accuracy": 12.720825351484324,
         "date": "2026-10-21 17:32:15"
+      },
+      {
+        "name": "Rocky",
+        "score": 243507,
+        "stars": 3.5,
+        "combo": 150,
+        "accuracy": 12.720825351484324,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 243507,
+        "stars": 3.5,
+        "combo": 150,
+        "accuracy": 12.720825351484324,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "osu_2321476": [
@@ -1941,6 +2605,22 @@
         "combo": 84,
         "accuracy": 3.882004024997352,
         "date": "2026-10-21 17:38:04"
+      },
+      {
+        "name": "Rocky",
+        "score": 921450,
+        "stars": 3.5,
+        "combo": 84,
+        "accuracy": 3.882004024997352,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 921450,
+        "stars": 3.5,
+        "combo": 84,
+        "accuracy": 3.882004024997352,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_rfaga_mentirosa": [
@@ -1951,6 +2631,22 @@
         "combo": 504,
         "accuracy": 97.67373073531857,
         "date": "2026-10-21 17:57:44"
+      },
+      {
+        "name": "Rocky",
+        "score": 1040193,
+        "stars": 5,
+        "combo": 504,
+        "accuracy": 97.67373073531857,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 1040193,
+        "stars": 5,
+        "combo": 504,
+        "accuracy": 97.67373073531857,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "osu_50092": [],
@@ -1962,6 +2658,22 @@
         "combo": 259,
         "accuracy": 75.08763893395428,
         "date": "2026-10-21 19:20:06"
+      },
+      {
+        "name": "Rocky",
+        "score": 472088,
+        "stars": 4,
+        "combo": 259,
+        "accuracy": 75.08763893395428,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 472088,
+        "stars": 4,
+        "combo": 259,
+        "accuracy": 75.08763893395428,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_bad_bunny_yo_perreo_sola": [
@@ -1972,6 +2684,22 @@
         "combo": 24,
         "accuracy": 1.4603825908555483,
         "date": "2026-10-21 20:00:29"
+      },
+      {
+        "name": "Rocky",
+        "score": 214241,
+        "stars": 3.5,
+        "combo": 24,
+        "accuracy": 1.4603825908555483,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 214241,
+        "stars": 3.5,
+        "combo": 24,
+        "accuracy": 1.4603825908555483,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "osu_1057527": [
@@ -1982,6 +2710,22 @@
         "combo": 135,
         "accuracy": 9.837793280739175,
         "date": "2026-10-21 20:01:17"
+      },
+      {
+        "name": "Rocky",
+        "score": 211243,
+        "stars": 3.5,
+        "combo": 135,
+        "accuracy": 9.837793280739175,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 211243,
+        "stars": 3.5,
+        "combo": 135,
+        "accuracy": 9.837793280739175,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_antonio_flores_no_dudara": [
@@ -1992,6 +2736,22 @@
         "combo": 219,
         "accuracy": 100,
         "date": "2026-10-26 20:08:14"
+      },
+      {
+        "name": "Rocky",
+        "score": 763821,
+        "stars": 5,
+        "combo": 219,
+        "accuracy": 100,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 763821,
+        "stars": 5,
+        "combo": 219,
+        "accuracy": 100,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_taxi_quiero_un_camino": [
@@ -2002,6 +2762,22 @@
         "combo": 232,
         "accuracy": 41.71642064074175,
         "date": "2026-10-21 20:04:17"
+      },
+      {
+        "name": "Rocky",
+        "score": 478897,
+        "stars": 2,
+        "combo": 232,
+        "accuracy": 41.71642064074175,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 478897,
+        "stars": 2,
+        "combo": 232,
+        "accuracy": 41.71642064074175,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "osu_2227235": [
@@ -2012,6 +2788,22 @@
         "combo": 298,
         "accuracy": 96.07843137254902,
         "date": "2026-10-21 21:38:49"
+      },
+      {
+        "name": "Rocky",
+        "score": 565950,
+        "stars": 5,
+        "combo": 298,
+        "accuracy": 96.07843137254902,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 565950,
+        "stars": 5,
+        "combo": 298,
+        "accuracy": 96.07843137254902,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "osu_2417549": [
@@ -2022,6 +2814,22 @@
         "combo": 303,
         "accuracy": 58.21507410911384,
         "date": "2026-10-21 21:40:08"
+      },
+      {
+        "name": "Rocky",
+        "score": 553800,
+        "stars": 2,
+        "combo": 303,
+        "accuracy": 58.21507410911384,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 553800,
+        "stars": 2,
+        "combo": 303,
+        "accuracy": 58.21507410911384,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "osu_467300": [
@@ -2032,6 +2840,22 @@
         "combo": 421,
         "accuracy": 86.30585488190772,
         "date": "2026-10-21 21:43:31"
+      },
+      {
+        "name": "Rocky",
+        "score": 1722393,
+        "stars": 4,
+        "combo": 421,
+        "accuracy": 86.30585488190772,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 1722393,
+        "stars": 4,
+        "combo": 421,
+        "accuracy": 86.30585488190772,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_system_of_a_down_chop_suey": [
@@ -2204,6 +3028,22 @@
         "combo": 234,
         "accuracy": 41.98934379323181,
         "date": "2026-10-22 09:39:15"
+      },
+      {
+        "name": "Rocky",
+        "score": 755762,
+        "stars": 2,
+        "combo": 234,
+        "accuracy": 41.98934379323181,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 755762,
+        "stars": 2,
+        "combo": 234,
+        "accuracy": 41.98934379323181,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "osu_923490": [
@@ -2214,6 +3054,22 @@
         "combo": 23,
         "accuracy": 0.7964692299823168,
         "date": "2026-10-22 10:02:17"
+      },
+      {
+        "name": "Rocky",
+        "score": 16350,
+        "stars": 3.5,
+        "combo": 23,
+        "accuracy": 0.7964692299823168,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 16350,
+        "stars": 3.5,
+        "combo": 23,
+        "accuracy": 0.7964692299823168,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "osu_1892571": [
@@ -2224,6 +3080,22 @@
         "combo": 100,
         "accuracy": 10.41791027642575,
         "date": "2026-10-22 10:04:03"
+      },
+      {
+        "name": "Rocky",
+        "score": 326709,
+        "stars": 3.5,
+        "combo": 100,
+        "accuracy": 10.41791027642575,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 326709,
+        "stars": 3.5,
+        "combo": 100,
+        "accuracy": 10.41791027642575,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "clonehero_340124": [
@@ -2234,6 +3106,22 @@
         "combo": 302,
         "accuracy": 86.22805124779347,
         "date": "2026-10-22 10:10:08"
+      },
+      {
+        "name": "Rocky",
+        "score": 1082970,
+        "stars": 4,
+        "combo": 302,
+        "accuracy": 86.22805124779347,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 1082970,
+        "stars": 4,
+        "combo": 302,
+        "accuracy": 86.22805124779347,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_soraya_mi_mundo_sin_ti": [],
@@ -2245,6 +3133,22 @@
         "combo": 230,
         "accuracy": 25.94095538972711,
         "date": "2026-10-22 11:37:38"
+      },
+      {
+        "name": "Rocky",
+        "score": 476250,
+        "stars": 1,
+        "combo": 230,
+        "accuracy": 25.94095538972711,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 476250,
+        "stars": 1,
+        "combo": 230,
+        "accuracy": 25.94095538972711,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_village_people_ymca": [
@@ -2255,6 +3159,22 @@
         "combo": 344,
         "accuracy": 53.29748123658001,
         "date": "2026-10-22 12:29:00"
+      },
+      {
+        "name": "Rocky",
+        "score": 705438,
+        "stars": 2,
+        "combo": 344,
+        "accuracy": 53.29748123658001,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 705438,
+        "stars": 2,
+        "combo": 344,
+        "accuracy": 53.29748123658001,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_celia_cruz_la_vida_es_un_carnaval": [
@@ -2265,6 +3185,22 @@
         "combo": 17,
         "accuracy": 0.5136693111123795,
         "date": "2026-10-22 14:16:43"
+      },
+      {
+        "name": "Rocky",
+        "score": 1564326,
+        "stars": 3.5,
+        "combo": 17,
+        "accuracy": 0.5136693111123795,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 1564326,
+        "stars": 3.5,
+        "combo": 17,
+        "accuracy": 0.5136693111123795,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_seguridad_social_quiero_tener_tu_presencia": [
@@ -2275,6 +3211,22 @@
         "combo": 260,
         "accuracy": 24.834667664297292,
         "date": "2026-10-22 13:38:26"
+      },
+      {
+        "name": "Rocky",
+        "score": 543886,
+        "stars": 1,
+        "combo": 260,
+        "accuracy": 24.834667664297292,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 543886,
+        "stars": 1,
+        "combo": 260,
+        "accuracy": 24.834667664297292,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "osu_370713": [
@@ -2295,6 +3247,22 @@
         "combo": 20,
         "accuracy": 0.9345187094665071,
         "date": "2026-10-22 14:16:43"
+      },
+      {
+        "name": "Rocky",
+        "score": 13950,
+        "stars": 3.5,
+        "combo": 20,
+        "accuracy": 0.9345187094665071,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 13950,
+        "stars": 3.5,
+        "combo": 20,
+        "accuracy": 0.9345187094665071,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "osu_1819909": [],
@@ -2307,6 +3275,22 @@
         "combo": 190,
         "accuracy": 30.258725239186095,
         "date": "2026-10-22 15:37:20"
+      },
+      {
+        "name": "Rocky",
+        "score": 336825,
+        "stars": 1,
+        "combo": 190,
+        "accuracy": 30.258725239186095,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 336825,
+        "stars": 1,
+        "combo": 190,
+        "accuracy": 30.258725239186095,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_jennifer_lopez__pitbull_ven_a_bailar": [],
@@ -2318,6 +3302,22 @@
         "combo": 33,
         "accuracy": 3.430120179651087,
         "date": "2026-10-22 16:39:59"
+      },
+      {
+        "name": "Rocky",
+        "score": 29121,
+        "stars": 3.5,
+        "combo": 33,
+        "accuracy": 3.430120179651087,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 29121,
+        "stars": 3.5,
+        "combo": 33,
+        "accuracy": 3.430120179651087,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "osu_47253": [
@@ -2328,6 +3328,22 @@
         "combo": 140,
         "accuracy": 99.23619701803503,
         "date": "2026-10-22 16:42:26"
+      },
+      {
+        "name": "Rocky",
+        "score": 243867,
+        "stars": 5,
+        "combo": 140,
+        "accuracy": 99.23619701803503,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 243867,
+        "stars": 5,
+        "combo": 140,
+        "accuracy": 99.23619701803503,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "osu_2613759": [
@@ -2338,6 +3354,22 @@
         "combo": 192,
         "accuracy": 31.440456534632833,
         "date": "2026-10-22 16:45:57"
+      },
+      {
+        "name": "Rocky",
+        "score": 353043,
+        "stars": 1,
+        "combo": 192,
+        "accuracy": 31.440456534632833,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 353043,
+        "stars": 1,
+        "combo": 192,
+        "accuracy": 31.440456534632833,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "bs_3d4f7": [
@@ -2348,6 +3380,22 @@
         "combo": 465,
         "accuracy": 93.05110927041125,
         "date": "2026-10-22 16:49:42"
+      },
+      {
+        "name": "Rocky",
+        "score": 1039125,
+        "stars": 5,
+        "combo": 465,
+        "accuracy": 93.05110927041125,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 1039125,
+        "stars": 5,
+        "combo": 465,
+        "accuracy": 93.05110927041125,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "osu_2282097": [
@@ -2366,6 +3414,22 @@
         "combo": 47,
         "accuracy": 21.03843995850438,
         "date": "2026-10-22 18:03:57"
+      },
+      {
+        "name": "Rocky",
+        "score": 52120,
+        "stars": 1,
+        "combo": 47,
+        "accuracy": 21.03843995850438,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 52120,
+        "stars": 1,
+        "combo": 47,
+        "accuracy": 21.03843995850438,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_coti_y_andrs_calamaro_nada_fue_un_error": [
@@ -2546,6 +3610,22 @@
         "combo": 14,
         "accuracy": 1.8324383280262115,
         "date": "2026-10-22 19:41:06"
+      },
+      {
+        "name": "Rocky",
+        "score": 8350,
+        "stars": 3.5,
+        "combo": 14,
+        "accuracy": 1.8324383280262115,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 8350,
+        "stars": 3.5,
+        "combo": 14,
+        "accuracy": 1.8324383280262115,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "bs_3d93a": [
@@ -2556,6 +3636,22 @@
         "combo": 92,
         "accuracy": 9.723058043352568,
         "date": "2026-10-22 19:43:19"
+      },
+      {
+        "name": "Rocky",
+        "score": 123600,
+        "stars": 3.5,
+        "combo": 92,
+        "accuracy": 9.723058043352568,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 123600,
+        "stars": 3.5,
+        "combo": 92,
+        "accuracy": 9.723058043352568,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "osu_2009201": [
@@ -2566,6 +3662,22 @@
         "combo": 363,
         "accuracy": 97.55201958384333,
         "date": "2026-10-22 19:46:22"
+      },
+      {
+        "name": "Rocky",
+        "score": 717300,
+        "stars": 5,
+        "combo": 363,
+        "accuracy": 97.55201958384333,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 717300,
+        "stars": 5,
+        "combo": 363,
+        "accuracy": 97.55201958384333,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "clonehero_793865": [
@@ -2576,6 +3688,22 @@
         "combo": 217,
         "accuracy": 81.90430596838256,
         "date": "2026-10-22 19:50:20"
+      },
+      {
+        "name": "Rocky",
+        "score": 778439,
+        "stars": 4,
+        "combo": 217,
+        "accuracy": 81.90430596838256,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 778439,
+        "stars": 4,
+        "combo": 217,
+        "accuracy": 81.90430596838256,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_francisca_valenzuela_muleta": [
@@ -2586,6 +3714,22 @@
         "combo": 62,
         "accuracy": 4.703979184546433,
         "date": "2026-10-22 19:51:40"
+      },
+      {
+        "name": "Rocky",
+        "score": 69061,
+        "stars": 3.5,
+        "combo": 62,
+        "accuracy": 4.703979184546433,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 69061,
+        "stars": 3.5,
+        "combo": 62,
+        "accuracy": 4.703979184546433,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_avril_lavigne_complicated": [
@@ -2596,6 +3740,22 @@
         "combo": 48,
         "accuracy": 3.082854439046053,
         "date": "2026-10-22 19:52:29"
+      },
+      {
+        "name": "Rocky",
+        "score": 46650,
+        "stars": 3.5,
+        "combo": 48,
+        "accuracy": 3.082854439046053,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 46650,
+        "stars": 3.5,
+        "combo": 48,
+        "accuracy": 3.082854439046053,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "osu_23014": [
@@ -2997,6 +4157,22 @@
         "combo": 30,
         "accuracy": 1.2611129321626335,
         "date": "2026-10-23 11:49:46"
+      },
+      {
+        "name": "Rocky",
+        "score": 25200,
+        "stars": 3.5,
+        "combo": 30,
+        "accuracy": 1.2611129321626335,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 25200,
+        "stars": 3.5,
+        "combo": 30,
+        "accuracy": 1.2611129321626335,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_shakira_loba": [
@@ -3045,6 +4221,22 @@
         "combo": 378,
         "accuracy": 98.21481649411824,
         "date": "2026-10-23 13:35:31"
+      },
+      {
+        "name": "Rocky",
+        "score": 779806,
+        "stars": 5,
+        "combo": 378,
+        "accuracy": 98.21481649411824,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 779806,
+        "stars": 5,
+        "combo": 378,
+        "accuracy": 98.21481649411824,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_los_del_ro_macarena": [
@@ -3155,6 +4347,22 @@
         "combo": 194,
         "accuracy": 25.364157298455886,
         "date": "2026-10-23 15:44:26"
+      },
+      {
+        "name": "Rocky",
+        "score": 347910,
+        "stars": 1,
+        "combo": 194,
+        "accuracy": 25.364157298455886,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 347910,
+        "stars": 1,
+        "combo": 194,
+        "accuracy": 25.364157298455886,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "bs_388f3": [
@@ -3673,6 +4881,22 @@
         "combo": 625,
         "accuracy": 98.6526268115942,
         "date": "2026-10-24 07:33:41"
+      },
+      {
+        "name": "Rocky",
+        "score": 1306950,
+        "stars": 5,
+        "combo": 625,
+        "accuracy": 98.6526268115942,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 1306950,
+        "stars": 5,
+        "combo": 625,
+        "accuracy": 98.6526268115942,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_juan_gabriel_abrzame_muy_fuerte": [
@@ -3712,6 +4936,22 @@
         "combo": 71,
         "accuracy": 6.418062039688811,
         "date": "2026-10-25 09:59:03"
+      },
+      {
+        "name": "Rocky",
+        "score": 103064,
+        "stars": 3.5,
+        "combo": 71,
+        "accuracy": 6.418062039688811,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 103064,
+        "stars": 3.5,
+        "combo": 71,
+        "accuracy": 6.418062039688811,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_amaral_morira_por_vos": [
@@ -3722,6 +4962,22 @@
         "combo": 523,
         "accuracy": 98.84423518861051,
         "date": "2026-10-25 10:04:36"
+      },
+      {
+        "name": "Rocky",
+        "score": 1146262,
+        "stars": 5,
+        "combo": 523,
+        "accuracy": 98.84423518861051,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 1146262,
+        "stars": 5,
+        "combo": 523,
+        "accuracy": 98.84423518861051,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_chayanne_torero": [],
@@ -3783,6 +5039,22 @@
         "combo": 174,
         "accuracy": 22.722767129415935,
         "date": "2026-10-26 12:11:08"
+      },
+      {
+        "name": "Rocky",
+        "score": 303740,
+        "stars": 1,
+        "combo": 174,
+        "accuracy": 22.722767129415935,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 303740,
+        "stars": 1,
+        "combo": 174,
+        "accuracy": 22.722767129415935,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "osu_21936": [
@@ -3813,6 +5085,22 @@
         "combo": 67,
         "accuracy": 7.968321013727561,
         "date": "2026-10-26 12:56:06"
+      },
+      {
+        "name": "Rocky",
+        "score": 71687,
+        "stars": 3.5,
+        "combo": 67,
+        "accuracy": 7.968321013727561,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 71687,
+        "stars": 3.5,
+        "combo": 67,
+        "accuracy": 7.968321013727561,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "osu_1641083": [
@@ -3823,6 +5111,22 @@
         "combo": 87,
         "accuracy": 3.0726639956316077,
         "date": "2026-10-26 13:08:26"
+      },
+      {
+        "name": "Rocky",
+        "score": 116762,
+        "stars": 3.5,
+        "combo": 87,
+        "accuracy": 3.0726639956316077,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 116762,
+        "stars": 3.5,
+        "combo": 87,
+        "accuracy": 3.0726639956316077,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "osu_937527": [
@@ -3833,6 +5137,22 @@
         "combo": 219,
         "accuracy": 21.13121342285909,
         "date": "2026-10-26 13:12:09"
+      },
+      {
+        "name": "Rocky",
+        "score": 394147,
+        "stars": 1,
+        "combo": 219,
+        "accuracy": 21.13121342285909,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 394147,
+        "stars": 1,
+        "combo": 219,
+        "accuracy": 21.13121342285909,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "osu_998321": [
@@ -3843,6 +5163,22 @@
         "combo": 29,
         "accuracy": 0.9161665749802856,
         "date": "2026-10-26 13:23:27"
+      },
+      {
+        "name": "Rocky",
+        "score": 234459,
+        "stars": 3.5,
+        "combo": 29,
+        "accuracy": 0.9161665749802856,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 234459,
+        "stars": 3.5,
+        "combo": 29,
+        "accuracy": 0.9161665749802856,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_mecano_hijo_de_la_luna": [
@@ -3853,6 +5189,22 @@
         "combo": 189,
         "accuracy": 54.408194539662055,
         "date": "2026-10-26 13:27:14"
+      },
+      {
+        "name": "Rocky",
+        "score": 337290,
+        "stars": 2,
+        "combo": 189,
+        "accuracy": 54.408194539662055,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 337290,
+        "stars": 2,
+        "combo": 189,
+        "accuracy": 54.408194539662055,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_los_rebeldes_mediterraneo": [
@@ -3863,6 +5215,22 @@
         "combo": 74,
         "accuracy": 13.531477528476735,
         "date": "2026-10-26 13:28:38"
+      },
+      {
+        "name": "Rocky",
+        "score": 149348,
+        "stars": 3.5,
+        "combo": 74,
+        "accuracy": 13.531477528476735,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 149348,
+        "stars": 3.5,
+        "combo": 74,
+        "accuracy": 13.531477528476735,
+        "date": "2026-11-02T20:58:57.811Z"
       }
     ],
     "top_arctic_monkeys_do_i_wanna_know": [
@@ -3943,6 +5311,22 @@
         "combo": 36,
         "accuracy": 2.788195226673381,
         "date": "2026-10-26 16:49:03"
+      },
+      {
+        "name": "Rocky",
+        "score": 29456,
+        "stars": 3.5,
+        "combo": 36,
+        "accuracy": 2.788195226673381,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 29456,
+        "stars": 3.5,
+        "combo": 36,
+        "accuracy": 2.788195226673381,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "bs_4e666": [
@@ -4053,6 +5437,22 @@
         "combo": 136,
         "accuracy": 42.01992753623188,
         "date": "2026-10-26 19:10:43"
+      },
+      {
+        "name": "Rocky",
+        "score": 208755,
+        "stars": 2,
+        "combo": 136,
+        "accuracy": 42.01992753623188,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 208755,
+        "stars": 2,
+        "combo": 136,
+        "accuracy": 42.01992753623188,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "osu_1096914": [
@@ -4063,6 +5463,22 @@
         "combo": 41,
         "accuracy": 64.81481481481481,
         "date": "2026-10-27 13:06:57"
+      },
+      {
+        "name": "Rocky",
+        "score": 40250,
+        "stars": 3,
+        "combo": 41,
+        "accuracy": 64.81481481481481,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 40250,
+        "stars": 3,
+        "combo": 41,
+        "accuracy": 64.81481481481481,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "osu_1158642": [
@@ -4073,6 +5489,22 @@
         "combo": 25,
         "accuracy": 82.62242562929062,
         "date": "2026-10-26 19:48:52"
+      },
+      {
+        "name": "Rocky",
+        "score": 36106,
+        "stars": 4,
+        "combo": 25,
+        "accuracy": 82.62242562929062,
+        "date": "2026-11-02T20:58:15.310Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 36106,
+        "stars": 4,
+        "combo": 25,
+        "accuracy": 82.62242562929062,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "osu_2157266": [
@@ -4083,6 +5515,22 @@
         "combo": 108,
         "accuracy": 6.650710534931166,
         "date": "2026-10-26 19:49:57"
+      },
+      {
+        "name": "Rocky",
+        "score": 179785,
+        "stars": 3.5,
+        "combo": 108,
+        "accuracy": 6.650710534931166,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 179785,
+        "stars": 3.5,
+        "combo": 108,
+        "accuracy": 6.650710534931166,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_elvis_crespo_suavemente": [
@@ -4093,6 +5541,22 @@
         "combo": 78,
         "accuracy": 24.1871140597549,
         "date": "2026-10-26 19:59:17"
+      },
+      {
+        "name": "Rocky",
+        "score": 269562,
+        "stars": 1,
+        "combo": 78,
+        "accuracy": 24.1871140597549,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 269562,
+        "stars": 1,
+        "combo": 78,
+        "accuracy": 24.1871140597549,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_pesadilla_antes_de_navidad_esto_es_halloween": [
@@ -4103,6 +5567,22 @@
         "combo": 146,
         "accuracy": 17.656487608400806,
         "date": "2026-10-26 20:13:04"
+      },
+      {
+        "name": "Rocky",
+        "score": 214800,
+        "stars": 3.5,
+        "combo": 146,
+        "accuracy": 17.656487608400806,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 214800,
+        "stars": 3.5,
+        "combo": 146,
+        "accuracy": 17.656487608400806,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "osu_1752837": [
@@ -4123,6 +5603,22 @@
         "combo": 79,
         "accuracy": 8.929361917409725,
         "date": "2026-10-26 21:15:17"
+      },
+      {
+        "name": "Rocky",
+        "score": 141200,
+        "stars": 3.5,
+        "combo": 79,
+        "accuracy": 8.929361917409725,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 141200,
+        "stars": 3.5,
+        "combo": 79,
+        "accuracy": 8.929361917409725,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "bs_4a0ce": [
@@ -4133,6 +5629,22 @@
         "combo": 95,
         "accuracy": 11.21319192778134,
         "date": "2026-10-26 21:17:48"
+      },
+      {
+        "name": "Rocky",
+        "score": 168260,
+        "stars": 3.5,
+        "combo": 95,
+        "accuracy": 11.21319192778134,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 168260,
+        "stars": 3.5,
+        "combo": 95,
+        "accuracy": 11.21319192778134,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "osu_725748": [
@@ -4143,6 +5655,22 @@
         "combo": 158,
         "accuracy": 64.68866191820096,
         "date": "2026-10-26 21:21:46"
+      },
+      {
+        "name": "Rocky",
+        "score": 577618,
+        "stars": 3,
+        "combo": 158,
+        "accuracy": 64.68866191820096,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 577618,
+        "stars": 3,
+        "combo": 158,
+        "accuracy": 64.68866191820096,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_el_fary_el_toro_guapo": [
@@ -4153,6 +5681,22 @@
         "combo": 888,
         "accuracy": 96.70953504220824,
         "date": "2026-10-26 21:26:03"
+      },
+      {
+        "name": "Rocky",
+        "score": 1870345,
+        "stars": 5,
+        "combo": 888,
+        "accuracy": 96.70953504220824,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 1870345,
+        "stars": 5,
+        "combo": 888,
+        "accuracy": 96.70953504220824,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_miguel_bos_estuve_a_punto_de": [
@@ -4163,6 +5707,22 @@
         "combo": 35,
         "accuracy": 11.939259376270671,
         "date": "2026-10-26 21:49:32"
+      },
+      {
+        "name": "Rocky",
+        "score": 122442,
+        "stars": 3.5,
+        "combo": 35,
+        "accuracy": 11.939259376270671,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 122442,
+        "stars": 3.5,
+        "combo": 35,
+        "accuracy": 11.939259376270671,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_mgo_de_oz_la_ltima_cena": [
@@ -4173,6 +5733,22 @@
         "combo": 208,
         "accuracy": 82.95500149745433,
         "date": "2026-10-26 21:57:35"
+      },
+      {
+        "name": "Rocky",
+        "score": 1107947,
+        "stars": 4,
+        "combo": 208,
+        "accuracy": 82.95500149745433,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 1107947,
+        "stars": 4,
+        "combo": 208,
+        "accuracy": 82.95500149745433,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_fito_y_fitipaldis_me_equivocara_otra_vez": [
@@ -4183,6 +5759,22 @@
         "combo": 331,
         "accuracy": 86.5669755891315,
         "date": "2026-10-27 07:33:53"
+      },
+      {
+        "name": "Rocky",
+        "score": 1425024,
+        "stars": 4,
+        "combo": 331,
+        "accuracy": 86.5669755891315,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 1425024,
+        "stars": 4,
+        "combo": 331,
+        "accuracy": 86.5669755891315,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_juan_luis_guerra_la_bilirrubina": [],
@@ -4195,6 +5787,22 @@
         "combo": 19,
         "accuracy": 1.4122746711101273,
         "date": "2026-10-27 13:05:31"
+      },
+      {
+        "name": "Rocky",
+        "score": 24240,
+        "stars": 3.5,
+        "combo": 19,
+        "accuracy": 1.4122746711101273,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 24240,
+        "stars": 3.5,
+        "combo": 19,
+        "accuracy": 1.4122746711101273,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_salom_vivo_cantando": [
@@ -4205,6 +5813,22 @@
         "combo": 69,
         "accuracy": 14.065232769909239,
         "date": "2026-10-27 13:06:18"
+      },
+      {
+        "name": "Rocky",
+        "score": 93448,
+        "stars": 3.5,
+        "combo": 69,
+        "accuracy": 14.065232769909239,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 93448,
+        "stars": 3.5,
+        "combo": 69,
+        "accuracy": 14.065232769909239,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "osu_1479377": [
@@ -4215,6 +5839,22 @@
         "combo": 136,
         "accuracy": 48.021826931339696,
         "date": "2026-10-27 13:59:33"
+      },
+      {
+        "name": "Rocky",
+        "score": 838245,
+        "stars": 2,
+        "combo": 136,
+        "accuracy": 48.021826931339696,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 838245,
+        "stars": 2,
+        "combo": 136,
+        "accuracy": 48.021826931339696,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "bs_110e2": [
@@ -4225,6 +5865,22 @@
         "combo": 243,
         "accuracy": 30.90193704600484,
         "date": "2026-10-27 14:15:31"
+      },
+      {
+        "name": "Rocky",
+        "score": 459450,
+        "stars": 1,
+        "combo": 243,
+        "accuracy": 30.90193704600484,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 459450,
+        "stars": 1,
+        "combo": 243,
+        "accuracy": 30.90193704600484,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "osu_1798030": [
@@ -4235,6 +5891,22 @@
         "combo": 155,
         "accuracy": 23.66097840793921,
         "date": "2026-10-27 14:16:56"
+      },
+      {
+        "name": "Rocky",
+        "score": 367932,
+        "stars": 1,
+        "combo": 155,
+        "accuracy": 23.66097840793921,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 367932,
+        "stars": 1,
+        "combo": 155,
+        "accuracy": 23.66097840793921,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_backstreet_boys_as_long_as_you_love_me": [
@@ -4245,6 +5917,22 @@
         "combo": 232,
         "accuracy": 44.06175703102348,
         "date": "2026-10-27 14:19:04"
+      },
+      {
+        "name": "Rocky",
+        "score": 455907,
+        "stars": 2,
+        "combo": 232,
+        "accuracy": 44.06175703102348,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 455907,
+        "stars": 2,
+        "combo": 232,
+        "accuracy": 44.06175703102348,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "clonehero_355290": [
@@ -4295,6 +5983,22 @@
         "combo": 152,
         "accuracy": 33.79711551348848,
         "date": "2026-10-27 15:11:01"
+      },
+      {
+        "name": "Rocky",
+        "score": 398420,
+        "stars": 1,
+        "combo": 152,
+        "accuracy": 33.79711551348848,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 398420,
+        "stars": 1,
+        "combo": 152,
+        "accuracy": 33.79711551348848,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "clonehero_372301": [
@@ -4368,6 +6072,22 @@
         "combo": 511,
         "accuracy": 83.91150034287953,
         "date": "2026-10-28 18:21:06"
+      },
+      {
+        "name": "Rocky",
+        "score": 1644558,
+        "stars": 4,
+        "combo": 511,
+        "accuracy": 83.91150034287953,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 1644558,
+        "stars": 4,
+        "combo": 511,
+        "accuracy": 83.91150034287953,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "osu_2644393": [
@@ -4378,6 +6098,22 @@
         "combo": 116,
         "accuracy": 10.061037835293892,
         "date": "2026-10-28 18:22:18"
+      },
+      {
+        "name": "Rocky",
+        "score": 251403,
+        "stars": 3.5,
+        "combo": 116,
+        "accuracy": 10.061037835293892,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 251403,
+        "stars": 3.5,
+        "combo": 116,
+        "accuracy": 10.061037835293892,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "bs_7c05": [
@@ -4388,6 +6124,22 @@
         "combo": 41,
         "accuracy": 1.2236483528896795,
         "date": "2026-10-28 18:23:51"
+      },
+      {
+        "name": "Rocky",
+        "score": 43330,
+        "stars": 3.5,
+        "combo": 41,
+        "accuracy": 1.2236483528896795,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 43330,
+        "stars": 3.5,
+        "combo": 41,
+        "accuracy": 1.2236483528896795,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "bs_15b16": [
@@ -4398,6 +6150,22 @@
         "combo": 218,
         "accuracy": 12.245353461569678,
         "date": "2026-10-28 18:25:17"
+      },
+      {
+        "name": "Rocky",
+        "score": 452625,
+        "stars": 3.5,
+        "combo": 218,
+        "accuracy": 12.245353461569678,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 452625,
+        "stars": 3.5,
+        "combo": 218,
+        "accuracy": 12.245353461569678,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "bs_2ecfe": [
@@ -4639,6 +6407,22 @@
         "combo": 94,
         "accuracy": 19.02837932457983,
         "date": "2026-10-29 14:04:20"
+      },
+      {
+        "name": "Rocky",
+        "score": 166861,
+        "stars": 3.5,
+        "combo": 94,
+        "accuracy": 19.02837932457983,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 166861,
+        "stars": 3.5,
+        "combo": 94,
+        "accuracy": 19.02837932457983,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_michael_jackson_ben": [
@@ -4649,6 +6433,22 @@
         "combo": 6,
         "accuracy": 0.5406494153565636,
         "date": "2026-10-29 14:12:45"
+      },
+      {
+        "name": "Rocky",
+        "score": 2550,
+        "stars": 3.5,
+        "combo": 6,
+        "accuracy": 0.5406494153565636,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 2550,
+        "stars": 3.5,
+        "combo": 6,
+        "accuracy": 0.5406494153565636,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "osu_2644890": [
@@ -4659,6 +6459,22 @@
         "combo": 59,
         "accuracy": 5.4861501611155274,
         "date": "2026-10-29 14:14:16"
+      },
+      {
+        "name": "Rocky",
+        "score": 136783,
+        "stars": 3.5,
+        "combo": 59,
+        "accuracy": 5.4861501611155274,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 136783,
+        "stars": 3.5,
+        "combo": 59,
+        "accuracy": 5.4861501611155274,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_nino_bravo_noelia": [
@@ -4669,6 +6485,22 @@
         "combo": 121,
         "accuracy": 36.90395775316336,
         "date": "2026-10-29 14:17:50"
+      },
+      {
+        "name": "Rocky",
+        "score": 440889,
+        "stars": 1,
+        "combo": 121,
+        "accuracy": 36.90395775316336,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 440889,
+        "stars": 1,
+        "combo": 121,
+        "accuracy": 36.90395775316336,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_jarabe_de_palo_bonito": [
@@ -4679,6 +6511,22 @@
         "combo": 62,
         "accuracy": 7.574114778235757,
         "date": "2026-10-29 19:27:26"
+      },
+      {
+        "name": "Rocky",
+        "score": 179530,
+        "stars": 3.5,
+        "combo": 62,
+        "accuracy": 7.574114778235757,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 179530,
+        "stars": 3.5,
+        "combo": 62,
+        "accuracy": 7.574114778235757,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_hombres_g_devulveme_a_mi_chica": [
@@ -4709,6 +6557,22 @@
         "combo": 128,
         "accuracy": 77.51831175126036,
         "date": "2026-10-29 20:34:05"
+      },
+      {
+        "name": "Rocky",
+        "score": 315060,
+        "stars": 4,
+        "combo": 128,
+        "accuracy": 77.51831175126036,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 315060,
+        "stars": 4,
+        "combo": 128,
+        "accuracy": 77.51831175126036,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "osu_2622288": [
@@ -4719,6 +6583,22 @@
         "combo": 12,
         "accuracy": 0.39356151056867433,
         "date": "2026-10-29 20:35:28"
+      },
+      {
+        "name": "Rocky",
+        "score": 6675,
+        "stars": 3.5,
+        "combo": 12,
+        "accuracy": 0.39356151056867433,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 6675,
+        "stars": 3.5,
+        "combo": 12,
+        "accuracy": 0.39356151056867433,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "bs_21f76": [
@@ -4729,6 +6609,22 @@
         "combo": 69,
         "accuracy": 4.873520538407983,
         "date": "2026-10-29 20:40:22"
+      },
+      {
+        "name": "Rocky",
+        "score": 94500,
+        "stars": 3.5,
+        "combo": 69,
+        "accuracy": 4.873520538407983,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 94500,
+        "stars": 3.5,
+        "combo": 69,
+        "accuracy": 4.873520538407983,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "bs_511f2": [
@@ -4739,6 +6635,22 @@
         "combo": 195,
         "accuracy": 25.922784425318575,
         "date": "2026-10-29 20:42:52"
+      },
+      {
+        "name": "Rocky",
+        "score": 520164,
+        "stars": 1,
+        "combo": 195,
+        "accuracy": 25.922784425318575,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 520164,
+        "stars": 1,
+        "combo": 195,
+        "accuracy": 25.922784425318575,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_camilo_sesto_mi_mundo_tu": [
@@ -4749,6 +6661,22 @@
         "combo": 48,
         "accuracy": 10.571752986338266,
         "date": "2026-10-29 20:45:34"
+      },
+      {
+        "name": "Rocky",
+        "score": 128114,
+        "stars": 3.5,
+        "combo": 48,
+        "accuracy": 10.571752986338266,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 128114,
+        "stars": 3.5,
+        "combo": 48,
+        "accuracy": 10.571752986338266,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_camilo_sesto_con_el_viento_a_tu_favor": [
@@ -4759,6 +6687,22 @@
         "combo": 167,
         "accuracy": 72.84818987932529,
         "date": "2026-10-29 20:49:07"
+      },
+      {
+        "name": "Rocky",
+        "score": 611884,
+        "stars": 3,
+        "combo": 167,
+        "accuracy": 72.84818987932529,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 611884,
+        "stars": 3,
+        "combo": 167,
+        "accuracy": 72.84818987932529,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "clonehero_659858": [
@@ -4846,6 +6790,22 @@
         "combo": 152,
         "accuracy": 78.08012019016931,
         "date": "2026-10-31 15:49:15"
+      },
+      {
+        "name": "Rocky",
+        "score": 315984,
+        "stars": 4,
+        "combo": 152,
+        "accuracy": 78.08012019016931,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 315984,
+        "stars": 4,
+        "combo": 152,
+        "accuracy": 78.08012019016931,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "osu_1801156": [
@@ -4856,6 +6816,22 @@
         "combo": 136,
         "accuracy": 60.92433759747351,
         "date": "2026-10-31 15:53:33"
+      },
+      {
+        "name": "Rocky",
+        "score": 700664,
+        "stars": 3,
+        "combo": 136,
+        "accuracy": 60.92433759747351,
+        "date": "2026-11-02T20:58:15.311Z"
+      },
+      {
+        "name": "Jocomomolo",
+        "score": 700664,
+        "stars": 3,
+        "combo": 136,
+        "accuracy": 60.92433759747351,
+        "date": "2026-11-02T20:58:57.812Z"
       }
     ],
     "top_miguel_bos_y_bimba_bos_como_un_lobo": [],
@@ -5063,24 +7039,66 @@
         "date": "2026-11-02 02:46:23"
       }
     ],
-    "bs_1dcf4": [
+    "bs_1dcf4": [],
+    "osu_2647293": [],
+    "top_miguel_bos_sevilla": [
       {
-        "name": "Test",
-        "score": 372611,
-        "stars": 3.5,
-        "combo": 95,
-        "accuracy": 14.768656967837702,
-        "date": "2026-11-02 14:28:12"
+        "name": "Jocomomolo",
+        "score": 989835,
+        "stars": 4,
+        "combo": 202,
+        "accuracy": 85.2209916211218,
+        "date": "2026-11-02 21:55:33"
       }
     ],
-    "osu_2647293": [
+    "osu_957050": [
       {
-        "name": "Test",
-        "score": 740798,
+        "name": "Jocomomolo",
+        "score": 649245,
         "stars": 4,
-        "combo": 280,
-        "accuracy": 82.77498061352874,
-        "date": "2026-11-02 14:29:52"
+        "combo": 218,
+        "accuracy": 80.17448968251028,
+        "date": "2026-11-02 22:00:30"
+      }
+    ],
+    "osu_1575448": [
+      {
+        "name": "Jocomomolo",
+        "score": 437960,
+        "stars": 3.5,
+        "combo": 146,
+        "accuracy": 15.687370155455262,
+        "date": "2026-11-02 22:07:14"
+      }
+    ],
+    "osu_804366": [
+      {
+        "name": "Jocomomolo",
+        "score": 391918,
+        "stars": 3.5,
+        "combo": 183,
+        "accuracy": 10.55264908062349,
+        "date": "2026-11-02 22:08:35"
+      }
+    ],
+    "osu_611650": [
+      {
+        "name": "Jocomomolo",
+        "score": 575062,
+        "stars": 3.5,
+        "combo": 194,
+        "accuracy": 18.44178875685279,
+        "date": "2026-11-02 22:10:18"
+      }
+    ],
+    "osu_662219": [
+      {
+        "name": "Jocomomolo",
+        "score": 290754,
+        "stars": 3.5,
+        "combo": 143,
+        "accuracy": 12.63163656837803,
+        "date": "2026-11-02 22:14:43"
       }
     ]
   },
@@ -5102,8 +7120,8 @@
     },
     {
       "name": "Jocomomolo",
-      "total_score": 17872941,
-      "clefs": 169
+      "total_score": 21405777,
+      "clefs": 199
     },
     {
       "name": "Dady cool",
@@ -5159,11 +7177,6 @@
       "name": "Darwin67",
       "total_score": 1628955,
       "clefs": 13
-    },
-    {
-      "name": "Test",
-      "total_score": 1113409,
-      "clefs": 10
     },
     {
       "name": "Llois1",
@@ -5336,8 +7349,8 @@
     "clean_v2": true,
     "players": [
       {
-        "name": "Test",
-        "score": 1113409
+        "name": "Jocomomolo",
+        "score": 3532836
       },
       {
         "name": "Libay",
@@ -5585,5 +7598,3056 @@
       "Hola31m",
       "3105M"
     ]
+  },
+  "player_profiles": {
+    "RNC-8B9B59": {
+      "recovery_code": "RNC-8B9B59",
+      "player_name": "Jocomomolo",
+      "pin_hash": "",
+      "wallet": {
+        "clefs": 256,
+        "silvers": 100,
+        "golds": 100,
+        "platinums": 100
+      },
+      "unlocked_modes": {
+        "normal": true,
+        "osu_hybrid": true,
+        "locura": true,
+        "cruce": true
+      },
+      "unlocked_effects": [
+        "solar_inferno"
+      ],
+      "active_effect": "solar_inferno",
+      "highscores": {
+        "comm_camilo_sesto": {
+          "score": 1374948,
+          "stars": 5,
+          "maxCombo": 586,
+          "medalTier": null,
+          "accuracyPct": 94.46509777679148
+        },
+        "comm_1788622108_2296": {
+          "score": 661,
+          "stars": 5,
+          "maxCombo": 1,
+          "medalTier": null,
+          "accuracyPct": 100
+        },
+        "osu_2123424": {
+          "score": 382800,
+          "stars": 1,
+          "maxCombo": 210,
+          "medalTier": null,
+          "accuracyPct": 20.32640122340722
+        },
+        "top_melendi_tu_jardn_con_enanitos": {
+          "score": 2266441,
+          "stars": 5,
+          "maxCombo": 808,
+          "medalTier": null,
+          "accuracyPct": 90.37242462787442
+        },
+        "top_tom_jones_sex_bomb": {
+          "score": 1551302,
+          "stars": 5,
+          "maxCombo": 710,
+          "medalTier": null,
+          "accuracyPct": 99.94111644255696
+        },
+        "top_caf_quijano_la_lola": {
+          "score": 1797546,
+          "stars": 5,
+          "maxCombo": 612,
+          "medalTier": null,
+          "accuracyPct": 92.756125488731
+        },
+        "top_miguel_bos_morenama": {
+          "score": 2353550,
+          "stars": 5,
+          "maxCombo": 1135,
+          "medalTier": null,
+          "accuracyPct": 95.1661784120707
+        },
+        "top_michael_jackson_thriller_videoclip": {
+          "score": 1063425,
+          "stars": 3.5,
+          "maxCombo": 401,
+          "medalTier": null,
+          "accuracyPct": 10.380113676849689
+        },
+        "top_el_koala_opa_yo_viaze_un_corra": {
+          "score": 1456460,
+          "stars": 5,
+          "maxCombo": 585,
+          "medalTier": null,
+          "accuracyPct": 91.80999568200657
+        },
+        "top_los_chichos_ni_mas_ni_menos": {
+          "score": 1541689,
+          "stars": 5,
+          "maxCombo": 736,
+          "medalTier": null,
+          "accuracyPct": 97.69149367601958
+        },
+        "osu_1359860": {
+          "score": 970883,
+          "stars": 3.5,
+          "maxCombo": 85,
+          "medalTier": null,
+          "accuracyPct": 7.897167928051428
+        },
+        "osu_1859754": {
+          "score": 123750,
+          "stars": 3.5,
+          "maxCombo": 93,
+          "medalTier": null,
+          "accuracyPct": 3.8946324883161028
+        },
+        "top_mecano_ay_que_pesado": {
+          "score": 1236245,
+          "stars": 5,
+          "maxCombo": 323,
+          "medalTier": null,
+          "accuracyPct": 93.0826072421385
+        },
+        "top_la_unin_lobohombre_en_pars": {
+          "score": 1481047,
+          "stars": 4,
+          "maxCombo": 706,
+          "medalTier": null,
+          "accuracyPct": 81.63546868626737
+        },
+        "osu_2069233": {
+          "score": 171600,
+          "stars": 3.5,
+          "maxCombo": 116,
+          "medalTier": null,
+          "accuracyPct": 15.584782994585957
+        },
+        "top_el_canto_del_loco_la_madre_de_jos": {
+          "score": 436714,
+          "stars": 3.5,
+          "maxCombo": 163,
+          "medalTier": null,
+          "accuracyPct": 66.18282666020065
+        },
+        "comm_1789045500_1819": {
+          "score": 696,
+          "stars": 5,
+          "maxCombo": 1,
+          "medalTier": null,
+          "accuracyPct": 98.02816901408451
+        },
+        "top_david_bustamante_no_soy_un_superman": {
+          "score": 1600448,
+          "stars": 4,
+          "maxCombo": 462,
+          "medalTier": null,
+          "accuracyPct": 78.68603571247715
+        },
+        "top_estopa_cacho_a_cacho": {
+          "score": 1109846,
+          "stars": 3,
+          "maxCombo": 567,
+          "medalTier": null,
+          "accuracyPct": 71.07085338481882
+        },
+        "top_chayanne_caprichosa": {
+          "score": 924920,
+          "stars": 2,
+          "maxCombo": 475,
+          "medalTier": null,
+          "accuracyPct": 40.278621524579705
+        },
+        "comm_1789044857_213": {
+          "score": 314960,
+          "stars": 5,
+          "maxCombo": 181,
+          "medalTier": null,
+          "accuracyPct": 98.09675311763202
+        },
+        "top_parchs_comando_g": {
+          "score": 15450,
+          "stars": 3.5,
+          "maxCombo": 22,
+          "medalTier": null,
+          "accuracyPct": 1.7237435917461135
+        },
+        "top_justin_bieber_what_do_you_mean": {
+          "score": 1799965,
+          "stars": 5,
+          "maxCombo": 845,
+          "medalTier": null,
+          "accuracyPct": 98.17125217139943
+        },
+        "top_caf_quijano_la_taberna_del_buda": {
+          "score": 1790793,
+          "stars": 4,
+          "maxCombo": 452,
+          "medalTier": null,
+          "accuracyPct": 89.64273915002252
+        },
+        "osu_897364": {
+          "score": 813900,
+          "stars": 3.5,
+          "maxCombo": 166,
+          "medalTier": null,
+          "accuracyPct": 16.118450615619665
+        },
+        "top_mana_clavado_en_un_bar": {
+          "score": 32691,
+          "stars": 3.5,
+          "maxCombo": 14,
+          "medalTier": null,
+          "accuracyPct": 2.431996929037557
+        },
+        "top_mark_ronson_feat_bruno_mars_uptown_funk": {
+          "score": 401400,
+          "stars": 3.5,
+          "maxCombo": 3,
+          "medalTier": null,
+          "accuracyPct": 0.06426276329882184
+        },
+        "top_paulina_rubio_yo_no_soy_esa_mujer": {
+          "score": 104437,
+          "stars": 3.5,
+          "maxCombo": 78,
+          "medalTier": null,
+          "accuracyPct": 8.163171190775445
+        },
+        "top_incubus_drive": {
+          "score": 35052,
+          "stars": 3.5,
+          "maxCombo": 21,
+          "medalTier": null,
+          "accuracyPct": 2.5806603610362395
+        },
+        "top_los_payasos_de_la_tele_la_gallina_turuleca": {
+          "score": 489872,
+          "stars": 2,
+          "maxCombo": 119,
+          "medalTier": null,
+          "accuracyPct": 46.0756779126967
+        },
+        "top_berlin_take_my_breath_away": {
+          "score": 16586,
+          "stars": 3.5,
+          "maxCombo": 23,
+          "medalTier": null,
+          "accuracyPct": 1.3229882976237102
+        },
+        "osu_963422": {
+          "score": 90250,
+          "stars": 3.5,
+          "maxCombo": 74,
+          "medalTier": null,
+          "accuracyPct": 10.097619647002881
+        },
+        "osu_2611015": {
+          "score": 262553,
+          "stars": 1,
+          "maxCombo": 86,
+          "medalTier": null,
+          "accuracyPct": 21.861872513974205
+        },
+        "top_jose_luis_rodriguez_el_puma_culpable_soy_yo": {
+          "score": 900,
+          "stars": 3.5,
+          "maxCombo": 2,
+          "medalTier": null,
+          "accuracyPct": 0.08947504988234031
+        },
+        "top_oasis_wonderwall": {
+          "score": 4500,
+          "stars": 3.5,
+          "maxCombo": 7,
+          "medalTier": null,
+          "accuracyPct": 0.35216365436311203
+        },
+        "top_seguridad_social_me_siento_bien": {
+          "score": 120617,
+          "stars": 3.5,
+          "maxCombo": 88,
+          "medalTier": null,
+          "accuracyPct": 11.752503388355748
+        },
+        "top_los_autnticos_decadentes_el_dinero_no_es_todo": {
+          "score": 272400,
+          "stars": 3.5,
+          "maxCombo": 161,
+          "medalTier": null,
+          "accuracyPct": 14.316610474145747
+        },
+        "top_david_bisbal_bulera": {
+          "score": 1470400,
+          "stars": 5,
+          "maxCombo": 722,
+          "medalTier": null,
+          "accuracyPct": 93.80428562588396
+        },
+        "top_fito_y_fitipaldis_la_casa_por_el_tejado": {
+          "score": 462796,
+          "stars": 1,
+          "maxCombo": 172,
+          "medalTier": null,
+          "accuracyPct": 29.997925795327856
+        },
+        "top_shawn_mendes_camila_cabello_senorita": {
+          "score": 758074,
+          "stars": 1,
+          "maxCombo": 386,
+          "medalTier": null,
+          "accuracyPct": 39.42460260707441
+        },
+        "top_manolo_escobar_el_porompompero": {
+          "score": 888809,
+          "stars": 5,
+          "maxCombo": 446,
+          "medalTier": null,
+          "accuracyPct": 94.27523465152564
+        },
+        "top_don_omar_taboo": {
+          "score": 94329,
+          "stars": 3.5,
+          "maxCombo": 40,
+          "medalTier": null,
+          "accuracyPct": 5.861849537845466
+        },
+        "top_las_machiturras_tirate_un_huaso": {
+          "score": 18300,
+          "stars": 3.5,
+          "maxCombo": 15,
+          "medalTier": null,
+          "accuracyPct": 13.182918395573997
+        },
+        "top_las_ketchup_asereje": {
+          "score": 970523,
+          "stars": 2,
+          "maxCombo": 479,
+          "medalTier": null,
+          "accuracyPct": 55.02118024296052
+        },
+        "top_fools_garden_lemon_tree": {
+          "score": 358813,
+          "stars": 1,
+          "maxCombo": 97,
+          "medalTier": null,
+          "accuracyPct": 31.877487562189057
+        },
+        "top_michael_jackson_billie_jean": {
+          "score": 243507,
+          "stars": 3.5,
+          "maxCombo": 150,
+          "medalTier": null,
+          "accuracyPct": 12.720825351484324
+        },
+        "osu_2321476": {
+          "score": 921450,
+          "stars": 3.5,
+          "maxCombo": 84,
+          "medalTier": null,
+          "accuracyPct": 3.882004024997352
+        },
+        "top_rfaga_mentirosa": {
+          "score": 1040193,
+          "stars": 5,
+          "maxCombo": 504,
+          "medalTier": null,
+          "accuracyPct": 97.67373073531857
+        },
+        "osu_1281116": {
+          "score": 472088,
+          "stars": 4,
+          "maxCombo": 259,
+          "medalTier": null,
+          "accuracyPct": 75.08763893395428
+        },
+        "top_bad_bunny_yo_perreo_sola": {
+          "score": 214241,
+          "stars": 3.5,
+          "maxCombo": 24,
+          "medalTier": null,
+          "accuracyPct": 1.4603825908555483
+        },
+        "osu_1057527": {
+          "score": 211243,
+          "stars": 3.5,
+          "maxCombo": 135,
+          "medalTier": null,
+          "accuracyPct": 9.837793280739175
+        },
+        "top_antonio_flores_no_dudara": {
+          "score": 763821,
+          "stars": 5,
+          "maxCombo": 219,
+          "medalTier": null,
+          "accuracyPct": 100
+        },
+        "top_taxi_quiero_un_camino": {
+          "score": 478897,
+          "stars": 2,
+          "maxCombo": 232,
+          "medalTier": null,
+          "accuracyPct": 41.71642064074175
+        },
+        "osu_2227235": {
+          "score": 565950,
+          "stars": 5,
+          "maxCombo": 298,
+          "medalTier": null,
+          "accuracyPct": 96.07843137254902
+        },
+        "osu_2417549": {
+          "score": 553800,
+          "stars": 2,
+          "maxCombo": 303,
+          "medalTier": null,
+          "accuracyPct": 58.21507410911384
+        },
+        "osu_467300": {
+          "score": 1722393,
+          "stars": 4,
+          "maxCombo": 421,
+          "medalTier": null,
+          "accuracyPct": 86.30585488190772
+        },
+        "top_michael_jackson_thriller": {
+          "score": 755762,
+          "stars": 2,
+          "maxCombo": 234,
+          "medalTier": null,
+          "accuracyPct": 41.98934379323181
+        },
+        "osu_923490": {
+          "score": 16350,
+          "stars": 3.5,
+          "maxCombo": 23,
+          "medalTier": null,
+          "accuracyPct": 0.7964692299823168
+        },
+        "osu_1892571": {
+          "score": 326709,
+          "stars": 3.5,
+          "maxCombo": 100,
+          "medalTier": null,
+          "accuracyPct": 10.41791027642575
+        },
+        "clonehero_340124": {
+          "score": 1082970,
+          "stars": 4,
+          "maxCombo": 302,
+          "medalTier": null,
+          "accuracyPct": 86.22805124779347
+        },
+        "top_alaska_abracadabra": {
+          "score": 476250,
+          "stars": 1,
+          "maxCombo": 230,
+          "medalTier": null,
+          "accuracyPct": 25.94095538972711
+        },
+        "top_village_people_ymca": {
+          "score": 705438,
+          "stars": 2,
+          "maxCombo": 344,
+          "medalTier": null,
+          "accuracyPct": 53.29748123658001
+        },
+        "top_celia_cruz_la_vida_es_un_carnaval": {
+          "score": 1564326,
+          "stars": 3.5,
+          "maxCombo": 17,
+          "medalTier": null,
+          "accuracyPct": 0.5136693111123795
+        },
+        "top_seguridad_social_quiero_tener_tu_presencia": {
+          "score": 543886,
+          "stars": 1,
+          "maxCombo": 260,
+          "medalTier": null,
+          "accuracyPct": 24.834667664297292
+        },
+        "top_merche_eras_tu": {
+          "score": 13950,
+          "stars": 3.5,
+          "maxCombo": 20,
+          "medalTier": null,
+          "accuracyPct": 0.9345187094665071
+        },
+        "osu_1225138": {
+          "score": 336825,
+          "stars": 1,
+          "maxCombo": 190,
+          "medalTier": null,
+          "accuracyPct": 30.258725239186095
+        },
+        "top_31_minutos_el_dinosaurio_anacleto": {
+          "score": 29121,
+          "stars": 3.5,
+          "maxCombo": 33,
+          "medalTier": null,
+          "accuracyPct": 3.430120179651087
+        },
+        "osu_47253": {
+          "score": 243867,
+          "stars": 5,
+          "maxCombo": 140,
+          "medalTier": null,
+          "accuracyPct": 99.23619701803503
+        },
+        "osu_2613759": {
+          "score": 353043,
+          "stars": 1,
+          "maxCombo": 192,
+          "medalTier": null,
+          "accuracyPct": 31.440456534632833
+        },
+        "bs_3d4f7": {
+          "score": 1039125,
+          "stars": 5,
+          "maxCombo": 465,
+          "medalTier": null,
+          "accuracyPct": 93.05110927041125
+        },
+        "osu_2282097": {
+          "score": 52120,
+          "stars": 1,
+          "maxCombo": 47,
+          "medalTier": null,
+          "accuracyPct": 21.03843995850438
+        },
+        "osu_78868": {
+          "score": 8350,
+          "stars": 3.5,
+          "maxCombo": 14,
+          "medalTier": null,
+          "accuracyPct": 1.8324383280262115
+        },
+        "bs_3d93a": {
+          "score": 123600,
+          "stars": 3.5,
+          "maxCombo": 92,
+          "medalTier": null,
+          "accuracyPct": 9.723058043352568
+        },
+        "osu_2009201": {
+          "score": 717300,
+          "stars": 5,
+          "maxCombo": 363,
+          "medalTier": null,
+          "accuracyPct": 97.55201958384333
+        },
+        "clonehero_793865": {
+          "score": 778439,
+          "stars": 4,
+          "maxCombo": 217,
+          "medalTier": null,
+          "accuracyPct": 81.90430596838256
+        },
+        "top_francisca_valenzuela_muleta": {
+          "score": 69061,
+          "stars": 3.5,
+          "maxCombo": 62,
+          "medalTier": null,
+          "accuracyPct": 4.703979184546433
+        },
+        "top_avril_lavigne_complicated": {
+          "score": 46650,
+          "stars": 3.5,
+          "maxCombo": 48,
+          "medalTier": null,
+          "accuracyPct": 3.082854439046053
+        },
+        "top_raphael_escandalo": {
+          "score": 25200,
+          "stars": 3.5,
+          "maxCombo": 30,
+          "medalTier": null,
+          "accuracyPct": 1.2611129321626335
+        },
+        "top_polanski_y_el_ardor_ataque_preventivo_de_la_urss": {
+          "score": 779806,
+          "stars": 5,
+          "maxCombo": 378,
+          "medalTier": null,
+          "accuracyPct": 98.21481649411824
+        },
+        "top_3ballmty_el_bebeto__amrica_sierra_intntalo": {
+          "score": 347910,
+          "stars": 1,
+          "maxCombo": 194,
+          "medalTier": null,
+          "accuracyPct": 25.364157298455886
+        },
+        "bs_ac6a": {
+          "score": 1306950,
+          "stars": 5,
+          "maxCombo": 625,
+          "medalTier": null,
+          "accuracyPct": 98.6526268115942
+        },
+        "top_la_quinta_estacion_algo_mas": {
+          "score": 103064,
+          "stars": 3.5,
+          "maxCombo": 71,
+          "medalTier": null,
+          "accuracyPct": 6.418062039688811
+        },
+        "top_amaral_morira_por_vos": {
+          "score": 1146262,
+          "stars": 5,
+          "maxCombo": 523,
+          "medalTier": null,
+          "accuracyPct": 98.84423518861051
+        },
+        "osu_801977": {
+          "score": 303740,
+          "stars": 1,
+          "maxCombo": 174,
+          "medalTier": null,
+          "accuracyPct": 22.722767129415935
+        },
+        "osu_1740979": {
+          "score": 71687,
+          "stars": 3.5,
+          "maxCombo": 67,
+          "medalTier": null,
+          "accuracyPct": 7.968321013727561
+        },
+        "osu_1641083": {
+          "score": 116762,
+          "stars": 3.5,
+          "maxCombo": 87,
+          "medalTier": null,
+          "accuracyPct": 3.0726639956316077
+        },
+        "osu_937527": {
+          "score": 394147,
+          "stars": 1,
+          "maxCombo": 219,
+          "medalTier": null,
+          "accuracyPct": 21.13121342285909
+        },
+        "osu_998321": {
+          "score": 234459,
+          "stars": 3.5,
+          "maxCombo": 29,
+          "medalTier": null,
+          "accuracyPct": 0.9161665749802856
+        },
+        "top_mecano_hijo_de_la_luna": {
+          "score": 337290,
+          "stars": 2,
+          "maxCombo": 189,
+          "medalTier": null,
+          "accuracyPct": 54.408194539662055
+        },
+        "top_los_rebeldes_mediterraneo": {
+          "score": 149348,
+          "stars": 3.5,
+          "maxCombo": 74,
+          "medalTier": null,
+          "accuracyPct": 13.531477528476735
+        },
+        "top_katy_perry_dark_horse": {
+          "score": 29456,
+          "stars": 3.5,
+          "maxCombo": 36,
+          "medalTier": null,
+          "accuracyPct": 2.788195226673381
+        },
+        "bs_34d29": {
+          "score": 208755,
+          "stars": 2,
+          "maxCombo": 136,
+          "medalTier": null,
+          "accuracyPct": 42.01992753623188
+        },
+        "osu_1096914": {
+          "score": 40250,
+          "stars": 3,
+          "maxCombo": 41,
+          "medalTier": null,
+          "accuracyPct": 64.81481481481481
+        },
+        "osu_1158642": {
+          "score": 36106,
+          "stars": 4,
+          "maxCombo": 25,
+          "medalTier": null,
+          "accuracyPct": 82.62242562929062
+        },
+        "osu_2157266": {
+          "score": 179785,
+          "stars": 3.5,
+          "maxCombo": 108,
+          "medalTier": null,
+          "accuracyPct": 6.650710534931166
+        },
+        "top_elvis_crespo_suavemente": {
+          "score": 269562,
+          "stars": 1,
+          "maxCombo": 78,
+          "medalTier": null,
+          "accuracyPct": 24.1871140597549
+        },
+        "top_pesadilla_antes_de_navidad_esto_es_halloween": {
+          "score": 214800,
+          "stars": 3.5,
+          "maxCombo": 146,
+          "medalTier": null,
+          "accuracyPct": 17.656487608400806
+        },
+        "osu_2056659": {
+          "score": 141200,
+          "stars": 3.5,
+          "maxCombo": 79,
+          "medalTier": null,
+          "accuracyPct": 8.929361917409725
+        },
+        "bs_4a0ce": {
+          "score": 168260,
+          "stars": 3.5,
+          "maxCombo": 95,
+          "medalTier": null,
+          "accuracyPct": 11.21319192778134
+        },
+        "osu_725748": {
+          "score": 577618,
+          "stars": 3,
+          "maxCombo": 158,
+          "medalTier": null,
+          "accuracyPct": 64.68866191820096
+        },
+        "top_el_fary_el_toro_guapo": {
+          "score": 1870345,
+          "stars": 5,
+          "maxCombo": 888,
+          "medalTier": null,
+          "accuracyPct": 96.70953504220824
+        },
+        "top_miguel_bos_estuve_a_punto_de": {
+          "score": 122442,
+          "stars": 3.5,
+          "maxCombo": 35,
+          "medalTier": null,
+          "accuracyPct": 11.939259376270671
+        },
+        "top_mgo_de_oz_la_ltima_cena": {
+          "score": 1107947,
+          "stars": 4,
+          "maxCombo": 208,
+          "medalTier": null,
+          "accuracyPct": 82.95500149745433
+        },
+        "top_fito_y_fitipaldis_me_equivocara_otra_vez": {
+          "score": 1425024,
+          "stars": 4,
+          "maxCombo": 331,
+          "medalTier": null,
+          "accuracyPct": 86.5669755891315
+        },
+        "top_estopa_vino_tinto": {
+          "score": 24240,
+          "stars": 3.5,
+          "maxCombo": 19,
+          "medalTier": null,
+          "accuracyPct": 1.4122746711101273
+        },
+        "top_salom_vivo_cantando": {
+          "score": 93448,
+          "stars": 3.5,
+          "maxCombo": 69,
+          "medalTier": null,
+          "accuracyPct": 14.065232769909239
+        },
+        "osu_1479377": {
+          "score": 838245,
+          "stars": 2,
+          "maxCombo": 136,
+          "medalTier": null,
+          "accuracyPct": 48.021826931339696
+        },
+        "bs_110e2": {
+          "score": 459450,
+          "stars": 1,
+          "maxCombo": 243,
+          "medalTier": null,
+          "accuracyPct": 30.90193704600484
+        },
+        "osu_1798030": {
+          "score": 367932,
+          "stars": 1,
+          "maxCombo": 155,
+          "medalTier": null,
+          "accuracyPct": 23.66097840793921
+        },
+        "top_backstreet_boys_as_long_as_you_love_me": {
+          "score": 455907,
+          "stars": 2,
+          "maxCombo": 232,
+          "medalTier": null,
+          "accuracyPct": 44.06175703102348
+        },
+        "top_madonna_la_isla_bonita": {
+          "score": 398420,
+          "stars": 1,
+          "maxCombo": 152,
+          "medalTier": null,
+          "accuracyPct": 33.79711551348848
+        },
+        "top_michael_jackson_bad": {
+          "score": 1644558,
+          "stars": 4,
+          "maxCombo": 511,
+          "medalTier": null,
+          "accuracyPct": 83.91150034287953
+        },
+        "osu_2644393": {
+          "score": 251403,
+          "stars": 3.5,
+          "maxCombo": 116,
+          "medalTier": null,
+          "accuracyPct": 10.061037835293892
+        },
+        "bs_7c05": {
+          "score": 43330,
+          "stars": 3.5,
+          "maxCombo": 41,
+          "medalTier": null,
+          "accuracyPct": 1.2236483528896795
+        },
+        "bs_15b16": {
+          "score": 452625,
+          "stars": 3.5,
+          "maxCombo": 218,
+          "medalTier": null,
+          "accuracyPct": 12.245353461569678
+        },
+        "top_luis_miguel_la_chica_del_bikini_azul": {
+          "score": 166861,
+          "stars": 3.5,
+          "maxCombo": 94,
+          "medalTier": null,
+          "accuracyPct": 19.02837932457983
+        },
+        "top_michael_jackson_ben": {
+          "score": 2550,
+          "stars": 3.5,
+          "maxCombo": 6,
+          "medalTier": null,
+          "accuracyPct": 0.5406494153565636
+        },
+        "osu_2644890": {
+          "score": 136783,
+          "stars": 3.5,
+          "maxCombo": 59,
+          "medalTier": null,
+          "accuracyPct": 5.4861501611155274
+        },
+        "top_nino_bravo_noelia": {
+          "score": 440889,
+          "stars": 1,
+          "maxCombo": 121,
+          "medalTier": null,
+          "accuracyPct": 36.90395775316336
+        },
+        "top_jarabe_de_palo_bonito": {
+          "score": 179530,
+          "stars": 3.5,
+          "maxCombo": 62,
+          "medalTier": null,
+          "accuracyPct": 7.574114778235757
+        },
+        "top_hombres_g_marta_tiene_un_marcapasos": {
+          "score": 315060,
+          "stars": 4,
+          "maxCombo": 128,
+          "medalTier": null,
+          "accuracyPct": 77.51831175126036
+        },
+        "osu_2622288": {
+          "score": 6675,
+          "stars": 3.5,
+          "maxCombo": 12,
+          "medalTier": null,
+          "accuracyPct": 0.39356151056867433
+        },
+        "bs_21f76": {
+          "score": 94500,
+          "stars": 3.5,
+          "maxCombo": 69,
+          "medalTier": null,
+          "accuracyPct": 4.873520538407983
+        },
+        "bs_511f2": {
+          "score": 520164,
+          "stars": 1,
+          "maxCombo": 195,
+          "medalTier": null,
+          "accuracyPct": 25.922784425318575
+        },
+        "top_camilo_sesto_mi_mundo_tu": {
+          "score": 128114,
+          "stars": 3.5,
+          "maxCombo": 48,
+          "medalTier": null,
+          "accuracyPct": 10.571752986338266
+        },
+        "top_camilo_sesto_con_el_viento_a_tu_favor": {
+          "score": 611884,
+          "stars": 3,
+          "maxCombo": 167,
+          "medalTier": null,
+          "accuracyPct": 72.84818987932529
+        },
+        "osu_1511613": {
+          "score": 315984,
+          "stars": 4,
+          "maxCombo": 152,
+          "medalTier": null,
+          "accuracyPct": 78.08012019016931
+        },
+        "osu_1801156": {
+          "score": 700664,
+          "stars": 3,
+          "maxCombo": 136,
+          "medalTier": null,
+          "accuracyPct": 60.92433759747351
+        },
+        "top_manolo_garcia_a_san_fernando": {
+          "score": 1505994,
+          "stars": 3,
+          "maxCombo": 719,
+          "medalTier": null,
+          "accuracyPct": 66.23465898470572
+        },
+        "top_alaska_y_dinarama_a_quien_le_importa": {
+          "score": 1460670,
+          "stars": 3.5,
+          "maxCombo": 67,
+          "medalTier": null,
+          "accuracyPct": 8.048266438149941
+        },
+        "comm_1789937559769_269": {
+          "score": 31422,
+          "stars": 3,
+          "maxCombo": 40,
+          "medalTier": null,
+          "accuracyPct": 74.48266053523598
+        },
+        "osu_590628": {
+          "score": 1322958,
+          "stars": 5,
+          "maxCombo": 525,
+          "medalTier": null,
+          "accuracyPct": 91.60280924199904
+        },
+        "osu_578013": {
+          "score": 72342,
+          "stars": 3.5,
+          "maxCombo": 60,
+          "medalTier": null,
+          "accuracyPct": 3.2691098000086765
+        },
+        "top_aqua_my_oh_my": {
+          "score": 280314,
+          "stars": 1,
+          "maxCombo": 153,
+          "medalTier": null,
+          "accuracyPct": 24.23371092692989
+        },
+        "top_alvaro_soler_sofia": {
+          "score": 986900,
+          "stars": 3,
+          "maxCombo": 295,
+          "medalTier": null,
+          "accuracyPct": 63.85396083485706
+        },
+        "top_david_bisbal_corazn_latino": {
+          "score": 176703,
+          "stars": 3.5,
+          "maxCombo": 120,
+          "medalTier": null,
+          "accuracyPct": 9.172477014692324
+        },
+        "top_camela_cuando_zarpa_el_amor": {
+          "score": 818147,
+          "stars": 1,
+          "maxCombo": 342,
+          "medalTier": null,
+          "accuracyPct": 20.67782259695095
+        },
+        "top_cnco_reggaeton_lento_bailemos": {
+          "score": 986625,
+          "stars": 2,
+          "maxCombo": 346,
+          "medalTier": null,
+          "accuracyPct": 40.40119259529522
+        },
+        "top_rosalia_despecha": {
+          "score": 1383760,
+          "stars": 5,
+          "maxCombo": 428,
+          "medalTier": null,
+          "accuracyPct": 90.56613652725963
+        },
+        "top_juanes_a_dios_le_pido": {
+          "score": 136654,
+          "stars": 3.5,
+          "maxCombo": 97,
+          "medalTier": null,
+          "accuracyPct": 8.387576316117363
+        },
+        "top_alexandra_stan_mr_saxobeat": {
+          "score": 407550,
+          "stars": 1,
+          "maxCombo": 219,
+          "medalTier": null,
+          "accuracyPct": 26.250700469556143
+        },
+        "osu_2528368": {
+          "score": 183852,
+          "stars": 3.5,
+          "maxCombo": 125,
+          "medalTier": null,
+          "accuracyPct": 19.174039144441466
+        },
+        "osu_2535592": {
+          "score": 208820,
+          "stars": 2,
+          "maxCombo": 127,
+          "medalTier": null,
+          "accuracyPct": 55.55688581333291
+        },
+        "osu_2480900": {
+          "score": 329100,
+          "stars": 2,
+          "maxCombo": 188,
+          "medalTier": null,
+          "accuracyPct": 55.23665659617322
+        },
+        "osu_2559262": {
+          "score": 105635,
+          "stars": 3.5,
+          "maxCombo": 82,
+          "medalTier": null,
+          "accuracyPct": 19.96646895826954
+        },
+        "osu_2559716": {
+          "score": 63900,
+          "stars": 3.5,
+          "maxCombo": 58,
+          "medalTier": null,
+          "accuracyPct": 11.234177215189874
+        },
+        "osu_2487606": {
+          "score": 132450,
+          "stars": 3.5,
+          "maxCombo": 95,
+          "medalTier": null,
+          "accuracyPct": 16.45239426122601
+        },
+        "osu_2566708": {
+          "score": 149039,
+          "stars": 1,
+          "maxCombo": 105,
+          "medalTier": null,
+          "accuracyPct": 21.08247882048228
+        },
+        "top_fernando_esteso_la_ramona": {
+          "score": 662653,
+          "stars": 2,
+          "maxCombo": 282,
+          "medalTier": null,
+          "accuracyPct": 47.92120607724778
+        },
+        "top_campeones_oliver_y_benji_oliver_y_benji": {
+          "score": 335675,
+          "stars": 1,
+          "maxCombo": 125,
+          "medalTier": null,
+          "accuracyPct": 32.04696753153143
+        },
+        "osu_2522206": {
+          "score": 2407,
+          "stars": 3.5,
+          "maxCombo": 6,
+          "medalTier": null,
+          "accuracyPct": 0.5466342365175288
+        },
+        "top_miguel_bose_amante_bandido": {
+          "score": 1176024,
+          "stars": 4,
+          "maxCombo": 414,
+          "medalTier": null,
+          "accuracyPct": 86.42277818407568
+        },
+        "top_cecilia_la_incomparable_bao_de_mar_a_medianoche": {
+          "score": 80932,
+          "stars": 3.5,
+          "maxCombo": 63,
+          "medalTier": null,
+          "accuracyPct": 8.992474419359176
+        },
+        "top_linkin_park_in_the_end": {
+          "score": 3600,
+          "stars": 3.5,
+          "maxCombo": 8,
+          "medalTier": null,
+          "accuracyPct": 0.3527419809989653
+        },
+        "top_miguel_bos_sevilla": {
+          "score": 989835,
+          "stars": 4,
+          "maxCombo": 202,
+          "medalTier": null,
+          "accuracyPct": 85.2209916211218
+        },
+        "osu_957050": {
+          "score": 649245,
+          "stars": 4,
+          "maxCombo": 218,
+          "medalTier": null,
+          "accuracyPct": 80.17448968251028
+        },
+        "osu_1575448": {
+          "score": 437960,
+          "stars": 0,
+          "maxCombo": 146,
+          "medalTier": null,
+          "accuracyPct": 15.687370155455262
+        },
+        "osu_804366": {
+          "score": 391918,
+          "stars": 0,
+          "maxCombo": 183,
+          "medalTier": null,
+          "accuracyPct": 10.55264908062349
+        },
+        "osu_611650": {
+          "score": 575062,
+          "stars": 0,
+          "maxCombo": 194,
+          "medalTier": null,
+          "accuracyPct": 18.44178875685279
+        },
+        "osu_662219": {
+          "score": 290754,
+          "stars": 0,
+          "maxCombo": 143,
+          "medalTier": null,
+          "accuracyPct": 12.63163656837803
+        }
+      },
+      "favorites": [
+        "osu_1575448",
+        "osu_1359181"
+      ],
+      "weekly_history": {
+        "2026_W45": {
+          "score": 3532836,
+          "songsPlayed": 8,
+          "maxCombo": 218,
+          "stars": 4,
+          "accuracyPct": 85.2209916211218,
+          "medalTier": null,
+          "v2Clean": true
+        }
+      },
+      "settings": {
+        "vegas_streak": 0,
+        "gacha_pity": 0,
+        "claimed_promo_friends": [],
+        "lang": "es",
+        "note_speed": "1.0",
+        "offset": "0",
+        "audio_offset": "0",
+        "key_style": "beatstar_large",
+        "bg_mode": "black",
+        "bg_opacity": "0.40",
+        "judge_colors": null,
+        "vegas_last_spin": "",
+        "last_claimed_week": "2026_W45",
+        "my_ref_code": "rnc_jggnkf"
+      },
+      "updated_at": "2026-11-02T22:14:56.112Z"
+    },
+    "RNC-C42DF0": {
+      "recovery_code": "RNC-C42DF0",
+      "player_name": "Rocky",
+      "pin_hash": "",
+      "wallet": {
+        "clefs": 260,
+        "silvers": 0,
+        "golds": 0,
+        "platinums": 0
+      },
+      "unlocked_modes": {
+        "normal": true,
+        "osu_hybrid": true,
+        "locura": true
+      },
+      "unlocked_effects": [
+        "solar_inferno"
+      ],
+      "active_effect": "solar_inferno",
+      "highscores": {
+        "comm_camilo_sesto": {
+          "score": 1374948,
+          "stars": 3.5,
+          "maxCombo": 156,
+          "medalTier": null,
+          "accuracyPct": 17.790889647539107
+        },
+        "top_el_canto_del_loco_la_madre_de_jos": {
+          "score": 436714,
+          "stars": 3.5,
+          "maxCombo": 163,
+          "medalTier": null,
+          "accuracyPct": 66.18282666020065
+        },
+        "top_manolo_garcia_a_san_fernando": {
+          "score": 1505994,
+          "stars": 3,
+          "maxCombo": 719,
+          "medalTier": null,
+          "accuracyPct": 66.23465898470572
+        },
+        "top_alaska_y_dinarama_a_quien_le_importa": {
+          "score": 1460670,
+          "stars": 3.5,
+          "maxCombo": 67,
+          "medalTier": null,
+          "accuracyPct": 8.048266438149941
+        },
+        "top_david_bustamante_no_soy_un_superman": {
+          "score": 1600448,
+          "stars": 4,
+          "maxCombo": 462,
+          "medalTier": null,
+          "accuracyPct": 78.68603571247715
+        },
+        "comm_1789937559769_269": {
+          "score": 31422,
+          "stars": 3,
+          "maxCombo": 40,
+          "medalTier": null,
+          "accuracyPct": 74.48266053523598
+        },
+        "osu_590628": {
+          "score": 1322958,
+          "stars": 5,
+          "maxCombo": 525,
+          "medalTier": null,
+          "accuracyPct": 91.60280924199904
+        },
+        "osu_578013": {
+          "score": 72342,
+          "stars": 3.5,
+          "maxCombo": 60,
+          "medalTier": null,
+          "accuracyPct": 3.2691098000086765
+        },
+        "top_aqua_my_oh_my": {
+          "score": 280314,
+          "stars": 1,
+          "maxCombo": 153,
+          "medalTier": null,
+          "accuracyPct": 24.23371092692989
+        },
+        "top_alvaro_soler_sofia": {
+          "score": 986900,
+          "stars": 3,
+          "maxCombo": 295,
+          "medalTier": null,
+          "accuracyPct": 63.85396083485706
+        },
+        "top_david_bisbal_corazn_latino": {
+          "score": 176703,
+          "stars": 3.5,
+          "maxCombo": 120,
+          "medalTier": null,
+          "accuracyPct": 9.172477014692324
+        },
+        "top_camela_cuando_zarpa_el_amor": {
+          "score": 818147,
+          "stars": 1,
+          "maxCombo": 342,
+          "medalTier": null,
+          "accuracyPct": 20.67782259695095
+        },
+        "top_estopa_cacho_a_cacho": {
+          "score": 1109846,
+          "stars": 3,
+          "maxCombo": 567,
+          "medalTier": null,
+          "accuracyPct": 71.07085338481882
+        },
+        "top_chayanne_caprichosa": {
+          "score": 924920,
+          "stars": 2,
+          "maxCombo": 475,
+          "medalTier": null,
+          "accuracyPct": 40.278621524579705
+        },
+        "top_cnco_reggaeton_lento_bailemos": {
+          "score": 986625,
+          "stars": 2,
+          "maxCombo": 346,
+          "medalTier": null,
+          "accuracyPct": 40.40119259529522
+        },
+        "top_rosalia_despecha": {
+          "score": 1383760,
+          "stars": 5,
+          "maxCombo": 428,
+          "medalTier": null,
+          "accuracyPct": 90.56613652725963
+        },
+        "top_juanes_a_dios_le_pido": {
+          "score": 136654,
+          "stars": 3.5,
+          "maxCombo": 97,
+          "medalTier": null,
+          "accuracyPct": 8.387576316117363
+        },
+        "top_alexandra_stan_mr_saxobeat": {
+          "score": 407550,
+          "stars": 1,
+          "maxCombo": 219,
+          "medalTier": null,
+          "accuracyPct": 26.250700469556143
+        },
+        "osu_2528368": {
+          "score": 183852,
+          "stars": 3.5,
+          "maxCombo": 125,
+          "medalTier": null,
+          "accuracyPct": 19.174039144441466
+        },
+        "osu_2535592": {
+          "score": 208820,
+          "stars": 2,
+          "maxCombo": 127,
+          "medalTier": null,
+          "accuracyPct": 55.55688581333291
+        },
+        "osu_2480900": {
+          "score": 329100,
+          "stars": 2,
+          "maxCombo": 188,
+          "medalTier": null,
+          "accuracyPct": 55.23665659617322
+        },
+        "osu_2559262": {
+          "score": 105635,
+          "stars": 3.5,
+          "maxCombo": 82,
+          "medalTier": null,
+          "accuracyPct": 19.96646895826954
+        },
+        "osu_2559716": {
+          "score": 63900,
+          "stars": 3.5,
+          "maxCombo": 58,
+          "medalTier": null,
+          "accuracyPct": 11.234177215189874
+        },
+        "osu_2487606": {
+          "score": 132450,
+          "stars": 3.5,
+          "maxCombo": 95,
+          "medalTier": null,
+          "accuracyPct": 16.45239426122601
+        },
+        "osu_2566708": {
+          "score": 149039,
+          "stars": 1,
+          "maxCombo": 105,
+          "medalTier": null,
+          "accuracyPct": 21.08247882048228
+        },
+        "top_fernando_esteso_la_ramona": {
+          "score": 662653,
+          "stars": 2,
+          "maxCombo": 282,
+          "medalTier": null,
+          "accuracyPct": 47.92120607724778
+        },
+        "top_campeones_oliver_y_benji_oliver_y_benji": {
+          "score": 335675,
+          "stars": 1,
+          "maxCombo": 125,
+          "medalTier": null,
+          "accuracyPct": 32.04696753153143
+        },
+        "osu_2522206": {
+          "score": 2407,
+          "stars": 3.5,
+          "maxCombo": 6,
+          "medalTier": null,
+          "accuracyPct": 0.5466342365175288
+        },
+        "top_miguel_bose_amante_bandido": {
+          "score": 1176024,
+          "stars": 4,
+          "maxCombo": 414,
+          "medalTier": null,
+          "accuracyPct": 86.42277818407568
+        },
+        "comm_1789044857_213": {
+          "score": 314960,
+          "stars": 5,
+          "maxCombo": 181,
+          "medalTier": null,
+          "accuracyPct": 98.09675311763202
+        },
+        "top_cecilia_la_incomparable_bao_de_mar_a_medianoche": {
+          "score": 80932,
+          "stars": 3.5,
+          "maxCombo": 63,
+          "medalTier": null,
+          "accuracyPct": 8.992474419359176
+        },
+        "top_linkin_park_in_the_end": {
+          "score": 3600,
+          "stars": 3.5,
+          "maxCombo": 8,
+          "medalTier": null,
+          "accuracyPct": 0.3527419809989653
+        },
+        "osu_2069233": {
+          "score": 140475,
+          "stars": 3.5,
+          "maxCombo": 47,
+          "medalTier": null,
+          "accuracyPct": 15.584782994585957
+        },
+        "comm_1789045500_1819": {
+          "score": 696,
+          "stars": 5,
+          "maxCombo": 1,
+          "medalTier": null,
+          "accuracyPct": 98.02816901408451
+        },
+        "top_parchs_comando_g": {
+          "score": 15450,
+          "stars": 3.5,
+          "maxCombo": 22,
+          "medalTier": null,
+          "accuracyPct": 1.7237435917461135
+        },
+        "top_justin_bieber_what_do_you_mean": {
+          "score": 1799965,
+          "stars": 5,
+          "maxCombo": 845,
+          "medalTier": null,
+          "accuracyPct": 98.17125217139943
+        },
+        "top_caf_quijano_la_taberna_del_buda": {
+          "score": 1790793,
+          "stars": 4,
+          "maxCombo": 452,
+          "medalTier": null,
+          "accuracyPct": 89.64273915002252
+        },
+        "osu_897364": {
+          "score": 813900,
+          "stars": 3.5,
+          "maxCombo": 166,
+          "medalTier": null,
+          "accuracyPct": 16.118450615619665
+        },
+        "top_mana_clavado_en_un_bar": {
+          "score": 32691,
+          "stars": 3.5,
+          "maxCombo": 14,
+          "medalTier": null,
+          "accuracyPct": 2.431996929037557
+        },
+        "top_mark_ronson_feat_bruno_mars_uptown_funk": {
+          "score": 401400,
+          "stars": 3.5,
+          "maxCombo": 3,
+          "medalTier": null,
+          "accuracyPct": 0.06426276329882184
+        },
+        "top_paulina_rubio_yo_no_soy_esa_mujer": {
+          "score": 104437,
+          "stars": 3.5,
+          "maxCombo": 78,
+          "medalTier": null,
+          "accuracyPct": 8.163171190775445
+        },
+        "top_incubus_drive": {
+          "score": 35052,
+          "stars": 3.5,
+          "maxCombo": 21,
+          "medalTier": null,
+          "accuracyPct": 2.5806603610362395
+        },
+        "top_los_payasos_de_la_tele_la_gallina_turuleca": {
+          "score": 489872,
+          "stars": 2,
+          "maxCombo": 119,
+          "medalTier": null,
+          "accuracyPct": 46.0756779126967
+        },
+        "top_berlin_take_my_breath_away": {
+          "score": 16586,
+          "stars": 3.5,
+          "maxCombo": 23,
+          "medalTier": null,
+          "accuracyPct": 1.3229882976237102
+        },
+        "osu_963422": {
+          "score": 90250,
+          "stars": 3.5,
+          "maxCombo": 74,
+          "medalTier": null,
+          "accuracyPct": 10.097619647002881
+        },
+        "osu_2611015": {
+          "score": 262553,
+          "stars": 1,
+          "maxCombo": 86,
+          "medalTier": null,
+          "accuracyPct": 21.861872513974205
+        },
+        "top_jose_luis_rodriguez_el_puma_culpable_soy_yo": {
+          "score": 900,
+          "stars": 3.5,
+          "maxCombo": 2,
+          "medalTier": null,
+          "accuracyPct": 0.08947504988234031
+        },
+        "top_oasis_wonderwall": {
+          "score": 4500,
+          "stars": 3.5,
+          "maxCombo": 7,
+          "medalTier": null,
+          "accuracyPct": 0.35216365436311203
+        },
+        "top_seguridad_social_me_siento_bien": {
+          "score": 120617,
+          "stars": 3.5,
+          "maxCombo": 88,
+          "medalTier": null,
+          "accuracyPct": 11.752503388355748
+        },
+        "top_los_autnticos_decadentes_el_dinero_no_es_todo": {
+          "score": 272400,
+          "stars": 3.5,
+          "maxCombo": 161,
+          "medalTier": null,
+          "accuracyPct": 14.316610474145747
+        },
+        "top_david_bisbal_bulera": {
+          "score": 1470400,
+          "stars": 5,
+          "maxCombo": 722,
+          "medalTier": null,
+          "accuracyPct": 93.80428562588396
+        },
+        "top_fito_y_fitipaldis_la_casa_por_el_tejado": {
+          "score": 462796,
+          "stars": 1,
+          "maxCombo": 172,
+          "medalTier": null,
+          "accuracyPct": 29.997925795327856
+        },
+        "top_shawn_mendes_camila_cabello_senorita": {
+          "score": 758074,
+          "stars": 1,
+          "maxCombo": 386,
+          "medalTier": null,
+          "accuracyPct": 39.42460260707441
+        },
+        "top_manolo_escobar_el_porompompero": {
+          "score": 888809,
+          "stars": 5,
+          "maxCombo": 446,
+          "medalTier": null,
+          "accuracyPct": 94.27523465152564
+        },
+        "top_don_omar_taboo": {
+          "score": 94329,
+          "stars": 3.5,
+          "maxCombo": 40,
+          "medalTier": null,
+          "accuracyPct": 5.861849537845466
+        },
+        "top_las_machiturras_tirate_un_huaso": {
+          "score": 18300,
+          "stars": 3.5,
+          "maxCombo": 15,
+          "medalTier": null,
+          "accuracyPct": 13.182918395573997
+        },
+        "top_las_ketchup_asereje": {
+          "score": 970523,
+          "stars": 2,
+          "maxCombo": 479,
+          "medalTier": null,
+          "accuracyPct": 55.02118024296052
+        },
+        "top_fools_garden_lemon_tree": {
+          "score": 358813,
+          "stars": 1,
+          "maxCombo": 97,
+          "medalTier": null,
+          "accuracyPct": 31.877487562189057
+        },
+        "top_michael_jackson_billie_jean": {
+          "score": 243507,
+          "stars": 3.5,
+          "maxCombo": 150,
+          "medalTier": null,
+          "accuracyPct": 12.720825351484324
+        },
+        "osu_2321476": {
+          "score": 921450,
+          "stars": 3.5,
+          "maxCombo": 84,
+          "medalTier": null,
+          "accuracyPct": 3.882004024997352
+        },
+        "top_rfaga_mentirosa": {
+          "score": 1040193,
+          "stars": 5,
+          "maxCombo": 504,
+          "medalTier": null,
+          "accuracyPct": 97.67373073531857
+        },
+        "osu_1281116": {
+          "score": 472088,
+          "stars": 4,
+          "maxCombo": 259,
+          "medalTier": null,
+          "accuracyPct": 75.08763893395428
+        },
+        "top_bad_bunny_yo_perreo_sola": {
+          "score": 214241,
+          "stars": 3.5,
+          "maxCombo": 24,
+          "medalTier": null,
+          "accuracyPct": 1.4603825908555483
+        },
+        "osu_1057527": {
+          "score": 211243,
+          "stars": 3.5,
+          "maxCombo": 135,
+          "medalTier": null,
+          "accuracyPct": 9.837793280739175
+        },
+        "top_antonio_flores_no_dudara": {
+          "score": 763821,
+          "stars": 5,
+          "maxCombo": 219,
+          "medalTier": null,
+          "accuracyPct": 100
+        },
+        "top_taxi_quiero_un_camino": {
+          "score": 478897,
+          "stars": 2,
+          "maxCombo": 232,
+          "medalTier": null,
+          "accuracyPct": 41.71642064074175
+        },
+        "osu_2227235": {
+          "score": 565950,
+          "stars": 5,
+          "maxCombo": 298,
+          "medalTier": null,
+          "accuracyPct": 96.07843137254902
+        },
+        "osu_2417549": {
+          "score": 553800,
+          "stars": 2,
+          "maxCombo": 303,
+          "medalTier": null,
+          "accuracyPct": 58.21507410911384
+        },
+        "osu_467300": {
+          "score": 1722393,
+          "stars": 4,
+          "maxCombo": 421,
+          "medalTier": null,
+          "accuracyPct": 86.30585488190772
+        },
+        "top_michael_jackson_thriller": {
+          "score": 755762,
+          "stars": 2,
+          "maxCombo": 234,
+          "medalTier": null,
+          "accuracyPct": 41.98934379323181
+        },
+        "osu_923490": {
+          "score": 16350,
+          "stars": 3.5,
+          "maxCombo": 23,
+          "medalTier": null,
+          "accuracyPct": 0.7964692299823168
+        },
+        "osu_1892571": {
+          "score": 326709,
+          "stars": 3.5,
+          "maxCombo": 100,
+          "medalTier": null,
+          "accuracyPct": 10.41791027642575
+        },
+        "clonehero_340124": {
+          "score": 1082970,
+          "stars": 4,
+          "maxCombo": 302,
+          "medalTier": null,
+          "accuracyPct": 86.22805124779347
+        },
+        "top_alaska_abracadabra": {
+          "score": 476250,
+          "stars": 1,
+          "maxCombo": 230,
+          "medalTier": null,
+          "accuracyPct": 25.94095538972711
+        },
+        "top_village_people_ymca": {
+          "score": 705438,
+          "stars": 2,
+          "maxCombo": 344,
+          "medalTier": null,
+          "accuracyPct": 53.29748123658001
+        },
+        "top_celia_cruz_la_vida_es_un_carnaval": {
+          "score": 1564326,
+          "stars": 3.5,
+          "maxCombo": 17,
+          "medalTier": null,
+          "accuracyPct": 0.5136693111123795
+        },
+        "top_seguridad_social_quiero_tener_tu_presencia": {
+          "score": 543886,
+          "stars": 1,
+          "maxCombo": 260,
+          "medalTier": null,
+          "accuracyPct": 24.834667664297292
+        },
+        "top_merche_eras_tu": {
+          "score": 13950,
+          "stars": 3.5,
+          "maxCombo": 20,
+          "medalTier": null,
+          "accuracyPct": 0.9345187094665071
+        },
+        "osu_1225138": {
+          "score": 336825,
+          "stars": 1,
+          "maxCombo": 190,
+          "medalTier": null,
+          "accuracyPct": 30.258725239186095
+        },
+        "top_31_minutos_el_dinosaurio_anacleto": {
+          "score": 29121,
+          "stars": 3.5,
+          "maxCombo": 33,
+          "medalTier": null,
+          "accuracyPct": 3.430120179651087
+        },
+        "osu_47253": {
+          "score": 243867,
+          "stars": 5,
+          "maxCombo": 140,
+          "medalTier": null,
+          "accuracyPct": 99.23619701803503
+        },
+        "osu_2613759": {
+          "score": 353043,
+          "stars": 1,
+          "maxCombo": 192,
+          "medalTier": null,
+          "accuracyPct": 31.440456534632833
+        },
+        "bs_3d4f7": {
+          "score": 1039125,
+          "stars": 5,
+          "maxCombo": 465,
+          "medalTier": null,
+          "accuracyPct": 93.05110927041125
+        },
+        "osu_2282097": {
+          "score": 52120,
+          "stars": 1,
+          "maxCombo": 47,
+          "medalTier": null,
+          "accuracyPct": 21.03843995850438
+        },
+        "osu_78868": {
+          "score": 8350,
+          "stars": 3.5,
+          "maxCombo": 14,
+          "medalTier": null,
+          "accuracyPct": 1.8324383280262115
+        },
+        "bs_3d93a": {
+          "score": 123600,
+          "stars": 3.5,
+          "maxCombo": 92,
+          "medalTier": null,
+          "accuracyPct": 9.723058043352568
+        },
+        "osu_2009201": {
+          "score": 717300,
+          "stars": 5,
+          "maxCombo": 363,
+          "medalTier": null,
+          "accuracyPct": 97.55201958384333
+        },
+        "clonehero_793865": {
+          "score": 778439,
+          "stars": 4,
+          "maxCombo": 217,
+          "medalTier": null,
+          "accuracyPct": 81.90430596838256
+        },
+        "top_francisca_valenzuela_muleta": {
+          "score": 69061,
+          "stars": 3.5,
+          "maxCombo": 62,
+          "medalTier": null,
+          "accuracyPct": 4.703979184546433
+        },
+        "top_avril_lavigne_complicated": {
+          "score": 46650,
+          "stars": 3.5,
+          "maxCombo": 48,
+          "medalTier": null,
+          "accuracyPct": 3.082854439046053
+        },
+        "top_raphael_escandalo": {
+          "score": 25200,
+          "stars": 3.5,
+          "maxCombo": 30,
+          "medalTier": null,
+          "accuracyPct": 1.2611129321626335
+        },
+        "top_polanski_y_el_ardor_ataque_preventivo_de_la_urss": {
+          "score": 779806,
+          "stars": 5,
+          "maxCombo": 378,
+          "medalTier": null,
+          "accuracyPct": 98.21481649411824
+        },
+        "top_3ballmty_el_bebeto__amrica_sierra_intntalo": {
+          "score": 347910,
+          "stars": 1,
+          "maxCombo": 194,
+          "medalTier": null,
+          "accuracyPct": 25.364157298455886
+        },
+        "bs_ac6a": {
+          "score": 1306950,
+          "stars": 5,
+          "maxCombo": 625,
+          "medalTier": null,
+          "accuracyPct": 98.6526268115942
+        },
+        "top_la_quinta_estacion_algo_mas": {
+          "score": 103064,
+          "stars": 3.5,
+          "maxCombo": 71,
+          "medalTier": null,
+          "accuracyPct": 6.418062039688811
+        },
+        "top_amaral_morira_por_vos": {
+          "score": 1146262,
+          "stars": 5,
+          "maxCombo": 523,
+          "medalTier": null,
+          "accuracyPct": 98.84423518861051
+        },
+        "osu_801977": {
+          "score": 303740,
+          "stars": 1,
+          "maxCombo": 174,
+          "medalTier": null,
+          "accuracyPct": 22.722767129415935
+        },
+        "osu_1740979": {
+          "score": 71687,
+          "stars": 3.5,
+          "maxCombo": 67,
+          "medalTier": null,
+          "accuracyPct": 7.968321013727561
+        },
+        "osu_1641083": {
+          "score": 116762,
+          "stars": 3.5,
+          "maxCombo": 87,
+          "medalTier": null,
+          "accuracyPct": 3.0726639956316077
+        },
+        "osu_937527": {
+          "score": 394147,
+          "stars": 1,
+          "maxCombo": 219,
+          "medalTier": null,
+          "accuracyPct": 21.13121342285909
+        },
+        "osu_998321": {
+          "score": 234459,
+          "stars": 3.5,
+          "maxCombo": 29,
+          "medalTier": null,
+          "accuracyPct": 0.9161665749802856
+        },
+        "top_mecano_hijo_de_la_luna": {
+          "score": 337290,
+          "stars": 2,
+          "maxCombo": 189,
+          "medalTier": null,
+          "accuracyPct": 54.408194539662055
+        },
+        "top_los_rebeldes_mediterraneo": {
+          "score": 149348,
+          "stars": 3.5,
+          "maxCombo": 74,
+          "medalTier": null,
+          "accuracyPct": 13.531477528476735
+        },
+        "top_katy_perry_dark_horse": {
+          "score": 29456,
+          "stars": 3.5,
+          "maxCombo": 36,
+          "medalTier": null,
+          "accuracyPct": 2.788195226673381
+        },
+        "bs_34d29": {
+          "score": 208755,
+          "stars": 2,
+          "maxCombo": 136,
+          "medalTier": null,
+          "accuracyPct": 42.01992753623188
+        },
+        "osu_1096914": {
+          "score": 40250,
+          "stars": 3,
+          "maxCombo": 41,
+          "medalTier": null,
+          "accuracyPct": 64.81481481481481
+        },
+        "osu_1158642": {
+          "score": 36106,
+          "stars": 4,
+          "maxCombo": 25,
+          "medalTier": null,
+          "accuracyPct": 82.62242562929062
+        },
+        "osu_2157266": {
+          "score": 179785,
+          "stars": 3.5,
+          "maxCombo": 108,
+          "medalTier": null,
+          "accuracyPct": 6.650710534931166
+        },
+        "top_elvis_crespo_suavemente": {
+          "score": 269562,
+          "stars": 1,
+          "maxCombo": 78,
+          "medalTier": null,
+          "accuracyPct": 24.1871140597549
+        },
+        "top_pesadilla_antes_de_navidad_esto_es_halloween": {
+          "score": 214800,
+          "stars": 3.5,
+          "maxCombo": 146,
+          "medalTier": null,
+          "accuracyPct": 17.656487608400806
+        },
+        "osu_2056659": {
+          "score": 141200,
+          "stars": 3.5,
+          "maxCombo": 79,
+          "medalTier": null,
+          "accuracyPct": 8.929361917409725
+        },
+        "bs_4a0ce": {
+          "score": 168260,
+          "stars": 3.5,
+          "maxCombo": 95,
+          "medalTier": null,
+          "accuracyPct": 11.21319192778134
+        },
+        "osu_725748": {
+          "score": 577618,
+          "stars": 3,
+          "maxCombo": 158,
+          "medalTier": null,
+          "accuracyPct": 64.68866191820096
+        },
+        "top_el_fary_el_toro_guapo": {
+          "score": 1870345,
+          "stars": 5,
+          "maxCombo": 888,
+          "medalTier": null,
+          "accuracyPct": 96.70953504220824
+        },
+        "top_miguel_bos_estuve_a_punto_de": {
+          "score": 122442,
+          "stars": 3.5,
+          "maxCombo": 35,
+          "medalTier": null,
+          "accuracyPct": 11.939259376270671
+        },
+        "top_mgo_de_oz_la_ltima_cena": {
+          "score": 1107947,
+          "stars": 4,
+          "maxCombo": 208,
+          "medalTier": null,
+          "accuracyPct": 82.95500149745433
+        },
+        "top_fito_y_fitipaldis_me_equivocara_otra_vez": {
+          "score": 1425024,
+          "stars": 4,
+          "maxCombo": 331,
+          "medalTier": null,
+          "accuracyPct": 86.5669755891315
+        },
+        "top_estopa_vino_tinto": {
+          "score": 24240,
+          "stars": 3.5,
+          "maxCombo": 19,
+          "medalTier": null,
+          "accuracyPct": 1.4122746711101273
+        },
+        "top_salom_vivo_cantando": {
+          "score": 93448,
+          "stars": 3.5,
+          "maxCombo": 69,
+          "medalTier": null,
+          "accuracyPct": 14.065232769909239
+        },
+        "osu_1479377": {
+          "score": 838245,
+          "stars": 2,
+          "maxCombo": 136,
+          "medalTier": null,
+          "accuracyPct": 48.021826931339696
+        },
+        "bs_110e2": {
+          "score": 459450,
+          "stars": 1,
+          "maxCombo": 243,
+          "medalTier": null,
+          "accuracyPct": 30.90193704600484
+        },
+        "osu_1798030": {
+          "score": 367932,
+          "stars": 1,
+          "maxCombo": 155,
+          "medalTier": null,
+          "accuracyPct": 23.66097840793921
+        },
+        "top_backstreet_boys_as_long_as_you_love_me": {
+          "score": 455907,
+          "stars": 2,
+          "maxCombo": 232,
+          "medalTier": null,
+          "accuracyPct": 44.06175703102348
+        },
+        "top_madonna_la_isla_bonita": {
+          "score": 398420,
+          "stars": 1,
+          "maxCombo": 152,
+          "medalTier": null,
+          "accuracyPct": 33.79711551348848
+        },
+        "top_michael_jackson_bad": {
+          "score": 1644558,
+          "stars": 4,
+          "maxCombo": 511,
+          "medalTier": null,
+          "accuracyPct": 83.91150034287953
+        },
+        "osu_2644393": {
+          "score": 251403,
+          "stars": 3.5,
+          "maxCombo": 116,
+          "medalTier": null,
+          "accuracyPct": 10.061037835293892
+        },
+        "bs_7c05": {
+          "score": 43330,
+          "stars": 3.5,
+          "maxCombo": 41,
+          "medalTier": null,
+          "accuracyPct": 1.2236483528896795
+        },
+        "bs_15b16": {
+          "score": 452625,
+          "stars": 3.5,
+          "maxCombo": 218,
+          "medalTier": null,
+          "accuracyPct": 12.245353461569678
+        },
+        "top_luis_miguel_la_chica_del_bikini_azul": {
+          "score": 166861,
+          "stars": 3.5,
+          "maxCombo": 94,
+          "medalTier": null,
+          "accuracyPct": 19.02837932457983
+        },
+        "top_michael_jackson_ben": {
+          "score": 2550,
+          "stars": 3.5,
+          "maxCombo": 6,
+          "medalTier": null,
+          "accuracyPct": 0.5406494153565636
+        },
+        "osu_2644890": {
+          "score": 136783,
+          "stars": 3.5,
+          "maxCombo": 59,
+          "medalTier": null,
+          "accuracyPct": 5.4861501611155274
+        },
+        "top_nino_bravo_noelia": {
+          "score": 440889,
+          "stars": 1,
+          "maxCombo": 121,
+          "medalTier": null,
+          "accuracyPct": 36.90395775316336
+        },
+        "top_jarabe_de_palo_bonito": {
+          "score": 179530,
+          "stars": 3.5,
+          "maxCombo": 62,
+          "medalTier": null,
+          "accuracyPct": 7.574114778235757
+        },
+        "top_hombres_g_marta_tiene_un_marcapasos": {
+          "score": 315060,
+          "stars": 4,
+          "maxCombo": 128,
+          "medalTier": null,
+          "accuracyPct": 77.51831175126036
+        },
+        "osu_2622288": {
+          "score": 6675,
+          "stars": 3.5,
+          "maxCombo": 12,
+          "medalTier": null,
+          "accuracyPct": 0.39356151056867433
+        },
+        "bs_21f76": {
+          "score": 94500,
+          "stars": 3.5,
+          "maxCombo": 69,
+          "medalTier": null,
+          "accuracyPct": 4.873520538407983
+        },
+        "bs_511f2": {
+          "score": 520164,
+          "stars": 1,
+          "maxCombo": 195,
+          "medalTier": null,
+          "accuracyPct": 25.922784425318575
+        },
+        "top_camilo_sesto_mi_mundo_tu": {
+          "score": 128114,
+          "stars": 3.5,
+          "maxCombo": 48,
+          "medalTier": null,
+          "accuracyPct": 10.571752986338266
+        },
+        "top_camilo_sesto_con_el_viento_a_tu_favor": {
+          "score": 611884,
+          "stars": 3,
+          "maxCombo": 167,
+          "medalTier": null,
+          "accuracyPct": 72.84818987932529
+        },
+        "osu_1511613": {
+          "score": 315984,
+          "stars": 4,
+          "maxCombo": 152,
+          "medalTier": null,
+          "accuracyPct": 78.08012019016931
+        },
+        "osu_1801156": {
+          "score": 700664,
+          "stars": 3,
+          "maxCombo": 136,
+          "medalTier": null,
+          "accuracyPct": 60.92433759747351
+        }
+      },
+      "favorites": [],
+      "weekly_history": {},
+      "settings": {
+        "vegas_streak": 0,
+        "gacha_pity": 0,
+        "claimed_promo_friends": [],
+        "lang": "es",
+        "note_speed": "1.0",
+        "offset": "0",
+        "audio_offset": "0",
+        "key_style": "beatstar_large",
+        "bg_mode": "black",
+        "bg_opacity": "0.40",
+        "judge_colors": null,
+        "vegas_last_spin": "",
+        "last_claimed_week": "2026_W45",
+        "my_ref_code": ""
+      },
+      "updated_at": "2026-11-02T20:58:34.857Z"
+    },
+    "RNC-78EB3B": {
+      "recovery_code": "RNC-78EB3B",
+      "player_name": "Mauricio",
+      "pin_hash": "",
+      "wallet": {
+        "clefs": 733,
+        "silvers": 0,
+        "golds": 0,
+        "platinums": 0
+      },
+      "unlocked_modes": {
+        "normal": true,
+        "osu_hybrid": true,
+        "locura": true
+      },
+      "unlocked_effects": [
+        "solar_inferno"
+      ],
+      "active_effect": "solar_inferno",
+      "highscores": {
+        "comm_camilo_sesto": {
+          "score": 138849,
+          "stars": 3.5,
+          "maxCombo": 97,
+          "medalTier": null,
+          "accuracyPct": 9.539549394747816
+        },
+        "osu_2069233": {
+          "score": 140475,
+          "stars": 3.5,
+          "maxCombo": 47,
+          "medalTier": null,
+          "accuracyPct": 15.584782994585957
+        },
+        "top_el_canto_del_loco_la_madre_de_jos": {
+          "score": 436714,
+          "stars": 3,
+          "maxCombo": 163,
+          "medalTier": null,
+          "accuracyPct": 66.18282666020065
+        },
+        "comm_1789045500_1819": {
+          "score": 696,
+          "stars": 5,
+          "maxCombo": 1,
+          "medalTier": null,
+          "accuracyPct": 98.02816901408451
+        },
+        "top_david_bustamante_no_soy_un_superman": {
+          "score": 956409,
+          "stars": 3,
+          "maxCombo": 194,
+          "medalTier": null,
+          "accuracyPct": 60.765971884248394
+        },
+        "top_estopa_cacho_a_cacho": {
+          "score": 366033,
+          "stars": 1,
+          "maxCombo": 201,
+          "medalTier": null,
+          "accuracyPct": 30.75119402170032
+        },
+        "top_chayanne_caprichosa": {
+          "score": 544367,
+          "stars": 1,
+          "maxCombo": 305,
+          "medalTier": null,
+          "accuracyPct": 37.93815510704728
+        },
+        "comm_1789044857_213": {
+          "score": 241731,
+          "stars": 5,
+          "maxCombo": 144,
+          "medalTier": null,
+          "accuracyPct": 98.09675311763202
+        },
+        "top_parchs_comando_g": {
+          "score": 15450,
+          "stars": 3.5,
+          "maxCombo": 22,
+          "medalTier": null,
+          "accuracyPct": 1.7237435917461135
+        },
+        "top_justin_bieber_what_do_you_mean": {
+          "score": 1799965,
+          "stars": 5,
+          "maxCombo": 845,
+          "medalTier": null,
+          "accuracyPct": 98.17125217139943
+        },
+        "top_caf_quijano_la_taberna_del_buda": {
+          "score": 1790793,
+          "stars": 4,
+          "maxCombo": 452,
+          "medalTier": null,
+          "accuracyPct": 89.64273915002252
+        },
+        "osu_897364": {
+          "score": 813900,
+          "stars": 3.5,
+          "maxCombo": 166,
+          "medalTier": null,
+          "accuracyPct": 16.118450615619665
+        },
+        "top_mana_clavado_en_un_bar": {
+          "score": 32691,
+          "stars": 3.5,
+          "maxCombo": 14,
+          "medalTier": null,
+          "accuracyPct": 2.431996929037557
+        },
+        "top_mark_ronson_feat_bruno_mars_uptown_funk": {
+          "score": 401400,
+          "stars": 3.5,
+          "maxCombo": 3,
+          "medalTier": null,
+          "accuracyPct": 0.06426276329882184
+        },
+        "top_paulina_rubio_yo_no_soy_esa_mujer": {
+          "score": 104437,
+          "stars": 3.5,
+          "maxCombo": 78,
+          "medalTier": null,
+          "accuracyPct": 8.163171190775445
+        },
+        "top_incubus_drive": {
+          "score": 35052,
+          "stars": 3.5,
+          "maxCombo": 21,
+          "medalTier": null,
+          "accuracyPct": 2.5806603610362395
+        },
+        "top_los_payasos_de_la_tele_la_gallina_turuleca": {
+          "score": 489872,
+          "stars": 2,
+          "maxCombo": 119,
+          "medalTier": null,
+          "accuracyPct": 46.0756779126967
+        },
+        "top_berlin_take_my_breath_away": {
+          "score": 16586,
+          "stars": 3.5,
+          "maxCombo": 23,
+          "medalTier": null,
+          "accuracyPct": 1.3229882976237102
+        },
+        "osu_963422": {
+          "score": 90250,
+          "stars": 3.5,
+          "maxCombo": 74,
+          "medalTier": null,
+          "accuracyPct": 10.097619647002881
+        },
+        "osu_2611015": {
+          "score": 262553,
+          "stars": 1,
+          "maxCombo": 86,
+          "medalTier": null,
+          "accuracyPct": 21.861872513974205
+        },
+        "top_jose_luis_rodriguez_el_puma_culpable_soy_yo": {
+          "score": 900,
+          "stars": 3.5,
+          "maxCombo": 2,
+          "medalTier": null,
+          "accuracyPct": 0.08947504988234031
+        },
+        "top_oasis_wonderwall": {
+          "score": 4500,
+          "stars": 3.5,
+          "maxCombo": 7,
+          "medalTier": null,
+          "accuracyPct": 0.35216365436311203
+        },
+        "top_seguridad_social_me_siento_bien": {
+          "score": 120617,
+          "stars": 3.5,
+          "maxCombo": 88,
+          "medalTier": null,
+          "accuracyPct": 11.752503388355748
+        },
+        "top_los_autnticos_decadentes_el_dinero_no_es_todo": {
+          "score": 272400,
+          "stars": 3.5,
+          "maxCombo": 161,
+          "medalTier": null,
+          "accuracyPct": 14.316610474145747
+        },
+        "top_david_bisbal_bulera": {
+          "score": 1470400,
+          "stars": 5,
+          "maxCombo": 722,
+          "medalTier": null,
+          "accuracyPct": 93.80428562588396
+        },
+        "top_fito_y_fitipaldis_la_casa_por_el_tejado": {
+          "score": 462796,
+          "stars": 1,
+          "maxCombo": 172,
+          "medalTier": null,
+          "accuracyPct": 29.997925795327856
+        },
+        "top_shawn_mendes_camila_cabello_senorita": {
+          "score": 758074,
+          "stars": 1,
+          "maxCombo": 386,
+          "medalTier": null,
+          "accuracyPct": 39.42460260707441
+        },
+        "top_manolo_escobar_el_porompompero": {
+          "score": 888809,
+          "stars": 5,
+          "maxCombo": 446,
+          "medalTier": null,
+          "accuracyPct": 94.27523465152564
+        },
+        "top_don_omar_taboo": {
+          "score": 94329,
+          "stars": 3.5,
+          "maxCombo": 40,
+          "medalTier": null,
+          "accuracyPct": 5.861849537845466
+        },
+        "top_las_machiturras_tirate_un_huaso": {
+          "score": 18300,
+          "stars": 3.5,
+          "maxCombo": 15,
+          "medalTier": null,
+          "accuracyPct": 13.182918395573997
+        },
+        "top_las_ketchup_asereje": {
+          "score": 970523,
+          "stars": 2,
+          "maxCombo": 479,
+          "medalTier": null,
+          "accuracyPct": 55.02118024296052
+        },
+        "top_fools_garden_lemon_tree": {
+          "score": 358813,
+          "stars": 1,
+          "maxCombo": 97,
+          "medalTier": null,
+          "accuracyPct": 31.877487562189057
+        },
+        "top_michael_jackson_billie_jean": {
+          "score": 243507,
+          "stars": 3.5,
+          "maxCombo": 150,
+          "medalTier": null,
+          "accuracyPct": 12.720825351484324
+        },
+        "osu_2321476": {
+          "score": 921450,
+          "stars": 3.5,
+          "maxCombo": 84,
+          "medalTier": null,
+          "accuracyPct": 3.882004024997352
+        },
+        "top_rfaga_mentirosa": {
+          "score": 1040193,
+          "stars": 5,
+          "maxCombo": 504,
+          "medalTier": null,
+          "accuracyPct": 97.67373073531857
+        },
+        "osu_1281116": {
+          "score": 472088,
+          "stars": 4,
+          "maxCombo": 259,
+          "medalTier": null,
+          "accuracyPct": 75.08763893395428
+        },
+        "top_bad_bunny_yo_perreo_sola": {
+          "score": 214241,
+          "stars": 3.5,
+          "maxCombo": 24,
+          "medalTier": null,
+          "accuracyPct": 1.4603825908555483
+        },
+        "osu_1057527": {
+          "score": 211243,
+          "stars": 3.5,
+          "maxCombo": 135,
+          "medalTier": null,
+          "accuracyPct": 9.837793280739175
+        },
+        "top_antonio_flores_no_dudara": {
+          "score": 763821,
+          "stars": 5,
+          "maxCombo": 219,
+          "medalTier": null,
+          "accuracyPct": 100
+        },
+        "top_taxi_quiero_un_camino": {
+          "score": 478897,
+          "stars": 2,
+          "maxCombo": 232,
+          "medalTier": null,
+          "accuracyPct": 41.71642064074175
+        },
+        "osu_2227235": {
+          "score": 565950,
+          "stars": 5,
+          "maxCombo": 298,
+          "medalTier": null,
+          "accuracyPct": 96.07843137254902
+        },
+        "osu_2417549": {
+          "score": 553800,
+          "stars": 2,
+          "maxCombo": 303,
+          "medalTier": null,
+          "accuracyPct": 58.21507410911384
+        },
+        "osu_467300": {
+          "score": 1722393,
+          "stars": 4,
+          "maxCombo": 421,
+          "medalTier": null,
+          "accuracyPct": 86.30585488190772
+        },
+        "top_michael_jackson_thriller": {
+          "score": 755762,
+          "stars": 2,
+          "maxCombo": 234,
+          "medalTier": null,
+          "accuracyPct": 41.98934379323181
+        },
+        "osu_923490": {
+          "score": 16350,
+          "stars": 3.5,
+          "maxCombo": 23,
+          "medalTier": null,
+          "accuracyPct": 0.7964692299823168
+        },
+        "osu_1892571": {
+          "score": 326709,
+          "stars": 3.5,
+          "maxCombo": 100,
+          "medalTier": null,
+          "accuracyPct": 10.41791027642575
+        },
+        "clonehero_340124": {
+          "score": 1082970,
+          "stars": 4,
+          "maxCombo": 302,
+          "medalTier": null,
+          "accuracyPct": 86.22805124779347
+        },
+        "top_alaska_abracadabra": {
+          "score": 476250,
+          "stars": 1,
+          "maxCombo": 230,
+          "medalTier": null,
+          "accuracyPct": 25.94095538972711
+        },
+        "top_village_people_ymca": {
+          "score": 705438,
+          "stars": 2,
+          "maxCombo": 344,
+          "medalTier": null,
+          "accuracyPct": 53.29748123658001
+        },
+        "top_celia_cruz_la_vida_es_un_carnaval": {
+          "score": 1564326,
+          "stars": 3.5,
+          "maxCombo": 17,
+          "medalTier": null,
+          "accuracyPct": 0.5136693111123795
+        },
+        "top_seguridad_social_quiero_tener_tu_presencia": {
+          "score": 543886,
+          "stars": 1,
+          "maxCombo": 260,
+          "medalTier": null,
+          "accuracyPct": 24.834667664297292
+        },
+        "top_merche_eras_tu": {
+          "score": 13950,
+          "stars": 3.5,
+          "maxCombo": 20,
+          "medalTier": null,
+          "accuracyPct": 0.9345187094665071
+        },
+        "osu_1225138": {
+          "score": 336825,
+          "stars": 1,
+          "maxCombo": 190,
+          "medalTier": null,
+          "accuracyPct": 30.258725239186095
+        },
+        "top_31_minutos_el_dinosaurio_anacleto": {
+          "score": 29121,
+          "stars": 3.5,
+          "maxCombo": 33,
+          "medalTier": null,
+          "accuracyPct": 3.430120179651087
+        },
+        "osu_47253": {
+          "score": 243867,
+          "stars": 5,
+          "maxCombo": 140,
+          "medalTier": null,
+          "accuracyPct": 99.23619701803503
+        },
+        "osu_2613759": {
+          "score": 353043,
+          "stars": 1,
+          "maxCombo": 192,
+          "medalTier": null,
+          "accuracyPct": 31.440456534632833
+        },
+        "bs_3d4f7": {
+          "score": 1039125,
+          "stars": 5,
+          "maxCombo": 465,
+          "medalTier": null,
+          "accuracyPct": 93.05110927041125
+        },
+        "osu_2282097": {
+          "score": 52120,
+          "stars": 1,
+          "maxCombo": 47,
+          "medalTier": null,
+          "accuracyPct": 21.03843995850438
+        },
+        "osu_78868": {
+          "score": 8350,
+          "stars": 3.5,
+          "maxCombo": 14,
+          "medalTier": null,
+          "accuracyPct": 1.8324383280262115
+        },
+        "bs_3d93a": {
+          "score": 123600,
+          "stars": 3.5,
+          "maxCombo": 92,
+          "medalTier": null,
+          "accuracyPct": 9.723058043352568
+        },
+        "osu_2009201": {
+          "score": 717300,
+          "stars": 5,
+          "maxCombo": 363,
+          "medalTier": null,
+          "accuracyPct": 97.55201958384333
+        },
+        "clonehero_793865": {
+          "score": 778439,
+          "stars": 4,
+          "maxCombo": 217,
+          "medalTier": null,
+          "accuracyPct": 81.90430596838256
+        },
+        "top_francisca_valenzuela_muleta": {
+          "score": 69061,
+          "stars": 3.5,
+          "maxCombo": 62,
+          "medalTier": null,
+          "accuracyPct": 4.703979184546433
+        },
+        "top_avril_lavigne_complicated": {
+          "score": 46650,
+          "stars": 3.5,
+          "maxCombo": 48,
+          "medalTier": null,
+          "accuracyPct": 3.082854439046053
+        },
+        "top_raphael_escandalo": {
+          "score": 25200,
+          "stars": 3.5,
+          "maxCombo": 30,
+          "medalTier": null,
+          "accuracyPct": 1.2611129321626335
+        },
+        "top_polanski_y_el_ardor_ataque_preventivo_de_la_urss": {
+          "score": 779806,
+          "stars": 5,
+          "maxCombo": 378,
+          "medalTier": null,
+          "accuracyPct": 98.21481649411824
+        },
+        "top_3ballmty_el_bebeto__amrica_sierra_intntalo": {
+          "score": 347910,
+          "stars": 1,
+          "maxCombo": 194,
+          "medalTier": null,
+          "accuracyPct": 25.364157298455886
+        },
+        "bs_ac6a": {
+          "score": 1306950,
+          "stars": 5,
+          "maxCombo": 625,
+          "medalTier": null,
+          "accuracyPct": 98.6526268115942
+        },
+        "top_la_quinta_estacion_algo_mas": {
+          "score": 103064,
+          "stars": 3.5,
+          "maxCombo": 71,
+          "medalTier": null,
+          "accuracyPct": 6.418062039688811
+        },
+        "top_amaral_morira_por_vos": {
+          "score": 1146262,
+          "stars": 5,
+          "maxCombo": 523,
+          "medalTier": null,
+          "accuracyPct": 98.84423518861051
+        },
+        "osu_801977": {
+          "score": 303740,
+          "stars": 1,
+          "maxCombo": 174,
+          "medalTier": null,
+          "accuracyPct": 22.722767129415935
+        },
+        "osu_1740979": {
+          "score": 71687,
+          "stars": 3.5,
+          "maxCombo": 67,
+          "medalTier": null,
+          "accuracyPct": 7.968321013727561
+        },
+        "osu_1641083": {
+          "score": 116762,
+          "stars": 3.5,
+          "maxCombo": 87,
+          "medalTier": null,
+          "accuracyPct": 3.0726639956316077
+        },
+        "osu_937527": {
+          "score": 394147,
+          "stars": 1,
+          "maxCombo": 219,
+          "medalTier": null,
+          "accuracyPct": 21.13121342285909
+        },
+        "osu_998321": {
+          "score": 234459,
+          "stars": 3.5,
+          "maxCombo": 29,
+          "medalTier": null,
+          "accuracyPct": 0.9161665749802856
+        },
+        "top_mecano_hijo_de_la_luna": {
+          "score": 337290,
+          "stars": 2,
+          "maxCombo": 189,
+          "medalTier": null,
+          "accuracyPct": 54.408194539662055
+        },
+        "top_los_rebeldes_mediterraneo": {
+          "score": 149348,
+          "stars": 3.5,
+          "maxCombo": 74,
+          "medalTier": null,
+          "accuracyPct": 13.531477528476735
+        },
+        "top_katy_perry_dark_horse": {
+          "score": 29456,
+          "stars": 3.5,
+          "maxCombo": 36,
+          "medalTier": null,
+          "accuracyPct": 2.788195226673381
+        },
+        "bs_34d29": {
+          "score": 208755,
+          "stars": 2,
+          "maxCombo": 136,
+          "medalTier": null,
+          "accuracyPct": 42.01992753623188
+        },
+        "osu_1096914": {
+          "score": 40250,
+          "stars": 3,
+          "maxCombo": 41,
+          "medalTier": null,
+          "accuracyPct": 64.81481481481481
+        },
+        "osu_1158642": {
+          "score": 36106,
+          "stars": 4,
+          "maxCombo": 25,
+          "medalTier": null,
+          "accuracyPct": 82.62242562929062
+        },
+        "osu_2157266": {
+          "score": 179785,
+          "stars": 3.5,
+          "maxCombo": 108,
+          "medalTier": null,
+          "accuracyPct": 6.650710534931166
+        },
+        "top_elvis_crespo_suavemente": {
+          "score": 269562,
+          "stars": 1,
+          "maxCombo": 78,
+          "medalTier": null,
+          "accuracyPct": 24.1871140597549
+        },
+        "top_pesadilla_antes_de_navidad_esto_es_halloween": {
+          "score": 214800,
+          "stars": 3.5,
+          "maxCombo": 146,
+          "medalTier": null,
+          "accuracyPct": 17.656487608400806
+        },
+        "osu_2056659": {
+          "score": 141200,
+          "stars": 3.5,
+          "maxCombo": 79,
+          "medalTier": null,
+          "accuracyPct": 8.929361917409725
+        },
+        "bs_4a0ce": {
+          "score": 168260,
+          "stars": 3.5,
+          "maxCombo": 95,
+          "medalTier": null,
+          "accuracyPct": 11.21319192778134
+        },
+        "osu_725748": {
+          "score": 577618,
+          "stars": 3,
+          "maxCombo": 158,
+          "medalTier": null,
+          "accuracyPct": 64.68866191820096
+        },
+        "top_el_fary_el_toro_guapo": {
+          "score": 1870345,
+          "stars": 5,
+          "maxCombo": 888,
+          "medalTier": null,
+          "accuracyPct": 96.70953504220824
+        },
+        "top_miguel_bos_estuve_a_punto_de": {
+          "score": 122442,
+          "stars": 3.5,
+          "maxCombo": 35,
+          "medalTier": null,
+          "accuracyPct": 11.939259376270671
+        },
+        "top_mgo_de_oz_la_ltima_cena": {
+          "score": 1107947,
+          "stars": 4,
+          "maxCombo": 208,
+          "medalTier": null,
+          "accuracyPct": 82.95500149745433
+        },
+        "top_fito_y_fitipaldis_me_equivocara_otra_vez": {
+          "score": 1425024,
+          "stars": 4,
+          "maxCombo": 331,
+          "medalTier": null,
+          "accuracyPct": 86.5669755891315
+        },
+        "top_estopa_vino_tinto": {
+          "score": 24240,
+          "stars": 3.5,
+          "maxCombo": 19,
+          "medalTier": null,
+          "accuracyPct": 1.4122746711101273
+        },
+        "top_salom_vivo_cantando": {
+          "score": 93448,
+          "stars": 3.5,
+          "maxCombo": 69,
+          "medalTier": null,
+          "accuracyPct": 14.065232769909239
+        },
+        "osu_1479377": {
+          "score": 838245,
+          "stars": 2,
+          "maxCombo": 136,
+          "medalTier": null,
+          "accuracyPct": 48.021826931339696
+        },
+        "bs_110e2": {
+          "score": 459450,
+          "stars": 1,
+          "maxCombo": 243,
+          "medalTier": null,
+          "accuracyPct": 30.90193704600484
+        },
+        "osu_1798030": {
+          "score": 367932,
+          "stars": 1,
+          "maxCombo": 155,
+          "medalTier": null,
+          "accuracyPct": 23.66097840793921
+        },
+        "top_backstreet_boys_as_long_as_you_love_me": {
+          "score": 455907,
+          "stars": 2,
+          "maxCombo": 232,
+          "medalTier": null,
+          "accuracyPct": 44.06175703102348
+        },
+        "top_madonna_la_isla_bonita": {
+          "score": 398420,
+          "stars": 1,
+          "maxCombo": 152,
+          "medalTier": null,
+          "accuracyPct": 33.79711551348848
+        },
+        "top_michael_jackson_bad": {
+          "score": 1644558,
+          "stars": 4,
+          "maxCombo": 511,
+          "medalTier": null,
+          "accuracyPct": 83.91150034287953
+        },
+        "osu_2644393": {
+          "score": 251403,
+          "stars": 3.5,
+          "maxCombo": 116,
+          "medalTier": null,
+          "accuracyPct": 10.061037835293892
+        },
+        "bs_7c05": {
+          "score": 43330,
+          "stars": 3.5,
+          "maxCombo": 41,
+          "medalTier": null,
+          "accuracyPct": 1.2236483528896795
+        },
+        "bs_15b16": {
+          "score": 452625,
+          "stars": 3.5,
+          "maxCombo": 218,
+          "medalTier": null,
+          "accuracyPct": 12.245353461569678
+        },
+        "top_luis_miguel_la_chica_del_bikini_azul": {
+          "score": 166861,
+          "stars": 3.5,
+          "maxCombo": 94,
+          "medalTier": null,
+          "accuracyPct": 19.02837932457983
+        },
+        "top_michael_jackson_ben": {
+          "score": 2550,
+          "stars": 3.5,
+          "maxCombo": 6,
+          "medalTier": null,
+          "accuracyPct": 0.5406494153565636
+        },
+        "osu_2644890": {
+          "score": 136783,
+          "stars": 3.5,
+          "maxCombo": 59,
+          "medalTier": null,
+          "accuracyPct": 5.4861501611155274
+        },
+        "top_nino_bravo_noelia": {
+          "score": 440889,
+          "stars": 1,
+          "maxCombo": 121,
+          "medalTier": null,
+          "accuracyPct": 36.90395775316336
+        },
+        "top_jarabe_de_palo_bonito": {
+          "score": 179530,
+          "stars": 3.5,
+          "maxCombo": 62,
+          "medalTier": null,
+          "accuracyPct": 7.574114778235757
+        },
+        "top_hombres_g_marta_tiene_un_marcapasos": {
+          "score": 315060,
+          "stars": 4,
+          "maxCombo": 128,
+          "medalTier": null,
+          "accuracyPct": 77.51831175126036
+        },
+        "osu_2622288": {
+          "score": 6675,
+          "stars": 3.5,
+          "maxCombo": 12,
+          "medalTier": null,
+          "accuracyPct": 0.39356151056867433
+        },
+        "bs_21f76": {
+          "score": 94500,
+          "stars": 3.5,
+          "maxCombo": 69,
+          "medalTier": null,
+          "accuracyPct": 4.873520538407983
+        },
+        "bs_511f2": {
+          "score": 520164,
+          "stars": 1,
+          "maxCombo": 195,
+          "medalTier": null,
+          "accuracyPct": 25.922784425318575
+        },
+        "top_camilo_sesto_mi_mundo_tu": {
+          "score": 128114,
+          "stars": 3.5,
+          "maxCombo": 48,
+          "medalTier": null,
+          "accuracyPct": 10.571752986338266
+        },
+        "top_camilo_sesto_con_el_viento_a_tu_favor": {
+          "score": 611884,
+          "stars": 3,
+          "maxCombo": 167,
+          "medalTier": null,
+          "accuracyPct": 72.84818987932529
+        },
+        "osu_1511613": {
+          "score": 315984,
+          "stars": 4,
+          "maxCombo": 152,
+          "medalTier": null,
+          "accuracyPct": 78.08012019016931
+        },
+        "osu_1801156": {
+          "score": 700664,
+          "stars": 3,
+          "maxCombo": 136,
+          "medalTier": null,
+          "accuracyPct": 60.92433759747351
+        }
+      },
+      "favorites": [],
+      "weekly_history": {},
+      "settings": {
+        "vegas_streak": 0,
+        "gacha_pity": 0,
+        "claimed_promo_friends": [],
+        "lang": "es",
+        "note_speed": "1.0",
+        "offset": "0",
+        "audio_offset": "0",
+        "key_style": "beatstar_large",
+        "bg_mode": "black",
+        "bg_opacity": "0.40",
+        "judge_colors": null,
+        "vegas_last_spin": "",
+        "last_claimed_week": "2026_W45",
+        "my_ref_code": ""
+      },
+      "updated_at": "2026-11-02T20:57:23.206Z"
+    }
   }
 }
