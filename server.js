@@ -3,6 +3,7 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -137,6 +138,7 @@ const SCORES_FILE = path.join(__dirname, 'app', 'uploads', 'leaderboard_scores.j
 const RATINGS_FILE = path.join(__dirname, 'app', 'uploads', 'chart_ratings.json');
 const GITHUB_LEADERBOARD_FILE = path.join(__dirname, 'leaderboard.json');
 const DAILY_POKER_STATE_FILE = path.join(__dirname, 'app', 'uploads', 'daily_poker_state.json');
+const PLAYER_PROFILES_FILE = path.join(__dirname, 'app', 'uploads', 'player_profiles.json');
 
 // GitHub API Persistence Configuration
 const GITHUB_REPO = process.env.GITHUB_REPOSITORY || 'Bruala33/renacer';
@@ -155,6 +157,239 @@ const chartRatings = new Map();
 const followedCreators = new Set();
 const players = new Map();
 const dailyPokerStateByDay = new Map();
+const playerProfilesByCode = new Map(); // recoveryCode -> profileObj
+const playerProfileCodeByName = new Map(); // lowerNickname -> recoveryCode
+
+function normalizeRecoveryCodeServer(raw) {
+  const cleaned = String(raw || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!cleaned) return '';
+  const body = cleaned.startsWith('RNC') ? cleaned.slice(3) : cleaned;
+  if (body.length < 4 || body.length > 16) return '';
+  return `RNC-${body}`;
+}
+
+function hashProfilePinServer(pinRaw) {
+  const clean = String(pinRaw || '').trim();
+  if (!clean) return '';
+  return crypto.createHash('sha256').update(`renacer_pin_v1:${clean}`).digest('hex').slice(0, 32);
+}
+
+function computeProfileRichnessServer(prof) {
+  if (!prof || typeof prof !== 'object') return 0;
+  const w = prof.wallet || {};
+  const clefsBonus = Math.max(0, (Number(w.clefs) || 0) - 100);
+  const medalsBonus = ((Number(w.silvers) || 0) * 80) + ((Number(w.golds) || 0) * 180) + ((Number(w.platinums) || 0) * 350);
+  const freeModes = new Set(['normal', 'osu_hybrid', 'locura']);
+  let paidModes = 0;
+  if (prof.unlocked_modes && typeof prof.unlocked_modes === 'object') {
+    for (const [m, val] of Object.entries(prof.unlocked_modes)) {
+      if (val && !freeModes.has(m)) paidModes++;
+    }
+  }
+  const effectsCount = Array.isArray(prof.unlocked_effects)
+    ? prof.unlocked_effects.filter(e => e && e !== 'solar_inferno').length
+    : 0;
+  const hsCount = (prof.highscores && typeof prof.highscores === 'object')
+    ? Object.keys(prof.highscores).length
+    : 0;
+  const favCount = Array.isArray(prof.favorites) ? prof.favorites.length : 0;
+  return clefsBonus + medalsBonus + (paidModes * 1500) + (effectsCount * 600) + (hsCount * 350) + (favCount * 50);
+}
+
+function buildProfileSummaryServer(prof) {
+  if (!prof) return null;
+  const w = prof.wallet || {};
+  const freeModes = new Set(['normal', 'osu_hybrid', 'locura']);
+  const unlockedModesList = prof.unlocked_modes && typeof prof.unlocked_modes === 'object'
+    ? Object.keys(prof.unlocked_modes).filter(k => prof.unlocked_modes[k] && !freeModes.has(k))
+    : [];
+  const hsCount = prof.highscores && typeof prof.highscores === 'object'
+    ? Object.keys(prof.highscores).length
+    : 0;
+  return {
+    player_name: prof.player_name || 'Jugador',
+    clefs: Math.max(0, Number(w.clefs) || 0),
+    unlocked_modes_count: unlockedModesList.length,
+    songs_count: hsCount,
+    effects_count: Array.isArray(prof.unlocked_effects) ? prof.unlocked_effects.length : 1,
+    updated_at: prof.updated_at || null
+  };
+}
+
+function sanitizeAndMergeProfileServer(existing, incoming, isOwnerVerified = true) {
+  const base = existing && typeof existing === 'object' ? existing : {};
+  const inc = incoming && typeof incoming === 'object' ? incoming : {};
+
+  const existingRichness = computeProfileRichnessServer(base);
+  const incomingRichness = computeProfileRichnessServer(inc);
+  const incomingLooksBlankReset = (existingRichness > 0 && incomingRichness === 0);
+
+  const bw = base.wallet || {};
+  const iw = inc.wallet || {};
+  const wallet = {
+    clefs: (!isOwnerVerified || incomingLooksBlankReset)
+      ? Math.max(Number(bw.clefs) || 100, Number(iw.clefs) || 100)
+      : Math.max(0, Math.min(99999999, Math.round(Number(iw.clefs ?? bw.clefs ?? 100) || 0))),
+    silvers: Math.max(Number(bw.silvers) || 0, Number(iw.silvers) || 0),
+    golds: Math.max(Number(bw.golds) || 0, Number(iw.golds) || 0),
+    platinums: Math.max(Number(bw.platinums) || 0, Number(iw.platinums) || 0)
+  };
+
+  // Unión permanente de modos desbloqueados (incluyendo 'split', 'cruce', 'echo', etc.)
+  const unlocked_modes = { normal: true, osu_hybrid: true, locura: true };
+  for (const srcModes of [base.unlocked_modes, inc.unlocked_modes]) {
+    if (srcModes && typeof srcModes === 'object') {
+      for (const [k, v] of Object.entries(srcModes)) {
+        if (v && k.length <= 32) unlocked_modes[k] = true;
+      }
+    }
+  }
+
+  // Unión permanente de efectos desbloqueados
+  const effSet = new Set(['solar_inferno']);
+  for (const list of [base.unlocked_effects, inc.unlocked_effects]) {
+    if (Array.isArray(list)) {
+      for (const item of list.slice(0, 120)) {
+        if (typeof item === 'string' && item.trim() && item.length <= 48) {
+          effSet.add(item.trim());
+        }
+      }
+    }
+  }
+
+  // Fusión de récords por canción conservando siempre la puntuación y estrellas más altas
+  const highscores = {};
+  for (const srcHs of [base.highscores, inc.highscores]) {
+    if (srcHs && typeof srcHs === 'object') {
+      for (const [songId, rec] of Object.entries(srcHs)) {
+        if (!songId || songId.length > 140 || !rec || typeof rec !== 'object') continue;
+        const sc = Math.max(0, Math.round(Number(rec.score) || 0));
+        if (sc <= 0) continue;
+        const prev = highscores[songId];
+        if (!prev || sc >= prev.score) {
+          highscores[songId] = {
+            score: Math.max(sc, prev?.score || 0),
+            stars: Math.max(Number(rec.stars) || 0, prev?.stars || 0),
+            maxCombo: Math.max(Math.round(Number(rec.maxCombo) || 0), prev?.maxCombo || 0),
+            medalTier: rec.medalTier || prev?.medalTier || null,
+            accuracyPct: Math.max(Number(rec.accuracyPct) || 0, prev?.accuracyPct || 0)
+          };
+        }
+      }
+    }
+  }
+  const hsKeys = Object.keys(highscores);
+  if (hsKeys.length > 600) {
+    hsKeys.sort((a, b) => (highscores[b].score || 0) - (highscores[a].score || 0));
+    for (let i = 600; i < hsKeys.length; i++) delete highscores[hsKeys[i]];
+  }
+
+  // Unión de favoritos
+  const favSet = new Set();
+  for (const fList of [base.favorites, inc.favorites]) {
+    if (Array.isArray(fList)) {
+      for (const fId of fList.slice(0, 300)) {
+        if (typeof fId === 'string' && fId.trim() && fId.length <= 140) favSet.add(fId.trim());
+      }
+    }
+  }
+
+  // Historial semanal (máximo por semana)
+  const weekly_history = {};
+  for (const wSrc of [base.weekly_history, inc.weekly_history]) {
+    if (wSrc && typeof wSrc === 'object') {
+      for (const [wKey, wVal] of Object.entries(wSrc)) {
+        if (!wKey || wKey.length > 20 || !wVal || typeof wVal !== 'object') continue;
+        const prevW = weekly_history[wKey];
+        const nextScore = Math.max(Number(prevW?.score) || 0, Number(wVal.score) || 0);
+        weekly_history[wKey] = {
+          score: nextScore,
+          songsPlayed: Math.max(Number(prevW?.songsPlayed) || 0, Number(wVal.songsPlayed) || 0),
+          maxCombo: Math.max(Number(prevW?.maxCombo) || 0, Number(wVal.maxCombo) || 0),
+          stars: Math.max(Number(prevW?.stars) || 0, Number(wVal.stars) || 0),
+          accuracyPct: Math.max(Number(prevW?.accuracyPct) || 0, Number(wVal.accuracyPct) || 0),
+          medalTier: wVal.medalTier || prevW?.medalTier || null,
+          v2Clean: true
+        };
+      }
+    }
+  }
+
+  // Ajustes y progreso auxiliar (ruleta diaria, pity gachapón, amigos promocionales reclamados, colores, velocidad)
+  const bs = (base.settings && typeof base.settings === 'object') ? base.settings : {};
+  const is = (inc.settings && typeof inc.settings === 'object') ? inc.settings : {};
+  const claimedFriendsSet = new Set([
+    ...(Array.isArray(bs.claimed_promo_friends) ? bs.claimed_promo_friends : []),
+    ...(Array.isArray(is.claimed_promo_friends) ? is.claimed_promo_friends : [])
+  ].filter(x => typeof x === 'string' && x.length <= 40).slice(0, 100));
+
+  const settings = incomingLooksBlankReset
+    ? { ...is, ...bs, claimed_promo_friends: Array.from(claimedFriendsSet) }
+    : {
+        ...bs,
+        ...is,
+        vegas_streak: Math.max(Number(bs.vegas_streak) || 0, Number(is.vegas_streak) || 0),
+        gacha_pity: Number.isFinite(Number(is.gacha_pity)) ? Number(is.gacha_pity) : (Number(bs.gacha_pity) || 0),
+        claimed_promo_friends: Array.from(claimedFriendsSet)
+      };
+
+  const activeEffect = (!incomingLooksBlankReset && typeof inc.active_effect === 'string' && inc.active_effect.trim())
+    ? inc.active_effect.trim().slice(0, 48)
+    : (base.active_effect || 'solar_inferno');
+
+  return {
+    recovery_code: base.recovery_code || inc.recovery_code || '',
+    player_name: String(inc.player_name || base.player_name || 'Jugador').trim().slice(0, 24),
+    pin_hash: base.pin_hash || '',
+    wallet,
+    unlocked_modes,
+    unlocked_effects: Array.from(effSet),
+    active_effect: activeEffect,
+    highscores,
+    favorites: Array.from(favSet),
+    weekly_history,
+    settings,
+    updated_at: new Date().toISOString()
+  };
+}
+
+function savePlayerProfilesToDisk() {
+  try {
+    fs.mkdirSync(path.dirname(PLAYER_PROFILES_FILE), { recursive: true });
+    const out = {};
+    for (const [code, prof] of playerProfilesByCode.entries()) {
+      out[code] = prof;
+    }
+    fs.writeFileSync(PLAYER_PROFILES_FILE, JSON.stringify(out, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('[Server] Could not write player_profiles.json:', err.message);
+  }
+}
+
+function loadPlayerProfilesFromDisk() {
+  try {
+    if (!fs.existsSync(PLAYER_PROFILES_FILE)) return;
+    const raw = JSON.parse(fs.readFileSync(PLAYER_PROFILES_FILE, 'utf-8'));
+    if (!raw || typeof raw !== 'object') return;
+    for (const [rawCode, prof] of Object.entries(raw)) {
+      const code = normalizeRecoveryCodeServer(rawCode || prof?.recovery_code);
+      if (!code || !prof || typeof prof !== 'object') continue;
+      const nmLower = String(prof.player_name || '').trim().toLowerCase();
+      if (nmLower === 'test' || nmLower === 'tester' || nmLower === 'prueba' || nmLower === 'dummy') continue;
+      prof.recovery_code = code;
+      playerProfilesByCode.set(code, prof);
+      if (nmLower) {
+        const prevCode = playerProfileCodeByName.get(nmLower);
+        const prevProf = prevCode ? playerProfilesByCode.get(prevCode) : null;
+        if (!prevProf || computeProfileRichnessServer(prof) >= computeProfileRichnessServer(prevProf)) {
+          playerProfileCodeByName.set(nmLower, code);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Server] Could not load player_profiles.json:', err.message);
+  }
+}
 
 // Helper to compute ISO Week ID (AAAA-WSS)
 function getIsoWeekId(date = new Date()) {
@@ -250,6 +485,19 @@ function buildConsolidatedLeaderboardJson() {
     }
   }
 
+  // 6. Perfiles en la nube para recuperar progreso tras desinstalar/reinstalar la app
+  const profilesObj = {};
+  const sortedProfiles = Array.from(playerProfilesByCode.entries())
+    .filter(([, p]) => {
+      const nm = String(p?.player_name || '').trim().toLowerCase();
+      return nm && nm !== 'test' && nm !== 'tester' && nm !== 'prueba' && nm !== 'dummy';
+    })
+    .sort((a, b) => computeProfileRichnessServer(b[1]) - computeProfileRichnessServer(a[1]))
+    .slice(0, 1500);
+  for (const [code, prof] of sortedProfiles) {
+    profilesObj[code] = prof;
+  }
+
   return {
     songs: songsObj,
     global: globalList,
@@ -260,7 +508,8 @@ function buildConsolidatedLeaderboardJson() {
     },
     weekly_history: weeklyHistoryObj,
     daily_poker: dailyPokerObj,
-    referrals: referralsObj
+    referrals: referralsObj,
+    player_profiles: profilesObj
   };
 }
 
@@ -547,6 +796,27 @@ function applyLeaderboardJson(data) {
       }
     }
   }
+
+  // Restaurar perfiles completos de jugadores guardados en GitHub
+  if (data.player_profiles && typeof data.player_profiles === 'object') {
+    for (const [rawCode, savedProf] of Object.entries(data.player_profiles)) {
+      const code = normalizeRecoveryCodeServer(rawCode || savedProf?.recovery_code);
+      if (!code || !savedProf || typeof savedProf !== 'object') continue;
+      const nmLower = String(savedProf.player_name || '').trim().toLowerCase();
+      if (!nmLower || nmLower === 'test' || nmLower === 'tester' || nmLower === 'prueba' || nmLower === 'dummy') continue;
+      const current = playerProfilesByCode.get(code);
+      const merged = sanitizeAndMergeProfileServer(current, { ...savedProf, recovery_code: code }, true);
+      merged.recovery_code = code;
+      if (savedProf.pin_hash && !merged.pin_hash) merged.pin_hash = savedProf.pin_hash;
+      playerProfilesByCode.set(code, merged);
+      const prevCode = playerProfileCodeByName.get(nmLower);
+      const prevProf = prevCode ? playerProfilesByCode.get(prevCode) : null;
+      if (!prevProf || computeProfileRichnessServer(merged) >= computeProfileRichnessServer(prevProf)) {
+        playerProfileCodeByName.set(nmLower, code);
+      }
+    }
+    savePlayerProfilesToDisk();
+  }
 }
 
 function saveScoresToDisk() {
@@ -785,6 +1055,7 @@ seedCommunityCharts();
 loadScoresFromDisk();
 loadRatingsFromDisk();
 loadDailyPokerStateFromDisk();
+loadPlayerProfilesFromDisk();
 loadLeaderboardFromGithub().catch(() => {});
 
 // ==========================================
@@ -806,10 +1077,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 46,
-    version_name: '4.6.0',
-    release_notes: 'Piano Community v4.6.0: Cintas esculpidas de lineas seguidas en Fase Arco Voltaico (giros progresivos hasta perpendicular 90°, boomerang, acordeon, surf y helice 180°) y APK actualizado.',
-    download_url: '/download/apk?v=46.0',
+    version_code: 47,
+    version_name: '4.7.0',
+    release_notes: 'Piano Community v4.7.0: Respaldo y recuperacion de progreso en la nube, Modo Split (1000 claves), haces laser variados, patrones Drag variados, tamaño uniforme en Modo Cruce y cero solapamientos en pelotas de tenis.',
+    download_url: '/download/apk?v=47.0',
   });
 });
 
@@ -2415,7 +2686,205 @@ app.post('/api/v1/community/players/register', (req, res) => {
 });
 
 app.post('/api/v1/community/players/sync', (req, res) => {
-  res.json({ success: true, message: 'Sincronización completada' });
+  try {
+    const body = req.body || {};
+    const playerName = String(body.player_name || body.profile?.player_name || '').trim().slice(0, 24);
+    const nameKey = playerName.toLowerCase();
+    let code = normalizeRecoveryCodeServer(body.recovery_code || body.profile?.recovery_code);
+    if (!code) {
+      const rnd = crypto.randomBytes(4).toString('hex').toUpperCase().slice(0, 6);
+      code = `RNC-${rnd}`;
+    }
+
+    const incomingProfile = (body.profile && typeof body.profile === 'object') ? body.profile : {};
+    incomingProfile.player_name = playerName || 'Jugador';
+    incomingProfile.recovery_code = code;
+
+    const existingByCode = playerProfilesByCode.get(code) || null;
+    const existingCodeForName = nameKey ? (playerProfileCodeByName.get(nameKey) || null) : null;
+    const existingByName = (existingCodeForName && existingCodeForName !== code)
+      ? (playerProfilesByCode.get(existingCodeForName) || null)
+      : null;
+
+    // Si es una instalación recién reinstalada (sin progreso local aún) y ya existe en el servidor
+    // una cuenta con ese mismo Nickname y progreso real guardado, NO sobrescribirla: ofrecer/devolver restauración
+    const incomingRichness = computeProfileRichnessServer(incomingProfile);
+    if (!existingByCode && existingByName && computeProfileRichnessServer(existingByName) > 0 && incomingRichness === 0 && !body.force_new_account) {
+      const providedPinHash = body.pin ? hashProfilePinServer(body.pin) : '';
+      if (existingByName.pin_hash && existingByName.pin_hash !== providedPinHash) {
+        return res.json({
+          success: true,
+          synced: false,
+          found_existing_account: true,
+          requires_pin: true,
+          summary: buildProfileSummaryServer(existingByName)
+        });
+      }
+      return res.json({
+        success: true,
+        synced: false,
+        found_existing_account: true,
+        requires_pin: false,
+        recovery_code: existingByName.recovery_code,
+        profile: existingByName,
+        summary: buildProfileSummaryServer(existingByName)
+      });
+    }
+
+    // Verificar PIN si ya tenía PIN configurado y viene cambio de PIN
+    const merged = sanitizeAndMergeProfileServer(existingByCode, incomingProfile, true);
+    merged.recovery_code = code;
+    if (typeof body.new_pin === 'string') {
+      const trimmedPin = body.new_pin.trim();
+      merged.pin_hash = trimmedPin ? hashProfilePinServer(trimmedPin) : '';
+    } else if (!merged.pin_hash && typeof body.pin === 'string' && body.pin.trim()) {
+      merged.pin_hash = hashProfilePinServer(body.pin);
+    }
+
+    const isDummyTest = (nameKey === 'test' || nameKey === 'tester' || nameKey === 'prueba' || nameKey === 'dummy');
+    if (!isDummyTest) {
+      playerProfilesByCode.set(code, merged);
+      if (nameKey && (!existingByName || computeProfileRichnessServer(merged) >= computeProfileRichnessServer(existingByName))) {
+        playerProfileCodeByName.set(nameKey, code);
+      }
+      // También sincronizar sus highscores con el ranking online
+      if (merged.highscores && typeof merged.highscores === 'object' && playerName) {
+        for (const [chartId, rec] of Object.entries(merged.highscores)) {
+          if (!rec || !(rec.score > 0)) continue;
+          const list = chartScores.get(chartId) || [];
+          const idx = list.findIndex(item => String(item.player_name || '').trim().toLowerCase() === nameKey);
+          if (idx === -1) {
+            list.push({
+              rank: list.length + 1,
+              chart_id: chartId,
+              player_name: playerName,
+              score: rec.score,
+              max_combo: rec.maxCombo || 0,
+              stars: rec.stars || 0,
+              accuracy_pct: rec.accuracyPct || 100,
+              created_at: new Date().toISOString()
+            });
+          } else if (rec.score > (list[idx].score || 0)) {
+            list[idx].score = rec.score;
+            list[idx].max_combo = Math.max(list[idx].max_combo || 0, rec.maxCombo || 0);
+            list[idx].stars = Math.max(list[idx].stars || 0, rec.stars || 0);
+            list[idx].accuracy_pct = Math.max(list[idx].accuracy_pct || 0, rec.accuracyPct || 0);
+          }
+          list.sort((a, b) => (b.score || 0) - (a.score || 0));
+          list.forEach((entry, rIdx) => { entry.rank = rIdx + 1; });
+          chartScores.set(chartId, list.slice(0, 50));
+        }
+      }
+      savePlayerProfilesToDisk();
+      syncLeaderboardToGithub(false).catch(() => {});
+    }
+
+    return res.json({
+      success: true,
+      synced: true,
+      recovery_code: code,
+      has_pin: Boolean(merged.pin_hash),
+      summary: buildProfileSummaryServer(merged)
+    });
+  } catch (err) {
+    console.warn('[Server] Error in /api/v1/community/players/sync:', err.message);
+    return res.status(500).json({ success: false, error: 'Error al sincronizar el perfil.' });
+  }
+});
+
+app.post('/api/v1/community/players/restore', (req, res) => {
+  try {
+    const body = req.body || {};
+    const rawQuery = String(body.query || body.recovery_code || body.player_name || '').trim();
+    const rawPin = String(body.pin || '').trim();
+    if (!rawQuery) {
+      return res.status(400).json({ success: false, error: 'Introduce tu Código de Recuperación (RNC-XXXXXX) o tu Nickname.' });
+    }
+
+    // 1. Búsqueda directa por Código de Recuperación único (llave maestra exacta)
+    const asCode = normalizeRecoveryCodeServer(rawQuery);
+    if (asCode && playerProfilesByCode.has(asCode)) {
+      const prof = playerProfilesByCode.get(asCode);
+      return res.json({
+        success: true,
+        restored_by: 'code',
+        recovery_code: prof.recovery_code,
+        profile: prof,
+        summary: buildProfileSummaryServer(prof)
+      });
+    }
+
+    // 2. Búsqueda por Nickname del jugador
+    const nameKey = rawQuery.toLowerCase();
+    const mappedCode = playerProfileCodeByName.get(nameKey);
+    if (mappedCode && playerProfilesByCode.has(mappedCode)) {
+      const prof = playerProfilesByCode.get(mappedCode);
+      if (prof.pin_hash) {
+        if (!rawPin || hashProfilePinServer(rawPin) !== prof.pin_hash) {
+          return res.status(403).json({
+            success: false,
+            requires_pin: true,
+            error: 'Esta cuenta tiene un PIN de seguridad. Escribe tu PIN o usa tu Código RNC-XXXXXX.'
+          });
+        }
+      }
+      return res.json({
+        success: true,
+        restored_by: 'nickname',
+        recovery_code: prof.recovery_code,
+        profile: prof,
+        summary: buildProfileSummaryServer(prof)
+      });
+    }
+
+    // 3. Respaldo retrocompatible: si el jugador jugaba en versiones anteriores, reconstruir sus récords desde el leaderboard online
+    const reconstructedHighscores = {};
+    let matchedDisplayName = rawQuery;
+    for (const [chartId, list] of chartScores.entries()) {
+      if (!Array.isArray(list)) continue;
+      const hit = list.find(e => String(e.player_name || '').trim().toLowerCase() === nameKey);
+      if (hit && hit.score > 0) {
+        matchedDisplayName = hit.player_name || matchedDisplayName;
+        reconstructedHighscores[chartId] = {
+          score: hit.score || 0,
+          stars: hit.stars || 3,
+          maxCombo: hit.max_combo || 0,
+          medalTier: null,
+          accuracyPct: hit.accuracy_pct || 100
+        };
+      }
+    }
+    const globalEntry = playerGlobalAccumulator.get(nameKey);
+    if (Object.keys(reconstructedHighscores).length > 0 || globalEntry) {
+      const newCode = `RNC-${crypto.randomBytes(4).toString('hex').toUpperCase().slice(0, 6)}`;
+      const legacyProf = sanitizeAndMergeProfileServer(null, {
+        recovery_code: newCode,
+        player_name: globalEntry?.name || matchedDisplayName,
+        wallet: { clefs: Math.max(100, Number(globalEntry?.clefs) || 100), silvers: 0, golds: 0, platinums: 0 },
+        unlocked_modes: { normal: true, osu_hybrid: true, locura: true },
+        unlocked_effects: ['solar_inferno'],
+        highscores: reconstructedHighscores
+      }, true);
+      playerProfilesByCode.set(newCode, legacyProf);
+      playerProfileCodeByName.set(nameKey, newCode);
+      savePlayerProfilesToDisk();
+      return res.json({
+        success: true,
+        restored_by: 'leaderboard_history',
+        recovery_code: newCode,
+        profile: legacyProf,
+        summary: buildProfileSummaryServer(legacyProf)
+      });
+    }
+
+    return res.status(404).json({
+      success: false,
+      error: 'No se encontró ninguna cuenta guardada con ese Código o Nickname.'
+    });
+  } catch (err) {
+    console.warn('[Server] Error in /api/v1/community/players/restore:', err.message);
+    return res.status(500).json({ success: false, error: 'Error al restaurar el progreso.' });
+  }
 });
 
 // ==========================================

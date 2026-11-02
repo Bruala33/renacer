@@ -4596,14 +4596,41 @@ class BeatstarEngine {
       }
       if (isSplitActive && this.dynamicHighwayController) {
         this.dynamicHighwayController.onNoteHit(closestNote, currentTime, hitX, hitY);
-        // Salvaguarda en sección de 1 único carril: si hubiese otra nota simultánea (< 55ms), limpiarla automáticamente para que jamás haya que pulsar dos veces
-        if (this.dynamicHighwayController.collapseMorph > 0.35) {
-          for (let k = startSearchIdx; k < nLen; k++) {
-            const sib = this.notes[k];
-            if (!sib || sib === closestNote || sib.hit || sib.missed || sib.type === 'hold') continue;
-            if (Math.abs((sib.timestamp_ms || 0) - (closestNote.timestamp_ms || 0)) <= 55) {
-              sib.hit = true;
-              sib.processed = true;
+      }
+      // Salvaguarda universal anti-doble-toque: si por cualquier motivo coincidiera una pelota de tenis / rebote Eco
+      // y otra tecla tap en el mismo carril (<= 90ms) o en sección de 1 carril (<= 55ms), validar la nota solapada
+      // automáticamente con este único toque para que jamás sea necesario pulsar dos veces al mismo tiempo.
+      {
+        const isCollapsedSingle = Boolean(isSplitActive && this.dynamicHighwayController && this.dynamicHighwayController.collapseMorph > 0.35);
+        const closestTime = closestNote.timestamp_ms || 0;
+        for (let k = startSearchIdx; k < nLen; k++) {
+          const sib = this.notes[k];
+          if (!sib || sib === closestNote || sib.hit || sib.missed || sib.isMine || sib.type === 'hold') continue;
+          const sibDt = Math.abs((sib.timestamp_ms || 0) - closestTime);
+          if (sibDt > 90) {
+            if ((sib.timestamp_ms || 0) - closestTime > 120) break;
+            continue;
+          }
+          const sibPlayLane = sib._isMirrored
+            ? (Number.isFinite(sib._mirrorTargetLane) ? sib._mirrorTargetLane : ((this.numLanes || 3) - 1 - (sib.lane ?? 0)))
+            : (sib.lane ?? 0);
+          const sameLaneStack = (sibPlayLane === lane) && (
+            sibDt <= 65 ||
+            (sibDt <= 90 && (
+              closestNote._isPingPongBounce || closestNote._isSplitPingPongRebound || closestNote._isPingPongServe ||
+              closestNote._isEchoRebound || closestNote._isEchoSource ||
+              sib._isPingPongBounce || sib._isSplitPingPongRebound || sib._isPingPongServe ||
+              sib._isEchoRebound || sib._isEchoSource
+            ))
+          );
+          if ((isCollapsedSingle && sibDt <= 55) || sameLaneStack) {
+            sib.hit = true;
+            sib.processed = true;
+            if (isSplitActive && this.dynamicHighwayController && (sib._isPingPongServe || sib._splitPingPongTarget)) {
+              this.dynamicHighwayController.onNoteHit(sib, currentTime, hitX, hitY);
+            }
+            if ((this.isEchoModeActive || isMadnessActive) && sib._isEchoSource && sib._echoTargetNote) {
+              this._launchEchoRebound(sib, currentTime, hitX, hitY, false);
             }
           }
         }
@@ -19012,7 +19039,9 @@ class BeatstarEngine {
         return (t === 'tap' || t === 'single' || t === 'normal');
       };
 
-      const isLaneBusyAt = (lane, tMs, marginMs = 255) => {
+      const syntheticRebounds = [];
+
+      const isLaneBusyAt = (lane, tMs, marginMs = 285) => {
         for (let i = 0; i < baseNotes.length; i++) {
           const rn = baseNotes[i];
           if (!rn) continue;
@@ -19020,6 +19049,14 @@ class BeatstarEngine {
           const rtEnd = rn.end_timestamp_ms || rtStart;
           if (rtStart - tMs > marginMs + 350) break;
           if (rn.lane === lane && tMs >= (rtStart - marginMs) && tMs <= (rtEnd + marginMs)) {
+            return true;
+          }
+        }
+        for (let s = 0; s < syntheticRebounds.length; s++) {
+          const sn = syntheticRebounds[s];
+          if (!sn) continue;
+          const stMs = sn.timestamp_ms ?? sn.timeMs ?? 0;
+          if (sn.lane === lane && Math.abs(tMs - stMs) <= marginMs) {
             return true;
           }
         }
@@ -19034,7 +19071,6 @@ class BeatstarEngine {
         return busy;
       };
 
-      const syntheticRebounds = [];
       const lastSongNoteT = (baseNotes[baseNotes.length - 1]?.timestamp_ms ?? 0) - 900;
       let nextAllowedEchoMs = 2100;
       let echoPairIdx = 0;
@@ -19068,11 +19104,31 @@ class BeatstarEngine {
           const near2Beats = Math.abs(dt - beatMs * 2) <= beatMs * 0.32;
           if (!near1Beat && !near2Beats) continue;
 
-          // Verificar que no haya una nota intermedia estorbando en el carril origen o destino
+          // Verificar que cand no forme parte de un acorde simultáneo ni tenga otra nota pegada en el mismo carril
+          const candPrevT = j > 0 ? (baseNotes[j - 1].timestamp_ms ?? -9999) : -9999;
+          const candNextT = (j + 1 < baseNotes.length) ? (baseNotes[j + 1].timestamp_ms ?? 99999999) : 99999999;
+          if (Math.abs(candT - candPrevT) < 150 || Math.abs(candNextT - candT) < 150) continue;
+
+          // Verificar que no haya una nota intermedia o cercana estorbando en el carril origen o destino
           let blockedBetween = false;
-          for (let k = i + 1; k < j; k++) {
+          for (let k = Math.max(0, i - 4); k < Math.min(baseNotes.length, j + 5); k++) {
+            if (k === i || k === j) continue;
             const midN = baseNotes[k];
-            if (midN && (midN.lane === src.lane || midN.lane === cand.lane)) {
+            if (!midN) continue;
+            const mtStart = midN.timestamp_ms ?? 0;
+            const mtEnd = midN.end_timestamp_ms || mtStart;
+            if (k > i && k < j && (midN.lane === src.lane || midN.lane === cand.lane)) {
+              blockedBetween = true;
+              break;
+            }
+            if (midN.lane === cand.lane && candT >= mtStart - 290 && candT <= mtEnd + 290) {
+              blockedBetween = true;
+              break;
+            }
+          }
+          for (let s = 0; s < syntheticRebounds.length; s++) {
+            const sn = syntheticRebounds[s];
+            if (sn && (Math.abs(candT - sn.timestamp_ms) < 220 || Math.abs(srcT - sn.timestamp_ms) < 220)) {
               blockedBetween = true;
               break;
             }
@@ -19186,6 +19242,161 @@ class BeatstarEngine {
       } else {
         this.notes = baseNotes;
       }
+      if (typeof this._sanitizeAllReboundOverlaps === 'function') {
+        this.notes = this._sanitizeAllReboundOverlaps(this.notes);
+      }
+    }
+
+    /**
+     * Filtro final infalible anti-solapamientos de Pelota de Tenis (Ping-Pong) y Rebote Eco:
+     * Garantiza en Modos Solitarios (Split, Eco) y en Modo Locura que NUNCA caiga ni aterrice una pelota de rebote
+     * encima o pegada a otra tecla en el mismo carril (ni coincidiendo con otra tecla simultánea al aterrizar).
+     */
+    _sanitizeAllReboundOverlaps(notesList) {
+      if (!Array.isArray(notesList) || notesList.length < 2) return notesList;
+      notesList.sort((a, b) => ((a && a.timestamp_ms) || 0) - ((b && b.timestamp_ms) || 0));
+
+      const clearPingPongPair = (noteObj) => {
+        if (!noteObj) return;
+        const src = noteObj._pingPongSourceNote || (noteObj._isPingPongServe ? noteObj : null);
+        const dst = noteObj._splitPingPongTarget || ((noteObj._isPingPongBounce || noteObj._isSplitPingPongRebound) ? noteObj : null);
+        if (src) {
+          src._isPingPongServe = false;
+          delete src._pingPongRallyLen;
+          src._splitPingPongTarget = null;
+        }
+        if (dst) {
+          // Si era una nota sintética inyectada (id >= 800000), marcar para eliminar; si era nota original, devolver a tap limpio
+          if ((Number(dst.id) || 0) >= 800000) {
+            dst._dropReboundOverlap = true;
+          } else {
+            dst._isPingPongBounce = false;
+            dst._isSplitPingPongRebound = false;
+            dst._pingPongSourceNote = null;
+            dst._pingPongLaunched = false;
+          }
+        }
+      };
+
+      const clearEchoPair = (noteObj) => {
+        if (!noteObj) return;
+        const src = noteObj._echoSourceNote || (noteObj._isEchoSource ? noteObj : null);
+        const dst = noteObj._echoTargetNote || (noteObj._isEchoRebound ? noteObj : null);
+        if (src) {
+          src._isEchoSource = false;
+          src._echoTargetNote = null;
+        }
+        if (dst) {
+          if (dst._isSyntheticEchoRebound) {
+            dst._dropReboundOverlap = true;
+          } else {
+            dst._isEchoRebound = false;
+            dst._echoSourceNote = null;
+            dst._echoBounceLaunched = false;
+          }
+        }
+      };
+
+      const getPlayLane = (n) => {
+        if (!n) return 0;
+        if (n._isMirrored && Number.isFinite(n._mirrorTargetLane)) return n._mirrorTargetLane;
+        let l = Math.round(n.lane ?? 0);
+        if (this.dynamicHighwayController && (!n._madnessPhase || is3DMadnessPhase(n._madnessPhase))) {
+          const openC = this.dynamicHighwayController.getExpectedLaneCountAtTime(n.timestamp_ms ?? 0);
+          l = Math.max(0, Math.min(openC - 1, l));
+        }
+        return l;
+      };
+
+      const nLen = notesList.length;
+      for (let i = 0; i < nLen; i++) {
+        const r = notesList[i];
+        if (!r || r._dropReboundOverlap || r._dropDuplicateCollapsed) continue;
+        const isPPServe = Boolean(r._isPingPongServe);
+        const isPPBounce = Boolean(r._isPingPongBounce || r._isSplitPingPongRebound);
+        const isEchoSrc = Boolean(r._isEchoSource);
+        const isEchoReb = Boolean(r._isEchoRebound);
+        if (!isPPServe && !isPPBounce && !isEchoSrc && !isEchoReb) continue;
+
+        const rt = r.timestamp_ms ?? 0;
+        const rLane = getPlayLane(r);
+        const linkedPartner = r._splitPingPongTarget || r._pingPongSourceNote || r._echoTargetNote || r._echoSourceNote || null;
+
+        for (let j = Math.max(0, i - 14); j < Math.min(nLen, i + 15); j++) {
+          if (j === i) continue;
+          const o = notesList[j];
+          if (!o || o === linkedPartner || o._dropReboundOverlap || o._dropDuplicateCollapsed) continue;
+          if (r._madnessPhase && o._madnessPhase && r._madnessPhase !== o._madnessPhase) continue;
+
+          const otStart = o.timestamp_ms ?? 0;
+          const otEnd = (o.type === 'hold' && o.end_timestamp_ms) ? o.end_timestamp_ms : (o.end_timestamp_ms || otStart);
+          const oLane = getPlayLane(o);
+
+          // 1. Conflicto con Hold o Nota Ancla o Swipe cierra-carriles -> cancelar la pelota de rebote y mantener el Hold/Ancla intacto
+          const isProtectedOther = (o.type === 'hold' || o._isMadnessAnchor || o._closesToCount || o._targetLaneCountAfterSwipe || o._reopensToCount || o._targetLaneCountAfterHold);
+          if (isProtectedOther && rt >= otStart - 340 && rt <= otEnd + 340) {
+            if (isPPServe || isPPBounce) clearPingPongPair(r);
+            if (isEchoSrc || isEchoReb) clearEchoPair(r);
+            break;
+          }
+
+          // 2. Mismo carril demasiado cerca (<= 295ms) o simultáneo en cualquier carril al aterrizar un rebote (<= 145ms)
+          const sameLaneConflict = (oLane === rLane && rt >= otStart - 295 && rt <= otEnd + 295);
+          const bounceChordConflict = ((isPPBounce || isEchoReb) && Math.abs(rt - otStart) <= 145);
+          const serveExactChordConflict = ((isPPServe || isEchoSrc) && Math.abs(rt - otStart) <= 95);
+
+          if (sameLaneConflict || bounceChordConflict || serveExactChordConflict) {
+            const otherIsAlsoRebound = Boolean(o._isPingPongServe || o._isPingPongBounce || o._isSplitPingPongRebound || o._isEchoSource || o._isEchoRebound);
+            if (otherIsAlsoRebound) {
+              if (isPPServe || isPPBounce) clearPingPongPair(r);
+              if (isEchoSrc || isEchoReb) clearEchoPair(r);
+              break;
+            } else {
+              // Eliminar la tecla tap/mina solapada para que la pelota de tenis se juegue con un único toque limpio
+              o._dropReboundOverlap = true;
+            }
+          }
+        }
+      }
+
+      const cleaned = notesList.filter((n) => n && !n._dropReboundOverlap && !n._dropDuplicateCollapsed);
+      const validSet = new Set(cleaned);
+      for (let i = 0; i < cleaned.length; i++) {
+        const n = cleaned[i];
+        if ((n._isPingPongBounce || n._isSplitPingPongRebound) && (!n._pingPongSourceNote || !validSet.has(n._pingPongSourceNote) || !n._pingPongSourceNote._isPingPongServe)) {
+          n._isPingPongBounce = false;
+          n._isSplitPingPongRebound = false;
+          n._pingPongSourceNote = null;
+        }
+        if (n._isPingPongServe && (!n._splitPingPongTarget || !validSet.has(n._splitPingPongTarget) || !(n._splitPingPongTarget._isPingPongBounce || n._splitPingPongTarget._isSplitPingPongRebound))) {
+          n._isPingPongServe = false;
+          n._splitPingPongTarget = null;
+        }
+        if (n._isEchoRebound && (!n._echoSourceNote || !validSet.has(n._echoSourceNote) || !n._echoSourceNote._isEchoSource)) {
+          n._isEchoRebound = false;
+          n._echoSourceNote = null;
+        }
+        if (n._isEchoSource && (!n._echoTargetNote || !validSet.has(n._echoTargetNote) || !n._echoTargetNote._isEchoRebound)) {
+          n._isEchoSource = false;
+          n._echoTargetNote = null;
+        }
+      }
+
+      for (let i = 0; i < cleaned.length; i++) {
+        const curN = cleaned[i];
+        curN.id = i + 1;
+        let diff = Infinity;
+        for (let j = i + 1; j < Math.min(cleaned.length, i + 35); j++) {
+          const nextN = cleaned[j];
+          if ((nextN.timestamp_ms ?? 0) - (curN.timestamp_ms ?? 0) > 3000) break;
+          if (nextN.lane === curN.lane && (nextN.timestamp_ms ?? 0) > (curN.timestamp_ms ?? 0)) {
+            diff = (nextN.timestamp_ms ?? 0) - (curN.timestamp_ms ?? 0);
+            break;
+          }
+        }
+        curN.nextSameLaneDiffMs = diff;
+      }
+      return cleaned;
     }
 
     _launchEchoRebound(sourceNote, currentTime, hitX, hitY, isFallback = false) {
@@ -23026,43 +23237,104 @@ class BeatstarEngine {
         });
       }
 
-      // 6 Formaciones Dinámicas de Rayos Láser con orígenes amplios y ordenados (0 < 1 < 2 < 3) para que los carriles nunca se estrechen ni se crucen
+      // 12 Formaciones Dinámicas de Haces de Luz con siluetas muy diferenciadas (conos, lluvias diagonales, portales gemelos,
+      // arpas cruzadas en X, faros oscilantes vivos y acordeón respirante), manteniendo los 4 receptores inferiores amplios [-0.39, -0.13, 0.13, 0.39]
       this._cruceLaserFormations = [
         {
-          id: 'PRISM_FAN',
-          name: 'ABANICO PRISMA',
-          originsU: [-0.34, -0.115, 0.115, 0.34],
+          id: 'PRISM_SPOTLIGHT',
+          name: 'FOCO PIRAMIDAL',
+          originsU: [-0.13, -0.045, 0.045, 0.13],
+          originsYOff: [-0.01, -0.025, -0.025, -0.01],
+          swayAmpU: 0.0, swayMode: 'none', swaySpeed: 1.0,
           colors: ['56, 189, 248', '0, 242, 254', '0, 242, 254', '56, 189, 248']
         },
         {
-          id: 'METEOR_LEFT',
-          name: 'CASCADA DIAGONAL IZQ',
-          originsU: [-0.44, -0.20, 0.04, 0.28],
-          colors: ['0, 242, 254', '56, 189, 248', '125, 211, 252', '168, 85, 247']
-        },
-        {
-          id: 'METEOR_RIGHT',
-          name: 'CASCADA DIAGONAL DER',
-          originsU: [-0.28, -0.04, 0.20, 0.44],
-          colors: ['168, 85, 247', '125, 211, 252', '56, 189, 248', '0, 242, 254']
-        },
-        {
-          id: 'VORTEX_FUNNEL',
-          name: 'EMBUDO VÓRTICE',
-          originsU: [-0.42, -0.14, 0.14, 0.42],
+          id: 'PANORAMIC_CROWN',
+          name: 'CORONA PANORÁMICA',
+          originsU: [-0.46, -0.18, 0.18, 0.46],
+          originsYOff: [0.045, -0.01, -0.01, 0.045],
+          swayAmpU: 0.0, swayMode: 'none', swaySpeed: 1.0,
           colors: ['168, 85, 247', '0, 242, 254', '0, 242, 254', '168, 85, 247']
         },
         {
-          id: 'TWIN_XCROSS',
-          name: 'DOBLE CRUCE GEMELO',
-          originsU: [-0.36, -0.12, 0.12, 0.36],
-          colors: ['236, 72, 153', '0, 242, 254', '0, 242, 254', '236, 72, 153']
+          id: 'COMET_DIAG_LEFT',
+          name: 'LLUVIA COMETA IZQ',
+          originsU: [-0.46, -0.32, -0.18, -0.04],
+          originsYOff: [0.03, 0.015, 0.0, -0.015],
+          swayAmpU: 0.04, swayMode: 'sync', swaySpeed: 1.1,
+          colors: ['0, 242, 254', '56, 189, 248', '129, 140, 248', '192, 132, 252']
         },
         {
-          id: 'CENTER_PORTAL',
-          name: 'PORTAL CRUZADO X',
-          originsU: [-0.32, -0.105, 0.105, 0.32],
-          colors: ['56, 189, 248', '253, 224, 71', '253, 224, 71', '56, 189, 248']
+          id: 'COMET_DIAG_RIGHT',
+          name: 'LLUVIA COMETA DER',
+          originsU: [0.04, 0.18, 0.32, 0.46],
+          originsYOff: [-0.015, 0.0, 0.015, 0.03],
+          swayAmpU: 0.04, swayMode: 'sync', swaySpeed: 1.1,
+          colors: ['192, 132, 252', '129, 140, 248', '56, 189, 248', '0, 242, 254']
+        },
+        {
+          id: 'TWIN_CATHEDRAL',
+          name: 'PORTAL GEMELO 2+2',
+          originsU: [-0.43, -0.31, 0.31, 0.43],
+          originsYOff: [0.02, -0.01, -0.01, 0.02],
+          swayAmpU: 0.05, swayMode: 'mirror', swaySpeed: 0.95,
+          colors: ['52, 211, 153', '0, 242, 254', '0, 242, 254', '52, 211, 153']
+        },
+        {
+          id: 'HARP_CROSS_WEAVE',
+          name: 'ARPA CRUZADA X',
+          originsU: [-0.36, 0.15, -0.15, 0.36],
+          originsYOff: [0.01, -0.02, -0.02, 0.01],
+          swayAmpU: 0.0, swayMode: 'none', swaySpeed: 1.0,
+          colors: ['56, 189, 248', '253, 224, 71', '0, 242, 254', '236, 72, 153']
+        },
+        {
+          id: 'DOUBLE_SCISSORS',
+          name: 'DOBLE TIJERA NEÓN',
+          originsU: [-0.14, -0.41, 0.41, 0.14],
+          originsYOff: [-0.015, 0.025, 0.025, -0.015],
+          swayAmpU: 0.0, swayMode: 'none', swaySpeed: 1.0,
+          colors: ['244, 114, 182', '56, 189, 248', '56, 189, 248', '244, 114, 182']
+        },
+        {
+          id: 'PENDULUM_SEARCHLIGHT',
+          name: 'FAROS CONCIERTO VIVOS',
+          originsU: [-0.22, -0.075, 0.075, 0.22],
+          originsYOff: [0.0, -0.015, -0.015, 0.0],
+          swayAmpU: 0.20, swayMode: 'sync', swaySpeed: 1.35,
+          colors: ['253, 224, 71', '0, 242, 254', '0, 242, 254', '253, 224, 71']
+        },
+        {
+          id: 'BREATHING_ACCORDION',
+          name: 'ACORDEÓN RESPIRANTE',
+          originsU: [-0.27, -0.09, 0.09, 0.27],
+          originsYOff: [0.01, 0.0, 0.0, 0.01],
+          swayAmpU: 0.15, swayMode: 'mirror', swaySpeed: 1.25,
+          colors: ['56, 189, 248', '52, 211, 153', '52, 211, 153', '56, 189, 248']
+        },
+        {
+          id: 'WAVE_CASCADE_S',
+          name: 'CASCADA ASIMÉTRICA S',
+          originsU: [-0.45, -0.08, 0.06, 0.45],
+          originsYOff: [0.04, -0.02, 0.03, -0.015],
+          swayAmpU: 0.06, swayMode: 'wave', swaySpeed: 1.4,
+          colors: ['0, 242, 254', '168, 85, 247', '253, 224, 71', '236, 72, 153']
+        },
+        {
+          id: 'DIAMOND_HOURGLASS',
+          name: 'RELOJ DE ARENA',
+          originsU: [0.10, -0.24, 0.24, -0.10],
+          originsYOff: [-0.02, 0.02, 0.02, -0.02],
+          swayAmpU: 0.0, swayMode: 'none', swaySpeed: 1.0,
+          colors: ['56, 189, 248', '244, 114, 182', '0, 242, 254', '253, 224, 71']
+        },
+        {
+          id: 'AURORA_RIPPLE',
+          name: 'AURORA ONDULANTE',
+          originsU: [-0.33, -0.11, 0.11, 0.33],
+          originsYOff: [0.015, -0.015, 0.015, -0.015],
+          swayAmpU: 0.11, swayMode: 'wave', swaySpeed: 1.65,
+          colors: ['52, 211, 153', '56, 189, 248', '168, 85, 247', '244, 114, 182']
         }
       ];
 
@@ -24089,19 +24361,39 @@ class BeatstarEngine {
         }
       }
 
-      // Seleccionar ~42% de Drag Notes (Amarillas de deslizamiento continuo) en escaleras y olas fluidas (3 a 10 notas conectadas)
-      // más subdivisión de escaleras rápidas (0->1->2->3 y 3->2->1->0) para deslizar el dedo cortando cascadas amarillas
-      const targetDragCount = Math.round(len * 0.42);
-      const maxBurstNotes = 9;
+      // Generador pseudoaleatorio variado por partida + canción (evita que se repita siempre la misma escalera o secuencia)
+      let cruceSeed = ((len * 2654435761) ^ Math.round(firstNoteT * 17) ^ Math.floor(Math.random() * 0x7fffffff)) >>> 0;
+      if (cruceSeed === 0) cruceSeed = 0x9e3779b9;
+      const cruceRng = () => {
+        cruceSeed = (cruceSeed + 0x6D2B79F5) >>> 0;
+        let t = Math.imul(cruceSeed ^ (cruceSeed >>> 15), 1 | cruceSeed);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+      const shuffleInPlace = (arr) => {
+        for (let s = arr.length - 1; s > 0; s--) {
+          const j = Math.floor(cruceRng() * (s + 1));
+          const tmp = arr[s];
+          arr[s] = arr[j];
+          arr[j] = tmp;
+        }
+        return arr;
+      };
+
+      // Seleccionar ~24-28% de Drag Notes amarillas con 14 patrones variados y aleatorios (trinos cortos, bumeranes en V,
+      // ganchos en J, pulsos dobles retenidos, zigzags asimétricos, látigos centrales y algún barrido puntual sin abusar de escaleras)
+      const targetDragCount = Math.max(4, Math.round(len * (0.23 + cruceRng() * 0.05)));
+      const maxBurstNotes = 6;
       const minBurstNotes = 3;
-      const maxSingleGapMs = Math.max(640, beatMs * 1.30);
-      const maxBurstDurationMs = Math.min(3800, measureMs * 2.50);
+      const maxSingleGapMs = Math.max(580, beatMs * 1.22);
+      const maxBurstDurationMs = Math.min(2650, measureMs * 1.85);
       const candidateBursts = [];
 
       for (let i = 0; i <= len - minBurstNotes; i++) {
+        const desiredCap = 3 + Math.floor(cruceRng() * 4); // ráfagas ágiles de 3 a 6 notas
         let validLen = 0;
         let sumDt = 0;
-        for (let k = 0; k < maxBurstNotes && (i + k) < len; k++) {
+        for (let k = 0; k < Math.min(maxBurstNotes, desiredCap) && (i + k) < len; k++) {
           const cur = notes[i + k];
           if (!cur || cur.type === 'hold' || cur._cruceChordPartner) break;
           if (k > 0) {
@@ -24121,6 +24413,7 @@ class BeatstarEngine {
               endIdx: i + validLen - 1,
               count: validLen,
               avgDt: avgDt,
+              score: avgDt * (0.68 + cruceRng() * 0.64),
               startTimeMs: notes[i].timestamp_ms || 0,
               endTimeMs: notes[i + validLen - 1].timestamp_ms || 0
             });
@@ -24128,24 +24421,59 @@ class BeatstarEngine {
         }
       }
 
-      candidateBursts.sort((a, b) => a.avgDt - b.avgDt);
+      candidateBursts.sort((a, b) => a.score - b.score);
       const usedNoteIndices = new Set();
       const selectedBurstWindows = [];
       const subdividedDragCompanions = [];
       let currentDragCount = 0;
       let burstIdCounter = 1;
-      const minBurstCooldownMs = Math.max(1050, measureMs * 0.54);
+      const minBurstCooldownMs = Math.max(1550, measureMs * 0.85);
 
-      const stairMotifs = [
-        [0, 1, 2, 3, 2, 1, 0, 1, 2, 3],
-        [3, 2, 1, 0, 1, 2, 3, 2, 1, 0],
-        [0, 1, 2, 3, 0, 1, 2, 3],
-        [3, 2, 1, 0, 3, 2, 1, 0]
+      const diverseDragCatalog = [
+        { id: 'TRILL_CENTER_A', slots: [1, 2, 1, 2, 1], allowSub: true },
+        { id: 'TRILL_CENTER_B', slots: [2, 1, 2, 1, 2], allowSub: true },
+        { id: 'TRILL_LEFT', slots: [0, 1, 0, 1, 2], allowSub: false },
+        { id: 'TRILL_RIGHT', slots: [3, 2, 3, 2, 1], allowSub: false },
+        { id: 'BOOMERANG_LEFT_V', slots: [0, 1, 2, 1, 0], allowSub: false },
+        { id: 'BOOMERANG_RIGHT_V', slots: [3, 2, 1, 2, 3], allowSub: false },
+        { id: 'HOOK_WHIP_R', slots: [1, 1, 2, 3, 2], allowSub: false },
+        { id: 'HOOK_WHIP_L', slots: [2, 2, 1, 0, 1], allowSub: false },
+        { id: 'DOUBLE_PULSE_R', slots: [0, 0, 1, 1, 2, 2], allowSub: true },
+        { id: 'DOUBLE_PULSE_L', slots: [3, 3, 2, 2, 1, 1], allowSub: true },
+        { id: 'ZIGZAG_SNAKE_A', slots: [1, 2, 1, 0, 1, 2], allowSub: false },
+        { id: 'ZIGZAG_SNAKE_B', slots: [2, 1, 2, 3, 2, 1], allowSub: false },
+        { id: 'PENDULUM_ANCHOR', slots: [1, 0, 1, 2, 2], allowSub: false },
+        { id: 'SHORT_SWEEP_4', slots: (cruceRng() < 0.5) ? [0, 1, 2, 3] : [3, 2, 1, 0], allowSub: false }
       ];
+      let dragDeck = [];
+      let lastDragMotifId = '';
+      const drawNextDragMotif = () => {
+        if (dragDeck.length === 0) {
+          dragDeck = shuffleInPlace(diverseDragCatalog.slice());
+          if (dragDeck.length > 1 && dragDeck[0].id === lastDragMotifId) {
+            const swapIdx = 1 + Math.floor(cruceRng() * (dragDeck.length - 1));
+            const tmp = dragDeck[0];
+            dragDeck[0] = dragDeck[swapIdx];
+            dragDeck[swapIdx] = tmp;
+          }
+        }
+        const picked = dragDeck.shift();
+        lastDragMotifId = picked.id;
+        return picked;
+      };
+      const resolveLookaheadDir = (arr, idx, fallbackSign) => {
+        const curS = arr[idx % arr.length];
+        for (let look = 1; look <= arr.length; look++) {
+          const nxt = arr[(idx + look) % arr.length];
+          if (nxt > curS) return 1;
+          if (nxt < curS) return -1;
+        }
+        return fallbackSign;
+      };
 
       for (let b = 0; b < candidateBursts.length && currentDragCount < targetDragCount; b++) {
         const burst = candidateBursts[b];
-        if (currentDragCount + burst.count > targetDragCount + 6) continue;
+        if (currentDragCount + burst.count > targetDragCount + 5) continue;
 
         let overlaps = false;
         for (let idx = burst.startIdx; idx <= burst.endIdx; idx++) {
@@ -24157,12 +24485,16 @@ class BeatstarEngine {
         if (overlaps) continue;
 
         const centerMs = (burst.startTimeMs + burst.endTimeMs) * 0.5;
-        if (selectedBurstWindows.some(w => Math.abs(w.centerMs - centerMs) < minBurstCooldownMs)) {
+        const jitterCooldown = minBurstCooldownMs * (0.85 + cruceRng() * 0.45);
+        if (selectedBurstWindows.some(w => Math.abs(w.centerMs - centerMs) < jitterCooldown)) {
           continue;
         }
 
         const thisBurstId = burstIdCounter++;
-        const waveCycle = stairMotifs[(thisBurstId - 1) % stairMotifs.length];
+        const motif = drawNextDragMotif();
+        const waveCycle = motif.slots;
+        const doSubdivideBurst = Boolean(motif.allowSub && burst.count <= 4 && cruceRng() < 0.32);
+        const defaultSign = (thisBurstId % 2 === 1) ? 1 : -1;
         let stairStep = 0;
 
         for (let idx = burst.startIdx; idx <= burst.endIdx; idx++) {
@@ -24170,62 +24502,59 @@ class BeatstarEngine {
           const n = notes[idx];
           n._isCruceDrag = true;
           n._cruceDragBurstId = thisBurstId;
+          n._cruceDragMotifId = motif.id;
           const smoothSlot = waveCycle[stairStep % waveCycle.length];
-          const nextSlotInWave = waveCycle[(stairStep + 1) % waveCycle.length];
           n._cruceSlot = smoothSlot;
           n.lane = smoothSlot;
           n._cruceTargetU = slotBaseU[smoothSlot];
           n._cruceLocalU = slotBaseU[smoothSlot];
-          n._cruceSlideDir = nextSlotInWave > smoothSlot ? 1 : (nextSlotInWave < smoothSlot ? -1 : ((thisBurstId % 2 === 1) ? 1 : -1));
+          n._cruceSlideDir = resolveLookaheadDir(waveCycle, stairStep, defaultSign);
           n._isCruceBurstHead = (idx === burst.startIdx);
           n._isCruceBurstTail = (idx === burst.endIdx);
           stairStep++;
 
-          // Si el hueco hasta la siguiente nota de la ráfaga es amplio (>= 185ms), inyectar peldaños intermedios
-          // para crear una verdadera escalera amarilla densa de corte continuo (0 -> 1 -> 2 -> 3)
-          if (idx < burst.endIdx) {
+          // Subdivisión moderada únicamente en motivos cortos de trino/pulso para mantener frescura sin escaleras infinitas
+          if (doSubdivideBurst && idx < burst.endIdx) {
             const nextN = notes[idx + 1];
             const gapMs = (nextN.timestamp_ms || 0) - (n.timestamp_ms || 0);
-            if (gapMs >= 185 && gapMs <= 680) {
-              const extraCount = gapMs >= 340 ? 2 : 1;
-              for (let e = 1; e <= extraCount; e++) {
-                const subT = Math.round(n.timestamp_ms + (gapMs * e) / (extraCount + 1));
-                const subSlot = waveCycle[stairStep % waveCycle.length];
-                const afterSubSlot = waveCycle[(stairStep + 1) % waveCycle.length];
-                stairStep++;
-                subdividedDragCompanions.push({
-                  id: 920000 + thisBurstId * 100 + idx * 4 + e,
-                  lane: subSlot,
-                  _cruceSlot: subSlot,
-                  _cruceTargetU: slotBaseU[subSlot],
-                  _cruceLocalU: slotBaseU[subSlot],
-                  _cruceSpawnU: -0.15 + subSlot * 0.10,
-                  _crossBeamId: subSlot,
-                  _cruceFormationIdx: n._cruceFormationIdx || 0,
-                  _isCruceDrag: true,
-                  _cruceDragBurstId: thisBurstId,
-                  _cruceSlideDir: afterSubSlot >= subSlot ? 1 : -1,
-                  _isCruceBurstHead: false,
-                  _isCruceBurstTail: false,
-                  _isCruceChordCompanion: true,
-                  type: 'tap',
-                  timestamp_ms: subT,
-                  end_timestamp_ms: subT,
-                  duration_ms: 0,
-                  hit: false,
-                  missed: false,
-                  holding: false,
-                  processed: false,
-                  holdCompleted: false
-                });
-              }
+            if (gapMs >= 250 && gapMs <= 560) {
+              const subT = Math.round(n.timestamp_ms + gapMs * 0.5);
+              const subSlot = waveCycle[stairStep % waveCycle.length];
+              const subDir = resolveLookaheadDir(waveCycle, stairStep, defaultSign);
+              stairStep++;
+              subdividedDragCompanions.push({
+                id: 920000 + thisBurstId * 100 + idx * 4 + 1,
+                lane: subSlot,
+                _cruceSlot: subSlot,
+                _cruceTargetU: slotBaseU[subSlot],
+                _cruceLocalU: slotBaseU[subSlot],
+                _cruceSpawnU: -0.15 + subSlot * 0.10,
+                _crossBeamId: subSlot,
+                _cruceFormationIdx: n._cruceFormationIdx || 0,
+                _isCruceDrag: true,
+                _cruceDragBurstId: thisBurstId,
+                _cruceDragMotifId: motif.id,
+                _cruceSlideDir: subDir,
+                _isCruceBurstHead: false,
+                _isCruceBurstTail: false,
+                _isCruceChordCompanion: true,
+                type: 'tap',
+                timestamp_ms: subT,
+                end_timestamp_ms: subT,
+                duration_ms: 0,
+                hit: false,
+                missed: false,
+                holding: false,
+                processed: false,
+                holdCompleted: false
+              });
             }
           }
         }
         selectedBurstWindows.push({
           centerMs,
-          startMs: burst.startTimeMs - 200,
-          endMs: burst.endTimeMs + 200
+          startMs: burst.startTimeMs - 220,
+          endMs: burst.endTimeMs + 220
         });
         currentDragCount += burst.count;
       }
@@ -24300,78 +24629,67 @@ class BeatstarEngine {
         }
       }
 
-      // Compromiso óptimo: carriles anchos (spanWRatio 0.90..0.92) e inclinaciones moderadas (12°..15°)
-      // para que nunca sea fácil pulsar el carril contiguo por error ni se salga ningún carril de la pantalla
-      const musicalScenes = [
-        {
-          mode: 'TILT_RIGHT_CASCADE',
-          cxRatio: 0.50, cyRatio: 0.78, angleRad: 15 * deg,
-          spanWRatio: 0.91, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0,
-          formationIdx: 1, isMajorFlip: false, arrowAngle: Math.PI * 0.5,
-          label: ''
-        },
-        {
-          mode: 'VOLTAIC_ARC_PHASE',
-          cxRatio: 0.50, cyRatio: 0.78, angleRad: 0,
-          spanWRatio: 0.92, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0,
-          formationIdx: 0, isMajorFlip: true, arrowAngle: Math.PI * 0.5,
-          label: ''
-        },
-        {
-          mode: 'TILT_LEFT_CASCADE',
-          cxRatio: 0.50, cyRatio: 0.78, angleRad: -15 * deg,
-          spanWRatio: 0.91, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0,
-          formationIdx: 2, isMajorFlip: false, arrowAngle: Math.PI * 0.5,
-          label: ''
-        },
-        {
-          mode: 'CHORUS_CENTER_VORTEX',
-          cxRatio: 0.50, cyRatio: 0.72, angleRad: 12 * deg,
-          spanWRatio: 0.92, travelRatio: 0.74, diagFactor: 1.0, flowDir: 1.0,
-          formationIdx: 3, isMajorFlip: true, arrowAngle: Math.PI * 0.5,
-          label: ''
-        },
-        {
-          mode: 'VOLTAIC_ARC_PHASE',
-          cxRatio: 0.50, cyRatio: 0.78, angleRad: 0,
-          spanWRatio: 0.92, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0,
-          formationIdx: 3, isMajorFlip: true, arrowAngle: Math.PI * 0.5,
-          label: ''
-        },
-        {
-          mode: 'CHORUS_TWIN_XCROSS',
-          cxRatio: 0.50, cyRatio: 0.72, angleRad: -12 * deg,
-          spanWRatio: 0.92, travelRatio: 0.74, diagFactor: 1.0, flowDir: 1.0,
-          formationIdx: 4, isMajorFlip: false, arrowAngle: Math.PI * 0.5,
-          label: ''
-        },
-        {
-          mode: 'SWEEP_FROM_LEFT',
-          cxRatio: 0.50, cyRatio: 0.76, angleRad: -15 * deg,
-          spanWRatio: 0.90, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0,
-          formationIdx: 1, isMajorFlip: true, arrowAngle: Math.PI * 0.25,
-          label: ''
-        },
-        {
-          mode: 'PORTAL_CROSS_R',
-          cxRatio: 0.50, cyRatio: 0.76, angleRad: 15 * deg,
-          spanWRatio: 0.90, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0,
-          formationIdx: 5, isMajorFlip: false, arrowAngle: Math.PI * 0.5,
-          label: ''
-        }
+      // Baraja no repetitiva de 12 escenas láser con geometrías muy distintas (conos, coronas, lluvia diagonal,
+      // portales 2+2, arpa cruzada en X, doble tijera, faros vivos, acordeón, cascada S y aurora) + Fases Arco Voltaico intercaladas
+      const laserScenePool = [
+        { mode: 'SPOTLIGHT_PYRAMID', cxRatio: 0.50, cyRatio: 0.79, angleRad: 0 * deg, liveRockDeg: 3.5, spanWRatio: 0.92, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0, formationIdx: 0, isMajorFlip: false, arrowAngle: Math.PI * 0.5, label: '' },
+        { mode: 'PANORAMIC_CROWN', cxRatio: 0.50, cyRatio: 0.74, angleRad: 9 * deg, liveRockDeg: 0, spanWRatio: 0.92, travelRatio: 0.75, diagFactor: 1.0, flowDir: 1.0, formationIdx: 1, isMajorFlip: true, arrowAngle: Math.PI * 0.5, label: '' },
+        { mode: 'COMET_RAIN_LEFT', cxRatio: 0.50, cyRatio: 0.78, angleRad: 14 * deg, liveRockDeg: 0, spanWRatio: 0.91, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0, formationIdx: 2, isMajorFlip: false, arrowAngle: Math.PI * 0.35, label: '' },
+        { mode: 'COMET_RAIN_RIGHT', cxRatio: 0.50, cyRatio: 0.78, angleRad: -14 * deg, liveRockDeg: 0, spanWRatio: 0.91, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0, formationIdx: 3, isMajorFlip: false, arrowAngle: Math.PI * 0.65, label: '' },
+        { mode: 'TWIN_PORTAL_CATHEDRAL', cxRatio: 0.50, cyRatio: 0.73, angleRad: -8 * deg, liveRockDeg: 3.0, spanWRatio: 0.92, travelRatio: 0.75, diagFactor: 1.0, flowDir: 1.0, formationIdx: 4, isMajorFlip: true, arrowAngle: Math.PI * 0.5, label: '' },
+        { mode: 'HARP_WEAVE_XCROSS', cxRatio: 0.50, cyRatio: 0.77, angleRad: 6 * deg, liveRockDeg: 0, spanWRatio: 0.92, travelRatio: 0.77, diagFactor: 1.0, flowDir: 1.0, formationIdx: 5, isMajorFlip: true, arrowAngle: Math.PI * 0.5, label: '' },
+        { mode: 'DOUBLE_SCISSORS_NEON', cxRatio: 0.50, cyRatio: 0.76, angleRad: -11 * deg, liveRockDeg: 0, spanWRatio: 0.91, travelRatio: 0.76, diagFactor: 1.0, flowDir: 1.0, formationIdx: 6, isMajorFlip: true, arrowAngle: Math.PI * 0.5, label: '' },
+        { mode: 'CONCERT_SEARCHLIGHTS', cxRatio: 0.50, cyRatio: 0.79, angleRad: 0 * deg, liveRockDeg: 4.5, spanWRatio: 0.92, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0, formationIdx: 7, isMajorFlip: false, arrowAngle: Math.PI * 0.5, label: '' },
+        { mode: 'BREATHING_ACCORDION', cxRatio: 0.50, cyRatio: 0.75, angleRad: 12 * deg, liveRockDeg: 0, spanWRatio: 0.91, travelRatio: 0.76, diagFactor: 1.0, flowDir: 1.0, formationIdx: 8, isMajorFlip: false, arrowAngle: Math.PI * 0.5, label: '' },
+        { mode: 'WAVE_CASCADE_S', cxRatio: 0.50, cyRatio: 0.71, angleRad: -13 * deg, liveRockDeg: 2.5, spanWRatio: 0.91, travelRatio: 0.73, diagFactor: 1.0, flowDir: 1.0, formationIdx: 9, isMajorFlip: true, arrowAngle: Math.PI * 0.5, label: '' },
+        { mode: 'DIAMOND_HOURGLASS', cxRatio: 0.50, cyRatio: 0.77, angleRad: -5 * deg, liveRockDeg: 0, spanWRatio: 0.92, travelRatio: 0.77, diagFactor: 1.0, flowDir: 1.0, formationIdx: 10, isMajorFlip: true, arrowAngle: Math.PI * 0.5, label: '' },
+        { mode: 'AURORA_RIPPLE_LIVE', cxRatio: 0.50, cyRatio: 0.76, angleRad: 10 * deg, liveRockDeg: 4.0, spanWRatio: 0.92, travelRatio: 0.77, diagFactor: 1.0, flowDir: 1.0, formationIdx: 11, isMajorFlip: false, arrowAngle: Math.PI * 0.5, label: '' }
       ];
+      // También elegir una formación inicial variada (evitando empezar siempre idéntico)
+      if (this._cruceKeyframes[0]) {
+        const initFormChoices = [0, 1, 4, 7, 8, 11];
+        this._cruceKeyframes[0].formationIdx = initFormChoices[Math.floor(cruceRng() * initFormChoices.length)];
+      }
 
-      const minSectionDurationMs = Math.max(9200, measureMs * 4.5);
+      let laserDeck = [];
+      let lastFormationUsed = this._cruceKeyframes[0] ? this._cruceKeyframes[0].formationIdx : 0;
+      let scenesSinceVoltaic = 1;
+      let nextVoltaicGap = (cruceRng() < 0.5) ? 2 : 3;
+      const drawNextMusicalScene = () => {
+        if (scenesSinceVoltaic >= nextVoltaicGap) {
+          scenesSinceVoltaic = 0;
+          nextVoltaicGap = 2 + Math.floor(cruceRng() * 2); // cada 2 o 3 escenas entra Fase Arco Voltaico
+          return {
+            mode: 'VOLTAIC_ARC_PHASE',
+            cxRatio: 0.50, cyRatio: 0.78, angleRad: 0, liveRockDeg: 0,
+            spanWRatio: 0.92, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0,
+            formationIdx: Math.floor(cruceRng() * 12), isMajorFlip: true, arrowAngle: Math.PI * 0.5,
+            label: ''
+          };
+        }
+        if (laserDeck.length === 0) {
+          laserDeck = shuffleInPlace(laserScenePool.slice());
+          if (laserDeck.length > 1 && laserDeck[0].formationIdx === lastFormationUsed) {
+            const sw = 1 + Math.floor(cruceRng() * (laserDeck.length - 1));
+            const tmp = laserDeck[0];
+            laserDeck[0] = laserDeck[sw];
+            laserDeck[sw] = tmp;
+          }
+        }
+        const picked = laserDeck.shift();
+        lastFormationUsed = picked.formationIdx;
+        scenesSinceVoltaic++;
+        return picked;
+      };
+
+      const minSectionDurationMs = Math.max(8200, measureMs * 4.0);
       let lastKeyframeMs = firstNoteMs - 3200;
-      let sceneCounter = 0;
 
       for (let a = 0; a < safeMusicalAnchors.length; a++) {
         const anchor = safeMusicalAnchors[a];
         if (anchor.timeMs - lastKeyframeMs < minSectionDurationMs) continue;
 
-        const chosenScene = musicalScenes[sceneCounter % musicalScenes.length];
-        sceneCounter++;
-
+        const chosenScene = drawNextMusicalScene();
         const leadShiftMs = Math.min(340, Math.max(0, Math.round((anchor.gapBeforeMs - 140) * 0.5)));
         const triggerTimeMs = anchor.timeMs - leadShiftMs;
         const isMajor = Boolean(chosenScene.isMajorFlip);
@@ -24384,6 +24702,7 @@ class BeatstarEngine {
           cxRatio: chosenScene.cxRatio,
           cyRatio: chosenScene.cyRatio,
           angleRad: chosenScene.angleRad,
+          liveRockDeg: chosenScene.liveRockDeg || 0,
           spanWRatio: chosenScene.spanWRatio,
           travelRatio: chosenScene.travelRatio,
           diagFactor: chosenScene.diagFactor,
@@ -24398,11 +24717,9 @@ class BeatstarEngine {
       }
 
       if (this._cruceKeyframes.length <= 1) {
-        let cursorMs = firstNoteMs + Math.max(5800, measureMs * 2.8);
-        let idx = 0;
+        let cursorMs = firstNoteMs + Math.max(5400, measureMs * 2.6);
         while (cursorMs < lastNoteMs - 2400) {
-          const sc = musicalScenes[idx % musicalScenes.length];
-          idx++;
+          const sc = drawNextMusicalScene();
           this._cruceKeyframes.push({
             timeMs: cursorMs,
             transDurMs: 480,
@@ -24410,6 +24727,7 @@ class BeatstarEngine {
             cxRatio: sc.cxRatio,
             cyRatio: sc.cyRatio,
             angleRad: sc.angleRad,
+            liveRockDeg: sc.liveRockDeg || 0,
             spanWRatio: sc.spanWRatio,
             travelRatio: sc.travelRatio,
             diagFactor: sc.diagFactor,
@@ -24419,7 +24737,7 @@ class BeatstarEngine {
             arrowAngle: sc.arrowAngle,
             label: sc.label
           });
-          cursorMs += Math.max(9400, measureMs * 4.5);
+          cursorMs += Math.max(8600, measureMs * 4.2);
         }
       }
 
@@ -24476,7 +24794,11 @@ class BeatstarEngine {
       };
 
       const maxTiltRad = 16 * (Math.PI / 180);
-      const angle = Math.max(-maxTiltRad, Math.min(maxTiltRad, kf.angleRad || 0));
+      const tSec = Number.isFinite(cTime) ? (cTime * 0.001) : 0;
+      const liveRockRad = (!kf || kf.mode === 'VOLTAIC_ARC_PHASE' || !kf.liveRockDeg)
+        ? 0
+        : (Math.sin(tSec * 1.15 + (kf.formationIdx || 0) * 0.9) * kf.liveRockDeg * (Math.PI / 180));
+      const angle = Math.max(-maxTiltRad, Math.min(maxTiltRad, (kf.angleRad || 0) + liveRockRad));
       const sinA = Math.sin(angle);
       const cosA = Math.cos(angle);
       const absSin = Math.abs(sinA);
@@ -24508,7 +24830,31 @@ class BeatstarEngine {
       }
 
       out.diagFactor = (kf.diagFactor !== undefined) ? kf.diagFactor : 1.0;
-      out.originsU = form.originsU;
+      const baseOrigins = form.originsU || [-0.34, -0.115, 0.115, 0.34];
+      const baseYOff = form.originsYOff || [0, 0, 0, 0];
+      if (!out._liveOriginsU) out._liveOriginsU = [0, 0, 0, 0];
+      if (!out._liveOriginsYOff) out._liveOriginsYOff = [0, 0, 0, 0];
+      const swayAmp = (!isVoltaicArc && form.swayAmpU) ? form.swayAmpU : 0;
+      const swaySpd = form.swaySpeed || 1.2;
+      const swayMode = form.swayMode || 'none';
+      for (let b = 0; b < 4; b++) {
+        let deltaU = 0;
+        if (swayAmp > 0.001) {
+          if (swayMode === 'sync') {
+            deltaU = Math.sin(tSec * swaySpd) * swayAmp;
+          } else if (swayMode === 'mirror') {
+            const sign = (b < 2) ? -1 : 1;
+            const weight = (b === 0 || b === 3) ? 1.0 : 0.65;
+            deltaU = Math.sin(tSec * swaySpd) * swayAmp * sign * weight;
+          } else if (swayMode === 'wave') {
+            deltaU = Math.sin(tSec * swaySpd + b * 0.95) * swayAmp;
+          }
+        }
+        out._liveOriginsU[b] = Math.max(-0.47, Math.min(0.47, baseOrigins[b] + deltaU));
+        out._liveOriginsYOff[b] = baseYOff[b] || 0;
+      }
+      out.originsU = out._liveOriginsU;
+      out.originsYOff = out._liveOriginsYOff;
       out.colors = form.colors;
       out.formationName = '';
       out.arrowAngle = kf.arrowAngle ?? (Math.PI * 0.5);
@@ -24592,10 +24938,14 @@ class BeatstarEngine {
         st.voltaicBlend = fromVoltaic + (toVoltaic - fromVoltaic) * snapU;
 
         if (!st.originsU) st.originsU = [-0.34, -0.115, 0.115, 0.34];
+        if (!st.originsYOff) st.originsYOff = [0, 0, 0, 0];
         for (let b = 0; b < 4; b++) {
           const fromO = poseFrom.originsU ? poseFrom.originsU[b] : 0;
           const toO = poseTo.originsU ? poseTo.originsU[b] : 0;
           st.originsU[b] = fromO + (toO - fromO) * snapU;
+          const fromY = poseFrom.originsYOff ? poseFrom.originsYOff[b] : 0;
+          const toY = poseTo.originsYOff ? poseTo.originsYOff[b] : 0;
+          st.originsYOff[b] = fromY + (toY - fromY) * snapU;
           if (this._cruceCrossBeams && this._cruceCrossBeams[b]) {
             this._cruceCrossBeams[b].curOriginU = st.originsU[b];
             if (poseTo.colors && poseTo.colors[b]) {
@@ -24619,8 +24969,10 @@ class BeatstarEngine {
         st.voltaicBlend = (curKf.mode === 'VOLTAIC_ARC_PHASE') ? 1.0 : 0.0;
 
         if (!st.originsU) st.originsU = [-0.34, -0.115, 0.115, 0.34];
+        if (!st.originsYOff) st.originsYOff = [0, 0, 0, 0];
         for (let b = 0; b < 4; b++) {
           st.originsU[b] = poseTo.originsU ? poseTo.originsU[b] : 0;
+          st.originsYOff[b] = poseTo.originsYOff ? poseTo.originsYOff[b] : 0;
           if (this._cruceCrossBeams && this._cruceCrossBeams[b]) {
             this._cruceCrossBeams[b].curOriginU = st.originsU[b];
             if (poseTo.colors && poseTo.colors[b]) {
@@ -24683,8 +25035,11 @@ class BeatstarEngine {
       const liveOrigU = (lineSt.originsU && Number.isFinite(lineSt.originsU[bIdx]))
         ? lineSt.originsU[bIdx]
         : (-0.34 + bIdx * 0.226);
+      const liveOrigYOff = (lineSt.originsYOff && Number.isFinite(lineSt.originsYOff[bIdx]))
+        ? lineSt.originsYOff[bIdx]
+        : 0.0;
       const diagFactor = (lineSt.diagFactor !== undefined) ? lineSt.diagFactor : 1.0;
-      const effOriginU = defaultU * 0.45 + (targetU + (liveOrigU - targetU) * diagFactor) * 0.55;
+      const effOriginU = targetU + (liveOrigU - targetU) * diagFactor;
 
       const xTarget = targetU * lineSt.spanW;
       const yTarget = 0;
@@ -24692,15 +25047,16 @@ class BeatstarEngine {
       const sinA = lineSt.sinA ?? Math.sin(lineSt.angle || 0);
       const cosA = lineSt.cosA ?? Math.cos(lineSt.angle || 0);
 
-      const nodeScrX = lineSt.cx + xTarget * cosA;
       const nodeScrY = lineSt.cy + xTarget * sinA;
-      const clampedOriginU = Math.max(-0.44, Math.min(0.44, effOriginU));
-      const vanishingCenterX = w * 0.50 - sinA * (w * 0.08);
-      const horizonSpreadW = w * (0.78 - Math.min(0.08, Math.abs(sinA) * 0.16));
-      const horizonScrX = vanishingCenterX + clampedOriginU * horizonSpreadW;
-      const desiredScrX = Math.max(w * 0.10, Math.min(w * 0.90, horizonScrX * 0.64 + nodeScrX * 0.36));
+      const clampedOriginU = Math.max(-0.47, Math.min(0.47, effOriginU));
+      const vanishingCenterX = w * 0.50 - sinA * (w * 0.05);
+      const horizonSpreadW = w * 0.86;
+      const rawHorizonScrX = vanishingCenterX + clampedOriginU * horizonSpreadW;
+      // Expresar 100% la geometría del patrón láser manteniendo siempre todos los haces dentro de [8%..92%] de la pantalla
+      const desiredScrX = Math.max(w * 0.08, Math.min(w * 0.92, rawHorizonScrX));
 
-      const desiredScrY = Math.max(h * 0.055, Math.min(h * 0.11, Math.min(lineSt.cy - lineSt.travelDistPx, nodeScrY - h * 0.58)));
+      const baseTopScrY = Math.max(h * 0.06, Math.min(h * 0.115, Math.min(lineSt.cy - lineSt.travelDistPx, nodeScrY - h * 0.56)));
+      const desiredScrY = Math.max(h * 0.045, Math.min(h * 0.165, baseTopScrY + liveOrigYOff * h));
 
       const dx = desiredScrX - lineSt.cx;
       const dy = desiredScrY - lineSt.cy;
@@ -25860,22 +26216,27 @@ class BeatstarEngine {
       const diagFactor = (st.diagFactor !== undefined) ? st.diagFactor : 1.0;
       const flowDir = (st.flowDir !== undefined) ? st.flowDir : 1.0;
       const ep0 = this.getCruceBeamEndpointsLocal(0, st, flowDir, this._cruceGridEp0 || (this._cruceGridEp0 = {}));
+      const ep1 = this.getCruceBeamEndpointsLocal(1, st, flowDir, this._cruceGridEp1 || (this._cruceGridEp1 = {}));
+      const ep2 = this.getCruceBeamEndpointsLocal(2, st, flowDir, this._cruceGridEp2 || (this._cruceGridEp2 = {}));
       const ep3 = this.getCruceBeamEndpointsLocal(3, st, flowDir, this._cruceGridEp3 || (this._cruceGridEp3 = {}));
+      const envLeftX = Math.min(ep0.xOrigin, ep1.xOrigin, ep2.xOrigin, ep3.xOrigin);
+      const envRightX = Math.max(ep0.xOrigin, ep1.xOrigin, ep2.xOrigin, ep3.xOrigin);
+      const envTopY = (ep0.yOrigin + ep1.yOrigin + ep2.yOrigin + ep3.yOrigin) * 0.25;
 
-      // 2A. Pista trapezoidal con perspectiva 3D real conectando el horizonte de fuga (ep0..ep3) con la línea de juicio
+      // 2A. Pista envolvente translúcida conectando el abanico/portal superior con la línea de juicio (sin auto-intersección en cruces X)
       const deckGrad = ctx.createLinearGradient(
-        (ep0.xOrigin + ep3.xOrigin) * 0.5,
-        (ep0.yOrigin + ep3.yOrigin) * 0.5,
+        (envLeftX + envRightX) * 0.5,
+        envTopY,
         (ep0.xTarget + ep3.xTarget) * 0.5,
         0
       );
       deckGrad.addColorStop(0.0, 'rgba(14, 165, 233, 0.03)');
-      deckGrad.addColorStop(0.65, `rgba(14, 165, 233, ${(0.09 + beatPulse * 0.04).toFixed(3)})`);
-      deckGrad.addColorStop(1.0, `rgba(56, 189, 248, ${(0.18 + beatPulse * 0.07).toFixed(3)})`);
+      deckGrad.addColorStop(0.65, `rgba(14, 165, 233, ${(0.08 + beatPulse * 0.04).toFixed(3)})`);
+      deckGrad.addColorStop(1.0, `rgba(56, 189, 248, ${(0.16 + beatPulse * 0.07).toFixed(3)})`);
       ctx.fillStyle = deckGrad;
       ctx.beginPath();
-      ctx.moveTo(ep0.xOrigin, ep0.yOrigin);
-      ctx.lineTo(ep3.xOrigin, ep3.yOrigin);
+      ctx.moveTo(envLeftX, envTopY);
+      ctx.lineTo(envRightX, envTopY);
       ctx.lineTo(ep3.xTarget, ep3.yTarget);
       ctx.lineTo(ep0.xTarget, ep0.yTarget);
       ctx.closePath();
@@ -25885,10 +26246,10 @@ class BeatstarEngine {
       const gridScroll = (audioTime * 0.65) % 1.0;
       for (let r = 0; r <= 7; r++) {
         const uGrid = Math.max(0, Math.min(1.12, (r + gridScroll) / 7));
-        const gx0 = ep0.xOrigin + (ep0.xTarget - ep0.xOrigin) * uGrid;
-        const gy0 = ep0.yOrigin + (ep0.yTarget - ep0.yOrigin) * uGrid;
-        const gx3 = ep3.xOrigin + (ep3.xTarget - ep3.xOrigin) * uGrid;
-        const gy3 = ep3.yOrigin + (ep3.yTarget - ep3.yOrigin) * uGrid;
+        const gx0 = envLeftX + (ep0.xTarget - envLeftX) * uGrid;
+        const gy0 = envTopY + (ep0.yTarget - envTopY) * uGrid;
+        const gx3 = envRightX + (ep3.xTarget - envRightX) * uGrid;
+        const gy3 = envTopY + (ep3.yTarget - envTopY) * uGrid;
         const extX = (gx3 - gx0) * 0.14;
         const extY = (gy3 - gy0) * 0.14;
 
@@ -25981,6 +26342,16 @@ class BeatstarEngine {
           ctx.lineWidth = (1.7 + beatPulse * 0.7 + flash * 1.3) * gaugeScale;
           buildStringPath();
           ctx.stroke();
+
+          // Emisor de prisma láser en el origen superior para remarcar visualmente cada constelación de haces
+          ctx.fillStyle = `rgba(${beam.rgb}, ${(0.42 + beatPulse * 0.25).toFixed(3)})`;
+          ctx.beginPath();
+          ctx.arc(xOrigin, yOrigin, 6.2 + beatPulse * 2.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(xOrigin, yOrigin, 2.6 + beatPulse * 0.9, 0, Math.PI * 2);
+          ctx.fill();
 
           // Pulso armónico viajando por la cuerda al ritmo del BPM
           const pulseP = beatFraction;
@@ -26362,17 +26733,18 @@ class BeatstarEngine {
     _getCruceDepthPosition(rawP, out = null, isLateral = false) {
       const target = out || this._cruceDepthScratch || (this._cruceDepthScratch = { pDepth: 0, scale: 1 });
       const clamped = Math.max(-0.15, Math.min(1.25, rawP));
-      const exp = isLateral ? 1.12 : 1.32;
       let pDepth;
       if (clamped <= 0) {
-        pDepth = clamped * 0.65;
+        pDepth = clamped * 0.90;
       } else if (clamped <= 1.0) {
-        pDepth = Math.pow(clamped, exp);
+        pDepth = clamped;
       } else {
-        pDepth = 1.0 + (clamped - 1.0) * 1.15;
+        pDepth = 1.0 + (clamped - 1.0) * 1.0;
       }
-      const minScale = isLateral ? 0.58 : 0.44;
-      const scale = Math.max(0.40, Math.min(1.16, minScale + (1.0 - minScale) * pDepth));
+      // Tamaño consistente y limpio de arriba abajo (0.95 -> 1.00, sin hincharse artificialmente al caer)
+      const minScale = 0.95;
+      const clampedDepthForScale = Math.max(0.0, Math.min(1.0, pDepth));
+      const scale = minScale + (1.0 - minScale) * clampedDepthForScale;
       target.pDepth = pDepth;
       target.scale = scale;
       return target;
@@ -27279,8 +27651,8 @@ class BeatstarEngine {
     _drawCruceTapNoteLocal(ctx, note, localX, localY, slotW, scale = 1.0) {
       const isAccent = Boolean(note._isCruceAccent || note._cruceChordPartner);
       const isHopo = Boolean(note._isCruceHopo);
-      const barW = Math.max(28, slotW * (isAccent ? 0.94 : 0.88) * scale);
-      const barH = Math.max(10, (isAccent ? 24 : 21) * scale);
+      const barW = Math.max(28, Math.min(68, slotW * (isAccent ? 0.84 : 0.78)) * scale);
+      const barH = Math.max(10, (isAccent ? 21 : 19) * scale);
       const halfW = barW * 0.5;
       const halfH = barH * 0.5;
       const glowCol = note._cruceChordPartner ? '#38bdf8' : (note._isCruceAccent ? '#a855f7' : '#00f2fe');
@@ -27346,8 +27718,8 @@ class BeatstarEngine {
      * para que el jugador identifique al instante que es una nota de deslizar el dedo sin necesidad de levantar ni pulsar.
      */
     _drawCruceDragNoteLocal(ctx, note, localX, localY, slotW, scale = 1.0, currentTime = 0) {
-      const barW = Math.max(32, slotW * 0.94 * scale);
-      const barH = Math.max(11, 22 * scale);
+      const barW = Math.max(30, Math.min(70, slotW * 0.84) * scale);
+      const barH = Math.max(11, 20 * scale);
       const halfW = barW * 0.5;
       const halfH = barH * 0.5;
       const slideDir = note._cruceSlideDir || 1;
@@ -27449,7 +27821,7 @@ class BeatstarEngine {
         const cx = pos.x + bendWave;
         const cy = pos.y;
         const pulseW = isBeingHeld ? (1.0 + 0.06 * Math.sin(currentTime * 0.018 + s * 0.6)) : 1.0;
-        const halfW = Math.max(14, slotW * 0.45 * segScale * pulseW);
+        const halfW = Math.max(14, Math.min(33, slotW * 0.39) * segScale * pulseW);
         leftPts.push({ x: cx - halfW, y: cy, cx, scale: segScale });
         rightPts.push({ x: cx + halfW, y: cy, cx, scale: segScale });
       }
@@ -28922,9 +29294,9 @@ class DynamicHighwayController {
           const serveLane = ((s + i) % 2 === 0) ? 3 : 0;
           const rebLane = (serveLane === 3) ? 0 : 3;
 
-          // Verificar que los carriles de saque/recepción estén despejados y que NO exista ningún Hold activo en ningún carril durante el rally
+          // Verificar que ni saque ni rebote coincidan con acordes simultáneos, ni notas cercanas en el carril, ni Holds activos
           let lanesClear = true;
-          for (let k = Math.max(0, i - 8); k < Math.min(notes.length, i + 9); k++) {
+          for (let k = Math.max(0, i - 10); k < Math.min(notes.length, i + 11); k++) {
             if (k === i || k === i + 1) continue;
             const other = notes[k];
             if (!other) continue;
@@ -28934,11 +29306,15 @@ class DynamicHighwayController {
               lanesClear = false;
               break;
             }
-            if (other.lane === serveLane && t0 >= ot - 240 && t0 <= oEnd + 240) {
+            if (Math.abs(ot - t0) <= 210 || Math.abs(ot - t1) <= 230) {
               lanesClear = false;
               break;
             }
-            if (other.lane === rebLane && t1 >= ot - 240 && t1 <= oEnd + 240) {
+            if (other.lane === serveLane && t0 >= ot - 340 && t0 <= oEnd + 340) {
+              lanesClear = false;
+              break;
+            }
+            if (other.lane === rebLane && t1 >= ot - 340 && t1 <= oEnd + 340) {
               lanesClear = false;
               break;
             }
@@ -29105,6 +29481,13 @@ class DynamicHighwayController {
 
     // 5. Pase final anti-solapamiento estricto: ninguna tecla puede solaparse encima de otra en el mismo carril
     this._enforceNoOverlappingNotes(notes);
+    if (this.engine && typeof this.engine._sanitizeAllReboundOverlaps === 'function') {
+      const cleaned = this.engine._sanitizeAllReboundOverlaps(notes);
+      if (cleaned !== notes) {
+        notes.length = 0;
+        notes.push(...cleaned);
+      }
+    }
   }
 
   getExpectedLaneCountAtTime(timeMs) {
@@ -29217,9 +29600,47 @@ class DynamicHighwayController {
         n.endLane = l;
       }
 
-      // Nunca eliminar una pelota de tenis de saque ni su rebote para que jamás haya rebotes huérfanos
+      // Si una pelota de tenis cae o rebota demasiado cerca (< 285ms) de una nota previa en el mismo carril,
+      // desactivar el Ping-Pong para que jamás haya una pelota de tenis encima de otra tecla
       if (isPingPong) {
-        lastEndByLane[l] = Math.max(lastEndByLane[l], nt);
+        if (nt - lastEndByLane[l] < 285) {
+          const src = n._pingPongSourceNote || (n._isPingPongServe ? n : null);
+          const dst = n._splitPingPongTarget || ((n._isPingPongBounce || n._isSplitPingPongRebound) ? n : null);
+          if (src) {
+            delete src._isPingPongServe;
+            delete src._pingPongRallyLen;
+            delete src._splitPingPongTarget;
+          }
+          if (dst) {
+            delete dst._isPingPongBounce;
+            delete dst._isSplitPingPongRebound;
+            delete dst._pingPongRallyStep;
+            delete dst._pingPongFromLane;
+            delete dst._pingPongSourceTimeMs;
+            delete dst._pingPongSourceNote;
+            delete dst._pingPongLaunched;
+          }
+          n._dropDuplicateCollapsed = true;
+          if (dst && dst !== n && (Number(dst.id) || 0) >= 800000) {
+            dst._dropDuplicateCollapsed = true;
+          }
+          continue;
+        }
+        // También despejar cualquier nota normal inmediatamente posterior (< 285ms en el mismo carril o < 150ms en rebote)
+        for (let fwd = i + 1; fwd < Math.min(notes.length, i + 10); fwd++) {
+          const fn = notes[fwd];
+          if (!fn || fn._dropDuplicateCollapsed || fn === n._splitPingPongTarget || fn === n._pingPongSourceNote) continue;
+          if (fn._madnessPhase && !is3DMadnessPhase(fn._madnessPhase)) continue;
+          const fnt = fn.timestamp_ms ?? 0;
+          if (fnt - nt > 300) break;
+          if (fn.type === 'hold' || fn._isMadnessAnchor || fn._closesToCount || fn._targetLaneCountAfterSwipe) continue;
+          if (fn._isPingPongServe || fn._isPingPongBounce || fn._isSplitPingPongRebound) continue;
+          const fnLane = Math.max(0, Math.min(activeMaxL - 1, Math.round(fn.lane ?? 0)));
+          if (fnLane === l || ((n._isPingPongBounce || n._isSplitPingPongRebound) && Math.abs(fnt - nt) <= 150)) {
+            fn._dropDuplicateCollapsed = true;
+          }
+        }
+        lastEndByLane[l] = Math.max(lastEndByLane[l], nt + 45);
         continue;
       }
 
@@ -30716,13 +31137,26 @@ Object.assign(BeatstarEngine.prototype, {
                 lanesClear = false;
                 break;
               }
-              if (otherN.lane === serveLane && nt >= ot - 260 && nt <= oEnd + 260) {
+              if (Math.abs(ot - nt) <= 210 || Math.abs(ot - rebT) <= 235) {
                 lanesClear = false;
                 break;
               }
-              if (otherN.lane === rebLane && rebT >= ot - 260 && rebT <= oEnd + 260) {
+              if (otherN.lane === serveLane && nt >= ot - 330 && nt <= oEnd + 330) {
                 lanesClear = false;
                 break;
+              }
+              if (otherN.lane === rebLane && rebT >= ot - 330 && rebT <= oEnd + 330) {
+                lanesClear = false;
+                break;
+              }
+            }
+            if (lanesClear) {
+              for (let ex = 0; ex < injectedExtraNotes.length; ex++) {
+                const exN = injectedExtraNotes[ex];
+                if (exN && (Math.abs((exN.timestamp_ms || 0) - nt) <= 260 || Math.abs((exN.timestamp_ms || 0) - rebT) <= 260)) {
+                  lanesClear = false;
+                  break;
+                }
               }
             }
 
@@ -30819,34 +31253,102 @@ Object.assign(BeatstarEngine.prototype, {
       }
     ];
 
-    const crucePoses = [
-      { mode: 'VOLTAIC_ARC_PHASE', cxRatio: 0.50, cyRatio: 0.78, angleRad: 0.0, spanWRatio: 0.92, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0, formationIdx: 0, isMajorFlip: true, arrowAngle: Math.PI * 0.5, label: '' },
-      { mode: 'TILT_RIGHT_CASCADE', cxRatio: 0.50, cyRatio: 0.78, angleRad: 15 * deg, spanWRatio: 0.91, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0, formationIdx: 1, isMajorFlip: false, arrowAngle: Math.PI * 0.5, label: '' },
-      { mode: 'CHORUS_CENTER_VORTEX', cxRatio: 0.50, cyRatio: 0.72, angleRad: -12 * deg, spanWRatio: 0.92, travelRatio: 0.74, diagFactor: 1.0, flowDir: 1.0, formationIdx: 3, isMajorFlip: true, arrowAngle: Math.PI * 0.5, label: '' },
-      { mode: 'VOLTAIC_ARC_PHASE', cxRatio: 0.50, cyRatio: 0.78, angleRad: 0.0, spanWRatio: 0.92, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0, formationIdx: 0, isMajorFlip: true, arrowAngle: Math.PI * 0.5, label: '' },
-      { mode: 'TILT_LEFT_CASCADE', cxRatio: 0.50, cyRatio: 0.78, angleRad: -15 * deg, spanWRatio: 0.91, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0, formationIdx: 2, isMajorFlip: false, arrowAngle: Math.PI * 0.5, label: '' },
-      { mode: 'CHORUS_TWIN_XCROSS', cxRatio: 0.50, cyRatio: 0.72, angleRad: 12 * deg, spanWRatio: 0.92, travelRatio: 0.74, diagFactor: 1.0, flowDir: 1.0, formationIdx: 4, isMajorFlip: true, arrowAngle: Math.PI * 0.5, label: '' },
-      { mode: 'SWEEP_FROM_LEFT', cxRatio: 0.50, cyRatio: 0.76, angleRad: -15 * deg, spanWRatio: 0.90, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0, formationIdx: 5, isMajorFlip: true, arrowAngle: Math.PI * 0.25, label: '' }
+    let madCruceSeed = ((filteredNotes.length * 2246822519) ^ Math.round(firstNoteT * 13) ^ Math.floor(Math.random() * 0x7fffffff)) >>> 0;
+    if (madCruceSeed === 0) madCruceSeed = 0x85ebca6b;
+    const madCruceRng = () => {
+      madCruceSeed = (madCruceSeed + 0x6D2B79F5) >>> 0;
+      let t = Math.imul(madCruceSeed ^ (madCruceSeed >>> 15), 1 | madCruceSeed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    const shuffleMadArr = (arr) => {
+      for (let s = arr.length - 1; s > 0; s--) {
+        const j = Math.floor(madCruceRng() * (s + 1));
+        const tmp = arr[s];
+        arr[s] = arr[j];
+        arr[j] = tmp;
+      }
+      return arr;
+    };
+
+    const madnessLaserScenes = [
+      { mode: 'SPOTLIGHT_PYRAMID', cxRatio: 0.50, cyRatio: 0.79, angleRad: 0.0, liveRockDeg: 3.5, spanWRatio: 0.92, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0, formationIdx: 0, isMajorFlip: false },
+      { mode: 'PANORAMIC_CROWN', cxRatio: 0.50, cyRatio: 0.74, angleRad: 9 * deg, liveRockDeg: 0, spanWRatio: 0.92, travelRatio: 0.75, diagFactor: 1.0, flowDir: 1.0, formationIdx: 1, isMajorFlip: true },
+      { mode: 'COMET_RAIN_LEFT', cxRatio: 0.50, cyRatio: 0.78, angleRad: 14 * deg, liveRockDeg: 0, spanWRatio: 0.91, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0, formationIdx: 2, isMajorFlip: false },
+      { mode: 'COMET_RAIN_RIGHT', cxRatio: 0.50, cyRatio: 0.78, angleRad: -14 * deg, liveRockDeg: 0, spanWRatio: 0.91, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0, formationIdx: 3, isMajorFlip: false },
+      { mode: 'TWIN_PORTAL_CATHEDRAL', cxRatio: 0.50, cyRatio: 0.73, angleRad: -8 * deg, liveRockDeg: 3.0, spanWRatio: 0.92, travelRatio: 0.75, diagFactor: 1.0, flowDir: 1.0, formationIdx: 4, isMajorFlip: true },
+      { mode: 'HARP_WEAVE_XCROSS', cxRatio: 0.50, cyRatio: 0.77, angleRad: 6 * deg, liveRockDeg: 0, spanWRatio: 0.92, travelRatio: 0.77, diagFactor: 1.0, flowDir: 1.0, formationIdx: 5, isMajorFlip: true },
+      { mode: 'DOUBLE_SCISSORS_NEON', cxRatio: 0.50, cyRatio: 0.76, angleRad: -11 * deg, liveRockDeg: 0, spanWRatio: 0.91, travelRatio: 0.76, diagFactor: 1.0, flowDir: 1.0, formationIdx: 6, isMajorFlip: true },
+      { mode: 'CONCERT_SEARCHLIGHTS', cxRatio: 0.50, cyRatio: 0.79, angleRad: 0.0, liveRockDeg: 4.5, spanWRatio: 0.92, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0, formationIdx: 7, isMajorFlip: false },
+      { mode: 'BREATHING_ACCORDION', cxRatio: 0.50, cyRatio: 0.75, angleRad: 12 * deg, liveRockDeg: 0, spanWRatio: 0.91, travelRatio: 0.76, diagFactor: 1.0, flowDir: 1.0, formationIdx: 8, isMajorFlip: false },
+      { mode: 'WAVE_CASCADE_S', cxRatio: 0.50, cyRatio: 0.72, angleRad: -12 * deg, liveRockDeg: 2.5, spanWRatio: 0.91, travelRatio: 0.74, diagFactor: 1.0, flowDir: 1.0, formationIdx: 9, isMajorFlip: true },
+      { mode: 'DIAMOND_HOURGLASS', cxRatio: 0.50, cyRatio: 0.77, angleRad: -5 * deg, liveRockDeg: 0, spanWRatio: 0.92, travelRatio: 0.77, diagFactor: 1.0, flowDir: 1.0, formationIdx: 10, isMajorFlip: true },
+      { mode: 'AURORA_RIPPLE_LIVE', cxRatio: 0.50, cyRatio: 0.76, angleRad: 10 * deg, liveRockDeg: 4.0, spanWRatio: 0.92, travelRatio: 0.77, diagFactor: 1.0, flowDir: 1.0, formationIdx: 11, isMajorFlip: false }
     ];
+    let madLaserDeck = [];
+    const pickMadnessLaserPose = (wantVoltaic) => {
+      if (wantVoltaic) {
+        return { mode: 'VOLTAIC_ARC_PHASE', cxRatio: 0.50, cyRatio: 0.78, angleRad: 0.0, liveRockDeg: 0, spanWRatio: 0.92, travelRatio: 0.78, diagFactor: 1.0, flowDir: 1.0, formationIdx: Math.floor(madCruceRng() * 12), isMajorFlip: true, arrowAngle: Math.PI * 0.5 };
+      }
+      if (madLaserDeck.length === 0) {
+        madLaserDeck = shuffleMadArr(madnessLaserScenes.slice());
+      }
+      return madLaserDeck.shift();
+    };
 
     const phrasePatterns = [
       [0, 2, 1, 3, 2, 0, 3, 1],
       [3, 1, 2, 0, 1, 3, 0, 2],
       [0, 3, 1, 2, 0, 2, 3, 1],
-      [1, 2, 0, 3, 2, 1, 3, 0]
+      [1, 2, 0, 3, 2, 1, 3, 0],
+      [2, 0, 3, 1, 0, 3, 2, 1],
+      [1, 3, 0, 2, 3, 0, 1, 2]
     ];
 
+    const madDragCatalog = [
+      { id: 'TRILL_CENTER_A', slots: [1, 2, 1, 2, 1], allowSub: true },
+      { id: 'TRILL_CENTER_B', slots: [2, 1, 2, 1, 2], allowSub: true },
+      { id: 'BOOMERANG_L', slots: [0, 1, 2, 1, 0], allowSub: false },
+      { id: 'BOOMERANG_R', slots: [3, 2, 1, 2, 3], allowSub: false },
+      { id: 'HOOK_WHIP_R', slots: [1, 1, 2, 3, 2], allowSub: false },
+      { id: 'HOOK_WHIP_L', slots: [2, 2, 1, 0, 1], allowSub: false },
+      { id: 'DOUBLE_PULSE_R', slots: [0, 0, 1, 1, 2], allowSub: true },
+      { id: 'DOUBLE_PULSE_L', slots: [3, 3, 2, 2, 1], allowSub: true },
+      { id: 'ZIGZAG_SNAKE_A', slots: [1, 2, 1, 0, 1], allowSub: false },
+      { id: 'ZIGZAG_SNAKE_B', slots: [2, 1, 2, 3, 2], allowSub: false },
+      { id: 'TRILL_OUTER_L', slots: [0, 1, 0, 1, 2], allowSub: false },
+      { id: 'TRILL_OUTER_R', slots: [3, 2, 3, 2, 1], allowSub: false }
+    ];
+    let madDragDeck = [];
+    const pickMadDragMotif = () => {
+      if (madDragDeck.length === 0) madDragDeck = shuffleMadArr(madDragCatalog.slice());
+      return madDragDeck.shift();
+    };
+    const resolveMadLookaheadDir = (arr, idx, fallbackSign) => {
+      const curS = arr[idx % arr.length];
+      for (let look = 1; look <= arr.length; look++) {
+        const nxt = arr[(idx + look) % arr.length];
+        if (nxt > curS) return 1;
+        if (nxt < curS) return -1;
+      }
+      return fallbackSign;
+    };
+
     let dragBurstCounter = 1;
+    let crucePhaseCounter = 0;
     for (let p = 0; p < plan.phases.length; p++) {
       const ph = plan.phases[p];
       if (ph.mode !== 'cruce') continue;
+      crucePhaseCounter++;
 
-      // Mantener cada posición de la línea de perfect en Modo Cruce durante ~8.2 a 11.0 segundos para evitar cambios frenéticos
-      const stepMs = Math.max(8200, Math.min(11000, barMs * 4.5));
+      // Mantener cada escena de la línea de perfect en Modo Cruce durante ~8.0 a 10.5s alternando haces variados y Fase Arco Voltaico
+      const stepMs = Math.max(8000, Math.min(10500, barMs * 4.3));
       let kCursor = ph.startMs;
       let poseStep = 0;
+      const startWithVoltaic = ((crucePhaseCounter % 2) === 1) ? (madCruceRng() < 0.65) : (madCruceRng() < 0.35);
       while (kCursor < ph.endMs - 1800) {
-        const pose = crucePoses[(poseStep) % crucePoses.length];
+        const wantVoltaic = startWithVoltaic ? (poseStep % 2 === 0) : (poseStep % 2 === 1);
+        const pose = pickMadnessLaserPose(wantVoltaic);
         this._cruceKeyframes.push({
           timeMs: kCursor,
           startMs: kCursor,
@@ -30855,13 +31357,14 @@ Object.assign(BeatstarEngine.prototype, {
           cxRatio: pose.cxRatio,
           cyRatio: pose.cyRatio,
           angleRad: pose.angleRad,
+          liveRockDeg: pose.liveRockDeg || 0,
           spanWRatio: pose.spanWRatio || 0.91,
-          travelRatio: pose.travelRatio || 0.74,
+          travelRatio: pose.travelRatio || 0.75,
           diagFactor: pose.diagFactor,
           flowDir: pose.flowDir,
           formationIdx: pose.formationIdx,
           isMajorFlip: Boolean(pose.isMajorFlip),
-          arrowAngle: pose.arrowAngle !== undefined ? pose.arrowAngle : ((Math.PI * 0.5) + pose.angleRad),
+          arrowAngle: pose.arrowAngle !== undefined ? pose.arrowAngle : ((Math.PI * 0.5) + (pose.angleRad || 0)),
           label: ''
         });
         kCursor += stepMs;
@@ -30951,29 +31454,30 @@ Object.assign(BeatstarEngine.prototype, {
         }
       }
 
-      // Escaleras y olas serpentinas densas de Drag Notes amarillas (Tapping Sweeps de guitarra para cortar con el dedo)
-      if (phaseCruceNotes.length >= 4) {
+      // Ráfagas variadas de Drag Notes amarillas (trinos cortos, bumeranes en V, pulsos dobles y ganchos sin repetir escaleras)
+      if (phaseCruceNotes.length >= 5) {
+        const r1 = 0.14 + madCruceRng() * 0.16;
+        const r2 = 0.56 + madCruceRng() * 0.18;
         const waveStarts = [
-          Math.max(0, Math.floor(phaseCruceNotes.length * 0.18)),
-          Math.floor(phaseCruceNotes.length * 0.56)
-        ];
-        const stairPatterns = [
-          [0, 1, 2, 3, 2, 1, 0, 1],
-          [3, 2, 1, 0, 1, 2, 3, 2]
+          Math.max(0, Math.floor(phaseCruceNotes.length * r1)),
+          Math.floor(phaseCruceNotes.length * r2)
         ];
         for (let wIdx = 0; wIdx < waveStarts.length; wIdx++) {
           const waveStart = waveStarts[wIdx];
           if (waveStart >= phaseCruceNotes.length - 2) continue;
-          const waveLen = Math.min(7, Math.max(4, Math.floor(phaseCruceNotes.length * 0.30)));
+          const waveLen = Math.min(5, Math.max(3, 3 + Math.floor(madCruceRng() * 3)));
           const burstId = dragBurstCounter++;
-          const waveCycle = stairPatterns[(burstId - 1) % stairPatterns.length];
+          const motif = pickMadDragMotif();
+          const waveCycle = motif.slots;
+          const allowSub = Boolean(motif.allowSub && waveLen <= 4 && madCruceRng() < 0.30);
           const burstBilateralDir = 1.0;
+          const defaultSign = (burstId % 2 === 1) ? 1 : -1;
           let stairStep = 0;
           for (let w = 0; w < waveLen && (waveStart + w) < phaseCruceNotes.length; w++) {
             const dn = phaseCruceNotes[waveStart + w];
             if (dn.type === 'hold' || dn._cruceChordPartner) continue;
             const waveSlot = waveCycle[stairStep % waveCycle.length];
-            const nextWaveSlot = waveCycle[(stairStep + 1) % waveCycle.length];
+            const slideDir = resolveMadLookaheadDir(waveCycle, stairStep, defaultSign);
             stairStep++;
             dn.lane = waveSlot;
             dn._cruceSlot = waveSlot;
@@ -30984,18 +31488,19 @@ Object.assign(BeatstarEngine.prototype, {
             dn.type = 'tap';
             dn._isCruceDrag = true;
             dn._cruceDragBurstId = burstId;
+            dn._cruceDragMotifId = motif.id;
             dn._cruceBilateralDir = burstBilateralDir;
-            dn._cruceSlideDir = nextWaveSlot >= waveSlot ? 1 : -1;
+            dn._cruceSlideDir = slideDir;
             dn._isCruceBurstHead = (w === 0);
             dn._isCruceBurstTail = (w === waveLen - 1 || (waveStart + w) === phaseCruceNotes.length - 1);
 
-            if (w < waveLen - 1 && (waveStart + w + 1) < phaseCruceNotes.length) {
+            if (allowSub && w < waveLen - 1 && (waveStart + w + 1) < phaseCruceNotes.length) {
               const nextDn = phaseCruceNotes[waveStart + w + 1];
               const gapMs = (nextDn.timestamp_ms || 0) - (dn.timestamp_ms || 0);
-              if (gapMs >= 185 && gapMs <= 650) {
+              if (gapMs >= 260 && gapMs <= 560) {
                 const subT = Math.round(dn.timestamp_ms + gapMs * 0.5);
                 const subSlot = waveCycle[stairStep % waveCycle.length];
-                const afterSubSlot = waveCycle[(stairStep + 1) % waveCycle.length];
+                const subDir = resolveMadLookaheadDir(waveCycle, stairStep, defaultSign);
                 stairStep++;
                 injectedExtraNotes.push({
                   id: 940000 + burstId * 100 + w,
@@ -31008,8 +31513,9 @@ Object.assign(BeatstarEngine.prototype, {
                   _cruceFormationIdx: dn._cruceFormationIdx || 0,
                   _isCruceDrag: true,
                   _cruceDragBurstId: burstId,
+                  _cruceDragMotifId: motif.id,
                   _cruceBilateralDir: burstBilateralDir,
-                  _cruceSlideDir: afterSubSlot >= subSlot ? 1 : -1,
+                  _cruceSlideDir: subDir,
                   _isCruceBurstHead: false,
                   _isCruceBurstTail: false,
                   _isCruceChordCompanion: true,
@@ -31483,21 +31989,35 @@ Object.assign(BeatstarEngine.prototype, {
       if (ctrl.getExpectedLaneCountAtTime(srcNote.timestamp_ms) < 4 || ctrl.getExpectedLaneCountAtTime(targetNote.timestamp_ms) < 4) continue;
       const dtNext = targetNote.timestamp_ms - srcNote.timestamp_ms;
       if (srcNote.timestamp_ms - lastEchoMs >= 8500 && dtNext >= 340 && dtNext <= 720) {
-        let hasNearbyHold = false;
-        for (let k = Math.max(0, i - 8); k < Math.min(finalNotes.length, i + 9); k++) {
+        const serveLane = (echoCount % 2 === 0) ? 0 : 3;
+        const rebLane = (serveLane === 0) ? 3 : 0;
+        let hasCollisionNearby = false;
+        for (let k = Math.max(0, i - 10); k < Math.min(finalNotes.length, i + 12); k++) {
+          if (k === i || k === i + 1) continue;
           const other = finalNotes[k];
-          if (!other || other.type !== 'hold') continue;
-          const hStart = other.timestamp_ms ?? 0;
-          const hEnd = other.end_timestamp_ms || (hStart + (other.duration_ms || 500));
-          if (targetNote.timestamp_ms >= hStart - 450 && srcNote.timestamp_ms <= hEnd + 450) {
-            hasNearbyHold = true;
+          if (!other) continue;
+          const oStart = other.timestamp_ms ?? 0;
+          const oEnd = (other.type === 'hold' && other.end_timestamp_ms) ? other.end_timestamp_ms : (other.end_timestamp_ms || oStart);
+          if (other.type === 'hold' && targetNote.timestamp_ms >= oStart - 450 && srcNote.timestamp_ms <= oEnd + 450) {
+            hasCollisionNearby = true;
+            break;
+          }
+          // Impedir que la pelota de tenis se cree sobre un acorde simultáneo o con otra nota en serveLane / rebLane
+          if (Math.abs(oStart - srcNote.timestamp_ms) <= 220 || Math.abs(oStart - targetNote.timestamp_ms) <= 240) {
+            hasCollisionNearby = true;
+            break;
+          }
+          if (other.lane === serveLane && srcNote.timestamp_ms >= oStart - 340 && srcNote.timestamp_ms <= oEnd + 340) {
+            hasCollisionNearby = true;
+            break;
+          }
+          if (other.lane === rebLane && targetNote.timestamp_ms >= oStart - 340 && targetNote.timestamp_ms <= oEnd + 340) {
+            hasCollisionNearby = true;
             break;
           }
         }
-        if (hasNearbyHold) continue;
+        if (hasCollisionNearby) continue;
 
-        const serveLane = (echoCount % 2 === 0) ? 0 : 3;
-        const rebLane = (serveLane === 0) ? 3 : 0;
         srcNote.lane = serveLane;
         srcNote._isPingPongServe = true;
         srcNote._splitPingPongTarget = targetNote;
@@ -31512,6 +32032,15 @@ Object.assign(BeatstarEngine.prototype, {
 
         lastEchoMs = targetNote.timestamp_ms;
         echoCount++;
+      }
+    }
+
+    // Pase final garantizado anti-solapamientos de pelotas de tenis y rebotes en todo el Modo Locura
+    if (typeof this._sanitizeAllReboundOverlaps === 'function') {
+      const sanitizedMadness = this._sanitizeAllReboundOverlaps(finalNotes);
+      if (sanitizedMadness !== finalNotes) {
+        finalNotes.length = 0;
+        finalNotes.push(...sanitizedMadness);
       }
     }
 

@@ -11,8 +11,8 @@ android {
         applicationId = "com.beatstar.renacer"
         minSdk = 24
         targetSdk = 35
-        versionCode = 46
-        versionName = "4.6.0"
+        versionCode = 47
+        versionName = "4.7.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
