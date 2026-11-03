@@ -23411,13 +23411,17 @@ class BeatstarEngine {
       const voltaicWindows = [];
       for (let k = 0; k < kfs.length; k++) {
         if (kfs[k].mode === 'VOLTAIC_ARC_PHASE') {
-          const startMs = kfs[k].timeMs + 220;
-          const nextKfEnd = (k + 1 < kfs.length) ? (kfs[k + 1].timeMs - 260) : (startMs + 12000);
-          const endMs = Number.isFinite(kfs[k].phaseEndMs)
-            ? Math.min(nextKfEnd, kfs[k].phaseEndMs - 220)
-            : nextKfEnd;
-          if (endMs > startMs + 700) {
-            voltaicWindows.push({ startMs, endMs, kfTimeMs: kfs[k].timeMs });
+          const kfTimeMs = kfs[k].timeMs;
+          const startMs = kfTimeMs + 240;
+          const nextKfTimeMs = (k + 1 < kfs.length) ? kfs[k + 1].timeMs : (startMs + 10500);
+          const hardEndMs = Number.isFinite(kfs[k].phaseEndMs)
+            ? Math.min(nextKfTimeMs, kfs[k].phaseEndMs)
+            : nextKfTimeMs;
+          // Terminar la generacion de elementos del Rayo de Luz 920ms antes del cambio de etapa
+          // para que ninguna linea seguida ni barra siga cayendo cuando ya ha terminado la fase
+          const endMs = hardEndMs - 920;
+          if (endMs > startMs + 650) {
+            voltaicWindows.push({ startMs, endMs, hardEndMs, kfTimeMs });
           }
         }
       }
@@ -23679,6 +23683,8 @@ class BeatstarEngine {
               isMine: false,
               _isVoltaicArc: true,
               _voltaicBeatMs: beatMs,
+              _voltaicWindowStartMs: win.kfTimeMs,
+              _voltaicWindowEndMs: win.hardEndMs,
               _voltaicKind: 'flow_line',
               _voltaicRibbonId: curRibbonId,
               _voltaicRibbonArchetype: sp.archetype,
@@ -23718,8 +23724,18 @@ class BeatstarEngine {
       }
 
       // Helper para crear una Línea de 4 Bombas Rojas (`bomb_wall`) a través de los 4 carriles (0, 1, 2, 3)
+      const resolveVoltaicWindowForTime = (tMs) => {
+        for (let w = 0; w < voltaicWindows.length; w++) {
+          if (tMs >= voltaicWindows[w].kfTimeMs && tMs <= voltaicWindows[w].hardEndMs) {
+            return voltaicWindows[w];
+          }
+        }
+        return voltaicWindows[0] || { kfTimeMs: 0, hardEndMs: Infinity };
+      };
       const spawnBombWallAt = (wallTimeMs, baseId, formationIdx) => {
         if (isInsideOrNearRibbon(wallTimeMs, 430)) return false;
+        const wRef = resolveVoltaicWindowForTime(wallTimeMs);
+        if (wallTimeMs > wRef.hardEndMs - 900) return false;
         for (let s = 0; s < 4; s++) {
           const wallMine = {
             id: baseId + s,
@@ -23734,6 +23750,8 @@ class BeatstarEngine {
             type: 'tap',
             isMine: true,
             _isVoltaicArc: true,
+            _voltaicWindowStartMs: wRef.kfTimeMs,
+            _voltaicWindowEndMs: wRef.hardEndMs,
             _isVoltaicMine: true,
             _isVoltaicBombWall: true,
             _isVoltaicBombWallLeader: (s === 0),
@@ -23772,15 +23790,30 @@ class BeatstarEngine {
         const nt = n.timestamp_ms ?? 0;
 
         let inVoltaic = false;
+        let inTransitionTail = false;
         let winStartMs = 0;
         let winEndMs = 0;
+        let winHardEndMs = 0;
+        let winKfTimeMs = 0;
         for (let w = 0; w < voltaicWindows.length; w++) {
           if (nt >= voltaicWindows[w].startMs && nt <= voltaicWindows[w].endMs) {
             inVoltaic = true;
             winStartMs = voltaicWindows[w].startMs;
             winEndMs = voltaicWindows[w].endMs;
+            winHardEndMs = voltaicWindows[w].hardEndMs;
+            winKfTimeMs = voltaicWindows[w].kfTimeMs;
+            break;
+          } else if (nt > voltaicWindows[w].endMs && nt <= voltaicWindows[w].hardEndMs + 120) {
+            inTransitionTail = true;
+            break;
+          } else if (nt >= voltaicWindows[w].kfTimeMs - 140 && nt < voltaicWindows[w].startMs) {
+            inTransitionTail = true;
             break;
           }
+        }
+        if (inTransitionTail) {
+          n._dropDuplicateCollapsed = true;
+          continue;
         }
         if (!inVoltaic) continue;
 
@@ -23806,6 +23839,8 @@ class BeatstarEngine {
         n._isCruceHopo = false;
         n._isVoltaicArc = true;
         n._voltaicBeatMs = beatMs;
+        n._voltaicWindowStartMs = winKfTimeMs;
+        n._voltaicWindowEndMs = winHardEndMs;
 
         let prevN = null;
         for (let p = i - 1; p >= 0; p--) {
@@ -24009,6 +24044,8 @@ class BeatstarEngine {
             type: 'tap',
             isMine: true,
             _isVoltaicArc: true,
+            _voltaicWindowStartMs: winKfTimeMs,
+            _voltaicWindowEndMs: winHardEndMs,
             _isVoltaicMine: true,
             _voltaicKind: 'spiked_orb',
             _voltaicDodgeMode: 'side_dodge',
@@ -26033,8 +26070,26 @@ class BeatstarEngine {
 
       // Actualizar extremos del Arco Eléctrico entre pulgares y comprobar captura / cortocircuitos en tiempo real durante FASE ARCO VOLTAICO
       this._updateVoltaicArcThumbEndpoints(currentTime);
-      if ((st.voltaicBlend || 0) > 0.15 || st.orientation === 'VOLTAIC_ARC_PHASE') {
+      const isVoltaicNow = ((st.voltaicBlend || 0) > 0.12 || st.orientation === 'VOLTAIC_ARC_PHASE');
+      if (isVoltaicNow) {
         this._checkAndCatchVoltaicNotes(currentTime, false);
+      } else if (Array.isArray(this.notes)) {
+        // Si la etapa del Rayo de Luz ya terminó y estamos en Cruce normal, limpiar cualquier nota voltaica residual
+        // para que nunca aparezca ni provoque fallos fuera de su submodo
+        const startCleanupIdx = Math.max(0, (this.firstActiveNoteIndex || 0) - 4);
+        for (let i = startCleanupIdx; i < this.notes.length; i++) {
+          const vn = this.notes[i];
+          if (!vn) continue;
+          if ((vn.timestamp_ms || 0) > currentTime + 1500) break;
+          if (vn._isVoltaicArc && !vn.hit && !vn.missed) {
+            if ((Number.isFinite(vn._voltaicWindowEndMs) && currentTime >= vn._voltaicWindowEndMs - 80) ||
+                (vn.timestamp_ms || 0) <= currentTime + 900) {
+              vn.hit = true;
+              vn.processed = true;
+              vn.missed = false;
+            }
+          }
+        }
       }
 
       if (!this._cruceSlotDragBufferUntil) this._cruceSlotDragBufferUntil = [0, 0, 0, 0];
@@ -26985,69 +27040,82 @@ class BeatstarEngine {
         }
         ctx.restore();
 
-        // 3B. Cinta de Plasma Serpentina (Slalom Ribbon) entre Nodos Conductores consecutivos de Fase Arco Voltaico
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        let prevCondPt = null;
-        for (let i = startIdx; i < len; i++) {
-          const n = this.notes[i];
-          if (!n || (isMadnessCruce && n._madnessPhase !== 'cruce') || !n._isVoltaicArc || n._voltaicKind !== 'conductor' || n._isVoltaicMine) {
-            if (n && n._isVoltaicArc && n._voltaicKind !== 'conductor') prevCondPt = null;
-            continue;
-          }
-          if (n.hit || n.missed) {
-            const dtHit = n.timestamp_ms - currentTime;
-            if (dtHit >= -100 && dtHit <= 35) {
-              const lxHit = this.getCruceNoteLocalX(n, 1.0);
-              prevCondPt = { x: lxHit, y: 0, streamId: n._voltaicStreamId || 0, scale: 1.0, t: n.timestamp_ms };
-            } else {
-              prevCondPt = null;
-            }
-            continue;
-          }
-          const dt = n.timestamp_ms - effTime;
-          if (dt > scrollDur * 1.05) break;
-          if (dt < -100) {
-            prevCondPt = null;
-            continue;
-          }
-          const rawP = 1.0 - (dt * invScrollDur);
-          if (rawP < 0.0) continue;
-          const dm = this._getCruceDepthPosition(rawP, null, false);
-          const pos = this.getCruceNoteLocalPos(n, dm.pDepth, st, flowDir);
-          if (prevCondPt && prevCondPt.streamId === (n._voltaicStreamId || 0) && Math.abs(n.timestamp_ms - prevCondPt.t) <= 520) {
-            const avgScale = (prevCondPt.scale + dm.scale) * 0.5;
-            const midX = (prevCondPt.x + pos.x) * 0.5;
-            const midY = (prevCondPt.y + pos.y) * 0.5;
-            ctx.strokeStyle = 'rgba(0, 242, 254, 0.28)';
-            ctx.lineWidth = Math.max(4.5, 11.0 * avgScale);
-            ctx.beginPath();
-            ctx.moveTo(prevCondPt.x, prevCondPt.y);
-            ctx.quadraticCurveTo(midX, midY, pos.x, pos.y);
-            ctx.stroke();
+        const isVoltaicStageVisible = (st.orientation === 'VOLTAIC_ARC_PHASE' || (st.voltaicBlend || 0) > 0.08);
 
-            ctx.strokeStyle = 'rgba(253, 224, 71, 0.62)';
-            ctx.lineWidth = Math.max(1.8, 3.4 * avgScale);
-            ctx.beginPath();
-            ctx.moveTo(prevCondPt.x, prevCondPt.y);
-            ctx.quadraticCurveTo(midX, midY, pos.x, pos.y);
-            ctx.stroke();
+        // 3B. Cinta de Plasma Serpentina (Slalom Ribbon) entre Nodos Conductores consecutivos de Fase Arco Voltaico
+        if (isVoltaicStageVisible) {
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          let prevCondPt = null;
+          for (let i = startIdx; i < len; i++) {
+            const n = this.notes[i];
+            if (!n || (isMadnessCruce && n._madnessPhase !== 'cruce') || !n._isVoltaicArc || n._voltaicKind !== 'conductor' || n._isVoltaicMine) {
+              if (n && n._isVoltaicArc && n._voltaicKind !== 'conductor') prevCondPt = null;
+              continue;
+            }
+            if (Number.isFinite(n._voltaicWindowEndMs) && currentTime >= n._voltaicWindowEndMs) {
+              prevCondPt = null;
+              continue;
+            }
+            if (n.hit || n.missed) {
+              const dtHit = n.timestamp_ms - currentTime;
+              if (dtHit >= -100 && dtHit <= 35) {
+                const lxHit = this.getCruceNoteLocalX(n, 1.0);
+                prevCondPt = { x: lxHit, y: 0, streamId: n._voltaicStreamId || 0, scale: 1.0, t: n.timestamp_ms };
+              } else {
+                prevCondPt = null;
+              }
+              continue;
+            }
+            const dt = n.timestamp_ms - effTime;
+            if (dt > scrollDur * 1.05) break;
+            if (dt < -100) {
+              prevCondPt = null;
+              continue;
+            }
+            const rawP = 1.0 - (dt * invScrollDur);
+            if (rawP < 0.0) continue;
+            const dm = this._getCruceDepthPosition(rawP, null, false);
+            const pos = this.getCruceNoteLocalPos(n, dm.pDepth, st, flowDir);
+            if (prevCondPt && prevCondPt.streamId === (n._voltaicStreamId || 0) && Math.abs(n.timestamp_ms - prevCondPt.t) <= 520) {
+              const avgScale = (prevCondPt.scale + dm.scale) * 0.5;
+              const midX = (prevCondPt.x + pos.x) * 0.5;
+              const midY = (prevCondPt.y + pos.y) * 0.5;
+              ctx.strokeStyle = 'rgba(0, 242, 254, 0.28)';
+              ctx.lineWidth = Math.max(4.5, 11.0 * avgScale);
+              ctx.beginPath();
+              ctx.moveTo(prevCondPt.x, prevCondPt.y);
+              ctx.quadraticCurveTo(midX, midY, pos.x, pos.y);
+              ctx.stroke();
+
+              ctx.strokeStyle = 'rgba(253, 224, 71, 0.62)';
+              ctx.lineWidth = Math.max(1.8, 3.4 * avgScale);
+              ctx.beginPath();
+              ctx.moveTo(prevCondPt.x, prevCondPt.y);
+              ctx.quadraticCurveTo(midX, midY, pos.x, pos.y);
+              ctx.stroke();
+            }
+            prevCondPt = { x: pos.x, y: pos.y, streamId: n._voltaicStreamId || 0, scale: dm.scale, t: n.timestamp_ms };
           }
-          prevCondPt = { x: pos.x, y: pos.y, streamId: n._voltaicStreamId || 0, scale: dm.scale, t: n.timestamp_ms };
+          ctx.restore();
         }
-        ctx.restore();
 
         // 3C. Malla de Seda Aurora 3D para Cintas de Líneas Seguidas (`flow_line` en Fase Arco Voltaico):
         // une los extremos izquierdo y derecho de cada línea consecutiva (ej. 0° -> 5° -> 11° -> ... -> 90°)
         // mostrando la torsión tridimensional exacta que los dos pulgares deben esculpir con el rayo
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        let prevFlowNode = null;
-        for (let i = startIdx; i < len; i++) {
-          const fn = this.notes[i];
-          if (!fn || (isMadnessCruce && fn._madnessPhase !== 'cruce') || !fn._isVoltaicArc || fn._voltaicKind !== 'flow_line') {
-            continue;
-          }
+        if (isVoltaicStageVisible) {
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          let prevFlowNode = null;
+          for (let i = startIdx; i < len; i++) {
+            const fn = this.notes[i];
+            if (!fn || (isMadnessCruce && fn._madnessPhase !== 'cruce') || !fn._isVoltaicArc || fn._voltaicKind !== 'flow_line') {
+              continue;
+            }
+            if (Number.isFinite(fn._voltaicWindowEndMs) && currentTime >= fn._voltaicWindowEndMs) {
+              prevFlowNode = null;
+              continue;
+            }
           if (fn.hit || fn.missed) {
             const dtHit = fn.timestamp_ms - currentTime;
             if (dtHit >= -130 && dtHit <= 45) {
@@ -27144,13 +27212,18 @@ class BeatstarEngine {
             col: fn._voltaicFlowColor || '#00f2fe',
             rgba: fn._voltaicFlowGlowRgba || 'rgba(0, 242, 254, 0.22)'
           };
+          }
+          ctx.restore();
         }
-        ctx.restore();
 
         // 4. Dibujar Tap Notes (Azules/Cian + HO/PO), Drag Slide Notes (Amarillas) y los Elementos de FASE ARCO VOLTAICO (incluidas Líneas de 4 Bombas y Cintas Esculpidas)
         for (let i = startIdx; i < len; i++) {
           const note = this.notes[i];
           if (!note || (isMadnessCruce && note._madnessPhase !== 'cruce') || note.hit || note.missed || note.type === 'hold') continue;
+          if (note._isVoltaicArc) {
+            if (!isVoltaicStageVisible) continue;
+            if (Number.isFinite(note._voltaicWindowEndMs) && currentTime >= note._voltaicWindowEndMs) continue;
+          }
           const noteT = note.timestamp_ms || 0;
           const dt = noteT - effTime;
           if (dt > scrollDur * 1.05) break;
@@ -30737,7 +30810,7 @@ Object.assign(BeatstarEngine.prototype, {
 
     // 1. Limpiar cualquier nota sintética previa y normalizar las notas base a 4 carriles (0..3)
     const rawNotes = this.notes
-      .filter((n) => n && !n._isCruceChordCompanion && !n._isSplitPingPongRebound && !n._isSyntheticEchoRebound && !n.isMine)
+      .filter((n) => n && !n._isCruceChordCompanion && !n._isSplitPingPongRebound && !n._isSyntheticEchoRebound && !n.isMine && !n._isVoltaicMine && n._voltaicKind !== 'flow_line')
       .sort((a, b) => (a.timestamp_ms ?? 0) - (b.timestamp_ms ?? 0));
 
     let maxRawLane = 0;
@@ -30776,6 +30849,15 @@ Object.assign(BeatstarEngine.prototype, {
       n._cruceDragBurstId = null;
       n._cruceChordPartner = null;
       n._isCruceAccent = false;
+      n._isVoltaicArc = false;
+      n._isVoltaicMine = false;
+      n._voltaicKind = null;
+      n._voltaicRibbonId = null;
+      n._isVoltaicFlowSubRung = false;
+      n._voltaicPrevRung = null;
+      n._voltaicWindowStartMs = null;
+      n._voltaicWindowEndMs = null;
+      n._dropDuplicateCollapsed = false;
       n._isPingPongServe = false;
       n._isPingPongBounce = false;
       n._isSplitPingPongRebound = false;
@@ -31341,18 +31423,54 @@ Object.assign(BeatstarEngine.prototype, {
       if (ph.mode !== 'cruce') continue;
       crucePhaseCounter++;
 
-      // Mantener cada escena de la línea de perfect en Modo Cruce durante ~8.0 a 10.5s alternando haces variados y Fase Arco Voltaico
-      const stepMs = Math.max(8000, Math.min(10500, barMs * 4.3));
-      let kCursor = ph.startMs;
-      let poseStep = 0;
-      const startWithVoltaic = ((crucePhaseCounter % 2) === 1) ? (madCruceRng() < 0.65) : (madCruceRng() < 0.35);
-      while (kCursor < ph.endMs - 1800) {
-        const wantVoltaic = startWithVoltaic ? (poseStep % 2 === 0) : (poseStep % 2 === 1);
-        const pose = pickMadnessLaserPose(wantVoltaic);
+      // Dividir la fase Cruce en etapas claramente delimitadas con phaseStartMs y phaseEndMs exactos,
+      // y añadir un keyframe de cierre en ph.endMs para que el submodo de Rayo de Luz (VOLTAIC_ARC_PHASE)
+      // jamás se extienda más allá de su etapa ni invada el modo Cruce normal
+      const phaseDurMs = Math.max(2000, ph.endMs - ph.startMs);
+      const startWithVoltaic = ((crucePhaseCounter % 2) === 1);
+      const phaseVoltaicRanges = [];
+
+      if (phaseDurMs >= 11200) {
+        const splitMs = Math.round(ph.startMs + phaseDurMs * 0.50);
+        const subSegments = [
+          { segStart: ph.startMs, segEnd: splitMs, wantVoltaic: startWithVoltaic },
+          { segStart: splitMs, segEnd: ph.endMs, wantVoltaic: !startWithVoltaic }
+        ];
+        for (let sIdx = 0; sIdx < subSegments.length; sIdx++) {
+          const seg = subSegments[sIdx];
+          const pose = pickMadnessLaserPose(seg.wantVoltaic);
+          this._cruceKeyframes.push({
+            timeMs: seg.segStart,
+            startMs: seg.segStart,
+            phaseStartMs: seg.segStart,
+            phaseEndMs: seg.segEnd,
+            transDurMs: pose.isMajorFlip ? 520 : 400,
+            mode: pose.mode,
+            cxRatio: pose.cxRatio,
+            cyRatio: pose.cyRatio,
+            angleRad: pose.angleRad,
+            liveRockDeg: pose.liveRockDeg || 0,
+            spanWRatio: pose.spanWRatio || 0.91,
+            travelRatio: pose.travelRatio || 0.75,
+            diagFactor: pose.diagFactor,
+            flowDir: pose.flowDir,
+            formationIdx: pose.formationIdx,
+            isMajorFlip: Boolean(pose.isMajorFlip),
+            arrowAngle: pose.arrowAngle !== undefined ? pose.arrowAngle : ((Math.PI * 0.5) + (pose.angleRad || 0)),
+            label: ''
+          });
+          if (pose.mode === 'VOLTAIC_ARC_PHASE') {
+            phaseVoltaicRanges.push({ startMs: seg.segStart, endMs: seg.segEnd });
+          }
+        }
+      } else {
+        const pose = pickMadnessLaserPose(startWithVoltaic);
         this._cruceKeyframes.push({
-          timeMs: kCursor,
-          startMs: kCursor,
-          transDurMs: pose.isMajorFlip ? 540 : 400,
+          timeMs: ph.startMs,
+          startMs: ph.startMs,
+          phaseStartMs: ph.startMs,
+          phaseEndMs: ph.endMs,
+          transDurMs: pose.isMajorFlip ? 520 : 400,
           mode: pose.mode,
           cxRatio: pose.cxRatio,
           cyRatio: pose.cyRatio,
@@ -31367,9 +31485,42 @@ Object.assign(BeatstarEngine.prototype, {
           arrowAngle: pose.arrowAngle !== undefined ? pose.arrowAngle : ((Math.PI * 0.5) + (pose.angleRad || 0)),
           label: ''
         });
-        kCursor += stepMs;
-        poseStep++;
+        if (pose.mode === 'VOLTAIC_ARC_PHASE') {
+          phaseVoltaicRanges.push({ startMs: ph.startMs, endMs: ph.endMs });
+        }
       }
+
+      // Keyframe centinela de cierre al terminar ph.endMs para cortar definitivamente cualquier VOLTAIC_ARC_PHASE
+      const closingPose = pickMadnessLaserPose(false);
+      this._cruceKeyframes.push({
+        timeMs: ph.endMs,
+        startMs: ph.endMs,
+        phaseStartMs: ph.endMs,
+        phaseEndMs: ph.endMs + 1000,
+        transDurMs: 360,
+        mode: closingPose.mode,
+        cxRatio: closingPose.cxRatio,
+        cyRatio: closingPose.cyRatio,
+        angleRad: closingPose.angleRad,
+        liveRockDeg: 0,
+        spanWRatio: closingPose.spanWRatio || 0.91,
+        travelRatio: closingPose.travelRatio || 0.75,
+        diagFactor: closingPose.diagFactor,
+        flowDir: closingPose.flowDir,
+        formationIdx: closingPose.formationIdx,
+        isMajorFlip: false,
+        arrowAngle: closingPose.arrowAngle !== undefined ? closingPose.arrowAngle : ((Math.PI * 0.5) + (closingPose.angleRad || 0)),
+        label: ''
+      });
+
+      const isInsidePhaseVoltaicRange = (tMs, marginMs = 150) => {
+        for (let r = 0; r < phaseVoltaicRanges.length; r++) {
+          if (tMs >= phaseVoltaicRanges[r].startMs - marginMs && tMs <= phaseVoltaicRanges[r].endMs + marginMs) {
+            return true;
+          }
+        }
+        return false;
+      };
 
       const phaseCruceNotes = [];
       for (let i = 0; i < filteredNotes.length; i++) {
@@ -31418,10 +31569,10 @@ Object.assign(BeatstarEngine.prototype, {
           const prevCT = cIdx > 0 ? phaseCruceNotes[cIdx - 1].timestamp_ms : -9999;
           const nextCT = (cIdx + 1 < phaseCruceNotes.length) ? phaseCruceNotes[cIdx + 1].timestamp_ms : 9999999;
           const gapPrevC = cn.timestamp_ms - prevCT;
-          if (cIdx > 0 && gapPrevC >= 75 && gapPrevC <= 265 && prevSlotBefore !== -1 && prevSlotBefore !== slot) {
+          if (cIdx > 0 && gapPrevC >= 75 && gapPrevC <= 265 && prevSlotBefore !== -1 && prevSlotBefore !== slot && !isInsidePhaseVoltaicRange(cn.timestamp_ms, 120)) {
             cn._isCruceHopo = true;
           }
-          if ((cIdx % 5 === 1) && (gapPrevC >= 250) && (nextCT - cn.timestamp_ms >= 250) && (cn.timestamp_ms - lastChordTime >= 1600)) {
+          if (!isInsidePhaseVoltaicRange(cn.timestamp_ms, 220) && (cIdx % 5 === 1) && (gapPrevC >= 250) && (nextCT - cn.timestamp_ms >= 250) && (cn.timestamp_ms - lastChordTime >= 1600)) {
             const partnerSlot = (slot < 2) ? (slot + 2) : (slot - 2);
             const companion = {
               id: 880000 + p * 200 + cIdx,
@@ -31454,7 +31605,7 @@ Object.assign(BeatstarEngine.prototype, {
         }
       }
 
-      // Ráfagas variadas de Drag Notes amarillas (trinos cortos, bumeranes en V, pulsos dobles y ganchos sin repetir escaleras)
+      // Ráfagas variadas de Drag Notes amarillas (solo en la sub-etapa de Cruce normal de 4 cuerdas, nunca dentro de VOLTAIC_ARC_PHASE)
       if (phaseCruceNotes.length >= 5) {
         const r1 = 0.14 + madCruceRng() * 0.16;
         const r2 = 0.56 + madCruceRng() * 0.18;
@@ -31465,6 +31616,8 @@ Object.assign(BeatstarEngine.prototype, {
         for (let wIdx = 0; wIdx < waveStarts.length; wIdx++) {
           const waveStart = waveStarts[wIdx];
           if (waveStart >= phaseCruceNotes.length - 2) continue;
+          const headProbe = phaseCruceNotes[waveStart];
+          if (headProbe && isInsidePhaseVoltaicRange(headProbe.timestamp_ms, 260)) continue;
           const waveLen = Math.min(5, Math.max(3, 3 + Math.floor(madCruceRng() * 3)));
           const burstId = dragBurstCounter++;
           const motif = pickMadDragMotif();
@@ -31475,7 +31628,7 @@ Object.assign(BeatstarEngine.prototype, {
           let stairStep = 0;
           for (let w = 0; w < waveLen && (waveStart + w) < phaseCruceNotes.length; w++) {
             const dn = phaseCruceNotes[waveStart + w];
-            if (dn.type === 'hold' || dn._cruceChordPartner) continue;
+            if (dn.type === 'hold' || dn._cruceChordPartner || isInsidePhaseVoltaicRange(dn.timestamp_ms, 220)) continue;
             const waveSlot = waveCycle[stairStep % waveCycle.length];
             const slideDir = resolveMadLookaheadDir(waveCycle, stairStep, defaultSign);
             stairStep++;
@@ -31497,7 +31650,7 @@ Object.assign(BeatstarEngine.prototype, {
             if (allowSub && w < waveLen - 1 && (waveStart + w + 1) < phaseCruceNotes.length) {
               const nextDn = phaseCruceNotes[waveStart + w + 1];
               const gapMs = (nextDn.timestamp_ms || 0) - (dn.timestamp_ms || 0);
-              if (gapMs >= 260 && gapMs <= 560) {
+              if (gapMs >= 260 && gapMs <= 560 && !isInsidePhaseVoltaicRange(dn.timestamp_ms + gapMs * 0.5, 220)) {
                 const subT = Math.round(dn.timestamp_ms + gapMs * 0.5);
                 const subSlot = waveCycle[stairStep % waveCycle.length];
                 const subDir = resolveMadLookaheadDir(waveCycle, stairStep, defaultSign);
