@@ -4,12 +4,14 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.util.Log
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
@@ -19,6 +21,7 @@ import android.webkit.JavascriptInterface
 import android.webkit.PermissionRequest
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
@@ -37,11 +40,9 @@ import java.util.concurrent.Executors
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
-    private lateinit var assetLoader: WebViewAssetLoader
-
-    // Callback para el selector de archivos nativo de Android
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
     private val FILE_CHOOSER_REQUEST_CODE = 1001
+    private lateinit var assetLoader: WebViewAssetLoader
 
     companion object {
         private val CORS_HEADERS = mapOf(
@@ -52,43 +53,37 @@ class MainActivity : AppCompatActivity() {
         )
 
         fun guessMimeType(path: String): String {
-            val clean = path.substringBefore('?').substringBefore('#').lowercase(Locale.ROOT)
+            val clean = path.lowercase(Locale.ROOT)
             return when {
                 clean.endsWith(".html") || clean.endsWith(".htm") -> "text/html"
                 clean.endsWith(".js") || clean.endsWith(".mjs") -> "application/javascript"
                 clean.endsWith(".css") -> "text/css"
                 clean.endsWith(".json") -> "application/json"
+                clean.endsWith(".wasm") -> "application/wasm"
+                clean.endsWith(".png") -> "image/png"
+                clean.endsWith(".jpg") || clean.endsWith(".jpeg") -> "image/jpeg"
+                clean.endsWith(".webp") -> "image/webp"
+                clean.endsWith(".svg") -> "image/svg+xml"
+                clean.endsWith(".gif") -> "image/gif"
+                clean.endsWith(".ico") -> "image/x-icon"
                 clean.endsWith(".mp3") -> "audio/mpeg"
                 clean.endsWith(".ogg") || clean.endsWith(".oga") -> "audio/ogg"
                 clean.endsWith(".wav") -> "audio/wav"
                 clean.endsWith(".m4a") -> "audio/mp4"
-                clean.endsWith(".png") -> "image/png"
-                clean.endsWith(".jpg") || clean.endsWith(".jpeg") -> "image/jpeg"
-                clean.endsWith(".webp") -> "image/webp"
-                clean.endsWith(".gif") -> "image/gif"
-                clean.endsWith(".svg") -> "image/svg+xml"
-                clean.endsWith(".ico") -> "image/x-icon"
-                clean.endsWith(".wasm") -> "application/wasm"
-                clean.endsWith(".woff2") -> "font/woff2"
-                clean.endsWith(".woff") -> "font/woff"
                 clean.endsWith(".ttf") -> "font/ttf"
+                clean.endsWith(".woff") -> "font/woff"
+                clean.endsWith(".woff2") -> "font/woff2"
                 else -> "application/octet-stream"
             }
         }
     }
 
-    /**
-     * Custom PathHandler que sirve archivos de assets/ sin emitir trazas de error Log.e
-     * cuando el cliente web comprueba la existencia opcional de canciones en /songs/.
-     */
     private class SilentAssetsPathHandler(private val context: Context) : WebViewAssetLoader.PathHandler {
         override fun handle(path: String): WebResourceResponse {
-            val cleanPath = path.trimStart('/')
-            if (cleanPath.isEmpty()) {
-                return notFoundResponse()
-            }
+            val trimmed = path.trimStart('/')
+            if (trimmed.isEmpty()) return notFoundResponse()
 
-            if (cleanPath == "api/songs" || cleanPath == "api/custom-songs") {
+            if (trimmed == "api/songs" || trimmed == "api/custom-songs") {
                 return WebResourceResponse(
                     "application/json",
                     "UTF-8",
@@ -98,30 +93,100 @@ class MainActivity : AppCompatActivity() {
                     ByteArrayInputStream("[]".toByteArray(Charsets.UTF_8))
                 )
             }
-
-            val candidates = LinkedHashSet<String>(6)
-            if (cleanPath == "api/leaderboard" || cleanPath == "leaderboard.json") {
-                candidates.add("www/leaderboard.json")
-            }
-            candidates.add(cleanPath)
-            if (!cleanPath.startsWith("www/")) {
-                candidates.add("www/$cleanPath")
-            }
-            if (cleanPath.startsWith("static/")) {
-                candidates.add("www/${cleanPath.removePrefix("static/")}")
-            } else if (cleanPath.startsWith("www/static/")) {
-                candidates.add("www/${cleanPath.removePrefix("www/static/")}")
-            }
-
-            val assetManager = context.assets
-            for (candidate in candidates) {
-                try {
-                    val stream: InputStream = assetManager.open(candidate)
-                    val mimeType = guessMimeType(candidate)
-                    val encoding = if (mimeType.startsWith("text/") || mimeType == "application/json" || mimeType == "application/javascript") "UTF-8" else null
-                    return WebResourceResponse(mimeType, encoding, 200, "OK", CORS_HEADERS, stream)
+            if (trimmed == "api/leaderboard" || trimmed == "leaderboard.json") {
+                return try {
+                    val stream = context.assets.open("www/leaderboard.json")
+                    WebResourceResponse("application/json", "UTF-8", 200, "OK", CORS_HEADERS, stream)
                 } catch (_: Exception) {
-                    // Continuar probando el siguiente candidato silenciosamente
+                    WebResourceResponse(
+                        "application/json",
+                        "UTF-8",
+                        200,
+                        "OK",
+                        CORS_HEADERS,
+                        ByteArrayInputStream("{}".toByteArray(Charsets.UTF_8))
+                    )
+                }
+            }
+
+            val cleanRel = trimmed
+                .removePrefix("www/")
+                .removePrefix("static/")
+                .substringBefore('?')
+            val isLiveSyncCoreFile = cleanRel == "game.html" ||
+                cleanRel == "index.html" ||
+                cleanRel == "game.js" ||
+                cleanRel == "parsers.js" ||
+                cleanRel == "styles.css" ||
+                cleanRel == "slot_machine.js" ||
+                cleanRel == "gachapon_3d.js"
+
+            if (isLiveSyncCoreFile) {
+                val liveDir = File(context.filesDir, "live_www")
+                val cachedFile = File(liveDir, if (cleanRel == "game.html") "index.html" else cleanRel)
+                val mime = guessMimeType(cleanRel)
+                val encoding = "UTF-8"
+
+                // 1. Intentar descargar la última versión en vivo de renacer.onrender.com (con timeout corto para no bloquear)
+                try {
+                    val remoteName = if (cleanRel == "game.html") "index.html" else cleanRel
+                    val remoteUrl = URL("https://renacer.onrender.com/$remoteName?t=${System.currentTimeMillis()}")
+                    val conn = (remoteUrl.openConnection() as HttpURLConnection).apply {
+                        requestMethod = "GET"
+                        connectTimeout = 2200
+                        readTimeout = 3500
+                        useCaches = false
+                        setRequestProperty("Accept-Encoding", "identity")
+                        setRequestProperty("Cache-Control", "no-cache")
+                    }
+                    if (conn.responseCode == 200) {
+                        val bytes = conn.inputStream.use { it.readBytes() }
+                        if (bytes.size > 512) {
+                            try {
+                                if (!liveDir.exists()) liveDir.mkdirs()
+                                cachedFile.writeBytes(bytes)
+                            } catch (_: Exception) {}
+                            return WebResourceResponse(mime, encoding, 200, "OK", CORS_HEADERS, ByteArrayInputStream(bytes))
+                        }
+                    }
+                } catch (_: Exception) {
+                    // Sin conexión o servidor despertando: usar caché sincronizada si es más reciente que el APK
+                }
+
+                // 2. Si hay una versión sincronizada guardada en disco más reciente que la instalación del APK, servirla offline
+                try {
+                    val pkgTime = try {
+                        context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime
+                    } catch (_: Exception) {
+                        0L
+                    }
+                    if (cachedFile.exists() && cachedFile.length() > 512L && cachedFile.lastModified() > pkgTime) {
+                        return WebResourceResponse(mime, encoding, 200, "OK", CORS_HEADERS, cachedFile.inputStream())
+                    }
+                } catch (_: Exception) {}
+            }
+
+            val candidates = linkedSetOf<String>()
+            if (trimmed.startsWith("www/")) {
+                candidates.add(trimmed)
+            } else {
+                candidates.add("www/$trimmed")
+            }
+            if (trimmed.startsWith("static/")) {
+                candidates.add("www/" + trimmed.removePrefix("static/"))
+            }
+            if (trimmed.startsWith("www/static/")) {
+                candidates.add("www/" + trimmed.removePrefix("www/static/"))
+            }
+
+            for (assetPath in candidates) {
+                try {
+                    val inputStream: InputStream = context.assets.open(assetPath)
+                    val mime = guessMimeType(assetPath)
+                    val encoding = if (mime.startsWith("text/") || mime == "application/json" || mime == "application/javascript") "UTF-8" else null
+                    return WebResourceResponse(mime, encoding, 200, "OK", CORS_HEADERS, inputStream)
+                } catch (_: Exception) {
+                    // Try next candidate
                 }
             }
 
@@ -140,83 +205,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun ensureDirectoryPath(root: File, relativePath: String) {
-        var current = root
-        for (part in relativePath.split('/')) {
-            if (part.isEmpty()) continue
-            current = File(current, part)
-            if (current.exists() && !current.isDirectory) {
-                current.delete()
-            }
-            if (!current.exists()) {
-                current.mkdirs()
-            }
-        }
-    }
-
-    private fun cleanupWebViewVariationsSeed(ctx: Context = this) {
-        try {
-            val webviewDirs = linkedSetOf<File>()
-            try {
-                webviewDirs.add(ctx.getDir("webview", Context.MODE_PRIVATE))
-            } catch (_: Exception) {
-            }
-            ctx.applicationInfo?.dataDir?.let { dataDir ->
-                webviewDirs.add(File(dataDir, "app_webview"))
-                webviewDirs.add(File(dataDir, "app_webview/Default"))
-            }
-            ctx.filesDir?.parentFile?.let { parent ->
-                webviewDirs.add(File(parent, "app_webview"))
-                webviewDirs.add(File(parent, "app_webview/Default"))
-            }
-
-            val seedNames = listOf(
-                "variations_seed",
-                "variations_seed_new",
-                "variations_seed_temp"
-            )
-            val now = System.currentTimeMillis()
-            for (dir in webviewDirs) {
-                if (!dir.exists()) {
-                    dir.mkdirs()
-                }
-                for (name in seedNames) {
-                    val f = File(dir, name)
-                    if (f.exists()) {
-                        f.delete()
-                    }
-                }
-                // Actualizar variations_stamp para que VariationsSeedLoader active shouldThrottleRequests()
-                // y no solicite semillas sin firma al VariationsSeedServer del emulador.
-                val stamp = File(dir, "variations_stamp")
-                if (!stamp.exists()) {
-                    stamp.createNewFile()
-                }
-                stamp.setLastModified(now)
-            }
-        } catch (_: Exception) {
-        }
-    }
-
-    private fun ensureWebViewCacheDirectories() {
-        try {
-            cleanupWebViewVariationsSeed(this)
-            val roots = listOfNotNull(cacheDir, codeCacheDir)
-            val subDirs = listOf(
-                "WebView/Default/HTTP Cache/Code Cache/js",
-                "WebView/Default/HTTP Cache/Code Cache/wasm",
-                "WebView/Default/HTTP Cache",
-                "org.chromium.android_webview"
-            )
-            for (root in roots) {
-                for (sub in subDirs) {
-                    ensureDirectoryPath(root, sub)
-                }
-            }
-        } catch (_: Exception) {
-        }
-    }
-
     override fun attachBaseContext(newBase: Context?) {
         if (newBase != null) {
             cleanupWebViewVariationsSeed(newBase)
@@ -224,91 +212,101 @@ class MainActivity : AppCompatActivity() {
         super.attachBaseContext(newBase)
     }
 
+    private fun cleanupWebViewVariationsSeed(ctx: Context = this) {
+        try {
+            val dirs = linkedSetOf<File>()
+            try {
+                dirs.add(ctx.getDir("webview", Context.MODE_PRIVATE))
+            } catch (_: Exception) {}
+            ctx.dataDir?.let { dataDir ->
+                dirs.add(File(dataDir, "app_webview"))
+                dirs.add(File(dataDir, "app_webview/Default"))
+            }
+            ctx.filesDir?.parentFile?.let { parent ->
+                dirs.add(File(parent, "app_webview"))
+                dirs.add(File(parent, "app_webview/Default"))
+            }
+            val seedNames = listOf("variations_seed", "variations_seed_new", "variations_seed_temp")
+            val now = System.currentTimeMillis()
+            for (dir in dirs) {
+                if (!dir.exists()) dir.mkdirs()
+                for (name in seedNames) {
+                    val f = File(dir, name)
+                    if (f.exists()) f.delete()
+                }
+                val stamp = File(dir, "variations_stamp")
+                if (!stamp.exists()) stamp.createNewFile()
+                stamp.setLastModified(now)
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun ensureDirectoryPath(dir: File) {
+        try {
+            if (dir.exists() && !dir.isDirectory) {
+                dir.delete()
+            }
+            if (!dir.exists()) {
+                dir.mkdirs()
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun ensureWebViewCacheDirectories() {
+        try {
+            val baseCache = cacheDir ?: return
+            ensureDirectoryPath(baseCache)
+            ensureDirectoryPath(File(baseCache, "WebView/Default/HTTP Cache"))
+            ensureDirectoryPath(File(baseCache, "WebView/Default/HTTP Cache/Code Cache/js"))
+            ensureDirectoryPath(File(baseCache, "WebView/Default/HTTP Cache/Code Cache/wasm"))
+            ensureDirectoryPath(File(baseCache, "org.chromium.android_webview"))
+        } catch (_: Exception) {}
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         cleanupWebViewVariationsSeed(this)
         super.onCreate(savedInstanceState)
-
-        // Pre-crear jerarquía de directorios de caché de Chromium WebView para evitar errores de simple_backend_impl.cc
         ensureWebViewCacheDirectories()
 
-        // 1. Mantener pantalla encendida y activar aceleración por hardware a nivel de ventana
-        window.addFlags(
-            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
-                WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED
-        )
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        // 2. Desbloquear modo de alta tasa de refresco (120Hz / 90Hz) manteniendo la resolución nativa
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                val display = this.display
-                if (display != null) {
-                    val modes = display.supportedModes
-                    val currentMode = display.mode
-                    var maxMode = currentMode
-                    var maxRate = currentMode.refreshRate
-                    for (mode in modes) {
-                        val sameRes = mode.physicalWidth == currentMode.physicalWidth &&
-                            mode.physicalHeight == currentMode.physicalHeight
-                        if (sameRes && mode.refreshRate > maxRate) {
-                            maxRate = mode.refreshRate
-                            maxMode = mode
-                        }
-                    }
-                    if (maxMode.modeId != currentMode.modeId) {
-                        val params = window.attributes
-                        params.preferredDisplayModeId = maxMode.modeId
-                        params.preferredRefreshRate = maxRate
-                        window.attributes = params
-                    }
-                }
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                @Suppress("DEPRECATION")
-                val windowManager = getSystemService(Context.WINDOW_SERVICE) as? WindowManager
-                @Suppress("DEPRECATION")
-                val display = windowManager?.defaultDisplay
-                if (display != null) {
-                    val modes = display.supportedModes
-                    val currentMode = display.mode
-                    var maxMode = currentMode
-                    var maxRate = currentMode.refreshRate
-                    for (mode in modes) {
-                        val sameRes = mode.physicalWidth == currentMode.physicalWidth &&
-                            mode.physicalHeight == currentMode.physicalHeight
-                        if (sameRes && mode.refreshRate > maxRate) {
-                            maxRate = mode.refreshRate
-                            maxMode = mode
-                        }
-                    }
-                    if (maxMode.modeId != currentMode.modeId) {
-                        val params = window.attributes
-                        params.preferredDisplayModeId = maxMode.modeId
-                        params.preferredRefreshRate = maxRate
-                        window.attributes = params
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.w("BeatstarApp", "No se pudo configurar 120Hz: ${e.message}")
-        }
-
-        // 3. Modo pantalla completa Edge-to-Edge
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             window.attributes.layoutInDisplayCutoutMode =
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
 
-        // 4. Asset Loader silencioso (sin falsos positivos de FileNotFoundException en Logcat)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            try {
+                val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    this.display
+                } else {
+                    @Suppress("DEPRECATION")
+                    windowManager.defaultDisplay
+                }
+                val modes = display?.supportedModes
+                val bestMode = modes?.maxByOrNull { it.refreshRate }
+                if (bestMode != null) {
+                    val params = window.attributes
+                    params.preferredDisplayModeId = bestMode.modeId
+                    params.preferredRefreshRate = bestMode.refreshRate
+                    window.attributes = params
+                }
+            } catch (e: Exception) {
+                Log.w("BeatstarApp", "No se pudo configurar 120Hz: ${e.message}")
+            }
+        }
+
         val silentHandler = SilentAssetsPathHandler(this)
         assetLoader = WebViewAssetLoader.Builder()
+            .setDomain("appassets.androidplatform.net")
             .addPathHandler("/assets/", silentHandler)
             .addPathHandler("/", silentHandler)
             .build()
 
-        // 5. Configuración de WebView con renderizado directo en la ventana acelerada por GPU (sin FBO intermedio que parpadee)
         webView = WebView(this).apply {
-            setBackgroundColor(0xFF06040A.toInt())
-            setLayerType(View.LAYER_TYPE_NONE, null)
+            setBackgroundColor(Color.parseColor("#06040A"))
+            setLayerType(View.LAYER_TYPE_HARDWARE, null)
             isFocusable = true
             isFocusableInTouchMode = true
             overScrollMode = View.OVER_SCROLL_NEVER
@@ -317,79 +315,82 @@ class MainActivity : AppCompatActivity() {
             isSoundEffectsEnabled = false
         }
 
-        val settings = webView.settings
-        settings.javaScriptEnabled = true
-        settings.domStorageEnabled = true
-        @Suppress("DEPRECATION")
-        settings.databaseEnabled = true
-        settings.mediaPlaybackRequiresUserGesture = false
-        settings.allowFileAccess = true
-        settings.allowContentAccess = true
-        @Suppress("DEPRECATION")
-        settings.allowFileAccessFromFileURLs = true
-        @Suppress("DEPRECATION")
-        settings.allowUniversalAccessFromFileURLs = true
-        settings.loadWithOverviewMode = true
-        settings.cacheMode = WebSettings.LOAD_NO_CACHE
-        @Suppress("DEPRECATION")
-        settings.setRenderPriority(WebSettings.RenderPriority.HIGH)
-        settings.javaScriptCanOpenWindowsAutomatically = true
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            databaseEnabled = true
+            mediaPlaybackRequiresUserGesture = false
+            allowFileAccess = true
+            allowContentAccess = true
+            @Suppress("DEPRECATION")
+            allowFileAccessFromFileURLs = true
+            @Suppress("DEPRECATION")
+            allowUniversalAccessFromFileURLs = true
+            loadWithOverviewMode = true
+            useWideViewPort = true
+            cacheMode = WebSettings.LOAD_NO_CACHE
+            @Suppress("DEPRECATION")
+            setRenderPriority(WebSettings.RenderPriority.HIGH)
+            javaScriptCanOpenWindowsAutomatically = true
+            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
         }
 
-        // 6. JavaScript Native Interface (con ejecución asíncrona para no bloquear el hilo de 120fps)
         webView.addJavascriptInterface(WebAppInterface(this), "AndroidNative")
 
-        // 7. Custom WebView Client
         webView.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(
                 view: WebView?,
                 request: WebResourceRequest?
             ): WebResourceResponse? {
                 val uri = request?.url ?: return super.shouldInterceptRequest(view, request)
+                val host = uri.host?.lowercase(Locale.ROOT) ?: ""
+                val path = uri.path ?: ""
 
-                // A. Archivos locales bajo appassets.androidplatform.net
-                if (uri.host == "appassets.androidplatform.net") {
-                    try {
-                        val response = assetLoader.shouldInterceptRequest(uri)
-                        if (response != null) return response
-                    } catch (_: Exception) {
-                    }
+                if (host == "appassets.androidplatform.net") {
+                    return assetLoader.shouldInterceptRequest(uri)
                 }
 
-                // B. Proxy nativo sin bloqueo CORS para descargas de canciones desde GitHub Releases
-                if (uri.host == "github.com" && uri.path?.startsWith("/Bruala33/renacer/releases/download/") == true) {
+                if ((host == "github.com" && path.contains("/Bruala33/renacer/releases/download/")) ||
+                    host.endsWith("githubusercontent.com")
+                ) {
                     if (request.method.equals("OPTIONS", ignoreCase = true)) {
-                        return WebResourceResponse("text/plain", "UTF-8", 200, "OK", CORS_HEADERS, ByteArrayInputStream(ByteArray(0)))
+                        return WebResourceResponse(
+                            "text/plain",
+                            "UTF-8",
+                            200,
+                            "OK",
+                            CORS_HEADERS,
+                            ByteArrayInputStream(ByteArray(0))
+                        )
                     }
-                    try {
-                        val conn = (URL(uri.toString()).openConnection() as HttpURLConnection).apply {
+                    var conn: HttpURLConnection? = null
+                    return try {
+                        conn = (URL(uri.toString()).openConnection() as HttpURLConnection).apply {
                             instanceFollowRedirects = true
                             connectTimeout = 8000
                             readTimeout = 20000
                             requestMethod = "GET"
                             setRequestProperty("User-Agent", "BeatstarRenacerAndroid/1.0")
                         }
-                        val status = conn.responseCode
-                        if (status in 200..299) {
+                        val code = conn.responseCode
+                        if (code in 200..299) {
                             val mime = guessMimeType(uri.path ?: "")
                             val encoding = if (mime == "application/json" || mime.startsWith("text/")) "UTF-8" else null
-                            return WebResourceResponse(mime, encoding, status, "OK", CORS_HEADERS, conn.inputStream)
+                            WebResourceResponse(mime, encoding, 200, "OK", CORS_HEADERS, conn.inputStream)
                         } else {
                             conn.disconnect()
-                            return WebResourceResponse(
+                            WebResourceResponse(
                                 "text/plain",
                                 "UTF-8",
-                                status.coerceIn(400, 599),
+                                code.coerceIn(400, 599),
                                 "Not Found",
                                 CORS_HEADERS,
                                 ByteArrayInputStream(ByteArray(0))
                             )
                         }
                     } catch (_: Exception) {
-                        return WebResourceResponse(
+                        try { conn?.disconnect() } catch (_: Exception) {}
+                        WebResourceResponse(
                             "text/plain",
                             "UTF-8",
                             502,
@@ -406,11 +407,11 @@ class MainActivity : AppCompatActivity() {
             override fun onReceivedError(
                 view: WebView?,
                 request: WebResourceRequest?,
-                error: android.webkit.WebResourceError?
+                error: WebResourceError?
             ) {
                 super.onReceivedError(view, request, error)
                 if (request?.isForMainFrame == true) {
-                    android.util.Log.w("BeatstarWeb", "Error cargando URL principal, activando fallback local: ${error?.description}")
+                    Log.e("BeatstarApp", "Error cargando URL principal, activando fallback local: ${error?.description}")
                     view?.post {
                         view.loadUrl("file:///android_asset/www/game.html")
                     }
@@ -418,17 +419,18 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // 8. WebChrome Client con permisos, logs y Selector de Audio nativo
         webView.webChromeClient = object : WebChromeClient() {
+            override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
+                consoleMessage?.let {
+                    Log.d("BeatstarWeb", "[${it.messageLevel()}] ${it.message()} (${it.sourceId()}:${it.lineNumber()})")
+                }
+                return true
+            }
+
             override fun onPermissionRequest(request: PermissionRequest?) {
                 request?.grant(request.resources)
             }
 
-            override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
-                return true
-            }
-
-            // Habilita <input type="file"> para abrir el explorador de archivos
             override fun onShowFileChooser(
                 webView: WebView?,
                 filePathCallback: ValueCallback<Array<Uri>>?,
@@ -437,53 +439,33 @@ class MainActivity : AppCompatActivity() {
                 this@MainActivity.filePathCallback?.onReceiveValue(null)
                 this@MainActivity.filePathCallback = filePathCallback
 
-                val acceptTypes = fileChooserParams?.acceptTypes
-                val mimeList = mutableListOf<String>()
-                if (acceptTypes != null && acceptTypes.isNotEmpty()) {
-                    for (t in acceptTypes) {
-                        for (sub in t.split(",")) {
-                            val trimmed = sub.trim()
-                            if (trimmed.isNotBlank()) mimeList.add(trimmed)
-                        }
-                    }
-                }
-
                 val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
                     addCategory(Intent.CATEGORY_OPENABLE)
-                    if (mimeList.size == 1 && !mimeList[0].contains("*/*")) {
-                        type = mimeList[0]
-                    } else if (mimeList.isNotEmpty()) {
-                        type = "*/*"
-                        putExtra(Intent.EXTRA_MIME_TYPES, mimeList.toTypedArray())
-                    } else {
-                        type = "*/*"
+                    type = "*/*"
+                    val mimeTypes = fileChooserParams?.acceptTypes?.filter { it.isNotBlank() }?.toTypedArray()
+                    if (mimeTypes != null && mimeTypes.isNotEmpty() && mimeTypes.any { it.contains("/") }) {
+                        putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes)
                     }
                 }
-
-                @Suppress("DEPRECATION")
-                startActivityForResult(
-                    Intent.createChooser(intent, "Seleccionar Archivo"),
-                    FILE_CHOOSER_REQUEST_CODE
-                )
-                return true
+                return try {
+                    startActivityForResult(Intent.createChooser(intent, "Seleccionar Archivo"), FILE_CHOOSER_REQUEST_CODE)
+                    true
+                } catch (e: Exception) {
+                    this@MainActivity.filePathCallback = null
+                    false
+                }
             }
         }
 
         setContentView(webView)
-
-        // 9. Limpiar caché de WebView y cargar la versión actualizada del juego
         webView.clearCache(true)
-        webView.loadUrl("https://appassets.androidplatform.net/assets/www/game.html?v=49.0")
-
+        webView.loadUrl("https://appassets.androidplatform.net/assets/www/game.html?v=50.0")
         hideSystemUI()
     }
 
-    // Manejador del archivo de audio seleccionado
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode == FILE_CHOOSER_REQUEST_CODE) {
-            if (filePathCallback == null) return
-
             val results: Array<Uri>? = if (resultCode == Activity.RESULT_OK && data != null) {
                 val dataString = data.dataString
                 if (dataString != null) {
@@ -495,25 +477,13 @@ class MainActivity : AppCompatActivity() {
                         uris.add(data.clipData!!.getItemAt(i).uri)
                     }
                     uris.toTypedArray()
-                } else {
-                    null
-                }
-            } else {
-                null
-            }
+                } else null
+            } else null
 
             filePathCallback?.onReceiveValue(results)
             filePathCallback = null
         } else {
-            @Suppress("DEPRECATION")
             super.onActivityResult(requestCode, resultCode, data)
-        }
-    }
-
-    override fun onWindowFocusChanged(hasFocus: Boolean) {
-        super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) {
-            hideSystemUI()
         }
     }
 
@@ -522,8 +492,7 @@ class MainActivity : AppCompatActivity() {
             window.setDecorFitsSystemWindows(false)
             window.insetsController?.let { controller ->
                 controller.hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
-                controller.systemBarsBehavior =
-                    WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                controller.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             }
         } else {
             @Suppress("DEPRECATION")
@@ -535,6 +504,13 @@ class MainActivity : AppCompatActivity() {
                     or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                     or View.SYSTEM_UI_FLAG_FULLSCREEN
             )
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            hideSystemUI()
         }
     }
 
@@ -555,15 +531,6 @@ class MainActivity : AppCompatActivity() {
     override fun onStop() {
         cleanupWebViewVariationsSeed(this)
         super.onStop()
-        if (::webView.isInitialized) {
-            try {
-                webView.evaluateJavascript("if (typeof window.onAppBackground === 'function') { window.onAppBackground(); }", null)
-                webView.onPause()
-                webView.pauseTimers()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
     }
 
     override fun onResume() {
@@ -585,29 +552,34 @@ class MainActivity : AppCompatActivity() {
         cleanupWebViewVariationsSeed(this)
         if (::webView.isInitialized) {
             try {
-                webView.evaluateJavascript("if (typeof window.onAppBackground === 'function') { window.onAppBackground(); }", null)
+                webView.stopLoading()
                 webView.destroy()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+            } catch (_: Exception) {}
         }
         super.onDestroy()
     }
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
-        webView.evaluateJavascript("if (typeof engine !== 'undefined' && engine && engine.isRunning) { if (engine.isPaused) { resumeGame(); } else { openPauseModal(); } } else if (typeof exitToSearch === 'function') { exitToSearch(); }", null)
+        webView.evaluateJavascript(
+            "if (typeof engine !== 'undefined' && engine && engine.isRunning) { if (engine.isPaused) { resumeGame(); } else { openPauseModal(); } } else if (typeof exitToSearch === 'function') { exitToSearch(); }",
+            null
+        )
     }
 
     class WebAppInterface(private val context: Context) {
         private val hapticExecutor = Executors.newSingleThreadExecutor()
         private val vibrator: Vibrator? by lazy {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
-                vm?.defaultVibrator
-            } else {
-                @Suppress("DEPRECATION")
-                context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                    vm?.defaultVibrator
+                } else {
+                    @Suppress("DEPRECATION")
+                    context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+                }
+            } catch (_: Exception) {
+                null
             }
         }
 
@@ -623,14 +595,8 @@ class MainActivity : AppCompatActivity() {
                         @Suppress("DEPRECATION")
                         vib.vibrate(dur)
                     }
-                } catch (_: Exception) {
-                }
+                } catch (_: Exception) {}
             }
-        }
-
-        @JavascriptInterface
-        fun isAndroidNative(): Boolean {
-            return true
         }
 
         @JavascriptInterface
@@ -644,17 +610,20 @@ class MainActivity : AppCompatActivity() {
                     pInfo.versionCode
                 }
             } catch (e: Exception) {
-                34
+                49
             }
         }
 
         @JavascriptInterface
+        fun isAndroidNative(): Boolean = true
+
+        @JavascriptInterface
         fun openBrowser(url: String) {
             try {
-                val fullUrl = if (!url.startsWith("http://") && !url.startsWith("https://")) {
-                    "https://renacer.onrender.com" + if (url.startsWith("/")) url else "/$url"
-                } else {
+                val fullUrl = if (url.startsWith("http://") || url.startsWith("https://")) {
                     url
+                } else {
+                    "https://renacer.onrender.com/${url.trimStart('/')}"
                 }
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fullUrl)).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

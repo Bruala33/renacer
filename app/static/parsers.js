@@ -2532,6 +2532,34 @@ class IndexedDBStorage {
     });
   }
 
+  static async putFavoriteRecord(chartItem) {
+    if (!chartItem || !chartItem.id) return false;
+    const db = await this.openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(this.STORE_FAVORITES, 'readwrite');
+      const store = tx.objectStore(this.STORE_FAVORITES);
+      const favRecord = {
+        id: chartItem.id,
+        title: chartItem.title || 'Canción Favorita',
+        artist: chartItem.artist || 'Artista',
+        creator: chartItem.creator || 'Catálogo',
+        source: chartItem.source || 'official',
+        source_name: chartItem.source_name || '',
+        thumbnail: chartItem.thumbnail || '',
+        download_url: chartItem.download_url || '',
+        direct_download_url: chartItem.direct_download_url || '',
+        fallback_download_url: chartItem.fallback_download_url || '',
+        difficulties: Array.isArray(chartItem.difficulties) ? chartItem.difficulties : [],
+        is_community: Boolean(chartItem.is_community),
+        audio_url: chartItem.audio_url || '',
+        addedAt: Number(chartItem.addedAt) || Date.now()
+      };
+      const req = store.put(favRecord);
+      req.onsuccess = () => resolve(true);
+      req.onerror = (e) => reject(e.target.error);
+    });
+  }
+
   static async isFavorite(chartId) {
     const db = await this.openDB();
     return new Promise((resolve) => {

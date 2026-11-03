@@ -193,7 +193,9 @@ function computeProfileRichnessServer(prof) {
     ? Object.keys(prof.highscores).length
     : 0;
   const favCount = Array.isArray(prof.favorites) ? prof.favorites.length : 0;
-  return clefsBonus + medalsBonus + (paidModes * 1500) + (effectsCount * 600) + (hsCount * 350) + (favCount * 50);
+  const favRecCount = Array.isArray(prof.favorite_records) ? prof.favorite_records.length : 0;
+  const plCount = Array.isArray(prof.playlists) ? prof.playlists.length : 0;
+  return clefsBonus + medalsBonus + (paidModes * 1500) + (effectsCount * 600) + (hsCount * 350) + (Math.max(favCount, favRecCount) * 60) + (plCount * 200);
 }
 
 function buildProfileSummaryServer(prof) {
@@ -206,6 +208,11 @@ function buildProfileSummaryServer(prof) {
   const hsCount = prof.highscores && typeof prof.highscores === 'object'
     ? Object.keys(prof.highscores).length
     : 0;
+  const favCount = Math.max(
+    Array.isArray(prof.favorites) ? prof.favorites.length : 0,
+    Array.isArray(prof.favorite_records) ? prof.favorite_records.length : 0
+  );
+  const plCount = Array.isArray(prof.playlists) ? prof.playlists.length : 0;
   return {
     player_name: prof.player_name || 'Jugador',
     recovery_code: prof.recovery_code || '',
@@ -218,6 +225,8 @@ function buildProfileSummaryServer(prof) {
     unlocked_modes_count: unlockedModesList.length,
     songs_count: hsCount,
     effects_count: Array.isArray(prof.unlocked_effects) ? prof.unlocked_effects.length : 1,
+    favorites_count: favCount,
+    playlists_count: plCount,
     updated_at: prof.updated_at || null
   };
 }
@@ -290,12 +299,102 @@ function sanitizeAndMergeProfileServer(existing, incoming, isOwnerVerified = tru
     for (let i = 600; i < hsKeys.length; i++) delete highscores[hsKeys[i]];
   }
 
-  // Unión de favoritos
+  // Unión de favoritos (IDs + registros completos de canciones favoritas para restaurarlas en cualquier dispositivo)
   const favSet = new Set();
-  for (const fList of [base.favorites, inc.favorites]) {
+  const favSources = (isOwnerVerified && inc.favorites_authoritative === true && Array.isArray(inc.favorites))
+    ? [inc.favorites]
+    : [base.favorites, inc.favorites];
+  for (const fList of favSources) {
     if (Array.isArray(fList)) {
       for (const fId of fList.slice(0, 300)) {
         if (typeof fId === 'string' && fId.trim() && fId.length <= 140) favSet.add(fId.trim());
+      }
+    }
+  }
+
+  const favRecordsMap = new Map();
+  const favRecSources = (isOwnerVerified && inc.favorites_authoritative === true && Array.isArray(inc.favorite_records))
+    ? [base.favorite_records, inc.favorite_records]
+    : [base.favorite_records, inc.favorite_records];
+  for (const rList of favRecSources) {
+    if (Array.isArray(rList)) {
+      for (const rec of rList.slice(0, 300)) {
+        if (!rec || typeof rec !== 'object' || !rec.id) continue;
+        const cleanId = String(rec.id).trim().slice(0, 140);
+        if (!cleanId) continue;
+        if (isOwnerVerified && inc.favorites_authoritative === true && !favSet.has(cleanId)) continue;
+        favSet.add(cleanId);
+        favRecordsMap.set(cleanId, {
+          id: cleanId,
+          title: String(rec.title || 'Canción Favorita').slice(0, 140),
+          artist: String(rec.artist || 'Artista').slice(0, 140),
+          creator: String(rec.creator || 'Catálogo').slice(0, 80),
+          source: String(rec.source || 'official').slice(0, 40),
+          source_name: String(rec.source_name || '').slice(0, 60),
+          thumbnail: String(rec.thumbnail || '').slice(0, 400),
+          download_url: String(rec.download_url || '').slice(0, 400),
+          direct_download_url: String(rec.direct_download_url || '').slice(0, 400),
+          fallback_download_url: String(rec.fallback_download_url || '').slice(0, 400),
+          difficulties: Array.isArray(rec.difficulties) ? rec.difficulties.slice(0, 12).map(d => ({
+            id: String(d?.id || 'default').slice(0, 60),
+            name: String(d?.name || 'Normal').slice(0, 60),
+            stars: Number(d?.stars) || 3.5,
+            label: String(d?.label || '').slice(0, 80)
+          })) : [],
+          is_community: Boolean(rec.is_community),
+          audio_url: String(rec.audio_url || '').slice(0, 400),
+          addedAt: Number(rec.addedAt) || Date.now()
+        });
+      }
+    }
+  }
+
+  // Fusión de Playlists creadas o importadas por el usuario
+  const playlistsMap = new Map();
+  const plSources = (isOwnerVerified && inc.playlists_authoritative === true && Array.isArray(inc.playlists))
+    ? [inc.playlists]
+    : [base.playlists, inc.playlists];
+  for (const pList of plSources) {
+    if (Array.isArray(pList)) {
+      for (const pl of pList.slice(0, 80)) {
+        if (!pl || typeof pl !== 'object') continue;
+        const plId = String(pl.id || '').trim().slice(0, 100);
+        const plTitle = String(pl.title || 'Playlist').trim().slice(0, 120);
+        if (!plId && !plTitle) continue;
+        const mapKey = plId || `title:${plTitle.toLowerCase()}`;
+        const prevPl = playlistsMap.get(mapKey);
+        const rawTracks = Array.isArray(pl.tracks) ? pl.tracks : [];
+        const mergedTracksMap = new Map();
+        if (prevPl && Array.isArray(prevPl.tracks)) {
+          for (const t of prevPl.tracks) {
+            if (t && (t.id || t.title)) mergedTracksMap.set(String(t.id || t.title), t);
+          }
+        }
+        for (const t of rawTracks.slice(0, 250)) {
+          if (!t || typeof t !== 'object') continue;
+          const tId = String(t.id || '').trim().slice(0, 120);
+          const tTitle = String(t.title || 'Pista').trim().slice(0, 160);
+          if (!tId && !tTitle) continue;
+          mergedTracksMap.set(tId || tTitle, {
+            id: tId || `tr_${mergedTracksMap.size}`,
+            title: tTitle,
+            artist: String(t.artist || (Array.isArray(t.artists) ? t.artists.join(', ') : 'Artista')).slice(0, 140),
+            thumbnail: String(t.thumbnail || '').slice(0, 400),
+            source: String(t.source || '').slice(0, 40),
+            download_url: String(t.download_url || '').slice(0, 400),
+            direct_download_url: String(t.direct_download_url || '').slice(0, 400),
+            duration_seconds: Number(t.duration_seconds) || 0
+          });
+        }
+        const finalTracks = Array.from(mergedTracksMap.values()).slice(0, 250);
+        playlistsMap.set(mapKey, {
+          id: plId || prevPl?.id || `pl_${Date.now()}_${playlistsMap.size}`,
+          title: plTitle || prevPl?.title || 'Playlist',
+          item_count: finalTracks.length,
+          tracks: finalTracks,
+          source: String(pl.source || prevPl?.source || 'custom').slice(0, 40),
+          createdAt: Number(pl.createdAt || prevPl?.createdAt) || Date.now()
+        });
       }
     }
   }
@@ -344,9 +443,11 @@ function sanitizeAndMergeProfileServer(existing, incoming, isOwnerVerified = tru
     : (base.active_effect || 'solar_inferno');
 
   const resolvedPinHash = base.pin_hash || base.password_hash || inc.pin_hash || inc.password_hash || '';
+  const resolvedAccountToken = String(base.account_token || inc.account_token || '').trim().slice(0, 80);
   return {
     player_name: String(inc.player_name || base.player_name || 'Jugador').trim().slice(0, 24),
     recovery_code: base.recovery_code || inc.recovery_code || '',
+    account_token: resolvedAccountToken,
     has_password: Boolean(resolvedPinHash),
     pin_hash: resolvedPinHash,
     password_hash: resolvedPinHash,
@@ -356,6 +457,8 @@ function sanitizeAndMergeProfileServer(existing, incoming, isOwnerVerified = tru
     active_effect: activeEffect,
     highscores,
     favorites: Array.from(favSet),
+    favorite_records: Array.from(favRecordsMap.values()),
+    playlists: Array.from(playlistsMap.values()),
     weekly_history,
     settings,
     updated_at: new Date().toISOString()
@@ -366,24 +469,17 @@ function registerOrMergeCanonicalProfileServer(rawKeyOrCode, incomingProf) {
   if (!incomingProf || typeof incomingProf !== 'object') return null;
   const displayName = String(incomingProf.player_name || rawKeyOrCode || '').trim().slice(0, 24);
   const nmLower = displayName.toLowerCase();
-  if (!nmLower || nmLower === 'test' || nmLower === 'tester' || nmLower === 'prueba' || nmLower === 'dummy' || nmLower === 'jugador') {
+  if (!nmLower || nmLower === 'jugador' || nmLower === 'jugador anónimo' || nmLower === 'jugador anonimo') {
     return null;
   }
 
   let canonicalCode = playerProfileCodeByName.get(nmLower) || '';
-  const candidateCode = normalizeRecoveryCodeServer(incomingProf.recovery_code || rawKeyOrCode);
   if (!canonicalCode) {
-    if (candidateCode && !playerProfilesByCode.has(candidateCode)) {
-      canonicalCode = candidateCode;
-    } else if (candidateCode && String(playerProfilesByCode.get(candidateCode)?.player_name || '').trim().toLowerCase() === nmLower) {
-      canonicalCode = candidateCode;
-    } else {
-      const digest = crypto.createHash('md5').update(`rnc_user:${nmLower}`).digest('hex').toUpperCase().slice(0, 6);
-      canonicalCode = `RNC-${digest}`;
-    }
+    const digest = crypto.createHash('md5').update(`rnc_user:${nmLower}`).digest('hex').toUpperCase().slice(0, 6);
+    canonicalCode = `RNC-${digest}`;
   }
 
-  const prevProf = playerProfilesByCode.get(canonicalCode) || (candidateCode ? playerProfilesByCode.get(candidateCode) : null) || null;
+  const prevProf = playerProfilesByCode.get(canonicalCode) || null;
   const merged = sanitizeAndMergeProfileServer(prevProf, {
     ...incomingProf,
     player_name: displayName,
@@ -391,19 +487,14 @@ function registerOrMergeCanonicalProfileServer(rawKeyOrCode, incomingProf) {
   }, true);
   merged.player_name = displayName;
   merged.recovery_code = canonicalCode;
-  const pHash = incomingProf.pin_hash || incomingProf.password_hash || prevProf?.pin_hash || prevProf?.password_hash || '';
+  const pHash = prevProf?.pin_hash || prevProf?.password_hash || incomingProf.pin_hash || incomingProf.password_hash || '';
   if (pHash) {
     merged.pin_hash = pHash;
     merged.password_hash = pHash;
     merged.has_password = true;
   }
-
-  // Si habia un codigo antiguo duplicado para el mismo usuario, limpiarlo para dejar un unico perfil por nombre de usuario
-  if (candidateCode && candidateCode !== canonicalCode && playerProfilesByCode.has(candidateCode)) {
-    const dup = playerProfilesByCode.get(candidateCode);
-    if (String(dup?.player_name || '').trim().toLowerCase() === nmLower) {
-      playerProfilesByCode.delete(candidateCode);
-    }
+  if (prevProf?.account_token || incomingProf.account_token) {
+    merged.account_token = String(prevProf?.account_token || incomingProf.account_token || '').trim().slice(0, 80);
   }
 
   playerProfilesByCode.set(canonicalCode, merged);
@@ -601,7 +692,7 @@ function buildConsolidatedLeaderboardJson() {
   for (const [, prof] of playerProfilesByCode.entries()) {
     const pName = String(prof?.player_name || '').trim();
     const nmLower = pName.toLowerCase();
-    if (!nmLower || nmLower === 'test' || nmLower === 'tester' || nmLower === 'prueba' || nmLower === 'dummy' || nmLower === 'jugador') continue;
+    if (!nmLower || nmLower === 'jugador' || nmLower === 'jugador anónimo' || nmLower === 'jugador anonimo') continue;
     const existing = uniqueByName.get(nmLower);
     if (!existing || computeProfileRichnessServer(prof) >= computeProfileRichnessServer(existing)) {
       uniqueByName.set(nmLower, prof);
@@ -1182,10 +1273,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 49,
-    version_name: '4.9.0',
-    release_notes: 'Piano Community v4.9.0: Respaldo y recuperacion de progreso en la nube, Modo Split (1000 claves), haces laser variados, patrones Drag variados, tamaño uniforme en Modo Cruce y cero solapamientos en pelotas de tenis.',
-    download_url: '/download/apk?v=49.0',
+    version_code: 50,
+    version_name: '5.0.0',
+    release_notes: 'Piano Community v5.0.0: Sincronizacion en vivo APK-Web, cuentas unicas protegidas por contrasena, restauracion completa de favoritos y playlists, y correccion del haz de luz en Modo Locura.',
+    download_url: '/download/apk?v=50.0',
   });
 });
 
@@ -1541,10 +1632,10 @@ app.all(['/download/apk', '/api/v1/app/download_apk', '/PianoCommunity.apk', '/s
 
   if (validApks.length > 0) {
     validApks.sort((a, b) => {
-      if (Math.abs(b.stat.size - a.stat.size) > 1000000) {
-        return b.stat.size - a.stat.size;
+      if (Math.abs(b.stat.mtimeMs - a.stat.mtimeMs) > 1000) {
+        return b.stat.mtimeMs - a.stat.mtimeMs;
       }
-      return b.stat.mtimeMs - a.stat.mtimeMs;
+      return b.stat.size - a.stat.size;
     });
     const { apkPath, stat } = validApks[0];
     const etag = `"apk-${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}"`;
@@ -2580,7 +2671,7 @@ app.post('/api/v1/community/charts/:id/score', (req, res) => {
   }
 
   // Actualizar también el perfil consolidado del usuario con el nuevo récord de canción y progreso
-  if (pKey && pKey !== 'jugador' && pKey !== 'test' && pKey !== 'tester' && pKey !== 'prueba' && pKey !== 'dummy') {
+  if (pKey && pKey !== 'jugador' && pKey !== 'jugador anónimo' && pKey !== 'jugador anonimo') {
     const existingCode = playerProfileCodeByName.get(pKey);
     const existingProf = existingCode ? playerProfilesByCode.get(existingCode) : null;
     const incomingWallet = (req.body.wallet && typeof req.body.wallet === 'object') ? req.body.wallet : null;
@@ -2892,139 +2983,223 @@ app.post('/api/v1/community/players/sync', (req, res) => {
     const body = req.body || {};
     const playerName = String(body.player_name || body.profile?.player_name || '').trim().slice(0, 24);
     const nameKey = playerName.toLowerCase();
-    let code = normalizeRecoveryCodeServer(body.recovery_code || body.profile?.recovery_code);
-
-    const existingCodeForName = nameKey ? (playerProfileCodeByName.get(nameKey) || null) : null;
-    const existingByName = existingCodeForName ? (playerProfilesByCode.get(existingCodeForName) || null) : null;
-    const existingByCode = code ? (playerProfilesByCode.get(code) || null) : null;
-    const existingAccount = existingByName || existingByCode || null;
-
-    if (existingAccount && existingAccount.recovery_code) {
-      code = existingAccount.recovery_code;
-    } else if (!code) {
-      const digest = nameKey
-        ? crypto.createHash('md5').update(`rnc_user:${nameKey}`).digest('hex').toUpperCase().slice(0, 6)
-        : crypto.randomBytes(4).toString('hex').toUpperCase().slice(0, 6);
-      code = `RNC-${digest}`;
+    if (!nameKey || nameKey === 'jugador' || nameKey === 'jugador anónimo' || nameKey === 'jugador anonimo') {
+      return res.json({ success: false, synced: false, error: 'Elige un Nombre de Usuario válido.' });
     }
+
+    const digest = crypto.createHash('md5').update(`rnc_user:${nameKey}`).digest('hex').toUpperCase().slice(0, 6);
+    const canonicalCode = `RNC-${digest}`;
+
+    const existingCodeForName = playerProfileCodeByName.get(nameKey) || null;
+    let existingAccount = existingCodeForName ? (playerProfilesByCode.get(existingCodeForName) || null) : null;
 
     const rawPassword = String(body.password ?? body.pin ?? '').trim();
     const rawNewPassword = (typeof body.new_password === 'string')
       ? body.new_password.trim()
       : ((typeof body.new_pin === 'string') ? body.new_pin.trim() : null);
     const providedPassHash = rawPassword ? hashProfilePinServer(rawPassword) : '';
+    const clientToken = String(body.account_token || body.profile?.account_token || '').trim().slice(0, 80);
+
+    // Soporte para cambio de Nickname verificando que el nuevo nombre NO esté ocupado por otro jugador
+    const prevPlayerName = String(body.previous_player_name || '').trim().slice(0, 24);
+    const prevNameKey = prevPlayerName.toLowerCase();
+    if (prevNameKey && prevNameKey !== nameKey) {
+      if (existingAccount) {
+        const storedPassOnTarget = existingAccount.pin_hash || existingAccount.password_hash || '';
+        const storedTokenOnTarget = String(existingAccount.account_token || '').trim();
+        const ownsTarget = (storedPassOnTarget && providedPassHash && providedPassHash === storedPassOnTarget) ||
+          (!storedPassOnTarget && storedTokenOnTarget && clientToken && clientToken === storedTokenOnTarget);
+        if (!ownsTarget) {
+          return res.status(409).json({
+            success: false,
+            synced: false,
+            nickname_taken: true,
+            found_existing_account: true,
+            requires_password: Boolean(storedPassOnTarget),
+            error: `El nombre "${existingAccount.player_name || playerName}" ya está en uso por otro jugador. Elige un nombre único.`
+          });
+        }
+      }
+      // Migrar la cuenta propia desde prevNameKey al nuevo nameKey si el cliente es dueño de prevNameKey
+      const prevCode = playerProfileCodeByName.get(prevNameKey);
+      const prevProf = prevCode ? playerProfilesByCode.get(prevCode) : null;
+      if (prevProf && !existingAccount) {
+        const prevPass = prevProf.pin_hash || prevProf.password_hash || '';
+        const prevTok = String(prevProf.account_token || '').trim();
+        const ownsPrev = (!prevPass && (!prevTok || prevTok === clientToken)) ||
+          (prevPass && providedPassHash === prevPass) ||
+          (prevTok && clientToken && prevTok === clientToken);
+        if (ownsPrev) {
+          existingAccount = prevProf;
+          playerProfilesByCode.delete(prevCode);
+          playerProfileCodeByName.delete(prevNameKey);
+          const prevGlobal = playerGlobalAccumulator.get(prevNameKey);
+          if (prevGlobal) {
+            playerGlobalAccumulator.delete(prevNameKey);
+            prevGlobal.name = playerName;
+            playerGlobalAccumulator.set(nameKey, prevGlobal);
+          }
+        }
+      }
+    }
+
+    const storedPassHash = existingAccount ? (existingAccount.pin_hash || existingAccount.password_hash || '') : '';
+    const storedToken = existingAccount ? String(existingAccount.account_token || '').trim() : '';
+
+    // Verificación estricta de propiedad de la cuenta y prohibición de Nicknames duplicados
+    if (existingAccount) {
+      const passwordMatches = Boolean(storedPassHash && providedPassHash && providedPassHash === storedPassHash);
+      const tokenMatches = Boolean(storedToken && clientToken && storedToken === clientToken);
+
+      if (body.is_new_registration || body.is_nickname_change) {
+        if (!passwordMatches && !tokenMatches) {
+          return res.status(409).json({
+            success: false,
+            synced: false,
+            nickname_taken: true,
+            found_existing_account: true,
+            requires_pin: Boolean(storedPassHash),
+            requires_password: Boolean(storedPassHash),
+            error: storedPassHash
+              ? `El Nombre de Usuario "${existingAccount.player_name || playerName}" ya está registrado. Si es tu cuenta, recupérala con su contraseña; si eres nuevo, elige otro Nickname.`
+              : `El Nombre de Usuario "${existingAccount.player_name || playerName}" ya está en uso. No se permiten nicknames duplicados.`
+          });
+        }
+      }
+
+      // Si la cuenta tiene contraseña configurada, JAMÁS permitir sincronizar ni cambiar su contraseña si la contraseña enviada no coincide
+      if (storedPassHash && !passwordMatches && !tokenMatches) {
+        return res.status(403).json({
+          success: false,
+          synced: false,
+          nickname_taken: true,
+          found_existing_account: true,
+          requires_pin: true,
+          requires_password: true,
+          error: `El Nombre de Usuario "${existingAccount.player_name || playerName}" pertenece a una cuenta protegida con contraseña.`,
+          summary: buildProfileSummaryServer(existingAccount)
+        });
+      }
+
+      // Si no tenía contraseña pero ya tenía un token de dispositivo distinto, impedir que otro dispositivo duplique el nickname
+      if (!storedPassHash && storedToken && clientToken && storedToken !== clientToken) {
+        return res.status(409).json({
+          success: false,
+          synced: false,
+          nickname_taken: true,
+          found_existing_account: true,
+          error: `El Nombre de Usuario "${existingAccount.player_name || playerName}" ya está en uso por otro jugador.`
+        });
+      }
+    }
 
     const incomingProfile = (body.profile && typeof body.profile === 'object') ? body.profile : {};
-    incomingProfile.player_name = playerName || 'Jugador';
-    incomingProfile.recovery_code = code;
+    incomingProfile.player_name = playerName;
+    incomingProfile.recovery_code = canonicalCode;
+    if (clientToken) incomingProfile.account_token = clientToken;
 
     const incomingRichness = computeProfileRichnessServer(incomingProfile);
     const existingRichness = existingAccount ? computeProfileRichnessServer(existingAccount) : 0;
-    const storedPassHash = existingAccount ? (existingAccount.pin_hash || existingAccount.password_hash || '') : '';
-    const hasMatchingCode = Boolean(
-      existingAccount &&
-      normalizeRecoveryCodeServer(body.recovery_code || body.profile?.recovery_code) === existingAccount.recovery_code
-    );
-    const isPasswordVerified = !storedPassHash || (providedPassHash && providedPassHash === storedPassHash);
 
-    // Si existe una cuenta con ese Nombre de Usuario y progreso guardado, y el cliente entra desde una instalación limpia:
-    // 1. Si tiene contraseña y no coincide (ni trae el código maestro exacto), exigir la contraseña sin sobrescribir nada.
-    // 2. Si escribió la contraseña correcta (o es una cuenta legacy a la que ahora le asigna contraseña), devolver el perfil para restaurarlo al instante.
+    // Si el propietario entra desde una instalación limpia con la contraseña correcta de su cuenta existente, devolver su perfil íntegro
     if (existingAccount && existingRichness > 0 && incomingRichness === 0 && !body.force_new_account) {
-      if (storedPassHash && !isPasswordVerified && !hasMatchingCode) {
+      const passwordMatches = Boolean(storedPassHash && providedPassHash && providedPassHash === storedPassHash);
+      const tokenMatches = Boolean(storedToken && clientToken && storedToken === clientToken);
+      if (passwordMatches || tokenMatches) {
         return res.json({
           success: true,
           synced: false,
           found_existing_account: true,
-          requires_pin: true,
-          requires_password: true,
+          requires_pin: false,
+          requires_password: false,
+          recovery_code: canonicalCode,
+          profile: existingAccount,
           summary: buildProfileSummaryServer(existingAccount)
         });
       }
-      if (!storedPassHash && providedPassHash) {
-        existingAccount.pin_hash = providedPassHash;
-        existingAccount.password_hash = providedPassHash;
-        existingAccount.has_password = true;
-        savePlayerProfilesToDisk();
-        syncLeaderboardToGithub(false).catch(() => {});
-      }
-      return res.json({
-        success: true,
+      return res.status(403).json({
+        success: false,
         synced: false,
+        nickname_taken: true,
         found_existing_account: true,
-        requires_pin: false,
-        requires_password: false,
-        recovery_code: existingAccount.recovery_code,
-        profile: existingAccount,
+        requires_pin: true,
+        requires_password: true,
+        error: `El usuario "${existingAccount.player_name || playerName}" ya existe. Introduce su contraseña para recuperar la cuenta o elige otro Nickname.`,
         summary: buildProfileSummaryServer(existingAccount)
       });
     }
 
-    const isOwnerVerified = isPasswordVerified || hasMatchingCode;
+    const isOwnerVerified = !existingAccount ||
+      (storedPassHash && providedPassHash === storedPassHash) ||
+      (storedToken && clientToken && storedToken === clientToken) ||
+      (!storedPassHash && !storedToken);
+
     const merged = sanitizeAndMergeProfileServer(existingAccount, incomingProfile, isOwnerVerified);
-    merged.recovery_code = code;
-    merged.player_name = playerName || existingAccount?.player_name || 'Jugador';
+    merged.recovery_code = canonicalCode;
+    merged.player_name = playerName;
+    if (clientToken && (!merged.account_token || isOwnerVerified)) {
+      merged.account_token = clientToken;
+    }
 
     if (rawNewPassword !== null && isOwnerVerified) {
       const nextHash = rawNewPassword ? hashProfilePinServer(rawNewPassword) : '';
-      merged.pin_hash = nextHash;
-      merged.password_hash = nextHash;
-      merged.has_password = Boolean(nextHash);
-    } else if (!merged.pin_hash && providedPassHash) {
+      if (nextHash) {
+        merged.pin_hash = nextHash;
+        merged.password_hash = nextHash;
+        merged.has_password = true;
+      }
+    } else if (!merged.pin_hash && providedPassHash && isOwnerVerified) {
       merged.pin_hash = providedPassHash;
       merged.password_hash = providedPassHash;
       merged.has_password = true;
     }
 
-    const isDummyTest = (!nameKey || nameKey === 'jugador' || nameKey === 'test' || nameKey === 'tester' || nameKey === 'prueba' || nameKey === 'dummy');
-    if (!isDummyTest) {
-      playerProfilesByCode.set(code, merged);
-      playerProfileCodeByName.set(nameKey, code);
+    playerProfilesByCode.set(canonicalCode, merged);
+    playerProfileCodeByName.set(nameKey, canonicalCode);
 
-      // Sincronizar también en playerGlobalAccumulator para que leaderboard.json -> global refleje siempre sus claves y puntos
-      let totalFromHs = 0;
-      if (merged.highscores && typeof merged.highscores === 'object' && playerName) {
-        for (const [chartId, rec] of Object.entries(merged.highscores)) {
-          if (!rec || !(rec.score > 0)) continue;
-          totalFromHs += Number(rec.score) || 0;
-          const list = chartScores.get(chartId) || [];
-          const idx = list.findIndex(item => String(item.player_name || '').trim().toLowerCase() === nameKey);
-          if (idx === -1) {
-            list.push({
-              rank: list.length + 1,
-              chart_id: chartId,
-              player_name: playerName,
-              score: rec.score,
-              max_combo: rec.maxCombo || 0,
-              stars: rec.stars || 0,
-              accuracy_pct: rec.accuracyPct || 100,
-              created_at: new Date().toISOString()
-            });
-          } else if (rec.score > (list[idx].score || 0)) {
-            list[idx].score = rec.score;
-            list[idx].max_combo = Math.max(list[idx].max_combo || 0, rec.maxCombo || 0);
-            list[idx].stars = Math.max(list[idx].stars || 0, rec.stars || 0);
-            list[idx].accuracy_pct = Math.max(list[idx].accuracy_pct || 0, rec.accuracyPct || 0);
-          }
-          list.sort((a, b) => (b.score || 0) - (a.score || 0));
-          list.forEach((entry, rIdx) => { entry.rank = rIdx + 1; });
-          chartScores.set(chartId, list.slice(0, 50));
+    // Sincronizar también en playerGlobalAccumulator para que leaderboard.json -> global refleje siempre sus claves y puntos
+    let totalFromHs = 0;
+    if (merged.highscores && typeof merged.highscores === 'object' && playerName) {
+      for (const [chartId, rec] of Object.entries(merged.highscores)) {
+        if (!rec || !(rec.score > 0)) continue;
+        totalFromHs += Number(rec.score) || 0;
+        const list = chartScores.get(chartId) || [];
+        const idx = list.findIndex(item => String(item.player_name || '').trim().toLowerCase() === nameKey);
+        if (idx === -1) {
+          list.push({
+            rank: list.length + 1,
+            chart_id: chartId,
+            player_name: playerName,
+            score: rec.score,
+            max_combo: rec.maxCombo || 0,
+            stars: rec.stars || 0,
+            accuracy_pct: rec.accuracyPct || 100,
+            created_at: new Date().toISOString()
+          });
+        } else if (rec.score > (list[idx].score || 0)) {
+          list[idx].score = rec.score;
+          list[idx].max_combo = Math.max(list[idx].max_combo || 0, rec.maxCombo || 0);
+          list[idx].stars = Math.max(list[idx].stars || 0, rec.stars || 0);
+          list[idx].accuracy_pct = Math.max(list[idx].accuracy_pct || 0, rec.accuracyPct || 100);
         }
+        list.sort((a, b) => (b.score || 0) - (a.score || 0));
+        list.forEach((entry, rIdx) => { entry.rank = rIdx + 1; });
+        chartScores.set(chartId, list.slice(0, 50));
       }
-      const prevGlobal = playerGlobalAccumulator.get(nameKey) || { name: playerName, total_score: 0, clefs: 0 };
-      prevGlobal.name = playerName;
-      prevGlobal.total_score = Math.max(Number(prevGlobal.total_score) || 0, totalFromHs);
-      prevGlobal.clefs = Math.max(0, Number(merged.wallet?.clefs) || Number(prevGlobal.clefs) || 100);
-      playerGlobalAccumulator.set(nameKey, prevGlobal);
-
-      savePlayerProfilesToDisk();
-      syncLeaderboardToGithub(false).catch(() => {});
     }
+    const prevGlobal = playerGlobalAccumulator.get(nameKey) || { name: playerName, total_score: 0, clefs: 0 };
+    prevGlobal.name = playerName;
+    prevGlobal.total_score = Math.max(Number(prevGlobal.total_score) || 0, totalFromHs);
+    prevGlobal.clefs = Math.max(0, Number(merged.wallet?.clefs) || Number(prevGlobal.clefs) || 100);
+    playerGlobalAccumulator.set(nameKey, prevGlobal);
+
+    savePlayerProfilesToDisk();
+    syncLeaderboardToGithub(false).catch(() => {});
 
     return res.json({
       success: true,
       synced: true,
-      recovery_code: code,
+      recovery_code: canonicalCode,
       has_pin: Boolean(merged.pin_hash),
       has_password: Boolean(merged.pin_hash),
       summary: buildProfileSummaryServer(merged)
@@ -3038,105 +3213,49 @@ app.post('/api/v1/community/players/sync', (req, res) => {
 app.post('/api/v1/community/players/restore', (req, res) => {
   try {
     const body = req.body || {};
-    const rawQuery = String(body.query || body.player_name || body.recovery_code || '').trim();
+    const rawQuery = String(body.query || body.player_name || '').trim();
     const rawPassword = String(body.password ?? body.pin ?? '').trim();
     if (!rawQuery) {
-      return res.status(400).json({ success: false, error: 'Introduce tu Nombre de Usuario y tu Contraseña.' });
+      return res.status(400).json({ success: false, error: 'Escribe el Nombre de Usuario de la cuenta que deseas recuperar.' });
     }
-
-    // 1. Búsqueda directa por Código Maestro de Respaldo (RNC-XXXXXX) escrito en usuario o en contraseña
-    const asCode = normalizeRecoveryCodeServer(rawQuery) || normalizeRecoveryCodeServer(rawPassword);
-    if (asCode && playerProfilesByCode.has(asCode)) {
-      const prof = playerProfilesByCode.get(asCode);
-      // Si además escribió una nueva contraseña al recuperar con código RNC, actualizar su contraseña
-      if (rawPassword && !normalizeRecoveryCodeServer(rawPassword)) {
-        const pHash = hashProfilePinServer(rawPassword);
-        prof.pin_hash = pHash;
-        prof.password_hash = pHash;
-        prof.has_password = true;
-        savePlayerProfilesToDisk();
-        syncLeaderboardToGithub(false).catch(() => {});
-      }
-      return res.json({
-        success: true,
-        restored_by: 'code',
-        recovery_code: prof.recovery_code,
-        profile: prof,
-        summary: buildProfileSummaryServer(prof)
-      });
-    }
-
-    // 2. Búsqueda por Nombre de Usuario (requiere SIEMPRE Contraseña)
-    const nameKey = rawQuery.toLowerCase();
-    let mappedCode = playerProfileCodeByName.get(nameKey);
-    let prof = (mappedCode && playerProfilesByCode.has(mappedCode)) ? playerProfilesByCode.get(mappedCode) : null;
-
-    // 3. Si era un jugador histórico del ranking que aún no estaba en playerProfilesByCode, reconstruir su perfil primero
-    if (!prof) {
-      const reconstructedHighscores = {};
-      let matchedDisplayName = rawQuery;
-      for (const [chartId, list] of chartScores.entries()) {
-        if (!Array.isArray(list)) continue;
-        const hit = list.find(e => String(e.player_name || '').trim().toLowerCase() === nameKey);
-        if (hit && hit.score > 0) {
-          matchedDisplayName = hit.player_name || matchedDisplayName;
-          reconstructedHighscores[chartId] = {
-            score: hit.score || 0,
-            stars: hit.stars || 3,
-            maxCombo: hit.max_combo || 0,
-            medalTier: null,
-            accuracyPct: hit.accuracy_pct || 100
-          };
-        }
-      }
-      const globalEntry = playerGlobalAccumulator.get(nameKey);
-      if (Object.keys(reconstructedHighscores).length > 0 || globalEntry) {
-        prof = registerOrMergeCanonicalProfileServer(globalEntry?.name || matchedDisplayName, {
-          player_name: globalEntry?.name || matchedDisplayName,
-          wallet: { clefs: Math.max(100, Number(globalEntry?.clefs) || 100), silvers: 0, golds: 0, platinums: 0 },
-          unlocked_modes: { normal: true, osu_hybrid: true, locura: true },
-          unlocked_effects: ['solar_inferno'],
-          highscores: reconstructedHighscores
-        });
-      }
-    }
-
-    if (!prof) {
-      return res.status(404).json({
-        success: false,
-        error: 'No se encontró ninguna cuenta guardada con ese Nombre de Usuario.'
-      });
-    }
-
-    // Exigir sí o sí una contraseña para recuperar una cuenta por Nombre de Usuario
     if (!rawPassword) {
       return res.status(403).json({
         success: false,
         requires_pin: true,
         requires_password: true,
-        error: 'Debes escribir tu contraseña para recuperar la cuenta de este usuario.'
+        error: 'Escribe la contraseña de esa cuenta para poder recuperarla.'
+      });
+    }
+
+    const nameKey = rawQuery.toLowerCase();
+    const mappedCode = playerProfileCodeByName.get(nameKey);
+    const prof = (mappedCode && playerProfilesByCode.has(mappedCode)) ? playerProfilesByCode.get(mappedCode) : null;
+
+    if (!prof) {
+      return res.status(404).json({
+        success: false,
+        error: `No existe ninguna cuenta registrada con el Nombre de Usuario "${rawQuery}".`
       });
     }
 
     const storedHash = prof.pin_hash || prof.password_hash || '';
-    const incomingHash = hashProfilePinServer(rawPassword);
+    if (!storedHash) {
+      return res.status(403).json({
+        success: false,
+        requires_pin: true,
+        requires_password: true,
+        error: `La cuenta "${prof.player_name}" no tiene contraseña de recuperación configurada. Solo se puede acceder a cuentas con su contraseña.`
+      });
+    }
 
-    if (storedHash) {
-      if (incomingHash !== storedHash) {
-        return res.status(403).json({
-          success: false,
-          requires_pin: true,
-          requires_password: true,
-          error: 'Contraseña incorrecta. Verifica tu contraseña o usa tu código RNC-XXXXXX.'
-        });
-      }
-    } else {
-      // Cuenta anterior que aún no tenía contraseña asignada: adoptar y fijar la contraseña escrita ahora
-      prof.pin_hash = incomingHash;
-      prof.password_hash = incomingHash;
-      prof.has_password = true;
-      savePlayerProfilesToDisk();
-      syncLeaderboardToGithub(false).catch(() => {});
+    const incomingHash = hashProfilePinServer(rawPassword);
+    if (incomingHash !== storedHash) {
+      return res.status(403).json({
+        success: false,
+        requires_pin: true,
+        requires_password: true,
+        error: `Contraseña incorrecta para la cuenta "${prof.player_name}". Cada cuenta solo se desbloquea con su propia contraseña.`
+      });
     }
 
     return res.json({

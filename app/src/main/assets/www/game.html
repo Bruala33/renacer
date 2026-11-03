@@ -123,7 +123,7 @@
         apk_download_btn: 'Descargar APK',
         apk_card_title: 'App Oficial Android (APK):',
         apk_card_desc: 'Instala la app oficial en tu móvil para jugar a pantalla completa, vibración háptica y con disponibilidad 100% offline.',
-        apk_card_btn: 'DESCARGAR APK ANDROID (v4.9)',
+        apk_card_btn: 'DESCARGAR APK ANDROID (v5.0)',
         settings_lang: 'Idioma / Language:',
         settings_note_speed: 'Velocidad de Notas:',
         settings_density: 'Densidad / Dificultad:',
@@ -135,8 +135,8 @@
         settings_shop: 'Tienda de Fondos y Efectos',
         shop_tab_effects: 'Efectos de Tecla',
         shop_tab_background: 'Fondo Personalizado',
-        settings_nickname: 'Tu Nickname:',
-        settings_nickname_sub: 'Creador & Social',
+        settings_nickname: 'Nombre de Usuario (Único):',
+        settings_nickname_sub: 'Ranking & Cuenta',
         settings_nickname_placeholder: 'Elige tu nombre en el juego...',
         settings_judge_colors: 'Colores de Juicio',
         settings_pc_controls: 'Teclas de Carril (PC)',
@@ -149,7 +149,7 @@
         onboarding_placeholder: 'Tu Nickname (ej. Mozart99)...',
         onboarding_start: 'Guardar y Empezar',
         onboarding_apk_hint: 'Recuerda que también puedes descargar la app nativa para Android en cualquier momento desde Ajustes.',
-        onboarding_apk_btn: 'Descargar App (APK Android v4.9)',
+        onboarding_apk_btn: 'Descargar App (APK Android v5.0)',
         add_fav: 'Añadir a Favoritos',
         remove_fav: 'Quitar de Favoritos',
         add_playlist: 'Añadir a Playlist',
@@ -429,7 +429,7 @@
         apk_download_btn: 'Download APK',
         apk_card_title: 'Official Android App (APK):',
         apk_card_desc: 'Install the official app on your mobile device for full-screen gameplay, haptic feedback, and 100% offline availability.',
-        apk_card_btn: 'DOWNLOAD ANDROID APK (v4.9)',
+        apk_card_btn: 'DOWNLOAD ANDROID APK (v5.0)',
         settings_lang: 'Language / Idioma:',
         settings_note_speed: 'Note Fall Speed:',
         settings_density: 'Map Density / Difficulty:',
@@ -441,8 +441,8 @@
         settings_shop: 'Shop & Visual Effects',
         shop_tab_effects: 'Key Effects',
         shop_tab_background: 'Custom Background',
-        settings_nickname: 'Your Nickname:',
-        settings_nickname_sub: 'Creator & Social',
+        settings_nickname: 'Username (Unique):',
+        settings_nickname_sub: 'Ranking & Account',
         settings_nickname_placeholder: 'Choose your in-game name...',
         settings_judge_colors: 'Judgement Colors',
         settings_pc_controls: 'Lane Keys (PC)',
@@ -455,7 +455,7 @@
         onboarding_placeholder: 'Your Nickname (e.g. Mozart99)...',
         onboarding_start: 'Save & Start',
         onboarding_apk_hint: 'Remember you can also download the native Android app at any time from Settings.',
-        onboarding_apk_btn: 'Download App (Android APK v4.9)',
+        onboarding_apk_btn: 'Download App (Android APK v5.0)',
         add_fav: 'Add to Favorites',
         remove_fav: 'Remove from Favorites',
         add_playlist: 'Add to Playlist',
@@ -1736,14 +1736,14 @@
                 </svg>
                 <span class="text-[#f3d791]" data-i18n="apk_card_title">App Oficial Android (APK):</span>
               </span>
-              <span class="vegas-console-pill">v4.9</span>
+              <span class="vegas-console-pill">v5.0</span>
             </div>
             <p class="text-[10px] text-[#cbb894] leading-tight" data-i18n="apk_card_desc">
               Instala la edicion Grand Piano Las Vegas en tu movil para jugar a pantalla completa, vibracion haptica y modo 100% offline.
             </p>
-            <a href="/download/apk?v=49.0" onclick="return window.downloadOfficialApk(event, this)" download="PianoCommunity.apk" class="w-full py-2.5 bg-gradient-to-b from-[#f3d791] via-[#d4a84f] to-[#9b6f23] hover:brightness-110 border border-[#fff6d6] text-[#1c1004] font-black rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg transition active:scale-95 cursor-pointer">
+            <a href="/download/apk?v=50.0" onclick="return window.downloadOfficialApk(event, this)" download="PianoCommunity.apk" class="w-full py-2.5 bg-gradient-to-b from-[#f3d791] via-[#d4a84f] to-[#9b6f23] hover:brightness-110 border border-[#fff6d6] text-[#1c1004] font-black rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg transition active:scale-95 cursor-pointer">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              <span data-i18n="apk_card_btn">DESCARGAR APK ANDROID (v4.9)</span>
+              <span data-i18n="apk_card_btn">DESCARGAR APK ANDROID (v5.0)</span>
             </a>
           </div>
 
@@ -1812,123 +1812,114 @@
           </div>
 
           <!-- Nickname del Jugador / Creador -->
-          <div class="vegas-setting-plate p-3 space-y-1.5">
-            <div class="flex items-center justify-between text-xs">
-              <span data-i18n="settings_nickname" class="font-bold text-[#fff6d6]">Nombre de Pianista (Nickname):</span>
-              <span data-i18n="settings_nickname_sub" class="text-[9px] text-[#e5b869] font-mono uppercase">Ranking &amp; Gala</span>
+          <div class="vegas-setting-plate p-3 space-y-2 overflow-hidden">
+            <div class="flex items-center justify-between gap-2 text-xs">
+              <span data-i18n="settings_nickname" class="font-bold text-[#fff6d6] truncate">Nombre de Usuario (Único):</span>
+              <span data-i18n="settings_nickname_sub" class="text-[9px] text-[#e5b869] font-mono uppercase shrink-0">Ranking &amp; Cuenta</span>
             </div>
-            <input 
-              id="settingsNicknameInput" 
-              type="text" 
-              data-i18n-placeholder="settings_nickname_placeholder"
-              placeholder="Elige tu nombre artístico..." 
-              maxlength="20"
-              class="w-full bg-[#090503] border border-[#c5a059]/45 rounded-lg text-xs text-[#fff6d6] p-2 font-bold focus:outline-none focus:border-[#f3d791]"
-              oninput="updatePlayerNickname(this.value)"
-            >
+            <div class="grid grid-cols-1 gap-1.5 w-full">
+              <input 
+                id="settingsNicknameInput" 
+                type="text" 
+                data-i18n-placeholder="settings_nickname_placeholder"
+                placeholder="Elige tu nombre de usuario único..." 
+                maxlength="20"
+                class="w-full min-w-0 box-border bg-[#090503] border border-[#c5a059]/45 rounded-lg text-xs text-[#fff6d6] px-2.5 py-2 font-bold focus:outline-none focus:border-[#f3d791]"
+                onkeydown="if(event.key==='Enter') changePlayerNicknameFromSettings()"
+              >
+              <button
+                type="button"
+                onclick="changePlayerNicknameFromSettings()"
+                class="w-full py-1.5 px-3 rounded-lg bg-[#241809] hover:bg-[#36240d] border border-[#e5b869]/65 text-[#f3d791] text-[10px] font-black uppercase cursor-pointer transition active:scale-95 text-center"
+              >
+                Guardar Cambio de Nombre
+              </button>
+            </div>
           </div>
 
           <!-- Respaldo y Recuperación de Progreso en la Nube (Con Nombre de Usuario y Contraseña) -->
-          <div class="vegas-setting-plate p-3 space-y-2.5" style="border-color: rgba(52, 211, 153, 0.45);">
-            <div class="flex items-center justify-between text-xs">
-              <span class="font-bold text-[#fff6d6] flex items-center gap-1.5">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="text-emerald-400">
+          <div class="vegas-setting-plate p-3 space-y-2.5 overflow-hidden" style="border-color: rgba(52, 211, 153, 0.45);">
+            <div class="flex items-center justify-between gap-2 text-xs">
+              <span class="font-bold text-[#fff6d6] flex items-center gap-1.5 min-w-0">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="text-emerald-400 shrink-0">
                   <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
                 </svg>
-                <span>Cuenta y Progreso Guardado:</span>
+                <span class="truncate">Cuenta y Progreso Guardado:</span>
               </span>
-              <span id="cloudBackupStatusPill" class="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">Auto-Guardado</span>
+              <span id="cloudBackupStatusPill" class="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shrink-0">Guardado en Nube</span>
             </div>
 
             <!-- Resumen en vivo de todo el progreso vinculado al Nombre de Usuario -->
-            <div id="settingsCloudSummaryBox" class="bg-black/60 border border-emerald-500/30 rounded-lg p-2 text-[10px] text-[#fff6d6] space-y-1 font-mono">
-              <div class="flex items-center justify-between">
-                <span>Usuario: <b id="cloudSumUser" class="text-emerald-300">Jugador</b></span>
-                <span id="cloudSumPassBadge" class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[9px]">Contraseña pendiente</span>
+            <div id="settingsCloudSummaryBox" class="bg-black/60 border border-emerald-500/30 rounded-lg p-2.5 text-[10px] text-[#fff6d6] space-y-1.5 font-mono overflow-hidden">
+              <div class="flex items-center justify-between gap-2 flex-wrap">
+                <span class="truncate">Usuario: <b id="cloudSumUser" class="text-emerald-300">Jugador</b></span>
+                <span id="cloudSumPassBadge" class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[9px] shrink-0">Contraseña pendiente</span>
               </div>
-              <div class="grid grid-cols-2 gap-1 text-[9.5px] text-[#cbb894] pt-0.5 border-t border-white/10">
-                <div>Claves: <b id="cloudSumClefs" class="text-[#f3d791]">100</b></div>
-                <div>Canciones: <b id="cloudSumSongs" class="text-cyan-300">0</b></div>
-                <div>Modos extra: <b id="cloudSumModes" class="text-pink-300">0</b></div>
-                <div>Efectos: <b id="cloudSumEffects" class="text-purple-300">1</b></div>
+              <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-[9.5px] text-[#cbb894] pt-1 border-t border-white/10">
+                <div class="truncate">Claves: <b id="cloudSumClefs" class="text-[#f3d791]">100</b></div>
+                <div class="truncate">Canciones: <b id="cloudSumSongs" class="text-cyan-300">0</b></div>
+                <div class="truncate">Modos extra: <b id="cloudSumModes" class="text-pink-300">0</b></div>
+                <div class="truncate">Efectos: <b id="cloudSumEffects" class="text-purple-300">1</b></div>
+                <div class="truncate">Favoritos: <b id="cloudSumFavorites" class="text-amber-300">0</b></div>
+                <div class="truncate">Playlists: <b id="cloudSumPlaylists" class="text-emerald-300">0</b></div>
               </div>
             </div>
 
-            <!-- Contraseña de la Cuenta (Obligatoria para recuperar por Nombre de Usuario) -->
-            <div class="space-y-1">
-              <label class="text-[10px] font-bold text-[#f3d791] block">Contraseña de tu Cuenta (necesaria para recuperar):</label>
-              <div class="flex items-center gap-1.5">
-                <input
-                  id="settingsAccountPinInput"
-                  type="password"
-                  maxlength="24"
-                  placeholder="Escribe tu contraseña de cuenta..."
-                  class="flex-1 bg-[#090503] border border-[#c5a059]/45 rounded-lg px-2.5 py-1.5 text-[11px] font-bold text-[#fff6d6] placeholder-[#8a7960] focus:outline-none focus:border-[#f3d791]"
-                >
+            <!-- Contraseña de la Cuenta (Exclusiva de este Nombre de Usuario) -->
+            <div class="space-y-1.5 w-full">
+              <label class="text-[10px] font-bold text-[#f3d791] block">Contraseña de tu Cuenta (obligatoria para recuperarla):</label>
+              <input
+                id="settingsAccountPinInput"
+                type="password"
+                maxlength="24"
+                placeholder="Escribe la contraseña de tu cuenta..."
+                class="w-full min-w-0 box-border bg-[#090503] border border-[#c5a059]/45 rounded-lg px-2.5 py-2 text-[11px] font-bold text-[#fff6d6] placeholder-[#8a7960] focus:outline-none focus:border-[#f3d791]"
+              >
+              <div class="grid grid-cols-2 gap-1.5 w-full">
                 <button
                   type="button"
                   onclick="savePlayerAccountPin()"
-                  class="px-2.5 py-1.5 rounded-lg bg-[#241809] hover:bg-[#36240d] border border-[#e5b869]/65 text-[#f3d791] text-[10px] font-black uppercase cursor-pointer transition active:scale-95 shrink-0"
+                  class="w-full py-2 px-2 rounded-lg bg-[#241809] hover:bg-[#36240d] border border-[#e5b869]/65 text-[#f3d791] text-[10px] font-black uppercase cursor-pointer transition active:scale-95 text-center truncate"
                 >
                   Guardar Contraseña
+                </button>
+                <button
+                  type="button"
+                  onclick="forceCloudProfileSaveNow()"
+                  class="w-full py-2 px-2 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/70 text-emerald-200 text-[10px] font-black uppercase cursor-pointer transition active:scale-95 text-center truncate"
+                >
+                  Sincronizar Ahora
                 </button>
               </div>
             </div>
 
-            <!-- Código Maestro de Respaldo Adicional -->
-            <div class="flex items-center gap-1.5">
-              <input
-                id="settingsRecoveryCodeDisplay"
-                type="text"
-                readonly
-                value="RNC-......"
-                class="flex-1 bg-[#060402] border border-emerald-500/40 rounded-lg px-2.5 py-1 text-[11px] font-mono font-black tracking-wider text-emerald-300 text-center select-all focus:outline-none"
-              >
-              <button
-                type="button"
-                onclick="copyPlayerRecoveryCode()"
-                class="px-2.5 py-1 rounded-lg bg-[#16271e] hover:bg-[#1e382b] border border-emerald-400/60 text-emerald-300 text-[10px] font-black uppercase cursor-pointer transition active:scale-95 shrink-0"
-              >
-                Copiar ID
-              </button>
-              <button
-                type="button"
-                onclick="forceCloudProfileSaveNow()"
-                class="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/70 text-emerald-200 text-[10px] font-black uppercase cursor-pointer transition active:scale-95 shrink-0"
-              >
-                Sincronizar
-              </button>
-            </div>
-
             <!-- Recuperar otra cuenta con Nombre de Usuario + Contraseña -->
-            <div class="pt-2 border-t border-white/10 space-y-1.5">
+            <div class="pt-2 border-t border-white/10 space-y-1.5 w-full">
               <div class="text-[10px] font-bold text-cyan-300">Recuperar Cuenta (Nombre de Usuario + Contraseña):</div>
-              <div class="grid grid-cols-1 gap-1.5">
+              <div class="grid grid-cols-1 gap-1.5 w-full">
                 <input
                   id="settingsRestoreQueryInput"
                   type="text"
                   maxlength="24"
-                  placeholder="Nombre de Usuario (o código RNC-XXXXXX)..."
-                  class="w-full bg-[#090503] border border-cyan-500/40 rounded-lg px-2.5 py-1.5 text-[11px] font-bold text-white placeholder-[#8a7960] focus:outline-none focus:border-cyan-400"
+                  placeholder="Nombre de Usuario de la cuenta..."
+                  class="w-full min-w-0 box-border bg-[#090503] border border-cyan-500/40 rounded-lg px-2.5 py-2 text-[11px] font-bold text-white placeholder-[#8a7960] focus:outline-none focus:border-cyan-400"
                 >
-                <div class="flex items-center gap-1.5">
-                  <input
-                    id="settingsRestorePinInput"
-                    type="password"
-                    maxlength="24"
-                    placeholder="Contraseña de la cuenta (obligatoria)..."
-                    class="flex-1 bg-[#090503] border border-amber-400/50 rounded-lg px-2.5 py-1.5 text-[11px] font-bold text-amber-200 placeholder-[#8a7960] focus:outline-none focus:border-amber-300"
-                  >
-                  <button
-                    type="button"
-                    onclick="restoreCloudProfileFromSettings()"
-                    class="px-3 py-1.5 rounded-lg bg-cyan-500/25 hover:bg-cyan-500/35 border border-cyan-400/80 text-cyan-200 text-[10px] font-black uppercase cursor-pointer transition active:scale-95 shrink-0"
-                  >
-                    Recuperar
-                  </button>
-                </div>
+                <input
+                  id="settingsRestorePinInput"
+                  type="password"
+                  maxlength="24"
+                  placeholder="Contraseña de esa cuenta (obligatoria)..."
+                  class="w-full min-w-0 box-border bg-[#090503] border border-amber-400/50 rounded-lg px-2.5 py-2 text-[11px] font-bold text-amber-200 placeholder-[#8a7960] focus:outline-none focus:border-amber-300"
+                >
+                <button
+                  type="button"
+                  onclick="restoreCloudProfileFromSettings()"
+                  class="w-full py-2 px-3 rounded-lg bg-cyan-500/25 hover:bg-cyan-500/35 border border-cyan-400/80 text-cyan-200 text-[10px] font-black uppercase cursor-pointer transition active:scale-95 text-center"
+                >
+                  Recuperar Cuenta
+                </button>
               </div>
-              <div id="settingsCloudFeedbackMsg" class="text-[10px] font-mono text-emerald-300 min-h-[12px]"></div>
+              <div id="settingsCloudFeedbackMsg" class="text-[10px] font-mono text-emerald-300 min-h-[12px] break-words"></div>
             </div>
           </div>
 
@@ -2307,7 +2298,7 @@
               id="onboardingRestoreQueryInput"
               type="text"
               maxlength="24"
-              placeholder="Tu Nombre de Usuario (o código RNC-XXXXXX)..."
+              placeholder="Tu Nombre de Usuario..."
               class="w-full px-2.5 py-1.5 bg-black/80 border border-emerald-400/50 rounded-lg text-[11px] text-white font-bold text-center focus:outline-none focus:border-emerald-300"
             >
             <input
@@ -2325,11 +2316,11 @@
         </div>
         <div class="apk-only-web pt-2 border-t border-white/10 space-y-2">
           <p data-i18n="onboarding_apk_hint" class="text-[10px] text-amber-300/90 leading-tight">
-            💡 Recuerda que también puedes descargar la app nativa para Android en cualquier momento desde <b>Ajustes ⚙️</b>.
+            Recuerda que también puedes descargar la app nativa para Android en cualquier momento desde <b>Ajustes</b>.
           </p>
-          <a href="/download/apk?v=49.0" onclick="return window.downloadOfficialApk(event, this)" download="PianoCommunity.apk" class="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 rounded-xl text-amber-300 text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer">
+          <a href="/download/apk?v=50.0" onclick="return window.downloadOfficialApk(event, this)" download="PianoCommunity.apk" class="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 rounded-xl text-amber-300 text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="text-amber-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span data-i18n="onboarding_apk_btn">Descargar App (APK Android v4.9)</span>
+            <span data-i18n="onboarding_apk_btn">Descargar App (APK Android v5.0)</span>
           </a>
         </div>
       </div>
@@ -4600,10 +4591,10 @@
 
   </div> <!-- End of game-viewport -->
 
-  <script src="./parsers.js?v=49.0"></script>
-  <script src="./game.js?v=49.0"></script>
-  <script src="./slot_machine.js?v=49.0"></script>
-  <script src="./gachapon_3d.js?v=49.0"></script>
+  <script src="./parsers.js?v=50.0"></script>
+  <script src="./game.js?v=50.0"></script>
+  <script src="./slot_machine.js?v=50.0"></script>
+  <script src="./gachapon_3d.js?v=50.0"></script>
   <script src="./songs/comm_camilo_sesto/chart.js"></script>
   <script src="./songs/renacer/chart.js"></script>
   <script src="./songs/catalog_top.js"></script>
@@ -6878,11 +6869,11 @@
       return DEFAULT_CLOUD_SERVER;
     }
 
-    // Codigo de version local actualizado a 49 (v4.9.0)
+    // Codigo de version local actualizado a 50 (v5.0.0)
     const CURRENT_APP_VERSION_CODE = (window.AndroidNative && typeof window.AndroidNative.getAppVersionCode === 'function')
-      ? Math.max(49, Number(window.AndroidNative.getAppVersionCode()) || 49)
-      : 49;
-    let appUpdateDownloadUrl = '/download/apk?v=49.0';
+      ? Math.max(50, Number(window.AndroidNative.getAppVersionCode()) || 50)
+      : 50;
+    let appUpdateDownloadUrl = '/download/apk?v=50.0';
 
     async function checkForAppUpdates() {
       // Aviso automatico de actualizacion desactivado para que nunca salte al abrir la app
@@ -6921,7 +6912,7 @@
                            host === 'appassets.androidplatform.net' ||
                            (window.location && window.location.protocol === 'file:');
       const base = isStaticOnly ? getApiBaseUrl() : '';
-      const targetUrl = `${base}/download/apk?v=49.0&local=1&t=${ts}`;
+      const targetUrl = `${base}/download/apk?v=50.0&local=1&t=${ts}`;
 
       if (window.AndroidNative && typeof window.AndroidNative.openBrowser === 'function') {
         const absUrl = targetUrl.startsWith('http') ? targetUrl : `${getApiBaseUrl()}${targetUrl}`;
@@ -7578,6 +7569,9 @@ window.switchMainTab = switchMainTab;
       if (currentLibrarySubtab === 'favorites') {
         renderFavoritesSubtab();
       }
+      if (typeof window.scheduleCloudProfileSync === 'function') {
+        window.scheduleCloudProfileSync({ favorites_authoritative: true });
+      }
     }
 
     async function openAddToPlaylistModal(songId) {
@@ -7636,6 +7630,9 @@ window.switchMainTab = switchMainTab;
         if (currentLibrarySubtab === 'playlists') {
           renderPlaylistsSubtab();
         }
+        if (typeof window.scheduleCloudProfileSync === 'function') {
+          window.scheduleCloudProfileSync({ playlists_authoritative: true });
+        }
       } catch (err) {
         showErrorToast(err.message);
       }
@@ -7664,6 +7661,9 @@ window.switchMainTab = switchMainTab;
 
       if (currentLibrarySubtab === 'playlists') {
         renderPlaylistsSubtab();
+      }
+      if (typeof window.scheduleCloudProfileSync === 'function') {
+        window.scheduleCloudProfileSync({ playlists_authoritative: true });
       }
     }
 
@@ -13257,6 +13257,9 @@ function stopPianoCameraLoop() {
         showSuccessToast('Playlist eliminada.');
         closePlaylistDetailView();
         renderPlaylistsSubtab();
+        if (typeof window.scheduleCloudProfileSync === 'function') {
+          window.scheduleCloudProfileSync({ playlists_authoritative: true });
+        }
       }
     }
 
@@ -13265,6 +13268,9 @@ function stopPianoCameraLoop() {
       showSuccessToast('Canción quitada de la playlist.');
       openPlaylistDetailView(playlistId);
       updateLibraryVaultBadges();
+      if (typeof window.scheduleCloudProfileSync === 'function') {
+        window.scheduleCloudProfileSync({ playlists_authoritative: true });
+      }
     }
 
     // =========================================================================
@@ -14698,6 +14704,9 @@ function stopPianoCameraLoop() {
         };
 
         await IndexedDBStorage.savePlaylist(plRecord);
+        if (typeof window.scheduleCloudProfileSync === 'function') {
+          window.scheduleCloudProfileSync({ playlists_authoritative: true });
+        }
         VisualLogger.step(4, 'Guardado completado', 'Playlist guardada en IndexedDB', 'success');
 
         setTimeout(() => {
@@ -14753,15 +14762,15 @@ function stopPianoCameraLoop() {
     }
 
     // ==========================================
-    // GESTIÓN DE NICKNAME DEL JUGADOR
+    // GESTIÓN DE NICKNAME DEL JUGADOR (SIN DUPLICADOS Y CON CONTRASEÑA POR CUENTA)
     // ==========================================
     async function saveOnboardingNickname() {
       const input = document.getElementById('onboardingNicknameInput');
       const passInput = document.getElementById('onboardingPasswordInput');
       const val = input ? input.value.trim() : '';
       const passVal = passInput ? passInput.value.trim() : '';
-      if (!val) {
-        showErrorToast('Por favor escribe tu Nombre de Usuario para continuar.');
+      if (!val || val.length < 2 || val.toLowerCase() === 'jugador') {
+        showErrorToast('Por favor escribe un Nombre de Usuario válido (mínimo 2 caracteres).');
         return;
       }
       if (!passVal || passVal.length < 3) {
@@ -14769,39 +14778,68 @@ function stopPianoCameraLoop() {
         if (passInput) passInput.focus();
         return;
       }
-      localStorage.setItem('beatstar_player_nickname', val);
-      localStorage.setItem('beatstar_account_pin', passVal);
-      localStorage.setItem('beatstar_account_password', passVal);
+
+      // Verificar en el servidor que el Nombre de Usuario no esté ocupado por otra persona
+      if (typeof window.syncCloudProfileNow === 'function') {
+        try {
+          const syncRes = await window.syncCloudProfileNow(true, {
+            override_player_name: val,
+            password: passVal,
+            pin: passVal,
+            new_password: passVal,
+            new_pin: passVal,
+            is_new_registration: true
+          });
+
+          if (syncRes && (syncRes.nickname_taken || (syncRes.found_existing_account && (syncRes.requires_pin || syncRes.requires_password)))) {
+            const box = document.getElementById('onboardingRestoreBox');
+            const qInp = document.getElementById('onboardingRestoreQueryInput');
+            const pinInp = document.getElementById('onboardingRestorePinInput');
+            const msgEl = document.getElementById('onboardingRestoreStatusMsg');
+            if (box) box.classList.remove('hidden');
+            if (qInp) qInp.value = val;
+            if (pinInp) {
+              pinInp.classList.remove('hidden');
+              pinInp.focus();
+            }
+            const errMsg = syncRes.error || `El Nombre de Usuario "${val}" ya está en uso. Si es tu cuenta, escribe su contraseña abajo; si no, elige otro nombre.`;
+            if (msgEl) msgEl.textContent = errMsg;
+            showErrorToast(errMsg);
+            return;
+          }
+
+          if (syncRes && syncRes.found_existing_account && syncRes.profile) {
+            if (typeof window.setAccountPasswordForUser === 'function') {
+              window.setAccountPasswordForUser(val, passVal);
+            }
+            localStorage.setItem('beatstar_player_nickname', val);
+            await window.applyRestoredCloudProfile(syncRes.profile, syncRes.recovery_code);
+            const restoredClefs = (syncRes.profile.wallet && syncRes.profile.wallet.clefs) ? syncRes.profile.wallet.clefs : userClefs;
+            showSuccessToast(`Progreso recuperado para ${val} (${Number(restoredClefs).toLocaleString()} claves restauradas)`);
+          } else {
+            if (typeof window.setAccountPasswordForUser === 'function') {
+              window.setAccountPasswordForUser(val, passVal);
+            }
+            localStorage.setItem('beatstar_player_nickname', val);
+          }
+        } catch (_) {
+          if (typeof window.setAccountPasswordForUser === 'function') {
+            window.setAccountPasswordForUser(val, passVal);
+          }
+          localStorage.setItem('beatstar_player_nickname', val);
+        }
+      } else {
+        localStorage.setItem('beatstar_player_nickname', val);
+        localStorage.setItem('beatstar_account_pin', passVal);
+        localStorage.setItem('beatstar_account_password', passVal);
+      }
+
       const settingsInput = document.getElementById('settingsNicknameInput');
       if (settingsInput) settingsInput.value = val;
       const settingsPinInput = document.getElementById('settingsAccountPinInput');
       if (settingsPinInput) settingsPinInput.value = passVal;
-
-      // Comprobar en la nube si este Nombre de Usuario ya tenía progreso guardado
-      if (typeof window.syncCloudProfileNow === 'function') {
-        try {
-          const syncRes = await window.syncCloudProfileNow(true, { password: passVal, pin: passVal });
-          if (syncRes && syncRes.found_existing_account) {
-            if (syncRes.requires_pin || syncRes.requires_password) {
-              const box = document.getElementById('onboardingRestoreBox');
-              const qInp = document.getElementById('onboardingRestoreQueryInput');
-              const pinInp = document.getElementById('onboardingRestorePinInput');
-              const msgEl = document.getElementById('onboardingRestoreStatusMsg');
-              if (box) box.classList.remove('hidden');
-              if (qInp) qInp.value = val;
-              if (pinInp) {
-                pinInp.classList.remove('hidden');
-                pinInp.focus();
-              }
-              if (msgEl) msgEl.textContent = 'Ese usuario ya existe y tiene otra contraseña. Escribe su contraseña correcta abajo para recuperar tu progreso.';
-              return;
-            } else if (syncRes.profile) {
-              window.applyRestoredCloudProfile(syncRes.profile, syncRes.recovery_code);
-              const restoredClefs = (syncRes.profile.wallet && syncRes.profile.wallet.clefs) ? syncRes.profile.wallet.clefs : userClefs;
-              showSuccessToast(`Progreso recuperado para ${val} (${Number(restoredClefs).toLocaleString()} claves restauradas)`);
-            }
-          }
-        } catch (_) {}
+      if (typeof window.refreshCloudBackupSettingsUI === 'function') {
+        window.refreshCloudBackupSettingsUI();
       }
 
       const nickModal = document.getElementById('nicknameModal');
@@ -14810,7 +14848,7 @@ function stopPianoCameraLoop() {
         nickModal.classList.add('hidden');
         nickModal.style.display = 'none';
       }
-      showSuccessToast(`Cuenta guardada: ${val}`);
+      showSuccessToast(`Cuenta activa: ${val}`);
       if (typeof syncPlayerAndScoresWithServer === 'function') {
         syncPlayerAndScoresWithServer();
       }
@@ -14819,19 +14857,73 @@ function stopPianoCameraLoop() {
       }
     }
 
-    function updatePlayerNickname(val) {
-      const trimmed = (val || '').trim();
-      if (!trimmed) return;
-      localStorage.setItem('beatstar_player_nickname', trimmed);
+    async function changePlayerNicknameFromSettings() {
+      const inp = document.getElementById('settingsNicknameInput');
+      const msgEl = document.getElementById('settingsCloudFeedbackMsg');
+      const newNick = inp ? inp.value.trim() : '';
+      const currentNick = (localStorage.getItem('beatstar_player_nickname') || '').trim();
+
+      if (!newNick || newNick.length < 2 || newNick.toLowerCase() === 'jugador') {
+        showErrorToast('Escribe un Nombre de Usuario válido (mínimo 2 caracteres).');
+        if (inp && currentNick) inp.value = currentNick;
+        return;
+      }
+      if (newNick.toLowerCase() === currentNick.toLowerCase()) {
+        localStorage.setItem('beatstar_player_nickname', newNick);
+        if (typeof window.refreshCloudBackupSettingsUI === 'function') window.refreshCloudBackupSettingsUI();
+        showSuccessToast(`Nombre de Usuario: ${newNick}`);
+        return;
+      }
+
+      const curPass = (typeof window.getAccountPasswordForUser === 'function')
+        ? window.getAccountPasswordForUser(currentNick)
+        : (localStorage.getItem('beatstar_account_password') || '');
+
+      if (msgEl) {
+        msgEl.className = 'text-[10px] font-mono text-cyan-300 min-h-[12px]';
+        msgEl.textContent = `Comprobando disponibilidad de "${newNick}"...`;
+      }
+
+      if (typeof window.syncCloudProfileNow === 'function') {
+        const res = await window.syncCloudProfileNow(true, {
+          override_player_name: newNick,
+          previous_player_name: currentNick,
+          is_nickname_change: true,
+          password: curPass,
+          pin: curPass
+        });
+        if (res && res.nickname_taken) {
+          if (inp && currentNick) inp.value = currentNick;
+          const errText = res.error || `El Nombre de Usuario "${newNick}" ya está en uso. No se permiten nombres duplicados.`;
+          if (msgEl) {
+            msgEl.className = 'text-[10px] font-mono text-red-400 min-h-[12px]';
+            msgEl.textContent = errText;
+          }
+          showErrorToast(errText);
+          return;
+        }
+      }
+
+      if (typeof window.migrateLocalAccountUserKey === 'function') {
+        window.migrateLocalAccountUserKey(currentNick, newNick);
+      }
+      localStorage.setItem('beatstar_player_nickname', newNick);
       if (typeof window.refreshCloudBackupSettingsUI === 'function') {
         window.refreshCloudBackupSettingsUI();
       }
-      if (typeof window.scheduleCloudProfileSync === 'function') {
-        window.scheduleCloudProfileSync();
+      if (msgEl) {
+        msgEl.className = 'text-[10px] font-mono text-emerald-300 min-h-[12px]';
+        msgEl.textContent = `Nombre de Usuario actualizado a "${newNick}".`;
       }
+      showSuccessToast(`Nombre de Usuario cambiado a: ${newNick}`);
       if (typeof syncPlayerAndScoresWithServer === 'function') {
         syncPlayerAndScoresWithServer();
       }
+    }
+    window.changePlayerNicknameFromSettings = changePlayerNicknameFromSettings;
+
+    function updatePlayerNickname(val) {
+      // Mantenido solo por compatibilidad sin sobrescribir cuentas en cada pulsación de tecla
     }
 
     // ==========================================
@@ -18521,6 +18613,85 @@ function stopPianoCameraLoop() {
       const CODE_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
       let _cloudSyncDebounceTimer = null;
       let _isCloudSyncInFlight = false;
+      let _pendingSyncFlags = {};
+      let _cachedFavoriteRecords = [];
+      let _cachedPlaylists = [];
+
+      function getAccountPasswordForUser(usernameRaw) {
+        try {
+          const uKey = String(usernameRaw || localStorage.getItem('beatstar_player_nickname') || '').trim().toLowerCase();
+          if (!uKey || uKey === 'jugador') return '';
+          const map = JSON.parse(localStorage.getItem('beatstar_passwords_by_user_v1') || '{}') || {};
+          if (map[uKey]) return String(map[uKey]);
+          // Migración única para el usuario actualmente activo en este dispositivo
+          const activeUser = String(localStorage.getItem('beatstar_player_nickname') || '').trim().toLowerCase();
+          const legacyPass = localStorage.getItem('beatstar_account_password') || localStorage.getItem('beatstar_account_pin') || '';
+          if (legacyPass && uKey === activeUser && Object.keys(map).length === 0) {
+            map[uKey] = legacyPass;
+            localStorage.setItem('beatstar_passwords_by_user_v1', JSON.stringify(map));
+            return legacyPass;
+          }
+          return '';
+        } catch (_) {
+          return '';
+        }
+      }
+      window.getAccountPasswordForUser = getAccountPasswordForUser;
+
+      function setAccountPasswordForUser(usernameRaw, passRaw) {
+        try {
+          const uKey = String(usernameRaw || localStorage.getItem('beatstar_player_nickname') || '').trim().toLowerCase();
+          const cleanPass = String(passRaw || '').trim();
+          if (!uKey || uKey === 'jugador' || !cleanPass) return;
+          const map = JSON.parse(localStorage.getItem('beatstar_passwords_by_user_v1') || '{}') || {};
+          map[uKey] = cleanPass;
+          localStorage.setItem('beatstar_passwords_by_user_v1', JSON.stringify(map));
+          localStorage.setItem('beatstar_account_password', cleanPass);
+          localStorage.setItem('beatstar_account_pin', cleanPass);
+        } catch (_) {}
+      }
+      window.setAccountPasswordForUser = setAccountPasswordForUser;
+
+      function getOrCreateAccountTokenForUser(usernameRaw) {
+        try {
+          const uKey = String(usernameRaw || localStorage.getItem('beatstar_player_nickname') || '').trim().toLowerCase();
+          if (!uKey || uKey === 'jugador') return '';
+          const map = JSON.parse(localStorage.getItem('beatstar_tokens_by_user_v1') || '{}') || {};
+          if (map[uKey]) return String(map[uKey]);
+          let rand = '';
+          for (let i = 0; i < 16; i++) {
+            rand += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
+          }
+          const tok = `tok_${uKey.slice(0, 10)}_${rand}`;
+          map[uKey] = tok;
+          localStorage.setItem('beatstar_tokens_by_user_v1', JSON.stringify(map));
+          return tok;
+        } catch (_) {
+          return '';
+        }
+      }
+      window.getOrCreateAccountTokenForUser = getOrCreateAccountTokenForUser;
+
+      function migrateLocalAccountUserKey(oldNameRaw, newNameRaw) {
+        try {
+          const oldK = String(oldNameRaw || '').trim().toLowerCase();
+          const newK = String(newNameRaw || '').trim().toLowerCase();
+          if (!oldK || !newK || oldK === newK) return;
+          const passMap = JSON.parse(localStorage.getItem('beatstar_passwords_by_user_v1') || '{}') || {};
+          if (passMap[oldK] && !passMap[newK]) {
+            passMap[newK] = passMap[oldK];
+            delete passMap[oldK];
+            localStorage.setItem('beatstar_passwords_by_user_v1', JSON.stringify(passMap));
+          }
+          const tokMap = JSON.parse(localStorage.getItem('beatstar_tokens_by_user_v1') || '{}') || {};
+          if (tokMap[oldK] && !tokMap[newK]) {
+            tokMap[newK] = tokMap[oldK];
+            delete tokMap[oldK];
+            localStorage.setItem('beatstar_tokens_by_user_v1', JSON.stringify(tokMap));
+          }
+        } catch (_) {}
+      }
+      window.migrateLocalAccountUserKey = migrateLocalAccountUserKey;
 
       function getOrCreateRecoveryCode() {
         try {
@@ -18539,9 +18710,26 @@ function stopPianoCameraLoop() {
       }
       window.getOrCreateRecoveryCode = getOrCreateRecoveryCode;
 
-      function collectLocalPlayerProfileSnapshot() {
+      async function refreshIndexedDbSnapshotCaches() {
+        if (typeof IndexedDBStorage === 'undefined') return;
+        try {
+          if (typeof IndexedDBStorage.getAllFavorites === 'function') {
+            const favs = await IndexedDBStorage.getAllFavorites();
+            if (Array.isArray(favs)) _cachedFavoriteRecords = favs;
+          }
+        } catch (_) {}
+        try {
+          if (typeof IndexedDBStorage.getAllPlaylists === 'function') {
+            const pls = await IndexedDBStorage.getAllPlaylists();
+            if (Array.isArray(pls)) _cachedPlaylists = pls;
+          }
+        } catch (_) {}
+      }
+
+      function collectLocalPlayerProfileSnapshot(overrideName = null) {
         const code = getOrCreateRecoveryCode();
-        const playerName = (localStorage.getItem('beatstar_player_nickname') || '').trim() || 'Jugador';
+        const playerName = String(overrideName || localStorage.getItem('beatstar_player_nickname') || '').trim() || 'Jugador';
+        const accountToken = getOrCreateAccountTokenForUser(playerName);
         let unlockedModes = {};
         try {
           unlockedModes = JSON.parse(localStorage.getItem('beatstar_unlocked_game_modes_v1') || '{}') || {};
@@ -18570,9 +18758,53 @@ function stopPianoCameraLoop() {
           ? Array.from(favoriteIdsSet)
           : [];
 
+        // Enriquecer registros completos de favoritos para que puedan restaurarse íntegros en otro dispositivo
+        const favRecordsById = new Map();
+        if (Array.isArray(_cachedFavoriteRecords)) {
+          for (const r of _cachedFavoriteRecords) {
+            if (r && r.id) favRecordsById.set(String(r.id), r);
+          }
+        }
+        const topList = (typeof getFormattedTopSongsCatalog === 'function') ? (getFormattedTopSongsCatalog() || []) : [];
+        for (const fId of favArray) {
+          const sId = String(fId || '');
+          if (!sId || favRecordsById.has(sId)) continue;
+          const rawLookupId = sId.replace(/^top_/, '');
+          const hit = topList.find(s => s && (String(s.id) === sId || String(s.raw_id) === rawLookupId)) ||
+            (Array.isArray(searchResultsCache) ? searchResultsCache.find(s => s && String(s.id) === sId) : null);
+          if (hit) {
+            favRecordsById.set(sId, {
+              id: sId,
+              title: hit.title || 'Canción Favorita',
+              artist: hit.artist || 'Artista',
+              creator: hit.creator || 'Catálogo',
+              source: hit.source || 'official',
+              source_name: hit.source_name || '',
+              thumbnail: hit.thumbnail || '',
+              download_url: hit.download_url || '',
+              direct_download_url: hit.direct_download_url || '',
+              fallback_download_url: hit.fallback_download_url || '',
+              difficulties: Array.isArray(hit.difficulties) ? hit.difficulties : [],
+              is_community: Boolean(hit.is_community),
+              audio_url: hit.audio_url || '',
+              addedAt: Date.now()
+            });
+          }
+        }
+
+        const cleanPlaylists = Array.isArray(_cachedPlaylists) ? _cachedPlaylists.map(pl => ({
+          id: pl.id,
+          title: pl.title || 'Playlist',
+          item_count: Array.isArray(pl.tracks) ? pl.tracks.length : (pl.item_count || 0),
+          tracks: Array.isArray(pl.tracks) ? pl.tracks.slice(0, 250) : [],
+          source: pl.source || 'custom',
+          createdAt: pl.createdAt || Date.now()
+        })) : [];
+
         return {
           recovery_code: code,
           player_name: playerName,
+          account_token: accountToken,
           wallet: {
             clefs: (typeof userClefs === 'number' && Number.isFinite(userClefs)) ? userClefs : (parseInt(localStorage.getItem('game_claves_de_sol') || '100', 10) || 100),
             silvers: (typeof userSilvers === 'number' && Number.isFinite(userSilvers)) ? userSilvers : (parseInt(localStorage.getItem('game_platas') || '0', 10) || 0),
@@ -18583,7 +18815,9 @@ function stopPianoCameraLoop() {
           unlocked_effects: Array.isArray(effectsList) ? effectsList : ['solar_inferno'],
           active_effect: localStorage.getItem('beatstar_active_effect') || 'solar_inferno',
           highscores: hsMap || {},
-          favorites: favArray,
+          favorites: Array.from(new Set([...favArray, ...Array.from(favRecordsById.keys())])),
+          favorite_records: Array.from(favRecordsById.values()),
+          playlists: cleanPlaylists,
           weekly_history: weeklyHist,
           settings: {
             lang: localStorage.getItem('beatstar_lang') || 'es',
@@ -18605,25 +18839,33 @@ function stopPianoCameraLoop() {
       }
       window.collectLocalPlayerProfileSnapshot = collectLocalPlayerProfileSnapshot;
 
-      function applyRestoredCloudProfile(prof, incomingCode) {
+      async function applyRestoredCloudProfile(prof, incomingCode) {
         if (!prof || typeof prof !== 'object') return false;
         try {
           if (incomingCode || prof.recovery_code) {
             localStorage.setItem('beatstar_recovery_code', String(incomingCode || prof.recovery_code).trim().toUpperCase());
           }
           if (prof.player_name) {
-            localStorage.setItem('beatstar_player_nickname', String(prof.player_name).trim());
+            const cleanName = String(prof.player_name).trim();
+            localStorage.setItem('beatstar_player_nickname', cleanName);
             const sInp = document.getElementById('settingsNicknameInput');
-            if (sInp) sInp.value = String(prof.player_name).trim();
+            if (sInp) sInp.value = cleanName;
+            if (prof.account_token) {
+              try {
+                const tokMap = JSON.parse(localStorage.getItem('beatstar_tokens_by_user_v1') || '{}') || {};
+                tokMap[cleanName.toLowerCase()] = String(prof.account_token).trim();
+                localStorage.setItem('beatstar_tokens_by_user_v1', JSON.stringify(tokMap));
+              } catch (_) {}
+            }
           }
           localStorage.setItem('beatstar_initial_keys_awarded', 'true');
 
           // 1. Monedero y Medallas
           if (prof.wallet && typeof prof.wallet === 'object') {
             if (Number.isFinite(Number(prof.wallet.clefs))) userClefs = Math.max(0, Math.round(Number(prof.wallet.clefs)));
-            if (Number.isFinite(Number(prof.wallet.silvers))) userSilvers = Math.max(userSilvers || 0, Math.round(Number(prof.wallet.silvers)));
-            if (Number.isFinite(Number(prof.wallet.golds))) userGolds = Math.max(userGolds || 0, Math.round(Number(prof.wallet.golds)));
-            if (Number.isFinite(Number(prof.wallet.platinums))) userPlatinums = Math.max(userPlatinums || 0, Math.round(Number(prof.wallet.platinums)));
+            if (Number.isFinite(Number(prof.wallet.silvers))) userSilvers = Math.max(0, Math.round(Number(prof.wallet.silvers)));
+            if (Number.isFinite(Number(prof.wallet.golds))) userGolds = Math.max(0, Math.round(Number(prof.wallet.golds)));
+            if (Number.isFinite(Number(prof.wallet.platinums))) userPlatinums = Math.max(0, Math.round(Number(prof.wallet.platinums)));
           }
 
           // 2. Modos de Juego Desbloqueados (incluyendo Split, Cruce, Eco, Espejo, etc.)
@@ -18667,17 +18909,62 @@ function stopPianoCameraLoop() {
             localStorage.setItem('beatstar_highscores', JSON.stringify(highscores));
           }
 
-          // 5. Historial Semanal y Favoritos
+          // 5. Historial Semanal, Favoritos (con canciones completas en IndexedDB) y Playlists
           if (prof.weekly_history && typeof prof.weekly_history === 'object') {
             let localWH = {};
             try { localWH = JSON.parse(localStorage.getItem('beatstar_weekly_history') || '{}') || {}; } catch (_) {}
             localStorage.setItem('beatstar_weekly_history', JSON.stringify(Object.assign({}, prof.weekly_history, localWH)));
           }
-          if (Array.isArray(prof.favorites) && typeof favoriteIdsSet !== 'undefined' && favoriteIdsSet instanceof Set) {
-            prof.favorites.forEach(id => {
-              if (id) favoriteIdsSet.add(id);
-            });
+
+          const topCatalog = (typeof getFormattedTopSongsCatalog === 'function') ? (getFormattedTopSongsCatalog() || []) : [];
+          const favRecordsToSave = new Map();
+          if (Array.isArray(prof.favorite_records)) {
+            for (const rec of prof.favorite_records) {
+              if (rec && rec.id) favRecordsToSave.set(String(rec.id), rec);
+            }
           }
+          if (Array.isArray(prof.favorites)) {
+            for (const rawId of prof.favorites) {
+              const sId = String(rawId || '').trim();
+              if (!sId) continue;
+              if (typeof favoriteIdsSet !== 'undefined' && favoriteIdsSet instanceof Set) {
+                favoriteIdsSet.add(sId);
+              }
+              if (!favRecordsToSave.has(sId)) {
+                const rawLookupId = sId.replace(/^top_/, '');
+                const hit = topCatalog.find(s => s && (String(s.id) === sId || String(s.raw_id) === rawLookupId)) ||
+                  (Array.isArray(searchResultsCache) ? searchResultsCache.find(s => s && String(s.id) === sId) : null);
+                if (hit) {
+                  favRecordsToSave.set(sId, hit);
+                }
+              }
+            }
+          }
+          if (typeof IndexedDBStorage !== 'undefined' && typeof IndexedDBStorage.putFavoriteRecord === 'function') {
+            for (const [fId, fObj] of favRecordsToSave.entries()) {
+              if (typeof favoriteIdsSet !== 'undefined' && favoriteIdsSet instanceof Set) {
+                favoriteIdsSet.add(fId);
+              }
+              await IndexedDBStorage.putFavoriteRecord(fObj).catch(() => {});
+            }
+          }
+
+          if (Array.isArray(prof.playlists) && typeof IndexedDBStorage !== 'undefined' && typeof IndexedDBStorage.savePlaylist === 'function') {
+            for (const pl of prof.playlists) {
+              if (pl && (pl.id || pl.title)) {
+                await IndexedDBStorage.savePlaylist({
+                  id: pl.id || `pl_${Date.now()}`,
+                  title: pl.title || 'Playlist',
+                  item_count: Array.isArray(pl.tracks) ? pl.tracks.length : (pl.item_count || 0),
+                  tracks: Array.isArray(pl.tracks) ? pl.tracks : [],
+                  source: pl.source || 'custom',
+                  createdAt: pl.createdAt || Date.now()
+                }).catch(() => {});
+              }
+            }
+          }
+
+          await refreshIndexedDbSnapshotCaches();
 
           // 6. Ajustes, Ruleta y Pity
           if (prof.settings && typeof prof.settings === 'object') {
@@ -18708,6 +18995,12 @@ function stopPianoCameraLoop() {
 
           updateUserWalletDisplay();
           refreshCloudBackupSettingsUI();
+          if (typeof updateLibraryVaultBadges === 'function') {
+            try { updateLibraryVaultBadges(); } catch (_) {}
+          }
+          if (typeof renderCurrentLibrarySubtab === 'function') {
+            try { renderCurrentLibrarySubtab(); } catch (_) {}
+          }
           if (typeof renderTopCatalogSection === 'function') {
             try { renderTopCatalogSection(); } catch (_) {}
           }
@@ -18726,9 +19019,10 @@ function stopPianoCameraLoop() {
           if (!key || key === 'jugador') return;
           const vault = JSON.parse(localStorage.getItem('beatstar_local_accounts_by_name_v1') || '{}') || {};
           const prev = vault[key] || {};
+          const resolvedPass = passwordStr || prev._local_password || getAccountPasswordForUser(snapshot.player_name) || '';
           vault[key] = {
             ...snapshot,
-            _local_password: passwordStr || prev._local_password || localStorage.getItem('beatstar_account_password') || localStorage.getItem('beatstar_account_pin') || '',
+            _local_password: resolvedPass,
             updated_at: new Date().toISOString()
           };
           localStorage.setItem('beatstar_local_accounts_by_name_v1', JSON.stringify(vault));
@@ -18736,23 +19030,21 @@ function stopPianoCameraLoop() {
       }
 
       function refreshCloudBackupSettingsUI() {
-        const codeEl = document.getElementById('settingsRecoveryCodeDisplay');
-        if (codeEl) codeEl.value = getOrCreateRecoveryCode();
-        const pinEl = document.getElementById('settingsAccountPinInput');
-        const savedPass = localStorage.getItem('beatstar_account_password') || localStorage.getItem('beatstar_account_pin') || '';
-        if (pinEl && savedPass && !pinEl.value) pinEl.value = savedPass;
-
         const snap = collectLocalPlayerProfileSnapshot();
+        const savedPass = getAccountPasswordForUser(snap.player_name);
+        const pinEl = document.getElementById('settingsAccountPinInput');
+        if (pinEl) pinEl.value = savedPass || '';
+
         const uEl = document.getElementById('cloudSumUser');
         if (uEl) uEl.textContent = snap.player_name || 'Jugador';
         const passBadge = document.getElementById('cloudSumPassBadge');
         if (passBadge) {
           if (savedPass) {
             passBadge.textContent = 'Contraseña Activa';
-            passBadge.className = 'px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] font-bold';
+            passBadge.className = 'px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] font-bold shrink-0';
           } else {
             passBadge.textContent = 'Sin Contraseña';
-            passBadge.className = 'px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-bold';
+            passBadge.className = 'px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-bold shrink-0';
           }
         }
         const cEl = document.getElementById('cloudSumClefs');
@@ -18767,20 +19059,39 @@ function stopPianoCameraLoop() {
         }
         const eEl = document.getElementById('cloudSumEffects');
         if (eEl) eEl.textContent = String(Array.isArray(snap.unlocked_effects) ? snap.unlocked_effects.length : 1);
+        const favEl = document.getElementById('cloudSumFavorites');
+        if (favEl) favEl.textContent = String(Math.max(
+          Array.isArray(snap.favorites) ? snap.favorites.length : 0,
+          Array.isArray(snap.favorite_records) ? snap.favorite_records.length : 0
+        ));
+        const plEl = document.getElementById('cloudSumPlaylists');
+        if (plEl) plEl.textContent = String(Array.isArray(snap.playlists) ? snap.playlists.length : 0);
       }
       window.refreshCloudBackupSettingsUI = refreshCloudBackupSettingsUI;
 
       async function syncCloudProfileNow(isManual = false, extraOpts = {}) {
         if (_isCloudSyncInFlight && !isManual) return null;
+        await refreshIndexedDbSnapshotCaches();
         const baseUrl = (typeof getApiBaseUrl === 'function') ? getApiBaseUrl() : '';
-        const nick = (localStorage.getItem('beatstar_player_nickname') || '').trim();
-        const snapshot = collectLocalPlayerProfileSnapshot();
-        const savedPass = localStorage.getItem('beatstar_account_password') || localStorage.getItem('beatstar_account_pin') || '';
-        saveSnapshotToLocalVault(snapshot, extraOpts.new_password || extraOpts.new_pin || extraOpts.password || savedPass);
+        const targetNick = String(extraOpts.override_player_name || localStorage.getItem('beatstar_player_nickname') || '').trim();
+        const snapshot = collectLocalPlayerProfileSnapshot(targetNick || null);
+        if (extraOpts.favorites_authoritative || _pendingSyncFlags.favorites_authoritative) {
+          snapshot.favorites_authoritative = true;
+        }
+        if (extraOpts.playlists_authoritative || _pendingSyncFlags.playlists_authoritative) {
+          snapshot.playlists_authoritative = true;
+        }
+        _pendingSyncFlags = {};
+
+        const savedPass = getAccountPasswordForUser(snapshot.player_name);
+        const effectivePass = extraOpts.new_password || extraOpts.new_pin || extraOpts.password || savedPass || '';
+        if (!extraOpts.is_nickname_change && !extraOpts.is_new_registration) {
+          saveSnapshotToLocalVault(snapshot, effectivePass);
+        }
         refreshCloudBackupSettingsUI();
 
         if (!baseUrl) return null;
-        if (!nick && !isManual) return null;
+        if (!targetNick && !isManual) return null;
 
         _isCloudSyncInFlight = true;
         const pill = document.getElementById('cloudBackupStatusPill');
@@ -18790,6 +19101,7 @@ function stopPianoCameraLoop() {
           const payload = {
             player_name: snapshot.player_name,
             recovery_code: snapshot.recovery_code,
+            account_token: snapshot.account_token,
             password: extraOpts.password ?? savedPass,
             pin: extraOpts.pin ?? savedPass,
             profile: snapshot,
@@ -18800,10 +19112,10 @@ function stopPianoCameraLoop() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const data = await res.json();
+          const data = await res.json().catch(() => ({}));
           if (data && data.synced && data.recovery_code) {
             localStorage.setItem('beatstar_recovery_code', data.recovery_code);
+            saveSnapshotToLocalVault(snapshot, effectivePass);
             refreshCloudBackupSettingsUI();
             if (pill) pill.textContent = 'Guardado en Nube';
           }
@@ -18817,8 +19129,11 @@ function stopPianoCameraLoop() {
       }
       window.syncCloudProfileNow = syncCloudProfileNow;
 
-      window.scheduleCloudProfileSync = function() {
-        refreshCloudBackupSettingsUI();
+      window.scheduleCloudProfileSync = function(flags = {}) {
+        if (flags && typeof flags === 'object') {
+          Object.assign(_pendingSyncFlags, flags);
+        }
+        refreshIndexedDbSnapshotCaches().then(() => refreshCloudBackupSettingsUI()).catch(() => {});
         if (_cloudSyncDebounceTimer) clearTimeout(_cloudSyncDebounceTimer);
         _cloudSyncDebounceTimer = setTimeout(() => {
           _cloudSyncDebounceTimer = null;
@@ -18826,32 +19141,19 @@ function stopPianoCameraLoop() {
         }, 900);
       };
 
-      window.copyPlayerRecoveryCode = function() {
-        const code = getOrCreateRecoveryCode();
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(code).then(() => {
-            showSuccessToast(`ID copiado: ${code}`);
-          }).catch(() => {
-            showSuccessToast(`Tu ID es: ${code}`);
-          });
-        } else {
-          showSuccessToast(`Tu ID es: ${code}`);
-        }
-      };
-
       window.forceCloudProfileSaveNow = async function() {
         const msgEl = document.getElementById('settingsCloudFeedbackMsg');
-        const data = await syncCloudProfileNow(true);
+        const data = await syncCloudProfileNow(true, { favorites_authoritative: true, playlists_authoritative: true });
         if (data && data.synced) {
           if (msgEl) {
             msgEl.className = 'text-[10px] font-mono text-emerald-300 min-h-[12px]';
-            msgEl.textContent = `Progreso de ${data.summary?.player_name || 'tu cuenta'} guardado en la nube (${data.recovery_code}).`;
+            msgEl.textContent = `Progreso de ${data.summary?.player_name || 'tu cuenta'} sincronizado (claves, canciones, modos, favoritos y playlists).`;
           }
-          showSuccessToast('Progreso guardado en la nube correctamente');
-        } else if (data && data.found_existing_account) {
+          showSuccessToast('Progreso sincronizado en la nube');
+        } else if (data && (data.nickname_taken || data.found_existing_account)) {
           if (msgEl) {
             msgEl.className = 'text-[10px] font-mono text-amber-300 min-h-[12px]';
-            msgEl.textContent = 'Existe una cuenta previa con este Nombre de Usuario. Usa Recuperar abajo con tu contraseña.';
+            msgEl.textContent = data.error || 'Este Nombre de Usuario pertenece a una cuenta protegida con otra contraseña.';
           }
         } else {
           if (msgEl) {
@@ -18865,6 +19167,11 @@ function stopPianoCameraLoop() {
         const pinInp = document.getElementById('settingsAccountPinInput');
         const msgEl = document.getElementById('settingsCloudFeedbackMsg');
         const newPass = pinInp ? pinInp.value.trim() : '';
+        const currentNick = (localStorage.getItem('beatstar_player_nickname') || '').trim();
+        if (!currentNick || currentNick.toLowerCase() === 'jugador') {
+          showErrorToast('Primero elige y guarda un Nombre de Usuario único arriba.');
+          return;
+        }
         if (!newPass || newPass.length < 3) {
           if (msgEl) {
             msgEl.className = 'text-[10px] font-mono text-red-400 min-h-[12px]';
@@ -18873,16 +19180,27 @@ function stopPianoCameraLoop() {
           showErrorToast('Escribe una contraseña de al menos 3 caracteres.');
           return;
         }
-        localStorage.setItem('beatstar_account_pin', newPass);
-        localStorage.setItem('beatstar_account_password', newPass);
+        const prevPass = getAccountPasswordForUser(currentNick);
+        setAccountPasswordForUser(currentNick, newPass);
         refreshCloudBackupSettingsUI();
-        const data = await syncCloudProfileNow(true, { new_password: newPass, new_pin: newPass, password: newPass, pin: newPass });
+        const data = await syncCloudProfileNow(true, {
+          new_password: newPass,
+          new_pin: newPass,
+          password: prevPass || newPass,
+          pin: prevPass || newPass
+        });
         if (data && data.synced) {
           if (msgEl) {
             msgEl.className = 'text-[10px] font-mono text-emerald-300 min-h-[12px]';
-            msgEl.textContent = 'Contraseña guardada y vinculada a tu Nombre de Usuario.';
+            msgEl.textContent = `Contraseña guardada exclusivamente para la cuenta "${currentNick}".`;
           }
           showSuccessToast('Contraseña de cuenta guardada');
+        } else if (data && data.nickname_taken) {
+          if (msgEl) {
+            msgEl.className = 'text-[10px] font-mono text-red-400 min-h-[12px]';
+            msgEl.textContent = data.error || 'Ese Nombre de Usuario ya pertenece a otro jugador.';
+          }
+          showErrorToast(data.error || 'Ese Nombre de Usuario ya pertenece a otro jugador.');
         } else {
           if (msgEl) {
             msgEl.className = 'text-[10px] font-mono text-emerald-300 min-h-[12px]';
@@ -18895,23 +19213,22 @@ function stopPianoCameraLoop() {
       async function performAccountRestore(query, password, statusEl, pinInputEl) {
         const cleanQ = String(query || '').trim();
         const cleanPass = String(password || '').trim();
-        const isDirectRncCode = /^RNC-[A-Z0-9]{4,12}$/i.test(cleanQ) || /^RNC-[A-Z0-9]{4,12}$/i.test(cleanPass);
 
         if (!cleanQ) {
           if (statusEl) {
             statusEl.className = 'text-[10px] font-mono text-red-400 min-h-[12px]';
-            statusEl.textContent = 'Escribe tu Nombre de Usuario y tu Contraseña.';
+            statusEl.textContent = 'Escribe el Nombre de Usuario de tu cuenta.';
           }
           return false;
         }
-        if (!cleanPass && !isDirectRncCode) {
+        if (!cleanPass) {
           if (pinInputEl) {
             pinInputEl.classList.remove('hidden');
             pinInputEl.focus();
           }
           if (statusEl) {
             statusEl.className = 'text-[10px] font-mono text-amber-300 min-h-[12px]';
-            statusEl.textContent = 'Es obligatorio escribir la contraseña de tu cuenta para recuperarla.';
+            statusEl.textContent = 'Es obligatorio escribir la contraseña de esa cuenta para recuperarla.';
           }
           return false;
         }
@@ -18928,7 +19245,7 @@ function stopPianoCameraLoop() {
             body: JSON.stringify({ query: cleanQ, password: cleanPass, pin: cleanPass })
           });
           const data = await res.json().catch(() => ({}));
-          if (res.status === 403 && (data.requires_pin || data.requires_password)) {
+          if (res.status === 403) {
             if (pinInputEl) {
               pinInputEl.classList.remove('hidden');
               pinInputEl.focus();
@@ -18937,19 +19254,17 @@ function stopPianoCameraLoop() {
               statusEl.className = 'text-[10px] font-mono text-red-400 min-h-[12px]';
               statusEl.textContent = data.error || 'Contraseña incorrecta para ese Nombre de Usuario.';
             }
+            showErrorToast(data.error || 'Contraseña incorrecta para esa cuenta.');
             return false;
           }
           if (!res.ok || !data.success || !data.profile) {
-            // Respaldo desde bóveda local del dispositivo si coincide usuario y contraseña
+            // Respaldo desde bóveda local únicamente si la cuenta fue creada en este dispositivo con esa exacta contraseña
             try {
               const vault = JSON.parse(localStorage.getItem('beatstar_local_accounts_by_name_v1') || '{}') || {};
               const localHit = vault[cleanQ.toLowerCase()];
-              if (localHit && (!localHit._local_password || localHit._local_password === cleanPass)) {
-                if (cleanPass) {
-                  localStorage.setItem('beatstar_account_pin', cleanPass);
-                  localStorage.setItem('beatstar_account_password', cleanPass);
-                }
-                applyRestoredCloudProfile(localHit, localHit.recovery_code);
+              if (localHit && localHit._local_password && localHit._local_password === cleanPass) {
+                setAccountPasswordForUser(localHit.player_name, cleanPass);
+                await applyRestoredCloudProfile(localHit, localHit.recovery_code);
                 if (statusEl) {
                   statusEl.className = 'text-[10px] font-mono text-emerald-300 min-h-[12px]';
                   statusEl.textContent = `Cuenta recuperada: ${localHit.player_name} (${Number(localHit.wallet?.clefs || 0).toLocaleString()} claves).`;
@@ -18963,20 +19278,19 @@ function stopPianoCameraLoop() {
               statusEl.className = 'text-[10px] font-mono text-red-400 min-h-[12px]';
               statusEl.textContent = data.error || 'No se encontró ninguna cuenta con ese Nombre de Usuario.';
             }
+            showErrorToast(data.error || 'No se encontró esa cuenta.');
             return false;
           }
-          if (cleanPass && !/^RNC-[A-Z0-9]{4,12}$/i.test(cleanPass)) {
-            localStorage.setItem('beatstar_account_pin', cleanPass);
-            localStorage.setItem('beatstar_account_password', cleanPass);
-          }
-          applyRestoredCloudProfile(data.profile, data.recovery_code);
+
+          setAccountPasswordForUser(data.profile.player_name || cleanQ, cleanPass);
+          await applyRestoredCloudProfile(data.profile, data.recovery_code);
           saveSnapshotToLocalVault(data.profile, cleanPass);
           const sum = data.summary || {};
           if (statusEl) {
             statusEl.className = 'text-[10px] font-mono text-emerald-300 min-h-[12px]';
-            statusEl.textContent = `Restaurado: ${sum.player_name || data.profile.player_name || ''} (${Number(sum.clefs || 0).toLocaleString()} claves, ${sum.songs_count || 0} canciones, ${sum.unlocked_modes_count || 0} modos).`;
+            statusEl.textContent = `Restaurado: ${sum.player_name || data.profile.player_name || ''} (${Number(sum.clefs || 0).toLocaleString()} claves, ${sum.songs_count || 0} canciones, ${sum.favorites_count || 0} favoritos, ${sum.playlists_count || 0} playlists).`;
           }
-          showSuccessToast(`Progreso de ${data.profile.player_name || 'tu cuenta'} recuperado`);
+          showSuccessToast(`Cuenta ${data.profile.player_name || cleanQ} recuperada al completo`);
           return true;
         } catch (err) {
           if (statusEl) {
@@ -19014,7 +19328,10 @@ function stopPianoCameraLoop() {
         }
       };
 
-      setTimeout(() => refreshCloudBackupSettingsUI(), 250);
+      setTimeout(async () => {
+        await refreshIndexedDbSnapshotCaches();
+        refreshCloudBackupSettingsUI();
+      }, 250);
     })();
 
     // =========================================================================

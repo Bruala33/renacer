@@ -109,6 +109,63 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
+            val cleanRel = trimmed
+                .removePrefix("www/")
+                .removePrefix("static/")
+                .substringBefore('?')
+            val isLiveSyncCoreFile = cleanRel == "game.html" ||
+                cleanRel == "index.html" ||
+                cleanRel == "game.js" ||
+                cleanRel == "parsers.js" ||
+                cleanRel == "styles.css" ||
+                cleanRel == "slot_machine.js" ||
+                cleanRel == "gachapon_3d.js"
+
+            if (isLiveSyncCoreFile) {
+                val liveDir = File(context.filesDir, "live_www")
+                val cachedFile = File(liveDir, if (cleanRel == "game.html") "index.html" else cleanRel)
+                val mime = guessMimeType(cleanRel)
+                val encoding = "UTF-8"
+
+                // 1. Intentar descargar la última versión en vivo de renacer.onrender.com (con timeout corto para no bloquear)
+                try {
+                    val remoteName = if (cleanRel == "game.html") "index.html" else cleanRel
+                    val remoteUrl = URL("https://renacer.onrender.com/$remoteName?t=${System.currentTimeMillis()}")
+                    val conn = (remoteUrl.openConnection() as HttpURLConnection).apply {
+                        requestMethod = "GET"
+                        connectTimeout = 2200
+                        readTimeout = 3500
+                        useCaches = false
+                        setRequestProperty("Accept-Encoding", "identity")
+                        setRequestProperty("Cache-Control", "no-cache")
+                    }
+                    if (conn.responseCode == 200) {
+                        val bytes = conn.inputStream.use { it.readBytes() }
+                        if (bytes.size > 512) {
+                            try {
+                                if (!liveDir.exists()) liveDir.mkdirs()
+                                cachedFile.writeBytes(bytes)
+                            } catch (_: Exception) {}
+                            return WebResourceResponse(mime, encoding, 200, "OK", CORS_HEADERS, ByteArrayInputStream(bytes))
+                        }
+                    }
+                } catch (_: Exception) {
+                    // Sin conexión o servidor despertando: usar caché sincronizada si es más reciente que el APK
+                }
+
+                // 2. Si hay una versión sincronizada guardada en disco más reciente que la instalación del APK, servirla offline
+                try {
+                    val pkgTime = try {
+                        context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime
+                    } catch (_: Exception) {
+                        0L
+                    }
+                    if (cachedFile.exists() && cachedFile.length() > 512L && cachedFile.lastModified() > pkgTime) {
+                        return WebResourceResponse(mime, encoding, 200, "OK", CORS_HEADERS, cachedFile.inputStream())
+                    }
+                } catch (_: Exception) {}
+            }
+
             val candidates = linkedSetOf<String>()
             if (trimmed.startsWith("www/")) {
                 candidates.add(trimmed)
@@ -402,7 +459,7 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(webView)
         webView.clearCache(true)
-        webView.loadUrl("https://appassets.androidplatform.net/assets/www/game.html?v=49.0")
+        webView.loadUrl("https://appassets.androidplatform.net/assets/www/game.html?v=50.0")
         hideSystemUI()
     }
 
