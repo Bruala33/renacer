@@ -6869,11 +6869,11 @@
       return DEFAULT_CLOUD_SERVER;
     }
 
-    // Codigo de version local actualizado a 51 (v5.1.0)
+    // Codigo de version local actualizado a 52 (v5.2.0)
     const CURRENT_APP_VERSION_CODE = (window.AndroidNative && typeof window.AndroidNative.getAppVersionCode === 'function')
-      ? Math.max(51, Number(window.AndroidNative.getAppVersionCode()) || 51)
-      : 51;
-    let appUpdateDownloadUrl = '/download/apk?v=51.0';
+      ? Math.max(52, Number(window.AndroidNative.getAppVersionCode()) || 52)
+      : 52;
+    let appUpdateDownloadUrl = '/download/apk?v=52.0';
 
     async function checkForAppUpdates() {
       // Aviso automatico de actualizacion desactivado para que nunca salte al abrir la app
@@ -6912,7 +6912,7 @@
                            host === 'appassets.androidplatform.net' ||
                            (window.location && window.location.protocol === 'file:');
       const base = isStaticOnly ? getApiBaseUrl() : '';
-      const targetUrl = `${base}/download/apk?v=51.0&local=1&t=${ts}`;
+      const targetUrl = `${base}/download/apk?v=52.0&local=1&t=${ts}`;
 
       if (window.AndroidNative && typeof window.AndroidNative.openBrowser === 'function') {
         const absUrl = targetUrl.startsWith('http') ? targetUrl : `${getApiBaseUrl()}${targetUrl}`;

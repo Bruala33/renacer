@@ -7135,9 +7135,15 @@ class BeatstarEngine {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
 
-    // 2. RAYAS DE SINTETIZADOR CON CUADRADITOS (En Split y Locura la propia pista 3D dibuja sus costillas laterales sincronizadas con la cámara)
+    // 2. RAYAS DE SINTETIZADOR CON CUADRADITOS (En Split, Locura y Setas la propia pista 3D dibuja sus costillas laterales sincronizadas con la cámara)
     const bpmSpeedVal = (this.currentBpm || 120);
-    if (!this.isSplitModeActive && !this.isMadnessModeActive) {
+    const isMushBgActive = Boolean(
+      this.isMushroomModeActive ||
+      window.isMushroomModeActive ||
+      (this.isMadnessModeActive && this.getActiveMadnessPhase(currentTime) === 'mushroom') ||
+      (this._mushWorldEnvelope || 0) > 0.05
+    );
+    if (!this.isSplitModeActive && !this.isMadnessModeActive && !isMushBgActive) {
       this.renderEqualizerBorders(ctx, w, h, currentTime, bpmSpeedVal, beatPulse, mult);
     }
 
@@ -7284,7 +7290,7 @@ class BeatstarEngine {
 
     // 6. REFLEJOS ESPECULARES EN EL SUELO BAJO LAS NOTAS (Optimizado: empieza en firstActiveNoteIndex y sin RadialGradient por frame)
     const hitY = Number.isFinite(this.hitLineY) ? this.hitLineY : (h * 0.84);
-    if (Array.isArray(this.notes)) {
+    if (Array.isArray(this.notes) && !isMushBgActive) {
       let drawnReflections = 0;
       const startRefIdx = Math.min(this.firstActiveNoteIndex || 0, this.notes.length);
       const scrollDur = this.scrollDurationMs || 1000;
@@ -9487,42 +9493,47 @@ class BeatstarEngine {
   _beginMushroomWorldTransform(ctx, currentTime) {
     if (!this._mushAssetsReady) this.initMushroomModeAssets();
     const nowPerf = this._frameNow || performance.now();
-    const dt = Math.min(0.05, Math.max(0.004, (nowPerf - (this._mushLastTransformNow || nowPerf)) / 1000));
+    const isNewFrame = (nowPerf !== this._mushLastTransformNow);
+    const dt = isNewFrame
+      ? Math.min(0.05, Math.max(0.004, (nowPerf - (this._mushLastTransformNow || nowPerf)) / 1000))
+      : 0;
     this._mushLastTransformNow = nowPerf;
 
-    // Programar inversiones elegantes de gravedad cada ~14 segundos en Modo Setas puro (en Modo Locura se sincroniza con la fase)
-    if (!this.isMadnessModeActive && currentTime > 3000 && currentTime >= (this._mushNextFlipTimeMs || 9500)) {
-      this._mushTargetFlipped = !this._mushTargetFlipped;
-      this._mushNextFlipTimeMs = currentTime + 14000;
-      this._mushBannerText = this._mushTargetFlipped
-        ? 'NUBE DE SETAS: PERFECT ARRIBA!'
-        : 'NUBE DE SETAS: PERFECT ABAJO!';
-      this._mushBannerTimer = 1.35;
-      this._mushSafeGraceUntilMs = currentTime + 880;
-      this._mushInSafeTransition = true;
-      this.invulnerableUntil = Math.max(this.invulnerableUntil || 0, currentTime + 880);
-      this._triggerMushroomCloudTransition(currentTime);
-    }
-
-    const targetP = this._mushTargetFlipped ? 1.0 : 0.0;
-    const curP = this._mushFlipProgress || 0.0;
-    if (Math.abs(targetP - curP) > 0.001) {
-      const step = dt / 0.62; // Transición ágil de 0.62s para que el giro termine rápido y queden muchas notas por jugar
-      if (curP < targetP) {
-        this._mushFlipProgress = Math.min(1.0, curP + step);
-      } else {
-        this._mushFlipProgress = Math.max(0.0, curP - step);
+    if (isNewFrame) {
+      // Programar inversiones elegantes de gravedad cada ~14 segundos en Modo Setas puro (en Modo Locura se sincroniza con la fase)
+      if (!this.isMadnessModeActive && currentTime > 3000 && currentTime >= (this._mushNextFlipTimeMs || 9500)) {
+        this._mushTargetFlipped = !this._mushTargetFlipped;
+        this._mushNextFlipTimeMs = currentTime + 14000;
+        this._mushBannerText = this._mushTargetFlipped
+          ? 'NUBE DE SETAS: PERFECT ARRIBA!'
+          : 'NUBE DE SETAS: PERFECT ABAJO!';
+        this._mushBannerTimer = 1.35;
+        this._mushSafeGraceUntilMs = currentTime + 880;
+        this._mushInSafeTransition = true;
+        this.invulnerableUntil = Math.max(this.invulnerableUntil || 0, currentTime + 880);
+        this._triggerMushroomCloudTransition(currentTime);
       }
-      this._mushSafeGraceUntilMs = Math.max(this._mushSafeGraceUntilMs || 0, currentTime + 280);
-      this._mushInSafeTransition = true;
-      this.invulnerableUntil = Math.max(this.invulnerableUntil || 0, currentTime + 280);
-    } else {
-      this._mushFlipProgress = targetP;
-      this._mushInSafeTransition = currentTime < (this._mushSafeGraceUntilMs || 0);
-    }
 
-    if (this._mushBannerTimer > 0) {
-      this._mushBannerTimer = Math.max(0, this._mushBannerTimer - dt);
+      const targetP = this._mushTargetFlipped ? 1.0 : 0.0;
+      const curP = this._mushFlipProgress || 0.0;
+      if (Math.abs(targetP - curP) > 0.001) {
+        const step = dt / 0.62; // Transición ágil de 0.62s para que el giro termine rápido y queden muchas notas por jugar
+        if (curP < targetP) {
+          this._mushFlipProgress = Math.min(1.0, curP + step);
+        } else {
+          this._mushFlipProgress = Math.max(0.0, curP - step);
+        }
+        this._mushSafeGraceUntilMs = Math.max(this._mushSafeGraceUntilMs || 0, currentTime + 280);
+        this._mushInSafeTransition = true;
+        this.invulnerableUntil = Math.max(this.invulnerableUntil || 0, currentTime + 280);
+      } else {
+        this._mushFlipProgress = targetP;
+        this._mushInSafeTransition = currentTime < (this._mushSafeGraceUntilMs || 0);
+      }
+
+      if (this._mushBannerTimer > 0) {
+        this._mushBannerTimer = Math.max(0, this._mushBannerTimer - dt);
+      }
     }
 
     const w = this.width || 360;
@@ -9606,17 +9617,17 @@ class BeatstarEngine {
       }
     }
 
-    // 3. Setas alucinógenas animadas brotando y bailando a los lados de la pista
+    // 3. Setas alucinógenas animadas brotando y bailando a los lados de la pista (sincronizadas con la rotación/inversión de cámara)
     ctx.globalCompositeOperation = 'source-over';
     if (this._mushSideMushrooms && this._mushSprites.length > 0) {
+      ctx.save();
+      this._beginMushroomWorldTransform(ctx, currentTime);
       for (let i = 0; i < this._mushSideMushrooms.length; i++) {
         const m = this._mushSideMushrooms[i];
         m.progress = (m.progress + m.speed * dt) % 1.0;
         const p = m.progress;
-        const yPos = this._mushTargetFlipped
-          ? (hitY - p * (hitY - 30))
-          : (30 + p * (hitY - 30));
-        const bndX = this.getLaneBoundaryX(m.side < 0 ? 0 : 3, 30 + p * (hitY - 30));
+        const yPos = 30 + p * (hitY - 30);
+        const bndX = this.getLaneBoundaryX(m.side < 0 ? 0 : 3, yPos);
         const xPos = bndX + m.side * (16 + p * 18) + Math.sin(tSec * 3.2 + m.phase) * 7;
         const scaleM = (0.55 + 0.65 * p) * (1.0 + beatPulse * 0.24);
         const sz = m.baseSize * scaleM;
@@ -9631,6 +9642,8 @@ class BeatstarEngine {
         ctx.drawImage(spr, -sz * 0.5, -sz * 0.5, sz, sz);
         ctx.restore();
       }
+      this._endMushroomWorldTransform(ctx);
+      ctx.restore();
     }
 
     // 4. Animación de NUBE DE SETAS al desaparecer las teclas durante la transición de gravedad
@@ -15521,8 +15534,8 @@ class BeatstarEngine {
             : (isMushTrack ? (this._mushTrackGrad || '#2b0952') : (this._trackGrad || '#f8fafc')));
       ctx.fill();
 
-      // A2. Sombreado cilíndrico 3D de bordes y brillo central perlado
-      if (this._trackEdgeShadowGrad && !isHighwayTrack && !isRiverTrack) {
+      // A2. Sombreado cilíndrico 3D de bordes y brillo central perlado (excluido en Modo Setas para no superponer una pista blanca encima del fondo psicodélico)
+      if (this._trackEdgeShadowGrad && !isHighwayTrack && !isRiverTrack && !isMushTrack) {
         ctx.fillStyle = this._trackEdgeShadowGrad;
         ctx.fill();
       }
@@ -15530,7 +15543,9 @@ class BeatstarEngine {
       // A3. Lomo especular 3D en el centro de cada uno de los carriles
       ctx.fillStyle = isRiverTrack
         ? 'rgba(125, 211, 252, 0.16)'
-        : (isHighwayTrack ? 'rgba(255, 255, 255, 0.045)' : 'rgba(255, 255, 255, 0.38)');
+        : (isHighwayTrack
+            ? 'rgba(255, 255, 255, 0.045)'
+            : (isMushTrack ? 'rgba(232, 121, 249, 0.12)' : 'rgba(255, 255, 255, 0.38)'));
       ctx.beginPath();
       for (let l = 0; l < nLanes; l++) {
         const cTopL = getBoundaryX(l + 0.28, horizonY);
@@ -23437,10 +23452,43 @@ class BeatstarEngine {
       let gateCounter = 0;
       let streamIdCounter = 1;
       let ribbonIdCounter = 1;
+      let sideMineCounter = 0;
       let lastWaveGateMs = -9999;
       let lastThunderClapMs = -9999;
       let lastMineMs = -9999;
       let lastBombWallMs = -9999;
+
+      // Escalar la densidad de minas en el Modo Rayos de Luz (`VOLTAIC_ARC_PHASE`) según la dificultad de la canción / nivel elegido
+      // sin pasarse para que siempre sea 100% superable
+      const rawStars = Number(
+        this.beatmapData?.metadata?.stars ??
+        this.beatmapData?.stars ??
+        this.stars ??
+        window.currentSongStars ??
+        3.5
+      ) || 3.5;
+      const rawDiffName = String(
+        this.difficulty ??
+        this.beatmapData?.difficulty ??
+        window.selectedDifficulty ??
+        ''
+      ).toLowerCase();
+      let diffNorm = Math.max(0.0, Math.min(1.0, (rawStars - 1.8) / 3.4));
+      if (rawDiffName.includes('facil') || rawDiffName.includes('easy')) {
+        diffNorm = Math.min(diffNorm, 0.28);
+      } else if (rawDiffName.includes('normal') || rawDiffName.includes('media') || rawDiffName.includes('medium')) {
+        diffNorm = Math.max(0.38, Math.min(0.68, diffNorm));
+      } else if (rawDiffName.includes('dificil') || rawDiffName.includes('hard')) {
+        diffNorm = Math.max(0.68, Math.min(0.88, diffNorm));
+      } else if (rawDiffName.includes('expert') || rawDiffName.includes('locura') || rawDiffName.includes('extremo')) {
+        diffNorm = Math.max(0.85, diffNorm);
+      }
+      // Cooldowns adaptativos según dificultad (Fácil -> Experto):
+      // - Minas laterales (`spiked_orb`): de ~800ms en Fácil a ~460ms en Experto
+      // - Líneas de 4 bombas (`bomb_wall`): de ~1950ms en Fácil a ~1420ms en Experto
+      const sideMineCooldownMs = Math.round(Math.max(460, (820 - diffNorm * 350), beatMs * (1.72 - diffNorm * 0.72)));
+      const bombWallCooldownMs = Math.round(Math.max(1420, (1980 - diffNorm * 540), beatMs * (3.85 - diffNorm * 1.05)));
+      const bombWallMod = diffNorm >= 0.72 ? 5 : (diffNorm >= 0.38 ? 6 : 7);
 
       // Colores cromáticos progresivos para las Cintas de Líneas Seguidas (`flow_line`): Cian -> Menta -> Oro -> Magenta
       const evalRibbonRungPalette = (uProg, isFinale) => {
@@ -23862,13 +23910,13 @@ class BeatstarEngine {
         voltaicSeq++;
 
         // 0. LÍNEA DE 4 BOMBAS ROJAS (`bomb_wall`): obliga sí o sí a soltar al menos un dedo para apagar el rayo
-        if (nt >= winStartMs + 850 &&
-            nt <= winEndMs - 650 &&
-            !isInsideOrNearRibbon(nt, 430) &&
-            (voltaicSeq % 7 === 4) &&
-            (nt - lastBombWallMs >= Math.max(2100, beatMs * 4.2)) &&
-            (nt - lastMineMs >= Math.max(950, beatMs * 2.0)) &&
-            dtPrev >= 170 && dtNext >= 170) {
+        if (nt >= winStartMs + 800 &&
+            nt <= winEndMs - 620 &&
+            !isInsideOrNearRibbon(nt, 410) &&
+            (voltaicSeq % bombWallMod === 3) &&
+            (nt - lastBombWallMs >= bombWallCooldownMs) &&
+            (nt - lastMineMs >= Math.max(680, sideMineCooldownMs * 1.15)) &&
+            dtPrev >= 165 && dtNext >= 165) {
           if (spawnBombWallAt(nt, 975000 + i * 8, n._cruceFormationIdx || 0)) {
             n._dropDuplicateCollapsed = true;
             streamIdCounter++;
@@ -24014,83 +24062,110 @@ class BeatstarEngine {
         n._cruceLocalU = targetU;
         n._cruceSpawnU = targetU * 0.85;
 
-        // Patrón A: En hueco musical amplio (>= 520ms), inyectar una LÍNEA DE 4 BOMBAS ROJAS (`bomb_wall`) en mitad del hueco
+        // Patrón A: En hueco musical amplio (>= 480ms), inyectar una LÍNEA DE 4 BOMBAS ROJAS (`bomb_wall`) en mitad del hueco
         // para obligar a soltar los dedos sí o sí antes de la siguiente ráfaga
-        if (dtNext >= 520 &&
-            (nt + dtNext * 0.5 >= winStartMs + 750) &&
-            (nt + dtNext * 0.5 <= winEndMs - 550) &&
-            (nt + dtNext * 0.5 - lastBombWallMs >= Math.max(1850, beatMs * 3.8)) &&
-            (nt + dtNext * 0.5 - lastMineMs >= Math.max(900, beatMs * 1.9))) {
+        if (dtNext >= 480 &&
+            (nt + dtNext * 0.5 >= winStartMs + 720) &&
+            (nt + dtNext * 0.5 <= winEndMs - 540) &&
+            (nt + dtNext * 0.5 - lastBombWallMs >= bombWallCooldownMs) &&
+            (nt + dtNext * 0.5 - lastMineMs >= Math.max(640, sideMineCooldownMs * 1.1))) {
           const wallTime = Math.round(nt + dtNext * 0.5);
           spawnBombWallAt(wallTime, 978000 + i * 8, n._cruceFormationIdx || 0);
           streamIdCounter++;
-        } else if (nt >= winStartMs + 700 &&
-            !isInsideOrNearRibbon(nt, 340) &&
-            (nt - lastMineMs >= Math.max(1050, beatMs * 2.1)) &&
-            (nt - lastWaveGateMs >= 380) &&
-            (nt - lastThunderClapMs >= 420)) {
-          // Patrón B: Inyectar Orbe Rojo con Espinas en el carril exterior OPUESTO (slot 0 si la nota está en 2-3, o slot 3 si está en 0-1)
-          const oppositeMineSlot = (assignedSlot >= 2) ? 0 : 3;
-          const mineNote = {
-            id: 970000 + i * 2,
-            lane: oppositeMineSlot,
-            _cruceSlot: oppositeMineSlot,
-            _cruceTargetU: slotBaseU[oppositeMineSlot],
-            _cruceLocalU: slotBaseU[oppositeMineSlot],
-            _cruceSpawnU: slotBaseU[oppositeMineSlot] * 0.85,
-            _crossBeamId: oppositeMineSlot,
-            _cruceFormationIdx: n._cruceFormationIdx || 0,
-            _cruceBilateralDir: 1.0,
-            type: 'tap',
-            isMine: true,
-            _isVoltaicArc: true,
-            _voltaicWindowStartMs: winKfTimeMs,
-            _voltaicWindowEndMs: winHardEndMs,
-            _isVoltaicMine: true,
-            _voltaicKind: 'spiked_orb',
-            _voltaicDodgeMode: 'side_dodge',
-            timestamp_ms: nt,
-            end_timestamp_ms: nt,
-            duration_ms: 0,
-            hit: false,
-            missed: false,
-            holding: false,
-            processed: false,
-            holdCompleted: false,
-            _madnessPhase: isMadness ? 'cruce' : undefined
-          };
-          injectedMines.push(mineNote);
-          voltaicNotesInPass.push(mineNote);
+        } else if (nt >= winStartMs + 580 &&
+            !isInsideOrNearRibbon(nt, 320) &&
+            (nt - lastMineMs >= sideMineCooldownMs) &&
+            (nt - lastWaveGateMs >= 330) &&
+            (nt - lastThunderClapMs >= 370)) {
+          // Patrón B: Inyectar Orbes Rojos con Espinas escalados por dificultad:
+          // - Siempre deja al menos 2 carriles seguros para el nodo conductor actual
+          // - En dificultad Media/Alta/Experto añade ocasionalmente una pareja de 2 minas en la mitad opuesta (carriles 0-1 o 2-3)
+          //   para obligar a desplazar o estrechar el rayo de luz hacia la mitad limpia sin bloquear el paso
+          sideMineCounter++;
+          const oppositeOuterSlot = (assignedSlot >= 2) ? 0 : 3;
+          const oppositeInnerSlot = (assignedSlot >= 2) ? 1 : 2;
+          const spawnDoubleHalfBarrier = (
+            diffNorm >= 0.42 &&
+            (assignedSlot === 0 || assignedSlot === 3) &&
+            dtPrev >= 210 &&
+            dtNext >= 210 &&
+            (diffNorm >= 0.75 ? (sideMineCounter % 2 === 0) : (sideMineCounter % 3 === 0))
+          );
+          const slotsToSpawn = spawnDoubleHalfBarrier
+            ? [oppositeOuterSlot, oppositeInnerSlot]
+            : [oppositeOuterSlot];
+
+          for (let mIdx = 0; mIdx < slotsToSpawn.length; mIdx++) {
+            const mSlot = slotsToSpawn[mIdx];
+            const mineNote = {
+              id: 970000 + i * 4 + mIdx,
+              lane: mSlot,
+              _cruceSlot: mSlot,
+              _cruceTargetU: slotBaseU[mSlot],
+              _cruceLocalU: slotBaseU[mSlot],
+              _cruceSpawnU: slotBaseU[mSlot] * 0.85,
+              _crossBeamId: mSlot,
+              _cruceFormationIdx: n._cruceFormationIdx || 0,
+              _cruceBilateralDir: 1.0,
+              type: 'tap',
+              isMine: true,
+              _isVoltaicArc: true,
+              _voltaicWindowStartMs: winKfTimeMs,
+              _voltaicWindowEndMs: winHardEndMs,
+              _isVoltaicMine: true,
+              _voltaicKind: 'spiked_orb',
+              _voltaicDodgeMode: 'side_dodge',
+              timestamp_ms: nt,
+              end_timestamp_ms: nt,
+              duration_ms: 0,
+              hit: false,
+              missed: false,
+              holding: false,
+              processed: false,
+              holdCompleted: false,
+              _madnessPhase: isMadness ? 'cruce' : undefined
+            };
+            injectedMines.push(mineNote);
+            voltaicNotesInPass.push(mineNote);
+          }
           lastMineMs = nt;
         }
       }
 
-      // Garantizar que cada ventana de Fase Arco Voltaico tenga al menos 1 o 2 Líneas de 4 Bombas (`bomb_wall`) bien espaciadas
-      // en huecos limpios fuera de las Cintas de Líneas Seguidas (`flow_line`)
+      // Garantizar que cada ventana de Fase Arco Voltaico tenga un número de Líneas de 4 Bombas (`bomb_wall`) acorde a la dificultad
+      // y un refuerzo de minas laterales (`spiked_orb`) bien espaciadas en huecos limpios fuera de las Cintas (`flow_line`)
       for (let w = 0; w < voltaicWindows.length; w++) {
         const win = voltaicWindows[w];
         const winDur = win.endMs - win.startMs;
         const existingWalls = injectedMines.filter(
           (m) => m && m._isVoltaicBombWallLeader && m.timestamp_ms >= win.startMs && m.timestamp_ms <= win.endMs
         );
-        if (existingWalls.length === 0 && winDur >= 2600) {
-          const maxWallsWanted = (winDur >= 7200) ? 2 : 1;
-          const probeFractions = [0.33, 0.62, 0.48, 0.28, 0.72, 0.56, 0.82];
-          let spawnedInWin = 0;
-          let lastWinWallT = -99999;
-          for (let c = 0; c < probeFractions.length && spawnedInWin < maxWallsWanted; c++) {
+        const targetWallsInWin = winDur < 2500
+          ? 0
+          : (diffNorm >= 0.72
+              ? (winDur >= 6600 ? 3 : (winDur >= 3400 ? 2 : 1))
+              : (diffNorm >= 0.38
+                  ? (winDur >= 7000 ? 3 : (winDur >= 3800 ? 2 : 1))
+                  : (winDur >= 6500 ? 2 : 1)));
+
+        if (existingWalls.length < targetWallsInWin) {
+          const probeFractions = [0.28, 0.54, 0.76, 0.38, 0.64, 0.46, 0.82, 0.22];
+          let spawnedInWin = existingWalls.length;
+          const wallTimesInWin = existingWalls.map((ew) => ew.timestamp_ms);
+          const minWallGap = Math.max(1450, bombWallCooldownMs);
+          for (let c = 0; c < probeFractions.length && spawnedInWin < targetWallsInWin; c++) {
             const wallT = Math.round(win.startMs + winDur * probeFractions[c]);
-            if (wallT - lastWinWallT < 2000 || lastWinWallT - wallT > -2000 && spawnedInWin > 0 && Math.abs(wallT - lastWinWallT) < 2000) continue;
-            if (isInsideOrNearRibbon(wallT, 440)) continue;
+            if (wallTimesInWin.some((t0) => Math.abs(wallT - t0) < minWallGap)) continue;
+            if (isInsideOrNearRibbon(wallT, 420)) continue;
             for (let nIdx = 0; nIdx < voltaicNotesInPass.length; nIdx++) {
               const vn = voltaicNotesInPass[nIdx];
-              if (vn && vn._voltaicKind !== 'flow_line' && Math.abs((vn.timestamp_ms ?? 0) - wallT) <= 280) {
+              if (vn && vn._voltaicKind !== 'flow_line' && Math.abs((vn.timestamp_ms ?? 0) - wallT) <= 270) {
                 vn._dropDuplicateCollapsed = true;
               }
             }
-            if (spawnBombWallAt(wallT, 989000 + w * 32 + c * 8, 0)) {
+            if (spawnBombWallAt(wallT, 989000 + w * 40 + c * 8, 0)) {
               spawnedInWin++;
-              lastWinWallT = wallT;
+              wallTimesInWin.push(wallT);
             }
           }
         }
@@ -28266,18 +28341,34 @@ class BeatstarEngine {
         const tL_bot = this.getLaneLeftX(effStart, surfaceEndY);
         if (tR_bot - tL_bot < 2) return;
 
-        // A1. Superficie principal blanca nacarada 3D
+        // A1. Superficie principal blanca nacarada 3D (o psicodélica en fase Setas de Modo Locura)
         ctx.beginPath();
         ctx.moveTo(tL_top, horizonY);
         ctx.lineTo(tR_top, horizonY);
         ctx.lineTo(tR_bot, surfaceEndY);
         ctx.lineTo(tL_bot, surfaceEndY);
         ctx.closePath();
-        ctx.fillStyle = this._trackGrad || '#f8fafc';
+        const isMadnessMushNow = Boolean(
+          this.isMadnessModeActive &&
+          (this.getActiveMadnessPhase(cTime) === 'mushroom' || (this._mushWorldEnvelope || 0) > 0.35)
+        );
+        if (isMadnessMushNow) {
+          if (!this._mushTrackGrad || this._mushTrackGradH !== this.height) {
+            this._mushTrackGradH = this.height;
+            const mg = ctx.createLinearGradient(0, horizonY, 0, surfaceEndY);
+            mg.addColorStop(0.0, '#140326');
+            mg.addColorStop(0.48, '#2b0952');
+            mg.addColorStop(1.0, '#4a0e78');
+            this._mushTrackGrad = mg;
+          }
+          ctx.fillStyle = this._mushTrackGrad;
+        } else {
+          ctx.fillStyle = this._trackGrad || '#f8fafc';
+        }
         ctx.fill();
 
         // A2. Lomo especular 3D en el centro de cada carril abierto
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.34)';
+        ctx.fillStyle = isMadnessMushNow ? 'rgba(232, 121, 249, 0.12)' : 'rgba(255, 255, 255, 0.34)';
         ctx.beginPath();
         for (let l = effStart; l <= effEnd; l++) {
           const lTop = this.getLaneLeftX(l, horizonY);
@@ -30683,14 +30774,28 @@ class SongChoreographyAnalyzer {
       }
     }
 
-    // Asignar Modo Espejo una única vez en la sección de menor densidad (la más fácil de toda la canción)
+    // Asignar Modo Espejo una única vez en la sección musical más accesible de la canción
+    // (evitando silencios vacíos donde apenas hay notas para que tenga ritmo real pero siga siendo la parte más asequible)
     if (rawModes.length >= 2) {
-      let easiestIdx = 1;
-      let minNps = Infinity;
+      let easiestIdx = -1;
+      let minActiveNps = Infinity;
+      const minPlayableNps = Math.min(1.55, Math.max(1.05, avgNps * 0.58));
       for (let i = 1; i < windows.length; i++) {
-        if (windows[i].nps < minNps) {
-          minNps = windows[i].nps;
+        const wNps = windows[i].nps;
+        const wCount = windows[i].notes ? windows[i].notes.length : 0;
+        if (wNps >= minPlayableNps && wCount >= 6 && wNps < minActiveNps) {
+          minActiveNps = wNps;
           easiestIdx = i;
+        }
+      }
+      if (easiestIdx < 0) {
+        easiestIdx = 1;
+        let minNps = Infinity;
+        for (let i = 1; i < windows.length; i++) {
+          if (windows[i].nps < minNps) {
+            minNps = windows[i].nps;
+            easiestIdx = i;
+          }
         }
       }
       rawModes[easiestIdx] = 'mirror';
@@ -31098,25 +31203,53 @@ Object.assign(BeatstarEngine.prototype, {
       const activeLanesNow = phMode === 'highway' ? Math.min(secBaseLanes, simLanes) : 4;
       n.lane = Math.max(0, Math.min(activeLanesNow - 1, n.lane % activeLanesNow));
 
-      // FASE ESPEJO (4 carriles): invierte los 4 carriles completos (0<->3 y 1<->2) con cadencia pausada y legible en la zona más fácil
+      // FASE ESPEJO (4 carriles): invierte los 4 carriles completos (0<->3 y 1<->2) en la parte más asequible de la canción
+      // sin aplicar un reductor excesivo de teclas (solo filtra acordes simultáneos o micro-ráfagas < 180ms)
       if (phMode === 'mirror') {
-        n.type = 'tap';
-        n.duration_ms = 0;
-        n.end_timestamp_ms = nt;
-        n.meshKeyframes = null;
-        delete n.direction;
-        delete n.swipeDirection;
-        if (this._lastMadnessMirrorNoteT && (nt - this._lastMadnessMirrorNoteT < Math.max(400, beatMs * 0.85))) {
+        if (n.type === 'swipe') {
+          n.type = 'tap';
+          delete n.direction;
+          delete n.swipeDirection;
+        }
+        const minMirrorGapMs = Math.max(175, Math.min(250, beatMs * 0.38));
+        if (this._lastMadnessMirrorNoteT && (nt - this._lastMadnessMirrorNoteT < minMirrorGapMs)) {
           n._dropDuplicateCollapsed = true;
           continue;
         }
-        this._lastMadnessMirrorNoteT = nt;
+        const nextNoteInMirror = (i + 1 < filteredNotes.length) ? filteredNotes[i + 1] : null;
+        if (n.type === 'hold') {
+          if (nextNoteInMirror && (nextNoteInMirror.timestamp_ms - nt) < (n.duration_ms + 130)) {
+            const trimmedDur = (nextNoteInMirror.timestamp_ms - nt) - 130;
+            if (trimmedDur >= 240) {
+              n.duration_ms = trimmedDur;
+              n.end_timestamp_ms = nt + trimmedDur;
+            } else {
+              n.type = 'tap';
+              n.duration_ms = 0;
+              n.end_timestamp_ms = nt;
+            }
+          }
+        } else {
+          n.type = 'tap';
+          n.duration_ms = 0;
+          n.end_timestamp_ms = nt;
+        }
+        n.meshKeyframes = null;
+        this._lastMadnessMirrorNoteT = (n.type === 'hold')
+          ? Math.max(nt, (n.end_timestamp_ms || nt) - 90)
+          : nt;
         n._isMirrored = true;
         n._mirrorOriginalLane = n.lane;
         n._mirrorTargetLane = 3 - n.lane;
         n._mirrorCurrentDrawLane = n.lane;
         n._mirrorAnimProgress = 0;
         n._mirrorTriggered = false;
+        if (n.type === 'hold') {
+          n.startLane = n._mirrorTargetLane;
+          n.endLane = n._mirrorTargetLane;
+          n.startWidth = 1.0;
+          n.endWidth = 1.0;
+        }
         continue;
       }
 

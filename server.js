@@ -1273,10 +1273,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 51,
-    version_name: '5.1.0',
-    release_notes: 'Piano Community v5.1.0: APK ligero sincronizado al 100% con la version Web, cuentas unicas protegidas por contrasena, restauracion de favoritos y playlists, y Modo Locura/Cruce corregido.',
-    download_url: '/download/apk?v=51.0',
+    version_code: 52,
+    version_name: '5.2.0',
+    release_notes: 'Piano Community v5.2.0: Modo Espejo con densidad musical equilibrada en Modo Locura, minas dinamicas por dificultad en Modo Rayos de Luz (Cruce y Locura), y fondo de Modo Setas corregido.',
+    download_url: '/download/apk?v=52.0',
   });
 });
 
