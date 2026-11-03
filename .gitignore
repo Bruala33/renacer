@@ -80,12 +80,11 @@ local.properties
 *.jks
 !app-signing.keystore
 
-# Ignore intermediate APKs, allow official downloadable PianoCommunity.apk
+# Ignore intermediate APKs, allow only the single canonical app/static/PianoCommunity.apk
 *.apk
 *.idsig
-!PianoCommunity.apk
 !app/static/PianoCommunity.apk
-!app/static/downloads/*.apk
+android/app/src/main/assets/www/
 
 # Misc local tools / dumps
 cookies.txt
@@ -113,6 +112,4 @@ love_man.bin
 !app/static/assets/**
 !app/static/assets/*.mp3
 !app/src/main/assets/www/assets/*.mp3
-!android/app/src/main/assets/www/assets/*.mp3
 !app/src/main/assets/www/songs/**/*.mp3
-!android/app/src/main/assets/www/songs/**/*.mp3

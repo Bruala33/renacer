@@ -6,12 +6,11 @@ import subprocess
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(ROOT_DIR, "app", "static")
-ANDROID_WWW_DIRS = [
-    os.path.join(ROOT_DIR, "app", "src", "main", "assets", "www"),
-    os.path.join(ROOT_DIR, "android", "app", "src", "main", "assets", "www"),
-]
+ANDROID_WWW_DIR = os.path.join(ROOT_DIR, "app", "src", "main", "assets", "www")
+LEGACY_DUP_WWW_DIR = os.path.join(ROOT_DIR, "android", "app", "src", "main", "assets", "www")
 
-EXCLUDE_NAMES = {"PianoCommunity.apk", "downloads", "__pycache__"}
+EXCLUDE_NAMES = {"PianoCommunity.apk", "downloads", "__pycache__", "game.html"}
+
 
 def sync_web_to_android_assets():
     # Preserve root leaderboard.json into app/static/leaderboard.json if present
@@ -20,26 +19,35 @@ def sync_web_to_android_assets():
     if os.path.exists(root_lb):
         shutil.copy2(root_lb, static_lb)
 
-    # Ensure game.html and index.html in app/static are identical first
+    # Ensure game.html and index.html in app/static are identical for the web server
     idx_html = os.path.join(STATIC_DIR, "index.html")
     game_html = os.path.join(STATIC_DIR, "game.html")
     if os.path.exists(idx_html):
         shutil.copy2(idx_html, game_html)
 
-    for www_dir in ANDROID_WWW_DIRS:
-        os.makedirs(www_dir, exist_ok=True)
-        for item in os.listdir(STATIC_DIR):
-            if item in EXCLUDE_NAMES:
-                continue
-            src_path = os.path.join(STATIC_DIR, item)
-            dst_path = os.path.join(www_dir, item)
-            if os.path.isdir(src_path):
-                if os.path.exists(dst_path):
-                    shutil.rmtree(dst_path)
-                shutil.copytree(src_path, dst_path)
-            else:
-                shutil.copy2(src_path, dst_path)
-        print(f"Synced app/static -> {os.path.relpath(www_dir, ROOT_DIR)}")
+    # Remove legacy duplicate android/app/src/main/assets/www directory to keep repo lightweight
+    if os.path.exists(LEGACY_DUP_WWW_DIR):
+        shutil.rmtree(LEGACY_DUP_WWW_DIR, ignore_errors=True)
+
+    os.makedirs(ANDROID_WWW_DIR, exist_ok=True)
+    # Remove any stale game.html inside ANDROID_WWW_DIR (MainActivity maps game.html -> index.html)
+    stale_game_html = os.path.join(ANDROID_WWW_DIR, "game.html")
+    if os.path.exists(stale_game_html):
+        os.remove(stale_game_html)
+
+    for item in os.listdir(STATIC_DIR):
+        if item in EXCLUDE_NAMES:
+            continue
+        src_path = os.path.join(STATIC_DIR, item)
+        dst_path = os.path.join(ANDROID_WWW_DIR, item)
+        if os.path.isdir(src_path):
+            if os.path.exists(dst_path):
+                shutil.rmtree(dst_path)
+            shutil.copytree(src_path, dst_path)
+        else:
+            shutil.copy2(src_path, dst_path)
+    print(f"Synced app/static -> {os.path.relpath(ANDROID_WWW_DIR, ROOT_DIR)}")
+
 
 def _find_apksigner():
     sdk_roots = [
@@ -57,6 +65,7 @@ def _find_apksigner():
             if matches:
                 return matches[0]
     return shutil.which("apksigner.bat") or shutil.which("apksigner")
+
 
 def _ensure_signed_with_shared_key(apk_path: str):
     shared_ks = os.path.join(ROOT_DIR, "app-signing.keystore")
@@ -78,36 +87,50 @@ def _ensure_signed_with_shared_key(apk_path: str):
     except Exception as exc:
         print(f"Note: apksigner step skipped ({exc})")
 
+
 def sync_built_apk():
-    candidates = [
-        os.path.join(ROOT_DIR, "app", "build", "outputs", "apk", "debug", "app-debug.apk"),
-        os.path.join(ROOT_DIR, "app", "build", "outputs", "apk", "release", "app-release.apk"),
-        os.path.join(ROOT_DIR, "android", "app", "build", "outputs", "apk", "debug", "app-debug.apk"),
-        os.path.join(ROOT_DIR, "android", "app", "build", "outputs", "apk", "release", "app-release.apk"),
-    ]
+    release_apk = os.path.join(ROOT_DIR, "app", "build", "outputs", "apk", "release", "app-release.apk")
+    debug_apk = os.path.join(ROOT_DIR, "app", "build", "outputs", "apk", "debug", "app-debug.apk")
+    candidates = [release_apk, debug_apk]
     existing = [c for c in candidates if os.path.exists(c)]
     if not existing:
         print("No built APK found yet")
         return False
 
-    # Pick the most recently built APK
-    existing.sort(key=lambda p: os.path.getmtime(p), reverse=True)
-    built_apk = existing[0]
+    # Prefer release APK when both exist and are within 120 seconds of each other (smaller, compressed DEX)
+    if os.path.exists(release_apk) and os.path.exists(debug_apk):
+        if abs(os.path.getmtime(release_apk) - os.path.getmtime(debug_apk)) <= 120:
+            built_apk = release_apk
+        else:
+            existing.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+            built_apk = existing[0]
+    else:
+        existing.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+        built_apk = existing[0]
+
     _ensure_signed_with_shared_key(built_apk)
 
-    destinations = [
+    # Keep ONLY ONE canonical APK at app/static/PianoCommunity.apk so GitHub exports never exceed payload limits
+    canonical_dst = os.path.join(STATIC_DIR, "PianoCommunity.apk")
+    os.makedirs(os.path.dirname(canonical_dst), exist_ok=True)
+    shutil.copy2(built_apk, canonical_dst)
+
+    duplicate_apks = [
         os.path.join(ROOT_DIR, "PianoCommunity.apk"),
-        os.path.join(STATIC_DIR, "PianoCommunity.apk"),
         os.path.join(STATIC_DIR, "downloads", "PianoCommunity.apk"),
         os.path.join(ROOT_DIR, "downloads", "PianoCommunity.apk"),
     ]
-    for dst in destinations:
-        os.makedirs(os.path.dirname(dst), exist_ok=True)
-        shutil.copy2(built_apk, dst)
+    for dup in duplicate_apks:
+        if os.path.exists(dup):
+            try:
+                os.remove(dup)
+            except OSError:
+                pass
 
-    size_bytes = os.path.getsize(built_apk)
-    print(f"Synced newest built APK ({os.path.relpath(built_apk, ROOT_DIR)}, {size_bytes} bytes) -> {len(destinations)} destinations")
+    size_bytes = os.path.getsize(canonical_dst)
+    print(f"Synced newest built APK ({os.path.relpath(built_apk, ROOT_DIR)}, {size_bytes} bytes) -> app/static/PianoCommunity.apk")
     return True
+
 
 if __name__ == "__main__":
     sync_web_to_android_assets()

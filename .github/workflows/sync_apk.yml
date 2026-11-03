@@ -1,0 +1,78 @@
+name: Auto-Build and Sync Android APK
+
+on:
+  push:
+    branches:
+      - version-estable
+      - main
+    paths:
+      - 'app/static/**'
+      - 'app/src/**'
+      - 'app/build.gradle.kts'
+      - 'sync_android_assets.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ensure-apk-synced:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Check if APK already contains latest web assets
+        id: check_apk
+        run: |
+          if [ -f "app/static/PianoCommunity.apk" ]; then
+            unzip -p app/static/PianoCommunity.apk assets/www/index.html > /tmp/apk_index.html 2>/dev/null || true
+            unzip -p app/static/PianoCommunity.apk assets/www/game.js > /tmp/apk_game.js 2>/dev/null || true
+            if cmp -s /tmp/apk_index.html app/static/index.html && cmp -s /tmp/apk_game.js app/static/game.js; then
+              echo "APK is already 100% in sync with app/static/index.html and app/static/game.js"
+              echo "needs_build=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          fi
+          echo "APK needs rebuild to match latest web files"
+          echo "needs_build=true" >> $GITHUB_OUTPUT
+
+      - name: Set up JDK 17
+        if: steps.check_apk.outputs.needs_build == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        if: steps.check_apk.outputs.needs_build == 'true'
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Gradle
+        if: steps.check_apk.outputs.needs_build == 'true'
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Build and Sign Updated APK
+        if: steps.check_apk.outputs.needs_build == 'true'
+        run: |
+          python3 sync_android_assets.py
+          gradle :app:assembleRelease --no-daemon
+          python3 sync_android_assets.py
+          ls -lh app/static/PianoCommunity.apk
+
+      - name: Commit and Push Updated APK
+        if: steps.check_apk.outputs.needs_build == 'true'
+        run: |
+          git config user.name "Renacer APK Sync Bot"
+          git config user.email "actions@github.com"
+          git rm -f --ignore-unmatch PianoCommunity.apk app/static/downloads/PianoCommunity.apk
+          git add app/static/PianoCommunity.apk app/src/main/assets/www
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: auto-sync PianoCommunity.apk with latest web version"
+            git pull --rebase origin ${{ github.ref_name }}
+            git push origin HEAD:${{ github.ref_name }}
+          fi

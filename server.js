@@ -1273,10 +1273,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 50,
-    version_name: '5.0.0',
-    release_notes: 'Piano Community v5.0.0: Sincronizacion en vivo APK-Web, cuentas unicas protegidas por contrasena, restauracion completa de favoritos y playlists, y correccion del haz de luz en Modo Locura.',
-    download_url: '/download/apk?v=50.0',
+    version_code: 51,
+    version_name: '5.1.0',
+    release_notes: 'Piano Community v5.1.0: APK ligero sincronizado al 100% con la version Web, cuentas unicas protegidas por contrasena, restauracion de favoritos y playlists, y Modo Locura/Cruce corregido.',
+    download_url: '/download/apk?v=51.0',
   });
 });
 
@@ -1608,9 +1608,9 @@ async function getVerifiedGithubCdnApkUrl(expectedLocalSize) {
 
 app.all(['/download/apk', '/api/v1/app/download_apk', '/PianoCommunity.apk', '/static/PianoCommunity.apk', '/downloads/PianoCommunity.apk', '/HyperRhythm.apk'], async (req, res) => {
   const apkCandidates = [
+    path.join(STATIC_DIR, 'PianoCommunity.apk'),
     path.join(__dirname, 'PianoCommunity.apk'),
     path.join(STATIC_DIR, 'downloads', 'PianoCommunity.apk'),
-    path.join(STATIC_DIR, 'PianoCommunity.apk'),
     path.join(__dirname, 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk'),
     path.join(__dirname, 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk'),
     path.join(__dirname, '.build-outputs', 'app-debug.apk'),

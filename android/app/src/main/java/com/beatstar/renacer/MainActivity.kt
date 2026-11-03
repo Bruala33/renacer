@@ -117,7 +117,9 @@ class MainActivity : AppCompatActivity() {
                 cleanRel == "index.html" ||
                 cleanRel == "game.js" ||
                 cleanRel == "parsers.js" ||
+                cleanRel == "style.css" ||
                 cleanRel == "styles.css" ||
+                cleanRel == "editor.js" ||
                 cleanRel == "slot_machine.js" ||
                 cleanRel == "gachapon_3d.js"
 
@@ -129,7 +131,7 @@ class MainActivity : AppCompatActivity() {
 
                 // 1. Intentar descargar la última versión en vivo de renacer.onrender.com (con timeout corto para no bloquear)
                 try {
-                    val remoteName = if (cleanRel == "game.html") "index.html" else cleanRel
+                    val remoteName = if (cleanRel == "game.html") "index.html" else if (cleanRel == "styles.css") "style.css" else cleanRel
                     val remoteUrl = URL("https://renacer.onrender.com/$remoteName?t=${System.currentTimeMillis()}")
                     val conn = (remoteUrl.openConnection() as HttpURLConnection).apply {
                         requestMethod = "GET"
@@ -167,6 +169,9 @@ class MainActivity : AppCompatActivity() {
             }
 
             val candidates = linkedSetOf<String>()
+            if (cleanRel == "game.html") {
+                candidates.add("www/index.html")
+            }
             if (trimmed.startsWith("www/")) {
                 candidates.add(trimmed)
             } else {
@@ -413,7 +418,7 @@ class MainActivity : AppCompatActivity() {
                 if (request?.isForMainFrame == true) {
                     Log.e("BeatstarApp", "Error cargando URL principal, activando fallback local: ${error?.description}")
                     view?.post {
-                        view.loadUrl("file:///android_asset/www/game.html")
+                        view.loadUrl("file:///android_asset/www/index.html")
                     }
                 }
             }
@@ -459,7 +464,7 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(webView)
         webView.clearCache(true)
-        webView.loadUrl("https://appassets.androidplatform.net/assets/www/game.html?v=50.0")
+        webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?v=51.0")
         hideSystemUI()
     }
 
@@ -610,7 +615,7 @@ class MainActivity : AppCompatActivity() {
                     pInfo.versionCode
                 }
             } catch (e: Exception) {
-                49
+                51
             }
         }
 
