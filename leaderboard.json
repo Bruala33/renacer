@@ -4458,11 +4458,11 @@
     "top_rata_blanca_la_leyenda_del_hada_y_el_mago": [
       {
         "name": "Libay",
-        "score": 211459,
+        "score": 978590,
         "stars": 3.5,
-        "combo": 151,
-        "accuracy": 11.846820878874004,
-        "date": "2026-10-23 16:51:18"
+        "combo": 70,
+        "accuracy": 3.755974280411195,
+        "date": "2026-11-03 02:12:08"
       },
       {
         "name": "Siro",
@@ -5276,11 +5276,11 @@
     "osu_30303": [
       {
         "name": "Libay",
-        "score": 100063,
-        "stars": 3.5,
-        "combo": 85,
-        "accuracy": 19.197769856222493,
-        "date": "2026-10-27 22:35:34"
+        "score": 114840,
+        "stars": 1,
+        "combo": 97,
+        "accuracy": 20.203099638925448,
+        "date": "2026-11-03 02:11:04"
       }
     ],
     "osu_91769": [
@@ -6728,11 +6728,11 @@
     "osu_1576250": [
       {
         "name": "Libay",
-        "score": 36675,
+        "score": 49800,
         "stars": 1,
-        "combo": 45,
-        "accuracy": 20.579075835367394,
-        "date": "2026-10-30 00:10:43"
+        "combo": 55,
+        "accuracy": 27.94377577644979,
+        "date": "2026-11-03 02:06:00"
       }
     ],
     "top_los_prisioneros_la_voz_de_los_80": [],
@@ -7100,6 +7100,116 @@
         "accuracy": 12.63163656837803,
         "date": "2026-11-02 22:14:43"
       }
+    ],
+    "osu_24880": [
+      {
+        "name": "Libay",
+        "score": 26353,
+        "stars": 3.5,
+        "combo": 34,
+        "accuracy": 0.9579408252620406,
+        "date": "2026-11-03 02:08:41"
+      }
+    ],
+    "osu_116349": [
+      {
+        "name": "Libay",
+        "score": 64138,
+        "stars": 3.5,
+        "combo": 66,
+        "accuracy": 8.971905617197947,
+        "date": "2026-11-03 02:10:13"
+      }
+    ],
+    "top_rata_blanca_mujer_amante": [
+      {
+        "name": "Libay",
+        "score": 250414,
+        "stars": 3.5,
+        "combo": 150,
+        "accuracy": 17.944444125959517,
+        "date": "2026-11-03 02:13:38"
+      }
+    ],
+    "osu_644433": [
+      {
+        "name": "Libay",
+        "score": 15000,
+        "stars": 1,
+        "combo": 25,
+        "accuracy": 33.14111486710413,
+        "date": "2026-11-03 02:14:21"
+      }
+    ],
+    "osu_790115": [
+      {
+        "name": "Libay",
+        "score": 26207,
+        "stars": 3.5,
+        "combo": 27,
+        "accuracy": 2.697575506792575,
+        "date": "2026-11-03 02:15:57"
+      }
+    ],
+    "osu_46292": [
+      {
+        "name": "Libay",
+        "score": 60749,
+        "stars": 3.5,
+        "combo": 61,
+        "accuracy": 14.805454346051206,
+        "date": "2026-11-03 02:20:47"
+      }
+    ],
+    "osu_153433": [
+      {
+        "name": "Libay",
+        "score": 84120,
+        "stars": 3.5,
+        "combo": 67,
+        "accuracy": 5.651269889789488,
+        "date": "2026-11-03 02:21:44"
+      }
+    ],
+    "osu_2464495": [
+      {
+        "name": "Libay",
+        "score": 67790,
+        "stars": 4,
+        "combo": 57,
+        "accuracy": 88.56806898353801,
+        "date": "2026-11-03 02:23:58"
+      }
+    ],
+    "osu_2595442": [
+      {
+        "name": "Libay",
+        "score": 107663,
+        "stars": 3,
+        "combo": 76,
+        "accuracy": 64.72115852815466,
+        "date": "2026-11-03 02:25:06"
+      }
+    ],
+    "osu_1104646": [
+      {
+        "name": "Libay",
+        "score": 41005,
+        "stars": 3.5,
+        "combo": 43,
+        "accuracy": 5.677106191860022,
+        "date": "2026-11-03 02:33:54"
+      }
+    ],
+    "clonehero_700350": [
+      {
+        "name": "Libay",
+        "score": 220813,
+        "stars": 3.5,
+        "combo": 80,
+        "accuracy": 10.228260204960785,
+        "date": "2026-11-03 02:35:11"
+      }
     ]
   },
   "global": [
@@ -7115,8 +7225,8 @@
     },
     {
       "name": "Libay",
-      "total_score": 24069107,
-      "clefs": 178
+      "total_score": 27529702,
+      "clefs": 203
     },
     {
       "name": "Jocomomolo",
@@ -7349,12 +7459,12 @@
     "clean_v2": true,
     "players": [
       {
-        "name": "Jocomomolo",
-        "score": 3532836
+        "name": "Libay",
+        "score": 3877914
       },
       {
-        "name": "Libay",
-        "score": 417319
+        "name": "Jocomomolo",
+        "score": 3532836
       },
       {
         "name": "Elpianero",
@@ -8773,7 +8883,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": "rnc_jggnkf"
       },
-      "updated_at": "2026-11-02T22:14:56.112Z"
+      "updated_at": "2026-11-02T23:56:19.298Z"
     },
     "RNC-C42DF0": {
       "recovery_code": "RNC-C42DF0",
@@ -9801,7 +9911,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": ""
       },
-      "updated_at": "2026-11-02T20:58:34.857Z"
+      "updated_at": "2026-11-02T23:56:19.298Z"
     },
     "RNC-78EB3B": {
       "recovery_code": "RNC-78EB3B",
@@ -10647,7 +10757,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": ""
       },
-      "updated_at": "2026-11-02T20:57:23.206Z"
+      "updated_at": "2026-11-02T23:56:19.298Z"
     }
   }
 }
