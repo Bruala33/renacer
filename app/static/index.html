@@ -4591,10 +4591,10 @@
 
   </div> <!-- End of game-viewport -->
 
-  <script src="./parsers.js?v=50.0"></script>
-  <script src="./game.js?v=50.0"></script>
-  <script src="./slot_machine.js?v=50.0"></script>
-  <script src="./gachapon_3d.js?v=50.0"></script>
+  <script src="./parsers.js?v=53.0"></script>
+  <script src="./game.js?v=53.0"></script>
+  <script src="./slot_machine.js?v=53.0"></script>
+  <script src="./gachapon_3d.js?v=53.0"></script>
   <script src="./songs/comm_camilo_sesto/chart.js"></script>
   <script src="./songs/renacer/chart.js"></script>
   <script src="./songs/catalog_top.js"></script>
@@ -6869,11 +6869,11 @@
       return DEFAULT_CLOUD_SERVER;
     }
 
-    // Codigo de version local actualizado a 52 (v5.2.0)
+    // Codigo de version local actualizado a 53 (v5.3.0)
     const CURRENT_APP_VERSION_CODE = (window.AndroidNative && typeof window.AndroidNative.getAppVersionCode === 'function')
-      ? Math.max(52, Number(window.AndroidNative.getAppVersionCode()) || 52)
-      : 52;
-    let appUpdateDownloadUrl = '/download/apk?v=52.0';
+      ? Math.max(53, Number(window.AndroidNative.getAppVersionCode()) || 53)
+      : 53;
+    let appUpdateDownloadUrl = '/download/apk?v=53.0';
 
     async function checkForAppUpdates() {
       // Aviso automatico de actualizacion desactivado para que nunca salte al abrir la app
@@ -6912,7 +6912,7 @@
                            host === 'appassets.androidplatform.net' ||
                            (window.location && window.location.protocol === 'file:');
       const base = isStaticOnly ? getApiBaseUrl() : '';
-      const targetUrl = `${base}/download/apk?v=52.0&local=1&t=${ts}`;
+      const targetUrl = `${base}/download/apk?v=53.0&local=1&t=${ts}`;
 
       if (window.AndroidNative && typeof window.AndroidNative.openBrowser === 'function') {
         const absUrl = targetUrl.startsWith('http') ? targetUrl : `${getApiBaseUrl()}${targetUrl}`;

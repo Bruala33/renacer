@@ -20517,17 +20517,17 @@ class BeatstarEngine {
           continue;
         }
 
-        // 2. SLIDER CURVO REAL ('slider'): Exige mantener pulsado y seguir la bola hasta el final
+        // 2. SLIDER MULTI-FORMA REAL ('slider'): Ondas sinusoidales, infinitos, espirales, lazos, rayos zig-zag y más
         const wantSlider = (
-          (n.type === 'hold' && holdDur >= 230) ||
-          (dtNext >= 520 && dtPrev >= 195 && (motifStep % 5 === 3))
+          (n.type === 'hold' && holdDur >= 210) ||
+          (dtNext >= 390 && dtPrev >= 165 && (motifStep % 3 === 1 || comboNum === 3))
         );
 
-        if (wantSlider && maxPossibleDur >= 270) {
-          const rawSliderDur = (n.type === 'hold' && holdDur >= 230)
-            ? Math.min(holdDur, 820)
-            : Math.min(Math.max(310, Math.round(dtNext * 0.60)), 690);
-          const sliderDur = Math.min(rawSliderDur, maxPossibleDur);
+        if (wantSlider && maxPossibleDur >= 260) {
+          const desiredDur = (n.type === 'hold' && holdDur >= 210)
+            ? Math.min(Math.max(holdDur, 360), 920)
+            : Math.min(Math.max(350, Math.round(dtNext * 0.68)), 840);
+          const sliderDur = Math.min(desiredDur, maxPossibleDur);
           const startPos = resolveCleanPosition(candX, candY, tMs, tMs + sliderDur, n._osuApproachMs, 120, isWeave, nearbyManiaLane);
 
           n._osuRole = 'slider';
@@ -20536,43 +20536,45 @@ class BeatstarEngine {
           n._osuSliderDurationMs = sliderDur;
           n.end_timestamp_ms = tMs + sliderDur;
 
-          const dirSignX = startPos.x < 0.50 ? 1 : -1;
-          const dirSignY = startPos.y > centerY ? -1 : 1;
-          const spanX = 0.24 + (Math.min(sliderDur, 760) / 760) * 0.14;
-          const spanY = (isWeave ? 0.05 : 0.08) + (Math.min(sliderDur, 760) / 760) * 0.05;
-          const endX = clampX(startPos.x + dirSignX * spanX);
-          const endY = clampYForNote(startPos.y + dirSignY * spanY, isWeave);
-
-          const midX = (startPos.x + endX) * 0.5;
-          const midY = (startPos.y + endY) * 0.5;
-          const curveFactor = (i % 3 === 0) ? 0.0 : ((i % 2 === 0) ? 0.36 : -0.36);
-          const perpX = -(endY - startPos.y) * curveFactor;
-          const perpY = (endX - startPos.x) * curveFactor;
-
-          n._osuNormX = startPos.x;
-          n._osuNormY = startPos.y;
-          n._osuEndNormX = endX;
-          n._osuEndNormY = endY;
-          n._osuCtrlNormX = clampX(midX + perpX);
-          n._osuCtrlNormY = clampYForNote(midY + perpY, isWeave);
-          n._osuSliderRepeats = (sliderDur >= 620 && (maxPossibleDur - sliderDur >= 140)) ? 2 : 1;
-
-          const numTicks = Math.max(2, Math.min(4, Math.floor(sliderDur / 155)));
-          const ticks = [];
-          for (let tk = 1; tk <= numTicks; tk++) {
-            ticks.push({ u: tk / (numTicks + 1), hit: false });
+          if (!this._osuSliderShapeDeck || this._osuSliderShapeDeck.length === 0) {
+            const shapePool = [
+              'sine_wave',
+              'infinity',
+              'spiral_vortex',
+              'serpentine_s',
+              'zigzag_lightning',
+              'loop_coaster',
+              'heart_clover',
+              'horseshoe_omega'
+            ];
+            for (let s = shapePool.length - 1; s > 0; s--) {
+              const j = Math.floor(Math.random() * (s + 1));
+              const tmp = shapePool[s];
+              shapePool[s] = shapePool[j];
+              shapePool[j] = tmp;
+            }
+            this._osuSliderShapeDeck = shapePool;
           }
-          n._osuSliderTicks = ticks;
+          const pickedShape = (sliderDur < 320)
+            ? ((Math.random() < 0.5) ? 'serpentine_s' : 'arc')
+            : this._osuSliderShapeDeck.shift();
+          const shapeSign = ((i + Math.floor(Math.random() * 2)) % 2 === 0) ? 1 : -1;
 
-          const finalEndX = (n._osuSliderRepeats === 2) ? startPos.x : endX;
-          const finalEndY = (n._osuSliderRepeats === 2) ? startPos.y : endY;
+          this._assignOsuSliderShapeParams(n, startPos.x, startPos.y, sliderDur, maxPossibleDur, isWeave, pickedShape, shapeSign);
+
+          const finalPt = this._evalOsuSliderNormPoint(n, (n._osuSliderRepeats === 2) ? 0.0 : 1.0);
+          const midPt = this._evalOsuSliderNormPoint(n, 0.5);
           placedOsuNodes.push({
-            x: startPos.x, y: startPos.y, endX: finalEndX, endY: finalEndY,
+            x: startPos.x, y: startPos.y, endX: finalPt.x, endY: finalPt.y,
             spawnT: tMs - n._osuApproachMs, endT: tMs + sliderDur, isNova: false
           });
-          flowX = finalEndX;
-          flowY = finalEndY;
-          flowAngle = Math.atan2(endY - startPos.y, endX - startPos.x);
+          placedOsuNodes.push({
+            x: midPt.x, y: midPt.y, endX: finalPt.x, endY: finalPt.y,
+            spawnT: tMs - n._osuApproachMs * 0.5, endT: tMs + sliderDur, isNova: false
+          });
+          flowX = finalPt.x;
+          flowY = finalPt.y;
+          flowAngle = Math.atan2(finalPt.y - startPos.y, finalPt.x - startPos.x);
           continue;
         }
 
@@ -20663,7 +20665,7 @@ class BeatstarEngine {
       }
       return {
         x: (note._osuNormX ?? 0.5) * w,
-        y: Math.max(0.26, Math.min(0.72, note._osuNormY ?? 0.52)) * h
+        y: Math.max(0.24, Math.min(0.72, note._osuNormY ?? 0.52)) * h
       };
     }
 
@@ -20671,6 +20673,308 @@ class BeatstarEngine {
       const width = w || this.width || 360;
       const centers = [0.20, 0.50, 0.80];
       return centers[Math.max(0, Math.min(2, lane))] * width;
+    }
+
+    /**
+     * Asigna los parámetros geométricos de las nuevas formas de Hold/Slider en Modo Pulso y Fase Pulso de Modo Locura:
+     * - 'sine_wave': Onda sinusoidal continua de múltiples crestas
+     * - 'infinity': Símbolo de infinito / lemniscata de Bernoulli (figura en 8)
+     * - 'spiral_vortex': Espiral galáctica centrípeta
+     * - 'loop_coaster': Rizo acrobático de 360 grados en mitad del recorrido
+     * - 'zigzag_lightning': Rayo zig-zag geométrico de 3 tramos
+     * - 'serpentine_s': Doble curva en S profunda
+     * - 'heart_clover': Doble pétalo / corazón simétrico
+     * - 'horseshoe_omega': Herradura magnética orbital
+     * - 'arc': Arco curvo clásico
+     */
+    _assignOsuSliderShapeParams(n, startX, startY, sliderDur, maxPossibleDur = 800, isWeave = false, preferredShape = null, dirSign = 1) {
+      const minX = 0.16;
+      const maxX = 0.84;
+      const minY = isWeave ? 0.27 : 0.26;
+      const maxY = isWeave ? 0.50 : 0.69;
+      const centerY = (minY + maxY) * 0.5;
+      const clampX = (v) => Math.max(minX, Math.min(maxX, v));
+      const clampY = (v) => Math.max(minY, Math.min(maxY, v));
+
+      let sx = clampX(startX);
+      let sy = clampY(startY);
+      const durFactor = Math.max(0.45, Math.min(1.15, sliderDur / 620));
+      let shape = preferredShape || 'sine_wave';
+      if (sliderDur < 310 && (shape === 'infinity' || shape === 'spiral_vortex' || shape === 'loop_coaster')) {
+        shape = 'sine_wave';
+      }
+
+      const dirX = sx < 0.50 ? 1 : -1;
+      const dirY = sy > centerY ? -1 : 1;
+      const spanX = (0.30 + 0.14 * durFactor) * (0.92 + Math.random() * 0.16);
+      const spanY = ((isWeave ? 0.06 : 0.10) + 0.05 * durFactor) * (0.88 + Math.random() * 0.24);
+      let endX = clampX(sx + dirX * spanX);
+      let endY = clampY(sy + dirY * spanY);
+
+      if (shape === 'infinity') {
+        // Ajustar el punto de inicio al extremo exterior de un lóbulo para que el símbolo de infinito quepa amplio y centrado
+        const sideSign = sx <= 0.50 ? -1 : 1;
+        const rx = Math.min(0.24, Math.max(0.17, 0.19 * durFactor));
+        const ry = isWeave ? 0.068 : Math.min(0.115, Math.max(0.082, 0.098 * durFactor));
+        const tiltRad = ((Math.random() - 0.5) * 0.34);
+        const cx = Math.max(minX + rx + 0.02, Math.min(maxX - rx - 0.02, 0.50 + (Math.random() - 0.5) * 0.08));
+        const cy = Math.max(minY + ry + 0.02, Math.min(maxY - ry - 0.02, centerY + (Math.random() - 0.5) * 0.04));
+        const startTheta = 0;
+        const endTheta = Math.PI * 1.84;
+        const lx0 = sideSign * rx * Math.cos(startTheta);
+        const ly0 = 0;
+        sx = clampX(cx + lx0 * Math.cos(tiltRad) - ly0 * Math.sin(tiltRad));
+        sy = clampY(cy + lx0 * Math.sin(tiltRad) + ly0 * Math.cos(tiltRad));
+
+        n._osuSliderShape = 'infinity';
+        n._osuShapeCenterX = cx;
+        n._osuShapeCenterY = cy;
+        n._osuShapeRx = rx;
+        n._osuShapeRy = ry;
+        n._osuShapeSideSign = sideSign;
+        n._osuShapeDirSign = dirSign;
+        n._osuShapeTiltRad = tiltRad;
+        n._osuShapeMaxTheta = endTheta;
+        n._osuSliderRepeats = 1;
+      } else if (shape === 'spiral_vortex') {
+        const r0 = Math.min(0.23, Math.max(0.16, 0.19 * durFactor));
+        const aspectY = isWeave ? 0.52 : 0.68;
+        const cx = Math.max(minX + r0 + 0.02, Math.min(maxX - r0 - 0.02, 0.50 + (sx < 0.5 ? 0.04 : -0.04)));
+        const cy = Math.max(minY + r0 * aspectY + 0.02, Math.min(maxY - r0 * aspectY - 0.02, centerY));
+        const startAng = Math.atan2((sy - cy) / aspectY, sx - cx);
+        sx = clampX(cx + Math.cos(startAng) * r0);
+        sy = clampY(cy + Math.sin(startAng) * r0 * aspectY);
+
+        n._osuSliderShape = 'spiral_vortex';
+        n._osuShapeCenterX = cx;
+        n._osuShapeCenterY = cy;
+        n._osuShapeR0 = r0;
+        n._osuShapeAspectY = aspectY;
+        n._osuShapeStartAng = startAng;
+        n._osuShapeTotalAng = dirSign * Math.PI * (sliderDur >= 540 ? 2.55 : 2.15);
+        n._osuSliderRepeats = 1;
+      } else if (shape === 'horseshoe_omega') {
+        const rx = Math.min(0.24, Math.max(0.17, 0.20 * durFactor));
+        const ry = isWeave ? 0.075 : Math.min(0.125, Math.max(0.088, 0.105 * durFactor));
+        const cx = Math.max(minX + rx + 0.02, Math.min(maxX - rx - 0.02, 0.50));
+        const cy = Math.max(minY + ry + 0.02, Math.min(maxY - ry - 0.02, centerY));
+        const startAng = sx < 0.50 ? Math.PI * 0.88 : Math.PI * 0.12;
+        const sweepAng = (sx < 0.50 ? -1 : 1) * dirSign * Math.PI * 1.28;
+        sx = clampX(cx + Math.cos(startAng) * rx);
+        sy = clampY(cy + Math.sin(startAng) * ry);
+
+        n._osuSliderShape = 'horseshoe_omega';
+        n._osuShapeCenterX = cx;
+        n._osuShapeCenterY = cy;
+        n._osuShapeRx = rx;
+        n._osuShapeRy = ry;
+        n._osuShapeStartAng = startAng;
+        n._osuShapeTotalAng = sweepAng;
+        n._osuSliderRepeats = (sliderDur >= 680 && (maxPossibleDur - sliderDur >= 140)) ? 2 : 1;
+      } else if (shape === 'heart_clover') {
+        const sideSign = sx < 0.50 ? 1 : -1;
+        endX = clampX(sx + sideSign * Math.max(0.28, spanX * 0.92));
+        endY = clampY(sy + (Math.random() - 0.5) * 0.05);
+        n._osuSliderShape = 'heart_clover';
+        n._osuShapeAmp = (isWeave ? 0.075 : 0.115) * (sy > centerY ? -1 : 1);
+        n._osuShapeDirSign = dirSign;
+        n._osuSliderRepeats = 1;
+      } else if (shape === 'loop_coaster') {
+        endX = clampX(sx + dirX * Math.max(0.32, spanX));
+        endY = clampY(sy + dirY * spanY * 0.65);
+        n._osuSliderShape = 'loop_coaster';
+        n._osuShapeLoopRx = 0.095;
+        n._osuShapeLoopRy = isWeave ? 0.075 : 0.115;
+        n._osuShapeDirSign = (sy > centerY) ? -1 : 1;
+        n._osuSliderRepeats = 1;
+      } else if (shape === 'zigzag_lightning') {
+        endX = clampX(sx + dirX * Math.max(0.32, spanX));
+        endY = clampY(sy + dirY * spanY * 0.85);
+        n._osuSliderShape = 'zigzag_lightning';
+        n._osuShapeAmp = (isWeave ? 0.068 : 0.105) * dirSign;
+        n._osuSliderRepeats = 1;
+      } else if (shape === 'serpentine_s') {
+        endX = clampX(sx + dirX * Math.max(0.30, spanX));
+        endY = clampY(sy + dirY * spanY * 0.80);
+        n._osuSliderShape = 'serpentine_s';
+        n._osuShapeAmp = (isWeave ? 0.078 : 0.122) * dirSign;
+        n._osuWaveCycles = 1.0;
+        n._osuSliderRepeats = 1;
+      } else if (shape === 'sine_wave') {
+        endX = clampX(sx + dirX * Math.max(0.34, spanX * 1.06));
+        endY = clampY(sy + dirY * spanY * 0.72);
+        n._osuSliderShape = 'sine_wave';
+        n._osuShapeAmp = (isWeave ? 0.068 : 0.104) * dirSign;
+        n._osuWaveCycles = sliderDur >= 540 ? 2.0 : 1.5;
+        n._osuSliderRepeats = 1;
+      } else {
+        n._osuSliderShape = 'arc';
+        n._osuSliderRepeats = (sliderDur >= 620 && (maxPossibleDur - sliderDur >= 140)) ? 2 : 1;
+      }
+
+      const midX = (sx + endX) * 0.5;
+      const midY = (sy + endY) * 0.5;
+      const curveFactor = 0.36 * dirSign;
+      const perpX = -(endY - sy) * curveFactor;
+      const perpY = (endX - sx) * curveFactor;
+
+      n._osuNormX = sx;
+      n._osuNormY = sy;
+      n._osuEndNormX = endX;
+      n._osuEndNormY = endY;
+      n._osuCtrlNormX = clampX(midX + perpX);
+      n._osuCtrlNormY = clampY(midY + perpY);
+      n._osuIsWeaveSlider = Boolean(isWeave);
+
+      const exactEnd = this._evalOsuSliderNormPoint(n, 1.0);
+      n._osuEndNormX = exactEnd.x;
+      n._osuEndNormY = exactEnd.y;
+
+      const numTicks = Math.max(2, Math.min(5, Math.floor(sliderDur / 140)));
+      const ticks = [];
+      for (let tk = 1; tk <= numTicks; tk++) {
+        ticks.push({ u: tk / (numTicks + 1), hit: false });
+      }
+      n._osuSliderTicks = ticks;
+    }
+
+    /**
+     * Evalúa el punto normalizado `(x, y)` en `[0..1]` sobre la forma paramétrica del Slider para `u in [0..1]`.
+     */
+    _evalOsuSliderNormPoint(note, uPath) {
+      const u = Math.max(0, Math.min(1, Number.isFinite(uPath) ? uPath : 0));
+      const isWeave = Boolean(note._osuIsWeaveSlider);
+      const minX = 0.13;
+      const maxX = 0.87;
+      const minY = isWeave ? 0.25 : 0.24;
+      const maxY = isWeave ? 0.52 : 0.72;
+      const clampX = (v) => Math.max(minX, Math.min(maxX, v));
+      const clampY = (v) => Math.max(minY, Math.min(maxY, v));
+
+      const x0 = note._osuNormX ?? 0.3;
+      const y0 = note._osuNormY ?? 0.52;
+      const x1 = note._osuEndNormX ?? 0.7;
+      const y1 = note._osuEndNormY ?? 0.56;
+      const shape = note._osuSliderShape || 'arc';
+
+      if (shape === 'infinity') {
+        const cx = note._osuShapeCenterX ?? 0.50;
+        const cy = note._osuShapeCenterY ?? 0.48;
+        const rx = note._osuShapeRx ?? 0.21;
+        const ry = note._osuShapeRy ?? 0.095;
+        const sideSign = note._osuShapeSideSign ?? -1;
+        const dirSign = note._osuShapeDirSign ?? 1;
+        const tilt = note._osuShapeTiltRad ?? 0;
+        const maxTheta = note._osuShapeMaxTheta ?? (Math.PI * 1.84);
+        const theta = u * maxTheta;
+        const lx = sideSign * rx * Math.cos(theta);
+        const ly = dirSign * ry * Math.sin(2.0 * theta);
+        const cosT = Math.cos(tilt);
+        const sinT = Math.sin(tilt);
+        return {
+          x: clampX(cx + lx * cosT - ly * sinT),
+          y: clampY(cy + lx * sinT + ly * cosT)
+        };
+      }
+
+      if (shape === 'spiral_vortex') {
+        const cx = note._osuShapeCenterX ?? 0.50;
+        const cy = note._osuShapeCenterY ?? 0.48;
+        const r0 = note._osuShapeR0 ?? 0.19;
+        const aspectY = note._osuShapeAspectY ?? 0.66;
+        const startAng = note._osuShapeStartAng ?? 0;
+        const totalAng = note._osuShapeTotalAng ?? (Math.PI * 2.35);
+        const rScale = 1.0 - 0.74 * Math.pow(u, 0.92);
+        const ang = startAng + u * totalAng;
+        return {
+          x: clampX(cx + Math.cos(ang) * r0 * rScale),
+          y: clampY(cy + Math.sin(ang) * r0 * aspectY * rScale)
+        };
+      }
+
+      if (shape === 'horseshoe_omega') {
+        const cx = note._osuShapeCenterX ?? 0.50;
+        const cy = note._osuShapeCenterY ?? 0.48;
+        const rx = note._osuShapeRx ?? 0.20;
+        const ry = note._osuShapeRy ?? 0.10;
+        const startAng = note._osuShapeStartAng ?? 0;
+        const totalAng = note._osuShapeTotalAng ?? (Math.PI * 1.25);
+        const flare = 1.0 + 0.12 * Math.sin(u * Math.PI);
+        const ang = startAng + u * totalAng;
+        return {
+          x: clampX(cx + Math.cos(ang) * rx * flare),
+          y: clampY(cy + Math.sin(ang) * ry * flare)
+        };
+      }
+
+      const dx = x1 - x0;
+      const dy = y1 - y0;
+      const len = Math.max(0.001, Math.hypot(dx, dy));
+      const tx = dx / len;
+      const ty = dy / len;
+      const nx = -ty;
+      const ny = tx;
+
+      if (shape === 'sine_wave' || shape === 'serpentine_s') {
+        const cycles = note._osuWaveCycles || (shape === 'serpentine_s' ? 1.0 : 1.5);
+        const amp = note._osuShapeAmp ?? 0.095;
+        const wave = Math.sin(u * Math.PI * 2.0 * cycles) * amp;
+        return {
+          x: clampX(x0 + dx * u + nx * wave * 0.75),
+          y: clampY(y0 + dy * u + ny * wave)
+        };
+      }
+
+      if (shape === 'zigzag_lightning') {
+        const amp = note._osuShapeAmp ?? 0.095;
+        let lateral = 0;
+        if (u < 0.3333) {
+          lateral = (u / 0.3333) * amp;
+        } else if (u < 0.6667) {
+          const localU = (u - 0.3333) / 0.3334;
+          lateral = amp * (1.0 - 2.0 * localU);
+        } else {
+          const localU = (u - 0.6667) / 0.3333;
+          lateral = -amp * (1.0 - localU);
+        }
+        return {
+          x: clampX(x0 + dx * u + nx * lateral * 0.78),
+          y: clampY(y0 + dy * u + ny * lateral)
+        };
+      }
+
+      if (shape === 'loop_coaster') {
+        const loopRx = note._osuShapeLoopRx ?? 0.09;
+        const loopRy = note._osuShapeLoopRy ?? 0.105;
+        const dirSign = note._osuShapeDirSign ?? -1;
+        const env = Math.sin(u * Math.PI);
+        const loopPhase = (u - 0.5) * Math.PI * 2.0;
+        const alongOff = -Math.sin(loopPhase) * loopRx * (env * env);
+        const perpOff = (1.0 - Math.cos(loopPhase)) * 0.5 * loopRy * env * dirSign;
+        return {
+          x: clampX(x0 + dx * u + tx * alongOff + nx * perpOff * 0.78),
+          y: clampY(y0 + dy * u + ty * alongOff + ny * perpOff)
+        };
+      }
+
+      if (shape === 'heart_clover') {
+        const amp = note._osuShapeAmp ?? -0.105;
+        const lobeWave = Math.abs(Math.sin(u * Math.PI * 2.0)) * amp;
+        const pinch = Math.sin(u * Math.PI * 2.0) * 0.035;
+        return {
+          x: clampX(x0 + dx * u + tx * pinch),
+          y: clampY(y0 + dy * u + lobeWave)
+        };
+      }
+
+      // 'arc' (Quadratic Bézier por defecto)
+      const cx = note._osuCtrlNormX ?? ((x0 + x1) * 0.5);
+      const cy = note._osuCtrlNormY ?? ((y0 + y1) * 0.5);
+      const inv = 1.0 - u;
+      return {
+        x: clampX(inv * inv * x0 + 2 * inv * u * cx + u * u * x1),
+        y: clampY(inv * inv * y0 + 2 * inv * u * cy + u * u * y1)
+      };
     }
 
     _evalOsuSliderPoint(note, uRaw) {
@@ -20681,18 +20985,32 @@ class BeatstarEngine {
       if (repeats === 2) {
         u = u <= 0.5 ? (u * 2.0) : (2.0 - u * 2.0);
       }
-      const x0 = (note._osuNormX ?? 0.3) * w;
-      const y0 = Math.max(0.26, Math.min(0.72, note._osuNormY ?? 0.52)) * h;
-      const cx = (note._osuCtrlNormX ?? 0.5) * w;
-      const cy = Math.max(0.24, Math.min(0.73, note._osuCtrlNormY ?? 0.52)) * h;
-      const x1 = (note._osuEndNormX ?? 0.7) * w;
-      const y1 = Math.max(0.26, Math.min(0.72, note._osuEndNormY ?? 0.56)) * h;
-      const inv = 1 - u;
+      const normPt = this._evalOsuSliderNormPoint(note, u);
       return {
-        x: inv * inv * x0 + 2 * inv * u * cx + u * u * x1,
-        y: inv * inv * y0 + 2 * inv * u * cy + u * u * y1,
+        x: normPt.x * w,
+        y: normPt.y * h,
         pathU: u
       };
+    }
+
+    /**
+     * Traza el camino completo (o parcial hasta `maxU`) de un Slider en el Canvas 2D
+     * muestreando suavemente su curva paramétrica (`sine_wave`, `infinity`, `spiral_vortex`, `loop_coaster`, etc.).
+     */
+    _traceOsuSliderCanvasPath(ctx, note, w, h, maxU = 1.0) {
+      const clampedMaxU = Math.max(0.02, Math.min(1.0, maxU));
+      const shape = note._osuSliderShape || 'arc';
+      const totalSteps = (shape === 'arc') ? 16 : 36;
+      const steps = Math.max(2, Math.ceil(totalSteps * clampedMaxU));
+      ctx.beginPath();
+      for (let s = 0; s <= steps; s++) {
+        const u = (s / steps) * clampedMaxU;
+        const pt = this._evalOsuSliderNormPoint(note, u);
+        const px = pt.x * w;
+        const py = pt.y * h;
+        if (s === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
     }
 
     handleOsuHybridPointerDown(x, y, lane, pointerId) {
@@ -21469,7 +21787,7 @@ class BeatstarEngine {
       const nLen = this.notes.length;
       const w = this.width || 360;
       const circleR = Math.max(32, Math.min(45, w * 0.098));
-      const trackRadius = Math.max(94, circleR * 2.45);
+      const trackRadius = Math.max(112, circleR * 2.82);
       const nowPerf = performance.now();
 
       if (this._osuEqLevels) {
@@ -21531,9 +21849,9 @@ class BeatstarEngine {
 
           const isTrackingBall = hasAnyFinger && (minFingerDist <= trackRadius);
           if (isTrackingBall) {
-            note._osuOffTrackMs = Math.max(0, (note._osuOffTrackMs || 0) - dt * 1800);
-            this._osuEnergyLevel = Math.min(1.0, (this._osuEnergyLevel || 0) + dt * 0.45);
-            this.addScore(Math.round(230 * dt * (this.multiplier || 1)));
+            note._osuOffTrackMs = Math.max(0, (note._osuOffTrackMs || 0) - dt * 1950);
+            this._osuEnergyLevel = Math.min(1.0, (this._osuEnergyLevel || 0) + dt * 0.48);
+            this.addScore(Math.round(250 * dt * (this.multiplier || 1)));
 
             if (Array.isArray(note._osuSliderTicks)) {
               for (let tk = 0; tk < note._osuSliderTicks.length; tk++) {
@@ -21548,7 +21866,7 @@ class BeatstarEngine {
                   else if (this.streakCount >= 10) this.multiplier = 3;
                   else if (this.streakCount >= 5) this.multiplier = 2;
                   else this.multiplier = 1;
-                  this.addScore(115 * (this.multiplier || 1));
+                  this.addScore(125 * (this.multiplier || 1));
                   this._playOsuHitSound('tick', (note._osuComboNum || 1) + tk);
                   this._triggerOsuStageReaction(ballPos.x, ballPos.y, note.lane ?? 1, '#00f2fe');
                 }
@@ -21562,7 +21880,7 @@ class BeatstarEngine {
             }
           } else {
             // Si soltó el dedo o no siguió el recorrido del slider: penalizar si aún no estaba prácticamente terminado
-            if (uRaw >= 0.90 && (note._osuOffTrackMs || 0) < 90) {
+            if (uRaw >= 0.88 && (note._osuOffTrackMs || 0) < 110) {
               note.holdCompleted = true;
               note.holding = false;
               note.processed = true;
@@ -21577,8 +21895,8 @@ class BeatstarEngine {
               continue;
             }
 
-            note._osuOffTrackMs = (note._osuOffTrackMs || 0) + dt * 1000 * (hasAnyFinger ? 1.0 : 2.1);
-            if (note._osuOffTrackMs >= 105) {
+            note._osuOffTrackMs = (note._osuOffTrackMs || 0) + dt * 1000 * (hasAnyFinger ? 0.90 : 2.0);
+            if (note._osuOffTrackMs >= 135) {
               note.holding = false;
               note.processed = true;
               note._osuSliderBroken = true;
@@ -22332,7 +22650,7 @@ class BeatstarEngine {
         if (currentTime < prevT - noteAppMs * 0.65 || currentTime > noteT) continue;
 
         const p0 = (prev._osuRole === 'slider' && prev._osuSliderRepeats !== 2)
-          ? { x: (prev._osuEndNormX ?? prev._osuNormX ?? 0.5) * w, y: Math.max(0.26, Math.min(0.72, prev._osuEndNormY ?? prev._osuNormY ?? 0.52)) * h }
+          ? this._evalOsuSliderPoint(prev, 1.0)
           : this._getOsuNoteScreenPos(prev);
         const p1 = this._getOsuNoteScreenPos(note);
         const dist = Math.hypot(p1.x - p0.x, p1.y - p0.y);
@@ -22471,14 +22789,18 @@ class BeatstarEngine {
         ctx.save();
         ctx.globalAlpha = fadeAlpha;
 
-        // C. CUERPO DE SLIDER CURVO CON FEEDBACK DE SEGUIMIENTO REAL
+        // C. CUERPO DE SLIDER MULTI-FORMA (SENO, INFINITO, ESPIRAL, LAZO, RAYO ZIG-ZAG, ETC.) CON FEEDBACK DE SEGUIMIENTO REAL
         if (note._osuRole === 'slider') {
-          const x0 = (note._osuNormX ?? 0.3) * w;
-          const y0 = Math.max(0.26, Math.min(0.72, note._osuNormY ?? 0.52)) * h;
-          const cx = (note._osuCtrlNormX ?? 0.5) * w;
-          const cy = Math.max(0.24, Math.min(0.73, note._osuCtrlNormY ?? 0.52)) * h;
-          const x1 = (note._osuEndNormX ?? 0.7) * w;
-          const y1 = Math.max(0.26, Math.min(0.72, note._osuEndNormY ?? 0.56)) * h;
+          const endNorm = this._evalOsuSliderNormPoint(note, 1.0);
+          const preEndNorm = this._evalOsuSliderNormPoint(note, 0.92);
+          const x1 = endNorm.x * w;
+          const y1 = endNorm.y * h;
+          const preX1 = preEndNorm.x * w;
+          const preY1 = preEndNorm.y * h;
+
+          const sliderShape = note._osuSliderShape || 'arc';
+          const isComplexShape = (sliderShape === 'infinity' || sliderShape === 'spiral_vortex' || sliderShape === 'loop_coaster' || sliderShape === 'sine_wave' || sliderShape === 'zigzag_lightning');
+          const widthScale = isComplexShape ? 0.76 : 0.94;
 
           const trackStrokeColor = isBrokenSlider ? '#ff2a55' : pal.primary;
           const trackGlowRgb = isBrokenSlider ? '255, 42, 85' : pal.glowRgb;
@@ -22489,40 +22811,30 @@ class BeatstarEngine {
           ctx.save();
           ctx.globalCompositeOperation = 'lighter';
           ctx.strokeStyle = `rgba(${trackGlowRgb}, ${(0.34 * fadeAlpha).toFixed(3)})`;
-          ctx.lineWidth = circleR * 2.38;
-          ctx.beginPath();
-          ctx.moveTo(x0, y0);
-          ctx.quadraticCurveTo(cx, cy, x1, y1);
+          ctx.lineWidth = circleR * 2.38 * widthScale;
+          this._traceOsuSliderCanvasPath(ctx, note, w, h, 1.0);
           ctx.stroke();
           ctx.restore();
 
           ctx.strokeStyle = isBrokenSlider ? 'rgba(255, 120, 140, 0.75)' : '#ffffff';
-          ctx.lineWidth = circleR * 1.88;
-          ctx.beginPath();
-          ctx.moveTo(x0, y0);
-          ctx.quadraticCurveTo(cx, cy, x1, y1);
+          ctx.lineWidth = circleR * 1.88 * widthScale;
+          this._traceOsuSliderCanvasPath(ctx, note, w, h, 1.0);
           ctx.stroke();
 
           ctx.strokeStyle = trackStrokeColor;
-          ctx.lineWidth = circleR * 1.70;
-          ctx.beginPath();
-          ctx.moveTo(x0, y0);
-          ctx.quadraticCurveTo(cx, cy, x1, y1);
+          ctx.lineWidth = circleR * 1.70 * widthScale;
+          this._traceOsuSliderCanvasPath(ctx, note, w, h, 1.0);
           ctx.stroke();
 
           ctx.strokeStyle = 'rgba(10, 5, 20, 0.94)';
-          ctx.lineWidth = circleR * 1.46;
-          ctx.beginPath();
-          ctx.moveTo(x0, y0);
-          ctx.quadraticCurveTo(cx, cy, x1, y1);
+          ctx.lineWidth = circleR * 1.44 * widthScale;
+          this._traceOsuSliderCanvasPath(ctx, note, w, h, 1.0);
           ctx.stroke();
 
-          ctx.strokeStyle = `rgba(${trackGlowRgb}, 0.58)`;
-          ctx.lineWidth = 2.8;
+          ctx.strokeStyle = `rgba(${trackGlowRgb}, 0.64)`;
+          ctx.lineWidth = 3.0;
           ctx.setLineDash([8, 8]);
-          ctx.beginPath();
-          ctx.moveTo(x0, y0);
-          ctx.quadraticCurveTo(cx, cy, x1, y1);
+          this._traceOsuSliderCanvasPath(ctx, note, w, h, 1.0);
           ctx.stroke();
           ctx.setLineDash([]);
 
@@ -22533,19 +22845,19 @@ class BeatstarEngine {
               const tPos = this._evalOsuSliderPoint(note, tick.u * (note._osuSliderRepeats === 2 ? 0.5 : 1.0));
               ctx.fillStyle = '#ffffff';
               ctx.beginPath();
-              ctx.arc(tPos.x, tPos.y, 4.6, 0, Math.PI * 2);
+              ctx.arc(tPos.x, tPos.y, 4.8, 0, Math.PI * 2);
               ctx.fill();
             }
           }
 
-          ctx.strokeStyle = isBrokenSlider ? '#ff2a55' : 'rgba(255, 255, 255, 0.88)';
+          ctx.strokeStyle = isBrokenSlider ? '#ff2a55' : 'rgba(255, 255, 255, 0.90)';
           ctx.lineWidth = 2.8;
           ctx.beginPath();
-          ctx.arc(x1, y1, circleR * 0.78, 0, Math.PI * 2);
+          ctx.arc(x1, y1, circleR * 0.78 * widthScale, 0, Math.PI * 2);
           ctx.stroke();
 
           if (note._osuSliderRepeats === 2 && !note._osuReboundTriggered && !isBrokenSlider) {
-            const angBack = Math.atan2(cy - y1, cx - x1);
+            const angBack = Math.atan2(preY1 - y1, preX1 - x1);
             ctx.save();
             ctx.translate(x1, y1);
             ctx.rotate(angBack);
@@ -22564,6 +22876,21 @@ class BeatstarEngine {
             const uRaw = Math.max(0, Math.min(1, (currentTime - noteT) / dur));
             const ballPos = this._evalOsuSliderPoint(note, uRaw);
             const isSlipping = (note._osuOffTrackMs || 0) > 25;
+
+            // Estela luminosa progresiva sobre la onda/infinito/espiral a medida que el dedo la recorre
+            if (ballPos.pathU > 0.02) {
+              ctx.save();
+              ctx.globalCompositeOperation = 'lighter';
+              ctx.strokeStyle = isSlipping ? 'rgba(255, 42, 85, 0.65)' : `rgba(${trackGlowRgb}, 0.72)`;
+              ctx.lineWidth = circleR * 1.18 * widthScale;
+              this._traceOsuSliderCanvasPath(ctx, note, w, h, ballPos.pathU);
+              ctx.stroke();
+              ctx.strokeStyle = '#ffffff';
+              ctx.lineWidth = 3.8;
+              this._traceOsuSliderCanvasPath(ctx, note, w, h, ballPos.pathU);
+              ctx.stroke();
+              ctx.restore();
+            }
 
             ctx.save();
             ctx.globalCompositeOperation = 'lighter';
@@ -23490,28 +23817,43 @@ class BeatstarEngine {
       const bombWallCooldownMs = Math.round(Math.max(1420, (1980 - diffNorm * 540), beatMs * (3.85 - diffNorm * 1.05)));
       const bombWallMod = diffNorm >= 0.72 ? 5 : (diffNorm >= 0.38 ? 6 : 7);
 
-      // Colores cromáticos progresivos para las Cintas de Líneas Seguidas (`flow_line`): Cian -> Menta -> Oro -> Magenta
-      const evalRibbonRungPalette = (uProg, isFinale) => {
-        if (isFinale) return { main: '#f43f5e', sec: '#fde047', rgba: 'rgba(244, 63, 94, 0.30)' };
-        if (uProg < 0.34) return { main: '#00f2fe', sec: '#38bdf8', rgba: 'rgba(0, 242, 254, 0.24)' };
-        if (uProg < 0.67) return { main: '#34d399', sec: '#00f2fe', rgba: 'rgba(52, 211, 153, 0.25)' };
-        return { main: '#fde047', sec: '#f43f5e', rgba: 'rgba(253, 224, 71, 0.26)' };
+      // Colores cromáticos progresivos para las Cintas de Líneas Seguidas (`flow_line`): Cian -> Menta -> Violeta -> Oro -> Coral
+      const evalRibbonRungPalette = (uProg, isFinale, archIdx = 0) => {
+        if (isFinale) return { main: '#f43f5e', sec: '#fde047', rgba: 'rgba(244, 63, 94, 0.34)' };
+        const palVariant = archIdx % 3;
+        if (palVariant === 1) {
+          if (uProg < 0.34) return { main: '#38bdf8', sec: '#a855f7', rgba: 'rgba(56, 189, 248, 0.25)' };
+          if (uProg < 0.67) return { main: '#c084fc', sec: '#f472b6', rgba: 'rgba(192, 132, 252, 0.26)' };
+          return { main: '#fde047', sec: '#fb7185', rgba: 'rgba(253, 224, 71, 0.28)' };
+        }
+        if (palVariant === 2) {
+          if (uProg < 0.34) return { main: '#2dd4bf', sec: '#00f2fe', rgba: 'rgba(45, 212, 191, 0.25)' };
+          if (uProg < 0.67) return { main: '#a3e635', sec: '#34d399', rgba: 'rgba(163, 230, 53, 0.26)' };
+          return { main: '#fbbf24', sec: '#f43f5e', rgba: 'rgba(251, 191, 36, 0.28)' };
+        }
+        if (uProg < 0.34) return { main: '#00f2fe', sec: '#38bdf8', rgba: 'rgba(0, 242, 254, 0.25)' };
+        if (uProg < 0.67) return { main: '#34d399', sec: '#00f2fe', rgba: 'rgba(52, 211, 153, 0.26)' };
+        return { main: '#fde047', sec: '#f43f5e', rgba: 'rgba(253, 224, 71, 0.28)' };
       };
 
-      // Generador de los 8 Arquetipos de Cintas Esculpidas de Líneas Seguidas (`flow_line`)
-      // Todas comienzan suavemente en horizontal (0°) para enganchar los dedos con fluidez total y esculpir formas únicas
+      // Generador de los 16 Arquetipos Creativos de Cintas Esculpidas de Líneas Seguidas (`flow_line`)
+      // Con variaciones paramétricas aleatorias suaves para que cada trazado con los dedos sea irrepetible y muy satisfactorio
+      const TOTAL_RIBBON_ARCHETYPES = 16;
       const buildSculptedRibbonSpecs = (archIdx, dirSign) => {
         const specs = [];
-        const kindIdx = ((archIdx % 8) + 8) % 8;
+        const kindIdx = ((archIdx % TOTAL_RIBBON_ARCHETYPES) + TOTAL_RIBBON_ARCHETYPES) % TOTAL_RIBBON_ARCHETYPES;
+        const ampJitter = 0.90 + Math.random() * 0.22;
+        const swaySign = (Math.random() < 0.5) ? 1 : -1;
+
         if (kindIdx === 0) {
-          // 0. HELIX_TO_PERPENDICULAR: 0° -> 5° -> 11° -> 19° -> 29° -> 41° -> 54° -> 67° -> 79° -> 90° (¡Perpendicular!)
+          // 0. HELIX_TO_PERPENDICULAR: 0° -> 5° -> 11° -> 19° -> 29° -> 41° -> 54° -> 67° -> 79° -> 90° (Perpendicular)
           const degs = [0, 5, 11, 19, 29, 41, 54, 67, 79, 90];
           for (let s = 0; s < degs.length; s++) {
             const u = s / (degs.length - 1);
             specs.push({
               angleDeg: degs[s] * dirSign,
               widthRatio: 0.78 - 0.33 * Math.sin(u * Math.PI * 0.5),
-              centerU: 0.0,
+              centerU: 0.04 * Math.sin(u * Math.PI) * dirSign,
               liftY: -0.095 * Math.sin(u * Math.PI * 0.5),
               spanMode: 'normal',
               isAnchor: (s === 0 || s === degs.length - 1),
@@ -23527,7 +23869,7 @@ class BeatstarEngine {
             specs.push({
               angleDeg: degs[s] * dirSign,
               widthRatio: 0.78 - 0.33 * sinPeak,
-              centerU: 0.0,
+              centerU: 0.05 * Math.sin(u * Math.PI * 2) * dirSign,
               liftY: -0.095 * sinPeak,
               spanMode: 'normal',
               isAnchor: (s === 0 || s === 5 || s === degs.length - 1),
@@ -23540,9 +23882,9 @@ class BeatstarEngine {
           for (let s = 0; s < degs.length; s++) {
             const absRatio = Math.abs(degs[s]) / 64.0;
             specs.push({
-              angleDeg: degs[s] * dirSign,
+              angleDeg: degs[s] * dirSign * ampJitter,
               widthRatio: 0.75 - 0.22 * absRatio,
-              centerU: 0.05 * Math.sin((s / (degs.length - 1)) * Math.PI * 2) * dirSign,
+              centerU: 0.065 * Math.sin((s / (degs.length - 1)) * Math.PI * 2) * dirSign,
               liftY: -0.065 * absRatio,
               spanMode: 'normal',
               isAnchor: (s === 0 || s === 3 || s === 7 || s === degs.length - 1),
@@ -23551,15 +23893,15 @@ class BeatstarEngine {
           }
         } else if (kindIdx === 3) {
           // 3. HOURGLASS_ACCORDION: Reloj de Arena (Pinza al centro y Expansión amplia con onda suave)
-          const widths = [0.84, 0.68, 0.50, 0.34, 0.30, 0.46, 0.66, 0.82, 0.88];
-          const degs = [0, 5, 11, 16, 0, -16, -11, -5, 0];
+          const widths = [0.85, 0.68, 0.50, 0.33, 0.29, 0.46, 0.66, 0.82, 0.88];
+          const degs = [0, 6, 13, 19, 0, -19, -13, -6, 0];
           for (let s = 0; s < widths.length; s++) {
             const wR = widths[s];
             specs.push({
               angleDeg: degs[s] * dirSign,
               widthRatio: wR,
               centerU: 0.0,
-              liftY: -0.03 * Math.sin((s / (widths.length - 1)) * Math.PI),
+              liftY: -0.035 * Math.sin((s / (widths.length - 1)) * Math.PI),
               spanMode: (wR <= 0.35) ? 'pinch' : ((wR >= 0.82) ? 'wide' : 'normal'),
               isAnchor: (s === 0 || s === 4 || s === widths.length - 1),
               archetype: 'HOURGLASS_ACCORDION'
@@ -23567,14 +23909,14 @@ class BeatstarEngine {
           }
         } else if (kindIdx === 4) {
           // 4. SLALOM_SURF_RAIL: Carril compacto que surfea de lado a lado con peralte dinámico
-          const centers = [0.00, -0.09, -0.19, -0.24, -0.12, 0.06, 0.19, 0.24, 0.12, 0.00];
-          const degs = [0, -9, -19, -25, -10, 10, 21, 25, 11, 0];
+          const centers = [0.00, -0.10, -0.20, -0.26, -0.13, 0.07, 0.20, 0.26, 0.13, 0.00];
+          const degs = [0, -10, -21, -28, -11, 11, 23, 28, 12, 0];
           for (let s = 0; s < centers.length; s++) {
             specs.push({
               angleDeg: degs[s] * dirSign,
               widthRatio: 0.45,
-              centerU: centers[s] * dirSign,
-              liftY: -0.035 * Math.sin((s / (centers.length - 1)) * Math.PI),
+              centerU: centers[s] * dirSign * ampJitter,
+              liftY: -0.04 * Math.sin((s / (centers.length - 1)) * Math.PI),
               spanMode: 'normal',
               isAnchor: (s === 0 || s === 3 || s === 7 || s === centers.length - 1),
               archetype: 'SLALOM_SURF_RAIL'
@@ -23597,21 +23939,21 @@ class BeatstarEngine {
             });
           }
         } else if (kindIdx === 6) {
-          // 6. ELEVATOR_WAVE_CREST: Ola ascendente vertical que sube por la pista y regresa meciéndose ±22°
-          const lifts = [0.00, -0.04, -0.09, -0.135, -0.155, -0.13, -0.085, -0.035, 0.00];
-          const degs = [0, 7, 15, 22, 0, -22, -15, -7, 0];
+          // 6. ELEVATOR_WAVE_CREST: Ola ascendente vertical que sube por la pista y regresa meciéndose ±24°
+          const lifts = [0.00, -0.045, -0.095, -0.145, -0.168, -0.140, -0.090, -0.040, 0.00];
+          const degs = [0, 8, 17, 24, 0, -24, -17, -8, 0];
           for (let s = 0; s < lifts.length; s++) {
             specs.push({
               angleDeg: degs[s] * dirSign,
               widthRatio: 0.74 - 0.08 * Math.sin((s / (lifts.length - 1)) * Math.PI),
-              centerU: 0.0,
+              centerU: 0.04 * Math.sin((s / (lifts.length - 1)) * Math.PI * 2) * dirSign,
               liftY: lifts[s],
               spanMode: 'normal',
               isAnchor: (s === 0 || s === 4 || s === lifts.length - 1),
               archetype: 'ELEVATOR_WAVE_CREST'
             });
           }
-        } else {
+        } else if (kindIdx === 7) {
           // 7. DNA_SPIRAL_TWIST: Doble hélice con torsión hasta 78° + respiración de anchura y micro-oscilación
           const degs = [0, 14, 30, 48, 66, 78, 60, 38, 18, 0];
           const widths = [0.78, 0.64, 0.48, 0.41, 0.45, 0.44, 0.52, 0.64, 0.74, 0.80];
@@ -23620,18 +23962,164 @@ class BeatstarEngine {
             specs.push({
               angleDeg: degs[s] * dirSign,
               widthRatio: widths[s],
-              centerU: 0.085 * Math.sin(u * Math.PI * 2) * dirSign,
+              centerU: 0.09 * Math.sin(u * Math.PI * 2) * dirSign,
               liftY: -0.085 * Math.sin(u * Math.PI),
               spanMode: 'normal',
               isAnchor: (s === 0 || s === 5 || s === degs.length - 1),
               archetype: 'DNA_SPIRAL_TWIST'
             });
           }
+        } else if (kindIdx === 8) {
+          // 8. SINE_WAVE_SLALOM: Onda Sinusoidal Continua de 2.5 crestas con peralte sincronizado a la derivada
+          const steps = 12;
+          const cycles = 2.0;
+          for (let s = 0; s < steps; s++) {
+            const u = s / (steps - 1);
+            const env = Math.sin(u * Math.PI);
+            const phase = u * Math.PI * 2 * cycles;
+            const cU = 0.25 * Math.sin(phase) * env * dirSign * ampJitter;
+            const bankDeg = 32 * Math.cos(phase) * env * dirSign;
+            specs.push({
+              angleDeg: bankDeg,
+              widthRatio: 0.46 + 0.08 * (1 - env),
+              centerU: cU,
+              liftY: -0.065 * env - 0.025 * Math.sin(phase * 2),
+              spanMode: 'normal',
+              isAnchor: (s === 0 || s === 3 || s === 6 || s === 9 || s === steps - 1),
+              archetype: 'SINE_WAVE_SLALOM'
+            });
+          }
+        } else if (kindIdx === 9) {
+          // 9. INFINITY_FIGURE_EIGHT: Lemniscata de Bernoulli (Infinito ∞) esculpida en 2D (centerU + liftY + torsión)
+          const steps = 13;
+          for (let s = 0; s < steps; s++) {
+            const u = s / (steps - 1);
+            const env = Math.sin(u * Math.PI);
+            const theta = u * Math.PI * 2;
+            const denom = 1.0 + Math.sin(theta) * Math.sin(theta) * 0.45;
+            const cU = (0.24 * Math.sin(theta) / denom) * env * dirSign;
+            const lY = (-0.085 * env) + (0.055 * (Math.sin(theta) * Math.cos(theta) / denom) * env * swaySign);
+            const bankDeg = 46 * Math.sin(theta * 2) * env * dirSign;
+            const wR = 0.48 - 0.14 * Math.abs(Math.sin(theta * 2)) * env;
+            specs.push({
+              angleDeg: bankDeg,
+              widthRatio: wR,
+              centerU: cU,
+              liftY: lY,
+              spanMode: (wR <= 0.36) ? 'pinch' : 'normal',
+              isAnchor: (s === 0 || s === 3 || s === 6 || s === 9 || s === steps - 1),
+              archetype: 'INFINITY_FIGURE_EIGHT'
+            });
+          }
+        } else if (kindIdx === 10) {
+          // 10. VORTEX_SPIRAL_INWARD: Remolino galáctico que gira hasta 135° mientras estrecha el haz hacia el núcleo y luego abre
+          const degs = [0, 16, 35, 58, 84, 110, 132, 115, 86, 52, 22, 0];
+          const widths = [0.84, 0.75, 0.64, 0.52, 0.41, 0.34, 0.31, 0.38, 0.50, 0.64, 0.76, 0.84];
+          for (let s = 0; s < degs.length; s++) {
+            const u = s / (degs.length - 1);
+            const rad = 0.16 * Math.sin(u * Math.PI);
+            const wR = widths[s];
+            specs.push({
+              angleDeg: degs[s] * dirSign,
+              widthRatio: wR,
+              centerU: rad * Math.cos(u * Math.PI * 3) * dirSign,
+              liftY: -0.105 * Math.sin(u * Math.PI) + 0.03 * Math.sin(u * Math.PI * 3),
+              spanMode: (wR <= 0.35) ? 'pinch' : ((wR >= 0.80) ? 'wide' : 'normal'),
+              isAnchor: (s === 0 || s === 6 || s === degs.length - 1),
+              archetype: 'VORTEX_SPIRAL_INWARD'
+            });
+          }
+        } else if (kindIdx === 11) {
+          // 11. ZIGZAG_LIGHTNING_WHIP: Látigo eléctrico en Zig-Zag con quiebres rítmicos de ángulo y posición
+          const centers = [0.00, 0.14, 0.25, 0.04, -0.18, -0.26, -0.05, 0.18, 0.24, 0.10, 0.00];
+          const degs = [0, 18, 36, -12, -38, -24, 14, 38, 22, 8, 0];
+          for (let s = 0; s < centers.length; s++) {
+            const u = s / (centers.length - 1);
+            specs.push({
+              angleDeg: degs[s] * dirSign,
+              widthRatio: 0.47,
+              centerU: centers[s] * dirSign * ampJitter,
+              liftY: -0.07 * Math.sin(u * Math.PI),
+              spanMode: 'normal',
+              isAnchor: (s === 0 || s === 2 || s === 5 || s === 8 || s === centers.length - 1),
+              archetype: 'ZIGZAG_LIGHTNING_WHIP'
+            });
+          }
+        } else if (kindIdx === 12) {
+          // 12. BUTTERFLY_PULSE_WINGS: Alas de Mariposa (doble batido simétrico de pinza a gran envergadura con balanceo)
+          const widths = [0.76, 0.48, 0.30, 0.62, 0.88, 0.56, 0.30, 0.64, 0.88, 0.76];
+          const degs = [0, 14, 26, 8, -18, -32, -14, 16, 22, 0];
+          for (let s = 0; s < widths.length; s++) {
+            const u = s / (widths.length - 1);
+            const wR = widths[s];
+            specs.push({
+              angleDeg: degs[s] * dirSign,
+              widthRatio: wR,
+              centerU: 0.07 * Math.sin(u * Math.PI * 2) * dirSign,
+              liftY: -0.08 * Math.sin(u * Math.PI) - (wR >= 0.82 ? 0.035 : 0),
+              spanMode: (wR <= 0.34) ? 'pinch' : ((wR >= 0.82) ? 'wide' : 'normal'),
+              isAnchor: (s === 0 || s === 2 || s === 4 || s === 6 || s === widths.length - 1),
+              archetype: 'BUTTERFLY_PULSE_WINGS'
+            });
+          }
+        } else if (kindIdx === 13) {
+          // 13. ROLLERCOASTER_LOOP_ARC: Looping de montaña rusa que describe un círculo orbital en la pantalla mientras rota hasta ±82°
+          const steps = 12;
+          const degs = [0, 16, 36, 58, 76, 84, 72, 48, 20, -12, -8, 0];
+          for (let s = 0; s < steps; s++) {
+            const u = s / (steps - 1);
+            const env = Math.sin(u * Math.PI);
+            const loopAng = u * Math.PI * 2;
+            specs.push({
+              angleDeg: degs[s] * dirSign,
+              widthRatio: 0.62 - 0.18 * env,
+              centerU: 0.17 * Math.sin(loopAng) * env * dirSign,
+              liftY: -0.075 * (1 - Math.cos(loopAng)) * env,
+              spanMode: 'normal',
+              isAnchor: (s === 0 || s === 5 || s === steps - 1),
+              archetype: 'ROLLERCOASTER_LOOP_ARC'
+            });
+          }
+        } else if (kindIdx === 14) {
+          // 14. STEPPED_CASCADE_STAIRS: Escalera progresiva de ángulos con descansillos satisfactorios (0° -> 25° -> 50° -> 75° -> 90°)
+          const degs = [0, 0, 24, 26, 52, 54, 76, 88, 90, 55, 20, 0];
+          const lifts = [0.00, -0.01, -0.035, -0.04, -0.07, -0.075, -0.10, -0.11, -0.11, -0.065, -0.025, 0.00];
+          for (let s = 0; s < degs.length; s++) {
+            const absRatio = Math.abs(degs[s]) / 90.0;
+            specs.push({
+              angleDeg: degs[s] * dirSign,
+              widthRatio: 0.76 - 0.30 * absRatio,
+              centerU: 0.05 * Math.sin((s / (degs.length - 1)) * Math.PI) * dirSign,
+              liftY: lifts[s],
+              spanMode: 'normal',
+              isAnchor: (s === 0 || s === 3 || s === 5 || s === 8 || s === degs.length - 1),
+              archetype: 'STEPPED_CASCADE_STAIRS'
+            });
+          }
+        } else {
+          // 15. TWIN_WAVE_INTERFERENCE: Interferencia armónica donde anchura, centro e inclinación laten en frecuencias cruzadas
+          const steps = 11;
+          for (let s = 0; s < steps; s++) {
+            const u = s / (steps - 1);
+            const env = Math.sin(u * Math.PI);
+            const wR = Math.max(0.32, Math.min(0.86, 0.60 + 0.25 * Math.cos(u * Math.PI * 3) * env));
+            const degVal = 56 * Math.sin(u * Math.PI * 2) * env * dirSign;
+            const cU = 0.18 * Math.sin(u * Math.PI * 3) * env * dirSign;
+            specs.push({
+              angleDeg: degVal,
+              widthRatio: wR,
+              centerU: cU,
+              liftY: -0.09 * env,
+              spanMode: (wR <= 0.36) ? 'pinch' : ((wR >= 0.80) ? 'wide' : 'normal'),
+              isAnchor: (s === 0 || s === 3 || s === 7 || s === steps - 1),
+              archetype: 'TWIN_WAVE_INTERFERENCE'
+            });
+          }
         }
         return specs;
       };
 
-      const isInsideOrNearRibbon = (tMs, marginMs = 340) => {
+      const isInsideOrNearRibbon = (tMs, marginMs = 310) => {
         for (let r = 0; r < placedRibbons.length; r++) {
           const rb = placedRibbons[r];
           if (tMs >= rb.startMs - marginMs && tMs <= rb.endMs + marginMs) return true;
@@ -23639,40 +24127,55 @@ class BeatstarEngine {
         return false;
       };
 
-      // Pre-pase: Planificar entre 1 y 3 Cintas de Líneas Seguidas (`flow_line`) no repetitivas en cada ventana Voltaica
-      const songSeed = Math.abs(Math.round((notesArray.length * 7) + (beatMs * 3)));
-      const permTail = [1, 2, 3, 4, 5, 6, 7];
-      for (let p = 0; p < permTail.length - 1; p++) {
-        const swapIdx = p + ((songSeed + p * 3) % (permTail.length - p));
-        const tmp = permTail[p];
-        permTail[p] = permTail[swapIdx];
-        permTail[swapIdx] = tmp;
-      }
-      // Garantizar que la primera cinta muestre el giro continuo horizontal -> perpendicular (0° -> 5° -> 11° -> ... -> 90°)
-      const archetypeDeck = [0, ...permTail];
+      // Pre-pase: Barajar con aleatoriedad real los 16 arquetipos de Cintas de Líneas Seguidas (`flow_line`)
+      // para que cada partida tenga una secuencia fresca, variada y sorprendente
+      const buildShuffledArchetypeDeck = () => {
+        const arr = [];
+        for (let a = 0; a < TOTAL_RIBBON_ARCHETYPES; a++) arr.push(a);
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const tmp = arr[i];
+          arr[i] = arr[j];
+          arr[j] = tmp;
+        }
+        return arr;
+      };
+      let archetypeDeck = buildShuffledArchetypeDeck();
       let deckCursor = 0;
 
       for (let w = 0; w < voltaicWindows.length; w++) {
         const win = voltaicWindows[w];
         const winDur = win.endMs - win.startMs;
-        if (winDur < 2100) continue;
+        if (winDur < 1750) continue;
 
-        const targetFracs = (winDur >= 7800)
-          ? [0.14, 0.46, 0.76]
-          : ((winDur >= 4400) ? [0.20, 0.64] : [0.36]);
-        let prevRibEnd = win.startMs + 220;
+        const targetFracs = (winDur >= 9200)
+          ? [0.10, 0.35, 0.60, 0.83]
+          : ((winDur >= 6200)
+            ? [0.13, 0.45, 0.76]
+            : ((winDur >= 3400) ? [0.19, 0.63] : [0.34]));
+        let prevRibEnd = win.startMs + 190;
 
         for (let f = 0; f < targetFracs.length; f++) {
-          const archIdx = archetypeDeck[deckCursor % archetypeDeck.length];
-          const dirSign = (((deckCursor + songSeed) % 2) === 0) ? 1 : -1;
-          deckCursor++;
+          if (deckCursor >= archetypeDeck.length) {
+            const lastArch = archetypeDeck[archetypeDeck.length - 1];
+            archetypeDeck = buildShuffledArchetypeDeck();
+            if (archetypeDeck[0] === lastArch && archetypeDeck.length > 1) {
+              const swapWith = 1 + Math.floor(Math.random() * (archetypeDeck.length - 1));
+              const tmp = archetypeDeck[0];
+              archetypeDeck[0] = archetypeDeck[swapWith];
+              archetypeDeck[swapWith] = tmp;
+            }
+            deckCursor = 0;
+          }
+          const archIdx = archetypeDeck[deckCursor++];
+          const dirSign = (Math.random() < 0.5) ? 1 : -1;
 
           const specs = buildSculptedRibbonSpecs(archIdx, dirSign);
-          const stepMs = Math.max(94, Math.min(122, Math.round(beatMs * 0.24)));
+          const stepMs = Math.max(90, Math.min(118, Math.round(beatMs * 0.23)));
           const ribDurMs = (specs.length - 1) * stepMs;
           const idealStart = win.startMs + winDur * targetFracs[f];
-          const minStart = Math.max(win.startMs + 380, prevRibEnd + Math.max(1450, Math.round(beatMs * 3.0)));
-          const maxStart = win.endMs - ribDurMs - 380;
+          const minStart = Math.max(win.startMs + 320, prevRibEnd + Math.max(1050, Math.round(beatMs * 2.2)));
+          const maxStart = win.endMs - ribDurMs - 320;
           if (minStart > maxStart) continue;
 
           // Anclar el inicio de la cinta al pulso musical real más cercano de la canción
@@ -23714,7 +24217,7 @@ class BeatstarEngine {
             const sp = specs[s];
             const uProg = s / Math.max(1, specs.length - 1);
             const isFinale = (s === specs.length - 1);
-            const pal = evalRibbonRungPalette(uProg, isFinale);
+            const pal = evalRibbonRungPalette(uProg, isFinale, archIdx);
             const rungT = snappedStart + s * stepMs;
             const approxSlot = sp.centerU < -0.12 ? 0 : (sp.centerU > 0.12 ? 3 : ((s % 2 === 0) ? 1 : 2));
             const rungNote = {
@@ -25904,25 +26407,39 @@ class BeatstarEngine {
         const ctx = this.audioSync && this.audioSync.audioCtx;
         if (!ctx || ctx.state !== 'running') return;
         const now = ctx.currentTime;
-        if (this._lastVoltaicFlowAudioTime && (now - this._lastVoltaicFlowAudioTime < 0.030)) return;
+        if (this._lastVoltaicFlowAudioTime && (now - this._lastVoltaicFlowAudioTime < 0.026)) return;
         this._lastVoltaicFlowAudioTime = now;
 
-        const lydianScale = [261.63, 293.66, 329.63, 369.99, 392.00, 440.00, 493.88, 523.25, 587.33, 659.25, 739.99, 783.99];
+        const lydianScale = [261.63, 293.66, 329.63, 369.99, 392.00, 440.00, 493.88, 523.25, 587.33, 659.25, 739.99, 783.99, 880.00, 987.77];
         const idx = Math.max(0, Math.min(lydianScale.length - 1, rungIdx));
         const f0 = lydianScale[idx];
 
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = isFinale ? 'triangle' : 'sine';
-        osc.frequency.setValueAtTime(f0 * 1.02, now);
-        osc.frequency.exponentialRampToValueAtTime(f0 * (isFinale ? 1.5 : 1.0), now + (isFinale ? 0.16 : 0.085));
+        osc.frequency.setValueAtTime(f0 * 1.015, now);
+        osc.frequency.exponentialRampToValueAtTime(f0 * (isFinale ? 1.5 : 1.0), now + (isFinale ? 0.17 : 0.085));
         gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.linearRampToValueAtTime(isFinale ? 0.056 : 0.036, now + 0.004);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + (isFinale ? 0.19 : 0.095));
+        gain.gain.linearRampToValueAtTime(isFinale ? 0.058 : 0.038, now + 0.004);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + (isFinale ? 0.21 : 0.095));
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start(now);
-        osc.stop(now + (isFinale ? 0.20 : 0.10));
+        osc.stop(now + (isFinale ? 0.22 : 0.10));
+
+        // Segundo oscilador armónico cristalino (quinta / octava brillante) para sensación táctil sedosa
+        const shimmerOsc = ctx.createOscillator();
+        const shimmerGain = ctx.createGain();
+        shimmerOsc.type = 'sine';
+        shimmerOsc.frequency.setValueAtTime(f0 * (isFinale ? 2.0 : 1.498), now);
+        shimmerOsc.frequency.exponentialRampToValueAtTime(f0 * (isFinale ? 3.0 : 1.5), now + (isFinale ? 0.18 : 0.075));
+        shimmerGain.gain.setValueAtTime(0.0001, now);
+        shimmerGain.gain.linearRampToValueAtTime(isFinale ? 0.028 : 0.015, now + 0.005);
+        shimmerGain.gain.exponentialRampToValueAtTime(0.0001, now + (isFinale ? 0.19 : 0.08));
+        shimmerOsc.connect(shimmerGain);
+        shimmerGain.connect(ctx.destination);
+        shimmerOsc.start(now);
+        shimmerOsc.stop(now + (isFinale ? 0.20 : 0.085));
       } catch (_) {}
     }
 
@@ -27244,7 +27761,7 @@ class BeatstarEngine {
             const avgScale = (prevFlowNode.scale + dmF.scale) * 0.5;
             // Superficie translúcida de seda de plasma entre los dos peldaños consecutivos
             ctx.fillStyle = fn._voltaicFlowGlowRgba || 'rgba(0, 242, 254, 0.22)';
-            ctx.globalAlpha = 0.42;
+            ctx.globalAlpha = 0.46;
             ctx.beginPath();
             ctx.moveTo(prevFlowNode.lx, prevFlowNode.ly);
             ctx.lineTo(prevFlowNode.rx, prevFlowNode.ry);
@@ -27253,10 +27770,24 @@ class BeatstarEngine {
             ctx.closePath();
             ctx.fill();
 
+            // Onda energética viajera a lo largo de la cinta para guiar visualmente los pulgares
+            const pulseWave = 0.5 + 0.5 * Math.sin((currentTime * 0.011) - (fn._voltaicRungIndex * 0.65));
+            ctx.globalAlpha = 0.22 + 0.26 * pulseWave;
+            ctx.strokeStyle = fn._voltaicFlowSecColor || '#fde047';
+            ctx.lineWidth = Math.max(1.2, 2.2 * avgScale);
+            ctx.beginPath();
+            const midLX = (prevFlowNode.lx + curLX) * 0.5;
+            const midLY = (prevFlowNode.ly + curLY) * 0.5;
+            const midRX = (prevFlowNode.rx + curRX) * 0.5;
+            const midRY = (prevFlowNode.ry + curRY) * 0.5;
+            ctx.moveTo(midLX, midLY);
+            ctx.lineTo(midRX, midRY);
+            ctx.stroke();
+
             // Carriles guía laterales luminosos para el pulgar izquierdo y el pulgar derecho
-            ctx.globalAlpha = 0.85;
+            ctx.globalAlpha = 0.90;
             ctx.strokeStyle = fn._voltaicFlowColor || '#00f2fe';
-            ctx.lineWidth = Math.max(1.8, 3.3 * avgScale);
+            ctx.lineWidth = Math.max(2.0, 3.6 * avgScale);
             ctx.beginPath();
             ctx.moveTo(prevFlowNode.lx, prevFlowNode.ly);
             ctx.lineTo(curLX, curLY);
@@ -27265,9 +27796,9 @@ class BeatstarEngine {
             ctx.stroke();
 
             // Eje central sutil de torsión
-            ctx.globalAlpha = 0.38;
+            ctx.globalAlpha = 0.44;
             ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = Math.max(1.0, 1.6 * avgScale);
+            ctx.lineWidth = Math.max(1.1, 1.8 * avgScale);
             ctx.beginPath();
             ctx.moveTo(prevFlowNode.cx, prevFlowNode.cy);
             ctx.lineTo(posF.x, posF.y);
@@ -31563,7 +32094,7 @@ Object.assign(BeatstarEngine.prototype, {
       const startWithVoltaic = ((crucePhaseCounter % 2) === 1);
       const phaseVoltaicRanges = [];
 
-      if (phaseDurMs >= 11200) {
+      if (phaseDurMs >= 6800) {
         const splitMs = Math.round(ph.startMs + phaseDurMs * 0.50);
         const subSegments = [
           { segStart: ph.startMs, segEnd: splitMs, wantVoltaic: startWithVoltaic },
@@ -32021,7 +32552,7 @@ Object.assign(BeatstarEngine.prototype, {
         } else if (phraseMode === 'hybrid_weave') {
           if (concurrentOsu >= 4) {
             role = 'mania';
-          } else if (n.type === 'hold' && (n.duration_ms || 0) >= 280) {
+          } else if ((n.type === 'hold' && (n.duration_ms || 0) >= 220) || (gapNext >= 410 && gapPrev >= 170 && (i % 4 === 2))) {
             role = (i % 2 === 0) ? 'slider' : 'mania';
           } else if (gapPrev < 165 || gapNext < 165) {
             role = 'mania';
@@ -32039,7 +32570,7 @@ Object.assign(BeatstarEngine.prototype, {
             role = 'mania';
           } else if (isSimultaneousChord) {
             role = 'twin';
-          } else if (n.type === 'hold' && (n.duration_ms || 0) >= 260) {
+          } else if ((n.type === 'hold' && (n.duration_ms || 0) >= 220) || (gapNext >= 390 && gapPrev >= 165 && (i % 3 === 1))) {
             role = 'slider';
           } else if (n.type === 'swipe' || ((i % 7 === 4) && gapNext > 240)) {
             role = 'swipe';
@@ -32155,45 +32686,50 @@ Object.assign(BeatstarEngine.prototype, {
         lastNormY = cleanPt.y;
 
         if (role === 'slider') {
-          const rawDur = n.duration_ms || ((n.end_timestamp_ms || t) - t) || 550;
-          const dur = Math.max(260, Math.min(1350, rawDur));
+          const maxPossibleDur = Math.max(260, gapNext - 155);
+          const rawDur = (n.type === 'hold' && (n.duration_ms || 0) >= 220)
+            ? Math.max(360, n.duration_ms)
+            : Math.min(820, Math.max(350, Math.round(gapNext * 0.68)));
+          const dur = Math.max(260, Math.min(920, Math.min(rawDur, maxPossibleDur)));
+          n.type = 'hold';
           n.duration_ms = dur;
           n.end_timestamp_ms = t + dur;
           n._osuSliderDurationMs = dur;
-          n._osuSliderRepeats = (dur >= beatMs * 1.75 && (i % 3 === 0)) ? 2 : 1;
 
-          const spanDist = Math.max(0.20, Math.min(0.36, (dur / 1000) * 0.34));
-          const toCenterAng = Math.atan2(0.42 - cleanPt.y, 0.50 - cleanPt.x);
-          const slideAng = toCenterAng + ((i % 2 === 0) ? 0.42 : -0.42);
-          const endPt = clampPlayfield(
-            cleanPt.x + Math.cos(slideAng) * spanDist * 1.15,
-            cleanPt.y + Math.sin(slideAng) * spanDist * 0.85
-          );
-          const midX = (cleanPt.x + endPt.x) * 0.5;
-          const midY = (cleanPt.y + endPt.y) * 0.5;
-          const perpAng = slideAng + (sweepClockwise * Math.PI * 0.5);
-          const ctrlPt = clampPlayfield(
-            midX + Math.cos(perpAng) * spanDist * 0.42,
-            midY + Math.sin(perpAng) * spanDist * 0.42
-          );
-
-          n._osuEndNormX = endPt.x;
-          n._osuEndNormY = endPt.y;
-          n._osuCtrlNormX = ctrlPt.x;
-          n._osuCtrlNormY = ctrlPt.y;
-
-          const numTicks = Math.max(1, Math.min(4, Math.floor(dur / 220)));
-          n._osuSliderTicks = [];
-          for (let k = 1; k <= numTicks; k++) {
-            n._osuSliderTicks.push({ u: k / (numTicks + 1), hit: false });
+          if (!this._osuMadnessSliderShapeDeck || this._osuMadnessSliderShapeDeck.length === 0) {
+            const shapePool = [
+              'sine_wave',
+              'infinity',
+              'spiral_vortex',
+              'serpentine_s',
+              'zigzag_lightning',
+              'loop_coaster',
+              'heart_clover',
+              'horseshoe_omega'
+            ];
+            for (let s = shapePool.length - 1; s > 0; s--) {
+              const j = Math.floor(Math.random() * (s + 1));
+              const tmp = shapePool[s];
+              shapePool[s] = shapePool[j];
+              shapePool[j] = tmp;
+            }
+            this._osuMadnessSliderShapeDeck = shapePool;
           }
+          const pickedShape = (dur < 320)
+            ? 'serpentine_s'
+            : this._osuMadnessSliderShapeDeck.shift();
+          const shapeSign = ((i + Math.floor(Math.random() * 2)) % 2 === 0) ? 1 : -1;
+          const isWeaveMad = (phraseMode === 'hybrid_weave');
 
-          const finalVisX = (n._osuSliderRepeats % 2 === 1) ? endPt.x : cleanPt.x;
-          const finalVisY = (n._osuSliderRepeats % 2 === 1) ? endPt.y : cleanPt.y;
-          lastNormX = finalVisX;
-          lastNormY = finalVisY;
-          activeOsuHistory.push({ x: cleanPt.x, y: cleanPt.y, spawnVisMs: t - approachMs, endVisMs: t + dur + 220 });
-          activeOsuHistory.push({ x: endPt.x, y: endPt.y, spawnVisMs: t - approachMs * 0.5, endVisMs: t + dur + 220 });
+          this._assignOsuSliderShapeParams(n, cleanPt.x, cleanPt.y, dur, maxPossibleDur, isWeaveMad, pickedShape, shapeSign);
+
+          const endPt = this._evalOsuSliderNormPoint(n, (n._osuSliderRepeats === 2) ? 0.0 : 1.0);
+          const midPt = this._evalOsuSliderNormPoint(n, 0.5);
+          lastNormX = endPt.x;
+          lastNormY = endPt.y;
+          activeOsuHistory.push({ x: n._osuNormX, y: n._osuNormY, spawnVisMs: t - approachMs, endVisMs: t + dur + 220 });
+          activeOsuHistory.push({ x: midPt.x, y: midPt.y, spawnVisMs: t - approachMs * 0.6, endVisMs: t + dur + 220 });
+          activeOsuHistory.push({ x: endPt.x, y: endPt.y, spawnVisMs: t - approachMs * 0.4, endVisMs: t + dur + 220 });
         } else {
           if (role === 'swipe') {
             const angToCenter = Math.atan2(0.42 - cleanPt.y, 0.50 - cleanPt.x);

@@ -1273,10 +1273,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 52,
-    version_name: '5.2.0',
-    release_notes: 'Piano Community v5.2.0: Modo Espejo con densidad musical equilibrada en Modo Locura, minas dinamicas por dificultad en Modo Rayos de Luz (Cruce y Locura), y fondo de Modo Setas corregido.',
-    download_url: '/download/apk?v=52.0',
+    version_code: 53,
+    version_name: '5.3.0',
+    release_notes: 'Piano Community v5.3.0: Nuevas formas de hold en Modo Pulso (ondas sinusoidales, infinitos, espirales, loopings y rayos) y 16 formas aleatorias para seguir con los dedos en Modo Cruce y Modo Locura.',
+    download_url: '/download/apk?v=53.0',
   });
 });
 
