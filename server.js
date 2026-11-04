@@ -3517,6 +3517,324 @@ app.get('/api/v1/lyrics', async (req, res) => {
 });
 
 // ==========================================
+// 4B. Multi-Engine Audio Extractor (/api/v1/audio/extract)
+// ==========================================
+async function fetchAudioBufferSafe(url, timeoutMs = 7500, extraHeaders = {}) {
+  const resp = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Accept': 'audio/*,*/*;q=0.8',
+      ...extraHeaders
+    },
+    redirect: 'follow',
+    signal: AbortSignal.timeout(timeoutMs)
+  });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const cType = String(resp.headers.get('content-type') || '').toLowerCase();
+  if (cType.includes('text/html') || cType.includes('application/json')) {
+    throw new Error(`Invalid audio content-type: ${cType}`);
+  }
+  const ab = await resp.arrayBuffer();
+  if (!ab || ab.byteLength < 12000) {
+    throw new Error('Audio buffer too small');
+  }
+  return {
+    buffer: Buffer.from(ab),
+    contentType: cType.startsWith('audio/') || cType.includes('mp4') || cType.includes('octet-stream')
+      ? (cType.includes('octet-stream') ? 'audio/mpeg' : cType.split(';')[0])
+      : 'audio/mpeg'
+  };
+}
+
+async function searchYouTubeBestVideo(query) {
+  try {
+    const ytRes = await fetch('https://www.youtube.com/youtubei/v1/search?prettyPrint=false', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+      },
+      body: JSON.stringify({
+        context: {
+          client: { clientName: 'WEB', clientVersion: '2.20240726.00.00', hl: 'es', gl: 'ES' }
+        },
+        query: `${query} official audio`
+      }),
+      signal: AbortSignal.timeout(3800)
+    });
+    if (!ytRes.ok) return null;
+    const data = await ytRes.json();
+    const found = [];
+    const walk = (node) => {
+      if (!node || typeof node !== 'object' || found.length >= 5) return;
+      if (node.videoRenderer && node.videoRenderer.videoId) {
+        const v = node.videoRenderer;
+        const vid = v.videoId;
+        const title = v.title?.runs?.[0]?.text || v.title?.simpleText || '';
+        const author = v.ownerText?.runs?.[0]?.text || v.longBylineText?.runs?.[0]?.text || '';
+        const thumbs = v.thumbnail?.thumbnails || [];
+        const thumb = thumbs.length ? thumbs[thumbs.length - 1].url : `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`;
+        if (vid && title) {
+          found.push({ videoId: vid, title, artist: author.replace(/ - Topic$/i, '').trim(), thumbnail: thumb });
+        }
+      }
+      for (const k of Object.keys(node)) {
+        const child = node[k];
+        if (Array.isArray(child)) child.forEach(walk);
+        else if (child && typeof child === 'object') walk(child);
+      }
+    };
+    walk(data);
+    return found[0] || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function tryExtractYouTubeStream(videoId) {
+  if (!videoId) return null;
+  const pipedInstances = [
+    `https://pipedapi.kavin.rocks/streams/${encodeURIComponent(videoId)}`,
+    `https://api.piped.private.coffee/streams/${encodeURIComponent(videoId)}`,
+    `https://pipedapi.ducks.party/streams/${encodeURIComponent(videoId)}`
+  ];
+  const invidiousInstances = [
+    `https://inv.tux.pizza/api/v1/videos/${encodeURIComponent(videoId)}`,
+    `https://invidious.nerdvpn.de/api/v1/videos/${encodeURIComponent(videoId)}`,
+    `https://yewtu.be/api/v1/videos/${encodeURIComponent(videoId)}`
+  ];
+
+  // 1. Probar instancias Piped en paralelo
+  try {
+    const streamInfo = await Promise.any(pipedInstances.map(async (apiUrl) => {
+      const r = await fetch(apiUrl, { signal: AbortSignal.timeout(3400) });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const j = await r.json();
+      const streams = Array.isArray(j?.audioStreams) ? j.audioStreams : [];
+      const sorted = streams
+        .filter(s => s && s.url && (!s.mimeType || s.mimeType.includes('audio')))
+        .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+      if (!sorted.length) throw new Error('No audioStreams');
+      const dl = await fetchAudioBufferSafe(sorted[0].url, 6500);
+      return {
+        ...dl,
+        title: j.title || '',
+        artist: (j.uploader || '').replace(/ - Topic$/i, '').trim(),
+        thumbnail: j.thumbnailUrl || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+        source: 'YouTube Audio Stream'
+      };
+    }));
+    if (streamInfo && streamInfo.buffer) return streamInfo;
+  } catch (_) {}
+
+  // 2. Probar instancias Invidious en paralelo
+  try {
+    const invInfo = await Promise.any(invidiousInstances.map(async (apiUrl) => {
+      const r = await fetch(apiUrl, { signal: AbortSignal.timeout(3400) });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const j = await r.json();
+      const adaptive = Array.isArray(j?.adaptiveFormats) ? j.adaptiveFormats : [];
+      const audioFmts = adaptive
+        .filter(f => f && f.url && String(f.type || '').startsWith('audio/'))
+        .sort((a, b) => (parseInt(b.bitrate, 10) || 0) - (parseInt(a.bitrate, 10) || 0));
+      if (!audioFmts.length) throw new Error('No adaptive audio');
+      const dl = await fetchAudioBufferSafe(audioFmts[0].url, 6500);
+      return {
+        ...dl,
+        title: j.title || '',
+        artist: (j.author || '').replace(/ - Topic$/i, '').trim(),
+        thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+        source: 'YouTube Direct Audio'
+      };
+    }));
+    if (invInfo && invInfo.buffer) return invInfo;
+  } catch (_) {}
+
+  return null;
+}
+
+app.get('/api/v1/audio/extract', async (req, res) => {
+  const rawQ = String(req.query.q || '').trim();
+  const rawTitle = String(req.query.title || '').trim();
+  const rawArtist = String(req.query.artist || '').trim();
+  const rawVideoId = String(req.query.videoId || '').trim();
+  const searchQuery = rawQ || `${rawTitle} ${rawArtist}`.trim();
+
+  if (!searchQuery && !rawVideoId) {
+    return res.status(400).json({ error: 'Falta parámetro de búsqueda q o videoId' });
+  }
+
+  let resolvedMeta = {
+    title: rawTitle || rawQ || 'Canción Extraída',
+    artist: rawArtist || 'Artista',
+    thumbnail: '',
+    videoId: rawVideoId || ''
+  };
+
+  try {
+    // Etapa 1: Resolver videoId de YouTube y extraer stream directo (Piped / Invidious)
+    let ytMeta = null;
+    if (!resolvedMeta.videoId && searchQuery) {
+      ytMeta = await searchYouTubeBestVideo(searchQuery);
+      if (ytMeta) {
+        resolvedMeta.videoId = ytMeta.videoId;
+        if (!rawTitle && ytMeta.title) resolvedMeta.title = ytMeta.title;
+        if ((!rawArtist || rawArtist.toLowerCase() === 'youtube') && ytMeta.artist) resolvedMeta.artist = ytMeta.artist;
+        if (ytMeta.thumbnail) resolvedMeta.thumbnail = ytMeta.thumbnail;
+      }
+    }
+
+    if (resolvedMeta.videoId) {
+      const ytAudio = await tryExtractYouTubeStream(resolvedMeta.videoId);
+      if (ytAudio && ytAudio.buffer) {
+        res.setHeader('Content-Type', ytAudio.contentType || 'audio/mp4');
+        res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source, X-Video-Id');
+        res.setHeader('X-Song-Title', encodeURIComponent(ytAudio.title || resolvedMeta.title));
+        res.setHeader('X-Song-Artist', encodeURIComponent(ytAudio.artist || resolvedMeta.artist));
+        res.setHeader('X-Song-Cover', encodeURIComponent(ytAudio.thumbnail || resolvedMeta.thumbnail));
+        res.setHeader('X-Audio-Source', encodeURIComponent(ytAudio.source || 'YouTube Audio'));
+        res.setHeader('X-Video-Id', encodeURIComponent(resolvedMeta.videoId));
+        return res.send(ytAudio.buffer);
+      }
+    }
+
+    // Etapa 2: Red Descentralizada Audius (Pistas completas en MP3, alta disponibilidad)
+    if (searchQuery) {
+      try {
+        const audiusRes = await fetch(`https://discoveryprovider.audius.co/v1/tracks/search?query=${encodeURIComponent(searchQuery)}&app_name=PianoCommunity`, {
+          signal: AbortSignal.timeout(3500)
+        });
+        if (audiusRes.ok) {
+          const audiusJson = await audiusRes.json();
+          const tracks = Array.isArray(audiusJson?.data) ? audiusJson.data : [];
+          for (const tr of tracks.slice(0, 3)) {
+            if (!tr || !tr.id) continue;
+            const sc = computeSongRelevanceScore(searchQuery, tr.title || '', tr.user?.name || '');
+            if (sc >= 55) {
+              const streamUrl = `https://discoveryprovider.audius.co/v1/tracks/${encodeURIComponent(tr.id)}/stream?app_name=PianoCommunity`;
+              const dl = await fetchAudioBufferSafe(streamUrl, 6500);
+              if (dl && dl.buffer) {
+                const art = tr.artwork?.['480x480'] || tr.artwork?.['150x150'] || resolvedMeta.thumbnail;
+                res.setHeader('Content-Type', dl.contentType || 'audio/mpeg');
+                res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source');
+                res.setHeader('X-Song-Title', encodeURIComponent(tr.title || resolvedMeta.title));
+                res.setHeader('X-Song-Artist', encodeURIComponent(tr.user?.name || resolvedMeta.artist));
+                res.setHeader('X-Song-Cover', encodeURIComponent(art || ''));
+                res.setHeader('X-Audio-Source', encodeURIComponent('Audius Full Audio'));
+                return res.send(dl.buffer);
+              }
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    // Etapa 3: Deezer Official Global CDN (Audio de estudio real + Carátula HD)
+    if (searchQuery) {
+      try {
+        const dzRes = await fetch(`https://api.deezer.com/search?q=${encodeURIComponent(searchQuery)}&limit=8`, {
+          signal: AbortSignal.timeout(4000)
+        });
+        if (dzRes.ok) {
+          const dzJson = await dzRes.json();
+          const dzTracks = Array.isArray(dzJson?.data) ? dzJson.data.filter(t => t && t.preview) : [];
+          if (dzTracks.length > 0) {
+            dzTracks.sort((a, b) =>
+              computeSongRelevanceScore(searchQuery, b.title || '', b.artist?.name || '') -
+              computeSongRelevanceScore(searchQuery, a.title || '', a.artist?.name || '')
+            );
+            const bestDz = dzTracks[0];
+            const dl = await fetchAudioBufferSafe(bestDz.preview, 6500);
+            if (dl && dl.buffer) {
+              const cover = bestDz.album?.cover_big || bestDz.album?.cover_medium || resolvedMeta.thumbnail;
+              res.setHeader('Content-Type', dl.contentType || 'audio/mpeg');
+              res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source');
+              res.setHeader('X-Song-Title', encodeURIComponent(bestDz.title || resolvedMeta.title));
+              res.setHeader('X-Song-Artist', encodeURIComponent(bestDz.artist?.name || resolvedMeta.artist));
+              res.setHeader('X-Song-Cover', encodeURIComponent(cover || ''));
+              res.setHeader('X-Audio-Source', encodeURIComponent('Deezer Studio Audio'));
+              return res.send(dl.buffer);
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    // Etapa 4: Apple Music / iTunes Official Global CDN (Audio de estudio real AAC/M4A + Carátula 600x600)
+    if (searchQuery) {
+      try {
+        const itRes = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(searchQuery)}&media=music&entity=song&limit=8`, {
+          signal: AbortSignal.timeout(4000)
+        });
+        if (itRes.ok) {
+          const itJson = await itRes.json();
+          const itTracks = Array.isArray(itJson?.results) ? itJson.results.filter(t => t && t.previewUrl) : [];
+          if (itTracks.length > 0) {
+            itTracks.sort((a, b) =>
+              computeSongRelevanceScore(searchQuery, b.trackName || '', b.artistName || '') -
+              computeSongRelevanceScore(searchQuery, a.trackName || '', a.artistName || '')
+            );
+            const bestIt = itTracks[0];
+            const dl = await fetchAudioBufferSafe(bestIt.previewUrl, 6500);
+            if (dl && dl.buffer) {
+              const cover = (bestIt.artworkUrl100 || '').replace('100x100bb', '600x600bb') || resolvedMeta.thumbnail;
+              res.setHeader('Content-Type', dl.contentType || 'audio/mp4');
+              res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source');
+              res.setHeader('X-Song-Title', encodeURIComponent(bestIt.trackName || resolvedMeta.title));
+              res.setHeader('X-Song-Artist', encodeURIComponent(bestIt.artistName || resolvedMeta.artist));
+              res.setHeader('X-Song-Cover', encodeURIComponent(cover || ''));
+              res.setHeader('X-Audio-Source', encodeURIComponent('Apple Music Studio'));
+              return res.send(dl.buffer);
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    // Etapa 5: Internet Archive Audio (Respaldo documental abierto)
+    if (searchQuery) {
+      try {
+        const iaSearch = await fetch(
+          `https://archive.org/advancedsearch.php?q=${encodeURIComponent(searchQuery)}+AND+mediatype:audio&fl[]=identifier,title,creator&rows=3&output=json`,
+          { signal: AbortSignal.timeout(3500) }
+        );
+        if (iaSearch.ok) {
+          const iaJson = await iaSearch.json();
+          const docs = Array.isArray(iaJson?.response?.docs) ? iaJson.response.docs : [];
+          for (const doc of docs) {
+            if (!doc || !doc.identifier) continue;
+            const metaRes = await fetch(`https://archive.org/metadata/${encodeURIComponent(doc.identifier)}`, {
+              signal: AbortSignal.timeout(3000)
+            });
+            if (!metaRes.ok) continue;
+            const metaJson = await metaRes.json();
+            const files = Array.isArray(metaJson?.files) ? metaJson.files : [];
+            const mp3File = files.find(f => f && f.name && /\.mp3$/i.test(f.name) && (!f.size || parseInt(f.size, 10) < 18000000));
+            if (mp3File) {
+              const mp3Url = `https://archive.org/download/${encodeURIComponent(doc.identifier)}/${encodeURIComponent(mp3File.name)}`;
+              const dl = await fetchAudioBufferSafe(mp3Url, 6500);
+              if (dl && dl.buffer) {
+                res.setHeader('Content-Type', 'audio/mpeg');
+                res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source');
+                res.setHeader('X-Song-Title', encodeURIComponent(doc.title || resolvedMeta.title));
+                res.setHeader('X-Song-Artist', encodeURIComponent(Array.isArray(doc.creator) ? doc.creator[0] : (doc.creator || resolvedMeta.artist)));
+                res.setHeader('X-Song-Cover', encodeURIComponent(resolvedMeta.thumbnail || ''));
+                res.setHeader('X-Audio-Source', encodeURIComponent('Internet Archive Audio'));
+                return res.send(dl.buffer);
+              }
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    return res.status(404).json({ error: 'No se pudo extraer el flujo de audio desde ninguna fuente.' });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Error en extractor de audio' });
+  }
+});
+
+// ==========================================
 // 5. Song Files Serving (Audio & Chart)
 // ==========================================
 app.get('/songs/:folder/:file(*)', (req, res) => {

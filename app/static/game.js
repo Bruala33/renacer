@@ -15161,7 +15161,7 @@ class BeatstarEngine {
     } else if (isTranscendentKey) {
       ctx.fillStyle = isPressed ? '#0284c7' : '#110b22';
     } else {
-      ctx.fillStyle = isPressed ? '#22222a' : (isMushKey ? '#230b36' : '#141419');
+      ctx.fillStyle = isPressed ? '#22222a' : (isMushKey ? '#19072b' : '#141419');
     }
     tracePerspectiveQuad(ctx, x0Bev, x1Bev, x0Bot, x1Bot, yBevelTop, y1, r);
     ctx.fill();
@@ -15178,14 +15178,14 @@ class BeatstarEngine {
     } else if (isTranscendentKey) {
       ctx.fillStyle = isPressed ? '#38bdf8' : '#17112b';
     } else {
-      ctx.fillStyle = isPressed ? '#45e69e' : (isMushKey ? '#2d124d' : '#1a1d28');
+      ctx.fillStyle = isPressed ? '#45e69e' : (isMushKey ? '#220a38' : '#1a1d28');
     }
     tracePerspectiveQuad(ctx, x0Top, x1Top, x0Bev, x1Bev, y0, yBevelTop, r);
     ctx.fill();
 
     // 4. Borde metálico elegante (Oro Champán nacarado unificado en modo Trascendental)
     ctx.save();
-    const mushRimColors = ['#ff00ff', '#00ff88', '#00f2fe', '#ffee00'];
+    const mushRimColors = ['#d946ef', '#10b981', '#0ea5e9', '#f59e0b'];
     const rimCol = mirrorSide === 'cyan'
       ? '#67e8f9'
       : (mirrorSide === 'pink'
@@ -15198,7 +15198,7 @@ class BeatstarEngine {
               ? 'rgba(253, 230, 138, 0.78)'
               : (isMushKey ? mushRimColors[Math.floor((cy * 0.03 + (this._frameNow || 0) * 0.006)) & 3] : '#3e4252')))));
     ctx.strokeStyle = isPressed ? '#ffffff' : rimCol;
-    ctx.lineWidth = Math.max(1.2, (isPressed || mirrorSide ? 2.3 : (isTranscendentKey ? 1.8 : (isMushKey ? 2.1 : 1.4))) * scale);
+    ctx.lineWidth = Math.max(1.2, (isPressed || mirrorSide ? 2.3 : (isTranscendentKey ? 1.8 : (isMushKey ? 2.5 : 1.4))) * scale);
     tracePerspectiveQuad(ctx, x0Top, x1Top, x0Bot, x1Bot, y0, y1, r);
     ctx.stroke();
 
@@ -15494,11 +15494,11 @@ class BeatstarEngine {
       if (isMushTrack && (!this._mushTrackGrad || this._mushTrackGradH !== bottomY)) {
         this._mushTrackGradH = bottomY;
         const mg = ctx.createLinearGradient(this.width / 2, horizonY, this.width / 2, bottomY);
-        mg.addColorStop(0.00, '#120324');
-        mg.addColorStop(0.25, '#2b0952');
-        mg.addColorStop(0.55, '#431278');
-        mg.addColorStop(0.82, '#5e179e');
-        mg.addColorStop(1.00, '#380b66');
+        mg.addColorStop(0.00, '#e9d5ff');
+        mg.addColorStop(0.24, '#f5d0fe');
+        mg.addColorStop(0.52, '#fdf4ff');
+        mg.addColorStop(0.78, '#e0f2fe');
+        mg.addColorStop(1.00, '#f3e8ff');
         this._mushTrackGrad = mg;
       }
       if (isHighwayTrack && (!this._hwTrackGrad || this._hwTrackGradH !== bottomY)) {
@@ -15531,11 +15531,11 @@ class BeatstarEngine {
         ? (this._riverTrackGrad || '#0284c7')
         : (isHighwayTrack
             ? (this._hwTrackGrad || '#1e293b')
-            : (isMushTrack ? (this._mushTrackGrad || '#2b0952') : (this._trackGrad || '#f8fafc')));
+            : (isMushTrack ? (this._mushTrackGrad || '#fdf4ff') : (this._trackGrad || '#f8fafc')));
       ctx.fill();
 
-      // A2. Sombreado cilíndrico 3D de bordes y brillo central perlado (excluido en Modo Setas para no superponer una pista blanca encima del fondo psicodélico)
-      if (this._trackEdgeShadowGrad && !isHighwayTrack && !isRiverTrack && !isMushTrack) {
+      // A2. Sombreado cilíndrico 3D de bordes y brillo central perlado
+      if (this._trackEdgeShadowGrad && !isHighwayTrack && !isRiverTrack) {
         ctx.fillStyle = this._trackEdgeShadowGrad;
         ctx.fill();
       }
@@ -15545,7 +15545,7 @@ class BeatstarEngine {
         ? 'rgba(125, 211, 252, 0.16)'
         : (isHighwayTrack
             ? 'rgba(255, 255, 255, 0.045)'
-            : (isMushTrack ? 'rgba(232, 121, 249, 0.12)' : 'rgba(255, 255, 255, 0.38)'));
+            : (isMushTrack ? 'rgba(255, 255, 255, 0.56)' : 'rgba(255, 255, 255, 0.38)'));
       ctx.beginPath();
       for (let l = 0; l < nLanes; l++) {
         const cTopL = getBoundaryX(l + 0.28, horizonY);
@@ -29031,16 +29031,19 @@ class BeatstarEngine {
         ctx.lineTo(tL_bot, surfaceEndY);
         ctx.closePath();
         const isMadnessMushNow = Boolean(
-          this.isMadnessModeActive &&
-          (this.getActiveMadnessPhase(cTime) === 'mushroom' || (this._mushWorldEnvelope || 0) > 0.35)
+          this.isMadnessModeActive ||
+          this.isMushroomModeActive ||
+          (typeof window !== 'undefined' && (window.isMadnessModeActive || window.isMushroomModeActive))
         );
         if (isMadnessMushNow) {
           if (!this._mushTrackGrad || this._mushTrackGradH !== this.height) {
             this._mushTrackGradH = this.height;
             const mg = ctx.createLinearGradient(0, horizonY, 0, surfaceEndY);
-            mg.addColorStop(0.0, '#140326');
-            mg.addColorStop(0.48, '#2b0952');
-            mg.addColorStop(1.0, '#4a0e78');
+            mg.addColorStop(0.00, '#e9d5ff');
+            mg.addColorStop(0.24, '#f5d0fe');
+            mg.addColorStop(0.52, '#fdf4ff');
+            mg.addColorStop(0.78, '#e0f2fe');
+            mg.addColorStop(1.00, '#f3e8ff');
             this._mushTrackGrad = mg;
           }
           ctx.fillStyle = this._mushTrackGrad;
@@ -29050,7 +29053,7 @@ class BeatstarEngine {
         ctx.fill();
 
         // A2. Lomo especular 3D en el centro de cada carril abierto
-        ctx.fillStyle = isMadnessMushNow ? 'rgba(232, 121, 249, 0.12)' : 'rgba(255, 255, 255, 0.34)';
+        ctx.fillStyle = isMadnessMushNow ? 'rgba(255, 255, 255, 0.56)' : 'rgba(255, 255, 255, 0.34)';
         ctx.beginPath();
         for (let l = effStart; l <= effEnd; l++) {
           const lTop = this.getLaneLeftX(l, horizonY);

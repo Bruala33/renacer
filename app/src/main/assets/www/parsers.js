@@ -3589,16 +3589,117 @@ class AudioAutoMapper {
   }
 
   /**
-   * Genera un paquete completo de canción a partir de un archivo de audio local (.mp3, .wav, .ogg, .m4a, .flac)
+   * Si el audio extraído proviene de un corte de estudio de 25s-42s (p. ej. CDN oficial de Deezer o Apple Music/iTunes),
+   * lo extiende mediante un fundido cruzado musical (equal-power cosine crossfade de 1.4s) para formar un
+   * Concert Cut continuo de ~58 segundos sin cortes bruscos. Si dura >= 44s (YouTube/Audius completo), lo conserva intacto.
    */
-  static async createPlayableChartFromAudioFile(file, customMeta = {}) {
-    const fileMeta = this.parseFilenameMetadata(file.name);
-    const title = (customMeta.title && customMeta.title.trim()) || fileMeta.title;
-    const artist = (customMeta.artist && customMeta.artist.trim()) || fileMeta.artist;
-    const densityMode = customMeta.densityMode || 'hard';
+  static extendStudioBufferIfShort(audioBuffer, originalBlob) {
+    if (!audioBuffer || audioBuffer.duration >= 44 || audioBuffer.duration < 12) {
+      return { buffer: audioBuffer, blob: originalBlob };
+    }
+    try {
+      const sr = audioBuffer.sampleRate || 44100;
+      const numCh = Math.min(2, audioBuffer.numberOfChannels || 1);
+      const srcLen = audioBuffer.length;
+      const crossfadeSamples = Math.min(Math.floor(sr * 1.4), Math.floor(srcLen * 0.15));
+      const totalSamples = srcLen * 2 - crossfadeSamples;
 
-    const audioBuffer = await this.decodeAudio(file);
-    const analysis = this.analyzeAudioBuffer(audioBuffer, { densityMode, targetLanes: 3 });
+      const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      let extBuffer = null;
+      if (OfflineCtx) {
+        const off = new OfflineCtx(numCh, totalSamples, sr);
+        extBuffer = off.createBuffer(numCh, totalSamples, sr);
+      } else if (AudioCtx) {
+        const tmp = new AudioCtx();
+        extBuffer = tmp.createBuffer(numCh, totalSamples, sr);
+        if (tmp.close) tmp.close().catch(() => {});
+      }
+      if (!extBuffer) return { buffer: audioBuffer, blob: originalBlob };
+
+      const chArrays = [];
+      for (let c = 0; c < numCh; c++) {
+        const src = audioBuffer.getChannelData(c);
+        const dst = extBuffer.getChannelData(c);
+        // Primera pasada íntegra hasta el inicio del crossfade
+        const firstCopyEnd = srcLen - crossfadeSamples;
+        for (let i = 0; i < firstCopyEnd; i++) {
+          dst[i] = src[i];
+        }
+        // Zona de fundido cruzado de potencia constante (equal-power crossfade)
+        for (let i = 0; i < crossfadeSamples; i++) {
+          const t = i / Math.max(1, crossfadeSamples - 1);
+          const gainOut = Math.cos(t * Math.PI * 0.5);
+          const gainIn = Math.sin(t * Math.PI * 0.5);
+          dst[firstCopyEnd + i] = src[firstCopyEnd + i] * gainOut + src[i] * gainIn;
+        }
+        // Resto de la segunda pasada con fade-out suave en el último segundo
+        const secondStart = crossfadeSamples;
+        const dstOffset = srcLen;
+        const fadeOutLen = Math.min(Math.floor(sr * 1.2), srcLen - secondStart);
+        for (let i = secondStart; i < srcLen; i++) {
+          let env = 1.0;
+          const rem = srcLen - 1 - i;
+          if (rem < fadeOutLen) {
+            env = rem / Math.max(1, fadeOutLen);
+          }
+          dst[dstOffset + (i - secondStart)] = src[i] * env;
+        }
+        chArrays.push(dst);
+      }
+
+      // Codificar a WAV PCM de 16 bits para reproducción instantánea
+      const bytesPerSample = 2;
+      const blockAlign = numCh * bytesPerSample;
+      const dataSize = totalSamples * blockAlign;
+      const wavBuf = new ArrayBuffer(44 + dataSize);
+      const view = new DataView(wavBuf);
+      const writeStr = (off, str) => {
+        for (let i = 0; i < str.length; i++) view.setUint8(off + i, str.charCodeAt(i));
+      };
+      writeStr(0, 'RIFF');
+      view.setUint32(4, 36 + dataSize, true);
+      writeStr(8, 'WAVE');
+      writeStr(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, numCh, true);
+      view.setUint32(24, sr, true);
+      view.setUint32(28, sr * blockAlign, true);
+      view.setUint16(32, blockAlign, true);
+      view.setUint16(34, 16, true);
+      writeStr(36, 'data');
+      view.setUint32(40, dataSize, true);
+
+      let offset = 44;
+      for (let i = 0; i < totalSamples; i++) {
+        for (let c = 0; c < numCh; c++) {
+          const s = Math.max(-1, Math.min(1, chArrays[c][i]));
+          view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+          offset += 2;
+        }
+      }
+
+      const wavBlob = new Blob([wavBuf], { type: 'audio/wav' });
+      return { buffer: extBuffer, blob: wavBlob };
+    } catch (_) {
+      return { buffer: audioBuffer, blob: originalBlob };
+    }
+  }
+
+  /**
+   * Genera un paquete completo de canción a partir de un archivo o Blob de audio (.mp3, .wav, .ogg, .m4a, .flac)
+   */
+  static async createPlayableChartFromAudioFile(fileOrBlob, customMeta = {}) {
+    const fileMeta = this.parseFilenameMetadata((fileOrBlob && fileOrBlob.name) || customMeta.title || 'Cancion');
+    const title = (customMeta.title && String(customMeta.title).trim()) || fileMeta.title || 'Canción Generada';
+    const artist = (customMeta.artist && String(customMeta.artist).trim()) || fileMeta.artist || 'Artista';
+    const densityMode = customMeta.densityMode || 'hard';
+    const sourceLabel = customMeta.sourceLabel || 'Motor Acústico DSP';
+
+    const decodedBuffer = await this.decodeAudio(fileOrBlob);
+    const { buffer: finalAudioBuffer, blob: finalAudioBlob } = this.extendStudioBufferIfShort(decodedBuffer, fileOrBlob);
+    const analysis = this.analyzeAudioBuffer(finalAudioBuffer, { densityMode, targetLanes: 3 });
 
     // Intentar enriquecer con letras sincronizadas desde LRCLIB (sin bloquear si no hay conexión)
     try {
@@ -3609,7 +3710,7 @@ class AudioAutoMapper {
       }
     } catch (_) {}
 
-    const baseId = `dsp_${Date.now()}_${Math.floor(Math.random() * 9000 + 1000)}`;
+    const baseId = customMeta.id || `dsp_${Date.now()}_${Math.floor(Math.random() * 9000 + 1000)}`;
     const difficulties = LaneRemapper.normalizeSongDifficulties([
       { id: `${baseId}_easy`, name: 'Fácil', stars: 1.8, densityMode: 'easy' },
       { id: `${baseId}_medium`, name: 'Media', stars: 3.1, densityMode: 'medium' },
@@ -3618,24 +3719,34 @@ class AudioAutoMapper {
       { id: `${baseId}_impossible`, name: 'Imposible', stars: 8.4, densityMode: 'impossible' }
     ], baseId);
 
+    const diffNameMap = {
+      easy: 'Fácil',
+      medium: 'Media',
+      hard: 'Difícil',
+      extreme: 'Extrema',
+      impossible: 'Imposible'
+    };
+    const chosenDiffName = customMeta.difficultyName || diffNameMap[densityMode] || 'Difícil';
+
     return {
       id: baseId,
       title,
       artist,
-      creator: 'Motor Acústico DSP',
+      creator: sourceLabel,
+      thumbnail: customMeta.thumbnail || './app_logo.png',
       bpm: analysis.bpm,
       firstBeatOffsetMs: analysis.firstBeatOffsetMs,
       stars: analysis.stars,
       difficulties,
       rawNotes: analysis.rawNotes,
       notes: analysis.notes,
-      audioBlob: file,
+      audioBlob: finalAudioBlob,
       metadata: {
         id: baseId,
         title,
         artist,
-        creator: 'Motor Acústico DSP',
-        difficulty_name: 'Difícil',
+        creator: sourceLabel,
+        difficulty_name: chosenDiffName,
         stars: analysis.stars,
         bpm: analysis.bpm,
         firstBeatOffsetMs: analysis.firstBeatOffsetMs,
