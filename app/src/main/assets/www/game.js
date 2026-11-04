@@ -15534,8 +15534,8 @@ class BeatstarEngine {
             : (isMushTrack ? (this._mushTrackGrad || '#fdf4ff') : (this._trackGrad || '#f8fafc')));
       ctx.fill();
 
-      // A2. Sombreado cilíndrico 3D de bordes y brillo central perlado
-      if (this._trackEdgeShadowGrad && !isHighwayTrack && !isRiverTrack) {
+      // A2. Sombreado cilíndrico 3D de bordes y brillo central perlado (excluido en Modo Setas para no alterar el resto de modos)
+      if (this._trackEdgeShadowGrad && !isHighwayTrack && !isRiverTrack && !isMushTrack) {
         ctx.fillStyle = this._trackEdgeShadowGrad;
         ctx.fill();
       }
@@ -29031,9 +29031,8 @@ class BeatstarEngine {
         ctx.lineTo(tL_bot, surfaceEndY);
         ctx.closePath();
         const isMadnessMushNow = Boolean(
-          this.isMadnessModeActive ||
-          this.isMushroomModeActive ||
-          (typeof window !== 'undefined' && (window.isMadnessModeActive || window.isMushroomModeActive))
+          this.isMadnessModeActive &&
+          (this.getActiveMadnessPhase(cTime) === 'mushroom' || (this._mushWorldEnvelope || 0) > 0.35)
         );
         if (isMadnessMushNow) {
           if (!this._mushTrackGrad || this._mushTrackGradH !== this.height) {

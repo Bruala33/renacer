@@ -9493,6 +9493,7 @@ window.switchMainTab = switchMainTab;
       const isTopOnly = Boolean(document.getElementById('filterOnlyTopSongs')?.checked) || isKaraoke;
 
       if (!q && !isCommunityOnly && !isTopOnly) {
+        window.lastSearchedQuery = '';
         await loadInitialShuffledCatalog();
         return;
       }
@@ -9946,8 +9947,10 @@ function detenerPaginacionPiano() {
       const cardsHtml = pageItems.map((item, idx) => buildSongCardHtml(item, startIndex + idx, targetTier)).join('');
       const activeQ = String(window.lastSearchedQuery || (document.getElementById('searchInput') && document.getElementById('searchInput').value) || '').trim();
       const topRelevance = items[0] && typeof items[0].relevanceScore === 'number' ? items[0].relevanceScore : 100;
-      const showAutoExtractorBanner = Boolean(page === 1 && activeQ.length >= 2 && !onlyFavorites && !onlyTopSongs);
+      const isTopFilterActive = Boolean(document.getElementById('filterOnlyTopSongs')?.checked || window.isKaraokeModeActive);
+      const showAutoExtractorBanner = Boolean(page === 1 && activeQ.length >= 2 && !isTopFilterActive);
       const safeQAttr = escapeHtml(activeQ).replace(/'/g, "\\'");
+      const isPlaylistUrlOrId = Boolean(activeQ.includes('list=') || /^PL[A-Za-z0-9_-]{12,}$/.test(activeQ) || /^OLAK5uy_[A-Za-z0-9_-]+$/.test(activeQ));
 
       const autoExtractorBannerHtml = showAutoExtractorBanner ? `
         <div class="piano-key-row flex flex-col mb-2 border border-amber-500/50 rounded-xl overflow-hidden shadow-lg" style="background: linear-gradient(135deg, rgba(28, 19, 38, 0.96), rgba(17, 24, 39, 0.98));">
@@ -9976,6 +9979,7 @@ function detenerPaginacionPiano() {
             <button type="button" onclick="autoExtractAndPlaySong('${safeQAttr}', '', '', 'hard')" class="piano-diff-chip tier-hard active"><span>Difícil</span></button>
             <button type="button" onclick="autoExtractAndPlaySong('${safeQAttr}', '', '', 'extreme')" class="piano-diff-chip tier-extreme"><span>Extrema</span></button>
             <button type="button" onclick="autoExtractAndPlaySong('${safeQAttr}', '', '', 'impossible')" class="piano-diff-chip tier-impossible"><span>Imposible</span></button>
+            ${isPlaylistUrlOrId ? `<button type="button" onclick="importCuratedPlaylist('${safeQAttr}', 'Playlist de YouTube')" class="ml-auto px-2.5 py-1 rounded-lg text-[9.5px] font-black uppercase bg-amber-500 text-black cursor-pointer">Importar Playlist</button>` : ''}
           </div>
         </div>
       ` : '';
@@ -10905,8 +10909,9 @@ function stopPianoCameraLoop() {
         const isImpossibleFilter = activeTier === 'impossible';
         const activeQ = String(window.lastSearchedQuery || (document.getElementById('searchInput') && document.getElementById('searchInput').value) || '').trim();
         const safeQAttr = escapeHtml(activeQ).replace(/'/g, "\\'");
+        const isTopFilterActive = Boolean(document.getElementById('filterOnlyTopSongs')?.checked || window.isKaraokeModeActive);
 
-        if (activeQ.length >= 2 && !onlyFavorites) {
+        if (activeQ.length >= 2 && !isTopFilterActive) {
           container.innerHTML = `
             ${partialWarnHtml}
             <div class="p-5 text-center text-xs text-gray-200 glass-card space-y-3 border border-amber-500/40">
@@ -13882,6 +13887,18 @@ function stopPianoCameraLoop() {
       openPlaylistTrackMatcher(rawTitle, rawArtist, thumbUrl);
     };
 
+    window.autoExtractPlaylistTrackByIndex = function(renderedIdx) {
+      const tr = (window.currentRenderedPlaylistTracks || [])[renderedIdx];
+      if (!tr) return;
+      const rawTitle = String(tr.title || `Pista #${renderedIdx + 1}`);
+      const rawArtist = Array.isArray(tr.artists) ? tr.artists.join(', ') : String(tr.artist || 'YouTube');
+      const fallbackCover = getSongCoverFallback(rawTitle, rawArtist);
+      const thumbUrl = (typeof tr.thumbnail === 'string' && tr.thumbnail.trim())
+        ? tr.thumbnail
+        : (tr.id && String(tr.id).length === 11 ? `https://i.ytimg.com/vi/${tr.id}/hqdefault.jpg` : fallbackCover);
+      autoExtractAndPlaySong(rawTitle, rawArtist, thumbUrl, 'hard');
+    };
+
     function renderOpenedPlaylistTracksList(tracks, playlistId) {
       const tracksCont = document.getElementById('playlistTracksContainer');
       if (!tracksCont) return;
@@ -13926,6 +13943,14 @@ function stopPianoCameraLoop() {
                     </div>
                   </div>
                   <div class="flex items-center gap-1 flex-shrink-0 ml-1.5">
+                    <button
+                      type="button"
+                      onclick="event.stopPropagation(); autoExtractPlaylistTrackByIndex(${idx})"
+                      class="px-2 py-1 rounded-lg bg-gradient-to-b from-[#fde68a] via-[#f59e0b] to-[#b45309] border border-[#78350f]/40 text-[#140e06] text-[9px] font-black uppercase tracking-tight shadow-sm cursor-pointer active:scale-95 transition"
+                      title="Extraer audio y generar pista automáticamente"
+                    >
+                      Generar Pista
+                    </button>
                     <button onclick="event.stopPropagation(); removeTrackFromPlaylistAction('${safePlId}', '${safeTrackId}')" class="w-6 h-6 rounded-full hover:bg-black/10 text-[#8e755a] hover:text-red-700 text-[10px] font-bold flex items-center justify-center cursor-pointer transition" title="Quitar de la playlist">✕</button>
                   </div>
                 </div>
@@ -13934,7 +13959,7 @@ function stopPianoCameraLoop() {
                 <div 
                   onclick="openPlaylistTrackMatcherByIndex(${idx})" 
                   class="piano-black-play-key flex-shrink-0 w-12 min-w-[48px]" 
-                  title="Elegir versión y jugar"
+                  title="Elegir versión o generar pista"
                 >
                   <span class="play-arrow-gold">▶</span>
                 </div>
@@ -14116,8 +14141,12 @@ function stopPianoCameraLoop() {
       }
 
       // 3. Token overlap across Title + Artist
-      const stopWords = new Set(['the', 'and', 'for', 'with', 'from', 'los', 'las', 'del', 'una', 'por', 'con', 'para']);
-      const qTokens = `${qTitle} ${qArtist}`.split(' ').filter(w => w.length >= 2 && !stopWords.has(w));
+      const stopWords = new Set([
+        'the', 'and', 'for', 'with', 'from', 'los', 'las', 'del', 'una', 'por', 'con', 'para',
+        'de', 'la', 'el', 'en', 'mi', 'tu', 'te', 'me', 'se', 'no', 'un', 'al', 'lo', 'es',
+        'yo', 'ya', 'si', 'que', 'como', 'mas', 'sin', 'official', 'video', 'audio', 'lyrics', 'letra'
+      ]);
+      const qTokens = `${qTitle} ${qArtist}`.split(' ').filter(w => w.length >= 3 && !stopWords.has(w));
       const cCombined = `${cTitle} ${cArtist}`;
       const cTokens = new Set(cCombined.split(' ').filter(Boolean));
 
@@ -14132,13 +14161,15 @@ function stopPianoCameraLoop() {
         }
       }
 
-      // 4. Character bigram similarity on title & artist
+      // 4. Character bigram similarity on title & artist (solo suma si hay solapamiento real de palabras o título muy parecido)
       const titleSim = computeBigramSimilarity(cTitle, qTitle);
       const artistSim = qArtist ? computeBigramSimilarity(cArtist, qArtist) : 0;
-      score += Math.round(titleSim * 50 + artistSim * 25);
+      if (titleSim >= 0.48 || matchedTokens >= 1) {
+        score += Math.round(titleSim * 50 + artistSim * 25);
+      }
 
       // 5. Offline memory bonus if already downloaded
-      if (candidate._isOfflineSaved && score >= 40) {
+      if (candidate._isOfflineSaved && score >= 65) {
         score += 25;
       }
 
@@ -14292,13 +14323,8 @@ function stopPianoCameraLoop() {
         `;
       }).join('');
 
-      // Mostrar siempre la tarjeta de Generación Automática (arriba si no hay coincidencia exacta >= 85, o debajo si ya hay coincidencia exacta)
-      const topScore = optionsList[0] ? (optionsList[0]._matchScore || 0) : 0;
-      if (topScore < 85) {
-        listEl.innerHTML = autoGenCardHtml + listEl.innerHTML;
-      } else {
-        listEl.innerHTML = listEl.innerHTML + autoGenCardHtml;
-      }
+      // Mostrar SIEMPRE en la primera posición superior del modal la tarjeta para extraer el audio y generar la pista automáticamente
+      listEl.innerHTML = autoGenCardHtml + listEl.innerHTML;
     }
 
     window.playMatchedCatalogOption = function(optionIdx, diffIdx = -1) {
@@ -14397,10 +14423,12 @@ function stopPianoCameraLoop() {
 
       // 1. Puntuar nuestro catálogo local + oficial + comunidad (normalizando las 5 dificultades: Fácil, Media, Difícil, Extrema, Imposible)
       const candidateMap = new Map();
-      const registerCandidate = (song, extraBoost = 0) => {
+      const registerCandidate = (song, extraBoost = 0, minRawScore = 65) => {
         if (!song || !song.id) return;
         if (/unit test|^test$/i.test(String(song.title || '').trim())) return;
-        const sc = scoreCatalogCandidate(song, coreTitle, coreArtist) + extraBoost;
+        const rawSc = scoreCatalogCandidate(song, coreTitle, coreArtist);
+        if (rawSc < minRawScore && !song._isAutoGeneratedDsp) return;
+        const sc = rawSc + extraBoost;
         const prev = candidateMap.get(song.id);
         if (!prev || sc > prev._matchScore) {
           const baseDiffs = Array.isArray(song.difficulties) && song.difficulties.length > 0
@@ -14570,9 +14598,9 @@ function stopPianoCameraLoop() {
       const sortedCandidates = getSortedTopCandidates();
       renderYtMatcherModalCards(sortedCandidates, false);
 
-      // Si no hay resultados exactos en los catálogos de ritmo (_matchScore < 85), extraer el audio y generar la pista automáticamente en vivo
+      // Si no hay coincidencia exacta en los catálogos (_matchScore < 130), extraer el audio y generar la pista automáticamente en vivo
       const bestMatchScore = sortedCandidates[0] ? (sortedCandidates[0]._matchScore || 0) : 0;
-      if (bestMatchScore < 85) {
+      if (bestMatchScore < 130) {
         const statusBadge = document.getElementById('ytMatcherStatusBadge');
         if (statusBadge) statusBadge.innerText = 'Extrayendo audio y generando pista DSP...';
         try {
@@ -14588,7 +14616,7 @@ function stopPianoCameraLoop() {
             }
           );
           if (reqId !== window.ytMatcherActiveRequestId) return;
-          registerCandidate({ ...chartItem, _isOfflineSaved: true }, 200);
+          registerCandidate({ ...chartItem, _isOfflineSaved: true, _isAutoGeneratedDsp: true }, 250, 0);
           renderYtMatcherModalCards(getSortedTopCandidates(), false);
           if (statusBadge) statusBadge.innerText = 'Pista generada y lista para jugar';
         } catch (_) {
