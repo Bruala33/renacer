@@ -3289,73 +3289,96 @@ app.get(['/api/search', '/api/v1/search', '/api/v1/search/community'], async (re
     }
   }
 
-  // 2. Query osu! (Todos los modos: Standard, Taiko y Mania) y BeatSaver en paralelo
+  // 2. Query osu! (Catboy + Nerinyan), BeatSaver y Clone Hero (Enchor) en paralelo
   const encoded = encodeURIComponent(q);
-  const [catboyRes, bsRes] = await Promise.allSettled([
+  const [catboyRes, nerinyanRes, bsRes, enchorRes] = await Promise.allSettled([
     fetch(`https://catboy.best/api/v2/search?q=${encoded}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(4200),
+    }).then(r => r.ok ? r.json() : null),
+    fetch(`https://api.nerinyan.moe/search?q=${encoded}`, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
       signal: AbortSignal.timeout(4200),
     }).then(r => r.ok ? r.json() : null),
     fetch(`https://api.beatsaver.com/search/text/0?q=${encoded}&sortOrder=Relevance`, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
       signal: AbortSignal.timeout(4200),
+    }).then(r => r.ok ? r.json() : null),
+    fetch('https://api.enchor.us/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
+      body: JSON.stringify({ search: q, page: 1 }),
+      signal: AbortSignal.timeout(4200),
     }).then(r => r.ok ? r.json() : null)
   ]);
+
+  const seenOsuSetIds = new Set();
+  const processOsuItems = (items) => {
+    if (!Array.isArray(items)) return;
+    for (const item of items.slice(0, 18)) {
+      const setId = item.id || item.beatmapset_id;
+      if (!setId || seenOsuSetIds.has(setId)) continue;
+      seenOsuSetIds.add(setId);
+
+      const title = item.title || 'Sin título';
+      const artist = item.artist || 'Desconocido';
+      const creator = item.creator || item.user?.username || 'osu! Mapper';
+      const covers = item.covers || {};
+      const thumbnail = covers.card || covers.cover || `https://assets.ppy.sh/beatmaps/${setId}/covers/card.jpg`;
+
+      const diffs = (item.beatmaps || []).map((b) => {
+        const modeNum = b.mode_int ?? b.mode ?? 0;
+        const modeTag = (modeNum === 3 || modeNum === 'mania') ? 'Mania' : ((modeNum === 1 || modeNum === 'taiko') ? 'Taiko' : 'Std');
+        const baseName = b.version || 'Normal';
+        return {
+          id: String(b.id),
+          name: `${baseName} [${modeTag}]`,
+          stars: Math.round((b.difficulty_rating || 3.5) * 10) / 10,
+          notes_count: (b.count_circles || 0) + (b.count_sliders || 0) || 100,
+          bpm: b.bpm || item.bpm || 120,
+        };
+      });
+
+      results.push({
+        id: `osu_${setId}`,
+        title,
+        artist,
+        creator_name: creator,
+        bpm: item.bpm || 120,
+        difficulty_name: diffs[0]?.name || 'Normal',
+        stars: diffs[0]?.stars || 3.5,
+        notes_count: diffs[0]?.notes_count || 100,
+        thumbnail,
+        source: 'osu',
+        source_name: 'osu!',
+        source_badge: '[osu!]',
+        source_color: '#ff007f',
+        download_url: `/api/v1/download/osu/${setId}`,
+        direct_download_url: `https://api.nerinyan.moe/d/${setId}?noVideo=true`,
+        fallback_download_url: `https://dl.nerinyan.moe/v2/d/${setId}?noVideo=true`,
+        difficulties: diffs,
+      });
+    }
+  };
 
   if (catboyRes.status === 'fulfilled' && catboyRes.value) {
     try {
       const data = catboyRes.value;
-      const items = Array.isArray(data) ? data : data?.data || [];
-      for (const item of items.slice(0, 14)) {
-        const setId = item.id;
-        if (!setId) continue;
+      processOsuItems(Array.isArray(data) ? data : data?.data || []);
+    } catch (_) {}
+  }
 
-        const title = item.title || 'Sin título';
-        const artist = item.artist || 'Desconocido';
-        const creator = item.creator || item.user?.username || 'osu! Mapper';
-        const covers = item.covers || {};
-        const thumbnail = covers.card || covers.cover || `https://assets.ppy.sh/beatmaps/${setId}/covers/card.jpg`;
-
-        const diffs = (item.beatmaps || []).map((b) => {
-          const modeNum = b.mode_int ?? b.mode ?? 0;
-          const modeTag = (modeNum === 3 || modeNum === 'mania') ? 'Mania' : ((modeNum === 1 || modeNum === 'taiko') ? 'Taiko' : 'Std');
-          const baseName = b.version || 'Normal';
-          return {
-            id: String(b.id),
-            name: `${baseName} [${modeTag}]`,
-            stars: Math.round((b.difficulty_rating || 3.5) * 10) / 10,
-            notes_count: (b.count_circles || 0) + (b.count_sliders || 0) || 100,
-            bpm: b.bpm || item.bpm || 120,
-          };
-        });
-
-        results.push({
-          id: `osu_${setId}`,
-          title,
-          artist,
-          creator_name: creator,
-          bpm: item.bpm || 120,
-          difficulty_name: diffs[0]?.name || 'Normal',
-          stars: diffs[0]?.stars || 3.5,
-          notes_count: diffs[0]?.notes_count || 100,
-          thumbnail,
-          source: 'osu',
-          source_name: 'osu!',
-          source_badge: '[osu!]',
-          source_color: '#ff007f',
-          download_url: `/api/v1/download/osu/${setId}`,
-          direct_download_url: `https://api.nerinyan.moe/d/${setId}?noVideo=true`,
-          fallback_download_url: `https://dl.nerinyan.moe/v2/d/${setId}?noVideo=true`,
-          difficulties: diffs,
-        });
-      }
+  if (nerinyanRes.status === 'fulfilled' && nerinyanRes.value) {
+    try {
+      const data = nerinyanRes.value;
+      processOsuItems(Array.isArray(data) ? data : data?.data || []);
     } catch (_) {}
   }
 
   if (bsRes.status === 'fulfilled' && bsRes.value) {
     try {
       const docs = Array.isArray(bsRes.value?.docs) ? bsRes.value.docs : [];
-      for (const doc of docs.slice(0, 12)) {
+      for (const doc of docs.slice(0, 14)) {
         const bsId = doc.id;
         const latestVer = Array.isArray(doc.versions) && doc.versions.length > 0 ? doc.versions[0] : null;
         if (!bsId || !latestVer) continue;
@@ -3415,6 +3438,46 @@ app.get(['/api/search', '/api/v1/search', '/api/v1/search/community'], async (re
     } catch (_) {}
   }
 
+  if (enchorRes.status === 'fulfilled' && enchorRes.value) {
+    try {
+      const chTracks = Array.isArray(enchorRes.value?.data) ? enchorRes.value.data : [];
+      const seenMd5 = new Set();
+      for (const item of chTracks.slice(0, 12)) {
+        const md5 = item.md5 || item.chartHash;
+        if (!md5 || seenMd5.has(md5)) continue;
+        seenMd5.add(md5);
+        const rawIntensity = typeof item.diff_guitar === 'number' && item.diff_guitar >= 0 ? item.diff_guitar : 3;
+        const stars = Math.max(1.5, Math.min(9.0, Math.round((1.5 + rawIntensity * 0.9) * 10) / 10));
+        const albumArt = item.albumArtMd5 ? `https://files.enchor.us/${item.albumArtMd5}.jpg` : '';
+        results.push({
+          id: `ch_${md5}`,
+          md5,
+          title: item.name || 'Clone Hero Track',
+          artist: item.artist || 'Artista',
+          creator_name: item.charter || 'Clone Hero Charter',
+          bpm: 120,
+          difficulty_name: 'ExpertSingle',
+          stars,
+          notes_count: 250,
+          thumbnail: albumArt,
+          source: 'clonehero',
+          source_name: 'Clone Hero',
+          source_badge: '[CH]',
+          source_color: '#10b981',
+          download_url: `/api/v1/download/clonehero/${md5}`,
+          sng_url: `https://files.enchor.us/${md5}.sng`,
+          direct_download_url: `https://files.enchor.us/${md5}.sng`,
+          difficulties: [
+            { id: 'EasySingle', name: 'Fácil', stars: Math.max(1.2, +(stars * 0.45).toFixed(1)) },
+            { id: 'MediumSingle', name: 'Media', stars: Math.max(2.0, +(stars * 0.68).toFixed(1)) },
+            { id: 'HardSingle', name: 'Difícil', stars: Math.max(3.0, +(stars * 0.85).toFixed(1)) },
+            { id: 'ExpertSingle', name: 'Extrema', stars }
+          ]
+        });
+      }
+    } catch (_) {}
+  }
+
   for (const item of results) {
     if (typeof item.relevanceScore !== 'number') {
       item.relevanceScore = computeSongRelevanceScore(q, item.title, item.artist, item.creator_name || '');
@@ -3423,6 +3486,34 @@ app.get(['/api/search', '/api/v1/search', '/api/v1/search/community'], async (re
   results.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
 
   res.json(results);
+});
+
+// Proxy con caché en memoria para letras sincronizadas LRC (LRCLIB)
+const lyricsMemoryCache = new Map();
+app.get('/api/v1/lyrics', async (req, res) => {
+  try {
+    const q = String(req.query.q || `${req.query.title || ''} ${req.query.artist || ''}`).trim();
+    if (!q || q.length < 2) return res.json([]);
+    const cacheKey = q.toLowerCase();
+    if (lyricsMemoryCache.has(cacheKey)) {
+      return res.json(lyricsMemoryCache.get(cacheKey));
+    }
+    const resp = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(q)}`, {
+      headers: { 'User-Agent': 'PianoCommunity/5.5 (https://github.com/atomasv/piano_renacer)' },
+      signal: AbortSignal.timeout(3500)
+    });
+    if (!resp.ok) return res.json([]);
+    const data = await resp.json();
+    const list = Array.isArray(data) ? data.slice(0, 5) : [];
+    if (lyricsMemoryCache.size > 300) {
+      const oldestKey = lyricsMemoryCache.keys().next().value;
+      if (oldestKey) lyricsMemoryCache.delete(oldestKey);
+    }
+    lyricsMemoryCache.set(cacheKey, list);
+    return res.json(list);
+  } catch (_) {
+    return res.json([]);
+  }
 });
 
 // ==========================================

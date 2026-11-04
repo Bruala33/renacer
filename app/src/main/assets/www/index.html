@@ -1310,8 +1310,15 @@
                 <option value="medium">Media (2.4★ - 3.7★)</option>
                 <option value="hard">Difícil (3.8★ - 5.3★)</option>
                 <option value="extreme">Extrema (5.4★ - 7.4★)</option>
-                <option value="impossible">💀 Imposible (7.6★ - 10.0★ • Solo Maps)</option>
+                <option value="impossible">Imposible (7.6★ - 10.0★ • Solo Maps)</option>
               </select>
+            </div>
+
+            <div class="pt-2 border-t border-white/10">
+              <button type="button" onclick="toggleSearchFilterDropdown(); openUniversalSongImporterModal();" class="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-[#2b1808] via-[#4a260b] to-[#2b1808] border border-[#f3d791]/60 text-[#f3d791] text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition active:scale-95">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span>Importar Archivo Local (.MP3 / .OSZ / .SNG / .MID)</span>
+              </button>
             </div>
           </div>
         </div>
@@ -1434,9 +1441,12 @@
 
         <!-- Subtab 1: Downloads Container -->
         <div id="subtabDownloadsContainer" class="space-y-2">
-          <div class="flex items-center justify-end">
+          <div class="flex items-center justify-between gap-2">
+            <button onclick="openUniversalSongImporterModal()" class="px-3 py-1.5 bg-[#1b1209] hover:bg-[#2a1c0e] border border-[#c5a059]/70 text-[#f3d791] rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition active:scale-95 shadow-md">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <span>+ Importar Canción / Paquete</span>
+            </button>
             <button onclick="playRandomLibraryTrack()" class="px-3 py-1.5 bg-gradient-to-b from-[#f3d791] via-[#d4a84f] to-[#9b6f23] text-[#1c1004] border border-[#fff6d6] rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition active:scale-95 shadow-md">
-              <span>🔀</span>
               <span data-i18n="shuffle">Aleatorio</span>
             </button>
           </div>
@@ -1568,6 +1578,14 @@
           onchange="ChartEditor.loadBgImage(event)"
         >
       </div>
+    </div>
+
+    <!-- Botón de Auto-Generación Acústica DSP -->
+    <div>
+      <button type="button" onclick="ChartEditor.autoGenerateFromAudio(false)" class="w-full py-1.5 px-2.5 bg-gradient-to-r from-amber-500/25 via-pink-500/25 to-cyan-500/25 hover:brightness-115 border border-amber-400/50 rounded-xl text-[10px] font-black text-amber-200 flex items-center justify-center gap-1.5 cursor-pointer transition active:scale-95 shadow-sm">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <span>Auto-Mapear Audio por Frecuencias (DSP)</span>
+      </button>
     </div>
 
     <!-- Speed & BPM Controls -->
@@ -2396,6 +2414,60 @@
         </div>
       </div>
     </div> <!-- End of publishCommunityModal -->
+
+    <!-- Modal Importador Universal de Canciones y Paquetes Rítmicos (DSP MP3/WAV/OGG, OSZ, SNG, ZIP, MID) -->
+    <div id="universalSongImporterModal" class="modal-overlay">
+      <div class="glass-card w-full max-w-[355px] p-4 rounded-2xl space-y-3 bg-gradient-to-b from-[#1c1108] via-[#110a05] to-[#060302] border border-[#c5a059]/60 shadow-2xl">
+        <div class="flex items-center justify-between border-b border-white/10 pb-2">
+          <h3 class="text-xs font-black text-[#fff6d6] font-serif flex items-center gap-1.5">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="text-[#f3d791]"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span>Importador Universal de Canciones</span>
+          </h3>
+          <button onclick="closeUniversalSongImporterModal()" class="text-gray-400 hover:text-white text-xs p-1 cursor-pointer">✕</button>
+        </div>
+
+        <p class="text-[10.5px] text-[#cbb894] leading-snug">
+          Selecciona cualquier archivo de audio (<b class="text-[#f3d791]">.mp3, .wav, .ogg, .m4a</b>) para convertirlo automáticamente en partitura mediante análisis de frecuencias DSP, o importa paquetes de ritmo (<b class="text-cyan-300">.osz, .sng, .zip, .7z, .mid</b>).
+        </p>
+
+        <div class="relative">
+          <label for="universalSongFileInput" class="w-full py-3 px-3 rounded-xl bg-black/60 hover:bg-black/80 border-2 border-dashed border-[#c5a059]/60 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-[#f3d791]"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+            <span id="universalSongFileNameLabel" class="text-[11px] font-black text-[#f3d791] truncate max-w-[270px]">Toca para elegir archivo del dispositivo</span>
+            <span class="text-[9px] text-gray-400 font-mono">MP3 • WAV • OGG • OSZ • SNG • ZIP • MID</span>
+          </label>
+          <input
+            id="universalSongFileInput"
+            type="file"
+            accept=".mp3,.wav,.ogg,.m4a,.flac,.osz,.sng,.zip,.7z,.rar,.mid,.midi,audio/*"
+            class="hidden"
+            onchange="handleUniversalSongFileSelect(event)"
+          >
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-[9px] font-bold text-[#cbb894] uppercase block mb-0.5">Título (opcional):</label>
+            <input id="universalSongTitleInput" type="text" placeholder="Auto-detectar..." class="w-full px-2.5 py-1.5 bg-black/70 border border-white/15 rounded-xl text-[11px] text-white outline-none focus:border-[#f3d791]">
+          </div>
+          <div>
+            <label class="text-[9px] font-bold text-[#cbb894] uppercase block mb-0.5">Artista (opcional):</label>
+            <input id="universalSongArtistInput" type="text" placeholder="Auto-detectar..." class="w-full px-2.5 py-1.5 bg-black/70 border border-white/15 rounded-xl text-[11px] text-white outline-none focus:border-[#f3d791]">
+          </div>
+        </div>
+
+        <div id="universalSongStatusMsg" class="text-[10px] font-mono text-amber-300 text-center min-h-[14px]"></div>
+
+        <div class="grid grid-cols-2 gap-2 pt-1">
+          <button id="btnUniversalImportPlay" type="button" onclick="processUniversalSongImport('play')" class="py-2.5 px-2 rounded-xl bg-gradient-to-b from-[#f3d791] via-[#d4a84f] to-[#9b6f23] border border-[#fff6d6] text-[#1c1004] font-black text-[10.5px] uppercase tracking-wider cursor-pointer transition active:scale-95 shadow-lg">
+            Guardar y Jugar
+          </button>
+          <button id="btnUniversalImportEdit" type="button" onclick="processUniversalSongImport('editor')" class="py-2.5 px-2 rounded-xl bg-[#1b1209] hover:bg-[#2a1c0e] border border-[#c5a059]/70 text-[#f3d791] font-black text-[10.5px] uppercase tracking-wider cursor-pointer transition active:scale-95">
+            Abrir en Editor
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- Layer 12: Arcade Revive Penalty Modal - Máquina de Escribir Vintage (Chopin & Co. 1928) -->
     <div id="reviveModal" class="revive-modal">
@@ -12737,10 +12809,14 @@ function stopPianoCameraLoop() {
         const savedCharts = await IndexedDBStorage.getAllCharts();
         if (!savedCharts || savedCharts.length === 0) {
           container.innerHTML = `
-            <div class="vegas-console-card p-6 text-center space-y-2">
-              <div class="text-xl">🎹</div>
+            <div class="vegas-console-card p-6 text-center space-y-3">
               <p class="font-black text-sm text-[#fff6d6] font-serif">${t('lib_downloads_empty_title', 'Sin descargas offline todavía')}</p>
-              <p class="text-[10.5px] text-[#cbb894] max-w-[250px] mx-auto">${t('lib_downloads_empty_sub', 'Juega cualquier canción del catálogo y se guardará automáticamente aquí para jugar sin internet.')}</p>
+              <p class="text-[10.5px] text-[#cbb894] max-w-[260px] mx-auto">${t('lib_downloads_empty_sub', 'Juega cualquier canción del catálogo o importa tus propios archivos MP3, OSZ, SNG, ZIP o MIDI para jugar sin internet.')}</p>
+              <div class="pt-1">
+                <button onclick="openUniversalSongImporterModal()" class="px-4 py-2 rounded-xl bg-gradient-to-b from-[#f3d791] via-[#d4a84f] to-[#9b6f23] border border-[#fff6d6] text-[#1c1004] font-black text-xs cursor-pointer transition active:scale-95 shadow">
+                  + Importar Canción o Paquete Local
+                </button>
+              </div>
             </div>
           `;
           return;
@@ -12859,6 +12935,245 @@ function stopPianoCameraLoop() {
         container.innerHTML = `<div class="p-4 text-xs text-red-400">Error: ${e.message}</div>`;
       }
     }
+
+    // ==========================================
+    // UNIVERSAL SONG & PACKAGE IMPORTER (DSP MP3/WAV/OGG, OSZ, SNG, ZIP, 7Z, MID)
+    // ==========================================
+    let selectedUniversalImportFile = null;
+
+    window.openUniversalSongImporterModal = function() {
+      const modal = document.getElementById('universalSongImporterModal');
+      if (!modal) return;
+      selectedUniversalImportFile = null;
+      const lbl = document.getElementById('universalSongFileNameLabel');
+      if (lbl) lbl.innerText = 'Toca para elegir archivo del dispositivo';
+      const st = document.getElementById('universalSongStatusMsg');
+      if (st) st.innerText = '';
+      const inp = document.getElementById('universalSongFileInput');
+      if (inp) inp.value = '';
+      modal.style.display = 'flex';
+      modal.classList.add('open');
+    };
+
+    window.closeUniversalSongImporterModal = function() {
+      const modal = document.getElementById('universalSongImporterModal');
+      if (!modal) return;
+      modal.classList.remove('open');
+      modal.style.display = 'none';
+    };
+
+    window.handleUniversalSongFileSelect = function(e) {
+      const file = e?.target?.files && e.target.files[0];
+      if (!file) return;
+      selectedUniversalImportFile = file;
+      const lbl = document.getElementById('universalSongFileNameLabel');
+      if (lbl) lbl.innerText = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+
+      const titleInp = document.getElementById('universalSongTitleInput');
+      const artistInp = document.getElementById('universalSongArtistInput');
+      if (typeof AudioAutoMapper !== 'undefined') {
+        const meta = AudioAutoMapper.parseFilenameMetadata(file.name);
+        if (titleInp && !titleInp.value.trim()) titleInp.value = meta.title;
+        if (artistInp && !artistInp.value.trim()) artistInp.value = meta.artist;
+      }
+      const st = document.getElementById('universalSongStatusMsg');
+      if (st) st.innerText = 'Archivo listo para procesar.';
+    };
+
+    window.processUniversalSongImport = async function(actionMode = 'play') {
+      const file = selectedUniversalImportFile || (document.getElementById('universalSongFileInput')?.files?.[0]);
+      const st = document.getElementById('universalSongStatusMsg');
+      if (!file) {
+        if (st) st.innerText = 'Selecciona primero un archivo de tu dispositivo.';
+        showErrorToast('Selecciona un archivo (.mp3, .osz, .sng, .zip, .mid).');
+        return;
+      }
+
+      const customTitle = (document.getElementById('universalSongTitleInput')?.value || '').trim();
+      const customArtist = (document.getElementById('universalSongArtistInput')?.value || '').trim();
+      const ext = (file.name.split('.').pop() || '').toLowerCase();
+
+      const btnPlay = document.getElementById('btnUniversalImportPlay');
+      const btnEdit = document.getElementById('btnUniversalImportEdit');
+      if (btnPlay) btnPlay.disabled = true;
+      if (btnEdit) btnEdit.disabled = true;
+
+      try {
+        const isPackage = ['osz', 'sng', 'zip', '7z', 'rar'].includes(ext);
+        const isMidi = ['mid', 'midi'].includes(ext);
+
+        if (isPackage) {
+          if (st) st.innerText = 'Descomprimiendo paquete rítmico...';
+          const buf = await file.arrayBuffer();
+          let packType = ext;
+          if (typeof SngUnpacker !== 'undefined' && SngUnpacker.isSng && SngUnpacker.isSng(buf)) packType = 'sng';
+          else if (typeof ArchiveHelper !== 'undefined' && ArchiveHelper.is7zOrRar && ArchiveHelper.is7zOrRar(buf)) packType = '7z';
+
+          const unpacked = await PackageUnpacker.unpack(buf, packType, 'hard');
+          const chartId = `imp_${Date.now()}_${Math.floor(Math.random() * 9000 + 1000)}`;
+          const finalTitle = customTitle || unpacked.metadata?.title || file.name.replace(/\.[^/.]+$/, '');
+          const finalArtist = customArtist || unpacked.metadata?.artist || 'Importado';
+
+          unpacked.id = chartId;
+          unpacked.metadata = unpacked.metadata || {};
+          unpacked.metadata.id = chartId;
+          unpacked.metadata.title = finalTitle;
+          unpacked.metadata.artist = finalArtist;
+
+          const normDiffs = (typeof LaneRemapper !== 'undefined' && LaneRemapper.normalizeSongDifficulties)
+            ? LaneRemapper.normalizeSongDifficulties(unpacked.availableDifficulties || [], chartId)
+            : (unpacked.availableDifficulties || []);
+
+          const chartItem = {
+            id: chartId,
+            title: finalTitle,
+            artist: finalArtist,
+            creator: unpacked.metadata.creator || 'Paquete Local',
+            source: 'community',
+            source_name: 'Importado',
+            is_community: true,
+            stars: unpacked.metadata.stars || 4.2,
+            bpm: unpacked.metadata.bpm || 120,
+            difficulties: normDiffs,
+            thumbnail: getSongCoverFallback(finalTitle, finalArtist)
+          };
+
+          await IndexedDBStorage.saveChart(chartItem, unpacked, unpacked.audioBlob);
+          updateLibraryVaultBadges();
+          renderDownloadsSubtab();
+          closeUniversalSongImporterModal();
+          showSuccessToast(`Paquete "${finalTitle}" importado en Mi Biblioteca.`);
+
+          if (actionMode === 'editor' && typeof ChartEditor !== 'undefined') {
+            switchMainTab('editor');
+            ChartEditor.audioBlob = unpacked.audioBlob;
+            ChartEditor.bpm = unpacked.metadata.bpm || 120;
+            ChartEditor.notes = (unpacked.notes || []).map(n => ({
+              lane: Math.max(0, Math.min(2, Number(n.lane ?? n.column ?? 0))),
+              time: Math.round(Number(n.timestamp_ms ?? n.timeMs ?? 0)),
+              type: n.type === 'swipe' ? 'swipe' : (n.type === 'hold' ? 'hold' : 'tap'),
+              duration: n.type === 'hold' ? Math.max(160, Math.round(Number(n.duration_ms ?? 300))) : 0,
+              direction: n.direction || 'up'
+            }));
+            ChartEditor.updateStats();
+            ChartEditor.draw();
+          } else {
+            const firstDiff = normDiffs.find(d => d.densityMode === 'hard') || normDiffs[0] || { id: 'hard', name: 'Difícil' };
+            playSavedLibraryChart(chartId, firstDiff.id, firstDiff.name || 'Difícil');
+          }
+          return;
+        }
+
+        if (isMidi) {
+          if (st) st.innerText = 'Parseando partitura MIDI y sintetizando piano...';
+          const buf = await file.arrayBuffer();
+          const parsedMidi = MidiChartParser.parse(buf, 'Expert');
+          const synthBlob = MidiChartParser.synthesizeWavBlobFromNotes(parsedMidi.rawNotes);
+          const chartId = `midi_${Date.now()}_${Math.floor(Math.random() * 9000 + 1000)}`;
+          const finalTitle = customTitle || file.name.replace(/\.[^/.]+$/, '');
+          const finalArtist = customArtist || 'Partitura MIDI';
+
+          const normDiffs = LaneRemapper.normalizeSongDifficulties([
+            { id: `${chartId}_easy`, name: 'Fácil', stars: 1.9, densityMode: 'easy' },
+            { id: `${chartId}_medium`, name: 'Media', stars: 3.2, densityMode: 'medium' },
+            { id: `${chartId}_hard`, name: 'Difícil', stars: 4.5, densityMode: 'hard' },
+            { id: `${chartId}_extreme`, name: 'Extrema', stars: 6.4, densityMode: 'extreme' },
+            { id: `${chartId}_impossible`, name: 'Imposible', stars: 8.5, densityMode: 'impossible' }
+          ], chartId);
+
+          const beatmapData = {
+            id: chartId,
+            title: finalTitle,
+            artist: finalArtist,
+            creator: 'MIDI Synth',
+            bpm: parsedMidi.bpm || 120,
+            keys: 5,
+            rawNotes: parsedMidi.rawNotes,
+            notes: parsedMidi.notes,
+            metadata: {
+              id: chartId,
+              title: finalTitle,
+              artist: finalArtist,
+              creator: 'MIDI Synth',
+              difficulty_name: 'Difícil',
+              stars: parsedMidi.stars || 4.5,
+              bpm: parsedMidi.bpm || 120,
+              total_notes: parsedMidi.notes.length,
+              source_keys: 5,
+              num_lanes: 3
+            }
+          };
+
+          const chartItem = {
+            id: chartId,
+            title: finalTitle,
+            artist: finalArtist,
+            creator: 'MIDI Synth',
+            source: 'community',
+            source_name: 'MIDI',
+            is_community: true,
+            stars: parsedMidi.stars || 4.5,
+            bpm: parsedMidi.bpm || 120,
+            difficulties: normDiffs,
+            thumbnail: getSongCoverFallback(finalTitle, finalArtist)
+          };
+
+          await IndexedDBStorage.saveChart(chartItem, beatmapData, synthBlob);
+          updateLibraryVaultBadges();
+          renderDownloadsSubtab();
+          closeUniversalSongImporterModal();
+          showSuccessToast(`MIDI "${finalTitle}" convertido y guardado.`);
+          playSavedLibraryChart(chartId, `${chartId}_hard`, 'Difícil');
+          return;
+        }
+
+        // Archivo de Audio (MP3, WAV, OGG, M4A, FLAC) -> Motor Acústico DSP
+        if (st) st.innerText = 'Analizando frecuencias (Graves, Voz, Agudos) y BPM...';
+        const dspPack = await AudioAutoMapper.createPlayableChartFromAudioFile(file, {
+          title: customTitle,
+          artist: customArtist,
+          densityMode: 'hard'
+        });
+
+        const chartItem = {
+          id: dspPack.id,
+          title: dspPack.title,
+          artist: dspPack.artist,
+          creator: 'Motor Acústico DSP',
+          source: 'community',
+          source_name: 'Auto-DSP',
+          is_community: true,
+          stars: dspPack.stars,
+          bpm: dspPack.bpm,
+          difficulties: dspPack.difficulties,
+          thumbnail: getSongCoverFallback(dspPack.title, dspPack.artist)
+        };
+
+        await IndexedDBStorage.saveChart(chartItem, dspPack, file);
+        updateLibraryVaultBadges();
+        renderDownloadsSubtab();
+        closeUniversalSongImporterModal();
+
+        if (actionMode === 'editor' && typeof ChartEditor !== 'undefined') {
+          switchMainTab('editor');
+          const edTitle = document.getElementById('edSongTitle');
+          const edArtist = document.getElementById('edSongArtist');
+          if (edTitle) edTitle.value = dspPack.title;
+          if (edArtist) edArtist.value = dspPack.artist;
+          await ChartEditor.loadAudioFile({ target: { files: [file] } });
+        } else {
+          showSuccessToast(`Mapa DSP creado: ${dspPack.notes.length} notas (${dspPack.bpm} BPM)`);
+          playSavedLibraryChart(dspPack.id, `${dspPack.id}_hard`, 'Difícil');
+        }
+      } catch (err) {
+        console.error('Error en processUniversalSongImport:', err);
+        if (st) st.innerText = 'Error: ' + (err.message || 'No se pudo importar el archivo.');
+        showErrorToast('Error al importar: ' + (err.message || 'Formato no compatible'));
+      } finally {
+        if (btnPlay) btnPlay.disabled = false;
+        if (btnEdit) btnEdit.disabled = false;
+      }
+    };
 
     async function renderFavoritesSubtab() {
       const container = document.getElementById('favoritesTracksList');

@@ -146,11 +146,77 @@ const ChartEditor = {
     this.currentSongTime = 0;
 
     const titleInput = document.getElementById('edSongTitle');
-    if (titleInput && !titleInput.value) {
+    const artistInput = document.getElementById('edSongArtist');
+    if (typeof AudioAutoMapper !== 'undefined') {
+      const parsedMeta = AudioAutoMapper.parseFilenameMetadata(file.name);
+      if (titleInput && !titleInput.value) titleInput.value = parsedMeta.title;
+      if (artistInput && !artistInput.value) artistInput.value = parsedMeta.artist;
+    } else if (titleInput && !titleInput.value) {
       titleInput.value = file.name.replace(/\.[^/.]+$/, '');
     }
 
-    showSuccessToast(`Audio cargado: ${this.duration.toFixed(1)}s`);
+    if (this.notes.length === 0 && typeof AudioAutoMapper !== 'undefined') {
+      this.autoGenerateFromAudio(true);
+    } else {
+      showSuccessToast(`Audio cargado: ${this.duration.toFixed(1)}s`);
+    }
+  },
+
+  autoGenerateFromAudio(silentConfirm = false) {
+    if (!this.audioBuffer) {
+      showErrorToast('Primero carga un archivo de audio (.mp3, .wav, .ogg).');
+      return;
+    }
+    if (typeof AudioAutoMapper === 'undefined') {
+      showErrorToast('El motor DSP no está disponible.');
+      return;
+    }
+    if (!silentConfirm && this.notes.length > 0) {
+      if (!confirm('¿Reemplazar las notas actuales con un mapa generado automáticamente a partir de las frecuencias del audio?')) {
+        return;
+      }
+    }
+
+    try {
+      const presetMap = {
+        'Fácil': 'easy',
+        'Media': 'medium',
+        'Difícil': 'hard',
+        'Extrema': 'extreme',
+        'Insana': 'impossible'
+      };
+      const densityMode = presetMap[this.difficultyPreset] || 'medium';
+      const result = AudioAutoMapper.analyzeAudioBuffer(this.audioBuffer, {
+        densityMode,
+        targetLanes: 3
+      });
+
+      if (result.bpm && result.bpm >= 40 && result.bpm <= 320) {
+        this.bpm = result.bpm;
+        const bpmInp = document.getElementById('edBpmInput');
+        if (bpmInp) bpmInp.value = this.bpm;
+      }
+
+      if (Number.isFinite(result.firstBeatOffsetMs)) {
+        this.setOffset(Math.max(-500, Math.min(500, result.firstBeatOffsetMs)));
+      }
+
+      this.notes = (result.notes || []).map(n => ({
+        lane: Math.max(0, Math.min(2, Number(n.lane ?? n.column ?? 0))),
+        time: Math.round(Number(n.timestamp_ms ?? n.timeMs ?? (n.time * 1000) ?? 0)),
+        type: n.type === 'swipe' ? 'swipe' : (n.type === 'hold' ? 'hold' : 'tap'),
+        duration: n.type === 'hold' ? Math.max(160, Math.round(Number(n.duration_ms ?? (n.duration * 1000) ?? 300))) : 0,
+        direction: n.direction || n.swipeDirection || 'up'
+      }));
+
+      this.cleanOverlappingNotes();
+      this.updateStats();
+      this.draw();
+      showSuccessToast(`Mapa DSP generado: ${this.notes.length} notas a ${this.bpm} BPM (${this.difficultyPreset})`);
+    } catch (err) {
+      console.error('Error en autoGenerateFromAudio:', err);
+      showErrorToast('Error al analizar el audio: ' + (err.message || 'Formato no soportado'));
+    }
   },
 
   async loadBgImage(e) {

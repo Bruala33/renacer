@@ -1571,6 +1571,7 @@ class MidiChartParser {
           // Target guitar track notes (Expert: 96-100, Hard: 84-88, Medium: 72-76, Easy: 60-64)
           // Siempre capturamos también Expert (96-100) como respaldo si la pista inferior está vacía
           const basePitch = (chosenDiff.includes('Hard') ? 84 : (chosenDiff.includes('Medium') ? 72 : (chosenDiff.includes('Easy') ? 60 : 96)));
+          const isGuitarTrack = trackName.includes('GUITAR') || trackName.includes('PART ') || trackName.includes('T1 GEMS');
           if (pitch >= basePitch && pitch <= basePitch + 4) {
             const fret = pitch - basePitch;
             if (isNoteOn) {
@@ -1578,7 +1579,7 @@ class MidiChartParser {
             } else if (activeNotes.has(fret)) {
               const startTick = activeNotes.get(fret);
               const durationTicks = currentTick - startTick;
-              noteEvents.push({ tick: startTick, fret, length: durationTicks });
+              noteEvents.push({ tick: startTick, fret, length: durationTicks, pitch, _isGuitarTrack: isGuitarTrack });
               activeNotes.delete(fret);
             }
           } else if (basePitch !== 96 && pitch >= 96 && pitch <= 100) {
@@ -1588,8 +1589,28 @@ class MidiChartParser {
             } else if (activeNotes.has(expKey)) {
               const startTick = activeNotes.get(expKey);
               const durationTicks = currentTick - startTick;
-              noteEvents.push({ tick: startTick, fret: pitch - 96, length: durationTicks, _isFallbackExpert: true });
+              noteEvents.push({ tick: startTick, fret: pitch - 96, length: durationTicks, pitch, _isFallbackExpert: true, _isGuitarTrack: isGuitarTrack });
               activeNotes.delete(expKey);
+            }
+          }
+
+          // Captura universal para archivos MIDI estándar de piano / melodía polifónica (rango 21..108)
+          const ch = status & 0x0F;
+          if (ch !== 9 && pitch >= 21 && pitch <= 108) {
+            const genKey = 1000 + pitch;
+            if (isNoteOn) {
+              activeNotes.set(genKey, { tick: currentTick, vel });
+            } else if (activeNotes.has(genKey)) {
+              const startObj = activeNotes.get(genKey);
+              const durationTicks = Math.max(1, currentTick - startObj.tick);
+              noteEvents.push({
+                tick: startObj.tick,
+                pitch,
+                vel: startObj.vel,
+                length: durationTicks,
+                _isGeneralMidi: true
+              });
+              activeNotes.delete(genKey);
             }
           }
         } else if (msgType === 0xC0 || msgType === 0xD0) {
@@ -1604,8 +1625,39 @@ class MidiChartParser {
       pos = trackEnd;
     }
 
-    const primaryEvents = noteEvents.filter(e => !e._isFallbackExpert);
-    const activeNoteEvents = primaryEvents.length >= 15 ? primaryEvents : noteEvents;
+    const chPrimaryEvents = noteEvents.filter(e => !e._isGeneralMidi && !e._isFallbackExpert);
+    const chFallbackEvents = noteEvents.filter(e => !e._isGeneralMidi);
+    const generalMidiEvents = noteEvents.filter(e => e._isGeneralMidi);
+
+    let activeNoteEvents = chPrimaryEvents.length >= 15 ? chPrimaryEvents : chFallbackEvents;
+    let isStandardPianoMidi = false;
+
+    // Si no es un MIDI de Clone Hero (o tiene menos de 20 notas de guitarra pero sí notas MIDI melódicas)
+    if (activeNoteEvents.length < 20 && generalMidiEvents.length > 0) {
+      isStandardPianoMidi = true;
+      generalMidiEvents.sort((a, b) => a.tick - b.tick || b.pitch - a.pitch);
+      const pitches = generalMidiEvents.map(e => e.pitch).sort((a, b) => a - b);
+      const p20 = pitches[Math.floor(pitches.length * 0.20)] || 48;
+      const p40 = pitches[Math.floor(pitches.length * 0.40)] || 56;
+      const p60 = pitches[Math.floor(pitches.length * 0.60)] || 64;
+      const p80 = pitches[Math.floor(pitches.length * 0.80)] || 72;
+
+      activeNoteEvents = generalMidiEvents.map(ev => {
+        let fret = 2;
+        if (ev.pitch <= p20) fret = 0;
+        else if (ev.pitch <= p40) fret = 1;
+        else if (ev.pitch <= p60) fret = 2;
+        else if (ev.pitch <= p80) fret = 3;
+        else fret = 4;
+        return {
+          tick: ev.tick,
+          fret,
+          pitch: ev.pitch,
+          vel: ev.vel || 90,
+          length: ev.length
+        };
+      });
+    }
 
     tempoEvents.sort((a, b) => a.tick - b.tick);
     const tickToMs = (targetTick) => {
@@ -1630,17 +1682,19 @@ class MidiChartParser {
 
     const rawNotes = activeNoteEvents.map(ev => {
       const startMs = tickToMs(ev.tick);
-      const isHold = ev.length > resolution / 4;
+      const isHold = ev.length > resolution / 3;
       const endMs = isHold ? tickToMs(ev.tick + ev.length) : startMs;
       const duration = isHold ? Math.max(0, endMs - startMs) : null;
       return {
         originalLane: ev.fret,
         sourceKeys: 5,
-        timestamp_ms: Math.max(0, startMs),
-        original_timestamp: Math.max(0, startMs),
+        timestamp_ms: Math.max(0, Math.round(startMs)),
+        original_timestamp: Math.max(0, Math.round(startMs)),
         type: isHold ? 'hold' : 'tap',
-        duration_ms: duration,
-        end_timestamp_ms: isHold ? endMs : null
+        duration_ms: duration ? Math.round(duration) : null,
+        end_timestamp_ms: isHold ? Math.round(endMs) : null,
+        midiPitch: ev.pitch || (60 + (ev.fret || 0) * 4),
+        midiVel: ev.vel || 95
       };
     });
 
@@ -1648,16 +1702,79 @@ class MidiChartParser {
 
     return {
       audioFilename: 'song.ogg',
-      title: 'Clone Hero MIDI',
-      artist: 'Artista',
-      creator: 'MIDI Charter',
+      title: isStandardPianoMidi ? 'Partitura MIDI de Piano' : 'Clone Hero MIDI',
+      artist: 'MIDI',
+      creator: 'MIDI Importer',
       difficultyName: chosenDiff,
       stars: 4.5,
       bpm: Math.round(tempoEvents[0].bpm),
       keys: 5,
+      isStandardPianoMidi,
       rawNotes: rawNotes,
       notes: finalNotes
     };
+  }
+
+  /**
+   * Sintetiza un archivo WAV PCM de piano acústico a partir de las notas de un archivo .mid independiente
+   * para que cualquier MIDI descargado de internet se pueda jugar con sonido real sin requerir un MP3 externo.
+   */
+  static synthesizeWavBlobFromNotes(rawNotes = []) {
+    const sampleRate = 22050;
+    const valid = Array.isArray(rawNotes) ? rawNotes : [];
+    const lastMs = valid.reduce((max, n) => Math.max(max, (n.end_timestamp_ms || n.timestamp_ms || 0) + 1200), 5000);
+    const durationSec = Math.min(360, Math.max(4, Math.ceil(lastMs / 1000) + 2));
+    const totalSamples = sampleRate * durationSec;
+    const pcm = new Float32Array(totalSamples);
+
+    for (let i = 0; i < valid.length; i++) {
+      const n = valid[i];
+      const startSample = Math.max(0, Math.floor(((n.timestamp_ms || 0) / 1000) * sampleRate));
+      if (startSample >= totalSamples) continue;
+      const pitch = n.midiPitch || (60 + ((n.originalLane || 0) * 4));
+      const freq = 440 * Math.pow(2, (pitch - 69) / 12);
+      const durSec = Math.min(3.2, Math.max(0.28, ((n.duration_ms || 260) / 1000) + 0.22));
+      const lenSamples = Math.min(totalSamples - startSample, Math.floor(durSec * sampleRate));
+      const amp = Math.min(0.22, ((n.midiVel || 90) / 127) * 0.18);
+
+      for (let s = 0; s < lenSamples; s++) {
+        const t = s / sampleRate;
+        const env = s < 140 ? (s / 140) : Math.exp(-t * 4.2);
+        const wave =
+          Math.sin(2 * Math.PI * freq * t) +
+          0.45 * Math.sin(4 * Math.PI * freq * t) * Math.exp(-t * 6.0) +
+          0.18 * Math.sin(6 * Math.PI * freq * t) * Math.exp(-t * 9.0);
+        pcm[startSample + s] += wave * env * amp;
+      }
+    }
+
+    // Normalización suave y empaquetado RIFF WAV 16-bit mono
+    const wavBuffer = new ArrayBuffer(44 + totalSamples * 2);
+    const view = new DataView(wavBuffer);
+    const writeStr = (offset, str) => {
+      for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    };
+    writeStr(0, 'RIFF');
+    view.setUint32(4, 36 + totalSamples * 2, true);
+    writeStr(8, 'WAVE');
+    writeStr(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeStr(36, 'data');
+    view.setUint32(40, totalSamples * 2, true);
+
+    let offset = 44;
+    for (let i = 0; i < totalSamples; i++) {
+      const clamped = Math.max(-1, Math.min(1, Math.tanh(pcm[i])));
+      view.setInt16(offset, clamped < 0 ? clamped * 0x8000 : clamped * 0x7FFF, true);
+      offset += 2;
+    }
+    return new Blob([wavBuffer], { type: 'audio/wav' });
   }
 }
 
@@ -3118,6 +3235,510 @@ class BeatSaberParser {
   }
 }
 
+// ==========================================
+// 9. AUDIO AUTO-MAPPER DSP (Analizador Espectral de 3 Bandas para cualquier MP3/WAV/OGG)
+// ==========================================
+
+class AudioAutoMapper {
+  /**
+   * Extrae Título y Artista limpios a partir del nombre de un archivo de audio
+   */
+  static parseFilenameMetadata(filename = '') {
+    const base = String(filename || 'Cancion Local')
+      .replace(/\.[^/.]+$/, '')
+      .replace(/[_]+/g, ' ')
+      .replace(/\b(official\s*(music\s*)?video|lyric\s*video|audio|hd|hq|4k|320kbps|128kbps)\b/gi, '')
+      .replace(/\(\s*\)|\[\s*\]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const parts = base.split(/\s+[-–—]\s+/);
+    if (parts.length >= 2) {
+      return {
+        artist: parts[0].trim() || 'Artista Local',
+        title: parts.slice(1).join(' - ').trim() || base
+      };
+    }
+    return {
+      artist: 'Estudio Acústico DSP',
+      title: base || 'Pista Importada'
+    };
+  }
+
+  /**
+   * Decodifica un Blob/File o ArrayBuffer de audio en un AudioBuffer usando Web Audio API
+   */
+  static async decodeAudio(fileOrBuffer) {
+    const arrayBuffer = (fileOrBuffer instanceof ArrayBuffer)
+      ? fileOrBuffer.slice(0)
+      : await fileOrBuffer.arrayBuffer();
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) {
+      throw new Error('Web Audio API no está disponible en este navegador.');
+    }
+    const ctx = new AudioCtx();
+    try {
+      const audioBuffer = await new Promise((resolve, reject) => {
+        ctx.decodeAudioData(
+          arrayBuffer,
+          (decoded) => resolve(decoded),
+          (err) => reject(err || new Error('No se pudo decodificar el archivo de audio.'))
+        );
+      });
+      return audioBuffer;
+    } finally {
+      try { await ctx.close(); } catch (_) {}
+    }
+  }
+
+  /**
+   * Analiza un AudioBuffer mediante separación espectral en 3 bandas (Graves, Medios/Voz, Agudos),
+   * flujo de energía (Spectral Flux Onset Detection) y autocorrelación de intervalos para BPM.
+   */
+  static analyzeAudioBuffer(audioBuffer, options = {}) {
+    const densityMode = options.densityMode || 'hard';
+    const targetLanes = options.targetLanes || 3;
+    const sampleRate = audioBuffer.sampleRate || 44100;
+    const numChannels = audioBuffer.numberOfChannels || 1;
+    const length = audioBuffer.length;
+    const durationSec = audioBuffer.duration || (length / sampleRate);
+
+    // Mezclar a mono para análisis DSP rápido
+    const mono = new Float32Array(length);
+    if (numChannels === 1) {
+      mono.set(audioBuffer.getChannelData(0));
+    } else {
+      const ch0 = audioBuffer.getChannelData(0);
+      const ch1 = audioBuffer.getChannelData(1);
+      for (let i = 0; i < length; i++) {
+        mono[i] = (ch0[i] + ch1[i]) * 0.5;
+      }
+    }
+
+    // Ventanas de 10 ms (100 FPS de resolución temporal)
+    const hopSize = Math.max(128, Math.round(sampleRate * 0.010));
+    const numFrames = Math.floor(length / hopSize);
+    if (numFrames < 40) {
+      throw new Error('El archivo de audio es demasiado corto para generar un mapa.');
+    }
+
+    const lowEnergy = new Float32Array(numFrames);
+    const midEnergy = new Float32Array(numFrames);
+    const highEnergy = new Float32Array(numFrames);
+    const totalRms = new Float32Array(numFrames);
+
+    // Coeficientes IIR de un polo para separar Graves (< 220 Hz), Medios (220 - 2400 Hz) y Agudos (> 2400 Hz)
+    const alphaLow = Math.min(0.95, Math.max(0.01, (2 * Math.PI * 220) / (sampleRate + 2 * Math.PI * 220)));
+    const alphaMid = Math.min(0.98, Math.max(0.05, (2 * Math.PI * 2400) / (sampleRate + 2 * Math.PI * 2400)));
+
+    let lp220 = 0;
+    let lp2400 = 0;
+
+    for (let f = 0; f < numFrames; f++) {
+      const start = f * hopSize;
+      const end = Math.min(length, start + hopSize);
+      let sumLow = 0;
+      let sumMid = 0;
+      let sumHigh = 0;
+      let sumTot = 0;
+
+      for (let i = start; i < end; i++) {
+        const x = mono[i];
+        lp220 += alphaLow * (x - lp220);
+        lp2400 += alphaMid * (x - lp2400);
+
+        const bLow = lp220;
+        const bMid = lp2400 - lp220;
+        const bHigh = x - lp2400;
+
+        sumLow += bLow * bLow;
+        sumMid += bMid * bMid;
+        sumHigh += bHigh * bHigh;
+        sumTot += x * x;
+      }
+
+      const invN = 1 / Math.max(1, end - start);
+      lowEnergy[f] = Math.sqrt(sumLow * invN);
+      midEnergy[f] = Math.sqrt(sumMid * invN) * 1.35;
+      highEnergy[f] = Math.sqrt(sumHigh * invN) * 1.95;
+      totalRms[f] = Math.sqrt(sumTot * invN);
+    }
+
+    // Calcular flujo espectral positivo (ataques percusivos y melódicos)
+    const flux = new Float32Array(numFrames);
+    const domBand = new Uint8Array(numFrames); // 0 = grave, 1 = medio, 2 = agudo
+
+    for (let f = 2; f < numFrames; f++) {
+      const dLow = Math.max(0, lowEnergy[f] - (lowEnergy[f - 1] * 0.7 + lowEnergy[f - 2] * 0.3));
+      const dMid = Math.max(0, midEnergy[f] - (midEnergy[f - 1] * 0.7 + midEnergy[f - 2] * 0.3));
+      const dHigh = Math.max(0, highEnergy[f] - (highEnergy[f - 1] * 0.7 + highEnergy[f - 2] * 0.3));
+
+      flux[f] = dLow * 1.15 + dMid * 1.25 + dHigh * 0.95;
+      if (dLow >= dMid && dLow >= dHigh) domBand[f] = 0;
+      else if (dHigh >= dMid && dHigh > dLow) domBand[f] = 2;
+      else domBand[f] = 1;
+    }
+
+    // Umbral adaptativo móvil (ventana de +/- 45 frames = 0.9 segundos)
+    const winRadius = 45;
+    const rawPeaks = [];
+    const minFrameGap = 9; // Mínimo 90 ms entre picos brutos
+    let lastPeakFrame = -minFrameGap;
+
+    for (let f = 15; f < numFrames - 25; f++) {
+      const val = flux[f];
+      if (val <= 0.0015) continue;
+      if (val < flux[f - 1] || val < flux[f + 1]) continue;
+
+      const wStart = Math.max(0, f - winRadius);
+      const wEnd = Math.min(numFrames - 1, f + winRadius);
+      let mean = 0;
+      for (let k = wStart; k <= wEnd; k++) mean += flux[k];
+      mean /= (wEnd - wStart + 1);
+
+      let variance = 0;
+      for (let k = wStart; k <= wEnd; k++) {
+        const diff = flux[k] - mean;
+        variance += diff * diff;
+      }
+      const std = Math.sqrt(variance / (wEnd - wStart + 1));
+      const threshold = mean + std * 0.85;
+
+      if (val >= threshold) {
+        if (f - lastPeakFrame < minFrameGap) {
+          if (rawPeaks.length > 0 && val > rawPeaks[rawPeaks.length - 1].flux) {
+            rawPeaks[rawPeaks.length - 1] = {
+              frame: f,
+              timeMs: Math.round((f * hopSize * 1000) / sampleRate),
+              flux: val,
+              strength: (val - mean) / Math.max(0.0001, std),
+              band: domBand[f],
+              rms: totalRms[f]
+            };
+            lastPeakFrame = f;
+          }
+        } else {
+          rawPeaks.push({
+            frame: f,
+            timeMs: Math.round((f * hopSize * 1000) / sampleRate),
+            flux: val,
+            strength: (val - mean) / Math.max(0.0001, std),
+            band: domBand[f],
+            rms: totalRms[f]
+          });
+          lastPeakFrame = f;
+        }
+      }
+    }
+
+    // Estimar BPM mediante histograma de intervalos entre ataques (IOI)
+    const bpmBins = new Float32Array(220);
+    for (let i = 0; i < rawPeaks.length; i++) {
+      for (let j = i + 1; j < Math.min(rawPeaks.length, i + 14); j++) {
+        const dtMs = rawPeaks[j].timeMs - rawPeaks[i].timeMs;
+        if (dtMs < 180 || dtMs > 2400) continue;
+        let candBpm = 60000 / dtMs;
+        while (candBpm < 82) candBpm *= 2;
+        while (candBpm > 176) candBpm /= 2;
+        const bin = Math.round(candBpm);
+        if (bin >= 80 && bin <= 180) {
+          const weight = (rawPeaks[i].strength + rawPeaks[j].strength) * 0.5;
+          bpmBins[bin] += weight;
+          bpmBins[bin - 1] += weight * 0.5;
+          bpmBins[bin + 1] += weight * 0.5;
+        }
+      }
+    }
+
+    let estimatedBpm = 120;
+    let bestBinScore = -1;
+    for (let b = 82; b <= 176; b++) {
+      if (bpmBins[b] > bestBinScore) {
+        bestBinScore = bpmBins[b];
+        estimatedBpm = b;
+      }
+    }
+
+    const beatMs = 60000 / estimatedBpm;
+    const stepMs = beatMs / 4; // Rejilla de semicorchea (1/4 de pulso)
+
+    // Estimar offset de fase del compás
+    let bestPhaseMs = 0;
+    let bestPhaseEnergy = -1;
+    const phaseSteps = 24;
+    for (let p = 0; p < phaseSteps; p++) {
+      const phaseCandidate = (p / phaseSteps) * beatMs;
+      let score = 0;
+      for (let i = 0; i < Math.min(rawPeaks.length, 160); i++) {
+        const pk = rawPeaks[i];
+        const dist = Math.abs(((pk.timeMs - phaseCandidate) % beatMs + beatMs) % beatMs);
+        const minDist = Math.min(dist, beatMs - dist);
+        if (minDist < 42) {
+          score += pk.strength * (1 - minDist / 45);
+        }
+      }
+      if (score > bestPhaseEnergy) {
+        bestPhaseEnergy = score;
+        bestPhaseMs = Math.round(phaseCandidate);
+      }
+    }
+
+    // Construir hitObjectsRaw ricos (hasta ~6.5 NPS para cubrir hasta dificultad Imposible)
+    const hitObjectsRaw = [];
+    let prevLane5 = 2;
+    let sameLaneCount = 0;
+
+    for (let i = 0; i < rawPeaks.length; i++) {
+      const pk = rawPeaks[i];
+      if (pk.timeMs < 350) continue; // Respetar margen de entrada
+
+      // Cuantización suave (40% atracción hacia la rejilla rítmica para precisión musical)
+      const nearestGrid = bestPhaseMs + Math.round((pk.timeMs - bestPhaseMs) / stepMs) * stepMs;
+      const gridError = nearestGrid - pk.timeMs;
+      const snappedMs = Math.max(350, Math.round(pk.timeMs + (Math.abs(gridError) <= 38 ? gridError * 0.45 : 0)));
+
+      if (hitObjectsRaw.length > 0 && snappedMs - hitObjectsRaw[hitObjectsRaw.length - 1].timestamp_ms < 85) {
+        continue;
+      }
+
+      // Mapear banda espectral + energía a 5 carriles virtuales (0..4) para que LaneRemapper distribuya en 3/4 carriles
+      let lane5 = 2;
+      if (pk.band === 0) {
+        lane5 = pk.strength > 1.8 ? 0 : 1;
+      } else if (pk.band === 2) {
+        lane5 = pk.strength > 1.8 ? 4 : 3;
+      } else {
+        lane5 = 2;
+      }
+
+      if (lane5 === prevLane5) {
+        sameLaneCount++;
+        if (sameLaneCount >= 2) {
+          lane5 = (lane5 + (i % 2 === 0 ? 1 : 3)) % 5;
+          sameLaneCount = 0;
+        }
+      } else {
+        sameLaneCount = 0;
+      }
+      prevLane5 = lane5;
+
+      // Comprobar si la energía se sostiene después del pico para generar una nota larga (hold)
+      const nextPeakMs = (i + 1 < rawPeaks.length) ? rawPeaks[i + 1].timeMs : (snappedMs + 1200);
+      const availGapMs = nextPeakMs - snappedMs;
+      let isHold = false;
+      let holdDurMs = null;
+
+      if (availGapMs >= 340) {
+        const sustainFrames = Math.min(numFrames - pk.frame - 1, Math.floor(( Math.min(availGapMs - 90, 1400) / 1000 ) * (sampleRate / hopSize)));
+        let sustainedCount = 0;
+        const sustainThreshold = pk.rms * 0.58;
+        for (let sf = 2; sf <= sustainFrames; sf++) {
+          if (totalRms[pk.frame + sf] >= sustainThreshold) {
+            sustainedCount++;
+          } else if (sf > 8) {
+            break;
+          }
+        }
+        const sustainMs = Math.round((sustainedCount * hopSize * 1000) / sampleRate);
+        if (sustainMs >= 240) {
+          isHold = true;
+          holdDurMs = Math.min(availGapMs - 85, Math.max(240, Math.round(sustainMs / (stepMs * 2)) * Math.round(stepMs * 2)));
+        }
+      }
+
+      hitObjectsRaw.push({
+        originalLane: lane5,
+        sourceKeys: 5,
+        timestamp_ms: snappedMs,
+        original_timestamp: snappedMs,
+        type: isHold ? 'hold' : 'tap',
+        duration_ms: isHold ? holdDurMs : null,
+        end_timestamp_ms: isHold ? (snappedMs + holdDurMs) : null
+      });
+    }
+
+    // Garantizar un mínimo de notas si el audio es muy ambiental o suave
+    if (hitObjectsRaw.length < 25) {
+      const totalBeats = Math.floor((durationSec * 1000 - 1000) / beatMs);
+      for (let b = 1; b <= totalBeats; b++) {
+        const tMs = Math.round(bestPhaseMs + b * beatMs);
+        hitObjectsRaw.push({
+          originalLane: b % 5,
+          sourceKeys: 5,
+          timestamp_ms: tMs,
+          original_timestamp: tMs,
+          type: (b % 8 === 0) ? 'hold' : 'tap',
+          duration_ms: (b % 8 === 0) ? Math.round(beatMs * 1.5) : null,
+          end_timestamp_ms: (b % 8 === 0) ? Math.round(tMs + beatMs * 1.5) : null
+        });
+      }
+    }
+
+    const nps = hitObjectsRaw.length / Math.max(15, durationSec);
+    const estimatedStars = Math.max(1.5, Math.min(9.2, Math.round((1.4 + nps * 0.78) * 10) / 10));
+    const finalNotes = LaneRemapper.resolveCollisions(hitObjectsRaw, 5, estimatedBpm, estimatedStars, densityMode, targetLanes);
+
+    return {
+      bpm: estimatedBpm,
+      firstBeatOffsetMs: bestPhaseMs,
+      durationSec: Math.round(durationSec),
+      stars: estimatedStars,
+      rawNotes: hitObjectsRaw,
+      notes: finalNotes
+    };
+  }
+
+  /**
+   * Genera un paquete completo de canción a partir de un archivo de audio local (.mp3, .wav, .ogg, .m4a, .flac)
+   */
+  static async createPlayableChartFromAudioFile(file, customMeta = {}) {
+    const fileMeta = this.parseFilenameMetadata(file.name);
+    const title = (customMeta.title && customMeta.title.trim()) || fileMeta.title;
+    const artist = (customMeta.artist && customMeta.artist.trim()) || fileMeta.artist;
+    const densityMode = customMeta.densityMode || 'hard';
+
+    const audioBuffer = await this.decodeAudio(file);
+    const analysis = this.analyzeAudioBuffer(audioBuffer, { densityMode, targetLanes: 3 });
+
+    // Intentar enriquecer con letras sincronizadas desde LRCLIB (sin bloquear si no hay conexión)
+    try {
+      const syncedLyrics = await LrcLibLyricsHelper.fetchSyncedLyrics(title, artist, analysis.durationSec);
+      if (syncedLyrics && syncedLyrics.length > 0) {
+        LrcLibLyricsHelper.attachLyricsToNotes(analysis.notes, syncedLyrics);
+        LrcLibLyricsHelper.attachLyricsToNotes(analysis.rawNotes, syncedLyrics);
+      }
+    } catch (_) {}
+
+    const baseId = `dsp_${Date.now()}_${Math.floor(Math.random() * 9000 + 1000)}`;
+    const difficulties = LaneRemapper.normalizeSongDifficulties([
+      { id: `${baseId}_easy`, name: 'Fácil', stars: 1.8, densityMode: 'easy' },
+      { id: `${baseId}_medium`, name: 'Media', stars: 3.1, densityMode: 'medium' },
+      { id: `${baseId}_hard`, name: 'Difícil', stars: 4.5, densityMode: 'hard' },
+      { id: `${baseId}_extreme`, name: 'Extrema', stars: 6.2, densityMode: 'extreme' },
+      { id: `${baseId}_impossible`, name: 'Imposible', stars: 8.4, densityMode: 'impossible' }
+    ], baseId);
+
+    return {
+      id: baseId,
+      title,
+      artist,
+      creator: 'Motor Acústico DSP',
+      bpm: analysis.bpm,
+      firstBeatOffsetMs: analysis.firstBeatOffsetMs,
+      stars: analysis.stars,
+      difficulties,
+      rawNotes: analysis.rawNotes,
+      notes: analysis.notes,
+      audioBlob: file,
+      metadata: {
+        id: baseId,
+        title,
+        artist,
+        creator: 'Motor Acústico DSP',
+        difficulty_name: 'Difícil',
+        stars: analysis.stars,
+        bpm: analysis.bpm,
+        firstBeatOffsetMs: analysis.firstBeatOffsetMs,
+        total_notes: analysis.notes.length,
+        source_keys: 5,
+        num_lanes: 3
+      }
+    };
+  }
+}
+
+// ==========================================
+// 10. LRCLIB SYNCED LYRICS HELPER (Letras de Karaoke Automáticas)
+// ==========================================
+
+class LrcLibLyricsHelper {
+  static parseLrcString(lrcText = '') {
+    if (!lrcText || typeof lrcText !== 'string') return [];
+    const lines = lrcText.split(/\r?\n/);
+    const entries = [];
+    const timeRegex = /\[(\d{1,3}):(\d{2})(?:\.(\d{1,3}))?\]/g;
+
+    for (const rawLine of lines) {
+      const text = rawLine.replace(timeRegex, '').trim();
+      if (!text) continue;
+      let match;
+      timeRegex.lastIndex = 0;
+      while ((match = timeRegex.exec(rawLine)) !== null) {
+        const min = parseInt(match[1], 10) || 0;
+        const sec = parseInt(match[2], 10) || 0;
+        const fracStr = (match[3] || '0').padEnd(3, '0').slice(0, 3);
+        const ms = parseInt(fracStr, 10) || 0;
+        const totalMs = min * 60000 + sec * 1000 + ms;
+        entries.push({ timeMs: totalMs, text });
+      }
+    }
+
+    entries.sort((a, b) => a.timeMs - b.timeMs);
+    return entries;
+  }
+
+  static async fetchSyncedLyrics(title, artist, durationSec = 0) {
+    const cleanTitle = String(title || '').replace(/\([^)]*\)|\[[^\]]*\]/g, '').trim();
+    const cleanArtist = String(artist || '').replace(/\b(Estudio Acústico DSP|Artista Local|MIDI|Unknown)\b/gi, '').trim();
+    if (!cleanTitle || cleanTitle.length < 2) return [];
+
+    const query = encodeURIComponent(`${cleanTitle} ${cleanArtist}`.trim());
+    const urls = [
+      `/api/v1/lyrics?q=${query}&title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}`,
+      `https://lrclib.net/api/search?q=${query}`
+    ];
+
+    for (const url of urls) {
+      try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 3200);
+        const res = await fetch(url, { signal: ctrl.signal });
+        clearTimeout(timer);
+        if (!res.ok) continue;
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (Array.isArray(data?.results) ? data.results : []);
+        const withSynced = list.find(item => item && typeof item.syncedLyrics === 'string' && item.syncedLyrics.trim().length > 20);
+        if (withSynced) {
+          return this.parseLrcString(withSynced.syncedLyrics);
+        }
+      } catch (_) {}
+    }
+    return [];
+  }
+
+  static attachLyricsToNotes(notes = [], lrcEntries = []) {
+    if (!Array.isArray(notes) || notes.length === 0 || !Array.isArray(lrcEntries) || lrcEntries.length === 0) {
+      return notes;
+    }
+
+    for (const line of lrcEntries) {
+      const words = line.text.split(/\s+/).filter(Boolean);
+      if (words.length === 0) continue;
+
+      // Buscar las notas más cercanas dentro de la ventana de este verso
+      let startIdx = -1;
+      let bestDist = Infinity;
+      for (let i = 0; i < notes.length; i++) {
+        const nMs = notes[i].timestamp_ms ?? notes[i].timeMs ?? 0;
+        const d = Math.abs(nMs - line.timeMs);
+        if (d < bestDist && d <= 1800) {
+          bestDist = d;
+          startIdx = i;
+        }
+      }
+      if (startIdx === -1) continue;
+
+      for (let w = 0; w < words.length && (startIdx + w) < notes.length; w++) {
+        const targetNote = notes[startIdx + w];
+        if (!targetNote.lyric) {
+          targetNote.lyric = words[w];
+        }
+      }
+    }
+    return notes;
+  }
+}
+
 // Export to global window scope
 window.LaneRemapper = LaneRemapper;
 window.OsuManiaParser = OsuManiaParser;
@@ -3130,3 +3751,6 @@ window.SngUnpacker = SngUnpacker;
 window.PackageUnpacker = PackageUnpacker;
 window.IndexedDBStorage = IndexedDBStorage;
 window.UltraStarParser = UltraStarParser;
+window.AudioAutoMapper = AudioAutoMapper;
+window.LrcLibLyricsHelper = LrcLibLyricsHelper;
+
