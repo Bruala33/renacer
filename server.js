@@ -3715,14 +3715,120 @@ async function getSoundCloudClientIdServer() {
   return _cachedSoundCloudClientId || '';
 }
 
+function convertFmp4ToAdtsAacServer(fullBuffer) {
+  const buf = Buffer.isBuffer(fullBuffer) ? fullBuffer : Buffer.from(fullBuffer);
+  let profile = 1;
+  let freqIdx = 4;
+  let chanCfg = 2;
+
+  const limit = Math.min(buf.length - 16, 4096);
+  for (let i = 0; i < limit; i++) {
+    if (buf[i] === 0x65 && buf[i + 1] === 0x73 && buf[i + 2] === 0x64 && buf[i + 3] === 0x73) {
+      const esdsEnd = Math.min(buf.length - 4, i + 128);
+      for (let j = i + 8; j < esdsEnd; j++) {
+        if (buf[j] === 0x05) {
+          let k = j + 1;
+          while (k < esdsEnd && (buf[k] & 0x80)) k++;
+          const dsiLen = buf[k++];
+          if (dsiLen >= 2 && k + 2 <= buf.length) {
+            const b0 = buf[k];
+            const b1 = buf[k + 1];
+            const audioObjectType = (b0 >> 3) & 0x1F;
+            const samplingFreqIndex = ((b0 & 0x07) << 1) | ((b1 >> 7) & 0x01);
+            const channelConfig = (b1 >> 3) & 0x0F;
+            if (audioObjectType >= 1 && audioObjectType <= 5 && samplingFreqIndex <= 12 && channelConfig >= 1 && channelConfig <= 7) {
+              profile = 1;
+              freqIdx = samplingFreqIndex;
+              chanCfg = channelConfig;
+              break;
+            }
+          }
+        }
+      }
+      break;
+    }
+  }
+
+  const adtsChunks = [];
+  let pendingSampleSizes = [];
+
+  function parseMoofForTrunSizes(moofStart, moofEnd) {
+    const sizes = [];
+    let p = moofStart;
+    while (p + 8 <= moofEnd) {
+      const sz = buf.readUInt32BE(p);
+      const tp = buf.slice(p + 4, p + 8).toString('ascii');
+      if (sz < 8 || p + sz > moofEnd) break;
+      if (tp === 'traf') {
+        sizes.push(...parseMoofForTrunSizes(p + 8, p + sz));
+      } else if (tp === 'trun') {
+        const flags = buf.readUInt32BE(p + 8) & 0xFFFFFF;
+        const sampleCount = buf.readUInt32BE(p + 12);
+        let cursor = p + 16;
+        if (flags & 0x001) cursor += 4;
+        if (flags & 0x004) cursor += 4;
+        for (let s = 0; s < sampleCount; s++) {
+          let sSize = 0;
+          if (flags & 0x100) cursor += 4;
+          if (flags & 0x200) { sSize = buf.readUInt32BE(cursor); cursor += 4; }
+          if (flags & 0x400) cursor += 4;
+          if (flags & 0x800) cursor += 4;
+          if (sSize > 0) sizes.push(sSize);
+        }
+      }
+      p += sz;
+    }
+    return sizes;
+  }
+
+  let off = 0;
+  while (off + 8 <= buf.length) {
+    const size = buf.readUInt32BE(off);
+    const type = buf.slice(off + 4, off + 8).toString('ascii');
+    if (size < 8 || off + size > buf.length) break;
+    if (type === 'moof') {
+      pendingSampleSizes = parseMoofForTrunSizes(off + 8, off + size);
+    } else if (type === 'mdat' && pendingSampleSizes.length > 0) {
+      let dataCursor = off + 8;
+      const mdatEnd = off + size;
+      for (const frameLen of pendingSampleSizes) {
+        if (dataCursor + frameLen > mdatEnd) break;
+        const adtsLen = frameLen + 7;
+        const header = Buffer.alloc(7);
+        header[0] = 0xFF;
+        header[1] = 0xF1;
+        header[2] = ((profile & 0x03) << 6) | ((freqIdx & 0x0F) << 2) | ((chanCfg >> 2) & 0x01);
+        header[3] = ((chanCfg & 0x03) << 6) | ((adtsLen >> 11) & 0x03);
+        header[4] = (adtsLen >> 3) & 0xFF;
+        header[5] = ((adtsLen & 0x07) << 5) | 0x1F;
+        header[6] = 0xFC;
+        adtsChunks.push(header, buf.slice(dataCursor, dataCursor + frameLen));
+        dataCursor += frameLen;
+      }
+      pendingSampleSizes = [];
+    }
+    off += size;
+  }
+
+  return adtsChunks.length > 0 ? Buffer.concat(adtsChunks) : fullBuffer;
+}
+
 async function downloadSoundCloudTrackBufferServer(tr, clientId) {
   if (!tr || !clientId) return null;
   const transcodings = Array.isArray(tr?.media?.transcodings) ? tr.media.transcodings : [];
   if (!transcodings.length) return null;
 
-  // Preferir: 1) progressive audio/mpeg, 2) hls audio/mpeg no cifrado, 3) hls audio/mp4 no cifrado
+  // Preferir: 1) progressive audio/mpeg (MP3 directo), 2) hls audio/mpeg (MP3 HLS), 3) hls audio/mp4 (convertido a ADTS AAC)
   const sortedTrans = transcodings
-    .filter(t => t && t.url && !t.is_legacy_transcoding && !String(t.preset || '').includes('cbc') && !String(t?.format?.protocol || '').includes('encrypted'))
+    .filter(t => {
+      if (!t || !t.url || t.snipped) return false;
+      const proto = String(t?.format?.protocol || '');
+      const mime = String(t?.format?.mime_type || '');
+      if (proto !== 'progressive' && proto !== 'hls') return false;
+      if (mime.includes('mpegurl')) return false;
+      if (String(t.preset || '').includes('cbc') || proto.includes('encrypted')) return false;
+      return true;
+    })
     .sort((a, b) => {
       const rank = (x) => {
         const proto = String(x?.format?.protocol || '');
@@ -3754,7 +3860,7 @@ async function downloadSoundCloudTrackBufferServer(tr, clientId) {
       if (proto === 'progressive') {
         const dl = await fetchAudioBufferSafe(streamObj.url, 8000);
         if (dl && dl.buffer && dl.buffer.length >= 65000) {
-          return { buffer: dl.buffer, contentType: mime };
+          return { buffer: dl.buffer, contentType: 'audio/mpeg' };
         }
       } else if (proto === 'hls') {
         const m3u8Res = await fetch(streamObj.url, {
@@ -3763,7 +3869,7 @@ async function downloadSoundCloudTrackBufferServer(tr, clientId) {
         });
         if (!m3u8Res.ok) continue;
         const m3u8Text = await m3u8Res.text();
-        if (m3u8Text.includes('#EXT-X-KEY')) continue; // Saltar streams cifrados
+        if (m3u8Text.includes('#EXT-X-KEY')) continue;
 
         const urlsToDownload = [];
         const mapMatch = m3u8Text.match(/#EXT-X-MAP:URI="([^"]+)"/);
@@ -3776,7 +3882,7 @@ async function downloadSoundCloudTrackBufferServer(tr, clientId) {
           .filter(l => l.startsWith('http://') || l.startsWith('https://'));
         urlsToDownload.push(...segLines);
 
-        if (urlsToDownload.length === 0 || urlsToDownload.length > 80) continue;
+        if (urlsToDownload.length === 0 || urlsToDownload.length > 85) continue;
 
         const segBuffers = await Promise.all(urlsToDownload.map(async (u) => {
           const sr = await fetch(u, {
@@ -3789,6 +3895,10 @@ async function downloadSoundCloudTrackBufferServer(tr, clientId) {
 
         const fullBuf = Buffer.concat(segBuffers);
         if (fullBuf.length >= 65000) {
+          if (mime.includes('mp4')) {
+            const adtsBuf = convertFmp4ToAdtsAacServer(fullBuf);
+            return { buffer: adtsBuf, contentType: 'audio/aac' };
+          }
           return { buffer: fullBuf, contentType: mime };
         }
       }
@@ -3827,10 +3937,16 @@ async function searchSoundCloudFullCandidatesServer(searchQuery, rawTitle = '', 
         if (!tr || !tr.id || seenIds.has(tr.id)) continue;
         const durMs = Number(tr.duration || 0);
         const fullDurMs = Number(tr.full_duration || durMs);
-        // Excluir previews de 30s de SoundCloud Go+ (donde duration <= 35000 y full_duration > 45000) y pistas < 52s o > 10min
         if (durMs < 52000 || durMs > 600000) continue;
         if (fullDurMs > 45000 && durMs <= 35000) continue;
-        if (!Array.isArray(tr?.media?.transcodings) || tr.media.transcodings.length === 0) continue;
+        const validTrans = (tr?.media?.transcodings || []).filter(t =>
+          t && t.url && !t.snipped &&
+          (t.format?.protocol === 'progressive' || t.format?.protocol === 'hls') &&
+          !String(t.format?.mime_type || '').includes('mpegurl') &&
+          !String(t.preset || '').includes('cbc') &&
+          !String(t.format?.protocol || '').includes('encrypted')
+        );
+        if (validTrans.length === 0) continue;
         seenIds.add(tr.id);
 
         const trackTitle = String(tr.title || '').trim();
@@ -4164,66 +4280,7 @@ app.get('/api/v1/audio/extract', async (req, res) => {
       } catch (_) {}
     }
 
-    // Etapa 5 (Último recurso extremo): Deezer / Apple Music Studio CDN si ninguna fuente de pista completa respondió
-    if (searchQuery) {
-      try {
-        const [dzOutcome, itOutcome] = await Promise.allSettled([
-          fetch(`https://api.deezer.com/search?q=${encodeURIComponent(searchQuery)}&limit=15`, { signal: AbortSignal.timeout(4000) }).then(r => r.ok ? r.json() : {}),
-          fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(searchQuery)}&media=music&entity=song&limit=15`, { signal: AbortSignal.timeout(4000) }).then(r => r.ok ? r.json() : {})
-        ]);
-
-        const studioCandidates = [];
-        if (dzOutcome.status === 'fulfilled' && Array.isArray(dzOutcome.value?.data)) {
-          for (const t of dzOutcome.value.data) {
-            if (!t || !t.preview) continue;
-            const sc = scoreStudioAudioAuthenticityServer(searchQuery, rawTitle, rawArtist, t.title || '', t.artist?.name || '', t.album?.title || '', 'Deezer');
-            studioCandidates.push({
-              url: t.preview,
-              title: t.title || resolvedMeta.title,
-              artist: t.artist?.name || resolvedMeta.artist,
-              cover: t.album?.cover_big || t.album?.cover_medium || resolvedMeta.thumbnail,
-              source: 'Deezer Studio Audio',
-              mime: 'audio/mpeg',
-              score: sc
-            });
-          }
-        }
-        if (itOutcome.status === 'fulfilled' && Array.isArray(itOutcome.value?.results)) {
-          for (const t of itOutcome.value.results) {
-            if (!t || !t.previewUrl) continue;
-            const sc = scoreStudioAudioAuthenticityServer(searchQuery, rawTitle, rawArtist, t.trackName || '', t.artistName || '', t.collectionName || '', 'AppleMusic');
-            studioCandidates.push({
-              url: t.previewUrl,
-              title: t.trackName || resolvedMeta.title,
-              artist: t.artistName || resolvedMeta.artist,
-              cover: (t.artworkUrl100 || '').replace('100x100bb', '600x600bb') || resolvedMeta.thumbnail,
-              source: 'Apple Music Studio',
-              mime: 'audio/mp4',
-              score: sc
-            });
-          }
-        }
-
-        studioCandidates.sort((a, b) => b.score - a.score);
-        for (const best of studioCandidates.slice(0, 3)) {
-          if (best.score < 42) break;
-          try {
-            const dl = await fetchAudioBufferSafe(best.url, 6500);
-            if (dl && dl.buffer) {
-              res.setHeader('Content-Type', dl.contentType || best.mime);
-              res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source');
-              res.setHeader('X-Song-Title', encodeURIComponent(best.title));
-              res.setHeader('X-Song-Artist', encodeURIComponent(best.artist));
-              res.setHeader('X-Song-Cover', encodeURIComponent(best.cover || ''));
-              res.setHeader('X-Audio-Source', encodeURIComponent(best.source));
-              return res.send(dl.buffer);
-            }
-          } catch (_) {}
-        }
-      } catch (_) {}
-    }
-
-    return res.status(404).json({ error: 'No se pudo extraer el flujo de audio desde ninguna fuente.' });
+    return res.status(404).json({ error: 'No se pudo extraer el flujo de audio completo desde ninguna fuente.' });
   } catch (err) {
     return res.status(500).json({ error: err.message || 'Error en extractor de audio' });
   }
