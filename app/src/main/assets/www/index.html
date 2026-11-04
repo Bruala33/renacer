@@ -9932,6 +9932,102 @@ function detenerPaginacionPiano() {
 
 
 
+    function buildMagicSongKeyHtml(opts = {}) {
+      const rawTitle = String(opts.queryTitle || 'Canción Mágica').trim();
+      const rawArtist = String(opts.queryArtist || '').trim();
+      const thumbUrl = String(opts.thumbUrl || '').trim();
+      const uniqueId = String(opts.uniqueId || 'magic_search_key').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const isPlaylistUrlOrId = Boolean(opts.isPlaylistUrlOrId);
+      const statusText = String(opts.statusText || (rawArtist ? `${rawArtist} • Audio Real + DSP` : 'Creación instantánea • 5 dificultades')).trim();
+
+      const safeTitleAttr = escapeHtml(rawTitle).replace(/'/g, "\\'");
+      const safeArtistAttr = escapeHtml(rawArtist).replace(/'/g, "\\'");
+      const safeThumbAttr = escapeHtml(thumbUrl).replace(/'/g, "\\'");
+
+      return `
+        <div class="piano-key-row flex flex-col">
+          <div class="flex items-stretch w-full max-w-full overflow-hidden">
+            <!-- Iridescent Magic Piano Key Body (Opens Accordion like a normal song) -->
+            <div onclick="togglePianoAccordion('${uniqueId}')" class="piano-white-key piano-magic-key flex-1 min-w-0 overflow-hidden" title="Desplegar niveles de la Tecla Mágica">
+              <div class="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
+                <!-- Animated Astral Medallion -->
+                <div class="piano-key-thumb magic-key-medallion relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center">
+                  ${thumbUrl ? `<img src="${escapeHtml(thumbUrl)}" alt="" class="w-full h-full object-cover rounded-full opacity-85" onerror="this.style.display='none'">` : ''}
+                  <svg class="magic-key-medallion-spin absolute inset-0 w-full h-full p-0.5 pointer-events-none" viewBox="0 0 36 36" fill="none">
+                    <circle cx="18" cy="18" r="15" stroke="url(#magicGrad_${uniqueId})" stroke-width="1.6" stroke-dasharray="5 3" />
+                    <defs>
+                      <linearGradient id="magicGrad_${uniqueId}" x1="0" y1="0" x2="36" y2="36">
+                        <stop offset="0%" stop-color="#fde68a"/>
+                        <stop offset="50%" stop-color="#e879f9"/>
+                        <stop offset="100%" stop-color="#38bdf8"/>
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="relative z-10 drop-shadow">
+                    <path d="M12 2L14.6 9.4L22 12L14.6 14.6L12 22L9.4 14.6L2 12L9.4 9.4L12 2Z" fill="#fef08a" stroke="#a855f7" stroke-width="1.2"/>
+                  </svg>
+                </div>
+                <!-- Track Metadata -->
+                <div class="min-w-0 flex-1 flex flex-col justify-center overflow-hidden">
+                  <div class="flex items-center gap-1.5 truncate">
+                    <h3 class="text-xs font-black magic-key-title truncate font-serif leading-tight">${escapeHtml(rawTitle)}</h3>
+                  </div>
+                  <div class="flex items-center gap-1.5 truncate mt-0.5">
+                    <span class="magic-pill-badge flex-shrink-0">Tecla Mágica</span>
+                    <p id="magicKeySub_${uniqueId}" class="text-[10px] text-[#581c87] font-semibold truncate leading-tight">${escapeHtml(statusText)}</p>
+                  </div>
+                </div>
+              </div>
+              <!-- Star Metric & Accordion Arrow -->
+              <div class="flex items-center gap-1.5 flex-shrink-0 ml-1.5">
+                <span class="text-[10.5px] font-black text-[#7e22ce] font-mono whitespace-nowrap">★ AUTO</span>
+                <span id="accordionArrow_${uniqueId}" class="text-[9px] text-[#7e22ce] transition-transform duration-200">▼</span>
+              </div>
+            </div>
+
+            <!-- Fixed 3D Amethyst-Gold Play Key -->
+            <div
+              onclick="event.stopPropagation(); autoExtractAndPlaySong('${safeTitleAttr}', '${safeArtistAttr}', '${safeThumbAttr}', 'hard')"
+              class="piano-black-play-key piano-magic-play-key flex-shrink-0 w-12 min-w-[48px]"
+              title="Generar pista y jugar (${escapeHtml(rawTitle)})"
+            >
+              <span class="play-arrow-gold">▶</span>
+            </div>
+          </div>
+
+          <!-- Soundboard Accordion ("Caja de Resonancia Mágica") -->
+          <div id="pianoAccordion_${uniqueId}" class="piano-soundboard-accordion">
+            <div class="p-2.5 space-y-2" style="background: linear-gradient(180deg, rgba(28, 12, 48, 0.96) 0%, rgba(15, 10, 28, 0.99) 100%);">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <span class="text-[9px] font-bold text-[#e9d5ff] uppercase tracking-wider">Dificultades de Síntesis Automática</span>
+                  <span class="text-[9px] font-bold text-[#fde68a] font-mono">Audio Original + 3 Carriles</span>
+                </div>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <button type="button" onclick="autoExtractAndPlaySong('${safeTitleAttr}', '${safeArtistAttr}', '${safeThumbAttr}', 'easy')" class="piano-diff-chip tier-easy">
+                    <span>Fácil</span><span class="font-mono text-[9.5px] opacity-90">1.8★</span>
+                  </button>
+                  <button type="button" onclick="autoExtractAndPlaySong('${safeTitleAttr}', '${safeArtistAttr}', '${safeThumbAttr}', 'medium')" class="piano-diff-chip tier-medium">
+                    <span>Media</span><span class="font-mono text-[9.5px] opacity-90">3.1★</span>
+                  </button>
+                  <button type="button" onclick="autoExtractAndPlaySong('${safeTitleAttr}', '${safeArtistAttr}', '${safeThumbAttr}', 'hard')" class="piano-diff-chip tier-hard active">
+                    <span>Difícil</span><span class="font-mono text-[9.5px] opacity-90">4.5★</span>
+                  </button>
+                  <button type="button" onclick="autoExtractAndPlaySong('${safeTitleAttr}', '${safeArtistAttr}', '${safeThumbAttr}', 'extreme')" class="piano-diff-chip tier-extreme">
+                    <span>Extrema</span><span class="font-mono text-[9.5px] opacity-90">6.2★</span>
+                  </button>
+                  <button type="button" onclick="autoExtractAndPlaySong('${safeTitleAttr}', '${safeArtistAttr}', '${safeThumbAttr}', 'impossible')" class="piano-diff-chip tier-impossible">
+                    <span>Imposible</span><span class="font-mono text-[9.5px] opacity-90">8.4★</span>
+                  </button>
+                  ${isPlaylistUrlOrId ? `<button type="button" onclick="importCuratedPlaylist('${safeTitleAttr}', 'Playlist de YouTube')" class="ml-auto px-2.5 py-1 rounded-lg text-[9.5px] font-black uppercase bg-amber-400 text-[#140e06] cursor-pointer shadow">Importar Playlist</button>` : ''}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     function renderSearchResultsPage(page) {
       detenerPaginacionPiano();
       stopPianoCameraLoop();
@@ -9946,43 +10042,20 @@ function detenerPaginacionPiano() {
 
       const cardsHtml = pageItems.map((item, idx) => buildSongCardHtml(item, startIndex + idx, targetTier)).join('');
       const activeQ = String(window.lastSearchedQuery || (document.getElementById('searchInput') && document.getElementById('searchInput').value) || '').trim();
-      const topRelevance = items[0] && typeof items[0].relevanceScore === 'number' ? items[0].relevanceScore : 100;
       const isTopFilterActive = Boolean(document.getElementById('filterOnlyTopSongs')?.checked || window.isKaraokeModeActive);
       const showAutoExtractorBanner = Boolean(page === 1 && activeQ.length >= 2 && !isTopFilterActive);
-      const safeQAttr = escapeHtml(activeQ).replace(/'/g, "\\'");
       const isPlaylistUrlOrId = Boolean(activeQ.includes('list=') || /^PL[A-Za-z0-9_-]{12,}$/.test(activeQ) || /^OLAK5uy_[A-Za-z0-9_-]+$/.test(activeQ));
 
-      const autoExtractorBannerHtml = showAutoExtractorBanner ? `
-        <div class="piano-key-row flex flex-col mb-2 border border-amber-500/50 rounded-xl overflow-hidden shadow-lg" style="background: linear-gradient(135deg, rgba(28, 19, 38, 0.96), rgba(17, 24, 39, 0.98));">
-          <div class="p-3 flex items-center justify-between gap-3">
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-1.5 flex-wrap">
-                <span class="px-1.5 py-0.5 rounded text-[8.5px] font-mono font-black uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40">[EXTRACTOR DE AUDIO + MOTOR DSP]</span>
-                ${topRelevance < 85 ? `<span class="px-1.5 py-0.5 rounded text-[8.5px] font-mono font-bold uppercase bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">Recomendado</span>` : ''}
-              </div>
-              <h3 class="text-xs font-black text-amber-100 truncate font-serif mt-1">Generar pista automática: "${escapeHtml(activeQ)}"</h3>
-              <p class="text-[10px] text-amber-200/75 leading-snug mt-0.5">Extrae el audio original (YouTube / Audius / Deezer / Apple Music) y crea el mapa de 3 carriles al instante.</p>
-            </div>
-            <button
-              type="button"
-              onclick="autoExtractAndPlaySong('${safeQAttr}', '', '', 'hard')"
-              class="px-3 py-2 rounded-xl font-black text-[10px] uppercase tracking-wider text-[#140e06] bg-gradient-to-b from-[#fde68a] via-[#f59e0b] to-[#b45309] border border-[#fef3c7] shadow flex-shrink-0 cursor-pointer active:scale-95 transition"
-              title="Extraer audio y jugar ahora"
-            >
-              ▶ Generar y Jugar
-            </button>
-          </div>
-          <div class="px-3 pb-2.5 pt-1.5 border-t border-white/10 flex items-center gap-1.5 flex-wrap">
-            <span class="text-[9px] font-bold text-amber-300/80 uppercase tracking-wider mr-1">Dificultad directa:</span>
-            <button type="button" onclick="autoExtractAndPlaySong('${safeQAttr}', '', '', 'easy')" class="piano-diff-chip tier-easy"><span>Fácil</span></button>
-            <button type="button" onclick="autoExtractAndPlaySong('${safeQAttr}', '', '', 'medium')" class="piano-diff-chip tier-medium"><span>Media</span></button>
-            <button type="button" onclick="autoExtractAndPlaySong('${safeQAttr}', '', '', 'hard')" class="piano-diff-chip tier-hard active"><span>Difícil</span></button>
-            <button type="button" onclick="autoExtractAndPlaySong('${safeQAttr}', '', '', 'extreme')" class="piano-diff-chip tier-extreme"><span>Extrema</span></button>
-            <button type="button" onclick="autoExtractAndPlaySong('${safeQAttr}', '', '', 'impossible')" class="piano-diff-chip tier-impossible"><span>Imposible</span></button>
-            ${isPlaylistUrlOrId ? `<button type="button" onclick="importCuratedPlaylist('${safeQAttr}', 'Playlist de YouTube')" class="ml-auto px-2.5 py-1 rounded-lg text-[9.5px] font-black uppercase bg-amber-500 text-black cursor-pointer">Importar Playlist</button>` : ''}
-          </div>
-        </div>
-      ` : '';
+      const autoExtractorBannerHtml = showAutoExtractorBanner
+        ? buildMagicSongKeyHtml({
+            queryTitle: activeQ,
+            queryArtist: '',
+            thumbUrl: '',
+            uniqueId: 'magic_search_top',
+            isPlaylistUrlOrId,
+            statusText: 'Generar pista jugable al instante'
+          })
+        : '';
 
       container.innerHTML = `
         <div class="piano-keyboard-bed" id="pianoKeyboardBed">
@@ -10912,35 +10985,21 @@ function stopPianoCameraLoop() {
         const isTopFilterActive = Boolean(document.getElementById('filterOnlyTopSongs')?.checked || window.isKaraokeModeActive);
 
         if (activeQ.length >= 2 && !isTopFilterActive) {
+          const isPlaylistUrlOrId = Boolean(activeQ.includes('list=') || /^PL[A-Za-z0-9_-]{12,}$/.test(activeQ) || /^OLAK5uy_[A-Za-z0-9_-]+$/.test(activeQ));
           container.innerHTML = `
             ${partialWarnHtml}
-            <div class="p-5 text-center text-xs text-gray-200 glass-card space-y-3 border border-amber-500/40">
-              <div class="inline-block px-2 py-0.5 rounded text-[9px] font-mono font-black uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                [AUTO-EXTRACTOR MULTI-MOTOR + DSP]
-              </div>
-              <p class="font-black text-sm text-amber-100 font-serif">No había un mapa prefabricado para "${escapeHtml(activeQ)}"</p>
-              <p id="autoSearchExtractStatus" class="text-[11px] text-amber-200/85 max-w-[340px] mx-auto leading-relaxed">
-                Extrayendo automáticamente el audio de la canción y generando las 5 dificultades...
-              </p>
-              <div class="flex items-center justify-center gap-2 pt-1 flex-wrap">
-                <button
-                  type="button"
-                  onclick="autoExtractAndPlaySong('${safeQAttr}', '', '', 'hard')"
-                  class="px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider text-[#140e06] bg-gradient-to-b from-[#fde68a] via-[#f59e0b] to-[#b45309] border border-[#fef3c7] shadow cursor-pointer"
-                >
-                  ▶ Extraer Audio y Jugar Ahora
-                </button>
-              </div>
-              <div class="flex items-center justify-center gap-1.5 flex-wrap pt-1">
-                <button type="button" onclick="autoExtractAndPlaySong('${safeQAttr}', '', '', 'easy')" class="piano-diff-chip tier-easy"><span>Fácil</span></button>
-                <button type="button" onclick="autoExtractAndPlaySong('${safeQAttr}', '', '', 'medium')" class="piano-diff-chip tier-medium"><span>Media</span></button>
-                <button type="button" onclick="autoExtractAndPlaySong('${safeQAttr}', '', '', 'hard')" class="piano-diff-chip tier-hard active"><span>Difícil</span></button>
-                <button type="button" onclick="autoExtractAndPlaySong('${safeQAttr}', '', '', 'extreme')" class="piano-diff-chip tier-extreme"><span>Extrema</span></button>
-                <button type="button" onclick="autoExtractAndPlaySong('${safeQAttr}', '', '', 'impossible')" class="piano-diff-chip tier-impossible"><span>Imposible</span></button>
-              </div>
+            <div class="piano-keyboard-bed" id="pianoKeyboardBed">
+              <div class="piano-felt-top-strip"></div>
+              ${buildMagicSongKeyHtml({
+                queryTitle: activeQ,
+                queryArtist: '',
+                thumbUrl: '',
+                uniqueId: 'magic_search_empty',
+                isPlaylistUrlOrId,
+                statusText: 'Sintetizando audio y creando pista...'
+              })}
             </div>
           `;
-          // Lanzar automáticamente la extracción y generación en segundo plano para mostrar la tarjeta lista en el buscador
           autoExtractAndInjectIntoSearch(activeQ);
           return;
         }
@@ -13583,14 +13642,17 @@ function stopPianoCameraLoop() {
 
     async function autoExtractAndInjectIntoSearch(queryStr) {
       if (!queryStr || queryStr.length < 2) return;
-      const statusEl = document.getElementById('autoSearchExtractStatus');
+      const getStatusEl = () => document.getElementById('magicKeySub_magic_search_empty') || document.getElementById('autoSearchExtractStatus');
       try {
         const { chartItem } = await buildAndSaveAutoExtractedSong(
           queryStr,
           '',
           '',
           'hard',
-          (msg) => { if (statusEl) statusEl.innerText = msg; }
+          (msg) => {
+            const el = getStatusEl();
+            if (el) el.innerText = msg;
+          }
         );
         chartItem.relevanceScore = 150;
         if (!Array.isArray(searchResultsCache)) searchResultsCache = [];
@@ -13603,8 +13665,9 @@ function stopPianoCameraLoop() {
           renderSearchResultsPage(1);
         }
       } catch (err) {
-        if (statusEl) {
-          statusEl.innerText = 'Pulsa "Extraer Audio y Jugar Ahora" para reintentar la generación automática.';
+        const el = getStatusEl();
+        if (el) {
+          el.innerText = 'Pulsa ▶ para extraer el audio y jugar al instante';
         }
       }
     }
@@ -13943,14 +14006,6 @@ function stopPianoCameraLoop() {
                     </div>
                   </div>
                   <div class="flex items-center gap-1 flex-shrink-0 ml-1.5">
-                    <button
-                      type="button"
-                      onclick="event.stopPropagation(); autoExtractPlaylistTrackByIndex(${idx})"
-                      class="px-2 py-1 rounded-lg bg-gradient-to-b from-[#fde68a] via-[#f59e0b] to-[#b45309] border border-[#78350f]/40 text-[#140e06] text-[9px] font-black uppercase tracking-tight shadow-sm cursor-pointer active:scale-95 transition"
-                      title="Extraer audio y generar pista automáticamente"
-                    >
-                      Generar Pista
-                    </button>
                     <button onclick="event.stopPropagation(); removeTrackFromPlaylistAction('${safePlId}', '${safeTrackId}')" class="w-6 h-6 rounded-full hover:bg-black/10 text-[#8e755a] hover:text-red-700 text-[10px] font-bold flex items-center justify-center cursor-pointer transition" title="Quitar de la playlist">✕</button>
                   </div>
                 </div>
@@ -14211,34 +14266,15 @@ function stopPianoCameraLoop() {
       const safeGenThumb = escapeHtml(genThumb).replace(/'/g, "\\'");
 
       const autoGenCardHtml = `
-        <div class="yt-match-card best-match mb-2.5" style="border-color: #f59e0b; background: linear-gradient(135deg, #fffbeb, #fef3c7);">
-          <div class="flex items-center justify-between gap-2.5">
-            <div class="flex items-center gap-2.5 min-w-0 flex-1">
-              <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-[#b45309] bg-[#140e06] flex-shrink-0 shadow">
-                <img src="${escapeHtml(genThumb)}" onerror="this.onerror=null; this.src='./app_logo.png';" alt="" class="w-full h-full object-cover">
-              </div>
-              <div class="min-w-0 flex-1">
-                <div class="flex items-center gap-1.5 flex-wrap">
-                  <span class="px-1.5 py-0.2 rounded text-[8px] font-mono font-black uppercase bg-amber-500/30 text-[#78350f] border border-amber-600/50">[AUDIO REAL + MOTOR DSP]</span>
-                </div>
-                <h4 class="text-xs font-black text-[#140e06] font-serif truncate leading-tight mt-0.5">Generar Pista Automática: ${escapeHtml(genTitle)}</h4>
-                <p class="text-[10px] text-[#5a422d] font-semibold truncate leading-tight">${escapeHtml(genArtist || 'Extraer audio original y mapear 5 dificultades')}</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onclick="event.stopPropagation(); autoExtractAndPlaySong('${safeGenTitle}', '${safeGenArtist}', '${safeGenThumb}', 'hard')"
-              class="vegas-play-fab"
-              title="Extraer audio y jugar ahora"
-            >▶</button>
-          </div>
-          <div class="flex items-center gap-1.5 flex-wrap mt-2 pt-1.5 border-t border-[#c5a059]/40">
-            <button type="button" onclick="event.stopPropagation(); autoExtractAndPlaySong('${safeGenTitle}', '${safeGenArtist}', '${safeGenThumb}', 'easy')" class="yt-match-diff-pill">Fácil ★1.8</button>
-            <button type="button" onclick="event.stopPropagation(); autoExtractAndPlaySong('${safeGenTitle}', '${safeGenArtist}', '${safeGenThumb}', 'medium')" class="yt-match-diff-pill">Media ★3.1</button>
-            <button type="button" onclick="event.stopPropagation(); autoExtractAndPlaySong('${safeGenTitle}', '${safeGenArtist}', '${safeGenThumb}', 'hard')" class="yt-match-diff-pill">Difícil ★4.5</button>
-            <button type="button" onclick="event.stopPropagation(); autoExtractAndPlaySong('${safeGenTitle}', '${safeGenArtist}', '${safeGenThumb}', 'extreme')" class="yt-match-diff-pill">Extrema ★6.2</button>
-            <button type="button" onclick="event.stopPropagation(); autoExtractAndPlaySong('${safeGenTitle}', '${safeGenArtist}', '${safeGenThumb}', 'impossible')" class="yt-match-diff-pill">Imposible ★8.4</button>
-          </div>
+        <div class="mb-2.5">
+          ${buildMagicSongKeyHtml({
+            queryTitle: genTitle,
+            queryArtist: genArtist,
+            thumbUrl: genThumb,
+            uniqueId: 'magic_playlist_matcher',
+            isPlaylistUrlOrId: false,
+            statusText: genArtist ? `${genArtist} • Crear pista mágica` : 'Extraer audio y crear 5 dificultades'
+          })}
         </div>
       `;
 
