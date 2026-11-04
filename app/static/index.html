@@ -7886,6 +7886,7 @@ window.switchMainTab = switchMainTab;
                 download_url: `/api/v1/download/osu/${setId}`,
                 direct_download_url: `https://api.nerinyan.moe/d/${setId}?noVideo=true`,
                 fallback_download_url: `https://dl.nerinyan.moe/v2/d/${setId}?noVideo=true`,
+                preview_url: `https://b.ppy.sh/preview/${setId}.mp3`,
                 bpm: item.bpm || 120,
                 difficulties: diffs
               });
@@ -7946,6 +7947,7 @@ window.switchMainTab = switchMainTab;
                 download_url: `/api/v1/download/osu/${setId}`,
                 direct_download_url: `https://api.nerinyan.moe/d/${setId}?noVideo=true`,
                 fallback_download_url: `https://dl.nerinyan.moe/v2/d/${setId}?noVideo=true`,
+                preview_url: `https://b.ppy.sh/preview/${setId}.mp3`,
                 bpm: item.bpm || 120,
                 difficulties: diffs
               });
@@ -8005,6 +8007,7 @@ window.switchMainTab = switchMainTab;
                   download_url: `/api/v1/download/osu/${setId}`,
                   direct_download_url: `https://api.nerinyan.moe/d/${setId}?noVideo=true`,
                   fallback_download_url: `https://dl.nerinyan.moe/v2/d/${setId}?noVideo=true`,
+                  preview_url: `https://b.ppy.sh/preview/${setId}.mp3`,
                   bpm: item.bpm || item.BPM || 120,
                   difficulties: diffs
                 });
@@ -8111,6 +8114,7 @@ window.switchMainTab = switchMainTab;
               thumbnail: thumbnail,
               download_url: hash ? `/api/v1/download/beatsaver/${hash}` : directZipUrl,
               direct_download_url: directZipUrl,
+              preview_url: latestVer.previewURL || (hash ? `https://cfcdn.beatsaver.com/${hash}.mp3` : ''),
               bpm: bpm,
               stars: diffs[Math.floor(diffs.length / 2)]?.stars || 3.5,
               difficulties: diffs
@@ -9178,6 +9182,7 @@ window.switchMainTab = switchMainTab;
                 download_url: `/api/v1/download/osu/${setId}`,
                 direct_download_url: `https://api.nerinyan.moe/d/${setId}?noVideo=true`,
                 fallback_download_url: `https://dl.nerinyan.moe/v2/d/${setId}?noVideo=true`,
+                preview_url: `https://b.ppy.sh/preview/${setId}.mp3`,
                 bpm: item.bpm || 120,
                 difficulties: diffs
               });
@@ -9249,6 +9254,7 @@ window.switchMainTab = switchMainTab;
                 thumbnail: thumbnail,
                 download_url: hash ? `/api/v1/download/beatsaver/${hash}` : directZipUrl,
                 direct_download_url: directZipUrl,
+                preview_url: latestVer.previewURL || (hash ? `https://cfcdn.beatsaver.com/${hash}.mp3` : ''),
                 bpm: bpm,
                 stars: diffs[Math.floor(diffs.length / 2)]?.stars || 3.5,
                 difficulties: diffs
@@ -9782,7 +9788,7 @@ window.switchMainTab = switchMainTab;
         for (let i = 0; i < a.length; i++) charCode += a.charCodeAt(i);
         const [c1, c2] = colors[Math.abs(charCode) % colors.length];
         const gid = 'g_' + (Math.abs(charCode) % 997);
-        const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='${gid}' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='${c1}'/><stop offset='100%' stop-color='${c2}'/></linearGradient></defs><circle cx='50' cy='50' r='50' fill='url(#${gid})'/><circle cx='50' cy='50' r='46' fill='none' stroke='#c5a059' stroke-width='1.5' stroke-dasharray='2,3'/><circle cx='50' cy='50' r='20' fill='#111111' stroke='#d4af37' stroke-width='1'/><circle cx='50' cy='50' r='5' fill='#d4af37'/><text x='50' y='54' font-size='12' font-weight='900' font-family='sans-serif' fill='#ffd700' text-anchor='middle' dominant-baseline='middle'>${initials}</text></svg>`;
+        const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='${gid}' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='${c1}'/><stop offset='100%' stop-color='${c2}'/></linearGradient></defs><circle cx='50' cy='50' r='50' fill='url(#${gid})'/><circle cx='50' cy='50' r='46' fill='none' stroke='#c5a059' stroke-width='1.5'/><circle cx='50' cy='50' r='20' fill='#111111' stroke='#d4af37' stroke-width='1'/><circle cx='50' cy='50' r='5' fill='#d4af37'/><text x='50' y='54' font-size='12' font-weight='900' font-family='sans-serif' fill='#ffd700' text-anchor='middle' dominant-baseline='middle'>${initials}</text></svg>`;
         return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
       } catch (_) {
         return './app_logo.png';
@@ -9895,6 +9901,9 @@ window.switchMainTab = switchMainTab;
                 <div class="flex items-center gap-2 flex-wrap">
                   <span class="text-[9.5px] text-gray-400 font-bold uppercase tracking-wider">Tempo:</span>
                   ${renderSongSpeedHtml(item.id).btn}
+                  <button id="catPrevBtn_${sId}" type="button" onclick="event.stopPropagation(); toggleCatalogSongPreview('${escapeHtml(item.id).replace(/'/g, "\\'")}', '${sId}', '${escapeHtml(item.title || '').replace(/'/g, "\\'")}', '${escapeHtml(item.artist || '').replace(/'/g, "\\'")}', '${escapeHtml(item.preview_url || '').replace(/'/g, "\\'")}', '${escapeHtml(item.bs_hash || '').replace(/'/g, "\\'")}')" class="px-2 py-0.5 rounded-md bg-amber-500/15 hover:bg-amber-500/30 border border-amber-400/40 text-[9.5px] font-bold text-amber-200 flex items-center gap-1 cursor-pointer transition" title="Preescuchar canción">
+                    <span>▶ Preescuchar</span>
+                  </button>
                   <button onclick="openPlaylistTrackMatcher('${escapeHtml(item.title || '').replace(/'/g, "\\'")}', '${escapeHtml(item.artist || '').replace(/'/g, "\\'")}', '${escapeHtml(initialCover || '').replace(/'/g, "\\'")}')" class="px-2 py-0.5 rounded-md bg-purple-900/50 hover:bg-purple-800/70 border border-purple-400/35 text-[9.5px] font-bold text-purple-200 flex items-center gap-1 cursor-pointer transition" title="Elegir otra grabación o versión de esta canción">
                     <span>♪ Cambiar versión</span>
                   </button>
@@ -9989,20 +9998,10 @@ function detenerPaginacionPiano() {
             <!-- Iridescent Magic Piano Key Body (Opens Accordion & Loads Studio Versions) -->
             <div onclick="toggleMagicKeyAccordion('${uniqueId}', '${safeTitleAttr}', '${safeArtistAttr}')" class="piano-white-key piano-magic-key flex-1 min-w-0 overflow-hidden" title="Desplegar dificultades y selector de versión">
               <div class="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
-                <!-- Animated Astral Medallion -->
-                <div class="piano-key-thumb magic-key-medallion relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center">
-                  <img id="magicKeyImg_${uniqueId}" src="${escapeHtml(thumbUrl)}" alt="" class="w-full h-full object-cover rounded-full opacity-90 ${thumbUrl ? '' : 'hidden'}" onerror="this.classList.add('hidden')">
-                  <svg class="magic-key-medallion-spin absolute inset-0 w-full h-full p-0.5 pointer-events-none" viewBox="0 0 36 36" fill="none">
-                    <circle cx="18" cy="18" r="15" stroke="url(#magicGrad_${uniqueId})" stroke-width="1.6" stroke-dasharray="5 3" />
-                    <defs>
-                      <linearGradient id="magicGrad_${uniqueId}" x1="0" y1="0" x2="36" y2="36">
-                        <stop offset="0%" stop-color="#fde68a"/>
-                        <stop offset="50%" stop-color="#e879f9"/>
-                        <stop offset="100%" stop-color="#38bdf8"/>
-                      </linearGradient>
-                    </defs>
-                  </svg>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="relative z-10 drop-shadow pointer-events-none">
+                <!-- Clean Medallion Thumbnail (without rotating dashed circle) -->
+                <div class="piano-key-thumb magic-key-medallion relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center border border-[#a855f7]/60 shadow-sm">
+                  <img id="magicKeyImg_${uniqueId}" src="${escapeHtml(thumbUrl)}" alt="" class="w-full h-full object-cover rounded-full ${thumbUrl ? '' : 'hidden'}" onerror="this.classList.add('hidden')">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="relative z-10 drop-shadow pointer-events-none ${thumbUrl ? 'hidden' : ''}" id="magicKeyStar_${uniqueId}">
                     <path d="M12 2L14.6 9.4L22 12L14.6 14.6L12 22L9.4 14.6L2 12L9.4 9.4L12 2Z" fill="#fef08a" stroke="#a855f7" stroke-width="1.2"/>
                   </svg>
                 </div>
@@ -10039,9 +10038,6 @@ function detenerPaginacionPiano() {
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <span class="text-[9px] font-bold text-[#e9d5ff] uppercase tracking-wider">Dificultades Disponibles</span>
-                  <button type="button" onclick="loadMagicKeyAudioCandidates('${uniqueId}', '${safeTitleAttr}', '${safeArtistAttr}', true)" class="text-[9.5px] font-bold text-[#fde68a] hover:text-white underline cursor-pointer">
-                    ♪ Elegir grabación / Preescuchar
-                  </button>
                 </div>
                 <div class="flex items-center gap-1.5 flex-wrap">
                   <button type="button" onclick="autoExtractAndPlaySong('${safeTitleAttr}', '${safeArtistAttr}', '${safeThumbAttr}', 'easy', '${uniqueId}')" class="piano-diff-chip tier-easy">
@@ -13495,6 +13491,7 @@ function stopPianoCameraLoop() {
         ? parsed.coreArtist
         : String(rawArtist || '').replace(/^youtube$/i, '').trim();
       const searchQuery = cleanArtist ? `${cleanTitle} ${cleanArtist}`.trim() : cleanTitle;
+      const baseUrl = (typeof getApiBaseUrl === 'function') ? getApiBaseUrl() : '';
       const myWorker = (u) => `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(u)}`;
 
       const fetchFast = (url, ms = 4200) => {
@@ -13503,7 +13500,9 @@ function stopPianoCameraLoop() {
         return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(tid));
       };
 
-      const [itRes, dzRes, auRes] = await Promise.allSettled([
+      const [scRes, itRes, dzRes, auRes] = await Promise.allSettled([
+        fetchFast(`${baseUrl}/api/v1/audio/candidates?q=${encodeURIComponent(searchQuery)}&title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}`, 4500)
+          .then(r => r.ok ? r.json() : {}),
         fetchFast(`https://itunes.apple.com/search?term=${encodeURIComponent(searchQuery)}&media=music&entity=song&limit=15`, 4200)
           .then(r => r.ok ? r.json() : {}),
         fetchFast(myWorker(`https://api.deezer.com/search?q=${encodeURIComponent(searchQuery)}&limit=15`), 4200)
@@ -13514,17 +13513,47 @@ function stopPianoCameraLoop() {
 
       const rawList = [];
 
+      // 1. Pistas Completas desde el servidor (SoundCloud Full Audio 2-6 min)
+      if (scRes.status === 'fulfilled' && Array.isArray(scRes.value?.candidates)) {
+        for (const c of scRes.value.candidates) {
+          if (!c) continue;
+          const resolvedPreview = c.previewUrl && c.previewUrl.startsWith('/') ? `${baseUrl}${c.previewUrl}` : c.previewUrl;
+          const resolvedDirect = c.directFetchUrl && c.directFetchUrl.startsWith('/') ? `${baseUrl}${c.directFetchUrl}` : c.directFetchUrl;
+          rawList.push({
+            uid: c.uid || `sc_${Math.random().toString(36).slice(2, 8)}`,
+            scTrackId: c.scTrackId || '',
+            title: c.title || cleanTitle,
+            artist: c.artist || cleanArtist || 'Artista',
+            album: c.album || 'Pista Completa',
+            durationSec: c.durationSec || 180,
+            isFullTrack: true,
+            isPreviewOnly: false,
+            previewUrl: resolvedPreview,
+            directFetchUrl: resolvedDirect,
+            mimeType: c.mimeType || 'audio/mpeg',
+            thumbnail: c.thumbnail || getSongCoverFallback(c.title || cleanTitle, c.artist || cleanArtist),
+            sourceName: 'Pista Completa',
+            authenticityScore: (c.authenticityScore || 65) + 10
+          });
+        }
+      }
+
+      // 2. Apple Music Studio (Metadatos verificados y preescucha; al jugar extrae la pista completa)
       if (itRes.status === 'fulfilled' && Array.isArray(itRes.value?.results)) {
         for (const r of itRes.value.results) {
           if (!r || !r.previewUrl) continue;
           const sc = scoreStudioAudioAuthenticity(searchQuery, cleanTitle, cleanArtist, r.trackName || '', r.artistName || '', r.collectionName || '', 'AppleMusic');
+          const durSec = Math.round(Number(r.trackTimeMillis || 180000) / 1000);
           rawList.push({
             uid: `it_${r.trackId || Math.random().toString(36).slice(2, 8)}`,
             title: r.trackName || cleanTitle,
             artist: r.artistName || cleanArtist || 'Artista',
             album: r.collectionName || 'Estudio Original',
+            durationSec: durSec,
+            isFullTrack: false,
+            isPreviewOnly: true,
             previewUrl: r.previewUrl,
-            directFetchUrl: r.previewUrl,
+            directFetchUrl: null,
             mimeType: 'audio/mp4',
             thumbnail: (r.artworkUrl100 || '').replace('100x100bb', '600x600bb') || getSongCoverFallback(r.trackName || cleanTitle, r.artistName || cleanArtist),
             sourceName: 'Apple Music Studio',
@@ -13533,17 +13562,22 @@ function stopPianoCameraLoop() {
         }
       }
 
+      // 3. Deezer Studio (Metadatos verificados y preescucha; al jugar extrae la pista completa)
       if (dzRes.status === 'fulfilled' && Array.isArray(dzRes.value?.data)) {
         for (const t of dzRes.value.data) {
           if (!t || !t.preview) continue;
           const sc = scoreStudioAudioAuthenticity(searchQuery, cleanTitle, cleanArtist, t.title || '', t.artist?.name || '', t.album?.title || '', 'Deezer');
+          const durSec = Number(t.duration || 180);
           rawList.push({
             uid: `dz_${t.id || Math.random().toString(36).slice(2, 8)}`,
             title: t.title || cleanTitle,
             artist: t.artist?.name || cleanArtist || 'Artista',
             album: t.album?.title || 'Estudio Original',
+            durationSec: durSec,
+            isFullTrack: false,
+            isPreviewOnly: true,
             previewUrl: t.preview,
-            directFetchUrl: myWorker(t.preview),
+            directFetchUrl: null,
             mimeType: 'audio/mpeg',
             thumbnail: t.album?.cover_big || t.album?.cover_medium || getSongCoverFallback(t.title || cleanTitle, t.artist?.name || cleanArtist),
             sourceName: 'Deezer Studio',
@@ -13552,9 +13586,10 @@ function stopPianoCameraLoop() {
         }
       }
 
+      // 4. Audius (Pistas completas >= 52s)
       if (auRes.status === 'fulfilled' && Array.isArray(auRes.value?.data)) {
         for (const tr of auRes.value.data.slice(0, 5)) {
-          if (!tr || !tr.id) continue;
+          if (!tr || !tr.id || (tr.duration && Number(tr.duration) < 52)) continue;
           const sc = scoreStudioAudioAuthenticity(searchQuery, cleanTitle, cleanArtist, tr.title || '', tr.user?.name || '', '', 'Audius');
           if (sc >= 58) {
             const streamUrl = `https://discoveryprovider.audius.co/v1/tracks/${encodeURIComponent(tr.id)}/stream?app_name=PianoCommunity`;
@@ -13563,6 +13598,9 @@ function stopPianoCameraLoop() {
               title: tr.title || cleanTitle,
               artist: tr.user?.name || cleanArtist || 'Artista',
               album: 'Pista Completa',
+              durationSec: Number(tr.duration || 180),
+              isFullTrack: true,
+              isPreviewOnly: false,
               previewUrl: streamUrl,
               directFetchUrl: streamUrl,
               mimeType: 'audio/mpeg',
@@ -13576,11 +13614,10 @@ function stopPianoCameraLoop() {
 
       rawList.sort((a, b) => (b.authenticityScore || 0) - (a.authenticityScore || 0));
 
-      // Deduplicar por combinación normalizada de título + artista + fuente (manteniendo distintas versiones/artistas disponibles)
       const deduped = [];
       const seenKeys = new Set();
       for (const item of rawList) {
-        const k = `${normalizeSearchText(item.title)}__${normalizeSearchText(item.artist)}__${normalizeSearchText(item.album).slice(0, 14)}`;
+        const k = `${normalizeSearchText(item.title)}__${normalizeSearchText(item.artist)}__${item.isFullTrack ? 'full' : normalizeSearchText(item.album).slice(0, 12)}`;
         if (!seenKeys.has(k)) {
           seenKeys.add(k);
           deduped.push(item);
@@ -13600,10 +13637,15 @@ function stopPianoCameraLoop() {
         } catch (_) {}
         window._previewAudioPlayer = null;
       }
+      if (window._previewObjectUrl) {
+        try { URL.revokeObjectURL(window._previewObjectUrl); } catch (_) {}
+        window._previewObjectUrl = null;
+      }
       if (window._previewActiveBtnId) {
         const prevBtn = document.getElementById(window._previewActiveBtnId);
         if (prevBtn) {
-          prevBtn.innerText = '▶ Escuchar';
+          const defaultLabel = prevBtn.getAttribute('data-default-label') || (prevBtn.id.startsWith('catPrevBtn_') ? '▶ Preescuchar' : '▶ Escuchar');
+          prevBtn.innerHTML = `<span>${defaultLabel}</span>`;
           prevBtn.classList.remove('bg-amber-400', 'text-[#140e06]');
         }
         window._previewActiveBtnId = null;
@@ -13623,7 +13665,10 @@ function stopPianoCameraLoop() {
       window._previewActiveBtnId = btnId;
       const btn = document.getElementById(btnId);
       if (btn) {
-        btn.innerText = '■ Parar';
+        if (!btn.getAttribute('data-default-label')) {
+          btn.setAttribute('data-default-label', btn.innerText.trim() || '▶ Escuchar');
+        }
+        btn.innerHTML = '<span>■ Parar</span>';
         btn.classList.add('bg-amber-400', 'text-[#140e06]');
       }
       audio.onended = () => window.stopPreviewCandidateAudio();
@@ -13632,6 +13677,118 @@ function stopPianoCameraLoop() {
         if (typeof showErrorToast === 'function') showErrorToast('No se pudo preescuchar esta fuente.');
       };
       audio.play().catch(() => window.stopPreviewCandidateAudio());
+    };
+
+    // Preescucha universal para todas las canciones del catálogo (osu!, BeatSaver, Clone Hero, Comunidad, Favoritos, Top Songs)
+    window.toggleCatalogSongPreview = async function(songId, sId, title = '', artist = '', directPreviewUrl = '', bsHash = '') {
+      const btnId = `catPrevBtn_${sId}`;
+      if (window._previewActiveBtnId === btnId && window._previewAudioPlayer && !window._previewAudioPlayer.paused) {
+        window.stopPreviewCandidateAudio();
+        return;
+      }
+      window.stopPreviewCandidateAudio();
+
+      const btn = document.getElementById(btnId);
+      if (btn) {
+        if (!btn.getAttribute('data-default-label')) {
+          btn.setAttribute('data-default-label', '▶ Preescuchar');
+        }
+        btn.innerHTML = '<span>... Cargando</span>';
+        btn.classList.add('bg-amber-400', 'text-[#140e06]');
+      }
+      window._previewActiveBtnId = btnId;
+
+      const candidateUrls = [];
+      if (directPreviewUrl && directPreviewUrl.trim()) {
+        candidateUrls.push(directPreviewUrl.trim());
+      }
+      const strId = String(songId || '');
+      if (strId.startsWith('osu_')) {
+        const setId = strId.replace(/^osu_/, '').trim();
+        if (setId) candidateUrls.push(`https://b.ppy.sh/preview/${setId}.mp3`);
+      }
+      if (bsHash && bsHash.trim()) {
+        candidateUrls.push(`https://cfcdn.beatsaver.com/${bsHash.trim().toLowerCase()}.mp3`);
+      }
+
+      // Comprobar si la canción ya está guardada en IndexedDBStorage con audioBlob local
+      try {
+        if (typeof IndexedDBStorage !== 'undefined' && typeof IndexedDBStorage.getChart === 'function') {
+          const saved = await IndexedDBStorage.getChart(strId);
+          if (saved && saved.audioBlob) {
+            const objUrl = URL.createObjectURL(saved.audioBlob);
+            window._previewObjectUrl = objUrl;
+            candidateUrls.unshift(objUrl);
+          }
+        }
+      } catch (_) {}
+
+      // Si es canción comunitaria local
+      if (!strId.startsWith('osu_') && !strId.startsWith('bs_') && !strId.startsWith('ch_') && !strId.startsWith('auto_dsp_')) {
+        const cleanCommId = strId.replace(/^comm_/, '');
+        const baseUrl = (typeof getApiBaseUrl === 'function') ? getApiBaseUrl() : '';
+        candidateUrls.push(`${baseUrl}/songs/${cleanCommId}/audio.mp3`);
+        candidateUrls.push(`${baseUrl}/songs/${cleanCommId}/song.ogg`);
+      }
+
+      const tryPlayUrl = (urlToPlay) => new Promise((resolve) => {
+        if (!urlToPlay) return resolve(false);
+        const audio = new Audio(urlToPlay);
+        audio.volume = 0.85;
+        let settled = false;
+        const finish = (ok) => {
+          if (settled) return;
+          settled = true;
+          resolve(ok);
+        };
+        const tid = setTimeout(() => finish(false), 5500);
+        audio.onplaying = () => {
+          clearTimeout(tid);
+          finish(true);
+        };
+        audio.onerror = () => {
+          clearTimeout(tid);
+          finish(false);
+        };
+        audio.onended = () => window.stopPreviewCandidateAudio();
+        window._previewAudioPlayer = audio;
+        audio.play().catch(() => {
+          clearTimeout(tid);
+          finish(false);
+        });
+      });
+
+      for (const u of candidateUrls) {
+        if (window._previewActiveBtnId !== btnId) return;
+        const ok = await tryPlayUrl(u);
+        if (ok) {
+          if (btn && window._previewActiveBtnId === btnId) {
+            btn.innerHTML = '<span>■ Parar</span>';
+          }
+          return;
+        }
+      }
+
+      // Fallback universal: Buscar preescucha de estudio por título y artista (Apple Music / Deezer / SoundCloud)
+      try {
+        const studioList = await discoverVerifiedAudioCandidates(title, artist);
+        for (const cand of studioList.slice(0, 3)) {
+          if (window._previewActiveBtnId !== btnId) return;
+          if (!cand.previewUrl) continue;
+          const ok = await tryPlayUrl(cand.previewUrl);
+          if (ok) {
+            if (btn && window._previewActiveBtnId === btnId) {
+              btn.innerHTML = '<span>■ Parar</span>';
+            }
+            return;
+          }
+        }
+      } catch (_) {}
+
+      window.stopPreviewCandidateAudio();
+      if (typeof showErrorToast === 'function') {
+        showErrorToast('No se encontró avance de audio para esta canción.');
+      }
     };
 
     window.toggleMagicKeyAccordion = function(uniqueId, rawTitle = '', rawArtist = '') {
@@ -13674,7 +13831,7 @@ function stopPianoCameraLoop() {
         }
       } catch (_) {
         if (statusEl) statusEl.innerText = 'Motor multi-fuente listo';
-        boxEl.innerHTML = `<div class="text-[10px] text-purple-200/70 py-1">Pulsa cualquier dificultad para extraer la pista automáticamente.</div>`;
+        boxEl.innerHTML = `<div class="text-[10px] text-purple-200/70 py-1">Pulsa cualquier dificultad para extraer la pista completa automáticamente.</div>`;
       }
     };
 
@@ -13683,6 +13840,7 @@ function stopPianoCameraLoop() {
       const titleEl = document.getElementById(`magicKeyTitle_${uniqueId}`);
       const subEl = document.getElementById(`magicKeySub_${uniqueId}`);
       const imgEl = document.getElementById(`magicKeyImg_${uniqueId}`);
+      const starEl = document.getElementById(`magicKeyStar_${uniqueId}`);
       if (titleEl && cand.title) titleEl.innerText = cand.title;
       if (subEl) {
         subEl.innerText = `${cand.artist || 'Artista'}${cand.album ? ` • ${cand.album}` : ''}`;
@@ -13690,6 +13848,7 @@ function stopPianoCameraLoop() {
       if (imgEl && cand.thumbnail) {
         imgEl.src = cand.thumbnail;
         imgEl.classList.remove('hidden');
+        if (starEl) starEl.classList.add('hidden');
       }
     }
 
@@ -13700,7 +13859,7 @@ function stopPianoCameraLoop() {
       const selected = window._selectedMagicAudioCandidate[uniqueId] || list[0] || null;
 
       if (!list.length) {
-        boxEl.innerHTML = `<div class="text-[10px] text-purple-200/75 py-1">No se listaron preescuchas previas; el extractor usará el flujo directo al jugar.</div>`;
+        boxEl.innerHTML = `<div class="text-[10px] text-purple-200/75 py-1">No se listaron preescuchas previas; el extractor usará la pista completa al jugar.</div>`;
         return;
       }
 
@@ -13708,7 +13867,7 @@ function stopPianoCameraLoop() {
         const isSel = selected && selected.uid === c.uid;
         const btnPreviewId = `prevBtn_${uniqueId}_${idx}`;
         const safePreviewUrl = escapeHtml(c.previewUrl || '').replace(/'/g, "\\'");
-        const badgeLabel = idx === 0 ? '★ Original Estudio' : c.sourceName;
+        const badgeLabel = c.isFullTrack ? '★ Pista Completa' : (idx === 0 ? '★ Original Estudio' : c.sourceName);
 
         return `
           <div onclick="selectMagicAudioCandidate('${uniqueId}', ${idx})" class="flex items-center justify-between gap-2 p-1.5 rounded-lg border transition cursor-pointer ${isSel ? 'bg-purple-900/60 border-amber-400/80 shadow-sm' : 'bg-black/35 border-white/10 hover:bg-white/5'}">
@@ -13781,13 +13940,17 @@ function stopPianoCameraLoop() {
     };
 
     async function extractSongAudioMultiSource(rawTitle, rawArtist = '', preferredThumb = '', onProgress = null, preferredCandidate = null) {
+      const targetTitle = (preferredCandidate && preferredCandidate.title) ? preferredCandidate.title : rawTitle;
+      const targetArtist = (preferredCandidate && preferredCandidate.artist) ? preferredCandidate.artist : rawArtist;
+      const targetThumb = (preferredCandidate && preferredCandidate.thumbnail) ? preferredCandidate.thumbnail : preferredThumb;
+
       const parsed = (typeof parseYouTubeMetadataSmart === 'function')
-        ? parseYouTubeMetadataSmart(rawTitle || '', rawArtist || '')
-        : { coreTitle: String(rawTitle || '').trim(), coreArtist: String(rawArtist || '').trim() };
-      const cleanTitle = parsed.coreTitle || String(rawTitle || 'Canción').trim();
+        ? parseYouTubeMetadataSmart(targetTitle || '', targetArtist || '')
+        : { coreTitle: String(targetTitle || '').trim(), coreArtist: String(targetArtist || '').trim() };
+      const cleanTitle = parsed.coreTitle || String(targetTitle || 'Canción').trim();
       const cleanArtist = (parsed.coreArtist && parsed.coreArtist.toLowerCase() !== 'youtube')
         ? parsed.coreArtist
-        : String(rawArtist || '').replace(/^youtube$/i, '').trim();
+        : String(targetArtist || '').replace(/^youtube$/i, '').trim();
       const searchQuery = cleanArtist ? `${cleanTitle} ${cleanArtist}`.trim() : cleanTitle;
       const baseUrl = (typeof getApiBaseUrl === 'function') ? getApiBaseUrl() : '';
       const myWorker = (u) => `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(u)}`;
@@ -13797,62 +13960,37 @@ function stopPianoCameraLoop() {
         try { return decodeURIComponent(val); } catch (_) { return val || fallback; }
       };
 
-      // 0. Si el usuario seleccionó una grabación específica en el selector o tenemos la mejor candidata de estudio verificada
-      const tryDownloadCandidate = async (cand) => {
-        if (!cand || (!cand.directFetchUrl && !cand.previewUrl)) return null;
-        const urlsToTry = Array.from(new Set([
-          cand.directFetchUrl,
-          cand.previewUrl,
-          cand.previewUrl ? myWorker(cand.previewUrl) : null,
-          cand.previewUrl ? `${baseUrl}/api/v1/audio/extract?directUrl=${encodeURIComponent(cand.previewUrl)}&title=${encodeURIComponent(cand.title || cleanTitle)}&artist=${encodeURIComponent(cand.artist || cleanArtist)}` : null
-        ].filter(Boolean)));
-
-        for (const u of urlsToTry) {
-          try {
-            const ctrl = new AbortController();
-            const tid = setTimeout(() => ctrl.abort(), 6500);
-            const resp = await fetch(u, { signal: ctrl.signal });
-            clearTimeout(tid);
-            if (resp.ok) {
-              const ab = await resp.arrayBuffer();
-              if (ab && ab.byteLength >= 12000) {
-                return {
-                  blob: new Blob([ab], { type: cand.mimeType || 'audio/mpeg' }),
-                  title: cand.title || cleanTitle,
-                  artist: cand.artist || cleanArtist || 'Artista',
-                  thumbnail: cand.thumbnail || preferredThumb || getSongCoverFallback(cand.title || cleanTitle, cand.artist || cleanArtist),
-                  sourceName: cand.sourceName || 'Grabación de Estudio'
-                };
-              }
+      // 1. Si el candidato elegido tiene pista COMPLETA verificada (isFullTrack / scTrackId / Audius Full), descargar pista completa
+      if (preferredCandidate && preferredCandidate.isFullTrack && (preferredCandidate.directFetchUrl || preferredCandidate.scTrackId)) {
+        try {
+          if (onProgress) onProgress(`Descargando canción completa: ${cleanTitle} - ${cleanArtist}...`);
+          const fullUrl = preferredCandidate.scTrackId
+            ? `${baseUrl}/api/v1/audio/extract?scTrackId=${encodeURIComponent(preferredCandidate.scTrackId)}&title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}`
+            : preferredCandidate.directFetchUrl;
+          const ctrl = new AbortController();
+          const tid = setTimeout(() => ctrl.abort(), 14000);
+          const resp = await fetch(fullUrl, { signal: ctrl.signal });
+          clearTimeout(tid);
+          if (resp.ok) {
+            const ab = await resp.arrayBuffer();
+            if (ab && ab.byteLength >= 65000) {
+              return {
+                blob: new Blob([ab], { type: preferredCandidate.mimeType || 'audio/mpeg' }),
+                title: cleanTitle,
+                artist: cleanArtist || 'Artista',
+                thumbnail: targetThumb || getSongCoverFallback(cleanTitle, cleanArtist),
+                sourceName: preferredCandidate.sourceName || 'Pista Completa'
+              };
             }
-          } catch (_) {}
-        }
-        return null;
-      };
-
-      if (preferredCandidate) {
-        if (onProgress) onProgress(`Descargando grabación seleccionada: ${preferredCandidate.title} - ${preferredCandidate.artist}...`);
-        const chosenRes = await tryDownloadCandidate(preferredCandidate);
-        if (chosenRes) return chosenRes;
+          }
+        } catch (_) {}
       }
 
-      // 1. Descubrir y puntuar grabaciones originales de estudio en paralelo (Apple Music Studio + Deezer Studio + Audius Verificado)
+      // 2. Motor Principal de Pista Completa en Servidor (/api/v1/audio/extract: SoundCloud Full 2-6min -> YouTube Full -> Audius Full -> Internet Archive)
       try {
-        if (onProgress) onProgress('Verificando grabación original de estudio (Apple Music / Deezer CDN)...');
-        const verifiedCandidates = await discoverVerifiedAudioCandidates(cleanTitle, cleanArtist);
-        for (const cand of verifiedCandidates.slice(0, 3)) {
-          if ((cand.authenticityScore || 0) >= 48) {
-            const studioRes = await tryDownloadCandidate(cand);
-            if (studioRes) return studioRes;
-          }
-        }
-      } catch (_) {}
-
-      // 2. Intentar Backend Multi-Engine (/api/v1/audio/extract: YouTube Topic Oficial -> Deezer -> Apple Music -> Audius)
-      try {
-        if (onProgress) onProgress('Extrayendo audio original desde motor principal...');
+        if (onProgress) onProgress(`Extrayendo canción completa (${cleanTitle})...`);
         const ctrl = new AbortController();
-        const tid = setTimeout(() => ctrl.abort(), 11000);
+        const tid = setTimeout(() => ctrl.abort(), 15000);
         const url = `${baseUrl}/api/v1/audio/extract?q=${encodeURIComponent(searchQuery)}&title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}`;
         const resp = await fetch(url, { signal: ctrl.signal });
         clearTimeout(tid);
@@ -13860,16 +13998,16 @@ function stopPianoCameraLoop() {
           const cType = String(resp.headers.get('content-type') || '').toLowerCase();
           if (!cType.includes('application/json') && !cType.includes('text/html')) {
             const ab = await resp.arrayBuffer();
-            if (ab && ab.byteLength >= 12000) {
+            if (ab && ab.byteLength >= 45000) {
               const resolvedTitle = decodeHeaderSafe(resp.headers.get('X-Song-Title'), cleanTitle);
               const resolvedArtist = decodeHeaderSafe(resp.headers.get('X-Song-Artist'), cleanArtist || 'Artista');
-              const resolvedCover = decodeHeaderSafe(resp.headers.get('X-Song-Cover'), preferredThumb);
-              const resolvedSource = decodeHeaderSafe(resp.headers.get('X-Audio-Source'), 'Audio Original');
+              const resolvedCover = decodeHeaderSafe(resp.headers.get('X-Song-Cover'), targetThumb);
+              const resolvedSource = decodeHeaderSafe(resp.headers.get('X-Audio-Source'), 'Pista Completa');
               return {
                 blob: new Blob([ab], { type: cType.startsWith('audio/') ? cType : 'audio/mpeg' }),
                 title: resolvedTitle || cleanTitle,
                 artist: resolvedArtist || cleanArtist || 'Artista',
-                thumbnail: resolvedCover || preferredThumb || getSongCoverFallback(resolvedTitle, resolvedArtist),
+                thumbnail: resolvedCover || targetThumb || getSongCoverFallback(resolvedTitle, resolvedArtist),
                 sourceName: resolvedSource
               };
             }
@@ -13877,7 +14015,66 @@ function stopPianoCameraLoop() {
         }
       } catch (_) {}
 
-      // 3. Respaldo final infalible: Síntesis acústica polifónica determinista (para modo sin conexión o pistas inéditas)
+      // 3. Respaldo de Pistas Completas en Audius directo desde cliente (>= 52s)
+      try {
+        if (onProgress) onProgress('Buscando pista completa en red Audius...');
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), 4500);
+        const auResp = await fetch(`https://discoveryprovider.audius.co/v1/tracks/search?query=${encodeURIComponent(searchQuery)}&app_name=PianoCommunity`, { signal: ctrl.signal });
+        clearTimeout(tid);
+        if (auResp.ok) {
+          const auJson = await auResp.json();
+          const tracks = Array.isArray(auJson?.data) ? auJson.data : [];
+          for (const tr of tracks.slice(0, 4)) {
+            if (!tr || !tr.id || (tr.duration && Number(tr.duration) < 52)) continue;
+            const sc = scoreStudioAudioAuthenticity(searchQuery, cleanTitle, cleanArtist, tr.title || '', tr.user?.name || '', '', 'Audius');
+            if (sc >= 55) {
+              const streamUrl = `https://discoveryprovider.audius.co/v1/tracks/${encodeURIComponent(tr.id)}/stream?app_name=PianoCommunity`;
+              const dlResp = await fetch(streamUrl);
+              if (dlResp.ok) {
+                const ab = await dlResp.arrayBuffer();
+                if (ab && ab.byteLength >= 65000) {
+                  return {
+                    blob: new Blob([ab], { type: 'audio/mpeg' }),
+                    title: tr.title || cleanTitle,
+                    artist: tr.user?.name || cleanArtist || 'Artista',
+                    thumbnail: tr.artwork?.['480x480'] || targetThumb || getSongCoverFallback(cleanTitle, cleanArtist),
+                    sourceName: 'Audius Full Audio'
+                  };
+                }
+              }
+            }
+          }
+        }
+      } catch (_) {}
+
+      // 4. Último recurso de red si todos los motores de pista completa fallaron: usar preview de estudio SIN bucle
+      try {
+        const verifiedCandidates = preferredCandidate ? [preferredCandidate] : await discoverVerifiedAudioCandidates(cleanTitle, cleanArtist);
+        for (const cand of verifiedCandidates.slice(0, 3)) {
+          const u = cand.previewUrl;
+          if (!u) continue;
+          for (const tryU of [u, myWorker(u)]) {
+            try {
+              const r = await fetch(tryU);
+              if (r.ok) {
+                const ab = await r.arrayBuffer();
+                if (ab && ab.byteLength >= 12000) {
+                  return {
+                    blob: new Blob([ab], { type: cand.mimeType || 'audio/mpeg' }),
+                    title: cand.title || cleanTitle,
+                    artist: cand.artist || cleanArtist || 'Artista',
+                    thumbnail: cand.thumbnail || targetThumb || getSongCoverFallback(cleanTitle, cleanArtist),
+                    sourceName: cand.sourceName || 'Estudio'
+                  };
+                }
+              }
+            } catch (_) {}
+          }
+        }
+      } catch (_) {}
+
+      // 5. Respaldo final sin conexión: Síntesis acústica polifónica determinista completa
       if (onProgress) onProgress('Sintetizando arreglo acústico de piano para la canción...');
       let seed = 0;
       for (let i = 0; i < searchQuery.length; i++) {
@@ -13888,7 +14085,7 @@ function stopPianoCameraLoop() {
       const beatMs = 60000 / bpm;
       const scalePitches = [48, 50, 52, 55, 57, 60, 62, 64, 67, 69, 72, 74, 76, 79];
       const synthNotes = [];
-      for (let b = 0; b < 96; b++) {
+      for (let b = 0; b < 180; b++) {
         const tMs = Math.round(600 + b * (beatMs * 0.5));
         const pIdx = (absSeed + b * 7 + Math.floor(b / 4) * 3) % scalePitches.length;
         synthNotes.push({
@@ -13906,12 +14103,12 @@ function stopPianoCameraLoop() {
           });
         }
       }
-      const wavBlob = MidiChartParser.synthesizeWavBlobFromNotes(synthNotes, 48);
+      const wavBlob = MidiChartParser.synthesizeWavBlobFromNotes(synthNotes, 90);
       return {
         blob: wavBlob,
         title: cleanTitle,
         artist: cleanArtist || 'Arreglo Acústico',
-        thumbnail: preferredThumb || getSongCoverFallback(cleanTitle, cleanArtist),
+        thumbnail: targetThumb || getSongCoverFallback(cleanTitle, cleanArtist),
         sourceName: 'Piano Acoustic Synth'
       };
     }
@@ -13938,11 +14135,11 @@ function stopPianoCameraLoop() {
         .slice(0, 48) || `song_${Date.now()}`;
       const deterministicId = `auto_dsp_${slugKey}`;
 
-      // Si ya fue generada y guardada en IndexedDBStorage (y el usuario no pidió explícitamente cambiar la grabación), reutilizarla
+      // Reutilizar caché solo si el audio guardado corresponde a una canción completa (>= 900 KB) y no a una preview antigua de 30s
       if (!forceRebuild && !preferredCandidate) {
         try {
           const existing = await IndexedDBStorage.getChart(deterministicId);
-          if (existing && existing.audioBlob) {
+          if (existing && existing.audioBlob && existing.audioBlob.size >= 900000) {
             return { chartItem: existing, dspPack: existing, cached: true };
           }
         } catch (_) {}
@@ -14172,9 +14369,12 @@ function stopPianoCameraLoop() {
                     </div>
                   ` : ''}
                   <div class="flex items-center justify-between gap-2 pt-1 border-t border-white/5 text-[11px]">
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 flex-wrap">
                       <span class="text-[9.5px] text-gray-400 font-bold uppercase tracking-wider">Tempo:</span>
                       ${renderSongSpeedHtml(item.id).btn}
+                      <button id="catPrevBtn_${sId}" type="button" onclick="event.stopPropagation(); toggleCatalogSongPreview('${escapeHtml(item.id).replace(/'/g, "\\'")}', '${sId}', '${escapeHtml(item.title || '').replace(/'/g, "\\'")}', '${escapeHtml(item.artist || '').replace(/'/g, "\\'")}', '${escapeHtml(item.preview_url || '').replace(/'/g, "\\'")}', '${escapeHtml(item.bs_hash || '').replace(/'/g, "\\'")}')" class="px-2 py-0.5 rounded-md bg-amber-500/15 hover:bg-amber-500/30 border border-amber-400/40 text-[9.5px] font-bold text-amber-200 flex items-center gap-1 cursor-pointer transition" title="Preescuchar canción">
+                        <span>▶ Preescuchar</span>
+                      </button>
                     </div>
                     <div class="flex items-center gap-2">
                       <button onclick="toggleFavoriteSong('${item.id}')" data-id="${item.id}" class="piano-card-action-btn heart-btn active" title="${t('add_fav')}">

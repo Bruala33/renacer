@@ -3589,102 +3589,10 @@ class AudioAutoMapper {
   }
 
   /**
-   * Si el audio extraído proviene de un corte de estudio de 25s-42s (p. ej. CDN oficial de Deezer o Apple Music/iTunes),
-   * lo extiende mediante un fundido cruzado musical (equal-power cosine crossfade de 1.4s) para formar un
-   * Concert Cut continuo de ~58 segundos sin cortes bruscos. Si dura >= 44s (YouTube/Audius completo), lo conserva intacto.
+   * Conserva el buffer de audio íntegro sin duplicar ni poner en bucle cortes de preview.
    */
   static extendStudioBufferIfShort(audioBuffer, originalBlob) {
-    if (!audioBuffer || audioBuffer.duration >= 44 || audioBuffer.duration < 12) {
-      return { buffer: audioBuffer, blob: originalBlob };
-    }
-    try {
-      const sr = audioBuffer.sampleRate || 44100;
-      const numCh = Math.min(2, audioBuffer.numberOfChannels || 1);
-      const srcLen = audioBuffer.length;
-      const crossfadeSamples = Math.min(Math.floor(sr * 1.4), Math.floor(srcLen * 0.15));
-      const totalSamples = srcLen * 2 - crossfadeSamples;
-
-      const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      let extBuffer = null;
-      if (OfflineCtx) {
-        const off = new OfflineCtx(numCh, totalSamples, sr);
-        extBuffer = off.createBuffer(numCh, totalSamples, sr);
-      } else if (AudioCtx) {
-        const tmp = new AudioCtx();
-        extBuffer = tmp.createBuffer(numCh, totalSamples, sr);
-        if (tmp.close) tmp.close().catch(() => {});
-      }
-      if (!extBuffer) return { buffer: audioBuffer, blob: originalBlob };
-
-      const chArrays = [];
-      for (let c = 0; c < numCh; c++) {
-        const src = audioBuffer.getChannelData(c);
-        const dst = extBuffer.getChannelData(c);
-        // Primera pasada íntegra hasta el inicio del crossfade
-        const firstCopyEnd = srcLen - crossfadeSamples;
-        for (let i = 0; i < firstCopyEnd; i++) {
-          dst[i] = src[i];
-        }
-        // Zona de fundido cruzado de potencia constante (equal-power crossfade)
-        for (let i = 0; i < crossfadeSamples; i++) {
-          const t = i / Math.max(1, crossfadeSamples - 1);
-          const gainOut = Math.cos(t * Math.PI * 0.5);
-          const gainIn = Math.sin(t * Math.PI * 0.5);
-          dst[firstCopyEnd + i] = src[firstCopyEnd + i] * gainOut + src[i] * gainIn;
-        }
-        // Resto de la segunda pasada con fade-out suave en el último segundo
-        const secondStart = crossfadeSamples;
-        const dstOffset = srcLen;
-        const fadeOutLen = Math.min(Math.floor(sr * 1.2), srcLen - secondStart);
-        for (let i = secondStart; i < srcLen; i++) {
-          let env = 1.0;
-          const rem = srcLen - 1 - i;
-          if (rem < fadeOutLen) {
-            env = rem / Math.max(1, fadeOutLen);
-          }
-          dst[dstOffset + (i - secondStart)] = src[i] * env;
-        }
-        chArrays.push(dst);
-      }
-
-      // Codificar a WAV PCM de 16 bits para reproducción instantánea
-      const bytesPerSample = 2;
-      const blockAlign = numCh * bytesPerSample;
-      const dataSize = totalSamples * blockAlign;
-      const wavBuf = new ArrayBuffer(44 + dataSize);
-      const view = new DataView(wavBuf);
-      const writeStr = (off, str) => {
-        for (let i = 0; i < str.length; i++) view.setUint8(off + i, str.charCodeAt(i));
-      };
-      writeStr(0, 'RIFF');
-      view.setUint32(4, 36 + dataSize, true);
-      writeStr(8, 'WAVE');
-      writeStr(12, 'fmt ');
-      view.setUint32(16, 16, true);
-      view.setUint16(20, 1, true);
-      view.setUint16(22, numCh, true);
-      view.setUint32(24, sr, true);
-      view.setUint32(28, sr * blockAlign, true);
-      view.setUint16(32, blockAlign, true);
-      view.setUint16(34, 16, true);
-      writeStr(36, 'data');
-      view.setUint32(40, dataSize, true);
-
-      let offset = 44;
-      for (let i = 0; i < totalSamples; i++) {
-        for (let c = 0; c < numCh; c++) {
-          const s = Math.max(-1, Math.min(1, chArrays[c][i]));
-          view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-          offset += 2;
-        }
-      }
-
-      const wavBlob = new Blob([wavBuf], { type: 'audio/wav' });
-      return { buffer: extBuffer, blob: wavBlob };
-    } catch (_) {
-      return { buffer: audioBuffer, blob: originalBlob };
-    }
+    return { buffer: audioBuffer, blob: originalBlob };
   }
 
   /**
