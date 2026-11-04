@@ -2804,6 +2804,11 @@
           <span data-i18n="resume">REANUDAR</span>
         </button>
 
+        <button id="btnChangeVersionInPause" onclick="openVersionFixerFromPause()" class="w-full py-2.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-bold rounded-xl text-[11px] transition active:scale-95 border border-amber-400/40 flex items-center justify-center gap-2 cursor-pointer">
+          <svg width="15" height="15" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3" stroke-width="2"/><circle cx="18" cy="16" r="3" stroke-width="2"/></svg>
+          <span>CAMBIAR VERSIÓN / GRABACIÓN</span>
+        </button>
+
         <button id="btnRestartGame" class="w-full py-3 bg-white/10 hover:bg-white/20 font-bold rounded-xl text-xs text-white transition active:scale-95 flex items-center justify-center gap-2 cursor-pointer border border-white/10">
           <svg width="16" height="16" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
           <span data-i18n="restart">REINICIAR</span>
@@ -9425,61 +9430,92 @@ window.switchMainTab = switchMainTab;
       const na = normalizeSearchText(artist);
       const ne = normalizeSearchText(extra);
 
-      if (nt === nq || na === nq) return 100;
+      let baseScore = 0;
+      if (nt === nq) {
+        baseScore = 100;
+      } else if (na === nq) {
+        baseScore = 96;
+      } else if (nt.includes(nq)) {
+        baseScore = (' ' + nt + ' ').includes(' ' + nq + ' ') ? 98 : 94;
+      } else if (na.includes(nq)) {
+        baseScore = (' ' + na + ' ').includes(' ' + nq + ' ') ? 92 : 88;
+      } else {
+        const qWords = nq.split(' ').filter(Boolean);
+        if (!qWords.length) return 0;
 
-      if (nt.includes(nq)) {
-        return (' ' + nt + ' ').includes(' ' + nq + ' ') ? 98 : 94;
-      }
-      if (na.includes(nq)) {
-        return (' ' + na + ' ').includes(' ' + nq + ' ') ? 96 : 92;
-      }
+        const tWords = nt.split(' ').filter(Boolean);
+        const aWords = na.split(' ').filter(Boolean);
+        const primaryWords = [...tWords, ...aWords];
 
-      const qWords = nq.split(' ').filter(Boolean);
-      if (!qWords.length) return 0;
-
-      const tWords = nt.split(' ').filter(Boolean);
-      const aWords = na.split(' ').filter(Boolean);
-      const primaryWords = [...tWords, ...aWords];
-
-      let primaryScore = 0;
-      if (primaryWords.length > 0) {
-        let sumSim = 0;
-        for (const qw of qWords) {
-          let best = 0;
-          for (const pw of primaryWords) {
-            const sim = wordSimilarity(qw, pw);
-            if (sim > best) best = sim;
-          }
-          sumSim += best;
-        }
-        primaryScore = Math.round((sumSim / qWords.length) * 100);
-      }
-
-      if (primaryScore >= 50) {
-        return Math.min(100, primaryScore);
-      }
-
-      if (ne) {
-        if (ne.includes(nq)) {
-          return (' ' + ne + ' ').includes(' ' + nq + ' ') ? 75 : 68;
-        }
-        const eWords = ne.split(' ').filter(Boolean);
-        if (eWords.length > 0) {
+        let primaryScore = 0;
+        if (primaryWords.length > 0) {
           let sumSim = 0;
+          let titleHitCount = 0;
           for (const qw of qWords) {
             let best = 0;
-            for (const ew of eWords) {
-              const sim = wordSimilarity(qw, ew);
+            for (const pw of primaryWords) {
+              const sim = wordSimilarity(qw, pw);
               if (sim > best) best = sim;
+            }
+            for (const tw of tWords) {
+              if (wordSimilarity(qw, tw) >= 0.78) {
+                titleHitCount++;
+                break;
+              }
             }
             sumSim += best;
           }
-          const extraScore = Math.round((sumSim / qWords.length) * 70);
-          if (extraScore >= 40) return Math.min(75, Math.max(primaryScore, extraScore));
+          primaryScore = Math.round((sumSim / qWords.length) * 100);
+          if (titleHitCount > 0 && qWords.length >= 2) {
+            primaryScore = Math.min(100, primaryScore + 6);
+          }
+        }
+
+        if (primaryScore >= 50) {
+          baseScore = Math.min(100, primaryScore);
+        } else if (ne) {
+          if (ne.includes(nq)) {
+            baseScore = (' ' + ne + ' ').includes(' ' + nq + ' ') ? 75 : 68;
+          } else {
+            const eWords = ne.split(' ').filter(Boolean);
+            if (eWords.length > 0) {
+              let sumSim = 0;
+              for (const qw of qWords) {
+                let best = 0;
+                for (const ew of eWords) {
+                  const sim = wordSimilarity(qw, ew);
+                  if (sim > best) best = sim;
+                }
+                sumSim += best;
+              }
+              const extraScore = Math.round((sumSim / qWords.length) * 70);
+              if (extraScore >= 40) baseScore = Math.min(75, Math.max(primaryScore, extraScore));
+            }
+          }
+        }
+        if (!baseScore) baseScore = Math.max(0, primaryScore);
+      }
+
+      // Penalizar versiones extrañas o alteradas si el usuario no las pidió explícitamente en la búsqueda
+      const combinedCand = `${nt} ${na} ${ne}`;
+      const strangeMarkers = [
+        'karaoke', 'tribute', 'made famous', 'originally performed', 'in the style of',
+        'nightcore', 'daycore', 'slowed', 'sped up', 'reverb', 'tv size', 'short ver',
+        'cut ver', 'practice', '8 bit', 'lullaby', 'ringtone', 'parody'
+      ];
+      for (const m of strangeMarkers) {
+        if (combinedCand.includes(m) && !nq.includes(m)) {
+          baseScore -= 26;
+        }
+      }
+      const mildMarkers = ['remix', 'bootleg', 'cover', 'live at', 'en vivo', 'ao vivo'];
+      for (const m of mildMarkers) {
+        if (combinedCand.includes(m) && !nq.includes(m)) {
+          baseScore -= 14;
         }
       }
 
-      return Math.max(0, primaryScore);
+      return Math.max(0, Math.min(100, baseScore));
     }
     window.normalizeSearchText = normalizeSearchText;
     window.levenshteinDist = levenshteinDist;
@@ -9856,9 +9892,12 @@ window.switchMainTab = switchMainTab;
               </div>
 
               <div class="flex items-center justify-between gap-2 pt-1.5 border-t border-white/5 text-[11px]">
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
                   <span class="text-[9.5px] text-gray-400 font-bold uppercase tracking-wider">Tempo:</span>
                   ${renderSongSpeedHtml(item.id).btn}
+                  <button onclick="openPlaylistTrackMatcher('${escapeHtml(item.title || '').replace(/'/g, "\\'")}', '${escapeHtml(item.artist || '').replace(/'/g, "\\'")}', '${escapeHtml(initialCover || '').replace(/'/g, "\\'")}')" class="px-2 py-0.5 rounded-md bg-purple-900/50 hover:bg-purple-800/70 border border-purple-400/35 text-[9.5px] font-bold text-purple-200 flex items-center gap-1 cursor-pointer transition" title="Elegir otra grabación o versión de esta canción">
+                    <span>♪ Cambiar versión</span>
+                  </button>
                 </div>
                 <div class="flex items-center gap-2">
                   ${isComm ? `
@@ -9933,12 +9972,12 @@ function detenerPaginacionPiano() {
 
 
     function buildMagicSongKeyHtml(opts = {}) {
-      const rawTitle = String(opts.queryTitle || 'Canción Mágica').trim();
+      const rawTitle = String(opts.queryTitle || 'Canción').trim();
       const rawArtist = String(opts.queryArtist || '').trim();
       const thumbUrl = String(opts.thumbUrl || '').trim();
       const uniqueId = String(opts.uniqueId || 'magic_search_key').replace(/[^a-zA-Z0-9_-]/g, '_');
       const isPlaylistUrlOrId = Boolean(opts.isPlaylistUrlOrId);
-      const statusText = String(opts.statusText || (rawArtist ? `${rawArtist} • Audio Real + DSP` : 'Creación instantánea • 5 dificultades')).trim();
+      const statusText = String(opts.statusText || (rawArtist ? `${rawArtist}` : 'Pulsa para elegir dificultad o versión')).trim();
 
       const safeTitleAttr = escapeHtml(rawTitle).replace(/'/g, "\\'");
       const safeArtistAttr = escapeHtml(rawArtist).replace(/'/g, "\\'");
@@ -9947,12 +9986,12 @@ function detenerPaginacionPiano() {
       return `
         <div class="piano-key-row flex flex-col">
           <div class="flex items-stretch w-full max-w-full overflow-hidden">
-            <!-- Iridescent Magic Piano Key Body (Opens Accordion like a normal song) -->
-            <div onclick="togglePianoAccordion('${uniqueId}')" class="piano-white-key piano-magic-key flex-1 min-w-0 overflow-hidden" title="Desplegar niveles de la Tecla Mágica">
+            <!-- Iridescent Magic Piano Key Body (Opens Accordion & Loads Studio Versions) -->
+            <div onclick="toggleMagicKeyAccordion('${uniqueId}', '${safeTitleAttr}', '${safeArtistAttr}')" class="piano-white-key piano-magic-key flex-1 min-w-0 overflow-hidden" title="Desplegar dificultades y selector de versión">
               <div class="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
                 <!-- Animated Astral Medallion -->
                 <div class="piano-key-thumb magic-key-medallion relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center">
-                  ${thumbUrl ? `<img src="${escapeHtml(thumbUrl)}" alt="" class="w-full h-full object-cover rounded-full opacity-85" onerror="this.style.display='none'">` : ''}
+                  <img id="magicKeyImg_${uniqueId}" src="${escapeHtml(thumbUrl)}" alt="" class="w-full h-full object-cover rounded-full opacity-90 ${thumbUrl ? '' : 'hidden'}" onerror="this.classList.add('hidden')">
                   <svg class="magic-key-medallion-spin absolute inset-0 w-full h-full p-0.5 pointer-events-none" viewBox="0 0 36 36" fill="none">
                     <circle cx="18" cy="18" r="15" stroke="url(#magicGrad_${uniqueId})" stroke-width="1.6" stroke-dasharray="5 3" />
                     <defs>
@@ -9963,31 +10002,30 @@ function detenerPaginacionPiano() {
                       </linearGradient>
                     </defs>
                   </svg>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="relative z-10 drop-shadow">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="relative z-10 drop-shadow pointer-events-none">
                     <path d="M12 2L14.6 9.4L22 12L14.6 14.6L12 22L9.4 14.6L2 12L9.4 9.4L12 2Z" fill="#fef08a" stroke="#a855f7" stroke-width="1.2"/>
                   </svg>
                 </div>
-                <!-- Track Metadata -->
+                <!-- Track Metadata (Clean, without 'Tecla Mágica' text badge) -->
                 <div class="min-w-0 flex-1 flex flex-col justify-center overflow-hidden">
                   <div class="flex items-center gap-1.5 truncate">
-                    <h3 class="text-xs font-black magic-key-title truncate font-serif leading-tight">${escapeHtml(rawTitle)}</h3>
+                    <h3 id="magicKeyTitle_${uniqueId}" class="text-xs font-black magic-key-title truncate font-serif leading-tight">${escapeHtml(rawTitle)}</h3>
                   </div>
                   <div class="flex items-center gap-1.5 truncate mt-0.5">
-                    <span class="magic-pill-badge flex-shrink-0">Tecla Mágica</span>
                     <p id="magicKeySub_${uniqueId}" class="text-[10px] text-[#581c87] font-semibold truncate leading-tight">${escapeHtml(statusText)}</p>
                   </div>
                 </div>
               </div>
               <!-- Star Metric & Accordion Arrow -->
               <div class="flex items-center gap-1.5 flex-shrink-0 ml-1.5">
-                <span class="text-[10.5px] font-black text-[#7e22ce] font-mono whitespace-nowrap">★ AUTO</span>
+                <span class="text-[11px] font-black text-[#7e22ce] font-mono whitespace-nowrap">★ 4.5</span>
                 <span id="accordionArrow_${uniqueId}" class="text-[9px] text-[#7e22ce] transition-transform duration-200">▼</span>
               </div>
             </div>
 
             <!-- Fixed 3D Amethyst-Gold Play Key -->
             <div
-              onclick="event.stopPropagation(); autoExtractAndPlaySong('${safeTitleAttr}', '${safeArtistAttr}', '${safeThumbAttr}', 'hard')"
+              onclick="event.stopPropagation(); autoExtractAndPlaySong('${safeTitleAttr}', '${safeArtistAttr}', '${safeThumbAttr}', 'hard', '${uniqueId}')"
               class="piano-black-play-key piano-magic-play-key flex-shrink-0 w-12 min-w-[48px]"
               title="Generar pista y jugar (${escapeHtml(rawTitle)})"
             >
@@ -9995,31 +10033,44 @@ function detenerPaginacionPiano() {
             </div>
           </div>
 
-          <!-- Soundboard Accordion ("Caja de Resonancia Mágica") -->
+          <!-- Soundboard Accordion ("Caja de Resonancia y Selector de Grabación") -->
           <div id="pianoAccordion_${uniqueId}" class="piano-soundboard-accordion">
-            <div class="p-2.5 space-y-2" style="background: linear-gradient(180deg, rgba(28, 12, 48, 0.96) 0%, rgba(15, 10, 28, 0.99) 100%);">
+            <div class="p-2.5 space-y-2.5" style="background: linear-gradient(180deg, rgba(28, 12, 48, 0.97) 0%, rgba(15, 10, 28, 0.99) 100%);">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
-                  <span class="text-[9px] font-bold text-[#e9d5ff] uppercase tracking-wider">Dificultades de Síntesis Automática</span>
-                  <span class="text-[9px] font-bold text-[#fde68a] font-mono">Audio Original + 3 Carriles</span>
+                  <span class="text-[9px] font-bold text-[#e9d5ff] uppercase tracking-wider">Dificultades Disponibles</span>
+                  <button type="button" onclick="loadMagicKeyAudioCandidates('${uniqueId}', '${safeTitleAttr}', '${safeArtistAttr}', true)" class="text-[9.5px] font-bold text-[#fde68a] hover:text-white underline cursor-pointer">
+                    ♪ Elegir grabación / Preescuchar
+                  </button>
                 </div>
                 <div class="flex items-center gap-1.5 flex-wrap">
-                  <button type="button" onclick="autoExtractAndPlaySong('${safeTitleAttr}', '${safeArtistAttr}', '${safeThumbAttr}', 'easy')" class="piano-diff-chip tier-easy">
+                  <button type="button" onclick="autoExtractAndPlaySong('${safeTitleAttr}', '${safeArtistAttr}', '${safeThumbAttr}', 'easy', '${uniqueId}')" class="piano-diff-chip tier-easy">
                     <span>Fácil</span><span class="font-mono text-[9.5px] opacity-90">1.8★</span>
                   </button>
-                  <button type="button" onclick="autoExtractAndPlaySong('${safeTitleAttr}', '${safeArtistAttr}', '${safeThumbAttr}', 'medium')" class="piano-diff-chip tier-medium">
+                  <button type="button" onclick="autoExtractAndPlaySong('${safeTitleAttr}', '${safeArtistAttr}', '${safeThumbAttr}', 'medium', '${uniqueId}')" class="piano-diff-chip tier-medium">
                     <span>Media</span><span class="font-mono text-[9.5px] opacity-90">3.1★</span>
                   </button>
-                  <button type="button" onclick="autoExtractAndPlaySong('${safeTitleAttr}', '${safeArtistAttr}', '${safeThumbAttr}', 'hard')" class="piano-diff-chip tier-hard active">
+                  <button type="button" onclick="autoExtractAndPlaySong('${safeTitleAttr}', '${safeArtistAttr}', '${safeThumbAttr}', 'hard', '${uniqueId}')" class="piano-diff-chip tier-hard active">
                     <span>Difícil</span><span class="font-mono text-[9.5px] opacity-90">4.5★</span>
                   </button>
-                  <button type="button" onclick="autoExtractAndPlaySong('${safeTitleAttr}', '${safeArtistAttr}', '${safeThumbAttr}', 'extreme')" class="piano-diff-chip tier-extreme">
+                  <button type="button" onclick="autoExtractAndPlaySong('${safeTitleAttr}', '${safeArtistAttr}', '${safeThumbAttr}', 'extreme', '${uniqueId}')" class="piano-diff-chip tier-extreme">
                     <span>Extrema</span><span class="font-mono text-[9.5px] opacity-90">6.2★</span>
                   </button>
-                  <button type="button" onclick="autoExtractAndPlaySong('${safeTitleAttr}', '${safeArtistAttr}', '${safeThumbAttr}', 'impossible')" class="piano-diff-chip tier-impossible">
+                  <button type="button" onclick="autoExtractAndPlaySong('${safeTitleAttr}', '${safeArtistAttr}', '${safeThumbAttr}', 'impossible', '${uniqueId}')" class="piano-diff-chip tier-impossible">
                     <span>Imposible</span><span class="font-mono text-[9.5px] opacity-90">8.4★</span>
                   </button>
                   ${isPlaylistUrlOrId ? `<button type="button" onclick="importCuratedPlaylist('${safeTitleAttr}', 'Playlist de YouTube')" class="ml-auto px-2.5 py-1 rounded-lg text-[9.5px] font-black uppercase bg-amber-400 text-[#140e06] cursor-pointer shadow">Importar Playlist</button>` : ''}
+                </div>
+              </div>
+
+              <!-- Selector de Grabación de Estudio Verificada con Preescucha en 1 clic -->
+              <div class="pt-2 border-t border-purple-400/20">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-[9px] font-bold text-purple-200 uppercase tracking-wider">Grabación de Estudio (Preescucha y Elige la Exacta)</span>
+                  <span id="magicCandidatesStatus_${uniqueId}" class="text-[8.5px] font-mono text-amber-300">Verificando original...</span>
+                </div>
+                <div id="magicCandidatesBox_${uniqueId}" class="space-y-1.5 max-h-[185px] overflow-y-auto pr-0.5">
+                  <div class="text-[10px] text-purple-200/80 py-1">Buscando grabaciones originales de estudio...</div>
                 </div>
               </div>
             </div>
@@ -10098,6 +10149,12 @@ function detenerPaginacionPiano() {
       `;
 
       initGrandPianoPagination(page, totalPages);
+      if (showAutoExtractorBanner && typeof window.loadMagicKeyAudioCandidates === 'function') {
+        if (window._selectedMagicAudioCandidate) delete window._selectedMagicAudioCandidate['magic_search_top'];
+        setTimeout(() => {
+          window.loadMagicKeyAudioCandidates('magic_search_top', activeQ, '', true);
+        }, 40);
+      }
     }
     window.renderSearchResultsPage = renderSearchResultsPage;
 
@@ -13320,17 +13377,410 @@ function stopPianoCameraLoop() {
     };
 
     // =========================================================================
-    // EXTRACTOR AUTOMÁTICO DE AUDIO MULTI-FUENTE Y GENERADOR DSP SIN ERRORES
-    // Cascada: 1) Backend Multi-Engine (YouTube Piped/Invidious -> Audius -> Deezer -> Apple Music)
-    //          2) Piped / Invidious Directo (YouTube Stream)
-    //          3) Audius Red Descentralizada Directa (CORS nativo)
-    //          4) Apple Music / iTunes Global CDN Directo (CORS nativo)
-    //          5) Deezer Global CDN vía Worker
-    //          6) Síntesis Acústica Polifónica de Respaldo (100% a prueba de fallos)
+    // MOTOR DE AUTENTICIDAD DE ESTUDIO, PREESCUCHA Y SELECTOR DE GRABACIONES
+    // Evita canciones equivocadas o versiones extrañas (karaoke, covers, remixes,
+    // nightcore, directos) y permite preescuchar/elegir cualquier versión en 1 clic
     // =========================================================================
     window._autoExtractInFlightMap = new Map();
+    window._magicKeyCandidatesMap = {};
+    window._selectedMagicAudioCandidate = {};
+    window._previewAudioPlayer = null;
+    window._previewActiveBtnId = null;
 
-    async function extractSongAudioMultiSource(rawTitle, rawArtist = '', preferredThumb = '', onProgress = null) {
+    function scoreStudioAudioAuthenticity(searchQuery, rawTitle, rawArtist, candTitle, candArtist, candAlbum = '', extraSource = '') {
+      const norm = (s) => String(s || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      const nQuery = norm(searchQuery || `${rawTitle} ${rawArtist}`);
+      const nTitle = norm(rawTitle || searchQuery);
+      const nArtist = norm(rawArtist);
+      const cTitle = norm(candTitle);
+      const cArtist = norm(candArtist);
+      const cAlbum = norm(candAlbum);
+      const cFull = `${cTitle} ${cArtist} ${cAlbum} ${norm(extraSource)}`.trim();
+
+      if (!cTitle) return 0;
+
+      let score = (typeof computeSongRelevanceScore === 'function')
+        ? computeSongRelevanceScore(searchQuery || `${rawTitle} ${rawArtist}`, candTitle || '', candArtist || '')
+        : 60;
+
+      // Exigir coincidencia real en las palabras del título para nunca reproducir otra canción del mismo artista
+      const stopWords = new Set([
+        'the', 'and', 'for', 'with', 'los', 'las', 'del', 'una', 'por', 'con', 'para',
+        'de', 'la', 'el', 'en', 'un', 'al', 'lo', 'official', 'audio', 'video', 'lyrics', 'letra'
+      ]);
+      const titleWords = (nTitle || nQuery).split(' ').filter(w => w.length >= 3 && !stopWords.has(w));
+      const artistWords = new Set(nArtist ? nArtist.split(' ').filter(w => w.length >= 3) : []);
+      const pureTitleWords = titleWords.filter(w => !artistWords.has(w));
+      const checkWords = pureTitleWords.length > 0 ? pureTitleWords : titleWords;
+
+      if (checkWords.length > 0) {
+        let matchedTitleWords = 0;
+        for (const w of checkWords) {
+          if ((' ' + cTitle + ' ').includes(' ' + w + ' ') || (w.length >= 4 && cTitle.includes(w))) {
+            matchedTitleWords++;
+          } else if (typeof wordSimilarity === 'function') {
+            const cTokens = cTitle.split(' ');
+            if (cTokens.some(ct => wordSimilarity(w, ct) >= 0.80)) {
+              matchedTitleWords += 0.85;
+            }
+          }
+        }
+        if (matchedTitleWords === 0) {
+          return Math.min(25, score);
+        }
+        score += Math.round((matchedTitleWords / checkWords.length) * 32);
+      }
+
+      // Bonificación por título exacto y artista original
+      if (nTitle && cTitle === nTitle) score += 36;
+      else if (nTitle && cTitle.startsWith(nTitle)) score += 18;
+
+      if (nArtist && cArtist) {
+        if (cArtist === nArtist) score += 35;
+        else if (cArtist.includes(nArtist) || nArtist.includes(cArtist)) score += 26;
+      }
+
+      // Penalizar paréntesis o corchetes no solicitados (ej. "(Live)", "(Remix)", "(Versión Alternativa)")
+      if (/[\(\[\{]/.test(String(candTitle || '')) && !/[\(\[\{]/.test(String(rawTitle || searchQuery || ''))) {
+        score -= 10;
+      }
+
+      // Penalización severa contra Karaoke, Tributos y Bandas de Imitación
+      const heavyFakeMarkers = [
+        'karaoke', 'tribute', 'made famous', 'originally performed', 'in the style of',
+        '8 bit', '8bit', 'lullaby', 'music box', 'ringtone', 'parody', 'backing track',
+        'hit crew', 'countdown singers', 'party tyme', 'sunfly', 'ameritz', 'prosource',
+        'done again', 'starlight singers', 'sing king', 'piano cover', 'guitar cover', 'instrumental version'
+      ];
+      for (const m of heavyFakeMarkers) {
+        if (cFull.includes(m) && !nQuery.includes(m)) {
+          score -= 90;
+        }
+      }
+
+      // Penalización contra versiones alteradas o raras (Nightcore, Slowed, Sped Up, Remix, Directo, Cover)
+      const strangeMarkers = [
+        'nightcore', 'daycore', 'slowed', 'sped up', 'reverb', '8d audio', 'bass boosted',
+        'chopped', 'screwed', 'remix', 'bootleg', 'mashup', 'megamix', 'extended mix',
+        'club mix', 'vip mix', 'cover', 'live at', 'live in', 'live from', 'en vivo',
+        'ao vivo', 'en directo', 'concierto', 'acoustic version', 'unplugged', 'demo',
+        'tv size', 'short ver', 'cut ver'
+      ];
+      for (const m of strangeMarkers) {
+        if (cFull.includes(m) && !nQuery.includes(m)) {
+          score -= 55;
+        }
+      }
+      if (/\blive\b/.test(cTitle) && !/\blive\b/.test(nQuery)) {
+        score -= 45;
+      }
+
+      return score;
+    }
+    window.scoreStudioAudioAuthenticity = scoreStudioAudioAuthenticity;
+
+    async function discoverVerifiedAudioCandidates(rawTitle, rawArtist = '') {
+      const parsed = (typeof parseYouTubeMetadataSmart === 'function')
+        ? parseYouTubeMetadataSmart(rawTitle || '', rawArtist || '')
+        : { coreTitle: String(rawTitle || '').trim(), coreArtist: String(rawArtist || '').trim() };
+      const cleanTitle = parsed.coreTitle || String(rawTitle || 'Canción').trim();
+      const cleanArtist = (parsed.coreArtist && parsed.coreArtist.toLowerCase() !== 'youtube')
+        ? parsed.coreArtist
+        : String(rawArtist || '').replace(/^youtube$/i, '').trim();
+      const searchQuery = cleanArtist ? `${cleanTitle} ${cleanArtist}`.trim() : cleanTitle;
+      const myWorker = (u) => `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(u)}`;
+
+      const fetchFast = (url, ms = 4200) => {
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), ms);
+        return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(tid));
+      };
+
+      const [itRes, dzRes, auRes] = await Promise.allSettled([
+        fetchFast(`https://itunes.apple.com/search?term=${encodeURIComponent(searchQuery)}&media=music&entity=song&limit=15`, 4200)
+          .then(r => r.ok ? r.json() : {}),
+        fetchFast(myWorker(`https://api.deezer.com/search?q=${encodeURIComponent(searchQuery)}&limit=15`), 4200)
+          .then(r => r.ok ? r.json() : {}),
+        fetchFast(`https://discoveryprovider.audius.co/v1/tracks/search?query=${encodeURIComponent(searchQuery)}&app_name=PianoCommunity`, 3800)
+          .then(r => r.ok ? r.json() : {})
+      ]);
+
+      const rawList = [];
+
+      if (itRes.status === 'fulfilled' && Array.isArray(itRes.value?.results)) {
+        for (const r of itRes.value.results) {
+          if (!r || !r.previewUrl) continue;
+          const sc = scoreStudioAudioAuthenticity(searchQuery, cleanTitle, cleanArtist, r.trackName || '', r.artistName || '', r.collectionName || '', 'AppleMusic');
+          rawList.push({
+            uid: `it_${r.trackId || Math.random().toString(36).slice(2, 8)}`,
+            title: r.trackName || cleanTitle,
+            artist: r.artistName || cleanArtist || 'Artista',
+            album: r.collectionName || 'Estudio Original',
+            previewUrl: r.previewUrl,
+            directFetchUrl: r.previewUrl,
+            mimeType: 'audio/mp4',
+            thumbnail: (r.artworkUrl100 || '').replace('100x100bb', '600x600bb') || getSongCoverFallback(r.trackName || cleanTitle, r.artistName || cleanArtist),
+            sourceName: 'Apple Music Studio',
+            authenticityScore: sc + 6
+          });
+        }
+      }
+
+      if (dzRes.status === 'fulfilled' && Array.isArray(dzRes.value?.data)) {
+        for (const t of dzRes.value.data) {
+          if (!t || !t.preview) continue;
+          const sc = scoreStudioAudioAuthenticity(searchQuery, cleanTitle, cleanArtist, t.title || '', t.artist?.name || '', t.album?.title || '', 'Deezer');
+          rawList.push({
+            uid: `dz_${t.id || Math.random().toString(36).slice(2, 8)}`,
+            title: t.title || cleanTitle,
+            artist: t.artist?.name || cleanArtist || 'Artista',
+            album: t.album?.title || 'Estudio Original',
+            previewUrl: t.preview,
+            directFetchUrl: myWorker(t.preview),
+            mimeType: 'audio/mpeg',
+            thumbnail: t.album?.cover_big || t.album?.cover_medium || getSongCoverFallback(t.title || cleanTitle, t.artist?.name || cleanArtist),
+            sourceName: 'Deezer Studio',
+            authenticityScore: sc + 5
+          });
+        }
+      }
+
+      if (auRes.status === 'fulfilled' && Array.isArray(auRes.value?.data)) {
+        for (const tr of auRes.value.data.slice(0, 5)) {
+          if (!tr || !tr.id) continue;
+          const sc = scoreStudioAudioAuthenticity(searchQuery, cleanTitle, cleanArtist, tr.title || '', tr.user?.name || '', '', 'Audius');
+          if (sc >= 58) {
+            const streamUrl = `https://discoveryprovider.audius.co/v1/tracks/${encodeURIComponent(tr.id)}/stream?app_name=PianoCommunity`;
+            rawList.push({
+              uid: `au_${tr.id}`,
+              title: tr.title || cleanTitle,
+              artist: tr.user?.name || cleanArtist || 'Artista',
+              album: 'Pista Completa',
+              previewUrl: streamUrl,
+              directFetchUrl: streamUrl,
+              mimeType: 'audio/mpeg',
+              thumbnail: tr.artwork?.['480x480'] || tr.artwork?.['150x150'] || getSongCoverFallback(tr.title || cleanTitle, tr.user?.name || cleanArtist),
+              sourceName: 'Audius Full',
+              authenticityScore: sc
+            });
+          }
+        }
+      }
+
+      rawList.sort((a, b) => (b.authenticityScore || 0) - (a.authenticityScore || 0));
+
+      // Deduplicar por combinación normalizada de título + artista + fuente (manteniendo distintas versiones/artistas disponibles)
+      const deduped = [];
+      const seenKeys = new Set();
+      for (const item of rawList) {
+        const k = `${normalizeSearchText(item.title)}__${normalizeSearchText(item.artist)}__${normalizeSearchText(item.album).slice(0, 14)}`;
+        if (!seenKeys.has(k)) {
+          seenKeys.add(k);
+          deduped.push(item);
+        }
+        if (deduped.length >= 8) break;
+      }
+
+      return deduped;
+    }
+    window.discoverVerifiedAudioCandidates = discoverVerifiedAudioCandidates;
+
+    window.stopPreviewCandidateAudio = function() {
+      if (window._previewAudioPlayer) {
+        try {
+          window._previewAudioPlayer.pause();
+          window._previewAudioPlayer.src = '';
+        } catch (_) {}
+        window._previewAudioPlayer = null;
+      }
+      if (window._previewActiveBtnId) {
+        const prevBtn = document.getElementById(window._previewActiveBtnId);
+        if (prevBtn) {
+          prevBtn.innerText = '▶ Escuchar';
+          prevBtn.classList.remove('bg-amber-400', 'text-[#140e06]');
+        }
+        window._previewActiveBtnId = null;
+      }
+    };
+
+    window.togglePreviewCandidateAudio = function(previewUrl, btnId) {
+      if (!previewUrl) return;
+      if (window._previewActiveBtnId === btnId && window._previewAudioPlayer && !window._previewAudioPlayer.paused) {
+        window.stopPreviewCandidateAudio();
+        return;
+      }
+      window.stopPreviewCandidateAudio();
+      const audio = new Audio(previewUrl);
+      audio.volume = 0.85;
+      window._previewAudioPlayer = audio;
+      window._previewActiveBtnId = btnId;
+      const btn = document.getElementById(btnId);
+      if (btn) {
+        btn.innerText = '■ Parar';
+        btn.classList.add('bg-amber-400', 'text-[#140e06]');
+      }
+      audio.onended = () => window.stopPreviewCandidateAudio();
+      audio.onerror = () => {
+        window.stopPreviewCandidateAudio();
+        if (typeof showErrorToast === 'function') showErrorToast('No se pudo preescuchar esta fuente.');
+      };
+      audio.play().catch(() => window.stopPreviewCandidateAudio());
+    };
+
+    window.toggleMagicKeyAccordion = function(uniqueId, rawTitle = '', rawArtist = '') {
+      if (typeof togglePianoAccordion === 'function') {
+        togglePianoAccordion(uniqueId);
+      }
+      const acc = document.getElementById(`pianoAccordion_${uniqueId}`);
+      if (acc && acc.classList.contains('open')) {
+        window.loadMagicKeyAudioCandidates(uniqueId, rawTitle, rawArtist, false);
+      } else {
+        window.stopPreviewCandidateAudio();
+      }
+    };
+
+    window.loadMagicKeyAudioCandidates = async function(uniqueId, rawTitle = '', rawArtist = '', forceReload = false) {
+      const boxEl = document.getElementById(`magicCandidatesBox_${uniqueId}`);
+      const statusEl = document.getElementById(`magicCandidatesStatus_${uniqueId}`);
+      if (!boxEl) return;
+
+      if (!forceReload && Array.isArray(window._magicKeyCandidatesMap[uniqueId]) && window._magicKeyCandidatesMap[uniqueId].length > 0) {
+        renderMagicKeyCandidatesList(uniqueId);
+        return;
+      }
+
+      if (statusEl) statusEl.innerText = 'Buscando estudio original...';
+      boxEl.innerHTML = `<div class="text-[10px] text-purple-200/80 py-1.5 flex items-center gap-2"><span class="w-3 h-3 rounded-full border-2 border-amber-300 border-t-transparent animate-spin inline-block"></span> Verificando grabaciones originales de estudio...</div>`;
+
+      try {
+        const candidates = await discoverVerifiedAudioCandidates(rawTitle, rawArtist);
+        window._magicKeyCandidatesMap[uniqueId] = candidates;
+        if (candidates.length > 0 && !window._selectedMagicAudioCandidate[uniqueId]) {
+          window._selectedMagicAudioCandidate[uniqueId] = candidates[0];
+          updateMagicKeyHeaderFromCandidate(uniqueId, candidates[0]);
+        }
+        renderMagicKeyCandidatesList(uniqueId);
+        if (statusEl) {
+          statusEl.innerText = candidates.length > 0
+            ? `${candidates.length} grabaciones verificadas`
+            : 'Motor multi-fuente listo';
+        }
+      } catch (_) {
+        if (statusEl) statusEl.innerText = 'Motor multi-fuente listo';
+        boxEl.innerHTML = `<div class="text-[10px] text-purple-200/70 py-1">Pulsa cualquier dificultad para extraer la pista automáticamente.</div>`;
+      }
+    };
+
+    function updateMagicKeyHeaderFromCandidate(uniqueId, cand) {
+      if (!cand) return;
+      const titleEl = document.getElementById(`magicKeyTitle_${uniqueId}`);
+      const subEl = document.getElementById(`magicKeySub_${uniqueId}`);
+      const imgEl = document.getElementById(`magicKeyImg_${uniqueId}`);
+      if (titleEl && cand.title) titleEl.innerText = cand.title;
+      if (subEl) {
+        subEl.innerText = `${cand.artist || 'Artista'}${cand.album ? ` • ${cand.album}` : ''}`;
+      }
+      if (imgEl && cand.thumbnail) {
+        imgEl.src = cand.thumbnail;
+        imgEl.classList.remove('hidden');
+      }
+    }
+
+    function renderMagicKeyCandidatesList(uniqueId) {
+      const boxEl = document.getElementById(`magicCandidatesBox_${uniqueId}`);
+      if (!boxEl) return;
+      const list = window._magicKeyCandidatesMap[uniqueId] || [];
+      const selected = window._selectedMagicAudioCandidate[uniqueId] || list[0] || null;
+
+      if (!list.length) {
+        boxEl.innerHTML = `<div class="text-[10px] text-purple-200/75 py-1">No se listaron preescuchas previas; el extractor usará el flujo directo al jugar.</div>`;
+        return;
+      }
+
+      boxEl.innerHTML = list.map((c, idx) => {
+        const isSel = selected && selected.uid === c.uid;
+        const btnPreviewId = `prevBtn_${uniqueId}_${idx}`;
+        const safePreviewUrl = escapeHtml(c.previewUrl || '').replace(/'/g, "\\'");
+        const badgeLabel = idx === 0 ? '★ Original Estudio' : c.sourceName;
+
+        return `
+          <div onclick="selectMagicAudioCandidate('${uniqueId}', ${idx})" class="flex items-center justify-between gap-2 p-1.5 rounded-lg border transition cursor-pointer ${isSel ? 'bg-purple-900/60 border-amber-400/80 shadow-sm' : 'bg-black/35 border-white/10 hover:bg-white/5'}">
+            <div class="flex items-center gap-2 min-w-0 flex-1">
+              <img src="${escapeHtml(c.thumbnail || './app_logo.png')}" alt="" class="w-7 h-7 rounded-full object-cover border border-amber-400/50 flex-shrink-0" onerror="this.src='./app_logo.png'">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-1">
+                  <span class="text-[8px] font-mono font-black uppercase px-1 py-0.2 rounded ${isSel ? 'bg-amber-400 text-[#140e06]' : 'bg-purple-500/25 text-purple-200'}">${isSel ? '✓ Activa' : escapeHtml(badgeLabel)}</span>
+                  <span class="text-[10.5px] font-bold text-white truncate">${escapeHtml(c.title)}</span>
+                </div>
+                <p class="text-[9.5px] text-purple-200/80 truncate">${escapeHtml(c.artist)}${c.album ? ` · ${escapeHtml(c.album)}` : ''}</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1 flex-shrink-0">
+              <button id="${btnPreviewId}" type="button" onclick="event.stopPropagation(); togglePreviewCandidateAudio('${safePreviewUrl}', '${btnPreviewId}')" class="px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 border border-white/15 text-[9px] font-bold text-amber-200 cursor-pointer transition" title="Escuchar avance de esta grabación">▶ Escuchar</button>
+              <button type="button" onclick="event.stopPropagation(); playMagicAudioCandidateDirect('${uniqueId}', ${idx})" class="px-2 py-1 rounded-md bg-gradient-to-r from-amber-400 to-yellow-500 text-[#140e06] text-[9px] font-black uppercase cursor-pointer shadow" title="Generar y jugar con esta versión exacta">Usar ▶</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    window.selectMagicAudioCandidate = function(uniqueId, candIdx) {
+      const list = window._magicKeyCandidatesMap[uniqueId] || [];
+      const cand = list[candIdx];
+      if (!cand) return;
+      window._selectedMagicAudioCandidate[uniqueId] = cand;
+      updateMagicKeyHeaderFromCandidate(uniqueId, cand);
+      renderMagicKeyCandidatesList(uniqueId);
+      if (typeof showSuccessToast === 'function') {
+        showSuccessToast(`Grabación elegida: ${cand.title} - ${cand.artist}`);
+      }
+    };
+
+    window.playMagicAudioCandidateDirect = function(uniqueId, candIdx) {
+      const list = window._magicKeyCandidatesMap[uniqueId] || [];
+      const cand = list[candIdx];
+      if (!cand) return;
+      window.stopPreviewCandidateAudio();
+      window._selectedMagicAudioCandidate[uniqueId] = cand;
+      updateMagicKeyHeaderFromCandidate(uniqueId, cand);
+      renderMagicKeyCandidatesList(uniqueId);
+      window.autoExtractAndPlaySong(cand.title, cand.artist, cand.thumbnail, 'hard', uniqueId, true);
+    };
+
+    window.openVersionFixerFromPause = function() {
+      window.stopPreviewCandidateAudio();
+      const activeTitle = currentActiveBeatmap?.metadata?.title || currentActiveBeatmap?.title || document.getElementById('pauseSongTitle')?.innerText || '';
+      const activeArtist = currentActiveBeatmap?.metadata?.artist || currentActiveBeatmap?.artist || '';
+      const activeThumb = currentActiveBeatmap?.metadata?.thumbnail || currentActiveBeatmap?.thumbnail || './app_logo.png';
+      const pauseModal = document.getElementById('pauseModal');
+      if (pauseModal) {
+        pauseModal.classList.remove('open');
+        pauseModal.style.display = 'none';
+      }
+      if (typeof quitGame === 'function') {
+        quitGame();
+      }
+      setTimeout(() => {
+        if (typeof openPlaylistTrackMatcher === 'function') {
+          openPlaylistTrackMatcher(activeTitle, activeArtist, activeThumb);
+          setTimeout(() => {
+            const acc = document.getElementById('pianoAccordion_magic_playlist_matcher');
+            if (acc && !acc.classList.contains('open')) {
+              window.toggleMagicKeyAccordion('magic_playlist_matcher', activeTitle, activeArtist);
+            }
+          }, 180);
+        }
+      }, 120);
+    };
+
+    async function extractSongAudioMultiSource(rawTitle, rawArtist = '', preferredThumb = '', onProgress = null, preferredCandidate = null) {
       const parsed = (typeof parseYouTubeMetadataSmart === 'function')
         ? parseYouTubeMetadataSmart(rawTitle || '', rawArtist || '')
         : { coreTitle: String(rawTitle || '').trim(), coreArtist: String(rawArtist || '').trim() };
@@ -13347,11 +13797,62 @@ function stopPianoCameraLoop() {
         try { return decodeURIComponent(val); } catch (_) { return val || fallback; }
       };
 
-      // 1. Intentar Backend Multi-Engine (/api/v1/audio/extract: YouTube -> Audius -> Deezer -> iTunes -> Archive)
+      // 0. Si el usuario seleccionó una grabación específica en el selector o tenemos la mejor candidata de estudio verificada
+      const tryDownloadCandidate = async (cand) => {
+        if (!cand || (!cand.directFetchUrl && !cand.previewUrl)) return null;
+        const urlsToTry = Array.from(new Set([
+          cand.directFetchUrl,
+          cand.previewUrl,
+          cand.previewUrl ? myWorker(cand.previewUrl) : null,
+          cand.previewUrl ? `${baseUrl}/api/v1/audio/extract?directUrl=${encodeURIComponent(cand.previewUrl)}&title=${encodeURIComponent(cand.title || cleanTitle)}&artist=${encodeURIComponent(cand.artist || cleanArtist)}` : null
+        ].filter(Boolean)));
+
+        for (const u of urlsToTry) {
+          try {
+            const ctrl = new AbortController();
+            const tid = setTimeout(() => ctrl.abort(), 6500);
+            const resp = await fetch(u, { signal: ctrl.signal });
+            clearTimeout(tid);
+            if (resp.ok) {
+              const ab = await resp.arrayBuffer();
+              if (ab && ab.byteLength >= 12000) {
+                return {
+                  blob: new Blob([ab], { type: cand.mimeType || 'audio/mpeg' }),
+                  title: cand.title || cleanTitle,
+                  artist: cand.artist || cleanArtist || 'Artista',
+                  thumbnail: cand.thumbnail || preferredThumb || getSongCoverFallback(cand.title || cleanTitle, cand.artist || cleanArtist),
+                  sourceName: cand.sourceName || 'Grabación de Estudio'
+                };
+              }
+            }
+          } catch (_) {}
+        }
+        return null;
+      };
+
+      if (preferredCandidate) {
+        if (onProgress) onProgress(`Descargando grabación seleccionada: ${preferredCandidate.title} - ${preferredCandidate.artist}...`);
+        const chosenRes = await tryDownloadCandidate(preferredCandidate);
+        if (chosenRes) return chosenRes;
+      }
+
+      // 1. Descubrir y puntuar grabaciones originales de estudio en paralelo (Apple Music Studio + Deezer Studio + Audius Verificado)
       try {
-        if (onProgress) onProgress('Extrayendo audio real (Motor Principal: YouTube / Audius / Studio CDN)...');
+        if (onProgress) onProgress('Verificando grabación original de estudio (Apple Music / Deezer CDN)...');
+        const verifiedCandidates = await discoverVerifiedAudioCandidates(cleanTitle, cleanArtist);
+        for (const cand of verifiedCandidates.slice(0, 3)) {
+          if ((cand.authenticityScore || 0) >= 48) {
+            const studioRes = await tryDownloadCandidate(cand);
+            if (studioRes) return studioRes;
+          }
+        }
+      } catch (_) {}
+
+      // 2. Intentar Backend Multi-Engine (/api/v1/audio/extract: YouTube Topic Oficial -> Deezer -> Apple Music -> Audius)
+      try {
+        if (onProgress) onProgress('Extrayendo audio original desde motor principal...');
         const ctrl = new AbortController();
-        const tid = setTimeout(() => ctrl.abort(), 11500);
+        const tid = setTimeout(() => ctrl.abort(), 11000);
         const url = `${baseUrl}/api/v1/audio/extract?q=${encodeURIComponent(searchQuery)}&title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}`;
         const resp = await fetch(url, { signal: ctrl.signal });
         clearTimeout(tid);
@@ -13376,122 +13877,7 @@ function stopPianoCameraLoop() {
         }
       } catch (_) {}
 
-      // 2. Intentar Audius Open Music Network directamente desde el cliente (CORS nativo, pistas completas)
-      try {
-        if (onProgress) onProgress('Consultando red abierta de pistas completas (Audius)...');
-        const auCtrl = new AbortController();
-        const auTid = setTimeout(() => auCtrl.abort(), 4500);
-        const auRes = await fetch(`https://discoveryprovider.audius.co/v1/tracks/search?query=${encodeURIComponent(searchQuery)}&app_name=PianoCommunity`, {
-          signal: auCtrl.signal
-        });
-        clearTimeout(auTid);
-        if (auRes.ok) {
-          const auJson = await auRes.json();
-          const tracks = Array.isArray(auJson?.data) ? auJson.data : [];
-          for (const tr of tracks.slice(0, 3)) {
-            if (!tr || !tr.id) continue;
-            const sc = (typeof computeSongRelevanceScore === 'function')
-              ? computeSongRelevanceScore(searchQuery, tr.title || '', tr.user?.name || '')
-              : 60;
-            if (sc >= 50) {
-              const stCtrl = new AbortController();
-              const stTid = setTimeout(() => stCtrl.abort(), 7000);
-              const stRes = await fetch(`https://discoveryprovider.audius.co/v1/tracks/${encodeURIComponent(tr.id)}/stream?app_name=PianoCommunity`, {
-                signal: stCtrl.signal
-              });
-              clearTimeout(stTid);
-              if (stRes.ok) {
-                const ab = await stRes.arrayBuffer();
-                if (ab && ab.byteLength >= 12000) {
-                  const art = tr.artwork?.['480x480'] || tr.artwork?.['150x150'] || preferredThumb;
-                  return {
-                    blob: new Blob([ab], { type: 'audio/mpeg' }),
-                    title: tr.title || cleanTitle,
-                    artist: tr.user?.name || cleanArtist || 'Artista',
-                    thumbnail: art || getSongCoverFallback(tr.title || cleanTitle, tr.user?.name || cleanArtist),
-                    sourceName: 'Audius Full Audio'
-                  };
-                }
-              }
-            }
-          }
-        }
-      } catch (_) {}
-
-      // 3. Intentar Apple Music / iTunes Global CDN directamente desde el navegador/APK (CORS * nativo mundial)
-      try {
-        if (onProgress) onProgress('Extrayendo grabación de estudio desde Apple Music / iTunes CDN...');
-        const itCtrl = new AbortController();
-        const itTid = setTimeout(() => itCtrl.abort(), 5000);
-        const itRes = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(searchQuery)}&media=music&entity=song&limit=8`, {
-          signal: itCtrl.signal
-        });
-        clearTimeout(itTid);
-        if (itRes.ok) {
-          const itJson = await itRes.json();
-          const results = Array.isArray(itJson?.results) ? itJson.results.filter(r => r && r.previewUrl) : [];
-          if (results.length > 0) {
-            if (typeof computeSongRelevanceScore === 'function') {
-              results.sort((a, b) =>
-                computeSongRelevanceScore(searchQuery, b.trackName || '', b.artistName || '') -
-                computeSongRelevanceScore(searchQuery, a.trackName || '', a.artistName || '')
-              );
-            }
-            const best = results[0];
-            const dlCtrl = new AbortController();
-            const dlTid = setTimeout(() => dlCtrl.abort(), 6500);
-            const audioResp = await fetch(best.previewUrl, { signal: dlCtrl.signal });
-            clearTimeout(dlTid);
-            if (audioResp.ok) {
-              const ab = await audioResp.arrayBuffer();
-              if (ab && ab.byteLength >= 12000) {
-                const cover = (best.artworkUrl100 || '').replace('100x100bb', '600x600bb') || preferredThumb;
-                return {
-                  blob: new Blob([ab], { type: 'audio/mp4' }),
-                  title: best.trackName || cleanTitle,
-                  artist: best.artistName || cleanArtist || 'Artista',
-                  thumbnail: cover || getSongCoverFallback(best.trackName || cleanTitle, best.artistName || cleanArtist),
-                  sourceName: 'Apple Music Studio'
-                };
-              }
-            }
-          }
-        }
-      } catch (_) {}
-
-      // 4. Intentar Deezer Global CDN vía Cloudflare Worker
-      try {
-        if (onProgress) onProgress('Extrayendo audio desde Deezer Studio CDN...');
-        const dzCtrl = new AbortController();
-        const dzTid = setTimeout(() => dzCtrl.abort(), 5000);
-        const dzRes = await fetch(myWorker(`https://api.deezer.com/search?q=${encodeURIComponent(searchQuery)}&limit=6`), {
-          signal: dzCtrl.signal
-        });
-        clearTimeout(dzTid);
-        if (dzRes.ok) {
-          const dzJson = await dzRes.json();
-          const dzTracks = Array.isArray(dzJson?.data) ? dzJson.data.filter(t => t && t.preview) : [];
-          if (dzTracks.length > 0) {
-            const bestDz = dzTracks[0];
-            const dlRes = await fetch(myWorker(bestDz.preview));
-            if (dlRes.ok) {
-              const ab = await dlRes.arrayBuffer();
-              if (ab && ab.byteLength >= 12000) {
-                const cover = bestDz.album?.cover_big || bestDz.album?.cover_medium || preferredThumb;
-                return {
-                  blob: new Blob([ab], { type: 'audio/mpeg' }),
-                  title: bestDz.title || cleanTitle,
-                  artist: bestDz.artist?.name || cleanArtist || 'Artista',
-                  thumbnail: cover || getSongCoverFallback(bestDz.title || cleanTitle, bestDz.artist?.name || cleanArtist),
-                  sourceName: 'Deezer Studio Audio'
-                };
-              }
-            }
-          }
-        }
-      } catch (_) {}
-
-      // 5. Respaldo final infalible: Síntesis acústica polifónica determinista (para modo sin conexión o pistas inéditas)
+      // 3. Respaldo final infalible: Síntesis acústica polifónica determinista (para modo sin conexión o pistas inéditas)
       if (onProgress) onProgress('Sintetizando arreglo acústico de piano para la canción...');
       let seed = 0;
       for (let i = 0; i < searchQuery.length; i++) {
@@ -13530,14 +13916,18 @@ function stopPianoCameraLoop() {
       };
     }
 
-    async function buildAndSaveAutoExtractedSong(rawTitle, rawArtist = '', preferredThumb = '', targetDensity = 'hard', onProgress = null) {
+    async function buildAndSaveAutoExtractedSong(rawTitle, rawArtist = '', preferredThumb = '', targetDensity = 'hard', onProgress = null, preferredCandidate = null, forceRebuild = false) {
+      const effectiveTitle = (preferredCandidate && preferredCandidate.title) ? preferredCandidate.title : rawTitle;
+      const effectiveArtist = (preferredCandidate && preferredCandidate.artist) ? preferredCandidate.artist : rawArtist;
+      const effectiveThumb = (preferredCandidate && preferredCandidate.thumbnail) ? preferredCandidate.thumbnail : preferredThumb;
+
       const parsed = (typeof parseYouTubeMetadataSmart === 'function')
-        ? parseYouTubeMetadataSmart(rawTitle || '', rawArtist || '')
-        : { coreTitle: String(rawTitle || '').trim(), coreArtist: String(rawArtist || '').trim() };
-      const cleanTitle = parsed.coreTitle || String(rawTitle || 'Canción').trim();
+        ? parseYouTubeMetadataSmart(effectiveTitle || '', effectiveArtist || '')
+        : { coreTitle: String(effectiveTitle || '').trim(), coreArtist: String(effectiveArtist || '').trim() };
+      const cleanTitle = parsed.coreTitle || String(effectiveTitle || 'Canción').trim();
       const cleanArtist = (parsed.coreArtist && parsed.coreArtist.toLowerCase() !== 'youtube')
         ? parsed.coreArtist
-        : String(rawArtist || '').replace(/^youtube$/i, '').trim();
+        : String(effectiveArtist || '').replace(/^youtube$/i, '').trim();
 
       const slugKey = `${cleanTitle}_${cleanArtist}`
         .toLowerCase()
@@ -13548,27 +13938,29 @@ function stopPianoCameraLoop() {
         .slice(0, 48) || `song_${Date.now()}`;
       const deterministicId = `auto_dsp_${slugKey}`;
 
-      // Si ya fue generada y guardada en IndexedDBStorage, reutilizarla instantáneamente
-      try {
-        const existing = await IndexedDBStorage.getChart(deterministicId);
-        if (existing && existing.audioBlob) {
-          return { chartItem: existing, dspPack: existing, cached: true };
-        }
-      } catch (_) {}
+      // Si ya fue generada y guardada en IndexedDBStorage (y el usuario no pidió explícitamente cambiar la grabación), reutilizarla
+      if (!forceRebuild && !preferredCandidate) {
+        try {
+          const existing = await IndexedDBStorage.getChart(deterministicId);
+          if (existing && existing.audioBlob) {
+            return { chartItem: existing, dspPack: existing, cached: true };
+          }
+        } catch (_) {}
+      }
 
-      if (window._autoExtractInFlightMap.has(deterministicId)) {
+      if (!forceRebuild && window._autoExtractInFlightMap.has(deterministicId)) {
         return window._autoExtractInFlightMap.get(deterministicId);
       }
 
       const taskPromise = (async () => {
-        const extracted = await extractSongAudioMultiSource(cleanTitle, cleanArtist, preferredThumb, onProgress);
+        const extracted = await extractSongAudioMultiSource(cleanTitle, cleanArtist, effectiveThumb, onProgress, preferredCandidate);
         if (onProgress) onProgress(`Analizando frecuencias y generando 5 dificultades (${extracted.sourceName})...`);
 
         const dspPack = await AudioAutoMapper.createPlayableChartFromAudioFile(extracted.blob, {
           id: deterministicId,
           title: extracted.title || cleanTitle,
           artist: extracted.artist || cleanArtist || 'Artista',
-          thumbnail: extracted.thumbnail || preferredThumb,
+          thumbnail: extracted.thumbnail || effectiveThumb,
           densityMode: targetDensity || 'hard',
           sourceLabel: extracted.sourceName || 'Auto-DSP'
         });
@@ -13603,7 +13995,15 @@ function stopPianoCameraLoop() {
       }
     }
 
-    window.autoExtractAndPlaySong = async function(rawTitle, rawArtist = '', preferredThumb = '', targetDensity = 'hard') {
+    window.autoExtractAndPlaySong = async function(rawTitle, rawArtist = '', preferredThumb = '', targetDensity = 'hard', magicKeyUid = '', forceRebuild = false) {
+      window.stopPreviewCandidateAudio();
+      const chosenCandidate = (magicKeyUid && window._selectedMagicAudioCandidate && window._selectedMagicAudioCandidate[magicKeyUid])
+        ? window._selectedMagicAudioCandidate[magicKeyUid]
+        : null;
+
+      const displayTitle = chosenCandidate?.title || rawTitle || 'Generando Canción';
+      const displayArtist = chosenCandidate?.artist || rawArtist || '';
+
       const overlay = document.getElementById('globalLoadingOverlay') || document.getElementById('loadingOverlay');
       const loadTitle = document.getElementById('globalLoadTitle');
       const loadArtist = document.getElementById('globalLoadArtist');
@@ -13612,10 +14012,10 @@ function stopPianoCameraLoop() {
       if (term) term.classList.add('hidden');
       if (typeof closePlaylistTrackMatcher === 'function') closePlaylistTrackMatcher();
 
-      if (loadTitle) loadTitle.innerText = rawTitle || 'Generando Canción';
-      if (loadArtist) loadArtist.innerText = rawArtist ? `${rawArtist} (Extractor Multi-Motor + DSP)` : 'Extractor Multi-Motor + DSP';
+      if (loadTitle) loadTitle.innerText = displayTitle;
+      if (loadArtist) loadArtist.innerText = displayArtist ? `${displayArtist} (Grabación Original + DSP)` : 'Grabación Original + DSP';
       if (overlay) overlay.classList.add('active');
-      if (loadStatus) loadStatus.innerText = 'Iniciando extracción inteligente de audio...';
+      if (loadStatus) loadStatus.innerText = 'Verificando grabación original de estudio...';
 
       try {
         const { chartItem, dspPack } = await buildAndSaveAutoExtractedSong(
@@ -13623,7 +14023,9 @@ function stopPianoCameraLoop() {
           rawArtist,
           preferredThumb,
           targetDensity,
-          (msg) => { if (loadStatus) loadStatus.innerText = msg; }
+          (msg) => { if (loadStatus) loadStatus.innerText = msg; },
+          chosenCandidate,
+          Boolean(forceRebuild || chosenCandidate)
         );
 
         const diffObj = (chartItem.difficulties || []).find(d => d.densityMode === targetDensity) ||
@@ -13631,7 +14033,7 @@ function stopPianoCameraLoop() {
                         { id: `${chartItem.id}_hard`, name: 'Difícil', densityMode: 'hard' };
 
         if (overlay) overlay.classList.remove('active');
-        showSuccessToast(`Pista lista: ${chartItem.title} (${dspPack.bpm || 120} BPM)`);
+        showSuccessToast(`Pista lista: ${chartItem.title} - ${chartItem.artist}`);
         playSavedLibraryChart(chartItem.id, diffObj.id, diffObj.name || 'Difícil', diffObj.stars || chartItem.stars);
       } catch (err) {
         console.error('Error en autoExtractAndPlaySong:', err);
@@ -14183,24 +14585,45 @@ function stopPianoCameraLoop() {
       let score = 0;
 
       // 1. Exact or substring title match
+      let hasTitleOverlap = false;
       if (qTitle && cTitle === qTitle) {
-        score += 130;
+        score += 135;
+        hasTitleOverlap = true;
       } else if (qTitle && qTitle.length >= 3 && (cTitle.includes(qTitle) || qTitle.includes(cTitle))) {
-        score += 90;
+        score += 95;
+        hasTitleOverlap = true;
       }
 
-      // 2. Artist match
-      if (qArtist && qArtist.length >= 2 && cArtist) {
-        if (cArtist === qArtist) score += 65;
-        else if (cArtist.includes(qArtist) || qArtist.includes(cArtist)) score += 48;
-      }
-
-      // 3. Token overlap across Title + Artist
+      // 2. Token overlap across Title + Artist
       const stopWords = new Set([
         'the', 'and', 'for', 'with', 'from', 'los', 'las', 'del', 'una', 'por', 'con', 'para',
         'de', 'la', 'el', 'en', 'mi', 'tu', 'te', 'me', 'se', 'no', 'un', 'al', 'lo', 'es',
         'yo', 'ya', 'si', 'que', 'como', 'mas', 'sin', 'official', 'video', 'audio', 'lyrics', 'letra'
       ]);
+      const qTitleTokens = qTitle.split(' ').filter(w => w.length >= 3 && !stopWords.has(w));
+      const cTitleTokens = new Set(cTitle.split(' ').filter(Boolean));
+      let matchedTitleTokens = 0;
+      for (const tk of qTitleTokens) {
+        if (cTitleTokens.has(tk) || (tk.length >= 4 && cTitle.includes(tk))) {
+          matchedTitleTokens++;
+        }
+      }
+      if (matchedTitleTokens > 0) hasTitleOverlap = true;
+
+      const titleSim = computeBigramSimilarity(cTitle, qTitle);
+      if (titleSim >= 0.50) hasTitleOverlap = true;
+
+      // Si el título de la canción candidata no guarda relación con el título buscado, descartar aunque sea del mismo artista
+      if (qTitle && !hasTitleOverlap) {
+        return Math.round(titleSim * 35);
+      }
+
+      // 3. Artist match (solo suma si el título también coincide)
+      if (qArtist && qArtist.length >= 2 && cArtist) {
+        if (cArtist === qArtist) score += 65;
+        else if (cArtist.includes(qArtist) || qArtist.includes(cArtist)) score += 48;
+      }
+
       const qTokens = `${qTitle} ${qArtist}`.split(' ').filter(w => w.length >= 3 && !stopWords.has(w));
       const cCombined = `${cTitle} ${cArtist}`;
       const cTokens = new Set(cCombined.split(' ').filter(Boolean));
@@ -14216,19 +14639,35 @@ function stopPianoCameraLoop() {
         }
       }
 
-      // 4. Character bigram similarity on title & artist (solo suma si hay solapamiento real de palabras o título muy parecido)
-      const titleSim = computeBigramSimilarity(cTitle, qTitle);
+      // 4. Character bigram similarity on title & artist
       const artistSim = qArtist ? computeBigramSimilarity(cArtist, qArtist) : 0;
       if (titleSim >= 0.48 || matchedTokens >= 1) {
         score += Math.round(titleSim * 50 + artistSim * 25);
       }
 
-      // 5. Offline memory bonus if already downloaded
+      // 5. Penalizar versiones extrañas o recortadas (Nightcore, TV Size, Short Ver, Karaoke, Remix, Cover) si no fueron pedidas
+      const strangeMapMarkers = [
+        'nightcore', 'daycore', 'slowed', 'sped up', 'reverb', 'tv size', 'short ver',
+        'cut ver', 'practice', 'karaoke', 'tribute', '8 bit', 'lullaby', 'ringtone'
+      ];
+      for (const m of strangeMapMarkers) {
+        if (cCombined.includes(m) && !qTitle.includes(m)) {
+          score -= 55;
+        }
+      }
+      const mildMapMarkers = ['remix', 'bootleg', 'cover', 'live at', 'en vivo', 'ao vivo'];
+      for (const m of mildMapMarkers) {
+        if (cCombined.includes(m) && !qTitle.includes(m)) {
+          score -= 30;
+        }
+      }
+
+      // 6. Offline memory bonus if already downloaded
       if (candidate._isOfflineSaved && score >= 65) {
         score += 25;
       }
 
-      return score;
+      return Math.max(0, score);
     }
 
     function renderYtMatcherLoadingState() {
@@ -14273,7 +14712,7 @@ function stopPianoCameraLoop() {
             thumbUrl: genThumb,
             uniqueId: 'magic_playlist_matcher',
             isPlaylistUrlOrId: false,
-            statusText: genArtist ? `${genArtist} • Crear pista mágica` : 'Extraer audio y crear 5 dificultades'
+            statusText: genArtist ? `${genArtist}` : 'Pulsa para elegir dificultad o grabación'
           })}
         </div>
       `;
@@ -14283,7 +14722,7 @@ function stopPianoCameraLoop() {
           ${autoGenCardHtml}
           <div class="vegas-setting-plate p-4 text-center space-y-1.5">
             <p id="ytMatcherAutoGenSubStatus" class="text-xs font-bold text-[#fff6d6]">Extrayendo el audio de la canción automáticamente...</p>
-            <p class="text-[10px] text-[#cbb894]">También puedes pulsar ▶ arriba para abrir directamente en cualquier dificultad.</p>
+            <p class="text-[10px] text-[#cbb894]">También puedes desplegar la tecla superior para preescuchar y elegir grabación.</p>
           </div>
         `;
         return;
@@ -14407,6 +14846,9 @@ function stopPianoCameraLoop() {
     };
 
     window.closePlaylistTrackMatcher = function() {
+      if (typeof window.stopPreviewCandidateAudio === 'function') {
+        window.stopPreviewCandidateAudio();
+      }
       const modal = document.getElementById('ytTrackMatcherModal');
       if (modal) {
         modal.classList.remove('open');
