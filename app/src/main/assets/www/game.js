@@ -20525,8 +20525,8 @@ class BeatstarEngine {
 
         if (wantSlider && maxPossibleDur >= 260) {
           const desiredDur = (n.type === 'hold' && holdDur >= 210)
-            ? Math.min(Math.max(holdDur, 360), 920)
-            : Math.min(Math.max(350, Math.round(dtNext * 0.68)), 840);
+            ? Math.min(Math.max(holdDur, 320), 1650)
+            : Math.min(Math.max(320, Math.round(dtNext * 0.76)), 1500);
           const sliderDur = Math.min(desiredDur, maxPossibleDur);
           const startPos = resolveCleanPosition(candX, candY, tMs, tMs + sliderDur, n._osuApproachMs, 120, isWeave, nearbyManiaLane);
 
@@ -20536,28 +20536,7 @@ class BeatstarEngine {
           n._osuSliderDurationMs = sliderDur;
           n.end_timestamp_ms = tMs + sliderDur;
 
-          if (!this._osuSliderShapeDeck || this._osuSliderShapeDeck.length === 0) {
-            const shapePool = [
-              'sine_wave',
-              'infinity',
-              'spiral_vortex',
-              'serpentine_s',
-              'zigzag_lightning',
-              'loop_coaster',
-              'heart_clover',
-              'horseshoe_omega'
-            ];
-            for (let s = shapePool.length - 1; s > 0; s--) {
-              const j = Math.floor(Math.random() * (s + 1));
-              const tmp = shapePool[s];
-              shapePool[s] = shapePool[j];
-              shapePool[j] = tmp;
-            }
-            this._osuSliderShapeDeck = shapePool;
-          }
-          const pickedShape = (sliderDur < 320)
-            ? ((Math.random() < 0.5) ? 'serpentine_s' : 'arc')
-            : this._osuSliderShapeDeck.shift();
+          const pickedShape = this._pickOsuSliderShapeForDuration(sliderDur, isWeave);
           const shapeSign = ((i + Math.floor(Math.random() * 2)) % 2 === 0) ? 1 : -1;
 
           this._assignOsuSliderShapeParams(n, startPos.x, startPos.y, sliderDur, maxPossibleDur, isWeave, pickedShape, shapeSign);
@@ -20676,16 +20655,45 @@ class BeatstarEngine {
     }
 
     /**
-     * Asigna los parámetros geométricos de las nuevas formas de Hold/Slider en Modo Pulso y Fase Pulso de Modo Locura:
-     * - 'sine_wave': Onda sinusoidal continua de múltiples crestas
-     * - 'infinity': Símbolo de infinito / lemniscata de Bernoulli (figura en 8)
-     * - 'spiral_vortex': Espiral galáctica centrípeta
-     * - 'loop_coaster': Rizo acrobático de 360 grados en mitad del recorrido
-     * - 'zigzag_lightning': Rayo zig-zag geométrico de 3 tramos
-     * - 'serpentine_s': Doble curva en S profunda
-     * - 'heart_clover': Doble pétalo / corazón simétrico
-     * - 'horseshoe_omega': Herradura magnética orbital
-     * - 'arc': Arco curvo clásico
+     * Selecciona la forma de Hold/Slider en Modo Pulso y Modo Locura estrictamente en función de la duración (`sliderDur`):
+     * - Tier 1 (Corto, `< 480ms`): línea recta corta (`straight_line`) o curva simple suave (`arc`) para que sea 100% cómodo y rápido.
+     * - Tier 2 (Medio, `480ms .. 719ms`): arco amplio (`arc`), curva en S suave (`serpentine_s`) u onda sinusoidal de 1 ciclo (`sine_wave_gentle`).
+     * - Tier 3 (Largo, `720ms .. 979ms`): onda sinusoidal (`sine_wave`), herradura (`horseshoe_omega`), rayo zig-zag (`zigzag_lightning`) o trébol (`heart_clover`).
+     * - Tier 4 (Muy Largo, `>= 980ms`): desbloquea las formas complejas y espectaculares: infinito (`infinity`), espiral (`spiral_vortex`), looping 360° (`loop_coaster`), ondas largas (`sine_wave`), etc.
+     */
+    _pickOsuSliderShapeForDuration(sliderDur, isWeave = false) {
+      if (!this._osuTierShapeDecks) {
+        this._osuTierShapeDecks = { t1: [], t2: [], t3: [], t4: [] };
+      }
+      const drawFromTier = (key, pool) => {
+        if (!this._osuTierShapeDecks[key] || this._osuTierShapeDecks[key].length === 0) {
+          const arr = pool.slice();
+          for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            const tmp = arr[i];
+            arr[i] = arr[j];
+            arr[j] = tmp;
+          }
+          this._osuTierShapeDecks[key] = arr;
+        }
+        return this._osuTierShapeDecks[key].shift();
+      };
+
+      if (sliderDur < 480) {
+        return drawFromTier('t1', ['straight_line', 'arc', 'arc']);
+      }
+      if (sliderDur < 720) {
+        return drawFromTier('t2', ['arc', 'serpentine_s', 'sine_wave_gentle']);
+      }
+      if (sliderDur < 980 || isWeave) {
+        return drawFromTier('t3', ['sine_wave', 'horseshoe_omega', 'zigzag_lightning', 'heart_clover', 'serpentine_s']);
+      }
+      return drawFromTier('t4', ['infinity', 'spiral_vortex', 'loop_coaster', 'sine_wave', 'horseshoe_omega', 'heart_clover']);
+    }
+
+    /**
+     * Asigna los parámetros geométricos de las formas de Hold/Slider en Modo Pulso y Fase Pulso de Modo Locura,
+     * escalando tanto la complejidad del modelo como su longitud espacial según la duración real (`sliderDur`).
      */
     _assignOsuSliderShapeParams(n, startX, startY, sliderDur, maxPossibleDur = 800, isWeave = false, preferredShape = null, dirSign = 1) {
       const minX = 0.16;
@@ -20698,29 +20706,45 @@ class BeatstarEngine {
 
       let sx = clampX(startX);
       let sy = clampY(startY);
-      const durFactor = Math.max(0.45, Math.min(1.15, sliderDur / 620));
-      let shape = preferredShape || 'sine_wave';
-      if (sliderDur < 310 && (shape === 'infinity' || shape === 'spiral_vortex' || shape === 'loop_coaster')) {
-        shape = 'sine_wave';
+      const durFactor = Math.max(0.32, Math.min(1.25, sliderDur / 820));
+      let shape = preferredShape || this._pickOsuSliderShapeForDuration(sliderDur, isWeave);
+
+      // Salvaguarda estricta por duración: impedir formas complejas en holds cortos o medios
+      if (sliderDur < 480) {
+        if (shape !== 'straight_line' && shape !== 'arc') {
+          shape = (sliderDur < 360) ? 'straight_line' : 'arc';
+        }
+      } else if (sliderDur < 720) {
+        if (shape !== 'arc' && shape !== 'serpentine_s' && shape !== 'sine_wave_gentle' && shape !== 'straight_line') {
+          shape = 'serpentine_s';
+        }
+      } else if (sliderDur < 980) {
+        if (shape === 'infinity' || shape === 'spiral_vortex' || shape === 'loop_coaster') {
+          shape = 'sine_wave';
+        }
       }
 
       const dirX = sx < 0.50 ? 1 : -1;
       const dirY = sy > centerY ? -1 : 1;
-      const spanX = (0.30 + 0.14 * durFactor) * (0.92 + Math.random() * 0.16);
-      const spanY = ((isWeave ? 0.06 : 0.10) + 0.05 * durFactor) * (0.88 + Math.random() * 0.24);
+      const spanX = (sliderDur < 480)
+        ? (0.15 + 0.08 * (sliderDur / 480))
+        : ((0.22 + 0.18 * durFactor) * (0.92 + Math.random() * 0.14));
+      const spanY = (sliderDur < 480)
+        ? ((isWeave ? 0.035 : 0.055) * (0.85 + Math.random() * 0.25))
+        : (((isWeave ? 0.055 : 0.095) + 0.05 * durFactor) * (0.88 + Math.random() * 0.22));
       let endX = clampX(sx + dirX * spanX);
       let endY = clampY(sy + dirY * spanY);
 
       if (shape === 'infinity') {
-        // Ajustar el punto de inicio al extremo exterior de un lóbulo para que el símbolo de infinito quepa amplio y centrado
+        // Solo para holds muy largos (>= 980ms): símbolo de infinito amplio y ergonómico
         const sideSign = sx <= 0.50 ? -1 : 1;
-        const rx = Math.min(0.24, Math.max(0.17, 0.19 * durFactor));
-        const ry = isWeave ? 0.068 : Math.min(0.115, Math.max(0.082, 0.098 * durFactor));
-        const tiltRad = ((Math.random() - 0.5) * 0.34);
-        const cx = Math.max(minX + rx + 0.02, Math.min(maxX - rx - 0.02, 0.50 + (Math.random() - 0.5) * 0.08));
-        const cy = Math.max(minY + ry + 0.02, Math.min(maxY - ry - 0.02, centerY + (Math.random() - 0.5) * 0.04));
+        const rx = Math.min(0.21, Math.max(0.15, 0.165 * durFactor));
+        const ry = isWeave ? 0.062 : Math.min(0.102, Math.max(0.074, 0.084 * durFactor));
+        const tiltRad = ((Math.random() - 0.5) * 0.28);
+        const cx = Math.max(minX + rx + 0.02, Math.min(maxX - rx - 0.02, 0.50 + (Math.random() - 0.5) * 0.06));
+        const cy = Math.max(minY + ry + 0.02, Math.min(maxY - ry - 0.02, centerY + (Math.random() - 0.5) * 0.03));
         const startTheta = 0;
-        const endTheta = Math.PI * 1.84;
+        const endTheta = Math.PI * (sliderDur >= 1250 ? 1.82 : 1.55);
         const lx0 = sideSign * rx * Math.cos(startTheta);
         const ly0 = 0;
         sx = clampX(cx + lx0 * Math.cos(tiltRad) - ly0 * Math.sin(tiltRad));
@@ -20737,8 +20761,9 @@ class BeatstarEngine {
         n._osuShapeMaxTheta = endTheta;
         n._osuSliderRepeats = 1;
       } else if (shape === 'spiral_vortex') {
-        const r0 = Math.min(0.23, Math.max(0.16, 0.19 * durFactor));
-        const aspectY = isWeave ? 0.52 : 0.68;
+        // Solo para holds muy largos (>= 980ms): espiral centrípeta suave
+        const r0 = Math.min(0.20, Math.max(0.145, 0.165 * durFactor));
+        const aspectY = isWeave ? 0.52 : 0.66;
         const cx = Math.max(minX + r0 + 0.02, Math.min(maxX - r0 - 0.02, 0.50 + (sx < 0.5 ? 0.04 : -0.04)));
         const cy = Math.max(minY + r0 * aspectY + 0.02, Math.min(maxY - r0 * aspectY - 0.02, centerY));
         const startAng = Math.atan2((sy - cy) / aspectY, sx - cx);
@@ -20751,15 +20776,15 @@ class BeatstarEngine {
         n._osuShapeR0 = r0;
         n._osuShapeAspectY = aspectY;
         n._osuShapeStartAng = startAng;
-        n._osuShapeTotalAng = dirSign * Math.PI * (sliderDur >= 540 ? 2.55 : 2.15);
+        n._osuShapeTotalAng = dirSign * Math.PI * (sliderDur >= 1250 ? 2.15 : 1.75);
         n._osuSliderRepeats = 1;
       } else if (shape === 'horseshoe_omega') {
-        const rx = Math.min(0.24, Math.max(0.17, 0.20 * durFactor));
-        const ry = isWeave ? 0.075 : Math.min(0.125, Math.max(0.088, 0.105 * durFactor));
+        const rx = Math.min(0.21, Math.max(0.15, 0.175 * durFactor));
+        const ry = isWeave ? 0.068 : Math.min(0.11, Math.max(0.078, 0.092 * durFactor));
         const cx = Math.max(minX + rx + 0.02, Math.min(maxX - rx - 0.02, 0.50));
         const cy = Math.max(minY + ry + 0.02, Math.min(maxY - ry - 0.02, centerY));
         const startAng = sx < 0.50 ? Math.PI * 0.88 : Math.PI * 0.12;
-        const sweepAng = (sx < 0.50 ? -1 : 1) * dirSign * Math.PI * 1.28;
+        const sweepAng = (sx < 0.50 ? -1 : 1) * dirSign * Math.PI * (sliderDur >= 980 ? 1.24 : 1.05);
         sx = clampX(cx + Math.cos(startAng) * rx);
         sy = clampY(cy + Math.sin(startAng) * ry);
 
@@ -20770,51 +20795,66 @@ class BeatstarEngine {
         n._osuShapeRy = ry;
         n._osuShapeStartAng = startAng;
         n._osuShapeTotalAng = sweepAng;
-        n._osuSliderRepeats = (sliderDur >= 680 && (maxPossibleDur - sliderDur >= 140)) ? 2 : 1;
+        n._osuSliderRepeats = 1;
       } else if (shape === 'heart_clover') {
         const sideSign = sx < 0.50 ? 1 : -1;
-        endX = clampX(sx + sideSign * Math.max(0.28, spanX * 0.92));
-        endY = clampY(sy + (Math.random() - 0.5) * 0.05);
+        endX = clampX(sx + sideSign * Math.max(0.25, spanX * 0.90));
+        endY = clampY(sy + (Math.random() - 0.5) * 0.04);
         n._osuSliderShape = 'heart_clover';
-        n._osuShapeAmp = (isWeave ? 0.075 : 0.115) * (sy > centerY ? -1 : 1);
+        n._osuShapeAmp = (isWeave ? 0.068 : 0.098) * (sy > centerY ? -1 : 1);
         n._osuShapeDirSign = dirSign;
         n._osuSliderRepeats = 1;
       } else if (shape === 'loop_coaster') {
-        endX = clampX(sx + dirX * Math.max(0.32, spanX));
-        endY = clampY(sy + dirY * spanY * 0.65);
+        // Solo para holds muy largos (>= 980ms): looping central
+        endX = clampX(sx + dirX * Math.max(0.30, spanX));
+        endY = clampY(sy + dirY * spanY * 0.60);
         n._osuSliderShape = 'loop_coaster';
-        n._osuShapeLoopRx = 0.095;
-        n._osuShapeLoopRy = isWeave ? 0.075 : 0.115;
+        n._osuShapeLoopRx = 0.082;
+        n._osuShapeLoopRy = isWeave ? 0.068 : 0.098;
         n._osuShapeDirSign = (sy > centerY) ? -1 : 1;
         n._osuSliderRepeats = 1;
       } else if (shape === 'zigzag_lightning') {
-        endX = clampX(sx + dirX * Math.max(0.32, spanX));
-        endY = clampY(sy + dirY * spanY * 0.85);
+        endX = clampX(sx + dirX * Math.max(0.27, spanX * 0.92));
+        endY = clampY(sy + dirY * spanY * 0.80);
         n._osuSliderShape = 'zigzag_lightning';
-        n._osuShapeAmp = (isWeave ? 0.068 : 0.105) * dirSign;
+        n._osuShapeAmp = (isWeave ? 0.058 : 0.088) * dirSign;
         n._osuSliderRepeats = 1;
       } else if (shape === 'serpentine_s') {
-        endX = clampX(sx + dirX * Math.max(0.30, spanX));
-        endY = clampY(sy + dirY * spanY * 0.80);
+        endX = clampX(sx + dirX * Math.max(0.24, spanX * 0.90));
+        endY = clampY(sy + dirY * spanY * 0.75);
         n._osuSliderShape = 'serpentine_s';
-        n._osuShapeAmp = (isWeave ? 0.078 : 0.122) * dirSign;
+        n._osuShapeAmp = (isWeave ? 0.062 : (sliderDur < 720 ? 0.078 : 0.102)) * dirSign;
+        n._osuWaveCycles = 1.0;
+        n._osuSliderRepeats = 1;
+      } else if (shape === 'sine_wave_gentle') {
+        endX = clampX(sx + dirX * Math.max(0.24, spanX * 0.90));
+        endY = clampY(sy + dirY * spanY * 0.70);
+        n._osuSliderShape = 'sine_wave';
+        n._osuShapeAmp = (isWeave ? 0.052 : 0.072) * dirSign;
         n._osuWaveCycles = 1.0;
         n._osuSliderRepeats = 1;
       } else if (shape === 'sine_wave') {
-        endX = clampX(sx + dirX * Math.max(0.34, spanX * 1.06));
+        endX = clampX(sx + dirX * Math.max(0.28, spanX));
         endY = clampY(sy + dirY * spanY * 0.72);
         n._osuSliderShape = 'sine_wave';
-        n._osuShapeAmp = (isWeave ? 0.068 : 0.104) * dirSign;
-        n._osuWaveCycles = sliderDur >= 540 ? 2.0 : 1.5;
+        n._osuShapeAmp = (isWeave ? 0.062 : 0.092) * dirSign;
+        n._osuWaveCycles = sliderDur >= 1050 ? 2.0 : 1.5;
+        n._osuSliderRepeats = 1;
+      } else if (shape === 'straight_line') {
+        endX = clampX(sx + dirX * Math.max(0.15, Math.min(0.23, spanX)));
+        endY = clampY(sy + dirY * Math.min(0.06, spanY));
+        n._osuSliderShape = 'straight_line';
         n._osuSliderRepeats = 1;
       } else {
         n._osuSliderShape = 'arc';
-        n._osuSliderRepeats = (sliderDur >= 620 && (maxPossibleDur - sliderDur >= 140)) ? 2 : 1;
+        n._osuSliderRepeats = (sliderDur >= 860 && (maxPossibleDur - sliderDur >= 140)) ? 2 : 1;
       }
 
       const midX = (sx + endX) * 0.5;
       const midY = (sy + endY) * 0.5;
-      const curveFactor = 0.36 * dirSign;
+      const curveFactor = (n._osuSliderShape === 'straight_line')
+        ? 0.0
+        : ((sliderDur < 480 ? 0.22 : 0.34) * dirSign);
       const perpX = -(endY - sy) * curveFactor;
       const perpY = (endX - sx) * curveFactor;
 
@@ -20830,7 +20870,7 @@ class BeatstarEngine {
       n._osuEndNormX = exactEnd.x;
       n._osuEndNormY = exactEnd.y;
 
-      const numTicks = Math.max(2, Math.min(5, Math.floor(sliderDur / 140)));
+      const numTicks = Math.max(1, Math.min(5, Math.floor(sliderDur / 160)));
       const ticks = [];
       for (let tk = 1; tk <= numTicks; tk++) {
         ticks.push({ u: tk / (numTicks + 1), hit: false });
@@ -20856,6 +20896,13 @@ class BeatstarEngine {
       const x1 = note._osuEndNormX ?? 0.7;
       const y1 = note._osuEndNormY ?? 0.56;
       const shape = note._osuSliderShape || 'arc';
+
+      if (shape === 'straight_line') {
+        return {
+          x: clampX(x0 + (x1 - x0) * u),
+          y: clampY(y0 + (y1 - y0) * u)
+        };
+      }
 
       if (shape === 'infinity') {
         const cx = note._osuShapeCenterX ?? 0.50;
@@ -23749,24 +23796,65 @@ class BeatstarEngine {
      */
     _configureCruceVoltaicSections(notesArray, beatMs = 460, isMadness = false) {
       if (!Array.isArray(notesArray) || !Array.isArray(this._cruceKeyframes) || this._cruceKeyframes.length === 0) return [];
+      this._cruceKeyframes.sort((a, b) => (a.timeMs || 0) - (b.timeMs || 0));
       const kfs = this._cruceKeyframes;
+
+      // Garantizar que TODO keyframe `VOLTAIC_ARC_PHASE` tenga un keyframe de cierre normal (`SPOTLIGHT_PYRAMID` / `PANORAMIC_CROWN`)
+      // a lo sumo a ~9800ms de distancia, para que el Haz de Luz nunca se quede encendido cuando caen las notas normales de Cruce
+      for (let k = 0; k < kfs.length; k++) {
+        if (kfs[k].mode !== 'VOLTAIC_ARC_PHASE') continue;
+        const kfTimeMs = kfs[k].timeMs || 0;
+        const maxAllowedEndMs = Number.isFinite(kfs[k].phaseEndMs)
+          ? Math.min(kfs[k].phaseEndMs, kfTimeMs + 10200)
+          : (kfTimeMs + 9800);
+        const hasNextSoon = (k + 1 < kfs.length) && (kfs[k + 1].timeMs <= maxAllowedEndMs + 180);
+        if (!hasNextSoon) {
+          kfs.splice(k + 1, 0, {
+            timeMs: maxAllowedEndMs,
+            startMs: maxAllowedEndMs,
+            phaseStartMs: maxAllowedEndMs,
+            phaseEndMs: maxAllowedEndMs + 8000,
+            transDurMs: 320,
+            mode: 'SPOTLIGHT_PYRAMID',
+            cxRatio: 0.50,
+            cyRatio: 0.78,
+            angleRad: 0,
+            liveRockDeg: 3.0,
+            spanWRatio: 0.92,
+            travelRatio: 0.78,
+            diagFactor: 1.0,
+            flowDir: 1.0,
+            formationIdx: ((kfs[k].formationIdx || 0) + 1) % 12,
+            isMajorFlip: false,
+            arrowAngle: Math.PI * 0.5,
+            label: ''
+          });
+        } else if (k + 1 < kfs.length && kfs[k + 1].mode === 'VOLTAIC_ARC_PHASE') {
+          kfs[k + 1].mode = 'PANORAMIC_CROWN';
+        }
+      }
+
       const voltaicWindows = [];
       for (let k = 0; k < kfs.length; k++) {
         if (kfs[k].mode === 'VOLTAIC_ARC_PHASE') {
           const kfTimeMs = kfs[k].timeMs;
-          const startMs = kfTimeMs + 240;
-          const nextKfTimeMs = (k + 1 < kfs.length) ? kfs[k + 1].timeMs : (startMs + 10500);
+          const startMs = kfTimeMs + 220;
+          const nextKfTimeMs = (k + 1 < kfs.length) ? kfs[k + 1].timeMs : (startMs + 9600);
           const hardEndMs = Number.isFinite(kfs[k].phaseEndMs)
             ? Math.min(nextKfTimeMs, kfs[k].phaseEndMs)
             : nextKfTimeMs;
-          // Terminar la generacion de elementos del Rayo de Luz 920ms antes del cambio de etapa
-          // para que ninguna linea seguida ni barra siga cayendo cuando ya ha terminado la fase
-          const endMs = hardEndMs - 920;
+          const endMs = hardEndMs - 520;
           if (endMs > startMs + 650) {
-            voltaicWindows.push({ startMs, endMs, hardEndMs, kfTimeMs });
+            kfs[k].voltaicHardEndMs = hardEndMs;
+            voltaicWindows.push({ startMs, endMs, hardEndMs, kfTimeMs, kfRef: kfs[k], nextKfRef: kfs[k + 1] || null });
+          } else {
+            // Si la ventana es demasiado corta para generar notas de Haz de Luz, convertir el keyframe a Cruce normal
+            kfs[k].mode = 'SPOTLIGHT_PYRAMID';
+            kfs[k].voltaicHardEndMs = kfTimeMs;
           }
         }
       }
+      this._voltaicWindows = voltaicWindows;
       if (voltaicWindows.length === 0) return [];
 
       const deg = Math.PI / 180;
@@ -24731,6 +24819,38 @@ class BeatstarEngine {
 
       const validRungs = injectedFlowRungs.filter((rn) => rn && !rn._dropDuplicateCollapsed);
       const validMines = injectedMines.filter((mn) => mn && !mn._dropDuplicateCollapsed);
+
+      // Sincronizar el fin exacto de cada ventana `VOLTAIC_ARC_PHASE` con la última nota voltaica real generada
+      // para que en cuanto acabe el Haz de Luz aparezca inmediatamente la barra de 4 carriles de Cruce normal
+      for (let w = 0; w < voltaicWindows.length; w++) {
+        const win = voltaicWindows[w];
+        let lastVoltaicNoteMs = -1;
+        for (let nIdx = 0; nIdx < voltaicNotesInPass.length; nIdx++) {
+          const vn = voltaicNotesInPass[nIdx];
+          if (!vn || vn._dropDuplicateCollapsed || !vn._isVoltaicArc) continue;
+          const vt = vn.timestamp_ms ?? 0;
+          if (vt >= win.kfTimeMs && vt <= win.hardEndMs && vt > lastVoltaicNoteMs) {
+            lastVoltaicNoteMs = vt;
+          }
+        }
+        if (lastVoltaicNoteMs < 0) {
+          if (win.kfRef) {
+            win.kfRef.mode = 'SPOTLIGHT_PYRAMID';
+            win.kfRef.voltaicHardEndMs = win.kfTimeMs;
+          }
+        } else {
+          const syncedEndMs = Math.min(win.hardEndMs, lastVoltaicNoteMs + 220);
+          win.hardEndMs = syncedEndMs;
+          if (win.kfRef) {
+            win.kfRef.voltaicHardEndMs = syncedEndMs;
+          }
+          if (win.nextKfRef && win.nextKfRef.timeMs > syncedEndMs) {
+            win.nextKfRef.timeMs = syncedEndMs;
+            win.nextKfRef.transDurMs = Math.min(win.nextKfRef.transDurMs || 300, 260);
+          }
+        }
+      }
+
       return validRungs.concat(validMines);
     }
 
@@ -25520,6 +25640,19 @@ class BeatstarEngine {
         }
       }
 
+      // Si el keyframe actual era `VOLTAIC_ARC_PHASE` pero ya superó su `voltaicHardEndMs`,
+      // forzar inmediatamente la salida a Cruce normal para que el Haz de Luz nunca se quede fijo
+      if (kfs[activeIdx] &&
+          kfs[activeIdx].mode === 'VOLTAIC_ARC_PHASE' &&
+          Number.isFinite(kfs[activeIdx].voltaicHardEndMs) &&
+          cTime >= kfs[activeIdx].voltaicHardEndMs) {
+        if (activeIdx + 1 < kfs.length) {
+          activeIdx = activeIdx + 1;
+        } else {
+          kfs[activeIdx].mode = 'SPOTLIGHT_PYRAMID';
+        }
+      }
+
       const curKf = kfs[activeIdx];
       const prevKf = activeIdx > 0 ? kfs[activeIdx - 1] : curKf;
       const nextKf = (activeIdx + 1 < kfs.length) ? kfs[activeIdx + 1] : null;
@@ -25892,7 +26025,9 @@ class BeatstarEngine {
       const st = this._cruceLineState || this.getCruceLineState(currentTime);
       if (st && st.orientation === 'VOLTAIC_ARC_PHASE') {
         this._updateVoltaicArcThumbEndpoints(currentTime);
-        return this._checkAndCatchVoltaicNotes(currentTime, true);
+        if (this._checkAndCatchVoltaicNotes(currentTime, true)) {
+          return true;
+        }
       }
 
       if (!this._cruceSlotDragBufferUntil) this._cruceSlotDragBufferUntil = [0, 0, 0, 0];
@@ -25922,15 +26057,16 @@ class BeatstarEngine {
       if (st && st.orientation === 'VOLTAIC_ARC_PHASE') {
         this._updateVoltaicArcThumbEndpoints(currentTime);
         this._checkAndCatchVoltaicNotes(currentTime, false);
-        return;
       }
 
       if (!this._cruceSlotDragBufferUntil) this._cruceSlotDragBufferUntil = [0, 0, 0, 0];
       this._cruceSlotDragBufferUntil[proj.slot] = currentTime + 280;
 
-      this.laneGlows[proj.slot] = Math.max(this.laneGlows[proj.slot] || 0, 0.80);
-      if (this._cruceNodes && this._cruceNodes[proj.slot]) {
-        this._cruceNodes[proj.slot].flash = Math.max(this._cruceNodes[proj.slot].flash || 0, 0.75);
+      if (!st || st.orientation !== 'VOLTAIC_ARC_PHASE') {
+        this.laneGlows[proj.slot] = Math.max(this.laneGlows[proj.slot] || 0, 0.80);
+        if (this._cruceNodes && this._cruceNodes[proj.slot]) {
+          this._cruceNodes[proj.slot].flash = Math.max(this._cruceNodes[proj.slot].flash || 0, 0.75);
+        }
       }
       this._checkAndCatchCruceDragNotesAtFinger(proj.localX, proj.localY, currentTime, localX);
     }
@@ -26661,24 +26797,32 @@ class BeatstarEngine {
       const st = this.getCruceLineState(currentTime);
 
       // Actualizar extremos del Arco Eléctrico entre pulgares y comprobar captura / cortocircuitos en tiempo real durante FASE ARCO VOLTAICO
-      this._updateVoltaicArcThumbEndpoints(currentTime);
       const isVoltaicNow = ((st.voltaicBlend || 0) > 0.12 || st.orientation === 'VOLTAIC_ARC_PHASE');
       if (isVoltaicNow) {
+        this._wasInVoltaicPhaseAtMs = currentTime;
+        this._updateVoltaicArcThumbEndpoints(currentTime);
         this._checkAndCatchVoltaicNotes(currentTime, false);
-      } else if (Array.isArray(this.notes)) {
-        // Si la etapa del Rayo de Luz ya terminó y estamos en Cruce normal, limpiar cualquier nota voltaica residual
-        // para que nunca aparezca ni provoque fallos fuera de su submodo
-        const startCleanupIdx = Math.max(0, (this.firstActiveNoteIndex || 0) - 4);
-        for (let i = startCleanupIdx; i < this.notes.length; i++) {
-          const vn = this.notes[i];
-          if (!vn) continue;
-          if ((vn.timestamp_ms || 0) > currentTime + 1500) break;
-          if (vn._isVoltaicArc && !vn.hit && !vn.missed) {
-            if ((Number.isFinite(vn._voltaicWindowEndMs) && currentTime >= vn._voltaicWindowEndMs - 80) ||
-                (vn.timestamp_ms || 0) <= currentTime + 900) {
-              vn.hit = true;
-              vn.processed = true;
-              vn.missed = false;
+      } else {
+        if (this._voltaicArcState) {
+          this._voltaicArcState.rayActive = false;
+          this._voltaicArcState.activeFingerCount = 0;
+          this._voltaicArcState._wasTwoFingers = false;
+        }
+        if (Array.isArray(this.notes)) {
+          // Si la etapa del Rayo de Luz ya terminó y estamos en Cruce normal, limpiar cualquier nota voltaica residual
+          // para que nunca aparezca ni provoque fallos fuera de su submodo
+          const startCleanupIdx = Math.max(0, (this.firstActiveNoteIndex || 0) - 4);
+          for (let i = startCleanupIdx; i < this.notes.length; i++) {
+            const vn = this.notes[i];
+            if (!vn) continue;
+            if ((vn.timestamp_ms || 0) > currentTime + 1500) break;
+            if (vn._isVoltaicArc && !vn.hit && !vn.missed) {
+              if ((Number.isFinite(vn._voltaicWindowEndMs) && currentTime >= vn._voltaicWindowEndMs - 80) ||
+                  (vn.timestamp_ms || 0) <= currentTime + 900) {
+                vn.hit = true;
+                vn.processed = true;
+                vn.missed = false;
+              }
             }
           }
         }
@@ -26699,19 +26843,26 @@ class BeatstarEngine {
         this._checkAndCatchCruceDragNotesAtFinger(proj.localX, proj.localY, currentTime, this.mouseTouch.curX);
       }
 
+      const inPostVoltaicGrace = Boolean(this._wasInVoltaicPhaseAtMs && (currentTime - this._wasInVoltaicPhaseAtMs <= 1100));
       if (this._cruceSlotDragBufferUntil && Array.isArray(this.notes)) {
         const startIdx = Math.max(0, (this.firstActiveNoteIndex || 0) - 2);
         const nLen = this.notes.length;
         for (let i = startIdx; i < nLen; i++) {
           const note = this.notes[i];
-          if (!note || note.hit || note.missed || !note._isCruceDrag) continue;
+          if (!note || note.hit || note.missed || note._isVoltaicArc || note.isMine) continue;
           if (this.isMadnessModeActive && note._madnessPhase !== 'cruce') continue;
           const dtMs = note.timestamp_ms - currentTime;
           if (dtMs > 85) break;
           if (dtMs <= 75 && dtMs >= -165) {
             const slot = Math.max(0, Math.min(3, Math.round(note._cruceSlot ?? note.lane ?? 1)));
             if (currentTime <= (this._cruceSlotDragBufferUntil[slot] || 0)) {
-              this._completeCruceDragCatch(note, currentTime);
+              if (note._isCruceDrag) {
+                this._completeCruceDragCatch(note, currentTime);
+              } else if (inPostVoltaicGrace && !note.holding) {
+                // Si el jugador aún mantiene los dedos apoyados tras salir del Haz de Luz,
+                // capturar limpiamente las primeras notas de Cruce normal con PERFECT+
+                this.triggerLaneInput(slot, 'tap', null, null);
+              }
             }
           }
         }
@@ -32688,38 +32839,17 @@ Object.assign(BeatstarEngine.prototype, {
         if (role === 'slider') {
           const maxPossibleDur = Math.max(260, gapNext - 155);
           const rawDur = (n.type === 'hold' && (n.duration_ms || 0) >= 220)
-            ? Math.max(360, n.duration_ms)
-            : Math.min(820, Math.max(350, Math.round(gapNext * 0.68)));
-          const dur = Math.max(260, Math.min(920, Math.min(rawDur, maxPossibleDur)));
+            ? Math.max(320, n.duration_ms)
+            : Math.min(1500, Math.max(320, Math.round(gapNext * 0.76)));
+          const dur = Math.max(260, Math.min(1650, Math.min(rawDur, maxPossibleDur)));
           n.type = 'hold';
           n.duration_ms = dur;
           n.end_timestamp_ms = t + dur;
           n._osuSliderDurationMs = dur;
 
-          if (!this._osuMadnessSliderShapeDeck || this._osuMadnessSliderShapeDeck.length === 0) {
-            const shapePool = [
-              'sine_wave',
-              'infinity',
-              'spiral_vortex',
-              'serpentine_s',
-              'zigzag_lightning',
-              'loop_coaster',
-              'heart_clover',
-              'horseshoe_omega'
-            ];
-            for (let s = shapePool.length - 1; s > 0; s--) {
-              const j = Math.floor(Math.random() * (s + 1));
-              const tmp = shapePool[s];
-              shapePool[s] = shapePool[j];
-              shapePool[j] = tmp;
-            }
-            this._osuMadnessSliderShapeDeck = shapePool;
-          }
-          const pickedShape = (dur < 320)
-            ? 'serpentine_s'
-            : this._osuMadnessSliderShapeDeck.shift();
-          const shapeSign = ((i + Math.floor(Math.random() * 2)) % 2 === 0) ? 1 : -1;
           const isWeaveMad = (phraseMode === 'hybrid_weave');
+          const pickedShape = this._pickOsuSliderShapeForDuration(dur, isWeaveMad);
+          const shapeSign = ((i + Math.floor(Math.random() * 2)) % 2 === 0) ? 1 : -1;
 
           this._assignOsuSliderShapeParams(n, cleanPt.x, cleanPt.y, dur, maxPossibleDur, isWeaveMad, pickedShape, shapeSign);
 

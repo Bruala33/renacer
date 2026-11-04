@@ -1273,10 +1273,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 53,
-    version_name: '5.3.0',
-    release_notes: 'Piano Community v5.3.0: Nuevas formas de hold en Modo Pulso (ondas sinusoidales, infinitos, espirales, loopings y rayos) y 16 formas aleatorias para seguir con los dedos en Modo Cruce y Modo Locura.',
-    download_url: '/download/apk?v=53.0',
+    version_code: 54,
+    version_name: '5.4.0',
+    release_notes: 'Piano Community v5.4.0: Seleccion de formas de hold en Modo Pulso escalada por duracion (lineas y curvas simples en holds cortos; infinitos, espirales y loopings en holds largos) y transicion corregida al terminar el Haz de Luz en Modo Cruce y Locura.',
+    download_url: '/download/apk?v=54.0',
   });
 });
 
