@@ -50,14 +50,6 @@
         "date": "2026-02-01 10:00:00"
       },
       {
-        "name": "Test",
-        "score": 105557,
-        "stars": 3,
-        "combo": 81,
-        "accuracy": 7.252239594533597,
-        "date": "2026-11-04T20:33:36.623Z"
-      },
-      {
         "name": "MasterPianist",
         "score": 100000,
         "stars": 4,
@@ -146,14 +138,6 @@
         "combo": 69,
         "accuracy": 18.07587896444415,
         "date": "2026-10-24 05:23:53"
-      },
-      {
-        "name": "Test",
-        "score": 1350,
-        "stars": 3,
-        "combo": 3,
-        "accuracy": 0.3575022509400985,
-        "date": "2026-11-04T20:33:36.623Z"
       }
     ],
     "comm_impuestos": [
@@ -172,14 +156,6 @@
         "combo": 225,
         "accuracy": 88.2,
         "date": "2026-02-02 11:30:00"
-      },
-      {
-        "name": "Test",
-        "score": 234906,
-        "stars": 5,
-        "combo": 144,
-        "accuracy": 92.3539633738805,
-        "date": "2026-11-04T20:33:36.623Z"
       },
       {
         "name": "killer",
@@ -366,14 +342,6 @@
     ],
     "comm_1788622108_2296": [
       {
-        "name": "Test",
-        "score": 1092,
-        "stars": 5,
-        "combo": 1,
-        "accuracy": 100,
-        "date": "2026-11-04T20:33:36.623Z"
-      },
-      {
         "name": "Mozart 2.0",
         "score": 669,
         "stars": 5,
@@ -426,14 +394,6 @@
         "combo": 710,
         "accuracy": 99.94111644255696,
         "date": "2026-09-20 18:35:38"
-      },
-      {
-        "name": "Test",
-        "score": 1273068,
-        "stars": 4,
-        "combo": 282,
-        "accuracy": 84.58339091517928,
-        "date": "2026-11-04T20:33:36.624Z"
       }
     ],
     "top_caf_quijano_la_lola": [
@@ -524,25 +484,9 @@
         "combo": 706,
         "accuracy": 81.63546868626737,
         "date": "2026-09-20 19:13:27"
-      },
-      {
-        "name": "Test",
-        "score": 265570,
-        "stars": 1,
-        "combo": 173,
-        "accuracy": 23.877470284655914,
-        "date": "2026-11-04T20:33:36.623Z"
       }
     ],
     "osu_2069233": [
-      {
-        "name": "Test",
-        "score": 330975,
-        "stars": 3,
-        "combo": 169,
-        "accuracy": 15.724211651523248,
-        "date": "2026-11-04T20:33:36.623Z"
-      },
       {
         "name": "Jocomomolo",
         "score": 171600,
@@ -576,14 +520,6 @@
         "combo": 539,
         "accuracy": 63.68114532796806,
         "date": "2026-10-22 20:19:37"
-      },
-      {
-        "name": "Test",
-        "score": 922915,
-        "stars": 2,
-        "combo": 422,
-        "accuracy": 58.48971107350863,
-        "date": "2026-11-04T20:33:36.624Z"
       },
       {
         "name": "Mauricio",
@@ -642,14 +578,6 @@
         "combo": 1,
         "accuracy": 98.02816901408451,
         "date": "2026-11-02T20:58:57.811Z"
-      },
-      {
-        "name": "Test",
-        "score": 579,
-        "stars": 4,
-        "combo": 1,
-        "accuracy": 81.54929577464789,
-        "date": "2026-11-04T20:33:36.623Z"
       }
     ],
     "top_manolo_garcia_a_san_fernando": [
@@ -806,14 +734,6 @@
         "combo": 525,
         "accuracy": 91.60280924199904,
         "date": "2026-11-02T20:58:57.812Z"
-      },
-      {
-        "name": "Test",
-        "score": 796621,
-        "stars": 3,
-        "combo": 154,
-        "accuracy": 61.45278073059459,
-        "date": "2026-11-04T20:33:36.624Z"
       }
     ],
     "osu_578013": [
@@ -835,14 +755,6 @@
       }
     ],
     "top_britney_spears_you_drive_me_crazy": [
-      {
-        "name": "Test",
-        "score": 542835,
-        "stars": 2,
-        "combo": 201,
-        "accuracy": 46.71167725241524,
-        "date": "2026-11-04T20:33:36.624Z"
-      },
       {
         "name": "`pc",
         "score": 81569,
@@ -924,16 +836,7 @@
         "date": "2026-11-02T20:58:57.812Z"
       }
     ],
-    "top_el_arrebato_una_noche_con_arte": [
-      {
-        "name": "Test",
-        "score": 55650,
-        "stars": 3,
-        "combo": 56,
-        "accuracy": 2.5776717579350836,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
+    "top_el_arrebato_una_noche_con_arte": [],
     "top_estopa_cacho_a_cacho": [
       {
         "name": "Rocky",
@@ -1434,14 +1337,6 @@
         "date": "2026-10-18 09:42:50"
       },
       {
-        "name": "Test",
-        "score": 252841,
-        "stars": 5,
-        "combo": 144,
-        "accuracy": 99.40515973800295,
-        "date": "2026-11-04T20:33:36.623Z"
-      },
-      {
         "name": "Mauricio",
         "score": 241731,
         "stars": 5,
@@ -1566,46 +1461,10 @@
         "date": "2026-10-15 23:37:43"
       }
     ],
-    "top_the_beatles_hey_jude": [
-      {
-        "name": "Test",
-        "score": 90843,
-        "stars": 3,
-        "combo": 70,
-        "accuracy": 5.482751690368746,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_las_grecas_te_estoy_amando_locamente": [
-      {
-        "name": "Test",
-        "score": 25800,
-        "stars": 3,
-        "combo": 36,
-        "accuracy": 1.9193429598053875,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_david_bisbal_feat_knaan_waving_flag": [
-      {
-        "name": "Test",
-        "score": 1800,
-        "stars": 3,
-        "combo": 5,
-        "accuracy": 0.12085200664686037,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_leona_lewis_better_in_time": [
-      {
-        "name": "Test",
-        "score": 155641,
-        "stars": 3,
-        "combo": 122,
-        "accuracy": 10.125823807634005,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
+    "top_the_beatles_hey_jude": [],
+    "top_las_grecas_te_estoy_amando_locamente": [],
+    "top_david_bisbal_feat_knaan_waving_flag": [],
+    "top_leona_lewis_better_in_time": [],
     "custom_1792245309361": [
       {
         "name": "Azure",
@@ -1886,26 +1745,8 @@
         "date": "2026-10-18 09:44:39"
       }
     ],
-    "top_abba_sos": [
-      {
-        "name": "Test",
-        "score": 8850,
-        "stars": 3,
-        "combo": 16,
-        "accuracy": 0.4327531018862168,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_backstreet_boys_larger_than_life": [
-      {
-        "name": "Test",
-        "score": 59700,
-        "stars": 3,
-        "combo": 56,
-        "accuracy": 3.6542034050809953,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
+    "top_abba_sos": [],
+    "top_backstreet_boys_larger_than_life": [],
     "top_paulina_rubio_ni_una_sola_palabra": [
       {
         "name": "Dady cool",
@@ -1976,16 +1817,7 @@
         "date": "2026-10-19 01:27:37"
       }
     ],
-    "top_estopa_partiendo_la_pana": [
-      {
-        "name": "Test",
-        "score": 1521161,
-        "stars": 5,
-        "combo": 399,
-        "accuracy": 92.15884540399591,
-        "date": "2026-11-04T20:33:36.623Z"
-      }
-    ],
+    "top_estopa_partiendo_la_pana": [],
     "top_justin_bieber_what_do_you_mean": [
       {
         "name": "Mauricio",
@@ -2010,36 +1842,10 @@
         "combo": 845,
         "accuracy": 98.17125217139943,
         "date": "2026-11-02T20:58:57.811Z"
-      },
-      {
-        "name": "Test",
-        "score": 117300,
-        "stars": 3,
-        "combo": 93,
-        "accuracy": 6.39761766462412,
-        "date": "2026-11-04T20:33:36.624Z"
       }
     ],
-    "top_madonna_vogue": [
-      {
-        "name": "Test",
-        "score": 8550,
-        "stars": 3,
-        "combo": 15,
-        "accuracy": 0.41925225991678705,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "osu_2125241": [
-      {
-        "name": "Test",
-        "score": 299470,
-        "stars": 5,
-        "combo": 179,
-        "accuracy": 92.92807050207907,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
+    "top_madonna_vogue": [],
+    "osu_2125241": [],
     "top_caf_quijano_la_taberna_del_buda": [
       {
         "name": "Mauricio",
@@ -2072,14 +1878,6 @@
         "combo": 837,
         "accuracy": 96.33702272941412,
         "date": "2026-10-19 11:40:21"
-      },
-      {
-        "name": "Test",
-        "score": 150300,
-        "stars": 3,
-        "combo": 106,
-        "accuracy": 8.330238822349205,
-        "date": "2026-11-04T20:33:36.624Z"
       }
     ],
     "top_mecano_tu": [
@@ -2092,16 +1890,7 @@
         "date": "2026-10-19 15:57:38"
       }
     ],
-    "top_jonas_brothers_when_you_look_me_in_the_eyes": [
-      {
-        "name": "Test",
-        "score": 65974,
-        "stars": 3,
-        "combo": 58,
-        "accuracy": 3.4373811421813047,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
+    "top_jonas_brothers_when_you_look_me_in_the_eyes": [],
     "top_chayanne_completamente_enamorados": [
       {
         "name": "Dady cool",
@@ -2112,16 +1901,7 @@
         "date": "2026-10-19 16:33:48"
       }
     ],
-    "top_roy_orbison_desconocido": [
-      {
-        "name": "Test",
-        "score": 46621,
-        "stars": 3,
-        "combo": 48,
-        "accuracy": 3.5256359356082347,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
+    "top_roy_orbison_desconocido": [],
     "top_la_sonora_de_tommy_rey_la_aranita": [
       {
         "name": "Dady cool",
@@ -2163,14 +1943,6 @@
       }
     ],
     "top_rodolfo_chikilicuatre_el_baile_del_chikichiki": [
-      {
-        "name": "Test",
-        "score": 547650,
-        "stars": 4,
-        "combo": 293,
-        "accuracy": 86.06789250353607,
-        "date": "2026-11-04T20:33:36.624Z"
-      },
       {
         "name": "Dady cool",
         "score": 480750,
@@ -2245,14 +2017,6 @@
       }
     ],
     "top_mana_clavado_en_un_bar": [
-      {
-        "name": "Test",
-        "score": 151359,
-        "stars": 3,
-        "combo": 103,
-        "accuracy": 11.260121231598776,
-        "date": "2026-11-04T20:33:36.624Z"
-      },
       {
         "name": "Mauricio",
         "score": 32691,
@@ -2540,26 +2304,8 @@
         "date": "2026-11-02T20:58:57.811Z"
       }
     ],
-    "top_el_sueno_de_morfeo_demasiado_tarde": [
-      {
-        "name": "Test",
-        "score": 39264,
-        "stars": 3,
-        "combo": 37,
-        "accuracy": 4.159216291111243,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_efecto_pasillo_pan_y_mantequilla": [
-      {
-        "name": "Test",
-        "score": 126784,
-        "stars": 3,
-        "combo": 96,
-        "accuracy": 8.382889870101705,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
+    "top_el_sueno_de_morfeo_demasiado_tarde": [],
+    "top_efecto_pasillo_pan_y_mantequilla": [],
     "top_seguridad_social_me_siento_bien": [
       {
         "name": "Mauricio",
@@ -2586,16 +2332,7 @@
         "date": "2026-11-02T20:58:57.811Z"
       }
     ],
-    "top_ricardo_arjona_mujeres": [
-      {
-        "name": "Test",
-        "score": 4650,
-        "stars": 3,
-        "combo": 10,
-        "accuracy": 0.28297632674820034,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
+    "top_ricardo_arjona_mujeres": [],
     "top_los_autnticos_decadentes_el_dinero_no_es_todo": [
       {
         "name": "Mauricio",
@@ -2646,14 +2383,6 @@
         "combo": 722,
         "accuracy": 93.80428562588396,
         "date": "2026-11-02T20:58:57.811Z"
-      },
-      {
-        "name": "Test",
-        "score": 992287,
-        "stars": 2,
-        "combo": 157,
-        "accuracy": 47.028399402077945,
-        "date": "2026-11-04T20:33:36.624Z"
       }
     ],
     "top_fito_y_fitipaldis_la_casa_por_el_tejado": [
@@ -2786,16 +2515,7 @@
         "date": "2026-11-02T20:58:57.811Z"
       }
     ],
-    "top_man_mariposa_traicionera": [
-      {
-        "name": "Test",
-        "score": 55136,
-        "stars": 3,
-        "combo": 51,
-        "accuracy": 3.5171160872849008,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
+    "top_man_mariposa_traicionera": [],
     "top_las_ketchup_asereje": [
       {
         "name": "Mauricio",
@@ -2848,36 +2568,9 @@
         "date": "2026-11-02T20:58:57.811Z"
       }
     ],
-    "top_mgo_de_oz_diabulus_in_musica": [
-      {
-        "name": "Test",
-        "score": 250390,
-        "stars": 3,
-        "combo": 153,
-        "accuracy": 17.23386755409028,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_mgo_de_oz_fiesta_pagana": [
-      {
-        "name": "Test",
-        "score": 817596,
-        "stars": 1,
-        "combo": 311,
-        "accuracy": 24.120259671678472,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_azcar_moreno_bandido": [
-      {
-        "name": "Test",
-        "score": 148200,
-        "stars": 3,
-        "combo": 105,
-        "accuracy": 15.424726398451282,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
+    "top_mgo_de_oz_diabulus_in_musica": [],
+    "top_mgo_de_oz_fiesta_pagana": [],
+    "top_azcar_moreno_bandido": [],
     "top_michael_jackson_billie_jean": [
       {
         "name": "Mauricio",
@@ -2956,16 +2649,7 @@
         "date": "2026-11-02T20:58:57.811Z"
       }
     ],
-    "osu_50092": [
-      {
-        "name": "Test",
-        "score": 11625,
-        "stars": 3,
-        "combo": 18,
-        "accuracy": 2.5072791976706568,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
+    "osu_50092": [],
     "osu_1281116": [
       {
         "name": "Mauricio",
@@ -3068,14 +2752,6 @@
         "combo": 219,
         "accuracy": 100,
         "date": "2026-11-02T20:58:57.811Z"
-      },
-      {
-        "name": "Test",
-        "score": 74976,
-        "stars": 3,
-        "combo": 64,
-        "accuracy": 6.259998330132754,
-        "date": "2026-11-04T20:33:36.623Z"
       }
     ],
     "top_taxi_quiero_un_camino": [
@@ -3346,14 +3022,6 @@
     ],
     "top_michael_jackson_thriller": [
       {
-        "name": "Test",
-        "score": 1317349,
-        "stars": 3,
-        "combo": 220,
-        "accuracy": 72.83362175251975,
-        "date": "2026-11-04 21:11:20"
-      },
-      {
         "name": "Mauricio",
         "score": 755762,
         "stars": 2,
@@ -3456,16 +3124,7 @@
         "date": "2026-11-02T20:58:57.811Z"
       }
     ],
-    "top_soraya_mi_mundo_sin_ti": [
-      {
-        "name": "Test",
-        "score": 189049,
-        "stars": 3,
-        "combo": 141,
-        "accuracy": 13.285419833434178,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
+    "top_soraya_mi_mundo_sin_ti": [],
     "top_alaska_abracadabra": [
       {
         "name": "Mauricio",
@@ -3546,14 +3205,6 @@
     ],
     "top_seguridad_social_quiero_tener_tu_presencia": [
       {
-        "name": "Test",
-        "score": 739999,
-        "stars": 4,
-        "combo": 225,
-        "accuracy": 89.2547938332091,
-        "date": "2026-11-04T20:33:36.623Z"
-      },
-      {
         "name": "Mauricio",
         "score": 543886,
         "stars": 1,
@@ -3614,26 +3265,8 @@
         "date": "2026-11-02T20:58:57.811Z"
       }
     ],
-    "osu_1819909": [
-      {
-        "name": "Test",
-        "score": 465243,
-        "stars": 3,
-        "combo": 258,
-        "accuracy": 9.592678732695804,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "osu_1833939": [
-      {
-        "name": "Test",
-        "score": 415112,
-        "stars": 1,
-        "combo": 216,
-        "accuracy": 29.280975675132346,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
+    "osu_1819909": [],
+    "osu_1833939": [],
     "osu_1225138": [
       {
         "name": "Mauricio",
@@ -3660,16 +3293,7 @@
         "date": "2026-11-02T20:58:57.811Z"
       }
     ],
-    "top_jennifer_lopez__pitbull_ven_a_bailar": [
-      {
-        "name": "Test",
-        "score": 45538,
-        "stars": 3,
-        "combo": 45,
-        "accuracy": 3.2030149332886926,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
+    "top_jennifer_lopez__pitbull_ven_a_bailar": [],
     "top_31_minutos_el_dinosaurio_anacleto": [
       {
         "name": "Mauricio",
@@ -4222,14 +3846,6 @@
         "combo": 41,
         "accuracy": 3.0884723976246278,
         "date": "2026-10-23 05:44:35"
-      },
-      {
-        "name": "Test",
-        "score": 3975,
-        "stars": 3,
-        "combo": 9,
-        "accuracy": 0.23780366331308664,
-        "date": "2026-11-04T20:33:36.624Z"
       }
     ],
     "bs_49164": [
@@ -4442,16 +4058,7 @@
         "date": "2026-10-23 10:19:21"
       }
     ],
-    "top_haash_lo_aprendi_de_ti": [
-      {
-        "name": "Test",
-        "score": 3600,
-        "stars": 3,
-        "combo": 8,
-        "accuracy": 0.26247101882500473,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
+    "top_haash_lo_aprendi_de_ti": [],
     "clonehero_355727": [
       {
         "name": "FAZTL",
@@ -4653,14 +4260,6 @@
       }
     ],
     "top_the_weeknd_ft_daft_punk_starboy": [
-      {
-        "name": "Test",
-        "score": 927150,
-        "stars": 2,
-        "combo": 228,
-        "accuracy": 46.57172995780591,
-        "date": "2026-11-04T20:33:36.624Z"
-      },
       {
         "name": "Laaleplo",
         "score": 818925,
@@ -4864,14 +4463,6 @@
         "combo": 70,
         "accuracy": 3.755974280411195,
         "date": "2026-11-03 02:12:08"
-      },
-      {
-        "name": "Test",
-        "score": 33750,
-        "stars": 3,
-        "combo": 37,
-        "accuracy": 1.8669245142953868,
-        "date": "2026-11-04T20:33:36.624Z"
       },
       {
         "name": "Siro",
@@ -5154,14 +4745,6 @@
     ],
     "top_melendi_piratas_del_bar_caribe": [
       {
-        "name": "Test",
-        "score": 382799,
-        "stars": 3,
-        "combo": 207,
-        "accuracy": 17.7411490992682,
-        "date": "2026-11-04T20:33:36.624Z"
-      },
-      {
         "name": "Libay",
         "score": 232075,
         "stars": 3.5,
@@ -5318,14 +4901,6 @@
     ],
     "top_juan_gabriel_abrzame_muy_fuerte": [
       {
-        "name": "Test",
-        "score": 56945,
-        "stars": 3,
-        "combo": 38,
-        "accuracy": 2.833628746615022,
-        "date": "2026-11-04T20:33:36.624Z"
-      },
-      {
         "name": "Pirata",
         "score": 19500,
         "stars": 3.5,
@@ -5344,25 +4919,8 @@
         "date": "2026-10-24 22:01:11"
       }
     ],
-    "top_system_of_a_down_byob": [
-      {
-        "name": "Test",
-        "score": 212849,
-        "stars": 3,
-        "combo": 137,
-        "accuracy": 11.706462041405375,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
+    "top_system_of_a_down_byob": [],
     "top_la_quinta_estacion_algo_mas": [
-      {
-        "name": "Test",
-        "score": 1420265,
-        "stars": 4,
-        "combo": 597,
-        "accuracy": 88.44357761001542,
-        "date": "2026-11-04T20:33:36.624Z"
-      },
       {
         "name": "Ubuntu",
         "score": 140200,
@@ -5420,26 +4978,9 @@
         "combo": 523,
         "accuracy": 98.84423518861051,
         "date": "2026-11-02T20:58:57.811Z"
-      },
-      {
-        "name": "Test",
-        "score": 1008165,
-        "stars": 5,
-        "combo": 438,
-        "accuracy": 94.52359187117642,
-        "date": "2026-11-04T20:33:36.623Z"
       }
     ],
-    "top_chayanne_torero": [
-      {
-        "name": "Test",
-        "score": 346171,
-        "stars": 3,
-        "combo": 150,
-        "accuracy": 14.863088836077997,
-        "date": "2026-11-04T20:33:36.623Z"
-      }
-    ],
+    "top_chayanne_torero": [],
     "osu_584749": [
       {
         "name": "Llois1",
@@ -5514,14 +5055,6 @@
         "combo": 174,
         "accuracy": 22.722767129415935,
         "date": "2026-11-02T20:58:57.811Z"
-      },
-      {
-        "name": "Test",
-        "score": 34059,
-        "stars": 3,
-        "combo": 22,
-        "accuracy": 4.4241660604801,
-        "date": "2026-11-04T20:33:36.624Z"
       }
     ],
     "osu_21936": [
@@ -5545,14 +5078,6 @@
       }
     ],
     "osu_1740979": [
-      {
-        "name": "Test",
-        "score": 262078,
-        "stars": 2,
-        "combo": 116,
-        "accuracy": 52.151712335581955,
-        "date": "2026-11-04T20:33:36.624Z"
-      },
       {
         "name": "Mauricio",
         "score": 71687,
@@ -5628,14 +5153,6 @@
         "combo": 219,
         "accuracy": 21.13121342285909,
         "date": "2026-11-02T20:58:57.811Z"
-      },
-      {
-        "name": "Test",
-        "score": 251698,
-        "stars": 1,
-        "combo": 149,
-        "accuracy": 32.175993986607935,
-        "date": "2026-11-04T20:33:36.624Z"
       }
     ],
     "osu_998321": [
@@ -5662,14 +5179,6 @@
         "combo": 29,
         "accuracy": 0.9161665749802856,
         "date": "2026-11-02T20:58:57.811Z"
-      },
-      {
-        "name": "Test",
-        "score": 97148,
-        "stars": 3,
-        "combo": 87,
-        "accuracy": 18.08935936467149,
-        "date": "2026-11-04T20:33:36.624Z"
       }
     ],
     "top_mecano_hijo_de_la_luna": [
@@ -5842,14 +5351,6 @@
     ],
     "top_salome_vivo_cantando": [
       {
-        "name": "Test",
-        "score": 449880,
-        "stars": 3,
-        "combo": 182,
-        "accuracy": 71.52191539085229,
-        "date": "2026-11-04T20:33:36.624Z"
-      },
-      {
         "name": "`pc",
         "score": 13725,
         "stars": 3.5,
@@ -5952,14 +5453,6 @@
         "combo": 136,
         "accuracy": 42.01992753623188,
         "date": "2026-11-02T20:58:57.812Z"
-      },
-      {
-        "name": "Test",
-        "score": 103040,
-        "stars": 1,
-        "combo": 85,
-        "accuracy": 30.98481431363705,
-        "date": "2026-11-04T20:33:36.624Z"
       }
     ],
     "osu_1096914": [
@@ -6090,14 +5583,6 @@
         "combo": 146,
         "accuracy": 17.656487608400806,
         "date": "2026-11-02T20:58:57.812Z"
-      },
-      {
-        "name": "Test",
-        "score": 111150,
-        "stars": 3,
-        "combo": 89,
-        "accuracy": 8.613140948646617,
-        "date": "2026-11-04T20:33:36.624Z"
       }
     ],
     "osu_1752837": [
@@ -6212,14 +5697,6 @@
         "combo": 888,
         "accuracy": 96.70953504220824,
         "date": "2026-11-02T20:58:57.812Z"
-      },
-      {
-        "name": "Test",
-        "score": 1226551,
-        "stars": 5,
-        "combo": 389,
-        "accuracy": 91.93032922655819,
-        "date": "2026-11-04T20:33:36.623Z"
       }
     ],
     "top_miguel_bos_estuve_a_punto_de": [
@@ -6300,26 +5777,8 @@
         "date": "2026-11-02T20:58:57.812Z"
       }
     ],
-    "top_juan_luis_guerra_la_bilirrubina": [
-      {
-        "name": "Test",
-        "score": 5690,
-        "stars": 3,
-        "combo": 13,
-        "accuracy": 0.37040894710117567,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_la_quinta_estacion_daria": [
-      {
-        "name": "Test",
-        "score": 5850,
-        "stars": 3,
-        "combo": 11,
-        "accuracy": 0.604172820278725,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
+    "top_juan_luis_guerra_la_bilirrubina": [],
+    "top_la_quinta_estacion_daria": [],
     "top_estopa_vino_tinto": [
       {
         "name": "Mauricio",
@@ -6602,36 +6061,9 @@
         "date": "2026-10-28 00:16:24"
       }
     ],
-    "top_abba_dancing_queen": [
-      {
-        "name": "Test",
-        "score": 3450,
-        "stars": 3,
-        "combo": 6,
-        "accuracy": 0.3299900716030631,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_amaral_kamikaze": [
-      {
-        "name": "Test",
-        "score": 510493,
-        "stars": 2,
-        "combo": 156,
-        "accuracy": 58.24028640238943,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "osu_2644394": [
-      {
-        "name": "Test",
-        "score": 30347,
-        "stars": 3,
-        "combo": 37,
-        "accuracy": 0.5264889138405499,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
+    "top_abba_dancing_queen": [],
+    "top_amaral_kamikaze": [],
+    "osu_2644394": [],
     "top_michael_jackson_bad": [
       {
         "name": "Mauricio",
@@ -6966,16 +6398,7 @@
         "date": "2026-10-29 06:04:58"
       }
     ],
-    "top_spice_girls_say_youll_be_there": [
-      {
-        "name": "Test",
-        "score": 632496,
-        "stars": 2,
-        "combo": 118,
-        "accuracy": 49.41757214034523,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
+    "top_spice_girls_say_youll_be_there": [],
     "top_luis_miguel_la_chica_del_bikini_azul": [
       {
         "name": "Mauricio",
@@ -7150,14 +6573,6 @@
         "combo": 128,
         "accuracy": 77.51831175126036,
         "date": "2026-11-02T20:58:57.812Z"
-      },
-      {
-        "name": "Test",
-        "score": 151345,
-        "stars": 1,
-        "combo": 95,
-        "accuracy": 32.992533653060114,
-        "date": "2026-11-04T20:33:36.623Z"
       }
     ],
     "osu_2622288": [
@@ -7303,11 +6718,11 @@
     "osu_2301903": [
       {
         "name": "Libay",
-        "score": 43875,
+        "score": 65775,
         "stars": 3.5,
-        "combo": 68,
-        "accuracy": 1.8915306848311095,
-        "date": "2026-10-30 12:38:37"
+        "combo": 64,
+        "accuracy": 2.835679334353646,
+        "date": "2026-11-05 00:39:33"
       }
     ],
     "osu_1576250": [
@@ -7320,66 +6735,12 @@
         "date": "2026-11-03 02:06:00"
       }
     ],
-    "top_los_prisioneros_la_voz_de_los_80": [
-      {
-        "name": "Test",
-        "score": 1061088,
-        "stars": 3,
-        "combo": 175,
-        "accuracy": 61.07097285876508,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "osu_2558723": [
-      {
-        "name": "Test",
-        "score": 26565,
-        "stars": 3,
-        "combo": 18,
-        "accuracy": 1.1536517322364124,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "osu_2558509": [
-      {
-        "name": "Test",
-        "score": 20235,
-        "stars": 3,
-        "combo": 17,
-        "accuracy": 0.1830620348247589,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "osu_87243": [
-      {
-        "name": "Test",
-        "score": 33500,
-        "stars": 3,
-        "combo": 22,
-        "accuracy": 0.15018919355127952,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "osu_48672": [
-      {
-        "name": "Test",
-        "score": 611125,
-        "stars": 1,
-        "combo": 199,
-        "accuracy": 22.466096367559857,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "bs_2b4b2": [
-      {
-        "name": "Test",
-        "score": 146600,
-        "stars": 3,
-        "combo": 91,
-        "accuracy": 13.212027811949406,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
+    "top_los_prisioneros_la_voz_de_los_80": [],
+    "osu_2558723": [],
+    "osu_2558509": [],
+    "osu_87243": [],
+    "osu_48672": [],
+    "bs_2b4b2": [],
     "osu_2212368": [
       {
         "name": "VAMP",
@@ -7420,16 +6781,7 @@
         "date": "2026-10-31 03:20:46"
       }
     ],
-    "top_bacilos_solo_un_segundo": [
-      {
-        "name": "Test",
-        "score": 907719,
-        "stars": 4,
-        "combo": 272,
-        "accuracy": 77.29971855214023,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
+    "top_bacilos_solo_un_segundo": [],
     "osu_1511613": [
       {
         "name": "Mauricio",
@@ -7482,16 +6834,7 @@
         "date": "2026-11-02T20:58:57.812Z"
       }
     ],
-    "top_miguel_bos_y_bimba_bos_como_un_lobo": [
-      {
-        "name": "Test",
-        "score": 645770,
-        "stars": 2,
-        "combo": 153,
-        "accuracy": 53.38963012446033,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
+    "top_miguel_bos_y_bimba_bos_como_un_lobo": [],
     "bs_a1fc": [
       {
         "name": "Ttuk",
@@ -7622,46 +6965,10 @@
         "date": "2026-11-01 16:53:40"
       }
     ],
-    "top_man_labios_compartidos": [
-      {
-        "name": "Test",
-        "score": 173648,
-        "stars": 3,
-        "combo": 105,
-        "accuracy": 7.330551083110367,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_mecano_maquillaje": [
-      {
-        "name": "Test",
-        "score": 444404,
-        "stars": 1,
-        "combo": 147,
-        "accuracy": 34.687789289968265,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "osu_2646234": [
-      {
-        "name": "Test",
-        "score": 538233,
-        "stars": 1,
-        "combo": 195,
-        "accuracy": 28.446570025432276,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_mocedades_silbame": [
-      {
-        "name": "Test",
-        "score": 103971,
-        "stars": 1,
-        "combo": 47,
-        "accuracy": 21.660940888721296,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
+    "top_man_labios_compartidos": [],
+    "top_mecano_maquillaje": [],
+    "osu_2646234": [],
+    "top_mocedades_silbame": [],
     "osu_241094": [
       {
         "name": "Libay",
@@ -7732,26 +7039,8 @@
         "date": "2026-11-02 02:46:23"
       }
     ],
-    "bs_1dcf4": [
-      {
-        "name": "Test",
-        "score": 372611,
-        "stars": 3,
-        "combo": 95,
-        "accuracy": 14.768656967837702,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "osu_2647293": [
-      {
-        "name": "Test",
-        "score": 740798,
-        "stars": 4,
-        "combo": 280,
-        "accuracy": 82.77498061352874,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
+    "bs_1dcf4": [],
+    "osu_2647293": [],
     "top_miguel_bos_sevilla": [
       {
         "name": "Jocomomolo",
@@ -7922,706 +7211,76 @@
         "date": "2026-11-03 02:35:11"
       }
     ],
-    "comm_1788856634_9941": [
-      {
-        "name": "Test",
-        "score": 2199,
-        "stars": 5,
-        "combo": 4,
-        "accuracy": 100,
-        "date": "2026-11-04T20:33:36.623Z"
-      }
-    ],
-    "osu_2619504": [
-      {
-        "name": "Test",
-        "score": 169,
-        "stars": 3,
-        "combo": 1,
-        "accuracy": 0.0037974925314107682,
-        "date": "2026-11-04T20:33:36.623Z"
-      }
-    ],
-    "osu_1888560": [
-      {
-        "name": "Test",
-        "score": 887451,
-        "stars": 4,
-        "combo": 295,
-        "accuracy": 87.64601892270922,
-        "date": "2026-11-04T20:33:36.623Z"
-      }
-    ],
-    "osu_2620480": [
-      {
-        "name": "Test",
-        "score": 54322,
-        "stars": 3,
-        "combo": 51,
-        "accuracy": 3.5648590810325897,
-        "date": "2026-11-04T20:33:36.623Z"
-      }
-    ],
-    "osu_2614134": [
-      {
-        "name": "Test",
-        "score": 56700,
-        "stars": 3,
-        "combo": 53,
-        "accuracy": 3.4217641094964515,
-        "date": "2026-11-04T20:33:36.623Z"
-      }
-    ],
-    "top_marc_anthony_vivir_mi_vida": [
-      {
-        "name": "Test",
-        "score": 911854,
-        "stars": 5,
-        "combo": 393,
-        "accuracy": 99.82921216447306,
-        "date": "2026-11-04T20:33:36.623Z"
-      }
-    ],
-    "top_attaque_77_no_me_arrepiento_de_este_amor": [
-      {
-        "name": "Test",
-        "score": 450,
-        "stars": 3,
-        "combo": 1,
-        "accuracy": 0.05605283415585677,
-        "date": "2026-11-04T20:33:36.623Z"
-      }
-    ],
-    "top_amaia_montero_cuatro_segundos": [
-      {
-        "name": "Test",
-        "score": 12952,
-        "stars": 3,
-        "combo": 23,
-        "accuracy": 1.0028943941052855,
-        "date": "2026-11-04T20:33:36.623Z"
-      }
-    ],
-    "top_david_el_gnomo_soy_un_gnomo": [
-      {
-        "name": "Test",
-        "score": 2925,
-        "stars": 3,
-        "combo": 10,
-        "accuracy": 0.9414438046560432,
-        "date": "2026-11-04T20:33:36.623Z"
-      }
-    ],
-    "top_el_canto_del_loco_eres_tonto": [
-      {
-        "name": "Test",
-        "score": 122447,
-        "stars": 3,
-        "combo": 90,
-        "accuracy": 11.758712415852804,
-        "date": "2026-11-04T20:33:36.623Z"
-      }
-    ],
-    "top_bruno_mars_marry_you": [
-      {
-        "name": "Test",
-        "score": 1410382,
-        "stars": 5,
-        "combo": 664,
-        "accuracy": 95.91799260611369,
-        "date": "2026-11-04T20:33:36.623Z"
-      }
-    ],
-    "top_zapato_veloz_tractor_amarillo": [
-      {
-        "name": "Test",
-        "score": 54258,
-        "stars": 3,
-        "combo": 49,
-        "accuracy": 3.8282920220985117,
-        "date": "2026-11-04T20:33:36.623Z"
-      }
-    ],
-    "top_david_bustamante_devulveme_la_vida": [
-      {
-        "name": "Test",
-        "score": 11700,
-        "stars": 3,
-        "combo": 25,
-        "accuracy": 0.6734495120081228,
-        "date": "2026-11-04T20:33:36.623Z"
-      }
-    ],
-    "top_massiel_la_la_la": [
-      {
-        "name": "Test",
-        "score": 2250,
-        "stars": 3,
-        "combo": 5,
-        "accuracy": 0.4119438072029748,
-        "date": "2026-11-04T20:33:36.623Z"
-      }
-    ],
-    "top_luis_fonsi_y_demi_lovato_chame_la_culpa": [
-      {
-        "name": "Test",
-        "score": 121674,
-        "stars": 3,
-        "combo": 90,
-        "accuracy": 6.848013651677362,
-        "date": "2026-11-04T20:33:36.623Z"
-      }
-    ],
-    "top_chayanne_un_siglo_sin_ti": [
-      {
-        "name": "Test",
-        "score": 125723,
-        "stars": 3,
-        "combo": 90,
-        "accuracy": 8.819652511738093,
-        "date": "2026-11-04T20:33:36.623Z"
-      }
-    ],
-    "top_rosario_flores_no_dudara": [
-      {
-        "name": "Test",
-        "score": 78095,
-        "stars": 3,
-        "combo": 65,
-        "accuracy": 4.422698902522799,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_david_bustamante_abrzame_muy_fuerte": [
-      {
-        "name": "Test",
-        "score": 162012,
-        "stars": 3,
-        "combo": 109,
-        "accuracy": 13.033845262709068,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_antonio_orozco_dime_por_que": [
-      {
-        "name": "Test",
-        "score": 419316,
-        "stars": 2,
-        "combo": 220,
-        "accuracy": 40.30907895394578,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_beth_dime": [
-      {
-        "name": "Test",
-        "score": 51267,
-        "stars": 3,
-        "combo": 49,
-        "accuracy": 5.046828886049382,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_carlos_baute_y_marta_sanchez_colgando_en_tus_manos": [
-      {
-        "name": "Test",
-        "score": 371591,
-        "stars": 1,
-        "combo": 194,
-        "accuracy": 25.72322359394534,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_elvis_presley_suspicious_minds": [
-      {
-        "name": "Test",
-        "score": 7575,
-        "stars": 3,
-        "combo": 14,
-        "accuracy": 0.5448131272992732,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_britney_spears_baby_one_more_time": [
-      {
-        "name": "Test",
-        "score": 623219,
-        "stars": 2,
-        "combo": 309,
-        "accuracy": 45.50794356661285,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_tony_dize_el_doctorado": [
-      {
-        "name": "Test",
-        "score": 23550,
-        "stars": 3,
-        "combo": 30,
-        "accuracy": 1.3761041702091854,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_estopa_cuerpo_triste": [
-      {
-        "name": "Test",
-        "score": 84000,
-        "stars": 3,
-        "combo": 22,
-        "accuracy": 6.392353527589854,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_ricardo_montaner_castillo_azul": [
-      {
-        "name": "Test",
-        "score": 13500,
-        "stars": 3,
-        "combo": 22,
-        "accuracy": 1.0024697885308547,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_mal_toda": [
-      {
-        "name": "Test",
-        "score": 27307,
-        "stars": 3,
-        "combo": 31,
-        "accuracy": 1.906199913998671,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_mclan_carolina": [
-      {
-        "name": "Test",
-        "score": 288834,
-        "stars": 1,
-        "combo": 161,
-        "accuracy": 23.00082420535853,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "osu_1314683": [
-      {
-        "name": "Test",
-        "score": 712703,
-        "stars": 5,
-        "combo": 365,
-        "accuracy": 96.17721795714348,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_andrea_bocelli_y_marta_sanchez_vivo_por_ella": [
-      {
-        "name": "Test",
-        "score": 21900,
-        "stars": 3,
-        "combo": 28,
-        "accuracy": 2.747645681679602,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_david_bisbal_culpable": [
-      {
-        "name": "Test",
-        "score": 210915,
-        "stars": 1,
-        "combo": 152,
-        "accuracy": 26.599514710036726,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_isabel_pantoja_marinero_de_luces": [
-      {
-        "name": "Test",
-        "score": 4200,
-        "stars": 3,
-        "combo": 10,
-        "accuracy": 0.29239643944678595,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "osu_963034": [
-      {
-        "name": "Test",
-        "score": 491314,
-        "stars": 1,
-        "combo": 249,
-        "accuracy": 31.080911815723848,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "osu_2643427": [
-      {
-        "name": "Test",
-        "score": 516971,
-        "stars": 5,
-        "combo": 280,
-        "accuracy": 100,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "bs_2f365": [
-      {
-        "name": "Test",
-        "score": 444750,
-        "stars": 3,
-        "combo": 241,
-        "accuracy": 16.530077493449294,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_ricchi__poveri_ser_porque_te_amo": [
-      {
-        "name": "Test",
-        "score": 123629,
-        "stars": 3,
-        "combo": 86,
-        "accuracy": 9.752959320924106,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "bs_49f2": [
-      {
-        "name": "Test",
-        "score": 16617,
-        "stars": 3,
-        "combo": 14,
-        "accuracy": 1.133071266139123,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_roco_durcal_me_gustas_mucho": [
-      {
-        "name": "Test",
-        "score": 100789,
-        "stars": 3,
-        "combo": 56,
-        "accuracy": 11.648863996227576,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_queen__david_bowie_under_pressure": [
-      {
-        "name": "Test",
-        "score": 83899,
-        "stars": 3,
-        "combo": 46,
-        "accuracy": 5.334249724701113,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_francisca_valenzuela_afortunada": [
-      {
-        "name": "Test",
-        "score": 652953,
-        "stars": 3,
-        "combo": 317,
-        "accuracy": 64.51530990326947,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "bs_3c3ee": [
-      {
-        "name": "Test",
-        "score": 375,
-        "stars": 3,
-        "combo": 1,
-        "accuracy": 0.015580530569000975,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_agapornis_le_hace_falta_un_beso": [
-      {
-        "name": "Test",
-        "score": 17550,
-        "stars": 3,
-        "combo": 25,
-        "accuracy": 1.6390227501961223,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_los_prisioneros_estrechez_de_corazn": [
-      {
-        "name": "Test",
-        "score": 302797,
-        "stars": 1,
-        "combo": 170,
-        "accuracy": 21.60681206454136,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_pablo_alborn_te_he_echado_de_menos": [
-      {
-        "name": "Test",
-        "score": 143316,
-        "stars": 3,
-        "combo": 83,
-        "accuracy": 10.85015436842193,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_illapu_volars": [
-      {
-        "name": "Test",
-        "score": 86100,
-        "stars": 3,
-        "combo": 63,
-        "accuracy": 7.968356093895185,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_juan_luis_guerra_las_avispas": [
-      {
-        "name": "Test",
-        "score": 780169,
-        "stars": 2,
-        "combo": 152,
-        "accuracy": 56.02698192013145,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_macaco_tengo": [
-      {
-        "name": "Test",
-        "score": 942124,
-        "stars": 2,
-        "combo": 179,
-        "accuracy": 50.80374755047081,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_antonio_banderas_y_los_lobos_la_cancin_del_mariachi": [
-      {
-        "name": "Test",
-        "score": 929268,
-        "stars": 5,
-        "combo": 287,
-        "accuracy": 96.86988882460557,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_jarabe_de_palo_depende": [
-      {
-        "name": "Test",
-        "score": 564907,
-        "stars": 1,
-        "combo": 271,
-        "accuracy": 30.404363879051445,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_los_del_rio_macarena_river_remix_103_bpm": [
-      {
-        "name": "Test",
-        "score": 927507,
-        "stars": 1,
-        "combo": 110,
-        "accuracy": 31.0306272488671,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "bs_39624": [
-      {
-        "name": "Test",
-        "score": 658952,
-        "stars": 2,
-        "combo": 93,
-        "accuracy": 40.56749377437536,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_aretha_franklin_respect": [
-      {
-        "name": "Test",
-        "score": 460338,
-        "stars": 2,
-        "combo": 111,
-        "accuracy": 57.642187141957365,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "bs_4d66f": [
-      {
-        "name": "Test",
-        "score": 766545,
-        "stars": 2,
-        "combo": 311,
-        "accuracy": 56.8000444592642,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_selena_gomez__the_scene_love_you_like_a_love_song": [
-      {
-        "name": "Test",
-        "score": 837240,
-        "stars": 3,
-        "combo": 218,
-        "accuracy": 65.0195119110024,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_king_frica_la_bomba": [
-      {
-        "name": "Test",
-        "score": 1027222,
-        "stars": 3,
-        "combo": 167,
-        "accuracy": 66.47696459426751,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_bee_gees_how_deep_is_your_love": [
-      {
-        "name": "Test",
-        "score": 907777,
-        "stars": 3,
-        "combo": 164,
-        "accuracy": 66.63468688317494,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_colacao_cancion_del_negrito_la_cancion_del_colacao": [
-      {
-        "name": "Test",
-        "score": 210201,
-        "stars": 5,
-        "combo": 130,
-        "accuracy": 100,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_lady_gaga_bad_romance": [
-      {
-        "name": "Test",
-        "score": 1445502,
-        "stars": 3,
-        "combo": 238,
-        "accuracy": 72.27712375946527,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_raffaella_carr_caliente_caliente": [
-      {
-        "name": "Test",
-        "score": 232108,
-        "stars": 3,
-        "combo": 99,
-        "accuracy": 16.572277199445946,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_abba_money_money_money": [
-      {
-        "name": "Test",
-        "score": 786305,
-        "stars": 2,
-        "combo": 292,
-        "accuracy": 48.063122866727305,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "osu_2647036": [
-      {
-        "name": "Test",
-        "score": 1244903,
-        "stars": 1,
-        "combo": 198,
-        "accuracy": 37.02718989022441,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_fuego_ft_el_potro_alvarez_una_vaina_loca": [
-      {
-        "name": "Test",
-        "score": 1908425,
-        "stars": 3,
-        "combo": 512,
-        "accuracy": 74.03975375237432,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "bs_2b2cd": [
-      {
-        "name": "Test",
-        "score": 1566629,
-        "stars": 2,
-        "combo": 190,
-        "accuracy": 58.81465841689908,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_metallica_fuel": [
-      {
-        "name": "Test",
-        "score": 349780,
-        "stars": 3,
-        "combo": 183,
-        "accuracy": 13.789405835010458,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "osu_2292927": [
-      {
-        "name": "Test",
-        "score": 557249,
-        "stars": 3,
-        "combo": 125,
-        "accuracy": 68.21466388380534,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "osu_26345": [
-      {
-        "name": "Test",
-        "score": 666671,
-        "stars": 1,
-        "combo": 180,
-        "accuracy": 38.06746805779518,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "osu_30800": [
-      {
-        "name": "Test",
-        "score": 20287,
-        "stars": 5,
-        "combo": 26,
-        "accuracy": 97.77809909388857,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "osu_1378113": [
-      {
-        "name": "Test",
-        "score": 636450,
-        "stars": 5,
-        "combo": 178,
-        "accuracy": 94.05062729972957,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "bs_1f725": [
-      {
-        "name": "Test",
-        "score": 1537925,
-        "stars": 5,
-        "combo": 721,
-        "accuracy": 99.5227463922863,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "bs_2c4ab": [
-      {
-        "name": "Test",
-        "score": 1778286,
-        "stars": 4,
-        "combo": 406,
-        "accuracy": 78.79885197282276,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
+    "comm_1788856634_9941": [],
+    "osu_2619504": [],
+    "osu_1888560": [],
+    "osu_2620480": [],
+    "osu_2614134": [],
+    "top_marc_anthony_vivir_mi_vida": [],
+    "top_attaque_77_no_me_arrepiento_de_este_amor": [],
+    "top_amaia_montero_cuatro_segundos": [],
+    "top_david_el_gnomo_soy_un_gnomo": [],
+    "top_el_canto_del_loco_eres_tonto": [],
+    "top_bruno_mars_marry_you": [],
+    "top_zapato_veloz_tractor_amarillo": [],
+    "top_david_bustamante_devulveme_la_vida": [],
+    "top_massiel_la_la_la": [],
+    "top_luis_fonsi_y_demi_lovato_chame_la_culpa": [],
+    "top_chayanne_un_siglo_sin_ti": [],
+    "top_rosario_flores_no_dudara": [],
+    "top_david_bustamante_abrzame_muy_fuerte": [],
+    "top_antonio_orozco_dime_por_que": [],
+    "top_beth_dime": [],
+    "top_carlos_baute_y_marta_sanchez_colgando_en_tus_manos": [],
+    "top_elvis_presley_suspicious_minds": [],
+    "top_britney_spears_baby_one_more_time": [],
+    "top_tony_dize_el_doctorado": [],
+    "top_estopa_cuerpo_triste": [],
+    "top_ricardo_montaner_castillo_azul": [],
+    "top_mal_toda": [],
+    "top_mclan_carolina": [],
+    "osu_1314683": [],
+    "top_andrea_bocelli_y_marta_sanchez_vivo_por_ella": [],
+    "top_david_bisbal_culpable": [],
+    "top_isabel_pantoja_marinero_de_luces": [],
+    "osu_963034": [],
+    "osu_2643427": [],
+    "bs_2f365": [],
+    "top_ricchi__poveri_ser_porque_te_amo": [],
+    "bs_49f2": [],
+    "top_roco_durcal_me_gustas_mucho": [],
+    "top_queen__david_bowie_under_pressure": [],
+    "top_francisca_valenzuela_afortunada": [],
+    "bs_3c3ee": [],
+    "top_agapornis_le_hace_falta_un_beso": [],
+    "top_los_prisioneros_estrechez_de_corazn": [],
+    "top_pablo_alborn_te_he_echado_de_menos": [],
+    "top_illapu_volars": [],
+    "top_juan_luis_guerra_las_avispas": [],
+    "top_macaco_tengo": [],
+    "top_antonio_banderas_y_los_lobos_la_cancin_del_mariachi": [],
+    "top_jarabe_de_palo_depende": [],
+    "top_los_del_rio_macarena_river_remix_103_bpm": [],
+    "bs_39624": [],
+    "top_aretha_franklin_respect": [],
+    "bs_4d66f": [],
+    "top_selena_gomez__the_scene_love_you_like_a_love_song": [],
+    "top_king_frica_la_bomba": [],
+    "top_bee_gees_how_deep_is_your_love": [],
+    "top_colacao_cancion_del_negrito_la_cancion_del_colacao": [],
+    "top_lady_gaga_bad_romance": [],
+    "top_raffaella_carr_caliente_caliente": [],
+    "top_abba_money_money_money": [],
+    "osu_2647036": [],
+    "top_fuego_ft_el_potro_alvarez_una_vaina_loca": [],
+    "bs_2b2cd": [],
+    "top_metallica_fuel": [],
+    "osu_2292927": [],
+    "osu_26345": [],
+    "osu_30800": [],
+    "osu_1378113": [],
+    "bs_1f725": [],
+    "bs_2c4ab": [],
     "bs_3722d": [
       {
         "name": "FAZTL",
@@ -8762,56 +7421,11 @@
         "date": "2026-11-03 13:53:14"
       }
     ],
-    "osu_2309055": [
-      {
-        "name": "Test",
-        "score": 146902,
-        "stars": 3,
-        "combo": 92,
-        "accuracy": 73.82826242097116,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "bs_1a0b6": [
-      {
-        "name": "Test",
-        "score": 274165,
-        "stars": 3,
-        "combo": 82,
-        "accuracy": 11.116539890036817,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "bs_41240": [
-      {
-        "name": "Test",
-        "score": 59395,
-        "stars": 3.5,
-        "combo": 29,
-        "accuracy": 4.387370990092866,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "osu_2526897": [
-      {
-        "name": "Test",
-        "score": 530695,
-        "stars": 1,
-        "combo": 97,
-        "accuracy": 23.485820750208,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "osu_1829075": [
-      {
-        "name": "Test",
-        "score": 1370676,
-        "stars": 2,
-        "combo": 147,
-        "accuracy": 51.898314325957564,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
+    "osu_2309055": [],
+    "bs_1a0b6": [],
+    "bs_41240": [],
+    "osu_2526897": [],
+    "osu_1829075": [],
     "top_justin_bieber__big_sean_as_long_as_you_love_me": [
       {
         "name": "Libay",
@@ -9042,94 +7656,73 @@
         "date": "2026-11-04 04:58:39"
       }
     ],
-    "dsp_1793793089789_7728": [
+    "dsp_1793793089789_7728": [],
+    "bs_512e8": [],
+    "auto_dsp_el_cant_dels_maulets": [],
+    "osu_2322295": [],
+    "auto_dsp_vivir_asi_es_morir_de_amor": [],
+    "auto_dsp_ok_tommy_cash": [],
+    "auto_dsp_lagrimas_de_amor_camela": [],
+    "auto_dsp_que_vuelva_el_creditrans_franco": [],
+    "top_michael_jackson_smooth_criminal": [],
+    "auto_dsp_toto_de_loca_metrika_akyroo": [
       {
-        "name": "Test",
-        "score": 933325,
-        "stars": 2,
-        "combo": 331,
-        "accuracy": 45.52687174429149,
-        "date": "2026-11-04T20:33:36.624Z"
+        "name": "uwukawaiigatito",
+        "score": 8325,
+        "stars": 3.5,
+        "combo": 16,
+        "accuracy": 0.5130607075615596,
+        "date": "2026-11-05 00:21:47"
       }
     ],
-    "bs_512e8": [
+    "osu_2327706": [
       {
-        "name": "Test",
-        "score": 218597,
+        "name": "uwukawaiigatito",
+        "score": 8025,
+        "stars": 3.5,
+        "combo": 15,
+        "accuracy": 0.3140224217878735,
+        "date": "2026-11-05 00:22:23"
+      }
+    ],
+    "auto_dsp_full_change0214": [
+      {
+        "name": "uwukawaiigatito",
+        "score": 39300,
+        "stars": 3.5,
+        "combo": 50,
+        "accuracy": 5.32845230831808,
+        "date": "2026-11-05 00:23:54"
+      }
+    ],
+    "auto_dsp_tabetai_mamireta": [
+      {
+        "name": "uwukawaiigatito",
+        "score": 317612,
         "stars": 1,
-        "combo": 97,
-        "accuracy": 23.42402678048085,
-        "date": "2026-11-04T20:33:36.624Z"
+        "combo": 233,
+        "accuracy": 22.383435755764786,
+        "date": "2026-11-05 00:26:39"
       }
     ],
-    "auto_dsp_el_cant_dels_maulets": [
+    "osu_2635386": [
       {
-        "name": "Test",
-        "score": 416965,
-        "stars": 4,
-        "combo": 203,
-        "accuracy": 86.97207482312108,
-        "date": "2026-11-04T20:33:36.624Z"
+        "name": "uwukawaiigatito",
+        "score": 255736,
+        "stars": 1,
+        "combo": 187,
+        "accuracy": 21.680424493311552,
+        "date": "2026-11-05 00:34:03"
       }
     ],
-    "osu_2322295": [
+    "clonehero_759831": [
       {
-        "name": "Test",
-        "score": 63750,
-        "stars": 3,
-        "combo": 57,
-        "accuracy": 8.934728131990111,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "auto_dsp_vivir_asi_es_morir_de_amor": [
-      {
-        "name": "Test",
-        "score": 36603,
-        "stars": 3,
-        "combo": 28,
-        "accuracy": 8.915427296508655,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "auto_dsp_ok_tommy_cash": [
-      {
-        "name": "Test",
-        "score": 325228,
-        "stars": 4,
-        "combo": 166,
-        "accuracy": 84.20905454215915,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "auto_dsp_lagrimas_de_amor_camela": [
-      {
-        "name": "Test",
-        "score": 159245,
-        "stars": 5,
-        "combo": 111,
-        "accuracy": 94.46817345909712,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "auto_dsp_que_vuelva_el_creditrans_franco": [
-      {
-        "name": "Test",
-        "score": 19050,
-        "stars": 3,
-        "combo": 27,
-        "accuracy": 10.166615077543788,
-        "date": "2026-11-04T20:33:36.624Z"
-      }
-    ],
-    "top_michael_jackson_smooth_criminal": [
-      {
-        "name": "Test",
-        "score": 1684568,
-        "stars": 4,
-        "combo": 400,
-        "accuracy": 79.24022766828168,
-        "date": "2026-11-04 21:16:01"
+        "name": "uwukawaiigatito",
+        "score": 60300,
+        "stars": 3.5,
+        "combo": 74,
+        "accuracy": 16.806020066889634,
+        "date": "2026-11-05 00:30:15"
       }
     ]
   },
@@ -9150,34 +7743,10 @@
       "has_password": false
     },
     {
-      "name": "Test",
-      "player_name": "Test",
-      "total_score": 65697896,
-      "clefs": 7168,
-      "medals": {
-        "silvers": 1419,
-        "golds": 1427,
-        "platinums": 1421
-      },
-      "songs_count": 167,
-      "unlocked_modes": [
-        "split",
-        "highway",
-        "mushroom",
-        "river",
-        "four_lanes",
-        "mirror",
-        "echo",
-        "cruce"
-      ],
-      "effects_count": 13,
-      "has_password": true
-    },
-    {
       "name": "Libay",
       "player_name": "Libay",
-      "total_score": 37297572,
-      "clefs": 291,
+      "total_score": 37531197,
+      "clefs": 292,
       "medals": {
         "silvers": 0,
         "golds": 0,
@@ -9414,6 +7983,21 @@
       "unlocked_modes": [],
       "effects_count": 1,
       "has_password": false
+    },
+    {
+      "name": "uwukawaiigatito",
+      "player_name": "uwukawaiigatito",
+      "total_score": 729674,
+      "clefs": 106,
+      "medals": {
+        "silvers": 0,
+        "golds": 0,
+        "platinums": 0
+      },
+      "songs_count": 6,
+      "unlocked_modes": [],
+      "effects_count": 1,
+      "has_password": true
     },
     {
       "name": "MasterPianist",
@@ -9902,7 +8486,7 @@
     "players": [
       {
         "name": "Libay",
-        "score": 13645784
+        "score": 13879409
       },
       {
         "name": "FAZTL",
@@ -9913,8 +8497,8 @@
         "score": 3532836
       },
       {
-        "name": "Test",
-        "score": 3008367
+        "name": "uwukawaiigatito",
+        "score": 729674
       },
       {
         "name": "Elpianero",
@@ -17816,7 +16400,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": ""
       },
-      "updated_at": "2026-11-04T22:53:48.749Z"
+      "updated_at": "2026-11-04T22:54:35.328Z"
     },
     "Jocomomolo": {
       "player_name": "Jocomomolo",
@@ -18996,7 +17580,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": "rnc_jggnkf"
       },
-      "updated_at": "2026-11-04T22:53:48.734Z"
+      "updated_at": "2026-11-05T01:54:35.232Z"
     },
     "Rocky": {
       "player_name": "Rocky",
@@ -20029,7 +18613,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": ""
       },
-      "updated_at": "2026-11-04T22:53:48.733Z"
+      "updated_at": "2026-11-05T01:54:35.231Z"
     },
     "Mauricio": {
       "player_name": "Mauricio",
@@ -20880,7 +19464,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": ""
       },
-      "updated_at": "2026-11-04T22:53:48.732Z"
+      "updated_at": "2026-11-05T01:54:35.230Z"
     },
     "Libay": {
       "player_name": "Libay",
@@ -20890,7 +19474,7 @@
       "pin_hash": "",
       "password_hash": "",
       "wallet": {
-        "clefs": 291,
+        "clefs": 292,
         "silvers": 0,
         "golds": 0,
         "platinums": 0
@@ -21312,11 +19896,11 @@
           "accuracyPct": 0.7281144686650337
         },
         "osu_2301903": {
-          "score": 43875,
+          "score": 65775,
           "stars": 3.5,
           "maxCombo": 68,
-          "medalTier": null,
-          "accuracyPct": 1.8915306848311095
+          "medalTier": "gold",
+          "accuracyPct": 2.835679334353646
         },
         "osu_1576250": {
           "score": 49800,
@@ -21582,7 +20166,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.733Z"
+      "updated_at": "2026-11-05T01:54:35.231Z"
     },
     "FAZTL": {
       "player_name": "FAZTL",
@@ -21976,7 +20560,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.734Z"
+      "updated_at": "2026-11-05T01:54:35.233Z"
     },
     "Niggerman": {
       "player_name": "Niggerman",
@@ -22188,7 +20772,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.735Z"
+      "updated_at": "2026-11-05T01:54:35.233Z"
     },
     "Laaleplo": {
       "player_name": "Laaleplo",
@@ -22393,7 +20977,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.735Z"
+      "updated_at": "2026-11-05T01:54:35.233Z"
     },
     "Dady cool": {
       "player_name": "Dady cool",
@@ -22563,7 +21147,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.734Z"
+      "updated_at": "2026-11-05T01:54:35.233Z"
     },
     "Azure": {
       "player_name": "Azure",
@@ -22733,7 +21317,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.735Z"
+      "updated_at": "2026-11-05T01:54:35.234Z"
     },
     "aelec": {
       "player_name": "aelec",
@@ -22875,7 +21459,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.735Z"
+      "updated_at": "2026-11-05T01:54:35.234Z"
     },
     "fer": {
       "player_name": "fer",
@@ -23204,7 +21788,7 @@
         "last_claimed_week": "2026_W43",
         "my_ref_code": ""
       },
-      "updated_at": "2026-11-04T22:53:48.735Z"
+      "updated_at": "2026-11-05T01:54:35.234Z"
     },
     "Davi": {
       "player_name": "Davi",
@@ -23318,7 +21902,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.743Z"
+      "updated_at": "2026-11-05T01:54:35.236Z"
     },
     "Siro": {
       "player_name": "Siro",
@@ -23425,7 +22009,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.736Z"
+      "updated_at": "2026-11-05T01:54:35.234Z"
     },
     "bubu": {
       "player_name": "bubu",
@@ -23518,7 +22102,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.735Z"
+      "updated_at": "2026-11-05T01:54:35.234Z"
     },
     "Llois1": {
       "player_name": "Llois1",
@@ -23611,7 +22195,505 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.739Z"
+      "updated_at": "2026-11-05T01:54:35.235Z"
+    },
+    "uwukawaiigatito": {
+      "player_name": "uwukawaiigatito",
+      "recovery_code": "RNC-0EC6FE",
+      "account_token": "tok_uwukawaiig_LG2J9M87VATCPNNV",
+      "has_password": true,
+      "pin_hash": "b21db10aee6a2f70d79fdc5d88bbb59f",
+      "password_hash": "b21db10aee6a2f70d79fdc5d88bbb59f",
+      "wallet": {
+        "clefs": 106,
+        "silvers": 0,
+        "golds": 0,
+        "platinums": 0
+      },
+      "unlocked_modes": {
+        "normal": true,
+        "osu_hybrid": true,
+        "locura": true
+      },
+      "unlocked_effects": [
+        "solar_inferno"
+      ],
+      "active_effect": "solar_inferno",
+      "highscores": {
+        "auto_dsp_toto_de_loca_metrika_akyroo": {
+          "score": 8325,
+          "stars": 3.5,
+          "maxCombo": 16,
+          "medalTier": "gold",
+          "accuracyPct": 0.5130607075615596
+        },
+        "osu_2327706": {
+          "score": 8025,
+          "stars": 3.5,
+          "maxCombo": 15,
+          "medalTier": "gold",
+          "accuracyPct": 0.3140224217878735
+        },
+        "auto_dsp_full_change0214": {
+          "score": 39300,
+          "stars": 3.5,
+          "maxCombo": 50,
+          "medalTier": "gold",
+          "accuracyPct": 5.32845230831808
+        },
+        "auto_dsp_tabetai_mamireta": {
+          "score": 317612,
+          "stars": 1,
+          "maxCombo": 233,
+          "medalTier": "gold",
+          "accuracyPct": 22.383435755764786
+        },
+        "osu_2635386": {
+          "score": 255736,
+          "stars": 3.5,
+          "maxCombo": 187,
+          "medalTier": "gold",
+          "accuracyPct": 21.680424493311552
+        },
+        "clonehero_759831": {
+          "score": 60300,
+          "stars": 3.5,
+          "maxCombo": 74,
+          "medalTier": "gold",
+          "accuracyPct": 16.806020066889634
+        }
+      },
+      "favorites": [],
+      "favorite_records": [],
+      "playlists": [
+        {
+          "id": "yt_PL673_FWDXQM0m_UbVk97djG3EIwia1IE6",
+          "title": "MAMIRETA",
+          "item_count": 39,
+          "tracks": [
+            {
+              "id": "Q6ykLjQ-OmE",
+              "title": "Mamireta - Tabetai [Sub Español]",
+              "artist": "•cнerry sᴜʙs•",
+              "thumbnail": "https://i.ytimg.com/vi/Q6ykLjQ-OmE/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "Y17puPlmyIc",
+              "title": "まみれた - お邪魔します【MV FULL】",
+              "artist": "change0214",
+              "thumbnail": "https://i.ytimg.com/vi/Y17puPlmyIc/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "8OyKOsKvK1Y",
+              "title": "まみれた -死因:無視【MV FULL Ver】",
+              "artist": "change0214",
+              "thumbnail": "https://i.ytimg.com/vi/8OyKOsKvK1Y/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "7yf-tJ364Jo",
+              "title": "まみれた -くしゃみ- 【MV FULL ver】",
+              "artist": "change0214",
+              "thumbnail": "https://i.ytimg.com/vi/7yf-tJ364Jo/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "izEyiYgS_qU",
+              "title": "まみれた -死因:わからん【MV FULL Ver】",
+              "artist": "change0214",
+              "thumbnail": "https://i.ytimg.com/vi/izEyiYgS_qU/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "mdlLZviCeNQ",
+              "title": "まみれた - 死因-暮らし 【MV FULL Ver】",
+              "artist": "NULL 07「匿名 · さん」",
+              "thumbnail": "https://i.ytimg.com/vi/mdlLZviCeNQ/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "EN7tMXN7GYA",
+              "title": "まみれた -もしもし- 【MV FULL Ver.】",
+              "artist": "change0214",
+              "thumbnail": "https://i.ytimg.com/vi/EN7tMXN7GYA/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "W6O2Nu-h96o",
+              "title": "まみれた -僕が溶けてく帰り路-【MV FULL Ver】",
+              "artist": "change0214",
+              "thumbnail": "https://i.ytimg.com/vi/W6O2Nu-h96o/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "HirLxBvrpH4",
+              "title": "まみれた -下半身中毒者-【MV FULL Ver】",
+              "artist": "change0214",
+              "thumbnail": "https://i.ytimg.com/vi/HirLxBvrpH4/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "nONhSVU2Esw",
+              "title": "まみれた-だるまさん　（PV）",
+              "artist": "memories in white",
+              "thumbnail": "https://i.ytimg.com/vi/nONhSVU2Esw/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "XhfGyTFbCQ4",
+              "title": "まみれた -「俺を必要とする人はこの世の中に居ないよ」-【MV FULL ver】",
+              "artist": "change0214",
+              "thumbnail": "https://i.ytimg.com/vi/XhfGyTFbCQ4/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "3-Xs_pemZzE",
+              "title": "まみれた『指名手配が指名手配』MV/mamireta 『Shimeitehai ga Shimeitehai』",
+              "artist": "まみれた",
+              "thumbnail": "https://i.ytimg.com/vi/3-Xs_pemZzE/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "Tb_F_93tP44",
+              "title": "まみれた『はみがき』IV/mamireta『hamigaki』",
+              "artist": "まみれた",
+              "thumbnail": "https://i.ytimg.com/vi/Tb_F_93tP44/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "Op4cKWTK52c",
+              "title": "底に立つ墓標/詰と伐",
+              "artist": "まみれた",
+              "thumbnail": "https://i.ytimg.com/vi/Op4cKWTK52c/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "I-isIkGKTtU",
+              "title": "【まみれた完全復活】指名手配が指名手配【予告】",
+              "artist": "まみれた",
+              "thumbnail": "https://i.ytimg.com/vi/I-isIkGKTtU/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "PebOGHCvWG8",
+              "title": "まみれた『斜め上からの日常』MV/mamireta『Naname Ue Kara no Nichijou』",
+              "artist": "まみれた",
+              "thumbnail": "https://i.ytimg.com/vi/PebOGHCvWG8/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "G834dD-l4vY",
+              "title": "MAMIRETA -調教C -【MV FULL ver 】",
+              "artist": "change0214",
+              "thumbnail": "https://i.ytimg.com/vi/G834dD-l4vY/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "PFhvSh27z4A",
+              "title": "まみれた (Mamireta) - 有効期限-今日- (Yuukoukigen-kyou-)",
+              "artist": "[s]hit parade",
+              "thumbnail": "https://i.ytimg.com/vi/PFhvSh27z4A/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "0tpmptXelXI",
+              "title": "MAMIRETA - Shima Nagashi (死魔流し) || (Sub Español)",
+              "artist": "•cнerry sᴜʙs•",
+              "thumbnail": "https://i.ytimg.com/vi/0tpmptXelXI/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "OnCXM4aBnUw",
+              "title": "まみれた - 死魔流し / Mamireta - Shima Nagashi",
+              "artist": "fuyuki",
+              "thumbnail": "https://i.ytimg.com/vi/OnCXM4aBnUw/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "RbdbUkJNW6A",
+              "title": "まみれた / Mamireta - 死因:腹上死 / Shiin: Fukujoushi",
+              "artist": "fuyuki",
+              "thumbnail": "https://i.ytimg.com/vi/RbdbUkJNW6A/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "_wgSMwdmJ_M",
+              "title": "Mamireta -  Shiin: Higaimousou (死因:被害妄想) [Sub Español]",
+              "artist": "•cнerry sᴜʙs•",
+              "thumbnail": "https://i.ytimg.com/vi/_wgSMwdmJ_M/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "Fn1Umig0KlU",
+              "title": "Mamireta - Yuukou Kigen kyou  (有効期限-今日-) [Sub Español]",
+              "artist": "•cнerry sᴜʙs•",
+              "thumbnail": "https://i.ytimg.com/vi/Fn1Umig0KlU/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "bEIJY3fmXk0",
+              "title": "MAMIRETA - 48 Shu no O-shinagaki",
+              "artist": "Albert Joel Höst",
+              "thumbnail": "https://i.ytimg.com/vi/bEIJY3fmXk0/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "a0jU-dzxwwU",
+              "title": "まみれた (Mamireta) - 床舐めの天才 (Yukaname no tensai)",
+              "artist": "[s]hit parade",
+              "thumbnail": "https://i.ytimg.com/vi/a0jU-dzxwwU/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "n4cTRN5sUtI",
+              "title": "まみれた - ろくでなし注意報 / Mamireta - Rokudenashi Chuuihou",
+              "artist": "fuyuki",
+              "thumbnail": "https://i.ytimg.com/vi/n4cTRN5sUtI/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "WxBAsSmvpK4",
+              "title": "まみれた (MAMIRETA) - A才教育 (A Sai kyouiku)",
+              "artist": "[s]hit parade",
+              "thumbnail": "https://i.ytimg.com/vi/WxBAsSmvpK4/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "JxkNMGzHdBQ",
+              "title": "まみれた (Mamireta) - 囚人番号07番は愛した (Shuujin Bangou 07ban wa aishita)",
+              "artist": "羽恬",
+              "thumbnail": "https://i.ytimg.com/vi/JxkNMGzHdBQ/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "zloiRbYnPSM",
+              "title": "MAMIRETA (まみれた) - 教えて",
+              "artist": "Negativist666",
+              "thumbnail": "https://i.ytimg.com/vi/zloiRbYnPSM/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "ah3hFA_Elx4",
+              "title": "MAMIRETA -下半身中毒者 (Kahan shin chūdoku-sha) [Sub Español]",
+              "artist": "•cнerry sᴜʙs•",
+              "thumbnail": "https://i.ytimg.com/vi/ah3hFA_Elx4/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "_08yfAmY0gI",
+              "title": "まみれた - 教えて (Mamireta - Oshiete)",
+              "artist": "jam~",
+              "thumbnail": "https://i.ytimg.com/vi/_08yfAmY0gI/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "j4Ssu3wgBAg",
+              "title": "Mamireta - Ojamashimasu (お邪魔します) MV [Sub Español]",
+              "artist": "•cнerry sᴜʙs•",
+              "thumbnail": "https://i.ytimg.com/vi/j4Ssu3wgBAg/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "UrwBQFTEHHc",
+              "title": "Mamireta- Shiin Mushi",
+              "artist": "Win Win",
+              "thumbnail": "https://i.ytimg.com/vi/UrwBQFTEHHc/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "POG59v1RGgM",
+              "title": "Mamireta - Shiin: Kurashi (死因:暮らし) [Sub Español]",
+              "artist": "•cнerry sᴜʙs•",
+              "thumbnail": "https://i.ytimg.com/vi/POG59v1RGgM/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "NOeKzCXJ-eg",
+              "title": "MAMIRETA - Mokuyoubi: Moshimoshi (木曜日：もしもし) || [Sub Español]",
+              "artist": "•cнerry sᴜʙs•",
+              "thumbnail": "https://i.ytimg.com/vi/NOeKzCXJ-eg/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "vPpQSXgoVuY",
+              "title": "まみれた(Mamireta) - 下半身中毒者(Kahanshin chuudekusha) | (sub español + romaji + lyrics)",
+              "artist": "Visual Gay Fans",
+              "thumbnail": "https://i.ytimg.com/vi/vPpQSXgoVuY/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "5V8RFUR6p6k",
+              "title": "MAMIRETA - Addicted to the Lower Half of the Body [Sub Español]",
+              "artist": "•cнerry sᴜʙs•",
+              "thumbnail": "https://i.ytimg.com/vi/5V8RFUR6p6k/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "HTCedTKYxWQ",
+              "title": "まみれた『もしもし』MV/mamireta 『moshi moshi』",
+              "artist": "まみれた",
+              "thumbnail": "https://i.ytimg.com/vi/HTCedTKYxWQ/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            },
+            {
+              "id": "sNDiagbvLV0",
+              "title": "MAMIRETA - (死因：腹上死) Shiin: Harajōshi || (Sub Español)",
+              "artist": "•cнerry sᴜʙs•",
+              "thumbnail": "https://i.ytimg.com/vi/sNDiagbvLV0/hqdefault.jpg",
+              "source": "",
+              "download_url": "",
+              "direct_download_url": "",
+              "duration_seconds": 0
+            }
+          ],
+          "source": "youtube",
+          "createdAt": 1793838167160
+        }
+      ],
+      "weekly_history": {
+        "2026_W45": {
+          "score": 729674,
+          "songsPlayed": 8,
+          "maxCombo": 233,
+          "stars": 1,
+          "accuracyPct": 22.383435755764786,
+          "medalTier": null,
+          "v2Clean": true
+        }
+      },
+      "settings": {
+        "lang": "es",
+        "note_speed": "1.0",
+        "offset": "0",
+        "audio_offset": "0",
+        "key_style": "beatstar_large",
+        "bg_mode": "black",
+        "bg_opacity": "0.40",
+        "judge_colors": null,
+        "vegas_streak": 0,
+        "vegas_last_spin": "",
+        "gacha_pity": 0,
+        "claimed_promo_friends": [],
+        "last_claimed_week": "2026_W45",
+        "my_ref_code": "rnc_f7i5iz"
+      },
+      "updated_at": "2026-11-05T01:54:35.239Z"
     },
     "MasterPianist": {
       "player_name": "MasterPianist",
@@ -23690,7 +22772,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.739Z"
+      "updated_at": "2026-11-05T01:54:35.235Z"
     },
     "RhythmHero": {
       "player_name": "RhythmHero",
@@ -23769,7 +22851,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.739Z"
+      "updated_at": "2026-11-05T01:54:35.235Z"
     },
     "BeatMaster": {
       "player_name": "BeatMaster",
@@ -23848,7 +22930,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.740Z"
+      "updated_at": "2026-11-05T01:54:35.235Z"
     },
     "pelosombra40": {
       "player_name": "pelosombra40",
@@ -23927,7 +23009,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.742Z"
+      "updated_at": "2026-11-05T01:54:35.236Z"
     },
     "Lidia": {
       "player_name": "Lidia",
@@ -24006,7 +23088,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T19:53:48.916Z"
+      "updated_at": "2026-11-04T22:54:35.331Z"
     },
     "Fernando": {
       "player_name": "Fernando",
@@ -24085,7 +23167,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T19:53:48.916Z"
+      "updated_at": "2026-11-04T22:54:35.331Z"
     },
     "killer": {
       "player_name": "killer",
@@ -24164,7 +23246,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T19:53:48.916Z"
+      "updated_at": "2026-11-04T22:54:35.331Z"
     },
     "Layla": {
       "player_name": "Layla",
@@ -24236,7 +23318,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.740Z"
+      "updated_at": "2026-11-05T01:54:35.235Z"
     },
     "Elpianero": {
       "player_name": "Elpianero",
@@ -24308,7 +23390,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.742Z"
+      "updated_at": "2026-11-05T01:54:35.235Z"
     },
     "`pc": {
       "player_name": "`pc",
@@ -24380,7 +23462,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.742Z"
+      "updated_at": "2026-11-05T01:54:35.236Z"
     },
     "bori": {
       "player_name": "bori",
@@ -24452,7 +23534,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.742Z"
+      "updated_at": "2026-11-05T01:54:35.236Z"
     },
     "bobon": {
       "player_name": "bobon",
@@ -24517,7 +23599,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.735Z"
+      "updated_at": "2026-11-05T01:54:35.234Z"
     },
     "Darwin67": {
       "player_name": "Darwin67",
@@ -24582,7 +23664,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.736Z"
+      "updated_at": "2026-11-05T01:54:35.234Z"
     },
     "VAMP": {
       "player_name": "VAMP",
@@ -24647,7 +23729,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.743Z"
+      "updated_at": "2026-11-05T01:54:35.236Z"
     },
     "Seri": {
       "player_name": "Seri",
@@ -24705,7 +23787,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.744Z"
+      "updated_at": "2026-11-05T01:54:35.237Z"
     },
     "Jacques": {
       "player_name": "Jacques",
@@ -24756,7 +23838,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.739Z"
+      "updated_at": "2026-11-05T01:54:35.235Z"
     },
     "Ttuk": {
       "player_name": "Ttuk",
@@ -24807,7 +23889,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.743Z"
+      "updated_at": "2026-11-05T01:54:35.237Z"
     },
     "Ballsaxk": {
       "player_name": "Ballsaxk",
@@ -24858,7 +23940,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.744Z"
+      "updated_at": "2026-11-05T01:54:35.237Z"
     },
     "Papa": {
       "player_name": "Papa",
@@ -24909,7 +23991,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.745Z"
+      "updated_at": "2026-11-05T01:54:35.238Z"
     },
     "Pablito pop": {
       "player_name": "Pablito pop",
@@ -24960,7 +24042,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.745Z"
+      "updated_at": "2026-11-05T01:54:35.238Z"
     },
     "Mozart 2.0": {
       "player_name": "Mozart 2.0",
@@ -25011,7 +24093,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.748Z"
+      "updated_at": "2026-11-05T01:54:35.238Z"
     },
     "AAALLL": {
       "player_name": "AAALLL",
@@ -25284,7 +24366,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": ""
       },
-      "updated_at": "2026-11-04T22:53:48.748Z"
+      "updated_at": "2026-11-05T01:54:35.238Z"
     },
     "Hola31m": {
       "player_name": "Hola31m",
@@ -25328,7 +24410,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.743Z"
+      "updated_at": "2026-11-05T01:54:35.236Z"
     },
     "Ubuntu": {
       "player_name": "Ubuntu",
@@ -25372,7 +24454,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.743Z"
+      "updated_at": "2026-11-05T01:54:35.236Z"
     },
     "holo": {
       "player_name": "holo",
@@ -25416,7 +24498,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.743Z"
+      "updated_at": "2026-11-05T01:54:35.236Z"
     },
     "Antoniobarfe": {
       "player_name": "Antoniobarfe",
@@ -25460,7 +24542,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.743Z"
+      "updated_at": "2026-11-05T01:54:35.236Z"
     },
     "Llois": {
       "player_name": "Llois",
@@ -25504,7 +24586,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.744Z"
+      "updated_at": "2026-11-05T01:54:35.237Z"
     },
     "U": {
       "player_name": "U",
@@ -25548,7 +24630,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.744Z"
+      "updated_at": "2026-11-05T01:54:35.237Z"
     },
     ".": {
       "player_name": ".",
@@ -25592,7 +24674,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.744Z"
+      "updated_at": "2026-11-05T01:54:35.237Z"
     },
     "Pirata": {
       "player_name": "Pirata",
@@ -25636,7 +24718,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.744Z"
+      "updated_at": "2026-11-05T01:54:35.237Z"
     },
     "Camaleon": {
       "player_name": "Camaleon",
@@ -25680,7 +24762,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.744Z"
+      "updated_at": "2026-11-05T01:54:35.237Z"
     },
     "3105M": {
       "player_name": "3105M",
@@ -25724,7 +24806,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.745Z"
+      "updated_at": "2026-11-05T01:54:35.237Z"
     },
     "Elpapu": {
       "player_name": "Elpapu",
@@ -25768,7 +24850,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.745Z"
+      "updated_at": "2026-11-05T01:54:35.238Z"
     },
     "Ghapin": {
       "player_name": "Ghapin",
@@ -25812,7 +24894,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.748Z"
+      "updated_at": "2026-11-05T01:54:35.238Z"
     },
     "PixToPix": {
       "player_name": "PixToPix",
@@ -25856,7 +24938,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.748Z"
+      "updated_at": "2026-11-05T01:54:35.238Z"
     },
     "Mozart": {
       "player_name": "Mozart",
@@ -25900,7 +24982,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.748Z"
+      "updated_at": "2026-11-05T01:54:35.238Z"
     },
     "Trnde": {
       "player_name": "Trnde",
@@ -25944,7 +25026,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-04T22:53:48.748Z"
+      "updated_at": "2026-11-05T01:54:35.238Z"
     },
     "Jaujayy": {
       "player_name": "Jaujayy",
@@ -25989,7 +25071,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": ""
       },
-      "updated_at": "2026-11-04T19:53:48.918Z"
+      "updated_at": "2026-11-04T22:54:35.332Z"
     },
     "dfd": {
       "player_name": "dfd",
@@ -26034,7 +25116,52 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": "rnc_dxy9hd"
       },
-      "updated_at": "2026-11-04T19:53:48.918Z"
+      "updated_at": "2026-11-04T22:54:35.332Z"
+    },
+    "val": {
+      "player_name": "val",
+      "recovery_code": "RNC-94F895",
+      "account_token": "tok_val_8LMQ3XHYWQJYLACN",
+      "has_password": false,
+      "pin_hash": "",
+      "password_hash": "",
+      "wallet": {
+        "clefs": 100,
+        "silvers": 0,
+        "golds": 0,
+        "platinums": 0
+      },
+      "unlocked_modes": {
+        "normal": true,
+        "osu_hybrid": true,
+        "locura": true
+      },
+      "unlocked_effects": [
+        "solar_inferno"
+      ],
+      "active_effect": "solar_inferno",
+      "highscores": {},
+      "favorites": [],
+      "favorite_records": [],
+      "playlists": [],
+      "weekly_history": {},
+      "settings": {
+        "lang": "es",
+        "note_speed": "1.0",
+        "offset": "0",
+        "audio_offset": "0",
+        "key_style": "beatstar_large",
+        "bg_mode": "black",
+        "bg_opacity": "0.40",
+        "judge_colors": null,
+        "vegas_streak": 0,
+        "vegas_last_spin": "",
+        "gacha_pity": 0,
+        "claimed_promo_friends": [],
+        "last_claimed_week": "2026_W45",
+        "my_ref_code": ""
+      },
+      "updated_at": "2026-11-05T01:54:35.239Z"
     }
   }
 }
