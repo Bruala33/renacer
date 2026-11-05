@@ -3722,74 +3722,85 @@ function parseDurationStrToSecondsServer(lenStr) {
 async function searchYouTubeCandidatesServer(query, rawTitle = '', rawArtist = '', expectedDurationSec = 0) {
   try {
     const cleanQ = String(query || `${rawTitle} ${rawArtist}`).trim();
-    const ytQuery = /\b(audio|official|oficial|topic)\b/i.test(cleanQ) ? cleanQ : `${cleanQ} official audio`;
-    const ytRes = await fetch('https://www.youtube.com/youtubei/v1/search?prettyPrint=false', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-      },
-      body: JSON.stringify({
-        context: {
-          client: { clientName: 'WEB', clientVersion: '2.20240726.00.00', hl: 'es', gl: 'ES' }
-        },
-        query: ytQuery
-      }),
-      signal: AbortSignal.timeout(3800)
-    });
-    if (!ytRes.ok) return [];
-    const data = await ytRes.json();
+    if (!cleanQ) return [];
+    const queries = [cleanQ];
+    if (!/\b(audio|official|oficial|topic|canciones)\b/i.test(cleanQ)) {
+      queries.push(`${cleanQ} canciones audio`);
+    }
+
     const found = [];
     const seenIds = new Set();
-    const walk = (node) => {
-      if (!node || typeof node !== 'object' || found.length >= 16) return;
-      if (node.videoRenderer && node.videoRenderer.videoId) {
-        const v = node.videoRenderer;
-        const vid = v.videoId;
-        if (seenIds.has(vid)) return;
-        const title = v.title?.runs?.[0]?.text || v.title?.simpleText || '';
-        const author = v.ownerText?.runs?.[0]?.text || v.longBylineText?.runs?.[0]?.text || '';
-        const lenText = v.lengthText?.simpleText || v.lengthText?.runs?.[0]?.text || '';
-        const durSec = parseDurationStrToSecondsServer(lenText);
-        // Descartar livestreams sin duración, fragmentos cortos (< 52s) o sesiones largas (> 9 min)
-        if (durSec > 0 && (durSec < 52 || durSec > 560)) return;
-        if (!lenText && v.badges && JSON.stringify(v.badges).includes('LIVE')) return;
 
-        const thumbs = v.thumbnail?.thumbnails || [];
-        const thumb = thumbs.length ? thumbs[thumbs.length - 1].url : `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`;
-        if (vid && title) {
-          seenIds.add(vid);
-          const cleanArt = author.replace(/ - Topic$/i, '').replace(/VEVO$/i, '').trim();
-          let authScore = scoreStudioAudioAuthenticityServer(query, rawTitle, rawArtist, title, cleanArt, '', author);
-          if (/ - Topic$/i.test(author) || /official\s*audio|audio\s*oficial|provided to youtube/i.test(title)) {
-            authScore += 24;
+    await Promise.allSettled(queries.map(async (ytQuery, qIdx) => {
+      const ytRes = await fetch('https://www.youtube.com/youtubei/v1/search?prettyPrint=false', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+        },
+        body: JSON.stringify({
+          context: {
+            client: { clientName: 'WEB', clientVersion: '2.20240726.00.00', hl: 'es', gl: 'ES' }
+          },
+          query: ytQuery
+        }),
+        signal: AbortSignal.timeout(3800)
+      });
+      if (!ytRes.ok) return;
+      const data = await ytRes.json();
+      let rankIdx = 0;
+
+      const walk = (node) => {
+        if (!node || typeof node !== 'object' || found.length >= 34) return;
+        if (node.videoRenderer && node.videoRenderer.videoId) {
+          const v = node.videoRenderer;
+          const vid = v.videoId;
+          if (seenIds.has(vid)) return;
+          const title = v.title?.runs?.[0]?.text || v.title?.simpleText || '';
+          const author = v.ownerText?.runs?.[0]?.text || v.longBylineText?.runs?.[0]?.text || '';
+          const lenText = v.lengthText?.simpleText || v.lengthText?.runs?.[0]?.text || '';
+          const durSec = parseDurationStrToSecondsServer(lenText);
+          // Descartar livestreams sin duración, fragmentos cortos (< 42s) o sesiones largas (> 15 min)
+          if (!durSec || durSec < 42 || durSec > 900) return;
+          if (!lenText && v.badges && JSON.stringify(v.badges).includes('LIVE')) return;
+
+          const thumbs = v.thumbnail?.thumbnails || [];
+          const thumb = thumbs.length ? thumbs[thumbs.length - 1].url : `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`;
+          if (vid && title) {
+            seenIds.add(vid);
+            rankIdx++;
+            const cleanArt = author.replace(/ - Topic$/i, '').replace(/VEVO$/i, '').trim();
+            let authScore = Math.max(48, 98 - (qIdx * 6) - Math.min(35, rankIdx * 1.4));
+            if (/ - Topic$/i.test(author) || /official\s*audio|audio\s*oficial|provided to youtube/i.test(title)) {
+              authScore += 14;
+            }
+            if (expectedDurationSec > 55 && durSec > 55) {
+              const diffDur = Math.abs(durSec - expectedDurationSec);
+              if (diffDur <= 12) authScore += 16;
+              else if (diffDur <= 28) authScore += 8;
+            }
+            found.push({
+              videoId: vid,
+              title,
+              artist: cleanArt || rawArtist || 'YouTube Music',
+              channel: author,
+              durationSec: durSec || expectedDurationSec || 180,
+              thumbnail: thumb,
+              authScore: Math.min(115, Math.round(authScore))
+            });
           }
-          if (expectedDurationSec > 55 && durSec > 55) {
-            const diffDur = Math.abs(durSec - expectedDurationSec);
-            if (diffDur <= 12) authScore += 22;
-            else if (diffDur <= 28) authScore += 10;
-            else if (diffDur > 65) authScore -= 25;
-          }
-          found.push({
-            videoId: vid,
-            title,
-            artist: cleanArt || rawArtist || 'Artista',
-            channel: author,
-            durationSec: durSec || expectedDurationSec || 180,
-            thumbnail: thumb,
-            authScore
-          });
         }
-      }
-      for (const k of Object.keys(node)) {
-        const child = node[k];
-        if (Array.isArray(child)) child.forEach(walk);
-        else if (child && typeof child === 'object') walk(child);
-      }
-    };
-    walk(data);
+        for (const k of Object.keys(node)) {
+          const child = node[k];
+          if (Array.isArray(child)) child.forEach(walk);
+          else if (child && typeof child === 'object') walk(child);
+        }
+      };
+      walk(data);
+    }));
+
     found.sort((a, b) => (b.authScore || 0) - (a.authScore || 0));
-    return found;
+    return found.slice(0, 30);
   } catch (_) {
     return [];
   }
@@ -3797,11 +3808,13 @@ async function searchYouTubeCandidatesServer(query, rawTitle = '', rawArtist = '
 
 async function searchYouTubeBestVideo(query, rawTitle = '', rawArtist = '', expectedDurationSec = 0) {
   const list = await searchYouTubeCandidatesServer(query, rawTitle, rawArtist, expectedDurationSec);
-  return (list[0] && list[0].authScore >= 42) ? list[0] : null;
+  return list[0] || null;
 }
 
 const YOUTUBE_FULL_MP3_LRU = new Map();
-const YOUTUBE_FULL_MP3_LRU_MAX = 8;
+const YOUTUBE_FULL_MP3_LRU_MAX = 12;
+const NOTUBE_SERVER_NODES = ['s58', 's60', 's56', 's59', 's62', 's57', 's61'];
+let _notubeServerNodeCursor = 0;
 
 async function extractYouTubeFullAudioViaNotubeServer(videoId) {
   if (!videoId || !/^[A-Za-z0-9_-]{8,15}$/.test(videoId)) return null;
@@ -3811,9 +3824,11 @@ async function extractYouTubeFullAudioViaNotubeServer(videoId) {
 
   const ytUrl = `https://www.youtube.com/watch?v=${videoId}`;
   const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+  const startIdx = (_notubeServerNodeCursor++) % NOTUBE_SERVER_NODES.length;
   const mirrors = [
-    { apiHost: 'https://s61.notube.im', webHost: 'https://notube.im' },
-    { apiHost: 'https://s61.notube.net', webHost: 'https://notube.net' }
+    { apiHost: `https://${NOTUBE_SERVER_NODES[startIdx]}.notube.im`, webHost: 'https://notube.im' },
+    { apiHost: `https://${NOTUBE_SERVER_NODES[(startIdx + 1) % NOTUBE_SERVER_NODES.length]}.notube.im`, webHost: 'https://notube.im' },
+    { apiHost: 'https://s58.notube.net', webHost: 'https://notube.net' }
   ];
 
   for (const { apiHost, webHost } of mirrors) {
@@ -3828,7 +3843,7 @@ async function extractYouTubeFullAudioViaNotubeServer(videoId) {
           'Referer': `${webHost}/`
         },
         body: body1.toString(),
-        signal: AbortSignal.timeout(6500)
+        signal: AbortSignal.timeout(5500)
       });
       if (!r1.ok) continue;
       const d1 = await r1.json();
@@ -3845,7 +3860,7 @@ async function extractYouTubeFullAudioViaNotubeServer(videoId) {
             'Referer': `${webHost}/`
           },
           body: bodyConv.toString(),
-          signal: AbortSignal.timeout(11000)
+          signal: AbortSignal.timeout(9500)
         });
       }
 
@@ -3868,7 +3883,7 @@ async function extractYouTubeFullAudioViaNotubeServer(videoId) {
           'Referer': `${webHost}/`
         },
         body: body2.toString(),
-        signal: AbortSignal.timeout(9000)
+        signal: AbortSignal.timeout(7500)
       });
       let finalToken = d1.token;
       if (r2.ok) {
@@ -3878,52 +3893,34 @@ async function extractYouTubeFullAudioViaNotubeServer(videoId) {
         } catch (_) {}
       }
 
-      // Resolver enlace directo con &key=... desde /es/download?token=... o probar download.php directo
-      const candidateDlUrls = [];
+      const dlUrl = `${apiHost}/download.php?token=${encodeURIComponent(finalToken)}`;
       try {
-        const pageRes = await fetch(`${webHost}/es/download?token=${encodeURIComponent(finalToken)}`, {
+        const dlRes = await fetch(dlUrl, {
           headers: { 'User-Agent': ua, 'Referer': `${webHost}/` },
-          signal: AbortSignal.timeout(4500)
+          redirect: 'follow',
+          signal: AbortSignal.timeout(8500)
         });
-        if (pageRes.ok) {
-          const html = await pageRes.text();
-          const keyMatch = html.match(/https:\/\/s\d+\.notube\.(?:im|net)\/download\.php\?token=[^"'\s>]+/);
-          if (keyMatch && keyMatch[0]) {
-            candidateDlUrls.push(keyMatch[0]);
+        if (!dlRes.ok) continue;
+        const ct = String(dlRes.headers.get('content-type') || '').toLowerCase();
+        if (ct.includes('text/html') || ct.includes('application/json')) continue;
+        const ab = await dlRes.arrayBuffer();
+        if (ab && ab.byteLength >= 320000) {
+          const buf = Buffer.from(ab);
+          const resultObj = {
+            buffer: buf,
+            contentType: 'audio/mpeg',
+            title: (d1.titulo_mp4 || '').replace(/\.mp4$/i, '').replace(/_/g, ' ').trim(),
+            thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+            source: 'YouTube Studio Master MP3'
+          };
+          if (YOUTUBE_FULL_MP3_LRU.size >= YOUTUBE_FULL_MP3_LRU_MAX) {
+            const oldest = YOUTUBE_FULL_MP3_LRU.keys().next().value;
+            if (oldest) YOUTUBE_FULL_MP3_LRU.delete(oldest);
           }
+          YOUTUBE_FULL_MP3_LRU.set(videoId, resultObj);
+          return resultObj;
         }
       } catch (_) {}
-      candidateDlUrls.push(`${apiHost}/download.php?token=${encodeURIComponent(finalToken)}`);
-
-      for (const dlUrl of candidateDlUrls) {
-        try {
-          const dlRes = await fetch(dlUrl, {
-            headers: { 'User-Agent': ua, 'Referer': `${webHost}/` },
-            redirect: 'follow',
-            signal: AbortSignal.timeout(9500)
-          });
-          if (!dlRes.ok) continue;
-          const ct = String(dlRes.headers.get('content-type') || '').toLowerCase();
-          if (ct.includes('text/html') || ct.includes('application/json')) continue;
-          const ab = await dlRes.arrayBuffer();
-          if (ab && ab.byteLength >= 350000) {
-            const buf = Buffer.from(ab);
-            const resultObj = {
-              buffer: buf,
-              contentType: 'audio/mpeg',
-              title: (d1.titulo_mp4 || '').replace(/\.mp4$/i, '').replace(/_/g, ' ').trim(),
-              thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-              source: 'YouTube Studio Master MP3'
-            };
-            if (YOUTUBE_FULL_MP3_LRU.size >= YOUTUBE_FULL_MP3_LRU_MAX) {
-              const oldest = YOUTUBE_FULL_MP3_LRU.keys().next().value;
-              if (oldest) YOUTUBE_FULL_MP3_LRU.delete(oldest);
-            }
-            YOUTUBE_FULL_MP3_LRU.set(videoId, resultObj);
-            return resultObj;
-          }
-        } catch (_) {}
-      }
     } catch (_) {}
   }
   return null;
@@ -4448,67 +4445,13 @@ app.get('/api/v1/audio/candidates', async (req, res) => {
   if (!rawQ) return res.json({ candidates: [] });
 
   try {
-    const [{ candidates: scCands, studioRefs }, ytCands] = await Promise.all([
-      searchSoundCloudFullCandidatesServer(rawQ, rawTitle, rawArtist),
-      searchYouTubeCandidatesServer(rawQ, rawTitle, rawArtist)
-    ]);
-
-    const norm = (s) => normalizeSearchText(s || '');
+    const ytCands = await searchYouTubeCandidatesServer(rawQ, rawTitle, rawArtist);
     const combined = [];
-    const seenPairs = new Set();
+    const seenVideoIds = new Set();
 
-    // 1. Pistas Oficiales de Estudio (Apple Music + Deezer) con resolución exacta a YouTube Oficial / SoundCloud Verificado
-    for (let i = 0; i < studioRefs.length; i++) {
-      const st = studioRefs[i];
-      const pairKey = `${norm(st.title)}__${norm(st.artist)}`;
-      if (seenPairs.has(pairKey)) continue;
-      seenPairs.add(pairKey);
-
-      const stScore = scoreStudioAudioAuthenticityServer(rawQ, rawTitle || st.title, rawArtist || (studioRefs[0]?.artist || ''), st.title, st.artist, st.album, 'StudioOriginal') + (i === 0 ? 30 : 12);
-      if (stScore < 42) continue;
-
-      // Buscar si existe un videoId exacto en ytCands o un scTrackId exacto en scCands para este título y artista
-      const matchedYt = ytCands.find(y => {
-        const nyTit = norm(y.title);
-        const nyArt = norm(`${y.artist} ${y.channel}`);
-        return nyTit.includes(norm(st.title)) && nyArt.includes(norm(st.artist)) && Math.abs((y.durationSec || st.durationSec) - st.durationSec) <= 30;
-      });
-      const matchedSc = scCands.find(c => {
-        return norm(c.title) === norm(st.title) && norm(c.artist).includes(norm(st.artist)) && Math.abs(c.durationSec - st.durationSec) <= 22;
-      });
-
-      const durMin = Math.floor(st.durationSec / 60);
-      const durRem = String(st.durationSec % 60).padStart(2, '0');
-      const vidParam = matchedYt ? `&videoId=${encodeURIComponent(matchedYt.videoId)}` : '';
-      const scParam = matchedSc ? `&scTrackId=${encodeURIComponent(matchedSc.tr.id)}` : '';
-      const extractPath = `/api/v1/audio/extract?title=${encodeURIComponent(st.title)}&artist=${encodeURIComponent(st.artist)}${vidParam}${scParam}`;
-
-      combined.push({
-        uid: matchedYt ? `yt_${matchedYt.videoId}` : (matchedSc ? `sc_${matchedSc.tr.id}` : `studio_${i}_${norm(st.artist).replace(/\s+/g, '_')}`),
-        videoId: matchedYt ? matchedYt.videoId : '',
-        scTrackId: matchedSc ? String(matchedSc.tr.id) : '',
-        title: st.title,
-        artist: st.artist,
-        album: `${st.album || 'Estudio Original'} (${durMin}:${durRem})`,
-        durationSec: st.durationSec,
-        isFullTrack: true,
-        isPreviewOnly: false,
-        previewUrl: extractPath,
-        directFetchUrl: extractPath,
-        mimeType: 'audio/mpeg',
-        thumbnail: st.thumbnail || (matchedYt ? matchedYt.thumbnail : ''),
-        sourceName: 'Estudio Original',
-        authenticityScore: stScore
-      });
-    }
-
-    // 2. Candidatos Oficiales de YouTube que no estuvieran ya en Apple Music / Deezer (ej. temas indie/regionales como Obrint Pas o maquetas)
-    for (const y of ytCands.slice(0, 8)) {
-      if (y.authScore < 52) continue;
-      if (isUnrequestedRemixOrStrangeTrackServer(rawQ, `${y.title} ${y.artist}`)) continue;
-      const pairKey = `${norm(y.title)}__${norm(y.artist)}`;
-      if (seenPairs.has(pairKey)) continue;
-      seenPairs.add(pairKey);
+    for (const y of ytCands.slice(0, 30)) {
+      if (!y.videoId || seenVideoIds.has(y.videoId)) continue;
+      seenVideoIds.add(y.videoId);
 
       const durSec = y.durationSec || 180;
       const durMin = Math.floor(durSec / 60);
@@ -4521,7 +4464,7 @@ app.get('/api/v1/audio/candidates', async (req, res) => {
         scTrackId: '',
         title: y.title,
         artist: y.artist,
-        album: `Grabación Completa (${durMin}:${durRem})`,
+        album: `YouTube (${durMin}:${durRem})`,
         durationSec: durSec,
         isFullTrack: true,
         isPreviewOnly: false,
@@ -4529,43 +4472,12 @@ app.get('/api/v1/audio/candidates', async (req, res) => {
         directFetchUrl: extractPath,
         mimeType: 'audio/mpeg',
         thumbnail: y.thumbnail || '',
-        sourceName: 'Pista Completa',
-        authenticityScore: y.authScore + 8
+        sourceName: 'YouTube Completo',
+        authenticityScore: y.authScore || 85
       });
     }
 
-    // 3. Candidatos de SoundCloud Full estrictamente verificados
-    for (const c of scCands.slice(0, 6)) {
-      if (c.score < 68) continue;
-      const pairKey = `${norm(c.title)}__${norm(c.artist)}`;
-      if (seenPairs.has(pairKey)) continue;
-      seenPairs.add(pairKey);
-
-      const durMin = Math.floor(c.durationSec / 60);
-      const durRem = String(c.durationSec % 60).padStart(2, '0');
-      const extractPath = `/api/v1/audio/extract?scTrackId=${encodeURIComponent(c.tr.id)}&title=${encodeURIComponent(c.title)}&artist=${encodeURIComponent(c.artist)}`;
-
-      combined.push({
-        uid: `sc_${c.tr.id}`,
-        videoId: '',
-        scTrackId: String(c.tr.id),
-        title: c.title,
-        artist: c.artist,
-        album: `${c.album || 'Pista Completa'} (${durMin}:${durRem})`,
-        durationSec: c.durationSec,
-        isFullTrack: true,
-        isPreviewOnly: false,
-        previewUrl: extractPath,
-        directFetchUrl: extractPath,
-        mimeType: 'audio/mpeg',
-        thumbnail: c.thumbnail || '',
-        sourceName: 'Pista Completa',
-        authenticityScore: c.score
-      });
-    }
-
-    combined.sort((a, b) => (b.authenticityScore || 0) - (a.authenticityScore || 0));
-    return res.json({ candidates: combined.slice(0, 12) });
+    return res.json({ candidates: combined.slice(0, 30) });
   } catch (_) {
     return res.json({ candidates: [] });
   }
