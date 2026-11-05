@@ -1127,6 +1127,14 @@
         "combo": 92,
         "accuracy": 6.686700007506142,
         "date": "2026-10-26 12:16:44"
+      },
+      {
+        "name": "Llois",
+        "score": 34852,
+        "stars": 0,
+        "combo": 61,
+        "accuracy": 2.5369104751284217,
+        "date": "2026-11-05T09:54:14.754Z"
       }
     ],
     "osu_1741783": [
@@ -1476,6 +1484,14 @@
       }
     ],
     "top_linkin_park_in_the_end": [
+      {
+        "name": "Llois",
+        "score": 334335,
+        "stars": 1,
+        "combo": 211,
+        "accuracy": 34.9617479253112,
+        "date": "2026-11-05T09:54:14.755Z"
+      },
       {
         "name": "Llois1",
         "score": 217802,
@@ -4983,6 +4999,14 @@
     "top_chayanne_torero": [],
     "osu_584749": [
       {
+        "name": "Llois",
+        "score": 95221,
+        "stars": 0,
+        "combo": 90,
+        "accuracy": 8.565828084322415,
+        "date": "2026-11-05T09:54:14.755Z"
+      },
+      {
         "name": "Llois1",
         "score": 20025,
         "stars": 3.5,
@@ -5055,6 +5079,14 @@
         "combo": 174,
         "accuracy": 22.722767129415935,
         "date": "2026-11-02T20:58:57.811Z"
+      },
+      {
+        "name": "Llois",
+        "score": 96744,
+        "stars": 0,
+        "combo": 88,
+        "accuracy": 13.142958062193483,
+        "date": "2026-11-05T09:54:14.755Z"
       }
     ],
     "osu_21936": [
@@ -7794,6 +7826,46 @@
         "accuracy": 0.6349698651265329,
         "date": "2026-11-05 03:56:25"
       }
+    ],
+    "osu_50884": [
+      {
+        "name": "Llois",
+        "score": 38686,
+        "stars": 2,
+        "combo": 51,
+        "accuracy": 57.657684511744364,
+        "date": "2026-11-05T09:54:14.753Z"
+      }
+    ],
+    "bs_501e0": [
+      {
+        "name": "Llois",
+        "score": 97350,
+        "stars": 0,
+        "combo": 103,
+        "accuracy": 18.665516249640497,
+        "date": "2026-11-05T09:54:14.754Z"
+      }
+    ],
+    "osu_586202": [
+      {
+        "name": "Llois",
+        "score": 164967,
+        "stars": 0,
+        "combo": 146,
+        "accuracy": 13.511032121738275,
+        "date": "2026-11-05T09:54:14.755Z"
+      }
+    ],
+    "osu_1944456": [
+      {
+        "name": "Llois",
+        "score": 70083,
+        "stars": 0,
+        "combo": 81,
+        "accuracy": 5.363633093607769,
+        "date": "2026-11-05T09:54:14.755Z"
+      }
     ]
   },
   "global": [
@@ -8319,7 +8391,7 @@
         "golds": 0,
         "platinums": 0
       },
-      "songs_count": 1,
+      "songs_count": 9,
       "unlocked_modes": [],
       "effects_count": 1,
       "has_password": false
@@ -16474,7 +16546,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": ""
       },
-      "updated_at": "2026-11-05T01:55:20.685Z"
+      "updated_at": "2026-11-05T04:56:14.255Z"
     },
     "Jocomomolo": {
       "player_name": "Jocomomolo",
@@ -17654,7 +17726,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": "rnc_jggnkf"
       },
-      "updated_at": "2026-11-05T04:55:20.595Z"
+      "updated_at": "2026-11-05T09:54:14.851Z"
     },
     "Rocky": {
       "player_name": "Rocky",
@@ -18687,7 +18759,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": ""
       },
-      "updated_at": "2026-11-05T04:55:20.594Z"
+      "updated_at": "2026-11-05T09:54:14.781Z"
     },
     "Mauricio": {
       "player_name": "Mauricio",
@@ -19538,7 +19610,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": ""
       },
-      "updated_at": "2026-11-05T04:55:20.592Z"
+      "updated_at": "2026-11-05T09:54:14.777Z"
     },
     "Libay": {
       "player_name": "Libay",
@@ -20240,7 +20312,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.593Z"
+      "updated_at": "2026-11-05T09:54:14.780Z"
     },
     "FAZTL": {
       "player_name": "FAZTL",
@@ -20634,7 +20706,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.596Z"
+      "updated_at": "2026-11-05T09:54:14.852Z"
     },
     "Niggerman": {
       "player_name": "Niggerman",
@@ -20846,7 +20918,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.597Z"
+      "updated_at": "2026-11-05T09:54:14.854Z"
     },
     "Laaleplo": {
       "player_name": "Laaleplo",
@@ -21051,7 +21123,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.596Z"
+      "updated_at": "2026-11-05T09:54:14.853Z"
     },
     "Dady cool": {
       "player_name": "Dady cool",
@@ -21221,7 +21293,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.596Z"
+      "updated_at": "2026-11-05T09:54:14.853Z"
     },
     "Azure": {
       "player_name": "Azure",
@@ -21391,7 +21463,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.597Z"
+      "updated_at": "2026-11-05T09:54:14.855Z"
     },
     "aelec": {
       "player_name": "aelec",
@@ -21533,7 +21605,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.599Z"
+      "updated_at": "2026-11-05T09:54:14.857Z"
     },
     "fer": {
       "player_name": "fer",
@@ -21862,7 +21934,7 @@
         "last_claimed_week": "2026_W43",
         "my_ref_code": ""
       },
-      "updated_at": "2026-11-05T04:55:20.598Z"
+      "updated_at": "2026-11-05T09:54:14.856Z"
     },
     "Davi": {
       "player_name": "Davi",
@@ -21976,7 +22048,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.604Z"
+      "updated_at": "2026-11-05T09:54:14.953Z"
     },
     "Siro": {
       "player_name": "Siro",
@@ -22083,7 +22155,107 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.599Z"
+      "updated_at": "2026-11-05T09:54:14.859Z"
+    },
+    "Llois": {
+      "player_name": "Llois",
+      "recovery_code": "RNC-9AC55D",
+      "account_token": "",
+      "has_password": false,
+      "pin_hash": "",
+      "password_hash": "",
+      "wallet": {
+        "clefs": 100,
+        "silvers": 0,
+        "golds": 0,
+        "platinums": 0
+      },
+      "unlocked_modes": {
+        "normal": true,
+        "osu_hybrid": true,
+        "locura": true
+      },
+      "unlocked_effects": [
+        "solar_inferno"
+      ],
+      "active_effect": "solar_inferno",
+      "highscores": {
+        "top_justin_timberlake_mirrors": {
+          "score": 37650,
+          "stars": 3.5,
+          "maxCombo": 48,
+          "medalTier": null,
+          "accuracyPct": 1.5619172627742224
+        },
+        "osu_50884": {
+          "score": 38686,
+          "stars": 2,
+          "maxCombo": 51,
+          "medalTier": null,
+          "accuracyPct": 57.657684511744364
+        },
+        "bs_501e0": {
+          "score": 97350,
+          "stars": 3,
+          "maxCombo": 103,
+          "medalTier": null,
+          "accuracyPct": 18.665516249640497
+        },
+        "top_fernando_esteso_la_ramona": {
+          "score": 34852,
+          "stars": 3,
+          "maxCombo": 61,
+          "medalTier": null,
+          "accuracyPct": 2.5369104751284217
+        },
+        "osu_584749": {
+          "score": 95221,
+          "stars": 3,
+          "maxCombo": 90,
+          "medalTier": null,
+          "accuracyPct": 8.565828084322415
+        },
+        "osu_801977": {
+          "score": 96744,
+          "stars": 3,
+          "maxCombo": 88,
+          "medalTier": null,
+          "accuracyPct": 13.142958062193483
+        },
+        "osu_586202": {
+          "score": 164967,
+          "stars": 3,
+          "maxCombo": 146,
+          "medalTier": null,
+          "accuracyPct": 13.511032121738275
+        },
+        "top_linkin_park_in_the_end": {
+          "score": 334335,
+          "stars": 1,
+          "maxCombo": 211,
+          "medalTier": null,
+          "accuracyPct": 34.9617479253112
+        },
+        "osu_1944456": {
+          "score": 70083,
+          "stars": 3,
+          "maxCombo": 81,
+          "medalTier": null,
+          "accuracyPct": 5.363633093607769
+        }
+      },
+      "favorites": [],
+      "favorite_records": [],
+      "playlists": [],
+      "weekly_history": {},
+      "settings": {
+        "lang": "es",
+        "note_speed": "1.0",
+        "vegas_streak": 0,
+        "gacha_pity": 0,
+        "claimed_promo_friends": []
+      },
+      "updated_at": "2026-11-05T09:54:14.955Z"
     },
     "bubu": {
       "player_name": "bubu",
@@ -22176,7 +22348,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.597Z"
+      "updated_at": "2026-11-05T09:54:14.855Z"
     },
     "Llois1": {
       "player_name": "Llois1",
@@ -22269,7 +22441,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.600Z"
+      "updated_at": "2026-11-05T09:54:14.861Z"
     },
     "Jaujayy": {
       "player_name": "Jaujayy",
@@ -22374,7 +22546,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": "rnc_be9ewj"
       },
-      "updated_at": "2026-11-05T04:55:20.686Z"
+      "updated_at": "2026-11-05T09:54:14.864Z"
     },
     "uwukawaiigatito": {
       "player_name": "uwukawaiigatito",
@@ -22872,7 +23044,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": "rnc_f7i5iz"
       },
-      "updated_at": "2026-11-05T04:55:20.600Z"
+      "updated_at": "2026-11-05T09:54:14.861Z"
     },
     "MasterPianist": {
       "player_name": "MasterPianist",
@@ -22951,7 +23123,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.600Z"
+      "updated_at": "2026-11-05T09:54:14.862Z"
     },
     "RhythmHero": {
       "player_name": "RhythmHero",
@@ -23030,7 +23202,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.601Z"
+      "updated_at": "2026-11-05T09:54:14.862Z"
     },
     "BeatMaster": {
       "player_name": "BeatMaster",
@@ -23109,7 +23281,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.601Z"
+      "updated_at": "2026-11-05T09:54:14.863Z"
     },
     "pelosombra40": {
       "player_name": "pelosombra40",
@@ -23188,7 +23360,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.602Z"
+      "updated_at": "2026-11-05T09:54:14.865Z"
     },
     "Lidia": {
       "player_name": "Lidia",
@@ -23267,7 +23439,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T01:55:20.688Z"
+      "updated_at": "2026-11-05T04:56:14.258Z"
     },
     "Fernando": {
       "player_name": "Fernando",
@@ -23346,7 +23518,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T01:55:20.688Z"
+      "updated_at": "2026-11-05T04:56:14.258Z"
     },
     "killer": {
       "player_name": "killer",
@@ -23425,7 +23597,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T01:55:20.688Z"
+      "updated_at": "2026-11-05T04:56:14.258Z"
     },
     "Layla": {
       "player_name": "Layla",
@@ -23497,7 +23669,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.601Z"
+      "updated_at": "2026-11-05T09:54:14.863Z"
     },
     "Elpianero": {
       "player_name": "Elpianero",
@@ -23569,7 +23741,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.602Z"
+      "updated_at": "2026-11-05T09:54:14.863Z"
     },
     "`pc": {
       "player_name": "`pc",
@@ -23641,7 +23813,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.602Z"
+      "updated_at": "2026-11-05T09:54:14.863Z"
     },
     "bori": {
       "player_name": "bori",
@@ -23713,7 +23885,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.602Z"
+      "updated_at": "2026-11-05T09:54:14.864Z"
     },
     "bobon": {
       "player_name": "bobon",
@@ -23778,7 +23950,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.598Z"
+      "updated_at": "2026-11-05T09:54:14.857Z"
     },
     "Darwin67": {
       "player_name": "Darwin67",
@@ -23843,7 +24015,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.599Z"
+      "updated_at": "2026-11-05T09:54:14.860Z"
     },
     "VAMP": {
       "player_name": "VAMP",
@@ -23908,7 +24080,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.604Z"
+      "updated_at": "2026-11-05T09:54:14.954Z"
     },
     "Seri": {
       "player_name": "Seri",
@@ -23966,7 +24138,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.684Z"
+      "updated_at": "2026-11-05T09:54:14.956Z"
     },
     "Jacques": {
       "player_name": "Jacques",
@@ -24017,7 +24189,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.600Z"
+      "updated_at": "2026-11-05T09:54:14.861Z"
     },
     "Ttuk": {
       "player_name": "Ttuk",
@@ -24068,7 +24240,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.604Z"
+      "updated_at": "2026-11-05T09:54:14.954Z"
     },
     "Ballsaxk": {
       "player_name": "Ballsaxk",
@@ -24119,7 +24291,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.605Z"
+      "updated_at": "2026-11-05T09:54:14.955Z"
     },
     "Papa": {
       "player_name": "Papa",
@@ -24170,7 +24342,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.685Z"
+      "updated_at": "2026-11-05T09:54:14.957Z"
     },
     "Pablito pop": {
       "player_name": "Pablito pop",
@@ -24221,7 +24393,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.685Z"
+      "updated_at": "2026-11-05T09:54:14.958Z"
     },
     "Mozart 2.0": {
       "player_name": "Mozart 2.0",
@@ -24272,7 +24444,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.685Z"
+      "updated_at": "2026-11-05T09:54:14.958Z"
     },
     "AAALLL": {
       "player_name": "AAALLL",
@@ -24545,7 +24717,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": ""
       },
-      "updated_at": "2026-11-05T04:55:20.686Z"
+      "updated_at": "2026-11-05T09:54:14.962Z"
     },
     "Hola31m": {
       "player_name": "Hola31m",
@@ -24589,7 +24761,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.603Z"
+      "updated_at": "2026-11-05T09:54:14.866Z"
     },
     "Ubuntu": {
       "player_name": "Ubuntu",
@@ -24633,7 +24805,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.603Z"
+      "updated_at": "2026-11-05T09:54:14.866Z"
     },
     "holo": {
       "player_name": "holo",
@@ -24677,7 +24849,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.603Z"
+      "updated_at": "2026-11-05T09:54:14.953Z"
     },
     "Antoniobarfe": {
       "player_name": "Antoniobarfe",
@@ -24721,51 +24893,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.604Z"
-    },
-    "Llois": {
-      "player_name": "Llois",
-      "recovery_code": "RNC-9AC55D",
-      "account_token": "",
-      "has_password": false,
-      "pin_hash": "",
-      "password_hash": "",
-      "wallet": {
-        "clefs": 100,
-        "silvers": 0,
-        "golds": 0,
-        "platinums": 0
-      },
-      "unlocked_modes": {
-        "normal": true,
-        "osu_hybrid": true,
-        "locura": true
-      },
-      "unlocked_effects": [
-        "solar_inferno"
-      ],
-      "active_effect": "solar_inferno",
-      "highscores": {
-        "top_justin_timberlake_mirrors": {
-          "score": 37650,
-          "stars": 3.5,
-          "maxCombo": 48,
-          "medalTier": null,
-          "accuracyPct": 1.5619172627742224
-        }
-      },
-      "favorites": [],
-      "favorite_records": [],
-      "playlists": [],
-      "weekly_history": {},
-      "settings": {
-        "lang": "es",
-        "note_speed": "1.0",
-        "vegas_streak": 0,
-        "gacha_pity": 0,
-        "claimed_promo_friends": []
-      },
-      "updated_at": "2026-11-05T04:55:20.605Z"
+      "updated_at": "2026-11-05T09:54:14.954Z"
     },
     "U": {
       "player_name": "U",
@@ -24809,7 +24937,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.605Z"
+      "updated_at": "2026-11-05T09:54:14.955Z"
     },
     ".": {
       "player_name": ".",
@@ -24853,7 +24981,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.605Z"
+      "updated_at": "2026-11-05T09:54:14.955Z"
     },
     "Pirata": {
       "player_name": "Pirata",
@@ -24897,7 +25025,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.605Z"
+      "updated_at": "2026-11-05T09:54:14.955Z"
     },
     "Camaleon": {
       "player_name": "Camaleon",
@@ -24941,7 +25069,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.684Z"
+      "updated_at": "2026-11-05T09:54:14.956Z"
     },
     "3105M": {
       "player_name": "3105M",
@@ -24985,7 +25113,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.685Z"
+      "updated_at": "2026-11-05T09:54:14.957Z"
     },
     "Elpapu": {
       "player_name": "Elpapu",
@@ -25029,7 +25157,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.685Z"
+      "updated_at": "2026-11-05T09:54:14.958Z"
     },
     "Ghapin": {
       "player_name": "Ghapin",
@@ -25073,7 +25201,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.685Z"
+      "updated_at": "2026-11-05T09:54:14.958Z"
     },
     "PixToPix": {
       "player_name": "PixToPix",
@@ -25117,7 +25245,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.686Z"
+      "updated_at": "2026-11-05T09:54:14.959Z"
     },
     "Mozart": {
       "player_name": "Mozart",
@@ -25161,7 +25289,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.686Z"
+      "updated_at": "2026-11-05T09:54:14.962Z"
     },
     "Trnde": {
       "player_name": "Trnde",
@@ -25205,7 +25333,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-05T04:55:20.686Z"
+      "updated_at": "2026-11-05T04:56:14.259Z"
     },
     "dfd": {
       "player_name": "dfd",
@@ -25250,7 +25378,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": "rnc_dxy9hd"
       },
-      "updated_at": "2026-11-05T01:55:20.689Z"
+      "updated_at": "2026-11-05T04:56:14.260Z"
     },
     "val": {
       "player_name": "val",
@@ -25295,7 +25423,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": ""
       },
-      "updated_at": "2026-11-05T01:55:20.689Z"
+      "updated_at": "2026-11-05T04:56:14.260Z"
     }
   }
 }
