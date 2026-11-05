@@ -7837,15 +7837,18 @@ window.switchMainTab = switchMainTab;
         return null;
       };
 
-      // 1. SERVIDOR PRIMARIO: Catboy v2 (Catálogo completo de osu!: Standard, Taiko y Mania)
-      try {
-        const catboyV2Url = `https://catboy.best/api/v2/search?q=${encodeURIComponent(query)}`;
-        const catboyData = await fetchJsonWithWorker(catboyV2Url, 4500);
-        const catboyItems = Array.isArray(catboyData) ? catboyData : (catboyData?.data || []);
+      // 1. CONSULTA EN PARALELO A 3 MIRRORS DE OSU! (Catboy v2 + osu.direct v2 + Sayobot)
+      const [catboyData, osuDirectData, sayoData] = await Promise.all([
+        fetchJsonWithWorker(`https://catboy.best/api/v2/search?q=${encodeURIComponent(query)}`, 4500),
+        fetchJsonWithWorker(`https://osu.direct/api/v2/search?q=${encodeURIComponent(query)}`, 4500),
+        fetchJsonWithWorker(`https://api.sayobot.cn/beatmaplist?0=30&1=0&2=4&cmd=search&keyword=${encodeURIComponent(query)}`, 5000)
+      ]);
 
-        for (const item of catboyItems.slice(0, 50)) {
+      const processStandardOsuMirror = (rawList) => {
+        const items = Array.isArray(rawList) ? rawList : (rawList?.data || []);
+        for (const item of items.slice(0, 45)) {
           try {
-            const setId = item.id;
+            const setId = item.id || item.beatmapset_id;
             if (!setId || seenSetIds.has(setId)) continue;
             seenSetIds.add(setId);
 
@@ -7855,7 +7858,7 @@ window.switchMainTab = switchMainTab;
             const thumbnail = item.covers?.card || item.covers?.cover || `https://assets.ppy.sh/beatmaps/${setId}/covers/card.jpg`;
 
             const beatmaps = item.beatmaps || [];
-            let diffs = beatmaps.map(b => {
+            const diffs = beatmaps.map(b => {
               const stars = Math.round(parseFloat(b.difficulty_rating || 0.0) * 10) / 10;
               const modeNum = b.mode_int ?? b.mode ?? 0;
               const modeTag = (modeNum === 3 || modeNum === 'mania') ? 'Mania' : ((modeNum === 1 || modeNum === 'taiko') ? 'Taiko' : 'Std');
@@ -7891,20 +7894,16 @@ window.switchMainTab = switchMainTab;
                 difficulties: diffs
               });
             }
-          } catch (ex) {
-            console.debug('Error parseando item catboy v2:', ex);
-          }
+          } catch (_) {}
         }
-      } catch (catErr) {
-        console.warn('Catboy v2 search error:', catErr);
-      }
+      };
 
-      // 2. SERVIDOR SECUNDARIO (Fallback inmediato): Sayobot (Todos los modos de osu!)
+      processStandardOsuMirror(catboyData);
+      processStandardOsuMirror(osuDirectData);
+
+      // Procesar Sayobot
       try {
-        const sayoUrl = `https://api.sayobot.cn/beatmaplist?0=20&1=0&2=4&cmd=search&keyword=${encodeURIComponent(query)}`;
-        const sayoData = await fetchJsonWithWorker(sayoUrl, 5000);
         const sayoItems = sayoData?.data || (Array.isArray(sayoData) ? sayoData : []);
-
         for (const item of sayoItems.slice(0, 35)) {
           try {
             const setId = item.sid;
@@ -7952,13 +7951,9 @@ window.switchMainTab = switchMainTab;
                 difficulties: diffs
               });
             }
-          } catch (ex) {
-            console.debug('Error parseando sayobot:', ex);
-          }
+          } catch (_) {}
         }
-      } catch (sayoErr) {
-        console.debug('Sayobot search fallback:', sayoErr);
-      }
+      } catch (_) {}
 
       // 3. SERVIDOR TERCIARIO: Mino / Catboy v1
       if (results.length < 5) {
@@ -9648,30 +9643,17 @@ window.switchMainTab = switchMainTab;
             .filter(s => s.relevanceScore >= 40)
         : GLOBAL_COMMUNITY_FALLBACKS;
 
-      // 1. Intento principal: Búsqueda agregada ultrarrápida del backend + Catálogo de Estudio Completo en paralelo
-      const studioCardsPromise = (typeof window.discoverStudioFullCatalogCards === 'function' && q)
-        ? window.discoverStudioFullCatalogCards(q).catch(() => [])
-        : Promise.resolve([]);
-
+      // 1. Intento principal: Búsqueda agregada ultrarrápida del backend (SOLO canciones reales de ritmo, sin duplicar la tecla mágica en teclas normales)
       try {
         const controller = new AbortController();
         const tid = setTimeout(() => controller.abort(), 6000);
-        const [backendResp, studioCards] = await Promise.all([
-          fetch(`/api/v1/search?q=${encodeURIComponent(q)}`, { signal: controller.signal }).finally(() => clearTimeout(tid)),
-          studioCardsPromise
-        ]);
+        const backendResp = await fetch(`/api/v1/search?q=${encodeURIComponent(q)}`, { signal: controller.signal }).finally(() => clearTimeout(tid));
         if (backendResp.ok) {
           const data = await backendResp.json();
           if (Array.isArray(data)) {
             const combined = [...topMatches, ...localCommunityMatches];
-            if (Array.isArray(studioCards)) {
-              for (const scItem of studioCards) {
-                if (!combined.some(x => x.id === scItem.id)) {
-                  combined.push(scItem);
-                }
-              }
-            }
             for (const item of data) {
+              if (!item || String(item.id || '').startsWith('auto_dsp_') || item._isAutoGeneratedDsp) continue;
               if (!combined.some(x => x.id === item.id)) {
                 if (q) {
                   item.relevanceScore = item.relevanceScore || computeSongRelevanceScore(q, item.title, item.artist, item.creator_name || '');
@@ -9679,12 +9661,12 @@ window.switchMainTab = switchMainTab;
                     item.relevanceScore -= 45;
                   }
                 }
-                if (!q || item.relevanceScore >= 35) {
+                if (!q || item.relevanceScore >= 32) {
                   combined.push(item);
                 }
               }
             }
-            console.log(`[Search] Servidor backend entregó ${data.length} canciones (+${(studioCards || []).length} estudio completo).`);
+            console.log(`[Search] Servidor backend entregó ${combined.length} canciones reales.`);
             if (q) {
               combined.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
             }
@@ -9704,10 +9686,9 @@ window.switchMainTab = switchMainTab;
         console.debug('Backend search fallback to client APIs:', backendErr);
       }
 
-      // 2. Consulta en paralelo a Catálogo Estudio Completo, osu! (todos los modos), Clone Hero y BeatSaver
+      // 2. Consulta en paralelo a osu! (todos los modos), Clone Hero y BeatSaver (sin duplicar canciones auto_dsp en teclas normales)
       try {
-        const [studioRes, osuRes, chRes, bsRes] = await Promise.allSettled([
-          studioCardsPromise,
+        const [osuRes, chRes, bsRes] = await Promise.allSettled([
           withTimeout(searchOsuMania(q), 10000, 'osu!'),
           withTimeout(searchCloneHero(q), 12000, 'Clone Hero'),
           withTimeout(searchBeatSaver(q), 9500, 'BeatSaver')
@@ -9715,14 +9696,6 @@ window.switchMainTab = switchMainTab;
 
         const allItems = [...topMatches, ...localCommunityMatches];
         const failedApis = [];
-
-        if (studioRes.status === 'fulfilled' && Array.isArray(studioRes.value)) {
-          for (const scItem of studioRes.value) {
-            if (!allItems.some(x => x.id === scItem.id)) {
-              allItems.push(scItem);
-            }
-          }
-        }
 
         if (osuRes.status === 'fulfilled' && Array.isArray(osuRes.value)) {
           for (const item of osuRes.value) {
@@ -11075,13 +11048,18 @@ function stopPianoCameraLoop() {
                 queryTitle: activeQ,
                 queryArtist: '',
                 thumbUrl: '',
-                uniqueId: 'magic_search_empty',
+                uniqueId: 'magic_search_top',
                 isPlaylistUrlOrId,
-                statusText: 'Sintetizando audio y creando pista...'
+                statusText: 'Generar pista jugable al instante'
               })}
             </div>
           `;
-          autoExtractAndInjectIntoSearch(activeQ);
+          if (typeof window.loadMagicKeyAudioCandidates === 'function') {
+            if (window._selectedMagicAudioCandidate) delete window._selectedMagicAudioCandidate['magic_search_top'];
+            setTimeout(() => {
+              window.loadMagicKeyAudioCandidates('magic_search_top', activeQ, '', true);
+            }, 30);
+          }
           return;
         }
 
@@ -13801,7 +13779,221 @@ function stopPianoCameraLoop() {
       };
     }
 
-    async function searchSoundCloudFullClient(rawTitle, rawArtist = '', limit = 28) {
+    function isUnrequestedRemixOrStrangeTrackClient(rawQuery, candidateText) {
+      const nq = normalizeSearchText(rawQuery || '');
+      const nc = normalizeSearchText(candidateText || '');
+      const forbidden = [
+        'remix', 'rmx', 'dj mix', 'classic mix', 'extended mix', 'club mix', 'vip mix',
+        'hardstyle', 'bootleg', 'mashup', 'megamix', 'popurri', 'medley', 'nightcore',
+        'daycore', 'slowed', 'sped up', 'reverb', '8d audio', 'bass boosted', 'karaoke',
+        'tribute', 'cover', 'parody', 'ringtone', '8 bit', 'lullaby', 'instrumental version'
+      ];
+      for (const marker of forbidden) {
+        if (nc.includes(marker) && !nq.includes(marker)) return true;
+      }
+      if (/\b(dj|edit|live)\b/.test(nc) && !/\b(dj|edit|live)\b/.test(nq)) return true;
+      return false;
+    }
+
+    function parseDurationStrToSecondsClient(lenStr) {
+      if (!lenStr || typeof lenStr !== 'string') return 0;
+      const parts = lenStr.trim().split(':').map(n => parseInt(n, 10));
+      if (parts.some(isNaN)) return 0;
+      if (parts.length === 2) return parts[0] * 60 + parts[1];
+      if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+      return 0;
+    }
+
+    async function searchYouTubeOfficialClient(rawTitle, rawArtist = '', expectedDurationSec = 0) {
+      const cleanTitle = String(rawTitle || '').trim();
+      const cleanArtist = String(rawArtist || '').replace(/^youtube$/i, '').trim();
+      const baseQuery = cleanArtist ? `${cleanArtist} ${cleanTitle}`.trim() : cleanTitle;
+      const ytQuery = /\b(audio|official|oficial|topic)\b/i.test(baseQuery) ? baseQuery : `${baseQuery} official audio`;
+      const myWorker = (u) => `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(u)}`;
+
+      try {
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), 4500);
+        const ytRes = await fetch(myWorker('https://www.youtube.com/youtubei/v1/search?prettyPrint=false'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            context: {
+              client: { clientName: 'WEB', clientVersion: '2.20240726.00.00', hl: 'es', gl: 'ES' }
+            },
+            query: ytQuery
+          }),
+          signal: ctrl.signal
+        });
+        clearTimeout(tid);
+        if (!ytRes.ok) return [];
+        const data = await ytRes.json();
+        const found = [];
+        const seenIds = new Set();
+
+        const walk = (node) => {
+          if (!node || typeof node !== 'object' || found.length >= 14) return;
+          if (node.videoRenderer && node.videoRenderer.videoId) {
+            const v = node.videoRenderer;
+            const vid = v.videoId;
+            if (seenIds.has(vid)) return;
+            const title = v.title?.runs?.[0]?.text || v.title?.simpleText || '';
+            const author = v.ownerText?.runs?.[0]?.text || v.longBylineText?.runs?.[0]?.text || '';
+            const lenText = v.lengthText?.simpleText || v.lengthText?.runs?.[0]?.text || '';
+            const durSec = parseDurationStrToSecondsClient(lenText);
+            if (durSec > 0 && (durSec < 52 || durSec > 560)) return;
+            if (!lenText && v.badges && JSON.stringify(v.badges).includes('LIVE')) return;
+
+            const thumbs = v.thumbnail?.thumbnails || [];
+            const thumb = thumbs.length ? thumbs[thumbs.length - 1].url : `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`;
+            if (vid && title) {
+              seenIds.add(vid);
+              const parsedMeta = (typeof parseYouTubeMetadataSmart === 'function')
+                ? parseYouTubeMetadataSmart(title, author)
+                : { coreTitle: title, coreArtist: author.replace(/ - Topic$/i, '').trim() };
+              const candTitle = parsedMeta.coreTitle || title;
+              const candArtist = parsedMeta.coreArtist || author.replace(/ - Topic$/i, '').replace(/VEVO$/i, '').trim();
+              let authScore = scoreStudioAudioAuthenticity(baseQuery, cleanTitle, cleanArtist, candTitle, candArtist, '', `${title} ${author}`);
+              if (/ - Topic$/i.test(author) || /official\s*audio|audio\s*oficial|provided to youtube/i.test(title)) {
+                authScore += 24;
+              }
+              if (expectedDurationSec > 55 && durSec > 55) {
+                const diffDur = Math.abs(durSec - expectedDurationSec);
+                if (diffDur <= 12) authScore += 22;
+                else if (diffDur <= 28) authScore += 10;
+                else if (diffDur > 65) authScore -= 25;
+              }
+              found.push({
+                uid: `yt_${vid}`,
+                videoId: vid,
+                scTrackId: '',
+                title: candTitle,
+                artist: candArtist || cleanArtist || 'Artista',
+                channel: author,
+                durationSec: durSec || expectedDurationSec || 180,
+                thumbnail: thumb,
+                authenticityScore: authScore
+              });
+            }
+          }
+          for (const k of Object.keys(node)) {
+            const child = node[k];
+            if (Array.isArray(child)) child.forEach(walk);
+            else if (child && typeof child === 'object') walk(child);
+          }
+        };
+        walk(data);
+        found.sort((a, b) => (b.authenticityScore || 0) - (a.authenticityScore || 0));
+        return found;
+      } catch (_) {
+        return [];
+      }
+    }
+
+    async function extractYouTubeFullAudioViaNotubeClient(videoId, onProgress = null) {
+      if (!videoId || !/^[A-Za-z0-9_-]{8,15}$/.test(videoId)) return null;
+      const cached = window._fullTrackBlobCache.get(`yt_${videoId}`);
+      if (cached && cached.size >= 350000) {
+        return { blob: cached, sourceName: 'YouTube Studio Master MP3' };
+      }
+
+      const myWorker = (u) => `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(u)}`;
+      const ytUrl = `https://www.youtube.com/watch?v=${videoId}`;
+      const mirrors = [
+        { apiHost: 'https://s61.notube.im', webHost: 'https://notube.im' },
+        { apiHost: 'https://s61.notube.net', webHost: 'https://notube.net' }
+      ];
+
+      for (const { apiHost, webHost } of mirrors) {
+        try {
+          if (onProgress) onProgress('Preparando pista oficial completa en alta fidelidad...');
+          const body1 = new URLSearchParams({ url: ytUrl, format: 'mp3', lang: 'es', subscribed: 'false' });
+          const r1 = await fetch(myWorker(`${apiHost}/recover_weight.php`), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+            body: body1.toString()
+          });
+          if (!r1.ok) continue;
+          const d1 = await r1.json();
+          if (!d1 || !d1.token) continue;
+
+          if (!d1.url_mp4_youtube) {
+            if (onProgress) onProgress('Masterizando canción completa desde estudio...');
+            const bodyConv = new URLSearchParams({ token: d1.token });
+            await fetch(myWorker(`${apiHost}/conversion.php`), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+              body: bodyConv.toString()
+            });
+          }
+
+          if (onProgress) onProgress('Generando archivo MP3 completo (2-6 min)...');
+          const body2 = new URLSearchParams({
+            url: ytUrl,
+            format: 'mp3',
+            name_mp4: d1.name_mp4 || '',
+            lang: 'es',
+            token: d1.token,
+            subscribed: 'false',
+            priority: '0',
+            ab: '128'
+          });
+          const r2 = await fetch(myWorker(`${apiHost}/recover_file.php`), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+            body: body2.toString()
+          });
+          let finalToken = d1.token;
+          if (r2.ok) {
+            try {
+              const d2 = await r2.json();
+              if (d2 && d2.token) finalToken = d2.token;
+            } catch (_) {}
+          }
+
+          const candidateDlUrls = [];
+          try {
+            const pageRes = await fetch(myWorker(`${webHost}/es/download?token=${encodeURIComponent(finalToken)}`));
+            if (pageRes.ok) {
+              const html = await pageRes.text();
+              const keyMatch = html.match(/https:\/\/s\d+\.notube\.(?:im|net)\/download\.php\?token=[^"'\s>]+/);
+              if (keyMatch && keyMatch[0]) {
+                candidateDlUrls.push(keyMatch[0]);
+              }
+            }
+          } catch (_) {}
+          candidateDlUrls.push(`${apiHost}/download.php?token=${encodeURIComponent(finalToken)}`);
+
+          for (const dlUrl of candidateDlUrls) {
+            try {
+              if (onProgress) onProgress('Descargando canción completa...');
+              let dlRes = null;
+              try { dlRes = await fetch(dlUrl); } catch (_) {}
+              if (!dlRes || !dlRes.ok) {
+                dlRes = await fetch(myWorker(dlUrl));
+              }
+              if (!dlRes || !dlRes.ok) continue;
+              const ct = String(dlRes.headers.get('content-type') || '').toLowerCase();
+              if (ct.includes('text/html') || ct.includes('application/json')) continue;
+              const ab = await dlRes.arrayBuffer();
+              if (ab && ab.byteLength >= 350000) {
+                const blob = new Blob([ab], { type: 'audio/mpeg' });
+                window._fullTrackBlobCache.set(`yt_${videoId}`, blob);
+                return {
+                  blob,
+                  title: (d1.titulo_mp4 || '').replace(/\.mp4$/i, '').replace(/_/g, ' ').trim(),
+                  thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+                  sourceName: 'YouTube Studio Master MP3'
+                };
+              }
+            } catch (_) {}
+          }
+        } catch (_) {}
+      }
+      return null;
+    }
+
+    async function searchSoundCloudFullClient(rawTitle, rawArtist = '', limit = 24) {
       const cleanTitle = String(rawTitle || '').trim();
       const cleanArtist = String(rawArtist || '').replace(/^youtube$/i, '').trim();
       const searchQuery = cleanArtist ? `${cleanArtist} ${cleanTitle}`.trim() : cleanTitle;
@@ -13810,7 +14002,7 @@ function stopPianoCameraLoop() {
       const searchUrl = `https://api-v2.soundcloud.com/search/tracks?q=${encodeURIComponent(searchQuery)}&client_id=${clientId}&limit=${limit}`;
 
       const ctrl = new AbortController();
-      const tid = setTimeout(() => ctrl.abort(), 4800);
+      const tid = setTimeout(() => ctrl.abort(), 4500);
       const resp = await fetch(myWorker(searchUrl), { signal: ctrl.signal });
       clearTimeout(tid);
       if (!resp.ok) return [];
@@ -13822,9 +14014,10 @@ function stopPianoCameraLoop() {
         if (!tr || !tr.id) continue;
         const durSec = Math.round(Number(tr.duration || 0) / 1000);
         const fullDurSec = Math.round(Number(tr.full_duration || tr.duration || 0) / 1000);
-        // Excluir estrictamente previews de 30s (Go+ snipped) o fragmentos cortos (< 52s)
-        if (durSec < 52 || durSec > 660) continue;
+        // Excluir estrictamente previews de 30s (Go+ SNIP) o fragmentos cortos (< 52s)
+        if (durSec < 52 || durSec > 560) continue;
         if (fullDurSec > 60 && durSec <= 35) continue;
+        if (String(tr.policy || '').toUpperCase() === 'SNIP') continue;
 
         const transcodings = tr.media?.transcodings || [];
         const hasPlayableStream = transcodings.some(t => t && t.url && !t.snipped && (
@@ -13832,16 +14025,21 @@ function stopPianoCameraLoop() {
         ));
         if (!hasPlayableStream) continue;
 
+        // Prohibir remixes/DJ mixes/covers/versiones extrañas no solicitadas
+        if (isUnrequestedRemixOrStrangeTrackClient(searchQuery, `${tr.title || ''} ${tr.user?.username || ''}`)) continue;
+
         const parsedMeta = parseSoundCloudTrackMetaClient(tr, cleanTitle, cleanArtist);
         const trTitle = parsedMeta.title || cleanTitle;
         const trArtist = parsedMeta.artist || cleanArtist || 'Artista';
         const trAlbum = tr.publisher_metadata?.album_title || 'Pista Completa';
         const score = scoreStudioAudioAuthenticity(searchQuery, cleanTitle, cleanArtist, trTitle, trArtist, trAlbum, tr.title || '');
-        const artwork = (tr.artwork_url || tr.user?.avatar_url || '').replace('-large', '-t500x500');
+        if (score < 62) continue;
 
+        const artwork = (tr.artwork_url || tr.user?.avatar_url || '').replace('-large', '-t500x500');
         candidates.push({
           uid: `sc_${tr.id}`,
           scTrackId: String(tr.id),
+          videoId: '',
           title: trTitle,
           artist: trArtist,
           album: `${trAlbum} (${Math.floor(durSec / 60)}:${String(durSec % 60).padStart(2, '0')})`,
@@ -13853,7 +14051,7 @@ function stopPianoCameraLoop() {
           mimeType: 'audio/mpeg',
           thumbnail: artwork || getSongCoverFallback(trTitle, trArtist),
           sourceName: 'Pista Completa',
-          authenticityScore: score + 12,
+          authenticityScore: score,
           _scRawTrack: tr
         });
       }
@@ -14014,28 +14212,26 @@ function stopPianoCameraLoop() {
         return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(tid));
       };
 
-      // 1. Consultar en paralelo:
-      //    - Catálogo Oficial de Estudio (Apple Music + Deezer) SOLO para conocer el artista original #1 (ej. Camilo Sesto), portadas HD y versiones oficiales
-      //    - Motores de Pista Completa (SoundCloud Cliente Directo + Servidor Full Audio + Audius Full)
-      const [itRes, dzRes, scClientRes, scServerRes, auRes] = await Promise.allSettled([
+      // 1. Consultar en paralelo el catálogo oficial de estudio (Apple Music + Deezer + YouTube Oficial) + SoundCloud Estricto
+      const [itRes, dzRes, ytClientRes, scClientRes, scServerRes] = await Promise.allSettled([
         fetchFast(`https://itunes.apple.com/search?term=${encodeURIComponent(searchQuery)}&media=music&entity=song&limit=18`, 3800)
           .then(r => r.ok ? r.json() : {}),
         fetchFast(myWorker(`https://api.deezer.com/search?q=${encodeURIComponent(searchQuery)}&limit=18`), 3800)
           .then(r => r.ok ? r.json() : {}),
-        searchSoundCloudFullClient(cleanTitle, cleanArtist, 28),
+        searchYouTubeOfficialClient(cleanTitle, cleanArtist),
+        searchSoundCloudFullClient(cleanTitle, cleanArtist, 22),
         fetchFast(`${baseUrl}/api/v1/audio/candidates?q=${encodeURIComponent(searchQuery)}&title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}`, 4500)
-          .then(r => r.ok ? r.json() : {}),
-        fetchFast(`https://discoveryprovider.audius.co/v1/tracks/search?query=${encodeURIComponent(searchQuery)}&app_name=PianoCommunity`, 3800)
           .then(r => r.ok ? r.json() : {})
       ]);
 
-      // Recopilar discografía oficial de estudio (JAMÁS usamos sus previews de 30s, solo sus metadatos oficiales y portadas)
+      // Recopilar discografía oficial de estudio (fidelidad y variedad exactas, sin usar jamás sus previews de 30s)
       const studioDiscography = [];
       if (itRes.status === 'fulfilled' && Array.isArray(itRes.value?.results)) {
         for (const r of itRes.value.results) {
           if (!r || !r.trackName || !r.artistName) continue;
           const durSec = Math.round(Number(r.trackTimeMillis || 180000) / 1000);
-          if (durSec < 52) continue;
+          if (durSec < 52 || durSec > 600) continue;
+          if (isUnrequestedRemixOrStrangeTrackClient(searchQuery, `${r.trackName} ${r.artistName} ${r.collectionName || ''}`)) continue;
           studioDiscography.push({
             title: r.trackName,
             artist: r.artistName,
@@ -14049,7 +14245,8 @@ function stopPianoCameraLoop() {
         for (const t of dzRes.value.data) {
           if (!t || !t.title || !t.artist?.name) continue;
           const durSec = Number(t.duration || 180);
-          if (durSec < 52) continue;
+          if (durSec < 52 || durSec > 600) continue;
+          if (isUnrequestedRemixOrStrangeTrackClient(searchQuery, `${t.title} ${t.artist.name} ${t.album?.title || ''}`)) continue;
           studioDiscography.push({
             title: t.title,
             artist: t.artist.name,
@@ -14061,96 +14258,13 @@ function stopPianoCameraLoop() {
       }
 
       const topStudio = studioDiscography[0] || null;
-      const scPool = [];
-
-      if (scClientRes.status === 'fulfilled' && Array.isArray(scClientRes.value)) {
-        scPool.push(...scClientRes.value);
-      }
-
-      // Si el usuario buscó solo el título (ej. "vivir así es morir de amor") y el catálogo oficial identificó al artista original #1 (ej. "Camilo Sesto"),
-      // hacer una búsqueda dirigida en SoundCloud Full con el artista original para garantizar que la versión original completa esté siempre disponible
-      if (topStudio && (!cleanArtist || !normalizeSearchText(cleanArtist).includes(normalizeSearchText(topStudio.artist)))) {
-        try {
-          const targetedSc = await searchSoundCloudFullClient(topStudio.title, topStudio.artist, 28);
-          for (const tc of targetedSc) {
-            if (!scPool.some(x => x.scTrackId === tc.scTrackId)) {
-              scPool.unshift(tc);
-            }
-          }
-        } catch (_) {}
-      }
-
+      const ytPool = (ytClientRes.status === 'fulfilled' && Array.isArray(ytClientRes.value)) ? ytClientRes.value : [];
+      const scPool = (scClientRes.status === 'fulfilled' && Array.isArray(scClientRes.value)) ? scClientRes.value : [];
       const rawList = [];
 
-      // 1. Pistas Completas de SoundCloud Cliente enriquecidas con metadatos y portadas oficiales de Estudio
-      for (const c of scPool) {
-        if (!c || (c.durationSec && c.durationSec < 52)) continue;
-        const nArt = normalizeSearchText(c.artist);
-        const nTit = normalizeSearchText(c.title);
-        const matchedStudio = studioDiscography.find(s => {
-          const sArt = normalizeSearchText(s.artist);
-          return sArt && (nArt.includes(sArt) || sArt.includes(nArt) || nTit.includes(sArt));
-        });
-
-        let finalScore = scoreStudioAudioAuthenticity(
-          searchQuery,
-          topStudio ? topStudio.title : cleanTitle,
-          cleanArtist || (topStudio ? topStudio.artist : ''),
-          matchedStudio ? matchedStudio.title : c.title,
-          matchedStudio ? matchedStudio.artist : c.artist,
-          matchedStudio ? matchedStudio.album : c.album,
-          c._scRawTrack?.title || ''
-        ) + 15;
-
-        if (matchedStudio) {
-          finalScore += 18;
-          if (topStudio && normalizeSearchText(matchedStudio.artist) === normalizeSearchText(topStudio.artist)) {
-            finalScore += 28; // Máxima prioridad para el artista original #1 (ej. Camilo Sesto)
-          }
-        }
-
-        const durMin = Math.floor((c.durationSec || 180) / 60);
-        const durRem = String((c.durationSec || 180) % 60).padStart(2, '0');
-        const baseAlbum = matchedStudio ? matchedStudio.album : (c._scRawTrack?.publisher_metadata?.album_title || 'Estudio Completo');
-
-        rawList.push({
-          ...c,
-          title: matchedStudio ? matchedStudio.title : c.title,
-          artist: matchedStudio ? matchedStudio.artist : c.artist,
-          album: `${baseAlbum} (${durMin}:${durRem})`,
-          thumbnail: (matchedStudio && matchedStudio.thumbnail) || c.thumbnail || getSongCoverFallback(c.title, c.artist),
-          authenticityScore: finalScore
-        });
-      }
-
-      // 2. Pistas Completas desde el Servidor (SoundCloud Full Audio 2-6 min)
-      if (scServerRes.status === 'fulfilled' && Array.isArray(scServerRes.value?.candidates)) {
-        for (const c of scServerRes.value.candidates) {
-          if (!c || (c.durationSec && c.durationSec < 52)) continue;
-          const resolvedPreview = c.previewUrl && c.previewUrl.startsWith('/') ? `${baseUrl}${c.previewUrl}` : c.previewUrl;
-          const resolvedDirect = c.directFetchUrl && c.directFetchUrl.startsWith('/') ? `${baseUrl}${c.directFetchUrl}` : c.directFetchUrl;
-          rawList.push({
-            uid: c.uid || `sc_${c.scTrackId || Math.random().toString(36).slice(2, 8)}`,
-            scTrackId: c.scTrackId || '',
-            title: c.title || cleanTitle,
-            artist: c.artist || cleanArtist || 'Artista',
-            album: c.album || 'Pista Completa',
-            durationSec: c.durationSec || 180,
-            isFullTrack: true,
-            isPreviewOnly: false,
-            previewUrl: resolvedPreview,
-            directFetchUrl: resolvedDirect,
-            mimeType: c.mimeType || 'audio/mpeg',
-            thumbnail: c.thumbnail || getSongCoverFallback(c.title || cleanTitle, c.artist || cleanArtist),
-            sourceName: 'Pista Completa',
-            authenticityScore: (c.authenticityScore || 65) + 10
-          });
-        }
-      }
-
-      // 3. Añadir las versiones oficiales de estudio restantes (Apple Music / Deezer) como entradas de Pista Completa bajo demanda
-      //    (jamás usan el previewUrl de 30s; al escuchar o jugar extraen la canción completa de ese artista + título)
-      for (let i = 0; i < Math.min(10, studioDiscography.length); i++) {
+      // 1. Pistas Oficiales de Estudio (Apple Music + Deezer): muestran siempre la canción original exacta y sus versiones legítimas,
+      //    y al escuchar/jugar descargan la canción 100% completa desde YouTube Studio Master MP3 o SoundCloud Full Verificado
+      for (let i = 0; i < studioDiscography.length; i++) {
         const st = studioDiscography[i];
         const stScore = scoreStudioAudioAuthenticity(
           searchQuery,
@@ -14160,12 +14274,35 @@ function stopPianoCameraLoop() {
           st.artist,
           st.album,
           'StudioOriginal'
-        ) + (i === 0 ? 32 : 12);
+        ) + (i === 0 ? 35 : 15);
+        if (stScore < 42) continue;
+
+        const nStTit = normalizeSearchText(st.title);
+        const nStArt = normalizeSearchText(st.artist);
+
+        // Vincular videoId exacto de YouTube si ya está en ytPool y su duración coincide (±30s)
+        const matchedYt = ytPool.find(y => {
+          const nyTit = normalizeSearchText(y.title);
+          const nyArt = normalizeSearchText(`${y.artist} ${y.channel || ''}`);
+          return (nyTit.includes(nStTit) || nStTit.includes(nyTit)) &&
+                 nyArt.includes(nStArt) &&
+                 Math.abs((y.durationSec || st.durationSec) - st.durationSec) <= 30;
+        });
+
+        // Vincular scTrackId SOLO si coincide exactamente en título y artista y en duración (±22s)
+        const matchedSc = scPool.find(c => {
+          return normalizeSearchText(c.title) === nStTit &&
+                 normalizeSearchText(c.artist).includes(nStArt) &&
+                 Math.abs((c.durationSec || st.durationSec) - st.durationSec) <= 22;
+        });
+
         const durMin = Math.floor((st.durationSec || 180) / 60);
         const durRem = String((st.durationSec || 180) % 60).padStart(2, '0');
         rawList.push({
-          uid: `studio_full_${i}_${normalizeSearchText(st.artist).replace(/\s+/g, '_')}`,
-          scTrackId: '',
+          uid: matchedYt ? `yt_${matchedYt.videoId}` : (matchedSc ? `sc_${matchedSc.scTrackId}` : `studio_full_${i}_${nStArt.replace(/\s+/g, '_')}`),
+          videoId: matchedYt ? matchedYt.videoId : '',
+          scTrackId: matchedSc ? matchedSc.scTrackId : '',
+          _scRawTrack: matchedSc ? matchedSc._scRawTrack : null,
           title: st.title,
           artist: st.artist,
           album: `${st.album} (${durMin}:${durRem})`,
@@ -14175,47 +14312,72 @@ function stopPianoCameraLoop() {
           previewUrl: `studio_full://${encodeURIComponent(st.artist)}/${encodeURIComponent(st.title)}`,
           directFetchUrl: null,
           mimeType: 'audio/mpeg',
-          thumbnail: st.thumbnail || getSongCoverFallback(st.title, st.artist),
-          sourceName: 'Estudio Completo',
+          thumbnail: st.thumbnail || (matchedYt ? matchedYt.thumbnail : '') || getSongCoverFallback(st.title, st.artist),
+          sourceName: 'Estudio Original',
           authenticityScore: stScore
         });
       }
 
-      // 4. Audius (Pistas completas >= 52s)
-      if (auRes.status === 'fulfilled' && Array.isArray(auRes.value?.data)) {
-        for (const tr of auRes.value.data.slice(0, 6)) {
-          if (!tr || !tr.id || !tr.duration || Number(tr.duration) < 52) continue;
-          const durSec = Number(tr.duration);
-          const sc = scoreStudioAudioAuthenticity(searchQuery, cleanTitle, cleanArtist, tr.title || '', tr.user?.name || '', '', 'Audius');
-          if (sc >= 55) {
-            const streamUrl = `https://discoveryprovider.audius.co/v1/tracks/${encodeURIComponent(tr.id)}/stream?app_name=PianoCommunity`;
-            rawList.push({
-              uid: `au_${tr.id}`,
-              title: tr.title || cleanTitle,
-              artist: tr.user?.name || cleanArtist || 'Artista',
-              album: `Pista Completa (${Math.floor(durSec / 60)}:${String(durSec % 60).padStart(2, '0')})`,
-              durationSec: durSec,
-              isFullTrack: true,
-              isPreviewOnly: false,
-              previewUrl: streamUrl,
-              directFetchUrl: streamUrl,
-              mimeType: 'audio/mpeg',
-              thumbnail: tr.artwork?.['480x480'] || tr.artwork?.['150x150'] || getSongCoverFallback(tr.title || cleanTitle, tr.user?.name || cleanArtist),
-              sourceName: 'Audius Full',
-              authenticityScore: sc
-            });
-          }
+      // 2. Candidatos desde el servidor (/api/v1/audio/candidates: combina Apple Music, Deezer, YouTube Oficial y SoundCloud Estricto)
+      if (scServerRes.status === 'fulfilled' && Array.isArray(scServerRes.value?.candidates)) {
+        for (const c of scServerRes.value.candidates) {
+          if (!c || (c.durationSec && c.durationSec < 52)) continue;
+          if (isUnrequestedRemixOrStrangeTrackClient(searchQuery, `${c.title || ''} ${c.artist || ''} ${c.album || ''}`)) continue;
+          const resolvedPreview = c.previewUrl && c.previewUrl.startsWith('/') ? `${baseUrl}${c.previewUrl}` : c.previewUrl;
+          const resolvedDirect = c.directFetchUrl && c.directFetchUrl.startsWith('/') ? `${baseUrl}${c.directFetchUrl}` : c.directFetchUrl;
+          rawList.push({
+            uid: c.uid || (c.videoId ? `yt_${c.videoId}` : `sc_${c.scTrackId || Math.random().toString(36).slice(2, 8)}`),
+            videoId: c.videoId || '',
+            scTrackId: c.scTrackId || '',
+            title: c.title || cleanTitle,
+            artist: c.artist || cleanArtist || 'Artista',
+            album: c.album || 'Estudio Completo',
+            durationSec: c.durationSec || 180,
+            isFullTrack: true,
+            isPreviewOnly: false,
+            previewUrl: resolvedPreview,
+            directFetchUrl: resolvedDirect,
+            mimeType: c.mimeType || 'audio/mpeg',
+            thumbnail: c.thumbnail || getSongCoverFallback(c.title || cleanTitle, c.artist || cleanArtist),
+            sourceName: c.sourceName || 'Estudio Original',
+            authenticityScore: (c.authenticityScore || 65) + 8
+          });
         }
       }
 
-      // Ordenar priorizando las pistas que ya tienen scTrackId directo cuando empatan en artista+título
-      rawList.sort((a, b) => {
-        const diff = (b.authenticityScore || 0) - (a.authenticityScore || 0);
-        if (Math.abs(diff) > 6) return diff;
-        if (a.scTrackId && !b.scTrackId) return -1;
-        if (!a.scTrackId && b.scTrackId) return 1;
-        return diff;
-      });
+      // 3. Candidatos Oficiales de YouTube Cliente (especialmente útiles para temas que no están en iTunes o canciones regionales/indie)
+      for (const y of ytPool.slice(0, 8)) {
+        if (!y || (y.authenticityScore || 0) < 52) continue;
+        if (isUnrequestedRemixOrStrangeTrackClient(searchQuery, `${y.title} ${y.artist}`)) continue;
+        const durSec = y.durationSec || 180;
+        const durMin = Math.floor(durSec / 60);
+        const durRem = String(durSec % 60).padStart(2, '0');
+        rawList.push({
+          uid: `yt_${y.videoId}`,
+          videoId: y.videoId,
+          scTrackId: '',
+          title: y.title,
+          artist: y.artist,
+          album: `Grabación Completa (${durMin}:${durRem})`,
+          durationSec: durSec,
+          isFullTrack: true,
+          isPreviewOnly: false,
+          previewUrl: `yt_full://${y.videoId}`,
+          directFetchUrl: `yt_full://${y.videoId}`,
+          mimeType: 'audio/mpeg',
+          thumbnail: y.thumbnail || getSongCoverFallback(y.title, y.artist),
+          sourceName: 'Estudio Completo',
+          authenticityScore: y.authenticityScore + 10
+        });
+      }
+
+      // 4. Candidatos de SoundCloud Cliente estrictamente verificados (SIN renombrar jamás otra canción con el título de Apple Music)
+      for (const c of scPool.slice(0, 6)) {
+        if (!c || (c.authenticityScore || 0) < 68) continue;
+        rawList.push(c);
+      }
+
+      rawList.sort((a, b) => (b.authenticityScore || 0) - (a.authenticityScore || 0));
 
       const deduped = [];
       const seenArtistTitle = new Set();
@@ -14227,13 +14389,13 @@ function stopPianoCameraLoop() {
           seenArtistTitle.add(pairKey);
           deduped.push(item);
         } else {
-          // Si ya había una entrada para este mismo artista+título sin scTrackId y esta sí tiene scTrackId, actualizarla
           const existingIdx = deduped.findIndex(x => `${normalizeSearchText(x.title)}__${normalizeSearchText(x.artist)}` === pairKey);
-          if (existingIdx >= 0 && !deduped[existingIdx].scTrackId && item.scTrackId) {
-            deduped[existingIdx].scTrackId = item.scTrackId;
-            deduped[existingIdx]._scRawTrack = item._scRawTrack;
-            deduped[existingIdx].previewUrl = item.previewUrl;
-            deduped[existingIdx].directFetchUrl = item.directFetchUrl;
+          if (existingIdx >= 0) {
+            if (!deduped[existingIdx].videoId && item.videoId) deduped[existingIdx].videoId = item.videoId;
+            if (!deduped[existingIdx].scTrackId && item.scTrackId) {
+              deduped[existingIdx].scTrackId = item.scTrackId;
+              deduped[existingIdx]._scRawTrack = item._scRawTrack;
+            }
           }
         }
         if (deduped.length >= maxResults) break;
@@ -14242,56 +14404,6 @@ function stopPianoCameraLoop() {
       return deduped;
     }
     window.discoverVerifiedAudioCandidates = discoverVerifiedAudioCandidates;
-
-    // Convierte los candidatos verificados de estudio en tarjetas jugables normales para el buscador principal
-    async function discoverStudioFullCatalogCards(query) {
-      if (!query || String(query).trim().length < 2) return [];
-      const cands = await discoverVerifiedAudioCandidates(query, '', 14);
-      const cards = [];
-      for (let i = 0; i < cands.length; i++) {
-        const c = cands[i];
-        if (!c || !c.title) continue;
-        const slug = `${c.title}_${c.artist}`
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .replace(/[^a-z0-9]+/g, '_')
-          .replace(/^_+|_+$/g, '')
-          .slice(0, 48) || `song_${i}`;
-        const id = `auto_dsp_${slug}`;
-        if (cards.some(x => x.id === id)) continue;
-        cards.push({
-          id,
-          scTrackId: c.scTrackId || '',
-          _preferredCandidate: c,
-          title: c.title,
-          artist: c.artist || 'Artista',
-          creator: c.album || 'Estudio Original',
-          creator_name: c.album || 'Estudio Original',
-          bpm: 120,
-          difficulty_name: 'Difícil',
-          stars: 3.8,
-          notes_count: 320,
-          thumbnail: c.thumbnail || getSongCoverFallback(c.title, c.artist),
-          source: 'auto_dsp',
-          source_name: 'Estudio Completo',
-          source_badge: '[Estudio]',
-          source_color: '#f59e0b',
-          is_community: false,
-          _isAutoGeneratedDsp: true,
-          relevanceScore: (c.authenticityScore || 80) + (i === 0 ? 45 : 22),
-          difficulties: [
-            { id: 'easy', name: 'Fácil', stars: 1.8, densityMode: 'easy' },
-            { id: 'medium', name: 'Media', stars: 2.8, densityMode: 'medium' },
-            { id: 'hard', name: 'Difícil', stars: 3.8, densityMode: 'hard' },
-            { id: 'extreme', name: 'Extrema', stars: 5.2, densityMode: 'extreme' },
-            { id: 'impossible', name: 'Imposible', stars: 6.8, densityMode: 'impossible' }
-          ]
-        });
-      }
-      return cards;
-    }
-    window.discoverStudioFullCatalogCards = discoverStudioFullCatalogCards;
 
     window.stopPreviewCandidateAudio = function() {
       window._previewRequestToken = (window._previewRequestToken || 0) + 1;
@@ -14373,31 +14485,23 @@ function stopPianoCameraLoop() {
 
       const candList = (uniqueId && window._magicKeyCandidatesMap && window._magicKeyCandidatesMap[uniqueId]) ? window._magicKeyCandidatesMap[uniqueId] : [];
       const cand = (candIdx >= 0 && candList[candIdx]) ? candList[candIdx] : null;
-      const cacheKey = (cand && (cand.scTrackId || cand.uid)) ? (cand.scTrackId || cand.uid) : String(previewUrl || '');
+      const cacheKey = (cand && (cand.videoId ? `yt_${cand.videoId}` : (cand.scTrackId || cand.uid))) ? (cand.videoId ? `yt_${cand.videoId}` : (cand.scTrackId || cand.uid)) : String(previewUrl || '');
 
       try {
         let fullBlob = cacheKey ? window._fullTrackBlobCache.get(cacheKey) : null;
 
         if (!fullBlob && cand) {
-          if (cand._scRawTrack || cand.scTrackId) {
-            const scDl = await downloadSoundCloudFullTrackClient(cand._scRawTrack || cand.scTrackId);
-            if (scDl && scDl.blob) {
-              fullBlob = scDl.blob;
-            }
-          }
-          if (!fullBlob) {
-            const extracted = await extractSongAudioMultiSource(cand.title, cand.artist, cand.thumbnail, null, cand);
-            if (extracted && extracted.blob) {
-              fullBlob = extracted.blob;
-            }
+          const extracted = await extractSongAudioMultiSource(cand.title, cand.artist, cand.thumbnail, null, cand);
+          if (extracted && extracted.blob && extracted.blob.size >= 350000) {
+            fullBlob = extracted.blob;
           }
         }
 
-        if (!fullBlob && previewUrl && !String(previewUrl).startsWith('sc_full://') && !String(previewUrl).startsWith('studio_full://')) {
+        if (!fullBlob && previewUrl && !String(previewUrl).startsWith('sc_full://') && !String(previewUrl).startsWith('studio_full://') && !String(previewUrl).startsWith('yt_full://')) {
           const resp = await fetch(previewUrl);
           if (resp.ok) {
             const ab = await resp.arrayBuffer();
-            if (ab && ab.byteLength > 32000) {
+            if (ab && ab.byteLength >= 350000) {
               const u8 = new Uint8Array(ab);
               const converted = convertFmp4ToAdtsAacClient(u8);
               fullBlob = new Blob([converted], { type: converted !== u8 ? 'audio/aac' : 'audio/mpeg' });
@@ -14659,14 +14763,31 @@ function stopPianoCameraLoop() {
       const targetTitle = (preferredCandidate && preferredCandidate.title) ? preferredCandidate.title : rawTitle;
       const targetArtist = (preferredCandidate && preferredCandidate.artist) ? preferredCandidate.artist : rawArtist;
       const targetThumb = (preferredCandidate && preferredCandidate.thumbnail) ? preferredCandidate.thumbnail : preferredThumb;
+      const expectedDur = (preferredCandidate && preferredCandidate.durationSec) ? preferredCandidate.durationSec : 0;
 
       const parsed = (typeof parseYouTubeMetadataSmart === 'function')
         ? parseYouTubeMetadataSmart(targetTitle || '', targetArtist || '')
         : { coreTitle: String(targetTitle || '').trim(), coreArtist: String(targetArtist || '').trim() };
-      const cleanTitle = parsed.coreTitle || String(targetTitle || 'Canción').trim();
-      const cleanArtist = (parsed.coreArtist && parsed.coreArtist.toLowerCase() !== 'youtube')
+      let cleanTitle = parsed.coreTitle || String(targetTitle || 'Canción').trim();
+      let cleanArtist = (parsed.coreArtist && parsed.coreArtist.toLowerCase() !== 'youtube')
         ? parsed.coreArtist
         : String(targetArtist || '').replace(/^youtube$/i, '').trim();
+      let resolvedThumb = targetThumb || '';
+
+      // Si el usuario buscó sin especificar artista (ej. "vivir así es morir de amor" o "el cant dels maulets"),
+      // resolver primero con discoverVerifiedAudioCandidates para usar el artista y título oficial #1
+      if (!preferredCandidate && !cleanArtist) {
+        try {
+          const verified = await discoverVerifiedAudioCandidates(cleanTitle, '', 4);
+          if (verified && verified[0]) {
+            preferredCandidate = verified[0];
+            cleanTitle = verified[0].title || cleanTitle;
+            cleanArtist = verified[0].artist || cleanArtist;
+            resolvedThumb = resolvedThumb || verified[0].thumbnail || '';
+          }
+        } catch (_) {}
+      }
+
       const searchQuery = cleanArtist ? `${cleanTitle} ${cleanArtist}`.trim() : cleanTitle;
       const baseUrl = (typeof getApiBaseUrl === 'function') ? getApiBaseUrl() : '';
 
@@ -14676,7 +14797,7 @@ function stopPianoCameraLoop() {
       };
 
       // 0. Comprobar caché en memoria si el usuario ya preescuchó esta misma canción completa
-      const candKey = preferredCandidate ? (preferredCandidate.scTrackId || preferredCandidate.uid) : '';
+      const candKey = preferredCandidate ? (preferredCandidate.videoId ? `yt_${preferredCandidate.videoId}` : (preferredCandidate.scTrackId || preferredCandidate.uid)) : '';
       const normKey = `${normalizeSearchText(cleanTitle)}__${normalizeSearchText(cleanArtist)}`;
       const cachedMemBlob = (candKey && window._fullTrackBlobCache.get(candKey)) || window._fullTrackBlobCache.get(normKey);
       if (cachedMemBlob && cachedMemBlob.size >= 350000) {
@@ -14684,63 +14805,20 @@ function stopPianoCameraLoop() {
           blob: cachedMemBlob,
           title: cleanTitle,
           artist: cleanArtist || 'Artista',
-          thumbnail: targetThumb || getSongCoverFallback(cleanTitle, cleanArtist),
-          sourceName: 'Pista Completa'
+          thumbnail: resolvedThumb || getSongCoverFallback(cleanTitle, cleanArtist),
+          sourceName: 'Estudio Completo'
         };
       }
 
-      // 1. Extracción directa en Cliente desde SoundCloud Full Audio (2-6 min, MP3 o ADTS AAC sin recortes)
+      // 1. Motor Principal en Servidor (/api/v1/audio/extract: YouTube Studio Master MP3 via Notube + SoundCloud Full Estricto)
       try {
-        if (preferredCandidate && (preferredCandidate._scRawTrack || preferredCandidate.scTrackId)) {
-          if (onProgress) onProgress(`Descargando canción completa: ${cleanTitle}...`);
-          const scDirect = await downloadSoundCloudFullTrackClient(preferredCandidate._scRawTrack || preferredCandidate.scTrackId, onProgress);
-          if (scDirect && scDirect.blob && scDirect.blob.size >= 350000) {
-            if (candKey) window._fullTrackBlobCache.set(candKey, scDirect.blob);
-            window._fullTrackBlobCache.set(normKey, scDirect.blob);
-            return {
-              blob: scDirect.blob,
-              title: scDirect.title || cleanTitle,
-              artist: scDirect.artist || cleanArtist || 'Artista',
-              thumbnail: scDirect.thumbnail || targetThumb || getSongCoverFallback(cleanTitle, cleanArtist),
-              sourceName: scDirect.sourceName || 'SoundCloud Full Studio'
-            };
-          }
-        }
-
-        if (onProgress) onProgress(`Buscando grabación original completa (${cleanTitle})...`);
-        let scCandidates = await searchSoundCloudFullClient(cleanTitle, cleanArtist, 20);
-        if (scCandidates.length === 0 && cleanArtist) {
-          scCandidates = await searchSoundCloudFullClient(cleanTitle, '', 22);
-        } else if (!cleanArtist) {
-          try {
-            const verifiedList = await discoverVerifiedAudioCandidates(cleanTitle, '');
-            const withSc = verifiedList.filter(c => c._scRawTrack || c.scTrackId);
-            if (withSc.length > 0) scCandidates = withSc;
-          } catch (_) {}
-        }
-        for (const scCand of scCandidates.slice(0, 4)) {
-          const scDl = await downloadSoundCloudFullTrackClient(scCand._scRawTrack || scCand.scTrackId, onProgress);
-          if (scDl && scDl.blob && scDl.blob.size >= 350000) {
-            window._fullTrackBlobCache.set(scCand.uid, scDl.blob);
-            window._fullTrackBlobCache.set(normKey, scDl.blob);
-            return {
-              blob: scDl.blob,
-              title: scCand.title || cleanTitle,
-              artist: scCand.artist || cleanArtist || 'Artista',
-              thumbnail: targetThumb || scCand.thumbnail || getSongCoverFallback(cleanTitle, cleanArtist),
-              sourceName: scDl.sourceName || 'SoundCloud Full Studio'
-            };
-          }
-        }
-      } catch (_) {}
-
-      // 2. Motor de Pista Completa en Servidor (/api/v1/audio/extract: SoundCloud Full -> YouTube Full -> Audius Full -> Internet Archive)
-      try {
-        if (onProgress) onProgress(`Extrayendo canción completa en servidor (${cleanTitle})...`);
+        if (onProgress) onProgress(`Extrayendo grabación oficial completa (${cleanTitle})...`);
         const ctrl = new AbortController();
-        const tid = setTimeout(() => ctrl.abort(), 16000);
+        const tid = setTimeout(() => ctrl.abort(), 16500);
+        const vidParam = (preferredCandidate && preferredCandidate.videoId) ? `&videoId=${encodeURIComponent(preferredCandidate.videoId)}` : '';
         const scParam = (preferredCandidate && preferredCandidate.scTrackId) ? `&scTrackId=${encodeURIComponent(preferredCandidate.scTrackId)}` : '';
-        const url = `${baseUrl}/api/v1/audio/extract?q=${encodeURIComponent(searchQuery)}&title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}${scParam}`;
+        const durParam = expectedDur > 0 ? `&durationSec=${encodeURIComponent(expectedDur)}` : '';
+        const url = `${baseUrl}/api/v1/audio/extract?q=${encodeURIComponent(searchQuery)}&title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}${vidParam}${scParam}${durParam}`;
         const resp = await fetch(url, { signal: ctrl.signal });
         clearTimeout(tid);
         if (resp.ok) {
@@ -14752,16 +14830,17 @@ function stopPianoCameraLoop() {
               const converted = convertFmp4ToAdtsAacClient(u8);
               const finalMime = converted !== u8 ? 'audio/aac' : (cType.startsWith('audio/') ? cType : 'audio/mpeg');
               const finalBlob = new Blob([converted], { type: finalMime });
+              if (candKey) window._fullTrackBlobCache.set(candKey, finalBlob);
               window._fullTrackBlobCache.set(normKey, finalBlob);
               const resolvedTitle = decodeHeaderSafe(resp.headers.get('X-Song-Title'), cleanTitle);
               const resolvedArtist = decodeHeaderSafe(resp.headers.get('X-Song-Artist'), cleanArtist || 'Artista');
-              const resolvedCover = decodeHeaderSafe(resp.headers.get('X-Song-Cover'), targetThumb);
-              const resolvedSource = decodeHeaderSafe(resp.headers.get('X-Audio-Source'), 'Pista Completa');
+              const resolvedCover = decodeHeaderSafe(resp.headers.get('X-Song-Cover'), resolvedThumb);
+              const resolvedSource = decodeHeaderSafe(resp.headers.get('X-Audio-Source'), 'YouTube Studio Master MP3');
               return {
                 blob: finalBlob,
                 title: resolvedTitle || cleanTitle,
                 artist: resolvedArtist || cleanArtist || 'Artista',
-                thumbnail: resolvedCover || targetThumb || getSongCoverFallback(resolvedTitle, resolvedArtist),
+                thumbnail: resolvedCover || resolvedThumb || getSongCoverFallback(resolvedTitle, resolvedArtist),
                 sourceName: resolvedSource
               };
             }
@@ -14769,7 +14848,70 @@ function stopPianoCameraLoop() {
         }
       } catch (_) {}
 
-      // 3. Respaldo de Pistas Completas en Audius directo desde cliente (>= 52s)
+      // 2. Extracción Directa en Cliente desde YouTube Oficial -> Notube Full MP3 (2-6 min reales, funciona incluso sin servidor local)
+      try {
+        let targetVideoId = (preferredCandidate && preferredCandidate.videoId) ? preferredCandidate.videoId : '';
+        if (!targetVideoId) {
+          if (onProgress) onProgress(`Localizando grabación oficial completa (${cleanTitle})...`);
+          const ytList = await searchYouTubeOfficialClient(cleanTitle, cleanArtist, expectedDur);
+          if (ytList.length > 0 && (ytList[0].authenticityScore || 0) >= 42) {
+            targetVideoId = ytList[0].videoId;
+            if (!resolvedThumb && ytList[0].thumbnail) resolvedThumb = ytList[0].thumbnail;
+          }
+        }
+        if (targetVideoId) {
+          const ytMp3 = await extractYouTubeFullAudioViaNotubeClient(targetVideoId, onProgress);
+          if (ytMp3 && ytMp3.blob && ytMp3.blob.size >= 350000) {
+            if (candKey) window._fullTrackBlobCache.set(candKey, ytMp3.blob);
+            window._fullTrackBlobCache.set(normKey, ytMp3.blob);
+            return {
+              blob: ytMp3.blob,
+              title: cleanTitle,
+              artist: cleanArtist || 'Artista',
+              thumbnail: resolvedThumb || ytMp3.thumbnail || getSongCoverFallback(cleanTitle, cleanArtist),
+              sourceName: ytMp3.sourceName || 'YouTube Studio Master MP3'
+            };
+          }
+        }
+      } catch (_) {}
+
+      // 3. Respaldo en Cliente desde SoundCloud Full Audio estrictamente verificado (solo si coincide título + artista y sin remixes)
+      try {
+        if (preferredCandidate && (preferredCandidate._scRawTrack || preferredCandidate.scTrackId)) {
+          if (onProgress) onProgress(`Descargando canción completa: ${cleanTitle}...`);
+          const scDirect = await downloadSoundCloudFullTrackClient(preferredCandidate._scRawTrack || preferredCandidate.scTrackId, onProgress);
+          if (scDirect && scDirect.blob && scDirect.blob.size >= 350000) {
+            if (candKey) window._fullTrackBlobCache.set(candKey, scDirect.blob);
+            window._fullTrackBlobCache.set(normKey, scDirect.blob);
+            return {
+              blob: scDirect.blob,
+              title: cleanTitle,
+              artist: cleanArtist || scDirect.artist || 'Artista',
+              thumbnail: resolvedThumb || scDirect.thumbnail || getSongCoverFallback(cleanTitle, cleanArtist),
+              sourceName: scDirect.sourceName || 'SoundCloud Full Studio'
+            };
+          }
+        }
+
+        const scCandidates = await searchSoundCloudFullClient(cleanTitle, cleanArtist, 18);
+        for (const scCand of scCandidates.slice(0, 3)) {
+          if ((scCand.authenticityScore || 0) < 68) break;
+          const scDl = await downloadSoundCloudFullTrackClient(scCand._scRawTrack || scCand.scTrackId, onProgress);
+          if (scDl && scDl.blob && scDl.blob.size >= 350000) {
+            window._fullTrackBlobCache.set(scCand.uid, scDl.blob);
+            window._fullTrackBlobCache.set(normKey, scDl.blob);
+            return {
+              blob: scDl.blob,
+              title: scCand.title || cleanTitle,
+              artist: scCand.artist || cleanArtist || 'Artista',
+              thumbnail: resolvedThumb || scCand.thumbnail || getSongCoverFallback(cleanTitle, cleanArtist),
+              sourceName: scDl.sourceName || 'SoundCloud Full Studio'
+            };
+          }
+        }
+      } catch (_) {}
+
+      // 4. Respaldo de Pistas Completas en Audius directo desde cliente (>= 52s)
       try {
         if (onProgress) onProgress('Buscando pista completa en red Audius...');
         const ctrl = new AbortController();
@@ -14782,7 +14924,7 @@ function stopPianoCameraLoop() {
           for (const tr of tracks.slice(0, 4)) {
             if (!tr || !tr.id || !tr.duration || Number(tr.duration) < 52) continue;
             const sc = scoreStudioAudioAuthenticity(searchQuery, cleanTitle, cleanArtist, tr.title || '', tr.user?.name || '', '', 'Audius');
-            if (sc >= 55) {
+            if (sc >= 65) {
               const streamUrl = `https://discoveryprovider.audius.co/v1/tracks/${encodeURIComponent(tr.id)}/stream?app_name=PianoCommunity`;
               const dlResp = await fetch(streamUrl);
               if (dlResp.ok) {
@@ -14794,7 +14936,7 @@ function stopPianoCameraLoop() {
                     blob: finalBlob,
                     title: tr.title || cleanTitle,
                     artist: tr.user?.name || cleanArtist || 'Artista',
-                    thumbnail: tr.artwork?.['480x480'] || targetThumb || getSongCoverFallback(cleanTitle, cleanArtist),
+                    thumbnail: tr.artwork?.['480x480'] || resolvedThumb || getSongCoverFallback(cleanTitle, cleanArtist),
                     sourceName: 'Audius Full Audio'
                   };
                 }
