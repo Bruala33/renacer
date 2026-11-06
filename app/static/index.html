@@ -9990,6 +9990,51 @@ window.switchMainTab = switchMainTab;
       }
     }
     window.executeSearch = executeSearch;
+    function escapeJsAttr(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/\r/g, ' ')
+        .replace(/\n/g, ' ')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+    window.escapeJsAttr = escapeJsAttr;
+
+    function repairSpanishBrokenAccents(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/\bcorazn\b/g, 'corazón')
+        .replace(/\bCorazn\b/g, 'Corazón')
+        .replace(/\bvivirs\b/g, 'vivirás')
+        .replace(/\bVivirs\b/g, 'Vivirás')
+        .replace(/\bTarzn\b/g, 'Tarzán')
+        .replace(/\btarzn\b/g, 'tarzán')
+        .replace(/\bFernndez\b/g, 'Fernández')
+        .replace(/\bfernndez\b/g, 'fernández')
+        .replace(/\bAerolneas\b/g, 'Aerolíneas')
+        .replace(/\baerolneas\b/g, 'aerolíneas')
+        .replace(/\bHernndez\b/g, 'Hernández')
+        .replace(/\bGmez\b/g, 'Gómez')
+        .replace(/\bLpez\b/g, 'López')
+        .replace(/\bMartnez\b/g, 'Martínez')
+        .replace(/\bRodrguez\b/g, 'Rodríguez')
+        .replace(/\bGonzlez\b/g, 'González')
+        .replace(/\bPrez\b/g, 'Pérez')
+        .replace(/\bSnchez\b/g, 'Sánchez')
+        .replace(/\bRamrez\b/g, 'Ramírez')
+        .replace(/\bmsica\b/gi, 'música')
+        .replace(/\bcancin\b/gi, 'canción')
+        .replace(/\bpasin\b/gi, 'pasión')
+        .replace(/\bilusin\b/gi, 'ilusión')
+        .replace(/\brazn\b/gi, 'razón')
+        .replace(/\bperdname\b/gi, 'perdóname');
+    }
+    window.repairSpanishBrokenAccents = repairSpanishBrokenAccents;
+
     function getSongCoverFallback(title = '', artist = '') {
       try {
         const t = String(title || '').replace(/[\uD800-\uDFFF]/g, '');
@@ -9999,21 +10044,22 @@ window.switchMainTab = switchMainTab;
           return m ? m[0].toUpperCase() : fb;
         };
         const initials = firstAlpha(a, 'P') + firstAlpha(t, 'C');
-        const colors = [
-          ['#4a154b', '#1a0b2e'],
-          ['#1e3a8a', '#0f172a'],
-          ['#831843', '#3b0764'],
-          ['#7c2d12', '#451a03'],
-          ['#065f46', '#022c22'],
-          ['#92400e', '#451a03'],
-          ['#1e293b', '#090d16']
+        const palettes = [
+          ['#2c1238', '#0e0614', '#d4af37'],
+          ['#12274a', '#070f1f', '#e5c158'],
+          ['#421128', '#15050d', '#f0c674'],
+          ['#3b1c0c', '#120804', '#d4af37'],
+          ['#0b3629', '#04140f', '#e2b955'],
+          ['#382610', '#110b04', '#f3d078'],
+          ['#1c2333', '#090c12', '#d4af37']
         ];
         let charCode = 0;
-        for (let i = 0; i < t.length; i++) charCode += t.charCodeAt(i);
-        for (let i = 0; i < a.length; i++) charCode += a.charCodeAt(i);
-        const [c1, c2] = colors[Math.abs(charCode) % colors.length];
+        for (let i = 0; i < t.length; i++) charCode += t.charCodeAt(i) * (i + 1);
+        for (let i = 0; i < a.length; i++) charCode += a.charCodeAt(i) * (i + 3);
+        const [c1, c2, gold] = palettes[Math.abs(charCode) % palettes.length];
         const gid = 'g_' + (Math.abs(charCode) % 997);
-        const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='${gid}' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='${c1}'/><stop offset='100%' stop-color='${c2}'/></linearGradient></defs><rect width='100' height='100' fill='url(#${gid})'/><rect x='4' y='4' width='92' height='92' fill='none' stroke='#c5a059' stroke-width='2'/><circle cx='50' cy='50' r='26' fill='#111111' stroke='#d4af37' stroke-width='1.2'/><text x='50' y='55' font-size='15' font-weight='900' font-family='serif' fill='#ffd700' text-anchor='middle' dominant-baseline='middle'>${initials}</text></svg>`;
+        const rgid = 'rg_' + (Math.abs(charCode) % 997);
+        const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='${gid}' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='${c1}'/><stop offset='100%' stop-color='${c2}'/></linearGradient><radialGradient id='${rgid}' cx='50%' cy='50%' r='60%'><stop offset='0%' stop-color='${gold}' stop-opacity='0.22'/><stop offset='100%' stop-color='#000000' stop-opacity='0.45'/></radialGradient></defs><rect width='100' height='100' fill='url(#${gid})'/><rect width='100' height='100' fill='url(#${rgid})'/><g stroke='${gold}' stroke-opacity='0.14' stroke-width='0.8'><line x1='0' y1='100' x2='100' y2='0'/><line x1='-15' y1='85' x2='85' y2='-15'/><line x1='15' y1='115' x2='115' y2='15'/><circle cx='50' cy='50' r='38' fill='none' stroke-opacity='0.20' stroke-width='1'/><circle cx='50' cy='50' r='29' fill='none' stroke-opacity='0.15' stroke-width='0.7'/></g><rect x='4' y='4' width='92' height='92' fill='none' stroke='${gold}' stroke-opacity='0.65' stroke-width='1.5'/><rect x='7.5' y='7.5' width='85' height='85' fill='none' stroke='${gold}' stroke-opacity='0.25' stroke-width='0.7'/><text x='13' y='21' font-size='9.5' font-weight='800' font-family='Georgia, serif' fill='${gold}' fill-opacity='0.75' letter-spacing='0.5'>${initials}</text><rect x='22' y='80' width='56' height='6' rx='1.5' fill='#0a0705' fill-opacity='0.55' stroke='${gold}' stroke-opacity='0.35' stroke-width='0.6'/><g fill='#f8f1e5' fill-opacity='0.42'><rect x='24' y='81' width='6' height='4'/><rect x='31' y='81' width='6' height='4'/><rect x='38' y='81' width='6' height='4'/><rect x='45' y='81' width='6' height='4'/><rect x='52' y='81' width='6' height='4'/><rect x='59' y='81' width='6' height='4'/><rect x='66' y='81' width='6' height='4'/></g></svg>`;
         return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
       } catch (_) {
         return './app_logo.png';
@@ -10025,14 +10071,21 @@ window.switchMainTab = switchMainTab;
       if (typeof LaneRemapper !== 'undefined' && typeof LaneRemapper.normalizeSongDifficulties === 'function') {
         LaneRemapper.normalizeSongDifficulties(item);
       }
+      const displayTitle = repairSpanishBrokenAccents(item.title || t('unknown_song', 'Canción'));
+      const displayArtist = repairSpanishBrokenAccents(item.artist || t('unknown_artist', 'Artista'));
+      item.title = displayTitle;
+      item.artist = displayArtist;
+
       const hs = highscores[item.id];
       const isFav = favoriteIdsSet.has(item.id);
       const sId = safeSongId(item.id);
       const isMagic = Boolean(item._isMagicKey || item.source === 'magic_youtube');
       const isComm = !isMagic && Boolean((item.is_community || item.source === 'community') && item.source !== 'osu' && item.source !== 'beatsaver' && item.source !== 'clonehero' && item.source !== 'catboy' && !String(item.id).startsWith('osu_') && !String(item.id).startsWith('bs_') && !item.sng_url && !item.download_url);
       const cStars = typeof item.stars === 'number' ? item.stars : (parseFloat(item.stars) || 3.5);
-      const fallbackCover = getSongCoverFallback(item.title, item.artist);
-      const initialCover = (item.thumbnail && typeof item.thumbnail === 'string' && item.thumbnail.trim() && item.thumbnail !== './app_logo.png') ? item.thumbnail : fallbackCover;
+      const fallbackCover = getSongCoverFallback(displayTitle, displayArtist);
+      const cachedArtwork = (window._resolvedSongArtworkMap && window._resolvedSongArtworkMap.get(`${normalizeSearchText(displayTitle)}__${normalizeSearchText(displayArtist)}`)) || '';
+      const hasRealCover = Boolean((item.thumbnail && typeof item.thumbnail === 'string' && item.thumbnail.trim() && item.thumbnail !== './app_logo.png' && !item.thumbnail.startsWith('data:image/svg+xml')) || cachedArtwork);
+      const initialCover = hasRealCover ? (cachedArtwork || item.thumbnail) : fallbackCover;
 
       const resolvedTargetTier = normalizeTargetDifficultyTier(targetTierOrNum !== null ? targetTierOrNum : currentTargetDifficulty);
 
@@ -10055,13 +10108,13 @@ window.switchMainTab = switchMainTab;
       const primaryStarsText = primaryDiff.stars ? `${primaryDiff.stars.toFixed(1)}★` : '';
       const isPrimaryImpossible = primaryDiff.densityMode === 'impossible';
 
-      const safeTitleAttr = escapeHtml(item.title || '').replace(/'/g, "\\'");
-      const safeArtistAttr = escapeHtml(item.artist || '').replace(/'/g, "\\'");
-      const safeThumbAttr = escapeHtml(initialCover || '').replace(/'/g, "\\'");
-      const safeIdAttr = escapeHtml(item.id || '').replace(/'/g, "\\'");
-      const safePreviewAttr = escapeHtml(item.preview_url || '').replace(/'/g, "\\'");
-      const safeBsHashAttr = escapeHtml(item.bs_hash || '').replace(/'/g, "\\'");
-      const safeVideoIdAttr = escapeHtml(item.videoId || (item._preferredCandidate && item._preferredCandidate.videoId) || '').replace(/'/g, "\\'");
+      const safeTitleAttr = escapeJsAttr(displayTitle);
+      const safeArtistAttr = escapeJsAttr(displayArtist);
+      const safeThumbAttr = escapeJsAttr(initialCover || '');
+      const safeIdAttr = escapeJsAttr(item.id || '');
+      const safePreviewAttr = escapeJsAttr(item.preview_url || '');
+      const safeBsHashAttr = escapeJsAttr(item.bs_hash || '');
+      const safeVideoIdAttr = escapeJsAttr(item.videoId || (item._preferredCandidate && item._preferredCandidate.videoId) || '');
 
       const diffChipsHtml = (item.difficulties || []).map(diff => {
         const cleanName = (diff.name || 'Media').replace(/\[\d+K\]\s*/gi, '').replace(/^\[[^\]]+\]\s*/, '').trim() || 'Media';
@@ -10070,56 +10123,62 @@ window.switchMainTab = switchMainTab;
         const isPrimary = diff.id === primaryDiff.id;
         const tierCss = diff.densityMode ? ` tier-${diff.densityMode}` : '';
         const chipClass = `piano-diff-chip${tierCss}${isPrimary ? ' active' : ''}`;
+        const safeCleanNameAttr = escapeJsAttr(cleanName);
+        const safeDiffIdAttr = escapeJsAttr(diff.id || 'medium');
 
         const chipAction = isMagic
-          ? `autoExtractAndPlaySong('${safeTitleAttr}', '${safeArtistAttr}', '${safeThumbAttr}', '${diff.densityMode || 'hard'}', '${safeIdAttr}')`
+          ? `event.stopPropagation(); autoExtractAndPlaySong('${safeTitleAttr}', '${safeArtistAttr}', '${safeThumbAttr}', '${diff.densityMode || 'hard'}', '${safeIdAttr}')`
           : (isComm
-              ? `playCommunitySong('${safeIdAttr}', false, '${cleanName.replace(/'/g, "\\'")}')`
-              : `downloadAndPlaySong('${safeIdAttr}', '${diff.id}', '${cleanName.replace(/'/g, "\\'")}', ${idx})`);
+              ? `event.stopPropagation(); playCommunitySong('${safeIdAttr}', false, '${safeCleanNameAttr}')`
+              : `event.stopPropagation(); downloadAndPlaySong('${safeIdAttr}', '${safeDiffIdAttr}', '${safeCleanNameAttr}', ${idx})`);
 
         return `
           <button 
             onclick="${chipAction}" 
             class="${chipClass}" 
-            title="Jugar dificultad ${cleanName}"
+            title="Jugar dificultad ${escapeHtml(cleanName)}"
           >
-            <span>${displayChipName}</span>
+            <span>${escapeHtml(displayChipName)}</span>
             ${starsText ? `<span class="font-mono text-[9.5px] opacity-90">${starsText}</span>` : ''}
           </button>
         `;
       }).join('');
 
+      const safePrimaryDiffNameAttr = escapeJsAttr(primaryDiff.name || 'Media');
+      const safePrimaryDiffIdAttr = escapeJsAttr(primaryDiff.id || 'medium');
       const mainPlayAction = isMagic
         ? `event.stopPropagation(); autoExtractAndPlaySong('${safeTitleAttr}', '${safeArtistAttr}', '${safeThumbAttr}', '${primaryDiff.densityMode || 'hard'}', '${safeIdAttr}')`
         : (isComm
-            ? `playCommunitySong('${safeIdAttr}', false, '${primaryDiff.name.replace(/'/g, "\\'")}')`
-            : `downloadAndPlaySong('${safeIdAttr}', '${primaryDiff.id}', '${primaryDiff.name.replace(/'/g, "\\'")}', ${idx})`);
+            ? `event.stopPropagation(); playCommunitySong('${safeIdAttr}', false, '${safePrimaryDiffNameAttr}')`
+            : `event.stopPropagation(); downloadAndPlaySong('${safeIdAttr}', '${safePrimaryDiffIdAttr}', '${safePrimaryDiffNameAttr}', ${idx})`);
 
       return `
         <div class="piano-key-row flex flex-col">
           <div class="flex items-stretch w-full max-w-full overflow-hidden">
             <!-- Key Body (Ivory for Catalog/OSU!, Iridescent Magic Key for Auto-DSP) -->
             <div onclick="togglePianoAccordion('${sId}')" class="piano-white-key ${isMagic ? 'piano-magic-key' : ''} flex-1 min-w-0 overflow-hidden" title="Ver dificultades y tempo">
-              <div class="piano-key-bg-wash" style="background-image: url('${safeThumbAttr}');"></div>
+              <div id="bgWash_${sId}" class="piano-key-bg-wash ${hasRealCover ? '' : 'no-bg-wash'}" style="${hasRealCover ? `background-image: url('${safeThumbAttr}');` : ''}"></div>
               <div class="relative z-10 flex items-stretch gap-3 min-w-0 flex-1 overflow-hidden">
                 <!-- Full-Height Square Thumbnail Occupying Left Side of Key (Click to Play/Stop Instant Chorus Preview) -->
                 <div
                   id="thumbWrap_${sId}"
                   onclick="event.stopPropagation(); toggleThumbnailSongPreview('${safeIdAttr}', '${sId}', '${safeTitleAttr}', '${safeArtistAttr}', '${safePreviewAttr}', '${safeBsHashAttr}', '${safeVideoIdAttr}')"
-                  class="piano-key-thumb ${isMagic ? 'magic-key-medallion' : ''} relative w-[58px] h-[58px] min-w-[58px] rounded-none overflow-hidden flex-shrink-0 flex items-center justify-center bg-stone-900 cursor-pointer group"
+                  class="piano-key-thumb ${isMagic ? 'magic-key-medallion' : ''} relative w-[60px] h-[60px] min-w-[60px] rounded-none overflow-hidden flex-shrink-0 flex items-center justify-center bg-stone-900 cursor-pointer group"
                   title="Toca la portada para escuchar el estribillo al instante"
                 >
-                  <img src="${initialCover}" alt="" class="w-full h-full object-cover rounded-none transition-transform duration-150 group-active:scale-95" loading="lazy" onerror="this.onerror=null; this.src='${fallbackCover}';">
-                  <div id="thumbPrevOverlay_${sId}" class="thumb-preview-overlay absolute inset-0 rounded-none bg-black/30 flex items-center justify-center transition-opacity duration-150 opacity-85 group-hover:opacity-100">
-                    <span id="thumbPrevIcon_${sId}" class="text-[11px] font-black text-[#fef08a] drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)]">▶</span>
+                  <img id="thumbImg_${sId}" src="${escapeHtml(initialCover)}" alt="" class="w-full h-full object-cover rounded-none transition-transform duration-150 group-active:scale-95" loading="lazy" onerror="this.onerror=null; this.src='${fallbackCover}';">
+                  <div id="thumbPrevOverlay_${sId}" class="thumb-preview-overlay absolute inset-0 rounded-none bg-black/20 flex items-center justify-center transition-opacity duration-150 opacity-90 group-hover:opacity-100">
+                    <span class="thumb-preview-badge">
+                      <span id="thumbPrevIcon_${sId}" class="text-[11px] font-black text-[#fef08a] drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]">▶</span>
+                    </span>
                   </div>
                 </div>
                 <!-- Track Metadata -->
                 <div class="min-w-0 flex-1 flex flex-col justify-center overflow-hidden py-1.5">
                   <div class="flex items-center gap-1.5 truncate">
-                    <h3 class="text-xs font-black ${isMagic ? 'magic-key-title' : 'text-[#17131d]'} truncate font-serif leading-tight">${escapeHtml(item.title || t('unknown_song', 'Canción'))}</h3>
+                    <h3 class="text-xs font-black ${isMagic ? 'magic-key-title' : 'text-[#17131d]'} truncate font-serif leading-tight">${escapeHtml(displayTitle)}</h3>
                   </div>
-                  <p class="text-[10px] ${isMagic ? 'text-[#581c87]' : 'text-[#5a422d]'} font-semibold truncate leading-tight mt-0.5">${escapeHtml(item.artist || t('unknown_artist', 'Artista'))}${item.album && isMagic ? ` • ${escapeHtml(item.album)}` : ''}${isComm ? ` • <span class="text-[#2b1f13]">${escapeHtml(item.creator_name || 'Comunidad')}</span>` : ''}</p>
+                  <p class="text-[10px] ${isMagic ? 'text-[#581c87]' : 'text-[#5a422d]'} font-semibold truncate leading-tight mt-0.5">${escapeHtml(displayArtist)}${item.album && isMagic ? ` • ${escapeHtml(item.album)}` : ''}${isComm ? ` • <span class="text-[#2b1f13]">${escapeHtml(item.creator_name || 'Comunidad')}</span>` : ''}</p>
                 </div>
               </div>
               <!-- Single Star Metric & Accordion Arrow -->
@@ -10133,7 +10192,7 @@ window.switchMainTab = switchMainTab;
             <div 
               onclick="${mainPlayAction}" 
               class="piano-black-play-key ${isMagic ? 'piano-magic-play-key' : ''} flex-shrink-0 w-12 min-w-[48px]" 
-              title="Jugar ${primaryDiff.name} (${primaryStarsText})"
+              title="Jugar ${escapeHtml(primaryDiff.name)} (${primaryStarsText})"
             >
               <span class="play-arrow-gold">▶</span>
             </div>
@@ -13317,10 +13376,11 @@ function stopPianoCameraLoop() {
             : { id: 'medium', name: item.metadata?.difficulty_name || item.difficulty_name || 'Media', stars: Number.isFinite(item.metadata?.stars) ? item.metadata.stars : (Number.isFinite(item.stars) ? item.stars : 3.2) };
           const diffName = primaryDiff.name || 'Media';
           const starsVal = Number.isFinite(primaryDiff.stars) ? primaryDiff.stars : 3.2;
-          const safeTitle = (item.title || t('unknown_song', 'Canción')).replace(/'/g, "\\'");
-          const safeArtist = (item.artist || t('unknown_artist', 'Artista')).replace(/'/g, "\\'");
+          const safeTitle = escapeJsAttr(item.title || t('unknown_song', 'Canción'));
+          const safeArtist = escapeJsAttr(item.artist || t('unknown_artist', 'Artista'));
           const fallbackCover = getSongCoverFallback(item.title, item.artist);
-          const initialCover = (item.thumbnail && typeof item.thumbnail === 'string' && item.thumbnail.trim() && item.thumbnail !== './app_logo.png') ? item.thumbnail : fallbackCover;
+          const hasRealCover = Boolean(item.thumbnail && typeof item.thumbnail === 'string' && item.thumbnail.trim() && item.thumbnail !== './app_logo.png' && !item.thumbnail.startsWith('data:image/svg+xml'));
+          const initialCover = hasRealCover ? item.thumbnail : fallbackCover;
 
           const diffChipsHtml = hasDiffs ? item.difficulties.map(diff => {
             const cleanName = (diff.name || 'Media').replace(/\[\d+K\]\s*/gi, '').replace(/^\[[^\]]+\]\s*/, '').trim() || 'Media';
@@ -13329,35 +13389,37 @@ function stopPianoCameraLoop() {
             const isPrimary = diff.id === primaryDiff.id;
             const tierCss = diff.densityMode ? ` tier-${diff.densityMode}` : '';
             return `
-              <button onclick="playSavedLibraryChart('${item.id}', '${diff.id}', '${cleanName.replace(/'/g, "\\'")}')" class="piano-diff-chip${tierCss} ${isPrimary ? 'active' : ''}" title="Jugar dificultad ${cleanName}">
-                <span>${displayChipName}</span>
+              <button onclick="event.stopPropagation(); playSavedLibraryChart('${escapeJsAttr(item.id)}', '${escapeJsAttr(diff.id)}', '${escapeJsAttr(cleanName)}')" class="piano-diff-chip${tierCss} ${isPrimary ? 'active' : ''}" title="Jugar dificultad ${escapeHtml(cleanName)}">
+                <span>${escapeHtml(displayChipName)}</span>
                 ${starsText ? `<span class="font-mono text-[9.5px] opacity-90">${starsText}</span>` : ''}
               </button>
             `;
           }).join('') : '';
 
-          const safeIdAttr = escapeHtml(item.id || '').replace(/'/g, "\\'");
-          const safePreviewAttr = escapeHtml(item.preview_url || '').replace(/'/g, "\\'");
-          const safeBsHashAttr = escapeHtml(item.bs_hash || '').replace(/'/g, "\\'");
-          const safeVideoIdAttr = escapeHtml(item.videoId || '').replace(/'/g, "\\'");
+          const safeIdAttr = escapeJsAttr(item.id || '');
+          const safePreviewAttr = escapeJsAttr(item.preview_url || '');
+          const safeBsHashAttr = escapeJsAttr(item.bs_hash || '');
+          const safeVideoIdAttr = escapeJsAttr(item.videoId || '');
 
           return `
             <div class="piano-key-row flex flex-col">
               <div class="flex items-stretch w-full max-w-full overflow-hidden">
                 <!-- White Ivory Key Body (Opens Accordion) -->
                 <div onclick="togglePianoAccordion('${sId}')" class="piano-white-key flex-1 min-w-0 overflow-hidden" title="Ver opciones y tempo">
-                  <div class="piano-key-bg-wash" style="background-image: url('${escapeHtml(initialCover).replace(/'/g, "\\'")}');"></div>
+                  <div id="bgWash_${sId}" class="piano-key-bg-wash ${hasRealCover ? '' : 'no-bg-wash'}" style="${hasRealCover ? `background-image: url('${escapeJsAttr(initialCover)}');` : ''}"></div>
                   <div class="relative z-10 flex items-stretch gap-3 min-w-0 flex-1 overflow-hidden">
                     <!-- Full-Height Square Thumbnail (Click to Play/Stop Instant Chorus Preview) -->
                     <div
                       id="thumbWrap_${sId}"
                       onclick="event.stopPropagation(); toggleThumbnailSongPreview('${safeIdAttr}', '${sId}', '${safeTitle}', '${safeArtist}', '${safePreviewAttr}', '${safeBsHashAttr}', '${safeVideoIdAttr}')"
-                      class="piano-key-thumb relative w-[58px] h-[58px] min-w-[58px] rounded-none overflow-hidden flex-shrink-0 flex items-center justify-center bg-stone-900 cursor-pointer group"
+                      class="piano-key-thumb relative w-[60px] h-[60px] min-w-[60px] rounded-none overflow-hidden flex-shrink-0 flex items-center justify-center bg-stone-900 cursor-pointer group"
                       title="Toca la portada para escuchar el estribillo al instante"
                     >
-                      <img src="${initialCover}" alt="" class="w-full h-full object-cover rounded-none transition-transform duration-150 group-active:scale-95" loading="lazy" onerror="this.onerror=null; this.src='${fallbackCover}';">
-                      <div id="thumbPrevOverlay_${sId}" class="thumb-preview-overlay absolute inset-0 rounded-none bg-black/30 flex items-center justify-center transition-opacity duration-150 opacity-85 group-hover:opacity-100">
-                        <span id="thumbPrevIcon_${sId}" class="text-[11px] font-black text-[#fef08a] drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)]">▶</span>
+                      <img id="thumbImg_${sId}" src="${escapeHtml(initialCover)}" alt="" class="w-full h-full object-cover rounded-none transition-transform duration-150 group-active:scale-95" loading="lazy" onerror="this.onerror=null; this.src='${fallbackCover}';">
+                      <div id="thumbPrevOverlay_${sId}" class="thumb-preview-overlay absolute inset-0 rounded-none bg-black/20 flex items-center justify-center transition-opacity duration-150 opacity-90 group-hover:opacity-100">
+                        <span class="thumb-preview-badge">
+                          <span id="thumbPrevIcon_${sId}" class="text-[11px] font-black text-[#fef08a] drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]">▶</span>
+                        </span>
                       </div>
                     </div>
                     <!-- Track Metadata -->
@@ -13366,7 +13428,7 @@ function stopPianoCameraLoop() {
                         <h3 class="text-xs font-black text-[#17131d] truncate font-serif leading-tight">${escapeHtml(item.title || t('unknown_song', 'Canción'))}</h3>
                         ${hs ? `<span class="text-[8px] font-mono font-bold text-amber-800 flex-shrink-0 flex items-center gap-0.5"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="text-amber-700 inline"><path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2"/><path d="M6 9a6 6 0 0 0 12 0"/><path d="M12 15v5"/><path d="M8 20h8"/></svg> ${hs.score.toLocaleString()}</span>` : ''}
                       </div>
-                      <p class="text-[10px] text-[#5a422d] font-semibold truncate leading-tight mt-0.5">${escapeHtml(item.artist || t('unknown_artist', 'Artista'))} • <span class="text-[#2b1f13]">${diffName}</span></p>
+                      <p class="text-[10px] text-[#5a422d] font-semibold truncate leading-tight mt-0.5">${escapeHtml(item.artist || t('unknown_artist', 'Artista'))} • <span class="text-[#2b1f13]">${escapeHtml(diffName)}</span></p>
                     </div>
                   </div>
                   <!-- Single Star Metric -->
@@ -13378,7 +13440,7 @@ function stopPianoCameraLoop() {
 
                 <!-- Fixed 3D Ebony Black Play Key (INDESTRUCTIBLE & ALWAYS VISIBLE) -->
                 <div 
-                  onclick="playSavedLibraryChart('${item.id}', '${primaryDiff.id}', '${diffName.replace(/'/g, "\\'")}')" 
+                  onclick="event.stopPropagation(); playSavedLibraryChart('${safeIdAttr}', '${escapeJsAttr(primaryDiff.id)}', '${escapeJsAttr(diffName)}')" 
                   class="piano-black-play-key flex-shrink-0 w-12 min-w-[48px]" 
                   title="${t('play')}"
                 >
@@ -14916,29 +14978,74 @@ function stopPianoCameraLoop() {
       }
     };
 
-    // Resuelve al instante un stream CDN directo al estribillo (chorus) para que la preescucha en miniatura arranque en < 80ms
-    async function resolveInstantChorusPreviewUrl(songId = '', title = '', artist = '', directPreviewUrl = '', bsHash = '') {
+    window._chorusPreviewInflight = window._chorusPreviewInflight || new Map();
+    window._resolvedSongArtworkMap = window._resolvedSongArtworkMap || new Map();
+
+    function applyResolvedSongArtworkToDom(sId, normTitleArtist, artworkUrl) {
+      if (!artworkUrl || typeof artworkUrl !== 'string') return;
+      if (normTitleArtist) {
+        window._resolvedSongArtworkMap.set(normTitleArtist, artworkUrl);
+      }
+      if (!sId) return;
+      const imgEl = document.getElementById(`thumbImg_${sId}`);
+      if (imgEl && (imgEl.src.startsWith('data:image/svg+xml') || imgEl.src.endsWith('/app_logo.png'))) {
+        imgEl.src = artworkUrl;
+      }
+      const washEl = document.getElementById(`bgWash_${sId}`);
+      if (washEl) {
+        washEl.style.backgroundImage = `url('${artworkUrl.replace(/'/g, "\\'")}')`;
+        washEl.classList.remove('no-bg-wash');
+      }
+    }
+
+    // Resuelve al instante un stream CDN directo al estribillo (chorus) para que la preescucha en miniatura arranque en < 50ms
+    async function resolveInstantChorusPreviewUrl(songId = '', title = '', artist = '', directPreviewUrl = '', bsHash = '', sIdForDom = '') {
       const strId = String(songId || '');
+      const fixedTitle = repairSpanishBrokenAccents(title || '');
+      const fixedArtist = repairSpanishBrokenAccents(artist || '');
       const parsed = (typeof parseYouTubeMetadataSmart === 'function')
-        ? parseYouTubeMetadataSmart(title || '', artist || '')
-        : { coreTitle: String(title || '').trim(), coreArtist: String(artist || '').trim() };
-      const cleanTitle = parsed.coreTitle || String(title || '').trim();
-      const cleanArtist = (parsed.coreArtist && parsed.coreArtist.toLowerCase() !== 'youtube')
-        ? parsed.coreArtist
-        : String(artist || '').replace(/^youtube$/i, '').trim();
+        ? parseYouTubeMetadataSmart(fixedTitle, fixedArtist)
+        : { coreTitle: String(fixedTitle).trim(), coreArtist: String(fixedArtist).trim() };
+      const cleanTitle = repairSpanishBrokenAccents(parsed.coreTitle || String(fixedTitle).trim());
+      const cleanArtist = repairSpanishBrokenAccents(
+        (parsed.coreArtist && parsed.coreArtist.toLowerCase() !== 'youtube')
+          ? parsed.coreArtist
+          : String(fixedArtist).replace(/^youtube$/i, '').trim()
+      );
       const normTitleArtist = `${normalizeSearchText(cleanTitle)}__${normalizeSearchText(cleanArtist)}`;
       const cacheKey = `${strId}__${normTitleArtist}`;
 
       if (window._chorusPreviewUrlCache.has(cacheKey)) {
-        return window._chorusPreviewUrlCache.get(cacheKey);
+        const cached = window._chorusPreviewUrlCache.get(cacheKey);
+        if (cached && cached.artworkUrl && sIdForDom) {
+          applyResolvedSongArtworkToDom(sIdForDom, normTitleArtist, cached.artworkUrl);
+        }
+        return cached;
       }
-      if (window._chorusPreviewUrlCache.has(normTitleArtist)) {
-        return window._chorusPreviewUrlCache.get(normTitleArtist);
+      if (cleanTitle && window._chorusPreviewUrlCache.has(normTitleArtist)) {
+        const cached = window._chorusPreviewUrlCache.get(normTitleArtist);
+        if (cached && cached.artworkUrl && sIdForDom) {
+          applyResolvedSongArtworkToDom(sIdForDom, normTitleArtist, cached.artworkUrl);
+        }
+        return cached;
+      }
+
+      if (window._chorusPreviewInflight.has(cacheKey)) {
+        const res = await window._chorusPreviewInflight.get(cacheKey);
+        if (res && res.artworkUrl && sIdForDom) {
+          applyResolvedSongArtworkToDom(sIdForDom, normTitleArtist, res.artworkUrl);
+        }
+        return res;
       }
 
       const saveCache = (resObj) => {
-        window._chorusPreviewUrlCache.set(cacheKey, resObj);
-        if (cleanTitle) window._chorusPreviewUrlCache.set(normTitleArtist, resObj);
+        if (resObj && resObj.url) {
+          window._chorusPreviewUrlCache.set(cacheKey, resObj);
+          if (cleanTitle) window._chorusPreviewUrlCache.set(normTitleArtist, resObj);
+          if (resObj.artworkUrl) {
+            applyResolvedSongArtworkToDom(sIdForDom || safeSongId(strId), normTitleArtist, resObj.artworkUrl);
+          }
+        }
         return resObj;
       };
 
@@ -14960,18 +15067,24 @@ function stopPianoCameraLoop() {
         return saveCache({ url: `https://eu.cdn.beatsaver.com/${bsHash.toLowerCase()}.mp3`, seekToChorus: false, source: 'bs_cdn' });
       }
 
-      // 4. Consultar iTunes Search API (Akamai Global CDN m4a pre-cortado en el estribillo de la canción original, latencia ~90ms)
-      if (cleanTitle) {
-        try {
-          const searchQ = cleanArtist ? `${cleanTitle} ${cleanArtist}`.trim() : cleanTitle;
+      if (!cleanTitle) return null;
+
+      const inflightPromise = (async () => {
+        const searchQ = cleanArtist ? `${cleanTitle} ${cleanArtist}`.trim() : cleanTitle;
+        const baseUrl = (typeof getApiBaseUrl === 'function') ? getApiBaseUrl() : '';
+
+        // Lanzar en paralelo: iTunes directo desde cliente + endpoint instant_preview del servidor (Deezer + iTunes con fallback)
+        const clientItunesTask = (async () => {
           const ctrl = new AbortController();
-          const tid = setTimeout(() => ctrl.abort(), 900);
-          const itResp = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(searchQ)}&media=music&entity=song&limit=6&country=ES`, { signal: ctrl.signal });
-          clearTimeout(tid);
-          if (itResp.ok) {
+          const tid = setTimeout(() => ctrl.abort(), 1400);
+          try {
+            const itResp = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(searchQ)}&media=music&entity=song&limit=6&country=ES`, { signal: ctrl.signal });
+            clearTimeout(tid);
+            if (!itResp.ok) throw new Error('itunes_status');
             const itData = await itResp.json();
             const results = Array.isArray(itData?.results) ? itData.results : [];
             let bestUrl = '';
+            let bestArt = '';
             let bestScore = -999;
             for (const tr of results) {
               if (!tr || !tr.previewUrl) continue;
@@ -14979,26 +15092,67 @@ function stopPianoCameraLoop() {
               if (sc > bestScore) {
                 bestScore = sc;
                 bestUrl = tr.previewUrl;
+                bestArt = tr.artworkUrl100 ? tr.artworkUrl100.replace('100x100bb', '300x300bb') : '';
               }
             }
-            if (bestUrl && bestScore >= 40) {
-              return saveCache({ url: bestUrl, seekToChorus: false, source: 'itunes_chorus_cdn' });
+            if (bestUrl && bestScore >= 32) {
+              return { url: bestUrl, artworkUrl: bestArt, seekToChorus: false, source: 'itunes_chorus_cdn' };
             }
+          } catch (_) {
+            clearTimeout(tid);
+          }
+          throw new Error('no_client_itunes');
+        })();
+
+        const serverInstantTask = (async () => {
+          const ctrl = new AbortController();
+          const tid = setTimeout(() => ctrl.abort(), 2000);
+          try {
+            const srvResp = await fetch(`${baseUrl}/api/v1/audio/instant_preview?title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}`, { signal: ctrl.signal });
+            clearTimeout(tid);
+            if (!srvResp.ok) throw new Error('srv_status');
+            const srvData = await srvResp.json();
+            if (srvData && srvData.previewUrl) {
+              return {
+                url: srvData.previewUrl,
+                artworkUrl: srvData.artworkUrl || '',
+                seekToChorus: false,
+                source: srvData.source || 'deezer_itunes_srv'
+              };
+            }
+          } catch (_) {
+            clearTimeout(tid);
+          }
+          throw new Error('no_srv_instant');
+        })();
+
+        try {
+          const winner = await Promise.any([clientItunesTask, serverInstantTask]);
+          if (winner && winner.url) {
+            return saveCache(winner);
           }
         } catch (_) {}
-      }
 
-      return null;
+        return null;
+      })();
+
+      window._chorusPreviewInflight.set(cacheKey, inflightPromise);
+      try {
+        return await inflightPromise;
+      } finally {
+        window._chorusPreviewInflight.delete(cacheKey);
+      }
     }
 
-    // Pre-resolución instantánea de URLs de estribillo para las canciones visibles (Catálogo + Teclas Mágicas)
+    // Pre-resolución instantánea de URLs de estribillo y portadas reales para las canciones visibles (Catálogo + Teclas Mágicas)
     window.prewarmChorusPreviewUrls = function(items) {
       if (!Array.isArray(items) || items.length === 0) return;
-      const visibleSlice = items.slice(0, 10);
+      const visibleSlice = items.slice(0, 12);
       setTimeout(() => {
         if (isGameCurrentlyActive()) return;
         visibleSlice.forEach((item, idx) => {
           if (!item) return;
+          const sId = safeSongId(item.id);
           const cand = item._preferredCandidate || (window._selectedMagicAudioCandidate && window._selectedMagicAudioCandidate[item.id]);
           const directPrev = (cand && cand.itunesPreviewUrl) || item.preview_url || '';
           setTimeout(() => {
@@ -15008,11 +15162,31 @@ function stopPianoCameraLoop() {
               (cand && cand.title) || item.title || '',
               (cand && cand.artist) || item.artist || '',
               directPrev,
-              item.bs_hash || ''
-            ).catch(() => {});
-          }, idx * 45);
+              item.bs_hash || '',
+              sId
+            ).then((res) => {
+              if (!res || !res.url || isGameCurrentlyActive()) return;
+              if (res.artworkUrl && (!item.thumbnail || item.thumbnail === './app_logo.png' || String(item.thumbnail).startsWith('data:image/svg+xml'))) {
+                item.thumbnail = res.artworkUrl;
+                item.cover_url = res.artworkUrl;
+              }
+              // Pre-bufferizar los primeros 4 temas visibles en objetos Audio en memoria para que el toque sea 100% instantáneo (0ms)
+              if (idx < 4 && !window._prewarmedAudioElements.has(res.url)) {
+                try {
+                  if (window._prewarmedAudioElements.size >= 8) {
+                    const oldestKey = window._prewarmedAudioElements.keys().next().value;
+                    window._prewarmedAudioElements.delete(oldestKey);
+                  }
+                  const preAudio = new Audio();
+                  preAudio.preload = 'metadata';
+                  preAudio.src = res.url;
+                  window._prewarmedAudioElements.set(res.url, preAudio);
+                } catch (_) {}
+              }
+            }).catch(() => {});
+          }, idx * 25);
         });
-      }, 40);
+      }, 10);
     };
 
     async function playUrlOrBlobInChorusPreview(urlOrBlob, sId, reqToken, seekChorusOption = 'auto') {
@@ -15036,10 +15210,16 @@ function stopPianoCameraLoop() {
         window._previewObjectUrl = srcUrl;
       }
 
-      const audio = new Audio();
-      audio.preload = 'auto';
+      let audio = (typeof urlOrBlob === 'string' && window._prewarmedAudioElements && window._prewarmedAudioElements.get(srcUrl)) || null;
+      if (audio) {
+        window._prewarmedAudioElements.delete(srcUrl);
+        try { audio.currentTime = 0; } catch (_) {}
+      } else {
+        audio = new Audio();
+        audio.preload = 'auto';
+        audio.src = srcUrl;
+      }
       audio.volume = 0.90;
-      audio.src = srcUrl;
       window._previewAudioPlayer = audio;
 
       return new Promise((resolve) => {
@@ -15050,12 +15230,13 @@ function stopPianoCameraLoop() {
           settled = true;
           resolve(ok);
         };
-        const tid = setTimeout(() => finish(false), 5500);
+        const tid = setTimeout(() => finish(false), 4200);
 
-        audio.onloadedmetadata = () => {
+        const applySeekIfNeeded = () => {
           if (didSeekChorus || window._previewRequestToken !== reqToken) return;
-          didSeekChorus = true;
           const dur = Number(audio.duration) || 0;
+          if (!dur || !Number.isFinite(dur)) return;
+          didSeekChorus = true;
           if (typeof seekChorusOption === 'number' && seekChorusOption > 0 && dur > seekChorusOption + 4) {
             try { audio.currentTime = seekChorusOption; } catch (_) {}
           } else if (seekChorusOption === 'auto_chorus' && dur > 48) {
@@ -15063,6 +15244,11 @@ function stopPianoCameraLoop() {
             try { audio.currentTime = targetSec; } catch (_) {}
           }
         };
+
+        if (audio.readyState >= 1) {
+          applySeekIfNeeded();
+        }
+        audio.onloadedmetadata = applySeekIfNeeded;
 
         audio.onplaying = () => {
           clearTimeout(tid);
@@ -15107,18 +15293,23 @@ function stopPianoCameraLoop() {
       setThumbnailPreviewUiState(sId, 'loading');
 
       const strId = String(songId || '');
+      const fixedTitle = repairSpanishBrokenAccents(title || '');
+      const fixedArtist = repairSpanishBrokenAccents(artist || '');
       const parsed = (typeof parseYouTubeMetadataSmart === 'function')
-        ? parseYouTubeMetadataSmart(title || '', artist || '')
-        : { coreTitle: String(title || '').trim(), coreArtist: String(artist || '').trim() };
-      const cleanTitle = parsed.coreTitle || String(title || '').trim();
-      const cleanArtist = (parsed.coreArtist && parsed.coreArtist.toLowerCase() !== 'youtube')
-        ? parsed.coreArtist
-        : String(artist || '').replace(/^youtube$/i, '').trim();
+        ? parseYouTubeMetadataSmart(fixedTitle, fixedArtist)
+        : { coreTitle: String(fixedTitle).trim(), coreArtist: String(fixedArtist).trim() };
+      const cleanTitle = repairSpanishBrokenAccents(parsed.coreTitle || String(fixedTitle).trim());
+      const cleanArtist = repairSpanishBrokenAccents(
+        (parsed.coreArtist && parsed.coreArtist.toLowerCase() !== 'youtube')
+          ? parsed.coreArtist
+          : String(fixedArtist).replace(/^youtube$/i, '').trim()
+      );
       const normTitleArtistKey = `${normalizeSearchText(cleanTitle)}__${normalizeSearchText(cleanArtist)}`;
+      const cacheKey = `${strId}__${normTitleArtistKey}`;
       const ytCacheKey = videoId ? `yt_${videoId}` : '';
 
       try {
-        // 1. Si ya tenemos el audio completo en memoria, saltar directamente a su estribillo (0ms de red)
+        // 1. SÍNCRONO (0ms): Si ya tenemos el audio completo en memoria o el preview pre-resuelto en caché, arrancar en el acto sin esperar a IndexedDB
         const memBlob = (ytCacheKey && window._fullTrackBlobCache.get(ytCacheKey)) ||
                         window._fullTrackBlobCache.get(strId) ||
                         window._fullTrackBlobCache.get(normTitleArtistKey);
@@ -15127,22 +15318,21 @@ function stopPianoCameraLoop() {
           if (ok) return;
         }
 
-        // 2. Si la canción ya está guardada en IndexedDBStorage con su estribillo detectado, reproducir en < 20ms
-        if (typeof IndexedDBStorage !== 'undefined' && typeof IndexedDBStorage.getChart === 'function') {
-          try {
-            const saved = await IndexedDBStorage.getChart(strId);
-            const isSynthFallback = saved && String(saved.source_name || saved.creator || '').includes('Piano Acoustic Synth');
-            if (saved && !isSynthFallback && saved.audioBlob && saved.audioBlob.size >= 120000) {
-              window._fullTrackBlobCache.set(strId, saved.audioBlob);
-              const chorusSec = Number(saved.chorusStartSec || saved.chartData?.chorusStartSec) || 'auto_chorus';
-              const ok = await playUrlOrBlobInChorusPreview(saved.audioBlob, sId, reqToken, chorusSec);
-              if (ok) return;
-            }
-          } catch (_) {}
+        const syncCachedPreview = window._chorusPreviewUrlCache.get(cacheKey) ||
+                                  window._chorusPreviewUrlCache.get(normTitleArtistKey) ||
+                                  (directPreviewUrl && /^https?:\/\//i.test(directPreviewUrl) ? { url: directPreviewUrl, seekToChorus: false } : null);
+        if (syncCachedPreview && syncCachedPreview.url) {
+          const ok = await playUrlOrBlobInChorusPreview(syncCachedPreview.url, sId, reqToken, syncCachedPreview.seekToChorus ? 'auto_chorus' : 0);
+          if (ok) return;
         }
 
-        // 3. Stream instantáneo del estribillo desde CDN global (b.ppy.sh / iTunes Chorus CDN / BeatSaver CDN) en < 150ms
-        const chorusCdn = await resolveInstantChorusPreviewUrl(strId, cleanTitle, cleanArtist, directPreviewUrl, bsHash);
+        // 2. Lanzar en paralelo la consulta rápida a IndexedDB y la resolución CDN (Deezer / iTunes / osu! / BeatSaver)
+        const idbPromise = (typeof IndexedDBStorage !== 'undefined' && typeof IndexedDBStorage.getChart === 'function')
+          ? IndexedDBStorage.getChart(strId).catch(() => null)
+          : Promise.resolve(null);
+        const cdnPromise = resolveInstantChorusPreviewUrl(strId, cleanTitle, cleanArtist, directPreviewUrl, bsHash, sId).catch(() => null);
+
+        const chorusCdn = await cdnPromise;
         if (window._previewRequestToken !== reqToken) return;
         if (chorusCdn && chorusCdn.url) {
           const ok = await playUrlOrBlobInChorusPreview(chorusCdn.url, sId, reqToken, chorusCdn.seekToChorus ? 'auto_chorus' : 0);
@@ -15159,8 +15349,18 @@ function stopPianoCameraLoop() {
           }
         }
 
-        // 4. Si es canción comunitaria del servidor, transmitir directamente saltando al estribillo
-        if (strId && !strId.startsWith('osu_') && !strId.startsWith('bs_') && !strId.startsWith('ch_') && !strId.startsWith('auto_dsp_') && !strId.startsWith('magic_yt_')) {
+        const saved = await idbPromise;
+        if (window._previewRequestToken !== reqToken) return;
+        const isSynthFallback = saved && String(saved.source_name || saved.creator || '').includes('Piano Acoustic Synth');
+        if (saved && !isSynthFallback && saved.audioBlob && saved.audioBlob.size >= 120000) {
+          window._fullTrackBlobCache.set(strId, saved.audioBlob);
+          const chorusSec = Number(saved.chorusStartSec || saved.chartData?.chorusStartSec) || 'auto_chorus';
+          const ok = await playUrlOrBlobInChorusPreview(saved.audioBlob, sId, reqToken, chorusSec);
+          if (ok) return;
+        }
+
+        // 4. Si es canción comunitaria real del servidor (excluyendo top_ del catálogo UltraStar que no tiene MP3 local), transmitir saltando al estribillo
+        if (strId && !strId.startsWith('top_') && !strId.startsWith('osu_') && !strId.startsWith('bs_') && !strId.startsWith('ch_') && !strId.startsWith('auto_dsp_') && !strId.startsWith('magic_yt_')) {
           const cleanCommId = strId.replace(/^comm_/, '');
           const baseUrl = (typeof getApiBaseUrl === 'function') ? getApiBaseUrl() : '';
           for (const commUrl of [`${baseUrl}/songs/${cleanCommId}/audio.mp3`, `${baseUrl}/songs/${cleanCommId}/song.ogg`]) {
@@ -15170,7 +15370,7 @@ function stopPianoCameraLoop() {
           }
         }
 
-        // 5. Respaldo para pistas de YouTube que no estén en iTunes (ej. "Perreo Sanxe"): extracción directa con polling + stream de respaldo
+        // 5. Respaldo para pistas de YouTube que no estén en Deezer/iTunes: extracción directa + stream de respaldo
         let targetVid = videoId;
         if (!targetVid && cleanTitle) {
           const ytMatches = await searchYouTubeOfficialClient(cleanTitle, cleanArtist);
@@ -15201,7 +15401,6 @@ function stopPianoCameraLoop() {
               return;
             }
           }
-          // Respaldo servidor si el proxy de cliente falló
           const baseUrl = (typeof getApiBaseUrl === 'function') ? getApiBaseUrl() : '';
           const srvUrl = `${baseUrl}/api/v1/audio/extract?videoId=${encodeURIComponent(targetVid)}&title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}`;
           const okSrv = await playUrlOrBlobInChorusPreview(srvUrl, sId, reqToken, 'auto_chorus');
@@ -15664,8 +15863,9 @@ function stopPianoCameraLoop() {
           const starsNum = primaryDiff?.stars || item.stars || 3.5;
 
           const defaultDiffId = primaryDiff ? primaryDiff.id : (item.diff_id || 'default');
-          const defaultDiffName = (primaryDiff ? (primaryDiff.name || 'Media') : (item.difficulty_name || item.metadata?.difficulty_name || 'Media')).replace(/'/g, "\\'");
-          const defaultPlayAction = `downloadAndPlaySong('${item.id}', '${defaultDiffId}', '${defaultDiffName}')`;
+          const defaultDiffName = escapeJsAttr(primaryDiff ? (primaryDiff.name || 'Media') : (item.difficulty_name || item.metadata?.difficulty_name || 'Media'));
+          const safeFavId = escapeJsAttr(item.id || '');
+          const defaultPlayAction = `event.stopPropagation(); downloadAndPlaySong('${safeFavId}', '${escapeJsAttr(defaultDiffId)}', '${defaultDiffName}')`;
 
           const diffChipsHtml = hasDiffs ? item.difficulties.map(diff => {
             const cleanName = (diff.name || 'Media').replace(/\[\d+K\]\s*/gi, '').replace(/^\[[^\]]+\]\s*/, '').trim() || 'Media';
@@ -15674,30 +15874,34 @@ function stopPianoCameraLoop() {
             const isPrimary = primaryDiff && diff.id === primaryDiff.id;
             const tierCss = diff.densityMode ? ` tier-${diff.densityMode}` : '';
             return `
-              <button onclick="downloadAndPlaySong('${item.id}', '${diff.id}', '${cleanName.replace(/'/g, "\\'")}')" class="piano-diff-chip${tierCss} ${isPrimary ? 'active' : ''}" title="Jugar dificultad ${cleanName}">
-                <span>${displayChipName}</span>
+              <button onclick="event.stopPropagation(); downloadAndPlaySong('${safeFavId}', '${escapeJsAttr(diff.id)}', '${escapeJsAttr(cleanName)}')" class="piano-diff-chip${tierCss} ${isPrimary ? 'active' : ''}" title="Jugar dificultad ${escapeHtml(cleanName)}">
+                <span>${escapeHtml(displayChipName)}</span>
                 ${starsText ? `<span class="font-mono text-[9.5px] opacity-90">${starsText}</span>` : ''}
               </button>
             `;
           }).join('') : '';
           const fallbackCover = getSongCoverFallback(item.title, item.artist);
-          const initialCover = (item.thumbnail && typeof item.thumbnail === 'string' && item.thumbnail.trim() && item.thumbnail !== './app_logo.png') ? item.thumbnail : fallbackCover;
-          const safeTitleJs = escapeHtml(item.title || '').replace(/'/g, "\\'");
-          const safeArtistJs = escapeHtml(item.artist || '').replace(/'/g, "\\'");
-          const safePreviewJs = escapeHtml(item.preview_url || '').replace(/'/g, "\\'");
-          const safeBsHashJs = escapeHtml(item.bs_hash || '').replace(/'/g, "\\'");
+          const hasRealCover = Boolean(item.thumbnail && typeof item.thumbnail === 'string' && item.thumbnail.trim() && item.thumbnail !== './app_logo.png' && !item.thumbnail.startsWith('data:image/svg+xml'));
+          const initialCover = hasRealCover ? item.thumbnail : fallbackCover;
+          const safeTitleJs = escapeJsAttr(item.title || '');
+          const safeArtistJs = escapeJsAttr(item.artist || '');
+          const safePreviewJs = escapeJsAttr(item.preview_url || '');
+          const safeBsHashJs = escapeJsAttr(item.bs_hash || '');
 
           return `
             <div class="piano-key-row flex flex-col">
               <div class="flex items-stretch w-full max-w-full overflow-hidden">
                 <!-- White Ivory Key Body (Opens Accordion) -->
                 <div onclick="togglePianoAccordion('${sId}')" class="piano-white-key flex-1 min-w-0 overflow-hidden" title="Ver opciones y dificultades">
-                  <div class="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
-                    <!-- Round Inlaid Medallion (Tap to Preview Chorus) -->
-                    <div id="thumbWrap_${sId}" onclick="event.stopPropagation(); toggleThumbnailSongPreview('${escapeHtml(item.id).replace(/'/g, "\\'")}', '${sId}', '${safeTitleJs}', '${safeArtistJs}', '${safePreviewJs}', '${safeBsHashJs}', '')" class="piano-key-thumb group relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-[#c5a059] shadow-sm flex items-center justify-center bg-stone-900 cursor-pointer" title="Toca la miniatura para preescuchar el estribillo">
-                      <img src="${initialCover}" alt="" class="w-full h-full object-cover rounded-full" loading="lazy" onerror="this.onerror=null; this.src='${fallbackCover}';">
-                      <div id="thumbPrevOverlay_${sId}" class="absolute inset-0 bg-black/35 group-hover:bg-black/55 flex items-center justify-center transition-opacity">
-                        <span id="thumbPrevIcon_${sId}" class="text-[10px] font-black text-white drop-shadow">▶</span>
+                  <div id="bgWash_${sId}" class="piano-key-bg-wash ${hasRealCover ? '' : 'no-bg-wash'}" style="${hasRealCover ? `background-image: url('${escapeJsAttr(initialCover)}');` : ''}"></div>
+                  <div class="relative z-10 flex items-stretch gap-3 min-w-0 flex-1 overflow-hidden">
+                    <!-- Square Thumbnail (Tap to Preview Chorus) -->
+                    <div id="thumbWrap_${sId}" onclick="event.stopPropagation(); toggleThumbnailSongPreview('${safeFavId}', '${sId}', '${safeTitleJs}', '${safeArtistJs}', '${safePreviewJs}', '${safeBsHashJs}', '')" class="piano-key-thumb group relative w-[60px] h-[60px] min-w-[60px] rounded-none overflow-hidden flex-shrink-0 flex items-center justify-center bg-stone-900 cursor-pointer" title="Toca la miniatura para preescuchar el estribillo">
+                      <img id="thumbImg_${sId}" src="${escapeHtml(initialCover)}" alt="" class="w-full h-full object-cover rounded-none" loading="lazy" onerror="this.onerror=null; this.src='${fallbackCover}';">
+                      <div id="thumbPrevOverlay_${sId}" class="thumb-preview-overlay absolute inset-0 rounded-none bg-black/20 group-hover:bg-black/45 flex items-center justify-center transition-opacity">
+                        <span class="thumb-preview-badge">
+                          <span id="thumbPrevIcon_${sId}" class="text-[11px] font-black text-[#fef08a] drop-shadow">▶</span>
+                        </span>
                       </div>
                     </div>
                     <!-- Track Metadata -->
@@ -15949,33 +16153,36 @@ function stopPianoCameraLoop() {
         return;
       }
 
-      const safePlId = String(playlistId || currentOpenedPlaylistId || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const safePlId = escapeJsAttr(playlistId || currentOpenedPlaylistId || '');
       const keysHtml = safeList.map((tr, idx) => {
         try {
-          const rawTitle = String(tr?.title || `Pista #${idx + 1}`);
-          const rawArtist = Array.isArray(tr?.artists) ? tr.artists.join(', ') : String(tr?.artist || 'YouTube');
+          const rawTitle = repairSpanishBrokenAccents(String(tr?.title || `Pista #${idx + 1}`));
+          const rawArtist = repairSpanishBrokenAccents(Array.isArray(tr?.artists) ? tr.artists.join(', ') : String(tr?.artist || 'YouTube'));
           const fallbackCover = getSongCoverFallback(rawTitle, rawArtist);
-          const thumbUrl = (typeof tr?.thumbnail === 'string' && tr.thumbnail.trim())
+          const hasRealCover = Boolean((typeof tr?.thumbnail === 'string' && tr.thumbnail.trim() && tr.thumbnail !== './app_logo.png' && !tr.thumbnail.startsWith('data:image/svg+xml')) || (tr?.id && String(tr.id).length === 11));
+          const thumbUrl = (typeof tr?.thumbnail === 'string' && tr.thumbnail.trim() && tr.thumbnail !== './app_logo.png')
             ? tr.thumbnail
             : (tr?.id && String(tr.id).length === 11 ? `https://i.ytimg.com/vi/${tr.id}/hqdefault.jpg` : fallbackCover);
           const displayIdx = tr?._origIdx !== undefined ? tr._origIdx + 1 : idx + 1;
-          const safeTrackId = String(tr?.id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+          const safeTrackId = escapeJsAttr(tr?.id || '');
           const sId = `pl_track_${idx}`;
-          const safeTitleJs = escapeHtml(rawTitle).replace(/'/g, "\\'");
-          const safeArtistJs = escapeHtml(rawArtist).replace(/'/g, "\\'");
-          const safeVideoIdJs = (tr?.id && String(tr.id).length === 11) ? escapeHtml(String(tr.id)).replace(/'/g, "\\'") : '';
+          const safeTitleJs = escapeJsAttr(rawTitle);
+          const safeArtistJs = escapeJsAttr(rawArtist);
+          const safeVideoIdJs = (tr?.id && String(tr.id).length === 11) ? escapeJsAttr(String(tr.id)) : '';
 
           return `
             <div class="piano-key-row flex flex-col">
               <div class="flex items-stretch w-full max-w-full overflow-hidden">
                 <!-- White Ivory Key Body (Opens Elegant In-Place Catalog Matcher Modal) -->
                 <div onclick="openPlaylistTrackMatcherByIndex(${idx})" class="piano-white-key flex-1 min-w-0 overflow-hidden cursor-pointer" title="Ver versiones jugables de ${escapeHtml(rawTitle)}">
-                  <div class="piano-key-bg-wash" style="background-image: url('${escapeHtml(thumbUrl).replace(/'/g, "\\'")}');"></div>
+                  <div id="bgWash_${sId}" class="piano-key-bg-wash ${hasRealCover ? '' : 'no-bg-wash'}" style="${hasRealCover ? `background-image: url('${escapeJsAttr(thumbUrl)}');` : ''}"></div>
                   <div class="relative z-10 flex items-stretch gap-3 min-w-0 flex-1 overflow-hidden">
-                    <div id="thumbWrap_${sId}" onclick="event.stopPropagation(); toggleThumbnailSongPreview('${sId}', '${sId}', '${safeTitleJs}', '${safeArtistJs}', '', '', '${safeVideoIdJs}')" class="piano-key-thumb group relative w-[58px] h-[58px] min-w-[58px] rounded-none overflow-hidden flex-shrink-0 flex items-center justify-center bg-stone-900 cursor-pointer" title="Toca la portada para preescuchar el estribillo">
-                      <img src="${escapeHtml(thumbUrl)}" alt="" class="w-full h-full object-cover rounded-none" loading="lazy" onerror="this.onerror=null; this.src='${fallbackCover}';">
-                      <div id="thumbPrevOverlay_${sId}" class="thumb-preview-overlay absolute inset-0 rounded-none bg-black/30 group-hover:bg-black/55 flex items-center justify-center transition-opacity">
-                        <span id="thumbPrevIcon_${sId}" class="text-[11px] font-black text-[#fef08a] drop-shadow">▶</span>
+                    <div id="thumbWrap_${sId}" onclick="event.stopPropagation(); toggleThumbnailSongPreview('${sId}', '${sId}', '${safeTitleJs}', '${safeArtistJs}', '', '', '${safeVideoIdJs}')" class="piano-key-thumb group relative w-[60px] h-[60px] min-w-[60px] rounded-none overflow-hidden flex-shrink-0 flex items-center justify-center bg-stone-900 cursor-pointer" title="Toca la portada para preescuchar el estribillo">
+                      <img id="thumbImg_${sId}" src="${escapeHtml(thumbUrl)}" alt="" class="w-full h-full object-cover rounded-none" loading="lazy" onerror="this.onerror=null; this.src='${fallbackCover}';">
+                      <div id="thumbPrevOverlay_${sId}" class="thumb-preview-overlay absolute inset-0 rounded-none bg-black/20 group-hover:bg-black/45 flex items-center justify-center transition-opacity">
+                        <span class="thumb-preview-badge">
+                          <span id="thumbPrevIcon_${sId}" class="text-[11px] font-black text-[#fef08a] drop-shadow">▶</span>
+                        </span>
                       </div>
                     </div>
                     <span class="text-[9px] font-mono font-black text-[#8e755a] w-4 text-center flex-shrink-0 self-center">${displayIdx}</span>
@@ -15991,7 +16198,7 @@ function stopPianoCameraLoop() {
 
                 <!-- Fixed 3D Ebony Black Play Key -->
                 <div 
-                  onclick="openPlaylistTrackMatcherByIndex(${idx})" 
+                  onclick="event.stopPropagation(); openPlaylistTrackMatcherByIndex(${idx})" 
                   class="piano-black-play-key flex-shrink-0 w-12 min-w-[48px]" 
                   title="Elegir versión o generar pista"
                 >
@@ -16011,6 +16218,15 @@ function stopPianoCameraLoop() {
           ${keysHtml}
         </div>
       `;
+      if (typeof window.prewarmChorusPreviewUrls === 'function') {
+        const prewarmItems = safeList.slice(0, 10).map((tr, idx) => ({
+          id: `pl_track_${idx}`,
+          title: tr?.title || '',
+          artist: Array.isArray(tr?.artists) ? tr.artists.join(', ') : (tr?.artist || ''),
+          videoId: (tr?.id && String(tr.id).length === 11) ? String(tr.id) : ''
+        }));
+        window.prewarmChorusPreviewUrls(prewarmItems);
+      }
     }
 
     window.clearOpenedPlaylistFilter = function() {
@@ -16321,17 +16537,30 @@ function stopPianoCameraLoop() {
         ? `${coreTitle} ${coreArtist}`.trim()
         : coreTitle;
 
+      const qNormKey = normalizeSearchText(primaryQuery);
+      if (window._unifiedSearchCache && window._unifiedSearchCache.has(qNormKey)) {
+        const cachedEntry = window._unifiedSearchCache.get(qNormKey);
+        if (cachedEntry && (Date.now() - cachedEntry.ts) < 10 * 60 * 1000 && Array.isArray(cachedEntry.items) && cachedEntry.items.length > 0) {
+          renderYtMatcherModalCards(cachedEntry.items.slice(0, 36), false);
+          return;
+        }
+      }
+
       const candidateMap = new Map();
       const registerCandidate = (song) => {
         if (!song || !song.id) return;
         const sid = String(song.id);
-        if (sid.startsWith('auto_dsp_') || song._isAutoGeneratedDsp || song.source === 'auto_dsp') return;
+        if (sid.startsWith('auto_dsp_') || sid.startsWith('magic_yt_') || song._isAutoGeneratedDsp || song._isMagicKey || song.source === 'auto_dsp' || song.source === 'magic_youtube') return;
         if (/unit test|^test$/i.test(String(song.title || '').trim())) return;
-        const sc = computeSongRelevanceScore(song, primaryQuery);
-        if (sc < 18) return;
+        const sc = computeSongRelevanceScore(primaryQuery, song.title, song.artist, song.creator_name || '');
+        const scTitleOnly = (coreTitle && coreTitle !== primaryQuery)
+          ? computeSongRelevanceScore(coreTitle, song.title, song.artist, song.creator_name || '')
+          : 0;
+        const bestSc = Math.max(sc, scTitleOnly);
+        if (bestSc < 18) return;
         const prev = candidateMap.get(sid);
-        if (!prev || sc > (prev.relevanceScore || 0)) {
-          candidateMap.set(sid, { ...song, relevanceScore: sc, _matchScore: sc });
+        if (!prev || bestSc > (prev.relevanceScore || 0)) {
+          candidateMap.set(sid, { ...song, relevanceScore: bestSc, _matchScore: bestSc });
         }
       };
 
@@ -16356,10 +16585,16 @@ function stopPianoCameraLoop() {
         for (const cached of searchResultsCache) registerCandidate(cached);
       }
 
+      // Renderizar avance inmediato si ya hay coincidencias locales mientras llegan YouTube + Catboy + Nerinyan + BeatSaver
+      const immediateLocal = Array.from(candidateMap.values()).sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
+      if (immediateLocal.length > 0 && reqId === window.ytMatcherActiveRequestId) {
+        renderYtMatcherModalCards(immediateLocal.slice(0, 12), true);
+      }
+
       const queriesToRun = Array.from(new Set([primaryQuery, coreTitle].filter(q => q && q.length >= 2))).slice(0, 2);
       const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
 
-      const fetchWithFastTimeout = (url, ms = 1450) => {
+      const fetchWithFastTimeout = (url, ms = 2200) => {
         const ctrl = new AbortController();
         const tid = setTimeout(() => ctrl.abort(), ms);
         return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(tid));
@@ -16367,18 +16602,18 @@ function stopPianoCameraLoop() {
 
       let ytCandidates = [];
       const fetchTasks = [
-        discoverVerifiedAudioCandidates(coreTitle, coreArtist, 18)
+        discoverVerifiedAudioCandidates(coreTitle || primaryQuery, coreArtist || '', 24)
           .then(arr => { if (Array.isArray(arr)) ytCandidates = arr; })
           .catch(() => {})
       ];
 
       for (const qStr of queriesToRun) {
         fetchTasks.push(
-          fetchWithFastTimeout(`https://catboy.best/api/v2/search?q=${encodeURIComponent(qStr)}&m=3&limit=12`)
+          fetchWithFastTimeout(`https://catboy.best/api/v2/search?q=${encodeURIComponent(qStr)}&m=3&limit=15`)
             .then(r => r.ok ? r.json() : [])
             .then(arr => {
               if (!Array.isArray(arr)) return;
-              for (const item of arr.slice(0, 10)) {
+              for (const item of arr.slice(0, 12)) {
                 if (!item || !item.id) continue;
                 const beatmaps = Array.isArray(item.beatmaps) ? item.beatmaps : [];
                 const diffs = beatmaps.map(b => ({
@@ -16411,7 +16646,7 @@ function stopPianoCameraLoop() {
             .then(r => r.ok ? r.json() : [])
             .then(arr => {
               if (!Array.isArray(arr)) return;
-              for (const set of arr.slice(0, 8)) {
+              for (const set of arr.slice(0, 10)) {
                 if (!set || !set.id) continue;
                 const maniaDiffs = (set.beatmaps || []).filter(b => b.mode === 3 || b.mode === 'mania' || b.cs === 3 || b.cs === 4 || b.cs === 7);
                 const diffs = (maniaDiffs.length > 0 ? maniaDiffs : (set.beatmaps || [])).map(b => ({
@@ -16445,7 +16680,7 @@ function stopPianoCameraLoop() {
             .then(r => r.ok ? r.json() : {})
             .then(bs => {
               if (!Array.isArray(bs?.docs)) return;
-              for (const doc of bs.docs.slice(0, 8)) {
+              for (const doc of bs.docs.slice(0, 10)) {
                 const latestVer = Array.isArray(doc.versions) ? doc.versions[0] : null;
                 if (!doc.id || !latestVer) continue;
                 const hash = String(latestVer.hash || '').toLowerCase();
@@ -16475,7 +16710,7 @@ function stopPianoCameraLoop() {
             .then(r => r.ok ? r.json() : {})
             .then(srv => {
               const items = Array.isArray(srv?.items) ? srv.items : (Array.isArray(srv) ? srv : []);
-              for (const it of items.slice(0, 10)) {
+              for (const it of items.slice(0, 12)) {
                 registerCandidate(it);
               }
             })
@@ -16487,7 +16722,10 @@ function stopPianoCameraLoop() {
       if (reqId !== window.ytMatcherActiveRequestId) return;
 
       const catalogList = Array.from(candidateMap.values());
-      const unifiedSorted = mergeAndSortCatalogWithMagicKeys(primaryQuery, catalogList, ytCandidates).slice(0, 24);
+      const unifiedSorted = mergeAndSortCatalogWithMagicKeys(catalogList, ytCandidates, primaryQuery).slice(0, 36);
+      if (unifiedSorted.length > 0 && window._unifiedSearchCache) {
+        window._unifiedSearchCache.set(qNormKey, { ts: Date.now(), items: unifiedSorted });
+      }
       if (!Array.isArray(searchResultsCache)) searchResultsCache = [];
       for (const item of unifiedSorted) {
         if (!searchResultsCache.some(s => s.id === item.id)) {
@@ -19595,16 +19833,23 @@ function stopPianoCameraLoop() {
 
     function getFormattedTopSongsCatalog() {
       const catalog = window.TOP_SONGS_CATALOG || [];
-      return catalog.map((song) => {
+      if (window._formattedTopSongsCache && window._formattedTopSongsCacheLen === catalog.length && catalog.length > 0) {
+        return window._formattedTopSongsCache;
+      }
+      const mapped = catalog.map((song) => {
         const rawNotes = Number(song.total_notes) || 350;
         const songId = `top_${song.id}`;
-        const artwork = song.cover_url || song.thumbnail || getSongCoverFallback(song.title, song.artist);
+        const cleanTitle = repairSpanishBrokenAccents(song.title || 'Canción');
+        const cleanArtist = repairSpanishBrokenAccents(song.artist || 'Artista');
+        const hasValidCover = song.cover_url && song.cover_url !== './app_logo.png';
+        const hasValidThumb = song.thumbnail && song.thumbnail !== './app_logo.png';
+        const artwork = (hasValidCover ? song.cover_url : (hasValidThumb ? song.thumbnail : '')) || getSongCoverFallback(cleanTitle, cleanArtist);
 
         const formatted = {
           id: songId,
           raw_id: song.id,
-          title: song.title || 'Canción',
-          artist: song.artist || 'Artista',
+          title: cleanTitle,
+          artist: cleanArtist,
           bpm: Number(song.bpm) || 120,
           total_notes: rawNotes,
           notes_count: rawNotes,
@@ -19624,6 +19869,11 @@ function stopPianoCameraLoop() {
         }
         return formatted;
       });
+      if (mapped.length > 0) {
+        window._formattedTopSongsCache = mapped;
+        window._formattedTopSongsCacheLen = catalog.length;
+      }
+      return mapped;
     }
     window.getFormattedTopSongsCatalog = getFormattedTopSongsCatalog;
 

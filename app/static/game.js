@@ -2434,7 +2434,7 @@ class BeatstarEngine {
       const targetEl = e.target;
       if (targetEl !== this.canvas) return;
 
-      if (this.isRunning && e.cancelable) {
+      if (e.cancelable) {
         e.preventDefault();
       }
 
@@ -2454,6 +2454,21 @@ class BeatstarEngine {
         const localX = t.clientX - rect.left;
         const localY = t.clientY - rect.top;
         const lane = this.resolveTouchLane(t.clientX, t.clientY, rect, true);
+
+        // Filtrar micro-rebotes capacitivos del mismo dedo (dos touch identifiers disparados en el mismo punto y carril en < 65ms)
+        let isDuplicateBounce = false;
+        for (const [existingId, existingTouch] of this.activeTouches.entries()) {
+          if (existingId !== t.identifier && existingTouch && existingTouch.lane === lane) {
+            const dtTouch = now - (existingTouch.startTime || 0);
+            const dxTouch = Math.abs(t.clientX - (existingTouch.startX || 0));
+            const dyTouch = Math.abs(t.clientY - (existingTouch.startY || 0));
+            if (dtTouch < 65 && dxTouch < 42 && dyTouch < 42) {
+              isDuplicateBounce = true;
+              break;
+            }
+          }
+        }
+        if (isDuplicateBounce) continue;
 
         // Registrar el dedo en activeTouches antes de procesar el evento para que la Fase Arco Voltaico detecte el 2º dedo al instante
         const touchEntry = {
@@ -2486,6 +2501,7 @@ class BeatstarEngine {
     window.addEventListener('touchmove', (e) => {
       if ((!this.isRunning && !this.isCountingDown && !this.isCalibrating) || this.isPaused || this.isRewinding || this.isHighwayModeActive || this.activeTouches.size === 0) return;
       const now = performance.now();
+      this.lastTouchTime = now;
       const isMadnessMode = Boolean(this.isMadnessModeActive || (typeof window !== 'undefined' && window.isMadnessModeActive));
       const isOsuMode = Boolean(this.isOsuHybridModeActive || (typeof window !== 'undefined' && window.isOsuHybridModeActive));
       const isCruceMode = Boolean(this.isCruceModeActive || (typeof window !== 'undefined' && window.isCruceModeActive));
@@ -2538,6 +2554,7 @@ class BeatstarEngine {
     }, { passive: true });
 
     window.addEventListener('touchend', (e) => {
+      this.lastTouchTime = performance.now();
       const rect = this._canvasRect;
       const isMadnessMode = Boolean(this.isMadnessModeActive || (typeof window !== 'undefined' && window.isMadnessModeActive));
       const isOsuMode = Boolean(this.isOsuHybridModeActive || (typeof window !== 'undefined' && window.isOsuHybridModeActive) || isMadnessMode);
@@ -2564,6 +2581,7 @@ class BeatstarEngine {
     }, { passive: true });
 
     window.addEventListener('touchcancel', (e) => {
+      this.lastTouchTime = performance.now();
       const isMadnessMode = Boolean(this.isMadnessModeActive || (typeof window !== 'undefined' && window.isMadnessModeActive));
       const isOsuMode = Boolean(this.isOsuHybridModeActive || (typeof window !== 'undefined' && window.isOsuHybridModeActive) || isMadnessMode);
       const isCruceMode = Boolean(this.isCruceModeActive || (typeof window !== 'undefined' && window.isCruceModeActive) || isMadnessMode);
@@ -4196,7 +4214,10 @@ class BeatstarEngine {
     const nLen = this.notes.length;
     const startSearchIdx = Math.max(0, (this.firstActiveNoteIndex || 0) - 2);
     if (!this._lastLaneHitPerf) this._lastLaneHitPerf = [0, 0, 0, 0];
+    if (!this._lastLaneHoldReleasePerf) this._lastLaneHoldReleasePerf = [0, 0, 0, 0];
     const msSinceLastHitInLane = nowInput - (this._lastLaneHitPerf[lane] || 0);
+    const msSinceLastHoldRelease = nowInput - (this._lastLaneHoldReleasePerf[lane] || 0);
+    const msSinceAnyLaneHit = nowInput - (this._lastAnyLaneHitPerf || 0);
     const openSplitCount = (isSplitActive && this.dynamicHighwayController && typeof this.dynamicHighwayController.getOpenLaneCount === 'function')
       ? this.dynamicHighwayController.getOpenLaneCount()
       : (this.numLanes || 3);
@@ -4295,7 +4316,7 @@ class BeatstarEngine {
       }
 
       // Evitar que un doble toque involuntario tras acertar una nota robe prematuramente otra nota o un hold que aún viene lejos (>135ms antes)
-      if (inputType === 'tap' && msSinceLastHitInLane < 75 && diffFromNote < -135) {
+      if (inputType === 'tap' && msSinceLastHitInLane < 130 && diffFromNote < -135) {
         continue;
       }
 
@@ -4503,6 +4524,10 @@ class BeatstarEngine {
         this.emitKeyHit(hitX, hitY, isCruceActive ? '#fde047' : this.getScoreColor('perfectPlus'), isCruceActive ? 8 : 14);
         return false;
       }
+      // Inmunidad antirebote / doble toque accidental tras acertar una tecla o soltar un hold en el mismo carril (o micro-rebote global)
+      if (msSinceLastHitInLane < 195 || msSinceLastHoldRelease < 195 || msSinceAnyLaneHit < 80) {
+        return false;
+      }
       if (isActivelyPlaying && !this.isProcessingMiss) {
         this.synth.playPunchyArcadeMiss();
         this.addJudgement('MISS', '#a81b26', lane);
@@ -4558,6 +4583,7 @@ class BeatstarEngine {
       return false;
     }
 
+    this._lastAnyLaneHitPerf = nowInput;
     this._lastLaneHitPerf[lane] = nowInput;
     if (closestNote.lane !== undefined) {
       this._lastLaneHitPerf[closestNote.lane] = nowInput;
@@ -4856,6 +4882,10 @@ class BeatstarEngine {
       note.holding = false;
       note.holdReleasedEarly = true;
     }
+    if (!this._lastLaneHoldReleasePerf) this._lastLaneHoldReleasePerf = [0, 0, 0, 0];
+    const relNow = performance.now();
+    if (targetKey >= 0 && targetKey < 4) this._lastLaneHoldReleasePerf[targetKey] = relNow;
+    if (lane >= 0 && lane < 4) this._lastLaneHoldReleasePerf[lane] = relNow;
     this.activeHolds.delete(targetKey);
   }
 
@@ -30353,17 +30383,19 @@ class DynamicHighwayController {
   getExpectedLaneCountAtTime(timeMs) {
     if (this.isCollapsedAtTime(timeMs)) return 1;
     let count = 4;
+    let secStartMs = -Infinity;
     for (let i = 0; i < this.sections.length; i++) {
       const s = this.sections[i];
       if (timeMs >= s.startMs && timeMs < s.endMs) {
         if (s.collapse > 0.5) return 1;
         if (Number.isFinite(s.baseLanes)) count = s.baseLanes;
+        secStartMs = s.startMs;
         break;
       }
     }
     for (let i = 0; i < this.laneEvents.length; i++) {
       const ev = this.laneEvents[i];
-      if (ev.timeMs <= timeMs + 40 && Number.isFinite(ev.targetCount)) {
+      if (ev.timeMs >= secStartMs - 300 && ev.timeMs <= timeMs + 40 && Number.isFinite(ev.targetCount)) {
         count = ev.targetCount;
       }
     }
@@ -31614,21 +31646,23 @@ Object.assign(BeatstarEngine.prototype, {
       .filter((n) => n && !n._isCruceChordCompanion && !n._isSplitPingPongRebound && !n._isSyntheticEchoRebound && !n.isMine && !n._isVoltaicMine && n._voltaicKind !== 'flow_line')
       .sort((a, b) => (a.timestamp_ms ?? 0) - (b.timestamp_ms ?? 0));
 
-    let maxRawLane = 0;
+    let lane3Count = 0;
     for (let i = 0; i < rawNotes.length; i++) {
       const l = Math.round(rawNotes[i].lane ?? 0);
-      if (l > maxRawLane) maxRawLane = l;
+      if (l === 3) lane3Count++;
     }
+    const needsFourLaneSpread = rawNotes.length > 0 && (lane3Count < rawNotes.length * 0.12);
+    let spreadC0 = 0, spreadC1 = 0, spreadC2 = 0;
 
     const cleanNotes = [];
     for (let i = 0; i < rawNotes.length; i++) {
       const n = rawNotes[i];
       const nt = Number(n.timestamp_ms ?? n.timeMs ?? 0);
       let lane4 = Math.max(0, Math.min(3, Math.round(n.lane ?? 0)));
-      if (maxRawLane <= 2) {
-        if (lane4 === 0) lane4 = (i % 2 === 0) ? 0 : 1;
-        else if (lane4 === 1) lane4 = (i % 2 === 0) ? 1 : 2;
-        else lane4 = (i % 2 === 0) ? 3 : 2;
+      if (needsFourLaneSpread) {
+        if (lane4 === 0) lane4 = (spreadC0++ % 3 === 2) ? 1 : 0;
+        else if (lane4 === 1) lane4 = (spreadC1++ % 2 === 0) ? 1 : 2;
+        else if (lane4 === 2) lane4 = (spreadC2++ % 3 === 0) ? 2 : 3;
       }
       n.lane = lane4;
       n.timestamp_ms = nt;
@@ -31808,12 +31842,18 @@ Object.assign(BeatstarEngine.prototype, {
     let lastPingPongEndT = -5000;
     let simLanes = 4;
     let prev3DPhaseMode = null;
+    let prevPhaseStartMs = -1;
     this._lastMadnessMirrorNoteT = -99999;
 
     for (let i = 0; i < filteredNotes.length; i++) {
       const n = filteredNotes[i];
       const phMode = n._madnessPhase;
-      if (!is3DMadnessPhase(phMode)) continue;
+      const curPhaseStartMs = n._madnessPhaseStartMs ?? 0;
+      if (!is3DMadnessPhase(phMode)) {
+        prev3DPhaseMode = phMode;
+        prevPhaseStartMs = curPhaseStartMs;
+        continue;
+      }
       const nt = n.timestamp_ms;
 
       let secBaseLanes = 4;
@@ -31841,16 +31881,18 @@ Object.assign(BeatstarEngine.prototype, {
           n._dropDuplicateCollapsed = true;
         }
         prev3DPhaseMode = phMode;
+        prevPhaseStartMs = curPhaseStartMs;
         continue;
       }
 
       // FASE SETAS ALUCINÓGENAS: fiel al modo original con 3 CARRILES (0, 1, 2), colores psicodélicos y salto lateral
       if (phMode === 'mushroom') {
-        if (simLanes !== 3) {
+        if (simLanes !== 3 || prev3DPhaseMode !== 'mushroom' || prevPhaseStartMs !== curPhaseStartMs) {
           simLanes = 3;
           ctrl.laneEvents.push({ timeMs: Math.max(0, (n._madnessPhaseStartMs || nt) - 240), targetCount: 3, open: true, durMs: 360 });
         }
         prev3DPhaseMode = phMode;
+        prevPhaseStartMs = curPhaseStartMs;
         n.lane = Math.max(0, Math.min(2, n.lane % 3));
         if (n.type === 'swipe') n.type = 'tap';
         n._isMadnessMushroom = true;
@@ -31890,11 +31932,12 @@ Object.assign(BeatstarEngine.prototype, {
 
       // Al iniciar cualquier fase de 4 carriles (Highway, Split, Mirror o Minesweeper), asegurar que los 4 carriles
       // se abran en la ventana limpia de transición (-240ms) sin interrumpir la fase anterior
-      if ((phMode !== prev3DPhaseMode || phMode !== 'highway') && simLanes !== 4 && secBaseLanes === 4) {
+      if ((phMode !== prev3DPhaseMode || curPhaseStartMs !== prevPhaseStartMs || phMode !== 'highway') && simLanes !== 4 && secBaseLanes === 4) {
         simLanes = 4;
         ctrl.laneEvents.push({ timeMs: Math.max(0, (n._madnessPhaseStartMs || nt) - 240), targetCount: 4, open: true, durMs: 340 });
       }
       prev3DPhaseMode = phMode;
+      prevPhaseStartMs = curPhaseStartMs;
 
       const activeLanesNow = phMode === 'highway' ? Math.min(secBaseLanes, simLanes) : 4;
       n.lane = Math.max(0, Math.min(activeLanesNow - 1, n.lane % activeLanesNow));

@@ -297,6 +297,29 @@ class LaneRemapper {
     const numLanes = targetLanes === 4 ? 4 : 3;
     const maxLaneIdx = numLanes - 1;
 
+    if (numLanes === 4 && notes.length > 0) {
+      let lane3Count = 0;
+      for (let i = 0; i < notes.length; i++) {
+        if (Math.round(notes[i].lane ?? 0) === 3) lane3Count++;
+      }
+      // Si el chart original viene de 3 carriles (0, 1, 2) o casi no usa el 4to carril (lane 3),
+      // redistribuir equilibradamente entre los 4 carriles (0, 1, 2, 3) antes de procesar holds
+      if (lane3Count < notes.length * 0.10) {
+        let c0 = 0, c1 = 0, c2 = 0;
+        for (let i = 0; i < notes.length; i++) {
+          const n = notes[i];
+          const rawL = Math.max(0, Math.min(3, Math.round(n.lane ?? 0)));
+          if (rawL === 0) {
+            n.lane = (c0++ % 3 === 2) ? 1 : 0;
+          } else if (rawL === 1) {
+            n.lane = (c1++ % 2 === 0) ? 1 : 2;
+          } else if (rawL === 2) {
+            n.lane = (c2++ % 3 === 0) ? 2 : 3;
+          }
+        }
+      }
+    }
+
     const preThinned = this.thinMultiLaneChart(notes, numLanes, bpm, stars, densityMode);
     const sorted = [...preThinned].sort((a, b) => a.timestamp_ms - b.timestamp_ms);
 

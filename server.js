@@ -4466,6 +4466,165 @@ async function tryExtractYouTubeStream(videoId) {
   return null;
 }
 
+const instantPreviewMemoryCache = new Map();
+
+function repairStrippedSpanishText(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/\bcorazn\b/gi, 'corazon')
+    .replace(/\bvivirs\b/gi, 'viviras')
+    .replace(/\btarzn\b/gi, 'tarzan')
+    .replace(/\bfernndez\b/gi, 'fernandez')
+    .replace(/\baerolneas\b/gi, 'aerolineas')
+    .replace(/\bmsica\b/gi, 'musica')
+    .replace(/\bcancin\b/gi, 'cancion')
+    .replace(/\bpasin\b/gi, 'pasion')
+    .replace(/\bilusin\b/gi, 'ilusion')
+    .replace(/\brazn\b/gi, 'razon')
+    .replace(/\bperdname\b/gi, 'perdoname')
+    .replace(/\bslo\b/gi, 'solo')
+    .replace(/\bms\b/gi, 'mas')
+    .replace(/\bqu\b/gi, 'que')
+    .replace(/\bt\b/gi, 'tu')
+    .replace(/\bm\b/gi, 'mi');
+}
+
+app.get('/api/v1/audio/instant_preview', async (req, res) => {
+  const rawTitle = String(req.query.title || '').trim();
+  const rawArtist = String(req.query.artist || '').trim();
+  if (!rawTitle && !rawArtist) return res.json({ previewUrl: null, artworkUrl: null });
+
+  const cleanTitle = repairStrippedSpanishText(
+    rawTitle
+      .replace(/\[[^\]]*\]/g, ' ')
+      .replace(/\([^)]*(?:official|video|audio|lyric|live|cover|remix|karaoke|hd|4k|en directo|directo)[^)]*\)/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  );
+  const cleanArtist = repairStrippedSpanishText(
+    rawArtist
+      .replace(/\b(YouTube|Custom|VEVO|Topic|Auto-generated|Charts|Chart|UltraStar)\b/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  );
+
+  const cacheKey = `${cleanTitle.toLowerCase()}|${cleanArtist.toLowerCase()}`;
+  const cached = instantPreviewMemoryCache.get(cacheKey);
+  if (cached && (Date.now() - cached.ts) < 30 * 60 * 1000) {
+    return res.json(cached.data);
+  }
+
+  const normWords = (s) => String(s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length >= 2);
+
+  const titleWords = normWords(cleanTitle);
+  const artistWords = normWords(cleanArtist);
+
+  const scoreCandidate = (candTitle, candArtist, requireArtist) => {
+    const tNorm = normWords(candTitle).join(' ');
+    const aNorm = normWords(candArtist).join(' ');
+    let tHits = 0;
+    for (const w of titleWords) {
+      if (tNorm.includes(w) || (w.length >= 4 && tNorm.includes(w.slice(0, 4)))) tHits++;
+    }
+    if (titleWords.length > 0 && tHits === 0) return -1;
+    let aHits = 0;
+    for (const w of artistWords) {
+      if (aNorm.includes(w) || tNorm.includes(w) || (w.length >= 4 && aNorm.includes(w.slice(0, 4)))) aHits++;
+    }
+    if (requireArtist && artistWords.length > 0 && aHits === 0 && tHits < titleWords.length) return -1;
+    let score = tHits * 30 + aHits * 25;
+    if ( /\b(karaoke|tribute|8-bit|ringtone|instrumental)\b/i.test(`${candTitle} ${candArtist}`) ) score -= 45;
+    return score;
+  };
+
+  const fetchDeezer = async (queryStr, requireArtist) => {
+    try {
+      const resp = await axios.get(`https://api.deezer.com/search?q=${encodeURIComponent(queryStr)}&limit=8`, {
+        timeout: 1800,
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      });
+      const list = (resp.data && Array.isArray(resp.data.data)) ? resp.data.data : [];
+      let best = null;
+      let bestScore = 0;
+      for (const item of list) {
+        if (!item || !item.preview) continue;
+        const sc = scoreCandidate(item.title || item.title_short || '', (item.artist && item.artist.name) || '', requireArtist);
+        if (sc > bestScore) {
+          bestScore = sc;
+          best = {
+            previewUrl: item.preview,
+            artworkUrl: (item.album && (item.album.cover_medium || item.album.cover_big || item.album.cover)) || null,
+            title: item.title_short || item.title || cleanTitle,
+            artist: (item.artist && item.artist.name) || cleanArtist,
+            source: 'deezer'
+          };
+        }
+      }
+      return best;
+    } catch (_) {
+      return null;
+    }
+  };
+
+  const fetchItunes = async (queryStr, requireArtist) => {
+    try {
+      const resp = await axios.get(`https://itunes.apple.com/search?term=${encodeURIComponent(queryStr)}&media=music&entity=song&limit=8`, {
+        timeout: 1800,
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      });
+      const list = (resp.data && Array.isArray(resp.data.results)) ? resp.data.results : [];
+      let best = null;
+      let bestScore = 0;
+      for (const item of list) {
+        if (!item || !item.previewUrl) continue;
+        const sc = scoreCandidate(item.trackName || '', item.artistName || '', requireArtist);
+        if (sc > bestScore) {
+          bestScore = sc;
+          best = {
+            previewUrl: item.previewUrl,
+            artworkUrl: item.artworkUrl100 ? item.artworkUrl100.replace('100x100bb', '300x300bb') : null,
+            title: item.trackName || cleanTitle,
+            artist: item.artistName || cleanArtist,
+            source: 'itunes'
+          };
+        }
+      }
+      return best;
+    } catch (_) {
+      return null;
+    }
+  };
+
+  try {
+    const fullQ = `${cleanTitle} ${cleanArtist}`.trim();
+    const [dzFull, itFull] = await Promise.all([
+      fetchDeezer(fullQ, true),
+      fetchItunes(fullQ, true)
+    ]);
+    let result = dzFull || itFull;
+    if (!result && cleanTitle) {
+      const [dzTitle, itTitle] = await Promise.all([
+        fetchDeezer(cleanTitle, false),
+        fetchItunes(cleanTitle, false)
+      ]);
+      result = dzTitle || itTitle;
+    }
+    const payload = result || { previewUrl: null, artworkUrl: null };
+    if (payload.previewUrl) {
+      instantPreviewMemoryCache.set(cacheKey, { ts: Date.now(), data: payload });
+    }
+    return res.json(payload);
+  } catch (_) {
+    return res.json({ previewUrl: null, artworkUrl: null });
+  }
+});
+
 const audioCandidatesMemoryCache = new Map();
 app.get('/api/v1/audio/candidates', async (req, res) => {
   const rawTitle = String(req.query.title || '').trim();
