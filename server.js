@@ -3827,29 +3827,101 @@ async function searchYouTubeBestVideo(query, rawTitle = '', rawArtist = '', expe
 }
 
 const YOUTUBE_FULL_MP3_LRU = new Map();
-const YOUTUBE_FULL_MP3_LRU_MAX = 12;
-const NOTUBE_SERVER_NODES = ['s58', 's60', 's56', 's59', 's62', 's57', 's61'];
+const YOUTUBE_FULL_MP3_LRU_MAX = 24;
+const YOUTUBE_INFLIGHT_EXTRACTIONS = new Map();
+const YOUTUBE_STREAM_STATES = new Map();
+const NOTUBE_SERVER_NODES = [
+  's40', 's41', 's42', 's43', 's44', 's45', 's46', 's47', 's48', 's49',
+  's50', 's51', 's52', 's53', 's54', 's55', 's56', 's57', 's58', 's59',
+  's60', 's61', 's62', 's63', 's64', 's65', 's66', 's67', 's68', 's69',
+  's70', 's71', 's72', 's73', 's74', 's75', 's76'
+];
 let _notubeServerNodeCursor = 0;
 
-async function extractYouTubeFullAudioViaNotubeServer(videoId) {
-  if (!videoId || !/^[A-Za-z0-9_-]{8,15}$/.test(videoId)) return null;
-  if (YOUTUBE_FULL_MP3_LRU.has(videoId)) {
-    return YOUTUBE_FULL_MP3_LRU.get(videoId);
+function sliceMp3AtChorusServer(fullBuf, ratio = 0.28) {
+  if (!Buffer.isBuffer(fullBuf) || fullBuf.length < 320000) return fullBuf;
+  let startOff = Math.floor(fullBuf.length * ratio);
+  const searchEnd = Math.min(fullBuf.length - 4, startOff + 8192);
+  for (let i = startOff; i < searchEnd; i++) {
+    if (fullBuf[i] === 0xFF && (fullBuf[i + 1] & 0xE0) === 0xE0 && (fullBuf[i + 1] & 0x18) !== 0x08 && (fullBuf[i + 2] & 0xF0) !== 0xF0) {
+      startOff = i;
+      break;
+    }
   }
+  return fullBuf.slice(startOff);
+}
 
+async function resolveSignedNotubeDownloadUrlServer(videoId, apiHost, webHost, ua) {
   const ytUrl = `https://www.youtube.com/watch?v=${videoId}`;
-  const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-  const startIdx = (_notubeServerNodeCursor++) % NOTUBE_SERVER_NODES.length;
-  const mirrors = [
-    { apiHost: `https://${NOTUBE_SERVER_NODES[startIdx]}.notube.im`, webHost: 'https://notube.im' },
-    { apiHost: `https://${NOTUBE_SERVER_NODES[(startIdx + 1) % NOTUBE_SERVER_NODES.length]}.notube.im`, webHost: 'https://notube.im' },
-    { apiHost: 'https://s58.notube.net', webHost: 'https://notube.net' }
-  ];
+  const myWorker = (u) => `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(u)}`;
 
-  for (const { apiHost, webHost } of mirrors) {
+  const body1 = new URLSearchParams({ url: ytUrl, format: 'mp3', lang: 'es', subscribed: 'false' });
+  let d1 = null;
+  try {
+    const r1 = await fetch(`${apiHost}/recover_weight.php`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'User-Agent': ua,
+        'Origin': webHost,
+        'Referer': `${webHost}/`
+      },
+      body: body1.toString(),
+      signal: AbortSignal.timeout(4500)
+    });
+    if (r1.ok) {
+      const txt1 = await r1.text();
+      if (txt1 && txt1.trim().startsWith('{')) d1 = JSON.parse(txt1);
+    }
+  } catch (_) {}
+
+  if (!d1 || !d1.token) {
+    const r1w = await fetch(myWorker(`${apiHost}/recover_weight.php`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+      body: body1.toString(),
+      signal: AbortSignal.timeout(5000)
+    });
+    if (!r1w.ok) return null;
+    d1 = await r1w.json();
+  }
+  if (!d1 || !d1.token) return null;
+
+  const body2 = new URLSearchParams({
+    url: ytUrl,
+    format: 'mp3',
+    name_mp4: d1.name_mp4 || '',
+    lang: 'es',
+    token: d1.token,
+    subscribed: 'false',
+    playlist: 'false',
+    adblock: 'false'
+  });
+
+  let finalToken = d1.token;
+  let gotValidR2 = false;
+  try {
+    const r2w = await fetch(myWorker(`${apiHost}/recover_file.php`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+      body: body2.toString(),
+      signal: AbortSignal.timeout(6500)
+    });
+    if (r2w.ok) {
+      const txt2 = await r2w.text();
+      if (txt2 && txt2.trim().startsWith('{')) {
+        const d2 = JSON.parse(txt2);
+        if (d2 && d2.token) {
+          finalToken = d2.token;
+          gotValidR2 = true;
+        }
+      }
+    }
+  } catch (_) {}
+
+  if (!gotValidR2) {
     try {
-      const body1 = new URLSearchParams({ url: ytUrl, format: 'mp3', lang: 'es', subscribed: 'false' });
-      const r1 = await fetch(`${apiHost}/recover_weight.php`, {
+      const r2 = await fetch(`${apiHost}/recover_file.php`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -3857,95 +3929,165 @@ async function extractYouTubeFullAudioViaNotubeServer(videoId) {
           'Origin': webHost,
           'Referer': `${webHost}/`
         },
-        body: body1.toString(),
-        signal: AbortSignal.timeout(5500)
+        body: body2.toString(),
+        signal: AbortSignal.timeout(6000)
       });
-      if (!r1.ok) continue;
-      const d1 = await r1.json();
-      if (!d1 || !d1.token) continue;
-
-      const needsConversion = !d1.url_mp4_youtube;
-      if (needsConversion) {
-        const bodyConv = new URLSearchParams({ token: d1.token });
-        await fetch(`${apiHost}/conversion.php`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-            'User-Agent': ua,
-            'Origin': webHost,
-            'Referer': `${webHost}/`
-          },
-          body: bodyConv.toString(),
-          signal: AbortSignal.timeout(11000)
-        });
-      }
-
-      const maxPolls = needsConversion ? 3 : 1;
-      for (let poll = 0; poll < maxPolls; poll++) {
-        if (poll > 0) {
-          await new Promise(r => setTimeout(r, 1100));
+      if (r2.ok) {
+        const txt2 = await r2.text();
+        if (txt2 && txt2.trim().startsWith('{')) {
+          const d2 = JSON.parse(txt2);
+          if (d2 && d2.token) finalToken = d2.token;
         }
-        const body2 = new URLSearchParams({
-          url: ytUrl,
-          format: 'mp3',
-          name_mp4: d1.name_mp4 || '',
-          lang: 'es',
-          token: d1.token,
-          subscribed: 'false',
-          priority: '0',
-          ab: '128'
-        });
-        let finalToken = d1.token;
-        try {
-          const r2 = await fetch(`${apiHost}/recover_file.php`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-              'User-Agent': ua,
-              'Origin': webHost,
-              'Referer': `${webHost}/`
-            },
-            body: body2.toString(),
-            signal: AbortSignal.timeout(7500)
-          });
-          if (r2.ok) {
-            const d2 = await r2.json();
-            if (d2 && d2.token) finalToken = d2.token;
-          }
-        } catch (_) {}
-
-        const dlUrl = `${apiHost}/download.php?token=${encodeURIComponent(finalToken)}`;
-        try {
-          const dlRes = await fetch(dlUrl, {
-            headers: { 'User-Agent': ua, 'Referer': `${webHost}/` },
-            redirect: 'follow',
-            signal: AbortSignal.timeout(9500)
-          });
-          if (!dlRes.ok) continue;
-          const ct = String(dlRes.headers.get('content-type') || '').toLowerCase();
-          if (ct.includes('text/html') || ct.includes('application/json')) continue;
-          const ab = await dlRes.arrayBuffer();
-          if (ab && ab.byteLength >= 120000) {
-            const buf = Buffer.from(ab);
-            const resultObj = {
-              buffer: buf,
-              contentType: 'audio/mpeg',
-              title: (d1.titulo_mp4 || '').replace(/\.mp4$/i, '').replace(/_/g, ' ').trim(),
-              thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-              source: 'YouTube Studio Master MP3'
-            };
-            if (YOUTUBE_FULL_MP3_LRU.size >= YOUTUBE_FULL_MP3_LRU_MAX) {
-              const oldest = YOUTUBE_FULL_MP3_LRU.keys().next().value;
-              if (oldest) YOUTUBE_FULL_MP3_LRU.delete(oldest);
-            }
-            YOUTUBE_FULL_MP3_LRU.set(videoId, resultObj);
-            return resultObj;
-          }
-        } catch (_) {}
       }
     } catch (_) {}
   }
-  return null;
+
+  let dlUrl = '';
+  const downloadPageUrl = `${webHost}/es/download?token=${encodeURIComponent(finalToken)}`;
+  try {
+    const pageRes = await fetch(downloadPageUrl, {
+      headers: { 'User-Agent': ua, 'Referer': `${webHost}/` },
+      signal: AbortSignal.timeout(4500)
+    });
+    if (pageRes.ok) {
+      const html = await pageRes.text();
+      const keyMatch = html.match(/https:\/\/s\d+\.notube\.(?:im|net)\/download\.php\?token=[^"'\s>]+&key=[A-Za-z0-9]+/);
+      if (keyMatch && keyMatch[0]) dlUrl = keyMatch[0];
+    }
+  } catch (_) {}
+
+  if (!dlUrl) {
+    try {
+      const pageResW = await fetch(myWorker(downloadPageUrl), {
+        signal: AbortSignal.timeout(5000)
+      });
+      if (pageResW.ok) {
+        const html = await pageResW.text();
+        const keyMatch = html.match(/https:\/\/s\d+\.notube\.(?:im|net)\/download\.php\?token=[^"'\s>]+&key=[A-Za-z0-9]+/);
+        if (keyMatch && keyMatch[0]) dlUrl = keyMatch[0];
+      }
+    } catch (_) {}
+  }
+
+  if (!dlUrl) return null;
+  return {
+    dlUrl,
+    title: (d1.titulo_mp4 || d1.titre_mp4 || '').replace(/\+/g, ' ').replace(/\.mp4$/i, '').replace(/_/g, ' ').trim()
+  };
+}
+
+async function extractYouTubeFullAudioViaNotubeServer(videoId) {
+  if (!videoId || !/^[A-Za-z0-9_-]{8,15}$/.test(videoId)) return null;
+  if (YOUTUBE_FULL_MP3_LRU.has(videoId)) {
+    return YOUTUBE_FULL_MP3_LRU.get(videoId);
+  }
+  if (YOUTUBE_INFLIGHT_EXTRACTIONS.has(videoId)) {
+    return YOUTUBE_INFLIGHT_EXTRACTIONS.get(videoId);
+  }
+
+  const streamState = {
+    chunks: [],
+    totalBytes: 0,
+    done: false,
+    error: false,
+    listeners: new Set()
+  };
+  YOUTUBE_STREAM_STATES.set(videoId, streamState);
+
+  const notifyListeners = (chunk, isDone, isError = false) => {
+    for (const fn of streamState.listeners) {
+      try { fn(chunk, isDone, isError); } catch (_) {}
+    }
+  };
+
+  const taskPromise = (async () => {
+    const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+    const startIdx = (_notubeServerNodeCursor++) % NOTUBE_SERVER_NODES.length;
+    const nodeCandidates = [
+      NOTUBE_SERVER_NODES[startIdx],
+      NOTUBE_SERVER_NODES[(startIdx + 7) % NOTUBE_SERVER_NODES.length],
+      NOTUBE_SERVER_NODES[(startIdx + 15) % NOTUBE_SERVER_NODES.length]
+    ];
+
+    for (const node of nodeCandidates) {
+      const apiHost = `https://${node}.notube.im`;
+      const webHost = 'https://notube.im';
+      try {
+        const resolved = await resolveSignedNotubeDownloadUrlServer(videoId, apiHost, webHost, ua);
+        if (!resolved || !resolved.dlUrl) continue;
+
+        const dlRes = await fetch(resolved.dlUrl, {
+          headers: { 'User-Agent': ua, 'Referer': `${webHost}/` },
+          redirect: 'follow',
+          signal: AbortSignal.timeout(24000)
+        });
+        if (!dlRes.ok) continue;
+        const ct = String(dlRes.headers.get('content-type') || '').toLowerCase();
+        if (ct.includes('text/html') || ct.includes('application/json')) continue;
+
+        streamState.chunks = [];
+        streamState.totalBytes = 0;
+
+        if (dlRes.body && typeof dlRes.body.getReader === 'function') {
+          const reader = dlRes.body.getReader();
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value && value.byteLength > 0) {
+              const b = Buffer.from(value.buffer, value.byteOffset, value.byteLength);
+              streamState.chunks.push(b);
+              streamState.totalBytes += b.length;
+              notifyListeners(b, false, false);
+            }
+          }
+        } else {
+          const ab = await dlRes.arrayBuffer();
+          if (ab && ab.byteLength > 0) {
+            const b = Buffer.from(ab);
+            streamState.chunks.push(b);
+            streamState.totalBytes += b.length;
+            notifyListeners(b, false, false);
+          }
+        }
+
+        if (streamState.totalBytes >= 120000) {
+          const fullBuf = Buffer.concat(streamState.chunks, streamState.totalBytes);
+          let cleanTitle = resolved.title || '';
+          try { cleanTitle = decodeURIComponent(cleanTitle); } catch (_) {}
+          const resultObj = {
+            buffer: fullBuf,
+            contentType: 'audio/mpeg',
+            title: cleanTitle,
+            thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+            source: 'YouTube Studio Master MP3'
+          };
+          if (YOUTUBE_FULL_MP3_LRU.size >= YOUTUBE_FULL_MP3_LRU_MAX) {
+            const oldest = YOUTUBE_FULL_MP3_LRU.keys().next().value;
+            if (oldest) YOUTUBE_FULL_MP3_LRU.delete(oldest);
+          }
+          YOUTUBE_FULL_MP3_LRU.set(videoId, resultObj);
+          streamState.done = true;
+          notifyListeners(null, true, false);
+          return resultObj;
+        }
+      } catch (_) {}
+    }
+
+    streamState.error = true;
+    streamState.done = true;
+    notifyListeners(null, true, true);
+    return null;
+  })();
+
+  YOUTUBE_INFLIGHT_EXTRACTIONS.set(videoId, taskPromise);
+  try {
+    return await taskPromise;
+  } finally {
+    YOUTUBE_INFLIGHT_EXTRACTIONS.delete(videoId);
+    setTimeout(() => {
+      YOUTUBE_STREAM_STATES.delete(videoId);
+    }, 5000);
+  }
 }
 
 let _cachedSoundCloudClientId = '';
@@ -4489,10 +4631,147 @@ function repairStrippedSpanishText(str) {
     .replace(/\bm\b/gi, 'mi');
 }
 
+app.get('/api/v1/audio/notube_dl', async (req, res) => {
+  const targetUrl = String(req.query.url || '').trim();
+  if (!/^https:\/\/s\d+\.notube\.(?:im|net)\/download\.php\?token=[^"'\s>]+&key=[A-Za-z0-9]+$/i.test(targetUrl)) {
+    return res.status(400).end();
+  }
+  try {
+    const dlRes = await fetch(targetUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://notube.im/'
+      },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(24000)
+    });
+    if (!dlRes.ok) return res.status(502).end();
+    const ct = String(dlRes.headers.get('content-type') || '').toLowerCase();
+    if (ct.includes('text/html') || ct.includes('application/json')) {
+      return res.status(404).end();
+    }
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'no-store');
+    if (dlRes.body && typeof dlRes.body.getReader === 'function') {
+      const reader = dlRes.body.getReader();
+      req.on('close', () => { try { reader.cancel(); } catch (_) {} });
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value && value.byteLength > 0) {
+          res.write(Buffer.from(value.buffer, value.byteOffset, value.byteLength));
+        }
+      }
+      return res.end();
+    } else {
+      const ab = await dlRes.arrayBuffer();
+      return res.send(Buffer.from(ab));
+    }
+  } catch (_) {
+    if (!res.headersSent) return res.status(502).end();
+    try { res.end(); } catch (__) {}
+  }
+});
+
+app.get('/api/v1/audio/stream_preview', async (req, res) => {
+  const videoId = String(req.query.videoId || '').trim();
+  if (!videoId || !/^[A-Za-z0-9_-]{8,15}$/.test(videoId)) {
+    return res.status(400).end();
+  }
+
+  // 1. Si ya está en la caché RAM del servidor, servir directamente desde el estribillo (~28% del MP3) en < 5ms
+  if (YOUTUBE_FULL_MP3_LRU.has(videoId)) {
+    const cached = YOUTUBE_FULL_MP3_LRU.get(videoId);
+    if (cached && cached.buffer && cached.buffer.length >= 120000) {
+      const sliced = sliceMp3AtChorusServer(cached.buffer, 0.28);
+      res.setHeader('Content-Type', 'audio/mpeg');
+      res.setHeader('Content-Length', String(sliced.length));
+      res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      return res.send(sliced);
+    }
+  }
+
+  // 2. Iniciar o unirse a la extracción en curso y retransmitir los fragmentos MP3 en vivo en cuanto haya >= 36 KB
+  extractYouTubeFullAudioViaNotubeServer(videoId).catch(() => {});
+  const state = YOUTUBE_STREAM_STATES.get(videoId);
+  if (!state) {
+    return res.status(502).end();
+  }
+
+  let headersFlushed = false;
+  let closed = false;
+
+  const flushInitialAndWrite = (newChunk) => {
+    if (closed) return;
+    if (!headersFlushed) {
+      if (state.totalBytes < 36000 && !state.done) return;
+      if (state.error || (state.done && state.totalBytes < 36000)) {
+        closed = true;
+        if (!res.headersSent) res.status(502).end();
+        return;
+      }
+      headersFlushed = true;
+      res.setHeader('Content-Type', 'audio/mpeg');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cache-Control', 'no-store');
+      for (const existing of state.chunks) {
+        try { res.write(existing); } catch (_) {}
+      }
+      if (state.done) {
+        closed = true;
+        try { res.end(); } catch (_) {}
+      }
+      return;
+    }
+    if (newChunk && newChunk.length > 0) {
+      try { res.write(newChunk); } catch (_) {}
+    }
+  };
+
+  const listener = (chunk, isDone, isError) => {
+    if (closed) return;
+    if (isError && !headersFlushed) {
+      closed = true;
+      state.listeners.delete(listener);
+      if (!res.headersSent) res.status(502).end();
+      return;
+    }
+    flushInitialAndWrite(chunk);
+    if (isDone && !closed) {
+      closed = true;
+      state.listeners.delete(listener);
+      try { res.end(); } catch (_) {}
+    }
+  };
+
+  state.listeners.add(listener);
+  req.on('close', () => {
+    closed = true;
+    state.listeners.delete(listener);
+  });
+
+  if (state.totalBytes >= 36000 || state.done) {
+    listener(null, state.done, state.error);
+  }
+});
+
 app.get('/api/v1/audio/instant_preview', async (req, res) => {
   const rawTitle = String(req.query.title || '').trim();
   const rawArtist = String(req.query.artist || '').trim();
-  if (!rawTitle && !rawArtist) return res.json({ previewUrl: null, artworkUrl: null });
+  const rawVideoId = String(req.query.videoId || '').trim();
+  const isPrewarm = String(req.query.prewarm || '') === '1';
+
+  if (rawVideoId && YOUTUBE_FULL_MP3_LRU.has(rawVideoId)) {
+    return res.json({
+      previewUrl: `/api/v1/audio/stream_preview?videoId=${encodeURIComponent(rawVideoId)}`,
+      artworkUrl: `https://i.ytimg.com/vi/${rawVideoId}/hqdefault.jpg`,
+      source: 'youtube_ram_cache'
+    });
+  }
+
+  if (!rawTitle && !rawArtist) return res.json({ previewUrl: null, artworkUrl: null, noCdn: true });
 
   const cleanTitle = repairStrippedSpanishText(
     rawTitle
@@ -4511,9 +4790,17 @@ app.get('/api/v1/audio/instant_preview', async (req, res) => {
   const cacheKey = `${cleanTitle.toLowerCase()}|${cleanArtist.toLowerCase()}`;
   const cached = instantPreviewMemoryCache.get(cacheKey);
   if (cached && (Date.now() - cached.ts) < 30 * 60 * 1000) {
+    if (cached.data && cached.data.noCdn && rawVideoId) {
+      if (isPrewarm) extractYouTubeFullAudioViaNotubeServer(rawVideoId).catch(() => {});
+      return res.json({
+        ...cached.data,
+        streamPreviewUrl: `/api/v1/audio/stream_preview?videoId=${encodeURIComponent(rawVideoId)}`
+      });
+    }
     return res.json(cached.data);
   }
 
+  const STOPWORDS = new Set(['del', 'las', 'los', 'una', 'uno', 'unos', 'unas', 'por', 'con', 'para', 'sin', 'the', 'and', 'for']);
   const normWords = (s) => String(s || '')
     .toLowerCase()
     .normalize('NFD')
@@ -4523,38 +4810,46 @@ app.get('/api/v1/audio/instant_preview', async (req, res) => {
     .filter((w) => w.length >= 2);
 
   const titleWords = normWords(cleanTitle);
-  const artistWords = normWords(cleanArtist);
+  const sigTitleWords = titleWords.filter(w => !STOPWORDS.has(w));
+  const effTitleWords = sigTitleWords.length > 0 ? sigTitleWords : titleWords;
+  const artistWords = normWords(cleanArtist).filter(w => !STOPWORDS.has(w));
 
-  const scoreCandidate = (candTitle, candArtist, requireArtist) => {
-    const tNorm = normWords(candTitle).join(' ');
-    const aNorm = normWords(candArtist).join(' ');
+  const scoreCandidate = (candTitle, candArtist) => {
+    const tNormWords = normWords(candTitle);
+    const aNormWords = normWords(candArtist);
+    const tNorm = tNormWords.join(' ');
+    const aNorm = aNormWords.join(' ');
+
     let tHits = 0;
-    for (const w of titleWords) {
-      if (tNorm.includes(w) || (w.length >= 4 && tNorm.includes(w.slice(0, 4)))) tHits++;
+    for (const w of effTitleWords) {
+      if (tNormWords.includes(w) || (w.length >= 5 && tNorm.includes(w))) tHits++;
     }
-    if (titleWords.length > 0 && tHits === 0) return -1;
+    const minRequiredTitleHits = effTitleWords.length >= 2 ? Math.ceil(effTitleWords.length * 0.65) : 1;
+    if (effTitleWords.length > 0 && tHits < minRequiredTitleHits) return -1;
+
     let aHits = 0;
     for (const w of artistWords) {
-      if (aNorm.includes(w) || tNorm.includes(w) || (w.length >= 4 && aNorm.includes(w.slice(0, 4)))) aHits++;
+      if (aNormWords.includes(w) || tNormWords.includes(w) || (w.length >= 5 && aNorm.includes(w))) aHits++;
     }
-    if (requireArtist && artistWords.length > 0 && aHits === 0 && tHits < titleWords.length) return -1;
+    if (artistWords.length > 0 && aHits === 0) return -1;
+
     let score = tHits * 30 + aHits * 25;
-    if ( /\b(karaoke|tribute|8-bit|ringtone|instrumental)\b/i.test(`${candTitle} ${candArtist}`) ) score -= 45;
+    if (/\b(karaoke|tribute|8-bit|ringtone|instrumental)\b/i.test(`${candTitle} ${candArtist}`)) score -= 45;
     return score;
   };
 
-  const fetchDeezer = async (queryStr, requireArtist) => {
+  const fetchDeezer = async (queryStr) => {
     try {
-      const resp = await axios.get(`https://api.deezer.com/search?q=${encodeURIComponent(queryStr)}&limit=8`, {
-        timeout: 1800,
+      const resp = await axios.get(`https://api.deezer.com/search?q=${encodeURIComponent(queryStr)}&limit=6`, {
+        timeout: 1350,
         headers: { 'User-Agent': 'Mozilla/5.0' }
       });
       const list = (resp.data && Array.isArray(resp.data.data)) ? resp.data.data : [];
       let best = null;
-      let bestScore = 0;
+      let bestScore = 35;
       for (const item of list) {
         if (!item || !item.preview) continue;
-        const sc = scoreCandidate(item.title || item.title_short || '', (item.artist && item.artist.name) || '', requireArtist);
+        const sc = scoreCandidate(item.title || item.title_short || '', (item.artist && item.artist.name) || '');
         if (sc > bestScore) {
           bestScore = sc;
           best = {
@@ -4572,18 +4867,18 @@ app.get('/api/v1/audio/instant_preview', async (req, res) => {
     }
   };
 
-  const fetchItunes = async (queryStr, requireArtist) => {
+  const fetchItunes = async (queryStr) => {
     try {
-      const resp = await axios.get(`https://itunes.apple.com/search?term=${encodeURIComponent(queryStr)}&media=music&entity=song&limit=8`, {
-        timeout: 1800,
+      const resp = await axios.get(`https://itunes.apple.com/search?term=${encodeURIComponent(queryStr)}&media=music&entity=song&limit=6`, {
+        timeout: 1350,
         headers: { 'User-Agent': 'Mozilla/5.0' }
       });
       const list = (resp.data && Array.isArray(resp.data.results)) ? resp.data.results : [];
       let best = null;
-      let bestScore = 0;
+      let bestScore = 35;
       for (const item of list) {
         if (!item || !item.previewUrl) continue;
-        const sc = scoreCandidate(item.trackName || '', item.artistName || '', requireArtist);
+        const sc = scoreCandidate(item.trackName || '', item.artistName || '');
         if (sc > bestScore) {
           bestScore = sc;
           best = {
@@ -4604,24 +4899,34 @@ app.get('/api/v1/audio/instant_preview', async (req, res) => {
   try {
     const fullQ = `${cleanTitle} ${cleanArtist}`.trim();
     const [dzFull, itFull] = await Promise.all([
-      fetchDeezer(fullQ, true),
-      fetchItunes(fullQ, true)
+      fetchDeezer(fullQ),
+      fetchItunes(fullQ)
     ]);
-    let result = dzFull || itFull;
-    if (!result && cleanTitle) {
-      const [dzTitle, itTitle] = await Promise.all([
-        fetchDeezer(cleanTitle, false),
-        fetchItunes(cleanTitle, false)
-      ]);
-      result = dzTitle || itTitle;
+    const result = dzFull || itFull;
+    if (result && result.previewUrl) {
+      instantPreviewMemoryCache.set(cacheKey, { ts: Date.now(), data: result });
+      return res.json(result);
     }
-    const payload = result || { previewUrl: null, artworkUrl: null };
-    if (payload.previewUrl) {
-      instantPreviewMemoryCache.set(cacheKey, { ts: Date.now(), data: payload });
+
+    const negPayload = {
+      previewUrl: null,
+      artworkUrl: null,
+      noCdn: true,
+      streamPreviewUrl: rawVideoId ? `/api/v1/audio/stream_preview?videoId=${encodeURIComponent(rawVideoId)}` : null
+    };
+    instantPreviewMemoryCache.set(cacheKey, { ts: Date.now(), data: { previewUrl: null, artworkUrl: null, noCdn: true } });
+
+    if (rawVideoId && isPrewarm) {
+      extractYouTubeFullAudioViaNotubeServer(rawVideoId).catch(() => {});
     }
-    return res.json(payload);
+    return res.json(negPayload);
   } catch (_) {
-    return res.json({ previewUrl: null, artworkUrl: null });
+    return res.json({
+      previewUrl: null,
+      artworkUrl: null,
+      noCdn: true,
+      streamPreviewUrl: rawVideoId ? `/api/v1/audio/stream_preview?videoId=${encodeURIComponent(rawVideoId)}` : null
+    });
   }
 });
 
@@ -4763,6 +5068,7 @@ app.get('/api/v1/audio/extract', async (req, res) => {
         expectedDur
       );
       for (const ytCand of ytList.slice(0, 3)) {
+        if (!ytCand.videoId || ytCand.videoId === resolvedMeta.videoId) continue;
         if (ytCand.authScore < 35) continue;
         const ytAudio = await tryExtractYouTubeStream(ytCand.videoId);
         if (ytAudio && ytAudio.buffer && ytAudio.buffer.length >= 120000) {

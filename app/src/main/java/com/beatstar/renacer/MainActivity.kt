@@ -356,7 +356,8 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 if ((host == "github.com" && path.contains("/Bruala33/renacer/releases/download/")) ||
-                    host.endsWith("githubusercontent.com")
+                    host.endsWith("githubusercontent.com") ||
+                    ((host.endsWith(".notube.im") || host.endsWith(".notube.net")) && path.contains("/download.php"))
                 ) {
                     if (request.method.equals("OPTIONS", ignoreCase = true)) {
                         return WebResourceResponse(
@@ -368,18 +369,25 @@ class MainActivity : AppCompatActivity() {
                             ByteArrayInputStream(ByteArray(0))
                         )
                     }
+                    val isNotube = host.endsWith(".notube.im") || host.endsWith(".notube.net")
                     var conn: HttpURLConnection? = null
                     return try {
                         conn = (URL(uri.toString()).openConnection() as HttpURLConnection).apply {
                             instanceFollowRedirects = true
                             connectTimeout = 8000
-                            readTimeout = 20000
+                            readTimeout = 25000
                             requestMethod = "GET"
-                            setRequestProperty("User-Agent", "BeatstarRenacerAndroid/1.0")
+                            if (isNotube) {
+                                setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36")
+                                setRequestProperty("Referer", "https://notube.im/")
+                            } else {
+                                setRequestProperty("User-Agent", "BeatstarRenacerAndroid/1.0")
+                            }
                         }
                         val code = conn.responseCode
-                        if (code in 200..299) {
-                            val mime = guessMimeType(uri.path ?: "")
+                        val contentType = (conn.contentType ?: "").lowercase(Locale.ROOT)
+                        if (code in 200..299 && (!isNotube || (!contentType.contains("text/html") && !contentType.contains("application/json")))) {
+                            val mime = if (isNotube) "audio/mpeg" else guessMimeType(uri.path ?: "")
                             val encoding = if (mime == "application/json" || mime.startsWith("text/")) "UTF-8" else null
                             WebResourceResponse(mime, encoding, 200, "OK", CORS_HEADERS, conn.inputStream)
                         } else {
@@ -387,7 +395,7 @@ class MainActivity : AppCompatActivity() {
                             WebResourceResponse(
                                 "text/plain",
                                 "UTF-8",
-                                code.coerceIn(400, 599),
+                                if (code in 400..599) code else 404,
                                 "Not Found",
                                 CORS_HEADERS,
                                 ByteArrayInputStream(ByteArray(0))

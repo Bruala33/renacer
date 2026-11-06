@@ -12154,6 +12154,22 @@ function stopPianoCameraLoop() {
 
       } catch (err) {
         window.isGameLoadingOrActive = false;
+        // Si falla cualquier mirror externo de osu!/BeatSaver/CloneHero, activar extracción automática multi-fuente de la canción real
+        if (chartItem && chartItem.title && typeof window.autoExtractAndPlaySong === 'function') {
+          try {
+            const fallbackDiff = String(diffName || 'hard').toLowerCase();
+            const mappedDiff = fallbackDiff.includes('impos') ? 'impossible'
+              : (fallbackDiff.includes('ext') ? 'extreme'
+              : (fallbackDiff.includes('med') || fallbackDiff.includes('norm') ? 'medium'
+              : (fallbackDiff.includes('fac') || fallbackDiff.includes('easy') ? 'easy' : 'hard')));
+            return await window.autoExtractAndPlaySong(
+              chartItem.title,
+              chartItem.artist || '',
+              chartItem.thumbnail || chartItem.cover_url || './app_logo.png',
+              mappedDiff
+            );
+          } catch (_) {}
+        }
         if (isOsuTrack) {
           overlay.classList.remove('active');
           if (curtain) curtain.classList.add('revealed');
@@ -14121,11 +14137,17 @@ function stopPianoCameraLoop() {
       return 0;
     }
 
-    const NOTUBE_FAST_NODES = ['s58', 's60', 's56', 's59', 's62', 's57', 's61'];
+    const NOTUBE_FAST_NODES = [
+      's58', 's60', 's56', 's59', 's62', 's57', 's61',
+      's45', 's46', 's47', 's48', 's49', 's50', 's51', 's52', 's53', 's54', 's55',
+      's63', 's64', 's65', 's66', 's67', 's68', 's69', 's70', 's71', 's72', 's73', 's74', 's75', 's76',
+      's40', 's41', 's42', 's43', 's44'
+    ];
     let _notubeNodeRoundRobin = 0;
     window._ytMp3UrlCache = window._ytMp3UrlCache || new Map();
     window._ytMp3UrlInFlight = window._ytMp3UrlInFlight || new Map();
     window._ytFullBlobInFlight = window._ytFullBlobInFlight || new Map();
+    window._ytPartialBlobCache = window._ytPartialBlobCache || new Map();
     window._ytChunkListeners = window._ytChunkListeners || new Map();
 
     window._ytOfficialSearchCache = window._ytOfficialSearchCache || new Map();
@@ -14304,14 +14326,19 @@ function stopPianoCameraLoop() {
       }
     }
 
-    async function resolveYouTubeMp3DownloadUrlClient(videoId, preferredNode = '') {
+    async function resolveYouTubeMp3DownloadUrlClient(videoId, preferredNode = '', forceFresh = false) {
       if (!videoId || !/^[A-Za-z0-9_-]{8,15}$/.test(videoId)) return null;
       const now = Date.now();
-      const cached = window._ytMp3UrlCache.get(videoId);
-      if (cached && cached.dlUrl && (now - cached.ts) < 1200000) {
-        return cached;
+      if (forceFresh) {
+        window._ytMp3UrlCache.delete(videoId);
+      } else {
+        const cached = window._ytMp3UrlCache.get(videoId);
+        // Los tokens de Notube caducan rápido y son de un solo uso; mantener en caché máximo 90s y borrar al consumir
+        if (cached && cached.dlUrl && (now - cached.ts) < 90000) {
+          return cached;
+        }
       }
-      if (window._ytMp3UrlInFlight.has(videoId)) {
+      if (!forceFresh && window._ytMp3UrlInFlight.has(videoId)) {
         return window._ytMp3UrlInFlight.get(videoId);
       }
 
@@ -14334,16 +14361,6 @@ function stopPianoCameraLoop() {
           const d1 = await r1.json();
           if (!d1 || !d1.token) throw new Error('no token');
 
-          const needsConversion = !d1.url_mp4_youtube;
-          if (needsConversion) {
-            const bodyConv = new URLSearchParams({ token: d1.token });
-            await fetch(myWorker(`${apiHost}/conversion.php`), {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-              body: bodyConv.toString()
-            });
-          }
-
           const body2 = new URLSearchParams({
             url: ytUrl,
             format: 'mp3',
@@ -14351,6 +14368,8 @@ function stopPianoCameraLoop() {
             lang: 'es',
             token: d1.token,
             subscribed: 'false',
+            playlist: 'false',
+            adblock: 'false',
             priority: '0',
             ab: '128'
           });
@@ -14364,54 +14383,54 @@ function stopPianoCameraLoop() {
             try {
               const d2 = await r2.json();
               if (d2 && d2.token) finalToken = d2.token;
-            } catch (_) {}
+              if (d2 && d2.retour && d2.retour !== 'OK' && d2.retour !== 'HS') {
+                throw new Error('notube retour ' + d2.retour);
+              }
+            } catch (e) {
+              if (String(e.message || '').startsWith('notube retour')) throw e;
+            }
           }
 
-          let dlUrl = `${apiHost}/download.php?token=${encodeURIComponent(finalToken)}`;
-          if (needsConversion) {
-            try {
-              const pageRes = await fetch(myWorker(`${webHost}/es/download?token=${encodeURIComponent(finalToken)}`));
-              if (pageRes.ok) {
-                const html = await pageRes.text();
-                const keyMatch = html.match(/https:\/\/s\d+\.notube\.(?:im|net)\/download\.php\?token=[^"'\s>]+/);
-                if (keyMatch && keyMatch[0]) {
-                  dlUrl = keyMatch[0];
-                }
-              }
-            } catch (_) {}
+          // SIEMPRE obtener la firma obligatoria &key=... desde /es/download?token=...
+          let dlUrl = '';
+          const pageRes = await fetch(myWorker(`${webHost}/es/download?token=${encodeURIComponent(finalToken)}`));
+          if (pageRes.ok) {
+            const html = await pageRes.text();
+            const keyMatch = html.match(/https:\/\/s\d+\.notube\.(?:im|net)\/download\.php\?token=[^"'\s>]+&key=[A-Za-z0-9]+/);
+            if (keyMatch && keyMatch[0]) {
+              dlUrl = keyMatch[0];
+            }
           }
+          if (!dlUrl) throw new Error('missing signed key');
 
           return {
             dlUrl,
+            node,
             apiHost,
             webHost,
             ytUrl,
             nameMp4: d1.name_mp4 || '',
             baseToken: d1.token,
             finalToken,
-            needsConversion,
             title: (d1.titulo_mp4 || '').replace(/\.mp4$/i, '').replace(/_/g, ' ').trim(),
             ts: Date.now()
           };
         };
 
         try {
-          // Lanzar los 2 mejores nodos en paralelo para resolver el token en la mitad de tiempo
           const result = await Promise.any(orderedNodes.slice(0, 2).map(n => trySingleNode(n)));
-          if (result) {
+          if (result && result.dlUrl) {
             window._ytMp3UrlCache.set(videoId, result);
             return result;
           }
         } catch (_) {
-          if (orderedNodes[2]) {
-            try {
-              const fallbackRes = await trySingleNode(orderedNodes[2]);
-              if (fallbackRes) {
-                window._ytMp3UrlCache.set(videoId, fallbackRes);
-                return fallbackRes;
-              }
-            } catch (_) {}
-          }
+          try {
+            const fallbackRes = await Promise.any(orderedNodes.slice(2, 5).map(n => trySingleNode(n)));
+            if (fallbackRes && fallbackRes.dlUrl) {
+              window._ytMp3UrlCache.set(videoId, fallbackRes);
+              return fallbackRes;
+            }
+          } catch (_) {}
         }
         return null;
       })();
@@ -14422,59 +14441,6 @@ function stopPianoCameraLoop() {
       } finally {
         window._ytMp3UrlInFlight.delete(videoId);
       }
-    }
-
-    // Extractor alternativo en cliente mediante Piped/Invidious para vídeos que Notube tarde en convertir
-    async function extractYouTubeDirectStreamClient(videoId, onProgress = null) {
-      if (!videoId) return null;
-      const myWorker = (u) => `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(u)}`;
-      const pipedApis = [
-        `https://pipedapi.kavin.rocks/streams/${encodeURIComponent(videoId)}`,
-        `https://api.piped.private.coffee/streams/${encodeURIComponent(videoId)}`,
-        `https://pipedapi.ducks.party/streams/${encodeURIComponent(videoId)}`,
-        `https://pipedapi.smnz.de/streams/${encodeURIComponent(videoId)}`
-      ];
-      for (const apiUrl of pipedApis) {
-        try {
-          const ctrl = new AbortController();
-          const tid = setTimeout(() => ctrl.abort(), 3800);
-          let r = null;
-          try { r = await fetch(apiUrl, { signal: ctrl.signal }); } catch (_) {}
-          if (!r || !r.ok) {
-            r = await fetch(myWorker(apiUrl), { signal: ctrl.signal });
-          }
-          clearTimeout(tid);
-          if (!r || !r.ok) continue;
-          const j = await r.json();
-          const streams = Array.isArray(j?.audioStreams) ? j.audioStreams : [];
-          const sorted = streams
-            .filter(s => s && s.url && (!s.mimeType || s.mimeType.includes('audio')))
-            .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
-          if (!sorted.length) continue;
-          if (onProgress) onProgress('Descargando stream de audio de YouTube...');
-          let dlRes = null;
-          try { dlRes = await fetch(sorted[0].url); } catch (_) {}
-          if (!dlRes || !dlRes.ok) {
-            dlRes = await fetch(myWorker(sorted[0].url));
-          }
-          if (!dlRes || !dlRes.ok) continue;
-          const ab = await dlRes.arrayBuffer();
-          if (ab && ab.byteLength >= 120000) {
-            const u8 = new Uint8Array(ab);
-            const converted = convertFmp4ToAdtsAacClient(u8);
-            const mime = converted !== u8 ? 'audio/aac' : (sorted[0].mimeType || 'audio/mp4').split(';')[0];
-            const blob = new Blob([converted], { type: mime });
-            window._fullTrackBlobCache.set(`yt_${videoId}`, blob);
-            return {
-              blob,
-              title: j.title || '',
-              thumbnail: j.thumbnailUrl || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-              sourceName: 'YouTube Audio Stream'
-            };
-          }
-        } catch (_) {}
-      }
-      return null;
     }
 
     async function extractYouTubeFullAudioViaNotubeClient(videoId, onProgress = null, onFirstPlayableChunk = null, preferredNode = '') {
@@ -14492,6 +14458,10 @@ function stopPianoCameraLoop() {
       }
 
       if (typeof onFirstPlayableChunk === 'function') {
+        const existingPartial = window._ytPartialBlobCache.get(videoId);
+        if (existingPartial && existingPartial.size >= 48000) {
+          try { onFirstPlayableChunk(existingPartial, false); } catch (_) {}
+        }
         const list = window._ytChunkListeners.get(videoId) || [];
         list.push(onFirstPlayableChunk);
         window._ytChunkListeners.set(videoId, list);
@@ -14503,111 +14473,110 @@ function stopPianoCameraLoop() {
 
       const dlPromise = (async () => {
         const myWorker = (u) => `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(u)}`;
-        if (onProgress) onProgress('Conectando con YouTube Audio...');
-        const resolved = await resolveYouTubeMp3DownloadUrlClient(videoId, preferredNode);
-        if (resolved && resolved.dlUrl) {
-          const maxAttempts = resolved.needsConversion ? 3 : 2;
-          let activeDlUrl = resolved.dlUrl;
+        const baseUrl = (typeof getApiBaseUrl === 'function') ? getApiBaseUrl() : '';
+        const isAndroidWebView = typeof window.AndroidNative !== 'undefined';
 
-          for (let attempt = 0; attempt < maxAttempts; attempt++) {
-            if (attempt > 0) {
-              if (onProgress) onProgress('Finalizando conversión de pista en YouTube...');
-              await new Promise(r => setTimeout(r, 600));
-              if (resolved.apiHost && resolved.baseToken) {
-                try {
-                  const body2 = new URLSearchParams({
-                    url: resolved.ytUrl || `https://www.youtube.com/watch?v=${videoId}`,
-                    format: 'mp3',
-                    name_mp4: resolved.nameMp4 || '',
-                    lang: 'es',
-                    token: resolved.baseToken,
-                    subscribed: 'false',
-                    priority: '0',
-                    ab: '128'
-                  });
-                  const r2 = await fetch(myWorker(`${resolved.apiHost}/recover_file.php`), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-                    body: body2.toString()
-                  });
-                  if (r2.ok) {
-                    const d2 = await r2.json();
-                    if (d2 && d2.token) {
-                      activeDlUrl = `${resolved.apiHost}/download.php?token=${encodeURIComponent(d2.token)}`;
-                    }
-                  }
-                } catch (_) {}
-              }
-            }
-
+        const fetchNotubeBinaryStream = async (signedDlUrl) => {
+          if (isAndroidWebView) {
             try {
-              if (onProgress) onProgress('Transmitiendo canción completa de YouTube...');
-              const dlRes = await fetch(myWorker(activeDlUrl));
-              if (!dlRes || !dlRes.ok) continue;
-              const ct = String(dlRes.headers.get('content-type') || '').toLowerCase();
-              if (ct.includes('text/html') || ct.includes('application/json')) continue;
-
-              if (dlRes.body && typeof dlRes.body.getReader === 'function') {
-                const reader = dlRes.body.getReader();
-                const chunks = [];
-                let totalBytes = 0;
-                let partialNotified = false;
-
-                while (true) {
-                  const { done, value } = await reader.read();
-                  if (done) break;
-                  if (value && value.byteLength > 0) {
-                    chunks.push(value);
-                    totalBytes += value.byteLength;
-                    if (!partialNotified && totalBytes >= 95000) {
-                      partialNotified = true;
-                      const listeners = window._ytChunkListeners.get(videoId) || [];
-                      if (listeners.length > 0) {
-                        const partialBlob = new Blob(chunks, { type: 'audio/mpeg' });
-                        listeners.forEach(fn => { try { fn(partialBlob, false); } catch (_) {} });
-                      }
-                    }
-                  }
-                }
-
-                if (totalBytes >= 120000) {
-                  const fullBlob = new Blob(chunks, { type: 'audio/mpeg' });
-                  window._fullTrackBlobCache.set(`yt_${videoId}`, fullBlob);
-                  const listeners = window._ytChunkListeners.get(videoId) || [];
-                  listeners.forEach(fn => { try { fn(fullBlob, true); } catch (_) {} });
-                  return {
-                    blob: fullBlob,
-                    title: resolved.title || '',
-                    thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-                    sourceName: 'YouTube Studio Master MP3'
-                  };
-                }
-              } else {
-                const ab = await dlRes.arrayBuffer();
-                if (ab && ab.byteLength >= 120000) {
-                  const fullBlob = new Blob([ab], { type: 'audio/mpeg' });
-                  window._fullTrackBlobCache.set(`yt_${videoId}`, fullBlob);
-                  const listeners = window._ytChunkListeners.get(videoId) || [];
-                  listeners.forEach(fn => { try { fn(fullBlob, true); } catch (_) {} });
-                  return {
-                    blob: fullBlob,
-                    title: resolved.title || '',
-                    thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-                    sourceName: 'YouTube Studio Master MP3'
-                  };
+              const directRes = await fetch(signedDlUrl);
+              if (directRes && directRes.ok) {
+                const ct = String(directRes.headers.get('content-type') || '').toLowerCase();
+                if (!ct.includes('text/html') && !ct.includes('application/json')) {
+                  return directRes;
                 }
               }
             } catch (_) {}
           }
+          try {
+            const srvProxyUrl = `${baseUrl}/api/v1/audio/notube_dl?url=${encodeURIComponent(signedDlUrl)}`;
+            const srvRes = await fetch(srvProxyUrl);
+            if (srvRes && srvRes.ok) {
+              const ct = String(srvRes.headers.get('content-type') || '').toLowerCase();
+              if (!ct.includes('text/html') && !ct.includes('application/json')) {
+                return srvRes;
+              }
+            }
+          } catch (_) {}
+          return fetch(myWorker(signedDlUrl));
+        };
+
+        if (onProgress) onProgress('Conectando con YouTube Audio...');
+
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const nextNode = attempt === 0
+            ? preferredNode
+            : NOTUBE_FAST_NODES[(_notubeNodeRoundRobin++) % NOTUBE_FAST_NODES.length];
+          const resolved = await resolveYouTubeMp3DownloadUrlClient(videoId, nextNode, attempt > 0);
+          if (!resolved || !resolved.dlUrl) continue;
+
+          // IMPORTANTE: Las URLs download.php?token=...&key=... son de UN SOLO USO; consumir inmediatamente de la caché
+          window._ytMp3UrlCache.delete(videoId);
+          const activeDlUrl = resolved.dlUrl;
+
+          try {
+            if (onProgress) onProgress('Transmitiendo canción completa de YouTube...');
+            const dlRes = await fetchNotubeBinaryStream(activeDlUrl);
+            if (!dlRes || !dlRes.ok) continue;
+            const ct = String(dlRes.headers.get('content-type') || '').toLowerCase();
+            if (ct.includes('text/html') || ct.includes('application/json')) continue;
+
+            if (dlRes.body && typeof dlRes.body.getReader === 'function') {
+              const reader = dlRes.body.getReader();
+              const chunks = [];
+              let totalBytes = 0;
+              let partialNotified = false;
+
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                if (value && value.byteLength > 0) {
+                  chunks.push(value);
+                  totalBytes += value.byteLength;
+                  if (!partialNotified && totalBytes >= 65536) {
+                    partialNotified = true;
+                    const partialBlob = new Blob(chunks, { type: 'audio/mpeg' });
+                    window._ytPartialBlobCache.set(videoId, partialBlob);
+                    const listeners = window._ytChunkListeners.get(videoId) || [];
+                    if (listeners.length > 0) {
+                      listeners.forEach(fn => { try { fn(partialBlob, false); } catch (_) {} });
+                    }
+                  }
+                }
+              }
+
+              if (totalBytes >= 100000) {
+                const fullBlob = new Blob(chunks, { type: 'audio/mpeg' });
+                window._fullTrackBlobCache.set(`yt_${videoId}`, fullBlob);
+                window._ytPartialBlobCache.delete(videoId);
+                const listeners = window._ytChunkListeners.get(videoId) || [];
+                listeners.forEach(fn => { try { fn(fullBlob, true); } catch (_) {} });
+                return {
+                  blob: fullBlob,
+                  title: resolved.title || '',
+                  thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+                  sourceName: 'YouTube Studio Master MP3'
+                };
+              }
+            } else {
+              const ab = await dlRes.arrayBuffer();
+              if (ab && ab.byteLength >= 100000) {
+                const fullBlob = new Blob([ab], { type: 'audio/mpeg' });
+                window._fullTrackBlobCache.set(`yt_${videoId}`, fullBlob);
+                window._ytPartialBlobCache.delete(videoId);
+                const listeners = window._ytChunkListeners.get(videoId) || [];
+                listeners.forEach(fn => { try { fn(fullBlob, true); } catch (_) {} });
+                return {
+                  blob: fullBlob,
+                  title: resolved.title || '',
+                  thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+                  sourceName: 'YouTube Studio Master MP3'
+                };
+              }
+            }
+          } catch (_) {}
         }
 
-        // Respaldo inmediato: Stream directo de YouTube vía Piped/Invidious en cliente
-        const directStream = await extractYouTubeDirectStreamClient(videoId, onProgress);
-        if (directStream && directStream.blob) {
-          const listeners = window._ytChunkListeners.get(videoId) || [];
-          listeners.forEach(fn => { try { fn(directStream.blob, true); } catch (_) {} });
-          return directStream;
-        }
         return null;
       })();
 
@@ -14620,16 +14589,16 @@ function stopPianoCameraLoop() {
       }
     }
 
-    // Pre-resolución ultraligera (solo 1 petición en reposo, CERO descargas de MP3 en segundo plano para no saturar CPU/red en páginas con muchas Teclas Mágicas)
+    // Pre-extracción silenciosa del primer resultado de YouTube para que preview y juego sean instantáneos
     function prewarmYouTubeCandidatesClient(candidates) {
       if (!Array.isArray(candidates) || candidates.length === 0) return;
       const firstYt = candidates.find(c => c && c.videoId);
       if (!firstYt) return;
       setTimeout(() => {
-        if (!isGameCurrentlyActive()) {
-          resolveYouTubeMp3DownloadUrlClient(firstYt.videoId, NOTUBE_FAST_NODES[0]).catch(() => {});
+        if (!isGameCurrentlyActive() && !window._fullTrackBlobCache.has(`yt_${firstYt.videoId}`)) {
+          extractYouTubeFullAudioViaNotubeClient(firstYt.videoId).catch(() => {});
         }
-      }, 350);
+      }, 180);
     }
 
     async function searchSoundCloudFullClient(rawTitle, rawArtist = '', limit = 24) {
@@ -14863,25 +14832,24 @@ function stopPianoCameraLoop() {
 
       if (ytList.length > 0) {
         const resultList = ytList.slice(0, maxResults);
-        // Asociar instantáneamente la URL de estribillo CDN de iTunes a las Teclas Mágicas coincidentes (latencia 0ms al tocar la portada)
+        // Asociar instantáneamente la URL de estribillo CDN de iTunes solo cuando coincidan título y artista reales (sin falsos positivos)
         if (itunesList.length > 0) {
-          const defaultBestItunes = itunesList.find(t => t && t.previewUrl);
           for (const cand of resultList) {
             const p = typeof parseYouTubeMetadataSmart === 'function'
               ? parseYouTubeMetadataSmart(cand.title || '', cand.artist || '')
               : { coreTitle: cand.title || '', coreArtist: cand.artist || '' };
             const cTitle = normalizeSearchText(p.coreTitle || cand.title || '');
             const cArtist = normalizeSearchText(p.coreArtist || cand.artist || '');
-            let matchedItunes = itunesList.find(tr => {
+            const matchedItunes = itunesList.find(tr => {
               if (!tr || !tr.previewUrl) return false;
               const itT = normalizeSearchText(tr.trackName || '');
               const itA = normalizeSearchText(tr.artistName || '');
-              return (itT && cTitle && (itT.includes(cTitle) || cTitle.includes(itT))) &&
-                     (!cArtist || !itA || itA.includes(cArtist) || cArtist.includes(itA));
+              if (!itT || !cTitle || !(itT.includes(cTitle) || cTitle.includes(itT))) return false;
+              if (cArtist && cArtist !== 'youtube' && itA) {
+                return itA.includes(cArtist) || cArtist.includes(itA);
+              }
+              return !cArtist || cArtist === 'youtube';
             });
-            if (!matchedItunes && defaultBestItunes && resultList.indexOf(cand) === 0) {
-              matchedItunes = defaultBestItunes;
-            }
             if (matchedItunes && matchedItunes.previewUrl) {
               cand.itunesPreviewUrl = matchedItunes.previewUrl;
               const normKey = `${cTitle}__${cArtist}`;
@@ -14999,7 +14967,7 @@ function stopPianoCameraLoop() {
     }
 
     // Resuelve al instante un stream CDN directo al estribillo (chorus) para que la preescucha en miniatura arranque en < 50ms
-    async function resolveInstantChorusPreviewUrl(songId = '', title = '', artist = '', directPreviewUrl = '', bsHash = '', sIdForDom = '') {
+    async function resolveInstantChorusPreviewUrl(songId = '', title = '', artist = '', directPreviewUrl = '', bsHash = '', sIdForDom = '', videoId = '', prewarm = false) {
       const strId = String(songId || '');
       const fixedTitle = repairSpanishBrokenAccents(title || '');
       const fixedArtist = repairSpanishBrokenAccents(artist || '');
@@ -15039,7 +15007,7 @@ function stopPianoCameraLoop() {
       }
 
       const saveCache = (resObj) => {
-        if (resObj && resObj.url) {
+        if (resObj && (resObj.url || resObj.noCdn)) {
           window._chorusPreviewUrlCache.set(cacheKey, resObj);
           if (cleanTitle) window._chorusPreviewUrlCache.set(normTitleArtist, resObj);
           if (resObj.artworkUrl) {
@@ -15072,22 +15040,29 @@ function stopPianoCameraLoop() {
       const inflightPromise = (async () => {
         const searchQ = cleanArtist ? `${cleanTitle} ${cleanArtist}`.trim() : cleanTitle;
         const baseUrl = (typeof getApiBaseUrl === 'function') ? getApiBaseUrl() : '';
+        let srvNegativeResult = null;
 
-        // Lanzar en paralelo: iTunes directo desde cliente + endpoint instant_preview del servidor (Deezer + iTunes con fallback)
+        // Lanzar en paralelo: iTunes directo desde cliente + endpoint instant_preview del servidor (Deezer + iTunes + caché YT)
         const clientItunesTask = (async () => {
           const ctrl = new AbortController();
-          const tid = setTimeout(() => ctrl.abort(), 1400);
+          const tid = setTimeout(() => ctrl.abort(), 1300);
           try {
             const itResp = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(searchQ)}&media=music&entity=song&limit=6&country=ES`, { signal: ctrl.signal });
             clearTimeout(tid);
             if (!itResp.ok) throw new Error('itunes_status');
             const itData = await itResp.json();
             const results = Array.isArray(itData?.results) ? itData.results : [];
+            const nExpectedArtist = normalizeSearchText(cleanArtist);
+            const expectedArtistTokens = nExpectedArtist.split(' ').filter(w => w.length >= 3);
             let bestUrl = '';
             let bestArt = '';
             let bestScore = -999;
             for (const tr of results) {
               if (!tr || !tr.previewUrl) continue;
+              const nFoundArtist = normalizeSearchText(tr.artistName || '');
+              if (expectedArtistTokens.length > 0 && !expectedArtistTokens.some(tok => nFoundArtist.includes(tok))) {
+                continue;
+              }
               const sc = scoreStudioAudioAuthenticity(searchQ, cleanTitle, cleanArtist, tr.trackName || '', tr.artistName || '', tr.collectionName || '', 'Apple');
               if (sc > bestScore) {
                 bestScore = sc;
@@ -15095,7 +15070,7 @@ function stopPianoCameraLoop() {
                 bestArt = tr.artworkUrl100 ? tr.artworkUrl100.replace('100x100bb', '300x300bb') : '';
               }
             }
-            if (bestUrl && bestScore >= 32) {
+            if (bestUrl && bestScore >= 42) {
               return { url: bestUrl, artworkUrl: bestArt, seekToChorus: false, source: 'itunes_chorus_cdn' };
             }
           } catch (_) {
@@ -15106,18 +15081,29 @@ function stopPianoCameraLoop() {
 
         const serverInstantTask = (async () => {
           const ctrl = new AbortController();
-          const tid = setTimeout(() => ctrl.abort(), 2000);
+          const tid = setTimeout(() => ctrl.abort(), 1650);
           try {
-            const srvResp = await fetch(`${baseUrl}/api/v1/audio/instant_preview?title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}`, { signal: ctrl.signal });
+            const vidParam = videoId ? `&videoId=${encodeURIComponent(videoId)}` : '';
+            const prewarmParam = prewarm ? '&prewarm=1' : '';
+            const srvResp = await fetch(`${baseUrl}/api/v1/audio/instant_preview?title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}${vidParam}${prewarmParam}`, { signal: ctrl.signal });
             clearTimeout(tid);
             if (!srvResp.ok) throw new Error('srv_status');
             const srvData = await srvResp.json();
             if (srvData && srvData.previewUrl) {
+              const resolvedUrl = srvData.previewUrl.startsWith('/') ? `${baseUrl}${srvData.previewUrl}` : srvData.previewUrl;
               return {
-                url: srvData.previewUrl,
+                url: resolvedUrl,
                 artworkUrl: srvData.artworkUrl || '',
                 seekToChorus: false,
                 source: srvData.source || 'deezer_itunes_srv'
+              };
+            }
+            if (srvData && srvData.noCdn) {
+              srvNegativeResult = {
+                url: '',
+                noCdn: true,
+                streamPreviewUrl: srvData.streamPreviewUrl ? `${baseUrl}${srvData.streamPreviewUrl}` : '',
+                source: 'youtube_stream_only'
               };
             }
           } catch (_) {
@@ -15133,7 +15119,8 @@ function stopPianoCameraLoop() {
           }
         } catch (_) {}
 
-        return null;
+        // Guardar resultado negativo en caché para no volver a esperar 1.5s a iTunes/Deezer al tocar la miniatura de una canción exclusiva de YouTube
+        return saveCache(srvNegativeResult || { url: '', noCdn: true, source: 'youtube_stream_only' });
       })();
 
       window._chorusPreviewInflight.set(cacheKey, inflightPromise);
@@ -15148,6 +15135,7 @@ function stopPianoCameraLoop() {
     window.prewarmChorusPreviewUrls = function(items) {
       if (!Array.isArray(items) || items.length === 0) return;
       const visibleSlice = items.slice(0, 12);
+      let ytOnlyPrewarmedCount = 0;
       setTimeout(() => {
         if (isGameCurrentlyActive()) return;
         visibleSlice.forEach((item, idx) => {
@@ -15155,6 +15143,7 @@ function stopPianoCameraLoop() {
           const sId = safeSongId(item.id);
           const cand = item._preferredCandidate || (window._selectedMagicAudioCandidate && window._selectedMagicAudioCandidate[item.id]);
           const directPrev = (cand && cand.itunesPreviewUrl) || item.preview_url || '';
+          const itemVid = (cand && cand.videoId) || item.video_id || (String(item.id || '').startsWith('magic_yt_') ? String(item.id).replace('magic_yt_', '') : '');
           setTimeout(() => {
             if (isGameCurrentlyActive()) return;
             resolveInstantChorusPreviewUrl(
@@ -15163,25 +15152,33 @@ function stopPianoCameraLoop() {
               (cand && cand.artist) || item.artist || '',
               directPrev,
               item.bs_hash || '',
-              sId
+              sId,
+              itemVid,
+              idx < 3
             ).then((res) => {
-              if (!res || !res.url || isGameCurrentlyActive()) return;
-              if (res.artworkUrl && (!item.thumbnail || item.thumbnail === './app_logo.png' || String(item.thumbnail).startsWith('data:image/svg+xml'))) {
-                item.thumbnail = res.artworkUrl;
-                item.cover_url = res.artworkUrl;
-              }
-              // Pre-bufferizar los primeros 4 temas visibles en objetos Audio en memoria para que el toque sea 100% instantáneo (0ms)
-              if (idx < 4 && !window._prewarmedAudioElements.has(res.url)) {
-                try {
-                  if (window._prewarmedAudioElements.size >= 8) {
-                    const oldestKey = window._prewarmedAudioElements.keys().next().value;
-                    window._prewarmedAudioElements.delete(oldestKey);
-                  }
-                  const preAudio = new Audio();
-                  preAudio.preload = 'metadata';
-                  preAudio.src = res.url;
-                  window._prewarmedAudioElements.set(res.url, preAudio);
-                } catch (_) {}
+              if (!res || isGameCurrentlyActive()) return;
+              if (res.url) {
+                if (res.artworkUrl && (!item.thumbnail || item.thumbnail === './app_logo.png' || String(item.thumbnail).startsWith('data:image/svg+xml'))) {
+                  item.thumbnail = res.artworkUrl;
+                  item.cover_url = res.artworkUrl;
+                }
+                // Pre-bufferizar los primeros 4 temas visibles en objetos Audio en memoria para que el toque sea 100% instantáneo (0ms)
+                if (idx < 4 && !window._prewarmedAudioElements.has(res.url)) {
+                  try {
+                    if (window._prewarmedAudioElements.size >= 8) {
+                      const oldestKey = window._prewarmedAudioElements.keys().next().value;
+                      window._prewarmedAudioElements.delete(oldestKey);
+                    }
+                    const preAudio = new Audio();
+                    preAudio.preload = 'metadata';
+                    preAudio.src = res.url;
+                    window._prewarmedAudioElements.set(res.url, preAudio);
+                  } catch (_) {}
+                }
+              } else if (res.noCdn && itemVid && ytOnlyPrewarmedCount < 2 && !window._fullTrackBlobCache.has(`yt_${itemVid}`)) {
+                // Si la canción es exclusiva de YouTube (no está en Deezer ni iTunes, p. ej. Perreo Sanxe), pre-extraer en segundo plano las 2 primeras
+                ytOnlyPrewarmedCount++;
+                extractYouTubeFullAudioViaNotubeClient(itemVid).catch(() => {});
               }
             }).catch(() => {});
           }, idx * 25);
@@ -15230,14 +15227,15 @@ function stopPianoCameraLoop() {
           settled = true;
           resolve(ok);
         };
-        const tid = setTimeout(() => finish(false), 4200);
+        const isLiveExtractionStream = typeof urlOrBlob === 'string' && (urlOrBlob.includes('/api/v1/audio/') || urlOrBlob.includes('notube.'));
+        const tid = setTimeout(() => finish(false), isLiveExtractionStream ? 15000 : 5200);
 
         const applySeekIfNeeded = () => {
           if (didSeekChorus || window._previewRequestToken !== reqToken) return;
           const dur = Number(audio.duration) || 0;
           if (!dur || !Number.isFinite(dur)) return;
           didSeekChorus = true;
-          if (typeof seekChorusOption === 'number' && seekChorusOption > 0 && dur > seekChorusOption + 4) {
+          if (typeof seekChorusOption === 'number' && seekChorusOption > 0 && dur > seekChorusOption + 1.5) {
             try { audio.currentTime = seekChorusOption; } catch (_) {}
           } else if (seekChorusOption === 'auto_chorus' && dur > 48) {
             const targetSec = Math.min(68, Math.max(28, Math.round(dur * 0.30)));
@@ -15309,12 +15307,17 @@ function stopPianoCameraLoop() {
       const ytCacheKey = videoId ? `yt_${videoId}` : '';
 
       try {
-        // 1. SÍNCRONO (0ms): Si ya tenemos el audio completo en memoria o el preview pre-resuelto en caché, arrancar en el acto sin esperar a IndexedDB
+        // 1. SÍNCRONO (0ms): Si ya tenemos el audio completo o parcial en memoria o el preview pre-resuelto en caché, arrancar en el acto
         const memBlob = (ytCacheKey && window._fullTrackBlobCache.get(ytCacheKey)) ||
                         window._fullTrackBlobCache.get(strId) ||
                         window._fullTrackBlobCache.get(normTitleArtistKey);
-        if (memBlob && memBlob.size >= 120000) {
+        if (memBlob && memBlob.size >= 100000) {
           const ok = await playUrlOrBlobInChorusPreview(memBlob, sId, reqToken, 'auto_chorus');
+          if (ok) return;
+        }
+        const partialMemBlob = videoId ? window._ytPartialBlobCache.get(videoId) : null;
+        if (partialMemBlob && partialMemBlob.size >= 48000) {
+          const ok = await playUrlOrBlobInChorusPreview(partialMemBlob, sId, reqToken, 1.2);
           if (ok) return;
         }
 
@@ -15326,33 +15329,34 @@ function stopPianoCameraLoop() {
           if (ok) return;
         }
 
-        // 2. Lanzar en paralelo la consulta rápida a IndexedDB y la resolución CDN (Deezer / iTunes / osu! / BeatSaver)
+        // 2. Lanzar en paralelo la consulta rápida a IndexedDB y la resolución CDN (salvo que ya sepamos que es noCdn)
         const idbPromise = (typeof IndexedDBStorage !== 'undefined' && typeof IndexedDBStorage.getChart === 'function')
           ? IndexedDBStorage.getChart(strId).catch(() => null)
           : Promise.resolve(null);
-        const cdnPromise = resolveInstantChorusPreviewUrl(strId, cleanTitle, cleanArtist, directPreviewUrl, bsHash, sId).catch(() => null);
 
-        const chorusCdn = await cdnPromise;
-        if (window._previewRequestToken !== reqToken) return;
-        if (chorusCdn && chorusCdn.url) {
-          const ok = await playUrlOrBlobInChorusPreview(chorusCdn.url, sId, reqToken, chorusCdn.seekToChorus ? 'auto_chorus' : 0);
-          if (ok) {
-            if (videoId && (!ytCacheKey || !window._fullTrackBlobCache.has(ytCacheKey))) {
-              extractYouTubeFullAudioViaNotubeClient(videoId).then(res => {
-                if (res && res.blob && res.blob.size >= 120000) {
-                  window._fullTrackBlobCache.set(ytCacheKey, res.blob);
-                  window._fullTrackBlobCache.set(normTitleArtistKey, res.blob);
-                }
-              }).catch(() => {});
+        if (!syncCachedPreview || !syncCachedPreview.noCdn) {
+          const chorusCdn = await resolveInstantChorusPreviewUrl(strId, cleanTitle, cleanArtist, directPreviewUrl, bsHash, sId, videoId, true).catch(() => null);
+          if (window._previewRequestToken !== reqToken) return;
+          if (chorusCdn && chorusCdn.url) {
+            const ok = await playUrlOrBlobInChorusPreview(chorusCdn.url, sId, reqToken, chorusCdn.seekToChorus ? 'auto_chorus' : 0);
+            if (ok) {
+              if (videoId && (!ytCacheKey || !window._fullTrackBlobCache.has(ytCacheKey))) {
+                extractYouTubeFullAudioViaNotubeClient(videoId).then(res => {
+                  if (res && res.blob && res.blob.size >= 100000) {
+                    window._fullTrackBlobCache.set(ytCacheKey, res.blob);
+                    window._fullTrackBlobCache.set(normTitleArtistKey, res.blob);
+                  }
+                }).catch(() => {});
+              }
+              return;
             }
-            return;
           }
         }
 
         const saved = await idbPromise;
         if (window._previewRequestToken !== reqToken) return;
         const isSynthFallback = saved && String(saved.source_name || saved.creator || '').includes('Piano Acoustic Synth');
-        if (saved && !isSynthFallback && saved.audioBlob && saved.audioBlob.size >= 120000) {
+        if (saved && !isSynthFallback && saved.audioBlob && saved.audioBlob.size >= 100000) {
           window._fullTrackBlobCache.set(strId, saved.audioBlob);
           const chorusSec = Number(saved.chorusStartSec || saved.chartData?.chorusStartSec) || 'auto_chorus';
           const ok = await playUrlOrBlobInChorusPreview(saved.audioBlob, sId, reqToken, chorusSec);
@@ -15370,22 +15374,28 @@ function stopPianoCameraLoop() {
           }
         }
 
-        // 5. Respaldo para pistas de YouTube que no estén en Deezer/iTunes: extracción directa + stream de respaldo
-        let targetVid = videoId;
-        if (!targetVid && cleanTitle) {
+        // 5. Extracción ultrarrápida y streaming para canciones exclusivas de YouTube (como "Estrella del islam" - Perreo Sanxe)
+        const candidateVids = [];
+        if (videoId) candidateVids.push(videoId);
+        if (cleanTitle && candidateVids.length < 2) {
           const ytMatches = await searchYouTubeOfficialClient(cleanTitle, cleanArtist);
           if (window._previewRequestToken !== reqToken) return;
-          if (ytMatches.length > 0 && ytMatches[0].videoId) {
-            targetVid = ytMatches[0].videoId;
+          for (const m of ytMatches.slice(0, 3)) {
+            if (m && m.videoId && !candidateVids.includes(m.videoId)) {
+              candidateVids.push(m.videoId);
+            }
           }
         }
-        if (targetVid) {
+
+        const baseUrl = (typeof getApiBaseUrl === 'function') ? getApiBaseUrl() : '';
+        for (const targetVid of candidateVids.slice(0, 2)) {
+          if (window._previewRequestToken !== reqToken) return;
           let started = false;
           const ytRes = await extractYouTubeFullAudioViaNotubeClient(targetVid, null, (chunkBlob, isFull) => {
             if (window._previewRequestToken !== reqToken) return;
             if (!started) {
               started = true;
-              playUrlOrBlobInChorusPreview(chunkBlob, sId, reqToken, isFull ? 'auto_chorus' : 8);
+              playUrlOrBlobInChorusPreview(chunkBlob, sId, reqToken, isFull ? 'auto_chorus' : 1.2);
             } else if (isFull && window._previewAudioPlayer) {
               window._previewAudioPlayer._upgradedFullBlob = chunkBlob;
             }
@@ -15401,10 +15411,10 @@ function stopPianoCameraLoop() {
               return;
             }
           }
-          const baseUrl = (typeof getApiBaseUrl === 'function') ? getApiBaseUrl() : '';
-          const srvUrl = `${baseUrl}/api/v1/audio/extract?videoId=${encodeURIComponent(targetVid)}&title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}`;
-          const okSrv = await playUrlOrBlobInChorusPreview(srvUrl, sId, reqToken, 'auto_chorus');
-          if (okSrv) return;
+          // Respaldo de stream en vivo desde el servidor (/api/v1/audio/stream_preview)
+          const streamPrevUrl = `${baseUrl}/api/v1/audio/stream_preview?videoId=${encodeURIComponent(targetVid)}&title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}`;
+          const okStream = await playUrlOrBlobInChorusPreview(streamPrevUrl, sId, reqToken, 0);
+          if (okStream) return;
         }
       } catch (_) {}
 
@@ -15502,16 +15512,18 @@ function stopPianoCameraLoop() {
         };
       }
 
-      // 1. EXTRACCIÓN ULTRARRÁPIDA EN CARRERA PARALELA: Cliente YouTube (Notube + Piped) + Servidor (/api/v1/audio/extract)
+      // 1. EXTRACCIÓN ULTRARRÁPIDA EN CARRERA PARALELA: Cliente YouTube (Notube 37 nodos) + Servidor (/api/v1/audio/extract)
       try {
         const ytVideoCandidates = [];
         if (preferredCandidate && preferredCandidate.videoId) {
           ytVideoCandidates.push(preferredCandidate.videoId);
         }
-        if (ytVideoCandidates.length === 0) {
-          if (onProgress) onProgress(`Localizando pista original (${cleanTitle})...`);
-          const ytList = await searchYouTubeOfficialClient(cleanTitle, cleanArtist, expectedDur);
-          for (const y of ytList.slice(0, 2)) {
+        if (ytVideoCandidates.length < 3) {
+          if (ytVideoCandidates.length === 0 && onProgress) {
+            onProgress(`Localizando pista original (${cleanTitle})...`);
+          }
+          const ytList = await searchYouTubeOfficialClient(cleanTitle, cleanArtist, expectedDur).catch(() => []);
+          for (const y of ytList.slice(0, 3)) {
             if (y && y.videoId && !ytVideoCandidates.includes(y.videoId)) {
               ytVideoCandidates.push(y.videoId);
               if (!resolvedThumb && y.thumbnail) resolvedThumb = y.thumbnail;
@@ -15522,7 +15534,7 @@ function stopPianoCameraLoop() {
         const clientExtractTask = (async () => {
           for (const vid of ytVideoCandidates) {
             const ytMp3 = await extractYouTubeFullAudioViaNotubeClient(vid, onProgress);
-            if (ytMp3 && ytMp3.blob && ytMp3.blob.size >= 120000) {
+            if (ytMp3 && ytMp3.blob && ytMp3.blob.size >= 100000) {
               if (candKey) window._fullTrackBlobCache.set(candKey, ytMp3.blob);
               window._fullTrackBlobCache.set(`yt_${vid}`, ytMp3.blob);
               window._fullTrackBlobCache.set(normKey, ytMp3.blob);
@@ -15539,10 +15551,9 @@ function stopPianoCameraLoop() {
         })();
 
         const serverExtractTask = (async () => {
-          // Pequeña ventaja de 750ms al extractor directo en cliente; si aún sigue descargando, el servidor entra en carrera paralela
-          await new Promise(r => setTimeout(r, 750));
+          await new Promise(r => setTimeout(r, 250));
           const ctrl = new AbortController();
-          const tid = setTimeout(() => ctrl.abort(), 11000);
+          const tid = setTimeout(() => ctrl.abort(), 25000);
           try {
             const targetVid = (preferredCandidate && preferredCandidate.videoId) || ytVideoCandidates[0] || '';
             const vidParam = targetVid ? `&videoId=${encodeURIComponent(targetVid)}` : '';
@@ -15554,7 +15565,7 @@ function stopPianoCameraLoop() {
             const cType = String(resp.headers.get('content-type') || '').toLowerCase();
             if (cType.includes('application/json') || cType.includes('text/html')) throw new Error('Invalid content-type');
             const ab = await resp.arrayBuffer();
-            if (!ab || ab.byteLength < 120000) throw new Error('Small buffer');
+            if (!ab || ab.byteLength < 100000) throw new Error('Small buffer');
             const u8 = new Uint8Array(ab);
             const converted = convertFmp4ToAdtsAacClient(u8);
             const finalMime = converted !== u8 ? 'audio/aac' : (cType.startsWith('audio/') ? cType : 'audio/mpeg');
