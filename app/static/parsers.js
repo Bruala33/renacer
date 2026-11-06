@@ -3819,28 +3819,66 @@ class AudioAutoMapper {
       // Preservar el instante acústico exacto (resolución 5ms) sin desplazar notas hacia rejillas teóricas que desincronizan aceleraciones de tempo
       ev.snappedTimeMs = Math.max(180, ev.timeMs);
 
-      // Medir sustain real de la nota hasta el siguiente ataque o hasta que caiga en silencio
-      let nextStrongMs = ev.snappedTimeMs + 1300;
-      for (let j = i + 1; j < rawEvents.length; j++) {
-        if (rawEvents[j].salience >= 0.75 || rawEvents[j].role !== 4) {
-          nextStrongMs = rawEvents[j].timeMs;
-          break;
-        }
-      }
+      // Medir sustain acústico y melódico real de la nota (independiente de micro-transitorios de hi-hat/acompañamiento)
       const maxSustainCheckFrames = Math.min(
         numFrames - ev.frame - 1,
-        Math.floor(Math.min(nextStrongMs - ev.timeMs - 65, 1600) / frameDurMs)
+        Math.floor(1450 / frameDurMs)
       );
-      let sustFrames = 0;
-      const sustThresh = Math.max(silenceRmsGate * 1.15, ev.rms * 0.56);
+      let postAttackRmsSum = 0;
+      let postAttackHarmSum = 0;
+      let postAttackCount = 0;
+      for (let rf = 2; rf <= Math.min(8, maxSustainCheckFrames); rf++) {
+        const idx = ev.frame + rf;
+        postAttackRmsSum += totalRms[idx];
+        postAttackHarmSum += vocalEnergy[idx] * 1.25 + bodyEnergy[idx] * 0.85 + pluckEnergy[idx] * 0.65;
+        postAttackCount++;
+      }
+      const postAttackRms = postAttackCount > 0 ? (postAttackRmsSum / postAttackCount) : ev.rms;
+      const postAttackHarm = postAttackCount > 0 ? (postAttackHarmSum / postAttackCount) : (vocalEnergy[ev.frame] + bodyEnergy[ev.frame]);
+
+      const sustRmsThresh = Math.max(
+        silenceRmsGate * 1.12,
+        Math.min(ev.rms * 0.34, postAttackRms * 0.54)
+      );
+      const sustHarmThresh = Math.max(
+        silenceRmsGate * 0.95,
+        postAttackHarm * 0.44
+      );
+      const baseSustPitch = smoothPitch[Math.min(numFrames - 1, ev.frame + 3)];
+
+      let lastValidSustFrame = 0;
+      let weakFramesRun = 0;
       for (let sf = 2; sf <= maxSustainCheckFrames; sf++) {
-        if (totalRms[ev.frame + sf] >= sustThresh) {
-          sustFrames++;
-        } else if (sf > 6) {
+        const idx = ev.frame + sf;
+        const curRmsVal = totalRms[idx];
+        const curHarmVal = vocalEnergy[idx] * 1.25 + bodyEnergy[idx] * 0.85 + pluckEnergy[idx] * 0.65;
+
+        // Si cae en silencio real, cortar inmediatamente
+        if (curRmsVal < silenceRmsGate * 0.88) {
+          weakFramesRun += 2;
+          if (weakFramesRun >= 4) break;
+          continue;
+        }
+
+        // Si tras al menos 220ms entra un nuevo ataque melódico muy marcado con salto de tono, cerrar el sustain ahí
+        const elapsedMs = sf * frameDurMs;
+        if (
+          elapsedMs >= 220 &&
+          Math.abs(smoothPitch[idx] - baseSustPitch) > 0.14 &&
+          melodicFlux[idx] > Math.max(silenceFluxGate * 2.4, ev.melFlux * 1.35)
+        ) {
           break;
         }
+
+        if (curRmsVal >= sustRmsThresh || curHarmVal >= sustHarmThresh) {
+          lastValidSustFrame = sf;
+          weakFramesRun = 0;
+        } else {
+          weakFramesRun++;
+          if (weakFramesRun >= 5) break;
+        }
       }
-      ev.sustainMs = Math.round(sustFrames * frameDurMs);
+      ev.sustainMs = Math.round(lastValidSustFrame * frameDurMs);
     }
 
     // 8. Segmentación Macro-Estructural (Intro, Estrofa, Subida/Build-up, Estribillo/Drop, Puente)
@@ -3950,20 +3988,23 @@ class AudioAutoMapper {
         if (localMaxRms < silenceRmsGate * 0.90) {
           continue; // Descartar cualquier nota que caiga en silencio real
         }
-        // Si es un hold, truncarlo inmediatamente si entra en una pausa de silencio
+        // Si es un hold, truncarlo si entra en una pausa real de silencio (permitiendo hasta 20ms de cruce por vibrato)
         if (n.type === 'hold' && n.duration_ms > 0) {
           const fStart = fCenter;
           const fEnd = Math.min(numFrames - 1, Math.round(((n.timestamp_ms || 0) + n.duration_ms) / frameDurMs));
           let validEndFrame = fStart;
+          let silentRun = 0;
           for (let f = fStart; f <= fEnd; f++) {
-            if (totalRms[f] >= silenceRmsGate * 0.85) {
+            if (totalRms[f] >= silenceRmsGate * 0.80) {
               validEndFrame = f;
+              silentRun = 0;
             } else {
-              break;
+              silentRun++;
+              if (silentRun >= 4) break;
             }
           }
           const validDurMs = Math.round((validEndFrame - fStart) * frameDurMs);
-          if (validDurMs < 220) {
+          if (validDurMs < 200) {
             n.type = 'tap';
             n.duration_ms = 0;
             n.end_timestamp_ms = null;
@@ -4020,11 +4061,12 @@ class AudioAutoMapper {
   }
 
   /**
-   * COREÓGRAFO DE PIANO Y MELODÍA REAL v5:
+   * COREÓGRAFO DE PIANO Y MELODÍA REAL v6:
    * - Asigna cada tecla estrictamente según la altura tonal real del piano/voz (Grave=Izquierda, Medio=Centro, Agudo=Derecha).
    * - En notas repetidas muy rápidas del mismo tono (como el famoso "E-E-E-E-E" de Rush E), ejecuta un trino limpio de 2 dedos
    *   alternando entre el carril de esa nota y su vecino inmediato, jamás lanzando teclas al azar.
-   * - En escalas ascendentes o descendentes, sigue fielmente la dirección de la escala (0->1->2 o 2->1->0).
+   * - Coloca holds (notas mantenidas) con criterio musical humano cuando la voz, acorde o melodía se sostiene de verdad,
+   *   absorbiendo micro-subdivisiones durante el hold para dar respiro orgánico y equilibrar la dificultad con mapas humanos.
    */
   static buildHumanChoreographedTierChart(rawEvents, phrases, bpm, beatPhaseMs, durationSec, tier, targetLanes = 3) {
     const numLanes = targetLanes === 4 ? 4 : 3;
@@ -4034,82 +4076,82 @@ class AudioAutoMapper {
 
     const tierConfig = {
       easy: {
-        minGapVerseMs: 255,
-        minGapChorusMs: 220,
-        minSalienceVerse: 1.05,
-        minSalienceChorus: 0.88,
+        minGapVerseMs: 265,
+        minGapChorusMs: 230,
+        minSalienceVerse: 1.06,
+        minSalienceChorus: 0.90,
         allowSubdiv8: false,
         allowSubdiv4: false,
         chordProbChorus: 0.0,
         chordProbVerse: 0.0,
         minChordSpacingMs: 99999,
-        allowCounterTapsDuringHold: false,
-        minSameLaneGapMs: 250
+        minHoldCooldownMs: Math.max(1250, beatMs * 2.8),
+        minSameLaneGapMs: 255
       },
       medium: {
-        minGapVerseMs: 170,
-        minGapChorusMs: 135,
-        minSalienceVerse: 0.78,
-        minSalienceChorus: 0.62,
+        minGapVerseMs: 180,
+        minGapChorusMs: 145,
+        minSalienceVerse: 0.80,
+        minSalienceChorus: 0.64,
         allowSubdiv8: false,
         allowSubdiv4: true,
-        chordProbChorus: 0.20,
-        chordProbVerse: 0.05,
-        minChordSpacingMs: 540,
-        allowCounterTapsDuringHold: false,
-        minSameLaneGapMs: 185
+        chordProbChorus: 0.18,
+        chordProbVerse: 0.04,
+        minChordSpacingMs: 580,
+        minHoldCooldownMs: Math.max(1150, beatMs * 2.5),
+        minSameLaneGapMs: 190
       },
       hard: {
-        minGapVerseMs: 112,
-        minGapChorusMs: 88,
-        minSalienceVerse: 0.54,
-        minSalienceChorus: 0.40,
+        minGapVerseMs: 120,
+        minGapChorusMs: 95,
+        minSalienceVerse: 0.56,
+        minSalienceChorus: 0.42,
         allowSubdiv8: false,
         allowSubdiv4: true,
-        chordProbChorus: 0.38,
-        chordProbVerse: 0.14,
-        minChordSpacingMs: 310,
-        allowCounterTapsDuringHold: true,
-        minSameLaneGapMs: 135
+        chordProbChorus: 0.32,
+        chordProbVerse: 0.12,
+        minChordSpacingMs: 340,
+        minHoldCooldownMs: Math.max(1100, beatMs * 2.4),
+        minSameLaneGapMs: 140
       },
       extreme: {
-        minGapVerseMs: 74,
-        minGapChorusMs: 54,
-        minSalienceVerse: 0.32,
-        minSalienceChorus: 0.18,
+        minGapVerseMs: 80,
+        minGapChorusMs: 58,
+        minSalienceVerse: 0.35,
+        minSalienceChorus: 0.20,
         allowSubdiv8: true,
         allowSubdiv4: true,
-        chordProbChorus: 0.58,
-        chordProbVerse: 0.26,
-        minChordSpacingMs: 185,
-        allowCounterTapsDuringHold: true,
-        minSameLaneGapMs: 88
+        chordProbChorus: 0.48,
+        chordProbVerse: 0.22,
+        minChordSpacingMs: 210,
+        minHoldCooldownMs: Math.max(1200, beatMs * 2.6),
+        minSameLaneGapMs: 92
       },
       impossible: {
-        minGapVerseMs: 48,
-        minGapChorusMs: 38,
-        minSalienceVerse: 0.14,
-        minSalienceChorus: 0.06,
+        minGapVerseMs: 54,
+        minGapChorusMs: 42,
+        minSalienceVerse: 0.17,
+        minSalienceChorus: 0.08,
         allowSubdiv8: true,
         allowSubdiv4: true,
-        chordProbChorus: 0.78,
-        chordProbVerse: 0.42,
-        minChordSpacingMs: 120,
-        allowCounterTapsDuringHold: true,
-        minSameLaneGapMs: 56
+        chordProbChorus: 0.66,
+        chordProbVerse: 0.34,
+        minChordSpacingMs: 140,
+        minHoldCooldownMs: Math.max(1350, beatMs * 3.0),
+        minSameLaneGapMs: 60
       }
     }[tier] || {
-      minGapVerseMs: 112,
-      minGapChorusMs: 88,
-      minSalienceVerse: 0.54,
-      minSalienceChorus: 0.40,
+      minGapVerseMs: 120,
+      minGapChorusMs: 95,
+      minSalienceVerse: 0.56,
+      minSalienceChorus: 0.42,
       allowSubdiv8: false,
       allowSubdiv4: true,
-      chordProbChorus: 0.38,
-      chordProbVerse: 0.14,
-      minChordSpacingMs: 310,
-      allowCounterTapsDuringHold: true,
-      minSameLaneGapMs: 135
+      chordProbChorus: 0.32,
+      chordProbVerse: 0.12,
+      minChordSpacingMs: 340,
+      minHoldCooldownMs: Math.max(1100, beatMs * 2.4),
+      minSameLaneGapMs: 140
     };
 
     // Paso 1: Selección musical de ataques reales
@@ -4126,7 +4168,7 @@ class AudioAutoMapper {
       const isQuiet = (sec === 'quiet');
 
       const effMinGap = isQuiet
-        ? Math.max(150, tierConfig.minGapVerseMs * 1.30)
+        ? Math.max(160, tierConfig.minGapVerseMs * 1.32)
         : (isChorusOrBuild ? tierConfig.minGapChorusMs : tierConfig.minGapVerseMs);
 
       const gap = t - lastSelectedMs;
@@ -4154,11 +4196,12 @@ class AudioAutoMapper {
       }
     }
 
-    // Paso 2: Coreografía de Piano Fiel al Tono y al Contorno Melódico
+    // Paso 2: Coreografía de Piano Fiel al Tono, Contorno Melódico y Holds Musicales
     const motifMemory = new Map();
     const choreographedNotes = [];
     const laneLastTapMs = new Array(numLanes).fill(-9999);
     let activeHold = null;
+    let lastHoldEndMs = -9999;
     let lastChordMs = -9999;
     let prevLane = 1;
     let prevPitch = 0.5;
@@ -4199,22 +4242,25 @@ class AudioAutoMapper {
       for (let i = 0; i < pEvents.length; i++) {
         const ev = pEvents[i];
         const t = ev.snappedTimeMs || ev.timeMs;
+
+        // Mientras un Hold está activo, absorber las micro-notas intermedias para dar un respiro musical limpio al jugador
+        if (activeHold) {
+          if (t >= activeHold.endMs + 55) {
+            activeHold = null;
+          } else {
+            continue;
+          }
+        }
+
         const nextEv = (i + 1 < pEvents.length) ? pEvents[i + 1] : null;
         const nextT = nextEv ? (nextEv.snappedTimeMs || nextEv.timeMs) : (t + 1000);
         const gapToNext = nextT - t;
         const gapFromPrev = i > 0 ? (t - (pEvents[i - 1].snappedTimeMs || pEvents[i - 1].timeMs)) : 600;
         const actualPitchDiff = i > 0 ? (ev.pitch - prevPitch) : 0;
 
-        if (activeHold && t >= activeHold.endMs + 45) {
-          activeHold = null;
-        }
-        if (activeHold && !tierConfig.allowCounterTapsDuringHold) {
-          continue;
-        }
-
         let targetLane = resolveNaturalPitchLane(ev);
 
-        if (matchedMotif && i < matchedMotif.length && !activeHold) {
+        if (matchedMotif && i < matchedMotif.length) {
           targetLane = matchedMotif[i];
         } else {
           const isRapidNote = (gapFromPrev <= 145);
@@ -4248,26 +4294,16 @@ class AudioAutoMapper {
           }
         }
 
-        if (activeHold) {
-          if (targetLane === activeHold.lane) {
-            targetLane = activeHold.lane === 0 ? maxLane : 0;
-          }
-          const lastTap = choreographedNotes[choreographedNotes.length - 1];
-          if (lastTap && (t - lastTap.timestamp_ms) < (tier === 'impossible' ? 72 : 112)) {
-            continue;
-          }
-        }
-
         // Salvaguarda ergonómica: si el mismo carril se pide más rápido que minSameLaneGapMs, usar el carril adyacente coherente con el registro tonal
         if ((t - laneLastTapMs[targetLane]) < tierConfig.minSameLaneGapMs) {
           const preferredAlt = ev.pitch >= 0.5
             ? (targetLane < maxLane ? targetLane + 1 : targetLane - 1)
             : (targetLane > 0 ? targetLane - 1 : targetLane + 1);
-          if ((!activeHold || preferredAlt !== activeHold.lane) && (t - laneLastTapMs[preferredAlt]) >= tierConfig.minSameLaneGapMs * 0.75) {
+          if ((t - laneLastTapMs[preferredAlt]) >= tierConfig.minSameLaneGapMs * 0.75) {
             targetLane = preferredAlt;
           } else {
             for (let l = 0; l < numLanes; l++) {
-              if (l !== targetLane && (!activeHold || l !== activeHold.lane)) {
+              if (l !== targetLane) {
                 targetLane = l;
                 break;
               }
@@ -4275,26 +4311,61 @@ class AudioAutoMapper {
           }
         }
 
-        // ¿Convertir en Nota Larga (Hold) cuando la nota del piano/voz realmente se mantiene sonando?
+        // ¿Convertir en Nota Larga (Hold) cuando la nota del piano/voz/acorde realmente se mantiene sonando?
+        // Equilibrio orgánico: cooldown entre holds para nunca saturar, pero aprovechando tanto huecos naturales
+        // como notas largas de voz/armonía (que absorben sub-notas intermedias y suavizan una pizca la dificultad).
         let isHoldNote = false;
         let holdDurationMs = 0;
-        if (
-          !activeHold &&
-          ev.sustainMs >= 260 &&
-          gapToNext >= (tier === 'impossible' ? 230 : 290) &&
-          (targetLane === 0 || targetLane === maxLane || ev.sectionType === 'quiet' || ev.subdivType <= 2)
-        ) {
-          const holdLane = (targetLane === 0 || targetLane === maxLane)
-            ? targetLane
-            : (ev.pitch < 0.5 ? 0 : maxLane);
-          const maxHoldSpan = tierConfig.allowCounterTapsDuringHold
-            ? Math.min(ev.sustainMs, 1100)
-            : Math.min(ev.sustainMs, gapToNext - 85);
-          const quantizedHold = Math.round(maxHoldSpan / (stepMs * 2)) * Math.round(stepMs * 2);
-          if (quantizedHold >= 240) {
-            targetLane = holdLane;
-            isHoldNote = true;
-            holdDurationMs = Math.min(1250, quantizedHold);
+        const isRapidStaccatoTrill = (gapFromPrev <= 130 && Math.abs(actualPitchDiff) < 0.032) ||
+                                     (gapToNext <= 115 && nextEv && Math.abs(nextEv.pitch - ev.pitch) < 0.032);
+        const holdCooldownReady = (t - lastHoldEndMs) >= tierConfig.minHoldCooldownMs;
+
+        if (holdCooldownReady && !isRapidStaccatoTrill && ev.sustainMs >= 210) {
+          // Caso 1: Hueco rítmico natural o cierre de frase donde el sonido queda sostenido
+          if (gapToNext >= 220) {
+            const rawSpan = Math.min(ev.sustainMs, gapToNext - 60, 1150);
+            const quantStep = Math.max(45, Math.round(stepMs));
+            const quantizedHold = Math.round(rawSpan / quantStep) * quantStep;
+            if (quantizedHold >= 205) {
+              isHoldNote = true;
+              holdDurationMs = Math.min(1150, quantizedHold);
+            }
+          } else if (
+            // Caso 2: Nota vocal/melódica/acorde sostenida en tiempo fuerte o semifuerte que absorbe micro-subdivisiones
+            ev.sustainMs >= Math.max(270, beatMs * 0.62) &&
+            (ev.role === 2 || ev.role === 3 || ev.role === 5 || ev.subdivType <= 2 || ev.sectionType === 'quiet')
+          ) {
+            const desiredMaxHold = Math.min(
+              ev.sustainMs,
+              Math.round(beatMs * (ev.sectionType === 'quiet' ? 1.65 : 1.15)),
+              920
+            );
+            // Buscar el siguiente ataque importante después de la nota mantenida para soltar el hold con margen limpio
+            let releaseLimitMs = t + desiredMaxHold;
+            for (let j = i + 1; j < pEvents.length; j++) {
+              const candNext = pEvents[j];
+              const candT = candNext.snappedTimeMs || candNext.timeMs;
+              const dt = candT - t;
+              if (dt < 210) {
+                // Si hay un acento muchísimo más fuerte enseguida, no taparlo con un hold
+                if (candNext.salience > ev.salience * 1.42 && candNext.subdivType === 1) {
+                  releaseLimitMs = t;
+                  break;
+                }
+                continue;
+              }
+              if (dt >= 250 && (candNext.subdivType <= 2 || candNext.salience >= ev.salience * 0.92 || dt >= desiredMaxHold)) {
+                releaseLimitMs = Math.min(releaseLimitMs, candT - 65);
+                break;
+              }
+            }
+            const rawSpan = releaseLimitMs - t;
+            const quantStep = Math.max(45, Math.round(stepMs));
+            const quantizedHold = Math.round(rawSpan / quantStep) * quantStep;
+            if (quantizedHold >= 215) {
+              isHoldNote = true;
+              holdDurationMs = Math.min(960, quantizedHold);
+            }
           }
         }
 
@@ -4303,7 +4374,6 @@ class AudioAutoMapper {
         let swipeDir = 'up';
         if (
           !isHoldNote &&
-          !activeHold &&
           gapToNext >= 220 &&
           ((ev.sectionType === 'buildup' && i === pEvents.length - 1) ||
            (ev.isAccent && Math.abs(actualPitchDiff) >= 0.28 && gapFromPrev >= 150))
@@ -4329,7 +4399,7 @@ class AudioAutoMapper {
         };
 
         choreographedNotes.push(primaryNote);
-        laneLastTapMs[targetLane] = t;
+        laneLastTapMs[targetLane] = isHoldNote ? (t + holdDurationMs) : t;
         prevLane = targetLane;
         prevPitch = ev.pitch;
         recordedPhraseLanes.push(targetLane);
@@ -4341,6 +4411,7 @@ class AudioAutoMapper {
             endMs: t + holdDurationMs,
             noteRef: primaryNote
           };
+          lastHoldEndMs = t + holdDurationMs;
         }
 
         // Acordes dobles de piano (mano izquierda + mano derecha simultáneas en golpes de acento real)
@@ -4486,8 +4557,8 @@ class AudioAutoMapper {
       tierNotes: analysis.tierNotes,
       tierRawNotes: analysis.tierRawNotes,
       tierStars: analysis.tierStars,
-      _choreographedVersion: 5,
-      _fullTrackVersion: 5,
+      _choreographedVersion: 6,
+      _fullTrackVersion: 6,
       rawNotes: analysis.rawNotes,
       notes: analysis.notes,
       audioBlob: finalAudioBlob,
