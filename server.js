@@ -3849,7 +3849,8 @@ async function extractYouTubeFullAudioViaNotubeServer(videoId) {
       const d1 = await r1.json();
       if (!d1 || !d1.token) continue;
 
-      if (!d1.url_mp4_youtube) {
+      const needsConversion = !d1.url_mp4_youtube;
+      if (needsConversion) {
         const bodyConv = new URLSearchParams({ token: d1.token });
         await fetch(`${apiHost}/conversion.php`, {
           method: 'POST',
@@ -3860,67 +3861,73 @@ async function extractYouTubeFullAudioViaNotubeServer(videoId) {
             'Referer': `${webHost}/`
           },
           body: bodyConv.toString(),
-          signal: AbortSignal.timeout(9500)
+          signal: AbortSignal.timeout(11000)
         });
       }
 
-      const body2 = new URLSearchParams({
-        url: ytUrl,
-        format: 'mp3',
-        name_mp4: d1.name_mp4 || '',
-        lang: 'es',
-        token: d1.token,
-        subscribed: 'false',
-        priority: '0',
-        ab: '128'
-      });
-      const r2 = await fetch(`${apiHost}/recover_file.php`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-          'User-Agent': ua,
-          'Origin': webHost,
-          'Referer': `${webHost}/`
-        },
-        body: body2.toString(),
-        signal: AbortSignal.timeout(7500)
-      });
-      let finalToken = d1.token;
-      if (r2.ok) {
+      const maxPolls = needsConversion ? 3 : 1;
+      for (let poll = 0; poll < maxPolls; poll++) {
+        if (poll > 0) {
+          await new Promise(r => setTimeout(r, 1100));
+        }
+        const body2 = new URLSearchParams({
+          url: ytUrl,
+          format: 'mp3',
+          name_mp4: d1.name_mp4 || '',
+          lang: 'es',
+          token: d1.token,
+          subscribed: 'false',
+          priority: '0',
+          ab: '128'
+        });
+        let finalToken = d1.token;
         try {
-          const d2 = await r2.json();
-          if (d2 && d2.token) finalToken = d2.token;
+          const r2 = await fetch(`${apiHost}/recover_file.php`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+              'User-Agent': ua,
+              'Origin': webHost,
+              'Referer': `${webHost}/`
+            },
+            body: body2.toString(),
+            signal: AbortSignal.timeout(7500)
+          });
+          if (r2.ok) {
+            const d2 = await r2.json();
+            if (d2 && d2.token) finalToken = d2.token;
+          }
+        } catch (_) {}
+
+        const dlUrl = `${apiHost}/download.php?token=${encodeURIComponent(finalToken)}`;
+        try {
+          const dlRes = await fetch(dlUrl, {
+            headers: { 'User-Agent': ua, 'Referer': `${webHost}/` },
+            redirect: 'follow',
+            signal: AbortSignal.timeout(9500)
+          });
+          if (!dlRes.ok) continue;
+          const ct = String(dlRes.headers.get('content-type') || '').toLowerCase();
+          if (ct.includes('text/html') || ct.includes('application/json')) continue;
+          const ab = await dlRes.arrayBuffer();
+          if (ab && ab.byteLength >= 120000) {
+            const buf = Buffer.from(ab);
+            const resultObj = {
+              buffer: buf,
+              contentType: 'audio/mpeg',
+              title: (d1.titulo_mp4 || '').replace(/\.mp4$/i, '').replace(/_/g, ' ').trim(),
+              thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+              source: 'YouTube Studio Master MP3'
+            };
+            if (YOUTUBE_FULL_MP3_LRU.size >= YOUTUBE_FULL_MP3_LRU_MAX) {
+              const oldest = YOUTUBE_FULL_MP3_LRU.keys().next().value;
+              if (oldest) YOUTUBE_FULL_MP3_LRU.delete(oldest);
+            }
+            YOUTUBE_FULL_MP3_LRU.set(videoId, resultObj);
+            return resultObj;
+          }
         } catch (_) {}
       }
-
-      const dlUrl = `${apiHost}/download.php?token=${encodeURIComponent(finalToken)}`;
-      try {
-        const dlRes = await fetch(dlUrl, {
-          headers: { 'User-Agent': ua, 'Referer': `${webHost}/` },
-          redirect: 'follow',
-          signal: AbortSignal.timeout(8500)
-        });
-        if (!dlRes.ok) continue;
-        const ct = String(dlRes.headers.get('content-type') || '').toLowerCase();
-        if (ct.includes('text/html') || ct.includes('application/json')) continue;
-        const ab = await dlRes.arrayBuffer();
-        if (ab && ab.byteLength >= 320000) {
-          const buf = Buffer.from(ab);
-          const resultObj = {
-            buffer: buf,
-            contentType: 'audio/mpeg',
-            title: (d1.titulo_mp4 || '').replace(/\.mp4$/i, '').replace(/_/g, ' ').trim(),
-            thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-            source: 'YouTube Studio Master MP3'
-          };
-          if (YOUTUBE_FULL_MP3_LRU.size >= YOUTUBE_FULL_MP3_LRU_MAX) {
-            const oldest = YOUTUBE_FULL_MP3_LRU.keys().next().value;
-            if (oldest) YOUTUBE_FULL_MP3_LRU.delete(oldest);
-          }
-          YOUTUBE_FULL_MP3_LRU.set(videoId, resultObj);
-          return resultObj;
-        }
-      } catch (_) {}
     } catch (_) {}
   }
   return null;
@@ -4370,10 +4377,10 @@ async function extractSoundCloudFullTrackServer(searchQuery, rawTitle = '', rawA
 async function tryExtractYouTubeStream(videoId) {
   if (!videoId) return null;
 
-  // 1. Prioridad #1: Extractor Notube MP3 Completo (verificado para canciones oficiales de estudio de 2 a 6 min)
+  // 1. Prioridad #1: Extractor Notube MP3 Completo (con polling para vídeos recién convertidos y soporte de canciones de 1.5 a 6 min)
   try {
     const notubeMp3 = await extractYouTubeFullAudioViaNotubeServer(videoId);
-    if (notubeMp3 && notubeMp3.buffer && notubeMp3.buffer.length >= 350000) {
+    if (notubeMp3 && notubeMp3.buffer && notubeMp3.buffer.length >= 120000) {
       return notubeMp3;
     }
   } catch (_) {}
@@ -4381,18 +4388,22 @@ async function tryExtractYouTubeStream(videoId) {
   const pipedInstances = [
     `https://pipedapi.kavin.rocks/streams/${encodeURIComponent(videoId)}`,
     `https://api.piped.private.coffee/streams/${encodeURIComponent(videoId)}`,
-    `https://pipedapi.ducks.party/streams/${encodeURIComponent(videoId)}`
+    `https://pipedapi.ducks.party/streams/${encodeURIComponent(videoId)}`,
+    `https://pipedapi.smnz.de/streams/${encodeURIComponent(videoId)}`,
+    `https://pipedapi.adminforge.de/streams/${encodeURIComponent(videoId)}`
   ];
   const invidiousInstances = [
     `https://inv.tux.pizza/api/v1/videos/${encodeURIComponent(videoId)}`,
     `https://invidious.nerdvpn.de/api/v1/videos/${encodeURIComponent(videoId)}`,
-    `https://yewtu.be/api/v1/videos/${encodeURIComponent(videoId)}`
+    `https://yewtu.be/api/v1/videos/${encodeURIComponent(videoId)}`,
+    `https://inv.nadeko.net/api/v1/videos/${encodeURIComponent(videoId)}`,
+    `https://invidious.privacyredirect.com/api/v1/videos/${encodeURIComponent(videoId)}`
   ];
 
   // 2. Probar instancias Piped en paralelo
   try {
     const streamInfo = await Promise.any(pipedInstances.map(async (apiUrl) => {
-      const r = await fetch(apiUrl, { signal: AbortSignal.timeout(3400) });
+      const r = await fetch(apiUrl, { signal: AbortSignal.timeout(4200) });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const j = await r.json();
       const streams = Array.isArray(j?.audioStreams) ? j.audioStreams : [];
@@ -4400,7 +4411,8 @@ async function tryExtractYouTubeStream(videoId) {
         .filter(s => s && s.url && (!s.mimeType || s.mimeType.includes('audio')))
         .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
       if (!sorted.length) throw new Error('No audioStreams');
-      const dl = await fetchAudioBufferSafe(sorted[0].url, 6500);
+      const dl = await fetchAudioBufferSafe(sorted[0].url, 7500);
+      if (!dl || !dl.buffer || dl.buffer.length < 120000) throw new Error('Audio stream too short');
       return {
         ...dl,
         title: j.title || '',
@@ -4415,7 +4427,7 @@ async function tryExtractYouTubeStream(videoId) {
   // 3. Probar instancias Invidious en paralelo
   try {
     const invInfo = await Promise.any(invidiousInstances.map(async (apiUrl) => {
-      const r = await fetch(apiUrl, { signal: AbortSignal.timeout(3400) });
+      const r = await fetch(apiUrl, { signal: AbortSignal.timeout(4200) });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const j = await r.json();
       const adaptive = Array.isArray(j?.adaptiveFormats) ? j.adaptiveFormats : [];
@@ -4423,7 +4435,8 @@ async function tryExtractYouTubeStream(videoId) {
         .filter(f => f && f.url && String(f.type || '').startsWith('audio/'))
         .sort((a, b) => (parseInt(b.bitrate, 10) || 0) - (parseInt(a.bitrate, 10) || 0));
       if (!audioFmts.length) throw new Error('No adaptive audio');
-      const dl = await fetchAudioBufferSafe(audioFmts[0].url, 6500);
+      const dl = await fetchAudioBufferSafe(audioFmts[0].url, 7500);
+      if (!dl || !dl.buffer || dl.buffer.length < 120000) throw new Error('Adaptive audio too short');
       return {
         ...dl,
         title: j.title || '',
@@ -4508,7 +4521,7 @@ app.get('/api/v1/audio/extract', async (req, res) => {
     // Etapa 0A: Si se solicitó un videoId específico de YouTube, extraer su MP3 completo de estudio directamente
     if (resolvedMeta.videoId) {
       const ytDirect = await tryExtractYouTubeStream(resolvedMeta.videoId);
-      if (ytDirect && ytDirect.buffer && ytDirect.buffer.length >= 350000) {
+      if (ytDirect && ytDirect.buffer && ytDirect.buffer.length >= 120000) {
         res.setHeader('Content-Type', ytDirect.contentType || 'audio/mpeg');
         res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source, X-Video-Id');
         res.setHeader('X-Song-Title', encodeURIComponent(rawTitle || ytDirect.title || resolvedMeta.title));
@@ -4523,7 +4536,7 @@ app.get('/api/v1/audio/extract', async (req, res) => {
     // Etapa 0B: Si se solicitó un trackId específico de SoundCloud completo, descargarlo directamente
     if (scTrackId) {
       const scDirect = await extractSoundCloudFullTrackServer(searchQuery, rawTitle, rawArtist, scTrackId);
-      if (scDirect && scDirect.buffer && scDirect.buffer.length >= 350000) {
+      if (scDirect && scDirect.buffer && scDirect.buffer.length >= 120000) {
         res.setHeader('Content-Type', scDirect.contentType || 'audio/mpeg');
         res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source, X-Audio-Duration');
         res.setHeader('X-Song-Title', encodeURIComponent(rawTitle || scDirect.title || resolvedMeta.title));
@@ -4540,7 +4553,7 @@ app.get('/api/v1/audio/extract', async (req, res) => {
     if (directAudioUrl && /^https?:\/\//i.test(directAudioUrl) && !isShortPreviewCdn) {
       try {
         const dl = await fetchAudioBufferSafe(directAudioUrl, 7500);
-        if (dl && dl.buffer && dl.buffer.length >= 350000) {
+        if (dl && dl.buffer && dl.buffer.length >= 120000) {
           res.setHeader('Content-Type', dl.contentType || 'audio/mpeg');
           res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source');
           res.setHeader('X-Song-Title', encodeURIComponent(resolvedMeta.title));
@@ -4552,7 +4565,7 @@ app.get('/api/v1/audio/extract', async (req, res) => {
       } catch (_) {}
     }
 
-    // Etapa 1: Resolver la grabación oficial exacta en YouTube y extraer el MP3 completo (2 a 6 min, fidelidad 100% al tema buscado)
+    // Etapa 1: Resolver la grabación oficial en YouTube y extraer el MP3 completo
     if (searchQuery) {
       const ytList = await searchYouTubeCandidatesServer(
         rawArtist && rawTitle ? `${rawArtist} ${rawTitle}` : searchQuery,
@@ -4560,10 +4573,10 @@ app.get('/api/v1/audio/extract', async (req, res) => {
         rawArtist,
         expectedDur
       );
-      for (const ytCand of ytList.slice(0, 2)) {
-        if (ytCand.authScore < 42) continue;
+      for (const ytCand of ytList.slice(0, 3)) {
+        if (ytCand.authScore < 35) continue;
         const ytAudio = await tryExtractYouTubeStream(ytCand.videoId);
-        if (ytAudio && ytAudio.buffer && ytAudio.buffer.length >= 350000) {
+        if (ytAudio && ytAudio.buffer && ytAudio.buffer.length >= 120000) {
           res.setHeader('Content-Type', ytAudio.contentType || 'audio/mpeg');
           res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source, X-Video-Id');
           res.setHeader('X-Song-Title', encodeURIComponent(rawTitle || ytCand.title || resolvedMeta.title));

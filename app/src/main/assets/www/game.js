@@ -2509,25 +2509,30 @@ class BeatstarEngine {
             this.handleCrucePointerMove(lx, ly, t.identifier, tData);
           }
         }
-        if (isOsuMode || isCruceMode || !tData || tData.swiped || tData.consumed) continue;
+        if (isOsuMode || isCruceMode || !tData || tData.swiped) continue;
 
         const dx = t.clientX - tData.startX;
         const dy = t.clientY - tData.startY;
+        const absDx = Math.abs(dx);
+        const absDy = Math.abs(dy);
         const distSq = dx * dx + dy * dy;
         const elapsed = now - tData.startTime;
 
-        // Umbral de activación natural de swipe (18px -> 324px² en menos de 500ms)
-        if (distSq > 324 && elapsed < 500) {
+        // Umbral de activación ágil para pequeño deslizamiento intencional (8px -> 64px², eje dominante >= 7px)
+        // Un toque estático (< 8px) jamás activa swipe; y solo consume el gesto si coincide con la dirección de la flecha
+        if (distSq >= 64 && Math.max(absDx, absDy) >= 7 && elapsed < 600) {
           let direction = 'up';
-          if (Math.abs(dx) > Math.abs(dy)) {
+          if (absDx > absDy) {
             direction = dx > 0 ? 'right' : 'left';
           } else {
             direction = dy > 0 ? 'down' : 'up';
           }
 
-          tData.swiped = true;
-          tData.consumed = true;
-          this.triggerLaneInput(tData.lane, 'swipe', direction, t.identifier);
+          const hitSwipe = this.triggerLaneInput(tData.lane, 'swipe', direction, t.identifier);
+          if (hitSwipe || distSq > 1600) {
+            tData.swiped = true;
+            tData.consumed = true;
+          }
         }
       }
     }, { passive: true });
@@ -3064,25 +3069,12 @@ class BeatstarEngine {
       return tA - tB;
     });
 
-    // Eliminar cualquier nota prematura (< 1600ms) para que nunca aparezcan notas antes de que arranque la canción
-    let notesPool = sortedCandidateNotes.filter(n => {
+    // Conservar las notas desde el inicio real de la canción (>= 150ms) sin desplazar los tiempos respecto al audio
+    // (El motor ya dispone de LEAD_IN_TIME = 1200ms de cuenta atrás previa a 0.0s)
+    const notesPool = sortedCandidateNotes.filter(n => {
       const t = Number.isFinite(n.timestamp_ms) ? n.timestamp_ms : (n.timeMs || (n.time * 1000) || 0);
-      return t >= 1600;
+      return t >= 150;
     });
-    if (notesPool.length === 0 && sortedCandidateNotes.length > 0) {
-      const firstT = sortedCandidateNotes[0].timestamp_ms || sortedCandidateNotes[0].timeMs || 0;
-      const shift = 1600 - firstT;
-      notesPool = sortedCandidateNotes.map(n => {
-        const origT = Number.isFinite(n.timestamp_ms) ? n.timestamp_ms : (n.timeMs || (n.time * 1000) || 0);
-        const newT = origT + shift;
-        return {
-          ...n,
-          timestamp_ms: newT,
-          timeMs: newT,
-          time: newT / 1000
-        };
-      });
-    }
 
     const cleanedNotes = [];
     const lastLaneHitTime = [-Infinity, -Infinity, -Infinity, -Infinity];
@@ -3956,7 +3948,7 @@ class BeatstarEngine {
       const dist = Math.hypot(dx, dy);
       const elapsed = now - touchData.t0;
 
-      if (dist > 22 && elapsed < 400) {
+      if (dist >= 8 && Math.max(Math.abs(dx), Math.abs(dy)) >= 7 && elapsed < 600) {
         let direction = 'up';
         if (Math.abs(dx) > Math.abs(dy)) {
           direction = dx > 0 ? 'right' : 'left';
@@ -3964,9 +3956,11 @@ class BeatstarEngine {
           direction = dy > 0 ? 'down' : 'up';
         }
 
-        touchData.swiped = true;
-        this.activeSwipeDrags.delete(touch.identifier);
-        this.triggerLaneInput(touchData.lane, 'swipe', direction, touch.identifier);
+        const hitSwipe = this.triggerLaneInput(touchData.lane, 'swipe', direction, touch.identifier);
+        if (hitSwipe || dist > 40) {
+          touchData.swiped = true;
+          this.activeSwipeDrags.delete(touch.identifier);
+        }
       }
     }
   }
@@ -4010,10 +4004,12 @@ class BeatstarEngine {
     const dy = (e.clientY - rect.top) - this.mouseTouch.y0;
     const dist = Math.hypot(dx, dy);
 
-    if (dist > 20) {
+    if (dist >= 8 && Math.max(Math.abs(dx), Math.abs(dy)) >= 7) {
       let direction = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
-      this.mouseTouch.swiped = true;
-      this.triggerLaneInput(this.mouseTouch.lane, 'swipe', direction, 'mouse');
+      const hitSwipe = this.triggerLaneInput(this.mouseTouch.lane, 'swipe', direction, 'mouse');
+      if (hitSwipe || dist > 40) {
+        this.mouseTouch.swiped = true;
+      }
     }
   }
 
@@ -4365,17 +4361,11 @@ class BeatstarEngine {
       laneNotes.sort((a, b) => a.time - b.time);
     }
 
-    // Si es un tap pero la nota frontal es un SWIPE: si hay una nota tap/hold justo detrás en ventana, acertar esa nota tap/hold; si solo hay swipe, esperar a touchmove
+    // Si es un tap pero la nota frontal del carril es un SWIPE: JAMÁS validar el swipe con un simple toque ni consumir el dedo con una nota posterior;
+    // esperar siempre al movimiento de deslizamiento (touchmove) en la dirección de la flecha.
     if (inputType === 'tap' && laneNotes.length > 0 && laneNotes[0].note.type === 'swipe') {
-      const tapCandidateIdx = laneNotes.findIndex(entry => entry.note && entry.note.type !== 'swipe');
-      if (tapCandidateIdx > 0) {
-        const chosenTap = laneNotes[tapCandidateIdx];
-        laneNotes.splice(tapCandidateIdx, 1);
-        laneNotes.unshift(chosenTap);
-      } else {
-        this.laneGlows[lane] = 0.65;
-        return false;
-      }
+      this.laneGlows[lane] = 0.65;
+      return false;
     }
 
     // Efectos visuales de pulsación de carril
@@ -4489,6 +4479,18 @@ class BeatstarEngine {
       if (this.customBgMode === 'reactive') {
         this.addReactiveBurst(lane, hitX, hitY, this.getScoreColor('perfectPlus'));
       }
+      // Si el jugador apoya el dedo un instante antes (hasta 420ms antes) de que llegue una nota SWIPE para preparar el deslizamiento,
+      // no penalizar como empty_tap ni consumir el toque.
+      for (let i = startSearchIdx; i < nLen; i++) {
+        const upcoming = this.notes[i];
+        if (!upcoming || upcoming.hit || upcoming.missed) continue;
+        const dtUpcoming = upcoming.timestamp_ms - currentTime;
+        if (dtUpcoming > 420) break;
+        if (dtUpcoming >= -HIT_WINDOW && upcoming.type === 'swipe') {
+          this.laneGlows[lane] = 0.65;
+          return false;
+        }
+      }
       // En Modo CRUCE sí se penalizan los toques en carriles vacíos o equivocados, EXCEPTO cuando estamos cerca de teclas amarillas (Drag Notes)
       // o dentro de la Fase Arco Voltaico para permitir mantener y deslizar el dedo sin penalización
       const isNearCruceYellowOrVoltaic = Boolean(
@@ -4526,19 +4528,27 @@ class BeatstarEngine {
       closestNote = frontNote;
       minDiff = frontEntry.absDiff;
     } else if (inputType === 'swipe') {
-      const rawTargetDir = (frontNote.direction || 'up').toLowerCase();
-      const isMirroredSwipe = Boolean((this.isMirrorModeActive || isMadnessActive) && frontNote._isMirrored);
-      const targetDir = isMirroredSwipe
-        ? (rawTargetDir === 'left' ? 'right' : (rawTargetDir === 'right' ? 'left' : rawTargetDir))
-        : rawTargetDir;
       const curDir = (swipeDirection || '').toLowerCase();
-      const flippedTargetDir = isFlippedMush
-        ? (targetDir === 'up' ? 'down' : (targetDir === 'down' ? 'up' : targetDir))
-        : targetDir;
-      if (!curDir || !targetDir || curDir === targetDir || curDir === flippedTargetDir) {
-        closestNote = frontNote;
-        minDiff = frontEntry.absDiff;
-      } else {
+      if (!curDir) return false;
+      for (let sIdx = 0; sIdx < laneNotes.length; sIdx++) {
+        const candEntry = laneNotes[sIdx];
+        const candNote = candEntry.note;
+        if (!candNote || candNote.type !== 'swipe') continue;
+        const rawTargetDir = (candNote.direction || candNote.swipeDirection || 'up').toLowerCase();
+        const isMirroredSwipe = Boolean((this.isMirrorModeActive || isMadnessActive) && candNote._isMirrored);
+        const targetDir = isMirroredSwipe
+          ? (rawTargetDir === 'left' ? 'right' : (rawTargetDir === 'right' ? 'left' : rawTargetDir))
+          : rawTargetDir;
+        const flippedTargetDir = isFlippedMush
+          ? (targetDir === 'up' ? 'down' : (targetDir === 'down' ? 'up' : targetDir))
+          : targetDir;
+        if (curDir === targetDir || curDir === flippedTargetDir) {
+          closestNote = candNote;
+          minDiff = candEntry.absDiff;
+          break;
+        }
+      }
+      if (!closestNote) {
         return false;
       }
     }
