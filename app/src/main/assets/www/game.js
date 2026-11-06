@@ -3069,11 +3069,12 @@ class BeatstarEngine {
       return tA - tB;
     });
 
-    // Conservar las notas desde el inicio real de la canción (>= 150ms) sin desplazar los tiempos respecto al audio
-    // (El motor ya dispone de LEAD_IN_TIME = 1200ms de cuenta atrás previa a 0.0s)
+    // Evitar que aparezcan teclas antes de que termine la cuenta atrás de 3, 2, 1 (sin desplazar los tiempos de las demás notas respecto al audio):
+    // toda primera nota debe nacer en el borde superior de la pista una vez finalizada la cuenta atrás (t >= scrollDurationMs + 80ms).
+    const minPostCountdownNoteMs = Math.max(1500, (this.scrollDurationMs || 1450) + 80);
     const notesPool = sortedCandidateNotes.filter(n => {
       const t = Number.isFinite(n.timestamp_ms) ? n.timestamp_ms : (n.timeMs || (n.time * 1000) || 0);
-      return t >= 150;
+      return t >= minPostCountdownNoteMs;
     });
 
     const cleanedNotes = [];
@@ -17995,6 +17996,7 @@ class BeatstarEngine {
     }
 
     renderNotes(currentTime) {
+      if (this.isCountingDown) return;
       const ctx = this.ctx;
       if (this.isOsuHybridModeActive || (typeof window !== 'undefined' && window.isOsuHybridModeActive)) {
         this.renderOsuHybridNotes(ctx, currentTime);

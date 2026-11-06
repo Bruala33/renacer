@@ -3620,7 +3620,9 @@ class AudioAutoMapper {
     const silenceFluxGate = Math.max(0.0032, globalFluxP70 * 0.22);
     const stdFloor = Math.max(0.0024, globalFluxP70 * 0.36);
 
-    for (let f = 20; f < numFrames - 30; f++) {
+    // Empezar a generar notas a partir de ~1580ms para que ninguna tecla nazca antes de que termine la cuenta atrás de 3, 2, 1
+    const minStartFrame = Math.max(20, Math.ceil(1580 / frameDurMs));
+    for (let f = minStartFrame; f < numFrames - 30; f++) {
       const val = compositeFlux[f];
       if (val < silenceFluxGate) continue;
       if (val < compositeFlux[f - 1] || val < compositeFlux[f + 1]) continue;
@@ -4390,16 +4392,30 @@ class AudioAutoMapper {
     const requestedDensity = customMeta.densityMode || 'hard';
     const sourceLabel = customMeta.sourceLabel || 'Motor Acústico DSP';
 
+    // Lanzar búsqueda de letras en paralelo mientras se decodifica y analiza el audio (0ms de bloqueo extra)
+    const lyricsTask = LrcLibLyricsHelper.fetchSyncedLyrics(title, artist, 0).catch(() => []);
+
     const decodedBuffer = await this.decodeAudio(fileOrBlob);
     const { buffer: finalAudioBuffer, blob: finalAudioBlob } = this.extendStudioBufferIfShort(decodedBuffer, fileOrBlob);
     const analysis = this.analyzeAudioBuffer(finalAudioBuffer, { densityMode: requestedDensity, targetLanes: 3 });
 
     try {
-      const syncedLyrics = await LrcLibLyricsHelper.fetchSyncedLyrics(title, artist, analysis.durationSec);
+      const syncedLyrics = await Promise.race([
+        lyricsTask,
+        new Promise(resolve => setTimeout(() => resolve(null), 380))
+      ]);
       if (syncedLyrics && syncedLyrics.length > 0) {
         for (const tKey of Object.keys(analysis.tierNotes || {})) {
           LrcLibLyricsHelper.attachLyricsToNotes(analysis.tierNotes[tKey], syncedLyrics);
         }
+      } else {
+        lyricsTask.then(lateLyrics => {
+          if (lateLyrics && lateLyrics.length > 0) {
+            for (const tKey of Object.keys(analysis.tierNotes || {})) {
+              LrcLibLyricsHelper.attachLyricsToNotes(analysis.tierNotes[tKey], lateLyrics);
+            }
+          }
+        }).catch(() => {});
       }
     } catch (_) {}
 
@@ -4514,7 +4530,7 @@ class LrcLibLyricsHelper {
     for (const url of urls) {
       try {
         const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 3200);
+        const timer = setTimeout(() => ctrl.abort(), 1400);
         const res = await fetch(url, { signal: ctrl.signal });
         clearTimeout(timer);
         if (!res.ok) continue;

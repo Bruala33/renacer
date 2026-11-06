@@ -3274,9 +3274,16 @@ app.post('/api/v1/community/players/restore', (req, res) => {
 // ==========================================
 // 4. Unified Community Search (osu! & Clone Hero)
 // ==========================================
+const unifiedSearchMemoryCache = new Map();
 app.get(['/api/search', '/api/v1/search', '/api/v1/search/community'], async (req, res) => {
   const q = (req.query.q || '').toString().trim();
   if (!q) return res.json([]);
+
+  const cacheKey = q.toLowerCase();
+  const cachedEntry = unifiedSearchMemoryCache.get(cacheKey);
+  if (cachedEntry && (Date.now() - cachedEntry.ts) < 10 * 60 * 1000) {
+    return res.json(cachedEntry.data);
+  }
 
   const results = [];
   const qLower = q.toLowerCase();
@@ -3289,38 +3296,38 @@ app.get(['/api/search', '/api/v1/search', '/api/v1/search/community'], async (re
     }
   }
 
-  // 2. Identificar artista/título en Apple Music por si la búsqueda tiene pocos mapas directos y consultar Catboy, osu.direct, Sayobot, Nerinyan, BeatSaver y Clone Hero en paralelo
+  // 2. Consultar Catboy, osu.direct, Sayobot, Nerinyan, BeatSaver y Clone Hero en paralelo con timeout ágil (1850ms)
   const encoded = encodeURIComponent(q);
   const [catboyRes, osuDirectRes, sayoRes, nerinyanRes, bsRes, enchorRes, itunesHintRes] = await Promise.allSettled([
     fetch(`https://catboy.best/api/v2/search?q=${encoded}`, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
-      signal: AbortSignal.timeout(4500),
+      signal: AbortSignal.timeout(1850),
     }).then(r => r.ok ? r.json() : null),
     fetch(`https://osu.direct/api/v2/search?q=${encoded}`, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
-      signal: AbortSignal.timeout(4500),
+      signal: AbortSignal.timeout(1850),
     }).then(r => r.ok ? r.json() : null),
     fetch(`https://api.sayobot.cn/beatmaplist?0=25&1=0&2=4&cmd=search&keyword=${encoded}`, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
-      signal: AbortSignal.timeout(4500),
+      signal: AbortSignal.timeout(1850),
     }).then(r => r.ok ? r.json() : null),
     fetch(`https://api.nerinyan.moe/search?q=${encoded}`, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
-      signal: AbortSignal.timeout(4500),
+      signal: AbortSignal.timeout(1850),
     }).then(r => r.ok ? r.json() : null),
     fetch(`https://api.beatsaver.com/search/text/0?q=${encoded}&sortOrder=Relevance`, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
-      signal: AbortSignal.timeout(4500),
+      signal: AbortSignal.timeout(1850),
     }).then(r => r.ok ? r.json() : null),
     fetch('https://api.enchor.us/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
       body: JSON.stringify({ search: q, page: 1 }),
-      signal: AbortSignal.timeout(4500),
+      signal: AbortSignal.timeout(1850),
     }).then(r => r.ok ? r.json() : null),
     fetch(`https://itunes.apple.com/search?term=${encoded}&media=music&entity=song&limit=3`, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
-      signal: AbortSignal.timeout(2800),
+      signal: AbortSignal.timeout(1400),
     }).then(r => r.ok ? r.json() : null)
   ]);
 
@@ -3524,17 +3531,17 @@ app.get(['/api/search', '/api/v1/search', '/api/v1/search/community'], async (re
   if (itunesHintRes.status === 'fulfilled' && Array.isArray(itunesHintRes.value?.results) && itunesHintRes.value.results[0]?.artistName) {
     hintArtist = String(itunesHintRes.value.results[0].artistName).trim();
   }
-  if (results.length < 10 && hintArtist && !normalizeSearchText(q).includes(normalizeSearchText(hintArtist))) {
+  if (results.length < 6 && hintArtist && !normalizeSearchText(q).includes(normalizeSearchText(hintArtist))) {
     try {
       const encArtist = encodeURIComponent(hintArtist);
       const [extraCb, extraBs, extraCh] = await Promise.allSettled([
-        fetch(`https://catboy.best/api/v2/search?q=${encArtist}`, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(3200) }).then(r => r.ok ? r.json() : null),
-        fetch(`https://api.beatsaver.com/search/text/0?q=${encArtist}&sortOrder=Relevance`, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(3200) }).then(r => r.ok ? r.json() : null),
+        fetch(`https://catboy.best/api/v2/search?q=${encArtist}`, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(950) }).then(r => r.ok ? r.json() : null),
+        fetch(`https://api.beatsaver.com/search/text/0?q=${encArtist}&sortOrder=Relevance`, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(950) }).then(r => r.ok ? r.json() : null),
         fetch('https://api.enchor.us/search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
           body: JSON.stringify({ search: hintArtist, page: 1 }),
-          signal: AbortSignal.timeout(3200),
+          signal: AbortSignal.timeout(950),
         }).then(r => r.ok ? r.json() : null)
       ]);
       if (extraCb.status === 'fulfilled' && extraCb.value) processOsuItems(Array.isArray(extraCb.value) ? extraCb.value : extraCb.value?.data || []);
@@ -3554,6 +3561,14 @@ app.get(['/api/search', '/api/v1/search', '/api/v1/search/community'], async (re
     }
   }
   results.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
+
+  if (results.length > 0) {
+    if (unifiedSearchMemoryCache.size > 200) {
+      const oldest = unifiedSearchMemoryCache.keys().next().value;
+      if (oldest) unifiedSearchMemoryCache.delete(oldest);
+    }
+    unifiedSearchMemoryCache.set(cacheKey, { ts: Date.now(), data: results });
+  }
 
   res.json(results);
 });
@@ -4451,11 +4466,18 @@ async function tryExtractYouTubeStream(videoId) {
   return null;
 }
 
+const audioCandidatesMemoryCache = new Map();
 app.get('/api/v1/audio/candidates', async (req, res) => {
   const rawTitle = String(req.query.title || '').trim();
   const rawArtist = String(req.query.artist || '').trim();
   const rawQ = String(req.query.q || `${rawTitle} ${rawArtist}`).trim();
   if (!rawQ) return res.json({ candidates: [] });
+
+  const cKey = rawQ.toLowerCase();
+  const cachedCands = audioCandidatesMemoryCache.get(cKey);
+  if (cachedCands && (Date.now() - cachedCands.ts) < 15 * 60 * 1000) {
+    return res.json({ candidates: cachedCands.data });
+  }
 
   try {
     const ytCands = await searchYouTubeCandidatesServer(rawQ, rawTitle, rawArtist);
@@ -4481,16 +4503,24 @@ app.get('/api/v1/audio/candidates', async (req, res) => {
         durationSec: durSec,
         isFullTrack: true,
         isPreviewOnly: false,
-        previewUrl: extractPath,
+        previewUrl: `yt_full://${y.videoId}`,
         directFetchUrl: extractPath,
         mimeType: 'audio/mpeg',
-        thumbnail: y.thumbnail || '',
+        thumbnail: y.thumbnail || `https://i.ytimg.com/vi/${y.videoId}/hqdefault.jpg`,
         sourceName: 'YouTube Completo',
         authenticityScore: y.authScore || 85
       });
     }
 
-    return res.json({ candidates: combined.slice(0, 30) });
+    const finalList = combined.slice(0, 30);
+    if (finalList.length > 0) {
+      if (audioCandidatesMemoryCache.size > 200) {
+        const oldest = audioCandidatesMemoryCache.keys().next().value;
+        if (oldest) audioCandidatesMemoryCache.delete(oldest);
+      }
+      audioCandidatesMemoryCache.set(cKey, { ts: Date.now(), data: finalList });
+    }
+    return res.json({ candidates: finalList });
   } catch (_) {
     return res.json({ candidates: [] });
   }

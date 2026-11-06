@@ -2237,16 +2237,25 @@ body {
   box-shadow: inset 1px 0 1px rgba(255, 255, 255, 0.3), 1px 0 2px rgba(0, 0, 0, 0.3);
 }
 
-/* Inlaid Gold Medallion Artwork on Ivory Piano Key */
-.piano-key-card .piano-key-thumb {
-  border-radius: 9999px !important;
-  border: 2px solid #b45309 !important;
+/* Full-Height Square Artwork Flush with Piano Key */
+.piano-key-card .piano-key-thumb,
+.piano-white-key .piano-key-thumb {
+  width: 58px !important;
+  height: 58px !important;
+  min-width: 58px !important;
+  min-height: 58px !important;
+  align-self: stretch !important;
+  border-radius: 0 !important;
+  border: none !important;
+  border-right: 2px solid #b45309 !important;
   background-color: #140e06 !important;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4), inset 0 1px 2px rgba(0,0,0,0.6) !important;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.32) !important;
 }
 
-.piano-key-card .piano-key-thumb img {
-  border-radius: 9999px !important;
+.piano-key-card .piano-key-thumb img,
+.piano-white-key .piano-key-thumb img,
+.piano-white-key .piano-key-thumb .thumb-preview-overlay {
+  border-radius: 0 !important;
 }
 
 /* Concert Ebony Typography on Ivory Piano Keys */
@@ -2427,29 +2436,43 @@ body {
   width: 100%;
   background: #0b080e;
   content-visibility: auto;
-  contain-intrinsic-size: 56px;
+  contain-intrinsic-size: 60px;
 }
 
 /* White Ivory Key Body */
 .piano-white-key {
+  position: relative;
   flex: 1 1 auto;
   min-width: 0 !important;
   max-width: calc(100% - 48px) !important;
   overflow: hidden !important;
-  min-height: 52px;
+  min-height: 58px;
   background: linear-gradient(180deg, #ffffff 0%, #faf6ee 40%, #ede2d1 80%, #ded0bc 100%);
   border-bottom: 3px solid #b8a68c;
   border-right: 1px solid rgba(184, 166, 140, 0.6);
-  border-left: none; /* No per-key left felt */
+  border-left: none;
   border-radius: 4px 0 0 4px;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 0 12px 0 0 !important;
   cursor: pointer;
   user-select: none;
   transition: transform 0.1s ease, background 0.15s ease;
   box-shadow: inset 0 1px 0 #ffffff, 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Subtle Cover Art Backdrop Wash Across the Key */
+.piano-key-bg-wash {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.13;
+  pointer-events: none;
+  z-index: 0;
+  mask-image: linear-gradient(90deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.45) 55%, transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.45) 55%, transparent 100%);
 }
 
 .piano-white-key:hover {
@@ -2468,7 +2491,7 @@ body {
   width: 48px !important;
   min-width: 48px !important;
   max-width: 48px !important;
-  min-height: 52px;
+  min-height: 58px;
   background: linear-gradient(180deg, #38303e 0%, #1e1824 50%, #0d0a12 100%);
   border-left: 2px solid #08060a;
   border-bottom: 4px solid #050307;
@@ -2541,7 +2564,8 @@ body {
 .magic-key-medallion {
   position: relative;
   background: radial-gradient(circle at 35% 35%, #3b0764 0%, #1e1b4b 60%, #090d16 100%) !important;
-  border: 1.5px solid #f59e0b !important;
+  border: none !important;
+  border-right: 2px solid #9333ea !important;
 }
 
 .magic-key-medallion-spin {
@@ -2692,17 +2716,49 @@ body {
   box-shadow: 0 2px 8px rgba(197, 160, 89, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
-/* Compact 1-Row Unified Search Bar */
+/* Classical Grand Piano Luthier Search Bar (Steinway & Chopin Conservatory Aesthetic) */
 .unified-search-bar {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: #110c18;
-  border: 1.5px solid rgba(197, 160, 89, 0.35);
-  border-radius: 12px;
-  padding: 4px 6px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  background:
+    linear-gradient(180deg, rgba(168, 24, 34, 0.42) 0px, rgba(168, 24, 34, 0.0) 3px),
+    linear-gradient(180deg, #1d130d 0%, #0e0906 50%, #18100b 100%);
+  border: 1.5px solid #c5a059;
+  outline: 1px solid rgba(243, 215, 145, 0.24);
+  outline-offset: -4px;
+  border-radius: 10px;
+  padding: 5px 7px 5px 10px;
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.78),
+    inset 0 1px 0 rgba(255, 246, 214, 0.22),
+    inset 0 -2px 6px rgba(0, 0, 0, 0.85);
   position: relative;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.unified-search-bar::before {
+  content: "𝄞";
+  font-family: "Cinzel", "Playfair Display", Georgia, serif;
+  font-size: 16px;
+  line-height: 1;
+  color: #d4af37;
+  opacity: 0.85;
+  padding-right: 4px;
+  border-right: 1px solid rgba(197, 160, 89, 0.32);
+  margin-right: 2px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  user-select: none;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.unified-search-bar:focus-within {
+  border-color: #f3d791;
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.85),
+    0 0 12px rgba(212, 175, 55, 0.28),
+    inset 0 1px 0 rgba(255, 246, 214, 0.38);
 }
 
 .unified-search-input {
@@ -2710,10 +2766,34 @@ body {
   min-width: 0;
   background: transparent;
   border: none;
-  color: #ffffff;
-  font-size: 13px;
-  padding: 6px 8px;
+  color: #fff6d6;
+  font-family: "Cinzel", "Playfair Display", Georgia, serif;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-size: 12.5px;
+  padding: 6px 6px;
   outline: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+}
+
+.unified-search-input::placeholder {
+  color: #b59b72;
+  font-family: "Playfair Display", Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  opacity: 0.88;
+}
+
+/* Classical styling for standalone search/URL inputs in modals */
+#directPlaylistUrlInput,
+#universalImportSearchInput,
+#edSongTitle,
+#edArtistName {
+  background: linear-gradient(180deg, #170f0a 0%, #0b0705 100%) !important;
+  border: 1.5px solid rgba(197, 160, 89, 0.65) !important;
+  color: #fff6d6 !important;
+  font-family: "Cinzel", "Playfair Display", Georgia, serif !important;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.85), 0 1px 0 rgba(243, 215, 145, 0.2) !important;
 }
 
 .unified-search-filter-btn {
@@ -2722,46 +2802,49 @@ body {
   justify-content: center;
   width: 34px;
   height: 34px;
-  background: #191222;
-  color: #c5a059;
-  border: 1px solid rgba(197, 160, 89, 0.35);
-  border-radius: 8px;
+  background: linear-gradient(180deg, #2b1d14 0%, #160e09 100%);
+  color: #e5b869;
+  border: 1px solid rgba(197, 160, 89, 0.55);
+  border-bottom: 2px solid #6e4f26;
+  border-radius: 7px;
   cursor: pointer;
   outline: none;
   flex-shrink: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 246, 214, 0.18), 0 2px 5px rgba(0, 0, 0, 0.6);
   transition: all 0.15s ease;
 }
 
 .unified-search-filter-btn:hover,
 .unified-search-filter-btn.active {
-  background: rgba(197, 160, 89, 0.18);
-  border-color: #c5a059;
-  color: #ffe082;
+  background: linear-gradient(180deg, #3d291b 0%, #24170f 100%);
+  border-color: #f3d791;
+  color: #fff6d6;
 }
 
 .unified-search-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
+  width: 38px;
   height: 34px;
-  background: linear-gradient(135deg, #d4af37 0%, #a67c1e 100%);
-  color: #120c06;
-  border-radius: 8px;
-  border: 1px solid #ffe5a3;
+  background: linear-gradient(180deg, #fae19c 0%, #d4a84f 48%, #9b6f23 100%);
+  color: #1a0f05;
+  border-radius: 7px;
+  border: 1px solid #fff6d6;
+  border-bottom: 2px solid #5c3d0e;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.65), inset 0 1px 0 #ffffff;
   flex-shrink: 0;
   transition: transform 0.12s ease, filter 0.12s ease;
 }
 
 .unified-search-btn:hover {
-  filter: brightness(1.1);
+  filter: brightness(1.08);
   transform: scale(1.03);
 }
 
 .unified-search-btn:active {
-  transform: scale(0.96);
+  transform: translateY(1px) scale(0.96);
 }
 
 /* Floating Filter Dropdown Menu (3 Stripes Dropdown) */
