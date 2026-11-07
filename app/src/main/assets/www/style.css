@@ -5903,6 +5903,288 @@ body {
   overflow: hidden;
 }
 
+/* Crate Digger Header, Mode Switches & Tube Amp Panel */
+.crate-digger-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.24);
+}
+
+.crate-digger-brand {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.crate-digger-brand-title {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 14px;
+  font-weight: 800;
+  color: #fff6df;
+  letter-spacing: 0.03em;
+  line-height: 1.1;
+}
+
+.crate-digger-brand-sub {
+  font-size: 8.5px;
+  font-family: monospace;
+  color: #c5a059;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.crate-digger-controls-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.crate-mode-switch {
+  display: inline-flex;
+  background: #080503;
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  border-radius: 999px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.crate-mode-btn {
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 8.5px;
+  font-weight: 800;
+  color: #cbb894;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  white-space: nowrap;
+}
+
+.crate-mode-btn.active {
+  background: linear-gradient(135deg, #f3d791 0%, #d4af37 55%, #9b6f23 100%);
+  color: #140b03;
+  box-shadow: 0 0 8px rgba(212, 175, 55, 0.45);
+}
+
+.btn-tune-algorithm {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 800;
+  color: #fff3d1;
+  background: linear-gradient(145deg, #2b1a0c, #120a04);
+  border: 1px solid rgba(243, 215, 145, 0.65);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-tune-algorithm:hover,
+.btn-tune-algorithm.active {
+  background: linear-gradient(135deg, #f3d791 0%, #b8860b 100%);
+  color: #140b02;
+}
+
+.tube-amp-panel {
+  display: none;
+  margin-bottom: 10px;
+}
+
+.tube-amp-panel.open {
+  display: block;
+}
+
+.tube-amp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.22);
+}
+
+.tube-glow-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tube-dials-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.tube-dial-card {
+  background: linear-gradient(145deg, #160e08, #0a0604);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 12px;
+  padding: 7px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.tube-dial-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.tube-dial-name {
+  font-size: 8.5px;
+  font-weight: 800;
+  color: #f3d791;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tube-dial-val {
+  font-size: 8px;
+  font-family: monospace;
+  font-weight: 700;
+  color: #fbbf24;
+  white-space: nowrap;
+}
+
+.tube-dial-knob-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.rotary-knob-indicator {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  position: relative;
+}
+
+.tube-dial-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2a1b0e 0%, #855e21 50%, #f3d791 100%);
+  outline: none;
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  cursor: pointer;
+}
+
+.tube-dial-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff8dc 0%, #d4af37 65%, #785316 100%);
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 0 8px rgba(212, 175, 55, 0.85);
+  cursor: pointer;
+}
+
+.tube-dial-Sublabels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 7.5px;
+  color: #9e8c70;
+  font-family: monospace;
+}
+
+/* Carousels Sections & YouTube Collection Dual Buttons */
+.discover-carousel-section {
+  background: linear-gradient(165deg, rgba(22, 14, 9, 0.9) 0%, rgba(9, 6, 4, 0.94) 100%);
+  border: 1px solid rgba(212, 175, 55, 0.38);
+  border-radius: 16px;
+  padding: 9px 10px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.75);
+}
+
+.discover-carousel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 7px;
+}
+
+.discover-carousel-title {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #fff6df;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.discover-carousel-badge {
+  font-size: 8px;
+  font-family: monospace;
+  font-weight: 800;
+  color: #f3d791;
+  background: rgba(212, 175, 55, 0.14);
+  border: 1px solid rgba(212, 175, 55, 0.42);
+  padding: 2px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.yt-collection-dual-btns {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.yt-col-btn {
+  padding: 6px 8px;
+  border-radius: 10px;
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.yt-col-btn.listen {
+  background: linear-gradient(145deg, #24170b, #100904);
+  border: 1px solid rgba(212, 175, 55, 0.55);
+  color: #f3d791;
+}
+
+.yt-col-btn.listen:hover {
+  background: rgba(212, 175, 55, 0.25);
+}
+
+.yt-col-btn.play-piano {
+  background: linear-gradient(180deg, #fff3c4 0%, #e5c158 45%, #9b6f23 100%);
+  border: 1px solid #ffffff;
+  color: #140b02;
+  font-weight: 900;
+  box-shadow: 0 3px 10px rgba(212, 175, 55, 0.35);
+}
+
 /* Persistent Spotify Mini-Player Bar (Bronze & Smoked Dark Glass) */
 .spotify-mini-player {
   position: fixed;
@@ -5911,8 +6193,14 @@ body {
   transform: translateX(-50%);
   width: calc(100% - 16px);
   max-width: 425px;
+  height: 58px;
+  padding: 8px 10px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
   z-index: 9400;
-  background: linear-gradient(165deg, rgba(28, 18, 10, 0.95) 0%, rgba(11, 7, 5, 0.97) 100%);
+  background: linear-gradient(165deg, rgba(28, 18, 10, 0.96) 0%, rgba(11, 7, 5, 0.98) 100%);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1.5px solid rgba(212, 175, 55, 0.72);
@@ -5921,13 +6209,128 @@ body {
               0 0 18px rgba(212, 175, 55, 0.25),
               inset 0 1px 0 rgba(255, 243, 207, 0.35);
   overflow: hidden;
+  cursor: pointer;
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
 }
 
 .spotify-mini-player.hidden-player {
-  transform: translate(-50%, 130%);
-  opacity: 0;
-  pointer-events: none;
+  transform: translate(-50%, 140%) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.mini-player-progress-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.mini-player-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #b8860b, #fde047);
+  box-shadow: 0 0 8px #fbbf24;
+  transition: width 0.2s linear;
+}
+
+.mini-player-vinyl-thumb {
+  width: 38px !important;
+  height: 38px !important;
+  min-width: 38px !important;
+  max-width: 38px !important;
+  border-radius: 50%;
+  border: 2px solid #d4af37;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.85);
+  overflow: hidden;
+  flex-shrink: 0;
+  position: relative;
+  background: #120c07;
+  animation: vinylSpin1928 5.5s linear infinite;
+  animation-play-state: paused;
+}
+
+.mini-player-vinyl-thumb.spinning {
+  animation-play-state: running;
+}
+
+.mini-player-vinyl-thumb img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block;
+}
+
+.mini-player-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+}
+
+.mini-player-title {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #fff6df;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mini-player-artist {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #cbb894;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mini-player-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.mini-player-icon-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  color: #f3d791;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.mini-player-icon-btn.play-pause {
+  background: rgba(212, 175, 55, 0.22);
+  border-color: #f3d791;
+  color: #fff8dc;
+}
+
+.mini-player-play-game-btn {
+  padding: 6px 9px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #fff3c4 0%, #e5c158 45%, #9b6f23 100%);
+  border: 1px solid #ffffff;
+  color: #140b02;
+  font-size: 9.5px;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(212, 175, 55, 0.4);
 }
 
 /* Full-Screen "Now Playing" Turntable Modal */
@@ -5935,13 +6338,13 @@ body {
   position: fixed;
   inset: 0;
   z-index: 9880;
-  background: radial-gradient(circle at 50% 25%, rgba(42, 27, 14, 0.96) 0%, rgba(10, 7, 5, 0.99) 70%, #040302 100%);
+  background: radial-gradient(circle at 50% 25%, rgba(42, 27, 14, 0.97) 0%, rgba(10, 7, 5, 0.99) 70%, #040302 100%);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   display: none;
   flex-direction: column;
   justify-content: space-between;
-  padding: 14px 16px 20px;
+  padding: 14px 16px 24px;
   overflow-y: auto;
 }
 
@@ -5950,9 +6353,29 @@ body {
   animation: ytSheetSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.now-playing-grand-platter {
-  width: 228px;
-  height: 228px;
+.now-playing-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  max-width: 380px;
+  margin: 0 auto 10px;
+}
+
+.now-playing-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  max-width: 380px;
+  margin: 0 auto;
+}
+
+.np-turntable-stage {
+  width: 224px;
+  height: 224px;
   margin: 0 auto;
   border-radius: 50%;
   position: relative;
@@ -5962,11 +6385,12 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
 }
 
-.now-playing-vinyl-disc {
-  width: 210px;
-  height: 210px;
+.np-turntable-vinyl {
+  width: 206px;
+  height: 206px;
   border-radius: 50%;
   background:
     conic-gradient(
@@ -5992,9 +6416,163 @@ body {
   animation-play-state: paused;
 }
 
-.now-playing-vinyl-disc.spinning {
+.np-turntable-vinyl.spinning {
   animation-play-state: running;
 }
 
+.np-turntable-label {
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  border: 3px solid #e5c158;
+  overflow: hidden;
+  position: relative;
+  background: #140c06;
+}
 
+.np-turntable-label img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 
+.crate-vu-meters-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.crate-vu-label {
+  position: absolute;
+  bottom: 2px;
+  left: 6px;
+  font-size: 6.5px;
+  font-family: monospace;
+  color: #cbb894;
+  font-weight: 800;
+}
+
+.np-scrubber-box {
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.np-scrubber-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #3b2610 0%, #d4af37 100%);
+  outline: none;
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  cursor: pointer;
+}
+
+.np-scrubber-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff8dc;
+  border: 2px solid #d4af37;
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.9);
+  cursor: pointer;
+}
+
+.np-time-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 9px;
+  font-family: monospace;
+  color: #cbb894;
+}
+
+.np-transport-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.np-transport-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1.5px solid rgba(212, 175, 55, 0.45);
+  color: #f3d791;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.np-transport-btn.main-play {
+  width: 52px;
+  height: 52px;
+  background: linear-gradient(135deg, #fff3c4 0%, #d4af37 60%, #9b6f23 100%);
+  border-color: #ffffff;
+  color: #140b02;
+  font-size: 18px;
+  font-weight: 900;
+  box-shadow: 0 6px 20px rgba(212, 175, 55, 0.45);
+}
+
+.crate-play-piano-btn {
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fff3c4 0%, #e5c158 35%, #b8860b 85%, #785316 100%);
+  border: 1.5px solid #ffffff;
+  color: #140b02;
+  font-weight: 900;
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: 0 6px 18px rgba(212, 175, 55, 0.45), inset 0 1px 0 #ffffff;
+  cursor: pointer;
+}
+
+.crate-secondary-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.crate-sec-btn {
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #21160c, #0d0804);
+  border: 1px solid rgba(212, 175, 55, 0.55);
+  color: #f3d791;
+  font-size: 10px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.np-queue-drawer {
+  width: 100%;
+  max-width: 340px;
+  max-height: 200px;
+  overflow-y: auto;
+  background: rgba(8, 5, 3, 0.9);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  border-radius: 12px;
+  padding: 8px;
+}

@@ -1522,14 +1522,26 @@
       // Now Playing Full-Screen Turntable DOM
       const npCover = document.getElementById('npTurntableCoverImg');
       if (npCover) npCover.src = cover;
-      const npTitle = document.getElementById('npTurntableTitle');
+      const npTitle = document.getElementById('npTrackTitle') || document.getElementById('npTurntableTitle');
       if (npTitle) npTitle.textContent = track.title || 'Canción';
-      const npArtist = document.getElementById('npTurntableArtist');
+      const npArtist = document.getElementById('npTrackArtist') || document.getElementById('npTurntableArtist');
       if (npArtist) npArtist.textContent = track.artist || 'Artista';
-      const npBadge = document.getElementById('npTurntableStreamBadge');
+      const npBadge = document.getElementById('npHeaderPhaseBadge') || document.getElementById('npTurntableStreamBadge');
       if (npBadge) npBadge.textContent = statusLabel;
-      const npMatch = document.getElementById('npTurntableDnaMatch');
-      if (npMatch) npMatch.textContent = `${track._dnaMatchPct || 94}% AFINIDAD ADN`;
+      const npMeta = document.getElementById('npTrackMetaTags') || document.getElementById('npTurntableDnaMatch');
+      if (npMeta) {
+        const bpm = Math.round(Number(track.bpm) || 120);
+        const stars = (Number(track.stars) || 3.8).toFixed(1);
+        npMeta.textContent = `🧬 ${track._dnaMatchPct || 94}% ADN · ${bpm} BPM · ★ ${stars}`;
+      }
+      const npLikeBtn = document.getElementById('npLikeBtn');
+      if (npLikeBtn) {
+        npLikeBtn.textContent = isFav ? '♥' : '♡';
+        npLikeBtn.style.color = isFav ? '#34d399' : '#f3d791';
+      }
+      if (miniLikeBtn) {
+        miniLikeBtn.textContent = isFav ? '♥' : '♡';
+      }
 
       // Crate Digger badge si la canción actual es la tarjeta superior
       const crateStreamBadge = document.getElementById('crateActiveStreamStatus');
@@ -1551,10 +1563,10 @@
       const npFill = document.getElementById('npTurntableProgressFill');
       if (npFill) npFill.style.width = pct;
       const npSlider = document.getElementById('npTurntableScrubSlider');
-      if (npSlider && !npSlider._isDragging) npSlider.value = String(Math.round(ratio * 1000));
-      const npCur = document.getElementById('npTurntableCurTime');
+      if (npSlider && !npSlider._isDragging) npSlider.value = String((ratio * 100).toFixed(1));
+      const npCur = document.getElementById('npCurrentTimeText') || document.getElementById('npTurntableCurTime');
       if (npCur) npCur.textContent = this._formatTime(curSec);
-      const npDur = document.getElementById('npTurntableTotTime');
+      const npDur = document.getElementById('npDurationTimeText') || document.getElementById('npTurntableTotTime');
       if (npDur) npDur.textContent = this._formatTime(safeDur);
 
       // Mover el ángulo físico de la aguja del tocadiscos según el compás actual (de 16deg borde exterior a 40deg surco interior)
@@ -1582,7 +1594,7 @@
 
       const miniBtn = document.getElementById('miniPlayerPlayPauseBtn');
       if (miniBtn) miniBtn.innerHTML = iconHtml;
-      const npBtn = document.getElementById('npTurntablePlayPauseBtn');
+      const npBtn = document.getElementById('npPlayPauseMainBtn') || document.getElementById('npTurntablePlayPauseBtn');
       if (npBtn) npBtn.innerHTML = iconHtml;
       const cratePlayPreviewBtn = document.getElementById('cratePreviewToggleBtn');
       if (cratePlayPreviewBtn) cratePlayPreviewBtn.innerHTML = playing ? '⏸ PAUSAR ESCUCHA' : '▶ ESCUCHAR PISTA';
@@ -1855,6 +1867,12 @@
       if (active) {
         dnaEngine.bloomFilter.markSeen(active.id, active.artist);
         dualStreamEngine.prewarmUpcomingCards(this.deck.slice(0, 3));
+        if (!dualStreamEngine.currentTrack) {
+          dualStreamEngine.currentTrack = active;
+          dualStreamEngine.queue = [...this.deck];
+          dualStreamEngine.queueIndex = 0;
+          dualStreamEngine._updatePlayerMetadataUI(active, '⚡ LISTO (<100ms)');
+        }
         if (autoPlayFirst) {
           dualStreamEngine.playTrack(active);
         } else {
@@ -1863,6 +1881,9 @@
             if (meta && meta.artworkUrl600) {
               const imgEl = document.getElementById('crateMainCoverImg');
               if (imgEl) imgEl.src = meta.artworkUrl600;
+              if (dualStreamEngine.currentTrack && dualStreamEngine.currentTrack.id === active.id) {
+                dualStreamEngine._updatePlayerMetadataUI(active, dualStreamEngine.isPlaying() ? 'DUAL-STREAM · ACTIVO' : '⚡ LISTO (<100ms)');
+              }
             }
           }).catch(() => {});
         }
@@ -1891,11 +1912,24 @@
       this.renderCrateDigger();
     },
 
+    toggleTubeAmpPanel() {
+      this.toggleAlgorithmTunerPanel();
+    },
+
     toggleAlgorithmTunerPanel() {
       const panel = document.getElementById('analogDnaTunerPanel');
       if (!panel) return;
-      panel.classList.toggle('hidden');
+      panel.classList.toggle('open');
       this._syncDialsUI();
+    },
+
+    onDialChange(dialName, rawVal) {
+      this.onDialInput(dialName, rawVal);
+      if (this._dialDebounceTimer) clearTimeout(this._dialDebounceTimer);
+      this._dialDebounceTimer = setTimeout(() => {
+        this.rebuildCrateDeck(false);
+        this.refreshCarousels();
+      }, 220);
     },
 
     onDialInput(dialName, rawVal) {
@@ -1911,25 +1945,46 @@
       }
     },
 
+    syncDialsUIFromState() {
+      this._syncDialsUI();
+    },
+
     _syncDialsUI() {
       const d = dnaEngine.dials;
       const map = [
-        { key: 'discovery', slider: 'dialSliderDiscovery', val: 'dialValDiscovery', knob: 'dialKnobDiscovery', fmt: v => v < 35 ? `${v}% Gustos Seguros` : (v > 70 ? `${v}% Sorpréndeme` : `${v}% Equilibrado`) },
-        { key: 'energy', slider: 'dialSliderEnergy', val: 'dialValEnergy', knob: 'dialKnobEnergy', fmt: v => `${Math.round(65 + (v * 1.15))} BPM` },
-        { key: 'era', slider: 'dialSliderEra', val: 'dialValEra', knob: 'dialKnobEra', fmt: v => v < 30 ? '1928–1977' : (v < 68 ? '1980s–1990s' : '2000s–Actual') },
-        { key: 'vocal', slider: 'dialSliderVocal', val: 'dialValVocal', knob: 'dialKnobVocal', fmt: v => v < 30 ? 'Piano / Instr.' : (v > 70 ? '100% Vocal' : 'Mixto') }
+        { key: 'discovery', sliders: ['dialInput_discovery', 'dialSliderDiscovery'], vals: ['dialVal_discovery', 'dialValDiscovery'], knobs: ['knobIndicator_discovery', 'dialKnobDiscovery'], fmt: v => v < 35 ? `Seguro (${v}%)` : (v > 70 ? `Sorpréndeme (${v}%)` : `Equilibrado (${v}%)`) },
+        { key: 'energy', sliders: ['dialInput_energy', 'dialSliderEnergy'], vals: ['dialVal_energy', 'dialValEnergy'], knobs: ['knobIndicator_energy', 'dialKnobEnergy'], fmt: v => `${v}% · ${Math.round(65 + (v * 1.15))} BPM` },
+        { key: 'era', sliders: ['dialInput_era', 'dialSliderEra'], vals: ['dialVal_era', 'dialValEra'], knobs: ['knobIndicator_era', 'dialKnobEra'], fmt: v => v < 30 ? '1928–1977' : (v < 68 ? '80s / 90s Vintage' : '2000s–Actual') },
+        { key: 'vocal', sliders: ['dialInput_vocal', 'dialSliderVocal'], vals: ['dialVal_vocal', 'dialValVocal'], knobs: ['knobIndicator_vocal', 'dialKnobVocal'], fmt: v => v < 30 ? `Piano Solo (${v}%)` : (v > 70 ? `Vocal (${v}%)` : `Híbrido (${v}%)`) }
       ];
       for (const item of map) {
         const val = d[item.key] ?? 50;
-        const sl = document.getElementById(item.slider);
-        if (sl) sl.value = String(val);
-        const vl = document.getElementById(item.val);
-        if (vl) vl.textContent = item.fmt(val);
-        const kn = document.getElementById(item.knob);
-        if (kn) {
-          const deg = -130 + (val / 100) * 260;
-          kn.style.transform = `rotate(${deg.toFixed(0)}deg)`;
+        for (const sId of item.sliders) {
+          const sl = document.getElementById(sId);
+          if (sl) sl.value = String(val);
         }
+        for (const vId of item.vals) {
+          const vl = document.getElementById(vId);
+          if (vl) vl.textContent = item.fmt(val);
+        }
+        for (const kId of item.knobs) {
+          const kn = document.getElementById(kId);
+          if (kn) {
+            const deg = -130 + (val / 100) * 260;
+            kn.style.transform = `rotate(${deg.toFixed(0)}deg)`;
+          }
+        }
+      }
+      const summaryEl = document.getElementById('dnaProfileVectorSummary');
+      if (summaryEl) {
+        const u = dnaEngine.userVector;
+        const genres = [
+          { name: 'Rock & Metal', val: u[4] },
+          { name: 'Electrónica & Phonk', val: u[5] },
+          { name: 'Pop & Latino', val: u[6] },
+          { name: 'Clásico & Piano', val: u[7] }
+        ].sort((a, b) => b.val - a.val);
+        summaryEl.textContent = `Afinidad Principal: ${genres[0].name} · ${dnaEngine.totalSwipes || 0} swipes`;
       }
     },
 
@@ -2776,27 +2831,86 @@
       this.refreshCarousels();
     },
 
-    _initNowPlayingTurntableDrag() {
-      // Soportar mover la aguja directamente sobre el plato o la barra de progreso
-      const platter = document.getElementById('npTurntablePlatterInteractive');
-      if (!platter) return;
-      platter.addEventListener('click', (e) => {
-        const rect = platter.getBoundingClientRect();
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top + rect.height / 2;
-        const dist = Math.hypot(e.clientX - cx, e.clientY - cy);
-        const maxR = rect.width / 2;
-        const minR = 34; // radio de la galleta central
-        if (dist <= minR) {
-          dualStreamEngine.togglePlayPause();
+    // Aliases para los eventos onclick / oninput de index.html
+    renderCarousels() {
+      return this.refreshCarousels();
+    },
+
+    toggleLikeCurrentPlaying(e) {
+      if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+      this.toggleLikeCurrentPlayerTrack();
+    },
+
+    togglePlayPauseMini(e) {
+      if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+      if (!dualStreamEngine.currentTrack) {
+        const top = this.getActiveCrateTrack();
+        if (top) {
+          dualStreamEngine.playTrack(top, { autoPlay: true, isCratePreview: true, syncQueue: false });
           return;
         }
-        // El borde exterior es el inicio (0%) y el borde interior es el final (100%)
-        const ratio = 1 - Math.max(0, Math.min(1, (dist - minR) / (maxR - minR)));
-        dualStreamEngine.seekToRatio(ratio);
-      });
+      }
+      dualStreamEngine.togglePlayPause();
+    },
+
+    nextTrackMini(e) {
+      if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+      if (dualStreamEngine.queue.length > 0) {
+        dualStreamEngine.nextTrack();
+      } else {
+        this.swipeLeftPass();
+      }
+    },
+
+    prevTrackModal(e) {
+      if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+      dualStreamEngine.prevTrack();
+    },
+
+    playPianoFromNowPlaying(e) {
+      if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+      this.launchPianoForCurrentPlayerTrack();
+    },
+
+    createRadioFromNowPlaying() {
+      this.startRadioFromPlayerTrack();
+    },
+
+    openAddToPlaylistFromNowPlaying() {
+      this.openPlaylistOrQueueForPlayerTrack();
+    },
+
+    toggleNowPlayingQueueDrawer() {
+      this.toggleQueueDrawerInModal();
+    },
+
+    onNowPlayingScrub(val) {
+      const pct = Math.max(0, Math.min(100, Number(val) || 0));
+      dualStreamEngine.seekToRatio(pct / 100);
+    },
+
+    onTurntablePlatterScratch(e) {
+      const platter = document.getElementById('npTurntablePlatterInteractive');
+      if (!platter || !e) return;
+      const rect = platter.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dist = Math.hypot(e.clientX - cx, e.clientY - cy);
+      const maxR = rect.width / 2;
+      const minR = 34;
+      if (dist <= minR) {
+        this.togglePlayPauseMini(e);
+        return;
+      }
+      const ratio = 1 - Math.max(0, Math.min(1, (dist - minR) / Math.max(1, maxR - minR)));
+      dualStreamEngine.seekToRatio(ratio);
+    },
+
+    _initNowPlayingTurntableDrag() {
+      // El evento onclick en #npTurntablePlatterInteractive ya delega en onTurntablePlatterScratch(event)
     }
   };
 
   window.DiscoverHomeApp = DiscoverHomeApp;
 })();
+
