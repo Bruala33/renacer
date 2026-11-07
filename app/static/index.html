@@ -11130,8 +11130,11 @@ function stopPianoCameraLoop() {
     }
     window.parseTopLevelLyrics = parseTopLevelLyrics;
 
-    function linkSyllablesToNotes(notes, reconstructedLines) {
+    function linkSyllablesToNotes(notes, reconstructedLines, maxToleranceMs = 95) {
       if (!Array.isArray(notes) || !notes.length || !Array.isArray(reconstructedLines) || !reconstructedLines.length) return;
+      const tol = Number.isFinite(maxToleranceMs) && maxToleranceMs > 0 ? maxToleranceMs : 95;
+      const avoidDuplicateNoteClaim = tol > 100;
+      const claimedNoteSet = avoidDuplicateNoteClaim ? new Set() : null;
 
       for (let lIdx = 0; lIdx < reconstructedLines.length; lIdx++) {
         const line = reconstructedLines[lIdx];
@@ -11142,10 +11145,12 @@ function stopPianoCameraLoop() {
           const syl = verso[sIdx];
           const sylTime = Number(syl.time) || 0;
           let bestNote = null;
-          let minDiff = 55;
+          let minDiff = tol;
 
           for (let i = 0; i < notes.length; i++) {
             const n = notes[i];
+            if (!n) continue;
+            if (claimedNoteSet && claimedNoteSet.has(n)) continue;
             const nTime = Number.isFinite(n.timestamp_ms)
               ? n.timestamp_ms
               : (Number.isFinite(n.timeMs)
@@ -11159,14 +11164,17 @@ function stopPianoCameraLoop() {
           }
 
           if (bestNote) {
+            if (claimedNoteSet) claimedNoteSet.add(bestNote);
             bestNote.lineIdx = lIdx;
             bestNote.sylIdx = sIdx;
             bestNote.sylTime = sylTime;
             const cleanT = String(syl.text || '').replace(/[-~]/g, '').trim().toUpperCase();
             if (cleanT && cleanT !== '~') {
               bestNote.lyric = cleanT;
+              bestNote._cleanLyric = cleanT;
             } else {
               bestNote.lyric = null;
+              bestNote._cleanLyric = null;
             }
           }
         }
@@ -11174,12 +11182,256 @@ function stopPianoCameraLoop() {
     }
     window.linkSyllablesToNotes = linkSyllablesToNotes;
 
-    function loadKaraokeLyricsForBeatmap(beatmap, gameEngine) {
+    window._universalLrcCache = window._universalLrcCache || new Map();
+
+    function _cleanSongMetaForLyrics(rawTitle = '', rawArtist = '') {
+      let title = String(rawTitle || '')
+        .replace(/\s*[\(\[][^\)\]]*(?:official|video|audio|lyric|letra|videoclip|hd|4k|remaster|live|en vivo|tv size|short ver|ver\.|version|feat\.|ft\.|prod\.|visualizer)[^\)\]]*[\)\]]/gi, '')
+        .replace(/\b(?:official\s+video|official\s+audio|video\s+oficial|letra\s+oficial|lyrics)\b/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      let artist = String(rawArtist || '')
+        .replace(/\s*-\s*topic$/i, '')
+        .replace(/vevo$/i, '')
+        .replace(/\b(?:comunidad|canción top|cancion top|catálogo|catalogo|youtube|magic keys|teclas mágicas|osu!|beatsaver|clone hero)\b/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (title.includes(' - ') && (!artist || artist.length < 2)) {
+        const parts = title.split(' - ');
+        artist = parts[0].trim();
+        title = parts.slice(1).join(' - ').trim();
+      }
+      return { title, artist };
+    }
+
+    function parseLrcTextToTimedLines(lrcText) {
+      if (!lrcText || typeof lrcText !== 'string') return [];
+      const rawRows = lrcText.split(/\r?\n/);
+      const parsed = [];
+      const tagRe = /\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
+
+      for (let i = 0; i < rawRows.length; i++) {
+        const row = rawRows[i].trim();
+        if (!row) continue;
+        tagRe.lastIndex = 0;
+        const times = [];
+        let m;
+        let lastIdx = 0;
+        while ((m = tagRe.exec(row)) !== null) {
+          const mins = parseInt(m[1], 10) || 0;
+          const secs = parseInt(m[2], 10) || 0;
+          const fracRaw = m[3] || '0';
+          const ms = fracRaw.length === 1
+            ? parseInt(fracRaw, 10) * 100
+            : (fracRaw.length === 2 ? parseInt(fracRaw, 10) * 10 : parseInt(fracRaw.slice(0, 3), 10));
+          times.push(mins * 60000 + secs * 1000 + (ms || 0));
+          lastIdx = tagRe.lastIndex;
+        }
+        if (times.length === 0) continue;
+        const text = row.slice(lastIdx).replace(/\s+/g, ' ').trim();
+        if (!text || /^[\(\[♪♫~\-\s]+$/.test(text)) continue;
+        if (/^(?:by|offset|al|ar|ti|au|length)\s*:/i.test(text)) continue;
+        for (let tIdx = 0; tIdx < times.length; tIdx++) {
+          parsed.push({ timeMs: times[tIdx], text });
+        }
+      }
+
+      parsed.sort((a, b) => a.timeMs - b.timeMs);
+      for (let i = 0; i < parsed.length; i++) {
+        const nextT = (i + 1 < parsed.length) ? parsed[i + 1].timeMs : (parsed[i].timeMs + 4200);
+        parsed[i].endTimeMs = Math.max(parsed[i].timeMs + 450, Math.min(parsed[i].timeMs + 6500, nextT - 80));
+      }
+      return parsed;
+    }
+
+    async function fetchUniversalSyncedLyrics(rawTitle, rawArtist) {
+      const { title, artist } = _cleanSongMetaForLyrics(rawTitle, rawArtist);
+      if (!title || title.length < 2 || /^pista\b|^canción creada/i.test(title)) return null;
+      const cacheKey = `${title.toLowerCase()}|${artist.toLowerCase()}`;
+      if (window._universalLrcCache.has(cacheKey)) {
+        return window._universalLrcCache.get(cacheKey);
+      }
+
+      const fetchPromise = (async () => {
+        const qCombined = `${title} ${artist}`.trim();
+        const normTitle = title.toLowerCase().replace(/[^a-z0-9áéíóúñü]+/gi, '');
+        const normArtist = artist.toLowerCase().replace(/[^a-z0-9áéíóúñü]+/gi, '');
+
+        const pickBestSynced = (arr) => {
+          if (!Array.isArray(arr) || arr.length === 0) return null;
+          const withSynced = arr.filter(it => it && typeof it.syncedLyrics === 'string' && it.syncedLyrics.trim().length > 20);
+          if (withSynced.length === 0) return null;
+          withSynced.sort((a, b) => {
+            const aT = String(a.trackName || a.name || '').toLowerCase().replace(/[^a-z0-9áéíóúñü]+/gi, '');
+            const bT = String(b.trackName || b.name || '').toLowerCase().replace(/[^a-z0-9áéíóúñü]+/gi, '');
+            const aA = String(a.artistName || '').toLowerCase().replace(/[^a-z0-9áéíóúñü]+/gi, '');
+            const bA = String(b.artistName || '').toLowerCase().replace(/[^a-z0-9áéíóúñü]+/gi, '');
+            const scoreA = (aT === normTitle ? 4 : (aT.includes(normTitle) || normTitle.includes(aT) ? 2 : 0)) + (normArtist && (aA.includes(normArtist) || normArtist.includes(aA)) ? 3 : 0);
+            const scoreB = (bT === normTitle ? 4 : (bT.includes(normTitle) || normTitle.includes(bT) ? 2 : 0)) + (normArtist && (bA.includes(normArtist) || normArtist.includes(bA)) ? 3 : 0);
+            return scoreB - scoreA;
+          });
+          return withSynced[0].syncedLyrics;
+        };
+
+        try {
+          const requests = [];
+          if (title && artist) {
+            requests.push(
+              fetch(`https://lrclib.net/api/search?track_name=${encodeURIComponent(title)}&artist_name=${encodeURIComponent(artist)}`, {
+                signal: AbortSignal.timeout(2600)
+              }).then(r => r.ok ? r.json() : []).catch(() => [])
+            );
+          }
+          requests.push(
+            fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(qCombined)}`, {
+              signal: AbortSignal.timeout(2800)
+            }).then(r => r.ok ? r.json() : []).catch(() => [])
+          );
+          const baseOrigin = (typeof getBackendBaseUrl === 'function') ? getBackendBaseUrl() : '';
+          requests.push(
+            fetch(`${baseOrigin}/api/v1/lyrics?title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}&q=${encodeURIComponent(qCombined)}`, {
+              signal: AbortSignal.timeout(3000)
+            }).then(r => r.ok ? r.json() : []).catch(() => [])
+          );
+
+          const results = await Promise.all(requests);
+          for (let i = 0; i < results.length; i++) {
+            const bestLrc = pickBestSynced(results[i]);
+            if (bestLrc) {
+              const timedLines = parseLrcTextToTimedLines(bestLrc);
+              if (timedLines.length >= 3) {
+                return timedLines;
+              }
+            }
+          }
+        } catch (_) {}
+        return null;
+      })();
+
+      window._universalLrcCache.set(cacheKey, fetchPromise);
+      const resolved = await fetchPromise;
+      window._universalLrcCache.set(cacheKey, resolved);
+      return resolved;
+    }
+    window.fetchUniversalSyncedLyrics = fetchUniversalSyncedLyrics;
+
+    function _splitWordIntoKaraokeTokens(word, maxParts = 2) {
+      const clean = String(word || '').trim();
+      if (!clean || maxParts <= 1 || clean.length <= 4) return [clean];
+      // División vocálica natural para sílabas largas cuando hay más notas que palabras en el verso
+      const parts = clean.match(/[^aeiouáéíóúü]*[aeiouáéíóúü]+(?:[^aeiouáéíóúü](?![aeiouáéíóúü]))*/gi);
+      if (!parts || parts.length <= 1) return [clean];
+      if (parts.length <= maxParts) return parts;
+      const merged = parts.slice(0, maxParts - 1);
+      merged.push(parts.slice(maxParts - 1).join(''));
+      return merged;
+    }
+
+    function buildKaraokeLyricsFromLrcLines(lrcLines, notes) {
+      if (!Array.isArray(lrcLines) || lrcLines.length === 0) return [];
+      const sortedNotes = Array.isArray(notes)
+        ? [...notes]
+            .filter(n => n && !n.isMine)
+            .map(n => ({
+              ref: n,
+              t: Math.round(Number.isFinite(n.timestamp_ms) ? n.timestamp_ms : (Number.isFinite(n.timeMs) ? n.timeMs : ((Number(n.time) || 0) * (Number(n.time) > 100 ? 1 : 1000)))),
+              dur: Math.round(Number(n.duration_ms || 0))
+            }))
+            .sort((a, b) => a.t - b.t)
+        : [];
+
+      const usedNoteIdx = new Set();
+      const rawLyrics = [];
+
+      for (let i = 0; i < lrcLines.length; i++) {
+        const line = lrcLines[i];
+        const rawWords = String(line.text || '').split(/\s+/).filter(Boolean);
+        if (rawWords.length === 0) continue;
+
+        const winStart = line.timeMs - 140;
+        const winEnd = line.endTimeMs + 100;
+        const lineNotes = [];
+        for (let nIdx = 0; nIdx < sortedNotes.length; nIdx++) {
+          if (usedNoteIdx.has(nIdx)) continue;
+          const nt = sortedNotes[nIdx].t;
+          if (nt < winStart) continue;
+          if (nt > winEnd) break;
+          lineNotes.push({ ...sortedNotes[nIdx], nIdx });
+        }
+
+        // Si el verso tiene más notas que palabras, subdividir palabras largas en sílabas hasta acercarse al número de notas
+        let tokens = [];
+        const targetTokenCount = Math.min(rawWords.length * 2, Math.max(rawWords.length, lineNotes.length));
+        let extraNeeded = Math.max(0, targetTokenCount - rawWords.length);
+        for (let w = 0; w < rawWords.length; w++) {
+          const word = rawWords[w];
+          if (extraNeeded > 0 && word.length >= 5) {
+            const sub = _splitWordIntoKaraokeTokens(word, 2);
+            if (sub.length === 2) {
+              tokens.push({ text: sub[0], isWordEnd: false });
+              tokens.push({ text: sub[1], isWordEnd: true });
+              extraNeeded--;
+              continue;
+            }
+          }
+          tokens.push({ text: word, isWordEnd: true });
+        }
+
+        const verseArr = [];
+        const tokLen = tokens.length;
+        const spanMs = Math.max(400, line.endTimeMs - line.timeMs);
+
+        if (lineNotes.length > 0) {
+          for (let k = 0; k < tokLen; k++) {
+            const tok = tokens[k];
+            let assignedTime = Math.round(line.timeMs + (k / Math.max(1, tokLen)) * spanMs);
+            let assignedDur = Math.max(140, Math.round(spanMs / Math.max(1, tokLen)));
+
+            // Mapear cada token a la nota disponible proporcional dentro de la ventana del verso
+            const mappedNoteSlot = Math.min(lineNotes.length - 1, Math.floor((k * lineNotes.length) / tokLen));
+            const candidate = lineNotes[mappedNoteSlot];
+            if (candidate && !usedNoteIdx.has(candidate.nIdx)) {
+              assignedTime = candidate.t;
+              assignedDur = Math.max(150, candidate.dur || Math.round(spanMs / Math.max(1, tokLen)));
+              usedNoteIdx.add(candidate.nIdx);
+            } else if (k > 0 && assignedTime <= verseArr[k - 1].time) {
+              assignedTime = verseArr[k - 1].time + 90;
+            }
+
+            verseArr.push({
+              time: assignedTime,
+              dur: assignedDur,
+              text: tok.text + (tok.isWordEnd ? ' ' : '')
+            });
+          }
+        } else {
+          for (let k = 0; k < tokLen; k++) {
+            const tok = tokens[k];
+            const t = Math.round(line.timeMs + (k / Math.max(1, tokLen)) * spanMs);
+            const dur = Math.max(140, Math.round(spanMs / Math.max(1, tokLen)));
+            verseArr.push({
+              time: t,
+              dur,
+              text: tok.text + (tok.isWordEnd ? ' ' : '')
+            });
+          }
+        }
+
+        if (verseArr.length > 0) {
+          rawLyrics.push(verseArr);
+        }
+      }
+
+      return rawLyrics;
+    }
+    window.buildKaraokeLyricsFromLrcLines = buildKaraokeLyricsFromLrcLines;
+
+    async function loadKaraokeLyricsForBeatmap(beatmap, gameEngine) {
       if (!beatmap) return;
       const curLyricEl = document.getElementById('karaokeCurrentLine');
       if (curLyricEl) curLyricEl.innerHTML = '';
 
-      const rawLyrics = (Array.isArray(beatmap.lyrics) && beatmap.lyrics.length > 0)
+      let rawLyrics = (Array.isArray(beatmap.lyrics) && beatmap.lyrics.length > 0)
         ? beatmap.lyrics
         : ((beatmap.unpackedData && Array.isArray(beatmap.unpackedData.lyrics) && beatmap.unpackedData.lyrics.length > 0)
             ? beatmap.unpackedData.lyrics
@@ -11188,6 +11440,7 @@ function stopPianoCameraLoop() {
                 : null));
 
       let reconstructedLines = [];
+      let isUniversalLrc = Boolean(beatmap._universalLrcKaraoke);
 
       const notesToUse = (Array.isArray(beatmap.notes) && beatmap.notes.length > 0)
         ? beatmap.notes
@@ -11196,11 +11449,12 @@ function stopPianoCameraLoop() {
       if (rawLyrics) {
         reconstructedLines = parseTopLevelLyrics(rawLyrics);
         if (reconstructedLines.length > 0) {
+          const tolMs = isUniversalLrc ? 320 : 95;
           if (notesToUse && notesToUse.length > 0) {
-            linkSyllablesToNotes(notesToUse, reconstructedLines);
+            linkSyllablesToNotes(notesToUse, reconstructedLines, tolMs);
           }
           if (gameEngine && gameEngine.notes && gameEngine.notes !== notesToUse) {
-            linkSyllablesToNotes(gameEngine.notes, reconstructedLines);
+            linkSyllablesToNotes(gameEngine.notes, reconstructedLines, tolMs);
           }
         }
       }
@@ -11213,16 +11467,46 @@ function stopPianoCameraLoop() {
         }
       }
 
+      // Si la canción no trae letras integradas (YouTube Magic Keys, osu!, BeatSaver, Clone Hero, Comunidad),
+      // buscar automáticamente letras sincronizadas LRC en LRCLIB y alinearlas con las notas de la canción
+      if (!reconstructedLines || reconstructedLines.length === 0) {
+        const sTitle = beatmap.title || beatmap.metadata?.title || '';
+        const sArtist = beatmap.artist || beatmap.metadata?.artist || '';
+        const lrcLines = await fetchUniversalSyncedLyrics(sTitle, sArtist);
+        if (Array.isArray(lrcLines) && lrcLines.length > 0) {
+          const generatedRawLyrics = buildKaraokeLyricsFromLrcLines(lrcLines, notesToUse);
+          if (generatedRawLyrics.length > 0) {
+            rawLyrics = generatedRawLyrics;
+            beatmap.lyrics = generatedRawLyrics;
+            beatmap._universalLrcKaraoke = true;
+            if (beatmap.metadata) beatmap.metadata.lyrics = generatedRawLyrics;
+            isUniversalLrc = true;
+            reconstructedLines = parseTopLevelLyrics(generatedRawLyrics);
+            if (reconstructedLines.length > 0) {
+              if (notesToUse && notesToUse.length > 0) {
+                linkSyllablesToNotes(notesToUse, reconstructedLines, 320);
+              }
+              if (gameEngine && gameEngine.notes && gameEngine.notes !== notesToUse) {
+                linkSyllablesToNotes(gameEngine.notes, reconstructedLines, 320);
+              }
+            }
+          }
+        }
+      }
+
       if (reconstructedLines && reconstructedLines.length > 0) {
-        console.log(`[Karaoke] ${reconstructedLines.length} líneas construidas directamente desde el archivo del chart.`);
+        console.log(`[Karaoke] ${reconstructedLines.length} líneas de karaoke activas (${isUniversalLrc ? 'LRC Universal Sincronizado' : 'Chart Nativo'}).`);
         beatmap.activeKaraokeLyrics = reconstructedLines;
         if (gameEngine) {
           gameEngine.activeKaraokeLyrics = reconstructedLines;
+          if (typeof gameEngine.refreshKaraokeNoteSprites === 'function') {
+            gameEngine.refreshKaraokeNoteSprites();
+          }
         }
         const teleBar = document.getElementById('karaokeTeleprompterBar');
         if (teleBar && window.isKaraokeModeActive) teleBar.classList.remove('hidden');
       } else {
-        console.log('[Karaoke] El archivo no contiene notas con lírica.');
+        console.log('[Karaoke] No se encontraron letras sincronizadas para esta pista.');
         beatmap.activeKaraokeLyrics = [];
         if (gameEngine) gameEngine.activeKaraokeLyrics = [];
         const teleBar = document.getElementById('karaokeTeleprompterBar');
@@ -12243,6 +12527,7 @@ function stopPianoCameraLoop() {
         const typeStr = isHold ? 'hold' : ((n.type === 'swipe' || n.type === 'slide') ? 'swipe' : 'tap');
         const dirStr = n.direction || n.swipeDirection || 'up';
         const isInst = Boolean(n.isInstrumental || n.is_instrumental);
+        const isDspInst = Boolean(n._isDspInstrumental);
 
         parsedRaw.push({
           idx,
@@ -12255,6 +12540,7 @@ function stopPianoCameraLoop() {
           type: typeStr,
           direction: dirStr,
           isInst,
+          _isDspInstrumental: isDspInst,
           pitch: n.pitch,
           lyric: (n.lyric !== undefined && n.lyric !== null && n.lyric !== '') ? n.lyric : (n.text || n.syllable || n.word || n.l || n.w || ''),
           wordIdx: n.wordIdx !== undefined ? n.wordIdx : null,
@@ -12405,7 +12691,7 @@ function stopPianoCameraLoop() {
         let targetLane = Math.max(0, Math.min(maxLaneIdx, n.lane));
 
         // A. Selección de carril orgánica basada en el ritmo real y contorno melódico (CERO escaleras repetitivas)
-        if ((preserveOriginalLanes || n.hasExplicitLane) && !n.isFiller && n.lane !== undefined) {
+        if (((preserveOriginalLanes || n.hasExplicitLane || n._isDspInstrumental) && !n.isFiller && (!n.isInst || n._isDspInstrumental) && n.lane !== undefined)) {
           if (numLanes === 4 && (n.sourceKeys || 3) <= 3) {
             const prevT = i > 0 ? filledNotes[i - 1].t : 0;
             const dtRhythm = Math.max(0, t - prevT);
@@ -12416,7 +12702,7 @@ function stopPianoCameraLoop() {
           } else {
             targetLane = Math.max(0, Math.min(maxLaneIdx, n.lane));
           }
-        } else if (n.isInst || n.isFiller) {
+        } else if ((n.isInst || n.isFiller) && !n._isDspInstrumental) {
           const patternGroup = Math.floor(t / (beatMs * 4)) % instPatterns.length;
           const step = Math.floor(t / Math.max(100, beatMs / 2)) % 4;
           targetLane = instPatterns[patternGroup][step];
@@ -12584,6 +12870,188 @@ function stopPianoCameraLoop() {
     }
     window.humanizeAndBalanceBeatmapNotes = humanizeAndBalanceBeatmapNotes;
 
+    /**
+     * Reemplaza únicamente las secciones instrumentales inventadas por BPM de las canciones Top (GitHub)
+     * con el análisis espectral real de AudioAutoMapper, dejando el 100% de las notas cantadas por el cantante
+     * exactamente como están en el karaoke sincronizado original.
+     */
+    async function enhanceTopSongInstrumentalsWithDsp(chartData, audioBlob, onStatus = null) {
+      if (!chartData || !audioBlob || typeof AudioAutoMapper === 'undefined') return chartData;
+      if (chartData._dspInstrumentalsVersion >= 1 && chartData.tierNotes) return chartData;
+
+      try {
+        const rawAllNotes = Array.isArray(chartData.notes) ? chartData.notes : [];
+        if (rawAllNotes.length === 0) return chartData;
+
+        const getNoteTimeMs = (n) => {
+          const rawT = n.timestamp_ms ?? n.timeMs ?? n.timestamp ?? n.time ?? 0;
+          const t = Number(rawT);
+          if (!Number.isFinite(t)) return 0;
+          return (t > 0 && t < 100 && (n.time !== undefined || n.timeSec !== undefined)) ? Math.round(t * 1000) : Math.round(t);
+        };
+        const getNoteDurMs = (n) => {
+          const rawD = n.duration_ms ?? n.holdDuration ?? n.duration ?? 0;
+          const d = Number(rawD);
+          if (!Number.isFinite(d) || d <= 0) return 0;
+          return (d > 0 && d < 50 && (n.duration !== undefined || n.holdDuration !== undefined)) ? Math.round(d * 1000) : Math.round(d);
+        };
+
+        // 1. Separar estrictamente las notas vocales reales del cantante (intocables) de las instrumentales por BPM
+        const vocalOnlyNotes = rawAllNotes.filter(n => n && !n.isInstrumental && !n.is_instrumental && !n.isInst && !n.isFiller);
+        if (vocalOnlyNotes.length === 0) return chartData;
+
+        // 2. Construir las ventanas activas donde canta el cantante (uniendo pausas de respiración < 1.75s dentro de una estrofa)
+        const rawIntervals = [];
+        for (let i = 0; i < vocalOnlyNotes.length; i++) {
+          const vn = vocalOnlyNotes[i];
+          const vStart = getNoteTimeMs(vn);
+          const vDur = (vn.type === 'hold' || getNoteDurMs(vn) > 180) ? getNoteDurMs(vn) : 0;
+          const vEnd = vStart + Math.max(0, vDur);
+          rawIntervals.push([vStart - 280, vEnd + 300]);
+        }
+
+        const rawLyrics = Array.isArray(chartData.lyrics) ? chartData.lyrics : (chartData.metadata && Array.isArray(chartData.metadata.lyrics) ? chartData.metadata.lyrics : null);
+        if (Array.isArray(rawLyrics)) {
+          for (let l = 0; l < rawLyrics.length; l++) {
+            const verse = rawLyrics[l];
+            if (!Array.isArray(verse) || verse.length === 0) continue;
+            const vStart = Number(verse[0].time) || 0;
+            const lastSyl = verse[verse.length - 1];
+            const vEnd = (Number(lastSyl.time) || 0) + (Number(lastSyl.dur) || 260);
+            if (vStart > 0 && vEnd >= vStart) {
+              rawIntervals.push([vStart - 280, vEnd + 300]);
+            }
+          }
+        }
+
+        rawIntervals.sort((a, b) => a[0] - b[0]);
+        const vocalIntervals = [];
+        const MERGE_BREATH_GAP_MS = 1750;
+        for (let i = 0; i < rawIntervals.length; i++) {
+          const cur = rawIntervals[i];
+          if (vocalIntervals.length === 0) {
+            vocalIntervals.push([cur[0], cur[1]]);
+          } else {
+            const prev = vocalIntervals[vocalIntervals.length - 1];
+            if (cur[0] <= prev[1] + MERGE_BREATH_GAP_MS) {
+              prev[1] = Math.max(prev[1], cur[1]);
+            } else {
+              vocalIntervals.push([cur[0], cur[1]]);
+            }
+          }
+        }
+
+        if (typeof onStatus === 'function') {
+          onStatus('Analizando secciones instrumentales reales...');
+        }
+
+        // 3. Decodificar audio y analizar con AudioAutoMapper
+        const audioBuffer = await AudioAutoMapper.decodeAudio(audioBlob);
+        const dspAnalysis = AudioAutoMapper.analyzeAudioBuffer(audioBuffer, {
+          densityMode: 'hard',
+          targetLanes: 3
+        });
+        if (!dspAnalysis || !dspAnalysis.tierNotes) return chartData;
+
+        const chartBpm = Number(chartData.bpm) || Number(dspAnalysis.bpm) || 120;
+        const prebuiltLyrics = (rawLyrics && typeof parseTopLevelLyrics === 'function')
+          ? parseTopLevelLyrics(rawLyrics)
+          : null;
+
+        const tierConfigs = [
+          { key: 'easy', label: 'Fácil' },
+          { key: 'medium', label: 'Media' },
+          { key: 'hard', label: 'Difícil' },
+          { key: 'extreme', label: 'Extrema' },
+          { key: 'impossible', label: 'Imposible' }
+        ];
+
+        const mergedTierNotes = {};
+
+        for (let tIdx = 0; tIdx < tierConfigs.length; tIdx++) {
+          const { key, label } = tierConfigs[tIdx];
+
+          // A. Notas del cantante: exactamente como estaban, sin inventar relleno instrumental por BPM (allowVocalFiller: false)
+          const vocalTier = humanizeAndBalanceBeatmapNotes(vocalOnlyNotes, chartBpm, label, {
+            allowVocalFiller: false,
+            preserveOriginalLanes: false,
+            numLanes: 3,
+            densityMode: key
+          });
+
+          // B. Notas instrumentales DSP: solo en las secciones puramente instrumentales fuera de vocalIntervals
+          const dspCandidateList = dspAnalysis.tierNotes[key] || dspAnalysis.tierNotes.hard || dspAnalysis.notes || [];
+          const keptDspInst = [];
+
+          for (let j = 0; j < dspCandidateList.length; j++) {
+            const dn = dspCandidateList[j];
+            if (!dn) continue;
+            const dStart = Math.round(Number(dn.timestamp_ms ?? dn.timeMs ?? dn.timestamp ?? 0));
+            let dDur = Math.round(Number(dn.duration_ms ?? 0));
+            let dType = (dn.type === 'hold' && dDur >= 200) ? 'hold' : (dn.type === 'swipe' ? 'swipe' : 'tap');
+            let dEnd = dType === 'hold' ? (dStart + dDur) : dStart;
+
+            let insideVocal = false;
+            for (let v = 0; v < vocalIntervals.length; v++) {
+              const [vStart, vEnd] = vocalIntervals[v];
+              if (dStart >= vStart && dStart <= vEnd) {
+                insideVocal = true;
+                break;
+              }
+              // Si un hold instrumental empieza antes de que cante el cantante pero su cola invade la entrada vocal, recortarlo limpio
+              if (dType === 'hold' && dStart < vStart && dEnd > vStart - 120) {
+                const maxAllowedDur = (vStart - 160) - dStart;
+                if (maxAllowedDur >= 240) {
+                  dDur = maxAllowedDur;
+                  dEnd = dStart + dDur;
+                } else {
+                  dType = 'tap';
+                  dDur = 0;
+                  dEnd = dStart;
+                }
+              }
+            }
+            if (insideVocal) continue;
+
+            keptDspInst.push({
+              ...dn,
+              time: dStart / 1000.0,
+              timeSec: dStart / 1000.0,
+              timeMs: dStart,
+              timestamp: dStart,
+              timestamp_ms: dStart,
+              type: dType,
+              duration: dDur / 1000.0,
+              duration_ms: dDur,
+              holdDuration: dDur / 1000.0,
+              end_timestamp_ms: dType === 'hold' ? dEnd : null,
+              isInstrumental: true,
+              _isDspInstrumental: true,
+              lyric: null
+            });
+          }
+
+          const combined = [...vocalTier, ...keptDspInst].sort((a, b) => a.timestamp_ms - b.timestamp_ms);
+          for (let idx = 0; idx < combined.length; idx++) {
+            combined[idx].id = idx;
+          }
+          if (prebuiltLyrics && prebuiltLyrics.length > 0 && typeof linkSyllablesToNotes === 'function') {
+            linkSyllablesToNotes(combined, prebuiltLyrics, 95);
+          }
+          mergedTierNotes[key] = combined;
+        }
+
+        chartData.tierNotes = mergedTierNotes;
+        chartData.notes = mergedTierNotes.hard || mergedTierNotes.medium || chartData.notes;
+        chartData._dspInstrumentalsVersion = 1;
+        console.log(`[TopSongs DSP] Instrumentales analizadas por DSP (${vocalOnlyNotes.length} notas vocales intactas, ${mergedTierNotes.hard.length - vocalOnlyNotes.length} notas instrumentales reales).`);
+      } catch (err) {
+        console.warn('[TopSongs DSP] Fallback a notas originales:', err);
+      }
+      return chartData;
+    }
+    window.enhanceTopSongInstrumentalsWithDsp = enhanceTopSongInstrumentalsWithDsp;
+
     async function startGame(beatmapData, audioBlob, diffLabel = '', skipModeModal = false) {
       if (!skipModeModal && !window._modeAlreadyChosenForThisLaunch && !window.isPlaytestingFromEditor && typeof openGameModeSelectModal === 'function') {
         const overlayPre = document.getElementById('globalLoadingOverlay');
@@ -12690,6 +13158,15 @@ function stopPianoCameraLoop() {
         (rawLyrics && rawLyrics.length > 0)
       );
 
+      // Si es una canción Top de GitHub que aún no tiene las secciones instrumentales analizadas con AudioAutoMapper, analizarlas ahora dejando intacto al cantante
+      const candidateAudioForDsp = audioBlob || beatmapData.audioBlob || (beatmapData.unpackedData && beatmapData.unpackedData.audioBlob);
+      if (isTopSong && !beatmapData._dspInstrumentalsVersion && candidateAudioForDsp && typeof enhanceTopSongInstrumentalsWithDsp === 'function') {
+        await enhanceTopSongInstrumentalsWithDsp(beatmapData, candidateAudioForDsp);
+        if (Array.isArray(beatmapData.notes) && beatmapData.notes.length > 0) {
+          rawNotes = beatmapData.notes;
+        }
+      }
+
       // 2. Estructura robusta para game.js con velocidad personalizada de música y estrellas
       let resolvedStars = null;
       if (diffLabel) {
@@ -12776,8 +13253,13 @@ function stopPianoCameraLoop() {
             end_timestamp_ms: ty === 'hold' ? (t + dur) : null,
             direction: dirStr,
             swipeDirection: dirStr,
-            isInstrumental: false,
-            lyric: null,
+            isInstrumental: Boolean(n.isInstrumental || n.is_instrumental),
+            _isDspInstrumental: Boolean(n._isDspInstrumental),
+            lyric: n.lyric || null,
+            lineIdx: n.lineIdx !== undefined ? n.lineIdx : null,
+            sylIdx: n.sylIdx !== undefined ? n.sylIdx : null,
+            sylTime: n.sylTime !== undefined ? n.sylTime : null,
+            wordIdx: n.wordIdx !== undefined ? n.wordIdx : null,
             hit: false,
             holding: false,
             holdCompleted: false,
@@ -12832,7 +13314,7 @@ function stopPianoCameraLoop() {
         });
       } else {
         resolvedNotes = humanizeAndBalanceBeatmapNotes(rawNotes, songBpm, standardDiffLabel, {
-          allowVocalFiller: isTopSong,
+          allowVocalFiller: Boolean(isTopSong && !beatmapData._dspInstrumentalsVersion),
           preserveOriginalLanes: !isTopSong,
           numLanes: targetNumLanes,
           densityMode: activeDensityMode
@@ -20179,6 +20661,14 @@ function stopPianoCameraLoop() {
               } else if (needLyricRefetch) {
                 console.log('[TopSongs] Modo Karaoke activo y caché local sin letras. Forzando re-descarga del CDN con líricas actualizadas...');
               } else if (cached.audioBlob && cached.is_top_song) {
+                if (!cached._dspInstrumentalsVersion && typeof enhanceTopSongInstrumentalsWithDsp === 'function') {
+                  await enhanceTopSongInstrumentalsWithDsp(cached, cached.audioBlob, (msg) => {
+                    if (loadStatus) loadStatus.innerText = msg;
+                  });
+                  try {
+                    await IndexedDBStorage.saveChart(cached, cached, cached.audioBlob);
+                  } catch (_) {}
+                }
                 if (loadStatus) loadStatus.innerText = 'Cargando pista desde memoria local...';
                 await new Promise(r => setTimeout(r, 90));
                 return await startGame(cached, cached.audioBlob, targetDiff || cached.difficulty_name || 'Normal');
@@ -20314,6 +20804,13 @@ function stopPianoCameraLoop() {
           source: 'top_playlist',
           source_name: 'Canciones Top'
         };
+
+        // 4.5. Analizar secciones instrumentales con el motor DSP dejando 100% intactas las notas del cantante
+        if (typeof enhanceTopSongInstrumentalsWithDsp === 'function') {
+          await enhanceTopSongInstrumentalsWithDsp(chartData, audioBlob, (msg) => {
+            if (loadStatus) loadStatus.innerText = msg;
+          });
+        }
 
         // 5. Guardar en IndexedDB para disponibilidad offline
         if (typeof IndexedDBStorage !== 'undefined') {
@@ -25247,39 +25744,9 @@ function stopPianoCameraLoop() {
     }
 
     function doesSongHaveKaraoke(item) {
-      if (!item || typeof item !== 'object') return false;
-      const src = String(item.source || item.source_name || '').toLowerCase();
-      const itemId = String(item.id || item.communityChartId || '').toLowerCase();
-      // Las canciones de osu!, BeatSaver y Clone Hero nunca tienen karaoke
-      if (
-        src.includes('osu') ||
-        src.includes('catboy') ||
-        src.includes('beatsaver') ||
-        src.includes('clonehero') ||
-        src.includes('clone hero') ||
-        src.includes('enchor') ||
-        itemId.startsWith('osu_') ||
-        itemId.startsWith('bs_') ||
-        itemId.startsWith('ch_') ||
-        Boolean(item.sng_url) ||
-        Boolean(item.osz_url) ||
-        item.fileType === 'osz' ||
-        item.fileType === 'beatsaver' ||
-        item.fileType === 'sng'
-      ) {
-        return false;
-      }
-      // Las canciones del catálogo Top tienen karaoke sincronizado
-      if (item.is_top_song || src === 'top_playlist' || itemId.startsWith('top_')) {
-        return true;
-      }
-      if (window.TOP_SONGS_CATALOG && Array.isArray(window.TOP_SONGS_CATALOG) && itemId) {
-        const rawTopId = itemId.replace(/^top_/, '');
-        if (window.TOP_SONGS_CATALOG.some(s => String(s.id).toLowerCase() === rawTopId)) {
-          return true;
-        }
-      }
-      // Verificar arrays de letras explícitos
+      if (!item || typeof item !== 'object') return true;
+      // Modo Karaoke universal: cualquier canción del catálogo (Top, Teclas Mágicas YT, osu!, BeatSaver, Clone Hero o Comunidad)
+      // con título válido o con letras integradas puede jugarse en Modo Karaoke (resuelve letras sincronizadas LRC automáticamente).
       if (
         (Array.isArray(item.lyrics) && item.lyrics.length > 0) ||
         (Array.isArray(item.activeKaraokeLyrics) && item.activeKaraokeLyrics.length > 0) ||
@@ -25289,53 +25756,14 @@ function stopPianoCameraLoop() {
       ) {
         return true;
       }
-      // Verificar si las notas contienen sílabas/palabras reales de karaoke (excluyendo símbolos decorativos)
-      const notes = item.notes || item.unpackedData?.notes || item.chartData?.notes || (Array.isArray(item.difficulties) && item.difficulties[0]?.notes) || [];
-      if (Array.isArray(notes) && notes.length > 0) {
-        const nonLyricSymbols = new Set(['♪', '♫', '▲', '▼', '◀', '▶', '★', '~', '-', '']);
-        for (let i = 0; i < notes.length; i++) {
-          const n = notes[i];
-          if (!n) continue;
-          const rawSyl = String(n.lyric || n.text || n.l || n.w || n.syllable || n.word || '').trim();
-          if (rawSyl && !nonLyricSymbols.has(rawSyl)) {
-            return true;
-          }
-        }
-      }
-      return false;
+      const titleStr = String(item.title || item.metadata?.title || item.name || '').trim();
+      return titleStr.length >= 2;
     }
     window.doesSongHaveKaraoke = doesSongHaveKaraoke;
 
     async function checkCommunitySongHasKaraoke(chartId) {
-      if (!chartId) return false;
-      const cleanId = String(chartId).replace(/^comm_/, '');
-      if (window.BUNDLED_COMMUNITY_CHARTS) {
-        const bKey = window.BUNDLED_COMMUNITY_CHARTS[chartId]
-          ? chartId
-          : (window.BUNDLED_COMMUNITY_CHARTS[`comm_${cleanId}`]
-              ? `comm_${cleanId}`
-              : (window.BUNDLED_COMMUNITY_CHARTS[cleanId] ? cleanId : null));
-        if (bKey && window.BUNDLED_COMMUNITY_CHARTS[bKey]) {
-          return doesSongHaveKaraoke(window.BUNDLED_COMMUNITY_CHARTS[bKey]);
-        }
-      }
-      if (typeof IndexedDBStorage !== 'undefined') {
-        try {
-          const localItem = await IndexedDBStorage.getChart(chartId);
-          if (localItem && doesSongHaveKaraoke(localItem.chartData || localItem.unpackedData || localItem)) {
-            return true;
-          }
-        } catch (_) {}
-      }
-      try {
-        const myVault = JSON.parse(localStorage.getItem('beatstar_my_published_charts') || '[]');
-        const localComm = JSON.parse(localStorage.getItem('beatstar_community_local_charts') || '[]');
-        const found = [...myVault, ...localComm].find(c => c && (c.id === chartId || c.communityChartId === chartId));
-        if (found && doesSongHaveKaraoke(found.chartData || found.unpackedData || found)) {
-          return true;
-        }
-      } catch (_) {}
-      return false;
+      if (!chartId) return true;
+      return true;
     }
     window.checkCommunitySongHasKaraoke = checkCommunitySongHasKaraoke;
 
@@ -25346,6 +25774,10 @@ function stopPianoCameraLoop() {
         if (!modal) {
           resolve('normal');
           return;
+        }
+        // Pre-calentar en segundo plano la búsqueda de letras LRC mientras el jugador elige modo
+        if (typeof fetchUniversalSyncedLyrics === 'function' && songTitle && songTitle !== 'PISTA') {
+          fetchUniversalSyncedLyrics(songTitle, songArtist).catch(() => null);
         }
         const btnKaraoke = document.getElementById('btnModeSelectKaraoke');
         if (btnKaraoke) {

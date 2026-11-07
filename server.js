@@ -3577,20 +3577,42 @@ app.get(['/api/search', '/api/v1/search', '/api/v1/search/community'], async (re
 const lyricsMemoryCache = new Map();
 app.get('/api/v1/lyrics', async (req, res) => {
   try {
-    const q = String(req.query.q || `${req.query.title || ''} ${req.query.artist || ''}`).trim();
-    if (!q || q.length < 2) return res.json([]);
-    const cacheKey = q.toLowerCase();
+    const rawTitle = String(req.query.title || '').replace(/\s*[\(\[][^\)\]]*(?:official|video|audio|lyric|letra|videoclip|hd|4k|remaster|live|en vivo|tv size|ver\.|version|feat\.|ft\.)[^\)\]]*[\)\]]/gi, '').trim();
+    const rawArtist = String(req.query.artist || '').replace(/\s*-\s*topic$/i, '').replace(/vevo$/i, '').trim();
+    const rawQ = String(req.query.q || `${rawTitle} ${rawArtist}`).replace(/\s*[\(\[][^\)\]]*(?:official|video|audio|lyric|letra|videoclip|hd|4k|remaster|live|en vivo|tv size|ver\.|version)[^\)\]]*[\)\]]/gi, '').trim();
+    if (!rawQ || rawQ.length < 2) return res.json([]);
+    const cacheKey = `${rawTitle.toLowerCase()}|${rawArtist.toLowerCase()}|${rawQ.toLowerCase()}`;
     if (lyricsMemoryCache.has(cacheKey)) {
       return res.json(lyricsMemoryCache.get(cacheKey));
     }
-    const resp = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(q)}`, {
-      headers: { 'User-Agent': 'PianoCommunity/5.5 (https://github.com/atomasv/piano_renacer)' },
-      signal: AbortSignal.timeout(3500)
-    });
-    if (!resp.ok) return res.json([]);
-    const data = await resp.json();
-    const list = Array.isArray(data) ? data.slice(0, 5) : [];
-    if (lyricsMemoryCache.size > 300) {
+    const headers = { 'User-Agent': 'PianoCommunity/5.5 (https://github.com/atomasv/piano_renacer)' };
+    let data = [];
+    if (rawTitle && rawArtist) {
+      const respSpecific = await fetch(`https://lrclib.net/api/search?track_name=${encodeURIComponent(rawTitle)}&artist_name=${encodeURIComponent(rawArtist)}`, {
+        headers,
+        signal: AbortSignal.timeout(3200)
+      }).catch(() => null);
+      if (respSpecific && respSpecific.ok) {
+        const arr = await respSpecific.json().catch(() => []);
+        if (Array.isArray(arr) && arr.some(item => item && item.syncedLyrics)) {
+          data = arr;
+        }
+      }
+    }
+    if (!Array.isArray(data) || data.length === 0) {
+      const resp = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(rawQ)}`, {
+        headers,
+        signal: AbortSignal.timeout(3500)
+      });
+      if (resp.ok) {
+        const arr = await resp.json().catch(() => []);
+        if (Array.isArray(arr)) data = arr;
+      }
+    }
+    const list = (Array.isArray(data) ? data : [])
+      .sort((a, b) => (b && b.syncedLyrics ? 1 : 0) - (a && a.syncedLyrics ? 1 : 0))
+      .slice(0, 8);
+    if (lyricsMemoryCache.size > 400) {
       const oldestKey = lyricsMemoryCache.keys().next().value;
       if (oldestKey) lyricsMemoryCache.delete(oldestKey);
     }
