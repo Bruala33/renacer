@@ -5277,731 +5277,83 @@ body {
   gap: 4px !important;
 }
 
-/* Crate Digger Main Console */
+/* =========================================================================
+   MINIMALIST SPOTIFY-STYLE DISCOVER HOME, SWIPE CARD, CAROUSELS & MINI-PLAYER
+   ========================================================================= */
+
+#searchScreen,
+#tabDiscoverSection {
+  padding-bottom: 90px !important;
+}
+
+/* Clean Minimalist Discover Container (No Heavy Outer Box) */
 .crate-digger-console {
   position: relative;
-  background: radial-gradient(circle at 50% 18%, rgba(212, 175, 55, 0.13) 0%, rgba(20, 13, 8, 0.96) 55%, #070504 100%);
-  border: 1.5px solid rgba(212, 175, 55, 0.58);
-  border-radius: 20px;
-  padding: 10px;
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.88),
-              inset 0 1px 0 rgba(255, 243, 204, 0.32),
-              inset 0 0 24px rgba(0, 0, 0, 0.85);
-  overflow: hidden;
+  padding: 2px 0 6px;
 }
 
-.crate-digger-console::before {
-  content: '';
-  position: absolute;
-  inset: 3px;
-  border: 1px solid rgba(212, 175, 55, 0.16);
-  border-radius: 16px;
-  pointer-events: none;
-}
-
-/* Mode & Medium Switch Pills */
-.crate-switch-group {
-  display: inline-flex;
-  background: #080503;
-  border: 1px solid rgba(212, 175, 55, 0.42);
-  border-radius: 999px;
-  padding: 2px;
-  gap: 2px;
-}
-
-.crate-switch-btn {
-  padding: 3px 8px;
-  border-radius: 999px;
-  font-size: 9px;
-  font-weight: 800;
-  color: #cbb894;
-  letter-spacing: 0.04em;
-  cursor: pointer;
-  transition: all 0.16s ease;
-  white-space: nowrap;
-}
-
-.crate-switch-btn.active {
-  background: linear-gradient(135deg, #f3d791 0%, #d4af37 55%, #9b6f23 100%);
-  color: #140b03;
-  box-shadow: 0 0 10px rgba(212, 175, 55, 0.45);
-}
-
-/* Vacuum Tube Equalizer Panel (AFINAR MI ALGORITMO) */
-.tube-amp-panel {
-  background: linear-gradient(165deg, #1b1109 0%, #0e0805 60%, #060403 100%);
-  border: 1.5px solid rgba(212, 175, 55, 0.55);
-  border-radius: 16px;
-  padding: 10px;
-  box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.9), 0 8px 24px rgba(0, 0, 0, 0.8);
-  position: relative;
-}
-
-.vacuum-tube-bulb {
-  width: 18px;
-  height: 28px;
-  border-radius: 9px 9px 4px 4px;
-  background: radial-gradient(circle at 50% 60%, rgba(251, 191, 36, 0.85) 0%, rgba(217, 119, 6, 0.45) 45%, rgba(30, 20, 12, 0.85) 100%);
-  border: 1px solid rgba(253, 224, 71, 0.55);
-  box-shadow: 0 0 12px rgba(245, 158, 11, 0.55), inset 0 2px 4px rgba(255, 255, 255, 0.35);
-  position: relative;
-  animation: tubeFilamentPulse 2.6s ease-in-out infinite alternate;
-}
-
-.vacuum-tube-bulb::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 2px;
-  right: 2px;
-  height: 5px;
-  background: linear-gradient(90deg, #785322, #d4af37, #785322);
-  border-radius: 1px;
-}
-
-@keyframes tubeFilamentPulse {
-  0% {
-    box-shadow: 0 0 8px rgba(245, 158, 11, 0.45), inset 0 2px 4px rgba(255, 255, 255, 0.3);
-    filter: brightness(0.95);
-  }
-  100% {
-    box-shadow: 0 0 16px rgba(251, 191, 36, 0.85), inset 0 2px 6px rgba(255, 255, 255, 0.5);
-    filter: brightness(1.12);
-  }
-}
-
-.analog-dial-card {
-  background: linear-gradient(145deg, #160e08, #0a0604);
-  border: 1px solid rgba(212, 175, 55, 0.32);
-  border-radius: 12px;
-  padding: 7px 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.rotary-knob-visual {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: conic-gradient(from 0deg, #b8860b, #f3d791, #6b4c1b, #d4af37, #7a581d, #f3d791, #b8860b);
-  border: 2px solid #fff3c4;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.85), 0 0 8px rgba(212, 175, 55, 0.35);
-  position: relative;
-  flex-shrink: 0;
-  transition: transform 0.12s ease-out;
-}
-
-.rotary-knob-visual::after {
-  content: '';
-  position: absolute;
-  top: 3px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 3px;
-  height: 9px;
-  border-radius: 2px;
-  background: #140a02;
-  box-shadow: 0 0 3px #ffffff;
-}
-
-.analog-range-slider {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 100%;
-  height: 6px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #2a1b0e 0%, #855e21 50%, #f3d791 100%);
-  outline: none;
-  border: 1px solid rgba(212, 175, 55, 0.45);
-}
-
-.analog-range-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 15px;
-  height: 15px;
-  border-radius: 50%;
-  background: radial-gradient(circle, #fff8dc 0%, #d4af37 65%, #785316 100%);
-  border: 1.5px solid #ffffff;
-  box-shadow: 0 0 8px rgba(212, 175, 55, 0.85);
-  cursor: pointer;
-}
-
-/* Swipe Deck Stage & Cards */
-.crate-deck-stage {
-  position: relative;
-  width: 100%;
-  min-height: 318px;
-  perspective: 1000px;
-  user-select: none;
-  touch-action: pan-y;
-}
-
-.crate-swipe-card {
-  position: relative;
-  width: 100%;
-  background: linear-gradient(165deg, #1d130b 0%, #0e0906 58%, #070504 100%);
-  border: 1.5px solid rgba(212, 175, 55, 0.68);
-  border-radius: 18px;
-  padding: 11px;
-  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.9),
-              0 0 18px rgba(212, 175, 55, 0.16),
-              inset 0 1px 0 rgba(255, 244, 209, 0.35);
-  transition: transform 0.24s cubic-bezier(0.2, 0.85, 0.3, 1), opacity 0.24s ease;
-  will-change: transform;
-  overflow: hidden;
-}
-
-.crate-swipe-card.dragging {
-  transition: none !important;
-  cursor: grabbing;
-}
-
-.crate-back-card-1 {
-  position: absolute;
-  inset: 0;
-  transform: translateY(7px) scale(0.965);
-  opacity: 0.55;
-  z-index: 1;
-  pointer-events: none;
-  border-radius: 18px;
-  background: linear-gradient(165deg, #181009, #090604);
-  border: 1px solid rgba(212, 175, 55, 0.35);
-}
-
-.crate-back-card-2 {
-  position: absolute;
-  inset: 0;
-  transform: translateY(13px) scale(0.93);
-  opacity: 0.28;
-  z-index: 0;
-  pointer-events: none;
-  border-radius: 18px;
-  background: linear-gradient(165deg, #140d07, #060403);
-  border: 1px solid rgba(212, 175, 55, 0.2);
-}
-
-/* 1928 Spinning Vinyl Platter */
-.crate-turntable-well {
-  position: relative;
-  width: 162px;
-  height: 162px;
-  margin: 0 auto;
-  border-radius: 50%;
-  background: radial-gradient(circle, #23170d 0%, #0a0704 72%, #050302 100%);
-  border: 2.5px solid rgba(212, 175, 55, 0.65);
-  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.95), 0 6px 20px rgba(0, 0, 0, 0.85);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.crate-vinyl-disc {
-  width: 148px;
-  height: 148px;
-  border-radius: 50%;
-  position: relative;
-  background:
-    conic-gradient(
-      from 30deg,
-      rgba(255, 255, 255, 0.0) 0deg,
-      rgba(243, 215, 145, 0.16) 25deg,
-      rgba(255, 255, 255, 0.0) 55deg,
-      rgba(255, 255, 255, 0.0) 180deg,
-      rgba(243, 215, 145, 0.16) 205deg,
-      rgba(255, 255, 255, 0.0) 235deg
-    ),
-    repeating-radial-gradient(
-      circle at center,
-      #0c0a09 0px,
-      #0c0a09 2px,
-      #1c1714 2.6px,
-      #090706 3.5px
-    );
-  border: 1.5px solid rgba(212, 175, 55, 0.55);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: vinylSpin1928 5.5s linear infinite;
-  animation-play-state: paused;
-}
-
-.crate-vinyl-disc.spinning {
-  animation-play-state: running;
-}
-
-@keyframes vinylSpin1928 {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.crate-vinyl-label {
-  width: 68px;
-  height: 68px;
-  border-radius: 50%;
-  border: 2.5px solid #e5c158;
-  box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.35), inset 0 0 8px rgba(0, 0, 0, 0.7);
-  overflow: hidden;
-  position: relative;
-  background: #1a1109;
-}
-
-.crate-vinyl-label img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.crate-vinyl-spindle {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: radial-gradient(circle, #fff8dc 0%, #d4af37 60%, #422b09 100%);
-  border: 1.5px solid #090603;
-  z-index: 4;
-}
-
-/* Tonearm (Brazo con Aguja Móvil) */
-.crate-tonearm-assembly {
-  position: absolute;
-  top: 6px;
-  right: 8px;
-  width: 52px;
-  height: 118px;
-  pointer-events: none;
-  z-index: 12;
-}
-
-.crate-tonearm-pivot {
-  position: absolute;
-  top: 2px;
-  right: 4px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: radial-gradient(circle, #f3d791 0%, #b8860b 65%, #3d2807 100%);
-  border: 1.5px solid #fff3c4;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.85);
-}
-
-.crate-tonearm-rod {
-  position: absolute;
-  top: 12px;
-  right: 13px;
-  width: 4px;
-  height: 88px;
-  background: linear-gradient(90deg, #9b6f23, #fff3c4, #b8860b);
-  border-radius: 3px;
-  transform-origin: top center;
-  transform: rotate(3deg);
-  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
-  box-shadow: -2px 4px 8px rgba(0, 0, 0, 0.8);
-}
-
-.crate-tonearm-rod.engaged {
-  transform: rotate(25deg);
-}
-
-.crate-tonearm-headshell {
-  position: absolute;
-  bottom: -6px;
-  left: -3px;
-  width: 10px;
-  height: 15px;
-  background: linear-gradient(180deg, #d4af37, #2b1d0c);
-  border: 1px solid #f3d791;
-  border-radius: 2px;
-  transform: rotate(-16deg);
-}
-
-.crate-tonearm-headshell::after {
-  content: '';
-  position: absolute;
-  bottom: -3px;
-  left: 3px;
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: #fbbf24;
-  box-shadow: 0 0 6px #fbbf24;
-}
-
-/* Analog VU Meters (Vúmetros L / R) */
-.crate-vu-meter-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  justify-content: center;
-}
-
-.crate-vu-box {
-  width: 58px;
-  height: 36px;
-  background: radial-gradient(circle at 50% 90%, #3b2813 0%, #1c1208 75%, #0f0904 100%);
-  border: 1px solid rgba(212, 175, 55, 0.6);
-  border-radius: 7px;
-  position: relative;
-  overflow: hidden;
-  box-shadow: inset 0 0 8px rgba(251, 191, 36, 0.22);
-}
-
-.crate-vu-scale {
-  position: absolute;
-  top: 4px;
-  left: 5px;
-  right: 5px;
-  display: flex;
-  justify-content: space-between;
-  font-size: 6px;
-  font-family: monospace;
-  font-weight: 800;
-  color: #e5c158;
-  opacity: 0.85;
-}
-
-.crate-vu-needle {
-  position: absolute;
-  bottom: -2px;
-  left: 50%;
-  width: 1.5px;
-  height: 27px;
-  background: #f59e0b;
-  box-shadow: 0 0 4px #fbbf24;
-  transform-origin: bottom center;
-  transform: rotate(-32deg);
-  transition: transform 0.09s ease-out;
-}
-
-/* 1977 Las Vegas Cassette Tape Deck */
-.crate-cassette-shell {
-  width: 100%;
-  max-width: 268px;
-  height: 158px;
-  margin: 0 auto;
-  background: linear-gradient(160deg, #271a10 0%, #120c07 60%, #090604 100%);
-  border: 2px solid #d4af37;
-  border-radius: 14px;
-  padding: 9px 11px;
-  position: relative;
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 245, 214, 0.4);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.crate-cassette-label {
-  background: linear-gradient(180deg, #f7ecd5 0%, #e5d1a7 75%, #c5a059 100%);
-  border: 1px solid #785316;
-  border-radius: 7px;
-  padding: 5px 8px;
-  color: #1a1006;
-  position: relative;
-}
-
-.crate-cassette-window {
-  height: 58px;
-  background: radial-gradient(circle, rgba(25, 17, 10, 0.95) 0%, #070503 100%);
-  border: 1.5px solid rgba(212, 175, 55, 0.65);
-  border-radius: 999px;
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  padding: 0 16px;
-  position: relative;
-  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.95);
-}
-
-.cassette-reel {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  border: 3px dashed #e5c158;
-  background: radial-gradient(circle, #140d07 32%, #d4af37 35%, #24170b 65%);
-  animation: vinylSpin1928 3.2s linear infinite;
-  animation-play-state: paused;
-}
-
-.cassette-reel.spinning {
-  animation-play-state: running;
-}
-
-/* Swipe Gesture Stamps */
-.crate-stamp-badge {
-  position: absolute;
-  top: 14px;
-  padding: 4px 10px;
-  border-radius: 8px;
-  font-weight: 900;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  pointer-events: none;
-  opacity: 0;
-  z-index: 30;
-  transition: opacity 0.12s ease;
-}
-
-.crate-stamp-like {
-  left: 14px;
-  border: 2px solid #34d399;
-  color: #6ee7b7;
-  background: rgba(6, 78, 59, 0.85);
-  transform: rotate(-10deg);
-}
-
-.crate-stamp-pass {
-  right: 14px;
-  border: 2px solid #f87171;
-  color: #fca5a5;
-  background: rgba(127, 29, 29, 0.85);
-  transform: rotate(10deg);
-}
-
-.crate-stamp-play {
-  left: 50%;
-  top: 42%;
-  transform: translate(-50%, -50%);
-  border: 2px solid #fde047;
-  color: #140b02;
-  background: linear-gradient(135deg, #fef08a, #d4af37);
-  box-shadow: 0 0 20px rgba(250, 204, 21, 0.8);
-}
-
-/* Crate Digger Tactile Action Bar */
-.crate-action-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  margin-top: 8px;
-}
-
-.btn-crate-round {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  flex-shrink: 0;
-}
-
-.btn-crate-round:active {
-  transform: scale(0.92);
-}
-
-.btn-crate-pass {
-  background: linear-gradient(145deg, #261014, #110608);
-  border: 1.5px solid rgba(248, 113, 113, 0.65);
-  color: #fca5a5;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.75);
-}
-
-.btn-crate-like {
-  background: linear-gradient(145deg, #0d281e, #06140f);
-  border: 1.5px solid rgba(52, 211, 153, 0.7);
-  color: #6ee7b7;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.75);
-}
-
-.btn-crate-aux {
-  background: linear-gradient(145deg, #21160c, #0d0804);
-  border: 1px solid rgba(212, 175, 55, 0.55);
-  color: #f3d791;
-  font-size: 9.5px;
-  font-weight: 800;
-  padding: 6px 9px;
-  border-radius: 11px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.btn-crate-play-hero {
-  flex: 1;
-  min-width: 0;
-  padding: 9px 10px;
-  border-radius: 14px;
-  background: linear-gradient(180deg, #fff3c4 0%, #e5c158 35%, #b8860b 85%, #785316 100%);
-  border: 1.5px solid #ffffff;
-  color: #140b02;
-  font-weight: 900;
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  box-shadow: 0 6px 18px rgba(212, 175, 55, 0.45), inset 0 1px 0 #ffffff;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.btn-crate-play-hero:active {
-  transform: translateY(1px) scale(0.98);
-}
-
-/* Flying Golden Vinyl Animation on Like */
-.flying-golden-vinyl {
-  position: fixed;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  border: 3px solid #fde047;
-  box-shadow: 0 0 24px #fbbf24;
-  z-index: 9999;
-  pointer-events: none;
-  background-size: cover;
-  background-position: center;
-  transition: transform 0.68s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.68s ease;
-}
-
-/* Horizontal Spotify-Style Carousels in Descubrir */
-.discover-carousel-scroll {
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  padding-bottom: 6px;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-}
-
-.discover-carousel-scroll::-webkit-scrollbar {
-  height: 4px;
-}
-
-.discover-carousel-scroll::-webkit-scrollbar-thumb {
-  background: rgba(212, 175, 55, 0.35);
-  border-radius: 999px;
-}
-
-.discover-smart-card {
-  scroll-snap-align: start;
-  width: 146px;
-  flex-shrink: 0;
-  background: linear-gradient(160deg, #1c130b 0%, #0d0805 100%);
-  border: 1px solid rgba(212, 175, 55, 0.45);
-  border-radius: 14px;
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 6px;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.75);
-  position: relative;
-  overflow: hidden;
-}
-
-/* Crate Digger Header, Mode Switches & Tube Amp Panel */
 .crate-digger-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-bottom: 8px;
-  padding-bottom: 7px;
-  border-bottom: 1px solid rgba(212, 175, 55, 0.24);
-}
-
-.crate-digger-brand {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
+  padding: 0 4px 8px;
 }
 
 .crate-digger-brand-title {
-  font-family: 'Cormorant Garamond', Georgia, serif;
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 800;
-  color: #fff6df;
-  letter-spacing: 0.03em;
-  line-height: 1.1;
+  color: #ffffff;
+  letter-spacing: -0.01em;
 }
 
-.crate-digger-brand-sub {
-  font-size: 8.5px;
-  font-family: monospace;
-  color: #c5a059;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.crate-digger-controls-bar {
+.btn-tune-algorithm-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #d4af37;
   display: flex;
   align-items: center;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-.crate-mode-switch {
-  display: inline-flex;
-  background: #080503;
-  border: 1px solid rgba(212, 175, 55, 0.45);
-  border-radius: 999px;
-  padding: 2px;
-  gap: 2px;
-}
-
-.crate-mode-btn {
-  padding: 3px 7px;
-  border-radius: 999px;
-  font-size: 8.5px;
-  font-weight: 800;
-  color: #cbb894;
-  background: transparent;
-  border: none;
+  justify-content: center;
   cursor: pointer;
-  transition: all 0.16s ease;
-  white-space: nowrap;
+  transition: background 0.18s ease, transform 0.15s ease;
 }
 
-.crate-mode-btn.active {
-  background: linear-gradient(135deg, #f3d791 0%, #d4af37 55%, #9b6f23 100%);
-  color: #140b03;
-  box-shadow: 0 0 8px rgba(212, 175, 55, 0.45);
+.btn-tune-algorithm-icon:hover {
+  background: rgba(212, 175, 55, 0.16);
 }
 
-.btn-tune-algorithm {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  font-size: 9px;
-  font-weight: 800;
-  color: #fff3d1;
-  background: linear-gradient(145deg, #2b1a0c, #120a04);
-  border: 1px solid rgba(243, 215, 145, 0.65);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
-  cursor: pointer;
-  transition: all 0.15s ease;
+.btn-tune-algorithm-icon:active {
+  transform: scale(0.93);
 }
 
-.btn-tune-algorithm:hover,
-.btn-tune-algorithm.active {
-  background: linear-gradient(135deg, #f3d791 0%, #b8860b 100%);
-  color: #140b02;
-}
-
-.tube-amp-panel {
+/* Clean Modal for Musical Preferences (Never Expanded by Default) */
+.tube-amp-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9920;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   display: none;
-  margin-bottom: 10px;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
 }
 
-.tube-amp-panel.open {
-  display: block;
+.tube-amp-modal-overlay.open {
+  display: flex;
+}
+
+.tube-amp-modal-card {
+  width: 100%;
+  max-width: 360px;
+  background: #121214;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
 }
 
 .tube-amp-header {
@@ -6009,31 +5361,36 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 8px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid rgba(212, 175, 55, 0.22);
+  margin-bottom: 14px;
 }
 
-.tube-glow-row {
+.tube-amp-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.07);
+  border: none;
+  color: #d4d4d8;
   display: flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
+  cursor: pointer;
 }
 
 .tube-dials-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px;
+  gap: 10px;
 }
 
 .tube-dial-card {
-  background: linear-gradient(145deg, #160e08, #0a0604);
-  border: 1px solid rgba(212, 175, 55, 0.35);
-  border-radius: 12px;
-  padding: 7px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 
 .tube-dial-top {
@@ -6044,28 +5401,35 @@ body {
 }
 
 .tube-dial-name {
-  font-size: 8.5px;
-  font-weight: 800;
-  color: #f3d791;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffffff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .tube-dial-val {
-  font-size: 8px;
-  font-family: monospace;
-  font-weight: 700;
-  color: #fbbf24;
+  font-size: 10px;
+  font-weight: 600;
+  color: #d4af37;
   white-space: nowrap;
 }
 
 .tube-dial-knob-row {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
+}
+
+.rotary-knob-visual {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #2a2419 0%, #14110b 100%);
+  border: 1.5px solid #d4af37;
+  position: relative;
+  flex-shrink: 0;
 }
 
 .rotary-knob-indicator {
@@ -6075,15 +5439,26 @@ body {
   position: relative;
 }
 
+.rotary-knob-indicator::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2.5px;
+  height: 7px;
+  border-radius: 2px;
+  background: #f3d791;
+}
+
 .tube-dial-slider {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 6px;
+  height: 5px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #2a1b0e 0%, #855e21 50%, #f3d791 100%);
+  background: rgba(255, 255, 255, 0.14);
   outline: none;
-  border: 1px solid rgba(212, 175, 55, 0.45);
   cursor: pointer;
 }
 
@@ -6093,99 +5468,516 @@ body {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: radial-gradient(circle, #fff8dc 0%, #d4af37 65%, #785316 100%);
-  border: 1.5px solid #ffffff;
-  box-shadow: 0 0 8px rgba(212, 175, 55, 0.85);
+  background: #d4af37;
+  border: 2px solid #ffffff;
   cursor: pointer;
 }
 
 .tube-dial-Sublabels {
   display: flex;
   justify-content: space-between;
-  font-size: 7.5px;
-  color: #9e8c70;
-  font-family: monospace;
+  font-size: 9.5px;
+  color: #9ca3af;
 }
 
-/* Carousels Sections & YouTube Collection Dual Buttons */
-.discover-carousel-section {
-  background: linear-gradient(165deg, rgba(22, 14, 9, 0.9) 0%, rgba(9, 6, 4, 0.94) 100%);
-  border: 1px solid rgba(212, 175, 55, 0.38);
+/* Swipe Deck Stage & Tinder/Spotify Clips Minimalist Card */
+.crate-deck-stage {
+  position: relative;
+  width: 100%;
+  min-height: 334px;
+  user-select: none;
+  touch-action: pan-y;
+}
+
+.crate-swipe-card {
+  position: relative;
+  width: 100%;
+  background: linear-gradient(180deg, rgba(26, 24, 22, 0.96) 0%, rgba(15, 14, 13, 0.98) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 22px;
+  padding: 18px 16px 16px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.65);
+  transition: transform 0.22s cubic-bezier(0.2, 0.85, 0.3, 1), opacity 0.22s ease;
+  will-change: transform, opacity;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.crate-swipe-card.dragging {
+  transition: none !important;
+  cursor: grabbing;
+}
+
+/* Pre-rendered Next Card Underneath (Zero Empty Box Flash) */
+.crate-next-underlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  transform: scale(0.96) translateY(6px);
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+/* Large Square Rounded Cover with Subtle Peeking Spinning Vinyl */
+.crate-cover-vinyl-wrap {
+  position: relative;
+  width: 214px;
+  height: 184px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  cursor: pointer;
+  margin-bottom: 14px;
+}
+
+.crate-square-cover-frame {
+  position: relative;
+  width: 184px;
+  height: 184px;
   border-radius: 16px;
-  padding: 9px 10px;
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.75);
+  overflow: hidden;
+  background: #18181b;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.75);
+  z-index: 3;
+  flex-shrink: 0;
+}
+
+.crate-square-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.crate-peeking-vinyl {
+  position: absolute;
+  right: -14px;
+  top: 50%;
+  width: 168px;
+  height: 168px;
+  margin-top: -84px;
+  border-radius: 50%;
+  background:
+    conic-gradient(
+      from 30deg,
+      rgba(255, 255, 255, 0) 0deg,
+      rgba(212, 175, 55, 0.18) 28deg,
+      rgba(255, 255, 255, 0) 58deg,
+      rgba(255, 255, 255, 0) 180deg,
+      rgba(212, 175, 55, 0.18) 208deg,
+      rgba(255, 255, 255, 0) 238deg
+    ),
+    repeating-radial-gradient(
+      circle at center,
+      #0c0c0e 0px,
+      #0c0c0e 2.2px,
+      #1b1b1f 3px,
+      #09090b 4px
+    );
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.85);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: vinylSpin1928 6s linear infinite;
+  animation-play-state: paused;
+}
+
+.crate-peeking-vinyl.spinning {
+  animation-play-state: running;
+}
+
+.crate-peeking-vinyl-center {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #18181b 22%, #d4af37 25%, #9b6f23 68%, #18181b 70%);
+}
+
+@keyframes vinylSpin1928 {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Song Title & Soft Gray Artist */
+.crate-track-info {
+  width: 100%;
+  text-align: center;
+  padding: 0 8px;
+  margin-bottom: 14px;
+}
+
+.crate-song-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.crate-song-artist {
+  font-size: 13px;
+  font-weight: 500;
+  color: #a1a1aa;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Single Bottom Row with 4 Clean Buttons */
+.crate-clean-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.btn-swipe-circle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e4e4e7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-swipe-circle:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.btn-swipe-circle:active {
+  transform: scale(0.92);
+}
+
+.btn-swipe-circle.pass:hover {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.4);
+}
+
+.btn-swipe-circle.like.liked,
+.btn-swipe-circle.like:hover {
+  color: #d4af37;
+  border-color: rgba(212, 175, 55, 0.5);
+}
+
+.btn-swipe-play-gold {
+  height: 44px;
+  padding: 0 22px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #f3d791 0%, #d4af37 55%, #b8860b 100%);
+  border: none;
+  color: #120d04;
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  box-shadow: 0 6px 18px rgba(212, 175, 55, 0.32);
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.btn-swipe-play-gold:hover {
+  filter: brightness(1.06);
+}
+
+.btn-swipe-play-gold:active {
+  transform: scale(0.96);
+}
+
+/* Swipe Gesture Stamps */
+.crate-stamp-badge {
+  position: absolute;
+  top: 16px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 30;
+  transition: opacity 0.12s ease;
+}
+
+.crate-stamp-like {
+  left: 16px;
+  border: 1.5px solid #d4af37;
+  color: #f3d791;
+  background: rgba(20, 16, 8, 0.88);
+  transform: rotate(-8deg);
+}
+
+.crate-stamp-pass {
+  right: 16px;
+  border: 1.5px solid #f87171;
+  color: #fca5a5;
+  background: rgba(40, 12, 12, 0.88);
+  transform: rotate(8deg);
+}
+
+.crate-stamp-play {
+  left: 50%;
+  top: 38%;
+  transform: translate(-50%, -50%);
+  border: 1.5px solid #fde047;
+  color: #140b02;
+  background: #d4af37;
+}
+
+/* Flying Golden Vinyl Animation on Like */
+.flying-golden-vinyl {
+  position: fixed;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 2px solid #d4af37;
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.7);
+  z-index: 9999;
+  pointer-events: none;
+  background-size: cover;
+  background-position: center;
+  transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.65s ease;
+}
+
+/* =========================================================================
+   RULE 3: CLEAN SPOTIFY-STYLE CAROUSELS (NO CONTAINER BOXES, 140x140PX COVERS)
+   ========================================================================= */
+.discover-carousel-section {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 2px 0;
+  box-shadow: none;
 }
 
 .discover-carousel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
-  margin-bottom: 7px;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 0 2px;
 }
 
 .discover-carousel-title {
-  font-family: 'Cormorant Garamond', Georgia, serif;
-  font-size: 13.5px;
+  font-size: 16px;
   font-weight: 800;
-  color: #fff6df;
+  color: #ffffff;
+  letter-spacing: -0.01em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.discover-carousel-badge {
-  font-size: 8px;
-  font-family: monospace;
-  font-weight: 800;
-  color: #f3d791;
-  background: rgba(212, 175, 55, 0.14);
-  border: 1px solid rgba(212, 175, 55, 0.42);
-  padding: 2px 7px;
-  border-radius: 999px;
-  white-space: nowrap;
+.discover-carousel-link {
+  font-size: 12px;
+  font-weight: 700;
+  color: #a1a1aa;
+  background: transparent;
+  border: none;
+  padding: 2px 4px;
+  transition: color 0.15s ease;
+}
+
+.discover-carousel-link:hover {
+  color: #d4af37;
+}
+
+.discover-carousel-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.discover-carousel-scroll::-webkit-scrollbar {
+  height: 0px;
+  display: none;
+}
+
+.spotify-carousel-card {
+  scroll-snap-align: start;
+  width: 140px;
   flex-shrink: 0;
+  background: transparent;
+  border: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+}
+
+.spotify-carousel-cover-wrap {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #18181b;
+  margin-bottom: 7px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
+}
+
+.spotify-carousel-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.25s ease;
+}
+
+.spotify-carousel-card:hover .spotify-carousel-cover-img {
+  transform: scale(1.04);
+}
+
+.liked-gradient-cover {
+  background: linear-gradient(135deg, #3b2a10 0%, #1c1408 55%, #0c0a07 100%);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.liked-cover-heart-icon {
+  color: #d4af37;
+  transform: scale(1.8);
+}
+
+.new-playlist-cover {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px dashed rgba(212, 175, 55, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.new-playlist-plus-icon {
+  color: #d4af37;
+  transform: scale(1.4);
+}
+
+/* Floating Circular Piano Button in Bottom-Right of Cover */
+.spotify-floating-piano-btn {
+  position: absolute;
+  right: 7px;
+  bottom: 7px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f3d791 0%, #d4af37 60%, #b8860b 100%);
+  border: none;
+  color: #120d04;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.75);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.spotify-floating-piano-btn:hover {
+  transform: scale(1.08);
+}
+
+.spotify-floating-piano-btn:active {
+  transform: scale(0.94);
+}
+
+.spotify-carousel-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.spotify-carousel-artist {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #9ca3af;
+  line-height: 1.25;
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* =========================================================================
+   RULE 5: CLEAN YOUTUBE COLLECTIONS (2-LINE TITLE + 2 CIRCULAR SVG BUTTONS)
+   ========================================================================= */
+.yt-collection-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .yt-collection-dual-btns {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 8px;
   flex-shrink: 0;
 }
 
-.yt-col-btn {
-  padding: 6px 8px;
-  border-radius: 10px;
-  font-size: 9px;
-  font-weight: 800;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  display: inline-flex;
+.yt-col-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
   align-items: center;
-  gap: 3px;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.15s ease, background 0.15s ease;
 }
 
-.yt-col-btn.listen {
-  background: linear-gradient(145deg, #24170b, #100904);
-  border: 1px solid rgba(212, 175, 55, 0.55);
-  color: #f3d791;
+.yt-col-icon-btn:active {
+  transform: scale(0.92);
 }
 
-.yt-col-btn.listen:hover {
-  background: rgba(212, 175, 55, 0.25);
+.yt-col-icon-btn.listen {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #ffffff;
 }
 
-.yt-col-btn.play-piano {
-  background: linear-gradient(180deg, #fff3c4 0%, #e5c158 45%, #9b6f23 100%);
-  border: 1px solid #ffffff;
-  color: #140b02;
-  font-weight: 900;
-  box-shadow: 0 3px 10px rgba(212, 175, 55, 0.35);
+.yt-col-icon-btn.listen:hover {
+  background: rgba(255, 255, 255, 0.15);
 }
 
-/* Persistent Spotify Mini-Player Bar (Bronze & Smoked Dark Glass) */
+.yt-col-icon-btn.play-piano {
+  background: linear-gradient(135deg, #f3d791 0%, #d4af37 60%, #b8860b 100%);
+  border: none;
+  color: #120d04;
+  box-shadow: 0 3px 10px rgba(212, 175, 55, 0.3);
+}
+
+/* =========================================================================
+   RULE 4: COMPACT 1-LINE BOTTOM MINI-PLAYER (HEIGHT: 56PX, 40x40 COVER, 2PX BAR)
+   ========================================================================= */
 .spotify-mini-player {
   position: fixed;
   left: 50%;
@@ -6193,21 +5985,19 @@ body {
   transform: translateX(-50%);
   width: calc(100% - 16px);
   max-width: 425px;
-  height: 58px;
-  padding: 8px 10px 6px;
+  height: 56px;
+  padding: 0 10px 2px 8px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 9px;
+  gap: 10px;
   z-index: 9400;
-  background: linear-gradient(165deg, rgba(28, 18, 10, 0.96) 0%, rgba(11, 7, 5, 0.98) 100%);
+  background: rgba(22, 20, 18, 0.97);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1.5px solid rgba(212, 175, 55, 0.72);
-  border-radius: 16px;
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.95),
-              0 0 18px rgba(212, 175, 55, 0.25),
-              inset 0 1px 0 rgba(255, 243, 207, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.85);
   overflow: hidden;
   cursor: pointer;
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
@@ -6219,138 +6009,134 @@ body {
   pointer-events: none !important;
 }
 
-.mini-player-progress-track {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.08);
-  overflow: hidden;
-}
-
-.mini-player-progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #b8860b, #fde047);
-  box-shadow: 0 0 8px #fbbf24;
-  transition: width 0.2s linear;
-}
-
-.mini-player-vinyl-thumb {
-  width: 38px !important;
-  height: 38px !important;
-  min-width: 38px !important;
-  max-width: 38px !important;
-  border-radius: 50%;
-  border: 2px solid #d4af37;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.85);
+.mini-player-cover-thumb {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  max-width: 40px !important;
+  border-radius: 6px;
   overflow: hidden;
   flex-shrink: 0;
-  position: relative;
-  background: #120c07;
-  animation: vinylSpin1928 5.5s linear infinite;
-  animation-play-state: paused;
+  background: #18181b;
 }
 
-.mini-player-vinyl-thumb.spinning {
-  animation-play-state: running;
-}
-
-.mini-player-vinyl-thumb img {
+.mini-player-cover-thumb img {
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
   display: block;
 }
 
-.mini-player-info {
+.mini-player-info-single-line {
   flex: 1;
   min-width: 0;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 1px;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .mini-player-title {
-  font-size: 11.5px;
-  font-weight: 800;
-  color: #fff6df;
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex-shrink: 1;
+}
+
+.mini-player-dot {
+  color: #71717a;
+  font-size: 12px;
+  flex-shrink: 0;
 }
 
 .mini-player-artist {
-  font-size: 9.5px;
-  font-weight: 600;
-  color: #cbb894;
+  font-size: 12px;
+  font-weight: 500;
+  color: #a1a1aa;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex-shrink: 2;
 }
 
 .mini-player-actions {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   flex-shrink: 0;
 }
 
-.mini-player-icon-btn {
-  width: 30px;
-  height: 30px;
+.mini-player-svg-btn {
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(212, 175, 55, 0.4);
-  color: #f3d791;
+  background: transparent;
+  border: none;
+  color: #e4e4e7;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
   cursor: pointer;
-  transition: all 0.14s ease;
+  transition: color 0.15s ease, transform 0.15s ease, background 0.15s ease;
 }
 
-.mini-player-icon-btn.play-pause {
-  background: rgba(212, 175, 55, 0.22);
-  border-color: #f3d791;
-  color: #fff8dc;
+.mini-player-svg-btn:active {
+  transform: scale(0.9);
 }
 
-.mini-player-play-game-btn {
-  padding: 6px 9px;
-  border-radius: 10px;
-  background: linear-gradient(180deg, #fff3c4 0%, #e5c158 45%, #9b6f23 100%);
-  border: 1px solid #ffffff;
-  color: #140b02;
-  font-size: 9.5px;
-  font-weight: 900;
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  cursor: pointer;
-  box-shadow: 0 3px 10px rgba(212, 175, 55, 0.4);
+.mini-player-svg-btn.liked {
+  color: #d4af37;
 }
 
-/* Full-Screen "Now Playing" Turntable Modal */
+.mini-player-svg-btn.play-pause {
+  color: #ffffff;
+}
+
+.mini-player-svg-btn.piano-gold {
+  background: linear-gradient(135deg, #f3d791 0%, #d4af37 60%, #b8860b 100%);
+  color: #120d04;
+  width: 32px;
+  height: 32px;
+  margin-left: 2px;
+}
+
+.mini-player-progress-track {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.mini-player-progress-fill {
+  height: 100%;
+  background: #d4af37;
+  transition: width 0.2s linear;
+}
+
+/* Full-Screen "Now Playing" Modal */
 .now-playing-modal-overlay {
   position: fixed;
   inset: 0;
   z-index: 9880;
-  background: radial-gradient(circle at 50% 25%, rgba(42, 27, 14, 0.97) 0%, rgba(10, 7, 5, 0.99) 70%, #040302 100%);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: linear-gradient(180deg, #1c1917 0%, #09090b 100%);
   display: none;
   flex-direction: column;
   justify-content: space-between;
-  padding: 14px 16px 24px;
+  padding: 16px 18px 28px;
   overflow-y: auto;
 }
 
 .now-playing-modal-overlay.open {
   display: flex !important;
-  animation: ytSheetSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: ytSheetSlideUp 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .now-playing-header {
@@ -6360,28 +6146,28 @@ body {
   gap: 8px;
   width: 100%;
   max-width: 380px;
-  margin: 0 auto 10px;
+  margin: 0 auto 12px;
 }
 
 .now-playing-body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 11px;
+  gap: 14px;
   width: 100%;
   max-width: 380px;
   margin: 0 auto;
 }
 
 .np-turntable-stage {
-  width: 224px;
-  height: 224px;
+  width: 230px;
+  height: 230px;
   margin: 0 auto;
   border-radius: 50%;
   position: relative;
-  background: radial-gradient(circle, #24180d 0%, #0b0704 75%, #040302 100%);
-  border: 3px solid #d4af37;
-  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.95), 0 0 26px rgba(212, 175, 55, 0.22);
+  background: #141416;
+  border: 2px solid rgba(212, 175, 55, 0.45);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -6389,17 +6175,17 @@ body {
 }
 
 .np-turntable-vinyl {
-  width: 206px;
-  height: 206px;
+  width: 214px;
+  height: 214px;
   border-radius: 50%;
   background:
     conic-gradient(
       from 20deg,
       rgba(255, 255, 255, 0) 0deg,
-      rgba(243, 215, 145, 0.2) 30deg,
+      rgba(212, 175, 55, 0.18) 30deg,
       rgba(255, 255, 255, 0) 60deg,
       rgba(255, 255, 255, 0) 180deg,
-      rgba(243, 215, 145, 0.2) 210deg,
+      rgba(212, 175, 55, 0.18) 210deg,
       rgba(255, 255, 255, 0) 240deg
     ),
     repeating-radial-gradient(
@@ -6412,7 +6198,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: vinylSpin1928 5.5s linear infinite;
+  animation: vinylSpin1928 6s linear infinite;
   animation-play-state: paused;
 }
 
@@ -6421,13 +6207,13 @@ body {
 }
 
 .np-turntable-label {
-  width: 82px;
-  height: 82px;
+  width: 96px;
+  height: 96px;
   border-radius: 50%;
-  border: 3px solid #e5c158;
+  border: 2px solid #d4af37;
   overflow: hidden;
   position: relative;
-  background: #140c06;
+  background: #18181b;
 }
 
 .np-turntable-label img {
@@ -6436,52 +6222,32 @@ body {
   object-fit: cover;
 }
 
-.crate-vu-meters-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-}
-
-.crate-vu-label {
-  position: absolute;
-  bottom: 2px;
-  left: 6px;
-  font-size: 6.5px;
-  font-family: monospace;
-  color: #cbb894;
-  font-weight: 800;
-}
-
 .np-scrubber-box {
   width: 100%;
   max-width: 340px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
 .np-scrubber-slider {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 6px;
+  height: 4px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #3b2610 0%, #d4af37 100%);
+  background: rgba(255, 255, 255, 0.18);
   outline: none;
-  border: 1px solid rgba(212, 175, 55, 0.5);
   cursor: pointer;
 }
 
 .np-scrubber-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  background: #fff8dc;
-  border: 2px solid #d4af37;
-  box-shadow: 0 0 10px rgba(251, 191, 36, 0.9);
+  background: #ffffff;
   cursor: pointer;
 }
 
@@ -6489,59 +6255,57 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 9px;
-  font-family: monospace;
-  color: #cbb894;
+  font-size: 11px;
+  color: #a1a1aa;
 }
 
 .np-transport-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 16px;
   width: 100%;
 }
 
 .np-transport-btn {
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1.5px solid rgba(212, 175, 55, 0.45);
-  color: #f3d791;
+  background: transparent;
+  border: none;
+  color: #e4e4e7;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.np-transport-btn.active,
+.np-transport-btn.liked {
+  color: #d4af37;
 }
 
 .np-transport-btn.main-play {
-  width: 52px;
-  height: 52px;
-  background: linear-gradient(135deg, #fff3c4 0%, #d4af37 60%, #9b6f23 100%);
-  border-color: #ffffff;
-  color: #140b02;
-  font-size: 18px;
-  font-weight: 900;
-  box-shadow: 0 6px 20px rgba(212, 175, 55, 0.45);
+  width: 56px;
+  height: 56px;
+  background: #ffffff;
+  color: #09090b;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
 }
 
 .crate-play-piano-btn {
-  border-radius: 14px;
-  background: linear-gradient(180deg, #fff3c4 0%, #e5c158 35%, #b8860b 85%, #785316 100%);
-  border: 1.5px solid #ffffff;
-  color: #140b02;
-  font-weight: 900;
-  font-size: 11.5px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #f3d791 0%, #d4af37 55%, #b8860b 100%);
+  border: none;
+  color: #120d04;
+  font-weight: 800;
+  font-size: 13px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  box-shadow: 0 6px 18px rgba(212, 175, 55, 0.45), inset 0 1px 0 #ffffff;
+  gap: 8px;
+  box-shadow: 0 6px 18px rgba(212, 175, 55, 0.35);
   cursor: pointer;
 }
 
@@ -6552,17 +6316,17 @@ body {
 }
 
 .crate-sec-btn {
-  padding: 8px 10px;
-  border-radius: 12px;
-  background: linear-gradient(145deg, #21160c, #0d0804);
-  border: 1px solid rgba(212, 175, 55, 0.55);
-  color: #f3d791;
-  font-size: 10px;
-  font-weight: 800;
+  padding: 9px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e4e4e7;
+  font-size: 11px;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 6px;
   cursor: pointer;
 }
 
@@ -6571,8 +6335,9 @@ body {
   max-width: 340px;
   max-height: 200px;
   overflow-y: auto;
-  background: rgba(8, 5, 3, 0.9);
-  border: 1px solid rgba(212, 175, 55, 0.4);
-  border-radius: 12px;
-  padding: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 10px;
 }
+

@@ -928,7 +928,7 @@
         }
       }
 
-      this._updatePlayerMetadataUI(track, 'CARGANDO STREAM...');
+      this._updatePlayerMetadataUI(track);
       this._updateMediaSessionMetadata(track);
 
       // Comprobar si ya tenemos el Blob completo en caché de memoria (_fullTrackBlobCache)
@@ -938,7 +938,7 @@
         this.fullTrackReady = true;
         const startedFull = await this._startChannelWithFadeIn(this.fullAudio, cachedFullBlob, 'full', reqId, options.startOffsetSec || 0, 300);
         if (startedFull) {
-          this._updatePlayerMetadataUI(track, 'HD COMPLETA · SIN CORTES');
+          this._updatePlayerMetadataUI(track);
           this._startListenTracker();
           this._startVuMeterLoop();
           return true;
@@ -964,7 +964,7 @@
       if (previewUrl && /^https?:\/\//i.test(previewUrl)) {
         previewStarted = await this._startChannelWithFadeIn(this.previewAudio, previewUrl, 'preview', reqId, 0, 300);
         if (previewStarted) {
-          this._updatePlayerMetadataUI(track, 'DUAL-STREAM · PREVIEW 30s');
+          this._updatePlayerMetadataUI(track);
           this._startListenTracker();
           this._startVuMeterLoop();
         }
@@ -984,14 +984,13 @@
         this.fullAudio.src = this.fullTrackObjectUrl;
         this.fullAudio.load();
 
-        // Actualizar indicador de estado HD listo
-        this._updatePlayerMetadataUI(track, 'HD COMPLETA LISTA');
+        this._updatePlayerMetadataUI(track);
 
         // Si el preview no había podido arrancar (ej. tema exclusivo de YouTube sin preview en iTunes), arrancar el fullAudio inmediatamente
         if (!this.isPlayingFlag || this.activeSourceType === 'none') {
           const ok = await this._startChannelWithFadeIn(this.fullAudio, blob, 'full', reqId, 0, 300);
           if (ok) {
-            this._updatePlayerMetadataUI(track, 'HD COMPLETA · ACTIVA');
+            this._updatePlayerMetadataUI(track);
             this._startListenTracker();
             this._startVuMeterLoop();
           }
@@ -1094,7 +1093,7 @@
             this.activeSourceType = 'full';
             this.isCrossfading = false;
             if (this.currentTrack) {
-              this._updatePlayerMetadataUI(this.currentTrack, 'HD COMPLETA · ACTIVA');
+              this._updatePlayerMetadataUI(this.currentTrack);
             }
           }
         }, stepMs);
@@ -1158,17 +1157,20 @@
             }
           }
 
-          // 2. Si es una canción del catálogo Top (alojada en nuestros Releases CDN de GitHub)
-          const isTop = Boolean(track.is_top_song || String(track.id || '').startsWith('top_') || track.audio_url);
+          // 2. Si es una canción del catálogo Top con audio_url explícito en Releases CDN
+          const isTop = Boolean(track.audio_url);
           if (isTop) {
             const rawId = String(track.raw_id || track.id || '').replace(/^top_/, '');
             const audioFilename = track.audio_url || `${rawId}.mp3`;
             const myWorker = (u) => `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(u)}`;
-            const preferredTags = ['8', '3', '4', '5', '6', '7', '9', '10', '11', '12', '13', '14', '15'];
+            const preferredTags = ['8', '3'];
             for (const tag of preferredTags) {
               const cUrl = `https://github.com/Bruala33/renacer/releases/download/${tag}/${audioFilename}`;
               try {
-                const resp = await fetch(myWorker(cUrl));
+                const ctrl = new AbortController();
+                const tid = setTimeout(() => ctrl.abort(), 2200);
+                const resp = await fetch(myWorker(cUrl), { signal: ctrl.signal });
+                clearTimeout(tid);
                 if (resp.ok) {
                   const blob = await resp.blob();
                   if (blob && blob.size >= 80000) {
@@ -1201,7 +1203,7 @@
           // 4. Extracción multi-fuente / YouTube en segundo plano si está disponible
           if (typeof window.extractSongAudioMultiSource === 'function') {
             const extracted = await window.extractSongAudioMultiSource(track.title, track.artist, track.thumbnail || '');
-            if (extracted && extracted.blob && extracted.blob.size >= 80000) {
+            if (extracted && extracted.blob && extracted.blob.size >= 30000) {
               this._storeFullBlobInGlobalCache(track, extracted.blob);
               return extracted.blob;
             }
@@ -1219,7 +1221,7 @@
     }
 
     /**
-     * Cola de Pre-Fetch Inteligente (Estilo TikTok):
+     * Cola de Pre-Fetch Inteligente:
      * Mantiene pre-cargados en memoria los previews, las carátulas 600x600 y el buffer de las siguientes tarjetas.
      */
     async prewarmUpcomingCards(tracksSlice = []) {
@@ -1232,10 +1234,17 @@
         const idStr = String(tr.id);
 
         this.graphService.enrichTrackMetadata(tr).then((meta) => {
-          const artUrl = (meta && meta.artworkUrl600) || tr.thumbnail || tr.cover_url;
-          if (artUrl && !artUrl.startsWith('data:')) {
+          const artUrl = (meta && meta.artworkUrl600) || tr.artworkUrl600 || tr.thumbnail || tr.cover_url;
+          if (artUrl && /^https?:\/\//i.test(artUrl)) {
+            tr.artworkUrl600 = artUrl;
+            tr.thumbnail = artUrl;
+            tr.cover_url = artUrl;
             const img = new Image();
             img.src = artUrl;
+            const nextImgEl = document.getElementById('crateNextCoverImg');
+            if (nextImgEl && window.DiscoverHomeApp && window.DiscoverHomeApp.deck[window.DiscoverHomeApp.deckIndex + 1]?.id === tr.id) {
+              nextImgEl.src = artUrl;
+            }
           }
           const prevUrl = (meta && meta.previewUrl) || tr.previewUrl || tr.preview_url;
           if (prevUrl && /^https?:\/\//i.test(prevUrl) && !this.prewarmedPreviewMap.has(idStr)) {
@@ -1254,7 +1263,6 @@
           }
         }).catch(() => {});
 
-        // Pre-bufferizar también el audio completo de la siguiente tarjeta inmediata (#0)
         if (i === 0) {
           setTimeout(() => {
             if (!window.isGameLoadingOrActive) {
@@ -1293,7 +1301,6 @@
 
     async seekToRatio(ratio) {
       const clamped = Math.max(0, Math.min(0.995, Number(ratio) || 0));
-      // Si el usuario mueve la aguja más allá de los 30s (o en cualquier punto) y el audio completo está listo, pasar a fullAudio
       if (this.activeSourceType === 'preview' && this.fullTrackReady && this.fullAudio.src) {
         const fullDur = Number(this.fullAudio.duration) || (this.currentTrack?.durationSec || 180);
         const targetSec = clamped * fullDur;
@@ -1363,14 +1370,10 @@
       this.prewarmUpcomingCards(this.queue.slice(this.queueIndex + 1, this.queueIndex + 4));
       this._renderQueueListInModal();
       if (contextLabel && typeof window.showSuccessToast === 'function') {
-        window.showSuccessToast(`🎧 Reproduciendo: ${contextLabel} (${tracksArray.length} pistas)`);
+        window.showSuccessToast(`Reproduciendo: ${contextLabel}`);
       }
     }
 
-    /**
-     * MÓDULO 7: Silencia y pausa automáticamente el reproductor musical con un fade-out limpio de 200ms
-     * cuando arranque una partida de piano, restaurando su estado al volver al menú.
-     */
     pauseForGameplayWithFade(fadeOutMs = 200) {
       this.wasPlayingBeforeGame = this.isPlaying();
       const miniEl = document.getElementById('spotifyMiniPlayer');
@@ -1437,9 +1440,6 @@
       this._syncPlayPauseIcons(false);
     }
 
-    // =========================================================================
-    // MEDIA SESSION API (CONTROLES DE PANTALLA BLOQUEADA Y SEGUNDO PLANO)
-    // =========================================================================
     _initMediaSession() {
       if (!('mediaSession' in navigator)) return;
       try {
@@ -1459,11 +1459,11 @@
     _updateMediaSessionMetadata(track) {
       if (!('mediaSession' in navigator) || typeof MediaMetadata === 'undefined' || !track) return;
       try {
-        const cover = track.artworkUrl600 || track.thumbnail || track.cover_url || './app_logo.png';
+        const cover = getBestTrackCover(track);
         navigator.mediaSession.metadata = new MediaMetadata({
           title: track.title || 'Piano Community',
-          artist: track.artist || 'Chopin & Co 1928',
-          album: track.album || 'Piano Community · Las Vegas 1977',
+          artist: track.artist || 'Piano Community',
+          album: track.album || 'Piano Community',
           artwork: [
             { src: cover, sizes: '300x300', type: 'image/jpeg' },
             { src: cover, sizes: '600x600', type: 'image/jpeg' }
@@ -1484,9 +1484,6 @@
       } catch (_) {}
     }
 
-    // =========================================================================
-    // ACTUALIZACIÓN VISUAL DE MINI-PLAYER, TOCADISCOS Y VÚMETROS ANALÓGICOS
-    // =========================================================================
     _formatTime(sec) {
       const s = Math.max(0, Math.floor(Number(sec) || 0));
       const m = Math.floor(s / 60);
@@ -1494,59 +1491,41 @@
       return `${m}:${r}`;
     }
 
-    _updatePlayerMetadataUI(track, statusLabel = 'DUAL-STREAM') {
+    _updatePlayerMetadataUI(track) {
       if (!track) return;
       const miniEl = document.getElementById('spotifyMiniPlayer');
       if (miniEl && !window.isGameLoadingOrActive) {
         miniEl.classList.remove('hidden-player');
       }
 
-      const cover = track.artworkUrl600 || track.thumbnail || track.cover_url || './app_logo.png';
+      const cover = getBestTrackCover(track);
       const isFav = (typeof window.favoriteIdsSet !== 'undefined' && window.favoriteIdsSet.has(track.id)) ||
                     this.dnaEngine.likes.has(String(track.id));
 
-      // Mini-Player DOM
+      // Mini-Player DOM (1 sola línea limpia)
       const miniCover = document.getElementById('miniPlayerCoverImg');
       if (miniCover) miniCover.src = cover;
       const miniTitle = document.getElementById('miniPlayerTitle');
       if (miniTitle) miniTitle.textContent = track.title || 'Canción';
       const miniArtist = document.getElementById('miniPlayerArtist');
       if (miniArtist) miniArtist.textContent = track.artist || 'Artista';
-      const miniBadge = document.getElementById('miniPlayerStreamBadge');
-      if (miniBadge) miniBadge.textContent = statusLabel;
       const miniLikeBtn = document.getElementById('miniPlayerLikeBtn');
       if (miniLikeBtn) {
-        miniLikeBtn.style.color = isFav ? '#34d399' : '#cbb894';
+        miniLikeBtn.innerHTML = isFav ? SVG_ICONS.heartFilled : SVG_ICONS.heartOutline;
+        miniLikeBtn.classList.toggle('liked', isFav);
       }
 
-      // Now Playing Full-Screen Turntable DOM
+      // Now Playing Modal DOM
       const npCover = document.getElementById('npTurntableCoverImg');
       if (npCover) npCover.src = cover;
       const npTitle = document.getElementById('npTrackTitle') || document.getElementById('npTurntableTitle');
       if (npTitle) npTitle.textContent = track.title || 'Canción';
       const npArtist = document.getElementById('npTrackArtist') || document.getElementById('npTurntableArtist');
       if (npArtist) npArtist.textContent = track.artist || 'Artista';
-      const npBadge = document.getElementById('npHeaderPhaseBadge') || document.getElementById('npTurntableStreamBadge');
-      if (npBadge) npBadge.textContent = statusLabel;
-      const npMeta = document.getElementById('npTrackMetaTags') || document.getElementById('npTurntableDnaMatch');
-      if (npMeta) {
-        const bpm = Math.round(Number(track.bpm) || 120);
-        const stars = (Number(track.stars) || 3.8).toFixed(1);
-        npMeta.textContent = `🧬 ${track._dnaMatchPct || 94}% ADN · ${bpm} BPM · ★ ${stars}`;
-      }
       const npLikeBtn = document.getElementById('npLikeBtn');
       if (npLikeBtn) {
-        npLikeBtn.textContent = isFav ? '♥' : '♡';
-        npLikeBtn.style.color = isFav ? '#34d399' : '#f3d791';
-      }
-      if (miniLikeBtn) {
-        miniLikeBtn.textContent = isFav ? '♥' : '♡';
-      }
-
-      // Crate Digger badge si la canción actual es la tarjeta superior
-      const crateStreamBadge = document.getElementById('crateActiveStreamStatus');
-      if (crateStreamBadge && window.DiscoverHomeApp && window.DiscoverHomeApp.getActiveCrateTrack()?.id === track.id) {
-        crateStreamBadge.textContent = statusLabel;
+        npLikeBtn.innerHTML = isFav ? SVG_ICONS.heartFilled : SVG_ICONS.heartOutline;
+        npLikeBtn.classList.toggle('liked', isFav);
       }
     }
 
@@ -1557,8 +1536,6 @@
 
       const miniFill = document.getElementById('miniPlayerProgressFill');
       if (miniFill) miniFill.style.width = pct;
-      const miniTime = document.getElementById('miniPlayerTimeText');
-      if (miniTime) miniTime.textContent = `${this._formatTime(curSec)} / ${this._formatTime(safeDur)}`;
 
       const npFill = document.getElementById('npTurntableProgressFill');
       if (npFill) npFill.style.width = pct;
@@ -1568,61 +1545,23 @@
       if (npCur) npCur.textContent = this._formatTime(curSec);
       const npDur = document.getElementById('npDurationTimeText') || document.getElementById('npTurntableTotTime');
       if (npDur) npDur.textContent = this._formatTime(safeDur);
-
-      // Mover el ángulo físico de la aguja del tocadiscos según el compás actual (de 16deg borde exterior a 40deg surco interior)
-      const npArm = document.getElementById('npTurntableTonearmRod');
-      if (npArm) {
-        const angle = this.isPlaying() ? (16 + ratio * 24) : 2;
-        npArm.style.transform = `rotate(${angle.toFixed(1)}deg)`;
-      }
     }
 
     _syncPlayPauseIcons(playing) {
-      const miniVinyl = document.getElementById('miniPlayerVinylDisc');
-      if (miniVinyl) miniVinyl.classList.toggle('spinning', playing);
       const npVinyl = document.getElementById('npTurntableVinylDisc');
       if (npVinyl) npVinyl.classList.toggle('spinning', playing);
       const crateVinyl = document.getElementById('crateMainVinylDisc');
       if (crateVinyl) crateVinyl.classList.toggle('spinning', playing);
-      const crateArm = document.getElementById('crateMainTonearmRod');
-      if (crateArm) crateArm.classList.toggle('engaged', playing);
-      document.querySelectorAll('.cassette-reel').forEach(r => r.classList.toggle('spinning', playing));
-
-      const iconHtml = playing
-        ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>'
-        : '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>';
 
       const miniBtn = document.getElementById('miniPlayerPlayPauseBtn');
-      if (miniBtn) miniBtn.innerHTML = iconHtml;
+      if (miniBtn) miniBtn.innerHTML = playing ? SVG_ICONS.pause : SVG_ICONS.play;
+
       const npBtn = document.getElementById('npPlayPauseMainBtn') || document.getElementById('npTurntablePlayPauseBtn');
-      if (npBtn) npBtn.innerHTML = iconHtml;
-      const cratePlayPreviewBtn = document.getElementById('cratePreviewToggleBtn');
-      if (cratePlayPreviewBtn) cratePlayPreviewBtn.innerHTML = playing ? '⏸ PAUSAR ESCUCHA' : '▶ ESCUCHAR PISTA';
+      if (npBtn) npBtn.innerHTML = playing ? SVG_ICONS.pauseLarge : SVG_ICONS.playLarge;
     }
 
     _startVuMeterLoop() {
-      if (this.vuAnimFrameId) cancelAnimationFrame(this.vuAnimFrameId);
-      const tick = () => {
-        const playing = this.isPlaying();
-        const t = performance.now() * 0.008;
-        const leftDeg = playing ? (-18 + Math.sin(t * 1.7) * 18 + Math.cos(t * 3.1) * 9) : -32;
-        const rightDeg = playing ? (-16 + Math.cos(t * 1.9) * 17 + Math.sin(t * 2.7) * 10) : -32;
-
-        const vuL = document.getElementById('crateVuNeedleL');
-        const vuR = document.getElementById('crateVuNeedleR');
-        if (vuL) vuL.style.transform = `rotate(${leftDeg.toFixed(1)}deg)`;
-        if (vuR) vuR.style.transform = `rotate(${rightDeg.toFixed(1)}deg)`;
-
-        const npVuL = document.getElementById('npVuNeedleL');
-        const npVuR = document.getElementById('npVuNeedleR');
-        if (npVuL) npVuL.style.transform = `rotate(${leftDeg.toFixed(1)}deg)`;
-        if (npVuR) npVuR.style.transform = `rotate(${rightDeg.toFixed(1)}deg)`;
-
-        if (playing) {
-          this.vuAnimFrameId = requestAnimationFrame(tick);
-        }
-      };
-      this.vuAnimFrameId = requestAnimationFrame(tick);
+      // Mantenido como no-op silencioso por compatibilidad
     }
 
     _renderQueueListInModal() {
@@ -1632,28 +1571,63 @@
       if (!cont) return;
 
       if (this.queue.length === 0) {
-        cont.innerHTML = `<div class="p-3 text-center text-[10px] text-[#cbb894]">La cola está vacía. Usa "+ Cola" o "Crear Radio" en cualquier vinilo.</div>`;
+        cont.innerHTML = `<div class="p-3 text-center text-xs text-gray-400">La cola está vacía.</div>`;
         return;
       }
 
       cont.innerHTML = this.queue.slice(0, 40).map((tr, idx) => {
         const isCurrent = idx === this.queueIndex;
-        const thumb = tr.artworkUrl600 || tr.thumbnail || tr.cover_url || './app_logo.png';
+        const thumb = getBestTrackCover(tr);
         return `
-          <div onclick="window.DiscoverHomeApp.playQueueIndex(${idx})" class="flex items-center justify-between gap-2 p-2 rounded-xl border ${isCurrent ? 'bg-[#d4af37]/20 border-[#f3d791]' : 'bg-black/45 border-white/10 hover:bg-white/10'} cursor-pointer transition">
-            <div class="flex items-center gap-2 min-w-0 flex-1">
-              <span class="text-[9.5px] font-mono font-bold ${isCurrent ? 'text-amber-300' : 'text-gray-400'} w-4">${isCurrent ? '▶' : (idx + 1)}</span>
-              <img src="${thumb}" onerror="this.src='./app_logo.png'" class="w-8 h-8 rounded-lg object-cover border border-amber-500/30 flex-shrink-0" alt="">
+          <div onclick="window.DiscoverHomeApp.playQueueIndex(${idx})" class="flex items-center justify-between gap-2.5 p-2 rounded-xl border ${isCurrent ? 'bg-[#d4af37]/15 border-[#d4af37]/60' : 'bg-white/5 border-white/5 hover:bg-white/10'} cursor-pointer transition">
+            <div class="flex items-center gap-2.5 min-w-0 flex-1">
+              <img src="${thumb}" onerror="this.src='./app_logo.png'" class="w-9 h-9 rounded-lg object-cover flex-shrink-0" alt="">
               <div class="min-w-0 flex-1">
-                <p class="text-[11px] font-bold text-[#fff6d6] truncate">${escapeHtmlSafe(tr.title || 'Canción')}</p>
-                <p class="text-[9.5px] text-[#cbb894] truncate">${escapeHtmlSafe(tr.artist || 'Artista')}</p>
+                <p class="text-xs font-bold text-white truncate">${escapeHtmlSafe(tr.title || 'Canción')}</p>
+                <p class="text-[11px] text-gray-400 truncate">${escapeHtmlSafe(tr.artist || 'Artista')}</p>
               </div>
             </div>
-            <button type="button" onclick="event.stopPropagation(); window.DiscoverHomeApp.removeTrackFromQueue(${idx})" class="px-2 py-1 text-[10px] text-gray-400 hover:text-red-400 cursor-pointer" title="Quitar de la cola">✕</button>
+            <button type="button" onclick="event.stopPropagation(); window.DiscoverHomeApp.removeTrackFromQueue(${idx})" class="w-7 h-7 rounded-full flex items-center justify-center text-gray-400 hover:text-white cursor-pointer" title="Quitar de la cola">
+              ${SVG_ICONS.closeSmall}
+            </button>
           </div>
         `;
       }).join('');
     }
+  }
+
+  // =========================================================================
+  // ICONOS SVG ESTILIZADOS (CERO EMOJIS EN TODA LA INTERFAZ)
+  // =========================================================================
+  const SVG_ICONS = {
+    close: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+    closeSmall: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+    piano: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2.5"/><line x1="8" y1="4" x2="8" y2="14"/><line x1="12" y1="4" x2="12" y2="14"/><line x1="16" y1="4" x2="16" y2="14"/><line x1="6" y1="14" x2="6" y2="20"/><line x1="10" y1="14" x2="10" y2="20"/><line x1="14" y1="14" x2="14" y2="20"/><line x1="18" y1="14" x2="18" y2="20"/></svg>`,
+    pianoSmall: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2.5"/><line x1="8" y1="4" x2="8" y2="14"/><line x1="12" y1="4" x2="12" y2="14"/><line x1="16" y1="4" x2="16" y2="14"/><line x1="6" y1="14" x2="6" y2="20"/><line x1="10" y1="14" x2="10" y2="20"/><line x1="14" y1="14" x2="14" y2="20"/><line x1="18" y1="14" x2="18" y2="20"/></svg>`,
+    heartOutline: `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`,
+    heartFilled: `<svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`,
+    plus: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+    play: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>`,
+    pause: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>`,
+    playLarge: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>`,
+    pauseLarge: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>`
+  };
+
+  function hasRealHttpCover(track) {
+    if (!track) return false;
+    const raw = String(track.artworkUrl600 || track.cover_url || track.thumbnail || '').trim();
+    return /^https?:\/\//i.test(raw);
+  }
+
+  function getBestTrackCover(track) {
+    if (!track) return './app_logo.png';
+    for (const candidate of [track.artworkUrl600, track.cover_url, track.thumbnail]) {
+      const s = String(candidate || '').trim();
+      if (/^https?:\/\//i.test(s)) {
+        return s.replace(/100x100bb/g, '600x600bb').replace(/300x300bb/g, '600x600bb');
+      }
+    }
+    return './app_logo.png';
   }
 
   function escapeHtmlSafe(str) {
@@ -1665,9 +1639,6 @@
       .replace(/'/g, '&#039;');
   }
 
-  // =========================================================================
-  // 5. SINTETIZADOR ANALÓGICO DE AGUJA DE VINILO (SWIPE LEFT SCRATCH SOUND)
-  // =========================================================================
   function playVinylNeedleScratchSound() {
     try {
       const isMuted = localStorage.getItem('beatstar_master_muted') === 'true';
@@ -1680,13 +1651,13 @@
       const ctx = window._crateScratchAudioCtx;
       if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-      const duration = 0.14;
+      const duration = 0.12;
       const bufferSize = Math.floor(ctx.sampleRate * duration);
       const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const data = buffer.getChannelData(0);
       for (let i = 0; i < bufferSize; i++) {
         const env = Math.sin((i / bufferSize) * Math.PI);
-        data[i] = (Math.random() * 2 - 1) * env * 0.28;
+        data[i] = (Math.random() * 2 - 1) * env * 0.22;
       }
 
       const noise = ctx.createBufferSource();
@@ -1699,7 +1670,7 @@
       filter.Q.value = 3.2;
 
       const gain = ctx.createGain();
-      gain.gain.setValueAtTime(0.18, ctx.currentTime);
+      gain.gain.setValueAtTime(0.14, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.005, ctx.currentTime + duration);
 
       noise.connect(filter);
@@ -1741,7 +1712,7 @@
   }
 
   // =========================================================================
-  // 6. CONTROLADOR PRINCIPAL DE DESCUBRIR (HOME): CRATE DIGGER + CARRUSELES + PLAYER
+  // CONTROLADOR PRINCIPAL DE DESCUBRIR (HOME): SWIPE DECK + CARRUSELES + PLAYER
   // =========================================================================
   const graphService = new ExternalMusicGraphService();
   const dnaEngine = new AnalogDNAEngine(graphService);
@@ -1756,8 +1727,8 @@
   const DiscoverHomeApp = {
     deck: [],
     deckIndex: 0,
-    viewMode: 'cards',     // 'cards' (Swipe Deck Táctil) | 'compact' (Vista Feed Compacto)
-    mediumMode: 'vinyl',   // 'vinyl' (Disco de Vinilo 1928) | 'cassette' (Radiocasete 1977)
+    viewMode: 'cards',
+    mediumMode: 'vinyl',
     isInitialized: false,
     autoPlayCrateOnSwipe: true,
 
@@ -1770,13 +1741,8 @@
       this._syncDialsUI();
       this.rebuildCrateDeck(false);
       this.refreshCarousels();
-      this._initNowPlayingTurntableDrag();
     },
 
-    /**
-     * Construye el universo de pistas candidatas unificando el catálogo Top CDN,
-     * las pistas comunitarias y las colecciones curadas de YouTube.
-     */
     getAllCandidatePool() {
       const pool = [];
       const seen = new Set();
@@ -1786,19 +1752,23 @@
         const id = String(item.id || '');
         if (!id || seen.has(id)) return;
         seen.add(id);
-        this.dnaEngine ? this.dnaEngine.encodeTrackVector(item) : dnaEngine.encodeTrackVector(item);
+        if (hasRealHttpCover(item)) {
+          const best = getBestTrackCover(item);
+          item.artworkUrl600 = best;
+          item.thumbnail = best;
+          item.cover_url = best;
+        }
+        dnaEngine.encodeTrackVector(item);
         pool.push(item);
       };
 
-      // 1. Catálogo Oficial de Canciones Top
       if (typeof window.getFormattedTopSongsCatalog === 'function') {
         const topList = window.getFormattedTopSongsCatalog() || [];
         for (const s of topList) addTrack({ ...s });
       }
 
-      // 2. Colecciones Curadas de YouTube (Rock, EDM/Phonk, Pop, Anime, Vegas Lounge 1977, Chopin/Piano, Baladas)
       if (typeof CURATED_PLAYLIST_DATABASE === 'object' && CURATED_PLAYLIST_DATABASE) {
-        for (const [plId, plData] of Object.entries(CURATED_PLAYLIST_DATABASE)) {
+        for (const [, plData] of Object.entries(CURATED_PLAYLIST_DATABASE)) {
           for (const tr of (plData.tracks || [])) {
             addTrack({
               id: `magic_yt_${tr.id}`,
@@ -1820,19 +1790,16 @@
       return pool;
     },
 
-    /**
-     * Ordena y filtra el mazo usando Similitud de Coseno 8D + Multi-Armed Bandit (UCB1)
-     * + SessionBloomFilter (100 últimas vistas + máx 2 seguidas del mismo artista).
-     */
     rebuildCrateDeck(autoPlayFirst = false) {
       const pool = this.getAllCandidatePool();
       const targetVec = dnaEngine.getEffectiveTargetVector();
 
-      // Puntuar cada pista con Coseno 8D + UCB1 + ligero jitter estocástico
+      // Priorizar canciones con portada oficial real para evitar cajas vacías
       const scored = pool.map(tr => {
         const baseScore = dnaEngine.scoreTrackForRecommendation(tr, targetVec);
+        const coverBoost = hasRealHttpCover(tr) ? 0.35 : 0;
         const jitter = (Math.random() - 0.5) * 0.08;
-        return { track: tr, score: baseScore + jitter };
+        return { track: tr, score: baseScore + coverBoost + jitter };
       });
 
       scored.sort((a, b) => b.score - a.score);
@@ -1849,7 +1816,6 @@
         if (finalDeck.length >= 60) break;
       }
 
-      // Si el filtro Bloom de 100 canciones dejó pocas pistas, rellenar respetando la regla de artista
       if (finalDeck.length < 15) {
         for (const entry of scored) {
           if (!finalDeck.includes(entry.track)) {
@@ -1866,61 +1832,62 @@
       const active = this.getActiveCrateTrack();
       if (active) {
         dnaEngine.bloomFilter.markSeen(active.id, active.artist);
-        dualStreamEngine.prewarmUpcomingCards(this.deck.slice(0, 3));
+        dualStreamEngine.prewarmUpcomingCards(this.deck.slice(0, 4));
         if (!dualStreamEngine.currentTrack) {
           dualStreamEngine.currentTrack = active;
           dualStreamEngine.queue = [...this.deck];
           dualStreamEngine.queueIndex = 0;
-          dualStreamEngine._updatePlayerMetadataUI(active, '⚡ LISTO (<100ms)');
+          dualStreamEngine._updatePlayerMetadataUI(active);
         }
         if (autoPlayFirst) {
           dualStreamEngine.playTrack(active);
         } else {
-          // Enriquecer carátula 600x600 de la primera tarjeta al instante
-          graphService.enrichTrackMetadata(active).then((meta) => {
-            if (meta && meta.artworkUrl600) {
-              const imgEl = document.getElementById('crateMainCoverImg');
-              if (imgEl) imgEl.src = meta.artworkUrl600;
-              if (dualStreamEngine.currentTrack && dualStreamEngine.currentTrack.id === active.id) {
-                dualStreamEngine._updatePlayerMetadataUI(active, dualStreamEngine.isPlaying() ? 'DUAL-STREAM · ACTIVO' : '⚡ LISTO (<100ms)');
-              }
-            }
-          }).catch(() => {});
+          this._ensureRealCoverForTrack(active, 'crateMainCoverImg');
+          const next = this.deck[this.deckIndex + 1];
+          if (next) this._ensureRealCoverForTrack(next, 'crateNextCoverImg');
         }
       }
+    },
+
+    _ensureRealCoverForTrack(track, domImgId) {
+      if (!track) return;
+      if (hasRealHttpCover(track)) return;
+      graphService.enrichTrackMetadata(track).then((meta) => {
+        if (meta && meta.artworkUrl600) {
+          track.artworkUrl600 = meta.artworkUrl600;
+          track.thumbnail = meta.artworkUrl600;
+          track.cover_url = meta.artworkUrl600;
+          if (domImgId) {
+            const imgEl = document.getElementById(domImgId);
+            if (imgEl) imgEl.src = meta.artworkUrl600;
+          }
+          if (dualStreamEngine.currentTrack && dualStreamEngine.currentTrack.id === track.id) {
+            dualStreamEngine._updatePlayerMetadataUI(track);
+          }
+        }
+      }).catch(() => {});
     },
 
     getActiveCrateTrack() {
       return this.deck[this.deckIndex] || null;
     },
 
-    setViewMode(mode) {
-      this.viewMode = mode === 'compact' ? 'compact' : 'cards';
-      const btnCards = document.getElementById('btnCrateViewCards');
-      const btnCompact = document.getElementById('btnCrateViewCompact');
-      if (btnCards) btnCards.classList.toggle('active', this.viewMode === 'cards');
-      if (btnCompact) btnCompact.classList.toggle('active', this.viewMode === 'compact');
-      this.renderCrateDigger();
-    },
+    setViewMode() {},
+    setMediumMode() {},
 
-    setMediumMode(medium) {
-      this.mediumMode = medium === 'cassette' ? 'cassette' : 'vinyl';
-      const btnVinyl = document.getElementById('btnCrateMediumVinyl');
-      const btnCassette = document.getElementById('btnCrateMediumCassette');
-      if (btnVinyl) btnVinyl.classList.toggle('active', this.mediumMode === 'vinyl');
-      if (btnCassette) btnCassette.classList.toggle('active', this.mediumMode === 'cassette');
-      this.renderCrateDigger();
-    },
-
-    toggleTubeAmpPanel() {
-      this.toggleAlgorithmTunerPanel();
+    toggleTubeAmpPanel(forceState) {
+      const panel = document.getElementById('analogDnaTunerPanel');
+      if (!panel) return;
+      if (typeof forceState === 'boolean') {
+        panel.classList.toggle('open', forceState);
+      } else {
+        panel.classList.toggle('open');
+      }
+      this._syncDialsUI();
     },
 
     toggleAlgorithmTunerPanel() {
-      const panel = document.getElementById('analogDnaTunerPanel');
-      if (!panel) return;
-      panel.classList.toggle('open');
-      this._syncDialsUI();
+      this.toggleTubeAmpPanel();
     },
 
     onDialChange(dialName, rawVal) {
@@ -1940,9 +1907,6 @@
     applyDialsAndRefreshDeck() {
       this.rebuildCrateDeck(true);
       this.refreshCarousels();
-      if (typeof window.showSuccessToast === 'function') {
-        window.showSuccessToast('🎛️ Válvulas y Vector 8D recalibrados en vivo');
-      }
     },
 
     syncDialsUIFromState() {
@@ -1952,10 +1916,10 @@
     _syncDialsUI() {
       const d = dnaEngine.dials;
       const map = [
-        { key: 'discovery', sliders: ['dialInput_discovery', 'dialSliderDiscovery'], vals: ['dialVal_discovery', 'dialValDiscovery'], knobs: ['knobIndicator_discovery', 'dialKnobDiscovery'], fmt: v => v < 35 ? `Seguro (${v}%)` : (v > 70 ? `Sorpréndeme (${v}%)` : `Equilibrado (${v}%)`) },
+        { key: 'discovery', sliders: ['dialInput_discovery', 'dialSliderDiscovery'], vals: ['dialVal_discovery', 'dialValDiscovery'], knobs: ['knobIndicator_discovery', 'dialKnobDiscovery'], fmt: v => v < 35 ? `Mis favoritos (${v}%)` : (v > 70 ? `Nuevos estilos (${v}%)` : `Equilibrado (${v}%)`) },
         { key: 'energy', sliders: ['dialInput_energy', 'dialSliderEnergy'], vals: ['dialVal_energy', 'dialValEnergy'], knobs: ['knobIndicator_energy', 'dialKnobEnergy'], fmt: v => `${v}% · ${Math.round(65 + (v * 1.15))} BPM` },
-        { key: 'era', sliders: ['dialInput_era', 'dialSliderEra'], vals: ['dialVal_era', 'dialValEra'], knobs: ['knobIndicator_era', 'dialKnobEra'], fmt: v => v < 30 ? '1928–1977' : (v < 68 ? '80s / 90s Vintage' : '2000s–Actual') },
-        { key: 'vocal', sliders: ['dialInput_vocal', 'dialSliderVocal'], vals: ['dialVal_vocal', 'dialValVocal'], knobs: ['knobIndicator_vocal', 'dialKnobVocal'], fmt: v => v < 30 ? `Piano Solo (${v}%)` : (v > 70 ? `Vocal (${v}%)` : `Híbrido (${v}%)`) }
+        { key: 'era', sliders: ['dialInput_era', 'dialSliderEra'], vals: ['dialVal_era', 'dialValEra'], knobs: ['knobIndicator_era', 'dialKnobEra'], fmt: v => v < 30 ? 'Clásicos' : (v < 68 ? '80s / 90s' : 'Actuales') },
+        { key: 'vocal', sliders: ['dialInput_vocal', 'dialSliderVocal'], vals: ['dialVal_vocal', 'dialValVocal'], knobs: ['knobIndicator_vocal', 'dialKnobVocal'], fmt: v => v < 30 ? `Instrumental (${v}%)` : (v > 70 ? `Con voz (${v}%)` : `Híbrido (${v}%)`) }
       ];
       for (const item of map) {
         const val = d[item.key] ?? 50;
@@ -1979,219 +1943,104 @@
       if (summaryEl) {
         const u = dnaEngine.userVector;
         const genres = [
-          { name: 'Rock & Metal', val: u[4] },
-          { name: 'Electrónica & Phonk', val: u[5] },
+          { name: 'Rock', val: u[4] },
+          { name: 'Electrónica', val: u[5] },
           { name: 'Pop & Latino', val: u[6] },
           { name: 'Clásico & Piano', val: u[7] }
         ].sort((a, b) => b.val - a.val);
-        summaryEl.textContent = `Afinidad Principal: ${genres[0].name} · ${dnaEngine.totalSwipes || 0} swipes`;
+        summaryEl.textContent = `Estilo favorito: ${genres[0].name}`;
       }
     },
 
+    _buildSwipeCardInnerHtml(track, isTopCard) {
+      const cover = getBestTrackCover(track);
+      const isPlayingThis = isTopCard && dualStreamEngine.isPlaying() && dualStreamEngine.currentTrack?.id === track.id;
+      const isFav = (typeof window.favoriteIdsSet !== 'undefined' && window.favoriteIdsSet.has(track.id)) ||
+                    dnaEngine.likes.has(String(track.id));
+      const coverImgId = isTopCard ? 'crateMainCoverImg' : 'crateNextCoverImg';
+      const vinylDiscId = isTopCard ? 'crateMainVinylDisc' : 'crateNextVinylDisc';
+
+      return `
+        ${isTopCard ? `
+          <div id="crateStampLike" class="crate-stamp-badge crate-stamp-like">ME GUSTA</div>
+          <div id="crateStampPass" class="crate-stamp-badge crate-stamp-pass">PASAR</div>
+          <div id="crateStampPlay" class="crate-stamp-badge crate-stamp-play">JUGAR</div>
+        ` : ''}
+
+        <!-- Carátula cuadrada grande con el disco de vinilo asomando sutilmente por detrás -->
+        <div class="crate-cover-vinyl-wrap" ${isTopCard ? `onclick="window.DiscoverHomeApp.togglePreviewCurrentCrateCard()"` : ''}>
+          <div id="${vinylDiscId}" class="crate-peeking-vinyl ${isPlayingThis ? 'spinning' : ''}">
+            <div class="crate-peeking-vinyl-grooves"></div>
+            <div class="crate-peeking-vinyl-center"></div>
+          </div>
+          <div class="crate-square-cover-frame">
+            <img id="${coverImgId}" src="${cover}" onerror="this.onerror=null; this.src='./app_logo.png';" alt="" class="crate-square-cover-img">
+          </div>
+        </div>
+
+        <!-- Título en grande y Artista en gris suave -->
+        <div class="crate-track-info">
+          <h3 class="crate-song-title">${escapeHtmlSafe(track.title)}</h3>
+          <p class="crate-song-artist">${escapeHtmlSafe(track.artist)}</p>
+        </div>
+
+        <!-- Fila inferior única con 4 botones modernos (SVGs estilizados) -->
+        <div class="crate-clean-actions-row">
+          <button type="button" ${isTopCard ? `onclick="window.DiscoverHomeApp.swipeLeftPass()"` : ''} class="btn-swipe-circle pass" title="Pasar canción">
+            ${SVG_ICONS.close}
+          </button>
+          <button type="button" ${isTopCard ? `onclick="window.DiscoverHomeApp.swipeUpPlayPiano()"` : ''} class="btn-swipe-play-gold" title="Jugar al piano">
+            ${SVG_ICONS.piano}
+            <span>Jugar</span>
+          </button>
+          <button type="button" ${isTopCard ? `onclick="window.DiscoverHomeApp.swipeRightLike()"` : ''} class="btn-swipe-circle like ${isFav ? 'liked' : ''}" title="Me gusta">
+            ${isFav ? SVG_ICONS.heartFilled : SVG_ICONS.heartOutline}
+          </button>
+          <button type="button" ${isTopCard ? `onclick="window.DiscoverHomeApp.openPlaylistOrQueueForCurrent()"` : ''} class="btn-swipe-circle add" title="Añadir a playlist">
+            ${SVG_ICONS.plus}
+          </button>
+        </div>
+      `;
+    },
+
     /**
-     * Renderiza el Crate Digger en modo Tarjetas Táctiles (Vinilo 1928 o Radiocasete 1977)
-     * o en modo Feed Compacto.
+     * Renderiza la tarjeta de descubrimiento limpia estilo Spotify Clips / Tinder Minimalista,
+     * con la siguiente tarjeta ya pre-renderizada debajo del mazo para que el swipe sea instantáneo.
      */
     renderCrateDigger() {
       const stage = document.getElementById('crateDiggerStageContainer');
       if (!stage) return;
 
-      if (this.viewMode === 'compact') {
-        this._renderCompactCrateFeed(stage);
-        return;
-      }
-
       const track = this.getActiveCrateTrack();
       if (!track) {
-        stage.innerHTML = `<div class="p-6 text-center text-xs text-[#cbb894]">Recargando mazo de vinilos...</div>`;
+        stage.innerHTML = `<div class="p-6 text-center text-xs text-gray-400">Cargando canciones...</div>`;
         return;
       }
 
-      const vec = dnaEngine.encodeTrackVector(track);
-      const matchPct = track._dnaMatchPct || Math.round(dnaEngine.cosineSimilarity(dnaEngine.getEffectiveTargetVector(), vec) * 100);
-      const cover = track.artworkUrl600 || track.thumbnail || track.cover_url || './app_logo.png';
-      const isPlayingThis = dualStreamEngine.isPlaying() && dualStreamEngine.currentTrack?.id === track.id;
-      const bpmDisplay = Math.round(60 + vec[0] * 135);
-      const decadeLabel = track.releaseYear || (vec[2] < 0.25 ? 'Clásico 1928' : (vec[2] < 0.45 ? 'Vegas 1977' : (vec[2] < 0.7 ? '80s / 90s' : ' Contemporáneo')));
-
-      const mediumGraphicHtml = this.mediumMode === 'cassette'
-        ? `
-          <div class="crate-cassette-shell">
-            <div class="crate-cassette-label">
-              <div class="flex items-center justify-between text-[8.5px] font-mono font-black uppercase tracking-wider text-[#785316]">
-                <span>STEINWAY VEGAS 1977 · CrO2</span>
-                <span>SIDE A · ${bpmDisplay} BPM</span>
-              </div>
-              <p class="text-xs font-black truncate text-[#140b02] font-serif mt-0.5">${escapeHtmlSafe(track.title)}</p>
-              <p class="text-[10px] font-bold truncate text-[#4a3010]">${escapeHtmlSafe(track.artist)}</p>
-            </div>
-            <div class="crate-cassette-window">
-              <div class="cassette-reel ${isPlayingThis ? 'spinning' : ''}"></div>
-              <div class="w-11 h-11 rounded-lg overflow-hidden border border-[#d4af37] shadow-md flex-shrink-0">
-                <img id="crateMainCoverImg" src="${cover}" onerror="this.src='./app_logo.png'" class="w-full h-full object-cover" alt="">
-              </div>
-              <div class="cassette-reel ${isPlayingThis ? 'spinning' : ''}"></div>
-            </div>
-            <div class="flex items-center justify-between text-[8.5px] font-mono text-[#e5c158] px-1">
-              <span>DOLBY NR · HIGH BIAS</span>
-              <span id="crateActiveStreamStatus" class="text-amber-300 font-bold">${isPlayingThis ? 'DUAL-STREAM ACTIVO' : 'LISTO (<100ms)'}</span>
-            </div>
-          </div>
-        `
-        : `
-          <div class="flex items-center justify-center gap-3 relative py-1">
-            <!-- Vúmetros Analógicos L / R -->
-            <div class="crate-vu-meter-panel">
-              <div class="crate-vu-box">
-                <div class="crate-vu-scale"><span>-20</span><span>0</span><span class="text-red-400">+3</span></div>
-                <div id="crateVuNeedleL" class="crate-vu-needle"></div>
-                <span class="absolute bottom-0.5 left-1.5 text-[6.5px] font-mono text-[#cbb894] font-bold">VU L</span>
-              </div>
-              <div class="crate-vu-box">
-                <div class="crate-vu-scale"><span>-20</span><span>0</span><span class="text-red-400">+3</span></div>
-                <div id="crateVuNeedleR" class="crate-vu-needle"></div>
-                <span class="absolute bottom-0.5 left-1.5 text-[6.5px] font-mono text-[#cbb894] font-bold">VU R</span>
-              </div>
-            </div>
-
-            <!-- Plato Giradiscos 1928 con Vinilo y Brazo Móvil -->
-            <div class="crate-turntable-well" onclick="window.DiscoverHomeApp.togglePreviewCurrentCrateCard()" title="Tocar/Pausar Vinilo">
-              <div id="crateMainVinylDisc" class="crate-vinyl-disc ${isPlayingThis ? 'spinning' : ''}">
-                <div class="crate-vinyl-label">
-                  <img id="crateMainCoverImg" src="${cover}" onerror="this.src='./app_logo.png'" alt="Cover">
-                  <div class="crate-vinyl-spindle"></div>
-                </div>
-              </div>
-              <div class="crate-tonearm-assembly">
-                <div class="crate-tonearm-pivot"></div>
-                <div id="crateMainTonearmRod" class="crate-tonearm-rod ${isPlayingThis ? 'engaged' : ''}">
-                  <div class="crate-tonearm-headshell"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        `;
+      const nextTrack = this.deck[this.deckIndex + 1] || this.deck[0] || null;
 
       stage.innerHTML = `
         <div class="crate-deck-stage">
-          <div class="crate-back-card-2"></div>
-          <div class="crate-back-card-1"></div>
+          ${nextTrack && nextTrack.id !== track.id ? `
+            <div id="crateNextSwipeCard" class="crate-swipe-card crate-next-underlay" aria-hidden="true">
+              ${this._buildSwipeCardInnerHtml(nextTrack, false)}
+            </div>
+          ` : ''}
 
           <div id="crateActiveSwipeCard" class="crate-swipe-card z-10">
-            <!-- Sellos de Gesto Táctil -->
-            <div id="crateStampLike" class="crate-stamp-badge crate-stamp-like">♥ ME GUSTA</div>
-            <div id="crateStampPass" class="crate-stamp-badge crate-stamp-pass">✕ PASAR</div>
-            <div id="crateStampPlay" class="crate-stamp-badge crate-stamp-play">🎹 ¡JUGAR AL PIANO!</div>
-
-            <!-- Cabecera de metadatos y afinidad ADN -->
-            <div class="flex items-center justify-between gap-1.5 mb-2">
-              <span class="px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/50 text-[9px] font-mono font-black text-amber-300">
-                🧬 ${matchPct}% AFINIDAD ADN
-              </span>
-              <div class="flex items-center gap-1">
-                <span class="px-2 py-0.5 rounded-full bg-black/60 border border-white/15 text-[8.5px] font-mono text-[#cbb894]">
-                  ${escapeHtmlSafe(String(decadeLabel))} · ${bpmDisplay} BPM
-                </span>
-                <span class="px-2 py-0.5 rounded-full bg-[#c5a059]/20 border border-[#c5a059]/50 text-[8.5px] font-mono font-bold text-[#f3d791]">
-                  ${(Number(track.stars) || 3.8).toFixed(1)}★
-                </span>
-              </div>
-            </div>
-
-            ${mediumGraphicHtml}
-
-            <!-- Información de la Canción y Botón de Escucha Rápida -->
-            <div class="text-center mt-2 space-y-0.5">
-              <h3 class="text-sm font-black text-[#fff6d6] font-serif truncate px-2">${escapeHtmlSafe(track.title)}</h3>
-              <p class="text-[11px] font-semibold text-[#d4af37] truncate px-2">${escapeHtmlSafe(track.artist)}</p>
-              <div class="flex items-center justify-center gap-2 pt-1">
-                <button id="cratePreviewToggleBtn" type="button" onclick="window.DiscoverHomeApp.togglePreviewCurrentCrateCard()" class="px-2.5 py-0.5 rounded-full bg-black/65 border border-[#c5a059]/55 text-[9px] font-mono font-bold text-[#f3d791] cursor-pointer hover:bg-[#c5a059]/20 transition">
-                  ${isPlayingThis ? '⏸ PAUSAR ESCUCHA' : '▶ ESCUCHAR PISTA'}
-                </button>
-                <span id="crateActiveStreamStatus" class="text-[8.5px] font-mono text-emerald-300/90">
-                  ${dualStreamEngine.fullTrackReady && dualStreamEngine.currentTrack?.id === track.id ? '✨ HD COMPLETA EN BUFFER' : '⚡ PRE-FETCH ACTIVO'}
-                </span>
-              </div>
-            </div>
-
-            <!-- Barra de Acciones Secundarias: + Playlist / Cola y Crear Radio -->
-            <div class="flex items-center justify-center gap-2 mt-2.5 pt-2 border-t border-white/10">
-              <button type="button" onclick="window.DiscoverHomeApp.openPlaylistOrQueueForCurrent()" class="btn-crate-aux" title="Guardar en Playlist o Añadir a la Cola">
-                <span>+ PLAYLIST / COLA</span>
-              </button>
-              <button type="button" onclick="window.DiscoverHomeApp.startRadioFromCurrent()" class="btn-crate-aux" title="Generar Radio Infinita basada en esta pista">
-                <span>📻 CREAR RADIO</span>
-              </button>
-            </div>
-
-            <!-- Barra Principal de Swipe / Juego: [ ✕ PASAR | 🎹 ¡JUGAR AL PIANO! | ♥ ME GUSTA ] -->
-            <div class="crate-action-bar">
-              <button type="button" onclick="window.DiscoverHomeApp.swipeLeftPass()" class="btn-crate-round btn-crate-pass" title="Swipe Izquierda: Pasar (✕)">
-                <span class="text-sm font-black">✕</span>
-              </button>
-              <button type="button" onclick="window.DiscoverHomeApp.swipeUpPlayPiano()" class="btn-crate-play-hero" title="Swipe Arriba: ¡Jugar al Piano con buffer precargado!">
-                <span>🎹</span>
-                <span>¡JUGAR AL PIANO!</span>
-              </button>
-              <button type="button" onclick="window.DiscoverHomeApp.swipeRightLike()" class="btn-crate-round btn-crate-like" title="Swipe Derecha: Me Gusta (♥)">
-                <span class="text-sm font-black">♥</span>
-              </button>
-            </div>
+            ${this._buildSwipeCardInnerHtml(track, true)}
           </div>
         </div>
       `;
 
+      this._ensureRealCoverForTrack(track, 'crateMainCoverImg');
+      if (nextTrack) this._ensureRealCoverForTrack(nextTrack, 'crateNextCoverImg');
       this._attachCardSwipeGestures();
-    },
-
-    _renderCompactCrateFeed(stage) {
-      const slice = this.deck.slice(this.deckIndex, this.deckIndex + 8);
-      if (slice.length === 0) {
-        this.rebuildCrateDeck(false);
-        return;
-      }
-
-      stage.innerHTML = `
-        <div class="space-y-1.5">
-          ${slice.map((tr, i) => {
-            const realIdx = this.deckIndex + i;
-            const vec = dnaEngine.encodeTrackVector(tr);
-            const matchPct = tr._dnaMatchPct || Math.round(dnaEngine.cosineSimilarity(dnaEngine.getEffectiveTargetVector(), vec) * 100);
-            const cover = tr.artworkUrl600 || tr.thumbnail || tr.cover_url || './app_logo.png';
-            const isPlayingThis = dualStreamEngine.isPlaying() && dualStreamEngine.currentTrack?.id === tr.id;
-            return `
-              <div class="flex items-center justify-between gap-2 p-2 rounded-xl bg-black/65 border border-[#c5a059]/45 hover:border-[#f3d791] transition">
-                <div onclick="window.DiscoverHomeApp.playCompactTrackAt(${realIdx})" class="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer">
-                  <div class="relative w-10 h-10 rounded-full overflow-hidden border-2 border-[#d4af37] flex-shrink-0 ${isPlayingThis ? 'animate-spin' : ''}" style="animation-duration:5s;">
-                    <img src="${cover}" onerror="this.src='./app_logo.png'" class="w-full h-full object-cover" alt="">
-                  </div>
-                  <div class="min-w-0 flex-1">
-                    <div class="flex items-center gap-1.5">
-                      <span class="text-[8.5px] font-mono font-black text-amber-300">${matchPct}% ADN</span>
-                      <h4 class="text-xs font-black text-[#fff6d6] truncate font-serif">${escapeHtmlSafe(tr.title)}</h4>
-                    </div>
-                    <p class="text-[10px] text-[#cbb894] truncate">${escapeHtmlSafe(tr.artist)}</p>
-                  </div>
-                </div>
-                <div class="flex items-center gap-1 flex-shrink-0">
-                  <button type="button" onclick="window.DiscoverHomeApp.likeCompactTrackAt(${realIdx})" class="w-7 h-7 rounded-lg bg-emerald-950/70 border border-emerald-400/50 text-emerald-300 text-xs font-bold cursor-pointer" title="Me Gusta">♥</button>
-                  <button type="button" onclick="window.DiscoverHomeApp.openPlaylistOrQueueForTrackIndex(${realIdx})" class="w-7 h-7 rounded-lg bg-white/5 border border-[#c5a059]/40 text-[#f3d791] text-xs font-bold cursor-pointer" title="+ Playlist / Cola">+</button>
-                  <button type="button" onclick="window.DiscoverHomeApp.launchPianoForTrackIndex(${realIdx})" class="px-2.5 py-1.5 rounded-lg bg-gradient-to-b from-[#f3d791] to-[#9b6f23] text-[#140b02] font-black text-[10px] cursor-pointer" title="Jugar al Piano">🎹 Jugar</button>
-                </div>
-              </div>
-            `;
-          }).join('')}
-          <div class="pt-1 text-center">
-            <button type="button" onclick="window.DiscoverHomeApp.advanceCompactBatch()" class="px-4 py-1.5 rounded-xl bg-[#1b1209] border border-[#c5a059]/60 text-[#f3d791] text-[10px] font-black uppercase tracking-wider cursor-pointer">
-              🔄 Siguientes Vinilos del Mazo
-            </button>
-          </div>
-        </div>
-      `;
     },
 
     _attachCardSwipeGestures() {
       const card = document.getElementById('crateActiveSwipeCard');
+      const nextCard = document.getElementById('crateNextSwipeCard');
       if (!card) return;
 
       let startX = 0;
@@ -2221,8 +2070,16 @@
         currentX = cx - startX;
         currentY = cy - startY;
 
-        const rot = currentX * 0.06;
+        const rot = currentX * 0.05;
         card.style.transform = `translate3d(${currentX.toFixed(1)}px, ${currentY.toFixed(1)}px, 0) rotate(${rot.toFixed(1)}deg)`;
+
+        if (nextCard) {
+          const progress = Math.min(1, Math.hypot(currentX, currentY) / 110);
+          const scale = 0.96 + progress * 0.04;
+          const opacity = 0.72 + progress * 0.28;
+          nextCard.style.transform = `scale(${scale.toFixed(3)}) translateY(${(6 * (1 - progress)).toFixed(1)}px)`;
+          nextCard.style.opacity = String(opacity.toFixed(2));
+        }
 
         if (stampLike) stampLike.style.opacity = currentX > 35 ? String(Math.min(1, (currentX - 35) / 60)) : '0';
         if (stampPass) stampPass.style.opacity = currentX < -35 ? String(Math.min(1, (-currentX - 35) / 60)) : '0';
@@ -2242,6 +2099,10 @@
           this.swipeLeftPass();
         } else {
           card.style.transform = '';
+          if (nextCard) {
+            nextCard.style.transform = '';
+            nextCard.style.opacity = '';
+          }
           if (stampLike) stampLike.style.opacity = '0';
           if (stampPass) stampPass.style.opacity = '0';
           if (stampPlay) stampPlay.style.opacity = '0';
@@ -2263,20 +2124,15 @@
       }
     },
 
-    /**
-     * SWIPE DERECHA (♥ ME GUSTA):
-     * Guarda en Tus Me Gusta, anima el vinilo entrando en la biblioteca dorada y alimenta el vector 8D.
-     */
     async swipeRightLike() {
       const track = this.getActiveCrateTrack();
       if (!track) return;
 
-      const cover = track.artworkUrl600 || track.thumbnail || track.cover_url || './app_logo.png';
+      const cover = getBestTrackCover(track);
       triggerGoldenVinylFlyAnimation(cover);
 
       dnaEngine.recordLike(track);
 
-      // Guardar también en IndexedDBStorage favoritos para Mi Biblioteca
       if (typeof window.IndexedDBStorage !== 'undefined' && typeof window.IndexedDBStorage.putFavoriteRecord === 'function') {
         try {
           await window.IndexedDBStorage.putFavoriteRecord({
@@ -2293,24 +2149,25 @@
       }
 
       if (typeof window.showSuccessToast === 'function') {
-        window.showSuccessToast(`♥ Guardada en Tus Me Gusta: ${track.title}`);
+        window.showSuccessToast(`Guardada en Tus Me Gusta: ${track.title}`);
       }
 
       const card = document.getElementById('crateActiveSwipeCard');
+      const nextCard = document.getElementById('crateNextSwipeCard');
       if (card) {
-        card.style.transform = 'translate3d(120%, -12px, 0) rotate(18deg)';
+        card.style.transform = 'translate3d(115%, -8px, 0) rotate(14deg)';
         card.style.opacity = '0';
+      }
+      if (nextCard) {
+        nextCard.style.transform = 'scale(1) translateY(0)';
+        nextCard.style.opacity = '1';
       }
       setTimeout(() => {
         this._advanceToNextCard(true);
         this.refreshCarousels();
-      }, 170);
+      }, 160);
     },
 
-    /**
-     * SWIPE IZQUIERDA (✕ PASAR):
-     * Sonido sutil de aguja de vinilo, penaliza sub-estilo en la sesión actual y salta al instante (<100ms).
-     */
     swipeLeftPass() {
       const track = this.getActiveCrateTrack();
       if (!track) return;
@@ -2319,19 +2176,20 @@
       dnaEngine.recordPass(track);
 
       const card = document.getElementById('crateActiveSwipeCard');
+      const nextCard = document.getElementById('crateNextSwipeCard');
       if (card) {
-        card.style.transform = 'translate3d(-120%, 10px, 0) rotate(-18deg)';
+        card.style.transform = 'translate3d(-115%, 8px, 0) rotate(-14deg)';
         card.style.opacity = '0';
+      }
+      if (nextCard) {
+        nextCard.style.transform = 'scale(1) translateY(0)';
+        nextCard.style.opacity = '1';
       }
       setTimeout(() => {
         this._advanceToNextCard(true);
       }, 150);
     },
 
-    /**
-     * SWIPE ARRIBA (🎹 ¡JUGAR AL PIANO!):
-     * Lanza directamente la partida de piano reutilizando el buffer del audio completo ya descargado.
-     */
     swipeUpPlayPiano() {
       const track = this.getActiveCrateTrack();
       if (!track) return;
@@ -2359,44 +2217,10 @@
       }
     },
 
-    playCompactTrackAt(idx) {
-      const tr = this.deck[idx];
-      if (!tr) return;
-      dualStreamEngine.playTrack(tr);
-      this.renderCrateDigger();
-    },
-
-    likeCompactTrackAt(idx) {
-      const tr = this.deck[idx];
-      if (!tr) return;
-      dnaEngine.recordLike(tr);
-      if (typeof window.IndexedDBStorage !== 'undefined' && typeof window.IndexedDBStorage.putFavoriteRecord === 'function') {
-        window.IndexedDBStorage.putFavoriteRecord({ ...tr, addedAt: Date.now() }).catch(() => {});
-      }
-      if (typeof window.showSuccessToast === 'function') {
-        window.showSuccessToast(`♥ Añadida a Tus Me Gusta: ${tr.title}`);
-      }
-      this.refreshCarousels();
-    },
-
-    advanceCompactBatch() {
-      this.deckIndex += 6;
-      if (this.deckIndex >= this.deck.length) {
-        this.rebuildCrateDeck(false);
-      } else {
-        this.renderCrateDigger();
-      }
-    },
-
-    /**
-     * Lanza la partida de piano para cualquier canción inyectando el buffer completo si ya está descargado.
-     */
     async launchPianoGameForTrack(track) {
       if (!track) return;
-      // Silenciar y pausar el reproductor continuo con fade-out limpio de 200ms (Módulo 7)
       dualStreamEngine.pauseForGameplayWithFade(200);
 
-      // Si DualStreamAudioEngine ya descargó el audio completo de esta pista, inyectarlo en _fullTrackBlobCache
       if (dualStreamEngine.currentTrack?.id === track.id && dualStreamEngine.fullTrackBlob) {
         dualStreamEngine._storeFullBlobInGlobalCache(track, dualStreamEngine.fullTrackBlob);
       }
@@ -2413,7 +2237,7 @@
         return;
       }
       if (typeof window.autoExtractAndPlaySong === 'function') {
-        const thumb = track.artworkUrl600 || track.thumbnail || track.cover_url || './app_logo.png';
+        const thumb = getBestTrackCover(track);
         window.autoExtractAndPlaySong(track.title, track.artist || '', thumb, 'hard', id, false);
         return;
       }
@@ -2432,27 +2256,22 @@
       if (tr) this.launchPianoGameForTrack(tr);
     },
 
-    /**
-     * Abre el modal de Añadir a Playlist / Cola para cualquier canción
-     */
     async openPlaylistOrQueueForTrack(track) {
       if (!track) return;
       window._pendingCrateTrackForPlaylist = track;
       if (typeof window.openAddToPlaylistModal === 'function') {
-        // Asegurar que la canción esté accesible en searchResultsCache para openAddToPlaylistModal
         if (Array.isArray(window.searchResultsCache) && !window.searchResultsCache.some(s => s && String(s.id) === String(track.id))) {
           window.searchResultsCache.unshift(track);
         }
         await window.openAddToPlaylistModal(track.id);
-        // Añadir botón rápido de "+ Añadir a la Cola de Reproducción Actual" en el modal
         const listCont = document.getElementById('availablePlaylistsList');
         if (listCont && !document.getElementById('btnQuickAddQueueModal')) {
           const qBtn = document.createElement('div');
           qBtn.id = 'btnQuickAddQueueModal';
-          qBtn.className = 'p-2.5 mb-2 bg-gradient-to-r from-amber-500/25 to-yellow-600/20 hover:from-amber-500/35 rounded-xl border border-amber-400/60 flex items-center justify-between cursor-pointer transition';
+          qBtn.className = 'p-2.5 mb-2 bg-white/5 hover:bg-white/10 rounded-xl border border-[#d4af37]/40 flex items-center justify-between cursor-pointer transition';
           qBtn.innerHTML = `
-            <span class="text-xs font-black text-[#fff6d6] flex items-center gap-1.5">🎧 Añadir a la Cola de Reproducción</span>
-            <span class="text-[9px] font-mono text-amber-300 font-bold">+ COLA</span>
+            <span class="text-xs font-bold text-white flex items-center gap-2">${SVG_ICONS.plus}<span>Añadir a la Cola de Reproducción</span></span>
+            <span class="text-[10px] font-bold text-[#d4af37]">COLA</span>
           `;
           qBtn.onclick = () => {
             dualStreamEngine.enqueueTrack(track, false);
@@ -2478,20 +2297,15 @@
       this.openPlaylistOrQueueForTrack(this.deck[idx]);
     },
 
-    /**
-     * 📻 CREAR RADIO: Genera una cola infinita basada en la pista semilla
-     * cruzando ExternalMusicGraphService (Last.fm / MusicBrainz / Deezer) + Similitud de Coseno 8D.
-     */
     async startRadioFromTrack(seedTrack) {
       if (!seedTrack) return;
       if (typeof window.showSuccessToast === 'function') {
-        window.showSuccessToast(`📻 Sintonizando Radio Analógica: ${seedTrack.title}...`);
+        window.showSuccessToast(`Iniciando Radio: ${seedTrack.title}`);
       }
 
       const seedVec = dnaEngine.encodeTrackVector(seedTrack);
       const pool = this.getAllCandidatePool();
 
-      // Ordenar el catálogo por Similitud de Coseno respecto a la canción semilla
       const byCosine = pool
         .filter(t => String(t.id) !== String(seedTrack.id))
         .map(t => ({
@@ -2502,7 +2316,6 @@
         .slice(0, 18)
         .map(x => x.track);
 
-      // Consultar también el grafo musical externo en paralelo
       const extSimilar = await graphService.fetchSimilarTracksFromGraph(seedTrack).catch(() => []);
       const mappedExt = extSimilar.slice(0, 8).map((et, i) => ({
         id: `radio_ext_${Date.now()}_${i}`,
@@ -2528,26 +2341,22 @@
       this.startRadioFromTrack(dualStreamEngine.currentTrack || this.getActiveCrateTrack());
     },
 
-    /**
-     * 📻 MI MIX DIARIO (Módulo 6):
-     * Acceso directo superior junto a Tragaperras y Canción del Día.
-     */
     playDailyMix() {
       const pool = this.getAllCandidatePool();
       const targetVec = dnaEngine.getEffectiveTargetVector();
       const mix = pool
-        .map(t => ({ t, sc: dnaEngine.scoreTrackForRecommendation(t, targetVec) + (Math.random() * 0.06) }))
+        .map(t => ({ t, sc: dnaEngine.scoreTrackForRecommendation(t, targetVec) + (hasRealHttpCover(t) ? 0.25 : 0) + (Math.random() * 0.06) }))
         .sort((a, b) => b.sc - a.sc)
         .slice(0, 25)
         .map(x => x.t);
 
       if (mix.length > 0) {
-        dualStreamEngine.loadQueueAndPlay(mix, 0, 'Mi Mix Diario ADN');
+        dualStreamEngine.loadQueueAndPlay(mix, 0, 'Mi Mix Diario');
       }
     },
 
     // =========================================================================
-    // MÓDULO 6: CARRUSELES HORIZONTALES ESTILO SPOTIFY ("Porque te gustó", "Descubrimiento Semanal", "Tus Playlists")
+    // CARRUSELES LIMPIOS ESTILO SPOTIFY (140x140PX, SIN CAJAS NI BOTONES DOBLES)
     // =========================================================================
     async refreshCarousels() {
       this._renderBecauseYouLikedCarousel();
@@ -2568,15 +2377,14 @@
 
       if (!seed) return;
       if (titleEl) {
-        titleEl.textContent = `Porque te gustó "${seed.title}"`;
+        titleEl.textContent = `Porque te gustó ${seed.title}`;
       }
 
       const seedVec = dnaEngine.encodeTrackVector(seed);
       const related = pool
         .filter(t => String(t.id) !== String(seed.id))
         .map(t => {
-          const sim = dnaEngine.cosineSimilarity(seedVec, dnaEngine.encodeTrackVector(t));
-          t._dnaMatchPct = Math.round(Math.max(68, Math.min(99, sim * 100)));
+          const sim = dnaEngine.cosineSimilarity(seedVec, dnaEngine.encodeTrackVector(t)) + (hasRealHttpCover(t) ? 0.25 : 0);
           return { t, sim };
         })
         .sort((a, b) => b.sim - a.sim)
@@ -2585,6 +2393,7 @@
 
       this._becauseLikedList = related;
       cont.innerHTML = related.map((tr, idx) => this._buildSmartCarouselCardHtml(tr, idx, 'because')).join('');
+      this._enrichCarouselCoversAsync(related, 'because');
     },
 
     _renderWeeklyDiscoveryCarousel() {
@@ -2594,16 +2403,25 @@
       const pool = this.getAllCandidatePool();
       const highScoresObj = (typeof highscores === 'object' && highscores) ? highscores : {};
 
-      // Priorizar pistas no jugadas aún con alta puntuación UCB1
       const weekly = pool
         .filter(t => !highScoresObj[t.id])
-        .map(t => ({ t, sc: dnaEngine.scoreTrackForRecommendation(t) }))
+        .map(t => ({ t, sc: dnaEngine.scoreTrackForRecommendation(t) + (hasRealHttpCover(t) ? 0.25 : 0) }))
         .sort((a, b) => b.sc - a.sc)
         .slice(0, 12)
         .map(x => x.t);
 
       this._weeklyDiscoveryList = weekly;
       cont.innerHTML = weekly.map((tr, idx) => this._buildSmartCarouselCardHtml(tr, idx, 'weekly')).join('');
+      this._enrichCarouselCoversAsync(weekly, 'weekly');
+    },
+
+    _enrichCarouselCoversAsync(list, listType) {
+      if (!Array.isArray(list)) return;
+      list.forEach((tr, idx) => {
+        if (!hasRealHttpCover(tr)) {
+          this._ensureRealCoverForTrack(tr, `carouselCover_${listType}_${idx}`);
+        }
+      });
     },
 
     async _renderUserPlaylistsCarousel() {
@@ -2615,57 +2433,50 @@
         playlists = await window.IndexedDBStorage.getAllPlaylists().catch(() => []) || [];
       }
 
-      // Incluir tarjeta inteligente de "Tus Me Gusta ♥" al inicio
       const favCount = Math.max(dnaEngine.likes.size, (typeof window.favoriteIdsSet !== 'undefined' ? window.favoriteIdsSet.size : 0));
       const cardsHtml = [];
 
+      // Tarjeta 1: Tus Me Gusta (140x140px estilo Spotify)
       cardsHtml.push(`
-        <div class="discover-smart-card">
-          <div class="relative w-full h-24 rounded-xl overflow-hidden border border-amber-400/50 bg-gradient-to-br from-[#3b1d0b] via-[#1c0d06] to-black flex flex-col items-center justify-center p-2 text-center">
-            <span class="text-2xl">♥</span>
-            <span class="text-[10px] font-black text-[#f3d791] uppercase tracking-wider mt-0.5">Biblioteca Dorada</span>
-            <span class="text-[8.5px] font-mono text-amber-300">${favCount} temas</span>
+        <div class="spotify-carousel-card" onclick="window.DiscoverHomeApp.playLikedSongsPlaylist()">
+          <div class="spotify-carousel-cover-wrap liked-gradient-cover">
+            <div class="liked-cover-heart-icon">${SVG_ICONS.heartFilled}</div>
+            <button type="button" onclick="event.stopPropagation(); switchMainTab('library'); switchLibrarySubtab('favorites');" class="spotify-floating-piano-btn" title="Abrir Tus Me Gusta">
+              ${SVG_ICONS.pianoSmall}
+            </button>
           </div>
-          <div>
-            <h4 class="text-xs font-black text-[#fff6d6] truncate font-serif">Tus Me Gusta</h4>
-            <p class="text-[9.5px] text-[#cbb894] truncate">Colección ADN Personal</p>
-          </div>
-          <div class="grid grid-cols-2 gap-1 pt-0.5">
-            <button type="button" onclick="window.DiscoverHomeApp.playLikedSongsPlaylist()" class="py-1 px-1.5 rounded-lg bg-[#24170b] border border-[#c5a059]/60 text-[#f3d791] text-[9.5px] font-bold cursor-pointer">🎧 Escuchar</button>
-            <button type="button" onclick="switchMainTab('library'); switchLibrarySubtab('favorites');" class="py-1 px-1.5 rounded-lg bg-gradient-to-b from-[#f3d791] to-[#9b6f23] text-[#140b02] text-[9.5px] font-black cursor-pointer">🎹 Jugar</button>
-          </div>
+          <h4 class="spotify-carousel-title">Tus Me Gusta</h4>
+          <p class="spotify-carousel-artist">${favCount} canciones</p>
         </div>
       `);
 
       for (const pl of playlists) {
         if (!pl) continue;
         const firstTrack = Array.isArray(pl.tracks) && pl.tracks[0] ? pl.tracks[0] : null;
-        const cover = (firstTrack && (firstTrack.thumbnail || firstTrack.cover_url)) || './app_logo.png';
+        const cover = firstTrack ? getBestTrackCover(firstTrack) : './app_logo.png';
         const safeId = String(pl.id || '').replace(/'/g, "\\'");
         cardsHtml.push(`
-          <div class="discover-smart-card">
-            <div class="relative w-full h-24 rounded-xl overflow-hidden border border-[#c5a059]/40 bg-black">
-              <img src="${cover}" onerror="this.src='./app_logo.png'" class="w-full h-full object-cover" alt="">
-              <span class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/80 border border-amber-400/40 text-[8px] font-mono font-bold text-amber-300">${(pl.tracks || []).length} pistas</span>
+          <div class="spotify-carousel-card" onclick="window.DiscoverHomeApp.playSavedUserPlaylist('${safeId}')">
+            <div class="spotify-carousel-cover-wrap">
+              <img src="${cover}" onerror="this.onerror=null; this.src='./app_logo.png';" class="spotify-carousel-cover-img" alt="" loading="lazy">
+              <button type="button" onclick="event.stopPropagation(); switchMainTab('library'); switchLibrarySubtab('playlists'); openPlaylistDetailView('${safeId}');" class="spotify-floating-piano-btn" title="Jugar playlist">
+                ${SVG_ICONS.pianoSmall}
+              </button>
             </div>
-            <div>
-              <h4 class="text-xs font-black text-[#fff6d6] truncate font-serif">${escapeHtmlSafe(pl.title || 'Playlist')}</h4>
-              <p class="text-[9.5px] text-[#cbb894] truncate">Playlist Personal</p>
-            </div>
-            <div class="grid grid-cols-2 gap-1 pt-0.5">
-              <button type="button" onclick="window.DiscoverHomeApp.playSavedUserPlaylist('${safeId}')" class="py-1 px-1.5 rounded-lg bg-[#24170b] border border-[#c5a059]/60 text-[#f3d791] text-[9.5px] font-bold cursor-pointer">🎧 Reproducir</button>
-              <button type="button" onclick="switchMainTab('library'); switchLibrarySubtab('playlists'); openPlaylistDetailView('${safeId}');" class="py-1 px-1.5 rounded-lg bg-gradient-to-b from-[#f3d791] to-[#9b6f23] text-[#140b02] text-[9.5px] font-black cursor-pointer">🎹 Jugar</button>
-            </div>
+            <h4 class="spotify-carousel-title">${escapeHtmlSafe(pl.title || 'Playlist')}</h4>
+            <p class="spotify-carousel-artist">${(pl.tracks || []).length} canciones</p>
           </div>
         `);
       }
 
-      // Tarjeta para crear o importar una nueva playlist
+      // Tarjeta para crear nueva playlist (140x140px limpia)
       cardsHtml.push(`
-        <div onclick="switchMainTab('library'); switchLibrarySubtab('playlists'); createNewEmptyPlaylistPrompt();" class="discover-smart-card items-center justify-center text-center cursor-pointer hover:border-[#f3d791] transition">
-          <div class="w-12 h-12 rounded-full bg-[#c5a059]/15 border border-dashed border-[#f3d791] flex items-center justify-center text-xl text-[#f3d791]">+</div>
-          <p class="text-xs font-black text-[#f3d791] font-serif">Crear Nueva Playlist</p>
-          <p class="text-[9.5px] text-[#cbb894]">Guarda tus vinilos favoritos</p>
+        <div class="spotify-carousel-card" onclick="switchMainTab('library'); switchLibrarySubtab('playlists'); createNewEmptyPlaylistPrompt();">
+          <div class="spotify-carousel-cover-wrap new-playlist-cover">
+            <div class="new-playlist-plus-icon">${SVG_ICONS.plus}</div>
+          </div>
+          <h4 class="spotify-carousel-title">Crear playlist</h4>
+          <p class="spotify-carousel-artist">Nueva colección</p>
         </div>
       `);
 
@@ -2673,22 +2484,17 @@
     },
 
     _buildSmartCarouselCardHtml(tr, idx, listType) {
-      const cover = tr.artworkUrl600 || tr.thumbnail || tr.cover_url || './app_logo.png';
-      const matchPct = tr._dnaMatchPct || 92;
+      const cover = getBestTrackCover(tr);
       return `
-        <div class="discover-smart-card">
-          <div onclick="window.DiscoverHomeApp.playFromCarousel('${listType}', ${idx})" class="relative w-full h-24 rounded-xl overflow-hidden border border-[#c5a059]/45 bg-black cursor-pointer group">
-            <img src="${cover}" onerror="this.src='./app_logo.png'" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" alt="" loading="lazy">
-            <span class="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-black/80 border border-amber-400/50 text-[8px] font-mono font-black text-amber-300">${matchPct}% ADN</span>
+        <div class="spotify-carousel-card" onclick="window.DiscoverHomeApp.playFromCarousel('${listType}', ${idx})">
+          <div class="spotify-carousel-cover-wrap">
+            <img id="carouselCover_${listType}_${idx}" src="${cover}" onerror="this.onerror=null; this.src='./app_logo.png';" class="spotify-carousel-cover-img" alt="" loading="lazy">
+            <button type="button" onclick="event.stopPropagation(); window.DiscoverHomeApp.launchPianoFromCarousel('${listType}', ${idx})" class="spotify-floating-piano-btn" title="Jugar al piano">
+              ${SVG_ICONS.pianoSmall}
+            </button>
           </div>
-          <div>
-            <h4 class="text-xs font-black text-[#fff6d6] truncate font-serif">${escapeHtmlSafe(tr.title)}</h4>
-            <p class="text-[9.5px] text-[#cbb894] truncate">${escapeHtmlSafe(tr.artist)}</p>
-          </div>
-          <div class="grid grid-cols-2 gap-1 pt-0.5">
-            <button type="button" onclick="window.DiscoverHomeApp.playFromCarousel('${listType}', ${idx})" class="py-1 px-1.5 rounded-lg bg-[#24170b] hover:bg-[#332110] border border-[#c5a059]/60 text-[#f3d791] text-[9.5px] font-bold cursor-pointer">🎧 Escuchar</button>
-            <button type="button" onclick="window.DiscoverHomeApp.launchPianoFromCarousel('${listType}', ${idx})" class="py-1 px-1.5 rounded-lg bg-gradient-to-b from-[#f3d791] to-[#9b6f23] text-[#140b02] text-[9.5px] font-black cursor-pointer">🎹 Jugar</button>
-          </div>
+          <h4 class="spotify-carousel-title">${escapeHtmlSafe(tr.title)}</h4>
+          <p class="spotify-carousel-artist">${escapeHtmlSafe(tr.artist)}</p>
         </div>
       `;
     },
@@ -2696,7 +2502,7 @@
     playFromCarousel(listType, idx) {
       const arr = listType === 'because' ? this._becauseLikedList : this._weeklyDiscoveryList;
       if (!Array.isArray(arr) || !arr[idx]) return;
-      dualStreamEngine.loadQueueAndPlay(arr, idx, listType === 'because' ? 'Similares a tus gustos' : 'Descubrimiento Semanal');
+      dualStreamEngine.loadQueueAndPlay(arr, idx, '');
     },
 
     launchPianoFromCarousel(listType, idx) {
@@ -2713,11 +2519,11 @@
       }
       if (favTracks.length === 0) {
         if (typeof window.showErrorToast === 'function') {
-          window.showErrorToast('Desliza vinilos a la derecha (♥) para añadir canciones a Tus Me Gusta.');
+          window.showErrorToast('Pulsa el corazón en cualquier canción para añadirla a Tus Me Gusta.');
         }
         return;
       }
-      dualStreamEngine.loadQueueAndPlay(favTracks, 0, 'Tus Me Gusta ♥');
+      dualStreamEngine.loadQueueAndPlay(favTracks, 0, 'Tus Me Gusta');
     },
 
     async playSavedUserPlaylist(playlistId) {
@@ -2738,10 +2544,6 @@
       dualStreamEngine.loadQueueAndPlay(mapped, 0, pl.title || 'Playlist');
     },
 
-    /**
-     * MÓDULO 6: Botón "🎧 Reproducir Playlist" en todas las Colecciones de YouTube:
-     * Envía la colección entera al reproductor continuo estilo Spotify.
-     */
     async playYouTubeCollectionContinuous(playlistId, title = 'Colección') {
       try {
         if (typeof window.parseYouTubePlaylistClient === 'function') {
@@ -2767,9 +2569,6 @@
       }
     },
 
-    // =========================================================================
-    // MÓDULO 5: CONTROLES DE LA VISTA AMPLIADA "NOW PLAYING" (TOCADISCOS PANTALLA COMPLETA)
-    // =========================================================================
     openNowPlayingModal() {
       const modal = document.getElementById('nowPlayingTurntableModal');
       if (!modal) return;
@@ -2786,14 +2585,7 @@
       dualStreamEngine.smartShuffleEnabled = !dualStreamEngine.smartShuffleEnabled;
       const btn = document.getElementById('npSmartShuffleBtn');
       if (btn) {
-        btn.classList.toggle('bg-amber-400/25', dualStreamEngine.smartShuffleEnabled);
-        btn.classList.toggle('border-amber-300', dualStreamEngine.smartShuffleEnabled);
-        btn.classList.toggle('text-amber-300', dualStreamEngine.smartShuffleEnabled);
-      }
-      if (typeof window.showSuccessToast === 'function') {
-        window.showSuccessToast(dualStreamEngine.smartShuffleEnabled
-          ? '🔀 Smart Shuffle ADN Activado'
-          : 'Smart Shuffle Desactivado');
+        btn.classList.toggle('active', dualStreamEngine.smartShuffleEnabled);
       }
     },
 
@@ -2827,11 +2619,10 @@
       if (typeof window.toggleFavoriteSong === 'function') {
         window.toggleFavoriteSong(tr.id, tr);
       }
-      dualStreamEngine._updatePlayerMetadataUI(tr, document.getElementById('miniPlayerStreamBadge')?.textContent || 'DUAL-STREAM');
+      dualStreamEngine._updatePlayerMetadataUI(tr);
       this.refreshCarousels();
     },
 
-    // Aliases para los eventos onclick / oninput de index.html
     renderCarousels() {
       return this.refreshCarousels();
     },
@@ -2890,27 +2681,11 @@
     },
 
     onTurntablePlatterScratch(e) {
-      const platter = document.getElementById('npTurntablePlatterInteractive');
-      if (!platter || !e) return;
-      const rect = platter.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-      const dist = Math.hypot(e.clientX - cx, e.clientY - cy);
-      const maxR = rect.width / 2;
-      const minR = 34;
-      if (dist <= minR) {
-        this.togglePlayPauseMini(e);
-        return;
-      }
-      const ratio = 1 - Math.max(0, Math.min(1, (dist - minR) / Math.max(1, maxR - minR)));
-      dualStreamEngine.seekToRatio(ratio);
-    },
-
-    _initNowPlayingTurntableDrag() {
-      // El evento onclick en #npTurntablePlatterInteractive ya delega en onTurntablePlatterScratch(event)
+      this.togglePlayPauseMini(e);
     }
   };
 
   window.DiscoverHomeApp = DiscoverHomeApp;
 })();
+
 
