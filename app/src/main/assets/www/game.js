@@ -13311,7 +13311,7 @@ class BeatstarEngine {
   // Pre-calcula el mapa de caudal acumulado F(t) según la densidad de notas de cada sección
   // Así los 3 carriles aceleran en los Rápidos (alta densidad) y se calman en Aguas Mansas (baja densidad) al unísono
   _prepareRiverChoreography() {
-    const stepMs = 25;
+    const stepMs = 10;
     const minT = -3000;
     const maxT = Math.max(60000, (this.lastNoteTime || 60000) + 8000);
     const numSteps = Math.ceil((maxT - minT) / stepMs) + 1;
@@ -13361,8 +13361,8 @@ class BeatstarEngine {
       this._riverSpeedMultTable[s] = speedMult;
     }
 
-    // Triple pasada de suavizado tipo Gaussiano (ventana efectiva ±600ms) para eliminar cualquier tirón de aceleración
-    const radius = 8;
+    // Triple pasada de suavizado tipo Gaussiano (ventana efectiva ±600ms con paso fino de 10ms) para eliminar cualquier tirón de aceleración
+    const radius = 20;
     for (let pass = 0; pass < 3; pass++) {
       const src = (pass % 2 === 0) ? this._riverSpeedMultTable : scratchSpeed;
       const dst = (pass % 2 === 0) ? scratchSpeed : this._riverSpeedMultTable;
@@ -13387,7 +13387,7 @@ class BeatstarEngine {
       }
     }
 
-    // Integración trapezoidal C2-continua para la posición acumulada del caudal
+    // Integración trapezoidal C1/C2-continua para la posición acumulada del caudal
     let smoothCum = 0.0;
     this._riverFlowPosTable[0] = 0.0;
     for (let s = 1; s < numSteps; s++) {
@@ -13418,12 +13418,18 @@ class BeatstarEngine {
 
   _getRiverFlowPos(timeMs) {
     if (!this._riverFlowPosTable || this._riverFlowPosTable.length === 0) {
-      this._prepareRiverChoreography();
+      if ((typeof window !== 'undefined' && window.isMadnessModeActive) || this.isMadnessModeActive) {
+        if (typeof this._prepareMadnessFlowChoreography === 'function') {
+          this._prepareMadnessFlowChoreography();
+        }
+      } else {
+        this._prepareRiverChoreography();
+      }
     }
     const table = this._riverFlowPosTable;
     if (!table || table.length === 0) return timeMs;
     const minT = this._riverFlowMinT || -3000;
-    const stepMs = this._riverFlowStepMs || 25;
+    const stepMs = this._riverFlowStepMs || 10;
     const fIdx = (timeMs - minT) / stepMs;
     if (fIdx <= 0) {
       return table[0] + (timeMs - minT) * (this._riverSpeedMultTable ? this._riverSpeedMultTable[0] : 1.0);
@@ -13435,6 +13441,14 @@ class BeatstarEngine {
     }
     const i0 = fIdx | 0;
     const frac = fIdx - i0;
+    // Antiderivada cuadrática exacta C1-continua del tramo lineal de velocidad [v0, v1]:
+    // elimina el escalón de velocidad cada stepMs que producía el efecto de caída a trompicones al acelerar
+    const speedTable = this._riverSpeedMultTable;
+    if (speedTable && i0 + 1 <= maxIdx) {
+      const v0 = speedTable[i0];
+      const v1 = speedTable[i0 + 1];
+      return table[i0] + stepMs * (v0 * frac + 0.5 * (v1 - v0) * frac * frac);
+    }
     return table[i0] + (table[i0 + 1] - table[i0]) * frac;
   }
 
@@ -13442,11 +13456,11 @@ class BeatstarEngine {
     const table = this._riverSpeedMultTable;
     if (!table || table.length === 0) return 1.0;
     const minT = this._riverFlowMinT || -3000;
-    const stepMs = this._riverFlowStepMs || 25;
+    const stepMs = this._riverFlowStepMs || 10;
     const fIdx = (timeMs - minT) / stepMs;
-    if (fIdx <= 0) return table[0] || 1.0;
+    if (fIdx <= 0) return table[0] ?? 1.0;
     const maxIdx = table.length - 1;
-    if (fIdx >= maxIdx) return table[maxIdx] || 1.0;
+    if (fIdx >= maxIdx) return table[maxIdx] ?? 1.0;
     const i0 = fIdx | 0;
     const frac = fIdx - i0;
     return table[i0] + (table[i0 + 1] - table[i0]) * frac;
@@ -13511,8 +13525,8 @@ class BeatstarEngine {
       }
     }
 
-    // Flotabilidad natural sobre la corriente del agua (pequeño balanceo vertical hidrodinámico)
-    const bobOffset = isPressed ? (4.0 * scale) : (Math.sin(currentTime * 0.0055 + noteIdx * 1.9) * 1.8 * scale);
+    // Descenso vertical 100% monótono sin oscilación vertical que interfiera con la aceleración del caudal
+    const bobOffset = isPressed ? (4.0 * scale) : 0;
     const y = cy + bobOffset;
     const y0 = y - h / 2;
     const y1 = y0 + h;
@@ -13651,13 +13665,10 @@ class BeatstarEngine {
         ctx.fill();
         ctx.stroke();
 
-        // C. Veta de agua/cristal bioluminiscente brillando dentro de la hondura de la roca
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-
+        // C. Veta de agua/cristal bioluminiscente brillando dentro de la hondura de la roca (source-over directo para 0 cambios de blend state por tecla)
         const spreadX = 6.5 * scale;
         const spreadY = 4.5 * scale;
-        ctx.fillStyle = 'rgba(0, 242, 254, 0.36)';
+        ctx.fillStyle = 'rgba(0, 242, 254, 0.34)';
         ctx.beginPath();
         if (ctx.roundRect) ctx.roundRect(gx - spreadX, gy - spreadY, grooveW + spreadX * 2, grooveH + spreadY * 2, gr + spreadY);
         else ctx.rect(gx - spreadX, gy - spreadY, grooveW + spreadX * 2, grooveH + spreadY * 2);
@@ -13665,7 +13676,7 @@ class BeatstarEngine {
 
         const innerW = grooveW * 0.92;
         const innerH = Math.max(4.2, grooveH * 0.64);
-        ctx.fillStyle = 'rgba(56, 189, 248, 0.90)';
+        ctx.fillStyle = '#38bdf8';
         ctx.beginPath();
         if (ctx.roundRect) ctx.roundRect(cx - innerW * 0.5, cyGroove - innerH * 0.5, innerW, innerH, innerH * 0.5);
         else ctx.rect(cx - innerW * 0.5, cyGroove - innerH * 0.5, innerW, innerH);
@@ -13678,8 +13689,6 @@ class BeatstarEngine {
         if (ctx.roundRect) ctx.roundRect(cx - coreW * 0.5, cyGroove - coreH * 0.5, coreW, coreH, coreH * 0.5);
         else ctx.rect(cx - coreW * 0.5, cyGroove - coreH * 0.5, coreW, coreH);
         ctx.fill();
-
-        ctx.restore();
       }
     } else {
       // HONDURA DE FLECHA SWIPE TALLADA EN EL CENTRO EXACTO DE LA CARA SUPERIOR DE LA ROCA
@@ -15631,32 +15640,28 @@ class BeatstarEngine {
         ctx.closePath();
         ctx.fill();
 
-        // 0B. Malla de refracción solar (cáusticas cristalinas animadas sobre el fondo del río)
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        const causticBands = 14;
+        // 0B. Malla de refracción solar (cáusticas cristalinas agrupadas en 1 solo path por banda de grosor para 0 tirones en rápidos)
+        const causticBands = 12;
+        ctx.strokeStyle = 'rgba(165, 243, 252, 0.11)';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
         for (let cb = 0; cb < causticBands; cb++) {
           const u0 = ((cb / causticBands) + riverFlowPhase * 0.82) % 1.0;
+          if (u0 < 0.06 || u0 > 0.95) continue;
           const p0 = Math.pow(u0, 1.7);
           const cy = horizonY + (bottomY - horizonY) * p0;
-          const cAlpha = Math.sin(u0 * Math.PI) * (0.09 + speedExcite * 0.05);
-          if (cAlpha <= 0.01) continue;
           const lx = getBoundaryX(0.15, cy);
           const rx = getBoundaryX(2.85, cy);
           const wSpan = rx - lx;
           const waveY = (3 + 7 * p0) * Math.sin(activeTimeMs * 0.0045 + cb * 1.7);
-          ctx.strokeStyle = `rgba(165, 243, 252, ${cAlpha.toFixed(3)})`;
-          ctx.lineWidth = 1.4 + 3.0 * p0;
-          ctx.beginPath();
           ctx.moveTo(lx, cy);
           ctx.bezierCurveTo(
             lx + wSpan * 0.33, cy + waveY,
             lx + wSpan * 0.66, cy - waveY,
             rx, cy + waveY * 0.4
           );
-          ctx.stroke();
         }
-        ctx.restore();
+        ctx.stroke();
 
         // 1. Peces Koi nadando suavemente bajo la superficie translúcida del río
         if (this._riverSwimmingKoi && this._riverKoiSprites && this._riverKoiSprites.length > 0) {
@@ -15716,57 +15721,77 @@ class BeatstarEngine {
           }
         }
 
-        // 2. Pequeñas Olitas 3D Reactivas a la Velocidad (Denominador fijo constante MAX_WAVELETS para que jamás den tirones al acelerar)
-        const MAX_WAVELETS = 28;
+        // 2. Pequeñas Olitas 3D Reactivas a la Velocidad agrupadas en 3 pases vectoriales (de 84 strokes a 3 strokes por frame = 0 tirones al acelerar)
+        const MAX_WAVELETS = 22;
         ctx.lineCap = 'round';
+        // Pase 1: Seno oscuro bajo la cresta
+        ctx.strokeStyle = 'rgba(3, 36, 62, 0.44)';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
         for (let wIdx = 0; wIdx < MAX_WAVELETS; wIdx++) {
-          // Las olitas extra (wIdx >= 18) aparecen con fundido suave según la velocidad sin alterar la fase de las demás
-          const extraVisibility = wIdx < 18 ? 1.0 : Math.max(0, Math.min(1.0, (speedExcite * 10.5) - (wIdx - 18)));
-          if (extraVisibility <= 0.02) continue;
-
           const u0 = ((wIdx / MAX_WAVELETS) + riverFlowPhase * (1.0 + (wIdx % 3) * 0.14)) % 1.0;
-          if (u0 < 0.04 || u0 > 0.97) continue;
+          if (u0 < 0.06 || u0 > 0.95) continue;
           const p0 = Math.pow(u0, 1.7);
           const wy = horizonY + (bottomY - horizonY) * p0;
           const lanePos = 0.18 + ((wIdx * 0.754877) % 2.64);
           const lateralOsc = Math.sin(activeTimeMs * 0.0038 + wIdx * 1.9) * 0.08;
           const wx = getBoundaryX(lanePos + lateralOsc, wy);
-
-          const waveScale = (0.35 + 0.65 * p0) * (0.82 + speedExcite * 0.48);
+          const waveScale = (0.35 + 0.65 * p0) * (0.82 + speedExcite * 0.42);
           const waveHalfW = (14 + (wIdx % 4) * 5.5) * waveScale;
-          const waveCrestH = (3.5 + (wIdx % 3) * 1.8 + speedExcite * 3.2) * waveScale;
-          const waveAlpha = Math.min(0.88, (0.28 + speedExcite * 0.38) * Math.sin(u0 * Math.PI) * extraVisibility);
-
-          // Seno oscuro bajo la cresta de la olita (volumen 3D líquido)
-          ctx.strokeStyle = `rgba(3, 36, 62, ${(waveAlpha * 0.65).toFixed(3)})`;
-          ctx.lineWidth = Math.max(1.2, 2.8 * waveScale);
-          ctx.beginPath();
+          const waveCrestH = (3.5 + (wIdx % 3) * 1.8 + speedExcite * 2.8) * waveScale;
           ctx.moveTo(wx - waveHalfW * 0.92, wy + waveCrestH * 0.55);
           ctx.quadraticCurveTo(wx, wy - waveCrestH * 0.45, wx + waveHalfW * 0.92, wy + waveCrestH * 0.55);
-          ctx.stroke();
+        }
+        ctx.stroke();
 
-          // Cuerpo turquesa cristalino de la olita
-          ctx.strokeStyle = `rgba(125, 211, 252, ${(waveAlpha * 0.85).toFixed(3)})`;
-          ctx.lineWidth = Math.max(1.2, 2.4 * waveScale);
-          ctx.beginPath();
+        // Pase 2: Cuerpo turquesa cristalino
+        ctx.strokeStyle = 'rgba(125, 211, 252, 0.64)';
+        ctx.lineWidth = 1.9;
+        ctx.beginPath();
+        for (let wIdx = 0; wIdx < MAX_WAVELETS; wIdx++) {
+          const u0 = ((wIdx / MAX_WAVELETS) + riverFlowPhase * (1.0 + (wIdx % 3) * 0.14)) % 1.0;
+          if (u0 < 0.06 || u0 > 0.95) continue;
+          const p0 = Math.pow(u0, 1.7);
+          const wy = horizonY + (bottomY - horizonY) * p0;
+          const lanePos = 0.18 + ((wIdx * 0.754877) % 2.64);
+          const lateralOsc = Math.sin(activeTimeMs * 0.0038 + wIdx * 1.9) * 0.08;
+          const wx = getBoundaryX(lanePos + lateralOsc, wy);
+          const waveScale = (0.35 + 0.65 * p0) * (0.82 + speedExcite * 0.42);
+          const waveHalfW = (14 + (wIdx % 4) * 5.5) * waveScale;
+          const waveCrestH = (3.5 + (wIdx % 3) * 1.8 + speedExcite * 2.8) * waveScale;
           ctx.moveTo(wx - waveHalfW, wy + waveCrestH * 0.25);
           ctx.quadraticCurveTo(wx, wy - waveCrestH, wx + waveHalfW, wy + waveCrestH * 0.25);
-          ctx.stroke();
+        }
+        ctx.stroke();
 
-          // Cresta de espuma blanca rizada en la cima de la olita (Whitecap)
-          ctx.strokeStyle = `rgba(255, 255, 255, ${(waveAlpha * (0.72 + speedExcite * 0.25)).toFixed(3)})`;
-          ctx.lineWidth = Math.max(1.0, 1.6 * waveScale);
-          ctx.beginPath();
+        // Pase 3: Cresta de espuma blanca rizada (Whitecap)
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.68)';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        for (let wIdx = 0; wIdx < MAX_WAVELETS; wIdx++) {
+          const u0 = ((wIdx / MAX_WAVELETS) + riverFlowPhase * (1.0 + (wIdx % 3) * 0.14)) % 1.0;
+          if (u0 < 0.06 || u0 > 0.95) continue;
+          const p0 = Math.pow(u0, 1.7);
+          const wy = horizonY + (bottomY - horizonY) * p0;
+          const lanePos = 0.18 + ((wIdx * 0.754877) % 2.64);
+          const lateralOsc = Math.sin(activeTimeMs * 0.0038 + wIdx * 1.9) * 0.08;
+          const wx = getBoundaryX(lanePos + lateralOsc, wy);
+          const waveScale = (0.35 + 0.65 * p0) * (0.82 + speedExcite * 0.42);
+          const waveHalfW = (14 + (wIdx % 4) * 5.5) * waveScale;
+          const waveCrestH = (3.5 + (wIdx % 3) * 1.8 + speedExcite * 2.8) * waveScale;
           ctx.moveTo(wx - waveHalfW * 0.68, wy - waveCrestH * 0.12);
           ctx.quadraticCurveTo(wx, wy - waveCrestH * 1.05, wx + waveHalfW * 0.68, wy - waveCrestH * 0.12);
-          ctx.stroke();
         }
+        ctx.stroke();
 
-        // 2B. Líneas de corriente rápida y burbujas de oxígeno arrastradas por el caudal
-        const numStreaks = 16;
+        // 2B. Líneas de corriente rápida agrupadas en 1 solo path
+        const numStreaks = 14;
+        ctx.strokeStyle = 'rgba(224, 242, 254, 0.36)';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
         for (let sIdx = 0; sIdx < numStreaks; sIdx++) {
           const u0 = ((sIdx / numStreaks) + riverFlowPhase * 1.25) % 1.0;
-          const u1 = Math.min(1.0, u0 + (0.040 + 0.032 * Math.min(1.6, curSpeed)));
+          const u1 = Math.min(1.0, u0 + (0.040 + 0.030 * Math.min(1.6, curSpeed)));
           if (u1 <= u0 + 0.005) continue;
           const p0 = Math.pow(u0, 1.7);
           const p1 = Math.pow(u1, 1.7);
@@ -15776,39 +15801,31 @@ class BeatstarEngine {
           const sway = Math.sin(u0 * 12.0 + activeTimeMs * 0.004 + sIdx) * 0.05;
           const x0 = getBoundaryX(laneFrac + sway, y0);
           const x1 = getBoundaryX(laneFrac - sway, y1);
-
-          const streakAlpha = Math.min(0.65, (0.16 + speedExcite * 0.30) * Math.sin(u0 * Math.PI));
-          ctx.strokeStyle = (sIdx % 2 === 0)
-            ? `rgba(240, 249, 255, ${streakAlpha.toFixed(2)})`
-            : `rgba(165, 243, 252, ${(streakAlpha * 0.85).toFixed(2)})`;
-          ctx.lineWidth = Math.max(1.0, (1.3 + 2.2 * p0) * (1.0 + speedExcite * 0.25));
-          ctx.beginPath();
           ctx.moveTo(x0, y0);
           ctx.lineTo(x1, y1);
-          ctx.stroke();
         }
+        ctx.stroke();
 
-        // 3. Corrientes divisorias ondulantes de espuma viva entre los 3 carriles
+        // 3. Corrientes divisorias ondulantes de espuma viva entre los 3 carriles (agrupadas)
+        ctx.beginPath();
+        const steps = 16;
         for (let l = 1; l <= 2; l++) {
-          ctx.strokeStyle = 'rgba(186, 230, 253, 0.36)';
-          ctx.lineWidth = 4.2;
-          ctx.beginPath();
-          const steps = 20;
           for (let s = 0; s <= steps; s++) {
             const u = s / steps;
             const p = Math.pow(u, 1.7);
             const ry = horizonY + (bottomY - horizonY) * p;
-            const rippleX = Math.sin(u * 14.0 - riverFlowPhase * Math.PI * 4 + l * 2.1) * ((2.8 + speedExcite * 2.2) * p);
+            const rippleX = Math.sin(u * 14.0 - riverFlowPhase * Math.PI * 4 + l * 2.1) * ((2.8 + speedExcite * 2.0) * p);
             const rx = getBoundaryX(l, ry) + rippleX;
             if (s === 0) ctx.moveTo(rx, ry);
             else ctx.lineTo(rx, ry);
           }
-          ctx.stroke();
-
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.72)';
-          ctx.lineWidth = 1.8;
-          ctx.stroke();
         }
+        ctx.strokeStyle = 'rgba(186, 230, 253, 0.36)';
+        ctx.lineWidth = 4.2;
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.72)';
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
       } else if (isHighwayTrack) {
         const roadScroll = ((cTime >= 0 ? cTime : safePerfNow) * 0.0014) % 1.0;
         const kerbSegs = 18;
@@ -17058,8 +17075,11 @@ class BeatstarEngine {
           ctx.closePath();
           ctx.fill();
 
-          // Cortinas de agua cayendo en cascada vertical bajo el azud de piedra del Perfect
-          const numFalls = 22;
+          // Cortinas de agua cayendo en cascada vertical bajo el azud de piedra del Perfect (agrupadas en 2 paths)
+          const numFalls = 20;
+          ctx.strokeStyle = 'rgba(224, 242, 254, 0.44)';
+          ctx.lineWidth = 3.8;
+          ctx.beginPath();
           for (let f = 0; f < numFalls; f++) {
             const frac = (f + 0.5) / numFalls;
             const xTop = apL_top + (apR_top - apL_top) * frac;
@@ -17069,30 +17089,25 @@ class BeatstarEngine {
             const y1 = yDeckBot + (bottomY - yDeckBot) * Math.min(1.0, fallPhase * 0.35 + 0.55);
             const x0 = xTop + (xBot - xTop) * ((y0 - yDeckBot) / Math.max(1, bottomY - yDeckBot));
             const x1 = xTop + (xBot - xTop) * ((y1 - yDeckBot) / Math.max(1, bottomY - yDeckBot));
-
-            ctx.strokeStyle = (f % 2 === 0)
-              ? 'rgba(224, 242, 254, 0.46)'
-              : 'rgba(125, 211, 252, 0.34)';
-            ctx.lineWidth = 3.2 + (f % 3) * 1.4;
-            ctx.beginPath();
             ctx.moveTo(x0, y0);
             ctx.lineTo(x1, y1);
-            ctx.stroke();
           }
+          ctx.stroke();
 
-          // Nube de espuma blanca hirviente en la base del salto de agua y anillos en la poza inferior
+          // Nube de espuma blanca hirviente en la base del salto de agua (agrupada en 1 path)
           const foamBaseY = yDeckBot + 14;
           const numFoamPuffs = 15;
+          ctx.fillStyle = 'rgba(240, 249, 255, 0.72)';
+          ctx.beginPath();
           for (let pIdx = 0; pIdx < numFoamPuffs; pIdx++) {
             const frac = pIdx / (numFoamPuffs - 1);
             const fx = apL_top + (apR_top - apL_top) * frac;
             const fy = foamBaseY + Math.sin(activeTimeMs * 0.008 + pIdx * 1.3) * 3.5;
             const rPuff = 12 + (pIdx % 3) * 4 + beatPulse * 3.5;
-            ctx.fillStyle = (pIdx % 2 === 0) ? 'rgba(240, 249, 255, 0.78)' : 'rgba(186, 230, 253, 0.62)';
-            ctx.beginPath();
+            ctx.moveTo(fx + rPuff * 1.25, fy);
             ctx.ellipse(fx, fy, rPuff * 1.25, rPuff * 0.62, 0, 0, Math.PI * 2);
-            ctx.fill();
           }
+          ctx.fill();
 
           // Ondas concéntricas de agua expandiéndose en la poza inferior ("lo de abajo del perfect")
           for (let w = 0; w < 3; w++) {
@@ -18063,7 +18078,7 @@ class BeatstarEngine {
       const isAnnoyingDogActive = Boolean((typeof window !== 'undefined' && window.isAnnoyingDogModeActive) || this.isAnnoyingDogModeActive);
       const isRiverActive = Boolean((typeof window !== 'undefined' && window.isRiverModeActive) || this.isRiverModeActive);
       const isMadnessFlow = Boolean((typeof window !== 'undefined' && window.isMadnessModeActive) || this.isMadnessModeActive);
-      const useSmoothFlowSpeed = Boolean(isRiverActive);
+      const useSmoothFlowSpeed = Boolean(isRiverActive || (isMadnessFlow && this._riverFlowPosTable && this._riverFlowPosTable.length > 0));
       const isEchoActive = Boolean((typeof window !== 'undefined' && window.isEchoModeActive) || this.isEchoModeActive);
       const curRiverFlowPos = useSmoothFlowSpeed ? this._getRiverFlowPos(currentTime) : 0;
       const effScrollTimeMs = (isMadnessFlow && typeof this.getMadnessScrollTimeMs === 'function')
@@ -29131,14 +29146,20 @@ class BeatstarEngine {
         ctx.closePath();
         ctx.fill();
 
-        // B. Líneas de compás en perspectiva
+        // B. Líneas de compás en perspectiva (sincronizadas con el caudal/parada en seco en Modo Locura)
         const numRungs = 16;
         const rungExp = ctrl ? ctrl.getEffectiveCurveExp() : 2.0;
+        const isMadnessRungFlow = Boolean((typeof window !== 'undefined' && window.isMadnessModeActive) || this.isMadnessModeActive) &&
+          this._riverFlowPosTable && this._riverFlowPosTable.length > 0;
+        const rungFlowOffset = isMadnessRungFlow
+          ? ((this._getRiverFlowPos(cTime >= 0 ? cTime : 0) * 0.0012) % (1.0 / numRungs))
+          : 0;
         ctx.strokeStyle = 'rgba(71, 85, 105, 0.13)';
         ctx.lineWidth = 1.1;
         ctx.beginPath();
         for (let r = 2; r < numRungs; r++) {
-          const p = Math.pow(r / numRungs, rungExp);
+          const uRung = Math.min(0.995, (r / numRungs) + rungFlowOffset);
+          const p = Math.pow(uRung, rungExp);
           const ry = horizonY + (surfaceEndY - horizonY) * p;
           ctx.moveTo(this.getLaneLeftX(effStart, ry) + 2, ry);
           ctx.lineTo(this.getLaneRightX(effEnd, ry) - 2, ry);
@@ -33071,6 +33092,9 @@ Object.assign(BeatstarEngine.prototype, {
     this.maxPossibleScore = this.computeMaxPossibleScore(this.notes);
     this.targetScore = this.maxPossibleScore;
 
+    // 10. Coreografía de Velocidad Viva y Paradas en Seco ("cuando la canción lo pida") mediante el sistema de caudal C1-continuo
+    this._prepareMadnessFlowChoreography();
+
     const startMode = plan.phases[0]?.mode || 'highway';
     this._madnessFromMode = startMode;
     this._madnessToMode = startMode;
@@ -33079,6 +33103,264 @@ Object.assign(BeatstarEngine.prototype, {
     this._madnessPulsoAlpha = (startMode === 'pulso') ? 1.0 : 0.0;
     this._osuManiaVisibility = (startMode === 'pulso') ? 1.0 : 0.0;
     this._osuTargetManiaVisibility = (startMode === 'pulso') ? 1.0 : 0.0;
+  },
+
+  /**
+   * Coreografía de Velocidad Dinámica y Paradas en Seco ("Stop-and-Surge") exclusiva de Modo LOCURA:
+   * - Usa el mismo sistema matemático C1-continuo (_riverFlowPosTable / _getRiverFlowPos) del Modo Río.
+   * - Por defecto mantiene velocidad 1.0x para que la lectura sea limpia.
+   * - Solo de vez en cuando (mínimo ~10s entre eventos) y cuando la estructura musical lo pide
+   *   (pausas sincopadas antes de un golpe fuerte, caídas de estribillo o cambios de densidad en fases 3D),
+   *   ejecuta o bien una Parada en Seco en el aire (v = 0.0x durante ~200ms seguida de un impulso compensado)
+   *   o bien un cambio de velocidad musical (cámara lenta + acelerón al romper el compás) cuya integral
+   *   acumulada es exactamente 1.0x para que cada tecla aterrice en la línea de juicio en su milisegundo exacto.
+   */
+  _prepareMadnessFlowChoreography() {
+    const stepMs = 10;
+    const minT = -3000;
+    const notes = this.notes || [];
+    const nLen = notes.length;
+    const maxNoteT = nLen > 0 ? (notes[nLen - 1].end_timestamp_ms || notes[nLen - 1].timestamp_ms || 60000) : 60000;
+    const maxT = Math.max(60000, (this.lastNoteTime || maxNoteT) + 8000);
+    const numSteps = Math.ceil((maxT - minT) / stepMs) + 1;
+
+    this._riverFlowMinT = minT;
+    this._riverFlowStepMs = stepMs;
+    this._riverFlowPosTable = new Float64Array(numSteps);
+    this._riverSpeedMultTable = new Float32Array(numSteps);
+    this._riverSpeedMultTable.fill(1.0);
+
+    if (nLen < 8) {
+      for (let s = 1; s < numSteps; s++) {
+        this._riverFlowPosTable[s] = s * stepMs;
+      }
+      for (let i = 0; i < nLen; i++) {
+        const n = notes[i];
+        if (!n) continue;
+        const nt = n.timestamp_ms ?? n.timeMs ?? 0;
+        n._riverFlowPos = nt - minT;
+        if (n.type === 'hold') {
+          const endT = Number.isFinite(n.end_timestamp_ms) ? n.end_timestamp_ms : (nt + (n.duration_ms || 700));
+          n._riverFlowEndPos = endT - minT;
+        }
+      }
+      return;
+    }
+
+    const phases = (this._madnessPlan && Array.isArray(this._madnessPlan.phases)) ? this._madnessPlan.phases : [];
+    const isSafe3DWindow = (tStart, tEnd) => {
+      for (let p = 0; p < phases.length; p++) {
+        const ph = phases[p];
+        if (tEnd >= ph.startMs - 750 && tStart <= ph.endMs + 750) {
+          if (ph.mode === 'cruce' || ph.mode === 'pulso') return false;
+        }
+        // No cruzar transiciones de fase
+        if (Math.abs(tStart - ph.startMs) < 750 || Math.abs(tEnd - ph.startMs) < 750) return false;
+      }
+      // No interferir con rebotes Ping-Pong / Eco ni con notas Hold que estén siendo mantenidas durante la parada
+      for (let i = 0; i < nLen; i++) {
+        const n = notes[i];
+        if (!n) continue;
+        const nt = n.timestamp_ms ?? 0;
+        if (n._isPingPongServe || n._isPingPongBounce || n._isSplitPingPongRebound || n._isEchoRebound) {
+          if (nt >= tStart - 650 && nt <= tEnd + 650) return false;
+        }
+        if (n.type === 'hold') {
+          const hEnd = Number.isFinite(n.end_timestamp_ms) ? n.end_timestamp_ms : (nt + (n.duration_ms || 700));
+          if (nt < tEnd - 40 && hEnd > tStart + 40) return false;
+        }
+      }
+      return true;
+    };
+
+    // Calcular densidad media para detectar cuándo la canción rompe o pide un cambio de energía
+    const firstT = notes[0].timestamp_ms ?? 0;
+    const lastT = notes[nLen - 1].timestamp_ms ?? 30000;
+    const avgNps = Math.max(1.5, Math.min(7.5, nLen / Math.max(10, (lastT - firstT) / 1000)));
+
+    const events = [];
+    let lastEventEndMs = Math.max(2200, firstT + 1800);
+    const minCooldownMs = 9600; // Solo de vez en cuando (~cada 10-14 segundos como máximo)
+
+    for (let i = 2; i < nLen - 3; i++) {
+      const curN = notes[i];
+      const prevN = notes[i - 1];
+      if (!curN || !prevN || curN.isMine || prevN.isMine) continue;
+      const tHit = curN.timestamp_ms ?? 0;
+      const tPrev = prevN.timestamp_ms ?? 0;
+      if (tHit < lastEventEndMs + minCooldownMs) continue;
+      if (tHit > lastT - 2500) break;
+
+      const gapPrev = tHit - tPrev;
+      // Contar cuántas notas entran en los próximos 1.6s tras tHit (fuerza del ataque/estribillo)
+      let burstAfter = 0;
+      for (let j = i; j < nLen; j++) {
+        const tj = notes[j].timestamp_ms ?? 0;
+        if (tj > tHit + 1600) break;
+        if (!notes[j].isMine) burstAfter++;
+      }
+      const burstNps = burstAfter / 1.6;
+
+      // CASO A: "PARADA EN SECO" (Dead-Stop Freeze + Impulso al golpe)
+      // Cuando hay un respiro rítmico o síncopa (280ms..920ms) justo antes de una entrada marcada
+      if (gapPrev >= 280 && gapPrev <= 920 && burstNps >= avgNps * 0.85) {
+        const winDur = Math.min(640, Math.max(460, Math.round(gapPrev * 0.88)));
+        const tStart = tHit - winDur;
+        if (isSafe3DWindow(tStart, tHit + 250)) {
+          events.push({
+            type: 'dead_stop',
+            tStart,
+            tEnd: tHit,
+            freezeRatio: 0.36
+          });
+          lastEventEndMs = tHit;
+          continue;
+        }
+      }
+
+      // CASO B: "CAMBIO DE VELOCIDAD MUSICAL" (Frenada de tensión + Acelerón de estribillo/drop)
+      // Cuando la canción entra en una ráfaga intensa (burstNps >= 1.28 * avgNps)
+      if (burstNps >= avgNps * 1.28 && gapPrev >= 160) {
+        const winDur = 1280;
+        const tStart = tHit - 480;
+        const tEnd = tStart + winDur;
+        if (tStart > lastEventEndMs + minCooldownMs && isSafe3DWindow(tStart, tEnd + 200)) {
+          events.push({
+            type: (events.length % 2 === 0) ? 'slow_then_surge' : 'surge_then_calm',
+            tStart,
+            tEnd
+          });
+          lastEventEndMs = tEnd;
+        }
+      }
+    }
+
+    // Si la canción es muy uniforme y no disparó ningún evento aún, elegir hasta 2 momentos musicales limpios en fases 3D
+    if (events.length === 0 && nLen >= 16) {
+      const targets = [firstT + (lastT - firstT) * 0.34, firstT + (lastT - firstT) * 0.70];
+      for (let tIdx = 0; tIdx < targets.length; tIdx++) {
+        const targetMs = targets[tIdx];
+        for (let i = 2; i < nLen - 2; i++) {
+          const n = notes[i];
+          const prev = notes[i - 1];
+          if (!n || !prev || n.isMine) continue;
+          const nt = n.timestamp_ms ?? 0;
+          const gap = nt - (prev.timestamp_ms ?? 0);
+          if (nt >= targetMs && gap >= 220 && isSafe3DWindow(nt - 540, nt + 250)) {
+            events.push({
+              type: tIdx === 0 ? 'dead_stop' : 'slow_then_surge',
+              tStart: nt - 540,
+              tEnd: tIdx === 0 ? nt : (nt + 660),
+              freezeRatio: 0.34
+            });
+            break;
+          }
+        }
+      }
+    }
+
+    // Estampar cada evento en _riverSpeedMultTable conservando la integral exacta = (tEnd - tStart)
+    for (let eIdx = 0; eIdx < events.length; eIdx++) {
+      const ev = events[eIdx];
+      const s0 = Math.max(1, Math.round((ev.tStart - minT) / stepMs));
+      const s1 = Math.min(numSteps - 2, Math.round((ev.tEnd - minT) / stepMs));
+      const spanSteps = s1 - s0;
+      if (spanSteps < 20) continue;
+
+      if (ev.type === 'dead_stop') {
+        // 1) Parada en seco total (v = 0.00) en la primera parte de la ventana
+        // 2) Impulso suave tipo coseno alzado en la segunda parte para recuperar exactamente el tiempo congelado
+        const freezeSteps = Math.max(14, Math.min(24, Math.round(spanSteps * (ev.freezeRatio || 0.36))));
+        const rampDownSteps = 4;
+        const surgeSteps = spanSteps - freezeSteps - rampDownSteps;
+        if (surgeSteps < 12) continue;
+
+        let rawSum = 0;
+        for (let k = 0; k < spanSteps; k++) {
+          let v = 1.0;
+          if (k < rampDownSteps) {
+            const u = (k + 1) / rampDownSteps;
+            v = 0.5 * (1.0 + Math.cos(Math.PI * u)); // 1.0 -> 0.0
+          } else if (k < rampDownSteps + freezeSteps) {
+            v = 0.0; // PARADA EN SECO ABSOLUTA (0.00x)
+          } else {
+            const u = (k - rampDownSteps - freezeSteps) / surgeSteps;
+            // Pulso suave sin(pi * u) que arranca en 0, sube al pico y vuelve a 1.0 al golpear la nota
+            v = Math.sin(Math.PI * u);
+          }
+          this._riverSpeedMultTable[s0 + k] = v;
+          rawSum += v;
+        }
+        // Normalizar el tramo de impulso para que la integral media en [s0, s1] sea exactamente 1.000
+        let fixedSum = 0;
+        for (let k = 0; k < rampDownSteps + freezeSteps; k++) {
+          fixedSum += this._riverSpeedMultTable[s0 + k];
+        }
+        const neededSurgeSum = spanSteps - fixedSum;
+        let currentSurgeSum = 0;
+        for (let k = rampDownSteps + freezeSteps; k < spanSteps; k++) {
+          const u = (k - rampDownSteps - freezeSteps) / surgeSteps;
+          // Perfil que termina en 1.0 exacto en u = 1
+          const shape = Math.sin(Math.PI * u) * 1.35 + Math.pow(u, 1.4) * 0.65;
+          this._riverSpeedMultTable[s0 + k] = shape;
+          currentSurgeSum += shape;
+        }
+        if (currentSurgeSum > 0.001) {
+          const scale = neededSurgeSum / currentSurgeSum;
+          for (let k = rampDownSteps + freezeSteps; k < spanSteps; k++) {
+            this._riverSpeedMultTable[s0 + k] *= scale;
+          }
+        }
+        this._riverSpeedMultTable[s1] = 1.0;
+      } else {
+        // Cambio de velocidad musical C1-continuo (cámara lenta 0.35x -> acelerón 1.65x o viceversa) con integral = 1.0
+        const sign = (ev.type === 'slow_then_surge') ? -1.0 : 1.0;
+        const amp = 0.64;
+        for (let k = 0; k <= spanSteps; k++) {
+          const u = k / spanSteps;
+          // Onda de periodo completo ponderada por ventana de Hann: integral exacta = 1.0 y derivadas nulas en los bordes
+          const env = 0.5 - 0.5 * Math.cos(2.0 * Math.PI * u);
+          const wave = Math.sin(2.0 * Math.PI * u);
+          this._riverSpeedMultTable[s0 + k] = Math.max(0.18, 1.0 + sign * amp * wave * (0.65 + 0.35 * env));
+        }
+        // Ajuste fino de integral media = 1.0
+        let sumV = 0;
+        for (let k = 0; k < spanSteps; k++) sumV += this._riverSpeedMultTable[s0 + k];
+        const norm = spanSteps / Math.max(0.001, sumV);
+        for (let k = 0; k < spanSteps; k++) {
+          this._riverSpeedMultTable[s0 + k] *= norm;
+        }
+        this._riverSpeedMultTable[s1] = 1.0;
+      }
+    }
+
+    // Integración trapezoidal de alta precisión (stepMs = 10ms)
+    let smoothCum = 0.0;
+    this._riverFlowPosTable[0] = 0.0;
+    for (let s = 1; s < numSteps; s++) {
+      const v0 = this._riverSpeedMultTable[s - 1];
+      const v1 = this._riverSpeedMultTable[s];
+      smoothCum += 0.5 * (v0 + v1) * stepMs;
+      this._riverFlowPosTable[s] = smoothCum;
+    }
+
+    // Pre-cachear la posición de caudal de cada nota para que el renderizado sea O(1)
+    for (let i = 0; i < nLen; i++) {
+      const n = notes[i];
+      if (!n) continue;
+      const nt = n.timestamp_ms ?? n.timeMs ?? 0;
+      n._riverFlowPos = this._getRiverFlowPos(nt);
+      if (n.type === 'hold') {
+        const rawDur = Number.isFinite(n.duration_ms)
+          ? n.duration_ms
+          : (Number.isFinite(n.holdDuration)
+              ? (n.holdDuration > 50 ? n.holdDuration : n.holdDuration * 1000)
+              : (Number.isFinite(n.duration) ? (n.duration > 50 ? n.duration : n.duration * 1000) : 700));
+        const holdDuration = Math.max(150, Number.isFinite(rawDur) ? rawDur : 700);
+        const endT = Number.isFinite(n.end_timestamp_ms) ? n.end_timestamp_ms : (nt + holdDuration);
+        n._riverFlowEndPos = this._getRiverFlowPos(endT);
+      }
+    }
   },
 
   getActiveMadnessPhase(currentTimeMs) {

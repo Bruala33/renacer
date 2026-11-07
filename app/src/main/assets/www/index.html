@@ -2916,10 +2916,6 @@
             <canvas id="gmBtnCruceMainCanvas" class="w-full h-[40px] block"></canvas>
           </button>
 
-          <!-- Botón 2C: MODO SPLIT / PISTA VIVA (Pista 3D de 4 carriles con colapso 1-4, Split asimétrico, Ping-Pong y Holds trapezoidales + Candado LED 1000 Claves) -->
-          <button id="btnModeSelectSplit" onclick="confirmGameModeSelection('split')" class="w-full p-1 rounded-xl bg-[#04080f] border-2 border-[#10b981] hover:border-[#38bdf8] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
-            <canvas id="gmBtnSplitMainCanvas" class="w-full h-[40px] block"></canvas>
-          </button>
 
           <!-- Botón 1B: MODO 4 CARRILES (Igual que Normal pero con 4 carriles de precisión + Candado LED 1000 Claves) -->
           <button id="btnModeSelectFourLanes" onclick="confirmGameModeSelection('four_lanes')" class="w-full p-1 rounded-xl bg-[#04050b] border-2 border-[#252b63] hover:border-[#38bdf8] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[inset_0_0_14px_rgba(0,0,0,0.95)]">
@@ -8951,8 +8947,8 @@ window.switchMainTab = switchMainTab;
     window.onAppForeground = handleAppForeground;
 
     function applySelectedGameMode(mode) {
-      const normalized = mode === 'mushrooms' ? 'mushroom' : (mode === 'classic' ? 'normal' : mode);
-      const m = (normalized === 'karaoke' || normalized === 'storm' || normalized === 'mushroom' || normalized === 'highway' || normalized === 'annoying_dog' || normalized === 'river' || normalized === 'four_lanes' || normalized === 'minesweeper' || normalized === 'mirror' || normalized === 'echo' || normalized === 'osu_hybrid' || normalized === 'cruce' || normalized === 'split' || normalized === 'locura') ? normalized : 'normal';
+      const normalized = mode === 'mushrooms' ? 'mushroom' : (mode === 'classic' ? 'normal' : (mode === 'split' ? 'locura' : mode));
+      const m = (normalized === 'karaoke' || normalized === 'storm' || normalized === 'mushroom' || normalized === 'highway' || normalized === 'annoying_dog' || normalized === 'river' || normalized === 'four_lanes' || normalized === 'minesweeper' || normalized === 'mirror' || normalized === 'echo' || normalized === 'osu_hybrid' || normalized === 'cruce' || normalized === 'locura') ? normalized : 'normal';
       window.currentGameMode = m;
       window.isKaraokeModeActive = (m === 'karaoke');
       window.isStormModeActive = (m === 'storm');
@@ -14418,14 +14414,14 @@ function stopPianoCameraLoop() {
         };
 
         try {
-          const result = await Promise.any(orderedNodes.slice(0, 2).map(n => trySingleNode(n)));
+          const result = await Promise.any(orderedNodes.slice(0, 3).map(n => trySingleNode(n)));
           if (result && result.dlUrl) {
             window._ytMp3UrlCache.set(videoId, result);
             return result;
           }
         } catch (_) {
           try {
-            const fallbackRes = await Promise.any(orderedNodes.slice(2, 5).map(n => trySingleNode(n)));
+            const fallbackRes = await Promise.any(orderedNodes.slice(3, 6).map(n => trySingleNode(n)));
             if (fallbackRes && fallbackRes.dlUrl) {
               window._ytMp3UrlCache.set(videoId, fallbackRes);
               return fallbackRes;
@@ -14459,7 +14455,7 @@ function stopPianoCameraLoop() {
 
       if (typeof onFirstPlayableChunk === 'function') {
         const existingPartial = window._ytPartialBlobCache.get(videoId);
-        if (existingPartial && existingPartial.size >= 48000) {
+        if (existingPartial && existingPartial.size >= 24576) {
           try { onFirstPlayableChunk(existingPartial, false); } catch (_) {}
         }
         const list = window._ytChunkListeners.get(videoId) || [];
@@ -14533,7 +14529,7 @@ function stopPianoCameraLoop() {
                 if (value && value.byteLength > 0) {
                   chunks.push(value);
                   totalBytes += value.byteLength;
-                  if (!partialNotified && totalBytes >= 65536) {
+                  if (!partialNotified && totalBytes >= 28672) {
                     partialNotified = true;
                     const partialBlob = new Blob(chunks, { type: 'audio/mpeg' });
                     window._ytPartialBlobCache.set(videoId, partialBlob);
@@ -14589,16 +14585,17 @@ function stopPianoCameraLoop() {
       }
     }
 
-    // Pre-extracción silenciosa del primer resultado de YouTube para que preview y juego sean instantáneos
+    // Pre-extracción silenciosa de los primeros resultados de YouTube para que preview y juego sean instantáneos
     function prewarmYouTubeCandidatesClient(candidates) {
       if (!Array.isArray(candidates) || candidates.length === 0) return;
-      const firstYt = candidates.find(c => c && c.videoId);
-      if (!firstYt) return;
-      setTimeout(() => {
-        if (!isGameCurrentlyActive() && !window._fullTrackBlobCache.has(`yt_${firstYt.videoId}`)) {
-          extractYouTubeFullAudioViaNotubeClient(firstYt.videoId).catch(() => {});
-        }
-      }, 180);
+      const ytItems = candidates.filter(c => c && c.videoId).slice(0, 3);
+      ytItems.forEach((ytItem, idx) => {
+        setTimeout(() => {
+          if (!isGameCurrentlyActive() && !window._fullTrackBlobCache.has(`yt_${ytItem.videoId}`)) {
+            extractYouTubeFullAudioViaNotubeClient(ytItem.videoId).catch(() => {});
+          }
+        }, 120 + idx * 180);
+      });
     }
 
     async function searchSoundCloudFullClient(rawTitle, rawArtist = '', limit = 24) {
@@ -14911,9 +14908,187 @@ function stopPianoCameraLoop() {
       }
     }
 
+    window._ytInstantPreviewReady = false;
+    window._ytInstantPreviewPlayer = null;
+    window._ytInstantPreviewActive = false;
+    window._ytInstantPreviewCallbacks = null;
+
+    function ensureYouTubeInstantPreviewEngine() {
+      if (window._ytInstantPreviewPlayer && window._ytInstantPreviewReady) {
+        return Promise.resolve(window._ytInstantPreviewPlayer);
+      }
+      if (window._ytInstantPreviewInitPromise) {
+        return window._ytInstantPreviewInitPromise;
+      }
+      window._ytInstantPreviewInitPromise = new Promise((resolve) => {
+        let resolved = false;
+        const finish = (player) => {
+          if (resolved) return;
+          resolved = true;
+          resolve(player || null);
+        };
+        const timeoutId = setTimeout(() => finish(null), 2600);
+
+        const createHiddenPlayer = () => {
+          try {
+            if (!window.YT || !window.YT.Player) {
+              finish(null);
+              return;
+            }
+            let host = document.getElementById('ytInstantPreviewHost');
+            if (!host) {
+              host = document.createElement('div');
+              host.id = 'ytInstantPreviewHost';
+              host.style.cssText = 'position:fixed;left:-9999px;bottom:-9999px;width:1px;height:1px;opacity:0.01;pointer-events:none;overflow:hidden;z-index:-1;';
+              const inner = document.createElement('div');
+              inner.id = 'ytInstantPreviewIframe';
+              host.appendChild(inner);
+              document.body.appendChild(host);
+            }
+            window._ytInstantPreviewPlayer = new window.YT.Player('ytInstantPreviewIframe', {
+              width: '1',
+              height: '1',
+              playerVars: {
+                autoplay: 1,
+                controls: 0,
+                disablekb: 1,
+                fs: 0,
+                iv_load_policy: 3,
+                modestbranding: 1,
+                playsinline: 1,
+                rel: 0,
+                origin: window.location.origin
+              },
+              events: {
+                onReady: (ev) => {
+                  clearTimeout(timeoutId);
+                  window._ytInstantPreviewReady = true;
+                  try { ev.target.setVolume(92); } catch (_) {}
+                  finish(ev.target);
+                },
+                onStateChange: (ev) => {
+                  const cb = window._ytInstantPreviewCallbacks;
+                  if (!cb) return;
+                  // YT.PlayerState.PLAYING === 1, ENDED === 0
+                  if (ev.data === 1 && typeof cb.onPlaying === 'function') {
+                    cb.onPlaying();
+                  } else if (ev.data === 0 && typeof cb.onEnded === 'function') {
+                    cb.onEnded();
+                  }
+                },
+                onError: () => {
+                  const cb = window._ytInstantPreviewCallbacks;
+                  if (cb && typeof cb.onError === 'function') {
+                    cb.onError();
+                  }
+                }
+              }
+            });
+          } catch (_) {
+            clearTimeout(timeoutId);
+            finish(null);
+          }
+        };
+
+        if (window.YT && window.YT.Player) {
+          createHiddenPlayer();
+        } else {
+          const prevReady = window.onYouTubeIframeAPIReady;
+          window.onYouTubeIframeAPIReady = function() {
+            if (typeof prevReady === 'function') {
+              try { prevReady(); } catch (_) {}
+            }
+            createHiddenPlayer();
+          };
+          if (!document.getElementById('ytIframeApiScript')) {
+            const tag = document.createElement('script');
+            tag.id = 'ytIframeApiScript';
+            tag.src = 'https://www.youtube.com/iframe_api';
+            tag.async = true;
+            tag.onerror = () => {
+              clearTimeout(timeoutId);
+              finish(null);
+            };
+            document.head.appendChild(tag);
+          }
+        }
+      });
+      return window._ytInstantPreviewInitPromise;
+    }
+
+    // Pre-calentar en segundo plano el reproductor embebido ligero de YouTube para que al tocar una canción exclusiva de YT arranque en <180ms
+    setTimeout(() => {
+      try { ensureYouTubeInstantPreviewEngine(); } catch (_) {}
+    }, 900);
+
+    async function playYouTubeInstantEmbedPreview(videoId, sId, reqToken, startSec = 28) {
+      if (!videoId || window._previewRequestToken !== reqToken) return false;
+      const player = await ensureYouTubeInstantPreviewEngine();
+      if (!player || !window._ytInstantPreviewReady || window._previewRequestToken !== reqToken) return false;
+
+      pauseMenuAmbientMusic();
+
+      return new Promise((resolve) => {
+        let settled = false;
+        const finish = (ok) => {
+          if (settled) return;
+          settled = true;
+          resolve(ok);
+        };
+        const tid = setTimeout(() => finish(false), 1850);
+
+        window._ytInstantPreviewCallbacks = {
+          onPlaying: () => {
+            clearTimeout(tid);
+            if (window._previewRequestToken !== reqToken) {
+              try { player.stopVideo(); } catch (_) {}
+              finish(false);
+              return;
+            }
+            window._ytInstantPreviewActive = true;
+            pauseMenuAmbientMusic();
+            if (window._previewActiveThumbSid === sId) {
+              setThumbnailPreviewUiState(sId, 'playing');
+            }
+            finish(true);
+          },
+          onError: () => {
+            clearTimeout(tid);
+            window._ytInstantPreviewActive = false;
+            finish(false);
+          },
+          onEnded: () => {
+            if (window._previewRequestToken === reqToken) {
+              window.stopPreviewCandidateAudio();
+            }
+          }
+        };
+
+        try {
+          player.unMute();
+          player.setVolume(92);
+          player.loadVideoById({
+            videoId: String(videoId),
+            startSeconds: Math.max(0, Number(startSec) || 28)
+          });
+          player.playVideo();
+        } catch (_) {
+          clearTimeout(tid);
+          finish(false);
+        }
+      });
+    }
+
     window.stopPreviewCandidateAudio = function(resumeMenuBgm = true) {
-      const hadActivePreview = Boolean(window._previewAudioPlayer || window._previewActiveThumbSid);
+      const hadActivePreview = Boolean(window._previewAudioPlayer || window._ytInstantPreviewActive || window._previewActiveThumbSid);
       window._previewRequestToken = (window._previewRequestToken || 0) + 1;
+      window._ytInstantPreviewCallbacks = null;
+      if (window._ytInstantPreviewActive || (window._ytInstantPreviewPlayer && window._ytInstantPreviewReady)) {
+        window._ytInstantPreviewActive = false;
+        try {
+          window._ytInstantPreviewPlayer.pauseVideo();
+        } catch (_) {}
+      }
       if (window._previewAudioPlayer) {
         try {
           window._previewAudioPlayer.onplaying = null;
@@ -15138,12 +15313,22 @@ function stopPianoCameraLoop() {
       let ytOnlyPrewarmedCount = 0;
       setTimeout(() => {
         if (isGameCurrentlyActive()) return;
+        ensureYouTubeInstantPreviewEngine().catch(() => {});
         visibleSlice.forEach((item, idx) => {
           if (!item) return;
           const sId = safeSongId(item.id);
           const cand = item._preferredCandidate || (window._selectedMagicAudioCandidate && window._selectedMagicAudioCandidate[item.id]);
           const directPrev = (cand && cand.itunesPreviewUrl) || item.preview_url || '';
           const itemVid = (cand && cand.videoId) || item.video_id || (String(item.id || '').startsWith('magic_yt_') ? String(item.id).replace('magic_yt_', '') : '');
+          // Si ya es una tecla mágica de YouTube sin preview CDN conocida, arrancar en paralelo la pre-extracción en segundo plano para las primeras 4
+          if (itemVid && !directPrev && idx < 4 && ytOnlyPrewarmedCount < 4 && !window._fullTrackBlobCache.has(`yt_${itemVid}`)) {
+            ytOnlyPrewarmedCount++;
+            setTimeout(() => {
+              if (!isGameCurrentlyActive() && !window._fullTrackBlobCache.has(`yt_${itemVid}`)) {
+                extractYouTubeFullAudioViaNotubeClient(itemVid).catch(() => {});
+              }
+            }, 90 + idx * 140);
+          }
           setTimeout(() => {
             if (isGameCurrentlyActive()) return;
             resolveInstantChorusPreviewUrl(
@@ -15154,7 +15339,7 @@ function stopPianoCameraLoop() {
               item.bs_hash || '',
               sId,
               itemVid,
-              idx < 3
+              idx < 6
             ).then((res) => {
               if (!res || isGameCurrentlyActive()) return;
               if (res.url) {
@@ -15162,10 +15347,10 @@ function stopPianoCameraLoop() {
                   item.thumbnail = res.artworkUrl;
                   item.cover_url = res.artworkUrl;
                 }
-                // Pre-bufferizar los primeros 4 temas visibles en objetos Audio en memoria para que el toque sea 100% instantáneo (0ms)
-                if (idx < 4 && !window._prewarmedAudioElements.has(res.url)) {
+                // Pre-bufferizar los primeros 6 temas visibles en objetos Audio en memoria para que el toque sea 100% instantáneo (0ms)
+                if (idx < 6 && !window._prewarmedAudioElements.has(res.url)) {
                   try {
-                    if (window._prewarmedAudioElements.size >= 8) {
+                    if (window._prewarmedAudioElements.size >= 10) {
                       const oldestKey = window._prewarmedAudioElements.keys().next().value;
                       window._prewarmedAudioElements.delete(oldestKey);
                     }
@@ -15175,13 +15360,12 @@ function stopPianoCameraLoop() {
                     window._prewarmedAudioElements.set(res.url, preAudio);
                   } catch (_) {}
                 }
-              } else if (res.noCdn && itemVid && ytOnlyPrewarmedCount < 2 && !window._fullTrackBlobCache.has(`yt_${itemVid}`)) {
-                // Si la canción es exclusiva de YouTube (no está en Deezer ni iTunes, p. ej. Perreo Sanxe), pre-extraer en segundo plano las 2 primeras
+              } else if (res.noCdn && itemVid && ytOnlyPrewarmedCount < 5 && !window._fullTrackBlobCache.has(`yt_${itemVid}`)) {
                 ytOnlyPrewarmedCount++;
                 extractYouTubeFullAudioViaNotubeClient(itemVid).catch(() => {});
               }
             }).catch(() => {});
-          }, idx * 25);
+          }, idx * 20);
         });
       }, 10);
     };
@@ -15278,7 +15462,10 @@ function stopPianoCameraLoop() {
 
     // PREESCUCHA INSTANTÁNEA EN EL ESTRIBILLO AL TOCAR LA MINIATURA DE CUALQUIER CANCIÓN
     window.toggleThumbnailSongPreview = async function(songId, sId, title = '', artist = '', directPreviewUrl = '', bsHash = '', videoId = '') {
-      if (window._previewActiveThumbSid === sId && window._previewAudioPlayer && !window._previewAudioPlayer.paused) {
+      if (window._previewActiveThumbSid === sId && (
+        (window._previewAudioPlayer && !window._previewAudioPlayer.paused) ||
+        window._ytInstantPreviewActive
+      )) {
         window.stopPreviewCandidateAudio();
         return;
       }
@@ -15316,8 +15503,8 @@ function stopPianoCameraLoop() {
           if (ok) return;
         }
         const partialMemBlob = videoId ? window._ytPartialBlobCache.get(videoId) : null;
-        if (partialMemBlob && partialMemBlob.size >= 48000) {
-          const ok = await playUrlOrBlobInChorusPreview(partialMemBlob, sId, reqToken, 1.2);
+        if (partialMemBlob && partialMemBlob.size >= 24576) {
+          const ok = await playUrlOrBlobInChorusPreview(partialMemBlob, sId, reqToken, 1.0);
           if (ok) return;
         }
 
@@ -15329,13 +15516,19 @@ function stopPianoCameraLoop() {
           if (ok) return;
         }
 
-        // 2. Lanzar en paralelo la consulta rápida a IndexedDB y la resolución CDN (salvo que ya sepamos que es noCdn)
+        // 2. Lanzar en paralelo la consulta rápida a IndexedDB y la resolución CDN (con timeout corto de 360ms si ya tenemos videoId de YouTube para no demorar las canciones exclusivas de YT)
         const idbPromise = (typeof IndexedDBStorage !== 'undefined' && typeof IndexedDBStorage.getChart === 'function')
           ? IndexedDBStorage.getChart(strId).catch(() => null)
           : Promise.resolve(null);
 
         if (!syncCachedPreview || !syncCachedPreview.noCdn) {
-          const chorusCdn = await resolveInstantChorusPreviewUrl(strId, cleanTitle, cleanArtist, directPreviewUrl, bsHash, sId, videoId, true).catch(() => null);
+          const cdnPromise = resolveInstantChorusPreviewUrl(strId, cleanTitle, cleanArtist, directPreviewUrl, bsHash, sId, videoId, true).catch(() => null);
+          const chorusCdn = videoId
+            ? await Promise.race([
+                cdnPromise,
+                new Promise(r => setTimeout(() => r(null), 360))
+              ])
+            : await cdnPromise;
           if (window._previewRequestToken !== reqToken) return;
           if (chorusCdn && chorusCdn.url) {
             const ok = await playUrlOrBlobInChorusPreview(chorusCdn.url, sId, reqToken, chorusCdn.seekToChorus ? 'auto_chorus' : 0);
@@ -15374,7 +15567,8 @@ function stopPianoCameraLoop() {
           }
         }
 
-        // 5. Extracción ultrarrápida y streaming para canciones exclusivas de YouTube (como "Estrella del islam" - Perreo Sanxe)
+        // 5. Reproducción INSTANTÁNEA para canciones exclusivas de YouTube:
+        //    Arranca en <200ms directo desde el CDN de YouTube en el segundo 28 (estribillo) mientras en segundo plano se descarga el MP3 completo para jugar al instante
         const candidateVids = [];
         if (videoId) candidateVids.push(videoId);
         if (cleanTitle && candidateVids.length < 2) {
@@ -15390,12 +15584,27 @@ function stopPianoCameraLoop() {
         const baseUrl = (typeof getApiBaseUrl === 'function') ? getApiBaseUrl() : '';
         for (const targetVid of candidateVids.slice(0, 2)) {
           if (window._previewRequestToken !== reqToken) return;
+
+          // Lanzar la extracción MP3 en segundo plano inmediatamente para que esté en caché si el usuario pulsa Jugar
+          extractYouTubeFullAudioViaNotubeClient(targetVid).then(res => {
+            if (res && res.blob && res.blob.size >= 100000) {
+              window._fullTrackBlobCache.set(`yt_${targetVid}`, res.blob);
+              window._fullTrackBlobCache.set(normTitleArtistKey, res.blob);
+            }
+          }).catch(() => {});
+
+          // 5A. Reproductor instantáneo directo de YouTube CDN (<200ms de latencia sin esperar transcodificación)
+          const okInstantYt = await playYouTubeInstantEmbedPreview(targetVid, sId, reqToken, 28);
+          if (okInstantYt) return;
+          if (window._previewRequestToken !== reqToken) return;
+
+          // 5B. Respaldo por fragmentos MP3 si el vídeo tuviese inserción deshabilitada
           let started = false;
           const ytRes = await extractYouTubeFullAudioViaNotubeClient(targetVid, null, (chunkBlob, isFull) => {
             if (window._previewRequestToken !== reqToken) return;
             if (!started) {
               started = true;
-              playUrlOrBlobInChorusPreview(chunkBlob, sId, reqToken, isFull ? 'auto_chorus' : 1.2);
+              playUrlOrBlobInChorusPreview(chunkBlob, sId, reqToken, isFull ? 'auto_chorus' : 1.0);
             } else if (isFull && window._previewAudioPlayer) {
               window._previewAudioPlayer._upgradedFullBlob = chunkBlob;
             }
@@ -18219,7 +18428,6 @@ function stopPianoCameraLoop() {
     ];
     const VP_MODES = [
       { id: 'locura',       label: 'LOCURA',   desc: 'Coreografia total: 3D, Split, Cruce y Pulso', icon: 'X5', bg: 'bg-rose-100 border-rose-500 text-rose-950' },
-      { id: 'split',        label: 'SPLIT',    desc: 'Pista 3D viva con division y ping-pong', icon: '||', bg: 'bg-emerald-100 border-emerald-500 text-emerald-950' },
       { id: 'cruce',        label: 'CRUCE',    desc: 'Haz de juicio vivo y notas en ola', icon: '><', bg: 'bg-cyan-100 border-cyan-500 text-cyan-950' },
       { id: 'osu_hybrid',   label: 'PULSO',    desc: 'Aros táctiles y carriles por fases', icon: '(•)', bg: 'bg-sky-100 border-sky-500 text-sky-950' },
       { id: 'mirror',       label: 'OJEPSƎ',   desc: 'Carriles 1 y 3 cruzados', icon: '🪞', bg: 'bg-cyan-100 border-cyan-500 text-cyan-950' },
@@ -25024,12 +25232,6 @@ function stopPianoCameraLoop() {
           cruceLocked
         );
 
-        // M. ANIMACIÓN LED MODO SPLIT (PISTA VIVA): Pista 3D con Split central, Ping-Pong y Hold trapezoidal + Candado LED (@ 1000)
-        _renderSplitLedButton(
-          document.getElementById('gmBtnSplitMainCanvas'),
-          now,
-          splitLocked
-        );
 
         // N. ANIMACIÓN LED MODO LOCURA (MODO ESTRELLA): Fusión de los 5 modos + X3
         _renderLocuraLedButton(

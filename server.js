@@ -3899,29 +3899,17 @@ async function resolveSignedNotubeDownloadUrlServer(videoId, apiHost, webHost, u
   });
 
   let finalToken = d1.token;
-  let gotValidR2 = false;
+  const parseR2Json = async (resp) => {
+    if (!resp || !resp.ok) throw new Error('r2_not_ok');
+    const txt2 = await resp.text();
+    if (!txt2 || !txt2.trim().startsWith('{')) throw new Error('r2_not_json');
+    const d2 = JSON.parse(txt2);
+    if (!d2 || !d2.token) throw new Error('r2_no_token');
+    return d2.token;
+  };
   try {
-    const r2w = await fetch(myWorker(`${apiHost}/recover_file.php`), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-      body: body2.toString(),
-      signal: AbortSignal.timeout(6500)
-    });
-    if (r2w.ok) {
-      const txt2 = await r2w.text();
-      if (txt2 && txt2.trim().startsWith('{')) {
-        const d2 = JSON.parse(txt2);
-        if (d2 && d2.token) {
-          finalToken = d2.token;
-          gotValidR2 = true;
-        }
-      }
-    }
-  } catch (_) {}
-
-  if (!gotValidR2) {
-    try {
-      const r2 = await fetch(`${apiHost}/recover_file.php`, {
+    finalToken = await Promise.any([
+      fetch(`${apiHost}/recover_file.php`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -3930,17 +3918,16 @@ async function resolveSignedNotubeDownloadUrlServer(videoId, apiHost, webHost, u
           'Referer': `${webHost}/`
         },
         body: body2.toString(),
+        signal: AbortSignal.timeout(5500)
+      }).then(parseR2Json),
+      fetch(myWorker(`${apiHost}/recover_file.php`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+        body: body2.toString(),
         signal: AbortSignal.timeout(6000)
-      });
-      if (r2.ok) {
-        const txt2 = await r2.text();
-        if (txt2 && txt2.trim().startsWith('{')) {
-          const d2 = JSON.parse(txt2);
-          if (d2 && d2.token) finalToken = d2.token;
-        }
-      }
-    } catch (_) {}
-  }
+      }).then(parseR2Json)
+    ]);
+  } catch (_) {}
 
   let dlUrl = '';
   const downloadPageUrl = `${webHost}/es/download?token=${encodeURIComponent(finalToken)}`;
@@ -4706,8 +4693,8 @@ app.get('/api/v1/audio/stream_preview', async (req, res) => {
   const flushInitialAndWrite = (newChunk) => {
     if (closed) return;
     if (!headersFlushed) {
-      if (state.totalBytes < 36000 && !state.done) return;
-      if (state.error || (state.done && state.totalBytes < 36000)) {
+      if (state.totalBytes < 20480 && !state.done) return;
+      if (state.error || (state.done && state.totalBytes < 20480)) {
         closed = true;
         if (!res.headersSent) res.status(502).end();
         return;
