@@ -442,6 +442,54 @@ function sanitizeAndMergeProfileServer(existing, incoming, isOwnerVerified = tru
     ? inc.active_effect.trim().slice(0, 48)
     : (base.active_effect || 'solar_inferno');
 
+  // Fusión de UserMusicDNA (Vector 8D, likes, dislikes, 4 diales del algoritmo y filtro anti-fatiga)
+  const baseDna = (base.music_dna && typeof base.music_dna === 'object') ? base.music_dna : {};
+  const incDna = (inc.music_dna && typeof inc.music_dna === 'object') ? inc.music_dna : {};
+  const rawVec = Array.isArray(incDna.vector) && incDna.vector.length === 8
+    ? incDna.vector
+    : (Array.isArray(baseDna.vector) && baseDna.vector.length === 8 ? baseDna.vector : [0.55, 0.60, 0.65, 0.65, 0.50, 0.45, 0.55, 0.55]);
+  const cleanVector = rawVec.slice(0, 8).map(v => Math.max(0, Math.min(1, Number(v) || 0.5)));
+
+  const rawDials = (incDna.dials && typeof incDna.dials === 'object')
+    ? { ...(baseDna.dials || {}), ...incDna.dials }
+    : (baseDna.dials || {});
+  const cleanDials = {
+    discovery: Math.max(0, Math.min(100, Number(rawDials.discovery ?? 35))),
+    energy: Math.max(0, Math.min(100, Number(rawDials.energy ?? 60))),
+    era: Math.max(0, Math.min(100, Number(rawDials.era ?? 55))),
+    vocal: Math.max(0, Math.min(100, Number(rawDials.vocal ?? 50)))
+  };
+
+  const likesSet = new Set([
+    ...(Array.isArray(baseDna.likes) ? baseDna.likes : []),
+    ...(Array.isArray(incDna.likes) ? incDna.likes : []),
+    ...Array.from(favSet)
+  ].filter(x => typeof x === 'string' && x.length <= 140).slice(-300));
+
+  const dislikesSet = new Set([
+    ...(Array.isArray(baseDna.dislikes) ? baseDna.dislikes : []),
+    ...(Array.isArray(incDna.dislikes) ? incDna.dislikes : [])
+  ].filter(x => typeof x === 'string' && x.length <= 140 && !likesSet.has(x)).slice(-200));
+
+  const sessionBloomIds = Array.from(new Set([
+    ...(Array.isArray(baseDna.session_bloom_ids) ? baseDna.session_bloom_ids : []),
+    ...(Array.isArray(incDna.session_bloom_ids) ? incDna.session_bloom_ids : [])
+  ].filter(x => typeof x === 'string' && x.length <= 140))).slice(-100);
+
+  const music_dna = {
+    vector: cleanVector,
+    dials: cleanDials,
+    likes: Array.from(likesSet),
+    dislikes: Array.from(dislikesSet),
+    session_bloom_ids: sessionBloomIds,
+    total_swipes: Math.max(Number(baseDna.total_swipes) || 0, Number(incDna.total_swipes) || 0),
+    bandit_arms: (incDna.bandit_arms && typeof incDna.bandit_arms === 'object')
+      ? incDna.bandit_arms
+      : (baseDna.bandit_arms || {}),
+    last_liked_track: incDna.last_liked_track || baseDna.last_liked_track || null,
+    updated_at: new Date().toISOString()
+  };
+
   const resolvedPinHash = base.pin_hash || base.password_hash || inc.pin_hash || inc.password_hash || '';
   const resolvedAccountToken = String(base.account_token || inc.account_token || '').trim().slice(0, 80);
   return {
@@ -460,6 +508,7 @@ function sanitizeAndMergeProfileServer(existing, incoming, isOwnerVerified = tru
     favorite_records: Array.from(favRecordsMap.values()),
     playlists: Array.from(playlistsMap.values()),
     weekly_history,
+    music_dna,
     settings,
     updated_at: new Date().toISOString()
   };
@@ -4861,11 +4910,16 @@ app.get('/api/v1/audio/instant_preview', async (req, res) => {
         const sc = scoreCandidate(item.title || item.title_short || '', (item.artist && item.artist.name) || '');
         if (sc > bestScore) {
           bestScore = sc;
+          const cover600 = (item.album && (item.album.cover_big || item.album.cover_xl || item.album.cover_medium || item.album.cover)) || null;
           best = {
             previewUrl: item.preview,
-            artworkUrl: (item.album && (item.album.cover_medium || item.album.cover_big || item.album.cover)) || null,
+            artworkUrl: cover600,
+            artworkUrl600: cover600,
             title: item.title_short || item.title || cleanTitle,
             artist: (item.artist && item.artist.name) || cleanArtist,
+            artistId: item.artist && item.artist.id ? item.artist.id : null,
+            album: (item.album && item.album.title) || '',
+            durationSec: Number(item.duration) || 180,
             source: 'deezer'
           };
         }
@@ -4890,11 +4944,19 @@ app.get('/api/v1/audio/instant_preview', async (req, res) => {
         const sc = scoreCandidate(item.trackName || '', item.artistName || '');
         if (sc > bestScore) {
           bestScore = sc;
+          const art600 = item.artworkUrl100 ? item.artworkUrl100.replace('100x100bb', '600x600bb') : null;
+          const relYear = item.releaseDate ? parseInt(String(item.releaseDate).slice(0, 4), 10) : null;
           best = {
             previewUrl: item.previewUrl,
-            artworkUrl: item.artworkUrl100 ? item.artworkUrl100.replace('100x100bb', '300x300bb') : null,
+            artworkUrl: art600,
+            artworkUrl600: art600,
             title: item.trackName || cleanTitle,
             artist: item.artistName || cleanArtist,
+            album: item.collectionName || '',
+            genre: item.primaryGenreName || '',
+            releaseDate: item.releaseDate || '',
+            releaseYear: Number.isFinite(relYear) ? relYear : null,
+            durationSec: item.trackTimeMillis ? Math.round(item.trackTimeMillis / 1000) : 180,
             source: 'itunes'
           };
         }
@@ -4911,7 +4973,16 @@ app.get('/api/v1/audio/instant_preview', async (req, res) => {
       fetchDeezer(fullQ),
       fetchItunes(fullQ)
     ]);
-    const result = dzFull || itFull;
+    const result = (itFull && dzFull)
+      ? {
+          ...dzFull,
+          ...itFull,
+          previewUrl: itFull.previewUrl || dzFull.previewUrl,
+          artworkUrl: itFull.artworkUrl600 || dzFull.artworkUrl600 || itFull.artworkUrl || dzFull.artworkUrl,
+          artworkUrl600: itFull.artworkUrl600 || dzFull.artworkUrl600,
+          artistId: dzFull.artistId || null
+        }
+      : (itFull || dzFull);
     if (result && result.previewUrl) {
       instantPreviewMemoryCache.set(cacheKey, { ts: Date.now(), data: result });
       return res.json(result);
@@ -4936,6 +5007,165 @@ app.get('/api/v1/audio/instant_preview', async (req, res) => {
       noCdn: true,
       streamPreviewUrl: rawVideoId ? `/api/v1/audio/stream_preview?videoId=${encodeURIComponent(rawVideoId)}` : null
     });
+  }
+});
+
+// ==========================================
+// EXTERNAL MUSIC GRAPH SERVICE (iTunes, Deezer, MusicBrainz / ListenBrainz, Last.fm)
+// ==========================================
+const musicGraphSimilarCache = new Map();
+
+app.get('/api/v1/music-graph/similar', async (req, res) => {
+  const rawTitle = String(req.query.title || '').trim();
+  const rawArtist = String(req.query.artist || '').trim();
+  if (!rawTitle && !rawArtist) return res.json({ similarTracks: [], similarArtists: [] });
+
+  const cacheKey = `${rawTitle.toLowerCase()}__${rawArtist.toLowerCase()}`;
+  const cached = musicGraphSimilarCache.get(cacheKey);
+  if (cached && (Date.now() - cached.ts) < 30 * 60 * 1000) {
+    return res.json(cached.data);
+  }
+
+  const similarTracks = [];
+  const similarArtists = [];
+  const seenTracks = new Set();
+
+  const pushTrack = (tr) => {
+    if (!tr || !tr.title) return;
+    const k = `${String(tr.title).toLowerCase()}__${String(tr.artist || '').toLowerCase()}`;
+    if (seenTracks.has(k)) return;
+    seenTracks.add(k);
+    similarTracks.push(tr);
+  };
+
+  try {
+    // 1. Deezer Search -> Artist Related -> Top Tracks with 600x600 covers & instant 30s previews
+    const dzTask = (async () => {
+      try {
+        const q = `${rawTitle} ${rawArtist}`.trim();
+        const sResp = await axios.get(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=5`, { timeout: 2200 });
+        const hits = (sResp.data && Array.isArray(sResp.data.data)) ? sResp.data.data : [];
+        const primaryArtistId = hits[0]?.artist?.id;
+        if (primaryArtistId) {
+          const [relResp, topResp] = await Promise.allSettled([
+            axios.get(`https://api.deezer.com/artist/${primaryArtistId}/related?limit=8`, { timeout: 2000 }),
+            axios.get(`https://api.deezer.com/artist/${primaryArtistId}/top?limit=6`, { timeout: 2000 })
+          ]);
+          if (topResp.status === 'fulfilled' && Array.isArray(topResp.value.data?.data)) {
+            for (const t of topResp.value.data.data) {
+              pushTrack({
+                title: t.title_short || t.title,
+                artist: t.artist?.name || rawArtist,
+                previewUrl: t.preview || '',
+                artworkUrl600: t.album?.cover_big || t.album?.cover_xl || t.album?.cover_medium || '',
+                durationSec: Number(t.duration) || 180,
+                source: 'deezer_artist_top'
+              });
+            }
+          }
+          if (relResp.status === 'fulfilled' && Array.isArray(relResp.value.data?.data)) {
+            const relArtists = relResp.value.data.data.slice(0, 6);
+            for (const ra of relArtists) {
+              if (ra && ra.name) similarArtists.push({ name: ra.name, picture: ra.picture_big || ra.picture_medium || '' });
+            }
+            const relTopPromises = relArtists.slice(0, 3).map(ra =>
+              axios.get(`https://api.deezer.com/artist/${ra.id}/top?limit=3`, { timeout: 1800 }).catch(() => null)
+            );
+            const relTopResults = await Promise.all(relTopPromises);
+            for (const rtr of relTopResults) {
+              const arr = rtr?.data?.data;
+              if (Array.isArray(arr)) {
+                for (const t of arr) {
+                  pushTrack({
+                    title: t.title_short || t.title,
+                    artist: t.artist?.name || '',
+                    previewUrl: t.preview || '',
+                    artworkUrl600: t.album?.cover_big || t.album?.cover_xl || t.album?.cover_medium || '',
+                    durationSec: Number(t.duration) || 180,
+                    source: 'deezer_related_graph'
+                  });
+                }
+              }
+            }
+          }
+        }
+      } catch (_) {}
+    })();
+
+    // 2. MusicBrainz / ListenBrainz Recording & Tag Graph
+    const mbTask = (async () => {
+      try {
+        const mbQuery = rawArtist
+          ? `recording:"${rawTitle}" AND artist:"${rawArtist}"`
+          : `recording:"${rawTitle}"`;
+        const mbResp = await axios.get(`https://musicbrainz.org/ws/2/recording/?query=${encodeURIComponent(mbQuery)}&limit=4&fmt=json`, {
+          timeout: 2200,
+          headers: { 'User-Agent': 'PianoCommunity/5.5 (https://github.com/Bruala33/renacer)' }
+        });
+        const recs = mbResp.data?.recordings || [];
+        const tags = [];
+        for (const r of recs) {
+          if (Array.isArray(r.tags)) {
+            for (const tg of r.tags) {
+              if (tg && tg.name && !tags.includes(tg.name)) tags.push(tg.name);
+            }
+          }
+        }
+        if (tags.length > 0) {
+          const itTagResp = await axios.get(`https://itunes.apple.com/search?term=${encodeURIComponent(tags[0] + ' ' + (rawArtist || ''))}&media=music&entity=song&limit=8`, { timeout: 1800 });
+          const itList = itTagResp.data?.results || [];
+          for (const item of itList) {
+            if (!item || !item.previewUrl) continue;
+            pushTrack({
+              title: item.trackName,
+              artist: item.artistName,
+              previewUrl: item.previewUrl,
+              artworkUrl600: item.artworkUrl100 ? item.artworkUrl100.replace('100x100bb', '600x600bb') : '',
+              genre: item.primaryGenreName || tags[0] || '',
+              releaseYear: item.releaseDate ? parseInt(String(item.releaseDate).slice(0, 4), 10) : null,
+              durationSec: item.trackTimeMillis ? Math.round(item.trackTimeMillis / 1000) : 180,
+              source: 'musicbrainz_itunes_graph'
+            });
+          }
+        }
+      } catch (_) {}
+    })();
+
+    // 3. Last.fm Public Audioscrobbler Graph (if LASTFM_API_KEY configured or public fallback)
+    const lfmTask = (async () => {
+      try {
+        const lfmKey = process.env.LASTFM_API_KEY || 'b25b959554ed76058ac220b7b2e0a026';
+        const lfmUrl = `https://ws.audioscrobbler.com/2.0/?method=track.getsimilar&artist=${encodeURIComponent(rawArtist)}&track=${encodeURIComponent(rawTitle)}&api_key=${lfmKey}&format=json&limit=10`;
+        const lfmResp = await axios.get(lfmUrl, { timeout: 2000 });
+        const lfmTracks = lfmResp.data?.similartracks?.track;
+        if (Array.isArray(lfmTracks)) {
+          for (const lt of lfmTracks.slice(0, 8)) {
+            if (!lt || !lt.name) continue;
+            pushTrack({
+              title: lt.name,
+              artist: lt.artist?.name || rawArtist,
+              previewUrl: '',
+              artworkUrl600: '',
+              matchScore: Number(lt.match) || 0.8,
+              source: 'lastfm_similar'
+            });
+          }
+        }
+      } catch (_) {}
+    })();
+
+    await Promise.allSettled([dzTask, mbTask, lfmTask]);
+
+    const payload = {
+      similarTracks: similarTracks.slice(0, 24),
+      similarArtists: similarArtists.slice(0, 12)
+    };
+    if (similarTracks.length > 0) {
+      musicGraphSimilarCache.set(cacheKey, { ts: Date.now(), data: payload });
+    }
+    return res.json(payload);
+  } catch (err) {
+    return res.json({ similarTracks: [], similarArtists: [] });
   }
 });
 

@@ -25,7 +25,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css?v=27.0">
+  <link rel="stylesheet" href="./style.css?v=28.0">
   <script>
     // ===================================================
     // SISTEMA DE INTERNACIONALIZACIÓN (i18n: ES / EN)
@@ -33,7 +33,7 @@
     const TRANSLATIONS = {
       es: {
         app_title: 'Piano Community',
-        tab_search: 'Explorar',
+        tab_search: 'Buscador',
         tab_discover: 'Descubrir',
         tab_library: 'Mi Biblioteca',
         tab_editor: 'Editor',
@@ -339,7 +339,7 @@
       },
       en: {
         app_title: 'Piano Community',
-        tab_search: 'Explore',
+        tab_search: 'Search',
         tab_discover: 'Discover',
         tab_library: 'My Library',
         tab_editor: 'Editor',
@@ -1225,13 +1225,13 @@
         </div>
       </div>
 
-      <!-- Navigation Tabs -->
+      <!-- Navigation Tabs (HOME = DESCUBRIR | BUSCADOR | MI BIBLIOTECA | EDITOR) -->
       <div class="nav-tabs">
-        <div id="tabSearchBtn" onclick="switchMainTab('search')" class="nav-tab active" data-i18n="tab_search">
-          Explorar
-        </div>
-        <div id="tabDiscoverBtn" onclick="switchMainTab('discover')" class="nav-tab" data-i18n="tab_discover">
+        <div id="tabDiscoverBtn" onclick="switchMainTab('discover')" class="nav-tab active" data-i18n="tab_discover">
           Descubrir
+        </div>
+        <div id="tabSearchBtn" onclick="switchMainTab('search')" class="nav-tab" data-i18n="tab_search">
+          Buscador
         </div>
         <div id="tabLibraryBtn" onclick="switchMainTab('library')" class="nav-tab" data-i18n="tab_library">
           Mi Biblioteca
@@ -1241,8 +1241,8 @@
         </div>
       </div>
 
-      <!-- TAB 1: Search / Explore View -->
-      <div id="tabSearchSection" class="space-y-2.5" style="display: block;">
+      <!-- TAB 2: Buscador (Antiguo Explorar - Conservado Intacto) -->
+      <div id="tabSearchSection" class="hidden space-y-2.5 pb-24" style="display: none;">
 
         <!-- Buscador Unificado con Botón de 3 Rayas y Lupa Real a la Derecha -->
         <div class="relative">
@@ -1345,11 +1345,124 @@
         </div>
       </div>
 
-      <!-- TAB 2: Discover View (Tragaperras & Buscador de Playlists de YouTube) -->
-      <div id="tabDiscoverSection" class="hidden space-y-2.5 pb-6" style="display: none;">
+      <!-- TAB 1 (HOME PRINCIPAL): DESCUBRIR — Crate Digger, Dual-Stream, Analog DNA & Colecciones -->
+      <div id="tabDiscoverSection" class="space-y-3 pb-24" style="display: block;">
 
-        <!-- 1. Tragaperras & Canción del Día Video Poker (2 Botones Simétricos, Sin Desborde) -->
-        <div class="vegas-discover-slot-grid">
+        <!-- MÓDULO 2, 3 & 4: "CRATE DIGGER" — EL TINDER / TIKTOK DE VINILOS Y CASETES -->
+        <div id="crateDiggerSection" class="crate-digger-console">
+          <div class="crate-digger-header">
+            <div class="crate-digger-brand">
+              <span class="crate-digger-brand-title">Crate Digger · 1928 / 1977</span>
+              <span class="crate-digger-brand-sub">Dual-Stream Engine &amp; Analog DNA</span>
+            </div>
+            <div class="crate-digger-controls-bar">
+              <!-- Interruptor Vista Tarjetas Táctiles vs Feed Compacto -->
+              <div class="crate-mode-switch" title="Alternar entre Tarjetas Táctiles y Feed Compacto">
+                <button id="btnCrateViewCards" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.setViewMode('cards')" class="crate-mode-btn active">Tarjetas</button>
+                <button id="btnCrateViewCompact" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.setViewMode('compact')" class="crate-mode-btn">Feed</button>
+              </div>
+              <!-- Selector Físico Vinilo 1928 vs Casete 1977 -->
+              <div class="crate-mode-switch" title="Formato Analógico: Vinilo 1928 o Radiocasete 1977">
+                <button id="btnCrateMediumVinyl" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.setMediumMode('vinyl')" class="crate-mode-btn active">💿 1928</button>
+                <button id="btnCrateMediumCassette" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.setMediumMode('cassette')" class="crate-mode-btn">📼 1977</button>
+              </div>
+              <!-- Botón Afinar Mi Algoritmo (Amplificador de Válvulas) -->
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleTubeAmpPanel()" class="btn-tune-algorithm" title="Afinar Mi Algoritmo (UCB1 &amp; 8D Vector)">
+                <span>🎛️</span>
+                <span>Afinar</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- MÓDULO 4: PANEL DESPLEGABLE "AFINAR MI ALGORITMO" (AMPLIFICADOR DE VÁLVULAS CON 4 DIALES) -->
+          <div id="analogDnaTunerPanel" class="tube-amp-panel">
+            <div class="tube-amp-header">
+              <div>
+                <div class="text-[11px] font-black text-[#fff3d1] uppercase tracking-wider font-serif">🎛️ Afinar Mi Algoritmo · Steinway Tube Amp</div>
+                <div id="dnaProfileVectorSummary" class="text-[9.5px] text-[#cbb894] font-mono">Afinidad Principal: Clásico &amp; Piano · 0 swipes</div>
+              </div>
+              <div class="tube-glow-row" title="Válvulas de Vacío 12AX7 Activas">
+                <div class="vacuum-tube-bulb"></div>
+                <div class="vacuum-tube-bulb"></div>
+                <div class="vacuum-tube-bulb"></div>
+              </div>
+            </div>
+
+            <div class="tube-dials-grid">
+              <!-- Dial 1: Nivel de Descubrimiento -->
+              <div class="tube-dial-card">
+                <div class="tube-dial-top">
+                  <span class="tube-dial-name">1. Nivel Descubrimiento</span>
+                  <span id="dialVal_discovery" class="tube-dial-val">Equilibrado (45%)</span>
+                </div>
+                <div class="tube-dial-knob-row">
+                  <div class="rotary-knob-visual"><div id="knobIndicator_discovery" class="rotary-knob-indicator"></div></div>
+                  <input id="dialInput_discovery" type="range" min="0" max="100" value="45" oninput="window.DiscoverHomeApp && window.DiscoverHomeApp.onDialChange('discovery', this.value)" class="tube-dial-slider">
+                </div>
+                <div class="tube-dial-Sublabels">
+                  <span>Mis gustos seguros</span>
+                  <span>Sorpréndeme (UCB1)</span>
+                </div>
+              </div>
+
+              <!-- Dial 2: Energía / BPM -->
+              <div class="tube-dial-card">
+                <div class="tube-dial-top">
+                  <span class="tube-dial-name">2. Energía / BPM</span>
+                  <span id="dialVal_energy" class="tube-dial-val">55% · 116 BPM</span>
+                </div>
+                <div class="tube-dial-knob-row">
+                  <div class="rotary-knob-visual"><div id="knobIndicator_energy" class="rotary-knob-indicator"></div></div>
+                  <input id="dialInput_energy" type="range" min="0" max="100" value="55" oninput="window.DiscoverHomeApp && window.DiscoverHomeApp.onDialChange('energy', this.value)" class="tube-dial-slider">
+                </div>
+                <div class="tube-dial-Sublabels">
+                  <span>Balada / Chill</span>
+                  <span>Frenético / Virtuoso</span>
+                </div>
+              </div>
+
+              <!-- Dial 3: Década / Época -->
+              <div class="tube-dial-card">
+                <div class="tube-dial-top">
+                  <span class="tube-dial-name">3. Década / Época</span>
+                  <span id="dialVal_era" class="tube-dial-val">80s / 90s Vintage</span>
+                </div>
+                <div class="tube-dial-knob-row">
+                  <div class="rotary-knob-visual"><div id="knobIndicator_era" class="rotary-knob-indicator"></div></div>
+                  <input id="dialInput_era" type="range" min="0" max="100" value="50" oninput="window.DiscoverHomeApp && window.DiscoverHomeApp.onDialChange('era', this.value)" class="tube-dial-slider">
+                </div>
+                <div class="tube-dial-Sublabels">
+                  <span>Clásico 1928-70s</span>
+                  <span>Moderno 2020s</span>
+                </div>
+              </div>
+
+              <!-- Dial 4: Vocal vs. Instrumental -->
+              <div class="tube-dial-card">
+                <div class="tube-dial-top">
+                  <span class="tube-dial-name">4. Vocal vs. Instrum.</span>
+                  <span id="dialVal_vocal" class="tube-dial-val">Híbrido (50%)</span>
+                </div>
+                <div class="tube-dial-knob-row">
+                  <div class="rotary-knob-visual"><div id="knobIndicator_vocal" class="rotary-knob-indicator"></div></div>
+                  <input id="dialInput_vocal" type="range" min="0" max="100" value="50" oninput="window.DiscoverHomeApp && window.DiscoverHomeApp.onDialChange('vocal', this.value)" class="tube-dial-slider">
+                </div>
+                <div class="tube-dial-Sublabels">
+                  <span>🎹 Piano Solo</span>
+                  <span>🎤 Voz Principal</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Escenario de Tarjetas Táctiles (Swipe Deck) o Feed Compacto -->
+          <div id="crateDiggerStageContainer">
+            <!-- Inyectado dinámicamente por DiscoverHomeApp -->
+          </div>
+        </div>
+
+        <!-- MÓDULO 6.1: ACCESOS DIRECTOS SUPERIORES (TRAGAPERRAS | CANCIÓN DEL DÍA | MI MIX DIARIO) -->
+        <div class="vegas-discover-slot-grid-3">
           <button id="btnSlotBet" type="button" onclick="openGranFortuna('bet')" class="btn-vegas-led cursor-pointer">
             <span>🎰</span>
             <span data-i18n="slot_btn_bet">Tragaperras</span>
@@ -1358,10 +1471,43 @@
             <span>🃏</span>
             <span data-i18n="slot_btn_daily_poker">Canción del Día</span>
           </button>
+          <button id="btnDailyMix" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.playDailyMix()" class="btn-vegas-led cursor-pointer" title="Generar cola continua personalizada con tu ADN Musical">
+            <span>📻</span>
+            <span>Mi Mix Diario</span>
+          </button>
         </div>
 
-        <!-- 2. Buscador Limpio de Playlists de YouTube -->
+        <!-- MÓDULO 6.2: CARRUSELES HORIZONTALES INTELIGENTES ESTILO SPOTIFY -->
+        <div class="discover-carousel-section">
+          <div class="discover-carousel-header">
+            <span id="becauseYouLikedHeaderTitle" class="discover-carousel-title">✨ Porque te gustó tus favoritos</span>
+            <span class="discover-carousel-badge">Similitud Coseno 8D</span>
+          </div>
+          <div id="carouselBecauseYouLiked" class="discover-carousel-scroll"></div>
+        </div>
+
+        <div class="discover-carousel-section">
+          <div class="discover-carousel-header">
+            <span class="discover-carousel-title">🧭 Descubrimiento Semanal</span>
+            <span class="discover-carousel-badge">Multi-Armed Bandit</span>
+          </div>
+          <div id="carouselWeeklyDiscovery" class="discover-carousel-scroll"></div>
+        </div>
+
+        <div class="discover-carousel-section">
+          <div class="discover-carousel-header">
+            <span class="discover-carousel-title">📀 Tus Playlists Creadas</span>
+            <button type="button" onclick="switchMainTab('library'); switchLibrarySubtab('playlists');" class="discover-carousel-badge cursor-pointer hover:bg-amber-500/20 transition">Gestionar →</button>
+          </div>
+          <div id="carouselUserPlaylists" class="discover-carousel-scroll"></div>
+        </div>
+
+        <!-- 2. Buscador Limpio de Playlists de YouTube y Filtros (Conservado Intacto) -->
         <div class="vegas-marquee-panel p-2.5 space-y-2">
+          <div class="flex items-center justify-between px-1">
+            <span class="text-[11px] font-black text-[#fff3d1] uppercase tracking-wider font-serif">📺 Colecciones y Buscador de Playlists de YouTube</span>
+            <span class="text-[9px] font-mono text-[#c5a059] uppercase">🎧 Escuchar · 🎹 Jugar</span>
+          </div>
           <div class="unified-search-bar">
             <input 
               id="discoverPlaylistSearchInput" 
@@ -4662,6 +4808,133 @@
       </div>
     </div>
 
+    <!-- MÓDULO 5.1: MINI-REPRODUCTOR PERSISTENTE ESTILO SPOTIFY (BRONCE Y CRISTAL OSCURO) -->
+    <div id="spotifyMiniPlayer" class="spotify-mini-player" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openNowPlayingModal()">
+      <div class="mini-player-progress-track">
+        <div id="miniPlayerProgressFill" class="mini-player-progress-fill" style="width: 0%;"></div>
+      </div>
+      <div id="miniPlayerVinylDisc" class="mini-player-vinyl-thumb">
+        <img id="miniPlayerCoverImg" src="./app_logo.png" alt="Cover" onerror="this.onerror=null; this.src='./app_logo.png';">
+      </div>
+      <div class="mini-player-info">
+        <div class="flex items-center gap-1.5">
+          <div id="miniPlayerTitle" class="mini-player-title">Selecciona una pista</div>
+          <span id="miniPlayerStreamBadge" class="px-1.5 py-0.2 rounded text-[7.5px] font-mono font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 flex-shrink-0">⚡ PREVIEW</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span id="miniPlayerArtist" class="mini-player-artist">Chopin &amp; Co · Steinway 1977</span>
+          <span id="miniPlayerTimeText" class="text-[8.5px] font-mono text-gray-400 flex-shrink-0">0:00 / 0:30</span>
+        </div>
+      </div>
+      <div class="mini-player-actions" onclick="event.stopPropagation();">
+        <button id="miniPlayerLikeBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleLikeCurrentPlaying(event)" class="mini-player-icon-btn" title="Guardar en Tus Me Gusta">♡</button>
+        <button id="miniPlayerPlayPauseBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.togglePlayPauseMini(event)" class="mini-player-icon-btn play-pause" title="Reproducir / Pausar">▶</button>
+        <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.nextTrackMini(event)" class="mini-player-icon-btn" title="Siguiente pista">⏭</button>
+        <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.playPianoFromNowPlaying(event)" class="mini-player-play-game-btn" title="Jugar al Piano con esta canción">
+          <span>🎹</span>
+          <span>JUGAR</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- MÓDULO 5.2: VISTA AMPLIADA "NOW PLAYING" — TOCADISCOS A PANTALLA COMPLETA -->
+    <div id="nowPlayingTurntableModal" class="now-playing-modal-overlay">
+      <div class="now-playing-header">
+        <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.closeNowPlayingModal()" class="w-9 h-9 rounded-full bg-white/5 border border-[#c5a059]/40 text-[#f3d791] flex items-center justify-center font-black cursor-pointer">▼</button>
+        <div class="text-center">
+          <div class="text-[9px] font-mono uppercase tracking-widest text-[#c5a059]">Reproduciendo desde tu ADN Musical</div>
+          <div id="npHeaderPhaseBadge" class="text-[10.5px] font-black text-[#fff3d1] font-serif">⚡ PREVIEW INSTANTÁNEO</div>
+        </div>
+        <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.createRadioFromNowPlaying()" class="px-2.5 py-1.5 rounded-full bg-amber-500/15 border border-[#c5a059]/50 text-[#f3d791] text-[10px] font-black cursor-pointer" title="Crear Radio infinita basada en esta canción">📻 Radio</button>
+      </div>
+
+      <div class="now-playing-body">
+        <!-- Tocadiscos Interactivo 1928 con Aguja Móvil -->
+        <div id="npTurntablePlatterInteractive" class="np-turntable-stage" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.onTurntablePlatterScratch(event)" title="Toca cualquier surco del vinilo para mover la aguja a ese compás">
+          <div id="npTurntableVinylDisc" class="np-turntable-vinyl">
+            <div class="np-turntable-label">
+              <img id="npTurntableCoverImg" src="./app_logo.png" alt="Cover" onerror="this.onerror=null; this.src='./app_logo.png';">
+            </div>
+          </div>
+          <div class="crate-tonearm-assembly">
+            <div class="crate-tonearm-pivot"></div>
+            <div id="npTurntableTonearmRod" class="crate-tonearm-rod" style="transform: rotate(18deg);">
+              <div class="crate-tonearm-headshell"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Vúmetros Analógicos Duales -->
+        <div class="crate-vu-meters-row w-full max-w-[340px]">
+          <div class="crate-vu-box">
+            <div class="crate-vu-scale"></div>
+            <div id="npVuNeedleL" class="crate-vu-needle"></div>
+            <span class="crate-vu-label">VU LEFT · dB</span>
+          </div>
+          <div class="crate-vu-box">
+            <div class="crate-vu-scale"></div>
+            <div id="npVuNeedleR" class="crate-vu-needle"></div>
+            <span class="crate-vu-label">VU RIGHT · dB</span>
+          </div>
+        </div>
+
+        <!-- Información de la Pista -->
+        <div class="text-center space-y-1 px-2">
+          <h2 id="npTrackTitle" class="text-lg font-black text-[#fff6df] font-serif leading-tight">Selecciona una canción</h2>
+          <p id="npTrackArtist" class="text-xs font-bold text-[#cbb894]">Artista</p>
+          <p id="npTrackMetaTags" class="text-[10px] font-mono text-amber-300/90">120 BPM · 1980s · ★ 3.5</p>
+        </div>
+
+        <!-- Barra de Progreso / Scrubber de Aguja -->
+        <div class="np-scrubber-box">
+          <input id="npTurntableScrubSlider" type="range" min="0" max="100" step="0.1" value="0" oninput="window.DiscoverHomeApp && window.DiscoverHomeApp.onNowPlayingScrub(this.value)" class="np-scrubber-slider" title="Mover aguja por la canción">
+          <div class="np-time-row">
+            <span id="npCurrentTimeText">0:00</span>
+            <span class="text-[#c5a059]">AGUJA DE VINILO INTERACTIVA</span>
+            <span id="npDurationTimeText">0:30</span>
+          </div>
+        </div>
+
+        <!-- Controles Principales de Transporte -->
+        <div class="np-transport-row">
+          <button id="npSmartShuffleBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleSmartShuffle()" class="np-transport-btn active" title="Smart Shuffle (pond. por Similitud de Coseno)">🔀</button>
+          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.prevTrackModal()" class="np-transport-btn" title="Anterior">⏮</button>
+          <button id="npPlayPauseMainBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.togglePlayPauseMini()" class="np-transport-btn main-play" title="Reproducir / Pausar">▶</button>
+          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.nextTrackMini()" class="np-transport-btn" title="Siguiente">⏭</button>
+          <button id="npLikeBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleLikeCurrentPlaying()" class="np-transport-btn" title="Me Gusta">♡</button>
+        </div>
+
+        <!-- Botón Central: TOCAR EN VIVO EN CUALQUIER COMPÁS -->
+        <div class="w-full max-w-[340px] pt-1">
+          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.playPianoFromNowPlaying()" class="crate-play-piano-btn w-full" style="height: 48px;">
+            <span class="text-base">🎹</span>
+            <span>¡TOCAR EN VIVO AL PIANO! (BUFFER LISTO)</span>
+          </button>
+        </div>
+
+        <!-- Acciones Extra: Guardar en Playlist / Ver Cola -->
+        <div class="crate-secondary-actions w-full max-w-[340px]">
+          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openAddToPlaylistFromNowPlaying()" class="crate-sec-btn">
+            <span>➕</span>
+            <span>Guardar en Playlist</span>
+          </button>
+          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleNowPlayingQueueDrawer()" class="crate-sec-btn">
+            <span>📜</span>
+            <span>Cola de Reproducción</span>
+          </button>
+        </div>
+
+        <!-- Cola de Reproducción Desplegable -->
+        <div id="npQueueDrawerSection" class="np-queue-drawer hidden">
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-[10px] font-black uppercase tracking-wider text-[#f3d791]">Siguiente en tu Cola Continua</span>
+            <span class="text-[9px] font-mono text-gray-400">Dual-Stream Pre-Fetch</span>
+          </div>
+          <div id="npQueueListContainer" class="space-y-1"></div>
+        </div>
+      </div>
+    </div>
+
   </div> <!-- End of game-viewport -->
 
   <script src="./parsers.js?v=54.0"></script>
@@ -4671,13 +4944,14 @@
   <script src="./songs/comm_camilo_sesto/chart.js"></script>
   <script src="./songs/renacer/chart.js"></script>
   <script src="./songs/catalog_top.js"></script>
+  <script src="./discover_home.js?v=55.0"></script>
   <script>
     let engine = null;
     let currentActiveBeatmap = null;
     let currentActiveChartItem = null;
     let currentActiveAudioBlob = null;
     let toastTimeout = null;
-    let currentActiveTab = 'search';
+    let currentActiveTab = 'discover';
     let currentLibrarySubtab = 'downloads';
     let highscores = {};
     let searchResultsCache = [];
@@ -6911,6 +7185,9 @@
       if (typeof currentActiveTab !== 'undefined' && currentActiveTab === 'library') {
         renderCurrentLibrarySubtab();
       }
+      if (window.dualStreamEngine && typeof window.dualStreamEngine.restoreAfterGameplay === 'function') {
+        window.dualStreamEngine.restoreAfterGameplay();
+      }
       if (typeof resumeMenuAmbientMusic === 'function') resumeMenuAmbientMusic();
 
       if (wasDailyPokerSession && typeof window.openDailyVideoPoker === 'function') {
@@ -7356,6 +7633,16 @@
           if (engine) engine._scoreAlreadySaved = true;
           const songId = currentActiveBeatmap?.communityChartId || currentActiveBeatmap?.metadata?.id || currentActiveBeatmap?.id || 'song';
           const isNewRecord = saveHighscore(songId, score, stars, maxCombo, finalMedal, scorePct);
+          if (window.UserMusicDNA && currentActiveBeatmap && accuracyPct >= 80) {
+            try {
+              window.UserMusicDNA.recordHighAccuracyPlay({
+                id: songId,
+                title: currentActiveBeatmap?.title || currentActiveBeatmap?.metadata?.title || 'Pista',
+                artist: currentActiveBeatmap?.artist || currentActiveBeatmap?.metadata?.artist || 'Artista',
+                bpm: currentActiveBeatmap?.bpm || currentActiveBeatmap?.metadata?.bpm || 120
+              }, accuracyPct);
+            } catch (_) {}
+          }
           if (window._isPlayingDailyVideoPoker && typeof window.handleDailyVideoPokerGameEnd === 'function') {
             window._justFinishedDailyVideoPoker = true;
             window.handleDailyVideoPokerGameEnd(score, accuracyPct, maxCombo, stars);
@@ -7409,6 +7696,12 @@
       executeSearch();
       renderCurrentLibrarySubtab();
       loadDailyFeaturedSongs();
+      if (typeof window.initDiscoverFeed === 'function') {
+        window.initDiscoverFeed();
+      }
+      if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.init === 'function') {
+        window.DiscoverHomeApp.init();
+      }
       checkWeeklyTournamentRewards();
     });
 
@@ -7537,6 +7830,9 @@ function switchMainTab(tab) {
     }
     if (typeof window.initDiscoverFeed === 'function') {
       window.initDiscoverFeed();
+    }
+    if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.renderCarousels === 'function') {
+      window.DiscoverHomeApp.renderCarousels();
     }
   } else if (tab === 'library') {
     if (libraryTabBtn) libraryTabBtn.classList.add('active');
@@ -8772,6 +9068,10 @@ window.switchMainTab = switchMainTab;
         return;
       }
       if (window.isCasinoActive) return;
+      if (window.dualStreamEngine && typeof window.dualStreamEngine.isPlaying === 'function' && window.dualStreamEngine.isPlaying()) {
+        pauseMenuAmbientMusic();
+        return;
+      }
       if ((window._previewAudioPlayer && !window._previewAudioPlayer.paused) || window._previewActiveThumbSid) {
         pauseMenuAmbientMusic();
         return;
@@ -8816,6 +9116,7 @@ window.switchMainTab = switchMainTab;
     function resumeMenuAmbientMusic() {
       // En el editor de canciones o durante una preescucha NUNCA puede sonar la música de menú
       if (isEditorActive()) return;
+      if (window.dualStreamEngine && typeof window.dualStreamEngine.isPlaying === 'function' && window.dualStreamEngine.isPlaying()) return;
       if ((window._previewAudioPlayer && !window._previewAudioPlayer.paused) || window._previewActiveThumbSid) return;
       // Si el casino o la pestaña descubrir están activos, NUNCA reanudar música de menú
       if (window.isCasinoActive) return;
@@ -13070,6 +13371,9 @@ function stopPianoCameraLoop() {
       window._modeAlreadyChosenForThisLaunch = false;
 
       if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
+      if (window.dualStreamEngine && typeof window.dualStreamEngine.pauseForGameplayWithFade === 'function') {
+        window.dualStreamEngine.pauseForGameplayWithFade(200);
+      }
 
       // Ocultar inmediatamente menús de catálogo y limpiar líricas anteriores para evitar cualquier parpadeo de 1s
       const searchScreen = document.getElementById('searchScreen');
@@ -17880,7 +18184,10 @@ function stopPianoCameraLoop() {
                 <p class="text-[10px] text-[#cbb894] truncate">${escapeHtml(pl.author || 'YouTube')} · <span class="text-amber-300">${escapeHtml(String(pl.videoCount || 'Playlist'))}</span></p>
               </div>
             </div>
-            <button type="button" class="vegas-play-fab flex-shrink-0" title="Abrir Playlist">▶</button>
+            <div class="yt-collection-dual-btns">
+              <button type="button" onclick="event.stopPropagation(); window.DiscoverHomeApp && window.DiscoverHomeApp.playYouTubeCollectionContinuous('${safeId}', '${safeTitle}')" class="yt-col-btn listen" title="Enviar playlist entera al reproductor continuo">🎧 Reproducir Playlist</button>
+              <button type="button" onclick="event.stopPropagation(); importCuratedPlaylist('${safeId}', '${safeTitle}')" class="yt-col-btn play-piano" title="Abrir playlist para jugar al piano">🎹 Jugar</button>
+            </div>
           </div>
         `;
       }).join('');
@@ -20582,6 +20889,9 @@ function stopPianoCameraLoop() {
       window.isGameLoadingOrActive = true;
       if (typeof stopCasinoMusic === 'function') stopCasinoMusic();
       if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
+      if (window.dualStreamEngine && typeof window.dualStreamEngine.pauseForGameplayWithFade === 'function') {
+        window.dualStreamEngine.pauseForGameplayWithFade(200);
+      }
       if (!window._launchingFromSlot) {
         window.currentFeaturedSongX2 = false;
       }
@@ -20741,31 +21051,26 @@ function stopPianoCameraLoop() {
         }
         if (!chartData) throw new Error('Esta pista aún no está disponible en los releases de producción.');
 
-        // 3. Descargar Audio MP3 con prioridad al tag donde se encontró el chart
-        if (loadStatus) loadStatus.innerText = 'Descargando audio de alta fidelidad...';
-        const audioFilename = songMeta.audio_url || `${rawId}.mp3`;
+        // 3. Reutilizar Buffer Dual-Stream si ya fue pre-cargado en segundo plano, o descargar Audio MP3
         let audioBlob = null;
+        if (window._fullTrackBlobCache && (window._fullTrackBlobCache.get(`top_${rawId}`) || window._fullTrackBlobCache.get(rawId))) {
+          audioBlob = window._fullTrackBlobCache.get(`top_${rawId}`) || window._fullTrackBlobCache.get(rawId);
+          if (loadStatus) loadStatus.innerText = 'Inyectando buffer Dual-Stream pre-cargado...';
+        }
+        const audioFilename = songMeta.audio_url || `${rawId}.mp3`;
         const audioTags = chartFoundTag ? [chartFoundTag, ...releaseTags.filter(t => t !== chartFoundTag)] : releaseTags;
 
-        for (const tag of audioTags) {
-          const aUrl = `https://github.com/Bruala33/renacer/releases/download/${tag}/${audioFilename}`;
-          try {
-            const primaryAudioUrl = isAndroidWebView ? aUrl : myWorker(aUrl);
-            let aRes = await fetch(primaryAudioUrl);
-            if (!aRes.ok && aRes.status !== 404) {
-              const fallbackAudioUrl = isAndroidWebView ? myWorker(aUrl) : aUrl;
-              aRes = await fetch(fallbackAudioUrl);
-            }
-            if (aRes.ok) {
-              const b = await aRes.blob();
-              if (b && b.size > 20000) {
-                audioBlob = b;
-                break;
-              }
-            }
-          } catch (_) {
+        if (!audioBlob) {
+          if (loadStatus) loadStatus.innerText = 'Descargando audio de alta fidelidad...';
+          for (const tag of audioTags) {
+            const aUrl = `https://github.com/Bruala33/renacer/releases/download/${tag}/${audioFilename}`;
             try {
-              const aRes = await fetch(myWorker(aUrl));
+              const primaryAudioUrl = isAndroidWebView ? aUrl : myWorker(aUrl);
+              let aRes = await fetch(primaryAudioUrl);
+              if (!aRes.ok && aRes.status !== 404) {
+                const fallbackAudioUrl = isAndroidWebView ? myWorker(aUrl) : aUrl;
+                aRes = await fetch(fallbackAudioUrl);
+              }
               if (aRes.ok) {
                 const b = await aRes.blob();
                 if (b && b.size > 20000) {
@@ -20773,7 +21078,18 @@ function stopPianoCameraLoop() {
                   break;
                 }
               }
-            } catch (_) {}
+            } catch (_) {
+              try {
+                const aRes = await fetch(myWorker(aUrl));
+                if (aRes.ok) {
+                  const b = await aRes.blob();
+                  if (b && b.size > 20000) {
+                    audioBlob = b;
+                    break;
+                  }
+                }
+              } catch (_) {}
+            }
           }
         }
         if (!audioBlob) throw new Error('No se pudo descargar el archivo de audio de la pista.');
@@ -22539,6 +22855,9 @@ function stopPianoCameraLoop() {
           favorite_records: Array.from(favRecordsById.values()),
           playlists: cleanPlaylists,
           weekly_history: weeklyHist,
+          music_dna: (window.UserMusicDNA && typeof window.UserMusicDNA.exportSnapshot === 'function')
+            ? window.UserMusicDNA.exportSnapshot()
+            : null,
           settings: {
             lang: localStorage.getItem('beatstar_lang') || 'es',
             note_speed: localStorage.getItem('beatstar_note_speed') || '1.0',
@@ -22685,6 +23004,17 @@ function stopPianoCameraLoop() {
           }
 
           await refreshIndexedDbSnapshotCaches();
+
+          // 5.5. Restaurar ADN Musical (Analog DNA Engine: Vector 8D, Diales, Likes, Dislikes, Bandit)
+          if (prof.music_dna && window.UserMusicDNA && typeof window.UserMusicDNA.importFromCloudProfile === 'function') {
+            try {
+              window.UserMusicDNA.importFromCloudProfile(prof.music_dna);
+              if (window.DiscoverHomeApp) {
+                window.DiscoverHomeApp.syncDialsUIFromState();
+                window.DiscoverHomeApp.renderCarousels();
+              }
+            } catch (_) {}
+          }
 
           // 6. Ajustes, Ruleta y Pity
           if (prof.settings && typeof prof.settings === 'object') {
