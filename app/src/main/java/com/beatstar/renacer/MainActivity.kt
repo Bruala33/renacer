@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
@@ -19,6 +20,7 @@ import android.view.WindowManager
 import android.webkit.ConsoleMessage
 import android.webkit.JavascriptInterface
 import android.webkit.PermissionRequest
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -29,6 +31,8 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
 import androidx.webkit.WebViewAssetLoader
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.InputStream
@@ -43,6 +47,41 @@ class MainActivity : AppCompatActivity() {
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
     private val FILE_CHOOSER_REQUEST_CODE = 1001
     private lateinit var assetLoader: WebViewAssetLoader
+    private var forceSoftwareLayer: Boolean = false
+
+    private fun isRunningOnEmulator(): Boolean {
+        val fp = Build.FINGERPRINT.lowercase(Locale.ROOT)
+        val model = Build.MODEL.lowercase(Locale.ROOT)
+        val manuf = Build.MANUFACTURER.lowercase(Locale.ROOT)
+        val brand = Build.BRAND.lowercase(Locale.ROOT)
+        val device = Build.DEVICE.lowercase(Locale.ROOT)
+        val product = Build.PRODUCT.lowercase(Locale.ROOT)
+        val hardware = Build.HARDWARE.lowercase(Locale.ROOT)
+        return fp.startsWith("generic") ||
+            fp.startsWith("unknown") ||
+            model.contains("google_sdk") ||
+            model.contains("emulator") ||
+            model.contains("android sdk built for") ||
+            model.contains("sdk_gphone") ||
+            manuf.contains("genymotion") ||
+            (brand.startsWith("generic") && device.startsWith("generic")) ||
+            product.contains("sdk") ||
+            product.contains("emulator") ||
+            product.contains("vbox") ||
+            hardware.contains("goldfish") ||
+            hardware.contains("ranchu") ||
+            hardware.contains("cuttlefish") ||
+            hardware.contains("vsoc")
+    }
+
+    private fun hasDrmRenderNode(): Boolean {
+        if (isRunningOnEmulator()) return false
+        return try {
+            File("/dev/dri/renderD128").exists()
+        } catch (_: Exception) {
+            false
+        }
+    }
 
     companion object {
         private val CORS_HEADERS = mapOf(
@@ -113,60 +152,6 @@ class MainActivity : AppCompatActivity() {
                 .removePrefix("www/")
                 .removePrefix("static/")
                 .substringBefore('?')
-            val isLiveSyncCoreFile = cleanRel == "game.html" ||
-                cleanRel == "index.html" ||
-                cleanRel == "game.js" ||
-                cleanRel == "parsers.js" ||
-                cleanRel == "style.css" ||
-                cleanRel == "styles.css" ||
-                cleanRel == "editor.js" ||
-                cleanRel == "slot_machine.js" ||
-                cleanRel == "gachapon_3d.js"
-
-            if (isLiveSyncCoreFile) {
-                val liveDir = File(context.filesDir, "live_www")
-                val cachedFile = File(liveDir, if (cleanRel == "game.html") "index.html" else cleanRel)
-                val mime = guessMimeType(cleanRel)
-                val encoding = "UTF-8"
-
-                // 1. Intentar descargar la última versión en vivo de renacer.onrender.com (con timeout corto para no bloquear)
-                try {
-                    val remoteName = if (cleanRel == "game.html") "index.html" else if (cleanRel == "styles.css") "style.css" else cleanRel
-                    val remoteUrl = URL("https://renacer.onrender.com/$remoteName?t=${System.currentTimeMillis()}")
-                    val conn = (remoteUrl.openConnection() as HttpURLConnection).apply {
-                        requestMethod = "GET"
-                        connectTimeout = 2200
-                        readTimeout = 3500
-                        useCaches = false
-                        setRequestProperty("Accept-Encoding", "identity")
-                        setRequestProperty("Cache-Control", "no-cache")
-                    }
-                    if (conn.responseCode == 200) {
-                        val bytes = conn.inputStream.use { it.readBytes() }
-                        if (bytes.size > 512) {
-                            try {
-                                if (!liveDir.exists()) liveDir.mkdirs()
-                                cachedFile.writeBytes(bytes)
-                            } catch (_: Exception) {}
-                            return WebResourceResponse(mime, encoding, 200, "OK", CORS_HEADERS, ByteArrayInputStream(bytes))
-                        }
-                    }
-                } catch (_: Exception) {
-                    // Sin conexión o servidor despertando: usar caché sincronizada si es más reciente que el APK
-                }
-
-                // 2. Si hay una versión sincronizada guardada en disco más reciente que la instalación del APK, servirla offline
-                try {
-                    val pkgTime = try {
-                        context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime
-                    } catch (_: Exception) {
-                        0L
-                    }
-                    if (cachedFile.exists() && cachedFile.length() > 512L && cachedFile.lastModified() > pkgTime) {
-                        return WebResourceResponse(mime, encoding, 200, "OK", CORS_HEADERS, cachedFile.inputStream())
-                    }
-                } catch (_: Exception) {}
-            }
 
             val candidates = linkedSetOf<String>()
             if (cleanRel == "game.html") {
@@ -309,9 +294,15 @@ class MainActivity : AppCompatActivity() {
             .addPathHandler("/", silentHandler)
             .build()
 
+        val initialLayerType = if (forceSoftwareLayer) {
+            View.LAYER_TYPE_SOFTWARE
+        } else {
+            View.LAYER_TYPE_HARDWARE
+        }
+
         webView = WebView(this).apply {
             setBackgroundColor(Color.parseColor("#06040A"))
-            setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            setLayerType(initialLayerType, null)
             isFocusable = true
             isFocusableInTouchMode = true
             overScrollMode = View.OVER_SCROLL_NEVER
@@ -340,7 +331,7 @@ class MainActivity : AppCompatActivity() {
             mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
         }
 
-        webView.addJavascriptInterface(WebAppInterface(this), "AndroidNative")
+        webView.addJavascriptInterface(WebAppInterface(this, forceSoftwareLayer), "AndroidNative")
 
         webView.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(
@@ -429,6 +420,23 @@ class MainActivity : AppCompatActivity() {
                         view.loadUrl("file:///android_asset/www/index.html")
                     }
                 }
+            }
+
+            override fun onRenderProcessGone(
+                view: WebView?,
+                detail: RenderProcessGoneDetail?
+            ): Boolean {
+                Log.w("BeatstarApp", "WebView render process gone; switching to software layer recovery")
+                forceSoftwareLayer = true
+                try {
+                    view?.destroy()
+                } catch (_: Exception) {}
+                window?.decorView?.post {
+                    if (!isFinishing && !isDestroyed) {
+                        recreate()
+                    }
+                }
+                return true
             }
         }
 
@@ -580,7 +588,7 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    class WebAppInterface(private val context: Context) {
+    class WebAppInterface(private val context: Context, private val isSoftMode: Boolean = false) {
         private val hapticExecutor = Executors.newSingleThreadExecutor()
         private val vibrator: Vibrator? by lazy {
             try {
@@ -629,6 +637,9 @@ class MainActivity : AppCompatActivity() {
 
         @JavascriptInterface
         fun isAndroidNative(): Boolean = true
+
+        @JavascriptInterface
+        fun isSoftwareRendered(): Boolean = isSoftMode
 
         @JavascriptInterface
         fun openBrowser(url: String) {

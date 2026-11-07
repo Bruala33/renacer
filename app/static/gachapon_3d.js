@@ -238,13 +238,20 @@
       this.leverPullProgress = 0;
 
       if (typeof THREE !== 'undefined') {
-        this._initThreeScene();
-        this._buildMaterials();
-        this._buildMachineGeometry();
-        this._populateCapsules(28);
-        this._buildDispensingCapsuleRig();
-        this._buildBurstParticles();
-        this._bindPointerInteraction();
+        try {
+          this._initThreeScene();
+          if (this.renderer) {
+            this._buildMaterials();
+            this._buildMachineGeometry();
+            this._populateCapsules(28);
+            this._buildDispensingCapsuleRig();
+            this._buildBurstParticles();
+            this._bindPointerInteraction();
+          }
+        } catch (err) {
+          console.warn('[Gachapon3D] WebGL fallback (sin rendernode GPU):', err);
+          this.renderer = null;
+        }
       }
     }
 
@@ -264,9 +271,10 @@
 
       this.renderer = new THREE.WebGLRenderer({
         canvas: this.canvas,
-        antialias: true,
+        antialias: false,
         alpha: true,
-        powerPreference: 'high-performance'
+        powerPreference: 'default',
+        failIfMajorPerformanceCaveat: false
       });
       this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       this.renderer.setSize(w, h, false);
