@@ -402,12 +402,19 @@
       this.userVector = [0.55, 0.60, 0.62, 0.65, 0.52, 0.45, 0.58, 0.58];
       this.sessionPenaltyVector = [0, 0, 0, 0, 0, 0, 0, 0];
 
-      // 4 Diales del Amplificador de Válvulas (0 a 100)
+      // 4 Preferencias Musicales (0 a 100) + Opciones "No me importa" (dontCare)
       this.dials = {
         discovery: 35, // 0 = Mis gustos seguros, 100 = Sorpréndeme (UCB1 exploration)
         energy: 60,    // 0 = Calma/Adagio, 100 = Alta Energía/Presto
         era: 55,       // 0 = Vintage 1928-1977, 50 = 80s-90s, 100 = Actual 2000s-2026
         vocal: 55      // 0 = Instrumental/Piano Solo, 100 = Vocal/Himnos
+      };
+
+      this.dontCare = {
+        era: false,
+        energy: false,
+        vocal: false,
+        discovery: false
       };
 
       this.likes = new Set();
@@ -445,6 +452,12 @@
           this.dials.era = Math.max(0, Math.min(100, Number(data.dials.era ?? 55)));
           this.dials.vocal = Math.max(0, Math.min(100, Number(data.dials.vocal ?? 55)));
         }
+        if (data.dontCare && typeof data.dontCare === 'object') {
+          this.dontCare.era = Boolean(data.dontCare.era);
+          this.dontCare.energy = Boolean(data.dontCare.energy);
+          this.dontCare.vocal = Boolean(data.dontCare.vocal);
+          this.dontCare.discovery = Boolean(data.dontCare.discovery);
+        }
         if (Array.isArray(data.likes)) this.likes = new Set(data.likes);
         if (Array.isArray(data.dislikes)) this.dislikes = new Set(data.dislikes);
         if (Array.isArray(data.session_bloom_ids)) {
@@ -479,6 +492,7 @@
       return {
         vector: this.userVector.map(v => +Number(v).toFixed(4)),
         dials: { ...this.dials },
+        dontCare: { ...this.dontCare },
         likes: Array.from(this.likes).slice(-300),
         dislikes: Array.from(this.dislikes).slice(-200),
         session_bloom_ids: this.bloomFilter.exportIds(),
@@ -502,6 +516,14 @@
           vocal: Math.max(0, Math.min(100, Number(musicDnaObj.dials.vocal ?? this.dials.vocal)))
         };
       }
+      if (musicDnaObj.dontCare && typeof musicDnaObj.dontCare === 'object') {
+        this.dontCare = {
+          era: Boolean(musicDnaObj.dontCare.era ?? this.dontCare.era),
+          energy: Boolean(musicDnaObj.dontCare.energy ?? this.dontCare.energy),
+          vocal: Boolean(musicDnaObj.dontCare.vocal ?? this.dontCare.vocal),
+          discovery: Boolean(musicDnaObj.dontCare.discovery ?? this.dontCare.discovery)
+        };
+      }
       if (Array.isArray(musicDnaObj.likes)) {
         for (const l of musicDnaObj.likes) this.likes.add(String(l));
       }
@@ -517,10 +539,6 @@
       this.saveToStorage(false);
     }
 
-    /**
-     * Codifica cualquier canción en el Vector Normalizado de 8 Dimensiones:
-     * [BPM_Norm, Energy, Era_Decade, Vocal_Weight, Rock_Affinity, Electronic_Affinity, Pop_Latin_Affinity, Classical_Piano_Affinity]
-     */
     encodeTrackVector(track) {
       if (track && Array.isArray(track._dnaVector8D) && track._dnaVector8D.length === 8) {
         return track._dnaVector8D;
@@ -530,13 +548,11 @@
       const genre = String(track?.genre || track?.category || '').toLowerCase();
       const combined = `${title} ${artist} ${genre}`;
 
-      // 1. BPM Normalizado (corrigiendo BPMs doblados de UltraStar como 280-400 -> 90-180)
       let rawBpm = Number(track?.bpm) || 120;
       while (rawBpm > 205) rawBpm *= 0.5;
       while (rawBpm < 58) rawBpm *= 2.0;
       const bpmNorm = Math.max(0.08, Math.min(0.98, (rawBpm - 60) / 135));
 
-      // 2. Afinidades de Género (Dimensiones 4, 5, 6, 7)
       let rockAff = 0.15;
       let elecAff = 0.12;
       let popLatinAff = 0.20;
@@ -555,7 +571,6 @@
         classicalPianoAff = 0.95;
       }
 
-      // 3. Peso Vocal vs Instrumental (Dimensión 3)
       let vocalWeight = 0.78;
       if (classicalPianoAff >= 0.85 && !/\b(sinatra|billy joel|elton john|elvis|queen|ray charles|nina simone)\b/i.test(combined)) {
         vocalWeight = 0.08;
@@ -565,7 +580,6 @@
         vocalWeight = 0.30;
       }
 
-      // 4. Década / Época (Dimensión 2: 0.0 = Clásico/Pre-1970, 0.35 = 1970s, 0.55 = 1980s-90s, 0.88 = 2010s-2020s)
       let eraDecade = 0.65;
       const year = Number(track?.releaseYear) || 0;
       if (year > 1900) {
@@ -580,7 +594,6 @@
         eraDecade = 0.92;
       }
 
-      // 5. Energía (Dimensión 1)
       let energy = (bpmNorm * 0.45) + (rockAff * 0.25) + (elecAff * 0.25) + 0.15;
       if (/\b(nocturne|clair de lune|gymnopedie|lullaby|balada|wonderful world|can't help falling|my way|river flows|nuvole bianche|abrazame)\b/i.test(combined)) {
         energy = Math.min(energy, 0.32);
@@ -615,28 +628,26 @@
       return 'pop_latin';
     }
 
-    /**
-     * Calcula el Vector Objetivo Efectivo combinando el UserMusicDNA aprendido
-     * con los 4 Diales del Amplificador de Válvulas.
-     */
     getEffectiveTargetVector() {
       const u = [...this.userVector];
-      const energyDialNorm = this.dials.energy / 100; // 0..1
-      const eraDialNorm = this.dials.era / 100;       // 0..1
-      const vocalDialNorm = this.dials.vocal / 100;   // 0..1
+      const energyDialNorm = this.dials.energy / 100;
+      const eraDialNorm = this.dials.era / 100;
+      const vocalDialNorm = this.dials.vocal / 100;
 
-      // Modular dimensiones con los diales activos (peso 55% dial + 45% ADN histórico)
-      u[0] = Math.max(0.05, Math.min(0.98, u[0] * 0.45 + energyDialNorm * 0.55));
-      u[1] = Math.max(0.05, Math.min(0.98, u[1] * 0.40 + energyDialNorm * 0.60));
-      u[2] = Math.max(0.05, Math.min(0.98, u[2] * 0.40 + eraDialNorm * 0.60));
-      u[3] = Math.max(0.05, Math.min(0.98, u[3] * 0.35 + vocalDialNorm * 0.65));
-
-      // Si el dial Vocal se gira hacia Instrumental (< 35%), potenciar Classical_Piano_Affinity
-      if (vocalDialNorm < 0.35) {
-        u[7] = Math.min(0.98, u[7] + (0.35 - vocalDialNorm) * 0.85);
+      if (!this.dontCare.energy) {
+        u[0] = Math.max(0.05, Math.min(0.98, u[0] * 0.45 + energyDialNorm * 0.55));
+        u[1] = Math.max(0.05, Math.min(0.98, u[1] * 0.40 + energyDialNorm * 0.60));
+      }
+      if (!this.dontCare.era) {
+        u[2] = Math.max(0.05, Math.min(0.98, u[2] * 0.40 + eraDialNorm * 0.60));
+      }
+      if (!this.dontCare.vocal) {
+        u[3] = Math.max(0.05, Math.min(0.98, u[3] * 0.35 + vocalDialNorm * 0.65));
+        if (vocalDialNorm < 0.35) {
+          u[7] = Math.min(0.98, u[7] + (0.35 - vocalDialNorm) * 0.85);
+        }
       }
 
-      // Restar penalización de sesión para sub-estilos descartados recientemente
       for (let i = 0; i < 8; i++) {
         u[i] = Math.max(0.05, Math.min(0.98, u[i] - (this.sessionPenaltyVector[i] || 0)));
       }
@@ -644,14 +655,65 @@
     }
 
     /**
-     * Similitud de Coseno Real en 8 Dimensiones:
-     * cos(theta) = (A · B) / (||A|| * ||B||)
+     * Calcula el vector centroide 8D de todas las canciones de una playlist
      */
-    cosineSimilarity(vecA, vecB) {
+    computePlaylistCentroidVector(tracks = [], playlistTitle = '') {
+      if (!Array.isArray(tracks) || tracks.length === 0) {
+        if (playlistTitle) {
+          return this.encodeTrackVector({ title: playlistTitle, artist: '', genre: playlistTitle });
+        }
+        return this.getEffectiveTargetVector();
+      }
+      const sum = [0, 0, 0, 0, 0, 0, 0, 0];
+      let validCount = 0;
+      for (const tr of tracks) {
+        if (!tr) continue;
+        const v = this.encodeTrackVector(tr);
+        for (let i = 0; i < 8; i++) {
+          sum[i] += Number(v[i]) || 0.5;
+        }
+        validCount++;
+      }
+      if (validCount === 0) return this.getEffectiveTargetVector();
+      return sum.map(val => +(val / validCount).toFixed(3));
+    }
+
+    /**
+     * Puntúa una canción específicamente para una Playlist X basándose en todas las canciones de esa playlist
+     */
+    scoreTrackForPlaylist(track, playlistObj, centroidVec = null) {
+      if (!track) return 0;
+      const plTracks = Array.isArray(playlistObj?.tracks) ? playlistObj.tracks : [];
+      const effCentroid = centroidVec || this.computePlaylistCentroidVector(plTracks, playlistObj?.title || '');
+      const trackVec = this.encodeTrackVector(track);
+      const cosSim = this.cosineSimilarity(effCentroid, trackVec, true);
+
+      let artistBonus = 0;
+      const trackArtist = String(track.artist || '').toLowerCase().trim();
+      if (trackArtist && plTracks.length > 0) {
+        const sameArtist = plTracks.some(pt => {
+          const pa = String(pt?.artist || '').toLowerCase().trim();
+          return pa && (pa.includes(trackArtist) || trackArtist.includes(pa));
+        });
+        if (sameArtist) artistBonus = 0.16;
+      }
+
+      let penalty = 0;
+      if (this.dislikes.has(String(track.id))) penalty = 0.35;
+
+      return cosSim + artistBonus - penalty;
+    }
+
+    cosineSimilarity(vecA, vecB, ignoreDontCare = false) {
       let dot = 0;
       let normA = 0;
       let normB = 0;
       for (let i = 0; i < 8; i++) {
+        if (!ignoreDontCare) {
+          if (this.dontCare.energy && (i === 0 || i === 1)) continue;
+          if (this.dontCare.era && i === 2) continue;
+          if (this.dontCare.vocal && i === 3) continue;
+        }
         const a = Number(vecA[i]) || 0;
         const b = Number(vecB[i]) || 0;
         dot += a * b;
@@ -662,30 +724,24 @@
       return Math.max(0, Math.min(1, dot / (Math.sqrt(normA) * Math.sqrt(normB))));
     }
 
-    /**
-     * Puntúa una canción combinando Similitud de Coseno 8D + Algoritmo Multi-Armed Bandit (UCB1)
-     */
     scoreTrackForRecommendation(track, targetVec = null) {
       const effUserVec = targetVec || this.getEffectiveTargetVector();
       const trackVec = this.encodeTrackVector(track);
-      const cosSim = this.cosineSimilarity(effUserVec, trackVec);
+      const cosSim = this.cosineSimilarity(effUserVec, trackVec, false);
 
       const cluster = track._dnaCluster || 'pop_latin';
       const arm = this.banditArms[cluster] || { pulls: 2, rewardSum: 1.2 };
       const totalPulls = Object.values(this.banditArms).reduce((acc, a) => acc + (a.pulls || 1), 0);
 
-      // Coeficiente de exploración c controlado por el Dial 1 (Nivel de Descubrimiento: 0 = Seguro, 100 = Sorpréndeme)
-      const discoveryRatio = this.dials.discovery / 100;
+      const discoveryRatio = this.dontCare.discovery ? 0.55 : (this.dials.discovery / 100);
       const c = 0.15 + discoveryRatio * 1.45;
       const meanReward = arm.rewardSum / Math.max(1, arm.pulls);
       const ucbBonus = Math.min(1.25, meanReward + c * Math.sqrt((2 * Math.log(totalPulls + 1)) / Math.max(1, arm.pulls)));
 
-      // Ponderación híbrida entre explotación (Coseno) y exploración (UCB1)
       const exploitWeight = 1 - (discoveryRatio * 0.48);
       const exploreWeight = discoveryRatio * 0.48;
       let finalScore = (cosSim * exploitWeight) + ((ucbBonus / 1.25) * exploreWeight);
 
-      // Penalizar si fue descartada explícitamente
       if (this.dislikes.has(String(track.id))) {
         finalScore -= 0.35;
       }
@@ -700,7 +756,6 @@
       const vec = this.encodeTrackVector(track);
       for (let i = 0; i < 8; i++) {
         this.userVector[i] = Math.max(0.05, Math.min(0.98, this.userVector[i] * (1 - learningRate) + vec[i] * learningRate));
-        // Relajar penalización de sesión en dimensiones reforzadas positivamente
         this.sessionPenaltyVector[i] = Math.max(0, (this.sessionPenaltyVector[i] || 0) * 0.65);
       }
       const cluster = track._dnaCluster || 'pop_latin';
@@ -779,19 +834,221 @@
     setDial(dialName, value) {
       if (!(dialName in this.dials)) return;
       this.dials[dialName] = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+      if (dialName in this.dontCare) {
+        this.dontCare[dialName] = false;
+      }
+      this.saveToStorage(true);
+    }
+
+    setDontCare(dimKey, isDontCare) {
+      if (!(dimKey in this.dontCare)) return;
+      this.dontCare[dimKey] = Boolean(isDontCare);
       this.saveToStorage(true);
     }
   }
 
   // =========================================================================
-  // 4. DUAL-STREAM AUDIO ENGINE (PREVIEW <100ms + PRECARGA HD + CROSSFADE + MEDIA SESSION)
+  // 3B. KARAOKE LYRICS SERVICE (SINCRONIZACIÓN EN TIEMPO REAL ESTILO KARAOKE)
+  // =========================================================================
+  class KaraokeLyricsService {
+    constructor() {
+      this.cache = new Map();
+      this.inflight = new Map();
+      this.currentLyrics = [];
+      this.currentTrackKey = '';
+      this.activeLineIndex = -1;
+    }
+
+    _makeKey(track) {
+      const t = String(track?.title || '').toLowerCase().trim();
+      const a = String(track?.artist || '').toLowerCase().trim();
+      return `${t}__${a}`;
+    }
+
+    _cleanSearchTerm(str) {
+      return String(str || '')
+        .replace(/\(.*?\)|\[.*?\]/g, '')
+        .replace(/\b(official|video|audio|remastered|remaster|live|hd|4k|lyrics|feat\.?|ft\.?)\b/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    parseLrc(lrcText) {
+      const lines = String(lrcText || '').split(/\r?\n/);
+      const parsed = [];
+      const timeExp = /\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]/g;
+      for (const rawLine of lines) {
+        const matches = [...rawLine.matchAll(timeExp)];
+        if (matches.length === 0) continue;
+        const text = rawLine.replace(timeExp, '').trim();
+        if (!text) continue;
+        for (const m of matches) {
+          const min = parseInt(m[1], 10) || 0;
+          const sec = parseInt(m[2], 10) || 0;
+          const msStr = (m[3] || '0').padEnd(3, '0').slice(0, 3);
+          const ms = parseInt(msStr, 10) || 0;
+          parsed.push({
+            timeSec: +(min * 60 + sec + ms / 1000).toFixed(2),
+            text
+          });
+        }
+      }
+      parsed.sort((a, b) => a.timeSec - b.timeSec);
+      return parsed;
+    }
+
+    buildFallbackSyncedLines(plainText, totalDurationSec = 195, track = null) {
+      const rawLines = String(plainText || '')
+        .split(/\r?\n/)
+        .map(l => l.trim())
+        .filter(Boolean);
+
+      if (rawLines.length > 0) {
+        const startOffset = 8;
+        const usableSpan = Math.max(40, totalDurationSec - 18);
+        const step = usableSpan / Math.max(1, rawLines.length);
+        return rawLines.map((text, idx) => ({
+          timeSec: +(startOffset + idx * step).toFixed(2),
+          text
+        }));
+      }
+
+      const title = track?.title || 'Canción';
+      const artist = track?.artist || 'Artista';
+      const chorusSec = Math.round(Math.max(30, Math.min(62, totalDurationSec * 0.28)));
+      return [
+        { timeSec: 0, text: `♪ ${title} — ${artist} ♪` },
+        { timeSec: 8, text: 'Introducción instrumental · Siente el pulso del piano' },
+        { timeSec: Math.max(16, Math.round(chorusSec * 0.55)), text: 'Desarrollo melódico · Preparando entrada principal' },
+        { timeSec: chorusSec, text: `★ Estribillo Principal — ${title} ★` },
+        { timeSec: chorusSec + 18, text: 'Sección rítmica central · Mantén la cadencia' },
+        { timeSec: Math.round(totalDurationSec * 0.58), text: 'Puente armónico · Variación de intensidad' },
+        { timeSec: Math.round(totalDurationSec * 0.72), text: `★ Clímax / Estribillo Final — ${title} ★` },
+        { timeSec: Math.round(totalDurationSec * 0.88), text: 'Coda final y resolución' }
+      ];
+    }
+
+    async fetchLyricsForTrack(track, totalDurationSec = 195) {
+      if (!track) return [];
+      const key = this._makeKey(track);
+      if (this.cache.has(key)) return this.cache.get(key);
+      if (this.inflight.has(key)) return this.inflight.get(key);
+
+      const task = (async () => {
+        try {
+          const cleanTitle = this._cleanSearchTerm(track.title);
+          const cleanArtist = this._cleanSearchTerm(track.artist);
+          const qUrl = `https://lrclib.net/api/search?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(cleanArtist)}`;
+          const ctrl = new AbortController();
+          const tid = setTimeout(() => ctrl.abort(), 3200);
+          const resp = await fetch(qUrl, { signal: ctrl.signal });
+          clearTimeout(tid);
+          if (resp.ok) {
+            const arr = await resp.json();
+            if (Array.isArray(arr) && arr.length > 0) {
+              const withSynced = arr.find(item => item && item.syncedLyrics && item.syncedLyrics.includes('[')) || arr[0];
+              if (withSynced && withSynced.syncedLyrics) {
+                const parsed = this.parseLrc(withSynced.syncedLyrics);
+                if (parsed.length >= 3) {
+                  this.cache.set(key, parsed);
+                  return parsed;
+                }
+              }
+              if (withSynced && withSynced.plainLyrics) {
+                const fallback = this.buildFallbackSyncedLines(withSynced.plainLyrics, totalDurationSec, track);
+                this.cache.set(key, fallback);
+                return fallback;
+              }
+            }
+          }
+        } catch (_) {}
+
+        const fallback = this.buildFallbackSyncedLines('', totalDurationSec, track);
+        this.cache.set(key, fallback);
+        return fallback;
+      })();
+
+      this.inflight.set(key, task);
+      try {
+        return await task;
+      } finally {
+        this.inflight.delete(key);
+      }
+    }
+
+    async loadAndRenderTrackLyrics(track, totalDurationSec = 195) {
+      if (!track) return;
+      const key = this._makeKey(track);
+      this.currentTrackKey = key;
+      this.activeLineIndex = -1;
+
+      const box = document.getElementById('npKaraokeScrollBox');
+      if (box && !this.cache.has(key)) {
+        box.innerHTML = `<p class="np-karaoke-placeholder">Sincronizando letra karaoke...</p>`;
+      }
+
+      const lines = await this.fetchLyricsForTrack(track, totalDurationSec);
+      if (this.currentTrackKey !== key) return;
+      this.currentLyrics = lines;
+      this.renderLinesToDom();
+    }
+
+    renderLinesToDom() {
+      const box = document.getElementById('npKaraokeScrollBox');
+      if (!box) return;
+      if (!Array.isArray(this.currentLyrics) || this.currentLyrics.length === 0) {
+        box.innerHTML = `<p class="np-karaoke-placeholder">Letra no disponible para esta pista.</p>`;
+        return;
+      }
+
+      box.innerHTML = this.currentLyrics.map((line, idx) => `
+        <div id="karaokeLine_${idx}" class="np-karaoke-line" onclick="window.DiscoverHomeApp.seekToKaraokeLine(${idx})">
+          ${escapeHtmlSafe(line.text)}
+        </div>
+      `).join('');
+    }
+
+    syncTime(currentSec) {
+      if (!Array.isArray(this.currentLyrics) || this.currentLyrics.length === 0) return;
+      let activeIdx = 0;
+      for (let i = 0; i < this.currentLyrics.length; i++) {
+        if (currentSec + 0.25 >= this.currentLyrics[i].timeSec) {
+          activeIdx = i;
+        } else {
+          break;
+        }
+      }
+      if (activeIdx === this.activeLineIndex) return;
+      this.activeLineIndex = activeIdx;
+
+      const box = document.getElementById('npKaraokeScrollBox');
+      if (!box) return;
+
+      for (let i = 0; i < this.currentLyrics.length; i++) {
+        const el = document.getElementById(`karaokeLine_${i}`);
+        if (!el) continue;
+        el.classList.toggle('active', i === activeIdx);
+        el.classList.toggle('past', i < activeIdx);
+      }
+
+      const activeEl = document.getElementById(`karaokeLine_${activeIdx}`);
+      if (activeEl && box.offsetParent !== null) {
+        const targetScroll = activeEl.offsetTop - (box.clientHeight / 2) + (activeEl.clientHeight / 2);
+        box.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
+      }
+    }
+  }
+
+
+  // =========================================================================
+  // 4. DUAL-STREAM AUDIO ENGINE (BARRA COMPLETA DESDE SEGUNDO 0 + ESTRIBILLO + PRE-FETCH)
   // =========================================================================
   class DualStreamAudioEngine {
-    constructor(graphService, dnaEngine) {
+    constructor(graphService, dnaEngine, karaokeService) {
       this.graphService = graphService;
       this.dnaEngine = dnaEngine;
+      this.karaokeService = karaokeService;
 
-      // Dos canales de reproducción para Handoff / Crossfade sin cortes
       this.previewAudio = new Audio();
       this.previewAudio.preload = 'auto';
       this.previewAudio.crossOrigin = 'anonymous';
@@ -802,10 +1059,15 @@
       this.activeSourceType = 'none'; // 'preview' | 'full'
       this.currentTrack = null;
       this.isPlayingFlag = false;
+      this.isLoadingTrack = false;
       this.isCrossfading = false;
       this.fullTrackReady = false;
       this.fullTrackBlob = null;
       this.fullTrackObjectUrl = null;
+
+      // Posición virtual del estribillo y seek pendiente sobre la barra de canción entera
+      this.previewBaseOffsetSec = 0;
+      this.pendingUserSeekSec = null;
 
       this.queue = [];
       this.queueIndex = -1;
@@ -813,16 +1075,16 @@
       this.wasPlayingBeforeGame = false;
 
       // Pre-fetch cache para las siguientes tarjetas del mazo (0ms swipe como TikTok)
-      this.prewarmedPreviewMap = new Map(); // trackId -> { audioEl, previewUrl, artworkUrl600 }
-      this.fullTrackInflightMap = new Map(); // trackId -> Promise<Blob>
+      this.prewarmedPreviewMap = new Map();
+      this.fullTrackInflightMap = new Map();
 
       this.listenTimerInterval = null;
       this.listenedSecondsOnCurrent = 0;
-      this.vuAnimFrameId = null;
       this._playRequestId = 0;
 
       this._bindAudioEvents();
       this._initMediaSession();
+      this._initMiniPlayerSwipeDownGesture();
     }
 
     _getMasterVolume() {
@@ -844,21 +1106,66 @@
       return this.activeSourceType === 'full' ? this.fullAudio : this.previewAudio;
     }
 
+    /**
+     * Devuelve SIEMPRE la duración de la canción entera (nunca 30s) para que la barra completa
+     * esté disponible desde el segundo 0.
+     */
+    getTrackFullDurationSec(track = this.currentTrack) {
+      if (this.fullTrackReady && Number.isFinite(this.fullAudio.duration) && this.fullAudio.duration > 38) {
+        return this.fullAudio.duration;
+      }
+      const explicitDur = Number(track?.durationSec || track?.duration || 0);
+      if (explicitDur > 38) return explicitDur;
+      const hash = String(track?.id || track?.title || 'song').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+      return 185 + (hash % 45);
+    }
+
+    /**
+     * Estima el segundo exacto del estribillo (chorus) de la canción (~28% de la duración total, entre 32s y 64s)
+     */
+    getChorusOffsetSec(track = this.currentTrack, fullDur = null) {
+      const dur = fullDur || this.getTrackFullDurationSec(track);
+      if (Number.isFinite(track?.chorusSec) && track.chorusSec > 10 && track.chorusSec < dur - 25) {
+        return track.chorusSec;
+      }
+      return Math.round(Math.max(28, Math.min(62, dur * 0.27)));
+    }
+
+    getCurrentSongTimeSec() {
+      if (this.pendingUserSeekSec !== null && !this.fullTrackReady) {
+        return this.pendingUserSeekSec;
+      }
+      if (this.activeSourceType === 'full') {
+        return Number(this.fullAudio.currentTime) || 0;
+      }
+      if (this.activeSourceType === 'preview') {
+        const fullDur = this.getTrackFullDurationSec(this.currentTrack);
+        return Math.min(fullDur - 1, this.previewBaseOffsetSec + (Number(this.previewAudio.currentTime) || 0));
+      }
+      return this.previewBaseOffsetSec || 0;
+    }
+
     _bindAudioEvents() {
       const onTimeUpdate = () => {
-        const activeEl = this.getActiveAudioElement();
-        if (!activeEl || !this.currentTrack) return;
-        const cur = Number(activeEl.currentTime) || 0;
-        const dur = Number(activeEl.duration) || (this.activeSourceType === 'preview' ? 30 : (this.currentTrack.durationSec || 180));
+        if (!this.currentTrack) return;
+        if (typeof window.pauseMenuAmbientMusic === 'function') {
+          window.pauseMenuAmbientMusic();
+        }
+        const fullDur = this.getTrackFullDurationSec(this.currentTrack);
+        const curSongSec = this.getCurrentSongTimeSec();
 
-        // Si estamos en preview, el audio completo ya está listo (canplaythrough) y el preview va por >= 26s,
-        // hacer handoff/crossfade transparente hacia la pista completa sin corte
-        if (this.activeSourceType === 'preview' && this.fullTrackReady && !this.isCrossfading && cur >= Math.max(12, dur - 3.2)) {
-          this._performTransparentHandoffToFullTrack(cur);
+        // Si el audio completo ya está descargado mientras suena el preview, hacer handoff inmediato
+        if (this.activeSourceType === 'preview' && this.fullTrackReady && !this.isCrossfading) {
+          const targetSec = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : curSongSec;
+          this.pendingUserSeekSec = null;
+          this._performTransparentHandoffToFullTrack(targetSec);
         }
 
-        this._updatePlayerProgressUI(cur, dur);
-        this._updateMediaSessionPosition(cur, dur);
+        this._updatePlayerProgressUI(curSongSec, fullDur);
+        this._updateMediaSessionPosition(curSongSec, fullDur);
+        if (this.karaokeService) {
+          this.karaokeService.syncTime(curSongSec);
+        }
       };
 
       this.previewAudio.addEventListener('timeupdate', () => {
@@ -871,9 +1178,15 @@
       this.previewAudio.addEventListener('ended', () => {
         if (this.activeSourceType !== 'preview') return;
         if (this.fullTrackReady) {
-          this._performTransparentHandoffToFullTrack(30);
+          const targetSec = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : (this.previewBaseOffsetSec + 29);
+          this.pendingUserSeekSec = null;
+          this._performTransparentHandoffToFullTrack(targetSec);
         } else {
-          this.nextTrack();
+          // Si el usuario sigue escuchando y el audio completo aún termina de bajar, repetir suave el estribillo
+          try {
+            this.previewAudio.currentTime = 0;
+            this.previewAudio.play().catch(() => {});
+          } catch (_) {}
         }
       });
 
@@ -897,17 +1210,20 @@
     }
 
     /**
-     * Fase 1 (<100ms) + Fase 2 (Background Full Buffer) + Fase 3 (Transparent Crossfade)
+     * Reproduce una canción mostrando desde el segundo 0 la barra de duración entera,
+     * arrancando directamente en el estribillo (chorus) y silenciando de inmediato la música del menú.
      */
     async playTrack(track, options = {}) {
       if (!track) return false;
       const reqId = ++this._playRequestId;
+      this.isLoadingTrack = true;
       this.currentTrack = track;
       this.fullTrackReady = false;
       this.fullTrackBlob = null;
       this.isCrossfading = false;
+      this.pendingUserSeekSec = null;
 
-      // Silenciar siempre la música de ambiente del menú para evitar solapamientos
+      // Silenciar de forma inmediata y estricta cualquier música del menú
       if (typeof window.pauseMenuAmbientMusic === 'function') {
         window.pauseMenuAmbientMusic();
       }
@@ -917,7 +1233,6 @@
 
       this._stopBothChannelsImmediate();
 
-      // Si no está en la cola actual y se reproduce individualmente, asegurar que tenga contexto en la cola
       if (options.syncQueue !== false) {
         const idxInQ = this.queue.findIndex(t => t && String(t.id) === String(track.id));
         if (idxInQ !== -1) {
@@ -928,24 +1243,40 @@
         }
       }
 
+      const fullDur = this.getTrackFullDurationSec(track);
+      const chorusSec = this.getChorusOffsetSec(track, fullDur);
+      const startAtChorus = options.startAtChorus !== false;
+      const desiredStartSec = typeof options.startOffsetSec === 'number'
+        ? options.startOffsetSec
+        : (startAtChorus ? chorusSec : 0);
+
+      this.previewBaseOffsetSec = desiredStartSec;
+
       this._updatePlayerMetadataUI(track);
+      this._updateChorusMarkersUI(chorusSec, fullDur);
+      this._updatePlayerProgressUI(desiredStartSec, fullDur);
       this._updateMediaSessionMetadata(track);
 
-      // Comprobar si ya tenemos el Blob completo en caché de memoria (_fullTrackBlobCache)
+      if (this.karaokeService) {
+        this.karaokeService.loadAndRenderTrackLyrics(track, fullDur).catch(() => {});
+      }
+
+      // 1. Si ya tenemos el Blob completo en caché, reproducir directamente el audio completo en el estribillo
       const cachedFullBlob = this._getCachedFullBlobForTrack(track);
-      if (cachedFullBlob && cachedFullBlob.size >= 100000) {
+      if (cachedFullBlob && cachedFullBlob.size >= 80000) {
         this.fullTrackBlob = cachedFullBlob;
         this.fullTrackReady = true;
-        const startedFull = await this._startChannelWithFadeIn(this.fullAudio, cachedFullBlob, 'full', reqId, options.startOffsetSec || 0, 300);
+        this._setLoadingHintVisible(false);
+        const startedFull = await this._startChannelWithFadeIn(this.fullAudio, cachedFullBlob, 'full', reqId, desiredStartSec, 260);
+        this.isLoadingTrack = false;
         if (startedFull) {
           this._updatePlayerMetadataUI(track);
           this._startListenTracker();
-          this._startVuMeterLoop();
           return true;
         }
       }
 
-      // FASE 1: Arranque instantáneo (<100ms) del previewUrl con fade-in suave de 300ms
+      // 2. Arranque instantáneo (<100ms) del estribillo (preview de iTunes/Deezer suele ser el estribillo de 30s)
       let previewUrl = track.previewUrl || track.preview_url || '';
       const prewarmed = this.prewarmedPreviewMap.get(String(track.id));
       if (prewarmed && prewarmed.previewUrl) {
@@ -958,25 +1289,34 @@
         if (enriched && enriched.previewUrl) {
           previewUrl = enriched.previewUrl;
         }
+        if (enriched && enriched.durationSec && enriched.durationSec > 40) {
+          track.durationSec = enriched.durationSec;
+        }
       }
 
       let previewStarted = false;
       if (previewUrl && /^https?:\/\//i.test(previewUrl)) {
-        previewStarted = await this._startChannelWithFadeIn(this.previewAudio, previewUrl, 'preview', reqId, 0, 300);
+        // Arrancar en segundo 4 del preview para entrar directo al gancho del estribillo
+        previewStarted = await this._startChannelWithFadeIn(this.previewAudio, previewUrl, 'preview', reqId, 3.5, 250);
         if (previewStarted) {
+          this.isLoadingTrack = false;
           this._updatePlayerMetadataUI(track);
           this._startListenTracker();
-          this._startVuMeterLoop();
         }
       }
 
-      // FASE 2: En el mismo milisegundo, iniciar en segundo plano la descarga del audio completo HD
+      // 3. Descargar en paralelo el archivo completo HD y hacer handoff INMEDIATO en cuanto esté listo (sin esperar 30s)
       this.preloadFullTrackInBackground(track).then(async (blob) => {
-        if (reqId !== this._playRequestId || !blob || blob.size < 80000) return;
+        if (reqId !== this._playRequestId || !blob || blob.size < 60000) {
+          if (reqId === this._playRequestId) {
+            this.isLoadingTrack = false;
+            this._setLoadingHintVisible(false);
+          }
+          return;
+        }
         this.fullTrackBlob = blob;
         this.fullTrackReady = true;
 
-        // Preparar fullAudio en memoria para cuando llegue el handoff
         if (this.fullTrackObjectUrl) {
           try { URL.revokeObjectURL(this.fullTrackObjectUrl); } catch (_) {}
         }
@@ -984,41 +1324,65 @@
         this.fullAudio.src = this.fullTrackObjectUrl;
         this.fullAudio.load();
 
+        this._setLoadingHintVisible(false);
         this._updatePlayerMetadataUI(track);
 
-        // Si el preview no había podido arrancar (ej. tema exclusivo de YouTube sin preview en iTunes), arrancar el fullAudio inmediatamente
-        if (!this.isPlayingFlag || this.activeSourceType === 'none') {
-          const ok = await this._startChannelWithFadeIn(this.fullAudio, blob, 'full', reqId, 0, 300);
+        // Si el preview estaba sonando, hacer handoff transparente inmediato al audio completo en la posición actual o seek solicitado
+        if (this.isPlayingFlag && this.activeSourceType === 'preview') {
+          const targetSec = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : this.getCurrentSongTimeSec();
+          this.pendingUserSeekSec = null;
+          await this._performTransparentHandoffToFullTrack(targetSec);
+        } else if (!this.isPlayingFlag || this.activeSourceType === 'none') {
+          const targetSec = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : desiredStartSec;
+          this.pendingUserSeekSec = null;
+          const ok = await this._startChannelWithFadeIn(this.fullAudio, blob, 'full', reqId, targetSec, 260);
+          this.isLoadingTrack = false;
           if (ok) {
             this._updatePlayerMetadataUI(track);
             this._startListenTracker();
-            this._startVuMeterLoop();
           }
         }
-      }).catch(() => {});
+      }).catch(() => {
+        if (reqId === this._playRequestId) {
+          this.isLoadingTrack = false;
+          this._setLoadingHintVisible(false);
+        }
+      });
 
       return previewStarted;
     }
 
-    async _startChannelWithFadeIn(audioEl, srcOrBlob, channelType, reqId, startSec = 0, fadeInMs = 300) {
+    async _startChannelWithFadeIn(audioEl, srcOrBlob, channelType, reqId, startSec = 0, fadeInMs = 260) {
       if (reqId !== this._playRequestId) return false;
       try {
+        if (typeof window.pauseMenuAmbientMusic === 'function') {
+          window.pauseMenuAmbientMusic();
+        }
         if (srcOrBlob instanceof Blob) {
           if (this.fullTrackObjectUrl) {
             try { URL.revokeObjectURL(this.fullTrackObjectUrl); } catch (_) {}
           }
           this.fullTrackObjectUrl = URL.createObjectURL(srcOrBlob);
           audioEl.src = this.fullTrackObjectUrl;
-        } else {
-          if (audioEl.src !== srcOrBlob) {
-            audioEl.src = srcOrBlob;
-          }
+        } else if (audioEl.src !== srcOrBlob) {
+          audioEl.src = srcOrBlob;
         }
 
         const targetVol = this._getMasterVolume();
         audioEl.volume = 0.01;
+
         if (startSec > 0) {
-          try { audioEl.currentTime = startSec; } catch (_) {}
+          const applySeek = () => {
+            try {
+              const maxDur = Number(audioEl.duration) || 9999;
+              audioEl.currentTime = Math.min(startSec, Math.max(0, maxDur - 2));
+            } catch (_) {}
+          };
+          if (audioEl.readyState >= 1) {
+            applySeek();
+          } else {
+            audioEl.addEventListener('loadedmetadata', applySeek, { once: true });
+          }
         }
 
         await audioEl.play();
@@ -1027,12 +1391,15 @@
           return false;
         }
 
+        if (typeof window.pauseMenuAmbientMusic === 'function') {
+          window.pauseMenuAmbientMusic();
+        }
+
         this.activeSourceType = channelType;
         this.isPlayingFlag = true;
         this._syncPlayPauseIcons(true);
 
-        // Fade-in suave de 300ms
-        const steps = 12;
+        const steps = 10;
         const stepMs = Math.max(15, Math.round(fadeInMs / steps));
         let curStep = 0;
         const fadeTimer = setInterval(() => {
@@ -1047,31 +1414,37 @@
         }, stepMs);
 
         return true;
-      } catch (err) {
+      } catch (_) {
         return false;
       }
     }
 
-    /**
-     * FASE 3: Handoff / Crossfade de potencia constante entre el preview y la canción completa HD
-     */
-    async _performTransparentHandoffToFullTrack(targetPositionSec = 30) {
+    async _performTransparentHandoffToFullTrack(targetPositionSec = 35) {
       if (this.isCrossfading || !this.fullTrackReady || !this.fullAudio.src) return;
       this.isCrossfading = true;
       const reqId = this._playRequestId;
       const masterVol = this._getMasterVolume();
 
       try {
-        const fullDur = Number(this.fullAudio.duration) || 180;
-        const safeSeek = Math.min(Math.max(0, targetPositionSec), Math.max(0, fullDur - 10));
-        try {
-          this.fullAudio.currentTime = safeSeek;
-        } catch (_) {}
+        if (typeof window.pauseMenuAmbientMusic === 'function') {
+          window.pauseMenuAmbientMusic();
+        }
+        const fullDur = this.getTrackFullDurationSec(this.currentTrack);
+        const safeSeek = Math.min(Math.max(0, targetPositionSec), Math.max(0, fullDur - 4));
+        const applyFullSeek = () => {
+          try { this.fullAudio.currentTime = safeSeek; } catch (_) {}
+        };
+        if (this.fullAudio.readyState >= 1) {
+          applyFullSeek();
+        } else {
+          this.fullAudio.addEventListener('loadedmetadata', applyFullSeek, { once: true });
+        }
+
         this.fullAudio.volume = 0.01;
         await this.fullAudio.play();
 
-        const steps = 16;
-        const stepMs = 35; // ~560ms crossfade de potencia constante (sin/cos)
+        const steps = 12;
+        const stepMs = 30;
         let step = 0;
         const xfTimer = setInterval(() => {
           step++;
@@ -1092,6 +1465,7 @@
             try { this.previewAudio.pause(); } catch (_) {}
             this.activeSourceType = 'full';
             this.isCrossfading = false;
+            this._setLoadingHintVisible(false);
             if (this.currentTrack) {
               this._updatePlayerMetadataUI(this.currentTrack);
             }
@@ -1118,7 +1492,7 @@
     }
 
     _storeFullBlobInGlobalCache(track, blob) {
-      if (!track || !blob || blob.size < 80000) return;
+      if (!track || !blob || blob.size < 60000) return;
       if (!window._fullTrackBlobCache) window._fullTrackBlobCache = new Map();
       const id = String(track.id || '');
       if (id) window._fullTrackBlobCache.set(id, blob);
@@ -1130,14 +1504,10 @@
       }
     }
 
-    /**
-     * Descarga en segundo plano el archivo de audio completo de alta fidelidad (CDN Oficial o Stream YouTube)
-     * para Handoff continuo y para saltar la pantalla de espera al pulsar ¡JUGAR AL PIANO!
-     */
     async preloadFullTrackInBackground(track) {
       if (!track) return null;
       const existing = this._getCachedFullBlobForTrack(track);
-      if (existing && existing.size >= 100000) return existing;
+      if (existing && existing.size >= 80000) return existing;
 
       const trackKey = String(track.id || `${track.title}_${track.artist}`);
       if (this.fullTrackInflightMap.has(trackKey)) {
@@ -1146,18 +1516,16 @@
 
       const task = (async () => {
         try {
-          // 1. Comprobar IndexedDBStorage primero
           if (typeof window.IndexedDBStorage !== 'undefined' && typeof window.IndexedDBStorage.getChart === 'function') {
             const rawId = String(track.id || '').replace(/^top_/, '');
             const cachedChart = await window.IndexedDBStorage.getChart(track.id).catch(() => null) ||
                                 await window.IndexedDBStorage.getChart(`top_${rawId}`).catch(() => null);
-            if (cachedChart && cachedChart.audioBlob && cachedChart.audioBlob.size >= 100000) {
+            if (cachedChart && cachedChart.audioBlob && cachedChart.audioBlob.size >= 80000) {
               this._storeFullBlobInGlobalCache(track, cachedChart.audioBlob);
               return cachedChart.audioBlob;
             }
           }
 
-          // 2. Si es una canción del catálogo Top con audio_url explícito en Releases CDN
           const isTop = Boolean(track.audio_url);
           if (isTop) {
             const rawId = String(track.raw_id || track.id || '').replace(/^top_/, '');
@@ -1173,7 +1541,7 @@
                 clearTimeout(tid);
                 if (resp.ok) {
                   const blob = await resp.blob();
-                  if (blob && blob.size >= 80000) {
+                  if (blob && blob.size >= 60000) {
                     this._storeFullBlobInGlobalCache(track, blob);
                     return blob;
                   }
@@ -1182,7 +1550,6 @@
             }
           }
 
-          // 3. Si es canción comunitaria local (/songs/<id>/audio.mp3)
           if (String(track.id || '').startsWith('comm_')) {
             const folder = String(track.id).replace(/^comm_/, '');
             const baseUrl = typeof window.getApiBaseUrl === 'function' ? window.getApiBaseUrl() : '';
@@ -1191,7 +1558,7 @@
                 const resp = await fetch(path);
                 if (resp.ok) {
                   const blob = await resp.blob();
-                  if (blob && blob.size >= 80000) {
+                  if (blob && blob.size >= 60000) {
                     this._storeFullBlobInGlobalCache(track, blob);
                     return blob;
                   }
@@ -1200,7 +1567,6 @@
             }
           }
 
-          // 4. Extracción multi-fuente / YouTube en segundo plano si está disponible
           if (typeof window.extractSongAudioMultiSource === 'function') {
             const extracted = await window.extractSongAudioMultiSource(track.title, track.artist, track.thumbnail || '');
             if (extracted && extracted.blob && extracted.blob.size >= 30000) {
@@ -1221,12 +1587,12 @@
     }
 
     /**
-     * Cola de Pre-Fetch Inteligente:
-     * Mantiene pre-cargados en memoria los previews, las carátulas 600x600 y el buffer de las siguientes tarjetas.
+     * Pre-carga agresivamente las próximas 4 canciones (portada HD, preview, audio completo y letra karaoke)
+     * para que el paso entre tarjetas y la barra entera vayan instantáneos.
      */
     async prewarmUpcomingCards(tracksSlice = []) {
       if (!Array.isArray(tracksSlice) || tracksSlice.length === 0) return;
-      const nextCards = tracksSlice.slice(0, 3);
+      const nextCards = tracksSlice.slice(0, 4);
 
       for (let i = 0; i < nextCards.length; i++) {
         const tr = nextCards[i];
@@ -1248,13 +1614,14 @@
           }
           const prevUrl = (meta && meta.previewUrl) || tr.previewUrl || tr.preview_url;
           if (prevUrl && /^https?:\/\//i.test(prevUrl) && !this.prewarmedPreviewMap.has(idStr)) {
-            if (this.prewarmedPreviewMap.size >= 8) {
+            if (this.prewarmedPreviewMap.size >= 12) {
               const oldest = this.prewarmedPreviewMap.keys().next().value;
               if (oldest) this.prewarmedPreviewMap.delete(oldest);
             }
             const preAudio = new Audio();
             preAudio.preload = 'auto';
             preAudio.src = prevUrl;
+            preAudio.load();
             this.prewarmedPreviewMap.set(idStr, {
               audioEl: preAudio,
               previewUrl: prevUrl,
@@ -1263,12 +1630,16 @@
           }
         }).catch(() => {});
 
-        if (i === 0) {
+        // Pre-cargar también el audio completo de las próximas 2 tarjetas y sus letras
+        if (i <= 1) {
           setTimeout(() => {
             if (!window.isGameLoadingOrActive) {
               this.preloadFullTrackInBackground(tr).catch(() => {});
+              if (this.karaokeService) {
+                this.karaokeService.fetchLyricsForTrack(tr, this.getTrackFullDurationSec(tr)).catch(() => {});
+              }
             }
-          }, 350);
+          }, 150 + i * 350);
         }
       }
     }
@@ -1299,21 +1670,138 @@
       }
     }
 
+    /**
+     * Permite moverse por TODA la barra de la canción desde el segundo 0.
+     * Si el audio completo ya está cargado, salta al instante. Si aún está terminando de cargar,
+     * posiciona la barra ahí, muestra "Cargando..." y salta en cuanto termina el buffer.
+     */
     async seekToRatio(ratio) {
       const clamped = Math.max(0, Math.min(0.995, Number(ratio) || 0));
-      if (this.activeSourceType === 'preview' && this.fullTrackReady && this.fullAudio.src) {
-        const fullDur = Number(this.fullAudio.duration) || (this.currentTrack?.durationSec || 180);
-        const targetSec = clamped * fullDur;
-        await this._performTransparentHandoffToFullTrack(targetSec);
+      const fullDur = this.getTrackFullDurationSec(this.currentTrack);
+      const targetSec = clamped * fullDur;
+      await this.seekToSeconds(targetSec);
+    }
+
+    async seekToSeconds(targetSec) {
+      const fullDur = this.getTrackFullDurationSec(this.currentTrack);
+      const safeTarget = Math.max(0, Math.min(fullDur - 1, Number(targetSec) || 0));
+
+      this._updatePlayerProgressUI(safeTarget, fullDur);
+      if (this.karaokeService) {
+        this.karaokeService.syncTime(safeTarget);
+      }
+
+      if (this.activeSourceType === 'full' && this.fullAudio.src) {
+        try {
+          this.fullAudio.currentTime = safeTarget;
+        } catch (_) {}
         return;
       }
-      const activeEl = this.getActiveAudioElement();
-      if (!activeEl) return;
-      const dur = Number(activeEl.duration) || 30;
-      try {
-        activeEl.currentTime = clamped * dur;
-      } catch (_) {}
-      this._updatePlayerProgressUI(activeEl.currentTime || 0, dur);
+
+      if (this.fullTrackReady && this.fullAudio.src) {
+        this.pendingUserSeekSec = null;
+        await this._performTransparentHandoffToFullTrack(safeTarget);
+        return;
+      }
+
+      // Si el usuario mueve la barra completa mientras aún se está descargando el audio entero:
+      this.pendingUserSeekSec = safeTarget;
+      this.previewBaseOffsetSec = safeTarget;
+      this._setLoadingHintVisible(true);
+
+      // Si el punto elegido cae cerca del estribillo que tiene el preview, ajustar también el preview mientras termina de cargar
+      const chorusSec = this.getChorusOffsetSec(this.currentTrack, fullDur);
+      const diffFromChorus = safeTarget - chorusSec;
+      if (this.activeSourceType === 'preview' && diffFromChorus >= -4 && diffFromChorus <= 24) {
+        try {
+          this.previewAudio.currentTime = Math.max(0, Math.min(28, 3.5 + diffFromChorus));
+        } catch (_) {}
+      }
+    }
+
+    _setLoadingHintVisible(visible) {
+      const hint = document.getElementById('miniPlayerLoadingHint');
+      if (hint) {
+        hint.classList.toggle('hidden', !visible);
+      }
+    }
+
+    _updateChorusMarkersUI(chorusSec, fullDur) {
+      const pct = Math.max(8, Math.min(85, (chorusSec / Math.max(1, fullDur)) * 100)).toFixed(1) + '%';
+      const miniMarker = document.getElementById('miniPlayerChorusMarker');
+      if (miniMarker) miniMarker.style.left = pct;
+      const npMarker = document.getElementById('npChorusMarkerTick');
+      if (npMarker) npMarker.style.left = pct;
+    }
+
+    /**
+     * Cierra el mini-reproductor al deslizarlo hacia abajo y detiene la reproducción
+     */
+    closeMiniPlayerAndStop() {
+      this._stopBothChannelsImmediate();
+      this.isLoadingTrack = false;
+      this.pendingUserSeekSec = null;
+      this._setLoadingHintVisible(false);
+      const miniEl = document.getElementById('spotifyMiniPlayer');
+      if (miniEl) {
+        miniEl.style.transform = '';
+        miniEl.classList.add('hidden-player');
+      }
+      const modalEl = document.getElementById('nowPlayingTurntableModal');
+      if (modalEl) modalEl.classList.remove('open');
+    }
+
+    _initMiniPlayerSwipeDownGesture() {
+      const attach = () => {
+        const miniEl = document.getElementById('spotifyMiniPlayer');
+        if (!miniEl || miniEl._swipeDownBound) return;
+        miniEl._swipeDownBound = true;
+
+        let startY = 0;
+        let startX = 0;
+        let deltaY = 0;
+        let tracking = false;
+
+        miniEl.addEventListener('pointerdown', (e) => {
+          if (e.target.closest('input[type="range"]') || e.target.closest('button')) return;
+          tracking = true;
+          startY = e.clientY ?? 0;
+          startX = e.clientX ?? 0;
+          deltaY = 0;
+          miniEl.classList.add('swiping-down');
+        });
+
+        window.addEventListener('pointermove', (e) => {
+          if (!tracking) return;
+          const dy = (e.clientY ?? startY) - startY;
+          const dx = Math.abs((e.clientX ?? startX) - startX);
+          if (dy > 4 && dy > dx) {
+            deltaY = dy;
+            miniEl.style.transform = `translate3d(0, ${Math.min(110, dy).toFixed(0)}px, 0)`;
+          }
+        }, { passive: true });
+
+        const finishSwipe = () => {
+          if (!tracking) return;
+          tracking = false;
+          miniEl.classList.remove('swiping-down');
+          if (deltaY > 38) {
+            this.closeMiniPlayerAndStop();
+          } else {
+            miniEl.style.transform = '';
+          }
+          deltaY = 0;
+        };
+
+        window.addEventListener('pointerup', finishSwipe);
+        window.addEventListener('pointercancel', finishSwipe);
+      };
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', attach);
+      } else {
+        setTimeout(attach, 50);
+      }
     }
 
     nextTrack() {
@@ -1335,9 +1823,8 @@
 
     prevTrack() {
       if (this.queue.length === 0) return;
-      const activeEl = this.getActiveAudioElement();
-      if (activeEl && activeEl.currentTime > 4) {
-        activeEl.currentTime = 0;
+      if (this.getCurrentSongTimeSec() > 6) {
+        this.seekToSeconds(0);
         return;
       }
       this.queueIndex = (this.queueIndex - 1 + this.queue.length) % this.queue.length;
@@ -1367,7 +1854,7 @@
       this.queueIndex = Math.max(0, Math.min(tracksArray.length - 1, startIndex));
       const first = this.queue[this.queueIndex];
       this.playTrack(first, { syncQueue: false });
-      this.prewarmUpcomingCards(this.queue.slice(this.queueIndex + 1, this.queueIndex + 4));
+      this.prewarmUpcomingCards(this.queue.slice(this.queueIndex + 1, this.queueIndex + 5));
       this._renderQueueListInModal();
       if (contextLabel && typeof window.showSuccessToast === 'function') {
         window.showSuccessToast(`Reproduciendo: ${contextLabel}`);
@@ -1448,9 +1935,8 @@
         navigator.mediaSession.setActionHandler('previoustrack', () => this.prevTrack());
         navigator.mediaSession.setActionHandler('nexttrack', () => this.nextTrack());
         navigator.mediaSession.setActionHandler('seekto', (details) => {
-          const activeEl = this.getActiveAudioElement();
-          if (activeEl && details && Number.isFinite(details.seekTime)) {
-            activeEl.currentTime = details.seekTime;
+          if (details && Number.isFinite(details.seekTime)) {
+            this.seekToSeconds(details.seekTime);
           }
         });
       } catch (_) {}
@@ -1495,6 +1981,7 @@
       if (!track) return;
       const miniEl = document.getElementById('spotifyMiniPlayer');
       if (miniEl && !window.isGameLoadingOrActive) {
+        miniEl.style.transform = '';
         miniEl.classList.remove('hidden-player');
       }
 
@@ -1502,7 +1989,6 @@
       const isFav = (typeof window.favoriteIdsSet !== 'undefined' && window.favoriteIdsSet.has(track.id)) ||
                     this.dnaEngine.likes.has(String(track.id));
 
-      // Mini-Player DOM (1 sola línea limpia)
       const miniCover = document.getElementById('miniPlayerCoverImg');
       if (miniCover) miniCover.src = cover;
       const miniTitle = document.getElementById('miniPlayerTitle');
@@ -1515,7 +2001,6 @@
         miniLikeBtn.classList.toggle('liked', isFav);
       }
 
-      // Now Playing Modal DOM
       const npCover = document.getElementById('npTurntableCoverImg');
       if (npCover) npCover.src = cover;
       const npTitle = document.getElementById('npTrackTitle') || document.getElementById('npTurntableTitle');
@@ -1530,12 +2015,18 @@
     }
 
     _updatePlayerProgressUI(curSec, durSec) {
-      const safeDur = Math.max(1, Number(durSec) || 30);
+      const safeDur = Math.max(1, Number(durSec) || 195);
       const ratio = Math.max(0, Math.min(1, curSec / safeDur));
       const pct = (ratio * 100).toFixed(1) + '%';
 
       const miniFill = document.getElementById('miniPlayerProgressFill');
       if (miniFill) miniFill.style.width = pct;
+      const miniSlider = document.getElementById('miniPlayerScrubSlider');
+      if (miniSlider && !miniSlider._isDragging) miniSlider.value = String((ratio * 100).toFixed(1));
+      const miniCur = document.getElementById('miniPlayerCurTime');
+      if (miniCur) miniCur.textContent = this._formatTime(curSec);
+      const miniTot = document.getElementById('miniPlayerTotTime');
+      if (miniTot) miniTot.textContent = this._formatTime(safeDur);
 
       const npFill = document.getElementById('npTurntableProgressFill');
       if (npFill) npFill.style.width = pct;
@@ -1558,10 +2049,6 @@
 
       const npBtn = document.getElementById('npPlayPauseMainBtn') || document.getElementById('npTurntablePlayPauseBtn');
       if (npBtn) npBtn.innerHTML = playing ? SVG_ICONS.pauseLarge : SVG_ICONS.playLarge;
-    }
-
-    _startVuMeterLoop() {
-      // Mantenido como no-op silencioso por compatibilidad
     }
 
     _renderQueueListInModal() {
@@ -1607,6 +2094,8 @@
     heartOutline: `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`,
     heartFilled: `<svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`,
     plus: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+    check: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+    sparkles: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3L12 3z"/></svg>`,
     play: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>`,
     pause: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>`,
     playLarge: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>`,
@@ -1716,11 +2205,13 @@
   // =========================================================================
   const graphService = new ExternalMusicGraphService();
   const dnaEngine = new AnalogDNAEngine(graphService);
-  const dualStreamEngine = new DualStreamAudioEngine(graphService, dnaEngine);
+  const karaokeService = new KaraokeLyricsService();
+  const dualStreamEngine = new DualStreamAudioEngine(graphService, dnaEngine, karaokeService);
 
   window.ExternalMusicGraphService = graphService;
   window.AnalogDNAEngine = dnaEngine;
   window.UserMusicDNA = dnaEngine;
+  window.KaraokeLyricsService = karaokeService;
   window.DualStreamAudioEngine = dualStreamEngine;
   window.dualStreamEngine = dualStreamEngine;
 
@@ -1731,6 +2222,13 @@
     mediumMode: 'vinyl',
     isInitialized: false,
     autoPlayCrateOnSwipe: true,
+    targetPlaylistId: null,
+    targetPlaylistObj: null,
+    _cleanupCardGestureListeners: null,
+    _openedSheetTracks: [],
+    _openedSheetTitle: '',
+    _openedSheetPlaylistId: null,
+    _dynamicPlaylistCarouselsMap: {},
 
     init() {
       if (this.isInitialized) {
@@ -1794,13 +2292,27 @@
       const pool = this.getAllCandidatePool();
       const targetVec = dnaEngine.getEffectiveTargetVector();
 
-      // Priorizar canciones con portada oficial real para evitar cajas vacías
-      const scored = pool.map(tr => {
-        const baseScore = dnaEngine.scoreTrackForRecommendation(tr, targetVec);
-        const coverBoost = hasRealHttpCover(tr) ? 0.35 : 0;
-        const jitter = (Math.random() - 0.5) * 0.08;
-        return { track: tr, score: baseScore + coverBoost + jitter };
-      });
+      // Si hay una Playlist X activa en el modo Swipe ("Buscar para playlist X"),
+      // excluir canciones que ya están en esa playlist y recomendar según todas las canciones de la playlist
+      const existingPlaylistIds = new Set();
+      let plCentroid = null;
+      if (this.targetPlaylistObj && Array.isArray(this.targetPlaylistObj.tracks)) {
+        for (const pt of this.targetPlaylistObj.tracks) {
+          if (pt && pt.id) existingPlaylistIds.add(String(pt.id));
+        }
+        plCentroid = dnaEngine.computePlaylistCentroidVector(this.targetPlaylistObj.tracks, this.targetPlaylistObj.title || '');
+      }
+
+      const scored = pool
+        .filter(tr => !existingPlaylistIds.has(String(tr.id)))
+        .map(tr => {
+          const baseScore = this.targetPlaylistObj
+            ? dnaEngine.scoreTrackForPlaylist(tr, this.targetPlaylistObj, plCentroid)
+            : dnaEngine.scoreTrackForRecommendation(tr, targetVec);
+          const coverBoost = hasRealHttpCover(tr) ? 0.35 : 0;
+          const jitter = (Math.random() - 0.5) * 0.08;
+          return { track: tr, score: baseScore + coverBoost + jitter };
+        });
 
       scored.sort((a, b) => b.score - a.score);
 
@@ -1832,12 +2344,16 @@
       const active = this.getActiveCrateTrack();
       if (active) {
         dnaEngine.bloomFilter.markSeen(active.id, active.artist);
-        dualStreamEngine.prewarmUpcomingCards(this.deck.slice(0, 4));
+        dualStreamEngine.prewarmUpcomingCards(this.deck.slice(0, 5));
         if (!dualStreamEngine.currentTrack) {
           dualStreamEngine.currentTrack = active;
           dualStreamEngine.queue = [...this.deck];
           dualStreamEngine.queueIndex = 0;
           dualStreamEngine._updatePlayerMetadataUI(active);
+          const fullDur = dualStreamEngine.getTrackFullDurationSec(active);
+          const chorusSec = dualStreamEngine.getChorusOffsetSec(active, fullDur);
+          dualStreamEngine._updateChorusMarkersUI(chorusSec, fullDur);
+          dualStreamEngine._updatePlayerProgressUI(chorusSec, fullDur);
         }
         if (autoPlayFirst) {
           dualStreamEngine.playTrack(active);
@@ -1845,6 +2361,7 @@
           this._ensureRealCoverForTrack(active, 'crateMainCoverImg');
           const next = this.deck[this.deckIndex + 1];
           if (next) this._ensureRealCoverForTrack(next, 'crateNextCoverImg');
+          dualStreamEngine.preloadFullTrackInBackground(active).catch(() => {});
         }
       }
     },
@@ -1904,6 +2421,58 @@
       this._syncDialsUI();
     },
 
+    toggleDontCare(dimKey) {
+      if (!(dimKey in dnaEngine.dontCare)) return;
+      const nextState = !dnaEngine.dontCare[dimKey];
+      dnaEngine.setDontCare(dimKey, nextState);
+      this._syncDialsUI();
+      this.rebuildCrateDeck(false);
+      this.refreshCarousels();
+    },
+
+    setAllDontCare(flag = true) {
+      for (const k of ['era', 'energy', 'vocal', 'discovery']) {
+        dnaEngine.dontCare[k] = Boolean(flag);
+      }
+      dnaEngine.saveToStorage(true);
+      this._syncDialsUI();
+      this.rebuildCrateDeck(false);
+      this.refreshCarousels();
+      if (flag && typeof window.showSuccessToast === 'function') {
+        window.showSuccessToast('Preferencias abiertas: recomendando de todas las épocas y estilos');
+      }
+    },
+
+    applyPreferencePreset(presetName) {
+      if (presetName === 'any') {
+        this.setAllDontCare(true);
+        return;
+      }
+      for (const k of ['era', 'energy', 'vocal', 'discovery']) {
+        dnaEngine.dontCare[k] = false;
+      }
+      if (presetName === 'piano_relax') {
+        dnaEngine.dials.era = 20;
+        dnaEngine.dials.energy = 25;
+        dnaEngine.dials.vocal = 12;
+        dnaEngine.dials.discovery = 40;
+      } else if (presetName === 'rock_anthems') {
+        dnaEngine.dials.era = 48;
+        dnaEngine.dials.energy = 85;
+        dnaEngine.dials.vocal = 80;
+        dnaEngine.dials.discovery = 35;
+      } else if (presetName === 'modern_hits') {
+        dnaEngine.dials.era = 92;
+        dnaEngine.dials.energy = 72;
+        dnaEngine.dials.vocal = 85;
+        dnaEngine.dials.discovery = 50;
+      }
+      dnaEngine.saveToStorage(true);
+      this._syncDialsUI();
+      this.rebuildCrateDeck(true);
+      this.refreshCarousels();
+    },
+
     applyDialsAndRefreshDeck() {
       this.rebuildCrateDeck(true);
       this.refreshCarousels();
@@ -1915,14 +2484,37 @@
 
     _syncDialsUI() {
       const d = dnaEngine.dials;
+      const dc = dnaEngine.dontCare;
       const map = [
-        { key: 'discovery', sliders: ['dialInput_discovery', 'dialSliderDiscovery'], vals: ['dialVal_discovery', 'dialValDiscovery'], knobs: ['knobIndicator_discovery', 'dialKnobDiscovery'], fmt: v => v < 35 ? `Mis favoritos (${v}%)` : (v > 70 ? `Nuevos estilos (${v}%)` : `Equilibrado (${v}%)`) },
-        { key: 'energy', sliders: ['dialInput_energy', 'dialSliderEnergy'], vals: ['dialVal_energy', 'dialValEnergy'], knobs: ['knobIndicator_energy', 'dialKnobEnergy'], fmt: v => `${v}% · ${Math.round(65 + (v * 1.15))} BPM` },
-        { key: 'era', sliders: ['dialInput_era', 'dialSliderEra'], vals: ['dialVal_era', 'dialValEra'], knobs: ['knobIndicator_era', 'dialKnobEra'], fmt: v => v < 30 ? 'Clásicos' : (v < 68 ? '80s / 90s' : 'Actuales') },
-        { key: 'vocal', sliders: ['dialInput_vocal', 'dialSliderVocal'], vals: ['dialVal_vocal', 'dialValVocal'], knobs: ['knobIndicator_vocal', 'dialKnobVocal'], fmt: v => v < 30 ? `Instrumental (${v}%)` : (v > 70 ? `Con voz (${v}%)` : `Híbrido (${v}%)`) }
+        {
+          key: 'discovery',
+          sliders: ['dialInput_discovery', 'dialSliderDiscovery'],
+          vals: ['dialVal_discovery', 'dialValDiscovery'],
+          fmt: v => dc.discovery ? 'No me importa (Cualquier novedad)' : (v < 35 ? `Mis favoritos (${v}%)` : (v > 70 ? `Sorpréndeme (${v}%)` : `Equilibrado (${v}%)`))
+        },
+        {
+          key: 'energy',
+          sliders: ['dialInput_energy', 'dialSliderEnergy'],
+          vals: ['dialVal_energy', 'dialValEnergy'],
+          fmt: v => dc.energy ? 'No me importa (Cualquier ritmo)' : (v < 35 ? `Calma · ${Math.round(65 + v * 1.1)} BPM` : (v > 70 ? `Intenso · ${Math.round(65 + v * 1.1)} BPM` : `Medio · ${Math.round(65 + v * 1.1)} BPM`))
+        },
+        {
+          key: 'era',
+          sliders: ['dialInput_era', 'dialSliderEra'],
+          vals: ['dialVal_era', 'dialValEra'],
+          fmt: v => dc.era ? 'No me importa (Todas las épocas)' : (v < 30 ? 'Clásicos / 60s-70s' : (v < 68 ? '80s & 90s' : 'Actuales 2000s-Hoy'))
+        },
+        {
+          key: 'vocal',
+          sliders: ['dialInput_vocal', 'dialSliderVocal'],
+          vals: ['dialVal_vocal', 'dialValVocal'],
+          fmt: v => dc.vocal ? 'No me importa (Voz o Instrumental)' : (v < 30 ? `Piano Solo (${v}%)` : (v > 70 ? `Con Voz (${v}%)` : `Mixto (${v}%)`))
+        }
       ];
+
       for (const item of map) {
         const val = d[item.key] ?? 50;
+        const isIgnored = Boolean(dc[item.key]);
         for (const sId of item.sliders) {
           const sl = document.getElementById(sId);
           if (sl) sl.value = String(val);
@@ -1931,24 +2523,10 @@
           const vl = document.getElementById(vId);
           if (vl) vl.textContent = item.fmt(val);
         }
-        for (const kId of item.knobs) {
-          const kn = document.getElementById(kId);
-          if (kn) {
-            const deg = -130 + (val / 100) * 260;
-            kn.style.transform = `rotate(${deg.toFixed(0)}deg)`;
-          }
-        }
-      }
-      const summaryEl = document.getElementById('dnaProfileVectorSummary');
-      if (summaryEl) {
-        const u = dnaEngine.userVector;
-        const genres = [
-          { name: 'Rock', val: u[4] },
-          { name: 'Electrónica', val: u[5] },
-          { name: 'Pop & Latino', val: u[6] },
-          { name: 'Clásico & Piano', val: u[7] }
-        ].sort((a, b) => b.val - a.val);
-        summaryEl.textContent = `Estilo favorito: ${genres[0].name}`;
+        const dcBtn = document.getElementById(`dontCareBtn_${item.key}`);
+        if (dcBtn) dcBtn.classList.toggle('active', isIgnored);
+        const cardEl = document.getElementById(`prefCard_${item.key}`);
+        if (cardEl) cardEl.classList.toggle('dont-care-mode', isIgnored);
       }
     },
 
@@ -1959,15 +2537,27 @@
                     dnaEngine.likes.has(String(track.id));
       const coverImgId = isTopCard ? 'crateMainCoverImg' : 'crateNextCoverImg';
       const vinylDiscId = isTopCard ? 'crateMainVinylDisc' : 'crateNextVinylDisc';
+      const isPlaylistMode = Boolean(this.targetPlaylistObj);
+      const rightStampText = isPlaylistMode
+        ? `+ ${(this.targetPlaylistObj.title || 'PLAYLIST').toUpperCase().slice(0, 16)}`
+        : 'ME GUSTA';
 
       return `
         ${isTopCard ? `
-          <div id="crateStampLike" class="crate-stamp-badge crate-stamp-like">ME GUSTA</div>
+          <div id="crateStampLike" class="crate-stamp-badge crate-stamp-like">${escapeHtmlSafe(rightStampText)}</div>
           <div id="crateStampPass" class="crate-stamp-badge crate-stamp-pass">PASAR</div>
           <div id="crateStampPlay" class="crate-stamp-badge crate-stamp-play">JUGAR</div>
         ` : ''}
 
-        <!-- Carátula cuadrada grande con el disco de vinilo asomando sutilmente por detrás -->
+        ${isPlaylistMode ? `
+          <div class="mb-2 flex items-center justify-center">
+            <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 text-[10px] font-extrabold tracking-wide">
+              Desliza a la derecha para añadir a ${escapeHtmlSafe(this.targetPlaylistObj.title || 'Playlist')}
+            </span>
+          </div>
+        ` : ''}
+
+        <!-- Carátula cuadrada grande centrada con el disco de vinilo asomando sutilmente por detrás -->
         <div class="crate-cover-vinyl-wrap" ${isTopCard ? `onclick="window.DiscoverHomeApp.togglePreviewCurrentCrateCard()"` : ''}>
           <div id="${vinylDiscId}" class="crate-peeking-vinyl ${isPlayingThis ? 'spinning' : ''}">
             <div class="crate-peeking-vinyl-grooves"></div>
@@ -1978,13 +2568,13 @@
           </div>
         </div>
 
-        <!-- Título en grande y Artista en gris suave -->
+        <!-- Título en grande y Artista en gris suave centrados -->
         <div class="crate-track-info">
           <h3 class="crate-song-title">${escapeHtmlSafe(track.title)}</h3>
           <p class="crate-song-artist">${escapeHtmlSafe(track.artist)}</p>
         </div>
 
-        <!-- Fila inferior única con 4 botones modernos (SVGs estilizados) -->
+        <!-- Fila inferior única con 4 botones modernos centrados -->
         <div class="crate-clean-actions-row">
           <button type="button" ${isTopCard ? `onclick="window.DiscoverHomeApp.swipeLeftPass()"` : ''} class="btn-swipe-circle pass" title="Pasar canción">
             ${SVG_ICONS.close}
@@ -1993,20 +2583,16 @@
             ${SVG_ICONS.piano}
             <span>Jugar</span>
           </button>
-          <button type="button" ${isTopCard ? `onclick="window.DiscoverHomeApp.swipeRightLike()"` : ''} class="btn-swipe-circle like ${isFav ? 'liked' : ''}" title="Me gusta">
-            ${isFav ? SVG_ICONS.heartFilled : SVG_ICONS.heartOutline}
+          <button type="button" ${isTopCard ? `onclick="window.DiscoverHomeApp.swipeRightLike()"` : ''} class="btn-swipe-circle like ${isFav || isPlaylistMode ? 'liked' : ''}" title="${isPlaylistMode ? 'Añadir a la playlist seleccionada' : 'Me gusta'}">
+            ${isPlaylistMode ? SVG_ICONS.plus : (isFav ? SVG_ICONS.heartFilled : SVG_ICONS.heartOutline)}
           </button>
-          <button type="button" ${isTopCard ? `onclick="window.DiscoverHomeApp.openPlaylistOrQueueForCurrent()"` : ''} class="btn-swipe-circle add" title="Añadir a playlist">
-            ${SVG_ICONS.plus}
+          <button type="button" ${isTopCard ? `onclick="window.DiscoverHomeApp.openPlaylistOrQueueForCurrent()"` : ''} class="btn-swipe-circle add" title="Elegir playlist o cola">
+            ${SVG_ICONS.sparkles}
           </button>
         </div>
       `;
     },
 
-    /**
-     * Renderiza la tarjeta de descubrimiento limpia estilo Spotify Clips / Tinder Minimalista,
-     * con la siguiente tarjeta ya pre-renderizada debajo del mazo para que el swipe sea instantáneo.
-     */
     renderCrateDigger() {
       const stage = document.getElementById('crateDiggerStageContainer');
       if (!stage) return;
@@ -2038,7 +2624,18 @@
       this._attachCardSwipeGestures();
     },
 
+    /**
+     * Gestos de swipe blindados contra bugs en móvil:
+     * - Limpia listeners previos de window para evitar duplicados.
+     * - Captura pointercancel / touchcancel / blur para que la tarjeta NUNCA se quede bloqueada a mitad de arrastre.
+     * - Si el usuario desliza hacia abajo para hacer scroll vertical en la página, aborta el drag de la tarjeta inmediatamente.
+     */
     _attachCardSwipeGestures() {
+      if (typeof this._cleanupCardGestureListeners === 'function') {
+        try { this._cleanupCardGestureListeners(); } catch (_) {}
+        this._cleanupCardGestureListeners = null;
+      }
+
       const card = document.getElementById('crateActiveSwipeCard');
       const nextCard = document.getElementById('crateNextSwipeCard');
       if (!card) return;
@@ -2052,6 +2649,22 @@
       const stampLike = document.getElementById('crateStampLike');
       const stampPass = document.getElementById('crateStampPass');
       const stampPlay = document.getElementById('crateStampPlay');
+
+      const resetCardPosition = () => {
+        isDragging = false;
+        currentX = 0;
+        currentY = 0;
+        card.classList.remove('dragging');
+        card.style.transform = '';
+        card.style.opacity = '';
+        if (nextCard) {
+          nextCard.style.transform = '';
+          nextCard.style.opacity = '';
+        }
+        if (stampLike) stampLike.style.opacity = '0';
+        if (stampPass) stampPass.style.opacity = '0';
+        if (stampPlay) stampPlay.style.opacity = '0';
+      };
 
       const onPointerDown = (e) => {
         if (e.target.closest('button')) return;
@@ -2067,8 +2680,17 @@
         if (!isDragging) return;
         const cx = e.clientX ?? (e.touches && e.touches[0]?.clientX) ?? startX;
         const cy = e.clientY ?? (e.touches && e.touches[0]?.clientY) ?? startY;
-        currentX = cx - startX;
-        currentY = cy - startY;
+        const dx = cx - startX;
+        const dy = cy - startY;
+
+        // Si el usuario arrastra hacia abajo para hacer scroll en la página, soltar la tarjeta de inmediato
+        if (dy > 14 && Math.abs(dy) > Math.abs(dx) * 1.15) {
+          resetCardPosition();
+          return;
+        }
+
+        currentX = dx;
+        currentY = Math.min(28, dy);
 
         const rot = currentX * 0.05;
         card.style.transform = `translate3d(${currentX.toFixed(1)}px, ${currentY.toFixed(1)}px, 0) rotate(${rot.toFixed(1)}deg)`;
@@ -2093,25 +2715,34 @@
 
         if (currentY < -75 && Math.abs(currentX) < 75) {
           this.swipeUpPlayPiano();
-        } else if (currentX > 80) {
+        } else if (currentX > 75) {
           this.swipeRightLike();
-        } else if (currentX < -80) {
+        } else if (currentX < -75) {
           this.swipeLeftPass();
         } else {
-          card.style.transform = '';
-          if (nextCard) {
-            nextCard.style.transform = '';
-            nextCard.style.opacity = '';
-          }
-          if (stampLike) stampLike.style.opacity = '0';
-          if (stampPass) stampPass.style.opacity = '0';
-          if (stampPlay) stampPlay.style.opacity = '0';
+          resetCardPosition();
         }
+      };
+
+      const onPointerCancel = () => {
+        if (!isDragging) return;
+        resetCardPosition();
       };
 
       card.addEventListener('pointerdown', onPointerDown);
       window.addEventListener('pointermove', onPointerMove, { passive: true });
       window.addEventListener('pointerup', onPointerUp);
+      window.addEventListener('pointercancel', onPointerCancel);
+      window.addEventListener('touchcancel', onPointerCancel);
+      window.addEventListener('blur', onPointerCancel);
+
+      this._cleanupCardGestureListeners = () => {
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', onPointerUp);
+        window.removeEventListener('pointercancel', onPointerCancel);
+        window.removeEventListener('touchcancel', onPointerCancel);
+        window.removeEventListener('blur', onPointerCancel);
+      };
     },
 
     togglePreviewCurrentCrateCard() {
@@ -2124,32 +2755,59 @@
       }
     },
 
+    /**
+     * Al deslizar a la derecha:
+     * - Si estamos en modo "Buscar canciones para la playlist X", añade la canción directamente a esa playlist X.
+     * - Si estamos en modo general, la guarda en Tus Me Gusta.
+     */
     async swipeRightLike() {
       const track = this.getActiveCrateTrack();
       if (!track) return;
 
       const cover = getBestTrackCover(track);
       triggerGoldenVinylFlyAnimation(cover);
-
       dnaEngine.recordLike(track);
 
-      if (typeof window.IndexedDBStorage !== 'undefined' && typeof window.IndexedDBStorage.putFavoriteRecord === 'function') {
+      if (this.targetPlaylistObj && typeof window.IndexedDBStorage !== 'undefined' && typeof window.IndexedDBStorage.getPlaylist === 'function') {
         try {
-          await window.IndexedDBStorage.putFavoriteRecord({
-            ...track,
-            addedAt: Date.now()
-          });
-          if (typeof window.favoriteIdsSet !== 'undefined') {
-            window.favoriteIdsSet.add(track.id);
+          const freshPl = await window.IndexedDBStorage.getPlaylist(this.targetPlaylistObj.id).catch(() => null) || this.targetPlaylistObj;
+          if (!Array.isArray(freshPl.tracks)) freshPl.tracks = [];
+          const alreadyIn = freshPl.tracks.some(t => t && String(t.id) === String(track.id));
+          if (!alreadyIn) {
+            freshPl.tracks.push({
+              id: track.id,
+              videoId: track.videoId || '',
+              title: track.title,
+              artist: track.artist || 'Artista',
+              thumbnail: cover,
+              cover_url: cover,
+              addedAt: Date.now()
+            });
+            await window.IndexedDBStorage.putPlaylist(freshPl);
           }
-          if (typeof window.updateLibraryVaultBadges === 'function') {
-            window.updateLibraryVaultBadges();
+          this.targetPlaylistObj = freshPl;
+          if (typeof window.showSuccessToast === 'function') {
+            window.showSuccessToast(`Añadida a "${freshPl.title}": ${track.title}`);
           }
         } catch (_) {}
-      }
-
-      if (typeof window.showSuccessToast === 'function') {
-        window.showSuccessToast(`Guardada en Tus Me Gusta: ${track.title}`);
+      } else {
+        if (typeof window.IndexedDBStorage !== 'undefined' && typeof window.IndexedDBStorage.putFavoriteRecord === 'function') {
+          try {
+            await window.IndexedDBStorage.putFavoriteRecord({
+              ...track,
+              addedAt: Date.now()
+            });
+            if (typeof window.favoriteIdsSet !== 'undefined') {
+              window.favoriteIdsSet.add(track.id);
+            }
+            if (typeof window.updateLibraryVaultBadges === 'function') {
+              window.updateLibraryVaultBadges();
+            }
+          } catch (_) {}
+        }
+        if (typeof window.showSuccessToast === 'function') {
+          window.showSuccessToast(`Guardada en Tus Me Gusta: ${track.title}`);
+        }
       }
 
       const card = document.getElementById('crateActiveSwipeCard');
@@ -2165,7 +2823,7 @@
       setTimeout(() => {
         this._advanceToNextCard(true);
         this.refreshCarousels();
-      }, 160);
+      }, 150);
     },
 
     swipeLeftPass() {
@@ -2210,7 +2868,7 @@
       this.renderCrateDigger();
 
       if (nextTrack) {
-        dualStreamEngine.prewarmUpcomingCards(this.deck.slice(this.deckIndex + 1, this.deckIndex + 4));
+        dualStreamEngine.prewarmUpcomingCards(this.deck.slice(this.deckIndex + 1, this.deckIndex + 5));
         if (autoPlay) {
           dualStreamEngine.playTrack(nextTrack);
         }
@@ -2356,11 +3014,14 @@
     },
 
     // =========================================================================
-    // CARRUSELES LIMPIOS ESTILO SPOTIFY (140x140PX, SIN CAJAS NI BOTONES DOBLES)
+    // CARRUSELES LIMPIOS ESTILO SPOTIFY + RECOMENDACIONES BASADAS EN PLAYLISTS
     // =========================================================================
     async refreshCarousels() {
       this._renderBecauseYouLikedCarousel();
       this._renderWeeklyDiscoveryCarousel();
+      this._renderPianoVirtuosoCarousel();
+      this._renderHighEnergyCarousel();
+      this._renderHiddenGemsCarousel();
       await this._renderUserPlaylistsCarousel();
     },
 
@@ -2415,6 +3076,64 @@
       this._enrichCarouselCoversAsync(weekly, 'weekly');
     },
 
+    _renderPianoVirtuosoCarousel() {
+      const cont = document.getElementById('carouselPianoVirtuoso');
+      if (!cont) return;
+      const pool = this.getAllCandidatePool();
+      const list = pool
+        .map(t => {
+          const v = dnaEngine.encodeTrackVector(t);
+          const sc = v[7] * 0.75 + (1 - v[3]) * 0.35 + (hasRealHttpCover(t) ? 0.2 : 0);
+          return { t, sc };
+        })
+        .sort((a, b) => b.sc - a.sc)
+        .slice(0, 12)
+        .map(x => x.t);
+
+      this._pianoVirtuosoList = list;
+      cont.innerHTML = list.map((tr, idx) => this._buildSmartCarouselCardHtml(tr, idx, 'piano')).join('');
+      this._enrichCarouselCoversAsync(list, 'piano');
+    },
+
+    _renderHighEnergyCarousel() {
+      const cont = document.getElementById('carouselHighEnergy');
+      if (!cont) return;
+      const pool = this.getAllCandidatePool();
+      const list = pool
+        .map(t => {
+          const v = dnaEngine.encodeTrackVector(t);
+          const sc = v[1] * 0.55 + Math.max(v[4], v[5]) * 0.45 + (hasRealHttpCover(t) ? 0.2 : 0);
+          return { t, sc };
+        })
+        .sort((a, b) => b.sc - a.sc)
+        .slice(0, 12)
+        .map(x => x.t);
+
+      this._highEnergyList = list;
+      cont.innerHTML = list.map((tr, idx) => this._buildSmartCarouselCardHtml(tr, idx, 'energy')).join('');
+      this._enrichCarouselCoversAsync(list, 'energy');
+    },
+
+    _renderHiddenGemsCarousel() {
+      const cont = document.getElementById('carouselHiddenGems');
+      if (!cont) return;
+      const pool = this.getAllCandidatePool();
+      const list = pool
+        .filter(t => !dnaEngine.likes.has(String(t.id)))
+        .map(t => {
+          const v = dnaEngine.encodeTrackVector(t);
+          const novelty = Math.abs(v[2] - 0.45) * 0.3 + (hasRealHttpCover(t) ? 0.25 : 0) + ((String(t.id).charCodeAt(0) % 17) * 0.015);
+          return { t, sc: novelty + dnaEngine.scoreTrackForRecommendation(t) * 0.6 };
+        })
+        .sort((a, b) => b.sc - a.sc)
+        .slice(10, 22)
+        .map(x => x.t);
+
+      this._hiddenGemsList = list;
+      cont.innerHTML = list.map((tr, idx) => this._buildSmartCarouselCardHtml(tr, idx, 'gems')).join('');
+      this._enrichCarouselCoversAsync(list, 'gems');
+    },
+
     _enrichCarouselCoversAsync(list, listType) {
       if (!Array.isArray(list)) return;
       list.forEach((tr, idx) => {
@@ -2424,6 +3143,10 @@
       });
     },
 
+    /**
+     * Renderiza Tus Playlists y Favoritos + Filas de recomendaciones dinámicas basadas en cada Playlist
+     * con el botón "Descubrir canciones para esta playlist" (modo TikTok/Tinder).
+     */
     async _renderUserPlaylistsCarousel() {
       const cont = document.getElementById('carouselUserPlaylists');
       if (!cont) return;
@@ -2433,20 +3156,24 @@
         playlists = await window.IndexedDBStorage.getAllPlaylists().catch(() => []) || [];
       }
 
-      const favCount = Math.max(dnaEngine.likes.size, (typeof window.favoriteIdsSet !== 'undefined' ? window.favoriteIdsSet.size : 0));
+      let favsFromDb = [];
+      if (typeof window.IndexedDBStorage !== 'undefined' && typeof window.IndexedDBStorage.getAllFavorites === 'function') {
+        favsFromDb = await window.IndexedDBStorage.getAllFavorites().catch(() => []) || [];
+      }
+      const favCount = Math.max(dnaEngine.likes.size, favsFromDb.length, (typeof window.favoriteIdsSet !== 'undefined' ? window.favoriteIdsSet.size : 0));
       const cardsHtml = [];
 
-      // Tarjeta 1: Tus Me Gusta (140x140px estilo Spotify)
+      // Tarjeta 1: Tus Me Gusta -> Abre todas las canciones para elegir una (NO reproduce una aleatoria sola)
       cardsHtml.push(`
-        <div class="spotify-carousel-card" onclick="window.DiscoverHomeApp.playLikedSongsPlaylist()">
+        <div class="spotify-carousel-card" onclick="window.DiscoverHomeApp.openLikedSongsSheetModal()">
           <div class="spotify-carousel-cover-wrap liked-gradient-cover">
             <div class="liked-cover-heart-icon">${SVG_ICONS.heartFilled}</div>
-            <button type="button" onclick="event.stopPropagation(); switchMainTab('library'); switchLibrarySubtab('favorites');" class="spotify-floating-piano-btn" title="Abrir Tus Me Gusta">
+            <button type="button" onclick="event.stopPropagation(); window.DiscoverHomeApp.openLikedSongsSheetModal();" class="spotify-floating-piano-btn" title="Ver canciones de Tus Me Gusta">
               ${SVG_ICONS.pianoSmall}
             </button>
           </div>
           <h4 class="spotify-carousel-title">Tus Me Gusta</h4>
-          <p class="spotify-carousel-artist">${favCount} canciones</p>
+          <p class="spotify-carousel-artist">${favCount} canciones · Elegir pista</p>
         </div>
       `);
 
@@ -2456,20 +3183,19 @@
         const cover = firstTrack ? getBestTrackCover(firstTrack) : './app_logo.png';
         const safeId = String(pl.id || '').replace(/'/g, "\\'");
         cardsHtml.push(`
-          <div class="spotify-carousel-card" onclick="window.DiscoverHomeApp.playSavedUserPlaylist('${safeId}')">
+          <div class="spotify-carousel-card" onclick="window.DiscoverHomeApp.openUserPlaylistSheetModal('${safeId}')">
             <div class="spotify-carousel-cover-wrap">
               <img src="${cover}" onerror="this.onerror=null; this.src='./app_logo.png';" class="spotify-carousel-cover-img" alt="" loading="lazy">
-              <button type="button" onclick="event.stopPropagation(); switchMainTab('library'); switchLibrarySubtab('playlists'); openPlaylistDetailView('${safeId}');" class="spotify-floating-piano-btn" title="Jugar playlist">
-                ${SVG_ICONS.pianoSmall}
+              <button type="button" onclick="event.stopPropagation(); window.DiscoverHomeApp.startPlaylistDiscoverySwipeMode('${safeId}');" class="spotify-floating-piano-btn" title="Descubrir canciones para esta playlist en modo Swipe">
+                ${SVG_ICONS.sparkles}
               </button>
             </div>
             <h4 class="spotify-carousel-title">${escapeHtmlSafe(pl.title || 'Playlist')}</h4>
-            <p class="spotify-carousel-artist">${(pl.tracks || []).length} canciones</p>
+            <p class="spotify-carousel-artist">${(pl.tracks || []).length} canciones · Abrir</p>
           </div>
         `);
       }
 
-      // Tarjeta para crear nueva playlist (140x140px limpia)
       cardsHtml.push(`
         <div class="spotify-carousel-card" onclick="switchMainTab('library'); switchLibrarySubtab('playlists'); createNewEmptyPlaylistPrompt();">
           <div class="spotify-carousel-cover-wrap new-playlist-cover">
@@ -2481,6 +3207,65 @@
       `);
 
       cont.innerHTML = cardsHtml.join('');
+      this._renderDynamicPlaylistRecCarousels(playlists);
+    },
+
+    /**
+     * Genera filas tipo Spotify basadas en las playlists del usuario con el botón
+     * "Descubrir canciones para esta playlist" que lanza el modo TikTok/Tinder para esa playlist.
+     */
+    _renderDynamicPlaylistRecCarousels(playlists = []) {
+      const dynCont = document.getElementById('dynamicPlaylistRecsContainer');
+      if (!dynCont) return;
+
+      this._dynamicPlaylistCarouselsMap = {};
+      const pool = this.getAllCandidatePool();
+      const validPlaylists = playlists.filter(p => p && p.id && p.title).slice(0, 4);
+
+      if (validPlaylists.length === 0) {
+        dynCont.innerHTML = '';
+        return;
+      }
+
+      const sectionsHtml = validPlaylists.map((pl, pIdx) => {
+        const safeId = String(pl.id).replace(/'/g, "\\'");
+        const listKey = `plrec_${pIdx}`;
+        const existingIds = new Set((pl.tracks || []).map(t => String(t?.id || '')));
+        const centroid = dnaEngine.computePlaylistCentroidVector(pl.tracks || [], pl.title || '');
+
+        const recs = pool
+          .filter(t => !existingIds.has(String(t.id)))
+          .map(t => ({
+            t,
+            sc: dnaEngine.scoreTrackForPlaylist(t, pl, centroid) + (hasRealHttpCover(t) ? 0.25 : 0)
+          }))
+          .sort((a, b) => b.sc - a.sc)
+          .slice(0, 12)
+          .map(x => x.t);
+
+        this._dynamicPlaylistCarouselsMap[listKey] = recs;
+        setTimeout(() => this._enrichCarouselCoversAsync(recs, listKey), 30);
+
+        return `
+          <div class="spotify-section-block">
+            <div class="flex items-center justify-between gap-2 mb-2.5 flex-wrap">
+              <div>
+                <h3 class="spotify-section-title mb-0">Recomendadas para "${escapeHtmlSafe(pl.title)}"</h3>
+                <p class="text-[11px] text-gray-400">Basadas en las ${(pl.tracks || []).length} canciones de tu playlist</p>
+              </div>
+              <button type="button" onclick="window.DiscoverHomeApp.startPlaylistDiscoverySwipeMode('${safeId}')" class="discover-playlist-swipe-cta cursor-pointer">
+                ${SVG_ICONS.sparkles}
+                <span>Descubrir canciones para esta playlist</span>
+              </button>
+            </div>
+            <div class="spotify-clean-carousel">
+              ${recs.map((tr, idx) => this._buildSmartCarouselCardHtml(tr, idx, listKey)).join('')}
+            </div>
+          </div>
+        `;
+      });
+
+      dynCont.innerHTML = sectionsHtml.join('');
     },
 
     _buildSmartCarouselCardHtml(tr, idx, listType) {
@@ -2499,49 +3284,288 @@
       `;
     },
 
+    _getCarouselArrayByType(listType) {
+      if (listType === 'because') return this._becauseLikedList;
+      if (listType === 'weekly') return this._weeklyDiscoveryList;
+      if (listType === 'piano') return this._pianoVirtuosoList;
+      if (listType === 'energy') return this._highEnergyList;
+      if (listType === 'gems') return this._hiddenGemsList;
+      if (this._dynamicPlaylistCarouselsMap && this._dynamicPlaylistCarouselsMap[listType]) {
+        return this._dynamicPlaylistCarouselsMap[listType];
+      }
+      return [];
+    },
+
     playFromCarousel(listType, idx) {
-      const arr = listType === 'because' ? this._becauseLikedList : this._weeklyDiscoveryList;
+      const arr = this._getCarouselArrayByType(listType);
       if (!Array.isArray(arr) || !arr[idx]) return;
       dualStreamEngine.loadQueueAndPlay(arr, idx, '');
     },
 
     launchPianoFromCarousel(listType, idx) {
-      const arr = listType === 'because' ? this._becauseLikedList : this._weeklyDiscoveryList;
+      const arr = this._getCarouselArrayByType(listType);
       if (!Array.isArray(arr) || !arr[idx]) return;
       this.launchPianoGameForTrack(arr[idx]);
     },
 
-    async playLikedSongsPlaylist() {
+    // =========================================================================
+    // MODAL DE TODAS LAS CANCIONES DE FAVORITOS / PLAYLIST (ELEGIR UNA SIN SONAR ALEATORIA)
+    // =========================================================================
+    async openLikedSongsSheetModal() {
       const pool = this.getAllCandidatePool();
       let favTracks = pool.filter(t => dnaEngine.likes.has(String(t.id)) || (typeof window.favoriteIdsSet !== 'undefined' && window.favoriteIdsSet.has(t.id)));
-      if (favTracks.length === 0 && typeof window.IndexedDBStorage !== 'undefined' && typeof window.IndexedDBStorage.getAllFavorites === 'function') {
-        favTracks = await window.IndexedDBStorage.getAllFavorites().catch(() => []) || [];
-      }
-      if (favTracks.length === 0) {
-        if (typeof window.showErrorToast === 'function') {
-          window.showErrorToast('Pulsa el corazón en cualquier canción para añadirla a Tus Me Gusta.');
+      if (typeof window.IndexedDBStorage !== 'undefined' && typeof window.IndexedDBStorage.getAllFavorites === 'function') {
+        const dbFavs = await window.IndexedDBStorage.getAllFavorites().catch(() => []) || [];
+        const seen = new Set(favTracks.map(t => String(t.id)));
+        for (const f of dbFavs) {
+          if (f && f.id && !seen.has(String(f.id))) {
+            seen.add(String(f.id));
+            favTracks.push(f);
+          }
         }
-        return;
       }
-      dualStreamEngine.loadQueueAndPlay(favTracks, 0, 'Tus Me Gusta');
+      this._openTracksSheetModal({
+        title: 'Tus Me Gusta',
+        subtitle: `${favTracks.length} canciones guardadas · Elige cuál escuchar o tocar`,
+        tracks: favTracks,
+        playlistId: null
+      });
     },
 
-    async playSavedUserPlaylist(playlistId) {
+    async openUserPlaylistSheetModal(playlistId) {
       if (typeof window.IndexedDBStorage === 'undefined' || typeof window.IndexedDBStorage.getPlaylist !== 'function') return;
       const pl = await window.IndexedDBStorage.getPlaylist(playlistId).catch(() => null);
-      if (!pl || !Array.isArray(pl.tracks) || pl.tracks.length === 0) {
-        if (typeof window.showErrorToast === 'function') {
-          window.showErrorToast('Esta playlist aún no tiene pistas.');
-        }
-        return;
-      }
-      const mapped = pl.tracks.map(t => ({
+      if (!pl) return;
+      const mapped = (pl.tracks || []).map(t => ({
         ...t,
         id: t.id || `pl_tr_${Date.now()}`,
         videoId: /^[a-zA-Z0-9_-]{11}$/.test(String(t.id || '')) ? t.id : (t.videoId || ''),
-        thumbnail: t.thumbnail || './app_logo.png'
+        thumbnail: t.thumbnail || t.cover_url || './app_logo.png'
       }));
-      dualStreamEngine.loadQueueAndPlay(mapped, 0, pl.title || 'Playlist');
+      this._openTracksSheetModal({
+        title: pl.title || 'Playlist',
+        subtitle: `${mapped.length} canciones · Elige una canción o descubre nuevas`,
+        tracks: mapped,
+        playlistId: pl.id
+      });
+    },
+
+    _openTracksSheetModal({ title, subtitle, tracks, playlistId }) {
+      this._openedSheetTracks = Array.isArray(tracks) ? tracks : [];
+      this._openedSheetTitle = title || 'Colección';
+      this._openedSheetPlaylistId = playlistId || null;
+
+      const modal = document.getElementById('spotifyPlaylistSheetModal');
+      const titleEl = document.getElementById('plSheetTitle');
+      const subEl = document.getElementById('plSheetSubtitle');
+      const coverEl = document.getElementById('plSheetCoverImg');
+      const discoverBtn = document.getElementById('plSheetDiscoverBtn');
+      const listCont = document.getElementById('plSheetTracksList') || document.getElementById('plSheetTracksContainer');
+      if (!modal || !listCont) return;
+
+      if (titleEl) titleEl.textContent = this._openedSheetTitle;
+      if (subEl) subEl.textContent = subtitle || `${this._openedSheetTracks.length} canciones`;
+      if (coverEl) {
+        coverEl.src = this._openedSheetTracks[0] ? getBestTrackCover(this._openedSheetTracks[0]) : './app_logo.png';
+      }
+      if (discoverBtn) {
+        discoverBtn.classList.toggle('hidden', !playlistId);
+      }
+
+      if (this._openedSheetTracks.length === 0) {
+        listCont.innerHTML = `
+          <div class="p-6 text-center text-xs text-gray-400">
+            Aún no hay canciones en esta lista. Pulsa <b>Descubrir canciones para esta playlist</b> para añadir temas deslizando a la derecha.
+          </div>
+        `;
+      } else {
+        listCont.innerHTML = this._openedSheetTracks.map((tr, idx) => {
+          const thumb = getBestTrackCover(tr);
+          return `
+            <div onclick="window.DiscoverHomeApp.playSongFromOpenedSheet(${idx})" class="spotify-sheet-track-item">
+              <span class="text-[11px] font-bold text-gray-500 w-5 text-center">${idx + 1}</span>
+              <img src="${thumb}" onerror="this.onerror=null; this.src='./app_logo.png';" class="w-11 h-11 rounded-lg object-cover flex-shrink-0 border border-white/10" alt="">
+              <div class="min-w-0 flex-1">
+                <p class="text-xs font-extrabold text-white truncate">${escapeHtmlSafe(tr.title || 'Canción')}</p>
+                <p class="text-[11px] text-gray-400 truncate">${escapeHtmlSafe(tr.artist || 'Artista')}</p>
+              </div>
+              <div class="flex items-center gap-1.5 flex-shrink-0">
+                <button type="button" onclick="event.stopPropagation(); window.DiscoverHomeApp.playSongFromOpenedSheet(${idx});" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center cursor-pointer" title="Escuchar esta canción">
+                  ${SVG_ICONS.play}
+                </button>
+                <button type="button" onclick="event.stopPropagation(); window.DiscoverHomeApp.playPianoFromOpenedSheet(${idx});" class="w-8 h-8 rounded-full bg-[#d4af37] text-black flex items-center justify-center cursor-pointer shadow" title="Jugar al piano">
+                  ${SVG_ICONS.pianoSmall}
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      modal.classList.add('open');
+    },
+
+    closePlaylistTracksModal() {
+      const modal = document.getElementById('spotifyPlaylistSheetModal');
+      if (modal) modal.classList.remove('open');
+    },
+
+    playSongFromOpenedSheet(idx) {
+      if (!Array.isArray(this._openedSheetTracks) || !this._openedSheetTracks[idx]) return;
+      dualStreamEngine.loadQueueAndPlay(this._openedSheetTracks, idx, this._openedSheetTitle);
+    },
+
+    playPianoFromOpenedSheet(idx) {
+      if (!Array.isArray(this._openedSheetTracks) || !this._openedSheetTracks[idx]) return;
+      this.closePlaylistTracksModal();
+      this.launchPianoGameForTrack(this._openedSheetTracks[idx]);
+    },
+
+    playAllFromOpenedSheet() {
+      if (!Array.isArray(this._openedSheetTracks) || this._openedSheetTracks.length === 0) return;
+      dualStreamEngine.loadQueueAndPlay(this._openedSheetTracks, 0, this._openedSheetTitle);
+    },
+
+    launchSwipeDiscoveryForOpenedSheet() {
+      const plId = this._openedSheetPlaylistId;
+      this.closePlaylistTracksModal();
+      if (plId) {
+        this.startPlaylistDiscoverySwipeMode(plId);
+      } else {
+        this.openSwipeTargetPlaylistModal();
+      }
+    },
+
+    // Compatibilidad con llamadas antiguas: ahora abren todas las canciones para elegir una
+    async playLikedSongsPlaylist() {
+      await this.openLikedSongsSheetModal();
+    },
+
+    async playSavedUserPlaylist(playlistId) {
+      await this.openUserPlaylistSheetModal(playlistId);
+    },
+
+    // =========================================================================
+    // MODO TIKTOK/TINDER PARA PLAYLIST X ("BUSCAR CANCIONES PARA LA PLAYLIST X")
+    // =========================================================================
+    async openSwipeTargetPlaylistModal() {
+      const modal = document.getElementById('cratePlaylistSelectorModal');
+      const listCont = document.getElementById('cratePlaylistSelectorList');
+      if (!modal || !listCont) return;
+
+      let playlists = [];
+      if (typeof window.IndexedDBStorage !== 'undefined' && typeof window.IndexedDBStorage.getAllPlaylists === 'function') {
+        playlists = await window.IndexedDBStorage.getAllPlaylists().catch(() => []) || [];
+      }
+
+      if (playlists.length === 0) {
+        listCont.innerHTML = `
+          <div class="p-4 text-center text-xs text-gray-400">
+            No tienes playlists creadas todavía. Crea una abajo para empezar a descubrir canciones deslizando a la derecha.
+          </div>
+        `;
+      } else {
+        listCont.innerHTML = playlists.map(pl => {
+          const isSelected = this.targetPlaylistObj && String(this.targetPlaylistObj.id) === String(pl.id);
+          const firstTrack = Array.isArray(pl.tracks) && pl.tracks[0] ? pl.tracks[0] : null;
+          const cover = firstTrack ? getBestTrackCover(firstTrack) : './app_logo.png';
+          const safeId = String(pl.id).replace(/'/g, "\\'");
+          return `
+            <div onclick="window.DiscoverHomeApp.startPlaylistDiscoverySwipeMode('${safeId}')" class="spotify-sheet-track-item ${isSelected ? 'border-[#10b981]/60 bg-[#10b981]/10' : ''}">
+              <img src="${cover}" onerror="this.onerror=null; this.src='./app_logo.png';" class="w-11 h-11 rounded-lg object-cover flex-shrink-0" alt="">
+              <div class="min-w-0 flex-1">
+                <p class="text-xs font-extrabold text-white truncate">${escapeHtmlSafe(pl.title || 'Playlist')}</p>
+                <p class="text-[11px] text-gray-400 truncate">${(pl.tracks || []).length} canciones · Recomendación inteligente</p>
+              </div>
+              <span class="px-2.5 py-1 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/50 text-[#f3e5ab] text-[10px] font-extrabold">
+                Elegir
+              </span>
+            </div>
+          `;
+        }).join('');
+      }
+
+      modal.classList.add('open');
+    },
+
+    closeSwipeTargetPlaylistModal() {
+      const modal = document.getElementById('cratePlaylistSelectorModal');
+      if (modal) modal.classList.remove('open');
+    },
+
+    async createQuickPlaylistForSwipeMode() {
+      const name = prompt('Nombre de la nueva playlist para buscarle canciones en modo Swipe:');
+      if (!name || !name.trim()) return;
+      if (typeof window.IndexedDBStorage === 'undefined' || typeof window.IndexedDBStorage.putPlaylist !== 'function') return;
+      const newPl = {
+        id: 'pl_' + Date.now(),
+        title: name.trim(),
+        createdAt: Date.now(),
+        tracks: []
+      };
+      await window.IndexedDBStorage.putPlaylist(newPl);
+      this.closeSwipeTargetPlaylistModal();
+      await this.startPlaylistDiscoverySwipeMode(newPl.id);
+      this.refreshCarousels();
+    },
+
+    async startPlaylistDiscoverySwipeMode(playlistId) {
+      if (!playlistId) return;
+      this.closeSwipeTargetPlaylistModal();
+      this.closePlaylistTracksModal();
+
+      if (typeof window.switchMainTab === 'function') {
+        window.switchMainTab('discover');
+      }
+
+      let pl = null;
+      if (typeof window.IndexedDBStorage !== 'undefined' && typeof window.IndexedDBStorage.getPlaylist === 'function') {
+        pl = await window.IndexedDBStorage.getPlaylist(playlistId).catch(() => null);
+      }
+      if (!pl) return;
+
+      this.targetPlaylistId = pl.id;
+      this.targetPlaylistObj = pl;
+      this._syncTargetPlaylistHeaderUI();
+
+      // Reconstruir el mazo basándose en todas las canciones de la playlist X y reproducir
+      this.rebuildCrateDeck(true);
+
+      const shell = document.querySelector('.crate-digger-shell');
+      if (shell && typeof shell.scrollIntoView === 'function') {
+        shell.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      if (typeof window.showSuccessToast === 'function') {
+        window.showSuccessToast(`Modo Swipe para "${pl.title}": desliza a la derecha para añadir canciones`);
+      }
+    },
+
+    clearSwipeTargetPlaylist() {
+      this.targetPlaylistId = null;
+      this.targetPlaylistObj = null;
+      this._syncTargetPlaylistHeaderUI();
+      this.rebuildCrateDeck(false);
+      if (typeof window.showSuccessToast === 'function') {
+        window.showSuccessToast('Modo Descubrir general restaurado');
+      }
+    },
+
+    _syncTargetPlaylistHeaderUI() {
+      const btn = document.getElementById('cratePlaylistTargetBtn');
+      const label = document.getElementById('cratePlaylistTargetLabel');
+      const exitBtn = document.getElementById('crateExitPlaylistModeBtn');
+      const hasTarget = Boolean(this.targetPlaylistObj);
+
+      if (btn) btn.classList.toggle('active-target', hasTarget);
+      if (label) {
+        label.textContent = hasTarget
+          ? `Añadiendo a: ${this.targetPlaylistObj.title}`
+          : 'Buscar para playlist';
+      }
+      if (exitBtn) {
+        exitBtn.classList.toggle('hidden', !hasTarget);
+      }
     },
 
     async playYouTubeCollectionContinuous(playlistId, title = 'Colección') {
@@ -2558,27 +3582,93 @@
               source: 'magic_youtube',
               _isMagicKey: true
             }));
-            dualStreamEngine.loadQueueAndPlay(tracks, 0, parsed.title || title);
+            this._openTracksSheetModal({
+              title: parsed.title || title,
+              subtitle: `${tracks.length} canciones · Elige una canción o pulsa Reproducir todo`,
+              tracks,
+              playlistId: null
+            });
             return;
           }
         }
-      } catch (err) {
+      } catch (_) {
         if (typeof window.showErrorToast === 'function') {
-          window.showErrorToast('No se pudo cargar la colección en el reproductor.');
+          window.showErrorToast('No se pudo cargar la colección.');
         }
       }
     },
 
-    openNowPlayingModal() {
+    // =========================================================================
+    // REPRODUCTOR COMPLETO + KARAOKE EN TIEMPO REAL + SALTO AL ESTRIBILLO
+    // =========================================================================
+    openNowPlayingModal(defaultTab = null) {
       const modal = document.getElementById('nowPlayingTurntableModal');
       if (!modal) return;
       modal.classList.add('open');
+      if (defaultTab) {
+        this.switchNowPlayingTab(defaultTab);
+      }
+      const tr = dualStreamEngine.currentTrack || this.getActiveCrateTrack();
+      if (tr) {
+        karaokeService.loadAndRenderTrackLyrics(tr, dualStreamEngine.getTrackFullDurationSec(tr)).catch(() => {});
+      }
       dualStreamEngine._renderQueueListInModal();
     },
 
     closeNowPlayingModal() {
       const modal = document.getElementById('nowPlayingTurntableModal');
       if (modal) modal.classList.remove('open');
+    },
+
+    switchNowPlayingTab(tab = 'vinyl') {
+      const isKaraoke = tab === 'karaoke';
+      const vinylStage = document.getElementById('npVinylStageContainer');
+      const karaokeStage = document.getElementById('npKaraokeStageContainer');
+      const tabVinylBtn = document.getElementById('npTabVinylBtn');
+      const tabKaraokeBtn = document.getElementById('npTabKaraokeBtn');
+
+      if (vinylStage) vinylStage.classList.toggle('hidden', isKaraoke);
+      if (karaokeStage) karaokeStage.classList.toggle('hidden', !isKaraoke);
+      if (tabVinylBtn) tabVinylBtn.classList.toggle('active', !isKaraoke);
+      if (tabKaraokeBtn) tabKaraokeBtn.classList.toggle('active', isKaraoke);
+
+      if (isKaraoke) {
+        const tr = dualStreamEngine.currentTrack || this.getActiveCrateTrack();
+        if (tr) {
+          karaokeService.loadAndRenderTrackLyrics(tr, dualStreamEngine.getTrackFullDurationSec(tr)).then(() => {
+            karaokeService.syncTime(dualStreamEngine.getCurrentSongTimeSec());
+          }).catch(() => {});
+        }
+      }
+    },
+
+    openKaraokeForCurrent() {
+      const tr = dualStreamEngine.currentTrack || this.getActiveCrateTrack();
+      if (tr && !dualStreamEngine.isPlaying()) {
+        dualStreamEngine.playTrack(tr);
+      }
+      this.openNowPlayingModal('karaoke');
+    },
+
+    openKaraokeFromMiniPlayer(e) {
+      if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+      this.openNowPlayingModal('karaoke');
+    },
+
+    seekToKaraokeLine(lineIdx) {
+      const line = karaokeService.currentLyrics?.[lineIdx];
+      if (!line) return;
+      dualStreamEngine.seekToSeconds(line.timeSec);
+    },
+
+    jumpToChorus() {
+      const tr = dualStreamEngine.currentTrack || this.getActiveCrateTrack();
+      if (!tr) return;
+      const chorusSec = dualStreamEngine.getChorusOffsetSec(tr);
+      dualStreamEngine.seekToSeconds(chorusSec);
+      if (typeof window.showSuccessToast === 'function') {
+        window.showSuccessToast('Saltando al estribillo principal');
+      }
     },
 
     toggleSmartShuffle() {

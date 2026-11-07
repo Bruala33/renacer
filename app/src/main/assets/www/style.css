@@ -5283,7 +5283,40 @@ body {
 
 #searchScreen,
 #tabDiscoverSection {
-  padding-bottom: 90px !important;
+  padding-bottom: 98px !important;
+}
+
+/* Fix Perfectly Centered Navigation Tabs & Buttons Across All Themes */
+.nav-tabs {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  align-items: stretch !important;
+  gap: 4px !important;
+  padding: 4px !important;
+}
+
+.nav-tab,
+.theme-vintage-3d .nav-tab,
+.theme-neon-2d .nav-tab {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  min-height: 36px !important;
+  padding: 6px 4px !important;
+  font-size: 10.5px !important;
+  line-height: 1.15 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.subnav-tabs .subnav-tab,
+.btn-vegas-led {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
 }
 
 /* Clean Minimalist Discover Container (No Heavy Outer Box) */
@@ -5296,7 +5329,16 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 4px 8px;
+  gap: 8px;
+  padding: 0 4px 10px;
+}
+
+.crate-header-left-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
 }
 
 .crate-digger-brand-title {
@@ -5304,6 +5346,52 @@ body {
   font-weight: 800;
   color: #ffffff;
   letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+/* Target Playlist Mode Pill in Swipe Deck */
+.crate-target-playlist-pill {
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  color: #f3d791;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  max-width: 210px;
+  transition: all 0.15s ease;
+}
+
+.crate-target-playlist-pill span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.crate-target-playlist-pill.active-playlist-mode {
+  background: linear-gradient(135deg, rgba(243, 215, 145, 0.22), rgba(212, 175, 55, 0.32));
+  border-color: #d4af37;
+  color: #ffffff;
+  box-shadow: 0 0 14px rgba(212, 175, 55, 0.25);
+}
+
+.crate-exit-playlist-pill {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(248, 113, 113, 0.16);
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  color: #fca5a5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 .btn-tune-algorithm-icon {
@@ -5328,18 +5416,18 @@ body {
   transform: scale(0.93);
 }
 
-/* Clean Modal for Musical Preferences (Never Expanded by Default) */
+/* Redesigned Attractive Musical Preferences Modal with "No me importa" Options */
 .tube-amp-modal-overlay {
   position: fixed;
   inset: 0;
   z-index: 9920;
-  background: rgba(0, 0, 0, 0.78);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   display: none;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: 14px;
 }
 
 .tube-amp-modal-overlay.open {
@@ -5348,12 +5436,14 @@ body {
 
 .tube-amp-modal-card {
   width: 100%;
-  max-width: 360px;
-  background: #121214;
-  border: 1px solid rgba(212, 175, 55, 0.35);
-  border-radius: 20px;
+  max-width: 390px;
+  max-height: 88vh;
+  overflow-y: auto;
+  background: linear-gradient(180deg, #18171c 0%, #101013 100%);
+  border: 1px solid rgba(212, 175, 55, 0.38);
+  border-radius: 22px;
   padding: 16px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.92);
 }
 
 .tube-amp-header {
@@ -5361,94 +5451,162 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .tube-amp-close-btn {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.08);
   border: none;
   color: #d4d4d8;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-}
-
-.tube-dials-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.tube-dial-card {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 14px;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.tube-dial-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px;
-}
-
-.tube-dial-name {
-  font-size: 11px;
-  font-weight: 700;
-  color: #ffffff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.tube-dial-val {
-  font-size: 10px;
-  font-weight: 600;
-  color: #d4af37;
-  white-space: nowrap;
-}
-
-.tube-dial-knob-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.rotary-knob-visual {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: radial-gradient(circle, #2a2419 0%, #14110b 100%);
-  border: 1.5px solid #d4af37;
-  position: relative;
   flex-shrink: 0;
 }
 
-.rotary-knob-indicator {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  position: relative;
+.pref-presets-strip {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
 }
 
-.rotary-knob-indicator::after {
-  content: '';
-  position: absolute;
-  top: 3px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 2.5px;
-  height: 7px;
-  border-radius: 2px;
-  background: #f3d791;
+.pref-presets-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.pref-preset-chip {
+  padding: 6px 11px;
+  border-radius: 999px;
+  background: rgba(212, 175, 55, 0.12);
+  border: 1px solid rgba(212, 175, 55, 0.32);
+  color: #f3d791;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pref-preset-chip:hover,
+.pref-preset-chip:active {
+  background: #d4af37;
+  color: #120d04;
+}
+
+.pref-cards-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pref-modern-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 11px 12px;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.pref-modern-card.is-dont-care {
+  border-color: rgba(212, 175, 55, 0.35);
+  background: rgba(212, 175, 55, 0.05);
+}
+
+.pref-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.pref-card-title-group {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.pref-card-title {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.pref-card-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #d4af37;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(212, 175, 55, 0.14);
+}
+
+.pref-dont-care-btn {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #a1a1aa;
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.pref-dont-care-btn.active {
+  background: linear-gradient(135deg, #f3d791 0%, #d4af37 100%);
+  border-color: #fde047;
+  color: #120d04;
+  font-weight: 800;
+  box-shadow: 0 2px 10px rgba(212, 175, 55, 0.35);
+}
+
+.pref-card-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: opacity 0.18s ease;
+}
+
+.pref-modern-card.is-dont-care .pref-card-controls {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.pref-quick-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.pref-step-pill {
+  flex: 1;
+  min-width: 68px;
+  padding: 5px 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #d4d4d8;
+  font-size: 10px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pref-step-pill:hover,
+.pref-step-pill:active {
+  background: rgba(212, 175, 55, 0.2);
+  border-color: rgba(212, 175, 55, 0.5);
+  color: #ffffff;
 }
 
 .tube-dial-slider {
@@ -5457,7 +5615,7 @@ body {
   width: 100%;
   height: 5px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.16);
   outline: none;
   cursor: pointer;
 }
@@ -5465,35 +5623,29 @@ body {
 .tube-dial-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: #d4af37;
   border: 2px solid #ffffff;
   cursor: pointer;
 }
 
-.tube-dial-Sublabels {
-  display: flex;
-  justify-content: space-between;
-  font-size: 9.5px;
-  color: #9ca3af;
-}
-
-/* Swipe Deck Stage & Tinder/Spotify Clips Minimalist Card */
+/* Swipe Deck Stage & Tinder/Spotify Clips Minimalist Card (100% Bug-Free Stacking) */
 .crate-deck-stage {
   position: relative;
   width: 100%;
-  min-height: 334px;
+  min-height: 332px;
   user-select: none;
   touch-action: pan-y;
 }
 
 .crate-swipe-card {
   position: relative;
+  z-index: 5;
   width: 100%;
-  background: linear-gradient(180deg, rgba(26, 24, 22, 0.96) 0%, rgba(15, 14, 13, 0.98) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: linear-gradient(180deg, rgba(26, 24, 22, 0.98) 0%, rgba(15, 14, 13, 0.99) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 22px;
   padding: 18px 16px 16px;
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.65);
@@ -5510,26 +5662,29 @@ body {
   cursor: grabbing;
 }
 
-/* Pre-rendered Next Card Underneath (Zero Empty Box Flash) */
+/* Pre-rendered Next Card Underneath (Strictly Absolute so it NEVER pushes Active Card down) */
+.crate-swipe-card.crate-next-underlay,
 .crate-next-underlay {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 1 !important;
   transform: scale(0.96) translateY(6px);
-  opacity: 0.72;
-  pointer-events: none;
+  opacity: 0.68;
+  pointer-events: none !important;
 }
 
-/* Large Square Rounded Cover with Subtle Peeking Spinning Vinyl */
+/* Centered Square Rounded Cover with Subtle Peeking Spinning Vinyl */
 .crate-cover-vinyl-wrap {
   position: relative;
-  width: 214px;
+  width: 184px;
   height: 184px;
+  margin: 0 auto 14px;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   cursor: pointer;
-  margin-bottom: 14px;
 }
 
 .crate-square-cover-frame {
@@ -5539,7 +5694,7 @@ body {
   border-radius: 16px;
   overflow: hidden;
   background: #18181b;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.75);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.78);
   z-index: 3;
   flex-shrink: 0;
 }
@@ -5553,11 +5708,11 @@ body {
 
 .crate-peeking-vinyl {
   position: absolute;
-  right: -14px;
+  right: -28px;
   top: 50%;
-  width: 168px;
-  height: 168px;
-  margin-top: -84px;
+  width: 164px;
+  height: 164px;
+  margin-top: -82px;
   border-radius: 50%;
   background:
     conic-gradient(
@@ -5602,29 +5757,36 @@ body {
   to { transform: rotate(360deg); }
 }
 
-/* Song Title & Soft Gray Artist */
+/* Song Title & Soft Gray Artist (Centered) */
 .crate-track-info {
   width: 100%;
   text-align: center;
-  padding: 0 8px;
+  padding: 0 12px;
   margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .crate-song-title {
+  width: 100%;
   font-size: 17px;
   font-weight: 800;
   color: #ffffff;
   line-height: 1.25;
+  text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .crate-song-artist {
+  width: 100%;
   font-size: 13px;
   font-weight: 500;
   color: #a1a1aa;
   margin-top: 2px;
+  text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5720,7 +5882,7 @@ body {
   left: 16px;
   border: 1.5px solid #d4af37;
   color: #f3d791;
-  background: rgba(20, 16, 8, 0.88);
+  background: rgba(20, 16, 8, 0.9);
   transform: rotate(-8deg);
 }
 
@@ -5728,7 +5890,7 @@ body {
   right: 16px;
   border: 1.5px solid #f87171;
   color: #fca5a5;
-  background: rgba(40, 12, 12, 0.88);
+  background: rgba(40, 12, 12, 0.9);
   transform: rotate(8deg);
 }
 
@@ -5757,7 +5919,7 @@ body {
 }
 
 /* =========================================================================
-   RULE 3: CLEAN SPOTIFY-STYLE CAROUSELS (NO CONTAINER BOXES, 140x140PX COVERS)
+   RULE 3: CLEAN SPOTIFY-STYLE CAROUSELS & PLAYLIST SWIPE DISCOVERY BUTTONS
    ========================================================================= */
 .discover-carousel-section {
   background: transparent;
@@ -5777,13 +5939,35 @@ body {
 }
 
 .discover-carousel-title {
-  font-size: 16px;
+  font-size: 15.5px;
   font-weight: 800;
   color: #ffffff;
   letter-spacing: -0.01em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.discover-playlist-swipe-cta {
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(212, 175, 55, 0.14);
+  border: 1px solid rgba(212, 175, 55, 0.42);
+  color: #f3d791;
+  font-size: 10.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.discover-playlist-swipe-cta:hover,
+.discover-playlist-swipe-cta:active {
+  background: #d4af37;
+  color: #120d04;
 }
 
 .discover-carousel-link {
@@ -5794,6 +5978,7 @@ body {
   border: none;
   padding: 2px 4px;
   transition: color 0.15s ease;
+  white-space: nowrap;
 }
 
 .discover-carousel-link:hover {
@@ -5976,7 +6161,7 @@ body {
 }
 
 /* =========================================================================
-   RULE 4: COMPACT 1-LINE BOTTOM MINI-PLAYER (HEIGHT: 56PX, 40x40 COVER, 2PX BAR)
+   RULE 4: INTERACTIVE BOTTOM MINI-PLAYER (WITH FULL SEEK BAR & SWIPE-DOWN CLOSE)
    ========================================================================= */
 .spotify-mini-player {
   position: fixed;
@@ -5985,28 +6170,51 @@ body {
   transform: translateX(-50%);
   width: calc(100% - 16px);
   max-width: 425px;
-  height: 56px;
-  padding: 0 10px 2px 8px;
+  height: 66px;
+  padding: 4px 10px 10px 8px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   justify-content: space-between;
-  gap: 10px;
   z-index: 9400;
-  background: rgba(22, 20, 18, 0.97);
+  background: rgba(20, 19, 18, 0.98);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.88);
   overflow: hidden;
   cursor: pointer;
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+  touch-action: none;
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.24s ease;
+}
+
+.spotify-mini-player.swiping-down {
+  transition: none !important;
 }
 
 .spotify-mini-player.hidden-player {
-  transform: translate(-50%, 140%) !important;
+  transform: translate(-50%, 150%) !important;
   opacity: 0 !important;
   pointer-events: none !important;
+}
+
+.mini-player-swipe-handle {
+  width: 30px;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  margin: 0 auto 2px;
+  flex-shrink: 0;
+}
+
+.mini-player-main-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  width: 100%;
+  min-width: 0;
+  flex: 1;
 }
 
 .mini-player-cover-thumb {
@@ -6014,7 +6222,7 @@ body {
   height: 40px !important;
   min-width: 40px !important;
   max-width: 40px !important;
-  border-radius: 6px;
+  border-radius: 7px;
   overflow: hidden;
   flex-shrink: 0;
   background: #18181b;
@@ -6027,9 +6235,15 @@ body {
   display: block;
 }
 
-.mini-player-info-single-line {
+.mini-player-info-col {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.mini-player-info-single-line {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -6039,7 +6253,7 @@ body {
 }
 
 .mini-player-title {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 700;
   color: #ffffff;
   white-space: nowrap;
@@ -6050,12 +6264,12 @@ body {
 
 .mini-player-dot {
   color: #71717a;
-  font-size: 12px;
+  font-size: 11px;
   flex-shrink: 0;
 }
 
 .mini-player-artist {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 500;
   color: #a1a1aa;
   white-space: nowrap;
@@ -6064,16 +6278,35 @@ body {
   flex-shrink: 2;
 }
 
-.mini-player-actions {
+.mini-player-time-subrow {
   display: flex;
   align-items: center;
   gap: 4px;
+  font-size: 9.5px;
+  font-family: monospace;
+  color: #a1a1aa;
+  margin-top: 1px;
+}
+
+.mini-player-loading-pill {
+  font-family: sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  color: #f3d791;
+  margin-left: 4px;
+  animation: pulse 1.2s infinite;
+}
+
+.mini-player-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
   flex-shrink: 0;
 }
 
 .mini-player-svg-btn {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: transparent;
   border: none;
@@ -6082,7 +6315,7 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: color 0.15s ease, transform 0.15s ease, background 0.15s ease;
+  transition: color 0.15s ease, transform 0.15s ease;
 }
 
 .mini-player-svg-btn:active {
@@ -6105,23 +6338,58 @@ body {
   margin-left: 2px;
 }
 
-.mini-player-progress-track {
+/* Interactive Scrub Bar inside Mini-Player */
+.mini-player-scrub-wrap {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.12);
-  overflow: hidden;
+  height: 14px;
+  display: flex;
+  align-items: flex-end;
+  z-index: 20;
+  cursor: pointer;
+}
+
+.mini-player-progress-track {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  overflow: visible;
 }
 
 .mini-player-progress-fill {
   height: 100%;
-  background: #d4af37;
-  transition: width 0.2s linear;
+  background: linear-gradient(90deg, #d4af37, #fde047);
+  transition: width 0.12s linear;
 }
 
-/* Full-Screen "Now Playing" Modal */
+.mini-player-chorus-tick {
+  position: absolute;
+  top: -2px;
+  width: 3px;
+  height: 8px;
+  border-radius: 2px;
+  background: #fde047;
+  box-shadow: 0 0 6px #fde047;
+  pointer-events: none;
+}
+
+.mini-player-range-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+  z-index: 25;
+}
+
+/* =========================================================================
+   FULL-SCREEN "NOW PLAYING" MODAL + KARAOKE LYRICS STAGE + PLAYLIST SHEET
+   ========================================================================= */
 .now-playing-modal-overlay {
   position: fixed;
   inset: 0;
@@ -6146,22 +6414,52 @@ body {
   gap: 8px;
   width: 100%;
   max-width: 380px;
-  margin: 0 auto 12px;
+  margin: 0 auto 10px;
+}
+
+.np-view-switcher {
+  display: inline-flex;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 3px;
+}
+
+.np-view-tab {
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: transparent;
+  border: none;
+  color: #a1a1aa;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.np-view-tab.active {
+  background: #d4af37;
+  color: #120d04;
+  font-weight: 800;
 }
 
 .now-playing-body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   width: 100%;
   max-width: 380px;
   margin: 0 auto;
 }
 
 .np-turntable-stage {
-  width: 230px;
-  height: 230px;
+  width: 224px;
+  height: 224px;
   margin: 0 auto;
   border-radius: 50%;
   position: relative;
@@ -6175,8 +6473,8 @@ body {
 }
 
 .np-turntable-vinyl {
-  width: 214px;
-  height: 214px;
+  width: 208px;
+  height: 208px;
   border-radius: 50%;
   background:
     conic-gradient(
@@ -6207,8 +6505,8 @@ body {
 }
 
 .np-turntable-label {
-  width: 96px;
-  height: 96px;
+  width: 92px;
+  height: 92px;
   border-radius: 50%;
   border: 2px solid #d4af37;
   overflow: hidden;
@@ -6222,21 +6520,119 @@ body {
   object-fit: cover;
 }
 
+/* Synchronized Karaoke Lyrics Stage */
+.np-karaoke-stage {
+  width: 100%;
+  height: 240px;
+  background: linear-gradient(180deg, rgba(28, 24, 18, 0.88) 0%, rgba(14, 12, 10, 0.94) 100%);
+  border: 1px solid rgba(212, 175, 55, 0.32);
+  border-radius: 20px;
+  padding: 14px 16px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.7);
+}
+
+.np-karaoke-scroll-box {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 60px 4px;
+  text-align: center;
+}
+
+.np-karaoke-scroll-box::-webkit-scrollbar {
+  width: 0;
+  display: none;
+}
+
+.np-karaoke-line {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.34);
+  line-height: 1.35;
+  transition: transform 0.22s ease, color 0.22s ease, text-shadow 0.22s ease;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+
+.np-karaoke-line.past {
+  color: rgba(243, 215, 145, 0.45);
+}
+
+.np-karaoke-line.active {
+  font-size: 18px;
+  font-weight: 900;
+  color: #fde047;
+  transform: scale(1.05);
+  text-shadow: 0 0 18px rgba(212, 175, 55, 0.55);
+}
+
+.np-karaoke-placeholder {
+  margin: auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: #a1a1aa;
+  text-align: center;
+}
+
+/* Full Song Scrubber with Chorus Marker */
 .np-scrubber-box {
   width: 100%;
   max-width: 340px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
+}
+
+.np-scrubber-track-container {
+  position: relative;
+  width: 100%;
+  padding-top: 12px;
+}
+
+.np-chorus-marker {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  z-index: 5;
+}
+
+.np-chorus-marker::after {
+  content: '';
+  width: 3px;
+  height: 10px;
+  border-radius: 2px;
+  background: #fde047;
+  box-shadow: 0 0 6px #fde047;
+}
+
+.np-chorus-label {
+  font-size: 8.5px;
+  font-weight: 800;
+  color: #fde047;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 1px;
+  white-space: nowrap;
 }
 
 .np-scrubber-slider {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 4px;
+  height: 5px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.2);
   outline: none;
   cursor: pointer;
 }
@@ -6244,10 +6640,11 @@ body {
 .np-scrubber-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
-  background: #ffffff;
+  background: #fde047;
+  border: 2px solid #ffffff;
   cursor: pointer;
 }
 
@@ -6340,4 +6737,47 @@ body {
   border-radius: 14px;
   padding: 10px;
 }
+
+/* Spotify-Style Playlist & Favorites Song Picker Sheet Modal */
+.spotify-playlist-sheet-card {
+  width: 100%;
+  max-width: 400px;
+  max-height: 84vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #18171b 0%, #0e0e11 100%);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 22px;
+  padding: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.92);
+}
+
+.spotify-sheet-tracks-scroll {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 55vh;
+  padding-right: 2px;
+}
+
+.spotify-sheet-track-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.spotify-sheet-track-row:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(212, 175, 55, 0.35);
+}
+
 

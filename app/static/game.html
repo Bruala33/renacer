@@ -25,7 +25,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css?v=56.0">
+  <link rel="stylesheet" href="./style.css?v=57.0">
   <script>
     // ===================================================
     // SISTEMA DE INTERNACIONALIZACIÓN (i18n: ES / EN)
@@ -1346,20 +1346,38 @@
       </div>
 
       <!-- TAB 1 (HOME PRINCIPAL): DESCUBRIR — Minimalist Spotify Style & Swipe Deck -->
-      <div id="tabDiscoverSection" class="space-y-4 pb-24" style="display: block; padding-bottom: 90px;">
+      <div id="tabDiscoverSection" class="space-y-4 pb-24" style="display: block; padding-bottom: 96px;">
 
         <!-- TARJETA SWIPE MINIMALISTA (ESTILO SPOTIFY CLIPS / TINDER) -->
         <div id="crateDiggerSection" class="crate-digger-console">
           <div class="crate-digger-header">
-            <span class="crate-digger-brand-title">Para ti</span>
-            <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleTubeAmpPanel()" class="btn-tune-algorithm-icon" title="Ajustes de recomendación">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/>
-                <line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/>
-                <line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/>
-                <line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>
-              </svg>
-            </button>
+            <div class="crate-header-left-group">
+              <span id="crateHeaderMainTitle" class="crate-digger-brand-title">Para ti</span>
+              <button id="cratePlaylistTargetBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openSwipeTargetPlaylistModal()" class="crate-target-playlist-pill" title="Elegir playlist para buscar canciones en modo Swipe">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                <span id="cratePlaylistTargetLabel">Buscar para playlist</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <button id="crateExitPlaylistModeBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.clearSwipeTargetPlaylist()" class="crate-exit-playlist-pill hidden" title="Volver al modo Para ti">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openKaraokeForCurrent()" class="btn-tune-algorithm-icon" title="Ver letra en modo Karaoke">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/>
+                </svg>
+              </button>
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleTubeAmpPanel()" class="btn-tune-algorithm-icon" title="Preferencias musicales">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/>
+                  <line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/>
+                  <line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/>
+                  <line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>
+                </svg>
+              </button>
+            </div>
           </div>
 
           <!-- Escenario de Tarjetas Táctiles (Swipe Deck con pre-renderizado inferior) -->
@@ -1368,83 +1386,121 @@
           </div>
         </div>
 
-        <!-- MODAL LIMPIO DE PREFERENCIAS MUSICALES (OCULTO POR DEFECTO) -->
+        <!-- PANTALLA REDISEÑADA DE PREFERENCIAS MUSICALES CON OPCIONES "NO ME IMPORTA" -->
         <div id="analogDnaTunerPanel" class="tube-amp-modal-overlay" onclick="if(event.target===this) window.DiscoverHomeApp && window.DiscoverHomeApp.toggleTubeAmpPanel(false)">
           <div class="tube-amp-modal-card" onclick="event.stopPropagation();">
             <div class="tube-amp-header">
               <div>
-                <div class="text-sm font-black text-white tracking-wide">Preferencias Musicales</div>
-                <div id="dnaProfileVectorSummary" class="text-[11px] text-gray-400">Personaliza las canciones que aparecen en tu inicio</div>
+                <div class="text-base font-black text-white tracking-tight">Tus Preferencias Musicales</div>
+                <div id="dnaProfileVectorSummary" class="text-[11.5px] text-gray-400 mt-0.5">Elige qué buscas o marca «No me importa»</div>
               </div>
               <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleTubeAmpPanel(false)" class="tube-amp-close-btn" title="Cerrar">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
 
-            <div class="tube-dials-grid">
-              <!-- Dial 1: Nivel de Descubrimiento -->
-              <div class="tube-dial-card">
-                <div class="tube-dial-top">
-                  <span class="tube-dial-name">Variedad</span>
-                  <span id="dialVal_discovery" class="tube-dial-val">Equilibrado (45%)</span>
-                </div>
-                <div class="tube-dial-knob-row">
-                  <div class="rotary-knob-visual"><div id="knobIndicator_discovery" class="rotary-knob-indicator"></div></div>
-                  <input id="dialInput_discovery" type="range" min="0" max="100" value="45" oninput="window.DiscoverHomeApp && window.DiscoverHomeApp.onDialChange('discovery', this.value)" class="tube-dial-slider">
-                </div>
-                <div class="tube-dial-Sublabels">
-                  <span>Mis favoritos</span>
-                  <span>Nuevos estilos</span>
-                </div>
-              </div>
+            <!-- Presets Visuales Rápidos -->
+            <div class="pref-presets-strip">
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.applyPreferencePreset('all_open')" class="pref-preset-chip">Todo Terreno</button>
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.applyPreferencePreset('piano_classic')" class="pref-preset-chip">Piano &amp; Clásica</button>
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.applyPreferencePreset('rock_energy')" class="pref-preset-chip">Rock &amp; Energía</button>
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.applyPreferencePreset('pop_modern')" class="pref-preset-chip">Pop &amp; Actuales</button>
+            </div>
 
-              <!-- Dial 2: Energía / BPM -->
-              <div class="tube-dial-card">
-                <div class="tube-dial-top">
-                  <span class="tube-dial-name">Intensidad y Ritmo</span>
-                  <span id="dialVal_energy" class="tube-dial-val">55% · 116 BPM</span>
+            <div class="pref-cards-stack">
+              <!-- Preferencia 1: Época / Década -->
+              <div id="prefCard_era" class="pref-modern-card">
+                <div class="pref-card-header">
+                  <div class="pref-card-title-group">
+                    <span class="pref-card-title">Época de las canciones</span>
+                    <span id="dialVal_era" class="pref-card-badge">80s / 90s</span>
+                  </div>
+                  <button id="dontCareBtn_era" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleDontCare('era')" class="pref-dont-care-btn">
+                    No me importa
+                  </button>
                 </div>
-                <div class="tube-dial-knob-row">
-                  <div class="rotary-knob-visual"><div id="knobIndicator_energy" class="rotary-knob-indicator"></div></div>
-                  <input id="dialInput_energy" type="range" min="0" max="100" value="55" oninput="window.DiscoverHomeApp && window.DiscoverHomeApp.onDialChange('energy', this.value)" class="tube-dial-slider">
-                </div>
-                <div class="tube-dial-Sublabels">
-                  <span>Suave</span>
-                  <span>Intenso</span>
-                </div>
-              </div>
-
-              <!-- Dial 3: Década / Época -->
-              <div class="tube-dial-card">
-                <div class="tube-dial-top">
-                  <span class="tube-dial-name">Época</span>
-                  <span id="dialVal_era" class="tube-dial-val">80s / 90s</span>
-                </div>
-                <div class="tube-dial-knob-row">
-                  <div class="rotary-knob-visual"><div id="knobIndicator_era" class="rotary-knob-indicator"></div></div>
+                <div id="prefControls_era" class="pref-card-controls">
+                  <div class="pref-quick-pills">
+                    <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.onDialChange('era', 12)" class="pref-step-pill">Clásicos / &lt;70s</button>
+                    <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.onDialChange('era', 48)" class="pref-step-pill">80s &amp; 90s</button>
+                    <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.onDialChange('era', 72)" class="pref-step-pill">2000s</button>
+                    <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.onDialChange('era', 95)" class="pref-step-pill">Actuales</button>
+                  </div>
                   <input id="dialInput_era" type="range" min="0" max="100" value="50" oninput="window.DiscoverHomeApp && window.DiscoverHomeApp.onDialChange('era', this.value)" class="tube-dial-slider">
                 </div>
-                <div class="tube-dial-Sublabels">
-                  <span>Clásicos</span>
-                  <span>Actuales</span>
+              </div>
+
+              <!-- Preferencia 2: Intensidad y Ritmo -->
+              <div id="prefCard_energy" class="pref-modern-card">
+                <div class="pref-card-header">
+                  <div class="pref-card-title-group">
+                    <span class="pref-card-title">Intensidad y Ritmo</span>
+                    <span id="dialVal_energy" class="pref-card-badge">Medio</span>
+                  </div>
+                  <button id="dontCareBtn_energy" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleDontCare('energy')" class="pref-dont-care-btn">
+                    No me importa
+                  </button>
+                </div>
+                <div id="prefControls_energy" class="pref-card-controls">
+                  <div class="pref-quick-pills">
+                    <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.onDialChange('energy', 20)" class="pref-step-pill">Suave / Calma</button>
+                    <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.onDialChange('energy', 55)" class="pref-step-pill">Equilibrado</button>
+                    <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.onDialChange('energy', 90)" class="pref-step-pill">Intenso / Rápido</button>
+                  </div>
+                  <input id="dialInput_energy" type="range" min="0" max="100" value="55" oninput="window.DiscoverHomeApp && window.DiscoverHomeApp.onDialChange('energy', this.value)" class="tube-dial-slider">
                 </div>
               </div>
 
-              <!-- Dial 4: Vocal vs. Instrumental -->
-              <div class="tube-dial-card">
-                <div class="tube-dial-top">
-                  <span class="tube-dial-name">Estilo</span>
-                  <span id="dialVal_vocal" class="tube-dial-val">Híbrido (50%)</span>
+              <!-- Preferencia 3: Voz vs. Instrumental -->
+              <div id="prefCard_vocal" class="pref-modern-card">
+                <div class="pref-card-header">
+                  <div class="pref-card-title-group">
+                    <span class="pref-card-title">Voz o Instrumental</span>
+                    <span id="dialVal_vocal" class="pref-card-badge">Mixto</span>
+                  </div>
+                  <button id="dontCareBtn_vocal" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleDontCare('vocal')" class="pref-dont-care-btn">
+                    No me importa
+                  </button>
                 </div>
-                <div class="tube-dial-knob-row">
-                  <div class="rotary-knob-visual"><div id="knobIndicator_vocal" class="rotary-knob-indicator"></div></div>
+                <div id="prefControls_vocal" class="pref-card-controls">
+                  <div class="pref-quick-pills">
+                    <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.onDialChange('vocal', 10)" class="pref-step-pill">Solo Instrumental</button>
+                    <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.onDialChange('vocal', 50)" class="pref-step-pill">Mixto</button>
+                    <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.onDialChange('vocal', 90)" class="pref-step-pill">Con Voz</button>
+                  </div>
                   <input id="dialInput_vocal" type="range" min="0" max="100" value="50" oninput="window.DiscoverHomeApp && window.DiscoverHomeApp.onDialChange('vocal', this.value)" class="tube-dial-slider">
                 </div>
-                <div class="tube-dial-Sublabels">
-                  <span>Instrumental</span>
-                  <span>Con voz</span>
+              </div>
+
+              <!-- Preferencia 4: Variedad / Descubrimiento -->
+              <div id="prefCard_discovery" class="pref-modern-card">
+                <div class="pref-card-header">
+                  <div class="pref-card-title-group">
+                    <span class="pref-card-title">Nivel de Novedad</span>
+                    <span id="dialVal_discovery" class="pref-card-badge">Equilibrado</span>
+                  </div>
+                  <button id="dontCareBtn_discovery" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleDontCare('discovery')" class="pref-dont-care-btn">
+                    No me importa
+                  </button>
+                </div>
+                <div id="prefControls_discovery" class="pref-card-controls">
+                  <div class="pref-quick-pills">
+                    <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.onDialChange('discovery', 15)" class="pref-step-pill">Mis favoritos</button>
+                    <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.onDialChange('discovery', 50)" class="pref-step-pill">Equilibrado</button>
+                    <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.onDialChange('discovery', 90)" class="pref-step-pill">Sorpréndeme</button>
+                  </div>
+                  <input id="dialInput_discovery" type="range" min="0" max="100" value="45" oninput="window.DiscoverHomeApp && window.DiscoverHomeApp.onDialChange('discovery', this.value)" class="tube-dial-slider">
                 </div>
               </div>
+            </div>
+
+            <div class="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between gap-2">
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.setAllDontCare(true)" class="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-gray-300 cursor-pointer">
+                Me da igual todo
+              </button>
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleTubeAmpPanel(false)" class="px-4 py-2 rounded-xl bg-gradient-to-r from-[#f3d791] to-[#d4af37] text-black text-xs font-extrabold cursor-pointer">
+                Aplicar y Cerrar
+              </button>
             </div>
           </div>
         </div>
@@ -1465,6 +1521,24 @@
           </button>
         </div>
 
+        <!-- CARRUSEL DE TUS PLAYLISTS Y FAVORITOS (AL TOCAR ABRE TODAS LAS CANCIONES PARA ELEGIR) -->
+        <div class="discover-carousel-section">
+          <div class="discover-carousel-header">
+            <span class="discover-carousel-title">Tus Playlists y Favoritos</span>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openSwipeTargetPlaylistModal()" class="discover-playlist-swipe-cta cursor-pointer">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span>Descubrir para playlist</span>
+              </button>
+              <button type="button" onclick="switchMainTab('library'); switchLibrarySubtab('playlists');" class="discover-carousel-link cursor-pointer">Ver todas</button>
+            </div>
+          </div>
+          <div id="carouselUserPlaylists" class="discover-carousel-scroll"></div>
+        </div>
+
+        <!-- FILAS DINÁMICAS DE RECOMENDACIONES BASADAS EN TUS PLAYLISTS (CON BOTÓN MODO SWIPE) -->
+        <div id="dynamicPlaylistRecsContainer" class="space-y-4"></div>
+
         <!-- CARRUSELES HORIZONTALES LIMPIOS ESTILO SPOTIFY -->
         <div class="discover-carousel-section">
           <div class="discover-carousel-header">
@@ -1482,10 +1556,23 @@
 
         <div class="discover-carousel-section">
           <div class="discover-carousel-header">
-            <span class="discover-carousel-title">Tus Playlists Creadas</span>
-            <button type="button" onclick="switchMainTab('library'); switchLibrarySubtab('playlists');" class="discover-carousel-link cursor-pointer">Ver todas</button>
+            <span class="discover-carousel-title">Imprescindibles de Piano y Melodía</span>
           </div>
-          <div id="carouselUserPlaylists" class="discover-carousel-scroll"></div>
+          <div id="carouselPianoVirtuoso" class="discover-carousel-scroll"></div>
+        </div>
+
+        <div class="discover-carousel-section">
+          <div class="discover-carousel-header">
+            <span class="discover-carousel-title">Energía y Ritmo para Ti</span>
+          </div>
+          <div id="carouselHighEnergy" class="discover-carousel-scroll"></div>
+        </div>
+
+        <div class="discover-carousel-section">
+          <div class="discover-carousel-header">
+            <span class="discover-carousel-title">Joyas Ocultas por Descubrir</span>
+          </div>
+          <div id="carouselHiddenGems" class="discover-carousel-scroll"></div>
         </div>
 
         <!-- Colecciones de YouTube Limpias -->
@@ -1625,11 +1712,18 @@
                 </div>
                 <div class="flex-1 min-w-0">
                   <h3 id="selectedPlaylistTitle" class="text-sm font-black text-[#fff6d6] font-serif truncate">Playlist</h3>
-                  <p id="selectedPlaylistSubtitle" class="text-[10px] text-[#cbb894] truncate">Toca una canción para ver sus versiones jugables</p>
+                  <p id="selectedPlaylistSubtitle" class="text-[10px] text-[#cbb894] truncate">Elige una canción de la lista o descubre nuevas</p>
                 </div>
-                <button id="btnPlayAllSelectedPlaylist" onclick="playEntirePlaylistShuffled()" class="px-3 py-2 rounded-xl bg-gradient-to-b from-[#f3d791] via-[#d4a84f] to-[#9b6f23] border border-[#fff6d6] text-[#1c1004] font-black text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-lg cursor-pointer transition active:scale-95 flex-shrink-0">
-                  <span>▶</span> <span>Aleatorio</span>
-                </button>
+                <div class="flex items-center gap-1.5 flex-shrink-0">
+                  <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.startPlaylistDiscoverySwipeMode(currentOpenedPlaylistId)" class="px-2.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-[#d4af37]/60 text-[#f3d791] font-bold text-[10px] flex items-center gap-1 cursor-pointer transition active:scale-95" title="Descubrir canciones para esta playlist en modo Swipe">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <span>Descubrir</span>
+                  </button>
+                  <button id="btnPlayAllSelectedPlaylist" onclick="playEntirePlaylistShuffled()" class="px-3 py-2 rounded-xl bg-gradient-to-b from-[#f3d791] via-[#d4a84f] to-[#9b6f23] border border-[#fff6d6] text-[#1c1004] font-black text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-lg cursor-pointer transition active:scale-95 flex-shrink-0">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+                    <span>Jugar</span>
+                  </button>
+                </div>
               </div>
               <div class="unified-search-bar mt-2.5" id="playlistInternalFilterBar">
                 <input
@@ -4795,44 +4889,84 @@
       </div>
     </div>
 
-    <!-- MINI-REPRODUCTOR INFERIOR COMPACTO Y LIMPIO (1 SOLA LÍNEA TIPO SPOTIFY, 56PX) -->
-    <div id="spotifyMiniPlayer" class="spotify-mini-player" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openNowPlayingModal()">
-      <div id="miniPlayerVinylDisc" class="mini-player-cover-thumb">
-        <img id="miniPlayerCoverImg" src="./app_logo.png" alt="Cover" onerror="this.onerror=null; this.src='./app_logo.png';">
+    <!-- MINI-REPRODUCTOR INFERIOR INTERACTIVO (CON BARRA DESLIZABLE Y CIERRE AL DESLIZAR HACIA ABAJO) -->
+    <div id="spotifyMiniPlayer" class="spotify-mini-player">
+      <div class="mini-player-swipe-handle" title="Desliza hacia abajo para cerrar el reproductor"></div>
+      <div class="mini-player-main-row" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openNowPlayingModal()">
+        <div id="miniPlayerVinylDisc" class="mini-player-cover-thumb">
+          <img id="miniPlayerCoverImg" src="./app_logo.png" alt="Cover" onerror="this.onerror=null; this.src='./app_logo.png';">
+        </div>
+        <div class="mini-player-info-col">
+          <div class="mini-player-info-single-line">
+            <span id="miniPlayerTitle" class="mini-player-title">Selecciona una pista</span>
+            <span class="mini-player-dot">·</span>
+            <span id="miniPlayerArtist" class="mini-player-artist">Artista</span>
+          </div>
+          <div class="mini-player-time-subrow">
+            <span id="miniPlayerCurTime">0:00</span>
+            <span class="text-zinc-600">/</span>
+            <span id="miniPlayerTotTime">3:00</span>
+            <span id="miniPlayerLoadingHint" class="mini-player-loading-pill hidden">Cargando canción completa...</span>
+          </div>
+        </div>
+        <div class="mini-player-actions" onclick="event.stopPropagation();">
+          <button id="miniPlayerLyricsBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openKaraokeFromMiniPlayer(event)" class="mini-player-svg-btn" title="Ver letra en modo Karaoke">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/>
+            </svg>
+          </button>
+          <button id="miniPlayerLikeBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleLikeCurrentPlaying(event)" class="mini-player-svg-btn" title="Guardar en Tus Me Gusta">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          </button>
+          <button id="miniPlayerPlayPauseBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.togglePlayPauseMini(event)" class="mini-player-svg-btn play-pause" title="Reproducir / Pausar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+          </button>
+          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.playPianoFromNowPlaying(event)" class="mini-player-svg-btn piano-gold" title="Jugar al Piano">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="4" width="20" height="16" rx="2.5"/>
+              <line x1="8" y1="4" x2="8" y2="14"/><line x1="12" y1="4" x2="12" y2="14"/><line x1="16" y1="4" x2="16" y2="14"/>
+              <line x1="6" y1="14" x2="6" y2="20"/><line x1="10" y1="14" x2="10" y2="20"/><line x1="14" y1="14" x2="14" y2="20"/><line x1="18" y1="14" x2="18" y2="20"/>
+            </svg>
+          </button>
+        </div>
       </div>
-      <div class="mini-player-info-single-line">
-        <span id="miniPlayerTitle" class="mini-player-title">Selecciona una pista</span>
-        <span class="mini-player-dot">·</span>
-        <span id="miniPlayerArtist" class="mini-player-artist">Artista</span>
-      </div>
-      <div class="mini-player-actions" onclick="event.stopPropagation();">
-        <button id="miniPlayerLikeBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleLikeCurrentPlaying(event)" class="mini-player-svg-btn" title="Guardar en Tus Me Gusta">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-        </button>
-        <button id="miniPlayerPlayPauseBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.togglePlayPauseMini(event)" class="mini-player-svg-btn play-pause" title="Reproducir / Pausar">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
-        </button>
-        <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.playPianoFromNowPlaying(event)" class="mini-player-svg-btn piano-gold" title="Jugar al Piano">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="4" width="20" height="16" rx="2.5"/>
-            <line x1="8" y1="4" x2="8" y2="14"/><line x1="12" y1="4" x2="12" y2="14"/><line x1="16" y1="4" x2="16" y2="14"/>
-            <line x1="6" y1="14" x2="6" y2="20"/><line x1="10" y1="14" x2="10" y2="20"/><line x1="14" y1="14" x2="14" y2="20"/><line x1="18" y1="14" x2="18" y2="20"/>
-          </svg>
-        </button>
-      </div>
-      <div class="mini-player-progress-track">
-        <div id="miniPlayerProgressFill" class="mini-player-progress-fill" style="width: 0%;"></div>
+
+      <!-- Barra de Progreso Interactiva Completa en el Mini-Reproductor -->
+      <div class="mini-player-scrub-wrap" onclick="event.stopPropagation();" onpointerdown="event.stopPropagation();" ontouchstart="event.stopPropagation();">
+        <div class="mini-player-progress-track">
+          <div id="miniPlayerProgressFill" class="mini-player-progress-fill" style="width: 0%;"></div>
+          <div id="miniPlayerChorusMarker" class="mini-player-chorus-tick" style="left: 28%;" title="Estribillo"></div>
+        </div>
+        <input
+          id="miniPlayerScrubSlider"
+          type="range"
+          min="0"
+          max="100"
+          step="0.1"
+          value="0"
+          oninput="window.DiscoverHomeApp && window.DiscoverHomeApp.onNowPlayingScrub(this.value)"
+          class="mini-player-range-input"
+          title="Desliza para moverte por toda la canción"
+        >
       </div>
     </div>
 
-    <!-- VISTA AMPLIADA "NOW PLAYING" — REPRODUCTOR LIMPIO -->
+    <!-- VISTA AMPLIADA "NOW PLAYING" — REPRODUCTOR CON LETRAS KARAOKE Y BARRA COMPLETA -->
     <div id="nowPlayingTurntableModal" class="now-playing-modal-overlay">
       <div class="now-playing-header">
         <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.closeNowPlayingModal()" class="w-9 h-9 rounded-full bg-white/5 border border-white/15 text-white flex items-center justify-center cursor-pointer" title="Minimizar">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
-        <div class="text-center">
-          <div class="text-[11px] font-bold uppercase tracking-widest text-gray-400">Reproduciendo ahora</div>
+        <div class="np-view-switcher">
+          <button id="npTabVinylBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.switchNowPlayingTab('vinyl')" class="np-view-tab active">Portada</button>
+          <button id="npTabKaraokeBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.switchNowPlayingTab('karaoke')" class="np-view-tab">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            </svg>
+            <span>Letra Karaoke</span>
+          </button>
         </div>
         <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.createRadioFromNowPlaying()" class="px-3 py-1.5 rounded-full bg-white/5 border border-[#d4af37]/40 text-[#f3d791] text-[11px] font-bold flex items-center gap-1.5 cursor-pointer" title="Crear Radio basada en esta canción">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
@@ -4841,7 +4975,7 @@
       </div>
 
       <div class="now-playing-body">
-        <!-- Portada con Vinilo Sutil -->
+        <!-- Vista 1: Portada con Vinilo -->
         <div id="npTurntablePlatterInteractive" class="np-turntable-stage" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.onTurntablePlatterScratch(event)">
           <div id="npTurntableVinylDisc" class="np-turntable-vinyl">
             <div class="np-turntable-label">
@@ -4850,18 +4984,31 @@
           </div>
         </div>
 
-        <!-- Información de la Pista -->
-        <div class="text-center space-y-1 px-2">
-          <h2 id="npTrackTitle" class="text-lg font-black text-white leading-tight">Selecciona una canción</h2>
-          <p id="npTrackArtist" class="text-sm font-medium text-gray-400">Artista</p>
+        <!-- Vista 2: Escenario de Letras Sincronizadas tipo Karaoke (Spotify Lyrics Style) -->
+        <div id="npKaraokeStageContainer" class="np-karaoke-stage hidden">
+          <div id="npKaraokeScrollBox" class="np-karaoke-scroll-box">
+            <div class="np-karaoke-placeholder">Cargando letra sincronizada...</div>
+          </div>
         </div>
 
-        <!-- Barra de Progreso -->
+        <!-- Información de la Pista -->
+        <div class="text-center space-y-1 px-2 w-full">
+          <h2 id="npTrackTitle" class="text-lg font-black text-white leading-tight truncate">Selecciona una canción</h2>
+          <p id="npTrackArtist" class="text-sm font-medium text-gray-400 truncate">Artista</p>
+        </div>
+
+        <!-- Barra de Progreso de Canción Completa con Marcador de Estribillo -->
         <div class="np-scrubber-box">
-          <input id="npTurntableScrubSlider" type="range" min="0" max="100" step="0.1" value="0" oninput="window.DiscoverHomeApp && window.DiscoverHomeApp.onNowPlayingScrub(this.value)" class="np-scrubber-slider" title="Posición de la pista">
+          <div class="np-scrubber-track-container">
+            <div id="npChorusMarkerTick" class="np-chorus-marker" style="left: 28%;" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.jumpToChorus()" title="Saltar al estribillo">
+              <span class="np-chorus-label">Estribillo</span>
+            </div>
+            <input id="npTurntableScrubSlider" type="range" min="0" max="100" step="0.1" value="0" oninput="window.DiscoverHomeApp && window.DiscoverHomeApp.onNowPlayingScrub(this.value)" class="np-scrubber-slider" title="Posición de la canción completa">
+          </div>
           <div class="np-time-row">
             <span id="npCurrentTimeText">0:00</span>
-            <span id="npDurationTimeText">0:30</span>
+            <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.jumpToChorus()" class="text-[10.5px] font-bold text-[#d4af37] hover:underline cursor-pointer">Ir al estribillo</button>
+            <span id="npDurationTimeText">3:15</span>
           </div>
         </div>
 
@@ -4918,6 +5065,61 @@
       </div>
     </div>
 
+    <!-- MODAL DE LISTA DE CANCIONES DE FAVORITOS / PLAYLIST (ELIGE QUÉ CANCIÓN ESCUCHAR O JUGAR, O DESCUBRE NUEVAS) -->
+    <div id="spotifyPlaylistSheetModal" class="tube-amp-modal-overlay" onclick="if(event.target===this) window.DiscoverHomeApp && window.DiscoverHomeApp.closePlaylistTracksModal()">
+      <div class="spotify-playlist-sheet-card" onclick="event.stopPropagation();">
+        <div class="flex items-center justify-between gap-2 pb-3 border-b border-white/10">
+          <div class="flex items-center gap-3 min-w-0">
+            <img id="plSheetCoverImg" src="./app_logo.png" onerror="this.src='./app_logo.png'" class="w-12 h-12 rounded-xl object-cover flex-shrink-0 border border-white/10" alt="">
+            <div class="min-w-0">
+              <h3 id="plSheetTitle" class="text-base font-black text-white truncate">Tus Me Gusta</h3>
+              <p id="plSheetSubtitle" class="text-xs text-gray-400 truncate">Elige una canción para escuchar o jugar</p>
+            </div>
+          </div>
+          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.closePlaylistTracksModal()" class="tube-amp-close-btn" title="Cerrar">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <div class="flex items-center gap-2 py-3">
+          <button id="plSheetDiscoverBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.launchSwipeDiscoveryForOpenedSheet()" class="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#f3d791] via-[#d4af37] to-[#b8860b] text-black text-xs font-extrabold flex items-center justify-center gap-1.5 cursor-pointer shadow-md">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Descubrir canciones para esta playlist</span>
+          </button>
+          <button id="plSheetPlayAllBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.playAllFromOpenedSheet()" class="py-2.5 px-3.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+            <span>Reproducir todo</span>
+          </button>
+        </div>
+
+        <div id="plSheetTracksList" class="spotify-sheet-tracks-scroll"></div>
+      </div>
+    </div>
+
+    <!-- MODAL PARA ELEGIR PLAYLIST OBJETIVO EN EL MODO SWIPE TIKTOK/TINDER -->
+    <div id="cratePlaylistSelectorModal" class="tube-amp-modal-overlay" onclick="if(event.target===this) window.DiscoverHomeApp && window.DiscoverHomeApp.closeSwipeTargetPlaylistModal()">
+      <div class="tube-amp-modal-card" onclick="event.stopPropagation();">
+        <div class="tube-amp-header">
+          <div>
+            <div class="text-base font-black text-white">Buscar canciones para Playlist</div>
+            <div class="text-xs text-gray-400 mt-0.5">El modo Swipe recomendará temas afines y al deslizar a la derecha se añadirán directamente a la playlist elegida</div>
+          </div>
+          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.closeSwipeTargetPlaylistModal()" class="tube-amp-close-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div id="cratePlaylistSelectorList" class="space-y-2 max-h-[280px] overflow-y-auto pr-1"></div>
+        <div class="mt-3 pt-3 border-t border-white/10 flex items-center justify-between gap-2">
+          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.createQuickPlaylistForSwipeMode()" class="flex-1 py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white text-xs font-bold cursor-pointer">
+            + Crear nueva playlist y buscarle canciones
+          </button>
+          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.clearSwipeTargetPlaylist(); window.DiscoverHomeApp && window.DiscoverHomeApp.closeSwipeTargetPlaylistModal();" class="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 text-xs font-semibold cursor-pointer">
+            Modo general
+          </button>
+        </div>
+      </div>
+    </div>
+
   </div> <!-- End of game-viewport -->
 
   <script src="./parsers.js?v=54.0"></script>
@@ -4927,7 +5129,7 @@
   <script src="./songs/comm_camilo_sesto/chart.js"></script>
   <script src="./songs/renacer/chart.js"></script>
   <script src="./songs/catalog_top.js"></script>
-  <script src="./discover_home.js?v=56.0"></script>
+  <script src="./discover_home.js?v=57.0"></script>
   <script>
     let engine = null;
     let currentActiveBeatmap = null;
@@ -8928,6 +9130,23 @@ window.switchMainTab = switchMainTab;
     let menuBgmUnlocked = false;
     window.isGameLoadingOrActive = false;
 
+    function shouldSilenceMenuBgm() {
+      if (typeof isEditorActive === 'function' && isEditorActive()) return true;
+      if (isGameCurrentlyActive()) return true;
+      if (window.isCasinoActive) return true;
+      if (window.dualStreamEngine) {
+        if (window.dualStreamEngine.isLoadingTrack) return true;
+        if (typeof window.dualStreamEngine.isPlaying === 'function' && window.dualStreamEngine.isPlaying()) return true;
+        if (window.dualStreamEngine.previewAudio && !window.dualStreamEngine.previewAudio.paused) return true;
+        if (window.dualStreamEngine.fullAudio && !window.dualStreamEngine.fullAudio.paused) return true;
+      }
+      if ((window._previewAudioPlayer && !window._previewAudioPlayer.paused) || window._previewActiveThumbSid) {
+        return true;
+      }
+      return false;
+    }
+    window.shouldSilenceMenuBgm = shouldSilenceMenuBgm;
+
     function getMenuBgmAudio() {
       if (!menuBgmAudio) {
         // Direct relative path for universal support across Web, local file:// and Android WebView
@@ -8936,12 +9155,18 @@ window.switchMainTab = switchMainTab;
         menuBgmAudio.preload = 'auto';
         menuBgmAudio.volume = 0.60;
 
+        menuBgmAudio.addEventListener('play', () => {
+          if (shouldSilenceMenuBgm()) {
+            try { menuBgmAudio.pause(); } catch (_) {}
+          }
+        });
+
         menuBgmAudio.onerror = (e) => {
           console.warn('[MenuBGM] Error con ./songs/renacer/audio.mp3, probando ./assets/casino_music.mp3:', e);
           if (!menuBgmAudio.src.includes('casino_music')) {
             menuBgmAudio.src = './assets/casino_music.mp3';
             menuBgmAudio.load();
-            if (!isGameCurrentlyActive() && !isEditorActive() && !window.isCasinoActive) {
+            if (!shouldSilenceMenuBgm()) {
               menuBgmAudio.play().catch(() => {});
             }
           }
@@ -8962,6 +9187,9 @@ window.switchMainTab = switchMainTab;
         audio.muted = false;
         audio.volume = vol;
         if (typeof syncVolumeUI === 'function') syncVolumeUI();
+        if (window.dualStreamEngine && typeof window.dualStreamEngine.isPlaying === 'function' && window.dualStreamEngine.isPlaying()) {
+          window.dualStreamEngine._stopBothChannelsImmediate();
+        }
         audio.play().then(() => {
           if (icon) icon.innerText = '🎵';
           showSuccessToast('Música de menú reproduciendo');
@@ -8995,16 +9223,19 @@ window.switchMainTab = switchMainTab;
       } else {
         audio.muted = false;
         audio.volume = vol;
-        const isPreviewing = Boolean((window._previewAudioPlayer && !window._previewAudioPlayer.paused) || window._previewActiveThumbSid);
-        if (isPreviewing) {
+        if (shouldSilenceMenuBgm()) {
           try { audio.pause(); } catch (_) {}
           return;
         }
-        if (audio.paused && !isGameCurrentlyActive() && !isEditorActive() && !window.isCasinoActive) {
+        if (audio.paused && !shouldSilenceMenuBgm()) {
           try {
             const p = audio.play();
             if (p !== undefined && typeof p.then === 'function') {
               p.then(() => {
+                if (shouldSilenceMenuBgm()) {
+                  try { audio.pause(); } catch (_) {}
+                  return;
+                }
                 if (icon) icon.innerText = '🎵';
               }).catch(() => {});
             }
@@ -9046,20 +9277,7 @@ window.switchMainTab = switchMainTab;
     }
 
     function playMenuAmbientMusic() {
-      if (isEditorActive()) {
-        pauseMenuAmbientMusic();
-        return;
-      }
-      if (window.isCasinoActive) return;
-      if (window.dualStreamEngine && typeof window.dualStreamEngine.isPlaying === 'function' && window.dualStreamEngine.isPlaying()) {
-        pauseMenuAmbientMusic();
-        return;
-      }
-      if ((window._previewAudioPlayer && !window._previewAudioPlayer.paused) || window._previewActiveThumbSid) {
-        pauseMenuAmbientMusic();
-        return;
-      }
-      if (isGameCurrentlyActive()) {
+      if (shouldSilenceMenuBgm()) {
         pauseMenuAmbientMusic();
         return;
       }
@@ -9073,10 +9291,18 @@ window.switchMainTab = switchMainTab;
       }
       const audio = getMenuBgmAudio();
       updateMenuAudioVolume();
+      if (shouldSilenceMenuBgm()) {
+        pauseMenuAmbientMusic();
+        return;
+      }
       try {
         const p = audio.play();
         if (p !== undefined && typeof p.catch === 'function') {
           p.then(() => {
+            if (shouldSilenceMenuBgm()) {
+              pauseMenuAmbientMusic();
+              return;
+            }
             const icon = document.getElementById('menuMusicIcon');
             if (icon) icon.innerText = '🎵';
           }).catch(err => {
@@ -9350,11 +9576,19 @@ window.switchMainTab = switchMainTab;
       }
     });
 
-    // Inicializar y asegurar música de menú ante cualquier interacción del usuario
-    const ensureMenuMusicOnUserGesture = () => {
+    // Inicializar y asegurar música de menú ante cualquier interacción del usuario (salvo si está sonando una canción o tocando el reproductor)
+    const ensureMenuMusicOnUserGesture = (e) => {
       menuBgmUnlocked = true;
-      if (window.engine && (window.engine.isRunning || window.engine.isCountingDown)) return;
-      if (!isGameCurrentlyActive() && !isEditorActive() && !window.isCasinoActive) {
+      if (shouldSilenceMenuBgm()) {
+        pauseMenuAmbientMusic();
+        return;
+      }
+      if (e && e.target && typeof e.target.closest === 'function') {
+        if (e.target.closest('#spotifyMiniPlayer, #nowPlayingTurntableModal, #crateDiggerSection, .spotify-carousel-card, .yt-col-icon-btn')) {
+          return;
+        }
+      }
+      if (!shouldSilenceMenuBgm()) {
         const audio = getMenuBgmAudio();
         if (audio && (audio.paused || audio.currentTime === 0)) {
           playMenuAmbientMusic();
