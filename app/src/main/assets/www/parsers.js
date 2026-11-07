@@ -3819,66 +3819,127 @@ class AudioAutoMapper {
       // Preservar el instante acústico exacto (resolución 5ms) sin desplazar notas hacia rejillas teóricas que desincronizan aceleraciones de tempo
       ev.snappedTimeMs = Math.max(180, ev.timeMs);
 
-      // Medir sustain acústico y melódico real de la nota (independiente de micro-transitorios de hi-hat/acompañamiento)
+      // Detector estricto de Sostenido Real / Grito Largo / Silbido / Nota Mantenida:
+      // Un hold SOLO existe si la voz, silbido o instrumento mantiene una misma nota continua sin cortes silábicos,
+      // sin re-ataques melódicos intermedios y con altura tonal estable durante >= 330ms.
+      ev.sustainMs = 0;
+      ev.isTrueSustainedNote = false;
+
+      const fSettleStart = ev.frame + 5; // +25ms tras el transitorio inicial
+      const fSettleEnd = Math.min(numFrames - 1, ev.frame + 11); // +55ms
       const maxSustainCheckFrames = Math.min(
         numFrames - ev.frame - 1,
-        Math.floor(1450 / frameDurMs)
+        Math.floor(2400 / frameDurMs)
       );
-      let postAttackRmsSum = 0;
-      let postAttackHarmSum = 0;
-      let postAttackCount = 0;
-      for (let rf = 2; rf <= Math.min(8, maxSustainCheckFrames); rf++) {
-        const idx = ev.frame + rf;
-        postAttackRmsSum += totalRms[idx];
-        postAttackHarmSum += vocalEnergy[idx] * 1.25 + bodyEnergy[idx] * 0.85 + pluckEnergy[idx] * 0.65;
-        postAttackCount++;
+
+      if (fSettleEnd < numFrames - 10 && maxSustainCheckFrames >= 68) {
+        let initMelSum = 0;
+        let initPercSum = 0;
+        let initRmsSum = 0;
+        let initCount = 0;
+        for (let f = fSettleStart; f <= fSettleEnd; f++) {
+          const melVal = vocalEnergy[f] * 1.15 + pluckEnergy[f] * 1.10 + bodyEnergy[f] * 0.30;
+          const percVal = subEnergy[f] * 0.75 + hatEnergy[f] * 0.95;
+          initMelSum += melVal;
+          initPercSum += percVal;
+          initRmsSum += totalRms[f];
+          initCount++;
+        }
+        const initMel = initCount > 0 ? (initMelSum / initCount) : 0;
+        const initPerc = initCount > 0 ? (initPercSum / initCount) : 0;
+        const initRms = initCount > 0 ? (initRmsSum / initCount) : 0;
+        const anchorPitch = smoothPitch[Math.min(numFrames - 1, fSettleStart + 2)];
+        const tonalDominance = initMel / (initPerc + 0.0001);
+
+        // Comprobar si la misma nota aguda/vocal ya estaba sonando idéntica antes del ataque (golpe de bombo debajo de un grito/silbido ya iniciado)
+        let preMelSum = 0;
+        let preCount = 0;
+        for (let pf = Math.max(0, ev.frame - 8); pf <= Math.max(0, ev.frame - 3); pf++) {
+          preMelSum += vocalEnergy[pf] * 1.15 + pluckEnergy[pf] * 1.10 + bodyEnergy[pf] * 0.30;
+          preCount++;
+        }
+        const preMel = preCount > 0 ? (preMelSum / preCount) : 0;
+        const prePitch = smoothPitch[Math.max(0, ev.frame - 5)];
+        const isMidSustainDrumHit = (
+          preMel >= initMel * 0.78 &&
+          Math.abs(anchorPitch - prePitch) <= 0.024 &&
+          ev.melFlux < initMel * 0.16 &&
+          ev.percFlux > ev.melFlux * 1.35
+        );
+
+        // Solo evaluar si hay presencia tonal/vocal/silbido clara y es el ataque real del sostenido
+        if (!isMidSustainDrumHit && initMel >= silenceRmsGate * 1.10 && initRms >= silenceRmsGate * 1.25 && tonalDominance >= 1.12) {
+          let endSustFrame = fSettleStart;
+          let runningPeakMel = initMel;
+          let dipFrames = 0;
+          let sumMel = 0;
+          let minMel = Infinity;
+          let sumPitch = 0;
+          let sumPitchSq = 0;
+          let trackedFrames = 0;
+
+          for (let sf = 6; sf <= maxSustainCheckFrames; sf++) {
+            const idx = ev.frame + sf;
+            const curRms = totalRms[idx];
+            const curMel = vocalEnergy[idx] * 1.15 + pluckEnergy[idx] * 1.10 + bodyEnergy[idx] * 0.30;
+            const curHat = hatEnergy[idx];
+            const curPitch = smoothPitch[idx];
+
+            // 1. Corte por caída a silencio o cierre consonántico/silábico (la voz o nota dejó de sonar continua)
+            const melFloor = Math.max(silenceRmsGate * 1.05, initMel * 0.62, runningPeakMel * 0.52);
+            if (curRms < silenceRmsGate * 1.12 || curMel < melFloor) {
+              dipFrames++;
+              if (dipFrames >= 3) break;
+              continue;
+            }
+            dipFrames = 0;
+            if (curMel > runningPeakMel) runningPeakMel = curMel;
+
+            // 2. Corte por irrupción de consonante sibilante ('s', 't', 'ch') o plato que rompe la vocal/silbido
+            if (curHat > curMel * 0.92) {
+              break;
+            }
+
+            // 3. Corte por nuevo ataque silábico o nueva nota articulada después de los primeros 70ms
+            if (sf >= 14) {
+              const reattackThresh = Math.max(silenceFluxGate * 1.65, initMel * 0.22);
+              if (melodicFlux[idx] >= reattackThresh) {
+                endSustFrame = Math.max(fSettleStart, idx - 2);
+                break;
+              }
+            }
+
+            // 4. Corte por cambio de nota (el tono debe mantenerse fijo en la nota sostenida/grito/silbido)
+            const pitchDrift = Math.abs(curPitch - anchorPitch);
+            const pitchStep = Math.abs(curPitch - smoothPitch[Math.max(0, idx - 3)]);
+            if (pitchDrift > 0.044 || pitchStep > 0.022) {
+              break;
+            }
+
+            endSustFrame = idx;
+            sumMel += curMel;
+            if (curMel < minMel) minMel = curMel;
+            sumPitch += curPitch;
+            sumPitchSq += curPitch * curPitch;
+            trackedFrames++;
+          }
+
+          const rawSustMs = Math.round((endSustFrame - ev.frame) * frameDurMs);
+          if (rawSustMs >= 330 && trackedFrames >= 45) {
+            const avgMel = sumMel / trackedFrames;
+            const envContinuity = minMel / Math.max(0.0001, avgMel);
+            const meanP = sumPitch / trackedFrames;
+            const pitchVar = Math.max(0, (sumPitchSq / trackedFrames) - (meanP * meanP));
+            const pitchStd = Math.sqrt(pitchVar);
+
+            // Confirmar que la envolvente es lisa (sostenido/grito/silbido continuo, sin valles de sílabas) y afinación estable
+            if (envContinuity >= 0.56 && pitchStd <= 0.026) {
+              ev.sustainMs = Math.min(2200, rawSustMs);
+              ev.isTrueSustainedNote = true;
+            }
+          }
+        }
       }
-      const postAttackRms = postAttackCount > 0 ? (postAttackRmsSum / postAttackCount) : ev.rms;
-      const postAttackHarm = postAttackCount > 0 ? (postAttackHarmSum / postAttackCount) : (vocalEnergy[ev.frame] + bodyEnergy[ev.frame]);
-
-      const sustRmsThresh = Math.max(
-        silenceRmsGate * 1.12,
-        Math.min(ev.rms * 0.34, postAttackRms * 0.54)
-      );
-      const sustHarmThresh = Math.max(
-        silenceRmsGate * 0.95,
-        postAttackHarm * 0.44
-      );
-      const baseSustPitch = smoothPitch[Math.min(numFrames - 1, ev.frame + 3)];
-
-      let lastValidSustFrame = 0;
-      let weakFramesRun = 0;
-      for (let sf = 2; sf <= maxSustainCheckFrames; sf++) {
-        const idx = ev.frame + sf;
-        const curRmsVal = totalRms[idx];
-        const curHarmVal = vocalEnergy[idx] * 1.25 + bodyEnergy[idx] * 0.85 + pluckEnergy[idx] * 0.65;
-
-        // Si cae en silencio real, cortar inmediatamente
-        if (curRmsVal < silenceRmsGate * 0.88) {
-          weakFramesRun += 2;
-          if (weakFramesRun >= 4) break;
-          continue;
-        }
-
-        // Si tras al menos 220ms entra un nuevo ataque melódico muy marcado con salto de tono, cerrar el sustain ahí
-        const elapsedMs = sf * frameDurMs;
-        if (
-          elapsedMs >= 220 &&
-          Math.abs(smoothPitch[idx] - baseSustPitch) > 0.14 &&
-          melodicFlux[idx] > Math.max(silenceFluxGate * 2.4, ev.melFlux * 1.35)
-        ) {
-          break;
-        }
-
-        if (curRmsVal >= sustRmsThresh || curHarmVal >= sustHarmThresh) {
-          lastValidSustFrame = sf;
-          weakFramesRun = 0;
-        } else {
-          weakFramesRun++;
-          if (weakFramesRun >= 5) break;
-        }
-      }
-      ev.sustainMs = Math.round(lastValidSustFrame * frameDurMs);
     }
 
     // 8. Segmentación Macro-Estructural (Intro, Estrofa, Subida/Build-up, Estribillo/Drop, Puente)
@@ -4004,7 +4065,7 @@ class AudioAutoMapper {
             }
           }
           const validDurMs = Math.round((validEndFrame - fStart) * frameDurMs);
-          if (validDurMs < 200) {
+          if (validDurMs < 240) {
             n.type = 'tap';
             n.duration_ms = 0;
             n.end_timestamp_ms = null;
@@ -4061,12 +4122,13 @@ class AudioAutoMapper {
   }
 
   /**
-   * COREÓGRAFO DE PIANO Y MELODÍA REAL v6:
+   * COREÓGRAFO DE PIANO Y MELODÍA REAL v7:
    * - Asigna cada tecla estrictamente según la altura tonal real del piano/voz (Grave=Izquierda, Medio=Centro, Agudo=Derecha).
    * - En notas repetidas muy rápidas del mismo tono (como el famoso "E-E-E-E-E" de Rush E), ejecuta un trino limpio de 2 dedos
    *   alternando entre el carril de esa nota y su vecino inmediato, jamás lanzando teclas al azar.
-   * - Coloca holds (notas mantenidas) con criterio musical humano cuando la voz, acorde o melodía se sostiene de verdad,
-   *   absorbiendo micro-subdivisiones durante el hold para dar respiro orgánico y equilibrar la dificultad con mapas humanos.
+   * - Holds 100% guiados por la verdad acústica de la canción (SIN temporizadores ni cuotas fijas):
+   *   solo cuando hay un sostenido real, un grito largo, un silbido o una nota mantenida continua. Si hay 3 gritos/sostenidos
+   *   seguidos pone 3 holds seguidos; si hay 20s o toda la canción sin sostenidos, no pone ninguno.
    */
   static buildHumanChoreographedTierChart(rawEvents, phrases, bpm, beatPhaseMs, durationSec, tier, targetLanes = 3) {
     const numLanes = targetLanes === 4 ? 4 : 3;
@@ -4085,7 +4147,6 @@ class AudioAutoMapper {
         chordProbChorus: 0.0,
         chordProbVerse: 0.0,
         minChordSpacingMs: 99999,
-        minHoldCooldownMs: Math.max(1250, beatMs * 2.8),
         minSameLaneGapMs: 255
       },
       medium: {
@@ -4098,7 +4159,6 @@ class AudioAutoMapper {
         chordProbChorus: 0.18,
         chordProbVerse: 0.04,
         minChordSpacingMs: 580,
-        minHoldCooldownMs: Math.max(1150, beatMs * 2.5),
         minSameLaneGapMs: 190
       },
       hard: {
@@ -4111,7 +4171,6 @@ class AudioAutoMapper {
         chordProbChorus: 0.32,
         chordProbVerse: 0.12,
         minChordSpacingMs: 340,
-        minHoldCooldownMs: Math.max(1100, beatMs * 2.4),
         minSameLaneGapMs: 140
       },
       extreme: {
@@ -4124,7 +4183,6 @@ class AudioAutoMapper {
         chordProbChorus: 0.48,
         chordProbVerse: 0.22,
         minChordSpacingMs: 210,
-        minHoldCooldownMs: Math.max(1200, beatMs * 2.6),
         minSameLaneGapMs: 92
       },
       impossible: {
@@ -4137,7 +4195,6 @@ class AudioAutoMapper {
         chordProbChorus: 0.66,
         chordProbVerse: 0.34,
         minChordSpacingMs: 140,
-        minHoldCooldownMs: Math.max(1350, beatMs * 3.0),
         minSameLaneGapMs: 60
       }
     }[tier] || {
@@ -4150,7 +4207,6 @@ class AudioAutoMapper {
       chordProbChorus: 0.32,
       chordProbVerse: 0.12,
       minChordSpacingMs: 340,
-      minHoldCooldownMs: Math.max(1100, beatMs * 2.4),
       minSameLaneGapMs: 140
     };
 
@@ -4172,16 +4228,18 @@ class AudioAutoMapper {
         : (isChorusOrBuild ? tierConfig.minGapChorusMs : tierConfig.minGapVerseMs);
 
       const gap = t - lastSelectedMs;
-      if (gap < effMinGap) {
-        if (selectedEvents.length > 0 && gap < 32 && ev.salience > selectedEvents[selectedEvents.length - 1].salience * 1.30) {
+      if (gap < effMinGap && !ev.isTrueSustainedNote) {
+        if (selectedEvents.length > 0 && gap < 32 && (ev.salience > selectedEvents[selectedEvents.length - 1].salience * 1.30 || ev.isTrueSustainedNote)) {
           selectedEvents[selectedEvents.length - 1] = ev;
           lastSelectedMs = t;
         }
         continue;
       }
 
-      if (!tierConfig.allowSubdiv8 && ev.subdivType === 8 && ev.salience < 1.50) continue;
-      if (!tierConfig.allowSubdiv4 && (ev.subdivType === 4 || ev.subdivType === 3) && ev.salience < 1.30) continue;
+      if (!ev.isTrueSustainedNote) {
+        if (!tierConfig.allowSubdiv8 && ev.subdivType === 8 && ev.salience < 1.50) continue;
+        if (!tierConfig.allowSubdiv4 && (ev.subdivType === 4 || ev.subdivType === 3) && ev.salience < 1.30) continue;
+      }
 
       const minSal = isQuiet
         ? tierConfig.minSalienceVerse * 1.25
@@ -4190,18 +4248,21 @@ class AudioAutoMapper {
       const isPhraseEntry = (gap >= 360 && ev.salience >= minSal * 0.78);
       const isOnBeat = (ev.subdivType === 1 && ev.salience >= minSal * 0.80);
 
-      if (ev.salience >= minSal || isPhraseEntry || isOnBeat) {
-        selectedEvents.push(ev);
+      if (ev.isTrueSustainedNote || ev.salience >= minSal || isPhraseEntry || isOnBeat) {
+        if (selectedEvents.length > 0 && gap < 45 && ev.isTrueSustainedNote && !selectedEvents[selectedEvents.length - 1].isTrueSustainedNote) {
+          selectedEvents[selectedEvents.length - 1] = ev;
+        } else {
+          selectedEvents.push(ev);
+        }
         lastSelectedMs = t;
       }
     }
 
-    // Paso 2: Coreografía de Piano Fiel al Tono, Contorno Melódico y Holds Musicales
+    // Paso 2: Coreografía de Piano Fiel al Tono, Contorno Melódico y Sostenidos Acústicos Reales
     const motifMemory = new Map();
     const choreographedNotes = [];
     const laneLastTapMs = new Array(numLanes).fill(-9999);
     let activeHold = null;
-    let lastHoldEndMs = -9999;
     let lastChordMs = -9999;
     let prevLane = 1;
     let prevPitch = 0.5;
@@ -4243,7 +4304,7 @@ class AudioAutoMapper {
         const ev = pEvents[i];
         const t = ev.snappedTimeMs || ev.timeMs;
 
-        // Mientras un Hold está activo, absorber las micro-notas intermedias para dar un respiro musical limpio al jugador
+        // Mientras el jugador mantiene un Hold real (grito, silbido o nota sostenida), absorber los golpes secundarios de fondo
         if (activeHold) {
           if (t >= activeHold.endMs + 55) {
             activeHold = null;
@@ -4267,8 +4328,6 @@ class AudioAutoMapper {
           const isRepeatedSamePitch = (Math.abs(actualPitchDiff) < 0.038);
 
           if (isRapidNote && isRepeatedSamePitch) {
-            // Nota repetida rápida del mismo tono (ej. estacato repetido de Rush E):
-            // Si el intervalo es menor que minSameLaneGapMs, alternar limpiamente como trino de piano entre 2 carriles fijos
             if (gapFromPrev < tierConfig.minSameLaneGapMs) {
               if (!trillToggle) {
                 trillAnchorLane = targetLane;
@@ -4281,7 +4340,6 @@ class AudioAutoMapper {
             }
           } else {
             trillToggle = false;
-            // Si la melodía sube o baja perceptiblemente respecto a la nota anterior, reflejar esa dirección en el teclado
             if (actualPitchDiff >= 0.042) {
               if (targetLane <= prevLane) {
                 targetLane = Math.min(maxLane, prevLane + 1);
@@ -4294,7 +4352,6 @@ class AudioAutoMapper {
           }
         }
 
-        // Salvaguarda ergonómica: si el mismo carril se pide más rápido que minSameLaneGapMs, usar el carril adyacente coherente con el registro tonal
         if ((t - laneLastTapMs[targetLane]) < tierConfig.minSameLaneGapMs) {
           const preferredAlt = ev.pitch >= 0.5
             ? (targetLane < maxLane ? targetLane + 1 : targetLane - 1)
@@ -4311,61 +4368,31 @@ class AudioAutoMapper {
           }
         }
 
-        // ¿Convertir en Nota Larga (Hold) cuando la nota del piano/voz/acorde realmente se mantiene sonando?
-        // Equilibrio orgánico: cooldown entre holds para nunca saturar, pero aprovechando tanto huecos naturales
-        // como notas largas de voz/armonía (que absorben sub-notas intermedias y suavizan una pizca la dificultad).
+        // COLOCACIÓN DE HOLD ESTRICTAMENTE POR SOSTENIDO REAL DE LA CANCIÓN (sin temporizadores ni cuotas):
+        // Solo si `ev.isTrueSustainedNote` es verdadero (la voz, grito largo, silbido o instrumento mantiene la nota continua >= 330ms).
+        // Si hay 3 sostenidos seguidos, saldrán 3 holds seguidos; si no hay ninguno en 30s o en toda la canción, no saldrá ninguno.
         let isHoldNote = false;
         let holdDurationMs = 0;
-        const isRapidStaccatoTrill = (gapFromPrev <= 130 && Math.abs(actualPitchDiff) < 0.032) ||
-                                     (gapToNext <= 115 && nextEv && Math.abs(nextEv.pitch - ev.pitch) < 0.032);
-        const holdCooldownReady = (t - lastHoldEndMs) >= tierConfig.minHoldCooldownMs;
 
-        if (holdCooldownReady && !isRapidStaccatoTrill && ev.sustainMs >= 210) {
-          // Caso 1: Hueco rítmico natural o cierre de frase donde el sonido queda sostenido
-          if (gapToNext >= 220) {
-            const rawSpan = Math.min(ev.sustainMs, gapToNext - 60, 1150);
-            const quantStep = Math.max(45, Math.round(stepMs));
-            const quantizedHold = Math.round(rawSpan / quantStep) * quantStep;
-            if (quantizedHold >= 205) {
-              isHoldNote = true;
-              holdDurationMs = Math.min(1150, quantizedHold);
+        if (ev.isTrueSustainedNote && ev.sustainMs >= 330) {
+          let maxAllowedEndMs = t + ev.sustainMs;
+          // Si después del sostenido entra otro evento melódico de distinto tono o un nuevo sostenido real, soltar 65ms antes
+          for (let j = i + 1; j < pEvents.length; j++) {
+            const candNext = pEvents[j];
+            const candT = candNext.snappedTimeMs || candNext.timeMs;
+            const dt = candT - t;
+            if (dt >= ev.sustainMs) break;
+            const isDistinctPitchLead = Math.abs(candNext.rawPitch - ev.rawPitch) >= 0.032 &&
+                                        (candNext.isTrueSustainedNote || candNext.melFlux >= ev.melFlux * 0.80);
+            if (isDistinctPitchLead && dt >= 280) {
+              maxAllowedEndMs = Math.min(maxAllowedEndMs, candT - 65);
+              break;
             }
-          } else if (
-            // Caso 2: Nota vocal/melódica/acorde sostenida en tiempo fuerte o semifuerte que absorbe micro-subdivisiones
-            ev.sustainMs >= Math.max(270, beatMs * 0.62) &&
-            (ev.role === 2 || ev.role === 3 || ev.role === 5 || ev.subdivType <= 2 || ev.sectionType === 'quiet')
-          ) {
-            const desiredMaxHold = Math.min(
-              ev.sustainMs,
-              Math.round(beatMs * (ev.sectionType === 'quiet' ? 1.65 : 1.15)),
-              920
-            );
-            // Buscar el siguiente ataque importante después de la nota mantenida para soltar el hold con margen limpio
-            let releaseLimitMs = t + desiredMaxHold;
-            for (let j = i + 1; j < pEvents.length; j++) {
-              const candNext = pEvents[j];
-              const candT = candNext.snappedTimeMs || candNext.timeMs;
-              const dt = candT - t;
-              if (dt < 210) {
-                // Si hay un acento muchísimo más fuerte enseguida, no taparlo con un hold
-                if (candNext.salience > ev.salience * 1.42 && candNext.subdivType === 1) {
-                  releaseLimitMs = t;
-                  break;
-                }
-                continue;
-              }
-              if (dt >= 250 && (candNext.subdivType <= 2 || candNext.salience >= ev.salience * 0.92 || dt >= desiredMaxHold)) {
-                releaseLimitMs = Math.min(releaseLimitMs, candT - 65);
-                break;
-              }
-            }
-            const rawSpan = releaseLimitMs - t;
-            const quantStep = Math.max(45, Math.round(stepMs));
-            const quantizedHold = Math.round(rawSpan / quantStep) * quantStep;
-            if (quantizedHold >= 215) {
-              isHoldNote = true;
-              holdDurationMs = Math.min(960, quantizedHold);
-            }
+          }
+          const validSpanMs = maxAllowedEndMs - t;
+          if (validSpanMs >= 280) {
+            isHoldNote = true;
+            holdDurationMs = Math.min(2200, Math.round(validSpanMs));
           }
         }
 
@@ -4411,7 +4438,6 @@ class AudioAutoMapper {
             endMs: t + holdDurationMs,
             noteRef: primaryNote
           };
-          lastHoldEndMs = t + holdDurationMs;
         }
 
         // Acordes dobles de piano (mano izquierda + mano derecha simultáneas en golpes de acento real)
@@ -4557,8 +4583,8 @@ class AudioAutoMapper {
       tierNotes: analysis.tierNotes,
       tierRawNotes: analysis.tierRawNotes,
       tierStars: analysis.tierStars,
-      _choreographedVersion: 6,
-      _fullTrackVersion: 6,
+      _choreographedVersion: 7,
+      _fullTrackVersion: 7,
       rawNotes: analysis.rawNotes,
       notes: analysis.notes,
       audioBlob: finalAudioBlob,
