@@ -3636,7 +3636,7 @@ app.get(['/api/search', '/api/v1/search', '/api/v1/search/community'], async (re
 const lyricsMemoryCache = new Map();
 app.get('/api/v1/lyrics', async (req, res) => {
   try {
-    const rawTitle = String(req.query.title || '').replace(/\s*[\(\[][^\)\]]*(?:official|video|audio|lyric|letra|videoclip|hd|4k|remaster|live|en vivo|tv size|ver\.|version|feat\.|ft\.)[^\)\]]*[\)\]]/gi, '').trim();
+    const rawTitle = repairStrippedSpanishText(String(req.query.title || '')).replace(/\s*[\(\[][^\)\]]*(?:official|video|audio|lyric|letra|videoclip|hd|4k|remaster|live|en vivo|tv size|ver\.|version|feat\.|ft\.)[^\)\]]*[\)\]]/gi, '').trim();
     const rawArtist = String(req.query.artist || '').replace(/\s*-\s*topic$/i, '').replace(/vevo$/i, '').trim();
     const rawQ = String(req.query.q || `${rawTitle} ${rawArtist}`).replace(/\s*[\(\[][^\)\]]*(?:official|video|audio|lyric|letra|videoclip|hd|4k|remaster|live|en vivo|tv size|ver\.|version)[^\)\]]*[\)\]]/gi, '').trim();
     if (!rawQ || rawQ.length < 2) return res.json([]);
@@ -3721,11 +3721,16 @@ function scoreStudioAudioAuthenticityServer(searchQuery, rawTitle, rawArtist, ca
     .replace(/\s+/g, ' ')
     .trim();
 
-  const nQuery = norm(searchQuery || `${rawTitle} ${rawArtist}`);
-  const nTitle = norm(rawTitle || searchQuery);
-  const nArtist = norm(rawArtist);
-  const cTitle = norm(candTitle);
-  const cArtist = norm(candArtist);
+  const repQuery = repairStrippedSpanishText(searchQuery);
+  const repTitle = repairStrippedSpanishText(rawTitle);
+  const repArtist = repairStrippedSpanishText(rawArtist);
+  const repCandTitle = repairStrippedSpanishText(candTitle);
+  const repCandArtist = repairStrippedSpanishText(candArtist);
+  const nQuery = norm(repQuery || `${repTitle} ${repArtist}`);
+  const nTitle = norm(repTitle || repQuery);
+  const nArtist = norm(repArtist);
+  const cTitle = norm(repCandTitle);
+  const cArtist = norm(repCandArtist);
   const cAlbum = norm(candAlbum);
   const cExtra = norm(extraChannel);
   const cFull = `${cTitle} ${cArtist} ${cAlbum} ${cExtra}`.trim();
@@ -3733,7 +3738,7 @@ function scoreStudioAudioAuthenticityServer(searchQuery, rawTitle, rawArtist, ca
   if (!cTitle) return 0;
 
   // Base relevance score
-  let score = computeSongRelevanceScore(searchQuery || `${rawTitle} ${rawArtist}`, candTitle || '', candArtist || '');
+  let score = computeSongRelevanceScore(repQuery || `${repTitle} ${repArtist}`, candTitle || '', candArtist || '');
 
   // Require real title word overlap so we never pick a different song just because the artist matched
   const stopWords = new Set(['the', 'and', 'for', 'with', 'los', 'las', 'del', 'una', 'por', 'con', 'para', 'de', 'la', 'el', 'en', 'un', 'al', 'lo', 'official', 'audio', 'video', 'lyrics', 'letra']);
@@ -3746,6 +3751,8 @@ function scoreStudioAudioAuthenticityServer(searchQuery, rawTitle, rawArtist, ca
     let matchedTitleWords = 0;
     for (const w of checkWords) {
       if ((' ' + cTitle + ' ').includes(' ' + w + ' ') || (w.length >= 4 && cTitle.includes(w))) {
+        matchedTitleWords++;
+      } else if (w.length >= 5 && cTitle.split(' ').some(cw => Math.abs(cw.length - w.length) <= 1 && (cw.startsWith(w.slice(0, 4)) || w.startsWith(cw.slice(0, 4))))) {
         matchedTitleWords++;
       }
     }
@@ -4514,9 +4521,13 @@ async function searchSoundCloudFullCandidatesServer(searchQuery, rawTitle = '', 
   };
 
   // Paso directo de baja latencia (~250ms): consultar SoundCloud directamente sin esperar 3s a iTunes/Deezer
-  await runScSearch(directPrimaryQ);
+  const repairedQ = repairStrippedSpanishText(directPrimaryQ);
+  await runScSearch(repairedQ);
+  if (allTracks.length === 0 && directPrimaryQ !== repairedQ) {
+    await runScSearch(directPrimaryQ);
+  }
   if (allTracks.length === 0 && baseQ && baseQ !== directPrimaryQ) {
-    await runScSearch(baseQ);
+    await runScSearch(repairStrippedSpanishText(baseQ));
   }
 
   allTracks.sort((a, b) => b.score - a.score);
@@ -4664,22 +4675,49 @@ const instantPreviewMemoryCache = new Map();
 function repairStrippedSpanishText(str) {
   if (!str) return '';
   return String(str)
-    .replace(/\bcorazn\b/gi, 'corazon')
-    .replace(/\bvivirs\b/gi, 'viviras')
-    .replace(/\btarzn\b/gi, 'tarzan')
-    .replace(/\bfernndez\b/gi, 'fernandez')
-    .replace(/\baerolneas\b/gi, 'aerolineas')
-    .replace(/\bmsica\b/gi, 'musica')
-    .replace(/\bcancin\b/gi, 'cancion')
-    .replace(/\bpasin\b/gi, 'pasion')
-    .replace(/\bilusin\b/gi, 'ilusion')
-    .replace(/\brazn\b/gi, 'razon')
-    .replace(/\bperdname\b/gi, 'perdoname')
+    .replace(/\bcorazn\b/gi, 'corazón')
+    .replace(/\bvivirs\b/gi, 'vivirás')
+    .replace(/\btarzn\b/gi, 'tarzán')
+    .replace(/\bfernndez\b/gi, 'fernández')
+    .replace(/\baerolneas\b/gi, 'aerolíneas')
+    .replace(/\bhernndez\b/gi, 'hernández')
+    .replace(/\bgmez\b/gi, 'gómez')
+    .replace(/\blpez\b/gi, 'lópez')
+    .replace(/\bmartnez\b/gi, 'martínez')
+    .replace(/\brodrguez\b/gi, 'rodríguez')
+    .replace(/\bgonzlez\b/gi, 'gonzález')
+    .replace(/\bprez\b/gi, 'pérez')
+    .replace(/\bsnchez\b/gi, 'sánchez')
+    .replace(/\bramrez\b/gi, 'ramírez')
+    .replace(/\bmsica\b/gi, 'música')
+    .replace(/\bcancin\b/gi, 'canción')
+    .replace(/\bpasin\b/gi, 'pasión')
+    .replace(/\bilusin\b/gi, 'ilusión')
+    .replace(/\brazn\b/gi, 'razón')
+    .replace(/\bperdname\b/gi, 'perdóname')
     .replace(/\bslo\b/gi, 'solo')
-    .replace(/\bms\b/gi, 'mas')
+    .replace(/\bms\b/gi, 'más')
     .replace(/\bqu\b/gi, 'que')
-    .replace(/\bt\b/gi, 'tu')
-    .replace(/\bm\b/gi, 'mi');
+    .replace(/\bt\b/gi, 'tú')
+    .replace(/\bm\b/gi, 'mí')
+    .replace(/\bbulera\b/gi, 'bulería')
+    .replace(/\bjardn\b/gi, 'jardín')
+    .replace(/\bdespecha\b/gi, 'despechá')
+    .replace(/\bmorenama\b/gi, 'morenamía')
+    .replace(/\blobohombre\b/gi, 'lobo-hombre')
+    .replace(/\bpars\b/gi, 'parís')
+    .replace(/\bjos\b/gi, 'josé')
+    .replace(/\bdel ro\b/gi, 'del río')
+    .replace(/\bdestruccin\b/gi, 'destrucción')
+    .replace(/\bautnticos\b/gi, 'auténticos')
+    .replace(/\bfantstica\b/gi, 'fantástica')
+    .replace(/\bintntalo\b/gi, 'inténtalo')
+    .replace(/\bslvame\b/gi, 'sálvame')
+    .replace(/\babrzame\b/gi, 'abrázame')
+    .replace(/\batrvete\b/gi, 'atrévete')
+    .replace(/\bparchs\b/gi, 'parchís')
+    .replace(/\bcafe\b/gi, 'café')
+    .replace(/\bbose\b/gi, 'bosé');
 }
 
 app.get('/api/v1/audio/notube_dl', async (req, res) => {
@@ -5405,6 +5443,7 @@ async function startLiveYouTubeStream(cacheKey, p) {
       p.rawTitle, p.rawArtist, p.expectedDur
     );
     const top = ytList.find(c => c && c.videoId && (c.authScore || 0) >= 35);
+    console.log('[live] yt candidates', ytList.length, top && top.videoId);
     if (!top) return null;
     videoId = top.videoId;
     durationSec = top.durationSec || durationSec;
@@ -5412,6 +5451,7 @@ async function startLiveYouTubeStream(cacheKey, p) {
   if (!videoId) return null;
 
   const src = await resolveYouTubeDirectAudioUrl(videoId);
+  console.log('[live] src', videoId, src && src.url && src.url.slice(0,80));
   if (!src || !src.url) return null;
   durationSec = src.durationSec || durationSec;
 
@@ -5533,9 +5573,9 @@ function attachToLiveStream(req, res, live) {
 }
 
 app.get('/api/v1/audio/extract', async (req, res) => {
-  const rawQ = String(req.query.q || '').trim();
-  const rawTitle = String(req.query.title || '').trim();
-  const rawArtist = String(req.query.artist || '').trim();
+  const rawQ = repairStrippedSpanishText(String(req.query.q || '').trim());
+  const rawTitle = repairStrippedSpanishText(String(req.query.title || '').trim());
+  const rawArtist = repairStrippedSpanishText(String(req.query.artist || '').trim());
   const rawVideoId = String(req.query.videoId || '').trim();
   const scTrackId = String(req.query.scTrackId || '').trim();
   const directAudioUrl = String(req.query.directUrl || '').trim();
@@ -5552,14 +5592,10 @@ app.get('/api/v1/audio/extract', async (req, res) => {
     return sendAudioBufferWithRange(req, res, cacheKey, cached.buffer, cached.contentType, cached.extraHeaders);
   }
 
-  // Streaming en vivo: empezar a enviar bytes en cuanto la fuente los entrega (sin esperar a descargar todo el MP3)
-  if (!directAudioUrl && !scTrackId && (rawVideoId || searchQuery)) {
-    const live = await getOrStartLiveStream(cacheKey, { rawVideoId, searchQuery, rawTitle, rawArtist, expectedDur });
-    if (live) return attachToLiveStream(req, res, live);
-    if (EXTRACTED_AUDIO_BUFFER_CACHE.has(cacheKey)) {
-      const cached = EXTRACTED_AUDIO_BUFFER_CACHE.get(cacheKey);
-      return sendAudioBufferWithRange(req, res, cacheKey, cached.buffer, cached.contentType, cached.extraHeaders);
-    }
+  // Fast buffer check
+  if (EXTRACTED_AUDIO_BUFFER_CACHE.has(cacheKey)) {
+    const cached = EXTRACTED_AUDIO_BUFFER_CACHE.get(cacheKey);
+    return sendAudioBufferWithRange(req, res, cacheKey, cached.buffer, cached.contentType, cached.extraHeaders);
   }
 
   if (INFLIGHT_EXTRACT_REQUESTS.has(cacheKey)) {
