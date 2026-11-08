@@ -25,7 +25,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css?v=57.0">
+  <link rel="stylesheet" href="./style.css?v=58.0">
   <script>
     // ===================================================
     // SISTEMA DE INTERNACIONALIZACIÓN (i18n: ES / EN)
@@ -4899,14 +4899,14 @@
         <div class="mini-player-info-col">
           <div class="mini-player-info-single-line">
             <span id="miniPlayerTitle" class="mini-player-title">Selecciona una pista</span>
-            <span class="mini-player-dot">·</span>
-            <span id="miniPlayerArtist" class="mini-player-artist">Artista</span>
           </div>
           <div class="mini-player-time-subrow">
+            <span id="miniPlayerArtist" class="mini-player-artist">Artista</span>
+            <span class="mini-player-dot">·</span>
             <span id="miniPlayerCurTime">0:00</span>
             <span class="text-zinc-600">/</span>
             <span id="miniPlayerTotTime">3:00</span>
-            <span id="miniPlayerLoadingHint" class="mini-player-loading-pill hidden">Cargando canción completa...</span>
+            <span id="miniPlayerLoadingHint" class="mini-player-loading-pill hidden">Cargando...</span>
           </div>
         </div>
         <div class="mini-player-actions" onclick="event.stopPropagation();">
@@ -4936,7 +4936,7 @@
       <div class="mini-player-scrub-wrap" onclick="event.stopPropagation();" onpointerdown="event.stopPropagation();" ontouchstart="event.stopPropagation();">
         <div class="mini-player-progress-track">
           <div id="miniPlayerProgressFill" class="mini-player-progress-fill" style="width: 0%;"></div>
-          <div id="miniPlayerChorusMarker" class="mini-player-chorus-tick" style="left: 28%;" title="Estribillo"></div>
+          <div id="miniPlayerChorusMarker" class="mini-player-chorus-tick hidden" style="display: none;"></div>
         </div>
         <input
           id="miniPlayerScrubSlider"
@@ -4997,17 +4997,16 @@
           <p id="npTrackArtist" class="text-sm font-medium text-gray-400 truncate">Artista</p>
         </div>
 
-        <!-- Barra de Progreso de Canción Completa con Marcador de Estribillo -->
+        <!-- Barra de Progreso de Canción Completa (Sin texto ni botón de estribillo) -->
         <div class="np-scrubber-box">
           <div class="np-scrubber-track-container">
-            <div id="npChorusMarkerTick" class="np-chorus-marker" style="left: 28%;" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.jumpToChorus()" title="Saltar al estribillo">
+            <div id="npChorusMarkerTick" class="np-chorus-marker hidden" style="display: none;">
               <span class="np-chorus-label">Estribillo</span>
             </div>
             <input id="npTurntableScrubSlider" type="range" min="0" max="100" step="0.1" value="0" oninput="window.DiscoverHomeApp && window.DiscoverHomeApp.onNowPlayingScrub(this.value)" class="np-scrubber-slider" title="Posición de la canción completa">
           </div>
           <div class="np-time-row">
             <span id="npCurrentTimeText">0:00</span>
-            <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.jumpToChorus()" class="text-[10.5px] font-bold text-[#d4af37] hover:underline cursor-pointer">Ir al estribillo</button>
             <span id="npDurationTimeText">3:15</span>
           </div>
         </div>
@@ -5129,7 +5128,7 @@
   <script src="./songs/comm_camilo_sesto/chart.js"></script>
   <script src="./songs/renacer/chart.js"></script>
   <script src="./songs/catalog_top.js"></script>
-  <script src="./discover_home.js?v=57.0"></script>
+  <script src="./discover_home.js?v=58.0"></script>
   <script>
     let engine = null;
     let currentActiveBeatmap = null;

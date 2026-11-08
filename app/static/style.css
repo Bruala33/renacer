@@ -2050,14 +2050,7 @@ body {
   accent-color: #d4af37 !important;
 }
 
-/* 4. DISCOVER (Descubrir: Banners 3D y Playlists) */
-.theme-vintage-3d #tabDiscoverSection > div:first-child {
-  background: linear-gradient(150deg, #2c1f13 0%, #1a1208 55%, #0c0804 100%) !important;
-  border: 1.5px solid rgba(212, 175, 55, 0.55) !important;
-  border-radius: 20px !important;
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.92), inset 0 1px 1px rgba(255, 235, 175, 0.4) !important;
-}
-
+/* 4. DISCOVER (Descubrir: Limpio sin cajas contenedoras forzadas en hijos directos) */
 .theme-vintage-3d #tabDiscoverSection [data-i18n="disc_daily_title_caps"] {
   font-family: 'Cinzel', 'Playfair Display', serif !important;
   letter-spacing: 0.05em !important;
@@ -2069,13 +2062,6 @@ body {
   border: 1.5px solid #ffd700 !important;
   color: #fff7d6 !important;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
-}
-
-.theme-vintage-3d #tabDiscoverSection > div:nth-child(2) {
-  background: linear-gradient(150deg, #241416 0%, #14090b 60%, #0a0405 100%) !important;
-  border: 1.5px solid rgba(197, 160, 89, 0.35) !important;
-  border-radius: 20px !important;
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.85) !important;
 }
 
 .theme-vintage-3d #btnDiscoverSearch {
@@ -5985,23 +5971,46 @@ body {
   color: #d4af37;
 }
 
-.discover-carousel-scroll {
-  display: flex;
-  gap: 12px;
-  overflow-x: auto;
+.discover-carousel-scroll,
+.spotify-clean-carousel {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  gap: 12px !important;
+  overflow-x: auto !important;
   padding-bottom: 6px;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
 }
 
-.discover-carousel-scroll::-webkit-scrollbar {
+.discover-carousel-scroll::-webkit-scrollbar,
+.spotify-clean-carousel::-webkit-scrollbar {
   height: 0px;
   display: none;
+}
+
+.spotify-section-block {
+  background: transparent;
+  border: none;
+  padding: 2px 0;
+}
+
+.spotify-section-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .spotify-carousel-card {
   scroll-snap-align: start;
   width: 140px;
+  min-width: 140px;
+  max-width: 140px;
   flex-shrink: 0;
   background: transparent;
   border: none;
@@ -6012,7 +6021,7 @@ body {
 }
 
 .spotify-carousel-cover-wrap {
-  position: relative;
+  position: relative !important;
   width: 140px;
   height: 140px;
   border-radius: 8px;
@@ -6060,31 +6069,35 @@ body {
   transform: scale(1.4);
 }
 
-/* Floating Circular Piano Button in Bottom-Right of Cover */
-.spotify-floating-piano-btn {
-  position: absolute;
-  right: 7px;
-  bottom: 7px;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #f3d791 0%, #d4af37 60%, #b8860b 100%);
-  border: none;
-  color: #120d04;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.75);
+/* Floating Circular Piano Button in Bottom-Right of Cover (Must beat .theme-vintage-3d button { position: relative }) */
+.spotify-floating-piano-btn,
+.theme-vintage-3d .spotify-floating-piano-btn {
+  position: absolute !important;
+  right: 7px !important;
+  bottom: 7px !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  background: linear-gradient(135deg, #f3d791 0%, #d4af37 60%, #b8860b 100%) !important;
+  border: 1px solid rgba(255, 246, 214, 0.65) !important;
+  color: #120d04 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.8) !important;
   cursor: pointer;
+  z-index: 6 !important;
   transition: transform 0.15s ease;
 }
 
-.spotify-floating-piano-btn:hover {
-  transform: scale(1.08);
+.spotify-floating-piano-btn:hover,
+.theme-vintage-3d .spotify-floating-piano-btn:hover {
+  transform: scale(1.08) !important;
 }
 
-.spotify-floating-piano-btn:active {
-  transform: scale(0.94);
+.spotify-floating-piano-btn:active,
+.theme-vintage-3d .spotify-floating-piano-btn:active {
+  transform: scale(0.94) !important;
 }
 
 .spotify-carousel-title {
@@ -6170,8 +6183,8 @@ body {
   transform: translateX(-50%);
   width: calc(100% - 16px);
   max-width: 425px;
-  height: 66px;
-  padding: 4px 10px 10px 8px;
+  height: 64px;
+  padding: 4px 10px 9px 8px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -6211,7 +6224,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 9px;
+  gap: 8px;
   width: 100%;
   min-width: 0;
   flex: 1;
@@ -6241,41 +6254,42 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  overflow: hidden;
 }
 
 .mini-player-info-single-line {
-  display: flex;
-  align-items: center;
-  gap: 5px;
+  display: block;
+  width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .mini-player-title {
+  display: block;
+  width: 100%;
   font-size: 12.5px;
   font-weight: 700;
   color: #ffffff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex-shrink: 1;
 }
 
 .mini-player-dot {
   color: #71717a;
-  font-size: 11px;
+  font-size: 10px;
   flex-shrink: 0;
 }
 
 .mini-player-artist {
-  font-size: 11.5px;
+  font-size: 10.5px;
   font-weight: 500;
   color: #a1a1aa;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex-shrink: 2;
+  max-width: 115px;
 }
 
 .mini-player-time-subrow {
@@ -6286,6 +6300,8 @@ body {
   font-family: monospace;
   color: #a1a1aa;
   margin-top: 1px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .mini-player-loading-pill {
@@ -6293,7 +6309,8 @@ body {
   font-size: 9px;
   font-weight: 700;
   color: #f3d791;
-  margin-left: 4px;
+  margin-left: 3px;
+  white-space: nowrap;
   animation: pulse 1.2s infinite;
 }
 
@@ -6304,12 +6321,14 @@ body {
   flex-shrink: 0;
 }
 
-.mini-player-svg-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: transparent;
-  border: none;
+.mini-player-svg-btn,
+.theme-vintage-3d .mini-player-svg-btn {
+  width: 30px !important;
+  height: 30px !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
   color: #e4e4e7;
   display: flex;
   align-items: center;
@@ -6322,20 +6341,24 @@ body {
   transform: scale(0.9);
 }
 
-.mini-player-svg-btn.liked {
-  color: #d4af37;
+.mini-player-svg-btn.liked,
+.theme-vintage-3d .mini-player-svg-btn.liked {
+  color: #d4af37 !important;
 }
 
-.mini-player-svg-btn.play-pause {
-  color: #ffffff;
+.mini-player-svg-btn.play-pause,
+.theme-vintage-3d .mini-player-svg-btn.play-pause {
+  color: #ffffff !important;
 }
 
-.mini-player-svg-btn.piano-gold {
-  background: linear-gradient(135deg, #f3d791 0%, #d4af37 60%, #b8860b 100%);
-  color: #120d04;
-  width: 32px;
-  height: 32px;
+.mini-player-svg-btn.piano-gold,
+.theme-vintage-3d .mini-player-svg-btn.piano-gold {
+  background: linear-gradient(135deg, #f3d791 0%, #d4af37 60%, #b8860b 100%) !important;
+  color: #120d04 !important;
+  width: 32px !important;
+  height: 32px !important;
   margin-left: 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
 }
 
 /* Interactive Scrub Bar inside Mini-Player */
@@ -6354,7 +6377,7 @@ body {
 .mini-player-progress-track {
   position: relative;
   width: 100%;
-  height: 4px;
+  height: 3.5px;
   background: rgba(255, 255, 255, 0.15);
   overflow: visible;
 }
@@ -6366,14 +6389,7 @@ body {
 }
 
 .mini-player-chorus-tick {
-  position: absolute;
-  top: -2px;
-  width: 3px;
-  height: 8px;
-  border-radius: 2px;
-  background: #fde047;
-  box-shadow: 0 0 6px #fde047;
-  pointer-events: none;
+  display: none !important;
 }
 
 .mini-player-range-input {
@@ -6397,8 +6413,8 @@ body {
   background: linear-gradient(180deg, #1c1917 0%, #09090b 100%);
   display: none;
   flex-direction: column;
-  justify-content: space-between;
-  padding: 16px 18px 28px;
+  justify-content: flex-start;
+  padding: 14px 16px 24px;
   overflow-y: auto;
 }
 
@@ -6414,7 +6430,8 @@ body {
   gap: 8px;
   width: 100%;
   max-width: 380px;
-  margin: 0 auto 10px;
+  margin: 0 auto 12px;
+  flex-shrink: 0;
 }
 
 .np-view-switcher {
@@ -6454,12 +6471,12 @@ body {
   gap: 12px;
   width: 100%;
   max-width: 380px;
-  margin: 0 auto;
+  margin: auto;
 }
 
 .np-turntable-stage {
-  width: 224px;
-  height: 224px;
+  width: 216px;
+  height: 216px;
   margin: 0 auto;
   border-radius: 50%;
   position: relative;
@@ -6472,9 +6489,13 @@ body {
   cursor: pointer;
 }
 
+.np-turntable-stage.hidden {
+  display: none !important;
+}
+
 .np-turntable-vinyl {
-  width: 208px;
-  height: 208px;
+  width: 200px;
+  height: 200px;
   border-radius: 50%;
   background:
     conic-gradient(
@@ -6505,8 +6526,8 @@ body {
 }
 
 .np-turntable-label {
-  width: 92px;
-  height: 92px;
+  width: 90px;
+  height: 90px;
   border-radius: 50%;
   border: 2px solid #d4af37;
   overflow: hidden;
@@ -6531,6 +6552,10 @@ body {
   position: relative;
   overflow: hidden;
   box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.7);
+}
+
+.np-karaoke-stage.hidden {
+  display: none !important;
 }
 
 .np-karaoke-scroll-box {
@@ -6581,49 +6606,23 @@ body {
   text-align: center;
 }
 
-/* Full Song Scrubber with Chorus Marker */
+/* Full Song Scrubber (Chorus marker hidden) */
 .np-scrubber-box {
   width: 100%;
   max-width: 340px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 
 .np-scrubber-track-container {
   position: relative;
   width: 100%;
-  padding-top: 12px;
+  padding-top: 2px;
 }
 
 .np-chorus-marker {
-  position: absolute;
-  top: 0;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  cursor: pointer;
-  z-index: 5;
-}
-
-.np-chorus-marker::after {
-  content: '';
-  width: 3px;
-  height: 10px;
-  border-radius: 2px;
-  background: #fde047;
-  box-shadow: 0 0 6px #fde047;
-}
-
-.np-chorus-label {
-  font-size: 8.5px;
-  font-weight: 800;
-  color: #fde047;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 1px;
-  white-space: nowrap;
+  display: none !important;
 }
 
 .np-scrubber-slider {

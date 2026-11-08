@@ -853,10 +853,12 @@
   class KaraokeLyricsService {
     constructor() {
       this.cache = new Map();
+      this.candidatesCache = new Map();
       this.inflight = new Map();
       this.currentLyrics = [];
       this.currentTrackKey = '';
       this.activeLineIndex = -1;
+      this.timeOffsetSec = 0;
     }
 
     _makeKey(track) {
@@ -868,7 +870,27 @@
     _cleanSearchTerm(str) {
       return String(str || '')
         .replace(/\(.*?\)|\[.*?\]/g, '')
-        .replace(/\b(official|video|audio|remastered|remaster|live|hd|4k|lyrics|feat\.?|ft\.?)\b/gi, '')
+        .replace(/\b(official|oficial|video|music video|audio|remastered|remaster|live|hd|4k|lyrics|letra|videoclip)\b/gi, '')
+        .replace(/\b(feat\.?|ft\.?|con|with)\b.*$/i, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    _extractPrimaryArtist(str) {
+      const cleaned = this._cleanSearchTerm(str)
+        .replace(/ - Topic$/i, '')
+        .replace(/VEVO$/i, '')
+        .trim();
+      const parts = cleaned.split(/\s*(?:,|&|\/|;| x | and | y )\s*/i);
+      return (parts[0] || cleaned).trim();
+    }
+
+    _normMatch(str) {
+      return String(str || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
     }
@@ -876,6 +898,12 @@
     parseLrc(lrcText) {
       const lines = String(lrcText || '').split(/\r?\n/);
       const parsed = [];
+      let headerOffsetSec = 0;
+      const offsetMatch = String(lrcText || '').match(/\[offset:\s*([+-]?\d+)\s*\]/i);
+      if (offsetMatch) {
+        headerOffsetSec = (parseInt(offsetMatch[1], 10) || 0) / 1000;
+      }
+
       const timeExp = /\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]/g;
       for (const rawLine of lines) {
         const matches = [...rawLine.matchAll(timeExp)];
@@ -887,8 +915,9 @@
           const sec = parseInt(m[2], 10) || 0;
           const msStr = (m[3] || '0').padEnd(3, '0').slice(0, 3);
           const ms = parseInt(msStr, 10) || 0;
+          const tSec = Math.max(0, min * 60 + sec + ms / 1000 - headerOffsetSec);
           parsed.push({
-            timeSec: +(min * 60 + sec + ms / 1000).toFixed(2),
+            timeSec: +tSec.toFixed(2),
             text
           });
         }
@@ -904,8 +933,8 @@
         .filter(Boolean);
 
       if (rawLines.length > 0) {
-        const startOffset = 8;
-        const usableSpan = Math.max(40, totalDurationSec - 18);
+        const startOffset = Math.min(12, Math.max(4, totalDurationSec * 0.05));
+        const usableSpan = Math.max(40, totalDurationSec - startOffset - 10);
         const step = usableSpan / Math.max(1, rawLines.length);
         return rawLines.map((text, idx) => ({
           timeSec: +(startOffset + idx * step).toFixed(2),
@@ -920,52 +949,151 @@
         { timeSec: 0, text: `♪ ${title} — ${artist} ♪` },
         { timeSec: 8, text: 'Introducción instrumental · Siente el pulso del piano' },
         { timeSec: Math.max(16, Math.round(chorusSec * 0.55)), text: 'Desarrollo melódico · Preparando entrada principal' },
-        { timeSec: chorusSec, text: `★ Estribillo Principal — ${title} ★` },
+        { timeSec: chorusSec, text: `★ Sección Principal — ${title} ★` },
         { timeSec: chorusSec + 18, text: 'Sección rítmica central · Mantén la cadencia' },
         { timeSec: Math.round(totalDurationSec * 0.58), text: 'Puente armónico · Variación de intensidad' },
-        { timeSec: Math.round(totalDurationSec * 0.72), text: `★ Clímax / Estribillo Final — ${title} ★` },
+        { timeSec: Math.round(totalDurationSec * 0.72), text: `★ Clímax Final — ${title} ★` },
         { timeSec: Math.round(totalDurationSec * 0.88), text: 'Coda final y resolución' }
       ];
+    }
+
+    _pickBestCandidateLines(candidates, targetDurationSec = 195, track = null, detectedIntroSec = null) {
+      if (!Array.isArray(candidates) || candidates.length === 0) {
+        return this.buildFallbackSyncedLines('', targetDurationSec, track);
+      }
+
+      const cleanTitleNorm = this._normMatch(this._cleanSearchTerm(track?.title || ''));
+      const primaryArtistNorm = this._normMatch(this._extractPrimaryArtist(track?.artist || ''));
+
+      const syncedList = [];
+      for (const item of candidates) {
+        if (!item || !item.syncedLyrics || !item.syncedLyrics.includes('[')) continue;
+        const parsed = this.parseLrc(item.syncedLyrics);
+        if (parsed.length < 3) continue;
+
+        const itemTitleNorm = this._normMatch(item.trackName || item.name || '');
+        const itemArtistNorm = this._normMatch(item.artistName || '');
+        let score = 0;
+
+        if (cleanTitleNorm && itemTitleNorm) {
+          if (itemTitleNorm === cleanTitleNorm) score += 50;
+          else if (itemTitleNorm.includes(cleanTitleNorm) || cleanTitleNorm.includes(itemTitleNorm)) score += 30;
+        }
+        if (primaryArtistNorm && itemArtistNorm) {
+          if (itemArtistNorm.includes(primaryArtistNorm) || primaryArtistNorm.includes(itemArtistNorm)) {
+            score += 45;
+          } else {
+            score -= 30;
+          }
+        }
+
+        const itemDur = Number(item.duration) || (parsed[parsed.length - 1].timeSec + 8);
+        const durDiff = Math.abs(itemDur - targetDurationSec);
+        // Penalizar diferencias de duración para elegir la versión exacta (álbum vs vídeo vs radio edit)
+        const durScore = Math.max(-40, 40 - durDiff * 1.4);
+        score += durScore;
+
+        syncedList.push({
+          item,
+          parsed,
+          itemDur,
+          durDiff,
+          score
+        });
+      }
+
+      if (syncedList.length > 0) {
+        syncedList.sort((a, b) => b.score - a.score);
+        const best = syncedList[0];
+        let lines = best.parsed.map(l => ({ ...l }));
+
+        // Si el audio cargado es más largo que el LRC (p.ej. vídeo oficial con intro hablada/cinemática como "Loco" 4:08 vs 3:13),
+        // calibrar el desfase de entrada para que la letra vaya clavada con la voz
+        const rawDurationDiff = targetDurationSec - best.itemDur;
+        if (Number.isFinite(detectedIntroSec) && detectedIntroSec !== null) {
+          const firstLyricTime = lines[0]?.timeSec || 0;
+          const shift = detectedIntroSec - firstLyricTime;
+          if (Math.abs(shift) >= 2.0 && Math.abs(shift) <= 75) {
+            lines = lines.map(l => ({
+              timeSec: +Math.max(0, l.timeSec + shift).toFixed(2),
+              text: l.text
+            }));
+          }
+        } else if (rawDurationDiff > 8 && rawDurationDiff < 85) {
+          // Estimación conservadora mientras se analiza el audio si hay gran diferencia de duración
+          const estShift = Math.round(rawDurationDiff * 0.62 * 10) / 10;
+          lines = lines.map(l => ({
+            timeSec: +Math.max(0, l.timeSec + estShift).toFixed(2),
+            text: l.text
+          }));
+        }
+        return lines;
+      }
+
+      const withPlain = candidates.find(item => item && item.plainLyrics);
+      if (withPlain && withPlain.plainLyrics) {
+        return this.buildFallbackSyncedLines(withPlain.plainLyrics, targetDurationSec, track);
+      }
+
+      return this.buildFallbackSyncedLines('', targetDurationSec, track);
     }
 
     async fetchLyricsForTrack(track, totalDurationSec = 195) {
       if (!track) return [];
       const key = this._makeKey(track);
-      if (this.cache.has(key)) return this.cache.get(key);
+      if (this.candidatesCache.has(key)) {
+        const cands = this.candidatesCache.get(key);
+        const lines = this._pickBestCandidateLines(cands, totalDurationSec, track);
+        this.cache.set(key, lines);
+        return lines;
+      }
       if (this.inflight.has(key)) return this.inflight.get(key);
 
       const task = (async () => {
-        try {
-          const cleanTitle = this._cleanSearchTerm(track.title);
-          const cleanArtist = this._cleanSearchTerm(track.artist);
-          const qUrl = `https://lrclib.net/api/search?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(cleanArtist)}`;
-          const ctrl = new AbortController();
-          const tid = setTimeout(() => ctrl.abort(), 3200);
-          const resp = await fetch(qUrl, { signal: ctrl.signal });
-          clearTimeout(tid);
-          if (resp.ok) {
-            const arr = await resp.json();
-            if (Array.isArray(arr) && arr.length > 0) {
-              const withSynced = arr.find(item => item && item.syncedLyrics && item.syncedLyrics.includes('[')) || arr[0];
-              if (withSynced && withSynced.syncedLyrics) {
-                const parsed = this.parseLrc(withSynced.syncedLyrics);
-                if (parsed.length >= 3) {
-                  this.cache.set(key, parsed);
-                  return parsed;
+        const cleanTitle = this._cleanSearchTerm(track.title);
+        const primaryArtist = this._extractPrimaryArtist(track.artist);
+        const fullArtist = this._cleanSearchTerm(track.artist);
+
+        const urlsToTry = [
+          `https://lrclib.net/api/search?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(primaryArtist)}`,
+          `https://lrclib.net/api/search?q=${encodeURIComponent(`${cleanTitle} ${primaryArtist}`.trim())}`
+        ];
+        if (fullArtist && fullArtist.toLowerCase() !== primaryArtist.toLowerCase()) {
+          urlsToTry.push(`https://lrclib.net/api/search?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(fullArtist)}`);
+        }
+
+        const collected = [];
+        const seenIds = new Set();
+
+        for (const qUrl of urlsToTry) {
+          try {
+            const ctrl = new AbortController();
+            const tid = setTimeout(() => ctrl.abort(), 3200);
+            const resp = await fetch(qUrl, { signal: ctrl.signal });
+            clearTimeout(tid);
+            if (resp.ok) {
+              const arr = await resp.json();
+              if (Array.isArray(arr)) {
+                for (const item of arr) {
+                  if (item && !seenIds.has(item.id)) {
+                    seenIds.add(item.id);
+                    collected.push(item);
+                  }
                 }
               }
-              if (withSynced && withSynced.plainLyrics) {
-                const fallback = this.buildFallbackSyncedLines(withSynced.plainLyrics, totalDurationSec, track);
-                this.cache.set(key, fallback);
-                return fallback;
+              if (collected.some(it => it && it.syncedLyrics && it.syncedLyrics.includes('['))) {
+                break;
               }
             }
-          }
-        } catch (_) {}
+          } catch (_) {}
+        }
 
-        const fallback = this.buildFallbackSyncedLines('', totalDurationSec, track);
-        this.cache.set(key, fallback);
-        return fallback;
+        if (collected.length > 0) {
+          this.candidatesCache.set(key, collected);
+        }
+        const bestLines = this._pickBestCandidateLines(collected, totalDurationSec, track);
+        this.cache.set(key, bestLines);
+        return bestLines;
       })();
 
       this.inflight.set(key, task);
@@ -974,6 +1102,85 @@
       } finally {
         this.inflight.delete(key);
       }
+    }
+
+    /**
+     * Cuando se conoce la duración real del archivo de audio completo (`fullAudio.duration`),
+     * re-selecciona la versión LRC exacta de LRCLib y, si el audio proviene de un videoclip con intro
+     * más larga que el LRC de estudio, detecta el inicio musical real para sincronizar la letra.
+     */
+    async recalibrateForActualAudio(track, actualDurationSec, audioBlob = null) {
+      if (!track || !Number.isFinite(actualDurationSec) || actualDurationSec < 35) return;
+      const key = this._makeKey(track);
+      const cands = this.candidatesCache.get(key);
+      if (!cands || cands.length === 0) return;
+
+      let detectedIntroSec = null;
+      const bestSynced = cands.filter(c => c && c.syncedLyrics && c.syncedLyrics.includes('['));
+      const closestDurDiff = bestSynced.reduce((minDiff, c) => {
+        const d = Math.abs((Number(c.duration) || actualDurationSec) - actualDurationSec);
+        return Math.min(minDiff, d);
+      }, 999);
+
+      if (closestDurDiff > 6 && audioBlob && audioBlob.size >= 80000) {
+        detectedIntroSec = await this._detectMusicalOnsetFromBlob(audioBlob, actualDurationSec).catch(() => null);
+      }
+
+      const recalibrated = this._pickBestCandidateLines(cands, actualDurationSec, track, detectedIntroSec);
+      this.cache.set(key, recalibrated);
+      if (this.currentTrackKey === key) {
+        this.currentLyrics = recalibrated;
+        this.activeLineIndex = -1;
+        this.renderLinesToDom();
+      }
+    }
+
+    async _detectMusicalOnsetFromBlob(blob, actualDurationSec) {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return null;
+        if (!window._lyricsAnalysisAudioCtx) {
+          window._lyricsAnalysisAudioCtx = new AudioCtx();
+        }
+        const ctx = window._lyricsAnalysisAudioCtx;
+        const ab = await blob.slice(0, Math.min(blob.size, 2500000)).arrayBuffer();
+        const audioBuf = await ctx.decodeAudioData(ab);
+        const ch = audioBuf.getChannelData(0);
+        const sr = audioBuf.sampleRate;
+        const winSamples = Math.floor(sr * 0.25);
+        const maxScanSec = Math.min(75, Math.floor(actualDurationSec * 0.35));
+        const totalWindows = Math.min(Math.floor(ch.length / winSamples), maxScanSec * 4);
+        if (totalWindows < 16) return null;
+
+        const rmsArr = new Float32Array(totalWindows);
+        let peakRms = 0;
+        for (let w = 0; w < totalWindows; w++) {
+          let sum = 0;
+          const base = w * winSamples;
+          for (let i = 0; i < winSamples; i += 4) {
+            const s = ch[base + i] || 0;
+            sum += s * s;
+          }
+          const rms = Math.sqrt(sum / (winSamples / 4));
+          rmsArr[w] = rms;
+          if (rms > peakRms) peakRms = rms;
+        }
+        if (peakRms < 0.01) return null;
+
+        // Buscar el punto donde la energía musical sostenida supera el 32% del pico durante al menos 1.5s
+        const thresh = peakRms * 0.32;
+        for (let w = 4; w < totalWindows - 6; w++) {
+          if (
+            rmsArr[w] >= thresh &&
+            rmsArr[w + 1] >= thresh * 0.85 &&
+            rmsArr[w + 2] >= thresh * 0.85 &&
+            rmsArr[w + 3] >= thresh * 0.85
+          ) {
+            return +(w * 0.25).toFixed(2);
+          }
+        }
+      } catch (_) {}
+      return null;
     }
 
     async loadAndRenderTrackLyrics(track, totalDurationSec = 195) {
@@ -1010,9 +1217,10 @@
 
     syncTime(currentSec) {
       if (!Array.isArray(this.currentLyrics) || this.currentLyrics.length === 0) return;
+      const adjSec = Math.max(0, Number(currentSec || 0) + (this.timeOffsetSec || 0));
       let activeIdx = 0;
       for (let i = 0; i < this.currentLyrics.length; i++) {
-        if (currentSec + 0.25 >= this.currentLyrics[i].timeSec) {
+        if (adjSec + 0.15 >= this.currentLyrics[i].timeSec) {
           activeIdx = i;
         } else {
           break;
@@ -1041,7 +1249,7 @@
 
 
   // =========================================================================
-  // 4. DUAL-STREAM AUDIO ENGINE (BARRA COMPLETA DESDE SEGUNDO 0 + ESTRIBILLO + PRE-FETCH)
+  // 4. DUAL-STREAM AUDIO ENGINE (BARRA COMPLETA DESDE SEGUNDO 0 + SINCRONIZACIÓN KARAOKE)
   // =========================================================================
   class DualStreamAudioEngine {
     constructor(graphService, dnaEngine, karaokeService) {
@@ -1065,7 +1273,6 @@
       this.fullTrackBlob = null;
       this.fullTrackObjectUrl = null;
 
-      // Posición virtual del estribillo y seek pendiente sobre la barra de canción entera
       this.previewBaseOffsetSec = 0;
       this.pendingUserSeekSec = null;
 
@@ -1079,6 +1286,7 @@
       this.fullTrackInflightMap = new Map();
 
       this.listenTimerInterval = null;
+      this.karaokeSyncInterval = null;
       this.listenedSecondsOnCurrent = 0;
       this._playRequestId = 0;
 
@@ -1114,15 +1322,15 @@
       if (this.fullTrackReady && Number.isFinite(this.fullAudio.duration) && this.fullAudio.duration > 38) {
         return this.fullAudio.duration;
       }
+      if (this.activeSourceType === 'full' && Number.isFinite(this.fullAudio.duration) && this.fullAudio.duration > 38) {
+        return this.fullAudio.duration;
+      }
       const explicitDur = Number(track?.durationSec || track?.duration || 0);
       if (explicitDur > 38) return explicitDur;
       const hash = String(track?.id || track?.title || 'song').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
       return 185 + (hash % 45);
     }
 
-    /**
-     * Estima el segundo exacto del estribillo (chorus) de la canción (~28% de la duración total, entre 32s y 64s)
-     */
     getChorusOffsetSec(track = this.currentTrack, fullDur = null) {
       const dur = fullDur || this.getTrackFullDurationSec(track);
       if (Number.isFinite(track?.chorusSec) && track.chorusSec > 10 && track.chorusSec < dur - 25) {
@@ -1132,7 +1340,7 @@
     }
 
     getCurrentSongTimeSec() {
-      if (this.pendingUserSeekSec !== null && !this.fullTrackReady) {
+      if (this.pendingUserSeekSec !== null && !this.fullTrackReady && this.activeSourceType !== 'full') {
         return this.pendingUserSeekSec;
       }
       if (this.activeSourceType === 'full') {
@@ -1156,7 +1364,7 @@
 
         // Si el audio completo ya está descargado mientras suena el preview, hacer handoff inmediato
         if (this.activeSourceType === 'preview' && this.fullTrackReady && !this.isCrossfading) {
-          const targetSec = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : curSongSec;
+          const targetSec = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : 0;
           this.pendingUserSeekSec = null;
           this._performTransparentHandoffToFullTrack(targetSec);
         }
@@ -1175,14 +1383,33 @@
         if (this.activeSourceType === 'full') onTimeUpdate();
       });
 
+      // En cuanto fullAudio conoce su duración real, recalibrar la letra LRC para que vaya 100% sincronizada
+      this.fullAudio.addEventListener('loadedmetadata', () => {
+        if (!this.currentTrack) return;
+        const realDur = Number(this.fullAudio.duration);
+        if (Number.isFinite(realDur) && realDur > 38) {
+          this.currentTrack.durationSec = realDur;
+          this._updatePlayerProgressUI(this.getCurrentSongTimeSec(), realDur);
+          if (this.karaokeService) {
+            this.karaokeService.recalibrateForActualAudio(this.currentTrack, realDur, this.fullTrackBlob).catch(() => {});
+          }
+        }
+      });
+
+      // Ticker de alta precisión (100ms) para que el resaltado de sílabas/líneas de Karaoke no tenga retraso
+      if (this.karaokeSyncInterval) clearInterval(this.karaokeSyncInterval);
+      this.karaokeSyncInterval = setInterval(() => {
+        if (!this.isPlaying() || !this.currentTrack || !this.karaokeService) return;
+        this.karaokeService.syncTime(this.getCurrentSongTimeSec());
+      }, 100);
+
       this.previewAudio.addEventListener('ended', () => {
         if (this.activeSourceType !== 'preview') return;
         if (this.fullTrackReady) {
-          const targetSec = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : (this.previewBaseOffsetSec + 29);
+          const targetSec = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : 0;
           this.pendingUserSeekSec = null;
           this._performTransparentHandoffToFullTrack(targetSec);
         } else {
-          // Si el usuario sigue escuchando y el audio completo aún termina de bajar, repetir suave el estribillo
           try {
             this.previewAudio.currentTime = 0;
             this.previewAudio.play().catch(() => {});
@@ -1210,8 +1437,28 @@
     }
 
     /**
+     * Obtiene la URL directa de streaming completo para pistas del catálogo Top (90 canciones CDN)
+     * o Comunidad, permitiendo arrancar el audio completo desde 0:00 al instante y 100% sincronizado con LRC.
+     */
+    _getDirectFullStreamUrl(track) {
+      if (!track) return '';
+      if (track.audio_url || String(track.id || '').startsWith('top_') || track.is_top_song) {
+        const rawId = String(track.raw_id || track.id || '').replace(/^top_/, '');
+        const audioFilename = track.audio_url || `${rawId}.mp3`;
+        const cUrl = `https://github.com/Bruala33/renacer/releases/download/8/${audioFilename}`;
+        return `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(cUrl)}`;
+      }
+      if (String(track.id || '').startsWith('comm_')) {
+        const folder = String(track.id).replace(/^comm_/, '');
+        const baseUrl = typeof window.getApiBaseUrl === 'function' ? window.getApiBaseUrl() : '';
+        return `${baseUrl}/songs/${folder}/audio.mp3`;
+      }
+      return '';
+    }
+
+    /**
      * Reproduce una canción mostrando desde el segundo 0 la barra de duración entera,
-     * arrancando directamente en el estribillo (chorus) y silenciando de inmediato la música del menú.
+     * sincronizando exactamente con las letras de Karaoke y silenciando de inmediato la música del menú.
      */
     async playTrack(track, options = {}) {
       if (!track) return false;
@@ -1244,16 +1491,13 @@
       }
 
       const fullDur = this.getTrackFullDurationSec(track);
-      const chorusSec = this.getChorusOffsetSec(track, fullDur);
-      const startAtChorus = options.startAtChorus !== false;
       const desiredStartSec = typeof options.startOffsetSec === 'number'
         ? options.startOffsetSec
-        : (startAtChorus ? chorusSec : 0);
+        : 0;
 
       this.previewBaseOffsetSec = desiredStartSec;
 
       this._updatePlayerMetadataUI(track);
-      this._updateChorusMarkersUI(chorusSec, fullDur);
       this._updatePlayerProgressUI(desiredStartSec, fullDur);
       this._updateMediaSessionMetadata(track);
 
@@ -1261,13 +1505,13 @@
         this.karaokeService.loadAndRenderTrackLyrics(track, fullDur).catch(() => {});
       }
 
-      // 1. Si ya tenemos el Blob completo en caché, reproducir directamente el audio completo en el estribillo
+      // 1. Si ya tenemos el Blob completo en caché, reproducir directamente el audio completo desde 0:00
       const cachedFullBlob = this._getCachedFullBlobForTrack(track);
       if (cachedFullBlob && cachedFullBlob.size >= 80000) {
         this.fullTrackBlob = cachedFullBlob;
         this.fullTrackReady = true;
         this._setLoadingHintVisible(false);
-        const startedFull = await this._startChannelWithFadeIn(this.fullAudio, cachedFullBlob, 'full', reqId, desiredStartSec, 260);
+        const startedFull = await this._startChannelWithFadeIn(this.fullAudio, cachedFullBlob, 'full', reqId, desiredStartSec, 240);
         this.isLoadingTrack = false;
         if (startedFull) {
           this._updatePlayerMetadataUI(track);
@@ -1276,28 +1520,49 @@
         }
       }
 
-      // 2. Arranque instantáneo (<100ms) del estribillo (preview de iTunes/Deezer suele ser el estribillo de 30s)
+      // 2. Si es una canción Top o de Comunidad con URL de streaming directo, reproducir el archivo completo
+      // directamente desde 0:00 (100% sincronizado con Karaoke desde el primer segundo, sin desfase de preview de 30s)
+      const directStreamUrl = this._getDirectFullStreamUrl(track);
+      if (directStreamUrl) {
+        this._setLoadingHintVisible(false);
+        const startedDirectFull = await this._startChannelWithFadeIn(this.fullAudio, directStreamUrl, 'full', reqId, desiredStartSec, 240);
+        if (startedDirectFull) {
+          this.fullTrackReady = true;
+          this.isLoadingTrack = false;
+          this._updatePlayerMetadataUI(track);
+          this._startListenTracker();
+          // Pre-cargar también el Blob en segundo plano para que al pulsar "Jugar al Piano" sea instantáneo
+          this.preloadFullTrackInBackground(track).then((blob) => {
+            if (reqId === this._playRequestId && blob && blob.size >= 60000) {
+              this.fullTrackBlob = blob;
+            }
+          }).catch(() => {});
+          return true;
+        }
+      }
+
+      // 3. Para canciones externas (YouTube / iTunes): enriquecer duración de estudio oficial primero
       let previewUrl = track.previewUrl || track.preview_url || '';
       const prewarmed = this.prewarmedPreviewMap.get(String(track.id));
       if (prewarmed && prewarmed.previewUrl) {
         previewUrl = prewarmed.previewUrl;
       }
 
-      if (!previewUrl || String(previewUrl).startsWith('yt_full://')) {
+      if (!previewUrl || String(previewUrl).startsWith('yt_full://') || !track.durationSec) {
         const enriched = await this.graphService.enrichTrackMetadata(track).catch(() => null);
         if (reqId !== this._playRequestId) return false;
-        if (enriched && enriched.previewUrl) {
+        if (enriched && enriched.previewUrl && !previewUrl) {
           previewUrl = enriched.previewUrl;
         }
         if (enriched && enriched.durationSec && enriched.durationSec > 40) {
           track.durationSec = enriched.durationSec;
+          this._updatePlayerProgressUI(desiredStartSec, enriched.durationSec);
         }
       }
 
       let previewStarted = false;
       if (previewUrl && /^https?:\/\//i.test(previewUrl)) {
-        // Arrancar en segundo 4 del preview para entrar directo al gancho del estribillo
-        previewStarted = await this._startChannelWithFadeIn(this.previewAudio, previewUrl, 'preview', reqId, 3.5, 250);
+        previewStarted = await this._startChannelWithFadeIn(this.previewAudio, previewUrl, 'preview', reqId, 0, 220);
         if (previewStarted) {
           this.isLoadingTrack = false;
           this._updatePlayerMetadataUI(track);
@@ -1305,7 +1570,7 @@
         }
       }
 
-      // 3. Descargar en paralelo el archivo completo HD y hacer handoff INMEDIATO en cuanto esté listo (sin esperar 30s)
+      // 4. Descargar en paralelo el archivo completo de estudio y hacer handoff al audio completo sincronizado
       this.preloadFullTrackInBackground(track).then(async (blob) => {
         if (reqId !== this._playRequestId || !blob || blob.size < 60000) {
           if (reqId === this._playRequestId) {
@@ -1327,15 +1592,14 @@
         this._setLoadingHintVisible(false);
         this._updatePlayerMetadataUI(track);
 
-        // Si el preview estaba sonando, hacer handoff transparente inmediato al audio completo en la posición actual o seek solicitado
         if (this.isPlayingFlag && this.activeSourceType === 'preview') {
-          const targetSec = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : this.getCurrentSongTimeSec();
+          const targetSec = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : 0;
           this.pendingUserSeekSec = null;
           await this._performTransparentHandoffToFullTrack(targetSec);
         } else if (!this.isPlayingFlag || this.activeSourceType === 'none') {
           const targetSec = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : desiredStartSec;
           this.pendingUserSeekSec = null;
-          const ok = await this._startChannelWithFadeIn(this.fullAudio, blob, 'full', reqId, targetSec, 260);
+          const ok = await this._startChannelWithFadeIn(this.fullAudio, blob, 'full', reqId, targetSec, 240);
           this.isLoadingTrack = false;
           if (ok) {
             this._updatePlayerMetadataUI(track);
@@ -1383,6 +1647,8 @@
           } else {
             audioEl.addEventListener('loadedmetadata', applySeek, { once: true });
           }
+        } else {
+          try { audioEl.currentTime = 0; } catch (_) {}
         }
 
         await audioEl.play();
@@ -1419,7 +1685,7 @@
       }
     }
 
-    async _performTransparentHandoffToFullTrack(targetPositionSec = 35) {
+    async _performTransparentHandoffToFullTrack(targetPositionSec = 0) {
       if (this.isCrossfading || !this.fullTrackReady || !this.fullAudio.src) return;
       this.isCrossfading = true;
       const reqId = this._playRequestId;
@@ -1526,7 +1792,7 @@
             }
           }
 
-          const isTop = Boolean(track.audio_url);
+          const isTop = Boolean(track.audio_url || String(track.id || '').startsWith('top_') || track.is_top_song);
           if (isTop) {
             const rawId = String(track.raw_id || track.id || '').replace(/^top_/, '');
             const audioFilename = track.audio_url || `${rawId}.mp3`;
@@ -1536,7 +1802,7 @@
               const cUrl = `https://github.com/Bruala33/renacer/releases/download/${tag}/${audioFilename}`;
               try {
                 const ctrl = new AbortController();
-                const tid = setTimeout(() => ctrl.abort(), 2200);
+                const tid = setTimeout(() => ctrl.abort(), 3500);
                 const resp = await fetch(myWorker(cUrl), { signal: ctrl.signal });
                 clearTimeout(tid);
                 if (resp.ok) {
@@ -1568,7 +1834,16 @@
           }
 
           if (typeof window.extractSongAudioMultiSource === 'function') {
-            const extracted = await window.extractSongAudioMultiSource(track.title, track.artist, track.thumbnail || '');
+            // Si tenemos la duración de estudio vía iTunes, priorizar el audio oficial ("Topic" / "Audio") frente a videoclips largos con intro actuada
+            const expectedStudioDur = Number(track.durationSec) || 0;
+            const preferredCand = {
+              title: track.title,
+              artist: track.artist,
+              thumbnail: track.thumbnail || '',
+              durationSec: expectedStudioDur,
+              videoId: expectedStudioDur > 40 ? '' : (track.videoId || '')
+            };
+            const extracted = await window.extractSongAudioMultiSource(track.title, track.artist, track.thumbnail || '', null, preferredCand);
             if (extracted && extracted.blob && extracted.blob.size >= 30000) {
               this._storeFullBlobInGlobalCache(track, extracted.blob);
               return extracted.blob;
@@ -2351,9 +2626,7 @@
           dualStreamEngine.queueIndex = 0;
           dualStreamEngine._updatePlayerMetadataUI(active);
           const fullDur = dualStreamEngine.getTrackFullDurationSec(active);
-          const chorusSec = dualStreamEngine.getChorusOffsetSec(active, fullDur);
-          dualStreamEngine._updateChorusMarkersUI(chorusSec, fullDur);
-          dualStreamEngine._updatePlayerProgressUI(chorusSec, fullDur);
+          dualStreamEngine._updatePlayerProgressUI(0, fullDur);
         }
         if (autoPlayFirst) {
           dualStreamEngine.playTrack(active);
@@ -3247,18 +3520,18 @@
         setTimeout(() => this._enrichCarouselCoversAsync(recs, listKey), 30);
 
         return `
-          <div class="spotify-section-block">
-            <div class="flex items-center justify-between gap-2 mb-2.5 flex-wrap">
-              <div>
-                <h3 class="spotify-section-title mb-0">Recomendadas para "${escapeHtmlSafe(pl.title)}"</h3>
-                <p class="text-[11px] text-gray-400">Basadas en las ${(pl.tracks || []).length} canciones de tu playlist</p>
+          <div class="discover-carousel-section">
+            <div class="discover-carousel-header">
+              <div class="min-w-0 flex-1 pr-2">
+                <h3 class="discover-carousel-title truncate">Para "${escapeHtmlSafe(pl.title)}"</h3>
+                <p class="text-[11px] text-gray-400 truncate">Basadas en las ${(pl.tracks || []).length} canciones de tu playlist</p>
               </div>
               <button type="button" onclick="window.DiscoverHomeApp.startPlaylistDiscoverySwipeMode('${safeId}')" class="discover-playlist-swipe-cta cursor-pointer">
                 ${SVG_ICONS.sparkles}
-                <span>Descubrir canciones para esta playlist</span>
+                <span>Descubrir</span>
               </button>
             </div>
-            <div class="spotify-clean-carousel">
+            <div class="discover-carousel-scroll">
               ${recs.map((tr, idx) => this._buildSmartCarouselCardHtml(tr, idx, listKey)).join('')}
             </div>
           </div>
@@ -3622,7 +3895,7 @@
 
     switchNowPlayingTab(tab = 'vinyl') {
       const isKaraoke = tab === 'karaoke';
-      const vinylStage = document.getElementById('npVinylStageContainer');
+      const vinylStage = document.getElementById('npTurntablePlatterInteractive') || document.getElementById('npVinylStageContainer');
       const karaokeStage = document.getElementById('npKaraokeStageContainer');
       const tabVinylBtn = document.getElementById('npTabVinylBtn');
       const tabKaraokeBtn = document.getElementById('npTabKaraokeBtn');
