@@ -3684,12 +3684,18 @@
         </button>
       `;
 
+      modal.classList.remove('hidden');
       modal.classList.add('open');
+      modal.style.display = 'flex';
     },
 
     closeTrackOptionsSheet() {
       const modal = document.getElementById('spotifyTrackOptionsSheet');
-      if (modal) modal.classList.remove('open');
+      if (modal) {
+        modal.classList.remove('open');
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+      }
     },
 
     async handleTrackOptionAction(action) {

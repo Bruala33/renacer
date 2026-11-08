@@ -22,7 +22,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Reduces HTML/JS/CSS/JSON outbound transfer by ~85% and 100% on 304 hits
 // ============================================================================
 const STATIC_COMPRESSED_CACHE = new Map();
-const MAX_COMPRESSED_CACHE_ENTRIES = 32;
+const MAX_COMPRESSED_CACHE_ENTRIES = 48;
 
 function getMimeTypeForStatic(filePath) {
   const ext = path.extname(filePath).toLowerCase();
@@ -32,6 +32,20 @@ function getMimeTypeForStatic(filePath) {
   if (ext === '.json') return 'application/json; charset=utf-8';
   if (ext === '.svg') return 'image/svg+xml; charset=utf-8';
   return 'application/octet-stream';
+}
+
+function upgradeCompressedEntryAsync(filePath, entry) {
+  if (!entry || entry._upgrading) return;
+  entry._upgrading = true;
+  zlib.gzip(entry.rawBuf, { level: 6 }, (gzErr, gzOut) => {
+    if (!gzErr && gzOut) entry.gzipBuf = gzOut;
+    zlib.brotliCompress(entry.rawBuf, {
+      params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 4 }
+    }, (brErr, brOut) => {
+      if (!brErr && brOut) entry.brBuf = brOut;
+      entry._upgrading = false;
+    });
+  });
 }
 
 function serveCompressedTextFile(req, res, filePath, cacheControl = 'public, max-age=0, must-revalidate') {
@@ -62,19 +76,15 @@ function serveCompressedTextFile(req, res, filePath, cacheControl = 'public, max
     let entry = STATIC_COMPRESSED_CACHE.get(filePath);
     if (!entry || entry.mtimeMs !== stat.mtimeMs || entry.size !== stat.size) {
       const rawBuf = fs.readFileSync(filePath);
-      const gzipBuf = zlib.gzipSync(rawBuf, { level: 6 });
-      let brBuf = null;
-      try {
-        brBuf = zlib.brotliCompressSync(rawBuf, {
-          params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 5 }
-        });
-      } catch (_) {}
-      entry = { mtimeMs: stat.mtimeMs, size: stat.size, rawBuf, gzipBuf, brBuf };
+      // Compresión ultra-rápida nivel 1 (< 4ms) en el hilo principal para no bloquear el arranque
+      const gzipBuf = zlib.gzipSync(rawBuf, { level: 1 });
+      entry = { mtimeMs: stat.mtimeMs, size: stat.size, rawBuf, gzipBuf, brBuf: null, _upgrading: false };
       if (STATIC_COMPRESSED_CACHE.size >= MAX_COMPRESSED_CACHE_ENTRIES) {
         const oldestKey = STATIC_COMPRESSED_CACHE.keys().next().value;
         STATIC_COMPRESSED_CACHE.delete(oldestKey);
       }
       STATIC_COMPRESSED_CACHE.set(filePath, entry);
+      upgradeCompressedEntryAsync(filePath, entry);
     }
 
     const acceptEnc = String(req.headers['accept-encoding'] || '').toLowerCase();
@@ -5847,11 +5857,46 @@ app.use((req, res, next) => {
   const ext = path.extname(cleanPath).toLowerCase();
   if (ext === '.js' || ext === '.css' || ext === '.html' || ext === '.json' || ext === '.svg') {
     const candidate = path.join(STATIC_DIR, cleanPath);
-    if (candidate.startsWith(STATIC_DIR) && serveCompressedTextFile(req, res, candidate, 'public, max-age=0, must-revalidate')) {
+    const hasVersionQuery = Boolean(req.query && req.query.v);
+    const isVendorAsset = cleanPath.startsWith('/assets/vendor/');
+    const cachePolicy = (ext !== '.html' && (hasVersionQuery || isVendorAsset))
+      ? 'public, max-age=31536000, immutable'
+      : 'public, max-age=0, must-revalidate';
+    if (candidate.startsWith(STATIC_DIR) && serveCompressedTextFile(req, res, candidate, cachePolicy)) {
       return;
     }
   }
   next();
+});
+
+// Pre-warm static compression cache in background on server startup
+setImmediate(() => {
+  const coreAssets = [
+    'index.html',
+    'style.css',
+    'parsers.js',
+    'game.js',
+    'discover_home.js',
+    'songs/catalog_top.js',
+    'slot_machine.js',
+    'gachapon_3d.js',
+    'assets/vendor/tailwind.min.js',
+    'assets/vendor/jszip.min.js',
+    'assets/vendor/three.min.js'
+  ];
+  for (const rel of coreAssets) {
+    try {
+      const fp = path.join(STATIC_DIR, rel);
+      if (!fs.existsSync(fp)) continue;
+      const stat = fs.statSync(fp);
+      if (!stat.isFile()) continue;
+      const rawBuf = fs.readFileSync(fp);
+      const gzipBuf = zlib.gzipSync(rawBuf, { level: 1 });
+      const entry = { mtimeMs: stat.mtimeMs, size: stat.size, rawBuf, gzipBuf, brBuf: null, _upgrading: false };
+      STATIC_COMPRESSED_CACHE.set(fp, entry);
+      upgradeCompressedEntryAsync(fp, entry);
+    } catch (_) {}
+  }
 });
 
 const staticCacheHeaders = (res, filePath) => {
