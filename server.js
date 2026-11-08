@@ -5223,7 +5223,7 @@ app.get('/api/v1/audio/candidates', async (req, res) => {
 });
 
 const EXTRACTED_AUDIO_BUFFER_CACHE = new Map();
-const MAX_EXTRACTED_BUFFER_CACHE = 16;
+const MAX_EXTRACTED_BUFFER_CACHE = 40;
 
 function sendAudioBufferWithRange(req, res, cacheKey, buffer, contentType = 'audio/mpeg', extraHeaders = {}) {
   if (cacheKey && buffer && buffer.length >= 60000) {
@@ -5592,6 +5592,68 @@ app.get('/api/v1/audio/extract', async (req, res) => {
   } catch (err) {
     return res.status(500).json({ error: err.message || 'Error en extractor de audio' });
   }
+});
+
+// ==========================================
+// 4C-bis. PRE-CALENTAMIENTO DE AUDIO (el servidor extrae y cachea antes de que el usuario pulse play)
+// ==========================================
+const AUDIO_WARM_QUEUE = [];
+const AUDIO_WARM_SEEN = new Map();
+let audioWarmActive = 0;
+const AUDIO_WARM_CONCURRENCY = 3;
+
+function buildAudioWarmCacheKey(t) {
+  const title = String(t.title || '').trim();
+  const artist = String(t.artist || '').trim();
+  const vid = String(t.videoId || '').trim();
+  return `${vid}||${title.toLowerCase()}|${artist.toLowerCase()}|${`${title} ${artist}`.trim().toLowerCase()}`;
+}
+
+async function pumpAudioWarmQueue() {
+  while (audioWarmActive < AUDIO_WARM_CONCURRENCY && AUDIO_WARM_QUEUE.length > 0) {
+    const t = AUDIO_WARM_QUEUE.shift();
+    audioWarmActive++;
+    (async () => {
+      try {
+        const key = buildAudioWarmCacheKey(t);
+        if (EXTRACTED_AUDIO_BUFFER_CACHE.has(key) || INFLIGHT_EXTRACT_REQUESTS.has(key)) return;
+        const qs = new URLSearchParams({ title: t.title || '', artist: t.artist || '' });
+        if (t.videoId) qs.set('videoId', t.videoId);
+        if (t.durationSec > 45) qs.set('durationSec', String(Math.round(t.durationSec)));
+        const r = await fetch(`http://127.0.0.1:${PORT}/api/v1/audio/extract?${qs.toString()}`, { signal: AbortSignal.timeout(45000) });
+        try { await r.body.cancel(); } catch (_) {}
+      } catch (_) {
+      } finally {
+        audioWarmActive--;
+        pumpAudioWarmQueue();
+      }
+    })();
+  }
+}
+
+app.post('/api/v1/audio/warm', (req, res) => {
+  const list = Array.isArray(req.body?.tracks) ? req.body.tracks.slice(0, 12) : [];
+  const now = Date.now();
+  let queued = 0;
+  for (const raw of list) {
+    const t = {
+      title: String(raw?.title || '').trim().slice(0, 200),
+      artist: String(raw?.artist || '').trim().slice(0, 200),
+      videoId: String(raw?.videoId || '').trim().slice(0, 32),
+      durationSec: Number(raw?.durationSec) || 0
+    };
+    if (!t.title) continue;
+    const key = buildAudioWarmCacheKey(t);
+    const seenAt = AUDIO_WARM_SEEN.get(key);
+    if (seenAt && now - seenAt < 10 * 60 * 1000) continue;
+    AUDIO_WARM_SEEN.set(key, now);
+    if (AUDIO_WARM_SEEN.size > 500) AUDIO_WARM_SEEN.delete(AUDIO_WARM_SEEN.keys().next().value);
+    AUDIO_WARM_QUEUE.push(t);
+    queued++;
+  }
+  while (AUDIO_WARM_QUEUE.length > 40) AUDIO_WARM_QUEUE.shift();
+  pumpAudioWarmQueue();
+  res.status(202).json({ queued });
 });
 
 // ==========================================
