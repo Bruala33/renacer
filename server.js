@@ -5515,95 +5515,95 @@ app.post('/api/v1/lyrics/translate', async (req, res) => {
 // ==========================================
 const LIVE_CHART_PLAYLIST_DEFS = [
   {
-    id: 'live_chart_es_top100',
+    id: 'top_100_es',
+    aliases: ['live_chart_es_top100', 'top_100_es'],
     title: 'Top 100 España',
-    subtitle: 'Lo más escuchado hoy en España',
-    badge: 'TOP 100 OFICIAL',
-    gradient: 'linear-gradient(135deg, #b91c1c 0%, #f59e0b 100%)',
+    subtitle: '100 canciones',
+    gradient: 'linear-gradient(135deg, #991b1b 0%, #d97706 100%)',
     accent: '#fbbf24',
-    itunesRssUrl: 'https://itunes.apple.com/es/rss/topsongs/limit=100/json',
     appleRssUrl: 'https://rss.applemarketingtools.com/api/v2/es/music/most-played/100/songs.json',
-    deezerChartUrl: 'https://api.deezer.com/chart/0/tracks?limit=100'
+    deezerChartUrl: 'https://api.deezer.com/playlist/1109890291/tracks?limit=100',
+    itunesRssUrl: 'https://itunes.apple.com/es/rss/topsongs/limit=100/json'
   },
   {
-    id: 'live_chart_global_top100',
+    id: 'top_100_global',
+    aliases: ['live_chart_global_top100', 'top_100_global'],
     title: 'Top 100 Global',
-    subtitle: 'Éxitos mundiales del momento',
-    badge: 'TOP 100 MUNDO',
-    gradient: 'linear-gradient(135deg, #047857 0%, #10b981 55%, #06b6d4 100%)',
+    subtitle: '100 canciones',
+    gradient: 'linear-gradient(135deg, #065f46 0%, #0284c7 100%)',
     accent: '#34d399',
-    itunesRssUrl: 'https://itunes.apple.com/us/rss/topsongs/limit=100/json',
     appleRssUrl: 'https://rss.applemarketingtools.com/api/v2/us/music/most-played/100/songs.json',
-    deezerChartUrl: 'https://api.deezer.com/chart/0/tracks?limit=100'
+    deezerChartUrl: 'https://api.deezer.com/playlist/3155776842/tracks?limit=100',
+    itunesRssUrl: 'https://itunes.apple.com/us/rss/topsongs/limit=100/json'
   },
   {
-    id: 'live_chart_pop_hits',
-    title: 'Top Éxitos Pop',
-    subtitle: 'Los mayores hits del Pop actual',
-    badge: 'POP ACTUAL',
-    gradient: 'linear-gradient(135deg, #be185d 0%, #ec4899 60%, #f43f5e 100%)',
+    id: 'top_pop_hits',
+    aliases: ['live_chart_pop_hits', 'top_pop_hits'],
+    title: 'Éxitos Pop',
+    subtitle: '100 canciones',
+    gradient: 'linear-gradient(135deg, #9d174d 0%, #7c3aed 100%)',
     accent: '#f472b6',
-    itunesRssUrl: 'https://itunes.apple.com/es/rss/topsongs/limit=100/genre=14/json',
-    deezerChartUrl: 'https://api.deezer.com/chart/132/tracks?limit=100'
+    deezerChartUrl: 'https://api.deezer.com/chart/132/tracks?limit=100',
+    itunesRssUrl: 'https://itunes.apple.com/us/rss/topsongs/limit=100/genre=14/json'
   },
   {
-    id: 'live_chart_urbano_latino',
-    title: 'Top Urbano & Latino',
-    subtitle: 'Reggaetón, Trap y ritmos latinos',
-    badge: 'URBANO TOP',
-    gradient: 'linear-gradient(135deg, #c2410c 0%, #f97316 60%, #eab308 100%)',
+    id: 'top_latin_urban',
+    aliases: ['live_chart_urbano_latino', 'top_latin_urban'],
+    title: 'Urbano & Latino',
+    subtitle: '100 canciones',
+    gradient: 'linear-gradient(135deg, #c2410c 0%, #ca8a04 100%)',
     accent: '#fb923c',
-    itunesRssUrl: 'https://itunes.apple.com/es/rss/topsongs/limit=100/genre=12/json',
-    deezerChartUrl: 'https://api.deezer.com/chart/116/tracks?limit=100'
+    deezerChartUrl: 'https://api.deezer.com/chart/197/tracks?limit=100',
+    itunesRssUrl: 'https://itunes.apple.com/es/rss/topsongs/limit=100/genre=12/json'
   },
   {
-    id: 'live_chart_rock_legends',
-    title: 'Top Rock & Alternativo',
-    subtitle: 'Himnos de guitarras y rock actual',
-    badge: 'ROCK TOP 100',
-    gradient: 'linear-gradient(135deg, #1e1b4b 0%, #7f1d1d 60%, #dc2626 100%)',
+    id: 'top_rock_alt',
+    aliases: ['live_chart_rock_legends', 'top_rock_alt'],
+    title: 'Rock & Alternativo',
+    subtitle: '100 canciones',
+    gradient: 'linear-gradient(135deg, #7f1d1d 0%, #1f2937 100%)',
     accent: '#f87171',
-    itunesRssUrl: 'https://itunes.apple.com/es/rss/topsongs/limit=100/genre=21/json',
-    deezerChartUrl: 'https://api.deezer.com/chart/152/tracks?limit=100'
+    deezerChartUrl: 'https://api.deezer.com/chart/152/tracks?limit=100',
+    itunesRssUrl: 'https://itunes.apple.com/us/rss/topsongs/limit=100/genre=21/json'
   },
   {
-    id: 'live_chart_dance_electro',
-    title: 'Top Electrónica & Club',
-    subtitle: 'House, Dance, Techno y EDM',
-    badge: 'CLUB & EDM',
-    gradient: 'linear-gradient(135deg, #311068 0%, #6366f1 55%, #22d3ee 100%)',
+    id: 'top_dance_electronic',
+    aliases: ['live_chart_dance_electro', 'top_dance_electronic'],
+    title: 'Electrónica & Club',
+    subtitle: '100 canciones',
+    gradient: 'linear-gradient(135deg, #1e3a8a 0%, #0891b2 100%)',
     accent: '#38bdf8',
-    itunesRssUrl: 'https://itunes.apple.com/es/rss/topsongs/limit=100/genre=7/json',
-    deezerChartUrl: 'https://api.deezer.com/chart/106/tracks?limit=100'
+    deezerChartUrl: 'https://api.deezer.com/chart/106/tracks?limit=100',
+    itunesRssUrl: 'https://itunes.apple.com/es/rss/topsongs/limit=100/genre=7/json'
   },
   {
-    id: 'live_chart_hiphop_rnb',
-    title: 'Top Hip-Hop & R&B',
-    subtitle: 'Beats urbanos, Rap y Soul contemporáneo',
-    badge: 'HIP-HOP & R&B',
-    gradient: 'linear-gradient(135deg, #3f2e18 0%, #b45309 55%, #f59e0b 100%)',
+    id: 'top_hiphop_rnb',
+    aliases: ['live_chart_hiphop_rnb', 'top_hiphop_rnb'],
+    title: 'Hip-Hop & R&B',
+    subtitle: '100 canciones',
+    gradient: 'linear-gradient(135deg, #581c87 0%, #3730a3 100%)',
     accent: '#fbbf24',
-    itunesRssUrl: 'https://itunes.apple.com/us/rss/topsongs/limit=100/genre=18/json',
-    deezerChartUrl: 'https://api.deezer.com/chart/165/tracks?limit=100'
+    deezerChartUrl: 'https://api.deezer.com/chart/116/tracks?limit=100',
+    itunesRssUrl: 'https://itunes.apple.com/us/rss/topsongs/limit=100/genre=18/json'
   },
   {
-    id: 'live_chart_piano_classical',
-    title: 'Top Piano & Clásica',
-    subtitle: 'Obras maestras y bandas sonoras a piano',
-    badge: 'PIANO & BSO',
-    gradient: 'linear-gradient(135deg, #1c1917 0%, #44403c 50%, #d97706 100%)',
+    id: 'top_classical_piano',
+    aliases: ['live_chart_piano_classical', 'top_classical_piano'],
+    title: 'Piano & BSO',
+    subtitle: '100 canciones',
+    gradient: 'linear-gradient(135deg, #78350f 0%, #b45309 100%)',
     accent: '#fcd34d',
-    itunesRssUrl: 'https://itunes.apple.com/es/rss/topsongs/limit=100/genre=5/json',
-    deezerChartUrl: 'https://api.deezer.com/chart/98/tracks?limit=100'
+    deezerChartUrl: 'https://api.deezer.com/chart/98/tracks?limit=100',
+    itunesRssUrl: 'https://itunes.apple.com/es/rss/topsongs/limit=100/genre=5/json'
   }
 ];
 
 const liveChartTracksCache = new Map();
 
 async function fetchLiveChartTracksById(chartId) {
-  const def = LIVE_CHART_PLAYLIST_DEFS.find(d => d.id === chartId) || LIVE_CHART_PLAYLIST_DEFS[0];
+  const def = LIVE_CHART_PLAYLIST_DEFS.find(d => d.id === chartId || (d.aliases && d.aliases.includes(chartId))) || LIVE_CHART_PLAYLIST_DEFS[0];
   const cached = liveChartTracksCache.get(def.id);
-  if (cached && (Date.now() - cached.ts) < 30 * 60 * 1000 && cached.tracks.length > 0) {
+  if (cached && (Date.now() - cached.ts) < 45 * 60 * 1000 && cached.tracks.length > 0) {
     return { def, tracks: cached.tracks };
   }
 
@@ -5615,24 +5615,81 @@ async function fetchLiveChartTracksById(chartId) {
     const normKey = `${normalizeSearchText(tr.title)}__${normalizeSearchText(tr.artist)}`;
     if (!normKey || seenKeys.has(normKey)) return;
     seenKeys.add(normKey);
+    const cover = tr.thumbnail || './app_logo.png';
     tracks.push({
       id: tr.id || `chart_${def.id}_${tracks.length + 1}`,
       title: String(tr.title).trim(),
       artist: String(tr.artist).trim(),
-      thumbnail: tr.thumbnail || './app_logo.png',
-      cover_url: tr.thumbnail || './app_logo.png',
+      thumbnail: cover,
+      cover_url: cover,
+      artworkUrl600: cover,
       previewUrl: tr.previewUrl || '',
-      duration_seconds: Number(tr.duration_seconds) || 180,
-      rank: tracks.length + 1
+      preview_url: tr.previewUrl || '',
+      duration_seconds: Number(tr.duration_seconds) || 195,
+      durationSec: Number(tr.duration_seconds) || 195,
+      rank: tracks.length + 1,
+      source: 'live_chart',
+      _isMagicKey: true
     });
   };
 
-  // 1. iTunes Official RSS JSON (includes 600x600 covers + 30s preview links + 100 real current entries)
-  if (def.itunesRssUrl) {
+  // 1. Prioridad 1: Deezer Official Top Playlists / Genre Charts (Streaming real actual + Previews MP3 instantáneos + Portadas HD)
+  if (def.deezerChartUrl) {
+    try {
+      const r = await fetch(def.deezerChartUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(3500)
+      });
+      if (r.ok) {
+        const j = await r.json();
+        const list = Array.isArray(j?.data) ? j.data : (Array.isArray(j?.tracks?.data) ? j.tracks.data : []);
+        for (const item of list) {
+          if (!item || !item.title) continue;
+          pushUniqueTrack({
+            id: item.id ? `dz_${item.id}` : '',
+            title: item.title_short || item.title,
+            artist: item.artist?.name || 'Artista',
+            thumbnail: item.album?.cover_big || item.album?.cover_xl || item.album?.cover_medium || '',
+            previewUrl: item.preview || '',
+            duration_seconds: Number(item.duration) || 195
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  // 2. Prioridad 2: Apple Music Most-Played Streaming API (Streaming oficial del país)
+  if (tracks.length < 80 && def.appleRssUrl) {
+    try {
+      const r = await fetch(def.appleRssUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(3500)
+      });
+      if (r.ok) {
+        const j = await r.json();
+        const results = Array.isArray(j?.feed?.results) ? j.feed.results : [];
+        for (const item of results) {
+          if (!item || !item.name) continue;
+          const cover = (item.artworkUrl100 || '').replace(/\d+x\d+bb/i, '600x600bb');
+          pushUniqueTrack({
+            id: item.id ? `am_${item.id}` : '',
+            title: item.name,
+            artist: item.artistName || 'Artista',
+            thumbnail: cover,
+            previewUrl: '',
+            duration_seconds: 195
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  // 3. Prioridad 3: iTunes RSS JSON como complemento si faltan pistas para llegar a 100
+  if (tracks.length < 60 && def.itunesRssUrl) {
     try {
       const r = await fetch(def.itunesRssUrl, {
         headers: { 'User-Agent': 'Mozilla/5.0' },
-        signal: AbortSignal.timeout(4500)
+        signal: AbortSignal.timeout(3500)
       });
       if (r.ok) {
         const j = await r.json();
@@ -5654,33 +5711,9 @@ async function fetchLiveChartTracksById(chartId) {
             artist,
             thumbnail: cover600,
             previewUrl,
-            duration_seconds: durMs > 1000 ? Math.round(durMs / 1000) : 185
+            duration_seconds: durMs > 1000 ? Math.round(durMs / 1000) : 195
           });
-        }
-      }
-    } catch (_) {}
-  }
-
-  // 2. Complement / Fallback with Deezer Official Live Charts API
-  if (tracks.length < 50 && def.deezerChartUrl) {
-    try {
-      const r = await fetch(def.deezerChartUrl, {
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-        signal: AbortSignal.timeout(4200)
-      });
-      if (r.ok) {
-        const j = await r.json();
-        const list = Array.isArray(j?.data) ? j.data : [];
-        for (const item of list) {
-          if (!item || !item.title) continue;
-          pushUniqueTrack({
-            id: item.id ? `dz_${item.id}` : '',
-            title: item.title_short || item.title,
-            artist: item.artist?.name || 'Artista',
-            thumbnail: item.album?.cover_big || item.album?.cover_xl || item.album?.cover_medium || '',
-            previewUrl: item.preview || '',
-            duration_seconds: Number(item.duration) || 185
-          });
+          if (tracks.length >= 100) break;
         }
       }
     } catch (_) {}
@@ -5692,31 +5725,33 @@ async function fetchLiveChartTracksById(chartId) {
   return { def, tracks };
 }
 
-app.get('/api/v1/charts/top-playlists', async (req, res) => {
+// Pre-warm charts asynchronously in the background without blocking any request
+setTimeout(() => {
+  LIVE_CHART_PLAYLIST_DEFS.slice(0, 4).forEach((def, idx) => {
+    setTimeout(() => { fetchLiveChartTracksById(def.id).catch(() => {}); }, idx * 900);
+  });
+}, 1500);
+
+app.get('/api/v1/charts/top-playlists', (req, res) => {
   try {
-    // Hydrate top covers in parallel quickly
-    const cards = await Promise.all(LIVE_CHART_PLAYLIST_DEFS.map(async (def) => {
+    const cards = LIVE_CHART_PLAYLIST_DEFS.map((def) => {
       const cached = liveChartTracksCache.get(def.id);
-      let sampleTracks = cached ? cached.tracks.slice(0, 4) : [];
-      if (sampleTracks.length === 0) {
-        try {
-          const { tracks } = await fetchLiveChartTracksById(def.id);
-          sampleTracks = tracks.slice(0, 4);
-        } catch (_) {}
+      const sampleTracks = cached ? cached.tracks.slice(0, 4) : [];
+      if (!cached) {
+        fetchLiveChartTracksById(def.id).catch(() => {});
       }
       return {
         id: def.id,
         title: def.title,
         subtitle: def.subtitle,
-        badge: def.badge,
         gradient: def.gradient,
         accent: def.accent,
         item_count: cached?.tracks?.length || 100,
+        coverUrl: sampleTracks[0]?.thumbnail || '',
         thumbnail: sampleTracks[0]?.thumbnail || './app_logo.png',
-        mosaic_covers: sampleTracks.map(t => t.thumbnail).filter(Boolean).slice(0, 4),
-        sample_artists: sampleTracks.map(t => t.artist).filter(Boolean).slice(0, 3).join(', ')
+        mosaic_covers: sampleTracks.map(t => t.thumbnail).filter(Boolean).slice(0, 4)
       };
-    }));
+    });
     res.json({ playlists: cards });
   } catch (err) {
     res.json({ playlists: LIVE_CHART_PLAYLIST_DEFS });
@@ -5730,8 +5765,7 @@ app.get('/api/v1/charts/top-playlist-tracks', async (req, res) => {
     res.json({
       id: def.id,
       title: def.title,
-      subtitle: def.subtitle,
-      badge: def.badge,
+      subtitle: `${tracks.length} canciones`,
       item_count: tracks.length,
       tracks
     });

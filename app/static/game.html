@@ -25,7 +25,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css?v=58.0">
+  <link rel="stylesheet" href="./style.css?v=62.0">
   <script>
     // ===================================================
     // SISTEMA DE INTERNACIONALIZACIÓN (i18n: ES / EN)
@@ -3115,28 +3115,28 @@
           </button>
         </div>
 
-        <!-- Selector de Dificultad de Partitura -->
-        <div class="gm-difficulty-selector-wrap">
-          <div class="gm-difficulty-header">
-            <span class="gm-difficulty-label">Dificultad</span>
-            <span id="gmDifficultyActiveBadge" class="text-[10.5px] font-extrabold text-[#f3d791]">Difícil · 4.5★</span>
+        <!-- Selector de Dificultad de Partitura Compacto en 1 sola línea horizontal -->
+        <div class="gm-difficulty-selector-wrap" style="margin:6px 0 4px; padding:6px 8px; border-radius:10px; background:rgba(255,255,255,0.03); border:1px solid rgba(212,175,55,0.22);">
+          <div class="gm-difficulty-header" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:5px;">
+            <span class="gm-difficulty-label" style="font-size:9.5px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; color:#c5a059;">Dificultad</span>
+            <span id="gmDifficultyActiveBadge" class="text-[10px] font-extrabold text-[#f3d791]">Difícil · 4.5★</span>
           </div>
-          <div class="gm-difficulty-pills-row">
-            <button id="gmDiffBtn_easy" type="button" onclick="selectGameModalDifficulty('easy')" class="gm-diff-pill-btn">
-              <span>Fácil</span>
-              <span class="gm-diff-stars">1.8★</span>
+          <div class="gm-difficulty-pills-grid gm-difficulty-pills-row grid grid-cols-4 gap-1.5" style="display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:6px;">
+            <button id="gmDiffBtn_easy" data-diff="easy" type="button" onclick="selectGameModalDifficulty('easy')" class="gm-diff-pill-btn" style="padding:5px 2px; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.1;">
+              <span style="font-size:10px; font-weight:800;">Fácil</span>
+              <span class="gm-diff-stars" style="font-size:8.5px; opacity:0.8;">1.8★</span>
             </button>
-            <button id="gmDiffBtn_normal" type="button" onclick="selectGameModalDifficulty('normal')" class="gm-diff-pill-btn">
-              <span>Media</span>
-              <span class="gm-diff-stars">3.0★</span>
+            <button id="gmDiffBtn_normal" data-diff="normal" type="button" onclick="selectGameModalDifficulty('normal')" class="gm-diff-pill-btn" style="padding:5px 2px; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.1;">
+              <span style="font-size:10px; font-weight:800;">Media</span>
+              <span class="gm-diff-stars" style="font-size:8.5px; opacity:0.8;">3.0★</span>
             </button>
-            <button id="gmDiffBtn_hard" type="button" onclick="selectGameModalDifficulty('hard')" class="gm-diff-pill-btn active">
-              <span>Difícil</span>
-              <span class="gm-diff-stars">4.5★</span>
+            <button id="gmDiffBtn_hard" data-diff="hard" type="button" onclick="selectGameModalDifficulty('hard')" class="gm-diff-pill-btn active" style="padding:5px 2px; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.1;">
+              <span style="font-size:10px; font-weight:800;">Difícil</span>
+              <span class="gm-diff-stars" style="font-size:8.5px; opacity:0.8;">4.5★</span>
             </button>
-            <button id="gmDiffBtn_extreme" type="button" onclick="selectGameModalDifficulty('extreme')" class="gm-diff-pill-btn">
-              <span>Extrema</span>
-              <span class="gm-diff-stars">6.5★</span>
+            <button id="gmDiffBtn_extreme" data-diff="extreme" type="button" onclick="selectGameModalDifficulty('extreme')" class="gm-diff-pill-btn" style="padding:5px 2px; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.1;">
+              <span style="font-size:10px; font-weight:800;">Extrema</span>
+              <span class="gm-diff-stars" style="font-size:8.5px; opacity:0.8;">6.5★</span>
             </button>
           </div>
         </div>
@@ -4980,18 +4980,27 @@
         </button>
         <div class="np-view-switcher">
           <button id="npTabVinylBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.switchNowPlayingTab('vinyl')" class="np-view-tab active">Portada</button>
+          <button id="npTabVideoclipBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.switchNowPlayingTab('videoclip')" class="np-view-tab">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+            <span>Videoclip</span>
+          </button>
           <button id="npTabKaraokeBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.switchNowPlayingTab('karaoke')" class="np-view-tab">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
               <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
             </svg>
-            <span>Letra Karaoke</span>
+            <span>Karaoke</span>
           </button>
         </div>
-        <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.createRadioFromNowPlaying()" class="px-3 py-1.5 rounded-full bg-white/5 border border-[#d4af37]/40 text-[#f3d791] text-[11px] font-bold flex items-center gap-1.5 cursor-pointer" title="Crear Radio basada en esta canción">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
-          <span>Radio</span>
-        </button>
+        <div class="flex items-center gap-1.5">
+          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.createRadioFromNowPlaying()" class="px-2.5 py-1.5 rounded-full bg-white/5 border border-[#d4af37]/40 text-[#f3d791] text-[11px] font-bold flex items-center gap-1 cursor-pointer" title="Crear Radio basada en esta canción">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
+            <span>Radio</span>
+          </button>
+          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openTrackOptionsSheetForPlayer()" class="w-9 h-9 rounded-full bg-white/5 border border-white/15 text-white flex items-center justify-center cursor-pointer" title="Más opciones y descargar">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+          </button>
+        </div>
       </div>
 
       <div class="now-playing-body">
@@ -5002,6 +5011,11 @@
               <img id="npTurntableCoverImg" src="./app_logo.png" alt="Cover" onerror="this.onerror=null; this.src='./app_logo.png';">
             </div>
           </div>
+        </div>
+
+        <!-- Vista 1B: Videoclip Oficial de YouTube Integrado -->
+        <div id="npVideoclipStageContainer" class="np-videoclip-stage hidden w-full max-w-[360px] aspect-video mx-auto rounded-2xl overflow-hidden bg-black border border-[#d4af37]/35 shadow-2xl">
+          <div id="npVideoclipIframeBox" class="w-full h-full flex items-center justify-center text-xs text-gray-400">Cargando videoclip...</div>
         </div>
 
         <!-- Vista 2: Escenario de Letras Sincronizadas tipo Karaoke (Spotify Lyrics Style) -->
@@ -5028,7 +5042,7 @@
           <p id="npTrackArtist" class="text-sm font-medium text-gray-400 truncate">Artista</p>
         </div>
 
-        <!-- Barra de Progreso de Canción Completa (Sin texto ni botón de estribillo) -->
+        <!-- Barra de Progreso de Canción Completa -->
         <div class="np-scrubber-box">
           <div class="np-scrubber-track-container">
             <div id="npChorusMarkerTick" class="np-chorus-marker hidden" style="display: none;">
@@ -5073,15 +5087,15 @@
           </button>
         </div>
 
-        <!-- Acciones Extra: Guardar en Playlist / Ver Cola -->
+        <!-- Acciones Extra: Guardar en Playlist / Opciones -->
         <div class="crate-secondary-actions w-full max-w-[340px]">
           <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openAddToPlaylistFromNowPlaying()" class="crate-sec-btn">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             <span>Añadir a Playlist</span>
           </button>
-          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleNowPlayingQueueDrawer()" class="crate-sec-btn">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-            <span>Cola de Reproducción</span>
+          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openTrackOptionsSheetForPlayer()" class="crate-sec-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+            <span>Opciones / Descargar</span>
           </button>
         </div>
 
@@ -5095,42 +5109,47 @@
       </div>
     </div>
 
-    <!-- MODAL DE PLAYLIST Y FAVORITOS REDISEÑADO ESTILO SPOTIFY -->
+    <!-- MODAL DE PLAYLIST Y FAVORITOS CON VISTA DE TECLAS DE PIANO -->
     <div id="spotifyPlaylistSheetModal" class="tube-amp-modal-overlay" onclick="if(event.target===this) window.DiscoverHomeApp && window.DiscoverHomeApp.closePlaylistTracksModal()">
       <div class="spotify-playlist-sheet-card" onclick="event.stopPropagation();">
-        <div class="spotify-pl-hero">
-          <div class="spotify-pl-top-row">
-            <img id="plSheetCoverImg" src="./app_logo.png" onerror="this.src='./app_logo.png'" class="spotify-pl-cover-art" alt="">
-            <div class="spotify-pl-meta-col">
-              <span id="plSheetTypeKicker" class="spotify-pl-type-kicker">PLAYLIST</span>
-              <div class="spotify-pl-title-row">
-                <h3 id="plSheetTitle" class="spotify-pl-main-title">Tus Me Gusta</h3>
+        <div class="spotify-pl-hero" style="padding:14px 14px 10px;">
+          <div class="spotify-pl-top-row" style="display:flex; flex-direction:row; align-items:center; gap:12px; width:100%;">
+            <img id="plSheetCoverImg" src="./app_logo.png" onerror="this.src='./app_logo.png'" class="spotify-pl-cover-art" style="width:56px; height:56px; border-radius:12px; object-fit:cover; flex-shrink:0;" alt="">
+            <div class="spotify-pl-meta-col" style="flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;">
+              <span id="plSheetTypeKicker" class="spotify-pl-type-kicker" style="font-size:9px; font-weight:800; letter-spacing:0.1em; color:#d4af37;">PLAYLIST</span>
+              <div class="spotify-pl-title-row" style="display:flex; align-items:center; gap:6px; min-width:0;">
+                <h3 id="plSheetTitle" class="spotify-pl-main-title" style="font-size:16px; font-weight:900; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin:0;">Tus Me Gusta</h3>
                 <button id="plSheetRenameBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.renameOpenedSheetPlaylist()" class="spotify-pl-edit-name-btn hidden" title="Renombrar playlist">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                 </button>
               </div>
-              <p id="plSheetSubtitle" class="spotify-pl-sub-info">0 canciones</p>
+              <p id="plSheetSubtitle" class="spotify-pl-sub-info" style="font-size:11px; color:#9ca3af; margin:0;">0 canciones</p>
             </div>
-            <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.closePlaylistTracksModal()" class="tube-amp-close-btn" title="Cerrar">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
+            <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openCurrentOpenedSheetMenu(event)" class="tube-amp-close-btn" title="Opciones de la lista / Descargar todo">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+              </button>
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.closePlaylistTracksModal()" class="tube-amp-close-btn" title="Cerrar">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
           </div>
 
-          <div class="spotify-pl-filter-bar">
-            <div class="spotify-pl-search-wrap">
+          <div class="spotify-pl-filter-bar" style="display:flex; align-items:center; gap:8px; margin-top:10px;">
+            <div class="spotify-pl-search-wrap" style="flex:1; display:flex; align-items:center; gap:6px; height:32px; padding:0 10px; border-radius:9px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1);">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <input id="plSheetSearchInput" type="text" placeholder="Buscar en la playlist..." oninput="window.DiscoverHomeApp && window.DiscoverHomeApp.onPlaylistSheetFilterInput(this.value)" class="spotify-pl-search-input">
+              <input id="plSheetSearchInput" type="text" placeholder="Buscar en la lista..." oninput="window.DiscoverHomeApp && window.DiscoverHomeApp.onPlaylistSheetFilterInput(this.value)" class="spotify-pl-search-input" style="width:100%; background:transparent; border:none; outline:none; color:#fff; font-size:11.5px;">
             </div>
-            <select id="plSheetSortSelect" onchange="window.DiscoverHomeApp && window.DiscoverHomeApp.onPlaylistSheetSortChange(this.value)" class="spotify-pl-sort-select" title="Ordenar canciones">
+            <select id="plSheetSortSelect" onchange="window.DiscoverHomeApp && window.DiscoverHomeApp.onPlaylistSheetSortChange(this.value)" class="spotify-pl-sort-select" style="height:32px; padding:0 8px; border-radius:9px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); color:#e5e7eb; font-size:11px; font-weight:700;" title="Ordenar canciones">
               <option value="custom">Orden personalizado</option>
               <option value="title">Título (A-Z)</option>
               <option value="artist">Artista (A-Z)</option>
-              <option value="recent">Añadidas recientemente</option>
+              <option value="recent">Recientes</option>
             </select>
           </div>
 
-          <div class="spotify-pl-actions-bar">
-            <div class="spotify-pl-left-tools">
+          <div class="spotify-pl-actions-bar" style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:8px;">
+            <div class="spotify-pl-left-tools" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
               <button id="plSheetShuffleBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.playAllFromOpenedSheet(true)" class="spotify-pl-pill-action" title="Reproducir en modo aleatorio">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
                 <span>Aleatorio</span>
@@ -5147,7 +5166,7 @@
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
               </button>
             </div>
-            <button id="plSheetPlayAllBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.playAllFromOpenedSheet(false)" class="spotify-pl-big-play-btn" title="Reproducir playlist">
+            <button id="plSheetPlayAllBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.playAllFromOpenedSheet(false)" class="spotify-pl-big-play-btn" title="Escuchar toda la lista">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
             </button>
           </div>
@@ -5181,16 +5200,35 @@
       </div>
     </div>
 
+    <!-- DESPLEGABLE DE OPCIONES ESTILO SPOTIFY (#spotifyTrackOptionsSheet) -->
+    <div id="spotifyTrackOptionsSheet" class="sp-options-sheet-overlay" onclick="if(event.target===this) window.DiscoverHomeApp && window.DiscoverHomeApp.closeTrackOptionsSheet()">
+      <div class="sp-options-sheet-card" onclick="event.stopPropagation();">
+        <div class="sp-options-sheet-handle"></div>
+        <div class="sp-options-sheet-header">
+          <img id="spOptSheetCover" src="./app_logo.png" onerror="this.src='./app_logo.png'" class="sp-options-sheet-cover" alt="">
+          <div class="sp-options-sheet-meta">
+            <h4 id="spOptSheetTitle" class="sp-options-sheet-title">Canción</h4>
+            <p id="spOptSheetArtist" class="sp-options-sheet-artist">Artista</p>
+          </div>
+          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.closeTrackOptionsSheet()" class="tube-amp-close-btn" title="Cerrar">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="sp-options-sheet-divider"></div>
+        <div id="spOptSheetActionsList" class="sp-options-sheet-list"></div>
+      </div>
+    </div>
+
   </div> <!-- End of game-viewport -->
 
-  <script src="./parsers.js?v=54.0"></script>
-  <script src="./game.js?v=54.0"></script>
-  <script src="./slot_machine.js?v=54.0"></script>
-  <script src="./gachapon_3d.js?v=54.0"></script>
+  <script src="./parsers.js?v=62.0"></script>
+  <script src="./game.js?v=62.0"></script>
+  <script src="./slot_machine.js?v=62.0"></script>
+  <script src="./gachapon_3d.js?v=62.0"></script>
   <script src="./songs/comm_camilo_sesto/chart.js"></script>
   <script src="./songs/renacer/chart.js"></script>
   <script src="./songs/catalog_top.js"></script>
-  <script src="./discover_home.js?v=58.0"></script>
+  <script src="./discover_home.js?v=62.0"></script>
   <script>
     let engine = null;
     let currentActiveBeatmap = null;
@@ -10808,6 +10846,9 @@ window.switchMainTab = switchMainTab;
                   <button onclick="openAddToPlaylistModal('${safeIdAttr}')" class="piano-card-action-btn" title="Añadir a playlist">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                   </button>
+                  <button onclick="window.openTrackOptionsById('${safeIdAttr}', '${safeTitleAttr}', '${safeArtistAttr}', '${safeThumbAttr}')" class="piano-card-action-btn" title="Más opciones / Descargar canción">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+                  </button>
                 </div>
               </div>
             </div>
@@ -12681,8 +12722,10 @@ function stopPianoCameraLoop() {
           unpackedData.download_url = chartItem.download_url || chartItem.direct_download_url || '';
           unpackedData.diff_id = diffId || '';
 
-          loadStatus.innerText = 'Guardando en biblioteca offline...';
-          IndexedDBStorage.saveChart(chartItem, unpackedData, unpackedData.audioBlob).catch(() => {});
+          if (window._explicitOfflineDownloadRequested) {
+            loadStatus.innerText = 'Guardando en biblioteca offline...';
+            IndexedDBStorage.saveChart(chartItem, unpackedData, unpackedData.audioBlob).catch(() => {});
+          }
 
           overlay.classList.remove('active');
           startGame(unpackedData, unpackedData.audioBlob, diffName);
@@ -12814,13 +12857,15 @@ function stopPianoCameraLoop() {
           unpackedData.download_url = chartItem.download_url || chartItem.direct_download_url || '';
           unpackedData.diff_id = diffId || '';
 
-          loadStatus.innerText = 'Guardando en biblioteca offline...';
-          await IndexedDBStorage.saveChart(chartItem, unpackedData, unpackedData.audioBlob);
+          if (window._explicitOfflineDownloadRequested) {
+            loadStatus.innerText = 'Guardando en biblioteca offline...';
+            await IndexedDBStorage.saveChart(chartItem, unpackedData, unpackedData.audioBlob);
+          }
 
           setTimeout(() => {
             overlay.classList.remove('active');
             startGame(unpackedData, unpackedData.audioBlob, diffName);
-          }, 150);
+          }, 80);
           return;
         }
 
@@ -13003,13 +13048,15 @@ function stopPianoCameraLoop() {
 
         VisualLogger.step(5, 'Parseo completado con éxito', `${unpackedData.notes.length} notas mapeadas a 3 carriles. Audio listo.`, 'success');
 
-        loadStatus.innerText = 'Guardando en biblioteca offline...';
-        await IndexedDBStorage.saveChart(chartItem, unpackedData, unpackedData.audioBlob);
+        if (window._explicitOfflineDownloadRequested) {
+          loadStatus.innerText = 'Guardando en biblioteca offline...';
+          await IndexedDBStorage.saveChart(chartItem, unpackedData, unpackedData.audioBlob);
+        }
 
         setTimeout(() => {
           overlay.classList.remove('active');
           startGame(unpackedData, unpackedData.audioBlob, diffName);
-        }, 150);
+        }, 80);
 
       } catch (err) {
         window.isGameLoadingOrActive = false;
@@ -16532,8 +16579,50 @@ function stopPianoCameraLoop() {
       });
     }
 
-    // PREESCUCHA INSTANTÁNEA EN EL ESTRIBILLO AL TOCAR LA MINIATURA DE CUALQUIER CANCIÓN
+    // PREESCUCHA INSTANTÁNEA EN EL ESTRIBILLO AL TOCAR LA MINIATURA DE CUALQUIER CANCIÓN + BARRA DE REPRODUCCIÓN INFERIOR
     window.toggleThumbnailSongPreview = async function(songId, sId, title = '', artist = '', directPreviewUrl = '', bsHash = '', videoId = '') {
+      // Sincronizar también con la barra inferior de reproducción (#spotifyMiniPlayer) como en Descubrir
+      if (window.dualStreamEngine && typeof window.dualStreamEngine.playTrack === 'function') {
+        const currentTr = window.dualStreamEngine.currentTrack;
+        const isSamePlaying = currentTr && window.dualStreamEngine.isPlaying() && (
+          String(currentTr.id) === String(songId) ||
+          (title && String(currentTr.title || '').toLowerCase() === String(title).toLowerCase())
+        );
+        if (isSamePlaying) {
+          window.dualStreamEngine.togglePlayPause();
+          setThumbnailPreviewUiState(sId, 'idle');
+          return;
+        }
+        const imgEl = document.getElementById(`thumbImg_${sId}`);
+        const thumbSrc = (imgEl && imgEl.src) ? imgEl.src : './app_logo.png';
+        const catalogMatch = Array.isArray(window.searchResultsCache)
+          ? window.searchResultsCache.find(s => s && String(s.id) === String(songId))
+          : null;
+        const previewTrackObj = catalogMatch ? {
+          ...catalogMatch,
+          title: title || catalogMatch.title || 'Canción',
+          artist: artist || catalogMatch.artist || 'Artista',
+          previewUrl: directPreviewUrl || catalogMatch.previewUrl || catalogMatch.preview_url || '',
+          videoId: videoId || catalogMatch.videoId || '',
+          thumbnail: thumbSrc
+        } : {
+          id: String(songId || `prev_${Date.now()}`),
+          title: title || 'Canción',
+          artist: artist || 'Artista',
+          previewUrl: directPreviewUrl || '',
+          preview_url: directPreviewUrl || '',
+          videoId: videoId || '',
+          thumbnail: thumbSrc,
+          cover_url: thumbSrc,
+          artworkUrl600: thumbSrc,
+          source: 'magic_youtube',
+          _isMagicKey: true
+        };
+        setThumbnailPreviewUiState(sId, 'playing');
+        window.dualStreamEngine.playTrack(previewTrackObj, { autoPlay: true, isCratePreview: false, syncQueue: true });
+        return;
+      }
+
       if (window._previewActiveThumbSid === sId && (
         (window._previewAudioPlayer && !window._previewAudioPlayer.paused) ||
         window._ytInstantPreviewActive
@@ -17062,10 +17151,12 @@ function stopPianoCameraLoop() {
           thumbnail: dspPack.thumbnail || getSongCoverFallback(dspPack.title, dspPack.artist)
         };
 
-        // Guardar en segundo plano sin bloquear el inicio inmediato de la canción
-        IndexedDBStorage.saveChart(chartItem, dspPack, dspPack.audioBlob)
-          .then(() => { if (typeof updateLibraryVaultBadges === 'function') updateLibraryVaultBadges(); })
-          .catch(() => {});
+        // Guardar en Descargas SOLO si el usuario solicitó explícitamente descargar la canción
+        if (window._explicitOfflineDownloadRequested) {
+          IndexedDBStorage.saveChart(chartItem, dspPack, dspPack.audioBlob)
+            .then(() => { if (typeof updateLibraryVaultBadges === 'function') updateLibraryVaultBadges(); })
+            .catch(() => {});
+        }
         return { chartItem, dspPack, cached: false };
       })();
 
@@ -17212,8 +17303,16 @@ function stopPianoCameraLoop() {
           const initialCover = hasRealCover ? item.thumbnail : fallbackCover;
           const safeTitleJs = escapeJsAttr(item.title || '');
           const safeArtistJs = escapeJsAttr(item.artist || '');
-          const safePreviewJs = escapeJsAttr(item.preview_url || '');
+          const safePreviewJs = escapeJsAttr(item.preview_url || item.previewUrl || '');
           const safeBsHashJs = escapeJsAttr(item.bs_hash || '');
+          const safeThumbJs = escapeJsAttr(initialCover);
+          const isTopFav = Boolean(item.is_top_song || String(item.id || '').startsWith('top_'));
+          const isMagicFav = Boolean(item._isMagicKey || item.source === 'magic_youtube' || String(item.id || '').startsWith('magic_'));
+          const favMainPlayAction = isTopFav
+            ? `event.stopPropagation(); playTopSong('${safeFavId}', '${defaultDiffName}')`
+            : (isMagicFav
+                ? `event.stopPropagation(); autoExtractAndPlaySong('${safeTitleJs}', '${safeArtistJs}', '${safeThumbJs}', 'hard', '${safeFavId}')`
+                : `event.stopPropagation(); downloadAndPlaySong('${safeFavId}', '${escapeJsAttr(defaultDiffId)}', '${defaultDiffName}')`);
 
           return `
             <div class="piano-key-row flex flex-col">
@@ -17223,7 +17322,7 @@ function stopPianoCameraLoop() {
                   <div id="bgWash_${sId}" class="piano-key-bg-wash ${hasRealCover ? '' : 'no-bg-wash'}" style="${hasRealCover ? `background-image: url('${escapeJsAttr(initialCover)}');` : ''}"></div>
                   <div class="relative z-10 flex items-stretch gap-3 min-w-0 flex-1 overflow-hidden">
                     <!-- Square Thumbnail (Tap to Preview Chorus) -->
-                    <div id="thumbWrap_${sId}" onclick="event.stopPropagation(); toggleThumbnailSongPreview('${safeFavId}', '${sId}', '${safeTitleJs}', '${safeArtistJs}', '${safePreviewJs}', '${safeBsHashJs}', '')" class="piano-key-thumb group relative w-[60px] h-[60px] min-w-[60px] rounded-none overflow-hidden flex-shrink-0 flex items-center justify-center bg-stone-900 cursor-pointer" title="Toca la miniatura para preescuchar el estribillo">
+                    <div id="thumbWrap_${sId}" onclick="event.stopPropagation(); toggleThumbnailSongPreview('${safeFavId}', '${sId}', '${safeTitleJs}', '${safeArtistJs}', '${safePreviewJs}', '${safeBsHashJs}', '${escapeJsAttr(item.videoId || '')}')" class="piano-key-thumb group relative w-[60px] h-[60px] min-w-[60px] rounded-none overflow-hidden flex-shrink-0 flex items-center justify-center bg-stone-900 cursor-pointer" title="Toca la miniatura para escuchar con la barra de reproducción">
                       <img id="thumbImg_${sId}" src="${escapeHtml(initialCover)}" alt="" class="w-full h-full object-cover rounded-none" loading="lazy" onerror="this.onerror=null; this.src='${fallbackCover}';">
                       <div id="thumbPrevOverlay_${sId}" class="thumb-preview-overlay absolute inset-0 rounded-none bg-black/20 group-hover:bg-black/45 flex items-center justify-center transition-opacity">
                         <span class="thumb-preview-badge">
@@ -17247,9 +17346,9 @@ function stopPianoCameraLoop() {
                   </div>
                 </div>
 
-                <!-- Fixed 3D Ebony Black Play Key (INDESTRUCTIBLE & ALWAYS VISIBLE) -->
+                <!-- Fixed 3D Ebony Black Play Key -->
                 <div 
-                  onclick="${defaultPlayAction}" 
+                  onclick="${favMainPlayAction}" 
                   class="piano-black-play-key flex-shrink-0 w-12 min-w-[48px]" 
                   title="${t('play')}"
                 >
@@ -17274,11 +17373,14 @@ function stopPianoCameraLoop() {
                       ${renderSongSpeedHtml(item.id).btn}
                     </div>
                     <div class="flex items-center gap-2">
-                      <button onclick="toggleFavoriteSong('${item.id}')" data-id="${item.id}" class="piano-card-action-btn heart-btn active" title="${t('add_fav')}">
+                      <button onclick="toggleFavoriteSong('${safeFavId}')" data-id="${escapeHtml(item.id)}" class="piano-card-action-btn heart-btn active" title="${t('add_fav')}">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="#e5b869" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
                       </button>
-                      <button onclick="openAddToPlaylistModal('${item.id}')" class="piano-card-action-btn" title="${t('add_playlist')}">
+                      <button onclick="openAddToPlaylistModal('${safeFavId}')" class="piano-card-action-btn" title="${t('add_playlist')}">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                      </button>
+                      <button onclick="window.openTrackOptionsById('${safeFavId}', '${safeTitleJs}', '${safeArtistJs}', '${safeThumbJs}', '__favorites__')" class="piano-card-action-btn" title="Opciones / Descargar">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
                       </button>
                     </div>
                   </div>
@@ -17289,6 +17391,13 @@ function stopPianoCameraLoop() {
         }).join('');
 
         container.innerHTML = `
+          <div class="flex items-center justify-between gap-2 mb-2 px-1">
+            <span class="text-[11px] font-bold text-[#f3e5ab]">${favs.length} canciones favoritas</span>
+            <button type="button" onclick="window.downloadAllFavoritesOffline()" class="px-3 py-1 rounded-full bg-[#d4af37]/20 hover:bg-[#d4af37]/30 border border-[#d4af37]/50 text-[#f3e5ab] text-[10.5px] font-extrabold flex items-center gap-1.5 cursor-pointer">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>Descargar todos los Favoritos</span>
+            </button>
+          </div>
           <div class="piano-keyboard-bed">
             <div class="piano-felt-top-strip"></div>
             ${cardsHtml}
@@ -17402,7 +17511,8 @@ function stopPianoCameraLoop() {
     };
 
     async function openPlaylistDetailView(playlistId) {
-      if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.openUserPlaylistTracksModal === 'function') {
+      // Si estamos en la pestaña Descubrir, abrir el modal con teclas de piano; si estamos en Mi Biblioteca -> Playlists, mostrar la vista integrada de teclas de piano
+      if (currentActiveTab === 'discover' && window.DiscoverHomeApp && typeof window.DiscoverHomeApp.openUserPlaylistTracksModal === 'function') {
         await window.DiscoverHomeApp.openUserPlaylistTracksModal(playlistId);
         return;
       }
@@ -17525,6 +17635,7 @@ function stopPianoCameraLoop() {
                     </div>
                   </div>
                   <div class="flex items-center gap-1 flex-shrink-0 ml-1.5">
+                    <button onclick="event.stopPropagation(); window.openTrackOptionsById('${safeTrackId}', '${safeTitleJs}', '${safeArtistJs}', '${escapeJsAttr(thumbUrl)}', '${safePlId}')" class="w-6 h-6 rounded-full hover:bg-black/15 text-[#5a422d] hover:text-black text-[11px] font-black flex items-center justify-center cursor-pointer transition" title="Más opciones / Descargar">•••</button>
                     <button onclick="event.stopPropagation(); removeTrackFromPlaylistAction('${safePlId}', '${safeTrackId}')" class="w-6 h-6 rounded-full hover:bg-black/10 text-[#8e755a] hover:text-red-700 text-[10px] font-bold flex items-center justify-center cursor-pointer transition" title="Quitar de la playlist">✕</button>
                   </div>
                 </div>
@@ -17546,6 +17657,13 @@ function stopPianoCameraLoop() {
       }).join('');
 
       tracksCont.innerHTML = `
+        <div class="flex items-center justify-between gap-2 mb-2 px-1">
+          <span class="text-[10.5px] font-bold text-[#f3e5ab]">${safeList.length} canciones en esta lista</span>
+          <button type="button" onclick="window.downloadCurrentOpenedPlaylistOffline()" class="px-3 py-1 rounded-full bg-[#d4af37]/20 hover:bg-[#d4af37]/30 border border-[#d4af37]/50 text-[#f3e5ab] text-[10.5px] font-extrabold flex items-center gap-1.5 cursor-pointer">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Descargar toda la Playlist</span>
+          </button>
+        </div>
         <div class="piano-keyboard-bed">
           <div class="piano-felt-top-strip"></div>
           ${keysHtml}
@@ -17561,6 +17679,111 @@ function stopPianoCameraLoop() {
         window.prewarmChorusPreviewUrls(prewarmItems);
       }
     }
+
+    // =========================================================================
+    // DESCARGA BAJO DEMANDA DE CANCIÓN INDIVIDUAL, PLAYLIST ENTERA O FAVORITOS
+    // =========================================================================
+    window.openTrackOptionsById = function(songId, fallbackTitle = '', fallbackArtist = '', fallbackThumb = '', playlistId = null) {
+      if (!window.DiscoverHomeApp || typeof window.DiscoverHomeApp.openTrackOptionsSheet !== 'function') return;
+      const found = (Array.isArray(window.searchResultsCache) && window.searchResultsCache.find(s => s && String(s.id) === String(songId))) ||
+                    (Array.isArray(window.currentRenderedPlaylistTracks) && window.currentRenderedPlaylistTracks.find(s => s && String(s.id) === String(songId))) ||
+                    null;
+      const trackObj = found ? {
+        ...found,
+        title: fallbackTitle || found.title || 'Canción',
+        artist: fallbackArtist || found.artist || 'Artista',
+        thumbnail: fallbackThumb || found.thumbnail || './app_logo.png'
+      } : {
+        id: String(songId || `opt_${Date.now()}`),
+        title: fallbackTitle || 'Canción',
+        artist: fallbackArtist || 'Artista',
+        thumbnail: fallbackThumb || './app_logo.png',
+        cover_url: fallbackThumb || './app_logo.png',
+        source: 'magic_youtube',
+        _isMagicKey: true
+      };
+      window.DiscoverHomeApp.openTrackOptionsSheet(trackObj, {
+        source: playlistId ? 'playlist_view' : 'catalog',
+        playlistId: playlistId || null
+      });
+    };
+
+    window.downloadSongToOfflineLibrary = async function(trackOrId, showToast = true) {
+      let tr = typeof trackOrId === 'object' && trackOrId ? trackOrId : null;
+      if (!tr && trackOrId && Array.isArray(window.searchResultsCache)) {
+        tr = window.searchResultsCache.find(s => s && String(s.id) === String(trackOrId)) || null;
+      }
+      if (!tr || !tr.title) return false;
+
+      if (showToast && typeof showSuccessToast === 'function') {
+        showSuccessToast(`Descargando "${tr.title}" a tu Biblioteca Offline...`);
+      }
+
+      const prevFlag = window._explicitOfflineDownloadRequested;
+      window._explicitOfflineDownloadRequested = true;
+      try {
+        const res = await buildAndSaveAutoExtractedSong(
+          tr.title,
+          tr.artist || '',
+          tr.thumbnail || tr.cover_url || '',
+          'hard',
+          null,
+          null,
+          false
+        );
+        if (res && res.chartItem && res.dspPack && typeof IndexedDBStorage !== 'undefined') {
+          await IndexedDBStorage.saveChart(res.chartItem, res.dspPack, res.dspPack.audioBlob);
+          if (typeof updateLibraryVaultBadges === 'function') updateLibraryVaultBadges();
+          if (typeof renderDownloadsSubtab === 'function') renderDownloadsSubtab();
+        }
+        if (showToast && typeof showSuccessToast === 'function') {
+          showSuccessToast(`Descargada en Mi Biblioteca -> Descargas: ${tr.title}`);
+        }
+        return true;
+      } catch (err) {
+        if (showToast && typeof showErrorToast === 'function') {
+          showErrorToast(`No se pudo descargar "${tr.title}": ${err.message || 'Error'}`);
+        }
+        return false;
+      } finally {
+        window._explicitOfflineDownloadRequested = prevFlag;
+      }
+    };
+
+    window.downloadPlaylistOrFavoritesOffline = async function(tracksList = [], collectionName = 'Colección') {
+      const list = Array.isArray(tracksList) ? tracksList.filter(t => t && t.title) : [];
+      if (list.length === 0) {
+        if (typeof showErrorToast === 'function') showErrorToast('No hay canciones en esta lista para descargar.');
+        return;
+      }
+      if (typeof showSuccessToast === 'function') {
+        showSuccessToast(`Descargando ${list.length} canciones de "${collectionName}" en segundo plano...`);
+      }
+      let completed = 0;
+      for (const tr of list) {
+        const ok = await window.downloadSongToOfflineLibrary(tr, false);
+        if (ok) completed++;
+      }
+      if (typeof updateLibraryVaultBadges === 'function') updateLibraryVaultBadges();
+      if (typeof renderDownloadsSubtab === 'function') renderDownloadsSubtab();
+      if (typeof showSuccessToast === 'function') {
+        showSuccessToast(`Descarga completada: ${completed}/${list.length} canciones guardadas en Descargas`);
+      }
+    };
+
+    window.downloadAllFavoritesOffline = async function() {
+      const favs = (typeof IndexedDBStorage !== 'undefined' && typeof IndexedDBStorage.getAllFavorites === 'function')
+        ? await IndexedDBStorage.getAllFavorites().catch(() => [])
+        : [];
+      await window.downloadPlaylistOrFavoritesOffline(favs, 'Tus Me Gusta');
+    };
+
+    window.downloadCurrentOpenedPlaylistOffline = async function() {
+      const list = Array.isArray(window.currentOpenedPlaylistTracks) ? window.currentOpenedPlaylistTracks : [];
+      const titleEl = document.getElementById('selectedPlaylistTitle');
+      const name = (titleEl && titleEl.innerText) ? titleEl.innerText : 'Playlist';
+      await window.downloadPlaylistOrFavoritesOffline(list, name);
+    };
 
     window.clearOpenedPlaylistFilter = function() {
       const inp = document.getElementById('playlistInternalFilterInput');
@@ -21316,16 +21539,7 @@ function stopPianoCameraLoop() {
               } else if (needLyricRefetch) {
                 console.log('[TopSongs] Modo Karaoke activo y caché local sin letras. Forzando re-descarga del CDN con líricas actualizadas...');
               } else if (cached.audioBlob && cached.is_top_song) {
-                if (!cached._dspInstrumentalsVersion && typeof enhanceTopSongInstrumentalsWithDsp === 'function') {
-                  await enhanceTopSongInstrumentalsWithDsp(cached, cached.audioBlob, (msg) => {
-                    if (loadStatus) loadStatus.innerText = msg;
-                  });
-                  try {
-                    await IndexedDBStorage.saveChart(cached, cached, cached.audioBlob);
-                  } catch (_) {}
-                }
                 if (loadStatus) loadStatus.innerText = 'Cargando pista desde memoria local...';
-                await new Promise(r => setTimeout(r, 90));
                 return await startGame(cached, cached.audioBlob, targetDiff || cached.difficulty_name || 'Normal');
               }
             }
@@ -21496,15 +21710,8 @@ function stopPianoCameraLoop() {
           source_name: 'Canciones Top'
         };
 
-        // 4.5. Analizar secciones instrumentales con el motor DSP dejando 100% intactas las notas del cantante
-        if (typeof enhanceTopSongInstrumentalsWithDsp === 'function') {
-          await enhanceTopSongInstrumentalsWithDsp(chartData, audioBlob, (msg) => {
-            if (loadStatus) loadStatus.innerText = msg;
-          });
-        }
-
-        // 5. Guardar en IndexedDB para disponibilidad offline
-        if (typeof IndexedDBStorage !== 'undefined') {
+        // 5. Guardar en Descargas SOLO si el usuario solicitó explícitamente descargar la canción
+        if (window._explicitOfflineDownloadRequested && typeof IndexedDBStorage !== 'undefined') {
           try {
             const itemToSave = {
               id: `top_${rawId}`,
@@ -21528,7 +21735,6 @@ function stopPianoCameraLoop() {
         }
 
         if (loadStatus) loadStatus.innerText = '¡Iniciando partida!';
-        await new Promise(r => setTimeout(r, 90));
         return await startGame(chartData, audioBlob, targetDiff || diffName);
 
       } catch (err) {
@@ -22279,8 +22485,8 @@ function stopPianoCameraLoop() {
         chartData.source = 'community';
         chartData.communityChartId = chartId;
 
-        // Guardar copia local en IndexedDB para disponibilidad offline y fluidez
-        if (typeof IndexedDBStorage !== 'undefined') {
+        // Guardar copia local en Descargas SOLO si el usuario lo solicitó explícitamente
+        if (window._explicitOfflineDownloadRequested && typeof IndexedDBStorage !== 'undefined') {
           IndexedDBStorage.saveChart({
             id: chartId,
             title: chartData.metadata?.title || 'Pista Comunitaria',

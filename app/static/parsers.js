@@ -2777,25 +2777,63 @@ class IndexedDBStorage {
     return new Promise((resolve, reject) => {
       const tx = db.transaction(this.STORE_FAVORITES, 'readwrite');
       const store = tx.objectStore(this.STORE_FAVORITES);
+      const cover = chartItem.thumbnail || chartItem.cover_url || chartItem.artworkUrl600 || './app_logo.png';
+      const prev = chartItem.preview_url || chartItem.previewUrl || '';
+      const defaultDiffs = [
+        { id: `${chartItem.id}_easy`, name: 'Fácil', stars: 1.8, densityMode: 'easy', keys: 3 },
+        { id: `${chartItem.id}_medium`, name: 'Media', stars: 3.0, densityMode: 'medium', keys: 3 },
+        { id: `${chartItem.id}_hard`, name: 'Difícil', stars: Number(chartItem.stars) || 4.5, densityMode: 'hard', keys: 3 },
+        { id: `${chartItem.id}_extreme`, name: 'Extrema', stars: 6.5, densityMode: 'extreme', keys: 3 }
+      ];
       const favRecord = {
-        id: chartItem.id,
+        id: String(chartItem.id),
+        raw_id: chartItem.raw_id || String(chartItem.id).replace(/^top_/, ''),
         title: chartItem.title || 'Canción Favorita',
         artist: chartItem.artist || 'Artista',
         creator: chartItem.creator || 'Catálogo',
         source: chartItem.source || 'official',
         source_name: chartItem.source_name || '',
-        thumbnail: chartItem.thumbnail || '',
+        thumbnail: cover,
+        cover_url: cover,
+        artworkUrl600: cover,
+        preview_url: prev,
+        previewUrl: prev,
+        videoId: chartItem.videoId || '',
         download_url: chartItem.download_url || '',
         direct_download_url: chartItem.direct_download_url || '',
         fallback_download_url: chartItem.fallback_download_url || '',
-        difficulties: Array.isArray(chartItem.difficulties) ? chartItem.difficulties : [],
-        is_community: Boolean(chartItem.is_community),
+        difficulties: Array.isArray(chartItem.difficulties) && chartItem.difficulties.length > 0 ? chartItem.difficulties : defaultDiffs,
+        stars: Number(chartItem.stars) || 4.2,
+        bpm: Number(chartItem.bpm) || 120,
+        is_top_song: Boolean(chartItem.is_top_song || String(chartItem.id).startsWith('top_')),
+        is_community: Boolean(chartItem.is_community || String(chartItem.id).startsWith('comm_')),
+        chart_url: chartItem.chart_url || '',
         audio_url: chartItem.audio_url || '',
         addedAt: Number(chartItem.addedAt) || Date.now()
       };
       const req = store.put(favRecord);
       req.onsuccess = () => resolve(true);
       req.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  static async saveFavorite(chartItem) {
+    return this.putFavoriteRecord(chartItem);
+  }
+
+  static async deleteFavorite(chartId) {
+    if (!chartId) return false;
+    const db = await this.openDB();
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction(this.STORE_FAVORITES, 'readwrite');
+        const store = tx.objectStore(this.STORE_FAVORITES);
+        const req = store.delete(String(chartId));
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => resolve(false);
+      } catch (_) {
+        resolve(false);
+      }
     });
   }
 
@@ -2831,6 +2869,10 @@ class IndexedDBStorage {
       req.onsuccess = () => resolve(playlistObj);
       req.onerror = (e) => reject(e.target.error);
     });
+  }
+
+  static async putPlaylist(playlistObj) {
+    return this.savePlaylist(playlistObj);
   }
 
   static async getAllPlaylists() {
