@@ -4165,35 +4165,48 @@ async function extractYouTubeFullAudioViaNotubeServer(videoId) {
 
 let _cachedSoundCloudClientId = '';
 let _cachedSoundCloudClientIdTs = 0;
+let _inflightSoundCloudClientIdPromise = null;
 
 async function getSoundCloudClientIdServer() {
   if (_cachedSoundCloudClientId && (Date.now() - _cachedSoundCloudClientIdTs) < 3600000) {
     return _cachedSoundCloudClientId;
   }
+  if (_inflightSoundCloudClientIdPromise) {
+    return _inflightSoundCloudClientIdPromise;
+  }
+  _inflightSoundCloudClientIdPromise = (async () => {
+    try {
+      const homeRes = await fetch('https://soundcloud.com/', {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+        signal: AbortSignal.timeout(4000)
+      });
+      if (!homeRes.ok) return _cachedSoundCloudClientId || '';
+      const html = await homeRes.text();
+      const scripts = [...html.matchAll(/src="(https:\/\/a-v2\.sndcdn\.com\/assets\/[^"]+\.js)"/g)].map(m => m[1]);
+      for (const sUrl of scripts.slice(-4).reverse()) {
+        try {
+          const jsRes = await fetch(sUrl, { signal: AbortSignal.timeout(3000) });
+          if (!jsRes.ok) continue;
+          const jsText = await jsRes.text();
+          const m = jsText.match(/client_id\s*:\s*"([a-zA-Z0-9]{32})"/) || jsText.match(/client_id="([a-zA-Z0-9]{32})"/);
+          if (m && m[1]) {
+            _cachedSoundCloudClientId = m[1];
+            _cachedSoundCloudClientIdTs = Date.now();
+            return _cachedSoundCloudClientId;
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
+    return _cachedSoundCloudClientId || '';
+  })();
   try {
-    const homeRes = await fetch('https://soundcloud.com/', {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-      signal: AbortSignal.timeout(4500)
-    });
-    if (!homeRes.ok) return _cachedSoundCloudClientId || '';
-    const html = await homeRes.text();
-    const scripts = [...html.matchAll(/src="(https:\/\/a-v2\.sndcdn\.com\/assets\/[^"]+\.js)"/g)].map(m => m[1]);
-    for (const sUrl of scripts.slice(-4).reverse()) {
-      try {
-        const jsRes = await fetch(sUrl, { signal: AbortSignal.timeout(3500) });
-        if (!jsRes.ok) continue;
-        const jsText = await jsRes.text();
-        const m = jsText.match(/client_id\s*:\s*"([a-zA-Z0-9]{32})"/) || jsText.match(/client_id="([a-zA-Z0-9]{32})"/);
-        if (m && m[1]) {
-          _cachedSoundCloudClientId = m[1];
-          _cachedSoundCloudClientIdTs = Date.now();
-          return _cachedSoundCloudClientId;
-        }
-      } catch (_) {}
-    }
-  } catch (_) {}
-  return _cachedSoundCloudClientId || '';
+    return await _inflightSoundCloudClientIdPromise;
+  } finally {
+    _inflightSoundCloudClientIdPromise = null;
+  }
 }
+// Pre-calentar el client_id de SoundCloud al arrancar el servidor para ahorrar 450ms en la primera canción
+setTimeout(() => { getSoundCloudClientIdServer().catch(() => {}); }, 50);
 
 function convertFmp4ToAdtsAacServer(fullBuffer) {
   const buf = Buffer.isBuffer(fullBuffer) ? fullBuffer : Buffer.from(fullBuffer);
@@ -4441,73 +4454,23 @@ async function searchSoundCloudFullCandidatesServer(searchQuery, rawTitle = '', 
   const clientId = await getSoundCloudClientIdServer();
   if (!clientId) return { clientId: '', candidates: [], studioRefs: [] };
 
-  const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
   const baseQ = String(searchQuery || `${rawTitle} ${rawArtist}`).trim();
-
-  // Consultar Apple Music y Deezer en paralelo para obtener las canciones oficiales exactas y variedad real
-  let studioRefs = [];
-  const [itRes, dzRes] = await Promise.allSettled([
-    fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(baseQ)}&media=music&entity=song&limit=15`, {
-      signal: AbortSignal.timeout(3200)
-    }).then(r => r.ok ? r.json() : null),
-    fetch(`https://api.deezer.com/search?q=${encodeURIComponent(baseQ)}&limit=15`, {
-      signal: AbortSignal.timeout(3200)
-    }).then(r => r.ok ? r.json() : null)
-  ]);
-
-  if (itRes.status === 'fulfilled' && Array.isArray(itRes.value?.results)) {
-    for (const r of itRes.value.results) {
-      if (!r || !r.trackName || !r.artistName) continue;
-      const durSec = Math.round(Number(r.trackTimeMillis || 180000) / 1000);
-      if (durSec < 52 || durSec > 600) continue;
-      if (isUnrequestedRemixOrStrangeTrackServer(baseQ, `${r.trackName} ${r.artistName} ${r.collectionName || ''}`)) continue;
-      studioRefs.push({
-        title: r.trackName,
-        artist: r.artistName,
-        album: r.collectionName || 'Estudio Original',
-        durationSec: durSec,
-        thumbnail: (r.artworkUrl100 || '').replace('100x100bb', '600x600bb')
-      });
-    }
-  }
-
-  if (dzRes.status === 'fulfilled' && Array.isArray(dzRes.value?.data)) {
-    for (const t of dzRes.value.data) {
-      if (!t || !t.title || !t.artist?.name) continue;
-      const durSec = Number(t.duration || 180);
-      if (durSec < 52 || durSec > 600) continue;
-      if (isUnrequestedRemixOrStrangeTrackServer(baseQ, `${t.title} ${t.artist.name} ${t.album?.title || ''}`)) continue;
-      studioRefs.push({
-        title: t.title,
-        artist: t.artist.name,
-        album: t.album?.title || 'Estudio Original',
-        durationSec: durSec,
-        thumbnail: t.album?.cover_big || t.album?.cover_medium || ''
-      });
-    }
-  }
-
-  const topStudio = studioRefs[0] || null;
-  const effectiveTitle = rawTitle || (topStudio ? topStudio.title : baseQ);
-  const effectiveArtist = rawArtist || (topStudio ? topStudio.artist : '');
-
-  const studioPrimaryQ = topStudio ? `${topStudio.artist} ${topStudio.title}`.trim() : '';
-  const queries = Array.from(new Set(
-    [studioPrimaryQ, baseQ]
-      .map(s => String(s || '').trim())
-      .filter(s => s.length >= 2)
-  ));
+  const effectiveTitle = String(rawTitle || baseQ).trim();
+  const effectiveArtist = String(rawArtist || '').trim();
+  const directPrimaryQ = (effectiveArtist && effectiveTitle && !effectiveTitle.toLowerCase().includes(effectiveArtist.toLowerCase()))
+    ? `${effectiveArtist} ${effectiveTitle}`.trim()
+    : baseQ;
 
   const allTracks = [];
   const seenIds = new Set();
 
-  await Promise.allSettled(queries.slice(0, 2).map(async (q) => {
+  const runScSearch = async (q) => {
     try {
       const scRes = await fetch(
-        `https://api-v2.soundcloud.com/search/tracks?q=${encodeURIComponent(q)}&client_id=${encodeURIComponent(clientId)}&limit=24`,
+        `https://api-v2.soundcloud.com/search/tracks?q=${encodeURIComponent(q)}&client_id=${encodeURIComponent(clientId)}&limit=18`,
         {
           headers: { 'User-Agent': 'Mozilla/5.0' },
-          signal: AbortSignal.timeout(4000)
+          signal: AbortSignal.timeout(2600)
         }
       );
       if (!scRes.ok) return;
@@ -4530,12 +4493,10 @@ async function searchSoundCloudFullCandidatesServer(searchQuery, rawTitle = '', 
         );
         if (validTrans.length === 0) continue;
 
-        // Descartar remixes/DJ mixes/covers/versiones extrañas no pedidas
         if (isUnrequestedRemixOrStrangeTrackServer(baseQ, `${tr.title || ''} ${tr.user?.username || ''}`)) continue;
 
         const parsedMeta = parseSoundCloudTrackMetaServer(tr, effectiveTitle, effectiveArtist);
         const sc = scoreStudioAudioAuthenticityServer(baseQ, effectiveTitle, effectiveArtist, parsedMeta.title, parsedMeta.artist, '', tr.title || '');
-        // Exigir puntuación alta real (coincidencia de título + artista) para nunca colar otra canción distinta
         if (sc < 62) continue;
 
         seenIds.add(tr.id);
@@ -4550,10 +4511,16 @@ async function searchSoundCloudFullCandidatesServer(searchQuery, rawTitle = '', 
         });
       }
     } catch (_) {}
-  }));
+  };
+
+  // Paso directo de baja latencia (~250ms): consultar SoundCloud directamente sin esperar 3s a iTunes/Deezer
+  await runScSearch(directPrimaryQ);
+  if (allTracks.length === 0 && baseQ && baseQ !== directPrimaryQ) {
+    await runScSearch(baseQ);
+  }
 
   allTracks.sort((a, b) => b.score - a.score);
-  return { clientId, candidates: allTracks, studioRefs };
+  return { clientId, candidates: allTracks, studioRefs: [] };
 }
 
 async function extractSoundCloudFullTrackServer(searchQuery, rawTitle = '', rawArtist = '', specificScTrackId = '') {
@@ -5377,6 +5344,8 @@ app.get('/api/v1/video/resolve', async (req, res) => {
   }
 });
 
+const INFLIGHT_EXTRACT_REQUESTS = new Map();
+
 app.get('/api/v1/audio/extract', async (req, res) => {
   const rawQ = String(req.query.q || '').trim();
   const rawTitle = String(req.query.title || '').trim();
@@ -5397,6 +5366,15 @@ app.get('/api/v1/audio/extract', async (req, res) => {
     return sendAudioBufferWithRange(req, res, cacheKey, cached.buffer, cached.contentType, cached.extraHeaders);
   }
 
+  if (INFLIGHT_EXTRACT_REQUESTS.has(cacheKey)) {
+    try {
+      const shared = await INFLIGHT_EXTRACT_REQUESTS.get(cacheKey);
+      if (shared && shared.buffer) {
+        return sendAudioBufferWithRange(req, res, cacheKey, shared.buffer, shared.contentType, shared.extraHeaders);
+      }
+    } catch (_) {}
+  }
+
   let resolvedMeta = {
     title: rawTitle || rawQ || 'Canción Extraída',
     artist: rawArtist || 'Artista',
@@ -5404,114 +5382,138 @@ app.get('/api/v1/audio/extract', async (req, res) => {
     videoId: rawVideoId || ''
   };
 
-  try {
-    // Etapa 0A: Si tenemos título, artista y duración de estudio esperada (expectedDur > 55), priorizar versión de estudio exacta ("Topic" / "Official Audio") para sincronización perfecta con LRC
-    if (expectedDur > 55 && rawTitle && rawArtist) {
-      const ytStudioList = await searchYouTubeCandidatesServer(
-        `${rawArtist} ${rawTitle}`,
-        rawTitle,
-        rawArtist,
-        expectedDur
-      );
-      const bestStudioMatch = ytStudioList.find(c => c.videoId && Math.abs((c.durationSec || 0) - expectedDur) <= 6);
-      if (bestStudioMatch && bestStudioMatch.videoId) {
-        const ytStudioAudio = await tryExtractYouTubeStream(bestStudioMatch.videoId);
-        if (ytStudioAudio && ytStudioAudio.buffer && ytStudioAudio.buffer.length >= 120000) {
-          return sendAudioBufferWithRange(req, res, cacheKey, ytStudioAudio.buffer, ytStudioAudio.contentType || 'audio/mpeg', {
-            'X-Song-Title': encodeURIComponent(rawTitle || bestStudioMatch.title || resolvedMeta.title),
-            'X-Song-Artist': encodeURIComponent(rawArtist || bestStudioMatch.artist || resolvedMeta.artist),
-            'X-Song-Cover': encodeURIComponent(resolvedMeta.thumbnail || bestStudioMatch.thumbnail || ''),
-            'X-Audio-Source': encodeURIComponent(ytStudioAudio.source || 'YouTube Studio Master MP3'),
-            'X-Video-Id': encodeURIComponent(bestStudioMatch.videoId),
-            'X-Audio-Duration': String(bestStudioMatch.durationSec || expectedDur)
-          });
-        }
-      }
-    }
-
-    // Etapa 0A-Direct: Si se solicitó un videoId específico de YouTube, extraer su MP3 completo de estudio directamente
-    if (resolvedMeta.videoId) {
-      const ytDirect = await tryExtractYouTubeStream(resolvedMeta.videoId);
-      if (ytDirect && ytDirect.buffer && ytDirect.buffer.length >= 120000) {
-        return sendAudioBufferWithRange(req, res, cacheKey, ytDirect.buffer, ytDirect.contentType || 'audio/mpeg', {
-          'X-Song-Title': encodeURIComponent(rawTitle || ytDirect.title || resolvedMeta.title),
-          'X-Song-Artist': encodeURIComponent(rawArtist || ytDirect.artist || resolvedMeta.artist),
-          'X-Song-Cover': encodeURIComponent(resolvedMeta.thumbnail || ytDirect.thumbnail || ''),
-          'X-Audio-Source': encodeURIComponent(ytDirect.source || 'YouTube Studio Master MP3'),
-          'X-Video-Id': encodeURIComponent(resolvedMeta.videoId),
-          'X-Audio-Duration': String(ytDirect.durationSec || expectedDur || 180)
-        });
-      }
-    }
-
-    // Etapa 0B: Si se solicitó un trackId específico de SoundCloud completo, descargarlo directamente
-    if (scTrackId) {
-      const scDirect = await extractSoundCloudFullTrackServer(searchQuery, rawTitle, rawArtist, scTrackId);
-      if (scDirect && scDirect.buffer && scDirect.buffer.length >= 120000) {
-        return sendAudioBufferWithRange(req, res, cacheKey, scDirect.buffer, scDirect.contentType || 'audio/mpeg', {
-          'X-Song-Title': encodeURIComponent(rawTitle || scDirect.title || resolvedMeta.title),
-          'X-Song-Artist': encodeURIComponent(rawArtist || scDirect.artist || resolvedMeta.artist),
-          'X-Song-Cover': encodeURIComponent(resolvedMeta.thumbnail || scDirect.thumbnail || ''),
-          'X-Audio-Source': encodeURIComponent(scDirect.source || 'SoundCloud Full Audio'),
-          'X-Audio-Duration': String(scDirect.durationSec || 180)
-        });
-      }
-    }
-
-    // Etapa 0C: Si el usuario eligió una URL directa que NO sea un preview corto de 30s de iTunes/Deezer, descargarla
+  const resolveTask = (async () => {
+    // 1. Si hay URL directa no-preview o scTrackId específico, resolver primero
     const isShortPreviewCdn = /(mzstatic\.com|itunes\.apple\.com|cdns-preview|dzcdn\.net)/i.test(directAudioUrl);
     if (directAudioUrl && /^https?:\/\//i.test(directAudioUrl) && !isShortPreviewCdn) {
       try {
-        const dl = await fetchAudioBufferSafe(directAudioUrl, 7500);
+        const dl = await fetchAudioBufferSafe(directAudioUrl, 6000);
         if (dl && dl.buffer && dl.buffer.length >= 120000) {
-          return sendAudioBufferWithRange(req, res, cacheKey, dl.buffer, dl.contentType || 'audio/mpeg', {
-            'X-Song-Title': encodeURIComponent(resolvedMeta.title),
-            'X-Song-Artist': encodeURIComponent(resolvedMeta.artist),
-            'X-Song-Cover': encodeURIComponent(resolvedMeta.thumbnail),
-            'X-Audio-Source': encodeURIComponent('Grabación Completa')
-          });
+          return {
+            buffer: dl.buffer,
+            contentType: dl.contentType || 'audio/mpeg',
+            extraHeaders: {
+              'X-Song-Title': encodeURIComponent(resolvedMeta.title),
+              'X-Song-Artist': encodeURIComponent(resolvedMeta.artist),
+              'X-Song-Cover': encodeURIComponent(resolvedMeta.thumbnail),
+              'X-Audio-Source': encodeURIComponent('Grabación Completa')
+            }
+          };
         }
       } catch (_) {}
     }
 
-    // Etapa 1: Resolver la grabación oficial en YouTube y extraer el MP3 completo
-    if (searchQuery) {
-      const ytList = await searchYouTubeCandidatesServer(
-        rawArtist && rawTitle ? `${rawArtist} ${rawTitle}` : searchQuery,
-        rawTitle,
-        rawArtist,
-        expectedDur
-      );
-      for (const ytCand of ytList.slice(0, 3)) {
-        if (!ytCand.videoId || ytCand.videoId === resolvedMeta.videoId) continue;
-        if (ytCand.authScore < 35) continue;
-        const ytAudio = await tryExtractYouTubeStream(ytCand.videoId);
-        if (ytAudio && ytAudio.buffer && ytAudio.buffer.length >= 120000) {
-          return sendAudioBufferWithRange(req, res, cacheKey, ytAudio.buffer, ytAudio.contentType || 'audio/mpeg', {
-            'X-Song-Title': encodeURIComponent(rawTitle || ytCand.title || resolvedMeta.title),
-            'X-Song-Artist': encodeURIComponent(rawArtist || ytCand.artist || resolvedMeta.artist),
-            'X-Song-Cover': encodeURIComponent(resolvedMeta.thumbnail || ytCand.thumbnail || ''),
-            'X-Audio-Source': encodeURIComponent(ytAudio.source || 'YouTube Studio Master MP3'),
-            'X-Video-Id': encodeURIComponent(ytCand.videoId),
-            'X-Audio-Duration': String(ytCand.durationSec || expectedDur || 180)
-          });
-        }
+    if (scTrackId) {
+      const scDirect = await extractSoundCloudFullTrackServer(searchQuery, rawTitle, rawArtist, scTrackId);
+      if (scDirect && scDirect.buffer && scDirect.buffer.length >= 120000) {
+        return {
+          buffer: scDirect.buffer,
+          contentType: scDirect.contentType || 'audio/mpeg',
+          extraHeaders: {
+            'X-Song-Title': encodeURIComponent(rawTitle || scDirect.title || resolvedMeta.title),
+            'X-Song-Artist': encodeURIComponent(rawArtist || scDirect.artist || resolvedMeta.artist),
+            'X-Song-Cover': encodeURIComponent(resolvedMeta.thumbnail || scDirect.thumbnail || ''),
+            'X-Audio-Source': encodeURIComponent(scDirect.source || 'SoundCloud Full Audio'),
+            'X-Audio-Duration': String(scDirect.durationSec || 180)
+          }
+        };
       }
     }
 
-    // Etapa 2: Respaldo de SoundCloud Full Audio estrictamente verificado (solo si título + artista coinciden de verdad y sin remixes)
+    // 2. CARRERA PARALELA DE ALTA VELOCIDAD (~0.4s - 0.8s):
+    // SoundCloud Full Studio CDN + YouTube Direct/Search corren simultáneamente con Promise.any
+    // para que NUNCA haya esperas de 20s a 0 KB/s por bloqueos de nodos de YouTube.
+    const fastRaceBranches = [];
+
     if (searchQuery) {
-      const scFull = await extractSoundCloudFullTrackServer(searchQuery, rawTitle, rawArtist);
-      if (scFull && scFull.buffer && scFull.buffer.length >= 350000) {
-        return sendAudioBufferWithRange(req, res, cacheKey, scFull.buffer, scFull.contentType || 'audio/mpeg', {
-          'X-Song-Title': encodeURIComponent(rawTitle || scFull.title || resolvedMeta.title),
-          'X-Song-Artist': encodeURIComponent(rawArtist || scFull.artist || resolvedMeta.artist),
-          'X-Song-Cover': encodeURIComponent(resolvedMeta.thumbnail || scFull.thumbnail || ''),
-          'X-Audio-Source': encodeURIComponent(scFull.source || 'SoundCloud Full Audio'),
-          'X-Audio-Duration': String(scFull.durationSec || 180)
-        });
-      }
+      fastRaceBranches.push((async () => {
+        const scFull = await extractSoundCloudFullTrackServer(searchQuery, rawTitle, rawArtist);
+        if (scFull && scFull.buffer && scFull.buffer.length >= 250000) {
+          return {
+            buffer: scFull.buffer,
+            contentType: scFull.contentType || 'audio/mpeg',
+            extraHeaders: {
+              'X-Song-Title': encodeURIComponent(rawTitle || scFull.title || resolvedMeta.title),
+              'X-Song-Artist': encodeURIComponent(rawArtist || scFull.artist || resolvedMeta.artist),
+              'X-Song-Cover': encodeURIComponent(resolvedMeta.thumbnail || scFull.thumbnail || ''),
+              'X-Audio-Source': encodeURIComponent(scFull.source || 'SoundCloud Full Audio'),
+              'X-Audio-Duration': String(scFull.durationSec || expectedDur || 180)
+            }
+          };
+        }
+        throw new Error('sc_no_match');
+      })());
     }
+
+    if (resolvedMeta.videoId) {
+      fastRaceBranches.push((async () => {
+        const ytDirect = await tryExtractYouTubeStream(resolvedMeta.videoId);
+        if (ytDirect && ytDirect.buffer && ytDirect.buffer.length >= 120000) {
+          return {
+            buffer: ytDirect.buffer,
+            contentType: ytDirect.contentType || 'audio/mpeg',
+            extraHeaders: {
+              'X-Song-Title': encodeURIComponent(rawTitle || ytDirect.title || resolvedMeta.title),
+              'X-Song-Artist': encodeURIComponent(rawArtist || ytDirect.artist || resolvedMeta.artist),
+              'X-Song-Cover': encodeURIComponent(resolvedMeta.thumbnail || ytDirect.thumbnail || ''),
+              'X-Audio-Source': encodeURIComponent(ytDirect.source || 'YouTube Studio Master MP3'),
+              'X-Video-Id': encodeURIComponent(resolvedMeta.videoId),
+              'X-Audio-Duration': String(ytDirect.durationSec || expectedDur || 180)
+            }
+          };
+        }
+        throw new Error('yt_direct_failed');
+      })());
+    } else if (searchQuery) {
+      fastRaceBranches.push((async () => {
+        const ytList = await searchYouTubeCandidatesServer(
+          rawArtist && rawTitle ? `${rawArtist} ${rawTitle}` : searchQuery,
+          rawTitle,
+          rawArtist,
+          expectedDur
+        );
+        const topCand = ytList.find(c => c && c.videoId && (c.authScore || 0) >= 35);
+        if (!topCand || !topCand.videoId) throw new Error('yt_search_empty');
+        const ytAudio = await tryExtractYouTubeStream(topCand.videoId);
+        if (ytAudio && ytAudio.buffer && ytAudio.buffer.length >= 120000) {
+          return {
+            buffer: ytAudio.buffer,
+            contentType: ytAudio.contentType || 'audio/mpeg',
+            extraHeaders: {
+              'X-Song-Title': encodeURIComponent(rawTitle || ytAudio.title || topCand.title || resolvedMeta.title),
+              'X-Song-Artist': encodeURIComponent(rawArtist || ytAudio.artist || topCand.artist || resolvedMeta.artist),
+              'X-Song-Cover': encodeURIComponent(resolvedMeta.thumbnail || topCand.thumbnail || ''),
+              'X-Audio-Source': encodeURIComponent(ytAudio.source || 'YouTube Studio Master MP3'),
+              'X-Video-Id': encodeURIComponent(topCand.videoId),
+              'X-Audio-Duration': String(topCand.durationSec || ytAudio.durationSec || expectedDur || 180)
+            }
+          };
+        }
+        throw new Error('yt_cand_failed');
+      })());
+    }
+
+    if (fastRaceBranches.length > 0) {
+      try {
+        const winner = await Promise.any(fastRaceBranches);
+        if (winner && winner.buffer) return winner;
+      } catch (_) {}
+    }
+
+    return null;
+  })();
+
+  INFLIGHT_EXTRACT_REQUESTS.set(cacheKey, resolveTask);
+  try {
+    const fastWinner = await resolveTask;
+    if (fastWinner && fastWinner.buffer) {
+      return sendAudioBufferWithRange(req, res, cacheKey, fastWinner.buffer, fastWinner.contentType, fastWinner.extraHeaders);
+    }
+  } finally {
+    INFLIGHT_EXTRACT_REQUESTS.delete(cacheKey);
+  }
+
+  try {
 
     // Etapa 3: Red Descentralizada Audius (Pistas completas >= 55s)
     if (searchQuery) {

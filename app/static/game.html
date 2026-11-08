@@ -25,7 +25,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css?v=64.0">
+  <link rel="stylesheet" href="./style.css?v=65.0">
   <script>
     // ===================================================
     // SISTEMA DE INTERNACIONALIZACIÓN (i18n: ES / EN)
@@ -5222,7 +5222,7 @@
   <script defer src="./songs/comm_camilo_sesto/chart.js"></script>
   <script defer src="./songs/renacer/chart.js"></script>
   <script src="./songs/catalog_top.js?v=64.0"></script>
-  <script src="./discover_home.js?v=64.0"></script>
+  <script src="./discover_home.js?v=65.0"></script>
   <script>
     let engine = null;
     let currentActiveBeatmap = null;
@@ -16591,7 +16591,7 @@ function stopPianoCameraLoop() {
           _isMagicKey: true
         };
         setThumbnailPreviewUiState(sId, 'playing');
-        window.dualStreamEngine.playTrack(previewTrackObj, { autoPlay: true, isCratePreview: false, syncQueue: true });
+        window.dualStreamEngine.playTrack(previewTrackObj, { autoPlay: true, isCratePreview: false, syncQueue: true, fromThumbnailPreview: true });
         return;
       }
 
@@ -16765,6 +16765,9 @@ function stopPianoCameraLoop() {
       }
     };
 
+    window.searchSoundCloudFullClient = searchSoundCloudFullClient;
+    window.downloadSoundCloudFullTrackClient = downloadSoundCloudFullTrackClient;
+
     // Alias de compatibilidad hacia el motor unificado de preescucha en miniatura
     window.toggleCatalogSongPreview = function(songId, sId, title = '', artist = '', directPreviewUrl = '', bsHash = '') {
       return window.toggleThumbnailSongPreview(songId, sId, title, artist, directPreviewUrl, bsHash, '');
@@ -16820,18 +16823,6 @@ function stopPianoCameraLoop() {
         : String(targetArtist || '').replace(/^youtube$/i, '').trim();
       let resolvedThumb = targetThumb || '';
 
-      if (!preferredCandidate && !cleanArtist) {
-        try {
-          const verified = await discoverVerifiedAudioCandidates(cleanTitle, '', 6);
-          if (verified && verified[0]) {
-            preferredCandidate = verified[0];
-            cleanTitle = verified[0].title || cleanTitle;
-            cleanArtist = verified[0].artist || cleanArtist;
-            resolvedThumb = resolvedThumb || verified[0].thumbnail || '';
-          }
-        } catch (_) {}
-      }
-
       const searchQuery = cleanArtist ? `${cleanTitle} ${cleanArtist}`.trim() : cleanTitle;
       const baseUrl = (typeof getApiBaseUrl === 'function') ? getApiBaseUrl() : '';
 
@@ -16840,40 +16831,153 @@ function stopPianoCameraLoop() {
         try { return decodeURIComponent(val); } catch (_) { return val || fallback; }
       };
 
-      // 0. Comprobar caché en memoria si ya se descargó esta canción completa de YouTube
+      // 0A. Comprobar caché en memoria si ya se descargó esta canción completa
       const candKey = preferredCandidate ? (preferredCandidate.videoId ? `yt_${preferredCandidate.videoId}` : (preferredCandidate.scTrackId || preferredCandidate.uid)) : '';
       const normKey = `${normalizeSearchText(cleanTitle)}__${normalizeSearchText(cleanArtist)}`;
       const cachedMemBlob = (candKey && window._fullTrackBlobCache.get(candKey)) || window._fullTrackBlobCache.get(normKey);
-      if (cachedMemBlob && cachedMemBlob.size >= 120000) {
+      if (cachedMemBlob && cachedMemBlob.size >= 80000) {
         return {
           blob: cachedMemBlob,
           title: cleanTitle,
           artist: cleanArtist || 'Artista',
           thumbnail: resolvedThumb || getSongCoverFallback(cleanTitle, cleanArtist),
-          sourceName: 'YouTube Completo'
+          sourceName: 'Audio Completo en Caché'
         };
       }
 
-      // 1. EXTRACCIÓN ULTRARRÁPIDA EN CARRERA PARALELA: Cliente YouTube (Notube 37 nodos) + Servidor (/api/v1/audio/extract)
+      // 0B. Si la canción coincide con el Catálogo Top (90 canciones CDN), descargar directamente desde Release 3 / Release 8 en <0.3s
       try {
-        const ytVideoCandidates = [];
-        if (preferredCandidate && preferredCandidate.videoId) {
-          ytVideoCandidates.push(preferredCandidate.videoId);
-        }
-        if (ytVideoCandidates.length < 3) {
-          if (ytVideoCandidates.length === 0 && onProgress) {
-            onProgress(`Localizando pista original (${cleanTitle})...`);
-          }
-          const ytList = await searchYouTubeOfficialClient(cleanTitle, cleanArtist, expectedDur).catch(() => []);
-          for (const y of ytList.slice(0, 3)) {
-            if (y && y.videoId && !ytVideoCandidates.includes(y.videoId)) {
-              ytVideoCandidates.push(y.videoId);
-              if (!resolvedThumb && y.thumbnail) resolvedThumb = y.thumbnail;
+        if (typeof window.getFormattedTopSongsCatalog === 'function') {
+          const topList = window.getFormattedTopSongsCatalog() || [];
+          const normT = normalizeSearchText(cleanTitle);
+          const normA = normalizeSearchText(cleanArtist);
+          const matchedTop = topList.find(s => {
+            if (!s) return false;
+            const sT = normalizeSearchText(s.title || '');
+            const sA = normalizeSearchText(s.artist || '');
+            return sT === normT && (!normA || !sA || sA.includes(normA) || normA.includes(sA));
+          });
+          if (matchedTop) {
+            const rawId = String(matchedTop.raw_id || matchedTop.id || '').replace(/^top_/, '');
+            const audioFilename = matchedTop.audio_url || `${rawId}.mp3`;
+            for (const tag of ['3', '8']) {
+              try {
+                const cUrl = `https://github.com/Bruala33/renacer/releases/download/${tag}/${audioFilename}`;
+                const proxyUrl = `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(cUrl)}`;
+                const rTop = await fetch(proxyUrl);
+                if (rTop.ok) {
+                  const topBlob = await rTop.blob();
+                  if (topBlob && topBlob.size >= 80000) {
+                    window._fullTrackBlobCache.set(normKey, topBlob);
+                    window._fullTrackBlobCache.set(`top_${rawId}`, topBlob);
+                    return {
+                      blob: topBlob,
+                      title: matchedTop.title || cleanTitle,
+                      artist: matchedTop.artist || cleanArtist || 'Artista',
+                      thumbnail: matchedTop.cover_url || resolvedThumb || getSongCoverFallback(cleanTitle, cleanArtist),
+                      sourceName: 'Catálogo Master CDN'
+                    };
+                  }
+                }
+              } catch (_) {}
             }
           }
         }
+      } catch (_) {}
+
+      // 1. CARRERA PARALELA INSTANTÁNEA (0ms de espera):
+      //    Servidor (/api/v1/audio/extract) + SoundCloud Cliente Directo + YouTube Cliente Notube
+      try {
+        if (onProgress) {
+          onProgress(`Descargando pista completa (${cleanTitle})...`);
+        }
+
+        const serverExtractTask = (async () => {
+          const ctrl = new AbortController();
+          const tid = setTimeout(() => ctrl.abort(), 18000);
+          try {
+            const targetVid = (preferredCandidate && preferredCandidate.videoId) || '';
+            const vidParam = targetVid ? `&videoId=${encodeURIComponent(targetVid)}` : '';
+            const scParam = (preferredCandidate && preferredCandidate.scTrackId) ? `&scTrackId=${encodeURIComponent(preferredCandidate.scTrackId)}` : '';
+            const durParam = expectedDur > 0 ? `&durationSec=${encodeURIComponent(expectedDur)}` : '';
+            const url = `${baseUrl}/api/v1/audio/extract?q=${encodeURIComponent(searchQuery)}&title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}${vidParam}${scParam}${durParam}`;
+            const resp = await fetch(url, { signal: ctrl.signal });
+            if (!resp.ok) throw new Error('Server extract HTTP ' + resp.status);
+            const cType = String(resp.headers.get('content-type') || '').toLowerCase();
+            if (cType.includes('application/json') || cType.includes('text/html')) throw new Error('Invalid content-type');
+            const ab = await resp.arrayBuffer();
+            if (!ab || ab.byteLength < 80000) throw new Error('Small buffer');
+            const u8 = new Uint8Array(ab);
+            const converted = convertFmp4ToAdtsAacClient(u8);
+            const finalMime = converted !== u8 ? 'audio/aac' : (cType.startsWith('audio/') ? cType : 'audio/mpeg');
+            const finalBlob = new Blob([converted], { type: finalMime });
+            if (candKey) window._fullTrackBlobCache.set(candKey, finalBlob);
+            if (targetVid) window._fullTrackBlobCache.set(`yt_${targetVid}`, finalBlob);
+            window._fullTrackBlobCache.set(normKey, finalBlob);
+            const resolvedTitle = decodeHeaderSafe(resp.headers.get('X-Song-Title'), cleanTitle);
+            const resolvedArtist = decodeHeaderSafe(resp.headers.get('X-Song-Artist'), cleanArtist || 'Artista');
+            const resolvedCover = decodeHeaderSafe(resp.headers.get('X-Song-Cover'), resolvedThumb);
+            const resolvedSource = decodeHeaderSafe(resp.headers.get('X-Audio-Source'), 'Studio Master MP3');
+            return {
+              blob: finalBlob,
+              title: resolvedTitle || cleanTitle,
+              artist: resolvedArtist || cleanArtist || 'Artista',
+              thumbnail: resolvedCover || resolvedThumb || getSongCoverFallback(resolvedTitle, resolvedArtist),
+              sourceName: resolvedSource
+            };
+          } finally {
+            clearTimeout(tid);
+          }
+        })();
+
+        const scClientTask = (async () => {
+          if (preferredCandidate && (preferredCandidate._scRawTrack || preferredCandidate.scTrackId)) {
+            const scDirect = await downloadSoundCloudFullTrackClient(preferredCandidate._scRawTrack || preferredCandidate.scTrackId, onProgress);
+            if (scDirect && scDirect.blob && scDirect.blob.size >= 100000) {
+              if (candKey) window._fullTrackBlobCache.set(candKey, scDirect.blob);
+              window._fullTrackBlobCache.set(normKey, scDirect.blob);
+              return {
+                blob: scDirect.blob,
+                title: cleanTitle,
+                artist: cleanArtist || scDirect.artist || 'Artista',
+                thumbnail: resolvedThumb || scDirect.thumbnail || getSongCoverFallback(cleanTitle, cleanArtist),
+                sourceName: scDirect.sourceName || 'SoundCloud Full Studio'
+              };
+            }
+          }
+          const scCandidates = await searchSoundCloudFullClient(cleanTitle, cleanArtist, 14);
+          for (const scCand of scCandidates.slice(0, 3)) {
+            if ((scCand.authenticityScore || 0) < 62) break;
+            const scDl = await downloadSoundCloudFullTrackClient(scCand._scRawTrack || scCand.scTrackId, onProgress);
+            if (scDl && scDl.blob && scDl.blob.size >= 100000) {
+              window._fullTrackBlobCache.set(scCand.uid, scDl.blob);
+              window._fullTrackBlobCache.set(normKey, scDl.blob);
+              return {
+                blob: scDl.blob,
+                title: scCand.title || cleanTitle,
+                artist: scCand.artist || cleanArtist || 'Artista',
+                thumbnail: resolvedThumb || scCand.thumbnail || getSongCoverFallback(cleanTitle, cleanArtist),
+                sourceName: scDl.sourceName || 'SoundCloud Full Studio'
+              };
+            }
+          }
+          throw new Error('SC Client failed');
+        })();
 
         const clientExtractTask = (async () => {
+          const ytVideoCandidates = [];
+          if (preferredCandidate && preferredCandidate.videoId) {
+            ytVideoCandidates.push(preferredCandidate.videoId);
+          }
+          if (ytVideoCandidates.length < 2) {
+            const ytList = await searchYouTubeOfficialClient(cleanTitle, cleanArtist, expectedDur).catch(() => []);
+            for (const y of ytList.slice(0, 2)) {
+              if (y && y.videoId && !ytVideoCandidates.includes(y.videoId)) {
+                ytVideoCandidates.push(y.videoId);
+                if (!resolvedThumb && y.thumbnail) resolvedThumb = y.thumbnail;
+              }
+            }
+          }
           for (const vid of ytVideoCandidates) {
             const ytMp3 = await extractYouTubeFullAudioViaNotubeClient(vid, onProgress);
             if (ytMp3 && ytMp3.blob && ytMp3.blob.size >= 100000) {
@@ -16892,83 +16996,8 @@ function stopPianoCameraLoop() {
           throw new Error('Client YT failed');
         })();
 
-        const serverExtractTask = (async () => {
-          await new Promise(r => setTimeout(r, 250));
-          const ctrl = new AbortController();
-          const tid = setTimeout(() => ctrl.abort(), 25000);
-          try {
-            const targetVid = (preferredCandidate && preferredCandidate.videoId) || ytVideoCandidates[0] || '';
-            const vidParam = targetVid ? `&videoId=${encodeURIComponent(targetVid)}` : '';
-            const scParam = (preferredCandidate && preferredCandidate.scTrackId) ? `&scTrackId=${encodeURIComponent(preferredCandidate.scTrackId)}` : '';
-            const durParam = expectedDur > 0 ? `&durationSec=${encodeURIComponent(expectedDur)}` : '';
-            const url = `${baseUrl}/api/v1/audio/extract?q=${encodeURIComponent(searchQuery)}&title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}${vidParam}${scParam}${durParam}`;
-            const resp = await fetch(url, { signal: ctrl.signal });
-            if (!resp.ok) throw new Error('Server extract HTTP ' + resp.status);
-            const cType = String(resp.headers.get('content-type') || '').toLowerCase();
-            if (cType.includes('application/json') || cType.includes('text/html')) throw new Error('Invalid content-type');
-            const ab = await resp.arrayBuffer();
-            if (!ab || ab.byteLength < 100000) throw new Error('Small buffer');
-            const u8 = new Uint8Array(ab);
-            const converted = convertFmp4ToAdtsAacClient(u8);
-            const finalMime = converted !== u8 ? 'audio/aac' : (cType.startsWith('audio/') ? cType : 'audio/mpeg');
-            const finalBlob = new Blob([converted], { type: finalMime });
-            if (candKey) window._fullTrackBlobCache.set(candKey, finalBlob);
-            if (targetVid) window._fullTrackBlobCache.set(`yt_${targetVid}`, finalBlob);
-            window._fullTrackBlobCache.set(normKey, finalBlob);
-            const resolvedTitle = decodeHeaderSafe(resp.headers.get('X-Song-Title'), cleanTitle);
-            const resolvedArtist = decodeHeaderSafe(resp.headers.get('X-Song-Artist'), cleanArtist || 'Artista');
-            const resolvedCover = decodeHeaderSafe(resp.headers.get('X-Song-Cover'), resolvedThumb);
-            const resolvedSource = decodeHeaderSafe(resp.headers.get('X-Audio-Source'), 'YouTube Studio Master MP3');
-            return {
-              blob: finalBlob,
-              title: resolvedTitle || cleanTitle,
-              artist: resolvedArtist || cleanArtist || 'Artista',
-              thumbnail: resolvedCover || resolvedThumb || getSongCoverFallback(resolvedTitle, resolvedArtist),
-              sourceName: resolvedSource
-            };
-          } finally {
-            clearTimeout(tid);
-          }
-        })();
-
-        const winner = await Promise.any([clientExtractTask, serverExtractTask]);
+        const winner = await Promise.any([serverExtractTask, scClientTask, clientExtractTask]);
         if (winner && winner.blob) return winner;
-      } catch (_) {}
-
-      // 3. Respaldo en Cliente desde SoundCloud Full Audio estrictamente verificado
-      try {
-        if (preferredCandidate && (preferredCandidate._scRawTrack || preferredCandidate.scTrackId)) {
-          if (onProgress) onProgress(`Descargando canción completa: ${cleanTitle}...`);
-          const scDirect = await downloadSoundCloudFullTrackClient(preferredCandidate._scRawTrack || preferredCandidate.scTrackId, onProgress);
-          if (scDirect && scDirect.blob && scDirect.blob.size >= 140000) {
-            if (candKey) window._fullTrackBlobCache.set(candKey, scDirect.blob);
-            window._fullTrackBlobCache.set(normKey, scDirect.blob);
-            return {
-              blob: scDirect.blob,
-              title: cleanTitle,
-              artist: cleanArtist || scDirect.artist || 'Artista',
-              thumbnail: resolvedThumb || scDirect.thumbnail || getSongCoverFallback(cleanTitle, cleanArtist),
-              sourceName: scDirect.sourceName || 'SoundCloud Full Studio'
-            };
-          }
-        }
-
-        const scCandidates = await searchSoundCloudFullClient(cleanTitle, cleanArtist, 18);
-        for (const scCand of scCandidates.slice(0, 3)) {
-          if ((scCand.authenticityScore || 0) < 62) break;
-          const scDl = await downloadSoundCloudFullTrackClient(scCand._scRawTrack || scCand.scTrackId, onProgress);
-          if (scDl && scDl.blob && scDl.blob.size >= 140000) {
-            window._fullTrackBlobCache.set(scCand.uid, scDl.blob);
-            window._fullTrackBlobCache.set(normKey, scDl.blob);
-            return {
-              blob: scDl.blob,
-              title: scCand.title || cleanTitle,
-              artist: scCand.artist || cleanArtist || 'Artista',
-              thumbnail: resolvedThumb || scCand.thumbnail || getSongCoverFallback(cleanTitle, cleanArtist),
-              sourceName: scDl.sourceName || 'SoundCloud Full Studio'
-            };
-          }
-        }
       } catch (_) {}
 
       // 4. Respaldo de Pistas Completas en Audius directo desde cliente (>= 45s)

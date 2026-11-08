@@ -1365,28 +1365,49 @@
         const collected = [];
         const seenIds = new Set();
 
-        // Ejecutar consultas en paralelo para reunir todas las versiones (álbum, radio edit, vídeo) y elegir la de duración exacta
-        await Promise.allSettled(urlsToTry.map(async (qUrl) => {
+        const queryTasks = urlsToTry.map(async (qUrl) => {
           const ctrl = new AbortController();
-          const tid = setTimeout(() => ctrl.abort(), 3000);
+          const tid = setTimeout(() => ctrl.abort(), 2200);
           try {
             const resp = await fetch(qUrl, { signal: ctrl.signal });
             clearTimeout(tid);
-            if (resp.ok) {
-              const arr = await resp.json();
-              if (Array.isArray(arr)) {
-                for (const item of arr) {
-                  if (item && !seenIds.has(item.id)) {
-                    seenIds.add(item.id);
-                    collected.push(item);
-                  }
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const arr = await resp.json();
+            if (!Array.isArray(arr) || arr.length === 0) throw new Error('Empty');
+            let foundSynced = false;
+            for (const item of arr) {
+              if (item && !seenIds.has(item.id)) {
+                seenIds.add(item.id);
+                collected.push(item);
+                if (item.syncedLyrics && item.syncedLyrics.includes('[')) {
+                  foundSynced = true;
                 }
               }
             }
-          } catch (_) {
+            if (collected.length > 0) {
+              this.candidatesCache.set(key, collected);
+            }
+            if (!foundSynced) throw new Error('No synced in batch');
+            return true;
+          } catch (err) {
             clearTimeout(tid);
+            throw err;
           }
-        }));
+        });
+
+        try {
+          // Resolver en el acto (~160ms) en cuanto la primera consulta devuelva letra sincronizada
+          await Promise.any(queryTasks);
+        } catch (_) {
+          await Promise.allSettled(queryTasks);
+        }
+
+        // Cuando terminen las consultas restantes en segundo plano, recalibrar si hay mejor coincidencia de duración
+        Promise.allSettled(queryTasks).then(() => {
+          if (collected.length > 0) {
+            this.candidatesCache.set(key, collected);
+          }
+        }).catch(() => {});
 
         if (collected.length > 0) {
           this.candidatesCache.set(key, collected);
@@ -1425,11 +1446,13 @@
       this.cache.set(key, recalibrated);
       if (this.currentTrackKey === key) {
         this.currentLyrics = recalibrated;
-        if (this.showTranslation) {
-          await this.ensureTranslationsForCurrent(track);
-        }
         this.activeLineIndex = -1;
         this.renderLinesToDom();
+        if (this.showTranslation) {
+          this.ensureTranslationsForCurrent(track).then(() => {
+            if (this.currentTrackKey === key) this.renderLinesToDom();
+          }).catch(() => {});
+        }
       }
     }
 
@@ -1499,10 +1522,13 @@
       const lines = await this.fetchLyricsForTrack(track, totalDurationSec);
       if (this.currentTrackKey !== key) return;
       this.currentLyrics = lines.map(l => ({ ...l }));
-      if (this.showTranslation) {
-        await this.ensureTranslationsForCurrent(track);
-      }
+      // Renderizar inmediatamente la letra sincronizada sin bloquear por la traducción
       this.renderLinesToDom();
+      if (this.showTranslation) {
+        this.ensureTranslationsForCurrent(track).then(() => {
+          if (this.currentTrackKey === key) this.renderLinesToDom();
+        }).catch(() => {});
+      }
     }
 
     renderLinesToDom() {
@@ -1822,8 +1848,8 @@
     }
 
     /**
-     * Reproduce una canción completa desde 0:00 (o desde startOffsetSec),
-     * sincronizando al 100% con las letras de Karaoke y permitiendo hacer seek libremente en toda la barra.
+     * Reproduce SIEMPRE la canción completa desde 0:00 (o desde startOffsetSec),
+     * sin pasar por previews de 30s que provocan cortes ni desincronización con las letras de Karaoke.
      */
     async playTrack(track, options = {}) {
       if (!track) return false;
@@ -1871,6 +1897,20 @@
       this._updatePlayerProgressUI(desiredStartSec, fullDur);
       this._updateMediaSessionMetadata(track);
 
+      // Enriquecer portada/duración en segundo plano sin bloquear el arranque de audio
+      if (!track.artworkUrl600 || !track.durationSec || track.durationSec < 45) {
+        this.graphService.enrichTrackMetadata(track).then((enriched) => {
+          if (reqId !== this._playRequestId || !enriched) return;
+          if (enriched.durationSec && enriched.durationSec > 40 && !this.fullTrackReady) {
+            track.durationSec = enriched.durationSec;
+            this._updatePlayerProgressUI(this.getCurrentSongTimeSec(), enriched.durationSec);
+          }
+          if (enriched.artworkUrl600) {
+            this._updatePlayerMetadataUI(track);
+          }
+        }).catch(() => {});
+      }
+
       if (this.karaokeService) {
         this.karaokeService.loadAndRenderTrackLyrics(track, fullDur).catch(() => {});
       }
@@ -1885,7 +1925,7 @@
         this.fullTrackBlob = cachedFullBlob;
         this.fullTrackReady = true;
         this._setLoadingHintVisible(false);
-        const startedFull = await this._startChannelWithFadeIn(this.fullAudio, cachedFullBlob, 'full', reqId, desiredStartSec, 150);
+        const startedFull = await this._startChannelWithFadeIn(this.fullAudio, cachedFullBlob, 'full', reqId, desiredStartSec, 120);
         this.isLoadingTrack = false;
         if (startedFull) {
           this._updatePlayerMetadataUI(track);
@@ -1895,15 +1935,18 @@
       }
 
       // 2. Si es canción del Catálogo Top (o coincide por título+artista con una del Catálogo Top) o Comunidad:
-      // transmitir el MP3 completo desde 0:00 usando Release 3 (y fallback automático a Release 8)
+      // transmitir el MP3 completo desde 0:00 usando Release 3 (y cachear el Blob en RAM en segundo plano para Jugar en 0ms)
       const directStreamUrl3 = this._getDirectFullStreamUrl(track, '3');
       if (directStreamUrl3) {
         this._setLoadingHintVisible(false);
-        let startedDirectFull = await this._startChannelWithFadeIn(this.fullAudio, directStreamUrl3, 'full', reqId, desiredStartSec, 150);
+        this.preloadFullTrackInBackground(track).then((b) => {
+          if (b && reqId === this._playRequestId) this.fullTrackBlob = b;
+        }).catch(() => {});
+        let startedDirectFull = await this._startChannelWithFadeIn(this.fullAudio, directStreamUrl3, 'full', reqId, desiredStartSec, 120);
         if (!startedDirectFull && reqId === this._playRequestId) {
           const directStreamUrl8 = this._getDirectFullStreamUrl(track, '8');
           if (directStreamUrl8 && directStreamUrl8 !== directStreamUrl3) {
-            startedDirectFull = await this._startChannelWithFadeIn(this.fullAudio, directStreamUrl8, 'full', reqId, desiredStartSec, 150);
+            startedDirectFull = await this._startChannelWithFadeIn(this.fullAudio, directStreamUrl8, 'full', reqId, desiredStartSec, 120);
           }
         }
         if (startedDirectFull) {
@@ -1915,50 +1958,30 @@
         }
       }
 
-      // 3. Para canciones externas (YouTube / Playlists / Buscador):
-      // Arrancar preview instantáneo mientras en paralelo se prepara el stream completo 0:00-fin con soporte HTTP 206 Range
-      let previewUrl = track.previewUrl || track.preview_url || '';
-      const prewarmed = this.prewarmedPreviewMap.get(String(track.id));
-      if (prewarmed && prewarmed.previewUrl) {
-        previewUrl = prewarmed.previewUrl;
-      }
+      // 3. Para cualquier otra canción (YouTube / Playlists / Buscador / Para Ti):
+      // Resolver el audio completo desde 0:00 mediante carrera paralela (SoundCloud Cliente + Servidor /api/v1/audio/extract)
+      // sin reproducir previews de 30s que cortan la canción o desincronizan el karaoke.
+      this._setLoadingHintVisible(true);
 
-      if (!previewUrl || String(previewUrl).startsWith('yt_full://')) {
-        const enriched = await Promise.race([
-          this.graphService.enrichTrackMetadata(track).catch(() => null),
-          new Promise(r => setTimeout(() => r(null), 480))
-        ]);
-        if (reqId !== this._playRequestId) return false;
-        if (enriched && enriched.previewUrl && !previewUrl) {
-          previewUrl = enriched.previewUrl;
-          track.previewUrl = previewUrl;
-          track.preview_url = previewUrl;
-        }
-        if (enriched && enriched.durationSec && enriched.durationSec > 40) {
-          track.durationSec = enriched.durationSec;
-          this._updatePlayerProgressUI(desiredStartSec, enriched.durationSec);
-        }
-      }
+      const fullBlob = await this.preloadFullTrackInBackground(track);
+      if (reqId !== this._playRequestId) return false;
 
-      const progressiveExtractUrl = this._buildServerExtractStreamUrl(track);
-
-      if (previewUrl && /^https?:\/\//i.test(previewUrl) && !options.forceFullStream && desiredStartSec === 0) {
-        this.previewBaseOffsetSec = 0;
+      if (fullBlob && fullBlob.size >= 80000) {
+        this.fullTrackBlob = fullBlob;
+        this.fullTrackReady = true;
         this._setLoadingHintVisible(false);
-        const previewStarted = await this._startChannelWithFadeIn(this.previewAudio, previewUrl, 'preview', reqId, 0, 140);
-        if (previewStarted) {
-          this.isLoadingTrack = false;
+        const startedFromBlob = await this._startChannelWithFadeIn(this.fullAudio, fullBlob, 'full', reqId, desiredStartSec, 120);
+        this.isLoadingTrack = false;
+        if (startedFromBlob) {
           this._updatePlayerMetadataUI(track);
           this._startListenTracker();
-          // Preparar y hacer handoff silencioso al audio completo en segundo plano para que no se corte a los 30s y vaya sincronizado con el karaoke
-          this._upgradeActivePreviewToFullTrackInBackground(track, reqId);
           return true;
         }
       }
 
-      // 4. Streaming completo directo desde /api/v1/audio/extract (con soporte HTTP 206 Partial Content para seek instantáneo)
-      this._setLoadingHintVisible(true);
-      const startedProgressive = await this._startChannelWithFadeIn(this.fullAudio, progressiveExtractUrl, 'full', reqId, desiredStartSec, 160);
+      // 4. Si por algún motivo falló la descarga como Blob, intentar streaming directo o preview como último recurso
+      const progressiveExtractUrl = this._buildServerExtractStreamUrl(track);
+      const startedProgressive = await this._startChannelWithFadeIn(this.fullAudio, progressiveExtractUrl, 'full', reqId, desiredStartSec, 120);
       this.isLoadingTrack = false;
       this._setLoadingHintVisible(false);
       if (startedProgressive) {
@@ -1966,6 +1989,16 @@
         this._updatePlayerMetadataUI(track);
         this._startListenTracker();
         return true;
+      }
+
+      const fallbackPreviewUrl = track.previewUrl || track.preview_url || (this.prewarmedPreviewMap.get(String(track.id))?.previewUrl) || '';
+      if (fallbackPreviewUrl && /^https?:\/\//i.test(fallbackPreviewUrl)) {
+        const previewStarted = await this._startChannelWithFadeIn(this.previewAudio, fallbackPreviewUrl, 'preview', reqId, 0, 120);
+        if (previewStarted) {
+          this._updatePlayerMetadataUI(track);
+          this._startListenTracker();
+          return true;
+        }
       }
 
       return false;
@@ -1985,7 +2018,7 @@
               : (Number(this.previewAudio.currentTime) || 0);
             this.pendingUserSeekSec = null;
             try { this.previewAudio.pause(); } catch (_) {}
-            await this._startChannelWithFadeIn(this.fullAudio, blob, 'full', reqId, targetPos, 180);
+            await this._startChannelWithFadeIn(this.fullAudio, blob, 'full', reqId, targetPos, 150);
             this._setLoadingHintVisible(false);
           }
         }
@@ -2122,7 +2155,7 @@
     _storeFullBlobInGlobalCache(track, blob) {
       if (!track || !blob || blob.size < 60000) return;
       if (!window._fullTrackBlobCache) window._fullTrackBlobCache = new Map();
-      while (window._fullTrackBlobCache.size > 16) {
+      while (window._fullTrackBlobCache.size > 18) {
         const firstKey = window._fullTrackBlobCache.keys().next().value;
         if (firstKey) window._fullTrackBlobCache.delete(firstKey);
       }
@@ -2149,20 +2182,39 @@
 
       const promise = (async () => {
         try {
+          // 1. Si pertenece al Catálogo Top o Comunidad, descargar directo del CDN Release 3 (con fallback a Release 8)
           const directUrl3 = this._getDirectFullStreamUrl(track, '3');
           if (directUrl3) {
-            const r3 = await fetch(directUrl3);
-            if (r3.ok) {
-              const b3 = await r3.blob();
-              if (b3 && b3.size >= 80000) {
-                this._storeFullBlobInGlobalCache(track, b3);
-                return b3;
+            try {
+              const r3 = await fetch(directUrl3);
+              if (r3.ok) {
+                const b3 = await r3.blob();
+                if (b3 && b3.size >= 80000) {
+                  this._storeFullBlobInGlobalCache(track, b3);
+                  return b3;
+                }
               }
+            } catch (_) {}
+            const directUrl8 = this._getDirectFullStreamUrl(track, '8');
+            if (directUrl8 && directUrl8 !== directUrl3) {
+              try {
+                const r8 = await fetch(directUrl8);
+                if (r8.ok) {
+                  const b8 = await r8.blob();
+                  if (b8 && b8.size >= 80000) {
+                    this._storeFullBlobInGlobalCache(track, b8);
+                    return b8;
+                  }
+                }
+              } catch (_) {}
             }
           }
-          const extractUrl = this._buildServerExtractStreamUrl(track);
-          const resp = await fetch(extractUrl);
-          if (resp.ok) {
+
+          // 2. Carrera en paralelo (0ms) entre extracción del Servidor (/api/v1/audio/extract) y SoundCloud Cliente directo
+          const serverRaceTask = (async () => {
+            const extractUrl = this._buildServerExtractStreamUrl(track);
+            const resp = await fetch(extractUrl);
+            if (!resp.ok) throw new Error('Server extract HTTP ' + resp.status);
             const matchedVid = resp.headers.get('X-Video-Id');
             if (matchedVid && !track.videoId) {
               track.videoId = decodeURIComponent(matchedVid);
@@ -2172,10 +2224,35 @@
               track.durationSec = durHdr;
             }
             const blob = await resp.blob();
-            if (blob && blob.size >= 80000) {
-              this._storeFullBlobInGlobalCache(track, blob);
-              return blob;
-            }
+            if (!blob || blob.size < 80000) throw new Error('Blob too small');
+            return blob;
+          })();
+
+          const raceCompetitors = [serverRaceTask];
+
+          if (typeof window.searchSoundCloudFullClient === 'function' && typeof window.downloadSoundCloudFullTrackClient === 'function') {
+            const clientScTask = (async () => {
+              const scList = await window.searchSoundCloudFullClient(track.title || '', track.artist || '', 12);
+              if (!Array.isArray(scList) || scList.length === 0) throw new Error('No SC candidates');
+              for (const cand of scList.slice(0, 2)) {
+                if ((cand.authenticityScore || 0) < 62) break;
+                const scDl = await window.downloadSoundCloudFullTrackClient(cand._scRawTrack || cand.scTrackId);
+                if (scDl && scDl.blob && scDl.blob.size >= 100000) {
+                  if (scDl.durationSec && scDl.durationSec > 45) {
+                    track.durationSec = scDl.durationSec;
+                  }
+                  return scDl.blob;
+                }
+              }
+              throw new Error('SC download failed');
+            })();
+            raceCompetitors.push(clientScTask);
+          }
+
+          const winnerBlob = await Promise.any(raceCompetitors);
+          if (winnerBlob && winnerBlob.size >= 80000) {
+            this._storeFullBlobInGlobalCache(track, winnerBlob);
+            return winnerBlob;
           }
         } catch (_) {}
         return null;
@@ -2190,8 +2267,8 @@
     }
 
     /**
-     * Pre-calienta de forma ultraligera los metadatos/portadas de las próximas 2 tarjetas
-     * sin descargar archivos MP3 completos ni bloquear el hilo principal.
+     * Pre-calienta los metadatos, las letras sincronizadas de Karaoke y el audio completo
+     * de las próximas 2 tarjetas del mazo Para Ti para que al deslizar arranquen en 0ms.
      */
     async prewarmUpcomingCards(tracksSlice = []) {
       if (!Array.isArray(tracksSlice) || tracksSlice.length === 0) return;
@@ -2201,6 +2278,19 @@
         const tr = nextCards[i];
         if (!tr || !tr.id) continue;
         const idStr = String(tr.id);
+
+        if (this.karaokeService) {
+          this.karaokeService.fetchLyricsForTrack(tr, this.getTrackFullDurationSec(tr)).catch(() => {});
+        }
+
+        // Pre-cargar el audio completo de la siguiente tarjeta en segundo plano para arranque en 0ms al hacer swipe
+        if (i === 0) {
+          this.preloadFullTrackInBackground(tr).catch(() => {});
+        } else if (i === 1) {
+          setTimeout(() => {
+            this.preloadFullTrackInBackground(tr).catch(() => {});
+          }, 650);
+        }
 
         this.graphService.enrichTrackMetadata(tr).then((meta) => {
           const artUrl = (meta && meta.artworkUrl600) || tr.artworkUrl600 || tr.thumbnail || tr.cover_url;
