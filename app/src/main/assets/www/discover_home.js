@@ -1676,6 +1676,17 @@
       });
 
       // En cuanto fullAudio conoce su duración real, recalibrar la letra LRC para que vaya 100% sincronizada
+      let lastRecalDur = 0;
+      const onDurationKnown = () => {
+        if (!this.currentTrack) return;
+        const realDur = Number(this.fullAudio.duration);
+        if (!Number.isFinite(realDur) || realDur <= 38 || Math.abs(realDur - lastRecalDur) < 0.5) return;
+        lastRecalDur = realDur;
+        if (this.karaokeService) {
+          this.karaokeService.recalibrateForActualAudio(this.currentTrack, realDur).catch(() => {});
+        }
+      };
+      this.fullAudio.addEventListener('durationchange', onDurationKnown);
       this.fullAudio.addEventListener('loadedmetadata', () => {
         if (!this.currentTrack) return;
         const realDur = Number(this.fullAudio.duration);
