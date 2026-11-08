@@ -6424,24 +6424,31 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
-  max-width: 380px;
+  max-width: 400px;
   margin: 0 auto 12px;
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .np-view-switcher {
   display: inline-flex;
+  flex: 1;
+  min-width: 0;
+  justify-content: center;
   background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 999px;
   padding: 3px;
-  gap: 3px;
+  gap: 2px;
 }
 
 .np-view-tab {
-  padding: 5px 12px;
+  flex: 1;
+  min-width: 0;
+  justify-content: center;
+  padding: 6px 8px;
   border-radius: 999px;
   background: transparent;
   border: none;
@@ -6450,7 +6457,8 @@ body {
   font-weight: 700;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
+  white-space: nowrap;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -6828,10 +6836,12 @@ body {
 }
 
 .spotify-pl-hero {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 12px;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 10px;
+  margin-bottom: 10px;
+  width: 100%;
 }
 
 .spotify-pl-cover-box {

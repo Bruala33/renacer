@@ -5255,6 +5255,128 @@ app.get('/api/v1/audio/candidates', async (req, res) => {
   }
 });
 
+const EXTRACTED_AUDIO_BUFFER_CACHE = new Map();
+const MAX_EXTRACTED_BUFFER_CACHE = 16;
+
+function sendAudioBufferWithRange(req, res, cacheKey, buffer, contentType = 'audio/mpeg', extraHeaders = {}) {
+  if (cacheKey && buffer && buffer.length >= 60000) {
+    if (EXTRACTED_AUDIO_BUFFER_CACHE.has(cacheKey)) {
+      EXTRACTED_AUDIO_BUFFER_CACHE.delete(cacheKey);
+    }
+    EXTRACTED_AUDIO_BUFFER_CACHE.set(cacheKey, {
+      buffer,
+      contentType: contentType || 'audio/mpeg',
+      extraHeaders: extraHeaders || {}
+    });
+    while (EXTRACTED_AUDIO_BUFFER_CACHE.size > MAX_EXTRACTED_BUFFER_CACHE) {
+      const oldestKey = EXTRACTED_AUDIO_BUFFER_CACHE.keys().next().value;
+      if (oldestKey) EXTRACTED_AUDIO_BUFFER_CACHE.delete(oldestKey);
+    }
+  }
+
+  const total = buffer.length;
+  res.setHeader('Content-Type', contentType || 'audio/mpeg');
+  res.setHeader('Accept-Ranges', 'bytes');
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source, X-Video-Id, X-Audio-Duration, Content-Range, Accept-Ranges');
+  Object.entries(extraHeaders || {}).forEach(([k, v]) => {
+    if (v !== undefined && v !== null) res.setHeader(k, String(v));
+  });
+
+  const rangeHeader = req.headers.range;
+  if (rangeHeader) {
+    const parts = String(rangeHeader).replace(/bytes=/, '').split('-');
+    const start = parseInt(parts[0], 10);
+    const end = parts[1] ? Math.min(parseInt(parts[1], 10), total - 1) : total - 1;
+    if (!Number.isNaN(start) && start >= 0 && start < total && end >= start) {
+      const chunkSize = (end - start) + 1;
+      res.status(206);
+      res.setHeader('Content-Range', `bytes ${start}-${end}/${total}`);
+      res.setHeader('Content-Length', String(chunkSize));
+      return res.send(buffer.subarray(start, end + 1));
+    }
+  }
+
+  res.status(200);
+  res.setHeader('Content-Length', String(total));
+  return res.send(buffer);
+}
+
+app.get('/api/v1/search/youtube', async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    const title = String(req.query.title || '').trim();
+    const artist = String(req.query.artist || '').trim();
+    const queryStr = q || `${artist} ${title}`.trim();
+    if (!queryStr) return res.json({ results: [] });
+
+    const ytList = await searchYouTubeCandidatesServer(queryStr, title, artist, 0).catch(() => []);
+    const results = (ytList || []).map(c => ({
+      id: c.videoId,
+      videoId: c.videoId,
+      title: c.title || title || queryStr,
+      artist: c.artist || artist || '',
+      duration: c.durationSec || 0,
+      cover: c.thumbnail || (c.videoId ? `https://i.ytimg.com/vi/${c.videoId}/hqdefault.jpg` : '')
+    }));
+    return res.json({ results });
+  } catch (_) {
+    return res.json({ results: [] });
+  }
+});
+
+app.get('/api/v1/video/resolve', async (req, res) => {
+  try {
+    const title = String(req.query.title || '').trim();
+    const artist = String(req.query.artist || '').trim();
+    const q = String(req.query.q || `${artist} ${title}`).trim();
+    if (!q) return res.json({ ok: false });
+
+    const cleanTitle = title.replace(/\([^)]*\)|\[[^\]]*\]/g, '').trim();
+    const cleanArtist = artist.replace(/\([^)]*\)|\[[^\]]*\]/g, '').trim();
+    const lookupTerm = `${cleanArtist} ${cleanTitle}`.trim() || q;
+
+    const [itunesVideoRes, ytList] = await Promise.all([
+      fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(lookupTerm)}&entity=musicVideo&limit=6`, {
+        signal: AbortSignal.timeout(4500)
+      }).then(r => (r.ok ? r.json() : null)).catch(() => null),
+      searchYouTubeCandidatesServer(`${lookupTerm} official music video`, cleanTitle, cleanArtist, 0).catch(() => [])
+    ]);
+
+    let videoStreamUrl = '';
+    let artworkUrl = '';
+    if (itunesVideoRes && Array.isArray(itunesVideoRes.results)) {
+      const mvList = itunesVideoRes.results.filter(r => r && r.previewUrl && /\.(m4v|mp4)/i.test(r.previewUrl));
+      if (mvList.length > 0) {
+        const normArt = cleanArtist.toLowerCase();
+        const normTit = cleanTitle.toLowerCase();
+        const bestMv = mvList.find(r => {
+          const rArt = String(r.artistName || '').toLowerCase();
+          const rTit = String(r.trackName || '').toLowerCase();
+          return (!normArt || rArt.includes(normArt) || normArt.includes(rArt)) &&
+                 (!normTit || rTit.includes(normTit) || normTit.includes(rTit));
+        }) || mvList.find(r => !normArt || String(r.artistName || '').toLowerCase().includes(normArt)) || mvList[0];
+
+        if (bestMv) {
+          videoStreamUrl = bestMv.previewUrl;
+          artworkUrl = String(bestMv.artworkUrl100 || '').replace('100x100bb', '600x600bb');
+        }
+      }
+    }
+
+    const topYt = Array.isArray(ytList) && ytList.length > 0 ? ytList[0] : null;
+    return res.json({
+      ok: Boolean(videoStreamUrl || (topYt && topYt.videoId)),
+      videoStreamUrl: videoStreamUrl || '',
+      videoId: topYt ? topYt.videoId : '',
+      artworkUrl: artworkUrl || (topYt && topYt.videoId ? `https://i.ytimg.com/vi/${topYt.videoId}/hqdefault.jpg` : ''),
+      candidates: (ytList || []).map(c => c.videoId).filter(Boolean)
+    });
+  } catch (_) {
+    return res.json({ ok: false });
+  }
+});
+
 app.get('/api/v1/audio/extract', async (req, res) => {
   const rawQ = String(req.query.q || '').trim();
   const rawTitle = String(req.query.title || '').trim();
@@ -5262,11 +5384,17 @@ app.get('/api/v1/audio/extract', async (req, res) => {
   const rawVideoId = String(req.query.videoId || '').trim();
   const scTrackId = String(req.query.scTrackId || '').trim();
   const directAudioUrl = String(req.query.directUrl || '').trim();
-  const expectedDur = parseInt(String(req.query.durationSec || '0'), 10) || 0;
+  const expectedDur = parseInt(String(req.query.durationSec || req.query.duration || '0'), 10) || 0;
   const searchQuery = rawQ || `${rawTitle} ${rawArtist}`.trim();
 
   if (!searchQuery && !rawVideoId && !directAudioUrl && !scTrackId) {
     return res.status(400).json({ error: 'Falta parámetro de búsqueda q, videoId, scTrackId o directUrl' });
+  }
+
+  const cacheKey = `${rawVideoId}|${scTrackId}|${rawTitle.toLowerCase()}|${rawArtist.toLowerCase()}|${searchQuery.toLowerCase()}`;
+  if (EXTRACTED_AUDIO_BUFFER_CACHE.has(cacheKey)) {
+    const cached = EXTRACTED_AUDIO_BUFFER_CACHE.get(cacheKey);
+    return sendAudioBufferWithRange(req, res, cacheKey, cached.buffer, cached.contentType, cached.extraHeaders);
   }
 
   let resolvedMeta = {
@@ -5289,15 +5417,14 @@ app.get('/api/v1/audio/extract', async (req, res) => {
       if (bestStudioMatch && bestStudioMatch.videoId) {
         const ytStudioAudio = await tryExtractYouTubeStream(bestStudioMatch.videoId);
         if (ytStudioAudio && ytStudioAudio.buffer && ytStudioAudio.buffer.length >= 120000) {
-          res.setHeader('Content-Type', ytStudioAudio.contentType || 'audio/mpeg');
-          res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source, X-Video-Id, X-Audio-Duration');
-          res.setHeader('X-Song-Title', encodeURIComponent(rawTitle || bestStudioMatch.title || resolvedMeta.title));
-          res.setHeader('X-Song-Artist', encodeURIComponent(rawArtist || bestStudioMatch.artist || resolvedMeta.artist));
-          res.setHeader('X-Song-Cover', encodeURIComponent(resolvedMeta.thumbnail || bestStudioMatch.thumbnail || ''));
-          res.setHeader('X-Audio-Source', encodeURIComponent(ytStudioAudio.source || 'YouTube Studio Master MP3'));
-          res.setHeader('X-Video-Id', encodeURIComponent(bestStudioMatch.videoId));
-          res.setHeader('X-Audio-Duration', String(bestStudioMatch.durationSec || expectedDur));
-          return res.send(ytStudioAudio.buffer);
+          return sendAudioBufferWithRange(req, res, cacheKey, ytStudioAudio.buffer, ytStudioAudio.contentType || 'audio/mpeg', {
+            'X-Song-Title': encodeURIComponent(rawTitle || bestStudioMatch.title || resolvedMeta.title),
+            'X-Song-Artist': encodeURIComponent(rawArtist || bestStudioMatch.artist || resolvedMeta.artist),
+            'X-Song-Cover': encodeURIComponent(resolvedMeta.thumbnail || bestStudioMatch.thumbnail || ''),
+            'X-Audio-Source': encodeURIComponent(ytStudioAudio.source || 'YouTube Studio Master MP3'),
+            'X-Video-Id': encodeURIComponent(bestStudioMatch.videoId),
+            'X-Audio-Duration': String(bestStudioMatch.durationSec || expectedDur)
+          });
         }
       }
     }
@@ -5306,17 +5433,14 @@ app.get('/api/v1/audio/extract', async (req, res) => {
     if (resolvedMeta.videoId) {
       const ytDirect = await tryExtractYouTubeStream(resolvedMeta.videoId);
       if (ytDirect && ytDirect.buffer && ytDirect.buffer.length >= 120000) {
-        res.setHeader('Content-Type', ytDirect.contentType || 'audio/mpeg');
-        res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source, X-Video-Id, X-Audio-Duration');
-        res.setHeader('X-Song-Title', encodeURIComponent(rawTitle || ytDirect.title || resolvedMeta.title));
-        res.setHeader('X-Song-Artist', encodeURIComponent(rawArtist || ytDirect.artist || resolvedMeta.artist));
-        res.setHeader('X-Song-Cover', encodeURIComponent(resolvedMeta.thumbnail || ytDirect.thumbnail || ''));
-        res.setHeader('X-Audio-Source', encodeURIComponent(ytDirect.source || 'YouTube Studio Master MP3'));
-        res.setHeader('X-Video-Id', encodeURIComponent(resolvedMeta.videoId));
-        if (ytDirect.durationSec || expectedDur) {
-          res.setHeader('X-Audio-Duration', String(ytDirect.durationSec || expectedDur));
-        }
-        return res.send(ytDirect.buffer);
+        return sendAudioBufferWithRange(req, res, cacheKey, ytDirect.buffer, ytDirect.contentType || 'audio/mpeg', {
+          'X-Song-Title': encodeURIComponent(rawTitle || ytDirect.title || resolvedMeta.title),
+          'X-Song-Artist': encodeURIComponent(rawArtist || ytDirect.artist || resolvedMeta.artist),
+          'X-Song-Cover': encodeURIComponent(resolvedMeta.thumbnail || ytDirect.thumbnail || ''),
+          'X-Audio-Source': encodeURIComponent(ytDirect.source || 'YouTube Studio Master MP3'),
+          'X-Video-Id': encodeURIComponent(resolvedMeta.videoId),
+          'X-Audio-Duration': String(ytDirect.durationSec || expectedDur || 180)
+        });
       }
     }
 
@@ -5324,14 +5448,13 @@ app.get('/api/v1/audio/extract', async (req, res) => {
     if (scTrackId) {
       const scDirect = await extractSoundCloudFullTrackServer(searchQuery, rawTitle, rawArtist, scTrackId);
       if (scDirect && scDirect.buffer && scDirect.buffer.length >= 120000) {
-        res.setHeader('Content-Type', scDirect.contentType || 'audio/mpeg');
-        res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source, X-Audio-Duration');
-        res.setHeader('X-Song-Title', encodeURIComponent(rawTitle || scDirect.title || resolvedMeta.title));
-        res.setHeader('X-Song-Artist', encodeURIComponent(rawArtist || scDirect.artist || resolvedMeta.artist));
-        res.setHeader('X-Song-Cover', encodeURIComponent(resolvedMeta.thumbnail || scDirect.thumbnail || ''));
-        res.setHeader('X-Audio-Source', encodeURIComponent(scDirect.source || 'SoundCloud Full Audio'));
-        res.setHeader('X-Audio-Duration', String(scDirect.durationSec || 180));
-        return res.send(scDirect.buffer);
+        return sendAudioBufferWithRange(req, res, cacheKey, scDirect.buffer, scDirect.contentType || 'audio/mpeg', {
+          'X-Song-Title': encodeURIComponent(rawTitle || scDirect.title || resolvedMeta.title),
+          'X-Song-Artist': encodeURIComponent(rawArtist || scDirect.artist || resolvedMeta.artist),
+          'X-Song-Cover': encodeURIComponent(resolvedMeta.thumbnail || scDirect.thumbnail || ''),
+          'X-Audio-Source': encodeURIComponent(scDirect.source || 'SoundCloud Full Audio'),
+          'X-Audio-Duration': String(scDirect.durationSec || 180)
+        });
       }
     }
 
@@ -5341,13 +5464,12 @@ app.get('/api/v1/audio/extract', async (req, res) => {
       try {
         const dl = await fetchAudioBufferSafe(directAudioUrl, 7500);
         if (dl && dl.buffer && dl.buffer.length >= 120000) {
-          res.setHeader('Content-Type', dl.contentType || 'audio/mpeg');
-          res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source');
-          res.setHeader('X-Song-Title', encodeURIComponent(resolvedMeta.title));
-          res.setHeader('X-Song-Artist', encodeURIComponent(resolvedMeta.artist));
-          res.setHeader('X-Song-Cover', encodeURIComponent(resolvedMeta.thumbnail));
-          res.setHeader('X-Audio-Source', encodeURIComponent('Grabación Completa'));
-          return res.send(dl.buffer);
+          return sendAudioBufferWithRange(req, res, cacheKey, dl.buffer, dl.contentType || 'audio/mpeg', {
+            'X-Song-Title': encodeURIComponent(resolvedMeta.title),
+            'X-Song-Artist': encodeURIComponent(resolvedMeta.artist),
+            'X-Song-Cover': encodeURIComponent(resolvedMeta.thumbnail),
+            'X-Audio-Source': encodeURIComponent('Grabación Completa')
+          });
         }
       } catch (_) {}
     }
@@ -5365,15 +5487,14 @@ app.get('/api/v1/audio/extract', async (req, res) => {
         if (ytCand.authScore < 35) continue;
         const ytAudio = await tryExtractYouTubeStream(ytCand.videoId);
         if (ytAudio && ytAudio.buffer && ytAudio.buffer.length >= 120000) {
-          res.setHeader('Content-Type', ytAudio.contentType || 'audio/mpeg');
-          res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source, X-Video-Id, X-Audio-Duration');
-          res.setHeader('X-Song-Title', encodeURIComponent(rawTitle || ytCand.title || resolvedMeta.title));
-          res.setHeader('X-Song-Artist', encodeURIComponent(rawArtist || ytCand.artist || resolvedMeta.artist));
-          res.setHeader('X-Song-Cover', encodeURIComponent(resolvedMeta.thumbnail || ytCand.thumbnail || ''));
-          res.setHeader('X-Audio-Source', encodeURIComponent(ytAudio.source || 'YouTube Studio Master MP3'));
-          res.setHeader('X-Video-Id', encodeURIComponent(ytCand.videoId));
-          res.setHeader('X-Audio-Duration', String(ytCand.durationSec || expectedDur || 180));
-          return res.send(ytAudio.buffer);
+          return sendAudioBufferWithRange(req, res, cacheKey, ytAudio.buffer, ytAudio.contentType || 'audio/mpeg', {
+            'X-Song-Title': encodeURIComponent(rawTitle || ytCand.title || resolvedMeta.title),
+            'X-Song-Artist': encodeURIComponent(rawArtist || ytCand.artist || resolvedMeta.artist),
+            'X-Song-Cover': encodeURIComponent(resolvedMeta.thumbnail || ytCand.thumbnail || ''),
+            'X-Audio-Source': encodeURIComponent(ytAudio.source || 'YouTube Studio Master MP3'),
+            'X-Video-Id': encodeURIComponent(ytCand.videoId),
+            'X-Audio-Duration': String(ytCand.durationSec || expectedDur || 180)
+          });
         }
       }
     }
@@ -5382,14 +5503,13 @@ app.get('/api/v1/audio/extract', async (req, res) => {
     if (searchQuery) {
       const scFull = await extractSoundCloudFullTrackServer(searchQuery, rawTitle, rawArtist);
       if (scFull && scFull.buffer && scFull.buffer.length >= 350000) {
-        res.setHeader('Content-Type', scFull.contentType || 'audio/mpeg');
-        res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source, X-Audio-Duration');
-        res.setHeader('X-Song-Title', encodeURIComponent(rawTitle || scFull.title || resolvedMeta.title));
-        res.setHeader('X-Song-Artist', encodeURIComponent(rawArtist || scFull.artist || resolvedMeta.artist));
-        res.setHeader('X-Song-Cover', encodeURIComponent(resolvedMeta.thumbnail || scFull.thumbnail || ''));
-        res.setHeader('X-Audio-Source', encodeURIComponent(scFull.source || 'SoundCloud Full Audio'));
-        res.setHeader('X-Audio-Duration', String(scFull.durationSec || 180));
-        return res.send(scFull.buffer);
+        return sendAudioBufferWithRange(req, res, cacheKey, scFull.buffer, scFull.contentType || 'audio/mpeg', {
+          'X-Song-Title': encodeURIComponent(rawTitle || scFull.title || resolvedMeta.title),
+          'X-Song-Artist': encodeURIComponent(rawArtist || scFull.artist || resolvedMeta.artist),
+          'X-Song-Cover': encodeURIComponent(resolvedMeta.thumbnail || scFull.thumbnail || ''),
+          'X-Audio-Source': encodeURIComponent(scFull.source || 'SoundCloud Full Audio'),
+          'X-Audio-Duration': String(scFull.durationSec || 180)
+        });
       }
     }
 
@@ -5416,13 +5536,12 @@ app.get('/api/v1/audio/extract', async (req, res) => {
               const dl = await fetchAudioBufferSafe(streamUrl, 6500);
               if (dl && dl.buffer && dl.buffer.length >= 350000) {
                 const art = tr.artwork?.['480x480'] || tr.artwork?.['150x150'] || resolvedMeta.thumbnail;
-                res.setHeader('Content-Type', dl.contentType || 'audio/mpeg');
-                res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source');
-                res.setHeader('X-Song-Title', encodeURIComponent(tr.title || resolvedMeta.title));
-                res.setHeader('X-Song-Artist', encodeURIComponent(tr.user?.name || resolvedMeta.artist));
-                res.setHeader('X-Song-Cover', encodeURIComponent(art || ''));
-                res.setHeader('X-Audio-Source', encodeURIComponent('Audius Full Audio'));
-                return res.send(dl.buffer);
+                return sendAudioBufferWithRange(req, res, cacheKey, dl.buffer, dl.contentType || 'audio/mpeg', {
+                  'X-Song-Title': encodeURIComponent(tr.title || resolvedMeta.title),
+                  'X-Song-Artist': encodeURIComponent(tr.user?.name || resolvedMeta.artist),
+                  'X-Song-Cover': encodeURIComponent(art || ''),
+                  'X-Audio-Source': encodeURIComponent('Audius Full Audio')
+                });
               }
             }
           }

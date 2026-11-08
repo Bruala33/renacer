@@ -20,8 +20,17 @@
   const STORAGE_KEY_PLAYER_STATE = 'piano_continuous_player_state_v1';
   const THREE_MONTHS_COOLDOWN_MS = 90 * 24 * 60 * 60 * 1000;
 
+  const _NORM_TITLE_CACHE = new Map();
+  const _NORM_ARTIST_CACHE = new Map();
+
   function normalizeSongPart(str, isArtist = false) {
-    let s = String(str || '')
+    const raw = String(str || '');
+    if (!raw) return '';
+    const cache = isArtist ? _NORM_ARTIST_CACHE : _NORM_TITLE_CACHE;
+    const hit = cache.get(raw);
+    if (hit !== undefined) return hit;
+
+    let s = raw
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
@@ -37,21 +46,33 @@
       const parts = s.split(' - ').map(p => p.trim()).filter(Boolean);
       if (parts.length >= 2) s = parts[parts.length - 1];
     }
-    return s.replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+    const res = s.replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+    if (cache.size > 6000) cache.clear();
+    cache.set(raw, res);
+    return res;
   }
 
-  function getCanonicalSongSignature(title, artist) {
+  function getCanonicalSongSignature(title, artist, trackObj = null) {
+    if (trackObj && typeof trackObj === 'object' && trackObj._canonSig !== undefined) {
+      return trackObj._canonSig;
+    }
     let cleanTitle = normalizeSongPart(title, false);
     const cleanArtist = normalizeSongPart(artist, true);
     if (cleanArtist && cleanTitle.startsWith(cleanArtist + ' ')) {
       cleanTitle = cleanTitle.slice(cleanArtist.length).trim();
     }
-    if (!cleanTitle) return '';
-    return `${cleanTitle}__${cleanArtist || 'any'}`;
+    const sig = cleanTitle ? `${cleanTitle}__${cleanArtist || 'any'}` : '';
+    if (trackObj && typeof trackObj === 'object') {
+      trackObj._normTitle = cleanTitle;
+      trackObj._normArtist = cleanArtist;
+      trackObj._canonSig = sig;
+    }
+    return sig;
   }
 
   function areSameCanonicalSong(trackA, trackB) {
     if (!trackA || !trackB) return false;
+    if (trackA === trackB) return true;
     const idA = String(trackA.id || '').trim();
     const idB = String(trackB.id || '').trim();
     if (idA && idB && idA === idB) return true;
@@ -59,12 +80,16 @@
     const vidB = String(trackB.videoId || '').trim();
     if (vidA && vidB && vidA === vidB) return true;
 
-    const tA = normalizeSongPart(trackA.title, false);
-    const tB = normalizeSongPart(trackB.title, false);
+    const sigA = getCanonicalSongSignature(trackA.title, trackA.artist, trackA);
+    const sigB = getCanonicalSongSignature(trackB.title, trackB.artist, trackB);
+    if (sigA && sigB && sigA === sigB) return true;
+
+    const tA = trackA._normTitle !== undefined ? trackA._normTitle : normalizeSongPart(trackA.title, false);
+    const tB = trackB._normTitle !== undefined ? trackB._normTitle : normalizeSongPart(trackB.title, false);
     if (!tA || !tB) return false;
 
-    const aA = normalizeSongPart(trackA.artist, true);
-    const aB = normalizeSongPart(trackB.artist, true);
+    const aA = trackA._normArtist !== undefined ? trackA._normArtist : normalizeSongPart(trackA.artist, true);
+    const aB = trackB._normArtist !== undefined ? trackB._normArtist : normalizeSongPart(trackB.artist, true);
     const artistMatch = (!aA || !aB || aA === 'youtube' || aB === 'youtube' || aA === 'artista' || aB === 'artista')
       ? true
       : (aA === aB || aA.includes(aB) || aB.includes(aA));
@@ -75,6 +100,43 @@
       return true;
     }
     return false;
+  }
+
+  function buildTrackListLookupIndex(list) {
+    if (!Array.isArray(list)) {
+      return { ids: new Set(), vids: new Set(), sigs: new Set(), titles: new Set(), artists: new Set() };
+    }
+    const firstId = list.length > 0 ? String(list[0]?.id || '') : '';
+    const lastId = list.length > 0 ? String(list[list.length - 1]?.id || '') : '';
+    const cacheStamp = `${list.length}:${firstId}:${lastId}`;
+    if (list._fastLookupIndex && list._fastLookupStamp === cacheStamp) {
+      return list._fastLookupIndex;
+    }
+    const ids = new Set();
+    const vids = new Set();
+    const sigs = new Set();
+    const titles = new Set();
+    const artists = new Set();
+    for (let i = 0; i < list.length; i++) {
+      const item = list[i];
+      if (!item) continue;
+      const id = String(item.id || '').trim();
+      if (id) ids.add(id);
+      const vid = String(item.videoId || '').trim();
+      if (vid) vids.add(vid);
+      const sig = getCanonicalSongSignature(item.title, item.artist, item);
+      if (sig) sigs.add(sig);
+      const nt = item._normTitle || normalizeSongPart(item.title, false);
+      if (nt) titles.add(nt);
+      const na = item._normArtist || normalizeSongPart(item.artist, true);
+      if (na && na.length >= 2) artists.add(na);
+    }
+    const idxObj = { ids, vids, sigs, titles, artists };
+    try {
+      Object.defineProperty(list, '_fastLookupIndex', { value: idxObj, writable: true, configurable: true });
+      Object.defineProperty(list, '_fastLookupStamp', { value: cacheStamp, writable: true, configurable: true });
+    } catch (_) {}
+    return idxObj;
   }
 
   // =========================================================================
@@ -511,12 +573,13 @@
       const id = String(track.id || '').trim();
       if (id) this.cooldownMap.set(`id:${id}`, now);
       if (track.videoId) this.cooldownMap.set(`vid:${String(track.videoId).trim()}`, now);
-      const sig = getCanonicalSongSignature(track.title, track.artist);
+      const sig = getCanonicalSongSignature(track.title, track.artist, track);
       if (sig) this.cooldownMap.set(`sig:${sig}`, now);
     }
 
     isTrackOnCooldown(track) {
       if (!track) return false;
+      if (this.cooldownMap.size === 0) return false;
       const now = Date.now();
       const checkKey = (k) => {
         if (!k || !this.cooldownMap.has(k)) return false;
@@ -528,7 +591,7 @@
       const id = String(track.id || '').trim();
       if (id && checkKey(`id:${id}`)) return true;
       if (track.videoId && checkKey(`vid:${String(track.videoId).trim()}`)) return true;
-      const sig = getCanonicalSongSignature(track.title, track.artist);
+      const sig = getCanonicalSongSignature(track.title, track.artist, track);
       if (sig && checkKey(`sig:${sig}`)) return true;
       return false;
     }
@@ -797,13 +860,12 @@
       const cosSim = this.cosineSimilarity(effCentroid, trackVec, true);
 
       let artistBonus = 0;
-      const trackArtist = String(track.artist || '').toLowerCase().trim();
-      if (trackArtist && plTracks.length > 0) {
-        const sameArtist = plTracks.some(pt => {
-          const pa = String(pt?.artist || '').toLowerCase().trim();
-          return pa && (pa.includes(trackArtist) || trackArtist.includes(pa));
-        });
-        if (sameArtist) artistBonus = 0.16;
+      if (plTracks.length > 0) {
+        const idxObj = buildTrackListLookupIndex(plTracks);
+        const normArt = track._normArtist !== undefined ? track._normArtist : normalizeSongPart(track.artist, true);
+        if (normArt && idxObj.artists.has(normArt)) {
+          artistBonus = 0.16;
+        }
       }
 
       let penalty = 0;
@@ -1690,12 +1752,56 @@
      * Obtiene la URL directa de streaming completo para pistas del catálogo Top (90 canciones CDN)
      * o Comunidad, permitiendo arrancar el audio completo desde 0:00 al instante y 100% sincronizado con LRC.
      */
-    _getDirectFullStreamUrl(track) {
+    _findMatchingTopCatalogSong(track) {
+      if (!track) return null;
+      if (track._matchedTopCatalogSong !== undefined) return track._matchedTopCatalogSong;
+      if (typeof window.getFormattedTopSongsCatalog !== 'function') return null;
+      const topList = window.getFormattedTopSongsCatalog() || [];
+      if (!Array.isArray(topList) || topList.length === 0) return null;
+
+      if (!window._topCatalogSigLookupMap || window._topCatalogSigLookupSize !== topList.length) {
+        const map = new Map();
+        for (const s of topList) {
+          if (!s) continue;
+          const id = String(s.id || '').trim();
+          const rawId = String(s.raw_id || id.replace(/^top_/, '')).trim();
+          if (id) map.set(`id:${id}`, s);
+          if (rawId) map.set(`raw:${rawId}`, s);
+          const sig = getCanonicalSongSignature(s.title, s.artist, s);
+          if (sig && !map.has(`sig:${sig}`)) map.set(`sig:${sig}`, s);
+        }
+        window._topCatalogSigLookupMap = map;
+        window._topCatalogSigLookupSize = topList.length;
+      }
+
+      const id = String(track.id || '').trim();
+      const rawId = String(track.raw_id || id.replace(/^top_/, '')).trim();
+      const sig = getCanonicalSongSignature(track.title, track.artist, track);
+      const matched =
+        (id && window._topCatalogSigLookupMap.get(`id:${id}`)) ||
+        (rawId && window._topCatalogSigLookupMap.get(`raw:${rawId}`)) ||
+        (sig && window._topCatalogSigLookupMap.get(`sig:${sig}`)) ||
+        null;
+
+      track._matchedTopCatalogSong = matched;
+      return matched;
+    }
+
+    /**
+     * Obtiene la URL directa de streaming completo para pistas del catálogo Top (Release 3 / Release 8 CDN)
+     * o Comunidad, permitiendo arrancar el audio completo desde 0:00 al instante y 100% sincronizado con LRC.
+     */
+    _getDirectFullStreamUrl(track, preferReleaseTag = '3') {
       if (!track) return '';
-      if (track.audio_url || String(track.id || '').startsWith('top_') || track.is_top_song) {
-        const rawId = String(track.raw_id || track.id || '').replace(/^top_/, '');
-        const audioFilename = track.audio_url || `${rawId}.mp3`;
-        const cUrl = `https://github.com/Bruala33/renacer/releases/download/8/${audioFilename}`;
+      const matchedTop = (track.audio_url || String(track.id || '').startsWith('top_') || track.is_top_song)
+        ? track
+        : this._findMatchingTopCatalogSong(track);
+
+      if (matchedTop) {
+        const rawId = String(matchedTop.raw_id || matchedTop.id || '').replace(/^top_/, '');
+        const audioFilename = matchedTop.audio_url || `${rawId}.mp3`;
+        const tag = preferReleaseTag || '3';
+        const cUrl = `https://github.com/Bruala33/renacer/releases/download/${tag}/${audioFilename}`;
         return `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(cUrl)}`;
       }
       if (String(track.id || '').startsWith('comm_')) {
@@ -1706,9 +1812,18 @@
       return '';
     }
 
+    _buildServerExtractStreamUrl(track) {
+      if (!track) return '';
+      const baseUrl = typeof window.getApiBaseUrl === 'function' ? window.getApiBaseUrl() : '';
+      const expectedStudioDur = Number(track.durationSec) || 0;
+      const vidParam = track.videoId ? `&videoId=${encodeURIComponent(track.videoId)}` : '';
+      const durParam = expectedStudioDur > 45 ? `&durationSec=${Math.round(expectedStudioDur)}` : '';
+      return `${baseUrl}/api/v1/audio/extract?title=${encodeURIComponent(track.title || '')}&artist=${encodeURIComponent(track.artist || '')}${vidParam}${durParam}`;
+    }
+
     /**
-     * Reproduce una canción mostrando desde el segundo 0 la barra de duración entera,
-     * sincronizando exactamente con las letras de Karaoke y silenciando de inmediato la música del menú.
+     * Reproduce una canción completa desde 0:00 (o desde startOffsetSec),
+     * sincronizando al 100% con las letras de Karaoke y permitiendo hacer seek libremente en toda la barra.
      */
     async playTrack(track, options = {}) {
       if (!track) return false;
@@ -1720,7 +1835,6 @@
       this.isCrossfading = false;
       this.pendingUserSeekSec = null;
 
-      // Silenciar de forma inmediata y estricta cualquier música del menú
       if (typeof window.pauseMenuAmbientMusic === 'function') {
         window.pauseMenuAmbientMusic();
       }
@@ -1730,7 +1844,6 @@
 
       this._stopBothChannelsImmediate();
 
-      // Mostrar siempre la barra inferior de reproducción (#spotifyMiniPlayer) en cualquier pestaña
       const miniEl = document.getElementById('spotifyMiniPlayer');
       if (miniEl) {
         miniEl.style.transform = '';
@@ -1762,7 +1875,6 @@
         this.karaokeService.loadAndRenderTrackLyrics(track, fullDur).catch(() => {});
       }
 
-      // Sincronizar el videoclip si el modo Videoclip está activo
       if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncVideoclipIfActive === 'function') {
         window.DiscoverHomeApp.syncVideoclipIfActive(track);
       }
@@ -1773,7 +1885,7 @@
         this.fullTrackBlob = cachedFullBlob;
         this.fullTrackReady = true;
         this._setLoadingHintVisible(false);
-        const startedFull = await this._startChannelWithFadeIn(this.fullAudio, cachedFullBlob, 'full', reqId, desiredStartSec, 180);
+        const startedFull = await this._startChannelWithFadeIn(this.fullAudio, cachedFullBlob, 'full', reqId, desiredStartSec, 150);
         this.isLoadingTrack = false;
         if (startedFull) {
           this._updatePlayerMetadataUI(track);
@@ -1782,11 +1894,18 @@
         }
       }
 
-      // 2. Si es canción Top o Comunidad con URL de streaming directo: transmitir por HTTP Range directamente sin descargar el Blob entero
-      const directStreamUrl = this._getDirectFullStreamUrl(track);
-      if (directStreamUrl) {
+      // 2. Si es canción del Catálogo Top (o coincide por título+artista con una del Catálogo Top) o Comunidad:
+      // transmitir el MP3 completo desde 0:00 usando Release 3 (y fallback automático a Release 8)
+      const directStreamUrl3 = this._getDirectFullStreamUrl(track, '3');
+      if (directStreamUrl3) {
         this._setLoadingHintVisible(false);
-        const startedDirectFull = await this._startChannelWithFadeIn(this.fullAudio, directStreamUrl, 'full', reqId, desiredStartSec, 180);
+        let startedDirectFull = await this._startChannelWithFadeIn(this.fullAudio, directStreamUrl3, 'full', reqId, desiredStartSec, 150);
+        if (!startedDirectFull && reqId === this._playRequestId) {
+          const directStreamUrl8 = this._getDirectFullStreamUrl(track, '8');
+          if (directStreamUrl8 && directStreamUrl8 !== directStreamUrl3) {
+            startedDirectFull = await this._startChannelWithFadeIn(this.fullAudio, directStreamUrl8, 'full', reqId, desiredStartSec, 150);
+          }
+        }
         if (startedDirectFull) {
           this.fullTrackReady = true;
           this.isLoadingTrack = false;
@@ -1796,7 +1915,8 @@
         }
       }
 
-      // 3. Reproducción instantánea (<120ms) mediante stream de preview CDN (iTunes / Deezer) o stream progresivo del servidor
+      // 3. Para canciones externas (YouTube / Playlists / Buscador):
+      // Arrancar preview instantáneo mientras en paralelo se prepara el stream completo 0:00-fin con soporte HTTP 206 Range
       let previewUrl = track.previewUrl || track.preview_url || '';
       const prewarmed = this.prewarmedPreviewMap.get(String(track.id));
       if (prewarmed && prewarmed.previewUrl) {
@@ -1806,7 +1926,7 @@
       if (!previewUrl || String(previewUrl).startsWith('yt_full://')) {
         const enriched = await Promise.race([
           this.graphService.enrichTrackMetadata(track).catch(() => null),
-          new Promise(r => setTimeout(() => r(null), 550))
+          new Promise(r => setTimeout(() => r(null), 480))
         ]);
         if (reqId !== this._playRequestId) return false;
         if (enriched && enriched.previewUrl && !previewUrl) {
@@ -1820,28 +1940,25 @@
         }
       }
 
-      const baseUrl = typeof window.getApiBaseUrl === 'function' ? window.getApiBaseUrl() : '';
-      const expectedStudioDur = Number(track.durationSec) || 0;
-      const vidParam = (!expectedStudioDur && track.videoId) ? `&videoId=${encodeURIComponent(track.videoId)}` : '';
-      const durParam = expectedStudioDur > 45 ? `&durationSec=${Math.round(expectedStudioDur)}` : '';
-      const progressiveExtractUrl = `${baseUrl}/api/v1/audio/extract?title=${encodeURIComponent(track.title || '')}&artist=${encodeURIComponent(track.artist || '')}${vidParam}${durParam}`;
+      const progressiveExtractUrl = this._buildServerExtractStreamUrl(track);
 
-      if (previewUrl && /^https?:\/\//i.test(previewUrl) && !options.forceFullStream) {
-        const clipStartOffset = desiredStartSec > 0 ? desiredStartSec : 30;
-        this.previewBaseOffsetSec = clipStartOffset;
+      if (previewUrl && /^https?:\/\//i.test(previewUrl) && !options.forceFullStream && desiredStartSec === 0) {
+        this.previewBaseOffsetSec = 0;
         this._setLoadingHintVisible(false);
-        const previewStarted = await this._startChannelWithFadeIn(this.previewAudio, previewUrl, 'preview', reqId, 0, 160);
+        const previewStarted = await this._startChannelWithFadeIn(this.previewAudio, previewUrl, 'preview', reqId, 0, 140);
         if (previewStarted) {
           this.isLoadingTrack = false;
           this._updatePlayerMetadataUI(track);
           this._startListenTracker();
+          // Preparar y hacer handoff silencioso al audio completo en segundo plano para que no se corte a los 30s y vaya sincronizado con el karaoke
+          this._upgradeActivePreviewToFullTrackInBackground(track, reqId);
           return true;
         }
       }
 
-      // 4. Streaming progresivo directo desde /api/v1/audio/extract sin descargar el archivo entero a un Blob en RAM
+      // 4. Streaming completo directo desde /api/v1/audio/extract (con soporte HTTP 206 Partial Content para seek instantáneo)
       this._setLoadingHintVisible(true);
-      const startedProgressive = await this._startChannelWithFadeIn(this.fullAudio, progressiveExtractUrl, 'full', reqId, desiredStartSec, 180);
+      const startedProgressive = await this._startChannelWithFadeIn(this.fullAudio, progressiveExtractUrl, 'full', reqId, desiredStartSec, 160);
       this.isLoadingTrack = false;
       this._setLoadingHintVisible(false);
       if (startedProgressive) {
@@ -1852,6 +1969,27 @@
       }
 
       return false;
+    }
+
+    async _upgradeActivePreviewToFullTrackInBackground(track, reqId) {
+      if (!track || reqId !== this._playRequestId) return;
+      try {
+        const blob = await this.preloadFullTrackInBackground(track);
+        if (reqId !== this._playRequestId || !this.currentTrack || this.currentTrack.id !== track.id) return;
+        if (blob && blob.size >= 80000) {
+          this.fullTrackBlob = blob;
+          this.fullTrackReady = true;
+          if (this.activeSourceType === 'preview' && this.isPlaying()) {
+            const targetPos = this.pendingUserSeekSec !== null
+              ? this.pendingUserSeekSec
+              : (Number(this.previewAudio.currentTime) || 0);
+            this.pendingUserSeekSec = null;
+            try { this.previewAudio.pause(); } catch (_) {}
+            await this._startChannelWithFadeIn(this.fullAudio, blob, 'full', reqId, targetPos, 180);
+            this._setLoadingHintVisible(false);
+          }
+        }
+      } catch (_) {}
     }
 
     async _startChannelWithFadeIn(audioEl, srcOrBlob, channelType, reqId, startSec = 0, fadeInMs = 260) {
@@ -1926,22 +2064,44 @@
     async _performTransparentHandoffToFullTrack(targetPositionSec = 0) {
       if (this.isCrossfading || !this.currentTrack) return;
       const reqId = this._playRequestId;
-      if (!this.fullAudio.src || this.activeSourceType !== 'full') {
-        const directUrl = this._getDirectFullStreamUrl(this.currentTrack);
-        const baseUrl = typeof window.getApiBaseUrl === 'function' ? window.getApiBaseUrl() : '';
-        const expectedStudioDur = Number(this.currentTrack.durationSec) || 0;
-        const vidParam = (!expectedStudioDur && this.currentTrack.videoId) ? `&videoId=${encodeURIComponent(this.currentTrack.videoId)}` : '';
-        const durParam = expectedStudioDur > 45 ? `&durationSec=${Math.round(expectedStudioDur)}` : '';
-        const streamUrl = directUrl || `${baseUrl}/api/v1/audio/extract?title=${encodeURIComponent(this.currentTrack.title || '')}&artist=${encodeURIComponent(this.currentTrack.artist || '')}${vidParam}${durParam}`;
+      this.pendingUserSeekSec = targetPositionSec;
+
+      const cachedBlob = this._getCachedFullBlobForTrack(this.currentTrack);
+      if (cachedBlob && cachedBlob.size >= 80000) {
         try { this.previewAudio.pause(); } catch (_) {}
-        await this._startChannelWithFadeIn(this.fullAudio, streamUrl, 'full', reqId, targetPositionSec, 180);
+        await this._startChannelWithFadeIn(this.fullAudio, cachedBlob, 'full', reqId, targetPositionSec, 150);
         this.fullTrackReady = true;
+        this.pendingUserSeekSec = null;
+        this._setLoadingHintVisible(false);
+        return;
+      }
+
+      if (!this.fullAudio.src || this.activeSourceType !== 'full') {
+        const directUrl3 = this._getDirectFullStreamUrl(this.currentTrack, '3');
+        const streamUrl = directUrl3 || this._buildServerExtractStreamUrl(this.currentTrack);
+        try { this.previewAudio.pause(); } catch (_) {}
+        let ok = await this._startChannelWithFadeIn(this.fullAudio, streamUrl, 'full', reqId, targetPositionSec, 150);
+        if (!ok && directUrl3 && reqId === this._playRequestId) {
+          const directUrl8 = this._getDirectFullStreamUrl(this.currentTrack, '8');
+          if (directUrl8) {
+            ok = await this._startChannelWithFadeIn(this.fullAudio, directUrl8, 'full', reqId, targetPositionSec, 150);
+          }
+        }
+        if (!ok && reqId === this._playRequestId) {
+          const blob = await this.preloadFullTrackInBackground(this.currentTrack);
+          if (blob && reqId === this._playRequestId) {
+            await this._startChannelWithFadeIn(this.fullAudio, blob, 'full', reqId, targetPositionSec, 150);
+          }
+        }
+        this.fullTrackReady = true;
+        this.pendingUserSeekSec = null;
         this._setLoadingHintVisible(false);
         return;
       }
       try {
         this.fullAudio.currentTime = Math.max(0, targetPositionSec);
       } catch (_) {}
+      this._setLoadingHintVisible(false);
     }
 
     _getCachedFullBlobForTrack(track) {
@@ -1962,6 +2122,10 @@
     _storeFullBlobInGlobalCache(track, blob) {
       if (!track || !blob || blob.size < 60000) return;
       if (!window._fullTrackBlobCache) window._fullTrackBlobCache = new Map();
+      while (window._fullTrackBlobCache.size > 16) {
+        const firstKey = window._fullTrackBlobCache.keys().next().value;
+        if (firstKey) window._fullTrackBlobCache.delete(firstKey);
+      }
       const id = String(track.id || '');
       if (id) window._fullTrackBlobCache.set(id, blob);
       if (track.raw_id) window._fullTrackBlobCache.set(`top_${track.raw_id}`, blob);
@@ -1974,7 +2138,55 @@
 
     async preloadFullTrackInBackground(track) {
       if (!track) return null;
-      return this._getCachedFullBlobForTrack(track);
+      const existing = this._getCachedFullBlobForTrack(track);
+      if (existing && existing.size >= 80000) return existing;
+
+      if (!this._inflightFullPreloads) this._inflightFullPreloads = new Map();
+      const key = String(track.id || `${track.title}__${track.artist}`);
+      if (this._inflightFullPreloads.has(key)) {
+        return this._inflightFullPreloads.get(key);
+      }
+
+      const promise = (async () => {
+        try {
+          const directUrl3 = this._getDirectFullStreamUrl(track, '3');
+          if (directUrl3) {
+            const r3 = await fetch(directUrl3);
+            if (r3.ok) {
+              const b3 = await r3.blob();
+              if (b3 && b3.size >= 80000) {
+                this._storeFullBlobInGlobalCache(track, b3);
+                return b3;
+              }
+            }
+          }
+          const extractUrl = this._buildServerExtractStreamUrl(track);
+          const resp = await fetch(extractUrl);
+          if (resp.ok) {
+            const matchedVid = resp.headers.get('X-Video-Id');
+            if (matchedVid && !track.videoId) {
+              track.videoId = decodeURIComponent(matchedVid);
+            }
+            const durHdr = Number(resp.headers.get('X-Audio-Duration')) || 0;
+            if (durHdr > 45) {
+              track.durationSec = durHdr;
+            }
+            const blob = await resp.blob();
+            if (blob && blob.size >= 80000) {
+              this._storeFullBlobInGlobalCache(track, blob);
+              return blob;
+            }
+          }
+        } catch (_) {}
+        return null;
+      })();
+
+      this._inflightFullPreloads.set(key, promise);
+      try {
+        return await promise;
+      } finally {
+        this._inflightFullPreloads.delete(key);
+      }
     }
 
     /**
@@ -2624,9 +2836,16 @@
 
     isTrackAlreadyInList(candidateTrack, list = []) {
       if (!candidateTrack || !Array.isArray(list) || list.length === 0) return false;
-      for (const item of list) {
-        if (areSameCanonicalSong(candidateTrack, item)) return true;
-      }
+      const idxObj = buildTrackListLookupIndex(list);
+      const id = String(candidateTrack.id || '').trim();
+      if (id && idxObj.ids.has(id)) return true;
+      const vid = String(candidateTrack.videoId || '').trim();
+      if (vid && idxObj.vids.has(vid)) return true;
+      const sig = getCanonicalSongSignature(candidateTrack.title, candidateTrack.artist, candidateTrack);
+      if (sig && idxObj.sigs.has(sig)) return true;
+      const nt = candidateTrack._normTitle !== undefined ? candidateTrack._normTitle : normalizeSongPart(candidateTrack.title, false);
+      const na = candidateTrack._normArtist !== undefined ? candidateTrack._normArtist : normalizeSongPart(candidateTrack.artist, true);
+      if (nt && idxObj.titles.has(nt) && (!na || idxObj.artists.has(na))) return true;
       return false;
     },
 
@@ -2814,39 +3033,83 @@
     // =========================================================================
     // RESOLUCIÓN Y RENDERIZADO DEL VIDEOCLIP OFICIAL DE YOUTUBE ADAPTADO A LA APP
     // =========================================================================
-    async resolveTrackYouTubeVideoId(track) {
-      if (!track) return '';
-      const rawVid = String(track.videoId || '').trim();
-      if (/^[a-zA-Z0-9_-]{11}$/.test(rawVid)) return rawVid;
-      const rawId = String(track.id || '').replace(/^magic_yt_/, '').trim();
-      if (/^[a-zA-Z0-9_-]{11}$/.test(rawId)) {
-        track.videoId = rawId;
-        return rawId;
-      }
+    async resolveTrackVideoclipData(track) {
+      if (!track) return { videoStreamUrl: '', videoId: '' };
+      if (!this._videoclipDataCache) this._videoclipDataCache = new Map();
 
       const key = `${track.title || ''}__${track.artist || ''}`.toLowerCase().trim();
-      if (this._videoIdCache.has(key)) {
-        const cached = this._videoIdCache.get(key);
-        track.videoId = cached;
-        return cached;
+      if (key && this._videoclipDataCache.has(key)) {
+        return this._videoclipDataCache.get(key);
       }
 
+      let existingVid = String(track.videoId || '').trim();
+      if (!/^[a-zA-Z0-9_-]{11}$/.test(existingVid)) {
+        const rawId = String(track.id || '').replace(/^magic_yt_/, '').trim();
+        if (/^[a-zA-Z0-9_-]{11}$/.test(rawId)) {
+          existingVid = rawId;
+          track.videoId = rawId;
+        } else {
+          existingVid = '';
+        }
+      }
+
+      const cleanTitle = String(track.title || '').replace(/\([^)]*\)|\[[^\]]*\]/g, '').trim();
+      const cleanArtist = String(track.artist || '').replace(/\([^)]*\)|\[[^\]]*\]/g, '').trim();
+      const lookupTerm = `${cleanArtist} ${cleanTitle}`.trim();
+
+      let videoStreamUrl = '';
+      let resolvedVid = existingVid;
+
+      // 1. Consulta directa de alta velocidad a iTunes Music Video API (devuelve stream .m4v oficial directo sin bloqueos VEVO)
       try {
-        const baseUrl = typeof window.getApiBaseUrl === 'function' ? window.getApiBaseUrl() : '';
-        const q = `${track.title || ''} ${track.artist || ''} official video`.trim();
-        const resp = await fetch(`${baseUrl}/api/v1/search/youtube?q=${encodeURIComponent(q)}`);
-        if (resp.ok) {
-          const data = await resp.json();
-          const first = Array.isArray(data?.results) ? data.results[0] : (Array.isArray(data) ? data[0] : null);
-          const vid = String(first?.id || first?.videoId || '').trim();
-          if (/^[a-zA-Z0-9_-]{11}$/.test(vid)) {
-            track.videoId = vid;
-            this._videoIdCache.set(key, vid);
-            return vid;
+        const itunesMvResp = await fetch(
+          `https://itunes.apple.com/search?term=${encodeURIComponent(lookupTerm)}&entity=musicVideo&limit=5`
+        );
+        if (itunesMvResp.ok) {
+          const itunesData = await itunesMvResp.json();
+          const mvList = Array.isArray(itunesData?.results)
+            ? itunesData.results.filter(r => r && r.previewUrl && /\.(m4v|mp4)/i.test(r.previewUrl))
+            : [];
+          if (mvList.length > 0) {
+            const normArt = cleanArtist.toLowerCase();
+            const bestMv = mvList.find(r => !normArt || String(r.artistName || '').toLowerCase().includes(normArt)) || mvList[0];
+            if (bestMv && bestMv.previewUrl) {
+              videoStreamUrl = bestMv.previewUrl;
+            }
           }
         }
       } catch (_) {}
-      return '';
+
+      // 2. Consulta al endpoint del servidor /api/v1/video/resolve para obtener el videoId de YouTube y/o stream de respaldo
+      if (!videoStreamUrl || !resolvedVid) {
+        try {
+          const baseUrl = typeof window.getApiBaseUrl === 'function' ? window.getApiBaseUrl() : '';
+          const resp = await fetch(
+            `${baseUrl}/api/v1/video/resolve?title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}&q=${encodeURIComponent(lookupTerm)}`
+          );
+          if (resp.ok) {
+            const data = await resp.json();
+            if (!videoStreamUrl && data && data.videoStreamUrl) {
+              videoStreamUrl = data.videoStreamUrl;
+            }
+            if (!resolvedVid && data && /^[a-zA-Z0-9_-]{11}$/.test(String(data.videoId || ''))) {
+              resolvedVid = String(data.videoId);
+              track.videoId = resolvedVid;
+            }
+          }
+        } catch (_) {}
+      }
+
+      const result = { videoStreamUrl: videoStreamUrl || '', videoId: resolvedVid || '' };
+      if (key && (result.videoStreamUrl || result.videoId)) {
+        this._videoclipDataCache.set(key, result);
+      }
+      return result;
+    },
+
+    async resolveTrackYouTubeVideoId(track) {
+      const data = await this.resolveTrackVideoclipData(track);
+      return data.videoId || '';
     },
 
     toggleCrateVideoclipMode(e) {
@@ -2873,46 +3136,99 @@
       const wrap = document.getElementById('crateMainVideoclipWrap');
       if (!wrap || !this.crateVideoclipMode || !track) return;
       wrap.classList.remove('hidden');
-      wrap.innerHTML = `<div class="crate-videoclip-loading">Cargando videoclip...</div>`;
-      const vid = await this.resolveTrackYouTubeVideoId(track);
+      wrap.innerHTML = `<div class="crate-videoclip-loading">Cargando videoclip oficial...</div>`;
+      const clipData = await this.resolveTrackVideoclipData(track);
       if (!this.crateVideoclipMode || this.getActiveCrateTrack()?.id !== track.id) return;
-      if (!vid) {
-        wrap.innerHTML = `<div class="crate-videoclip-loading">Videoclip no disponible</div>`;
+
+      if (clipData.videoStreamUrl) {
+        wrap.innerHTML = `
+          <video
+            class="w-full h-full object-cover"
+            src="${clipData.videoStreamUrl}"
+            autoplay
+            muted
+            loop
+            playsinline
+          ></video>
+        `;
         return;
       }
-      const startSec = Math.max(15, Math.round(dualStreamEngine.getChorusOffsetSec(track) || 35));
-      wrap.innerHTML = `
-        <iframe
-          class="crate-videoclip-iframe"
-          src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(vid)}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&playsinline=1& start=${startSec}&loop=1&playlist=${encodeURIComponent(vid)}"
-          title="Videoclip"
-          frameborder="0"
-          allow="autoplay; encrypted-media; picture-in-picture"
-        ></iframe>
-      `.replace('& start=', '&start=');
+
+      if (clipData.videoId) {
+        const startSec = Math.max(15, Math.round(dualStreamEngine.getChorusOffsetSec(track) || 35));
+        wrap.innerHTML = `
+          <iframe
+            class="crate-videoclip-iframe"
+            src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(clipData.videoId)}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&playsinline=1&start=${startSec}&loop=1&playlist=${encodeURIComponent(clipData.videoId)}"
+            title="Videoclip"
+            frameborder="0"
+            allow="autoplay; encrypted-media; picture-in-picture"
+          ></iframe>
+        `;
+        return;
+      }
+
+      wrap.innerHTML = `<div class="crate-videoclip-loading">Videoclip no disponible</div>`;
     },
 
-    async _mountNowPlayingVideoclipForTrack(track) {
+    async _mountNowPlayingVideoclipForTrack(track, forceYoutubeIframe = false) {
       const cont = document.getElementById('npVideoclipIframeBox');
       if (!cont || !track) return;
-      const currentVidAttr = cont.getAttribute('data-vid');
-      const vid = await this.resolveTrackYouTubeVideoId(track);
-      if (!vid) {
-        cont.removeAttribute('data-vid');
-        cont.innerHTML = `<div class="p-6 text-center text-xs text-gray-400">No se encontró videoclip oficial para esta pista.</div>`;
+      const trackKey = `${track.id || ''}__${forceYoutubeIframe ? 'yt' : 'auto'}`;
+      if (cont.getAttribute('data-vid-key') === trackKey && (cont.querySelector('video') || cont.querySelector('iframe'))) {
         return;
       }
-      if (currentVidAttr === vid && cont.querySelector('iframe')) return;
-      cont.setAttribute('data-vid', vid);
-      const startSec = Math.max(0, Math.floor(dualStreamEngine.getCurrentSongTimeSec() || 0));
+      cont.innerHTML = `<div class="p-6 text-center text-xs text-gray-300">Cargando videoclip oficial...</div>`;
+      const clipData = await this.resolveTrackVideoclipData(track);
+
+      if (clipData.videoStreamUrl && !forceYoutubeIframe) {
+        cont.setAttribute('data-vid-key', trackKey);
+        cont.innerHTML = `
+          <div class="relative w-full h-full rounded-2xl overflow-hidden bg-black">
+            <video
+              class="w-full h-full object-cover"
+              src="${clipData.videoStreamUrl}"
+              autoplay
+              muted
+              loop
+              playsinline
+            ></video>
+            ${clipData.videoId ? `
+              <button type="button" onclick="window.DiscoverHomeApp._mountNowPlayingVideoclipForTrack(window.dualStreamAudioEngine.currentTrack, true)" class="absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded-full bg-black/75 border border-white/20 text-[10px] font-bold text-white hover:bg-black">
+                Ver en YouTube
+              </button>
+            ` : ''}
+          </div>
+        `;
+        return;
+      }
+
+      if (clipData.videoId) {
+        cont.setAttribute('data-vid-key', trackKey);
+        const startSec = Math.max(0, Math.floor(dualStreamEngine.getCurrentSongTimeSec() || 0));
+        cont.innerHTML = `
+          <iframe
+            class="w-full h-full rounded-2xl pointer-events-auto"
+            src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(clipData.videoId)}?autoplay=1&mute=1&controls=1&modestbranding=1&rel=0&playsinline=1&start=${startSec}&loop=1&playlist=${encodeURIComponent(clipData.videoId)}"
+            title="Videoclip Oficial"
+            frameborder="0"
+            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+          ></iframe>
+        `;
+        return;
+      }
+
+      cont.removeAttribute('data-vid-key');
+      const cover = getBestTrackCover(track);
       cont.innerHTML = `
-        <iframe
-          class="w-full h-full rounded-2xl pointer-events-auto"
-          src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(vid)}?autoplay=1&mute=1&controls=1&modestbranding=1&rel=0&playsinline=1&start=${startSec}&loop=1&playlist=${encodeURIComponent(vid)}"
-          title="Videoclip Oficial"
-          frameborder="0"
-          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-        ></iframe>
+        <div class="relative w-full h-full rounded-2xl overflow-hidden bg-black flex flex-col items-center justify-center">
+          <img src="${cover}" onerror="this.onerror=null; this.src='./app_logo.png';" class="w-full h-full object-cover opacity-55 blur-[1px]" alt="">
+          <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/70 flex flex-col items-center justify-center p-4 text-center">
+            <img src="${cover}" onerror="this.onerror=null; this.src='./app_logo.png';" class="w-24 h-24 rounded-xl object-cover shadow-2xl border border-white/20 mb-2" alt="">
+            <div class="text-xs font-extrabold text-white">${escapeHtmlSafe(track.title || '')}</div>
+            <div class="text-[11px] text-amber-300/90 font-semibold">${escapeHtmlSafe(track.artist || '')}</div>
+          </div>
+        </div>
       `;
     },
 
@@ -3334,7 +3650,7 @@
       if (typeof window.updateLibraryVaultBadges === 'function') {
         window.updateLibraryVaultBadges();
       }
-      if (typeof window.renderFavoritesSubtab === 'function') {
+      if (window.currentActiveTab === 'library' && typeof window.renderFavoritesSubtab === 'function') {
         window.renderFavoritesSubtab();
       }
       if (typeof window.scheduleCloudProfileSync === 'function') {
@@ -3385,7 +3701,7 @@
           if (typeof window.updateLibraryVaultBadges === 'function') {
             window.updateLibraryVaultBadges();
           }
-          if (typeof window.renderPlaylistsSubtab === 'function') {
+          if (window.currentActiveTab === 'library' && typeof window.renderPlaylistsSubtab === 'function') {
             window.renderPlaylistsSubtab();
           }
           if (typeof window.scheduleCloudProfileSync === 'function') {
@@ -3410,9 +3726,9 @@
       triggerGoldenVinylFlyAnimation(cover);
 
       if (this.targetPlaylistObj && this.targetPlaylistObj.id) {
-        await this.saveTrackToPlaylistNormalized(track, this.targetPlaylistObj.id, true);
+        this.saveTrackToPlaylistNormalized(track, this.targetPlaylistObj.id, true);
       } else {
-        await this.saveTrackToFavoritesNormalized(track, true);
+        this.saveTrackToFavoritesNormalized(track, true);
       }
 
       const card = document.getElementById('crateActiveSwipeCard');
@@ -3427,7 +3743,7 @@
       }
       setTimeout(() => {
         this._advanceToNextCard(true);
-        this.refreshCarousels();
+        this._renderUserPlaylistsCarousel();
       }, 140);
     },
 
@@ -4488,66 +4804,67 @@
         const isCurrent = Boolean(dualStreamEngine.currentTrack && areSameCanonicalSong(dualStreamEngine.currentTrack, tr));
         const safeTitleAttr = escapeHtmlSafe(tr.title || '').replace(/'/g, "\\'");
         const safeArtistAttr = escapeHtmlSafe(tr.artist || '').replace(/'/g, "\\'");
-
         const accordionId = `plSheetPianoAcc_${dispIdx}`;
 
         return `
-          <div class="piano-key-row relative transition-all duration-200 select-none ${isCurrent ? 'ring-2 ring-[#d4af37]' : ''}" id="plSheetKeyRow_${dispIdx}">
-            <div class="flex items-stretch relative">
-              <!-- TECLA BLANCA DE MARFIL (Tocar para desplegar dificultad o reproducir) -->
-              <div onclick="window.DiscoverHomeApp.toggleSheetPianoKeyAccordion(${dispIdx})" class="piano-white-key flex-1 p-2.5 pr-[112px] flex items-center gap-2.5 cursor-pointer min-w-0">
-                <!-- Portada con botón de escuchar preview + barra inferior -->
-                <div onclick="event.stopPropagation(); window.DiscoverHomeApp.playSongFromOpenedSheet(${dispIdx});" class="song-thumb-preview-wrap w-11 h-11 rounded-lg overflow-hidden flex-shrink-0 border border-stone-300 shadow-sm relative cursor-pointer" title="Escuchar canción">
+          <div class="piano-key-row flex flex-col mb-1.5" id="plSheetKeyRow_${dispIdx}">
+            <div class="relative flex items-stretch w-full">
+              <!-- TECLA BLANCA DE MARFIL IDÉNTICA A MI BIBLIOTECA -> PLAYLISTS -->
+              <div onclick="window.DiscoverHomeApp.toggleSheetPianoKeyAccordion(${dispIdx})" class="piano-white-key flex-1 flex items-center gap-2.5 cursor-pointer select-none min-w-0 ${isCurrent ? 'ring-2 ring-[#d4af37]' : ''}">
+                <!-- Portada 60x60 a la izquierda con botón de escuchar canción -->
+                <div onclick="event.stopPropagation(); window.DiscoverHomeApp.playSongFromOpenedSheet(${dispIdx});" class="piano-key-thumb song-thumb-preview-wrap relative flex-shrink-0 cursor-pointer" title="Escuchar canción">
                   <img id="plSheetTrackCover_${dispIdx}" src="${thumb}" onload="if(this.naturalWidth>0 && this.naturalWidth<=120){ window.DiscoverHomeApp && window.DiscoverHomeApp.handleBrokenYtThumb(this, '${safeTitleAttr}', '${safeArtistAttr}'); }" onerror="this.onerror=null; this.src='./app_logo.png';" class="w-full h-full object-cover" alt="" loading="lazy">
                   <div class="song-thumb-preview-overlay">
                     <span class="thumb-preview-icon text-white text-xs font-bold">${isCurrent && dualStreamEngine.isPlaying() ? '❚❚' : '▶'}</span>
                   </div>
                 </div>
 
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-1.5 mb-0.5">
-                    <span class="px-1.5 py-0.5 rounded bg-stone-800 text-[#f3e5ab] text-[8px] font-extrabold uppercase tracking-wider">#${dispIdx + 1}</span>
-                    <span class="text-[9px] font-bold text-stone-500 truncate">${escapeHtmlSafe(tr.artist || 'Artista')}</span>
+                <!-- Título y Artista sobre el marfil con tipografía oscura de alto contraste -->
+                <div class="flex-1 min-w-0 py-1.5 pr-1">
+                  <div class="flex items-center gap-1.5">
+                    <span class="px-1.5 py-0.5 rounded bg-[#2a1f18] text-[#f3e5ab] text-[8px] font-extrabold uppercase tracking-wider flex-shrink-0">#${dispIdx + 1}</span>
+                    <h4 class="font-serif font-bold text-[#17131d] text-[13px] leading-tight truncate">${escapeHtmlSafe(tr.title || 'Canción')}</h4>
                   </div>
-                  <h4 class="piano-ivory-title font-extrabold text-xs sm:text-sm truncate leading-tight">${escapeHtmlSafe(tr.title || 'Canción')}</h4>
+                  <p class="text-[11px] font-semibold text-[#5a422d] truncate mt-0.5">${escapeHtmlSafe(tr.artist || 'Artista')}</p>
+                </div>
+
+                <!-- Botón ••• o Controles de Edición a la derecha dentro de la tecla blanca -->
+                <div class="flex items-center gap-1 pr-1 flex-shrink-0" onclick="event.stopPropagation();">
+                  ${this._sheetEditMode ? `
+                    ${isUserPl && this._sheetSortMode === 'custom' && !this._sheetFilterQuery ? `
+                      <button type="button" onclick="window.DiscoverHomeApp.moveTrackInOpenedSheet(${origIdx}, -1)" class="w-6 h-6 rounded bg-stone-800/80 text-[#f3e5ab] text-[10px] font-bold flex items-center justify-center" title="Subir">▲</button>
+                      <button type="button" onclick="window.DiscoverHomeApp.moveTrackInOpenedSheet(${origIdx}, 1)" class="w-6 h-6 rounded bg-stone-800/80 text-[#f3e5ab] text-[10px] font-bold flex items-center justify-center" title="Bajar">▼</button>
+                    ` : ''}
+                    <button type="button" onclick="window.DiscoverHomeApp.removeTrackFromOpenedSheet(${origIdx})" class="w-6 h-6 rounded bg-red-700 text-white text-[10px] font-bold flex items-center justify-center" title="Quitar">✕</button>
+                  ` : `
+                    <button type="button" onclick="window.DiscoverHomeApp.openTrackOptionsSheetFromOpenedPlaylist(${dispIdx}, event)" class="w-7 h-7 rounded-full bg-stone-900/10 hover:bg-stone-900/20 flex items-center justify-center text-[#2c1d12] flex-shrink-0 cursor-pointer" title="Opciones / Descargar">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+                    </button>
+                  `}
                 </div>
               </div>
 
-              <!-- TECLA NEGRA DE ÉBANO (JUGAR AL PIANO + MENÚ ••• O CONTROLES DE EDICIÓN) -->
-              <div class="piano-black-play-key w-[104px] flex items-center justify-between px-2 z-10">
-                ${this._sheetEditMode ? `
-                  <div class="flex items-center justify-around w-full gap-1" onclick="event.stopPropagation();">
-                    ${isUserPl && this._sheetSortMode === 'custom' && !this._sheetFilterQuery ? `
-                      <button type="button" onclick="window.DiscoverHomeApp.moveTrackInOpenedSheet(${origIdx}, -1)" class="p-1 rounded bg-white/10 text-white hover:bg-white/20" title="Subir">▲</button>
-                      <button type="button" onclick="window.DiscoverHomeApp.moveTrackInOpenedSheet(${origIdx}, 1)" class="p-1 rounded bg-white/10 text-white hover:bg-white/20" title="Bajar">▼</button>
-                    ` : ''}
-                    <button type="button" onclick="window.DiscoverHomeApp.removeTrackFromOpenedSheet(${origIdx})" class="p-1 rounded bg-red-500/20 text-red-300 hover:bg-red-500/40 font-bold text-xs" title="Quitar">✕</button>
-                  </div>
-                ` : `
-                  <button type="button" onclick="event.stopPropagation(); window.DiscoverHomeApp.playPianoFromOpenedSheet(${dispIdx});" class="flex flex-col items-center justify-center flex-1 py-1 text-center cursor-pointer" title="Jugar al piano">
-                    <span class="text-[#f3e5ab] text-[10px] font-black tracking-wider uppercase leading-none">JUGAR</span>
-                    <span class="text-[8px] text-amber-300/80 font-bold mt-0.5">PIANO</span>
-                  </button>
-                  <button type="button" onclick="window.DiscoverHomeApp.openTrackOptionsSheetFromOpenedPlaylist(${dispIdx}, event)" class="w-7 h-7 rounded-full hover:bg-white/15 flex items-center justify-center text-gray-300 hover:text-white flex-shrink-0 cursor-pointer" title="Más opciones">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
-                  </button>
-                `}
-              </div>
+              <!-- TECLA NEGRA DE ÉBANO A LA DERECHA (48px, ▶ JUGAR AL PIANO) -->
+              <button type="button" onclick="event.stopPropagation(); window.DiscoverHomeApp.playPianoFromOpenedSheet(${dispIdx});" class="piano-black-play-key" title="Jugar al piano">
+                <span class="play-arrow-gold">▶</span>
+              </button>
             </div>
 
-            <!-- ACORDEÓN HORIZONTAL DE 4 DIFICULTADES AL PULSAR LA TECLA BLANCA -->
-            <div id="${accordionId}" class="hidden piano-soundboard-accordion px-3 py-2.5">
-              <div class="flex items-center justify-between mb-1.5">
-                <span class="text-[9px] uppercase tracking-widest text-[#d4af37] font-bold">Selecciona Dificultad para Jugar</span>
-                <button type="button" onclick="event.stopPropagation(); window.DiscoverHomeApp.openTrackOptionsSheetFromOpenedPlaylist(${dispIdx}, event)" class="text-[10px] text-gray-300 hover:text-white font-bold underline">Opciones / Descargar</button>
-              </div>
-              <div style="display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:6px;">
-                ${diffs.map(d => `
-                  <button type="button" onclick="event.stopPropagation(); window.DiscoverHomeApp.playPianoFromOpenedSheet(${dispIdx}, '${d.key}')" class="py-1.5 px-1 rounded-lg bg-white/5 hover:bg-[#d4af37]/25 border border-[#d4af37]/35 text-center transition cursor-pointer">
-                    <div class="text-[9px] text-[#f3e5ab] font-black">${d.stars}</div>
-                    <div class="text-[10px] text-white font-bold truncate">${d.label}</div>
-                  </button>
-                `).join('')}
+            <!-- ACORDEÓN DE MADERA CON LAS 4 DIFICULTADES EN UNA FILA -->
+            <div id="${accordionId}" class="piano-soundboard-accordion px-3">
+              <div class="pt-2.5 pb-2.5">
+                <div class="flex items-center justify-between mb-1.5">
+                  <span class="text-[9px] uppercase tracking-widest text-[#d4af37] font-bold">Selecciona Dificultad para Jugar</span>
+                  <button type="button" onclick="event.stopPropagation(); window.DiscoverHomeApp.openTrackOptionsSheetFromOpenedPlaylist(${dispIdx}, event)" class="text-[10px] text-amber-200 hover:text-white font-bold underline">Opciones / Descargar</button>
+                </div>
+                <div style="display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:6px;">
+                  ${diffs.map(d => `
+                    <button type="button" onclick="event.stopPropagation(); window.DiscoverHomeApp.playPianoFromOpenedSheet(${dispIdx}, '${d.key}')" class="py-1.5 px-1 rounded-lg bg-white/5 hover:bg-[#d4af37]/25 border border-[#d4af37]/35 text-center transition cursor-pointer">
+                      <div class="text-[9px] text-[#f3e5ab] font-black">${d.stars}</div>
+                      <div class="text-[10px] text-white font-bold truncate">${d.label}</div>
+                    </button>
+                  `).join('')}
+                </div>
               </div>
             </div>
           </div>
@@ -4564,9 +4881,15 @@
     toggleSheetPianoKeyAccordion(dispIdx) {
       const acc = document.getElementById(`plSheetPianoAcc_${dispIdx}`);
       if (!acc) return;
-      const wasHidden = acc.classList.contains('hidden');
-      document.querySelectorAll('[id^="plSheetPianoAcc_"]').forEach(el => el.classList.add('hidden'));
-      if (wasHidden) acc.classList.remove('hidden');
+      const wasOpen = acc.classList.contains('open');
+      document.querySelectorAll('[id^="plSheetPianoAcc_"]').forEach(el => {
+        el.classList.remove('open');
+        el.style.maxHeight = '0px';
+      });
+      if (!wasOpen) {
+        acc.classList.add('open');
+        acc.style.maxHeight = '160px';
+      }
     },
 
     async moveTrackInOpenedSheet(origIdx, delta) {

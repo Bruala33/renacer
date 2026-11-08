@@ -25,7 +25,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css?v=63.0">
+  <link rel="stylesheet" href="./style.css?v=64.0">
   <script>
     // ===================================================
     // SISTEMA DE INTERNACIONALIZACIÓN (i18n: ES / EN)
@@ -4975,32 +4975,26 @@
     <!-- VISTA AMPLIADA "NOW PLAYING" — REPRODUCTOR CON LETRAS KARAOKE Y BARRA COMPLETA -->
     <div id="nowPlayingTurntableModal" class="now-playing-modal-overlay">
       <div class="now-playing-header">
-        <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.closeNowPlayingModal()" class="w-9 h-9 rounded-full bg-white/5 border border-white/15 text-white flex items-center justify-center cursor-pointer" title="Minimizar">
+        <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.closeNowPlayingModal()" class="w-9 h-9 rounded-full bg-white/5 border border-white/15 text-white flex items-center justify-center flex-shrink-0 cursor-pointer" title="Minimizar">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <div class="np-view-switcher">
           <button id="npTabVinylBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.switchNowPlayingTab('vinyl')" class="np-view-tab active">Portada</button>
           <button id="npTabVideoclipBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.switchNowPlayingTab('videoclip')" class="np-view-tab">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
             <span>Videoclip</span>
           </button>
           <button id="npTabKaraokeBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.switchNowPlayingTab('karaoke')" class="np-view-tab">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
               <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
             </svg>
             <span>Karaoke</span>
           </button>
         </div>
-        <div class="flex items-center gap-1.5">
-          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.createRadioFromNowPlaying()" class="px-2.5 py-1.5 rounded-full bg-white/5 border border-[#d4af37]/40 text-[#f3d791] text-[11px] font-bold flex items-center gap-1 cursor-pointer" title="Crear Radio basada en esta canción">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
-            <span>Radio</span>
-          </button>
-          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openTrackOptionsSheetForPlayer()" class="w-9 h-9 rounded-full bg-white/5 border border-white/15 text-white flex items-center justify-center cursor-pointer" title="Más opciones y descargar">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
-          </button>
-        </div>
+        <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openTrackOptionsSheetForPlayer()" class="w-9 h-9 rounded-full bg-white/5 border border-white/15 text-white flex items-center justify-center flex-shrink-0 cursor-pointer" title="Más opciones, radio y descargar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+        </button>
       </div>
 
       <div class="now-playing-body">
@@ -5221,14 +5215,14 @@
 
   </div> <!-- End of game-viewport -->
 
-  <script src="./parsers.js?v=63.0"></script>
-  <script src="./game.js?v=63.0"></script>
-  <script defer src="./slot_machine.js?v=63.0"></script>
-  <script defer src="./gachapon_3d.js?v=63.0"></script>
+  <script src="./parsers.js?v=64.0"></script>
+  <script src="./game.js?v=64.0"></script>
+  <script defer src="./slot_machine.js?v=64.0"></script>
+  <script defer src="./gachapon_3d.js?v=64.0"></script>
   <script defer src="./songs/comm_camilo_sesto/chart.js"></script>
   <script defer src="./songs/renacer/chart.js"></script>
-  <script src="./songs/catalog_top.js?v=63.0"></script>
-  <script src="./discover_home.js?v=63.0"></script>
+  <script src="./songs/catalog_top.js?v=64.0"></script>
+  <script src="./discover_home.js?v=64.0"></script>
   <script>
     let engine = null;
     let currentActiveBeatmap = null;
@@ -7988,7 +7982,7 @@
         }).catch(err => console.warn('Error loading custom media from IndexedDB:', err));
       }
 
-      // Diferir tareas secundarias de red y pestañas ocultas para que el arranque sea instantáneo
+      // Diferir tareas secundarias de red sin renderizar pestañas ocultas en el arranque
       setTimeout(() => {
         if (typeof fetchAndSyncTopSongsCatalog === 'function') {
           fetchAndSyncTopSongsCatalog(true);
@@ -7997,11 +7991,12 @@
           syncPlayerAndScoresWithServer();
         }
         checkForAppUpdates();
-        executeSearch();
-        renderCurrentLibrarySubtab();
+        if (typeof updateLibraryVaultBadges === 'function') {
+          updateLibraryVaultBadges();
+        }
         loadDailyFeaturedSongs();
         checkWeeklyTournamentRewards();
-      }, 180);
+      }, 350);
     });
 
 
@@ -8108,16 +8103,18 @@ function switchMainTab(tab) {
   });
 
   if (tab === 'search') {
-  if (searchTabBtn) searchTabBtn.classList.add('active');
-  if (searchSection) {
-    searchSection.classList.remove('hidden');
-    searchSection.style.display = 'block';
-  }
-  // Si al ocultar la pestaña se quedó una animación a medias, la retomamos:
-  if (typeof startPianoCameraLoop === 'function') {
-    startPianoCameraLoop();
-  }
-
+    if (searchTabBtn) searchTabBtn.classList.add('active');
+    if (searchSection) {
+      searchSection.classList.remove('hidden');
+      searchSection.style.display = 'block';
+    }
+    if (!window._initialSearchRendered) {
+      window._initialSearchRendered = true;
+      executeSearch();
+    }
+    if (typeof startPianoCameraLoop === 'function') {
+      startPianoCameraLoop();
+    }
   } else if (tab === 'discover') {
     if (discoverTabBtn) discoverTabBtn.classList.add('active');
     if (discoverSection) {
@@ -15719,17 +15716,9 @@ function stopPianoCameraLoop() {
       }
     }
 
-    // Pre-extracción silenciosa de los primeros resultados de YouTube para que preview y juego sean instantáneos
-    function prewarmYouTubeCandidatesClient(candidates) {
-      if (!Array.isArray(candidates) || candidates.length === 0) return;
-      const ytItems = candidates.filter(c => c && c.videoId).slice(0, 3);
-      ytItems.forEach((ytItem, idx) => {
-        setTimeout(() => {
-          if (!isGameCurrentlyActive() && !window._fullTrackBlobCache.has(`yt_${ytItem.videoId}`)) {
-            extractYouTubeFullAudioViaNotubeClient(ytItem.videoId).catch(() => {});
-          }
-        }, 120 + idx * 180);
-      });
+    // Desactivar descarga masiva de MP3 de YouTube en segundo plano al listar resultados
+    function prewarmYouTubeCandidatesClient() {
+      return;
     }
 
     async function searchSoundCloudFullClient(rawTitle, rawArtist = '', limit = 24) {
@@ -16150,10 +16139,7 @@ function stopPianoCameraLoop() {
       return window._ytInstantPreviewInitPromise;
     }
 
-    // Pre-calentar en segundo plano el reproductor embebido ligero de YouTube para que al tocar una canción exclusiva de YT arranque en <180ms
-    setTimeout(() => {
-      try { ensureYouTubeInstantPreviewEngine(); } catch (_) {}
-    }, 900);
+    // El reproductor embebido de YouTube se inicializa únicamente bajo demanda
 
     async function playYouTubeInstantEmbedPreview(videoId, sId, reqToken, startSec = 28) {
       if (!videoId || window._previewRequestToken !== reqToken) return false;
@@ -16440,29 +16426,18 @@ function stopPianoCameraLoop() {
       }
     }
 
-    // Pre-resolución instantánea de URLs de estribillo y portadas reales para las canciones visibles (Catálogo + Teclas Mágicas)
+    // Pre-resolución ultraligera sin descargas MP3 en segundo plano para evitar bloqueos de red y CPU
     window.prewarmChorusPreviewUrls = function(items) {
       if (!Array.isArray(items) || items.length === 0) return;
-      const visibleSlice = items.slice(0, 12);
-      let ytOnlyPrewarmedCount = 0;
+      const visibleSlice = items.slice(0, 4);
       setTimeout(() => {
         if (isGameCurrentlyActive()) return;
-        ensureYouTubeInstantPreviewEngine().catch(() => {});
         visibleSlice.forEach((item, idx) => {
           if (!item) return;
           const sId = safeSongId(item.id);
           const cand = item._preferredCandidate || (window._selectedMagicAudioCandidate && window._selectedMagicAudioCandidate[item.id]);
           const directPrev = (cand && cand.itunesPreviewUrl) || item.preview_url || '';
           const itemVid = (cand && cand.videoId) || item.video_id || (String(item.id || '').startsWith('magic_yt_') ? String(item.id).replace('magic_yt_', '') : '');
-          // Si ya es una tecla mágica de YouTube sin preview CDN conocida, arrancar en paralelo la pre-extracción en segundo plano para las primeras 4
-          if (itemVid && !directPrev && idx < 4 && ytOnlyPrewarmedCount < 4 && !window._fullTrackBlobCache.has(`yt_${itemVid}`)) {
-            ytOnlyPrewarmedCount++;
-            setTimeout(() => {
-              if (!isGameCurrentlyActive() && !window._fullTrackBlobCache.has(`yt_${itemVid}`)) {
-                extractYouTubeFullAudioViaNotubeClient(itemVid).catch(() => {});
-              }
-            }, 90 + idx * 140);
-          }
           setTimeout(() => {
             if (isGameCurrentlyActive()) return;
             resolveInstantChorusPreviewUrl(
@@ -16473,35 +16448,17 @@ function stopPianoCameraLoop() {
               item.bs_hash || '',
               sId,
               itemVid,
-              idx < 6
+              false
             ).then((res) => {
               if (!res || isGameCurrentlyActive()) return;
-              if (res.url) {
-                if (res.artworkUrl && (!item.thumbnail || item.thumbnail === './app_logo.png' || String(item.thumbnail).startsWith('data:image/svg+xml'))) {
-                  item.thumbnail = res.artworkUrl;
-                  item.cover_url = res.artworkUrl;
-                }
-                // Pre-bufferizar los primeros 6 temas visibles en objetos Audio en memoria para que el toque sea 100% instantáneo (0ms)
-                if (idx < 6 && !window._prewarmedAudioElements.has(res.url)) {
-                  try {
-                    if (window._prewarmedAudioElements.size >= 10) {
-                      const oldestKey = window._prewarmedAudioElements.keys().next().value;
-                      window._prewarmedAudioElements.delete(oldestKey);
-                    }
-                    const preAudio = new Audio();
-                    preAudio.preload = 'metadata';
-                    preAudio.src = res.url;
-                    window._prewarmedAudioElements.set(res.url, preAudio);
-                  } catch (_) {}
-                }
-              } else if (res.noCdn && itemVid && ytOnlyPrewarmedCount < 5 && !window._fullTrackBlobCache.has(`yt_${itemVid}`)) {
-                ytOnlyPrewarmedCount++;
-                extractYouTubeFullAudioViaNotubeClient(itemVid).catch(() => {});
+              if (res.url && res.artworkUrl && (!item.thumbnail || item.thumbnail === './app_logo.png' || String(item.thumbnail).startsWith('data:image/svg+xml'))) {
+                item.thumbnail = res.artworkUrl;
+                item.cover_url = res.artworkUrl;
               }
             }).catch(() => {});
-          }, idx * 20);
+          }, idx * 45);
         });
-      }, 10);
+      }, 60);
     };
 
     async function playUrlOrBlobInChorusPreview(urlOrBlob, sId, reqToken, seekChorusOption = 'auto') {
