@@ -1358,9 +1358,6 @@
                 <span id="cratePlaylistTargetLabel">Buscar para playlist</span>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
-              <button id="crateExitPlaylistModeBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.clearSwipeTargetPlaylist()" class="crate-exit-playlist-pill hidden" title="Volver al modo Para ti">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
             </div>
             <div class="flex items-center gap-2">
               <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openKaraokeForCurrent()" class="btn-tune-algorithm-icon" title="Ver letra en modo Karaoke">
@@ -1505,8 +1502,8 @@
           </div>
         </div>
 
-        <!-- ACCESOS DIRECTOS SUPERIORES (TRAGAPERRAS | CANCIÓN DEL DÍA | MI MIX DIARIO) -->
-        <div class="vegas-discover-slot-grid-3">
+        <!-- ACCESOS DIRECTOS SUPERIORES (TRAGAPERRAS | CANCIÓN DEL DÍA) -->
+        <div class="vegas-discover-slot-grid-2">
           <button id="btnSlotBet" type="button" onclick="openGranFortuna('bet')" class="btn-vegas-led cursor-pointer">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-[#d4af37] flex-shrink-0"><rect x="2" y="4" width="20" height="16" rx="3"/><line x1="8" y1="4" x2="8" y2="20"/><line x1="16" y1="4" x2="16" y2="20"/><circle cx="5" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="19" cy="12" r="1" fill="currentColor"/></svg>
             <span data-i18n="slot_btn_bet">Tragaperras</span>
@@ -1514,10 +1511,6 @@
           <button id="btnSlotFeatured" type="button" onclick="openDailyVideoPoker()" class="btn-vegas-led cursor-pointer">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-[#d4af37] flex-shrink-0"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
             <span data-i18n="slot_btn_daily_poker">Canción del Día</span>
-          </button>
-          <button id="btnDailyMix" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.playDailyMix()" class="btn-vegas-led cursor-pointer" title="Reproducir Mix Diario">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-[#d4af37] flex-shrink-0"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            <span>Mi Mix Diario</span>
           </button>
         </div>
 
@@ -1538,6 +1531,18 @@
 
         <!-- FILAS DINÁMICAS DE RECOMENDACIONES BASADAS EN TUS PLAYLISTS (CON BOTÓN MODO SWIPE) -->
         <div id="dynamicPlaylistRecsContainer" class="space-y-4"></div>
+
+        <!-- FILA DE RECOMENDACIONES: MI MIX DIARIO -->
+        <div class="discover-carousel-section">
+          <div class="discover-carousel-header">
+            <span class="discover-carousel-title">Mi Mix Diario</span>
+            <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.playDailyMix()" class="discover-playlist-swipe-cta cursor-pointer" title="Escuchar Mix Diario continuo">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+              <span>Escuchar todo</span>
+            </button>
+          </div>
+          <div id="carouselDailyMix" class="discover-carousel-scroll"></div>
+        </div>
 
         <!-- CARRUSELES HORIZONTALES LIMPIOS ESTILO SPOTIFY -->
         <div class="discover-carousel-section">
@@ -1575,16 +1580,17 @@
           <div id="carouselHiddenGems" class="discover-carousel-scroll"></div>
         </div>
 
-        <!-- Colecciones de YouTube Limpias -->
+        <!-- Playlists y Tops Oficiales Estilo Spotify -->
         <div class="discover-yt-section space-y-2.5 pt-1">
           <div class="discover-carousel-header">
-            <span class="discover-carousel-title">Colecciones de YouTube</span>
+            <span class="discover-carousel-title">Playlists y Tops Oficiales</span>
+            <span class="text-[10.5px] font-bold text-[#1db954] tracking-wide">EN VIVO</span>
           </div>
           <div class="unified-search-bar">
             <input 
               id="discoverPlaylistSearchInput" 
               type="text" 
-              placeholder="Buscar playlists en YouTube o pegar URL..." 
+              placeholder="Buscar cualquier playlist o pegar enlace de YouTube..." 
               onkeydown="if(event.key==='Enter') executeDiscoverPlaylistSearch()"
               oninput="if(!this.value.trim()) executeDiscoverPlaylistSearch(true)"
               class="unified-search-input"
@@ -1593,7 +1599,7 @@
               type="button" 
               onclick="clearDiscoverSearchResults()" 
               class="unified-search-filter-btn" 
-              title="Limpiar búsqueda"
+              title="Volver a los Tops Oficiales"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
@@ -1616,24 +1622,12 @@
               <svg width="14" height="14" id="discoverSearchSpinner" class="hidden animate-spin text-black" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
             </button>
           </div>
-
-          <!-- Categorías de Playlists -->
-          <div class="vegas-pill-scroll" id="discoverGenrePills">
-            <button type="button" onclick="quickSearchDiscoverGenre('', this)" class="vegas-genre-pill active">Populares</button>
-            <button type="button" onclick="quickSearchDiscoverGenre('Piano Classics Chopin Beethoven', this)" class="vegas-genre-pill">Piano</button>
-            <button type="button" onclick="quickSearchDiscoverGenre('Rock Classics Queen Nirvana', this)" class="vegas-genre-pill">Rock</button>
-            <button type="button" onclick="quickSearchDiscoverGenre('Pop Hits Playlist', this)" class="vegas-genre-pill">Pop</button>
-            <button type="button" onclick="quickSearchDiscoverGenre('Phonk Drift Electronic', this)" class="vegas-genre-pill">Phonk</button>
-            <button type="button" onclick="quickSearchDiscoverGenre('Anime Openings OST Playlist', this)" class="vegas-genre-pill">Anime</button>
-            <button type="button" onclick="quickSearchDiscoverGenre('Jazz Lounge Frank Sinatra', this)" class="vegas-genre-pill">Jazz</button>
-            <button type="button" onclick="quickSearchDiscoverGenre('Exitos en Español Rock Pop', this)" class="vegas-genre-pill">Español</button>
-          </div>
         </div>
 
-        <!-- Playlists Results Grid -->
+        <!-- Cuadrícula de Playlists y Tops Reales -->
         <div id="discoverSearchResultsContainer" class="space-y-2">
-          <div class="grid grid-cols-1 gap-2" id="discoverSearchResultsGrid">
-            <!-- Injected dynamically with YouTube playlists -->
+          <div id="discoverSearchResultsGrid">
+            <!-- Inyectado dinámicamente con Tops 100 en vivo o búsqueda de playlists -->
           </div>
         </div>
 
@@ -3121,8 +3115,34 @@
           </button>
         </div>
 
+        <!-- Selector de Dificultad de Partitura -->
+        <div class="gm-difficulty-selector-wrap">
+          <div class="gm-difficulty-header">
+            <span class="gm-difficulty-label">Dificultad</span>
+            <span id="gmDifficultyActiveBadge" class="text-[10.5px] font-extrabold text-[#f3d791]">Difícil · 4.5★</span>
+          </div>
+          <div class="gm-difficulty-pills-row">
+            <button id="gmDiffBtn_easy" type="button" onclick="selectGameModalDifficulty('easy')" class="gm-diff-pill-btn">
+              <span>Fácil</span>
+              <span class="gm-diff-stars">1.8★</span>
+            </button>
+            <button id="gmDiffBtn_normal" type="button" onclick="selectGameModalDifficulty('normal')" class="gm-diff-pill-btn">
+              <span>Media</span>
+              <span class="gm-diff-stars">3.0★</span>
+            </button>
+            <button id="gmDiffBtn_hard" type="button" onclick="selectGameModalDifficulty('hard')" class="gm-diff-pill-btn active">
+              <span>Difícil</span>
+              <span class="gm-diff-stars">4.5★</span>
+            </button>
+            <button id="gmDiffBtn_extreme" type="button" onclick="selectGameModalDifficulty('extreme')" class="gm-diff-pill-btn">
+              <span>Extrema</span>
+              <span class="gm-diff-stars">6.5★</span>
+            </button>
+          </div>
+        </div>
+
         <!-- Pantalla Gigante Retro de Selección de Modos (Sin texto innecesario, solo píxeles grandes y candados LED) -->
-        <div class="p-2 bg-[#030201] border-[3px] border-[#1c160e] rounded-xl my-1.5 shadow-[inset_0_0_28px_rgba(0,0,0,1)] space-y-1.5 max-h-[68vh] overflow-y-auto overscroll-contain">
+        <div class="p-2 bg-[#030201] border-[3px] border-[#1c160e] rounded-xl my-1.5 shadow-[inset_0_0_28px_rgba(0,0,0,1)] space-y-1.5 max-h-[60vh] overflow-y-auto overscroll-contain">
           <!-- Botón Estrella Destacado: MODO LOCURA (Fusión Coreográfica Total: 4 Carriles 3D + Split + Cruce + Pulso + 5 Corazones + Bonus X3) -->
           <button id="btnModeSelectLocura" onclick="confirmGameModeSelection('locura')" class="w-full p-1 rounded-xl bg-[#07030f] border-2 border-[#f43f5e] hover:border-[#fde047] active:scale-[0.98] transition cursor-pointer flex items-center justify-center shadow-[0_0_18px_rgba(244,63,94,0.35),inset_0_0_14px_rgba(0,0,0,0.95)]">
             <canvas id="gmBtnLocuraMainCanvas" class="w-full h-[50px] block"></canvas>
@@ -4986,6 +5006,17 @@
 
         <!-- Vista 2: Escenario de Letras Sincronizadas tipo Karaoke (Spotify Lyrics Style) -->
         <div id="npKaraokeStageContainer" class="np-karaoke-stage hidden">
+          <div class="np-karaoke-toolbar">
+            <button id="npKaraokeTranslateBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleKaraokeTranslation()" class="np-karaoke-tool-btn" title="Mostrar traducción debajo de cada verso en el idioma de la app">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
+              <span id="npKaraokeTranslateLabel">Traducir letra</span>
+            </button>
+            <div class="np-karaoke-sync-group" title="Ajuste fino de sincronización de letra">
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.adjustKaraokeSyncOffset(-0.5)" class="np-karaoke-sync-btn" title="Adelantar letra (-0.5s)">-0.5s</button>
+              <span id="npKaraokeSyncOffsetValue" class="np-karaoke-sync-val" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.adjustKaraokeSyncOffset(0, true)" title="Toca para restablecer sincronización">Sync 0.0s</span>
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.adjustKaraokeSyncOffset(0.5)" class="np-karaoke-sync-btn" title="Retrasar letra (+0.5s)">+0.5s</button>
+            </div>
+          </div>
           <div id="npKaraokeScrollBox" class="np-karaoke-scroll-box">
             <div class="np-karaoke-placeholder">Cargando letra sincronizada...</div>
           </div>
@@ -5064,31 +5095,62 @@
       </div>
     </div>
 
-    <!-- MODAL DE LISTA DE CANCIONES DE FAVORITOS / PLAYLIST (ELIGE QUÉ CANCIÓN ESCUCHAR O JUGAR, O DESCUBRE NUEVAS) -->
+    <!-- MODAL DE PLAYLIST Y FAVORITOS REDISEÑADO ESTILO SPOTIFY -->
     <div id="spotifyPlaylistSheetModal" class="tube-amp-modal-overlay" onclick="if(event.target===this) window.DiscoverHomeApp && window.DiscoverHomeApp.closePlaylistTracksModal()">
       <div class="spotify-playlist-sheet-card" onclick="event.stopPropagation();">
-        <div class="flex items-center justify-between gap-2 pb-3 border-b border-white/10">
-          <div class="flex items-center gap-3 min-w-0">
-            <img id="plSheetCoverImg" src="./app_logo.png" onerror="this.src='./app_logo.png'" class="w-12 h-12 rounded-xl object-cover flex-shrink-0 border border-white/10" alt="">
-            <div class="min-w-0">
-              <h3 id="plSheetTitle" class="text-base font-black text-white truncate">Tus Me Gusta</h3>
-              <p id="plSheetSubtitle" class="text-xs text-gray-400 truncate">Elige una canción para escuchar o jugar</p>
+        <div class="spotify-pl-hero">
+          <div class="spotify-pl-top-row">
+            <img id="plSheetCoverImg" src="./app_logo.png" onerror="this.src='./app_logo.png'" class="spotify-pl-cover-art" alt="">
+            <div class="spotify-pl-meta-col">
+              <span id="plSheetTypeKicker" class="spotify-pl-type-kicker">PLAYLIST</span>
+              <div class="spotify-pl-title-row">
+                <h3 id="plSheetTitle" class="spotify-pl-main-title">Tus Me Gusta</h3>
+                <button id="plSheetRenameBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.renameOpenedSheetPlaylist()" class="spotify-pl-edit-name-btn hidden" title="Renombrar playlist">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                </button>
+              </div>
+              <p id="plSheetSubtitle" class="spotify-pl-sub-info">0 canciones</p>
             </div>
+            <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.closePlaylistTracksModal()" class="tube-amp-close-btn" title="Cerrar">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
           </div>
-          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.closePlaylistTracksModal()" class="tube-amp-close-btn" title="Cerrar">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
 
-        <div class="flex items-center gap-2 py-3">
-          <button id="plSheetDiscoverBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.launchSwipeDiscoveryForOpenedSheet()" class="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#f3d791] via-[#d4af37] to-[#b8860b] text-black text-xs font-extrabold flex items-center justify-center gap-1.5 cursor-pointer shadow-md">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            <span>Descubrir canciones para esta playlist</span>
-          </button>
-          <button id="plSheetPlayAllBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.playAllFromOpenedSheet()" class="py-2.5 px-3.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
-            <span>Reproducir todo</span>
-          </button>
+          <div class="spotify-pl-filter-bar">
+            <div class="spotify-pl-search-wrap">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input id="plSheetSearchInput" type="text" placeholder="Buscar en la playlist..." oninput="window.DiscoverHomeApp && window.DiscoverHomeApp.onPlaylistSheetFilterInput(this.value)" class="spotify-pl-search-input">
+            </div>
+            <select id="plSheetSortSelect" onchange="window.DiscoverHomeApp && window.DiscoverHomeApp.onPlaylistSheetSortChange(this.value)" class="spotify-pl-sort-select" title="Ordenar canciones">
+              <option value="custom">Orden personalizado</option>
+              <option value="title">Título (A-Z)</option>
+              <option value="artist">Artista (A-Z)</option>
+              <option value="recent">Añadidas recientemente</option>
+            </select>
+          </div>
+
+          <div class="spotify-pl-actions-bar">
+            <div class="spotify-pl-left-tools">
+              <button id="plSheetShuffleBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.playAllFromOpenedSheet(true)" class="spotify-pl-pill-action" title="Reproducir en modo aleatorio">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+                <span>Aleatorio</span>
+              </button>
+              <button id="plSheetDiscoverBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.launchSwipeDiscoveryForOpenedSheet()" class="spotify-pl-pill-action gold-accent" title="Descubrir nuevas canciones para esta playlist">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span>Añadir más</span>
+              </button>
+              <button id="plSheetEditBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.togglePlaylistSheetEditMode()" class="spotify-pl-pill-action" title="Reordenar o quitar canciones">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><polyline points="10 3 8 5 10 7"/><polyline points="14 17 16 19 14 21"/></svg>
+                <span id="plSheetEditBtnLabel">Editar</span>
+              </button>
+              <button id="plSheetDeletePlBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.deleteOpenedSheetPlaylist()" class="spotify-pl-pill-action hidden" title="Eliminar playlist">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </div>
+            <button id="plSheetPlayAllBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.playAllFromOpenedSheet(false)" class="spotify-pl-big-play-btn" title="Reproducir playlist">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+            </button>
+          </div>
         </div>
 
         <div id="plSheetTracksList" class="spotify-sheet-tracks-scroll"></div>
@@ -13716,6 +13778,14 @@ function stopPianoCameraLoop() {
         else resolvedStars = 3.2;
       }
 
+      const modalChosenDiff = window._consumeModalChosenDifficulty ? window._consumeModalChosenDifficulty() : null;
+      if (modalChosenDiff) {
+        beatmapData.selectedDensityMode = modalChosenDiff.density;
+        beatmapData.selectedStars = modalChosenDiff.stars;
+        diffLabel = modalChosenDiff.label;
+        resolvedStars = modalChosenDiff.stars;
+      }
+
       const songBpm = Number(beatmapData.bpm) || 120;
       const targetNumLanes = (window.isFourLanesModeActive || window.isCruceModeActive || window.isSplitModeActive || window.isMadnessModeActive) ? 4 : 3;
       const sourceKeys = Number(beatmapData.keys || beatmapData.metadata?.source_keys || beatmapData.unpackedData?.metadata?.source_keys || (srcLower.includes('clone') ? 5 : 4));
@@ -17009,6 +17079,9 @@ function stopPianoCameraLoop() {
 
     window.autoExtractAndPlaySong = async function(rawTitle, rawArtist = '', preferredThumb = '', targetDensity = 'hard', magicKeyUid = '', forceRebuild = false) {
       window.stopPreviewCandidateAudio(false);
+      if (window._selectedModalDifficulty) {
+        targetDensity = window._selectedModalDifficulty;
+      }
       const chosenCandidate = (magicKeyUid && window._selectedMagicAudioCandidate && window._selectedMagicAudioCandidate[magicKeyUid])
         ? window._selectedMagicAudioCandidate[magicKeyUid]
         : null;
@@ -17257,7 +17330,9 @@ function stopPianoCameraLoop() {
         if (!playlists || playlists.length === 0) {
           container.innerHTML = `
             <div class="vegas-console-card p-6 text-center space-y-3">
-              <div class="w-12 h-12 mx-auto rounded-full bg-[#c5a059]/20 border border-[#c5a059]/50 flex items-center justify-center text-[#f3d791] text-xl shadow">💿</div>
+              <div class="w-12 h-12 mx-auto rounded-full bg-[#c5a059]/20 border border-[#c5a059]/50 flex items-center justify-center text-[#f3d791] shadow">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+              </div>
               <div class="space-y-1">
                 <p class="font-black text-sm text-[#fff6d6] font-serif">${t('lib_pl_empty_title', 'Tu Bóveda de Playlists está vacía')}</p>
                 <p class="text-[10.5px] text-[#cbb894] max-w-[260px] mx-auto">${t('lib_pl_empty_sub', 'Importa cualquier playlist de YouTube con 1 clic o explora las Colecciones de Gala en Descubrir.')}</p>
@@ -17288,7 +17363,7 @@ function stopPianoCameraLoop() {
                 </div>
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-1.5">
-                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-[#f3d791] border border-amber-400/40 uppercase">${pl.source === 'youtube' ? 'YouTube LP' : 'Álbum Local'}</span>
+                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-[#f3d791] border border-amber-400/40 uppercase">${pl.source === 'youtube' ? 'YouTube LP' : 'Playlist'}</span>
                     <span class="text-[9px] font-mono font-bold text-[#cbb894]">${trackCount} ${t('disc_tracks', 'Temas')}</span>
                   </div>
                   <h3 class="text-xs font-black text-[#fff6d6] truncate mt-0.5 font-serif">${escapeHtml(pl.title)}</h3>
@@ -17296,7 +17371,7 @@ function stopPianoCameraLoop() {
                 </div>
               </div>
               <div class="flex items-center gap-1.5 shrink-0">
-                <button onclick="openPlaylistDetailView('${pl.id}')" class="vegas-play-fab" title="Abrir y Tocar Playlist">
+                <button onclick="openPlaylistDetailView('${pl.id}')" class="vegas-play-fab" title="Abrir Playlist">
                   ▶
                 </button>
                 <button onclick="deletePlaylistConfirm('${pl.id}')" class="w-7 h-7 rounded-full bg-black/40 hover:bg-red-900/50 border border-white/10 text-[#cbb894] hover:text-rose-300 text-xs flex items-center justify-center cursor-pointer transition" title="Eliminar Playlist">✕</button>
@@ -17327,6 +17402,10 @@ function stopPianoCameraLoop() {
     };
 
     async function openPlaylistDetailView(playlistId) {
+      if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.openUserPlaylistTracksModal === 'function') {
+        await window.DiscoverHomeApp.openUserPlaylistTracksModal(playlistId);
+        return;
+      }
       const tracksCont = document.getElementById('playlistTracksContainer');
       if (tracksCont) tracksCont.innerHTML = '';
 
@@ -18211,7 +18290,7 @@ function stopPianoCameraLoop() {
       'PLDIoUOhQQPlXr6373oT_gM_n3V7kE9e6b': {
         title: 'Electrónica, EDM & Phonk',
         tracks: [
-          { id: 'w-sQRS-Mt9k', title: 'Murder In My Mind', artist: 'Kordhell' },
+          { id: 'rVx2vQ7vX8w', title: 'Murder In My Mind', artist: 'Kordhell' },
           { id: '1-xGerv5FOk', title: 'Close Eyes', artist: 'DVRST' },
           { id: '60ItHLz5WEA', title: 'Faded', artist: 'Alan Walker' },
           { id: 'UtF6Jej8yb4', title: 'The Nights', artist: 'Avicii' },
@@ -18312,7 +18391,7 @@ function stopPianoCameraLoop() {
           { id: 'gxEPV4kolz0', title: 'Piano Man', artist: 'Billy Joel' },
           { id: 'rzc3_b_KnHc', title: 'Rocket Man', artist: 'Elton John' },
           { id: 'fJ9rUzIMcZQ', title: 'Bohemian Rhapsody', artist: 'Queen' },
-          { id: 'CWzrABouyeE', title: 'What A Wonderful World', artist: 'Louis Armstrong' },
+          { id: 'rBrd_3VMC3c', title: 'What A Wonderful World', artist: 'Louis Armstrong' },
           { id: 'r594pxUjcz4', title: 'Hit The Road Jack', artist: 'Ray Charles' },
           { id: 'Y2rDb4Ur2dw', title: 'New York, New York', artist: 'Frank Sinatra' },
           { id: '5anLPw0Efmo', title: 'Feeling Good', artist: 'Nina Simone' },
@@ -18418,16 +18497,18 @@ function stopPianoCameraLoop() {
       const grid = document.getElementById('discoverSearchResultsGrid');
       if (!grid) return;
       if (!playlists || playlists.length === 0) {
+        grid.className = 'grid grid-cols-1 gap-2';
         grid.innerHTML = `<div class="p-4 text-center text-xs text-gray-400">No se encontraron playlists para esta búsqueda.</div>`;
         return;
       }
+      grid.className = 'grid grid-cols-1 gap-2';
       grid.innerHTML = playlists.slice(0, 24).map(pl => {
         const safeTitle = String(pl.title || 'Playlist').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '');
         const safeId = String(pl.playlistId || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '');
         return `
           <div onclick="importCuratedPlaylist('${safeId}', '${safeTitle}')" class="vegas-playlist-card flex items-center justify-between gap-3 cursor-pointer">
             <div class="flex items-center gap-3 min-w-0 flex-1">
-              <img src="${pl.thumbnail || './app_logo.png'}" onerror="this.onerror=null; this.src='./app_logo.png';" alt="" class="w-12 h-12 rounded-lg object-cover border border-white/10 flex-shrink-0" loading="lazy">
+              <img src="${pl.thumbnail || './app_logo.png'}" onload="if(this.naturalWidth>0 && this.naturalWidth<=120){this.src='./app_logo.png';}" onerror="this.onerror=null; this.src='./app_logo.png';" alt="" class="w-12 h-12 rounded-lg object-cover border border-white/10 flex-shrink-0" loading="lazy">
               <div class="flex-1 min-w-0">
                 <h3 class="yt-collection-title text-xs font-bold text-white leading-snug">${escapeHtml(pl.title || 'Playlist')}</h3>
                 <p class="text-[10.5px] text-gray-400 truncate mt-0.5">${escapeHtml(pl.author || 'YouTube')} · <span class="text-[#d4af37]">${escapeHtml(String(pl.videoCount || 'Playlist'))}</span></p>
@@ -18437,7 +18518,7 @@ function stopPianoCameraLoop() {
               <button type="button" onclick="event.stopPropagation(); window.DiscoverHomeApp && window.DiscoverHomeApp.playYouTubeCollectionContinuous('${safeId}', '${safeTitle}')" class="yt-col-icon-btn listen" title="Escuchar playlist">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
               </button>
-              <button type="button" onclick="event.stopPropagation(); importCuratedPlaylist('${safeId}', '${safeTitle}')" class="yt-col-icon-btn play-piano" title="Jugar al piano">
+              <button type="button" onclick="event.stopPropagation(); importCuratedPlaylist('${safeId}', '${safeTitle}')" class="yt-col-icon-btn play-piano" title="Abrir playlist">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <rect x="2" y="4" width="20" height="16" rx="2.5"/>
                   <line x1="8" y1="4" x2="8" y2="14"/><line x1="12" y1="4" x2="12" y2="14"/><line x1="16" y1="4" x2="16" y2="14"/>
@@ -18453,6 +18534,14 @@ function stopPianoCameraLoop() {
     window.executeDiscoverPlaylistSearch = async function(allowEmpty = false) {
       const input = document.getElementById('discoverPlaylistSearchInput');
       const q = input ? input.value.trim() : '';
+
+      // Si no hay búsqueda escrita, mostrar la cuadrícula elegante estilo Spotify con los Tops 100 Reales en vivo
+      if (!q) {
+        if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.renderLiveTopPlaylistsGrid === 'function') {
+          await window.DiscoverHomeApp.renderLiveTopPlaylistsGrid();
+          return;
+        }
+      }
 
       if (q && (q.includes('list=') || q.startsWith('PL') || q.startsWith('OLAK5uy_'))) {
         importCuratedPlaylist(q, 'Playlist Importada de YouTube');
@@ -18470,10 +18559,9 @@ function stopPianoCameraLoop() {
       const myWorker = (u) => `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(u)}`;
 
       try {
-        const searchQuery = q || 'Piano Greatest Hits Playlist';
-        let foundPlaylists = !q ? [...getDefaultCuratedPlaylistsArray('')] : [...getDefaultCuratedPlaylistsArray(q)];
+        const searchQuery = q || 'Top Hits Playlist';
+        let foundPlaylists = [...getDefaultCuratedPlaylistsArray(q)];
 
-        // Mostrar inmediatamente las colecciones iniciales mientras carga YouTube en vivo
         if (foundPlaylists.length > 0) {
           renderDiscoverPlaylistsGrid(foundPlaylists);
         }
@@ -18508,7 +18596,6 @@ function stopPianoCameraLoop() {
           return results;
         }
 
-        // 1. Servidor propio (/api/v1/youtube/search_playlists)
         try {
           const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
           const ctrl = new AbortController();
@@ -18519,12 +18606,11 @@ function stopPianoCameraLoop() {
             const d = await r.json();
             const srvPls = Array.isArray(d.playlists) ? d.playlists : (Array.isArray(d.results) ? d.results : []);
             if (srvPls.length > 0) {
-              foundPlaylists = q ? srvPls.concat(foundPlaylists) : foundPlaylists.concat(srvPls);
+              foundPlaylists = srvPls.concat(foundPlaylists);
             }
           }
         } catch (_) {}
 
-        // 2. YouTube Innertube Search directo vía Worker con clientVersion 2026
         try {
           const ctrl = new AbortController();
           const tid = setTimeout(() => ctrl.abort(), 6000);
@@ -18544,7 +18630,7 @@ function stopPianoCameraLoop() {
           if (resp.ok) {
             const data = await resp.json();
             const liveExtracted = extractPlaylists(data);
-            foundPlaylists = q ? liveExtracted.concat(foundPlaylists) : foundPlaylists.concat(liveExtracted);
+            foundPlaylists = liveExtracted.concat(foundPlaylists);
           }
         } catch (_) {}
 
@@ -18962,6 +19048,9 @@ function stopPianoCameraLoop() {
         };
 
         await IndexedDBStorage.savePlaylist(plRecord);
+        if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.refreshCarousels === 'function') {
+          window.DiscoverHomeApp.refreshCarousels();
+        }
         if (typeof window.scheduleCloudProfileSync === 'function') {
           window.scheduleCloudProfileSync({ playlists_authoritative: true });
         }
@@ -18970,9 +19059,8 @@ function stopPianoCameraLoop() {
         setTimeout(() => {
           if (overlay) overlay.classList.remove('active');
           if (curtain) curtain.classList.add('revealed');
-          showSuccessToast(`Playlist "${plRecord.title}" importada (${plRecord.item_count} temas).`);
-          switchMainTab('library');
-          switchLibrarySubtab('playlists');
+          showSuccessToast(`Playlist "${plRecord.title}" lista (${plRecord.item_count} temas).`);
+          if (typeof renderPlaylistsSubtab === 'function') renderPlaylistsSubtab();
           openPlaylistDetailView(plRecord.id);
         }, 400);
 
@@ -26384,6 +26472,39 @@ function stopPianoCameraLoop() {
     }
     window.checkCommunitySongHasKaraoke = checkCommunitySongHasKaraoke;
 
+    const GAME_MODAL_DIFFICULTY_MAP = {
+      easy: { density: 'easy', label: 'Fácil', stars: 1.8 },
+      normal: { density: 'normal', label: 'Media', stars: 3.0 },
+      hard: { density: 'hard', label: 'Difícil', stars: 4.5 },
+      extreme: { density: 'extreme', label: 'Extrema', stars: 6.5 }
+    };
+    window._selectedModalDifficulty = localStorage.getItem('piano_preferred_difficulty') || 'hard';
+    window._modalDifficultyPendingConsume = false;
+
+    function selectGameModalDifficulty(diffKey) {
+      const key = GAME_MODAL_DIFFICULTY_MAP[diffKey] ? diffKey : 'hard';
+      window._selectedModalDifficulty = key;
+      window._modalDifficultyPendingConsume = true;
+      try { localStorage.setItem('piano_preferred_difficulty', key); } catch (_) {}
+      ['easy', 'normal', 'hard', 'extreme'].forEach(k => {
+        const btn = document.getElementById(`gmDiffBtn_${k}`);
+        if (btn) btn.classList.toggle('active', k === key);
+      });
+      const badge = document.getElementById('gmDifficultyActiveBadge');
+      if (badge) {
+        const info = GAME_MODAL_DIFFICULTY_MAP[key];
+        badge.innerText = `${info.label} · ${info.stars.toFixed(1)}★`;
+      }
+    }
+    window.selectGameModalDifficulty = selectGameModalDifficulty;
+
+    window._consumeModalChosenDifficulty = function() {
+      if (!window._modalDifficultyPendingConsume) return null;
+      window._modalDifficultyPendingConsume = false;
+      const key = window._selectedModalDifficulty || 'hard';
+      return GAME_MODAL_DIFFICULTY_MAP[key] || GAME_MODAL_DIFFICULTY_MAP.hard;
+    };
+
     function openGameModeSelectModal(songTitle = 'PISTA', songArtist = '', hasKaraoke = true) {
       return new Promise((resolve) => {
         _gameModeModalResolver = resolve;
@@ -26392,6 +26513,7 @@ function stopPianoCameraLoop() {
           resolve('normal');
           return;
         }
+        selectGameModalDifficulty(window._selectedModalDifficulty || 'hard');
         // Pre-calentar en segundo plano la búsqueda de letras LRC mientras el jugador elige modo
         if (typeof fetchUniversalSyncedLyrics === 'function' && songTitle && songTitle !== 'PISTA') {
           fetchUniversalSyncedLyrics(songTitle, songArtist).catch(() => null);

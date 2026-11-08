@@ -3811,7 +3811,7 @@ async function searchYouTubeCandidatesServer(query, rawTitle = '', rawArtist = '
     if (!cleanQ) return [];
     const queries = [cleanQ];
     if (!/\b(audio|official|oficial|topic|canciones)\b/i.test(cleanQ)) {
-      queries.push(`${cleanQ} canciones audio`);
+      queries.push(`${cleanQ} official audio`);
     }
 
     const found = [];
@@ -3830,7 +3830,7 @@ async function searchYouTubeCandidatesServer(query, rawTitle = '', rawArtist = '
           },
           query: ytQuery
         }),
-        signal: AbortSignal.timeout(3800)
+        signal: AbortSignal.timeout(3400)
       });
       if (!ytRes.ok) return;
       const data = await ytRes.json();
@@ -3846,7 +3846,6 @@ async function searchYouTubeCandidatesServer(query, rawTitle = '', rawArtist = '
           const author = v.ownerText?.runs?.[0]?.text || v.longBylineText?.runs?.[0]?.text || '';
           const lenText = v.lengthText?.simpleText || v.lengthText?.runs?.[0]?.text || '';
           const durSec = parseDurationStrToSecondsServer(lenText);
-          // Descartar livestreams sin duración, fragmentos cortos (< 42s) o sesiones largas (> 15 min)
           if (!durSec || durSec < 42 || durSec > 900) return;
           if (!lenText && v.badges && JSON.stringify(v.badges).includes('LIVE')) return;
 
@@ -3856,14 +3855,20 @@ async function searchYouTubeCandidatesServer(query, rawTitle = '', rawArtist = '
             seenIds.add(vid);
             rankIdx++;
             const cleanArt = author.replace(/ - Topic$/i, '').replace(/VEVO$/i, '').trim();
-            let authScore = Math.max(48, 98 - (qIdx * 6) - Math.min(35, rankIdx * 1.4));
-            if (/ - Topic$/i.test(author) || /official\s*audio|audio\s*oficial|provided to youtube/i.test(title)) {
-              authScore += 14;
+            let authScore = Math.max(48, 98 - (qIdx * 4) - Math.min(35, rankIdx * 1.4));
+            const isTopicOrAudio = / - Topic$/i.test(author) || /\b(official\s*audio|audio\s*oficial|provided to youtube|lyric|letra)\b/i.test(title);
+            const isMusicVideo = /\b(official\s*video|video\s*oficial|videoclip|music\s*video)\b/i.test(title);
+            if (isTopicOrAudio) {
+              authScore += 22;
             }
             if (expectedDurationSec > 55 && durSec > 55) {
               const diffDur = Math.abs(durSec - expectedDurationSec);
-              if (diffDur <= 12) authScore += 16;
-              else if (diffDur <= 28) authScore += 8;
+              if (diffDur <= 3) authScore += 36;
+              else if (diffDur <= 7) authScore += 24;
+              else if (diffDur <= 12) authScore += 12;
+              else if (diffDur >= 18) authScore -= 28;
+            } else if (isMusicVideo && !isTopicOrAudio) {
+              authScore -= 8;
             }
             found.push({
               videoId: vid,
@@ -3872,7 +3877,7 @@ async function searchYouTubeCandidatesServer(query, rawTitle = '', rawArtist = '
               channel: author,
               durationSec: durSec || expectedDurationSec || 180,
               thumbnail: thumb,
-              authScore: Math.min(115, Math.round(authScore))
+              authScore: Math.min(135, Math.round(authScore))
             });
           }
         }
@@ -4592,13 +4597,10 @@ async function extractSoundCloudFullTrackServer(searchQuery, rawTitle = '', rawA
 async function tryExtractYouTubeStream(videoId) {
   if (!videoId) return null;
 
-  // 1. Prioridad #1: Extractor Notube MP3 Completo (con polling para vídeos recién convertidos y soporte de canciones de 1.5 a 6 min)
-  try {
-    const notubeMp3 = await extractYouTubeFullAudioViaNotubeServer(videoId);
-    if (notubeMp3 && notubeMp3.buffer && notubeMp3.buffer.length >= 120000) {
-      return notubeMp3;
-    }
-  } catch (_) {}
+  if (YOUTUBE_FULL_MP3_LRU.has(videoId)) {
+    const cached = YOUTUBE_FULL_MP3_LRU.get(videoId);
+    if (cached && cached.buffer && cached.buffer.length >= 120000) return cached;
+  }
 
   const pipedInstances = [
     `https://pipedapi.kavin.rocks/streams/${encodeURIComponent(videoId)}`,
@@ -4615,52 +4617,66 @@ async function tryExtractYouTubeStream(videoId) {
     `https://invidious.privacyredirect.com/api/v1/videos/${encodeURIComponent(videoId)}`
   ];
 
-  // 2. Probar instancias Piped en paralelo
-  try {
-    const streamInfo = await Promise.any(pipedInstances.map(async (apiUrl) => {
-      const r = await fetch(apiUrl, { signal: AbortSignal.timeout(4200) });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const j = await r.json();
-      const streams = Array.isArray(j?.audioStreams) ? j.audioStreams : [];
-      const sorted = streams
-        .filter(s => s && s.url && (!s.mimeType || s.mimeType.includes('audio')))
-        .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
-      if (!sorted.length) throw new Error('No audioStreams');
-      const dl = await fetchAudioBufferSafe(sorted[0].url, 7500);
-      if (!dl || !dl.buffer || dl.buffer.length < 120000) throw new Error('Audio stream too short');
-      return {
-        ...dl,
-        title: j.title || '',
-        artist: (j.uploader || '').replace(/ - Topic$/i, '').trim(),
-        thumbnail: j.thumbnailUrl || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-        source: 'YouTube Audio Stream'
-      };
-    }));
-    if (streamInfo && streamInfo.buffer) return streamInfo;
-  } catch (_) {}
+  const notubePromise = (async () => {
+    const notubeMp3 = await extractYouTubeFullAudioViaNotubeServer(videoId);
+    if (notubeMp3 && notubeMp3.buffer && notubeMp3.buffer.length >= 120000) return notubeMp3;
+    throw new Error('Notube empty');
+  })();
 
-  // 3. Probar instancias Invidious en paralelo
+  const pipedPromise = Promise.any(pipedInstances.map(async (apiUrl) => {
+    const r = await fetch(apiUrl, { signal: AbortSignal.timeout(3800) });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const j = await r.json();
+    const streams = Array.isArray(j?.audioStreams) ? j.audioStreams : [];
+    const sorted = streams
+      .filter(s => s && s.url && (!s.mimeType || s.mimeType.includes('audio')))
+      .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+    if (!sorted.length) throw new Error('No audioStreams');
+    const dl = await fetchAudioBufferSafe(sorted[0].url, 6500);
+    if (!dl || !dl.buffer || dl.buffer.length < 120000) throw new Error('Audio stream too short');
+    return {
+      ...dl,
+      title: j.title || '',
+      artist: (j.uploader || '').replace(/ - Topic$/i, '').trim(),
+      durationSec: Number(j.duration) || 0,
+      thumbnail: j.thumbnailUrl || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+      source: 'YouTube Audio Stream'
+    };
+  }));
+
+  const invidiousPromise = Promise.any(invidiousInstances.map(async (apiUrl) => {
+    const r = await fetch(apiUrl, { signal: AbortSignal.timeout(3800) });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const j = await r.json();
+    const adaptive = Array.isArray(j?.adaptiveFormats) ? j.adaptiveFormats : [];
+    const audioFmts = adaptive
+      .filter(f => f && f.url && String(f.type || '').startsWith('audio/'))
+      .sort((a, b) => (parseInt(b.bitrate, 10) || 0) - (parseInt(a.bitrate, 10) || 0));
+    if (!audioFmts.length) throw new Error('No adaptive audio');
+    const dl = await fetchAudioBufferSafe(audioFmts[0].url, 6500);
+    if (!dl || !dl.buffer || dl.buffer.length < 120000) throw new Error('Adaptive audio too short');
+    return {
+      ...dl,
+      title: j.title || '',
+      artist: (j.author || '').replace(/ - Topic$/i, '').trim(),
+      durationSec: Number(j.lengthSeconds) || 0,
+      thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+      source: 'YouTube Direct Audio'
+    };
+  }));
+
   try {
-    const invInfo = await Promise.any(invidiousInstances.map(async (apiUrl) => {
-      const r = await fetch(apiUrl, { signal: AbortSignal.timeout(4200) });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const j = await r.json();
-      const adaptive = Array.isArray(j?.adaptiveFormats) ? j.adaptiveFormats : [];
-      const audioFmts = adaptive
-        .filter(f => f && f.url && String(f.type || '').startsWith('audio/'))
-        .sort((a, b) => (parseInt(b.bitrate, 10) || 0) - (parseInt(a.bitrate, 10) || 0));
-      if (!audioFmts.length) throw new Error('No adaptive audio');
-      const dl = await fetchAudioBufferSafe(audioFmts[0].url, 7500);
-      if (!dl || !dl.buffer || dl.buffer.length < 120000) throw new Error('Adaptive audio too short');
-      return {
-        ...dl,
-        title: j.title || '',
-        artist: (j.author || '').replace(/ - Topic$/i, '').trim(),
-        thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-        source: 'YouTube Direct Audio'
-      };
-    }));
-    if (invInfo && invInfo.buffer) return invInfo;
+    const winner = await Promise.any([notubePromise, pipedPromise, invidiousPromise]);
+    if (winner && winner.buffer) {
+      if (!YOUTUBE_FULL_MP3_LRU.has(videoId)) {
+        if (YOUTUBE_FULL_MP3_LRU.size >= YOUTUBE_FULL_MP3_LRU_MAX) {
+          const oldest = YOUTUBE_FULL_MP3_LRU.keys().next().value;
+          if (oldest) YOUTUBE_FULL_MP3_LRU.delete(oldest);
+        }
+        YOUTUBE_FULL_MP3_LRU.set(videoId, winner);
+      }
+      return winner;
+    }
   } catch (_) {}
 
   return null;
@@ -5251,17 +5267,45 @@ app.get('/api/v1/audio/extract', async (req, res) => {
   };
 
   try {
-    // Etapa 0A: Si se solicitó un videoId específico de YouTube, extraer su MP3 completo de estudio directamente
+    // Etapa 0A: Si tenemos título, artista y duración de estudio esperada (expectedDur > 55), priorizar versión de estudio exacta ("Topic" / "Official Audio") para sincronización perfecta con LRC
+    if (expectedDur > 55 && rawTitle && rawArtist) {
+      const ytStudioList = await searchYouTubeCandidatesServer(
+        `${rawArtist} ${rawTitle}`,
+        rawTitle,
+        rawArtist,
+        expectedDur
+      );
+      const bestStudioMatch = ytStudioList.find(c => c.videoId && Math.abs((c.durationSec || 0) - expectedDur) <= 6);
+      if (bestStudioMatch && bestStudioMatch.videoId) {
+        const ytStudioAudio = await tryExtractYouTubeStream(bestStudioMatch.videoId);
+        if (ytStudioAudio && ytStudioAudio.buffer && ytStudioAudio.buffer.length >= 120000) {
+          res.setHeader('Content-Type', ytStudioAudio.contentType || 'audio/mpeg');
+          res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source, X-Video-Id, X-Audio-Duration');
+          res.setHeader('X-Song-Title', encodeURIComponent(rawTitle || bestStudioMatch.title || resolvedMeta.title));
+          res.setHeader('X-Song-Artist', encodeURIComponent(rawArtist || bestStudioMatch.artist || resolvedMeta.artist));
+          res.setHeader('X-Song-Cover', encodeURIComponent(resolvedMeta.thumbnail || bestStudioMatch.thumbnail || ''));
+          res.setHeader('X-Audio-Source', encodeURIComponent(ytStudioAudio.source || 'YouTube Studio Master MP3'));
+          res.setHeader('X-Video-Id', encodeURIComponent(bestStudioMatch.videoId));
+          res.setHeader('X-Audio-Duration', String(bestStudioMatch.durationSec || expectedDur));
+          return res.send(ytStudioAudio.buffer);
+        }
+      }
+    }
+
+    // Etapa 0A-Direct: Si se solicitó un videoId específico de YouTube, extraer su MP3 completo de estudio directamente
     if (resolvedMeta.videoId) {
       const ytDirect = await tryExtractYouTubeStream(resolvedMeta.videoId);
       if (ytDirect && ytDirect.buffer && ytDirect.buffer.length >= 120000) {
         res.setHeader('Content-Type', ytDirect.contentType || 'audio/mpeg');
-        res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source, X-Video-Id');
+        res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source, X-Video-Id, X-Audio-Duration');
         res.setHeader('X-Song-Title', encodeURIComponent(rawTitle || ytDirect.title || resolvedMeta.title));
         res.setHeader('X-Song-Artist', encodeURIComponent(rawArtist || ytDirect.artist || resolvedMeta.artist));
         res.setHeader('X-Song-Cover', encodeURIComponent(resolvedMeta.thumbnail || ytDirect.thumbnail || ''));
         res.setHeader('X-Audio-Source', encodeURIComponent(ytDirect.source || 'YouTube Studio Master MP3'));
         res.setHeader('X-Video-Id', encodeURIComponent(resolvedMeta.videoId));
+        if (ytDirect.durationSec || expectedDur) {
+          res.setHeader('X-Audio-Duration', String(ytDirect.durationSec || expectedDur));
+        }
         return res.send(ytDirect.buffer);
       }
     }
@@ -5312,12 +5356,13 @@ app.get('/api/v1/audio/extract', async (req, res) => {
         const ytAudio = await tryExtractYouTubeStream(ytCand.videoId);
         if (ytAudio && ytAudio.buffer && ytAudio.buffer.length >= 120000) {
           res.setHeader('Content-Type', ytAudio.contentType || 'audio/mpeg');
-          res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source, X-Video-Id');
+          res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source, X-Video-Id, X-Audio-Duration');
           res.setHeader('X-Song-Title', encodeURIComponent(rawTitle || ytCand.title || resolvedMeta.title));
           res.setHeader('X-Song-Artist', encodeURIComponent(rawArtist || ytCand.artist || resolvedMeta.artist));
           res.setHeader('X-Song-Cover', encodeURIComponent(resolvedMeta.thumbnail || ytCand.thumbnail || ''));
           res.setHeader('X-Audio-Source', encodeURIComponent(ytAudio.source || 'YouTube Studio Master MP3'));
           res.setHeader('X-Video-Id', encodeURIComponent(ytCand.videoId));
+          res.setHeader('X-Audio-Duration', String(ytCand.durationSec || expectedDur || 180));
           return res.send(ytAudio.buffer);
         }
       }
@@ -5415,6 +5460,283 @@ app.get('/api/v1/audio/extract', async (req, res) => {
     return res.status(404).json({ error: 'No se pudo extraer el flujo de audio completo desde ninguna fuente.' });
   } catch (err) {
     return res.status(500).json({ error: err.message || 'Error en extractor de audio' });
+  }
+});
+
+// ==========================================
+// 4D. TRADUCCIÓN DE LETRAS DE KARAOKE EN TIEMPO REAL
+// ==========================================
+const lyricsTranslationMemoryCache = new Map();
+
+app.post('/api/v1/lyrics/translate', async (req, res) => {
+  try {
+    const lines = Array.isArray(req.body?.lines) ? req.body.lines.map(l => String(l || '').trim()) : [];
+    const targetLang = String(req.body?.targetLang || 'es').toLowerCase().slice(0, 2);
+    if (!lines.length) return res.json({ translations: [] });
+
+    const cacheKey = `${targetLang}__${lines.join('|').slice(0, 480)}`;
+    const cached = lyricsTranslationMemoryCache.get(cacheKey);
+    if (cached && (Date.now() - cached.ts) < 6 * 3600 * 1000) {
+      return res.json({ translations: cached.data });
+    }
+
+    // Batch translate using Google GTX separator-preserving strategy
+    const joined = lines.map(l => l || ' ').join('\n');
+    const gtxUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(joined)}`;
+    const gRes = await fetch(gtxUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(4500)
+    });
+    if (gRes.ok) {
+      const gJson = await gRes.json();
+      const segments = Array.isArray(gJson?.[0]) ? gJson[0] : [];
+      const fullTranslated = segments.map(seg => (Array.isArray(seg) && seg[0]) ? String(seg[0]) : '').join('');
+      const translatedLines = fullTranslated.split('\n').map(s => s.trim());
+      const out = lines.map((orig, idx) => {
+        const tr = translatedLines[idx] || '';
+        if (!orig || orig.toLowerCase() === tr.toLowerCase()) return '';
+        return tr;
+      });
+      if (lyricsTranslationMemoryCache.size > 300) {
+        const firstKey = lyricsTranslationMemoryCache.keys().next().value;
+        if (firstKey) lyricsTranslationMemoryCache.delete(firstKey);
+      }
+      lyricsTranslationMemoryCache.set(cacheKey, { ts: Date.now(), data: out });
+      return res.json({ translations: out });
+    }
+    return res.json({ translations: lines.map(() => '') });
+  } catch (_) {
+    return res.json({ translations: [] });
+  }
+});
+
+// ==========================================
+// 4E. PLAYLISTS OFICIALES EN VIVO (TOP 100 ESPAÑA, TOP 100 MUNDO Y GÉNEROS ACTUALES)
+// ==========================================
+const LIVE_CHART_PLAYLIST_DEFS = [
+  {
+    id: 'live_chart_es_top100',
+    title: 'Top 100 España',
+    subtitle: 'Lo más escuchado hoy en España',
+    badge: 'TOP 100 OFICIAL',
+    gradient: 'linear-gradient(135deg, #b91c1c 0%, #f59e0b 100%)',
+    accent: '#fbbf24',
+    itunesRssUrl: 'https://itunes.apple.com/es/rss/topsongs/limit=100/json',
+    appleRssUrl: 'https://rss.applemarketingtools.com/api/v2/es/music/most-played/100/songs.json',
+    deezerChartUrl: 'https://api.deezer.com/chart/0/tracks?limit=100'
+  },
+  {
+    id: 'live_chart_global_top100',
+    title: 'Top 100 Global',
+    subtitle: 'Éxitos mundiales del momento',
+    badge: 'TOP 100 MUNDO',
+    gradient: 'linear-gradient(135deg, #047857 0%, #10b981 55%, #06b6d4 100%)',
+    accent: '#34d399',
+    itunesRssUrl: 'https://itunes.apple.com/us/rss/topsongs/limit=100/json',
+    appleRssUrl: 'https://rss.applemarketingtools.com/api/v2/us/music/most-played/100/songs.json',
+    deezerChartUrl: 'https://api.deezer.com/chart/0/tracks?limit=100'
+  },
+  {
+    id: 'live_chart_pop_hits',
+    title: 'Top Éxitos Pop',
+    subtitle: 'Los mayores hits del Pop actual',
+    badge: 'POP ACTUAL',
+    gradient: 'linear-gradient(135deg, #be185d 0%, #ec4899 60%, #f43f5e 100%)',
+    accent: '#f472b6',
+    itunesRssUrl: 'https://itunes.apple.com/es/rss/topsongs/limit=100/genre=14/json',
+    deezerChartUrl: 'https://api.deezer.com/chart/132/tracks?limit=100'
+  },
+  {
+    id: 'live_chart_urbano_latino',
+    title: 'Top Urbano & Latino',
+    subtitle: 'Reggaetón, Trap y ritmos latinos',
+    badge: 'URBANO TOP',
+    gradient: 'linear-gradient(135deg, #c2410c 0%, #f97316 60%, #eab308 100%)',
+    accent: '#fb923c',
+    itunesRssUrl: 'https://itunes.apple.com/es/rss/topsongs/limit=100/genre=12/json',
+    deezerChartUrl: 'https://api.deezer.com/chart/116/tracks?limit=100'
+  },
+  {
+    id: 'live_chart_rock_legends',
+    title: 'Top Rock & Alternativo',
+    subtitle: 'Himnos de guitarras y rock actual',
+    badge: 'ROCK TOP 100',
+    gradient: 'linear-gradient(135deg, #1e1b4b 0%, #7f1d1d 60%, #dc2626 100%)',
+    accent: '#f87171',
+    itunesRssUrl: 'https://itunes.apple.com/es/rss/topsongs/limit=100/genre=21/json',
+    deezerChartUrl: 'https://api.deezer.com/chart/152/tracks?limit=100'
+  },
+  {
+    id: 'live_chart_dance_electro',
+    title: 'Top Electrónica & Club',
+    subtitle: 'House, Dance, Techno y EDM',
+    badge: 'CLUB & EDM',
+    gradient: 'linear-gradient(135deg, #311068 0%, #6366f1 55%, #22d3ee 100%)',
+    accent: '#38bdf8',
+    itunesRssUrl: 'https://itunes.apple.com/es/rss/topsongs/limit=100/genre=7/json',
+    deezerChartUrl: 'https://api.deezer.com/chart/106/tracks?limit=100'
+  },
+  {
+    id: 'live_chart_hiphop_rnb',
+    title: 'Top Hip-Hop & R&B',
+    subtitle: 'Beats urbanos, Rap y Soul contemporáneo',
+    badge: 'HIP-HOP & R&B',
+    gradient: 'linear-gradient(135deg, #3f2e18 0%, #b45309 55%, #f59e0b 100%)',
+    accent: '#fbbf24',
+    itunesRssUrl: 'https://itunes.apple.com/us/rss/topsongs/limit=100/genre=18/json',
+    deezerChartUrl: 'https://api.deezer.com/chart/165/tracks?limit=100'
+  },
+  {
+    id: 'live_chart_piano_classical',
+    title: 'Top Piano & Clásica',
+    subtitle: 'Obras maestras y bandas sonoras a piano',
+    badge: 'PIANO & BSO',
+    gradient: 'linear-gradient(135deg, #1c1917 0%, #44403c 50%, #d97706 100%)',
+    accent: '#fcd34d',
+    itunesRssUrl: 'https://itunes.apple.com/es/rss/topsongs/limit=100/genre=5/json',
+    deezerChartUrl: 'https://api.deezer.com/chart/98/tracks?limit=100'
+  }
+];
+
+const liveChartTracksCache = new Map();
+
+async function fetchLiveChartTracksById(chartId) {
+  const def = LIVE_CHART_PLAYLIST_DEFS.find(d => d.id === chartId) || LIVE_CHART_PLAYLIST_DEFS[0];
+  const cached = liveChartTracksCache.get(def.id);
+  if (cached && (Date.now() - cached.ts) < 30 * 60 * 1000 && cached.tracks.length > 0) {
+    return { def, tracks: cached.tracks };
+  }
+
+  const tracks = [];
+  const seenKeys = new Set();
+
+  const pushUniqueTrack = (tr) => {
+    if (!tr || !tr.title || !tr.artist) return;
+    const normKey = `${normalizeSearchText(tr.title)}__${normalizeSearchText(tr.artist)}`;
+    if (!normKey || seenKeys.has(normKey)) return;
+    seenKeys.add(normKey);
+    tracks.push({
+      id: tr.id || `chart_${def.id}_${tracks.length + 1}`,
+      title: String(tr.title).trim(),
+      artist: String(tr.artist).trim(),
+      thumbnail: tr.thumbnail || './app_logo.png',
+      cover_url: tr.thumbnail || './app_logo.png',
+      previewUrl: tr.previewUrl || '',
+      duration_seconds: Number(tr.duration_seconds) || 180,
+      rank: tracks.length + 1
+    });
+  };
+
+  // 1. iTunes Official RSS JSON (includes 600x600 covers + 30s preview links + 100 real current entries)
+  if (def.itunesRssUrl) {
+    try {
+      const r = await fetch(def.itunesRssUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(4500)
+      });
+      if (r.ok) {
+        const j = await r.json();
+        const entries = Array.isArray(j?.feed?.entry) ? j.feed.entry : [];
+        for (const e of entries) {
+          const title = e?.['im:name']?.label || '';
+          const artist = e?.['im:artist']?.label || '';
+          const imgs = Array.isArray(e?.['im:image']) ? e['im:image'] : [];
+          const rawImg = imgs.length ? (imgs[imgs.length - 1]?.label || '') : '';
+          const cover600 = rawImg ? rawImg.replace(/\d+x\d+bb/i, '600x600bb') : '';
+          const links = Array.isArray(e?.link) ? e.link : [];
+          const prevObj = links.find(l => l?.attributes?.type?.includes('audio') || l?.attributes?.['im:assetType'] === 'preview');
+          const previewUrl = prevObj?.attributes?.href || '';
+          const durMs = Number(e?.link?.[1]?.['im:duration']?.label || 0);
+          const itemId = e?.id?.attributes?.['im:id'] || '';
+          pushUniqueTrack({
+            id: itemId ? `it_${itemId}` : '',
+            title,
+            artist,
+            thumbnail: cover600,
+            previewUrl,
+            duration_seconds: durMs > 1000 ? Math.round(durMs / 1000) : 185
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  // 2. Complement / Fallback with Deezer Official Live Charts API
+  if (tracks.length < 50 && def.deezerChartUrl) {
+    try {
+      const r = await fetch(def.deezerChartUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(4200)
+      });
+      if (r.ok) {
+        const j = await r.json();
+        const list = Array.isArray(j?.data) ? j.data : [];
+        for (const item of list) {
+          if (!item || !item.title) continue;
+          pushUniqueTrack({
+            id: item.id ? `dz_${item.id}` : '',
+            title: item.title_short || item.title,
+            artist: item.artist?.name || 'Artista',
+            thumbnail: item.album?.cover_big || item.album?.cover_xl || item.album?.cover_medium || '',
+            previewUrl: item.preview || '',
+            duration_seconds: Number(item.duration) || 185
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  if (tracks.length > 0) {
+    liveChartTracksCache.set(def.id, { ts: Date.now(), tracks });
+  }
+  return { def, tracks };
+}
+
+app.get('/api/v1/charts/top-playlists', async (req, res) => {
+  try {
+    // Hydrate top covers in parallel quickly
+    const cards = await Promise.all(LIVE_CHART_PLAYLIST_DEFS.map(async (def) => {
+      const cached = liveChartTracksCache.get(def.id);
+      let sampleTracks = cached ? cached.tracks.slice(0, 4) : [];
+      if (sampleTracks.length === 0) {
+        try {
+          const { tracks } = await fetchLiveChartTracksById(def.id);
+          sampleTracks = tracks.slice(0, 4);
+        } catch (_) {}
+      }
+      return {
+        id: def.id,
+        title: def.title,
+        subtitle: def.subtitle,
+        badge: def.badge,
+        gradient: def.gradient,
+        accent: def.accent,
+        item_count: cached?.tracks?.length || 100,
+        thumbnail: sampleTracks[0]?.thumbnail || './app_logo.png',
+        mosaic_covers: sampleTracks.map(t => t.thumbnail).filter(Boolean).slice(0, 4),
+        sample_artists: sampleTracks.map(t => t.artist).filter(Boolean).slice(0, 3).join(', ')
+      };
+    }));
+    res.json({ playlists: cards });
+  } catch (err) {
+    res.json({ playlists: LIVE_CHART_PLAYLIST_DEFS });
+  }
+});
+
+app.get('/api/v1/charts/top-playlist-tracks', async (req, res) => {
+  const id = String(req.query.id || '').trim();
+  try {
+    const { def, tracks } = await fetchLiveChartTracksById(id);
+    res.json({
+      id: def.id,
+      title: def.title,
+      subtitle: def.subtitle,
+      badge: def.badge,
+      item_count: tracks.length,
+      tracks
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'No se pudo cargar el Top actual' });
   }
 });
 
