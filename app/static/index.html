@@ -16867,8 +16867,9 @@ function stopPianoCameraLoop() {
           });
           if (matchedTop) {
             const rawId = String(matchedTop.raw_id || matchedTop.id || '').replace(/^top_/, '');
-            const audioFilename = matchedTop.audio_url || `${rawId}.mp3`;
-            for (const tag of ['3', '8']) {
+            const exactTag = typeof window.getReleaseTagForFile === 'function' ? window.getReleaseTagForFile(audioFilename) : null;
+            const searchTags = exactTag ? [exactTag, '3', '8'].filter((v, i, a) => v && a.indexOf(v) === i) : ['3', '8', '4', '5', '6', '7', '9'];
+            for (const tag of searchTags) {
               try {
                 const cUrl = `https://github.com/Bruala33/renacer/releases/download/${tag}/${audioFilename}`;
                 const proxyUrl = `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(cUrl)}`;
@@ -21313,6 +21314,56 @@ function stopPianoCameraLoop() {
     const TOP_SONGS_CDN_BASE = 'https://github.com/Bruala33/renacer/releases/download/3/';
     window.BASE_TOP_SONGS_CATALOG = Array.isArray(window.TOP_SONGS_CATALOG) ? window.TOP_SONGS_CATALOG.slice() : [];
 
+    // Mapeo O(1) de archivos (MP3 y JSON) a sus tags exactos en GitHub Releases (Packs 3 al 9)
+    window.RELEASE_TAGS_MAP = null;
+    window.getReleaseTagForFile = function(filename) {
+      if (!filename) return null;
+      const cleanName = String(filename).trim();
+      const map = window.RELEASE_TAGS_MAP;
+      if (!map) return null;
+      const entry = map[cleanName];
+      if (!entry) return null;
+      return Array.isArray(entry) ? String(entry[0]) : String(entry);
+    };
+
+    window.loadReleaseTagsMap = async function() {
+      if (window.RELEASE_TAGS_MAP && typeof window.RELEASE_TAGS_MAP === 'object' && Object.keys(window.RELEASE_TAGS_MAP).length > 100) {
+        return window.RELEASE_TAGS_MAP;
+      }
+      try {
+        const cached = localStorage.getItem('beatstar_release_tags_map');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 100) {
+            window.RELEASE_TAGS_MAP = parsed;
+          }
+        }
+      } catch (_) {}
+
+      const candidates = ['./release_tags_map.json'];
+      const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : '';
+      if (baseUrl) {
+        candidates.push(`${baseUrl}/release_tags_map.json`);
+        candidates.push(`${baseUrl}/api/v1/release-tags-map`);
+      }
+
+      for (const url of candidates) {
+        try {
+          const res = await fetch(url);
+          if (res.ok) {
+            const data = await res.json();
+            if (data && typeof data === 'object' && Object.keys(data).length > 100) {
+              window.RELEASE_TAGS_MAP = data;
+              try { localStorage.setItem('beatstar_release_tags_map', JSON.stringify(data)); } catch (_) {}
+              return data;
+            }
+          }
+        } catch (_) {}
+      }
+      return window.RELEASE_TAGS_MAP;
+    };
+    try { window.loadReleaseTagsMap(); } catch (_) {}
+
     // Restaurar canciones sincronizadas desde almacenamiento local
     try {
       const cachedRemoteCat = localStorage.getItem('beatstar_remote_top_catalog');
@@ -21607,17 +21658,30 @@ function stopPianoCameraLoop() {
         };
 
         if (!chartData && songMeta.chart_url) {
-          // Probar primero los tags principales en paralelo rápido
-          const priorityTags = ['3', '8', '4', '5', '6', '7', '9', '10'];
-          const batchSize = 4;
-          for (let i = 0; i < priorityTags.length; i += batchSize) {
-            const batch = priorityTags.slice(i, i + batchSize);
-            const results = await Promise.all(batch.map(tag => fetchReleaseJson(tag)));
-            const hit = results.find(r => r && r.data);
-            if (hit) {
+          if (!window.RELEASE_TAGS_MAP && typeof window.loadReleaseTagsMap === 'function') {
+            await window.loadReleaseTagsMap().catch(() => {});
+          }
+          const exactChartTag = typeof window.getReleaseTagForFile === 'function' ? window.getReleaseTagForFile(chartFilename) : null;
+          if (exactChartTag) {
+            const hit = await fetchReleaseJson(exactChartTag);
+            if (hit && hit.data) {
               chartData = hit.data;
-              chartFoundTag = hit.tag;
-              break;
+              chartFoundTag = exactChartTag;
+            }
+          }
+          if (!chartData) {
+            // Probar primero los tags principales en paralelo rápido
+            const priorityTags = ['3', '8', '4', '5', '6', '7', '9', '10'];
+            const batchSize = 4;
+            for (let i = 0; i < priorityTags.length; i += batchSize) {
+              const batch = priorityTags.slice(i, i + batchSize);
+              const results = await Promise.all(batch.map(tag => fetchReleaseJson(tag)));
+              const hit = results.find(r => r && r.data);
+              if (hit) {
+                chartData = hit.data;
+                chartFoundTag = hit.tag;
+                break;
+              }
             }
           }
         }
@@ -21633,7 +21697,10 @@ function stopPianoCameraLoop() {
           if (audioBlob && loadStatus) loadStatus.innerText = 'Preparando audio pre-cargado...';
         }
         const audioFilename = songMeta.audio_url || `${rawId}.mp3`;
-        const audioTags = chartFoundTag ? [chartFoundTag, '3', '8'] : ['3', '8', '4', '5'];
+        const exactAudioTag = typeof window.getReleaseTagForFile === 'function' ? window.getReleaseTagForFile(audioFilename) : null;
+        const audioTags = exactAudioTag
+          ? [exactAudioTag, chartFoundTag, '3', '8'].filter((v, i, a) => v && a.indexOf(v) === i)
+          : (chartFoundTag ? [chartFoundTag, '3', '8'] : ['3', '8', '4', '5', '6', '7', '9']);
 
         if (!audioBlob && (chartFoundTag || songMeta.audio_url)) {
           if (loadStatus) loadStatus.innerText = 'Descargando audio de alta fidelidad...';

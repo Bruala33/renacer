@@ -6235,6 +6235,67 @@ app.get('/songs/:folder/:file(*)', (req, res) => {
 });
 
 // ==========================================
+// 5.5. GitHub Releases CDN Proxy & Tag Map
+// ==========================================
+let RELEASE_TAGS_MAP_DATA = null;
+function getReleaseTagsMap() {
+  if (!RELEASE_TAGS_MAP_DATA) {
+    const p = path.join(__dirname, 'data', 'release_tags_map.json');
+    if (fs.existsSync(p)) {
+      try {
+        RELEASE_TAGS_MAP_DATA = JSON.parse(fs.readFileSync(p, 'utf8'));
+      } catch (_) {}
+    }
+  }
+  return RELEASE_TAGS_MAP_DATA || {};
+}
+
+app.get('/api/v1/release-tags-map', (req, res) => {
+  const mapPath = path.join(__dirname, 'data', 'release_tags_map.json');
+  if (serveCompressedTextFile(req, res, mapPath, 'public, max-age=86400, must-revalidate')) return;
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.json(getReleaseTagsMap());
+});
+
+app.get('/api/v1/cdn/release/:filename(*)', async (req, res) => {
+  const { filename } = req.params;
+  const map = getReleaseTagsMap();
+  const entry = map[filename];
+  const tag = Array.isArray(entry) ? entry[0] : (typeof entry === 'string' ? entry : '3');
+  const assetId = Array.isArray(entry) ? entry[1] : null;
+
+  const directUrl = `https://github.com/Bruala33/renacer/releases/download/${tag}/${filename}`;
+
+  // If token is available and repository needs authenticated asset proxying
+  const ghToken = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
+  if (assetId && ghToken) {
+    try {
+      const apiRes = await fetch(`https://api.github.com/repos/Bruala33/renacer/releases/assets/${assetId}`, {
+        headers: {
+          Authorization: `Bearer ${ghToken}`,
+          Accept: 'application/octet-stream'
+        },
+        redirect: 'manual'
+      });
+      const loc = apiRes.headers.get('location');
+      if (loc) {
+        return res.redirect(302, loc);
+      }
+      if (apiRes.ok) {
+        const mime = filename.endsWith('.mp3') ? 'audio/mpeg' : (filename.endsWith('.json') ? 'application/json' : 'application/octet-stream');
+        res.setHeader('Content-Type', mime);
+        res.setHeader('Cache-Control', 'public, max-age=604800');
+        return apiRes.body.pipe(res);
+      }
+    } catch (_) {}
+  }
+
+  // Redirect to direct public GitHub release URL
+  res.redirect(302, directUrl);
+});
+
+
+// ==========================================
 // 6. Static HTML and Web Game Entry Points
 // ==========================================
 function resolveLatestGameHtmlPath() {

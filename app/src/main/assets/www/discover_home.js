@@ -1846,10 +1846,10 @@
     }
 
     /**
-     * Obtiene la URL directa de streaming completo para pistas del catálogo Top (Release 3 / Release 8 CDN)
+     * Obtiene la URL directa de streaming completo para pistas del catálogo Top (Release Packs 3 al 9 CDN)
      * o Comunidad, permitiendo arrancar el audio completo desde 0:00 al instante y 100% sincronizado con LRC.
      */
-    _getDirectFullStreamUrl(track, preferReleaseTag = '3') {
+    _getDirectFullStreamUrl(track, preferReleaseTag = null) {
       if (!track) return '';
       const matchedTop = (track.audio_url || String(track.id || '').startsWith('top_') || track.is_top_song)
         ? track
@@ -1858,7 +1858,11 @@
       if (matchedTop) {
         const rawId = String(matchedTop.raw_id || matchedTop.id || '').replace(/^top_/, '');
         const audioFilename = matchedTop.audio_url || `${rawId}.mp3`;
-        const tag = preferReleaseTag || '3';
+        let tag = preferReleaseTag;
+        if (!tag && typeof window.getReleaseTagForFile === 'function') {
+          tag = window.getReleaseTagForFile(audioFilename);
+        }
+        if (!tag) tag = '3';
         const cUrl = `https://github.com/Bruala33/renacer/releases/download/${tag}/${audioFilename}`;
         return `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(cUrl)}`;
       }
@@ -1985,26 +1989,14 @@
       }
 
       // 3. Carrera paralela de alta velocidad para reproducción instantánea:
-      // - Si hay URL de CDN GitHub Release, comprobarla de forma no bloqueante (< 650ms)
+      // - Si hay URL de CDN GitHub Release, arrancar con ella directamente para reproducción inmediata
       // - El stream del servidor (/api/v1/audio/extract) y el preload en background corren en paralelo
       this._setLoadingHintVisible(true);
 
       const blobPromise = this.preloadFullTrackInBackground(track);
       const progressiveExtractUrl = this._buildServerExtractStreamUrl(track);
-      let streamUrlToPlay = progressiveExtractUrl;
-
-      const directStreamUrl3 = (!isCommTrack) ? this._getDirectFullStreamUrl(track, '3') : '';
-      if (directStreamUrl3) {
-        try {
-          const ctrl = new AbortController();
-          const tid = setTimeout(() => ctrl.abort(), 650);
-          const headRes = await fetch(directStreamUrl3, { method: 'HEAD', signal: ctrl.signal }).catch(() => null);
-          clearTimeout(tid);
-          if (headRes && headRes.ok) {
-            streamUrlToPlay = directStreamUrl3;
-          }
-        } catch (_) {}
-      }
+      const directStreamUrl = (!isCommTrack) ? this._getDirectFullStreamUrl(track) : '';
+      let streamUrlToPlay = directStreamUrl || progressiveExtractUrl;
 
       // Carrera: el <audio> empieza a sonar con los primeros bytes del stream, o con el Blob si llega antes (caché/SoundCloud)
       const streamPromise = this._startChannelWithFadeIn(this.fullAudio, streamUrlToPlay, 'full', reqId, desiredStartSec, 120)
@@ -2264,35 +2256,38 @@
           })();
           raceCompetitors.push(serverRaceTask);
 
-          // 2. Rama CDN Directo Release 3 / 8 con timeout estricto (2.2s) para no retrasar nunca la carrera
-          const directUrl3 = this._getDirectFullStreamUrl(track, '3');
-          if (directUrl3) {
+          // 2. Rama CDN Directo con resolución exacta de Release Tag (3 al 9)
+          const directUrl = this._getDirectFullStreamUrl(track);
+          if (directUrl) {
             const directRaceTask = (async () => {
               const ctrl = new AbortController();
-              const tid = setTimeout(() => ctrl.abort(), 2200);
+              const tid = setTimeout(() => ctrl.abort(), 2800);
               try {
-                const r3 = await fetch(directUrl3, { signal: ctrl.signal });
+                const r = await fetch(directUrl, { signal: ctrl.signal });
                 clearTimeout(tid);
-                if (r3.ok) {
-                  const b3 = await r3.blob();
-                  if (b3 && b3.size >= 80000) return b3;
+                if (r.ok) {
+                  const b = await r.blob();
+                  if (b && b.size >= 80000) return b;
                 }
               } catch (_) {
                 clearTimeout(tid);
               }
-              const directUrl8 = this._getDirectFullStreamUrl(track, '8');
-              if (directUrl8 && directUrl8 !== directUrl3) {
-                const ctrl8 = new AbortController();
-                const tid8 = setTimeout(() => ctrl8.abort(), 2200);
-                try {
-                  const r8 = await fetch(directUrl8, { signal: ctrl8.signal });
-                  clearTimeout(tid8);
-                  if (r8.ok) {
-                    const b8 = await r8.blob();
-                    if (b8 && b8.size >= 80000) return b8;
+              // Fallback opcional a tags universales 3 y 8 si falló el tag principal
+              for (const fbTag of ['3', '8']) {
+                const fbUrl = this._getDirectFullStreamUrl(track, fbTag);
+                if (fbUrl && fbUrl !== directUrl) {
+                  const fbCtrl = new AbortController();
+                  const fbTid = setTimeout(() => fbCtrl.abort(), 2000);
+                  try {
+                    const fbRes = await fetch(fbUrl, { signal: fbCtrl.signal });
+                    clearTimeout(fbTid);
+                    if (fbRes.ok) {
+                      const fbBlob = await fbRes.blob();
+                      if (fbBlob && fbBlob.size >= 80000) return fbBlob;
+                    }
+                  } catch (_) {
+                    clearTimeout(fbTid);
                   }
-                } catch (_) {
-                  clearTimeout(tid8);
                 }
               }
               throw new Error('Direct CDN failed');
