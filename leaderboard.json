@@ -3007,11 +3007,11 @@
     "osu_2607909": [
       {
         "name": "fer",
-        "score": 25156,
-        "stars": 3.5,
-        "combo": 29,
-        "accuracy": 2.1254879429508087,
-        "date": "2026-10-22 13:33:39"
+        "score": 359740,
+        "stars": 1,
+        "combo": 213,
+        "accuracy": 29.662183890038673,
+        "date": "2026-11-09 05:15:12"
       }
     ],
     "osu_1216461": [
@@ -4229,7 +4229,7 @@
       {
         "name": "Jacques",
         "score": 78966,
-        "stars": 0,
+        "stars": 3.5,
         "combo": 75,
         "accuracy": 4.2359666105025315,
         "date": "2026-11-08T23:37:56.741Z"
@@ -8777,7 +8777,7 @@
       {
         "name": "Jacques",
         "score": 105330,
-        "stars": 0,
+        "stars": 3.5,
         "combo": 96,
         "accuracy": 11.513073399258696,
         "date": "2026-11-08T23:37:56.738Z"
@@ -8787,7 +8787,7 @@
       {
         "name": "Jacques",
         "score": 55500,
-        "stars": 0,
+        "stars": 3.5,
         "combo": 73,
         "accuracy": 3.066908335359519,
         "date": "2026-11-08T23:37:56.741Z"
@@ -8797,7 +8797,7 @@
       {
         "name": "Jacques",
         "score": 402075,
-        "stars": 0,
+        "stars": 3.5,
         "combo": 284,
         "accuracy": 18.755247691015953,
         "date": "2026-11-08T23:37:56.741Z"
@@ -8871,6 +8871,56 @@
         "combo": 60,
         "accuracy": 3.0253690934887443,
         "date": "2026-11-09 01:04:16"
+      }
+    ],
+    "osu_427502": [
+      {
+        "name": "fer",
+        "score": 22549,
+        "stars": 0,
+        "combo": 27,
+        "accuracy": 10.315187557182067,
+        "date": "2026-11-09T05:12:25.213Z"
+      }
+    ],
+    "osu_586991": [
+      {
+        "name": "fer",
+        "score": 67427,
+        "stars": 1,
+        "combo": 62,
+        "accuracy": 23.446426894870626,
+        "date": "2026-11-09T05:12:25.214Z"
+      }
+    ],
+    "osu_1804464": [
+      {
+        "name": "fer",
+        "score": 61500,
+        "stars": 3.5,
+        "combo": 60,
+        "accuracy": 2.9157518396497686,
+        "date": "2026-11-09 05:20:07"
+      }
+    ],
+    "osu_2515058": [
+      {
+        "name": "fer",
+        "score": 2046,
+        "stars": 3.5,
+        "combo": 4,
+        "accuracy": 0.09688472517127666,
+        "date": "2026-11-09 05:21:00"
+      }
+    ],
+    "osu_1594161": [
+      {
+        "name": "fer",
+        "score": 133095,
+        "stars": 5,
+        "combo": 99,
+        "accuracy": 100,
+        "date": "2026-11-09 05:24:17"
       }
     ]
   },
@@ -9066,14 +9116,14 @@
     {
       "name": "fer",
       "player_name": "fer",
-      "total_score": 4321969,
-      "clefs": 1301,
+      "total_score": 4878350,
+      "clefs": 1029,
       "medals": {
         "silvers": 0,
         "golds": 0,
         "platinums": 0
       },
-      "songs_count": 9,
+      "songs_count": 14,
       "unlocked_modes": [],
       "effects_count": 1,
       "has_password": false
@@ -9630,6 +9680,10 @@
       {
         "name": "Faztl 2 el renacer",
         "score": 1416332
+      },
+      {
+        "name": "fer",
+        "score": 556381
       }
     ]
   },
@@ -19975,7 +20029,7 @@
           ],
           "_dnaCluster": "pop_latin"
         },
-        "updated_at": "2026-11-08T23:26:33.476Z"
+        "updated_at": "2026-11-09T02:27:27.420Z"
       },
       "settings": {
         "lang": "es",
@@ -19993,7 +20047,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": "rnc_aqs2lz"
       },
-      "updated_at": "2026-11-08T23:26:33.476Z"
+      "updated_at": "2026-11-09T02:27:27.420Z"
     },
     "Faztl 2 el renacer": {
       "player_name": "Faztl 2 el renacer",
@@ -20683,7 +20737,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.389Z"
+        "updated_at": "2026-11-09T05:27:27.322Z"
       },
       "settings": {
         "lang": "es",
@@ -20701,7 +20755,7 @@
         "last_claimed_week": "2026_W46",
         "my_ref_code": "rnc_u8e910"
       },
-      "updated_at": "2026-11-09T02:26:33.389Z"
+      "updated_at": "2026-11-09T05:27:27.322Z"
     },
     "Jocomomolo": {
       "player_name": "Jocomomolo",
@@ -21891,7 +21945,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.388Z"
+        "updated_at": "2026-11-09T05:27:27.320Z"
       },
       "settings": {
         "lang": "es",
@@ -21909,7 +21963,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": "rnc_jggnkf"
       },
-      "updated_at": "2026-11-09T02:26:33.388Z"
+      "updated_at": "2026-11-09T05:27:27.320Z"
     },
     "Rocky": {
       "player_name": "Rocky",
@@ -22949,7 +23003,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.387Z"
+        "updated_at": "2026-11-09T05:27:27.319Z"
       },
       "settings": {
         "lang": "es",
@@ -22967,7 +23021,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": ""
       },
-      "updated_at": "2026-11-09T02:26:33.387Z"
+      "updated_at": "2026-11-09T05:27:27.319Z"
     },
     "Mauricio": {
       "player_name": "Mauricio",
@@ -23825,7 +23879,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.386Z"
+        "updated_at": "2026-11-09T05:27:27.318Z"
       },
       "settings": {
         "lang": "es",
@@ -23843,7 +23897,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": ""
       },
-      "updated_at": "2026-11-09T02:26:33.386Z"
+      "updated_at": "2026-11-09T05:27:27.318Z"
     },
     "Libay": {
       "player_name": "Libay",
@@ -24568,7 +24622,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.386Z"
+        "updated_at": "2026-11-09T05:27:27.319Z"
       },
       "settings": {
         "lang": "es",
@@ -24577,7 +24631,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.386Z"
+      "updated_at": "2026-11-09T05:27:27.319Z"
     },
     "FAZTL": {
       "player_name": "FAZTL",
@@ -24987,7 +25041,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.389Z"
+        "updated_at": "2026-11-09T05:27:27.321Z"
       },
       "settings": {
         "lang": "es",
@@ -24996,7 +25050,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.389Z"
+      "updated_at": "2026-11-09T05:27:27.321Z"
     },
     "16k": {
       "player_name": "16k",
@@ -26276,7 +26330,7 @@
           }
         },
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.391Z"
+        "updated_at": "2026-11-09T05:27:27.322Z"
       },
       "settings": {
         "lang": "es",
@@ -26299,7 +26353,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": "rnc_c38u5o"
       },
-      "updated_at": "2026-11-09T02:26:33.391Z"
+      "updated_at": "2026-11-09T05:27:27.322Z"
     },
     "Niggerman": {
       "player_name": "Niggerman",
@@ -26527,7 +26581,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.390Z"
+        "updated_at": "2026-11-09T05:27:27.322Z"
       },
       "settings": {
         "lang": "es",
@@ -26536,7 +26590,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.390Z"
+      "updated_at": "2026-11-09T05:27:27.322Z"
     },
     "Laaleplo": {
       "player_name": "Laaleplo",
@@ -26757,7 +26811,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.390Z"
+        "updated_at": "2026-11-09T05:27:27.322Z"
       },
       "settings": {
         "lang": "es",
@@ -26766,7 +26820,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.390Z"
+      "updated_at": "2026-11-09T05:27:27.322Z"
     },
     "Dady cool": {
       "player_name": "Dady cool",
@@ -26952,7 +27006,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.389Z"
+        "updated_at": "2026-11-09T05:27:27.321Z"
       },
       "settings": {
         "lang": "es",
@@ -26961,7 +27015,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.389Z"
+      "updated_at": "2026-11-09T05:27:27.321Z"
     },
     "Azure": {
       "player_name": "Azure",
@@ -27147,7 +27201,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.391Z"
+        "updated_at": "2026-11-09T05:27:27.322Z"
       },
       "settings": {
         "lang": "es",
@@ -27156,367 +27210,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.391Z"
-    },
-    "Jajsjsjsa": {
-      "player_name": "Jajsjsjsa",
-      "recovery_code": "RNC-F79DA9",
-      "account_token": "tok_jajsjsjsa_XWL3WBV67UE6NSJB",
-      "has_password": true,
-      "pin_hash": "3aafb4675f791c9a991772dd1519d408",
-      "password_hash": "3aafb4675f791c9a991772dd1519d408",
-      "wallet": {
-        "clefs": 24,
-        "silvers": 0,
-        "golds": 0,
-        "platinums": 0
-      },
-      "unlocked_modes": {
-        "normal": true,
-        "osu_hybrid": true,
-        "locura": true
-      },
-      "unlocked_effects": [
-        "solar_inferno"
-      ],
-      "active_effect": "solar_inferno",
-      "highscores": {
-        "osu_2596455": {
-          "score": 73641,
-          "stars": 1,
-          "maxCombo": 66,
-          "medalTier": "gold",
-          "accuracyPct": 20.799722071583517
-        },
-        "osu_2631740": {
-          "score": 32628,
-          "stars": 3.5,
-          "maxCombo": 40,
-          "medalTier": "gold",
-          "accuracyPct": 2.444129161004799
-        },
-        "osu_2606946": {
-          "score": 13275,
-          "stars": 3.5,
-          "maxCombo": 21,
-          "medalTier": "gold",
-          "accuracyPct": 3.7628084298246858
-        },
-        "osu_2590890": {
-          "score": 4950,
-          "stars": 3.5,
-          "maxCombo": 11,
-          "medalTier": "gold",
-          "accuracyPct": 0.6102514852534886
-        },
-        "osu_2633754": {
-          "score": 13917,
-          "stars": 3.5,
-          "maxCombo": 21,
-          "medalTier": "gold",
-          "accuracyPct": 0.8000110370136599
-        },
-        "osu_2549668": {
-          "score": 4371,
-          "stars": 3.5,
-          "maxCombo": 10,
-          "medalTier": "gold",
-          "accuracyPct": 0.26995945975992075
-        },
-        "osu_2507713": {
-          "score": 5850,
-          "stars": 3.5,
-          "maxCombo": 12,
-          "medalTier": "gold",
-          "accuracyPct": 0.4891876975565702
-        },
-        "osu_2596586": {
-          "score": 5100,
-          "stars": 3.5,
-          "maxCombo": 12,
-          "medalTier": "gold",
-          "accuracyPct": 0.5335844318895167
-        },
-        "osu_2607041": {
-          "score": 512604,
-          "stars": 3,
-          "maxCombo": 202,
-          "medalTier": "gold",
-          "accuracyPct": 69.73919431859925
-        },
-        "osu_2548613": {
-          "score": 303968,
-          "stars": 3,
-          "maxCombo": 180,
-          "medalTier": "gold",
-          "accuracyPct": 65.52135919400244
-        },
-        "osu_2618575": {
-          "score": 102269,
-          "stars": 3.5,
-          "maxCombo": 68,
-          "medalTier": "gold",
-          "accuracyPct": 4.681441863403282
-        },
-        "osu_2496627": {
-          "score": 36360,
-          "stars": 3.5,
-          "maxCombo": 40,
-          "medalTier": "gold",
-          "accuracyPct": 2.805785041060457
-        },
-        "auto_dsp_feelings_twice": {
-          "score": 2100,
-          "stars": 3.5,
-          "maxCombo": 6,
-          "medalTier": "gold",
-          "accuracyPct": 0.19331676332504832
-        },
-        "osu_2600468": {
-          "score": 16377,
-          "stars": 3.5,
-          "maxCombo": 28,
-          "medalTier": "gold",
-          "accuracyPct": 1.5596637823156203
-        },
-        "osu_2603250": {
-          "score": 6028,
-          "stars": 3.5,
-          "maxCombo": 15,
-          "medalTier": "gold",
-          "accuracyPct": 0.34875762328738197
-        },
-        "osu_2603222": {
-          "score": 203815,
-          "stars": 3.5,
-          "maxCombo": 129,
-          "medalTier": "gold",
-          "accuracyPct": 16.854675918690027
-        }
-      },
-      "favorites": [],
-      "favorite_records": [],
-      "playlists": [],
-      "weekly_history": {
-        "2026_W45": {
-          "score": 1947365,
-          "songsPlayed": 18,
-          "maxCombo": 202,
-          "stars": 3,
-          "accuracyPct": 69.73919431859925,
-          "medalTier": null,
-          "v2Clean": true
-        }
-      },
-      "music_dna": {
-        "vector": [
-          0.55,
-          0.6,
-          0.65,
-          0.65,
-          0.5,
-          0.45,
-          0.55,
-          0.55
-        ],
-        "dials": {
-          "discovery": 35,
-          "energy": 60,
-          "era": 55,
-          "vocal": 50
-        },
-        "likes": [],
-        "dislikes": [],
-        "session_bloom_ids": [],
-        "total_swipes": 0,
-        "bandit_arms": {},
-        "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.406Z"
-      },
-      "settings": {
-        "lang": "es",
-        "note_speed": "1.0",
-        "offset": "0",
-        "audio_offset": "0",
-        "key_style": "beatstar_large",
-        "bg_mode": "black",
-        "bg_opacity": "0.40",
-        "judge_colors": null,
-        "vegas_streak": 0,
-        "vegas_last_spin": "",
-        "gacha_pity": 0,
-        "claimed_promo_friends": [],
-        "last_claimed_week": "2026_W45",
-        "my_ref_code": ""
-      },
-      "updated_at": "2026-11-09T02:26:33.406Z"
-    },
-    "aelec": {
-      "player_name": "aelec",
-      "recovery_code": "RNC-564748",
-      "account_token": "",
-      "has_password": false,
-      "pin_hash": "",
-      "password_hash": "",
-      "wallet": {
-        "clefs": 13,
-        "silvers": 0,
-        "golds": 0,
-        "platinums": 0
-      },
-      "unlocked_modes": {
-        "normal": true,
-        "osu_hybrid": true,
-        "locura": true
-      },
-      "unlocked_effects": [
-        "solar_inferno"
-      ],
-      "active_effect": "solar_inferno",
-      "highscores": {
-        "osu_1760174": {
-          "score": 466132,
-          "stars": 2,
-          "maxCombo": 232,
-          "medalTier": null,
-          "accuracyPct": 57.37976741924484
-        },
-        "osu_2610401": {
-          "score": 82606,
-          "stars": 3.5,
-          "maxCombo": 70,
-          "medalTier": null,
-          "accuracyPct": 5.401132455440624
-        },
-        "osu_2579541": {
-          "score": 14491,
-          "stars": 3.5,
-          "maxCombo": 21,
-          "medalTier": null,
-          "accuracyPct": 0.7881677479429644
-        },
-        "osu_2561480": {
-          "score": 27900,
-          "stars": 3.5,
-          "maxCombo": 37,
-          "medalTier": null,
-          "accuracyPct": 1.5033947623666344
-        },
-        "osu_2605027": {
-          "score": 881289,
-          "stars": 5,
-          "maxCombo": 411,
-          "medalTier": null,
-          "accuracyPct": 99.53051908303839
-        },
-        "osu_2574539": {
-          "score": 1500,
-          "stars": 3.5,
-          "maxCombo": 4,
-          "medalTier": null,
-          "accuracyPct": 0.22885215388018829
-        },
-        "bs_54d4c": {
-          "score": 68850,
-          "stars": 3.5,
-          "maxCombo": 66,
-          "medalTier": null,
-          "accuracyPct": 10.039370078740157
-        },
-        "osu_2558583": {
-          "score": 80335,
-          "stars": 3.5,
-          "maxCombo": 75,
-          "medalTier": null,
-          "accuracyPct": 13.651735037215785
-        },
-        "osu_334812": {
-          "score": 1350,
-          "stars": 3.5,
-          "maxCombo": 4,
-          "medalTier": null,
-          "accuracyPct": 0.20658469589967637
-        },
-        "osu_212975": {
-          "score": 81620,
-          "stars": 2,
-          "maxCombo": 67,
-          "medalTier": null,
-          "accuracyPct": 44.44904316382212
-        },
-        "osu_83466": {
-          "score": 8925,
-          "stars": 3.5,
-          "maxCombo": 16,
-          "medalTier": null,
-          "accuracyPct": 1.6610831937465103
-        },
-        "osu_239616": {
-          "score": 119315,
-          "stars": 4,
-          "maxCombo": 89,
-          "medalTier": null,
-          "accuracyPct": 84.59596854815267
-        },
-        "osu_224087": {
-          "score": 55742,
-          "stars": 3.5,
-          "maxCombo": 63,
-          "medalTier": null,
-          "accuracyPct": 11.386258949454096
-        },
-        "osu_314199": {
-          "score": 4200,
-          "stars": 3.5,
-          "maxCombo": 10,
-          "medalTier": null,
-          "accuracyPct": 0.5575467941059339
-        },
-        "osu_357822": {
-          "score": 3509,
-          "stars": 3.5,
-          "maxCombo": 9,
-          "medalTier": null,
-          "accuracyPct": 0.16471572338085477
-        }
-      },
-      "favorites": [],
-      "favorite_records": [],
-      "playlists": [],
-      "weekly_history": {},
-      "music_dna": {
-        "vector": [
-          0.55,
-          0.6,
-          0.65,
-          0.65,
-          0.5,
-          0.45,
-          0.55,
-          0.55
-        ],
-        "dials": {
-          "discovery": 35,
-          "energy": 60,
-          "era": 55,
-          "vocal": 50
-        },
-        "likes": [],
-        "dislikes": [],
-        "session_bloom_ids": [],
-        "total_swipes": 0,
-        "bandit_arms": {},
-        "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.406Z"
-      },
-      "settings": {
-        "lang": "es",
-        "note_speed": "1.0",
-        "vegas_streak": 0,
-        "gacha_pity": 0,
-        "claimed_promo_friends": []
-      },
-      "updated_at": "2026-11-09T02:26:33.406Z"
+      "updated_at": "2026-11-09T05:27:27.322Z"
     },
     "fer": {
       "player_name": "fer",
@@ -27526,7 +27220,7 @@
       "pin_hash": "",
       "password_hash": "",
       "wallet": {
-        "clefs": 1301,
+        "clefs": 1029,
         "silvers": 0,
         "golds": 0,
         "platinums": 0
@@ -27570,11 +27264,11 @@
           "accuracyPct": 4.97869537423465
         },
         "osu_2607909": {
-          "score": 25156,
+          "score": 359740,
           "stars": 3.5,
-          "maxCombo": 29,
-          "medalTier": null,
-          "accuracyPct": 2.1254879429508087
+          "maxCombo": 213,
+          "medalTier": "gold",
+          "accuracyPct": 29.662183890038673
         },
         "osu_1216461": {
           "score": 619507,
@@ -27603,6 +27297,41 @@
           "maxCombo": 67,
           "medalTier": null,
           "accuracyPct": 59.309416330086314
+        },
+        "osu_427502": {
+          "score": 22549,
+          "stars": 3,
+          "maxCombo": 27,
+          "medalTier": null,
+          "accuracyPct": 10.315187557182067
+        },
+        "osu_586991": {
+          "score": 67427,
+          "stars": 1,
+          "maxCombo": 62,
+          "medalTier": null,
+          "accuracyPct": 23.446426894870626
+        },
+        "osu_1804464": {
+          "score": 61500,
+          "stars": 3.5,
+          "maxCombo": 60,
+          "medalTier": "gold",
+          "accuracyPct": 2.9157518396497686
+        },
+        "osu_2515058": {
+          "score": 2046,
+          "stars": 3.5,
+          "maxCombo": 4,
+          "medalTier": "gold",
+          "accuracyPct": 0.09688472517127666
+        },
+        "osu_1594161": {
+          "score": 133095,
+          "stars": 5,
+          "maxCombo": 99,
+          "medalTier": "gold",
+          "accuracyPct": 100
         }
       },
       "favorites": [],
@@ -27827,6 +27556,249 @@
           "accuracyPct": 69.83031314427686,
           "medalTier": null,
           "v2Clean": true
+        },
+        "2026_W45": {
+          "score": 89976,
+          "songsPlayed": 2,
+          "maxCombo": 62,
+          "stars": 1,
+          "accuracyPct": 23.446426894870626,
+          "medalTier": null,
+          "v2Clean": true
+        },
+        "2026_W46": {
+          "score": 556381,
+          "songsPlayed": 4,
+          "maxCombo": 213,
+          "stars": 5,
+          "accuracyPct": 100,
+          "medalTier": null,
+          "v2Clean": true
+        }
+      },
+      "music_dna": {
+        "vector": [
+          0.5309,
+          0.5671,
+          0.6254,
+          0.6734,
+          0.4534,
+          0.3906,
+          0.5116,
+          0.508
+        ],
+        "dials": {
+          "discovery": 35,
+          "energy": 60,
+          "era": 55,
+          "vocal": 55
+        },
+        "likes": [],
+        "dislikes": [],
+        "session_bloom_ids": [
+          "top_shakira_y_alejandro_sanz_la_tortura"
+        ],
+        "total_swipes": 0,
+        "bandit_arms": {
+          "rock": {
+            "pulls": 2,
+            "rewardSum": 1.3
+          },
+          "electronic": {
+            "pulls": 2,
+            "rewardSum": 1.2
+          },
+          "pop_latin": {
+            "pulls": 3,
+            "rewardSum": 2.55
+          },
+          "classical_piano": {
+            "pulls": 2,
+            "rewardSum": 1.4
+          },
+          "retro_vegas": {
+            "pulls": 2,
+            "rewardSum": 1.35
+          },
+          "virtuoso_mania": {
+            "pulls": 2,
+            "rewardSum": 1.2
+          }
+        },
+        "last_liked_track": {
+          "id": "osu_1594161",
+          "title": "Imitadora",
+          "artist": "Romeo Santos",
+          "thumbnail": "./app_logo.png"
+        },
+        "updated_at": "2026-11-09T05:27:27.323Z"
+      },
+      "settings": {
+        "lang": "es",
+        "note_speed": "1.0",
+        "vegas_streak": 0,
+        "gacha_pity": 0,
+        "claimed_promo_friends": [],
+        "offset": "0",
+        "audio_offset": "0",
+        "key_style": "beatstar_large",
+        "bg_mode": "black",
+        "bg_opacity": "0.40",
+        "judge_colors": null,
+        "vegas_last_spin": "",
+        "last_claimed_week": "2026_W46",
+        "my_ref_code": ""
+      },
+      "updated_at": "2026-11-09T05:27:27.323Z"
+    },
+    "Jajsjsjsa": {
+      "player_name": "Jajsjsjsa",
+      "recovery_code": "RNC-F79DA9",
+      "account_token": "tok_jajsjsjsa_XWL3WBV67UE6NSJB",
+      "has_password": true,
+      "pin_hash": "3aafb4675f791c9a991772dd1519d408",
+      "password_hash": "3aafb4675f791c9a991772dd1519d408",
+      "wallet": {
+        "clefs": 24,
+        "silvers": 0,
+        "golds": 0,
+        "platinums": 0
+      },
+      "unlocked_modes": {
+        "normal": true,
+        "osu_hybrid": true,
+        "locura": true
+      },
+      "unlocked_effects": [
+        "solar_inferno"
+      ],
+      "active_effect": "solar_inferno",
+      "highscores": {
+        "osu_2596455": {
+          "score": 73641,
+          "stars": 1,
+          "maxCombo": 66,
+          "medalTier": "gold",
+          "accuracyPct": 20.799722071583517
+        },
+        "osu_2631740": {
+          "score": 32628,
+          "stars": 3.5,
+          "maxCombo": 40,
+          "medalTier": "gold",
+          "accuracyPct": 2.444129161004799
+        },
+        "osu_2606946": {
+          "score": 13275,
+          "stars": 3.5,
+          "maxCombo": 21,
+          "medalTier": "gold",
+          "accuracyPct": 3.7628084298246858
+        },
+        "osu_2590890": {
+          "score": 4950,
+          "stars": 3.5,
+          "maxCombo": 11,
+          "medalTier": "gold",
+          "accuracyPct": 0.6102514852534886
+        },
+        "osu_2633754": {
+          "score": 13917,
+          "stars": 3.5,
+          "maxCombo": 21,
+          "medalTier": "gold",
+          "accuracyPct": 0.8000110370136599
+        },
+        "osu_2549668": {
+          "score": 4371,
+          "stars": 3.5,
+          "maxCombo": 10,
+          "medalTier": "gold",
+          "accuracyPct": 0.26995945975992075
+        },
+        "osu_2507713": {
+          "score": 5850,
+          "stars": 3.5,
+          "maxCombo": 12,
+          "medalTier": "gold",
+          "accuracyPct": 0.4891876975565702
+        },
+        "osu_2596586": {
+          "score": 5100,
+          "stars": 3.5,
+          "maxCombo": 12,
+          "medalTier": "gold",
+          "accuracyPct": 0.5335844318895167
+        },
+        "osu_2607041": {
+          "score": 512604,
+          "stars": 3,
+          "maxCombo": 202,
+          "medalTier": "gold",
+          "accuracyPct": 69.73919431859925
+        },
+        "osu_2548613": {
+          "score": 303968,
+          "stars": 3,
+          "maxCombo": 180,
+          "medalTier": "gold",
+          "accuracyPct": 65.52135919400244
+        },
+        "osu_2618575": {
+          "score": 102269,
+          "stars": 3.5,
+          "maxCombo": 68,
+          "medalTier": "gold",
+          "accuracyPct": 4.681441863403282
+        },
+        "osu_2496627": {
+          "score": 36360,
+          "stars": 3.5,
+          "maxCombo": 40,
+          "medalTier": "gold",
+          "accuracyPct": 2.805785041060457
+        },
+        "auto_dsp_feelings_twice": {
+          "score": 2100,
+          "stars": 3.5,
+          "maxCombo": 6,
+          "medalTier": "gold",
+          "accuracyPct": 0.19331676332504832
+        },
+        "osu_2600468": {
+          "score": 16377,
+          "stars": 3.5,
+          "maxCombo": 28,
+          "medalTier": "gold",
+          "accuracyPct": 1.5596637823156203
+        },
+        "osu_2603250": {
+          "score": 6028,
+          "stars": 3.5,
+          "maxCombo": 15,
+          "medalTier": "gold",
+          "accuracyPct": 0.34875762328738197
+        },
+        "osu_2603222": {
+          "score": 203815,
+          "stars": 3.5,
+          "maxCombo": 129,
+          "medalTier": "gold",
+          "accuracyPct": 16.854675918690027
+        }
+      },
+      "favorites": [],
+      "favorite_records": [],
+      "playlists": [],
+      "weekly_history": {
+        "2026_W45": {
+          "score": 1947365,
+          "songsPlayed": 18,
+          "maxCombo": 202,
+          "stars": 3,
+          "accuracyPct": 69.73919431859925,
+          "medalTier": null,
+          "v2Clean": true
         }
       },
       "music_dna": {
@@ -27852,25 +27824,192 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.399Z"
+        "updated_at": "2026-11-09T05:27:27.323Z"
       },
       "settings": {
         "lang": "es",
         "note_speed": "1.0",
-        "vegas_streak": 0,
-        "gacha_pity": 0,
-        "claimed_promo_friends": [],
         "offset": "0",
         "audio_offset": "0",
         "key_style": "beatstar_large",
         "bg_mode": "black",
         "bg_opacity": "0.40",
         "judge_colors": null,
+        "vegas_streak": 0,
         "vegas_last_spin": "",
-        "last_claimed_week": "2026_W43",
+        "gacha_pity": 0,
+        "claimed_promo_friends": [],
+        "last_claimed_week": "2026_W45",
         "my_ref_code": ""
       },
-      "updated_at": "2026-11-09T02:26:33.399Z"
+      "updated_at": "2026-11-09T05:27:27.323Z"
+    },
+    "aelec": {
+      "player_name": "aelec",
+      "recovery_code": "RNC-564748",
+      "account_token": "",
+      "has_password": false,
+      "pin_hash": "",
+      "password_hash": "",
+      "wallet": {
+        "clefs": 13,
+        "silvers": 0,
+        "golds": 0,
+        "platinums": 0
+      },
+      "unlocked_modes": {
+        "normal": true,
+        "osu_hybrid": true,
+        "locura": true
+      },
+      "unlocked_effects": [
+        "solar_inferno"
+      ],
+      "active_effect": "solar_inferno",
+      "highscores": {
+        "osu_1760174": {
+          "score": 466132,
+          "stars": 2,
+          "maxCombo": 232,
+          "medalTier": null,
+          "accuracyPct": 57.37976741924484
+        },
+        "osu_2610401": {
+          "score": 82606,
+          "stars": 3.5,
+          "maxCombo": 70,
+          "medalTier": null,
+          "accuracyPct": 5.401132455440624
+        },
+        "osu_2579541": {
+          "score": 14491,
+          "stars": 3.5,
+          "maxCombo": 21,
+          "medalTier": null,
+          "accuracyPct": 0.7881677479429644
+        },
+        "osu_2561480": {
+          "score": 27900,
+          "stars": 3.5,
+          "maxCombo": 37,
+          "medalTier": null,
+          "accuracyPct": 1.5033947623666344
+        },
+        "osu_2605027": {
+          "score": 881289,
+          "stars": 5,
+          "maxCombo": 411,
+          "medalTier": null,
+          "accuracyPct": 99.53051908303839
+        },
+        "osu_2574539": {
+          "score": 1500,
+          "stars": 3.5,
+          "maxCombo": 4,
+          "medalTier": null,
+          "accuracyPct": 0.22885215388018829
+        },
+        "bs_54d4c": {
+          "score": 68850,
+          "stars": 3.5,
+          "maxCombo": 66,
+          "medalTier": null,
+          "accuracyPct": 10.039370078740157
+        },
+        "osu_2558583": {
+          "score": 80335,
+          "stars": 3.5,
+          "maxCombo": 75,
+          "medalTier": null,
+          "accuracyPct": 13.651735037215785
+        },
+        "osu_334812": {
+          "score": 1350,
+          "stars": 3.5,
+          "maxCombo": 4,
+          "medalTier": null,
+          "accuracyPct": 0.20658469589967637
+        },
+        "osu_212975": {
+          "score": 81620,
+          "stars": 2,
+          "maxCombo": 67,
+          "medalTier": null,
+          "accuracyPct": 44.44904316382212
+        },
+        "osu_83466": {
+          "score": 8925,
+          "stars": 3.5,
+          "maxCombo": 16,
+          "medalTier": null,
+          "accuracyPct": 1.6610831937465103
+        },
+        "osu_239616": {
+          "score": 119315,
+          "stars": 4,
+          "maxCombo": 89,
+          "medalTier": null,
+          "accuracyPct": 84.59596854815267
+        },
+        "osu_224087": {
+          "score": 55742,
+          "stars": 3.5,
+          "maxCombo": 63,
+          "medalTier": null,
+          "accuracyPct": 11.386258949454096
+        },
+        "osu_314199": {
+          "score": 4200,
+          "stars": 3.5,
+          "maxCombo": 10,
+          "medalTier": null,
+          "accuracyPct": 0.5575467941059339
+        },
+        "osu_357822": {
+          "score": 3509,
+          "stars": 3.5,
+          "maxCombo": 9,
+          "medalTier": null,
+          "accuracyPct": 0.16471572338085477
+        }
+      },
+      "favorites": [],
+      "favorite_records": [],
+      "playlists": [],
+      "weekly_history": {},
+      "music_dna": {
+        "vector": [
+          0.55,
+          0.6,
+          0.65,
+          0.65,
+          0.5,
+          0.45,
+          0.55,
+          0.55
+        ],
+        "dials": {
+          "discovery": 35,
+          "energy": 60,
+          "era": 55,
+          "vocal": 50
+        },
+        "likes": [],
+        "dislikes": [],
+        "session_bloom_ids": [],
+        "total_swipes": 0,
+        "bandit_arms": {},
+        "last_liked_track": null,
+        "updated_at": "2026-11-09T05:27:27.323Z"
+      },
+      "settings": {
+        "lang": "es",
+        "note_speed": "1.0",
+        "vegas_streak": 0,
+        "gacha_pity": 0,
+        "claimed_promo_friends": []
+      },
+      "updated_at": "2026-11-09T05:27:27.323Z"
     },
     "Davi": {
       "player_name": "Davi",
@@ -28000,7 +28139,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.471Z"
+        "updated_at": "2026-11-09T05:27:27.326Z"
       },
       "settings": {
         "lang": "es",
@@ -28009,7 +28148,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.471Z"
+      "updated_at": "2026-11-09T05:27:27.326Z"
     },
     "Siro": {
       "player_name": "Siro",
@@ -28132,7 +28271,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.407Z"
+        "updated_at": "2026-11-09T05:27:27.323Z"
       },
       "settings": {
         "lang": "es",
@@ -28141,7 +28280,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.407Z"
+      "updated_at": "2026-11-09T05:27:27.323Z"
     },
     "Llois": {
       "player_name": "Llois",
@@ -28257,7 +28396,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.472Z"
+        "updated_at": "2026-11-09T05:27:27.327Z"
       },
       "settings": {
         "lang": "es",
@@ -28266,7 +28405,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.472Z"
+      "updated_at": "2026-11-09T05:27:27.327Z"
     },
     "Jaujayy": {
       "player_name": "Jaujayy",
@@ -28385,7 +28524,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.413Z"
+        "updated_at": "2026-11-09T05:27:27.325Z"
       },
       "settings": {
         "lang": "es",
@@ -28403,7 +28542,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": "rnc_be9ewj"
       },
-      "updated_at": "2026-11-09T02:26:33.413Z"
+      "updated_at": "2026-11-09T05:27:27.325Z"
     },
     "bubu": {
       "player_name": "bubu",
@@ -28512,7 +28651,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.391Z"
+        "updated_at": "2026-11-09T05:27:27.322Z"
       },
       "settings": {
         "lang": "es",
@@ -28521,7 +28660,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.391Z"
+      "updated_at": "2026-11-09T05:27:27.322Z"
     },
     "Llois1": {
       "player_name": "Llois1",
@@ -28630,7 +28769,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.408Z"
+        "updated_at": "2026-11-09T05:27:27.324Z"
       },
       "settings": {
         "lang": "es",
@@ -28639,7 +28778,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.408Z"
+      "updated_at": "2026-11-09T05:27:27.324Z"
     },
     "uwukawaiigatito": {
       "player_name": "uwukawaiigatito",
@@ -29151,7 +29290,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.408Z"
+        "updated_at": "2026-11-09T05:27:27.324Z"
       },
       "settings": {
         "lang": "es",
@@ -29169,7 +29308,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": "rnc_f7i5iz"
       },
-      "updated_at": "2026-11-09T02:26:33.408Z"
+      "updated_at": "2026-11-09T05:27:27.324Z"
     },
     "MasterPianist": {
       "player_name": "MasterPianist",
@@ -29264,7 +29403,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.408Z"
+        "updated_at": "2026-11-09T05:27:27.324Z"
       },
       "settings": {
         "lang": "es",
@@ -29273,7 +29412,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.408Z"
+      "updated_at": "2026-11-09T05:27:27.324Z"
     },
     "RhythmHero": {
       "player_name": "RhythmHero",
@@ -29368,7 +29507,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.410Z"
+        "updated_at": "2026-11-09T05:27:27.324Z"
       },
       "settings": {
         "lang": "es",
@@ -29377,7 +29516,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.410Z"
+      "updated_at": "2026-11-09T05:27:27.324Z"
     },
     "BeatMaster": {
       "player_name": "BeatMaster",
@@ -29472,7 +29611,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.410Z"
+        "updated_at": "2026-11-09T05:27:27.325Z"
       },
       "settings": {
         "lang": "es",
@@ -29481,7 +29620,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.410Z"
+      "updated_at": "2026-11-09T05:27:27.325Z"
     },
     "pelosombra40": {
       "player_name": "pelosombra40",
@@ -29576,7 +29715,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.469Z"
+        "updated_at": "2026-11-09T05:27:27.325Z"
       },
       "settings": {
         "lang": "es",
@@ -29585,7 +29724,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.469Z"
+      "updated_at": "2026-11-09T05:27:27.325Z"
     },
     "Lidia": {
       "player_name": "Lidia",
@@ -29680,7 +29819,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-08T23:26:33.480Z"
+        "updated_at": "2026-11-09T02:27:27.424Z"
       },
       "settings": {
         "lang": "es",
@@ -29689,7 +29828,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-08T23:26:33.480Z"
+      "updated_at": "2026-11-09T02:27:27.424Z"
     },
     "Fernando": {
       "player_name": "Fernando",
@@ -29784,7 +29923,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-08T23:26:33.481Z"
+        "updated_at": "2026-11-09T02:27:27.424Z"
       },
       "settings": {
         "lang": "es",
@@ -29793,7 +29932,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-08T23:26:33.481Z"
+      "updated_at": "2026-11-09T02:27:27.424Z"
     },
     "killer": {
       "player_name": "killer",
@@ -29888,7 +30027,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-08T23:26:33.481Z"
+        "updated_at": "2026-11-09T02:27:27.424Z"
       },
       "settings": {
         "lang": "es",
@@ -29897,7 +30036,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-08T23:26:33.481Z"
+      "updated_at": "2026-11-09T02:27:27.424Z"
     },
     "Jacques": {
       "player_name": "Jacques",
@@ -29938,28 +30077,28 @@
         },
         "top_jose_jose_el_triste": {
           "score": 105330,
-          "stars": 3,
+          "stars": 3.5,
           "maxCombo": 96,
           "medalTier": null,
           "accuracyPct": 11.513073399258696
         },
         "osu_733524": {
           "score": 55500,
-          "stars": 3,
+          "stars": 3.5,
           "maxCombo": 73,
           "medalTier": null,
           "accuracyPct": 3.066908335359519
         },
         "top_vanilla_ice_ice_ice_baby": {
           "score": 78966,
-          "stars": 3,
+          "stars": 3.5,
           "maxCombo": 75,
           "medalTier": null,
           "accuracyPct": 4.2359666105025315
         },
         "top_artista_starboy": {
           "score": 402075,
-          "stars": 3,
+          "stars": 3.5,
           "maxCombo": 284,
           "medalTier": null,
           "accuracyPct": 18.755247691015953
@@ -29992,7 +30131,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.408Z"
+        "updated_at": "2026-11-09T05:27:27.324Z"
       },
       "settings": {
         "lang": "es",
@@ -30001,7 +30140,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.408Z"
+      "updated_at": "2026-11-09T05:27:27.324Z"
     },
     "Layla": {
       "player_name": "Layla",
@@ -30089,7 +30228,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.410Z"
+        "updated_at": "2026-11-09T05:27:27.325Z"
       },
       "settings": {
         "lang": "es",
@@ -30098,7 +30237,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.410Z"
+      "updated_at": "2026-11-09T05:27:27.325Z"
     },
     "Elpianero": {
       "player_name": "Elpianero",
@@ -30186,7 +30325,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.411Z"
+        "updated_at": "2026-11-09T05:27:27.325Z"
       },
       "settings": {
         "lang": "es",
@@ -30195,7 +30334,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.411Z"
+      "updated_at": "2026-11-09T05:27:27.325Z"
     },
     "`pc": {
       "player_name": "`pc",
@@ -30283,7 +30422,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.413Z"
+        "updated_at": "2026-11-09T05:27:27.325Z"
       },
       "settings": {
         "lang": "es",
@@ -30292,7 +30431,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.413Z"
+      "updated_at": "2026-11-09T05:27:27.325Z"
     },
     "bori": {
       "player_name": "bori",
@@ -30380,7 +30519,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.413Z"
+        "updated_at": "2026-11-09T05:27:27.325Z"
       },
       "settings": {
         "lang": "es",
@@ -30389,7 +30528,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.413Z"
+      "updated_at": "2026-11-09T05:27:27.325Z"
     },
     "bobon": {
       "player_name": "bobon",
@@ -30470,7 +30609,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.399Z"
+        "updated_at": "2026-11-09T05:27:27.323Z"
       },
       "settings": {
         "lang": "es",
@@ -30479,7 +30618,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.399Z"
+      "updated_at": "2026-11-09T05:27:27.323Z"
     },
     "Darwin67": {
       "player_name": "Darwin67",
@@ -30560,7 +30699,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.407Z"
+        "updated_at": "2026-11-09T05:27:27.323Z"
       },
       "settings": {
         "lang": "es",
@@ -30569,7 +30708,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.407Z"
+      "updated_at": "2026-11-09T05:27:27.323Z"
     },
     "VAMP": {
       "player_name": "VAMP",
@@ -30650,7 +30789,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.471Z"
+        "updated_at": "2026-11-09T05:27:27.326Z"
       },
       "settings": {
         "lang": "es",
@@ -30659,7 +30798,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.471Z"
+      "updated_at": "2026-11-09T05:27:27.326Z"
     },
     "Pepelon": {
       "player_name": "Pepelon",
@@ -30750,7 +30889,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.472Z"
+        "updated_at": "2026-11-09T05:27:27.327Z"
       },
       "settings": {
         "lang": "es",
@@ -30768,7 +30907,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": ""
       },
-      "updated_at": "2026-11-09T02:26:33.472Z"
+      "updated_at": "2026-11-09T05:27:27.327Z"
     },
     "Seri": {
       "player_name": "Seri",
@@ -30842,7 +30981,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.474Z"
+        "updated_at": "2026-11-09T05:27:27.327Z"
       },
       "settings": {
         "lang": "es",
@@ -30851,7 +30990,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.474Z"
+      "updated_at": "2026-11-09T05:27:27.327Z"
     },
     "Ttuk": {
       "player_name": "Ttuk",
@@ -30918,7 +31057,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.471Z"
+        "updated_at": "2026-11-09T05:27:27.326Z"
       },
       "settings": {
         "lang": "es",
@@ -30927,7 +31066,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.471Z"
+      "updated_at": "2026-11-09T05:27:27.326Z"
     },
     "Ballsaxk": {
       "player_name": "Ballsaxk",
@@ -30994,7 +31133,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.473Z"
+        "updated_at": "2026-11-09T05:27:27.327Z"
       },
       "settings": {
         "lang": "es",
@@ -31003,7 +31142,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.473Z"
+      "updated_at": "2026-11-09T05:27:27.327Z"
     },
     "Papa": {
       "player_name": "Papa",
@@ -31070,7 +31209,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.474Z"
+        "updated_at": "2026-11-09T05:27:27.328Z"
       },
       "settings": {
         "lang": "es",
@@ -31079,7 +31218,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.474Z"
+      "updated_at": "2026-11-09T05:27:27.328Z"
     },
     "Pablito pop": {
       "player_name": "Pablito pop",
@@ -31146,7 +31285,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.474Z"
+        "updated_at": "2026-11-09T05:27:27.328Z"
       },
       "settings": {
         "lang": "es",
@@ -31155,7 +31294,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.474Z"
+      "updated_at": "2026-11-09T05:27:27.328Z"
     },
     "Mozart 2.0": {
       "player_name": "Mozart 2.0",
@@ -31222,7 +31361,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-08T23:26:33.570Z"
+        "updated_at": "2026-11-09T02:27:27.425Z"
       },
       "settings": {
         "lang": "es",
@@ -31231,7 +31370,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-08T23:26:33.570Z"
+      "updated_at": "2026-11-09T02:27:27.425Z"
     },
     "AAALLL": {
       "player_name": "AAALLL",
@@ -31511,7 +31650,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-08T23:26:33.570Z"
+        "updated_at": "2026-11-09T02:27:27.425Z"
       },
       "settings": {
         "lang": "es",
@@ -31529,7 +31668,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": ""
       },
-      "updated_at": "2026-11-08T23:26:33.570Z"
+      "updated_at": "2026-11-09T02:27:27.425Z"
     },
     "Hola31m": {
       "player_name": "Hola31m",
@@ -31589,7 +31728,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.470Z"
+        "updated_at": "2026-11-09T05:27:27.326Z"
       },
       "settings": {
         "lang": "es",
@@ -31598,7 +31737,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.470Z"
+      "updated_at": "2026-11-09T05:27:27.326Z"
     },
     "Ubuntu": {
       "player_name": "Ubuntu",
@@ -31658,7 +31797,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.470Z"
+        "updated_at": "2026-11-09T05:27:27.326Z"
       },
       "settings": {
         "lang": "es",
@@ -31667,7 +31806,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.470Z"
+      "updated_at": "2026-11-09T05:27:27.326Z"
     },
     "holo": {
       "player_name": "holo",
@@ -31727,7 +31866,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.470Z"
+        "updated_at": "2026-11-09T05:27:27.326Z"
       },
       "settings": {
         "lang": "es",
@@ -31736,7 +31875,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.470Z"
+      "updated_at": "2026-11-09T05:27:27.326Z"
     },
     "Antoniobarfe": {
       "player_name": "Antoniobarfe",
@@ -31796,7 +31935,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.471Z"
+        "updated_at": "2026-11-09T05:27:27.326Z"
       },
       "settings": {
         "lang": "es",
@@ -31805,7 +31944,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.471Z"
+      "updated_at": "2026-11-09T05:27:27.326Z"
     },
     "U": {
       "player_name": "U",
@@ -31865,7 +32004,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.472Z"
+        "updated_at": "2026-11-09T05:27:27.327Z"
       },
       "settings": {
         "lang": "es",
@@ -31874,7 +32013,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.472Z"
+      "updated_at": "2026-11-09T05:27:27.327Z"
     },
     ".": {
       "player_name": ".",
@@ -31934,7 +32073,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.473Z"
+        "updated_at": "2026-11-09T05:27:27.327Z"
       },
       "settings": {
         "lang": "es",
@@ -31943,7 +32082,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.473Z"
+      "updated_at": "2026-11-09T05:27:27.327Z"
     },
     "Pirata": {
       "player_name": "Pirata",
@@ -32003,7 +32142,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.473Z"
+        "updated_at": "2026-11-09T05:27:27.327Z"
       },
       "settings": {
         "lang": "es",
@@ -32012,7 +32151,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.473Z"
+      "updated_at": "2026-11-09T05:27:27.327Z"
     },
     "Camaleon": {
       "player_name": "Camaleon",
@@ -32072,7 +32211,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.473Z"
+        "updated_at": "2026-11-09T05:27:27.327Z"
       },
       "settings": {
         "lang": "es",
@@ -32081,7 +32220,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.473Z"
+      "updated_at": "2026-11-09T05:27:27.327Z"
     },
     "3105M": {
       "player_name": "3105M",
@@ -32141,7 +32280,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.474Z"
+        "updated_at": "2026-11-09T05:27:27.328Z"
       },
       "settings": {
         "lang": "es",
@@ -32150,7 +32289,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.474Z"
+      "updated_at": "2026-11-09T05:27:27.328Z"
     },
     "Elpapu": {
       "player_name": "Elpapu",
@@ -32210,7 +32349,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-09T02:26:33.474Z"
+        "updated_at": "2026-11-09T05:27:27.328Z"
       },
       "settings": {
         "lang": "es",
@@ -32219,7 +32358,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-09T02:26:33.474Z"
+      "updated_at": "2026-11-09T05:27:27.328Z"
     },
     "Ghapin": {
       "player_name": "Ghapin",
@@ -32279,7 +32418,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-08T23:26:33.571Z"
+        "updated_at": "2026-11-09T02:27:27.426Z"
       },
       "settings": {
         "lang": "es",
@@ -32288,7 +32427,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-08T23:26:33.571Z"
+      "updated_at": "2026-11-09T02:27:27.426Z"
     },
     "PixToPix": {
       "player_name": "PixToPix",
@@ -32348,7 +32487,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-08T23:26:33.571Z"
+        "updated_at": "2026-11-09T02:27:27.426Z"
       },
       "settings": {
         "lang": "es",
@@ -32357,7 +32496,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-08T23:26:33.571Z"
+      "updated_at": "2026-11-09T02:27:27.426Z"
     },
     "Mozart": {
       "player_name": "Mozart",
@@ -32417,7 +32556,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-08T23:26:33.571Z"
+        "updated_at": "2026-11-09T02:27:27.426Z"
       },
       "settings": {
         "lang": "es",
@@ -32426,7 +32565,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-08T23:26:33.571Z"
+      "updated_at": "2026-11-09T02:27:27.426Z"
     },
     "Trnde": {
       "player_name": "Trnde",
@@ -32486,7 +32625,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-08T23:26:33.571Z"
+        "updated_at": "2026-11-09T02:27:27.426Z"
       },
       "settings": {
         "lang": "es",
@@ -32495,7 +32634,7 @@
         "gacha_pity": 0,
         "claimed_promo_friends": []
       },
-      "updated_at": "2026-11-08T23:26:33.571Z"
+      "updated_at": "2026-11-09T02:27:27.426Z"
     },
     "Holaxdv4mo": {
       "player_name": "Holaxdv4mo",
@@ -32594,7 +32733,7 @@
           }
         },
         "last_liked_track": null,
-        "updated_at": "2026-11-08T23:26:33.571Z"
+        "updated_at": "2026-11-09T02:27:27.426Z"
       },
       "settings": {
         "lang": "es",
@@ -32612,7 +32751,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": "rnc_j3k804"
       },
-      "updated_at": "2026-11-08T23:26:33.571Z"
+      "updated_at": "2026-11-09T02:27:27.426Z"
     },
     "dfd": {
       "player_name": "dfd",
@@ -32664,7 +32803,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-08T23:26:33.571Z"
+        "updated_at": "2026-11-09T02:27:27.426Z"
       },
       "settings": {
         "lang": "es",
@@ -32682,7 +32821,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": "rnc_dxy9hd"
       },
-      "updated_at": "2026-11-08T23:26:33.571Z"
+      "updated_at": "2026-11-09T02:27:27.426Z"
     },
     "val": {
       "player_name": "val",
@@ -32734,7 +32873,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-08T23:26:33.571Z"
+        "updated_at": "2026-11-09T02:27:27.426Z"
       },
       "settings": {
         "lang": "es",
@@ -32752,7 +32891,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": ""
       },
-      "updated_at": "2026-11-08T23:26:33.571Z"
+      "updated_at": "2026-11-09T02:27:27.426Z"
     },
     "Briam Gonzalez Gutie": {
       "player_name": "Briam Gonzalez Gutie",
@@ -32804,7 +32943,7 @@
         "total_swipes": 0,
         "bandit_arms": {},
         "last_liked_track": null,
-        "updated_at": "2026-11-08T23:26:33.571Z"
+        "updated_at": "2026-11-09T02:27:27.426Z"
       },
       "settings": {
         "lang": "es",
@@ -32822,7 +32961,7 @@
         "last_claimed_week": "2026_W45",
         "my_ref_code": "rnc_wc0r09"
       },
-      "updated_at": "2026-11-08T23:26:33.571Z"
+      "updated_at": "2026-11-09T02:27:27.426Z"
     }
   }
 }
