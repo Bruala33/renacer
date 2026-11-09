@@ -2192,6 +2192,9 @@
       this._ytBridgeStartWallMs = 0;
       this._ytBridgeBaseSec = 0;
       this._ytBridgePaused = true;
+      this._ytApiPlayer = null;
+      this._ytApiReady = false;
+      this._ytPendingCue = null;
 
       this.previewBaseOffsetSec = 0;
       this.pendingUserSeekSec = null;
@@ -2213,6 +2216,7 @@
       this._bindAudioEvents();
       this._initMediaSession();
       this._initMiniPlayerSwipeDownGesture();
+      this._initPersistentYtBridgePlayer();
     }
 
     _getMasterVolume() {
@@ -2255,9 +2259,108 @@
       return this.activeSourceType === 'full' ? this.fullAudio : this.previewAudio;
     }
 
+    _initPersistentYtBridgePlayer() {
+      const setup = () => {
+        if (document.getElementById('ytPersistentBridgeHost')) return;
+        const host = document.createElement('div');
+        host.id = 'ytPersistentBridgeHost';
+        host.style.cssText = 'position:fixed;width:2px;height:2px;bottom:0;left:0;opacity:0.01;pointer-events:none;z-index:-1;overflow:hidden;';
+        const inner = document.createElement('div');
+        inner.id = 'ytPersistentBridgeMount';
+        host.appendChild(inner);
+        document.body.appendChild(host);
+
+        const createPlayer = () => {
+          if (this._ytApiPlayer || !window.YT || !window.YT.Player) return;
+          try {
+            this._ytApiPlayer = new window.YT.Player('ytPersistentBridgeMount', {
+              width: '200',
+              height: '112',
+              playerVars: {
+                autoplay: 1,
+                controls: 0,
+                playsinline: 1,
+                enablejsapi: 1,
+                rel: 0,
+                origin: window.location.origin || 'https://renacer.onrender.com'
+              },
+              events: {
+                onReady: (ev) => {
+                  this._ytApiReady = true;
+                  try {
+                    ev.target.unMute();
+                    ev.target.setVolume(95);
+                  } catch (_) {}
+                  if (this._ytPendingCue && this.activeSourceType === 'yt_bridge') {
+                    const { videoId, startSec } = this._ytPendingCue;
+                    this._ytPendingCue = null;
+                    try {
+                      ev.target.loadVideoById({ videoId, startSeconds: startSec });
+                      ev.target.unMute();
+                      ev.target.setVolume(95);
+                      ev.target.playVideo();
+                    } catch (_) {}
+                  }
+                },
+                onStateChange: (ev) => {
+                  if (this.activeSourceType !== 'yt_bridge') return;
+                  if (ev.data === 1) {
+                    this._ytBridgePaused = false;
+                    this.isPlayingFlag = true;
+                    this.isLoadingTrack = false;
+                    this._setLoadingHintVisible(false);
+                    this._syncPlayPauseIcons(true);
+                    try {
+                      const d = Number(ev.target.getDuration());
+                      if (Number.isFinite(d) && d > 38 && this.currentTrack) {
+                        this.currentTrack.durationSec = d;
+                        if (this.karaokeService) {
+                          this.karaokeService.recalibrateForActualAudio(this.currentTrack, d).catch(() => {});
+                        }
+                      }
+                    } catch (_) {}
+                  } else if (ev.data === 0) {
+                    this.nextTrack();
+                  }
+                }
+              }
+            });
+          } catch (_) {}
+        };
+
+        if (window.YT && window.YT.Player) {
+          createPlayer();
+        } else {
+          const prevCb = window.onYouTubeIframeAPIReady;
+          window.onYouTubeIframeAPIReady = () => {
+            if (typeof prevCb === 'function') {
+              try { prevCb(); } catch (_) {}
+            }
+            createPlayer();
+          };
+          if (!document.getElementById('ytIframeApiScript')) {
+            const tag = document.createElement('script');
+            tag.id = 'ytIframeApiScript';
+            tag.src = 'https://www.youtube.com/iframe_api';
+            document.head.appendChild(tag);
+          }
+        }
+      };
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setup);
+      } else {
+        setup();
+      }
+    }
+
     _sendYtBridgeCommand(func, args = []) {
       try {
-        const ifr = document.getElementById('ytInstantAudioBridgeIframe');
+        if (this._ytApiReady && this._ytApiPlayer && typeof this._ytApiPlayer[func] === 'function') {
+          this._ytApiPlayer[func](...args);
+          return;
+        }
+        const ifr = document.getElementById('ytInstantAudioBridgeIframe') || document.querySelector('#ytPersistentBridgeHost iframe');
         if (ifr && ifr.contentWindow) {
           ifr.contentWindow.postMessage(JSON.stringify({ event: 'command', func, args }), '*');
         }
@@ -2267,7 +2370,11 @@
     _stopYtAudioBridge() {
       this._ytBridgePaused = true;
       this._ytBridgeVideoId = '';
+      this._ytPendingCue = null;
       try {
+        if (this._ytApiReady && this._ytApiPlayer && typeof this._ytApiPlayer.pauseVideo === 'function') {
+          this._ytApiPlayer.pauseVideo();
+        }
         const ifr = document.getElementById('ytInstantAudioBridgeIframe');
         if (ifr) {
           this._sendYtBridgeCommand('pauseVideo', []);
@@ -2282,6 +2389,26 @@
         if (typeof window.pauseMenuAmbientMusic === 'function') {
           window.pauseMenuAmbientMusic();
         }
+        const safeStart = Math.max(0, Math.floor(Number(startSec) || 0));
+        this._ytBridgeVideoId = videoId;
+        this._ytBridgeBaseSec = safeStart;
+        this._ytBridgeStartWallMs = performance.now();
+        this._ytBridgePaused = false;
+        this.activeSourceType = 'yt_bridge';
+        this.isPlayingFlag = true;
+        this.isLoadingTrack = false;
+        this._setLoadingHintVisible(false);
+        this._syncPlayPauseIcons(true);
+
+        if (this._ytApiReady && this._ytApiPlayer && typeof this._ytApiPlayer.loadVideoById === 'function') {
+          this._ytApiPlayer.loadVideoById({ videoId, startSeconds: safeStart });
+          this._ytApiPlayer.unMute();
+          this._ytApiPlayer.setVolume(95);
+          this._ytApiPlayer.playVideo();
+          return true;
+        }
+
+        this._ytPendingCue = { videoId, startSec: safeStart };
         let host = document.getElementById('ytInstantAudioBridgeHost');
         if (!host) {
           host = document.createElement('div');
@@ -2289,18 +2416,8 @@
           host.style.cssText = 'position:fixed;width:2px;height:2px;bottom:0;left:0;opacity:0.01;pointer-events:none;z-index:-1;overflow:hidden;';
           document.body.appendChild(host);
         }
-        const safeStart = Math.max(0, Math.floor(Number(startSec) || 0));
         const origin = encodeURIComponent(window.location.origin || 'https://renacer.onrender.com');
         host.innerHTML = `<iframe id="ytInstantAudioBridgeIframe" width="200" height="112" src="https://www.youtube.com/embed/${encodeURIComponent(videoId)}?autoplay=1&mute=0&controls=0&playsinline=1&enablejsapi=1&start=${safeStart}&origin=${origin}" allow="autoplay; encrypted-media"></iframe>`;
-        this._ytBridgeVideoId = videoId;
-        this._ytBridgeBaseSec = safeStart;
-        this._ytBridgeStartWallMs = performance.now() + 550;
-        this._ytBridgePaused = false;
-        this.activeSourceType = 'yt_bridge';
-        this.isPlayingFlag = true;
-        this.isLoadingTrack = false;
-        this._setLoadingHintVisible(false);
-        this._syncPlayPauseIcons(true);
         const ifr = document.getElementById('ytInstantAudioBridgeIframe');
         if (ifr) {
           ifr.addEventListener('load', () => {
@@ -2309,12 +2426,6 @@
             this._sendYtBridgeCommand('unMute', []);
             this._sendYtBridgeCommand('setVolume', [95]);
             this._sendYtBridgeCommand('playVideo', []);
-            setTimeout(() => {
-              if (reqId !== this._playRequestId || this.activeSourceType !== 'yt_bridge') return;
-              this._sendYtBridgeCommand('unMute', []);
-              this._sendYtBridgeCommand('setVolume', [95]);
-              this._sendYtBridgeCommand('playVideo', []);
-            }, 350);
           }, { once: true });
         }
         return true;
@@ -2392,7 +2503,7 @@
       if (this._warmTimer || this._warmPending.length === 0) return;
       this._warmTimer = setTimeout(() => {
         this._warmTimer = null;
-        const batch = this._warmPending.splice(0, 20);
+        const batch = this._warmPending.splice(0, 3);
         const baseUrl = typeof window.getApiBaseUrl === 'function' ? window.getApiBaseUrl() : '';
         fetch(`${baseUrl}/api/v1/audio/warm`, {
           method: 'POST',
@@ -2400,7 +2511,7 @@
           body: JSON.stringify({ tracks: batch })
         }).catch(() => {});
         if (this._warmPending.length > 0) this.warmTracks([]);
-      }, 150);
+      }, 650);
     }
 
     getChorusOffsetSec(track = this.currentTrack, fullDur = null) {
@@ -2419,6 +2530,16 @@
         return Number(this.fullAudio.currentTime) || 0;
       }
       if (this.activeSourceType === 'yt_bridge') {
+        if (this._ytApiReady && this._ytApiPlayer && typeof this._ytApiPlayer.getCurrentTime === 'function') {
+          try {
+            const apiCur = Number(this._ytApiPlayer.getCurrentTime());
+            if (Number.isFinite(apiCur) && apiCur >= 0) {
+              this._ytBridgeBaseSec = apiCur;
+              this._ytBridgeStartWallMs = performance.now();
+              return apiCur;
+            }
+          } catch (_) {}
+        }
         if (this._ytBridgePaused) return this._ytBridgeBaseSec || 0;
         const elapsed = Math.max(0, (performance.now() - this._ytBridgeStartWallMs) / 1000);
         const fullDur = this.getTrackFullDurationSec(this.currentTrack);
@@ -2454,9 +2575,6 @@
         }
         if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
           window.DiscoverHomeApp.syncActiveVideoclipPlayback('tick');
-        }
-        if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp._broadcastLiveConnectSession === 'function') {
-          window.DiscoverHomeApp._broadcastLiveConnectSession(false);
         }
       };
 
@@ -2774,29 +2892,42 @@
         }
       }
 
-      // 3. Reproducción por streaming progresivo directo + Puente Instantáneo YouTube (<1.0s) si la pista es de YouTube y aún se está extrayendo:
-      this._setLoadingHintVisible(true);
-
+      // 3. Reproducción instantánea:
+      //    - Si tiene URL maestra directa en GitHub Releases (Catálogo Top), arrancar directo (~0.25s).
+      //    - Si es una canción de YouTube / Playlist sin CDN directo, arrancar SÍNCRONAMENTE (0ms) el puente YT.Player
+      //      aprovechando el gesto táctil del usuario y, en paralelo, descargar el MP3 completo (SoundCloud ~0.25s / Servidor)
+      //      para hacer el handoff transparente sin que el usuario espere jamás a 0 KB/s.
       const progressiveExtractUrl = this._buildServerExtractStreamUrl(track);
       const directStreamUrl = (!isCommTrack) ? this._getDirectFullStreamUrl(track) : '';
-      const streamUrlToPlay = directStreamUrl || progressiveExtractUrl;
       const ytVid = this._extractTrackYoutubeId(track);
 
-      let bridgeTimer = null;
       if (ytVid && !directStreamUrl) {
-        // Si en 950ms el servidor aún está convirtiendo un vídeo frío de YouTube, arrancar al instante
-        // el puente de audio YouTube (0 espera a 0 KB/s) y hacer handoff transparente cuando termine el MP3.
-        bridgeTimer = setTimeout(() => {
-          if (reqId !== this._playRequestId || this.activeSourceType === 'full') return;
-          this._startYtAudioBridge(ytVid, desiredStartSec, reqId);
-          this._updatePlayerMetadataUI(track);
-          this._startListenTracker();
-          this.warmTracks(this.queue.slice(this.queueIndex + 1, this.queueIndex + 8));
-        }, 950);
+        this._startYtAudioBridge(ytVid, desiredStartSec, reqId);
+        this._updatePlayerMetadataUI(track);
+        this._startListenTracker();
+        this.warmTracks(this.queue.slice(this.queueIndex + 1, this.queueIndex + 3));
+        if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
+          window.DiscoverHomeApp.syncActiveVideoclipPlayback('play');
+        }
+
+        this.preloadFullTrackInBackground(track).then(async (blob) => {
+          if (reqId !== this._playRequestId || !blob || blob.size < 80000) return;
+          const curBridgeSec = this.getCurrentSongTimeSec();
+          const wasPlaying = !this._ytBridgePaused;
+          this._stopYtAudioBridge();
+          this.fullTrackBlob = blob;
+          this.fullTrackReady = true;
+          if (wasPlaying) {
+            await this._startChannelWithFadeIn(this.fullAudio, blob, 'full', reqId, curBridgeSec, 120);
+          }
+        }).catch(() => {});
+        return true;
       }
 
+      this._setLoadingHintVisible(true);
+      const streamUrlToPlay = directStreamUrl || progressiveExtractUrl;
+
       const startedStream = await this._startChannelWithFadeIn(this.fullAudio, streamUrlToPlay, 'full', reqId, desiredStartSec, 110);
-      if (bridgeTimer) clearTimeout(bridgeTimer);
       if (reqId !== this._playRequestId) return false;
 
       if (startedStream) {
@@ -2812,29 +2943,10 @@
         this._setLoadingHintVisible(false);
         this._updatePlayerMetadataUI(track);
         this._startListenTracker();
-        this.warmTracks(this.queue.slice(this.queueIndex + 1, this.queueIndex + 8));
+        this.warmTracks(this.queue.slice(this.queueIndex + 1, this.queueIndex + 3));
         if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
           window.DiscoverHomeApp.syncActiveVideoclipPlayback('play');
         }
-        if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp._broadcastLiveConnectSession === 'function') {
-          window.DiscoverHomeApp._broadcastLiveConnectSession(true);
-        }
-        return true;
-      }
-
-      // Si el puente instantáneo de YouTube ya está sonando, mantenerlo activo mientras se precarga el Blob en segundo plano
-      if (this.activeSourceType === 'yt_bridge') {
-        this.preloadFullTrackInBackground(track).then(async (blob) => {
-          if (reqId !== this._playRequestId || !blob || blob.size < 80000) return;
-          const curBridgeSec = this.getCurrentSongTimeSec();
-          const wasPlaying = !this._ytBridgePaused;
-          this._stopYtAudioBridge();
-          this.fullTrackBlob = blob;
-          this.fullTrackReady = true;
-          if (wasPlaying) {
-            await this._startChannelWithFadeIn(this.fullAudio, blob, 'full', reqId, curBridgeSec, 140);
-          }
-        }).catch(() => {});
         return true;
       }
 
@@ -2848,12 +2960,11 @@
           this._setLoadingHintVisible(false);
           this._updatePlayerMetadataUI(track);
           this._startListenTracker();
-          this.warmTracks(this.queue.slice(this.queueIndex + 1, this.queueIndex + 8));
+          this.warmTracks(this.queue.slice(this.queueIndex + 1, this.queueIndex + 3));
           return true;
         }
       }
 
-      // Si hay videoId de YouTube, activar el puente de audio antes de esperar al preload por Blob
       if (ytVid) {
         this._startYtAudioBridge(ytVid, desiredStartSec, reqId);
         this._updatePlayerMetadataUI(track);
@@ -3128,14 +3239,18 @@
             raceCompetitors.push(directRaceTask);
           }
 
-          // 3. Rama SoundCloud Cliente directo (solo para canciones que NO tienen grabación maestra en GitHub Release ni videoId directo de YouTube)
-          if (!directUrl && !this._extractTrackYoutubeId(track) && typeof window.searchSoundCloudFullClient === 'function' && typeof window.downloadSoundCloudFullTrackClient === 'function') {
+          // 3. Rama SoundCloud Cliente directo (~200ms desde CDN progresivo):
+          //    Compite en paralelo incluso cuando la pista viene de una playlist de YouTube (exigiendo alta coincidencia >= 74 si tiene videoId)
+          if (!directUrl && typeof window.searchSoundCloudFullClient === 'function' && typeof window.downloadSoundCloudFullTrackClient === 'function') {
             const clientScTask = (async () => {
               const repTitle = repairSpanishBrokenAccents(track.title || '');
-              const scList = await window.searchSoundCloudFullClient(repTitle, track.artist || '', 12);
+              const repArtist = repairSpanishBrokenAccents(track.artist || '');
+              const hasYtId = Boolean(this._extractTrackYoutubeId(track));
+              const minReqScore = hasYtId ? 74 : 68;
+              const scList = await window.searchSoundCloudFullClient(repTitle, repArtist, 12);
               if (!Array.isArray(scList) || scList.length === 0) throw new Error('No SC candidates');
               for (const cand of scList.slice(0, 2)) {
-                if ((cand.authenticityScore || 0) < 68) break;
+                if ((cand.authenticityScore || 0) < minReqScore) break;
                 const scDl = await window.downloadSoundCloudFullTrackClient(cand._scRawTrack || cand.scTrackId);
                 if (scDl && scDl.blob && scDl.blob.size >= 100000) {
                   if (scDl.durationSec && scDl.durationSec > 45 && (!track.durationSec || track.durationSec < 45)) {
@@ -3245,9 +3360,6 @@
         if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
           window.DiscoverHomeApp.syncActiveVideoclipPlayback(this.isPlayingFlag ? 'play' : 'pause');
         }
-        if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp._broadcastLiveConnectSession === 'function') {
-          window.DiscoverHomeApp._broadcastLiveConnectSession(true);
-        }
         return;
       }
       if (this.activeSourceType === 'none' || (!this.fullAudio.src && !this.previewAudio.src)) {
@@ -3267,9 +3379,6 @@
         if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
           window.DiscoverHomeApp.syncActiveVideoclipPlayback('pause');
         }
-        if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp._broadcastLiveConnectSession === 'function') {
-          window.DiscoverHomeApp._broadcastLiveConnectSession(true);
-        }
       } else {
         if (typeof window.pauseMenuAmbientMusic === 'function') {
           window.pauseMenuAmbientMusic();
@@ -3280,9 +3389,6 @@
           this._syncPlayPauseIcons(true);
           if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
             window.DiscoverHomeApp.syncActiveVideoclipPlayback('play');
-          }
-          if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp._broadcastLiveConnectSession === 'function') {
-            window.DiscoverHomeApp._broadcastLiveConnectSession(true);
           }
         }).catch(() => {});
       }
@@ -3311,9 +3417,6 @@
         if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
           window.DiscoverHomeApp.syncActiveVideoclipPlayback('seek', safeTarget);
         }
-        if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp._broadcastLiveConnectSession === 'function') {
-          window.DiscoverHomeApp._broadcastLiveConnectSession(true);
-        }
         return;
       }
 
@@ -3323,9 +3426,6 @@
         } catch (_) {}
         if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
           window.DiscoverHomeApp.syncActiveVideoclipPlayback('seek', safeTarget);
-        }
-        if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp._broadcastLiveConnectSession === 'function') {
-          window.DiscoverHomeApp._broadcastLiveConnectSession(true);
         }
         return;
       }
@@ -3729,7 +3829,8 @@
     play: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>`,
     pause: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>`,
     playLarge: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>`,
-    pauseLarge: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>`
+    pauseLarge: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>`,
+    radio: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>`
   };
 
   function hasRealHttpCover(track) {
@@ -5135,13 +5236,6 @@
           <span class="sp-opt-label font-extrabold text-[#f3e5ab]">Jugar canción al Piano</span>
         </button>
 
-        <button type="button" class="sp-opt-row" onclick="window.DiscoverHomeApp.handleTrackOptionAction('connect_device')">
-          <span class="sp-opt-icon" style="color:#1db954;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="16" height="11" rx="2"/><line x1="6" y1="19" x2="14" y2="19"/><rect x="16" y="10" width="6" height="10" rx="1.5"/><circle cx="19" cy="17" r="1"/></svg>
-          </span>
-          <span class="sp-opt-label font-bold text-[#1db954]">Conectar a un dispositivo (Altavoz, Smart TV, Xbox)</span>
-        </button>
-
         <button type="button" class="sp-opt-row" onclick="window.DiscoverHomeApp.handleTrackOptionAction('share')">
           <span class="sp-opt-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
@@ -5248,11 +5342,6 @@
       if (action === 'play_piano') {
         this.closePlaylistTracksModal();
         this.launchPianoGameForTrack(tr);
-      } else if (action === 'connect_device') {
-        if (!dualStreamEngine.currentTrack || dualStreamEngine.currentTrack.id !== tr.id) {
-          dualStreamEngine.playTrack(tr);
-        }
-        this.openConnectDeviceModal();
       } else if (action === 'share') {
         const shareText = `${tr.title} - ${tr.artist}`;
         if (navigator.share) {
@@ -5846,6 +5935,26 @@
         return;
       }
 
+      const previewPlObj = {
+        id: `live_chart_${chartId}`,
+        title: resolvedTitle,
+        item_count: tracks.length,
+        tracks: tracks.map((t, i) => ({
+          ...t,
+          id: t.id || t.videoId || `chart_${chartId}_${i}`,
+          videoId: t.videoId || (/^[a-zA-Z0-9_-]{11}$/.test(String(t.id || '').replace(/^magic_yt_|^yt_/, '')) ? String(t.id || '').replace(/^magic_yt_|^yt_/, '') : ''),
+          thumbnail: t.thumbnail || t.cover_url || t.artworkUrl600 || './app_logo.png'
+        })),
+        source: 'live_chart',
+        createdAt: Date.now(),
+        _isUnsavedPreview: true
+      };
+
+      if (typeof window.openPlaylistDetailView === 'function') {
+        await window.openPlaylistDetailView(previewPlObj.id, previewPlObj);
+        return;
+      }
+
       this._openTracksSheetModal({
         title: resolvedTitle,
         subtitle: `${tracks.length} canciones`,
@@ -5863,6 +5972,11 @@
     _sheetEditMode: false,
 
     async openLikedSongsSheetModal() {
+      if (typeof window.switchMainTab === 'function' && typeof window.switchLibrarySubtab === 'function') {
+        window.switchMainTab('library');
+        window.switchLibrarySubtab('favorites');
+        return;
+      }
       const pool = this.getAllCandidatePool();
       let favTracks = pool.filter(t => dnaEngine.likes.has(String(t.id)) || (typeof window.favoriteIdsSet !== 'undefined' && window.favoriteIdsSet.has(t.id)));
       if (typeof window.IndexedDBStorage !== 'undefined' && typeof window.IndexedDBStorage.getAllFavorites === 'function') {
@@ -5887,6 +6001,10 @@
     },
 
     async openUserPlaylistSheetModal(playlistId) {
+      if (typeof window.openPlaylistDetailView === 'function') {
+        await window.openPlaylistDetailView(playlistId);
+        return;
+      }
       if (typeof window.IndexedDBStorage === 'undefined' || typeof window.IndexedDBStorage.getPlaylist !== 'function') return;
       const pl = await window.IndexedDBStorage.getPlaylist(playlistId).catch(() => null);
       if (!pl) return;
@@ -6415,6 +6533,10 @@
 
     async playYouTubeCollectionContinuous(playlistId, title = 'Colección') {
       try {
+        if (typeof window.importCuratedPlaylist === 'function') {
+          await window.importCuratedPlaylist(playlistId, title, false);
+          return;
+        }
         if (typeof window.parseYouTubePlaylistClient === 'function') {
           const parsed = await window.parseYouTubePlaylistClient(playlistId);
           if (parsed && Array.isArray(parsed.tracks) && parsed.tracks.length > 0) {
@@ -6427,14 +6549,19 @@
               source: 'magic_youtube',
               _isMagicKey: true
             }));
-            this._openTracksSheetModal({
+            const previewPl = {
+              id: `yt_${parsed.id || playlistId}`,
               title: parsed.title || title,
-              subtitle: `${tracks.length} canciones`,
+              item_count: tracks.length,
               tracks,
-              playlistId: null,
-              kicker: 'PLAYLIST YOUTUBE'
-            });
-            return;
+              source: 'youtube',
+              createdAt: Date.now(),
+              _isUnsavedPreview: true
+            };
+            if (typeof window.openPlaylistDetailView === 'function') {
+              await window.openPlaylistDetailView(previewPl.id, previewPl);
+              return;
+            }
           }
         }
       } catch (_) {
@@ -6645,245 +6772,6 @@
 
     onTurntablePlatterScratch(e) {
       this.togglePlayPauseMini(e);
-    },
-
-    // =========================================================================
-    // SPOTIFY CONNECT / CAST A ALTAVOCES, SMART TV, CHROMECAST, AIRPLAY Y XBOX
-    // =========================================================================
-    _connectSessionCode: '',
-    _lastConnectBroadcastMs: 0,
-    _selectedSinkId: 'default',
-
-    _ensureConnectSessionCode() {
-      if (!this._connectSessionCode) {
-        try {
-          const saved = localStorage.getItem('renacer_connect_code');
-          if (saved && /^\d{4}$/.test(saved)) {
-            this._connectSessionCode = saved;
-          } else {
-            this._connectSessionCode = String(Math.floor(1000 + Math.random() * 9000));
-            localStorage.setItem('renacer_connect_code', this._connectSessionCode);
-          }
-        } catch (_) {
-          this._connectSessionCode = String(Math.floor(1000 + Math.random() * 9000));
-        }
-      }
-      return this._connectSessionCode;
-    },
-
-    async _broadcastLiveConnectSession(force = false) {
-      const now = performance.now();
-      if (!force && (now - this._lastConnectBroadcastMs) < 3500) return;
-      const tr = dualStreamEngine.currentTrack || this.getActiveCrateTrack();
-      if (!tr) return;
-      this._lastConnectBroadcastMs = now;
-      const code = this._ensureConnectSessionCode();
-      const baseUrl = typeof window.getApiBaseUrl === 'function' ? window.getApiBaseUrl() : '';
-      const vid = dualStreamEngine._extractTrackYoutubeId(tr);
-      const directUrl = dualStreamEngine._getDirectFullStreamUrl(tr);
-      const extractUrl = dualStreamEngine._buildServerExtractStreamUrl(tr);
-      const fullAudioUrl = directUrl || extractUrl;
-      try {
-        await fetch(`${baseUrl}/api/v1/connect/session`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            code,
-            title: tr.title || '',
-            artist: tr.artist || '',
-            cover: getBestTrackCover(tr),
-            videoId: vid || '',
-            audioUrl: fullAudioUrl,
-            currentTime: dualStreamEngine.getCurrentSongTimeSec(),
-            duration: dualStreamEngine.getTrackFullDurationSec(tr),
-            playing: dualStreamEngine.isPlaying()
-          })
-        });
-      } catch (_) {}
-    },
-
-    openConnectDeviceModal(e) {
-      if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
-      const modal = document.getElementById('spotifyConnectModal');
-      if (!modal) return;
-      const code = this._ensureConnectSessionCode();
-      const codeEl = document.getElementById('spConnectLiveCodeText');
-      if (codeEl) codeEl.textContent = code;
-      const baseUrl = (typeof window.getApiBaseUrl === 'function' && window.getApiBaseUrl())
-        ? window.getApiBaseUrl()
-        : (window.location.origin && /^https?:/i.test(window.location.origin) ? window.location.origin : 'https://renacer.onrender.com');
-      const connectUrl = `${baseUrl.replace(/\/$/, '')}/connect?code=${encodeURIComponent(code)}`;
-      const urlEl = document.getElementById('spConnectLiveUrlText');
-      if (urlEl) urlEl.textContent = connectUrl;
-
-      this._broadcastLiveConnectSession(true);
-      this._refreshAudioOutputDevicesList();
-
-      modal.classList.remove('hidden');
-      modal.classList.add('open');
-      modal.style.display = 'flex';
-    },
-
-    closeConnectDeviceModal() {
-      const modal = document.getElementById('spotifyConnectModal');
-      if (modal) {
-        modal.classList.remove('open');
-        modal.classList.add('hidden');
-        modal.style.display = 'none';
-      }
-    },
-
-    async _refreshAudioOutputDevicesList() {
-      const cont = document.getElementById('spConnectAudioSinksList');
-      if (!cont) return;
-      const sinks = [
-        { deviceId: 'default', label: 'Este dispositivo (Altavoz / Bluetooth activo)' }
-      ];
-      try {
-        if (navigator.mediaDevices && typeof navigator.mediaDevices.enumerateDevices === 'function') {
-          const all = await navigator.mediaDevices.enumerateDevices();
-          for (const d of all) {
-            if (d && d.kind === 'audiooutput' && d.deviceId && d.deviceId !== 'default') {
-              sinks.push({
-                deviceId: d.deviceId,
-                label: d.label || `Salida de audio externa (${d.deviceId.slice(0, 6)})`
-              });
-            }
-          }
-        }
-      } catch (_) {}
-
-      cont.innerHTML = sinks.map((s) => {
-        const isCurrent = (this._selectedSinkId || 'default') === s.deviceId;
-        const safeId = String(s.deviceId).replace(/'/g, "\\'");
-        return `
-          <button type="button" onclick="window.DiscoverHomeApp.selectAudioSinkDevice('${safeId}')" class="w-full flex items-center justify-between gap-3 p-3 rounded-xl border ${isCurrent ? 'bg-[#1db954]/15 border-[#1db954]/60 text-white' : 'bg-white/5 border-white/10 text-gray-200 hover:bg-white/10'} cursor-pointer transition text-left">
-            <div class="flex items-center gap-3 min-w-0">
-              <div class="w-9 h-9 rounded-full ${isCurrent ? 'bg-[#1db954] text-black' : 'bg-white/10 text-gray-300'} flex items-center justify-center flex-shrink-0">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="2" width="16" height="20" rx="2"/><circle cx="12" cy="14" r="4"/><line x1="12" y1="6" x2="12.01" y2="6"/></svg>
-              </div>
-              <div class="min-w-0">
-                <div class="text-xs font-extrabold truncate">${escapeHtmlSafe(s.label)}</div>
-                <div class="text-[10px] ${isCurrent ? 'text-[#1db954] font-bold' : 'text-gray-400'}">${isCurrent ? 'Sonando ahora mismo' : 'Pulsa para transferir el audio'}</div>
-              </div>
-            </div>
-            ${isCurrent ? `<span class="px-2 py-0.5 rounded-full bg-[#1db954]/20 text-[#1db954] text-[10px] font-black">ACTIVO</span>` : ''}
-          </button>
-        `;
-      }).join('');
-    },
-
-    async selectAudioSinkDevice(deviceId) {
-      this._selectedSinkId = deviceId || 'default';
-      try {
-        for (const el of [dualStreamEngine.fullAudio, dualStreamEngine.previewAudio]) {
-          if (el && typeof el.setSinkId === 'function') {
-            await el.setSinkId(this._selectedSinkId);
-          }
-        }
-        if (typeof window.showSuccessToast === 'function') {
-          window.showSuccessToast('Salida de audio cambiada correctamente');
-        }
-      } catch (_) {}
-      this._refreshAudioOutputDevicesList();
-    },
-
-    async promptSystemAudioOutputPicker() {
-      try {
-        if (navigator.mediaDevices && typeof navigator.mediaDevices.selectAudioOutput === 'function') {
-          const device = await navigator.mediaDevices.selectAudioOutput();
-          if (device && device.deviceId) {
-            await this.selectAudioSinkDevice(device.deviceId);
-            return;
-          }
-        }
-      } catch (_) {}
-      await this.triggerNativeRemoteCast('speaker');
-    },
-
-    async triggerNativeRemoteCast(targetType = 'tv') {
-      const tr = dualStreamEngine.currentTrack || this.getActiveCrateTrack();
-      this._broadcastLiveConnectSession(true);
-      const activeAudio = dualStreamEngine.getActiveAudioElement() || dualStreamEngine.fullAudio;
-
-      // 1. Estándar W3C RemotePlayback API (Chromecast, Android Cast, AirPlay en Smart TVs y altavoces Wi-Fi)
-      if (activeAudio && activeAudio.remote && typeof activeAudio.remote.prompt === 'function') {
-        try {
-          await activeAudio.remote.prompt();
-          if (typeof window.showSuccessToast === 'function') {
-            window.showSuccessToast('Conectado al dispositivo externo');
-          }
-          return;
-        } catch (_) {}
-      }
-
-      // 2. Safari / iOS AirPlay picker nativo
-      if (activeAudio && typeof activeAudio.webkitShowPlaybackTargetPicker === 'function') {
-        try {
-          activeAudio.webkitShowPlaybackTargetPicker();
-          return;
-        } catch (_) {}
-      }
-
-      // 3. Estándar W3C Presentation API para abrir el receptor en Smart TVs / Pantallas inalámbricas
-      const code = this._ensureConnectSessionCode();
-      const baseUrl = (typeof window.getApiBaseUrl === 'function' && window.getApiBaseUrl())
-        ? window.getApiBaseUrl()
-        : (window.location.origin && /^https?:/i.test(window.location.origin) ? window.location.origin : 'https://renacer.onrender.com');
-      const connectUrl = `${baseUrl.replace(/\/$/, '')}/connect?code=${encodeURIComponent(code)}`;
-
-      if (typeof window.PresentationRequest === 'function') {
-        try {
-          const presReq = new window.PresentationRequest([connectUrl]);
-          await presReq.start();
-          if (typeof window.showSuccessToast === 'function') {
-            window.showSuccessToast('Transmitiendo a pantalla / Smart TV');
-          }
-          return;
-        } catch (_) {}
-      }
-
-      // 4. Si estamos en Xbox / Smart TV o el usuario quiere abrir el enlace de transmisión
-      if (targetType === 'xbox' || targetType === 'tv') {
-        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-          navigator.clipboard.writeText(connectUrl).catch(() => {});
-        }
-        if (typeof window.showSuccessToast === 'function') {
-          window.showSuccessToast(`Código ${code} activo. Enlace copiado para abrir en tu Smart TV / Xbox`);
-        }
-      } else if (typeof window.showSuccessToast === 'function') {
-        window.showSuccessToast(`Vincula tu altavoz por Bluetooth o usa el código ${code}`);
-      }
-    },
-
-    copyConnectSessionLink() {
-      const code = this._ensureConnectSessionCode();
-      const baseUrl = (typeof window.getApiBaseUrl === 'function' && window.getApiBaseUrl())
-        ? window.getApiBaseUrl()
-        : (window.location.origin && /^https?:/i.test(window.location.origin) ? window.location.origin : 'https://renacer.onrender.com');
-      const connectUrl = `${baseUrl.replace(/\/$/, '')}/connect?code=${encodeURIComponent(code)}`;
-      this._broadcastLiveConnectSession(true);
-      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-        navigator.clipboard.writeText(connectUrl).catch(() => {});
-      }
-      if (typeof window.showSuccessToast === 'function') {
-        window.showSuccessToast(`Enlace copiado (Código ${code})`);
-      }
-    },
-
-    openReceiverModeOnThisDevice() {
-      const inp = document.getElementById('spConnectRemoteTargetCodeInput');
-      const remoteCode = String(inp?.value || '').trim().toUpperCase();
-      if (!remoteCode) {
-        if (typeof window.showErrorToast === 'function') {
-          window.showErrorToast('Introduce el código de 4 dígitos del otro dispositivo');
-        }
-        return;
-      }
-      const baseUrl = (typeof window.getApiBaseUrl === 'function' && window.getApiBaseUrl())
-        ? window.getApiBaseUrl()
-        : (window.location.origin && /^https?:/i.test(window.location.origin) ? window.location.origin : 'https://renacer.onrender.com');
-      window.open(`${baseUrl.replace(/\/$/, '')}/connect?code=${encodeURIComponent(remoteCode)}`, '_blank');
     }
   };
 

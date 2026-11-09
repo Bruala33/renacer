@@ -1709,13 +1709,17 @@
                   <p id="selectedPlaylistSubtitle" class="text-[10px] text-[#cbb894] truncate">Elige una canción de la lista o descubre nuevas</p>
                 </div>
                 <div class="flex items-center gap-1.5 flex-shrink-0">
-                  <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.startPlaylistDiscoverySwipeMode(currentOpenedPlaylistId)" class="px-2.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-[#d4af37]/60 text-[#f3d791] font-bold text-[10px] flex items-center gap-1 cursor-pointer transition active:scale-95" title="Descubrir canciones para esta playlist en modo Swipe">
+                  <button id="btnSavePreviewedPlaylist" type="button" onclick="window.saveCurrentPreviewedPlaylist()" class="hidden px-2.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/70 text-emerald-200 font-black text-[10px] flex items-center gap-1 cursor-pointer transition active:scale-95" title="Guardar esta playlist en tu biblioteca">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    <span id="btnSavePreviewedPlaylistLabel">+ Guardar</span>
+                  </button>
+                  <button id="btnDiscoverForPlaylistView" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.startPlaylistDiscoverySwipeMode(currentOpenedPlaylistId)" class="px-2.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-[#d4af37]/60 text-[#f3d791] font-bold text-[10px] flex items-center gap-1 cursor-pointer transition active:scale-95" title="Descubrir canciones para esta playlist en modo Swipe">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     <span>Descubrir</span>
                   </button>
-                  <button id="btnPlayAllSelectedPlaylist" onclick="playEntirePlaylistShuffled()" class="px-3 py-2 rounded-xl bg-gradient-to-b from-[#f3d791] via-[#d4a84f] to-[#9b6f23] border border-[#fff6d6] text-[#1c1004] font-black text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-lg cursor-pointer transition active:scale-95 flex-shrink-0">
+                  <button id="btnPlayAllSelectedPlaylist" onclick="window.listenEntireOpenedPlaylist(false)" class="px-3 py-2 rounded-xl bg-gradient-to-b from-[#f3d791] via-[#d4a84f] to-[#9b6f23] border border-[#fff6d6] text-[#1c1004] font-black text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-lg cursor-pointer transition active:scale-95 flex-shrink-0" title="Reproducir toda la playlist al instante">
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
-                    <span>Jugar</span>
+                    <span>Escuchar</span>
                   </button>
                 </div>
               </div>
@@ -4930,11 +4934,6 @@
           </div>
         </div>
         <div class="mini-player-actions" onclick="event.stopPropagation();">
-          <button id="miniPlayerConnectBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openConnectDeviceModal(event)" class="mini-player-svg-btn" title="Conectar a un dispositivo (Altavoz, Smart TV, Xbox)" style="color:#1db954;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="2" y="4" width="16" height="11" rx="2"/><line x1="6" y1="19" x2="14" y2="19"/><rect x="16" y="10" width="6" height="10" rx="1.5"/><circle cx="19" cy="17" r="1"/>
-            </svg>
-          </button>
           <button id="miniPlayerLyricsBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openKaraokeFromMiniPlayer(event)" class="mini-player-svg-btn" title="Ver letra en modo Karaoke">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
@@ -5081,19 +5080,15 @@
           </button>
         </div>
 
-        <!-- Acciones Extra: Guardar en Playlist / Dispositivos / Opciones -->
-        <div class="crate-secondary-actions w-full max-w-[340px]" style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px;">
-          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openAddToPlaylistFromNowPlaying()" class="crate-sec-btn" style="padding:0 8px;">
+        <!-- Acciones Extra: Guardar en Playlist / Opciones -->
+        <div class="crate-secondary-actions w-full max-w-[340px]">
+          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openAddToPlaylistFromNowPlaying()" class="crate-sec-btn">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            <span class="truncate">Playlist</span>
+            <span class="truncate">Añadir a Playlist</span>
           </button>
-          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openConnectDeviceModal(event)" class="crate-sec-btn" style="padding:0 8px; border-color:rgba(29,185,84,0.45); color:#1db954;" title="Enviar canción a Altavoz, Smart TV o Xbox">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="16" height="11" rx="2"/><line x1="6" y1="19" x2="14" y2="19"/><rect x="16" y="10" width="6" height="10" rx="1.5"/><circle cx="19" cy="17" r="1"/></svg>
-            <span class="truncate">Dispositivos</span>
-          </button>
-          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openTrackOptionsSheetForPlayer()" class="crate-sec-btn" style="padding:0 8px;">
+          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openTrackOptionsSheetForPlayer()" class="crate-sec-btn">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
-            <span class="truncate">Opciones</span>
+            <span class="truncate">Opciones / Descargar</span>
           </button>
         </div>
 
@@ -5214,83 +5209,6 @@
         </div>
         <div class="sp-options-sheet-divider"></div>
         <div id="spOptSheetActionsList" class="sp-options-sheet-list"></div>
-      </div>
-    </div>
-
-    <!-- MODAL DE CONEXIÓN A DISPOSITIVOS ESTILO SPOTIFY CONNECT (ALTAVOCES, SMART TV, CHROMECAST, AIRPLAY, XBOX / PLAYSTATION) -->
-    <div id="spotifyConnectModal" class="sp-options-sheet-overlay hidden" style="display:none;" onclick="if(event.target===this){window.DiscoverHomeApp && window.DiscoverHomeApp.closeConnectDeviceModal();}">
-      <div class="sp-options-sheet-card" onclick="event.stopPropagation();" style="max-height:86vh; overflow-y:auto;">
-        <div class="sp-options-sheet-handle"></div>
-        <div class="flex items-center justify-between px-4 pb-3 border-b border-white/10">
-          <div class="flex items-center gap-2.5">
-            <div class="w-9 h-9 rounded-full bg-[#1db954]/20 border border-[#1db954]/50 text-[#1db954] flex items-center justify-center flex-shrink-0">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="16" height="11" rx="2"/><line x1="6" y1="19" x2="14" y2="19"/><rect x="16" y="10" width="6" height="10" rx="1.5"/><circle cx="19" cy="17" r="1"/></svg>
-            </div>
-            <div>
-              <h4 class="text-sm font-black text-white leading-tight">Conectar a un dispositivo</h4>
-              <p class="text-[11px] text-gray-400">Envía la canción en vivo a un altavoz, Smart TV o consola</p>
-            </div>
-          </div>
-          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.closeConnectDeviceModal()" class="tube-amp-close-btn" title="Cerrar">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-
-        <div class="p-4 space-y-4">
-          <!-- 1. Salidas de Audio / Altavoces Bluetooth / HDMI -->
-          <div>
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-[10px] font-extrabold uppercase tracking-wider text-[#1db954]">Salidas de Audio y Altavoces Bluetooth</span>
-              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.promptSystemAudioOutputPicker()" class="text-[10px] font-bold text-amber-300 underline cursor-pointer">Buscar altavoz</button>
-            </div>
-            <div id="spConnectAudioSinksList" class="space-y-2"></div>
-          </div>
-
-          <!-- 2. Transmisión Directa a Smart TV / Chromecast / AirPlay / Xbox -->
-          <div>
-            <span class="block text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">Transmitir a Pantalla o Consola</span>
-            <div class="grid grid-cols-2 gap-2.5">
-              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.triggerNativeRemoteCast('tv')" class="flex items-center gap-2.5 p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-left cursor-pointer transition">
-                <div class="w-8 h-8 rounded-lg bg-amber-400/15 text-amber-300 flex items-center justify-center flex-shrink-0">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-                </div>
-                <div class="min-w-0">
-                  <div class="text-xs font-extrabold text-white truncate">Smart TV / Cast</div>
-                  <div class="text-[10px] text-gray-400 truncate">Chromecast / AirPlay</div>
-                </div>
-              </button>
-
-              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.triggerNativeRemoteCast('xbox')" class="flex items-center gap-2.5 p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-left cursor-pointer transition">
-                <div class="w-8 h-8 rounded-lg bg-[#1db954]/15 text-[#1db954] flex items-center justify-center flex-shrink-0">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="6"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15" cy="11" r="1"/><circle cx="17" cy="13" r="1"/></svg>
-                </div>
-                <div class="min-w-0">
-                  <div class="text-xs font-extrabold text-white truncate">Xbox / PlayStation</div>
-                  <div class="text-[10px] text-gray-400 truncate">Receptor en consola</div>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          <!-- 3. Código en Vivo para Smart TV / Xbox / PC (Renacer Connect) -->
-          <div class="p-3.5 rounded-2xl bg-black/50 border border-[#d4af37]/35 space-y-2.5">
-            <div class="flex items-center justify-between">
-              <div>
-                <div class="text-xs font-extrabold text-white">Código en Vivo para Smart TV / Xbox / PC</div>
-                <div class="text-[10px] text-gray-400">Abre el enlace en el navegador de tu TV o Xbox e introduce este código:</div>
-              </div>
-              <span id="spConnectLiveCodeText" class="px-3 py-1 rounded-xl bg-[#1db954]/20 border border-[#1db954]/50 text-[#1db954] text-base font-black tracking-widest">----</span>
-            </div>
-            <div class="flex items-center justify-between gap-2 p-2 rounded-xl bg-white/5 border border-white/10">
-              <span id="spConnectLiveUrlText" class="text-[11px] font-mono text-amber-200 truncate">https://renacer.onrender.com/connect</span>
-              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.copyConnectSessionLink()" class="px-2.5 py-1 rounded-lg bg-[#d4af37] text-black text-[10px] font-extrabold flex-shrink-0 cursor-pointer">Copiar enlace</button>
-            </div>
-            <div class="pt-1 border-t border-white/10 flex items-center gap-2">
-              <input id="spConnectRemoteTargetCodeInput" type="text" maxlength="8" placeholder="Código de otro móvil (ej. 4829)" class="flex-1 h-8 px-2.5 rounded-lg bg-white/5 border border-white/15 text-xs text-white outline-none">
-              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openReceiverModeOnThisDevice()" class="h-8 px-3 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[10px] font-extrabold cursor-pointer">Recibir aquí</button>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -16953,6 +16871,7 @@ function stopPianoCameraLoop() {
           });
           if (matchedTop) {
             const rawId = String(matchedTop.raw_id || matchedTop.id || '').replace(/^top_/, '');
+            const audioFilename = matchedTop.audio_url || `${rawId}.mp3`;
             const exactTag = typeof window.getReleaseTagForFile === 'function' ? window.getReleaseTagForFile(audioFilename) : null;
             const searchTags = exactTag ? [exactTag, '3', '8'].filter((v, i, a) => v && a.indexOf(v) === i) : ['3', '8', '4', '5', '6', '7', '9'];
             for (const tag of searchTags) {
@@ -17606,18 +17525,81 @@ function stopPianoCameraLoop() {
       openPlaylistDetailView(newPl.id);
     };
 
-    async function openPlaylistDetailView(playlistId) {
-      // Si estamos en la pestaña Descubrir, abrir el modal con teclas de piano; si estamos en Mi Biblioteca -> Playlists, mostrar la vista integrada de teclas de piano
-      if (currentActiveTab === 'discover' && window.DiscoverHomeApp && typeof window.DiscoverHomeApp.openUserPlaylistTracksModal === 'function') {
-        await window.DiscoverHomeApp.openUserPlaylistTracksModal(playlistId);
+    window._unsavedPreviewPlaylist = null;
+
+    window.saveCurrentPreviewedPlaylist = async function() {
+      const pl = window._unsavedPreviewPlaylist;
+      if (!pl) {
+        showSuccessToast('Esta playlist ya está guardada en tu biblioteca.');
         return;
       }
+      const cleanRecord = {
+        id: pl.id || ('pl_' + Date.now()),
+        title: pl.title || 'Playlist',
+        item_count: Array.isArray(pl.tracks) ? pl.tracks.length : 0,
+        tracks: Array.isArray(pl.tracks) ? pl.tracks : [],
+        source: pl.source || 'youtube',
+        createdAt: Date.now()
+      };
+      await IndexedDBStorage.savePlaylist(cleanRecord);
+      window._unsavedPreviewPlaylist = null;
+      const saveBtn = document.getElementById('btnSavePreviewedPlaylist');
+      if (saveBtn) saveBtn.classList.add('hidden');
+      const discBtn = document.getElementById('btnDiscoverForPlaylistView');
+      if (discBtn) discBtn.classList.remove('hidden');
+      updateLibraryVaultBadges();
+      if (typeof renderPlaylistsSubtab === 'function') renderPlaylistsSubtab();
+      if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.refreshCarousels === 'function') {
+        window.DiscoverHomeApp.refreshCarousels();
+      }
+      if (typeof window.scheduleCloudProfileSync === 'function') {
+        window.scheduleCloudProfileSync({ playlists_authoritative: true });
+      }
+      showSuccessToast(`Playlist "${cleanRecord.title}" guardada en tu biblioteca.`);
+    };
+
+    async function openPlaylistDetailView(playlistId, unsavedPlaylistObj = null) {
+      if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.closePlaylistTracksModal === 'function') {
+        window.DiscoverHomeApp.closePlaylistTracksModal();
+      }
+      if (typeof currentActiveTab !== 'undefined' && currentActiveTab !== 'library') {
+        await switchMainTab('library');
+      }
+      if (typeof currentLibrarySubtab !== 'undefined' && currentLibrarySubtab !== 'playlists') {
+        const subtabs = ['downloads', 'favorites', 'playlists'];
+        subtabs.forEach(st => {
+          const btn = document.getElementById(`subtab-${st}`);
+          const content = document.getElementById(`libContent-${st}`);
+          if (st === 'playlists') {
+            if (btn) btn.classList.add('active');
+            if (content) content.classList.remove('hidden');
+          } else {
+            if (btn) btn.classList.remove('active');
+            if (content) content.classList.add('hidden');
+          }
+        });
+        currentLibrarySubtab = 'playlists';
+      }
+
       const tracksCont = document.getElementById('playlistTracksContainer');
       if (tracksCont) tracksCont.innerHTML = '';
 
-      const pl = await IndexedDBStorage.getPlaylist(playlistId);
+      let pl = await IndexedDBStorage.getPlaylist(playlistId).catch(() => null);
+      let isUnsavedPreview = false;
+      if (!pl && unsavedPlaylistObj) {
+        pl = unsavedPlaylistObj;
+        isUnsavedPreview = true;
+        window._unsavedPreviewPlaylist = unsavedPlaylistObj;
+      } else if (pl) {
+        window._unsavedPreviewPlaylist = null;
+      }
       if (!pl) return;
       currentOpenedPlaylistId = pl.id;
+
+      const saveBtn = document.getElementById('btnSavePreviewedPlaylist');
+      const discBtn = document.getElementById('btnDiscoverForPlaylistView');
+      if (saveBtn) saveBtn.classList.toggle('hidden', !isUnsavedPreview);
+      if (discBtn) discBtn.classList.toggle('hidden', isUnsavedPreview);
 
       const listEl = document.getElementById('playlistsList');
       const vaultHeaderEl = document.getElementById('playlistsVaultHeaderBar');
@@ -17630,6 +17612,13 @@ function stopPianoCameraLoop() {
       const titleEl = document.getElementById('selectedPlaylistTitle');
       if (titleEl) titleEl.innerText = pl.title || 'Playlist';
 
+      const subEl = document.getElementById('selectedPlaylistSubtitle');
+      if (subEl) {
+        subEl.innerText = isUnsavedPreview
+          ? 'Vista previa · Pulsa "+ Guardar" para añadirla a tus Playlists'
+          : 'Toca cualquier canción para escuchar al instante o ▶ para jugar al piano';
+      }
+
       const rawTracks = Array.isArray(pl.tracks) ? pl.tracks : [];
       const tracks = rawTracks.map((tr, idx) => ({ ...tr, _origIdx: idx }));
 
@@ -17638,9 +17627,10 @@ function stopPianoCameraLoop() {
 
       const coverImg = document.getElementById('selectedPlaylistCoverImg');
       if (coverImg) {
+        const firstVid = extractCleanYtIdFromTrack(tracks[0]);
         const firstThumb = (tracks[0]?.thumbnail && typeof tracks[0].thumbnail === 'string')
           ? tracks[0].thumbnail
-          : (tracks[0]?.id && String(tracks[0].id).length === 11 ? `https://i.ytimg.com/vi/${tracks[0].id}/hqdefault.jpg` : './app_logo.png');
+          : (firstVid ? `https://i.ytimg.com/vi/${firstVid}/hqdefault.jpg` : './app_logo.png');
         coverImg.src = firstThumb;
       }
 
@@ -17651,29 +17641,99 @@ function stopPianoCameraLoop() {
       renderOpenedPlaylistTracksList(tracks, pl.id);
     }
 
+    function extractCleanYtIdFromTrack(tr) {
+      if (!tr) return '';
+      const v0 = String(tr.videoId || '').replace(/^magic_yt_|^yt_/, '').trim();
+      if (/^[A-Za-z0-9_-]{11}$/.test(v0)) return v0;
+      const id0 = String(tr.id || '').replace(/^magic_yt_|^yt_/, '').trim();
+      if (/^[A-Za-z0-9_-]{11}$/.test(id0)) return id0;
+      const th = String(tr.thumbnail || tr.cover_url || tr.artworkUrl600 || '');
+      const m = th.match(/(?:\/vi\/|\/vi_webp\/)([A-Za-z0-9_-]{11})(?:\/|$)/);
+      return (m && m[1]) ? m[1] : '';
+    }
+
+    function normalizePlaylistTrackForPlayer(tr, idx = 0) {
+      const rawTitle = repairSpanishBrokenAccents(String(tr?.title || `Pista #${idx + 1}`));
+      const rawArtist = repairSpanishBrokenAccents(Array.isArray(tr?.artists) ? tr.artists.join(', ') : String(tr?.artist || 'Artista'));
+      const vid = extractCleanYtIdFromTrack(tr);
+      const fallbackCover = getSongCoverFallback(rawTitle, rawArtist);
+      const thumbUrl = (typeof tr?.thumbnail === 'string' && tr.thumbnail.trim() && tr.thumbnail !== './app_logo.png')
+        ? tr.thumbnail
+        : (vid ? `https://i.ytimg.com/vi/${vid}/hqdefault.jpg` : fallbackCover);
+      return {
+        ...tr,
+        id: tr?.id || (vid ? `magic_yt_${vid}` : `pl_tr_${idx}`),
+        videoId: vid,
+        title: rawTitle,
+        artist: rawArtist,
+        thumbnail: thumbUrl,
+        cover_url: thumbUrl,
+        durationSec: Number(tr?.durationSec || tr?.duration_seconds || 0) || 0,
+        source: tr?.source || (vid ? 'magic_youtube' : 'playlist'),
+        _isMagicKey: true
+      };
+    }
+
     window.currentRenderedPlaylistTracks = [];
+
+    window.playPlaylistTrackInPlayer = function(renderedIdx) {
+      const list = Array.isArray(window.currentRenderedPlaylistTracks) ? window.currentRenderedPlaylistTracks : [];
+      if (!list[renderedIdx]) return;
+      const queueList = list.map((item, i) => normalizePlaylistTrackForPlayer(item, i));
+      const targetTrack = queueList[renderedIdx];
+      const engine = window.DiscoverHomeApp && window.DiscoverHomeApp.getAudioEngine && window.DiscoverHomeApp.getAudioEngine();
+      if (engine) {
+        if (engine.currentTrack && String(engine.currentTrack.id) === String(targetTrack.id)) {
+          engine.togglePlayPause();
+          return;
+        }
+        const titleEl = document.getElementById('selectedPlaylistTitle');
+        const plName = (titleEl && titleEl.innerText) ? titleEl.innerText : 'Playlist';
+        engine.loadQueueAndPlay(queueList, renderedIdx, plName);
+      }
+    };
+
+    window.listenEntireOpenedPlaylist = function(shuffle = false) {
+      const list = Array.isArray(window.currentRenderedPlaylistTracks) && window.currentRenderedPlaylistTracks.length > 0
+        ? window.currentRenderedPlaylistTracks
+        : (window.currentOpenedPlaylistTracks || []);
+      if (!list.length) {
+        showErrorToast('Esta playlist no tiene canciones todavía.');
+        return;
+      }
+      let queueList = list.map((item, i) => normalizePlaylistTrackForPlayer(item, i));
+      if (shuffle && queueList.length > 1) {
+        queueList = [...queueList].sort(() => Math.random() - 0.5);
+      }
+      const engine = window.DiscoverHomeApp && window.DiscoverHomeApp.getAudioEngine && window.DiscoverHomeApp.getAudioEngine();
+      if (engine) {
+        const titleEl = document.getElementById('selectedPlaylistTitle');
+        const plName = (titleEl && titleEl.innerText) ? titleEl.innerText : 'Playlist';
+        engine.loadQueueAndPlay(queueList, 0, plName);
+      }
+    };
+
+    window.playPlaylistTrackPianoByIndex = function(renderedIdx) {
+      const list = Array.isArray(window.currentRenderedPlaylistTracks) ? window.currentRenderedPlaylistTracks : [];
+      const tr = list[renderedIdx];
+      if (!tr) return;
+      const norm = normalizePlaylistTrackForPlayer(tr, renderedIdx);
+      if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.launchPianoGameForTrack === 'function') {
+        window.DiscoverHomeApp.launchPianoGameForTrack(norm, 'hard');
+        return;
+      }
+      autoExtractAndPlaySong(norm.title, norm.artist, norm.thumbnail, 'hard');
+    };
+
     window.openPlaylistTrackMatcherByIndex = function(renderedIdx) {
       const tr = (window.currentRenderedPlaylistTracks || [])[renderedIdx];
       if (!tr) return;
-      const rawTitle = String(tr.title || `Pista #${renderedIdx + 1}`);
-      const rawArtist = Array.isArray(tr.artists) ? tr.artists.join(', ') : String(tr.artist || 'YouTube');
-      const fallbackCover = getSongCoverFallback(rawTitle, rawArtist);
-      const thumbUrl = (typeof tr.thumbnail === 'string' && tr.thumbnail.trim())
-        ? tr.thumbnail
-        : (tr.id && String(tr.id).length === 11 ? `https://i.ytimg.com/vi/${tr.id}/hqdefault.jpg` : fallbackCover);
-      openPlaylistTrackMatcher(rawTitle, rawArtist, thumbUrl);
+      const norm = normalizePlaylistTrackForPlayer(tr, renderedIdx);
+      openPlaylistTrackMatcher(norm.title, norm.artist, norm.thumbnail);
     };
 
     window.autoExtractPlaylistTrackByIndex = function(renderedIdx) {
-      const tr = (window.currentRenderedPlaylistTracks || [])[renderedIdx];
-      if (!tr) return;
-      const rawTitle = String(tr.title || `Pista #${renderedIdx + 1}`);
-      const rawArtist = Array.isArray(tr.artists) ? tr.artists.join(', ') : String(tr.artist || 'YouTube');
-      const fallbackCover = getSongCoverFallback(rawTitle, rawArtist);
-      const thumbUrl = (typeof tr.thumbnail === 'string' && tr.thumbnail.trim())
-        ? tr.thumbnail
-        : (tr.id && String(tr.id).length === 11 ? `https://i.ytimg.com/vi/${tr.id}/hqdefault.jpg` : fallbackCover);
-      autoExtractAndPlaySong(rawTitle, rawArtist, thumbUrl, 'hard');
+      window.playPlaylistTrackPianoByIndex(renderedIdx);
     };
 
     function renderOpenedPlaylistTracksList(tracks, playlistId) {
@@ -17692,31 +17752,30 @@ function stopPianoCameraLoop() {
         return;
       }
 
+      const isUnsavedPreview = Boolean(window._unsavedPreviewPlaylist && String(window._unsavedPreviewPlaylist.id) === String(playlistId || currentOpenedPlaylistId));
       const safePlId = escapeJsAttr(playlistId || currentOpenedPlaylistId || '');
       const keysHtml = safeList.map((tr, idx) => {
         try {
-          const rawTitle = repairSpanishBrokenAccents(String(tr?.title || `Pista #${idx + 1}`));
-          const rawArtist = repairSpanishBrokenAccents(Array.isArray(tr?.artists) ? tr.artists.join(', ') : String(tr?.artist || 'YouTube'));
+          const norm = normalizePlaylistTrackForPlayer(tr, idx);
+          const rawTitle = norm.title;
+          const rawArtist = norm.artist;
           const fallbackCover = getSongCoverFallback(rawTitle, rawArtist);
-          const hasRealCover = Boolean((typeof tr?.thumbnail === 'string' && tr.thumbnail.trim() && tr.thumbnail !== './app_logo.png' && !tr.thumbnail.startsWith('data:image/svg+xml')) || (tr?.id && String(tr.id).length === 11));
-          const thumbUrl = (typeof tr?.thumbnail === 'string' && tr.thumbnail.trim() && tr.thumbnail !== './app_logo.png')
-            ? tr.thumbnail
-            : (tr?.id && String(tr.id).length === 11 ? `https://i.ytimg.com/vi/${tr.id}/hqdefault.jpg` : fallbackCover);
+          const hasRealCover = Boolean(norm.thumbnail && norm.thumbnail !== './app_logo.png' && !norm.thumbnail.startsWith('data:image/svg+xml'));
+          const thumbUrl = norm.thumbnail || fallbackCover;
           const displayIdx = tr?._origIdx !== undefined ? tr._origIdx + 1 : idx + 1;
-          const safeTrackId = escapeJsAttr(tr?.id || '');
+          const safeTrackId = escapeJsAttr(norm.id);
           const sId = `pl_track_${idx}`;
           const safeTitleJs = escapeJsAttr(rawTitle);
           const safeArtistJs = escapeJsAttr(rawArtist);
-          const safeVideoIdJs = (tr?.id && String(tr.id).length === 11) ? escapeJsAttr(String(tr.id)) : '';
 
           return `
             <div class="piano-key-row flex flex-col">
               <div class="flex items-stretch w-full max-w-full overflow-hidden">
-                <!-- White Ivory Key Body (Opens Elegant In-Place Catalog Matcher Modal) -->
-                <div onclick="openPlaylistTrackMatcherByIndex(${idx})" class="piano-white-key flex-1 min-w-0 overflow-hidden cursor-pointer" title="Ver versiones jugables de ${escapeHtml(rawTitle)}">
+                <!-- White Ivory Key Body (Reproduce la canción al instante en el reproductor) -->
+                <div onclick="window.playPlaylistTrackInPlayer(${idx})" class="piano-white-key flex-1 min-w-0 overflow-hidden cursor-pointer" title="Toca para escuchar ${escapeHtml(rawTitle)} al instante">
                   <div id="bgWash_${sId}" class="piano-key-bg-wash ${hasRealCover ? '' : 'no-bg-wash'}" style="${hasRealCover ? `background-image: url('${escapeJsAttr(thumbUrl)}');` : ''}"></div>
                   <div class="relative z-10 flex items-stretch gap-3 min-w-0 flex-1 overflow-hidden">
-                    <div id="thumbWrap_${sId}" onclick="event.stopPropagation(); toggleThumbnailSongPreview('${sId}', '${sId}', '${safeTitleJs}', '${safeArtistJs}', '', '', '${safeVideoIdJs}')" class="piano-key-thumb group relative w-[60px] h-[60px] min-w-[60px] rounded-none overflow-hidden flex-shrink-0 flex items-center justify-center bg-stone-900 cursor-pointer" title="Toca la portada para preescuchar el estribillo">
+                    <div id="thumbWrap_${sId}" onclick="event.stopPropagation(); window.playPlaylistTrackInPlayer(${idx})" class="piano-key-thumb group relative w-[60px] h-[60px] min-w-[60px] rounded-none overflow-hidden flex-shrink-0 flex items-center justify-center bg-stone-900 cursor-pointer" title="Escuchar al instante">
                       <img id="thumbImg_${sId}" src="${escapeHtml(thumbUrl)}" alt="" class="w-full h-full object-cover rounded-none" loading="lazy" onerror="this.onerror=null; this.src='${fallbackCover}';">
                       <div id="thumbPrevOverlay_${sId}" class="thumb-preview-overlay absolute inset-0 rounded-none bg-black/20 group-hover:bg-black/45 flex items-center justify-center transition-opacity">
                         <span class="thumb-preview-badge">
@@ -17732,15 +17791,15 @@ function stopPianoCameraLoop() {
                   </div>
                   <div class="flex items-center gap-1 flex-shrink-0 ml-1.5">
                     <button onclick="event.stopPropagation(); window.openTrackOptionsById('${safeTrackId}', '${safeTitleJs}', '${safeArtistJs}', '${escapeJsAttr(thumbUrl)}', '${safePlId}')" class="w-6 h-6 rounded-full hover:bg-black/15 text-[#5a422d] hover:text-black text-[11px] font-black flex items-center justify-center cursor-pointer transition" title="Más opciones / Descargar">•••</button>
-                    <button onclick="event.stopPropagation(); removeTrackFromPlaylistAction('${safePlId}', '${safeTrackId}')" class="w-6 h-6 rounded-full hover:bg-black/10 text-[#8e755a] hover:text-red-700 text-[10px] font-bold flex items-center justify-center cursor-pointer transition" title="Quitar de la playlist">✕</button>
+                    ${!isUnsavedPreview ? `<button onclick="event.stopPropagation(); removeTrackFromPlaylistAction('${safePlId}', '${safeTrackId}')" class="w-6 h-6 rounded-full hover:bg-black/10 text-[#8e755a] hover:text-red-700 text-[10px] font-bold flex items-center justify-center cursor-pointer transition" title="Quitar de la playlist">✕</button>` : ''}
                   </div>
                 </div>
 
-                <!-- Fixed 3D Ebony Black Play Key -->
+                <!-- Fixed 3D Ebony Black Play Key (Jugar al Piano directamente) -->
                 <div 
-                  onclick="event.stopPropagation(); openPlaylistTrackMatcherByIndex(${idx})" 
+                  onclick="event.stopPropagation(); window.playPlaylistTrackPianoByIndex(${idx})" 
                   class="piano-black-play-key flex-shrink-0 w-12 min-w-[48px]" 
-                  title="Elegir versión o generar pista"
+                  title="Jugar canción al Piano"
                 >
                   <span class="play-arrow-gold">▶</span>
                 </div>
@@ -17755,24 +17814,24 @@ function stopPianoCameraLoop() {
       tracksCont.innerHTML = `
         <div class="flex items-center justify-between gap-2 mb-2 px-1">
           <span class="text-[10.5px] font-bold text-[#f3e5ab]">${safeList.length} canciones en esta lista</span>
-          <button type="button" onclick="window.downloadCurrentOpenedPlaylistOffline()" class="px-3 py-1 rounded-full bg-[#d4af37]/20 hover:bg-[#d4af37]/30 border border-[#d4af37]/50 text-[#f3e5ab] text-[10.5px] font-extrabold flex items-center gap-1.5 cursor-pointer">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span>Descargar toda la Playlist</span>
-          </button>
+          <div class="flex items-center gap-1.5">
+            <button type="button" onclick="window.listenEntireOpenedPlaylist(true)" class="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/15 border border-white/20 text-[#f3e5ab] text-[10.5px] font-extrabold flex items-center gap-1 cursor-pointer">
+              <span>Aleatorio</span>
+            </button>
+            <button type="button" onclick="window.downloadCurrentOpenedPlaylistOffline()" class="px-3 py-1 rounded-full bg-[#d4af37]/20 hover:bg-[#d4af37]/30 border border-[#d4af37]/50 text-[#f3e5ab] text-[10.5px] font-extrabold flex items-center gap-1.5 cursor-pointer">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>Descargar toda la Playlist</span>
+            </button>
+          </div>
         </div>
         <div class="piano-keyboard-bed">
           <div class="piano-felt-top-strip"></div>
           ${keysHtml}
         </div>
       `;
-      if (typeof window.prewarmChorusPreviewUrls === 'function') {
-        const prewarmItems = safeList.slice(0, 10).map((tr, idx) => ({
-          id: `pl_track_${idx}`,
-          title: tr?.title || '',
-          artist: Array.isArray(tr?.artists) ? tr.artists.join(', ') : (tr?.artist || ''),
-          videoId: (tr?.id && String(tr.id).length === 11) ? String(tr.id) : ''
-        }));
-        window.prewarmChorusPreviewUrls(prewarmItems);
+      const engine = window.DiscoverHomeApp && window.DiscoverHomeApp.getAudioEngine && window.DiscoverHomeApp.getAudioEngine();
+      if (engine && typeof engine.warmTracks === 'function') {
+        engine.warmTracks(safeList.slice(0, 3).map((tr, i) => normalizePlaylistTrackForPlayer(tr, i)));
       }
     }
 
@@ -19328,7 +19387,7 @@ function stopPianoCameraLoop() {
       };
     }
 
-    window.importCuratedPlaylist = async function(playlistId, defaultTitle) {
+    window.importCuratedPlaylist = async function(playlistId, defaultTitle, saveImmediately = false) {
       closeYTMusicModal();
 
       const overlay = document.getElementById('globalLoadingOverlay');
@@ -19339,12 +19398,12 @@ function stopPianoCameraLoop() {
 
       if (curtain) curtain.classList.remove('revealed');
       if (loadTitle) loadTitle.innerText = defaultTitle || 'Playlist de YouTube';
-      if (loadArtist) loadArtist.innerText = 'Importando canciones...';
-      if (loadStatus) loadStatus.innerText = 'Conectando con YouTube...';
+      if (loadArtist) loadArtist.innerText = 'Cargando canciones...';
+      if (loadStatus) loadStatus.innerText = 'Conectando con la colección...';
       if (overlay) overlay.classList.add('active');
 
       VisualLogger.init();
-      VisualLogger.step(1, 'Iniciando importación', `ID: ${playlistId}`, 'info');
+      VisualLogger.step(1, 'Abriendo playlist', `ID: ${playlistId}`, 'info');
 
       try {
         const updateUI = (pct, msg) => {
@@ -19355,7 +19414,6 @@ function stopPianoCameraLoop() {
         const parsed = await parseYouTubePlaylistClient(playlistId, updateUI);
 
         VisualLogger.step(3, 'Canciones obtenidas', `Total: ${parsed.tracks.length} temas`, 'success');
-        if (loadStatus) loadStatus.innerText = `Guardando ${parsed.tracks.length} temas en tu biblioteca...`;
 
         const plRecord = {
           id: 'yt_' + (parsed.id || Date.now()),
@@ -19366,28 +19424,36 @@ function stopPianoCameraLoop() {
           createdAt: Date.now()
         };
 
-        await IndexedDBStorage.savePlaylist(plRecord);
-        if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.refreshCarousels === 'function') {
-          window.DiscoverHomeApp.refreshCarousels();
+        const existingSaved = await IndexedDBStorage.getPlaylist(plRecord.id).catch(() => null);
+        if (saveImmediately || existingSaved) {
+          await IndexedDBStorage.savePlaylist(plRecord);
+          if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.refreshCarousels === 'function') {
+            window.DiscoverHomeApp.refreshCarousels();
+          }
+          if (typeof window.scheduleCloudProfileSync === 'function') {
+            window.scheduleCloudProfileSync({ playlists_authoritative: true });
+          }
+        } else {
+          plRecord._isUnsavedPreview = true;
         }
-        if (typeof window.scheduleCloudProfileSync === 'function') {
-          window.scheduleCloudProfileSync({ playlists_authoritative: true });
-        }
-        VisualLogger.step(4, 'Guardado completado', 'Playlist guardada en IndexedDB', 'success');
 
         setTimeout(() => {
           if (overlay) overlay.classList.remove('active');
           if (curtain) curtain.classList.add('revealed');
-          showSuccessToast(`Playlist "${plRecord.title}" lista (${plRecord.item_count} temas).`);
+          if (saveImmediately || existingSaved) {
+            showSuccessToast(`Playlist "${plRecord.title}" guardada (${plRecord.item_count} temas).`);
+          } else {
+            showSuccessToast(`Playlist "${plRecord.title}" abierta (${plRecord.item_count} temas). Pulsa "+ Guardar" si quieres guardarla.`);
+          }
           if (typeof renderPlaylistsSubtab === 'function') renderPlaylistsSubtab();
-          openPlaylistDetailView(plRecord.id);
-        }, 400);
+          openPlaylistDetailView(plRecord.id, (saveImmediately || existingSaved) ? null : plRecord);
+        }, 120);
 
       } catch (err) {
         if (overlay) overlay.classList.remove('active');
         if (curtain) curtain.classList.add('revealed');
         VisualLogger.error(err, 5);
-        showErrorToast('Error importando playlist: ' + err.message);
+        showErrorToast('Error cargando playlist: ' + err.message);
       }
     };
 

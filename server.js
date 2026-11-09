@@ -4696,7 +4696,7 @@ async function resolveSignedNotubeDownloadUrlServer(videoId, apiHost, webHost, u
   const body1 = new URLSearchParams({ url: ytUrl, format: 'mp3', lang: 'es', subscribed: 'false' });
   let d1 = null;
   try {
-    const r1 = await fetch(`${apiHost}/recover_weight.php`, {
+    const directP = fetch(`${apiHost}/recover_weight.php`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -4705,25 +4705,30 @@ async function resolveSignedNotubeDownloadUrlServer(videoId, apiHost, webHost, u
         'Referer': `${webHost}/`
       },
       body: body1.toString(),
-      signal: AbortSignal.timeout(3200)
-    });
-    if (r1.ok) {
+      signal: AbortSignal.timeout(12000)
+    }).then(async (r1) => {
+      if (!r1.ok) throw new Error('r1_http');
       const txt1 = await r1.text();
-      if (txt1 && txt1.trim().startsWith('{')) d1 = JSON.parse(txt1);
-    }
-  } catch (_) {}
+      if (!txt1 || !txt1.trim().startsWith('{')) throw new Error('r1_json');
+      const parsed = JSON.parse(txt1);
+      if (!parsed || !parsed.token) throw new Error('r1_tok');
+      return parsed;
+    });
 
-  if (!d1 || !d1.token) {
-    try {
-      const r1w = await fetch(myWorker(`${apiHost}/recover_weight.php`), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-        body: body1.toString(),
-        signal: AbortSignal.timeout(4000)
-      });
-      if (r1w.ok) d1 = await r1w.json();
-    } catch (_) {}
-  }
+    const workerP = fetch(myWorker(`${apiHost}/recover_weight.php`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+      body: body1.toString(),
+      signal: AbortSignal.timeout(12000)
+    }).then(async (r1w) => {
+      if (!r1w.ok) throw new Error('r1w_http');
+      const parsed = await r1w.json();
+      if (!parsed || !parsed.token) throw new Error('r1w_tok');
+      return parsed;
+    });
+
+    d1 = await Promise.any([directP, workerP]);
+  } catch (_) {}
   if (!d1 || !d1.token) return null;
 
   const body2 = new URLSearchParams({
@@ -5301,7 +5306,7 @@ async function searchSoundCloudFullCandidatesServer(searchQuery, rawTitle = '', 
   return { clientId, candidates: allTracks, studioRefs: [] };
 }
 
-async function extractSoundCloudFullTrackServer(searchQuery, rawTitle = '', rawArtist = '', specificScTrackId = '') {
+async function extractSoundCloudFullTrackServer(searchQuery, rawTitle = '', rawArtist = '', specificScTrackId = '', minScore = 68) {
   const clientId = await getSoundCloudClientIdServer();
   if (!clientId) return null;
 
@@ -5332,7 +5337,7 @@ async function extractSoundCloudFullTrackServer(searchQuery, rawTitle = '', rawA
 
   const { candidates } = await searchSoundCloudFullCandidatesServer(searchQuery, rawTitle, rawArtist);
   for (const cand of candidates.slice(0, 3)) {
-    if (cand.score < 68) break;
+    if (cand.score < minScore) break;
     const dl = await downloadSoundCloudTrackBufferServer(cand.tr, clientId);
     if (dl && dl.buffer) {
       return {
@@ -6541,10 +6546,18 @@ app.get('/api/v1/audio/extract', async (req, res) => {
     });
   };
 
-  // Si tenemos videoId directo y no es una petición Range a mitad de pista, retransmitir en vivo al instante en cuanto lleguen los primeros 16 KB
+  // Si el vídeo de YouTube ya está en caché RAM o disco o tiene un stream con >= 16 KB listos, servirlo al instante;
+  // de lo contrario, NO bloquear la carrera paralela con SoundCloud (~0.25s) esperando 12s a que Notube convierta en frío.
   if (resolvedMeta.videoId && !scTrackId && !directAudioUrl) {
-    const streamedLive = await tryStreamLiveFromNotubeState(resolvedMeta.videoId, resolvedMeta);
-    if (streamedLive || res.headersSent) return;
+    const existingState = YOUTUBE_STREAM_STATES.get(resolvedMeta.videoId);
+    const hasWarmState = Boolean(
+      YOUTUBE_FULL_MP3_LRU.has(resolvedMeta.videoId) ||
+      (existingState && existingState.totalBytes >= 16384)
+    );
+    if (hasWarmState) {
+      const streamedLive = await tryStreamLiveFromNotubeState(resolvedMeta.videoId, resolvedMeta);
+      if (streamedLive || res.headersSent) return;
+    }
   }
 
   if (INFLIGHT_EXTRACT_REQUESTS.has(cacheKey)) {
@@ -6594,12 +6607,13 @@ app.get('/api/v1/audio/extract', async (req, res) => {
       }
     }
 
-    // 2. CARRERA PARALELA DE ALTA VELOCIDAD:
+    // 2. CARRERA PARALELA DE ALTA VELOCIDAD (SoundCloud ~0.25s + YouTube/Notube en paralelo):
     const fastRaceBranches = [];
 
-    if (searchQuery && !resolvedMeta.videoId) {
+    if (searchQuery) {
+      const minScScore = resolvedMeta.videoId ? 74 : 68;
       fastRaceBranches.push((async () => {
-        const scFull = await extractSoundCloudFullTrackServer(searchQuery, rawTitle, rawArtist);
+        const scFull = await extractSoundCloudFullTrackServer(searchQuery, rawTitle, rawArtist, '', minScScore);
         if (scFull && scFull.buffer && scFull.buffer.length >= 250000) {
           return {
             buffer: scFull.buffer,
@@ -6609,6 +6623,7 @@ app.get('/api/v1/audio/extract', async (req, res) => {
               'X-Song-Artist': encodeURIComponent(rawArtist || scFull.artist || resolvedMeta.artist),
               'X-Song-Cover': encodeURIComponent(resolvedMeta.thumbnail || scFull.thumbnail || ''),
               'X-Audio-Source': encodeURIComponent(scFull.source || 'SoundCloud Full Audio'),
+              'X-Video-Id': encodeURIComponent(resolvedMeta.videoId || ''),
               'X-Audio-Duration': String(scFull.durationSec || expectedDur || 180)
             }
           };
@@ -6789,7 +6804,7 @@ app.get('/api/v1/audio/extract', async (req, res) => {
 const AUDIO_WARM_QUEUE = [];
 const AUDIO_WARM_SEEN = new Map();
 let audioWarmActive = 0;
-const AUDIO_WARM_CONCURRENCY = 6;
+const AUDIO_WARM_CONCURRENCY = 1;
 
 function buildAudioWarmCacheKey(t) {
   const title = String(t.title || '').trim();
@@ -6799,32 +6814,34 @@ function buildAudioWarmCacheKey(t) {
 }
 
 async function pumpAudioWarmQueue() {
+  if (INFLIGHT_EXTRACT_REQUESTS.size > 0) {
+    setTimeout(pumpAudioWarmQueue, 1500);
+    return;
+  }
   while (audioWarmActive < AUDIO_WARM_CONCURRENCY && AUDIO_WARM_QUEUE.length > 0) {
+    if (INFLIGHT_EXTRACT_REQUESTS.size > 0) break;
     const t = AUDIO_WARM_QUEUE.shift();
     audioWarmActive++;
     (async () => {
       try {
-        if (t.videoId && /^[A-Za-z0-9_-]{8,15}$/.test(t.videoId)) {
-          await extractYouTubeFullAudioViaNotubeServer(t.videoId);
-        }
         const key = buildAudioWarmCacheKey(t);
         if (EXTRACTED_AUDIO_BUFFER_CACHE.has(key) || INFLIGHT_EXTRACT_REQUESTS.has(key)) return;
         const qs = new URLSearchParams({ title: t.title || '', artist: t.artist || '', prewarm: '1' });
         if (t.videoId) qs.set('videoId', t.videoId);
         if (t.durationSec > 45) qs.set('durationSec', String(Math.round(t.durationSec)));
-        const r = await fetch(`http://127.0.0.1:${PORT}/api/v1/audio/extract?${qs.toString()}`, { signal: AbortSignal.timeout(45000) });
+        const r = await fetch(`http://127.0.0.1:${PORT}/api/v1/audio/extract?${qs.toString()}`, { signal: AbortSignal.timeout(25000) });
         try { await r.body.cancel(); } catch (_) {}
       } catch (_) {
       } finally {
         audioWarmActive--;
-        pumpAudioWarmQueue();
+        setTimeout(pumpAudioWarmQueue, 400);
       }
     })();
   }
 }
 
 app.post('/api/v1/audio/warm', (req, res) => {
-  const list = Array.isArray(req.body?.tracks) ? req.body.tracks.slice(0, 24) : [];
+  const list = Array.isArray(req.body?.tracks) ? req.body.tracks.slice(0, 4) : [];
   const now = Date.now();
   let queued = 0;
   for (const raw of list) {
@@ -6843,166 +6860,9 @@ app.post('/api/v1/audio/warm', (req, res) => {
     AUDIO_WARM_QUEUE.push(t);
     queued++;
   }
-  while (AUDIO_WARM_QUEUE.length > 80) AUDIO_WARM_QUEUE.shift();
+  while (AUDIO_WARM_QUEUE.length > 12) AUDIO_WARM_QUEUE.shift();
   pumpAudioWarmQueue();
   res.status(202).json({ queued });
-});
-
-// ==========================================
-// 4C-ter. SPOTIFY CONNECT / SMART TV / XBOX / CONSOLA EN VIVO
-// ==========================================
-const LIVE_CONNECT_SESSIONS = new Map();
-
-app.post('/api/v1/connect/session', (req, res) => {
-  try {
-    const rawCode = String(req.body?.code || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-    const code = rawCode.length >= 4 ? rawCode.slice(0, 8) : String(Math.floor(1000 + Math.random() * 9000));
-    const prev = LIVE_CONNECT_SESSIONS.get(code) || {};
-    const payload = {
-      code,
-      title: String(req.body?.title ?? prev.title ?? ''),
-      artist: String(req.body?.artist ?? prev.artist ?? ''),
-      cover: String(req.body?.cover ?? prev.cover ?? ''),
-      videoId: String(req.body?.videoId ?? prev.videoId ?? ''),
-      audioUrl: String(req.body?.audioUrl ?? prev.audioUrl ?? ''),
-      currentTime: Number(req.body?.currentTime ?? prev.currentTime ?? 0) || 0,
-      duration: Number(req.body?.duration ?? prev.duration ?? 180) || 180,
-      playing: req.body?.playing !== undefined ? Boolean(req.body.playing) : Boolean(prev.playing),
-      command: req.body?.command ? String(req.body.command) : null,
-      updatedAt: Date.now()
-    };
-    LIVE_CONNECT_SESSIONS.set(code, payload);
-    if (LIVE_CONNECT_SESSIONS.size > 300) {
-      const oldest = LIVE_CONNECT_SESSIONS.keys().next().value;
-      if (oldest) LIVE_CONNECT_SESSIONS.delete(oldest);
-    }
-    res.json({ ok: true, session: payload });
-  } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
-  }
-});
-
-app.get('/api/v1/connect/session/:code', (req, res) => {
-  const code = String(req.params.code || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-  const session = LIVE_CONNECT_SESSIONS.get(code);
-  if (!session) return res.status(404).json({ ok: false, error: 'Sesión no encontrada' });
-  const elapsedSec = session.playing ? Math.max(0, (Date.now() - session.updatedAt) / 1000) : 0;
-  res.json({
-    ok: true,
-    session: {
-      ...session,
-      liveTimeSec: Math.min(session.duration || 300, (session.currentTime || 0) + elapsedSec)
-    }
-  });
-});
-
-app.get('/connect', (req, res) => {
-  const initialCode = String(req.query.code || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-  res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.send(`<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Renacer Connect — Receptor Smart TV / Xbox / Altavoz</title>
-<style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:#07070c;color:#fff;font-family:system-ui,-apple-system,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background-image:radial-gradient(circle at 50% 20%,rgba(212,175,55,0.18),transparent 65%)}
-  .card{width:100%;max-width:780px;background:rgba(18,18,28,0.92);border:1px solid rgba(212,175,55,0.35);border-radius:28px;padding:28px;box-shadow:0 24px 80px rgba(0,0,0,0.75);text-align:center}
-  .badge{display:inline-block;padding:5px 14px;border-radius:999px;background:rgba(29,185,84,0.18);border:1px solid rgba(29,185,84,0.45);color:#1db954;font-size:12px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:14px}
-  h1{font-size:26px;font-weight:900;margin-bottom:8px}
-  p.sub{color:#9ca3af;font-size:14px;margin-bottom:20px}
-  .code-row{display:flex;gap:10px;justify-content:center;margin-bottom:22px}
-  input{background:#11111a;border:1px solid rgba(255,255,255,0.2);color:#fff;font-size:22px;font-weight:900;letter-spacing:0.2em;text-align:center;width:180px;padding:10px 14px;border-radius:14px;text-transform:uppercase}
-  button{background:linear-gradient(135deg,#1db954,#14833b);color:#fff;border:none;padding:12px 24px;border-radius:14px;font-size:15px;font-weight:800;cursor:pointer}
-  .stage{display:none;flex-direction:column;align-items:center;gap:18px;margin-top:12px}
-  .stage.active{display:flex}
-  .player-box{width:100%;aspect-ratio:16/9;background:#000;border-radius:18px;overflow:hidden;border:1px solid rgba(212,175,55,0.3);position:relative;display:flex;align-items:center;justify-content:center}
-  .cover-art{width:180px;height:180px;border-radius:20px;object-fit:cover;box-shadow:0 12px 35px rgba(0,0,0,0.6)}
-  .song-title{font-size:24px;font-weight:900;color:#fff}
-  .song-artist{font-size:16px;color:#d4af37;font-weight:700}
-  .bar-wrap{width:100%;height:8px;background:rgba(255,255,255,0.12);border-radius:99px;overflow:hidden}
-  .bar-fill{height:100%;background:linear-gradient(90deg,#1db954,#d4af37);width:0%;transition:width 0.3s linear}
-</style>
-</head>
-<body>
-  <div class="card">
-    <div class="badge">Renacer Connect · Smart TV / Xbox / Altavoz</div>
-    <h1>Receptor de Audio y Videoclip en Vivo</h1>
-    <p class="sub">Introduce el código de 4 dígitos que aparece en tu móvil para recibir la música y el videoclip en directo.</p>
-    <div class="code-row">
-      <input id="codeInput" maxlength="8" placeholder="1234" value="${initialCode}">
-      <button id="connectBtn" onclick="startReceiver()">Vincular Dispositivo</button>
-    </div>
-    <div id="receiverStage" class="stage">
-      <div id="videoContainer" class="player-box">
-        <img id="rxCover" class="cover-art" src="/app_logo.png" alt="Portada">
-      </div>
-      <div>
-        <div id="rxTitle" class="song-title">Esperando canción desde el móvil...</div>
-        <div id="rxArtist" class="song-artist">—</div>
-      </div>
-      <div class="bar-wrap"><div id="rxBar" class="bar-fill"></div></div>
-      <audio id="rxAudio" preload="auto" crossorigin="anonymous"></audio>
-    </div>
-  </div>
-<script>
-let activeCode = '';
-let lastTrackSig = '';
-let pollTimer = null;
-function startReceiver() {
-  const val = document.getElementById('codeInput').value.trim().toUpperCase();
-  if (!val) return;
-  activeCode = val;
-  document.getElementById('receiverStage').classList.add('active');
-  const audio = document.getElementById('rxAudio');
-  audio.play().catch(()=>{});
-  if (pollTimer) clearInterval(pollTimer);
-  pollSession();
-  pollTimer = setInterval(pollSession, 1500);
-}
-async function pollSession() {
-  if (!activeCode) return;
-  try {
-    const r = await fetch('/api/v1/connect/session/' + encodeURIComponent(activeCode));
-    if (!r.ok) return;
-    const data = await r.json();
-    const s = data.session;
-    if (!s || !s.title) return;
-    document.getElementById('rxTitle').textContent = s.title;
-    document.getElementById('rxArtist').textContent = s.artist || '';
-    const audio = document.getElementById('rxAudio');
-    const sig = (s.videoId || '') + '|' + (s.audioUrl || '') + '|' + s.title;
-    if (sig !== lastTrackSig) {
-      lastTrackSig = sig;
-      if (s.audioUrl) {
-        audio.src = s.audioUrl;
-        audio.currentTime = s.liveTimeSec || 0;
-        if (s.playing) audio.play().catch(()=>{});
-      }
-      const vbox = document.getElementById('videoContainer');
-      if (s.videoId) {
-        vbox.innerHTML = '<iframe src="https://www.youtube-nocookie.com/embed/' + encodeURIComponent(s.videoId) + '?autoplay=1&mute=1&controls=0&playsinline=1&start=' + Math.floor(s.liveTimeSec || 0) + '" style="width:100%;height:100%;border:0;" allow="autoplay; encrypted-media" allowfullscreen></iframe>';
-      } else if (s.cover) {
-        vbox.innerHTML = '<img class="cover-art" src="' + s.cover + '" alt="">';
-      }
-    } else {
-      if (s.playing && audio.paused && audio.src) audio.play().catch(()=>{});
-      if (!s.playing && !audio.paused) audio.pause();
-      if (audio.src && Math.abs((audio.currentTime || 0) - (s.liveTimeSec || 0)) > 3.2) {
-        try { audio.currentTime = s.liveTimeSec || 0; } catch(_){}
-      }
-    }
-    const pct = s.duration > 0 ? Math.min(100, ((s.liveTimeSec || 0) / s.duration) * 100) : 0;
-    document.getElementById('rxBar').style.width = pct.toFixed(1) + '%';
-  } catch (_) {}
-}
-if (document.getElementById('codeInput').value.trim()) {
-  setTimeout(startReceiver, 300);
-}
-</script>
-</body>
-</html>`);
 });
 
 // ==========================================
