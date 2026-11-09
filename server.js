@@ -3632,7 +3632,7 @@ app.get(['/api/search', '/api/v1/search', '/api/v1/search/community'], async (re
   res.json(results);
 });
 
-// Proxy con caché en memoria para letras sincronizadas LRC (LRCLIB)
+// Proxy con caché en memoria para letras sincronizadas LRC (LRCLIB + NetEase + Kugou + YouTube Captions + Catálogo Sincronizado)
 const lyricsMemoryCache = new Map();
 
 function lyricsAsciiKey(s) {
@@ -3644,12 +3644,237 @@ function lyricsAsciiDropKey(s) {
 function lyricsTitleMatches(a, b) {
   const x = lyricsAsciiKey(a), y = lyricsAsciiKey(b);
   if (x && x === y) return true;
+  if (x && y && (x.length >= 6 && y.length >= 6) && (x.includes(y) || y.includes(x))) return true;
   const dx = lyricsAsciiDropKey(a), dy = lyricsAsciiDropKey(b);
   return Boolean(dx && dx === dy) || Boolean(x && y && (x === lyricsAsciiDropKey(b) || y === lyricsAsciiDropKey(a)));
 }
 
-// Fuentes adicionales de letra SINCRONIZADA: título canónico (iTunes, tolera tildes perdidas) + NetEase
-async function fetchExtraSyncedLyrics(rawTitle, rawArtist) {
+const CUSTOM_SYNCED_LYRICS_DB = [
+  {
+    videoId: 'F8oXB7zLwxk',
+    keys: ['adiosatubarrio', 'perreosanxeadiosatubarrio', 'adiosatubarriomanofirme'],
+    trackName: 'Adiós a tu barrio [MANO FIRME]',
+    artistName: 'Perreo Sanxe',
+    duration: 212,
+    syncedLyrics: `[00:00.50] (Introducción instrumental — Adiós a tu barrio)
+[00:13.80] En la tierra hay un gran motor
+[00:19.80] Y la gasolina es la inmigración
+[00:27.50] Normalmente gana quien da más
+[00:34.00] Como dicen en la agenda de Klaus Schwab
+[00:41.50] Me olvidaré de pagarte la pensión si el morenito necesita ayuda
+[00:48.50] Hoy voy a darle a un cuarto de millón par de motivos para una aventura
+[00:55.50] Te quejas pero tú sabes
+[00:59.00] Que lo han pagao tus impuestos
+[01:02.20] Me la pela si te cabreas, yo estoy viviendo como Dios
+[01:09.20] Ha sido la ultraderecha la que ha jodido la nación
+[01:16.20] Hacemos negocios con armas, voy a cambiarme de avión
+[01:23.00] Y somos como la Yolanda, no soy la casta, soy mejor
+[01:29.80] Un decreto de ley, por favor, para el retrasado de Puigdemont
+[01:36.80] Mira, se desangra y adiós a tu barrio
+[01:46.50] Hoy los menas, como La Razón
+[01:52.80] Saben quién da la puta subvención
+[02:00.20] Solo piensa, podría ser peor
+[02:06.80] Tú analiza que tu rey es el Borbón
+[02:14.20] Me olvidaré de prestar declaración porque tú sabes que todo me suda
+[02:21.20] Hoy voy a darle a tu hija la menor par de motivos para una clausura
+[02:28.20] Yo solo traigo animales
+[02:31.80] Vosotros cargáis el muerto
+[02:34.80] Me la pela si te cabreas, yo estoy viviendo como Dios
+[02:41.80] Ha sido la ultraderecha la que ha jodido la nación
+[02:48.80] Hacemos negocios con armas, voy a cambiarme de avión
+[02:55.60] Y somos como la Yolanda, no soy la casta, soy mejor
+[03:02.50] Un decreto de ley, por favor, para el retrasado de Puigdemont
+[03:09.50] Mira, España se desangra y adiós a tu barrio
+[03:16.20] Y tu influencer ya se ha comprado el nuevo coche y una casa
+[03:19.80] Y tú con cuarenta y pico compartes piso
+[03:21.80] Mejor pedirme una pensión y tú sacándote la ESO pa mil y poco, sí, eso, vaya chiste
+[03:25.20] Y ahora te digo que vivo como un señor y tú dejándote el riñón y por favor llórame en Twitter
+[03:28.80] Que te crees un templario, to el día en tu cuarto llorando`
+  },
+  {
+    videoId: 'l3zCFXb4xSg',
+    keys: ['quiensoy', 'quiensoymanofirme', 'perreosanxequiensoy'],
+    trackName: '¿QUIÉN SOY? [MANO FIRME]',
+    artistName: 'Perreo Sanxe ft. Big-Laska',
+    duration: 192,
+    syncedLyrics: `[00:01.00] Yo, yo, yo... Dime lo que tienes, eh, que me lo quedo
+[00:11.00] Tengo tratos con Marruecos muy tensos
+[00:14.20] Subo impuestos, traigo negros
+[00:17.20] ¿Quién soy? (Pedro) ¿Quién soy? (Pedro) ¿Quién soy? (Pedro) ¿Quién soy?
+[00:22.80] Tengo tratos con Marruecos muy tensos
+[00:26.00] Subo impuestos, traigo negros
+[00:29.00] ¿Quién soy? (Pedro) ¿Quién soy? (Pedro) ¿Quién soy?
+[00:34.50] Noticias reales sin atrezo, todos presos
+[00:38.20] Mi mandato sobre huesos
+[00:40.50] Soy el hombre perfecto, no tengo ni un fracaso
+[00:43.50] Si me echo pa la calle las charos me tiran besos
+[00:46.50] Easy, haciendo negocios con la crisis
+[00:49.50] Y si fuese uno más dentro del ISIS
+[00:52.50] Vuelo y bebo whisky, putas, coca y business
+[00:55.50] Tú buscas mi frisbee como un pekinés
+[00:58.50] Esclavo de mi amado, pero me llaman vendido
+[01:01.50] Si hablo con abogados, estáis bien jodidos
+[01:04.50] Veo sobres que vuelan de arriba a abajo de amigos cercanos
+[01:07.80] Huelen blanco y cuentan fajos, to cocido
+[01:10.50] Callo pero no otorgo, si hablo sube el pan
+[01:13.50] All the guys dicen "oh fuck", con Marlaska dan
+[01:16.50] Alquitrán y fango
+[01:18.50] Noches enteras eliminando pruebas que pudieran hablar, porque
+[01:22.20] Tengo tratos con Marruecos muy tensos
+[01:25.20] Subo impuestos, traigo negros
+[01:28.20] ¿Quién soy? (Pedro) ¿Quién soy? (Pedro) ¿Quién soy? (Pedro) ¿Quién soy?
+[01:33.80] Tengo tratos con Marruecos muy tensos
+[01:37.00] Subo impuestos, traigo negros
+[01:40.00] ¿Quién soy? (Pedro) ¿Quién soy? (Pedro) ¿Quién soy?
+[01:45.80] Soy el capo en las sombras, barro bajo la alfombra
+[01:48.80] Aquí a Big-Laska tu vasca cachonda
+[01:51.80] Luz en rotondas y lanchas de ronda
+[01:54.80] Muevo en Ferraris y piso en Honda
+[01:57.80] Llevo un estilo que es la bomba, por mis cojones mantengo esta vida loca
+[02:01.50] Ahora muevo millones porque a mí me toca
+[02:04.20] Siempre entran toneladas de hachís y coca
+[02:07.00] Vergüenza poca, hechos reales y tú eres un bocas
+[02:09.80] Controlo medios e intercambios en mis puntos
+[02:12.80] Soy el que arregla las cosas cuando se ponen chulos
+[02:15.80] Y si te hablara de ciertos asuntos
+[02:18.80] Soy un cabrón, un tiburón del Estado profundo
+[02:21.80] Son mis mansiones las que veo en mi postal
+[02:24.80] Recortando la lana de camino al Escorial
+[02:27.80] Me da igual, Guardia Civil o Nacional, subnormal
+[02:30.80] Porque yo soy la ley, porque tú no eres na, por eso
+[02:33.50] Tengo tratos con Marruecos muy tensos
+[02:36.50] Subo impuestos, traigo negros
+[02:39.50] ¿Quién soy? (Pedro) ¿Quién soy? (Pedro) ¿Quién soy? (Pedro) ¿Quién soy?
+[02:45.20] Tengo tratos con Marruecos muy tensos
+[02:48.20] Subo impuestos, traigo negros
+[02:51.20] ¿Quién soy? (Pedro) ¿Quién soy? (Pedro) ¿Quién soy?`
+  },
+  {
+    videoId: 'IYoKjx_sR3c',
+    keys: ['politika', 'politikamanofirme', 'perreosanxepolitika', 'asieslapolitica'],
+    trackName: 'Polítika [MANO FIRME]',
+    artistName: 'Perreo Sanxe',
+    duration: 132,
+    syncedLyrics: `[00:00.50] (Introducción de guitarra punk-rock — Polítika)
+[00:18.80] Ni soy tonto ni soy nuevo, soy muy guapo y con dinero
+[00:22.20] Hago todo lo que debo para ganar puntos
+[00:25.20] Cada vez me importáis menos, españoles sois veneno
+[00:28.50] Soy un moro de Pozuelo un poco más chungo
+[00:31.50] Miento a mi alternativa, jodo vidas, subo el IVA
+[00:36.20] Así es la política
+[00:39.20] Mientras pagues yo te quiero, no te pases, no eres negro
+[00:42.50] O te mando al agujero con tos tus difuntos
+[00:45.50] Se gobierna con el miedo, me lo dijo Zapatero
+[00:48.80] Y me paso por los huevos todos tus insultos
+[00:51.80] Miento a mi alternativa, jodo vidas, subo el IVA
+[00:56.50] Así es la política
+[00:59.20] La mitad de lo que ganas, primo, me lo he metido
+[01:04.20] En medio de un fiestón, qué colocón
+[01:07.20] Koldo se ha venido y se ha traído un kilo o dos
+[01:12.00] La mitad de lo que ganas, primo, me lo he metido
+[01:17.00] En medio de un fiestón, qué colocón
+[01:20.00] Koldo se ha venido y se ha traído un kilo o dos
+[01:38.00] Mi país está en la ruina y yo gozándome la vida
+[01:43.00] Así es la política
+[01:45.80] La mitad de lo que ganas, primo, es pa mi equipo
+[01:50.50] Y el tonto de Feijóo y tu pensión la he malvertido
+[01:55.50] Y se ha perdido en mi asesor
+[01:58.50] La mitad aún no ha entendido, solo divido
+[02:03.50] Al pueblo español, fue mi mentor quien me lo dijo`
+  },
+  {
+    videoId: 'jMgOWiuVQ0s',
+    keys: ['mascarillas', 'mascarillasmanofirme', 'perreosanxemascarillas'],
+    trackName: 'Mascarillas [MANO FIRME]',
+    artistName: 'Perreo Sanxe',
+    duration: 147,
+    syncedLyrics: `[00:00.50] (Introducción de guitarra — Mascarillas)
+[00:05.50] Estoy cansado, vaya donde vaya está siempre petao de gente
+[00:09.20] Voy conspirando, voy a bajarme a estos putos tontos de veinte en veinte
+[00:13.20] Acojonados, todos juntitos en casa presos, bien obedientes
+[00:17.20] Son demasiados, hay que acabar con todos dice el sapo de mi mente
+[00:21.20] Alucinando de que me tiren tanto fango y claro que mienten
+[00:25.20] Me suda el rabo, me siento un puto rockstar pudiendo ser presidente
+[00:29.20] Vas a entrar al restaurante con mascarilla, no vas a ver a tu familiar
+[00:34.20] Y todos mejor calladitos, así que ponte bien el bozal
+[00:38.20] Tengo comprada a la policía y vas a saber lo que es libertad
+[00:42.20] Pero a ver, mírame, ¿tú eres tonto o no ves las noticias? Vacúnate ya
+[00:48.50] Estoy muy harto, que todo está en pelis, pillo si os toca comprar
+[00:52.50] De cuatro en cuatro, no quiero veros juntos nunca ni aunque sea Navidad
+[00:56.50] Y lo he cerrado, te pongo aforo limitado y multas pa rematar
+[01:00.50] Y mucho cuidado o te reforma la casa la Policía Nacional
+[01:04.50] Vas a entrar al restaurante con mascarilla, no vas a ver a tu familiar
+[01:09.50] Y todos mejor calladitos, así que ponte bien el bozal
+[01:13.50] Tengo comprada a la policía y vas a saber lo que es libertad
+[01:17.50] Pero a ver, mírame, ¿tú eres tonto o no ves las noticias? Vacúnate ya
+[01:36.20] Te has acercao al Lidl pero a ti te corresponde el Mercadona
+[01:40.20] Y como salgas de tu pueblo te llevas una receta de recuerdo
+[01:44.50] Vas a entrar al restaurante con mascarilla, no vas a ver a tu familiar
+[01:49.50] Estoy cansado de ser un don nadie, trátame de Su Majestad
+[01:53.50] La gente muerta no contamina, por eso esto es un deber moral
+[01:57.50] Pero a ver, ¿tú eres tonto o qué? Es por la culpa del cambio, quiero más
+[02:01.50] Quiero más mascarillas, yo me merezco vida de zar
+[02:05.50] Estoy cansado de pagar pensiones, así que porfa muérete ya
+[02:09.50] Me alegra tanto que defiendan vidas de gente que no entiende de na
+[02:13.50] Pero a ver, mírame y coge sitio que eres bienvenido a la mafia estatal`
+  }
+];
+
+function findCustomSyncedLyrics(rawTitle, rawArtist, rawQ, videoId = '') {
+  const cleanVid = String(videoId || '').replace(/^magic_yt_|^yt_/, '').trim();
+  if (cleanVid) {
+    const byVid = CUSTOM_SYNCED_LYRICS_DB.find(item => item.videoId === cleanVid);
+    if (byVid) return [byVid];
+  }
+  const kTitle = lyricsAsciiKey(String(rawTitle || '').replace(/\[[^\]]*\]|\([^)]*\)/g, ''));
+  const kFull = lyricsAsciiKey(`${rawTitle} ${rawArtist} ${rawQ}`);
+  if (!kTitle && !kFull) return [];
+  const hits = CUSTOM_SYNCED_LYRICS_DB.filter(item =>
+    item.keys.some(k => (kTitle && (kTitle.includes(k) || k.includes(kTitle))) || (kFull && kFull.includes(k)))
+  );
+  return hits;
+}
+
+function convertVttOrSrtToLrc(subText) {
+  if (!subText || typeof subText !== 'string') return '';
+  const lines = subText.replace(/\r/g, '').split('\n');
+  const out = [];
+  const timeRe = /(?:(\d{1,2}):)?(\d{2}):(\d{2})[.,](\d{2,3})\s*-->/;
+  let currentTag = '';
+  let bufferText = [];
+  const flush = () => {
+    if (currentTag && bufferText.length > 0) {
+      const clean = bufferText.join(' ').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+      if (clean && clean !== '[Música]' && clean !== '[Music]') {
+        out.push(`${currentTag} ${clean}`);
+      }
+    }
+    bufferText = [];
+  };
+  for (const rawLine of lines) {
+    const l = rawLine.trim();
+    if (!l || l === 'WEBVTT' || /^\d+$/.test(l)) {
+      if (!l) flush();
+      continue;
+    }
+    const m = l.match(timeRe);
+    if (m) {
+      flush();
+      const hrs = parseInt(m[1] || '0', 10);
+      const mins = hrs * 60 + parseInt(m[2] || '0', 10);
+      const secs = parseInt(m[3] || '0', 10);
+      const cs = String(m[4] || '00').slice(0, 2).padEnd(2, '0');
+      currentTag = `[${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${cs}]`;
+    } else if (currentTag && !l.startsWith('NOTE') && !l.startsWith('Kind:') && !l.startsWith('Language:')) {
+      bufferText.push(l);
+    }
+  }
+  flush();
+  return out.length >= 5 ? out.join('\n') : '';
+}
+
+// Fuentes adicionales de letra SINCRONIZADA: título canónico (iTunes, tolera tildes perdidas) + NetEase + Kugou + Subtítulos YouTube
+async function fetchExtraSyncedLyrics(rawTitle, rawArtist, videoId = '') {
   const out = [];
   const ua = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36' };
   const term = `${rawTitle} ${rawArtist}`.trim();
@@ -3687,17 +3912,94 @@ async function fetchExtraSyncedLyrics(rawTitle, rawArtist) {
     }
   })().catch(() => {}));
 
+  // Kugou Synced LRC Database
+  tasks.push((async () => {
+    const kgSearch = await fetch(`http://lyrics.kugou.com/search?ver=1&man=yes&client=pc&keyword=${encodeURIComponent(term)}&duration=&hash=`, {
+      headers: ua,
+      signal: AbortSignal.timeout(2600)
+    });
+    if (!kgSearch.ok) return;
+    const kgJson = await kgSearch.json();
+    const candidates = (kgJson && Array.isArray(kgJson.candidates)) ? kgJson.candidates : [];
+    const matched = candidates.filter(c => c && c.id && c.accesskey && lyricsTitleMatches(c.song || '', rawTitle)).slice(0, 2);
+    for (const c of matched) {
+      const dlRes = await fetch(`http://lyrics.kugou.com/download?ver=1&client=pc&id=${encodeURIComponent(c.id)}&accesskey=${encodeURIComponent(c.accesskey)}&fmt=lrc&charset=utf8`, {
+        headers: ua,
+        signal: AbortSignal.timeout(2400)
+      });
+      if (!dlRes.ok) continue;
+      const dlJson = await dlRes.json();
+      if (dlJson && dlJson.content) {
+        const decoded = Buffer.from(String(dlJson.content), 'base64').toString('utf8');
+        if (decoded && /\[\d{1,2}:\d{2}/.test(decoded)) {
+          out.push({
+            id: `kg_${c.id}`,
+            trackName: c.song || rawTitle,
+            artistName: c.singer || rawArtist,
+            duration: Math.round((Number(c.duration) || 0) / 1000),
+            syncedLyrics: decoded
+          });
+        }
+      }
+    }
+  })().catch(() => {}));
+
+  // YouTube Subtitles / Closed Captions to LRC (if videoId is available)
+  const cleanVid = String(videoId || '').replace(/^magic_yt_|^yt_/, '').trim();
+  if (cleanVid && /^[A-Za-z0-9_-]{11}$/.test(cleanVid)) {
+    tasks.push((async () => {
+      const pipedRes = await fetch(`https://pipedapi.kavin.rocks/streams/${encodeURIComponent(cleanVid)}`, {
+        signal: AbortSignal.timeout(2500)
+      });
+      if (!pipedRes.ok) return;
+      const pj = await pipedRes.json();
+      const subs = Array.isArray(pj?.subtitles) ? pj.subtitles : [];
+      const bestSub = subs.find(s => s && s.url && !s.autoGenerated && /es|en/i.test(s.code || '')) || subs.find(s => s && s.url);
+      if (bestSub && bestSub.url) {
+        const subRes = await fetch(bestSub.url, { signal: AbortSignal.timeout(2400) });
+        if (subRes.ok) {
+          const vtt = await subRes.text();
+          const lrc = convertVttOrSrtToLrc(vtt);
+          if (lrc) {
+            out.push({
+              id: `yt_sub_${cleanVid}`,
+              trackName: pj.title || rawTitle,
+              artistName: pj.uploader || rawArtist,
+              duration: Number(pj.duration) || 0,
+              syncedLyrics: lrc
+            });
+          }
+        }
+      }
+    })().catch(() => {}));
+  }
+
   await Promise.all(tasks);
   return out;
 }
 
 app.get('/api/v1/lyrics', async (req, res) => {
   try {
-    const rawTitle = repairStrippedSpanishText(String(req.query.title || '')).replace(/\s*[\(\[][^\)\]]*(?:official|video|audio|lyric|letra|videoclip|hd|4k|remaster|live|en vivo|tv size|ver\.|version|feat\.|ft\.)[^\)\]]*[\)\]]/gi, '').trim();
-    const rawArtist = String(req.query.artist || '').replace(/\s*-\s*topic$/i, '').replace(/vevo$/i, '').trim();
+    const rawVideoId = String(req.query.videoId || '').replace(/^magic_yt_|^yt_/, '').trim();
+    const rawTitleOrig = repairStrippedSpanishText(String(req.query.title || '')).trim();
+    const rawTitle = rawTitleOrig
+      .replace(/^perreo\s+sanxe\s*(?:ft\.?\s*[^-]+)?\s*-\s*/i, '')
+      .replace(/\s*\[[^\]]*\]/g, '')
+      .replace(/\s*[\(\[][^\)\]]*(?:official|video|audio|lyric|letra|videoclip|hd|4k|remaster|live|en vivo|tv size|ver\.|version|feat\.|ft\.|parodia)[^\)\]]*[\)\]]/gi, '')
+      .trim();
+    const rawArtistOrig = String(req.query.artist || '').replace(/\s*-\s*topic$/i, '').replace(/vevo$/i, '').trim();
+    const rawArtist = /^ultimoscruzados$/i.test(rawArtistOrig) && /perreo\s+sanxe/i.test(rawTitleOrig)
+      ? 'Perreo Sanxe'
+      : rawArtistOrig;
     const rawQ = String(req.query.q || `${rawTitle} ${rawArtist}`).replace(/\s*[\(\[][^\)\]]*(?:official|video|audio|lyric|letra|videoclip|hd|4k|remaster|live|en vivo|tv size|ver\.|version)[^\)\]]*[\)\]]/gi, '').trim();
+
+    const customMatches = findCustomSyncedLyrics(rawTitleOrig || rawTitle, rawArtist, rawQ, rawVideoId);
+    if (customMatches.length > 0) {
+      return res.json(customMatches);
+    }
+
     if (!rawQ || rawQ.length < 2) return res.json([]);
-    const cacheKey = `${rawTitle.toLowerCase()}|${rawArtist.toLowerCase()}|${rawQ.toLowerCase()}`;
+    const cacheKey = `${rawVideoId}|${rawTitle.toLowerCase()}|${rawArtist.toLowerCase()}|${rawQ.toLowerCase()}`;
     if (lyricsMemoryCache.has(cacheKey)) {
       return res.json(lyricsMemoryCache.get(cacheKey));
     }
@@ -3726,18 +4028,20 @@ app.get('/api/v1/lyrics', async (req, res) => {
       }
     }
     if (!Array.isArray(data)) data = [];
-    if (!data.some(item => item && item.syncedLyrics) && rawTitle) {
-      const extra = await fetchExtraSyncedLyrics(rawTitle, rawArtist).catch(() => []);
+    if (!data.some(item => item && item.syncedLyrics) && (rawTitle || rawVideoId)) {
+      const extra = await fetchExtraSyncedLyrics(rawTitle || rawQ, rawArtist, rawVideoId).catch(() => []);
       if (extra.length) data = [...extra, ...data];
     }
     const list = (Array.isArray(data) ? data : [])
       .sort((a, b) => (b && b.syncedLyrics ? 1 : 0) - (a && a.syncedLyrics ? 1 : 0))
-      .slice(0, 8);
+      .slice(0, 12);
     if (lyricsMemoryCache.size > 400) {
       const oldestKey = lyricsMemoryCache.keys().next().value;
       if (oldestKey) lyricsMemoryCache.delete(oldestKey);
     }
-    lyricsMemoryCache.set(cacheKey, list);
+    if (list.length > 0) {
+      lyricsMemoryCache.set(cacheKey, list);
+    }
     return res.json(list);
   } catch (_) {
     return res.json([]);
@@ -3854,22 +4158,23 @@ function scoreStudioAudioAuthenticityServer(searchQuery, rawTitle, rawArtist, ca
     }
   }
 
-  // Anti-Strange-Version penalties (Nightcore, Slowed, Sped Up, Remix, DJ Mix, Medley/Popurri, Live, Cover, Demo)
+  // Anti-Strange-Version penalties (Nightcore, Slowed, Sped Up, Remix, DJ Mix, Medley/Popurri, Live, Cover, Demo, Remake)
   const strangeMarkers = [
     'nightcore', 'daycore', 'slowed', 'sped up', 'reverb', '8d audio', 'bass boosted',
     'chopped', 'screwed', 'remix', 'rmx', 'dj mix', 'classic mix', 'bootleg', 'mashup',
     'megamix', 'extended mix', 'club mix', 'vip mix', 'eurodance', 'fiestero', 'popurri',
     'medley', 'dubos', 'chelito', 'kye remix', 'sarapura', 'por claudio', 'hermanos cuero',
     'cover', 'live at', 'live in', 'live from', 'en vivo', 'ao vivo', 'en directo',
-    'concierto', 'acoustic version', 'unplugged', 'demo', 'tv size', 'short ver', 'cut ver'
+    'concierto', 'acoustic version', 'unplugged', 'demo', 'tv size', 'short ver', 'cut ver',
+    'remake', 'premio lo nuestro', 'filtrado', 'karu edit', 'ai cover'
   ];
   for (const m of strangeMarkers) {
     if (cFull.includes(m) && !nQuery.includes(m)) {
-      score -= 55;
+      score -= 65;
     }
   }
-  if (/\b(live|dj|edit)\b/.test(cTitle) && !/\b(live|dj|edit)\b/.test(nQuery)) {
-    score -= 40;
+  if (/\b(live|dj|edit|remake)\b/.test(cTitle) && !/\b(live|dj|edit|remake)\b/.test(nQuery)) {
+    score -= 45;
   }
 
   return score;
@@ -3982,7 +4287,7 @@ async function searchYouTubeBestVideo(query, rawTitle = '', rawArtist = '', expe
 }
 
 const YOUTUBE_FULL_MP3_LRU = new Map();
-const YOUTUBE_FULL_MP3_LRU_MAX = 24;
+const YOUTUBE_FULL_MP3_LRU_MAX = 80;
 const YOUTUBE_INFLIGHT_EXTRACTIONS = new Map();
 const YOUTUBE_STREAM_STATES = new Map();
 const NOTUBE_SERVER_NODES = [
@@ -4053,7 +4358,7 @@ async function resolveSignedNotubeDownloadUrlServer(videoId, apiHost, webHost, u
     adblock: 'false'
   });
 
-  let finalToken = d1.token;
+  let finalToken = '';
   const parseR2Json = async (resp) => {
     if (!resp || !resp.ok) throw new Error('r2_not_ok');
     const txt2 = await resp.text();
@@ -4063,26 +4368,30 @@ async function resolveSignedNotubeDownloadUrlServer(videoId, apiHost, webHost, u
     return d2.token;
   };
   try {
-    finalToken = await Promise.any([
-      fetch(`${apiHost}/recover_file.php`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-          'User-Agent': ua,
-          'Origin': webHost,
-          'Referer': `${webHost}/`
-        },
-        body: body2.toString(),
-        signal: AbortSignal.timeout(5500)
-      }).then(parseR2Json),
-      fetch(myWorker(`${apiHost}/recover_file.php`), {
+    finalToken = await fetch(`${apiHost}/recover_file.php`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'User-Agent': ua,
+        'Origin': webHost,
+        'Referer': `${webHost}/`
+      },
+      body: body2.toString(),
+      signal: AbortSignal.timeout(5500)
+    }).then(parseR2Json);
+  } catch (_) {}
+
+  if (!finalToken) {
+    try {
+      finalToken = await fetch(myWorker(`${apiHost}/recover_file.php`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
         body: body2.toString(),
         signal: AbortSignal.timeout(6000)
-      }).then(parseR2Json)
-    ]);
-  } catch (_) {}
+      }).then(parseR2Json);
+    } catch (_) {}
+  }
+  if (!finalToken) finalToken = d1.token;
 
   let dlUrl = '';
   const downloadPageUrl = `${webHost}/es/download?token=${encodeURIComponent(finalToken)}`;
@@ -4510,12 +4819,13 @@ function isUnrequestedRemixOrStrangeTrackServer(rawQuery, candidateText) {
     'remix', 'rmx', 'dj mix', 'classic mix', 'extended mix', 'club mix', 'vip mix',
     'hardstyle', 'bootleg', 'mashup', 'megamix', 'popurri', 'medley', 'nightcore',
     'daycore', 'slowed', 'sped up', 'reverb', '8d audio', 'bass boosted', 'karaoke',
-    'tribute', 'cover', 'parody', 'ringtone', '8 bit', 'lullaby', 'instrumental version'
+    'tribute', 'cover', 'parody', 'ringtone', '8 bit', 'lullaby', 'instrumental version',
+    'remake', 'premio lo nuestro', 'filtrado', 'karu edit', 'ai cover'
   ];
   for (const marker of forbidden) {
     if (nc.includes(marker) && !nq.includes(marker)) return true;
   }
-  if (/\b(dj|edit|live)\b/.test(nc) && !/\b(dj|edit|live)\b/.test(nq)) return true;
+  if (/\b(dj|edit|live|remake)\b/.test(nc) && !/\b(dj|edit|live|remake)\b/.test(nq)) return true;
   return false;
 }
 
@@ -5676,14 +5986,41 @@ app.get('/api/v1/audio/extract', async (req, res) => {
       return res.redirect(302, `/api/v1/cdn/release/${encodeURIComponent(topFile)}`);
     }
   }
-  const rawVideoId = String(req.query.videoId || '').trim();
+
+  let rawVideoId = String(req.query.videoId || '').replace(/^magic_yt_|^yt_/, '').trim();
+  if (!rawVideoId) {
+    const coverStr = String(req.query.cover || '');
+    const mCover = coverStr.match(/(?:\/vi\/|\/vi_webp\/)([A-Za-z0-9_-]{11})(?:\/|$)/);
+    if (mCover && mCover[1]) rawVideoId = mCover[1];
+  }
+  if (!rawVideoId && /^(?:magic_yt_|yt_)?([A-Za-z0-9_-]{11})$/.test(rawQ)) {
+    rawVideoId = rawQ.replace(/^magic_yt_|^yt_/, '');
+  }
+
   const scTrackId = String(req.query.scTrackId || '').trim();
   const directAudioUrl = String(req.query.directUrl || '').trim();
   const expectedDur = parseInt(String(req.query.durationSec || req.query.duration || '0'), 10) || 0;
   const searchQuery = rawQ || `${rawTitle} ${rawArtist}`.trim();
+  const isPrewarmReq = String(req.query.prewarm || '') === '1';
 
   if (!searchQuery && !rawVideoId && !directAudioUrl && !scTrackId) {
     return res.status(400).json({ error: 'Falta parámetro de búsqueda q, videoId, scTrackId o directUrl' });
+  }
+
+  // 0. Si el videoId ya está en YOUTUBE_FULL_MP3_LRU, servir en 0ms sin importar cómo venga el título/artista
+  if (rawVideoId && YOUTUBE_FULL_MP3_LRU.has(rawVideoId)) {
+    const ytCached = YOUTUBE_FULL_MP3_LRU.get(rawVideoId);
+    if (ytCached && ytCached.buffer && ytCached.buffer.length >= 120000) {
+      const cacheKeyVid = `${rawVideoId}|${scTrackId}|${rawTitle.toLowerCase()}|${rawArtist.toLowerCase()}|${searchQuery.toLowerCase()}`;
+      return sendAudioBufferWithRange(req, res, cacheKeyVid, ytCached.buffer, ytCached.contentType || 'audio/mpeg', {
+        'X-Song-Title': encodeURIComponent(rawTitle || ytCached.title || 'Canción'),
+        'X-Song-Artist': encodeURIComponent(rawArtist || ytCached.artist || 'Artista'),
+        'X-Song-Cover': encodeURIComponent(String(req.query.cover || ytCached.thumbnail || '')),
+        'X-Audio-Source': encodeURIComponent(ytCached.source || 'YouTube Studio Master MP3'),
+        'X-Video-Id': encodeURIComponent(rawVideoId),
+        'X-Audio-Duration': String(ytCached.durationSec || expectedDur || 180)
+      });
+    }
   }
 
   const cacheKey = `${rawVideoId}|${scTrackId}|${rawTitle.toLowerCase()}|${rawArtist.toLowerCase()}|${searchQuery.toLowerCase()}`;
@@ -5692,10 +6029,127 @@ app.get('/api/v1/audio/extract', async (req, res) => {
     return sendAudioBufferWithRange(req, res, cacheKey, cached.buffer, cached.contentType, cached.extraHeaders);
   }
 
-  // Fast buffer check
-  if (EXTRACTED_AUDIO_BUFFER_CACHE.has(cacheKey)) {
-    const cached = EXTRACTED_AUDIO_BUFFER_CACHE.get(cacheKey);
-    return sendAudioBufferWithRange(req, res, cacheKey, cached.buffer, cached.contentType, cached.extraHeaders);
+  let resolvedMeta = {
+    title: rawTitle || rawQ || 'Canción Extraída',
+    artist: rawArtist || 'Artista',
+    thumbnail: String(req.query.cover || '').trim(),
+    videoId: rawVideoId || ''
+  };
+
+  // Helper: Retransmitir en vivo desde YOUTUBE_STREAM_STATES en cuanto lleguen los primeros 16 KB (evita 10s a 0 KB/s)
+  const tryStreamLiveFromNotubeState = (videoIdToStream, customMeta = {}) => {
+    const rangeHdr = String(req.headers.range || '');
+    const rangeMatch = rangeHdr ? /bytes=(\d+)-/.exec(rangeHdr) : null;
+    const rangeStart = rangeMatch ? parseInt(rangeMatch[1], 10) : 0;
+    if (isPrewarmReq || rangeStart > 0) return Promise.resolve(false);
+
+    extractYouTubeFullAudioViaNotubeServer(videoIdToStream).then((doneObj) => {
+      if (doneObj && doneObj.buffer && doneObj.buffer.length >= 120000) {
+        EXTRACTED_AUDIO_BUFFER_CACHE.set(cacheKey, {
+          buffer: doneObj.buffer,
+          contentType: 'audio/mpeg',
+          extraHeaders: {
+            'X-Song-Title': encodeURIComponent(customMeta.title || resolvedMeta.title || doneObj.title || ''),
+            'X-Song-Artist': encodeURIComponent(customMeta.artist || resolvedMeta.artist || ''),
+            'X-Song-Cover': encodeURIComponent(customMeta.thumbnail || resolvedMeta.thumbnail || doneObj.thumbnail || ''),
+            'X-Audio-Source': encodeURIComponent('YouTube Studio Master MP3'),
+            'X-Video-Id': encodeURIComponent(videoIdToStream),
+            'X-Audio-Duration': String(customMeta.durationSec || expectedDur || 180)
+          }
+        });
+      }
+    }).catch(() => {});
+
+    const state = YOUTUBE_STREAM_STATES.get(videoIdToStream);
+    if (!state) return Promise.resolve(false);
+
+    return new Promise((resolve) => {
+      let settled = false;
+      let headersFlushed = false;
+      let closed = false;
+
+      const finishWait = (val) => {
+        if (!settled) {
+          settled = true;
+          resolve(val);
+        }
+      };
+
+      const flushInitialAndWrite = (newChunk) => {
+        if (closed) return;
+        if (!headersFlushed) {
+          if (state.totalBytes < 16384 && !state.done) return;
+          if (state.error || (state.done && state.totalBytes < 16384)) {
+            closed = true;
+            state.listeners.delete(listener);
+            finishWait(false);
+            return;
+          }
+          headersFlushed = true;
+          finishWait(true);
+          res.status(200);
+          res.setHeader('Content-Type', 'audio/mpeg');
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Cache-Control', 'no-store');
+          res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source, X-Video-Id, X-Audio-Duration, Content-Range, Accept-Ranges');
+          res.setHeader('X-Song-Title', encodeURIComponent(customMeta.title || resolvedMeta.title || ''));
+          res.setHeader('X-Song-Artist', encodeURIComponent(customMeta.artist || resolvedMeta.artist || ''));
+          res.setHeader('X-Song-Cover', encodeURIComponent(customMeta.thumbnail || resolvedMeta.thumbnail || `https://i.ytimg.com/vi/${videoIdToStream}/hqdefault.jpg`));
+          res.setHeader('X-Audio-Source', encodeURIComponent('YouTube Live Stream MP3'));
+          res.setHeader('X-Video-Id', encodeURIComponent(videoIdToStream));
+          res.setHeader('X-Audio-Duration', String(customMeta.durationSec || expectedDur || 180));
+          for (const existing of state.chunks) {
+            try { res.write(existing); } catch (_) {}
+          }
+          if (state.done) {
+            closed = true;
+            state.listeners.delete(listener);
+            try { res.end(); } catch (_) {}
+          }
+          return;
+        }
+        if (newChunk && newChunk.length > 0) {
+          try { res.write(newChunk); } catch (_) {}
+        }
+      };
+
+      const listener = (chunk, isDone, isError) => {
+        if (closed) return;
+        if (isError && !headersFlushed) {
+          closed = true;
+          state.listeners.delete(listener);
+          finishWait(false);
+          return;
+        }
+        flushInitialAndWrite(chunk);
+        if (isDone && !closed) {
+          closed = true;
+          state.listeners.delete(listener);
+          if (headersFlushed) {
+            try { res.end(); } catch (_) {}
+          } else {
+            finishWait(false);
+          }
+        }
+      };
+
+      state.listeners.add(listener);
+      req.on('close', () => {
+        closed = true;
+        state.listeners.delete(listener);
+        finishWait(true);
+      });
+
+      if (state.totalBytes >= 16384 || state.done) {
+        listener(null, state.done, state.error);
+      }
+    });
+  };
+
+  // Si tenemos videoId directo y no es una petición Range a mitad de pista, retransmitir en vivo al instante en cuanto lleguen los primeros 16 KB
+  if (resolvedMeta.videoId && !scTrackId && !directAudioUrl) {
+    const streamedLive = await tryStreamLiveFromNotubeState(resolvedMeta.videoId, resolvedMeta);
+    if (streamedLive || res.headersSent) return;
   }
 
   if (INFLIGHT_EXTRACT_REQUESTS.has(cacheKey)) {
@@ -5706,13 +6160,6 @@ app.get('/api/v1/audio/extract', async (req, res) => {
       }
     } catch (_) {}
   }
-
-  let resolvedMeta = {
-    title: rawTitle || rawQ || 'Canción Extraída',
-    artist: rawArtist || 'Artista',
-    thumbnail: String(req.query.cover || '').trim(),
-    videoId: rawVideoId || ''
-  };
 
   const resolveTask = (async () => {
     // 1. Si hay URL directa no-preview o scTrackId específico, resolver primero
@@ -5752,12 +6199,10 @@ app.get('/api/v1/audio/extract', async (req, res) => {
       }
     }
 
-    // 2. CARRERA PARALELA DE ALTA VELOCIDAD (~0.4s - 0.8s):
-    // SoundCloud Full Studio CDN + YouTube Direct/Search corren simultáneamente con Promise.any
-    // para que NUNCA haya esperas de 20s a 0 KB/s por bloqueos de nodos de YouTube.
+    // 2. CARRERA PARALELA DE ALTA VELOCIDAD:
     const fastRaceBranches = [];
 
-    if (searchQuery) {
+    if (searchQuery && !resolvedMeta.videoId) {
       fastRaceBranches.push((async () => {
         const scFull = await extractSoundCloudFullTrackServer(searchQuery, rawTitle, rawArtist);
         if (scFull && scFull.buffer && scFull.buffer.length >= 250000) {
@@ -5806,6 +6251,23 @@ app.get('/api/v1/audio/extract', async (req, res) => {
         );
         const topCand = ytList.find(c => c && c.videoId && (c.authScore || 0) >= 35);
         if (!topCand || !topCand.videoId) throw new Error('yt_search_empty');
+        if (YOUTUBE_FULL_MP3_LRU.has(topCand.videoId)) {
+          const ytCached = YOUTUBE_FULL_MP3_LRU.get(topCand.videoId);
+          if (ytCached && ytCached.buffer) {
+            return {
+              buffer: ytCached.buffer,
+              contentType: 'audio/mpeg',
+              extraHeaders: {
+                'X-Song-Title': encodeURIComponent(rawTitle || ytCached.title || topCand.title || resolvedMeta.title),
+                'X-Song-Artist': encodeURIComponent(rawArtist || ytCached.artist || topCand.artist || resolvedMeta.artist),
+                'X-Song-Cover': encodeURIComponent(resolvedMeta.thumbnail || topCand.thumbnail || ''),
+                'X-Audio-Source': encodeURIComponent('YouTube Studio Master MP3'),
+                'X-Video-Id': encodeURIComponent(topCand.videoId),
+                'X-Audio-Duration': String(topCand.durationSec || ytCached.durationSec || expectedDur || 180)
+              }
+            };
+          }
+        }
         const ytAudio = await tryExtractYouTubeStream(topCand.videoId);
         if (ytAudio && ytAudio.buffer && ytAudio.buffer.length >= 120000) {
           return {
@@ -5949,7 +6411,7 @@ async function pumpAudioWarmQueue() {
       try {
         const key = buildAudioWarmCacheKey(t);
         if (EXTRACTED_AUDIO_BUFFER_CACHE.has(key) || INFLIGHT_EXTRACT_REQUESTS.has(key)) return;
-        const qs = new URLSearchParams({ title: t.title || '', artist: t.artist || '' });
+        const qs = new URLSearchParams({ title: t.title || '', artist: t.artist || '', prewarm: '1' });
         if (t.videoId) qs.set('videoId', t.videoId);
         if (t.durationSec > 45) qs.set('durationSec', String(Math.round(t.durationSec)));
         const r = await fetch(`http://127.0.0.1:${PORT}/api/v1/audio/extract?${qs.toString()}`, { signal: AbortSignal.timeout(45000) });
@@ -6250,12 +6712,36 @@ async function fetchLiveChartTracksById(chartId) {
   return { def, tracks };
 }
 
-// Pre-warm charts asynchronously in the background without blocking any request
+// Pre-warm charts and user playlist YouTube tracks asynchronously in the background without blocking any request
 setTimeout(() => {
   LIVE_CHART_PLAYLIST_DEFS.slice(0, 4).forEach((def, idx) => {
     setTimeout(() => { fetchLiveChartTracksById(def.id).catch(() => {}); }, idx * 900);
   });
-}, 1500);
+  try {
+    const profiles = (communityData && communityData.profiles) ? Object.values(communityData.profiles) : [];
+    const ytIdsToWarm = new Set(['F8oXB7zLwxk', 'l3zCFXb4xSg', 'IYoKjx_sR3c', 'jMgOWiuVQ0s', 'RYYnXrTBFq4', 'QGR1FMta87c']);
+    for (const prof of profiles) {
+      const lists = Array.isArray(prof?.playlists) ? prof.playlists : [];
+      for (const pl of lists) {
+        const trs = Array.isArray(pl?.tracks) ? pl.tracks : [];
+        for (const t of trs) {
+          const rawId = String(t?.videoId || t?.id || '').replace(/^magic_yt_|^yt_/, '').trim();
+          if (/^[A-Za-z0-9_-]{11}$/.test(rawId)) {
+            ytIdsToWarm.add(rawId);
+          } else {
+            const mThumb = String(t?.thumbnail || '').match(/(?:\/vi\/|\/vi_webp\/)([A-Za-z0-9_-]{11})(?:\/|$)/);
+            if (mThumb && mThumb[1]) ytIdsToWarm.add(mThumb[1]);
+          }
+        }
+      }
+    }
+    Array.from(ytIdsToWarm).slice(0, 20).forEach((vid, idx) => {
+      setTimeout(() => {
+        extractYouTubeFullAudioViaNotubeServer(vid).catch(() => {});
+      }, 600 + idx * 1400);
+    });
+  } catch (_) {}
+}, 1200);
 
 app.get('/api/v1/charts/top-playlists', (req, res) => {
   try {

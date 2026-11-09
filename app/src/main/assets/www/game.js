@@ -242,10 +242,8 @@ function hexToRgb(hex) {
 
 class HighFidelityAudioPlayer {
   constructor() {
-    const savedVol = parseFloat(localStorage.getItem('beatstar_master_volume') ?? '1.0');
-    const savedMuted = localStorage.getItem('beatstar_master_muted') === 'true';
-    this.masterVolume = isNaN(savedVol) ? 1.0 : Math.max(0, Math.min(1, savedVol));
-    this.isMuted = savedMuted;
+    this.masterVolume = 1.0;
+    this.isMuted = false;
     this.audioCtx = null;
   }
 
@@ -1809,11 +1807,9 @@ class BeatstarEngine {
     this.vignetteAlpha = 0;
     this.vignetteColor = '#e5b869';
 
-    // Master Volume & Mute
-    const savedMasterVol = parseFloat(typeof localStorage !== 'undefined' ? (localStorage.getItem('beatstar_master_volume') ?? '1.0') : '1.0');
-    const savedMasterMuted = typeof localStorage !== 'undefined' && localStorage.getItem('beatstar_master_muted') === 'true';
-    this.masterVolume = isNaN(savedMasterVol) ? 1.0 : Math.max(0, Math.min(1, savedMasterVol));
-    this.masterMuted = savedMasterMuted;
+    // Master Volume & Mute (independent from menu background music setting)
+    this.masterVolume = 1.0;
+    this.masterMuted = false;
 
     // Custom judgment colors: Paleta vibrante Beatstar para juicios y resplandor de carril
     const _savedJudgeColors = (() => { try { return JSON.parse(localStorage.getItem('beatstar_judge_colors') || 'null'); } catch(e) { return null; } })();
