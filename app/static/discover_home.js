@@ -1893,6 +1893,11 @@
       const top = this._resolveTopAudio(track);
       if (top && top.filename) {
         const tag = preferReleaseTag || top.tag || '3';
+        const apiBase = typeof window.getApiBaseUrl === 'function' ? window.getApiBaseUrl() : '';
+        if (apiBase && (!preferReleaseTag || String(preferReleaseTag) === String(top.tag))) {
+          // El servidor resuelve la URL firmada del CDN en ~0.4s (github.com/releases/download tarda ~11s)
+          return `${apiBase}/api/v1/cdn/release/${encodeURIComponent(top.filename)}`;
+        }
         const cUrl = `https://github.com/Bruala33/renacer/releases/download/${tag}/${top.filename}`;
         return `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(cUrl)}`;
       }

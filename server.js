@@ -5672,10 +5672,8 @@ app.get('/api/v1/audio/extract', async (req, res) => {
     const topFile = resolveTopReleaseFile(String(req.query.title || '').trim(), String(req.query.artist || '').trim())
       || resolveTopReleaseFile(rawTitle, rawArtist);
     if (topFile) {
-      const entry = getReleaseTagsMap()[topFile];
-      const tag = Array.isArray(entry) ? entry[0] : String(entry);
-      res.setHeader('Cache-Control', 'public, max-age=3600');
-      return res.redirect(302, `https://github.com/Bruala33/renacer/releases/download/${tag}/${topFile}`);
+      res.setHeader('Cache-Control', 'no-store');
+      return res.redirect(302, `/api/v1/cdn/release/${encodeURIComponent(topFile)}`);
     }
   }
   const rawVideoId = String(req.query.videoId || '').trim();
@@ -6359,6 +6357,26 @@ app.get('/api/v1/release-tags-map', (req, res) => {
   res.json(getReleaseTagsMap());
 });
 
+const RELEASE_ASSET_LOC_CACHE = new Map();
+async function resolveReleaseAssetLocation(assetId) {
+  const hit = RELEASE_ASSET_LOC_CACHE.get(assetId);
+  if (hit && Date.now() - hit.at < 3 * 60 * 1000) return hit.loc;
+  const ghToken = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
+  const headers = { Accept: 'application/octet-stream', 'User-Agent': 'renacer-cdn' };
+  if (ghToken) headers.Authorization = `Bearer ${ghToken}`;
+  const apiRes = await fetch(`https://api.github.com/repos/Bruala33/renacer/releases/assets/${assetId}`, {
+    headers,
+    redirect: 'manual',
+    signal: AbortSignal.timeout(4000)
+  });
+  const loc = apiRes.headers.get('location');
+  try { apiRes.body && apiRes.body.cancel(); } catch (_) {}
+  if (!loc) return null;
+  RELEASE_ASSET_LOC_CACHE.set(assetId, { at: Date.now(), loc });
+  if (RELEASE_ASSET_LOC_CACHE.size > 500) RELEASE_ASSET_LOC_CACHE.delete(RELEASE_ASSET_LOC_CACHE.keys().next().value);
+  return loc;
+}
+
 app.get('/api/v1/cdn/release/:filename(*)', async (req, res) => {
   const { filename } = req.params;
   const map = getReleaseTagsMap();
@@ -6368,28 +6386,18 @@ app.get('/api/v1/cdn/release/:filename(*)', async (req, res) => {
 
   const directUrl = `https://github.com/Bruala33/renacer/releases/download/${tag}/${filename}`;
 
-  // If token is available and repository needs authenticated asset proxying
-  const ghToken = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
-  if (assetId && ghToken) {
+  // El endpoint de la API entrega la URL firmada del CDN en ~0.4s; github.com/releases/download tarda ~11s.
+  if (assetId) {
     try {
-      const apiRes = await fetch(`https://api.github.com/repos/Bruala33/renacer/releases/assets/${assetId}`, {
-        headers: {
-          Authorization: `Bearer ${ghToken}`,
-          Accept: 'application/octet-stream'
-        },
-        redirect: 'manual'
-      });
-      const loc = apiRes.headers.get('location');
+      const loc = await resolveReleaseAssetLocation(assetId);
       if (loc) {
+        res.setHeader('Cache-Control', 'public, max-age=120');
         return res.redirect(302, loc);
       }
-      if (apiRes.ok) {
-        const mime = filename.endsWith('.mp3') ? 'audio/mpeg' : (filename.endsWith('.json') ? 'application/json' : 'application/octet-stream');
-        res.setHeader('Content-Type', mime);
-        res.setHeader('Cache-Control', 'public, max-age=604800');
-        return apiRes.body.pipe(res);
-      }
     } catch (_) {}
+    // Sin token / límite del servidor: que el propio cliente resuelva con su cuota de API
+    res.setHeader('Cache-Control', 'no-store');
+    return res.redirect(302, `https://api.github.com/repos/Bruala33/renacer/releases/assets/${assetId}`);
   }
 
   // Redirect to direct public GitHub release URL
