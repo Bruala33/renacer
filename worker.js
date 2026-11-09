@@ -33,6 +33,10 @@ export default {
       if (originalContentType) {
         forwardHeaders.set("content-type", originalContentType);
       }
+      const rangeHdr = request.headers.get("range");
+      if (rangeHdr) forwardHeaders.set("range", rangeHdr);
+      const ifRange = request.headers.get("if-range");
+      if (ifRange) forwardHeaders.set("if-range", ifRange);
 
       // Reenviar método y cuerpo para POST
       const requestInit = {

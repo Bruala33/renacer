@@ -3634,6 +3634,63 @@ app.get(['/api/search', '/api/v1/search', '/api/v1/search/community'], async (re
 
 // Proxy con caché en memoria para letras sincronizadas LRC (LRCLIB)
 const lyricsMemoryCache = new Map();
+
+function lyricsAsciiKey(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+}
+function lyricsAsciiDropKey(s) {
+  return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+function lyricsTitleMatches(a, b) {
+  const x = lyricsAsciiKey(a), y = lyricsAsciiKey(b);
+  if (x && x === y) return true;
+  const dx = lyricsAsciiDropKey(a), dy = lyricsAsciiDropKey(b);
+  return Boolean(dx && dx === dy) || Boolean(x && y && (x === lyricsAsciiDropKey(b) || y === lyricsAsciiDropKey(a)));
+}
+
+// Fuentes adicionales de letra SINCRONIZADA: título canónico (iTunes, tolera tildes perdidas) + NetEase
+async function fetchExtraSyncedLyrics(rawTitle, rawArtist) {
+  const out = [];
+  const ua = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36' };
+  const term = `${rawTitle} ${rawArtist}`.trim();
+  const tasks = [];
+
+  tasks.push((async () => {
+    const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=song&limit=4`, { signal: AbortSignal.timeout(2500) });
+    const j = await r.json();
+    const hit = (j.results || []).find(x => lyricsTitleMatches(x.trackName, rawTitle)) || null;
+    if (!hit) return;
+    const lr = await fetch(`https://lrclib.net/api/search?track_name=${encodeURIComponent(hit.trackName)}&artist_name=${encodeURIComponent(hit.artistName)}`, { headers: ua, signal: AbortSignal.timeout(3000) });
+    const arr = await lr.json();
+    if (Array.isArray(arr)) for (const it of arr) if (it && it.syncedLyrics) out.push(it);
+  })().catch(() => {}));
+
+  tasks.push((async () => {
+    const hdr = { ...ua, Referer: 'https://music.163.com' };
+    const sr = await fetch(`https://music.163.com/api/search/get?s=${encodeURIComponent(term)}&type=1&limit=6`, { headers: hdr, signal: AbortSignal.timeout(3000) });
+    const sj = await sr.json();
+    const songs = (sj && sj.result && sj.result.songs) || [];
+    const pick = songs.filter(s => lyricsTitleMatches(s.name, rawTitle)).slice(0, 2);
+    for (const s of pick) {
+      const lr = await fetch(`https://music.163.com/api/song/lyric?id=${s.id}&lv=1&kv=1&tv=-1`, { headers: hdr, signal: AbortSignal.timeout(3000) });
+      const lj = await lr.json();
+      const lrc = lj && lj.lrc && lj.lrc.lyric;
+      if (lrc && /\[\d{1,2}:\d{2}/.test(lrc)) {
+        out.push({
+          id: `ne_${s.id}`,
+          trackName: s.name,
+          artistName: (s.artists && s.artists[0] && s.artists[0].name) || rawArtist,
+          duration: (Number(s.duration) || 0) / 1000,
+          syncedLyrics: lrc
+        });
+      }
+    }
+  })().catch(() => {}));
+
+  await Promise.all(tasks);
+  return out;
+}
+
 app.get('/api/v1/lyrics', async (req, res) => {
   try {
     const rawTitle = repairStrippedSpanishText(String(req.query.title || '')).replace(/\s*[\(\[][^\)\]]*(?:official|video|audio|lyric|letra|videoclip|hd|4k|remaster|live|en vivo|tv size|ver\.|version|feat\.|ft\.)[^\)\]]*[\)\]]/gi, '').trim();
@@ -3667,6 +3724,11 @@ app.get('/api/v1/lyrics', async (req, res) => {
         const arr = await resp.json().catch(() => []);
         if (Array.isArray(arr)) data = arr;
       }
+    }
+    if (!Array.isArray(data)) data = [];
+    if (!data.some(item => item && item.syncedLyrics) && rawTitle) {
+      const extra = await fetchExtraSyncedLyrics(rawTitle, rawArtist).catch(() => []);
+      if (extra.length) data = [...extra, ...data];
     }
     const list = (Array.isArray(data) ? data : [])
       .sort((a, b) => (b && b.syncedLyrics ? 1 : 0) - (a && a.syncedLyrics ? 1 : 0))
@@ -5572,10 +5634,50 @@ function attachToLiveStream(req, res, live) {
   pump();
 }
 
+function resolveTopReleaseFile(title, artist) {
+  const map = getReleaseTagsMap();
+  if (!map || !title) return null;
+  const drop = s => String(s || '').toLowerCase().replace(/[^a-z0-9\s_]/g, '').replace(/\s/g, '_');
+  const nfd = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s_]/g, '').replace(/\s/g, '_');
+  const cleanArtist = String(artist || '').replace(/\s*-\s*topic$/i, '').replace(/vevo$/i, '').trim();
+  const primaryArtist = cleanArtist.split(/\s*(?:,|&|\/|;|\sx\s|\sfeat\.?\s|\sft\.?\s|\sfeaturing\s)\s*/i)[0] || cleanArtist;
+  const titles = [...new Set([String(title), String(title).replace(/\s*[\(\[][^\)\]]*[\)\]]/g, '').trim()])].filter(Boolean);
+  const artists = [...new Set([cleanArtist, primaryArtist])].filter(Boolean);
+  for (const a of artists) {
+    for (const t of titles) {
+      for (const fn of [drop, nfd]) {
+        const key = `${fn(a)}_${fn(t)}.mp3`;
+        if (map[key]) return key;
+      }
+    }
+  }
+  return null;
+}
+
+app.get('/api/v1/top-resolve', (req, res) => {
+  const file = resolveTopReleaseFile(String(req.query.title || ''), String(req.query.artist || ''));
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  if (!file) return res.json({ found: false });
+  const entry = getReleaseTagsMap()[file];
+  res.json({ found: true, audio_url: file, chart_url: file.replace(/\.mp3$/, '.json'), tag: Array.isArray(entry) ? entry[0] : String(entry) });
+});
+
 app.get('/api/v1/audio/extract', async (req, res) => {
   const rawQ = repairStrippedSpanishText(String(req.query.q || '').trim());
   const rawTitle = repairStrippedSpanishText(String(req.query.title || '').trim());
   const rawArtist = repairStrippedSpanishText(String(req.query.artist || '').trim());
+
+  // Atajo instantáneo: si existe la grabación de estudio en los releases de GitHub, redirigir (sin extraer de YouTube)
+  {
+    const topFile = resolveTopReleaseFile(String(req.query.title || '').trim(), String(req.query.artist || '').trim())
+      || resolveTopReleaseFile(rawTitle, rawArtist);
+    if (topFile) {
+      const entry = getReleaseTagsMap()[topFile];
+      const tag = Array.isArray(entry) ? entry[0] : String(entry);
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      return res.redirect(302, `https://github.com/Bruala33/renacer/releases/download/${tag}/${topFile}`);
+    }
+  }
   const rawVideoId = String(req.query.videoId || '').trim();
   const scTrackId = String(req.query.scTrackId || '').trim();
   const directAudioUrl = String(req.query.directUrl || '').trim();

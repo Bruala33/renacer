@@ -1841,8 +1841,47 @@
         (sig && window._topCatalogSigLookupMap.get(`sig:${sig}`)) ||
         null;
 
-      track._matchedTopCatalogSong = matched;
+      if (matched) track._matchedTopCatalogSong = matched;
       return matched;
+    }
+
+    /**
+     * Resuelve el MP3 de estudio de los GitHub Releases para CUALQUIER pista (catálogo Top o no),
+     * mediante el mapa exacto de ficheros y el slug artista_titulo (con y sin tildes).
+     */
+    _resolveTopAudio(track) {
+      if (!track) return null;
+      const map = window.RELEASE_TAGS_MAP || null;
+      const tagOf = (f) => {
+        const e = map && map[f];
+        return e ? String(Array.isArray(e) ? e[0] : e) : null;
+      };
+      const direct = (track.audio_url || String(track.id || '').startsWith('top_') || track.is_top_song)
+        ? track
+        : this._findMatchingTopCatalogSong(track);
+      if (direct) {
+        const rawId = String(direct.raw_id || direct.id || '').replace(/^top_/, '');
+        const file = direct.audio_url || `${rawId}.mp3`;
+        return { filename: file, tag: tagOf(file) };
+      }
+      if (!map) return null;
+      if (track._slugTopAudio !== undefined) return track._slugTopAudio;
+      const drop = s => String(s || '').toLowerCase().replace(/[^a-z0-9\s_]/g, '').replace(/\s/g, '_');
+      const nfd = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s_]/g, '').replace(/\s/g, '_');
+      const artist0 = repairSpanishBrokenAccents(String(track.artist || '')).replace(/\s*-\s*topic$/i, '').replace(/vevo$/i, '').trim();
+      const primary = artist0.split(/\s*(?:,|&|\/|;|\sx\s|\sfeat\.?\s|\sft\.?\s|\sfeaturing\s)\s*/i)[0] || artist0;
+      const title0 = String(track.title || '');
+      const titles = [...new Set([title0, repairSpanishBrokenAccents(title0), title0.replace(/\s*[\(\[][^\)\]]*[\)\]]/g, '').trim()])].filter(Boolean);
+      const artists = [...new Set([artist0, primary, String(track.artist || '')])].filter(Boolean);
+      for (const a of artists) for (const t of titles) for (const fn of [drop, nfd]) {
+        const key = `${fn(a)}_${fn(t)}.mp3`;
+        if (map[key]) {
+          track._slugTopAudio = { filename: key, tag: tagOf(key) };
+          return track._slugTopAudio;
+        }
+      }
+      track._slugTopAudio = null;
+      return null;
     }
 
     /**
@@ -1851,19 +1890,10 @@
      */
     _getDirectFullStreamUrl(track, preferReleaseTag = null) {
       if (!track) return '';
-      const matchedTop = (track.audio_url || String(track.id || '').startsWith('top_') || track.is_top_song)
-        ? track
-        : this._findMatchingTopCatalogSong(track);
-
-      if (matchedTop) {
-        const rawId = String(matchedTop.raw_id || matchedTop.id || '').replace(/^top_/, '');
-        const audioFilename = matchedTop.audio_url || `${rawId}.mp3`;
-        let tag = preferReleaseTag;
-        if (!tag && typeof window.getReleaseTagForFile === 'function') {
-          tag = window.getReleaseTagForFile(audioFilename);
-        }
-        if (!tag) tag = '3';
-        const cUrl = `https://github.com/Bruala33/renacer/releases/download/${tag}/${audioFilename}`;
+      const top = this._resolveTopAudio(track);
+      if (top && top.filename) {
+        const tag = preferReleaseTag || top.tag || '3';
+        const cUrl = `https://github.com/Bruala33/renacer/releases/download/${tag}/${top.filename}`;
         return `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(cUrl)}`;
       }
       if (String(track.id || '').startsWith('comm_')) {
@@ -3336,6 +3366,18 @@
       }
 
       wrap.innerHTML = `<div class="crate-videoclip-loading">Videoclip no disponible</div>`;
+    },
+
+    syncVideoclipIfActive(track) {
+      try {
+        const cont = document.getElementById('npVideoclipIframeBox');
+        if (!cont || !track) return;
+        const key = cont.getAttribute('data-vid-key') || '';
+        if (key.startsWith(`${track.id || ''}__`)) return;
+        cont.removeAttribute('data-vid-key');
+        cont.innerHTML = '';
+        if (cont.offsetParent !== null) this._mountNowPlayingVideoclipForTrack(track);
+      } catch (_) {}
     },
 
     async _mountNowPlayingVideoclipForTrack(track, forceYoutubeIframe = false) {
