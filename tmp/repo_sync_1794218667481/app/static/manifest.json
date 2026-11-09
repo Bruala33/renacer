@@ -1,0 +1,30 @@
+{
+  "name": "Piano Community - Osu & Clone Hero",
+  "short_name": "Piano Community",
+  "description": "Juego de ritmo comunitario interactivo inspirado en Osu y Clone Hero",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#06040a",
+  "theme_color": "#06040a",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./app_logo.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

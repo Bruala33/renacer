@@ -1056,6 +1056,519 @@
     }
   }
 
+  const CLIENT_CUSTOM_SYNCED_LYRICS_DB = [
+    {
+      videoId: 'F8oXB7zLwxk',
+      keys: ['adiosatubarrio', 'perreosanxeadiosatubarrio', 'adiosatubarriomanofirme'],
+      trackName: 'Adiós a tu barrio [MANO FIRME]',
+      artistName: 'Perreo Sanxe',
+      duration: 212,
+      syncedLyrics: `[00:00.50] (Introducción instrumental — Adiós a tu barrio)
+[00:13.80] En la tierra hay un gran motor
+[00:19.80] Y la gasolina es la inmigración
+[00:27.50] Normalmente gana quien da más
+[00:34.00] Como dicen en la agenda de Klaus Schwab
+[00:41.50] Me olvidaré de pagarte la pensión si el morenito necesita ayuda
+[00:48.50] Hoy voy a darle a un cuarto de millón par de motivos para una aventura
+[00:55.50] Te quejas pero tú sabes
+[00:59.00] Que lo han pagao tus impuestos
+[01:02.20] Me la pela si te cabreas, yo estoy viviendo como Dios
+[01:09.20] Ha sido la ultraderecha la que ha jodido la nación
+[01:16.20] Hacemos negocios con armas, voy a cambiarme de avión
+[01:23.00] Y somos como la Yolanda, no soy la casta, soy mejor
+[01:29.80] Un decreto de ley, por favor, para el retrasado de Puigdemont
+[01:36.80] Mira, se desangra y adiós a tu barrio
+[01:46.50] Hoy los menas, como La Razón
+[01:52.80] Saben quién da la puta subvención
+[02:00.20] Solo piensa, podría ser peor
+[02:06.80] Tú analiza que tu rey es el Borbón
+[02:14.20] Me olvidaré de prestar declaración porque tú sabes que todo me suda
+[02:21.20] Hoy voy a darle a tu hija la menor par de motivos para una clausura
+[02:28.20] Yo solo traigo animales
+[02:31.80] Vosotros cargáis el muerto
+[02:34.80] Me la pela si te cabreas, yo estoy viviendo como Dios
+[02:41.80] Ha sido la ultraderecha la que ha jodido la nación
+[02:48.80] Hacemos negocios con armas, voy a cambiarme de avión
+[02:55.60] Y somos como la Yolanda, no soy la casta, soy mejor
+[03:02.50] Un decreto de ley, por favor, para el retrasado de Puigdemont
+[03:09.50] Mira, España se desangra y adiós a tu barrio
+[03:16.20] Y tu influencer ya se ha comprado el nuevo coche y una casa
+[03:19.80] Y tú con cuarenta y pico compartes piso
+[03:21.80] Mejor pedirme una pensión y tú sacándote la ESO pa mil y poco, sí, eso, vaya chiste
+[03:25.20] Y ahora te digo que vivo como un señor y tú dejándote el riñón y por favor llórame en Twitter
+[03:28.80] Que te crees un templario, to el día en tu cuarto llorando`
+    },
+    {
+      videoId: 'l3zCFXb4xSg',
+      keys: ['quiensoy', 'quiensoymanofirme', 'perreosanxequiensoy'],
+      trackName: '¿QUIÉN SOY? [MANO FIRME]',
+      artistName: 'Perreo Sanxe ft. Big-Laska',
+      duration: 192,
+      syncedLyrics: `[00:01.00] Yo, yo, yo... Dime lo que tienes, eh, que me lo quedo
+[00:11.00] Tengo tratos con Marruecos muy tensos
+[00:14.20] Subo impuestos, traigo negros
+[00:17.20] ¿Quién soy? (Pedro) ¿Quién soy? (Pedro) ¿Quién soy? (Pedro) ¿Quién soy?
+[00:22.80] Tengo tratos con Marruecos muy tensos
+[00:26.00] Subo impuestos, traigo negros
+[00:29.00] ¿Quién soy? (Pedro) ¿Quién soy? (Pedro) ¿Quién soy?
+[00:34.50] Noticias reales sin atrezo, todos presos
+[00:38.20] Mi mandato sobre huesos
+[00:40.50] Soy el hombre perfecto, no tengo ni un fracaso
+[00:43.50] Si me echo pa la calle las charos me tiran besos
+[00:46.50] Easy, haciendo negocios con la crisis
+[00:49.50] Y si fuese uno más dentro del ISIS
+[00:52.50] Vuelo y bebo whisky, putas, coca y business
+[00:55.50] Tú buscas mi frisbee como un pekinés
+[00:58.50] Esclavo de mi amado, pero me llaman vendido
+[01:01.50] Si hablo con abogados, estáis bien jodidos
+[01:04.50] Veo sobres que vuelan de arriba a abajo de amigos cercanos
+[01:07.80] Huelen blanco y cuentan fajos, to cocido
+[01:10.50] Callo pero no otorgo, si hablo sube el pan
+[01:13.50] All the guys dicen "oh fuck", con Marlaska dan
+[01:16.50] Alquitrán y fango
+[01:18.50] Noches enteras eliminando pruebas que pudieran hablar, porque
+[01:22.20] Tengo tratos con Marruecos muy tensos
+[01:25.20] Subo impuestos, traigo negros
+[01:28.20] ¿Quién soy? (Pedro) ¿Quién soy? (Pedro) ¿Quién soy? (Pedro) ¿Quién soy?
+[01:33.80] Tengo tratos con Marruecos muy tensos
+[01:37.00] Subo impuestos, traigo negros
+[01:40.00] ¿Quién soy? (Pedro) ¿Quién soy? (Pedro) ¿Quién soy?
+[01:45.80] Soy el capo en las sombras, barro bajo la alfombra
+[01:48.80] Aquí a Big-Laska tu vasca cachonda
+[01:51.80] Luz en rotondas y lanchas de ronda
+[01:54.80] Muevo en Ferraris y piso en Honda
+[01:57.80] Llevo un estilo que es la bomba, por mis cojones mantengo esta vida loca
+[02:01.50] Ahora muevo millones porque a mí me toca
+[02:04.20] Siempre entran toneladas de hachís y coca
+[02:07.00] Vergüenza poca, hechos reales y tú eres un bocas
+[02:09.80] Controlo medios e intercambios en mis puntos
+[02:12.80] Soy el que arregla las cosas cuando se ponen chulos
+[02:15.80] Y si te hablara de ciertos asuntos
+[02:18.80] Soy un cabrón, un tiburón del Estado profundo
+[02:21.80] Son mis mansiones las que veo en mi postal
+[02:24.80] Recortando la lana de camino al Escorial
+[02:27.80] Me da igual, Guardia Civil o Nacional, subnormal
+[02:30.80] Porque yo soy la ley, porque tú no eres na, por eso
+[02:33.50] Tengo tratos con Marruecos muy tensos
+[02:36.50] Subo impuestos, traigo negros
+[02:39.50] ¿Quién soy? (Pedro) ¿Quién soy? (Pedro) ¿Quién soy? (Pedro) ¿Quién soy?
+[02:45.20] Tengo tratos con Marruecos muy tensos
+[02:48.20] Subo impuestos, traigo negros
+[02:51.20] ¿Quién soy? (Pedro) ¿Quién soy? (Pedro) ¿Quién soy?`
+    },
+    {
+      videoId: 'IYoKjx_sR3c',
+      keys: ['politika', 'politikamanofirme', 'perreosanxepolitika', 'asieslapolitica'],
+      trackName: 'Polítika [MANO FIRME]',
+      artistName: 'Perreo Sanxe',
+      duration: 132,
+      syncedLyrics: `[00:00.50] (Introducción de guitarra punk-rock — Polítika)
+[00:18.80] Ni soy tonto ni soy nuevo, soy muy guapo y con dinero
+[00:22.20] Hago todo lo que debo para ganar puntos
+[00:25.20] Cada vez me importáis menos, españoles sois veneno
+[00:28.50] Soy un moro de Pozuelo un poco más chungo
+[00:31.50] Miento a mi alternativa, jodo vidas, subo el IVA
+[00:36.20] Así es la política
+[00:39.20] Mientras pagues yo te quiero, no te pases, no eres negro
+[00:42.50] O te mando al agujero con tos tus difuntos
+[00:45.50] Se gobierna con el miedo, me lo dijo Zapatero
+[00:48.80] Y me paso por los huevos todos tus insultos
+[00:51.80] Miento a mi alternativa, jodo vidas, subo el IVA
+[00:56.50] Así es la política
+[00:59.20] La mitad de lo que ganas, primo, me lo he metido
+[01:04.20] En medio de un fiestón, qué colocón
+[01:07.20] Koldo se ha venido y se ha traído un kilo o dos
+[01:12.00] La mitad de lo que ganas, primo, me lo he metido
+[01:17.00] En medio de un fiestón, qué colocón
+[01:20.00] Koldo se ha venido y se ha traído un kilo o dos
+[01:38.00] Mi país está en la ruina y yo gozándome la vida
+[01:43.00] Así es la política
+[01:45.80] La mitad de lo que ganas, primo, es pa mi equipo
+[01:50.50] Y el tonto de Feijóo y tu pensión la he malvertido
+[01:55.50] Y se ha perdido en mi asesor
+[01:58.50] La mitad aún no ha entendido, solo divido
+[02:03.50] Al pueblo español, fue mi mentor quien me lo dijo`
+    },
+    {
+      videoId: 'jMgOWiuVQ0s',
+      keys: ['mascarillas', 'mascarillasmanofirme', 'perreosanxemascarillas'],
+      trackName: 'Mascarillas [MANO FIRME]',
+      artistName: 'Perreo Sanxe',
+      duration: 147,
+      syncedLyrics: `[00:00.50] (Introducción de guitarra — Mascarillas)
+[00:05.50] Estoy cansado, vaya donde vaya está siempre petao de gente
+[00:09.20] Voy conspirando, voy a bajarme a estos putos tontos de veinte en veinte
+[00:13.20] Acojonados, todos juntitos en casa presos, bien obedientes
+[00:17.20] Son demasiados, hay que acabar con todos dice el sapo de mi mente
+[00:21.20] Alucinando de que me tiren tanto fango y claro que mienten
+[00:25.20] Me suda el rabo, me siento un puto rockstar pudiendo ser presidente
+[00:29.20] Vas a entrar al restaurante con mascarilla, no vas a ver a tu familiar
+[00:34.20] Y todos mejor calladitos, así que ponte bien el bozal
+[00:38.20] Tengo comprada a la policía y vas a saber lo que es libertad
+[00:42.20] Pero a ver, mírame, ¿tú eres tonto o no ves las noticias? Vacúnate ya
+[00:48.50] Estoy muy harto, que todo está en pelis, pillo si os toca comprar
+[00:52.50] De cuatro en cuatro, no quiero veros juntos nunca ni aunque sea Navidad
+[00:56.50] Y lo he cerrado, te pongo aforo limitado y multas pa rematar
+[01:00.50] Y mucho cuidado o te reforma la casa la Policía Nacional
+[01:04.50] Vas a entrar al restaurante con mascarilla, no vas a ver a tu familiar
+[01:09.50] Y todos mejor calladitos, así que ponte bien el bozal
+[01:13.50] Tengo comprada a la policía y vas a saber lo que es libertad
+[01:17.50] Pero a ver, mírame, ¿tú eres tonto o no ves las noticias? Vacúnate ya
+[01:36.20] Te has acercao al Lidl pero a ti te corresponde el Mercadona
+[01:40.20] Y como salgas de tu pueblo te llevas una receta de recuerdo
+[01:44.50] Vas a entrar al restaurante con mascarilla, no vas a ver a tu familiar
+[01:49.50] Estoy cansado de ser un don nadie, trátame de Su Majestad
+[01:53.50] La gente muerta no contamina, por eso esto es un deber moral
+[01:57.50] Pero a ver, ¿tú eres tonto o qué? Es por la culpa del cambio, quiero más
+[02:01.50] Quiero más mascarillas, yo me merezco vida de zar
+[02:05.50] Estoy cansado de pagar pensiones, así que porfa muérete ya
+[02:09.50] Me alegra tanto que defiendan vidas de gente que no entiende de na
+[02:13.50] Pero a ver, mírame y coge sitio que eres bienvenido a la mafia estatal`
+    },
+    {
+      videoId: 'a4YfyblzE7g',
+      keys: ['mienteme', 'donfrijolmienteme', 'donfrijolftperreosanxemienteme', 'perreosanxemienteme'],
+      trackName: 'Don Frijol ft. Perreo Sanxe - MIÉNTEME',
+      artistName: 'Ultimoscruzados',
+      duration: 206,
+      syncedLyrics: `[00:01.00] Me viste robando, yo lo sé, te descubrí
+[00:05.50] Pedro, miénteme, dime que tú cuentas conmigo
+[00:11.00] Tú dime y te pongo votos del PP
+[00:15.50] Y tú dices que eres mi amigo, mi amigo
+[00:20.50] Pedro, miénteme, dime que tú cuentas conmigo
+[00:26.00] Tú dime y te pongo votos del PP
+[00:30.50] Y tú dices que eres mi amigo, mi amigo
+[00:35.50] ¿Quién dijo amigos? Si sabes que yo soy más de separatistas
+[00:40.50] También de terroristas, pero contigo
+[00:45.00] Aunque tú eres mi putita favorita y sé que necesitas
+[00:50.00] Y si a Bego la imputaran, tan, tan, tan
+[00:54.50] Sabes que no digo nada, pa' ti na', na', na'
+[00:59.00] Estoy un poco celoso de tu orangután
+[01:03.50] Porque cuando estáis solitos mucho mua, mua, mua
+[01:08.50] Y si a Bego la imputaran, tan, tan, tan
+[01:13.00] Tengo comprados los medios de mi na', na', na'
+[01:17.50] Y si por si acaso luego quisieras pactar
+[01:22.00] Te voy a llevar primero para vacunar
+[01:26.50] Pedro, Pedro, Pedro, mua, Pedro, no está bien
+[01:31.50] Eres un cabrón retorcido
+[01:35.50] Dime que esta noche yo soy tu Leire
+[01:40.00] Y mañana me haces el lío, el lío
+[01:45.00] Pedro, miénteme, dime que tú cuentas conmigo
+[01:50.50] Tú dime y te pongo votos del PP
+[01:55.00] Y mañana te hago un cocido, cocido
+[02:00.00] Qué importa, si me ganas en las urnas qué importa
+[02:05.00] Tú y yo sabemos quién por detrás lo corta
+[02:09.50] Tú y yo estamos solo aquí de momento, qué nos importa
+[02:15.00] Si te gano en las urnas qué importa
+[02:19.50] Tú y yo sabemos quién por detrás lo corta
+[02:24.00] Tú y yo estamos solo aquí de momento, qué nos importa, Pedro
+[02:32.00] Miénteme, me tienes para el sillón`
+    },
+    {
+      videoId: 'RYYnXrTBFq4',
+      keys: ['elsecretodelasayudas', 'perreosanxeelsecretodelasayudas'],
+      trackName: 'Perreo Sanxe - El secreto de las ayudas',
+      artistName: 'Ultimoscruzados',
+      duration: 236,
+      syncedLyrics: `[00:18.50] Mira, mira cómo dice
+[00:20.50] Se firmaron sin quererlo los papeles que pediste para Air Europa
+[00:26.50] Donde estaba el pasaporte, las paguitas y el acceso pa'l hotel
+[00:32.50] Y ahora estamos camino de Venezuela disfrutando toditos que pocos quedan
+[00:39.00] Ahora tengo que ir a José pa' cogerle porque Óscar vino ayer
+[00:45.00] Y necesito una ayudita con impuestos, subvenciono a Mediaset
+[00:51.50] Y el Broncano es gilipollas y os cuesta más de un millón al mes
+[00:57.50] Camino de la frontera disfrutando toditos la vida buena
+[01:04.00] Cómo no voy a mojarme si en Valencia nunca para de llover
+[01:10.00] Y si esto pasa otra vez
+[01:14.00] Y si seguimos con el plan establecido
+[01:18.50] Os aseguro que lo vais a disfrutar
+[01:22.50] Probablemente encontremos enemigos
+[01:27.00] Pero nos sobran maletines en Ferraz
+[01:42.00] Si quieres ahogarte en el Turia, madre mía, agárrate
+[01:48.50] Y las puertas de esa presa no se abren si no lo hago yo querer
+[01:55.00] Y mira cómo llegan camino de la frontera, pobrecitos cansados con la patera
+[02:02.00] Cómo no voy a acogerlos y pagarles y meterles a un hotel
+[02:08.00] Y si se llama Mohamed
+[02:12.00] Improvisemos un guion definitivo
+[02:16.50] No tengamos más remedio que aprobar
+[02:21.00] Porque soy hijo de Estrellas, el elegido
+[02:25.50] Para que España no se vuelva a levantar
+[02:30.00] Y suena bien, parece que les gusta a los judíos
+[02:34.50] Solo tenemos que vender mediocridad
+[02:39.00] Hace ya tiempo que no estamos divididos
+[02:43.50] Porque las Charos han salido a pregonar
+[02:56.00] Es que se ve que eres un deficiente y que tu culo pertenece al presidente
+[03:06.00] Y hemos sobrevivido al precio del poder
+[03:12.50] Y es que andábamos siempre al filo, pero el Covid salió bien
+[03:19.00] La pandemia y el control del miedo, tu vida a plazos, siempre al sendero
+[03:25.50] Llena de mojas hasta Teruel, rezando danbi, danbi, dan
+[03:32.00] De tres en tres a todo el mundo entero, pienso imponerme con jueces o por mis huevos
+[03:38.50] Ya me dices tú tu número de Visa, que por ahí llegan los Sopranos socialistas
+[03:45.00] Nadie sube el camino sin suerte, que los judíos son los que detrás invierten
+[03:51.50] Existe un sendero oscuro y vacío, así que abróchate amigo que hay curvas que tomar
+[03:58.00] Siempre será mejor esconderte, que el socialismo os va quedando ya de muerte
+[04:04.50] Guarda mucho dinero en el maletero, no me hagas esperar`
+    },
+    {
+      videoId: 'QGR1FMta87c',
+      keys: ['impuestos', 'perreosanxeimpuestos'],
+      trackName: 'Perreo Sanxe - Impuestos',
+      artistName: 'Ultimoscruzados',
+      duration: 143,
+      syncedLyrics: `[00:05.00] No entiendo por qué has salido a la calle tú tan fresco
+[00:10.50] Y dime por qué, si nos hemos quedado con tu sueldo
+[00:16.00] Y ahora hay impuestos que pagar
+[00:20.50] Pa' poner las calles y de mientras vamos a estafar con la Seguridad Social
+[00:28.00] Ya lo bueno y lo que importa son impuestos
+[00:32.50] Y eso es lo que quiero, impuestos
+[00:36.50] Que todas las mañanas os cobren impuestos
+[00:41.00] Y sea por la tarde y siga habiendo impuestos
+[00:45.50] Y sea por la noche y os pongan impuestos pa' cenar
+[00:51.00] Y dime por qué cuando veo a Broncano estoy revuelto
+[00:56.00] Y cógete un tren, que llegas andando o ardiendo
+[01:01.50] Tienes que empezar por entender
+[01:06.00] Quién te cuenta cuentos y de mientras tienes que pagar y ya no da para alquiler
+[01:13.50] Hay mucho homosexual que paga impuestos
+[01:18.00] Y eso es lo que quiero, impuestos
+[01:22.00] Que todas las mañanas os cobren impuestos
+[01:26.50] Y sea por la tarde y siga habiendo impuestos
+[01:31.00] Y sea por la noche y os pongan impuestos pa' cenar
+[01:52.00] Y eso es lo que quiero, impuestos
+[01:56.50] Que todas las mañanas os cobren impuestos
+[02:01.00] Y sea por la tarde y siga habiendo impuestos
+[02:05.50] Y sea por la noche y os pongan impuestos pa' cenar
+[02:11.00] Y párate a ver que yo no voy a irme del Congreso
+[02:16.50] Que yo y mi mujer nos vamos en caja o igual presos`
+    },
+    {
+      videoId: 'XL4GeI4K1Xs',
+      keys: ['jodertebienlavida', 'perreosanxejodertebienlavida'],
+      trackName: 'Perreo Sanxe - Joderte bien la vida',
+      artistName: 'Ultimoscruzados',
+      duration: 204,
+      syncedLyrics: `[00:06.00] Huele a aire de Venezuela, he tomado todo el control
+[00:15.00] Nuevo impuesto para carreteras y otro más para educación
+[00:24.00] Y es que no habrá querella que a mí me haga temblar
+[00:33.00] Porque está todo planeado, esto acaba de empezar
+[00:41.50] Voy a joderte bien la vida y lo tapa el Grupo Prisa
+[00:46.50] Tú procura estar contento y siempre con una sonrisa
+[00:51.50] Tus complejos inferiores por no decir los colores
+[00:56.50] Y te callas ante la ruina de todos los españoles
+[01:02.50] Ay, si es que no tenéis cojones, ay
+[01:10.00] Y es que el Uno a mí me llaman cuando escribo en WhatsApp Web
+[01:19.00] Me cago en Víctor de Aldama, solo se le ocurre a él
+[01:28.00] Y este año le pido al cielo otro Covid por favor
+[01:37.00] Nos hace falta dinero, está cara la invasión
+[01:45.50] Voy a joderte bien la vida y lo tapa el Grupo Prisa
+[01:50.50] Tú procura estar contento y siempre con una sonrisa
+[01:55.50] Tus complejos inferiores por no decir los colores
+[02:00.50] Y te callas ante la ruina de todos los españoles
+[02:06.50] Ay, si es que no tenéis cojones, ay
+[02:12.00] Y no des lecciones, viejo resentido, tienes tres casas y has vendido una de ellas por tres millones
+[02:21.00] Tonto los cojones, dices que toda su generación tiene Netflix, también el Amazon, venga no te jode
+[02:30.00] Y es que son unos pobres busca-vidas, siempre con una sonrisa
+[02:36.00] Si ellos no pagan impuestos, viejo, te va a dar la risa
+[02:41.00] No les damos soluciones, solo tocáis los cojones
+[02:46.00] Y te callas ante la ruina de todos los españoles
+[02:52.00] Ay, de jóvenes españoles, ay
+[02:57.00] Y es que España ya es de pobres, solo hay cuatro vividores
+[03:02.00] El sistema está montado pa' que no cambie aunque votes
+[03:07.00] Siempre son los españoles aunque el Turia te ahogue
+[03:12.00] No vas a ver ni pasta porque está con los morones
+[03:17.00] Aunque el Turia te ahogue, te jodes, te jodes`
+    },
+    {
+      videoId: 'mmELyTiDEAw',
+      keys: ['empresas', 'empresasmanofirme', 'perreosanxeempresas', 'perreosanxeftdonjoseempresas'],
+      trackName: 'Perreo Sanxe ft. DON JOSÉ - EMPRESAS [MANO FIRME]',
+      artistName: 'Ultimoscruzados',
+      duration: 215,
+      syncedLyrics: `[00:11.00] Sigo buscando y voy con prisa con mi gente a un lugar
+[00:15.50] Una llamada de alguien que me pueda colocar
+[00:20.00] Una aventura como los kayaks de Senegal
+[00:26.50] Cambiar tu no me creo nada por traer mi verdad
+[00:31.00] Si veo disidencia vas directo al gulag
+[00:35.50] Recuerda tú no eres nada tonto y nadie me puede parar
+[00:42.00] Sentirme como una mochila y con los trenes explotar
+[00:46.50] Me cuelgo de tu sueldo como el bigote de Aznar
+[00:51.00] Mira qué bien ponen el culo, es digno de admirar
+[00:55.50] Te doy una paga si lloras
+[00:59.00] Quiero volver a hablar, mis empresas facturan
+[01:04.50] La vida es fenomenal, tengo tres alta gama
+[01:10.50] Y las Charos son mis putas fans
+[01:22.00] Paro y fango, no hay paro, España sigue genial
+[01:26.50] Hago negocios con Petróleos y me apoya Sumar
+[01:31.00] Mira qué musical, soy mejor que Abascal
+[01:37.50] Sigo flipando cómo aguantan y su afán de tragar
+[01:42.00] Últimamente veo mucho mi cara en Telegram
+[01:46.50] A veces pienso que una ardilla anda detrás
+[01:53.00] Ser algún socialista no es que sea un ser social
+[01:57.50] Me siento como Sheldon pero un poco más letal
+[02:02.00] Mira qué culebrón, como cine, me están poniendo mal
+[02:06.50] España ya es Gomorra
+[02:10.00] Quiero volver a hablar, mis empresas facturan
+[02:15.50] La vida es fenomenal, tengo tres alta gama y las Charos
+[02:23.00] Quiero volver a hablar, mis empresas facturan
+[02:28.50] La vida es fenomenal, tengo tres alta gama
+[02:34.50] Y las Charos son mis putas fans
+[02:41.00] Sigo buscando un presidente como el gran Nicolás
+[02:46.00] Donde los sueños de las ratas se hacen realidad
+[02:51.00] Un país rico como este para expoliar
+[02:57.00] Empresas que reventar y vidas que destrozar
+[03:03.50] Tú los ves, nos aclaman, está claro
+[03:10.00] Quiero volver a gastar en empresas que facturan
+[03:16.00] Dales Netflix y un sofá, no saldrán de su casa
+[03:22.50] Está claro que he ganado ya`
+    },
+    {
+      videoId: 'kU-Z94uTPuo',
+      keys: ['porlabocamuereelrey', 'porlabocamuereelreymanofirme', 'perreosanxeporlabocamuereelrey'],
+      trackName: 'Perreo Sanxe - Por la boca muere el rey [MANO FIRME]',
+      artistName: 'Ultimoscruzados',
+      duration: 264,
+      syncedLyrics: `[00:18.00] Llega Air Europa sin vales y todo ya está dentro
+[00:25.00] Y ahora a ver quién los pare, huele mal desde hace tiempo
+[00:32.50] Yo estoy de puta madre, están conmigo
+[00:39.50] Sabes, podrías alegrarte un poquito más por lo que decido
+[00:47.00] Sabes que robaré, está escrito, ese es mi destino
+[00:54.50] Sabes que quiero más, no sé cómo pagar a tantos amigos
+[01:02.00] Y votar hace ya tiempo que perdió el sentido
+[01:17.00] No eres nadie ni el Rey pa' decirme qué es la ley
+[01:24.50] Con mi puta locura llega la censura por todo Internet
+[01:32.00] Alguien dijo en una red que Begoña tiene nuez
+[01:39.50] Y yo lo estoy sufriendo, yo lo estoy sufriendo otra vez
+[02:09.00] Dime por qué preguntas si me sudas los huevos
+[02:16.50] Y en la declaración le añado a la juez: mira qué talento
+[02:24.00] No puedes engañarme, soy el que controla
+[02:31.50] Quiero a negros y rojos y hacer de esto un Ciudad Angola
+[02:39.00] Sabes que robaré, está escrito, ese es mi destino
+[02:46.50] Sabes que quiero más, no sé cómo pagar a tantos amigos
+[02:54.00] Y votar hace ya tiempo que perdió el sentido
+[03:08.00] Y si te digo que esto ha sido Franco, te la he metido hasta el ombligo
+[03:15.50] Porque yo digo qué es fango, porque pago todo lo que digo
+[03:23.00] Me he dado cuenta cada vez que canto, hablo de temas que tengo prohibidos
+[03:30.50] Zapatero es un masón de alto rango que ha conspirado pa' acabar con todo
+[03:38.00] Hay una guerra que empezó hace rato, elige un bando, no seas un tibio
+[03:45.50] Por lo que queda del hombre blanco voy a ofreceros como sacrificio`
+    },
+    {
+      videoId: '8i2peB3MEpA',
+      keys: ['porculpadevo', 'porculpadevox', 'perreosanxeporculpadevox'],
+      trackName: 'Perreo Sanxe - Por culpa de Vox',
+      artistName: 'Ultimoscruzados',
+      duration: 224,
+      syncedLyrics: `[00:13.00] Como Nico y Chávez en Venezuela
+[00:19.00] Veo caer la nieve en la mesa
+[00:25.00] Una nación que llevo a la ruina directa
+[00:36.00] Como Nico y Chávez en Venezuela
+[00:42.00] Soy el infierno hecho carne en la tierra
+[00:48.00] Un Christian Grey sin patria y mi cara por bandera
+[00:59.00] Será Garzón o Marlaska los que tapen toda la inmigración
+[01:10.00] Será el poder de ser quien soy
+[01:15.50] Pero esta mierda es por culpa de Vox
+[01:28.00] Como Nico y Chávez en Venezuela
+[01:34.00] Soy Lamborghini contra tu bicicleta
+[01:40.00] Es un misterio el conservar aún la cabeza
+[01:51.00] Como Nico y Chávez en Venezuela
+[01:57.00] Vamos mi niño a morirnos de ELA
+[02:03.00] Pero lo parte La 1, la nueva revuelta
+[02:14.00] No es Feijóo, yo soy mejor, te subo cinco pavos la pensión
+[02:25.00] Será gracias al Baby Boom
+[02:30.50] Pero esta mierda es por culpa de Vox
+[02:38.00] Soy la verdad, soy el control, yo me río en tu cara desde mi mansión
+[02:49.00] Es noche de cena con el masón
+[02:55.00] Pero esta mierda es por culpa de Vox
+[03:24.00] En mi sillón cuento el millón y tú con frío en la manifestación
+[03:35.00] Será la manipulación, pero esta noche os mataría a tos
+[03:45.00] Y es la verdad, eres español y España trajo el mensaje de Dios
+[03:56.00] Por eso odiamos a esta nación, pero esta mierda es por culpa de Vox`
+    },
+    {
+      videoId: 'YeWmWUjIZKg',
+      keys: ['socialismo', 'socialismomanofirme', 'perreosanxesocialismo'],
+      trackName: 'Perreo Sanxe - SOCIALISMO [MANO FIRME]',
+      artistName: 'Ultimoscruzados',
+      duration: 241,
+      syncedLyrics: `[00:05.00] ¿Hola? ¿Pedro? Hola José, cuéntame, ya sé cómo podemos hacerlo
+[00:12.00] Tengo un plan. Soy todo oídos
+[00:23.00] José me llamó porque había una forma para vaciar todas las arcas españolas
+[00:31.50] Porque él también lo vio de junto al señor Chávez: el dinero se acabó, ahora viviréis del aire
+[00:40.00] Me preguntan que dónde estará, si en Singapur o en Suiza o en las Islas Caimán
+[00:48.50] Begoña Gómez es mi mujer, trabajaba en un burdel, su padre tiene saunas repartidas por el centro
+[00:57.00] A los autónomos y pymes me los pongo a cuatro, una ardilla rebelde que se me ha descontrolado
+[01:05.50] Soy el señor de la corrupción y gracias a tus impuestos tienes educación
+[01:14.00] Oh, es socialismo, cinco cosas que dejamos sin tocar
+[01:22.50] Oh, es socialismo, por encima de todas las cosas
+[01:35.00] Ábalos cayó y yo sigo en el poder, me cargué muchos trabajos y aún me tratan bien
+[01:43.50] No pido ni disculpas por lo que os he inoculado, cuando salgo a la calle soy el sueño de las Charos
+[01:52.00] Le di a un rato un familiar el honor de ver a España sometida al Islam
+[02:00.50] Oh, es socialismo, tus impuestos nos financian la coca
+[02:09.00] Oh, es socialismo, pero mira qué progre Barcelona
+[02:18.00] Es socialismo
+[02:32.00] Triste en Argentina y su historia, y Hugo se sacó toda la polla
+[02:42.00] Felices sus hijos y tras Nico en su país no queda ni el sol
+[02:51.00] Oh, es socialismo, la fiesta me la pagan tus horas
+[02:59.50] Todos somos los mismos, en el curro comemos gambas rojas
+[03:08.00] Oh, es socialismo, el dinero antes que las personas
+[03:16.50] Oh, es socialismo, debes saber si te lloran, es socialismo`
+    },
+    {
+      videoId: '7J0xFQqAMHI',
+      keys: ['estrelladelislam', 'estrelladelislammanofirme', 'perreosanxeestrelladelislam'],
+      trackName: 'Perreo Sanxe - Estrella del Islam [MANO FIRME]',
+      artistName: 'Ultimoscruzados',
+      duration: 148,
+      syncedLyrics: `[00:14.00] He creado un socio marroquí que a veces hace chantaje con lo de mi mujer
+[00:21.00] Está donde la luz que dicen que hay, donde termina el Estrecho y empieza el mar
+[00:28.00] Donde no tienes derechos ni libertad, donde te cortan la mano si robas pan
+[00:35.00] He creado un socio marroquí, yo siempre le hablo bonito por si está escuchando mi iPhone
+[00:42.50] Con el Mossad te lleno todo de menas y vienen más
+[00:47.50] A veces tengo que hacer como que fue un error, a veces tengo que huir porque no puedo más
+[00:53.50] Mi estrella del Islam, mi dulce Mohamed, te entregaría mi vida y mi país
+[01:00.50] Mi estrella del Islam, mi bombón de licor, porque estar lejos me roba el corazón
+[01:07.50] Dime quién vendrá a enseñar el Corán, porque en España ya no quedan hombres
+[01:16.00] No puedo más, no puedo estar así Mohamed, entiéndeme, esta tensión me está matando
+[01:28.00] Donde no tienes derechos ni libertad, donde termina el Estrecho de Gibraltar
+[01:35.00] Mi estrella del Islam, mi estrella del Islam, mi dulce Mohamed, te entregaría mi vida y mi país
+[01:43.50] Mi estrella del Islam, mi bombón de licor, porque estar lejos me roba el corazón
+[01:50.50] Dime quién vendrá a enseñar el Corán, porque en España ya no quedan hombres
+[01:57.50] Y ahora de verdad, ¿cuándo despertaréis? Si temes por tu vida en tu país
+[02:04.50] ¿No ves que nos da igual que eres español? Y si han violado a tu hija la menor
+[02:11.50] Y tú estás en un mejor lugar y tú ahora sientes un dolor sin nombre
+[02:24.00] Quiero irme con él`
+    },
+    {
+      videoId: 'hUxt4QhapJc',
+      keys: ['contigoahorasiquierogobernar', 'lostanpanchos', 'losmorancoscontigoahorasiquierogobernar'],
+      trackName: '"CONTIGO AHORA SÍ QUIERO GOBERNAR" - LOS TAN PANCHOS / Los Morancos (Parodia)',
+      artistName: 'Los Morancos',
+      duration: 158,
+      syncedLyrics: `[00:02.00] Con todos ustedes, Pedro Sánchez y Pablo Iglesias: Los Panchos... perdón, Los Tan Panchos
+[00:10.00] Pedrito y Pablo queremos gobernar, pero parece que no entiende la gente
+[00:15.50] Que nos queramos así de repente y hoy tranquilamente lo vamos a explicar
+[00:21.50] En realidad no nos podemos ni ver y nos odiamos los dos profundamente
+[00:27.00] Pero es que Vox ha subido de repente y forzosamente lo tengo que querer
+[00:33.00] Quiero tres ministerios (Te los doy), la vicepresidencia (Te la doy)
+[00:38.50] Un cuarto en la Moncloa (Te lo doy), dos kilos de langostinos de Sanlúcar
+[00:44.00] Quiero tu avión privado (¿Mi avión privado?) No, no, que no, mi avión privado que no, que ahí vuelo yo
+[00:52.50] ¿Que no? (Que no) Pues entonces me voy con los de Vox (No, no)
+[00:57.50] Me voy con los de Vox (Que no, que no, me voy con los de Vox)
+[01:02.50] Que con Coletas yo no pienso pactar, yo lo que quiero son nuevas elecciones
+[01:08.00] Con cada una gano más sillones, estas peleítas me vienen genial
+[01:14.00] Aunque te dije un día por televisión que si pactábamos no dormiría tranquilo
+[01:19.50] Fue una bromita que hice entre amigos y con Dormidina se me pasó
+[01:25.50] Yo quiero diez ministros (Toma veinte), la vicepresidencia (Más las dietas)
+[01:31.00] Dos cuartos en Moncloa (Y con baño), seis kilos de langostinos (Te los pelo)
+[01:36.50] Quiero tu avión privado (¿Mi avión privado?) No, no, que no, en todo caso en el privado vamos los dos
+[01:44.50] ¡Ay, qué bien! Que los de izquierda nos vamos a entender
+[01:49.50] No, no, el avión pa' los dos, qué ven mis ojos, el avión pa' los dos
+[01:55.00] Mandan los rojos, el avión pa' los dos, ay mi Españita, el avión pa' los dos
+[02:01.00] Pablo, brindemos por nuestro pacto. ¿Y con qué brindamos, Pedro? Pues con Rivera
+[02:13.00] Quiero tres ministerios (Te los doy), la vicepresidencia (Te la doy)
+[02:18.50] Un cuarto en la Moncloa (Te lo doy), dos kilos de langostinos de Sanlúcar`
+    }
+  ];
+
   // =========================================================================
   // 3B. KARAOKE LYRICS SERVICE (SINCRONIZACIÓN EN TIEMPO REAL ESTILO KARAOKE)
   // =========================================================================
@@ -1397,6 +1910,21 @@
       return this.buildFallbackSyncedLines('', targetDurationSec, track);
     }
 
+    _findBuiltInCustomSyncedLyrics(track, trackVid = '') {
+      if (!track && !trackVid) return null;
+      const vid = String(trackVid || '').trim();
+      const rawT = String(track?.title || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+      const rawA = String(track?.artist || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+      const combined = `${rawA}${rawT}`;
+      for (const entry of CLIENT_CUSTOM_SYNCED_LYRICS_DB) {
+        if (vid && entry.videoId === vid) return entry;
+        if (rawT && entry.keys.some(k => rawT === k || combined.includes(k) || (rawT.length >= 7 && (rawT.includes(k) || k.includes(rawT))))) {
+          return entry;
+        }
+      }
+      return null;
+    }
+
     async fetchLyricsForTrack(track, totalDurationSec = 0) {
       if (!track) return [];
       const key = this._makeKey(track);
@@ -1430,6 +1958,17 @@
             if (mThumb && mThumb[1]) trackVid = mThumb[1];
           }
         }
+
+        const builtIn = this._findBuiltInCustomSyncedLyrics(track, trackVid);
+        if (builtIn && builtIn.syncedLyrics) {
+          const parsedBuiltIn = this.parseLrc(builtIn.syncedLyrics);
+          if (parsedBuiltIn.length >= 3) {
+            this.candidatesCache.set(key, [builtIn]);
+            this.cache.set(key, parsedBuiltIn);
+            return parsedBuiltIn.map(l => ({ ...l }));
+          }
+        }
+
         const vidQueryParam = trackVid ? `&videoId=${encodeURIComponent(trackVid)}` : '';
 
         const urlsToTry = [];
@@ -1640,7 +2179,7 @@
       this.fullAudio = new Audio();
       this.fullAudio.preload = 'auto';
 
-      this.activeSourceType = 'none'; // 'preview' | 'full'
+      this.activeSourceType = 'none'; // 'preview' | 'full' | 'yt_bridge'
       this.currentTrack = null;
       this.isPlayingFlag = false;
       this.isLoadingTrack = false;
@@ -1648,6 +2187,11 @@
       this.fullTrackReady = false;
       this.fullTrackBlob = null;
       this.fullTrackObjectUrl = null;
+
+      this._ytBridgeVideoId = '';
+      this._ytBridgeStartWallMs = 0;
+      this._ytBridgeBaseSec = 0;
+      this._ytBridgePaused = true;
 
       this.previewBaseOffsetSec = 0;
       this.pendingUserSeekSec = null;
@@ -1702,12 +2246,81 @@
       return Boolean(
         this.isPlayingFlag &&
         ((this.activeSourceType === 'preview' && !this.previewAudio.paused) ||
-         (this.activeSourceType === 'full' && !this.fullAudio.paused))
+         (this.activeSourceType === 'full' && !this.fullAudio.paused) ||
+         (this.activeSourceType === 'yt_bridge' && !this._ytBridgePaused))
       );
     }
 
     getActiveAudioElement() {
       return this.activeSourceType === 'full' ? this.fullAudio : this.previewAudio;
+    }
+
+    _sendYtBridgeCommand(func, args = []) {
+      try {
+        const ifr = document.getElementById('ytInstantAudioBridgeIframe');
+        if (ifr && ifr.contentWindow) {
+          ifr.contentWindow.postMessage(JSON.stringify({ event: 'command', func, args }), '*');
+        }
+      } catch (_) {}
+    }
+
+    _stopYtAudioBridge() {
+      this._ytBridgePaused = true;
+      this._ytBridgeVideoId = '';
+      try {
+        const ifr = document.getElementById('ytInstantAudioBridgeIframe');
+        if (ifr) {
+          this._sendYtBridgeCommand('pauseVideo', []);
+          ifr.src = 'about:blank';
+        }
+      } catch (_) {}
+    }
+
+    _startYtAudioBridge(videoId, startSec, reqId) {
+      if (!videoId || reqId !== this._playRequestId) return false;
+      try {
+        if (typeof window.pauseMenuAmbientMusic === 'function') {
+          window.pauseMenuAmbientMusic();
+        }
+        let host = document.getElementById('ytInstantAudioBridgeHost');
+        if (!host) {
+          host = document.createElement('div');
+          host.id = 'ytInstantAudioBridgeHost';
+          host.style.cssText = 'position:fixed;width:2px;height:2px;bottom:0;left:0;opacity:0.01;pointer-events:none;z-index:-1;overflow:hidden;';
+          document.body.appendChild(host);
+        }
+        const safeStart = Math.max(0, Math.floor(Number(startSec) || 0));
+        const origin = encodeURIComponent(window.location.origin || 'https://renacer.onrender.com');
+        host.innerHTML = `<iframe id="ytInstantAudioBridgeIframe" width="200" height="112" src="https://www.youtube.com/embed/${encodeURIComponent(videoId)}?autoplay=1&mute=0&controls=0&playsinline=1&enablejsapi=1&start=${safeStart}&origin=${origin}" allow="autoplay; encrypted-media"></iframe>`;
+        this._ytBridgeVideoId = videoId;
+        this._ytBridgeBaseSec = safeStart;
+        this._ytBridgeStartWallMs = performance.now() + 550;
+        this._ytBridgePaused = false;
+        this.activeSourceType = 'yt_bridge';
+        this.isPlayingFlag = true;
+        this.isLoadingTrack = false;
+        this._setLoadingHintVisible(false);
+        this._syncPlayPauseIcons(true);
+        const ifr = document.getElementById('ytInstantAudioBridgeIframe');
+        if (ifr) {
+          ifr.addEventListener('load', () => {
+            if (reqId !== this._playRequestId || this.activeSourceType !== 'yt_bridge') return;
+            this._ytBridgeStartWallMs = performance.now();
+            this._sendYtBridgeCommand('unMute', []);
+            this._sendYtBridgeCommand('setVolume', [95]);
+            this._sendYtBridgeCommand('playVideo', []);
+            setTimeout(() => {
+              if (reqId !== this._playRequestId || this.activeSourceType !== 'yt_bridge') return;
+              this._sendYtBridgeCommand('unMute', []);
+              this._sendYtBridgeCommand('setVolume', [95]);
+              this._sendYtBridgeCommand('playVideo', []);
+            }, 350);
+          }, { once: true });
+        }
+        return true;
+      } catch (_) {
+        return false;
+      }
     }
 
     /**
@@ -1729,6 +2342,13 @@
         return this.fullAudio.duration;
       }
       if (explicitDur > 38) return explicitDur;
+      if (track && this.karaokeService) {
+        const builtIn = this.karaokeService._findBuiltInCustomSyncedLyrics(track, this._extractTrackYoutubeId(track));
+        if (builtIn && builtIn.duration > 40) {
+          track.durationSec = builtIn.duration;
+          return builtIn.duration;
+        }
+      }
       const hash = String(track?.id || track?.title || 'song').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
       return 185 + (hash % 45);
     }
@@ -1744,7 +2364,12 @@
         }
         return d;
       }
-      return explicit > 38 ? explicit : 0;
+      if (explicit > 38) return explicit;
+      if (track && this.karaokeService) {
+        const builtIn = this.karaokeService._findBuiltInCustomSyncedLyrics(track, this._extractTrackYoutubeId(track));
+        if (builtIn && builtIn.duration > 40) return builtIn.duration;
+      }
+      return 0;
     }
 
     /**
@@ -1756,18 +2381,18 @@
       if (!this._warmSent) this._warmSent = new Set();
       if (!this._warmPending) this._warmPending = [];
       for (const tr of tracks) {
-        if (!tr || !tr.title) continue;
+        if (!tr || (!tr.title && !tr.videoId)) continue;
         if (String(tr.id || '').startsWith('comm_')) continue;
         const vid = this._extractTrackYoutubeId(tr);
         const k = String(vid || tr.id || `${tr.title}__${tr.artist}`);
         if (this._warmSent.has(k)) continue;
         this._warmSent.add(k);
-        this._warmPending.push({ title: tr.title, artist: tr.artist || '', videoId: vid || '', durationSec: Number(tr.durationSec) || 0 });
+        this._warmPending.push({ title: tr.title || '', artist: tr.artist || '', videoId: vid || '', durationSec: Number(tr.durationSec) || 0 });
       }
       if (this._warmTimer || this._warmPending.length === 0) return;
       this._warmTimer = setTimeout(() => {
         this._warmTimer = null;
-        const batch = this._warmPending.splice(0, 12);
+        const batch = this._warmPending.splice(0, 20);
         const baseUrl = typeof window.getApiBaseUrl === 'function' ? window.getApiBaseUrl() : '';
         fetch(`${baseUrl}/api/v1/audio/warm`, {
           method: 'POST',
@@ -1775,7 +2400,7 @@
           body: JSON.stringify({ tracks: batch })
         }).catch(() => {});
         if (this._warmPending.length > 0) this.warmTracks([]);
-      }, 250);
+      }, 150);
     }
 
     getChorusOffsetSec(track = this.currentTrack, fullDur = null) {
@@ -1787,11 +2412,17 @@
     }
 
     getCurrentSongTimeSec() {
-      if (this.pendingUserSeekSec !== null && !this.fullTrackReady && this.activeSourceType !== 'full') {
+      if (this.pendingUserSeekSec !== null && !this.fullTrackReady && this.activeSourceType !== 'full' && this.activeSourceType !== 'yt_bridge') {
         return this.pendingUserSeekSec;
       }
       if (this.activeSourceType === 'full') {
         return Number(this.fullAudio.currentTime) || 0;
+      }
+      if (this.activeSourceType === 'yt_bridge') {
+        if (this._ytBridgePaused) return this._ytBridgeBaseSec || 0;
+        const elapsed = Math.max(0, (performance.now() - this._ytBridgeStartWallMs) / 1000);
+        const fullDur = this.getTrackFullDurationSec(this.currentTrack);
+        return Math.min(fullDur, (this._ytBridgeBaseSec || 0) + elapsed);
       }
       if (this.activeSourceType === 'preview') {
         const fullDur = this.getTrackFullDurationSec(this.currentTrack);
@@ -1821,6 +2452,12 @@
         if (this.karaokeService) {
           this.karaokeService.syncTime(curSongSec);
         }
+        if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
+          window.DiscoverHomeApp.syncActiveVideoclipPlayback('tick');
+        }
+        if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp._broadcastLiveConnectSession === 'function') {
+          window.DiscoverHomeApp._broadcastLiveConnectSession(false);
+        }
       };
 
       this.previewAudio.addEventListener('timeupdate', () => {
@@ -1831,7 +2468,6 @@
       });
 
       // En cuanto fullAudio conoce su duración real, recalibrar la letra LRC para que vaya 100% sincronizada
-      // (ignorando falsas duraciones infladas por flujos ADTS AAC sin cabecera)
       let lastRecalDur = 0;
       const isPlausibleAudioDuration = (trackObj, candidateDur) => {
         if (!Number.isFinite(candidateDur) || candidateDur <= 38 || candidateDur > 1200) return false;
@@ -1863,11 +2499,26 @@
         }
       });
 
-      // Ticker de alta precisión (100ms) para que el resaltado de sílabas/líneas de Karaoke no tenga retraso
+      // Ticker de alta precisión (100ms) para que el resaltado de sílabas/líneas de Karaoke y yt_bridge no tengan retraso
       if (this.karaokeSyncInterval) clearInterval(this.karaokeSyncInterval);
+      let ytBridgeTickCounter = 0;
       this.karaokeSyncInterval = setInterval(() => {
-        if (!this.isPlaying() || !this.currentTrack || !this.karaokeService) return;
-        this.karaokeService.syncTime(this.getCurrentSongTimeSec());
+        if (!this.isPlaying() || !this.currentTrack) return;
+        const curSec = this.getCurrentSongTimeSec();
+        if (this.karaokeService) {
+          this.karaokeService.syncTime(curSec);
+        }
+        if (this.activeSourceType === 'yt_bridge') {
+          ytBridgeTickCounter++;
+          const fullDur = this.getTrackFullDurationSec(this.currentTrack);
+          this._updatePlayerProgressUI(curSec, fullDur);
+          if (ytBridgeTickCounter % 5 === 0) {
+            this._updateMediaSessionPosition(curSec, fullDur);
+          }
+          if (curSec >= fullDur - 0.5) {
+            this.nextTrack();
+          }
+        }
       }, 100);
 
       this.previewAudio.addEventListener('ended', () => {
@@ -2123,26 +2774,67 @@
         }
       }
 
-      // 3. Reproducción por streaming progresivo directo sin descargas duplicadas en competencia:
-      // El elemento <audio> conecta directamente al CDN de GitHub o al stream en vivo /api/v1/audio/extract
-      // (que envía los primeros 16 KB en <0.8s sin esperar a que termine el MP3 entero).
+      // 3. Reproducción por streaming progresivo directo + Puente Instantáneo YouTube (<1.0s) si la pista es de YouTube y aún se está extrayendo:
       this._setLoadingHintVisible(true);
 
       const progressiveExtractUrl = this._buildServerExtractStreamUrl(track);
       const directStreamUrl = (!isCommTrack) ? this._getDirectFullStreamUrl(track) : '';
       const streamUrlToPlay = directStreamUrl || progressiveExtractUrl;
+      const ytVid = this._extractTrackYoutubeId(track);
+
+      let bridgeTimer = null;
+      if (ytVid && !directStreamUrl) {
+        // Si en 950ms el servidor aún está convirtiendo un vídeo frío de YouTube, arrancar al instante
+        // el puente de audio YouTube (0 espera a 0 KB/s) y hacer handoff transparente cuando termine el MP3.
+        bridgeTimer = setTimeout(() => {
+          if (reqId !== this._playRequestId || this.activeSourceType === 'full') return;
+          this._startYtAudioBridge(ytVid, desiredStartSec, reqId);
+          this._updatePlayerMetadataUI(track);
+          this._startListenTracker();
+          this.warmTracks(this.queue.slice(this.queueIndex + 1, this.queueIndex + 8));
+        }, 950);
+      }
 
       const startedStream = await this._startChannelWithFadeIn(this.fullAudio, streamUrlToPlay, 'full', reqId, desiredStartSec, 110);
+      if (bridgeTimer) clearTimeout(bridgeTimer);
       if (reqId !== this._playRequestId) return false;
 
       if (startedStream) {
+        if (this._ytBridgeVideoId) {
+          const bridgePos = this.getCurrentSongTimeSec();
+          this._stopYtAudioBridge();
+          if (bridgePos > desiredStartSec + 0.4) {
+            try { this.fullAudio.currentTime = bridgePos; } catch (_) {}
+          }
+        }
         this.fullTrackReady = true;
         this.isLoadingTrack = false;
         this._setLoadingHintVisible(false);
         this._updatePlayerMetadataUI(track);
         this._startListenTracker();
-        // Pre-calentar las siguientes canciones de la cola en segundo plano
-        this.warmTracks(this.queue.slice(this.queueIndex + 1, this.queueIndex + 6));
+        this.warmTracks(this.queue.slice(this.queueIndex + 1, this.queueIndex + 8));
+        if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
+          window.DiscoverHomeApp.syncActiveVideoclipPlayback('play');
+        }
+        if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp._broadcastLiveConnectSession === 'function') {
+          window.DiscoverHomeApp._broadcastLiveConnectSession(true);
+        }
+        return true;
+      }
+
+      // Si el puente instantáneo de YouTube ya está sonando, mantenerlo activo mientras se precarga el Blob en segundo plano
+      if (this.activeSourceType === 'yt_bridge') {
+        this.preloadFullTrackInBackground(track).then(async (blob) => {
+          if (reqId !== this._playRequestId || !blob || blob.size < 80000) return;
+          const curBridgeSec = this.getCurrentSongTimeSec();
+          const wasPlaying = !this._ytBridgePaused;
+          this._stopYtAudioBridge();
+          this.fullTrackBlob = blob;
+          this.fullTrackReady = true;
+          if (wasPlaying) {
+            await this._startChannelWithFadeIn(this.fullAudio, blob, 'full', reqId, curBridgeSec, 140);
+          }
+        }).catch(() => {});
         return true;
       }
 
@@ -2156,9 +2848,17 @@
           this._setLoadingHintVisible(false);
           this._updatePlayerMetadataUI(track);
           this._startListenTracker();
-          this.warmTracks(this.queue.slice(this.queueIndex + 1, this.queueIndex + 6));
+          this.warmTracks(this.queue.slice(this.queueIndex + 1, this.queueIndex + 8));
           return true;
         }
+      }
+
+      // Si hay videoId de YouTube, activar el puente de audio antes de esperar al preload por Blob
+      if (ytVid) {
+        this._startYtAudioBridge(ytVid, desiredStartSec, reqId);
+        this._updatePlayerMetadataUI(track);
+        this._startListenTracker();
+        return true;
       }
 
       // Último recurso: preload por Blob
@@ -2525,6 +3225,31 @@
         }
         return;
       }
+      if (this.activeSourceType === 'yt_bridge') {
+        if (!this._ytBridgePaused) {
+          this._ytBridgePaused = true;
+          this._ytBridgeBaseSec = this.getCurrentSongTimeSec();
+          this._sendYtBridgeCommand('pauseVideo', []);
+          this.isPlayingFlag = false;
+          this._syncPlayPauseIcons(false);
+        } else {
+          if (typeof window.pauseMenuAmbientMusic === 'function') {
+            window.pauseMenuAmbientMusic();
+          }
+          this._ytBridgeStartWallMs = performance.now();
+          this._ytBridgePaused = false;
+          this._sendYtBridgeCommand('playVideo', []);
+          this.isPlayingFlag = true;
+          this._syncPlayPauseIcons(true);
+        }
+        if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
+          window.DiscoverHomeApp.syncActiveVideoclipPlayback(this.isPlayingFlag ? 'play' : 'pause');
+        }
+        if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp._broadcastLiveConnectSession === 'function') {
+          window.DiscoverHomeApp._broadcastLiveConnectSession(true);
+        }
+        return;
+      }
       if (this.activeSourceType === 'none' || (!this.fullAudio.src && !this.previewAudio.src)) {
         this.playTrack(this.currentTrack);
         return;
@@ -2539,6 +3264,12 @@
         activeEl.pause();
         this.isPlayingFlag = false;
         this._syncPlayPauseIcons(false);
+        if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
+          window.DiscoverHomeApp.syncActiveVideoclipPlayback('pause');
+        }
+        if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp._broadcastLiveConnectSession === 'function') {
+          window.DiscoverHomeApp._broadcastLiveConnectSession(true);
+        }
       } else {
         if (typeof window.pauseMenuAmbientMusic === 'function') {
           window.pauseMenuAmbientMusic();
@@ -2547,6 +3278,12 @@
         activeEl.play().then(() => {
           this.isPlayingFlag = true;
           this._syncPlayPauseIcons(true);
+          if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
+            window.DiscoverHomeApp.syncActiveVideoclipPlayback('play');
+          }
+          if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp._broadcastLiveConnectSession === 'function') {
+            window.DiscoverHomeApp._broadcastLiveConnectSession(true);
+          }
         }).catch(() => {});
       }
     }
@@ -2567,10 +3304,29 @@
         this.karaokeService.syncTime(safeTarget);
       }
 
+      if (this.activeSourceType === 'yt_bridge') {
+        this._ytBridgeBaseSec = safeTarget;
+        this._ytBridgeStartWallMs = performance.now();
+        this._sendYtBridgeCommand('seekTo', [Math.floor(safeTarget), true]);
+        if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
+          window.DiscoverHomeApp.syncActiveVideoclipPlayback('seek', safeTarget);
+        }
+        if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp._broadcastLiveConnectSession === 'function') {
+          window.DiscoverHomeApp._broadcastLiveConnectSession(true);
+        }
+        return;
+      }
+
       if (this.activeSourceType === 'full' && this.fullAudio.src) {
         try {
           this.fullAudio.currentTime = safeTarget;
         } catch (_) {}
+        if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
+          window.DiscoverHomeApp.syncActiveVideoclipPlayback('seek', safeTarget);
+        }
+        if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp._broadcastLiveConnectSession === 'function') {
+          window.DiscoverHomeApp._broadcastLiveConnectSession(true);
+        }
         return;
       }
 
@@ -2586,6 +3342,9 @@
       // Si salta fuera del preview, cambiar al stream completo en el segundo elegido
       this._setLoadingHintVisible(true);
       await this._performTransparentHandoffToFullTrack(safeTarget);
+      if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
+        window.DiscoverHomeApp.syncActiveVideoclipPlayback('seek', safeTarget);
+      }
     }
 
     _setLoadingHintVisible(visible) {
@@ -2793,6 +3552,7 @@
     _stopBothChannelsImmediate() {
       try { this.previewAudio.pause(); } catch (_) {}
       try { this.fullAudio.pause(); } catch (_) {}
+      this._stopYtAudioBridge();
       this.isPlayingFlag = false;
       this._syncPlayPauseIcons(false);
     }
@@ -3123,6 +3883,21 @@
       this.isInitialized = true;
       this._syncDialsUI();
       this.rebuildCrateDeck(false);
+      // Pre-calentar todas las canciones de las playlists guardadas del usuario en segundo plano
+      setTimeout(async () => {
+        try {
+          if (typeof window.IndexedDBStorage !== 'undefined' && typeof window.IndexedDBStorage.getAllPlaylists === 'function') {
+            const pls = await window.IndexedDBStorage.getAllPlaylists().catch(() => []) || [];
+            const allPlTracks = [];
+            for (const p of pls) {
+              if (Array.isArray(p?.tracks)) allPlTracks.push(...p.tracks);
+            }
+            if (allPlTracks.length > 0) {
+              dualStreamEngine.warmTracks(allPlTracks.slice(0, 30));
+            }
+          }
+        } catch (_) {}
+      }, 600);
       // Diferir carruseles secundarios un frame para que la entrada a Descubrir sea instantánea
       requestAnimationFrame(() => {
         this.refreshCarousels();
@@ -3510,16 +4285,76 @@
       } catch (_) {}
     },
 
+    _sendVideoclipYtCommand(func, args = []) {
+      try {
+        const ifr = document.getElementById('npActiveYtVideoclipIframe');
+        if (ifr && ifr.contentWindow) {
+          ifr.contentWindow.postMessage(JSON.stringify({ event: 'command', func, args }), '*');
+        }
+      } catch (_) {}
+    },
+
+    syncActiveVideoclipPlayback(eventType = 'tick', explicitSec = null) {
+      try {
+        const cont = document.getElementById('npVideoclipIframeBox');
+        const stage = document.getElementById('npVideoclipStageContainer');
+        if (!cont || !stage || stage.classList.contains('hidden')) return;
+
+        const targetSec = explicitSec !== null
+          ? Number(explicitSec)
+          : (Number(dualStreamEngine.getCurrentSongTimeSec()) || 0);
+        const playing = dualStreamEngine.isPlaying();
+
+        const vidEl = cont.querySelector('#npActiveVideoclipVideoEl');
+        if (vidEl) {
+          if (playing && vidEl.paused) vidEl.play().catch(() => {});
+          if (!playing && !vidEl.paused) vidEl.pause();
+          if (Number.isFinite(vidEl.duration) && vidEl.duration > 45 && Math.abs((vidEl.currentTime || 0) - targetSec) > 1.2) {
+            try { vidEl.currentTime = targetSec; } catch (_) {}
+          }
+          return;
+        }
+
+        const ifr = cont.querySelector('#npActiveYtVideoclipIframe');
+        if (!ifr) return;
+        const now = performance.now();
+        if (eventType === 'seek') {
+          this._lastVideoclipSyncMs = now;
+          this._lastVideoclipSyncedAudioSec = targetSec;
+          this._sendVideoclipYtCommand('seekTo', [Math.max(0, Math.floor(targetSec)), true]);
+          this._sendVideoclipYtCommand(playing ? 'playVideo' : 'pauseVideo', []);
+        } else if (eventType === 'play') {
+          this._lastVideoclipSyncMs = now;
+          this._lastVideoclipSyncedAudioSec = targetSec;
+          this._sendVideoclipYtCommand('seekTo', [Math.max(0, Math.floor(targetSec)), true]);
+          this._sendVideoclipYtCommand('playVideo', []);
+        } else if (eventType === 'pause') {
+          this._sendVideoclipYtCommand('pauseVideo', []);
+        } else if (eventType === 'tick' && playing) {
+          if (!this._lastVideoclipSyncMs) {
+            this._lastVideoclipSyncMs = now;
+            this._lastVideoclipSyncedAudioSec = targetSec;
+          } else {
+            const wallElapsed = (now - this._lastVideoclipSyncMs) / 1000;
+            const expectedVideoSec = (this._lastVideoclipSyncedAudioSec || 0) + wallElapsed;
+            if (Math.abs(targetSec - expectedVideoSec) > 1.8) {
+              this._lastVideoclipSyncMs = now;
+              this._lastVideoclipSyncedAudioSec = targetSec;
+              this._sendVideoclipYtCommand('seekTo', [Math.max(0, Math.floor(targetSec)), true]);
+              this._sendVideoclipYtCommand('playVideo', []);
+            }
+          }
+        }
+      } catch (_) {}
+    },
+
     async _mountNowPlayingVideoclipForTrack(track, forceYoutubeIframe = false) {
       const cont = document.getElementById('npVideoclipIframeBox');
       if (!cont || !track) return;
       const baseKey = this._getVideoclipTrackKey(track);
       const trackKey = `${baseKey}__${forceYoutubeIframe ? 'yt' : 'auto'}`;
       if (cont.getAttribute('data-vid-key') === trackKey && (cont.querySelector('video') || cont.querySelector('iframe'))) {
-        const existingVidEl = cont.querySelector('video');
-        if (existingVidEl && existingVidEl.paused) {
-          existingVidEl.play().catch(() => {});
-        }
+        this.syncActiveVideoclipPlayback('play');
         return;
       }
 
@@ -3530,7 +4365,7 @@
         <div class="relative w-full h-full rounded-2xl overflow-hidden bg-black flex flex-col items-center justify-center">
           <img src="${cover}" onerror="this.onerror=null; this.src='./app_logo.png';" class="w-full h-full object-cover opacity-40 blur-[2px]" alt="">
           <div class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
-            <div class="text-xs font-bold text-amber-200">Cargando videoclip oficial...</div>
+            <div class="text-xs font-bold text-amber-200">Sincronizando videoclip oficial...</div>
           </div>
         </div>
       `;
@@ -3541,7 +4376,43 @@
         return;
       }
 
-      if (clipData.videoStreamUrl && !forceYoutubeIframe) {
+      // Priorizar SIEMPRE el videoclip completo de YouTube (clipData.videoId) para que vaya 100% coordinado
+      // desde 0:00 con la canción entera (los .m4v de iTunes son recortes de 30s de mitad de canción).
+      if (clipData.videoId) {
+        cont.setAttribute('data-vid-key', trackKey);
+        const startSec = Math.max(0, Math.floor(dualStreamEngine.getCurrentSongTimeSec() || 0));
+        const origin = encodeURIComponent(window.location.origin || 'https://renacer.onrender.com');
+        cont.innerHTML = `
+          <iframe
+            id="npActiveYtVideoclipIframe"
+            class="w-full h-full rounded-2xl pointer-events-auto"
+            src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(clipData.videoId)}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&playsinline=1&enablejsapi=1&start=${startSec}&loop=1&playlist=${encodeURIComponent(clipData.videoId)}&origin=${origin}"
+            title="Videoclip Oficial Sincronizado"
+            frameborder="0"
+            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+          ></iframe>
+        `;
+        const ifr = cont.querySelector('#npActiveYtVideoclipIframe');
+        if (ifr) {
+          const resyncAfterLoad = () => {
+            if (mountReqId !== this._videoclipMountReqId) return;
+            const liveSec = Math.max(0, Math.floor(dualStreamEngine.getCurrentSongTimeSec() || 0));
+            this._lastVideoclipSyncMs = performance.now();
+            this._lastVideoclipSyncedAudioSec = liveSec;
+            this._sendVideoclipYtCommand('mute', []);
+            this._sendVideoclipYtCommand('seekTo', [liveSec, true]);
+            this._sendVideoclipYtCommand(dualStreamEngine.isPlaying() ? 'playVideo' : 'pauseVideo', []);
+          };
+          ifr.addEventListener('load', () => {
+            setTimeout(resyncAfterLoad, 350);
+            setTimeout(resyncAfterLoad, 1100);
+            setTimeout(resyncAfterLoad, 2200);
+          }, { once: true });
+        }
+        return;
+      }
+
+      if (clipData.videoStreamUrl) {
         cont.setAttribute('data-vid-key', trackKey);
         cont.innerHTML = `
           <div class="relative w-full h-full rounded-2xl overflow-hidden bg-black">
@@ -3555,37 +4426,12 @@
               loop
               playsinline
             ></video>
-            ${clipData.videoId ? `
-              <button type="button" onclick="window.DiscoverHomeApp._mountNowPlayingVideoclipForTrack(window.dualStreamEngine.currentTrack, true)" class="absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded-full bg-black/75 border border-white/20 text-[10px] font-bold text-white hover:bg-black">
-                Ver en YouTube
-              </button>
-            ` : ''}
           </div>
         `;
         const vidEl = cont.querySelector('#npActiveVideoclipVideoEl');
         if (vidEl) {
-          vidEl.onerror = () => {
-            if (clipData.videoId) {
-              this._mountNowPlayingVideoclipForTrack(track, true);
-            }
-          };
           vidEl.play().catch(() => {});
         }
-        return;
-      }
-
-      if (clipData.videoId) {
-        cont.setAttribute('data-vid-key', trackKey);
-        const startSec = Math.max(0, Math.floor(dualStreamEngine.getCurrentSongTimeSec() || 0));
-        cont.innerHTML = `
-          <iframe
-            class="w-full h-full rounded-2xl pointer-events-auto"
-            src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(clipData.videoId)}?autoplay=1&mute=1&controls=1&modestbranding=1&rel=0&playsinline=1&start=${startSec}&loop=1&playlist=${encodeURIComponent(clipData.videoId)}"
-            title="Videoclip Oficial"
-            frameborder="0"
-            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-          ></iframe>
-        `;
         return;
       }
 
@@ -4289,6 +5135,13 @@
           <span class="sp-opt-label font-extrabold text-[#f3e5ab]">Jugar canción al Piano</span>
         </button>
 
+        <button type="button" class="sp-opt-row" onclick="window.DiscoverHomeApp.handleTrackOptionAction('connect_device')">
+          <span class="sp-opt-icon" style="color:#1db954;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="16" height="11" rx="2"/><line x1="6" y1="19" x2="14" y2="19"/><rect x="16" y="10" width="6" height="10" rx="1.5"/><circle cx="19" cy="17" r="1"/></svg>
+          </span>
+          <span class="sp-opt-label font-bold text-[#1db954]">Conectar a un dispositivo (Altavoz, Smart TV, Xbox)</span>
+        </button>
+
         <button type="button" class="sp-opt-row" onclick="window.DiscoverHomeApp.handleTrackOptionAction('share')">
           <span class="sp-opt-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
@@ -4395,6 +5248,11 @@
       if (action === 'play_piano') {
         this.closePlaylistTracksModal();
         this.launchPianoGameForTrack(tr);
+      } else if (action === 'connect_device') {
+        if (!dualStreamEngine.currentTrack || dualStreamEngine.currentTrack.id !== tr.id) {
+          dualStreamEngine.playTrack(tr);
+        }
+        this.openConnectDeviceModal();
       } else if (action === 'share') {
         const shareText = `${tr.title} - ${tr.artist}`;
         if (navigator.share) {
@@ -5148,7 +6006,7 @@
 
       const displayed = this.getFilteredAndSortedSheetTracks();
       this._displayedSheetTracks = displayed;
-      dualStreamEngine.warmTracks(displayed.slice(0, 8));
+      dualStreamEngine.warmTracks(displayed.slice(0, 32));
 
       if (displayed.length === 0) {
         listCont.innerHTML = `<div class="p-6 text-center text-xs text-gray-400">Ninguna canción coincide con tu búsqueda.</div>`;
@@ -5787,6 +6645,245 @@
 
     onTurntablePlatterScratch(e) {
       this.togglePlayPauseMini(e);
+    },
+
+    // =========================================================================
+    // SPOTIFY CONNECT / CAST A ALTAVOCES, SMART TV, CHROMECAST, AIRPLAY Y XBOX
+    // =========================================================================
+    _connectSessionCode: '',
+    _lastConnectBroadcastMs: 0,
+    _selectedSinkId: 'default',
+
+    _ensureConnectSessionCode() {
+      if (!this._connectSessionCode) {
+        try {
+          const saved = localStorage.getItem('renacer_connect_code');
+          if (saved && /^\d{4}$/.test(saved)) {
+            this._connectSessionCode = saved;
+          } else {
+            this._connectSessionCode = String(Math.floor(1000 + Math.random() * 9000));
+            localStorage.setItem('renacer_connect_code', this._connectSessionCode);
+          }
+        } catch (_) {
+          this._connectSessionCode = String(Math.floor(1000 + Math.random() * 9000));
+        }
+      }
+      return this._connectSessionCode;
+    },
+
+    async _broadcastLiveConnectSession(force = false) {
+      const now = performance.now();
+      if (!force && (now - this._lastConnectBroadcastMs) < 3500) return;
+      const tr = dualStreamEngine.currentTrack || this.getActiveCrateTrack();
+      if (!tr) return;
+      this._lastConnectBroadcastMs = now;
+      const code = this._ensureConnectSessionCode();
+      const baseUrl = typeof window.getApiBaseUrl === 'function' ? window.getApiBaseUrl() : '';
+      const vid = dualStreamEngine._extractTrackYoutubeId(tr);
+      const directUrl = dualStreamEngine._getDirectFullStreamUrl(tr);
+      const extractUrl = dualStreamEngine._buildServerExtractStreamUrl(tr);
+      const fullAudioUrl = directUrl || extractUrl;
+      try {
+        await fetch(`${baseUrl}/api/v1/connect/session`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code,
+            title: tr.title || '',
+            artist: tr.artist || '',
+            cover: getBestTrackCover(tr),
+            videoId: vid || '',
+            audioUrl: fullAudioUrl,
+            currentTime: dualStreamEngine.getCurrentSongTimeSec(),
+            duration: dualStreamEngine.getTrackFullDurationSec(tr),
+            playing: dualStreamEngine.isPlaying()
+          })
+        });
+      } catch (_) {}
+    },
+
+    openConnectDeviceModal(e) {
+      if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+      const modal = document.getElementById('spotifyConnectModal');
+      if (!modal) return;
+      const code = this._ensureConnectSessionCode();
+      const codeEl = document.getElementById('spConnectLiveCodeText');
+      if (codeEl) codeEl.textContent = code;
+      const baseUrl = (typeof window.getApiBaseUrl === 'function' && window.getApiBaseUrl())
+        ? window.getApiBaseUrl()
+        : (window.location.origin && /^https?:/i.test(window.location.origin) ? window.location.origin : 'https://renacer.onrender.com');
+      const connectUrl = `${baseUrl.replace(/\/$/, '')}/connect?code=${encodeURIComponent(code)}`;
+      const urlEl = document.getElementById('spConnectLiveUrlText');
+      if (urlEl) urlEl.textContent = connectUrl;
+
+      this._broadcastLiveConnectSession(true);
+      this._refreshAudioOutputDevicesList();
+
+      modal.classList.remove('hidden');
+      modal.classList.add('open');
+      modal.style.display = 'flex';
+    },
+
+    closeConnectDeviceModal() {
+      const modal = document.getElementById('spotifyConnectModal');
+      if (modal) {
+        modal.classList.remove('open');
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+      }
+    },
+
+    async _refreshAudioOutputDevicesList() {
+      const cont = document.getElementById('spConnectAudioSinksList');
+      if (!cont) return;
+      const sinks = [
+        { deviceId: 'default', label: 'Este dispositivo (Altavoz / Bluetooth activo)' }
+      ];
+      try {
+        if (navigator.mediaDevices && typeof navigator.mediaDevices.enumerateDevices === 'function') {
+          const all = await navigator.mediaDevices.enumerateDevices();
+          for (const d of all) {
+            if (d && d.kind === 'audiooutput' && d.deviceId && d.deviceId !== 'default') {
+              sinks.push({
+                deviceId: d.deviceId,
+                label: d.label || `Salida de audio externa (${d.deviceId.slice(0, 6)})`
+              });
+            }
+          }
+        }
+      } catch (_) {}
+
+      cont.innerHTML = sinks.map((s) => {
+        const isCurrent = (this._selectedSinkId || 'default') === s.deviceId;
+        const safeId = String(s.deviceId).replace(/'/g, "\\'");
+        return `
+          <button type="button" onclick="window.DiscoverHomeApp.selectAudioSinkDevice('${safeId}')" class="w-full flex items-center justify-between gap-3 p-3 rounded-xl border ${isCurrent ? 'bg-[#1db954]/15 border-[#1db954]/60 text-white' : 'bg-white/5 border-white/10 text-gray-200 hover:bg-white/10'} cursor-pointer transition text-left">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-9 h-9 rounded-full ${isCurrent ? 'bg-[#1db954] text-black' : 'bg-white/10 text-gray-300'} flex items-center justify-center flex-shrink-0">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="2" width="16" height="20" rx="2"/><circle cx="12" cy="14" r="4"/><line x1="12" y1="6" x2="12.01" y2="6"/></svg>
+              </div>
+              <div class="min-w-0">
+                <div class="text-xs font-extrabold truncate">${escapeHtmlSafe(s.label)}</div>
+                <div class="text-[10px] ${isCurrent ? 'text-[#1db954] font-bold' : 'text-gray-400'}">${isCurrent ? 'Sonando ahora mismo' : 'Pulsa para transferir el audio'}</div>
+              </div>
+            </div>
+            ${isCurrent ? `<span class="px-2 py-0.5 rounded-full bg-[#1db954]/20 text-[#1db954] text-[10px] font-black">ACTIVO</span>` : ''}
+          </button>
+        `;
+      }).join('');
+    },
+
+    async selectAudioSinkDevice(deviceId) {
+      this._selectedSinkId = deviceId || 'default';
+      try {
+        for (const el of [dualStreamEngine.fullAudio, dualStreamEngine.previewAudio]) {
+          if (el && typeof el.setSinkId === 'function') {
+            await el.setSinkId(this._selectedSinkId);
+          }
+        }
+        if (typeof window.showSuccessToast === 'function') {
+          window.showSuccessToast('Salida de audio cambiada correctamente');
+        }
+      } catch (_) {}
+      this._refreshAudioOutputDevicesList();
+    },
+
+    async promptSystemAudioOutputPicker() {
+      try {
+        if (navigator.mediaDevices && typeof navigator.mediaDevices.selectAudioOutput === 'function') {
+          const device = await navigator.mediaDevices.selectAudioOutput();
+          if (device && device.deviceId) {
+            await this.selectAudioSinkDevice(device.deviceId);
+            return;
+          }
+        }
+      } catch (_) {}
+      await this.triggerNativeRemoteCast('speaker');
+    },
+
+    async triggerNativeRemoteCast(targetType = 'tv') {
+      const tr = dualStreamEngine.currentTrack || this.getActiveCrateTrack();
+      this._broadcastLiveConnectSession(true);
+      const activeAudio = dualStreamEngine.getActiveAudioElement() || dualStreamEngine.fullAudio;
+
+      // 1. Estándar W3C RemotePlayback API (Chromecast, Android Cast, AirPlay en Smart TVs y altavoces Wi-Fi)
+      if (activeAudio && activeAudio.remote && typeof activeAudio.remote.prompt === 'function') {
+        try {
+          await activeAudio.remote.prompt();
+          if (typeof window.showSuccessToast === 'function') {
+            window.showSuccessToast('Conectado al dispositivo externo');
+          }
+          return;
+        } catch (_) {}
+      }
+
+      // 2. Safari / iOS AirPlay picker nativo
+      if (activeAudio && typeof activeAudio.webkitShowPlaybackTargetPicker === 'function') {
+        try {
+          activeAudio.webkitShowPlaybackTargetPicker();
+          return;
+        } catch (_) {}
+      }
+
+      // 3. Estándar W3C Presentation API para abrir el receptor en Smart TVs / Pantallas inalámbricas
+      const code = this._ensureConnectSessionCode();
+      const baseUrl = (typeof window.getApiBaseUrl === 'function' && window.getApiBaseUrl())
+        ? window.getApiBaseUrl()
+        : (window.location.origin && /^https?:/i.test(window.location.origin) ? window.location.origin : 'https://renacer.onrender.com');
+      const connectUrl = `${baseUrl.replace(/\/$/, '')}/connect?code=${encodeURIComponent(code)}`;
+
+      if (typeof window.PresentationRequest === 'function') {
+        try {
+          const presReq = new window.PresentationRequest([connectUrl]);
+          await presReq.start();
+          if (typeof window.showSuccessToast === 'function') {
+            window.showSuccessToast('Transmitiendo a pantalla / Smart TV');
+          }
+          return;
+        } catch (_) {}
+      }
+
+      // 4. Si estamos en Xbox / Smart TV o el usuario quiere abrir el enlace de transmisión
+      if (targetType === 'xbox' || targetType === 'tv') {
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+          navigator.clipboard.writeText(connectUrl).catch(() => {});
+        }
+        if (typeof window.showSuccessToast === 'function') {
+          window.showSuccessToast(`Código ${code} activo. Enlace copiado para abrir en tu Smart TV / Xbox`);
+        }
+      } else if (typeof window.showSuccessToast === 'function') {
+        window.showSuccessToast(`Vincula tu altavoz por Bluetooth o usa el código ${code}`);
+      }
+    },
+
+    copyConnectSessionLink() {
+      const code = this._ensureConnectSessionCode();
+      const baseUrl = (typeof window.getApiBaseUrl === 'function' && window.getApiBaseUrl())
+        ? window.getApiBaseUrl()
+        : (window.location.origin && /^https?:/i.test(window.location.origin) ? window.location.origin : 'https://renacer.onrender.com');
+      const connectUrl = `${baseUrl.replace(/\/$/, '')}/connect?code=${encodeURIComponent(code)}`;
+      this._broadcastLiveConnectSession(true);
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        navigator.clipboard.writeText(connectUrl).catch(() => {});
+      }
+      if (typeof window.showSuccessToast === 'function') {
+        window.showSuccessToast(`Enlace copiado (Código ${code})`);
+      }
+    },
+
+    openReceiverModeOnThisDevice() {
+      const inp = document.getElementById('spConnectRemoteTargetCodeInput');
+      const remoteCode = String(inp?.value || '').trim().toUpperCase();
+      if (!remoteCode) {
+        if (typeof window.showErrorToast === 'function') {
+          window.showErrorToast('Introduce el código de 4 dígitos del otro dispositivo');
+        }
+        return;
+      }
+      const baseUrl = (typeof window.getApiBaseUrl === 'function' && window.getApiBaseUrl())
+        ? window.getApiBaseUrl()
+        : (window.location.origin && /^https?:/i.test(window.location.origin) ? window.location.origin : 'https://renacer.onrender.com');
+      window.open(`${baseUrl.replace(/\/$/, '')}/connect?code=${encodeURIComponent(remoteCode)}`, '_blank');
     }
   };
 

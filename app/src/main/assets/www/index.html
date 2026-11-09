@@ -4930,6 +4930,11 @@
           </div>
         </div>
         <div class="mini-player-actions" onclick="event.stopPropagation();">
+          <button id="miniPlayerConnectBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openConnectDeviceModal(event)" class="mini-player-svg-btn" title="Conectar a un dispositivo (Altavoz, Smart TV, Xbox)" style="color:#1db954;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="4" width="16" height="11" rx="2"/><line x1="6" y1="19" x2="14" y2="19"/><rect x="16" y="10" width="6" height="10" rx="1.5"/><circle cx="19" cy="17" r="1"/>
+            </svg>
+          </button>
           <button id="miniPlayerLyricsBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openKaraokeFromMiniPlayer(event)" class="mini-player-svg-btn" title="Ver letra en modo Karaoke">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
@@ -5076,15 +5081,19 @@
           </button>
         </div>
 
-        <!-- Acciones Extra: Guardar en Playlist / Opciones -->
-        <div class="crate-secondary-actions w-full max-w-[340px]">
-          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openAddToPlaylistFromNowPlaying()" class="crate-sec-btn">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            <span>Añadir a Playlist</span>
+        <!-- Acciones Extra: Guardar en Playlist / Dispositivos / Opciones -->
+        <div class="crate-secondary-actions w-full max-w-[340px]" style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px;">
+          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openAddToPlaylistFromNowPlaying()" class="crate-sec-btn" style="padding:0 8px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span class="truncate">Playlist</span>
           </button>
-          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openTrackOptionsSheetForPlayer()" class="crate-sec-btn">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
-            <span>Opciones / Descargar</span>
+          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openConnectDeviceModal(event)" class="crate-sec-btn" style="padding:0 8px; border-color:rgba(29,185,84,0.45); color:#1db954;" title="Enviar canción a Altavoz, Smart TV o Xbox">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="16" height="11" rx="2"/><line x1="6" y1="19" x2="14" y2="19"/><rect x="16" y="10" width="6" height="10" rx="1.5"/><circle cx="19" cy="17" r="1"/></svg>
+            <span class="truncate">Dispositivos</span>
+          </button>
+          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openTrackOptionsSheetForPlayer()" class="crate-sec-btn" style="padding:0 8px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+            <span class="truncate">Opciones</span>
           </button>
         </div>
 
@@ -5208,16 +5217,93 @@
       </div>
     </div>
 
+    <!-- MODAL DE CONEXIÓN A DISPOSITIVOS ESTILO SPOTIFY CONNECT (ALTAVOCES, SMART TV, CHROMECAST, AIRPLAY, XBOX / PLAYSTATION) -->
+    <div id="spotifyConnectModal" class="sp-options-sheet-overlay hidden" style="display:none;" onclick="if(event.target===this){window.DiscoverHomeApp && window.DiscoverHomeApp.closeConnectDeviceModal();}">
+      <div class="sp-options-sheet-card" onclick="event.stopPropagation();" style="max-height:86vh; overflow-y:auto;">
+        <div class="sp-options-sheet-handle"></div>
+        <div class="flex items-center justify-between px-4 pb-3 border-b border-white/10">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-full bg-[#1db954]/20 border border-[#1db954]/50 text-[#1db954] flex items-center justify-center flex-shrink-0">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="16" height="11" rx="2"/><line x1="6" y1="19" x2="14" y2="19"/><rect x="16" y="10" width="6" height="10" rx="1.5"/><circle cx="19" cy="17" r="1"/></svg>
+            </div>
+            <div>
+              <h4 class="text-sm font-black text-white leading-tight">Conectar a un dispositivo</h4>
+              <p class="text-[11px] text-gray-400">Envía la canción en vivo a un altavoz, Smart TV o consola</p>
+            </div>
+          </div>
+          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.closeConnectDeviceModal()" class="tube-amp-close-btn" title="Cerrar">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <div class="p-4 space-y-4">
+          <!-- 1. Salidas de Audio / Altavoces Bluetooth / HDMI -->
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[10px] font-extrabold uppercase tracking-wider text-[#1db954]">Salidas de Audio y Altavoces Bluetooth</span>
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.promptSystemAudioOutputPicker()" class="text-[10px] font-bold text-amber-300 underline cursor-pointer">Buscar altavoz</button>
+            </div>
+            <div id="spConnectAudioSinksList" class="space-y-2"></div>
+          </div>
+
+          <!-- 2. Transmisión Directa a Smart TV / Chromecast / AirPlay / Xbox -->
+          <div>
+            <span class="block text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">Transmitir a Pantalla o Consola</span>
+            <div class="grid grid-cols-2 gap-2.5">
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.triggerNativeRemoteCast('tv')" class="flex items-center gap-2.5 p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-left cursor-pointer transition">
+                <div class="w-8 h-8 rounded-lg bg-amber-400/15 text-amber-300 flex items-center justify-center flex-shrink-0">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                </div>
+                <div class="min-w-0">
+                  <div class="text-xs font-extrabold text-white truncate">Smart TV / Cast</div>
+                  <div class="text-[10px] text-gray-400 truncate">Chromecast / AirPlay</div>
+                </div>
+              </button>
+
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.triggerNativeRemoteCast('xbox')" class="flex items-center gap-2.5 p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-left cursor-pointer transition">
+                <div class="w-8 h-8 rounded-lg bg-[#1db954]/15 text-[#1db954] flex items-center justify-center flex-shrink-0">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="6"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15" cy="11" r="1"/><circle cx="17" cy="13" r="1"/></svg>
+                </div>
+                <div class="min-w-0">
+                  <div class="text-xs font-extrabold text-white truncate">Xbox / PlayStation</div>
+                  <div class="text-[10px] text-gray-400 truncate">Receptor en consola</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- 3. Código en Vivo para Smart TV / Xbox / PC (Renacer Connect) -->
+          <div class="p-3.5 rounded-2xl bg-black/50 border border-[#d4af37]/35 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="text-xs font-extrabold text-white">Código en Vivo para Smart TV / Xbox / PC</div>
+                <div class="text-[10px] text-gray-400">Abre el enlace en el navegador de tu TV o Xbox e introduce este código:</div>
+              </div>
+              <span id="spConnectLiveCodeText" class="px-3 py-1 rounded-xl bg-[#1db954]/20 border border-[#1db954]/50 text-[#1db954] text-base font-black tracking-widest">----</span>
+            </div>
+            <div class="flex items-center justify-between gap-2 p-2 rounded-xl bg-white/5 border border-white/10">
+              <span id="spConnectLiveUrlText" class="text-[11px] font-mono text-amber-200 truncate">https://renacer.onrender.com/connect</span>
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.copyConnectSessionLink()" class="px-2.5 py-1 rounded-lg bg-[#d4af37] text-black text-[10px] font-extrabold flex-shrink-0 cursor-pointer">Copiar enlace</button>
+            </div>
+            <div class="pt-1 border-t border-white/10 flex items-center gap-2">
+              <input id="spConnectRemoteTargetCodeInput" type="text" maxlength="8" placeholder="Código de otro móvil (ej. 4829)" class="flex-1 h-8 px-2.5 rounded-lg bg-white/5 border border-white/15 text-xs text-white outline-none">
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openReceiverModeOnThisDevice()" class="h-8 px-3 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[10px] font-extrabold cursor-pointer">Recibir aquí</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div> <!-- End of game-viewport -->
 
-  <script src="./parsers.js?v=66.0"></script>
-  <script src="./game.js?v=66.0"></script>
-  <script defer src="./slot_machine.js?v=66.0"></script>
-  <script defer src="./gachapon_3d.js?v=66.0"></script>
+  <script src="./parsers.js?v=67.0"></script>
+  <script src="./game.js?v=67.0"></script>
+  <script defer src="./slot_machine.js?v=67.0"></script>
+  <script defer src="./gachapon_3d.js?v=67.0"></script>
   <script defer src="./songs/comm_camilo_sesto/chart.js"></script>
   <script defer src="./songs/renacer/chart.js"></script>
-  <script src="./songs/catalog_top.js?v=66.0"></script>
-  <script src="./discover_home.js?v=66.0"></script>
+  <script src="./songs/catalog_top.js?v=67.0"></script>
+  <script src="./discover_home.js?v=67.0"></script>
   <script>
     let engine = null;
     let currentActiveBeatmap = null;
