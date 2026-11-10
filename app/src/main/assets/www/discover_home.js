@@ -1382,135 +1382,135 @@
       keys: ['empresas', 'empresasmanofirme', 'perreosanxeempresas', 'perreosanxeftdonjoseempresas'],
       trackName: 'Perreo Sanxe ft. DON JOSÉ - EMPRESAS [MANO FIRME]',
       artistName: 'Ultimoscruzados',
-      duration: 215,
-      syncedLyrics: `[00:11.00] Sigo buscando y voy con prisa con mi gente a un lugar
-[00:15.50] Una llamada de alguien que me pueda colocar
-[00:20.00] Una aventura como los kayaks de Senegal
-[00:26.50] Cambiar tu no me creo nada por traer mi verdad
-[00:31.00] Si veo disidencia vas directo al gulag
-[00:35.50] Recuerda tú no eres nada tonto y nadie me puede parar
-[00:42.00] Sentirme como una mochila y con los trenes explotar
-[00:46.50] Me cuelgo de tu sueldo como el bigote de Aznar
-[00:51.00] Mira qué bien ponen el culo, es digno de admirar
-[00:55.50] Te doy una paga si lloras
-[00:59.00] Quiero volver a hablar, mis empresas facturan
-[01:04.50] La vida es fenomenal, tengo tres alta gama
-[01:10.50] Y las Charos son mis putas fans
-[01:22.00] Paro y fango, no hay paro, España sigue genial
-[01:26.50] Hago negocios con Petróleos y me apoya Sumar
-[01:31.00] Mira qué musical, soy mejor que Abascal
-[01:37.50] Sigo flipando cómo aguantan y su afán de tragar
-[01:42.00] Últimamente veo mucho mi cara en Telegram
-[01:46.50] A veces pienso que una ardilla anda detrás
-[01:53.00] Ser algún socialista no es que sea un ser social
-[01:57.50] Me siento como Sheldon pero un poco más letal
-[02:02.00] Mira qué culebrón, como cine, me están poniendo mal
-[02:06.50] España ya es Gomorra
-[02:10.00] Quiero volver a hablar, mis empresas facturan
-[02:15.50] La vida es fenomenal, tengo tres alta gama y las Charos
-[02:23.00] Quiero volver a hablar, mis empresas facturan
-[02:28.50] La vida es fenomenal, tengo tres alta gama
-[02:34.50] Y las Charos son mis putas fans
-[02:41.00] Sigo buscando un presidente como el gran Nicolás
-[02:46.00] Donde los sueños de las ratas se hacen realidad
-[02:51.00] Un país rico como este para expoliar
-[02:57.00] Empresas que reventar y vidas que destrozar
-[03:03.50] Tú los ves, nos aclaman, está claro
-[03:10.00] Quiero volver a gastar en empresas que facturan
-[03:16.00] Dales Netflix y un sofá, no saldrán de su casa
-[03:22.50] Está claro que he ganado ya`
+      duration: 215.5,
+      syncedLyrics: `[00:10.87] Sigo buscando y voy con prisa con mi gente a un lugar
+[00:14.42] Una llamada de alguien que me pueda colocar
+[00:18.13] Una aventura como los kayaks de Senegal
+[00:25.24] Cambiar tu no me creo nada por traer mi verdad
+[00:29.14] Si veo disidencia vas directo al gulag
+[00:32.51] Recuerda tú no eres nada tonto y nadie me puede parar
+[00:39.96] Sentirme como una mochila y con los trenes explotar
+[00:43.98] Me cuelgo de tu sueldo como el bigote de Aznar
+[00:47.14] Mira qué bien ponen el culo, es digno de admirar
+[00:50.86] Te doy una paga si lloras
+[00:53.55] Quiero volver a hablar, mis empresas facturan
+[00:59.73] La vida es fenomenal, tengo tres alta gama
+[01:07.08] Y las Charos son mis putas fans
+[01:18.16] Paro y fango, no hay paro, España sigue genial
+[01:21.77] Hago negocios con Petróleos y me apoya Sumar
+[01:25.50] Mira qué musical, soy mejor que Abascal
+[01:32.77] Sigo flipando cómo aguantan y su afán de tragar
+[01:36.34] Últimamente veo mucho mi cara en Telegram
+[01:40.11] A veces pienso que una ardilla anda detrás
+[01:47.17] Ser algún socialista no es que sea un ser social
+[01:51.25] Me siento como Sheldon pero un poco más letal
+[01:54.52] Mira qué culebrón, como cine, me están poniendo mal
+[01:58.21] España ya es Gomorra
+[02:00.86] Quiero volver a hablar, mis empresas facturan
+[02:06.98] La vida es fenomenal, tengo tres alta gama y las Charos
+[02:17.29] Quiero volver a hablar, mis empresas facturan
+[02:23.28] La vida es fenomenal, tengo tres alta gama
+[02:30.83] Y las Charos son mis putas fans
+[02:38.11] Sigo buscando un presidente como el gran Nicolás
+[02:41.82] Donde los sueños de las ratas se hacen realidad
+[02:45.58] Un país rico como este para expoliar
+[02:50.61] Empresas que reventar y vidas que destrozar
+[02:57.95] Tú los ves, nos aclaman, está claro
+[03:04.65] Quiero volver a gastar en empresas que facturan
+[03:10.63] Dales Netflix y un sofá, no saldrán de su casa
+[03:18.04] Está claro que he ganado ya`
     },
     {
       videoId: 'kU-Z94uTPuo',
       keys: ['porlabocamuereelrey', 'porlabocamuereelreymanofirme', 'perreosanxeporlabocamuereelrey'],
       trackName: 'Perreo Sanxe - Por la boca muere el rey [MANO FIRME]',
       artistName: 'Ultimoscruzados',
-      duration: 264,
-      syncedLyrics: `[00:18.00] Llega Air Europa sin vales y todo ya está dentro
-[00:25.00] Y ahora a ver quién los pare, huele mal desde hace tiempo
-[00:32.50] Yo estoy de puta madre, están conmigo
-[00:39.50] Sabes, podrías alegrarte un poquito más por lo que decido
-[00:47.00] Sabes que robaré, está escrito, ese es mi destino
-[00:54.50] Sabes que quiero más, no sé cómo pagar a tantos amigos
-[01:02.00] Y votar hace ya tiempo que perdió el sentido
-[01:17.00] No eres nadie ni el Rey pa' decirme qué es la ley
-[01:24.50] Con mi puta locura llega la censura por todo Internet
-[01:32.00] Alguien dijo en una red que Begoña tiene nuez
-[01:39.50] Y yo lo estoy sufriendo, yo lo estoy sufriendo otra vez
-[02:09.00] Dime por qué preguntas si me sudas los huevos
-[02:16.50] Y en la declaración le añado a la juez: mira qué talento
-[02:24.00] No puedes engañarme, soy el que controla
-[02:31.50] Quiero a negros y rojos y hacer de esto un Ciudad Angola
-[02:39.00] Sabes que robaré, está escrito, ese es mi destino
-[02:46.50] Sabes que quiero más, no sé cómo pagar a tantos amigos
-[02:54.00] Y votar hace ya tiempo que perdió el sentido
-[03:08.00] Y si te digo que esto ha sido Franco, te la he metido hasta el ombligo
-[03:15.50] Porque yo digo qué es fango, porque pago todo lo que digo
-[03:23.00] Me he dado cuenta cada vez que canto, hablo de temas que tengo prohibidos
-[03:30.50] Zapatero es un masón de alto rango que ha conspirado pa' acabar con todo
-[03:38.00] Hay una guerra que empezó hace rato, elige un bando, no seas un tibio
-[03:45.50] Por lo que queda del hombre blanco voy a ofreceros como sacrificio`
+      duration: 264.4,
+      syncedLyrics: `[00:12.80] Llega Air Europa sin vales y todo ya está dentro
+[00:19.70] Y ahora a ver quién los pare, huele mal desde hace tiempo
+[00:25.80] Yo estoy de puta madre, están conmigo
+[00:31.80] Sabes, podrías alegrarte un poquito más por lo que decido
+[00:38.80] Sabes que robaré, está escrito, ese es mi destino
+[00:44.80] Sabes que quiero más, no sé cómo pagar a tantos amigos
+[00:51.80] Y votar hace ya tiempo que perdió el sentido
+[01:04.70] No eres nadie ni el Rey pa' decirme qué es la ley
+[01:10.80] Con mi puta locura llega la censura por todo Internet
+[01:16.80] Alguien dijo en una red que Begoña tiene nuez
+[01:23.70] Y yo lo estoy sufriendo, yo lo estoy sufriendo otra vez
+[01:43.70] Dime por qué preguntas si me sudas los huevos
+[01:49.80] Y en la declaración le añado a la juez: mira qué talento
+[01:56.20] No puedes engañarme, soy el que controla
+[02:02.90] Quiero a negros y rojos y hacer de esto un Ciudad Angola
+[02:08.90] Sabes que robaré, está escrito, ese es mi destino
+[02:15.20] Sabes que quiero más, no sé cómo pagar a tantos amigos
+[02:22.50] Y votar hace ya tiempo que perdió el sentido
+[02:35.10] Y si te digo que esto ha sido Franco, te la he metido hasta el ombligo
+[02:41.50] Porque yo digo qué es fango, porque pago todo lo que digo
+[02:47.80] Me he dado cuenta cada vez que canto, hablo de temas que tengo prohibidos
+[02:54.00] Zapatero es un masón de alto rango que ha conspirado pa' acabar con todo
+[03:00.80] Hay una guerra que empezó hace rato, elige un bando, no seas un tibio
+[03:06.80] Por lo que queda del hombre blanco voy a ofreceros como sacrificio`
     },
     {
       videoId: '8i2peB3MEpA',
       keys: ['porculpadevo', 'porculpadevox', 'perreosanxeporculpadevox'],
       trackName: 'Perreo Sanxe - Por culpa de Vox',
       artistName: 'Ultimoscruzados',
-      duration: 224,
-      syncedLyrics: `[00:13.00] Como Nico y Chávez en Venezuela
-[00:19.00] Veo caer la nieve en la mesa
-[00:25.00] Una nación que llevo a la ruina directa
-[00:36.00] Como Nico y Chávez en Venezuela
-[00:42.00] Soy el infierno hecho carne en la tierra
-[00:48.00] Un Christian Grey sin patria y mi cara por bandera
-[00:59.00] Será Garzón o Marlaska los que tapen toda la inmigración
-[01:10.00] Será el poder de ser quien soy
-[01:15.50] Pero esta mierda es por culpa de Vox
-[01:28.00] Como Nico y Chávez en Venezuela
-[01:34.00] Soy Lamborghini contra tu bicicleta
-[01:40.00] Es un misterio el conservar aún la cabeza
-[01:51.00] Como Nico y Chávez en Venezuela
-[01:57.00] Vamos mi niño a morirnos de ELA
-[02:03.00] Pero lo parte La 1, la nueva revuelta
-[02:14.00] No es Feijóo, yo soy mejor, te subo cinco pavos la pensión
-[02:25.00] Será gracias al Baby Boom
-[02:30.50] Pero esta mierda es por culpa de Vox
-[02:38.00] Soy la verdad, soy el control, yo me río en tu cara desde mi mansión
-[02:49.00] Es noche de cena con el masón
-[02:55.00] Pero esta mierda es por culpa de Vox
-[03:24.00] En mi sillón cuento el millón y tú con frío en la manifestación
-[03:35.00] Será la manipulación, pero esta noche os mataría a tos
-[03:45.00] Y es la verdad, eres español y España trajo el mensaje de Dios
-[03:56.00] Por eso odiamos a esta nación, pero esta mierda es por culpa de Vox`
+      duration: 224.1,
+      syncedLyrics: `[00:11.50] Como Nico y Chávez en Venezuela
+[00:17.00] Veo caer la nieve en la mesa
+[00:22.50] Una nación que llevo a la ruina directa
+[00:32.00] Como Nico y Chávez en Venezuela
+[00:37.50] Soy el infierno hecho carne en la tierra
+[00:43.00] Un Christian Grey sin patria y mi cara por bandera
+[00:53.00] Será Garzón o Marlaska los que tapen toda la inmigración
+[01:02.50] Será el poder de ser quien soy
+[01:08.00] Pero esta mierda es por culpa de Vox
+[01:19.00] Como Nico y Chávez en Venezuela
+[01:24.50] Soy Lamborghini contra tu bicicleta
+[01:30.00] Es un misterio el conservar aún la cabeza
+[01:40.00] Como Nico y Chávez en Venezuela
+[01:45.50] Vamos mi niño a morirnos de ELA
+[01:51.00] Pero lo parte La 1, la nueva revuelta
+[02:01.00] No es Feijóo, yo soy mejor, te subo cinco pavos la pensión
+[02:10.50] Será gracias al Baby Boom
+[02:16.00] Pero esta mierda es por culpa de Vox
+[02:23.00] Soy la verdad, soy el control, yo me río en tu cara desde mi mansión
+[02:32.50] Es noche de cena con el masón
+[02:38.00] Pero esta mierda es por culpa de Vox
+[03:03.00] En mi sillón cuento el millón y tú con frío en la manifestación
+[03:12.50] Será la manipulación, pero esta noche os mataría a tos
+[03:22.00] Y es la verdad, eres español y España trajo el mensaje de Dios
+[03:31.50] Por eso odiamos a esta nación, pero esta mierda es por culpa de Vox`
     },
     {
       videoId: 'YeWmWUjIZKg',
       keys: ['socialismo', 'socialismomanofirme', 'perreosanxesocialismo'],
       trackName: 'Perreo Sanxe - SOCIALISMO [MANO FIRME]',
       artistName: 'Ultimoscruzados',
-      duration: 241,
-      syncedLyrics: `[00:05.00] ¿Hola? ¿Pedro? Hola José, cuéntame, ya sé cómo podemos hacerlo
-[00:12.00] Tengo un plan. Soy todo oídos
-[00:23.00] José me llamó porque había una forma para vaciar todas las arcas españolas
-[00:31.50] Porque él también lo vio de junto al señor Chávez: el dinero se acabó, ahora viviréis del aire
-[00:40.00] Me preguntan que dónde estará, si en Singapur o en Suiza o en las Islas Caimán
-[00:48.50] Begoña Gómez es mi mujer, trabajaba en un burdel, su padre tiene saunas repartidas por el centro
-[00:57.00] A los autónomos y pymes me los pongo a cuatro, una ardilla rebelde que se me ha descontrolado
-[01:05.50] Soy el señor de la corrupción y gracias a tus impuestos tienes educación
-[01:14.00] Oh, es socialismo, cinco cosas que dejamos sin tocar
-[01:22.50] Oh, es socialismo, por encima de todas las cosas
-[01:35.00] Ábalos cayó y yo sigo en el poder, me cargué muchos trabajos y aún me tratan bien
-[01:43.50] No pido ni disculpas por lo que os he inoculado, cuando salgo a la calle soy el sueño de las Charos
-[01:52.00] Le di a un rato un familiar el honor de ver a España sometida al Islam
-[02:00.50] Oh, es socialismo, tus impuestos nos financian la coca
-[02:09.00] Oh, es socialismo, pero mira qué progre Barcelona
-[02:18.00] Es socialismo
-[02:32.00] Triste en Argentina y su historia, y Hugo se sacó toda la polla
-[02:42.00] Felices sus hijos y tras Nico en su país no queda ni el sol
-[02:51.00] Oh, es socialismo, la fiesta me la pagan tus horas
-[02:59.50] Todos somos los mismos, en el curro comemos gambas rojas
-[03:08.00] Oh, es socialismo, el dinero antes que las personas
-[03:16.50] Oh, es socialismo, debes saber si te lloran, es socialismo`
+      duration: 241.4,
+      syncedLyrics: `[00:02.50] ¿Hola? ¿Pedro? Hola José, cuéntame, ya sé cómo podemos hacerlo
+[00:08.70] Tengo un plan. Soy todo oídos
+[00:18.70] José me llamó porque había una forma para vaciar todas las arcas españolas
+[00:27.00] Porque él también lo vio de junto al señor Chávez: el dinero se acabó, ahora viviréis del aire
+[00:35.50] Me preguntan que dónde estará, si en Singapur o en Suiza o en las Islas Caimán
+[00:44.00] Begoña Gómez es mi mujer, trabajaba en un burdel, su padre tiene saunas repartidas por el centro
+[00:52.50] A los autónomos y pymes me los pongo a cuatro, una ardilla rebelde que se me ha descontrolado
+[01:01.00] Soy el señor de la corrupción y gracias a tus impuestos tienes educación
+[01:09.50] Oh, es socialismo, cinco cosas que dejamos sin tocar
+[01:18.00] Oh, es socialismo, por encima de todas las cosas
+[01:30.50] Ábalos cayó y yo sigo en el poder, me cargué muchos trabajos y aún me tratan bien
+[01:39.00] No pido ni disculpas por lo que os he inoculado, cuando salgo a la calle soy el sueño de las Charos
+[01:47.50] Le di a un rato un familiar el honor de ver a España sometida al Islam
+[01:56.00] Oh, es socialismo, tus impuestos nos financian la coca
+[02:04.50] Oh, es socialismo, pero mira qué progre Barcelona
+[02:13.00] Es socialismo
+[02:27.50] Triste en Argentina y su historia, y Hugo se sacó toda la polla
+[02:37.00] Felices sus hijos y tras Nico en su país no queda ni el sol
+[02:46.00] Oh, es socialismo, la fiesta me la pagan tus horas
+[02:54.50] Todos somos los mismos, en el curro comemos gambas rojas
+[03:03.00] Oh, es socialismo, el dinero antes que las personas
+[03:11.50] Oh, es socialismo, debes saber si te lloran, es socialismo`
     },
     {
       videoId: '7J0xFQqAMHI',
@@ -1518,24 +1518,24 @@
       trackName: 'Perreo Sanxe - Estrella del Islam [MANO FIRME]',
       artistName: 'Ultimoscruzados',
       duration: 148,
-      syncedLyrics: `[00:14.00] He creado un socio marroquí que a veces hace chantaje con lo de mi mujer
-[00:21.00] Está donde la luz que dicen que hay, donde termina el Estrecho y empieza el mar
-[00:28.00] Donde no tienes derechos ni libertad, donde te cortan la mano si robas pan
-[00:35.00] He creado un socio marroquí, yo siempre le hablo bonito por si está escuchando mi iPhone
-[00:42.50] Con el Mossad te lleno todo de menas y vienen más
-[00:47.50] A veces tengo que hacer como que fue un error, a veces tengo que huir porque no puedo más
-[00:53.50] Mi estrella del Islam, mi dulce Mohamed, te entregaría mi vida y mi país
-[01:00.50] Mi estrella del Islam, mi bombón de licor, porque estar lejos me roba el corazón
-[01:07.50] Dime quién vendrá a enseñar el Corán, porque en España ya no quedan hombres
-[01:16.00] No puedo más, no puedo estar así Mohamed, entiéndeme, esta tensión me está matando
-[01:28.00] Donde no tienes derechos ni libertad, donde termina el Estrecho de Gibraltar
-[01:35.00] Mi estrella del Islam, mi estrella del Islam, mi dulce Mohamed, te entregaría mi vida y mi país
-[01:43.50] Mi estrella del Islam, mi bombón de licor, porque estar lejos me roba el corazón
-[01:50.50] Dime quién vendrá a enseñar el Corán, porque en España ya no quedan hombres
-[01:57.50] Y ahora de verdad, ¿cuándo despertaréis? Si temes por tu vida en tu país
-[02:04.50] ¿No ves que nos da igual que eres español? Y si han violado a tu hija la menor
-[02:11.50] Y tú estás en un mejor lugar y tú ahora sientes un dolor sin nombre
-[02:24.00] Quiero irme con él`
+      syncedLyrics: `[00:12.50] He creado un socio marroquí que a veces hace chantaje con lo de mi mujer
+[00:19.00] Está donde la luz que dicen que hay, donde termina el Estrecho y empieza el mar
+[00:25.50] Donde no tienes derechos ni libertad, donde te cortan la mano si robas pan
+[00:32.00] He creado un socio marroquí, yo siempre le hablo bonito por si está escuchando mi iPhone
+[00:39.00] Con el Mossad te lleno todo de menas y vienen más
+[00:44.00] A veces tengo que hacer como que fue un error, a veces tengo que huir porque no puedo más
+[00:50.00] Mi estrella del Islam, mi dulce Mohamed, te entregaría mi vida y mi país
+[00:57.00] Mi estrella del Islam, mi bombón de licor, porque estar lejos me roba el corazón
+[01:04.00] Dime quién vendrá a enseñar el Corán, porque en España ya no quedan hombres
+[01:12.00] No puedo más, no puedo estar así Mohamed, entiéndeme, esta tensión me está matando
+[01:23.50] Donde no tienes derechos ni libertad, donde termina el Estrecho de Gibraltar
+[01:30.50] Mi estrella del Islam, mi estrella del Islam, mi dulce Mohamed, te entregaría mi vida y mi país
+[01:38.50] Mi estrella del Islam, mi bombón de licor, porque estar lejos me roba el corazón
+[01:45.50] Dime quién vendrá a enseñar el Corán, porque en España ya no quedan hombres
+[01:52.50] Y ahora de verdad, ¿cuándo despertaréis? Si temes por tu vida en tu país
+[01:59.50] ¿No ves que nos da igual que eres español? Y si han violado a tu hija la menor
+[02:06.50] Y tú estás en un mejor lugar y tú ahora sientes un dolor sin nombre
+[02:18.00] Quiero irme con él`
     },
     {
       videoId: 'hUxt4QhapJc',
@@ -1577,6 +1577,7 @@
       this.cache = new Map();
       this.candidatesCache = new Map();
       this.translationCache = new Map();
+      this.knownAudioDurations = new Map();
       this.inflight = new Map();
       this.currentLyrics = [];
       this.currentTrack = null;
@@ -1846,20 +1847,20 @@
           }
         }
 
-        // Penalizar versiones de videoclip con introducción hablada, remakes, remixes o directos no solicitados
-        const badVersionRe = /\b(official\s*video|music\s*video|videoclip|video\s*oficial|remake|remix|rmx|live|en\s*vivo|en\s*directo|ao\s*vivo|cover|karaoke|tribute|parody|sped\s*up|slowed|nightcore)\b/i;
-        if (badVersionRe.test(candMetaLower) && !badVersionRe.test(rawTrackTitleLower)) {
-          score -= 95;
-        }
-
         const firstVocalLine = parsed.find(l => l.text && !/^[\(\[♪♫]/.test(l.text.trim())) || parsed[0];
         const firstLineTimeSec = firstVocalLine ? firstVocalLine.timeSec : parsed[0].timeSec;
         const itemDur = Number(item.duration) || (parsed[parsed.length - 1].timeSec + 8);
         const durDiff = hasRealDur ? Math.abs(itemDur - targetDurationSec) : 0;
 
+        // Solo penalizar versiones de videoclip si NO conocemos la duración real o si la duración de este LRC no coincide con el audio real
+        const badVersionRe = /\b(official\s*video|music\s*video|videoclip|video\s*oficial|remake|remix|rmx|live|en\s*vivo|en\s*directo|ao\s*vivo|cover|karaoke|tribute|parody|sped\s*up|slowed|nightcore)\b/i;
+        if (badVersionRe.test(candMetaLower) && !badVersionRe.test(rawTrackTitleLower) && (!hasRealDur || durDiff > 2.5)) {
+          score -= 95;
+        }
+
         if (hasRealDur) {
-          if (durDiff <= 1.5) score += 120;
-          else if (durDiff <= 3) score += 95 - durDiff * 6;
+          if (durDiff <= 1.5) score += 135;
+          else if (durDiff <= 3) score += 105 - durDiff * 6;
           else if (durDiff <= 6) score += 60 - durDiff * 5;
           else score += Math.max(-90, 25 - durDiff * 4);
         }
@@ -1878,7 +1879,7 @@
 
       if (syncedList.length > 0) {
         // Consenso de primera línea vocal y duración de estudio:
-        // Evita elegir LRCs de videoclips con escenas actuariales al inicio (ej. Propuesta Indecente MV que empieza a cantar en 0:38 en vez de 0:04)
+        // Solo penaliza intros largos de videoclip cuando NO coinciden con la duración real del audio que está sonando
         const relevant = syncedList.filter(c => c.titleMatched && (c.artistMatched || syncedList.length <= 2));
         if (relevant.length >= 2) {
           const sortedFirstTimes = relevant.map(c => c.firstLineTimeSec).sort((a, b) => a - b);
@@ -1887,8 +1888,8 @@
           const medianStudioDur = sortedDurs.length > 0 ? sortedDurs[Math.floor((sortedDurs.length - 1) * 0.35)] : 0;
 
           for (const cand of syncedList) {
+            if (hasRealDur && cand.durDiff <= 3.0) continue;
             if (cand.firstLineTimeSec - studioFirstTimeRef > 14 && studioFirstTimeRef < 22) {
-              // Este LRC tiene un intro de videoclip desplazado (>14s tarde respecto a la grabación de estudio)
               cand.score -= 125;
             }
             if (medianStudioDur > 60 && cand.itemDur - medianStudioDur > 22) {
@@ -2036,7 +2037,10 @@
         if (collected.length > 0) {
           this.candidatesCache.set(key, collected);
         }
-        const bestLines = this._pickBestCandidateLines(collected, totalDurationSec, track);
+        const effectiveDur = this.knownAudioDurations.get(key) ||
+                             (window.dualStreamEngine ? window.dualStreamEngine.getRealDurationSec(track) : 0) ||
+                             totalDurationSec;
+        const bestLines = this._pickBestCandidateLines(collected, effectiveDur, track);
         this.cache.set(key, bestLines);
         return bestLines;
       })();
@@ -2053,7 +2057,9 @@
       if (this.currentTrackKey !== key) return;
       const cands = this.candidatesCache.get(key);
       if (!cands || cands.length === 0) return;
-      const dur = durationSec || (window.dualStreamEngine ? window.dualStreamEngine.getRealDurationSec(track) : 0);
+      const dur = durationSec ||
+                  this.knownAudioDurations.get(key) ||
+                  (window.dualStreamEngine ? window.dualStreamEngine.getRealDurationSec(track) : 0);
       const lines = this._pickBestCandidateLines(cands, dur, track);
       this.cache.set(key, lines);
       const old = this.currentLyrics || [];
@@ -2072,6 +2078,10 @@
     async recalibrateForActualAudio(track, actualDurationSec) {
       if (!track || !Number.isFinite(actualDurationSec) || actualDurationSec < 35) return;
       const key = this._makeKey(track);
+      this.knownAudioDurations.set(key, actualDurationSec);
+      if (this.inflight.has(key)) {
+        try { await this.inflight.get(key); } catch (_) {}
+      }
       if (!this.candidatesCache.get(key)) return;
       this._refreshCurrentLyrics(track, key, actualDurationSec);
     }
@@ -2216,6 +2226,7 @@
       this._bindAudioEvents();
       this._initMediaSession();
       this._initMiniPlayerSwipeDownGesture();
+      this._bindYouTubePostMessageTelemetry();
       this._initPersistentYtBridgePlayer();
     }
 
@@ -2259,6 +2270,73 @@
       return this.activeSourceType === 'full' ? this.fullAudio : this.previewAudio;
     }
 
+    _bindYouTubePostMessageTelemetry() {
+      if (this._ytTelemetryBound) return;
+      this._ytTelemetryBound = true;
+      window.addEventListener('message', (ev) => {
+        if (!ev || typeof ev.data !== 'string') return;
+        if (!ev.data.includes('infoDelivery') && !ev.data.includes('onStateChange')) return;
+        try {
+          const msg = JSON.parse(ev.data);
+          if (!msg) return;
+          const info = msg.info || {};
+          const senderId = String(msg.id || '');
+          const isVideoclipMsg = senderId === 'npActiveYtVideoclipIframe' ||
+            (document.getElementById('npActiveYtVideoclipIframe') && ev.source === document.getElementById('npActiveYtVideoclipIframe').contentWindow);
+
+          if (isVideoclipMsg) {
+            if (window.DiscoverHomeApp) {
+              window.DiscoverHomeApp._videoclipTelemetryReady = true;
+              if (typeof info.playerState === 'number') {
+                window.DiscoverHomeApp._videoclipRealState = info.playerState;
+              } else if (msg.event === 'onStateChange' && typeof msg.info === 'number') {
+                window.DiscoverHomeApp._videoclipRealState = msg.info;
+              }
+              if (Number.isFinite(info.currentTime) && info.currentTime >= 0) {
+                window.DiscoverHomeApp._videoclipRealTimeSec = Number(info.currentTime);
+                window.DiscoverHomeApp._videoclipRealTimeWallMs = performance.now();
+              }
+            }
+            return;
+          }
+
+          // Telemetría en tiempo real del puente de audio de YouTube (yt_bridge)
+          const isAudioBridgeMsg = senderId === 'ytInstantAudioBridgeIframe' ||
+            senderId === 'ytPersistentBridgeMount' ||
+            (document.getElementById('ytInstantAudioBridgeIframe') && ev.source === document.getElementById('ytInstantAudioBridgeIframe').contentWindow);
+
+          if (isAudioBridgeMsg || this.activeSourceType === 'yt_bridge') {
+            this._ytBridgeTelemetryActive = true;
+            if (typeof info.playerState === 'number') {
+              this._ytBridgeRealState = info.playerState;
+              if (info.playerState === 0 && this.activeSourceType === 'yt_bridge') {
+                this.nextTrack();
+                return;
+              }
+            }
+            if (Number.isFinite(info.currentTime) && info.currentTime >= 0) {
+              this._ytBridgeBaseSec = Number(info.currentTime);
+              this._ytBridgeStartWallMs = performance.now();
+              if (this._ytGameplayActive) {
+                this._ytGameplayBaseSec = Number(info.currentTime);
+                this._ytGameplayStartWallMs = performance.now();
+              }
+            }
+            if (Number.isFinite(info.duration) && info.duration > 38 && this.currentTrack) {
+              const d = Number(info.duration);
+              if (Math.abs(d - (this._lastYtRecalDur || 0)) > 0.5) {
+                this._lastYtRecalDur = d;
+                this.currentTrack.durationSec = d;
+                if (this.karaokeService) {
+                  this.karaokeService.recalibrateForActualAudio(this.currentTrack, d).catch(() => {});
+                }
+              }
+            }
+          }
+        } catch (_) {}
+      });
+    }
+
     _initPersistentYtBridgePlayer() {
       const setup = () => {
         if (document.getElementById('ytPersistentBridgeHost')) return;
@@ -2276,8 +2354,10 @@
             this._ytApiPlayer = new window.YT.Player('ytPersistentBridgeMount', {
               width: '200',
               height: '112',
+              videoId: 'kU-Z94uTPuo',
               playerVars: {
-                autoplay: 1,
+                autoplay: 0,
+                mute: 1,
                 controls: 0,
                 playsinline: 1,
                 enablejsapi: 1,
@@ -2288,6 +2368,7 @@
                 onReady: (ev) => {
                   this._ytApiReady = true;
                   try {
+                    ev.target.pauseVideo();
                     ev.target.unMute();
                     ev.target.setVolume(95);
                   } catch (_) {}
@@ -2295,15 +2376,19 @@
                     const { videoId, startSec } = this._ytPendingCue;
                     this._ytPendingCue = null;
                     try {
-                      ev.target.loadVideoById({ videoId, startSeconds: startSec });
-                      ev.target.unMute();
-                      ev.target.setVolume(95);
-                      ev.target.playVideo();
+                      const fallbackIfr = document.getElementById('ytInstantAudioBridgeIframe');
+                      if (!fallbackIfr) {
+                        ev.target.loadVideoById({ videoId, startSeconds: startSec });
+                        ev.target.unMute();
+                        ev.target.setVolume(95);
+                        ev.target.playVideo();
+                      }
                     } catch (_) {}
                   }
                 },
                 onStateChange: (ev) => {
                   if (this.activeSourceType !== 'yt_bridge') return;
+                  this._ytBridgeRealState = ev.data;
                   if (ev.data === 1) {
                     this._ytBridgePaused = false;
                     this.isPlayingFlag = true;
@@ -2313,6 +2398,7 @@
                     try {
                       const d = Number(ev.target.getDuration());
                       if (Number.isFinite(d) && d > 38 && this.currentTrack) {
+                        this._lastYtRecalDur = d;
                         this.currentTrack.durationSec = d;
                         if (this.karaokeService) {
                           this.karaokeService.recalibrateForActualAudio(this.currentTrack, d).catch(() => {});
@@ -2356,13 +2442,17 @@
 
     _sendYtBridgeCommand(func, args = []) {
       try {
+        const fallbackIfr = document.getElementById('ytInstantAudioBridgeIframe');
+        if (fallbackIfr && fallbackIfr.contentWindow && fallbackIfr.src && fallbackIfr.src !== 'about:blank') {
+          fallbackIfr.contentWindow.postMessage(JSON.stringify({ event: 'command', func, args }), '*');
+        }
         if (this._ytApiReady && this._ytApiPlayer && typeof this._ytApiPlayer[func] === 'function') {
           this._ytApiPlayer[func](...args);
           return;
         }
-        const ifr = document.getElementById('ytInstantAudioBridgeIframe') || document.querySelector('#ytPersistentBridgeHost iframe');
-        if (ifr && ifr.contentWindow) {
-          ifr.contentWindow.postMessage(JSON.stringify({ event: 'command', func, args }), '*');
+        const persistIfr = document.querySelector('#ytPersistentBridgeHost iframe');
+        if (persistIfr && persistIfr.contentWindow) {
+          persistIfr.contentWindow.postMessage(JSON.stringify({ event: 'command', func, args }), '*');
         }
       } catch (_) {}
     }
@@ -2370,7 +2460,13 @@
     _stopYtAudioBridge() {
       this._ytBridgePaused = true;
       this._ytBridgeVideoId = '';
+      this._ytBridgeRealState = -1;
+      this._ytBridgeTelemetryActive = false;
       this._ytPendingCue = null;
+      if (this._ytBridgeHandshakeTimer) {
+        clearInterval(this._ytBridgeHandshakeTimer);
+        this._ytBridgeHandshakeTimer = null;
+      }
       try {
         if (this._ytApiReady && this._ytApiPlayer && typeof this._ytApiPlayer.pauseVideo === 'function') {
           this._ytApiPlayer.pauseVideo();
@@ -2394,6 +2490,9 @@
         this._ytBridgeBaseSec = safeStart;
         this._ytBridgeStartWallMs = performance.now();
         this._ytBridgePaused = false;
+        this._ytBridgeRealState = -1;
+        this._ytBridgeTelemetryActive = false;
+        this._lastYtRecalDur = 0;
         this.activeSourceType = 'yt_bridge';
         this.isPlayingFlag = true;
         this.isLoadingTrack = false;
@@ -2401,6 +2500,8 @@
         this._syncPlayPauseIcons(true);
 
         if (this._ytApiReady && this._ytApiPlayer && typeof this._ytApiPlayer.loadVideoById === 'function') {
+          const oldFallback = document.getElementById('ytInstantAudioBridgeIframe');
+          if (oldFallback) oldFallback.src = 'about:blank';
           this._ytApiPlayer.loadVideoById({ videoId, startSeconds: safeStart });
           this._ytApiPlayer.unMute();
           this._ytApiPlayer.setVolume(95);
@@ -2420,9 +2521,34 @@
         host.innerHTML = `<iframe id="ytInstantAudioBridgeIframe" width="200" height="112" src="https://www.youtube.com/embed/${encodeURIComponent(videoId)}?autoplay=1&mute=0&controls=0&playsinline=1&enablejsapi=1&start=${safeStart}&origin=${origin}" allow="autoplay; encrypted-media"></iframe>`;
         const ifr = document.getElementById('ytInstantAudioBridgeIframe');
         if (ifr) {
+          const sendListeningHandshake = () => {
+            if (reqId !== this._playRequestId || this.activeSourceType !== 'yt_bridge') return;
+            try {
+              if (ifr.contentWindow) {
+                ifr.contentWindow.postMessage(JSON.stringify({
+                  event: 'listening',
+                  id: 'ytInstantAudioBridgeIframe',
+                  channel: 'widget'
+                }), '*');
+              }
+            } catch (_) {}
+          };
+          if (this._ytBridgeHandshakeTimer) clearInterval(this._ytBridgeHandshakeTimer);
+          let attempts = 0;
+          this._ytBridgeHandshakeTimer = setInterval(() => {
+            attempts++;
+            if (this._ytBridgeTelemetryActive || attempts > 16 || reqId !== this._playRequestId) {
+              clearInterval(this._ytBridgeHandshakeTimer);
+              this._ytBridgeHandshakeTimer = null;
+              return;
+            }
+            sendListeningHandshake();
+          }, 250);
+
           ifr.addEventListener('load', () => {
             if (reqId !== this._playRequestId || this.activeSourceType !== 'yt_bridge') return;
             this._ytBridgeStartWallMs = performance.now();
+            sendListeningHandshake();
             this._sendYtBridgeCommand('unMute', []);
             this._sendYtBridgeCommand('setVolume', [95]);
             this._sendYtBridgeCommand('playVideo', []);
@@ -2635,7 +2761,14 @@
         return Number(this.fullAudio.currentTime) || 0;
       }
       if (this.activeSourceType === 'yt_bridge') {
-        if (this._ytApiReady && this._ytApiPlayer && typeof this._ytApiPlayer.getCurrentTime === 'function') {
+        const fallbackIfr = document.getElementById('ytInstantAudioBridgeIframe');
+        const usingPersistentApi = Boolean(
+          this._ytApiReady &&
+          this._ytApiPlayer &&
+          typeof this._ytApiPlayer.getCurrentTime === 'function' &&
+          (!fallbackIfr || !fallbackIfr.src || fallbackIfr.src === 'about:blank')
+        );
+        if (usingPersistentApi) {
           try {
             const apiCur = Number(this._ytApiPlayer.getCurrentTime());
             if (Number.isFinite(apiCur) && apiCur >= 0) {
@@ -2645,8 +2778,11 @@
             }
           } catch (_) {}
         }
-        if (this._ytBridgePaused) return this._ytBridgeBaseSec || 0;
-        const elapsed = Math.max(0, (performance.now() - this._ytBridgeStartWallMs) / 1000);
+        if (this._ytBridgePaused || this._ytBridgeRealState === 2 || this._ytBridgeRealState === 3 || this._ytBridgeRealState === -1) {
+          return this._ytBridgeBaseSec || 0;
+        }
+        const rawElapsed = Math.max(0, (performance.now() - this._ytBridgeStartWallMs) / 1000);
+        const elapsed = this._ytBridgeTelemetryActive ? Math.min(0.45, rawElapsed) : rawElapsed;
         const fullDur = this.getTrackFullDurationSec(this.currentTrack);
         return Math.min(fullDur, (this._ytBridgeBaseSec || 0) + elapsed);
       }
@@ -2722,17 +2858,33 @@
         }
       });
 
-      // Ticker de alta precisión (100ms) para que el resaltado de sílabas/líneas de Karaoke y yt_bridge no tengan retraso
+      // Ticker de alta precisión (100ms) para que el resaltado de sílabas/líneas de Karaoke, yt_bridge y el Videoclip no tengan retraso
       if (this.karaokeSyncInterval) clearInterval(this.karaokeSyncInterval);
       let ytBridgeTickCounter = 0;
       this.karaokeSyncInterval = setInterval(() => {
-        if (!this.isPlaying() || !this.currentTrack) return;
+        if (!this.currentTrack) return;
+        ytBridgeTickCounter++;
+        if (ytBridgeTickCounter % 2 === 0 && window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
+          window.DiscoverHomeApp.syncActiveVideoclipPlayback('tick');
+        }
+        if (!this.isPlaying()) return;
         const curSec = this.getCurrentSongTimeSec();
         if (this.karaokeService) {
           this.karaokeService.syncTime(curSec);
         }
         if (this.activeSourceType === 'yt_bridge') {
-          ytBridgeTickCounter++;
+          if (ytBridgeTickCounter % 5 === 0 && this._ytApiReady && this._ytApiPlayer && typeof this._ytApiPlayer.getDuration === 'function') {
+            try {
+              const d = Number(this._ytApiPlayer.getDuration());
+              if (Number.isFinite(d) && d > 38 && Math.abs(d - (this._lastYtRecalDur || 0)) > 0.5) {
+                this._lastYtRecalDur = d;
+                this.currentTrack.durationSec = d;
+                if (this.karaokeService) {
+                  this.karaokeService.recalibrateForActualAudio(this.currentTrack, d).catch(() => {});
+                }
+              }
+            } catch (_) {}
+          }
           const fullDur = this.getTrackFullDurationSec(this.currentTrack);
           this._updatePlayerProgressUI(curSec, fullDur);
           if (ytBridgeTickCounter % 5 === 0) {
@@ -3015,16 +3167,12 @@
           window.DiscoverHomeApp.syncActiveVideoclipPlayback('play');
         }
 
-        this.preloadFullTrackInBackground(track).then(async (blob) => {
+        // Pre-cargar silenciosamente el Blob en segundo plano para que al pulsar "Jugar al Piano" esté en caché,
+        // pero SIN interrumpir el puente yt_bridge que ya está sonando sincronizado con la letra y el videoclip.
+        this.preloadFullTrackInBackground(track).then((blob) => {
           if (reqId !== this._playRequestId || !blob || blob.size < 80000) return;
-          const curBridgeSec = this.getCurrentSongTimeSec();
-          const wasPlaying = !this._ytBridgePaused;
-          this._stopYtAudioBridge();
           this.fullTrackBlob = blob;
           this.fullTrackReady = true;
-          if (wasPlaying) {
-            await this._startChannelWithFadeIn(this.fullAudio, blob, 'full', reqId, curBridgeSec, 120);
-          }
         }).catch(() => {});
         return true;
       }
@@ -4614,12 +4762,20 @@
           ? Number(explicitSec)
           : (Number(dualStreamEngine.getCurrentSongTimeSec()) || 0);
         const playing = dualStreamEngine.isPlaying();
+        const now = performance.now();
 
         const vidEl = cont.querySelector('#npActiveVideoclipVideoEl');
         if (vidEl) {
-          if (playing && vidEl.paused) vidEl.play().catch(() => {});
-          if (!playing && !vidEl.paused) vidEl.pause();
-          if (Number.isFinite(vidEl.duration) && vidEl.duration > 45 && Math.abs((vidEl.currentTime || 0) - targetSec) > 1.2) {
+          vidEl.muted = true;
+          if (!playing || eventType === 'pause') {
+            if (!vidEl.paused) vidEl.pause();
+            if (eventType === 'seek') {
+              try { vidEl.currentTime = targetSec; } catch (_) {}
+            }
+            return;
+          }
+          if (vidEl.paused) vidEl.play().catch(() => {});
+          if (eventType === 'seek' || (Number.isFinite(vidEl.duration) && vidEl.duration > 45 && Math.abs((vidEl.currentTime || 0) - targetSec) > 0.4)) {
             try { vidEl.currentTime = targetSec; } catch (_) {}
           }
           return;
@@ -4627,29 +4783,77 @@
 
         const ifr = cont.querySelector('#npActiveYtVideoclipIframe');
         if (!ifr) return;
-        const now = performance.now();
+        this._sendVideoclipYtCommand('mute', []);
+
+        // Si la canción está en PAUSA, pausar el videoclip de inmediato y mantenerlo en pausa
+        if (!playing || eventType === 'pause') {
+          if (eventType === 'seek') {
+            this._sendVideoclipYtCommand('seekTo', [Math.max(0, Number(targetSec.toFixed(2))), true]);
+            this._videoclipRealTimeSec = targetSec;
+            this._videoclipRealTimeWallMs = now;
+          }
+          if (eventType === 'pause' || !this._videoclipForcedPaused || this._videoclipRealState === 1 || this._videoclipRealState === 3) {
+            this._sendVideoclipYtCommand('pauseVideo', []);
+            this._videoclipForcedPaused = true;
+          }
+          this._lastVideoclipSyncMs = now;
+          this._lastVideoclipSyncedAudioSec = targetSec;
+          return;
+        }
+
+        // La canción está REPRODUCIÉNDOSE
+        this._videoclipForcedPaused = false;
+
         if (eventType === 'seek') {
           this._lastVideoclipSyncMs = now;
           this._lastVideoclipSyncedAudioSec = targetSec;
-          this._sendVideoclipYtCommand('seekTo', [Math.max(0, Math.floor(targetSec)), true]);
-          this._sendVideoclipYtCommand(playing ? 'playVideo' : 'pauseVideo', []);
-        } else if (eventType === 'play') {
+          this._videoclipRealTimeSec = targetSec;
+          this._videoclipRealTimeWallMs = now;
+          this._lastVideoclipSeekCommandMs = now;
+          this._sendVideoclipYtCommand('seekTo', [Math.max(0, Number(targetSec.toFixed(2))), true]);
+          this._sendVideoclipYtCommand('playVideo', []);
+          return;
+        }
+
+        if (eventType === 'play') {
           this._lastVideoclipSyncMs = now;
           this._lastVideoclipSyncedAudioSec = targetSec;
-          this._sendVideoclipYtCommand('seekTo', [Math.max(0, Math.floor(targetSec)), true]);
+          if (!this._videoclipTelemetryReady || !Number.isFinite(this._videoclipRealTimeSec) || Math.abs(targetSec - this._videoclipRealTimeSec) > 0.45) {
+            this._sendVideoclipYtCommand('seekTo', [Math.max(0, Number(targetSec.toFixed(2))), true]);
+            this._lastVideoclipSeekCommandMs = now;
+          }
           this._sendVideoclipYtCommand('playVideo', []);
-        } else if (eventType === 'pause') {
-          this._sendVideoclipYtCommand('pauseVideo', []);
-        } else if (eventType === 'tick' && playing) {
+          return;
+        }
+
+        // En tick continuo (cada 200ms): usar la telemetría real reportada por el reproductor de YouTube
+        if (this._videoclipRealState === 2 || this._videoclipRealState === 5 || this._videoclipRealState === -1) {
+          this._sendVideoclipYtCommand('playVideo', []);
+        }
+
+        if (this._videoclipTelemetryReady && Number.isFinite(this._videoclipRealTimeSec) && this._videoclipRealState === 1) {
+          const interpVideoSec = this._videoclipRealTimeSec + Math.min(0.35, Math.max(0, (now - (this._videoclipRealTimeWallMs || now)) / 1000));
+          const realDrift = Math.abs(targetSec - interpVideoSec);
+          if (realDrift > 0.45 && (now - (this._lastVideoclipSeekCommandMs || 0)) > 1100) {
+            this._sendVideoclipYtCommand('seekTo', [Math.max(0, Number(targetSec.toFixed(2))), true]);
+            this._sendVideoclipYtCommand('playVideo', []);
+            this._videoclipRealTimeSec = targetSec;
+            this._videoclipRealTimeWallMs = now;
+            this._lastVideoclipSeekCommandMs = now;
+            this._lastVideoclipSyncMs = now;
+            this._lastVideoclipSyncedAudioSec = targetSec;
+          }
+        } else {
           if (!this._lastVideoclipSyncMs) {
             this._lastVideoclipSyncMs = now;
             this._lastVideoclipSyncedAudioSec = targetSec;
           } else {
             const wallElapsed = (now - this._lastVideoclipSyncMs) / 1000;
             const expectedVideoSec = (this._lastVideoclipSyncedAudioSec || 0) + wallElapsed;
-            if (Math.abs(targetSec - expectedVideoSec) > 1.8) {
+            if (Math.abs(targetSec - expectedVideoSec) > 1.35 && (now - (this._lastVideoclipSeekCommandMs || 0)) > 1500) {
               this._lastVideoclipSyncMs = now;
               this._lastVideoclipSyncedAudioSec = targetSec;
+              this._lastVideoclipSeekCommandMs = now;
               this._sendVideoclipYtCommand('seekTo', [Math.max(0, Math.floor(targetSec)), true]);
               this._sendVideoclipYtCommand('playVideo', []);
             }
@@ -4664,11 +4868,20 @@
       const baseKey = this._getVideoclipTrackKey(track);
       const trackKey = `${baseKey}__${forceYoutubeIframe ? 'yt' : 'auto'}`;
       if (cont.getAttribute('data-vid-key') === trackKey && (cont.querySelector('video') || cont.querySelector('iframe'))) {
-        this.syncActiveVideoclipPlayback('play');
+        this.syncActiveVideoclipPlayback(dualStreamEngine.isPlaying() ? 'play' : 'pause');
         return;
       }
 
       const mountReqId = (this._videoclipMountReqId = (this._videoclipMountReqId || 0) + 1);
+      if (this._videoclipHandshakeTimer) {
+        clearInterval(this._videoclipHandshakeTimer);
+        this._videoclipHandshakeTimer = null;
+      }
+      this._videoclipTelemetryReady = false;
+      this._videoclipRealState = -1;
+      this._videoclipRealTimeSec = 0;
+      this._videoclipForcedPaused = !dualStreamEngine.isPlaying();
+
       const cover = getBestTrackCover(track);
       cont.removeAttribute('data-vid-key');
       cont.innerHTML = `
@@ -4691,12 +4904,16 @@
       if (clipData.videoId) {
         cont.setAttribute('data-vid-key', trackKey);
         const startSec = Math.max(0, Math.floor(dualStreamEngine.getCurrentSongTimeSec() || 0));
+        this._lastVideoclipSyncMs = performance.now();
+        this._lastVideoclipSyncedAudioSec = startSec;
+        this._videoclipRealTimeSec = startSec;
+        this._videoclipRealTimeWallMs = performance.now();
         const origin = encodeURIComponent(window.location.origin || 'https://renacer.onrender.com');
         cont.innerHTML = `
           <iframe
             id="npActiveYtVideoclipIframe"
             class="w-full h-full rounded-2xl pointer-events-auto"
-            src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(clipData.videoId)}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&playsinline=1&enablejsapi=1&start=${startSec}&loop=1&playlist=${encodeURIComponent(clipData.videoId)}&origin=${origin}"
+            src="https://www.youtube.com/embed/${encodeURIComponent(clipData.videoId)}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&playsinline=1&enablejsapi=1&start=${startSec}&loop=1&playlist=${encodeURIComponent(clipData.videoId)}&origin=${origin}"
             title="Videoclip Oficial Sincronizado"
             frameborder="0"
             allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
@@ -4704,19 +4921,46 @@
         `;
         const ifr = cont.querySelector('#npActiveYtVideoclipIframe');
         if (ifr) {
+          const sendVideoclipListening = () => {
+            if (mountReqId !== this._videoclipMountReqId) return;
+            try {
+              if (ifr.contentWindow) {
+                ifr.contentWindow.postMessage(JSON.stringify({
+                  event: 'listening',
+                  id: 'npActiveYtVideoclipIframe',
+                  channel: 'widget'
+                }), '*');
+              }
+            } catch (_) {}
+          };
           const resyncAfterLoad = () => {
             if (mountReqId !== this._videoclipMountReqId) return;
-            const liveSec = Math.max(0, Math.floor(dualStreamEngine.getCurrentSongTimeSec() || 0));
+            sendVideoclipListening();
+            const liveSec = Math.max(0, Number((dualStreamEngine.getCurrentSongTimeSec() || 0).toFixed(2)));
             this._lastVideoclipSyncMs = performance.now();
             this._lastVideoclipSyncedAudioSec = liveSec;
             this._sendVideoclipYtCommand('mute', []);
             this._sendVideoclipYtCommand('seekTo', [liveSec, true]);
             this._sendVideoclipYtCommand(dualStreamEngine.isPlaying() ? 'playVideo' : 'pauseVideo', []);
           };
+          let hsCount = 0;
+          this._videoclipHandshakeTimer = setInterval(() => {
+            hsCount++;
+            if (mountReqId !== this._videoclipMountReqId || hsCount > 18) {
+              clearInterval(this._videoclipHandshakeTimer);
+              this._videoclipHandshakeTimer = null;
+              return;
+            }
+            sendVideoclipListening();
+            if (!dualStreamEngine.isPlaying()) {
+              this._sendVideoclipYtCommand('pauseVideo', []);
+            }
+          }, 260);
+
           ifr.addEventListener('load', () => {
-            setTimeout(resyncAfterLoad, 350);
-            setTimeout(resyncAfterLoad, 1100);
-            setTimeout(resyncAfterLoad, 2200);
+            resyncAfterLoad();
+            setTimeout(resyncAfterLoad, 320);
+            setTimeout(resyncAfterLoad, 950);
           }, { once: true });
         }
         return;
@@ -5458,11 +5702,20 @@
 
       const isFav = (typeof window.favoriteIdsSet !== 'undefined' && window.favoriteIdsSet.has(norm.id)) ||
                     dnaEngine.likes.has(String(norm.id));
+      const isSongDownloaded = typeof window.isTrackDownloadedOffline === 'function' && window.isTrackDownloadedOffline(norm);
       const plId = context?.playlistId || null;
-      const hasBulkDownload = Boolean(plId || (this._openedSheetTracks && this._openedSheetTracks.length > 0 && context?.source?.startsWith('playlist')) || context?.collectionTracks);
-      const bulkLabel = plId === '__favorites__'
-        ? 'Descargar todos Tus Me Gusta (Offline)'
-        : (context?.playlistTitle ? `Descargar toda la lista "${context.playlistTitle}"` : 'Descargar toda la lista (Offline)');
+      const collectionTracksForCheck = Array.isArray(context?.collectionTracks)
+        ? context.collectionTracks
+        : (Array.isArray(window.currentOpenedPlaylistTracks) && window.currentOpenedPlaylistTracks.length > 0 && context?.source?.startsWith('playlist')
+            ? window.currentOpenedPlaylistTracks
+            : (Array.isArray(this._openedSheetTracks) && this._openedSheetTracks.length > 0 ? this._openedSheetTracks : []));
+      const hasBulkDownload = Boolean(plId || (collectionTracksForCheck.length > 0 && context?.source?.startsWith('playlist')) || context?.collectionTracks);
+      const isCollectionDownloaded = hasBulkDownload && typeof window.isCollectionFullyDownloadedOffline === 'function' && window.isCollectionFullyDownloadedOffline(collectionTracksForCheck);
+      const bulkLabel = isCollectionDownloaded
+        ? (plId === '__favorites__' ? 'Descargado · Todos Tus Me Gusta están en Descargas' : 'Descargado · Toda la lista está en Descargas')
+        : (plId === '__favorites__'
+            ? 'Descargar todos Tus Me Gusta (Offline)'
+            : (context?.playlistTitle ? `Descargar toda la lista "${context.playlistTitle}"` : 'Descargar toda la lista (Offline)'));
 
       const canRemoveFromThisList = Boolean(plId && typeof context?.origIdx === 'number');
 
@@ -5506,18 +5759,22 @@
         </button>
 
         <button type="button" class="sp-opt-row" onclick="window.DiscoverHomeApp.handleTrackOptionAction('download_song')">
-          <span class="sp-opt-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span class="sp-opt-icon ${isSongDownloaded ? 'gold' : ''}">
+            ${isSongDownloaded
+              ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`
+              : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`}
           </span>
-          <span class="sp-opt-label">Descargar canción (Guardar en Descargas)</span>
+          <span class="sp-opt-label ${isSongDownloaded ? 'text-emerald-300 font-bold' : ''}">${isSongDownloaded ? 'Canción ya descargada (En tu Biblioteca)' : 'Descargar canción (Guardar en Descargas)'}</span>
         </button>
 
         ${hasBulkDownload ? `
           <button type="button" class="sp-opt-row" onclick="window.DiscoverHomeApp.handleTrackOptionAction('download_collection')">
             <span class="sp-opt-icon gold">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="8 12 12 16 16 12"/><line x1="12" y1="8" x2="12" y2="16"/></svg>
+              ${isCollectionDownloaded
+                ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`
+                : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="8 12 12 16 16 12"/><line x1="12" y1="8" x2="12" y2="16"/></svg>`}
             </span>
-            <span class="sp-opt-label">${escapeHtmlSafe(bulkLabel)}</span>
+            <span class="sp-opt-label ${isCollectionDownloaded ? 'text-emerald-300 font-bold' : ''}">${escapeHtmlSafe(bulkLabel)}</span>
           </button>
         ` : ''}
 

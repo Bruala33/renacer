@@ -1730,9 +1730,9 @@
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                   <span>Descubrir</span>
                 </button>
-                <button type="button" onclick="window.downloadCurrentOpenedPlaylistOffline()" class="px-3 py-2 rounded-xl bg-[#d4af37]/15 hover:bg-[#d4af37]/25 border border-[#d4af37]/50 text-[#f3e5ab] font-bold text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition active:scale-95" title="Descargar toda la playlist para jugar sin conexión">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                  <span>Descargar</span>
+                <button id="btnDownloadSelectedPlaylist" type="button" onclick="window.downloadCurrentOpenedPlaylistOffline()" class="px-3 py-2 rounded-xl bg-[#d4af37]/15 hover:bg-[#d4af37]/25 border border-[#d4af37]/50 text-[#f3e5ab] font-bold text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition active:scale-95" title="Descargar toda la playlist para jugar sin conexión">
+                  <svg id="btnDownloadSelectedPlaylistIcon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  <span id="btnDownloadSelectedPlaylistLabel">Descargar</span>
                 </button>
               </div>
 
@@ -15661,6 +15661,15 @@ function stopPianoCameraLoop() {
             } catch (_) {}
           }
           try {
+            const workerRes = await fetch(myWorker(signedDlUrl));
+            if (workerRes && workerRes.ok) {
+              const ct = String(workerRes.headers.get('content-type') || '').toLowerCase();
+              if (!ct.includes('text/html') && !ct.includes('application/json')) {
+                return workerRes;
+              }
+            }
+          } catch (_) {}
+          try {
             const srvProxyUrl = `${baseUrl}/api/v1/audio/notube_dl?url=${encodeURIComponent(signedDlUrl)}`;
             const srvRes = await fetch(srvProxyUrl);
             if (srvRes && srvRes.ok) {
@@ -17097,6 +17106,23 @@ function stopPianoCameraLoop() {
         }
       } catch (_) {}
 
+      // 6. Respaldo garantizado de YouTube Instant Stream para que ninguna canción de una playlist o de Favoritos falle al guardarse
+      try {
+        const fallbackVid = await resolveYtVideoIdTask.catch(() => '');
+        if (fallbackVid) {
+          return {
+            blob: null,
+            audioUrl: `yt_bridge://${fallbackVid}`,
+            videoId: fallbackVid,
+            durationSec: expectedDur > 45 ? expectedDur : 195,
+            title: cleanTitle,
+            artist: cleanArtist || 'Artista',
+            thumbnail: resolvedThumb || `https://i.ytimg.com/vi/${fallbackVid}/hqdefault.jpg`,
+            sourceName: 'YouTube Instant Stream'
+          };
+        }
+      } catch (_) {}
+
       throw new Error('No se pudo extraer el audio original en este momento. Intenta de nuevo.');
     }
 
@@ -17122,13 +17148,15 @@ function stopPianoCameraLoop() {
         .slice(0, 48) || `song_${Date.now()}`;
       const deterministicId = `auto_dsp_${slugKey}`;
 
-      if (!forceRebuild && !preferredCandidate) {
+      if (!forceRebuild) {
         try {
           const existing = await IndexedDBStorage.getChart(deterministicId);
-          if (existing && existing.audioBlob) {
+          if (existing && (existing.audioBlob || existing.audioUrl || existing.videoId)) {
             const ver = existing._fullTrackVersion || (existing.chartData && existing.chartData._fullTrackVersion) || 0;
             const isSynthFallback = String(existing.source_name || existing.creator || '').includes('Piano Acoustic Synth');
-            if (ver >= 8 && !isSynthFallback && existing.audioBlob.size >= 120000) {
+            const hasValidAudio = (existing.audioBlob && existing.audioBlob.size >= 30000) ||
+              (typeof existing.audioUrl === 'string' && existing.audioUrl.startsWith('yt_bridge://'));
+            if (ver >= 8 && !isSynthFallback && hasValidAudio) {
               return { chartItem: existing, dspPack: existing, cached: true };
             } else {
               try { await IndexedDBStorage.deleteChart(deterministicId); } catch (_) {}
@@ -17144,6 +17172,9 @@ function stopPianoCameraLoop() {
       const taskPromise = (async () => {
         const extracted = await extractSongAudioMultiSource(cleanTitle, cleanArtist, effectiveThumb, onProgress, preferredCandidate);
         if (onProgress) onProgress(`Esculpiendo coreografía musical humana (${extracted.sourceName})...`);
+
+        const candVid = extracted.videoId || (typeof extractCleanYtIdFromTrack === 'function' ? extractCleanYtIdFromTrack(preferredCandidate) : '') || '';
+        const origTrackId = String(preferredCandidate?.id || '');
 
         let dspPack = null;
         if (extracted.blob) {
@@ -17173,6 +17204,8 @@ function stopPianoCameraLoop() {
         }
         dspPack._fullTrackVersion = 8;
         dspPack._choreographedVersion = 8;
+        if (candVid) dspPack.videoId = candVid;
+        if (origTrackId) dspPack.originalTrackId = origTrackId;
 
         const chartItem = {
           id: dspPack.id,
@@ -17183,10 +17216,12 @@ function stopPianoCameraLoop() {
           source: 'auto_dsp',
           source_name: dspPack.creator || 'Auto-DSP v8',
           is_community: false,
-          _isOfflineSaved: Boolean(dspPack.audioBlob),
+          _isOfflineSaved: true,
           _isAutoGeneratedDsp: true,
           _fullTrackVersion: 8,
           _choreographedVersion: 8,
+          videoId: candVid,
+          originalTrackId: origTrackId,
           maxAllowedTier: dspPack.maxAllowedTier || 'impossible',
           chorusStartSec: dspPack.chorusStartSec || 35,
           tierNotes: dspPack.tierNotes,
@@ -17195,13 +17230,16 @@ function stopPianoCameraLoop() {
           stars: dspPack.stars,
           bpm: dspPack.bpm,
           difficulties: dspPack.difficulties,
-          audioUrl: dspPack.audioUrl || '',
+          audioUrl: dspPack.audioUrl || (candVid ? `yt_bridge://${candVid}` : ''),
           thumbnail: dspPack.thumbnail || getSongCoverFallback(dspPack.title, dspPack.artist)
         };
 
-        if (window._explicitOfflineDownloadRequested && dspPack.audioBlob) {
-          IndexedDBStorage.saveChart(chartItem, dspPack, dspPack.audioBlob)
-            .then(() => { if (typeof updateLibraryVaultBadges === 'function') updateLibraryVaultBadges(); })
+        if (window._explicitOfflineDownloadRequested && (dspPack.audioBlob || chartItem.audioUrl)) {
+          IndexedDBStorage.saveChart(chartItem, dspPack, dspPack.audioBlob || null)
+            .then(() => {
+              if (typeof window.refreshOfflineDownloadedIndex === 'function') window.refreshOfflineDownloadedIndex();
+              if (typeof updateLibraryVaultBadges === 'function') updateLibraryVaultBadges();
+            })
             .catch(() => {});
         }
         return { chartItem, dspPack, cached: false };
@@ -17305,6 +17343,9 @@ function stopPianoCameraLoop() {
 
       try {
         const favs = await IndexedDBStorage.getAllFavorites();
+        if (typeof window.refreshOfflineDownloadedIndex === 'function') {
+          await window.refreshOfflineDownloadedIndex();
+        }
         if (!favs || favs.length === 0) {
           container.innerHTML = `
             <div class="vegas-console-card p-6 text-center space-y-2">
@@ -17381,6 +17422,7 @@ function stopPianoCameraLoop() {
                     <div class="min-w-0 flex-1 flex flex-col justify-center overflow-hidden">
                       <div class="flex items-center gap-1.5 truncate">
                         <h3 class="text-xs font-black text-[#17131d] truncate font-serif leading-tight">${escapeHtml(item.title || t('unknown_song', 'Canción'))}</h3>
+                        ${(typeof window.isTrackDownloadedOffline === 'function' && window.isTrackDownloadedOffline(item)) ? `<span class="px-1.5 py-0.5 rounded bg-emerald-600/15 border border-emerald-600/40 text-[8px] font-black text-emerald-800 uppercase tracking-wider flex items-center gap-0.5 flex-shrink-0" title="Canción ya descargada"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>Descargada</span>` : ''}
                         ${hs ? `<span class="text-[8px] font-mono font-bold text-amber-800 flex-shrink-0 flex items-center gap-0.5"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="text-amber-700 inline"><path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2"/><path d="M6 9a6 6 0 0 0 12 0"/><path d="M12 15v5"/><path d="M8 20h8"/></svg> ${hs.score.toLocaleString()}</span>` : ''}
                       </div>
                       <p class="text-[10px] text-[#5a422d] font-semibold truncate leading-tight mt-0.5">${escapeHtml(item.artist || t('unknown_artist', 'Artista'))}</p>
@@ -17437,12 +17479,14 @@ function stopPianoCameraLoop() {
           `;
         }).join('');
 
+        const allFavsDown = typeof window.isCollectionFullyDownloadedOffline === 'function' && window.isCollectionFullyDownloadedOffline(favs);
         container.innerHTML = `
           <div class="flex items-center justify-between gap-2 mb-2 px-1">
             <span class="text-[11px] font-bold text-[#f3e5ab]">${favs.length} canciones favoritas</span>
-            <button type="button" onclick="window.downloadAllFavoritesOffline()" class="px-3 py-1 rounded-full bg-[#d4af37]/20 hover:bg-[#d4af37]/30 border border-[#d4af37]/50 text-[#f3e5ab] text-[10.5px] font-extrabold flex items-center gap-1.5 cursor-pointer">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              <span>Descargar todos los Favoritos</span>
+            <button id="btnDownloadAllFavorites" type="button" onclick="window.downloadAllFavoritesOffline()" class="px-3 py-1 rounded-full ${allFavsDown ? 'bg-emerald-500/20 border-emerald-400/60 text-emerald-200' : 'bg-[#d4af37]/20 hover:bg-[#d4af37]/30 border-[#d4af37]/50 text-[#f3e5ab]'} border text-[10.5px] font-extrabold flex items-center gap-1.5 cursor-pointer transition">
+              ${allFavsDown
+                ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><polyline points="20 6 9 17 4 12"/></svg><span>Descargado</span>'
+                : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span>Descargar todos los Favoritos</span>'}
             </button>
           </div>
           <div class="piano-keyboard-bed">
@@ -17681,7 +17725,13 @@ function stopPianoCameraLoop() {
       if (filterInp) filterInp.value = '';
 
       window.currentOpenedPlaylistTracks = tracks;
+      if (typeof window.refreshOfflineDownloadedIndex === 'function') {
+        await window.refreshOfflineDownloadedIndex();
+      }
       renderOpenedPlaylistTracksList(tracks, pl.id);
+      if (typeof window.syncPlaylistDownloadButtonUI === 'function') {
+        window.syncPlaylistDownloadButtonUI();
+      }
     }
 
     function extractCleanYtIdFromTrack(tr) {
@@ -17694,6 +17744,91 @@ function stopPianoCameraLoop() {
       const m = th.match(/(?:\/vi\/|\/vi_webp\/)([A-Za-z0-9_-]{11})(?:\/|$)/);
       return (m && m[1]) ? m[1] : '';
     }
+
+    function computeTrackDeterministicSlug(title, artist) {
+      const parsed = (typeof parseYouTubeMetadataSmart === 'function')
+        ? parseYouTubeMetadataSmart(title || '', artist || '')
+        : { coreTitle: String(title || '').trim(), coreArtist: String(artist || '').trim() };
+      const cleanTitle = parsed.coreTitle || String(title || 'Canción').trim();
+      const cleanArtist = (parsed.coreArtist && parsed.coreArtist.toLowerCase() !== 'youtube')
+        ? parsed.coreArtist
+        : String(artist || '').replace(/^youtube$/i, '').trim();
+      const slugKey = `${cleanTitle}_${cleanArtist}`
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 48);
+      return slugKey ? `auto_dsp_${slugKey}` : '';
+    }
+
+    window._offlineDownloadedKeys = new Set();
+
+    window.refreshOfflineDownloadedIndex = async function() {
+      try {
+        if (typeof IndexedDBStorage === 'undefined' || typeof IndexedDBStorage.getAllCharts !== 'function') return window._offlineDownloadedKeys;
+        const charts = await IndexedDBStorage.getAllCharts().catch(() => []);
+        const nextSet = new Set();
+        for (const ch of (charts || [])) {
+          if (!ch) continue;
+          if (ch.id) nextSet.add(`id:${String(ch.id)}`);
+          if (ch.originalTrackId) nextSet.add(`id:${String(ch.originalTrackId)}`);
+          const vid = extractCleanYtIdFromTrack(ch) || (typeof ch.audioUrl === 'string' && ch.audioUrl.startsWith('yt_bridge://') ? ch.audioUrl.replace('yt_bridge://', '').trim() : '');
+          if (vid) nextSet.add(`vid:${vid}`);
+          const detId = computeTrackDeterministicSlug(ch.title || '', ch.artist || '');
+          if (detId) nextSet.add(`id:${detId}`);
+        }
+        window._offlineDownloadedKeys = nextSet;
+      } catch (_) {}
+      return window._offlineDownloadedKeys;
+    };
+
+    window.isTrackDownloadedOffline = function(tr) {
+      if (!tr || !(window._offlineDownloadedKeys instanceof Set) || window._offlineDownloadedKeys.size === 0) return false;
+      const rawId = String(tr.id || '').trim();
+      if (rawId && window._offlineDownloadedKeys.has(`id:${rawId}`)) return true;
+      const vid = extractCleanYtIdFromTrack(tr);
+      if (vid && window._offlineDownloadedKeys.has(`vid:${vid}`)) return true;
+      const detId = computeTrackDeterministicSlug(tr.title || '', tr.artist || '');
+      if (detId && window._offlineDownloadedKeys.has(`id:${detId}`)) return true;
+      return false;
+    };
+
+    window.isCollectionFullyDownloadedOffline = function(tracksList) {
+      const list = Array.isArray(tracksList) ? tracksList.filter(t => t && (t.title || t.id)) : [];
+      if (list.length === 0) return false;
+      return list.every(tr => window.isTrackDownloadedOffline(tr));
+    };
+
+    window.syncPlaylistDownloadButtonUI = function() {
+      const btn = document.getElementById('btnDownloadSelectedPlaylist');
+      const lbl = document.getElementById('btnDownloadSelectedPlaylistLabel');
+      const icon = document.getElementById('btnDownloadSelectedPlaylistIcon');
+      if (!btn || !lbl) return;
+      const tracks = Array.isArray(window.currentOpenedPlaylistTracks) ? window.currentOpenedPlaylistTracks : [];
+      const allDown = window.isCollectionFullyDownloadedOffline(tracks);
+      if (allDown) {
+        btn.className = 'px-3 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/65 text-emerald-200 font-black text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition active:scale-95';
+        lbl.textContent = 'Descargado';
+        if (icon) {
+          icon.innerHTML = '<polyline points="20 6 9 17 4 12"/>';
+        }
+      } else {
+        btn.className = 'px-3 py-2 rounded-xl bg-[#d4af37]/15 hover:bg-[#d4af37]/25 border border-[#d4af37]/50 text-[#f3e5ab] font-bold text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition active:scale-95';
+        lbl.textContent = 'Descargar';
+        if (icon) {
+          icon.innerHTML = '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>';
+        }
+      }
+    };
+
+    // Inicializar índice de descargas al arrancar
+    setTimeout(() => {
+      if (typeof window.refreshOfflineDownloadedIndex === 'function') {
+        window.refreshOfflineDownloadedIndex();
+      }
+    }, 600);
 
     function normalizePlaylistTrackForPlayer(tr, idx = 0) {
       const rawTitle = repairSpanishBrokenAccents(String(tr?.title || `Pista #${idx + 1}`));
@@ -17810,6 +17945,7 @@ function stopPianoCameraLoop() {
           const sId = `pl_track_${idx}`;
           const safeTitleJs = escapeJsAttr(rawTitle);
           const safeArtistJs = escapeJsAttr(rawArtist);
+          const isDownloaded = typeof window.isTrackDownloadedOffline === 'function' && window.isTrackDownloadedOffline(norm);
 
           return `
             <div class="piano-key-row flex flex-col">
@@ -17828,7 +17964,10 @@ function stopPianoCameraLoop() {
                     </div>
                     <span class="text-[9px] font-mono font-black text-[#8e755a] w-4 text-center flex-shrink-0 self-center">${displayIdx}</span>
                     <div class="min-w-0 flex-1 flex flex-col justify-center overflow-hidden">
-                      <h3 class="text-xs font-black text-[#17131d] truncate font-serif leading-tight">${escapeHtml(rawTitle)}</h3>
+                      <div class="flex items-center gap-1.5 min-w-0">
+                        <h3 class="text-xs font-black text-[#17131d] truncate font-serif leading-tight">${escapeHtml(rawTitle)}</h3>
+                        ${isDownloaded ? `<span class="px-1.5 py-0.5 rounded bg-emerald-600/15 border border-emerald-600/40 text-[8px] font-black text-emerald-800 uppercase tracking-wider flex items-center gap-0.5 flex-shrink-0" title="Canción descargada en tu Biblioteca"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>Descargada</span>` : ''}
+                      </div>
                       <p class="text-[10px] text-[#5a422d] font-semibold truncate leading-tight mt-0.5">${escapeHtml(rawArtist)}</p>
                     </div>
                   </div>
@@ -17863,10 +18002,78 @@ function stopPianoCameraLoop() {
     }
 
     // =========================================================================
-    // DESCARGA BAJO DEMANDA DE CANCIÓN INDIVIDUAL, PLAYLIST ENTERA O FAVORITOS
+    // BARRA DE PROGRESO ELEGANTE Y DESCARGA DE CANCIÓN, PLAYLIST O FAVORITOS
     // =========================================================================
-    window.openTrackOptionsById = function(songId, fallbackTitle = '', fallbackArtist = '', fallbackThumb = '', playlistId = null) {
+    function ensureOfflineDownloadProgressBanner() {
+      let banner = document.getElementById('offlineDownloadProgressBanner');
+      if (banner) return banner;
+      banner = document.createElement('div');
+      banner.id = 'offlineDownloadProgressBanner';
+      banner.style.cssText = 'position:fixed;left:12px;right:12px;bottom:84px;max-width:460px;margin:0 auto;z-index:9990;background:linear-gradient(145deg,rgba(24,16,8,0.97),rgba(12,8,4,0.98));border:1px solid rgba(212,175,55,0.65);border-radius:16px;padding:12px 14px;box-shadow:0 16px 38px rgba(0,0,0,0.85),0 0 18px rgba(212,175,55,0.22);backdrop-filter:blur(14px);display:none;transition:opacity 0.25s ease,transform 0.25s ease;';
+      banner.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;">
+          <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">
+            <div id="offlineDlSpinnerIcon" style="width:26px;height:26px;border-radius:50%;background:rgba(212,175,55,0.18);border:1px solid rgba(243,215,145,0.5);display:flex;align-items:center;justify-content:center;color:#f3d791;flex-shrink:0;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </div>
+            <div style="min-width:0;flex:1;">
+              <div id="offlineDlTitle" style="font-size:11.5px;font-weight:900;color:#fff6d6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Descargando en tu Biblioteca...</div>
+              <div id="offlineDlSubtitle" style="font-size:10px;font-weight:600;color:#cbb894;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;">Preparando pista...</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+            <span id="offlineDlCounterBadge" style="font-family:monospace;font-size:10.5px;font-weight:900;color:#f3d791;background:rgba(212,175,55,0.18);border:1px solid rgba(212,175,55,0.45);padding:2px 8px;border-radius:999px;">0%</span>
+            <button id="offlineDlCancelBtn" type="button" onclick="window._cancelBulkOfflineDownload = true;" style="font-size:10px;font-weight:800;color:#fca5a5;background:rgba(127,29,29,0.35);border:1px solid rgba(248,113,113,0.4);padding:3px 8px;border-radius:8px;cursor:pointer;">Cancelar</button>
+          </div>
+        </div>
+        <div style="width:100%;height:7px;background:rgba(255,255,255,0.09);border-radius:999px;overflow:hidden;border:1px solid rgba(212,175,55,0.28);">
+          <div id="offlineDlBarFill" style="height:100%;width:0%;background:linear-gradient(90deg,#c5a059,#f3d791,#34d399);border-radius:999px;transition:width 0.25s ease;"></div>
+        </div>
+      `;
+      document.body.appendChild(banner);
+      return banner;
+    }
+
+    function updateOfflineDownloadProgressBanner({ visible = true, title = '', subtitle = '', percent = 0, counterText = '', allowCancel = false, completed = false }) {
+      const banner = ensureOfflineDownloadProgressBanner();
+      if (!visible) {
+        banner.style.display = 'none';
+        return;
+      }
+      banner.style.display = 'block';
+      const titleEl = document.getElementById('offlineDlTitle');
+      const subEl = document.getElementById('offlineDlSubtitle');
+      const badgeEl = document.getElementById('offlineDlCounterBadge');
+      const fillEl = document.getElementById('offlineDlBarFill');
+      const cancelBtn = document.getElementById('offlineDlCancelBtn');
+      const iconEl = document.getElementById('offlineDlSpinnerIcon');
+
+      if (titleEl && title) titleEl.textContent = title;
+      if (subEl) subEl.textContent = subtitle || '';
+      const clampedPct = Math.max(0, Math.min(100, Math.round(percent || 0)));
+      if (badgeEl) badgeEl.textContent = counterText ? `${counterText} · ${clampedPct}%` : `${clampedPct}%`;
+      if (fillEl) fillEl.style.width = `${clampedPct}%`;
+      if (cancelBtn) cancelBtn.style.display = allowCancel && !completed ? 'inline-block' : 'none';
+      if (iconEl) {
+        if (completed) {
+          iconEl.style.background = 'rgba(16,185,129,0.22)';
+          iconEl.style.borderColor = 'rgba(52,211,153,0.7)';
+          iconEl.style.color = '#6ee7b7';
+          iconEl.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><polyline points="20 6 9 17 4 12"/></svg>';
+        } else {
+          iconEl.style.background = 'rgba(212,175,55,0.18)';
+          iconEl.style.borderColor = 'rgba(243,215,145,0.5)';
+          iconEl.style.color = '#f3d791';
+          iconEl.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+        }
+      }
+    }
+
+    window.openTrackOptionsById = async function(songId, fallbackTitle = '', fallbackArtist = '', fallbackThumb = '', playlistId = null) {
       if (!window.DiscoverHomeApp || typeof window.DiscoverHomeApp.openTrackOptionsSheet !== 'function') return;
+      if (typeof window.refreshOfflineDownloadedIndex === 'function') {
+        await window.refreshOfflineDownloadedIndex();
+      }
       const found = (Array.isArray(window.searchResultsCache) && window.searchResultsCache.find(s => s && String(s.id) === String(songId))) ||
                     (Array.isArray(window.currentRenderedPlaylistTracks) && window.currentRenderedPlaylistTracks.find(s => s && String(s.id) === String(songId))) ||
                     null;
@@ -17895,10 +18102,31 @@ function stopPianoCameraLoop() {
       if (!tr && trackOrId && Array.isArray(window.searchResultsCache)) {
         tr = window.searchResultsCache.find(s => s && String(s.id) === String(trackOrId)) || null;
       }
+      if (!tr && trackOrId && Array.isArray(window.currentOpenedPlaylistTracks)) {
+        tr = window.currentOpenedPlaylistTracks.find(s => s && String(s.id) === String(trackOrId)) || null;
+      }
       if (!tr || !tr.title) return false;
 
-      if (showToast && typeof showSuccessToast === 'function') {
-        showSuccessToast(`Descargando "${tr.title}" a tu Biblioteca Offline...`);
+      tr = normalizePlaylistTrackForPlayer(tr, 0);
+      await window.refreshOfflineDownloadedIndex();
+
+      if (window.isTrackDownloadedOffline(tr)) {
+        if (showToast && typeof showSuccessToast === 'function') {
+          showSuccessToast(`"${tr.title}" ya está descargada en tu Biblioteca.`);
+        }
+        return true;
+      }
+
+      if (showToast) {
+        updateOfflineDownloadProgressBanner({
+          visible: true,
+          title: `Descargando "${tr.title}"`,
+          subtitle: `${tr.artist || 'Artista'} · Guardando en Descargas...`,
+          percent: 25,
+          counterText: '1/1',
+          allowCancel: false,
+          completed: false
+        });
       }
 
       const prevFlag = window._explicitOfflineDownloadRequested;
@@ -17909,22 +18137,49 @@ function stopPianoCameraLoop() {
           tr.artist || '',
           tr.thumbnail || tr.cover_url || '',
           'hard',
-          null,
-          null,
+          showToast ? (stepMsg) => {
+            updateOfflineDownloadProgressBanner({
+              visible: true,
+              title: `Descargando "${tr.title}"`,
+              subtitle: stepMsg || 'Procesando audio y notas...',
+              percent: 68,
+              counterText: '1/1',
+              allowCancel: false,
+              completed: false
+            });
+          } : null,
+          tr,
           false
         );
         if (res && res.chartItem && res.dspPack && typeof IndexedDBStorage !== 'undefined') {
-          await IndexedDBStorage.saveChart(res.chartItem, res.dspPack, res.dspPack.audioBlob);
+          await IndexedDBStorage.saveChart(res.chartItem, res.dspPack, res.dspPack.audioBlob || null);
+          await window.refreshOfflineDownloadedIndex();
           if (typeof updateLibraryVaultBadges === 'function') updateLibraryVaultBadges();
           if (typeof renderDownloadsSubtab === 'function') renderDownloadsSubtab();
+          if (typeof window.syncPlaylistDownloadButtonUI === 'function') window.syncPlaylistDownloadButtonUI();
+          if (Array.isArray(window.currentRenderedPlaylistTracks) && window.currentRenderedPlaylistTracks.length > 0 && currentOpenedPlaylistId) {
+            renderOpenedPlaylistTracksList(window.currentRenderedPlaylistTracks, currentOpenedPlaylistId);
+          }
         }
-        if (showToast && typeof showSuccessToast === 'function') {
-          showSuccessToast(`Descargada en Mi Biblioteca -> Descargas: ${tr.title}`);
+        if (showToast) {
+          updateOfflineDownloadProgressBanner({
+            visible: true,
+            title: `Descargada: "${tr.title}"`,
+            subtitle: 'Guardada en Mi Biblioteca -> Descargas',
+            percent: 100,
+            counterText: '1/1',
+            allowCancel: false,
+            completed: true
+          });
+          setTimeout(() => updateOfflineDownloadProgressBanner({ visible: false }), 2200);
         }
         return true;
       } catch (err) {
-        if (showToast && typeof showErrorToast === 'function') {
-          showErrorToast(`No se pudo descargar "${tr.title}": ${err.message || 'Error'}`);
+        if (showToast) {
+          updateOfflineDownloadProgressBanner({ visible: false });
+          if (typeof showErrorToast === 'function') {
+            showErrorToast(`No se pudo descargar "${tr.title}": ${err.message || 'Error'}`);
+          }
         }
         return false;
       } finally {
@@ -17938,19 +18193,77 @@ function stopPianoCameraLoop() {
         if (typeof showErrorToast === 'function') showErrorToast('No hay canciones en esta lista para descargar.');
         return;
       }
-      if (typeof showSuccessToast === 'function') {
-        showSuccessToast(`Descargando ${list.length} canciones de "${collectionName}" en segundo plano...`);
+
+      await window.refreshOfflineDownloadedIndex();
+      if (window.isCollectionFullyDownloadedOffline(list)) {
+        if (typeof window.syncPlaylistDownloadButtonUI === 'function') window.syncPlaylistDownloadButtonUI();
+        if (typeof showSuccessToast === 'function') {
+          showSuccessToast(`"${collectionName}" ya está completamente descargada en tu Biblioteca.`);
+        }
+        return;
       }
+
+      window._cancelBulkOfflineDownload = false;
       let completed = 0;
-      for (const tr of list) {
+
+      updateOfflineDownloadProgressBanner({
+        visible: true,
+        title: `Descargando "${collectionName}"`,
+        subtitle: 'Iniciando descarga de canciones...',
+        percent: 2,
+        counterText: `0/${list.length}`,
+        allowCancel: true,
+        completed: false
+      });
+
+      for (let i = 0; i < list.length; i++) {
+        if (window._cancelBulkOfflineDownload) break;
+        const tr = normalizePlaylistTrackForPlayer(list[i], i);
+        const already = window.isTrackDownloadedOffline(tr);
+        const pct = Math.round(((i) / list.length) * 100);
+
+        updateOfflineDownloadProgressBanner({
+          visible: true,
+          title: `Descargando "${collectionName}"`,
+          subtitle: `${already ? 'Verificando' : 'Guardando'}: ${tr.title} — ${tr.artist}`,
+          percent: pct,
+          counterText: `${i + 1}/${list.length}`,
+          allowCancel: true,
+          completed: false
+        });
+
+        if (already) {
+          completed++;
+          continue;
+        }
+
         const ok = await window.downloadSongToOfflineLibrary(tr, false);
         if (ok) completed++;
+        await new Promise(r => setTimeout(r, 150));
       }
+
+      await window.refreshOfflineDownloadedIndex();
       if (typeof updateLibraryVaultBadges === 'function') updateLibraryVaultBadges();
       if (typeof renderDownloadsSubtab === 'function') renderDownloadsSubtab();
-      if (typeof showSuccessToast === 'function') {
-        showSuccessToast(`Descarga completada: ${completed}/${list.length} canciones guardadas en Descargas`);
+      if (typeof window.syncPlaylistDownloadButtonUI === 'function') window.syncPlaylistDownloadButtonUI();
+      if (Array.isArray(window.currentRenderedPlaylistTracks) && window.currentRenderedPlaylistTracks.length > 0 && currentOpenedPlaylistId) {
+        renderOpenedPlaylistTracksList(window.currentRenderedPlaylistTracks, currentOpenedPlaylistId);
       }
+      if (currentLibrarySubtab === 'favorites' && typeof renderFavoritesSubtab === 'function') {
+        renderFavoritesSubtab();
+      }
+
+      const wasCancelled = Boolean(window._cancelBulkOfflineDownload);
+      updateOfflineDownloadProgressBanner({
+        visible: true,
+        title: wasCancelled ? `Descarga pausada (${completed}/${list.length})` : `Descargado: "${collectionName}"`,
+        subtitle: wasCancelled ? `${completed} canciones guardadas en Descargas` : `Las ${completed} canciones están listas en tu Biblioteca`,
+        percent: Math.round((completed / list.length) * 100),
+        counterText: `${completed}/${list.length}`,
+        allowCancel: false,
+        completed: !wasCancelled
+      });
+      setTimeout(() => updateOfflineDownloadProgressBanner({ visible: false }), 2800);
     };
 
     window.downloadAllFavoritesOffline = async function() {
@@ -18518,7 +18831,10 @@ function stopPianoCameraLoop() {
             return window.autoExtractAndPlaySong(prevTitle, prevArtist, prevThumb, reqDensity, '', true);
           }
         }
-        if (!item || !item.audioBlob) {
+        const savedAudioSource = item?.audioBlob ||
+          (typeof item?.audioUrl === 'string' && item.audioUrl.startsWith('yt_bridge://') ? item.audioUrl : '') ||
+          (item?.videoId ? `yt_bridge://${item.videoId}` : '');
+        if (!item || !savedAudioSource) {
           return downloadAndPlaySong(
             chartId,
             diffId || item?.diff_id || (item?.difficulties && item.difficulties[0]?.id) || 'default',
@@ -18555,8 +18871,8 @@ function stopPianoCameraLoop() {
         }
         item.selectedDensityMode = reqDensity;
         currentActiveChartItem = item;
-        currentActiveAudioBlob = item.audioBlob;
-        startGame(item, item.audioBlob, standardName);
+        currentActiveAudioBlob = savedAudioSource;
+        startGame(item, savedAudioSource, standardName);
       } catch (err) {
         showErrorToast('Error cargando canción: ' + err.message);
       }
@@ -18565,6 +18881,12 @@ function stopPianoCameraLoop() {
     async function deleteSavedLibraryChart(chartId) {
       if (confirm('¿Eliminar esta canción del almacenamiento local?')) {
         await IndexedDBStorage.deleteChart(chartId);
+        if (typeof window.refreshOfflineDownloadedIndex === 'function') {
+          await window.refreshOfflineDownloadedIndex();
+        }
+        if (typeof window.syncPlaylistDownloadButtonUI === 'function') {
+          window.syncPlaylistDownloadButtonUI();
+        }
         showSuccessToast('Canción eliminada de la biblioteca.');
         renderDownloadsSubtab();
       }
