@@ -1694,35 +1694,48 @@
           <!-- Inside Playlist View -->
           <div id="selectedPlaylistView" class="hidden space-y-2.5 pt-0.5">
             <div class="vegas-playlist-hero">
-              <div class="flex items-center justify-between gap-2 mb-2">
-                <button onclick="closePlaylistDetailView()" class="px-2.5 py-1 rounded-full bg-black/50 border border-[#c5a059]/50 text-[10px] font-black text-[#f3d791] flex items-center gap-1 hover:bg-black/80 cursor-pointer transition">
-                  <span>←</span> <span data-i18n="lib_pl_back">Playlists</span>
+              <div class="flex items-center justify-between gap-2 mb-2.5">
+                <button onclick="closePlaylistDetailView(true)" class="px-3 py-1 rounded-full bg-black/55 border border-[#c5a059]/50 text-[10.5px] font-black text-[#f3d791] flex items-center gap-1.5 hover:bg-black/80 cursor-pointer transition">
+                  <span>←</span> <span id="selectedPlaylistBackLabel" data-i18n="lib_pl_back">Volver a Playlists</span>
                 </button>
-                <span id="selectedPlaylistCountBadge" class="px-2.5 py-0.5 rounded-full bg-[#c5a059]/20 border border-[#c5a059]/50 text-[9px] font-mono font-black text-[#f3d791]">0 PISTAS</span>
+                <span id="selectedPlaylistCountBadge" class="px-2.5 py-0.5 rounded-full bg-[#c5a059]/20 border border-[#c5a059]/50 text-[9.5px] font-mono font-black text-[#f3d791]">0 PISTAS</span>
               </div>
-              <div class="flex items-center gap-3">
-                <div class="vegas-vinyl-sleeve shrink-0" style="width:52px;height:52px;">
+
+              <!-- Cabecera amplia con portada y título completo sin recortar -->
+              <div class="flex items-start gap-3.5">
+                <div class="vegas-vinyl-sleeve shrink-0 rounded-xl overflow-hidden shadow-lg border border-[#f3d791]/35" style="width:68px;height:68px;">
                   <img id="selectedPlaylistCoverImg" src="./app_logo.png" onerror="this.src='./app_logo.png'" alt="Cover" class="w-full h-full object-cover">
                 </div>
-                <div class="flex-1 min-w-0">
-                  <h3 id="selectedPlaylistTitle" class="text-sm font-black text-[#fff6d6] font-serif truncate">Playlist</h3>
-                  <p id="selectedPlaylistSubtitle" class="text-[10px] text-[#cbb894] truncate">Elige una canción de la lista o descubre nuevas</p>
-                </div>
-                <div class="flex items-center gap-1.5 flex-shrink-0">
-                  <button id="btnSavePreviewedPlaylist" type="button" onclick="window.saveCurrentPreviewedPlaylist()" class="hidden px-2.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/70 text-emerald-200 font-black text-[10px] flex items-center gap-1 cursor-pointer transition active:scale-95" title="Guardar esta playlist en tu biblioteca">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                    <span id="btnSavePreviewedPlaylistLabel">+ Guardar</span>
-                  </button>
-                  <button id="btnDiscoverForPlaylistView" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.startPlaylistDiscoverySwipeMode(currentOpenedPlaylistId)" class="px-2.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-[#d4af37]/60 text-[#f3d791] font-bold text-[10px] flex items-center gap-1 cursor-pointer transition active:scale-95" title="Descubrir canciones para esta playlist en modo Swipe">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    <span>Descubrir</span>
-                  </button>
-                  <button id="btnPlayAllSelectedPlaylist" onclick="window.listenEntireOpenedPlaylist(false)" class="px-3 py-2 rounded-xl bg-gradient-to-b from-[#f3d791] via-[#d4a84f] to-[#9b6f23] border border-[#fff6d6] text-[#1c1004] font-black text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-lg cursor-pointer transition active:scale-95 flex-shrink-0" title="Reproducir toda la playlist al instante">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
-                    <span>Escuchar</span>
-                  </button>
+                <div class="flex-1 min-w-0 pt-0.5">
+                  <h3 id="selectedPlaylistTitle" class="text-base sm:text-lg font-black text-[#fff6d6] font-serif leading-snug break-words">Playlist</h3>
+                  <p id="selectedPlaylistSubtitle" class="text-[11px] text-[#cbb894] leading-snug mt-1">Toca cualquier canción para escuchar al instante o ▶ para jugar al piano</p>
                 </div>
               </div>
+
+              <!-- Barra unificada de acciones de la Playlist -->
+              <div class="flex items-center flex-wrap gap-2 mt-3 pt-2.5 border-t border-[#c5a059]/25">
+                <button id="btnPlayAllSelectedPlaylist" onclick="window.listenEntireOpenedPlaylist(false)" class="flex-1 min-w-[115px] px-3.5 py-2 rounded-xl bg-gradient-to-b from-[#f3d791] via-[#d4a84f] to-[#9b6f23] border border-[#fff6d6] text-[#1c1004] font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg cursor-pointer transition active:scale-95" title="Reproducir toda la playlist al instante">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+                  <span>Escuchar</span>
+                </button>
+                <button type="button" onclick="window.listenEntireOpenedPlaylist(true)" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/25 text-[#f3e5ab] font-extrabold text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition active:scale-95" title="Reproducir en modo aleatorio">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+                  <span>Aleatorio</span>
+                </button>
+                <button id="btnSavePreviewedPlaylist" type="button" onclick="window.saveCurrentPreviewedPlaylist()" class="hidden px-3 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/70 text-emerald-200 font-black text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition active:scale-95" title="Guardar esta playlist en tu biblioteca">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                  <span id="btnSavePreviewedPlaylistLabel">+ Guardar</span>
+                </button>
+                <button id="btnDiscoverForPlaylistView" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.startPlaylistDiscoverySwipeMode(currentOpenedPlaylistId)" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-[#d4af37]/60 text-[#f3d791] font-bold text-[11px] flex items-center justify-center gap-1 cursor-pointer transition active:scale-95" title="Descubrir canciones para esta playlist en modo Swipe">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  <span>Descubrir</span>
+                </button>
+                <button type="button" onclick="window.downloadCurrentOpenedPlaylistOffline()" class="px-3 py-2 rounded-xl bg-[#d4af37]/15 hover:bg-[#d4af37]/25 border border-[#d4af37]/50 text-[#f3e5ab] font-bold text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition active:scale-95" title="Descargar toda la playlist para jugar sin conexión">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  <span>Descargar</span>
+                </button>
+              </div>
+
               <div class="unified-search-bar mt-2.5" id="playlistInternalFilterBar">
                 <input
                   id="playlistInternalFilterInput"
@@ -7475,8 +7488,12 @@
     };
 
     const DEFAULT_CLOUD_SERVER = 'https://renacer.onrender.com';
+    const FALLBACK_CLOUD_SERVER = 'https://ais-pre-rta7img4r7gtbncec44ncg-928695411268.europe-west2.run.app';
 
     function getApiBaseUrl() {
+      if (window._forceFallbackCloudServer) {
+        return FALLBACK_CLOUD_SERVER;
+      }
       const custom = localStorage.getItem('beatstar_api_server');
       if (custom !== null && custom !== undefined) {
         if (custom.trim().length > 0) return custom.trim().replace(/\/$/, '');
@@ -7495,6 +7512,22 @@
       }
       return DEFAULT_CLOUD_SERVER;
     }
+
+    // Sonda automática ligera al iniciar: si renacer.onrender.com está suspendido (502/503), conmuta al espejo activo
+    setTimeout(() => {
+      try {
+        const curBase = getApiBaseUrl();
+        if (curBase.includes('renacer.onrender.com')) {
+          fetch(`${curBase}/api/v1/health`, { method: 'GET' }).then(r => {
+            if (!r.ok && (r.status === 502 || r.status === 503)) {
+              window._forceFallbackCloudServer = true;
+            }
+          }).catch(() => {
+            window._forceFallbackCloudServer = true;
+          });
+        }
+      } catch (_) {}
+    }, 300);
 
     // Codigo de version local actualizado a 54 (v5.4.0)
     const CURRENT_APP_VERSION_CODE = (window.AndroidNative && typeof window.AndroidNative.getAppVersionCode === 'function')
@@ -13988,7 +14021,7 @@ function stopPianoCameraLoop() {
         resolvedStars = LaneRemapper.calculateObjectiveStars(resolvedNotes, songBpm, activeDensityMode, resolvedStars);
       }
 
-      const resolvedAudioBlob = audioBlob || beatmapData.audioBlob || (beatmapData.unpackedData && beatmapData.unpackedData.audioBlob);
+      const resolvedAudioBlob = audioBlob || beatmapData.audioBlob || (beatmapData.unpackedData && beatmapData.unpackedData.audioBlob) || beatmapData.audioUrl || beatmapData.audio_blob_url;
 
       const songSpeedVal = window._isPlayingDailyVideoPoker
         ? 1.0
@@ -16899,50 +16932,11 @@ function stopPianoCameraLoop() {
         }
       } catch (_) {}
 
-      // 1. CARRERA PARALELA INSTANTÁNEA (0ms de espera):
-      //    Servidor (/api/v1/audio/extract) + SoundCloud Cliente Directo + YouTube Cliente Notube
+      // 1. CARRERA PARALELA ULTRA-RÁPIDA EN CLIENTE (0 BYTES DE RENDER + FALLBACK INSTANTÁNEO YOUTUBE BRIDGE < 1.35s):
       try {
         if (onProgress) {
-          onProgress(`Descargando pista completa (${cleanTitle})...`);
+          onProgress(`Preparando pista completa (${cleanTitle})...`);
         }
-
-        const serverExtractTask = (async () => {
-          const ctrl = new AbortController();
-          const tid = setTimeout(() => ctrl.abort(), 18000);
-          try {
-            const targetVid = (preferredCandidate && preferredCandidate.videoId) || '';
-            const vidParam = targetVid ? `&videoId=${encodeURIComponent(targetVid)}` : '';
-            const scParam = (preferredCandidate && preferredCandidate.scTrackId) ? `&scTrackId=${encodeURIComponent(preferredCandidate.scTrackId)}` : '';
-            const durParam = expectedDur > 0 ? `&durationSec=${encodeURIComponent(expectedDur)}` : '';
-            const url = `${baseUrl}/api/v1/audio/extract?q=${encodeURIComponent(searchQuery)}&title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}${vidParam}${scParam}${durParam}`;
-            const resp = await fetch(url, { signal: ctrl.signal });
-            if (!resp.ok) throw new Error('Server extract HTTP ' + resp.status);
-            const cType = String(resp.headers.get('content-type') || '').toLowerCase();
-            if (cType.includes('application/json') || cType.includes('text/html')) throw new Error('Invalid content-type');
-            const ab = await resp.arrayBuffer();
-            if (!ab || ab.byteLength < 80000) throw new Error('Small buffer');
-            const u8 = new Uint8Array(ab);
-            const converted = convertFmp4ToAdtsAacClient(u8);
-            const finalMime = converted !== u8 ? 'audio/aac' : (cType.startsWith('audio/') ? cType : 'audio/mpeg');
-            const finalBlob = new Blob([converted], { type: finalMime });
-            if (candKey) window._fullTrackBlobCache.set(candKey, finalBlob);
-            if (targetVid) window._fullTrackBlobCache.set(`yt_${targetVid}`, finalBlob);
-            window._fullTrackBlobCache.set(normKey, finalBlob);
-            const resolvedTitle = decodeHeaderSafe(resp.headers.get('X-Song-Title'), cleanTitle);
-            const resolvedArtist = decodeHeaderSafe(resp.headers.get('X-Song-Artist'), cleanArtist || 'Artista');
-            const resolvedCover = decodeHeaderSafe(resp.headers.get('X-Song-Cover'), resolvedThumb);
-            const resolvedSource = decodeHeaderSafe(resp.headers.get('X-Audio-Source'), 'Studio Master MP3');
-            return {
-              blob: finalBlob,
-              title: resolvedTitle || cleanTitle,
-              artist: resolvedArtist || cleanArtist || 'Artista',
-              thumbnail: resolvedCover || resolvedThumb || getSongCoverFallback(resolvedTitle, resolvedArtist),
-              sourceName: resolvedSource
-            };
-          } finally {
-            clearTimeout(tid);
-          }
-        })();
 
         const scClientTask = (async () => {
           if (preferredCandidate && (preferredCandidate._scRawTrack || preferredCandidate.scTrackId)) {
@@ -16978,20 +16972,20 @@ function stopPianoCameraLoop() {
           throw new Error('SC Client failed');
         })();
 
+        const resolveYtVideoIdTask = (async () => {
+          const directVid = extractCleanYtIdFromTrack(preferredCandidate);
+          if (directVid) return directVid;
+          const ytList = await searchYouTubeOfficialClient(cleanTitle, cleanArtist, expectedDur).catch(() => []);
+          if (Array.isArray(ytList) && ytList.length > 0 && ytList[0].videoId) {
+            if (!resolvedThumb && ytList[0].thumbnail) resolvedThumb = ytList[0].thumbnail;
+            return ytList[0].videoId;
+          }
+          return '';
+        })();
+
         const clientExtractTask = (async () => {
-          const ytVideoCandidates = [];
-          if (preferredCandidate && preferredCandidate.videoId) {
-            ytVideoCandidates.push(preferredCandidate.videoId);
-          }
-          if (ytVideoCandidates.length < 2) {
-            const ytList = await searchYouTubeOfficialClient(cleanTitle, cleanArtist, expectedDur).catch(() => []);
-            for (const y of ytList.slice(0, 2)) {
-              if (y && y.videoId && !ytVideoCandidates.includes(y.videoId)) {
-                ytVideoCandidates.push(y.videoId);
-                if (!resolvedThumb && y.thumbnail) resolvedThumb = y.thumbnail;
-              }
-            }
-          }
+          const vid0 = await resolveYtVideoIdTask;
+          const ytVideoCandidates = vid0 ? [vid0] : [];
           for (const vid of ytVideoCandidates) {
             const ytMp3 = await extractYouTubeFullAudioViaNotubeClient(vid, onProgress);
             if (ytMp3 && ytMp3.blob && ytMp3.blob.size >= 100000) {
@@ -17010,8 +17004,30 @@ function stopPianoCameraLoop() {
           throw new Error('Client YT failed');
         })();
 
-        const winner = await Promise.any([serverExtractTask, scClientTask, clientExtractTask]);
-        if (winner && winner.blob) return winner;
+        // Si el usuario pulsó "Jugar al Piano" (no una descarga offline manual), limitar la espera de MP3 a 1.35s:
+        // si SoundCloud no ha devuelto el MP3 en 1.35s y tenemos videoId de YouTube, arrancamos AL INSTANTE con YouTube Bridge!
+        const raceList = [scClientTask, clientExtractTask];
+        if (!window._explicitOfflineDownloadRequested) {
+          const instantYtBridgeTask = (async () => {
+            const vid = await resolveYtVideoIdTask;
+            if (!vid) throw new Error('No YT videoId');
+            await new Promise(r => setTimeout(r, 1350));
+            return {
+              blob: null,
+              audioUrl: `yt_bridge://${vid}`,
+              videoId: vid,
+              durationSec: expectedDur > 45 ? expectedDur : 195,
+              title: cleanTitle,
+              artist: cleanArtist || 'Artista',
+              thumbnail: resolvedThumb || `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`,
+              sourceName: 'YouTube Instant Stream'
+            };
+          })();
+          raceList.push(instantYtBridgeTask);
+        }
+
+        const winner = await Promise.any(raceList);
+        if (winner && (winner.blob || winner.audioUrl)) return winner;
       } catch (_) {}
 
       // 4. Respaldo de Pistas Completas en Audius directo desde cliente (>= 45s)
@@ -17081,7 +17097,6 @@ function stopPianoCameraLoop() {
         }
       } catch (_) {}
 
-      // Jamás sustituir una canción buscada por el sintetizador monótono ('Piano Acoustic Synth').
       throw new Error('No se pudo extraer el audio original en este momento. Intenta de nuevo.');
     }
 
@@ -17107,7 +17122,6 @@ function stopPianoCameraLoop() {
         .slice(0, 48) || `song_${Date.now()}`;
       const deterministicId = `auto_dsp_${slugKey}`;
 
-      // Reutilizar caché solo si fue creada con el motor coreográfico v8 (_fullTrackVersion >= 8) y no es un sintetizador antiguo
       if (!forceRebuild && !preferredCandidate) {
         try {
           const existing = await IndexedDBStorage.getChart(deterministicId);
@@ -17131,14 +17145,32 @@ function stopPianoCameraLoop() {
         const extracted = await extractSongAudioMultiSource(cleanTitle, cleanArtist, effectiveThumb, onProgress, preferredCandidate);
         if (onProgress) onProgress(`Esculpiendo coreografía musical humana (${extracted.sourceName})...`);
 
-        const dspPack = await AudioAutoMapper.createPlayableChartFromAudioFile(extracted.blob, {
-          id: deterministicId,
-          title: extracted.title || cleanTitle,
-          artist: extracted.artist || cleanArtist || 'Artista',
-          thumbnail: extracted.thumbnail || effectiveThumb,
-          densityMode: targetDensity || 'hard',
-          sourceLabel: extracted.sourceName || 'Auto-DSP v8'
-        });
+        let dspPack = null;
+        if (extracted.blob) {
+          dspPack = await AudioAutoMapper.createPlayableChartFromAudioFile(extracted.blob, {
+            id: deterministicId,
+            title: extracted.title || cleanTitle,
+            artist: extracted.artist || cleanArtist || 'Artista',
+            thumbnail: extracted.thumbnail || effectiveThumb,
+            densityMode: targetDensity || 'hard',
+            sourceLabel: extracted.sourceName || 'Auto-DSP v8'
+          });
+        } else if (extracted.audioUrl) {
+          dspPack = await AudioAutoMapper.createInstantPlayableChartFromMetadata(
+            extracted.title || cleanTitle,
+            extracted.artist || cleanArtist || 'Artista',
+            extracted.durationSec || 195,
+            {
+              id: deterministicId,
+              title: extracted.title || cleanTitle,
+              artist: extracted.artist || cleanArtist || 'Artista',
+              thumbnail: extracted.thumbnail || effectiveThumb,
+              densityMode: targetDensity || 'hard',
+              audioUrl: extracted.audioUrl,
+              sourceLabel: extracted.sourceName || 'YouTube Instant Stream'
+            }
+          );
+        }
         dspPack._fullTrackVersion = 8;
         dspPack._choreographedVersion = 8;
 
@@ -17151,7 +17183,7 @@ function stopPianoCameraLoop() {
           source: 'auto_dsp',
           source_name: dspPack.creator || 'Auto-DSP v8',
           is_community: false,
-          _isOfflineSaved: true,
+          _isOfflineSaved: Boolean(dspPack.audioBlob),
           _isAutoGeneratedDsp: true,
           _fullTrackVersion: 8,
           _choreographedVersion: 8,
@@ -17163,11 +17195,11 @@ function stopPianoCameraLoop() {
           stars: dspPack.stars,
           bpm: dspPack.bpm,
           difficulties: dspPack.difficulties,
+          audioUrl: dspPack.audioUrl || '',
           thumbnail: dspPack.thumbnail || getSongCoverFallback(dspPack.title, dspPack.artist)
         };
 
-        // Guardar en Descargas SOLO si el usuario solicitó explícitamente descargar la canción
-        if (window._explicitOfflineDownloadRequested) {
+        if (window._explicitOfflineDownloadRequested && dspPack.audioBlob) {
           IndexedDBStorage.saveChart(chartItem, dspPack, dspPack.audioBlob)
             .then(() => { if (typeof updateLibraryVaultBadges === 'function') updateLibraryVaultBadges(); })
             .catch(() => {});
@@ -17206,7 +17238,7 @@ function stopPianoCameraLoop() {
       if (loadTitle) loadTitle.innerText = displayTitle;
       if (loadArtist) loadArtist.innerText = displayArtist ? `${displayArtist} (Coreografía DSP v5)` : 'Coreografía DSP v5';
       if (overlay) overlay.classList.add('active');
-      if (loadStatus) loadStatus.innerText = 'Descargando grabación original completa...';
+      if (loadStatus) loadStatus.innerText = 'Preparando grabación original...';
 
       try {
         const { chartItem, dspPack } = await buildAndSaveAutoExtractedSong(
@@ -17229,7 +17261,7 @@ function stopPianoCameraLoop() {
         if (overlay) overlay.classList.remove('active');
         showSuccessToast(`Pista lista: ${chartItem.title} (${diffObj.name})`);
         const targetDensityKey = diffObj.densityMode || targetDensity || 'hard';
-        if (dspPack && dspPack.audioBlob) {
+        if (dspPack && (dspPack.audioBlob || dspPack.audioUrl)) {
           dspPack.selectedDensityMode = targetDensityKey;
           if (dspPack.tierNotes && dspPack.tierNotes[targetDensityKey]) {
             dspPack.notes = dspPack.tierNotes[targetDensityKey];
@@ -17238,7 +17270,7 @@ function stopPianoCameraLoop() {
           dspPack.metadata.difficulty_name = diffObj.name || 'Difícil';
           dspPack.metadata.stars = diffObj.stars || chartItem.stars || 4.5;
           dspPack.selectedStars = dspPack.metadata.stars;
-          startGame(dspPack, dspPack.audioBlob, diffObj.name || 'Difícil');
+          startGame(dspPack, dspPack.audioBlob || dspPack.audioUrl, diffObj.name || 'Difícil');
         } else {
           playSavedLibraryChart(chartItem.id, diffObj.densityMode || diffObj.id, diffObj.name || 'Difícil', diffObj.stars || chartItem.stars);
         }
@@ -17562,23 +17594,34 @@ function stopPianoCameraLoop() {
       if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.closePlaylistTracksModal === 'function') {
         window.DiscoverHomeApp.closePlaylistTracksModal();
       }
+
+      // Recordar si se abrió desde Descubrir para que el botón Volver regrese a Descubrir
+      if (typeof currentActiveTab !== 'undefined' && currentActiveTab !== 'library') {
+        window._playlistOpenedFromTab = currentActiveTab;
+      } else if (!window._playlistOpenedFromTab) {
+        window._playlistOpenedFromTab = null;
+      }
+
+      // Fijar currentLibrarySubtab = 'playlists' ANTES de switchMainTab('library') para que NUNCA muestre Descargas
+      currentLibrarySubtab = 'playlists';
       if (typeof currentActiveTab !== 'undefined' && currentActiveTab !== 'library') {
         await switchMainTab('library');
       }
-      if (typeof currentLibrarySubtab !== 'undefined' && currentLibrarySubtab !== 'playlists') {
-        const subtabs = ['downloads', 'favorites', 'playlists'];
-        subtabs.forEach(st => {
-          const btn = document.getElementById(`subtab-${st}`);
-          const content = document.getElementById(`libContent-${st}`);
-          if (st === 'playlists') {
-            if (btn) btn.classList.add('active');
-            if (content) content.classList.remove('hidden');
-          } else {
-            if (btn) btn.classList.remove('active');
-            if (content) content.classList.add('hidden');
-          }
-        });
-        currentLibrarySubtab = 'playlists';
+
+      const subtabDownloadsBtn = document.getElementById('subtabDownloadsBtn');
+      const subtabFavoritesBtn = document.getElementById('subtabFavoritesBtn');
+      const subtabPlaylistsBtn = document.getElementById('subtabPlaylistsBtn');
+      const downloadsCont = document.getElementById('subtabDownloadsContainer');
+      const favoritesCont = document.getElementById('subtabFavoritesContainer');
+      const playlistsCont = document.getElementById('subtabPlaylistsContainer');
+      [subtabDownloadsBtn, subtabFavoritesBtn].forEach(b => b && b.classList.remove('active'));
+      if (subtabPlaylistsBtn) subtabPlaylistsBtn.classList.add('active');
+      [downloadsCont, favoritesCont].forEach(c => c && c.classList.add('hidden'));
+      if (playlistsCont) playlistsCont.classList.remove('hidden');
+
+      const backLbl = document.getElementById('selectedPlaylistBackLabel');
+      if (backLbl) {
+        backLbl.innerText = window._playlistOpenedFromTab === 'discover' ? 'Volver a Descubrir' : 'Volver a Playlists';
       }
 
       const tracksCont = document.getElementById('playlistTracksContainer');
@@ -17812,27 +17855,11 @@ function stopPianoCameraLoop() {
       }).join('');
 
       tracksCont.innerHTML = `
-        <div class="flex items-center justify-between gap-2 mb-2 px-1">
-          <span class="text-[10.5px] font-bold text-[#f3e5ab]">${safeList.length} canciones en esta lista</span>
-          <div class="flex items-center gap-1.5">
-            <button type="button" onclick="window.listenEntireOpenedPlaylist(true)" class="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/15 border border-white/20 text-[#f3e5ab] text-[10.5px] font-extrabold flex items-center gap-1 cursor-pointer">
-              <span>Aleatorio</span>
-            </button>
-            <button type="button" onclick="window.downloadCurrentOpenedPlaylistOffline()" class="px-3 py-1 rounded-full bg-[#d4af37]/20 hover:bg-[#d4af37]/30 border border-[#d4af37]/50 text-[#f3e5ab] text-[10.5px] font-extrabold flex items-center gap-1.5 cursor-pointer">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              <span>Descargar toda la Playlist</span>
-            </button>
-          </div>
-        </div>
         <div class="piano-keyboard-bed">
           <div class="piano-felt-top-strip"></div>
           ${keysHtml}
         </div>
       `;
-      const engine = window.DiscoverHomeApp && window.DiscoverHomeApp.getAudioEngine && window.DiscoverHomeApp.getAudioEngine();
-      if (engine && typeof engine.warmTracks === 'function') {
-        engine.warmTracks(safeList.slice(0, 3).map((tr, i) => normalizePlaylistTrackForPlayer(tr, i)));
-      }
     }
 
     // =========================================================================
@@ -17972,13 +17999,19 @@ function stopPianoCameraLoop() {
       renderOpenedPlaylistTracksList(filtered, currentOpenedPlaylistId);
     };
 
-    function closePlaylistDetailView() {
+    function closePlaylistDetailView(fromBackButton = false) {
       const detailView = document.getElementById('selectedPlaylistView');
       const listEl = document.getElementById('playlistsList');
       const vaultHeaderEl = document.getElementById('playlistsVaultHeaderBar');
       if (detailView) detailView.classList.add('hidden');
       if (listEl) listEl.classList.remove('hidden');
       if (vaultHeaderEl) vaultHeaderEl.classList.remove('hidden');
+      if (fromBackButton && window._playlistOpenedFromTab === 'discover') {
+        window._playlistOpenedFromTab = null;
+        if (typeof switchMainTab === 'function') {
+          switchMainTab('discover');
+        }
+      }
     }
 
     async function deletePlaylistConfirm(playlistId) {

@@ -1666,6 +1666,10 @@ async function getVerifiedGithubCdnApkUrl(expectedLocalSize) {
 }
 
 app.all(['/download/apk', '/api/v1/app/download_apk', '/PianoCommunity.apk', '/static/PianoCommunity.apk', '/downloads/PianoCommunity.apk', '/HyperRhythm.apk'], async (req, res) => {
+  // En Render (plan gratuito de 5 GB/mes), redirigir las descargas del APK (60 MB) directamente a GitHub Releases CDN (0 bytes de gasto en Render)
+  if (process.env.RENDER && !req.query.local) {
+    return res.redirect(302, 'https://github.com/Bruala33/renacer/releases/latest/download/PianoCommunity.apk');
+  }
   const apkCandidates = [
     path.join(STATIC_DIR, 'PianoCommunity.apk'),
     path.join(__dirname, 'PianoCommunity.apk'),
@@ -6841,28 +6845,7 @@ async function pumpAudioWarmQueue() {
 }
 
 app.post('/api/v1/audio/warm', (req, res) => {
-  const list = Array.isArray(req.body?.tracks) ? req.body.tracks.slice(0, 4) : [];
-  const now = Date.now();
-  let queued = 0;
-  for (const raw of list) {
-    const t = {
-      title: String(raw?.title || '').trim().slice(0, 200),
-      artist: String(raw?.artist || '').trim().slice(0, 200),
-      videoId: String(raw?.videoId || '').trim().slice(0, 32),
-      durationSec: Number(raw?.durationSec) || 0
-    };
-    if (!t.title && !t.videoId) continue;
-    const key = buildAudioWarmCacheKey(t);
-    const seenAt = AUDIO_WARM_SEEN.get(key);
-    if (seenAt && now - seenAt < 10 * 60 * 1000) continue;
-    AUDIO_WARM_SEEN.set(key, now);
-    if (AUDIO_WARM_SEEN.size > 500) AUDIO_WARM_SEEN.delete(AUDIO_WARM_SEEN.keys().next().value);
-    AUDIO_WARM_QUEUE.push(t);
-    queued++;
-  }
-  while (AUDIO_WARM_QUEUE.length > 12) AUDIO_WARM_QUEUE.shift();
-  pumpAudioWarmQueue();
-  res.status(202).json({ queued });
+  res.status(202).json({ queued: 0, mode: 'client_direct' });
 });
 
 // ==========================================

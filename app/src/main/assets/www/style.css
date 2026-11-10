@@ -6209,12 +6209,24 @@ body {
 }
 
 .mini-player-swipe-handle {
-  width: 30px;
-  height: 3px;
+  position: relative;
+  width: 36px;
+  height: 4px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.22);
-  margin: 0 auto 2px;
+  background: rgba(255, 255, 255, 0.35);
+  margin: 0 auto 3px;
   flex-shrink: 0;
+  cursor: grab;
+  touch-action: none;
+}
+
+.mini-player-swipe-handle::before {
+  content: '';
+  position: absolute;
+  top: -12px;
+  bottom: -10px;
+  left: -36px;
+  right: -36px;
 }
 
 .mini-player-main-row {
@@ -7487,12 +7499,25 @@ body {
 
 .sp-options-sheet-grabber,
 .sp-options-sheet-handle {
-  width: 38px;
-  height: 4px;
+  position: relative;
+  width: 42px;
+  height: 4.5px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.36);
   margin: 10px auto 6px;
   flex-shrink: 0;
+  cursor: grab;
+  touch-action: none;
+}
+
+.sp-options-sheet-grabber::before,
+.sp-options-sheet-handle::before {
+  content: '';
+  position: absolute;
+  top: -12px;
+  bottom: -12px;
+  left: -48px;
+  right: -48px;
 }
 
 .sp-options-sheet-divider {

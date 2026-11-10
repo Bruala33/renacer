@@ -397,12 +397,11 @@ class DirectAudioSync {
   _bindAudioElement(el, token) {
     if (!el) return;
     el.preload = 'auto';
-    el.crossOrigin = 'anonymous';
     el.muted = this.muted;
     el.volume = this.muted ? 0 : this.volume;
 
     const enforceSpeedAndPitch = () => {
-      if (token !== this._audioToken || !this.audioElement) return;
+      if (!this.audioElement) return;
       try {
         this.audioElement.defaultPlaybackRate = this.playbackRate;
         this.audioElement.playbackRate = this.playbackRate;
@@ -410,8 +409,11 @@ class DirectAudioSync {
       } catch (e) {}
     };
 
+    if (el._directSyncBound) return;
+    el._directSyncBound = true;
+
     el.addEventListener('canplaythrough', () => {
-      if (token !== this._audioToken) return;
+      if (this._ytBridgeVideoId) return;
       this.isLoaded = true;
       this.duration = el.duration || 0;
       enforceSpeedAndPitch();
@@ -419,7 +421,7 @@ class DirectAudioSync {
     });
 
     el.addEventListener('playing', () => {
-      if (token !== this._audioToken) return;
+      if (this._ytBridgeVideoId) return;
       this.isPlaying = true;
       enforceSpeedAndPitch();
       const rawSec = el.currentTime || 0;
@@ -432,7 +434,7 @@ class DirectAudioSync {
     });
 
     el.addEventListener('pause', () => {
-      if (token !== this._audioToken) return;
+      if (this._ytBridgeVideoId) return;
       if (el.ended) return;
       this.isPlaying = false;
       this._anchorPerf = 0;
@@ -440,7 +442,7 @@ class DirectAudioSync {
     });
 
     el.addEventListener('ended', () => {
-      if (token !== this._audioToken) return;
+      if (this._ytBridgeVideoId) return;
       this.isPlaying = false;
       this._anchorPerf = 0;
       this._clockSkewRate = 1.0;
@@ -448,7 +450,7 @@ class DirectAudioSync {
     });
 
     el.addEventListener('error', () => {
-      if (token !== this._audioToken) return;
+      if (this._ytBridgeVideoId) return;
       if (el.src && this.onError) {
         this.onError('Error en la reproducción de audio.');
       }
@@ -456,21 +458,62 @@ class DirectAudioSync {
   }
 
   unlockAudio() {
-    if (window.engine && (window.engine.isPaused || window.engine.isProcessingMiss || window.engine.isGameOver || !window.engine.isRunning)) {
+    if (!this.audioElement) {
+      this.audioElement = new Audio();
+      this._bindAudioElement(this.audioElement, this._audioToken);
+    }
+    const isActivelyPlayingGame = Boolean(
+      window.engine &&
+      window.engine.isRunning &&
+      !window.engine.isPaused &&
+      !window.engine.isCountingDown &&
+      !window.engine.isProcessingMiss &&
+      !window.engine.isGameOver
+    );
+    if (isActivelyPlayingGame) {
+      if (this._ytBridgeVideoId && window.dualStreamEngine && typeof window.dualStreamEngine.playYtBridgeForGameplay === 'function') {
+        window.dualStreamEngine.playYtBridgeForGameplay(
+          this._ytBridgeVideoId,
+          (this._interpolatedMs || 0) / 1000,
+          this.muted ? 0 : this.volume,
+          this.playbackRate
+        );
+        this.isPlaying = true;
+        return;
+      }
+      if (this.audioElement && this.audioElement.src && this.audioElement.paused) {
+        this.audioElement.muted = this.muted;
+        this.audioElement.volume = this.muted ? 0 : this.volume;
+        try { this.audioElement.play().catch(() => {}); } catch (_) {}
+      }
       return;
     }
-    if (this.audioElement) {
-      this.audioElement.muted = false;
-      this.audioElement.volume = 1.0;
-      try {
-        const p = this.audioElement.play();
-        if (p && typeof p.then === 'function') {
-          p.then(() => {
-            if (!this.isPlaying) this.audioElement.pause();
-          }).catch(() => {});
-        }
-      } catch (e) {}
-    }
+
+    // Desbloqueo silencioso en menú dentro del gesto del usuario para conservar el permiso de autoplay tras la cuenta atrás
+    if (this._alreadyGestureUnlocked && this.audioElement.src) return;
+    try {
+      const el = this.audioElement;
+      const hadSrc = Boolean(el.src && !el.src.startsWith('data:audio/wav'));
+      if (!hadSrc) {
+        el.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+      }
+      const prevMuted = el.muted;
+      el.muted = true;
+      const p = el.play();
+      if (p && typeof p.then === 'function') {
+        p.then(() => {
+          this._alreadyGestureUnlocked = true;
+          if (!this.isPlaying) {
+            try { el.pause(); } catch (_) {}
+          }
+          el.muted = this.muted;
+        }).catch(() => {
+          el.muted = prevMuted;
+        });
+      } else {
+        el.muted = prevMuted;
+      }
+    } catch (e) {}
   }
 
   showUnlockPrompt() {
@@ -481,6 +524,9 @@ class DirectAudioSync {
   setPlaybackRate(rate) {
     const r = Math.max(0.5, Math.min(2.0, parseFloat(rate) || 1.0));
     this.playbackRate = r;
+    if (this._ytBridgeVideoId && window.dualStreamEngine && typeof window.dualStreamEngine.setYtBridgeGameplayRate === 'function') {
+      window.dualStreamEngine.setYtBridgeGameplayRate(r);
+    }
     if (this.audioElement) {
       try {
         this.audioElement.defaultPlaybackRate = r;
@@ -489,7 +535,7 @@ class DirectAudioSync {
       } catch (e) {}
     }
     if (this.isPlaying) {
-      this._anchorAudioMs = (this.audioElement.currentTime || 0) * 1000;
+      this._anchorAudioMs = this._interpolatedMs || ((this.audioElement?.currentTime || 0) * 1000);
       this._anchorPerf = performance.now();
     }
   }
@@ -497,6 +543,9 @@ class DirectAudioSync {
   setVolume(vol, muted = false) {
     this.volume = isNaN(vol) ? 1.0 : Math.max(0, Math.min(1, vol));
     this.muted = !!muted;
+    if (this._ytBridgeVideoId && window.dualStreamEngine && typeof window.dualStreamEngine.setYtBridgeGameplayVolume === 'function') {
+      window.dualStreamEngine.setYtBridgeGameplayVolume(this.muted ? 0 : this.volume);
+    }
     if (this.audioElement) {
       this.audioElement.muted = this.muted;
       this.audioElement.volume = this.muted ? 0 : this.volume;
@@ -526,34 +575,45 @@ class DirectAudioSync {
     this.isLoaded = false;
     this.isPlaying = false;
     this.duration = 0;
-
-    // Retirar limpiamente el elemento de audio anterior y crear una instancia nueva para evitar degradación del decodificador en la 2ª canción
     this._audioToken = (this._audioToken || 0) + 1;
-    const prevEl = this.audioElement;
-    if (prevEl) {
-      try {
-        prevEl.pause();
-        prevEl.removeAttribute('src');
-        prevEl.load();
-      } catch (e) {}
-    }
 
-    if (url) {
-      const freshEl = new Audio();
-      this.audioElement = freshEl;
-      this._bindAudioElement(freshEl, this._audioToken);
-      freshEl.loop = false;
-      freshEl.src = url;
+    if (this._ytBridgeVideoId && window.dualStreamEngine && typeof window.dualStreamEngine.stopYtBridgeForGameplay === 'function') {
+      try { window.dualStreamEngine.stopYtBridgeForGameplay(); } catch (_) {}
+    }
+    this._ytBridgeVideoId = '';
+
+    if (!this.audioElement) {
+      this.audioElement = new Audio();
+    }
+    this._bindAudioElement(this.audioElement, this._audioToken);
+
+    try {
+      this.audioElement.pause();
+    } catch (_) {}
+
+    if (typeof url === 'string' && url.startsWith('yt_bridge://')) {
+      const vid = url.replace('yt_bridge://', '').trim();
+      this._ytBridgeVideoId = vid;
+      this.isLoaded = true;
+      if (window.dualStreamEngine && typeof window.dualStreamEngine.prepareYtBridgeForGameplay === 'function') {
+        window.dualStreamEngine.prepareYtBridgeForGameplay(vid);
+      }
+      if (this.onReady) {
+        setTimeout(() => { if (this.onReady) this.onReady(); }, 0);
+      }
+    } else if (url) {
+      const el = this.audioElement;
+      el.loop = false;
+      el.muted = this.muted;
+      el.volume = this.muted ? 0 : this.volume;
+      el.src = url;
       if (this.playbackRate !== 1.0) {
         try {
-          freshEl.defaultPlaybackRate = this.playbackRate;
-          freshEl.playbackRate = this.playbackRate;
+          el.defaultPlaybackRate = this.playbackRate;
+          el.playbackRate = this.playbackRate;
         } catch (e) {}
       }
-      freshEl.load();
-    } else if (!this.audioElement) {
-      this.audioElement = new Audio();
-      this._bindAudioElement(this.audioElement, this._audioToken);
+      try { el.load(); } catch (_) {}
     }
 
     this._anchorPerf = 0;
@@ -571,10 +631,35 @@ class DirectAudioSync {
     if (typeof window !== 'undefined' && typeof window.pauseMenuAmbientMusic === 'function') {
       try { window.pauseMenuAmbientMusic(); } catch (_) {}
     }
-    if (!this.audioElement || !this.audioElement.src) return Promise.resolve();
     if (window.engine && (window.engine.isPaused || window.engine.isProcessingMiss || window.engine.isGameOver || !window.engine.isRunning || window.engine.isCountingDown)) {
       return Promise.resolve();
     }
+
+    if (this._ytBridgeVideoId) {
+      const targetSec = (Number.isFinite(this._pendingSeekSec) && this._pendingSeekSec >= 0)
+        ? this._pendingSeekSec
+        : ((this._interpolatedMs || 0) / 1000);
+      this._pendingSeekSec = null;
+      this.isPlaying = true;
+      this._interpolatedMs = targetSec * 1000;
+      this._lastReturnedMs = this._interpolatedMs;
+      this._lastRawAudioTime = targetSec;
+      this._lastFrameNow = 0;
+      this._cachedFrameNow = -1;
+      this._clockSkewRate = 1.0;
+      this._smoothedDrift = 0;
+      if (window.dualStreamEngine && typeof window.dualStreamEngine.playYtBridgeForGameplay === 'function') {
+        window.dualStreamEngine.playYtBridgeForGameplay(
+          this._ytBridgeVideoId,
+          targetSec,
+          this.muted ? 0 : this.volume,
+          this.playbackRate
+        );
+      }
+      return Promise.resolve();
+    }
+
+    if (!this.audioElement || !this.audioElement.src) return Promise.resolve();
     try {
       this.audioElement.playbackRate = this.playbackRate;
       this.audioElement.muted = this.muted;
@@ -597,7 +682,6 @@ class DirectAudioSync {
           this._lastReturnedMs = this._interpolatedMs;
           this._lastRawAudioTime = rawSec;
         }
-        // _lastFrameNow se inicializa a 0 para que el primer VSync requestAnimationFrame fije el origen en el dominio de reloj VSync puro
         this._lastFrameNow = 0;
         this._cachedFrameNow = -1;
         this._clockSkewRate = 1.0;
@@ -608,8 +692,12 @@ class DirectAudioSync {
       if (p && typeof p.then === 'function') {
         return p.then(() => {
           this.isPlaying = true;
+          const toast = document.getElementById('audioUnlockToast');
+          if (toast) toast.classList.remove('show');
         }).catch(err => {
-          if (err && err.name === 'NotAllowedError') this.showUnlockPrompt();
+          if (err && err.name === 'NotAllowedError') {
+            this.showUnlockPrompt();
+          }
         });
       }
       return Promise.resolve();
@@ -623,6 +711,10 @@ class DirectAudioSync {
     this._anchorPerf = 0;
     this._lastFrameNow = 0;
     this._cachedFrameNow = -1;
+    if (this._ytBridgeVideoId && window.dualStreamEngine && typeof window.dualStreamEngine.pauseYtBridgeForGameplay === 'function') {
+      try { window.dualStreamEngine.pauseYtBridgeForGameplay(); } catch (_) {}
+      return;
+    }
     try {
       if (this.audioElement) this.audioElement.pause();
     } catch (e) {}
@@ -641,6 +733,10 @@ class DirectAudioSync {
     this._lastRawAudioTime = -1;
     this._clockSkewRate = 1.0;
     this._smoothedDrift = 0;
+    if (this._ytBridgeVideoId && window.dualStreamEngine && typeof window.dualStreamEngine.seekYtBridgeForGameplay === 'function') {
+      try { window.dualStreamEngine.seekYtBridgeForGameplay(sec); } catch (_) {}
+      return;
+    }
     try {
       if (this.audioElement) {
         if (this.audioElement.readyState >= 1) {
@@ -659,7 +755,6 @@ class DirectAudioSync {
   // RELOJ PLL 100% LINEAL, MONÓTONO Y CONTINUO INTEGRADO POR DELTA VSYNC (0 TIRONES A 120 FPS)
   // ==========================================
   getCurrentTimeMs(frameNow) {
-    // Si se consulta sin frameNow (desde eventos táctiles, handleMiss, pause, etc.), devolver la última marca interpolada sin alterar _lastFrameNow
     if (frameNow === undefined || frameNow === null) {
       if (Number.isFinite(this._lastReturnedMs) && this._lastReturnedMs > 0) {
         return this._lastReturnedMs;
@@ -667,20 +762,18 @@ class DirectAudioSync {
       if (Number.isFinite(this._interpolatedMs) && this._interpolatedMs > 0) {
         return this._interpolatedMs;
       }
-      if (this.audioElement && !isNaN(this.audioElement.currentTime) && this.audioElement.currentTime > 0) {
+      if (!this._ytBridgeVideoId && this.audioElement && !isNaN(this.audioElement.currentTime) && this.audioElement.currentTime > 0) {
         return this.audioElement.currentTime * 1000;
       }
       return this._anchorAudioMs || 0;
     }
 
-    // Si el elemento de audio está reproduciendo realmente pero un evento asíncrono desactivó isPlaying, restaurarlo de inmediato
-    if (!this.isPlaying && this.audioElement && !this.audioElement.paused && !this.audioElement.ended) {
+    if (!this.isPlaying && !this._ytBridgeVideoId && this.audioElement && !this.audioElement.paused && !this.audioElement.ended) {
       this.isPlaying = true;
     }
 
     if (!this.isPlaying) {
       if (window.engine && window.engine.isRunning && !window.engine.isPaused && !window.engine.isCountingDown && !window.engine.isProcessingMiss) {
-        // Si la partida está en curso esperando a que el decodificador de audio arranque tras la cuenta atrás, avanzar suavemente por VSync
         const rate = this.playbackRate || 1.0;
         if (!this._lastFrameNow) {
           this._lastFrameNow = frameNow;
@@ -701,7 +794,6 @@ class DirectAudioSync {
       return this._lastReturnedMs || this._interpolatedMs || this._anchorAudioMs || 0;
     }
 
-    // Si ya se calculó para este mismo VSync frameNow (ej. update() y luego render()), devolver en O(1)
     if (this._cachedFrameNow === frameNow) {
       return this._lastReturnedMs;
     }
@@ -709,7 +801,9 @@ class DirectAudioSync {
     const rate = this.playbackRate || 1.0;
 
     if (!this._lastFrameNow) {
-      const rawSec = (this.audioElement && !isNaN(this.audioElement.currentTime)) ? this.audioElement.currentTime : 0;
+      const rawSec = this._ytBridgeVideoId
+        ? ((window.dualStreamEngine && typeof window.dualStreamEngine.getYtBridgeGameplayTimeSec === 'function') ? window.dualStreamEngine.getYtBridgeGameplayTimeSec() : 0)
+        : ((this.audioElement && !isNaN(this.audioElement.currentTime)) ? this.audioElement.currentTime : 0);
       this._lastFrameNow = frameNow;
       this._interpolatedMs = Math.max(this._interpolatedMs || 0, rawSec * 1000);
       this._lastReturnedMs = this._interpolatedMs;
@@ -721,7 +815,6 @@ class DirectAudioSync {
       return this._interpolatedMs;
     }
 
-    // Avance puro por delta de frame VSync (garantiza que la velocidad nunca salte hacia atrás ni se congele)
     const rawDtMs = frameNow - this._lastFrameNow;
     const dtMs = rawDtMs > 0 ? Math.min(42.0, rawDtMs) : 0;
     this._lastFrameNow = frameNow;
@@ -729,10 +822,11 @@ class DirectAudioSync {
 
     this._interpolatedMs += dtMs * rate * (this._clockSkewRate || 1.0);
 
-    // Muestrear deriva cada 250ms filtrando el escalón de cuantización del buffer de audio (21-46ms en Android)
     if (frameNow - this._lastSyncCheck >= 250) {
       this._lastSyncCheck = frameNow;
-      const rawSec = this.audioElement ? this.audioElement.currentTime : 0;
+      const rawSec = this._ytBridgeVideoId
+        ? ((window.dualStreamEngine && typeof window.dualStreamEngine.getYtBridgeGameplayTimeSec === 'function') ? window.dualStreamEngine.getYtBridgeGameplayTimeSec() : 0)
+        : (this.audioElement ? this.audioElement.currentTime : 0);
       if (rawSec !== this._lastRawAudioTime && rawSec > 0) {
         this._lastRawAudioTime = rawSec;
         const hwAudioMs = rawSec * 1000;
@@ -744,10 +838,8 @@ class DirectAudioSync {
           this._clockSkewRate = 1.0;
           this._smoothedDrift = 0;
         } else {
-          // Filtro paso-bajo exponencial que absorbe el jitter de cuantización del mixer de audio sin dar tirones visuales
           this._smoothedDrift = (this._smoothedDrift || 0) * 0.84 + drift * 0.16;
           if (Math.abs(this._smoothedDrift) > 18.0) {
-            // Corrección de frecuencia progresiva y suave (±0.65% máx) 100% libre de saltos de posición
             this._clockSkewRate = 1.0 + Math.max(-0.0065, Math.min(0.0065, this._smoothedDrift / 2800));
           } else {
             this._clockSkewRate = 1.0;
@@ -2432,6 +2524,9 @@ class BeatstarEngine {
 
       if (e.cancelable) {
         e.preventDefault();
+      }
+      if (this.sync && typeof this.sync.unlockAudio === 'function') {
+        this.sync.unlockAudio();
       }
 
       const now = performance.now();

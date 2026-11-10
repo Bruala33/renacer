@@ -2434,6 +2434,132 @@
       }
     }
 
+    prepareYtBridgeForGameplay(videoId) {
+      if (!videoId) return false;
+      try {
+        this._ytGameplayActive = true;
+        this._ytGameplayVideoId = videoId;
+        this._ytGameplayBaseSec = 0;
+        this._ytGameplayStartWallMs = performance.now();
+        this._ytGameplayPaused = true;
+        this._ytGameplayRate = 1.0;
+        if (this._ytApiReady && this._ytApiPlayer && typeof this._ytApiPlayer.cueVideoById === 'function') {
+          this._ytApiPlayer.cueVideoById({ videoId, startSeconds: 0 });
+          this._ytApiPlayer.unMute();
+          this._ytApiPlayer.setVolume(95);
+          return true;
+        }
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    playYtBridgeForGameplay(videoId, startSec = 0, vol = 0.9, rate = 1.0) {
+      if (!videoId) return false;
+      try {
+        if (typeof window.pauseMenuAmbientMusic === 'function') {
+          window.pauseMenuAmbientMusic();
+        }
+        const safeStart = Math.max(0, Number(startSec) || 0);
+        const volPct = Math.max(5, Math.min(100, Math.round((Number(vol) || 0.9) * 100)));
+        this._ytGameplayActive = true;
+        this._ytGameplayVideoId = videoId;
+        this._ytGameplayBaseSec = safeStart;
+        this._ytGameplayStartWallMs = performance.now();
+        this._ytGameplayPaused = false;
+        this._ytGameplayRate = Number(rate) || 1.0;
+
+        if (this._ytApiReady && this._ytApiPlayer && typeof this._ytApiPlayer.loadVideoById === 'function') {
+          if (this._ytBridgeVideoId !== videoId) {
+            this._ytBridgeVideoId = videoId;
+            this._ytApiPlayer.loadVideoById({ videoId, startSeconds: Math.floor(safeStart) });
+          } else {
+            this._ytApiPlayer.seekTo(safeStart, true);
+          }
+          this._ytApiPlayer.unMute();
+          this._ytApiPlayer.setVolume(volPct);
+          if (typeof this._ytApiPlayer.setPlaybackRate === 'function') {
+            this._ytApiPlayer.setPlaybackRate(this._ytGameplayRate);
+          }
+          this._ytApiPlayer.playVideo();
+          return true;
+        }
+
+        let host = document.getElementById('ytInstantAudioBridgeHost');
+        if (!host) {
+          host = document.createElement('div');
+          host.id = 'ytInstantAudioBridgeHost';
+          host.style.cssText = 'position:fixed;width:2px;height:2px;bottom:0;left:0;opacity:0.01;pointer-events:none;z-index:-1;overflow:hidden;';
+          document.body.appendChild(host);
+        }
+        const origin = encodeURIComponent(window.location.origin || 'https://renacer.onrender.com');
+        host.innerHTML = `<iframe id="ytInstantAudioBridgeIframe" width="200" height="112" src="https://www.youtube.com/embed/${encodeURIComponent(videoId)}?autoplay=1&mute=0&controls=0&playsinline=1&enablejsapi=1&start=${Math.floor(safeStart)}&origin=${origin}" allow="autoplay; encrypted-media"></iframe>`;
+        const ifr = document.getElementById('ytInstantAudioBridgeIframe');
+        if (ifr) {
+          ifr.addEventListener('load', () => {
+            if (!this._ytGameplayActive) return;
+            this._ytGameplayStartWallMs = performance.now();
+            this._sendYtBridgeCommand('unMute', []);
+            this._sendYtBridgeCommand('setVolume', [volPct]);
+            this._sendYtBridgeCommand('playVideo', []);
+          }, { once: true });
+        }
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    pauseYtBridgeForGameplay() {
+      this._ytGameplayBaseSec = this.getYtBridgeGameplayTimeSec();
+      this._ytGameplayPaused = true;
+      this._sendYtBridgeCommand('pauseVideo', []);
+    }
+
+    seekYtBridgeForGameplay(sec = 0) {
+      const safe = Math.max(0, Number(sec) || 0);
+      this._ytGameplayBaseSec = safe;
+      this._ytGameplayStartWallMs = performance.now();
+      this._sendYtBridgeCommand('seekTo', [Math.floor(safe), true]);
+    }
+
+    setYtBridgeGameplayVolume(vol = 0.9) {
+      const volPct = Math.max(0, Math.min(100, Math.round((Number(vol) || 0) * 100)));
+      this._sendYtBridgeCommand('setVolume', [volPct]);
+    }
+
+    setYtBridgeGameplayRate(rate = 1.0) {
+      this._ytGameplayBaseSec = this.getYtBridgeGameplayTimeSec();
+      this._ytGameplayStartWallMs = performance.now();
+      this._ytGameplayRate = Math.max(0.5, Math.min(2.0, Number(rate) || 1.0));
+      this._sendYtBridgeCommand('setPlaybackRate', [this._ytGameplayRate]);
+    }
+
+    getYtBridgeGameplayTimeSec() {
+      if (!this._ytGameplayActive) return 0;
+      if (this._ytApiReady && this._ytApiPlayer && typeof this._ytApiPlayer.getCurrentTime === 'function') {
+        try {
+          const cur = Number(this._ytApiPlayer.getCurrentTime());
+          if (Number.isFinite(cur) && cur >= 0) {
+            this._ytGameplayBaseSec = cur;
+            this._ytGameplayStartWallMs = performance.now();
+            return cur;
+          }
+        } catch (_) {}
+      }
+      if (this._ytGameplayPaused) return this._ytGameplayBaseSec || 0;
+      const elapsed = Math.max(0, (performance.now() - (this._ytGameplayStartWallMs || performance.now())) / 1000) * (this._ytGameplayRate || 1.0);
+      return (this._ytGameplayBaseSec || 0) + elapsed;
+    }
+
+    stopYtBridgeForGameplay() {
+      this._ytGameplayActive = false;
+      this._ytGameplayPaused = true;
+      this._ytGameplayVideoId = '';
+      this._sendYtBridgeCommand('pauseVideo', []);
+    }
+
     /**
      * Devuelve SIEMPRE la duración de la canción entera (nunca 30s) para que la barra completa
      * esté disponible desde el segundo 0.
@@ -2488,30 +2614,9 @@
      * para que al pulsar play ya esté listo (agrupa y deduplica las peticiones).
      */
     warmTracks(tracks) {
-      if (!Array.isArray(tracks)) return;
-      if (!this._warmSent) this._warmSent = new Set();
-      if (!this._warmPending) this._warmPending = [];
-      for (const tr of tracks) {
-        if (!tr || (!tr.title && !tr.videoId)) continue;
-        if (String(tr.id || '').startsWith('comm_')) continue;
-        const vid = this._extractTrackYoutubeId(tr);
-        const k = String(vid || tr.id || `${tr.title}__${tr.artist}`);
-        if (this._warmSent.has(k)) continue;
-        this._warmSent.add(k);
-        this._warmPending.push({ title: tr.title || '', artist: tr.artist || '', videoId: vid || '', durationSec: Number(tr.durationSec) || 0 });
-      }
-      if (this._warmTimer || this._warmPending.length === 0) return;
-      this._warmTimer = setTimeout(() => {
-        this._warmTimer = null;
-        const batch = this._warmPending.splice(0, 3);
-        const baseUrl = typeof window.getApiBaseUrl === 'function' ? window.getApiBaseUrl() : '';
-        fetch(`${baseUrl}/api/v1/audio/warm`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tracks: batch })
-        }).catch(() => {});
-        if (this._warmPending.length > 0) this.warmTracks([]);
-      }, 650);
+      // Desactivado el pre-calentamiento pesado en servidor para ahorrar 100% de ancho de banda en Render
+      // y evitar colas innecesarias; el cliente resuelve en directo por CDN / SoundCloud / YouTube Bridge.
+      return;
     }
 
     getChorusOffsetSec(track = this.currentTrack, fullDur = null) {
@@ -3482,47 +3587,151 @@
     _initMiniPlayerSwipeDownGesture() {
       const attach = () => {
         const miniEl = document.getElementById('spotifyMiniPlayer');
-        if (!miniEl || miniEl._swipeDownBound) return;
-        miniEl._swipeDownBound = true;
+        if (miniEl && !miniEl._swipeDownBound) {
+          miniEl._swipeDownBound = true;
 
-        let startY = 0;
-        let startX = 0;
-        let deltaY = 0;
-        let tracking = false;
+          let startY = 0;
+          let startX = 0;
+          let deltaY = 0;
+          let tracking = false;
+          let startedOnHandle = false;
 
-        miniEl.addEventListener('pointerdown', (e) => {
-          if (e.target.closest('input[type="range"]') || e.target.closest('button')) return;
-          tracking = true;
-          startY = e.clientY ?? 0;
-          startX = e.clientX ?? 0;
-          deltaY = 0;
-          miniEl.classList.add('swiping-down');
-        });
+          miniEl.addEventListener('pointerdown', (e) => {
+            const onHandle = Boolean(e.target.closest('.mini-player-swipe-handle'));
+            if (!onHandle && (e.target.closest('input[type="range"]') || e.target.closest('button'))) return;
+            tracking = true;
+            startedOnHandle = onHandle;
+            startY = e.clientY ?? 0;
+            startX = e.clientX ?? 0;
+            deltaY = 0;
+            miniEl.classList.add('swiping-down');
+          });
 
-        window.addEventListener('pointermove', (e) => {
-          if (!tracking) return;
-          const dy = (e.clientY ?? startY) - startY;
-          const dx = Math.abs((e.clientX ?? startX) - startX);
-          if (dy > 4 && dy > dx) {
-            deltaY = dy;
-            miniEl.style.transform = `translate3d(0, ${Math.min(110, dy).toFixed(0)}px, 0)`;
-          }
-        }, { passive: true });
+          window.addEventListener('pointermove', (e) => {
+            if (!tracking) return;
+            const dy = (e.clientY ?? startY) - startY;
+            const dx = Math.abs((e.clientX ?? startX) - startX);
+            if (Math.abs(dy) > 4 && Math.abs(dy) > dx) {
+              deltaY = dy;
+              const clampedY = Math.max(-75, Math.min(110, dy));
+              miniEl.style.transform = `translate3d(-50%, ${clampedY.toFixed(0)}px, 0)`;
+            }
+          }, { passive: true });
 
-        const finishSwipe = () => {
-          if (!tracking) return;
-          tracking = false;
-          miniEl.classList.remove('swiping-down');
-          if (deltaY > 38) {
-            this.closeMiniPlayerAndStop();
-          } else {
-            miniEl.style.transform = '';
-          }
-          deltaY = 0;
-        };
+          const finishSwipe = () => {
+            if (!tracking) return;
+            tracking = false;
+            miniEl.classList.remove('swiping-down');
+            if (deltaY > 32) {
+              this.closeMiniPlayerAndStop();
+            } else if (deltaY < -20 || (startedOnHandle && Math.abs(deltaY) < 6)) {
+              miniEl.style.transform = '';
+              if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.openNowPlayingModal === 'function') {
+                window.DiscoverHomeApp.openNowPlayingModal('vinyl');
+              }
+            } else {
+              miniEl.style.transform = '';
+            }
+            deltaY = 0;
+            startedOnHandle = false;
+          };
 
-        window.addEventListener('pointerup', finishSwipe);
-        window.addEventListener('pointercancel', finishSwipe);
+          window.addEventListener('pointerup', finishSwipe);
+          window.addEventListener('pointercancel', finishSwipe);
+        }
+
+        // Gestos de deslizar en la barrita blanca del desplegable de Opciones (#spotifyTrackOptionsSheet)
+        const optModal = document.getElementById('spotifyTrackOptionsSheet');
+        const optCard = optModal ? optModal.querySelector('.sp-options-sheet-card') : null;
+        if (optModal && optCard && !optCard._swipeSheetBound) {
+          optCard._swipeSheetBound = true;
+          let oStartY = 0;
+          let oDeltaY = 0;
+          let oTracking = false;
+          let oStartedOnHandle = false;
+
+          optCard.addEventListener('pointerdown', (e) => {
+            const onHandle = Boolean(e.target.closest('.sp-options-sheet-handle') || e.target.closest('.sp-options-sheet-header'));
+            const actionsList = document.getElementById('spOptSheetActionsList');
+            const atTop = !actionsList || actionsList.scrollTop <= 2;
+            if (!onHandle && !atTop) return;
+            if (!onHandle && e.target.closest('button')) return;
+            oTracking = true;
+            oStartedOnHandle = onHandle;
+            oStartY = e.clientY ?? 0;
+            oDeltaY = 0;
+            optCard.style.transition = 'none';
+          });
+
+          window.addEventListener('pointermove', (e) => {
+            if (!oTracking) return;
+            const dy = (e.clientY ?? oStartY) - oStartY;
+            if (dy > 4) {
+              oDeltaY = dy;
+              optCard.style.transform = `translate3d(0, ${Math.min(360, dy).toFixed(0)}px, 0)`;
+            }
+          }, { passive: true });
+
+          const finishOptSwipe = () => {
+            if (!oTracking) return;
+            oTracking = false;
+            optCard.style.transition = 'transform 0.22s ease';
+            if (oDeltaY > 36 || (oStartedOnHandle && Math.abs(oDeltaY) < 6)) {
+              optCard.style.transform = '';
+              if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.closeTrackOptionsSheet === 'function') {
+                window.DiscoverHomeApp.closeTrackOptionsSheet();
+              }
+            } else {
+              optCard.style.transform = '';
+            }
+            oDeltaY = 0;
+            oStartedOnHandle = false;
+          };
+
+          window.addEventListener('pointerup', finishOptSwipe);
+          window.addEventListener('pointercancel', finishOptSwipe);
+        }
+
+        // Gestos de deslizar hacia abajo en el reproductor grande (#nowPlayingTurntableModal)
+        const npModal = document.getElementById('nowPlayingTurntableModal');
+        const npHeader = npModal ? npModal.querySelector('.now-playing-header') : null;
+        if (npModal && npHeader && !npHeader._swipeCloseBound) {
+          npHeader._swipeCloseBound = true;
+          let npStartY = 0;
+          let npDeltaY = 0;
+          let npTracking = false;
+
+          npHeader.addEventListener('pointerdown', (e) => {
+            if (e.target.closest('button')) return;
+            npTracking = true;
+            npStartY = e.clientY ?? 0;
+            npDeltaY = 0;
+            npModal.style.transition = 'none';
+          });
+
+          window.addEventListener('pointermove', (e) => {
+            if (!npTracking) return;
+            const dy = (e.clientY ?? npStartY) - npStartY;
+            if (dy > 5) {
+              npDeltaY = dy;
+              npModal.style.transform = `translate3d(0, ${Math.min(400, dy).toFixed(0)}px, 0)`;
+            }
+          }, { passive: true });
+
+          const finishNpSwipe = () => {
+            if (!npTracking) return;
+            npTracking = false;
+            npModal.style.transition = '';
+            npModal.style.transform = '';
+            if (npDeltaY > 42 && window.DiscoverHomeApp && typeof window.DiscoverHomeApp.closeNowPlayingModal === 'function') {
+              window.DiscoverHomeApp.closeNowPlayingModal();
+            }
+            npDeltaY = 0;
+          };
+
+          window.addEventListener('pointerup', finishNpSwipe);
+          window.addEventListener('pointercancel', finishNpSwipe);
+        }
       };
 
       if (document.readyState === 'loading') {
@@ -5117,13 +5326,26 @@
 
     async launchPianoGameForTrack(track, explicitDifficulty = null) {
       if (!track) return;
+      // CRÍTICO: Desbloquear el motor de audio del juego dentro del gesto táctil directo del usuario
+      if (window.engine && window.engine.sync && typeof window.engine.sync.unlockAudio === 'function') {
+        window.engine.sync.unlockAudio();
+      }
       dualStreamEngine.pauseForGameplayWithFade(160);
 
       if (dualStreamEngine.currentTrack?.id === track.id && dualStreamEngine.fullTrackBlob) {
         dualStreamEngine._storeFullBlobInGlobalCache(track, dualStreamEngine.fullTrackBlob);
       }
 
-      const id = String(track.id || '');
+      const vid = dualStreamEngine._extractTrackYoutubeId(track);
+      if (vid) {
+        dualStreamEngine.prepareYtBridgeForGameplay(vid);
+      }
+
+      const id = String(track.id || (vid ? `magic_yt_${vid}` : `track_${Date.now()}`));
+      track.id = id;
+      if (!window._selectedMagicAudioCandidate) window._selectedMagicAudioCandidate = {};
+      window._selectedMagicAudioCandidate[id] = track;
+
       if (track.is_top_song || id.startsWith('top_')) {
         if (typeof window.playTopSong === 'function') {
           window.playTopSong(id, explicitDifficulty || 'Normal', track);
@@ -5135,6 +5357,21 @@
         return;
       }
       if (typeof window.autoExtractAndPlaySong === 'function') {
+        const thumb = getBestTrackCover(track);
+        // Pre-iniciar la extracción en segundo plano MIENTRAS el usuario elige modo de juego (ahorra 100% de espera)
+        let preExtractPromise = null;
+        if (typeof window.buildAndSaveAutoExtractedSong === 'function') {
+          preExtractPromise = window.buildAndSaveAutoExtractedSong(
+            track.title,
+            track.artist || '',
+            thumb,
+            explicitDifficulty || 'hard',
+            id,
+            null
+          ).catch(() => null);
+          window._inflightPianoPreExtract = { id, promise: preExtractPromise };
+        }
+
         if (!window._modeAlreadyChosenForThisLaunch && typeof window.openGameModeSelectModal === 'function') {
           const chosenMode = await window.openGameModeSelectModal(track.title || 'PISTA', track.artist || '', true);
           if (!chosenMode) return;
@@ -5144,7 +5381,6 @@
           window._modeAlreadyChosenForThisLaunch = true;
         }
         const chosenDensity = explicitDifficulty || window._selectedModalDifficulty || 'hard';
-        const thumb = getBestTrackCover(track);
         window.autoExtractAndPlaySong(track.title, track.artist || '', thumb, chosenDensity, id, false);
         return;
       }
@@ -5914,7 +6150,7 @@
 
       try {
         const ctrl = new AbortController();
-        const tid = setTimeout(() => ctrl.abort(), 6500);
+        const tid = setTimeout(() => ctrl.abort(), 4500);
         const resp = await fetch(`${baseUrl}/api/v1/charts/top-playlist-tracks?id=${encodeURIComponent(chartId)}`, {
           signal: ctrl.signal
         });
@@ -5928,11 +6164,39 @@
         }
       } catch (_) {}
 
+      // Fallback directo en cliente (0 bytes de Render) vía Apple Music RSS / iTunes Search cuando el backend no responde
       if (tracks.length === 0) {
-        if (typeof window.showErrorToast === 'function') {
-          window.showErrorToast('No se pudo cargar el Top en vivo en este momento.');
-        }
-        return;
+        try {
+          const country = chartId.includes('es') ? 'es' : 'us';
+          const rssUrl = `https://itunes.apple.com/${country}/rss/topsongs/limit=50/json`;
+          const r = await fetch(rssUrl);
+          if (r.ok) {
+            const d = await r.json();
+            const entries = d?.feed?.entry || [];
+            tracks = entries.map((e, i) => {
+              const title = e?.['im:name']?.label || 'Canción';
+              const artist = e?.['im:artist']?.label || 'Artista';
+              const imgs = e?.['im:image'] || [];
+              const rawImg = imgs[imgs.length - 1]?.label || '';
+              const cover = rawImg ? rawImg.replace(/\d+x\d+bb/g, '600x600bb') : './app_logo.png';
+              return {
+                id: `itunes_chart_${chartId}_${i}`,
+                title,
+                artist,
+                thumbnail: cover,
+                cover_url: cover,
+                artworkUrl600: cover,
+                durationSec: 195,
+                source: 'live_chart'
+              };
+            });
+          }
+        } catch (_) {}
+      }
+
+      if (tracks.length === 0) {
+        const pool = this.getAllCandidatePool();
+        tracks = pool.slice(0, 50);
       }
 
       const previewPlObj = {
@@ -6705,6 +6969,10 @@
       }
       dualStreamEngine._updatePlayerMetadataUI(tr);
       this.refreshCarousels();
+    },
+
+    getAudioEngine() {
+      return dualStreamEngine;
     },
 
     renderCarousels() {
