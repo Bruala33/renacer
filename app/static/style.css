@@ -4642,19 +4642,16 @@ body {
    KARAOKE MODE TELEPROMPTER & FLYING WORDS (VINTAGE / NEON RELIEF)
    ========================================================================= */
 #karaokeTeleprompterBar {
-  top: 68px;
+  top: 76px;
   left: 50%;
   transform: translate3d(-50%, 0, 0);
-  width: 90%;
-  max-width: 580px;
-  background: rgba(10, 8, 18, 0.74);
-  padding: 8px 18px;
-  border-radius: 24px;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
-  z-index: 25;
+  width: 96%;
+  max-width: 560px;
+  background: transparent;
+  padding: 0;
+  border: none;
+  box-shadow: none;
+  z-index: 45;
   pointer-events: none;
   contain: layout style paint;
 }
@@ -4670,40 +4667,25 @@ body {
 
 /* Base syllable style (UltraStar / native whitespace compliant, 0 CSS filter shaders) */
 .karaoke-syllable {
-  display: inline-block;
+  display: inline;
   font-family: 'Outfit', 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-weight: 800;
-  font-size: 1.25rem;
-  position: relative;
+  font-size: 1.22rem;
   user-select: none;
-  color: rgba(10, 8, 18, 0.70) !important;
-  -webkit-text-fill-color: rgba(10, 8, 18, 0.70) !important;
-  -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.92);
-  paint-order: stroke fill;
-  text-shadow:
-    0 0 1px rgba(255, 255, 255, 0.7),
-    0 2px 5px rgba(0, 0, 0, 0.9) !important;
-  transform: translateZ(0);
+  color: rgba(255, 255, 255, 0.55);
 }
 
 @media (min-width: 640px) {
   .karaoke-syllable {
-    font-size: 1.45rem;
+    font-size: 1.40rem;
   }
 }
 
-/* Syllable Illuminated / Active (Soporta tanto data-lit="1" sin MutationObserver como clase .activa) */
+/* Syllable Illuminated / Active (0 blur, 0 layout/stroke reflow) */
 .karaoke-syllable[data-lit="1"],
 .karaoke-syllable.activa,
 .karaoke-syllable.painted {
-  color: #ffd700 !important;
-  -webkit-text-fill-color: #ffffff !important;
-  -webkit-text-stroke: 0px !important;
-  text-shadow:
-    0 0 10px #ffd700,
-    0 0 20px #ff8800,
-    0 2px 5px rgba(0, 0, 0, 0.95) !important;
-  animation: syllableImpact 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  color: #ffd700;
 }
 
 /* Prolongation / Melisma notes (~): hidden in DOM to avoid breaking ID search */

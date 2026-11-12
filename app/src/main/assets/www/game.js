@@ -59,45 +59,21 @@ function tracePerspectiveQuad(ctx, x0T, x1T, x0B, x1B, topY, botY, rad) {
 // MODO KARAOKE: FORMATEO Y RENDERIZADO DEFINITIVO
 // ==========================================
 function renderizarVersoKaraoke(verso, contenedor) {
-  // 1. Obligatorio para que el navegador respete los espacios en blanco nativos
-  contenedor.style.whiteSpace = 'pre-wrap';
-
-  // 2. Mapear sílabas sin añadir espacios artificiales entre spans
-  const htmlSpans = verso.map((s) => {
-    let texto = s.text;
-    const esMelisma = texto.trim() === '~';
-
-    // Reemplazar guiones de sinalefa por espacios
-    texto = texto.replace(/-/g, ' ');
-
-    if (esMelisma) {
-      // Se mantiene en el DOM con display:none para evitar errores de ID nulo
-      return `<span id="lyric-${s.time}" class="karaoke-syllable melisma" style="display:none;" data-time="${s.time}"></span>`;
-    }
-
-    // Los spans van pegados directamente
-    return `<span id="lyric-${s.time}" class="karaoke-syllable" data-time="${s.time}" data-dur="${s.dur}">${texto}</span>`;
-  }).join(''); // NUNCA usar .join(' ') ni saltos de línea
-
-  contenedor.innerHTML = htmlSpans;
+  if (typeof window !== 'undefined' && window.engine && typeof window.engine._redrawKaraokeTeleprompterSprite === 'function') {
+    window.engine._redrawKaraokeTeleprompterSprite(verso, window.engine.lastLitSyllableIndex ?? -1);
+    return;
+  }
+  if (!contenedor || !Array.isArray(verso)) return;
+  contenedor.textContent = verso.map(s => String(s?.text || '').replace(/~/g, '').replace(/-/g, ' ')).join('');
 }
 if (typeof window !== 'undefined') window.renderizarVersoKaraoke = renderizarVersoKaraoke;
 
 function iluminarSilaba(tiempoMs) {
-  const el = document.getElementById(`lyric-${tiempoMs}`);
-  if (el && !el.classList.contains('activa')) {
-    el.classList.add('activa');
-    // Captura el color exacto que tu CSS le aplica a la sílaba activa
-    if (window.engine && !window.engine._teleprompterGold) {
-      try {
-        const compColor = window.getComputedStyle(el).color;
-        if (compColor && compColor !== 'rgba(0, 0, 0, 0)') {
-          window.engine._teleprompterGold = compColor;
-        }
-      } catch (_) {}
-    }
+  if (typeof window !== 'undefined' && window.engine && typeof window.engine._markKaraokeSyllableHitByTime === 'function') {
+    window.engine._markKaraokeSyllableHitByTime(tiempoMs);
   }
 }
+if (typeof window !== 'undefined') window.iluminarSilaba = iluminarSilaba;
 
 // ==========================================
 // DYNAMIC SONG COLOR PALETTE REGISTRY (BEATSTAR PRESETS & ADAPTIVE SYSTEM)
@@ -422,6 +398,11 @@ class DirectAudioSync {
 
     el.addEventListener('playing', () => {
       if (this._ytBridgeVideoId) return;
+      if (window.engine && window.engine.isCountingDown) {
+        try { el.pause(); } catch (_) {}
+        this.isPlaying = false;
+        return;
+      }
       this.isPlaying = true;
       enforceSpeedAndPitch();
       const rawSec = el.currentTime || 0;
@@ -491,6 +472,9 @@ class DirectAudioSync {
 
     // Desbloqueo silencioso en menú dentro del gesto del usuario para conservar el permiso de autoplay tras la cuenta atrás
     if (this._alreadyGestureUnlocked && this.audioElement.src) return;
+    if (window.engine && window.engine.isCountingDown && this.audioElement.src && !this.audioElement.src.startsWith('data:audio/wav')) {
+      return;
+    }
     try {
       const el = this.audioElement;
       const hadSrc = Boolean(el.src && !el.src.startsWith('data:audio/wav'));
@@ -503,7 +487,7 @@ class DirectAudioSync {
       if (p && typeof p.then === 'function') {
         p.then(() => {
           this._alreadyGestureUnlocked = true;
-          if (!this.isPlaying) {
+          if (!this.isPlaying || (window.engine && window.engine.isCountingDown)) {
             try { el.pause(); } catch (_) {}
           }
           el.muted = this.muted;
@@ -604,6 +588,7 @@ class DirectAudioSync {
     } else if (url) {
       const el = this.audioElement;
       el.loop = false;
+      el.preload = 'auto';
       el.muted = this.muted;
       el.volume = this.muted ? 0 : this.volume;
       el.src = url;
@@ -625,6 +610,7 @@ class DirectAudioSync {
     this._lastRawAudioTime = -1;
     this._clockSkewRate = 1.0;
     this._smoothedDrift = 0;
+    this._playStartPerf = 0;
   }
 
   play() {
@@ -668,13 +654,16 @@ class DirectAudioSync {
       const rawSec = (this.audioElement && !isNaN(this.audioElement.currentTime)) ? this.audioElement.currentTime : 0;
       if (!this.isPlaying) {
         this.isPlaying = true;
+        this._playStartPerf = performance.now();
         if (Number.isFinite(this._pendingSeekSec) && this._pendingSeekSec >= 0) {
           const targetSec = this._pendingSeekSec;
           this._pendingSeekSec = null;
           try {
-            if (this.audioElement) this.audioElement.currentTime = targetSec;
+            if (this.audioElement && Math.abs(rawSec - targetSec) > 0.02) {
+              this.audioElement.currentTime = targetSec;
+            }
           } catch (_) {}
-          this._interpolatedMs = targetSec * 1000;
+          this._interpolatedMs = Math.max(this._interpolatedMs || 0, targetSec * 1000);
           this._lastReturnedMs = this._interpolatedMs;
           this._lastRawAudioTime = targetSec;
         } else {
@@ -768,7 +757,7 @@ class DirectAudioSync {
       return this._anchorAudioMs || 0;
     }
 
-    if (!this.isPlaying && !this._ytBridgeVideoId && this.audioElement && !this.audioElement.paused && !this.audioElement.ended) {
+    if (!this.isPlaying && !this._ytBridgeVideoId && this.audioElement && !this.audioElement.paused && !this.audioElement.ended && !(window.engine && window.engine.isCountingDown)) {
       this.isPlaying = true;
     }
 
@@ -831,12 +820,18 @@ class DirectAudioSync {
         this._lastRawAudioTime = rawSec;
         const hwAudioMs = rawSec * 1000;
         const drift = hwAudioMs - this._interpolatedMs;
+        const sinceStartMs = this._playStartPerf ? (frameNow - this._playStartPerf) : 9999;
 
-        if (Math.abs(drift) > 950) {
-          this._interpolatedMs = hwAudioMs;
-          this._lastReturnedMs = hwAudioMs;
+        if (drift > 1100 || (drift < -1400 && sinceStartMs > 2000)) {
+          this._interpolatedMs = Math.max(this._lastReturnedMs || 0, hwAudioMs);
+          this._lastReturnedMs = this._interpolatedMs;
           this._clockSkewRate = 1.0;
           this._smoothedDrift = 0;
+        } else if (sinceStartMs < 1400 && drift < 0) {
+          // Durante el primer segundo tras arrancar el hardware de audio, absorber la latencia del búfer
+          // mediante micro-skew progresivo sin frenar ni retroceder las notas en pantalla.
+          this._smoothedDrift = (this._smoothedDrift || 0) * 0.88 + Math.max(-140, drift) * 0.12;
+          this._clockSkewRate = 1.0 + Math.max(-0.0035, Math.min(0.0035, this._smoothedDrift / 3500));
         } else {
           this._smoothedDrift = (this._smoothedDrift || 0) * 0.84 + drift * 0.16;
           if (Math.abs(this._smoothedDrift) > 18.0) {
@@ -848,6 +843,9 @@ class DirectAudioSync {
       }
     }
 
+    if (this._interpolatedMs < (this._lastReturnedMs || 0)) {
+      this._interpolatedMs = this._lastReturnedMs;
+    }
     this._lastReturnedMs = this._interpolatedMs;
     this._anchorAudioMs = this._interpolatedMs;
     this._cachedFrameNow = frameNow;
@@ -3254,33 +3252,38 @@ class BeatstarEngine {
     if (this.beatmapData && Array.isArray(this.beatmapData.activeKaraokeLyrics) && this.beatmapData.activeKaraokeLyrics.length > 0) {
       this.activeKaraokeLyrics = this.beatmapData.activeKaraokeLyrics;
     }
-    // Si estamos en Modo Karaoke y tenemos letras, vincular o construir 1:1 desde las notas reales
+
+    this.firstActiveNoteIndex = 0;
+    this.lastLitSyllableIndex = -1;
+    this._lastCurLyricIndex = -1;
+    this._teleprompterHasContent = false;
+
+    // Si estamos en Modo Karaoke y tenemos letras de Canciones Top, vincular las sílabas originales a las notas del chart
     if (typeof window !== 'undefined' && window.isKaraokeModeActive) {
-      if (this.activeKaraokeLyrics && this.activeKaraokeLyrics.length > 0) {
-        if (typeof window.linkSyllablesToNotes === 'function') {
-          const tolMs = (this.beatmapData && this.beatmapData._universalLrcKaraoke) ? 320 : 95;
-          window.linkSyllablesToNotes(this.notes, this.activeKaraokeLyrics, tolMs);
-        } else if (typeof window.linkExistingNotesToReconstructedLines === 'function') {
-          window.linkExistingNotesToReconstructedLines(this.notes, this.activeKaraokeLyrics);
-        }
-        const teleBar = document.getElementById('karaokeTeleprompterBar');
-        if (teleBar) teleBar.classList.remove('hidden');
-      } else if (typeof window.buildLrcLinesFromExistingNotes === 'function') {
+      if ((!this.activeKaraokeLyrics || this.activeKaraokeLyrics.length === 0) && typeof window.buildLrcLinesFromExistingNotes === 'function') {
         const lines = window.buildLrcLinesFromExistingNotes(this.notes);
         if (lines && lines.length > 0) {
           this.activeKaraokeLyrics = lines;
           if (this.beatmapData) this.beatmapData.activeKaraokeLyrics = lines;
-          const teleBar = document.getElementById('karaokeTeleprompterBar');
-          if (teleBar) teleBar.classList.remove('hidden');
+        }
+      }
+      if (this.activeKaraokeLyrics && this.activeKaraokeLyrics.length > 0) {
+        if (typeof window.linkSyllablesToNotes === 'function') {
+          window.linkSyllablesToNotes(this.notes, this.activeKaraokeLyrics, 95);
+        }
+        const teleBar = (typeof document !== 'undefined') ? document.getElementById('karaokeTeleprompterBar') : null;
+        if (teleBar) teleBar.classList.remove('hidden');
+        const firstVerso = this._ensureLineVerso(this.activeKaraokeLyrics[0]);
+        if (firstVerso && firstVerso.length > 0) {
+          this._lastCurLyricIndex = 0;
+          this._redrawKaraokeTeleprompterSprite(firstVerso, -1);
         }
       }
     }
+
     this.lastNoteTime = this.notes && this.notes.length > 0
       ? this.notes.reduce((max, n) => Math.max(max, n.end_timestamp_ms || n.timestamp_ms || 0), 0)
       : 0;
-
-    this.firstActiveNoteIndex = 0;
-    this.lastLitSyllableIndex = -1;
     // Pre-computar texto limpio de sílabas y pre-renderizar sprites de sílabas para Karaoke (0 rasterizado de fuentes en el render loop)
     if (!this._lyricKeySpriteCache) {
       this._lyricKeySpriteCache = new Map();
@@ -5068,12 +5071,8 @@ class BeatstarEngine {
         ? note.sylTime
         : (note ? (Number.isFinite(note.timestamp_ms) ? note.timestamp_ms : (Number.isFinite(note.timeMs) ? note.timeMs : Math.round((note.time || 0) * 1000))) : null);
 
-      if (nTime !== null) {
-        if (typeof iluminarSilaba === 'function') {
-          iluminarSilaba(nTime);
-        } else if (typeof window.iluminarSilaba === 'function') {
-          window.iluminarSilaba(nTime);
-        }
+      if (nTime !== null && typeof this._markKaraokeSyllableHitByTime === 'function') {
+        this._markKaraokeSyllableHitByTime(nTime);
       }
     }
 
@@ -5884,6 +5883,7 @@ class BeatstarEngine {
       if (!this.leadInStartTime) this.leadInStartTime = this._frameNow;
       const elapsed = this._frameNow - this.leadInStartTime;
       if (elapsed >= this.leadInDurationMs) {
+        const overshootMs = Math.max(0, Math.min(32, elapsed - this.leadInDurationMs));
         this.isCountingDown = false;
         if (typeof window !== 'undefined' && typeof window.pauseMenuAmbientMusic === 'function') {
           try { window.pauseMenuAmbientMusic(); } catch (_) {}
@@ -5892,7 +5892,16 @@ class BeatstarEngine {
           ? (this.beatmapData.startMarkerMs / 1000)
           : 0;
         this.sync.seekTo(startSec);
+        this.sync._interpolatedMs = (startSec * 1000) + overshootMs;
+        this.sync._lastReturnedMs = this.sync._interpolatedMs;
+        this.sync._anchorAudioMs = this.sync._interpolatedMs;
         this.sync.play();
+        this.sync._interpolatedMs = Math.max(this.sync._interpolatedMs || 0, (startSec * 1000) + overshootMs);
+        this.sync._lastReturnedMs = this.sync._interpolatedMs;
+        this.sync._lastFrameNow = this._frameNow;
+        this.sync._cachedFrameNow = this._frameNow;
+        this.sync._lastSyncCheck = this._frameNow;
+        this.sync._playStartPerf = this._frameNow;
         this._lastUpdatedFrameNow = null;
         currentTime = this.getCurrentGameTimeMs(this._frameNow);
         this._frameGameTimeMs = currentTime;
@@ -5907,83 +5916,78 @@ class BeatstarEngine {
 
     if (typeof window !== 'undefined' && window.isKaraokeModeActive && this.activeKaraokeLyrics && this.activeKaraokeLyrics.length > 0) {
       let curIndex = -1;
-      const leadTimeMs = Math.max(900, (this.scrollDurationMs || 1400) * 0.75);
       const startLyricIdx = Math.max(0, (this._lastCurLyricIndex > 0 ? this._lastCurLyricIndex - 1 : 0));
+
       for (let k = startLyricIdx; k < this.activeKaraokeLyrics.length; k++) {
         const item = this.activeKaraokeLyrics[k];
         const nextItem = this.activeKaraokeLyrics[k + 1];
-        const verso = item ? (item.verso || item.syllables || (Array.isArray(item) ? item : [])) : [];
+        const verso = this._ensureLineVerso(item);
+        if (!verso || verso.length === 0) continue;
 
-        // Anclar inicio de línea al primer timestamp de la sílaba
-        const hasVerso = Array.isArray(verso) && verso.length > 0;
-        const lineStart = (hasVerso && Number.isFinite(verso[0].time))
-          ? verso[0].time
-          : ((item.wordTimestamps && item.wordTimestamps.length > 0 && Number.isFinite(item.wordTimestamps[0])) ? item.wordTimestamps[0] : item.timeMs);
+        const lineStart = Number.isFinite(verso[0].time) ? verso[0].time : (Number(item.timeMs) || 0);
+        const lastSyl = verso[verso.length - 1];
+        const lineAudioEnd = (lastSyl && Number.isFinite(lastSyl.time))
+          ? (lastSyl.time + Math.max(200, Math.min(850, Number(lastSyl.dur) || 320)))
+          : (lineStart + 2200);
 
-        if (lineStart - leadTimeMs > currentTime + 2000) break;
-
-        // Fin de la estrofa/frase cantada
-        const lastSyl = hasVerso ? verso[verso.length - 1] : null;
-        const lastNoteTs = (lastSyl && Number.isFinite(lastSyl.time))
-          ? (lastSyl.time + (Number(lastSyl.dur) || 350))
-          : ((item.wordTimestamps && Number.isFinite(item.wordTimestamps[item.wordTimestamps.length - 1])) ? item.wordTimestamps[item.wordTimestamps.length - 1] : (lineStart + 2500));
-
-        // Inicio de la siguiente estrofa
-        const nextVerso = nextItem ? (nextItem.verso || nextItem.syllables || (Array.isArray(nextItem) ? nextItem : [])) : [];
-        const nextStart = (Array.isArray(nextVerso) && nextVerso.length > 0 && Number.isFinite(nextVerso[0].time))
+        const nextVerso = nextItem ? this._ensureLineVerso(nextItem) : null;
+        const nextStart = (nextVerso && nextVerso.length > 0 && Number.isFinite(nextVerso[0].time))
           ? nextVerso[0].time
-          : ((nextItem && nextItem.wordTimestamps && nextItem.wordTimestamps.length > 0 && Number.isFinite(nextItem.wordTimestamps[0])) ? nextItem.wordTimestamps[0] : (nextItem ? nextItem.timeMs : null));
+          : (nextItem && Number.isFinite(nextItem.timeMs) ? nextItem.timeMs : null);
 
-        const lineEnd = nextStart
-          ? Math.min(lastNoteTs + 1200, nextStart - leadTimeMs)
-          : (lastNoteTs + 2500);
+        // Mantener el teleprompter SIEMPRE visible:
+        // - Desde el inicio de la canción (currentTime < switchToNextMs de la línea 0) ya se muestra el verso 0 preparado en blanco.
+        // - Al terminar la última sílaba del verso k, tras un breve sostén visual (120..420ms), pasa inmediatamente al verso k+1.
+        const holdAfterEndMs = nextStart
+          ? Math.max(80, Math.min(420, (nextStart - lineAudioEnd) * 0.45))
+          : 2500;
+        const switchToNextMs = nextStart
+          ? Math.min(nextStart - 60, Math.max(lineStart + 320, lineAudioEnd + holdAfterEndMs))
+          : (lineAudioEnd + 2500);
 
-        if (currentTime >= (lineStart - leadTimeMs) && currentTime < lineEnd) {
+        if (currentTime < switchToNextMs) {
           curIndex = k;
           break;
         }
       }
 
-      if (!this._cachedKaraokeEl && typeof document !== 'undefined') {
-        this._cachedKaraokeEl = document.getElementById('karaokeCurrentLine');
+      let needsTeleprompterRedraw = false;
+      let activeVerso = null;
+
+      if (curIndex !== -1) {
+        activeVerso = this._ensureLineVerso(this.activeKaraokeLyrics[curIndex]);
       }
-      const curEl = this._cachedKaraokeEl;
 
       if (curIndex !== -1 && curIndex !== this._lastCurLyricIndex) {
         this._lastCurLyricIndex = curIndex;
         this.lastLitSyllableIndex = -1;
-        const curItem = this.activeKaraokeLyrics[curIndex];
-        const verso = curItem ? (curItem.verso || curItem.syllables || (Array.isArray(curItem) ? curItem : [])) : [];
-
-        if (curEl && Array.isArray(verso) && verso.length > 0) {
-          if (typeof renderizarVersoKaraoke === 'function') {
-            renderizarVersoKaraoke(verso, curEl);
-          } else if (typeof window.renderizarVersoKaraoke === 'function') {
-            window.renderizarVersoKaraoke(verso, curEl);
-          }
-        }
+        if (this._karaokeHitSylTimes) this._karaokeHitSylTimes.clear();
+        needsTeleprompterRedraw = true;
       } else if (curIndex === -1 && this._lastCurLyricIndex !== -1) {
         this._lastCurLyricIndex = -1;
         this.lastLitSyllableIndex = -1;
-        if (curEl) curEl.innerHTML = '';
+        if (this._karaokeHitSylTimes) this._karaokeHitSylTimes.clear();
+        this._teleprompterHasContent = false;
+        const teleBar = (typeof document !== 'undefined') ? document.getElementById('karaokeTeleprompterBar') : null;
+        if (teleBar) teleBar.classList.add('hidden');
       }
 
-      // Iluminación sincronizada de sílabas sin spam al DOM: avanzar lastLitSyllableIndex una sola vez por sílaba
-      if (curIndex !== -1 && curEl) {
-        const curItem = this.activeKaraokeLyrics[curIndex];
-        const verso = curItem ? (curItem.verso || curItem.syllables || (Array.isArray(curItem) ? curItem : [])) : [];
-        while (this.lastLitSyllableIndex + 1 < verso.length) {
-          const nextSyl = verso[this.lastLitSyllableIndex + 1];
+      if (curIndex !== -1 && Array.isArray(activeVerso) && activeVerso.length > 0) {
+        while (this.lastLitSyllableIndex + 1 < activeVerso.length) {
+          const nextSyl = activeVerso[this.lastLitSyllableIndex + 1];
           if (nextSyl && Number.isFinite(nextSyl.time) && currentTime >= nextSyl.time) {
             this.lastLitSyllableIndex++;
-            if (typeof iluminarSilaba === 'function') {
-              iluminarSilaba(nextSyl.time);
-            } else if (typeof window.iluminarSilaba === 'function') {
-              window.iluminarSilaba(nextSyl.time);
-            }
+            needsTeleprompterRedraw = true;
           } else {
             break;
           }
+        }
+        if (this._karaokeHitTimesDirty) {
+          this._karaokeHitTimesDirty = false;
+          needsTeleprompterRedraw = true;
+        }
+        if (needsTeleprompterRedraw || !this._teleprompterHasContent) {
+          this._redrawKaraokeTeleprompterSprite(activeVerso, this.lastLitSyllableIndex);
         }
       }
     }
@@ -8398,6 +8402,9 @@ class BeatstarEngine {
     this.renderDiscoBall(this.ctx, currentTime);
     this.render3DComboExplosion(this.ctx);
     this.renderMissFailureFeedback(this.ctx, currentTime);
+    if (typeof window !== 'undefined' && window.isKaraokeModeActive) {
+      this.renderKaraokeTeleprompterCanvas(this.ctx);
+    }
   }
 
   renderSwipeLaunches(ctx, currentTime) {
@@ -9008,7 +9015,7 @@ class BeatstarEngine {
     if (!this._lyricKeySpriteCache) {
       this._lyricKeySpriteCache = new Map();
     }
-    const key = `${cleanLyric}_${isPressed ? 1 : 0}`;
+    const key = String(cleanLyric || '');
     let sp = this._lyricKeySpriteCache.get(key);
     if (sp) return sp;
 
@@ -9018,23 +9025,423 @@ class BeatstarEngine {
     off.width = sprW;
     off.height = sprH;
     const octx = off.getContext('2d');
-    const fontScale = cleanLyric.length > 6 ? (6 / cleanLyric.length) : 1.0;
+    const fontScale = key.length > 6 ? (6 / key.length) : 1.0;
     const fontSize = Math.round(Math.max(13, 25 * fontScale));
     octx.font = `900 ${fontSize}px Montserrat, -apple-system, sans-serif`;
     octx.textAlign = 'center';
     octx.textBaseline = 'middle';
     octx.lineJoin = 'round';
-    octx.strokeStyle = 'rgba(255, 175, 0, 0.90)';
+    octx.strokeStyle = 'rgba(255, 175, 0, 0.92)';
     octx.lineWidth = 3.2;
-    octx.strokeText(cleanLyric, sprW * 0.5, sprH * 0.5);
-    octx.fillStyle = isPressed ? '#ffe57f' : '#ffffff';
-    octx.fillText(cleanLyric, sprW * 0.5, sprH * 0.5);
+    octx.strokeText(key, sprW * 0.5, sprH * 0.5);
+    octx.fillStyle = '#ffffff';
+    octx.fillText(key, sprW * 0.5, sprH * 0.5);
 
-    if (this._lyricKeySpriteCache.size > 320) {
-      this._lyricKeySpriteCache.clear();
-    }
     this._lyricKeySpriteCache.set(key, off);
     return off;
+  }
+
+  _markKaraokeSyllableHitByTime(tiempoMs) {
+    if (!Number.isFinite(tiempoMs)) return;
+    if (!this._karaokeHitSylTimes) {
+      this._karaokeHitSylTimes = new Set();
+    }
+    if (!this._karaokeHitSylTimes.has(tiempoMs)) {
+      this._karaokeHitSylTimes.add(tiempoMs);
+      this._karaokeHitTimesDirty = true;
+    }
+  }
+
+  _ensureLineVerso(item) {
+    if (!item) return [];
+    if (Array.isArray(item)) return item;
+    if (Array.isArray(item.verso) && item.verso.length > 0) return item.verso;
+    if (Array.isArray(item.syllables) && item.syllables.length > 0) {
+      item.verso = item.syllables;
+      return item.verso;
+    }
+    if (Array.isArray(item.words) && item.words.length > 0) {
+      const built = [];
+      const baseMs = Number(item.timeMs) || 0;
+      for (let w = 0; w < item.words.length; w++) {
+        const wTime = (item.wordTimestamps && Number.isFinite(item.wordTimestamps[w]))
+          ? Math.round(item.wordTimestamps[w])
+          : (baseMs + w * 280);
+        const nextWTime = (w + 1 < item.words.length && item.wordTimestamps && Number.isFinite(item.wordTimestamps[w + 1]))
+          ? Math.round(item.wordTimestamps[w + 1])
+          : (wTime + 280);
+        built.push({
+          time: wTime,
+          dur: Math.max(140, nextWTime - wTime - 15),
+          text: String(item.words[w] || '') + ' '
+        });
+      }
+      item.verso = built;
+      item.syllables = built;
+      return built;
+    }
+    if (typeof item.text === 'string' && item.text.trim().length > 0) {
+      const words = item.text.trim().split(/\s+/);
+      const baseMs = Number(item.timeMs) || 0;
+      const built = words.map((wd, idx) => ({
+        time: baseMs + idx * 280,
+        dur: 240,
+        text: wd + ' '
+      }));
+      item.verso = built;
+      item.syllables = built;
+      return built;
+    }
+    return [];
+  }
+
+  _sculptAndLinkKaraokeNotes(minPostCountdownNoteMs = 1550) {
+    if (!Array.isArray(this.notes) || !Array.isArray(this.activeKaraokeLyrics) || this.activeKaraokeLyrics.length === 0) return;
+
+    const numLanes = Math.max(3, Number(this.numLanes) || 3);
+    const isAcousticOrUniversal = Boolean(
+      this.beatmapData && (this.beatmapData._universalLrcKaraoke || this.beatmapData._audioSyllableAligned)
+    );
+
+    if (!isAcousticOrUniversal) {
+      if (typeof window !== 'undefined' && typeof window.linkSyllablesToNotes === 'function') {
+        window.linkSyllablesToNotes(this.notes, this.activeKaraokeLyrics, 95);
+      }
+      return;
+    }
+
+    // Limpiar etiquetas previas para vincular 1:1 cada sílaba acústica a su tecla exacta
+    for (let i = 0; i < this.notes.length; i++) {
+      const n = this.notes[i];
+      if (!n) continue;
+      n.lyric = null;
+      n._cleanLyric = null;
+      n.lineIdx = null;
+      n.sylIdx = null;
+      n.sylTime = null;
+    }
+
+    const claimedNotes = new Set();
+    const newlyCreatedNotes = [];
+    const vocalPhraseWindows = [];
+    let rollingLane = 0;
+
+    for (let lIdx = 0; lIdx < this.activeKaraokeLyrics.length; lIdx++) {
+      const line = this.activeKaraokeLyrics[lIdx];
+      const verso = this._ensureLineVerso(line);
+      if (!verso || verso.length === 0) continue;
+
+      let phraseMinMs = Infinity;
+      let phraseMaxMs = -Infinity;
+
+      for (let sIdx = 0; sIdx < verso.length; sIdx++) {
+        const syl = verso[sIdx];
+        if (!syl) continue;
+        const cleanSyl = String(syl.text || '').replace(/[-~]/g, '').trim().toUpperCase();
+        if (!cleanSyl || cleanSyl === '~') continue;
+
+        const sylTime = Math.round(Number(syl.time) || 0);
+        const sylDur = Math.max(140, Math.round(Number(syl.dur) || 220));
+        if (sylTime < minPostCountdownNoteMs) continue;
+
+        if (sylTime < phraseMinMs) phraseMinMs = sylTime;
+        if (sylTime + sylDur > phraseMaxMs) phraseMaxMs = sylTime + sylDur;
+
+        // 1. Buscar la nota no reclamada más cercana dentro de ±240ms
+        let bestNote = null;
+        let bestDiff = 245;
+        for (let i = 0; i < this.notes.length; i++) {
+          const cand = this.notes[i];
+          if (!cand || cand.isMine || claimedNotes.has(cand)) continue;
+          const diff = Math.abs(cand.timestamp_ms - sylTime);
+          if (diff < bestDiff) {
+            bestDiff = diff;
+            bestNote = cand;
+          }
+        }
+
+        if (bestNote) {
+          claimedNotes.add(bestNote);
+          // Clavar el timestamp de la tecla al milisegundo acústico exacto de la sílaba cantada
+          bestNote.timestamp_ms = sylTime;
+          bestNote.timeMs = sylTime;
+          bestNote.time = sylTime / 1000.0;
+          if (bestNote.type === 'hold' && bestNote.duration_ms > 0) {
+            bestNote.duration_ms = Math.min(bestNote.duration_ms, Math.max(220, sylDur));
+            bestNote.holdDuration = bestNote.duration_ms / 1000.0;
+            bestNote.end_timestamp_ms = sylTime + bestNote.duration_ms;
+          }
+          bestNote.lyric = cleanSyl;
+          bestNote._cleanLyric = cleanSyl;
+          bestNote.lineIdx = lIdx;
+          bestNote.sylIdx = sIdx;
+          bestNote.sylTime = sylTime;
+          rollingLane = (bestNote.lane + 1) % numLanes;
+        } else {
+          // 2. Si no había nota en ese instante vocal, crear una tecla vocal limpia en el milisegundo exacto de la sílaba
+          const laneVal = rollingLane % numLanes;
+          rollingLane = (rollingLane + 1 + (sIdx % 2)) % numLanes;
+          const vocalNote = {
+            id: 0,
+            lane: laneVal,
+            column: laneVal,
+            track: laneVal,
+            type: 'tap',
+            time: sylTime / 1000.0,
+            timeMs: sylTime,
+            timestamp_ms: sylTime,
+            duration_ms: 0,
+            holdDuration: 0,
+            end_timestamp_ms: null,
+            lyric: cleanSyl,
+            _cleanLyric: cleanSyl,
+            lineIdx: lIdx,
+            sylIdx: sIdx,
+            sylTime: sylTime,
+            hit: false,
+            holding: false,
+            holdCompleted: false,
+            missed: false,
+            processed: false
+          };
+          claimedNotes.add(vocalNote);
+          newlyCreatedNotes.push(vocalNote);
+        }
+      }
+
+      if (phraseMinMs < Infinity && phraseMaxMs > -Infinity) {
+        vocalPhraseWindows.push({ startMs: phraseMinMs - 180, endMs: phraseMaxMs + 160 });
+      }
+    }
+
+    // 3. Filtrar notas instrumentales sobrantes que caigan encima de las frases cantadas (para que en cada verso solo caigan las sílabas reales bien espaciadas)
+    const finalNotes = [];
+    for (let i = 0; i < this.notes.length; i++) {
+      const n = this.notes[i];
+      if (!n) continue;
+      if (claimedNotes.has(n)) {
+        finalNotes.push(n);
+        continue;
+      }
+      const nt = n.timestamp_ms;
+      let insideVocalPhrase = false;
+      for (let w = 0; w < vocalPhraseWindows.length; w++) {
+        const vw = vocalPhraseWindows[w];
+        if (nt >= vw.startMs && nt <= vw.endMs) {
+          insideVocalPhrase = true;
+          break;
+        }
+      }
+      if (!insideVocalPhrase) {
+        finalNotes.push(n);
+      }
+    }
+
+    for (let i = 0; i < newlyCreatedNotes.length; i++) {
+      finalNotes.push(newlyCreatedNotes[i]);
+    }
+
+    finalNotes.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
+
+    // 4. Garantizar ergonomía de carriles (evitar dos sílabas consecutivas < 260ms en el mismo carril) y recalcular nextSameLaneDiffMs
+    for (let i = 0; i < finalNotes.length; i++) {
+      const cur = finalNotes[i];
+      cur.id = i;
+      if (i > 0) {
+        const prev = finalNotes[i - 1];
+        const prevEnd = prev.end_timestamp_ms || prev.timestamp_ms;
+        if (cur.lane === prev.lane && (cur.timestamp_ms - prevEnd) < 260) {
+          cur.lane = (prev.lane + 1) % numLanes;
+          cur.column = cur.lane;
+          cur.track = cur.lane;
+        }
+      }
+    }
+
+    const fLen = finalNotes.length;
+    for (let i = 0; i < fLen; i++) {
+      const curN = finalNotes[i];
+      let diff = Infinity;
+      const maxJ = Math.min(fLen, i + 40);
+      for (let j = i + 1; j < maxJ; j++) {
+        const nextN = finalNotes[j];
+        if (nextN.timestamp_ms - curN.timestamp_ms > 3000) break;
+        if (nextN.lane === curN.lane && nextN.timestamp_ms > curN.timestamp_ms) {
+          diff = nextN.timestamp_ms - curN.timestamp_ms;
+          break;
+        }
+      }
+      curN.nextSameLaneDiffMs = diff;
+    }
+
+    this.notes = finalNotes;
+  }
+
+  _redrawKaraokeTeleprompterSprite(verso, litUpToIdx = -1) {
+    if (!Array.isArray(verso) || verso.length === 0) {
+      this._teleprompterHasContent = false;
+      return;
+    }
+    const cssW = Math.min(550, Math.max(296, Math.round((this.width || 380) * 0.94)));
+    const cssH = 84;
+    const dpr = Math.min(2, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
+    const pw = Math.round(cssW * dpr);
+    const ph = Math.round(cssH * dpr);
+
+    // Usar directamente el <canvas id="karaokeTeleprompterCanvas"> alojado en #karaokeTeleprompterBar (z-index: 45 sobre el HUD)
+    const domCanvas = (typeof document !== 'undefined') ? document.getElementById('karaokeTeleprompterCanvas') : null;
+    const teleBar = (typeof document !== 'undefined') ? document.getElementById('karaokeTeleprompterBar') : null;
+    if (teleBar && teleBar.classList.contains('hidden')) {
+      teleBar.classList.remove('hidden');
+    }
+
+    const targetCanvas = domCanvas || this._teleprompterCanvas || (typeof document !== 'undefined' ? document.createElement('canvas') : null);
+    if (!targetCanvas) return;
+    this._teleprompterCanvas = targetCanvas;
+    this._teleprompterUsingDomCanvas = Boolean(domCanvas);
+
+    if (targetCanvas.width !== pw || targetCanvas.height !== ph) {
+      targetCanvas.width = pw;
+      targetCanvas.height = ph;
+      targetCanvas.style.width = `${cssW}px`;
+      targetCanvas.style.height = `${cssH}px`;
+    }
+    this._teleprompterCssW = cssW;
+    this._teleprompterCssH = cssH;
+
+    const ctx = targetCanvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cssW, cssH);
+
+    // Píldora oscura de alto contraste con borde dorado luminoso pre-horneado (0 backdrop-filter, 0 coste por frame)
+    const bgGrad = ctx.createLinearGradient(0, 2, 0, cssH - 2);
+    bgGrad.addColorStop(0, 'rgba(18, 14, 30, 0.94)');
+    bgGrad.addColorStop(1, 'rgba(8, 6, 16, 0.96)');
+    ctx.fillStyle = bgGrad;
+    ctx.beginPath();
+    if (ctx.roundRect) {
+      ctx.roundRect(3, 3, cssW - 6, cssH - 6, 22);
+    } else {
+      ctx.rect(3, 3, cssW - 6, cssH - 6);
+    }
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(255, 185, 0, 0.32)';
+    ctx.lineWidth = 4.0;
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(255, 225, 95, 0.85)';
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+
+    const tokens = [];
+    for (let i = 0; i < verso.length; i++) {
+      const s = verso[i];
+      if (!s) continue;
+      let raw = String(s.text || '');
+      if (raw.trim() === '~') continue;
+      raw = raw.replace(/-/g, '');
+      if (!raw) continue;
+      const isLit = (i <= litUpToIdx) || Boolean(this._karaokeHitSylTimes && Number.isFinite(s.time) && this._karaokeHitSylTimes.has(s.time));
+      tokens.push({ text: raw, isLit });
+    }
+    if (tokens.length === 0) {
+      this._teleprompterHasContent = false;
+      return;
+    }
+
+    const fullStr = tokens.map(t => t.text).join('');
+    const fontSize = fullStr.length > 46 ? 16 : (fullStr.length > 34 ? 18 : 21);
+    ctx.font = `900 ${fontSize}px Outfit, Montserrat, -apple-system, sans-serif`;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+
+    const maxLineW = cssW - 32;
+    const lines = [];
+    let curLine = [];
+    let curW = 0;
+
+    for (let i = 0; i < tokens.length; i++) {
+      const tok = tokens[i];
+      const w = ctx.measureText(tok.text).width;
+      if (curLine.length > 0 && (curW + w) > maxLineW && lines.length < 1 && tok.text.startsWith(' ')) {
+        lines.push({ items: curLine, width: curW });
+        const trimmedFirst = tok.text.replace(/^\s+/, '');
+        const tw = ctx.measureText(trimmedFirst).width;
+        curLine = [{ text: trimmedFirst, isLit: tok.isLit, width: tw }];
+        curW = tw;
+      } else if (curLine.length > 0 && (curW + w) > maxLineW && lines.length < 1 && i > 0 && tokens[i - 1].text.endsWith(' ')) {
+        lines.push({ items: curLine, width: curW });
+        const trimmedFirst = tok.text.replace(/^\s+/, '');
+        const tw = ctx.measureText(trimmedFirst).width;
+        curLine = [{ text: trimmedFirst, isLit: tok.isLit, width: tw }];
+        curW = tw;
+      } else {
+        curLine.push({ text: tok.text, isLit: tok.isLit, width: w });
+        curW += w;
+      }
+    }
+    if (curLine.length > 0) {
+      lines.push({ items: curLine, width: curW });
+    }
+
+    const lineSpacing = fontSize + 8;
+    const totalTextH = lines.length * lineSpacing;
+    const startY = (cssH - totalTextH) * 0.5 + (lineSpacing * 0.5);
+
+    for (let l = 0; l < lines.length; l++) {
+      const lineObj = lines[l];
+      let x = Math.max(16, (cssW - lineObj.width) * 0.5);
+      const y = startY + l * lineSpacing;
+      const litGrad = ctx.createLinearGradient(0, y - fontSize * 0.55, 0, y + fontSize * 0.55);
+      litGrad.addColorStop(0.0, '#ffffff');
+      litGrad.addColorStop(0.45, '#fff3a1');
+      litGrad.addColorStop(1.0, '#ffd000');
+
+      for (let m = 0; m < lineObj.items.length; m++) {
+        const it = lineObj.items[m];
+        if (it.isLit) {
+          // Resplandor neón dorado multicapa pre-horneado en el sprite offscreen (0ms de coste por frame en el render loop)
+          ctx.strokeStyle = 'rgba(255, 140, 0, 0.55)';
+          ctx.lineWidth = 10.5;
+          ctx.strokeText(it.text, x, y);
+
+          ctx.strokeStyle = 'rgba(255, 215, 0, 0.96)';
+          ctx.lineWidth = 5.5;
+          ctx.strokeText(it.text, x, y);
+
+          ctx.strokeStyle = 'rgba(28, 14, 0, 0.94)';
+          ctx.lineWidth = 2.2;
+          ctx.strokeText(it.text, x, y);
+
+          ctx.fillStyle = litGrad;
+          ctx.fillText(it.text, x, y);
+        } else {
+          // Sílaba pendiente: blanco puro ultra nítido con contorno oscuro grueso para máxima visibilidad
+          ctx.strokeStyle = 'rgba(4, 4, 12, 0.96)';
+          ctx.lineWidth = 4.2;
+          ctx.strokeText(it.text, x, y);
+
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+          ctx.fillText(it.text, x, y);
+        }
+        x += it.width;
+      }
+    }
+
+    this._teleprompterHasContent = true;
+  }
+
+  renderKaraokeTeleprompterCanvas(ctx) {
+    if (!this._teleprompterHasContent || !this._teleprompterCanvas) return;
+    if (this._teleprompterUsingDomCanvas) return;
+    const drawW = this._teleprompterCssW || 340;
+    const drawH = this._teleprompterCssH || 84;
+    const x = Math.round(((this.width || 380) - drawW) * 0.5);
+    const y = 80;
+    ctx.drawImage(this._teleprompterCanvas, x, y, drawW, drawH);
   }
 
   initStormModeAssets() {
@@ -33189,6 +33596,8 @@ Object.assign(BeatstarEngine.prototype, {
     if (!Array.isArray(this.notes)) return;
     if (!this._lyricKeySpriteCache) {
       this._lyricKeySpriteCache = new Map();
+    } else if (this._lyricKeySpriteCache.size > 3500) {
+      this._lyricKeySpriteCache.clear();
     }
     const isKaraokePrewarm = Boolean((typeof window !== 'undefined' && window.isKaraokeModeActive) || this.isKaraokeModeActive);
     for (let i = 0, nLen = this.notes.length; i < nLen; i++) {

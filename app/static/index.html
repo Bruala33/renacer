@@ -25,7 +25,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css?v=65.0">
+  <link rel="stylesheet" href="./style.css?v=78.0">
   <script>
     // ===================================================
     // SISTEMA DE INTERNACIONALIZACIÓN (i18n: ES / EN)
@@ -1148,8 +1148,9 @@
       </div>
 
       <!-- Karaoke Live Teleprompter (Visible exclusively in Modo Karaoke) -->
-      <div id="karaokeTeleprompterBar" class="hidden absolute z-30 pointer-events-none flex flex-col items-center justify-center select-none transition-all">
-        <div id="karaokeCurrentLine" class="karaoke-current-line"></div>
+      <div id="karaokeTeleprompterBar" class="hidden absolute z-30 pointer-events-none flex flex-col items-center justify-center select-none">
+        <canvas id="karaokeTeleprompterCanvas" class="block mx-auto pointer-events-none select-none"></canvas>
+        <div id="karaokeCurrentLine" class="karaoke-current-line hidden"></div>
       </div>
     </div>
 
@@ -3138,22 +3139,26 @@
             <span class="gm-difficulty-label" style="font-size:9.5px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; color:#c5a059;">Dificultad</span>
             <span id="gmDifficultyActiveBadge" class="text-[10px] font-extrabold text-[#f3d791]">Difícil · 4.5★</span>
           </div>
-          <div class="gm-difficulty-pills-grid gm-difficulty-pills-row grid grid-cols-4 gap-1.5" style="display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:6px;">
+          <div class="gm-difficulty-pills-grid gm-difficulty-pills-row grid grid-cols-5 gap-1" style="display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:4px;">
             <button id="gmDiffBtn_easy" data-diff="easy" type="button" onclick="selectGameModalDifficulty('easy')" class="gm-diff-pill-btn" style="padding:5px 2px; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.1;">
-              <span style="font-size:10px; font-weight:800;">Fácil</span>
-              <span class="gm-diff-stars" style="font-size:8.5px; opacity:0.8;">1.8★</span>
+              <span style="font-size:9.5px; font-weight:800;">Fácil</span>
+              <span class="gm-diff-stars" style="font-size:8px; opacity:0.8;">1.8★</span>
             </button>
             <button id="gmDiffBtn_normal" data-diff="normal" type="button" onclick="selectGameModalDifficulty('normal')" class="gm-diff-pill-btn" style="padding:5px 2px; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.1;">
-              <span style="font-size:10px; font-weight:800;">Media</span>
-              <span class="gm-diff-stars" style="font-size:8.5px; opacity:0.8;">3.0★</span>
+              <span style="font-size:9.5px; font-weight:800;">Media</span>
+              <span class="gm-diff-stars" style="font-size:8px; opacity:0.8;">3.0★</span>
             </button>
             <button id="gmDiffBtn_hard" data-diff="hard" type="button" onclick="selectGameModalDifficulty('hard')" class="gm-diff-pill-btn active" style="padding:5px 2px; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.1;">
-              <span style="font-size:10px; font-weight:800;">Difícil</span>
-              <span class="gm-diff-stars" style="font-size:8.5px; opacity:0.8;">4.5★</span>
+              <span style="font-size:9.5px; font-weight:800;">Difícil</span>
+              <span class="gm-diff-stars" style="font-size:8px; opacity:0.8;">4.5★</span>
             </button>
             <button id="gmDiffBtn_extreme" data-diff="extreme" type="button" onclick="selectGameModalDifficulty('extreme')" class="gm-diff-pill-btn" style="padding:5px 2px; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.1;">
-              <span style="font-size:10px; font-weight:800;">Extrema</span>
-              <span class="gm-diff-stars" style="font-size:8.5px; opacity:0.8;">6.5★</span>
+              <span style="font-size:9.5px; font-weight:800;">Extrema</span>
+              <span class="gm-diff-stars" style="font-size:8px; opacity:0.8;">6.5★</span>
+            </button>
+            <button id="gmDiffBtn_impossible" data-diff="impossible" type="button" onclick="selectGameModalDifficulty('impossible')" class="gm-diff-pill-btn" style="padding:5px 2px; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.1;">
+              <span style="font-size:9.5px; font-weight:800;">Imposible</span>
+              <span class="gm-diff-stars" style="font-size:8px; opacity:0.8;">8.8★</span>
             </button>
           </div>
         </div>
@@ -5031,11 +5036,16 @@
 
         <!-- Vista 2: Escenario de Letras Sincronizadas tipo Karaoke (Spotify Lyrics Style) -->
         <div id="npKaraokeStageContainer" class="np-karaoke-stage hidden">
-          <div class="np-karaoke-toolbar">
+          <div class="np-karaoke-toolbar" style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
             <button id="npKaraokeTranslateBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleKaraokeTranslation()" class="np-karaoke-tool-btn" title="Mostrar traducción debajo de cada verso en el idioma de la app">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
               <span id="npKaraokeTranslateLabel">Traducir letra</span>
             </button>
+            <div style="display:flex; align-items:center; gap:4px;">
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.adjustKaraokeOffset(-0.5)" class="np-karaoke-tool-btn" style="padding:4px 8px; font-size:11px; font-weight:800;" title="Retrasar letra 0.5s">-0.5s</button>
+              <button id="npKaraokeOffsetBadge" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.resetKaraokeOffset()" class="np-karaoke-tool-btn" style="padding:4px 7px; font-size:10.5px; font-weight:700; min-width:42px; justify-content:center;" title="Restablecer sincronización manual (o arrastra la letra con el dedo)">0.0s</button>
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.adjustKaraokeOffset(0.5)" class="np-karaoke-tool-btn" style="padding:4px 8px; font-size:11px; font-weight:800;" title="Adelantar letra 0.5s">+0.5s</button>
+            </div>
           </div>
           <div id="npKaraokeScrollBox" class="np-karaoke-scroll-box">
             <div class="np-karaoke-placeholder">Cargando letra sincronizada...</div>
@@ -5227,14 +5237,14 @@
 
   </div> <!-- End of game-viewport -->
 
-  <script src="./parsers.js?v=67.0"></script>
-  <script src="./game.js?v=67.0"></script>
-  <script defer src="./slot_machine.js?v=67.0"></script>
-  <script defer src="./gachapon_3d.js?v=67.0"></script>
+  <script src="./parsers.js?v=80.0"></script>
+  <script src="./game.js?v=80.0"></script>
+  <script defer src="./slot_machine.js?v=80.0"></script>
+  <script defer src="./gachapon_3d.js?v=80.0"></script>
   <script defer src="./songs/comm_camilo_sesto/chart.js"></script>
   <script defer src="./songs/renacer/chart.js"></script>
-  <script src="./songs/catalog_top.js?v=67.0"></script>
-  <script src="./discover_home.js?v=67.0"></script>
+  <script src="./songs/catalog_top.js?v=80.0"></script>
+  <script src="./discover_home.js?v=80.0"></script>
   <script>
     let engine = null;
     let currentActiveBeatmap = null;
@@ -7488,12 +7498,8 @@
     };
 
     const DEFAULT_CLOUD_SERVER = 'https://renacer.onrender.com';
-    const FALLBACK_CLOUD_SERVER = 'https://ais-pre-rta7img4r7gtbncec44ncg-928695411268.europe-west2.run.app';
 
     function getApiBaseUrl() {
-      if (window._forceFallbackCloudServer) {
-        return FALLBACK_CLOUD_SERVER;
-      }
       const custom = localStorage.getItem('beatstar_api_server');
       if (custom !== null && custom !== undefined) {
         if (custom.trim().length > 0) return custom.trim().replace(/\/$/, '');
@@ -7512,22 +7518,6 @@
       }
       return DEFAULT_CLOUD_SERVER;
     }
-
-    // Sonda automática ligera al iniciar: si renacer.onrender.com está suspendido (502/503), conmuta al espejo activo
-    setTimeout(() => {
-      try {
-        const curBase = getApiBaseUrl();
-        if (curBase.includes('renacer.onrender.com')) {
-          fetch(`${curBase}/api/v1/health`, { method: 'GET' }).then(r => {
-            if (!r.ok && (r.status === 502 || r.status === 503)) {
-              window._forceFallbackCloudServer = true;
-            }
-          }).catch(() => {
-            window._forceFallbackCloudServer = true;
-          });
-        }
-      } catch (_) {}
-    }, 300);
 
     // Codigo de version local actualizado a 54 (v5.4.0)
     const CURRENT_APP_VERSION_CODE = (window.AndroidNative && typeof window.AndroidNative.getAppVersionCode === 'function')
@@ -7887,35 +7877,36 @@
 
           if (!overlay || !numEl) return;
 
+          const pulseNumber = (text) => {
+            numEl.textContent = String(text);
+            numEl.style.transition = 'none';
+            numEl.style.transform = 'scale(1.22)';
+            numEl.style.opacity = '1';
+            requestAnimationFrame(() => {
+              numEl.style.transition = 'transform 220ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease';
+              numEl.style.transform = 'scale(1)';
+            });
+          };
+
           overlay.classList.remove('fading');
           overlay.classList.add('show');
           const stepMs = (durationMs || 1200) / 3;
           let count = 3;
-          numEl.innerText = count;
-          numEl.style.animation = 'none';
-          void numEl.offsetHeight;
-          numEl.style.animation = null;
+          pulseNumber(count);
 
           activeCountdownInterval = setInterval(() => {
             count--;
             if (count > 0) {
-              numEl.innerText = count;
-              numEl.style.animation = 'none';
-              void numEl.offsetHeight;
-              numEl.style.animation = null;
+              pulseNumber(count);
             } else if (count === 0) {
-              numEl.innerText = '\u00a1YA!';
-              numEl.style.animation = 'none';
-              void numEl.offsetHeight;
-              numEl.style.animation = null;
+              pulseNumber('\u00a1YA!');
               clearInterval(activeCountdownInterval);
               activeCountdownInterval = null;
-              // Fade out the overlay after a short moment
               setTimeout(() => {
                 overlay.classList.remove('show');
                 overlay.classList.add('fading');
-                setTimeout(() => overlay.classList.remove('fading'), 250);
-              }, stepMs * 0.7);
+                setTimeout(() => overlay.classList.remove('fading'), 180);
+              }, Math.min(180, stepMs * 0.45));
             }
           }, stepMs);
         },
@@ -9106,6 +9097,9 @@ window.switchMainTab = switchMainTab;
       };
       if (typeof communityDiffFilter !== 'undefined') {
         communityDiffFilter = diffMap[tier] || 'Todas';
+      }
+      if (tier && tier !== 'all' && typeof window.syncDifficultyToGameModal === 'function') {
+        window.syncDifficultyToGameModal(tier);
       }
 
       updateActiveSearchFilterBadge();
@@ -10372,12 +10366,16 @@ window.switchMainTab = switchMainTab;
       const merged = [];
       const seenIds = new Set();
       const seenMagicFingerprints = new Set();
+      let addedMagicCount = 0;
 
       for (const item of catalogItems) {
         if (!item || !item.id || seenIds.has(item.id)) continue;
         seenIds.add(item.id);
         if (queryStr && !Number.isFinite(item.relevanceScore)) {
           item.relevanceScore = computeSongRelevanceScore(queryStr, item.title, item.artist, item.creator_name || '');
+        }
+        if (item._isMagicKey || item.source === 'magic_youtube') {
+          addedMagicCount++;
         }
         merged.push(item);
       }
@@ -10386,13 +10384,35 @@ window.switchMainTab = switchMainTab;
         ytCandidates.forEach((cand, idx) => {
           const magicItem = createMagicKeyItemFromCandidate(cand, queryStr, idx);
           if (!magicItem || seenIds.has(magicItem.id)) return;
-          if (queryStr && (magicItem.relevanceScore || 0) < 34) return;
+          if (idx < 8 && (magicItem.relevanceScore || 0) < 48) {
+            magicItem.relevanceScore = Math.max(48 - idx, magicItem.relevanceScore || 0);
+          }
+          if (queryStr && idx >= 8 && (magicItem.relevanceScore || 0) < 30) return;
           const fp = `${normalizeSearchText(magicItem.title)}__${normalizeSearchText(magicItem.artist)}`;
           if (seenMagicFingerprints.has(fp)) return;
           seenMagicFingerprints.add(fp);
           seenIds.add(magicItem.id);
+          addedMagicCount++;
           merged.push(magicItem);
         });
+      }
+
+      if (queryStr && queryStr.trim().length >= 2 && addedMagicCount === 0) {
+        const fallbackMagic = createMagicKeyItemFromCandidate(
+          {
+            title: repairSpanishBrokenAccents(queryStr.trim()),
+            artist: 'Tecla Mágica · YouTube / Estudio',
+            durationSec: 195,
+            authenticityScore: 92
+          },
+          queryStr,
+          0
+        );
+        if (fallbackMagic && !seenIds.has(fallbackMagic.id)) {
+          fallbackMagic.relevanceScore = Math.max(78, fallbackMagic.relevanceScore || 78);
+          seenIds.add(fallbackMagic.id);
+          merged.push(fallbackMagic);
+        }
       }
 
       if (queryStr) {
@@ -10552,7 +10572,7 @@ window.switchMainTab = switchMainTab;
 
       // Lanzar en paralelo el descubrimiento de canciones para Teclas Mágicas (YouTube + Backend + iTunes en carrera)
       const ytMagicPromise = (q && q.length >= 2)
-        ? withTimeout(discoverVerifiedAudioCandidates(q, '', 24), 3200, 'YouTube Magic')
+        ? withTimeout(discoverVerifiedAudioCandidates(q, '', 24), 6500, 'YouTube Magic')
             .then(cands => {
               if (Array.isArray(cands) && cands.length > 0) {
                 latestYtCandidates = cands;
@@ -10661,47 +10681,174 @@ window.switchMainTab = switchMainTab;
     }
     window.escapeJsAttr = escapeJsAttr;
 
-        function repairSpanishBrokenAccents(str) {
+    const _SPANISH_BROKEN_WORD_MAP = {
+      abrzame: 'abrázame', adrin: 'Adrián', aerolneas: 'aerolíneas', agita: 'agüita',
+      aladdn: 'Aladdín', alcal: 'Alcalá', alegra: 'alegría', algn: 'algún',
+      aljate: 'aléjate', almohadn: 'almohadón', amrico: 'Américo', anah: 'Anahí',
+      andrs: 'Andrés', aqu: 'aquí', atrs: 'atrás', atrvete: 'atrévete',
+      autnticos: 'auténticos', azcar: 'Azúcar', babasnicos: 'Babasónicos', balcn: 'balcón',
+      bao: 'baño', beln: 'Belén', beyonc: 'Beyoncé', binica: 'Biónica',
+      bombn: 'bombón', bos: 'Bosé', bsame: 'bésame', bscate: 'búscate',
+      bulera: 'Bulería', cabrn: 'cabrón', caf: 'café', camarn: 'Camarón',
+      cambi: 'cambió', cancin: 'canción', capuln: 'capulín', carmn: 'carmín',
+      chiquirritn: 'chiquirritín', cicln: 'ciclón', cline: 'Céline', clmax: 'clímax',
+      cmo: 'cómo', cmplices: 'Cómplices', comps: 'compás', condicin: 'condición',
+      confesin: 'confesión', contamname: 'contamíname', corazn: 'corazón', crcel: 'cárcel',
+      cristin: 'Cristián', cuntame: 'cuéntame', dara: 'daría', deca: 'decía',
+      decidi: 'decidió', dediqu: 'dediqué', dej: 'dejó', demara: 'DeMaría',
+      dems: 'demás', desilusin: 'desilusión', despech: 'despechá', despecha: 'despechá',
+      despus: 'después', destruccin: 'destrucción', devulveme: 'devuélveme', dgale: 'dígale',
+      dinmico: 'Dinámico', direccin: 'dirección', djame: 'déjame', dnde: 'dónde', adnde: 'adónde',
+      doli: 'dolió', dragn: 'dragón', drcal: 'Dúrcal', dudara: 'dudaría', egosta: 'egoísta',
+      elctrico: 'eléctrico', emocin: 'emoción', empez: 'empezó', empezare: 'empezaré',
+      enamor: 'enamoré', ense: 'enseñó', entregu: 'entregué', equivocara: 'equivocaría',
+      escorpin: 'escorpión', escrib: 'escribí', espantapjaros: 'espantapájaros', espaa: 'España',
+      espaol: 'español', espaola: 'española', estacin: 'estación', estars: 'estarás',
+      ests: 'estás', estn: 'están', estpida: 'estúpida', excepcin: 'excepción',
+      explosin: 'explosión', extraar: 'extrañaré', extrao: 'extraño', fantstica: 'fantástica',
+      fernndez: 'Fernández', ficcin: 'ficción', fra: 'fría', frica: 'África',
+      frmula: 'Fórmula', fsica: 'física', generacin: 'generación', gmez: 'Gómez',
+      gonzlez: 'González', guzmn: 'Guzmán', habl: 'habló', habitacin: 'habitación',
+      hars: 'harás', hernndez: 'Hernández', hroe: 'héroe', hroes: 'Héroes',
+      huracn: 'huracán', ilusin: 'ilusión', imaginacin: 'imaginación', insurreccin: 'insurrección',
+      intntalo: 'inténtalo', intuicin: 'intuición', invitacin: 'invitación', jamn: 'jamón',
+      jams: 'jamás', jardn: 'jardín', jimnez: 'Jiménez', joaqun: 'Joaquín', jos: 'José',
+      julin: 'Julián', lenvantar: 'levantar', lgrima: 'lágrima', lgrimas: 'lágrimas',
+      limn: 'limón', lleg: 'llegó', llev: 'llevó', llor: 'lloró',
+      lmite: 'límite', lobohombre: 'lobo-hombre', lpez: 'López', ltima: 'última',
+      ltimo: 'último', luca: 'Lucía', lvaro: 'Álvaro', maana: 'mañana',
+      maldicin: 'maldición', mam: 'mamá', mara: 'María', martn: 'Martín',
+      martnez: 'Martínez', meloda: 'melodía', mgo: 'Mägo', mienteme: 'miénteme',
+      minteme: 'miénteme', minti: 'mintió', mrala: 'mírala', muri: 'murió',
+      morira: 'moriría', morenama: 'morenamía', msica: 'música', mueca: 'muñeca',
+      murdete: 'muérdete', naci: 'nació', ngeles: 'Ángeles', nia: 'niña',
+      nio: 'niño', nios: 'niños', ningn: 'ningún', nmero: 'número',
+      obsesin: 'obsesión', ocano: 'océano', ojal: 'ojalá', ojala: 'ojalá',
+      olvdalo: 'olvídalo', olvdame: 'olvídame', olvid: 'olvidó', oracin: 'oración', pjaros: 'pájaros',
+      pjaro: 'pájaro', pantaln: 'pantalón', pap: 'papá', parchs: 'Parchís',
+      pars: 'París', pasin: 'pasión', pequea: 'pequeña', pequeo: 'pequeño',
+      perd: 'perdí', perdi: 'perdió', perdn: 'perdón', perdname: 'perdóname',
+      perdon: 'perdonó', penlope: 'Penélope', pens: 'pensé', pidi: 'pidió',
+      pntame: 'píntame', plstico: 'plástico', podrs: 'podrás', polica: 'policía',
+      poesa: 'poesía', pregunt: 'preguntó', prez: 'Pérez', prncipe: 'príncipe',
+      prfugos: 'prófugos', provcame: 'provócame', qudate: 'quédate', qued: 'quedó',
+      quera: 'quería', quin: 'quién', quines: 'quiénes', quireme: 'quiéreme',
+      qumica: 'química', quiz: 'quizá', quizs: 'quizás', ramrez: 'Ramírez',
+      razn: 'razón', religin: 'religión', resurreccin: 'resurrección', revolucin: 'revolución',
+      rincn: 'rincón', roco: 'Rocío', rodrguez: 'Rodríguez', rompi: 'rompió',
+      rosala: 'Rosalía', rubn: 'Rubén', salmn: 'salmón', salom: 'Salomé',
+      sali: 'salió', sbeme: 'súbeme', sber: 'Sôber', sebastin: 'Sebastián',
+      seccin: 'sección', segn: 'según', sensacin: 'sensación', seor: 'señor',
+      seora: 'señora', seorita: 'señorita', sers: 'serás', simn: 'Simón',
+      sinfona: 'sinfonía', sinti: 'sintió', situacin: 'situación', slo: 'sólo',
+      slvame: 'sálvame', smbolo: 'Símbolo', snchez: 'Sánchez', soando: 'soñando',
+      so: 'soñé', sofa: 'Sofía', subi: 'subió', subterrneos: 'Subterráneos',
+      sucedi: 'sucedió', suea: 'sueña', sueo: 'sueño', sueos: 'sueños',
+      sufri: 'sufrió', talismn: 'talismán', tambin: 'también', tarzn: 'Tarzán',
+      televisin: 'televisión', tena: 'tenía', tentacin: 'tentación', termin: 'terminó',
+      thala: 'Thalía', tiburn: 'tiburón', todava: 'todavía', traicin: 'traición',
+      tnel: 'túnel', vaco: 'vacío', valenta: 'valentía', vctor: 'Víctor',
+      veintitrs: 'veintitrés', versin: 'versión', vivi: 'vivió', vivirs: 'vivirás',
+      volv: 'volví', volvi: 'volvió', volvers: 'volverás', vuelvete: 'vuélvete'
+    };
+
+    const _SPANISH_ARTIST_FIXES = {
+      'alejandro fernández': 'Alejandro Fernández',
+      'rata blanca': 'Rata Blanca',
+      'chico trujillo': 'Chico Trujillo',
+      'enanitos verdes': 'Enanitos Verdes',
+      'la oreja de van gogh': 'La Oreja de Van Gogh',
+      'el canto del loco': 'El Canto del Loco',
+      'hombres g': 'Hombres G',
+      'mgo de oz': 'Mägo de Oz',
+      'mago de oz': 'Mägo de Oz',
+      'azcar moreno': 'Azúcar Moreno',
+      'fito y fitipaldis': 'Fito y Fitipaldis',
+      'heroes del silencio': 'Héroes del Silencio',
+      'hroes del silencio': 'Héroes del Silencio',
+      'do dinámico': 'Dúo Dinámico',
+      'do dinmico': 'Dúo Dinámico'
+    };
+
+    function repairSpanishBrokenAccents(str) {
       if (!str) return '';
-      return String(str)
-        .replace(/\bcorazn\b/gi, 'corazón')
-        .replace(/\bvivirs\b/gi, 'vivirás')
-        .replace(/\btarzn\b/gi, 'tarzán')
-        .replace(/\bfernndez\b/gi, 'fernández')
-        .replace(/\baerolneas\b/gi, 'aerolíneas')
-        .replace(/\bhernndez\b/gi, 'hernández')
-        .replace(/\bgmez\b/gi, 'gómez')
-        .replace(/\blpez\b/gi, 'lópez')
-        .replace(/\bmartnez\b/gi, 'martínez')
-        .replace(/\brodrguez\b/gi, 'rodríguez')
-        .replace(/\bgonzlez\b/gi, 'gonzález')
-        .replace(/\bprez\b/gi, 'pérez')
-        .replace(/\bsnchez\b/gi, 'sánchez')
-        .replace(/\bramrez\b/gi, 'ramírez')
-        .replace(/\bmsica\b/gi, 'música')
-        .replace(/\bcancin\b/gi, 'canción')
-        .replace(/\bpasin\b/gi, 'pasión')
-        .replace(/\bilusin\b/gi, 'ilusión')
-        .replace(/\brazn\b/gi, 'razón')
-        .replace(/\bperdname\b/gi, 'perdóname')
-        .replace(/\bbulera\b/gi, 'Bulería')
-        .replace(/\bjardn\b/gi, 'jardín')
-        .replace(/\bdespecha\b/gi, 'despechá')
-        .replace(/\bmorenama\b/gi, 'morenamía')
-        .replace(/\blobohombre\b/gi, 'lobo-hombre')
-        .replace(/\bpars\b/gi, 'París')
-        .replace(/\bjos\b/gi, 'José')
-        .replace(/\bdel ro\b/gi, 'del Río')
-        .replace(/\bdestruccin\b/gi, 'destrucción')
-        .replace(/\bautnticos\b/gi, 'auténticos')
-        .replace(/\bfantstica\b/gi, 'fantástica')
-        .replace(/\bintntalo\b/gi, 'inténtalo')
-        .replace(/\bslvame\b/gi, 'sálvame')
-        .replace(/\babrzame\b/gi, 'abrázame')
-        .replace(/\batrvete\b/gi, 'atrévete')
-        .replace(/\bparchs\b/gi, 'Parchís')
-        .replace(/\bcafe\b/gi, 'café')
-        .replace(/\bbose\b/gi, 'Bosé');
+      let out = String(str)
+        .replace(/José[eéÉ]+/g, 'José')
+        .replace(/Bosé[eéÉ]+/g, 'Bosé')
+        .replace(/café[eéÉ]+/gi, 'café')
+        .replace(/\bDON\s+José/gi, 'Don José')
+        .replace(/\bDo\s+Din[aá]mico/gi, 'Dúo Dinámico')
+        .replace(/\bPor\s+ti\s+volar(?![a-záéíóúñü])/gi, 'Por ti volaré')
+        .replace(/\bYo\s+te\s+esperar(?![a-záéíóúñü])/gi, 'Yo te esperaré')
+        .replace(/\bNuestro\s+amor\s+ser\s+leyenda/gi, 'Nuestro amor será leyenda')
+        .replace(/\bYa\s+nada\s+volver\s+a\s+ser/gi, 'Ya nada volverá a ser')
+        .replace(/\bAl[eé]?jate\s+de\s+m[ií]?(?![a-záéíóúñü])/gi, 'Aléjate de mí')
+        .replace(/\bAhora\s+t(?![a-záéíóúñü])/gi, 'Ahora tú')
+        .replace(/\bD[ií]?as\s+de\s+verano/gi, 'Días de verano')
+        .replace(/\bEl\s+primer\s+d[ií]?a\s+del\s+resto/gi, 'El primer día del resto')
+        .replace(/\bOctavo\s+d[ií]?a(?![a-záéíóúñü])/gi, 'Octavo día')
+        .replace(/\bUn\s+d[ií]?a\s+sin\s+ti/gi, 'Un día sin ti')
+        .replace(/\bEl\s+Rey\s+Le[oó]?n(?![a-záéíóúñü])/gi, 'El Rey León')
+        .replace(/\bDe\s+Le[oó]?n(?![a-záéíóúñü])/gi, 'De León')
+        .replace(/\b(para|sin|de)\s+m(?![a-záéíóúñü])/gi, '$1 mí')
+        .replace(/\b(como|fuiste|eres|solamente)\s+t(?![a-záéíóúñü])/gi, '$1 tú')
+        .replace(/\bcuando\s+t\s+no\b/gi, 'cuando tú no')
+        .replace(/\bCuando\s+t\s+vas\b/gi, 'Cuando tú vas')
+        .replace(/\bPara\s+que\s+t\s+no\b/gi, 'Para que tú no')
+        .replace(/\bni\s+t\s+ni\s+nadie/gi, 'ni tú ni nadie')
+        .replace(/\bS[oó]?lo\s+t(?![a-záéíóúñü])/gi, 'Sólo tú')
+        .replace(/\bT\s+(cambiaste|me\s+dejaste|no\s+eres|no\s+tienes|sin\s+m|y\s+yo)/g, 'Tú $1')
+        .replace(/\bT\s+de\s+qu[eé]?\s+vas/gi, 'Tú de qué vas')
+        .replace(/\bPlatero\s+y\s+t(?![a-záéíóúñü])/gi, 'Platero y Tú')
+        .replace(/\bY\s+t\s+te\s+vas/gi, 'Y tú te vas')
+        .replace(/\bQu\s+(bonito|hace|ser)/gi, 'Qué $1')
+        .replace(/\bQu\s+hay\s+m[aá]?s\s+all[aá]?/gi, 'Qué hay más allá')
+        .replace(/\bQu\s+pides\s+t(?![a-záéíóúñü])/gi, 'Qué pides tú')
+        .replace(/\bY\s+qu\s+m[aá]?s\s+da/gi, 'Y qué más da')
+        .replace(/\bDime\s+qu\s+me\s+pasa/gi, 'Dime qué me pasa')
+        .replace(/\b(Busca\s+lo|Lo)\s+m[aá]?s\s+vital/gi, '$1 más vital')
+        .replace(/\bHoy\s+somos\s+m[aá]?s(?![a-záéíóúñü])/gi, 'Hoy somos más')
+        .replace(/\bNo\s+somos\s+m[aá]?s\s+que\s+dos/gi, 'No somos más que dos')
+        .replace(/\bLa\s+cosa\s+m[aá]?s\s+bella/gi, 'La cosa más bella')
+        .replace(/\bEl\s+regalo\s+m[aá]?s\s+grande/gi, 'El regalo más grande')
+        .replace(/\bNo\s+me\s+queda\s+m[aá]?s(?![a-záéíóúñü])/gi, 'No me queda más')
+        .replace(/\bNada\s+m[aá]?s\s+que\s+pedir/gi, 'Nada más que pedir')
+        .replace(/\bM[aá]?s\s+y\s+m[aá]?s(?![a-záéíóúñü])/gi, 'Más y más')
+        .replace(/\bUn\s+a[ñ]?o\s+m[aá]?s(?![a-záéíóúñü])/gi, 'Un año más')
+        .replace(/\bUn\s+a[ñ]?o(?![a-záéíóúñü])/gi, 'Un año')
+        .replace(/\b19\s+d[ií]?as\s+y\s+500\s+noches/gi, '19 días y 500 noches')
+        .replace(/\bEn\s+el\s+r[ií]?o(?![a-záéíóúñü])/gi, 'En el río')
+        .replace(/\bdel\s+r[ií]?o(?![a-záéíóúñü])/gi, 'del Río')
+        .replace(/\bTodo\s+ir\s+bien/gi, 'Todo irá bien')
+        .replace(/\bVivir\s+as\s+es\s+morir/gi, 'Vivir así es morir')
+        .replace(/\bOjos\s+as(?![a-záéíóúñü])/gi, 'Ojos así')
+        .replace(/\bPor\s+amarte\s+as(?![a-záéíóúñü])/gi, 'Por amarte así')
+        .replace(/\bTe\s+conoc(?![a-záéíóúñü])/gi, 'Te conocí')
+        .replace(/\bEst\s+saliendo\s+el\s+sol/gi, 'Está saliendo el sol')
+        .replace(/\bNo\s+s\s+t(?![a-záéíóúñü])/gi, 'No sé tú')
+        .replace(/\bNo\s+est\s+aqu[ií]?/gi, 'No está aquí')
+        .replace(/\bPor\s+qu\s+te\s+vas/gi, 'Por qué te vas')
+        .replace(/\bS\s+que\s+ya\s+no\b/gi, 'Sé que ya no')
+        .replace(/\bSi\s+t\s+(no\s+est|te\s+vas)/gi, 'Si tú $1')
+        .replace(/\bYa\s+no\s+s\s+qu[eé]?\s+hacer/gi, 'Ya no sé qué hacer')
+        .replace(/(?<![a-záéíóúñüA-ZÁÉÍÓÚÑÜ])l\s+(no\s+es\s+mejor|me\s+minti)/g, 'Él $1')
+        .replace(/\by\s+luego\s+s,\s+pero/gi, 'y luego sí, pero');
+
+      out = out.replace(/[A-Za-zÁÉÍÓÚÑÜáéíóúñüÄËÏÖÜäëïöüÂÊÎÔÛâêîôû]+/g, (word) => {
+        const lw = word.toLowerCase();
+        const target = _SPANISH_BROKEN_WORD_MAP[lw];
+        if (!target) return word;
+        if (word[0] === word[0].toUpperCase() && word[0] !== word[0].toLowerCase()) {
+          return target[0].toUpperCase() + target.slice(1);
+        }
+        return target;
+      });
+
+      const lowerOut = out.trim().toLowerCase();
+      if (_SPANISH_ARTIST_FIXES[lowerOut]) {
+        return _SPANISH_ARTIST_FIXES[lowerOut];
+      }
+      return out;
     }
     window.repairSpanishBrokenAccents = repairSpanishBrokenAccents;
 
@@ -11638,7 +11785,7 @@ function stopPianoCameraLoop() {
 
       finishLine();
 
-      // Construir las marcas de tiempo precisas para cada palabra en el teleprompter
+      // Construir las marcas de tiempo precisas para cada palabra y sílaba (verso) en el teleprompter
       for (let lIdx = 0; lIdx < lines.length; lIdx++) {
         const line = lines[lIdx];
         line.wordTimestamps = new Array(line.words.length).fill(null);
@@ -11658,9 +11805,30 @@ function stopPianoCameraLoop() {
         for (let w = 0; w < line.wordTimestamps.length; w++) {
           if (line.wordTimestamps[w] === null) {
             line.wordTimestamps[w] = (w > 0 && line.wordTimestamps[w - 1] !== null)
-              ? line.wordTimestamps[w - 1] + 320
-              : line.timeMs + w * 320;
+              ? line.wordTimestamps[w - 1] + 280
+              : line.timeMs + w * 280;
+          } else if (w > 0 && line.wordTimestamps[w] < line.wordTimestamps[w - 1] + 165) {
+            line.wordTimestamps[w] = line.wordTimestamps[w - 1] + 165;
           }
+        }
+
+        const versoArr = [];
+        for (let w = 0; w < line.words.length; w++) {
+          const tMs = Math.round(line.wordTimestamps[w] || (line.timeMs + w * 280));
+          const nextT = (w + 1 < line.words.length)
+            ? Math.round(line.wordTimestamps[w + 1] || (tMs + 280))
+            : (tMs + 340);
+          versoArr.push({
+            time: tMs,
+            dur: Math.max(140, nextT - tMs - 15),
+            text: line.words[w] + ' '
+          });
+        }
+        line.verso = versoArr;
+        line.syllables = versoArr;
+        if (versoArr.length > 0) {
+          const lastS = versoArr[versoArr.length - 1];
+          line.endTimeMs = lastS.time + (lastS.dur || 320);
         }
       }
 
@@ -11813,6 +11981,21 @@ function stopPianoCameraLoop() {
       const avoidDuplicateNoteClaim = tol > 100;
       const claimedNoteSet = avoidDuplicateNoteClaim ? new Set() : null;
 
+      // Pre-extraer tiempos ordenados para búsqueda binaria O(S log N)
+      const indexedNotes = [];
+      for (let i = 0, len = notes.length; i < len; i++) {
+        const n = notes[i];
+        if (!n || n.isMine) continue;
+        const nTime = Number.isFinite(n.timestamp_ms)
+          ? n.timestamp_ms
+          : (Number.isFinite(n.timeMs)
+              ? n.timeMs
+              : (Number.isFinite(n.time) ? (n.time > 100 ? n.time : n.time * 1000) : 0));
+        const isInst = Boolean(n.isInstrumental || n.is_instrumental || n.isInst);
+        indexedNotes.push({ n, t: nTime, isInst });
+      }
+      if (indexedNotes.length === 0) return;
+
       for (let lIdx = 0; lIdx < reconstructedLines.length; lIdx++) {
         const line = reconstructedLines[lIdx];
         const verso = line.verso || line.syllables;
@@ -11821,22 +12004,32 @@ function stopPianoCameraLoop() {
         for (let sIdx = 0; sIdx < verso.length; sIdx++) {
           const syl = verso[sIdx];
           const sylTime = Number(syl.time) || 0;
-          let bestNote = null;
-          let minDiff = tol;
 
-          for (let i = 0; i < notes.length; i++) {
-            const n = notes[i];
-            if (!n) continue;
-            if (claimedNoteSet && claimedNoteSet.has(n)) continue;
-            const nTime = Number.isFinite(n.timestamp_ms)
-              ? n.timestamp_ms
-              : (Number.isFinite(n.timeMs)
-                  ? n.timeMs
-                  : (Number.isFinite(n.time) ? (n.time > 100 ? n.time : n.time * 1000) : 0));
-            const diff = Math.abs(nTime - sylTime);
-            if (diff < minDiff) {
-              minDiff = diff;
-              bestNote = n;
+          // Búsqueda binaria del primer índice con t >= sylTime - tol
+          let lo = 0;
+          let hi = indexedNotes.length - 1;
+          const minT = sylTime - tol;
+          const maxT = sylTime + tol;
+          while (lo < hi) {
+            const mid = (lo + hi) >> 1;
+            if (indexedNotes[mid].t < minT) lo = mid + 1;
+            else hi = mid;
+          }
+
+          let bestNote = null;
+          let minCost = tol + 60;
+
+          for (let i = lo; i < indexedNotes.length; i++) {
+            const item = indexedNotes[i];
+            if (item.t > maxT) break;
+            if (claimedNoteSet && claimedNoteSet.has(item.n)) continue;
+            const diff = Math.abs(item.t - sylTime);
+            if (diff >= tol) continue;
+            // Priorizar notas vocales reales sobre relleno instrumental cercano
+            const cost = diff + (item.isInst ? 45 : 0);
+            if (cost < minCost) {
+              minCost = cost;
+              bestNote = item.n;
             }
           }
 
@@ -11862,21 +12055,21 @@ function stopPianoCameraLoop() {
     window._universalLrcCache = window._universalLrcCache || new Map();
 
     function _cleanSongMetaForLyrics(rawTitle = '', rawArtist = '') {
-      let title = String(rawTitle || '')
+      let title = repairSpanishBrokenAccents(String(rawTitle || ''))
         .replace(/\s*[\(\[][^\)\]]*(?:official|video|audio|lyric|letra|videoclip|hd|4k|remaster|live|en vivo|tv size|short ver|ver\.|version|feat\.|ft\.|prod\.|visualizer)[^\)\]]*[\)\]]/gi, '')
         .replace(/\b(?:official\s+video|official\s+audio|video\s+oficial|letra\s+oficial|lyrics)\b/gi, '')
         .replace(/\s+/g, ' ')
         .trim();
-      let artist = String(rawArtist || '')
+      let artist = repairSpanishBrokenAccents(String(rawArtist || ''))
         .replace(/\s*-\s*topic$/i, '')
         .replace(/vevo$/i, '')
-        .replace(/\b(?:comunidad|canción top|cancion top|catálogo|catalogo|youtube|magic keys|teclas mágicas|osu!|beatsaver|clone hero)\b/gi, '')
+        .replace(/\b(?:comunidad|canción top|cancion top|catálogo|catalogo|youtube|magic keys|teclas mágicas|osu!|beatsaver|clone hero|artista|todos)\b/gi, '')
         .replace(/\s+/g, ' ')
         .trim();
       if (title.includes(' - ') && (!artist || artist.length < 2)) {
         const parts = title.split(' - ');
-        artist = parts[0].trim();
-        title = parts.slice(1).join(' - ').trim();
+        artist = repairSpanishBrokenAccents(parts[0].trim());
+        title = repairSpanishBrokenAccents(parts.slice(1).join(' - ').trim());
       }
       return { title, artist };
     }
@@ -11905,7 +12098,7 @@ function stopPianoCameraLoop() {
           lastIdx = tagRe.lastIndex;
         }
         if (times.length === 0) continue;
-        const text = row.slice(lastIdx).replace(/\s+/g, ' ').trim();
+        const text = repairSpanishBrokenAccents(row.slice(lastIdx).replace(/\s+/g, ' ').trim());
         if (!text || /^[\(\[♪♫~\-\s]+$/.test(text)) continue;
         if (/^(?:by|offset|al|ar|ti|au|length)\s*:/i.test(text)) continue;
         for (let tIdx = 0; tIdx < times.length; tIdx++) {
@@ -11926,25 +12119,28 @@ function stopPianoCameraLoop() {
       if (!title || title.length < 2 || /^pista\b|^canción creada/i.test(title)) return null;
       const cacheKey = `${title.toLowerCase()}|${artist.toLowerCase()}`;
       if (window._universalLrcCache.has(cacheKey)) {
-        return window._universalLrcCache.get(cacheKey);
+        const cached = await window._universalLrcCache.get(cacheKey);
+        if (cached && cached.length >= 3) return cached;
       }
 
       const fetchPromise = (async () => {
         const qCombined = `${title} ${artist}`.trim();
-        const normTitle = title.toLowerCase().replace(/[^a-z0-9áéíóúñü]+/gi, '');
-        const normArtist = artist.toLowerCase().replace(/[^a-z0-9áéíóúñü]+/gi, '');
+        const normStr = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '');
+        const normTitle = normStr(title);
+        const normArtist = normStr(artist);
+        const isSoundtrackOrGenericArtist = !normArtist || /^(elreyleon|aladdin|tarzan|vaiana|lasirenita|ellibrodelaselva|blancanieves|31minutos|dragonball|digimon|villancicos|glee|violetta|artista|todos)$/.test(normArtist);
 
         const pickBestSynced = (arr) => {
           if (!Array.isArray(arr) || arr.length === 0) return null;
           const withSynced = arr.filter(it => it && typeof it.syncedLyrics === 'string' && it.syncedLyrics.trim().length > 20);
           if (withSynced.length === 0) return null;
           withSynced.sort((a, b) => {
-            const aT = String(a.trackName || a.name || '').toLowerCase().replace(/[^a-z0-9áéíóúñü]+/gi, '');
-            const bT = String(b.trackName || b.name || '').toLowerCase().replace(/[^a-z0-9áéíóúñü]+/gi, '');
-            const aA = String(a.artistName || '').toLowerCase().replace(/[^a-z0-9áéíóúñü]+/gi, '');
-            const bA = String(b.artistName || '').toLowerCase().replace(/[^a-z0-9áéíóúñü]+/gi, '');
-            const scoreA = (aT === normTitle ? 4 : (aT.includes(normTitle) || normTitle.includes(aT) ? 2 : 0)) + (normArtist && (aA.includes(normArtist) || normArtist.includes(aA)) ? 3 : 0);
-            const scoreB = (bT === normTitle ? 4 : (bT.includes(normTitle) || normTitle.includes(bT) ? 2 : 0)) + (normArtist && (bA.includes(normArtist) || normArtist.includes(bA)) ? 3 : 0);
+            const aT = normStr(repairSpanishBrokenAccents(a.trackName || a.name || ''));
+            const bT = normStr(repairSpanishBrokenAccents(b.trackName || b.name || ''));
+            const aA = normStr(repairSpanishBrokenAccents(a.artistName || ''));
+            const bA = normStr(repairSpanishBrokenAccents(b.artistName || ''));
+            const scoreA = (aT === normTitle ? 6 : (aT.includes(normTitle) || normTitle.includes(aT) ? 3 : 0)) + (!isSoundtrackOrGenericArtist && normArtist && (aA.includes(normArtist) || normArtist.includes(aA)) ? 4 : 0);
+            const scoreB = (bT === normTitle ? 6 : (bT.includes(normTitle) || normTitle.includes(bT) ? 3 : 0)) + (!isSoundtrackOrGenericArtist && normArtist && (bA.includes(normArtist) || normArtist.includes(bA)) ? 4 : 0);
             return scoreB - scoreA;
           });
           return withSynced[0].syncedLyrics;
@@ -11952,15 +12148,20 @@ function stopPianoCameraLoop() {
 
         try {
           const requests = [];
-          if (title && artist) {
+          if (title && artist && !isSoundtrackOrGenericArtist) {
             requests.push(
               fetch(`https://lrclib.net/api/search?track_name=${encodeURIComponent(title)}&artist_name=${encodeURIComponent(artist)}`, {
-                signal: AbortSignal.timeout(2600)
+                signal: AbortSignal.timeout(2800)
               }).then(r => r.ok ? r.json() : []).catch(() => [])
             );
           }
           requests.push(
             fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(qCombined)}`, {
+              signal: AbortSignal.timeout(2800)
+            }).then(r => r.ok ? r.json() : []).catch(() => [])
+          );
+          requests.push(
+            fetch(`https://lrclib.net/api/search?track_name=${encodeURIComponent(title)}`, {
               signal: AbortSignal.timeout(2800)
             }).then(r => r.ok ? r.json() : []).catch(() => [])
           );
@@ -11972,13 +12173,15 @@ function stopPianoCameraLoop() {
           );
 
           const results = await Promise.all(requests);
+          const allCandidates = [];
           for (let i = 0; i < results.length; i++) {
-            const bestLrc = pickBestSynced(results[i]);
-            if (bestLrc) {
-              const timedLines = parseLrcTextToTimedLines(bestLrc);
-              if (timedLines.length >= 3) {
-                return timedLines;
-              }
+            if (Array.isArray(results[i])) allCandidates.push(...results[i]);
+          }
+          const bestLrc = pickBestSynced(allCandidates);
+          if (bestLrc) {
+            const timedLines = parseLrcTextToTimedLines(bestLrc);
+            if (timedLines.length >= 3) {
+              return timedLines;
             }
           }
         } catch (_) {}
@@ -11987,7 +12190,11 @@ function stopPianoCameraLoop() {
 
       window._universalLrcCache.set(cacheKey, fetchPromise);
       const resolved = await fetchPromise;
-      window._universalLrcCache.set(cacheKey, resolved);
+      if (resolved && resolved.length >= 3) {
+        window._universalLrcCache.set(cacheKey, resolved);
+      } else {
+        window._universalLrcCache.delete(cacheKey);
+      }
       return resolved;
     }
     window.fetchUniversalSyncedLyrics = fetchUniversalSyncedLyrics;
@@ -12006,95 +12213,182 @@ function stopPianoCameraLoop() {
 
     function buildKaraokeLyricsFromLrcLines(lrcLines, notes) {
       if (!Array.isArray(lrcLines) || lrcLines.length === 0) return [];
-      const sortedNotes = Array.isArray(notes)
+      const allSortedNotes = Array.isArray(notes)
         ? [...notes]
             .filter(n => n && !n.isMine)
             .map(n => ({
               ref: n,
               t: Math.round(Number.isFinite(n.timestamp_ms) ? n.timestamp_ms : (Number.isFinite(n.timeMs) ? n.timeMs : ((Number(n.time) || 0) * (Number(n.time) > 100 ? 1 : 1000)))),
-              dur: Math.round(Number(n.duration_ms || 0))
+              dur: Math.round(Number(n.duration_ms || 0)),
+              isInst: Boolean(n.isInstrumental || n.is_instrumental || n.isInst || n._isDspInstrumental)
             }))
             .sort((a, b) => a.t - b.t)
         : [];
 
-      const usedNoteIdx = new Set();
+      const vocalOnlyNotes = allSortedNotes.filter(n => !n.isInst);
+      const hasTrueVocalChart = vocalOnlyNotes.length >= 12 && vocalOnlyNotes.length < allSortedNotes.length;
+
+      // Extraer inicios de frases vocales de charts UltraStar humanos (pausas >= 350ms entre sílabas cantadas)
+      const vocalPhraseClusters = [];
+      if (hasTrueVocalChart && vocalOnlyNotes.length > 0) {
+        let curStart = vocalOnlyNotes[0].t;
+        let curEnd = vocalOnlyNotes[0].t + Math.max(180, vocalOnlyNotes[0].dur);
+        let curNotes = [vocalOnlyNotes[0]];
+        for (let i = 1; i < vocalOnlyNotes.length; i++) {
+          const vn = vocalOnlyNotes[i];
+          const prevEnd = vocalOnlyNotes[i - 1].t + Math.max(120, vocalOnlyNotes[i - 1].dur);
+          if (vn.t - prevEnd >= 350) {
+            vocalPhraseClusters.push({ startMs: curStart, endMs: curEnd, notes: curNotes });
+            curStart = vn.t;
+            curEnd = vn.t + Math.max(180, vn.dur);
+            curNotes = [vn];
+          } else {
+            curEnd = Math.max(curEnd, vn.t + Math.max(180, vn.dur));
+            curNotes.push(vn);
+          }
+        }
+        vocalPhraseClusters.push({ startMs: curStart, endMs: curEnd, notes: curNotes });
+      }
+
+      let globalVocalShiftMs = 0;
+      if (hasTrueVocalChart && vocalPhraseClusters.length >= 3 && lrcLines.length >= 3) {
+        const firstLrcMs = Number(lrcLines[0].timeMs) || 0;
+        const firstVocalMs = vocalPhraseClusters[0].startMs;
+        const diff0 = firstVocalMs - firstLrcMs;
+        if (Math.abs(diff0) <= 14000) {
+          globalVocalShiftMs = diff0;
+        }
+      }
+
+      const usedClusterIdx = new Set();
       const rawLyrics = [];
+      let runningShiftMs = globalVocalShiftMs;
+      let prevLineEndMs = 0;
 
       for (let i = 0; i < lrcLines.length; i++) {
         const line = lrcLines[i];
-        const rawWords = String(line.text || '').split(/\s+/).filter(Boolean);
+        const cleanLineText = repairSpanishBrokenAccents(String(line.text || '').trim());
+        const rawWords = cleanLineText.split(/\s+/).filter(Boolean);
         if (rawWords.length === 0) continue;
 
-        const winStart = line.timeMs - 140;
-        const winEnd = line.endTimeMs + 100;
-        const lineNotes = [];
-        for (let nIdx = 0; nIdx < sortedNotes.length; nIdx++) {
-          if (usedNoteIdx.has(nIdx)) continue;
-          const nt = sortedNotes[nIdx].t;
-          if (nt < winStart) continue;
-          if (nt > winEnd) break;
-          lineNotes.push({ ...sortedNotes[nIdx], nIdx });
+        // 1. Si el analizador acústico vocal a 25ms ya calculó los tiempos milimétricos de cada sílaba (acousticSyllables),
+        //    usarlos directamente como fuente de verdad absoluta sin contaminarlos jamás con notas instrumentales apelotonadas.
+        if (Array.isArray(line.acousticSyllables) && line.acousticSyllables.length > 0) {
+          const verseArr = [];
+          for (let k = 0; k < line.acousticSyllables.length; k++) {
+            const s = line.acousticSyllables[k];
+            let tMs = Math.round(Number(s.time) || 0);
+            if (k === 0 && prevLineEndMs > 0 && tMs < prevLineEndMs + 80) {
+              tMs = prevLineEndMs + 80;
+            } else if (k > 0 && tMs < verseArr[k - 1].time + 165) {
+              tMs = verseArr[k - 1].time + 165;
+            }
+            const dMs = Math.max(135, Math.round(Number(s.dur) || 220));
+            verseArr.push({
+              time: tMs,
+              dur: dMs,
+              text: String(s.text || '')
+            });
+          }
+          if (verseArr.length > 0) {
+            const lastS = verseArr[verseArr.length - 1];
+            prevLineEndMs = lastS.time + (lastS.dur || 250);
+            rawLyrics.push(verseArr);
+            continue;
+          }
         }
 
-        // Si el verso tiene más notas que palabras, subdividir palabras largas en sílabas hasta acercarse al número de notas
-        let tokens = [];
-        const targetTokenCount = Math.min(rawWords.length * 2, Math.max(rawWords.length, lineNotes.length));
-        let extraNeeded = Math.max(0, targetTokenCount - rawWords.length);
-        for (let w = 0; w < rawWords.length; w++) {
-          const word = rawWords[w];
-          if (extraNeeded > 0 && word.length >= 5) {
-            const sub = _splitWordIntoKaraokeTokens(word, 2);
-            if (sub.length === 2) {
-              tokens.push({ text: sub[0], isWordEnd: false });
-              tokens.push({ text: sub[1], isWordEnd: true });
-              extraNeeded--;
-              continue;
+        // 2. Alineación para charts con pista vocal UltraStar o estimación fonética natural ponderada
+        let baseStartMs = Number.isFinite(line.vocalStartMs) ? line.vocalStartMs : (Number(line.timeMs) || 0);
+        let baseEndMs = Number.isFinite(line.vocalEndMs) ? line.vocalEndMs : (Number(line.endTimeMs) || (baseStartMs + 2500));
+        const rawSpanMs = Math.max(520, baseEndMs - baseStartMs);
+
+        if (!Number.isFinite(line.vocalStartMs)) {
+          if (Number.isFinite(line.elasticOffsetSec)) {
+            const offMs = Math.round(line.elasticOffsetSec * 1000);
+            baseStartMs += offMs;
+            baseEndMs += offMs;
+          } else if (hasTrueVocalChart && vocalPhraseClusters.length > 0) {
+            const expectedStartMs = baseStartMs + runningShiftMs;
+            let bestC = -1;
+            let bestDist = 3400;
+            for (let c = 0; c < vocalPhraseClusters.length; c++) {
+              if (usedClusterIdx.has(c)) continue;
+              const d = Math.abs(vocalPhraseClusters[c].startMs - expectedStartMs);
+              if (d < bestDist) {
+                bestDist = d;
+                bestC = c;
+              }
+            }
+            if (bestC !== -1) {
+              usedClusterIdx.add(bestC);
+              const cl = vocalPhraseClusters[bestC];
+              runningShiftMs = Math.round(runningShiftMs * 0.35 + (cl.startMs - baseStartMs) * 0.65);
+              baseStartMs = cl.startMs;
+              baseEndMs = Math.max(cl.endMs, cl.startMs + Math.min(rawSpanMs, 3800));
+            } else {
+              baseStartMs += runningShiftMs;
+              baseEndMs += runningShiftMs;
             }
           }
-          tokens.push({ text: word, isWordEnd: true });
         }
+
+        if (prevLineEndMs > 0 && baseStartMs < prevLineEndMs + 90) {
+          baseStartMs = prevLineEndMs + 90;
+        }
+        const naturalMaxSpanMs = Math.max(650, Math.min(4400, rawWords.length * 440 + 350));
+        const spanMs = Math.max(520, Math.min(naturalMaxSpanMs, baseEndMs - baseStartMs));
+        baseEndMs = baseStartMs + spanMs;
+
+        // Usar el silabeador fonético natural de KaraokeLyricsService si está disponible
+        let tokens = [];
+        if (window.KaraokeLyricsService && typeof window.KaraokeLyricsService.tokenizePhraseIntoNaturalSyllables === 'function') {
+          tokens = window.KaraokeLyricsService.tokenizePhraseIntoNaturalSyllables(cleanLineText, spanMs);
+        } else {
+          for (let w = 0; w < rawWords.length; w++) {
+            const word = rawWords[w];
+            const sub = _splitWordIntoKaraokeTokens(word, word.length >= 6 ? 2 : 1);
+            for (let s = 0; s < sub.length; s++) {
+              const isEnd = (s === sub.length - 1);
+              tokens.push({
+                displayText: sub[s] + (isEnd ? ' ' : ''),
+                weight: isEnd ? 1.18 : 0.95
+              });
+            }
+          }
+        }
+
+        const tokLen = tokens.length;
+        if (tokLen === 0) continue;
+
+        const minStepMs = Math.max(170, Math.min(235, Math.floor(spanMs / Math.max(1.25, tokLen * 1.28))));
+        const totalW = tokens.reduce((acc, t) => acc + (Number(t.weight) || 1.0), 0) || tokLen;
+        const effectiveSpan = Math.max(tokLen * minStepMs, spanMs - Math.round(spanMs / (tokLen + 1.5)) * 0.40);
 
         const verseArr = [];
-        const tokLen = tokens.length;
-        const spanMs = Math.max(400, line.endTimeMs - line.timeMs);
-
-        if (lineNotes.length > 0) {
-          for (let k = 0; k < tokLen; k++) {
-            const tok = tokens[k];
-            let assignedTime = Math.round(line.timeMs + (k / Math.max(1, tokLen)) * spanMs);
-            let assignedDur = Math.max(140, Math.round(spanMs / Math.max(1, tokLen)));
-
-            // Mapear cada token a la nota disponible proporcional dentro de la ventana del verso
-            const mappedNoteSlot = Math.min(lineNotes.length - 1, Math.floor((k * lineNotes.length) / tokLen));
-            const candidate = lineNotes[mappedNoteSlot];
-            if (candidate && !usedNoteIdx.has(candidate.nIdx)) {
-              assignedTime = candidate.t;
-              assignedDur = Math.max(150, candidate.dur || Math.round(spanMs / Math.max(1, tokLen)));
-              usedNoteIdx.add(candidate.nIdx);
-            } else if (k > 0 && assignedTime <= verseArr[k - 1].time) {
-              assignedTime = verseArr[k - 1].time + 90;
-            }
-
-            verseArr.push({
-              time: assignedTime,
-              dur: assignedDur,
-              text: tok.text + (tok.isWordEnd ? ' ' : '')
-            });
+        let cumW = 0;
+        for (let k = 0; k < tokLen; k++) {
+          const tok = tokens[k];
+          let tMs = Math.round(baseStartMs + (cumW / totalW) * effectiveSpan);
+          cumW += (Number(tok.weight) || 1.0);
+          if (k > 0 && tMs < verseArr[k - 1].time + minStepMs) {
+            tMs = verseArr[k - 1].time + minStepMs;
           }
-        } else {
-          for (let k = 0; k < tokLen; k++) {
-            const tok = tokens[k];
-            const t = Math.round(line.timeMs + (k / Math.max(1, tokLen)) * spanMs);
-            const dur = Math.max(140, Math.round(spanMs / Math.max(1, tokLen)));
-            verseArr.push({
-              time: t,
-              dur,
-              text: tok.text + (tok.isWordEnd ? ' ' : '')
-            });
-          }
+          verseArr.push({
+            time: tMs,
+            dur: 200,
+            text: tok.displayText || (tok.text + (tok.isWordEnd ? ' ' : ''))
+          });
+        }
+
+        for (let k = 0; k < verseArr.length; k++) {
+          const nextT = (k + 1 < verseArr.length) ? verseArr[k + 1].time : Math.max(verseArr[k].time + 280, baseEndMs);
+          verseArr[k].dur = Math.max(140, Math.min(850, nextT - verseArr[k].time - 15));
         }
 
         if (verseArr.length > 0) {
+          const lastS = verseArr[verseArr.length - 1];
+          prevLineEndMs = lastS.time + (lastS.dur || 250);
           rawLyrics.push(verseArr);
         }
       }
@@ -12106,7 +12400,19 @@ function stopPianoCameraLoop() {
     async function loadKaraokeLyricsForBeatmap(beatmap, gameEngine) {
       if (!beatmap) return;
       const curLyricEl = document.getElementById('karaokeCurrentLine');
-      if (curLyricEl) curLyricEl.innerHTML = '';
+      if (curLyricEl) curLyricEl.textContent = '';
+
+      const sTitle = repairSpanishBrokenAccents(beatmap.title || beatmap.metadata?.title || '');
+      const sArtist = repairSpanishBrokenAccents(beatmap.artist || beatmap.metadata?.artist || '');
+      const trackMeta = {
+        id: beatmap.id || beatmap.metadata?.id || '',
+        title: sTitle,
+        artist: sArtist,
+        videoId: beatmap.videoId || beatmap.youtube_id || beatmap.metadata?.videoId || ''
+      };
+      const gameplayBlob = (beatmap.audioBlob instanceof Blob)
+        ? beatmap.audioBlob
+        : ((currentActiveAudioBlob instanceof Blob) ? currentActiveAudioBlob : null);
 
       let rawLyrics = (Array.isArray(beatmap.lyrics) && beatmap.lyrics.length > 0)
         ? beatmap.lyrics
@@ -12125,69 +12431,104 @@ function stopPianoCameraLoop() {
 
       if (rawLyrics) {
         reconstructedLines = parseTopLevelLyrics(rawLyrics);
-        if (reconstructedLines.length > 0) {
-          const tolMs = isUniversalLrc ? 320 : 95;
-          if (notesToUse && notesToUse.length > 0) {
-            linkSyllablesToNotes(notesToUse, reconstructedLines, tolMs);
-          }
-          if (gameEngine && gameEngine.notes && gameEngine.notes !== notesToUse) {
-            linkSyllablesToNotes(gameEngine.notes, reconstructedLines, tolMs);
-          }
-        }
       }
 
-      // Si no había top-level lyrics, intentar reconstruir desde notas existentes
       if ((!reconstructedLines || reconstructedLines.length === 0) && notesToUse && notesToUse.length > 0) {
         reconstructedLines = buildLrcLinesFromExistingNotes(notesToUse);
-        if (reconstructedLines.length > 0 && gameEngine && gameEngine.notes && gameEngine.notes !== notesToUse) {
-          linkExistingNotesToReconstructedLines(gameEngine.notes, reconstructedLines);
-        }
       }
 
-      // Si la canción no trae letras integradas (YouTube Magic Keys, osu!, BeatSaver, Clone Hero, Comunidad),
-      // buscar automáticamente letras sincronizadas LRC en LRCLIB y alinearlas con las notas de la canción
-      if (!reconstructedLines || reconstructedLines.length === 0) {
-        const sTitle = beatmap.title || beatmap.metadata?.title || '';
-        const sArtist = beatmap.artist || beatmap.metadata?.artist || '';
-        const lrcLines = await fetchUniversalSyncedLyrics(sTitle, sArtist);
+      if (!reconstructedLines || reconstructedLines.length < 4) {
+        let lrcLines = null;
+
+        if (window.KaraokeLyricsService && typeof window.KaraokeLyricsService.fetchLyricsForTrack === 'function') {
+          try {
+            let kLines = null;
+            if (typeof window.KaraokeLyricsService.ensureAudioAlignedLyricsForGameplay === 'function') {
+              kLines = await window.KaraokeLyricsService.ensureAudioAlignedLyricsForGameplay(
+                trackMeta,
+                gameplayBlob,
+                Number(beatmap.duration) || 0
+              );
+            } else {
+              kLines = await window.KaraokeLyricsService.fetchLyricsForTrack(trackMeta, Number(beatmap.duration) || 0);
+            }
+            if (Array.isArray(kLines) && kLines.length >= 4) {
+              lrcLines = kLines
+                .filter(l => l && !l.isIntroCard && !l.isMetadata && !l.isCue && String(l.text || '').trim().length > 0)
+                .map((l, idx, arr) => {
+                  const offSec = Number.isFinite(l.elasticOffsetSec) ? l.elasticOffsetSec : 0;
+                  const nextOffSec = (idx + 1 < arr.length && Number.isFinite(arr[idx + 1].elasticOffsetSec))
+                    ? arr[idx + 1].elasticOffsetSec
+                    : offSec;
+                  const tMs = Math.round(((Number(l.timeSec) || 0) + offSec) * 1000);
+                  const nextMs = idx + 1 < arr.length
+                    ? Math.round(((Number(arr[idx + 1].timeSec) || 0) + nextOffSec) * 1000)
+                    : (tMs + 3200);
+                  return {
+                    timeMs: tMs,
+                    endTimeMs: Math.max(tMs + 600, Math.min(nextMs - 80, tMs + 4200)),
+                    vocalStartMs: Number.isFinite(l.vocalStartMs) ? l.vocalStartMs : undefined,
+                    vocalEndMs: Number.isFinite(l.vocalEndMs) ? l.vocalEndMs : undefined,
+                    acousticSyllables: Array.isArray(l.acousticSyllables) ? l.acousticSyllables : undefined,
+                    text: repairSpanishBrokenAccents(String(l.text || '').trim()),
+                    elasticOffsetSec: 0
+                  };
+                });
+            }
+          } catch (_) {}
+        }
+
+        if (!Array.isArray(lrcLines) || lrcLines.length < 4) {
+          lrcLines = await fetchUniversalSyncedLyrics(sTitle, sArtist);
+        }
+
         if (Array.isArray(lrcLines) && lrcLines.length > 0) {
           const generatedRawLyrics = buildKaraokeLyricsFromLrcLines(lrcLines, notesToUse);
           if (generatedRawLyrics.length > 0) {
             rawLyrics = generatedRawLyrics;
             beatmap.lyrics = generatedRawLyrics;
             beatmap._universalLrcKaraoke = true;
+            beatmap._audioSyllableAligned = true;
             if (beatmap.metadata) beatmap.metadata.lyrics = generatedRawLyrics;
             isUniversalLrc = true;
             reconstructedLines = parseTopLevelLyrics(generatedRawLyrics);
-            if (reconstructedLines.length > 0) {
-              if (notesToUse && notesToUse.length > 0) {
-                linkSyllablesToNotes(notesToUse, reconstructedLines, 320);
-              }
-              if (gameEngine && gameEngine.notes && gameEngine.notes !== notesToUse) {
-                linkSyllablesToNotes(gameEngine.notes, reconstructedLines, 320);
-              }
-            }
           }
         }
       }
 
+      if (Array.isArray(reconstructedLines) && reconstructedLines.length > 0) {
+        for (const line of reconstructedLines) {
+          if (line.fullText) line.fullText = repairSpanishBrokenAccents(line.fullText);
+          if (Array.isArray(line.syllables)) {
+            for (const syl of line.syllables) {
+              if (syl && syl.text) syl.text = repairSpanishBrokenAccents(syl.text);
+            }
+          }
+          if (!Array.isArray(line.verso) && Array.isArray(line.syllables)) {
+            line.verso = line.syllables;
+          }
+        }
+      }
+
+      const teleBar = document.getElementById('karaokeTeleprompterBar');
+
       if (reconstructedLines && reconstructedLines.length > 0) {
-        console.log(`[Karaoke] ${reconstructedLines.length} líneas de karaoke activas (${isUniversalLrc ? 'LRC Universal Sincronizado' : 'Chart Nativo'}).`);
+        console.log(`[Karaoke] ${reconstructedLines.length} líneas de karaoke activas (${isUniversalLrc ? 'LRC Vocal Acústico 25ms' : 'Chart Vocal Refinado'}).`);
         beatmap.activeKaraokeLyrics = reconstructedLines;
+        if (teleBar && window.isKaraokeModeActive) {
+          teleBar.classList.remove('hidden');
+        }
         if (gameEngine) {
           gameEngine.activeKaraokeLyrics = reconstructedLines;
           if (typeof gameEngine.refreshKaraokeNoteSprites === 'function') {
             gameEngine.refreshKaraokeNoteSprites();
           }
         }
-        const teleBar = document.getElementById('karaokeTeleprompterBar');
-        if (teleBar && window.isKaraokeModeActive) teleBar.classList.remove('hidden');
       } else {
         console.log('[Karaoke] No se encontraron letras sincronizadas para esta pista.');
+        if (teleBar) teleBar.classList.add('hidden');
         beatmap.activeKaraokeLyrics = [];
         if (gameEngine) gameEngine.activeKaraokeLyrics = [];
-        const teleBar = document.getElementById('karaokeTeleprompterBar');
-        if (teleBar) teleBar.classList.add('hidden');
       }
     }
     window.loadKaraokeLyricsForBeatmap = loadKaraokeLyricsForBeatmap;
@@ -12495,6 +12836,12 @@ function stopPianoCameraLoop() {
         return;
       }
 
+      if (diffName && typeof window.syncDifficultyToGameModal === 'function') {
+        window.syncDifficultyToGameModal(diffName);
+      } else if (typeof currentTargetDifficulty === 'string' && currentTargetDifficulty !== 'all' && typeof window.syncDifficultyToGameModal === 'function') {
+        window.syncDifficultyToGameModal(currentTargetDifficulty);
+      }
+
       if (!window._modeAlreadyChosenForThisLaunch && !window.isPlaytestingFromEditor && typeof openGameModeSelectModal === 'function') {
         const hasKaraoke = typeof doesSongHaveKaraoke === 'function' ? doesSongHaveKaraoke(chartItem) : false;
         const chosenMode = await openGameModeSelectModal(chartItem.title || 'PISTA', chartItem.artist || '', hasKaraoke);
@@ -12504,6 +12851,9 @@ function stopPianoCameraLoop() {
         }
         applySelectedGameMode(chosenMode);
         window._modeAlreadyChosenForThisLaunch = true;
+      }
+      if (window._selectedModalDifficulty && GAME_MODAL_DIFFICULTY_MAP[window._selectedModalDifficulty]) {
+        diffName = GAME_MODAL_DIFFICULTY_MAP[window._selectedModalDifficulty].label;
       }
 
       const overlay = document.getElementById('globalLoadingOverlay');
@@ -13751,6 +14101,9 @@ function stopPianoCameraLoop() {
         applySelectedGameMode(chosenMode);
       }
       window._modeAlreadyChosenForThisLaunch = false;
+      if (window.isKaraokeModeActive && typeof doesSongHaveKaraoke === 'function' && !doesSongHaveKaraoke(beatmapData)) {
+        applySelectedGameMode('normal');
+      }
 
       if (typeof pauseMenuAmbientMusic === 'function') pauseMenuAmbientMusic();
       if (window.dualStreamEngine && typeof window.dualStreamEngine.pauseForGameplayWithFade === 'function') {
@@ -13844,9 +14197,9 @@ function stopPianoCameraLoop() {
         (rawLyrics && rawLyrics.length > 0)
       );
 
-      // Si es una canción Top de GitHub que aún no tiene las secciones instrumentales analizadas con AudioAutoMapper, analizarlas ahora dejando intacto al cantante
+      // En Modo Karaoke mantenemos intacto el chart UltraStar original sin decodificar 40 MB de PCM (0 pausas de GC en partida)
       const candidateAudioForDsp = audioBlob || beatmapData.audioBlob || (beatmapData.unpackedData && beatmapData.unpackedData.audioBlob);
-      if (isTopSong && !beatmapData._dspInstrumentalsVersion && candidateAudioForDsp && typeof enhanceTopSongInstrumentalsWithDsp === 'function') {
+      if (!window.isKaraokeModeActive && isTopSong && !beatmapData._dspInstrumentalsVersion && candidateAudioForDsp && typeof enhanceTopSongInstrumentalsWithDsp === 'function') {
         await enhanceTopSongInstrumentalsWithDsp(beatmapData, candidateAudioForDsp);
         if (Array.isArray(beatmapData.notes) && beatmapData.notes.length > 0) {
           rawNotes = beatmapData.notes;
@@ -14091,16 +14444,14 @@ function stopPianoCameraLoop() {
       window.isGameLoadingOrActive = true;
       currentActiveAudioBlob = resolvedAudioBlob;
 
-      // Teleprompter y Líricas Sincronizadas para Modo Karaoke
+      // Teleprompter y Líricas Sincronizadas para Modo Karaoke (renderizado 100% en Canvas offscreen sin caja DOM opaca)
       const teleBar = document.getElementById('karaokeTeleprompterBar');
+      if (teleBar) teleBar.classList.add('hidden');
       if (curLyricEl) curLyricEl.innerHTML = '';
       if (window.isKaraokeModeActive) {
-        if (teleBar) teleBar.classList.remove('hidden');
         if (typeof loadKaraokeLyricsForBeatmap === 'function') {
           await loadKaraokeLyricsForBeatmap(finalBeatmap, engine || window.engine);
         }
-      } else {
-        if (teleBar) teleBar.classList.add('hidden');
       }
 
       // Desmontar catálogo del DOM para liberar el 100% de GPU y compositor durante la partida a 120 FPS
@@ -15402,9 +15753,11 @@ function stopPianoCameraLoop() {
 
               let authScore = 62 + Math.round((matched / Math.max(1, qWords.length)) * 40) + Math.max(0, 24 - myRank * 2);
               if (durSec >= 60 && durSec <= 450) authScore += 14;
-              if (/ - Topic$/i.test(author) || /official|oficial|audio|letra|lyric/i.test(rawVTitle)) authScore += 12;
-              if (expectedDurationSec > 55 && Math.abs(durSec - expectedDurationSec) <= 20) authScore += 18;
-              if (/karaoke|8 bit|ringtone|parody/i.test(nCombined) && !/karaoke|8 bit|ringtone|parody/i.test(nQuery)) authScore -= 35;
+              if (durSec > 540) authScore -= 28;
+              if (/ - Topic$/i.test(author) || /\b(official\s*audio|audio\s*oficial|lyric|letra)\b/i.test(rawVTitle)) authScore += 26;
+              else if (/official|oficial|audio/i.test(rawVTitle)) authScore += 12;
+              if (expectedDurationSec > 55 && Math.abs(durSec - expectedDurationSec) <= 20) authScore += 22;
+              if (/karaoke|8 bit|ringtone|parody|full episode|episodio completo|reaction/i.test(nCombined) && !/karaoke|8 bit|ringtone|parody/i.test(nQuery)) authScore -= 38;
 
               const durMin = Math.floor(durSec / 60);
               const durRem = String(durSec % 60).padStart(2, '0');
@@ -15645,41 +15998,21 @@ function stopPianoCameraLoop() {
 
       const dlPromise = (async () => {
         const myWorker = (u) => `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(u)}`;
-        const baseUrl = (typeof getApiBaseUrl === 'function') ? getApiBaseUrl() : '';
-        const isAndroidWebView = typeof window.AndroidNative !== 'undefined';
+        const cfWorker2 = (u) => `https://tight-breeze-969f.p1822994.workers.dev/?url=${encodeURIComponent(u)}`;
 
         const fetchNotubeBinaryStream = async (signedDlUrl) => {
-          if (isAndroidWebView) {
-            try {
-              const directRes = await fetch(signedDlUrl);
-              if (directRes && directRes.ok) {
-                const ct = String(directRes.headers.get('content-type') || '').toLowerCase();
-                if (!ct.includes('text/html') && !ct.includes('application/json')) {
-                  return directRes;
-                }
-              }
-            } catch (_) {}
-          }
+          // IMPORTANTE: Nunca hacer fetch(signedDlUrl) directo desde WebView (sin cabeceras CORS, quema la key de un solo uso)
+          // ni pasar por el proxy 503 antes que el Worker; ir directo por el Cloudflare Worker con CORS habilitado.
           try {
-            const workerRes = await fetch(myWorker(signedDlUrl));
-            if (workerRes && workerRes.ok) {
-              const ct = String(workerRes.headers.get('content-type') || '').toLowerCase();
+            const wRes = await fetch(myWorker(signedDlUrl));
+            if (wRes && wRes.ok) {
+              const ct = String(wRes.headers.get('content-type') || '').toLowerCase();
               if (!ct.includes('text/html') && !ct.includes('application/json')) {
-                return workerRes;
+                return wRes;
               }
             }
           } catch (_) {}
-          try {
-            const srvProxyUrl = `${baseUrl}/api/v1/audio/notube_dl?url=${encodeURIComponent(signedDlUrl)}`;
-            const srvRes = await fetch(srvProxyUrl);
-            if (srvRes && srvRes.ok) {
-              const ct = String(srvRes.headers.get('content-type') || '').toLowerCase();
-              if (!ct.includes('text/html') && !ct.includes('application/json')) {
-                return srvRes;
-              }
-            }
-          } catch (_) {}
-          return fetch(myWorker(signedDlUrl));
+          return fetch(cfWorker2(signedDlUrl));
         };
 
         if (onProgress) onProgress('Conectando con YouTube Audio...');
@@ -15857,7 +16190,10 @@ function stopPianoCameraLoop() {
       if (!tr || durSec < 45) return null;
       const parsedMeta = parseSoundCloudTrackMetaClient(tr);
 
-      const transcodings = (tr.media?.transcodings || []).filter(t => t && t.url && !t.snipped);
+      const transcodings = (tr.media?.transcodings || []).filter(t =>
+        t && t.url && !t.snipped &&
+        (t.format?.protocol === 'progressive' || t.format?.protocol === 'hls')
+      );
       const progMp3 = transcodings.find(t => t.format?.protocol === 'progressive' && String(t.format?.mime_type || '').includes('mpeg'));
       const hlsMp3 = transcodings.find(t => t.format?.protocol === 'hls' && String(t.format?.mime_type || '').includes('mpeg'));
       const hlsMp4 = transcodings.find(t => t.format?.protocol === 'hls' && String(t.format?.mime_type || '').includes('mp4'));
@@ -15924,7 +16260,7 @@ function stopPianoCameraLoop() {
             }
             if (segUrls.length === 0) continue;
 
-            const targetSegs = segUrls.slice(0, 75);
+            const targetSegs = segUrls.slice(0, 180);
             const segBuffers = new Array(targetSegs.length);
             const batchSize = 8;
             for (let i = 0; i < targetSegs.length; i += batchSize) {
@@ -15972,6 +16308,55 @@ function stopPianoCameraLoop() {
       return null;
     }
 
+    async function searchAndDownloadAudiusFullClient(rawTitle, rawArtist = '', onProgress = null) {
+      const cleanTitle = String(rawTitle || '').trim();
+      const cleanArtist = String(rawArtist || '').replace(/^youtube$/i, '').trim();
+      const searchQuery = cleanArtist ? `${cleanTitle} ${cleanArtist}`.trim() : cleanTitle;
+      if (!searchQuery) return null;
+      const myWorker = (u) => `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(u)}`;
+      try {
+        if (onProgress) onProgress('Buscando pista completa en red Audius...');
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), 4000);
+        const searchUrl = `https://discoveryprovider.audius.co/v1/tracks/search?query=${encodeURIComponent(searchQuery)}&app_name=PianoCommunity`;
+        let auResp = null;
+        try { auResp = await fetch(searchUrl, { signal: ctrl.signal }); } catch (_) {}
+        if (!auResp || !auResp.ok) {
+          auResp = await fetch(myWorker(searchUrl), { signal: ctrl.signal });
+        }
+        clearTimeout(tid);
+        if (!auResp || !auResp.ok) return null;
+        const auJson = await auResp.json();
+        const tracks = Array.isArray(auJson?.data) ? auJson.data : [];
+        for (const tr of tracks.slice(0, 5)) {
+          if (!tr || !tr.id || !tr.duration || Number(tr.duration) < 50) continue;
+          const sc = scoreStudioAudioAuthenticity(searchQuery, cleanTitle, cleanArtist, tr.title || '', tr.user?.name || '', '', 'Audius');
+          if (sc >= 64) {
+            const streamUrl = `https://discoveryprovider.audius.co/v1/tracks/${encodeURIComponent(tr.id)}/stream?app_name=PianoCommunity`;
+            let dlResp = null;
+            try { dlResp = await fetch(streamUrl); } catch (_) {}
+            if (!dlResp || !dlResp.ok) {
+              dlResp = await fetch(myWorker(streamUrl));
+            }
+            if (dlResp && dlResp.ok) {
+              const ab = await dlResp.arrayBuffer();
+              if (ab && ab.byteLength >= 160000) {
+                return {
+                  blob: new Blob([ab], { type: 'audio/mpeg' }),
+                  title: tr.title || cleanTitle,
+                  artist: tr.user?.name || cleanArtist || 'Artista',
+                  thumbnail: tr.artwork?.['480x480'] || getSongCoverFallback(cleanTitle, cleanArtist),
+                  durationSec: Number(tr.duration) || 0,
+                  sourceName: 'Audius Full Audio'
+                };
+              }
+            }
+          }
+        }
+      } catch (_) {}
+      return null;
+    }
+
     async function discoverVerifiedAudioCandidates(rawTitle, rawArtist = '', maxResults = 30) {
       const cleanTitle = String(rawTitle || 'Canción').trim();
       const cleanArtist = String(rawArtist || '').replace(/^youtube$/i, '').trim();
@@ -16000,9 +16385,28 @@ function stopPianoCameraLoop() {
       })();
 
       const [ytList, itunesList] = await Promise.all([
-        searchYouTubeOfficialClient(cleanTitle, cleanArtist),
+        searchYouTubeOfficialClient(cleanTitle, cleanArtist).catch(() => []),
         itunesFastTask
       ]);
+
+      const itunesAsCandidates = [];
+      if (Array.isArray(itunesList) && itunesList.length > 0) {
+        for (const tr of itunesList) {
+          if (!tr || !tr.trackName) continue;
+          const artUrl = (tr.artworkUrl100 || '').replace('100x100bb', '600x600bb');
+          itunesAsCandidates.push({
+            title: repairSpanishBrokenAccents(String(tr.trackName || '').trim()),
+            artist: repairSpanishBrokenAccents(String(tr.artistName || 'Artista').trim()),
+            album: String(tr.collectionName || '').trim(),
+            durationSec: Math.max(60, Math.round((Number(tr.trackTimeMillis) || 195000) / 1000)),
+            itunesPreviewUrl: tr.previewUrl || '',
+            previewUrl: tr.previewUrl || '',
+            thumbnail: artUrl,
+            authenticityScore: 92,
+            source: 'itunes_magic'
+          });
+        }
+      }
 
       if (ytList.length > 0) {
         const resultList = ytList.slice(0, maxResults);
@@ -16026,19 +16430,34 @@ function stopPianoCameraLoop() {
             });
             if (matchedItunes && matchedItunes.previewUrl) {
               cand.itunesPreviewUrl = matchedItunes.previewUrl;
+              cand.previewUrl = matchedItunes.previewUrl;
               const normKey = `${cTitle}__${cArtist}`;
               window._chorusPreviewUrlCache.set(normKey, { url: matchedItunes.previewUrl, seekToChorus: false, source: 'itunes_chorus_cdn' });
               if (matchedItunes.artworkUrl100 && (!cand.thumbnail || cand.thumbnail.includes('app_logo'))) {
-                cand.thumbnail = matchedItunes.artworkUrl100.replace('100x100bb', '300x300bb');
+                cand.thumbnail = matchedItunes.artworkUrl100.replace('100x100bb', '600x600bb');
               }
             }
           }
+        }
+        for (const itCand of itunesAsCandidates) {
+          if (resultList.length >= maxResults) break;
+          const itNormT = normalizeSearchText(itCand.title);
+          const itNormA = normalizeSearchText(itCand.artist);
+          const alreadyIn = resultList.some(c =>
+            normalizeSearchText(c.title) === itNormT &&
+            normalizeSearchText(c.artist) === itNormA
+          );
+          if (!alreadyIn) resultList.push(itCand);
         }
         prewarmYouTubeCandidatesClient(resultList);
         return resultList;
       }
 
-      // 2. Respaldo secundario si YouTube no devolvió candidatos
+      if (itunesAsCandidates.length > 0) {
+        return itunesAsCandidates.slice(0, maxResults);
+      }
+
+      // 2. Respaldo secundario si YouTube e iTunes no devolvieron candidatos
       const scPool = await searchSoundCloudFullClient(cleanTitle, cleanArtist, 20).catch(() => []);
       return scPool.slice(0, maxResults);
     }
@@ -16614,9 +17033,13 @@ function stopPianoCameraLoop() {
           String(currentTr.id) === String(songId) ||
           (title && String(currentTr.title || '').toLowerCase() === String(title).toLowerCase())
         );
+        if (window._activeThumbnailPreviewSid && window._activeThumbnailPreviewSid !== sId) {
+          setThumbnailPreviewUiState(window._activeThumbnailPreviewSid, 'idle');
+        }
         if (isSamePlaying) {
           window.dualStreamEngine.togglePlayPause();
           setThumbnailPreviewUiState(sId, 'idle');
+          window._activeThumbnailPreviewSid = null;
           return;
         }
         const imgEl = document.getElementById(`thumbImg_${sId}`);
@@ -16624,26 +17047,42 @@ function stopPianoCameraLoop() {
         const catalogMatch = Array.isArray(window.searchResultsCache)
           ? window.searchResultsCache.find(s => s && String(s.id) === String(songId))
           : null;
+        const resolvedPreviewUrl = (
+          directPreviewUrl ||
+          catalogMatch?.previewUrl ||
+          catalogMatch?.preview_url ||
+          catalogMatch?._preferredCandidate?.itunesPreviewUrl ||
+          catalogMatch?._preferredCandidate?.previewUrl ||
+          ''
+        );
+        const resolvedVideoId = (
+          videoId ||
+          catalogMatch?.videoId ||
+          catalogMatch?._preferredCandidate?.videoId ||
+          ''
+        );
         const previewTrackObj = catalogMatch ? {
           ...catalogMatch,
           title: title || catalogMatch.title || 'Canción',
           artist: artist || catalogMatch.artist || 'Artista',
-          previewUrl: directPreviewUrl || catalogMatch.previewUrl || catalogMatch.preview_url || '',
-          videoId: videoId || catalogMatch.videoId || '',
+          previewUrl: /^https?:\/\//i.test(resolvedPreviewUrl) ? resolvedPreviewUrl : '',
+          preview_url: /^https?:\/\//i.test(resolvedPreviewUrl) ? resolvedPreviewUrl : '',
+          videoId: resolvedVideoId,
           thumbnail: thumbSrc
         } : {
           id: String(songId || `prev_${Date.now()}`),
           title: title || 'Canción',
           artist: artist || 'Artista',
-          previewUrl: directPreviewUrl || '',
-          preview_url: directPreviewUrl || '',
-          videoId: videoId || '',
+          previewUrl: /^https?:\/\//i.test(resolvedPreviewUrl) ? resolvedPreviewUrl : '',
+          preview_url: /^https?:\/\//i.test(resolvedPreviewUrl) ? resolvedPreviewUrl : '',
+          videoId: resolvedVideoId,
           thumbnail: thumbSrc,
           cover_url: thumbSrc,
           artworkUrl600: thumbSrc,
           source: 'magic_youtube',
           _isMagicKey: true
         };
+        window._activeThumbnailPreviewSid = sId;
         setThumbnailPreviewUiState(sId, 'playing');
         window.dualStreamEngine.playTrack(previewTrackObj, { autoPlay: true, isCratePreview: false, syncQueue: true, fromThumbnailPreview: true });
         return;
@@ -16821,6 +17260,10 @@ function stopPianoCameraLoop() {
 
     window.searchSoundCloudFullClient = searchSoundCloudFullClient;
     window.downloadSoundCloudFullTrackClient = downloadSoundCloudFullTrackClient;
+    window.searchYouTubeOfficialClient = searchYouTubeOfficialClient;
+    window.extractYouTubeFullAudioViaNotubeClient = extractYouTubeFullAudioViaNotubeClient;
+    window.resolveYouTubeMp3DownloadUrlClient = resolveYouTubeMp3DownloadUrlClient;
+    window.searchAndDownloadAudiusFullClient = searchAndDownloadAudiusFullClient;
 
     // Alias de compatibilidad hacia el motor unificado de preescucha en miniatura
     window.toggleCatalogSongPreview = function(songId, sId, title = '', artist = '', directPreviewUrl = '', bsHash = '') {
@@ -16885,10 +17328,26 @@ function stopPianoCameraLoop() {
         try { return decodeURIComponent(val); } catch (_) { return val || fallback; }
       };
 
-      // 0A. Comprobar caché en memoria si ya se descargó esta canción completa
+      // 0A. Comprobar caché en memoria o en el motor DualStream si ya se descargó esta canción completa
       const candKey = preferredCandidate ? (preferredCandidate.videoId ? `yt_${preferredCandidate.videoId}` : (preferredCandidate.scTrackId || preferredCandidate.uid)) : '';
       const normKey = `${normalizeSearchText(cleanTitle)}__${normalizeSearchText(cleanArtist)}`;
-      const cachedMemBlob = (candKey && window._fullTrackBlobCache.get(candKey)) || window._fullTrackBlobCache.get(normKey);
+      let cachedMemBlob = (candKey && window._fullTrackBlobCache.get(candKey)) || window._fullTrackBlobCache.get(normKey);
+      if ((!cachedMemBlob || cachedMemBlob.size < 80000) && window.dualStreamEngine) {
+        try {
+          if (preferredCandidate && typeof window.dualStreamEngine._getCachedFullBlobForTrack === 'function') {
+            cachedMemBlob = window.dualStreamEngine._getCachedFullBlobForTrack(preferredCandidate);
+          }
+          if ((!cachedMemBlob || cachedMemBlob.size < 80000) &&
+              window.dualStreamEngine.fullTrackBlob &&
+              window.dualStreamEngine.fullTrackBlob.size >= 80000 &&
+              window.dualStreamEngine.currentTrack) {
+            const curT = normalizeSearchText(window.dualStreamEngine.currentTrack.title || '');
+            if (curT && curT === normalizeSearchText(cleanTitle)) {
+              cachedMemBlob = window.dualStreamEngine.fullTrackBlob;
+            }
+          }
+        } catch (_) {}
+      }
       if (cachedMemBlob && cachedMemBlob.size >= 80000) {
         return {
           blob: cachedMemBlob,
@@ -16941,11 +17400,42 @@ function stopPianoCameraLoop() {
         }
       } catch (_) {}
 
-      // 1. CARRERA PARALELA ULTRA-RÁPIDA EN CLIENTE (0 BYTES DE RENDER + FALLBACK INSTANTÁNEO YOUTUBE BRIDGE < 1.35s):
+      // 1. CARRERA PARALELA DE AUDIO REAL (Blob MP3 completo para 120 FPS fluidos + análisis acústico de letras):
+      const resolveYtVideoIdTask = (async () => {
+        const directVid = extractCleanYtIdFromTrack(preferredCandidate);
+        if (directVid) return directVid;
+        const ytList = await searchYouTubeOfficialClient(cleanTitle, cleanArtist, expectedDur).catch(() => []);
+        if (Array.isArray(ytList) && ytList.length > 0 && ytList[0].videoId) {
+          if (!resolvedThumb && ytList[0].thumbnail) resolvedThumb = ytList[0].thumbnail;
+          return ytList[0].videoId;
+        }
+        return '';
+      })();
+
       try {
         if (onProgress) {
-          onProgress(`Preparando pista completa (${cleanTitle})...`);
+          onProgress(`Preparando pista de estudio (${cleanTitle})...`);
         }
+
+        const dualStreamPreloadTask = (async () => {
+          if (!window.dualStreamEngine || typeof window.dualStreamEngine.preloadFullTrackInBackground !== 'function') {
+            throw new Error('No dualStreamEngine');
+          }
+          const trackObj = preferredCandidate || { title: cleanTitle, artist: cleanArtist, thumbnail: resolvedThumb };
+          const dsBlob = await window.dualStreamEngine.preloadFullTrackInBackground(trackObj);
+          if (dsBlob && dsBlob.size >= 80000) {
+            if (candKey) window._fullTrackBlobCache.set(candKey, dsBlob);
+            window._fullTrackBlobCache.set(normKey, dsBlob);
+            return {
+              blob: dsBlob,
+              title: cleanTitle,
+              artist: cleanArtist || 'Artista',
+              thumbnail: resolvedThumb || getSongCoverFallback(cleanTitle, cleanArtist),
+              sourceName: 'DualStream Master Audio'
+            };
+          }
+          throw new Error('DualStream preload empty');
+        })();
 
         const scClientTask = (async () => {
           if (preferredCandidate && (preferredCandidate._scRawTrack || preferredCandidate.scTrackId)) {
@@ -16981,21 +17471,17 @@ function stopPianoCameraLoop() {
           throw new Error('SC Client failed');
         })();
 
-        const resolveYtVideoIdTask = (async () => {
-          const directVid = extractCleanYtIdFromTrack(preferredCandidate);
-          if (directVid) return directVid;
-          const ytList = await searchYouTubeOfficialClient(cleanTitle, cleanArtist, expectedDur).catch(() => []);
-          if (Array.isArray(ytList) && ytList.length > 0 && ytList[0].videoId) {
-            if (!resolvedThumb && ytList[0].thumbnail) resolvedThumb = ytList[0].thumbnail;
-            return ytList[0].videoId;
-          }
-          return '';
-        })();
-
         const clientExtractTask = (async () => {
+          const vidsToTry = [];
           const vid0 = await resolveYtVideoIdTask;
-          const ytVideoCandidates = vid0 ? [vid0] : [];
-          for (const vid of ytVideoCandidates) {
+          if (vid0) vidsToTry.push(vid0);
+          const ytList = await searchYouTubeOfficialClient(cleanTitle, cleanArtist, expectedDur).catch(() => []);
+          if (Array.isArray(ytList)) {
+            for (const c of ytList.slice(0, 3)) {
+              if (c && c.videoId && !vidsToTry.includes(c.videoId)) vidsToTry.push(c.videoId);
+            }
+          }
+          for (const vid of vidsToTry.slice(0, 2)) {
             const ytMp3 = await extractYouTubeFullAudioViaNotubeClient(vid, onProgress);
             if (ytMp3 && ytMp3.blob && ytMp3.blob.size >= 100000) {
               if (candKey) window._fullTrackBlobCache.set(candKey, ytMp3.blob);
@@ -17003,6 +17489,7 @@ function stopPianoCameraLoop() {
               window._fullTrackBlobCache.set(normKey, ytMp3.blob);
               return {
                 blob: ytMp3.blob,
+                videoId: vid,
                 title: cleanTitle,
                 artist: cleanArtist || 'Artista',
                 thumbnail: resolvedThumb || ytMp3.thumbnail || getSongCoverFallback(cleanTitle, cleanArtist),
@@ -17013,30 +17500,38 @@ function stopPianoCameraLoop() {
           throw new Error('Client YT failed');
         })();
 
-        // Si el usuario pulsó "Jugar al Piano" (no una descarga offline manual), limitar la espera de MP3 a 1.35s:
-        // si SoundCloud no ha devuelto el MP3 en 1.35s y tenemos videoId de YouTube, arrancamos AL INSTANTE con YouTube Bridge!
-        const raceList = [scClientTask, clientExtractTask];
-        if (!window._explicitOfflineDownloadRequested) {
-          const instantYtBridgeTask = (async () => {
-            const vid = await resolveYtVideoIdTask;
-            if (!vid) throw new Error('No YT videoId');
-            await new Promise(r => setTimeout(r, 1350));
-            return {
-              blob: null,
-              audioUrl: `yt_bridge://${vid}`,
-              videoId: vid,
-              durationSec: expectedDur > 45 ? expectedDur : 195,
-              title: cleanTitle,
-              artist: cleanArtist || 'Artista',
-              thumbnail: resolvedThumb || `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`,
-              sourceName: 'YouTube Instant Stream'
-            };
-          })();
-          raceList.push(instantYtBridgeTask);
-        }
+        const serverExtractTask = (async () => {
+          const vid0 = await resolveYtVideoIdTask.catch(() => '');
+          const srvUrl = `${baseUrl}/api/v1/audio/extract?title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist || '')}${vid0 ? `&videoId=${encodeURIComponent(vid0)}` : ''}`;
+          const ctrl = new AbortController();
+          const tid = setTimeout(() => ctrl.abort(), 9000);
+          try {
+            const resp = await fetch(srvUrl, { signal: ctrl.signal });
+            clearTimeout(tid);
+            if (!resp.ok) throw new Error('Server extract HTTP ' + resp.status);
+            const srvBlob = await resp.blob();
+            if (srvBlob && srvBlob.size >= 80000) {
+              if (candKey) window._fullTrackBlobCache.set(candKey, srvBlob);
+              if (vid0) window._fullTrackBlobCache.set(`yt_${vid0}`, srvBlob);
+              window._fullTrackBlobCache.set(normKey, srvBlob);
+              return {
+                blob: srvBlob,
+                videoId: vid0,
+                title: cleanTitle,
+                artist: cleanArtist || 'Artista',
+                thumbnail: resolvedThumb || (vid0 ? `https://i.ytimg.com/vi/${vid0}/hqdefault.jpg` : getSongCoverFallback(cleanTitle, cleanArtist)),
+                sourceName: 'Studio Audio Stream'
+              };
+            }
+          } finally {
+            clearTimeout(tid);
+          }
+          throw new Error('Server extract empty');
+        })();
 
+        const raceList = [dualStreamPreloadTask, scClientTask, clientExtractTask, serverExtractTask];
         const winner = await Promise.any(raceList);
-        if (winner && (winner.blob || winner.audioUrl)) return winner;
+        if (winner && winner.blob) return winner;
       } catch (_) {}
 
       // 4. Respaldo de Pistas Completas en Audius directo desde cliente (>= 45s)
@@ -17106,21 +17601,20 @@ function stopPianoCameraLoop() {
         }
       } catch (_) {}
 
-      // 6. Respaldo garantizado de YouTube Instant Stream para que ninguna canción de una playlist o de Favoritos falle al guardarse
+      // 6. Respaldo garantizado de stream HTML5 progresivo directo del servidor para evitar iframes pesados en partida
       try {
         const fallbackVid = await resolveYtVideoIdTask.catch(() => '');
-        if (fallbackVid) {
-          return {
-            blob: null,
-            audioUrl: `yt_bridge://${fallbackVid}`,
-            videoId: fallbackVid,
-            durationSec: expectedDur > 45 ? expectedDur : 195,
-            title: cleanTitle,
-            artist: cleanArtist || 'Artista',
-            thumbnail: resolvedThumb || `https://i.ytimg.com/vi/${fallbackVid}/hqdefault.jpg`,
-            sourceName: 'YouTube Instant Stream'
-          };
-        }
+        const directProgUrl = `${baseUrl}/api/v1/audio/extract?title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist || '')}${fallbackVid ? `&videoId=${encodeURIComponent(fallbackVid)}` : ''}`;
+        return {
+          blob: null,
+          audioUrl: directProgUrl,
+          videoId: fallbackVid || '',
+          durationSec: expectedDur > 45 ? expectedDur : 195,
+          title: cleanTitle,
+          artist: cleanArtist || 'Artista',
+          thumbnail: resolvedThumb || (fallbackVid ? `https://i.ytimg.com/vi/${fallbackVid}/hqdefault.jpg` : getSongCoverFallback(cleanTitle, cleanArtist)),
+          sourceName: 'Direct Progressive Stream'
+        };
       } catch (_) {}
 
       throw new Error('No se pudo extraer el audio original en este momento. Intenta de nuevo.');
@@ -17154,9 +17648,8 @@ function stopPianoCameraLoop() {
           if (existing && (existing.audioBlob || existing.audioUrl || existing.videoId)) {
             const ver = existing._fullTrackVersion || (existing.chartData && existing.chartData._fullTrackVersion) || 0;
             const isSynthFallback = String(existing.source_name || existing.creator || '').includes('Piano Acoustic Synth');
-            const hasValidAudio = (existing.audioBlob && existing.audioBlob.size >= 30000) ||
-              (typeof existing.audioUrl === 'string' && existing.audioUrl.startsWith('yt_bridge://'));
-            if (ver >= 8 && !isSynthFallback && hasValidAudio) {
+            const hasValidAudio = Boolean(existing.audioBlob && existing.audioBlob.size >= 80000);
+            if (ver >= 9 && !isSynthFallback && hasValidAudio) {
               return { chartItem: existing, dspPack: existing, cached: true };
             } else {
               try { await IndexedDBStorage.deleteChart(deterministicId); } catch (_) {}
@@ -17184,7 +17677,7 @@ function stopPianoCameraLoop() {
             artist: extracted.artist || cleanArtist || 'Artista',
             thumbnail: extracted.thumbnail || effectiveThumb,
             densityMode: targetDensity || 'hard',
-            sourceLabel: extracted.sourceName || 'Auto-DSP v8'
+            sourceLabel: extracted.sourceName || 'Auto-DSP v9'
           });
         } else if (extracted.audioUrl) {
           dspPack = await AudioAutoMapper.createInstantPlayableChartFromMetadata(
@@ -17198,12 +17691,12 @@ function stopPianoCameraLoop() {
               thumbnail: extracted.thumbnail || effectiveThumb,
               densityMode: targetDensity || 'hard',
               audioUrl: extracted.audioUrl,
-              sourceLabel: extracted.sourceName || 'YouTube Instant Stream'
+              sourceLabel: extracted.sourceName || 'Direct Progressive Stream'
             }
           );
         }
-        dspPack._fullTrackVersion = 8;
-        dspPack._choreographedVersion = 8;
+        dspPack._fullTrackVersion = 9;
+        dspPack._choreographedVersion = 9;
         if (candVid) dspPack.videoId = candVid;
         if (origTrackId) dspPack.originalTrackId = origTrackId;
 
@@ -17211,15 +17704,15 @@ function stopPianoCameraLoop() {
           id: dspPack.id,
           title: dspPack.title,
           artist: dspPack.artist,
-          creator: dspPack.creator || 'Auto-DSP v8',
-          creator_name: dspPack.creator || 'Auto-DSP v8',
+          creator: dspPack.creator || 'Auto-DSP v9',
+          creator_name: dspPack.creator || 'Auto-DSP v9',
           source: 'auto_dsp',
-          source_name: dspPack.creator || 'Auto-DSP v8',
+          source_name: dspPack.creator || 'Auto-DSP v9',
           is_community: false,
           _isOfflineSaved: true,
           _isAutoGeneratedDsp: true,
-          _fullTrackVersion: 8,
-          _choreographedVersion: 8,
+          _fullTrackVersion: 9,
+          _choreographedVersion: 9,
           videoId: candVid,
           originalTrackId: origTrackId,
           maxAllowedTier: dspPack.maxAllowedTier || 'impossible',
@@ -17230,7 +17723,7 @@ function stopPianoCameraLoop() {
           stars: dspPack.stars,
           bpm: dspPack.bpm,
           difficulties: dspPack.difficulties,
-          audioUrl: dspPack.audioUrl || (candVid ? `yt_bridge://${candVid}` : ''),
+          audioUrl: dspPack.audioUrl || '',
           thumbnail: dspPack.thumbnail || getSongCoverFallback(dspPack.title, dspPack.artist)
         };
 
@@ -17255,6 +17748,9 @@ function stopPianoCameraLoop() {
 
     window.autoExtractAndPlaySong = async function(rawTitle, rawArtist = '', preferredThumb = '', targetDensity = 'hard', magicKeyUid = '', forceRebuild = false) {
       window.stopPreviewCandidateAudio(false);
+      if (targetDensity && typeof window.syncDifficultyToGameModal === 'function' && !window._modalDifficultyPendingConsume) {
+        window.syncDifficultyToGameModal(targetDensity);
+      }
       if (window._selectedModalDifficulty) {
         targetDensity = window._selectedModalDifficulty;
       }
@@ -17343,7 +17839,7 @@ function stopPianoCameraLoop() {
 
       try {
         const favs = await IndexedDBStorage.getAllFavorites();
-        if (typeof window.refreshOfflineDownloadedIndex === 'function') {
+        if (!window._offlineDownloadedKeysLoaded && typeof window.refreshOfflineDownloadedIndex === 'function') {
           await window.refreshOfflineDownloadedIndex();
         }
         if (!favs || favs.length === 0) {
@@ -17422,7 +17918,6 @@ function stopPianoCameraLoop() {
                     <div class="min-w-0 flex-1 flex flex-col justify-center overflow-hidden">
                       <div class="flex items-center gap-1.5 truncate">
                         <h3 class="text-xs font-black text-[#17131d] truncate font-serif leading-tight">${escapeHtml(item.title || t('unknown_song', 'Canción'))}</h3>
-                        ${(typeof window.isTrackDownloadedOffline === 'function' && window.isTrackDownloadedOffline(item)) ? `<span class="px-1.5 py-0.5 rounded bg-emerald-600/15 border border-emerald-600/40 text-[8px] font-black text-emerald-800 uppercase tracking-wider flex items-center gap-0.5 flex-shrink-0" title="Canción ya descargada"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>Descargada</span>` : ''}
                         ${hs ? `<span class="text-[8px] font-mono font-bold text-amber-800 flex-shrink-0 flex items-center gap-0.5"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="text-amber-700 inline"><path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2"/><path d="M6 9a6 6 0 0 0 12 0"/><path d="M12 15v5"/><path d="M8 20h8"/></svg> ${hs.score.toLocaleString()}</span>` : ''}
                       </div>
                       <p class="text-[10px] text-[#5a422d] font-semibold truncate leading-tight mt-0.5">${escapeHtml(item.artist || t('unknown_artist', 'Artista'))}</p>
@@ -17483,7 +17978,7 @@ function stopPianoCameraLoop() {
         container.innerHTML = `
           <div class="flex items-center justify-between gap-2 mb-2 px-1">
             <span class="text-[11px] font-bold text-[#f3e5ab]">${favs.length} canciones favoritas</span>
-            <button id="btnDownloadAllFavorites" type="button" onclick="window.downloadAllFavoritesOffline()" class="px-3 py-1 rounded-full ${allFavsDown ? 'bg-emerald-500/20 border-emerald-400/60 text-emerald-200' : 'bg-[#d4af37]/20 hover:bg-[#d4af37]/30 border-[#d4af37]/50 text-[#f3e5ab]'} border text-[10.5px] font-extrabold flex items-center gap-1.5 cursor-pointer transition">
+            <button id="btnDownloadAllFavorites" type="button" onclick="window.downloadAllFavoritesOffline()" class="px-3 py-1 rounded-full ${allFavsDown ? 'bg-[#d4af37]/30 border-[#f3d791] text-[#fff6d6]' : 'bg-[#d4af37]/20 hover:bg-[#d4af37]/30 border-[#d4af37]/50 text-[#f3e5ab]'} border text-[10.5px] font-extrabold flex items-center gap-1.5 cursor-pointer transition">
               ${allFavsDown
                 ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><polyline points="20 6 9 17 4 12"/></svg><span>Descargado</span>'
                 : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span>Descargar todos los Favoritos</span>'}
@@ -17725,7 +18220,7 @@ function stopPianoCameraLoop() {
       if (filterInp) filterInp.value = '';
 
       window.currentOpenedPlaylistTracks = tracks;
-      if (typeof window.refreshOfflineDownloadedIndex === 'function') {
+      if (!window._offlineDownloadedKeysLoaded && typeof window.refreshOfflineDownloadedIndex === 'function') {
         await window.refreshOfflineDownloadedIndex();
       }
       renderOpenedPlaylistTracksList(tracks, pl.id);
@@ -17780,6 +18275,7 @@ function stopPianoCameraLoop() {
           if (detId) nextSet.add(`id:${detId}`);
         }
         window._offlineDownloadedKeys = nextSet;
+        window._offlineDownloadedKeysLoaded = true;
       } catch (_) {}
       return window._offlineDownloadedKeys;
     };
@@ -17809,7 +18305,7 @@ function stopPianoCameraLoop() {
       const tracks = Array.isArray(window.currentOpenedPlaylistTracks) ? window.currentOpenedPlaylistTracks : [];
       const allDown = window.isCollectionFullyDownloadedOffline(tracks);
       if (allDown) {
-        btn.className = 'px-3 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/65 text-emerald-200 font-black text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition active:scale-95';
+        btn.className = 'px-3 py-2 rounded-xl bg-[#d4af37]/30 hover:bg-[#d4af37]/35 border border-[#f3d791]/80 text-[#fff6d6] font-black text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition active:scale-95';
         lbl.textContent = 'Descargado';
         if (icon) {
           icon.innerHTML = '<polyline points="20 6 9 17 4 12"/>';
@@ -17945,7 +18441,6 @@ function stopPianoCameraLoop() {
           const sId = `pl_track_${idx}`;
           const safeTitleJs = escapeJsAttr(rawTitle);
           const safeArtistJs = escapeJsAttr(rawArtist);
-          const isDownloaded = typeof window.isTrackDownloadedOffline === 'function' && window.isTrackDownloadedOffline(norm);
 
           return `
             <div class="piano-key-row flex flex-col">
@@ -17964,10 +18459,7 @@ function stopPianoCameraLoop() {
                     </div>
                     <span class="text-[9px] font-mono font-black text-[#8e755a] w-4 text-center flex-shrink-0 self-center">${displayIdx}</span>
                     <div class="min-w-0 flex-1 flex flex-col justify-center overflow-hidden">
-                      <div class="flex items-center gap-1.5 min-w-0">
-                        <h3 class="text-xs font-black text-[#17131d] truncate font-serif leading-tight">${escapeHtml(rawTitle)}</h3>
-                        ${isDownloaded ? `<span class="px-1.5 py-0.5 rounded bg-emerald-600/15 border border-emerald-600/40 text-[8px] font-black text-emerald-800 uppercase tracking-wider flex items-center gap-0.5 flex-shrink-0" title="Canción descargada en tu Biblioteca"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>Descargada</span>` : ''}
-                      </div>
+                      <h3 class="text-xs font-black text-[#17131d] truncate font-serif leading-tight">${escapeHtml(rawTitle)}</h3>
                       <p class="text-[10px] text-[#5a422d] font-semibold truncate leading-tight mt-0.5">${escapeHtml(rawArtist)}</p>
                     </div>
                   </div>
@@ -18027,7 +18519,7 @@ function stopPianoCameraLoop() {
           </div>
         </div>
         <div style="width:100%;height:7px;background:rgba(255,255,255,0.09);border-radius:999px;overflow:hidden;border:1px solid rgba(212,175,55,0.28);">
-          <div id="offlineDlBarFill" style="height:100%;width:0%;background:linear-gradient(90deg,#c5a059,#f3d791,#34d399);border-radius:999px;transition:width 0.25s ease;"></div>
+          <div id="offlineDlBarFill" style="height:100%;width:0%;background:linear-gradient(90deg,#9b6f23,#d4a84f,#f3d791);border-radius:999px;transition:width 0.2s ease;"></div>
         </div>
       `;
       document.body.appendChild(banner);
@@ -18056,9 +18548,9 @@ function stopPianoCameraLoop() {
       if (cancelBtn) cancelBtn.style.display = allowCancel && !completed ? 'inline-block' : 'none';
       if (iconEl) {
         if (completed) {
-          iconEl.style.background = 'rgba(16,185,129,0.22)';
-          iconEl.style.borderColor = 'rgba(52,211,153,0.7)';
-          iconEl.style.color = '#6ee7b7';
+          iconEl.style.background = 'rgba(212,175,55,0.28)';
+          iconEl.style.borderColor = 'rgba(243,215,145,0.85)';
+          iconEl.style.color = '#fff6d6';
           iconEl.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><polyline points="20 6 9 17 4 12"/></svg>';
         } else {
           iconEl.style.background = 'rgba(212,175,55,0.18)';
@@ -18069,10 +18561,30 @@ function stopPianoCameraLoop() {
       }
     }
 
+    function markTrackAsDownloadedInMemory(tr, chartItem = null) {
+      if (!(window._offlineDownloadedKeys instanceof Set)) {
+        window._offlineDownloadedKeys = new Set();
+      }
+      if (tr) {
+        if (tr.id) window._offlineDownloadedKeys.add(`id:${String(tr.id)}`);
+        const vid = extractCleanYtIdFromTrack(tr);
+        if (vid) window._offlineDownloadedKeys.add(`vid:${vid}`);
+        const detId = computeTrackDeterministicSlug(tr.title || '', tr.artist || '');
+        if (detId) window._offlineDownloadedKeys.add(`id:${detId}`);
+      }
+      if (chartItem) {
+        if (chartItem.id) window._offlineDownloadedKeys.add(`id:${String(chartItem.id)}`);
+        if (chartItem.originalTrackId) window._offlineDownloadedKeys.add(`id:${String(chartItem.originalTrackId)}`);
+        if (chartItem.videoId) window._offlineDownloadedKeys.add(`vid:${String(chartItem.videoId)}`);
+      }
+    }
+
     window.openTrackOptionsById = async function(songId, fallbackTitle = '', fallbackArtist = '', fallbackThumb = '', playlistId = null) {
       if (!window.DiscoverHomeApp || typeof window.DiscoverHomeApp.openTrackOptionsSheet !== 'function') return;
-      if (typeof window.refreshOfflineDownloadedIndex === 'function') {
-        await window.refreshOfflineDownloadedIndex();
+      if (!(window._offlineDownloadedKeys instanceof Set) || window._offlineDownloadedKeys.size === 0) {
+        if (typeof window.refreshOfflineDownloadedIndex === 'function') {
+          await window.refreshOfflineDownloadedIndex();
+        }
       }
       const found = (Array.isArray(window.searchResultsCache) && window.searchResultsCache.find(s => s && String(s.id) === String(songId))) ||
                     (Array.isArray(window.currentRenderedPlaylistTracks) && window.currentRenderedPlaylistTracks.find(s => s && String(s.id) === String(songId))) ||
@@ -18108,7 +18620,9 @@ function stopPianoCameraLoop() {
       if (!tr || !tr.title) return false;
 
       tr = normalizePlaylistTrackForPlayer(tr, 0);
-      await window.refreshOfflineDownloadedIndex();
+      if (showToast && (!(window._offlineDownloadedKeys instanceof Set) || window._offlineDownloadedKeys.size === 0)) {
+        await window.refreshOfflineDownloadedIndex();
+      }
 
       if (window.isTrackDownloadedOffline(tr)) {
         if (showToast && typeof showSuccessToast === 'function') {
@@ -18153,12 +18667,11 @@ function stopPianoCameraLoop() {
         );
         if (res && res.chartItem && res.dspPack && typeof IndexedDBStorage !== 'undefined') {
           await IndexedDBStorage.saveChart(res.chartItem, res.dspPack, res.dspPack.audioBlob || null);
-          await window.refreshOfflineDownloadedIndex();
-          if (typeof updateLibraryVaultBadges === 'function') updateLibraryVaultBadges();
-          if (typeof renderDownloadsSubtab === 'function') renderDownloadsSubtab();
-          if (typeof window.syncPlaylistDownloadButtonUI === 'function') window.syncPlaylistDownloadButtonUI();
-          if (Array.isArray(window.currentRenderedPlaylistTracks) && window.currentRenderedPlaylistTracks.length > 0 && currentOpenedPlaylistId) {
-            renderOpenedPlaylistTracksList(window.currentRenderedPlaylistTracks, currentOpenedPlaylistId);
+          markTrackAsDownloadedInMemory(tr, res.chartItem);
+          if (showToast) {
+            if (typeof updateLibraryVaultBadges === 'function') updateLibraryVaultBadges();
+            if (typeof renderDownloadsSubtab === 'function') renderDownloadsSubtab();
+            if (typeof window.syncPlaylistDownloadButtonUI === 'function') window.syncPlaylistDownloadButtonUI();
           }
         }
         if (showToast) {
@@ -18194,7 +18707,9 @@ function stopPianoCameraLoop() {
         return;
       }
 
-      await window.refreshOfflineDownloadedIndex();
+      if (!(window._offlineDownloadedKeys instanceof Set) || window._offlineDownloadedKeys.size === 0) {
+        await window.refreshOfflineDownloadedIndex();
+      }
       if (window.isCollectionFullyDownloadedOffline(list)) {
         if (typeof window.syncPlaylistDownloadButtonUI === 'function') window.syncPlaylistDownloadButtonUI();
         if (typeof showSuccessToast === 'function') {
@@ -18209,7 +18724,7 @@ function stopPianoCameraLoop() {
       updateOfflineDownloadProgressBanner({
         visible: true,
         title: `Descargando "${collectionName}"`,
-        subtitle: 'Iniciando descarga de canciones...',
+        subtitle: 'Iniciando descarga rápida...',
         percent: 2,
         counterText: `0/${list.length}`,
         allowCancel: true,
@@ -18225,7 +18740,7 @@ function stopPianoCameraLoop() {
         updateOfflineDownloadProgressBanner({
           visible: true,
           title: `Descargando "${collectionName}"`,
-          subtitle: `${already ? 'Verificando' : 'Guardando'}: ${tr.title} — ${tr.artist}`,
+          subtitle: `${already ? 'Ya en Biblioteca' : 'Guardando'}: ${tr.title} — ${tr.artist}`,
           percent: pct,
           counterText: `${i + 1}/${list.length}`,
           allowCancel: true,
@@ -18239,16 +18754,11 @@ function stopPianoCameraLoop() {
 
         const ok = await window.downloadSongToOfflineLibrary(tr, false);
         if (ok) completed++;
-        await new Promise(r => setTimeout(r, 150));
       }
 
-      await window.refreshOfflineDownloadedIndex();
       if (typeof updateLibraryVaultBadges === 'function') updateLibraryVaultBadges();
       if (typeof renderDownloadsSubtab === 'function') renderDownloadsSubtab();
       if (typeof window.syncPlaylistDownloadButtonUI === 'function') window.syncPlaylistDownloadButtonUI();
-      if (Array.isArray(window.currentRenderedPlaylistTracks) && window.currentRenderedPlaylistTracks.length > 0 && currentOpenedPlaylistId) {
-        renderOpenedPlaylistTracksList(window.currentRenderedPlaylistTracks, currentOpenedPlaylistId);
-      }
       if (currentLibrarySubtab === 'favorites' && typeof renderFavoritesSubtab === 'function') {
         renderFavoritesSubtab();
       }
@@ -18263,7 +18773,7 @@ function stopPianoCameraLoop() {
         allowCancel: false,
         completed: !wasCancelled
       });
-      setTimeout(() => updateOfflineDownloadProgressBanner({ visible: false }), 2800);
+      setTimeout(() => updateOfflineDownloadProgressBanner({ visible: false }), 2600);
     };
 
     window.downloadAllFavoritesOffline = async function() {
@@ -18820,7 +19330,8 @@ function stopPianoCameraLoop() {
         if (item && (String(chartId).startsWith('auto_dsp_') || item._isAutoGeneratedDsp || item.source === 'auto_dsp')) {
           const ver = item._fullTrackVersion || (item.chartData && item.chartData._fullTrackVersion) || 0;
           const isSynthFallback = String(item.source_name || item.creator || '').includes('Piano Acoustic Synth');
-          if (ver < 8 || isSynthFallback) {
+          const hasRealBlob = Boolean(item.audioBlob && item.audioBlob.size >= 80000);
+          if (ver < 9 || isSynthFallback || !hasRealBlob) {
             const prevTitle = item.title || '';
             const prevArtist = item.artist || '';
             const prevThumb = item.thumbnail || '';
@@ -18832,8 +19343,7 @@ function stopPianoCameraLoop() {
           }
         }
         const savedAudioSource = item?.audioBlob ||
-          (typeof item?.audioUrl === 'string' && item.audioUrl.startsWith('yt_bridge://') ? item.audioUrl : '') ||
-          (item?.videoId ? `yt_bridge://${item.videoId}` : '');
+          (typeof item?.audioUrl === 'string' && !item.audioUrl.startsWith('yt_bridge://') ? item.audioUrl : '');
         if (!item || !savedAudioSource) {
           return downloadAndPlaySong(
             chartId,
@@ -19063,7 +19573,7 @@ function stopPianoCameraLoop() {
           { id: 'ic8j13piAhQ', title: 'Cruel Summer', artist: 'Taylor Swift' },
           { id: 'JGwWNGJdvx8', title: 'Shape of You', artist: 'Ed Sheeran' },
           { id: 'wXhTHyIgQ_U', title: 'Circles', artist: 'Post Malone' },
-          { id: 'fKopy74weus', title: 'Starboy', artist: 'The Weeknd' },
+          { id: '3_g2un5M350', title: 'Starboy', artist: 'The Weeknd' },
           { id: '09R8_2nJtjg', title: 'Sugar', artist: 'Maroon 5' },
           { id: 'YQHsXMglC9A', title: 'Hello', artist: 'Adele' },
           { id: 'CevxZvSJLk8', title: 'Roar', artist: 'Katy Perry' },
@@ -21871,7 +22381,13 @@ function stopPianoCameraLoop() {
     };
     try { window.loadReleaseTagsMap(); } catch (_) {}
 
-    // Restaurar canciones sincronizadas desde almacenamiento local
+    function _getTopSongCanonicalKey(title, artist) {
+      const t = repairSpanishBrokenAccents(title || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '');
+      const a = repairSpanishBrokenAccents(artist || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '');
+      return `${t}||${a}`;
+    }
+
+    // Restaurar canciones sincronizadas desde almacenamiento local reparando acentos y evitando duplicados
     try {
       const cachedRemoteCat = localStorage.getItem('beatstar_remote_top_catalog');
       if (cachedRemoteCat) {
@@ -21879,10 +22395,16 @@ function stopPianoCameraLoop() {
         if (Array.isArray(parsedCat) && parsedCat.length > 0) {
           if (!Array.isArray(window.TOP_SONGS_CATALOG)) window.TOP_SONGS_CATALOG = [];
           const existingIds = new Set(window.TOP_SONGS_CATALOG.map(s => s.id));
+          const existingSigs = new Set(window.TOP_SONGS_CATALOG.map(s => _getTopSongCanonicalKey(s.title, s.artist)));
           for (const s of parsedCat) {
-            if (s && s.id && !existingIds.has(s.id)) {
+            if (!s || !s.id) continue;
+            s.title = repairSpanishBrokenAccents(s.title || '');
+            s.artist = repairSpanishBrokenAccents(s.artist || '');
+            const sig = _getTopSongCanonicalKey(s.title, s.artist);
+            if (!existingIds.has(s.id) && !existingSigs.has(sig)) {
               window.TOP_SONGS_CATALOG.push(s);
               existingIds.add(s.id);
+              existingSigs.add(sig);
             }
           }
         }
@@ -21928,21 +22450,34 @@ function stopPianoCameraLoop() {
 
         let newCount = 0;
         const currentMap = new Map();
-        window.TOP_SONGS_CATALOG.forEach(s => currentMap.set(s.id, s));
+        const currentSigMap = new Map();
+        window.TOP_SONGS_CATALOG.forEach(s => {
+          s.title = repairSpanishBrokenAccents(s.title || '');
+          s.artist = repairSpanishBrokenAccents(s.artist || '');
+          currentMap.set(s.id, s);
+          currentSigMap.set(_getTopSongCanonicalKey(s.title, s.artist), s);
+        });
 
         for (const rSong of remoteSongs) {
           if (!rSong || !rSong.id) continue;
-          if (currentMap.has(rSong.id)) {
-            const existing = currentMap.get(rSong.id);
-            if (!existing.cover_url && rSong.cover_url) existing.cover_url = rSong.cover_url;
-            if (!existing.thumbnail && rSong.thumbnail) existing.thumbnail = rSong.thumbnail;
+          const repTitle = repairSpanishBrokenAccents(rSong.title || rSong.id.replace(/_/g, ' '));
+          const repArtist = repairSpanishBrokenAccents(rSong.artist || 'Artista');
+          const sig = _getTopSongCanonicalKey(repTitle, repArtist);
+          const existing = currentMap.get(rSong.id) || currentSigMap.get(sig);
+          if (existing) {
+            if ((!existing.cover_url || existing.cover_url === './app_logo.png') && rSong.cover_url && rSong.cover_url !== './app_logo.png') {
+              existing.cover_url = rSong.cover_url;
+            }
+            if ((!existing.thumbnail || existing.thumbnail === './app_logo.png') && rSong.thumbnail && rSong.thumbnail !== './app_logo.png') {
+              existing.thumbnail = rSong.thumbnail;
+            }
             if (rSong.total_notes) existing.total_notes = rSong.total_notes;
             if (rSong.bpm) existing.bpm = rSong.bpm;
           } else {
             const newSong = {
               id: rSong.id,
-              title: rSong.title || rSong.id.replace(/_/g, ' '),
-              artist: rSong.artist || 'Artista',
+              title: repTitle,
+              artist: repArtist,
               bpm: Number(rSong.bpm) || 120,
               total_notes: Number(rSong.total_notes) || 300,
               chart_url: rSong.chart_url || `${rSong.id}.json`,
@@ -21952,10 +22487,12 @@ function stopPianoCameraLoop() {
             };
             window.TOP_SONGS_CATALOG.push(newSong);
             currentMap.set(newSong.id, newSong);
+            currentSigMap.set(sig, newSong);
             newCount++;
           }
         }
 
+        window._formattedTopSongsCache = null;
         try {
           localStorage.setItem('beatstar_remote_top_catalog', JSON.stringify(window.TOP_SONGS_CATALOG));
         } catch (_) {}
@@ -21979,11 +22516,22 @@ function stopPianoCameraLoop() {
       if (window._formattedTopSongsCache && window._formattedTopSongsCacheLen === catalog.length && catalog.length > 0) {
         return window._formattedTopSongsCache;
       }
-      const mapped = catalog.map((song) => {
+      const seenSigs = new Set();
+      const mapped = [];
+      for (const song of catalog) {
+        if (!song || !song.id) continue;
         const rawNotes = Number(song.total_notes) || 350;
         const songId = `top_${song.id}`;
-        const cleanTitle = repairSpanishBrokenAccents(song.title || 'Canción');
-        const cleanArtist = repairSpanishBrokenAccents(song.artist || 'Artista');
+        let cleanTitle = repairSpanishBrokenAccents(song.title || 'Canción');
+        let cleanArtist = repairSpanishBrokenAccents(song.artist || 'Artista');
+        if (/^artista$/i.test(cleanArtist)) {
+          if (/thinking out loud|shape of you/i.test(cleanTitle)) cleanArtist = 'Ed Sheeran';
+          else if (/starboy/i.test(cleanTitle)) cleanArtist = 'The Weeknd';
+        }
+        const sig = _getTopSongCanonicalKey(cleanTitle, cleanArtist);
+        if (seenSigs.has(sig)) continue;
+        seenSigs.add(sig);
+
         const hasValidCover = song.cover_url && song.cover_url !== './app_logo.png';
         const hasValidThumb = song.thumbnail && song.thumbnail !== './app_logo.png';
         const artwork = (hasValidCover ? song.cover_url : (hasValidThumb ? song.thumbnail : '')) || getSongCoverFallback(cleanTitle, cleanArtist);
@@ -22010,8 +22558,8 @@ function stopPianoCameraLoop() {
         if (typeof LaneRemapper !== 'undefined' && typeof LaneRemapper.normalizeSongDifficulties === 'function') {
           LaneRemapper.normalizeSongDifficulties(formatted);
         }
-        return formatted;
-      });
+        mapped.push(formatted);
+      }
       if (mapped.length > 0) {
         window._formattedTopSongsCache = mapped;
         window._formattedTopSongsCacheLen = catalog.length;
@@ -22069,6 +22617,12 @@ function stopPianoCameraLoop() {
       const loadStatus = document.getElementById('globalLoadStatus') || document.getElementById('loadingOverlayStatus');
       const curtain = document.getElementById('gameCurtain');
 
+      if (targetDiff && targetDiff !== 'Normal' && typeof window.syncDifficultyToGameModal === 'function') {
+        window.syncDifficultyToGameModal(targetDiff);
+      } else if (typeof currentTargetDifficulty === 'string' && currentTargetDifficulty !== 'all' && typeof window.syncDifficultyToGameModal === 'function') {
+        window.syncDifficultyToGameModal(currentTargetDifficulty);
+      }
+
       if (!window._modeAlreadyChosenForThisLaunch && !window.isPlaytestingFromEditor && typeof openGameModeSelectModal === 'function') {
         const chosenMode = await openGameModeSelectModal(songMeta.title || 'PISTA TOP', songMeta.artist || '', true);
         if (!chosenMode) {
@@ -22077,6 +22631,9 @@ function stopPianoCameraLoop() {
         }
         applySelectedGameMode(chosenMode);
         window._modeAlreadyChosenForThisLaunch = true;
+      }
+      if (window._selectedModalDifficulty && GAME_MODAL_DIFFICULTY_MAP[window._selectedModalDifficulty]) {
+        targetDiff = GAME_MODAL_DIFFICULTY_MAP[window._selectedModalDifficulty].label;
       }
 
       if (curtain) curtain.classList.remove('revealed');
@@ -22828,6 +23385,11 @@ function stopPianoCameraLoop() {
       if (!isDailyFeatured && !window._launchingFromSlot) {
         window.currentFeaturedSongX2 = false;
       }
+      if (targetDiff && typeof window.syncDifficultyToGameModal === 'function') {
+        window.syncDifficultyToGameModal(targetDiff);
+      } else if (typeof currentTargetDifficulty === 'string' && currentTargetDifficulty !== 'all' && typeof window.syncDifficultyToGameModal === 'function') {
+        window.syncDifficultyToGameModal(currentTargetDifficulty);
+      }
       if (!window._modeAlreadyChosenForThisLaunch && !window.isPlaytestingFromEditor && typeof openGameModeSelectModal === 'function') {
         const hasCommKaraoke = typeof checkCommunitySongHasKaraoke === 'function' ? await checkCommunitySongHasKaraoke(chartId) : false;
         const chosenMode = await openGameModeSelectModal('PISTA COMUNITARIA', '', hasCommKaraoke);
@@ -22837,6 +23399,9 @@ function stopPianoCameraLoop() {
         }
         applySelectedGameMode(chosenMode);
         window._modeAlreadyChosenForThisLaunch = true;
+      }
+      if (window._selectedModalDifficulty && GAME_MODAL_DIFFICULTY_MAP[window._selectedModalDifficulty]) {
+        targetDiff = GAME_MODAL_DIFFICULTY_MAP[window._selectedModalDifficulty].label;
       }
 
       const overlay = document.getElementById('globalLoadingOverlay');
@@ -27238,44 +27803,74 @@ function stopPianoCameraLoop() {
     }
 
     function doesSongHaveKaraoke(item) {
-      if (!item || typeof item !== 'object') return true;
-      // Modo Karaoke universal: cualquier canción del catálogo (Top, Teclas Mágicas YT, osu!, BeatSaver, Clone Hero o Comunidad)
-      // con título válido o con letras integradas puede jugarse en Modo Karaoke (resuelve letras sincronizadas LRC automáticamente).
+      if (!item || typeof item !== 'object') return false;
+      // Modo Karaoke de partida exclusivo para Canciones Top (y pistas con letras UltraStar nativas)
+      const idStr = String(item.id || item.communityChartId || item.metadata?.id || '').toLowerCase();
+      const srcStr = String(item.source || item.source_name || '').toLowerCase();
       if (
-        (Array.isArray(item.lyrics) && item.lyrics.length > 0) ||
-        (Array.isArray(item.activeKaraokeLyrics) && item.activeKaraokeLyrics.length > 0) ||
+        item.is_top_song ||
+        idStr.startsWith('top_') ||
+        srcStr === 'top_playlist' ||
+        (Array.isArray(item.lyrics) && item.lyrics.length > 0 && !item._universalLrcKaraoke) ||
         (item.unpackedData && Array.isArray(item.unpackedData.lyrics) && item.unpackedData.lyrics.length > 0) ||
         (item.chartData && Array.isArray(item.chartData.lyrics) && item.chartData.lyrics.length > 0) ||
-        (item.metadata && Array.isArray(item.metadata.lyrics) && item.metadata.lyrics.length > 0)
+        (item.metadata && Array.isArray(item.metadata.lyrics) && item.metadata.lyrics.length > 0 && !item._universalLrcKaraoke)
       ) {
         return true;
       }
-      const titleStr = String(item.title || item.metadata?.title || item.name || '').trim();
-      return titleStr.length >= 2;
+      if (window.dualStreamEngine && typeof window.dualStreamEngine._findMatchingTopCatalogSong === 'function') {
+        const matchedTop = window.dualStreamEngine._findMatchingTopCatalogSong(item);
+        if (matchedTop) return true;
+      }
+      return false;
     }
     window.doesSongHaveKaraoke = doesSongHaveKaraoke;
 
     async function checkCommunitySongHasKaraoke(chartId) {
-      if (!chartId) return true;
-      return true;
+      if (!chartId) return false;
+      const s = String(chartId).toLowerCase();
+      return s.startsWith('top_');
     }
     window.checkCommunitySongHasKaraoke = checkCommunitySongHasKaraoke;
 
     const GAME_MODAL_DIFFICULTY_MAP = {
       easy: { density: 'easy', label: 'Fácil', stars: 1.8 },
       normal: { density: 'normal', label: 'Media', stars: 3.0 },
+      medium: { density: 'normal', label: 'Media', stars: 3.0 },
       hard: { density: 'hard', label: 'Difícil', stars: 4.5 },
-      extreme: { density: 'extreme', label: 'Extrema', stars: 6.5 }
+      extreme: { density: 'extreme', label: 'Extrema', stars: 6.5 },
+      impossible: { density: 'impossible', label: 'Imposible', stars: 8.8 }
     };
     window._selectedModalDifficulty = localStorage.getItem('piano_preferred_difficulty') || 'hard';
+    if (window._selectedModalDifficulty === 'medium') window._selectedModalDifficulty = 'normal';
     window._modalDifficultyPendingConsume = false;
 
+    function normalizeToGameModalDiffKey(rawVal) {
+      const s = String(rawVal || '').trim().toLowerCase();
+      if (!s) return null;
+      if (s === 'easy' || s.includes('fácil') || s.includes('facil') || s.includes('beginner')) return 'easy';
+      if (s === 'normal' || s === 'medium' || s.includes('media')) return 'normal';
+      if (s === 'impossible' || s.includes('imposible') || s.includes('insana') || s.includes('insane') || s.includes('master')) return 'impossible';
+      if (s === 'extreme' || s.includes('extrema') || s.includes('expert')) return 'extreme';
+      if (s === 'hard' || s.includes('difícil') || s.includes('dificil')) return 'hard';
+      return null;
+    }
+
+    function syncDifficultyToGameModal(rawVal) {
+      const mapped = normalizeToGameModalDiffKey(rawVal);
+      if (mapped && GAME_MODAL_DIFFICULTY_MAP[mapped]) {
+        selectGameModalDifficulty(mapped);
+      }
+    }
+    window.syncDifficultyToGameModal = syncDifficultyToGameModal;
+
     function selectGameModalDifficulty(diffKey) {
-      const key = GAME_MODAL_DIFFICULTY_MAP[diffKey] ? diffKey : 'hard';
+      const normalized = normalizeToGameModalDiffKey(diffKey) || diffKey;
+      const key = GAME_MODAL_DIFFICULTY_MAP[normalized] ? (normalized === 'medium' ? 'normal' : normalized) : 'hard';
       window._selectedModalDifficulty = key;
       window._modalDifficultyPendingConsume = true;
       try { localStorage.setItem('piano_preferred_difficulty', key); } catch (_) {}
-      ['easy', 'normal', 'hard', 'extreme'].forEach(k => {
+      ['easy', 'normal', 'hard', 'extreme', 'impossible'].forEach(k => {
         const btn = document.getElementById(`gmDiffBtn_${k}`);
         if (btn) btn.classList.toggle('active', k === key);
       });

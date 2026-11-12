@@ -10,20 +10,15 @@ android {
     applicationId = "com.beatstar.renacer"
     minSdk = 24
     targetSdk = 35
-    versionCode = 54
-    versionName = "5.4.0"
+    versionCode = 80
+    versionName = "8.0.0"
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
   signingConfigs {
     create("debugConfig") {
-      val sharedKs = file("${rootDir}/app-signing.keystore")
       val repoKs = file("${rootDir}/debug.keystore")
-      storeFile = when {
-        sharedKs.exists() -> sharedKs
-        repoKs.exists() -> repoKs
-        else -> file("${System.getProperty("user.home")}/.android/debug.keystore")
-      }
+      storeFile = if (repoKs.exists()) repoKs else file("${System.getProperty("user.home")}/.android/debug.keystore")
       storePassword = "android"
       keyAlias = "androiddebugkey"
       keyPassword = "android"

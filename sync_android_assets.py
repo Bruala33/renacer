@@ -108,12 +108,12 @@ def sync_built_apk():
         existing.sort(key=lambda p: os.path.getmtime(p), reverse=True)
         built_apk = existing[0]
 
-    _ensure_signed_with_shared_key(built_apk)
-
     # Keep ONLY ONE canonical APK at app/static/PianoCommunity.apk so GitHub exports never exceed payload limits
+    # IMPORTANT: Never modify built_apk in-place because AI Studio Emulator requires app-debug.apk to keep debug.keystore signature
     canonical_dst = os.path.join(STATIC_DIR, "PianoCommunity.apk")
     os.makedirs(os.path.dirname(canonical_dst), exist_ok=True)
     shutil.copy2(built_apk, canonical_dst)
+    _ensure_signed_with_shared_key(canonical_dst)
 
     duplicate_apks = [
         os.path.join(ROOT_DIR, "PianoCommunity.apk"),

@@ -8901,11 +8901,11 @@
   {
     "id": "artista_starboy",
     "title": "Starboy",
-    "artist": "Artista",
+    "artist": "The Weeknd",
     "bpm": 372.0,
-    "total_notes": 794,
-    "chart_url": "artista_starboy.json",
-    "audio_url": "artista_starboy.mp3",
+    "total_notes": 917,
+    "chart_url": "the_weeknd_ft_daft_punk_starboy.json",
+    "audio_url": "the_weeknd_ft_daft_punk_starboy.mp3",
     "cover_url": "./app_logo.png",
     "thumbnail": "./app_logo.png"
   },
